@@ -1,0 +1,16 @@
+# Build directory
+builddir/
+
+# IDE settings
+.vscode/*
+!.vscode/tasks.json
+!.vscode/launch.json
+
+# Subprojects downloaded sources
+subprojects/*
+# But keep wrap files and packagefiles
+!subprojects/*.wrap
+!subprojects/packagefiles/
+
+# OS specific files
+.DS_Store

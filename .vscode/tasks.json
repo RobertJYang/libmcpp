@@ -1,0 +1,113 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Check Build Directory",
+            "type": "shell",
+            "command": "if [ ! -d \"${workspaceFolder}/builddir\" ]; then echo \"BUILD_DIR_NOT_EXIST\"; else echo \"BUILD_DIR_EXIST\"; fi",
+            "problemMatcher": []
+        },
+        {
+            "label": "Meson Setup",
+            "type": "shell",
+            "command": [
+                "BUILD_DIR_CHECK=$(if [ ! -d \"${workspaceFolder}/builddir\" ]; then",
+                "    echo \"BUILD_DIR_NOT_EXIST\";",
+                "else",
+                "    echo \"BUILD_DIR_EXIST\";",
+                "fi) &&",
+                "if [ \"$BUILD_DIR_CHECK\" = \"BUILD_DIR_NOT_EXIST\" ]; then",
+                "    meson setup builddir --buildtype=${input:buildTypeChoice};",
+                "else",
+                "    CURRENT_BUILDTYPE=$(grep \"buildtype =\" builddir/meson-private/cmd_line.txt | cut -d'=' -f2 | tr -d ' ') &&",
+                "    if [ \"$CURRENT_BUILDTYPE\" != \"${input:buildTypeChoice}\" ]; then",
+                "        meson setup builddir --buildtype=${input:buildTypeChoice} --reconfigure;",
+                "    else",
+                "        echo \"当前构建类型与选择一致，无需重新配置\";",
+                "    fi;",
+                "fi"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "presentation": {
+                "reveal": "always",
+                "panel": "shared"
+            },
+            "problemMatcher": [],
+            "runOptions": {
+                "runOn": "default"
+            }
+        },
+        {
+            "label": "Build Project",
+            "type": "shell",
+            "command": "meson",
+            "args": ["compile", "-v"],
+            "options": {
+                "cwd": "${workspaceFolder}/builddir"
+            },
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "dependsOn": ["Meson Setup"],
+            "problemMatcher": [
+                "$gcc"
+            ]
+        },
+        {
+            "label": "Run Tests",
+            "type": "shell",
+            "command": "meson",
+            "args": ["test", "-v"],
+            "options": {
+                "cwd": "${workspaceFolder}/builddir"
+            },
+            "group": {
+                "kind": "test",
+                "isDefault": true
+            },
+            "dependsOn": ["Meson Setup"],
+            "presentation": {
+                "reveal": "always",
+                "panel": "shared"
+            },
+            "problemMatcher": [
+                "$gcc"
+            ]
+        },
+        {
+            "label": "Clean Build",
+            "type": "shell",
+            "command": "rm",
+            "args": ["-rf", "${workspaceFolder}/builddir"],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "presentation": {
+                "reveal": "always",
+                "panel": "shared"
+            },
+            "problemMatcher": []
+        }
+    ],
+    "inputs": [
+        {
+            "id": "buildTypeChoice",
+            "type": "pickString",
+            "description": "选择构建类型",
+            "options": [
+                "debug",
+                "release"
+            ],
+            "default": "debug"
+        },
+        {
+            "id": "checkBuildDirResult",
+            "type": "command",
+            "command": "workbench.action.tasks.runTask",
+            "args": "Check Build Directory"
+        }
+    ]
+}

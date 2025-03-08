@@ -1,0 +1,19 @@
+# 测试源文件列表
+test_files = [
+  'main.cpp',
+  'test_object.cpp',
+  'test_signal_slot.cpp',
+  'test_event.cpp',
+  'test_application.cpp',
+]
+
+# 创建测试可执行文件
+test_exe = executable('libmcpp_test',
+  test_files,
+  include_directories : incdir,
+  dependencies : [libmcpp_dep, gtest_dep, boost_dep, gmock_dep],
+  install : false
+)
+
+# 注册测试
+test('libmcpp unit tests', test_exe)
