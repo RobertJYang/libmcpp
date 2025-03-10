@@ -4,28 +4,43 @@
  */
 
 #include "appbase/application.h"
+#include "example_plugin.h"
 #include <iostream>
 
-int main(int argc, char** argv) {
-    // 获取应用程序实例
-    appbase::application& app = appbase::application::instance();
-    
-    // 设置应用程序版本号
-    app.set_version("1.0.0");
-    
-    // 设置插件目录
-    // 注意：在实际使用中，应该使用绝对路径或相对于可执行文件的路径
-    app.set_plugin_dir("./plugins");
-    
-    // 初始化应用程序，解析命令行参数
-    // 这将自动加载通过--plugin参数指定的插件
-    app.initialize(argc, argv);
-    
-    // 启动所有已初始化的插件
-    app.startup();
+using namespace appbase;
 
-    // 关闭应用程序，这将关闭所有插件并卸载动态库
-    app.shutdown();
-    
-    return 0;
+// 创建插件实例的函数
+extern "C" plugin* create_plugin() {
+    return new examples::example_plugin();
+}
+
+int main(int argc, char** argv) {
+    try {
+        // 获取应用程序实例
+        application& app = application::instance();
+
+        // 设置版本号
+        app.set_version("1.0.0");
+
+        // 设置插件目录
+        // 注意：在实际使用中，应该使用绝对路径或相对于可执行文件的路径
+        app.set_plugin_dir("./plugins");
+
+        // 初始化应用程序
+        app.initialize(argc, argv);
+
+        // 启动应用程序
+        app.start();
+
+        // 运行应用程序
+        app.exec();
+
+        // 清理资源
+        app.cleanup();
+
+        return 0;
+    } catch (const std::exception& e) {
+        std::cerr << "错误: " << e.what() << std::endl;
+        return 1;
+    }
 }

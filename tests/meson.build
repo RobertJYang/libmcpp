@@ -5,6 +5,7 @@ test_files = [
   'test_signal_slot.cpp',
   'test_event.cpp',
   'test_application.cpp',
+  'test_priority_queue.cpp',
 ]
 
 # 创建测试可执行文件
