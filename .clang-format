@@ -111,3 +111,10 @@ SortUsingDeclarations: true
 
 # C++特定设置
 Standard: Cpp11
+
+# 嵌套深度限制
+# 注意：clang-format本身不直接支持限制嵌套深度
+# 但可以通过以下设置间接影响代码结构
+IndentCaseBlocks: false
+IndentGotoLabels: false
+IndentWrappedFunctionNames: false

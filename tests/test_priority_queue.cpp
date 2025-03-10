@@ -105,6 +105,39 @@ TEST(PriorityQueueTest, ApplicationIntegration) {
     EXPECT_EQ(3, execution_order[2]) << "低优先级任务应该最后执行";
 }
 
+// 辅助函数：获取优先级值
+int get_priority_value(int index) {
+    int p = index % 3;
+    switch (p) {
+    case 0:
+        return priority::high;
+    case 1:
+        return priority::normal;
+    case 2:
+        return priority::low;
+    default:
+        return priority::normal;
+    }
+}
+
+// 辅助函数：创建任务处理函数
+auto create_task_handler(std::mutex& mutex, std::vector<int>& execution_order,
+                         std::atomic<int>& completed_tasks, std::condition_variable& cv,
+                         int total_tasks, int priority_value) {
+    return [&mutex, &execution_order, &completed_tasks, &cv, total_tasks, priority_value]() {
+        // 记录执行顺序
+        {
+            std::lock_guard<std::mutex> lock(mutex);
+            execution_order.push_back(priority_value);
+        }
+
+        // 增加已完成任务计数并通知
+        if (++completed_tasks == total_tasks) {
+            cv.notify_one();
+        }
+    };
+}
+
 // 测试多线程并发提交任务时的优先级顺序
 TEST(PriorityQueueTest, MultithreadedPriorityOrder) {
     boost::asio::io_context io;
@@ -124,37 +157,14 @@ TEST(PriorityQueueTest, MultithreadedPriorityOrder) {
     // 提交任务
     for (int t = 0; t < thread_count; ++t) {
         for (int i = 0; i < tasks_per_thread; ++i) {
-            // 确定任务优先级 (高、中、低循环)
-            int p = (t * tasks_per_thread + i) % 3;
-            int priority_value;
+            // 计算任务索引和优先级
+            int task_index = t * tasks_per_thread + i;
+            int priority_value = get_priority_value(task_index);
 
-            switch (p) {
-            case 0:
-                priority_value = priority::high;
-                break;
-            case 1:
-                priority_value = priority::normal;
-                break;
-            case 2:
-                priority_value = priority::low;
-                break;
-            }
-
-            // 提交任务
-            executor.execute(
-                [&mutex, &execution_order, &completed_tasks, &cv, priority_value]() {
-                    // 记录执行顺序
-                    {
-                        std::lock_guard<std::mutex> lock(mutex);
-                        execution_order.push_back(priority_value);
-                    }
-
-                    // 增加已完成任务计数并通知
-                    if (++completed_tasks == total_tasks) {
-                        cv.notify_one();
-                    }
-                },
-                priority_value);
+            // 创建并提交任务
+            auto handler = create_task_handler(mutex, execution_order, completed_tasks, cv,
+                                               total_tasks, priority_value);
+            executor.execute(handler, priority_value);
         }
     }
 
@@ -166,9 +176,10 @@ TEST(PriorityQueueTest, MultithreadedPriorityOrder) {
     // 等待所有任务完成
     {
         std::unique_lock<std::mutex> lock(mutex);
-        bool completed = cv.wait_for(lock, std::chrono::seconds(5), [&completed_tasks]() {
-            return completed_tasks == total_tasks;
-        });
+        bool completed =
+            cv.wait_for(lock, std::chrono::seconds(5), [&completed_tasks]() {
+                return completed_tasks == total_tasks;
+            });
 
         ASSERT_TRUE(completed) << "任务执行超时";
     }
