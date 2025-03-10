@@ -1,12 +1,24 @@
+/*
+ * Copyright (c) 2025 Huawei Technologies Co., Ltd.
+ * openUBMC is licensed under Mulan PSL v2.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *         http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
+ */
+
 #ifndef MC_CORE_APPLICATION_H
 #define MC_CORE_APPLICATION_H
 
+#include "mc/core/plugin.h"
+#include "mc/core/priority_queue.h"
+#include <boost/asio.hpp>
+#include <filesystem>
 #include <memory>
 #include <string>
-#include <filesystem>
-#include <boost/asio.hpp>
-#include "mc/core/priority_queue.h"
-#include "mc/core/plugin.h"
 
 namespace mc {
 namespace fs = std::filesystem;
@@ -19,56 +31,56 @@ public:
     using io_context_type = boost::asio::io_context;
     using priority_executor_type = priority_queue_executor<io_context_type>;
     using work_guard_type = boost::asio::executor_work_guard<io_context_type::executor_type>;
-    
+
     /**
      * @brief 获取应用程序单例实例
      * @return 应用程序实例引用
      */
     static application& instance();
-    
+
     /**
      * @brief 析构函数
      */
     ~application();
-    
+
     /**
      * @brief 设置应用程序版本号
      * @param version 版本号
      */
     void set_version(const std::string& version);
-    
+
     /**
      * @brief 获取应用程序版本号
      * @return 版本号
      */
     const std::string& version() const;
-    
+
     /**
      * @brief 设置配置文件目录
      * @param config_dir 配置文件目录路径
      */
     void set_config_dir(const fs::path& config_dir);
-    
+
     /**
      * @brief 获取配置文件目录
      * @return 配置文件目录路径
      */
     const fs::path& config_dir() const;
-    
+
     /**
      * @brief 注册插件
      * @param plugin 插件指针
      * @return 应用程序实例引用，用于链式调用
      */
     application& register_plugin(std::unique_ptr<plugin> plugin);
-    
+
     /**
      * @brief 查找插件
      * @param name 插件名称
      * @return 插件指针，如果未找到则返回nullptr
      */
     plugin* find_plugin(const std::string& name) const;
-    
+
     /**
      * @brief 初始化所有已注册的插件
      * @return 应用程序实例引用，用于链式调用
@@ -89,45 +101,45 @@ public:
      * @return 应用程序实例引用，用于链式调用
      */
     application& set_plugin_dir(const fs::path& plugin_dir);
-    
+
     /**
      * @brief 启动应用程序
-     * 
+     *
      * 此函数执行以下操作：
      * 1. 启动所有已初始化的插件
      * 2. 准备IO上下文和工作线程
-     * 
+     *
      * 注意：此函数不会阻塞，如需阻塞等待应用程序结束，请调用exec()
-     * 
+     *
      * @return 应用程序实例引用，用于链式调用
      */
     application& start();
 
     /**
      * @brief 执行应用程序并阻塞直到应用程序结束
-     * 
+     *
      * 此函数会阻塞当前线程，运行事件循环直到应用程序被停止
      */
     void exec();
 
     /**
      * @brief 停止应用程序
-     * 
+     *
      * 此函数执行以下操作：
      * 1. 标记应用程序为停止状态
      * 2. 停止IO上下文和事件循环
-     * 
+     *
      * 注意：此函数不会等待资源清理完成，如需完全清理，请调用cleanup()
      */
     void stop();
 
     /**
      * @brief 清理应用程序资源
-     * 
+     *
      * 此函数执行以下操作：
      * 1. 停止所有插件
      * 2. 清理所有资源
-     * 
+     *
      * 注意：此函数通常在析构函数中自动调用，除非有特殊需求，否则不需要手动调用
      */
     void cleanup();
@@ -143,26 +155,26 @@ public:
      * @return IO上下文引用
      */
     io_context_type& get_io_context();
-    
+
     /**
      * @brief 获取优先级队列执行器
      * @return 优先级队列执行器引用
      */
     priority_executor_type& get_priority_executor();
-    
+
     /**
      * @brief 提交任务到优先级队列
      * @param f 任务函数
      * @param p 任务优先级，默认为中优先级
      */
-    template<typename Function>
+    template <typename Function>
     void post(Function&& f, int p = priority::normal) {
         get_priority_executor().execute(std::forward<Function>(f), p);
     }
 
     /**
      * @brief 关闭应用程序
-     * 
+     *
      * @deprecated 请使用 cleanup() 代替
      */
     [[deprecated("请使用 cleanup() 代替")]]
@@ -172,7 +184,7 @@ public:
 
     /**
      * @brief 退出应用程序
-     * 
+     *
      * @deprecated 请使用 stop() 代替
      */
     [[deprecated("请使用 stop() 代替")]]
@@ -182,7 +194,7 @@ public:
 
     /**
      * @brief 运行应用程序
-     * 
+     *
      * @deprecated 请使用 exec() 代替
      */
     [[deprecated("请使用 exec() 代替")]]
@@ -192,7 +204,7 @@ public:
 
     /**
      * @brief 启动所有已初始化的插件
-     * 
+     *
      * @deprecated 请使用 start() 代替
      */
     [[deprecated("请使用 start() 代替")]]
@@ -202,7 +214,7 @@ public:
 
     /**
      * @brief 检查应用程序是否正在退出
-     * 
+     *
      * @deprecated 请使用 is_stopped() 代替
      */
     [[deprecated("请使用 is_stopped() 代替")]]
@@ -215,7 +227,7 @@ private:
      * @brief 构造函数（私有，通过instance()获取实例）
      */
     application();
-    
+
     /**
      * @brief 加载动态插件
      * @param plugin_name 插件名称
@@ -227,7 +239,9 @@ private:
     std::unique_ptr<impl> pimpl_;
 }; // 添加分号
 
-inline application& app() { return application::instance(); }
+inline application& app() {
+    return application::instance();
+}
 
 } // namespace mc
 

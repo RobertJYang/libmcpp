@@ -1,14 +1,27 @@
+/*
+ * Copyright (c) 2025 Huawei Technologies Co., Ltd.
+ * openUBMC is licensed under Mulan PSL v2.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *         http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
+ */
+
 /**
  * @file variant.h
  * @brief 定义了 mc 命名空间下的 variant 类，用于表示任意类型的数据
  */
-#pragma once
+#ifndef MC_VARIANT_H
+#define MC_VARIANT_H
 
 #include <array>
 #include <cstdint>
 #include <deque>
-#include <list>
 #include <forward_list>
+#include <list>
 #include <map>
 #include <memory>
 #include <optional>
@@ -94,21 +107,21 @@ public:
      * @brief 数据类型枚举
      */
     enum class type_id {
-        null_type = 0,    ///< 空类型
-        int8_type,        ///< 有符号8位整数
-        uint8_type,       ///< 无符号8位整数 
-        int16_type,       ///< 有符号16位整数
-        uint16_type,      ///< 无符号16位整数
-        int32_type,       ///< 有符号32位整数
-        uint32_type,      ///< 无符号32位整数
-        int64_type,       ///< 有符号64位整数
-        uint64_type,      ///< 无符号64位整数
-        double_type,      ///< 双精度浮点数
-        bool_type,        ///< 布尔类型
-        string_type,      ///< 字符串类型
-        array_type,       ///< 数组类型
-        object_type,      ///< 对象类型
-        blob_type         ///< 二进制数据类型
+        null_type = 0, ///< 空类型
+        int8_type,     ///< 有符号8位整数
+        uint8_type,    ///< 无符号8位整数
+        int16_type,    ///< 有符号16位整数
+        uint16_type,   ///< 无符号16位整数
+        int32_type,    ///< 有符号32位整数
+        uint32_type,   ///< 无符号32位整数
+        int64_type,    ///< 有符号64位整数
+        uint64_type,   ///< 无符号64位整数
+        double_type,   ///< 双精度浮点数
+        bool_type,     ///< 布尔类型
+        string_type,   ///< 字符串类型
+        array_type,    ///< 数组类型
+        object_type,   ///< 对象类型
+        blob_type      ///< 二进制数据类型
     };
 
     /**
@@ -411,3 +424,5 @@ private:
 };
 
 } // namespace mc
+
+#endif // MC_VARIANT_H

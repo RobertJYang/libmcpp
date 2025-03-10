@@ -1,18 +1,31 @@
+/*
+ * Copyright (c) 2025 Huawei Technologies Co., Ltd.
+ * openUBMC is licensed under Mulan PSL v2.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *         http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
+ */
+
 /**
  * @file dict.h
  * @brief 定义了不可变的字典类，用于表示键值对集合，保持插入顺序
  */
-#pragma once
+#ifndef MC_DICT_H
+#define MC_DICT_H
 
+#include "variant.h"
 #include <string>
 #include <vector>
-#include "variant.h"
 
 #include <algorithm>
+#include <map>
 #include <memory>
 #include <mutex>
 #include <stdexcept>
-#include <map>
 #include <unordered_map>
 
 namespace mc {
@@ -135,3 +148,5 @@ protected:
 
 // 包含容器转换头文件
 #include <mc/variant/container_convert.h>
+
+#endif // MC_DICT_H

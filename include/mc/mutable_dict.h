@@ -1,10 +1,21 @@
+/*
+ * Copyright (c) 2025 Huawei Technologies Co., Ltd.
+ * openUBMC is licensed under Mulan PSL v2.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *         http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
+ */
+
 /**
  * @file mutable_dict.h
  * @brief 定义了可变的字典类，用于表示键值对集合，保持插入顺序
  */
 #ifndef MC_MUTABLE_DICT_H
 #define MC_MUTABLE_DICT_H
-
 #include <mc/dict.h>
 
 namespace mc {
@@ -110,6 +121,6 @@ public:
  * 注意：to_variant 函数已在 dict.h 中定义
  */
 
-} // namespace mc 
+} // namespace mc
 
-#endif // MC_MUTABLE_DICT_H 
+#endif // MC_MUTABLE_DICT_H

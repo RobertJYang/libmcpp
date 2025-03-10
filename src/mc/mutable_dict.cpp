@@ -1,3 +1,15 @@
+/*
+ * Copyright (c) 2025 Huawei Technologies Co., Ltd.
+ * openUBMC is licensed under Mulan PSL v2.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *         http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
+ */
+
 /**
  * @file mutable_dict.cpp
  * @brief 实现 mutable_dict.h 中声明的方法
@@ -48,7 +60,7 @@ mutable_dict& mutable_dict::operator()(const std::string& key, variant value) {
             return *this;
         }
     }
-    
+
     // 不存在则添加新的键值对
     m_items.push_back({key, std::move(value)});
     return *this;
@@ -62,7 +74,7 @@ variant& mutable_dict::operator[](const std::string& key) {
             return item.value;
         }
     }
-    
+
     // 不存在则添加新的键值对
     m_items.push_back({key, variant()});
     return m_items.back().value;
@@ -122,4 +134,4 @@ const mutable_dict::entry& mutable_dict::at(size_t index) const {
     return dict::at(index);
 }
 
-} // namespace mc 
+} // namespace mc

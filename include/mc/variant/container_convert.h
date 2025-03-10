@@ -1,60 +1,63 @@
 /*
-* Copyright (c) 2024 Huawei Technologies Co., Ltd.
-* openUBMC is licensed under Mulan PSL v2.
-* You can use this software according to the terms and conditions of the Mulan PSL v2.
-* You may obtain a copy of Mulan PSL v2 at:
-*         http://license.coscl.org.cn/MulanPSL2
-* THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
-* EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
-* MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
-* See the Mulan PSL v2 for more details.
-*/
+ * Copyright (c) 2025 Huawei Technologies Co., Ltd.
+ * openUBMC is licensed under Mulan PSL v2.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *         http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
+ */
+
+#ifndef MC_VARIANT_CONTAINER_CONVERT_H
+#define MC_VARIANT_CONTAINER_CONVERT_H
 
 /**
  * @file container_convert.h
  * @brief 容器和 variant 之间的通用转换模板
  */
-#pragma once
 
-#include <vector>
-#include <map>
-#include <unordered_map>
-#include <set>
-#include <unordered_set>
-#include <deque>
 #include <array>
-#include <list>
+#include <deque>
 #include <forward_list>
+#include <list>
+#include <map>
 #include <memory>
-#include <utility>
+#include <optional>
+#include <set>
 #include <stdexcept>
 #include <type_traits>
-#include <optional>
+#include <unordered_map>
+#include <unordered_set>
+#include <utility>
 #include <variant>
+#include <vector>
 
 #include <mc/dict.h>
 
 // 前向声明
 namespace mc {
 // 检查容器是否具有 reserve 方法的辅助类
-template<typename T, typename = void>
+template <typename T, typename = void>
 struct has_reserve : std::false_type {};
 
-template<typename T>
-struct has_reserve<T, std::void_t<decltype(std::declval<T>().reserve(std::declval<size_t>()))>> : std::true_type {};
+template <typename T>
+struct has_reserve<T, std::void_t<decltype(std::declval<T>().reserve(std::declval<size_t>()))>>
+    : std::true_type {};
 
 // 如果容器支持 reserve，则调用它
-template<typename Container>
+template <typename Container>
 void reserve_if_possible(Container& container, size_t size, std::true_type) {
     container.reserve(size);
 }
 
 // 如果容器不支持 reserve，则不做任何事情
-template<typename Container>
+template <typename Container>
 void reserve_if_possible(Container&, size_t, std::false_type) {
     // 不支持 reserve 的容器，什么都不做
 }
-} // 结束前向声明
+} // namespace mc
 
 namespace mc {
 
@@ -93,11 +96,12 @@ void sequence_from_variant(const variant& var, Container& vo) {
         throw std::range_error("容器元素过多");
     }
     vo.clear();
-    
+
     // 预分配空间（如果容器支持）
     // 使用 SFINAE 代替 C++20 的 requires 表达式
-    reserve_if_possible(vo, vars.size(), std::integral_constant<bool, has_reserve<Container>::value>());
-    
+    reserve_if_possible(vo, vars.size(),
+                        std::integral_constant<bool, has_reserve<Container>::value>());
+
     for (const auto& item : vars) {
         typename Container::value_type v;
         from_variant(item, v);
@@ -140,10 +144,11 @@ void associative_from_variant(const variant& var, Container& vo) {
         throw std::range_error("容器元素过多");
     }
     vo.clear();
-    
+
     // 预分配空间（如果容器支持）
-    reserve_if_possible(vo, vars.size(), std::integral_constant<bool, has_reserve<Container>::value>());
-    
+    reserve_if_possible(vo, vars.size(),
+                        std::integral_constant<bool, has_reserve<Container>::value>());
+
     for (const auto& item : vars) {
         typename Container::value_type v;
         from_variant(item, v);
@@ -196,7 +201,7 @@ void array_from_variant(const variant& var, std::array<T, S>& vo) {
  * @param map 要转换的映射
  * @param vo 输出的 variant
  */
-template <template<typename...> class MapType, typename K, typename T, typename... Args>
+template <template <typename...> class MapType, typename K, typename T, typename... Args>
 void map_to_variant(const MapType<K, T, Args...>& map, variant& vo) {
     if (map.size() > MAX_NUM_ARRAY_ELEMENTS) {
         throw std::range_error("容器元素过多");
@@ -205,7 +210,7 @@ void map_to_variant(const MapType<K, T, Args...>& map, variant& vo) {
     // 创建dict::entry的vector
     std::vector<dict::entry> entries;
     entries.reserve(map.size());
-    
+
     for (const auto& pair : map) {
         dict::entry entry;
         // 将键转换为字符串
@@ -216,12 +221,12 @@ void map_to_variant(const MapType<K, T, Args...>& map, variant& vo) {
             to_variant(pair.first, key_variant);
             entry.key = key_variant.as_string();
         }
-        
+
         // 将值转换为variant
         to_variant(pair.second, entry.value);
         entries.push_back(std::move(entry));
     }
-    
+
     // 直接使用dict构造函数创建variant
     vo = variant(dict(std::move(entries)));
 }
@@ -234,18 +239,18 @@ void map_to_variant(const MapType<K, T, Args...>& map, variant& vo) {
  * @param var 源 variant
  * @param vo 输出的映射
  */
-template <template<typename...> class MapType, typename K, typename T, typename... Args>
+template <template <typename...> class MapType, typename K, typename T, typename... Args>
 void map_from_variant(const variant& var, MapType<K, T, Args...>& vo) {
     const dict& d = var.get_object();
     if (d.size() > MAX_NUM_ARRAY_ELEMENTS) {
         throw std::range_error("容器元素过多");
     }
     vo.clear();
-    
+
     for (size_t i = 0; i < d.size(); ++i) {
         const dict::entry& entry = d.at(i);
         K key;
-        
+
         // 将键从字符串转换为K类型
         if constexpr (std::is_same_v<K, std::string>) {
             key = entry.key;
@@ -253,10 +258,10 @@ void map_from_variant(const variant& var, MapType<K, T, Args...>& vo) {
             variant key_variant(entry.key);
             from_variant(key_variant, key);
         }
-        
+
         // 将值转换为T类型
         T value = entry.value.template as<T>();
-        
+
         vo.insert(std::make_pair(key, value));
     }
 }
@@ -306,34 +311,42 @@ void from_variant(const variant& var, std::set<T, Compare, Allocator>& vo) {
 }
 
 // std::unordered_set 特化
-template <typename T, typename Hash = std::hash<T>, typename KeyEqual = std::equal_to<T>, typename Allocator = std::allocator<T>>
+template <typename T, typename Hash = std::hash<T>, typename KeyEqual = std::equal_to<T>,
+          typename Allocator = std::allocator<T>>
 void to_variant(const std::unordered_set<T, Hash, KeyEqual, Allocator>& var, variant& vo) {
     associative_to_variant(var, vo);
 }
 
-template <typename T, typename Hash = std::hash<T>, typename KeyEqual = std::equal_to<T>, typename Allocator = std::allocator<T>>
+template <typename T, typename Hash = std::hash<T>, typename KeyEqual = std::equal_to<T>,
+          typename Allocator = std::allocator<T>>
 void from_variant(const variant& var, std::unordered_set<T, Hash, KeyEqual, Allocator>& vo) {
     associative_from_variant(var, vo);
 }
 
 // std::map 特化
-template <typename K, typename T, typename Compare = std::less<K>, typename Allocator = std::allocator<std::pair<const K, T>>>
+template <typename K, typename T, typename Compare = std::less<K>,
+          typename Allocator = std::allocator<std::pair<const K, T>>>
 void to_variant(const std::map<K, T, Compare, Allocator>& var, variant& vo) {
     map_to_variant(var, vo);
 }
 
-template <typename K, typename T, typename Compare = std::less<K>, typename Allocator = std::allocator<std::pair<const K, T>>>
+template <typename K, typename T, typename Compare = std::less<K>,
+          typename Allocator = std::allocator<std::pair<const K, T>>>
 void from_variant(const variant& var, std::map<K, T, Compare, Allocator>& vo) {
     map_from_variant(var, vo);
 }
 
 // std::unordered_map 特化
-template <typename K, typename T, typename Hash = std::hash<K>, typename KeyEqual = std::equal_to<K>, typename Allocator = std::allocator<std::pair<const K, T>>>
+template <typename K, typename T, typename Hash = std::hash<K>,
+          typename KeyEqual = std::equal_to<K>,
+          typename Allocator = std::allocator<std::pair<const K, T>>>
 void to_variant(const std::unordered_map<K, T, Hash, KeyEqual, Allocator>& var, variant& vo) {
     map_to_variant(var, vo);
 }
 
-template <typename K, typename T, typename Hash = std::hash<K>, typename KeyEqual = std::equal_to<K>, typename Allocator = std::allocator<std::pair<const K, T>>>
+template <typename K, typename T, typename Hash = std::hash<K>,
+          typename KeyEqual = std::equal_to<K>,
+          typename Allocator = std::allocator<std::pair<const K, T>>>
 void from_variant(const variant& var, std::unordered_map<K, T, Hash, KeyEqual, Allocator>& vo) {
     map_from_variant(var, vo);
 }
@@ -439,9 +452,11 @@ void from_variant(const mc::variant& var, std::optional<T>& vo) {
 // std::variant 的转换函数
 template <typename... T>
 void to_variant(const std::variant<T...>& var, mc::variant& vo) {
-    std::visit([&vo](const auto& value) {
-        to_variant(value, vo);
-    }, var);
+    std::visit(
+        [&vo](const auto& value) {
+            to_variant(value, vo);
+        },
+        var);
 }
 
 // 辅助函数，尝试将 variant 转换为特定类型
@@ -450,7 +465,7 @@ bool try_convert_variant(const mc::variant& var, std::variant<Rest...>& vo, bool
     if (converted) {
         return true; // 已经转换成功，不需要再尝试
     }
-    
+
     try {
         T value;
         from_variant(var, value);
@@ -467,13 +482,15 @@ template <typename... T>
 void from_variant(const mc::variant& var, std::variant<T...>& vo) {
     // 尝试将 variant 转换为每种可能的类型
     bool converted = false;
-    
+
     // 使用折叠表达式尝试每种类型
     (try_convert_variant<T>(var, vo, converted) || ...);
-    
+
     if (!converted) {
         throw std::bad_cast();
     }
 }
 
-} // namespace mc 
+} // namespace mc
+
+#endif // MC_VARIANT_CONTAINER_CONVERT_H

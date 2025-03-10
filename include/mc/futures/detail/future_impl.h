@@ -1,20 +1,22 @@
-//-- Copyright (c) 2024 Huawei Technologies Co., Ltd.
-//-- openUBMC is licensed under Mulan PSL v2.
-//-- You can use this software according to the terms and conditions of the Mulan PSL v2.
-//-- You may obtain a copy of Mulan PSL v2 at:
-//--         http://license.coscl.org.cn/MulanPSL2
-//-- THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
-//-- EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
-//-- MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
-//-- See the Mulan PSL v2 for more details.
+/*
+ * Copyright (c) 2025 Huawei Technologies Co., Ltd.
+ * openUBMC is licensed under Mulan PSL v2.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *         http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
+ */
 
-#ifndef MCPP_FUTURE_DETAIL_FUTURE_IMPL_HPP
-#define MCPP_FUTURE_DETAIL_FUTURE_IMPL_HPP
+#ifndef MC_FUTURES_DETAIL_FUTURE_IMPL_H
+#define MC_FUTURES_DETAIL_FUTURE_IMPL_H
 
 namespace mc {
 namespace future {
 
-template<typename PromisePtr, typename F, typename... Args>
+template <typename PromisePtr, typename F, typename... Args>
 void set_promise_value(PromisePtr& promise, F&& func, Args&&... args) {
     if constexpr (std::is_same_v<std::invoke_result_t<F, Args...>, void>) {
         func(std::forward<Args>(args)...);
@@ -24,13 +26,12 @@ void set_promise_value(PromisePtr& promise, F&& func, Args&&... args) {
     }
 }
 
-template<typename PromisePtr, typename State>
+template <typename PromisePtr, typename State>
 void set_promise_exception(PromisePtr& promise, State& state) {
     promise->set_exception(std::get<std::exception_ptr>(state->result));
 }
 
-template<bool IsVoid, typename T, typename PromisePtr, typename F,
-         typename State>
+template <bool IsVoid, typename T, typename PromisePtr, typename F, typename State>
 void handle_result_impl(PromisePtr& promise, F&& func, State& state) {
     if constexpr (IsVoid) {
         if (std::holds_alternative<std::monostate>(state->result)) {
@@ -47,11 +48,9 @@ void handle_result_impl(PromisePtr& promise, F&& func, State& state) {
     }
 }
 
-template<typename T, typename ResultType, typename Executor, typename Allocator,
-         typename F>
-auto make_continuation(
-    std::shared_ptr<Promise<ResultType, Executor, Allocator>>&& promise,
-    F&& func, std::shared_ptr<State<T, Executor, Allocator>> state) {
+template <typename T, typename ResultType, typename Executor, typename Allocator, typename F>
+auto make_continuation(std::shared_ptr<Promise<ResultType, Executor, Allocator>>&& promise,
+                       F&& func, std::shared_ptr<State<T, Executor, Allocator>> state) {
     return [promise = std::move(promise), func = std::forward<F>(func),
             state = std::move(state)]() mutable {
         try {
@@ -66,8 +65,8 @@ auto make_continuation(
     };
 }
 
-template<typename T, typename Executor, typename Allocator>
-template<typename U>
+template <typename T, typename Executor, typename Allocator>
+template <typename U>
 U Future<T, Executor, Allocator>::get() {
     wait();
     std::unique_lock<std::mutex> lock(state_->mutex);
@@ -83,8 +82,8 @@ U Future<T, Executor, Allocator>::get() {
     std::rethrow_exception(std::get<std::exception_ptr>(state_->result));
 }
 
-template<typename T, typename Executor, typename Allocator>
-template<typename Rep, typename Period>
+template <typename T, typename Executor, typename Allocator>
+template <typename Rep, typename Period>
 T Future<T, Executor, Allocator>::get_for(
     const std::chrono::duration<Rep, Period>& timeout_duration) {
     auto status = wait_for(timeout_duration);
@@ -94,57 +93,59 @@ T Future<T, Executor, Allocator>::get_for(
     return get();
 }
 
-template<typename T, typename Executor, typename Allocator>
+template <typename T, typename Executor, typename Allocator>
 bool Future<T, Executor, Allocator>::is_ready() const {
     std::lock_guard<std::mutex> lock(state_->mutex);
     return state_->ready;
 }
 
-template<typename T, typename Executor, typename Allocator>
+template <typename T, typename Executor, typename Allocator>
 void Future<T, Executor, Allocator>::wait() const {
     std::unique_lock<std::mutex> lock(state_->mutex);
     if (state_->deferred) {
         return;
     }
-    state_->cv.wait(lock, [this] { return state_->ready; });
+    state_->cv.wait(lock, [this] {
+        return state_->ready;
+    });
 }
 
-template<typename T, typename Executor, typename Allocator>
-template<typename Rep, typename Period>
+template <typename T, typename Executor, typename Allocator>
+template <typename Rep, typename Period>
 future_status Future<T, Executor, Allocator>::wait_for(
     const std::chrono::duration<Rep, Period>& timeout_duration) const {
     std::unique_lock<std::mutex> lock(state_->mutex);
     if (state_->deferred) {
         return future_status::deferred;
     }
-    if (state_->cv.wait_for(lock, timeout_duration,
-                            [this] { return state_->ready; })) {
+    if (state_->cv.wait_for(lock, timeout_duration, [this] {
+            return state_->ready;
+        })) {
         return future_status::ready;
     }
     return future_status::timeout;
 }
 
-template<typename T, typename Executor, typename Allocator>
-template<typename Clock, typename Duration>
+template <typename T, typename Executor, typename Allocator>
+template <typename Clock, typename Duration>
 future_status Future<T, Executor, Allocator>::wait_until(
     const std::chrono::time_point<Clock, Duration>& timeout_time) const {
     std::unique_lock<std::mutex> lock(state_->mutex);
     if (state_->deferred) {
         return future_status::deferred;
     }
-    if (state_->cv.wait_until(lock, timeout_time,
-                              [this] { return state_->ready; })) {
+    if (state_->cv.wait_until(lock, timeout_time, [this] {
+            return state_->ready;
+        })) {
         return future_status::ready;
     }
     return future_status::timeout;
 }
 
-template<typename T, typename Executor, typename Allocator>
-template<typename CompletionToken>
-void Future<T, Executor, Allocator>::async_get(CompletionToken&& token,
-                                               launch            policy) {
-    auto handle_result = [token = std::forward<CompletionToken>(token)](
-                             auto& state) mutable {
+template <typename T, typename Executor, typename Allocator>
+template <typename CompletionToken>
+void Future<T, Executor, Allocator>::async_get(CompletionToken&& token, launch policy) {
+    auto handle_result = [token = std::forward<CompletionToken>(token)](auto& state) mutable {
         if (auto* value = std::get_if<T>(&state->result)) {
             token(std::move(*value));
         } else {
@@ -182,18 +183,17 @@ void Future<T, Executor, Allocator>::async_get(CompletionToken&& token,
     }
 }
 
-template<typename T, typename Executor, typename Allocator>
-template<typename F>
+template <typename T, typename Executor, typename Allocator>
+template <typename F>
 auto Future<T, Executor, Allocator>::then(F&& func, launch policy)
     -> Future<typename std::invoke_result_t<F, T>, Executor, Allocator> {
     using ResultType = typename std::invoke_result_t<F, T>;
-    auto promise = std::make_shared<Promise<ResultType, Executor, Allocator>>(
-        state_->executor, state_->allocator);
+    auto promise = std::make_shared<Promise<ResultType, Executor, Allocator>>(state_->executor,
+                                                                              state_->allocator);
     auto future = promise->get_future();
 
-    auto continuation =
-        make_continuation<T, ResultType, Executor, Allocator, F>(
-            std::move(promise), std::forward<F>(func), state_);
+    auto continuation = make_continuation<T, ResultType, Executor, Allocator, F>(
+        std::move(promise), std::forward<F>(func), state_);
 
     std::unique_lock<std::mutex> lock(state_->mutex);
     if (state_->ready) {
@@ -213,27 +213,24 @@ auto Future<T, Executor, Allocator>::then(F&& func, launch policy)
     return future;
 }
 
-template<typename T, typename Executor, typename Allocator>
-template<typename F>
+template <typename T, typename Executor, typename Allocator>
+template <typename F>
 auto Future<T, Executor, Allocator>::catch_error(F&& handler)
-    -> Future<typename std::invoke_result_t<F, std::exception&>, Executor,
-              Allocator> {
+    -> Future<typename std::invoke_result_t<F, std::exception&>, Executor, Allocator> {
     using ResultType = typename std::invoke_result_t<F, std::exception&>;
-    auto promise = std::make_shared<Promise<ResultType, Executor, Allocator>>(
-        state_->executor, state_->allocator);
+    auto promise = std::make_shared<Promise<ResultType, Executor, Allocator>>(state_->executor,
+                                                                              state_->allocator);
     auto future = promise->get_future();
 
-    auto handle_result = [promise, handler = std::forward<F>(handler),
-                          state = state_]() mutable {
+    auto handle_result = [promise, handler = std::forward<F>(handler), state = state_]() mutable {
         try {
             if constexpr (std::is_same_v<T, void>) {
                 if (std::holds_alternative<std::monostate>(state->result)) {
-                    promise->set_exception(std::make_exception_ptr(
-                        std::runtime_error("No error occurred")));
+                    promise->set_exception(
+                        std::make_exception_ptr(std::runtime_error("No error occurred")));
                 } else {
                     try {
-                        std::exception_ptr eptr =
-                            std::get<std::exception_ptr>(state->result);
+                        std::exception_ptr eptr = std::get<std::exception_ptr>(state->result);
                         try {
                             std::rethrow_exception(eptr);
                         } catch (std::exception& e) {
@@ -245,12 +242,11 @@ auto Future<T, Executor, Allocator>::catch_error(F&& handler)
                 }
             } else {
                 if (auto* value = std::get_if<T>(&state->result)) {
-                    promise->set_exception(std::make_exception_ptr(
-                        std::runtime_error("No error occurred")));
+                    promise->set_exception(
+                        std::make_exception_ptr(std::runtime_error("No error occurred")));
                 } else {
                     try {
-                        std::exception_ptr eptr =
-                            std::get<std::exception_ptr>(state->result);
+                        std::exception_ptr eptr = std::get<std::exception_ptr>(state->result);
                         try {
                             std::rethrow_exception(eptr);
                         } catch (std::exception& e) {
@@ -276,7 +272,7 @@ auto Future<T, Executor, Allocator>::catch_error(F&& handler)
     return future;
 }
 
-}  // namespace future
-}  // namespace mc
+} // namespace future
+} // namespace mc
 
-#endif  // MCPP_FUTURE_DETAIL_FUTURE_IMPL_HPP
+#endif // MC_FUTURES_DETAIL_FUTURE_IMPL_H

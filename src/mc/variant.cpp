@@ -1,13 +1,25 @@
+/*
+ * Copyright (c) 2025 Huawei Technologies Co., Ltd.
+ * openUBMC is licensed under Mulan PSL v2.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *         http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
+ */
+
 /**
  * @file variant.cpp
  * @brief 实现 variant.h 中声明的方法
  */
-#include <mc/variant.h>
-#include <mc/dict.h>
-#include <mc/mutable_dict.h>
-#include <stdexcept>
 #include <cstring>
 #include <limits>
+#include <mc/dict.h>
+#include <mc/mutable_dict.h>
+#include <mc/variant.h>
+#include <stdexcept>
 
 namespace mc {
 
@@ -16,64 +28,65 @@ static void throw_type_error(const char* expected_type, variant::type_id actual_
     std::string error = "类型错误：期望 ";
     error += expected_type;
     error += "，实际为 ";
-    
+
     switch (actual_type) {
-        case variant::type_id::null_type:
-            error += "null";
-            break;
-        case variant::type_id::int8_type:
-            error += "int8";
-            break;
-        case variant::type_id::uint8_type:
-            error += "uint8";
-            break;
-        case variant::type_id::int16_type:
-            error += "int16";
-            break;
-        case variant::type_id::uint16_type:
-            error += "uint16";
-            break;
-        case variant::type_id::int32_type:
-            error += "int32";
-            break;
-        case variant::type_id::uint32_type:
-            error += "uint32";
-            break;
-        case variant::type_id::int64_type:
-            error += "int64";
-            break;
-        case variant::type_id::uint64_type:
-            error += "uint64";
-            break;
-        case variant::type_id::double_type:
-            error += "double";
-            break;
-        case variant::type_id::bool_type:
-            error += "bool";
-            break;
-        case variant::type_id::string_type:
-            error += "string";
-            break;
-        case variant::type_id::array_type:
-            error += "array";
-            break;
-        case variant::type_id::object_type:
-            error += "object";
-            break;
-        case variant::type_id::blob_type:
-            error += "blob";
-            break;
-        default:
-            error += "未知类型";
-            break;
+    case variant::type_id::null_type:
+        error += "null";
+        break;
+    case variant::type_id::int8_type:
+        error += "int8";
+        break;
+    case variant::type_id::uint8_type:
+        error += "uint8";
+        break;
+    case variant::type_id::int16_type:
+        error += "int16";
+        break;
+    case variant::type_id::uint16_type:
+        error += "uint16";
+        break;
+    case variant::type_id::int32_type:
+        error += "int32";
+        break;
+    case variant::type_id::uint32_type:
+        error += "uint32";
+        break;
+    case variant::type_id::int64_type:
+        error += "int64";
+        break;
+    case variant::type_id::uint64_type:
+        error += "uint64";
+        break;
+    case variant::type_id::double_type:
+        error += "double";
+        break;
+    case variant::type_id::bool_type:
+        error += "bool";
+        break;
+    case variant::type_id::string_type:
+        error += "string";
+        break;
+    case variant::type_id::array_type:
+        error += "array";
+        break;
+    case variant::type_id::object_type:
+        error += "object";
+        break;
+    case variant::type_id::blob_type:
+        error += "blob";
+        break;
+    default:
+        error += "未知类型";
+        break;
     }
-    
+
     throw std::runtime_error(error);
 }
 
 // 默认构造函数
 variant::variant() : m_uint64(0), m_type(type_id::null_type) {
-    static_assert(sizeof(uint64_t) >= sizeof(void*) && sizeof(uint64_t) >= sizeof(double), "uint64_t 不是联合体中最大的成员");
+    static_assert(sizeof(uint64_t) >= sizeof(void*) && sizeof(uint64_t) >= sizeof(double),
+                  "uint64_t 不是联合体中最大的成员");
 }
 
 // 从 nullptr 构造
@@ -88,20 +101,32 @@ variant::variant(const char* str) : variant() {
     }
 }
 
-variant::variant(char* str) : variant(static_cast<const char*>(str)) {}
+variant::variant(char* str) : variant(static_cast<const char*>(str)) {
+}
 
 // 从基本类型构造
-variant::variant(float val) : m_double(val), m_type(type_id::double_type) {}
-variant::variant(uint8_t val) : m_uint64(val), m_type(type_id::uint8_type) {}
-variant::variant(int8_t val) : m_int64(val), m_type(type_id::int8_type) {}
-variant::variant(uint16_t val) : m_uint64(val), m_type(type_id::uint16_type) {}
-variant::variant(int16_t val) : m_int64(val), m_type(type_id::int16_type) {}
-variant::variant(uint32_t val) : m_uint64(val), m_type(type_id::uint32_type) {}
-variant::variant(int32_t val) : m_int64(val), m_type(type_id::int32_type) {}
-variant::variant(uint64_t val) : m_uint64(val), m_type(type_id::uint64_type) {}
-variant::variant(int64_t val) : m_int64(val), m_type(type_id::int64_type) {}
-variant::variant(double val) : m_double(val), m_type(type_id::double_type) {}
-variant::variant(bool val) : m_bool(val), m_type(type_id::bool_type) {}
+variant::variant(float val) : m_double(val), m_type(type_id::double_type) {
+}
+variant::variant(uint8_t val) : m_uint64(val), m_type(type_id::uint8_type) {
+}
+variant::variant(int8_t val) : m_int64(val), m_type(type_id::int8_type) {
+}
+variant::variant(uint16_t val) : m_uint64(val), m_type(type_id::uint16_type) {
+}
+variant::variant(int16_t val) : m_int64(val), m_type(type_id::int16_type) {
+}
+variant::variant(uint32_t val) : m_uint64(val), m_type(type_id::uint32_type) {
+}
+variant::variant(int32_t val) : m_int64(val), m_type(type_id::int32_type) {
+}
+variant::variant(uint64_t val) : m_uint64(val), m_type(type_id::uint64_type) {
+}
+variant::variant(int64_t val) : m_int64(val), m_type(type_id::int64_type) {
+}
+variant::variant(double val) : m_double(val), m_type(type_id::double_type) {
+}
+variant::variant(bool val) : m_bool(val), m_type(type_id::bool_type) {
+}
 
 // 从 blob 构造
 variant::variant(blob val) : variant() {
@@ -136,42 +161,42 @@ variant::variant(variants arr) : variant() {
 // 重置 variant 内容
 void variant::clear() {
     switch (m_type) {
-        case type_id::null_type:
-            break;
-        case type_id::int8_type:
-        case type_id::int16_type:
-        case type_id::int32_type:
-        case type_id::int64_type:
-            m_int64 = 0;
-            break;
-        case type_id::uint8_type:
-        case type_id::uint16_type:
-        case type_id::uint32_type:
-        case type_id::uint64_type:
-            m_uint64 = 0;
-            break;
-        case type_id::double_type:
-            m_double = 0.0;
-            break;
-        case type_id::bool_type:
-            m_bool = false;
-            break;
-        case type_id::string_type:
-            delete static_cast<std::string*>(m_string_ptr);
-            m_string_ptr = nullptr;
-            break;
-        case type_id::array_type:
-            delete static_cast<variants*>(m_array_ptr);
-            m_array_ptr = nullptr;
-            break;
-        case type_id::object_type:
-            delete static_cast<dict*>(m_object_ptr);
-            m_object_ptr = nullptr;
-            break;
-        case type_id::blob_type:
-            delete static_cast<blob*>(m_blob_ptr);
-            m_blob_ptr = nullptr;
-            break;
+    case type_id::null_type:
+        break;
+    case type_id::int8_type:
+    case type_id::int16_type:
+    case type_id::int32_type:
+    case type_id::int64_type:
+        m_int64 = 0;
+        break;
+    case type_id::uint8_type:
+    case type_id::uint16_type:
+    case type_id::uint32_type:
+    case type_id::uint64_type:
+        m_uint64 = 0;
+        break;
+    case type_id::double_type:
+        m_double = 0.0;
+        break;
+    case type_id::bool_type:
+        m_bool = false;
+        break;
+    case type_id::string_type:
+        delete static_cast<std::string*>(m_string_ptr);
+        m_string_ptr = nullptr;
+        break;
+    case type_id::array_type:
+        delete static_cast<variants*>(m_array_ptr);
+        m_array_ptr = nullptr;
+        break;
+    case type_id::object_type:
+        delete static_cast<dict*>(m_object_ptr);
+        m_object_ptr = nullptr;
+        break;
+    case type_id::blob_type:
+        delete static_cast<blob*>(m_blob_ptr);
+        m_blob_ptr = nullptr;
+        break;
     }
     m_type = type_id::null_type;
 }
@@ -179,38 +204,38 @@ void variant::clear() {
 // 拷贝构造函数
 variant::variant(const variant& other) : variant() {
     switch (other.m_type) {
-        case type_id::null_type:
-            break;
-        case type_id::int8_type:
-        case type_id::int16_type:
-        case type_id::int32_type:
-        case type_id::int64_type:
-            m_int64 = other.m_int64;
-            break;
-        case type_id::uint8_type:
-        case type_id::uint16_type:
-        case type_id::uint32_type:
-        case type_id::uint64_type:
-            m_uint64 = other.m_uint64;
-            break;
-        case type_id::double_type:
-            m_double = other.m_double;
-            break;
-        case type_id::bool_type:
-            m_bool = other.m_bool;
-            break;
-        case type_id::string_type:
-            m_string_ptr = new std::string(*static_cast<std::string*>(other.m_string_ptr));
-            break;
-        case type_id::array_type:
-            m_array_ptr = new variants(*static_cast<variants*>(other.m_array_ptr));
-            break;
-        case type_id::object_type:
-            m_object_ptr = new dict(*static_cast<dict*>(other.m_object_ptr));
-            break;
-        case type_id::blob_type:
-            m_blob_ptr = new blob(*static_cast<blob*>(other.m_blob_ptr));
-            break;
+    case type_id::null_type:
+        break;
+    case type_id::int8_type:
+    case type_id::int16_type:
+    case type_id::int32_type:
+    case type_id::int64_type:
+        m_int64 = other.m_int64;
+        break;
+    case type_id::uint8_type:
+    case type_id::uint16_type:
+    case type_id::uint32_type:
+    case type_id::uint64_type:
+        m_uint64 = other.m_uint64;
+        break;
+    case type_id::double_type:
+        m_double = other.m_double;
+        break;
+    case type_id::bool_type:
+        m_bool = other.m_bool;
+        break;
+    case type_id::string_type:
+        m_string_ptr = new std::string(*static_cast<std::string*>(other.m_string_ptr));
+        break;
+    case type_id::array_type:
+        m_array_ptr = new variants(*static_cast<variants*>(other.m_array_ptr));
+        break;
+    case type_id::object_type:
+        m_object_ptr = new dict(*static_cast<dict*>(other.m_object_ptr));
+        break;
+    case type_id::blob_type:
+        m_blob_ptr = new blob(*static_cast<blob*>(other.m_blob_ptr));
+        break;
     }
     m_type = other.m_type;
 }
@@ -218,8 +243,55 @@ variant::variant(const variant& other) : variant() {
 // 移动构造函数
 variant::variant(variant&& other) noexcept : variant() {
     m_type = other.m_type;
-    
+
     switch (m_type) {
+    case type_id::null_type:
+        break;
+    case type_id::int8_type:
+    case type_id::int16_type:
+    case type_id::int32_type:
+    case type_id::int64_type:
+        m_int64 = other.m_int64;
+        break;
+    case type_id::uint8_type:
+    case type_id::uint16_type:
+    case type_id::uint32_type:
+    case type_id::uint64_type:
+        m_uint64 = other.m_uint64;
+        break;
+    case type_id::double_type:
+        m_double = other.m_double;
+        break;
+    case type_id::bool_type:
+        m_bool = other.m_bool;
+        break;
+    case type_id::string_type:
+        m_string_ptr = other.m_string_ptr;
+        other.m_string_ptr = nullptr;
+        break;
+    case type_id::array_type:
+        m_array_ptr = other.m_array_ptr;
+        other.m_array_ptr = nullptr;
+        break;
+    case type_id::object_type:
+        m_object_ptr = other.m_object_ptr;
+        other.m_object_ptr = nullptr;
+        break;
+    case type_id::blob_type:
+        m_blob_ptr = other.m_blob_ptr;
+        other.m_blob_ptr = nullptr;
+        break;
+    }
+
+    other.m_type = type_id::null_type;
+}
+
+// 移动赋值运算符
+variant& variant::operator=(variant&& other) noexcept {
+    if (this != &other) {
+        clear();
+
+        switch (other.m_type) {
         case type_id::null_type:
             break;
         case type_id::int8_type:
@@ -256,53 +328,6 @@ variant::variant(variant&& other) noexcept : variant() {
             m_blob_ptr = other.m_blob_ptr;
             other.m_blob_ptr = nullptr;
             break;
-    }
-    
-    other.m_type = type_id::null_type;
-}
-
-// 移动赋值运算符
-variant& variant::operator=(variant&& other) noexcept {
-    if (this != &other) {
-        clear();
-        
-        switch (other.m_type) {
-            case type_id::null_type:
-                break;
-            case type_id::int8_type:
-            case type_id::int16_type:
-            case type_id::int32_type:
-            case type_id::int64_type:
-                m_int64 = other.m_int64;
-                break;
-            case type_id::uint8_type:
-            case type_id::uint16_type:
-            case type_id::uint32_type:
-            case type_id::uint64_type:
-                m_uint64 = other.m_uint64;
-                break;
-            case type_id::double_type:
-                m_double = other.m_double;
-                break;
-            case type_id::bool_type:
-                m_bool = other.m_bool;
-                break;
-            case type_id::string_type:
-                m_string_ptr = other.m_string_ptr;
-                other.m_string_ptr = nullptr;
-                break;
-            case type_id::array_type:
-                m_array_ptr = other.m_array_ptr;
-                other.m_array_ptr = nullptr;
-                break;
-            case type_id::object_type:
-                m_object_ptr = other.m_object_ptr;
-                other.m_object_ptr = nullptr;
-                break;
-            case type_id::blob_type:
-                m_blob_ptr = other.m_blob_ptr;
-                other.m_blob_ptr = nullptr;
-                break;
         }
         m_type = other.m_type;
         other.m_type = type_id::null_type;
@@ -313,39 +338,39 @@ variant& variant::operator=(variant&& other) noexcept {
 // 访问 variant 中的数据
 void variant::visit(const visitor& v) const {
     switch (m_type) {
-        case type_id::null_type:
-            v.handle();
-            break;
-        case type_id::int8_type:
-        case type_id::int16_type:
-        case type_id::int32_type:
-        case type_id::int64_type:
-            v.handle(m_int64);
-            break;
-        case type_id::uint8_type:
-        case type_id::uint16_type:
-        case type_id::uint32_type:
-        case type_id::uint64_type:
-            v.handle(m_uint64);
-            break;
-        case type_id::double_type:
-            v.handle(m_double);
-            break;
-        case type_id::bool_type:
-            v.handle(m_bool);
-            break;
-        case type_id::string_type:
-            v.handle(*static_cast<std::string*>(m_string_ptr));
-            break;
-        case type_id::object_type:
-            v.handle(*static_cast<dict*>(m_object_ptr));
-            break;
-        case type_id::array_type:
-            v.handle(*static_cast<variants*>(m_array_ptr));
-            break;
-        case type_id::blob_type:
-            v.handle(*static_cast<blob*>(m_blob_ptr));
-            break;
+    case type_id::null_type:
+        v.handle();
+        break;
+    case type_id::int8_type:
+    case type_id::int16_type:
+    case type_id::int32_type:
+    case type_id::int64_type:
+        v.handle(m_int64);
+        break;
+    case type_id::uint8_type:
+    case type_id::uint16_type:
+    case type_id::uint32_type:
+    case type_id::uint64_type:
+        v.handle(m_uint64);
+        break;
+    case type_id::double_type:
+        v.handle(m_double);
+        break;
+    case type_id::bool_type:
+        v.handle(m_bool);
+        break;
+    case type_id::string_type:
+        v.handle(*static_cast<std::string*>(m_string_ptr));
+        break;
+    case type_id::object_type:
+        v.handle(*static_cast<dict*>(m_object_ptr));
+        break;
+    case type_id::array_type:
+        v.handle(*static_cast<variants*>(m_array_ptr));
+        break;
+    case type_id::blob_type:
+        v.handle(*static_cast<blob*>(m_blob_ptr));
+        break;
     }
 }
 
@@ -401,18 +426,13 @@ bool variant::is_blob() const {
 
 // 判断 variant 是否为数值类型（整数或浮点数）
 bool variant::is_numeric() const {
-    return is_int8() || is_uint8() ||
-           is_int16() || is_uint16() ||
-           is_int32() || is_uint32() ||
-           is_int64() || is_uint64() ||
-           is_double();
+    return is_int8() || is_uint8() || is_int16() || is_uint16() || is_int32() || is_uint32() ||
+           is_int64() || is_uint64() || is_double();
 }
 
 // 判断 variant 是否为整数类型
 bool variant::is_integer() const {
-    return is_int8() || is_uint8() ||
-           is_int16() || is_uint16() ||
-           is_int32() || is_uint32() ||
+    return is_int8() || is_uint8() || is_int16() || is_uint16() || is_int32() || is_uint32() ||
            is_int64() || is_uint64();
 }
 
@@ -439,8 +459,7 @@ int64_t variant::as_int64() const {
     case type_id::string_type:
         try {
             return std::stoll(*static_cast<std::string*>(m_string_ptr));
-        }
-        catch (const std::exception& e) {
+        } catch (const std::exception& e) {
             throw_type_error("int64", m_type);
         }
     default:
@@ -475,8 +494,7 @@ uint64_t variant::as_uint64() const {
     case type_id::string_type:
         try {
             return std::stoull(*static_cast<std::string*>(m_string_ptr));
-        }
-        catch (const std::exception& e) {
+        } catch (const std::exception& e) {
             throw_type_error("uint64", m_type);
         }
     default:
@@ -488,65 +506,65 @@ uint64_t variant::as_uint64() const {
 // 将 variant 转换为布尔值
 bool variant::as_bool() const {
     switch (m_type) {
-        case type_id::bool_type:
-            return m_bool;
-        case type_id::int8_type:
-        case type_id::int16_type:
-        case type_id::int32_type:
-        case type_id::int64_type:
-            return m_int64 != 0;
-        case type_id::uint8_type:
-        case type_id::uint16_type:
-        case type_id::uint32_type:
-        case type_id::uint64_type:
-            return m_uint64 != 0;
-        case type_id::double_type:
-            return m_double != 0;
-        case type_id::string_type: {
-            const std::string& s = *static_cast<std::string*>(m_string_ptr);
-            if (s == "true" || s == "1") {
-                return true;
-            } else if (s == "false" || s == "0") {
-                return false;
-            } else {
-                throw std::runtime_error("无法将字符串转换为 bool：" + s);
-            }
-        }
-        case type_id::null_type:
+    case type_id::bool_type:
+        return m_bool;
+    case type_id::int8_type:
+    case type_id::int16_type:
+    case type_id::int32_type:
+    case type_id::int64_type:
+        return m_int64 != 0;
+    case type_id::uint8_type:
+    case type_id::uint16_type:
+    case type_id::uint32_type:
+    case type_id::uint64_type:
+        return m_uint64 != 0;
+    case type_id::double_type:
+        return m_double != 0;
+    case type_id::string_type: {
+        const std::string& s = *static_cast<std::string*>(m_string_ptr);
+        if (s == "true" || s == "1") {
+            return true;
+        } else if (s == "false" || s == "0") {
             return false;
-        default:
-            throw_type_error("bool", m_type);
-            return false; // 不会执行到这里
+        } else {
+            throw std::runtime_error("无法将字符串转换为 bool：" + s);
+        }
+    }
+    case type_id::null_type:
+        return false;
+    default:
+        throw_type_error("bool", m_type);
+        return false; // 不会执行到这里
     }
 }
 
 // 将 variant 转换为双精度浮点数
 double variant::as_double() const {
     switch (m_type) {
-        case type_id::double_type:
-            return m_double;
-        case type_id::int8_type:
-        case type_id::int16_type:
-        case type_id::int32_type:
-        case type_id::int64_type:
-            return static_cast<double>(m_int64);
-        case type_id::uint8_type:
-        case type_id::uint16_type:
-        case type_id::uint32_type:
-        case type_id::uint64_type:
-            return static_cast<double>(m_uint64);
-        case type_id::bool_type:
-            return m_bool ? 1.0 : 0.0;
-        case type_id::string_type: {
-            try {
-                return std::stod(*static_cast<std::string*>(m_string_ptr));
-            } catch (const std::exception& e) {
-                throw std::runtime_error("无法将字符串转换为 double：" + std::string(e.what()));
-            }
+    case type_id::double_type:
+        return m_double;
+    case type_id::int8_type:
+    case type_id::int16_type:
+    case type_id::int32_type:
+    case type_id::int64_type:
+        return static_cast<double>(m_int64);
+    case type_id::uint8_type:
+    case type_id::uint16_type:
+    case type_id::uint32_type:
+    case type_id::uint64_type:
+        return static_cast<double>(m_uint64);
+    case type_id::bool_type:
+        return m_bool ? 1.0 : 0.0;
+    case type_id::string_type: {
+        try {
+            return std::stod(*static_cast<std::string*>(m_string_ptr));
+        } catch (const std::exception& e) {
+            throw std::runtime_error("无法将字符串转换为 double：" + std::string(e.what()));
         }
-        default:
-            throw_type_error("double", m_type);
-            return 0.0; // 不会执行到这里
+    }
+    default:
+        throw_type_error("double", m_type);
+        return 0.0; // 不会执行到这里
     }
 }
 
@@ -568,31 +586,31 @@ blob variant::as_blob() const {
 // 将 variant 转换为字符串
 std::string variant::as_string() const {
     switch (m_type) {
-        case type_id::string_type:
-            return *static_cast<std::string*>(m_string_ptr);
-        case type_id::int8_type:
-        case type_id::int16_type:
-        case type_id::int32_type:
-        case type_id::int64_type:
-            return std::to_string(m_int64);
-        case type_id::uint8_type:
-        case type_id::uint16_type:
-        case type_id::uint32_type:
-        case type_id::uint64_type:
-            return std::to_string(m_uint64);
-        case type_id::double_type:
-            return std::to_string(m_double);
-        case type_id::bool_type:
-            return m_bool ? "true" : "false";
-        case type_id::null_type:
-            return "null";
-        case type_id::blob_type: {
-            const blob& b = *static_cast<blob*>(m_blob_ptr);
-            return std::string(b.data.begin(), b.data.end());
-        }
-        default:
-            throw_type_error("string", m_type);
-            return std::string(); // 不会执行到这里
+    case type_id::string_type:
+        return *static_cast<std::string*>(m_string_ptr);
+    case type_id::int8_type:
+    case type_id::int16_type:
+    case type_id::int32_type:
+    case type_id::int64_type:
+        return std::to_string(m_int64);
+    case type_id::uint8_type:
+    case type_id::uint16_type:
+    case type_id::uint32_type:
+    case type_id::uint64_type:
+        return std::to_string(m_uint64);
+    case type_id::double_type:
+        return std::to_string(m_double);
+    case type_id::bool_type:
+        return m_bool ? "true" : "false";
+    case type_id::null_type:
+        return "null";
+    case type_id::blob_type: {
+        const blob& b = *static_cast<blob*>(m_blob_ptr);
+        return std::string(b.data.begin(), b.data.end());
+    }
+    default:
+        throw_type_error("string", m_type);
+        return std::string(); // 不会执行到这里
     }
 }
 
@@ -601,28 +619,28 @@ const variant& variant::operator[](size_t pos) const {
     if (m_type != type_id::array_type) {
         throw_type_error("array", m_type);
     }
-    
+
     const variants& arr = *static_cast<variants*>(m_array_ptr);
     if (pos >= arr.size()) {
         throw std::out_of_range("数组索引越界");
     }
-    
+
     return arr[pos];
 }
 
 // 获取数组的大小
 size_t variant::size() const {
     switch (m_type) {
-        case type_id::array_type:
-            return static_cast<variants*>(m_array_ptr)->size();
-        case type_id::object_type:
-            return static_cast<dict*>(m_object_ptr)->size();
-        case type_id::string_type:
-            return static_cast<std::string*>(m_string_ptr)->size();
-        case type_id::blob_type:
-            return static_cast<blob*>(m_blob_ptr)->data.size();
-        default:
-            return 0;
+    case type_id::array_type:
+        return static_cast<variants*>(m_array_ptr)->size();
+    case type_id::object_type:
+        return static_cast<dict*>(m_object_ptr)->size();
+    case type_id::string_type:
+        return static_cast<std::string*>(m_string_ptr)->size();
+    case type_id::blob_type:
+        return static_cast<blob*>(m_blob_ptr)->data.size();
+    default:
+        return 0;
     }
 }
 
@@ -652,7 +670,8 @@ void signed_int_from_variant(const mc::variant& var, IntType& vo, variant::type_
         vo = static_cast<IntType>(var.as_int64());
     } else {
         int64_t value = var.as_int64();
-        if (value < std::numeric_limits<IntType>::min() || value > std::numeric_limits<IntType>::max()) {
+        if (value < std::numeric_limits<IntType>::min() ||
+            value > std::numeric_limits<IntType>::max()) {
             throw std::overflow_error("值超出范围");
         }
         vo = static_cast<IntType>(value);
@@ -663,7 +682,8 @@ void signed_int_from_variant(const mc::variant& var, IntType& vo, variant::type_
  * @brief 无符号整数类型 from_variant 的通用实现
  */
 template <typename IntType>
-void unsigned_int_from_variant(const mc::variant& var, IntType& vo, variant::type_id specific_type) {
+void unsigned_int_from_variant(const mc::variant& var, IntType& vo,
+                               variant::type_id specific_type) {
     if (var.get_type() == specific_type) {
         vo = static_cast<IntType>(var.as_uint64());
     } else {
@@ -857,44 +877,44 @@ variant::~variant() {
 variant& variant::operator=(const variant& other) {
     if (this != &other) {
         clear();
-        
+
         switch (other.m_type) {
-            case type_id::null_type:
-                break;
-            case type_id::int8_type:
-            case type_id::int16_type:
-            case type_id::int32_type:
-            case type_id::int64_type:
-                m_int64 = other.m_int64;
-                break;
-            case type_id::uint8_type:
-            case type_id::uint16_type:
-            case type_id::uint32_type:
-            case type_id::uint64_type:
-                m_uint64 = other.m_uint64;
-                break;
-            case type_id::double_type:
-                m_double = other.m_double;
-                break;
-            case type_id::bool_type:
-                m_bool = other.m_bool;
-                break;
-            case type_id::string_type:
-                m_string_ptr = new std::string(*static_cast<std::string*>(other.m_string_ptr));
-                break;
-            case type_id::array_type:
-                m_array_ptr = new variants(*static_cast<variants*>(other.m_array_ptr));
-                break;
-            case type_id::object_type:
-                m_object_ptr = new dict(*static_cast<dict*>(other.m_object_ptr));
-                break;
-            case type_id::blob_type:
-                m_blob_ptr = new blob(*static_cast<blob*>(other.m_blob_ptr));
-                break;
+        case type_id::null_type:
+            break;
+        case type_id::int8_type:
+        case type_id::int16_type:
+        case type_id::int32_type:
+        case type_id::int64_type:
+            m_int64 = other.m_int64;
+            break;
+        case type_id::uint8_type:
+        case type_id::uint16_type:
+        case type_id::uint32_type:
+        case type_id::uint64_type:
+            m_uint64 = other.m_uint64;
+            break;
+        case type_id::double_type:
+            m_double = other.m_double;
+            break;
+        case type_id::bool_type:
+            m_bool = other.m_bool;
+            break;
+        case type_id::string_type:
+            m_string_ptr = new std::string(*static_cast<std::string*>(other.m_string_ptr));
+            break;
+        case type_id::array_type:
+            m_array_ptr = new variants(*static_cast<variants*>(other.m_array_ptr));
+            break;
+        case type_id::object_type:
+            m_object_ptr = new dict(*static_cast<dict*>(other.m_object_ptr));
+            break;
+        case type_id::blob_type:
+            m_blob_ptr = new blob(*static_cast<blob*>(other.m_blob_ptr));
+            break;
         }
         m_type = other.m_type;
     }
     return *this;
 }
 
-} // namespace mc 
+} // namespace mc

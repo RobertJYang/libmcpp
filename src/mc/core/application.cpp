@@ -1,3 +1,15 @@
+/*
+ * Copyright (c) 2025 Huawei Technologies Co., Ltd.
+ * openUBMC is licensed under Mulan PSL v2.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *         http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
+ */
+
 #include "mc/core/application.h"
 #include <algorithm>
 #include <boost/algorithm/string.hpp>
@@ -24,54 +36,44 @@ public:
     bool check_plugin_path(const std::string& plugin_name, fs::path& plugin_path) const;
     void* load_plugin_library(const std::string& plugin_name, const fs::path& plugin_path);
     plugin* create_plugin_instance(const std::string& plugin_name, void* handle);
-    
+
     // 配置管理
     void parse_command_line(int argc, char** argv);
     void collect_plugin_options();
     void load_config_file();
-    
+
     // 插件生命周期管理
     void initialize_plugins();
     void shutdown();
     void run();
-    
+
     // 插件依赖管理
-    template<typename ActionFunc>
-    bool process_plugins_with_dependencies(
-        const std::vector<plugin*>& source_plugins,
-        std::vector<plugin*>& processed_plugins,
-        ActionFunc action,
-        const std::string& action_name);
-    
+    template <typename ActionFunc>
+    bool process_plugins_with_dependencies(const std::vector<plugin*>& source_plugins,
+                                           std::vector<plugin*>& processed_plugins,
+                                           ActionFunc action, const std::string& action_name);
+
     /**
      * @brief 插件处理上下文
      */
     struct plugin_process_context {
-        std::vector<plugin*>& pending_plugins;    ///< 待处理的插件列表
-        std::vector<plugin*>& processed_plugins;  ///< 已处理的插件列表
-        std::string action_name;                  ///< 操作名称（用于日志）
+        std::vector<plugin*>& pending_plugins;   ///< 待处理的插件列表
+        std::vector<plugin*>& processed_plugins; ///< 已处理的插件列表
+        std::string action_name;                 ///< 操作名称（用于日志）
     };
-    
-    template<typename ActionFunc>
-    bool process_plugins_round(
-        plugin_process_context& context,
-        ActionFunc action);
-        
-    template<typename ActionFunc, typename IteratorType>
-    bool process_single_plugin(
-        plugin* p,
-        IteratorType& it,
-        plugin_process_context& context,
-        ActionFunc action);
-        
-    void report_unprocessed_plugins(
-        const std::vector<plugin*>& pending_plugins,
-        const std::string& action_name);
-    
-    bool check_dependencies(
-        plugin* p, 
-        const std::vector<plugin*>& processed_plugins,
-        const std::string& action_name);
+
+    template <typename ActionFunc>
+    bool process_plugins_round(plugin_process_context& context, ActionFunc action);
+
+    template <typename ActionFunc, typename IteratorType>
+    bool process_single_plugin(plugin* p, IteratorType& it, plugin_process_context& context,
+                               ActionFunc action);
+
+    void report_unprocessed_plugins(const std::vector<plugin*>& pending_plugins,
+                                    const std::string& action_name);
+
+    bool check_dependencies(plugin* p, const std::vector<plugin*>& processed_plugins,
+                            const std::string& action_name);
 
     // 成员变量
     std::string m_version;                                              ///< 应用程序版本号
@@ -181,16 +183,13 @@ void application::impl::run() {
  * @param action_name 操作名称（用于日志）
  * @return 如果所有依赖都已处理，则返回true
  */
-bool application::impl::check_dependencies(
-    plugin* p, 
-    const std::vector<plugin*>& processed_plugins,
-    const std::string& action_name) {
-    
+bool application::impl::check_dependencies(plugin* p, const std::vector<plugin*>& processed_plugins,
+                                           const std::string& action_name) {
     for (const auto& dep_name : p->dependencies()) {
         auto dep_it = m_plugins.find(dep_name);
         if (dep_it == m_plugins.end()) {
-            std::cerr << "警告: 插件 " << p->name() << " 依赖的插件 " << dep_name
-                      << " 未找到" << std::endl;
+            std::cerr << "警告: 插件 " << p->name() << " 依赖的插件 " << dep_name << " 未找到"
+                      << std::endl;
             continue;
         }
 
@@ -211,19 +210,15 @@ bool application::impl::check_dependencies(
  * @param action 处理插件的函数
  * @return 是否成功处理插件
  */
-template<typename ActionFunc, typename IteratorType>
-bool application::impl::process_single_plugin(
-    plugin* p,
-    IteratorType& it,
-    plugin_process_context& context,
-    ActionFunc action) {
-    
+template <typename ActionFunc, typename IteratorType>
+bool application::impl::process_single_plugin(plugin* p, IteratorType& it,
+                                              plugin_process_context& context, ActionFunc action) {
     // 检查所有依赖是否已经处理
     if (!check_dependencies(p, context.processed_plugins, context.action_name)) {
         ++it;
         return false;
     }
-    
+
     // 处理插件
     try {
         if (action(p)) {
@@ -231,13 +226,14 @@ bool application::impl::process_single_plugin(
             it = context.pending_plugins.erase(it);
             return true;
         } else {
-            std::cerr << "警告: 插件 " << p->name() << " " << context.action_name << "失败" << std::endl;
+            std::cerr << "警告: 插件 " << p->name() << " " << context.action_name << "失败"
+                      << std::endl;
             ++it;
             return false;
         }
     } catch (const std::exception& e) {
-        std::cerr << "错误: 插件 " << p->name() << " " << context.action_name << "时发生异常: " 
-                  << e.what() << std::endl;
+        std::cerr << "错误: 插件 " << p->name() << " " << context.action_name
+                  << "时发生异常: " << e.what() << std::endl;
         ++it;
         return false;
     }
@@ -249,20 +245,17 @@ bool application::impl::process_single_plugin(
  * @param action 处理插件的函数
  * @return 是否有插件被处理
  */
-template<typename ActionFunc>
-bool application::impl::process_plugins_round(
-    plugin_process_context& context,
-    ActionFunc action) {
-    
+template <typename ActionFunc>
+bool application::impl::process_plugins_round(plugin_process_context& context, ActionFunc action) {
     bool processed_any = false;
     auto it = context.pending_plugins.begin();
-    
+
     while (it != context.pending_plugins.end()) {
         plugin* p = *it;
         bool processed = process_single_plugin(p, it, context, action);
         processed_any = processed_any || processed;
     }
-    
+
     return processed_any;
 }
 
@@ -271,11 +264,10 @@ bool application::impl::process_plugins_round(
  * @param pending_plugins 未处理的插件列表
  * @param action_name 操作名称（用于日志）
  */
-void application::impl::report_unprocessed_plugins(
-    const std::vector<plugin*>& pending_plugins,
-    const std::string& action_name) {
-    
-    std::cerr << "错误: 无法" << action_name << "以下插件，可能存在循环依赖或依赖缺失:" << std::endl;
+void application::impl::report_unprocessed_plugins(const std::vector<plugin*>& pending_plugins,
+                                                   const std::string& action_name) {
+    std::cerr << "错误: 无法" << action_name
+              << "以下插件，可能存在循环依赖或依赖缺失:" << std::endl;
     for (auto* p : pending_plugins) {
         std::cerr << "  - " << p->name() << std::endl;
     }
@@ -289,30 +281,27 @@ void application::impl::report_unprocessed_plugins(
  * @param action_name 操作名称（用于日志）
  * @return 如果所有插件都成功处理，则返回true
  */
-template<typename ActionFunc>
+template <typename ActionFunc>
 bool application::impl::process_plugins_with_dependencies(
-    const std::vector<plugin*>& source_plugins,
-    std::vector<plugin*>& processed_plugins,
-    ActionFunc action,
-    const std::string& action_name) {
-    
+    const std::vector<plugin*>& source_plugins, std::vector<plugin*>& processed_plugins,
+    ActionFunc action, const std::string& action_name) {
     // 创建一个待处理的插件列表
     std::vector<plugin*> pending_plugins = source_plugins;
-    
+
     // 创建处理上下文
     plugin_process_context context{pending_plugins, processed_plugins, action_name};
-    
+
     // 按照依赖顺序处理插件
     while (!pending_plugins.empty()) {
         bool processed_any = process_plugins_round(context, action);
-        
+
         // 如果没有处理任何插件，说明存在循环依赖或者依赖缺失
         if (!processed_any) {
             report_unprocessed_plugins(pending_plugins, action_name);
             return false;
         }
     }
-    
+
     return true;
 }
 
@@ -329,11 +318,11 @@ void application::impl::initialize_plugins() {
 
     // 按照依赖顺序初始化插件
     process_plugins_with_dependencies(
-        pending_plugins, 
-        m_initialized_plugins,
-        [](plugin* p) { return p->initialize(); },
-        "初始化"
-    );
+        pending_plugins, m_initialized_plugins,
+        [](plugin* p) {
+            return p->initialize();
+        },
+        "初始化");
 }
 
 void application::impl::load_plugins_from_list(const std::vector<std::string>& plugins) {
@@ -536,14 +525,12 @@ void application::exec() {
 application& application::start() {
     // 按照依赖顺序启动插件
     pimpl_->process_plugins_with_dependencies(
-        pimpl_->m_initialized_plugins,
-        pimpl_->m_started_plugins,
-        [](plugin* p) { 
-            p->startup(); 
-            return true; 
+        pimpl_->m_initialized_plugins, pimpl_->m_started_plugins,
+        [](plugin* p) {
+            p->startup();
+            return true;
         },
-        "启动"
-    );
+        "启动");
 
     // 创建工作守卫，防止IO上下文过早结束
     pimpl_->m_work_guard =
