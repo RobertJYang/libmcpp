@@ -1,10 +1,10 @@
-#include "appbase/application.h"
+#include "mc/core/application.h"
 #include <filesystem>
 #include <iostream>
 #include <thread>
 
 int main(int argc, char** argv) {
-    appbase::application& app = appbase::application::instance();
+    mc::application& app = mc::application::instance();
     app.set_version("1.0.0");
 
     // 设置配置文件目录

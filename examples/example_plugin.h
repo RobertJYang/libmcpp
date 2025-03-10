@@ -1,7 +1,7 @@
 #ifndef EXAMPLE_PLUGIN_H
 #define EXAMPLE_PLUGIN_H
 
-#include "appbase/plugin.h"
+#include "mc/core/plugin.h"
 #include <iostream>
 
 namespace examples {
@@ -9,7 +9,7 @@ namespace examples {
 /**
  * @brief 示例插件类
  */
-class example_plugin : public appbase::plugin_base<example_plugin> {
+class example_plugin : public mc::plugin_base<example_plugin> {
 public:
     static const char* plugin_name() {
         return "example";
@@ -32,7 +32,7 @@ public:
 /**
  * @brief 基础服务插件
  */
-class base_service_plugin : public appbase::plugin_base<base_service_plugin> {
+class base_service_plugin : public mc::plugin_base<base_service_plugin> {
 public:
     static const char* plugin_name() {
         return "base_service";
@@ -55,7 +55,7 @@ public:
 /**
  * @brief 网络插件，依赖于基础服务插件
  */
-class network_plugin : public appbase::plugin_base<network_plugin> {
+class network_plugin : public mc::plugin_base<network_plugin> {
 public:
     network_plugin() {
         // 添加对基础服务插件的依赖
@@ -83,7 +83,7 @@ public:
 /**
  * @brief 数据库插件，依赖于基础服务插件
  */
-class database_plugin : public appbase::plugin_base<database_plugin> {
+class database_plugin : public mc::plugin_base<database_plugin> {
 public:
     database_plugin() {
         // 添加对基础服务插件的依赖
@@ -111,7 +111,7 @@ public:
 /**
  * @brief API插件，依赖于网络插件和数据库插件
  */
-class api_plugin : public appbase::plugin_base<api_plugin> {
+class api_plugin : public mc::plugin_base<api_plugin> {
 public:
     api_plugin() {
         // 添加对网络插件和数据库插件的依赖

@@ -1,7 +1,7 @@
 # 源文件列表
 src_files = [
   'object.cpp',
-  'application.cpp',
+  'mc/core/application.cpp',
 ]
 
 # 创建共享库

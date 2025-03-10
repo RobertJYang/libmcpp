@@ -1,14 +1,12 @@
-#include "appbase/application.h"
+#include "mc/core/application.h"
 #include <algorithm>
 #include <boost/algorithm/string.hpp>
-#include <boost/asio.hpp>
 #include <boost/program_options.hpp>
 #include <dlfcn.h>
 #include <iostream>
-#include <thread>
 #include <unordered_map>
 
-namespace appbase {
+namespace mc {
 
 /**
  * @brief application类的实现类
@@ -568,4 +566,4 @@ application& application::set_plugin_dir(const fs::path& plugin_dir) {
     return *this;
 }
 
-} // namespace appbase
+} // namespace mc

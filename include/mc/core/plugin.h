@@ -1,5 +1,5 @@
-#ifndef APPBASE_PLUGIN_H
-#define APPBASE_PLUGIN_H
+#ifndef MC_CORE_PLUGIN_H
+#define MC_CORE_PLUGIN_H
 
 #include <algorithm>
 #include <boost/program_options.hpp>
@@ -7,7 +7,7 @@
 #include <string>
 #include <vector>
 
-namespace appbase {
+namespace mc {
 namespace fs = std::filesystem;
 namespace po = boost::program_options;
 
@@ -59,7 +59,10 @@ public:
      * @brief 获取插件依赖列表
      * @return 依赖的插件名称列表
      */
-    virtual const std::vector<std::string>& dependencies() const = 0;
+    virtual const std::vector<std::string>& dependencies() const {
+        static std::vector<std::string> empty_deps;
+        return empty_deps;
+    }
 };
 
 /**
@@ -107,13 +110,13 @@ protected:
      * @return 应用程序实例引用
      */
     application& app() {
-        return appbase::app();
+        return mc::app();
     }
 
 private:
     std::vector<std::string> m_dependencies; ///< 依赖的插件名称列表
 };
 
-} // namespace appbase
+} // namespace mc
 
-#endif // APPBASE_PLUGIN_H
+#endif // MC_CORE_PLUGIN_H

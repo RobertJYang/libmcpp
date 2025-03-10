@@ -1,5 +1,5 @@
-#ifndef APPBASE_PRIORITY_QUEUE_H
-#define APPBASE_PRIORITY_QUEUE_H
+#ifndef MC_CORE_PRIORITY_QUEUE_H
+#define MC_CORE_PRIORITY_QUEUE_H
 
 #include <atomic>
 #include <boost/asio.hpp>
@@ -16,7 +16,7 @@
 #include <tuple>
 #include <vector>
 
-namespace appbase {
+namespace mc {
 
 /**
  * @brief 任务优先级常量
@@ -260,15 +260,15 @@ private:
     QueueState m_state;
 };
 
-} // namespace appbase
+} // namespace mc
 
 namespace boost {
 namespace asio {
 
 template <typename ContextType>
-struct is_executor<appbase::priority_queue_executor<ContextType>> : std::true_type {};
+struct is_executor<mc::priority_queue_executor<ContextType>> : std::true_type {};
 
 } // namespace asio
 } // namespace boost
 
-#endif // APPBASE_PRIORITY_QUEUE_H
+#endif // MC_CORE_PRIORITY_QUEUE_H
