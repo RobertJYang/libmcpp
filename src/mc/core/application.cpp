@@ -16,21 +16,64 @@ public:
     impl();
     ~impl();
 
+    // 插件管理
     void load_plugins(int argc, char** argv);
     bool load_plugin(const std::string& plugin_name);
     void load_plugins_from_list(const std::vector<std::string>& plugins);
-    void parse_command_line(int argc, char** argv);
-    void collect_plugin_options();
-    void load_config_file();
-    void initialize_plugins();
-    void shutdown();
-    void run();
-
     bool is_plugin_loaded(const std::string& plugin_name) const;
     bool check_plugin_path(const std::string& plugin_name, fs::path& plugin_path) const;
     void* load_plugin_library(const std::string& plugin_name, const fs::path& plugin_path);
     plugin* create_plugin_instance(const std::string& plugin_name, void* handle);
+    
+    // 配置管理
+    void parse_command_line(int argc, char** argv);
+    void collect_plugin_options();
+    void load_config_file();
+    
+    // 插件生命周期管理
+    void initialize_plugins();
+    void shutdown();
+    void run();
+    
+    // 插件依赖管理
+    template<typename ActionFunc>
+    bool process_plugins_with_dependencies(
+        const std::vector<plugin*>& source_plugins,
+        std::vector<plugin*>& processed_plugins,
+        ActionFunc action,
+        const std::string& action_name);
+    
+    /**
+     * @brief 插件处理上下文
+     */
+    struct plugin_process_context {
+        std::vector<plugin*>& pending_plugins;    ///< 待处理的插件列表
+        std::vector<plugin*>& processed_plugins;  ///< 已处理的插件列表
+        std::string action_name;                  ///< 操作名称（用于日志）
+    };
+    
+    template<typename ActionFunc>
+    bool process_plugins_round(
+        plugin_process_context& context,
+        ActionFunc action);
+        
+    template<typename ActionFunc, typename IteratorType>
+    bool process_single_plugin(
+        plugin* p,
+        IteratorType& it,
+        plugin_process_context& context,
+        ActionFunc action);
+        
+    void report_unprocessed_plugins(
+        const std::vector<plugin*>& pending_plugins,
+        const std::string& action_name);
+    
+    bool check_dependencies(
+        plugin* p, 
+        const std::vector<plugin*>& processed_plugins,
+        const std::string& action_name);
 
+    // 成员变量
     std::string m_version;                                              ///< 应用程序版本号
     fs::path m_config_dir;                                              ///< 配置文件目录
     fs::path m_plugin_dir;                                              ///< 插件目录
@@ -131,6 +174,148 @@ void application::impl::run() {
     m_threads.clear();
 }
 
+/**
+ * @brief 检查插件依赖是否已处理
+ * @param p 要检查的插件
+ * @param processed_plugins 已处理的插件列表
+ * @param action_name 操作名称（用于日志）
+ * @return 如果所有依赖都已处理，则返回true
+ */
+bool application::impl::check_dependencies(
+    plugin* p, 
+    const std::vector<plugin*>& processed_plugins,
+    const std::string& action_name) {
+    
+    for (const auto& dep_name : p->dependencies()) {
+        auto dep_it = m_plugins.find(dep_name);
+        if (dep_it == m_plugins.end()) {
+            std::cerr << "警告: 插件 " << p->name() << " 依赖的插件 " << dep_name
+                      << " 未找到" << std::endl;
+            continue;
+        }
+
+        plugin* dep = dep_it->second.get();
+        if (std::find(processed_plugins.begin(), processed_plugins.end(), dep) ==
+            processed_plugins.end()) {
+            return false;
+        }
+    }
+    return true;
+}
+
+/**
+ * @brief 处理单个插件
+ * @param p 要处理的插件
+ * @param it 插件在待处理列表中的迭代器
+ * @param context 处理上下文
+ * @param action 处理插件的函数
+ * @return 是否成功处理插件
+ */
+template<typename ActionFunc, typename IteratorType>
+bool application::impl::process_single_plugin(
+    plugin* p,
+    IteratorType& it,
+    plugin_process_context& context,
+    ActionFunc action) {
+    
+    // 检查所有依赖是否已经处理
+    if (!check_dependencies(p, context.processed_plugins, context.action_name)) {
+        ++it;
+        return false;
+    }
+    
+    // 处理插件
+    try {
+        if (action(p)) {
+            context.processed_plugins.push_back(p);
+            it = context.pending_plugins.erase(it);
+            return true;
+        } else {
+            std::cerr << "警告: 插件 " << p->name() << " " << context.action_name << "失败" << std::endl;
+            ++it;
+            return false;
+        }
+    } catch (const std::exception& e) {
+        std::cerr << "错误: 插件 " << p->name() << " " << context.action_name << "时发生异常: " 
+                  << e.what() << std::endl;
+        ++it;
+        return false;
+    }
+}
+
+/**
+ * @brief 处理一轮插件
+ * @param context 处理上下文
+ * @param action 处理插件的函数
+ * @return 是否有插件被处理
+ */
+template<typename ActionFunc>
+bool application::impl::process_plugins_round(
+    plugin_process_context& context,
+    ActionFunc action) {
+    
+    bool processed_any = false;
+    auto it = context.pending_plugins.begin();
+    
+    while (it != context.pending_plugins.end()) {
+        plugin* p = *it;
+        bool processed = process_single_plugin(p, it, context, action);
+        processed_any = processed_any || processed;
+    }
+    
+    return processed_any;
+}
+
+/**
+ * @brief 报告未处理的插件
+ * @param pending_plugins 未处理的插件列表
+ * @param action_name 操作名称（用于日志）
+ */
+void application::impl::report_unprocessed_plugins(
+    const std::vector<plugin*>& pending_plugins,
+    const std::string& action_name) {
+    
+    std::cerr << "错误: 无法" << action_name << "以下插件，可能存在循环依赖或依赖缺失:" << std::endl;
+    for (auto* p : pending_plugins) {
+        std::cerr << "  - " << p->name() << std::endl;
+    }
+}
+
+/**
+ * @brief 按依赖顺序处理插件
+ * @param source_plugins 源插件列表
+ * @param processed_plugins 已处理的插件列表
+ * @param action 处理插件的函数
+ * @param action_name 操作名称（用于日志）
+ * @return 如果所有插件都成功处理，则返回true
+ */
+template<typename ActionFunc>
+bool application::impl::process_plugins_with_dependencies(
+    const std::vector<plugin*>& source_plugins,
+    std::vector<plugin*>& processed_plugins,
+    ActionFunc action,
+    const std::string& action_name) {
+    
+    // 创建一个待处理的插件列表
+    std::vector<plugin*> pending_plugins = source_plugins;
+    
+    // 创建处理上下文
+    plugin_process_context context{pending_plugins, processed_plugins, action_name};
+    
+    // 按照依赖顺序处理插件
+    while (!pending_plugins.empty()) {
+        bool processed_any = process_plugins_round(context, action);
+        
+        // 如果没有处理任何插件，说明存在循环依赖或者依赖缺失
+        if (!processed_any) {
+            report_unprocessed_plugins(pending_plugins, action_name);
+            return false;
+        }
+    }
+    
+    return true;
+}
+
 void application::impl::initialize_plugins() {
     // 创建一个待初始化的插件列表
     std::vector<plugin*> pending_plugins;
@@ -143,60 +328,12 @@ void application::impl::initialize_plugins() {
     }
 
     // 按照依赖顺序初始化插件
-    while (!pending_plugins.empty()) {
-        bool initialized_any = false;
-
-        for (auto it = pending_plugins.begin(); it != pending_plugins.end();) {
-            plugin* p = *it;
-            bool can_initialize = true;
-
-            // 检查所有依赖是否已经初始化
-            for (const auto& dep_name : p->dependencies()) {
-                auto dep_it = m_plugins.find(dep_name);
-                if (dep_it == m_plugins.end()) {
-                    std::cerr << "警告: 插件 " << p->name() << " 依赖的插件 " << dep_name
-                              << " 未找到" << std::endl;
-                    continue;
-                }
-
-                plugin* dep = dep_it->second.get();
-                if (std::find(m_initialized_plugins.begin(), m_initialized_plugins.end(), dep) ==
-                    m_initialized_plugins.end()) {
-                    can_initialize = false;
-                    break;
-                }
-            }
-
-            if (can_initialize) {
-                // 初始化插件
-                try {
-                    if (p->initialize()) {
-                        m_initialized_plugins.push_back(p);
-                        initialized_any = true;
-                        it = pending_plugins.erase(it);
-                    } else {
-                        std::cerr << "警告: 插件 " << p->name() << " 初始化失败" << std::endl;
-                        ++it;
-                    }
-                } catch (const std::exception& e) {
-                    std::cerr << "错误: 插件 " << p->name() << " 初始化时发生异常: " << e.what()
-                              << std::endl;
-                    ++it;
-                }
-            } else {
-                ++it;
-            }
-        }
-
-        // 如果没有初始化任何插件，说明存在循环依赖或者依赖缺失
-        if (!initialized_any && !pending_plugins.empty()) {
-            std::cerr << "错误: 无法初始化以下插件，可能存在循环依赖或依赖缺失:" << std::endl;
-            for (auto* p : pending_plugins) {
-                std::cerr << "  - " << p->name() << std::endl;
-            }
-            break;
-        }
-    }
+    process_plugins_with_dependencies(
+        pending_plugins, 
+        m_initialized_plugins,
+        [](plugin* p) { return p->initialize(); },
+        "初始化"
+    );
 }
 
 void application::impl::load_plugins_from_list(const std::vector<std::string>& plugins) {
@@ -397,60 +534,16 @@ void application::exec() {
 }
 
 application& application::start() {
-    // 创建一个待启动的插件列表
-    std::vector<plugin*> pending_plugins = pimpl_->m_initialized_plugins;
-
     // 按照依赖顺序启动插件
-    while (!pending_plugins.empty()) {
-        bool started_any = false;
-
-        for (auto it = pending_plugins.begin(); it != pending_plugins.end();) {
-            plugin* p = *it;
-            bool can_start = true;
-
-            // 检查所有依赖是否已经启动
-            for (const auto& dep_name : p->dependencies()) {
-                auto dep_it = pimpl_->m_plugins.find(dep_name);
-                if (dep_it == pimpl_->m_plugins.end()) {
-                    std::cerr << "警告: 插件 " << p->name() << " 依赖的插件 " << dep_name
-                              << " 未找到" << std::endl;
-                    continue;
-                }
-
-                plugin* dep = dep_it->second.get();
-                if (std::find(pimpl_->m_started_plugins.begin(), pimpl_->m_started_plugins.end(),
-                              dep) == pimpl_->m_started_plugins.end()) {
-                    can_start = false;
-                    break;
-                }
-            }
-
-            if (can_start) {
-                // 启动插件
-                try {
-                    p->startup();
-                    pimpl_->m_started_plugins.push_back(p);
-                    started_any = true;
-                    it = pending_plugins.erase(it);
-                } catch (const std::exception& e) {
-                    std::cerr << "错误: 插件 " << p->name() << " 启动时发生异常: " << e.what()
-                              << std::endl;
-                    throw;
-                }
-            } else {
-                ++it;
-            }
-        }
-
-        // 如果没有启动任何插件，说明存在循环依赖或者依赖缺失
-        if (!started_any && !pending_plugins.empty()) {
-            std::cerr << "错误: 无法启动以下插件，可能存在循环依赖或依赖缺失:" << std::endl;
-            for (auto* p : pending_plugins) {
-                std::cerr << "  - " << p->name() << std::endl;
-            }
-            break;
-        }
-    }
+    pimpl_->process_plugins_with_dependencies(
+        pimpl_->m_initialized_plugins,
+        pimpl_->m_started_plugins,
+        [](plugin* p) { 
+            p->startup(); 
+            return true; 
+        },
+        "启动"
+    );
 
     // 创建工作守卫，防止IO上下文过早结束
     pimpl_->m_work_guard =
