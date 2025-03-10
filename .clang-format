@@ -31,6 +31,10 @@ BraceWrapping:
   SplitEmptyRecord: false
   SplitEmptyNamespace: false
 
+# 控制语句括号设置
+# 强制所有控制语句使用花括号，包括单行语句
+InsertBraces: true
+
 # 空格设置
 SpaceBeforeParens: ControlStatements
 SpaceInEmptyParentheses: false

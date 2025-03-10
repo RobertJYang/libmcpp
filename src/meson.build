@@ -2,6 +2,9 @@
 src_files = [
   'object.cpp',
   'mc/core/application.cpp',
+  'mc/variant.cpp',
+  'mc/dict.cpp',
+  'mc/mutable_dict.cpp',
 ]
 
 # 创建共享库

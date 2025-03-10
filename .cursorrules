@@ -30,8 +30,14 @@
 
 5. 代码格式
 - 使用 clang-format 格式化代码
+- 生成的新文件或者文件改动后自动调用 clang-format 格式化
 
 6. 代码性能
+- 尽可能用std::string_view代替std::string
+- 尽可能用std::optional代替std::unique_ptr
+- 尽可能用std::variant代替std::any
+- 尽可能用std::variant_object代替std::any
+- 尽可能用std::variant_object代替std::any
 
 7. 代码安全
 - 使用安全函数，避免缓冲区溢出
@@ -55,7 +61,11 @@
 - 使用 valgrind 检查内存泄漏
 - 构建目录放在 builddir
 
-11. 当前项目规则
+11. 测试
+- 使用 gtest 进行单元测试
+- 除非特殊说明，单元测试都整合到一个测试程序中
+
+12. 当前项目规则
 - 当前项目为多模块项目，模块之间通过命名空间组织，模块根命名空间为 mc
 - 需要导出的头文件都放在 include/mc 目录下
 - 源文件都放在 src 目录下
@@ -63,3 +73,21 @@
 - 原则上一个源文件一个头文件，如果头文件过大则可以按功能组织成多个头文件放在同一个目录下
 - 测试文件都放在 tests 目录下
 - 原则上一个源文件一个测试文件，如果测试文件过大则可以按功能组织成多个测试文件放在同一个目录下
+- 新创建的文件在头部需要加入如下版权声明
+/*
+* Copyright (c) {year} Huawei Technologies Co., Ltd.
+* openUBMC is licensed under Mulan PSL v2.
+* You can use this software according to the terms and conditions of the Mulan PSL v2.
+* You may obtain a copy of Mulan PSL v2 at:
+*         http://license.coscl.org.cn/MulanPSL2
+* THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+* EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+* MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+* See the Mulan PSL v2 for more details.
+*/
+其中 {year} 为当前年份
+
+13. 头文件保护
+- 头文件保护使用 #ifndef/#define/#endif 形式，严禁使用 #pragma once
+- 头文件保护的宏名使用项目前缀（MC_）加上头文件路径的大写形式，例如 include/mc/variant.h 应使用 MC_VARIANT_H
+- 头文件保护的宏名应使用项目前缀（MC_）加上头文件路径的大写形式，例如 include/mc/variant.h 应使用 MC_VARIANT_H

@@ -1,0 +1,566 @@
+/*
+ * Copyright (c) 2024 Huawei Technologies Co., Ltd.
+ * openUBMC is licensed under Mulan PSL v2.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *         http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
+ */
+
+/**
+ * @file common.h
+ * @brief mc 命名空间中常用的宏、模板、函数等定义
+ */
+#ifndef MC_COMMON_H
+#define MC_COMMON_H
+
+#include <string>
+#include <vector>
+#include <memory>
+#include <functional>
+#include <type_traits>
+#include <stdexcept>
+#include <algorithm>
+#include <cstdint>
+#include <iostream>
+#include <random>
+#include <chrono>
+#include <limits>
+#include <cstring>
+
+/**
+ * @brief 主命名空间
+ */
+namespace mc {
+
+//------------------------------------------------------------------------------
+// 常用常量的定义
+//------------------------------------------------------------------------------
+constexpr std::size_t MAX_NUM_ARRAY_ELEMENTS = 1024 * 1024;
+
+
+//------------------------------------------------------------------------------
+// 编译器和平台相关宏
+//------------------------------------------------------------------------------
+
+// 编译器检测
+#if defined(__clang__)
+    #define MC_COMPILER_CLANG
+    #define MC_COMPILER_VERSION (__clang_major__ * 10000 + __clang_minor__ * 100 + __clang_patchlevel__)
+#elif defined(__GNUC__)
+    #define MC_COMPILER_GCC
+    #define MC_COMPILER_VERSION (__GNUC__ * 10000 + __GNUC_MINOR__ * 100 + __GNUC_PATCHLEVEL__)
+#elif defined(_MSC_VER)
+    #define MC_COMPILER_MSVC
+    #define MC_COMPILER_VERSION _MSC_VER
+#else
+    #define MC_COMPILER_UNKNOWN
+    #define MC_COMPILER_VERSION 0
+#endif
+
+// 平台检测
+#if defined(_WIN32) || defined(_WIN64)
+    #define MC_PLATFORM_WINDOWS
+#elif defined(__APPLE__)
+    #define MC_PLATFORM_APPLE
+#elif defined(__linux__)
+    #define MC_PLATFORM_LINUX
+#else
+    #define MC_PLATFORM_UNKNOWN
+#endif
+
+// 架构检测
+#if defined(__x86_64__) || defined(_M_X64)
+    #define MC_ARCH_X64
+#elif defined(__i386) || defined(_M_IX86)
+    #define MC_ARCH_X86
+#elif defined(__arm__) || defined(_M_ARM)
+    #define MC_ARCH_ARM
+#elif defined(__aarch64__)
+    #define MC_ARCH_ARM64
+#else
+    #define MC_ARCH_UNKNOWN
+#endif
+
+//------------------------------------------------------------------------------
+// 工具宏
+//------------------------------------------------------------------------------
+
+/**
+ * @brief 未使用变量标记
+ */
+#define MC_UNUSED(var) (void)(var)
+
+/**
+ * @brief 断言宏
+ */
+#ifndef NDEBUG
+    #define MC_ASSERT(condition, message) \
+        do { \
+            if (!(condition)) { \
+                throw std::runtime_error(std::string(__FILE__) + ":" + std::to_string(__LINE__) + ": " + message); \
+            } \
+        } while (false)
+#else
+    #define MC_ASSERT(condition, message) do {} while (false)
+#endif
+
+/**
+ * @brief 判断两个浮点数是否相等
+ */
+#define MC_FLOAT_EQUAL(a, b, epsilon) (std::abs((a) - (b)) <= (epsilon))
+
+/**
+ * @brief 强制内联函数
+ */
+#if defined(MC_COMPILER_MSVC)
+    #define MC_ALWAYS_INLINE __forceinline
+#else
+    #define MC_ALWAYS_INLINE inline __attribute__((always_inline))
+#endif
+
+/**
+ * @brief 强制不内联函数
+ */
+#if defined(MC_COMPILER_MSVC)
+    #define MC_NEVER_INLINE __declspec(noinline)
+#else
+    #define MC_NEVER_INLINE __attribute__((noinline))
+#endif
+
+/**
+ * @brief 弃用警告
+ */
+#if defined(MC_COMPILER_MSVC)
+    #define MC_DEPRECATED(msg) __declspec(deprecated(msg))
+#else
+    #define MC_DEPRECATED(msg) __attribute__((deprecated(msg)))
+#endif
+
+//------------------------------------------------------------------------------
+// 拷贝和移动控制类
+//------------------------------------------------------------------------------
+
+/**
+ * @brief 禁止拷贝的基类
+ * 
+ * 任何希望禁止拷贝的类可以私有继承此类
+ * 例如: class MyClass : private noncopyable {};
+ */
+class noncopyable {
+protected:
+    // 允许构造和析构
+    constexpr noncopyable() = default;
+    ~noncopyable() = default;
+
+    // 禁止拷贝
+    noncopyable(const noncopyable&) = delete;
+    noncopyable& operator=(const noncopyable&) = delete;
+};
+
+/**
+ * @brief 禁止移动的基类
+ * 
+ * 任何希望禁止移动的类可以私有继承此类
+ * 例如: class MyClass : private nonmovable {};
+ */
+class nonmovable {
+protected:
+    // 允许构造和析构
+    constexpr nonmovable() = default;
+    ~nonmovable() = default;
+
+    // 禁止移动
+    nonmovable(nonmovable&&) = delete;
+    nonmovable& operator=(nonmovable&&) = delete;
+};
+
+/**
+ * @brief 禁止拷贝和移动的基类
+ * 
+ * 任何希望同时禁止拷贝和移动的类可以私有继承此类
+ * 例如: class MyClass : private noncopyable_nonmovable {};
+ */
+class noncopyable_nonmovable : private noncopyable, private nonmovable {
+protected:
+    constexpr noncopyable_nonmovable() = default;
+    ~noncopyable_nonmovable() = default;
+};
+
+//------------------------------------------------------------------------------
+// 单例类基类
+//------------------------------------------------------------------------------
+
+/**
+ * @brief 单例基类模板
+ * 
+ * 任何希望实现单例模式的类可以继承此模板类
+ * 例如:
+ *   class MySingleton : public singleton<MySingleton> {
+ *     friend class singleton<MySingleton>; // 必须声明为友元以访问构造函数
+ *   private:
+ *     MySingleton() = default;  // 私有构造函数
+ *   public:
+ *     void doSomething() { ... }
+ *   };
+ */
+template <typename T>
+class singleton : private noncopyable_nonmovable {
+public:
+    static T& instance() {
+        static T instance;
+        return instance;
+    }
+
+protected:
+    constexpr singleton() = default;
+    ~singleton() = default;
+};
+
+//------------------------------------------------------------------------------
+// 字符串操作函数
+//------------------------------------------------------------------------------
+
+/**
+ * @brief 将字符串转换为大写
+ */
+inline std::string to_upper(std::string str) {
+    std::transform(str.begin(), str.end(), str.begin(), ::toupper);
+    return str;
+}
+
+/**
+ * @brief 将字符串转换为小写
+ */
+inline std::string to_lower(std::string str) {
+    std::transform(str.begin(), str.end(), str.begin(), ::tolower);
+    return str;
+}
+
+/**
+ * @brief 移除字符串两端的空白字符
+ */
+inline std::string trim(const std::string& str) {
+    auto first = str.find_first_not_of(" \t\n\r\f\v");
+    if (first == std::string::npos) {
+        return "";
+    }
+    auto last = str.find_last_not_of(" \t\n\r\f\v");
+    return str.substr(first, last - first + 1);
+}
+
+/**
+ * @brief 移除字符串左侧的空白字符
+ */
+inline std::string ltrim(const std::string& str) {
+    auto first = str.find_first_not_of(" \t\n\r\f\v");
+    if (first == std::string::npos) {
+        return "";
+    }
+    return str.substr(first);
+}
+
+/**
+ * @brief 移除字符串右侧的空白字符
+ */
+inline std::string rtrim(const std::string& str) {
+    auto last = str.find_last_not_of(" \t\n\r\f\v");
+    if (last == std::string::npos) {
+        return "";
+    }
+    return str.substr(0, last + 1);
+}
+
+/**
+ * @brief 分割字符串
+ */
+inline std::vector<std::string> split(const std::string& str, const std::string& delim) {
+    std::vector<std::string> tokens;
+    size_t prev = 0, pos = 0;
+    do {
+        pos = str.find(delim, prev);
+        if (pos == std::string::npos) {
+            pos = str.length();
+        }
+        std::string token = str.substr(prev, pos - prev);
+        if (!token.empty()) {
+            tokens.push_back(token);
+        }
+        prev = pos + delim.length();
+    } while (pos < str.length() && prev < str.length());
+    return tokens;
+}
+
+/**
+ * @brief 检查字符串是否以指定前缀开始
+ */
+inline bool starts_with(const std::string& str, const std::string& prefix) {
+    return str.size() >= prefix.size() && str.compare(0, prefix.size(), prefix) == 0;
+}
+
+/**
+ * @brief 检查字符串是否以指定后缀结束
+ */
+inline bool ends_with(const std::string& str, const std::string& suffix) {
+    return str.size() >= suffix.size() && str.compare(str.size() - suffix.size(), suffix.size(), suffix) == 0;
+}
+
+/**
+ * @brief 替换字符串中的所有子串
+ */
+inline std::string replace_all(std::string str, const std::string& from, const std::string& to) {
+    size_t start_pos = 0;
+    while ((start_pos = str.find(from, start_pos)) != std::string::npos) {
+        str.replace(start_pos, from.length(), to);
+        start_pos += to.length();
+    }
+    return str;
+}
+
+/**
+ * @brief 字符串格式化
+ */
+template <typename... Args>
+inline std::string format(const std::string& format, Args... args) {
+    int size = std::snprintf(nullptr, 0, format.c_str(), args...) + 1;
+    if (size <= 0) {
+        return "";
+    }
+    std::unique_ptr<char[]> buf(new char[size]);
+    std::snprintf(buf.get(), size, format.c_str(), args...);
+    return std::string(buf.get(), buf.get() + size - 1);
+}
+
+//------------------------------------------------------------------------------
+// 类型特性和模板
+//------------------------------------------------------------------------------
+
+/**
+ * @brief 检查类型是否具有特定成员函数的工具类
+ * @note 用法：
+ *   has_member_function<T, void(int)>::value 检查 T 是否有 void func(int) 成员函数
+ */
+template <typename, typename T>
+struct has_member_function;
+
+/**
+ * @brief 类型安全的枚举类辅助工具
+ */
+template <typename Enum>
+struct enable_enum_flags {
+    static constexpr bool enable = false;
+};
+
+/**
+ * @brief 为具有 enable_enum_flags 特化的枚举类重载位运算符
+ */
+template <typename Enum>
+typename std::enable_if<enable_enum_flags<Enum>::enable, Enum>::type
+operator|(Enum lhs, Enum rhs) {
+    using underlying = typename std::underlying_type<Enum>::type;
+    return static_cast<Enum>(
+        static_cast<underlying>(lhs) | static_cast<underlying>(rhs)
+    );
+}
+
+template <typename Enum>
+typename std::enable_if<enable_enum_flags<Enum>::enable, Enum>::type
+operator&(Enum lhs, Enum rhs) {
+    using underlying = typename std::underlying_type<Enum>::type;
+    return static_cast<Enum>(
+        static_cast<underlying>(lhs) & static_cast<underlying>(rhs)
+    );
+}
+
+template <typename Enum>
+typename std::enable_if<enable_enum_flags<Enum>::enable, Enum>::type
+operator^(Enum lhs, Enum rhs) {
+    using underlying = typename std::underlying_type<Enum>::type;
+    return static_cast<Enum>(
+        static_cast<underlying>(lhs) ^ static_cast<underlying>(rhs)
+    );
+}
+
+template <typename Enum>
+typename std::enable_if<enable_enum_flags<Enum>::enable, Enum>::type
+operator~(Enum rhs) {
+    using underlying = typename std::underlying_type<Enum>::type;
+    return static_cast<Enum>(
+        ~static_cast<underlying>(rhs)
+    );
+}
+
+template <typename Enum>
+typename std::enable_if<enable_enum_flags<Enum>::enable, Enum&>::type
+operator|=(Enum& lhs, Enum rhs) {
+    lhs = lhs | rhs;
+    return lhs;
+}
+
+template <typename Enum>
+typename std::enable_if<enable_enum_flags<Enum>::enable, Enum&>::type
+operator&=(Enum& lhs, Enum rhs) {
+    lhs = lhs & rhs;
+    return lhs;
+}
+
+template <typename Enum>
+typename std::enable_if<enable_enum_flags<Enum>::enable, Enum&>::type
+operator^=(Enum& lhs, Enum rhs) {
+    lhs = lhs ^ rhs;
+    return lhs;
+}
+
+/**
+ * @brief 定义枚举类的位运算
+ * @note 用法：
+ *   enum class MyFlags { Flag1 = 1, Flag2 = 2, Flag3 = 4 };
+ *   MC_ENABLE_ENUM_FLAGS(MyFlags)
+ *   MyFlags flags = MyFlags::Flag1 | MyFlags::Flag2;
+ */
+#define MC_ENABLE_ENUM_FLAGS(Enum) \
+    template <> \
+    struct mc::enable_enum_flags<Enum> { \
+        static constexpr bool enable = true; \
+    }
+
+/**
+ * @brief 安全的数值转换
+ */
+template <typename To, typename From>
+typename std::enable_if<
+    std::is_arithmetic<From>::value && std::is_arithmetic<To>::value,
+    To
+>::type safe_cast(From value) {
+    if (std::is_signed<From>::value && std::is_unsigned<To>::value) {
+        if (value < 0) {
+            throw std::out_of_range("Cannot convert negative value to unsigned type");
+        }
+    }
+
+    if ((std::is_integral<From>::value && std::is_integral<To>::value) &&
+        (sizeof(From) > sizeof(To) || (std::is_signed<From>::value && std::is_unsigned<To>::value))) {
+        if (value > static_cast<From>(std::numeric_limits<To>::max())) {
+            throw std::out_of_range("Value too large for target type");
+        }
+        if (std::is_signed<From>::value && value < static_cast<From>(std::numeric_limits<To>::min())) {
+            throw std::out_of_range("Value too small for target type");
+        }
+    }
+
+    return static_cast<To>(value);
+}
+
+/**
+ * @brief 获取类型的字符串表示
+ */
+template <typename T>
+std::string type_name() {
+#ifdef MC_COMPILER_CLANG
+    const char* name = __PRETTY_FUNCTION__;
+    const char* start = std::strstr(name, "T = ") + 4;
+    const char* end = std::strstr(start, "]");
+    return std::string(start, end - start);
+#elif defined(MC_COMPILER_GCC)
+    const char* name = __PRETTY_FUNCTION__;
+    const char* start = std::strstr(name, "T = ") + 4;
+    const char* end = std::strstr(start, ";");
+    return std::string(start, end - start);
+#elif defined(MC_COMPILER_MSVC)
+    const char* name = __FUNCSIG__;
+    const char* start = std::strstr(name, "type_name<") + 10;
+    const char* end = std::strstr(start, ">(void)");
+    return std::string(start, end - start);
+#else
+    return "unknown_type";
+#endif
+}
+
+//------------------------------------------------------------------------------
+// 实用工具函数
+//------------------------------------------------------------------------------
+
+/**
+ * @brief 范围约束函数
+ */
+template <typename T>
+T clamp(const T& value, const T& min, const T& max) {
+    return value < min ? min : (value > max ? max : value);
+}
+
+/**
+ * @brief 安全地删除指针
+ */
+template <typename T>
+void safe_delete(T*& ptr) {
+    if (ptr) {
+        delete ptr;
+        ptr = nullptr;
+    }
+}
+
+/**
+ * @brief 安全地删除数组指针
+ */
+template <typename T>
+void safe_delete_array(T*& ptr) {
+    if (ptr) {
+        delete[] ptr;
+        ptr = nullptr;
+    }
+}
+
+/**
+ * @brief 生成随机整数
+ */
+template <typename T>
+typename std::enable_if<std::is_integral<T>::value, T>::type
+random(T min, T max) {
+    static std::random_device rd;
+    static std::mt19937 gen(rd());
+    std::uniform_int_distribution<T> dist(min, max);
+    return dist(gen);
+}
+
+/**
+ * @brief 生成随机浮点数
+ */
+template <typename T>
+typename std::enable_if<std::is_floating_point<T>::value, T>::type
+random(T min, T max) {
+    static std::random_device rd;
+    static std::mt19937 gen(rd());
+    std::uniform_real_distribution<T> dist(min, max);
+    return dist(gen);
+}
+
+/**
+ * @brief 创建基于作用域的计时器
+ * @note 用法：
+ *   {
+ *     auto timer = mc::scope_timer("Operation");
+ *     // 要测量的代码
+ *   } // 离开作用域时自动打印耗时
+ */
+class scope_timer {
+public:
+    explicit scope_timer(const std::string& name)
+        : m_name(name), m_start(std::chrono::high_resolution_clock::now()) {}
+
+    ~scope_timer() {
+        auto end = std::chrono::high_resolution_clock::now();
+        auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - m_start).count();
+        std::cout << m_name << " 耗时: " << duration << "ms" << std::endl;
+    }
+
+private:
+    std::string m_name;
+    std::chrono::time_point<std::chrono::high_resolution_clock> m_start;
+};
+
+} // namespace mc 
+
+#endif // MC_COMMON_H 
