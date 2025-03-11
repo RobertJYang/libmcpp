@@ -27,6 +27,11 @@ mutable_dict::mutable_dict() = default;
 mutable_dict::mutable_dict(std::vector<entry> entries) : dict(std::move(entries)) {
 }
 
+// 从初始化列表构造
+mutable_dict::mutable_dict(std::initializer_list<std::pair<std::string, variant>> init) 
+    : dict(init) {
+}
+
 // 从 dict 构造
 mutable_dict::mutable_dict(const dict& other) : dict(other) {
 }
@@ -59,6 +64,24 @@ dict::entry* mutable_dict::find_entry_mutable(const std::string& key) {
     return nullptr;
 }
 
+// 查找指定键的元素（可变版本，string_view 版本）
+dict::entry* mutable_dict::find_entry_mutable(std::string_view key) {
+    auto it = m_data->index.find(key);
+    if (it != m_data->index.end()) {
+        return const_cast<entry*>(&(*it));
+    }
+    return nullptr;
+}
+
+// 查找指定键的元素（可变版本，const char* 版本）
+dict::entry* mutable_dict::find_entry_mutable(const char* key) {
+    auto it = m_data->index.find(key);
+    if (it != m_data->index.end()) {
+        return const_cast<entry*>(&(*it));
+    }
+    return nullptr;
+}
+
 // 添加或更新键值对
 mutable_dict& mutable_dict::operator()(const std::string& key, variant value) {
     // 查找是否已存在该键
@@ -69,6 +92,38 @@ mutable_dict& mutable_dict::operator()(const std::string& key, variant value) {
     } else {
         // 不存在则添加新的键值对
         entry* new_entry = new entry(key, variant(value));
+        m_data->entries.push_back(*new_entry);
+        m_data->index.insert(*new_entry);
+    }
+    return *this;
+}
+
+// 添加或更新键值对（string_view 版本）
+mutable_dict& mutable_dict::operator()(std::string_view key, variant value) {
+    // 查找是否已存在该键
+    entry* e = find_entry_mutable(key);
+    if (e) {
+        // 更新值
+        e->value = value;
+    } else {
+        // 不存在则添加新的键值对
+        entry* new_entry = new entry(std::string(key), variant(value));
+        m_data->entries.push_back(*new_entry);
+        m_data->index.insert(*new_entry);
+    }
+    return *this;
+}
+
+// 添加或更新键值对（const char* 版本）
+mutable_dict& mutable_dict::operator()(const char* key, variant value) {
+    // 查找是否已存在该键
+    entry* e = find_entry_mutable(key);
+    if (e) {
+        // 更新值
+        e->value = value;
+    } else {
+        // 不存在则添加新的键值对
+        entry* new_entry = new entry(std::string(key), variant(value));
         m_data->entries.push_back(*new_entry);
         m_data->index.insert(*new_entry);
     }
@@ -91,13 +146,85 @@ variant& mutable_dict::operator[](const std::string& key) {
     return new_entry->value;
 }
 
+// 获取或设置指定键的值（string_view 版本）
+variant& mutable_dict::operator[](std::string_view key) {
+    // 查找是否已存在该键
+    entry* e = find_entry_mutable(key);
+    if (e) {
+        return e->value;
+    }
+
+    // 不存在则添加新的键值对
+    variant empty_variant;  // 创建一个空的 variant
+    entry* new_entry = new entry(std::string(key), empty_variant);
+    m_data->entries.push_back(*new_entry);
+    m_data->index.insert(*new_entry);
+    return new_entry->value;
+}
+
+// 获取或设置指定键的值（const char* 版本）
+variant& mutable_dict::operator[](const char* key) {
+    // 查找是否已存在该键
+    entry* e = find_entry_mutable(key);
+    if (e) {
+        return e->value;
+    }
+
+    // 不存在则添加新的键值对
+    variant empty_variant;  // 创建一个空的 variant
+    entry* new_entry = new entry(std::string(key), empty_variant);
+    m_data->entries.push_back(*new_entry);
+    m_data->index.insert(*new_entry);
+    return new_entry->value;
+}
+
 // 获取指定键的值（const 版本）
 const variant& mutable_dict::operator[](const std::string& key) const {
     return dict::operator[](key);
 }
 
+// 获取指定键的值（const 版本，string_view 版本）
+const variant& mutable_dict::operator[](std::string_view key) const {
+    return dict::operator[](key);
+}
+
+// 获取指定键的值（const 版本，const char* 版本）
+const variant& mutable_dict::operator[](const char* key) const {
+    return dict::operator[](key);
+}
+
 // 移除指定键的键值对
 bool mutable_dict::erase(const std::string& key) {
+    entry* e = find_entry_mutable(key);
+    if (e) {
+        // 先从索引中移除
+        m_data->index.erase(m_data->index.iterator_to(*e));
+        // 再从链表中移除
+        m_data->entries.erase(m_data->entries.iterator_to(*e));
+        // 最后删除对象
+        delete e;
+        return true;
+    }
+    return false;
+}
+
+// 移除指定键的键值对（string_view 版本）
+bool mutable_dict::erase(std::string_view key) {
+    entry* e = find_entry_mutable(key);
+    if (e) {
+        // 先从索引中移除
+        m_data->index.erase(m_data->index.iterator_to(*e));
+        // 再从链表中移除
+        m_data->entries.erase(m_data->entries.iterator_to(*e));
+        // 最后删除对象
+        delete e;
+        return true;
+    }
+    return false;
+}
+
+// 移除指定键的键值对（const char* 版本）
+bool mutable_dict::erase(const char* key) {
     entry* e = find_entry_mutable(key);
     if (e) {
         // 先从索引中移除

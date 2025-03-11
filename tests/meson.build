@@ -13,7 +13,12 @@ test_files = [
   'variant/test_variant_equality.cpp',
   'variant/test_variant_comparison.cpp',
   'variant/test_variant_bool_operator.cpp',
-  'variant/test_variant_visitor.cpp'
+  'variant/test_variant_visitor.cpp',
+  'dict/test_dict_string_view.cpp',
+  'dict/test_dict_construction.cpp',
+  'dict/test_dict_operations.cpp',
+  'dict/test_dict_conversion.cpp',
+  'dict/test_dict_performance.cpp'
 ]
 
 # 创建测试可执行文件

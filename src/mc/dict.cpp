@@ -43,6 +43,25 @@ dict::dict(std::vector<entry> entries) : m_data(std::make_shared<data_t>(entries
     }
 }
 
+// 从初始化列表构造
+dict::dict(std::initializer_list<std::pair<std::string, variant>> init) 
+    : m_data(std::make_shared<data_t>(init.size())) {
+    // 处理初始化列表中的键值对
+    for (const auto& pair : init) {
+        // 查找是否已存在该键
+        auto it = m_data->index.find(pair.first);
+        if (it != m_data->index.end()) {
+            // 如果键已存在，替换值
+            const_cast<entry&>(*it).value = pair.second;
+        } else {
+            // 如果键不存在，添加新的键值对
+            entry* new_entry = new entry(pair.first, pair.second);
+            m_data->entries.push_back(*new_entry);
+            m_data->index.insert(*new_entry);
+        }
+    }
+}
+
 // 拷贝构造函数 - 共享数据
 dict::dict(const dict& other) : m_data(other.m_data) {
 }
@@ -66,6 +85,24 @@ const dict::entry* dict::find_entry(const std::string& key) const {
     return nullptr;
 }
 
+// 查找指定键的元素 (string_view 版本)
+const dict::entry* dict::find_entry(std::string_view key) const {
+    auto it = m_data->index.find(key);
+    if (it != m_data->index.end()) {
+        return &(*it);
+    }
+    return nullptr;
+}
+
+// 查找指定键的元素 (const char* 版本)
+const dict::entry* dict::find_entry(const char* key) const {
+    auto it = m_data->index.find(key);
+    if (it != m_data->index.end()) {
+        return &(*it);
+    }
+    return nullptr;
+}
+
 // 获取指定键的值
 const variant& dict::operator[](const std::string& key) const {
     const entry* e = find_entry(key);
@@ -73,6 +110,24 @@ const variant& dict::operator[](const std::string& key) const {
         return e->value;
     }
     throw std::out_of_range("字典中不存在键: " + key);
+}
+
+// 获取指定键的值 (string_view 版本)
+const variant& dict::operator[](std::string_view key) const {
+    const entry* e = find_entry(key);
+    if (e) {
+        return e->value;
+    }
+    throw std::out_of_range("字典中不存在键: " + std::string(key));
+}
+
+// 获取指定键的值 (const char* 版本)
+const variant& dict::operator[](const char* key) const {
+    const entry* e = find_entry(key);
+    if (e) {
+        return e->value;
+    }
+    throw std::out_of_range("字典中不存在键: " + std::string(key));
 }
 
 // 获取指定键的值，如果不存在则返回默认值
@@ -84,8 +139,36 @@ const variant& dict::get(const std::string& key, const variant& default_value) c
     return default_value;
 }
 
+// 获取指定键的值，如果不存在则返回默认值 (string_view 版本)
+const variant& dict::get(std::string_view key, const variant& default_value) const {
+    const entry* e = find_entry(key);
+    if (e) {
+        return e->value;
+    }
+    return default_value;
+}
+
+// 获取指定键的值，如果不存在则返回默认值 (const char* 版本)
+const variant& dict::get(const char* key, const variant& default_value) const {
+    const entry* e = find_entry(key);
+    if (e) {
+        return e->value;
+    }
+    return default_value;
+}
+
 // 判断是否包含指定键
 bool dict::contains(const std::string& key) const {
+    return find_entry(key) != nullptr;
+}
+
+// 判断是否包含指定键 (string_view 版本)
+bool dict::contains(std::string_view key) const {
+    return find_entry(key) != nullptr;
+}
+
+// 判断是否包含指定键 (const char* 版本)
+bool dict::contains(const char* key) const {
     return find_entry(key) != nullptr;
 }
 
@@ -158,6 +241,42 @@ int dict::find_index(const std::string& key) const {
     return -1; // 理论上不会到达这里
 }
 
+// 查找键的索引位置 (string_view 版本)
+int dict::find_index(std::string_view key) const {
+    const entry* e = find_entry(key);
+    if (!e) {
+        return -1;
+    }
+    
+    // 计算索引位置
+    int index = 0;
+    for (auto it = m_data->entries.begin(); it != m_data->entries.end(); ++it, ++index) {
+        if (&(*it) == e) {
+            return index;
+        }
+    }
+    
+    return -1; // 理论上不会到达这里
+}
+
+// 查找键的索引位置 (const char* 版本)
+int dict::find_index(const char* key) const {
+    const entry* e = find_entry(key);
+    if (!e) {
+        return -1;
+    }
+    
+    // 计算索引位置
+    int index = 0;
+    for (auto it = m_data->entries.begin(); it != m_data->entries.end(); ++it, ++index) {
+        if (&(*it) == e) {
+            return index;
+        }
+    }
+    
+    return -1; // 理论上不会到达这里
+}
+
 // 比较两个 dict 对象是否相等
 bool dict::operator==(const dict& other) const {
     // 如果指向同一个数据，则一定相等
@@ -184,6 +303,13 @@ bool dict::operator==(const dict& other) const {
     }
 
     return true;
+}
+
+// 将 dict 转换为 variant
+variant to_variant(const dict& d) {
+    variant result;
+    to_variant(d, result);
+    return result;
 }
 
 } // namespace mc
