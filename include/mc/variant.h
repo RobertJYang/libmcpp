@@ -184,24 +184,24 @@ public:
     /**
      * @brief 从各种基本类型构造 variant
      */
-    explicit variant(const char* str);
-    explicit variant(char* str);
-    explicit variant(float val);
-    explicit variant(uint8_t val);
-    explicit variant(int8_t val);
-    explicit variant(uint16_t val);
-    explicit variant(int16_t val);
-    explicit variant(uint32_t val);
-    explicit variant(int32_t val);
-    explicit variant(uint64_t val);
-    explicit variant(int64_t val);
-    explicit variant(double val);
-    explicit variant(bool val);
-    explicit variant(blob val);
-    explicit variant(std::string val);
-    explicit variant(dict obj);
-    explicit variant(mutable_dict obj);
-    explicit variant(variants arr);
+    variant(const char* str);
+    variant(char* str);
+    variant(float val);
+    variant(uint8_t val);
+    variant(int8_t val);
+    variant(uint16_t val);
+    variant(int16_t val);
+    variant(uint32_t val);
+    variant(int32_t val);
+    variant(uint64_t val);
+    variant(int64_t val);
+    variant(double val);
+    variant(bool val);
+    variant(blob val);
+    variant(std::string val);
+    variant(dict obj);
+    variant(mutable_dict obj);
+    variant(variants arr);
 
     /**
      * @brief 从 std::pair 构造

@@ -526,4 +526,45 @@ void assert_exception::dynamic_rethrow_exception() const
     throw *this;
 }
 
+// 类型转换异常
+bad_cast_exception::bad_cast_exception(log_message&& msg)
+    : exception(std::move(msg), type_error_code, "bad_cast", "类型转换错误")
+{
+}
+
+bad_cast_exception::bad_cast_exception(const bad_cast_exception& e)
+    : exception(e)
+{
+}
+
+bad_cast_exception::bad_cast_exception(bad_cast_exception&& e)
+    : exception(std::move(e))
+{
+}
+
+// 从基类构造的构造函数实现
+bad_cast_exception::bad_cast_exception(const exception& e)
+    : exception(e)
+{
+    m_impl->m_code = type_error_code;
+    m_impl->m_name = "bad_cast";
+    m_impl->m_what = "类型转换错误";
+}
+
+// 从字符串构造的构造函数实现
+bad_cast_exception::bad_cast_exception(const std::string& msg)
+    : exception(log_message(log_level::error, msg), type_error_code, "bad_cast", "类型转换错误")
+{
+}
+
+std::shared_ptr<exception> bad_cast_exception::dynamic_copy_exception() const
+{
+    return std::make_shared<bad_cast_exception>(*this);
+}
+
+void bad_cast_exception::dynamic_rethrow_exception() const
+{
+    throw *this;
+}
+
 } // namespace mc 

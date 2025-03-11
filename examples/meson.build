@@ -8,7 +8,7 @@ plugin_src_files = [
 # 创建插件动态库
 example_plugin = shared_library('example',
   plugin_src_files,
-  include_directories : incdir,
+  include_directories : [incdir, boost_incdir],
   dependencies : [libmcpp_dep, boost_program_options_dep],
   install : true,
   install_dir : get_option('libdir') / 'libmcpp/plugins'
@@ -17,8 +17,16 @@ example_plugin = shared_library('example',
 # 创建示例应用程序可执行文件
 example_app = executable('example_app',
   'main.cpp',
-  include_directories : incdir,
+  include_directories : [incdir, boost_incdir],
   dependencies : [libmcpp_dep, boost_program_options_dep],
+  install : true
+)
+
+# 创建反射示例程序
+reflect_example = executable('reflect_example',
+  'reflect_example.cpp',
+  include_directories : [incdir, boost_incdir],
+  dependencies : [libmcpp_dep],
   install : true
 )
 

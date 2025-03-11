@@ -95,20 +95,6 @@ constexpr std::size_t MAX_NUM_ARRAY_ELEMENTS = 1024 * 1024;
 #define MC_UNUSED(var) (void)(var)
 
 /**
- * @brief 断言宏
- */
-#ifndef NDEBUG
-    #define MC_ASSERT(condition, message) \
-        do { \
-            if (!(condition)) { \
-                throw std::runtime_error(std::string(__FILE__) + ":" + std::to_string(__LINE__) + ": " + message); \
-            } \
-        } while (false)
-#else
-    #define MC_ASSERT(condition, message) do {} while (false)
-#endif
-
-/**
  * @brief 判断两个浮点数是否相等
  */
 #define MC_FLOAT_EQUAL(a, b, epsilon) (std::abs((a) - (b)) <= (epsilon))

@@ -461,6 +461,29 @@ public:
     virtual void dynamic_rethrow_exception() const override;
 };
 
+/**
+ * @brief 类型转换异常
+ */
+class bad_cast_exception : public exception {
+public:
+    enum code_enum {
+        code_value = type_error_code,
+    };
+    
+    bad_cast_exception(log_message&& msg = log_message(log_level::error, "类型转换错误"));
+    bad_cast_exception(const bad_cast_exception& e);
+    bad_cast_exception(bad_cast_exception&& e);
+    
+    // 从基类构造
+    explicit bad_cast_exception(const exception& e);
+    
+    // 从字符串构造
+    explicit bad_cast_exception(const std::string& msg);
+    
+    virtual std::shared_ptr<exception> dynamic_copy_exception() const override;
+    virtual void dynamic_rethrow_exception() const override;
+};
+
 // 宏定义
 
 /**

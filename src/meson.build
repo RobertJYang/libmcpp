@@ -6,13 +6,17 @@ src_files = [
   'variant.cpp',
   'dict.cpp',
   'mutable_dict.cpp',
+  'reflect/reflect.cpp',
+  # 'log/log_message.cpp',
+  # 'log/logger.cpp',
 ]
 
 # 创建共享库
 libmcpp_lib = shared_library('libmcpp',
   src_files,
-  include_directories : incdir,
+  include_directories : [incdir, boost_incdir],
   dependencies : [boost_dep, boost_program_options_dep],
+  link_with : [],
   install : true
 )
 
