@@ -17,7 +17,6 @@
 #include <gtest/gtest.h>
 #include <mc/variant.h>
 #include <mc/dict.h>
-#include <mc/mutable_dict.h>
 #include "test_variant_helpers.h"
 #include <stdexcept>
 

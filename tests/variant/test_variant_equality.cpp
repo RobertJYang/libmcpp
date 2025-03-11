@@ -15,12 +15,11 @@
  * @brief 测试 variant、typed_variant、dict 和 mutable_dict 类的相等运算符
  */
 #include <gtest/gtest.h>
-#include <mc/variant.h>
 #include <mc/dict.h>
-#include <mc/mutable_dict.h>
+#include <mc/variant.h>
+#include <stdexcept>
 #include "test_variant_helpers.h"
 #include <limits>
-#include <stdexcept>
 
 namespace mc {
 namespace test {

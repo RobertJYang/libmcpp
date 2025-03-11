@@ -17,7 +17,6 @@
 #include <cstring>
 #include <limits>
 #include <mc/dict.h>
-#include <mc/mutable_dict.h>
 #include <mc/variant.h>
 #include <stdexcept>
 

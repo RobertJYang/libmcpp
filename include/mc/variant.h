@@ -212,12 +212,12 @@ public:
     /**
      * @brief 拷贝构造函数
      */
-    explicit variant(const variant& other);
+    variant(const variant& other);
 
     /**
      * @brief 移动构造函数
      */
-    explicit variant(variant&& other) noexcept;
+    variant(variant&& other) noexcept;
 
     /**
      * @brief 析构函数
@@ -694,12 +694,12 @@ public:
     /**
      * @brief 从 variant 构造 typed_variant
      */
-    explicit typed_variant(const variant& other);
+    typed_variant(const variant& other);
 
     /**
      * @brief 从 variant 移动构造 typed_variant
      */
-    explicit typed_variant(variant&& other) noexcept;
+    typed_variant(variant&& other) noexcept;
 
     /**
      * @brief 从各种基本类型构造 typed_variant

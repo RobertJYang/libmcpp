@@ -14,13 +14,12 @@
  * @file test_typed_variant.cpp
  * @brief 测试 typed_variant 类型的功能，确保类型不会被改变
  */
-#include "test_variant_helpers.h"
 #include <gtest/gtest.h>
-#include <limits>
 #include <mc/dict.h>
-#include <mc/mutable_dict.h>
 #include <mc/variant.h>
+#include "test_variant_helpers.h"
 #include <stdexcept>
+#include <limits>
 #include <string>
 
 namespace mc {

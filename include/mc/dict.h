@@ -12,7 +12,7 @@
 
 /**
  * @file dict.h
- * @brief 定义了不可变的字典类，用于表示键值对集合，保持插入顺序
+ * @brief 定义了字典类，包括不可变的 dict 和可变的 mutable_dict，用于表示键值对集合，保持插入顺序
  */
 #ifndef MC_DICT_H
 #define MC_DICT_H
@@ -28,25 +28,92 @@
 #include <stdexcept>
 #include <unordered_map>
 
+#include <mc/intrusive/intrusive.h>
+
 namespace mc {
 
 /**
  * @brief 不可变的字典类，保持键值对的插入顺序
+ *
+ * @note 此类使用共享数据模型，拷贝操作会共享内部数据。
+ *       多个 dict 对象可能共享相同的内部数据，
+ *       通过 mutable_dict 修改数据会影响所有共享该数据的对象。
+ * 
+ * @note 此类使用侵入式容器实现，通过键查找元素的性能较好，但随机索引访问（如 at(index)）
+ *       的性能较慢，时间复杂度为 O(n)。如果需要顺序访问所有元素，建议使用迭代器
+ *       （begin()/end()）而不是索引，以获得更好的性能。
  */
 class dict {
 public:
     /**
-     * @brief 表示键值对的结构体
+     * @brief 表示键值对的结构体，包含侵入式链表和哈希表的钩子
      */
-    struct entry {
+    struct entry : public mc::intrusive::list_hook, public mc::intrusive::unordered_set_hook {
         std::string key;
         variant value;
+
+        // 默认构造函数
+        entry() = default;
+
+        // 带参数的构造函数
+        entry(std::string k, variant v) : key(std::move(k)), value(std::move(v)) {
+        }
+
+        // 拷贝构造函数 - 不复制钩子状态
+        entry(const entry& other)
+            : mc::intrusive::list_hook(), mc::intrusive::unordered_set_hook(), key(other.key),
+              value(other.value) {
+        }
+
+        // 移动构造函数 - 不移动钩子状态
+        entry(entry&& other) noexcept
+            : mc::intrusive::list_hook(), mc::intrusive::unordered_set_hook(),
+              key(std::move(other.key)), value(std::move(other.value)) {
+        }
+
+        // 禁止赋值操作，因为钩子不支持赋值
+        entry& operator=(const entry&) = delete;
+        entry& operator=(entry&&) = delete;
+
+        friend bool operator==(const entry& a, const entry& b) {
+            return a.key == b.key && a.value == b.value;
+        }
+        friend bool operator!=(const entry& a, const entry& b) {
+            return !(a == b);
+        }
     };
+
+    // 定义哈希函数和相等比较函数
+    struct key_hash {
+        std::size_t operator()(const entry& e) const {
+            return std::hash<std::string>()(e.key);
+        }
+        std::size_t operator()(const std::string& key) const {
+            return std::hash<std::string>()(key);
+        }
+    };
+
+    struct key_equal {
+        bool operator()(const entry& lhs, const entry& rhs) const {
+            return lhs.key == rhs.key;
+        }
+        bool operator()(const std::string& key, const entry& e) const {
+            return key == e.key;
+        }
+        bool operator()(const entry& e, const std::string& key) const {
+            return e.key == key;
+        }
+    };
+
+    // 定义侵入式容器类型
+    using entry_list = mc::intrusive::list<entry>;
+    using entry_set =
+        mc::intrusive::unordered_set<entry, key_hash, key_equal, mc::intrusive::constant_time_size>;
 
     /**
      * @brief 迭代器类型定义
      */
-    using const_iterator = std::vector<entry>::const_iterator;
+    using const_iterator = entry_list::const_iterator;
 
     /**
      * @brief 默认构造函数
@@ -55,11 +122,13 @@ public:
 
     /**
      * @brief 从键值对集合构造
+     * @note 如果有重复的键，后面的值会覆盖前面的值
      */
     dict(std::vector<entry> entries);
 
     /**
      * @brief 拷贝构造函数
+     * @note 此操作会共享内部数据，不会复制数据
      */
     dict(const dict& other);
 
@@ -75,6 +144,7 @@ public:
 
     /**
      * @brief 赋值运算符
+     * @note 此操作会共享内部数据，不会复制数据
      */
     dict& operator=(const dict& other);
     dict& operator=(dict&& other) noexcept;
@@ -155,9 +225,171 @@ public:
 
 protected:
     /**
-     * @brief 存储键值对的向量，保持插入顺序
+     * @brief 存储数据的结构
      */
-    std::vector<entry> m_items;
+    struct data_t {
+        // 哈希表桶数组
+        mc::intrusive::bucket_array buckets;
+        // 有序链表
+        entry_list entries;
+        // 哈希表
+        entry_set index;
+
+        // 构造函数
+        data_t(size_t bucket_count = 16)
+            : buckets(std::max<size_t>(bucket_count, 1)), entries(),
+              index(buckets.data(), buckets.size()) {
+        }
+
+        // 析构函数，清理资源
+        ~data_t() {
+            // 先清空索引，这样钩子就不再链接到容器中
+            index.clear();
+            // 然后清空链表并释放内存
+            entries.clear_and_dispose([](entry* p) {
+                delete p;
+            });
+        }
+    };
+
+    /**
+     * @brief 共享的数据指针
+     */
+    std::shared_ptr<data_t> m_data;
+
+    /**
+     * @brief 查找指定键的元素
+     * @return 指向找到的元素的指针，如果不存在则返回 nullptr
+     */
+    const entry* find_entry(const std::string& key) const;
+};
+
+/**
+ * @brief 将 dict 转换为 variant
+ */
+variant to_variant(const dict& d);
+
+/**
+ * @brief 可变的字典类，保持键值对的插入顺序
+ * 
+ * @note 此类继承自 dict，使用共享数据模型。
+ *       对 mutable_dict 的修改会影响所有共享同一数据的 dict 对象。
+ *       如果需要独立的数据副本，应该先创建一个新的 mutable_dict 对象，
+ *       然后再进行修改。
+ * 
+ * @note 与 dict 类一样，此类使用侵入式容器实现，通过键查找元素的性能较好，
+ *       但随机索引访问（如 at(index)）的性能较慢，时间复杂度为 O(n)。
+ *       如果需要顺序访问所有元素，建议使用迭代器（begin()/end()）而不是索引，
+ *       以获得更好的性能。
+ */
+class mutable_dict : public dict {
+public:
+    /**
+     * @brief 默认构造函数
+     */
+    mutable_dict();
+
+    /**
+     * @brief 从键值对集合构造
+     */
+    mutable_dict(std::vector<entry> entries);
+
+    /**
+     * @brief 从 dict 构造
+     * @note 此操作会共享内部数据，修改会影响原始 dict 对象
+     */
+    mutable_dict(const dict& other);
+
+    /**
+     * @brief 拷贝构造函数
+     * @note 此操作会共享内部数据，修改会影响原始对象
+     */
+    mutable_dict(const mutable_dict& other);
+
+    /**
+     * @brief 移动构造函数
+     */
+    mutable_dict(mutable_dict&& other) noexcept;
+
+    /**
+     * @brief 析构函数
+     */
+    ~mutable_dict();
+
+    /**
+     * @brief 赋值运算符
+     * @note 此操作会共享内部数据，修改会影响原始对象
+     */
+    mutable_dict& operator=(const mutable_dict& other);
+    mutable_dict& operator=(mutable_dict&& other) noexcept;
+    mutable_dict& operator=(const dict& other);
+
+    /**
+     * @brief 添加或更新键值对
+     * @return 返回自身引用，支持链式调用
+     * @note 此操作会修改共享数据，影响所有共享该数据的对象
+     */
+    mutable_dict& operator()(const std::string& key, variant value);
+
+    /**
+     * @brief 获取或设置指定键的值
+     * @note 如果键不存在，会自动创建
+     * @note 此操作可能会修改共享数据，影响所有共享该数据的对象
+     */
+    variant& operator[](const std::string& key);
+
+    /**
+     * @brief 获取指定键的值（const 版本）
+     * @throw std::out_of_range 如果键不存在
+     */
+    const variant& operator[](const std::string& key) const;
+
+    /**
+     * @brief 移除指定键的键值对
+     * @return 如果键存在并被移除则返回 true，否则返回 false
+     * @note 此操作会修改共享数据，影响所有共享该数据的对象
+     */
+    bool erase(const std::string& key);
+
+    /**
+     * @brief 清空所有键值对
+     * @note 此操作会修改共享数据，影响所有共享该数据的对象
+     */
+    void clear();
+
+    /**
+     * @brief 迭代器类型定义
+     */
+    using iterator = entry_list::iterator;
+    using const_iterator = entry_list::const_iterator;
+
+    /**
+     * @brief 获取开始迭代器
+     * @note 通过迭代器修改数据会影响所有共享该数据的对象
+     */
+    iterator begin();
+    const_iterator begin() const;
+
+    /**
+     * @brief 获取结束迭代器
+     */
+    iterator end();
+    const_iterator end() const;
+
+    /**
+     * @brief 获取指定索引位置的键值对
+     * @throw std::out_of_range 如果索引越界
+     * @note 修改返回的引用会影响所有共享该数据的对象
+     */
+    entry& at(size_t index);
+    const entry& at(size_t index) const;
+
+private:
+    /**
+     * @brief 查找指定键的元素
+     * @return 指向找到的元素的指针，如果不存在则返回 nullptr
+     */
+    entry* find_entry_mutable(const std::string& key);
 };
 
 } // namespace mc
