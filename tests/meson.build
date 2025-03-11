@@ -12,7 +12,8 @@ test_files = [
   'variant/test_typed_variant.cpp',
   'variant/test_variant_equality.cpp',
   'variant/test_variant_comparison.cpp',
-  'variant/test_variant_bool_operator.cpp'
+  'variant/test_variant_bool_operator.cpp',
+  'variant/test_variant_visitor.cpp'
 ]
 
 # 创建测试可执行文件

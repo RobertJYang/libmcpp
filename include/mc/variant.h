@@ -27,8 +27,10 @@
 #include <optional>
 #include <set>
 #include <string>
+#include <type_traits>
 #include <unordered_map>
 #include <unordered_set>
+#include <utility>
 #include <variant>
 #include <vector>
 
@@ -90,6 +92,52 @@ void from_variant(const mc::variant& var, variants& vo);
 
 void to_variant(const std::vector<char>& var, mc::variant& vo);
 void from_variant(const mc::variant& var, std::vector<char>& vo);
+
+/**
+ * @brief 使用函数对象访问 variant 中的数据
+ * @tparam Visitor 函数对象类型，必须能够处理所有可能的类型
+ * @param visitor 函数对象
+ * @param var 要访问的 variant 对象
+ * @return 函数对象的返回值
+ *
+ * 函数对象必须能够处理以下类型：
+ * - void (对应 null_type)
+ * - int64_t (对应 int8_type, int16_type, int32_type, int64_type)
+ * - uint64_t (对应 uint8_type, uint16_type, uint32_type, uint64_type)
+ * - double (对应 double_type)
+ * - bool (对应 bool_type)
+ * - std::string (对应 string_type)
+ * - dict (对应 object_type)
+ * - variants (对应 array_type)
+ * - blob (对应 blob_type)
+ *
+ * 示例：
+ * @code
+ * variant v = 42;
+ * auto result = visit([](auto&& value) {
+ *     using T = std::decay_t<decltype(value)>;
+ *     if constexpr (std::is_same_v<T, int64_t>) {
+ *         return "整数: " + std::to_string(value);
+ *     } else if constexpr (std::is_same_v<T, std::string>) {
+ *         return "字符串: " + value;
+ *     } else {
+ *         return "其他类型";
+ *     }
+ * }, v);
+ * @endcode
+ */
+template <typename Visitor, typename... Variants>
+auto visit(Visitor&& visitor, const Variants&... vars) {
+    if constexpr (sizeof...(Variants) == 1) {
+        return (vars.visit_with(std::forward<Visitor>(visitor)), ...);
+    } else {
+        static_assert(sizeof...(Variants) > 0, "至少需要一个 variant 参数");
+        // 多个 variant 的情况，暂不支持
+        static_assert(sizeof...(Variants) == 1, "当前仅支持单个 variant 参数");
+        // 由于我们已经静态断言只有一个 variant，可以直接使用折叠表达式
+        return (vars.visit_with(std::forward<Visitor>(visitor)), ...);
+    }
+}
 
 /**
  * @brief variant 类，用于表示任意类型的数据
@@ -199,6 +247,77 @@ public:
      * @brief 访问 variant 中的数据
      */
     void visit(const visitor& v) const;
+
+    /**
+     * @brief 使用函数对象访问 variant 中的数据
+     * @tparam Visitor 函数对象类型，必须能够处理所有可能的类型
+     * @param visitor 函数对象
+     * @return 函数对象的返回值
+     *
+     * 函数对象必须能够处理以下类型：
+     * - void (对应 null_type)
+     * - int64_t (对应 int8_type, int16_type, int32_type, int64_type)
+     * - uint64_t (对应 uint8_type, uint16_type, uint32_type, uint64_type)
+     * - double (对应 double_type)
+     * - bool (对应 bool_type)
+     * - std::string (对应 string_type)
+     * - dict (对应 object_type)
+     * - variants (对应 array_type)
+     * - blob (对应 blob_type)
+     *
+     * 示例：
+     * @code
+     * variant v = 42;
+     * auto result = v.visit_with([](auto&& value) {
+     *     using T = std::decay_t<decltype(value)>;
+     *     if constexpr (std::is_same_v<T, int64_t>) {
+     *         return "整数: " + std::to_string(value);
+     *     } else if constexpr (std::is_same_v<T, std::string>) {
+     *         return "字符串: " + value;
+     *     } else {
+     *         return "其他类型";
+     *     }
+     * });
+     * @endcode
+     */
+    template <typename Visitor>
+    auto visit_with(Visitor&& visitor) const {
+        switch (m_type) {
+        case type_id::null_type:
+            return std::forward<Visitor>(visitor)(nullptr);
+        case type_id::int8_type:
+        case type_id::int16_type:
+        case type_id::int32_type:
+        case type_id::int64_type:
+            return std::forward<Visitor>(visitor)(m_int64);
+        case type_id::uint8_type:
+        case type_id::uint16_type:
+        case type_id::uint32_type:
+        case type_id::uint64_type:
+            return std::forward<Visitor>(visitor)(m_uint64);
+        case type_id::double_type:
+            return std::forward<Visitor>(visitor)(m_double);
+        case type_id::bool_type:
+            return std::forward<Visitor>(visitor)(m_bool);
+        case type_id::string_type:
+            return std::forward<Visitor>(visitor)(*static_cast<std::string*>(m_string_ptr));
+        case type_id::object_type:
+            return std::forward<Visitor>(visitor)(*static_cast<dict*>(m_object_ptr));
+        case type_id::array_type:
+            return std::forward<Visitor>(visitor)(*static_cast<variants*>(m_array_ptr));
+        case type_id::blob_type:
+            return std::forward<Visitor>(visitor)(*static_cast<blob*>(m_blob_ptr));
+        default:
+            throw std::runtime_error("未知类型：" + std::string(get_type_name(m_type)));
+            // 以下代码永远不会执行，但需要返回一个值以满足编译器要求
+            if constexpr (std::is_void_v<decltype(std::forward<Visitor>(visitor)(nullptr))>) {
+                return;
+            } else {
+                using return_type = decltype(std::forward<Visitor>(visitor)(nullptr));
+                return return_type{};
+            }
+        }
+    }
 
     /**
      * @brief 获取 variant 的类型
