@@ -341,6 +341,22 @@ public:
     }
 
     /**
+     * @brief 将 variant 转换为指定类型，如果转换失败则返回默认值
+     * @param default_value 转换失败时返回的默认值
+     * @return 转换后的值或默认值
+     */
+    template <typename T>
+    T as(const T& default_value) const {
+        try {
+            T v;
+            from_variant(*this, v);
+            return v;
+        } catch (const std::exception&) {
+            return default_value;
+        }
+    }
+
+    /**
      * @brief 将 variant 转换为指定类型并存储到引用中
      */
     template <typename T>
