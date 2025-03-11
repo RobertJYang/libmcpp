@@ -73,31 +73,6 @@ using variants = std::vector<variant>;
 void to_variant(const blob& var, mc::variant& vo);
 void from_variant(const mc::variant& var, blob& vo);
 
-void to_variant(const uint8_t& var, mc::variant& vo);
-void from_variant(const mc::variant& var, uint8_t& vo);
-void to_variant(const int8_t& var, mc::variant& vo);
-void from_variant(const mc::variant& var, int8_t& vo);
-
-void to_variant(const uint16_t& var, mc::variant& vo);
-void from_variant(const mc::variant& var, uint16_t& vo);
-void to_variant(const int16_t& var, mc::variant& vo);
-void from_variant(const mc::variant& var, int16_t& vo);
-
-void to_variant(const uint32_t& var, mc::variant& vo);
-void from_variant(const mc::variant& var, uint32_t& vo);
-void to_variant(const int32_t& var, mc::variant& vo);
-void from_variant(const mc::variant& var, int32_t& vo);
-
-void to_variant(const uint64_t& var, mc::variant& vo);
-void from_variant(const mc::variant& var, uint64_t& vo);
-void to_variant(const int64_t& var, mc::variant& vo);
-void from_variant(const mc::variant& var, int64_t& vo);
-
-void to_variant(const double& var, mc::variant& vo);
-void from_variant(const mc::variant& var, double& vo);
-void to_variant(const float& var, mc::variant& vo);
-void from_variant(const mc::variant& var, float& vo);
-
 void to_variant(const bool& var, mc::variant& vo);
 void from_variant(const mc::variant& var, bool& vo);
 
@@ -151,7 +126,7 @@ public:
     /**
      * @brief 从 nullptr 构造一个空的 variant
      */
-    variant(std::nullptr_t);
+    explicit variant(std::nullptr_t);
 
     /**
      * @brief 从指定类型构造 variant
@@ -161,40 +136,40 @@ public:
     /**
      * @brief 从各种基本类型构造 variant
      */
-    variant(const char* str);
-    variant(char* str);
-    variant(float val);
-    variant(uint8_t val);
-    variant(int8_t val);
-    variant(uint16_t val);
-    variant(int16_t val);
-    variant(uint32_t val);
-    variant(int32_t val);
-    variant(uint64_t val);
-    variant(int64_t val);
-    variant(double val);
-    variant(bool val);
-    variant(blob val);
-    variant(std::string val);
-    variant(dict obj);
-    variant(mutable_dict obj);
-    variant(variants arr);
+    explicit variant(const char* str);
+    explicit variant(char* str);
+    explicit variant(float val);
+    explicit variant(uint8_t val);
+    explicit variant(int8_t val);
+    explicit variant(uint16_t val);
+    explicit variant(int16_t val);
+    explicit variant(uint32_t val);
+    explicit variant(int32_t val);
+    explicit variant(uint64_t val);
+    explicit variant(int64_t val);
+    explicit variant(double val);
+    explicit variant(bool val);
+    explicit variant(blob val);
+    explicit variant(std::string val);
+    explicit variant(dict obj);
+    explicit variant(mutable_dict obj);
+    explicit variant(variants arr);
 
     /**
      * @brief 从 std::pair 构造
      */
     template <typename K, typename T>
-    variant(const std::pair<K, T>& pair);
+    explicit variant(const std::pair<K, T>& pair);
 
     /**
      * @brief 拷贝构造函数
      */
-    variant(const variant& other);
+    explicit variant(const variant& other);
 
     /**
      * @brief 移动构造函数
      */
-    variant(variant&& other) noexcept;
+    explicit variant(variant&& other) noexcept;
 
     /**
      * @brief 析构函数
@@ -419,6 +394,104 @@ public:
     }
 
     /**
+     * @brief 比较运算符重载说明：整数类型只要求值相等；字符串类型支持与string_type和blob_type比较；其他类型要求类型和值精确匹配
+     */
+    template <typename T, typename = std::enable_if_t<std::is_arithmetic_v<T>>>
+    bool operator==(const T& other) const {
+        return as<T>() == other;
+    }
+    bool operator==(const char* other) const;
+    bool operator==(const std::string& other) const;
+    bool operator==(const std::string_view &other) const;
+    bool operator==(const variants &other) const;
+    bool operator==(const blob&other) const;
+    bool operator==(const dict&other) const;
+    bool operator==(const mutable_dict&other) const;
+    template <typename T, typename = std::enable_if_t<std::is_arithmetic_v<T>>>
+    friend bool operator==(const T& val, const variant& var) {
+        return var == val;
+    }
+    friend bool operator==(const char* val, const variant& var) {
+        return var == val;
+    }
+    friend bool operator==(const std::string& val, const variant& var) {
+        return var == val;
+    }
+    friend bool operator==(const std::string_view& val, const variant& var) {
+        return var == val;
+    }
+    friend bool operator==(const variants& val, const variant& var) {
+        return var == val;
+    }
+    friend bool operator==(const blob& val, const variant& var) {
+        return var == val;
+    }
+    friend bool operator==(const dict& val, const variant& var) {
+        return var == val;
+    }
+    friend bool operator==(const mutable_dict& val, const variant& var) {
+        return var == val;
+    }
+
+    template <typename T, typename = std::enable_if_t<std::is_arithmetic_v<T>>>
+    bool operator!=(const T& other) const {
+        return !(*this == other);
+    }
+    bool operator!=(const char* other) const {
+        return !(*this == other);
+    }
+    bool operator!=(const std::string& other) const {
+        return !(*this == other);
+    }
+    bool operator!=(const std::string_view &other) const {
+        return !(*this == other);
+    }
+    bool operator!=(const variants &other) const {
+        return !(*this == other);
+    }
+    bool operator!=(const blob&other) const {
+        return !(*this == other);
+    }
+    bool operator!=(const dict&other) const {
+        return !(*this == other);
+    }
+    bool operator!=(const mutable_dict&other) const {
+        return !(*this == other);
+    }
+
+    template <typename T, typename = std::enable_if_t<std::is_arithmetic_v<T>>>
+    friend bool operator!=(const T& val, const variant& var) {
+        return !(var == val);
+    }
+    
+    /**
+     * @brief 将variant转换为bool类型
+     * @return 对于bool类型的false，整数类型的0，浮点数类型的0返回false，其他情况返回true
+     */
+    explicit operator bool() const;
+    friend bool operator!=(const char* val, const variant& var) {
+        return !(var == val);
+    }
+    friend bool operator!=(const std::string& val, const variant& var) {
+        return !(var == val);
+    }
+    friend bool operator!=(const std::string_view& val, const variant& var) {
+        return !(var == val);
+    }
+    friend bool operator!=(const variants& val, const variant& var) {
+        return !(var == val);
+    }
+    friend bool operator!=(const blob& val, const variant& var) {
+        return !(var == val);
+    }
+    friend bool operator!=(const dict& val, const variant& var) {
+        return !(var == val);
+    }
+    friend bool operator!=(const mutable_dict& val, const variant& var) {
+        return !(var == val);
+    }
+
+    /**
      * @brief 获取数组类型
      * @return 数组引用
      * @throw std::bad_cast 如果类型不匹配
@@ -487,7 +560,8 @@ public:
      * @brief 从各种基本类型构造 typed_variant
      */
     template <typename T>
-    explicit typed_variant(T&& val) : variant(std::forward<T>(val)) {}
+    explicit typed_variant(T&& val) : variant(std::forward<T>(val)) {
+    }
 
     /**
      * @brief 从 type_id 构造指定类型的 typed_variant
@@ -549,6 +623,30 @@ public:
         return !(*this == other);
     }
 };
+
+template<typename T, std::enable_if_t<std::is_integral_v<T>, int> = 0>
+void to_variant(const T& var, mc::variant& vo) {
+    vo = variant(var);
+}
+
+template<typename T, std::enable_if_t<std::is_integral_v<T>, int> = 0>
+void from_variant(const mc::variant& var, T& vo) {
+    if (std::is_signed_v<T>) {
+        vo = static_cast<T>(var.as_int64());
+    } else {
+        vo = static_cast<T>(var.as_uint64());
+    }
+}
+
+template<typename T, std::enable_if_t<std::is_floating_point_v<T>, int> = 0>
+void to_variant(const T& var, mc::variant& vo) {
+    vo = variant(static_cast<double>(var));
+}
+
+template<typename T, std::enable_if_t<std::is_floating_point_v<T>, int> = 0>
+void from_variant(const mc::variant& var, T& vo) {
+    vo = static_cast<T>(var.as_double());
+}
 
 } // namespace mc
 

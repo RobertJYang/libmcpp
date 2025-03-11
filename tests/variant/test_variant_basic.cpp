@@ -150,17 +150,17 @@ TEST_F(VariantBasicTest, IntegerTypeConversions) {
     ASSERT_EQ(v.as<int64_t>(), 42) << "转换到 int64_t 失败";
     ASSERT_EQ(v.as<uint64_t>(), 42) << "转换到 uint64_t 失败";
     
-    // 越界转换应该抛出异常
+    // 越界转换应该被截断到目标类型的范围
     variant v_large(1000);
-    ASSERT_THROW(v_large.as<int8_t>(), std::overflow_error) << "超出 int8_t 范围的值应抛出异常";
-    ASSERT_THROW(v_large.as<uint8_t>(), std::overflow_error) << "超出 uint8_t 范围的值应抛出异常";
+    ASSERT_EQ(v_large.as<int8_t>(), static_cast<int8_t>(1000)) << "超出 int8_t 范围的值应被截断";
+    ASSERT_EQ(v_large.as<uint8_t>(), static_cast<uint8_t>(1000)) << "超出 uint8_t 范围的值应被截断";
     
-    // 负值转无符号类型
+    // 负值转无符号类型应被解释为对应的大整数
     variant v_negative(-1);
-    ASSERT_THROW(v_negative.as<uint8_t>(), std::underflow_error) << "负值转 uint8_t 应抛出异常";
-    ASSERT_THROW(v_negative.as<uint16_t>(), std::underflow_error) << "负值转 uint16_t 应抛出异常";
-    ASSERT_THROW(v_negative.as<uint32_t>(), std::underflow_error) << "负值转 uint32_t 应抛出异常";
-    ASSERT_THROW(v_negative.as<uint64_t>(), std::underflow_error) << "负值转 uint64_t 应抛出异常";
+    ASSERT_EQ(v_negative.as<uint8_t>(), static_cast<uint8_t>(-1)) << "负值转 uint8_t 应被解释为对应的无符号值";
+    ASSERT_EQ(v_negative.as<uint16_t>(), static_cast<uint16_t>(-1)) << "负值转 uint16_t 应被解释为对应的无符号值";
+    ASSERT_EQ(v_negative.as<uint32_t>(), static_cast<uint32_t>(-1)) << "负值转 uint32_t 应被解释为对应的无符号值";
+    ASSERT_EQ(v_negative.as<uint64_t>(), static_cast<uint64_t>(-1)) << "负值转 uint64_t 应被解释为对应的无符号值";
 }
 
 /**
@@ -244,4 +244,4 @@ TEST_F(VariantBasicTest, ClearOperation) {
 }
 
 } // namespace test
-} // namespace mc 
+} // namespace mc

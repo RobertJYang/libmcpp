@@ -19,6 +19,8 @@
 #include <gtest/gtest.h>
 #include <limits>
 #include <mc/variant.h>
+#include <mc/dict.h>
+#include <mc/mutable_dict.h>
 
 namespace mc {
 namespace test {

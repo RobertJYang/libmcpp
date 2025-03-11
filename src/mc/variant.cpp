@@ -473,9 +473,6 @@ int64_t variant::as_int64() const {
     case type_id::uint16_type:
     case type_id::uint32_type:
     case type_id::uint64_type:
-        if (m_uint64 > static_cast<uint64_t>(std::numeric_limits<int64_t>::max())) {
-            throw std::overflow_error("uint64_t值超出int64_t范围");
-        }
         return static_cast<int64_t>(m_uint64);
     case type_id::double_type:
         return static_cast<int64_t>(m_double);
@@ -505,14 +502,8 @@ uint64_t variant::as_uint64() const {
     case type_id::int16_type:
     case type_id::int32_type:
     case type_id::int64_type:
-        if (m_int64 < 0) {
-            throw std::underflow_error("int64_t值为负数，无法转换为uint64_t");
-        }
         return static_cast<uint64_t>(m_int64);
     case type_id::double_type:
-        if (m_double < 0) {
-            throw std::underflow_error("double值为负数，无法转换为uint64_t");
-        }
         return static_cast<uint64_t>(m_double);
     case type_id::bool_type:
         return m_bool ? 1 : 0;
@@ -676,136 +667,6 @@ void to_variant(const blob& var, mc::variant& vo) {
 
 void from_variant(const mc::variant& var, blob& vo) {
     vo = var.as_blob();
-}
-
-/**
- * @brief 整数类型 to_variant 的通用实现
- */
-template <typename IntType>
-void int_to_variant(const IntType& var, mc::variant& vo) {
-    vo = variant(var);
-}
-
-/**
- * @brief 有符号整数类型 from_variant 的通用实现
- */
-template <typename IntType>
-void signed_int_from_variant(const mc::variant& var, IntType& vo, variant::type_id specific_type) {
-    if (var.get_type() == specific_type) {
-        vo = static_cast<IntType>(var.as_int64());
-    } else {
-        int64_t value = var.as_int64();
-        if (value < std::numeric_limits<IntType>::min() ||
-            value > std::numeric_limits<IntType>::max()) {
-            throw std::overflow_error("值超出范围");
-        }
-        vo = static_cast<IntType>(value);
-    }
-}
-
-/**
- * @brief 无符号整数类型 from_variant 的通用实现
- */
-template <typename IntType>
-void unsigned_int_from_variant(const mc::variant& var, IntType& vo,
-                               variant::type_id specific_type) {
-    if (var.get_type() == specific_type) {
-        vo = static_cast<IntType>(var.as_uint64());
-    } else {
-        uint64_t value = var.as_uint64();
-        if (value > std::numeric_limits<IntType>::max()) {
-            throw std::overflow_error("值超出范围");
-        }
-        vo = static_cast<IntType>(value);
-    }
-}
-
-// uint8_t 实现
-void to_variant(const uint8_t& var, mc::variant& vo) {
-    int_to_variant(var, vo);
-}
-
-void from_variant(const mc::variant& var, uint8_t& vo) {
-    unsigned_int_from_variant(var, vo, variant::type_id::uint8_type);
-}
-
-// int8_t 实现
-void to_variant(const int8_t& var, mc::variant& vo) {
-    int_to_variant(var, vo);
-}
-
-void from_variant(const mc::variant& var, int8_t& vo) {
-    signed_int_from_variant(var, vo, variant::type_id::int8_type);
-}
-
-// uint16_t 实现
-void to_variant(const uint16_t& var, mc::variant& vo) {
-    int_to_variant(var, vo);
-}
-
-void from_variant(const mc::variant& var, uint16_t& vo) {
-    unsigned_int_from_variant(var, vo, variant::type_id::uint16_type);
-}
-
-// int16_t 实现
-void to_variant(const int16_t& var, mc::variant& vo) {
-    int_to_variant(var, vo);
-}
-
-void from_variant(const mc::variant& var, int16_t& vo) {
-    signed_int_from_variant(var, vo, variant::type_id::int16_type);
-}
-
-// uint32_t 实现
-void to_variant(const uint32_t& var, mc::variant& vo) {
-    int_to_variant(var, vo);
-}
-
-void from_variant(const mc::variant& var, uint32_t& vo) {
-    unsigned_int_from_variant(var, vo, variant::type_id::uint32_type);
-}
-
-// int32_t 实现
-void to_variant(const int32_t& var, mc::variant& vo) {
-    int_to_variant(var, vo);
-}
-
-void from_variant(const mc::variant& var, int32_t& vo) {
-    signed_int_from_variant(var, vo, variant::type_id::int32_type);
-}
-
-// uint64_t 实现
-void to_variant(const uint64_t& var, mc::variant& vo) {
-    int_to_variant(var, vo);
-}
-
-void from_variant(const mc::variant& var, uint64_t& vo) {
-    unsigned_int_from_variant(var, vo, variant::type_id::uint64_type);
-}
-
-// int64_t 实现
-void to_variant(const int64_t& var, mc::variant& vo) {
-    int_to_variant(var, vo);
-}
-
-void from_variant(const mc::variant& var, int64_t& vo) {
-    signed_int_from_variant(var, vo, variant::type_id::int64_type);
-}
-
-void to_variant(const double& var, mc::variant& vo) {
-    vo = variant(var);
-}
-
-void from_variant(const mc::variant& var, double& vo) {
-    vo = var.as_double();
-}
-
-void to_variant(const float& var, mc::variant& vo) {
-    vo = variant(static_cast<double>(var));
-}
-
-void from_variant(const mc::variant& var, float& vo) {
-    vo = static_cast<float>(var.as_double());
 }
 
 void to_variant(const bool& var, mc::variant& vo) {
@@ -1087,6 +948,65 @@ bool variant::operator==(const variant& other) const {
         return *static_cast<blob*>(m_blob_ptr) == *static_cast<blob*>(other.m_blob_ptr);
     default:
         return false;
+    }
+}
+
+bool variant::operator==(const char* other) const {
+    return *this == std::string_view(other);
+}
+
+bool variant::operator==(const std::string& other) const {
+    return *this == std::string_view(other);
+}
+
+bool variant::operator==(const std::string_view &other) const {
+    if (is_string()) {
+        return *static_cast<std::string*>(m_string_ptr) == other;
+    } else if (is_blob()) {
+        const blob &b = *static_cast<blob*>(m_blob_ptr);
+        return std::string_view(b.data.data(), b.data.size()) == other;
+    } else {
+        return false;
+    }
+}
+
+bool variant::operator==(const variants &other) const {
+    return is_array() && *static_cast<variants*>(m_array_ptr) == other;
+}
+
+bool variant::operator==(const blob&other) const {
+    return is_blob() && *static_cast<blob*>(m_blob_ptr) == other;
+}
+
+bool variant::operator==(const dict&other) const {
+    return is_object() && *static_cast<dict*>(m_object_ptr) == other;
+}
+
+bool variant::operator==(const mutable_dict&other) const {
+    return is_object() && *static_cast<dict*>(m_object_ptr) == other;
+}
+
+// 将variant转换为bool类型
+variant::operator bool() const {
+    switch (m_type) {
+    case type_id::bool_type:
+        return m_bool;
+    case type_id::int8_type:
+    case type_id::int16_type:
+    case type_id::int32_type:
+    case type_id::int64_type:
+        return m_int64 != 0;
+    case type_id::uint8_type:
+    case type_id::uint16_type:
+    case type_id::uint32_type:
+    case type_id::uint64_type:
+        return m_uint64 != 0;
+    case type_id::double_type:
+        return m_double != 0.0;
+    case type_id::null_type:
+        return false;
+    default:
+        return true; // 字符串、数组、对象、二进制数据等都返回true
     }
 }
 

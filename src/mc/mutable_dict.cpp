@@ -62,7 +62,7 @@ mutable_dict& mutable_dict::operator()(const std::string& key, variant value) {
     }
 
     // 不存在则添加新的键值对
-    m_items.push_back({key, std::move(value)});
+    m_items.push_back({key, variant(std::move(value))});
     return *this;
 }
 
