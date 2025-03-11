@@ -48,8 +48,8 @@ TEST(DictStringViewTest, DictStringViewSupport) {
     EXPECT_THROW(d[key4_view], std::out_of_range);
 
     // 测试 get 方法
-    EXPECT_EQ(d.get(key1_view, variant(0)).as<int>(), 123);
-    EXPECT_EQ(d.get(key4_view, variant(456)).as<int>(), 456);
+    EXPECT_EQ(d.get(key1_view, 0).as<int>(), 123);
+    EXPECT_EQ(d.get(key4_view, 456).as<int>(), 456);
 
     // 测试 find_index 方法
     EXPECT_GE(d.find_index(key1_view), 0);
@@ -85,8 +85,8 @@ TEST(DictStringViewTest, DictConstCharSupport) {
     EXPECT_THROW(d[key4_cstr], std::out_of_range);
 
     // 测试 get 方法
-    EXPECT_EQ(d.get(key1_cstr, variant(0)).as<int>(), 123);
-    EXPECT_EQ(d.get(key4_cstr, variant(456)).as<int>(), 456);
+    EXPECT_EQ(d.get(key1_cstr, 0).as<int>(), 123);
+    EXPECT_EQ(d.get(key4_cstr, 456).as<int>(), 456);
 
     // 测试 find_index 方法
     EXPECT_GE(d.find_index(key1_cstr), 0);

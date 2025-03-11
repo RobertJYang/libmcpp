@@ -670,7 +670,7 @@ size_t variant::size() const {
 
 // 基本类型转换函数实现
 void to_variant(const blob& var, mc::variant& vo) {
-    vo = variant(var);
+    vo = var;
 }
 
 void from_variant(const mc::variant& var, blob& vo) {
@@ -678,7 +678,7 @@ void from_variant(const mc::variant& var, blob& vo) {
 }
 
 void to_variant(const bool& var, mc::variant& vo) {
-    vo = variant(var);
+    vo = var;
 }
 
 void from_variant(const mc::variant& var, bool& vo) {
@@ -686,7 +686,7 @@ void from_variant(const mc::variant& var, bool& vo) {
 }
 
 void to_variant(const std::string& var, mc::variant& vo) {
-    vo = variant(var);
+    vo = var;
 }
 
 void from_variant(const mc::variant& var, std::string& vo) {
@@ -694,7 +694,7 @@ void from_variant(const mc::variant& var, std::string& vo) {
 }
 
 void to_variant(const dict& var, mc::variant& vo) {
-    vo = variant(var);
+    vo = var;
 }
 
 void from_variant(const mc::variant& var, mc::dict& vo) {
@@ -705,7 +705,7 @@ void from_variant(const mc::variant& var, mc::dict& vo) {
 }
 
 void to_variant(const mutable_dict& var, mc::variant& vo) {
-    vo = variant(var);
+    vo = var;
 }
 
 void from_variant(const mc::variant& var, mc::mutable_dict& vo) {
@@ -716,7 +716,7 @@ void from_variant(const mc::variant& var, mc::mutable_dict& vo) {
 }
 
 void to_variant(const variants& var, mc::variant& vo) {
-    vo = variant(var);
+    vo = var;
 }
 
 void from_variant(const mc::variant& var, mc::variants& vo) {

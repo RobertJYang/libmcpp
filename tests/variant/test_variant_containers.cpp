@@ -46,10 +46,10 @@ protected:
 
     variants create_sample_array() {
         variants arr;
-        arr.push_back(variant(1));
-        arr.push_back(variant(2.5));
-        arr.push_back(variant("array item"));
-        arr.push_back(variant(false));
+        arr.push_back(1);
+        arr.push_back(2.5);
+        arr.push_back("array item");
+        arr.push_back(false);
         return arr;
     }
 
@@ -105,7 +105,7 @@ TEST_F(VariantContainersTest, DictAccess) {
     ASSERT_EQ(d["int_value"].as<int>(), 42) << "int 值不匹配";
     
     // 测试默认值获取
-    ASSERT_EQ(d.get("non_existent", variant(100)).as<int>(), 100) << "默认值不正确";
+    ASSERT_EQ(d.get("non_existent", 100).as<int>(), 100) << "默认值不正确";
     
     // 测试遍历
     bool found_string = false;
@@ -233,8 +233,8 @@ TEST_F(VariantContainersTest, NestedContainers) {
     
     // 创建嵌套数组
     variants nested_array;
-    nested_array.push_back(variant(sample_dict));
-    nested_array.push_back(variant(42));
+    nested_array.push_back(sample_dict);
+    nested_array.push_back(42);
     
     // 添加到主字典
     mutable_dict main_dict;
@@ -296,7 +296,7 @@ TEST_F(VariantContainersTest, EmptyAndFullContainers) {
     // 测试大型数组的限制
     variants large_array;
     for (int i = 0; i < 1000; ++i) {
-        large_array.push_back(variant(i));
+        large_array.push_back(i);
     }
     variant v_large_array(large_array);
     ASSERT_EQ(v_large_array.get_array().size(), 1000) << "大型数组大小不匹配";

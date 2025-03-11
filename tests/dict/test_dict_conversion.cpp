@@ -111,9 +111,9 @@ TEST(DictConversionTest, VariantToMutableDict) {
 TEST(DictConversionTest, StdMapToDict) {
     // 创建一个 std::map
     std::map<std::string, variant> m;
-    m["key1"] = variant(123);
-    m["key2"] = variant("value");
-    m["key3"] = variant(true);
+    m["key1"] = 123;
+    m["key2"] = "value";
+    m["key3"] = true;
     
     // 将 std::map 转换为 dict
     dict d;
@@ -134,9 +134,9 @@ TEST(DictConversionTest, StdMapToDict) {
 TEST(DictConversionTest, StdUnorderedMapToDict) {
     // 创建一个 std::unordered_map
     std::unordered_map<std::string, variant> m;
-    m["key1"] = variant(123);
-    m["key2"] = variant("value");
-    m["key3"] = variant(true);
+    m["key1"] = 123;
+    m["key2"] = "value";
+    m["key3"] = true;
     
     // 将 std::unordered_map 转换为 dict
     dict d;
@@ -157,9 +157,9 @@ TEST(DictConversionTest, StdUnorderedMapToDict) {
 TEST(DictConversionTest, DictToStdMap) {
     // 创建一个 dict
     dict d({
-        {"key1", variant(123)},
-        {"key2", variant("value")},
-        {"key3", variant(true)}
+        {"key1", 123},
+        {"key2", "value"},
+        {"key3", true}
     });
     
     // 将 dict 转换为 std::map
@@ -179,9 +179,9 @@ TEST(DictConversionTest, DictToStdMap) {
 TEST(DictConversionTest, DictToStdUnorderedMap) {
     // 创建一个 dict
     dict d({
-        {"key1", variant(123)},
-        {"key2", variant("value")},
-        {"key3", variant(true)}
+        {"key1", 123},
+        {"key2", "value"},
+        {"key3", true}
     });
     
     // 将 dict 转换为 std::unordered_map

@@ -32,9 +32,9 @@ TEST(DictConstructionTest, DefaultConstructor) {
 // 测试 dict 从 vector<entry> 构造
 TEST(DictConstructionTest, VectorEntryConstructor) {
     std::vector<dict::entry> entries;
-    entries.emplace_back("key1", variant(123));
-    entries.emplace_back("key2", variant("value"));
-    entries.emplace_back("key3", variant(true));
+    entries.emplace_back("key1", 123);
+    entries.emplace_back("key2", "value");
+    entries.emplace_back("key3", true);
     
     dict d(entries);
     
@@ -85,9 +85,9 @@ TEST(DictConstructionTest, CopyConstructor) {
 // 测试 dict 移动构造函数
 TEST(DictConstructionTest, MoveConstructor) {
     dict d1({
-        {"key1", variant(123)},
-        {"key2", variant("value")},
-        {"key3", variant(true)}
+        {"key1", 123},
+        {"key2", "value"},
+        {"key3", true}
     });
     
     dict d2(std::move(d1));
@@ -102,9 +102,9 @@ TEST(DictConstructionTest, MoveConstructor) {
 // 测试 dict 赋值运算符
 TEST(DictConstructionTest, AssignmentOperator) {
     dict d1({
-        {"key1", variant(123)},
-        {"key2", variant("value")},
-        {"key3", variant(true)}
+        {"key1", 123},
+        {"key2", "value"},
+        {"key3", true}
     });
     
     dict d2;
@@ -127,9 +127,9 @@ TEST(DictConstructionTest, AssignmentOperator) {
 // 测试 dict 移动赋值运算符
 TEST(DictConstructionTest, MoveAssignmentOperator) {
     dict d1({
-        {"key1", variant(123)},
-        {"key2", variant("value")},
-        {"key3", variant(true)}
+        {"key1", 123},
+        {"key2", "value"},
+        {"key3", true}
     });
     
     dict d2;
@@ -152,9 +152,9 @@ TEST(DictConstructionTest, MutableDictDefaultConstructor) {
 // 测试 mutable_dict 从 vector<entry> 构造
 TEST(DictConstructionTest, MutableDictVectorEntryConstructor) {
     std::vector<dict::entry> entries;
-    entries.emplace_back("key1", variant(123));
-    entries.emplace_back("key2", variant("value"));
-    entries.emplace_back("key3", variant(true));
+    entries.emplace_back("key1", 123);
+    entries.emplace_back("key2", "value");
+    entries.emplace_back("key3", true);
     
     mutable_dict md(entries);
     
@@ -167,9 +167,9 @@ TEST(DictConstructionTest, MutableDictVectorEntryConstructor) {
 // 测试 mutable_dict 从 initializer_list 构造
 TEST(DictConstructionTest, MutableDictInitializerListConstructor) {
     mutable_dict md({
-        {"key1", variant(123)},
-        {"key2", variant("value")},
-        {"key3", variant(true)}
+        {"key1", 123},
+        {"key2", "value"},
+        {"key3", true}
     });
     
     EXPECT_EQ(md.size(), 3);

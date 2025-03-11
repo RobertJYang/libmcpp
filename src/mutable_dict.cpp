@@ -96,7 +96,7 @@ mutable_dict& mutable_dict::operator()(const std::string& key, variant value) {
         e->value = value;
     } else {
         // 不存在则添加新的键值对
-        entry* new_entry = new entry(key, variant(value));
+        entry* new_entry = new entry(key, value);
         m_data->entries.push_back(*new_entry);
         m_data->index.insert(*new_entry);
     }
@@ -112,7 +112,7 @@ mutable_dict& mutable_dict::operator()(std::string_view key, variant value) {
         e->value = value;
     } else {
         // 不存在则添加新的键值对
-        entry* new_entry = new entry(std::string(key), variant(value));
+        entry* new_entry = new entry(std::string(key), value);
         m_data->entries.push_back(*new_entry);
         m_data->index.insert(*new_entry);
     }
@@ -128,7 +128,7 @@ mutable_dict& mutable_dict::operator()(const char* key, variant value) {
         e->value = value;
     } else {
         // 不存在则添加新的键值对
-        entry* new_entry = new entry(std::string(key), variant(value));
+        entry* new_entry = new entry(std::string(key), value);
         m_data->entries.push_back(*new_entry);
         m_data->index.insert(*new_entry);
     }

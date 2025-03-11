@@ -131,8 +131,8 @@ TEST_F(VariantVisitorTest, VisitDict) {
 
 TEST_F(VariantVisitorTest, VisitArray) {
     variants arr;
-    arr.push_back(variant(1));
-    arr.push_back(variant(2));
+    arr.push_back(1);
+    arr.push_back(2);
     variant v(arr); // array
     TestVisitor visitor;
     v.visit(visitor);
@@ -247,8 +247,8 @@ TEST_F(VariantVisitorTest, VisitWithDict) {
 
 TEST_F(VariantVisitorTest, VisitWithArray) {
     variants arr;
-    arr.push_back(variant(1));
-    arr.push_back(variant(2));
+    arr.push_back(1);
+    arr.push_back(2);
     variant v(arr); // array
     auto result = v.visit_with([](auto&& value) -> std::string {
         using T = std::decay_t<decltype(value)>;

@@ -96,7 +96,7 @@ TEST_F(VariantBoolOperatorTest, BoolOperator) {
 
     // 测试数组类型
     variants empty_arr;
-    variants arr = {variant(1), variant(2)};
+    variants arr = {1, 2};
     variant v_empty_arr(empty_arr);
     variant v_arr(arr);
     ASSERT_TRUE(static_cast<bool>(v_empty_arr)) << "空数组variant应该转换为true";

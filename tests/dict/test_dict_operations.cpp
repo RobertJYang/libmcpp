@@ -37,8 +37,8 @@ TEST(DictOperationsTest, DictBasicAccess) {
     EXPECT_THROW(d["key4"], std::out_of_range);
     
     // 测试 get 方法
-    EXPECT_EQ(d.get("key1", variant(0)).as<int>(), 123);
-    EXPECT_EQ(d.get("key4", variant(456)).as<int>(), 456);
+    EXPECT_EQ(d.get("key1", 0).as<int>(), 123);
+    EXPECT_EQ(d.get("key4", 456).as<int>(), 456);
     
     // 测试 contains 方法
     EXPECT_TRUE(d.contains("key1"));

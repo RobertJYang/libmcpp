@@ -228,7 +228,7 @@ void map_to_variant(const MapType<K, T, Args...>& map, variant& vo) {
     }
 
     // 直接使用dict构造函数创建variant
-    vo = variant(dict(std::move(entries)));
+    vo = dict(std::move(entries));
 }
 
 /**

@@ -109,11 +109,11 @@ TEST_F(VariantComparisonTest, VariantToStringComparison) {
  */
 TEST_F(VariantComparisonTest, VariantToOtherTypesComparison) {
     // 数组类型比较
-    variants arr1 = {variant(1), variant(2)};
+    variants arr1 = {1, 2};
     variant v1(arr1);
     ASSERT_EQ(v1, arr1) << "variant应该可以与相同内容的数组比较";
 
-    variants arr2 = {variant(1), variant(2.0)};
+    variants arr2 = {1, 2.0};
     ASSERT_NE(v1, arr2) << "variant不应该与不同类型元素的数组相等";
 
     // 对象类型比较

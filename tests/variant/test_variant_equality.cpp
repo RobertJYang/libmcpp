@@ -158,8 +158,8 @@ TEST_F(VariantEqualityTest, MutableDictEquality) {
 
     // 测试复杂数据结构
     mutable_dict md3, md4;
-    variants arr1{variant(1), variant(2), variant(3)};
-    variants arr2{variant(1), variant(2), variant(3)};
+    variants arr1{1, 2, 3};
+    variants arr2{1, 2, 3};
 
     md3["array"] = arr1;
     md3["dict"] = md1;
@@ -183,8 +183,8 @@ TEST_F(VariantEqualityTest, MixedTypeEquality) {
     ASSERT_EQ(v1, v2) << "包含相同字典的 variant 应该相等";
 
     // 测试 variant 中的数组比较
-    variants arr1{variant(1), variant("test"), variant(true)};
-    variants arr2{variant(1), variant("test"), variant(true)};
+    variants arr1{1, "test", true};
+    variants arr2{1, "test", true};
 
     variant v3(arr1), v4(arr2);
     ASSERT_EQ(v3, v4) << "包含相同数组的 variant 应该相等";

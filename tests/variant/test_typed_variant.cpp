@@ -266,9 +266,9 @@ TEST_F(TypedVariantTest, StringTypeLocking) {
 TEST_F(TypedVariantTest, ArrayTypeLocking) {
     // 创建一个数组
     variants arr;
-    arr.push_back(variant(1));
-    arr.push_back(variant(2));
-    arr.push_back(variant(3));
+    arr.push_back(1);
+    arr.push_back(2);
+    arr.push_back(3);
 
     // 测试 array_type
     typed_variant tv_array(variant::type_id::array_type);
@@ -292,8 +292,8 @@ TEST_F(TypedVariantTest, ArrayTypeLocking) {
 
     // 创建一个新的数组
     variants arr2;
-    arr2.push_back(variant("a"));
-    arr2.push_back(variant("b"));
+    arr2.push_back("a");
+    arr2.push_back("b");
 
     // 赋值一个新数组，类型应该保持为 array_type
     tv_array = arr2;
@@ -309,8 +309,8 @@ TEST_F(TypedVariantTest, ArrayTypeLocking) {
 TEST_F(TypedVariantTest, ObjectTypeLocking) {
     // 创建一个对象
     mutable_dict obj;
-    obj["name"] = variant("John");
-    obj["age"] = variant(30);
+    obj["name"] = "John";
+    obj["age"] = 30;
 
     // 测试 object_type
     typed_variant tv_object(variant::type_id::object_type);
@@ -334,8 +334,8 @@ TEST_F(TypedVariantTest, ObjectTypeLocking) {
 
     // 创建一个新的对象
     mutable_dict obj2;
-    obj2["city"] = variant("New York");
-    obj2["country"] = variant("USA");
+    obj2["city"] = "New York";
+    obj2["country"] = "USA";
 
     // 赋值一个新对象，类型应该保持为 object_type
     tv_object = obj2;

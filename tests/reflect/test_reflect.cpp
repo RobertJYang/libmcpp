@@ -246,12 +246,9 @@ TEST(ReflectTest, FromVariant) {
     mc::mutable_dict dict;
     dict("m_name", "李四")("m_age", 25)("m_is_male", false);
     
-    // 转换为变体
-    variant var = variant(dict);
-    
     // 从变体转换为对象
     test_person person;
-    test_helpers::from_variant(var, person);
+    test_helpers::from_variant(dict, person);
     
     // 检查对象内容
     EXPECT_EQ(person.m_name, "李四");
@@ -276,7 +273,7 @@ TEST(ReflectTest, EnumReflection) {
     EXPECT_EQ(new_color, test_color::GREEN);
     
     // 测试无效枚举值
-    variant invalid_var = variant("YELLOW");
+    variant invalid_var = "YELLOW";
     EXPECT_THROW(test_helpers::from_variant(invalid_var, new_color), bad_enum_cast);
 }
 
