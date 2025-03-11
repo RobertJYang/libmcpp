@@ -23,6 +23,11 @@ namespace mc {
 // 默认构造函数
 mutable_dict::mutable_dict() = default;
 
+// 单键值对构造函数
+mutable_dict::mutable_dict(std::string key, variant value) : dict() {
+    (*this)(std::move(key), std::move(value));
+}
+
 // 从键值对集合构造
 mutable_dict::mutable_dict(std::vector<entry> entries) : dict(std::move(entries)) {
 }
@@ -280,6 +285,51 @@ mutable_dict::entry& mutable_dict::at(size_t index) {
 // 获取指定索引位置的键值对（const 版本）
 const mutable_dict::entry& mutable_dict::at(size_t index) const {
     return dict::at(index);
+}
+
+// 查找指定键的元素，返回迭代器 (std::string 版本)
+mutable_dict::iterator mutable_dict::find(const std::string& key) {
+    entry* e = find_entry_mutable(key);
+    if (e) {
+        // 直接从元素指针获取迭代器
+        return m_data->entries.iterator_to(*e);
+    }
+    return m_data->entries.end();
+}
+
+// 查找指定键的元素，返回迭代器 (std::string_view 版本)
+mutable_dict::iterator mutable_dict::find(std::string_view key) {
+    entry* e = find_entry_mutable(key);
+    if (e) {
+        // 直接从元素指针获取迭代器
+        return m_data->entries.iterator_to(*e);
+    }
+    return m_data->entries.end();
+}
+
+// 查找指定键的元素，返回迭代器 (const char* 版本)
+mutable_dict::iterator mutable_dict::find(const char* key) {
+    entry* e = find_entry_mutable(std::string_view(key));
+    if (e) {
+        // 直接从元素指针获取迭代器
+        return m_data->entries.iterator_to(*e);
+    }
+    return m_data->entries.end();
+}
+
+// 查找指定键的元素，返回迭代器 (std::string 版本，const)
+mutable_dict::const_iterator mutable_dict::find(const std::string& key) const {
+    return dict::find(key);
+}
+
+// 查找指定键的元素，返回迭代器 (std::string_view 版本，const)
+mutable_dict::const_iterator mutable_dict::find(std::string_view key) const {
+    return dict::find(key);
+}
+
+// 查找指定键的元素，返回迭代器 (const char* 版本，const)
+mutable_dict::const_iterator mutable_dict::find(const char* key) const {
+    return dict::find(key);
 }
 
 } // namespace mc

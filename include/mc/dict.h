@@ -324,6 +324,15 @@ public:
         return !(*this == other);
     }
 
+    /**
+     * @brief 查找指定键的元素，返回迭代器
+     * @param key 要查找的键
+     * @return 指向找到元素的迭代器，如果不存在则返回 end()
+     */
+    const_iterator find(const std::string& key) const;
+    const_iterator find(std::string_view key) const;
+    const_iterator find(const char* key) const;
+
 protected:
     /**
      * @brief 存储数据的结构
@@ -391,6 +400,45 @@ public:
      * @brief 默认构造函数
      */
     mutable_dict();
+
+    /**
+     * @brief 单键值对构造函数
+     * 
+     * @param key 键
+     * @param value 值
+     * 
+     * @note 此构造函数允许使用链式调用创建字典：
+     *       mutable_dict(key1, value1)(key2, value2)(key3, value3);
+     */
+    mutable_dict(std::string key, variant value);
+
+    /**
+     * @brief 单键值对构造函数（模板版本）
+     * 
+     * @param key 键
+     * @param value 值
+     * 
+     * @note 此构造函数允许使用链式调用创建字典，无需显式创建 variant：
+     *       mutable_dict(key1, value1)(key2, value2)(key3, value3);
+     */
+    template<typename T>
+    mutable_dict(std::string key, T&& value) : dict() {
+        (*this)(std::move(key), std::forward<T>(value));
+    }
+
+    /**
+     * @brief 单键值对构造函数（模板版本，支持不同类型的键）
+     * 
+     * @param key 键
+     * @param value 值
+     * 
+     * @note 此构造函数允许使用链式调用创建字典，无需显式创建 variant：
+     *       mutable_dict(key1, value1)(key2, value2)(key3, value3);
+     */
+    template<typename K, typename T>
+    mutable_dict(K&& key, T&& value) : dict() {
+        (*this)(std::forward<K>(key), std::forward<T>(value));
+    }
 
     /**
      * @brief 从键值对集合构造
@@ -565,6 +613,18 @@ public:
      * @brief 判断是否为空
      */
     using dict::empty;
+
+    /**
+     * @brief 查找指定键的元素，返回迭代器
+     * @param key 要查找的键
+     * @return 指向找到元素的迭代器，如果不存在则返回 end()
+     */
+    iterator find(const std::string& key);
+    iterator find(std::string_view key);
+    iterator find(const char* key);
+    const_iterator find(const std::string& key) const;
+    const_iterator find(std::string_view key) const;
+    const_iterator find(const char* key) const;
 
 private:
     /**

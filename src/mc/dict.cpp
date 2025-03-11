@@ -305,6 +305,36 @@ bool dict::operator==(const dict& other) const {
     return true;
 }
 
+// 查找指定键的元素，返回迭代器 (std::string 版本)
+dict::const_iterator dict::find(const std::string& key) const {
+    const entry* e = find_entry(key);
+    if (e) {
+        // 直接从元素指针获取迭代器
+        return m_data->entries.iterator_to(*const_cast<entry*>(e));
+    }
+    return m_data->entries.end();
+}
+
+// 查找指定键的元素，返回迭代器 (std::string_view 版本)
+dict::const_iterator dict::find(std::string_view key) const {
+    const entry* e = find_entry(key);
+    if (e) {
+        // 直接从元素指针获取迭代器
+        return m_data->entries.iterator_to(*const_cast<entry*>(e));
+    }
+    return m_data->entries.end();
+}
+
+// 查找指定键的元素，返回迭代器 (const char* 版本)
+dict::const_iterator dict::find(const char* key) const {
+    const entry* e = find_entry(key);
+    if (e) {
+        // 直接从元素指针获取迭代器
+        return m_data->entries.iterator_to(*const_cast<entry*>(e));
+    }
+    return m_data->entries.end();
+}
+
 // 将 dict 转换为 variant
 variant to_variant(const dict& d) {
     variant result;

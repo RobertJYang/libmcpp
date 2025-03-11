@@ -113,6 +113,37 @@ TEST(DictOperationsTest, DictIterators) {
     EXPECT_EQ(it, d.end());
 }
 
+// 测试 dict 的 find 方法
+TEST(DictOperationsTest, DictFind) {
+    dict d({
+        {"key1", 123},
+        {"key2", "value"},
+        {"key3", true}
+    });
+    
+    // 测试 find 方法 (std::string 版本)
+    auto it1 = d.find(std::string("key1"));
+    EXPECT_NE(it1, d.end());
+    EXPECT_EQ(it1->key, "key1");
+    EXPECT_EQ(it1->value.as<int>(), 123);
+    
+    // 测试 find 方法 (std::string_view 版本)
+    auto it2 = d.find(std::string_view("key2"));
+    EXPECT_NE(it2, d.end());
+    EXPECT_EQ(it2->key, "key2");
+    EXPECT_EQ(it2->value.as<std::string>(), "value");
+    
+    // 测试 find 方法 (const char* 版本)
+    auto it3 = d.find("key3");
+    EXPECT_NE(it3, d.end());
+    EXPECT_EQ(it3->key, "key3");
+    EXPECT_EQ(it3->value.as<bool>(), true);
+    
+    // 测试查找不存在的键
+    auto it4 = d.find("key4");
+    EXPECT_EQ(it4, d.end());
+}
+
 // 测试 dict 的 keys 和 values 方法
 TEST(DictOperationsTest, DictKeysAndValues) {
     dict d({
@@ -343,4 +374,58 @@ TEST(DictOperationsTest, DataSharing) {
     EXPECT_FALSE(d2.contains("key3"));
     EXPECT_EQ(md1.size(), 3);
     EXPECT_FALSE(md1.contains("key3"));
+}
+
+// 测试 mutable_dict 的 find 方法
+TEST(DictOperationsTest, MutableDictFind) {
+    mutable_dict md({
+        {"key1", 123},
+        {"key2", "value"},
+        {"key3", true}
+    });
+    
+    // 测试 find 方法 (std::string 版本)
+    auto it1 = md.find(std::string("key1"));
+    EXPECT_NE(it1, md.end());
+    EXPECT_EQ(it1->key, "key1");
+    EXPECT_EQ(it1->value.as<int>(), 123);
+    
+    // 修改找到的元素
+    it1->value = 456;
+    EXPECT_EQ(md["key1"].as<int>(), 456);
+    
+    // 测试 find 方法 (std::string_view 版本)
+    auto it2 = md.find(std::string_view("key2"));
+    EXPECT_NE(it2, md.end());
+    EXPECT_EQ(it2->key, "key2");
+    EXPECT_EQ(it2->value.as<std::string>(), "value");
+    
+    // 修改找到的元素
+    it2->value = "modified";
+    EXPECT_EQ(md["key2"].as<std::string>(), "modified");
+    
+    // 测试 find 方法 (const char* 版本)
+    auto it3 = md.find("key3");
+    EXPECT_NE(it3, md.end());
+    EXPECT_EQ(it3->key, "key3");
+    EXPECT_EQ(it3->value.as<bool>(), true);
+    
+    // 修改找到的元素
+    it3->value = false;
+    EXPECT_EQ(md["key3"].as<bool>(), false);
+    
+    // 测试查找不存在的键
+    auto it4 = md.find("key4");
+    EXPECT_EQ(it4, md.end());
+    
+    // 测试 const 版本的 find 方法
+    const mutable_dict& cmd = md;
+    
+    auto it5 = cmd.find("key1");
+    EXPECT_NE(it5, cmd.end());
+    EXPECT_EQ(it5->key, "key1");
+    EXPECT_EQ(it5->value.as<int>(), 456);
+    
+    auto it6 = cmd.find("key4");
+    EXPECT_EQ(it6, cmd.end());
 } 

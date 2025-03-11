@@ -297,4 +297,41 @@ TEST(DictConstructionTest, MutableDictAssignmentFromDict) {
     // 验证 md 和 d 共享数据
     md["key1"] = 456;
     EXPECT_EQ(d["key1"].as<int>(), 456);
+}
+
+// 测试 mutable_dict 链式调用构造函数
+TEST(DictConstructionTest, MutableDictChainedConstruction) {
+    // 使用单键值对构造函数
+    mutable_dict md1("key1", 123);
+    EXPECT_EQ(md1.size(), 1);
+    EXPECT_EQ(md1["key1"].as<int>(), 123);
+    
+    // 使用链式调用添加更多键值对
+    mutable_dict md2("key1", 123);
+    md2("key2", "value")("key3", true);
+    EXPECT_EQ(md2.size(), 3);
+    EXPECT_EQ(md2["key1"].as<int>(), 123);
+    EXPECT_EQ(md2["key2"].as<std::string>(), "value");
+    EXPECT_EQ(md2["key3"].as<bool>(), true);
+    
+    // 使用不同类型的键
+    std::string key1 = "key1";
+    std::string_view key2 = "key2";
+    const char* key3 = "key3";
+    
+    mutable_dict md3(key1, 123);
+    md3(key2, "value")(key3, true);
+    EXPECT_EQ(md3.size(), 3);
+    EXPECT_EQ(md3["key1"].as<int>(), 123);
+    EXPECT_EQ(md3["key2"].as<std::string>(), "value");
+    EXPECT_EQ(md3["key3"].as<bool>(), true);
+    
+    // 测试混合使用链式调用和其他方法
+    mutable_dict md4("key1", 123);
+    md4["key2"] = "value";
+    md4("key3", true);
+    EXPECT_EQ(md4.size(), 3);
+    EXPECT_EQ(md4["key1"].as<int>(), 123);
+    EXPECT_EQ(md4["key2"].as<std::string>(), "value");
+    EXPECT_EQ(md4["key3"].as<bool>(), true);
 } 
