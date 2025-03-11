@@ -8,7 +8,9 @@ test_files = [
   'test_priority_queue.cpp',
   'variant/test_variant_basic.cpp',
   'variant/test_variant_containers.cpp',
-  'variant/test_variant_standard_containers.cpp'
+  'variant/test_variant_standard_containers.cpp',
+  'variant/test_typed_variant.cpp',
+  'variant/test_variant_equality.cpp'
 ]
 
 # 创建测试可执行文件

@@ -137,6 +137,22 @@ public:
      */
     int find_index(const std::string& key) const;
 
+    /**
+     * @brief 比较两个 dict 对象是否相等
+     * @param other 要比较的 dict 对象
+     * @return 如果两个对象相等则返回 true，否则返回 false
+     */
+    bool operator==(const dict& other) const;
+
+    /**
+     * @brief 比较两个 dict 对象是否不相等
+     * @param other 要比较的 dict 对象
+     * @return 如果两个对象不相等则返回 true，否则返回 false
+     */
+    bool operator!=(const dict& other) const {
+        return !(*this == other);
+    }
+
 protected:
     /**
      * @brief 存储键值对的向量，保持插入顺序

@@ -136,4 +136,26 @@ int dict::find_index(const std::string& key) const {
     return -1;
 }
 
+// 比较两个 dict 对象是否相等
+bool dict::operator==(const dict& other) const {
+    // 如果大小不同，则不相等
+    if (m_items.size() != other.m_items.size()) {
+        return false;
+    }
+
+    // 检查每个键值对是否相等
+    for (const auto& item : m_items) {
+        // 检查键是否存在
+        if (!other.contains(item.key)) {
+            return false;
+        }
+        // 检查值是否相等
+        if (!(item.value == other[item.key])) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
 } // namespace mc

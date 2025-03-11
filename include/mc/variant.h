@@ -44,6 +44,24 @@ class mutable_dict;
 // 定义 blob 类型，用于存储二进制数据
 struct blob {
     std::vector<char> data;
+
+    /**
+     * @brief 比较两个 blob 对象是否相等
+     * @param other 要比较的 blob 对象
+     * @return 如果两个对象相等则返回 true，否则返回 false
+     */
+    bool operator==(const blob& other) const {
+        return data == other.data;
+    }
+
+    /**
+     * @brief 比较两个 blob 对象是否不相等
+     * @param other 要比较的 blob 对象
+     * @return 如果两个对象不相等则返回 true，否则返回 false
+     */
+    bool operator!=(const blob& other) const {
+        return !(*this == other);
+    }
 };
 
 // 定义 variants 类型，用于存储 variant 数组
@@ -121,7 +139,8 @@ public:
         string_type,   ///< 字符串类型
         array_type,    ///< 数组类型
         object_type,   ///< 对象类型
-        blob_type      ///< 二进制数据类型
+        blob_type,     ///< 二进制数据类型
+        max_type       ///< 最大类型值（用于边界检查）
     };
 
     /**
@@ -133,6 +152,11 @@ public:
      * @brief 从 nullptr 构造一个空的 variant
      */
     variant(std::nullptr_t);
+
+    /**
+     * @brief 从指定类型构造 variant
+     */
+    explicit variant(type_id type);
 
     /**
      * @brief 从各种基本类型构造 variant
@@ -379,6 +403,22 @@ public:
     void clear();
 
     /**
+     * @brief 比较两个 variant 对象是否相等
+     * @param other 要比较的 variant 对象
+     * @return 如果两个对象相等则返回 true，否则返回 false
+     */
+    bool operator==(const variant& other) const;
+
+    /**
+     * @brief 比较两个 variant 对象是否不相等
+     * @param other 要比较的 variant 对象
+     * @return 如果两个对象不相等则返回 true，否则返回 false
+     */
+    bool operator!=(const variant& other) const {
+        return !(*this == other);
+    }
+
+    /**
      * @brief 获取数组类型
      * @return 数组引用
      * @throw std::bad_cast 如果类型不匹配
@@ -402,7 +442,7 @@ public:
         return *static_cast<dict*>(m_object_ptr);
     }
 
-private:
+protected:
     /**
      * @brief 存储数据的联合体
      */
@@ -421,6 +461,93 @@ private:
      * @brief 数据类型
      */
     type_id m_type;
+};
+
+/**
+ * @brief 类型锁定的 variant 类，赋值时保持类型不变
+ */
+class typed_variant : public variant {
+public:
+    /**
+     * @brief 默认构造函数，创建一个空的 typed_variant
+     */
+    typed_variant();
+
+    /**
+     * @brief 从 variant 构造 typed_variant
+     */
+    explicit typed_variant(const variant& other);
+
+    /**
+     * @brief 从 variant 移动构造 typed_variant
+     */
+    explicit typed_variant(variant&& other) noexcept;
+
+    /**
+     * @brief 从各种基本类型构造 typed_variant
+     */
+    template <typename T>
+    explicit typed_variant(T&& val) : variant(std::forward<T>(val)) {}
+
+    /**
+     * @brief 从 type_id 构造指定类型的 typed_variant
+     */
+    explicit typed_variant(type_id type);
+
+    /**
+     * @brief 赋值运算符，保持类型不变
+     */
+    typed_variant& operator=(const variant& other);
+
+    /**
+     * @brief 移动赋值运算符，保持类型不变
+     */
+    typed_variant& operator=(variant&& other);
+
+    /**
+     * @brief 从各种类型赋值，保持类型不变
+     */
+    template <typename T>
+    std::enable_if_t<!std::is_same_v<std::decay_t<T>, variant>, typed_variant&> operator=(T&& v) {
+        *this = variant(std::forward<T>(v));
+        return *this;
+    }
+
+    /**
+     * @brief 比较两个 typed_variant 对象是否相等
+     * @param other 要比较的 typed_variant 对象
+     * @return 如果两个对象相等则返回 true，否则返回 false
+     */
+    bool operator==(const typed_variant& other) const {
+        return variant::operator==(other);
+    }
+
+    /**
+     * @brief 比较 typed_variant 与 variant 对象是否相等
+     * @param other 要比较的 variant 对象
+     * @return 如果两个对象相等则返回 true，否则返回 false
+     */
+    bool operator==(const variant& other) const {
+        return variant::operator==(other);
+    }
+
+    /**
+     * @brief 比较两个 typed_variant 对象是否不相等
+     * @param other 要比较的 typed_variant 对象
+     * @return 如果两个对象不相等则返回 true，否则返回 false
+     */
+    bool operator!=(const typed_variant& other) const {
+        return !(*this == other);
+    }
+
+    /**
+     * @brief 比较 typed_variant 与 variant 对象是否不相等
+     * @param other 要比较的 variant 对象
+     * @return 如果两个对象不相等则返回 true，否则返回 false
+     */
+    bool operator!=(const variant& other) const {
+        return !(*this == other);
+    }
 };
 
 } // namespace mc
