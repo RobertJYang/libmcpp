@@ -23,56 +23,58 @@
 
 namespace mc {
 
-// 辅助函数，用于抛出类型错误异常
-// 辅助函数：获取类型的整数值
-static std::string get_type_value(variant::type_id type) {
-    return std::to_string(static_cast<int>(type)) + " (" + [type]() {
-        switch (type) {
-        case variant::type_id::null_type:
-            return "null_type";
-        case variant::type_id::int8_type:
-            return "int8_type";
-        case variant::type_id::uint8_type:
-            return "uint8_type";
-        case variant::type_id::int16_type:
-            return "int16_type";
-        case variant::type_id::uint16_type:
-            return "uint16_type";
-        case variant::type_id::int32_type:
-            return "int32_type";
-        case variant::type_id::uint32_type:
-            return "uint32_type";
-        case variant::type_id::int64_type:
-            return "int64_type";
-        case variant::type_id::uint64_type:
-            return "uint64_type";
-        case variant::type_id::double_type:
-            return "double_type";
-        case variant::type_id::bool_type:
-            return "bool_type";
-        case variant::type_id::string_type:
-            return "string_type";
-        case variant::type_id::array_type:
-            return "array_type";
-        case variant::type_id::object_type:
-            return "object_type";
-        case variant::type_id::blob_type:
-            return "blob_type";
-        default:
-            return "未知类型";
-        }
-    }() + ")";
+// 获取类型名称
+static const char* get_type_name_internal(variant::type_id type) {
+    static const char* type_names[] = {
+        "null",   // null_type
+        "int8",   // int8_type
+        "uint8",  // uint8_type
+        "int16",  // int16_type
+        "uint16", // uint16_type
+        "int32",  // int32_type
+        "uint32", // uint32_type
+        "int64",  // int64_type
+        "uint64", // uint64_type
+        "double", // double_type
+        "bool",   // bool_type
+        "string", // string_type
+        "array",  // array_type
+        "object", // object_type
+        "blob"    // blob_type
+    };
+
+    int index = static_cast<int>(type);
+    if (index >= 0 && index < static_cast<int>(variant::type_id::max_type)) {
+        return type_names[index];
+    }
+
+    return "unknown";
 }
 
 static void throw_type_error(const char* expected_type, variant::type_id actual_type) {
     std::string error = "类型错误：期望 ";
     error += expected_type;
-    error += "，实际为 " + get_type_value(actual_type);
+    error += "，实际为 ";
+    error += get_type_name_internal(actual_type);
+
+    // 只有未知类型才增加整数值
+    if (actual_type >= variant::type_id::max_type) {
+        error += " (" + std::to_string(static_cast<int>(actual_type)) + ")";
+    }
+
     throw std::runtime_error(error);
 }
 
 static void throw_unknow_type_error(variant::type_id actual_type) {
-    throw std::runtime_error("类型错误：" + get_type_value(actual_type));
+    std::string error = "未知类型：";
+    error += get_type_name_internal(actual_type);
+
+    // 只有未知类型才增加整数值
+    if (actual_type >= variant::type_id::max_type) {
+        error += " (" + std::to_string(static_cast<int>(actual_type)) + ")";
+    }
+
+    throw std::runtime_error(error);
 }
 
 // 从 type_id 构造
@@ -399,6 +401,11 @@ void variant::visit(const visitor& v) const {
     }
 }
 
+// 获取类型名称
+const char* variant::get_type_name(type_id type) {
+    return get_type_name_internal(type);
+}
+
 // 获取 variant 的类型
 variant::type_id variant::get_type() const {
     return m_type;
@@ -482,7 +489,8 @@ int64_t variant::as_int64() const {
         try {
             return std::stoll(*static_cast<std::string*>(m_string_ptr));
         } catch (const std::exception& e) {
-            throw_type_error("int64", m_type);
+            throw std::runtime_error("无法将字符串 '" + *static_cast<std::string*>(m_string_ptr) +
+                                     "' 转换为整数: " + e.what());
         }
     default:
         throw_type_error("int64", m_type);
@@ -594,8 +602,8 @@ blob variant::as_blob() const {
         b.data.assign(s.begin(), s.end());
         return b;
     } else {
-        throw_type_error("blob", m_type);
-        return blob(); // 不会执行到这里
+        throw std::runtime_error("类型错误: 无法将类型 " + std::string(get_type_name(m_type)) +
+                                 " 转换为 blob");
     }
 }
 
@@ -625,8 +633,8 @@ std::string variant::as_string() const {
         return std::string(b.data.begin(), b.data.end());
     }
     default:
-        throw_type_error("string", m_type);
-        return std::string(); // 不会执行到这里
+        throw std::runtime_error("类型错误: 无法将类型 " + std::string(get_type_name(m_type)) +
+                                 " 转换为 string");
     }
 }
 
@@ -638,7 +646,8 @@ const variant& variant::operator[](size_t pos) const {
 
     const variants& arr = *static_cast<variants*>(m_array_ptr);
     if (pos >= arr.size()) {
-        throw std::out_of_range("数组索引越界");
+        throw std::out_of_range("数组索引越界: 索引 " + std::to_string(pos) + " 超出范围 [0, " +
+                                std::to_string(arr.size() - 1) + "]");
     }
 
     return arr[pos];
@@ -959,30 +968,30 @@ bool variant::operator==(const std::string& other) const {
     return *this == std::string_view(other);
 }
 
-bool variant::operator==(const std::string_view &other) const {
+bool variant::operator==(const std::string_view& other) const {
     if (is_string()) {
         return *static_cast<std::string*>(m_string_ptr) == other;
     } else if (is_blob()) {
-        const blob &b = *static_cast<blob*>(m_blob_ptr);
+        const blob& b = *static_cast<blob*>(m_blob_ptr);
         return std::string_view(b.data.data(), b.data.size()) == other;
     } else {
         return false;
     }
 }
 
-bool variant::operator==(const variants &other) const {
+bool variant::operator==(const variants& other) const {
     return is_array() && *static_cast<variants*>(m_array_ptr) == other;
 }
 
-bool variant::operator==(const blob&other) const {
+bool variant::operator==(const blob& other) const {
     return is_blob() && *static_cast<blob*>(m_blob_ptr) == other;
 }
 
-bool variant::operator==(const dict&other) const {
+bool variant::operator==(const dict& other) const {
     return is_object() && *static_cast<dict*>(m_object_ptr) == other;
 }
 
-bool variant::operator==(const mutable_dict&other) const {
+bool variant::operator==(const mutable_dict& other) const {
     return is_object() && *static_cast<dict*>(m_object_ptr) == other;
 }
 

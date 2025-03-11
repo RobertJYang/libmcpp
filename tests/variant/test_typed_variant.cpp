@@ -1,25 +1,25 @@
 /*
-* Copyright (c) 2025 Huawei Technologies Co., Ltd.
-* openUBMC is licensed under Mulan PSL v2.
-* You can use this software according to the terms and conditions of the Mulan PSL v2.
-* You may obtain a copy of Mulan PSL v2 at:
-*         http://license.coscl.org.cn/MulanPSL2
-* THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
-* EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
-* MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
-* See the Mulan PSL v2 for more details.
-*/
+ * Copyright (c) 2025 Huawei Technologies Co., Ltd.
+ * openUBMC is licensed under Mulan PSL v2.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *         http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
+ */
 
 /**
  * @file test_typed_variant.cpp
  * @brief 测试 typed_variant 类型的功能，确保类型不会被改变
  */
+#include "test_variant_helpers.h"
 #include <gtest/gtest.h>
-#include <mc/variant.h>
+#include <limits>
 #include <mc/dict.h>
 #include <mc/mutable_dict.h>
-#include "test_variant_helpers.h"
-#include <limits>
+#include <mc/variant.h>
 #include <stdexcept>
 #include <string>
 
@@ -43,25 +43,31 @@ protected:
 TEST_F(TypedVariantTest, Creation) {
     // 从 type_id 创建
     typed_variant tv1(variant::type_id::int64_type);
-    ASSERT_EQ(tv1.get_type(), variant::type_id::int64_type) << "从 type_id 创建的 typed_variant 类型应该正确";
-    
+    ASSERT_EQ(tv1.get_type(), variant::type_id::int64_type)
+        << "从 type_id 创建的 typed_variant 类型应该正确";
+
     // 从基本类型创建
     typed_variant tv2(42);
-    ASSERT_EQ(tv2.get_type(), variant::type_id::int32_type) << "从整数创建的 typed_variant 类型应该是 int32_type";
-    
+    ASSERT_EQ(tv2.get_type(), variant::type_id::int32_type)
+        << "从整数创建的 typed_variant 类型应该是 int32_type";
+
     typed_variant tv3(3.14);
-    ASSERT_EQ(tv3.get_type(), variant::type_id::double_type) << "从浮点数创建的 typed_variant 类型应该是 double_type";
-    
+    ASSERT_EQ(tv3.get_type(), variant::type_id::double_type)
+        << "从浮点数创建的 typed_variant 类型应该是 double_type";
+
     typed_variant tv4(true);
-    ASSERT_EQ(tv4.get_type(), variant::type_id::bool_type) << "从布尔值创建的 typed_variant 类型应该是 bool_type";
-    
+    ASSERT_EQ(tv4.get_type(), variant::type_id::bool_type)
+        << "从布尔值创建的 typed_variant 类型应该是 bool_type";
+
     typed_variant tv5(std::string("hello"));
-    ASSERT_EQ(tv5.get_type(), variant::type_id::string_type) << "从字符串创建的 typed_variant 类型应该是 string_type";
-    
+    ASSERT_EQ(tv5.get_type(), variant::type_id::string_type)
+        << "从字符串创建的 typed_variant 类型应该是 string_type";
+
     // 从 variant 创建
     variant v(123);
     typed_variant tv6(v);
-    ASSERT_EQ(tv6.get_type(), variant::type_id::int32_type) << "从 variant 创建的 typed_variant 类型应该与原 variant 相同";
+    ASSERT_EQ(tv6.get_type(), variant::type_id::int32_type)
+        << "从 variant 创建的 typed_variant 类型应该与原 variant 相同";
 }
 
 /**
@@ -71,80 +77,80 @@ TEST_F(TypedVariantTest, IntegerTypeLocking) {
     // 测试 int8_type
     typed_variant tv_int8(variant::type_id::int8_type);
     ASSERT_EQ(tv_int8.get_type(), variant::type_id::int8_type);
-    
+
     // 赋值一个小整数，类型应该保持为 int8_type
     tv_int8 = 42;
     ASSERT_EQ(tv_int8.get_type(), variant::type_id::int8_type);
     ASSERT_EQ(tv_int8.as_int64(), 42);
-    
+
     // 赋值一个边界值，类型应该保持为 int8_type
     tv_int8 = 127; // int8_t 的最大值
     ASSERT_EQ(tv_int8.get_type(), variant::type_id::int8_type);
     ASSERT_EQ(tv_int8.as_int64(), 127);
-    
+
     // 测试 uint8_type
     typed_variant tv_uint8(variant::type_id::uint8_type);
     ASSERT_EQ(tv_uint8.get_type(), variant::type_id::uint8_type);
-    
+
     // 赋值一个小整数，类型应该保持为 uint8_type
     tv_uint8 = 42;
     ASSERT_EQ(tv_uint8.get_type(), variant::type_id::uint8_type);
     ASSERT_EQ(tv_uint8.as_uint64(), 42);
-    
+
     // 赋值一个边界值，类型应该保持为 uint8_type
     tv_uint8 = 255; // uint8_t 的最大值
     ASSERT_EQ(tv_uint8.get_type(), variant::type_id::uint8_type);
     ASSERT_EQ(tv_uint8.as_uint64(), 255);
-    
+
     // 测试 int16_type
     typed_variant tv_int16(variant::type_id::int16_type);
     ASSERT_EQ(tv_int16.get_type(), variant::type_id::int16_type);
-    
+
     // 赋值一个整数，类型应该保持为 int16_type
     tv_int16 = 12345;
     ASSERT_EQ(tv_int16.get_type(), variant::type_id::int16_type);
     ASSERT_EQ(tv_int16.as_int64(), 12345);
-    
+
     // 测试 uint16_type
     typed_variant tv_uint16(variant::type_id::uint16_type);
     ASSERT_EQ(tv_uint16.get_type(), variant::type_id::uint16_type);
-    
+
     // 赋值一个整数，类型应该保持为 uint16_type
     tv_uint16 = 12345;
     ASSERT_EQ(tv_uint16.get_type(), variant::type_id::uint16_type);
     ASSERT_EQ(tv_uint16.as_uint64(), 12345);
-    
+
     // 测试 int32_type
     typed_variant tv_int32(variant::type_id::int32_type);
     ASSERT_EQ(tv_int32.get_type(), variant::type_id::int32_type);
-    
+
     // 赋值一个整数，类型应该保持为 int32_type
     tv_int32 = 123456789;
     ASSERT_EQ(tv_int32.get_type(), variant::type_id::int32_type);
     ASSERT_EQ(tv_int32.as_int64(), 123456789);
-    
+
     // 测试 uint32_type
     typed_variant tv_uint32(variant::type_id::uint32_type);
     ASSERT_EQ(tv_uint32.get_type(), variant::type_id::uint32_type);
-    
+
     // 赋值一个整数，类型应该保持为 uint32_type
     tv_uint32 = 123456789;
     ASSERT_EQ(tv_uint32.get_type(), variant::type_id::uint32_type);
     ASSERT_EQ(tv_uint32.as_uint64(), 123456789);
-    
+
     // 测试 int64_type
     typed_variant tv_int64(variant::type_id::int64_type);
     ASSERT_EQ(tv_int64.get_type(), variant::type_id::int64_type);
-    
+
     // 赋值一个整数，类型应该保持为 int64_type
     tv_int64 = 1234567890123LL;
     ASSERT_EQ(tv_int64.get_type(), variant::type_id::int64_type);
     ASSERT_EQ(tv_int64.as_int64(), 1234567890123LL);
-    
+
     // 测试 uint64_type
     typed_variant tv_uint64(variant::type_id::uint64_type);
     ASSERT_EQ(tv_uint64.get_type(), variant::type_id::uint64_type);
-    
+
     // 赋值一个整数，类型应该保持为 uint64_type
     tv_uint64 = 1234567890123ULL;
     ASSERT_EQ(tv_uint64.get_type(), variant::type_id::uint64_type);
@@ -158,17 +164,17 @@ TEST_F(TypedVariantTest, FloatingPointTypeLocking) {
     // 测试 double_type
     typed_variant tv_double(variant::type_id::double_type);
     ASSERT_EQ(tv_double.get_type(), variant::type_id::double_type);
-    
+
     // 赋值一个整数，类型应该保持为 double_type
     tv_double = 42;
     ASSERT_EQ(tv_double.get_type(), variant::type_id::double_type);
     ASSERT_DOUBLE_EQ(tv_double.as_double(), 42.0);
-    
+
     // 赋值一个浮点数，类型应该保持为 double_type
     tv_double = 3.14159;
     ASSERT_EQ(tv_double.get_type(), variant::type_id::double_type);
     ASSERT_DOUBLE_EQ(tv_double.as_double(), 3.14159);
-    
+
     // 赋值一个有效的数字字符串，类型应该保持为 double_type，但值会被转换
     tv_double = "123.456";
     ASSERT_EQ(tv_double.get_type(), variant::type_id::double_type);
@@ -182,34 +188,43 @@ TEST_F(TypedVariantTest, BoolTypeLocking) {
     // 测试 bool_type
     typed_variant tv_bool(variant::type_id::bool_type);
     ASSERT_EQ(tv_bool.get_type(), variant::type_id::bool_type);
-    
+
     // 赋值一个布尔值，类型应该保持为 bool_type
     tv_bool = true;
     ASSERT_EQ(tv_bool.get_type(), variant::type_id::bool_type);
     ASSERT_EQ(tv_bool.as_bool(), true);
-    
+
     // 赋值一个整数，类型应该保持为 bool_type，但值会被转换
     tv_bool = 0;
     ASSERT_EQ(tv_bool.get_type(), variant::type_id::bool_type);
     ASSERT_EQ(tv_bool.as_bool(), false);
-    
+
     tv_bool = 42;
     ASSERT_EQ(tv_bool.get_type(), variant::type_id::bool_type);
     ASSERT_EQ(tv_bool.as_bool(), true);
-    
+
     // 赋值一个字符串，类型应该保持为 bool_type，但值会被转换
     tv_bool = "true";
     ASSERT_EQ(tv_bool.get_type(), variant::type_id::bool_type);
     ASSERT_EQ(tv_bool.as_bool(), true);
-    
+
     tv_bool = "false";
     ASSERT_EQ(tv_bool.get_type(), variant::type_id::bool_type);
     ASSERT_EQ(tv_bool.as_bool(), false);
-    
-    // 赋值一个无效的字符串，应该捕获异常并保持类型不变
-    verify_assignment_exception([&] {
-        tv_bool = "not a boolean";
-    }, tv_bool);
+
+    // 测试无效字符串转换的异常处理
+    EXPECT_THROW(
+        {
+            try {
+                typed_variant tv_invalid(variant::type_id::bool_type);
+                tv_invalid = "not a boolean";
+            } catch (const std::runtime_error& e) {
+                // 确保异常消息包含有用的信息
+                EXPECT_TRUE(std::string(e.what()).find("无法将字符串") != std::string::npos);
+                throw;
+            }
+        },
+        std::runtime_error);
 }
 
 /**
@@ -219,28 +234,28 @@ TEST_F(TypedVariantTest, StringTypeLocking) {
     // 测试 string_type
     typed_variant tv_string(variant::type_id::string_type);
     ASSERT_EQ(tv_string.get_type(), variant::type_id::string_type);
-    
+
     // 赋值一个字符串，类型应该保持为 string_type
     tv_string = "hello world";
     ASSERT_EQ(tv_string.get_type(), variant::type_id::string_type);
     ASSERT_EQ(tv_string.as_string(), "hello world");
-    
+
     // 赋值一个整数，类型应该保持为 string_type，但值会被转换
     tv_string = 42;
     ASSERT_EQ(tv_string.get_type(), variant::type_id::string_type);
     ASSERT_EQ(tv_string.as_string(), "42");
-    
+
     // 赋值一个浮点数，类型应该保持为 string_type，但值会被转换
     tv_string = 3.14159;
     ASSERT_EQ(tv_string.get_type(), variant::type_id::string_type);
     // 浮点数转字符串可能有精度问题，所以使用 ASSERT_TRUE 和 find
     ASSERT_TRUE(tv_string.as_string().find("3.14159") != std::string::npos);
-    
+
     // 赋值一个布尔值，类型应该保持为 string_type，但值会被转换
     tv_string = true;
     ASSERT_EQ(tv_string.get_type(), variant::type_id::string_type);
     ASSERT_EQ(tv_string.as_string(), "true");
-    
+
     tv_string = false;
     ASSERT_EQ(tv_string.get_type(), variant::type_id::string_type);
     ASSERT_EQ(tv_string.as_string(), "false");
@@ -255,11 +270,11 @@ TEST_F(TypedVariantTest, ArrayTypeLocking) {
     arr.push_back(variant(1));
     arr.push_back(variant(2));
     arr.push_back(variant(3));
-    
+
     // 测试 array_type
     typed_variant tv_array(variant::type_id::array_type);
     ASSERT_EQ(tv_array.get_type(), variant::type_id::array_type);
-    
+
     // 赋值一个数组，类型应该保持为 array_type
     tv_array = arr;
     ASSERT_EQ(tv_array.get_type(), variant::type_id::array_type);
@@ -268,17 +283,19 @@ TEST_F(TypedVariantTest, ArrayTypeLocking) {
     ASSERT_EQ(tv_array.get_array()[0].as_int64(), 1);
     ASSERT_EQ(tv_array.get_array()[1].as_int64(), 2);
     ASSERT_EQ(tv_array.get_array()[2].as_int64(), 3);
-    
+
     // 赋值一个非数组类型，类型应该保持为 array_type，但值不会改变
-    verify_assignment_exception([&] {
-        tv_array = 42;
-    }, tv_array);
-    
+    verify_assignment_exception(
+        [&] {
+            tv_array = 42;
+        },
+        tv_array);
+
     // 创建一个新的数组
     variants arr2;
     arr2.push_back(variant("a"));
     arr2.push_back(variant("b"));
-    
+
     // 赋值一个新数组，类型应该保持为 array_type
     tv_array = arr2;
     ASSERT_EQ(tv_array.get_type(), variant::type_id::array_type);
@@ -295,30 +312,32 @@ TEST_F(TypedVariantTest, ObjectTypeLocking) {
     mutable_dict obj;
     obj["name"] = variant("John");
     obj["age"] = variant(30);
-    
+
     // 测试 object_type
     typed_variant tv_object(variant::type_id::object_type);
     ASSERT_EQ(tv_object.get_type(), variant::type_id::object_type);
-    
+
     // 赋值一个对象，类型应该保持为 object_type
     tv_object = obj;
     ASSERT_EQ(tv_object.get_type(), variant::type_id::object_type);
     ASSERT_EQ(tv_object.get_object().size(), 2);
     ASSERT_EQ(tv_object.get_object()["name"].as_string(), "John");
     ASSERT_EQ(tv_object.get_object()["age"].as_int64(), 30);
-    
+
     // 赋值一个非对象类型，类型应该保持为 object_type，但值不会改变
     size_t prev_size = tv_object.get_object().size();
-    verify_assignment_exception([&]() {
-        tv_object = 42;
-    }, tv_object);
+    verify_assignment_exception(
+        [&]() {
+            tv_object = 42;
+        },
+        tv_object);
     ASSERT_EQ(tv_object.get_object().size(), prev_size);
-    
+
     // 创建一个新的对象
     mutable_dict obj2;
     obj2["city"] = variant("New York");
     obj2["country"] = variant("USA");
-    
+
     // 赋值一个新对象，类型应该保持为 object_type
     tv_object = obj2;
     ASSERT_EQ(tv_object.get_type(), variant::type_id::object_type);
@@ -335,28 +354,30 @@ TEST_F(TypedVariantTest, BlobTypeLocking) {
     std::vector<char> data1 = {1, 2, 3, 4, 5};
     blob b1;
     b1.data = data1;
-    
+
     // 测试 blob_type
     typed_variant tv_blob(variant::type_id::blob_type);
     ASSERT_EQ(tv_blob.get_type(), variant::type_id::blob_type);
-    
+
     // 赋值一个 blob，类型应该保持为 blob_type
     tv_blob = b1;
     ASSERT_EQ(tv_blob.get_type(), variant::type_id::blob_type);
     ASSERT_EQ(tv_blob.as_blob().data.size(), 5);
     ASSERT_EQ(tv_blob.as_blob().data[0], 1);
     ASSERT_EQ(tv_blob.as_blob().data[4], 5);
-    
+
     // 赋值一个非 blob 类型，类型应该保持为 blob_type，但值不会改变
-    verify_assignment_exception([&]() {
-        tv_blob = 42;
-    }, tv_blob);
-    
+    verify_assignment_exception(
+        [&]() {
+            tv_blob = 42;
+        },
+        tv_blob);
+
     // 创建一个新的 blob
     std::vector<char> data2 = {10, 20, 30};
     blob b2;
     b2.data = data2;
-    
+
     // 赋值一个新 blob，类型应该保持为 blob_type
     tv_blob = b2;
     ASSERT_EQ(tv_blob.get_type(), variant::type_id::blob_type);
@@ -374,90 +395,90 @@ TEST_F(TypedVariantTest, BoundaryValues) {
     tv_int8 = -128; // int8_t 的最小值
     ASSERT_EQ(tv_int8.get_type(), variant::type_id::int8_type);
     ASSERT_EQ(tv_int8.as_int64(), -128);
-    
+
     tv_int8 = 127; // int8_t 的最大值
     ASSERT_EQ(tv_int8.get_type(), variant::type_id::int8_type);
     ASSERT_EQ(tv_int8.as_int64(), 127);
-    
+
     // 测试 uint8_type 的边界值
     typed_variant tv_uint8(variant::type_id::uint8_type);
     tv_uint8 = 0; // uint8_t 的最小值
     ASSERT_EQ(tv_uint8.get_type(), variant::type_id::uint8_type);
     ASSERT_EQ(tv_uint8.as_uint64(), 0);
-    
+
     tv_uint8 = 255; // uint8_t 的最大值
     ASSERT_EQ(tv_uint8.get_type(), variant::type_id::uint8_type);
     ASSERT_EQ(tv_uint8.as_uint64(), 255);
-    
+
     // 测试 int16_type 的边界值
     typed_variant tv_int16(variant::type_id::int16_type);
     tv_int16 = -32768; // int16_t 的最小值
     ASSERT_EQ(tv_int16.get_type(), variant::type_id::int16_type);
     ASSERT_EQ(tv_int16.as_int64(), -32768);
-    
+
     tv_int16 = 32767; // int16_t 的最大值
     ASSERT_EQ(tv_int16.get_type(), variant::type_id::int16_type);
     ASSERT_EQ(tv_int16.as_int64(), 32767);
-    
+
     // 测试 uint16_type 的边界值
     typed_variant tv_uint16(variant::type_id::uint16_type);
     tv_uint16 = 0; // uint16_t 的最小值
     ASSERT_EQ(tv_uint16.get_type(), variant::type_id::uint16_type);
     ASSERT_EQ(tv_uint16.as_uint64(), 0);
-    
+
     tv_uint16 = 65535; // uint16_t 的最大值
     ASSERT_EQ(tv_uint16.get_type(), variant::type_id::uint16_type);
     ASSERT_EQ(tv_uint16.as_uint64(), 65535);
-    
+
     // 测试 int32_type 的边界值
     typed_variant tv_int32(variant::type_id::int32_type);
     tv_int32 = static_cast<int32_t>(-2147483647 - 1); // int32_t 的最小值
     ASSERT_EQ(tv_int32.get_type(), variant::type_id::int32_type);
     ASSERT_EQ(tv_int32.as_int64(), -2147483647 - 1);
-    
+
     tv_int32 = 2147483647; // int32_t 的最大值
     ASSERT_EQ(tv_int32.get_type(), variant::type_id::int32_type);
     ASSERT_EQ(tv_int32.as_int64(), 2147483647);
-    
+
     // 测试 uint32_type 的边界值
     typed_variant tv_uint32(variant::type_id::uint32_type);
     tv_uint32 = 0; // uint32_t 的最小值
     ASSERT_EQ(tv_uint32.get_type(), variant::type_id::uint32_type);
     ASSERT_EQ(tv_uint32.as_uint64(), 0);
-    
+
     tv_uint32 = 4294967295U; // uint32_t 的最大值
     ASSERT_EQ(tv_uint32.get_type(), variant::type_id::uint32_type);
     ASSERT_EQ(tv_uint32.as_uint64(), 4294967295U);
-    
+
     // 测试 int64_type 的边界值
     typed_variant tv_int64(variant::type_id::int64_type);
     // 使用较小的值，避免溢出
     tv_int64 = -9223372036854775807LL; // 接近 int64_t 的最小值
     ASSERT_EQ(tv_int64.get_type(), variant::type_id::int64_type);
     ASSERT_EQ(tv_int64.as_int64(), -9223372036854775807LL);
-    
+
     tv_int64 = 9223372036854775807LL; // int64_t 的最大值
     ASSERT_EQ(tv_int64.get_type(), variant::type_id::int64_type);
     ASSERT_EQ(tv_int64.as_int64(), 9223372036854775807LL);
-    
+
     // 测试 uint64_type 的边界值
     typed_variant tv_uint64(variant::type_id::uint64_type);
     tv_uint64 = 0; // uint64_t 的最小值
     ASSERT_EQ(tv_uint64.get_type(), variant::type_id::uint64_type);
     ASSERT_EQ(tv_uint64.as_uint64(), 0);
-    
+
     // 使用较小的值，避免溢出
     tv_uint64 = 18446744073709551615ULL; // uint64_t 的最大值
     ASSERT_EQ(tv_uint64.get_type(), variant::type_id::uint64_type);
     ASSERT_EQ(tv_uint64.as_uint64(), 18446744073709551615ULL);
-    
+
     // 测试 double_type 的边界值
     typed_variant tv_double(variant::type_id::double_type);
     // 使用较小的值，避免精度问题
     tv_double = -1.7976931348623157e+308 * 0.5; // 接近 double 的最小值
     ASSERT_EQ(tv_double.get_type(), variant::type_id::double_type);
     ASSERT_DOUBLE_EQ(tv_double.as_double(), -1.7976931348623157e+308 * 0.5);
-    
+
     tv_double = 1.7976931348623157e+308 * 0.5; // 接近 double 的最大值
     ASSERT_EQ(tv_double.get_type(), variant::type_id::double_type);
     ASSERT_DOUBLE_EQ(tv_double.as_double(), 1.7976931348623157e+308 * 0.5);
@@ -477,7 +498,7 @@ TEST_F(TypedVariantTest, ComplexConversions) {
         // 如果转换失败，确保类型保持不变
         ASSERT_EQ(tv_int32.get_type(), variant::type_id::int32_type);
     }
-    
+
     typed_variant tv_double(variant::type_id::double_type);
     try {
         tv_double = "3.14159";
@@ -487,7 +508,7 @@ TEST_F(TypedVariantTest, ComplexConversions) {
         // 如果转换失败，确保类型保持不变
         ASSERT_EQ(tv_double.get_type(), variant::type_id::double_type);
     }
-    
+
     typed_variant tv_bool(variant::type_id::bool_type);
     try {
         tv_bool = "true";
@@ -497,23 +518,23 @@ TEST_F(TypedVariantTest, ComplexConversions) {
         // 如果转换失败，确保类型保持不变
         ASSERT_EQ(tv_bool.get_type(), variant::type_id::bool_type);
     }
-    
+
     // 测试从 variant 到 typed_variant 的转换
     variant v_int(42);
     variant v_double(3.14159);
     variant v_string("hello");
     variant v_bool(true);
-    
+
     typed_variant tv_int64(variant::type_id::int64_type);
     tv_int64 = v_int;
     ASSERT_EQ(tv_int64.get_type(), variant::type_id::int64_type);
     ASSERT_EQ(tv_int64.as_int64(), 42);
-    
+
     typed_variant tv_string(variant::type_id::string_type);
     tv_string = v_double;
     ASSERT_EQ(tv_string.get_type(), variant::type_id::string_type);
     ASSERT_TRUE(tv_string.as_string().find("3.14159") != std::string::npos);
-    
+
     typed_variant tv_int8(variant::type_id::int8_type);
     tv_int8 = v_bool;
     ASSERT_EQ(tv_int8.get_type(), variant::type_id::int8_type);
@@ -527,17 +548,17 @@ TEST_F(TypedVariantTest, ChainedAssignments) {
     typed_variant tv_int32(variant::type_id::int32_type);
     typed_variant tv_int64(variant::type_id::int64_type);
     typed_variant tv_double(variant::type_id::double_type);
-    
+
     // 链式赋值
     tv_int32 = tv_int64 = tv_double = 42;
-    
+
     // 验证每个变量的类型和值
     ASSERT_EQ(tv_double.get_type(), variant::type_id::double_type);
     ASSERT_DOUBLE_EQ(tv_double.as_double(), 42.0);
-    
+
     ASSERT_EQ(tv_int64.get_type(), variant::type_id::int64_type);
     ASSERT_EQ(tv_int64.as_int64(), 42);
-    
+
     ASSERT_EQ(tv_int32.get_type(), variant::type_id::int32_type);
     ASSERT_EQ(tv_int32.as_int64(), 42);
 }
@@ -550,12 +571,12 @@ TEST_F(TypedVariantTest, SelfAssignment) {
     tv = 42;
     ASSERT_EQ(tv.get_type(), variant::type_id::int32_type);
     ASSERT_EQ(tv.as_int64(), 42);
-    
+
     // 自赋值
     tv = tv;
     ASSERT_EQ(tv.get_type(), variant::type_id::int32_type);
     ASSERT_EQ(tv.as_int64(), 42);
-    
+
     // 通过引用自赋值
     typed_variant& tv_ref = tv;
     tv = tv_ref;
@@ -569,16 +590,18 @@ TEST_F(TypedVariantTest, MoveAssignment) {
     tv_source = "hello world";
     ASSERT_EQ(tv_source.get_type(), variant::type_id::string_type);
     ASSERT_EQ(tv_source.as_string(), "hello world");
-    
+
     // 创建一个目标对象
     typed_variant tv_target(variant::type_id::int32_type);
     tv_target = 42;
     ASSERT_EQ(tv_target.get_type(), variant::type_id::int32_type);
     ASSERT_EQ(tv_target.as_int64(), 42);
-    
-    verify_assignment_exception([&]() {
-        tv_target = std::move(tv_source);
-    }, tv_target);
+
+    verify_assignment_exception(
+        [&]() {
+            tv_target = std::move(tv_source);
+        },
+        tv_target);
 }
 
 } // namespace test

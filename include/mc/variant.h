@@ -410,7 +410,8 @@ public:
     }
 
     /**
-     * @brief 比较运算符重载说明：整数类型只要求值相等；字符串类型支持与string_type和blob_type比较；其他类型要求类型和值精确匹配
+     * @brief
+     * 比较运算符重载说明：整数类型只要求值相等；字符串类型支持与string_type和blob_type比较；其他类型要求类型和值精确匹配
      */
     template <typename T, typename = std::enable_if_t<std::is_arithmetic_v<T>>>
     bool operator==(const T& other) const {
@@ -418,11 +419,11 @@ public:
     }
     bool operator==(const char* other) const;
     bool operator==(const std::string& other) const;
-    bool operator==(const std::string_view &other) const;
-    bool operator==(const variants &other) const;
-    bool operator==(const blob&other) const;
-    bool operator==(const dict&other) const;
-    bool operator==(const mutable_dict&other) const;
+    bool operator==(const std::string_view& other) const;
+    bool operator==(const variants& other) const;
+    bool operator==(const blob& other) const;
+    bool operator==(const dict& other) const;
+    bool operator==(const mutable_dict& other) const;
     template <typename T, typename = std::enable_if_t<std::is_arithmetic_v<T>>>
     friend bool operator==(const T& val, const variant& var) {
         return var == val;
@@ -459,19 +460,19 @@ public:
     bool operator!=(const std::string& other) const {
         return !(*this == other);
     }
-    bool operator!=(const std::string_view &other) const {
+    bool operator!=(const std::string_view& other) const {
         return !(*this == other);
     }
-    bool operator!=(const variants &other) const {
+    bool operator!=(const variants& other) const {
         return !(*this == other);
     }
-    bool operator!=(const blob&other) const {
+    bool operator!=(const blob& other) const {
         return !(*this == other);
     }
-    bool operator!=(const dict&other) const {
+    bool operator!=(const dict& other) const {
         return !(*this == other);
     }
-    bool operator!=(const mutable_dict&other) const {
+    bool operator!=(const mutable_dict& other) const {
         return !(*this == other);
     }
 
@@ -479,7 +480,7 @@ public:
     friend bool operator!=(const T& val, const variant& var) {
         return !(var == val);
     }
-    
+
     /**
      * @brief 将variant转换为bool类型
      * @return 对于bool类型的false，整数类型的0，浮点数类型的0返回false，其他情况返回true
@@ -514,7 +515,8 @@ public:
      */
     const variants& get_array() const {
         if (m_type != type_id::array_type) {
-            throw std::bad_cast();
+            throw std::runtime_error("类型错误: 期望类型为 array，实际类型为 " +
+                                     std::string(get_type_name(m_type)));
         }
         return *static_cast<variants*>(m_array_ptr);
     }
@@ -526,10 +528,18 @@ public:
      */
     const dict& get_object() const {
         if (m_type != type_id::object_type) {
-            throw std::bad_cast();
+            throw std::runtime_error("类型错误: 期望类型为 object，实际类型为 " +
+                                     std::string(get_type_name(m_type)));
         }
         return *static_cast<dict*>(m_object_ptr);
     }
+
+    /**
+     * @brief 获取类型名称
+     * @param type 类型ID
+     * @return 类型名称
+     */
+    static const char* get_type_name(type_id type);
 
 protected:
     /**
@@ -640,12 +650,12 @@ public:
     }
 };
 
-template<typename T, std::enable_if_t<std::is_integral_v<T>, int> = 0>
+template <typename T, std::enable_if_t<std::is_integral_v<T>, int> = 0>
 void to_variant(const T& var, mc::variant& vo) {
     vo = variant(var);
 }
 
-template<typename T, std::enable_if_t<std::is_integral_v<T>, int> = 0>
+template <typename T, std::enable_if_t<std::is_integral_v<T>, int> = 0>
 void from_variant(const mc::variant& var, T& vo) {
     if (std::is_signed_v<T>) {
         vo = static_cast<T>(var.as_int64());
@@ -654,12 +664,12 @@ void from_variant(const mc::variant& var, T& vo) {
     }
 }
 
-template<typename T, std::enable_if_t<std::is_floating_point_v<T>, int> = 0>
+template <typename T, std::enable_if_t<std::is_floating_point_v<T>, int> = 0>
 void to_variant(const T& var, mc::variant& vo) {
     vo = variant(static_cast<double>(var));
 }
 
-template<typename T, std::enable_if_t<std::is_floating_point_v<T>, int> = 0>
+template <typename T, std::enable_if_t<std::is_floating_point_v<T>, int> = 0>
 void from_variant(const mc::variant& var, T& vo) {
     vo = static_cast<T>(var.as_double());
 }
