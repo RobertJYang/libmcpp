@@ -8,7 +8,6 @@ src_files = [
   'mutable_dict.cpp',
   'typed_variant.cpp',
   'string.cpp',
-  'reflect/reflect.cpp',
   # 'log/log_message.cpp',
   # 'log/logger.cpp',
 ]

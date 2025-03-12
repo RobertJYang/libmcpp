@@ -657,6 +657,56 @@ const variant& variant::operator[](size_t pos) const {
     return arr[pos];
 }
 
+// 获取对象中指定键的值
+const variant& variant::operator[](std::string_view key) const {
+    if (m_type != type_id::object_type) {
+        throw_type_error("object", m_type);
+    }
+    
+    const dict& obj = *static_cast<dict*>(m_object_ptr);
+    return obj[key];
+}
+
+// 获取对象中指定键的值，如果不存在或不是对象类型则返回默认值
+const variant& variant::get(const std::string& key, const variant& default_value) const {
+    return get(std::string_view(key), default_value);
+}
+
+// 获取对象中指定键的值，如果不存在或不是对象类型则返回默认值
+const variant& variant::get(std::string_view key, const variant& default_value) const {
+    if (m_type != type_id::object_type) {
+        return default_value;
+    }
+    
+    const dict& obj = *static_cast<dict*>(m_object_ptr);
+    return obj.get(key, default_value);
+}
+
+// 获取对象中指定键的值，如果不存在或不是对象类型则返回默认值
+const variant& variant::get(const char* key, const variant& default_value) const {
+    return get(std::string_view(key), default_value);
+}
+
+// 检查对象是否包含指定键
+bool variant::contains(const std::string& key) const {
+    return contains(std::string_view(key));
+}
+
+// 检查对象是否包含指定键
+bool variant::contains(std::string_view key) const {
+    if (m_type != type_id::object_type) {
+        return false;
+    }
+    
+    const dict& obj = *static_cast<dict*>(m_object_ptr);
+    return obj.contains(key);
+}
+
+// 检查对象是否包含指定键
+bool variant::contains(const char* key) const {
+    return contains(std::string_view(key));
+}
+
 // 获取数组的大小
 size_t variant::size() const {
     switch (m_type) {

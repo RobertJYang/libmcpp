@@ -438,7 +438,61 @@ public:
     /**
      * @brief 获取数组中指定位置的元素
      */
-    const variant& operator[](size_t pos) const;
+    const variant& operator[](std::size_t pos) const;
+
+    /**
+     * @brief 获取对象中指定键的值（当variant包含dict对象时）
+     * @param key 要查找的键
+     * @return 指定键对应的值的引用
+     * @throw std::runtime_error 如果variant不是对象类型
+     * @throw std::out_of_range 如果键不存在
+     */
+    const variant& operator[](std::string_view key) const;
+    
+    /**
+     * @brief 获取对象中指定键的值，如果不存在或不是对象类型则返回默认值
+     * @param key 要查找的键
+     * @param default_value 默认值
+     * @return 指定键对应的值的引用，或者默认值的引用
+     */
+    const variant& get(const std::string& key, const variant& default_value) const;
+    
+    /**
+     * @brief 获取对象中指定键的值，如果不存在或不是对象类型则返回默认值
+     * @param key 要查找的键
+     * @param default_value 默认值
+     * @return 指定键对应的值的引用，或者默认值的引用
+     */
+    const variant& get(std::string_view key, const variant& default_value) const;
+    
+    /**
+     * @brief 获取对象中指定键的值，如果不存在或不是对象类型则返回默认值
+     * @param key 要查找的键
+     * @param default_value 默认值
+     * @return 指定键对应的值的引用，或者默认值的引用
+     */
+    const variant& get(const char* key, const variant& default_value) const;
+    
+    /**
+     * @brief 检查对象是否包含指定键（当variant包含dict对象时）
+     * @param key 要检查的键
+     * @return 如果对象包含指定键则返回true，否则返回false
+     */
+    bool contains(const std::string& key) const;
+    
+    /**
+     * @brief 检查对象是否包含指定键（当variant包含dict对象时）
+     * @param key 要检查的键
+     * @return 如果对象包含指定键则返回true，否则返回false
+     */
+    bool contains(std::string_view key) const;
+    
+    /**
+     * @brief 检查对象是否包含指定键（当variant包含dict对象时）
+     * @param key 要检查的键
+     * @return 如果对象包含指定键则返回true，否则返回false
+     */
+    bool contains(const char* key) const;
 
     /**
      * @brief 获取数组的大小

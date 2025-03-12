@@ -108,7 +108,7 @@ TEST(NestedReflectTest, NestedClassReflection) {
     EXPECT_STREQ(reflector<test_contact>::name(), "test_contact");
 
     // 转换为变体
-    variant var = to_variant(contact);
+    variant var(contact);
 
     // 检查变体类型
     EXPECT_TRUE(var.is_object());
@@ -127,7 +127,7 @@ TEST(NestedReflectTest, NestedClassReflection) {
     EXPECT_EQ(addr_dict["m_number"], 123);
 
     // 从变体转回对象
-    test_contact contact2 = from_variant<test_contact>(var);
+    test_contact contact2 = var.as<test_contact>();
     EXPECT_EQ(contact2.m_email, "test@example.com");
     EXPECT_EQ(contact2.m_phone, "12345678901");
     EXPECT_EQ(contact2.m_address.m_city, "北京");
@@ -149,7 +149,7 @@ TEST(NestedReflectTest, NestedEnumReflection) {
     test_user user("admin", contact, test_status::ACTIVE, permissions, addresses);
 
     // 转换为变体
-    variant var = to_variant(user);
+    variant var(user);
 
     // 检查变体类型
     EXPECT_TRUE(var.is_object());
@@ -167,7 +167,7 @@ TEST(NestedReflectTest, NestedEnumReflection) {
     EXPECT_EQ(perms_array[1], "WRITE");
 
     // 从变体转回对象
-    test_user user2 = from_variant<test_user>(var);
+    test_user user2 = var.as<test_user>();
     EXPECT_EQ(user2.m_username, "admin");
     EXPECT_EQ(user2.m_status, test_status::ACTIVE);
     EXPECT_EQ(user2.m_permissions.size(), 2);
@@ -188,7 +188,7 @@ TEST(NestedReflectTest, PartialNestedUpdate) {
     test_user user("user1", contact, test_status::INACTIVE, permissions, addresses);
 
     // 使用初始化列表构造字典并更新对象
-    from_variant(dict{
+    mc::reflect::reflector<test_user>::from_variant(dict{
         {"m_status", "ACTIVE"},
         {"m_contact", dict{
             {"m_phone", "99999999999"},
@@ -226,7 +226,7 @@ TEST(NestedReflectTest, ComplexNestedSerialization) {
     test_user user("admin", contact, test_status::ACTIVE, permissions, addresses);
 
     // 转换为变体
-    variant var = to_variant(user);
+    variant var(user);
 
     // 检查变体类型
     EXPECT_TRUE(var.is_object());
@@ -256,7 +256,7 @@ TEST(NestedReflectTest, ComplexNestedSerialization) {
     EXPECT_EQ(work_dict["m_street"], "南京路");
 
     // 从变体转回对象
-    test_user user2 = from_variant<test_user>(var);
+    test_user user2 = var.as<test_user>();
     EXPECT_EQ(user, user2);
 }
 
@@ -267,7 +267,7 @@ TEST(NestedReflectTest, DynamicNestedModification) {
     test_contact contact("test@example.com", "12345678901", address);
 
     // 转换为变体
-    variant var = to_variant(contact);
+    variant var(contact);
     
     // 获取可变字典
     mutable_dict md(var.as<dict>());
@@ -282,7 +282,7 @@ TEST(NestedReflectTest, DynamicNestedModification) {
     md["m_email"] = "new@example.com";
     
     // 从修改后的变体转回对象
-    test_contact modified = from_variant<test_contact>(md);
+    test_contact modified = variant(md).as<test_contact>();
     
     // 检查修改结果
     EXPECT_EQ(modified.m_email, "new@example.com");
@@ -310,7 +310,7 @@ TEST(NestedReflectTest, NestedCollections) {
     dict complex_dict{
         {"user_info", dict{
             {"username", "admin"},
-            {"permissions", std::vector<variant>{
+            {"permissions", variants{
                 "READ", "WRITE", "EXECUTE"
             }},
             {"addresses", dict{
@@ -329,29 +329,29 @@ TEST(NestedReflectTest, NestedCollections) {
     };
     
     // 从字典中提取数据
-    const dict& user_info = complex_dict["user_info"].as<dict>();
+    const auto& user_info = complex_dict["user_info"];
     EXPECT_EQ(user_info["username"], "admin");
     
     // 提取权限数组
-    const auto& perms = user_info["permissions"].as<std::vector<variant>>();
+    const auto& perms = user_info["permissions"];
     EXPECT_EQ(perms.size(), 3);
     EXPECT_EQ(perms[0], "READ");
     EXPECT_EQ(perms[1], "WRITE");
     EXPECT_EQ(perms[2], "EXECUTE");
     
     // 提取地址映射
-    const dict& addr_map = user_info["addresses"].as<dict>();
+    const auto& addr_map = user_info["addresses"];
     EXPECT_EQ(addr_map.size(), 2);
     
     // 从地址映射中提取地址
-    const dict& home_addr = addr_map["home"].as<dict>();
-    test_address extracted_home = from_variant<test_address>(home_addr);
+    const auto& home_addr = addr_map["home"];
+    test_address extracted_home = home_addr.as<test_address>();
     EXPECT_EQ(extracted_home.m_city, "北京");
     EXPECT_EQ(extracted_home.m_street, "中关村");
     EXPECT_EQ(extracted_home.m_number, 123);
     
-    const dict& work_addr = addr_map["work"].as<dict>();
-    test_address extracted_work = from_variant<test_address>(work_addr);
+    const auto& work_addr = addr_map["work"];
+    test_address extracted_work = work_addr.as<test_address>();
     EXPECT_EQ(extracted_work.m_city, "上海");
     EXPECT_EQ(extracted_work.m_street, "南京路");
     EXPECT_EQ(extracted_work.m_number, 456);

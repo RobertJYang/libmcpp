@@ -26,7 +26,8 @@ test_files = [
   'dict/test_dict_operations.cpp',
   'dict/test_dict_conversion.cpp',
   'dict/test_dict_performance.cpp',
-  'reflect/test_reflect.cpp'
+  'reflect/test_reflect.cpp',
+  'reflect/test_nested_reflect.cpp'
 ]
 
 # 创建测试可执行文件
