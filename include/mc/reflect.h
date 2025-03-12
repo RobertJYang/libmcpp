@@ -19,7 +19,6 @@
 
 #include <mc/reflect/typename.h>
 #include <mc/reflect/reflect.h>
-#include <mc/reflect/variant.h>
 
 /**
  * @namespace mc
@@ -94,22 +93,8 @@ void to_variant(const T& obj, variant& var) {
     } else {
         mc::mutable_dict dict;
         reflect::to_variant(obj, dict);
-        var = variant(dict);
+        var = dict;
     }
-}
-
-/**
- * @brief 将对象转换为变体
- * 
- * @tparam T 对象类型
- * @param obj 对象实例
- * @return variant 转换后的变体
- */
-template<typename T>
-variant to_variant(const T& obj) {
-    variant var;
-    to_variant(obj, var);
-    return var;
 }
 
 /**
@@ -124,26 +109,22 @@ void from_variant(const variant& var, T& obj) {
     if constexpr (reflector<T>::is_enum::value) {
         reflector<T>::from_variant(var, obj);
     } else {
-        const mc::dict& d = var.as<mc::dict>();
+        mc::dict d = var.as<mc::dict>();
         reflect::from_variant(d, obj);
     }
 }
 
-/**
- * @brief 从变体转换为对象
- * 
- * @tparam T 对象类型
- * @param var 变体实例
- * @return T 转换后的对象
- */
-template<typename T>
-T from_variant(const variant& var) {
-    T obj;
-    from_variant(var, obj);
-    return obj;
-}
-
 } // namespace reflect
+
+// template <typename T, std::enable_if_t<mc::reflect::is_reflectable<T>(), int> = 0>
+// void to_variant(const T& o, variant& v) {
+//     // mc::reflect::to_variant(o, v);
+// }
+
+// template <typename T, std::enable_if_t<mc::reflect::is_reflectable<T>(), int> = 0>
+// void from_variant(const variant& v, T& o) {
+//     // mc::reflect::from_variant(v, o);
+// }
 } // namespace mc
 
 #endif // MC_REFLECT_H 

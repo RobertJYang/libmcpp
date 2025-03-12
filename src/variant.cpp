@@ -19,6 +19,7 @@
 #include <mc/dict.h>
 #include <mc/variant.h>
 #include <stdexcept>
+#include <mc/string.h>
 
 namespace mc {
 
@@ -176,7 +177,7 @@ variant::variant(variants arr) : variant() {
 void variant::clear() {
     switch (m_type) {
     case type_id::null_type:
-        break;
+        return;
     case type_id::int8_type:
     case type_id::int16_type:
     case type_id::int32_type:
@@ -320,18 +321,22 @@ variant& variant::operator=(variant&& other) noexcept {
         case type_id::int32_type:
         case type_id::int64_type:
             m_int64 = other.m_int64;
+            other.m_int64 = 0;
             break;
         case type_id::uint8_type:
         case type_id::uint16_type:
         case type_id::uint32_type:
         case type_id::uint64_type:
             m_uint64 = other.m_uint64;
+            other.m_uint64 = 0;
             break;
         case type_id::double_type:
             m_double = other.m_double;
+            other.m_double = 0.0;
             break;
         case type_id::bool_type:
             m_bool = other.m_bool;
+            other.m_bool = false;
             break;
         case type_id::string_type:
             m_string_ptr = other.m_string_ptr;
@@ -545,9 +550,9 @@ bool variant::as_bool() const {
         return m_double != 0;
     case type_id::string_type: {
         const std::string& s = *static_cast<std::string*>(m_string_ptr);
-        if (s == "true" || s == "1") {
+        if (mc::string::iequals(s, "true") || s == "1") {
             return true;
-        } else if (s == "false" || s == "0") {
+        } else if (mc::string::iequals(s, "false") || s == "0") {
             return false;
         } else {
             throw std::runtime_error("无法将字符串转换为 bool：" + s);
@@ -762,6 +767,36 @@ bool variant::is_uint32() const {
     return m_type == type_id::uint32_type;
 }
 
+// 将 variant 转换为有符号8位整数
+int8_t variant::as_int8() const {
+    return static_cast<int8_t>(as_int64());
+}
+
+// 将 variant 转换为无符号8位整数
+uint8_t variant::as_uint8() const {
+    return static_cast<uint8_t>(as_uint64());
+}
+
+// 将 variant 转换为有符号16位整数
+int16_t variant::as_int16() const {
+    return static_cast<int16_t>(as_int64());
+}
+
+// 将 variant 转换为无符号16位整数
+uint16_t variant::as_uint16() const {
+    return static_cast<uint16_t>(as_uint64());
+}
+
+// 将 variant 转换为有符号32位整数
+int32_t variant::as_int32() const {
+    return static_cast<int32_t>(as_int64());
+}
+
+// 将 variant 转换为无符号32位整数
+uint32_t variant::as_uint32() const {
+    return static_cast<uint32_t>(as_uint64());
+}
+
 // 添加析构函数
 variant::~variant() {
     clear();
@@ -810,113 +845,6 @@ variant& variant::operator=(const variant& other) {
             break;
         }
         m_type = other.m_type;
-    }
-    return *this;
-}
-
-// typed_variant 实现
-
-typed_variant::typed_variant() : variant() {
-}
-
-typed_variant::typed_variant(const variant& other) : variant(other) {
-}
-
-typed_variant::typed_variant(variant&& other) noexcept : variant(std::move(other)) {
-}
-
-typed_variant::typed_variant(type_id type) : variant(type) {
-}
-
-typed_variant& typed_variant::operator=(const variant& other) {
-    if (this == &other) {
-        return *this;
-    }
-
-    if (m_type == other.get_type() || m_type == type_id::null_type) {
-        variant::operator=(other);
-    } else {
-        switch (m_type) {
-        case type_id::int8_type: {
-            int8_t val;
-            from_variant(other, val);
-            m_int64 = val;
-            break;
-        }
-        case type_id::uint8_type: {
-            uint8_t val;
-            from_variant(other, val);
-            m_uint64 = val;
-            break;
-        }
-        case type_id::int16_type: {
-            int16_t val;
-            from_variant(other, val);
-            m_int64 = val;
-            break;
-        }
-        case type_id::uint16_type: {
-            uint16_t val;
-            from_variant(other, val);
-            m_uint64 = val;
-            break;
-        }
-        case type_id::int32_type: {
-            int32_t val;
-            from_variant(other, val);
-            m_int64 = val;
-            break;
-        }
-        case type_id::uint32_type: {
-            uint32_t val;
-            from_variant(other, val);
-            m_uint64 = val;
-            break;
-        }
-        case type_id::int64_type: {
-            from_variant(other, m_int64);
-            break;
-        }
-        case type_id::uint64_type: {
-            from_variant(other, m_uint64);
-            break;
-        }
-        case type_id::double_type: {
-            from_variant(other, m_double);
-            break;
-        }
-        case type_id::bool_type: {
-            from_variant(other, m_bool);
-            break;
-        }
-        case type_id::string_type: {
-            from_variant(other, *static_cast<std::string*>(m_string_ptr));
-            break;
-        }
-        case type_id::array_type:
-            from_variant(other, *static_cast<variants*>(m_array_ptr));
-            break;
-        case type_id::object_type:
-            from_variant(other, *static_cast<dict*>(m_object_ptr));
-            break;
-        case type_id::blob_type:
-            from_variant(other, *static_cast<blob*>(m_blob_ptr));
-            break;
-        default:
-            throw_unknow_type_error(m_type);
-            break;
-        }
-    }
-    return *this;
-}
-
-typed_variant& typed_variant::operator=(variant&& other) {
-    if (this != &other) {
-        if (get_type() == other.get_type()) {
-            variant::operator=(std::move(other));
-        } else {
-            *this = other;
-        }
     }
     return *this;
 }

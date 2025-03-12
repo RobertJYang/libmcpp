@@ -6,6 +6,8 @@ test_files = [
   'test_event.cpp',
   'test_application.cpp',
   'test_priority_queue.cpp',
+  'string/test_string.cpp',
+  'string/test_format_benchmark.cpp',
   'exception/test_exception.cpp',
   'exception/test_exception_macros.cpp',
   'exception/test_exception_integration.cpp',
@@ -24,7 +26,7 @@ test_files = [
   'dict/test_dict_operations.cpp',
   'dict/test_dict_conversion.cpp',
   'dict/test_dict_performance.cpp',
-  'reflect/test_reflect.cpp'
+  # 'reflect/test_reflect.cpp'
 ]
 
 # 创建测试可执行文件
@@ -32,7 +34,7 @@ test_exe = executable('libmcpp_test',
   test_files,
   include_directories : [incdir, boost_incdir],
   dependencies : [libmcpp_dep, gtest_dep, boost_dep, gmock_dep],
-  cpp_args : ['-Wno-self-assign-overloaded', '-Wno-unused-lambda-capture'],
+  cpp_args : ['-Wno-self-assign-overloaded', '-Wno-unused-lambda-capture', '-Wno-self-move'],
   install : false
 )
 

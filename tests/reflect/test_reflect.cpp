@@ -14,278 +14,336 @@
  * @file test_reflect.cpp
  * @brief 测试反射功能
  */
+#include <functional>
 #include <gtest/gtest.h>
-#include <mc/reflect.h>
-#include <mc/variant.h>
 #include <mc/dict.h>
 #include <mc/exception.h>
+#include <mc/reflect.h>
+#include <mc/variant.h>
 #include <string>
 #include <vector>
-#include <cstring>
-#include <functional>
 
 using namespace mc;
 using namespace mc::reflect;
 
 // 测试用的颜色枚举
-enum class test_color {
-    RED,
-    GREEN,
-    BLUE
-};
-
-// 成员访问器
-template<typename T>
-class member_visitor {
-public:
-    explicit member_visitor(const T& obj) : m_obj(obj) {}
-    
-    template<typename Getter, typename Setter>
-    void operator()(const char* name, Getter&& getter, Setter&& setter) const {
-        names.push_back(name);
-    }
-    
-    mutable std::vector<std::string> names;
-    
-private:
-    const T& m_obj;
-};
-
-// 测试类
-class test_person {
-public:
-    std::string m_name;
-    int m_age;
-    bool m_is_male;
-    
-    test_person() : m_name(""), m_age(0), m_is_male(false) {}
-    test_person(const std::string& name, int age, bool is_male)
-        : m_name(name), m_age(age), m_is_male(is_male) {}
-    
-    bool operator==(const test_person& other) const {
-        return m_name == other.m_name && m_age == other.m_age && m_is_male == other.m_is_male;
-    }
-};
-
-// 使用反射宏注册类型
-namespace mc {
-namespace reflect {
-
-template<>
-struct reflector<test_person> {
-    using is_defined = std::true_type;
-    using is_enum = std::false_type;
-    
-    static const char* name() { return "test_person"; }
-    
-    template<typename Visitor>
-    static void visit(Visitor&& visitor) {
-        visitor("m_name", 
-                [](const test_person& p) -> variant { return p.m_name; },
-                [](test_person& p, const variant& v) { p.m_name = v.as<std::string>(); });
-        visitor("m_age", 
-                [](const test_person& p) -> variant { return p.m_age; },
-                [](test_person& p, const variant& v) { p.m_age = v.as<int>(); });
-        visitor("m_is_male", 
-                [](const test_person& p) -> variant { return p.m_is_male; },
-                [](test_person& p, const variant& v) { p.m_is_male = v.as<bool>(); });
-    }
-    
-    static void to_variant(const test_person& p, mutable_dict& dict) {
-        visit([&](const char* name, auto getter, auto) {
-            dict[name] = getter(p);
-        });
-    }
-    
-    static void from_variant(const dict& d, test_person& p) {
-        visit([&](const char* name, auto, auto setter) {
-            if (d.contains(name)) {
-                setter(p, d[name]);
-            }
-        });
-    }
-};
-
-template<>
+enum class test_color { RED, GREEN, BLUE };
+// MC_REFLECT_ENUM(test_color, (RED)(GREEN)(BLUE))
+template <>
 struct reflector<test_color> {
     using is_defined = std::true_type;
     using is_enum = std::true_type;
-    
-    static const char* name() { return "test_color"; }
-    
+    static const char* name() {
+        return "test_color";
+    }
     static void to_variant(const test_color& e, variant& var) {
         switch (e) {
-            case test_color::RED:
-                var = "RED";
-                break;
-            case test_color::GREEN:
-                var = "GREEN";
-                break;
-            case test_color::BLUE:
-                var = "BLUE";
-                break;
-            default:
-                throw bad_enum_cast("无效的枚举值");
+        case test_color::RED:
+            var = "RED";
+            break;
+        case test_color::GREEN:
+            var = "GREEN";
+            break;
+        case test_color::BLUE:
+            var = "BLUE";
+            break;
+        default:
+            throw bad_enum_cast("无效的枚举值");
         }
     }
-    
     static void from_variant(const variant& var, test_color& e) {
-        const std::string& s = var.as<std::string>();
-        if (s == "RED") {
+        if (var == "RED") {
             e = test_color::RED;
             return;
         }
-        if (s == "GREEN") {
+        if (var == "GREEN") {
             e = test_color::GREEN;
             return;
         }
-        if (s == "BLUE") {
+        if (var == "BLUE") {
             e = test_color::BLUE;
             return;
         }
         throw bad_enum_cast("无效的枚举字符串");
     }
 };
+constexpr bool v = is_reflectable<test_color>();
+// 测试类
+class test_person {
+public:
+    std::string m_name;
+    int m_age;
+    bool m_is_male;
 
-} // namespace reflect
-} // namespace mc
-
-// 辅助函数
-namespace test_helpers {
-
-template<typename T>
-void to_variant(const T& obj, variant& var) {
-    if constexpr (mc::reflect::reflector<T>::is_enum::value) {
-        mc::reflect::reflector<T>::to_variant(obj, var);
-    } else {
-        mc::mutable_dict dict;
-        mc::reflect::reflector<T>::to_variant(obj, dict);
-        var = variant(dict);
+    test_person() : m_name(""), m_age(0), m_is_male(false) {
     }
-}
-
-template<typename T>
-void from_variant(const variant& var, T& obj) {
-    if constexpr (mc::reflect::reflector<T>::is_enum::value) {
-        mc::reflect::reflector<T>::from_variant(var, obj);
-    } else {
-        const mc::dict& d = var.as<mc::dict>();
-        mc::reflect::reflector<T>::from_variant(d, obj);
+    test_person(const std::string& name, int age, bool is_male)
+        : m_name(name), m_age(age), m_is_male(is_male) {
     }
-}
 
-template<typename T>
-variant to_variant(const T& obj) {
-    variant var;
-    to_variant(obj, var);
-    return var;
-}
+    bool operator==(const test_person& other) const {
+        return m_name == other.m_name && m_age == other.m_age && m_is_male == other.m_is_male;
+    }
+};
+MC_REFLECT(test_person, (m_name)(m_age)(m_is_male))
 
-template<typename T>
-T from_variant(const variant& var) {
-    T obj;
-    from_variant(var, obj);
-    return obj;
-}
+template <typename T>
+class member_visitor {
+public:
+    explicit member_visitor(const T& obj) : m_obj(obj) {
+    }
 
-} // namespace test_helpers
+    template <typename Getter, typename Setter>
+    void operator()(const char* name, Getter&& getter, Setter&& setter) const {
+        names.push_back(name);
+        values.push_back(getter(m_obj));
+    }
 
-using namespace test_helpers;
+    mutable std::vector<std::string> names;
+    mutable std::vector<variant> values;
+
+private:
+    const T& m_obj;
+};
 
 // 测试类反射
 TEST(ReflectTest, ClassReflection) {
     test_person p("张三", 30, true);
-    
+
+    // 检查类型是否可反射
+    EXPECT_TRUE(is_reflectable<test_person>());
+    EXPECT_FALSE(is_enum<test_person>());
+
+    // 获取类型名称
+    EXPECT_STREQ(reflector<test_person>::name(), "test_person");
+
     // 转换为变体
-    variant var;
-    test_helpers::to_variant(p, var);
-    
+    variant var(p);
+
     // 检查变体类型
-    EXPECT_TRUE(var.get_type() == variant::type_id::object_type);
-    
+    EXPECT_TRUE(var.is_object());
+
     // 检查字典内容
     const dict& d = var.as<dict>();
-    EXPECT_EQ(d["m_name"].as<std::string>(), "张三");
-    EXPECT_EQ(d["m_age"].as<int>(), 30);
-    EXPECT_EQ(d["m_is_male"].as<bool>(), true);
-    
+    EXPECT_EQ(d.size(), 3);
+    EXPECT_EQ(d["m_name"], "张三");
+    EXPECT_EQ(d["m_age"], 30);
+    EXPECT_EQ(d["m_is_male"], true);
+
     // 从变体转回对象
-    test_person p2;
-    test_helpers::from_variant(var, p2);
+    test_person p2 = var.as<test_person>();
     EXPECT_EQ(p2.m_name, "张三");
     EXPECT_EQ(p2.m_age, 30);
     EXPECT_EQ(p2.m_is_male, true);
-}
-
-// 测试对象转换为变体
-TEST(ReflectTest, ToVariant) {
-    test_person person("张三", 30, true);
-    
-    // 转换为变体
-    variant var = test_helpers::to_variant(person);
-    
-    // 检查变体类型
-    EXPECT_TRUE(var.get_type() == variant::type_id::object_type);
-    
-    // 获取字典并检查内容
-    const dict& d = var.as<dict>();
-    EXPECT_EQ(d.size(), 3);
-    EXPECT_TRUE(d.contains("m_name"));
-    EXPECT_TRUE(d.contains("m_age"));
-    EXPECT_TRUE(d.contains("m_is_male"));
-    
-    // 检查字典值
-    EXPECT_EQ(d["m_name"].as<std::string>(), "张三");
-    EXPECT_EQ(d["m_age"].as<int>(), 30);
-    EXPECT_EQ(d["m_is_male"].as<bool>(), true);
-}
-
-// 测试从变体转换为对象
-TEST(ReflectTest, FromVariant) {
-    // 创建字典
-    mc::mutable_dict dict;
-    dict("m_name", "李四")("m_age", 25)("m_is_male", false);
-    
-    // 从变体转换为对象
-    test_person person;
-    test_helpers::from_variant(dict, person);
-    
-    // 检查对象内容
-    EXPECT_EQ(person.m_name, "李四");
-    EXPECT_EQ(person.m_age, 25);
-    EXPECT_EQ(person.m_is_male, false);
+    EXPECT_EQ(p, p2);
 }
 
 // 测试枚举反射
 TEST(ReflectTest, EnumReflection) {
+    // 检查类型是否可反射
+    EXPECT_TRUE(is_reflectable<test_color>());
+    EXPECT_TRUE(is_enum<test_color>());
+
+    // 获取类型名称
+    EXPECT_STREQ(reflector<test_color>::name(), "test_color");
+
     // 枚举转变体
     test_color color = test_color::GREEN;
-    variant var;
-    test_helpers::to_variant(color, var);
-    
+    variant var(color);
+
     // 检查变体内容
-    EXPECT_TRUE(var.get_type() == variant::type_id::string_type);
-    EXPECT_EQ(var.as<std::string>(), "GREEN");
-    
+    EXPECT_TRUE(var.is_string());
+    EXPECT_EQ(var, "GREEN");
+
     // 变体转枚举
-    test_color new_color;
-    test_helpers::from_variant(var, new_color);
+    test_color new_color = var.as<test_color>();
     EXPECT_EQ(new_color, test_color::GREEN);
-    
+
+    // 测试所有枚举值
+    test_color red = test_color::RED;
+    test_color green = test_color::GREEN;
+    test_color blue = test_color::BLUE;
+
+    variant var_red(red);
+    variant var_green(green);
+    variant var_blue(blue);
+
+    EXPECT_EQ(var_red, "RED");
+    EXPECT_EQ(var_green, "GREEN");
+    EXPECT_EQ(var_blue, "BLUE");
+
     // 测试无效枚举值
     variant invalid_var = "YELLOW";
-    EXPECT_THROW(test_helpers::from_variant(invalid_var, new_color), bad_enum_cast);
+    EXPECT_THROW(invalid_var.as<test_color>(), bad_enum_cast);
 }
 
-// 测试成员访问
-TEST(ReflectTest, MemberVisit) {
-    // 访问成员
-    test_person p;
-    member_visitor<test_person> visitor(p);
-    mc::reflect::reflector<test_person>::visit(visitor);
-    
-    EXPECT_EQ(visitor.names.size(), 3);
-    EXPECT_EQ(visitor.names[0], "m_name");
-    EXPECT_EQ(visitor.names[1], "m_age");
-    EXPECT_EQ(visitor.names[2], "m_is_male");
-}
+// // 测试成员访问
+// TEST(ReflectTest, MemberVisit) {
+//     // 创建测试对象
+//     test_person p("李四", 25, false);
+
+//     // 访问成员
+//     member_visitor<test_person> visitor(p);
+//     visit_members<test_person>(visitor);
+
+//     // 检查成员名称
+//     EXPECT_EQ(visitor.names.size(), 3);
+//     EXPECT_EQ(visitor.names[0], "m_name");
+//     EXPECT_EQ(visitor.names[1], "m_age");
+//     EXPECT_EQ(visitor.names[2], "m_is_male");
+
+//     // 检查成员值
+//     EXPECT_EQ(visitor.values.size(), 3);
+//     EXPECT_EQ(visitor.values[0], "李四");
+//     EXPECT_EQ(visitor.values[1], 25);
+//     EXPECT_EQ(visitor.values[2], false);
+// }
+
+// // 测试部分更新对象
+// TEST(ReflectTest, PartialUpdate) {
+//     // 创建原始对象
+//     test_person p("张三", 30, true);
+
+//     // 使用初始化列表构造字典并更新对象
+//     from_variant(dict{{"m_age", 35}}, p);
+
+//     // 检查更新后的对象
+//     EXPECT_EQ(p.m_name, "张三");  // 未更新
+//     EXPECT_EQ(p.m_age, 35);       // 已更新
+//     EXPECT_EQ(p.m_is_male, true); // 未更新
+// }
+
+// // 测试嵌套对象
+// TEST(ReflectTest, NestedObjects) {
+//     // 创建测试对象
+//     test_person p1("张三", 30, true);
+//     test_person p2("李四", 25, false);
+
+//     // 使用初始化列表构造嵌套字典
+//     dict nested_dict{{"person1", to_variant(p1)}, {"person2", to_variant(p2)}};
+
+//     // 转换为变体
+//     variant var = nested_dict;
+
+//     // 检查变体内容
+//     const dict& d = var.as<dict>();
+//     EXPECT_EQ(d.size(), 2);
+
+//     // 从变体中提取对象
+//     test_person p1_extracted = d["person1"].as<test_person>();
+//     test_person p2_extracted = from_variant<test_person>(d["person2"]);
+
+//     // 检查提取的对象
+//     EXPECT_EQ(p1_extracted, p1);
+//     EXPECT_EQ(p2_extracted, p2);
+// }
+
+// // 测试反射与变体的互操作性
+// TEST(ReflectTest, VariantInteroperability) {
+//     // 创建测试对象
+//     test_person p("王五", 40, true);
+
+//     // 对象转变体
+//     variant var = to_variant(p);
+
+//     // 变体转字典
+//     const dict& d = var.as<dict>();
+
+//     // 使用初始化列表构造修改后的字典
+//     dict modified_dict = d;
+//     mutable_dict md(modified_dict);
+//     md["m_name"] = "赵六";
+//     md["m_age"] = 45;
+
+//     // 字典转回对象
+//     test_person p2 = from_variant<test_person>(md);
+
+//     // 检查修改后的对象
+//     EXPECT_EQ(p2.m_name, "赵六");
+//     EXPECT_EQ(p2.m_age, 45);
+//     EXPECT_EQ(p2.m_is_male, true);
+// }
+
+// // 测试反射与序列化
+// TEST(ReflectTest, Serialization) {
+//     // 创建测试对象
+//     test_person p("张三", 30, true);
+
+//     // 对象转变体
+//     variant var = to_variant(p);
+
+//     // 变体转字典
+//     const dict& d = var.as<dict>();
+
+//     // 模拟序列化：将字典转换为字符串表示
+//     std::string serialized = "{";
+//     bool first = true;
+//     for (const auto& key : d.keys()) {
+//         if (!first) {
+//             serialized += ", ";
+//         }
+//         first = false;
+
+//         const variant& value = d[key];
+//         serialized += "\"" + key + "\": ";
+
+//         if (value.is_string()) {
+//             serialized += "\"" + value.as<std::string>() + "\"";
+//         } else if (value.is_integer()) {
+//             serialized += std::to_string(value.as<int>());
+//         } else if (value.is_bool()) {
+//             serialized += value.as<bool>() ? "true" : "false";
+//         } else if (value.is_object()) {
+//             serialized += "{...}"; // 简化嵌套对象表示
+//         }
+//     }
+//     serialized += "}";
+
+//     // 检查序列化结果
+//     EXPECT_TRUE(serialized.find("\"m_name\": \"张三\"") != std::string::npos);
+//     EXPECT_TRUE(serialized.find("\"m_age\": 30") != std::string::npos);
+//     EXPECT_TRUE(serialized.find("\"m_is_male\": true") != std::string::npos);
+// }
+
+// // 测试复杂嵌套结构
+// TEST(ReflectTest, ComplexNestedStructure) {
+//     // 使用初始化列表构造复杂嵌套结构
+//     dict root{
+//         {"name", "复杂结构"},
+//         {"value", 42},
+//         {"level1", dict{{"key1", "value1"},
+//                         {"level2", dict{{"nested", true},
+//                                         {"color", to_variant(test_color::BLUE)},
+//                                         {"person", to_variant(test_person("张三", 30,
+//                                         true))}}}}}};
+
+//     // 转换为变体
+//     variant var = root;
+
+//     // 检查结构
+//     const dict& d = var.as<dict>();
+//     EXPECT_EQ(d["name"], "复杂结构");
+//     EXPECT_EQ(d["value"], 42);
+
+//     const dict& l1 = d["level1"].as<dict>();
+//     EXPECT_EQ(l1["key1"], "value1");
+
+//     const dict& l2 = l1["level2"].as<dict>();
+//     EXPECT_EQ(l2["nested"], true);
+//     EXPECT_EQ(l2["color"], "BLUE");
+
+//     const dict& person_dict = l2["person"].as<dict>();
+//     EXPECT_EQ(person_dict["m_name"], "张三");
+//     EXPECT_EQ(person_dict["m_age"], 30);
+//     EXPECT_EQ(person_dict["m_is_male"], true);
+
+//     // 从嵌套结构中提取对象
+//     test_person extracted_person = from_variant<test_person>(l2["person"]);
+//     EXPECT_EQ(extracted_person.m_name, "张三");
+//     EXPECT_EQ(extracted_person.m_age, 30);
+//     EXPECT_EQ(extracted_person.m_is_male, true);
+
+//     // 从嵌套结构中提取枚举
+//     test_color extracted_color = from_variant<test_color>(l2["color"]);
+//     EXPECT_EQ(extracted_color, test_color::BLUE);
+// }

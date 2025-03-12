@@ -22,14 +22,6 @@ example_app = executable('example_app',
   install : true
 )
 
-# 创建反射示例程序
-reflect_example = executable('reflect_example',
-  'reflect_example.cpp',
-  include_directories : [incdir, boost_incdir],
-  dependencies : [libmcpp_dep],
-  install : true
-)
-
 # 创建插件目录
 plugin_dir = meson.current_build_dir() / 'plugins'
 run_command('mkdir', '-p', plugin_dir, check: false)

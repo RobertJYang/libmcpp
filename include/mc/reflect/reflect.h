@@ -17,136 +17,141 @@
 #ifndef MC_REFLECT_REFLECT_H
 #define MC_REFLECT_REFLECT_H
 
-#include <boost/preprocessor/seq/for_each.hpp>
 #include <boost/preprocessor/seq/enum.hpp>
+#include <boost/preprocessor/seq/for_each.hpp>
 #include <boost/preprocessor/seq/size.hpp>
 #include <boost/preprocessor/stringize.hpp>
-#include <mc/reflect/typename.h>
-#include <mc/exception.h>
 #include <mc/common.h>
-#include <mc/variant.h>
 #include <mc/dict.h>
+#include <mc/exception.h>
+#include <mc/reflect/typename.h>
+#include <mc/variant.h>
 
 /**
  * @brief 定义成员反射信息
  */
-#define MC_REFLECT_MEMBER(r, TYPE, MEMBER) \
-    { BOOST_PP_STRINGIZE(MEMBER), \
-      [](const TYPE& obj) -> variant { return variant(obj.MEMBER); }, \
-      [](TYPE& obj, const variant& var) { obj.MEMBER = var.as<decltype(std::declval<TYPE>().MEMBER)>(); } \
-    },
+#define MC_REFLECT_MEMBER(r, TYPE, MEMBER)                                                         \
+    {BOOST_PP_STRINGIZE(MEMBER),                                                                   \
+                        [](const TYPE& obj) -> variant {                                           \
+                            return obj.MEMBER;                                                     \
+                        },                                                                         \
+                        [](TYPE& obj, const variant& var) {                                        \
+                            var.as(obj.MEMBER);                                                    \
+                        }},
 
 /**
  * @brief 开始定义类的反射信息
  */
-#define MC_REFLECT_BEGIN(TYPE) \
-    template<> \
-    struct reflector<TYPE> { \
-        using is_defined = std::true_type; \
-        using is_enum = std::false_type; \
-        static const char* name() { return #TYPE; } \
-        template<typename Visitor> \
-        static void visit(const Visitor& visitor) { \
+#define MC_REFLECT_BEGIN(TYPE)                                                                     \
+    template <>                                                                                    \
+    struct reflector<TYPE> {                                                                       \
+        using is_defined = std::true_type;                                                         \
+        using is_enum = std::false_type;                                                           \
+        static const char* name() {                                                                \
+            return #TYPE;                                                                          \
+        }                                                                                          \
+        template <typename Visitor>                                                                \
+        static void visit(const Visitor& visitor) {                                                \
             static const std::vector<member_info<TYPE>> members = {
-
 /**
  * @brief 结束定义类的反射信息
  */
-#define MC_REFLECT_END() \
-            }; \
-            for (const auto& member : members) { \
-                visitor(member.name, member.getter, member.setter); \
-            } \
-        } \
-        static void to_variant(const TYPE& obj, mc::mutable_dict& dict) { \
-            visit([&](const char* name, auto getter, auto) { \
-                dict[name] = getter(obj); \
-            }); \
-        } \
-        static void from_variant(const mc::dict& d, TYPE& obj) { \
-            visit([&](const char* name, auto, auto setter) { \
-                if (d.contains(name)) { \
-                    setter(obj, d.at(name)); \
-                } \
-            }); \
-        } \
-    };
+#define MC_REFLECT_END(TYPE)                                                                       \
+    }                                                                                              \
+    ;                                                                                              \
+    for (const auto& member : members) {                                                           \
+        visitor(member.name, member.getter, member.setter);                                        \
+    }                                                                                              \
+    }                                                                                              \
+    static void to_variant(const TYPE& obj, mc::mutable_dict& dict) {                              \
+        visit([&](const char* name, auto getter, auto) {                                           \
+            dict[name] = getter(obj);                                                              \
+        });                                                                                        \
+    }                                                                                              \
+    static void from_variant(const mc::dict& d, TYPE& obj) {                                       \
+        visit([&](const char* name, auto, auto setter) {                                           \
+            if (d.contains(name)) {                                                                \
+                setter(obj, d[name]);                                                              \
+            }                                                                                      \
+        });                                                                                        \
+    }                                                                                              \
+    }                                                                                              \
+    ;
 
 /**
  * @brief 定义类的反射信息
  */
-#define MC_REFLECT(TYPE, MEMBERS) \
-    MC_REFLECT_BEGIN(TYPE) \
-    BOOST_PP_SEQ_FOR_EACH(MC_REFLECT_MEMBER, TYPE, MEMBERS) \
-    MC_REFLECT_END()
+#define MC_REFLECT(TYPE, MEMBERS)                                                                  \
+    MC_REFLECT_BEGIN(TYPE)                                                                         \
+    BOOST_PP_SEQ_FOR_EACH(MC_REFLECT_MEMBER, TYPE, MEMBERS)                                        \
+    MC_REFLECT_END(TYPE)
 
 /**
  * @brief 开始定义枚举的反射信息
  */
-#define MC_REFLECT_ENUM_BEGIN(TYPE) \
-    template<> \
-    struct reflector<TYPE> { \
-        using is_defined = std::true_type; \
-        using is_enum = std::true_type; \
-        static const char* name() { return #TYPE; } \
-        static void to_variant(const TYPE& e, variant& var) { \
+#define MC_REFLECT_ENUM_BEGIN(TYPE)                                                                \
+    template <>                                                                                    \
+    struct reflector<TYPE> {                                                                       \
+        using is_defined = std::true_type;                                                         \
+        using is_enum = std::true_type;                                                            \
+        static const char* name() {                                                                \
+            return #TYPE;                                                                          \
+        }                                                                                          \
+        static void to_variant(const TYPE& e, variant& var) {                                      \
             switch (e) {
-
 /**
  * @brief 定义枚举值的反射信息
  */
-#define MC_REFLECT_ENUM_VALUE(ENUM, VALUE) \
-                case ENUM::VALUE: \
-                    var = BOOST_PP_STRINGIZE(VALUE); \
-                    break;
+#define MC_REFLECT_ENUM_VALUE(r, ENUM, VALUE)                                                      \
+    case ENUM::VALUE:                                                                              \
+        var = BOOST_PP_STRINGIZE(VALUE);                                                           \
+        break;
 
 /**
  * @brief 结束定义枚举的反射信息
  */
-#define MC_REFLECT_ENUM_END(TYPE) \
-                default: \
-                    throw bad_enum_cast("无效的枚举值"); \
-            } \
-        } \
-        static void from_variant(const variant& var, TYPE& e) { \
-            const std::string& s = var.as<std::string>(); \
-
+#define MC_REFLECT_ENUM_END(TYPE)                                                                  \
+    default:                                                                                       \
+        throw bad_enum_cast("无效的枚举值");                                                       \
+        }                                                                                          \
+        }                                                                                          \
+        static void from_variant(const variant& var, TYPE& e) {
 /**
  * @brief 定义枚举值的字符串转换
  */
-#define MC_REFLECT_ENUM_FROM_STRING(ENUM, VALUE) \
-            if (s == BOOST_PP_STRINGIZE(VALUE)) { \
-                e = ENUM::VALUE; \
-                return; \
-            }
+#define MC_REFLECT_ENUM_FROM_STRING(r, ENUM, VALUE)                                                \
+    if (var == BOOST_PP_STRINGIZE(VALUE)) {                                                        \
+        e = ENUM::VALUE;                                                                           \
+        return;                                                                                    \
+    }
 
 /**
  * @brief 结束定义枚举值的字符串转换
  */
-#define MC_REFLECT_ENUM_FROM_STRING_END(TYPE) \
-            throw bad_enum_cast("无效的枚举字符串"); \
-        } \
-    };
+#define MC_REFLECT_ENUM_FROM_STRING_END(TYPE)                                                      \
+    throw bad_enum_cast("无效的枚举字符串");                                                       \
+    }                                                                                              \
+    }                                                                                              \
+    ;
 
 /**
  * @brief 定义枚举的反射信息
  */
-#define MC_REFLECT_ENUM(TYPE, VALUES) \
-    MC_REFLECT_ENUM_BEGIN(TYPE) \
-    BOOST_PP_SEQ_FOR_EACH(MC_REFLECT_ENUM_VALUE, TYPE, VALUES) \
-    MC_REFLECT_ENUM_END(TYPE) \
-    BOOST_PP_SEQ_FOR_EACH(MC_REFLECT_ENUM_FROM_STRING, TYPE, VALUES) \
+#define MC_REFLECT_ENUM(TYPE, VALUES)                                                              \
+    MC_REFLECT_ENUM_BEGIN(TYPE)                                                                    \
+    BOOST_PP_SEQ_FOR_EACH(MC_REFLECT_ENUM_VALUE, TYPE, VALUES)                                     \
+    MC_REFLECT_ENUM_END(TYPE)                                                                      \
+    BOOST_PP_SEQ_FOR_EACH(MC_REFLECT_ENUM_FROM_STRING, TYPE, VALUES)                               \
     MC_REFLECT_ENUM_FROM_STRING_END(TYPE)
-
 namespace mc {
 namespace reflect {
 
 /**
  * @brief 成员信息结构体
- * 
+ *
  * @tparam T 类型
  */
-template<typename T>
+template <typename T>
 struct member_info {
     const char* name;
     std::function<variant(const T&)> getter;
@@ -155,10 +160,10 @@ struct member_info {
 
 /**
  * @brief 反射器模板类
- * 
+ *
  * @tparam T 要反射的类型
  */
-template<typename T>
+template <typename T>
 struct reflector {
     using is_defined = std::false_type;
     using is_enum = std::false_type;
@@ -172,54 +177,13 @@ public:
     enum code_enum {
         code_value = mc::type_error_code,
     };
-    
-    explicit bad_enum_cast(const std::string& msg) : mc::exception(mc::type_error_code, "bad_enum_cast", msg) {}
-};
 
-/**
- * @brief 枚举类型处理辅助模板
- * 
- * @tparam IsEnum 是否为枚举类型
- */
-template<typename IsEnum>
-struct if_enum;
-
-/**
- * @brief 枚举类型处理特化
- */
-template<>
-struct if_enum<std::true_type> {
-    template<typename T>
-    static void to_variant(const T& e, variant& var) {
-        reflector<T>::to_variant(e, var);
-    }
-
-    template<typename T>
-    static void from_variant(const variant& var, T& e) {
-        reflector<T>::from_variant(var, e);
-    }
-};
-
-/**
- * @brief 非枚举类型处理特化
- */
-template<>
-struct if_enum<std::false_type> {
-    template<typename T>
-    static void to_variant(const T& obj, variant& var) {
-        mc::mutable_dict dict;
-        reflector<T>::to_variant(obj, dict);
-        var = dict;
-    }
-
-    template<typename T>
-    static void from_variant(const variant& var, T& obj) {
-        const mc::dict& d = var.as<mc::dict>();
-        reflector<T>::from_variant(d, obj);
+    explicit bad_enum_cast(const std::string& msg)
+        : mc::exception(mc::type_error_code, "bad_enum_cast", msg) {
     }
 };
 
 } // namespace reflect
 } // namespace mc
 
-#endif // MC_REFLECT_REFLECT_H 
+#endif // MC_REFLECT_REFLECT_H

@@ -60,6 +60,15 @@ mutable_dict& mutable_dict::operator=(const dict& other) {
     return *this;
 }
 
+// 从初始化列表赋值
+mutable_dict& mutable_dict::operator=(std::initializer_list<std::pair<std::string, variant>> init) {
+    // 创建一个新的mutable_dict并用初始化列表构造
+    mutable_dict new_dict(init);
+    // 交换内部数据
+    *this = std::move(new_dict);
+    return *this;
+}
+
 // 查找指定键的元素（可变版本）
 dict::entry* mutable_dict::find_entry_mutable(const std::string& key) {
     auto it = m_data->index.find(key);

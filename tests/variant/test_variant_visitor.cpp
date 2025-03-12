@@ -283,7 +283,7 @@ TEST_F(VariantVisitorTest, GlobalVisit) {
     // 测试不同类型的 variant
     {
         variant v; // null
-        auto result = visit(
+        auto result = v.visit_with(
             [](auto&& value) -> std::string {
                 using T = std::decay_t<decltype(value)>;
                 if constexpr (std::is_same_v<T, std::nullptr_t>) {
@@ -291,14 +291,13 @@ TEST_F(VariantVisitorTest, GlobalVisit) {
                 } else {
                     return "not null";
                 }
-            },
-            v);
+            });
         EXPECT_EQ(result, "null");
     }
 
     {
         variant v(42); // int32
-        auto result = visit(
+        auto result = v.visit_with(
             [](auto&& value) -> std::string {
                 using T = std::decay_t<decltype(value)>;
                 if constexpr (std::is_same_v<T, int64_t>) {
@@ -306,8 +305,7 @@ TEST_F(VariantVisitorTest, GlobalVisit) {
                 } else {
                     return "not int64";
                 }
-            },
-            v);
+            });
         EXPECT_EQ(result, "int64: 42");
     }
 
@@ -343,10 +341,10 @@ TEST_F(VariantVisitorTest, GlobalVisit) {
             }
         };
 
-        EXPECT_EQ(visit(visitor, v1), "int64: 42");
-        EXPECT_EQ(visit(visitor, v2), "double: 3.140000");
-        EXPECT_EQ(visit(visitor, v3), "string: hello");
-        EXPECT_EQ(visit(visitor, v4), "bool: true");
+        EXPECT_EQ(v1.visit_with(visitor), "int64: 42");
+        EXPECT_EQ(v2.visit_with(visitor), "double: 3.140000");
+        EXPECT_EQ(v3.visit_with(visitor), "string: hello");
+        EXPECT_EQ(v4.visit_with(visitor), "bool: true");
     }
 }
 

@@ -93,57 +93,18 @@ void from_variant(const mc::variant& var, variants& vo);
 void to_variant(const std::vector<char>& var, mc::variant& vo);
 void from_variant(const mc::variant& var, std::vector<char>& vo);
 
-/**
- * @brief 使用函数对象访问 variant 中的数据
- * @tparam Visitor 函数对象类型，必须能够处理所有可能的类型
- * @param visitor 函数对象
- * @param var 要访问的 variant 对象
- * @return 函数对象的返回值
- *
- * 函数对象必须能够处理以下类型：
- * - void (对应 null_type)
- * - int64_t (对应 int8_type, int16_type, int32_type, int64_type)
- * - uint64_t (对应 uint8_type, uint16_type, uint32_type, uint64_type)
- * - double (对应 double_type)
- * - bool (对应 bool_type)
- * - std::string (对应 string_type)
- * - dict (对应 object_type)
- * - variants (对应 array_type)
- * - blob (对应 blob_type)
- *
- * 示例：
- * @code
- * variant v = 42;
- * auto result = visit([](auto&& value) {
- *     using T = std::decay_t<decltype(value)>;
- *     if constexpr (std::is_same_v<T, int64_t>) {
- *         return "整数: " + std::to_string(value);
- *     } else if constexpr (std::is_same_v<T, std::string>) {
- *         return "字符串: " + value;
- *     } else {
- *         return "其他类型";
- *     }
- * }, v);
- * @endcode
- */
-template <typename Visitor, typename... Variants>
-auto visit(Visitor&& visitor, const Variants&... vars) {
-    if constexpr (sizeof...(Variants) == 1) {
-        return (vars.visit_with(std::forward<Visitor>(visitor)), ...);
-    } else {
-        static_assert(sizeof...(Variants) > 0, "至少需要一个 variant 参数");
-        // 多个 variant 的情况，暂不支持
-        static_assert(sizeof...(Variants) == 1, "当前仅支持单个 variant 参数");
-        // 由于我们已经静态断言只有一个 variant，可以直接使用折叠表达式
-        return (vars.visit_with(std::forward<Visitor>(visitor)), ...);
-    }
-}
+template <typename, typename T>
+inline constexpr bool is_variant_v = false;
+template <typename T>
+inline constexpr bool is_variant_v<std::enable_if_t<std::decay_t<T>::is_variant::value>, T> = true;
 
 /**
  * @brief variant 类，用于表示任意类型的数据
  */
 class variant {
 public:
+    using is_variant = std::true_type;
+
     /**
      * @brief 数据类型枚举
      */
@@ -174,12 +135,12 @@ public:
     /**
      * @brief 从 nullptr 构造一个空的 variant
      */
-    explicit variant(std::nullptr_t);
+    variant(std::nullptr_t);
 
     /**
      * @brief 从指定类型构造 variant
      */
-    explicit variant(type_id type);
+    variant(type_id type);
 
     /**
      * @brief 从各种基本类型构造 variant
@@ -207,7 +168,12 @@ public:
      * @brief 从 std::pair 构造
      */
     template <typename K, typename T>
-    explicit variant(const std::pair<K, T>& pair);
+    variant(const std::pair<K, T>& pair);
+
+    template <typename T, std::enable_if_t<!is_variant_v<void, T>, int> = 0>
+    variant(const T& obj) {
+        to_variant(obj, *this);
+    }
 
     /**
      * @brief 拷贝构造函数
@@ -410,6 +376,36 @@ public:
     bool is_integer() const;
 
     /**
+     * @brief 将 variant 转换为有符号8位整数
+     */
+    int8_t as_int8() const;
+
+    /**
+     * @brief 将 variant 转换为无符号8位整数
+     */
+    uint8_t as_uint8() const;
+
+    /**
+     * @brief 将 variant 转换为有符号16位整数
+     */
+    int16_t as_int16() const;
+
+    /**
+     * @brief 将 variant 转换为无符号16位整数
+     */
+    uint16_t as_uint16() const;
+
+    /**
+     * @brief 将 variant 转换为有符号32位整数
+     */
+    int32_t as_int32() const;
+
+    /**
+     * @brief 将 variant 转换为无符号32位整数
+     */
+    uint32_t as_uint32() const;
+
+    /**
      * @brief 将 variant 转换为有符号64位整数
      */
     int64_t as_int64() const;
@@ -501,7 +497,7 @@ public:
      * @brief 从 std::optional 构造 variant
      */
     template <typename T>
-    explicit variant(const std::optional<T>& v) {
+    variant(const std::optional<T>& v) {
         if (v.has_value()) {
             *this = variant(v.value());
         }
@@ -702,16 +698,26 @@ public:
     typed_variant(variant&& other) noexcept;
 
     /**
+     * @brief 从 typed_variant 构造 typed_variant
+     */
+    typed_variant(const typed_variant& other);
+
+    /**
+     * @brief 从 typed_variant 移动构造 typed_variant
+     */
+    typed_variant(typed_variant&& other) noexcept;
+
+    /**
      * @brief 从各种基本类型构造 typed_variant
      */
     template <typename T>
-    explicit typed_variant(T&& val) : variant(std::forward<T>(val)) {
+    typed_variant(T&& val) : variant(std::forward<T>(val)) {
     }
 
     /**
      * @brief 从 type_id 构造指定类型的 typed_variant
      */
-    explicit typed_variant(type_id type);
+    typed_variant(type_id type);
 
     /**
      * @brief 赋值运算符，保持类型不变
@@ -724,10 +730,20 @@ public:
     typed_variant& operator=(variant&& other);
 
     /**
+     * @brief 赋值运算符，保持类型不变
+     */
+    typed_variant& operator=(const typed_variant& other);
+
+    /**
+     * @brief 移动赋值运算符，保持类型不变
+     */
+    typed_variant& operator=(typed_variant&& other);
+
+    /**
      * @brief 从各种类型赋值，保持类型不变
      */
-    template <typename T>
-    std::enable_if_t<!std::is_same_v<std::decay_t<T>, variant>, typed_variant&> operator=(T&& v) {
+    template <typename T, std::enable_if_t<!is_variant_v<void, T>, int> = 0>
+    typed_variant& operator=(T&& v) {
         *this = variant(std::forward<T>(v));
         return *this;
     }
@@ -792,6 +808,20 @@ template <typename T, std::enable_if_t<std::is_floating_point_v<T>, int> = 0>
 void from_variant(const mc::variant& var, T& vo) {
     vo = static_cast<T>(var.as_double());
 }
+
+/**
+ * @brief 将 typed_variant 转换为 variant
+ * @param var 源 typed_variant
+ * @param vo 目标 variant
+ */
+void to_variant(const typed_variant& var, variant& vo);
+
+/**
+ * @brief 将 variant 转换为 typed_variant
+ * @param var 源 variant
+ * @param vo 目标 typed_variant
+ */
+void from_variant(const variant& var, typed_variant& vo);
 
 } // namespace mc
 

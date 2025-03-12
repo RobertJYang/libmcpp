@@ -601,7 +601,78 @@ TEST_F(TypedVariantTest, MoveAssignment) {
             tv_target = std::move(tv_source);
         },
         tv_target);
+
+    tv_target = std::move(tv_target);
+    ASSERT_EQ(tv_target.get_type(), variant::type_id::int32_type);
+    ASSERT_EQ(tv_target.as_int64(), 42);
+
+    typed_variant tv_source2(variant::type_id::int16_type);
+    tv_source2 = 50;
+
+    tv_target = std::move(tv_source2);
+    ASSERT_EQ(tv_target.get_type(), variant::type_id::int32_type);
+    ASSERT_EQ(tv_target.as_int64(), 50);
+
+    typed_variant tv_source3;
+    from_variant(variant(1), tv_source3);
+    tv_target = std::move(tv_source3);
+    ASSERT_EQ(tv_target.get_type(), variant::type_id::int32_type);
+    ASSERT_EQ(tv_target.as_int64(), 1);
+
+    variant v2;
+    to_variant(tv_target, v2);
+    ASSERT_EQ(v2.get_type(), variant::type_id::int32_type);
+    ASSERT_EQ(v2.as_int64(), 1);
 }
 
+/**
+ * @brief 测试 typed_variant 与 variant 之间的转换函数
+ */
+TEST_F(TypedVariantTest, VariantConversionFunctions) {
+    // 测试 from_variant 函数
+    typed_variant tv_target;
+    from_variant(variant(1), tv_target);
+    ASSERT_EQ(tv_target.get_type(), variant::type_id::int32_type);
+    ASSERT_EQ(tv_target.as_int64(), 1);
+
+    // 测试 to_variant 函数
+    variant v;
+    to_variant(tv_target, v);
+    ASSERT_EQ(v.get_type(), variant::type_id::int32_type);
+    ASSERT_EQ(v.as_int64(), 1);
+    
+    // 测试不同类型的转换
+    typed_variant tv_string(variant::type_id::string_type);
+    tv_string = "hello";
+    
+    variant v_string;
+    to_variant(tv_string, v_string);
+    ASSERT_EQ(v_string.get_type(), variant::type_id::string_type);
+    ASSERT_EQ(v_string.as_string(), "hello");
+    
+    typed_variant tv_double;
+    from_variant(variant(3.14), tv_double);
+    ASSERT_EQ(tv_double.get_type(), variant::type_id::double_type);
+    ASSERT_DOUBLE_EQ(tv_double.as_double(), 3.14);
+    
+    // 测试复杂类型的转换
+    mutable_dict dict;
+    dict["name"] = "John";
+    dict["age"] = 30;
+    
+    typed_variant tv_object(variant::type_id::object_type);
+    from_variant(variant(dict), tv_object);
+    ASSERT_EQ(tv_object.get_type(), variant::type_id::object_type);
+    ASSERT_EQ(tv_object.get_object().size(), 2);
+    ASSERT_EQ(tv_object.get_object()["name"].as_string(), "John");
+    ASSERT_EQ(tv_object.get_object()["age"].as_int64(), 30);
+    
+    variant v_object;
+    to_variant(tv_object, v_object);
+    ASSERT_EQ(v_object.get_type(), variant::type_id::object_type);
+    ASSERT_EQ(v_object.get_object().size(), 2);
+    ASSERT_EQ(v_object.get_object()["name"].as_string(), "John");
+    ASSERT_EQ(v_object.get_object()["age"].as_int64(), 30);
+}
 } // namespace test
 } // namespace mc

@@ -1,0 +1,306 @@
+/*
+ * Copyright (c) 2025 Huawei Technologies Co., Ltd.
+ * openUBMC is licensed under Mulan PSL v2.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *         http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
+ */
+
+/**
+ * @file string.h
+ * @brief 定义了 mc 命名空间下的字符串处理函数
+ */
+#ifndef MC_STRING_H
+#define MC_STRING_H
+
+#include <algorithm>
+#include <cctype>
+#include <cstdio>
+#include <locale>
+#include <memory>
+#include <string>
+#include <string_view>
+#include <vector>
+#include <sstream>
+
+// 前向声明
+namespace mc {
+class dict;
+class variant;
+namespace string {
+
+/**
+ * @brief 忽略大小写比较两个字符串是否相等
+ * @param a 第一个字符串
+ * @param b 第二个字符串
+ * @return 如果两个字符串忽略大小写后相等则返回 true，否则返回 false
+ */
+bool iequals(std::string_view a, std::string_view b);
+
+/**
+ * @brief 忽略大小写比较两个 C 风格字符串是否相等
+ * @param a 第一个 C 风格字符串
+ * @param b 第二个 C 风格字符串
+ * @return 如果两个 C 风格字符串忽略大小写后相等则返回 true，否则返回 false
+ */
+bool iequals(const char* a, const char* b);
+
+/**
+ * @brief 将字符串转换为小写
+ * @param s 要转换的字符串
+ * @return 转换后的小写字符串
+ */
+std::string to_lower(std::string_view s);
+
+/**
+ * @brief 将字符串转换为大写
+ * @param s 要转换的字符串
+ * @return 转换后的大写字符串
+ */
+std::string to_upper(std::string_view s);
+
+/**
+ * @brief 原地将字符串转换为小写
+ * @param s 要转换的字符串
+ */
+void to_lower_inplace(std::string& s);
+
+/**
+ * @brief 原地将字符串转换为大写
+ * @param s 要转换的字符串
+ */
+void to_upper_inplace(std::string& s);
+
+/**
+ * @brief 去除字符串两端的空白字符
+ * @param s 要处理的字符串
+ * @return 处理后的字符串
+ */
+std::string trim(std::string_view s);
+
+/**
+ * @brief 原地去除字符串两端的空白字符
+ * @param s 要处理的字符串
+ */
+void trim_inplace(std::string& s);
+
+/**
+ * @brief 去除字符串左侧的空白字符
+ * @param s 要处理的字符串
+ * @return 处理后的字符串
+ */
+std::string ltrim(std::string_view s);
+
+/**
+ * @brief 原地去除字符串左侧的空白字符
+ * @param s 要处理的字符串
+ */
+void ltrim_inplace(std::string& s);
+
+/**
+ * @brief 去除字符串右侧的空白字符
+ * @param s 要处理的字符串
+ * @return 处理后的字符串
+ */
+std::string rtrim(std::string_view s);
+
+/**
+ * @brief 原地去除字符串右侧的空白字符
+ * @param s 要处理的字符串
+ */
+void rtrim_inplace(std::string& s);
+
+/**
+ * @brief 按指定分隔符分割字符串
+ * @param s 要分割的字符串
+ * @param delim 分隔符
+ * @return 分割后的字符串数组
+ */
+std::vector<std::string> split(std::string_view s, char delim);
+
+/**
+ * @brief 按指定分隔符分割字符串
+ * @param s 要分割的字符串
+ * @param delim 分隔符字符串
+ * @return 分割后的字符串数组
+ */
+std::vector<std::string> split(std::string_view s, std::string_view delim);
+
+/**
+ * @brief 将字符串数组连接成一个字符串
+ * @param v 字符串数组
+ * @param delim 连接符
+ * @return 连接后的字符串
+ */
+std::string join(const std::vector<std::string>& v, std::string_view delim);
+
+/**
+ * @brief 将一个或多个值追加到字符串中
+ * @param result 要追加到的字符串
+ * @param value 要追加的值
+ * @param args 要追加的值
+ */
+template <typename T>
+void append(std::string& result, T&& value) {
+    if constexpr (std::is_same_v<std::decay_t<T>, std::string> ||
+                  std::is_same_v<std::decay_t<T>, std::string_view>) {
+        // 对于字符串和字符串视图，直接追加
+        result.append(value);
+    } else if constexpr (std::is_same_v<std::decay_t<T>, const char*>) {
+        // 对于C风格字符串，直接追加
+        result.append(value);
+    } else if constexpr (std::is_same_v<std::decay_t<T>, char>) {
+        // 对于单个字符，使用append(1, char)
+        result.append(1, value);
+    } else if constexpr (std::is_arithmetic_v<std::decay_t<T>>) {
+        // 对于数值类型，转换为字符串后追加
+        result.append(std::to_string(value));
+    } else {
+        // 对于其他类型，尝试使用std::ostringstream
+        std::ostringstream oss;
+        oss << value;
+        result.append(oss.str());
+    }
+}
+template <typename T, typename... Args>
+void append(std::string& result, T&& value, Args&&... args) {
+    append(result, std::forward<T>(value));
+    append(result, std::forward<Args>(args)...);
+}
+
+/**
+ * @brief 检查字符串是否以指定前缀开始
+ * @param s 要检查的字符串
+ * @param prefix 前缀
+ * @return 如果字符串以指定前缀开始则返回 true，否则返回 false
+ */
+bool starts_with(std::string_view s, std::string_view prefix);
+
+/**
+ * @brief 检查字符串是否以指定后缀结束
+ * @param s 要检查的字符串
+ * @param suffix 后缀
+ * @return 如果字符串以指定后缀结束则返回 true，否则返回 false
+ */
+bool ends_with(std::string_view s, std::string_view suffix);
+
+/**
+ * @brief 替换字符串中的所有指定子串
+ * @param s 要处理的字符串
+ * @param from 要替换的子串
+ * @param to 替换成的子串
+ * @return 处理后的字符串
+ */
+std::string replace_all(std::string_view s, std::string_view from, std::string_view to);
+
+/**
+ * @brief 原地替换字符串中的所有指定子串
+ * @param s 要处理的字符串
+ * @param from 要替换的子串
+ * @param to 替换成的子串
+ */
+void replace_all_inplace(std::string& s, std::string_view from, std::string_view to);
+
+/**
+ * @brief 检查字符串是否包含指定子串
+ * @param s 要检查的字符串
+ * @param substring 子串
+ * @return 如果字符串包含指定子串则返回 true，否则返回 false
+ */
+bool contains(std::string_view s, std::string_view substring);
+
+/**
+ * @brief 忽略大小写检查字符串是否包含指定子串
+ * @param s 要检查的字符串
+ * @param substring 子串
+ * @return 如果字符串忽略大小写后包含指定子串则返回 true，否则返回 false
+ */
+bool icontains(std::string_view s, std::string_view substring);
+
+} // namespace string
+
+/**
+ * @brief 使用参数字典格式化字符串
+ * @param format 格式化字符串，使用 ${key} 作为占位符
+ * @param args 包含替换值的字典
+ * @return 格式化后的字符串
+ *
+ * 示例:
+ * @code
+ * std::string result = mc::format("${host}:${port}",
+ *                                 mc::dict("host", hostname)("port", port));
+ * @endcode
+ */
+std::string format(std::string_view format, const mc::dict& args);
+
+/**
+ * @brief 使用参数字典格式化字符串并写入到给定的结果字符串中
+ * @param result 接收格式化结果的字符串引用
+ * @param format 格式化字符串，使用 ${key} 作为占位符
+ * @param args 包含替换值的字典
+ *
+ * 示例:
+ * @code
+ * std::string result;
+ * mc::format(result, "${host}:${port}", mc::dict("host", hostname)("port", port));
+ * @endcode
+ */
+void format(std::string& result, std::string_view format, const mc::dict& args);
+
+/**
+ * @brief 字符串格式化
+ * @param format_v 格式化字符串，类似于 printf 的格式
+ * @param args 格式化参数
+ * @return 格式化后的字符串
+ */
+template <typename... Args>
+std::string format_v(const std::string& format, Args... args) {
+    int size = std::snprintf(nullptr, 0, format.c_str(), args...) + 1;
+    if (size <= 0) {
+        return "";
+    }
+    std::unique_ptr<char[]> buf(new char[size]);
+    std::snprintf(buf.get(), size, format.c_str(), args...);
+    return std::string(buf.get(), buf.get() + size - 1);
+}
+
+/**
+ * @brief 简化format函数调用的宏
+ * @param fmt 格式字符串，使用 ${key} 作为占位符
+ * @param ... 键值对序列，形式为 (key1, value1)(key2, value2)
+ * @return 格式化后的字符串
+ *
+ * 示例:
+ * @code
+ * // 不带参数的调用
+ * std::string s1 = mc_format("无参数字符串");
+ * 
+ * // 带参数的调用
+ * std::string s2 = mc_format("${host}:${port}", ("host", "example.com")("port", 8080));
+ * @endcode
+ */
+#define mc_format(fmt, ...) \
+    mc::format(fmt, static_cast<const mc::dict&>(mc::mutable_dict()__VA_ARGS__))
+
+/**
+ * @brief 简化format函数调用的宏，将结果追加到现有字符串
+ * @param result 接收格式化结果的字符串引用
+ * @param fmt 格式字符串，使用 ${key} 作为占位符
+ * @param ... 键值对序列，形式为 (key1, value1)(key2, value2)
+ *
+ * 示例:
+ * @code
+ * std::string result = "前缀：";
+ * mc_format_append(result, "${host}:${port}", ("host", "example.com")("port", 8080));
+ * @endcode
+ */
+#define mc_format_append(result, fmt, ...) \
+    mc::format(result, fmt, static_cast<const mc::dict&>(mc::mutable_dict()__VA_ARGS__))
+
+} // namespace mc
+
+#endif // MC_STRING_H

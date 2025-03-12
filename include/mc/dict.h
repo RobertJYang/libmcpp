@@ -510,6 +510,44 @@ public:
     mutable_dict& operator=(const dict& other);
 
     /**
+     * @brief 从初始化列表赋值
+     * @param init 键值对初始化列表
+     * @return 返回自身引用
+     * @note 此操作会替换当前的内容
+     */
+    mutable_dict& operator=(std::initializer_list<std::pair<std::string, variant>> init);
+    
+    /**
+     * @brief 从初始化列表赋值（模板版本）
+     * @param init 键值对初始化列表
+     * @return 返回自身引用
+     * @note 此操作会替换当前的内容
+     */
+    template<typename T>
+    mutable_dict& operator=(std::initializer_list<std::pair<std::string, T>> init) {
+        // 创建一个新的mutable_dict并用初始化列表构造
+        mutable_dict new_dict(init);
+        // 交换内部数据
+        *this = std::move(new_dict);
+        return *this;
+    }
+    
+    /**
+     * @brief 从初始化列表赋值（模板版本，支持不同类型的键）
+     * @param init 键值对初始化列表
+     * @return 返回自身引用
+     * @note 此操作会替换当前的内容
+     */
+    template<typename K, typename T>
+    mutable_dict& operator=(std::initializer_list<std::pair<K, T>> init) {
+        // 创建一个新的mutable_dict并用初始化列表构造
+        mutable_dict new_dict(init);
+        // 交换内部数据
+        *this = std::move(new_dict);
+        return *this;
+    }
+
+    /**
      * @brief 添加或更新键值对
      * @return 返回自身引用，支持链式调用
      * @note 此操作会修改共享数据，影响所有共享该数据的对象
