@@ -28,46 +28,8 @@ using namespace mc::reflect;
 
 // 测试用的颜色枚举
 enum class test_color { RED, GREEN, BLUE };
-// MC_REFLECT_ENUM(test_color, (RED)(GREEN)(BLUE))
-template <>
-struct reflector<test_color> {
-    using is_defined = std::true_type;
-    using is_enum = std::true_type;
-    static const char* name() {
-        return "test_color";
-    }
-    static void to_variant(const test_color& e, variant& var) {
-        switch (e) {
-        case test_color::RED:
-            var = "RED";
-            break;
-        case test_color::GREEN:
-            var = "GREEN";
-            break;
-        case test_color::BLUE:
-            var = "BLUE";
-            break;
-        default:
-            throw bad_enum_cast("无效的枚举值");
-        }
-    }
-    static void from_variant(const variant& var, test_color& e) {
-        if (var == "RED") {
-            e = test_color::RED;
-            return;
-        }
-        if (var == "GREEN") {
-            e = test_color::GREEN;
-            return;
-        }
-        if (var == "BLUE") {
-            e = test_color::BLUE;
-            return;
-        }
-        throw bad_enum_cast("无效的枚举字符串");
-    }
-};
-constexpr bool v = is_reflectable<test_color>();
+MC_REFLECT_ENUM(test_color, (RED)(GREEN)(BLUE))
+
 // 测试类
 class test_person {
 public:

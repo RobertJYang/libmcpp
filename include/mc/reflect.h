@@ -17,8 +17,8 @@
 #ifndef MC_REFLECT_H
 #define MC_REFLECT_H
 
-#include <mc/reflect/typename.h>
 #include <mc/reflect/reflect.h>
+#include <mc/reflect/typename.h>
 
 /**
  * @namespace mc
@@ -34,97 +34,96 @@ namespace reflect {
 
 /**
  * @brief 检查类型是否可反射
- * 
+ *
  * @tparam T 要检查的类型
  * @return true 如果类型可反射
  * @return false 如果类型不可反射
  */
-template<typename T>
+template <typename T>
 constexpr bool is_reflectable() {
     return reflector<T>::is_defined::value;
 }
 
 /**
  * @brief 检查类型是否为枚举
- * 
+ *
  * @tparam T 要检查的类型
  * @return true 如果类型是枚举
  * @return false 如果类型不是枚举
  */
-template<typename T>
+template <typename T>
 constexpr bool is_enum() {
     return reflector<T>::is_enum::value;
 }
 
 /**
  * @brief 获取类型名称
- * 
+ *
  * @tparam T 要获取名称的类型
  * @return const char* 类型名称
  */
-template<typename T>
+template <typename T>
 const char* get_type_name() {
     return get_typename<T>::name();
 }
 
 /**
  * @brief 访问类型的所有成员
- * 
+ *
  * @tparam T 要访问的类型
  * @tparam Visitor 访问器类型
  * @param visitor 访问器实例
  */
-template<typename T, typename Visitor>
+template <typename T, typename Visitor>
 void visit_members(const Visitor& visitor) {
     reflector<T>::visit(visitor);
 }
 
 /**
  * @brief 将对象转换为变体
- * 
+ *
  * @tparam T 对象类型
  * @param obj 对象实例
  * @param var 转换后的变体
  */
-template<typename T>
+template <typename T>
 void to_variant(const T& obj, variant& var) {
     if constexpr (reflector<T>::is_enum::value) {
         reflector<T>::to_variant(obj, var);
     } else {
-        mc::mutable_dict dict;
-        reflect::to_variant(obj, dict);
+        mutable_dict dict;
+        reflector<T>::to_variant(obj, dict);
         var = dict;
     }
 }
 
 /**
  * @brief 从变体转换为对象
- * 
+ *
  * @tparam T 对象类型
  * @param var 变体实例
  * @param obj 转换后的对象
  */
-template<typename T>
+template <typename T>
 void from_variant(const variant& var, T& obj) {
     if constexpr (reflector<T>::is_enum::value) {
         reflector<T>::from_variant(var, obj);
     } else {
-        mc::dict d = var.as<mc::dict>();
-        reflect::from_variant(d, obj);
+        reflector<T>::from_variant(var.as<mc::dict>(), obj);
     }
 }
 
 } // namespace reflect
 
-// template <typename T, std::enable_if_t<mc::reflect::is_reflectable<T>(), int> = 0>
-// void to_variant(const T& o, variant& v) {
-//     // mc::reflect::to_variant(o, v);
-// }
+template <typename T, std::enable_if_t<mc::reflect::is_reflectable<T>(), int> = 0>
+void to_variant(const T& o, variant& v) {
+    mc::reflect::to_variant(o, v);
+}
 
-// template <typename T, std::enable_if_t<mc::reflect::is_reflectable<T>(), int> = 0>
-// void from_variant(const variant& v, T& o) {
-//     // mc::reflect::from_variant(v, o);
-// }
+template <typename T, std::enable_if_t<mc::reflect::is_reflectable<T>(), int> = 0>
+void from_variant(const variant& v, T& o) {
+    mc::reflect::from_variant(v, o);
+}
 } // namespace mc
 
-#endif // MC_REFLECT_H 
+#endif // MC_REFLECT_H

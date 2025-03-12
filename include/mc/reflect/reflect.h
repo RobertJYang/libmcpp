@@ -43,6 +43,7 @@
  * @brief 开始定义类的反射信息
  */
 #define MC_REFLECT_BEGIN(TYPE)                                                                     \
+    namespace mc {                                                                                 \
     template <>                                                                                    \
     struct reflector<TYPE> {                                                                       \
         using is_defined = std::true_type;                                                         \
@@ -76,7 +77,8 @@
         });                                                                                        \
     }                                                                                              \
     }                                                                                              \
-    ;
+    ;                                                                                              \
+    } // namespace mc
 
 /**
  * @brief 定义类的反射信息
@@ -90,6 +92,7 @@
  * @brief 开始定义枚举的反射信息
  */
 #define MC_REFLECT_ENUM_BEGIN(TYPE)                                                                \
+    namespace mc {                                                                                 \
     template <>                                                                                    \
     struct reflector<TYPE> {                                                                       \
         using is_defined = std::true_type;                                                         \
@@ -132,7 +135,8 @@
     throw bad_enum_cast("无效的枚举字符串");                                                       \
     }                                                                                              \
     }                                                                                              \
-    ;
+    ;                                                                                              \
+    } // namespace mc
 
 /**
  * @brief 定义枚举的反射信息

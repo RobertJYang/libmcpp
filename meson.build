@@ -1,7 +1,7 @@
 project('libmcpp', 'cpp',
   version : '0.1.0',
   default_options : ['cpp_std=c++17', 'warning_level=3', 
-    'cpp_args=-fPIC -Wall -Wno-unused-parameter -Wno-unused-variable -Wno-sign-compare',
+    'cpp_args=-fPIC -Wall -Wno-unused-parameter -Wno-unused-variable -Wno-sign-compare -Wno-gnu-zero-variadic-macro-arguments',
 ])
 
 # 依赖项

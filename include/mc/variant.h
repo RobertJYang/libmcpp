@@ -171,7 +171,7 @@ public:
     variant(const std::pair<K, T>& pair);
 
     template <typename T, std::enable_if_t<!is_variant_v<void, T>, int> = 0>
-    variant(const T& obj) {
+    variant(const T& obj): variant() {
         to_variant(obj, *this);
     }
 
