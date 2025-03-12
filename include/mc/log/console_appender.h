@@ -53,19 +53,18 @@ public:
      * @param msg 日志消息
      */
     void append(const message& msg) override {
-        if (static_cast<int>(msg.m_level) < static_cast<int>(m_config.m_level)) {
+        if (msg.get_level() < m_config.m_level) {
             return;
         }
         
-        std::string formatted_msg;
-        if (m_config.m_formatter) {
-            formatted_msg = m_config.m_formatter->format(msg);
-        } else {
-            formatted_msg = msg.m_message;
+        // 格式化消息
+        auto formatted_msg = m_config.m_formatter->format(msg);
+        if (formatted_msg.empty()) {
+            formatted_msg = msg.get_formatted_message();
         }
         
         if (m_console_config.m_use_color) {
-            formatted_msg = colorize(msg.m_level, formatted_msg);
+            formatted_msg = colorize(msg.get_level(), formatted_msg);
         }
         
         std::lock_guard<std::mutex> lock(m_mutex);

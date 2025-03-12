@@ -221,6 +221,19 @@ bool contains(std::string_view s, std::string_view substring);
  */
 bool icontains(std::string_view s, std::string_view substring);
 
+std::string format(std::string_view format, const mc::dict& args);
+void format(std::string& result, std::string_view format, const mc::dict& args);
+
+template <typename... Args>
+std::string format_v(const std::string& format, Args... args) {
+    int size = std::snprintf(nullptr, 0, format.c_str(), args...) + 1;
+    if (size <= 0) {
+        return "";
+    }
+    std::unique_ptr<char[]> buf(new char[size]);
+    std::snprintf(buf.get(), size, format.c_str(), args...);
+    return std::string(buf.get(), buf.get() + size - 1);
+}
 } // namespace string
 
 /**
@@ -235,7 +248,9 @@ bool icontains(std::string_view s, std::string_view substring);
  *                                 mc::dict("host", hostname)("port", port));
  * @endcode
  */
-std::string format(std::string_view format, const mc::dict& args);
+inline std::string format(std::string_view format, const mc::dict& args) {
+    return mc::string::format(format, args);
+}
 
 /**
  * @brief 使用参数字典格式化字符串并写入到给定的结果字符串中
@@ -249,7 +264,9 @@ std::string format(std::string_view format, const mc::dict& args);
  * mc::format(result, "${host}:${port}", mc::dict("host", hostname)("port", port));
  * @endcode
  */
-void format(std::string& result, std::string_view format, const mc::dict& args);
+inline void format(std::string& result, std::string_view format, const mc::dict& args) {
+    mc::string::format(result, format, args);
+}
 
 /**
  * @brief 字符串格式化
@@ -259,13 +276,7 @@ void format(std::string& result, std::string_view format, const mc::dict& args);
  */
 template <typename... Args>
 std::string format_v(const std::string& format, Args... args) {
-    int size = std::snprintf(nullptr, 0, format.c_str(), args...) + 1;
-    if (size <= 0) {
-        return "";
-    }
-    std::unique_ptr<char[]> buf(new char[size]);
-    std::snprintf(buf.get(), size, format.c_str(), args...);
-    return std::string(buf.get(), buf.get() + size - 1);
+    return mc::string::format_v(format, args...);
 }
 
 /**

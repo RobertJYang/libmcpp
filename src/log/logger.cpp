@@ -160,7 +160,7 @@ bool logger::is_enabled(level lvl) const {
 }
 
 void logger::log(message msg) {
-    if (!m_impl || !is_enabled(msg.m_level)) {
+    if (!m_impl || !is_enabled(msg.get_level())) {
         return;
     }
     

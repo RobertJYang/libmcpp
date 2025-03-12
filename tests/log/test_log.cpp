@@ -15,6 +15,7 @@
 #include <mc/log/log_macros.h>
 #include <mc/log/console_appender.h>
 #include <mc/log/file_log_backend.h>
+#include <mc/filesystem.h>
 #include <mc/dict.h>
 #include <fstream>
 #include <sstream>
@@ -125,13 +126,37 @@ protected:
     
     // 辅助方法：检查日志消息是否包含指定文本
     bool message_contains(const mc::log::message& msg, const std::string& text) {
-        return msg.m_message.find(text) != std::string::npos;
+        // 先检查原始消息
+        if (msg.get_message().find(text) != std::string::npos) {
+            return true;
+        }
+        
+        // 检查上下文信息
+        const auto& ctx = msg.get_context();
+        if (ctx.m_file.find(text) != std::string::npos ||
+            ctx.m_function.find(text) != std::string::npos) {
+            return true;
+        }
+        
+        // 格式化后再检查
+        static auto formatter = std::make_shared<mc::log::default_message_formatter>();
+        std::string formatted_msg = formatter->format(msg);
+        return formatted_msg.find(text) != std::string::npos;
     }
     
     // 辅助方法：检查日志消息是否匹配正则表达式
     bool message_matches(const mc::log::message& msg, const std::string& pattern) {
         std::regex regex(pattern);
-        return std::regex_search(msg.m_message, regex);
+        
+        // 先检查原始消息
+        if (std::regex_search(msg.get_message(), regex)) {
+            return true;
+        }
+        
+        // 格式化后再检查
+        static auto formatter = std::make_shared<mc::log::default_message_formatter>();
+        std::string formatted_msg = formatter->format(msg);
+        return std::regex_search(formatted_msg, regex);
     }
     
     // 辅助方法：获取最后一条日志消息
@@ -150,62 +175,64 @@ protected:
 // 测试基本日志功能
 TEST_F(LogTest, BasicLogging) {
     // 使用结构化日志宏
-    MC_WLOG_INFO(m_test_logger, "这是一条信息日志");
+    mc_ilog(m_test_logger, "这是一条信息日志");
     
     // 检查日志消息
     auto& messages = m_memory_appender->get_messages();
     ASSERT_FALSE(messages.empty());
     auto msg = messages.back();
-    EXPECT_EQ(mc::log::level::info, msg.m_level);
+    EXPECT_EQ(mc::log::level::info, msg.get_level());
     EXPECT_TRUE(message_contains(msg, "这是一条信息日志"));
     
     // 使用不同级别的日志宏
-    MC_WLOG_TRACE(m_test_logger, "跟踪日志");
-    MC_WLOG_DEBUG(m_test_logger, "调试日志");
-    MC_WLOG_WARN(m_test_logger, "警告日志");
+    mc_tlog(m_test_logger, "跟踪日志");
+    mc_dlog(m_test_logger, "调试日志");
+    mc_wlog(m_test_logger, "警告日志");
     
     // 检查日志消息数量
     ASSERT_EQ(4, messages.size());
     
     // 检查最后一条消息
     msg = messages.back();
-    EXPECT_EQ(mc::log::level::warn, msg.m_level);
+    EXPECT_EQ(mc::log::level::warn, msg.get_level());
     EXPECT_TRUE(message_contains(msg, "警告日志"));
 }
 
 // 测试结构化日志功能
 TEST_F(LogTest, StructuredLogging) {
     // 使用结构化日志宏
-    MC_WLOG_INFO(m_test_logger, "用户 ${user} 登录成功，IP: ${ip}", 
-        stream("user", "admin")("ip", "192.168.1.1"));
+    mc_ilog(m_test_logger, "用户 ${user} 登录成功，IP: ${ip}", 
+        ("user", "admin")("ip", "192.168.1.1"));
     
     // 检查日志消息
     auto& messages = m_memory_appender->get_messages();
     ASSERT_FALSE(messages.empty());
     auto msg = messages.back();
-    EXPECT_EQ(mc::log::level::info, msg.m_level);
+    EXPECT_EQ(mc::log::level::info, msg.get_level());
     EXPECT_TRUE(message_contains(msg, "用户 admin 登录成功，IP: 192.168.1.1"));
     
     // 检查参数字典
-    EXPECT_TRUE(msg.m_args.contains("user"));
-    EXPECT_TRUE(msg.m_args.contains("ip"));
-    EXPECT_EQ("admin", msg.m_args["user"].as_string());
-    EXPECT_EQ("192.168.1.1", msg.m_args["ip"].as_string());
+    const auto& args = msg.get_args();
+    EXPECT_TRUE(args.contains("user"));
+    EXPECT_TRUE(args.contains("ip"));
+    EXPECT_EQ("admin", args["user"].as_string());
+    EXPECT_EQ("192.168.1.1", args["ip"].as_string());
     
     // 使用多个参数
-    MC_WLOG_DEBUG(m_test_logger, "请求 ${method} ${url} 返回 ${status}", 
-        stream("method", "GET")("url", "/api/users")("status", 200));
+    mc_dlog(m_test_logger, "请求 ${method} ${url} 返回 ${status}", 
+        ("method", "GET")("url", "/api/users")("status", 200));
     
     // 检查日志消息
     ASSERT_EQ(2, messages.size());
     msg = messages.back();
-    EXPECT_EQ(mc::log::level::debug, msg.m_level);
+    EXPECT_EQ(mc::log::level::debug, msg.get_level());
     EXPECT_TRUE(message_contains(msg, "请求 GET /api/users 返回 200"));
     
     // 检查参数字典
-    EXPECT_TRUE(msg.m_args.contains("method"));
-    EXPECT_TRUE(msg.m_args.contains("url"));
-    EXPECT_TRUE(msg.m_args.contains("status"));
+    const auto& args2 = msg.get_args();
+    EXPECT_TRUE(args2.contains("method"));
+    EXPECT_TRUE(args2.contains("url"));
+    EXPECT_TRUE(args2.contains("status"));
 }
 
 // 测试日志级别过滤
@@ -214,11 +241,11 @@ TEST_F(LogTest, LevelFiltering) {
     m_test_logger.set_level(mc::log::level::warn);
     
     // 发送不同级别的日志
-    MC_WLOG_TRACE(m_test_logger, "跟踪日志");  // 不应该记录
-    MC_WLOG_DEBUG(m_test_logger, "调试日志");  // 不应该记录
-    MC_WLOG_INFO(m_test_logger, "信息日志");   // 不应该记录
-    MC_WLOG_WARN(m_test_logger, "警告日志");   // 应该记录
-    MC_WLOG_ERROR(m_test_logger, "错误日志");  // 应该记录
+    mc_tlog(m_test_logger, "跟踪日志");  // 不应该记录
+    mc_dlog(m_test_logger, "调试日志");  // 不应该记录
+    mc_ilog(m_test_logger, "信息日志");   // 不应该记录
+    mc_wlog(m_test_logger, "警告日志");   // 应该记录
+    mc_elog(m_test_logger, "错误日志");  // 应该记录
     
     // 检查日志消息
     auto& messages = m_memory_appender->get_messages();
@@ -226,12 +253,12 @@ TEST_F(LogTest, LevelFiltering) {
     
     // 检查第一条消息
     auto& msg1 = messages[0];
-    EXPECT_EQ(mc::log::level::warn, msg1.m_level);
+    EXPECT_EQ(mc::log::level::warn, msg1.get_level());
     EXPECT_TRUE(message_contains(msg1, "警告日志"));
     
     // 检查第二条消息
     auto& msg2 = messages[1];
-    EXPECT_EQ(mc::log::level::error, msg2.m_level);
+    EXPECT_EQ(mc::log::level::error, msg2.get_level());
     EXPECT_TRUE(message_contains(msg2, "错误日志"));
     
     // 恢复日志级别
@@ -241,24 +268,34 @@ TEST_F(LogTest, LevelFiltering) {
 // 测试日志上下文信息
 TEST_F(LogTest, ContextInfo) {
     // 使用带上下文的日志宏
-    MC_WLOG_INFO(m_test_logger, "带有上下文的日志消息");
+    mc_ilog(m_test_logger, "带有上下文的日志消息");
     
     // 检查日志消息
     auto& messages = m_memory_appender->get_messages();
     ASSERT_FALSE(messages.empty());
     auto& msg = messages.back();
     
-    // 检查上下文信息
-    EXPECT_FALSE(msg.m_context.m_file.empty());
-    EXPECT_FALSE(msg.m_context.m_function.empty());
-    EXPECT_GT(msg.m_context.m_line, 0);
+    // 检查上下文信息是否正确捕获
+    const auto& ctx = msg.get_context();
+    EXPECT_FALSE(ctx.m_file.empty());
+    EXPECT_FALSE(ctx.m_function.empty());
+    EXPECT_GT(ctx.m_line, 0);
     
-    // 检查上下文信息是否包含在消息中
+    // 检查原始消息不包含上下文信息（因为使用延迟合并）
+    EXPECT_EQ(msg.get_message().find(ctx.m_file), std::string::npos);
+    EXPECT_EQ(msg.get_message().find(ctx.m_function), std::string::npos);
+    
+    // 格式化后的消息应该包含上下文信息
+    auto formatter = std::make_shared<mc::log::default_message_formatter>();
+    std::string formatted_msg = formatter->format(msg);
+    EXPECT_NE(formatted_msg.find(mc::filesystem::basename(ctx.m_file)), std::string::npos);
+    
+    // 使用更新后的辅助方法，它会自动处理格式化
     auto& backend_messages = m_memory_backend->get_messages();
     ASSERT_FALSE(backend_messages.empty());
     auto& backend_msg = backend_messages.back();
-    EXPECT_TRUE(message_contains(backend_msg, msg.m_context.m_file));
-    EXPECT_TRUE(message_contains(backend_msg, msg.m_context.m_function));
+    EXPECT_TRUE(message_contains(backend_msg, ctx.m_file));
+    EXPECT_TRUE(message_contains(backend_msg, ctx.m_function));
 }
 
 // 测试日志后端
@@ -267,7 +304,7 @@ TEST_F(LogTest, LogBackend) {
     m_memory_backend->clear();
     
     // 发送日志消息
-    MC_WLOG_INFO(m_test_logger, "测试后端的日志消息");
+    mc_ilog(m_test_logger, "测试后端的日志消息");
     
     // 检查后端是否收到消息
     auto& backend_messages = m_memory_backend->get_messages();
@@ -275,7 +312,7 @@ TEST_F(LogTest, LogBackend) {
     
     // 检查消息内容
     auto& msg = backend_messages.back();
-    EXPECT_EQ(mc::log::level::info, msg.m_level);
+    EXPECT_EQ(mc::log::level::info, msg.get_level());
     EXPECT_TRUE(message_contains(msg, "测试后端的日志消息"));
 }
 
@@ -292,13 +329,13 @@ TEST_F(LogTest, GlobalLogMacros) {
     test_global_logger.set_level(mc::log::level::trace);
     
     // 使用指定日志记录器的日志宏
-    MC_WLOG_INFO(test_global_logger, "这是一条全局信息日志");
-    MC_WLOG_DEBUG(test_global_logger, "这是一条全局调试日志");
-    MC_WLOG_WARN(test_global_logger, "这是一条全局警告日志");
+    mc_ilog(test_global_logger, "这是一条全局信息日志");
+    mc_dlog(test_global_logger, "这是一条全局调试日志");
+    mc_wlog(test_global_logger, "这是一条全局警告日志");
     
     // 使用结构化日志宏
-    MC_WLOG_INFO(test_global_logger, "用户 ${user} 登录", 
-        stream("user", "guest"));
+    mc_ilog(test_global_logger, "用户 ${user} 登录", 
+        ("user", "guest"));
     
     // 检查日志消息
     auto& messages = mem_appender->get_messages();
@@ -306,7 +343,7 @@ TEST_F(LogTest, GlobalLogMacros) {
     
     // 检查最后一条消息
     auto& last_msg = messages.back();
-    EXPECT_EQ(mc::log::level::info, last_msg.m_level);
+    EXPECT_EQ(mc::log::level::info, last_msg.get_level());
     EXPECT_TRUE(message_contains(last_msg, "用户 guest 登录"));
 }
 
@@ -321,16 +358,17 @@ TEST_F(LogTest, ComplexDataLogging) {
     });
     
     // 记录包含复杂数据的日志
-    MC_WLOG_INFO(m_test_logger, "用户信息: ${info}", 
-        stream("info", user_info));
+    mc_ilog(m_test_logger, "用户信息: ${info}", 
+        ("info", user_info));
     
     // 检查日志消息
     auto& messages = m_memory_appender->get_messages();
     ASSERT_FALSE(messages.empty());
     auto& msg = messages.back();
-    EXPECT_EQ(mc::log::level::info, msg.m_level);
+    EXPECT_EQ(mc::log::level::info, msg.get_level());
     EXPECT_TRUE(message_contains(msg, "用户信息:"));
     
     // 检查参数字典
-    EXPECT_TRUE(msg.m_args.contains("info"));
+    const auto& args = msg.get_args();
+    EXPECT_TRUE(args.contains("info"));
 } 

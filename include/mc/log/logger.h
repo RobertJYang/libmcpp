@@ -192,160 +192,46 @@ private:
 };
 
 /**
- * @brief 日志宏 - 跟踪级别
+ * @brief 基础日志宏 - 所有级别共用
  */
-#define MC_LOG_TRACE(LOGGER, ...) \
+#define MC_LOG_BASE(LOGGER, LEVEL, FORMAT, ...) \
     do { \
-        if (LOGGER.is_enabled(mc::log::level::trace)) { \
-            mc::log::message_stream stream(mc::log::level::trace, \
-                mc::log::context(__FILE__, __FUNCTION__, __LINE__)); \
-            stream << __VA_ARGS__; \
-            LOGGER.log(stream.get_message()); \
+        if (LOGGER.is_enabled(mc::log::level::LEVEL)) { \
+            LOGGER.log(mc::log::message(mc::log::level::LEVEL, \
+                mc::log::context(__FILE__, __FUNCTION__, __LINE__), \
+                FORMAT, mc::mutable_dict()__VA_ARGS__)); \
         } \
     } while (0)
+
+/**
+ * @brief 日志宏 - 跟踪级别
+ */
+#define MC_LOG_TRACE(LOGGER, FORMAT, ...) MC_LOG_BASE(LOGGER, trace, FORMAT, __VA_ARGS__)
 
 /**
  * @brief 日志宏 - 调试级别
  */
-#define MC_LOG_DEBUG(LOGGER, ...) \
-    do { \
-        if (LOGGER.is_enabled(mc::log::level::debug)) { \
-            mc::log::message_stream stream(mc::log::level::debug, \
-                mc::log::context(__FILE__, __FUNCTION__, __LINE__)); \
-            stream << __VA_ARGS__; \
-            LOGGER.log(stream.get_message()); \
-        } \
-    } while (0)
+#define MC_LOG_DEBUG(LOGGER, FORMAT, ...) MC_LOG_BASE(LOGGER, debug, FORMAT, __VA_ARGS__)
 
 /**
  * @brief 日志宏 - 信息级别
  */
-#define MC_LOG_INFO(LOGGER, ...) \
-    do { \
-        if (LOGGER.is_enabled(mc::log::level::info)) { \
-            mc::log::message_stream stream(mc::log::level::info, \
-                mc::log::context(__FILE__, __FUNCTION__, __LINE__)); \
-            stream << __VA_ARGS__; \
-            LOGGER.log(stream.get_message()); \
-        } \
-    } while (0)
+#define MC_LOG_INFO(LOGGER, FORMAT, ...) MC_LOG_BASE(LOGGER, info, FORMAT, __VA_ARGS__)
 
 /**
  * @brief 日志宏 - 警告级别
  */
-#define MC_LOG_WARN(LOGGER, ...) \
-    do { \
-        if (LOGGER.is_enabled(mc::log::level::warn)) { \
-            mc::log::message_stream stream(mc::log::level::warn, \
-                mc::log::context(__FILE__, __FUNCTION__, __LINE__)); \
-            stream << __VA_ARGS__; \
-            LOGGER.log(stream.get_message()); \
-        } \
-    } while (0)
+#define MC_LOG_WARN(LOGGER, FORMAT, ...) MC_LOG_BASE(LOGGER, warn, FORMAT, __VA_ARGS__)
 
 /**
  * @brief 日志宏 - 错误级别
  */
-#define MC_LOG_ERROR(LOGGER, ...) \
-    do { \
-        if (LOGGER.is_enabled(mc::log::level::error)) { \
-            mc::log::message_stream stream(mc::log::level::error, \
-                mc::log::context(__FILE__, __FUNCTION__, __LINE__)); \
-            stream << __VA_ARGS__; \
-            LOGGER.log(stream.get_message()); \
-        } \
-    } while (0)
+#define MC_LOG_ERROR(LOGGER, FORMAT, ...) MC_LOG_BASE(LOGGER, error, FORMAT, __VA_ARGS__)
 
 /**
  * @brief 日志宏 - 致命错误级别
  */
-#define MC_LOG_FATAL(LOGGER, ...) \
-    do { \
-        if (LOGGER.is_enabled(mc::log::level::fatal)) { \
-            mc::log::message_stream stream(mc::log::level::fatal, \
-                mc::log::context(__FILE__, __FUNCTION__, __LINE__)); \
-            stream << __VA_ARGS__; \
-            LOGGER.log(stream.get_message()); \
-        } \
-    } while (0)
-
-/**
- * @brief 结构化日志宏 - 跟踪级别
- */
-#define MC_WLOG_TRACE(LOGGER, FORMAT, ...) \
-    do { \
-        if (LOGGER.is_enabled(mc::log::level::trace)) { \
-            mc::log::message_stream stream(mc::log::level::trace, \
-                mc::log::context(__FILE__, __FUNCTION__, __LINE__), FORMAT); \
-            __VA_ARGS__; \
-            LOGGER.log(stream.get_message()); \
-        } \
-    } while (0)
-
-/**
- * @brief 结构化日志宏 - 调试级别
- */
-#define MC_WLOG_DEBUG(LOGGER, FORMAT, ...) \
-    do { \
-        if (LOGGER.is_enabled(mc::log::level::debug)) { \
-            mc::log::message_stream stream(mc::log::level::debug, \
-                mc::log::context(__FILE__, __FUNCTION__, __LINE__), FORMAT); \
-            __VA_ARGS__; \
-            LOGGER.log(stream.get_message()); \
-        } \
-    } while (0)
-
-/**
- * @brief 结构化日志宏 - 信息级别
- */
-#define MC_WLOG_INFO(LOGGER, FORMAT, ...) \
-    do { \
-        if (LOGGER.is_enabled(mc::log::level::info)) { \
-            mc::log::message_stream stream(mc::log::level::info, \
-                mc::log::context(__FILE__, __FUNCTION__, __LINE__), FORMAT); \
-            __VA_ARGS__; \
-            LOGGER.log(stream.get_message()); \
-        } \
-    } while (0)
-
-/**
- * @brief 结构化日志宏 - 警告级别
- */
-#define MC_WLOG_WARN(LOGGER, FORMAT, ...) \
-    do { \
-        if (LOGGER.is_enabled(mc::log::level::warn)) { \
-            mc::log::message_stream stream(mc::log::level::warn, \
-                mc::log::context(__FILE__, __FUNCTION__, __LINE__), FORMAT); \
-            __VA_ARGS__; \
-            LOGGER.log(stream.get_message()); \
-        } \
-    } while (0)
-
-/**
- * @brief 结构化日志宏 - 错误级别
- */
-#define MC_WLOG_ERROR(LOGGER, FORMAT, ...) \
-    do { \
-        if (LOGGER.is_enabled(mc::log::level::error)) { \
-            mc::log::message_stream stream(mc::log::level::error, \
-                mc::log::context(__FILE__, __FUNCTION__, __LINE__), FORMAT); \
-            __VA_ARGS__; \
-            LOGGER.log(stream.get_message()); \
-        } \
-    } while (0)
-
-/**
- * @brief 结构化日志宏 - 致命级别
- */
-#define MC_WLOG_FATAL(LOGGER, FORMAT, ...) \
-    do { \
-        if (LOGGER.is_enabled(mc::log::level::fatal)) { \
-            mc::log::message_stream stream(mc::log::level::fatal, \
-                mc::log::context(__FILE__, __FUNCTION__, __LINE__), FORMAT); \
-            __VA_ARGS__; \
-            LOGGER.log(stream.get_message()); \
-        } \
-    } while (0)
+#define MC_LOG_FATAL(LOGGER, FORMAT, ...) MC_LOG_BASE(LOGGER, fatal, FORMAT, __VA_ARGS__)
 
 } // namespace log
 } // namespace mc

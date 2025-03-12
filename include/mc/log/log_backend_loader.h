@@ -60,28 +60,42 @@ public:
         }
         
         // 获取创建函数
-        auto creator = reinterpret_cast<log_backend_creator>(dlsym(handle, "create_log_backend"));
+        auto creator = reinterpret_cast<log_backend_creator_c>(dlsym(handle, "create_log_backend_c"));
         if (!creator) {
             dlclose(handle);
             return nullptr;
         }
         
-        // 创建后端实例
-        auto backend = creator();
-        if (!backend) {
+        // 获取销毁函数
+        auto destroyer = reinterpret_cast<log_backend_destroyer_c>(dlsym(handle, "destroy_log_backend_c"));
+        if (!destroyer) {
             dlclose(handle);
             return nullptr;
         }
+        
+        // 创建后端实例
+        void* raw_ptr = creator();
+        if (!raw_ptr) {
+            dlclose(handle);
+            return nullptr;
+        }
+        
+        // 转换为 C++ 智能指针
+        auto shared_ptr_ptr = static_cast<std::shared_ptr<log_backend>*>(raw_ptr);
+        auto backend = *shared_ptr_ptr;
+        
+        // 存储库句柄和销毁函数
+        m_handles[lib_path] = std::make_pair(handle, destroyer);
+        m_raw_ptrs[lib_path] = raw_ptr;
         
         // 初始化后端
         if (!backend->init(config)) {
-            dlclose(handle);
+            unload(lib_path);
             return nullptr;
         }
         
-        // 保存后端和句柄
+        // 保存后端实例
         m_backends[lib_path] = backend;
-        m_handles[lib_path] = handle;
         
         return backend;
     }
@@ -92,17 +106,31 @@ public:
      * @param lib_path 动态库路径
      */
     void unload(const std::string& lib_path) {
-        auto it = m_backends.find(lib_path);
-        if (it != m_backends.end()) {
-            it->second->close();
-            m_backends.erase(it);
+        // 检查是否已加载
+        auto backend_it = m_backends.find(lib_path);
+        if (backend_it == m_backends.end()) {
+            return;
         }
         
+        // 关闭后端
+        backend_it->second->close();
+        
+        // 销毁 C++ 封装
         auto handle_it = m_handles.find(lib_path);
-        if (handle_it != m_handles.end()) {
-            dlclose(handle_it->second);
-            m_handles.erase(handle_it);
+        auto raw_ptr_it = m_raw_ptrs.find(lib_path);
+        if (handle_it != m_handles.end() && raw_ptr_it != m_raw_ptrs.end()) {
+            // 释放原始指针
+            auto& [handle, destroyer] = handle_it->second;
+            destroyer(raw_ptr_it->second);
+            
+            // 卸载库
+            dlclose(handle);
         }
+        
+        // 移除记录
+        m_backends.erase(backend_it);
+        m_handles.erase(lib_path);
+        m_raw_ptrs.erase(lib_path);
     }
     
     /**
@@ -113,9 +141,15 @@ public:
             pair.second->close();
         }
         
-        for (auto& pair : m_handles) {
-            dlclose(pair.second);
+        for (auto& [lib_path, handle_pair] : m_handles) {
+            auto& [handle, destroyer] = handle_pair;
+            destroyer(m_raw_ptrs[lib_path]);
+            dlclose(handle);
         }
+        
+        m_backends.clear();
+        m_handles.clear();
+        m_raw_ptrs.clear();
     }
     
 private:
@@ -123,8 +157,9 @@ private:
     log_backend_loader(const log_backend_loader&) = delete;
     log_backend_loader& operator=(const log_backend_loader&) = delete;
     
-    std::unordered_map<std::string, std::shared_ptr<log_backend>> m_backends; // 后端映射
-    std::unordered_map<std::string, void*> m_handles; // 动态库句柄映射
+    std::map<std::string, std::shared_ptr<log_backend>> m_backends;
+    std::map<std::string, std::pair<void*, log_backend_destroyer_c>> m_handles;
+    std::map<std::string, void*> m_raw_ptrs;
 };
 
 } // namespace log

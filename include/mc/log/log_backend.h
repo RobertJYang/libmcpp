@@ -66,7 +66,17 @@ public:
 };
 
 /**
- * @brief 日志后端创建函数类型
+ * @brief 日志后端创建函数类型（C 风格接口）
+ */
+using log_backend_creator_c = void* (*)();
+
+/**
+ * @brief 日志后端销毁函数类型（C 风格接口）
+ */
+using log_backend_destroyer_c = void (*)(void*);
+
+/**
+ * @brief 日志后端创建函数类型（C++ 风格接口，内部使用）
  */
 using log_backend_creator = std::shared_ptr<log_backend> (*)();
 
@@ -76,8 +86,14 @@ using log_backend_creator = std::shared_ptr<log_backend> (*)();
  * 用于在动态库中注册日志后端
  */
 #define MC_REGISTER_LOG_BACKEND(backend_class) \
-    extern "C" std::shared_ptr<mc::log::log_backend> create_log_backend() { \
-        return std::make_shared<backend_class>(); \
+    extern "C" void* create_log_backend_c() { \
+        auto ptr = std::make_shared<backend_class>(); \
+        return new std::shared_ptr<mc::log::log_backend>(ptr); \
+    } \
+    \
+    extern "C" void destroy_log_backend_c(void* ptr) { \
+        auto shared_ptr = static_cast<std::shared_ptr<mc::log::log_backend>*>(ptr); \
+        delete shared_ptr; \
     }
 
 } // namespace log

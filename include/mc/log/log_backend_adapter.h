@@ -41,7 +41,7 @@ public:
      * @param msg 日志消息
      */
     void append(const message& msg) override {
-        if (m_backend && static_cast<int>(msg.m_level) >= static_cast<int>(get_level())) {
+        if (m_backend && static_cast<int>(msg.get_level()) >= static_cast<int>(get_level())) {
             m_backend->write(msg);
         }
     }

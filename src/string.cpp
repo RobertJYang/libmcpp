@@ -375,7 +375,7 @@ static void resolve_fmt_key(std::string& result, std::string_view key, const dic
 }
 
 // 使用参数字典格式化字符串并追加到结果字符串中
-void format(std::string& result, std::string_view format_str, const dict& args) {
+void mc::string::format(std::string& result, std::string_view format_str, const dict& args) {
     if (format_str.empty()) {
         return;
     }
@@ -427,7 +427,7 @@ void format(std::string& result, std::string_view format_str, const dict& args) 
 }
 
 // 使用参数字典格式化字符串
-std::string format(std::string_view format_str, const dict& args) {
+std::string mc::string::format(std::string_view format_str, const dict& args) {
     if (format_str.empty()) {
         return std::string();
     }
@@ -438,7 +438,7 @@ std::string format(std::string_view format_str, const dict& args) {
     }
 
     std::string result;
-    format(result, format_str, args);
+    mc::string::format(result, format_str, args);
     return result;
 }
 

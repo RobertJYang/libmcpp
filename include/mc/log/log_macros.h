@@ -32,36 +32,20 @@ inline logger& default_logger() {
 } // namespace log
 } // namespace mc
 
-// 普通日志宏 - 使用默认日志记录器
-#define tlog(...) MC_LOG_TRACE(mc::log::default_logger(), __VA_ARGS__)
-#define dlog(...) MC_LOG_DEBUG(mc::log::default_logger(), __VA_ARGS__)
-#define ilog(...) MC_LOG_INFO(mc::log::default_logger(), __VA_ARGS__)
-#define wlog(...) MC_LOG_WARN(mc::log::default_logger(), __VA_ARGS__)
-#define elog(...) MC_LOG_ERROR(mc::log::default_logger(), __VA_ARGS__)
-#define flog(...) MC_LOG_FATAL(mc::log::default_logger(), __VA_ARGS__)
-
-// 结构化日志宏 - 使用默认日志记录器
-#define wtlog(FORMAT, ...) MC_WLOG_TRACE(mc::log::default_logger(), FORMAT, __VA_ARGS__)
-#define wdlog(FORMAT, ...) MC_WLOG_DEBUG(mc::log::default_logger(), FORMAT, __VA_ARGS__)
-#define wilog(FORMAT, ...) MC_WLOG_INFO(mc::log::default_logger(), FORMAT, __VA_ARGS__)
-#define wwlog(FORMAT, ...) MC_WLOG_WARN(mc::log::default_logger(), FORMAT, __VA_ARGS__)
-#define welog(FORMAT, ...) MC_WLOG_ERROR(mc::log::default_logger(), FORMAT, __VA_ARGS__)
-#define wflog(FORMAT, ...) MC_WLOG_FATAL(mc::log::default_logger(), FORMAT, __VA_ARGS__)
+// 日志宏 - 使用默认日志记录器
+#define tlog(FORMAT, ...) MC_LOG_TRACE(mc::log::default_logger(), FORMAT, __VA_ARGS__)
+#define dlog(FORMAT, ...) MC_LOG_DEBUG(mc::log::default_logger(), FORMAT, __VA_ARGS__)
+#define ilog(FORMAT, ...) MC_LOG_INFO(mc::log::default_logger(), FORMAT, __VA_ARGS__)
+#define wlog(FORMAT, ...) MC_LOG_WARN(mc::log::default_logger(), FORMAT, __VA_ARGS__)
+#define elog(FORMAT, ...) MC_LOG_ERROR(mc::log::default_logger(), FORMAT, __VA_ARGS__)
+#define flog(FORMAT, ...) MC_LOG_FATAL(mc::log::default_logger(), FORMAT, __VA_ARGS__)
 
 // 指定日志记录器的日志宏
-#define mc_tlog(LOGGER, ...) MC_LOG_TRACE(LOGGER, __VA_ARGS__)
-#define mc_dlog(LOGGER, ...) MC_LOG_DEBUG(LOGGER, __VA_ARGS__)
-#define mc_ilog(LOGGER, ...) MC_LOG_INFO(LOGGER, __VA_ARGS__)
-#define mc_wlog(LOGGER, ...) MC_LOG_WARN(LOGGER, __VA_ARGS__)
-#define mc_elog(LOGGER, ...) MC_LOG_ERROR(LOGGER, __VA_ARGS__)
-#define mc_flog(LOGGER, ...) MC_LOG_FATAL(LOGGER, __VA_ARGS__)
-
-// 指定日志记录器的结构化日志宏
-#define mc_wtlog(LOGGER, FORMAT, ...) MC_WLOG_TRACE(LOGGER, FORMAT, __VA_ARGS__)
-#define mc_wdlog(LOGGER, FORMAT, ...) MC_WLOG_DEBUG(LOGGER, FORMAT, __VA_ARGS__)
-#define mc_wilog(LOGGER, FORMAT, ...) MC_WLOG_INFO(LOGGER, FORMAT, __VA_ARGS__)
-#define mc_wwlog(LOGGER, FORMAT, ...) MC_WLOG_WARN(LOGGER, FORMAT, __VA_ARGS__)
-#define mc_welog(LOGGER, FORMAT, ...) MC_WLOG_ERROR(LOGGER, FORMAT, __VA_ARGS__)
-#define mc_wflog(LOGGER, FORMAT, ...) MC_WLOG_FATAL(LOGGER, FORMAT, __VA_ARGS__)
+#define mc_tlog(LOGGER, FORMAT, ...) MC_LOG_TRACE(LOGGER, FORMAT, __VA_ARGS__)
+#define mc_dlog(LOGGER, FORMAT, ...) MC_LOG_DEBUG(LOGGER, FORMAT, __VA_ARGS__)
+#define mc_ilog(LOGGER, FORMAT, ...) MC_LOG_INFO(LOGGER, FORMAT, __VA_ARGS__)
+#define mc_wlog(LOGGER, FORMAT, ...) MC_LOG_WARN(LOGGER, FORMAT, __VA_ARGS__)
+#define mc_elog(LOGGER, FORMAT, ...) MC_LOG_ERROR(LOGGER, FORMAT, __VA_ARGS__)
+#define mc_flog(LOGGER, FORMAT, ...) MC_LOG_FATAL(LOGGER, FORMAT, __VA_ARGS__)
 
 #endif // MC_LOG_MACROS_H 

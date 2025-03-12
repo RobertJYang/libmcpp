@@ -643,16 +643,6 @@ public:
     const entry& at(size_t index) const;
 
     /**
-     * @brief 获取键值对数量
-     */
-    using dict::size;
-
-    /**
-     * @brief 判断是否为空
-     */
-    using dict::empty;
-
-    /**
      * @brief 查找指定键的元素，返回迭代器
      * @param key 要查找的键
      * @return 指向找到元素的迭代器，如果不存在则返回 end()

@@ -20,7 +20,7 @@
 #include <mutex>
 #include <variant>
 
-#include "status.hpp"
+#include "status.h"
 
 namespace mc {
 namespace future {

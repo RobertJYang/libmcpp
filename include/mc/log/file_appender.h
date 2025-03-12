@@ -71,7 +71,7 @@ public:
      * @param msg 日志消息
      */
     void append(const message& msg) override {
-        if (static_cast<int>(msg.m_level) < static_cast<int>(m_config.m_level)) {
+        if (static_cast<int>(msg.get_level()) < static_cast<int>(m_config.m_level)) {
             return;
         }
         
@@ -79,7 +79,7 @@ public:
         if (m_config.m_formatter) {
             formatted_msg = m_config.m_formatter->format(msg);
         } else {
-            formatted_msg = msg.m_message;
+            formatted_msg = msg.get_formatted_message();
         }
         
         std::lock_guard<std::mutex> lock(m_mutex);

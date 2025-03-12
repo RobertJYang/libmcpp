@@ -15,9 +15,9 @@
 #include <thread>
 #include <variant>
 
-#include "mc/futures/exceptions.hpp"
-#include "mc/futures/state.hpp"
-#include "mc/futures/status.hpp"
+#include "mc/futures/exceptions.h"
+#include "mc/futures/state.h"
+#include "mc/futures/status.h"
 
 namespace mc {
 namespace future {
@@ -132,7 +132,7 @@ auto make_promise(Executor& executor, Allocator alloc = Allocator()) {
 } // namespace future
 } // namespace mc
 
-#include "mc/futures/detail/future_impl.hpp"
-#include "mc/futures/detail/promise_impl.hpp"
+#include "mc/futures/detail/future_impl.h"
+#include "mc/futures/detail/promise_impl.h"
 
 #endif // MC_FUTURE_H

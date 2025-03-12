@@ -8,8 +8,9 @@ src_files = [
   'mutable_dict.cpp',
   'typed_variant.cpp',
   'string.cpp',
-  # 'log/log_message.cpp',
-  # 'log/logger.cpp',
+  'log/log_message.cpp',
+  'log/logger.cpp',
+  'filesystem.cpp',
 ]
 
 # 创建共享库

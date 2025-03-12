@@ -15,6 +15,8 @@
 
 #include <mc/log/log_level.h>
 #include <mc/dict.h>
+#include <mc/variant.h>
+#include <mc/string.h>
 #include <chrono>
 #include <string>
 #include <vector>
@@ -24,6 +26,14 @@
 
 namespace mc {
 namespace log {
+
+/**
+ * @brief 将字典转换为字符串
+ * 
+ * @param d 字典
+ * @return std::string 字符串表示
+ */
+std::string dict_to_string(const dict& d);
 
 /**
  * @brief 日志上下文信息
@@ -41,13 +51,16 @@ struct context {
  * @brief 日志消息结构
  */
 class message {
-public:
+private:
     level                                  m_level;     // 日志级别
-    std::string                            m_message;   // 日志消息
+    mutable std::string                    m_message;   // 消息内容
     context                                m_context;   // 上下文信息
     std::chrono::system_clock::time_point  m_timestamp; // 时间戳
     dict                                   m_args;      // 参数字典
+    std::string                            m_format;    // 格式模板
+    mutable bool                           m_formatted; // 是否已格式化
     
+public:
     /**
      * @brief 构造函数
      * 
@@ -64,14 +77,127 @@ public:
           m_message(std::move(msg)), 
           m_context(std::move(ctx)),
           m_timestamp(std::chrono::system_clock::now()),
-          m_args(std::move(args)) {}
+          m_args(std::move(args)),
+          m_formatted(true) {}
     
     /**
-     * @brief 获取格式化的日志消息
+     * @brief 格式化构造函数
      * 
-     * @return std::string 格式化后的日志消息
+     * @param lvl 日志级别
+     * @param ctx 上下文信息
+     * @param fmt_template 格式模板
+     * @param args 参数字典
      */
-    std::string formatted_message() const;
+    message(level lvl, 
+            context ctx,
+            std::string fmt_template,
+            dict args)
+        : m_level(lvl), 
+          m_message(""),        // 初始为空，将在需要时格式化
+          m_context(std::move(ctx)),
+          m_timestamp(std::chrono::system_clock::now()),
+          m_args(std::move(args)),
+          m_format(std::move(fmt_template)),
+          m_formatted(false) {} // 标记为未格式化
+    
+    /**
+     * @brief 获取日志级别
+     * 
+     * @return level 日志级别
+     */
+    level get_level() const {
+        return m_level;
+    }
+    
+    /**
+     * @brief 获取上下文信息
+     * 
+     * @return const context& 上下文信息
+     */
+    const context& get_context() const {
+        return m_context;
+    }
+    
+    /**
+     * @brief 获取时间戳
+     * 
+     * @return const std::chrono::system_clock::time_point& 时间戳
+     */
+    const std::chrono::system_clock::time_point& get_timestamp() const {
+        return m_timestamp;
+    }
+    
+    /**
+     * @brief 获取参数字典
+     * 
+     * @return const dict& 参数字典
+     */
+    const dict& get_args() const {
+        return m_args;
+    }
+    
+    /**
+     * @brief 获取格式模板
+     * 
+     * @return const std::string& 格式模板
+     */
+    const std::string& get_format_template() const {
+        return m_format;
+    }
+    
+    /**
+     * @brief 获取消息内容
+     * 
+     * @return std::string 消息内容
+     */
+    std::string get_message() const {
+        if (!m_formatted && !m_format.empty()) {
+            // 如果未格式化且有格式模板，执行格式化
+            m_message = mc::format(m_format, m_args);
+            m_formatted = true;
+        }
+        return m_message;
+    }
+    
+    /**
+     * @brief 获取格式化后的消息（保持兼容性）
+     * 
+     * @return std::string 格式化后的消息
+     */
+    std::string get_formatted_message() const {
+        return get_message();
+    }
+    
+    /**
+     * @brief 获取结构化数据
+     * 
+     * @return dict 结构化数据
+     */
+    dict to_structured_data() const {
+        mc::mutable_dict result;
+        
+        // 基本元数据
+        result["level"] = static_cast<int>(m_level);
+        
+        // 上下文信息
+        mc::mutable_dict context_dict;
+        context_dict["file"] = m_context.m_file;
+        context_dict["function"] = m_context.m_function;
+        context_dict["line"] = m_context.m_line;
+        result["context"] = context_dict;
+        
+        // 消息内容
+        if (!m_format.empty()) {
+            result["message_template"] = m_format;
+            result["args"] = m_args;
+        }
+        
+        // 获取消息（如果需要会自动格式化）
+        result["message"] = get_message();
+        
+        // 直接返回，会自动调用转换操作符
+        return result;
+    }
 };
 
 /**
@@ -113,64 +239,17 @@ public:
 };
 
 /**
- * @brief 日志消息流
- * 
- * 用于构建结构化日志消息
+ * @brief 结构化日志消息格式化器
  */
-class message_stream {
+class structured_message_formatter : public message_formatter {
 public:
     /**
-     * @brief 构造函数
+     * @brief 格式化日志消息为结构化格式
      * 
-     * @param lvl 日志级别
-     * @param ctx 上下文信息
-     * @param format 格式化字符串
+     * @param msg 日志消息
+     * @return std::string 结构化格式的日志消息
      */
-    message_stream(level lvl, context ctx = context(), std::string format = "")
-        : m_level(lvl), m_context(std::move(ctx)), m_format(std::move(format)) {}
-    
-    /**
-     * @brief 获取日志消息
-     * 
-     * @return message 日志消息
-     */
-    message get_message() {
-        // 替换格式字符串中的占位符
-        std::string result = m_format;
-        for (const auto& pair : m_args) {
-            std::string placeholder = "${" + pair.first + "}";
-            size_t pos = result.find(placeholder);
-            if (pos != std::string::npos) {
-                result.replace(pos, placeholder.length(), pair.second.as_string());
-            }
-        }
-        
-        return message(m_level, result, m_context, m_args);
-    }
-    
-    /**
-     * @brief 添加参数
-     * 
-     * @param key 参数名
-     * @param value 参数值
-     * @return message_stream& 日志消息流
-     */
-    template<typename T>
-    message_stream& operator()(const char* key, T&& value) {
-        // 创建一个可变的dict
-        mc::mutable_dict mutable_args(m_args);
-        // 添加或更新键值对
-        mutable_args(key, std::forward<T>(value));
-        // 将可变dict转换回不可变dict
-        m_args = mutable_args;
-        return *this;
-    }
-    
-private:
-    level       m_level;    // 日志级别
-    context     m_context;  // 上下文信息
-    std::string m_format;   // 格式化字符串
-    dict        m_args;     // 参数字典
+    std::string format(const message& msg) const override;
 };
 
 } // namespace log

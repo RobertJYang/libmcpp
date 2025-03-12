@@ -6,13 +6,10 @@ test_files = [
   'test_event.cpp',
   'test_application.cpp',
   'test_priority_queue.cpp',
-  'string/test_string.cpp',
-  'string/test_format_benchmark.cpp',
   'exception/test_exception.cpp',
   'exception/test_exception_macros.cpp',
   'exception/test_exception_integration.cpp',
-  # 'test_log.cpp',
-  # 'log/test_log.cpp',
+  'log/test_log.cpp',
   'variant/test_variant_basic.cpp',
   'variant/test_variant_containers.cpp',
   'variant/test_variant_standard_containers.cpp',
@@ -26,14 +23,13 @@ test_files = [
   'dict/test_dict_operations.cpp',
   'dict/test_dict_conversion.cpp',
   'dict/test_dict_performance.cpp',
-  'reflect/test_reflect.cpp',
-  'reflect/test_nested_reflect.cpp'
+  'filesystem/test_filesystem.cpp',
 ]
 
 # 创建测试可执行文件
 test_exe = executable('libmcpp_test',
   test_files,
-  include_directories : [incdir, boost_incdir],
+  include_directories : incdir,
   dependencies : [libmcpp_dep, gtest_dep, boost_dep, gmock_dep],
   cpp_args : ['-Wno-self-assign-overloaded', '-Wno-unused-lambda-capture', '-Wno-self-move'],
   install : false

@@ -70,7 +70,7 @@ public:
         std::lock_guard<std::mutex> lock(m_mutex);
         
         if (m_file.is_open()) {
-            m_file << msg.formatted_message() << std::endl;
+            m_file << msg.get_message() << std::endl;
         }
     }
     
