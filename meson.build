@@ -19,11 +19,11 @@ endif
 
 # 包含目录
 incdir = include_directories('include')
-boost_incdir = include_directories('/opt/homebrew/opt/boost/include')
+boost_incdir = include_directories('/usr/include')
 
 # 子目录
 subdir('include')
 subdir('src')
 subdir('tests')
-subdir('examples')
+# subdir('examples')
 subdir('programs/devmon')
