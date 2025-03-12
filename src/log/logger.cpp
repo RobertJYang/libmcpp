@@ -11,7 +11,7 @@
  */
 
 #include <algorithm>
-#include <mc/log/console_appender.h>
+#include <mc/log/appenders/console_appender.h>
 #include <mc/log/logger.h>
 #include <mutex>
 #include <unordered_map>

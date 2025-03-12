@@ -13,7 +13,7 @@
 #ifndef MC_LOG_BACKEND_LOADER_H
 #define MC_LOG_BACKEND_LOADER_H
 
-#include <mc/log/log_backend.h>
+#include <mc/log/backends/log_backend.h>
 #include <string>
 #include <memory>
 #include <unordered_map>

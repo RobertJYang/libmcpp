@@ -14,7 +14,7 @@
 #define MC_LOG_LOGGER_H
 
 #include <mc/log/log_message.h>
-#include <mc/log/appender.h>
+#include <mc/log/appenders/appender.h>
 #include <memory>
 #include <string>
 #include <vector>

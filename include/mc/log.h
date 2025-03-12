@@ -15,17 +15,24 @@
 
 /**
  * @file log.h
- * @brief MC 日志系统
+ * @brief 日志模块入口头文件
  * 
- * 提供日志记录功能，支持不同级别的日志、格式化日志消息、多种日志输出目标等。
+ * 包含整个日志系统的所有组件和宏定义，提供对外统一接口
  */
 
+// 包含核心日志头文件（不包含宏定义，这些将在本文件中提供）
 #include <mc/log/log_level.h>
-#include <mc/log/log_message.h>
-#include <mc/log/appender.h>
-#include <mc/log/console_appender.h>
-#include <mc/log/file_appender.h>
+#include <mc/log/log_manager.h>
 #include <mc/log/logger.h>
+#include <mc/log/log_message.h>
+#include <mc/log/appenders/appender.h>
+#include <mc/log/appenders/console_appender.h>
+#include <mc/log/appenders/file_appender.h>
+#include <mc/log/backends/log_backend.h>
+#include <mc/log/backends/log_backend_adapter.h>
+#include <mc/log/backends/log_backend_loader.h>
+#include <mc/log/backends/file_log_backend.h>
+#include <mc/log/backends/elk_log_backend.h>
 
 namespace mc {
 
@@ -84,14 +91,39 @@ inline std::shared_ptr<log::file_appender> create_file_appender(
         log::file_appender_config(name, filename, lvl, truncate, flush_on_write));
 }
 
+namespace log {
+
+/**
+ * @brief 获取默认日志记录器
+ * 
+ * @return logger& 默认日志记录器引用
+ */
+inline logger& default_logger() {
+    static logger default_log = log_manager::instance().get_logger();
+    return default_log;
+}
+
+} // namespace log
 } // namespace mc
 
-// 全局日志宏
-#define MC_TRACE(...) MC_LOG_TRACE(mc::get_default_logger(), __VA_ARGS__)
-#define MC_DEBUG(...) MC_LOG_DEBUG(mc::get_default_logger(), __VA_ARGS__)
-#define MC_INFO(...)  MC_LOG_INFO(mc::get_default_logger(), __VA_ARGS__)
-#define MC_WARN(...)  MC_LOG_WARN(mc::get_default_logger(), __VA_ARGS__)
-#define MC_ERROR(...) MC_LOG_ERROR(mc::get_default_logger(), __VA_ARGS__)
-#define MC_FATAL(...) MC_LOG_FATAL(mc::get_default_logger(), __VA_ARGS__)
+// ======================================================================
+// 日志宏定义 - 这些是推荐的日志接口
+// ======================================================================
+
+// 使用指定日志记录器的日志宏
+#define mc_tlog(LOGGER, FORMAT, ...) MC_LOG_TRACE(LOGGER, FORMAT, __VA_ARGS__)
+#define mc_dlog(LOGGER, FORMAT, ...) MC_LOG_DEBUG(LOGGER, FORMAT, __VA_ARGS__)
+#define mc_ilog(LOGGER, FORMAT, ...) MC_LOG_INFO(LOGGER, FORMAT, __VA_ARGS__)
+#define mc_wlog(LOGGER, FORMAT, ...) MC_LOG_WARN(LOGGER, FORMAT, __VA_ARGS__)
+#define mc_elog(LOGGER, FORMAT, ...) MC_LOG_ERROR(LOGGER, FORMAT, __VA_ARGS__)
+#define mc_flog(LOGGER, FORMAT, ...) MC_LOG_FATAL(LOGGER, FORMAT, __VA_ARGS__)
+
+// 使用默认日志记录器的全局日志宏
+#define tlog(FORMAT, ...) MC_LOG_TRACE(mc::log::default_logger(), FORMAT, __VA_ARGS__)
+#define dlog(FORMAT, ...) MC_LOG_DEBUG(mc::log::default_logger(), FORMAT, __VA_ARGS__)
+#define ilog(FORMAT, ...) MC_LOG_INFO(mc::log::default_logger(), FORMAT, __VA_ARGS__)
+#define wlog(FORMAT, ...) MC_LOG_WARN(mc::log::default_logger(), FORMAT, __VA_ARGS__)
+#define elog(FORMAT, ...) MC_LOG_ERROR(mc::log::default_logger(), FORMAT, __VA_ARGS__)
+#define flog(FORMAT, ...) MC_LOG_FATAL(mc::log::default_logger(), FORMAT, __VA_ARGS__)
 
 #endif // MC_LOG_H 

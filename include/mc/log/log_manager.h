@@ -14,9 +14,9 @@
 #define MC_LOG_MANAGER_H
 
 #include <mc/log/logger.h>
-#include <mc/log/log_backend.h>
-#include <mc/log/log_backend_loader.h>
-#include <mc/log/log_backend_adapter.h>
+#include <mc/log/backends/log_backend.h>
+#include <mc/log/backends/log_backend_loader.h>
+#include <mc/log/backends/log_backend_adapter.h>
 #include <string>
 #include <memory>
 #include <unordered_map>

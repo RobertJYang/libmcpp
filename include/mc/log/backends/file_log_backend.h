@@ -13,7 +13,7 @@
 #ifndef MC_FILE_LOG_BACKEND_H
 #define MC_FILE_LOG_BACKEND_H
 
-#include <mc/log/log_backend.h>
+#include <mc/log/backends/log_backend.h>
 #include <fstream>
 #include <mutex>
 #include <string>

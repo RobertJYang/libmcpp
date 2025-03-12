@@ -13,8 +13,8 @@
 #ifndef MC_LOG_BACKEND_ADAPTER_H
 #define MC_LOG_BACKEND_ADAPTER_H
 
-#include <mc/log/appender.h>
-#include <mc/log/log_backend.h>
+#include <mc/log/appenders/appender.h>
+#include <mc/log/backends/log_backend.h>
 #include <memory>
 
 namespace mc {

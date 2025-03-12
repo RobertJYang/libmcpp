@@ -13,7 +13,7 @@
 #ifndef MC_LOG_ELK_LOG_BACKEND_H
 #define MC_LOG_ELK_LOG_BACKEND_H
 
-#include <mc/log/log_backend.h>
+#include <mc/log/backends/log_backend.h>
 #include <mc/log/log_message.h>
 #include <string>
 #include <memory>
@@ -46,14 +46,27 @@ public:
      * @param config ELK 配置
      */
     explicit elk_log_backend(elk_backend_config config = elk_backend_config())
-        : m_config(std::move(config)) {}
+        : m_config(std::move(config)), m_level(level::info), m_name("elk") {}
     
     /**
-     * @brief 处理日志消息
+     * @brief 初始化日志后端
+     * 
+     * @param config 配置字符串，JSON格式
+     * @return bool 初始化是否成功
+     */
+    bool init(const std::string& config) override {
+        // 解析JSON配置，设置ELK连接参数
+        // 这里简单实现，实际应用中需要使用JSON解析库
+        // TODO: 实现JSON配置解析
+        return true;
+    }
+    
+    /**
+     * @brief 写入日志消息
      * 
      * @param msg 日志消息
      */
-    void process(const message& msg) override {
+    void write(const message& msg) override {
         // 如果消息级别低于配置的级别，则跳过
         if (msg.get_level() < m_level) {
             return;
@@ -83,17 +96,37 @@ public:
             elk_data["message"] = msg.get_formatted_message();
             
             // 关键：保留原始参数
-            mc::mutable_dict params;
-            for (const auto& pair : msg.get_args()) {
-                params[pair.first] = pair.second;
-            }
-            elk_data["params"] = params;
+            elk_data["params"] = msg.get_args();
         } else {
             elk_data["message"] = msg.get_message();
         }
         
         // 发送到ELK
         send_to_elk(elk_data);
+    }
+    
+    /**
+     * @brief 刷新日志缓冲
+     */
+    void flush() override {
+        // ELK通常是实时发送的，不需要额外的刷新逻辑
+    }
+    
+    /**
+     * @brief 关闭日志后端
+     */
+    void close() override {
+        // 关闭与ELK的连接
+        // TODO: 实现连接关闭逻辑
+    }
+    
+    /**
+     * @brief 获取后端名称
+     * 
+     * @return std::string 后端名称
+     */
+    std::string name() const override {
+        return m_name;
     }
     
     /**
@@ -105,8 +138,28 @@ public:
         m_config = std::move(config);
     }
     
+    /**
+     * @brief 设置日志级别
+     * 
+     * @param lvl 日志级别
+     */
+    void set_level(level lvl) {
+        m_level = lvl;
+    }
+    
+    /**
+     * @brief 设置后端名称
+     * 
+     * @param name 后端名称
+     */
+    void set_name(const std::string& name) {
+        m_name = name;
+    }
+    
 private:
     elk_backend_config m_config; // ELK 配置
+    level m_level;              // 日志级别
+    std::string m_name;         // 后端名称
     
     /**
      * @brief 发送数据到 ELK
@@ -123,6 +176,18 @@ private:
         // TODO: 实现实际的 ELK 连接和数据发送
         // 例如使用 HTTP POST 请求发送到 Elasticsearch
         // 或者使用 filebeat/logstash 接口
+    }
+    
+    /**
+     * @brief 将字典转换为字符串
+     * 
+     * @param dict 字典
+     * @return std::string JSON字符串
+     */
+    std::string dict_to_string(const dict& dict) {
+        // 简单实现，实际应用中需要使用JSON库
+        // TODO: 实现JSON序列化
+        return "{}";
     }
 };
 

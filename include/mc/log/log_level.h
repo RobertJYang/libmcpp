@@ -55,4 +55,4 @@ inline std::string to_string(level lvl) {
 } // namespace log
 } // namespace mc
 
-#endif // MC_LOG_LEVEL_H 
+#endif // MC_LOG_CORE_LEVEL_H 

@@ -11,10 +11,7 @@
 */
 
 #include <gtest/gtest.h>
-#include <mc/log/log_manager.h>
-#include <mc/log/log_macros.h>
-#include <mc/log/console_appender.h>
-#include <mc/log/file_log_backend.h>
+#include <mc/log.h>
 #include <mc/filesystem.h>
 #include <mc/dict.h>
 #include <fstream>

@@ -13,7 +13,7 @@
 #ifndef MC_LOG_FILE_APPENDER_H
 #define MC_LOG_FILE_APPENDER_H
 
-#include <mc/log/appender.h>
+#include <mc/log/appenders/appender.h>
 #include <fstream>
 #include <mutex>
 #include <string>
