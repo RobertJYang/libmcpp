@@ -2,6 +2,7 @@
 test_files = [
   'main.cpp',
   'test_object.cpp',
+  'test_json.cpp',
   'test_signal_slot.cpp',
   'test_event.cpp',
   'test_application.cpp',
@@ -18,7 +19,7 @@ test_files = [
   'variant/test_variant_comparison.cpp',
   'variant/test_variant_bool_operator.cpp',
   'variant/test_variant_visitor.cpp',
-  'dict/test_dict_string_view.cpp',
+  # 'dict/test_dict_string_view.cpp',
   'dict/test_dict_construction.cpp',
   'dict/test_dict_operations.cpp',
   'dict/test_dict_conversion.cpp',

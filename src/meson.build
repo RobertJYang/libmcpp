@@ -11,6 +11,7 @@ src_files = [
   'log/log_message.cpp',
   'log/logger.cpp',
   'filesystem.cpp',
+  'json.cpp'
 ]
 
 # 创建共享库
