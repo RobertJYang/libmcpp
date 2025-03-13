@@ -33,6 +33,24 @@ namespace mc {
 namespace reflect {
 
 /**
+ * @brief 定义类的反射信息
+ */
+#define MC_REFLECT(TYPE, MEMBERS)                                                                  \
+    MC_REFLECT_BEGIN(TYPE)                                                                         \
+    BOOST_PP_SEQ_FOR_EACH(MC_REFLECT_MEMBER, TYPE, MEMBERS)                                        \
+    MC_REFLECT_END(TYPE)
+
+/**
+ * @brief 定义枚举的反射信息
+ */
+#define MC_REFLECT_ENUM(TYPE, VALUES)                                                              \
+    MC_REFLECT_ENUM_BEGIN(TYPE)                                                                    \
+    BOOST_PP_SEQ_FOR_EACH(MC_REFLECT_ENUM_VALUE, TYPE, VALUES)                                     \
+    MC_REFLECT_ENUM_END(TYPE)                                                                      \
+    BOOST_PP_SEQ_FOR_EACH(MC_REFLECT_ENUM_FROM_STRING, TYPE, VALUES)                               \
+    MC_REFLECT_ENUM_FROM_STRING_END(TYPE)
+
+/**
  * @brief 检查类型是否可反射
  *
  * @tparam T 要检查的类型

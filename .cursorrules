@@ -104,3 +104,30 @@
 - 头文件保护使用 #ifndef/#define/#endif 形式，严禁使用 #pragma once
 - 头文件保护的宏名使用项目前缀（MC_）加上头文件路径的大写形式，例如 include/mc/variant.h 应使用 MC_VARIANT_H
 - 头文件保护的宏名应使用项目前缀（MC_）加上头文件路径的大写形式，例如 include/mc/variant.h 应使用 MC_VARIANT_H
+
+14. 异常
+- 异常的构造优先使用 MC_MAKE_EXCEPTION 宏，而不是直接构造
+- 异常的构造优先使用 MC_THROW 宏，而不是直接抛出
+- 异常的消息格式，优先使用 ${key} 而不是 %s
+例如：
+MC_THROW(mc::bad_cast_exception, "类型转换异常: 期望${expected}, 实际${actual}",
+         ("expected", "int")("actual", "bool"));
+
+15. 反射
+- 反射的宏定义使用 MC_REFLECT 宏，而不是直接定义
+- 反射的宏定义使用 MC_REFLECT_ENUM 宏，而不是直接定义
+
+16. 日志
+- 日志的宏定义使用 tlog 宏，而不是直接定义
+- 日志的宏定义使用 dlog 宏，而不是直接定义
+- 日志的宏定义使用 ilog 宏，而不是直接定义
+- 日志的宏定义使用 wlog 宏，而不是直接定义
+- 日志的宏定义使用 elog 宏，而不是直接定义
+- 日志的宏定义使用 flog 宏，而不是直接定义
+- 日志格式化使用 ${key} 而不是 %s
+例如：
+ilog("${host} ${port}", ("host", "127.0.0.1")("post", "8080"));
+- 构造日志消息mc::log::message 使用 MC_MAKE_LOG_MESSAGE 宏，而不是直接构造
+例如：
+MC_MAKE_LOG_MESSAGE(info, "类型转换异常: 期望${expected}, 实际${actual}",
+         ("expected", "int")("actual", "bool"));

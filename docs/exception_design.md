@@ -39,7 +39,7 @@ enum exception_code {
 
 ```cpp
 struct log_message {
-    log_level                    m_level;
+    mc::log::level                    m_level;
     std::string                  m_message;
     std::string                  m_file;
     uint32_t                     m_line;
@@ -67,8 +67,8 @@ public:
     void append_log(log_message msg);
     
     // 获取异常信息的字符串表示
-    std::string to_detail_string(log_level ll = log_level::all) const;
-    std::string to_string(log_level ll = log_level::info) const;
+    std::string to_detail_string(mc::log::level ll = mc::log::level::all) const;
+    std::string to_string(mc::log::level ll = mc::log::level::info) const;
     std::string top_message() const;
     
     // 动态异常处理
@@ -149,7 +149,7 @@ public:
         code_value = MY_EXCEPTION_CODE, // 自定义异常代码
     };
     
-    my_exception(mc::log_message&& msg = mc::log_message(mc::log_level::error, "我的异常"))
+    my_exception(mc::log_message&& msg = mc::log_message(mc::mc::log::level::error, "我的异常"))
         : exception(std::move(msg), code_value, "my_exception", "我的异常描述")
     {
     }
@@ -192,7 +192,7 @@ mc::exception_factory::instance().register_exception<my_exception>();
 MC_THROW(my_exception, "发生了错误");
 
 // 或者直接创建异常对象
-mc::log_message msg(mc::log_level::error, "详细错误信息", __FILE__, __LINE__);
+mc::log_message msg(mc::mc::log::level::error, "详细错误信息", __FILE__, __LINE__);
 throw my_exception(std::move(msg));
 ```
 

@@ -111,9 +111,6 @@ private:
     std::mutex m_mutex;       // 互斥锁
 };
 
-// 注册日志后端
-MC_REGISTER_LOG_BACKEND(file_log_backend)
-
 } // namespace log
 } // namespace mc
 

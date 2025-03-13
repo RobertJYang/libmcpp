@@ -23,7 +23,7 @@ public:
         code_value = 200, // 自定义异常代码
     };
     
-    config_exception(mc::log_message&& msg = mc::log_message(mc::log_level::error, "配置错误"))
+    config_exception(mc::log_message&& msg = mc::log_message(mc::mc::log::level::error, "配置错误"))
         : exception(std::move(msg), code_value, "config_error", "配置文件错误")
     {
     }
@@ -64,7 +64,7 @@ void read_config_file(const std::string& filename) {
             size_t pos = line.find('=');
             if (pos == std::string::npos) {
                 // 使用解析错误异常
-                mc::log_message msg(mc::log_level::error, 
+                mc::log_message msg(mc::mc::log::level::error, 
                                    "配置行格式错误，缺少'='符号", 
                                    filename, 
                                    line_number);

@@ -20,6 +20,7 @@
 #include <memory>
 #include <vector>
 #include <regex>
+#include "../common/test_log_backend.h"
 
 // 测试用的日志追加器，将日志消息存储在内存中
 class memory_appender : public mc::log::appender {
@@ -83,88 +84,45 @@ private:
 class LogTest : public ::testing::Test {
 protected:
     void SetUp() override {
-        // 创建内存追加器
-        m_memory_appender = std::make_shared<memory_appender>();
+        // 创建内存日志追加器
+        m_memory_appender = std::make_shared<mc::test::memory_appender>();
         
-        // 创建内存后端
-        m_memory_backend = std::make_shared<memory_backend>();
-        m_memory_backend->init("test_config");
+        // 创建内存日志后端
+        m_memory_backend = std::make_shared<mc::test::memory_backend>();
+        m_memory_backend->init("memory");
         
         // 创建后端适配器
-        m_backend_adapter = mc::log::log_manager::instance().create_backend_adapter(m_memory_backend);
+        m_backend_adapter = std::make_shared<mc::log::appender>(
+            mc::log::appender_config("memory_backend", mc::log::level::trace));
         
-        // 创建测试日志记录器
-        m_test_logger = mc::log::log_manager::instance().get_logger("test_logger");
+        // 创建测试日志器
+        m_test_logger = mc::log::logger("test_logger");
         m_test_logger.add_appender(m_memory_appender);
         m_test_logger.add_appender(m_backend_adapter);
-        m_test_logger.set_level(mc::log::level::trace);
     }
     
     void TearDown() override {
-        // 清理资源
-        m_test_logger.remove_appender("memory");
-        if (m_backend_adapter) {
-            m_test_logger.remove_appender(m_memory_backend->name());
-        }
-        
-        // 清空消息
-        if (m_memory_appender) {
-            m_memory_appender->clear();
-        }
-        if (m_memory_backend) {
-            m_memory_backend->clear();
-        }
-        
-        // 重置智能指针
-        m_backend_adapter.reset();
-        m_memory_appender.reset();
-        m_memory_backend.reset();
+        m_test_logger.remove_all_appenders();
+        m_memory_appender->clear();
+        m_memory_backend->clear();
     }
     
-    // 辅助方法：检查日志消息是否包含指定文本
     bool message_contains(const mc::log::message& msg, const std::string& text) {
-        // 先检查原始消息
-        if (msg.get_message().find(text) != std::string::npos) {
-            return true;
-        }
-        
-        // 检查上下文信息
-        const auto& ctx = msg.get_context();
-        if (ctx.m_file.find(text) != std::string::npos ||
-            ctx.m_function.find(text) != std::string::npos) {
-            return true;
-        }
-        
-        // 格式化后再检查
-        static auto formatter = std::make_shared<mc::log::default_message_formatter>();
-        std::string formatted_msg = formatter->format(msg);
-        return formatted_msg.find(text) != std::string::npos;
+        return msg.message().find(text) != std::string::npos;
     }
     
-    // 辅助方法：检查日志消息是否匹配正则表达式
     bool message_matches(const mc::log::message& msg, const std::string& pattern) {
         std::regex regex(pattern);
-        
-        // 先检查原始消息
-        if (std::regex_search(msg.get_message(), regex)) {
-            return true;
-        }
-        
-        // 格式化后再检查
-        static auto formatter = std::make_shared<mc::log::default_message_formatter>();
-        std::string formatted_msg = formatter->format(msg);
-        return std::regex_search(formatted_msg, regex);
+        return std::regex_search(msg.message(), regex);
     }
     
-    // 辅助方法：获取最后一条日志消息
     mc::log::message get_last_message() {
-        auto& messages = m_memory_appender->get_messages();
-        EXPECT_FALSE(messages.empty());
-        return messages.back();
+        const auto& messages = m_memory_appender->messages();
+        return messages.empty() ? mc::log::message() : messages.back();
     }
     
-    std::shared_ptr<memory_appender> m_memory_appender;
-    std::shared_ptr<memory_backend> m_memory_backend;
+    std::shared_ptr<mc::test::memory_appender> m_memory_appender;
+    std::shared_ptr<mc::test::memory_backend> m_memory_backend;
     std::shared_ptr<mc::log::appender> m_backend_adapter;
     mc::log::logger m_test_logger;
 };

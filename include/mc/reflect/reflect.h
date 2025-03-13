@@ -81,14 +81,6 @@
     } // namespace mc
 
 /**
- * @brief 定义类的反射信息
- */
-#define MC_REFLECT(TYPE, MEMBERS)                                                                  \
-    MC_REFLECT_BEGIN(TYPE)                                                                         \
-    BOOST_PP_SEQ_FOR_EACH(MC_REFLECT_MEMBER, TYPE, MEMBERS)                                        \
-    MC_REFLECT_END(TYPE)
-
-/**
  * @brief 开始定义枚举的反射信息
  */
 #define MC_REFLECT_ENUM_BEGIN(TYPE)                                                                \
@@ -138,15 +130,6 @@
     ;                                                                                              \
     } // namespace mc
 
-/**
- * @brief 定义枚举的反射信息
- */
-#define MC_REFLECT_ENUM(TYPE, VALUES)                                                              \
-    MC_REFLECT_ENUM_BEGIN(TYPE)                                                                    \
-    BOOST_PP_SEQ_FOR_EACH(MC_REFLECT_ENUM_VALUE, TYPE, VALUES)                                     \
-    MC_REFLECT_ENUM_END(TYPE)                                                                      \
-    BOOST_PP_SEQ_FOR_EACH(MC_REFLECT_ENUM_FROM_STRING, TYPE, VALUES)                               \
-    MC_REFLECT_ENUM_FROM_STRING_END(TYPE)
 namespace mc {
 namespace reflect {
 

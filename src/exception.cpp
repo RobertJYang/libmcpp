@@ -1,20 +1,20 @@
 /*
-* Copyright (c) 2024 Huawei Technologies Co., Ltd.
-* openUBMC is licensed under Mulan PSL v2.
-* You can use this software according to the terms and conditions of the Mulan PSL v2.
-* You may obtain a copy of Mulan PSL v2 at:
-*         http://license.coscl.org.cn/MulanPSL2
-* THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
-* EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
-* MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
-* See the Mulan PSL v2 for more details.
-*/
+ * Copyright (c) 2024 Huawei Technologies Co., Ltd.
+ * openUBMC is licensed under Mulan PSL v2.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *         http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
+ */
 
-#include <mc/exception.h>
-#include <sstream>
+#include <ctime>
 #include <iomanip>
 #include <iostream>
-#include <ctime>
+#include <mc/exception.h>
+#include <sstream>
 
 namespace mc {
 
@@ -22,15 +22,15 @@ namespace detail {
 
 /**
  * @brief 异常实现类
- * 
+ *
  * 存储异常的详细信息
  */
 class exception_impl {
 public:
-    std::string     m_name;       // 异常名称
-    std::string     m_what;       // 异常描述
-    int64_t         m_code;       // 异常代码
-    log_messages    m_logs;       // 日志消息列表
+    std::string m_name;   // 异常名称
+    std::string m_what;   // 异常描述
+    int64_t m_code;       // 异常代码
+    log::messages m_logs; // 日志消息列表
 };
 
 } // namespace detail
@@ -38,165 +38,166 @@ public:
 // 异常基类实现
 
 exception::exception(int64_t code, const std::string& name_value, const std::string& what_value)
-    : m_impl(new detail::exception_impl())
-{
+    : m_impl(new detail::exception_impl()) {
     m_impl->m_name = name_value;
     m_impl->m_what = what_value;
     m_impl->m_code = code;
 }
 
-exception::exception(log_message&& msg, int64_t code, const std::string& name_value, const std::string& what_value)
-    : exception(code, name_value, what_value)
-{
+exception::exception(mc::log::message&& msg, int64_t code, const std::string& name_value,
+                     const std::string& what_value)
+    : exception(code, name_value, what_value) {
     m_impl->m_logs.emplace_back(std::move(msg));
 }
 
-exception::exception(log_messages&& msgs, int64_t code, const std::string& name_value, const std::string& what_value)
-    : exception(code, name_value, what_value)
-{
+exception::exception(mc::log::messages&& msgs, int64_t code, const std::string& name_value,
+                     const std::string& what_value)
+    : exception(code, name_value, what_value) {
     m_impl->m_logs = std::move(msgs);
 }
 
-exception::exception(const log_messages& msgs, int64_t code, const std::string& name_value, const std::string& what_value)
-    : exception(code, name_value, what_value)
-{
+exception::exception(const mc::log::messages& msgs, int64_t code, const std::string& name_value,
+                     const std::string& what_value)
+    : exception(code, name_value, what_value) {
     m_impl->m_logs = msgs;
 }
 
-exception::exception(const exception& e)
-    : m_impl(new detail::exception_impl(*e.m_impl))
-{
+exception::exception(const exception& e) : m_impl(new detail::exception_impl(*e.m_impl)) {
 }
 
-exception::exception(exception&& e)
-    : m_impl(std::move(e.m_impl))
-{
+exception::exception(exception&& e) : m_impl(std::move(e.m_impl)) {
 }
 
-exception::~exception()
-{
+exception::~exception() {
 }
 
-int64_t exception::code() const noexcept
-{
+int64_t exception::code() const noexcept {
     return m_impl->m_code;
 }
 
-const char* exception::name() const noexcept
-{
+const char* exception::name() const noexcept {
     return m_impl->m_name.c_str();
 }
 
-const char* exception::what() const noexcept
-{
+const char* exception::what() const noexcept {
     return m_impl->m_what.c_str();
 }
 
-void exception::append_log(log_message msg)
-{
+void exception::append_log(mc::log::message msg) {
     m_impl->m_logs.emplace_back(std::move(msg));
 }
 
-std::string exception::to_detail_string(log_level ll) const
-{
+std::string exception::to_detail_string(mc::log::level ll) const {
     std::stringstream ss;
     ss << m_impl->m_code << " " << m_impl->m_name << ": " << m_impl->m_what << "\n";
-    
+
     for (const auto& log : m_impl->m_logs) {
         // 根据日志级别过滤
-        if (static_cast<int>(log.m_level) < static_cast<int>(ll)) {
+        if (static_cast<int>(log.get_level()) < static_cast<int>(ll)) {
             continue;
         }
-        
+
         // 格式化时间戳
-        auto time_t = std::chrono::system_clock::to_time_t(log.m_timestamp);
+        auto time_t = std::chrono::system_clock::to_time_t(log.get_timestamp());
         auto tm = std::localtime(&time_t);
-        
+
         ss << std::put_time(tm, "%Y-%m-%d %H:%M:%S") << " ";
-        
+
         // 添加日志级别
-        switch (log.m_level) {
-            case log_level::debug: ss << "DEBUG "; break;
-            case log_level::info:  ss << "INFO  "; break;
-            case log_level::warn:  ss << "WARN  "; break;
-            case log_level::error: ss << "ERROR "; break;
-            default:               ss << "      "; break;
+        switch (log.get_level()) {
+        case mc::log::level::debug:
+            ss << "DEBUG ";
+            break;
+        case mc::log::level::info:
+            ss << "INFO  ";
+            break;
+        case mc::log::level::warn:
+            ss << "WARN  ";
+            break;
+        case mc::log::level::error:
+            ss << "ERROR ";
+            break;
+        default:
+            ss << "      ";
+            break;
         }
-        
+
         // 添加文件和行号信息
-        if (!log.m_file.empty()) {
-            ss << log.m_file << ":" << log.m_line << " ";
+        auto ctx = log.get_context();
+        if (!ctx.m_file.empty()) {
+            ss << ctx.m_file << ":" << ctx.m_line << " ";
         }
-        
+
         // 添加日志消息
-        ss << log.m_message << "\n";
+        ss << log.get_message() << "\n";
     }
-    
+
     return ss.str();
 }
 
-std::string exception::to_string(log_level ll) const
-{
+std::string exception::to_string(mc::log::level ll) const {
     std::stringstream ss;
     ss << m_impl->m_name << ": " << m_impl->m_what;
-    
+
     // 只显示最后一条日志消息
     if (!m_impl->m_logs.empty()) {
         const auto& log = m_impl->m_logs.back();
-        if (static_cast<int>(log.m_level) >= static_cast<int>(ll)) {
-            ss << " (" << log.m_message;
-            
+        if (static_cast<int>(log.get_level()) >= static_cast<int>(ll)) {
+            ss << " (" << log.get_message();
+
             // 添加文件名和行号信息
-            if (!log.m_file.empty()) {
-                ss << " at " << log.m_file;
-                if (log.m_line > 0) {
-                    ss << ":" << log.m_line;
+            auto ctx = log.get_context();
+            if (!ctx.m_file.empty()) {
+                ss << " at " << ctx.m_file;
+                if (ctx.m_line > 0) {
+                    ss << ":" << ctx.m_line;
                 }
             }
-            
+
             ss << ")";
         }
     }
-    
+
     return ss.str();
 }
 
-std::string exception::top_message() const
-{
+std::string exception::top_message() const {
     if (m_impl->m_logs.empty()) {
         return m_impl->m_what;
     }
-    
-    return m_impl->m_logs.back().m_message;
+
+    return m_impl->m_logs.back().get_message();
 }
 
-void exception::dynamic_rethrow_exception() const
-{
+void exception::dynamic_rethrow_exception() const {
     throw *this;
 }
 
-std::shared_ptr<exception> exception::dynamic_copy_exception() const
-{
+std::shared_ptr<exception> exception::dynamic_copy_exception() const {
     return std::make_shared<exception>(*this);
+}
+
+const mc::log::messages &exception::messages() const {
+    return m_impl->m_logs;
 }
 
 // 未处理异常实现
 
-unhandled_exception::unhandled_exception(log_message&& msg, std::exception_ptr e)
-    : exception(std::move(msg), external_error_code, "unhandled", "未处理的异常"),
+unhandled_exception::unhandled_exception(mc::log::message&& msg, std::exception_ptr e)
+    : exception(std::move(msg), unhandled_exception_code, "unhandled", "未处理的异常"),
       m_inner(e)
 {
 }
 
-unhandled_exception::unhandled_exception(log_messages msgs)
-    : exception(std::move(msgs), external_error_code, "unhandled", "未处理的异常")
+unhandled_exception::unhandled_exception(mc::log::messages msgs)
+    : exception(std::move(msgs), unhandled_exception_code, "unhandled", "未处理的异常")
 {
 }
 
 unhandled_exception::unhandled_exception(const exception& e)
     : exception(e)
 {
-    m_impl->m_code = external_error_code;
+    m_impl->m_code = unhandled_exception_code;
     m_impl->m_name = "unhandled";
     m_impl->m_what = "未处理的异常";
 }
@@ -221,48 +222,35 @@ std::shared_ptr<exception> unhandled_exception::dynamic_copy_exception() const
 
 // 标准异常包装类实现
 
-std_exception_wrapper::std_exception_wrapper(
-    log_message&& msg,
-    std::exception_ptr e,
-    const std::string& name_value,
-    const std::string& what_value)
-    : exception(std::move(msg), system_error_code, name_value, what_value),
-      m_inner(e)
-{
+std_exception_wrapper::std_exception_wrapper(mc::log::message&& msg, std::exception_ptr e,
+                                             const std::string& name_value,
+                                             const std::string& what_value)
+    : exception(std::move(msg), system_error_code, name_value, what_value), m_inner(e) {
 }
 
-std::exception_ptr std_exception_wrapper::get_inner_exception() const
-{
+std::exception_ptr std_exception_wrapper::get_inner_exception() const {
     return m_inner;
 }
 
-std_exception_wrapper std_exception_wrapper::from_current_exception(const std::exception& e)
-{
-    return std_exception_wrapper(
-        log_message(log_level::error, e.what()),
-        std::current_exception(),
-        "std_exception",
-        e.what()
-    );
+std_exception_wrapper std_exception_wrapper::from_current_exception(const std::exception& e) {
+    return std_exception_wrapper(mc::log::message(mc::log::level::error, e.what()),
+                                 std::current_exception(), "std_exception", e.what());
 }
 
-void std_exception_wrapper::dynamic_rethrow_exception() const
-{
+void std_exception_wrapper::dynamic_rethrow_exception() const {
     if (m_inner) {
         std::rethrow_exception(m_inner);
     }
     throw *this;
 }
 
-std::shared_ptr<exception> std_exception_wrapper::dynamic_copy_exception() const
-{
+std::shared_ptr<exception> std_exception_wrapper::dynamic_copy_exception() const {
     return std::make_shared<std_exception_wrapper>(*this);
 }
 
-std::string std_exception_wrapper::to_detail_string(log_level ll) const
-{
+std::string std_exception_wrapper::to_detail_string(mc::log::level ll) const {
     std::string result = exception::to_detail_string(ll);
-    
+
     // 添加内部异常信息
     if (m_inner) {
         try {
@@ -273,20 +261,18 @@ std::string std_exception_wrapper::to_detail_string(log_level ll) const
             result += "内部异常: 未知类型\n";
         }
     }
-    
+
     return result;
 }
 
 // 异常工厂实现
 
-exception_factory& exception_factory::instance()
-{
+exception_factory& exception_factory::instance() {
     static exception_factory instance;
     return instance;
 }
 
-void exception_factory::rethrow(const exception& e) const
-{
+void exception_factory::rethrow(const exception& e) const {
     auto itr = m_registered_exceptions.find(e.code());
     if (itr != m_registered_exceptions.end()) {
         itr->second->rethrow(e);
@@ -294,277 +280,4 @@ void exception_factory::rethrow(const exception& e) const
     throw e;
 }
 
-// 辅助函数实现
-
-std::string except_str()
-{
-    try {
-        throw;
-    } catch (const exception& e) {
-        return e.to_string();
-    } catch (const std::exception& e) {
-        return std::string("标准异常: ") + e.what();
-    } catch (...) {
-        return "未知异常";
-    }
-}
-
-void record_assert_trip(const char* filename, uint32_t lineno, const char* expr)
-{
-    std::cerr << "断言失败: " << expr << " 在 " << filename << ":" << lineno << std::endl;
-}
-
-// 常用异常类实现
-
-// 超时异常
-timeout_exception::timeout_exception(log_message&& msg)
-    : exception(std::move(msg), time_limit_error_code, "timeout", "操作超时")
-{
-}
-
-timeout_exception::timeout_exception(const timeout_exception& e)
-    : exception(e)
-{
-}
-
-timeout_exception::timeout_exception(timeout_exception&& e)
-    : exception(std::move(e))
-{
-}
-
-// 从基类构造的构造函数实现
-timeout_exception::timeout_exception(const exception& e)
-    : exception(e)
-{
-    m_impl->m_code = time_limit_error_code;
-    m_impl->m_name = "timeout";
-    m_impl->m_what = "操作超时";
-}
-
-std::shared_ptr<exception> timeout_exception::dynamic_copy_exception() const
-{
-    return std::make_shared<timeout_exception>(*this);
-}
-
-void timeout_exception::dynamic_rethrow_exception() const
-{
-    throw *this;
-}
-
-// 文件未找到异常
-file_not_found_exception::file_not_found_exception(log_message&& msg)
-    : exception(std::move(msg), missing_file_error_code, "file_not_found", "文件未找到")
-{
-}
-
-file_not_found_exception::file_not_found_exception(const file_not_found_exception& e)
-    : exception(e)
-{
-}
-
-file_not_found_exception::file_not_found_exception(file_not_found_exception&& e)
-    : exception(std::move(e))
-{
-}
-
-// 从基类构造的构造函数实现
-file_not_found_exception::file_not_found_exception(const exception& e)
-    : exception(e)
-{
-    m_impl->m_code = missing_file_error_code;
-    m_impl->m_name = "file_not_found";
-    m_impl->m_what = "文件未找到";
-}
-
-std::shared_ptr<exception> file_not_found_exception::dynamic_copy_exception() const
-{
-    return std::make_shared<file_not_found_exception>(*this);
-}
-
-void file_not_found_exception::dynamic_rethrow_exception() const
-{
-    throw *this;
-}
-
-// 解析错误异常
-parse_error_exception::parse_error_exception(log_message&& msg)
-    : exception(std::move(msg), syntax_error_code, "parse_error", "解析错误")
-{
-}
-
-parse_error_exception::parse_error_exception(const parse_error_exception& e)
-    : exception(e)
-{
-}
-
-parse_error_exception::parse_error_exception(parse_error_exception&& e)
-    : exception(std::move(e))
-{
-}
-
-// 从基类构造的构造函数实现
-parse_error_exception::parse_error_exception(const exception& e)
-    : exception(e)
-{
-    m_impl->m_code = syntax_error_code;
-    m_impl->m_name = "parse_error";
-    m_impl->m_what = "解析错误";
-}
-
-std::shared_ptr<exception> parse_error_exception::dynamic_copy_exception() const
-{
-    return std::make_shared<parse_error_exception>(*this);
-}
-
-void parse_error_exception::dynamic_rethrow_exception() const
-{
-    throw *this;
-}
-
-// 无效参数异常
-invalid_arg_exception::invalid_arg_exception(log_message&& msg)
-    : exception(std::move(msg), argument_error_code, "invalid_arg", "无效参数")
-{
-}
-
-invalid_arg_exception::invalid_arg_exception(const invalid_arg_exception& e)
-    : exception(e)
-{
-}
-
-invalid_arg_exception::invalid_arg_exception(invalid_arg_exception&& e)
-    : exception(std::move(e))
-{
-}
-
-// 从基类构造的构造函数实现
-invalid_arg_exception::invalid_arg_exception(const exception& e)
-    : exception(e)
-{
-    m_impl->m_code = argument_error_code;
-    m_impl->m_name = "invalid_arg";
-    m_impl->m_what = "无效参数";
-}
-
-std::shared_ptr<exception> invalid_arg_exception::dynamic_copy_exception() const
-{
-    return std::make_shared<invalid_arg_exception>(*this);
-}
-
-void invalid_arg_exception::dynamic_rethrow_exception() const
-{
-    throw *this;
-}
-
-// 键未找到异常
-key_not_found_exception::key_not_found_exception(log_message&& msg)
-    : exception(std::move(msg), missing_key_error_code, "key_not_found", "键未找到")
-{
-}
-
-key_not_found_exception::key_not_found_exception(const key_not_found_exception& e)
-    : exception(e)
-{
-}
-
-key_not_found_exception::key_not_found_exception(key_not_found_exception&& e)
-    : exception(std::move(e))
-{
-}
-
-// 从基类构造的构造函数实现
-key_not_found_exception::key_not_found_exception(const exception& e)
-    : exception(e)
-{
-    m_impl->m_code = missing_key_error_code;
-    m_impl->m_name = "key_not_found";
-    m_impl->m_what = "键未找到";
-}
-
-std::shared_ptr<exception> key_not_found_exception::dynamic_copy_exception() const
-{
-    return std::make_shared<key_not_found_exception>(*this);
-}
-
-void key_not_found_exception::dynamic_rethrow_exception() const
-{
-    throw *this;
-}
-
-// 断言异常
-assert_exception::assert_exception(log_message&& msg)
-    : exception(std::move(msg), condition_error_code, "assert", "断言失败")
-{
-}
-
-assert_exception::assert_exception(const assert_exception& e)
-    : exception(e)
-{
-}
-
-assert_exception::assert_exception(assert_exception&& e)
-    : exception(std::move(e))
-{
-}
-
-// 从基类构造的构造函数实现
-assert_exception::assert_exception(const exception& e)
-    : exception(e)
-{
-    m_impl->m_code = condition_error_code;
-    m_impl->m_name = "assert";
-    m_impl->m_what = "断言失败";
-}
-
-std::shared_ptr<exception> assert_exception::dynamic_copy_exception() const
-{
-    return std::make_shared<assert_exception>(*this);
-}
-
-void assert_exception::dynamic_rethrow_exception() const
-{
-    throw *this;
-}
-
-// 类型转换异常
-bad_cast_exception::bad_cast_exception(log_message&& msg)
-    : exception(std::move(msg), type_error_code, "bad_cast", "类型转换错误")
-{
-}
-
-bad_cast_exception::bad_cast_exception(const bad_cast_exception& e)
-    : exception(e)
-{
-}
-
-bad_cast_exception::bad_cast_exception(bad_cast_exception&& e)
-    : exception(std::move(e))
-{
-}
-
-// 从基类构造的构造函数实现
-bad_cast_exception::bad_cast_exception(const exception& e)
-    : exception(e)
-{
-    m_impl->m_code = type_error_code;
-    m_impl->m_name = "bad_cast";
-    m_impl->m_what = "类型转换错误";
-}
-
-// 从字符串构造的构造函数实现
-bad_cast_exception::bad_cast_exception(const std::string& msg)
-    : exception(log_message(log_level::error, msg), type_error_code, "bad_cast", "类型转换错误")
-{
-}
-
-std::shared_ptr<exception> bad_cast_exception::dynamic_copy_exception() const
-{
-    return std::make_shared<bad_cast_exception>(*this);
-}
-
-void bad_cast_exception::dynamic_rethrow_exception() const
-{
-    throw *this;
-}
-
-} // namespace mc 
+} // namespace mc
