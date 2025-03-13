@@ -328,4 +328,50 @@ TEST(DictPerformanceTest, DISABLED_ErasurePerformance) {
     std::cout << "mutable_dict: " << md_duration << " us" << std::endl;
     std::cout << "std::map: " << map_duration << " us" << std::endl;
     std::cout << "std::unordered_map: " << umap_duration << " us" << std::endl;
+}
+
+// 测试迭代器遍历与索引遍历的性能差异
+TEST(DictPerformanceTest, IteratorVsIndexPerformance) {
+    const size_t count = 10000;
+    
+    // 创建一个包含大量元素的字典
+    mutable_dict md;
+    for (size_t i = 0; i < count; ++i) {
+        md["key_" + std::to_string(i)] = static_cast<int>(i);
+    }
+    
+    const dict& d = md; // 获取只读视图，保证公平比较
+    
+    // 测量使用迭代器遍历的性能
+    auto start = std::chrono::high_resolution_clock::now();
+    
+    size_t sum_iterator = 0;
+    for (const auto& entry : d) {
+        sum_iterator += entry.key.size() + (entry.value.is_integer() ? entry.value.as<int32_t>() : 0);
+    }
+    
+    auto end = std::chrono::high_resolution_clock::now();
+    auto iterator_duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
+    
+    // 测量使用索引遍历的性能
+    start = std::chrono::high_resolution_clock::now();
+    
+    size_t sum_index = 0;
+    for (size_t i = 0; i < d.size(); ++i) {
+        const auto& entry = d.at_index(i);
+        sum_index += entry.key.size() + (entry.value.is_integer() ? entry.value.as<int32_t>() : 0);
+    }
+    
+    end = std::chrono::high_resolution_clock::now();
+    auto index_duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
+    
+    // 输出性能结果
+    std::cout << "Performance comparison for traversing " << count << " elements:" << std::endl;
+    std::cout << "Iterator traversal: " << iterator_duration << " us" << std::endl;
+    std::cout << "Index traversal: " << index_duration << " us" << std::endl;
+    std::cout << "Index traversal is " << static_cast<double>(index_duration) / iterator_duration 
+              << " times slower than iterator traversal" << std::endl;
+    
+    // 确保结果相同，防止编译器优化
+    EXPECT_EQ(sum_iterator, sum_index);
 } 

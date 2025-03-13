@@ -247,8 +247,9 @@ void map_from_variant(const variant& var, MapType<K, T, Args...>& vo) {
     }
     vo.clear();
 
-    for (size_t i = 0; i < d.size(); ++i) {
-        const dict::entry& entry = d.at(i);
+    // 使用迭代器遍历 dict，而不是使用索引访问
+    // 这可以显著提高对链表实现的大型字典的遍历效率
+    for (const auto& entry : d) {
         K key;
 
         // 将键从字符串转换为K类型

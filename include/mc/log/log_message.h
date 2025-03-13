@@ -72,7 +72,7 @@ public:
     message(level lvl = level::info, 
             std::string msg = "", 
             context ctx = context(),
-            dict args = dict())
+            mc::dict args = mc::dict())
         : m_level(lvl), 
           m_message(std::move(msg)), 
           m_context(std::move(ctx)),
@@ -91,7 +91,7 @@ public:
     message(level lvl, 
             context ctx,
             std::string fmt_template,
-            dict args)
+            mc::dict args = mc::dict())
         : m_level(lvl), 
           m_message(""),        // 初始为空，将在需要时格式化
           m_context(std::move(ctx)),

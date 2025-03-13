@@ -40,9 +40,20 @@ namespace mc {
  *       多个 dict 对象可能共享相同的内部数据，
  *       通过 mutable_dict 修改数据会影响所有共享该数据的对象。
  * 
- * @note 此类使用侵入式容器实现，通过键查找元素的性能较好，但随机索引访问（如 at(index)）
- *       的性能较慢，时间复杂度为 O(n)。如果需要顺序访问所有元素，建议使用迭代器
- *       （begin()/end()）而不是索引，以获得更好的性能。
+ * @note 此类使用侵入式容器实现，有序索引部分用的是list，通过键查找元素的性能较好，但随机索引访问（如 at_index(index)）
+ *       的性能较慢，时间复杂度为 O(n)。如果需要顺序访问所有元素，强烈建议使用迭代器
+ *       （begin()/end()）而不是索引，以获得更好的性能。例如：
+ *       
+ *       // 低效的遍历方式（不推荐）
+ *       for (size_t i = 0; i < dict.size(); ++i) {
+ *           const auto& entry = dict.at_index(i);
+ *           // 处理 entry...
+ *       }
+ *       
+ *       // 高效的遍历方式（推荐）
+ *       for (const auto& entry : dict) {
+ *           // 处理 entry...
+ *       }
  */
 class dict {
 public:
@@ -298,7 +309,15 @@ public:
      * @brief 获取指定索引位置的键值对
      * @throw std::out_of_range 如果索引越界
      */
-    const entry& at(size_t index) const;
+    const entry& at_index(size_t index) const;
+
+    /**
+     * @brief 获取指定键的值
+     * @throw std::out_of_range 如果键不存在
+     */
+    const variant& at(const std::string& key) const;
+    const variant& at(std::string_view key) const;
+    const variant& at(const char* key) const;
 
     /**
      * @brief 查找键的索引位置
@@ -334,7 +353,7 @@ public:
     const_iterator find(const char* key) const;
 
 protected:
-    /**
+/**
      * @brief 存储数据的结构
      */
     struct data_t {
@@ -374,6 +393,13 @@ protected:
     const entry* find_entry(const std::string& key) const;
     const entry* find_entry(std::string_view key) const;
     const entry* find_entry(const char* key) const;
+
+    /**
+     * @brief 计算指定元素在列表中的索引位置
+     * @param e 要计算索引的元素指针
+     * @return 元素的索引位置，如果元素不存在则返回 -1
+     */
+    int find_entry_index(const entry* e) const;
 };
 
 /**
@@ -389,13 +415,30 @@ variant to_variant(const dict& d);
  *       如果需要独立的数据副本，应该先创建一个新的 mutable_dict 对象，
  *       然后再进行修改。
  * 
- * @note 与 dict 类一样，此类使用侵入式容器实现，通过键查找元素的性能较好，
- *       但随机索引访问（如 at(index)）的性能较慢，时间复杂度为 O(n)。
- *       如果需要顺序访问所有元素，建议使用迭代器（begin()/end()）而不是索引，
- *       以获得更好的性能。
+ * @note 与 dict 类一样，此类使用侵入式容器实现，有序索引部分用的是list，通过键查找元素的性能较好，
+ *       但随机索引访问（如 at_index(index)）的性能较慢，时间复杂度为 O(n)。
+ *       如果需要顺序访问所有元素，强烈建议使用迭代器（begin()/end()）而不是索引，
+ *       以获得更好的性能。例如：
+ *       
+ *       // 低效的遍历方式（不推荐）
+ *       for (size_t i = 0; i < dict.size(); ++i) {
+ *           auto& entry = dict.at_index(i);
+ *           // 处理 entry...
+ *       }
+ *       
+ *       // 高效的遍历方式（推荐）
+ *       for (auto& entry : dict) {
+ *           // 处理 entry...
+ *       }
  */
 class mutable_dict : public dict {
 public:
+    // 使用基类的 entry 类型
+    using entry = dict::entry;
+    // 使用基类的迭代器类型
+    using iterator = dict::entry_list::iterator;
+    using const_iterator = dict::entry_list::const_iterator;
+
     /**
      * @brief 默认构造函数
      */
@@ -616,12 +659,6 @@ public:
     void clear();
 
     /**
-     * @brief 迭代器类型定义
-     */
-    using iterator = entry_list::iterator;
-    using const_iterator = entry_list::const_iterator;
-
-    /**
      * @brief 获取开始迭代器
      * @note 通过迭代器修改数据会影响所有共享该数据的对象
      */
@@ -639,8 +676,18 @@ public:
      * @throw std::out_of_range 如果索引越界
      * @note 修改返回的引用会影响所有共享该数据的对象
      */
-    entry& at(size_t index);
-    const entry& at(size_t index) const;
+    entry& at_index(size_t index);
+    
+    /**
+     * @brief 获取指定键的值（可变）
+     * @throw std::out_of_range 如果键不存在
+     */
+    variant& at(const std::string& key);
+    variant& at(std::string_view key);
+    variant& at(const char* key);
+    
+    // 继承基类的所有 const 版本 at 方法
+    using dict::at;
 
     /**
      * @brief 查找指定键的元素，返回迭代器
@@ -654,14 +701,23 @@ public:
     const_iterator find(std::string_view key) const;
     const_iterator find(const char* key) const;
 
+    // 继承基类的const版本operator[]
+    using dict::operator[];
+    
+    // 继承基类的const版本at_index
+    using dict::at_index;
+    
+    // 继承基类的const版本begin/end
+    using dict::begin;
+    using dict::end;
+
 private:
     /**
-     * @brief 查找指定键的元素（可变版本）
-     * @return 指向找到的元素的指针，如果不存在则返回 nullptr
+     * @brief 查找指定键的元素
      */
-    entry* find_entry_mutable(const std::string& key);
-    entry* find_entry_mutable(std::string_view key);
-    entry* find_entry_mutable(const char* key);
+    entry* find_entry(const std::string& key);
+    entry* find_entry(std::string_view key);
+    entry* find_entry(const char* key);
 };
 
 } // namespace mc

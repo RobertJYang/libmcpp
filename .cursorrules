@@ -40,6 +40,7 @@
 - 尽可能用std::variant代替std::any
 - 尽可能用std::variant_object代替std::any
 - 尽可能用std::variant_object代替std::any
+- 遍历 dict 和 mutable_dict 时，优先使用迭代器，而不是索引
 
 7. 代码安全
 - 使用安全函数，避免缓冲区溢出

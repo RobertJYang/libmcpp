@@ -120,7 +120,7 @@ TEST_F(VariantContainersTest, DictAccess) {
     // 测试索引访问
     int index = d.find_index("bool_value");
     ASSERT_GE(index, 0) << "find_index 未找到目标键";
-    ASSERT_TRUE(d.at(index).value.as_bool()) << "通过索引访问的值不匹配";
+    ASSERT_TRUE(d.at_index(index).value.as_bool()) << "通过索引访问的值不匹配";
 }
 
 /**

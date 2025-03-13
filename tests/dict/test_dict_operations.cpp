@@ -51,13 +51,13 @@ TEST(DictOperationsTest, DictBasicAccess) {
     EXPECT_FALSE(d.empty());
     
     // 测试 at 方法
-    EXPECT_EQ(d.at(0).key, "key1");
-    EXPECT_EQ(d.at(0).value.as<int>(), 123);
-    EXPECT_EQ(d.at(1).key, "key2");
-    EXPECT_EQ(d.at(1).value.as<std::string>(), "value");
-    EXPECT_EQ(d.at(2).key, "key3");
-    EXPECT_EQ(d.at(2).value.as<bool>(), true);
-    EXPECT_THROW(d.at(3), std::out_of_range);
+    EXPECT_EQ(d.at_index(0).key, "key1");
+    EXPECT_EQ(d.at_index(0).value.as<int>(), 123);
+    EXPECT_EQ(d.at_index(1).key, "key2");
+    EXPECT_EQ(d.at_index(1).value.as<std::string>(), "value");
+    EXPECT_EQ(d.at_index(2).key, "key3");
+    EXPECT_EQ(d.at_index(2).value.as<bool>(), true);
+    EXPECT_THROW(d.at_index(3), std::out_of_range);
     
     // 测试 find_index 方法
     EXPECT_EQ(d.find_index("key1"), 0);
@@ -315,19 +315,19 @@ TEST(DictOperationsTest, MutableDictAt) {
     });
     
     // 测试 at 方法读取
-    EXPECT_EQ(md.at(0).key, "key1");
-    EXPECT_EQ(md.at(0).value.as<int>(), 123);
-    EXPECT_EQ(md.at(1).key, "key2");
-    EXPECT_EQ(md.at(1).value.as<std::string>(), "value");
-    EXPECT_EQ(md.at(2).key, "key3");
-    EXPECT_EQ(md.at(2).value.as<bool>(), true);
-    EXPECT_THROW(md.at(3), std::out_of_range);
+    EXPECT_EQ(md.at_index(0).key, "key1");
+    EXPECT_EQ(md.at_index(0).value.as<int>(), 123);
+    EXPECT_EQ(md.at_index(1).key, "key2");
+    EXPECT_EQ(md.at_index(1).value.as<std::string>(), "value");
+    EXPECT_EQ(md.at_index(2).key, "key3");
+    EXPECT_EQ(md.at_index(2).value.as<bool>(), true);
+    EXPECT_THROW(md.at_index(3), std::out_of_range);
     
     // 测试 at 方法修改
-    md.at(0).value = 456;
+    md.at_index(0).value = 456;
     EXPECT_EQ(md["key1"].as<int>(), 456);
     
-    md.at(1).value = "modified";
+    md.at_index(1).value = "modified";
     EXPECT_EQ(md["key2"].as<std::string>(), "modified");
 }
 

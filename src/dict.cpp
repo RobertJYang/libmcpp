@@ -78,11 +78,7 @@ dict& dict::operator=(dict&& other) noexcept = default;
 
 // 查找指定键的元素
 const dict::entry* dict::find_entry(const std::string& key) const {
-    auto it = m_data->index.find(key);
-    if (it != m_data->index.end()) {
-        return &(*it);
-    }
-    return nullptr;
+    return find_entry(std::string_view(key));
 }
 
 // 查找指定键的元素 (string_view 版本)
@@ -96,20 +92,15 @@ const dict::entry* dict::find_entry(std::string_view key) const {
 
 // 查找指定键的元素 (const char* 版本)
 const dict::entry* dict::find_entry(const char* key) const {
-    auto it = m_data->index.find(key);
-    if (it != m_data->index.end()) {
-        return &(*it);
+    if (key == nullptr) {
+        throw std::invalid_argument("键不能为空指针");
     }
-    return nullptr;
+    return find_entry(std::string_view(key));
 }
 
 // 获取指定键的值
 const variant& dict::operator[](const std::string& key) const {
-    const entry* e = find_entry(key);
-    if (e) {
-        return e->value;
-    }
-    throw std::out_of_range("字典中不存在键: " + key);
+    return (*this)[std::string_view(key)];
 }
 
 // 获取指定键的值 (string_view 版本)
@@ -123,20 +114,15 @@ const variant& dict::operator[](std::string_view key) const {
 
 // 获取指定键的值 (const char* 版本)
 const variant& dict::operator[](const char* key) const {
-    const entry* e = find_entry(key);
-    if (e) {
-        return e->value;
+    if (key == nullptr) {
+        throw std::invalid_argument("键不能为空指针");
     }
-    throw std::out_of_range("字典中不存在键: " + std::string(key));
+    return (*this)[std::string_view(key)];
 }
 
 // 获取指定键的值，如果不存在则返回默认值
 const variant& dict::get(const std::string& key, const variant& default_value) const {
-    const entry* e = find_entry(key);
-    if (e) {
-        return e->value;
-    }
-    return default_value;
+    return get(std::string_view(key), default_value);
 }
 
 // 获取指定键的值，如果不存在则返回默认值 (string_view 版本)
@@ -150,16 +136,15 @@ const variant& dict::get(std::string_view key, const variant& default_value) con
 
 // 获取指定键的值，如果不存在则返回默认值 (const char* 版本)
 const variant& dict::get(const char* key, const variant& default_value) const {
-    const entry* e = find_entry(key);
-    if (e) {
-        return e->value;
+    if (key == nullptr) {
+        throw std::invalid_argument("键不能为空指针");
     }
-    return default_value;
+    return get(std::string_view(key), default_value);
 }
 
 // 判断是否包含指定键
 bool dict::contains(const std::string& key) const {
-    return find_entry(key) != nullptr;
+    return contains(std::string_view(key));
 }
 
 // 判断是否包含指定键 (string_view 版本)
@@ -169,7 +154,10 @@ bool dict::contains(std::string_view key) const {
 
 // 判断是否包含指定键 (const char* 版本)
 bool dict::contains(const char* key) const {
-    return find_entry(key) != nullptr;
+    if (key == nullptr) {
+        throw std::invalid_argument("键不能为空指针");
+    }
+    return contains(std::string_view(key));
 }
 
 // 获取键值对数量
@@ -213,7 +201,7 @@ std::vector<variant> dict::values() const {
 }
 
 // 获取指定索引位置的键值对
-const dict::entry& dict::at(size_t index) const {
+const dict::entry& dict::at_index(size_t index) const {
     if (index >= size()) {
         throw std::out_of_range("字典索引越界");
     }
@@ -223,9 +211,28 @@ const dict::entry& dict::at(size_t index) const {
     return *it;
 }
 
-// 查找键的索引位置
-int dict::find_index(const std::string& key) const {
+// 获取指定键的值
+const variant& dict::at(const std::string& key) const {
+    return at(std::string_view(key));
+}
+
+const variant& dict::at(std::string_view key) const {
     const entry* e = find_entry(key);
+    if (!e) {
+        throw std::out_of_range("字典中不存在键: " + std::string(key));
+    }
+    return e->value;
+}
+
+const variant& dict::at(const char* key) const {
+    if (key == nullptr) {
+        throw std::invalid_argument("键不能为空指针");
+    }
+    return at(std::string_view(key));
+}
+
+// 计算指定元素在列表中的索引位置
+int dict::find_entry_index(const entry* e) const {
     if (!e) {
         return -1;
     }
@@ -239,42 +246,24 @@ int dict::find_index(const std::string& key) const {
     }
     
     return -1; // 理论上不会到达这里
+}
+
+// 查找键的索引位置
+int dict::find_index(const std::string& key) const {
+    return find_entry_index(find_entry(key));
 }
 
 // 查找键的索引位置 (string_view 版本)
 int dict::find_index(std::string_view key) const {
-    const entry* e = find_entry(key);
-    if (!e) {
-        return -1;
-    }
-    
-    // 计算索引位置
-    int index = 0;
-    for (auto it = m_data->entries.begin(); it != m_data->entries.end(); ++it, ++index) {
-        if (&(*it) == e) {
-            return index;
-        }
-    }
-    
-    return -1; // 理论上不会到达这里
+    return find_entry_index(find_entry(key));
 }
 
 // 查找键的索引位置 (const char* 版本)
 int dict::find_index(const char* key) const {
-    const entry* e = find_entry(key);
-    if (!e) {
-        return -1;
+    if (key == nullptr) {
+        throw std::invalid_argument("键不能为空指针");
     }
-    
-    // 计算索引位置
-    int index = 0;
-    for (auto it = m_data->entries.begin(); it != m_data->entries.end(); ++it, ++index) {
-        if (&(*it) == e) {
-            return index;
-        }
-    }
-    
-    return -1; // 理论上不会到达这里
+    return find_entry_index(find_entry(key));
 }
 
 // 比较两个 dict 对象是否相等
@@ -307,12 +296,7 @@ bool dict::operator==(const dict& other) const {
 
 // 查找指定键的元素，返回迭代器 (std::string 版本)
 dict::const_iterator dict::find(const std::string& key) const {
-    const entry* e = find_entry(key);
-    if (e) {
-        // 直接从元素指针获取迭代器
-        return m_data->entries.iterator_to(*const_cast<entry*>(e));
-    }
-    return m_data->entries.end();
+    return find(std::string_view(key));
 }
 
 // 查找指定键的元素，返回迭代器 (std::string_view 版本)
@@ -327,12 +311,10 @@ dict::const_iterator dict::find(std::string_view key) const {
 
 // 查找指定键的元素，返回迭代器 (const char* 版本)
 dict::const_iterator dict::find(const char* key) const {
-    const entry* e = find_entry(key);
-    if (e) {
-        // 直接从元素指针获取迭代器
-        return m_data->entries.iterator_to(*const_cast<entry*>(e));
+    if (key == nullptr) {
+        throw std::invalid_argument("键不能为空指针");
     }
-    return m_data->entries.end();
+    return find(std::string_view(key));
 }
 
 // 将 dict 转换为 variant
