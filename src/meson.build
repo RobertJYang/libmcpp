@@ -21,7 +21,7 @@ src_files = [
 libmcpp_lib = shared_library(
   'libmcpp',
   src_files,
-  include_directories: [incdir, boost_incdir],
+  include_directories: [incdir],
   dependencies: [boost_dep, boost_program_options_dep],
   link_with: [],
   install: true,
