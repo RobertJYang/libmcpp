@@ -14,8 +14,8 @@
  * @file reflect.cpp
  * @brief 实现反射相关的功能
  */
-#include <mc/reflect/reflect.h>
 #include <mc/exception.h>
+#include <mc/reflect/reflect.h>
 #include <sstream>
 
 namespace mc {
@@ -23,7 +23,7 @@ namespace reflect {
 
 /**
  * @brief 抛出枚举转换异常
- * 
+ *
  * @param i 整数值
  * @param e 枚举类型名称
  */
@@ -35,7 +35,7 @@ void throw_bad_enum_cast(int64_t i, const char* e) {
 
 /**
  * @brief 抛出枚举转换异常
- * 
+ *
  * @param k 字符串键
  * @param e 枚举类型名称
  */
@@ -46,4 +46,4 @@ void throw_bad_enum_cast(const char* k, const char* e) {
 }
 
 } // namespace reflect
-} // namespace mc 
+} // namespace mc

@@ -339,14 +339,14 @@ void from_variant(const variant& var, std::map<K, T, Compare, Allocator>& vo) {
 
 // std::unordered_map 特化
 template <typename K, typename T, typename Hash = std::hash<K>,
-          typename KeyEqual = std::equal_to<K>,
+          typename KeyEqual  = std::equal_to<K>,
           typename Allocator = std::allocator<std::pair<const K, T>>>
 void to_variant(const std::unordered_map<K, T, Hash, KeyEqual, Allocator>& var, variant& vo) {
     map_to_variant(var, vo);
 }
 
 template <typename K, typename T, typename Hash = std::hash<K>,
-          typename KeyEqual = std::equal_to<K>,
+          typename KeyEqual  = std::equal_to<K>,
           typename Allocator = std::allocator<std::pair<const K, T>>>
 void from_variant(const variant& var, std::unordered_map<K, T, Hash, KeyEqual, Allocator>& vo) {
     map_from_variant(var, vo);
@@ -470,7 +470,7 @@ bool try_convert_variant(const mc::variant& var, std::variant<Rest...>& vo, bool
     try {
         T value;
         from_variant(var, value);
-        vo = std::move(value);
+        vo        = std::move(value);
         converted = true;
         return true;
     } catch (const std::exception&) {

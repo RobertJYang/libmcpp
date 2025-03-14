@@ -29,7 +29,7 @@ using constant_time_size = boost::intrusive::constant_time_size<true>;
 
 /**
  * @brief 成员钩子选项
- * 
+ *
  * @tparam T 类型
  * @tparam Member 成员指针
  */
@@ -38,7 +38,7 @@ using member_hook = boost::intrusive::member_hook<T, Member, &T::Member>;
 
 /**
  * @brief 基类钩子选项
- * 
+ *
  * @tparam T 类型
  */
 template <typename T>
@@ -67,4 +67,4 @@ using cache_begin = boost::intrusive::cache_begin<true>;
 } // namespace intrusive
 } // namespace mc
 
-#endif // MC_INTRUSIVE_OPTIONS_H 
+#endif // MC_INTRUSIVE_OPTIONS_H

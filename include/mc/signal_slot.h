@@ -36,7 +36,7 @@ namespace mc {
 template <typename... Args>
 class signal {
 public:
-    using slot_type = std::function<void(Args...)>;
+    using slot_type       = std::function<void(Args...)>;
     using connection_type = boost::signals2::connection;
 
     /**

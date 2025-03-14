@@ -140,14 +140,14 @@ void rtrim_inplace(std::string& s) {
 
 // 按指定分隔符分割字符串
 std::vector<std::string> split(std::string_view s, char delim) {
-    std::vector<std::string> result;
+    std::vector<std::string>    result;
     std::string_view::size_type start = 0;
-    std::string_view::size_type end = s.find(delim);
+    std::string_view::size_type end   = s.find(delim);
 
     while (end != std::string_view::npos) {
         result.emplace_back(s.substr(start, end - start));
         start = end + 1;
-        end = s.find(delim, start);
+        end   = s.find(delim, start);
     }
 
     if (start < s.size()) {
@@ -166,12 +166,12 @@ std::vector<std::string> split(std::string_view s, std::string_view delim) {
     }
 
     std::string_view::size_type start = 0;
-    std::string_view::size_type end = s.find(delim);
+    std::string_view::size_type end   = s.find(delim);
 
     while (end != std::string_view::npos) {
         result.emplace_back(s.substr(start, end - start));
         start = end + delim.size();
-        end = s.find(delim, start);
+        end   = s.find(delim, start);
     }
 
     if (start < s.size()) {
@@ -188,7 +188,7 @@ std::string join(const std::vector<std::string>& v, std::string_view delim) {
     }
 
     std::string result;
-    size_t total_size = 0;
+    size_t      total_size = 0;
 
     // 预先计算结果字符串的大小以减少内存分配
     for (const auto& s : v) {
@@ -228,7 +228,7 @@ std::string replace_all(std::string_view s, std::string_view from, std::string_v
     result.reserve(s.size());
 
     size_t last_pos = 0;
-    size_t pos = 0;
+    size_t pos      = 0;
     while ((pos = s.find(from, last_pos)) != std::string_view::npos) {
         result.append(s.data() + last_pos, pos - last_pos);
         result.append(to.data(), to.size());
@@ -266,7 +266,7 @@ bool icontains(std::string_view s, std::string_view substring) {
 
     // 对于较小的字符串，直接转换为小写进行比较
     if (s.size() <= 1024 && substring.size() <= 1024) {
-        std::string s_lower = to_lower(s);
+        std::string s_lower         = to_lower(s);
         std::string substring_lower = to_lower(substring);
         return contains(s_lower, substring_lower);
     }
@@ -295,7 +295,6 @@ bool icontains(std::string_view s, std::string_view substring) {
 
 } // namespace string
 
-
 // 验证键名是否合法（只能包含字母、数字、下划线，且只能以字母和下划线开头）
 static bool is_valid_fmt_key(std::string_view key) {
     if (key.empty()) {
@@ -322,8 +321,8 @@ template <typename T>
 static void append_formatted_number(std::string& result, T val, const char* format) {
     // 对于数值类型，64字节的缓冲区通常足够了
     constexpr std::size_t BUFFER_SIZE = 64;
-    char buffer[BUFFER_SIZE];
-    int len = std::snprintf(buffer, BUFFER_SIZE, format, val);
+    char                  buffer[BUFFER_SIZE];
+    int                   len = std::snprintf(buffer, BUFFER_SIZE, format, val);
     if (len > 0) {
         result.append(buffer, len);
     }
@@ -354,7 +353,7 @@ static void append_variant_to_string(std::string& result, const variant& value) 
 
 // 定义占位符语法的常量
 static const std::string_view PLACEHOLDER_START = "${";
-static const char PLACEHOLDER_END = '}';
+static const char             PLACEHOLDER_END   = '}';
 
 // 从字典中获取键对应的值并追加到结果字符串
 static void resolve_fmt_key(std::string& result, std::string_view key, const dict& args) {

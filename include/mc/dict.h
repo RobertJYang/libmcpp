@@ -39,17 +39,18 @@ namespace mc {
  * @note 此类使用共享数据模型，拷贝操作会共享内部数据。
  *       多个 dict 对象可能共享相同的内部数据，
  *       通过 mutable_dict 修改数据会影响所有共享该数据的对象。
- * 
- * @note 此类使用侵入式容器实现，有序索引部分用的是list，通过键查找元素的性能较好，但随机索引访问（如 at_index(index)）
- *       的性能较慢，时间复杂度为 O(n)。如果需要顺序访问所有元素，强烈建议使用迭代器
+ *
+ * @note
+ * 此类使用侵入式容器实现，有序索引部分用的是list，通过键查找元素的性能较好，但随机索引访问（如
+ * at_index(index)） 的性能较慢，时间复杂度为 O(n)。如果需要顺序访问所有元素，强烈建议使用迭代器
  *       （begin()/end()）而不是索引，以获得更好的性能。例如：
- *       
+ *
  *       // 低效的遍历方式（不推荐）
  *       for (size_t i = 0; i < dict.size(); ++i) {
  *           const auto& entry = dict.at_index(i);
  *           // 处理 entry...
  *       }
- *       
+ *
  *       // 高效的遍历方式（推荐）
  *       for (const auto& entry : dict) {
  *           // 处理 entry...
@@ -62,7 +63,7 @@ public:
      */
     struct entry : public mc::intrusive::list_hook, public mc::intrusive::unordered_set_hook {
         std::string key;
-        variant value;
+        variant     value;
 
         // 默认构造函数
         entry() = default;
@@ -72,12 +73,12 @@ public:
         }
 
         // 模板构造函数，允许直接使用任意类型 T 作为值参数
-        template<typename T>
+        template <typename T>
         entry(std::string k, T&& v) : key(std::move(k)), value(std::forward<T>(v)) {
         }
 
         // 模板构造函数，允许使用不同类型的键
-        template<typename K, typename T>
+        template <typename K, typename T>
         entry(K&& k, T&& v) : key(std::forward<K>(k)), value(std::forward<T>(v)) {
         }
 
@@ -95,7 +96,7 @@ public:
 
         // 禁止赋值操作，因为钩子不支持赋值
         entry& operator=(const entry&) = delete;
-        entry& operator=(entry&&) = delete;
+        entry& operator=(entry&&)      = delete;
 
         // 相等比较
         friend bool operator==(const entry& a, const entry& b) {
@@ -168,9 +169,9 @@ public:
 
     /**
      * @brief 从初始化列表构造
-     * 
+     *
      * @param init 键值对初始化列表
-     * 
+     *
      * @note 此构造函数允许使用更简洁的语法创建字典：
      *       dict d = {{"key1", 123}, {"key2", "value"}, {"key3", true}};
      */
@@ -178,14 +179,14 @@ public:
 
     /**
      * @brief 从初始化列表构造（模板版本）
-     * 
+     *
      * @param init 键值对初始化列表
-     * 
+     *
      * @note 此构造函数允许使用更简洁的语法创建字典，无需显式创建 variant：
      *       dict d = {{"key1", 123}, {"key2", "value"}, {"key3", true}};
      */
-    template<typename T>
-    dict(std::initializer_list<std::pair<std::string, T>> init) 
+    template <typename T>
+    dict(std::initializer_list<std::pair<std::string, T>> init)
         : m_data(std::make_shared<data_t>(init.size())) {
         // 处理初始化列表中的键值对
         for (const auto& pair : init) {
@@ -205,14 +206,14 @@ public:
 
     /**
      * @brief 从初始化列表构造（模板版本，支持不同类型的键）
-     * 
+     *
      * @param init 键值对初始化列表
-     * 
+     *
      * @note 此构造函数允许使用更简洁的语法创建字典，无需显式创建 variant：
      *       dict d = {{key1_str, 123}, {key2_view, "value"}, {key3_cstr, true}};
      */
-    template<typename K, typename T>
-    dict(std::initializer_list<std::pair<K, T>> init) 
+    template <typename K, typename T>
+    dict(std::initializer_list<std::pair<K, T>> init)
         : m_data(std::make_shared<data_t>(init.size())) {
         // 处理初始化列表中的键值对
         for (const auto& pair : init) {
@@ -353,7 +354,7 @@ public:
     const_iterator find(const char* key) const;
 
 protected:
-/**
+    /**
      * @brief 存储数据的结构
      */
     struct data_t {
@@ -409,23 +410,23 @@ variant to_variant(const dict& d);
 
 /**
  * @brief 可变的字典类，保持键值对的插入顺序
- * 
+ *
  * @note 此类继承自 dict，使用共享数据模型。
  *       对 mutable_dict 的修改会影响所有共享同一数据的 dict 对象。
  *       如果需要独立的数据副本，应该先创建一个新的 mutable_dict 对象，
  *       然后再进行修改。
- * 
+ *
  * @note 与 dict 类一样，此类使用侵入式容器实现，有序索引部分用的是list，通过键查找元素的性能较好，
  *       但随机索引访问（如 at_index(index)）的性能较慢，时间复杂度为 O(n)。
  *       如果需要顺序访问所有元素，强烈建议使用迭代器（begin()/end()）而不是索引，
  *       以获得更好的性能。例如：
- *       
+ *
  *       // 低效的遍历方式（不推荐）
  *       for (size_t i = 0; i < dict.size(); ++i) {
  *           auto& entry = dict.at_index(i);
  *           // 处理 entry...
  *       }
- *       
+ *
  *       // 高效的遍历方式（推荐）
  *       for (auto& entry : dict) {
  *           // 处理 entry...
@@ -436,7 +437,7 @@ public:
     // 使用基类的 entry 类型
     using entry = dict::entry;
     // 使用基类的迭代器类型
-    using iterator = dict::entry_list::iterator;
+    using iterator       = dict::entry_list::iterator;
     using const_iterator = dict::entry_list::const_iterator;
 
     /**
@@ -446,10 +447,10 @@ public:
 
     /**
      * @brief 单键值对构造函数
-     * 
+     *
      * @param key 键
      * @param value 值
-     * 
+     *
      * @note 此构造函数允许使用链式调用创建字典：
      *       mutable_dict(key1, value1)(key2, value2)(key3, value3);
      */
@@ -457,28 +458,28 @@ public:
 
     /**
      * @brief 单键值对构造函数（模板版本）
-     * 
+     *
      * @param key 键
      * @param value 值
-     * 
+     *
      * @note 此构造函数允许使用链式调用创建字典，无需显式创建 variant：
      *       mutable_dict(key1, value1)(key2, value2)(key3, value3);
      */
-    template<typename T>
+    template <typename T>
     mutable_dict(std::string key, T&& value) : dict() {
         (*this)(std::move(key), std::forward<T>(value));
     }
 
     /**
      * @brief 单键值对构造函数（模板版本，支持不同类型的键）
-     * 
+     *
      * @param key 键
      * @param value 值
-     * 
+     *
      * @note 此构造函数允许使用链式调用创建字典，无需显式创建 variant：
      *       mutable_dict(key1, value1)(key2, value2)(key3, value3);
      */
-    template<typename K, typename T>
+    template <typename K, typename T>
     mutable_dict(K&& key, T&& value) : dict() {
         (*this)(std::forward<K>(key), std::forward<T>(value));
     }
@@ -490,9 +491,9 @@ public:
 
     /**
      * @brief 从初始化列表构造
-     * 
+     *
      * @param init 键值对初始化列表
-     * 
+     *
      * @note 此构造函数允许使用更简洁的语法创建字典：
      *       mutable_dict md = {{"key1", 123}, {"key2", "value"}, {"key3", true}};
      */
@@ -500,25 +501,25 @@ public:
 
     /**
      * @brief 从初始化列表构造（模板版本）
-     * 
+     *
      * @param init 键值对初始化列表
-     * 
+     *
      * @note 此构造函数允许使用更简洁的语法创建字典，无需显式创建 variant：
      *       mutable_dict md = {{"key1", 123}, {"key2", "value"}, {"key3", true}};
      */
-    template<typename T>
+    template <typename T>
     mutable_dict(std::initializer_list<std::pair<std::string, T>> init) : dict(init) {
     }
 
     /**
      * @brief 从初始化列表构造（模板版本，支持不同类型的键）
-     * 
+     *
      * @param init 键值对初始化列表
-     * 
+     *
      * @note 此构造函数允许使用更简洁的语法创建字典，无需显式创建 variant：
      *       mutable_dict md = {{key1_str, 123}, {key2_view, "value"}, {key3_cstr, true}};
      */
-    template<typename K, typename T>
+    template <typename K, typename T>
     mutable_dict(std::initializer_list<std::pair<K, T>> init) : dict(init) {
     }
 
@@ -559,14 +560,14 @@ public:
      * @note 此操作会替换当前的内容
      */
     mutable_dict& operator=(std::initializer_list<std::pair<std::string, variant>> init);
-    
+
     /**
      * @brief 从初始化列表赋值（模板版本）
      * @param init 键值对初始化列表
      * @return 返回自身引用
      * @note 此操作会替换当前的内容
      */
-    template<typename T>
+    template <typename T>
     mutable_dict& operator=(std::initializer_list<std::pair<std::string, T>> init) {
         // 创建一个新的mutable_dict并用初始化列表构造
         mutable_dict new_dict(init);
@@ -574,14 +575,14 @@ public:
         *this = std::move(new_dict);
         return *this;
     }
-    
+
     /**
      * @brief 从初始化列表赋值（模板版本，支持不同类型的键）
      * @param init 键值对初始化列表
      * @return 返回自身引用
      * @note 此操作会替换当前的内容
      */
-    template<typename K, typename T>
+    template <typename K, typename T>
     mutable_dict& operator=(std::initializer_list<std::pair<K, T>> init) {
         // 创建一个新的mutable_dict并用初始化列表构造
         mutable_dict new_dict(init);
@@ -601,27 +602,27 @@ public:
 
     /**
      * @brief 添加或更新键值对的模板版本，自动将值转换为 variant
-     * 
+     *
      * @tparam T 值的类型，必须能够被 variant 构造
      * @param key 键
      * @param var 值
      * @return mutable_dict& 返回自身引用，支持链式调用
-     * 
+     *
      * @note 此方法允许使用更简洁的语法创建和填充字典：
      *       mutable_dict md;
      *       md("key1", 123)("key2", "value")("key3", true);
      */
-    template<typename T>
+    template <typename T>
     mutable_dict& operator()(std::string key, T&& var) {
         return (*this)(std::move(key), variant(std::forward<T>(var)));
     }
 
-    template<typename T>
+    template <typename T>
     mutable_dict& operator()(std::string_view key, T&& var) {
         return (*this)(key, variant(std::forward<T>(var)));
     }
 
-    template<typename T>
+    template <typename T>
     mutable_dict& operator()(const char* key, T&& var) {
         return (*this)(key, variant(std::forward<T>(var)));
     }
@@ -662,13 +663,13 @@ public:
      * @brief 获取开始迭代器
      * @note 通过迭代器修改数据会影响所有共享该数据的对象
      */
-    iterator begin();
+    iterator       begin();
     const_iterator begin() const;
 
     /**
      * @brief 获取结束迭代器
      */
-    iterator end();
+    iterator       end();
     const_iterator end() const;
 
     /**
@@ -677,7 +678,7 @@ public:
      * @note 修改返回的引用会影响所有共享该数据的对象
      */
     entry& at_index(size_t index);
-    
+
     /**
      * @brief 获取指定键的值（可变）
      * @throw std::out_of_range 如果键不存在
@@ -685,7 +686,7 @@ public:
     variant& at(const std::string& key);
     variant& at(std::string_view key);
     variant& at(const char* key);
-    
+
     // 继承基类的所有 const 版本 at 方法
     using dict::at;
 
@@ -694,19 +695,19 @@ public:
      * @param key 要查找的键
      * @return 指向找到元素的迭代器，如果不存在则返回 end()
      */
-    iterator find(const std::string& key);
-    iterator find(std::string_view key);
-    iterator find(const char* key);
+    iterator       find(const std::string& key);
+    iterator       find(std::string_view key);
+    iterator       find(const char* key);
     const_iterator find(const std::string& key) const;
     const_iterator find(std::string_view key) const;
     const_iterator find(const char* key) const;
 
     // 继承基类的const版本operator[]
     using dict::operator[];
-    
+
     // 继承基类的const版本at_index
     using dict::at_index;
-    
+
     // 继承基类的const版本begin/end
     using dict::begin;
     using dict::end;

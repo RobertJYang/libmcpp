@@ -125,12 +125,12 @@ TEST_F(VariantBasicTest, FloatingPointValues) {
 TEST_F(VariantBasicTest, StringValues) {
     // 从 std::string 构造
     std::string str = "Hello, World!";
-    variant v_str(str);
+    variant     v_str(str);
     verify_string_value(v_str, str);
 
     // 从 C 字符串构造
     const char* c_str = "C-style string";
-    variant v_cstr(c_str);
+    variant     v_cstr(c_str);
     verify_string_value(v_cstr, c_str);
 }
 

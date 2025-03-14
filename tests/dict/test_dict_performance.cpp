@@ -14,36 +14,35 @@
  * @file test_dict_performance.cpp
  * @brief 测试 dict 和 mutable_dict 类的性能
  */
+#include <chrono>
 #include <gtest/gtest.h>
+#include <map>
 #include <mc/dict.h>
 #include <mc/variant.h>
-#include <chrono>
 #include <random>
 #include <string>
-#include <vector>
-#include <map>
 #include <unordered_map>
+#include <vector>
 
 using namespace mc;
 
 // 辅助函数：生成随机字符串
 std::string random_string(size_t length) {
-    static const char alphanum[] =
-        "0123456789"
-        "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-        "abcdefghijklmnopqrstuvwxyz";
-    
-    std::random_device rd;
-    std::mt19937 gen(rd());
+    static const char alphanum[] = "0123456789"
+                                   "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+                                   "abcdefghijklmnopqrstuvwxyz";
+
+    std::random_device              rd;
+    std::mt19937                    gen(rd());
     std::uniform_int_distribution<> dis(0, sizeof(alphanum) - 2);
-    
+
     std::string result;
     result.reserve(length);
-    
+
     for (size_t i = 0; i < length; ++i) {
         result += alphanum[dis(gen)];
     }
-    
+
     return result;
 }
 
@@ -51,80 +50,80 @@ std::string random_string(size_t length) {
 std::vector<std::pair<std::string, variant>> generate_random_pairs(size_t count) {
     std::vector<std::pair<std::string, variant>> pairs;
     pairs.reserve(count);
-    
-    std::random_device rd;
-    std::mt19937 gen(rd());
+
+    std::random_device              rd;
+    std::mt19937                    gen(rd());
     std::uniform_int_distribution<> type_dis(0, 3);
-    
+
     for (size_t i = 0; i < count; ++i) {
         std::string key = "key_" + std::to_string(i);
-        variant value;
-        
+        variant     value;
+
         switch (type_dis(gen)) {
-            case 0:
-                value = static_cast<int>(i);
-                break;
-            case 1:
-                value = random_string(10);
-                break;
-            case 2:
-                value = (i % 2 == 0);
-                break;
-            case 3:
-                value = static_cast<double>(i) / 10.0;
-                break;
+        case 0:
+            value = static_cast<int>(i);
+            break;
+        case 1:
+            value = random_string(10);
+            break;
+        case 2:
+            value = (i % 2 == 0);
+            break;
+        case 3:
+            value = static_cast<double>(i) / 10.0;
+            break;
         }
-        
+
         pairs.emplace_back(key, value);
     }
-    
+
     return pairs;
 }
 
 // 测试 dict 和 std::map 的插入性能
 TEST(DictPerformanceTest, DISABLED_InsertionPerformance) {
     const size_t count = 10000;
-    auto pairs = generate_random_pairs(count);
-    
+    auto         pairs = generate_random_pairs(count);
+
     // 测试 mutable_dict 插入性能
     auto start = std::chrono::high_resolution_clock::now();
-    
+
     mutable_dict md;
     for (const auto& pair : pairs) {
         md[pair.first] = pair.second;
     }
-    
-    auto end = std::chrono::high_resolution_clock::now();
+
+    auto end         = std::chrono::high_resolution_clock::now();
     auto md_duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
-    
+
     // 测试 std::map 插入性能
     start = std::chrono::high_resolution_clock::now();
-    
+
     std::map<std::string, variant> m;
     for (const auto& pair : pairs) {
         m[pair.first] = pair.second;
     }
-    
-    end = std::chrono::high_resolution_clock::now();
+
+    end               = std::chrono::high_resolution_clock::now();
     auto map_duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
-    
+
     // 测试 std::unordered_map 插入性能
     start = std::chrono::high_resolution_clock::now();
-    
+
     std::unordered_map<std::string, variant> um;
     for (const auto& pair : pairs) {
         um[pair.first] = pair.second;
     }
-    
-    end = std::chrono::high_resolution_clock::now();
+
+    end                = std::chrono::high_resolution_clock::now();
     auto umap_duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
-    
+
     // 输出性能结果
     std::cout << "Insertion performance for " << count << " elements:" << std::endl;
     std::cout << "mutable_dict: " << md_duration << " ms" << std::endl;
     std::cout << "std::map: " << map_duration << " ms" << std::endl;
     std::cout << "std::unordered_map: " << umap_duration << " ms" << std::endl;
-    
+
     // 验证插入结果
     EXPECT_EQ(md.size(), count);
     EXPECT_EQ(m.size(), count);
@@ -134,70 +133,70 @@ TEST(DictPerformanceTest, DISABLED_InsertionPerformance) {
 // 测试 dict 和 std::map 的查找性能
 TEST(DictPerformanceTest, DISABLED_LookupPerformance) {
     const size_t count = 10000;
-    auto pairs = generate_random_pairs(count);
-    
+    auto         pairs = generate_random_pairs(count);
+
     // 准备测试数据
-    mutable_dict md;
-    std::map<std::string, variant> m;
+    mutable_dict                             md;
+    std::map<std::string, variant>           m;
     std::unordered_map<std::string, variant> um;
-    
+
     for (const auto& pair : pairs) {
         md[pair.first] = pair.second;
-        m[pair.first] = pair.second;
+        m[pair.first]  = pair.second;
         um[pair.first] = pair.second;
     }
-    
+
     // 随机选择一些键进行查找
-    std::random_device rd;
-    std::mt19937 gen(rd());
+    std::random_device              rd;
+    std::mt19937                    gen(rd());
     std::uniform_int_distribution<> dis(0, count - 1);
-    
-    const size_t lookup_count = 1000;
+
+    const size_t             lookup_count = 1000;
     std::vector<std::string> lookup_keys;
     lookup_keys.reserve(lookup_count);
-    
+
     for (size_t i = 0; i < lookup_count; ++i) {
         lookup_keys.push_back("key_" + std::to_string(dis(gen)));
     }
-    
+
     // 测试 dict 查找性能
     auto start = std::chrono::high_resolution_clock::now();
-    
+
     for (const auto& key : lookup_keys) {
         if (md.contains(key)) {
             variant v = md[key];
         }
     }
-    
-    auto end = std::chrono::high_resolution_clock::now();
+
+    auto end         = std::chrono::high_resolution_clock::now();
     auto md_duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
-    
+
     // 测试 std::map 查找性能
     start = std::chrono::high_resolution_clock::now();
-    
+
     for (const auto& key : lookup_keys) {
         auto it = m.find(key);
         if (it != m.end()) {
             variant v = it->second;
         }
     }
-    
-    end = std::chrono::high_resolution_clock::now();
+
+    end               = std::chrono::high_resolution_clock::now();
     auto map_duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
-    
+
     // 测试 std::unordered_map 查找性能
     start = std::chrono::high_resolution_clock::now();
-    
+
     for (const auto& key : lookup_keys) {
         auto it = um.find(key);
         if (it != um.end()) {
             variant v = it->second;
         }
     }
-    
-    end = std::chrono::high_resolution_clock::now();
+
+    end                = std::chrono::high_resolution_clock::now();
     auto umap_duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
-    
+
     // 输出性能结果
     std::cout << "Lookup performance for " << lookup_count << " operations:" << std::endl;
     std::cout << "dict: " << md_duration << " us" << std::endl;
@@ -208,58 +207,58 @@ TEST(DictPerformanceTest, DISABLED_LookupPerformance) {
 // 测试 dict 和 std::map 的迭代性能
 TEST(DictPerformanceTest, DISABLED_IterationPerformance) {
     const size_t count = 10000;
-    auto pairs = generate_random_pairs(count);
-    
+    auto         pairs = generate_random_pairs(count);
+
     // 准备测试数据
-    mutable_dict md;
-    std::map<std::string, variant> m;
+    mutable_dict                             md;
+    std::map<std::string, variant>           m;
     std::unordered_map<std::string, variant> um;
-    
+
     for (const auto& pair : pairs) {
         md[pair.first] = pair.second;
-        m[pair.first] = pair.second;
+        m[pair.first]  = pair.second;
         um[pair.first] = pair.second;
     }
-    
+
     // 测试 dict 迭代性能
     auto start = std::chrono::high_resolution_clock::now();
-    
+
     size_t sum = 0;
     for (const auto& entry : md) {
         sum += entry.key.size();
     }
-    
-    auto end = std::chrono::high_resolution_clock::now();
+
+    auto end         = std::chrono::high_resolution_clock::now();
     auto md_duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
-    
+
     // 测试 std::map 迭代性能
     start = std::chrono::high_resolution_clock::now();
-    
+
     sum = 0;
     for (const auto& pair : m) {
         sum += pair.first.size();
     }
-    
-    end = std::chrono::high_resolution_clock::now();
+
+    end               = std::chrono::high_resolution_clock::now();
     auto map_duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
-    
+
     // 测试 std::unordered_map 迭代性能
     start = std::chrono::high_resolution_clock::now();
-    
+
     sum = 0;
     for (const auto& pair : um) {
         sum += pair.first.size();
     }
-    
-    end = std::chrono::high_resolution_clock::now();
+
+    end                = std::chrono::high_resolution_clock::now();
     auto umap_duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
-    
+
     // 输出性能结果
     std::cout << "Iteration performance for " << count << " elements:" << std::endl;
     std::cout << "dict: " << md_duration << " us" << std::endl;
     std::cout << "std::map: " << map_duration << " us" << std::endl;
     std::cout << "std::unordered_map: " << umap_duration << " us" << std::endl;
-    
+
     // 防止编译器优化掉循环
     EXPECT_GT(sum, 0);
 }
@@ -267,62 +266,62 @@ TEST(DictPerformanceTest, DISABLED_IterationPerformance) {
 // 测试 dict 和 std::map 的删除性能
 TEST(DictPerformanceTest, DISABLED_ErasurePerformance) {
     const size_t count = 10000;
-    auto pairs = generate_random_pairs(count);
-    
+    auto         pairs = generate_random_pairs(count);
+
     // 准备测试数据
-    mutable_dict md;
-    std::map<std::string, variant> m;
+    mutable_dict                             md;
+    std::map<std::string, variant>           m;
     std::unordered_map<std::string, variant> um;
-    
+
     for (const auto& pair : pairs) {
         md[pair.first] = pair.second;
-        m[pair.first] = pair.second;
+        m[pair.first]  = pair.second;
         um[pair.first] = pair.second;
     }
-    
+
     // 随机选择一些键进行删除
-    std::random_device rd;
-    std::mt19937 gen(rd());
+    std::random_device              rd;
+    std::mt19937                    gen(rd());
     std::uniform_int_distribution<> dis(0, count - 1);
-    
-    const size_t erase_count = 1000;
+
+    const size_t             erase_count = 1000;
     std::vector<std::string> erase_keys;
     erase_keys.reserve(erase_count);
-    
+
     for (size_t i = 0; i < erase_count; ++i) {
         erase_keys.push_back("key_" + std::to_string(dis(gen)));
     }
-    
+
     // 测试 mutable_dict 删除性能
     auto start = std::chrono::high_resolution_clock::now();
-    
+
     for (const auto& key : erase_keys) {
         md.erase(key);
     }
-    
-    auto end = std::chrono::high_resolution_clock::now();
+
+    auto end         = std::chrono::high_resolution_clock::now();
     auto md_duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
-    
+
     // 测试 std::map 删除性能
     start = std::chrono::high_resolution_clock::now();
-    
+
     for (const auto& key : erase_keys) {
         m.erase(key);
     }
-    
-    end = std::chrono::high_resolution_clock::now();
+
+    end               = std::chrono::high_resolution_clock::now();
     auto map_duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
-    
+
     // 测试 std::unordered_map 删除性能
     start = std::chrono::high_resolution_clock::now();
-    
+
     for (const auto& key : erase_keys) {
         um.erase(key);
     }
-    
-    end = std::chrono::high_resolution_clock::now();
+
+    end                = std::chrono::high_resolution_clock::now();
     auto umap_duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
-    
+
     // 输出性能结果
     std::cout << "Erasure performance for " << erase_count << " operations:" << std::endl;
     std::cout << "mutable_dict: " << md_duration << " us" << std::endl;
@@ -333,45 +332,48 @@ TEST(DictPerformanceTest, DISABLED_ErasurePerformance) {
 // 测试迭代器遍历与索引遍历的性能差异
 TEST(DictPerformanceTest, IteratorVsIndexPerformance) {
     const size_t count = 10000;
-    
+
     // 创建一个包含大量元素的字典
     mutable_dict md;
     for (size_t i = 0; i < count; ++i) {
         md["key_" + std::to_string(i)] = static_cast<int>(i);
     }
-    
+
     const dict& d = md; // 获取只读视图，保证公平比较
-    
+
     // 测量使用迭代器遍历的性能
     auto start = std::chrono::high_resolution_clock::now();
-    
+
     size_t sum_iterator = 0;
     for (const auto& entry : d) {
-        sum_iterator += entry.key.size() + (entry.value.is_integer() ? entry.value.as<int32_t>() : 0);
+        sum_iterator +=
+            entry.key.size() + (entry.value.is_integer() ? entry.value.as<int32_t>() : 0);
     }
-    
+
     auto end = std::chrono::high_resolution_clock::now();
-    auto iterator_duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
-    
+    auto iterator_duration =
+        std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
+
     // 测量使用索引遍历的性能
     start = std::chrono::high_resolution_clock::now();
-    
+
     size_t sum_index = 0;
     for (size_t i = 0; i < d.size(); ++i) {
         const auto& entry = d.at_index(i);
         sum_index += entry.key.size() + (entry.value.is_integer() ? entry.value.as<int32_t>() : 0);
     }
-    
+
     end = std::chrono::high_resolution_clock::now();
-    auto index_duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
-    
+    auto index_duration =
+        std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
+
     // 输出性能结果
     std::cout << "Performance comparison for traversing " << count << " elements:" << std::endl;
     std::cout << "Iterator traversal: " << iterator_duration << " us" << std::endl;
     std::cout << "Index traversal: " << index_duration << " us" << std::endl;
-    std::cout << "Index traversal is " << static_cast<double>(index_duration) / iterator_duration 
+    std::cout << "Index traversal is " << static_cast<double>(index_duration) / iterator_duration
               << " times slower than iterator traversal" << std::endl;
-    
+
     // 确保结果相同，防止编译器优化
     EXPECT_EQ(sum_iterator, sum_index);
-} 
+}

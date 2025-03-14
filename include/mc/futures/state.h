@@ -33,16 +33,16 @@ using result_variant_t =
 
 template <typename T, typename Executor, typename Allocator>
 struct State {
-    std::mutex mutex;
+    std::mutex              mutex;
     std::condition_variable cv;
-    bool ready = false;
-    result_variant_t<T> result;
+    bool                    ready = false;
+    result_variant_t<T>     result;
 
     std::list<std::function<void()>> continuations;
     typename Executor::executor_type executor;
-    std::atomic<bool> deferred{false};
-    launch policy = launch::async;
-    Allocator allocator;
+    std::atomic<bool>                deferred{false};
+    launch                           policy = launch::async;
+    Allocator                        allocator;
 
     explicit State(typename Executor::executor_type e, const Allocator& alloc)
         : executor(e), allocator(alloc) {

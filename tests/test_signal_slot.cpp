@@ -6,7 +6,7 @@
 // 测试基本的信号槽连接和触发
 TEST(SignalSlotTest, BasicConnection) {
     mc::signal<int> sig;
-    int value = 0;
+    int             value = 0;
 
     // 连接信号到lambda槽函数
     auto conn = sig.connect([&value](int v) {
@@ -25,8 +25,8 @@ TEST(SignalSlotTest, BasicConnection) {
 // 测试多个槽连接到同一个信号
 TEST(SignalSlotTest, MultipleSlots) {
     mc::signal<int> sig;
-    int value1 = 0;
-    int value2 = 0;
+    int             value1 = 0;
+    int             value2 = 0;
 
     // 连接多个槽
     sig.connect([&value1](int v) {
@@ -45,7 +45,7 @@ TEST(SignalSlotTest, MultipleSlots) {
 // 测试断开连接
 TEST(SignalSlotTest, Disconnect) {
     mc::signal<int> sig;
-    int value = 0;
+    int             value = 0;
 
     // 连接信号到槽
     auto conn = sig.connect([&value](int v) {
@@ -67,8 +67,8 @@ TEST(SignalSlotTest, Disconnect) {
 // 测试断开所有连接
 TEST(SignalSlotTest, DisconnectAll) {
     mc::signal<int> sig;
-    int value1 = 0;
-    int value2 = 0;
+    int             value1 = 0;
+    int             value2 = 0;
 
     // 连接多个槽
     sig.connect([&value1](int v) {
@@ -95,7 +95,7 @@ TEST(SignalSlotTest, DisconnectAll) {
 // 测试连接管理器
 TEST(SignalSlotTest, ConnectionManager) {
     mc::signal<int> sig;
-    int value = 0;
+    int             value = 0;
 
     {
         // 创建一个作用域，在其中创建连接管理器
@@ -122,13 +122,13 @@ TEST(SignalSlotTest, ConnectionManager) {
 // 测试多参数信号
 TEST(SignalSlotTest, MultipleParameters) {
     mc::signal<int, std::string> sig;
-    int value = 0;
-    std::string text;
+    int                          value = 0;
+    std::string                  text;
 
     // 连接信号到槽
     sig.connect([&value, &text](int v, const std::string& t) {
         value = v;
-        text = t;
+        text  = t;
     });
 
     // 触发信号

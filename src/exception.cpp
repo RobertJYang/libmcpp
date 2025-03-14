@@ -27,9 +27,9 @@ namespace detail {
  */
 class exception_impl {
 public:
-    std::string m_name;   // 异常名称
-    std::string m_what;   // 异常描述
-    int64_t m_code;       // 异常代码
+    std::string   m_name; // 异常名称
+    std::string   m_what; // 异常描述
+    int64_t       m_code; // 异常代码
     log::messages m_logs; // 日志消息列表
 };
 
@@ -99,7 +99,7 @@ std::string exception::to_detail_string(mc::log::level ll) const {
 
         // 格式化时间戳
         auto time_t = std::chrono::system_clock::to_time_t(log.get_timestamp());
-        auto tm = std::localtime(&time_t);
+        auto tm     = std::localtime(&time_t);
 
         ss << std::put_time(tm, "%Y-%m-%d %H:%M:%S") << " ";
 
@@ -177,46 +177,38 @@ std::shared_ptr<exception> exception::dynamic_copy_exception() const {
     return std::make_shared<exception>(*this);
 }
 
-const mc::log::messages &exception::messages() const {
+const mc::log::messages& exception::messages() const {
     return m_impl->m_logs;
 }
 
 // 未处理异常实现
 
 unhandled_exception::unhandled_exception(mc::log::message&& msg, std::exception_ptr e)
-    : exception(std::move(msg), unhandled_exception_code, "unhandled", "未处理的异常"),
-      m_inner(e)
-{
+    : exception(std::move(msg), unhandled_exception_code, "unhandled", "未处理的异常"), m_inner(e) {
 }
 
 unhandled_exception::unhandled_exception(mc::log::messages msgs)
-    : exception(std::move(msgs), unhandled_exception_code, "unhandled", "未处理的异常")
-{
+    : exception(std::move(msgs), unhandled_exception_code, "unhandled", "未处理的异常") {
 }
 
-unhandled_exception::unhandled_exception(const exception& e)
-    : exception(e)
-{
+unhandled_exception::unhandled_exception(const exception& e) : exception(e) {
     m_impl->m_code = unhandled_exception_code;
     m_impl->m_name = "unhandled";
     m_impl->m_what = "未处理的异常";
 }
 
-std::exception_ptr unhandled_exception::get_inner_exception() const
-{
+std::exception_ptr unhandled_exception::get_inner_exception() const {
     return m_inner;
 }
 
-void unhandled_exception::dynamic_rethrow_exception() const
-{
+void unhandled_exception::dynamic_rethrow_exception() const {
     if (m_inner) {
         std::rethrow_exception(m_inner);
     }
     throw *this;
 }
 
-std::shared_ptr<exception> unhandled_exception::dynamic_copy_exception() const
-{
+std::shared_ptr<exception> unhandled_exception::dynamic_copy_exception() const {
     return std::make_shared<unhandled_exception>(*this);
 }
 

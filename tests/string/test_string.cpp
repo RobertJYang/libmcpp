@@ -217,17 +217,16 @@ TEST_F(StringTest, FormatWithDictTest) {
     ASSERT_EQ(result, "没有占位符的字符串") << "没有占位符的字符串应该保持不变";
 
     // 测试简单字符串值
-    mc::dict simple_args{
-        {"simple_key", "simple_value"}
-    };
+    mc::dict simple_args{{"simple_key", "simple_value"}};
     result = mc::format("简单替换: ${simple_key}", simple_args);
     ASSERT_EQ(result, "简单替换: simple_value") << "简单替换应该正确";
-    
+
     // 测试新format重载函数，将结果追加到现有字符串
     std::string append_result = "前缀：";
-    mc_format_append(append_result, "连接到 ${host}:${port}", ("host","example.com")("port", "8080"));
+    mc_format_append(append_result, "连接到 ${host}:${port}",
+                     ("host", "example.com")("port", "8080"));
     ASSERT_EQ(append_result, "前缀：连接到 example.com:8080") << "追加格式化结果应该正确";
-    
+
     // 测试新format重载函数，使用空字符串
     std::string empty_result;
     mc_format_append(empty_result, "协议: ${protocol}", ("protocol", "https"));
@@ -237,7 +236,7 @@ TEST_F(StringTest, FormatWithDictTest) {
     // 测试无参数情况
     result = mc_format("无参数字符串");
     ASSERT_EQ(result, "无参数字符串") << "无参数调用应该返回原始字符串";
-    
+
     // 测试多个参数
     result = mc_format("${a}-${b}-${c}", ("a", 1)("b", 2.5)("c", "文本"));
     ASSERT_EQ(result, "1-2.5-文本") << "多参数调用应该正确格式化";

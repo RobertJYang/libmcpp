@@ -23,11 +23,7 @@ using namespace mc;
 
 // 测试 dict 对 string_view 的支持
 TEST(DictStringViewTest, DictStringViewSupport) {
-    dict d({
-        {"key1", 123},
-        {"key2", "value"},
-        {"key3", true}
-    });
+    dict d({{"key1", 123}, {"key2", "value"}, {"key3", true}});
 
     // 测试 std::string_view 接口
     std::string_view key1_view = "key1";
@@ -60,11 +56,7 @@ TEST(DictStringViewTest, DictStringViewSupport) {
 
 // 测试 dict 对 const char* 的支持
 TEST(DictStringViewTest, DictConstCharSupport) {
-    dict d({
-        {"key1", 123},
-        {"key2", "value"},
-        {"key3", true}
-    });
+    dict d({{"key1", 123}, {"key2", "value"}, {"key3", true}});
 
     // 测试 const char* 接口
     const char* key1_cstr = "key1";
@@ -97,27 +89,23 @@ TEST(DictStringViewTest, DictConstCharSupport) {
 
 // 测试 mutable_dict 对 string_view 的支持
 TEST(DictStringViewTest, MutableDictStringViewSupport) {
-    mutable_dict md({
-        {"key1", 123},
-        {"key2", "value"},
-        {"key3", true}
-    });
-    
+    mutable_dict md({{"key1", 123}, {"key2", "value"}, {"key3", true}});
+
     // 测试 std::string_view 接口
     std::string_view key1_view = "key1";
     std::string_view key2_view = "key2";
     std::string_view key3_view = "key3";
     std::string_view key4_view = "key4";
-    
+
     // 测试 operator[] 方法
     EXPECT_EQ(md[key1_view].as<int>(), 123);
     EXPECT_EQ(md[key2_view].as<std::string>(), "value");
     EXPECT_EQ(md[key3_view].as<bool>(), true);
-    
+
     // 测试添加新键值对
     md[key4_view] = 456;
     EXPECT_EQ(md[key4_view].as<int>(), 456);
-    
+
     // 测试 erase 方法
     EXPECT_TRUE(md.erase(key4_view));
     EXPECT_FALSE(md.contains(key4_view));
@@ -126,27 +114,23 @@ TEST(DictStringViewTest, MutableDictStringViewSupport) {
 
 // 测试 mutable_dict 对 const char* 的支持
 TEST(DictStringViewTest, MutableDictConstCharSupport) {
-    mutable_dict md({
-        {"key1", 123},
-        {"key2", "value"},
-        {"key3", true}
-    });
-    
+    mutable_dict md({{"key1", 123}, {"key2", "value"}, {"key3", true}});
+
     // 测试 const char* 接口
     const char* key1_cstr = "key1";
     const char* key2_cstr = "key2";
     const char* key3_cstr = "key3";
     const char* key4_cstr = "key4";
-    
+
     // 测试 operator[] 方法
     EXPECT_EQ(md[key1_cstr].as<int>(), 123);
     EXPECT_EQ(md[key2_cstr].as<std::string>(), "value");
     EXPECT_EQ(md[key3_cstr].as<bool>(), true);
-    
+
     // 测试添加新键值对
     md[key4_cstr] = 456;
     EXPECT_EQ(md[key4_cstr].as<int>(), 456);
-    
+
     // 测试 erase 方法
     EXPECT_TRUE(md.erase(key4_cstr));
     EXPECT_FALSE(md.contains(key4_cstr));
@@ -156,45 +140,41 @@ TEST(DictStringViewTest, MutableDictConstCharSupport) {
 // 测试混合字符串类型
 TEST(DictStringViewTest, MixedStringTypes) {
     // 使用不同类型的字符串作为键
-    std::string key1_str = "key1";
+    std::string      key1_str  = "key1";
     std::string_view key2_view = "key2";
-    const char* key3_cstr = "key3";
-    
-    mutable_dict md({
-        {key1_str, 123},
-        {key2_view, "value"},
-        {key3_cstr, true}
-    });
-    
+    const char*      key3_cstr = "key3";
+
+    mutable_dict md({{key1_str, 123}, {key2_view, "value"}, {key3_cstr, true}});
+
     // 使用不同类型的字符串访问键值对
-    std::string key1_str_copy = "key1";
+    std::string      key1_str_copy  = "key1";
     std::string_view key2_view_copy = "key2";
-    const char* key3_cstr_copy = "key3";
-    
+    const char*      key3_cstr_copy = "key3";
+
     EXPECT_EQ(md[key1_str_copy].as<int>(), 123);
     EXPECT_EQ(md[std::string_view(key1_str_copy)].as<int>(), 123);
     EXPECT_EQ(md[key1_str_copy.c_str()].as<int>(), 123);
-    
+
     EXPECT_EQ(md[key2_view_copy].as<std::string>(), "value");
     EXPECT_EQ(md[std::string(key2_view_copy)].as<std::string>(), "value");
     EXPECT_EQ(md[std::string(key2_view_copy).c_str()].as<std::string>(), "value");
-    
+
     EXPECT_EQ(md[key3_cstr_copy].as<bool>(), true);
     EXPECT_EQ(md[std::string(key3_cstr_copy)].as<bool>(), true);
     EXPECT_EQ(md[std::string_view(key3_cstr_copy)].as<bool>(), true);
-    
+
     // 测试 contains 方法
     EXPECT_TRUE(md.contains(key1_str_copy));
     EXPECT_TRUE(md.contains(std::string_view(key1_str_copy)));
     EXPECT_TRUE(md.contains(key1_str_copy.c_str()));
-    
+
     // 测试 erase 方法
     EXPECT_TRUE(md.erase(key1_str_copy));
     EXPECT_FALSE(md.contains(key1_str_copy));
-    
+
     EXPECT_TRUE(md.erase(std::string_view(key2_view_copy)));
     EXPECT_FALSE(md.contains(key2_view_copy));
-    
+
     EXPECT_TRUE(md.erase(key3_cstr_copy));
     EXPECT_FALSE(md.contains(key3_cstr_copy));
-} 
+}

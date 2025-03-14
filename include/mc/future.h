@@ -28,8 +28,8 @@ class Promise;
 template <typename T, typename Executor, typename Allocator = std::allocator<void>>
 class Future {
 public:
-    using value_type = T;
-    using executor_type = typename Executor::executor_type;
+    using value_type     = T;
+    using executor_type  = typename Executor::executor_type;
     using allocator_type = Allocator;
 
     explicit Future(std::shared_ptr<future::State<T, Executor, Allocator>> state) : state_(state) {
@@ -37,11 +37,11 @@ public:
     ~Future() = default;
 
     // 禁止拷贝
-    Future(const Future&) = delete;
+    Future(const Future&)            = delete;
     Future& operator=(const Future&) = delete;
 
     // 允许移动
-    Future(Future&&) noexcept = default;
+    Future(Future&&) noexcept            = default;
     Future& operator=(Future&&) noexcept = default;
 
     // 链式操作
@@ -101,11 +101,11 @@ public:
     ~Promise() = default;
 
     // 禁止拷贝
-    Promise(const Promise&) = delete;
+    Promise(const Promise&)            = delete;
     Promise& operator=(const Promise&) = delete;
 
     // 允许移动
-    Promise(Promise&&) noexcept = default;
+    Promise(Promise&&) noexcept            = default;
     Promise& operator=(Promise&&) noexcept = default;
 
     // 设置值
@@ -120,8 +120,8 @@ public:
 
 private:
     std::shared_ptr<typename Future<T, Executor, Allocator>::State> state_;
-    bool future_retrieved_ = false;
-    Allocator allocator_;
+    bool                                                            future_retrieved_ = false;
+    Allocator                                                       allocator_;
 };
 
 template <typename T, typename Executor, typename Allocator = std::allocator<void>>

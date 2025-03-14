@@ -35,7 +35,7 @@ TEST(VariantConstructionTest, ConstCharPtrConstructor) {
 // 测试 variant 的 std::string 构造函数
 TEST(VariantConstructionTest, StringConstructor) {
     std::string s = "hello";
-    variant v = s;
+    variant     v = s;
     EXPECT_EQ(v.type(), variant_type::string);
     EXPECT_EQ(v.as<std::string>(), "hello");
 }
@@ -43,14 +43,14 @@ TEST(VariantConstructionTest, StringConstructor) {
 // 测试 variant 的 std::string_view 构造函数
 TEST(VariantConstructionTest, StringViewConstructor) {
     std::string_view sv = "hello";
-    variant v = sv;
+    variant          v  = sv;
     EXPECT_EQ(v.type(), variant_type::string);
     EXPECT_EQ(v.as<std::string>(), "hello");
 }
 
 // 测试 variant 的 blob 构造函数
 TEST(VariantConstructionTest, BlobConstructor) {
-    blob b = {1, 2, 3, 4, 5};
+    blob    b = {1, 2, 3, 4, 5};
     variant v = b;
     EXPECT_EQ(v.type(), variant_type::blob);
     EXPECT_EQ(v.as<blob>(), b);
@@ -58,11 +58,7 @@ TEST(VariantConstructionTest, BlobConstructor) {
 
 // 测试 variant 的 dict 构造函数
 TEST(VariantConstructionTest, DictConstructor) {
-    dict d({
-        {"key1", 123},
-        {"key2", "value"},
-        {"key3", true}
-    });
+    dict    d({{"key1", 123}, {"key2", "value"}, {"key3", true}});
     variant v = d;
     EXPECT_EQ(v.type(), variant_type::dict);
     EXPECT_EQ(v.as<dict>(), d);
@@ -70,12 +66,8 @@ TEST(VariantConstructionTest, DictConstructor) {
 
 // 测试 variant 的 mutable_dict 构造函数
 TEST(VariantConstructionTest, MutableDictConstructor) {
-    mutable_dict md({
-        {"key1", 123},
-        {"key2", "value"},
-        {"key3", true}
-    });
-    variant v = md;
+    mutable_dict md({{"key1", 123}, {"key2", "value"}, {"key3", true}});
+    variant      v = md;
     EXPECT_EQ(v.type(), variant_type::dict);
     EXPECT_EQ(v.as<dict>(), dict(md));
 }
@@ -83,7 +75,7 @@ TEST(VariantConstructionTest, MutableDictConstructor) {
 // 测试 variant 的 variants 构造函数
 TEST(VariantConstructionTest, VariantsConstructor) {
     variants vs = {123, "value", true};
-    variant v = vs;
+    variant  v  = vs;
     EXPECT_EQ(v.type(), variant_type::array);
     EXPECT_EQ(v.as<variants>(), vs);
 }
@@ -158,18 +150,18 @@ TEST(VariantConstructionTest, ConstCharPtrAssignmentOperator) {
 
 // 测试 variant 的 std::string 赋值运算符
 TEST(VariantConstructionTest, StringAssignmentOperator) {
-    variant v;
+    variant     v;
     std::string s = "hello";
-    v = s;
+    v             = s;
     EXPECT_EQ(v.type(), variant_type::string);
     EXPECT_EQ(v.as<std::string>(), "hello");
 }
 
 // 测试 variant 的 std::string_view 赋值运算符
 TEST(VariantConstructionTest, StringViewAssignmentOperator) {
-    variant v;
+    variant          v;
     std::string_view sv = "hello";
-    v = sv;
+    v                   = sv;
     EXPECT_EQ(v.type(), variant_type::string);
     EXPECT_EQ(v.as<std::string>(), "hello");
 }
@@ -177,8 +169,8 @@ TEST(VariantConstructionTest, StringViewAssignmentOperator) {
 // 测试 variant 的 blob 赋值运算符
 TEST(VariantConstructionTest, BlobAssignmentOperator) {
     variant v;
-    blob b = {1, 2, 3, 4, 5};
-    v = b;
+    blob    b = {1, 2, 3, 4, 5};
+    v         = b;
     EXPECT_EQ(v.type(), variant_type::blob);
     EXPECT_EQ(v.as<blob>(), b);
 }
@@ -186,11 +178,7 @@ TEST(VariantConstructionTest, BlobAssignmentOperator) {
 // 测试 variant 的 dict 赋值运算符
 TEST(VariantConstructionTest, DictAssignmentOperator) {
     variant v;
-    dict d({
-        {"key1", 123},
-        {"key2", "value"},
-        {"key3", true}
-    });
+    dict    d({{"key1", 123}, {"key2", "value"}, {"key3", true}});
     v = d;
     EXPECT_EQ(v.type(), variant_type::dict);
     EXPECT_EQ(v.as<dict>(), d);
@@ -198,12 +186,8 @@ TEST(VariantConstructionTest, DictAssignmentOperator) {
 
 // 测试 variant 的 mutable_dict 赋值运算符
 TEST(VariantConstructionTest, MutableDictAssignmentOperator) {
-    variant v;
-    mutable_dict md({
-        {"key1", 123},
-        {"key2", "value"},
-        {"key3", true}
-    });
+    variant      v;
+    mutable_dict md({{"key1", 123}, {"key2", "value"}, {"key3", true}});
     v = md;
     EXPECT_EQ(v.type(), variant_type::dict);
     EXPECT_EQ(v.as<dict>(), dict(md));
@@ -211,9 +195,9 @@ TEST(VariantConstructionTest, MutableDictAssignmentOperator) {
 
 // 测试 variant 的 variants 赋值运算符
 TEST(VariantConstructionTest, VariantsAssignmentOperator) {
-    variant v;
+    variant  v;
     variants vs = {123, "value", true};
-    v = vs;
+    v           = vs;
     EXPECT_EQ(v.type(), variant_type::array);
     EXPECT_EQ(v.as<variants>(), vs);
-} 
+}

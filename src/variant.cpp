@@ -17,9 +17,9 @@
 #include <cstring>
 #include <limits>
 #include <mc/dict.h>
+#include <mc/string.h>
 #include <mc/variant.h>
 #include <stdexcept>
-#include <mc/string.h>
 
 namespace mc {
 
@@ -111,7 +111,7 @@ variant::variant(std::nullptr_t) : variant() {
 // 从字符串构造
 variant::variant(const char* str) : variant() {
     if (str) {
-        m_type = type_id::string_type;
+        m_type       = type_id::string_type;
         m_string_ptr = new std::string(str);
     }
 }
@@ -145,31 +145,31 @@ variant::variant(bool val) : m_bool(val), m_type(type_id::bool_type) {
 
 // 从 blob 构造
 variant::variant(blob val) : variant() {
-    m_type = type_id::blob_type;
+    m_type     = type_id::blob_type;
     m_blob_ptr = new blob(std::move(val));
 }
 
 // 从 std::string 构造
 variant::variant(std::string val) : variant() {
-    m_type = type_id::string_type;
+    m_type       = type_id::string_type;
     m_string_ptr = new std::string(std::move(val));
 }
 
 // 从 dict 构造
 variant::variant(dict obj) : variant() {
-    m_type = type_id::object_type;
+    m_type       = type_id::object_type;
     m_object_ptr = new dict(std::move(obj));
 }
 
 // 从 mutable_dict 构造
 variant::variant(mutable_dict obj) : variant() {
-    m_type = type_id::object_type;
+    m_type       = type_id::object_type;
     m_object_ptr = new dict(std::move(obj));
 }
 
 // 从 variants 构造
 variant::variant(variants arr) : variant() {
-    m_type = type_id::array_type;
+    m_type      = type_id::array_type;
     m_array_ptr = new variants(std::move(arr));
 }
 
@@ -286,19 +286,19 @@ variant::variant(variant&& other) noexcept : variant() {
         m_bool = other.m_bool;
         break;
     case type_id::string_type:
-        m_string_ptr = other.m_string_ptr;
+        m_string_ptr       = other.m_string_ptr;
         other.m_string_ptr = nullptr;
         break;
     case type_id::array_type:
-        m_array_ptr = other.m_array_ptr;
+        m_array_ptr       = other.m_array_ptr;
         other.m_array_ptr = nullptr;
         break;
     case type_id::object_type:
-        m_object_ptr = other.m_object_ptr;
+        m_object_ptr       = other.m_object_ptr;
         other.m_object_ptr = nullptr;
         break;
     case type_id::blob_type:
-        m_blob_ptr = other.m_blob_ptr;
+        m_blob_ptr       = other.m_blob_ptr;
         other.m_blob_ptr = nullptr;
         break;
     default:
@@ -320,44 +320,44 @@ variant& variant::operator=(variant&& other) noexcept {
         case type_id::int16_type:
         case type_id::int32_type:
         case type_id::int64_type:
-            m_int64 = other.m_int64;
+            m_int64       = other.m_int64;
             other.m_int64 = 0;
             break;
         case type_id::uint8_type:
         case type_id::uint16_type:
         case type_id::uint32_type:
         case type_id::uint64_type:
-            m_uint64 = other.m_uint64;
+            m_uint64       = other.m_uint64;
             other.m_uint64 = 0;
             break;
         case type_id::double_type:
-            m_double = other.m_double;
+            m_double       = other.m_double;
             other.m_double = 0.0;
             break;
         case type_id::bool_type:
-            m_bool = other.m_bool;
+            m_bool       = other.m_bool;
             other.m_bool = false;
             break;
         case type_id::string_type:
-            m_string_ptr = other.m_string_ptr;
+            m_string_ptr       = other.m_string_ptr;
             other.m_string_ptr = nullptr;
             break;
         case type_id::array_type:
-            m_array_ptr = other.m_array_ptr;
+            m_array_ptr       = other.m_array_ptr;
             other.m_array_ptr = nullptr;
             break;
         case type_id::object_type:
-            m_object_ptr = other.m_object_ptr;
+            m_object_ptr       = other.m_object_ptr;
             other.m_object_ptr = nullptr;
             break;
         case type_id::blob_type:
-            m_blob_ptr = other.m_blob_ptr;
+            m_blob_ptr       = other.m_blob_ptr;
             other.m_blob_ptr = nullptr;
             break;
         default:
             break;
         }
-        m_type = other.m_type;
+        m_type       = other.m_type;
         other.m_type = type_id::null_type;
     }
     return *this;
@@ -602,7 +602,7 @@ blob variant::as_blob() const {
         return *static_cast<blob*>(m_blob_ptr);
     } else if (m_type == type_id::string_type) {
         const std::string& s = *static_cast<std::string*>(m_string_ptr);
-        blob b;
+        blob               b;
         b.data.assign(s.begin(), s.end());
         return b;
     } else {
@@ -662,7 +662,7 @@ const variant& variant::operator[](std::string_view key) const {
     if (m_type != type_id::object_type) {
         throw_type_error("object", m_type);
     }
-    
+
     const dict& obj = *static_cast<dict*>(m_object_ptr);
     return obj[key];
 }
@@ -677,7 +677,7 @@ const variant& variant::get(std::string_view key, const variant& default_value) 
     if (m_type != type_id::object_type) {
         return default_value;
     }
-    
+
     const dict& obj = *static_cast<dict*>(m_object_ptr);
     return obj.get(key, default_value);
 }
@@ -697,7 +697,7 @@ bool variant::contains(std::string_view key) const {
     if (m_type != type_id::object_type) {
         return false;
     }
-    
+
     const dict& obj = *static_cast<dict*>(m_object_ptr);
     return obj.contains(key);
 }
@@ -784,12 +784,12 @@ void from_variant(const mc::variant& var, mc::variants& vo) {
 void to_variant(const std::vector<char>& var, mc::variant& vo) {
     blob b;
     b.data = var;
-    vo = variant(std::move(b));
+    vo     = variant(std::move(b));
 }
 
 void from_variant(const mc::variant& var, std::vector<char>& vo) {
     blob b = var.as_blob();
-    vo = std::move(b.data);
+    vo     = std::move(b.data);
 }
 
 // 类型检查实现

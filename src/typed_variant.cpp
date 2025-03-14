@@ -1,22 +1,22 @@
 /*
-* Copyright (c) 2025 Huawei Technologies Co., Ltd.
-* openUBMC is licensed under Mulan PSL v2.
-* You can use this software according to the terms and conditions of the Mulan PSL v2.
-* You may obtain a copy of Mulan PSL v2 at:
-*         http://license.coscl.org.cn/MulanPSL2
-* THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
-* EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
-* MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
-* See the Mulan PSL v2 for more details.
-*/
+ * Copyright (c) 2025 Huawei Technologies Co., Ltd.
+ * openUBMC is licensed under Mulan PSL v2.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *         http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
+ */
 
 /**
  * @file typed_variant.cpp
  * @brief 实现 typed_variant 相关的转换函数
  */
 
-#include "../include/mc/variant.h"
 #include "../include/mc/dict.h"
+#include "../include/mc/variant.h"
 #include <cstdint>
 #include <stdexcept>
 
@@ -132,7 +132,6 @@ typed_variant& typed_variant::operator=(const typed_variant& other) {
     return *this;
 }
 
-
 typed_variant& typed_variant::operator=(typed_variant&& other) {
     if (this != &other) {
         typed_variant::operator=(std::forward<variant&&>(other));
@@ -158,4 +157,4 @@ void from_variant(const variant& var, typed_variant& vo) {
     vo = var;
 }
 
-} // namespace mc 
+} // namespace mc

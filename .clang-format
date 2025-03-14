@@ -51,11 +51,13 @@ SpaceBeforeRangeBasedForLoopColon: true
 
 # 对齐设置
 AlignAfterOpenBracket: Align
-AlignConsecutiveAssignments: false
-AlignConsecutiveDeclarations: false
+AlignConsecutiveAssignments: true
+AlignConsecutiveDeclarations: true
 AlignEscapedNewlines: Right
 AlignOperands: true
 AlignTrailingComments: true
+AlignConsecutiveMacros: true
+AlignConsecutiveBitFields: true
 
 # 换行设置
 AllowAllParametersOfDeclarationOnNextLine: true
