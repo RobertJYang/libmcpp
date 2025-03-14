@@ -23,7 +23,6 @@
 #include <boost/preprocessor/stringize.hpp>
 #include <mc/common.h>
 #include <mc/dict.h>
-#include <mc/exception.h>
 #include <mc/reflect/typename.h>
 #include <mc/variant.h>
 
@@ -45,7 +44,7 @@
 #define MC_REFLECT_BEGIN(TYPE)                                                                     \
     namespace mc {                                                                                 \
     template <>                                                                                    \
-    struct reflector<TYPE> {                                                                       \
+    struct reflect::reflector<TYPE> {                                                              \
         using is_defined = std::true_type;                                                         \
         using is_enum    = std::false_type;                                                        \
         static const char* name() {                                                                \
@@ -86,7 +85,7 @@
 #define MC_REFLECT_ENUM_BEGIN(TYPE)                                                                \
     namespace mc {                                                                                 \
     template <>                                                                                    \
-    struct reflector<TYPE> {                                                                       \
+    struct reflect::reflector<TYPE> {                                                              \
         using is_defined = std::true_type;                                                         \
         using is_enum    = std::true_type;                                                         \
         static const char* name() {                                                                \
@@ -107,7 +106,7 @@
  */
 #define MC_REFLECT_ENUM_END(TYPE)                                                                  \
     default:                                                                                       \
-        throw bad_enum_cast("无效的枚举值");                                                       \
+        mc::reflect::throw_bad_enum_cast(static_cast<int64_t>(e), #TYPE);                                      \
         }                                                                                          \
         }                                                                                          \
         static void from_variant(const variant& var, TYPE& e) {
@@ -124,7 +123,7 @@
  * @brief 结束定义枚举值的字符串转换
  */
 #define MC_REFLECT_ENUM_FROM_STRING_END(TYPE)                                                      \
-    throw bad_enum_cast("无效的枚举字符串");                                                       \
+    mc::reflect::throw_bad_enum_cast(var.as_string().c_str(), #TYPE);                                          \
     }                                                                                              \
     }                                                                                              \
     ;                                                                                              \
@@ -132,6 +131,9 @@
 
 namespace mc {
 namespace reflect {
+
+void throw_bad_enum_cast(int64_t i, const char* e);
+void throw_bad_enum_cast(const char* k, const char* e);
 
 /**
  * @brief 成员信息结构体
@@ -154,20 +156,6 @@ template <typename T>
 struct reflector {
     using is_defined = std::false_type;
     using is_enum    = std::false_type;
-};
-
-/**
- * @brief 枚举转换异常类
- */
-class bad_enum_cast : public mc::exception {
-public:
-    enum code_enum {
-        code_value = mc::bad_cast_exception_code,
-    };
-
-    explicit bad_enum_cast(const std::string& msg)
-        : mc::exception(mc::bad_cast_exception_code, "bad_enum_cast", msg) {
-    }
 };
 
 } // namespace reflect

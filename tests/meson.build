@@ -11,6 +11,7 @@ test_files = [
   # 'exception/test_exception_macros.cpp',
   # 'exception/test_exception_integration.cpp',
   # 'log/test_log.cpp',
+  'log/test_console_appender.cpp',
   'variant/test_variant_basic.cpp',
   'variant/test_variant_containers.cpp',
   'variant/test_variant_standard_containers.cpp',

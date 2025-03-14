@@ -14,7 +14,8 @@ src_files = [
   'log/appenders/console_appender.cpp',
   # 'log/appenders/file_appender.cpp',
   'filesystem.cpp',
-  'json.cpp'
+  'json.cpp',
+  'reflect.cpp',
 ]
 
 # 创建共享库

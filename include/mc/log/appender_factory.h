@@ -61,7 +61,10 @@ public:
      * @param name 追加器名称
      * @return appender_ptr 追加器实例
      */
-    appender_ptr create(const std::string& name);
+    template<typename T>
+    std::shared_ptr<T> create(const std::string& name) {
+        return std::dynamic_pointer_cast<T>(create_impl(name));
+    }
 
     /**
      * @brief 从动态库加载追加器
@@ -94,6 +97,8 @@ public:
     appender_factory& operator=(const appender_factory&) = delete;
 
 private:
+    appender_ptr create_impl(const std::string& name);
+
     appender_factory();
     class impl;
     std::unique_ptr<impl> m_impl;

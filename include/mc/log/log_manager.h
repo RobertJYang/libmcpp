@@ -86,8 +86,9 @@ public:
      * @param name 追加器名称
      * @return appender_ptr 追加器指针
      */
-    appender_ptr create_appender(const std::string& name) {
-        return appender_factory::instance().create(name);
+    template<typename T>
+    std::shared_ptr<T> create_appender(const std::string& name) {
+        return appender_factory::instance().create<T>(name);
     }
 
 private:

@@ -15,6 +15,8 @@
 #include <mc/filesystem.h>
 #include <mc/log.h>
 #include <mc/log/appender_factory.h>
+#include <mc/log/appenders/console_appender.h>
+#include <mc/log/appenders/file_appender.h>
 #include <unordered_map>
 
 namespace mc {
@@ -33,7 +35,10 @@ class appender_factory::impl {
     };
 
 public:
-    impl() = default;
+    impl() {
+        register_builtin_appenders();
+    }
+    
     ~impl() {
         cleanup();
     }
@@ -102,6 +107,17 @@ public:
     }
 
 private:
+    // 注册内置追加器
+    void register_builtin_appenders() {
+        register_creator("console", []() {
+            return std::make_shared<console_appender>();
+        });
+        
+        // register_creator("file", []() {
+        //     return std::make_shared<file_appender>();
+        // });
+    }
+
     void register_creator(const std::string& name, std::function<appender_ptr()> creator) {
         m_creators[name] = std::move(creator);
     }
@@ -146,7 +162,7 @@ appender_factory::appender_factory() : m_impl(std::make_unique<impl>()) {
 }
 appender_factory::~appender_factory() = default;
 
-appender_ptr appender_factory::create(const std::string& name) {
+appender_ptr appender_factory::create_impl(const std::string& name) {
     return m_impl->create(name);
 }
 
