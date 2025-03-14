@@ -26,7 +26,8 @@ dict::dict() : m_data(std::make_shared<data_t>()) {
 }
 
 // 从键值对集合构造
-dict::dict(std::vector<entry> entries) : m_data(std::make_shared<data_t>(entries.empty() ? 1 : entries.size())) {
+dict::dict(std::vector<entry> entries)
+    : m_data(std::make_shared<data_t>(entries.empty() ? 1 : entries.size())) {
     // 处理重复的键，保留最后一个值
     for (auto&& entry_val : entries) {
         // 查找是否已存在该键
@@ -44,7 +45,7 @@ dict::dict(std::vector<entry> entries) : m_data(std::make_shared<data_t>(entries
 }
 
 // 从初始化列表构造
-dict::dict(std::initializer_list<std::pair<std::string, variant>> init) 
+dict::dict(std::initializer_list<std::pair<std::string, variant>> init)
     : m_data(std::make_shared<data_t>(init.size())) {
     // 处理初始化列表中的键值对
     for (const auto& pair : init) {
@@ -73,7 +74,7 @@ dict::dict(dict&& other) noexcept = default;
 dict::~dict() = default;
 
 // 赋值运算符 - 共享数据
-dict& dict::operator=(const dict& other) = default;
+dict& dict::operator=(const dict& other)     = default;
 dict& dict::operator=(dict&& other) noexcept = default;
 
 // 查找指定键的元素
@@ -205,7 +206,7 @@ const dict::entry& dict::at_index(size_t index) const {
     if (index >= size()) {
         throw std::out_of_range("字典索引越界");
     }
-    
+
     auto it = m_data->entries.begin();
     std::advance(it, index);
     return *it;
@@ -236,7 +237,7 @@ int dict::find_entry_index(const entry* e) const {
     if (!e) {
         return -1;
     }
-    
+
     // 计算索引位置
     int index = 0;
     for (auto it = m_data->entries.begin(); it != m_data->entries.end(); ++it, ++index) {
@@ -244,7 +245,7 @@ int dict::find_entry_index(const entry* e) const {
             return index;
         }
     }
-    
+
     return -1; // 理论上不会到达这里
 }
 
@@ -272,7 +273,7 @@ bool dict::operator==(const dict& other) const {
     if (m_data == other.m_data) {
         return true;
     }
-    
+
     // 如果大小不同，则不相等
     if (size() != other.size()) {
         return false;

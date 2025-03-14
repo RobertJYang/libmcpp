@@ -171,7 +171,7 @@ public:
     variant(const std::pair<K, T>& pair);
 
     template <typename T, std::enable_if_t<!is_variant_v<void, T>, int> = 0>
-    variant(const T& obj): variant() {
+    variant(const T& obj) : variant() {
         to_variant(obj, *this);
     }
 
@@ -198,15 +198,15 @@ public:
         virtual ~visitor() {
         }
 
-        virtual void handle() const = 0;
-        virtual void handle(const int64_t& v) const = 0;
-        virtual void handle(const uint64_t& v) const = 0;
-        virtual void handle(const double& v) const = 0;
-        virtual void handle(const bool& v) const = 0;
+        virtual void handle() const                     = 0;
+        virtual void handle(const int64_t& v) const     = 0;
+        virtual void handle(const uint64_t& v) const    = 0;
+        virtual void handle(const double& v) const      = 0;
+        virtual void handle(const bool& v) const        = 0;
         virtual void handle(const std::string& v) const = 0;
-        virtual void handle(const dict& v) const = 0;
-        virtual void handle(const variants& v) const = 0;
-        virtual void handle(const blob& v) const = 0;
+        virtual void handle(const dict& v) const        = 0;
+        virtual void handle(const variants& v) const    = 0;
+        virtual void handle(const blob& v) const        = 0;
     };
 
     /**
@@ -448,7 +448,7 @@ public:
      * @throw std::out_of_range 如果键不存在
      */
     const variant& operator[](std::string_view key) const;
-    
+
     /**
      * @brief 获取对象中指定键的值，如果不存在或不是对象类型则返回默认值
      * @param key 要查找的键
@@ -456,7 +456,7 @@ public:
      * @return 指定键对应的值的引用，或者默认值的引用
      */
     const variant& get(const std::string& key, const variant& default_value) const;
-    
+
     /**
      * @brief 获取对象中指定键的值，如果不存在或不是对象类型则返回默认值
      * @param key 要查找的键
@@ -464,7 +464,7 @@ public:
      * @return 指定键对应的值的引用，或者默认值的引用
      */
     const variant& get(std::string_view key, const variant& default_value) const;
-    
+
     /**
      * @brief 获取对象中指定键的值，如果不存在或不是对象类型则返回默认值
      * @param key 要查找的键
@@ -472,21 +472,21 @@ public:
      * @return 指定键对应的值的引用，或者默认值的引用
      */
     const variant& get(const char* key, const variant& default_value) const;
-    
+
     /**
      * @brief 检查对象是否包含指定键（当variant包含dict对象时）
      * @param key 要检查的键
      * @return 如果对象包含指定键则返回true，否则返回false
      */
     bool contains(const std::string& key) const;
-    
+
     /**
      * @brief 检查对象是否包含指定键（当variant包含dict对象时）
      * @param key 要检查的键
      * @return 如果对象包含指定键则返回true，否则返回false
      */
     bool contains(std::string_view key) const;
-    
+
     /**
      * @brief 检查对象是否包含指定键（当variant包含dict对象时）
      * @param key 要检查的键
@@ -654,7 +654,7 @@ public:
      * @brief 将variant转换为bool类型
      * @return 对于bool类型的false，整数类型的0，浮点数类型的0返回false，其他情况返回true
      */
-    explicit operator bool() const;
+    explicit    operator bool() const;
     friend bool operator!=(const char* val, const variant& var) {
         return !(var == val);
     }
@@ -715,14 +715,14 @@ protected:
      * @brief 存储数据的联合体
      */
     union {
-        double m_double;
-        int64_t m_int64;
+        double   m_double;
+        int64_t  m_int64;
         uint64_t m_uint64;
-        bool m_bool;
-        void* m_string_ptr;
-        void* m_blob_ptr;
-        void* m_array_ptr;
-        void* m_object_ptr;
+        bool     m_bool;
+        void*    m_string_ptr;
+        void*    m_blob_ptr;
+        void*    m_array_ptr;
+        void*    m_object_ptr;
     };
 
     /**

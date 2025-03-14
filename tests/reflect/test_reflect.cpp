@@ -34,8 +34,8 @@ MC_REFLECT_ENUM(test_color, (RED)(GREEN)(BLUE))
 class test_person {
 public:
     std::string m_name;
-    int m_age;
-    bool m_is_male;
+    int         m_age;
+    bool        m_is_male;
 
     test_person() : m_name(""), m_age(0), m_is_male(false) {
     }
@@ -62,7 +62,7 @@ public:
     }
 
     mutable std::vector<std::string> names;
-    mutable std::vector<variant> values;
+    mutable std::vector<variant>     values;
 
 private:
     const T& m_obj;
@@ -111,7 +111,7 @@ TEST(ReflectTest, EnumReflection) {
 
     // 枚举转变体
     test_color color = test_color::GREEN;
-    variant var(color);
+    variant    var(color);
 
     // 检查变体内容
     EXPECT_TRUE(var.is_string());
@@ -122,9 +122,9 @@ TEST(ReflectTest, EnumReflection) {
     EXPECT_EQ(new_color, test_color::GREEN);
 
     // 测试所有枚举值
-    test_color red = test_color::RED;
+    test_color red   = test_color::RED;
     test_color green = test_color::GREEN;
-    test_color blue = test_color::BLUE;
+    test_color blue  = test_color::BLUE;
 
     variant var_red(red);
     variant var_green(green);

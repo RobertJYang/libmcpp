@@ -22,10 +22,10 @@
 #include <cstdio>
 #include <locale>
 #include <memory>
+#include <sstream>
 #include <string>
 #include <string_view>
 #include <vector>
-#include <sstream>
 
 // 前向声明
 namespace mc {
@@ -222,7 +222,7 @@ bool contains(std::string_view s, std::string_view substring);
 bool icontains(std::string_view s, std::string_view substring);
 
 std::string format(std::string_view format, const mc::dict& args);
-void format(std::string& result, std::string_view format, const mc::dict& args);
+void        format(std::string& result, std::string_view format, const mc::dict& args);
 
 template <typename... Args>
 std::string format_v(const std::string& format, Args... args) {
@@ -289,13 +289,13 @@ std::string format_v(const std::string& format, Args... args) {
  * @code
  * // 不带参数的调用
  * std::string s1 = mc_format("无参数字符串");
- * 
+ *
  * // 带参数的调用
  * std::string s2 = mc_format("${host}:${port}", ("host", "example.com")("port", 8080));
  * @endcode
  */
-#define mc_format(fmt, ...) \
-    mc::format(fmt, static_cast<const mc::dict&>(mc::mutable_dict()__VA_ARGS__))
+#define mc_format(fmt, ...)                                                                        \
+    mc::format(fmt, static_cast<const mc::dict&>(mc::mutable_dict() __VA_ARGS__))
 
 /**
  * @brief 简化format函数调用的宏，将结果追加到现有字符串
@@ -309,8 +309,8 @@ std::string format_v(const std::string& format, Args... args) {
  * mc_format_append(result, "${host}:${port}", ("host", "example.com")("port", 8080));
  * @endcode
  */
-#define mc_format_append(result, fmt, ...) \
-    mc::format(result, fmt, static_cast<const mc::dict&>(mc::mutable_dict()__VA_ARGS__))
+#define mc_format_append(result, fmt, ...)                                                         \
+    mc::format(result, fmt, static_cast<const mc::dict&>(mc::mutable_dict() __VA_ARGS__))
 
 } // namespace mc
 

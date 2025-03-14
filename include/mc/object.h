@@ -97,12 +97,12 @@ public:
     object* find_child_recursive(const std::string& name) const;
 
     // 禁止拷贝构造和赋值操作
-    object(const object&) = delete;
+    object(const object&)            = delete;
     object& operator=(const object&) = delete;
 
 private:
-    std::string name_;              ///< 对象名称
-    object* parent_;                ///< 父对象指针
+    std::string          name_;     ///< 对象名称
+    object*              parent_;   ///< 父对象指针
     std::vector<object*> children_; ///< 子对象列表
 
     /**

@@ -85,8 +85,8 @@ TEST(EventTest, BasicEvent) {
 // 测试事件处理器
 TEST(EventTest, EventHandler) {
     test_handler handler;
-    test_event e1(10);
-    test_event e2(20);
+    test_event   e1(10);
+    test_event   e2(20);
 
     // 处理事件
     EXPECT_TRUE(handler.handle_event(e1));
@@ -104,9 +104,9 @@ TEST(EventTest, EventHandler) {
 // 测试事件过滤器
 TEST(EventTest, EventFilter) {
     test_handler handler;
-    test_filter filter;
-    test_event e1(10); // 正值，应该传递给处理器
-    test_event e2(-5); // 负值，应该被过滤器拦截
+    test_filter  filter;
+    test_event   e1(10); // 正值，应该传递给处理器
+    test_event   e2(-5); // 负值，应该被过滤器拦截
 
     // 测试正值事件
     EXPECT_FALSE(filter.filter_event(e1, &handler));

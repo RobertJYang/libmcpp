@@ -84,7 +84,7 @@ public:
 template <typename Impl>
 class plugin_base : public plugin {
 public:
-    plugin_base() = default;
+    plugin_base()          = default;
     virtual ~plugin_base() = default;
 
     /**

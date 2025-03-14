@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025 Huawei Technologies Co., Ltd.
+ * Copyright (c) 2024 Huawei Technologies Co., Ltd.
  * openUBMC is licensed under Mulan PSL v2.
  * You can use this software according to the terms and conditions of the Mulan PSL v2.
  * You may obtain a copy of Mulan PSL v2 at:
@@ -10,22 +10,20 @@
  * See the Mulan PSL v2 for more details.
  */
 
-#ifndef MC_FUTURES_STATUS_H
-#define MC_FUTURES_STATUS_H
+#include <iostream>
+#include <mc/log/appenders/console_appender.h>
 
 namespace mc {
-namespace future {
+namespace log {
 
-enum class future_status { ready, timeout, deferred };
+bool console_appender::init(const variant& args) {
+    // 控制台追加器不需要特殊配置
+    return true;
+}
 
-enum class launch {
-    dispatch = 1, // 立即执行
-    async    = 2, // 异步执行
-    deferred = 4, // 延迟执行
-    any      = async | deferred
-};
+void console_appender::append(const message& msg) {
+    std::cout << msg.get_message() << std::endl;
+}
 
-} // namespace future
+} // namespace log
 } // namespace mc
-
-#endif // MC_FUTURES_STATUS_H

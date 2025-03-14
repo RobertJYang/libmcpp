@@ -28,9 +28,9 @@ namespace fs = std::filesystem;
  */
 class application {
 public:
-    using io_context_type = boost::asio::io_context;
+    using io_context_type        = boost::asio::io_context;
     using priority_executor_type = priority_queue_executor<io_context_type>;
-    using work_guard_type = boost::asio::executor_work_guard<io_context_type::executor_type>;
+    using work_guard_type        = boost::asio::executor_work_guard<io_context_type::executor_type>;
 
     /**
      * @brief 获取应用程序单例实例

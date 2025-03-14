@@ -34,13 +34,13 @@ namespace mc {
  * @brief 任务优先级常量
  */
 struct priority {
-    static constexpr int lowest = std::numeric_limits<int>::min();
-    static constexpr int low = -1000;
-    static constexpr int normal_low = 200;
-    static constexpr int normal = 300;
+    static constexpr int lowest      = std::numeric_limits<int>::min();
+    static constexpr int low         = -1000;
+    static constexpr int normal_low  = 200;
+    static constexpr int normal      = 300;
     static constexpr int normal_high = 400;
-    static constexpr int high = 1000;
-    static constexpr int highest = std::numeric_limits<int>::max();
+    static constexpr int high        = 1000;
+    static constexpr int highest     = std::numeric_limits<int>::max();
 };
 
 template <typename ContextType = boost::asio::io_context>
@@ -51,14 +51,14 @@ class priority_queue_executor {
         }
 
         virtual ~handler_base() = default;
-        virtual void execute() = 0;
+        virtual void execute()  = 0;
 
         friend bool operator<(const handler_base& a, const handler_base& b) noexcept {
             return std::tie(a.m_priority, a.m_order) < std::tie(b.m_priority, b.m_order);
         }
 
     private:
-        int m_priority;
+        int    m_priority;
         size_t m_order;
     };
 
@@ -84,12 +84,12 @@ class priority_queue_executor {
         }
     };
 
-    using handler_ptr = std::unique_ptr<handler_base>;
+    using handler_ptr   = std::unique_ptr<handler_base>;
     using handler_queue = std::priority_queue<handler_ptr, std::deque<handler_ptr>, handler_less>;
 
 public:
     using context_type = ContextType;
-    using size_type = std::size_t;
+    using size_type    = std::size_t;
 
     enum class QueueState {
         Stopped,   // 停止状态：接受任务但不执行
@@ -165,7 +165,7 @@ public:
 
     bool execute_highest() {
         handler_ptr task;
-        bool has_more = get_next_task(task);
+        bool        has_more = get_next_task(task);
         while (!task && has_more) {
             has_more = get_next_task(task);
         }
@@ -180,7 +180,7 @@ public:
     }
 
     template <typename Function>
-    boost::asio::executor_binder<Function, priority_queue_executor> wrap(int p,
+    boost::asio::executor_binder<Function, priority_queue_executor> wrap(int        p,
                                                                          Function&& func) const {
         return boost::asio::bind_executor(*this, std::forward<Function>(func));
     }
@@ -263,12 +263,12 @@ private:
     }
 
     context_type& m_context;
-    std::mutex m_mutex;
+    std::mutex    m_mutex;
     handler_queue m_task_queue;
-    std::size_t m_order;
+    std::size_t   m_order;
 
     std::mutex m_state_mutex;
-    bool m_is_task_scheduled;
+    bool       m_is_task_scheduled;
     QueueState m_state;
 };
 

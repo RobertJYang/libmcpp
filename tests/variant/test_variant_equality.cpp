@@ -14,12 +14,12 @@
  * @file test_variant_equality.cpp
  * @brief 测试 variant、typed_variant、dict 和 mutable_dict 类的相等运算符
  */
+#include "test_variant_helpers.h"
 #include <gtest/gtest.h>
+#include <limits>
 #include <mc/dict.h>
 #include <mc/variant.h>
 #include <stdexcept>
-#include "test_variant_helpers.h"
-#include <limits>
 
 namespace mc {
 namespace test {
@@ -63,7 +63,7 @@ TEST_F(VariantEqualityTest, VariantEquality) {
     ASSERT_EQ(v11, v12) << "空值应该相等";
 
     // 测试二进制数据比较
-    blob b1{{1, 2, 3}}, b2{{1, 2, 3}};
+    blob    b1{{1, 2, 3}}, b2{{1, 2, 3}};
     variant v13(b1), v14(b2);
     ASSERT_EQ(v13, v14) << "相同的二进制数据应该相等";
 }
@@ -101,22 +101,22 @@ TEST_F(VariantEqualityTest, TypedVariantEquality) {
 TEST_F(VariantEqualityTest, DictEquality) {
     // 创建两个相同的字典
     mutable_dict md1, md2;
-    md1["int"] = 42;
+    md1["int"]    = 42;
     md1["string"] = "test";
-    md1["bool"] = true;
+    md1["bool"]   = true;
 
-    md2["int"] = 42;
+    md2["int"]    = 42;
     md2["string"] = "test";
-    md2["bool"] = true;
+    md2["bool"]   = true;
 
     dict d1(md1), d2(md2);
     ASSERT_EQ(d1, d2) << "相同内容的字典应该相等";
 
     // 测试不同顺序的键值对
     mutable_dict md3;
-    md3["bool"] = true;
+    md3["bool"]   = true;
     md3["string"] = "test";
-    md3["int"] = 42;
+    md3["int"]    = 42;
 
     dict d3(md3);
     ASSERT_EQ(d1, d3) << "键值对顺序不同的字典应该相等";
@@ -140,10 +140,10 @@ TEST_F(VariantEqualityTest, DictEquality) {
 TEST_F(VariantEqualityTest, MutableDictEquality) {
     // 创建两个相同的可变字典
     mutable_dict md1, md2;
-    md1["int"] = 42;
+    md1["int"]    = 42;
     md1["string"] = "test";
 
-    md2["int"] = 42;
+    md2["int"]    = 42;
     md2["string"] = "test";
 
     ASSERT_EQ(md1, md2) << "相同内容的可变字典应该相等";
@@ -158,14 +158,14 @@ TEST_F(VariantEqualityTest, MutableDictEquality) {
 
     // 测试复杂数据结构
     mutable_dict md3, md4;
-    variants arr1{1, 2, 3};
-    variants arr2{1, 2, 3};
+    variants     arr1{1, 2, 3};
+    variants     arr2{1, 2, 3};
 
     md3["array"] = arr1;
-    md3["dict"] = md1;
+    md3["dict"]  = md1;
 
     md4["array"] = arr2;
-    md4["dict"] = md1;
+    md4["dict"]  = md1;
 
     ASSERT_EQ(md3, md4) << "包含数组和嵌套字典的可变字典应该相等";
 }
@@ -192,12 +192,12 @@ TEST_F(VariantEqualityTest, MixedTypeEquality) {
     // 测试复杂嵌套结构
     mutable_dict md3;
     md3["array"] = arr1;
-    md3["dict"] = md1;
+    md3["dict"]  = md1;
     md3["value"] = 42;
 
     mutable_dict md4;
     md4["array"] = arr2;
-    md4["dict"] = md2;
+    md4["dict"]  = md2;
     md4["value"] = 42;
 
     variant v5(md3), v6(md4);

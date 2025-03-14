@@ -14,12 +14,12 @@
  * @file test_typed_variant.cpp
  * @brief 测试 typed_variant 类型的功能，确保类型不会被改变
  */
+#include "test_variant_helpers.h"
 #include <gtest/gtest.h>
+#include <limits>
 #include <mc/dict.h>
 #include <mc/variant.h>
-#include "test_variant_helpers.h"
 #include <stdexcept>
-#include <limits>
 #include <string>
 
 namespace mc {
@@ -63,7 +63,7 @@ TEST_F(TypedVariantTest, Creation) {
         << "从字符串创建的 typed_variant 类型应该是 string_type";
 
     // 从 variant 创建
-    variant v(123);
+    variant       v(123);
     typed_variant tv6(v);
     ASSERT_EQ(tv6.get_type(), variant::type_id::int32_type)
         << "从 variant 创建的 typed_variant 类型应该与原 variant 相同";
@@ -310,7 +310,7 @@ TEST_F(TypedVariantTest, ObjectTypeLocking) {
     // 创建一个对象
     mutable_dict obj;
     obj["name"] = "John";
-    obj["age"] = 30;
+    obj["age"]  = 30;
 
     // 测试 object_type
     typed_variant tv_object(variant::type_id::object_type);
@@ -334,7 +334,7 @@ TEST_F(TypedVariantTest, ObjectTypeLocking) {
 
     // 创建一个新的对象
     mutable_dict obj2;
-    obj2["city"] = "New York";
+    obj2["city"]    = "New York";
     obj2["country"] = "USA";
 
     // 赋值一个新对象，类型应该保持为 object_type
@@ -351,7 +351,7 @@ TEST_F(TypedVariantTest, ObjectTypeLocking) {
 TEST_F(TypedVariantTest, BlobTypeLocking) {
     // 创建一个 blob
     std::vector<char> data1 = {1, 2, 3, 4, 5};
-    blob b1;
+    blob              b1;
     b1.data = data1;
 
     // 测试 blob_type
@@ -374,7 +374,7 @@ TEST_F(TypedVariantTest, BlobTypeLocking) {
 
     // 创建一个新的 blob
     std::vector<char> data2 = {10, 20, 30};
-    blob b2;
+    blob              b2;
     b2.data = data2;
 
     // 赋值一个新 blob，类型应该保持为 blob_type
@@ -578,7 +578,7 @@ TEST_F(TypedVariantTest, SelfAssignment) {
 
     // 通过引用自赋值
     typed_variant& tv_ref = tv;
-    tv = tv_ref;
+    tv                    = tv_ref;
     ASSERT_EQ(tv.get_type(), variant::type_id::int32_type);
     ASSERT_EQ(tv.as_int64(), 42);
 }
@@ -640,33 +640,33 @@ TEST_F(TypedVariantTest, VariantConversionFunctions) {
     to_variant(tv_target, v);
     ASSERT_EQ(v.get_type(), variant::type_id::int32_type);
     ASSERT_EQ(v.as_int64(), 1);
-    
+
     // 测试不同类型的转换
     typed_variant tv_string(variant::type_id::string_type);
     tv_string = "hello";
-    
+
     variant v_string;
     to_variant(tv_string, v_string);
     ASSERT_EQ(v_string.get_type(), variant::type_id::string_type);
     ASSERT_EQ(v_string.as_string(), "hello");
-    
+
     typed_variant tv_double;
     from_variant(variant(3.14), tv_double);
     ASSERT_EQ(tv_double.get_type(), variant::type_id::double_type);
     ASSERT_DOUBLE_EQ(tv_double.as_double(), 3.14);
-    
+
     // 测试复杂类型的转换
     mutable_dict dict;
     dict["name"] = "John";
-    dict["age"] = 30;
-    
+    dict["age"]  = 30;
+
     typed_variant tv_object(variant::type_id::object_type);
     from_variant(variant(dict), tv_object);
     ASSERT_EQ(tv_object.get_type(), variant::type_id::object_type);
     ASSERT_EQ(tv_object.get_object().size(), 2);
     ASSERT_EQ(tv_object.get_object()["name"].as_string(), "John");
     ASSERT_EQ(tv_object.get_object()["age"].as_int64(), 30);
-    
+
     variant v_object;
     to_variant(tv_object, v_object);
     ASSERT_EQ(v_object.get_type(), variant::type_id::object_type);

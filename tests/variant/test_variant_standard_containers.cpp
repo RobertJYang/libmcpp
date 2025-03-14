@@ -49,7 +49,7 @@ protected:
 TEST_F(VariantStdContainersTest, VectorConversion) {
     // 创建整数向量
     std::vector<int> int_vec = {1, 2, 3, 4, 5};
-    variant v;
+    variant          v;
     to_variant(int_vec, v);
 
     ASSERT_TRUE(v.is_array()) << "variant 应该是数组类型";
@@ -328,7 +328,7 @@ TEST_F(VariantStdContainersTest, ListConversion) {
     // 使用 as 方法转换
     std::list<int> result2 = v.as<std::list<int>>();
     ASSERT_EQ(result2.size(), int_list.size()) << "使用 as 方法转换的链表大小不匹配";
-    it1 = int_list.begin();
+    it1      = int_list.begin();
     auto it3 = result2.begin();
     for (size_t i = 0; i < int_list.size(); ++i) {
         ASSERT_EQ(*it3, *it1) << "使用 as 方法转换的链表元素不匹配，位置: " << i;
@@ -384,7 +384,7 @@ TEST_F(VariantStdContainersTest, MixedContainerConversion) {
 TEST_F(VariantStdContainersTest, EmptyContainerConversion) {
     // 测试空向量
     std::vector<int> empty_vec;
-    variant v;
+    variant          v;
     to_variant(empty_vec, v);
 
     ASSERT_TRUE(v.is_array()) << "variant 应该是数组类型";
@@ -410,7 +410,7 @@ TEST_F(VariantStdContainersTest, EmptyContainerConversion) {
 TEST_F(VariantStdContainersTest, TypeMismatchConversion) {
     // 创建整数向量
     std::vector<int> int_vec = {1, 2, 3};
-    variant v;
+    variant          v;
     to_variant(int_vec, v);
 
     // 尝试转换为不兼容的类型

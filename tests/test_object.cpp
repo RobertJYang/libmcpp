@@ -13,7 +13,7 @@ TEST(ObjectTest, Creation) {
 
 // 测试父子关系
 TEST(ObjectTest, ParentChild) {
-    object parent("parent");
+    object  parent("parent");
     object* child = new object("child", &parent);
 
     // 检查父子关系
@@ -28,8 +28,8 @@ TEST(ObjectTest, ParentChild) {
 
 // 测试更改父对象
 TEST(ObjectTest, ChangeParent) {
-    object parent1("parent1");
-    object parent2("parent2");
+    object  parent1("parent1");
+    object  parent2("parent2");
     object* child = new object("child", &parent1);
 
     // 检查初始父子关系
@@ -49,7 +49,7 @@ TEST(ObjectTest, ChangeParent) {
 
 // 测试递归查找子对象
 TEST(ObjectTest, FindChildRecursive) {
-    object root("root");
+    object  root("root");
     object* child1 = new object("child1", &root);
     object* child2 = new object("child2", child1);
     object* child3 = new object("child3", child2);

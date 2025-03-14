@@ -18,8 +18,8 @@
 #define MC_INTRUSIVE_HOOK_H
 
 #include <boost/intrusive/list_hook.hpp>
-#include <boost/intrusive/unordered_set_hook.hpp>
 #include <boost/intrusive/options.hpp>
+#include <boost/intrusive/unordered_set_hook.hpp>
 
 namespace mc {
 namespace intrusive {
@@ -56,51 +56,59 @@ struct boost_link_mode<link_mode::auto_unlink> {
 
 /**
  * @brief 链表钩子基类
- * 
+ *
  * 该类封装了 Boost 的链表钩子，提供了更加易用的接口
  */
-class list_hook : public boost::intrusive::list_base_hook<typename boost_link_mode<link_mode::safe>::type> {
+class list_hook
+    : public boost::intrusive::list_base_hook<typename boost_link_mode<link_mode::safe>::type> {
 public:
     // 默认构造函数
     list_hook() = default;
 
     // 拷贝构造函数 - 不复制钩子状态
-    list_hook(const list_hook&) : 
-        boost::intrusive::list_base_hook<typename boost_link_mode<link_mode::safe>::type>() {}
+    list_hook(const list_hook&)
+        : boost::intrusive::list_base_hook<typename boost_link_mode<link_mode::safe>::type>() {
+    }
 
     // 移动构造函数 - 不移动钩子状态
-    list_hook(list_hook&&) noexcept : 
-        boost::intrusive::list_base_hook<typename boost_link_mode<link_mode::safe>::type>() {}
+    list_hook(list_hook&&) noexcept
+        : boost::intrusive::list_base_hook<typename boost_link_mode<link_mode::safe>::type>() {
+    }
 
     // 禁止赋值操作，因为钩子不支持赋值
     list_hook& operator=(const list_hook&) = delete;
-    list_hook& operator=(list_hook&&) = delete;
+    list_hook& operator=(list_hook&&)      = delete;
 };
 
 /**
  * @brief 哈希表钩子基类
- * 
+ *
  * 该类封装了 Boost 的哈希表钩子，提供了更加易用的接口
  */
-class unordered_set_hook : public boost::intrusive::unordered_set_base_hook<typename boost_link_mode<link_mode::safe>::type> {
+class unordered_set_hook : public boost::intrusive::unordered_set_base_hook<
+                               typename boost_link_mode<link_mode::safe>::type> {
 public:
     // 默认构造函数
     unordered_set_hook() = default;
 
     // 拷贝构造函数 - 不复制钩子状态
-    unordered_set_hook(const unordered_set_hook&) : 
-        boost::intrusive::unordered_set_base_hook<typename boost_link_mode<link_mode::safe>::type>() {}
+    unordered_set_hook(const unordered_set_hook&)
+        : boost::intrusive::unordered_set_base_hook<
+              typename boost_link_mode<link_mode::safe>::type>() {
+    }
 
     // 移动构造函数 - 不移动钩子状态
-    unordered_set_hook(unordered_set_hook&&) noexcept : 
-        boost::intrusive::unordered_set_base_hook<typename boost_link_mode<link_mode::safe>::type>() {}
+    unordered_set_hook(unordered_set_hook&&) noexcept
+        : boost::intrusive::unordered_set_base_hook<
+              typename boost_link_mode<link_mode::safe>::type>() {
+    }
 
     // 禁止赋值操作，因为钩子不支持赋值
     unordered_set_hook& operator=(const unordered_set_hook&) = delete;
-    unordered_set_hook& operator=(unordered_set_hook&&) = delete;
+    unordered_set_hook& operator=(unordered_set_hook&&)      = delete;
 };
 
 } // namespace intrusive
 } // namespace mc
 
-#endif // MC_INTRUSIVE_HOOK_H 
+#endif // MC_INTRUSIVE_HOOK_H

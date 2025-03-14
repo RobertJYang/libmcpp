@@ -43,9 +43,9 @@ TEST(ExceptionTest, BasicExceptionTest) {
 TEST(ExceptionTest, AllGeneralExceptionCodesTest) {
     // 定义测试用例结构体
     struct TestCase {
-        int64_t code;            // 异常代码
-        const char* name;        // 异常名称
-        const char* message;     // 异常消息
+        int64_t       code;      // 异常代码
+        const char*   name;      // 异常名称
+        const char*   message;   // 异常消息
         mc::exception exception; // 创建异常的函数
     };
 
@@ -164,7 +164,8 @@ TEST(ExceptionTest, NestingAndRethrowTest) {
         try {
             try {
                 // 最内层抛出异常
-                MC_THROW(mc::file_not_found_exception, "配置文件 ${file} 不存在", ("file", "config.json"));
+                MC_THROW(mc::file_not_found_exception, "配置文件 ${file} 不存在",
+                         ("file", "config.json"));
             } catch (mc::file_not_found_exception e) {
                 // 中层捕获并添加上下文后重抛
                 MC_RETHROW_EXCEPTION(e, "加载配置文件失败: ${reason}", ("reason", e.what()));
@@ -186,7 +187,7 @@ TEST(ExceptionTest, NestingAndRethrowTest) {
 // 测试异常的日志级别过滤
 TEST(ExceptionTest, LogLevelFilterTest) {
     mc::exception e(mc::exception_code::unknow_exception_code, "test", "测试异常");
-    
+
     // 添加不同级别的日志
     e.append_log(MC_LOG_MESSAGE(debug, "调试信息"));
     e.append_log(MC_LOG_MESSAGE(info, "普通信息"));
@@ -213,16 +214,17 @@ TEST(ExceptionTest, DynamicCopyAndRethrowTest) {
 
     try {
         // 创建一个超时异常
-        auto original = MC_MAKE_EXCEPTION(mc::timeout_exception, "操作超时: ${operation}", ("operation", "数据库查询"));
-        
+        auto original = MC_MAKE_EXCEPTION(mc::timeout_exception, "操作超时: ${operation}",
+                                          ("operation", "数据库查询"));
+
         // 动态复制异常
         std::shared_ptr<mc::exception> copy = original.dynamic_copy_exception();
-        
+
         // 验证复制的异常
         EXPECT_EQ(copy->code(), mc::exception_code::timeout_exception_code);
         EXPECT_STREQ(copy->name(), "timeout");
         EXPECT_TRUE(copy->to_string().find("数据库查询") != std::string::npos);
-        
+
         // 动态重抛异常
         copy->dynamic_rethrow_exception();
         FAIL() << "应该重新抛出异常";
@@ -237,33 +239,35 @@ TEST(ExceptionTest, DynamicCopyAndRethrowTest) {
 // 测试异常的线程安全性
 TEST(ExceptionTest, ThreadSafetyTest) {
     // 创建一个共享的异常对象
-    mc::exception shared_exception(mc::exception_code::unknow_exception_code, "thread_test", "线程测试异常");
-    
+    mc::exception shared_exception(mc::exception_code::unknow_exception_code, "thread_test",
+                                   "线程测试异常");
+
     // 创建多个线程，每个线程都添加日志消息
-    const int num_threads = 10;
-    const int msgs_per_thread = 100;
+    const int                num_threads     = 10;
+    const int                msgs_per_thread = 100;
     std::vector<std::thread> threads;
-    std::mutex mutex;
-    
+    std::mutex               mutex;
+
     for (int i = 0; i < num_threads; ++i) {
         threads.emplace_back([&shared_exception, &mutex, i, msgs_per_thread]() {
             for (int j = 0; j < msgs_per_thread; ++j) {
                 // 使用互斥锁保护共享对象
                 std::lock_guard<std::mutex> lock(mutex);
-                shared_exception.append_log(MC_LOG_MESSAGE(info, "线程 ${thread} 消息 ${msg}",
-                    ("thread", std::to_string(i))("msg", std::to_string(j))));
+                shared_exception.append_log(
+                    MC_LOG_MESSAGE(info, "线程 ${thread} 消息 ${msg}",
+                                   ("thread", std::to_string(i))("msg", std::to_string(j))));
             }
         });
     }
-    
+
     // 等待所有线程完成
     for (auto& thread : threads) {
         thread.join();
     }
-    
+
     // 验证所有日志消息都被正确添加
-    std::string detail = shared_exception.to_detail_string();
-    int msg_count = 0;
+    std::string detail    = shared_exception.to_detail_string();
+    int         msg_count = 0;
     for (int i = 0; i < num_threads; ++i) {
         for (int j = 0; j < msgs_per_thread; ++j) {
             std::string msg = "线程 " + std::to_string(i) + " 消息 " + std::to_string(j);
@@ -278,19 +282,20 @@ TEST(ExceptionTest, ThreadSafetyTest) {
 // 测试异常的性能
 TEST(ExceptionTest, PerformanceTest) {
     const int iterations = 10000;
-    
+
     // 测试异常创建性能
     {
         auto start = std::chrono::high_resolution_clock::now();
         for (int i = 0; i < iterations; ++i) {
-            auto e = MC_MAKE_EXCEPTION(mc::timeout_exception, "测试消息 ${index}", ("index", std::to_string(i)));
+            auto e = MC_MAKE_EXCEPTION(mc::timeout_exception, "测试消息 ${index}",
+                                       ("index", std::to_string(i)));
             EXPECT_EQ(e.code(), mc::exception_code::timeout_exception_code);
         }
-        auto end = std::chrono::high_resolution_clock::now();
+        auto end      = std::chrono::high_resolution_clock::now();
         auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
         std::cout << "创建 " << iterations << " 个异常耗时: " << duration << " 毫秒" << std::endl;
     }
-    
+
     // 测试异常抛出和捕获性能
     {
         auto start = std::chrono::high_resolution_clock::now();
@@ -301,9 +306,10 @@ TEST(ExceptionTest, PerformanceTest) {
                 EXPECT_EQ(e.code(), mc::exception_code::timeout_exception_code);
             }
         }
-        auto end = std::chrono::high_resolution_clock::now();
+        auto end      = std::chrono::high_resolution_clock::now();
         auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
-        std::cout << "抛出和捕获 " << iterations << " 个异常耗时: " << duration << " 毫秒" << std::endl;
+        std::cout << "抛出和捕获 " << iterations << " 个异常耗时: " << duration << " 毫秒"
+                  << std::endl;
     }
 }
 
@@ -326,10 +332,9 @@ TEST(ExceptionTest, StdExceptionWrapperTest) {
 // 测试异常的格式化输出
 TEST(ExceptionTest, FormattedOutputTest) {
     // 创建一个带有完整上下文信息的异常
-    auto e = MC_MAKE_EXCEPTION(mc::invalid_arg_exception,
-                              "参数验证失败: ${param} = ${value}",
-                              ("param", "count")("value", "-1"));
-    
+    auto e = MC_MAKE_EXCEPTION(mc::invalid_arg_exception, "参数验证失败: ${param} = ${value}",
+                               ("param", "count")("value", "-1"));
+
     e.append_log(MC_LOG_MESSAGE(debug, "参数详情: ${detail}", ("detail", "必须大于0")));
     e.append_log(MC_LOG_MESSAGE(info, "处理函数: ${func}", ("func", "process_data")));
     e.append_log(MC_LOG_MESSAGE(warn, "可能影响: ${impact}", ("impact", "数据不完整")));
@@ -339,14 +344,14 @@ TEST(ExceptionTest, FormattedOutputTest) {
     std::string simple = e.to_string();
     EXPECT_TRUE(simple.find("错误代码") != std::string::npos);
     EXPECT_TRUE(simple.find("E001") != std::string::npos);
-    
+
     // 测试详细格式输出
     std::string detail = e.to_detail_string();
     EXPECT_TRUE(detail.find("必须大于0") != std::string::npos);
     EXPECT_TRUE(detail.find("process_data") != std::string::npos);
     EXPECT_TRUE(detail.find("数据不完整") != std::string::npos);
     EXPECT_TRUE(detail.find("E001") != std::string::npos);
-    
+
     // 验证日志级别和时间戳格式
     EXPECT_TRUE(detail.find("DEBUG") != std::string::npos);
     EXPECT_TRUE(detail.find("INFO") != std::string::npos);

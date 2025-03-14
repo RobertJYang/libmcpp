@@ -19,7 +19,6 @@ endif
 
 # 包含目录
 incdir = include_directories('include')
-boost_incdir = include_directories('/usr/include')
 
 # 子目录
 subdir('include')

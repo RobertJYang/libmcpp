@@ -1,162 +1,106 @@
-# MC 日志系统
+# MC 基础库
 
-MC 日志系统是一个功能完善的日志框架，支持日志前后端分离、结构化日志、动态加载日志后端等特性。
+## 概述
+mc 是一个现代C++基础库，提供：
+- 反射系统：运行时类型信息获取与序列化（参见[reflect_usage.md](docs/reflect_usage.md)）
+- 异常处理：带上下文追踪的异常体系（参见[exception_design.md](docs/exception_design.md)）
+- 日志系统：多后端异步日志（参见[log_design.md](docs/log_design.md)）
+- 核心组件：信号槽、事件循环、Future/Promise等
 
-## 特性
+## 功能特性
+```
++----------------+------------------------------------------------------+
+| 模块           | 特性                                                 |
++----------------+------------------------------------------------------+
+| reflect        | 类/枚举反射、对象序列化、嵌套类型支持、STL容器支持    |
+| log            | 异步日志、多后端(Appender)、日志格式定制、上下文追踪 |
+| exception      | 异常链、错误码映射、堆栈符号解析                     |
+| application    | 事件循环、插件系统、配置管理                         |
+| variant        | 动态类型系统、JSON互操作                            |
++----------------+------------------------------------------------------+
 
-- **日志前后端分离**：前端用于代码中记录日志，后端负责日志的实际输出
-- **支持多种日志对象**：可以创建不同的日志对象，用于不同的日志分类
-- **可插拔的日志后端**：支持从动态库加载日志后端，后端可以独立实现
-- **结构化日志**：支持结构化的日志写法，使用 `dict` 类型存储参数
+## 构建安装
+```bash
+# 依赖: meson >= 0.56
+meson setup builddir
+meson compile -C builddir
+
+# 运行测试
+meson test -C builddir
+
+# 安装到系统
+meson configure builddir --prefix=/usr/local
+meson install -C builddir
+```
 
 ## 快速开始
-
-### 基本用法
-
+### 反射示例
 ```cpp
-#include <mc/log/log_macros.h>
+#include <mc/reflect.h>
 
-// 使用默认日志记录器输出普通日志
-ilog("这是一条信息日志");
-dlog("这是一条调试日志，包含数字: " << 42);
-elog("这是一条错误日志");
+class User {
+public:
+    std::string name;
+    int id;
+    std::vector<std::string> tags;
+};
+MC_REFLECT(User, (name)(id)(tags))
 
-// 使用默认日志记录器输出结构化日志
-wilog("用户 ${user} 登录成功，IP: ${ip}", 
-    ("user", "admin")("ip", "192.168.1.1"));
+// 序列化对象
+User user{"admin", 1001, {"staff", "devops"}};
+mc::variant var = user;
+std::cout << "JSON: " << mc::json::to_string(var);
 ```
 
-### 使用自定义日志记录器
-
+### 日志示例
 ```cpp
-#include <mc/log/log_manager.h>
-#include <mc/log/log_macros.h>
+#include <mc/log.h>
 
-// 创建自定义日志记录器
-auto app_logger = mc::log::log_manager::instance().get_logger("app");
+MC_LOG_REGISTER_APPENDER(console, mc::log::ConsoleAppender);
 
-// 使用自定义日志记录器输出普通日志
-mc_ilog(app_logger, "这是一条使用自定义日志记录器的信息日志");
+int main() {
+    mc::log::Logger::getInstance()
+        .setAppender<mc::log::RollingFileAppender>("app.log")
+        .setLevel(mc::log::Level::Debug);
 
-// 使用自定义日志记录器输出结构化日志
-mc_wilog(app_logger, "用户 ${user} 登录成功，IP: ${ip}", 
-    ("user", "admin")("ip", "192.168.1.1"));
-```
-
-### 配置日志记录器
-
-```cpp
-#include <mc/log/log_manager.h>
-#include <mc/log/console_appender.h>
-#include <mc/log/file_log_backend.h>
-
-// 获取日志管理器
-auto& log_manager = mc::log::log_manager::instance();
-
-// 创建日志记录器
-auto app_logger = log_manager.get_logger("app");
-
-// 添加控制台追加器
-auto console = std::make_shared<mc::log::console_appender>();
-app_logger.add_appender(console);
-
-// 创建文件日志后端
-auto file_backend = std::make_shared<mc::log::file_log_backend>();
-file_backend->init("app.log");
-
-// 将后端包装为追加器并添加到日志记录器
-auto file_adapter = log_manager.create_backend_adapter(file_backend);
-app_logger.add_appender(file_adapter);
-
-// 设置日志级别
-app_logger.set_level(mc::log::level::trace);
-```
-
-### 动态加载日志后端
-
-```cpp
-#include <mc/log/log_manager.h>
-
-// 获取日志管理器
-auto& log_manager = mc::log::log_manager::instance();
-
-// 动态加载日志后端
-auto dynamic_backend = log_manager.load_backend("libmylogbackend.so", "config.json");
-if (dynamic_backend) {
-    // 将后端包装为追加器并添加到日志记录器
-    auto dynamic_adapter = log_manager.create_backend_adapter(dynamic_backend);
-    log_manager.get_logger().add_appender(dynamic_adapter);
+    MC_LOG_INFO("System initialized") 
+        << "user_count=" << 42 
+        << "feature_flags=[" << std::vector{"A/B测试", "灰度发布"} << "]";
 }
 ```
 
-## 日志宏
+## 测试覆盖
+测试框架验证了以下核心场景：
+```
++--------------------------+-------------------------------------------+
+| 测试目录                 | 覆盖场景                                  |
++--------------------------+-------------------------------------------+
+| tests/reflect/           | 类反射、枚举转换、嵌套对象序列化          |
+| tests/log/               | 日志级别过滤、多线程写入、日志轮转        |
+| tests/exception/         | 异常传播链、错误码转换、多语言消息        |
+| tests/variant/           | 类型转换、容器操作、JSON互操作性         |
+| tests/application/       | 插件热加载、配置热更新、信号槽性能        |
++--------------------------+-------------------------------------------+
+完整测试列表请运行 `meson test -C builddir --list`
+```
 
-### 普通日志宏
+## 文档导航
+- [架构设计](docs/application_design.md) - 核心组件交互关系
+- [异常设计](docs/exception_design.md) - 错误处理最佳实践
+- [日志配置](docs/log_design.md) - 日志格式与Appender配置
+- [示例代码](examples/) - 包含插件系统、异步任务等示例
 
-| 宏名 | 日志级别 | 描述 |
-|------|----------|------|
-| `tlog(...)` | TRACE | 跟踪级别日志 |
-| `dlog(...)` | DEBUG | 调试级别日志 |
-| `ilog(...)` | INFO | 信息级别日志 |
-| `wlog(...)` | WARN | 警告级别日志 |
-| `elog(...)` | ERROR | 错误级别日志 |
-| `flog(...)` | FATAL | 致命级别日志 |
+## 贡献指南
+1. 代码风格遵循 `.clang-format` 配置
+2. 新功能需包含：
+   - 头文件文档（位于include/mc/）
+   - 单元测试（位于tests/对应目录）
+   - 使用示例（位于examples/）
+3. 提交前运行完整测试集：
+   ```bash
+   meson test -C builddir --suite all
+   ```
+4. 重大变更需更新对应设计文档
 
-### 结构化日志宏
-
-| 宏名 | 日志级别 | 描述 |
-|------|----------|------|
-| `wtlog(FORMAT, ...)` | TRACE | 跟踪级别结构化日志 |
-| `wdlog(FORMAT, ...)` | DEBUG | 调试级别结构化日志 |
-| `wilog(FORMAT, ...)` | INFO | 信息级别结构化日志 |
-| `wwlog(FORMAT, ...)` | WARN | 警告级别结构化日志 |
-| `welog(FORMAT, ...)` | ERROR | 错误级别结构化日志 |
-| `wflog(FORMAT, ...)` | FATAL | 致命级别结构化日志 |
-
-### 指定日志记录器的日志宏
-
-| 宏名 | 日志级别 | 描述 |
-|------|----------|------|
-| `mc_tlog(LOGGER, ...)` | TRACE | 跟踪级别日志 |
-| `mc_dlog(LOGGER, ...)` | DEBUG | 调试级别日志 |
-| `mc_ilog(LOGGER, ...)` | INFO | 信息级别日志 |
-| `mc_wlog(LOGGER, ...)` | WARN | 警告级别日志 |
-| `mc_elog(LOGGER, ...)` | ERROR | 错误级别日志 |
-| `mc_flog(LOGGER, ...)` | FATAL | 致命级别日志 |
-
-### 指定日志记录器的结构化日志宏
-
-| 宏名 | 日志级别 | 描述 |
-|------|----------|------|
-| `mc_wtlog(LOGGER, FORMAT, ...)` | TRACE | 跟踪级别结构化日志 |
-| `mc_wdlog(LOGGER, FORMAT, ...)` | DEBUG | 调试级别结构化日志 |
-| `mc_wilog(LOGGER, FORMAT, ...)` | INFO | 信息级别结构化日志 |
-| `mc_wwlog(LOGGER, FORMAT, ...)` | WARN | 警告级别结构化日志 |
-| `mc_welog(LOGGER, FORMAT, ...)` | ERROR | 错误级别结构化日志 |
-| `mc_wflog(LOGGER, FORMAT, ...)` | FATAL | 致命级别结构化日志 |
-
-## 结构化日志示例
-
-结构化日志使用 `${key}` 作为占位符，使用 `("key", value)` 的方式提供参数：
-
-```cpp
-// 简单参数
-wilog("用户 ${user} 登录成功，IP: ${ip}", 
-    ("user", "admin")("ip", "192.168.1.1"));
-
-// 变量参数
-std::string error_msg = "连接超时";
-welog("无法连接到服务器: ${url}，错误: ${error}", 
-    ("url", "https://example.com")("error", error_msg));
-
-// 复杂数据
-mc::dict user_info = {
-    {"id", 12345},
-    {"name", "张三"},
-    {"roles", mc::variants{"admin", "user"}},
-    {"active", true}
-};
-
-wilog("用户信息: ${info}", 
-    ("info", user_info.as_string()));
-``` 
+## 许可证
+Apache 2.0 许可证，详见 LICENSE 文件

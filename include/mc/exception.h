@@ -35,32 +35,32 @@ class exception_impl;
  */
 enum exception_code {
     // 通用异常代码
-    unknow_exception_code = 0,             // 未知异常代码
-    unhandled_exception_code = 1,          // 未处理的第三方异常
-    timeout_exception_code = 2,            // 超时异常
-    file_not_found_exception_code = 3,     // 文件未找到异常
-    parse_error_exception_code = 4,        // 解析错误异常
-    invalid_arg_exception_code = 5,        // 无效参数异常
-    key_not_found_exception_code = 6,      // 键未找到异常
-    bad_cast_exception_code = 7,           // 类型转换异常
-    out_of_range_exception_code = 8,       // 越界异常
-    canceled_exception_code = 9,           // 取消操作异常
-    assert_exception_code = 10,            // 断言异常
-    eof_exception_code = 11,               // 文件结束异常
-    system_error_code = 12,                // 标准库异常
-    std_exception_code = 13,               // 标准库异常
-    invalid_op_exception_code = 14,        // 无效操作异常
-    null_optional_code = 15,               // 空可选值异常
-    overflow_code = 16,                    // 溢出异常
-    underflow_code = 17,                   // 下溢异常
-    divide_by_zero_code = 18,              // 除零异常
+    unknow_exception_code         = 0,  // 未知异常代码
+    unhandled_exception_code      = 1,  // 未处理的第三方异常
+    timeout_exception_code        = 2,  // 超时异常
+    file_not_found_exception_code = 3,  // 文件未找到异常
+    parse_error_exception_code    = 4,  // 解析错误异常
+    invalid_arg_exception_code    = 5,  // 无效参数异常
+    key_not_found_exception_code  = 6,  // 键未找到异常
+    bad_cast_exception_code       = 7,  // 类型转换异常
+    out_of_range_exception_code   = 8,  // 越界异常
+    canceled_exception_code       = 9,  // 取消操作异常
+    assert_exception_code         = 10, // 断言异常
+    eof_exception_code            = 11, // 文件结束异常
+    system_error_code             = 12, // 标准库异常
+    std_exception_code            = 13, // 标准库异常
+    invalid_op_exception_code     = 14, // 无效操作异常
+    null_optional_code            = 15, // 空可选值异常
+    overflow_code                 = 16, // 溢出异常
+    underflow_code                = 17, // 下溢异常
+    divide_by_zero_code           = 18, // 除零异常
 
     // MC库特定异常代码 (从100开始)
-    variant_error_code = 100,     // 变体类型异常
-    dict_error_code = 101,        // 字典异常
-    future_error_code = 102,      // Future异常
-    object_error_code = 103,      // 对象异常
-    event_error_code = 104,       // 事件异常
+    variant_error_code     = 100, // 变体类型异常
+    dict_error_code        = 101, // 字典异常
+    future_error_code      = 102, // Future异常
+    object_error_code      = 103, // 对象异常
+    event_error_code       = 104, // 事件异常
     signal_slot_error_code = 105, // 信号槽异常
 };
 
@@ -84,7 +84,7 @@ public:
      * @param name_value 异常名称
      * @param what_value 异常描述
      */
-    exception(int64_t code = unknow_exception_code,
+    exception(int64_t            code       = unknow_exception_code,
               const std::string& name_value = "unknow_exception",
               const std::string& what_value = "未指定异常");
 
@@ -160,7 +160,7 @@ public:
     // 动态复制异常
     virtual std::shared_ptr<exception> dynamic_copy_exception() const;
 
-    const mc::log::messages &messages() const;
+    const mc::log::messages& messages() const;
 
 protected:
     // 异常实现细节
@@ -252,7 +252,7 @@ class std_exception_wrapper : public exception {
 public:
     // 构造函数
     explicit std_exception_wrapper(mc::log::message&& msg,
-                                   std::exception_ptr e = std::current_exception(),
+                                   std::exception_ptr e          = std::current_exception(),
                                    const std::string& name_value = "exception",
                                    const std::string& what_value = "未指定异常");
 
@@ -285,7 +285,7 @@ public:
     // 异常构建器基类
     struct base_exception_builder {
         virtual void rethrow(const exception& e) const = 0;
-        virtual ~base_exception_builder() = default;
+        virtual ~base_exception_builder()              = default;
     };
 
     // 异常构建器模板类
@@ -388,7 +388,7 @@ MC_DEFINE_EXCEPTION_CLASS(divide_by_zero_exception, divide_by_zero_code, "除零
  *
  * 构造指定类型的异常
  */
-#define MC_MAKE_EXCEPTION(EXCEPTION, FORMAT, ...) \
+#define MC_MAKE_EXCEPTION(EXCEPTION, FORMAT, ...)                                                  \
     EXCEPTION(MC_LOG_MESSAGE(error, FORMAT, __VA_ARGS__))
 
 /**
@@ -399,7 +399,7 @@ MC_DEFINE_EXCEPTION_CLASS(divide_by_zero_exception, divide_by_zero_code, "除零
 #define MC_ASSERT(CONDITION, FORMAT, ...)                                                          \
     do {                                                                                           \
         if (!(CONDITION)) {                                                                        \
-            throw MC_MAKE_EXCEPTION(mc::assert_exception, FORMAT, __VA_ARGS__);                \
+            throw MC_MAKE_EXCEPTION(mc::assert_exception, FORMAT, __VA_ARGS__);                    \
         }                                                                                          \
     } while (0)
 

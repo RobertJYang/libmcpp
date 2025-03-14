@@ -13,7 +13,7 @@
 #ifndef MC_LOG_LOGGER_H
 #define MC_LOG_LOGGER_H
 
-#include <mc/log/appenders/appender.h>
+#include <mc/log/appender.h>
 #include <mc/log/log_message.h>
 #include <memory>
 #include <mutex>
@@ -33,8 +33,8 @@ namespace log {
  * @brief 日志记录器配置
  */
 struct logger_config {
-    std::string m_name;          // 日志记录器名称
-    level m_level = level::info; // 日志级别
+    std::string m_name;  // 日志记录器名称
+    level       m_level; // 日志级别
 
     logger_config() = default;
 
@@ -59,14 +59,6 @@ public:
     static logger get(const std::string& name = DEFAULT_LOGGER);
 
     /**
-     * @brief 更新指定名称的日志记录器
-     *
-     * @param name 日志记录器名称
-     * @param log 日志记录器
-     */
-    static void update(const std::string& name, logger& log);
-
-    /**
      * @brief 默认构造函数
      */
     logger();
@@ -75,9 +67,8 @@ public:
      * @brief 构造函数
      *
      * @param name 日志记录器名称
-     * @param parent 父日志记录器
      */
-    logger(const std::string& name, const logger& parent = logger());
+    logger(const std::string& name);
 
     /**
      * @brief 空指针构造函数
@@ -130,13 +121,6 @@ public:
     level get_level() const;
 
     /**
-     * @brief 获取父日志记录器
-     *
-     * @return logger 父日志记录器
-     */
-    logger get_parent() const;
-
-    /**
      * @brief 设置日志记录器名称
      *
      * @param name 日志记录器名称
@@ -163,29 +147,14 @@ public:
      *
      * @param a 日志追加器
      */
-    void add_appender(const std::shared_ptr<appender>& a);
-
-    /**
-     * @brief 移除日志追加器
-     *
-     * @param name 日志追加器名称
-     */
-    void remove_appender(const std::string& name);
-
-    /**
-     * @brief 获取日志追加器
-     *
-     * @param name 日志追加器名称
-     * @return std::shared_ptr<appender> 日志追加器
-     */
-    std::shared_ptr<appender> get_appender(const std::string& name) const;
+    void add_appender(const appender_ptr& a);
 
     /**
      * @brief 获取所有日志追加器
      *
-     * @return std::vector<std::shared_ptr<appender>> 日志追加器列表
+     * @return std::vector<appender_ptr> 日志追加器列表
      */
-    std::vector<std::shared_ptr<appender>> get_appenders() const;
+    const std::vector<appender_ptr>& get_appenders() const;
 
 private:
     class impl;

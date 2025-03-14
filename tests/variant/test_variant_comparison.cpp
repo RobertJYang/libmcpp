@@ -1,14 +1,14 @@
 /*
-* Copyright (c) 2025 Huawei Technologies Co., Ltd.
-* openUBMC is licensed under Mulan PSL v2.
-* You can use this software according to the terms and conditions of the Mulan PSL v2.
-* You may obtain a copy of Mulan PSL v2 at:
-*         http://license.coscl.org.cn/MulanPSL2
-* THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
-* EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
-* MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
-* See the Mulan PSL v2 for more details.
-*/
+ * Copyright (c) 2025 Huawei Technologies Co., Ltd.
+ * openUBMC is licensed under Mulan PSL v2.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *         http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
+ */
 
 /**
  * @file test_variant_comparison.cpp
@@ -19,10 +19,10 @@
  *   - 字符串：支持string_type和blob_type
  *   - 其他类型：需类型和值都匹配
  */
-#include <gtest/gtest.h>
-#include <mc/variant.h>
 #include "test_variant_helpers.h"
+#include <gtest/gtest.h>
 #include <limits>
+#include <mc/variant.h>
 #include <stdexcept>
 
 namespace mc {
@@ -44,15 +44,15 @@ protected:
  */
 TEST_F(VariantComparisonTest, VariantToVariantComparison) {
     // 相同类型和值的比较
-    variant v1(42), v2(42);  // 都是int32_type
+    variant v1(42), v2(42); // 都是int32_type
     ASSERT_EQ(v1, v2) << "相同类型和值的variant应该相等";
 
     // 不同类型但值相等的比较
-    variant v3(42), v4(int64_t(42));  // int32_type vs int64_type
+    variant v3(42), v4(int64_t(42)); // int32_type vs int64_type
     ASSERT_NE(v3, v4) << "不同类型的variant即使值相等也不应该相等";
 
     // 浮点数类型比较
-    variant v5(3.14), v6(3.14f);  // double vs float->double
+    variant v5(3.14), v6(3.14f); // double vs float->double
     ASSERT_EQ(v5.as<float>(), v6) << "相同类型和值的浮点数variant应该相等";
 
     // 字符串类型比较
@@ -86,7 +86,7 @@ TEST_F(VariantComparisonTest, VariantToPrimitiveComparison) {
  */
 TEST_F(VariantComparisonTest, VariantToStringComparison) {
     std::string test_str = "Hello, World!";
-    
+
     // string_type比较
     variant v1(test_str);
     ASSERT_EQ(v1, test_str) << "string_type的variant应该可以与字符串比较";
@@ -110,7 +110,7 @@ TEST_F(VariantComparisonTest, VariantToStringComparison) {
 TEST_F(VariantComparisonTest, VariantToOtherTypesComparison) {
     // 数组类型比较
     variants arr1 = {1, 2};
-    variant v1(arr1);
+    variant  v1(arr1);
     ASSERT_EQ(v1, arr1) << "variant应该可以与相同内容的数组比较";
 
     variants arr2 = {1, 2.0};
@@ -127,7 +127,7 @@ TEST_F(VariantComparisonTest, VariantToOtherTypesComparison) {
     ASSERT_NE(v2, dict2) << "variant不应该与不同类型值的对象相等";
 
     // blob类型比较
-    blob b1{{1, 2, 3}};
+    blob    b1{{1, 2, 3}};
     variant v3(b1);
     ASSERT_EQ(v3, b1) << "variant应该可以与相同内容的blob比较";
 

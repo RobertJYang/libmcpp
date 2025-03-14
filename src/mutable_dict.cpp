@@ -33,7 +33,7 @@ mutable_dict::mutable_dict(std::vector<entry> entries) : dict(std::move(entries)
 }
 
 // 从初始化列表构造
-mutable_dict::mutable_dict(std::initializer_list<std::pair<std::string, variant>> init) 
+mutable_dict::mutable_dict(std::initializer_list<std::pair<std::string, variant>> init)
     : dict(init) {
 }
 
@@ -51,7 +51,7 @@ mutable_dict::mutable_dict(mutable_dict&& other) noexcept = default;
 mutable_dict::~mutable_dict() = default;
 
 // 赋值运算符
-mutable_dict& mutable_dict::operator=(const mutable_dict& other) = default;
+mutable_dict& mutable_dict::operator=(const mutable_dict& other)     = default;
 mutable_dict& mutable_dict::operator=(mutable_dict&& other) noexcept = default;
 
 // 从 dict 赋值
@@ -78,7 +78,7 @@ dict::entry* mutable_dict::find_entry(std::string_view key) {
     if (!m_data) {
         return nullptr;
     }
-    
+
     auto it = m_data->index.find(key);
     return it == m_data->index.end() ? nullptr : const_cast<entry*>(&*it);
 }
@@ -133,8 +133,8 @@ variant& mutable_dict::operator[](std::string_view key) {
     }
 
     // 不存在则添加新的键值对
-    variant empty_variant;  // 创建一个空的 variant
-    entry* new_entry = new entry(std::string(key), std::move(empty_variant));
+    variant empty_variant; // 创建一个空的 variant
+    entry*  new_entry = new entry(std::string(key), std::move(empty_variant));
     m_data->entries.push_back(*new_entry);
     m_data->index.insert(*new_entry);
     return new_entry->value;
@@ -199,7 +199,9 @@ void mutable_dict::clear() {
     // 先清空索引，这样钩子就不再链接到容器中
     m_data->index.clear();
     // 然后清空链表并释放内存
-    m_data->entries.clear_and_dispose([](entry* p) { delete p; });
+    m_data->entries.clear_and_dispose([](entry* p) {
+        delete p;
+    });
 }
 
 // 获取开始迭代器
@@ -227,7 +229,7 @@ mutable_dict::entry& mutable_dict::at_index(size_t index) {
     if (index >= size()) {
         throw std::out_of_range("字典索引越界");
     }
-    
+
     auto it = m_data->entries.begin();
     std::advance(it, index);
     return *it;

@@ -29,12 +29,12 @@ public:
     ~impl();
 
     // 插件管理
-    void load_plugins(int argc, char** argv);
-    bool load_plugin(const std::string& plugin_name);
-    void load_plugins_from_list(const std::vector<std::string>& plugins);
-    bool is_plugin_loaded(const std::string& plugin_name) const;
-    bool check_plugin_path(const std::string& plugin_name, fs::path& plugin_path) const;
-    void* load_plugin_library(const std::string& plugin_name, const fs::path& plugin_path);
+    void    load_plugins(int argc, char** argv);
+    bool    load_plugin(const std::string& plugin_name);
+    void    load_plugins_from_list(const std::vector<std::string>& plugins);
+    bool    is_plugin_loaded(const std::string& plugin_name) const;
+    bool    check_plugin_path(const std::string& plugin_name, fs::path& plugin_path) const;
+    void*   load_plugin_library(const std::string& plugin_name, const fs::path& plugin_path);
     plugin* create_plugin_instance(const std::string& plugin_name, void* handle);
 
     // 配置管理
@@ -50,7 +50,7 @@ public:
     // 插件依赖管理
     template <typename ActionFunc>
     bool process_plugins_with_dependencies(const std::vector<plugin*>& source_plugins,
-                                           std::vector<plugin*>& processed_plugins,
+                                           std::vector<plugin*>&       processed_plugins,
                                            ActionFunc action, const std::string& action_name);
 
     /**
@@ -59,7 +59,7 @@ public:
     struct plugin_process_context {
         std::vector<plugin*>& pending_plugins;   ///< 待处理的插件列表
         std::vector<plugin*>& processed_plugins; ///< 已处理的插件列表
-        std::string action_name;                 ///< 操作名称（用于日志）
+        std::string           action_name;       ///< 操作名称（用于日志）
     };
 
     template <typename ActionFunc>
@@ -70,33 +70,33 @@ public:
                                ActionFunc action);
 
     void report_unprocessed_plugins(const std::vector<plugin*>& pending_plugins,
-                                    const std::string& action_name);
+                                    const std::string&          action_name);
 
     bool check_dependencies(plugin* p, const std::vector<plugin*>& processed_plugins,
                             const std::string& action_name);
 
     // 成员变量
-    std::string m_version;                                              ///< 应用程序版本号
-    fs::path m_config_dir;                                              ///< 配置文件目录
-    fs::path m_plugin_dir;                                              ///< 插件目录
-    std::unordered_map<std::string, std::unique_ptr<plugin>> m_plugins; ///< 插件映射表
-    std::vector<plugin*> m_initialized_plugins;                         ///< 已初始化的插件列表
-    std::vector<plugin*> m_started_plugins;                             ///< 已启动的插件列表
-    std::vector<void*> m_plugin_handles;                                ///< 动态库句柄列表
+    std::string                                              m_version;    ///< 应用程序版本号
+    fs::path                                                 m_config_dir; ///< 配置文件目录
+    fs::path                                                 m_plugin_dir; ///< 插件目录
+    std::unordered_map<std::string, std::unique_ptr<plugin>> m_plugins;    ///< 插件映射表
+    std::vector<plugin*> m_initialized_plugins;                            ///< 已初始化的插件列表
+    std::vector<plugin*> m_started_plugins;                                ///< 已启动的插件列表
+    std::vector<void*>   m_plugin_handles;                                 ///< 动态库句柄列表
 
     struct options {
         po::options_description cli{"命令行配置项"};   ///< 命令行配置项
         po::options_description cfg{"配置文件配置项"}; ///< 配置文件配置项
     };
     std::unique_ptr<options> m_opts;
-    po::variables_map m_options; ///< 所有配置项
+    po::variables_map        m_options; ///< 所有配置项
 
-    boost::asio::io_context m_io_context;
+    boost::asio::io_context                                                  m_io_context;
     boost::asio::executor_work_guard<boost::asio::io_context::executor_type> m_executor;
-    priority_queue_executor<boost::asio::io_context> m_priority_executor;
-    std::unique_ptr<work_guard_type> m_work_guard;
-    std::vector<std::thread> m_threads;
-    bool m_is_quitting{false};
+    priority_queue_executor<boost::asio::io_context>                         m_priority_executor;
+    std::unique_ptr<work_guard_type>                                         m_work_guard;
+    std::vector<std::thread>                                                 m_threads;
+    bool                                                                     m_is_quitting{false};
 };
 
 // impl类的实现
@@ -248,12 +248,12 @@ bool application::impl::process_single_plugin(plugin* p, IteratorType& it,
 template <typename ActionFunc>
 bool application::impl::process_plugins_round(plugin_process_context& context, ActionFunc action) {
     bool processed_any = false;
-    auto it = context.pending_plugins.begin();
+    auto it            = context.pending_plugins.begin();
 
     while (it != context.pending_plugins.end()) {
-        plugin* p = *it;
-        bool processed = process_single_plugin(p, it, context, action);
-        processed_any = processed_any || processed;
+        plugin* p         = *it;
+        bool    processed = process_single_plugin(p, it, context, action);
+        processed_any     = processed_any || processed;
     }
 
     return processed_any;
@@ -265,7 +265,7 @@ bool application::impl::process_plugins_round(plugin_process_context& context, A
  * @param action_name 操作名称（用于日志）
  */
 void application::impl::report_unprocessed_plugins(const std::vector<plugin*>& pending_plugins,
-                                                   const std::string& action_name) {
+                                                   const std::string&          action_name) {
     std::cerr << "错误: 无法" << action_name
               << "以下插件，可能存在循环依赖或依赖缺失:" << std::endl;
     for (auto* p : pending_plugins) {
@@ -400,7 +400,7 @@ bool application::impl::is_plugin_loaded(const std::string& plugin_name) const {
 }
 
 bool application::impl::check_plugin_path(const std::string& plugin_name,
-                                          fs::path& plugin_path) const {
+                                          fs::path&          plugin_path) const {
     if (m_plugin_dir.empty()) {
         std::cerr << "错误: 未设置插件目录，无法加载插件 '" << plugin_name << "'" << std::endl;
         return false;
@@ -416,7 +416,7 @@ bool application::impl::check_plugin_path(const std::string& plugin_name,
 }
 
 void* application::impl::load_plugin_library(const std::string& plugin_name,
-                                             const fs::path& plugin_path) {
+                                             const fs::path&    plugin_path) {
     void* handle = dlopen(plugin_path.c_str(), RTLD_NOW | RTLD_GLOBAL);
     if (!handle) {
         std::cerr << "错误: 无法加载插件 '" << plugin_name << "': " << dlerror() << std::endl;
@@ -596,7 +596,7 @@ application& application::register_plugin(std::unique_ptr<plugin> plugin) {
     }
 
     // 注册插件
-    auto* plugin_ptr = plugin.get();
+    auto* plugin_ptr        = plugin.get();
     pimpl_->m_plugins[name] = std::move(plugin);
 
     // 检查并加载插件依赖

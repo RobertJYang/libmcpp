@@ -47,7 +47,7 @@
     template <>                                                                                    \
     struct reflector<TYPE> {                                                                       \
         using is_defined = std::true_type;                                                         \
-        using is_enum = std::false_type;                                                           \
+        using is_enum    = std::false_type;                                                        \
         static const char* name() {                                                                \
             return #TYPE;                                                                          \
         }                                                                                          \
@@ -88,7 +88,7 @@
     template <>                                                                                    \
     struct reflector<TYPE> {                                                                       \
         using is_defined = std::true_type;                                                         \
-        using is_enum = std::true_type;                                                            \
+        using is_enum    = std::true_type;                                                         \
         static const char* name() {                                                                \
             return #TYPE;                                                                          \
         }                                                                                          \
@@ -140,8 +140,8 @@ namespace reflect {
  */
 template <typename T>
 struct member_info {
-    const char* name;
-    std::function<variant(const T&)> getter;
+    const char*                             name;
+    std::function<variant(const T&)>        getter;
     std::function<void(T&, const variant&)> setter;
 };
 
@@ -153,7 +153,7 @@ struct member_info {
 template <typename T>
 struct reflector {
     using is_defined = std::false_type;
-    using is_enum = std::false_type;
+    using is_enum    = std::false_type;
 };
 
 /**
@@ -162,11 +162,11 @@ struct reflector {
 class bad_enum_cast : public mc::exception {
 public:
     enum code_enum {
-        code_value = mc::type_error_code,
+        code_value = mc::bad_cast_exception_code,
     };
 
     explicit bad_enum_cast(const std::string& msg)
-        : mc::exception(mc::type_error_code, "bad_enum_cast", msg) {
+        : mc::exception(mc::bad_cast_exception_code, "bad_enum_cast", msg) {
     }
 };
 

@@ -34,7 +34,7 @@ double measure_time(Func&& func, int iterations = 10000) {
         func();
     }
 
-    auto end = std::chrono::high_resolution_clock::now();
+    auto                                      end     = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double, std::milli> elapsed = end - start;
     return elapsed.count() / iterations;
 }

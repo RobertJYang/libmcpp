@@ -161,7 +161,7 @@ void Future<T, Executor, Allocator>::async_get(CompletionToken&& token, launch p
                     handler(state);
                 });
             state_->deferred = true;
-            state_->policy = policy;
+            state_->policy   = policy;
         } else if (policy == launch::dispatch) {
             state_->executor.dispatch(
                 [state = state_, handler = std::move(handle_result)]() mutable {
@@ -188,9 +188,9 @@ template <typename F>
 auto Future<T, Executor, Allocator>::then(F&& func, launch policy)
     -> Future<typename std::invoke_result_t<F, T>, Executor, Allocator> {
     using ResultType = typename std::invoke_result_t<F, T>;
-    auto promise = std::make_shared<Promise<ResultType, Executor, Allocator>>(state_->executor,
-                                                                              state_->allocator);
-    auto future = promise->get_future();
+    auto promise     = std::make_shared<Promise<ResultType, Executor, Allocator>>(state_->executor,
+                                                                                  state_->allocator);
+    auto future      = promise->get_future();
 
     auto continuation = make_continuation<T, ResultType, Executor, Allocator, F>(
         std::move(promise), std::forward<F>(func), state_);
@@ -200,7 +200,7 @@ auto Future<T, Executor, Allocator>::then(F&& func, launch policy)
         if (policy == launch::deferred) {
             future.state_->continuations.push_back(continuation);
             future.state_->deferred = true;
-            future.state_->policy = policy;
+            future.state_->policy   = policy;
         } else if (policy == launch::dispatch) {
             state_->executor.dispatch(continuation, state_->allocator);
         } else {
@@ -218,9 +218,9 @@ template <typename F>
 auto Future<T, Executor, Allocator>::catch_error(F&& handler)
     -> Future<typename std::invoke_result_t<F, std::exception&>, Executor, Allocator> {
     using ResultType = typename std::invoke_result_t<F, std::exception&>;
-    auto promise = std::make_shared<Promise<ResultType, Executor, Allocator>>(state_->executor,
-                                                                              state_->allocator);
-    auto future = promise->get_future();
+    auto promise     = std::make_shared<Promise<ResultType, Executor, Allocator>>(state_->executor,
+                                                                                  state_->allocator);
+    auto future      = promise->get_future();
 
     auto handle_result = [promise, handler = std::forward<F>(handler), state = state_]() mutable {
         try {

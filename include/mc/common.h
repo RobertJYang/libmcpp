@@ -17,19 +17,19 @@
 #ifndef MC_COMMON_H
 #define MC_COMMON_H
 
-#include <string>
-#include <vector>
-#include <memory>
-#include <functional>
-#include <type_traits>
-#include <stdexcept>
 #include <algorithm>
-#include <cstdint>
-#include <iostream>
-#include <random>
 #include <chrono>
-#include <limits>
+#include <cstdint>
 #include <cstring>
+#include <functional>
+#include <iostream>
+#include <limits>
+#include <memory>
+#include <random>
+#include <stdexcept>
+#include <string>
+#include <type_traits>
+#include <vector>
 
 /**
  * @brief 主命名空间
@@ -41,48 +41,47 @@ namespace mc {
 //------------------------------------------------------------------------------
 constexpr std::size_t MAX_NUM_ARRAY_ELEMENTS = 1024 * 1024;
 
-
 //------------------------------------------------------------------------------
 // 编译器和平台相关宏
 //------------------------------------------------------------------------------
 
 // 编译器检测
 #if defined(__clang__)
-    #define MC_COMPILER_CLANG
-    #define MC_COMPILER_VERSION (__clang_major__ * 10000 + __clang_minor__ * 100 + __clang_patchlevel__)
+#define MC_COMPILER_CLANG
+#define MC_COMPILER_VERSION (__clang_major__ * 10000 + __clang_minor__ * 100 + __clang_patchlevel__)
 #elif defined(__GNUC__)
-    #define MC_COMPILER_GCC
-    #define MC_COMPILER_VERSION (__GNUC__ * 10000 + __GNUC_MINOR__ * 100 + __GNUC_PATCHLEVEL__)
+#define MC_COMPILER_GCC
+#define MC_COMPILER_VERSION (__GNUC__ * 10000 + __GNUC_MINOR__ * 100 + __GNUC_PATCHLEVEL__)
 #elif defined(_MSC_VER)
-    #define MC_COMPILER_MSVC
-    #define MC_COMPILER_VERSION _MSC_VER
+#define MC_COMPILER_MSVC
+#define MC_COMPILER_VERSION _MSC_VER
 #else
-    #define MC_COMPILER_UNKNOWN
-    #define MC_COMPILER_VERSION 0
+#define MC_COMPILER_UNKNOWN
+#define MC_COMPILER_VERSION 0
 #endif
 
 // 平台检测
 #if defined(_WIN32) || defined(_WIN64)
-    #define MC_PLATFORM_WINDOWS
+#define MC_PLATFORM_WINDOWS
 #elif defined(__APPLE__)
-    #define MC_PLATFORM_APPLE
+#define MC_PLATFORM_APPLE
 #elif defined(__linux__)
-    #define MC_PLATFORM_LINUX
+#define MC_PLATFORM_LINUX
 #else
-    #define MC_PLATFORM_UNKNOWN
+#define MC_PLATFORM_UNKNOWN
 #endif
 
 // 架构检测
 #if defined(__x86_64__) || defined(_M_X64)
-    #define MC_ARCH_X64
+#define MC_ARCH_X64
 #elif defined(__i386) || defined(_M_IX86)
-    #define MC_ARCH_X86
+#define MC_ARCH_X86
 #elif defined(__arm__) || defined(_M_ARM)
-    #define MC_ARCH_ARM
+#define MC_ARCH_ARM
 #elif defined(__aarch64__)
-    #define MC_ARCH_ARM64
+#define MC_ARCH_ARM64
 #else
-    #define MC_ARCH_UNKNOWN
+#define MC_ARCH_UNKNOWN
 #endif
 
 //------------------------------------------------------------------------------
@@ -103,27 +102,27 @@ constexpr std::size_t MAX_NUM_ARRAY_ELEMENTS = 1024 * 1024;
  * @brief 强制内联函数
  */
 #if defined(MC_COMPILER_MSVC)
-    #define MC_ALWAYS_INLINE __forceinline
+#define MC_ALWAYS_INLINE __forceinline
 #else
-    #define MC_ALWAYS_INLINE inline __attribute__((always_inline))
+#define MC_ALWAYS_INLINE inline __attribute__((always_inline))
 #endif
 
 /**
  * @brief 强制不内联函数
  */
 #if defined(MC_COMPILER_MSVC)
-    #define MC_NEVER_INLINE __declspec(noinline)
+#define MC_NEVER_INLINE __declspec(noinline)
 #else
-    #define MC_NEVER_INLINE __attribute__((noinline))
+#define MC_NEVER_INLINE __attribute__((noinline))
 #endif
 
 /**
  * @brief 弃用警告
  */
 #if defined(MC_COMPILER_MSVC)
-    #define MC_DEPRECATED(msg) __declspec(deprecated(msg))
+#define MC_DEPRECATED(msg) __declspec(deprecated(msg))
 #else
-    #define MC_DEPRECATED(msg) __attribute__((deprecated(msg)))
+#define MC_DEPRECATED(msg) __attribute__((deprecated(msg)))
 #endif
 
 //------------------------------------------------------------------------------
@@ -132,7 +131,7 @@ constexpr std::size_t MAX_NUM_ARRAY_ELEMENTS = 1024 * 1024;
 
 /**
  * @brief 禁止拷贝的基类
- * 
+ *
  * 任何希望禁止拷贝的类可以私有继承此类
  * 例如: class MyClass : private noncopyable {};
  */
@@ -140,16 +139,16 @@ class noncopyable {
 protected:
     // 允许构造和析构
     constexpr noncopyable() = default;
-    ~noncopyable() = default;
+    ~noncopyable()          = default;
 
     // 禁止拷贝
-    noncopyable(const noncopyable&) = delete;
+    noncopyable(const noncopyable&)            = delete;
     noncopyable& operator=(const noncopyable&) = delete;
 };
 
 /**
  * @brief 禁止移动的基类
- * 
+ *
  * 任何希望禁止移动的类可以私有继承此类
  * 例如: class MyClass : private nonmovable {};
  */
@@ -157,23 +156,23 @@ class nonmovable {
 protected:
     // 允许构造和析构
     constexpr nonmovable() = default;
-    ~nonmovable() = default;
+    ~nonmovable()          = default;
 
     // 禁止移动
-    nonmovable(nonmovable&&) = delete;
+    nonmovable(nonmovable&&)            = delete;
     nonmovable& operator=(nonmovable&&) = delete;
 };
 
 /**
  * @brief 禁止拷贝和移动的基类
- * 
+ *
  * 任何希望同时禁止拷贝和移动的类可以私有继承此类
  * 例如: class MyClass : private noncopyable_nonmovable {};
  */
 class noncopyable_nonmovable : private noncopyable, private nonmovable {
 protected:
     constexpr noncopyable_nonmovable() = default;
-    ~noncopyable_nonmovable() = default;
+    ~noncopyable_nonmovable()          = default;
 };
 
 //------------------------------------------------------------------------------
@@ -182,7 +181,7 @@ protected:
 
 /**
  * @brief 单例基类模板
- * 
+ *
  * 任何希望实现单例模式的类可以继承此模板类
  * 例如:
  *   class MySingleton : public singleton<MySingleton> {
@@ -203,7 +202,7 @@ public:
 
 protected:
     constexpr singleton() = default;
-    ~singleton() = default;
+    ~singleton()          = default;
 };
 
 //------------------------------------------------------------------------------
@@ -230,58 +229,46 @@ struct enable_enum_flags {
  * @brief 为具有 enable_enum_flags 特化的枚举类重载位运算符
  */
 template <typename Enum>
-typename std::enable_if<enable_enum_flags<Enum>::enable, Enum>::type
-operator|(Enum lhs, Enum rhs) {
+typename std::enable_if<enable_enum_flags<Enum>::enable, Enum>::type operator|(Enum lhs, Enum rhs) {
     using underlying = typename std::underlying_type<Enum>::type;
-    return static_cast<Enum>(
-        static_cast<underlying>(lhs) | static_cast<underlying>(rhs)
-    );
+    return static_cast<Enum>(static_cast<underlying>(lhs) | static_cast<underlying>(rhs));
 }
 
 template <typename Enum>
-typename std::enable_if<enable_enum_flags<Enum>::enable, Enum>::type
-operator&(Enum lhs, Enum rhs) {
+typename std::enable_if<enable_enum_flags<Enum>::enable, Enum>::type operator&(Enum lhs, Enum rhs) {
     using underlying = typename std::underlying_type<Enum>::type;
-    return static_cast<Enum>(
-        static_cast<underlying>(lhs) & static_cast<underlying>(rhs)
-    );
+    return static_cast<Enum>(static_cast<underlying>(lhs) & static_cast<underlying>(rhs));
 }
 
 template <typename Enum>
-typename std::enable_if<enable_enum_flags<Enum>::enable, Enum>::type
-operator^(Enum lhs, Enum rhs) {
+typename std::enable_if<enable_enum_flags<Enum>::enable, Enum>::type operator^(Enum lhs, Enum rhs) {
     using underlying = typename std::underlying_type<Enum>::type;
-    return static_cast<Enum>(
-        static_cast<underlying>(lhs) ^ static_cast<underlying>(rhs)
-    );
+    return static_cast<Enum>(static_cast<underlying>(lhs) ^ static_cast<underlying>(rhs));
 }
 
 template <typename Enum>
-typename std::enable_if<enable_enum_flags<Enum>::enable, Enum>::type
-operator~(Enum rhs) {
+typename std::enable_if<enable_enum_flags<Enum>::enable, Enum>::type operator~(Enum rhs) {
     using underlying = typename std::underlying_type<Enum>::type;
-    return static_cast<Enum>(
-        ~static_cast<underlying>(rhs)
-    );
+    return static_cast<Enum>(~static_cast<underlying>(rhs));
 }
 
 template <typename Enum>
-typename std::enable_if<enable_enum_flags<Enum>::enable, Enum&>::type
-operator|=(Enum& lhs, Enum rhs) {
+typename std::enable_if<enable_enum_flags<Enum>::enable, Enum&>::type operator|=(Enum& lhs,
+                                                                                 Enum  rhs) {
     lhs = lhs | rhs;
     return lhs;
 }
 
 template <typename Enum>
-typename std::enable_if<enable_enum_flags<Enum>::enable, Enum&>::type
-operator&=(Enum& lhs, Enum rhs) {
+typename std::enable_if<enable_enum_flags<Enum>::enable, Enum&>::type operator&=(Enum& lhs,
+                                                                                 Enum  rhs) {
     lhs = lhs & rhs;
     return lhs;
 }
 
 template <typename Enum>
-typename std::enable_if<enable_enum_flags<Enum>::enable, Enum&>::type
-operator^=(Enum& lhs, Enum rhs) {
+typename std::enable_if<enable_enum_flags<Enum>::enable, Enum&>::type operator^=(Enum& lhs,
+                                                                                 Enum  rhs) {
     lhs = lhs ^ rhs;
     return lhs;
 }
@@ -293,20 +280,18 @@ operator^=(Enum& lhs, Enum rhs) {
  *   MC_ENABLE_ENUM_FLAGS(MyFlags)
  *   MyFlags flags = MyFlags::Flag1 | MyFlags::Flag2;
  */
-#define MC_ENABLE_ENUM_FLAGS(Enum) \
-    template <> \
-    struct mc::enable_enum_flags<Enum> { \
-        static constexpr bool enable = true; \
+#define MC_ENABLE_ENUM_FLAGS(Enum)                                                                 \
+    template <>                                                                                    \
+    struct mc::enable_enum_flags<Enum> {                                                           \
+        static constexpr bool enable = true;                                                       \
     }
 
 /**
  * @brief 安全的数值转换
  */
 template <typename To, typename From>
-typename std::enable_if<
-    std::is_arithmetic<From>::value && std::is_arithmetic<To>::value,
-    To
->::type safe_cast(From value) {
+typename std::enable_if<std::is_arithmetic<From>::value && std::is_arithmetic<To>::value, To>::type
+safe_cast(From value) {
     if (std::is_signed<From>::value && std::is_unsigned<To>::value) {
         if (value < 0) {
             throw std::out_of_range("Cannot convert negative value to unsigned type");
@@ -314,11 +299,13 @@ typename std::enable_if<
     }
 
     if ((std::is_integral<From>::value && std::is_integral<To>::value) &&
-        (sizeof(From) > sizeof(To) || (std::is_signed<From>::value && std::is_unsigned<To>::value))) {
+        (sizeof(From) > sizeof(To) ||
+         (std::is_signed<From>::value && std::is_unsigned<To>::value))) {
         if (value > static_cast<From>(std::numeric_limits<To>::max())) {
             throw std::out_of_range("Value too large for target type");
         }
-        if (std::is_signed<From>::value && value < static_cast<From>(std::numeric_limits<To>::min())) {
+        if (std::is_signed<From>::value &&
+            value < static_cast<From>(std::numeric_limits<To>::min())) {
             throw std::out_of_range("Value too small for target type");
         }
     }
@@ -332,19 +319,19 @@ typename std::enable_if<
 template <typename T>
 std::string type_name() {
 #ifdef MC_COMPILER_CLANG
-    const char* name = __PRETTY_FUNCTION__;
+    const char* name  = __PRETTY_FUNCTION__;
     const char* start = std::strstr(name, "T = ") + 4;
-    const char* end = std::strstr(start, "]");
+    const char* end   = std::strstr(start, "]");
     return std::string(start, end - start);
 #elif defined(MC_COMPILER_GCC)
-    const char* name = __PRETTY_FUNCTION__;
+    const char* name  = __PRETTY_FUNCTION__;
     const char* start = std::strstr(name, "T = ") + 4;
-    const char* end = std::strstr(start, ";");
+    const char* end   = std::strstr(start, ";");
     return std::string(start, end - start);
 #elif defined(MC_COMPILER_MSVC)
-    const char* name = __FUNCSIG__;
+    const char* name  = __FUNCSIG__;
     const char* start = std::strstr(name, "type_name<") + 10;
-    const char* end = std::strstr(start, ">(void)");
+    const char* end   = std::strstr(start, ">(void)");
     return std::string(start, end - start);
 #else
     return "unknown_type";
@@ -389,10 +376,9 @@ void safe_delete_array(T*& ptr) {
  * @brief 生成随机整数
  */
 template <typename T>
-typename std::enable_if<std::is_integral<T>::value, T>::type
-random(T min, T max) {
-    static std::random_device rd;
-    static std::mt19937 gen(rd());
+typename std::enable_if<std::is_integral<T>::value, T>::type random(T min, T max) {
+    static std::random_device        rd;
+    static std::mt19937              gen(rd());
     std::uniform_int_distribution<T> dist(min, max);
     return dist(gen);
 }
@@ -401,10 +387,9 @@ random(T min, T max) {
  * @brief 生成随机浮点数
  */
 template <typename T>
-typename std::enable_if<std::is_floating_point<T>::value, T>::type
-random(T min, T max) {
-    static std::random_device rd;
-    static std::mt19937 gen(rd());
+typename std::enable_if<std::is_floating_point<T>::value, T>::type random(T min, T max) {
+    static std::random_device         rd;
+    static std::mt19937               gen(rd());
     std::uniform_real_distribution<T> dist(min, max);
     return dist(gen);
 }
@@ -420,19 +405,21 @@ random(T min, T max) {
 class scope_timer {
 public:
     explicit scope_timer(const std::string& name)
-        : m_name(name), m_start(std::chrono::high_resolution_clock::now()) {}
+        : m_name(name), m_start(std::chrono::high_resolution_clock::now()) {
+    }
 
     ~scope_timer() {
         auto end = std::chrono::high_resolution_clock::now();
-        auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - m_start).count();
+        auto duration =
+            std::chrono::duration_cast<std::chrono::milliseconds>(end - m_start).count();
         std::cout << m_name << " 耗时: " << duration << "ms" << std::endl;
     }
 
 private:
-    std::string m_name;
+    std::string                                                 m_name;
     std::chrono::time_point<std::chrono::high_resolution_clock> m_start;
 };
 
-} // namespace mc 
+} // namespace mc
 
-#endif // MC_COMMON_H 
+#endif // MC_COMMON_H
