@@ -15,11 +15,12 @@ example_plugin = shared_library('example',
 )
 
 # 创建示例应用程序可执行文件
-example_app = executable('example_app',
+executable('example_app',
   'main.cpp',
   include_directories : [incdir],
   dependencies : [libmcpp_dep, boost_program_options_dep],
-  install : true
+  install : true,
+  build_by_default : true
 )
 
 # 创建插件目录
@@ -33,3 +34,6 @@ custom_target('copy_plugin',
   depends : example_plugin,
   build_by_default : true
 )
+
+# 添加子目录
+subdir('custom_appender')

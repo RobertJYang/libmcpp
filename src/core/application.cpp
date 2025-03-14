@@ -12,7 +12,7 @@
 
 #include "mc/core/application.h"
 #include <algorithm>
-#include <boost/algorithm/string.hpp>
+#include <mc/string.h>
 #include <boost/program_options.hpp>
 #include <dlfcn.h>
 #include <iostream>
@@ -29,7 +29,7 @@ public:
     ~impl();
 
     // 插件管理
-    void    load_plugins(int argc, char** argv);
+    void    load_plugins();
     bool    load_plugin(const std::string& plugin_name);
     void    load_plugins_from_list(const std::vector<std::string>& plugins);
     bool    is_plugin_loaded(const std::string& plugin_name) const;
@@ -119,12 +119,13 @@ application::impl::~impl() {
 }
 
 void application::impl::parse_command_line(int argc, char** argv) {
-    m_opts->cli.add_options()("help,h", "显示帮助信息")("version,v", "显示版本信息")(
-        "config,c", po::value<std::string>()->default_value("config.ini"),
-        "配置文件名称（相对于配置目录）")("config-dir", po::value<std::string>(), "配置目录路径")(
-        "plugin,p", po::value<std::vector<std::string>>()->composing(),
-        "要加载的插件名称【可以重复多个或以逗号分隔多个】")("plugin-dir", po::value<std::string>(),
-                                                            "插件目录路径")(
+    m_opts->cli.add_options()
+        ("help,h", "显示帮助信息")
+        ("version,v", "显示版本信息")
+        ("config,c", po::value<std::string>()->default_value("config.ini"), "配置文件名称（相对于配置目录）")
+        ("config-dir", po::value<std::string>(), "配置目录路径")
+        ("plugin,p", po::value<std::vector<std::string>>()->composing(), "要加载的插件名称【可以重复多个或以逗号分隔多个】")
+        ("plugin-dir", po::value<std::string>(), "插件目录路径")(
         "threads", po::value<unsigned int>()->default_value(1), "线程数量");
 
     load_config_file();
@@ -327,9 +328,7 @@ void application::impl::initialize_plugins() {
 
 void application::impl::load_plugins_from_list(const std::vector<std::string>& plugins) {
     for (const auto& plugin_arg : plugins) {
-        std::vector<std::string> plugin_names;
-        boost::split(plugin_names, plugin_arg, boost::is_any_of(","));
-
+        std::vector<std::string> plugin_names = mc::string::split(plugin_arg, ",");
         for (const auto& name : plugin_names) {
             if (!name.empty()) {
                 load_plugin(name);
@@ -338,30 +337,13 @@ void application::impl::load_plugins_from_list(const std::vector<std::string>& p
     }
 }
 
-void application::impl::load_plugins(int argc, char** argv) {
-    po::variables_map vm;
-
-    po::options_description desc("命令行配置项【插件】");
-    desc.add_options()("plugin,p", po::value<std::vector<std::string>>()->composing(),
-                       "要加载的插件名称【可以重复多个或以逗号分隔多个】")(
-        "plugin-dir", po::value<std::string>(), "插件目录路径");
-
-    try {
-        po::parsed_options parsed =
-            po::command_line_parser(argc, argv).options(desc).allow_unregistered().run();
-
-        po::store(parsed, vm);
-        po::notify(vm);
-    } catch (const boost::program_options::unknown_option& e) {
-        throw std::runtime_error("未知命令行参数选项 '" + e.get_option_name());
+void application::impl::load_plugins() {
+    if (m_options.count("plugin-dir")) {
+        m_plugin_dir = m_options["plugin-dir"].as<std::string>();
     }
 
-    if (vm.count("plugin-dir")) {
-        m_plugin_dir = vm["plugin-dir"].as<std::string>();
-    }
-
-    if (vm.count("plugin")) {
-        load_plugins_from_list(vm["plugin"].as<std::vector<std::string>>());
+    if (m_options.count("plugin")) {
+        load_plugins_from_list(m_options["plugin"].as<std::vector<std::string>>());
     }
 }
 
@@ -618,26 +600,15 @@ plugin* application::find_plugin(const std::string& name) const {
 }
 
 application& application::initialize() {
-    // 收集所有插件的配置选项
     pimpl_->collect_plugin_options();
-
-    // 加载配置文件
     pimpl_->load_config_file();
-
-    // 初始化所有插件
     pimpl_->initialize_plugins();
-
     return *this;
 }
 
 application& application::initialize(int argc, char** argv) {
-    // 解析命令行参数
     pimpl_->parse_command_line(argc, argv);
-
-    // 加载插件
-    pimpl_->load_plugins(argc, argv);
-
-    // 初始化所有插件
+    pimpl_->load_plugins();
     return initialize();
 }
 

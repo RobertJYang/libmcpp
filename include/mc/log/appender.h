@@ -76,11 +76,11 @@ using appender_ptr = std::shared_ptr<appender>;
  */
 #define MC_REGISTER_APPENDER(appender_class)                                                       \
     extern "C" void* create_appender() {                                                           \
-        return new appender_ptr(new appender_class);                                               \
+        return new mc::log::appender_ptr(new appender_class);                                               \
     }                                                                                              \
                                                                                                    \
     extern "C" void destroy_appender(void* ptr) {                                                  \
-        delete static_cast<appender_ptr*>(ptr);                                                    \
+        delete static_cast<mc::log::appender_ptr*>(ptr);                                                    \
     }
 
 } // namespace log

@@ -3,16 +3,10 @@
  * @brief 示例应用程序，演示如何使用插件动态加载功能
  */
 
-#include "example_plugin.h"
 #include "mc/core/application.h"
 #include <iostream>
 
 using namespace mc;
-
-// 创建插件实例的函数
-extern "C" plugin* create_plugin() {
-    return new examples::example_plugin();
-}
 
 int main(int argc, char** argv) {
     try {

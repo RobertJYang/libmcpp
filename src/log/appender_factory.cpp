@@ -51,7 +51,7 @@ public:
         }
         return nullptr;
     }
-    
+
     appender_ptr create(const std::string& name, const std::string& type, const dict& config) {
         // 检查是否已存在同名appender
         auto it = m_appenders.find(name);
@@ -60,26 +60,26 @@ public:
             elog("已存在同名appender: ${name}", ("name", name));
             return nullptr;
         }
-        
+
         // 创建新的appender
         appender_ptr appender = create_by_type(type);
         if (!appender) {
             elog("创建appender失败，未知类型: ${type}", ("type", type));
             return nullptr;
         }
-        
+
         // 设置名称
         appender->set_name(name);
-        
+
         // 初始化
         if (!appender->init(config)) {
             elog("初始化appender失败: ${name}", ("name", name));
             return nullptr;
         }
-        
+
         // 保存实例
         m_appenders[name] = appender;
-        
+
         return appender;
     }
 
@@ -160,6 +160,10 @@ public:
         return create(name, type, config);
     }
 
+    void register_creator(const std::string& type, std::function<appender_ptr()> creator) {
+        m_creators[type] = std::move(creator);
+    }
+
 private:
     // 注册内置追加器
     void register_builtin_appenders() {
@@ -170,10 +174,6 @@ private:
         // register_creator("file", []() {
         //     return std::make_shared<file_appender>();
         // });
-    }
-
-    void register_creator(const std::string& type, std::function<appender_ptr()> creator) {
-        m_creators[type] = std::move(creator);
     }
 
     void cleanup() {
@@ -221,7 +221,8 @@ appender_ptr appender_factory::create_impl(const std::string& type) {
     return m_impl->create_by_type(type);
 }
 
-appender_ptr appender_factory::create(const std::string& name, const std::string& type, const mc::dict& config) {
+appender_ptr appender_factory::create(const std::string& name, const std::string& type,
+                                      const mc::dict& config) {
     return m_impl->create(name, type, config);
 }
 
@@ -239,8 +240,13 @@ appender_ptr appender_factory::get_appender(const std::string& name) {
 
 appender_ptr appender_factory::get_or_create_appender(const std::string& name,
                                                       const std::string& type,
-                                                      const mc::dict& config) {
+                                                      const mc::dict&    config) {
     return m_impl->get_or_create_appender(name, type, config);
+}
+
+void appender_factory::register_creator(const std::string&            type,
+                                        std::function<appender_ptr()> creator) {
+    m_impl->register_creator(type, std::move(creator));
 }
 
 } // namespace log

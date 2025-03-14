@@ -54,7 +54,7 @@ public:
      * @param type 追加器类型
      * @param creator 创建函数
      */
-    static void register_creator(const std::string& type, std::function<appender_ptr()> creator);
+    void register_creator(const std::string& type, std::function<appender_ptr()> creator);
 
     /**
      * @brief 根据类型创建追加器实例（不设置名称，不保存实例）

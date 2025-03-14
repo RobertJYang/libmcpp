@@ -172,56 +172,6 @@ public:
         get_priority_executor().execute(std::forward<Function>(f), p);
     }
 
-    /**
-     * @brief 关闭应用程序
-     *
-     * @deprecated 请使用 cleanup() 代替
-     */
-    [[deprecated("请使用 cleanup() 代替")]]
-    void shutdown() {
-        cleanup();
-    }
-
-    /**
-     * @brief 退出应用程序
-     *
-     * @deprecated 请使用 stop() 代替
-     */
-    [[deprecated("请使用 stop() 代替")]]
-    void quit() {
-        stop();
-    }
-
-    /**
-     * @brief 运行应用程序
-     *
-     * @deprecated 请使用 exec() 代替
-     */
-    [[deprecated("请使用 exec() 代替")]]
-    void run() {
-        exec();
-    }
-
-    /**
-     * @brief 启动所有已初始化的插件
-     *
-     * @deprecated 请使用 start() 代替
-     */
-    [[deprecated("请使用 start() 代替")]]
-    application& startup() {
-        return start();
-    }
-
-    /**
-     * @brief 检查应用程序是否正在退出
-     *
-     * @deprecated 请使用 is_stopped() 代替
-     */
-    [[deprecated("请使用 is_stopped() 代替")]]
-    bool is_quit() const {
-        return is_stopped();
-    }
-
 private:
     /**
      * @brief 构造函数（私有，通过instance()获取实例）

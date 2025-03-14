@@ -32,7 +32,7 @@ test_files = [
 test_exe = executable('libmcpp_test',
   test_files,
   include_directories : incdir,
-  dependencies : [libmcpp_dep, gtest_dep, boost_dep, gmock_dep],
+  dependencies : [libmcpp_dep, gtest_dep, boost_dep],
   cpp_args : ['-Wno-self-assign-overloaded', '-Wno-unused-lambda-capture', '-Wno-self-move'],
   install : false
 )

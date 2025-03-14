@@ -16,6 +16,7 @@ src_files = [
   # 'log/appenders/file_appender.cpp',
   'filesystem.cpp',
   'json.cpp',
+  # 'yaml.cpp',
   'reflect.cpp',
 ]
 

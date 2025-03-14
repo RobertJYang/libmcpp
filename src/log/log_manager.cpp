@@ -198,44 +198,5 @@ bool log_manager::apply_config(const logging_config& config) {
     return true;
 }
 
-bool log_manager::load_config(const std::string& config_path) {
-    // 从文件加载配置
-    logging_config config;
-    if (!load_config_from_file(config_path, config)) {
-        elog("加载日志配置文件失败: ${path}", ("path", config_path));
-        return false;
-    }
-
-    return apply_config(config);
-}
-
-bool log_manager::load_config_from_file(const std::string& config_path, logging_config& config) {
-    if (!mc::filesystem::exists(config_path)) {
-        elog("日志配置文件不存在: ${path}", ("path", config_path));
-        return false;
-    }
-
-    try {
-        // 读取文件内容并解析为variant
-        std::ifstream file(config_path);
-        if (!file.is_open()) {
-            elog("无法打开日志配置文件: ${path}", ("path", config_path));
-            return false;
-        }
-
-        std::string content((std::istreambuf_iterator<char>(file)),
-                            std::istreambuf_iterator<char>());
-        variant     config_var = mc::json::json_decode(content);
-
-        // 使用反射机制将variant转换为logging_config
-        config_var.as(config);
-
-        return true;
-    } catch (const std::exception& e) {
-        elog("解析日志配置文件异常: ${path}, ${error}", ("path", config_path)("error", e.what()));
-        return false;
-    }
-}
-
 } // namespace log
 } // namespace mc

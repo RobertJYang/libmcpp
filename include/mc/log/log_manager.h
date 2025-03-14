@@ -114,53 +114,16 @@ public:
      */
     bool apply_config(const logging_config& config);
 
-    /**
-     * @brief 从配置文件加载日志系统配置
-     *
-     * @param config_path 配置文件路径
-     * @return bool 是否成功加载配置
-     */
-    bool load_config(const std::string& config_path);
-
-    /**
-     * @brief 从配置加载appender
-     *
-     * @param appender_configs appender配置列表
-     * @return bool 是否成功加载
-     */
-    bool load_appenders_from_config(const std::vector<appender_config>& appender_configs);
-
-    /**
-     * @brief 加载单个appender配置
-     *
-     * @param app_config appender配置
-     * @return bool 是否加载成功
-     */
-    bool load_single_appender(const appender_config& app_config);
-
-    void update_existing_logger(logger& log, const logger_config& log_config);
-
 private:
     log_manager();
     log_manager(const log_manager&)            = delete;
     log_manager& operator=(const log_manager&) = delete;
 
-    /**
-     * @brief 从文件加载配置
-     *
-     * @param config_path 配置文件路径
-     * @param config 输出的配置结构
-     * @return bool 是否成功加载
-     */
-    bool load_config_from_file(const std::string& config_path, logging_config& config);
-
-    /**
-     * @brief 创建新的logger
-     *
-     * @param log_config logger配置
-     * @return logger 创建的logger
-     */
     logger create_new_logger(const logger_config& log_config);
+
+    bool load_appenders_from_config(const std::vector<appender_config>& appender_configs);
+    bool load_single_appender(const appender_config& app_config);
+    void update_existing_logger(logger& log, const logger_config& log_config);
 
     std::unordered_map<std::string, logger> m_loggers; // 日志记录器映射
     std::mutex                              m_mutex;   // 互斥锁
