@@ -10,9 +10,9 @@
  * See the Mulan PSL v2 for more details.
  */
 
+#include <mc/exception.h>
 #include <mc/log/appenders/console_appender.h>
 #include <mc/log/log_message.h>
-#include <mc/exception.h>
 #include <mc/reflect.h>
 #include <mc/string.h>
 #include <mc/variant.h>
@@ -35,20 +35,15 @@ namespace log {
 class console_appender::impl {
 public:
     config     cfg;
-    color_type level_colors[static_cast<int>(level::off) + 1];
-    bool       use_syslog_header{getenv("JOURNAL_STREAM") != nullptr};
-    std::mutex mutex;
+    color_type level_colors[static_cast<int>(level::off) + 1] = {
+        color_type::console_default, color_type::console_default, color_type::cyan,
+        color_type::green,           color_type::brown,           color_type::red,
+        color_type::magenta,         color_type::console_default};
 
-    impl() {
-        for (int i = 0; i < static_cast<int>(level::off) + 1; ++i) {
-            level_colors[i] = color_type::console_default;
-        }
-    }
+    std::mutex mutex;
 };
 
 console_appender::console_appender() : m_impl(new impl()) {
-    // 使用默认配置
-    configure(config());
 }
 
 console_appender::~console_appender() = default;
@@ -67,8 +62,6 @@ void console_appender::configure(const config& cfg) {
     std::lock_guard<std::mutex> lock(m_impl->mutex);
 
     m_impl->cfg = cfg;
-
-    // 设置日志级别颜色
     for (const auto& lc : m_impl->cfg.level_colors) {
         if (static_cast<int>(lc.level) < static_cast<int>(level::off) + 1) {
             m_impl->level_colors[static_cast<int>(lc.level)] = lc.color;
@@ -125,92 +118,44 @@ void console_appender::append(const message& msg) {
     std::string line;
     line.reserve(256);
 
-    // 添加syslog头（如果需要）
-    if (m_impl->use_syslog_header) {
-        switch (msg.get_level()) {
-        case level::error:
-        case level::fatal:
-            line += "<3>"; // 错误级别
-            break;
-        case level::warn:
-            line += "<4>"; // 警告级别
-            break;
-        case level::info:
-            line += "<6>"; // 信息级别
-            break;
-        case level::debug:
-        case level::trace:
-            line += "<7>"; // 调试级别
-            break;
-        default:
-            break;
-        }
-    }
-
     // 格式化日志消息
-    if (m_impl->cfg.format == "{message}") {
-        // 简单格式，只输出消息内容
-        line += msg.get_message();
-    } else if (m_impl->cfg.format == "{detailed}") {
-        // 详细格式，包含时间、级别、文件等信息
-        // 日志级别
-        line += fixed_width(5, to_string(msg.get_level()));
-        line += ' ';
+    // 详细格式，包含时间、级别、文件等信息
+    // 日志级别
+    line += fixed_width(5, to_string(msg.get_level()));
+    line += ' ';
 
-        // 时间戳（使用当前时间而不是消息时间，避免长时间处理导致的时间差）
-        auto    now        = std::chrono::system_clock::now();
-        auto    time_t_now = std::chrono::system_clock::to_time_t(now);
-        std::tm tm_now;
-        localtime_r(&time_t_now, &tm_now);
-        char time_buf[20];
-        std::strftime(time_buf, sizeof(time_buf), "%Y-%m-%d %H:%M:%S", &tm_now);
-        line += time_buf;
-        line += ' ';
+    // 时间戳（使用当前时间而不是消息时间，避免长时间处理导致的时间差）
+    auto    now        = std::chrono::system_clock::now();
+    auto    time_t_now = std::chrono::system_clock::to_time_t(now);
+    std::tm tm_now;
+    localtime_r(&time_t_now, &tm_now);
+    char time_buf[20];
+    std::strftime(time_buf, sizeof(time_buf), "%Y-%m-%d %H:%M:%S", &tm_now);
+    line += time_buf;
+    line += ' ';
 
-        // 文件和行号
-        std::string file_line = ctx.m_file.empty() ? "unknown" : ctx.m_file.substr(0, 20);
-        file_line += ':';
-        file_line += std::to_string(ctx.m_line);
-        line += fixed_width(30, file_line);
-        line += ' ';
+    // 文件和行号
+    std::string file_line = ctx.m_file.empty() ? "unknown" : ctx.m_file.substr(0, 20);
+    file_line += ':';
+    file_line += std::to_string(ctx.m_line);
+    line += fixed_width(30, file_line);
+    line += ' ';
 
-        // 函数名
-        if (!ctx.m_function.empty()) {
-            std::string func = ctx.m_function;
-            // 去除命名空间前缀
-            size_t pos = func.find_last_of(':');
-            if (pos != std::string::npos && pos + 1 < func.size()) {
-                func = func.substr(pos + 1);
-            }
-            line += fixed_width(20, func);
-            line += ' ';
+    // 函数名
+    if (!ctx.m_function.empty()) {
+        std::string func = ctx.m_function;
+        // 去除命名空间前缀
+        size_t pos = func.find_last_of(':');
+        if (pos != std::string::npos && pos + 1 < func.size()) {
+            func = func.substr(pos + 1);
         }
-
-        // 消息内容
-        line += "| ";
-        line += msg.get_message();
-    } else {
-        // 自定义格式
-        // 创建替换字典
-        mutable_dict args;
-        args["level"]    = to_string(msg.get_level());
-        args["message"]  = msg.get_message();
-        args["file"]     = ctx.m_file;
-        args["line"]     = ctx.m_line;
-        args["function"] = ctx.m_function;
-
-        // 时间格式化
-        auto    now        = std::chrono::system_clock::now();
-        auto    time_t_now = std::chrono::system_clock::to_time_t(now);
-        std::tm tm_now;
-        localtime_r(&time_t_now, &tm_now);
-        char time_buf[20];
-        std::strftime(time_buf, sizeof(time_buf), "%Y-%m-%d %H:%M:%S", &tm_now);
-        args["time"] = std::string(time_buf);
-
-        // 格式化
-        line = mc::format(m_impl->cfg.format, args);
+        line += fixed_width(20, func);
+        line += ' ';
     }
+
+    // 消息内容
+    line += "| ";
+    line += msg.get_message();
 
     // 输出带颜色的日志
     color_type text_color = m_impl->level_colors[static_cast<int>(msg.get_level())];

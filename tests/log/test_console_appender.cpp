@@ -56,7 +56,6 @@ TEST_F(ConsoleAppenderTest, DefaultConstructor) {
 TEST_F(ConsoleAppenderTest, ConfigConstructor) {
     console_appender::config cfg;
     cfg.stream    = console_appender::stream_type::std_error;
-    cfg.format    = "{level} - {message}";
     cfg.use_color = true;
 
     auto appender = std::make_shared<console_appender>();
@@ -67,7 +66,6 @@ TEST_F(ConsoleAppenderTest, ConfigConstructor) {
 TEST_F(ConsoleAppenderTest, VariantConstructor) {
     mc::mutable_dict dict;
     dict["stream"]    = "std_error";
-    dict["format"]    = "{level} - {message}";
     dict["use_color"] = true;
 
     auto appender = std::make_shared<console_appender>();
@@ -78,7 +76,6 @@ TEST_F(ConsoleAppenderTest, VariantConstructor) {
 TEST_F(ConsoleAppenderTest, Init) {
     mc::mutable_dict dict;
     dict["stream"]    = "std_error";
-    dict["format"]    = "{level} - {message}";
     dict["use_color"] = true;
 
     bool result = m_appender->init(dict);
@@ -99,7 +96,7 @@ TEST_F(ConsoleAppenderTest, AppendFormattedMessage) {
     args["name"]  = "测试";
     args["value"] = 42;
 
-    auto msg = create_format_message(level::info, "名称: ${name}, 值: ${value}", args);
+    auto msg = create_test_message(level::info, "名称: 测试, 值: 42");
     ASSERT_NO_THROW(m_appender->append(msg));
 }
 
@@ -121,28 +118,6 @@ TEST_F(ConsoleAppenderTest, DifferentLogLevels) {
     ASSERT_NO_THROW(m_appender->append(fatal_msg));
 }
 
-// 测试自定义格式
-TEST_F(ConsoleAppenderTest, CustomFormat) {
-    console_appender::config cfg;
-    cfg.format = "[{level}] {time} - {file}:{line} - {message}";
-
-    auto appender = std::make_shared<console_appender>();
-    auto msg      = create_test_message(level::info, "自定义格式测试");
-
-    ASSERT_NO_THROW(appender->append(msg));
-}
-
-// 测试详细格式
-TEST_F(ConsoleAppenderTest, DetailedFormat) {
-    console_appender::config cfg;
-    cfg.format = "{detailed}";
-
-    auto appender = std::make_shared<console_appender>();
-    auto msg      = create_test_message(level::info, "详细格式测试");
-
-    ASSERT_NO_THROW(appender->append(msg));
-}
-
 // 测试工厂创建
 TEST_F(ConsoleAppenderTest, FactoryCreate) {
     auto appender = appender_factory::instance().create<console_appender>("console");
@@ -154,7 +129,6 @@ TEST_F(ConsoleAppenderTest, DISABLED_ManualColorTest) {
     std::cout << "=== 手动颜色测试 (需要人工验证) ===" << std::endl;
 
     console_appender::config cfg;
-    cfg.format = "{detailed}";
 
     auto appender = std::make_shared<console_appender>();
 

@@ -69,20 +69,9 @@ public:
      */
     struct config {
         stream_type              stream{stream_type::std_out}; // 输出流
-        std::string              format{"{message}"};          // 输出格式
         bool                     use_color{true};              // 是否使用颜色
         bool                     flush{true};                  // 是否每次输出后刷新
         std::vector<level_color> level_colors;                 // 日志级别颜色配置
-
-        config() {
-            // 默认颜色配置
-            level_colors.emplace_back(level::trace, color_type::console_default);
-            level_colors.emplace_back(level::debug, color_type::cyan);
-            level_colors.emplace_back(level::info, color_type::green);
-            level_colors.emplace_back(level::warn, color_type::brown);
-            level_colors.emplace_back(level::error, color_type::red);
-            level_colors.emplace_back(level::fatal, color_type::magenta);
-        }
     };
 
     /**
@@ -134,7 +123,7 @@ private:
 } // namespace mc
 
 // 反射控制台追加器配置
-MC_REFLECT(mc::log::console_appender::config, (stream)(format)(use_color)(flush)(level_colors))
+MC_REFLECT(mc::log::console_appender::config, (stream)(use_color)(flush)(level_colors))
 
 // 反射日志级别颜色配置
 MC_REFLECT(mc::log::console_appender::level_color, (level)(color))
