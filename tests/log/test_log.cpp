@@ -10,7 +10,6 @@
  * See the Mulan PSL v2 for more details.
  */
 
-#include "../common/test_log_backend.h"
 #include <fstream>
 #include <gtest/gtest.h>
 #include <mc/dict.h>
@@ -25,7 +24,11 @@
 // 测试用的日志追加器，将日志消息存储在内存中
 class memory_appender : public mc::log::appender {
 public:
-    memory_appender() : mc::log::appender(mc::log::appender_config("memory")) {
+    memory_appender() {
+    }
+
+    bool init(const mc::variant& args) override {
+        return true;
     }
 
     void append(const mc::log::message& msg) override {
@@ -44,89 +47,39 @@ private:
     std::vector<mc::log::message> m_messages;
 };
 
-// 测试用的日志后端，将日志消息存储在内存中
-class memory_backend : public mc::log::log_backend {
-public:
-    memory_backend() = default;
-
-    bool init(const std::string& config) override {
-        m_config = config;
-        return true;
-    }
-
-    void write(const mc::log::message& msg) override {
-        m_messages.push_back(msg);
-    }
-
-    void flush() override {
-    }
-
-    void close() override {
-        m_messages.clear();
-    }
-
-    std::string name() const override {
-        return "memory_backend";
-    }
-
-    const std::vector<mc::log::message>& get_messages() const {
-        return m_messages;
-    }
-
-    void clear() {
-        m_messages.clear();
-    }
-
-private:
-    std::string                   m_config;
-    std::vector<mc::log::message> m_messages;
-};
-
 // 日志框架测试类
 class LogTest : public ::testing::Test {
 protected:
     void SetUp() override {
         // 创建内存日志追加器
-        m_memory_appender = std::make_shared<mc::test::memory_appender>();
-
-        // 创建内存日志后端
-        m_memory_backend = std::make_shared<mc::test::memory_backend>();
-        m_memory_backend->init("memory");
-
-        // 创建后端适配器
-        m_backend_adapter = std::make_shared<mc::log::appender>(
-            mc::log::appender_config("memory_backend", mc::log::level::trace));
+        m_memory_appender = std::make_shared<memory_appender>();
 
         // 创建测试日志器
         m_test_logger = mc::log::logger("test_logger");
         m_test_logger.add_appender(m_memory_appender);
-        m_test_logger.add_appender(m_backend_adapter);
     }
 
     void TearDown() override {
-        m_test_logger.remove_all_appenders();
+        m_test_logger.clear_appenders();
         m_memory_appender->clear();
-        m_memory_backend->clear();
     }
 
     bool message_contains(const mc::log::message& msg, const std::string& text) {
-        return msg.message().find(text) != std::string::npos;
+        return msg.get_message().find(text) != std::string::npos;
     }
 
     bool message_matches(const mc::log::message& msg, const std::string& pattern) {
         std::regex regex(pattern);
-        return std::regex_search(msg.message(), regex);
+        return std::regex_search(msg.get_message(), regex);
     }
 
     mc::log::message get_last_message() {
-        const auto& messages = m_memory_appender->messages();
+        const auto& messages = m_memory_appender->get_messages();
         return messages.empty() ? mc::log::message() : messages.back();
     }
 
-    std::shared_ptr<mc::test::memory_appender> m_memory_appender;
-    std::shared_ptr<mc::test::memory_backend>  m_memory_backend;
-    std::shared_ptr<mc::log::appender>         m_backend_adapter;
-    mc::log::logger                            m_test_logger;
+    std::shared_ptr<memory_appender> m_memory_appender;
+    mc::log::logger m_test_logger;
 };
 
 // 测试基本日志功能
@@ -243,34 +196,9 @@ TEST_F(LogTest, ContextInfo) {
     EXPECT_EQ(msg.get_message().find(ctx.m_function), std::string::npos);
 
     // 格式化后的消息应该包含上下文信息
-    auto        formatter     = std::make_shared<mc::log::default_message_formatter>();
+    auto formatter = std::make_shared<mc::log::default_message_formatter>();
     std::string formatted_msg = formatter->format(msg);
     EXPECT_NE(formatted_msg.find(mc::filesystem::basename(ctx.m_file)), std::string::npos);
-
-    // 使用更新后的辅助方法，它会自动处理格式化
-    auto& backend_messages = m_memory_backend->get_messages();
-    ASSERT_FALSE(backend_messages.empty());
-    auto& backend_msg = backend_messages.back();
-    EXPECT_TRUE(message_contains(backend_msg, ctx.m_file));
-    EXPECT_TRUE(message_contains(backend_msg, ctx.m_function));
-}
-
-// 测试日志后端
-TEST_F(LogTest, LogBackend) {
-    // 清空现有消息
-    m_memory_backend->clear();
-
-    // 发送日志消息
-    mc_ilog(m_test_logger, "测试后端的日志消息");
-
-    // 检查后端是否收到消息
-    auto& backend_messages = m_memory_backend->get_messages();
-    ASSERT_FALSE(backend_messages.empty());
-
-    // 检查消息内容
-    auto& msg = backend_messages.back();
-    EXPECT_EQ(mc::log::level::info, msg.get_level());
-    EXPECT_TRUE(message_contains(msg, "测试后端的日志消息"));
 }
 
 // 测试全局日志宏

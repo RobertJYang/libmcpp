@@ -120,8 +120,38 @@ TEST_F(ConsoleAppenderTest, DifferentLogLevels) {
 
 // 测试工厂创建
 TEST_F(ConsoleAppenderTest, FactoryCreate) {
-    auto appender = appender_factory::instance().create<console_appender>("console");
+    auto appender = appender_factory::instance().create_by_type<console_appender>("console");
     ASSERT_NE(appender, nullptr);
+}
+
+// 测试创建并命名
+TEST_F(ConsoleAppenderTest, FactoryCreateNamed) {
+    mc::dict config;
+    auto     appender = appender_factory::instance().create("test_console", "console", config);
+    ASSERT_NE(appender, nullptr);
+    EXPECT_EQ(appender->get_name(), "test_console");
+
+    // 测试获取已创建的appender
+    auto same_appender = appender_factory::instance().get_appender("test_console");
+    ASSERT_NE(same_appender, nullptr);
+    EXPECT_EQ(same_appender, appender);
+}
+
+// 测试获取或创建
+TEST_F(ConsoleAppenderTest, GetOrCreateAppender) {
+    mc::dict config;
+
+    // 首次调用应该创建新的appender
+    auto appender1 =
+        appender_factory::instance().get_or_create_appender("test_console2", "console", config);
+    ASSERT_NE(appender1, nullptr);
+    EXPECT_EQ(appender1->get_name(), "test_console2");
+
+    // 再次调用应该返回已有的appender
+    auto appender2 =
+        appender_factory::instance().get_or_create_appender("test_console2", "console", config);
+    ASSERT_NE(appender2, nullptr);
+    EXPECT_EQ(appender2, appender1);
 }
 
 // 手动测试 - 这个测试会输出各种颜色的消息

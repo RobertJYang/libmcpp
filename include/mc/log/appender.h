@@ -44,6 +44,27 @@ public:
      * @param msg 日志消息
      */
     virtual void append(const message& msg) = 0;
+    
+    /**
+     * @brief 获取追加器名称
+     *
+     * @return const std::string& 追加器名称
+     */
+    const std::string& get_name() const {
+        return m_name;
+    }
+    
+    /**
+     * @brief 设置追加器名称
+     *
+     * @param name 追加器名称
+     */
+    void set_name(const std::string& name) {
+        m_name = name;
+    }
+
+protected:
+    std::string m_name; // 追加器名称
 };
 
 using appender_ptr = std::shared_ptr<appender>;

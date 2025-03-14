@@ -43,7 +43,7 @@ inline log::logger get_default_logger() {
  * @param name 日志记录器名称
  * @return log::logger 日志记录器
  */
-inline log::logger get_logger(const std::string& name) {
+inline log::logger get_logger(const char* name) {
     return log::logger::get(name);
 }
 

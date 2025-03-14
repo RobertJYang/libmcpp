@@ -142,22 +142,13 @@ public:
      *
      * @return std::string 消息内容
      */
-    std::string get_message() const {
+    const std::string& get_message() const {
         if (!m_formatted && !m_format.empty()) {
             // 如果未格式化且有格式模板，执行格式化
             m_message   = mc::format(m_format, m_args);
             m_formatted = true;
         }
         return m_message;
-    }
-
-    /**
-     * @brief 获取格式化后的消息（保持兼容性）
-     *
-     * @return std::string 格式化后的消息
-     */
-    std::string get_formatted_message() const {
-        return get_message();
     }
 
     /**

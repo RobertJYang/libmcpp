@@ -69,7 +69,7 @@ public:
     // 获取异常信息的字符串表示
     std::string to_detail_string(mc::log::level ll = mc::log::level::all) const;
     std::string to_string(mc::log::level ll = mc::log::level::info) const;
-    std::string top_message() const;
+    const std::string &top_message() const;
     
     // 动态异常处理
     virtual void dynamic_rethrow_exception() const;

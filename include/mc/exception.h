@@ -152,7 +152,7 @@ public:
     virtual std::string to_string(mc::log::level ll = mc::log::level::info) const;
 
     // 获取顶层异常消息
-    std::string top_message() const;
+    const std::string& top_message() const;
 
     // 动态重新抛出异常
     virtual void dynamic_rethrow_exception() const;

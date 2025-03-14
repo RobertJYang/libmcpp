@@ -53,7 +53,7 @@ bool console_appender::init(const variant& args) {
         configure(args.as<config>());
         return true;
     } catch (const mc::exception& e) {
-        std::cerr << "控制台追加器初始化失败: " << e.what() << std::endl;
+        std::cerr << "console_appender 初始化失败: " << e.what() << std::endl;
         return false;
     }
 }

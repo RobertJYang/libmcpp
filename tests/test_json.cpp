@@ -18,8 +18,16 @@
 #include <mc/json.h>
 #include <mc/dict.h>
 #include <mc/variant.h>
+#include <mc/exception.h>
 #include <limits>
 #include <string>
+#include <vector>
+#include <map>
+#include <cmath>
+#include <algorithm>
+
+using namespace mc;
+using namespace mc::json;
 
 namespace mc {
 namespace json {
@@ -236,11 +244,11 @@ TEST(JsonEncodeOptionsTest, MaxDepth) {
     
     // 深度限制为1（只允许简单值或空对象/数组）
     options.max_depth = 1;
-    EXPECT_THROW(json_encode(nested, options), json_error);
+    EXPECT_THROW(json_encode(nested, options), parse_error_exception);
     
     // 深度限制为3（允许3层嵌套）
     options.max_depth = 3;
-    EXPECT_THROW(json_encode(nested, options), json_error);
+    EXPECT_THROW(json_encode(nested, options), parse_error_exception);
     
     // 深度限制为6（可以完整编码）
     options.max_depth = 6;
@@ -272,7 +280,7 @@ TEST(JsonEncodeOptionsTest, MaxDepth) {
     
     // 设置较小的深度限制
     options.max_depth = 2;
-    EXPECT_THROW(json_encode(nested_array, options), json_error);
+    EXPECT_THROW(json_encode(nested_array, options), parse_error_exception);
 }
 
 TEST(JsonEncodeOptionsTest, IndentSize) {
@@ -353,7 +361,7 @@ TEST(JsonEncodeOptionsTest, CombinedOptions) {
             }}
         }}
     };
-    EXPECT_THROW(json_encode(variant(deep_obj), options), json_error);
+    EXPECT_THROW(json_encode(variant(deep_obj), options), parse_error_exception);
 }
 
 // 基本类型解码测试
@@ -463,7 +471,7 @@ TEST(JsonDecodeOptionsTest, MaxDepth) {
     // 设置较小的深度限制
     json_decode_options depth_options;
     depth_options.max_depth = 2;
-    EXPECT_THROW(json_decode(nested_json, depth_options), json_error);
+    EXPECT_THROW(json_decode(nested_json, depth_options), parse_error_exception);
 }
 
 TEST(JsonDecodeOptionsTest, MaxInputLength) {
@@ -481,7 +489,7 @@ TEST(JsonDecodeOptionsTest, MaxInputLength) {
     // 设置较小的长度限制
     json_decode_options length_options;
     length_options.max_input_length = 100;
-    EXPECT_THROW(json_decode(long_json, length_options), json_error);
+    EXPECT_THROW(json_decode(long_json, length_options), parse_error_exception);
 }
 
 TEST(JsonDecodeOptionsTest, MaxStringLength) {
@@ -495,12 +503,12 @@ TEST(JsonDecodeOptionsTest, MaxStringLength) {
     // 设置较小的字符串长度限制
     json_decode_options str_options;
     str_options.max_string_length = 100;
-    EXPECT_THROW(json_decode(json, str_options), json_error);
+    EXPECT_THROW(json_decode(json, str_options), parse_error_exception);
 
     // 测试对象键名长度限制
     std::string long_key(1000, 'k');  // 1000个'k'字符
     json = "{\"" + long_key + "\":123}";
-    EXPECT_THROW(json_decode(json, str_options), json_error);
+    EXPECT_THROW(json_decode(json, str_options), parse_error_exception);
 }
 
 TEST(JsonDecodeOptionsTest, MaxArraySize) {
@@ -518,7 +526,7 @@ TEST(JsonDecodeOptionsTest, MaxArraySize) {
     // 设置较小的数组大小限制
     json_decode_options array_options;
     array_options.max_array_size = 100;
-    EXPECT_THROW(json_decode(array_json, array_options), json_error);
+    EXPECT_THROW(json_decode(array_json, array_options), parse_error_exception);
 }
 
 TEST(JsonDecodeOptionsTest, MaxObjectSize) {
@@ -536,7 +544,7 @@ TEST(JsonDecodeOptionsTest, MaxObjectSize) {
     // 设置较小的对象大小限制
     json_decode_options object_options;
     object_options.max_object_size = 100;
-    EXPECT_THROW(json_decode(object_json, object_options), json_error);
+    EXPECT_THROW(json_decode(object_json, object_options), parse_error_exception);
 }
 
 TEST(JsonDecodeOptionsTest, OptionNormalization) {
@@ -591,7 +599,7 @@ TEST(JsonDecodeOptionsTest, CombinedOptions) {
     options.max_string_length = 10;
 
     // 验证组合限制的效果
-    EXPECT_THROW(json_decode(complex_json, options), json_error);
+    EXPECT_THROW(json_decode(complex_json, options), parse_error_exception);
 
     // 放宽限制，确保可以正常解码
     options.max_depth = 5;
@@ -604,24 +612,24 @@ TEST(JsonDecodeOptionsTest, CombinedOptions) {
 // 错误处理测试
 TEST(JsonErrorTest, InvalidInput) {
     // 无效的JSON格式
-    EXPECT_THROW(json_decode(""), json_error);
-    EXPECT_THROW(json_decode("{"), json_error);
-    EXPECT_THROW(json_decode("["), json_error);
-    EXPECT_THROW(json_decode("\"unclosed string"), json_error);
+    EXPECT_THROW(json_decode(""), parse_error_exception);
+    EXPECT_THROW(json_decode("{"), parse_error_exception);
+    EXPECT_THROW(json_decode("["), parse_error_exception);
+    EXPECT_THROW(json_decode("\"unclosed string"), parse_error_exception);
     
     // 无效的数字格式
-    EXPECT_THROW(json_decode("12.34.56"), json_error);
-    EXPECT_THROW(json_decode("1e"), json_error);
-    EXPECT_THROW(json_decode("-"), json_error);
+    EXPECT_THROW(json_decode("12.34.56"), parse_error_exception);
+    EXPECT_THROW(json_decode("1e"), parse_error_exception);
+    EXPECT_THROW(json_decode("-"), parse_error_exception);
     
     // 无效的对象格式
-    EXPECT_THROW(json_decode("{\"key\"}"), json_error);
-    EXPECT_THROW(json_decode("{\"key\":}"), json_error);
-    EXPECT_THROW(json_decode("{key:1}"), json_error);
+    EXPECT_THROW(json_decode("{\"key\"}"), parse_error_exception);
+    EXPECT_THROW(json_decode("{\"key\":}"), parse_error_exception);
+    EXPECT_THROW(json_decode("{key:1}"), parse_error_exception);
     
     // 无效的数组格式
-    EXPECT_THROW(json_decode("[1,]"), json_error);
-    EXPECT_THROW(json_decode("[1,,2]"), json_error);
+    EXPECT_THROW(json_decode("[1,]"), parse_error_exception);
+    EXPECT_THROW(json_decode("[1,,2]"), parse_error_exception);
 }
 
 // 字符串转义测试
@@ -641,10 +649,10 @@ TEST(JsonStringTest, EscapeSequences) {
     EXPECT_EQ(json_decode("\"\\u0041\"").as<std::string>(), "A");
     
     // 无效的转义序列
-    EXPECT_THROW(json_decode("\"\\x\""), json_error);
-    EXPECT_THROW(json_decode("\"\\u\""), json_error);
-    EXPECT_THROW(json_decode("\"\\u123\""), json_error);
-    EXPECT_THROW(json_decode("\"\\u123x\""), json_error);
+    EXPECT_THROW(json_decode("\"\\x\""), parse_error_exception);
+    EXPECT_THROW(json_decode("\"\\u\""), parse_error_exception);
+    EXPECT_THROW(json_decode("\"\\u123\""), parse_error_exception);
+    EXPECT_THROW(json_decode("\"\\u123x\""), parse_error_exception);
 }
 
 // 空白字符处理测试

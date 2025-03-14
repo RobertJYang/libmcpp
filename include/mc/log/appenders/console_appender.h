@@ -123,10 +123,113 @@ private:
 } // namespace mc
 
 // 反射控制台追加器配置
-MC_REFLECT(mc::log::console_appender::config, (stream)(use_color)(flush)(level_colors))
+// MC_REFLECT(mc::log::console_appender::config, (stream)(use_color)(flush)(level_colors))
+namespace mc {
+template <>
+struct reflect::reflector<mc::log::console_appender::config> {
+    using is_defined = std::true_type;
+    using is_enum    = std::false_type;
+    static const char* name() {
+        return "mc::log::console_appender::config";
+    }
+    template <typename Visitor>
+    static void visit(const Visitor& visitor) {
+        static const std::vector<member_info<mc::log::console_appender::config>> members = {
+            {"stream",
+             [](const mc::log::console_appender::config& obj) -> variant {
+                 return obj.stream;
+             },
+             [](mc::log::console_appender::config& obj, const variant& var) {
+                 var.as(obj.stream);
+             }},
+            {"use_color",
+             [](const mc::log::console_appender::config& obj) -> variant {
+                 return obj.use_color;
+             },
+             [](mc::log::console_appender::config& obj, const variant& var) {
+                 var.as(obj.use_color);
+             }},
+            {"flush",
+             [](const mc::log::console_appender::config& obj) -> variant {
+                 return obj.flush;
+             },
+             [](mc::log::console_appender::config& obj, const variant& var) {
+                 var.as(obj.flush);
+             }},
+            {"level_colors",
+             [](const mc::log::console_appender::config& obj) -> variant {
+                 return obj.level_colors;
+             },
+             [](mc::log::console_appender::config& obj, const variant& var) {
+                 var.as(obj.level_colors);
+             }},
+        };
+        for (const auto& member : members) {
+            visitor(member.name, member.getter, member.setter);
+        }
+    }
+    static void to_variant(const mc::log::console_appender::config& obj, mc::mutable_dict& dict) {
+        visit([&](const char* name, auto getter, auto) {
+            dict[name] = getter(obj);
+        });
+    }
+    static void from_variant(const mc::dict& d, mc::log::console_appender::config& obj) {
+        visit([&](const char* name, auto, auto setter) {
+            if (d.contains(name)) {
+                setter(obj, d[name]);
+            }
+        });
+    }
+};
+} // namespace mc
 
 // 反射日志级别颜色配置
-MC_REFLECT(mc::log::console_appender::level_color, (level)(color))
+// MC_REFLECT(mc::log::console_appender::level_color, (level)(color))
+namespace mc {
+template <>
+struct reflect::reflector<mc::log::console_appender::level_color> {
+    using is_defined = std::true_type;
+    using is_enum    = std::false_type;
+    static const char* name() {
+        return "mc::log::console_appender::level_color";
+    }
+    template <typename Visitor>
+    static void visit(const Visitor& visitor) {
+        static const std::vector<member_info<mc::log::console_appender::level_color>> members = {
+            {"level",
+             [](const mc::log::console_appender::level_color& obj) -> variant {
+                 return obj.level;
+             },
+             [](mc::log::console_appender::level_color& obj, const variant& var) {
+                 var.as(obj.level);
+             }},
+            {"color",
+             [](const mc::log::console_appender::level_color& obj) -> variant {
+                 return obj.color;
+             },
+             [](mc::log::console_appender::level_color& obj, const variant& var) {
+                 var.as(obj.color);
+             }},
+        };
+        for (const auto& member : members) {
+            visitor(member.name, member.getter, member.setter);
+        }
+    }
+    static void to_variant(const mc::log::console_appender::level_color& obj,
+                           mc::mutable_dict&                             dict) {
+        visit([&](const char* name, auto getter, auto) {
+            dict[name] = getter(obj);
+        });
+    }
+    static void from_variant(const mc::dict& d, mc::log::console_appender::level_color& obj) {
+        visit([&](const char* name, auto, auto setter) {
+            if (d.contains(name)) {
+                setter(obj, d[name]);
+            }
+        });
+    }
+};
+} // namespace mc
 
 // 反射输出流类型
 MC_REFLECT_ENUM(mc::log::console_appender::stream_type, (std_out)(std_error))
