@@ -21,14 +21,11 @@
             "request": "launch",
             "program": "${workspaceFolder}/builddir/examples/example_app",
             "args": [
-                "-p",
-                "example",
-                "--plugin-dir",
-                "./builddir/examples/plugins",
-                "--help"
+                "-m",
+                "example"
             ],
             "stopAtEntry": false,
-            "cwd": "${workspaceFolder}",
+            "cwd": "${workspaceFolder}/builddir/examples",
             "environment": [],
             "externalConsole": false,
             "MIMode": "lldb"

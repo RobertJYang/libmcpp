@@ -11,9 +11,9 @@ int main(int argc, char** argv) {
     std::filesystem::path config_dir = std::filesystem::current_path() / "config";
     app.set_config_dir(config_dir);
 
-    // 设置插件目录
-    std::filesystem::path plugin_dir = std::filesystem::current_path() / "plugins";
-    app.set_plugin_dir(plugin_dir);
+    // 设置模块目录
+    std::filesystem::path module_dir = std::filesystem::current_path() / "modules";
+    app.set_module_dir(module_dir);
 
     try {
         // 初始化应用程序

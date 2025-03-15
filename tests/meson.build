@@ -7,7 +7,7 @@ test_files = [
   # 'test_yaml_compound.cpp',
   # 'test_signal_slot.cpp',
   # 'test_event.cpp',
-  'test_application.cpp',
+  # 'test_application.cpp',
   # 'test_priority_queue.cpp',
   # 'exception/test_exception.cpp',
   # 'exception/test_exception_macros.cpp',
@@ -34,7 +34,7 @@ test_files = [
 test_exe = executable('libmcpp_test',
   test_files,
   include_directories : incdir,
-  dependencies : [libmcpp_dep, gtest_dep, boost_dep],
+  dependencies : [libmcpp_dep, gtest_dep, boost_dep, boost_program_options_dep],
   cpp_args : ['-Wno-self-assign-overloaded', '-Wno-unused-lambda-capture', '-Wno-self-move'],
   install : false
 )

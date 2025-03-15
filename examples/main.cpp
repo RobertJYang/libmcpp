@@ -1,10 +1,11 @@
 /**
  * @file main.cpp
- * @brief 示例应用程序，演示如何使用插件动态加载功能
+ * @brief 示例应用程序，演示如何使用模块动态加载功能
  */
 
 #include "mc/core/application.h"
 #include <iostream>
+#include <filesystem>
 
 using namespace mc;
 
@@ -16,17 +17,25 @@ int main(int argc, char** argv) {
         // 设置版本号
         app.set_version("1.0.0");
 
-        // 设置插件目录
-        // 注意：在实际使用中，应该使用绝对路径或相对于可执行文件的路径
-        app.set_plugin_dir("./plugins");
+        // 设置模块目录
+        std::filesystem::path module_path = std::filesystem::absolute("./modules");
+        std::cout << "模块目录: " << module_path << std::endl;
+        app.set_module_dir(module_path);
 
-        // 初始化应用程序
+        // 设置配置文件目录
+        std::filesystem::path config_path = std::filesystem::absolute("./config");
+        std::cout << "配置目录: " << config_path << std::endl;
+        app.set_config_dir(config_path);
+
+        // 初始化应用程序（会处理命令行参数，包括加载模块）
+        // 可以通过 --module=example 或 -m example 参数指定要加载的模块
         app.initialize(argc, argv);
 
         // 启动应用程序
         app.start();
 
         // 运行应用程序
+        // std::cout << "应用程序运行中，按 Ctrl+C 退出..." << std::endl;
         app.exec();
 
         // 清理资源

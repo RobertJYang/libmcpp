@@ -17,8 +17,11 @@
 #include <string>
 #include <vector>
 #include "mc/dict.h"
+#include <boost/program_options.hpp>
 
 namespace mc {
+
+namespace po = boost::program_options;
 
 /**
  * @brief 服务状态枚举
@@ -81,6 +84,8 @@ public:
         return m_config;
     }
 
+    static void register_options(po::options_description& cli_opts, po::options_description& cfg_opts) {
+    }
 protected:
     // 设置服务状态
     void set_state(service_state state) {
