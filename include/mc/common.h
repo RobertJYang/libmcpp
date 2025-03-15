@@ -85,6 +85,28 @@ constexpr std::size_t MAX_NUM_ARRAY_ELEMENTS = 1024 * 1024;
 #endif
 
 //------------------------------------------------------------------------------
+// 条件分支预测优化宏
+//------------------------------------------------------------------------------
+
+/**
+ * @brief 提示编译器条件很可能为真的分支预测优化宏
+ */
+#if defined(__GNUC__) || defined(__clang__)
+#define LIKELY(x) __builtin_expect(!!(x), 1)
+#else
+#define LIKELY(x) (x)
+#endif
+
+/**
+ * @brief 提示编译器条件很可能为假的分支预测优化宏
+ */
+#if defined(__GNUC__) || defined(__clang__)
+#define UNLIKELY(x) __builtin_expect(!!(x), 0)
+#else
+#define UNLIKELY(x) (x)
+#endif
+
+//------------------------------------------------------------------------------
 // 工具宏
 //------------------------------------------------------------------------------
 
@@ -173,36 +195,6 @@ class noncopyable_nonmovable : private noncopyable, private nonmovable {
 protected:
     constexpr noncopyable_nonmovable() = default;
     ~noncopyable_nonmovable()          = default;
-};
-
-//------------------------------------------------------------------------------
-// 单例类基类
-//------------------------------------------------------------------------------
-
-/**
- * @brief 单例基类模板
- *
- * 任何希望实现单例模式的类可以继承此模板类
- * 例如:
- *   class MySingleton : public singleton<MySingleton> {
- *     friend class singleton<MySingleton>; // 必须声明为友元以访问构造函数
- *   private:
- *     MySingleton() = default;  // 私有构造函数
- *   public:
- *     void doSomething() { ... }
- *   };
- */
-template <typename T>
-class singleton : private noncopyable_nonmovable {
-public:
-    static T& instance() {
-        static T instance;
-        return instance;
-    }
-
-protected:
-    constexpr singleton() = default;
-    ~singleton()          = default;
 };
 
 //------------------------------------------------------------------------------

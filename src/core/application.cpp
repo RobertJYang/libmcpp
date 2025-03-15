@@ -21,12 +21,6 @@ namespace mc {
 
 namespace po = boost::program_options;
 
-// 单例访问
-application& application::instance() {
-    static application instance;
-    return instance;
-}
-
 // 构造函数
 application::application()
     : m_version("0.1.0")

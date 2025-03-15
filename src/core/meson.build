@@ -5,6 +5,7 @@ core_sources = [
     'module_manager.cpp',
     'service.cpp',
     'service_manager.cpp',
+    'singleton.cpp',
     'supervisor.cpp',
     'supervisor_manager.cpp',
 ]

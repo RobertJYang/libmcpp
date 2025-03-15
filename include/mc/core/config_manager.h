@@ -21,6 +21,7 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <iostream>
 
 namespace mc {
 
@@ -42,7 +43,7 @@ struct options {
 class config_manager {
 public:
     // 构造和析构
-    config_manager(bool silent);
+    config_manager(bool silent = false);
     ~config_manager();
 
     // 配置文件加载
@@ -51,8 +52,8 @@ public:
     // 命令行参数解析
     bool parse_command_line(int argc, char** argv);
     
-    // 拷贝配置
-    void copy_option(config_manager &other, const std::string& config);
+    // 重置配置状态
+    void reset();
     
     // 获取配置选项
     options &get_options() { return *m_opts; }
@@ -70,6 +71,10 @@ public:
     
     // 获取模块列表
     std::vector<std::string> get_module_names() const;
+
+    // 静默模式控制
+    void set_silent(bool silent);
+    bool is_silent() const;
 
 private:
     // 处理未识别的选项

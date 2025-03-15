@@ -21,6 +21,7 @@
 #include "mc/core/module_manager.h"
 #include "mc/core/service_manager.h"
 #include "mc/core/supervisor_manager.h"
+#include "mc/core/singleton.h"
 #include <boost/asio.hpp>
 #include <memory>
 #include <string>
@@ -39,7 +40,17 @@ public:
     using work_guard_type = boost::asio::executor_work_guard<executor_type>;
 
     // 单例访问
-    static application& instance();
+    static application& instance() {
+        // 使用自定义创建函数访问单例
+        static auto creator = []() { return new application(); };
+        return singleton<application>::instance_with_creator(creator);
+    }
+    
+    // 测试专用：重置单例状态
+    static void reset_for_test() {
+        // 直接调用全局函数重置所有单例
+        mc::reset_singletons_for_test();
+    }
 
     // 禁止拷贝和移动
     application(const application&) = delete;
@@ -74,6 +85,9 @@ public:
     strand_type& get_strand();
 
 private:
+    // 让singleton能够访问私有构造函数
+    friend class detail::singleton_impl<application>;
+
     // 私有构造函数
     application();
 

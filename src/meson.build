@@ -8,6 +8,7 @@ src_files = [
   'core/module_manager.cpp',
   'core/service_manager.cpp',
   'core/supervisor_manager.cpp',
+  'core/singleton.cpp',
   'variant.cpp',
   'dict.cpp',
   'mutable_dict.cpp',
@@ -21,7 +22,6 @@ src_files = [
   # 'log/appenders/file_appender.cpp',
   'filesystem.cpp',
   'json.cpp',
-  # 'yaml.cpp',
   'reflect.cpp',
 ]
 
