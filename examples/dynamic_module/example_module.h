@@ -44,7 +44,7 @@ public:
         std::cout << "初始化示例模块..." << std::endl;
 
         // 注册服务
-        app().register_service(
+        app().get_service_manager().register_service(
             example_service::service_type(),
             []() -> service_ptr {
                 return std::make_shared<example_service>();

@@ -10,29 +10,22 @@
  * See the Mulan PSL v2 for more details.
  */
 
+/**
+ * @file application.h
+ * @brief 应用程序类，作为核心类，协调各个管理器
+ */
 #ifndef MC_APPLICATION_H
 #define MC_APPLICATION_H
 
-#include "mc/core/module.h"
-#include "mc/core/service.h"
-#include "mc/core/supervisor.h"
-#include "mc/filesystem.h"
+#include "mc/core/config_manager.h"
+#include "mc/core/module_manager.h"
+#include "mc/core/service_manager.h"
+#include "mc/core/supervisor_manager.h"
 #include <boost/asio.hpp>
-#include <boost/program_options.hpp>
 #include <memory>
 #include <string>
 
 namespace mc {
-
-namespace po = boost::program_options;
-
-/**
- * @brief 服务类型信息结构体
- */
-struct service_type_info {
-    std::function<service_ptr()> factory;                                                    // 服务工厂函数
-    std::function<void(po::options_description&, po::options_description&)> register_options;  // 配置选项注册函数
-};
 
 /**
  * @brief 应用程序类
@@ -57,32 +50,19 @@ public:
     // 析构函数
     ~application();
 
-    // 版本和配置管理
+    // 版本管理
     void set_version(const std::string& version);
     const std::string& version() const;
-    void set_config_dir(const std::string& config_dir);
-    const std::string& config_dir() const;
-    void set_module_dir(const std::string& module_dir);
-    const std::string& module_dir() const;
 
-    // 模块管理
-    application& register_module(std::shared_ptr<class module> module);
-    class module* find_module(const std::string& name) const;
-
-    // 服务管理
-    bool register_service(const std::string& type, 
-                         std::function<service_ptr()> factory,
-                         std::function<void(po::options_description&, po::options_description&)> register_options);
-    service_ptr create_service(const std::string& type, const service_config& config);
-    service_ptr get_service(const std::string& name) const;
-
-    // 监督器管理
-    supervisor_ptr get_root_supervisor() const;
-    supervisor_ptr create_supervisor(const supervisor_config& config);
+    // 各个管理器的访问接口
+    module_manager& get_module_manager();
+    service_manager& get_service_manager();
+    config_manager& get_config_manager();
+    supervisor_manager& get_supervisor_manager();
 
     // 应用程序生命周期
-    application& initialize();
-    application& initialize(int argc, char** argv);
+    bool initialize();
+    bool initialize(int argc, char** argv);
     application& start();
     void exec();
     void stop();
@@ -97,9 +77,19 @@ private:
     // 私有构造函数
     application();
 
-    // 实现类
-    class impl;
-    std::unique_ptr<impl> pimpl_;
+    // 成员变量
+    std::string m_version;                                // 应用程序版本号
+    std::unique_ptr<module_manager> m_module_manager;     // 模块管理器
+    std::unique_ptr<service_manager> m_service_manager;   // 服务管理器
+    std::unique_ptr<config_manager> m_config_manager;     // 配置管理器
+    std::unique_ptr<supervisor_manager> m_supervisor_manager; // 监督器管理器
+    
+    // IO相关
+    io_context_type m_io_context;                         // IO上下文
+    strand_type m_strand;                                 // 执行器
+    work_guard_type m_work_guard;                         // 工作守卫（单个即可）
+    unsigned int m_thread_count;                          // 线程数量
+    bool m_stopped;                                       // 停止标志
 };
 
 // 全局访问函数

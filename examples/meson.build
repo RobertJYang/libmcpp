@@ -39,7 +39,7 @@ custom_target('copy_example_module',
 # 复制配置文件到配置目录（用于本地测试）
 custom_target('copy_example_config',
   output : 'copy_example_config',
-  command : ['cp', meson.current_source_dir() / 'config/example.ini', config_dir / 'example.ini'],
+  command : ['cp', meson.current_source_dir() / 'config/example.ini', config_dir / 'config.ini'],
   build_by_default : true
 )
 

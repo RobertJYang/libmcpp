@@ -22,7 +22,9 @@
             "program": "${workspaceFolder}/builddir/examples/example_app",
             "args": [
                 "-m",
-                "example"
+                "example",
+                "-c",
+                "${workspaceFolder}/builddir/examples/config/config.ini"
             ],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}/builddir/examples",
