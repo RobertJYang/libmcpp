@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025 Huawei Technologies Co., Ltd.
+ * Copyright (c) 2024 Huawei Technologies Co., Ltd.
  * openUBMC is licensed under Mulan PSL v2.
  * You can use this software according to the terms and conditions of the Mulan PSL v2.
  * You may obtain a copy of Mulan PSL v2 at:
@@ -13,7 +13,9 @@
 #ifndef MC_CORE_APPLICATION_H
 #define MC_CORE_APPLICATION_H
 
-#include "mc/core/plugin.h"
+#include "mc/core/module.h"
+#include "mc/core/service.h"
+#include "mc/core/supervisor.h"
 #include "mc/core/priority_queue.h"
 #include <boost/asio.hpp>
 #include <filesystem>
@@ -68,27 +70,89 @@ public:
     const fs::path& config_dir() const;
 
     /**
-     * @brief 注册插件
-     * @param plugin 插件指针
+     * @brief 设置模块目录
+     * @param module_dir 模块目录路径
+     */
+    void set_module_dir(const fs::path& module_dir);
+
+    /**
+     * @brief 获取模块目录
+     * @return 模块目录路径
+     */
+    const fs::path& module_dir() const;
+
+    /**
+     * @brief 注册模块
+     * @param module 模块指针
      * @return 应用程序实例引用，用于链式调用
      */
-    application& register_plugin(std::unique_ptr<plugin> plugin);
+    application& register_module(module_ptr module);
 
     /**
-     * @brief 查找插件
-     * @param name 插件名称
-     * @return 插件指针，如果未找到则返回nullptr
+     * @brief 查找模块
+     * @param name 模块名称
+     * @return 模块指针，如果未找到则返回nullptr
      */
-    plugin* find_plugin(const std::string& name) const;
+    module* find_module(const std::string& name) const;
 
     /**
-     * @brief 初始化所有已注册的插件
+     * @brief 加载模块
+     * @param name 模块名称
+     * @return 是否成功加载模块
+     */
+    bool load_module(const std::string& name);
+
+    /**
+     * @brief 卸载模块
+     * @param name 模块名称
+     * @return 是否成功卸载模块
+     */
+    bool unload_module(const std::string& name);
+
+    /**
+     * @brief 注册服务
+     * @param type 服务类型
+     * @param factory 服务工厂函数
+     * @return 是否成功注册服务
+     */
+    bool register_service(const std::string& type, std::function<service_ptr()> factory);
+
+    /**
+     * @brief 创建服务
+     * @param type 服务类型
+     * @param config 服务配置
+     * @return 服务指针
+     */
+    service_ptr create_service(const std::string& type, const service_config& config);
+
+    /**
+     * @brief 获取服务
+     * @param name 服务名称
+     * @return 服务指针
+     */
+    service_ptr get_service(const std::string& name) const;
+
+    /**
+     * @brief 获取根监督器
+     * @return 根监督器指针
+     */
+    supervisor_ptr get_root_supervisor() const;
+
+    /**
+     * @brief 创建监督器
+     * @param config 监督器配置
+     * @return 监督器指针
+     */
+    supervisor_ptr create_supervisor(const supervisor_config& config);
+
+    /**
+     * @brief 初始化所有已注册的模块
      * @return 应用程序实例引用，用于链式调用
      */
     application& initialize();
 
     /**
-     * @brief 使用命令行参数初始化应用程序和插件
+     * @brief 使用命令行参数初始化应用程序和模块
      * @param argc 命令行参数数量
      * @param argv 命令行参数数组
      * @return 应用程序实例引用，用于链式调用
@@ -96,17 +160,10 @@ public:
     application& initialize(int argc, char** argv);
 
     /**
-     * @brief 设置插件目录
-     * @param plugin_dir 插件目录路径
-     * @return 应用程序实例引用，用于链式调用
-     */
-    application& set_plugin_dir(const fs::path& plugin_dir);
-
-    /**
      * @brief 启动应用程序
      *
      * 此函数执行以下操作：
-     * 1. 启动所有已初始化的插件
+     * 1. 启动所有已初始化的模块
      * 2. 准备IO上下文和工作线程
      *
      * 注意：此函数不会阻塞，如需阻塞等待应用程序结束，请调用exec()
@@ -137,7 +194,7 @@ public:
      * @brief 清理应用程序资源
      *
      * 此函数执行以下操作：
-     * 1. 停止所有插件
+     * 1. 停止所有模块和服务
      * 2. 清理所有资源
      *
      * 注意：此函数通常在析构函数中自动调用，除非有特殊需求，否则不需要手动调用
@@ -178,16 +235,9 @@ private:
      */
     application();
 
-    /**
-     * @brief 加载动态插件
-     * @param plugin_name 插件名称
-     * @return 是否成功加载插件
-     */
-    bool load_plugin(const std::string& plugin_name);
-
     class impl;
     std::unique_ptr<impl> pimpl_;
-}; // 添加分号
+};
 
 inline application& app() {
     return application::instance();

@@ -3,6 +3,7 @@ src_files = [
   'object.cpp',
   'exception.cpp',
   'core/application.cpp',
+  'core/default_supervisor.cpp',
   'variant.cpp',
   'dict.cpp',
   'mutable_dict.cpp',
