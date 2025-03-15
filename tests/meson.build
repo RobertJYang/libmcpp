@@ -3,6 +3,8 @@ test_files = [
   'main.cpp',
   'test_object.cpp',
   'test_json.cpp',
+  'test_yaml.cpp',
+  'test_yaml_compound.cpp',
   'test_signal_slot.cpp',
   'test_event.cpp',
   'test_application.cpp',
