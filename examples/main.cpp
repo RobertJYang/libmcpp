@@ -18,11 +18,6 @@ int main(int argc, char** argv) {
         // 设置版本号
         app.set_version("1.0.0");
 
-        // 设置模块目录
-        std::filesystem::path module_path = std::filesystem::absolute("./modules");
-        std::cout << "模块目录: " << module_path << std::endl;
-        app.get_module_manager().set_module_dir(module_path);
-
         // 初始化应用程序（会处理命令行参数，包括加载模块）
         // 可以通过 --module=example 或 -m example 参数指定要加载的模块
         if (!app.initialize(argc, argv)) {

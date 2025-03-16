@@ -52,9 +52,6 @@ public:
     // 命令行参数解析
     bool parse_command_line(int argc, char** argv);
     
-    // 重置配置状态
-    void reset();
-    
     // 获取配置选项
     options &get_options() { return *m_opts; }
     

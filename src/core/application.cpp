@@ -26,7 +26,7 @@ application::application()
     : m_version("0.1.0")
     , m_module_manager(std::make_unique<module_manager>())
     , m_service_manager(std::make_unique<service_manager>())
-    , m_config_manager(std::make_unique<config_manager>(false))
+    , m_config_manager(std::make_unique<config_manager>(true))
     , m_supervisor_manager(std::make_unique<supervisor_manager>())
     , m_io_context()
     , m_strand(m_io_context.get_executor())
@@ -97,6 +97,12 @@ bool application::initialize(int argc, char** argv) {
     }
 
     m_config_manager->load_config_file();
+
+    if (m_config_manager->has_option("module-dir")) {
+        std::string module_dir = m_config_manager->get_option<std::string>("module-dir");
+        m_module_manager->set_module_dir(module_dir);
+    }
+
     m_module_manager->load_modules(m_config_manager->get_module_names());
     std::string config_dir = m_config_manager->get_option<std::string>("config");
 

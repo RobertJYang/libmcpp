@@ -31,21 +31,6 @@ std::string create_temp_config_file(const std::string& content) {
     return temp_file;
 }
 
-// 配置管理器基本功能测试
-TEST(ConfigManagerTest, BasicFunctions) {
-    // 创建配置管理器
-    config_manager config(false);
-    
-    // 测试静默模式
-    EXPECT_FALSE(config.is_silent());
-    config.set_silent(true);
-    EXPECT_TRUE(config.is_silent());
-    
-    // 测试重置功能
-    config.reset();
-    EXPECT_TRUE(config.is_silent()); // 重置后静默模式应该保持不变
-}
-
 // 配置文件加载测试
 TEST(ConfigManagerTest, ConfigFileLoading) {
     // 创建一个临时配置文件

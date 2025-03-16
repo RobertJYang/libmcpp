@@ -24,7 +24,7 @@
                 "-m",
                 "example",
                 "-c",
-                "${workspaceFolder}/builddir/examples/config/config.ini"
+                "${workspaceFolder}/builddir/examples/config.ini"
             ],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}/builddir/examples",

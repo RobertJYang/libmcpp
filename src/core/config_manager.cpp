@@ -39,7 +39,7 @@ config_manager::config_manager(bool silent)
     m_opts->cli.add_options()
         ("help,h", "显示帮助信息")
         ("version,v", "显示版本信息")
-        ("config,c", po::value<std::string>(), "配置文件路径")
+        ("config,c", po::value<std::string>()->default_value("./config.ini"), "配置文件路径")
         ("module-dir", po::value<std::string>(), "模块目录路径")
         ("threads,t", po::value<unsigned int>()->default_value(std::thread::hardware_concurrency()), "线程数量")
         ("module,m", po::value<std::vector<std::string>>()->composing(), "要加载的模块列表");
@@ -59,32 +59,6 @@ void config_manager::set_silent(bool silent) {
 // 获取静默模式状态
 bool config_manager::is_silent() const {
     return m_silent;
-}
-
-// 重置配置状态
-void config_manager::reset() {
-    // 保存静默模式设置
-    bool silent = m_silent;
-    
-    // 清空选项
-    m_options.clear();
-    
-    // 重新创建选项描述
-    m_opts = std::make_unique<options>();
-    
-    // 重新添加基本选项
-    m_opts->cli.add_options()
-        ("help,h", "显示帮助信息")
-        ("version,v", "显示版本信息")
-        ("config,c", po::value<std::string>(), "配置文件路径")
-        ("module-dir", po::value<std::string>(), "模块目录路径")
-        ("threads,t", po::value<unsigned int>()->default_value(std::thread::hardware_concurrency()), "线程数量")
-        ("module,m", po::value<std::vector<std::string>>()->composing(), "要加载的模块列表");
-
-    m_opts->cfg.add(m_opts->cli);
-    
-    // 恢复静默模式设置
-    m_silent = silent;
 }
 
 // 处理未识别的选项
@@ -140,6 +114,9 @@ bool config_manager::parse_command_line(int argc, char** argv) {
             .options(m_opts->cli)
             .allow_unregistered()
             .run();
+        
+        // 存储命令行参数到变量映射
+        po::store(parsed, m_options);
         
         // 获取未识别的选项
         std::vector<std::string> unrecognized = 
