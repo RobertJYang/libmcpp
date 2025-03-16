@@ -26,7 +26,8 @@ namespace po = boost::program_options;
 // 构造函数
 application::application()
     : m_version("0.1.0")
-    , m_module_manager(std::make_unique<module_manager>())
+    , m_plugin_manager(std::make_unique<plugin_manager>())
+    , m_service_factory(std::make_unique<service_factory>())
     , m_service_manager(std::make_unique<service_manager>())
     , m_config_manager(std::make_unique<config_manager>(true))
     , m_supervisor_manager(std::make_unique<supervisor_manager>())
@@ -52,9 +53,14 @@ const std::string& application::version() const {
     return m_version;
 }
 
-// 获取模块管理器
-module_manager& application::get_module_manager() {
-    return *m_module_manager;
+// 获取插件管理器
+plugin_manager& application::get_plugin_manager() {
+    return *m_plugin_manager;
+}
+
+// 获取服务工厂
+service_factory& application::get_service_factory() {
+    return *m_service_factory;
 }
 
 // 获取服务管理器
@@ -79,16 +85,16 @@ bool application::initialize() {
         return false;
     }
     
-    // 初始化模块
-    if (!m_module_manager->init_modules()) {
-        wlog("部分模块初始化失败");
+    // 初始化插件
+    if (!m_plugin_manager->init_plugins(*m_service_factory)) {
+        wlog("部分插件初始化失败");
     }
     
     return true;
 }
 
 bool application::initialize(int argc, char** argv) {
-    // 第一次解析命令行参数和配置文件是为了加载模块
+    // 第一次解析命令行参数和配置文件是为了加载插件
     if (!m_config_manager->parse_command_line(argc, argv)) {
         return false;
     }
@@ -100,17 +106,22 @@ bool application::initialize(int argc, char** argv) {
 
     m_config_manager->load_config_file();
 
-    if (m_config_manager->has_option("module-dir")) {
-        std::string module_dir = m_config_manager->get_option<std::string>("module-dir");
-        m_module_manager->set_module_dir(module_dir);
+    if (m_config_manager->has_option("plugin-dir")) {
+        std::string plugin_dir = m_config_manager->get_option<std::string>("plugin-dir");
+        m_plugin_manager->set_plugin_dir(plugin_dir);
     }
 
-    m_module_manager->load_modules(m_config_manager->get_module_names());
+    m_plugin_manager->load_plugins(m_config_manager->get_plugin_names());
     std::string config_dir = m_config_manager->get_option<std::string>("config");
 
     // 重新初始化配置管理器
     m_config_manager = std::make_unique<config_manager>(false);
     auto &options = m_config_manager->get_options();
+
+    // 收集服务的选项配置
+    auto& service_options = m_service_factory->get_service_options();
+    options.cli.add(service_options->cli);
+    options.cfg.add(service_options->cfg);
     m_service_manager->collect_options(options.cli, options.cfg);
 
     // 重新加载配置文件
@@ -136,9 +147,9 @@ application& application::start() {
         wlog("部分监督器启动失败");
     }
     
-    // 启动模块
-    if (!m_module_manager->start_modules()) {
-        wlog("部分模块启动失败");
+    // 启动插件
+    if (!m_plugin_manager->start_plugins()) {
+        wlog("部分插件启动失败");
     }
     
     // 启动服务
@@ -178,8 +189,8 @@ void application::stop() {
     // 停止服务
     m_service_manager->stop_services();
     
-    // 停止模块
-    m_module_manager->stop_modules();
+    // 停止插件
+    m_plugin_manager->stop_plugins();
     
     // 停止监督器
     m_supervisor_manager->stop_supervisors();
@@ -200,10 +211,11 @@ void application::cleanup() {
     m_config_manager.reset();
     m_service_manager.reset();
     m_supervisor_manager.reset();
-    if (m_module_manager) {
-        m_module_manager->unload_all_modules();
-        m_module_manager.reset();
+    if (m_plugin_manager) {
+        m_plugin_manager->unload_all_plugins();
+        m_plugin_manager.reset();
     }
+    m_service_factory.reset();
 }
 
 // 是否已停止

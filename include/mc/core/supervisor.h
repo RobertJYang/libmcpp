@@ -106,7 +106,7 @@ protected:
                 restart_all_services();
                 break;
             case supervisor_strategy::rest_for_one:
-                restart_dependent_services(failed_service->get_config().name);
+                restart_dependent_services(failed_service->name());
                 break;
         }
     }

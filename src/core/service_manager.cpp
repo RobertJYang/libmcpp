@@ -23,64 +23,27 @@ service_manager::service_manager() {
 
 // 析构函数
 service_manager::~service_manager() {
-    stop_services();
+    cleanup_services();
 }
 
-// 注册服务类型
-bool service_manager::register_service(const std::string& type, 
-                                     std::function<std::shared_ptr<service>()> factory,
-                                     std::function<void(po::options_description&, po::options_description&)> register_options) {
-    if (m_service_types.find(type) != m_service_types.end()) {
-        elog("错误: 服务类型 '${type}' 已注册", ("type", type));
+// 添加服务实例
+bool service_manager::add_service(const std::string& name, std::shared_ptr<service> service_instance) {
+    if (!service_instance) {
+        elog("错误: 试图添加空的服务实例 '${name}'", ("name", name));
         return false;
     }
     
-    if (!factory) {
-        elog("错误: 服务类型 '${type}' 的工厂函数为空", ("type", type));
+    if (m_services.find(name) != m_services.end()) {
+        elog("错误: 服务 '${name}' 已经存在", ("name", name));
         return false;
     }
     
-    service_type_info info;
-    info.factory = factory;
-    info.register_options = register_options ? register_options : [](po::options_description&, po::options_description&) {};
-    
-    m_service_types[type] = std::move(info);
+    m_services[name] = std::move(service_instance);
+    ilog("服务 '${name}' 已添加", ("name", name));
     return true;
 }
 
-// 创建服务
-std::shared_ptr<service> service_manager::create_service(const std::string& type, const service_config& config) {
-    // 查找服务类型的工厂
-    auto it = m_service_types.find(type);
-    if (it == m_service_types.end()) {
-        elog("错误: 未知的服务类型 '${type}'", ("type", type));
-        return nullptr;
-    }
-    
-    // 创建服务实例
-    auto service = it->second.factory();
-    if (!service) {
-        elog("错误: 创建服务类型 '${type}' 的实例失败", ("type", type));
-        return nullptr;
-    }
-    
-    // 初始化服务
-    if (!service->init(config)) {
-        elog("错误: 初始化服务 '${name}' 失败", ("name", config.name));
-        return nullptr;
-    }
-    
-    try {
-        // 注册服务
-        m_services[config.name] = service;
-        return service;
-    } catch (const std::exception& e) {
-        elog("错误: 创建服务 '${name}' 失败: ${error}", ("name", config.name)("error", e.what()));
-        return nullptr;
-    }
-}
-
-// 获取服务
+// 获取服务实例
 std::shared_ptr<service> service_manager::get_service(const std::string& name) const {
     auto it = m_services.find(name);
     if (it != m_services.end()) {
@@ -89,23 +52,52 @@ std::shared_ptr<service> service_manager::get_service(const std::string& name) c
     return nullptr;
 }
 
+// 移除服务实例
+bool service_manager::remove_service(const std::string& name) {
+    auto it = m_services.find(name);
+    if (it == m_services.end()) {
+        wlog("服务 '${name}' 不存在，无法移除", ("name", name));
+        return false;
+    }
+    
+    // 停止服务
+    try {
+        if (it->second->get_state() != service_state::stopped) {
+            if (!it->second->stop()) {
+                wlog("停止服务 '${name}' 失败，但会继续移除", ("name", name));
+            }
+        }
+    } catch (const std::exception& e) {
+        wlog("停止服务 '${name}' 异常: ${error}，但会继续移除", ("name", name)("error", e.what()));
+    }
+    
+    // 清理资源
+    try {
+        it->second->cleanup();
+    } catch (const std::exception& e) {
+        wlog("清理服务 '${name}' 异常: ${error}", ("name", name)("error", e.what()));
+    }
+    
+    m_services.erase(it);
+    ilog("服务 '${name}' 已移除", ("name", name));
+    return true;
+}
+
+// 获取所有服务名
+std::vector<std::string> service_manager::get_service_names() const {
+    std::vector<std::string> names;
+    names.reserve(m_services.size());
+    
+    for (const auto& [name, _] : m_services) {
+        names.push_back(name);
+    }
+    
+    return names;
+}
+
 // 收集配置选项
 void service_manager::collect_options(po::options_description& cli_opts, po::options_description& cfg_opts) const {
-    for (const auto& [type, info] : m_service_types) {
-        po::options_description type_cli_opts(type + " 命令行选项");
-        po::options_description type_cfg_opts(type + " 配置文件选项");
-        
-        // 调用服务类型的注册选项函数
-        info.register_options(type_cli_opts, type_cfg_opts);
-        
-        if (!type_cli_opts.options().empty()) {
-            cli_opts.add(type_cli_opts);
-        }
-        if (!type_cfg_opts.options().empty()) {
-            cfg_opts.add(type_cfg_opts);
-            cli_opts.add(type_cfg_opts);
-        }
-    }
+    // 该方法现在为空，因为服务类型注册已移至service_factory
 }
 
 // 启动所有服务
@@ -116,9 +108,11 @@ bool service_manager::start_services() {
             if (!service->start()) {
                 elog("启动服务 '${name}' 失败", ("name", name));
                 success = false;
+            } else {
+                ilog("服务 '${name}' 已启动", ("name", name));
             }
         } catch (const std::exception& e) {
-            elog("启动服务 '${name}' 失败: ${error}", ("name", name)("error", e.what()));
+            elog("启动服务 '${name}' 异常: ${error}", ("name", name)("error", e.what()));
             success = false;
         }
     }
@@ -133,13 +127,31 @@ bool service_manager::stop_services() {
             if (!service->stop()) {
                 elog("停止服务 '${name}' 失败", ("name", name));
                 success = false;
+            } else {
+                ilog("服务 '${name}' 已停止", ("name", name));
             }
         } catch (const std::exception& e) {
-            elog("停止服务 '${name}' 失败: ${error}", ("name", name)("error", e.what()));
+            elog("停止服务 '${name}' 异常: ${error}", ("name", name)("error", e.what()));
             success = false;
         }
     }
     return success;
+}
+
+// 清理所有服务
+void service_manager::cleanup_services() {
+    stop_services();
+    
+    for (auto& [name, service] : m_services) {
+        try {
+            service->cleanup();
+            ilog("服务 '${name}' 已清理", ("name", name));
+        } catch (const std::exception& e) {
+            elog("清理服务 '${name}' 异常: ${error}", ("name", name)("error", e.what()));
+        }
+    }
+    
+    m_services.clear();
 }
 
 } // namespace mc 

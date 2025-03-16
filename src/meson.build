@@ -5,7 +5,7 @@ src_files = [
   'core/application.cpp',
   'core/default_supervisor.cpp',
   'core/config_manager.cpp',
-  'core/module_manager.cpp',
+  'core/plugin_manager.cpp',
   'core/service_manager.cpp',
   'core/supervisor_manager.cpp',
   'core/singleton.cpp',

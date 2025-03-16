@@ -51,8 +51,13 @@ class service {
 public:
     virtual ~service() = default;
 
+    // 构造函数
+    explicit service(std::string name = "") : m_name(std::move(name)) {}
+    
+    // 初始化方法
+    virtual bool init(dict args) = 0;
+
     // 生命周期方法
-    virtual bool init(const service_config& config) = 0;  // 初始化服务
     virtual bool start() = 0;                            // 启动服务
     virtual bool stop() = 0;                             // 停止服务
     virtual void cleanup() = 0;                          // 清理资源
@@ -60,9 +65,18 @@ public:
     // 状态查询
     virtual service_state get_state() const = 0;         // 获取服务状态
     virtual bool is_healthy() const = 0;                 // 检查服务健康状态
+    
+    // 名称获取
+    const std::string& name() const { return m_name; }
+    
+    // 配置获取（默认实现为空，供以前的服务实现兼容）
+    virtual const service_config& get_config() const { 
+        static service_config empty_config;
+        return empty_config;
+    }
 
-    // 配置管理
-    virtual const service_config& get_config() const = 0;  // 获取服务配置
+protected:
+    std::string m_name; // 服务实例名称
 };
 
 /**
@@ -71,7 +85,7 @@ public:
 template <typename Impl>
 class service_base : public service {
 public:
-    service_base() : m_state(service_state::stopped) {}
+    explicit service_base(std::string name = "") : service(std::move(name)), m_state(service_state::stopped) {}
     ~service_base() override = default;
 
     // 获取服务状态
@@ -79,27 +93,17 @@ public:
         return m_state;
     }
 
-    // 获取服务配置
-    const service_config& get_config() const override {
-        return m_config;
-    }
-
     static void register_options(po::options_description& cli_opts, po::options_description& cfg_opts) {
     }
+    
 protected:
     // 设置服务状态
     void set_state(service_state state) {
         m_state = state;
     }
 
-    // 设置服务配置
-    void set_config(const service_config& config) {
-        m_config = config;
-    }
-
 private:
     service_state m_state;   // 服务状态
-    service_config m_config; // 服务配置
 };
 
 using service_ptr = std::shared_ptr<service>;

@@ -18,7 +18,8 @@
 #define MC_APPLICATION_H
 
 #include "mc/core/config_manager.h"
-#include "mc/core/module_manager.h"
+#include "mc/core/plugin_manager.h"
+#include "mc/core/service_factory.h"
 #include "mc/core/service_manager.h"
 #include "mc/core/supervisor_manager.h"
 #include "mc/core/singleton.h"
@@ -66,7 +67,8 @@ public:
     const std::string& version() const;
 
     // 各个管理器的访问接口
-    module_manager& get_module_manager();
+    plugin_manager& get_plugin_manager();
+    service_factory& get_service_factory();
     service_manager& get_service_manager();
     config_manager& get_config_manager();
     supervisor_manager& get_supervisor_manager();
@@ -93,7 +95,8 @@ private:
 
     // 成员变量
     std::string m_version;                                // 应用程序版本号
-    std::unique_ptr<module_manager> m_module_manager;     // 模块管理器
+    std::unique_ptr<plugin_manager> m_plugin_manager;     // 插件管理器
+    std::unique_ptr<service_factory> m_service_factory;   // 服务工厂
     std::unique_ptr<service_manager> m_service_manager;   // 服务管理器
     std::unique_ptr<config_manager> m_config_manager;     // 配置管理器
     std::unique_ptr<supervisor_manager> m_supervisor_manager; // 监督器管理器

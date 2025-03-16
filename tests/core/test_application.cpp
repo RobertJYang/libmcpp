@@ -46,7 +46,7 @@ TEST(ApplicationTest, ManagerAccess) {
     application& app = application::instance();
     
     // 验证各个管理器都可以访问
-    EXPECT_NO_THROW(app.get_module_manager());
+    EXPECT_NO_THROW(app.get_plugin_manager());
     EXPECT_NO_THROW(app.get_service_manager());
     EXPECT_NO_THROW(app.get_config_manager());
     EXPECT_NO_THROW(app.get_supervisor_manager());

@@ -66,8 +66,8 @@ public:
     
     bool has_option(const std::string& name) const;
     
-    // 获取模块列表
-    std::vector<std::string> get_module_names() const;
+    // 获取插件列表
+    std::vector<std::string> get_plugin_names() const;
 
     // 静默模式控制
     void set_silent(bool silent);

@@ -19,8 +19,8 @@
  * 3. 默认值（优先级最低）
  * 
  * 特殊情况：
- * - 对于标记为 composing() 的选项（如 module），多处指定的值会被合并而不是覆盖
- * - 服务选项会在模块加载后被收集，所以依赖于模块注册的服务选项只能在模块加载后使用
+ * - 对于标记为 composing() 的选项（如 plugin），多处指定的值会被合并而不是覆盖
+ * - 服务选项会在插件加载后被收集，所以依赖于插件注册的服务选项只能在插件加载后使用
  */
 
 #include "mc/core/config_manager.h"
@@ -44,9 +44,9 @@ config_manager::config_manager(bool silent)
         ("help,h", "显示帮助信息")
         ("version,v", "显示版本信息")
         ("config,c", po::value<std::string>()->default_value("./config.ini"), "配置文件路径")
-        ("module-dir", po::value<std::string>(), "模块目录路径")
+        ("plugin-dir", po::value<std::string>(), "插件目录路径")
         ("threads,t", po::value<unsigned int>()->default_value(std::thread::hardware_concurrency()), "线程数量")
-        ("module,m", po::value<std::vector<std::string>>()->composing(), "要加载的模块列表");
+        ("plugin,p", po::value<std::vector<std::string>>()->composing(), "要加载的插件列表");
 
     m_opts->cfg.add(m_opts->cli);
 }
@@ -135,10 +135,10 @@ bool config_manager::has_option(const std::string& name) const {
     return m_options.count(name) > 0;
 }
 
-// 获取模块列表
-std::vector<std::string> config_manager::get_module_names() const {
-    if (has_option("module")) {
-        return get_option<std::vector<std::string>>("module");
+// 获取插件列表
+std::vector<std::string> config_manager::get_plugin_names() const {
+    if (has_option("plugin")) {
+        return get_option<std::vector<std::string>>("plugin");
     }
     return {};
 }

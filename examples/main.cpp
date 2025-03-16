@@ -1,6 +1,6 @@
 /**
  * @file main.cpp
- * @brief 示例应用程序，演示如何使用模块动态加载功能
+ * @brief 示例应用程序，演示如何使用插件动态加载功能
  */
 
 #include "mc/core/application.h"
@@ -19,8 +19,8 @@ int main(int argc, char** argv) {
         // 设置版本号
         app.set_version("1.0.0");
 
-        // 初始化应用程序（会处理命令行参数，包括加载模块）
-        // 可以通过 --module=example 或 -m example 参数指定要加载的模块
+        // 初始化应用程序（会处理命令行参数，包括加载插件）
+        // 可以通过 --plugin=example 或 -p example 参数指定要加载的插件
         if (!app.initialize(argc, argv)) {
            return 0;
         }

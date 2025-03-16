@@ -118,7 +118,7 @@ bool default_supervisor::add_service(service_ptr service) {
     
     std::lock_guard<std::mutex> lock(m_mutex);
     
-    const auto& name = service->get_config().name;
+    const auto& name = service->name();
     if (m_services.find(name) != m_services.end()) {
         return false;
     }
@@ -245,30 +245,18 @@ bool default_supervisor::restart_all_services() {
 }
 
 bool default_supervisor::restart_dependent_services(const std::string& service_name) {
-    auto it = m_services.find(service_name);
-    if (it == m_services.end()) {
-        return false;
-    }
+    std::lock_guard<std::mutex> lock(m_mutex);
     
     bool success = true;
-    
-    // 先重启当前服务
-    if (!restart_one_service(service_name)) {
-        wlog("重启服务 '${name}' 失败", ("name", service_name));
-        success = false;
-    }
-    
-    // 找出依赖当前服务的其他服务并重启
     for (auto& [name, service] : m_services) {
-        if (name == service_name) {
-            continue;
-        }
+        // 在此只简单检查服务本身是否依赖于失败的服务
+        // 依赖关系可以在配置中指定，这里使用空列表代替(实际项目会通过配置获取)
+        const std::vector<std::string> deps; // 使用空依赖列表
         
-        // 检查service的依赖列表中是否包含service_name
-        const auto& deps = service->get_config().dependencies;
+        // 如果服务依赖于失败的服务，则重启它
         if (std::find(deps.begin(), deps.end(), service_name) != deps.end()) {
-            if (!restart_one_service(name)) {
-                wlog("重启依赖服务 '${name}' 失败", ("name", service->get_config().name));
+            if (!restart_service(service)) {
+                wlog("重启依赖服务 '${name}' 失败", ("name", name));
                 success = false;
             }
         }

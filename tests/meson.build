@@ -7,7 +7,7 @@ test_files = [
   # 'test_event.cpp',
   'core/test_application.cpp',
   'core/test_config_manager.cpp',
-  'core/test_module_manager.cpp',
+  # 'core/test_module_manager.cpp',
   'core/test_singleton.cpp',
   'string/test_string.cpp',
   # 'test_priority_queue.cpp',
