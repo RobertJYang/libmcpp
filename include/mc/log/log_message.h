@@ -207,34 +207,6 @@ public:
     virtual ~message_formatter() = default;
 };
 
-/**
- * @brief 默认日志消息格式化器
- */
-class default_message_formatter : public message_formatter {
-public:
-    /**
-     * @brief 格式化日志消息
-     *
-     * @param msg 日志消息
-     * @return std::string 格式化后的日志消息
-     */
-    std::string format(const message& msg) const override;
-};
-
-/**
- * @brief 结构化日志消息格式化器
- */
-class structured_message_formatter : public message_formatter {
-public:
-    /**
-     * @brief 格式化日志消息为结构化格式
-     *
-     * @param msg 日志消息
-     * @return std::string 结构化格式的日志消息
-     */
-    std::string format(const message& msg) const override;
-};
-
 } // namespace log
 } // namespace mc
 

@@ -160,6 +160,7 @@ public:
     variant(bool val);
     variant(blob val);
     variant(std::string val);
+    variant(std::string_view val);
     variant(dict obj);
     variant(mutable_dict obj);
     variant(variants arr);

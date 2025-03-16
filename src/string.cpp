@@ -296,7 +296,7 @@ bool icontains(std::string_view s, std::string_view substring) {
 /**
  * @brief 获取子字符串，支持负数索引
  */
-std::string substr(std::string_view s, int start, int end) {
+std::string_view substr(std::string_view s, int start, int end) {
     const std::size_t length = s.length();
     
     // 空字符串直接返回
@@ -336,13 +336,13 @@ std::string substr(std::string_view s, int start, int end) {
     std::size_t substr_length = adjusted_end - adjusted_start + 1;
     
     // 返回子字符串
-    return std::string(s.substr(adjusted_start, substr_length));
+    return s.substr(adjusted_start, substr_length);
 }
 
 /**
  * @brief 获取子字符串，第二个参数指定长度而非结束位置
  */
-std::string substring(std::string_view s, int start, std::size_t length) {
+std::string_view substring(std::string_view s, int start, std::size_t length) {
     const std::size_t str_length = s.length();
     
     // 空字符串直接返回
@@ -373,7 +373,32 @@ std::string substring(std::string_view s, int start, std::size_t length) {
     }
     
     // 返回子字符串
-    return std::string(s.substr(adjusted_start, length));
+    return s.substr(adjusted_start, length);
+}
+
+/**
+ * @brief 使用固定宽度格式化字符串，不足用空格填充，并追加到目标字符串
+ */
+void fixed_width_append(std::string& result, size_t width, std::string_view s, bool left_align) {
+    // 如果字符串长度已经超过或等于目标宽度，直接追加字符串
+    if (s.length() >= width) {
+        result.append(s.data(), width);
+        return;
+    }
+    
+    // 计算需要填充的空格数
+    size_t padding = width - s.length();
+    
+    // 根据对齐方式添加内容
+    if (left_align) {
+        // 左对齐：先添加字符串，再添加空格
+        result.append(s.data(), s.length());
+        result.append(padding, ' ');
+    } else {
+        // 右对齐：先添加空格，再添加字符串
+        result.append(padding, ' ');
+        result.append(s.data(), s.length());
+    }
 }
 
 } // namespace string

@@ -143,8 +143,91 @@ time_point time_point::from_iso_string(const std::string& s) {
     }
 }
 
-time_point::operator std::string() const {
+// 更新日期/时间的特定部分
+template<int offset>
+void update_time_part(std::string& str, int value, int& cache_value) {
+    if (value != cache_value) {
+        str[offset] = '0' + (value / 10);
+        str[offset + 1] = '0' + (value % 10);
+        cache_value = value;
+    }
+};
+
+/**
+ * @brief 时间缓存结构，用于存储时间格式化状态
+ * @tparam WithMilliseconds 是否包含毫秒部分
+ */
+template<bool WithMilliseconds>
+struct time_cache {
+    // 根据是否包含毫秒预设字符串初始值和长度
+    std::string str = WithMilliseconds ? "0000-00-00T00:00:00.000" : "0000-00-00T00:00:00";
+    int64_t ms_epoch = -1;
+    int64_t seconds = -1;
+    int minute = -1;
+    int hour = -1;
+    int day = -1;
+    int month = -1;
+    int year = -1;
+};
+
+/**
+ * @brief 格式化时间为ISO 8601字符串，使用缓存提高效率（仅处理到秒级别）
+ * 
+ * @tparam WithMilliseconds 是否包含毫秒部分（决定缓存结构的字符串长度）
+ * @param seconds 从纪元开始的秒数
+ * @param cache 时间缓存结构
+ * @return std::string_view 指向缓存字符串的视图
+ */
+template<bool WithMilliseconds>
+static std::string_view format_cached_iso_datetime(int64_t seconds, time_cache<WithMilliseconds>& cache) {
+    if (seconds < 0) {
+        MC_THROW(mc::parse_error_exception, "不支持负时间点转换为ISO字符串");
+    }
+    
+    bool seconds_changed = (seconds != cache.seconds);
+    
+    if (seconds_changed) {
+        // 只有在秒数变化时才需要获取和处理时间结构
+        std::time_t time_secs = static_cast<std::time_t>(seconds);
+        std::tm* tm_info = std::gmtime(&time_secs);
+        
+        if (!tm_info) {
+            MC_THROW(mc::parse_error_exception, "无法转换时间戳: ${ts}", ("ts", seconds));
+        }
+        
+        // 更新年份（特殊处理，因为是4位数）
+        int curr_year = tm_info->tm_year + 1900;
+        if (curr_year != cache.year) {
+            cache.str[0] = '0' + (curr_year / 1000);
+            cache.str[1] = '0' + (curr_year / 100 % 10);
+            cache.str[2] = '0' + (curr_year / 10 % 10);
+            cache.str[3] = '0' + (curr_year % 10);
+            cache.year = curr_year;
+        }
+        
+        // 使用模板函数更新其他时间部分
+        update_time_part<5>(cache.str, tm_info->tm_mon + 1, cache.month);
+        update_time_part<8>(cache.str, tm_info->tm_mday, cache.day);
+        update_time_part<11>(cache.str, tm_info->tm_hour, cache.hour);
+        update_time_part<14>(cache.str, tm_info->tm_min, cache.minute);
+        
+        // 秒总是更新(秒数变化是我们进入这个分支的条件)
+        cache.str[17] = '0' + (tm_info->tm_sec / 10);
+        cache.str[18] = '0' + (tm_info->tm_sec % 10);
+        
+        // 更新秒数缓存
+        cache.seconds = seconds;
+    }
+    
+    // 返回缓存字符串，不处理毫秒
+    return std::string_view(cache.str);
+}
+
+std::string_view time_point::to_string() const {
     try {
+        // 使用带毫秒的缓存
+        thread_local time_cache<true> cache;
+        
         // 获取时间点的毫秒数
         int64_t ms_since_epoch = time_since_epoch().count();
         
@@ -156,24 +239,30 @@ time_point::operator std::string() const {
         int64_t seconds = ms_since_epoch / 1000;
         int64_t millis = ms_since_epoch % 1000;
         
-        // 转换为时间结构
-        std::time_t time_secs = static_cast<std::time_t>(seconds);
-        std::tm* tm_info = std::gmtime(&time_secs);
+        // 格式化日期时间部分（到秒级别）
+        format_cached_iso_datetime<true>(seconds, cache);
         
-        if (!tm_info) {
-            MC_THROW(mc::parse_error_exception, "无法转换时间戳: ${ts}", ("ts", seconds));
+        // 在这里处理毫秒部分
+        int64_t cached_ms_epoch = cache.ms_epoch;
+        if (cached_ms_epoch != ms_since_epoch) {
+            cache.str[20] = '0' + (millis / 100);
+            cache.str[21] = '0' + (millis / 10 % 10);
+            cache.str[22] = '0' + (millis % 10);
+            cache.ms_epoch = ms_since_epoch;
         }
         
-        // 格式化为ISO字符串
-        bool include_ms = (millis > 0);
-        return tm_to_iso_string(*tm_info, millis, include_ms);
+        return std::string_view(cache.str);
     } catch (const mc::exception& e) {
-        std::string msg = "转换时间点为字符串失败: ";
-        msg += e.what();
-        throw mc::exception(e.code(), msg);
+        static const std::string error_str = "转换时间点为字符串失败";
+        return std::string_view(error_str);
     } catch (const std::exception& e) {
-        MC_THROW(mc::parse_error_exception, "转换时间点为字符串失败: ${error}", ("error", e.what()));
+        static const std::string error_str = "转换时间点为字符串失败";
+        return std::string_view(error_str);
     }
+}
+
+time_point::operator std::string_view() const {
+    return to_string();
 }
 
 std::string time_point_sec::to_non_delimited_iso_string() const {
@@ -220,10 +309,6 @@ std::string time_point_sec::to_iso_string() const {
     }
 }
 
-time_point_sec::operator std::string() const {
-    return this->to_iso_string();
-}
-
 time_point_sec time_point_sec::from_iso_string(const std::string& s) {
     try {
         std::tm tm_result = {};
@@ -256,15 +341,42 @@ void from_variant(const variant& v, milliseconds& ms) {
 }
 
 void to_variant(const time_point& tp, variant& v) {
-    v = std::string(tp);
+    v = std::string(tp.to_string());
 }
 
 void from_variant(const variant& v, time_point& tp) {
     tp = time_point::from_iso_string(v.as<std::string>());
 }
 
+std::string_view time_point_sec::to_string() const {
+    try {
+        // 使用不带毫秒的缓存
+        thread_local time_cache<false> cache;
+        
+        // 秒级精度
+        int64_t seconds = static_cast<int64_t>(m_utc_seconds);
+        
+        if (seconds < 0) {
+            MC_THROW(mc::parse_error_exception, "不支持负时间点转换为ISO字符串");
+        }
+        
+        // 格式化日期时间部分（不包含毫秒）
+        return format_cached_iso_datetime<false>(seconds, cache);
+    } catch (const mc::exception& e) {
+        static const std::string error_str = "转换时间点为字符串失败";
+        return std::string_view(error_str);
+    } catch (const std::exception& e) {
+        static const std::string error_str = "转换时间点为字符串失败";
+        return std::string_view(error_str);
+    }
+}
+
+time_point_sec::operator std::string_view() const {
+    return to_string();
+}
+
 void to_variant(const time_point_sec& tps, variant& v) {
-    v = std::string(tps);
+    v = std::string(tps.to_string());
 }
 
 void from_variant(const variant& v, time_point_sec& tps) {

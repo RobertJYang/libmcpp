@@ -152,19 +152,19 @@ std::string join(const std::vector<std::string>& v, std::string_view delim);
  * 示例:
  * @code
  * // 获取完整字符串
- * std::string s1 = mc::string::substr("hello", 0, -1);  // "hello"
+ * std::string_view s1 = mc::string::substr("hello", 0, -1);  // "hello"
  * 
  * // 获取前三个字符
- * std::string s2 = mc::string::substr("hello", 0, 2);   // "hel"
+ * std::string_view s2 = mc::string::substr("hello", 0, 2);   // "hel"
  * 
  * // 获取最后三个字符
- * std::string s3 = mc::string::substr("hello", -3);     // "llo"
+ * std::string_view s3 = mc::string::substr("hello", -3);     // "llo"
  * 
  * // 获取从第二个到倒数第二个字符
- * std::string s4 = mc::string::substr("hello", 1, -2);  // "ell"
+ * std::string_view s4 = mc::string::substr("hello", 1, -2);  // "ell"
  * @endcode
  */
-std::string substr(std::string_view s, int start, int end = -1);
+std::string_view substr(std::string_view s, int start, int end = -1);
 
 /**
  * @brief 获取子字符串，第二个参数指定长度而非结束位置
@@ -178,19 +178,19 @@ std::string substr(std::string_view s, int start, int end = -1);
  * 示例:
  * @code
  * // 获取完整字符串
- * std::string s1 = mc::string::substring("hello", 0);  // "hello"
+ * std::string_view s1 = mc::string::substring("hello", 0);  // "hello"
  * 
  * // 获取前三个字符
- * std::string s2 = mc::string::substring("hello", 0, 3);  // "hel"
+ * std::string_view s2 = mc::string::substring("hello", 0, 3);  // "hel"
  * 
  * // 获取最后三个字符
- * std::string s3 = mc::string::substring("hello", -3);  // "llo"
+ * std::string_view s3 = mc::string::substring("hello", -3);  // "llo"
  * 
  * // 获取从第二个字符开始的三个字符
- * std::string s4 = mc::string::substring("hello", 1, 3);  // "ell"
+ * std::string_view s4 = mc::string::substring("hello", 1, 3);  // "ell"
  * @endcode
  */
-std::string substring(std::string_view s, int start, std::size_t length = std::string::npos);
+std::string_view substring(std::string_view s, int start, std::size_t length = std::string::npos);
 
 /**
  * @brief 将一个或多个值追加到字符串中
@@ -225,6 +225,15 @@ void append(std::string& result, T&& value, Args&&... args) {
     append(result, std::forward<T>(value));
     append(result, std::forward<Args>(args)...);
 }
+
+/**
+ * @brief 使用固定宽度格式化字符串，不足用空格填充，并追加到目标字符串
+ * @param result 要追加结果的目标字符串
+ * @param width 目标宽度
+ * @param s 要格式化的字符串
+ * @param left_align 是否左对齐，默认为true
+ */
+void fixed_width_append(std::string& result, size_t width, std::string_view s, bool left_align = true);
 
 /**
  * @brief 检查字符串是否以指定前缀开始

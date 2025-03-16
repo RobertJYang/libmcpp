@@ -215,8 +215,17 @@ public:
 
     /**
      * @brief 转换为字符串
+     * @return std::string_view 字符串视图
+     * @note 返回的字符串视图仅在当前调用堆栈内有效，由thread_local存储管理
      */
-    operator std::string() const;
+    operator std::string_view() const;
+
+    /**
+     * @brief 转换为字符串表示
+     * @return std::string_view 字符串视图
+     * @note 返回的字符串视图仅在当前调用堆栈内有效，由thread_local存储管理
+     */
+    std::string_view to_string() const;
 
     /**
      * @brief 获取从纪元以来的时间间隔
@@ -524,8 +533,17 @@ public:
 
     /**
      * @brief 转换为字符串
+     * @return std::string_view 字符串视图
+     * @note 返回的字符串视图仅在当前调用堆栈内有效，由thread_local存储管理
      */
-    operator std::string() const;
+    operator std::string_view() const;
+
+    /**
+     * @brief 转换为字符串表示
+     * @return std::string_view 字符串视图
+     * @note 返回的字符串视图仅在当前调用堆栈内有效，由thread_local存储管理
+     */
+    std::string_view to_string() const;
 
     /**
      * @brief 从ISO字符串转换为时间点
