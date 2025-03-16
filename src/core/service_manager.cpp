@@ -12,6 +12,8 @@
 
 #include "mc/core/service_manager.h"
 #include <iostream>
+#include <mc/log.h>
+#include <mutex>
 
 namespace mc {
 
@@ -29,12 +31,12 @@ bool service_manager::register_service(const std::string& type,
                                      std::function<std::shared_ptr<service>()> factory,
                                      std::function<void(po::options_description&, po::options_description&)> register_options) {
     if (m_service_types.find(type) != m_service_types.end()) {
-        std::cerr << "错误: 服务类型 '" << type << "' 已注册" << std::endl;
+        elog("错误: 服务类型 '${type}' 已注册", ("type", type));
         return false;
     }
     
     if (!factory) {
-        std::cerr << "错误: 服务类型 '" << type << "' 的工厂函数为空" << std::endl;
+        elog("错误: 服务类型 '${type}' 的工厂函数为空", ("type", type));
         return false;
     }
     
@@ -48,31 +50,32 @@ bool service_manager::register_service(const std::string& type,
 
 // 创建服务
 std::shared_ptr<service> service_manager::create_service(const std::string& type, const service_config& config) {
+    // 查找服务类型的工厂
     auto it = m_service_types.find(type);
     if (it == m_service_types.end()) {
-        std::cerr << "错误: 未知的服务类型 '" << type << "'" << std::endl;
+        elog("错误: 未知的服务类型 '${type}'", ("type", type));
+        return nullptr;
+    }
+    
+    // 创建服务实例
+    auto service = it->second.factory();
+    if (!service) {
+        elog("错误: 创建服务类型 '${type}' 的实例失败", ("type", type));
+        return nullptr;
+    }
+    
+    // 初始化服务
+    if (!service->init(config)) {
+        elog("错误: 初始化服务 '${name}' 失败", ("name", config.name));
         return nullptr;
     }
     
     try {
-        // 创建服务实例
-        auto service = it->second.factory();
-        if (!service) {
-            std::cerr << "错误: 创建服务类型 '" << type << "' 的实例失败" << std::endl;
-            return nullptr;
-        }
-        
-        // 初始化服务
-        if (!service->init(config)) {
-            std::cerr << "错误: 初始化服务 '" << config.name << "' 失败" << std::endl;
-            return nullptr;
-        }
-        
-        // 保存服务实例
+        // 注册服务
         m_services[config.name] = service;
         return service;
     } catch (const std::exception& e) {
-        std::cerr << "错误: 创建服务 '" << config.name << "' 失败: " << e.what() << std::endl;
+        elog("错误: 创建服务 '${name}' 失败: ${error}", ("name", config.name)("error", e.what()));
         return nullptr;
     }
 }
@@ -111,11 +114,11 @@ bool service_manager::start_services() {
     for (auto& [name, service] : m_services) {
         try {
             if (!service->start()) {
-                std::cerr << "启动服务 '" << name << "' 失败" << std::endl;
+                elog("启动服务 '${name}' 失败", ("name", name));
                 success = false;
             }
         } catch (const std::exception& e) {
-            std::cerr << "启动服务 '" << name << "' 失败: " << e.what() << std::endl;
+            elog("启动服务 '${name}' 失败: ${error}", ("name", name)("error", e.what()));
             success = false;
         }
     }
@@ -128,11 +131,11 @@ bool service_manager::stop_services() {
     for (auto& [name, service] : m_services) {
         try {
             if (!service->stop()) {
-                std::cerr << "停止服务 '" << name << "' 失败" << std::endl;
+                elog("停止服务 '${name}' 失败", ("name", name));
                 success = false;
             }
         } catch (const std::exception& e) {
-            std::cerr << "停止服务 '" << name << "' 失败: " << e.what() << std::endl;
+            elog("停止服务 '${name}' 失败: ${error}", ("name", name)("error", e.what()));
             success = false;
         }
     }

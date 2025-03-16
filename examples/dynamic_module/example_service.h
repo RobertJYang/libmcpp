@@ -16,6 +16,7 @@
 #include "mc/core/service.h"
 #include <iostream>
 #include <boost/program_options.hpp>
+#include <mc/log.h>
 
 namespace mc {
 
@@ -49,7 +50,7 @@ public:
 
     // 初始化服务
     bool init(const service_config& config) override {
-        std::cout << "初始化示例服务..." << std::endl;
+        ilog("初始化示例服务...");
         
         // 从配置中获取参数
         if (config.properties.contains("example.service.message")) {
@@ -64,23 +65,23 @@ public:
             m_repeat_count = 1;
         }
         
-        std::cout << "配置参数: message=" << m_message 
-                  << ", repeat_count=" << m_repeat_count << std::endl;
+        ilog("配置参数: message=${message}, repeat_count=${count}", 
+             ("message", m_message)("count", m_repeat_count));
         
         return true;
     }
 
     // 启动服务
     bool start() override {
-        std::cout << "启动示例服务..." << std::endl;
+        ilog("启动示例服务...");
         
         // 输出配置参数
-        std::cout << "配置参数: message=" << m_message 
-                  << ", repeat_count=" << m_repeat_count << std::endl;
+        ilog("配置参数: message=${message}, repeat_count=${count}", 
+             ("message", m_message)("count", m_repeat_count));
         
         // 输出消息
         for (int i = 0; i < m_repeat_count; ++i) {
-            std::cout << "消息 #" << (i + 1) << ": " << m_message << std::endl;
+            ilog("消息 #${index}: ${message}", ("index", i + 1)("message", m_message));
         }
         
         return true;
@@ -88,13 +89,13 @@ public:
 
     // 停止服务
     bool stop() override {
-        std::cout << "停止示例服务..." << std::endl;
+        ilog("停止示例服务...");
         return true;
     }
 
     // 清理资源
     void cleanup() override {
-        std::cout << "清理示例服务资源..." << std::endl;
+        ilog("清理示例服务资源...");
     }
 
     // 检查服务健康状态

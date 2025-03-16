@@ -23,6 +23,7 @@ src_files = [
   'filesystem.cpp',
   'json.cpp',
   'reflect.cpp',
+  'time.cpp',
 ]
 
 # 创建共享库

@@ -20,6 +20,6 @@ namespace mc {
 } // namespace mc
 
 // 导出模块创建函数
-extern "C" mc::module* mc::create_module() {
+extern "C" mc::module* create_module() {
     return new mc::example_module();
 } 

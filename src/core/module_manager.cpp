@@ -15,6 +15,8 @@
 #include <dlfcn.h>
 #include <iostream>
 #include <unordered_set>
+#include <mc/log.h>
+#include <mutex>
 
 namespace mc {
 
@@ -39,18 +41,22 @@ const std::string& module_manager::module_dir() const {
 
 // 注册模块
 bool module_manager::register_module(std::shared_ptr<class module> module) {
+    // 检查模块信息是否有效
     if (!module) {
-        std::cerr << "错误: 尝试注册空模块" << std::endl;
+        elog("错误: 尝试注册空模块");
         return false;
     }
     
+    // 检查模块是否已注册
     const auto& info = module->get_info();
     if (m_modules.find(info.name) != m_modules.end()) {
-        std::cerr << "错误: 模块 '" << info.name << "' 已注册" << std::endl;
+        elog("错误: 模块 '${name}' 已注册", ("name", info.name));
         return false;
     }
     
+    // 注册模块
     m_modules[info.name] = std::move(module);
+    
     return true;
 }
 
@@ -76,19 +82,24 @@ bool module_manager::load_module(const std::string& name) {
         
         // 初始化模块
         if (!module->init()) {
-            std::cerr << "初始化模块 '" << name << "' 失败" << std::endl;
+            elog("初始化模块 '${name}' 失败", ("name", name));
             dlclose(handle);
             return false;
         }
         
         // 保存模块和句柄
-        m_modules[name] = std::move(module);
+        if (!register_module(std::move(module))) {
+            dlclose(handle);
+            return false;
+        }
+        
+        // 保存句柄
         m_module_handles.push_back(handle);
         
-        std::cout << "加载模块 '" << name << "' 成功" << std::endl;
+        ilog("加载模块 '${name}' 成功", ("name", name));
         return true;
     } catch (const std::exception& e) {
-        std::cerr << "加载模块 '" << name << "' 失败: " << e.what() << std::endl;
+        elog("加载模块 '${name}' 失败: ${error}", ("name", name)("error", e.what()));
         return false;
     }
 }
@@ -110,115 +121,59 @@ void module_manager::load_modules(const std::vector<std::string>& module_names) 
 bool module_manager::unload_module(const std::string& name) {
     auto it = m_modules.find(name);
     if (it == m_modules.end()) {
-        std::cerr << "错误: 模块 '" << name << "' 未加载" << std::endl;
+        elog("错误: 模块 '${name}' 未加载", ("name", name));
         return false;
     }
     
-    try {
-        // 停止模块
-        auto& module = it->second;
-        if (!module->stop()) {
-            std::cerr << "停止模块 '" << name << "' 失败" << std::endl;
-        }
-        
-        // 卸载模块
-        if (!module->unload()) {
-            std::cerr << "卸载模块 '" << name << "' 失败" << std::endl;
-            return false;
-        }
-        
-        // 移除模块
-        m_modules.erase(it);
-        
-        // 关闭动态库（这里简化处理，实际应该找到对应的句柄）
-        for (auto handle_it = m_module_handles.begin(); handle_it != m_module_handles.end(); ) {
-            dlclose(*handle_it);
-            handle_it = m_module_handles.erase(handle_it);
-            break;  // 简化处理，只关闭一个句柄
-        }
-        
-        std::cout << "卸载模块 '" << name << "' 成功" << std::endl;
-        return true;
-    } catch (const std::exception& e) {
-        std::cerr << "卸载模块 '" << name << "' 失败: " << e.what() << std::endl;
-        return false;
+    if (!it->second->unload()) {
+        elog("卸载模块 '${name}' 失败", ("name", name));
     }
+    
+    // 移除模块
+    m_modules.erase(it);
+    
+    // 关闭动态库（简化处理，实际应该找到对应的句柄）
+    for (auto handle_it = m_module_handles.begin(); handle_it != m_module_handles.end(); ) {
+        dlclose(*handle_it);
+        handle_it = m_module_handles.erase(handle_it);
+        break;  // 简化处理，只关闭一个句柄
+    }
+    
+    ilog("卸载模块 '${name}' 成功", ("name", name));
+    return true;
 }
 
 // 卸载所有模块
 void module_manager::unload_all_modules() {
     // 先停止所有模块
     stop_modules();
-
-    // 按照依赖关系的反序卸载模块
-    std::vector<std::string> unload_order;
-    std::unordered_set<std::string> visited;
-
-    // 辅助函数：深度优先遍历获取卸载顺序
-    std::function<void(const std::string&)> visit = [&](const std::string& name) {
-        if (visited.find(name) != visited.end()) {
-            return;
-        }
-        visited.insert(name);
-
-        auto it = m_modules.find(name);
-        if (it != m_modules.end()) {
-            const auto& module = it->second;
-            for (const auto& dep : module->get_info().dependencies) {
-                visit(dep);
-            }
-            unload_order.push_back(name);
-        }
-    };
-
-    // 获取卸载顺序
+    
+    // 卸载所有模块
+    std::vector<std::string> modules_to_unload;
     for (const auto& [name, _] : m_modules) {
-        visit(name);
+        modules_to_unload.push_back(name);
     }
-
-    // 按顺序卸载模块
-    for (auto it = unload_order.rbegin(); it != unload_order.rend(); ++it) {
-        const auto& name = *it;
-        auto module_it = m_modules.find(name);
-        if (module_it == m_modules.end()) {
-            continue;
-        }
-
-        try {
-            auto& module = module_it->second;
-            if (!module->unload()) {
-                std::cerr << "卸载模块 '" << name << "' 失败" << std::endl;
-                continue;
-            }
-            
-            std::cout << "卸载模块 '" << name << "' 成功" << std::endl;
-            m_modules.erase(module_it);
-        } catch (const std::exception& e) {
-            std::cerr << "卸载模块 '" << name << "' 失败: " << e.what() << std::endl;
-        }
+    
+    for (const auto& name : modules_to_unload) {
+        unload_module(name);
     }
-
-    // 最后关闭所有动态库
-    for (void* handle : m_module_handles) {
-        dlclose(handle);
-    }
+    
+    // 确保模块列表和句柄列表都已清空
+    m_modules.clear();
     m_module_handles.clear();
 }
 
 // 初始化所有模块
 bool module_manager::init_modules() {
     bool success = true;
+    
     for (auto& [name, module] : m_modules) {
-        try {
-            if (!module->init()) {
-                std::cerr << "初始化模块 '" << name << "' 失败" << std::endl;
-                success = false;
-            }
-        } catch (const std::exception& e) {
-            std::cerr << "初始化模块 '" << name << "' 失败: " << e.what() << std::endl;
+        if (!module->init()) {
+            elog("初始化模块 '${name}' 失败", ("name", name));
             success = false;
         }
     }
+    
     return success;
 }
 
@@ -228,11 +183,11 @@ bool module_manager::start_modules() {
     for (auto& [name, module] : m_modules) {
         try {
             if (!module->start()) {
-                std::cerr << "启动模块 '" << name << "' 失败" << std::endl;
+                elog("启动模块 '${name}' 失败", ("name", name));
                 success = false;
             }
         } catch (const std::exception& e) {
-            std::cerr << "启动模块 '" << name << "' 失败: " << e.what() << std::endl;
+            elog("启动模块 '${name}' 失败: ${error}", ("name", name)("error", e.what()));
             success = false;
         }
     }
@@ -245,11 +200,11 @@ bool module_manager::stop_modules() {
     for (auto& [name, module] : m_modules) {
         try {
             if (!module->stop()) {
-                std::cerr << "停止模块 '" << name << "' 失败" << std::endl;
+                elog("停止模块 '${name}' 失败", ("name", name));
                 success = false;
             }
         } catch (const std::exception& e) {
-            std::cerr << "停止模块 '" << name << "' 失败: " << e.what() << std::endl;
+            elog("停止模块 '${name}' 失败: ${error}", ("name", name)("error", e.what()));
             success = false;
         }
     }
@@ -260,27 +215,28 @@ bool module_manager::stop_modules() {
 bool module_manager::load_dynamic_library(const std::string& module_name, void*& handle, std::shared_ptr<class module>& module) {
     // 检查模块是否已加载
     if (m_modules.find(module_name) != m_modules.end()) {
-        std::cout << "模块 '" << module_name << "' 已加载" << std::endl;
+        ilog("模块 '${name}' 已加载", ("name", module_name));
         return false;
     }
     
     // 检查模块路径
     if (m_module_dir.empty()) {
-        std::cerr << "错误: 未设置模块目录，无法加载模块 '" << module_name << "'" << std::endl;
+        elog("错误: 未设置模块目录，无法加载模块 '${name}'", ("name", module_name));
         return false;
     }
     
     // 构建模块库路径
     std::string module_path = mc::filesystem::join(m_module_dir, "lib" + module_name + ".so");
     if (!mc::filesystem::exists(module_path)) {
-        std::cerr << "错误: 模块文件 '" << module_path << "' 不存在" << std::endl;
+        elog("错误: 模块文件 '${path}' 不存在", ("path", module_path));
         return false;
     }
     
     // 加载动态库
     handle = dlopen(module_path.c_str(), RTLD_NOW | RTLD_GLOBAL);
     if (!handle) {
-        std::cerr << "错误: 无法加载模块 '" << module_name << "': " << dlerror() << std::endl;
+        elog("错误: 无法加载模块 '${name}': ${error}", 
+             ("name", module_name)("error", dlerror()));
         return false;
     }
     
@@ -290,8 +246,8 @@ bool module_manager::load_dynamic_library(const std::string& module_name, void*&
         reinterpret_cast<create_module_func>(dlsym(handle, "create_module"));
     
     if (!create_module) {
-        std::cerr << "错误: 模块 '" << module_name << "' 没有导出 'create_module' 函数: " 
-                  << dlerror() << std::endl;
+        elog("错误: 模块 '${name}' 没有导出 'create_module' 函数: ${error}", 
+             ("name", module_name)("error", dlerror()));
         dlclose(handle);
         return false;
     }
@@ -299,7 +255,7 @@ bool module_manager::load_dynamic_library(const std::string& module_name, void*&
     // 创建模块实例
     module = std::shared_ptr<class module>(create_module());
     if (!module) {
-        std::cerr << "错误: 无法创建模块 '" << module_name << "' 的实例" << std::endl;
+        elog("错误: 无法创建模块 '${name}' 的实例", ("name", module_name));
         dlclose(handle);
         return false;
     }

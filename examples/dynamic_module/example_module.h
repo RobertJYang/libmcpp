@@ -16,15 +16,15 @@
 #include "example_service.h"
 #include "mc/core/application.h"
 #include "mc/core/module.h"
-#include <iostream>
 #include <memory>
+#include <mc/log.h>
 
 namespace mc {
 
 /**
  * @brief 示例模块类
  */
-class example_module : public module {
+class example_module : public module_base<example_module> {
 private:
     module_info m_info;
 
@@ -39,9 +39,9 @@ public:
         return m_info;
     }
 
-    // 初始化模块（注册服务）
-    bool init() override {
-        std::cout << "初始化示例模块..." << std::endl;
+    // 实际初始化模块（注册服务）
+    bool module_init() {
+        ilog("初始化示例模块...");
 
         // 注册服务
         app().get_service_manager().register_service(
@@ -55,21 +55,21 @@ public:
         return true;
     }
 
-    // 启动模块
-    bool start() override {
-        std::cout << "启动示例模块..." << std::endl;
+    // 实际启动模块
+    bool module_start() {
+        ilog("启动示例模块...");
         return true;
     }
 
-    // 停止模块
-    bool stop() override {
-        std::cout << "停止示例模块..." << std::endl;
+    // 实际停止模块
+    bool module_stop() {
+        ilog("停止示例模块...");
         return true;
     }
 
-    // 卸载模块
-    bool unload() override {
-        std::cout << "卸载示例模块..." << std::endl;
+    // 实际卸载模块
+    bool module_unload() {
+        ilog("卸载示例模块...");
         return true;
     }
 };

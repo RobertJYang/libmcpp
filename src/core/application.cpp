@@ -16,6 +16,8 @@
 #include <thread>
 #include <unordered_set>
 #include <algorithm>
+#include <mc/log.h>
+#include <sstream>
 
 namespace mc {
 
@@ -79,7 +81,7 @@ bool application::initialize() {
     
     // 初始化模块
     if (!m_module_manager->init_modules()) {
-        std::cerr << "警告: 部分模块初始化失败" << std::endl;
+        wlog("部分模块初始化失败");
     }
     
     return true;
@@ -92,7 +94,7 @@ bool application::initialize(int argc, char** argv) {
     }
 
     if (m_config_manager->has_option("version")) {
-        std::cout << "版本: " << m_version << std::endl;
+        ilog("版本: ${version}", ("version", m_version));
         return false;
     }
 
@@ -118,7 +120,9 @@ bool application::initialize(int argc, char** argv) {
     }
 
     if (m_config_manager->has_option("help")) {
-        std::cout << m_config_manager->get_options().cli << std::endl;
+        std::ostringstream oss;
+        oss << m_config_manager->get_options().cli;
+        ilog("帮助信息: ${help}", ("help", oss.str()));
         return false;
     }
 
@@ -129,17 +133,17 @@ bool application::initialize(int argc, char** argv) {
 application& application::start() {
     // 启动监督器
     if (!m_supervisor_manager->start_supervisors()) {
-        std::cerr << "警告: 部分监督器启动失败" << std::endl;
+        wlog("部分监督器启动失败");
     }
     
     // 启动模块
     if (!m_module_manager->start_modules()) {
-        std::cerr << "警告: 部分模块启动失败" << std::endl;
+        wlog("部分模块启动失败");
     }
     
     // 启动服务
     if (!m_service_manager->start_services()) {
-        std::cerr << "警告: 部分服务启动失败" << std::endl;
+        wlog("部分服务启动失败");
     }
     
     m_stopped = false;

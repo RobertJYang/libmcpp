@@ -13,6 +13,8 @@
 #include <mc/exception.h>
 #include <mc/log/appenders/console_appender.h>
 #include <mc/log/log_message.h>
+#include <mc/filesystem.h>
+#include <mc/time.h>
 #include <mc/reflect.h>
 #include <mc/string.h>
 #include <mc/variant.h>
@@ -93,12 +95,12 @@ static const char* get_console_color(console_appender::color_type clr) {
 }
 
 // 固定宽度字符串
-std::string fixed_width(size_t width, const std::string& str) {
+std::string fixed_width(int width, const std::string& str) {
     if (str.size() == width) {
         return str;
     }
     if (str.size() > width) {
-        return str.substr(0, width);
+        return ".." + mc::string::substr(str, -width + 2, -1);
     }
     std::string result = str;
     result.append(width - str.size(), ' ');
@@ -125,20 +127,14 @@ void console_appender::append(const message& msg) {
     line += ' ';
 
     // 时间戳（使用当前时间而不是消息时间，避免长时间处理导致的时间差）
-    auto    now        = std::chrono::system_clock::now();
-    auto    time_t_now = std::chrono::system_clock::to_time_t(now);
-    std::tm tm_now;
-    localtime_r(&time_t_now, &tm_now);
-    char time_buf[20];
-    std::strftime(time_buf, sizeof(time_buf), "%Y-%m-%d %H:%M:%S", &tm_now);
-    line += time_buf;
+    line += mc::time_point::now();
     line += ' ';
 
     // 文件和行号
-    std::string file_line = ctx.m_file.empty() ? "unknown" : ctx.m_file.substr(0, 20);
+    std::string file_line = ctx.m_file.empty() ? "unknown" : mc::filesystem::basename(ctx.m_file);
     file_line += ':';
     file_line += std::to_string(ctx.m_line);
-    line += fixed_width(30, file_line);
+    line += fixed_width(25, file_line);
     line += ' ';
 
     // 函数名

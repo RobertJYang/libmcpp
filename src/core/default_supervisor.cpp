@@ -15,10 +15,11 @@
 #include <algorithm>
 #include <iostream>
 #include <vector>
+#include <mc/log.h>
 
 namespace mc {
 
-default_supervisor::default_supervisor() = default;
+default_supervisor::default_supervisor() : m_started(false) {}
 default_supervisor::~default_supervisor() = default;
 
 bool default_supervisor::init(const supervisor_config& config) {
@@ -30,50 +31,66 @@ bool default_supervisor::init(const supervisor_config& config) {
 }
 
 bool default_supervisor::start() {
-    std::lock_guard<std::mutex> lock(m_mutex);
-    
-    // 启动所有子监督器
-    for (auto& [name, child] : m_children) {
-        if (!child->start()) {
-            std::cerr << "启动子监督器 '" << name << "' 失败" << std::endl;
-            return false;
-        }
+    if (m_started) {
+        return true;
     }
-    
-    // 启动所有服务
-    for (auto& [name, service] : m_services) {
-        if (!service->start()) {
-            std::cerr << "启动服务 '" << name << "' 失败" << std::endl;
-            return false;
-        }
-    }
-    
-    return true;
-}
-
-bool default_supervisor::stop() {
-    std::lock_guard<std::mutex> lock(m_mutex);
     
     bool success = true;
     
-    // 停止所有服务（按启动顺序的逆序）
-    std::vector<std::pair<std::string, service_ptr>> services_vec(m_services.begin(), m_services.end());
-    for (auto it = services_vec.rbegin(); it != services_vec.rend(); ++it) {
-        if (!it->second->stop()) {
-            std::cerr << "停止服务 '" << it->first << "' 失败" << std::endl;
+    // 启动子监督器
+    for (auto& [name, supervisor] : m_child_supervisors) {
+        if (!supervisor->start()) {
+            wlog("启动子监督器 '${name}' 失败", ("name", name));
             success = false;
         }
     }
     
-    // 停止所有子监督器（按启动顺序的逆序）
-    std::vector<std::pair<std::string, supervisor_ptr>> children_vec(m_children.begin(), m_children.end());
-    for (auto it = children_vec.rbegin(); it != children_vec.rend(); ++it) {
-        if (!it->second->stop()) {
-            std::cerr << "停止子监督器 '" << it->first << "' 失败" << std::endl;
+    // 启动服务
+    for (auto& [name, service] : m_services) {
+        if (!service->start()) {
+            wlog("启动服务 '${name}' 失败", ("name", name));
             success = false;
         }
     }
     
+    m_started = true;
+    return success;
+}
+
+bool default_supervisor::stop() {
+    if (!m_started) {
+        return true;
+    }
+    
+    bool success = true;
+    
+    // 先停止服务
+    for (auto it = m_services.begin(); it != m_services.end(); ++it) {
+        try {
+            if (!it->second->stop()) {
+                wlog("停止服务 '${name}' 失败", ("name", it->first));
+                success = false;
+            }
+        } catch (...) {
+            wlog("停止服务 '${name}' 失败", ("name", it->first));
+            success = false;
+        }
+    }
+    
+    // 再停止子监督器
+    for (auto it = m_child_supervisors.begin(); it != m_child_supervisors.end(); ++it) {
+        try {
+            if (!it->second->stop()) {
+                wlog("停止子监督器 '${name}' 失败", ("name", it->first));
+                success = false;
+            }
+        } catch (...) {
+            wlog("停止子监督器 '${name}' 失败", ("name", it->first));
+            success = false;
+        }
+    }
+    
+    m_started = false;
     return success;
 }
 
@@ -86,12 +103,12 @@ void default_supervisor::cleanup() {
     }
     
     // 清理所有子监督器
-    for (auto& [name, child] : m_children) {
+    for (auto& [name, child] : m_child_supervisors) {
         child->cleanup();
     }
     
     m_services.clear();
-    m_children.clear();
+    m_child_supervisors.clear();
 }
 
 bool default_supervisor::add_service(service_ptr service) {
@@ -141,19 +158,19 @@ bool default_supervisor::add_child(supervisor_ptr child) {
     std::lock_guard<std::mutex> lock(m_mutex);
     
     const auto& name = child->get_config().name;
-    if (m_children.find(name) != m_children.end()) {
+    if (m_child_supervisors.find(name) != m_child_supervisors.end()) {
         return false;
     }
     
-    m_children[name] = child;
+    m_child_supervisors[name] = child;
     return true;
 }
 
 bool default_supervisor::remove_child(const std::string& name) {
     std::lock_guard<std::mutex> lock(m_mutex);
     
-    auto it = m_children.find(name);
-    if (it == m_children.end()) {
+    auto it = m_child_supervisors.find(name);
+    if (it == m_child_supervisors.end()) {
         return false;
     }
     
@@ -161,15 +178,15 @@ bool default_supervisor::remove_child(const std::string& name) {
     it->second->stop();
     
     // 移除子监督器
-    m_children.erase(it);
+    m_child_supervisors.erase(it);
     return true;
 }
 
 supervisor_ptr default_supervisor::get_child(const std::string& name) const {
     std::lock_guard<std::mutex> lock(m_mutex);
     
-    auto it = m_children.find(name);
-    return (it != m_children.end()) ? it->second : nullptr;
+    auto it = m_child_supervisors.find(name);
+    return (it != m_child_supervisors.end()) ? it->second : nullptr;
 }
 
 bool default_supervisor::is_healthy() const {
@@ -183,7 +200,7 @@ bool default_supervisor::is_healthy() const {
     }
     
     // 检查所有子监督器是否健康
-    for (const auto& [name, child] : m_children) {
+    for (const auto& [name, child] : m_child_supervisors) {
         if (!child->is_healthy()) {
             return false;
         }
@@ -206,7 +223,7 @@ bool default_supervisor::restart_all_services() {
     }
     
     if (m_restart_count >= m_config.max_restarts) {
-        std::cerr << "监督器 '" << m_config.name << "' 重启次数超过限制" << std::endl;
+        wlog("监督器 '${name}' 重启次数超过限制", ("name", m_config.name));
         return false;
     }
     
@@ -218,7 +235,7 @@ bool default_supervisor::restart_all_services() {
     // 启动所有服务
     for (auto& [name, service] : m_services) {
         if (!service->start()) {
-            std::cerr << "重启服务 '" << name << "' 失败" << std::endl;
+            wlog("重启服务 '${name}' 失败", ("name", name));
             return false;
         }
     }
@@ -228,43 +245,90 @@ bool default_supervisor::restart_all_services() {
 }
 
 bool default_supervisor::restart_dependent_services(const std::string& service_name) {
-    std::lock_guard<std::mutex> lock(m_mutex);
-    
-    // 检查服务是否存在
     auto it = m_services.find(service_name);
     if (it == m_services.end()) {
         return false;
     }
     
-    // 获取依赖于此服务的其他服务
-    std::vector<service_ptr> dependent_services;
+    bool success = true;
+    
+    // 先重启当前服务
+    if (!restart_one_service(service_name)) {
+        wlog("重启服务 '${name}' 失败", ("name", service_name));
+        success = false;
+    }
+    
+    // 找出依赖当前服务的其他服务并重启
     for (auto& [name, service] : m_services) {
+        if (name == service_name) {
+            continue;
+        }
+        
+        // 检查service的依赖列表中是否包含service_name
         const auto& deps = service->get_config().dependencies;
         if (std::find(deps.begin(), deps.end(), service_name) != deps.end()) {
-            dependent_services.push_back(service);
+            if (!restart_one_service(name)) {
+                wlog("重启依赖服务 '${name}' 失败", ("name", service->get_config().name));
+                success = false;
+            }
         }
     }
     
-    // 停止依赖服务
-    for (auto& service : dependent_services) {
-        service->stop();
-    }
-    
-    // 重启主服务
-    if (!it->second->stop() || !it->second->start()) {
-        std::cerr << "重启服务 '" << service_name << "' 失败" << std::endl;
+    return success;
+}
+
+bool default_supervisor::restart_one_service(const std::string& name) {
+    auto it = m_services.find(name);
+    if (it == m_services.end()) {
         return false;
     }
     
-    // 启动依赖服务
-    for (auto& service : dependent_services) {
-        if (!service->start()) {
-            std::cerr << "重启依赖服务 '" << service->get_config().name << "' 失败" << std::endl;
-            return false;
-        }
+    auto& service = it->second;
+    
+    // 重启服务
+    if (!service->stop()) {
+        wlog("重启服务 '${name}' 失败", ("name", name));
+        return false;
+    }
+    
+    if (!service->start()) {
+        wlog("重启服务 '${name}' 失败", ("name", name));
+        return false;
     }
     
     return true;
+}
+
+void default_supervisor::handle_service_crash(const std::string& name) {
+    auto it = m_services.find(name);
+    if (it == m_services.end()) {
+        return;
+    }
+    
+    auto& service = it->second;
+    auto& restart_info = m_restart_infos[name];
+    
+    // 增加重启次数
+    restart_info.restart_count++;
+    
+    // 如果重启次数超过阈值，不再重启
+    if (m_config.max_restarts > 0 && restart_info.restart_count > m_config.max_restarts) {
+        wlog("监督器 '${name}' 重启次数超过限制", ("name", m_config.name));
+        return;
+    }
+    
+    // 根据策略重启服务
+    switch (m_config.strategy) {
+    case supervisor_strategy::one_for_one:
+        restart_one_service(name);
+        break;
+    case supervisor_strategy::one_for_all:
+        restart_all_services();
+        break;
+    case supervisor_strategy::rest_for_one:
+        restart_dependent_services(name);
+        break;
+    }
 }
 
 } // namespace mc 

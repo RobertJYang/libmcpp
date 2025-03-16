@@ -9,6 +9,7 @@ test_files = [
   'core/test_config_manager.cpp',
   'core/test_module_manager.cpp',
   'core/test_singleton.cpp',
+  'string/test_string.cpp',
   # 'test_priority_queue.cpp',
   # 'exception/test_exception.cpp',
   # 'exception/test_exception_macros.cpp',

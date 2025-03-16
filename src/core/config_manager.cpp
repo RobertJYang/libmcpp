@@ -29,6 +29,10 @@
 #include <thread>
 #include <unordered_map>
 #include <typeinfo>
+#include <boost/program_options/parsers.hpp>
+#include <boost/program_options/variables_map.hpp>
+#include <fstream>
+#include <mc/log.h>
 
 namespace mc {
 
@@ -72,65 +76,56 @@ void config_manager::process_unrecognized(const std::vector<std::string>& unreco
     }
 }
 
-// 加载配置文件
+// 解析配置文件
 void config_manager::load_config_file(const std::string& cfg_file) {
     std::string config_file = cfg_file;
     if (config_file.empty()) {
         if (!has_option("config")) {
             return;
         }
-
         config_file = get_option<std::string>("config");
-    }
-
-    if (!mc::filesystem::exists(config_file)) {
-        if (!m_silent) {
-            std::cerr << "警告: 配置文件 '" << config_file << "' 不存在" << std::endl;
-        }
-        return;
     }
     
     try {
-        po::parsed_options parsed = po::parse_config_file<char>(config_file.c_str(), m_opts->cfg, true);
-        po::store(parsed, m_options);
+        std::ifstream file(config_file);
+        if (!file.is_open()) {
+            wlog("警告: 配置文件 '${file}' 不存在", ("file", config_file));
+            return;
+        }
         
-        // 获取未识别的选项
-        std::vector<std::string> unrecognized = 
-            po::collect_unrecognized(parsed.options, po::include_positional);
-        process_unrecognized(unrecognized);
-
+        // 解析配置文件
+        po::store(po::parse_config_file(file, m_opts->cfg, true), m_options);
         po::notify(m_options);
     } catch (const po::error& e) {
-        if (!m_silent) {
-            std::cerr << "错误: 解析配置文件 '" << config_file << "' 失败: " << e.what() << std::endl;
-        }
+        elog("错误: 解析配置文件 '${file}' 失败: ${error}", ("file", config_file)("error", e.what()));
     }
 }
 
-// 解析命令行参数
+// 从命令行解析配置
 bool config_manager::parse_command_line(int argc, char** argv) {
     try {
+        // 处理命令行参数
         po::parsed_options parsed = po::command_line_parser(argc, argv)
             .options(m_opts->cli)
             .allow_unregistered()
             .run();
         
-        // 存储命令行参数到变量映射
+        // 存储已识别的选项
         po::store(parsed, m_options);
-        
-        // 获取未识别的选项
-        std::vector<std::string> unrecognized = 
-            po::collect_unrecognized(parsed.options, po::include_positional);
-        process_unrecognized(unrecognized);
-        
-        // 确保所有选项都被正确处理
         po::notify(m_options);
-
+        
+        // 处理未识别的选项
+        std::vector<std::string> unrecognized = po::collect_unrecognized(parsed.options, po::include_positional);
+        if (!unrecognized.empty() && !m_silent) {
+            wlog("警告: 未识别的选项:");
+            for (const auto& opt : unrecognized) {
+                wlog("- ${option}", ("option", opt));
+            }
+        }
+        
         return true;
     } catch (const po::error& e) {
-        if (!m_silent) {
-            std::cerr << "错误: 解析命令行参数失败: " << e.what() << std::endl;
-        }
+        elog("错误: 解析命令行参数失败: ${error}", ("error", e.what()));
         return false;
     }
 }

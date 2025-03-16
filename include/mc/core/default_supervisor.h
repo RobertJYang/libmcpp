@@ -50,14 +50,28 @@ public:
     // 重启服务
     bool restart_all_services() override;
     bool restart_dependent_services(const std::string& service_name) override;
+    
+    // 重启单个服务
+    bool restart_one_service(const std::string& name);
+    
+    // 处理服务崩溃
+    void handle_service_crash(const std::string& name);
 
 private:
     mutable std::mutex m_mutex;
     std::unordered_map<std::string, service_ptr> m_services;
-    std::unordered_map<std::string, supervisor_ptr> m_children;
+    std::unordered_map<std::string, supervisor_ptr> m_child_supervisors;
+    bool m_started{false};
     supervisor_config m_config;
     int m_restart_count{0};
     std::chrono::steady_clock::time_point m_last_restart_time;
+    
+    // 服务重启信息
+    struct restart_info {
+        int restart_count{0};
+        std::chrono::steady_clock::time_point last_restart_time;
+    };
+    std::unordered_map<std::string, restart_info> m_restart_infos;
 };
 
 } // namespace mc

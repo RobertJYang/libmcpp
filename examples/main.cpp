@@ -7,6 +7,7 @@
 #include <iostream>
 #include <filesystem>
 #include <vector>
+#include <mc/log.h>
 
 using namespace mc;
 
@@ -28,7 +29,7 @@ int main(int argc, char** argv) {
         app.start();
 
         // 运行应用程序
-        // std::cout << "应用程序运行中，按 Ctrl+C 退出..." << std::endl;
+        // ilog("应用程序运行中，按 Ctrl+C 退出...");
         // app.exec();
 
         // 清理资源
@@ -36,7 +37,7 @@ int main(int argc, char** argv) {
 
         return 0;
     } catch (const std::exception& e) {
-        std::cerr << "错误: " << e.what() << std::endl;
+        elog("错误: ${error}", ("error", e.what()));
         return 1;
     }
 }
