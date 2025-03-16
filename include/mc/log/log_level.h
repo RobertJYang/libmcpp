@@ -13,6 +13,7 @@
 #ifndef MC_LOG_LEVEL_H
 #define MC_LOG_LEVEL_H
 
+#include <mc/reflect.h>
 #include <string>
 
 namespace mc {
@@ -63,5 +64,7 @@ inline std::string to_string(level lvl) {
 
 } // namespace log
 } // namespace mc
+
+MC_REFLECT_ENUM(mc::log::level, (all)(trace)(debug)(info)(warn)(error)(fatal)(off))
 
 #endif // MC_LOG_LEVEL_H

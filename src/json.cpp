@@ -17,6 +17,7 @@
 #include <mc/json.h>
 #include <mc/dict.h>
 #include <mc/variant.h>
+#include <mc/exception.h>
 #include <sstream>
 #include <iomanip>
 #include <cmath>
@@ -32,7 +33,7 @@ namespace json {
 // 用于JSON编码的辅助类
 class encoder {
 public:
-    explicit encoder(const json_encode_options& options = {}) 
+    explicit encoder(const json_encode_options& options = json_encode_options::default_encode_options) 
         : m_stream(), m_options(options), m_current_depth(0) 
     {
         // 规范化选项值
@@ -60,7 +61,7 @@ private:
     // 检查嵌套深度
     void check_depth() {
         if (m_current_depth >= m_options.max_depth) {
-            throw json_error("Maximum nesting depth exceeded");
+            MC_THROW(mc::parse_error_exception, "JSON嵌套深度超过限制");
         }
     }
 
@@ -128,7 +129,7 @@ private:
                 m_stream << std::defaultfloat << num;
             }
         } else {
-            throw json_error("Invalid number value");
+            MC_THROW(mc::parse_error_exception, "无效的数值");
         }
     }
 
@@ -204,26 +205,14 @@ private:
                 m_stream << (value.as_bool() ? "true" : "false");
                 break;
             case variant::type_id::int8_type:
-                m_stream << static_cast<int16_t>(value.as_int8()); // 避免被当作字符处理
-                break;
-            case variant::type_id::uint8_type:
-                m_stream << static_cast<uint16_t>(value.as_uint8()); // 避免被当作字符处理
-                break;
             case variant::type_id::int16_type:
-                m_stream << value.as_int16();
-                break;
-            case variant::type_id::uint16_type:
-                m_stream << value.as_uint16();
-                break;
             case variant::type_id::int32_type:
-                m_stream << value.as_int32();
-                break;
-            case variant::type_id::uint32_type:
-                m_stream << value.as_uint32();
-                break;
             case variant::type_id::int64_type:
                 m_stream << value.as_int64();
                 break;
+            case variant::type_id::uint8_type:
+            case variant::type_id::uint16_type:
+            case variant::type_id::uint32_type:
             case variant::type_id::uint64_type:
                 m_stream << value.as_uint64();
                 break;
@@ -243,7 +232,7 @@ private:
                 encode_string(value.as_string()); // blob 类型转换为字符串处理
                 break;
             default:
-                throw json_error("Unsupported value type");
+                MC_THROW(mc::parse_error_exception, "不支持的值类型");
                 break;
         }
     }
@@ -252,14 +241,14 @@ private:
 // 用于JSON解码的辅助类
 class decoder {
 public:
-    explicit decoder(std::string_view json, const json_decode_options& options = {})
+    explicit decoder(std::string_view json, const json_decode_options& options = json_decode_options::default_decode_options)
         : m_input(json), m_pos(0), m_options(options), m_current_depth(0)
     {
         m_options.normalize();
         
         // 检查输入JSON字符串的总长度
         if (m_input.length() > m_options.max_input_length) {
-            throw json_error("Input JSON string length exceeds limit");
+            MC_THROW(mc::parse_error_exception, "输入JSON字符串长度超过限制");
         }
     }
 
@@ -269,7 +258,7 @@ public:
         variant result = parse_value();
         skip_whitespace();
         if (m_pos < m_input.length()) {
-            throw json_error("Extra characters after JSON string");
+            MC_THROW(mc::parse_error_exception, "JSON字符串后有多余字符");
         }
         return result;
     }
@@ -307,7 +296,7 @@ private:
     // 检查嵌套深度
     void check_depth() {
         if (m_current_depth >= m_options.max_depth) {
-            throw json_error("Maximum nesting depth exceeded");
+            MC_THROW(mc::parse_error_exception, "JSON嵌套深度超过限制");
         }
     }
 
@@ -337,7 +326,7 @@ private:
                 if (c == '-' || std::isdigit(c)) {
                     return parse_number();
                 }
-                throw json_error("Invalid JSON value");
+                MC_THROW(mc::parse_error_exception, "无效的JSON值");
         }
     }
 
@@ -347,7 +336,7 @@ private:
             m_pos += 4;
             return variant();
         }
-        throw json_error("Invalid null value");
+        MC_THROW(mc::parse_error_exception, "无效的null值");
     }
 
     // 解析true
@@ -356,7 +345,7 @@ private:
             m_pos += 4;
             return variant(true);
         }
-        throw json_error("Invalid true value");
+        MC_THROW(mc::parse_error_exception, "无效的true值");
     }
 
     // 解析false
@@ -365,10 +354,68 @@ private:
             m_pos += 5;
             return variant(false);
         }
-        throw json_error("Invalid false value");
+        MC_THROW(mc::parse_error_exception, "无效的false值");
     }
 
     // 解析字符串
+    void handle_unicode_escape(std::string& result) {
+        if (m_pos + 4 >= m_input.length()) {
+            MC_THROW(mc::parse_error_exception, "无效的Unicode转义序列");
+        }
+        std::string hex = std::string(m_input.substr(m_pos + 1, 4));
+
+        for (char c : hex) {
+            if (!std::isxdigit(c)) {
+                MC_THROW(mc::parse_error_exception, "无效的Unicode转义序列");
+            }
+        }
+
+        try {
+            int code_point = std::stoi(hex, nullptr, 16);
+            if (code_point <= 0x7F) {
+                result += static_cast<char>(code_point);
+            } else if (code_point <= 0x7FF) {
+                result += static_cast<char>(0xC0 | (code_point >> 6));
+                result += static_cast<char>(0x80 | (code_point & 0x3F));
+            } else if (code_point <= 0xFFFF) {
+                result += static_cast<char>(0xE0 | (code_point >> 12));
+                result += static_cast<char>(0x80 | ((code_point >> 6) & 0x3F));
+                result += static_cast<char>(0x80 | (code_point & 0x3F));
+            } else {
+                MC_THROW(mc::parse_error_exception, "不支持的Unicode字符");
+            }
+            m_pos += 4;
+        } catch (const std::exception&) {
+            MC_THROW(mc::parse_error_exception, "无效的Unicode转义序列");
+        }
+    }
+
+    void handle_normal_char(char c, std::string& result) {
+        if (static_cast<unsigned char>(c) < 0x20) {
+            MC_THROW(mc::parse_error_exception, "字符串包含无效字符");
+        }
+        result += c;
+    }
+
+    void handle_escape_sequence(std::string& result) {
+        if (is_eof()) {
+            MC_THROW(mc::parse_error_exception, "字符串未正确终止");
+        }
+        char c = current();
+        switch (c) {
+            case '"': result += '"'; break;
+            case '\\': result += '\\'; break;
+            case '/': result += '/'; break;
+            case 'b': result += '\b'; break;
+            case 'f': result += '\f'; break;
+            case 'n': result += '\n'; break;
+            case 'r': result += '\r'; break;
+            case 't': result += '\t'; break;
+            case 'u': handle_unicode_escape(result); break;
+            default: MC_THROW(mc::parse_error_exception, "无效的转义序列");
+        }
+    }
+
     variant parse_string() {
         advance(); // 跳过开始的双引号
         std::string result;
@@ -377,74 +424,19 @@ private:
             if (c == '"') {
                 advance(); // 跳过结束的双引号
                 if (result.length() > m_options.max_string_length) {
-                    throw json_error("String length exceeds limit");
+                    MC_THROW(mc::parse_error_exception, "字符串长度超过限制");
                 }
                 return variant(result);
             }
             if (c == '\\') {
-                advance();
-                if (is_eof()) {
-                    throw json_error("String not properly terminated");
-                }
-                c = current();
-                switch (c) {
-                    case '"': result += '"'; break;
-                    case '\\': result += '\\'; break;
-                    case '/': result += '/'; break;
-                    case 'b': result += '\b'; break;
-                    case 'f': result += '\f'; break;
-                    case 'n': result += '\n'; break;
-                    case 'r': result += '\r'; break;
-                    case 't': result += '\t'; break;
-                    case 'u': {
-                        // 解析Unicode转义序列
-                        if (m_pos + 4 >= m_input.length()) {
-                            throw json_error("Invalid Unicode escape sequence");
-                        }
-                        std::string hex = std::string(m_input.substr(m_pos + 1, 4));
-                        
-                        // 检查是否包含有效的十六进制字符
-                        for (char c : hex) {
-                            if (!std::isxdigit(c)) {
-                                throw json_error("Invalid Unicode escape sequence");
-                            }
-                        }
-                        
-                        try {
-                            int code_point = std::stoi(hex, nullptr, 16);
-                            // 这里简化处理，只支持基本的ASCII字符
-                            if (code_point <= 0x7F) {
-                                result += static_cast<char>(code_point);
-                            } else {
-                                // 对于非ASCII字符，直接输出对应的UTF-8编码
-                                if (code_point <= 0x7FF) {
-                                    result += static_cast<char>(0xC0 | (code_point >> 6));
-                                    result += static_cast<char>(0x80 | (code_point & 0x3F));
-                                } else if (code_point <= 0xFFFF) {
-                                    result += static_cast<char>(0xE0 | (code_point >> 12));
-                                    result += static_cast<char>(0x80 | ((code_point >> 6) & 0x3F));
-                                    result += static_cast<char>(0x80 | (code_point & 0x3F));
-                                } else {
-                                    throw json_error("Unsupported Unicode character");
-                                }
-                            }
-                            m_pos += 4;
-                        } catch (...) {
-                            throw json_error("Invalid Unicode escape sequence");
-                        }
-                        break;
-                    }
-                    default:
-                        throw json_error("Invalid escape sequence");
-                }
-            } else if (static_cast<unsigned char>(c) < 0x20) {
-                throw json_error("String contains invalid character");
+                advance(); // 跳过转义字符
+                handle_escape_sequence(result);
             } else {
-                result += c;
+                handle_normal_char(c, result);
             }
             advance();
         }
-        throw json_error("String not properly terminated");
+        MC_THROW(mc::parse_error_exception, "字符串未正确终止");
     }
 
     // 解析数字
@@ -467,7 +459,7 @@ private:
                 advance();
             }
         } else {
-            throw json_error("Invalid number format");
+            MC_THROW(mc::parse_error_exception, "无效的数字格式");
         }
 
         // 处理小数部分
@@ -475,7 +467,7 @@ private:
             is_float = true;
             advance();
             if (!std::isdigit(current())) {
-                throw json_error("Decimal point must be followed by digits");
+                MC_THROW(mc::parse_error_exception, "小数点后必须跟随数字");
             }
             while (!is_eof() && std::isdigit(current())) {
                 advance();
@@ -490,46 +482,26 @@ private:
                 advance();
             }
             if (!std::isdigit(current())) {
-                throw json_error("Exponent must contain digits");
+                MC_THROW(mc::parse_error_exception, "指数部分必须包含数字");
             }
             while (!is_eof() && std::isdigit(current())) {
                 advance();
             }
         }
 
-        std::string_view num_str = m_input.substr(start, m_pos - start);
+        // 获取数字字符串
+        std::string number_str(m_input.substr(start, m_pos - start));
         
         try {
             if (is_float) {
-                return variant(std::stod(std::string(num_str)));
-            }
-
-            // 对于整数，我们需要根据值的范围选择合适的类型
-            if (is_negative) {
-                int64_t val = std::stoll(std::string(num_str));
-                if (val >= INT8_MIN && val <= INT8_MAX) {
-                    return variant(static_cast<int8_t>(val));
-                } else if (val >= INT16_MIN && val <= INT16_MAX) {
-                    return variant(static_cast<int16_t>(val));
-                } else if (val >= INT32_MIN && val <= INT32_MAX) {
-                    return variant(static_cast<int32_t>(val));
-                } else {
-                    return variant(val);
-                }
+                return variant(std::stod(number_str));
+            } else if (is_negative) {
+                return variant(std::stoll(number_str));
             } else {
-                uint64_t val = std::stoull(std::string(num_str));
-                if (val <= UINT8_MAX) {
-                    return variant(static_cast<uint8_t>(val));
-                } else if (val <= UINT16_MAX) {
-                    return variant(static_cast<uint16_t>(val));
-                } else if (val <= UINT32_MAX) {
-                    return variant(static_cast<uint32_t>(val));
-                } else {
-                    return variant(val);
-                }
+                return variant(std::stoull(number_str));
             }
-        } catch (...) {
-            throw json_error("Number conversion failed");
+        } catch (const std::exception&) {
+            MC_THROW(mc::parse_error_exception, "数字转换失败");
         }
     }
 
@@ -548,7 +520,7 @@ private:
 
         while (true) {
             if (result.size() >= m_options.max_array_size) {
-                throw json_error("Array element count exceeds limit");
+                MC_THROW(mc::parse_error_exception, "数组元素数量超过限制");
             }
             
             result.push_back(parse_value());
@@ -561,7 +533,7 @@ private:
             }
             
             if (current() != ',') {
-                throw json_error("Array elements must be separated by commas");
+                MC_THROW(mc::parse_error_exception, "数组元素必须用逗号分隔");
             }
             advance();
             skip_whitespace();
@@ -581,20 +553,22 @@ private:
             return variant(result);
         }
 
+        size_t count = 0;
         while (true) {
-            if (result.size() >= m_options.max_object_size) {
-                throw json_error("Object key-value pair count exceeds limit");
+            if (count >= m_options.max_object_size) {
+                MC_THROW(mc::parse_error_exception, "对象键值对数量超过限制");
             }
-
+            count++;
+            
             if (current() != '"') {
-                throw json_error("Object key must be a string");
+                MC_THROW(mc::parse_error_exception, "对象键必须是字符串");
             }
             
             std::string key = parse_string().as<std::string>();
             skip_whitespace();
             
             if (current() != ':') {
-                throw json_error("Object key-value pairs must be separated by colons");
+                MC_THROW(mc::parse_error_exception, "对象键值对必须用冒号分隔");
             }
             advance();
             
@@ -609,7 +583,7 @@ private:
             }
             
             if (current() != ',') {
-                throw json_error("Object key-value pairs must be separated by commas");
+                MC_THROW(mc::parse_error_exception, "对象键值对必须用逗号分隔");
             }
             advance();
             skip_whitespace();
@@ -619,13 +593,35 @@ private:
 
 // 实现json_encode函数
 std::string json_encode(const variant& value, const json_encode_options& options) {
-    return encoder(options).encode(value);
+    try {
+        encoder enc(options);
+        return enc.encode(value);
+    } catch (const mc::parse_error_exception&) {
+        // 如果已经是parse_error_exception，直接重新抛出
+        throw;
+    } catch (const std::exception& e) {
+        // 将其他异常转换为parse_error_exception
+        MC_THROW(mc::parse_error_exception, std::string("JSON编码失败: ") + e.what());
+    }
 }
 
 // 实现json_decode函数
 variant json_decode(std::string_view json, const json_decode_options& options) {
-    return decoder(json, options).decode();
+    try {
+        decoder dec(json, options);
+        return dec.decode();
+    } catch (const mc::parse_error_exception&) {
+        // 如果已经是parse_error_exception，直接重新抛出
+        throw;
+    } catch (const std::exception& e) {
+        // 将其他异常转换为parse_error_exception
+        MC_THROW(mc::parse_error_exception, std::string("JSON解码失败: ") + e.what());
+    }
 }
 
+// 初始化全局默认配置
+json_encode_options json_encode_options::default_encode_options;
+json_decode_options json_decode_options::default_decode_options;
+
 } // namespace json
-} // namespace mc 
+} // namespace mc

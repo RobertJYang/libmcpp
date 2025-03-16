@@ -1,18 +1,14 @@
 /**
  * @file main.cpp
- * @brief 示例应用程序，演示如何使用插件动态加载功能
+ * @brief 示例应用程序，演示如何使用模块动态加载功能
  */
 
-#include "example_plugin.h"
 #include "mc/core/application.h"
 #include <iostream>
+#include <filesystem>
+#include <vector>
 
 using namespace mc;
-
-// 创建插件实例的函数
-extern "C" plugin* create_plugin() {
-    return new examples::example_plugin();
-}
 
 int main(int argc, char** argv) {
     try {
@@ -22,18 +18,18 @@ int main(int argc, char** argv) {
         // 设置版本号
         app.set_version("1.0.0");
 
-        // 设置插件目录
-        // 注意：在实际使用中，应该使用绝对路径或相对于可执行文件的路径
-        app.set_plugin_dir("./plugins");
-
-        // 初始化应用程序
-        app.initialize(argc, argv);
+        // 初始化应用程序（会处理命令行参数，包括加载模块）
+        // 可以通过 --module=example 或 -m example 参数指定要加载的模块
+        if (!app.initialize(argc, argv)) {
+           return 0;
+        }
 
         // 启动应用程序
         app.start();
 
         // 运行应用程序
-        app.exec();
+        // std::cout << "应用程序运行中，按 Ctrl+C 退出..." << std::endl;
+        // app.exec();
 
         // 清理资源
         app.cleanup();

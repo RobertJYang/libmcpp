@@ -41,7 +41,7 @@ std::string default_message_formatter::format(const message& msg) const {
     }
 
     // 使用延迟格式化的消息
-    ss << msg.get_formatted_message();
+    ss << msg.get_message();
 
     return ss.str();
 }

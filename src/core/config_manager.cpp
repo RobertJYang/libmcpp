@@ -1,0 +1,151 @@
+/*
+ * Copyright (c) 2024 Huawei Technologies Co., Ltd.
+ * openUBMC is licensed under Mulan PSL v2.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *         http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
+ */
+
+/**
+ * 配置管理器实现
+ * 
+ * 配置优先级规则（从高到低）：
+ * 1. 命令行参数（优先级最高）
+ * 2. 配置文件（优先级次之）
+ * 3. 默认值（优先级最低）
+ * 
+ * 特殊情况：
+ * - 对于标记为 composing() 的选项（如 module），多处指定的值会被合并而不是覆盖
+ * - 服务选项会在模块加载后被收集，所以依赖于模块注册的服务选项只能在模块加载后使用
+ */
+
+#include "mc/core/config_manager.h"
+#include "mc/filesystem.h"
+#include <iostream>
+#include <thread>
+#include <unordered_map>
+#include <typeinfo>
+
+namespace mc {
+
+// 构造函数
+config_manager::config_manager(bool silent) 
+    : m_opts(std::make_unique<options>())
+    , m_silent(silent) {
+    m_opts->cli.add_options()
+        ("help,h", "显示帮助信息")
+        ("version,v", "显示版本信息")
+        ("config,c", po::value<std::string>()->default_value("./config.ini"), "配置文件路径")
+        ("module-dir", po::value<std::string>(), "模块目录路径")
+        ("threads,t", po::value<unsigned int>()->default_value(std::thread::hardware_concurrency()), "线程数量")
+        ("module,m", po::value<std::vector<std::string>>()->composing(), "要加载的模块列表");
+
+    m_opts->cfg.add(m_opts->cli);
+}
+
+// 析构函数
+config_manager::~config_manager() {
+}
+
+// 设置静默模式
+void config_manager::set_silent(bool silent) {
+    m_silent = silent;
+}
+
+// 获取静默模式状态
+bool config_manager::is_silent() const {
+    return m_silent;
+}
+
+// 处理未识别的选项
+void config_manager::process_unrecognized(const std::vector<std::string>& unrecognized) const {
+    if (!m_silent && !unrecognized.empty()) {
+        std::cerr << "警告: 未识别的选项:";
+        for (const auto& opt : unrecognized) {
+            std::cerr << " " << opt;
+        }
+        std::cerr << std::endl;
+    }
+}
+
+// 加载配置文件
+void config_manager::load_config_file(const std::string& cfg_file) {
+    std::string config_file = cfg_file;
+    if (config_file.empty()) {
+        if (!has_option("config")) {
+            return;
+        }
+
+        config_file = get_option<std::string>("config");
+    }
+
+    if (!mc::filesystem::exists(config_file)) {
+        if (!m_silent) {
+            std::cerr << "警告: 配置文件 '" << config_file << "' 不存在" << std::endl;
+        }
+        return;
+    }
+    
+    try {
+        po::parsed_options parsed = po::parse_config_file<char>(config_file.c_str(), m_opts->cfg, true);
+        po::store(parsed, m_options);
+        
+        // 获取未识别的选项
+        std::vector<std::string> unrecognized = 
+            po::collect_unrecognized(parsed.options, po::include_positional);
+        process_unrecognized(unrecognized);
+
+        po::notify(m_options);
+    } catch (const po::error& e) {
+        if (!m_silent) {
+            std::cerr << "错误: 解析配置文件 '" << config_file << "' 失败: " << e.what() << std::endl;
+        }
+    }
+}
+
+// 解析命令行参数
+bool config_manager::parse_command_line(int argc, char** argv) {
+    try {
+        po::parsed_options parsed = po::command_line_parser(argc, argv)
+            .options(m_opts->cli)
+            .allow_unregistered()
+            .run();
+        
+        // 存储命令行参数到变量映射
+        po::store(parsed, m_options);
+        
+        // 获取未识别的选项
+        std::vector<std::string> unrecognized = 
+            po::collect_unrecognized(parsed.options, po::include_positional);
+        process_unrecognized(unrecognized);
+        
+        // 确保所有选项都被正确处理
+        po::notify(m_options);
+
+        return true;
+    } catch (const po::error& e) {
+        if (!m_silent) {
+            std::cerr << "错误: 解析命令行参数失败: " << e.what() << std::endl;
+        }
+        return false;
+    }
+}
+
+// 检查选项是否存在
+bool config_manager::has_option(const std::string& name) const {
+    return m_options.count(name) > 0;
+}
+
+// 获取模块列表
+std::vector<std::string> config_manager::get_module_names() const {
+    if (has_option("module")) {
+        return get_option<std::vector<std::string>>("module");
+    }
+    return {};
+}
+
+} // namespace mc 

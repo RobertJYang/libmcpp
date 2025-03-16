@@ -51,7 +51,7 @@ public:
      *
      * @param config 文件追加器配置
      */
-    explicit file_appender(const variant& args);
+    explicit file_appender();
 
     /**
      * @brief 析构函数

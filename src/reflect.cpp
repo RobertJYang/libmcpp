@@ -16,7 +16,6 @@
  */
 #include <mc/exception.h>
 #include <mc/reflect/reflect.h>
-#include <sstream>
 
 namespace mc {
 namespace reflect {
@@ -28,9 +27,8 @@ namespace reflect {
  * @param e 枚举类型名称
  */
 void throw_bad_enum_cast(int64_t i, const char* e) {
-    std::stringstream ss;
-    ss << "无法将整数 " << i << " 转换为枚举类型 " << e;
-    throw mc::bad_cast_exception(ss.str());
+    MC_THROW(mc::bad_cast_exception, "无法将整数 ${i} 转换为枚举类型 ${e}",
+        ("i", i)("e", e));
 }
 
 /**
@@ -40,9 +38,8 @@ void throw_bad_enum_cast(int64_t i, const char* e) {
  * @param e 枚举类型名称
  */
 void throw_bad_enum_cast(const char* k, const char* e) {
-    std::stringstream ss;
-    ss << "无法将字符串 '" << k << "' 转换为枚举类型 " << e;
-    throw mc::bad_cast_exception(ss.str());
+    MC_THROW(mc::bad_cast_exception, "无法将字符串 ${k} 转换为枚举类型 ${e}",
+        ("k", k)("e", e));
 }
 
 } // namespace reflect

@@ -4,7 +4,7 @@ devmon_sources = [
     'main.cpp',
 ]
 
-devmon_exe = executable('devmon',
+executable('devmon',
     include_directories : incdir,
     sources: devmon_sources,
     dependencies: [libmcpp_dep, boost_dep, boost_program_options_dep],

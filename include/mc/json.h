@@ -18,26 +18,20 @@
 #define MC_JSON_H
 
 #include <mc/variant.h>
+#include <mc/exception.h>
 #include <string>
 #include <string_view>
-#include <stdexcept>
 
 namespace mc {
 namespace json {
 
 /**
- * @brief JSON解析错误异常类
- */
-class json_error : public std::runtime_error {
-public:
-    explicit json_error(const char* msg) : std::runtime_error(msg) {}
-    explicit json_error(const std::string& msg) : std::runtime_error(msg) {}
-};
-
-/**
  * @brief JSON编码选项
  */
 struct json_encode_options {
+    /// 全局默认编码配置
+    static json_encode_options default_encode_options;
+
     /**
      * @brief 是否格式化输出
      * @details 如果为true，则输出格式化的JSON，包含缩进和换行
@@ -116,6 +110,9 @@ struct json_encode_options {
  * @brief JSON解码选项
  */
 struct json_decode_options {
+    /// 全局默认解码配置
+    static json_decode_options default_decode_options;
+
     /**
      * @brief 最大嵌套深度
      * @details 限制JSON的最大嵌套深度，防止栈溢出
@@ -188,9 +185,9 @@ struct json_decode_options {
  * @param value 要编码的variant对象
  * @param options 编码选项
  * @return std::string 编码后的JSON字符串
- * @throw json_error 当编码失败时抛出异常
+ * @throw mc::parse_error_exception 当编码失败时抛出异常
  */
-std::string json_encode(const variant& value, const json_encode_options& options = {});
+std::string json_encode(const variant& value, const json_encode_options& options = json_encode_options::default_encode_options);
 
 /**
  * @brief 从JSON字符串解码为variant对象
@@ -198,7 +195,7 @@ std::string json_encode(const variant& value, const json_encode_options& options
  * @param json JSON字符串视图
  * @param options 解码选项
  * @return variant 解码后的variant对象
- * @throw json_error 当解码失败时抛出异常
+ * @throw mc::parse_error_exception 当解码失败时抛出异常
  * @note 此函数可以接受以下类型的参数：
  *       1. std::string - 通过string_view的隐式转换
  *       2. std::string_view - 直接使用
@@ -224,9 +221,9 @@ std::string json_encode(const variant& value, const json_encode_options& options
  *       variant v4 = json_decode(std::string_view(data, 10));  // 只解析前10个字符
  *       @endcode
  */
-variant json_decode(std::string_view json, const json_decode_options& options = {});
+variant json_decode(std::string_view json, const json_decode_options& options = json_decode_options::default_decode_options);
 
 } // namespace json
 } // namespace mc
 
-#endif // MC_JSON_H 
+#endif // MC_JSON_H

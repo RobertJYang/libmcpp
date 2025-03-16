@@ -1,5 +1,5 @@
 project('libmcpp', 'cpp',
-  version : '0.1.0',
+    version : '0.1.0',
   default_options : ['cpp_std=c++17', 'warning_level=3', 
     'cpp_args=-fPIC -Wall -Wno-unused-parameter -Wno-unused-variable -Wno-sign-compare -Wno-gnu-zero-variadic-macro-arguments',
 ])
@@ -8,14 +8,6 @@ project('libmcpp', 'cpp',
 boost_dep = dependency('boost', required : true)
 boost_program_options_dep = dependency('boost', modules : ['program_options'], required : true)
 gtest_dep = dependency('gtest', required : false)
-gmock_dep = dependency('gmock', required : false)
-
-# 如果系统中没有安装gtest，则使用subproject
-if not gtest_dep.found() or not gmock_dep.found()
-  gtest_proj = subproject('gtest')
-  gtest_dep = gtest_proj.get_variable('gtest_dep')
-  gmock_dep = gtest_proj.get_variable('gmock_dep')
-endif
 
 # 包含目录
 incdir = include_directories('include')
@@ -24,5 +16,5 @@ incdir = include_directories('include')
 subdir('include')
 subdir('src')
 subdir('tests')
-# subdir('examples')
+subdir('examples')
 subdir('programs/devmon')

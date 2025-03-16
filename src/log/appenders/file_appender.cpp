@@ -15,33 +15,32 @@
 namespace mc {
 namespace log {
 
-file_appender::file_appender(const variant& args) {
-    init(args);
+file_appender::file_appender() {
 }
 
 bool file_appender::init(const variant& args) {
-    if (!args.is_dict()) {
+    if (!args.is_object()) {
         return false;
     }
 
-    auto dict = args.as_dict();
+    // auto dict = args.as_object();
 
-    // 获取必要的配置参数
-    if (!dict.contains("name") || !dict.contains("filename")) {
-        return false;
-    }
+    // // 获取必要的配置参数
+    // if (!dict.contains("name") || !dict.contains("filename")) {
+    //     return false;
+    // }
 
-    m_file_config.m_name     = dict["name"].as_string();
-    m_file_config.m_filename = dict["filename"].as_string();
+    // m_file_config.m_name     = dict["name"].as_string();
+    // m_file_config.m_filename = dict["filename"].as_string();
 
-    // 获取可选的配置参数
-    if (dict.contains("truncate")) {
-        m_file_config.m_truncate = dict["truncate"].as_bool();
-    }
+    // // 获取可选的配置参数
+    // if (dict.contains("truncate")) {
+    //     m_file_config.m_truncate = dict["truncate"].as_bool();
+    // }
 
-    if (dict.contains("flush_on_write")) {
-        m_file_config.m_flush_on_write = dict["flush_on_write"].as_bool();
-    }
+    // if (dict.contains("flush_on_write")) {
+    //     m_file_config.m_flush_on_write = dict["flush_on_write"].as_bool();
+    // }
 
     open_file();
     return true;

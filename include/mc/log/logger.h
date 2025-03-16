@@ -30,20 +30,6 @@ namespace log {
 #endif
 
 /**
- * @brief 日志记录器配置
- */
-struct logger_config {
-    std::string m_name;  // 日志记录器名称
-    level       m_level; // 日志级别
-
-    logger_config() = default;
-
-    logger_config(std::string name, level lvl = level::info)
-        : m_name(std::move(name)), m_level(lvl) {
-    }
-};
-
-/**
  * @brief 日志记录器
  *
  * 日志记录器负责收集日志消息并将其分发到各个追加器
@@ -56,11 +42,8 @@ public:
      * @param name 日志记录器名称
      * @return logger 日志记录器
      */
-    static logger get(const std::string& name = DEFAULT_LOGGER);
+    static logger get(const char* name = DEFAULT_LOGGER);
 
-    /**
-     * @brief 默认构造函数
-     */
     logger();
 
     /**
@@ -69,11 +52,6 @@ public:
      * @param name 日志记录器名称
      */
     logger(const std::string& name);
-
-    /**
-     * @brief 空指针构造函数
-     */
-    logger(std::nullptr_t);
 
     /**
      * @brief 复制构造函数
@@ -128,6 +106,13 @@ public:
     void set_name(const std::string& name);
 
     /**
+     * @brief 获取日志记录器名称
+     *
+     * @return const std::string& 日志记录器名称
+     */
+    const std::string& get_name() const;
+
+    /**
      * @brief 检查指定日志级别是否启用
      *
      * @param lvl 日志级别
@@ -150,11 +135,32 @@ public:
     void add_appender(const appender_ptr& a);
 
     /**
+     * @brief 删除指定名称的日志追加器
+     *
+     * @param name 日志追加器名称
+     * @return bool 是否成功删除
+     */
+    bool remove_appender(const std::string& name);
+
+    /**
+     * @brief 查找指定名称的日志追加器
+     *
+     * @param name 日志追加器名称
+     * @return appender_ptr 日志追加器指针，如果未找到则返回nullptr
+     */
+    appender_ptr find_appender(const std::string& name) const;
+
+    /**
      * @brief 获取所有日志追加器
      *
      * @return std::vector<appender_ptr> 日志追加器列表
      */
     const std::vector<appender_ptr>& get_appenders() const;
+
+    /**
+     * @brief 清除所有日志追加器
+     */
+    void clear_appenders();
 
 private:
     class impl;

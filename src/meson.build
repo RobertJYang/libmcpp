@@ -3,6 +3,12 @@ src_files = [
   'object.cpp',
   'exception.cpp',
   'core/application.cpp',
+  'core/default_supervisor.cpp',
+  'core/config_manager.cpp',
+  'core/module_manager.cpp',
+  'core/service_manager.cpp',
+  'core/supervisor_manager.cpp',
+  'core/singleton.cpp',
   'variant.cpp',
   'dict.cpp',
   'mutable_dict.cpp',
@@ -10,11 +16,13 @@ src_files = [
   'string.cpp',
   'log/log_message.cpp',
   'log/logger.cpp',
+  'log/log_manager.cpp',
   'log/appender_factory.cpp',
   'log/appenders/console_appender.cpp',
   # 'log/appenders/file_appender.cpp',
   'filesystem.cpp',
-  'json.cpp'
+  'json.cpp',
+  'reflect.cpp',
 ]
 
 # 创建共享库

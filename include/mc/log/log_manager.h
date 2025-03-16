@@ -16,13 +16,46 @@
 #include <mc/log/appender.h>
 #include <mc/log/appender_factory.h>
 #include <mc/log/logger.h>
+#include <mc/reflect.h>
+#include <mc/variant.h>
 #include <memory>
 #include <mutex>
 #include <string>
 #include <unordered_map>
+#include <vector>
 
 namespace mc {
 namespace log {
+
+/**
+ * @brief appender配置结构
+ */
+struct appender_config {
+    std::string name;       // appender名称
+    std::string type;       // appender类型
+    mc::dict    properties; // appender属性配置
+    std::string lib_path;   // 外部appender动态库路径，为空表示内部appender
+};
+
+/**
+ * @brief logger配置结构
+ */
+struct logger_config {
+    std::string              name;      // logger名称
+    log::level               level;     // 日志级别
+    std::vector<std::string> appenders; // 关联的appender名称列表
+
+    logger_config(const std::string& name = DEFAULT_LOGGER) : name(name) {
+    }
+};
+
+/**
+ * @brief 日志系统配置结构
+ */
+struct logging_config {
+    std::vector<appender_config> appenders; // appender配置列表
+    std::vector<logger_config>   loggers;   // logger配置列表
+};
 
 /**
  * @brief 日志管理器
@@ -36,10 +69,7 @@ public:
      *
      * @return log_manager& 单例实例引用
      */
-    static log_manager& instance() {
-        static log_manager manager;
-        return manager;
-    }
+    static log_manager& instance();
 
     /**
      * @brief 获取日志记录器
@@ -47,18 +77,7 @@ public:
      * @param name 日志记录器名称
      * @return logger 日志记录器
      */
-    logger get_logger(const std::string& name = DEFAULT_LOGGER) {
-        std::lock_guard<std::mutex> lock(m_mutex);
-
-        auto it = m_loggers.find(name);
-        if (it != m_loggers.end()) {
-            return it->second;
-        }
-
-        logger new_logger(name);
-        m_loggers[name] = new_logger;
-        return new_logger;
-    }
+    logger get_logger(const char* name = DEFAULT_LOGGER);
 
     /**
      * @brief 加载追加器
@@ -67,33 +86,44 @@ public:
      * @param appender_name 追加器名称
      * @return bool 是否成功加载
      */
-    bool load_appender(const std::string& lib_path, const std::string& appender_name) {
-        return appender_factory::instance().load(lib_path, appender_name);
-    }
+    bool load_appender(const std::string& lib_path, const std::string& appender_name);
 
     /**
      * @brief 从目录加载所有追加器
      *
      * @param dir_path 目录路径
      */
-    void load_appenders(const std::string& dir_path) {
-        appender_factory::instance().load_all(dir_path);
-    }
+    void load_appenders(const std::string& dir_path);
 
     /**
      * @brief 创建追加器
      *
-     * @param name 追加器名称
+     * @param type 追加器类型
      * @return appender_ptr 追加器指针
      */
-    appender_ptr create_appender(const std::string& name) {
-        return appender_factory::instance().create(name);
+    template <typename T>
+    std::shared_ptr<T> create_appender(const std::string& type) {
+        return appender_factory::instance().create_by_type<T>(type);
     }
 
+    /**
+     * @brief 应用日志系统配置
+     *
+     * @param config 日志系统配置
+     * @return bool 是否成功应用配置
+     */
+    bool apply_config(const logging_config& config);
+
 private:
-    log_manager()                              = default;
+    log_manager();
     log_manager(const log_manager&)            = delete;
     log_manager& operator=(const log_manager&) = delete;
+
+    logger create_new_logger(const logger_config& log_config);
+
+    bool load_appenders_from_config(const std::vector<appender_config>& appender_configs);
+    bool load_single_appender(const appender_config& app_config);
+    void update_existing_logger(logger& log, const logger_config& log_config);
 
     std::unordered_map<std::string, logger> m_loggers; // 日志记录器映射
     std::mutex                              m_mutex;   // 互斥锁
@@ -101,5 +131,9 @@ private:
 
 } // namespace log
 } // namespace mc
+
+MC_REFLECT(mc::log::appender_config, (name)(type)(lib_path))
+MC_REFLECT(mc::log::logger_config, (name)(level)(appenders))
+MC_REFLECT(mc::log::logging_config, (appenders)(loggers))
 
 #endif // MC_LOG_MANAGER_H

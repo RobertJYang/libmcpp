@@ -44,6 +44,27 @@ public:
      * @param msg 日志消息
      */
     virtual void append(const message& msg) = 0;
+    
+    /**
+     * @brief 获取追加器名称
+     *
+     * @return const std::string& 追加器名称
+     */
+    const std::string& get_name() const {
+        return m_name;
+    }
+    
+    /**
+     * @brief 设置追加器名称
+     *
+     * @param name 追加器名称
+     */
+    void set_name(const std::string& name) {
+        m_name = name;
+    }
+
+protected:
+    std::string m_name; // 追加器名称
 };
 
 using appender_ptr = std::shared_ptr<appender>;
@@ -55,11 +76,11 @@ using appender_ptr = std::shared_ptr<appender>;
  */
 #define MC_REGISTER_APPENDER(appender_class)                                                       \
     extern "C" void* create_appender() {                                                           \
-        return new appender_ptr(new appender_class);                                               \
+        return new mc::log::appender_ptr(new appender_class);                                               \
     }                                                                                              \
                                                                                                    \
     extern "C" void destroy_appender(void* ptr) {                                                  \
-        delete static_cast<appender_ptr*>(ptr);                                                    \
+        delete static_cast<mc::log::appender_ptr*>(ptr);                                                    \
     }
 
 } // namespace log

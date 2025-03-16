@@ -14,6 +14,11 @@
 #define MC_LOG_CONSOLE_APPENDER_H
 
 #include <mc/log/appender.h>
+#include <mc/reflect.h>
+#include <mc/variant.h>
+#include <memory>
+#include <string>
+#include <vector>
 
 namespace mc {
 namespace log {
@@ -21,14 +26,63 @@ namespace log {
 /**
  * @brief 控制台追加器
  *
- * 将日志消息输出到标准输出
+ * 将日志消息输出到标准输出或标准错误，支持颜色输出
  */
 class console_appender : public appender {
 public:
     /**
-     * @brief 构造函数
+     * @brief 输出流类型
      */
-    console_appender() = default;
+    enum class stream_type {
+        std_out,  // 标准输出
+        std_error // 标准错误
+    };
+
+    /**
+     * @brief 颜色类型
+     */
+    enum class color_type {
+        console_default, // 默认颜色
+        red,             // 红色
+        green,           // 绿色
+        brown,           // 棕色
+        blue,            // 蓝色
+        magenta,         // 洋红色
+        cyan,            // 青色
+        white            // 白色
+    };
+
+    /**
+     * @brief 日志级别颜色配置
+     */
+    struct level_color {
+        log::level level; // 日志级别
+        color_type color; // 对应颜色
+
+        level_color() = default;
+        level_color(log::level lvl, color_type clr) : level(lvl), color(clr) {
+        }
+    };
+
+    /**
+     * @brief 控制台追加器配置
+     */
+    struct config {
+        stream_type              stream{stream_type::std_out}; // 输出流
+        bool                     use_color{true};              // 是否使用颜色
+        bool                     flush{true};                  // 是否每次输出后刷新
+        std::vector<level_color> level_colors;                 // 日志级别颜色配置
+    };
+
+    /**
+     * @brief 默认构造函数
+     */
+    console_appender();
+
+    /**
+     * @brief 析构函数
+     */
+    ~console_appender() override;
 
     /**
      * @brief 初始化追加器
@@ -44,9 +98,144 @@ public:
      * @param msg 日志消息
      */
     void append(const message& msg) override;
+
+private:
+    /**
+     * @brief 配置追加器
+     *
+     * @param cfg 配置
+     */
+    void configure(const config& cfg);
+
+    /**
+     * @brief 打印文本
+     *
+     * @param text 文本内容
+     * @param text_color 文本颜色
+     */
+    void print(const std::string& text, color_type color);
+
+    class impl;
+    std::unique_ptr<impl> m_impl;
 };
 
 } // namespace log
 } // namespace mc
+
+// 反射控制台追加器配置
+// MC_REFLECT(mc::log::console_appender::config, (stream)(use_color)(flush)(level_colors))
+namespace mc {
+template <>
+struct reflect::reflector<mc::log::console_appender::config> {
+    using is_defined = std::true_type;
+    using is_enum    = std::false_type;
+    static const char* name() {
+        return "mc::log::console_appender::config";
+    }
+    template <typename Visitor>
+    static void visit(const Visitor& visitor) {
+        static const std::vector<member_info<mc::log::console_appender::config>> members = {
+            {"stream",
+             [](const mc::log::console_appender::config& obj) -> variant {
+                 return obj.stream;
+             },
+             [](mc::log::console_appender::config& obj, const variant& var) {
+                 var.as(obj.stream);
+             }},
+            {"use_color",
+             [](const mc::log::console_appender::config& obj) -> variant {
+                 return obj.use_color;
+             },
+             [](mc::log::console_appender::config& obj, const variant& var) {
+                 var.as(obj.use_color);
+             }},
+            {"flush",
+             [](const mc::log::console_appender::config& obj) -> variant {
+                 return obj.flush;
+             },
+             [](mc::log::console_appender::config& obj, const variant& var) {
+                 var.as(obj.flush);
+             }},
+            {"level_colors",
+             [](const mc::log::console_appender::config& obj) -> variant {
+                 return obj.level_colors;
+             },
+             [](mc::log::console_appender::config& obj, const variant& var) {
+                 var.as(obj.level_colors);
+             }},
+        };
+        for (const auto& member : members) {
+            visitor(member.name, member.getter, member.setter);
+        }
+    }
+    static void to_variant(const mc::log::console_appender::config& obj, mc::mutable_dict& dict) {
+        visit([&](const char* name, auto getter, auto) {
+            dict[name] = getter(obj);
+        });
+    }
+    static void from_variant(const mc::dict& d, mc::log::console_appender::config& obj) {
+        visit([&](const char* name, auto, auto setter) {
+            if (d.contains(name)) {
+                setter(obj, d[name]);
+            }
+        });
+    }
+};
+} // namespace mc
+
+// 反射日志级别颜色配置
+// MC_REFLECT(mc::log::console_appender::level_color, (level)(color))
+namespace mc {
+template <>
+struct reflect::reflector<mc::log::console_appender::level_color> {
+    using is_defined = std::true_type;
+    using is_enum    = std::false_type;
+    static const char* name() {
+        return "mc::log::console_appender::level_color";
+    }
+    template <typename Visitor>
+    static void visit(const Visitor& visitor) {
+        static const std::vector<member_info<mc::log::console_appender::level_color>> members = {
+            {"level",
+             [](const mc::log::console_appender::level_color& obj) -> variant {
+                 return obj.level;
+             },
+             [](mc::log::console_appender::level_color& obj, const variant& var) {
+                 var.as(obj.level);
+             }},
+            {"color",
+             [](const mc::log::console_appender::level_color& obj) -> variant {
+                 return obj.color;
+             },
+             [](mc::log::console_appender::level_color& obj, const variant& var) {
+                 var.as(obj.color);
+             }},
+        };
+        for (const auto& member : members) {
+            visitor(member.name, member.getter, member.setter);
+        }
+    }
+    static void to_variant(const mc::log::console_appender::level_color& obj,
+                           mc::mutable_dict&                             dict) {
+        visit([&](const char* name, auto getter, auto) {
+            dict[name] = getter(obj);
+        });
+    }
+    static void from_variant(const mc::dict& d, mc::log::console_appender::level_color& obj) {
+        visit([&](const char* name, auto, auto setter) {
+            if (d.contains(name)) {
+                setter(obj, d[name]);
+            }
+        });
+    }
+};
+} // namespace mc
+
+// 反射输出流类型
+MC_REFLECT_ENUM(mc::log::console_appender::stream_type, (std_out)(std_error))
+
+// 反射颜色类型
+MC_REFLECT_ENUM(mc::log::console_appender::color_type,
+                (console_default)(red)(green)(brown)(blue)(magenta)(cyan)(white))
 
 #endif // MC_LOG_CONSOLE_APPENDER_H

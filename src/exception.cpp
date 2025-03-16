@@ -80,7 +80,7 @@ const char* exception::name() const noexcept {
 }
 
 const char* exception::what() const noexcept {
-    return m_impl->m_what.c_str();
+    return top_message().c_str();
 }
 
 void exception::append_log(mc::log::message msg) {
@@ -161,7 +161,7 @@ std::string exception::to_string(mc::log::level ll) const {
     return ss.str();
 }
 
-std::string exception::top_message() const {
+const std::string &exception::top_message() const {
     if (m_impl->m_logs.empty()) {
         return m_impl->m_what;
     }
