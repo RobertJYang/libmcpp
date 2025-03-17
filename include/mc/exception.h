@@ -188,7 +188,7 @@ protected:
     class class_name : public exception {                                                          \
     public:                                                                                        \
         enum code_enum {                                                                           \
-            code_value = code_enum_value,                                                          \
+            code_value = code_enum_value                                                           \
         };                                                                                         \
                                                                                                    \
         class_name(mc::log::message&& msg = mc::log::message(mc::log::level::error, default_msg))  \
@@ -353,6 +353,8 @@ MC_DEFINE_EXCEPTION_CLASS(overflow_exception, overflow_code, "数值溢出", "ov
 MC_DEFINE_EXCEPTION_CLASS(underflow_exception, underflow_code, "数值下溢", "underflow")
 MC_DEFINE_EXCEPTION_CLASS(divide_by_zero_exception, divide_by_zero_code, "除零错误",
                           "divide_by_zero")
+MC_DEFINE_EXCEPTION_CLASS(file_open_exception, file_not_found_exception_code, "无法打开文件",
+                          "file_open")
 
 /**
  * @brief 完整自定义异常类宏（MC_DEFINE_EXCEPTION_CLASS 的别名）

@@ -17,45 +17,80 @@
 #ifndef MC_SERVICE_MANAGER_H
 #define MC_SERVICE_MANAGER_H
 
-#include "mc/core/service.h"
 #include <boost/program_options.hpp>
 #include <memory>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
+
+#include "mc/core/config_schema.h"
+#include "mc/core/service.h"
+#include "mc/core/service_factory.h"
+#include "mc/core/supervisor.h"
 
 namespace mc {
 
 namespace po = boost::program_options;
+
+// 服务依赖图节点
+struct service_node {
+    std::string name;
+    std::string type;
+    std::string supervisor;
+    config::service_config config;
+    std::unordered_set<std::string> dependents;  // 依赖此服务的服务
+    std::unordered_set<std::string> dependencies; // 此服务依赖的服务
+    int in_degree = 0;  // 入度，用于拓扑排序
+};
 
 /**
  * @brief 服务管理器类
  */
 class service_manager {
 public:
-    // 构造和析构
-    service_manager();
-    ~service_manager();
-
-    // 服务实例管理
-    bool add_service(const std::string& name, std::shared_ptr<service> service_instance);
-    std::shared_ptr<service> get_service(const std::string& name) const;
-    bool remove_service(const std::string& name);
+    // 构造函数
+    service_manager() = default;
     
-    // 获取所有服务名
-    std::vector<std::string> get_service_names() const;
-
-    // 配置选项收集
-    void collect_options(po::options_description& cli_opts, po::options_description& cfg_opts) const;
-
-    // 服务生命周期管理
-    bool start_services();
-    bool stop_services();
+    // 析构函数
+    ~service_manager();
+    
+    // 从配置初始化服务
+    bool initialize_from_configs(
+        const std::vector<config::service_config>& configs,
+        const std::unordered_map<std::string, std::shared_ptr<supervisor>>& supervisors,
+        service_factory& factory);
+    
+    // 获取服务
+    std::shared_ptr<service> get_service(const std::string& name) const;
+    
+    // 清理服务
     void cleanup_services();
 
+    // 添加服务
+    bool add_service(const std::string& name, std::shared_ptr<service> service_instance);
+
+    // 移除服务
+    bool remove_service(const std::string& name);
+
+    // 获取所有服务名称
+    std::vector<std::string> get_service_names() const;
+
+    // 收集命令行选项
+    void collect_options(po::options_description& cli_opts, po::options_description& cfg_opts) const;
+
+    // 启动所有服务
+    bool start_services();
+
+    // 停止所有服务
+    bool stop_services();
+
 private:
+    // 拓扑排序，返回服务名称列表
+    std::vector<std::string> topological_sort(const std::unordered_map<std::string, service_node>& graph);
+    
     // 成员变量
-    std::unordered_map<std::string, std::shared_ptr<service>> m_services;  // 服务实例表
+    std::unordered_map<std::string, std::shared_ptr<service>> m_services;
 };
 
 } // namespace mc

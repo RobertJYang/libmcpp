@@ -23,9 +23,9 @@ plugin_manager::~plugin_manager() {
     unload_all_plugins();
 }
 
-void plugin_manager::set_plugin_dir(const std::string& plugin_dir) {
-    m_plugin_dir = plugin_dir;
-    ilog("设置插件目录: ${dir}", ("dir", m_plugin_dir));
+void plugin_manager::set_plugin_dir(const std::string& dir) {
+    m_plugin_dir = dir;
+    dlog("设置插件目录: ${dir}", ("dir", dir));
 }
 
 const std::string& plugin_manager::plugin_dir() const {
@@ -46,7 +46,7 @@ bool plugin_manager::register_plugin(std::shared_ptr<plugin> plugin) {
         return false;
     }
 
-    ilog("注册插件'${name}'，版本'${version}'", 
+    dlog("注册插件'${name}'，版本'${version}'", 
          ("name", name)("version", info.version));
     m_plugins[name] = std::move(plugin);
     return true;
@@ -62,7 +62,7 @@ plugin* plugin_manager::find_plugin(const std::string& name) const {
 
 bool plugin_manager::load_plugin(const std::string& name) {
     if (find_plugin(name)) {
-        ilog("插件'${name}'已加载", ("name", name));
+        dlog("插件'${name}'已加载", ("name", name));
         return true;
     }
 
@@ -77,11 +77,53 @@ bool plugin_manager::load_plugin(const std::string& name) {
     return register_plugin(std::move(plugin));
 }
 
-void plugin_manager::load_plugins(const std::vector<std::string>& plugin_names) {
-    for (const auto& name : plugin_names) {
-        if (!load_plugin(name)) {
-            wlog("加载插件'${name}'失败", ("name", name));
+bool plugin_manager::load_plugins(const std::vector<std::string>& plugin_names) {
+    if (m_plugin_dir.empty()) {
+        elog("插件目录未设置");
+        return false;
+    }
+
+    // 如果指定了插件名称，只加载指定的插件
+    if (!plugin_names.empty()) {
+        for (const auto& name : plugin_names) {
+            void* handle = nullptr;
+            std::shared_ptr<plugin> plugin;
+            if (!load_dynamic_library(name, handle, plugin)) {
+                wlog("加载插件失败: ${name}", ("name", name));
+                continue;
+            }
+            m_plugin_handles.push_back(handle);
+            if (!register_plugin(std::move(plugin))) {
+                wlog("注册插件失败: ${name}", ("name", name));
+            }
         }
+        return true;
+    }
+
+    // 否则加载目录下的所有插件
+    try {
+        for (const auto& entry : std::filesystem::directory_iterator(m_plugin_dir)) {
+            if (entry.path().extension() == ".so") {
+                std::string name = entry.path().stem().string();
+                if (name.substr(0, 3) == "lib") {
+                    name = name.substr(3);  // 移除 "lib" 前缀
+                }
+                void* handle = nullptr;
+                std::shared_ptr<plugin> plugin;
+                if (!load_dynamic_library(name, handle, plugin)) {
+                    wlog("加载插件失败: ${path}", ("path", entry.path().string()));
+                    continue;
+                }
+                m_plugin_handles.push_back(handle);
+                if (!register_plugin(std::move(plugin))) {
+                    wlog("注册插件失败: ${name}", ("name", name));
+                }
+            }
+        }
+        return true;
+    } catch (const std::filesystem::filesystem_error& e) {
+        elog("遍历插件目录失败: ${error}", ("error", e.what()));
+        return false;
     }
 }
 
@@ -91,9 +133,6 @@ bool plugin_manager::unload_plugin(const std::string& name) {
         wlog("插件'${name}'未找到，无法卸载", ("name", name));
         return false;
     }
-
-    // 停止插件
-    it->second->stop();
     
     // 移除
     m_plugins.erase(it);
@@ -101,15 +140,12 @@ bool plugin_manager::unload_plugin(const std::string& name) {
     // 注意：不卸载动态库，因为不容易找到对应的句柄
     // 在析构函数中统一卸载所有动态库
     
-    ilog("卸载插件'${name}'成功", ("name", name));
+    dlog("卸载插件: ${name}", ("name", name));
     return true;
 }
 
 void plugin_manager::unload_all_plugins() {
-    // 停止所有插件
-    stop_plugins();
-    
-    // 清空插件映射
+    dlog("卸载所有插件");
     m_plugins.clear();
     
     // 卸载所有动态库
@@ -120,54 +156,19 @@ void plugin_manager::unload_all_plugins() {
     }
     
     m_plugin_handles.clear();
-    
-    ilog("已卸载所有插件");
 }
 
-/**
- * @brief 初始化加载的所有插件
- * @param factory 服务工厂实例
- * @return 如果所有插件都成功初始化则返回true，否则返回false
- */
 bool plugin_manager::init_plugins(service_factory& factory) {
     bool all_success = true;
     
     for (auto& [name, plugin] : m_plugins) {
-        ilog("初始化插件: ${name}", ("name", plugin->get_info().name));
         if (!plugin->init(factory)) {
-            elog("初始化插件'${name}'失败", ("name", plugin->get_info().name));
+            elog("初始化插件失败: ${name}", ("name", name));
             all_success = false;
-            // 继续初始化其他插件
         }
     }
     
     return all_success;
-}
-
-bool plugin_manager::start_plugins() {
-    for (auto& [name, plugin] : m_plugins) {
-        ilog("启动插件'${name}'", ("name", name));
-        if (!plugin->start()) {
-            elog("启动插件'${name}'失败", ("name", name));
-            return false;
-        }
-    }
-    
-    return true;
-}
-
-bool plugin_manager::stop_plugins() {
-    bool success = true;
-    
-    for (auto& [name, plugin] : m_plugins) {
-        ilog("停止插件'${name}'", ("name", name));
-        if (!plugin->stop()) {
-            elog("停止插件'${name}'失败", ("name", name));
-            success = false;
-        }
-    }
-    
-    return success;
 }
 
 std::vector<std::string> plugin_manager::get_loaded_plugins() const {
@@ -233,7 +234,6 @@ bool plugin_manager::load_dynamic_library(
     plugin = std::shared_ptr<mc::plugin>(raw_plugin, 
         [destroy_func](mc::plugin* p) { destroy_func(p); });
     
-    ilog("成功加载插件库: ${path}", ("path", lib_path));
     return true;
 }
 

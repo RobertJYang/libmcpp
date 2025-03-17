@@ -21,6 +21,7 @@
 #include <memory>
 #include <string>
 #include <unordered_map>
+#include <vector>
 
 namespace mc {
 
@@ -37,13 +38,19 @@ public:
     bool init();
 
     // 监督器创建和获取
-    std::shared_ptr<supervisor> create_supervisor(const supervisor_config& config);
+    std::shared_ptr<supervisor> create_supervisor(const config::supervisor_config& config);
     std::shared_ptr<supervisor> get_supervisor(const std::string& name) const;
     std::shared_ptr<supervisor> get_root_supervisor() const;
+    bool add_supervisor(const std::string& name, std::shared_ptr<supervisor> supervisor);
 
     // 监督器生命周期管理
     bool start_supervisors();
     bool stop_supervisors();
+
+    // 从配置初始化监督器
+    bool initialize_from_configs(
+        const std::vector<config::supervisor_config>& configs,
+        std::unordered_map<std::string, std::shared_ptr<supervisor>>& supervisors_map);
 
 private:
     // 成员变量

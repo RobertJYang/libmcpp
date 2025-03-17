@@ -45,7 +45,12 @@ public:
     
     // 插件加载和卸载
     bool load_plugin(const std::string& name);
-    void load_plugins(const std::vector<std::string>& plugin_names);
+    /**
+     * @brief 加载插件
+     * @param plugin_names 要加载的插件名称列表，如果为空则加载目录下的所有插件
+     * @return 是否加载成功
+     */
+    bool load_plugins(const std::vector<std::string>& plugin_names);
     bool unload_plugin(const std::string& name);
     void unload_all_plugins();
     

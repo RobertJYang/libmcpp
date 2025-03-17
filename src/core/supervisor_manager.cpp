@@ -29,11 +29,12 @@ supervisor_manager::~supervisor_manager() {
 // 初始化
 bool supervisor_manager::init() {
     // 创建根监督器
-    supervisor_config config;
-    config.name = "root";
-    config.strategy = supervisor_strategy::one_for_one;
+    config::supervisor_config config;
+    config.api_version = "v1";
+    config.kind = "Supervisor";
+    config.meta.name = "main";  // 使用 main 作为默认监督器名称
+    config.strategy = config::supervisor_strategy::one_for_one;
     config.max_restarts = 10;
-    config.restart_period = std::chrono::seconds(5);
     
     m_root_supervisor = std::make_shared<default_supervisor>();
     if (!m_root_supervisor->init(config)) {
@@ -41,15 +42,16 @@ bool supervisor_manager::init() {
         return false;
     }
     
-    m_supervisors["root"] = m_root_supervisor;
+    m_supervisors["main"] = m_root_supervisor;  // 使用 main 作为默认监督器名称
+    ilog("初始化根监督器成功: ${name}", ("name", config.meta.name));
     return true;
 }
 
 // 创建监督器
-supervisor_ptr supervisor_manager::create_supervisor(const supervisor_config& config) {
+supervisor_ptr supervisor_manager::create_supervisor(const config::supervisor_config& config) {
     // 检查监督器是否已存在
-    if (m_supervisors.find(config.name) != m_supervisors.end()) {
-        elog("错误: 监督器 '${name}' 已存在", ("name", config.name));
+    if (m_supervisors.find(config.meta.name) != m_supervisors.end()) {
+        elog("错误: 监督器 '${name}' 已存在", ("name", config.meta.name));
         return nullptr;
     }
     
@@ -57,15 +59,15 @@ supervisor_ptr supervisor_manager::create_supervisor(const supervisor_config& co
         // 创建监督器
         auto supervisor = std::make_shared<default_supervisor>();
         if (!supervisor->init(config)) {
-            elog("错误: 初始化监督器 '${name}' 失败", ("name", config.name));
+            elog("错误: 初始化监督器 '${name}' 失败", ("name", config.meta.name));
             return nullptr;
         }
         
         // 添加到监督器列表
-        m_supervisors[config.name] = supervisor;
+        m_supervisors[config.meta.name] = supervisor;
         return supervisor;
     } catch (const std::exception& e) {
-        elog("错误: 创建监督器 '${name}' 失败: ${error}", ("name", config.name)("error", e.what()));
+        elog("错误: 创建监督器 '${name}' 失败: ${error}", ("name", config.meta.name)("error", e.what()));
         return nullptr;
     }
 }
@@ -77,6 +79,27 @@ supervisor_ptr supervisor_manager::get_supervisor(const std::string& name) const
         return it->second;
     }
     return nullptr;
+}
+
+// 获取根监督器
+supervisor_ptr supervisor_manager::get_root_supervisor() const {
+    return m_root_supervisor;
+}
+
+// 添加监督器
+bool supervisor_manager::add_supervisor(const std::string& name, std::shared_ptr<supervisor> supervisor) {
+    if (!supervisor) {
+        elog("错误: 监督器指针为空");
+        return false;
+    }
+
+    if (m_supervisors.find(name) != m_supervisors.end()) {
+        elog("错误: 监督器 '${name}' 已存在", ("name", name));
+        return false;
+    }
+
+    m_supervisors[name] = supervisor;
+    return true;
 }
 
 // 启动所有监督器
@@ -115,6 +138,27 @@ bool supervisor_manager::stop_supervisors() {
     }
     
     return success;
+}
+
+bool supervisor_manager::initialize_from_configs(
+    const std::vector<config::supervisor_config>& configs,
+    std::unordered_map<std::string, std::shared_ptr<supervisor>>& supervisors_map) {
+    
+    for (const auto& sup_config : configs) {
+        auto supervisor = std::make_shared<default_supervisor>();
+        if (!supervisor->init(sup_config)) {
+            elog("初始化监督器失败: ${name}", ("name", sup_config.meta.name));
+            continue;
+        }
+        supervisors_map[sup_config.meta.name] = supervisor;
+        add_supervisor(sup_config.meta.name, supervisor);
+        dlog("添加监督器: ${name}, 策略: ${strategy}, 最大重启次数: ${max_restarts}",
+             ("name", sup_config.meta.name)
+             ("strategy", static_cast<int>(sup_config.strategy))
+             ("max_restarts", sup_config.max_restarts));
+    }
+    
+    return true;
 }
 
 } // namespace mc 

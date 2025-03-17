@@ -1,0 +1,101 @@
+[
+  {
+    "api_version": "v1",
+    "kind": "Application",
+    "meta": {
+      "name": "test-app",
+      "labels": {
+        "app": "test",
+        "env": "dev"
+      }
+    },
+    "plugin_dir": "./plugins",
+    "plugins": ["example_plugin"],
+    "threads": 4
+  },
+  {
+    "api_version": "v1",
+    "kind": "Supervisor",
+    "meta": {
+      "name": "main",
+      "annotations": {
+        "description": "主监督器，负责核心服务"
+      }
+    },
+    "strategy": "one_for_one",
+    "max_restarts": 3,
+    "services": ["service1", "service2"]
+  },
+  {
+    "api_version": "v1",
+    "kind": "Supervisor",
+    "meta": {
+      "name": "worker",
+      "annotations": {
+        "description": "工作监督器，负责后台任务"
+      }
+    },
+    "strategy": "rest_for_one",
+    "max_restarts": 5,
+    "services": ["worker_service"]
+  },
+  {
+    "api_version": "v1",
+    "kind": "Service",
+    "meta": {
+      "name": "service1",
+      "labels": {
+        "supervisor": "main"
+      }
+    },
+    "type": "example",
+    "dependencies": [],
+    "properties": {
+      "message": "Hello from service1!",
+      "repeat_count": 2
+    }
+  },
+  {
+    "api_version": "v1",
+    "kind": "Service",
+    "meta": {
+      "name": "service2",
+      "labels": {
+        "supervisor": "main"
+      }
+    },
+    "type": "example",
+    "dependencies": ["service1"],
+    "properties": {
+      "message": "Hello from service2!",
+      "repeat_count": 3
+    }
+  },
+  {
+    "api_version": "v1",
+    "kind": "Service",
+    "meta": {
+      "name": "worker_service",
+      "labels": {
+        "supervisor": "worker"
+      }
+    },
+    "type": "example",
+    "dependencies": [],
+    "properties": {
+      "message": "Hello from worker service!",
+      "repeat_count": 1
+    }
+  },
+  {
+    "api_version": "v1",
+    "kind": "Plugin",
+    "meta": {
+      "name": "example_plugin"
+    },
+    "version": "1.0.0",
+    "properties": {
+      "enabled": true
+    }
+  }
+] 
