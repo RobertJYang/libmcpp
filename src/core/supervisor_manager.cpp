@@ -141,8 +141,7 @@ bool supervisor_manager::stop_supervisors() {
 }
 
 bool supervisor_manager::initialize_from_configs(
-    const std::vector<config::supervisor_config>& configs,
-    std::unordered_map<std::string, std::shared_ptr<supervisor>>& supervisors_map) {
+    const std::vector<config::supervisor_config>& configs) {
     
     for (const auto& sup_config : configs) {
         auto supervisor = std::make_shared<default_supervisor>();
@@ -150,7 +149,6 @@ bool supervisor_manager::initialize_from_configs(
             elog("初始化监督器失败: ${name}", ("name", sup_config.meta.name));
             continue;
         }
-        supervisors_map[sup_config.meta.name] = supervisor;
         add_supervisor(sup_config.meta.name, supervisor);
         dlog("添加监督器: ${name}, 策略: ${strategy}, 最大重启次数: ${max_restarts}",
              ("name", sup_config.meta.name)

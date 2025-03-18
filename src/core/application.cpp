@@ -165,7 +165,7 @@ bool application::initialize_supervisors(bool config_loaded) {
     auto supervisor_configs = m_config_manager->get_configs<config::supervisor_config>();
     ilog("加载监督器配置，共 ${count} 个", ("count", supervisor_configs.size()));
     
-    return m_supervisor_manager->initialize_from_configs(supervisor_configs, m_supervisors);
+    return m_supervisor_manager->initialize_from_configs(supervisor_configs);
 }
 
 bool application::initialize_services(bool config_loaded) {
@@ -183,8 +183,8 @@ bool application::initialize_services(bool config_loaded) {
     }
 
     return m_service_manager->initialize_from_configs(
-        m_config_manager->get_configs<config::service_config>(),
-        m_supervisors,
+        *m_config_manager,
+        *m_supervisor_manager,
         *m_service_factory
     );
 }

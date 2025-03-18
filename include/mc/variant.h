@@ -606,7 +606,7 @@ public:
      * @brief 从 std::optional 构造 variant
      */
     template <typename T>
-    variant(const std::optional<T>& v) {
+    variant(const std::optional<T>& v): variant() {
         if (v.has_value()) {
             *this = variant(v.value());
         }

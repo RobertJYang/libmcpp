@@ -94,6 +94,13 @@ public:
     bool load_config_file(const std::string& file_path = "");
     
     /**
+     * @brief 添加配置
+     * @param config 配置对象
+     * @return 添加成功返回true，失败返回false
+     */
+    bool add_config(const variant& config);
+    
+    /**
      * @brief 获取配置对象
      * @tparam T 配置类型
      * @param name 配置名称

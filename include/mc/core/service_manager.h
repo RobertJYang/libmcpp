@@ -28,6 +28,8 @@
 #include "mc/core/service.h"
 #include "mc/core/service_factory.h"
 #include "mc/core/supervisor.h"
+#include "mc/core/supervisor_manager.h"
+#include "mc/core/config_manager.h"
 
 namespace mc {
 
@@ -57,8 +59,8 @@ public:
     
     // 从配置初始化服务
     bool initialize_from_configs(
-        const std::vector<config::service_config>& configs,
-        const std::unordered_map<std::string, std::shared_ptr<supervisor>>& supervisors,
+        config_manager& config_mgr,
+        supervisor_manager& supervisor_mgr,
         service_factory& factory);
     
     // 获取服务

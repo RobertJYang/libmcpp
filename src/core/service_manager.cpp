@@ -189,13 +189,16 @@ std::vector<std::string> service_manager::topological_sort(const std::unordered_
 
 // 从配置初始化服务
 bool service_manager::initialize_from_configs(
-    const std::vector<config::service_config>& configs,
-    const std::unordered_map<std::string, std::shared_ptr<supervisor>>& supervisors,
+    config_manager& config_mgr,
+    supervisor_manager& supervisor_mgr,
     service_factory& factory) {
     
     // 清理现有服务
     m_services.clear();
     m_service_start_order.clear();
+    
+    // 获取服务配置
+    const auto& configs = config_mgr.get_configs<config::service_config>();
     
     // 构建服务依赖图
     std::unordered_map<std::string, service_node> graph;
@@ -227,20 +230,16 @@ bool service_manager::initialize_from_configs(
     bool success = true;
     for (const auto& name : m_service_start_order) {
         // 查找对应的配置
-        auto it = std::find_if(configs.begin(), configs.end(),
-            [&name](const config::service_config& config) {
-                return config.meta.name == name;
-            });
-        
-        if (it == configs.end()) {
+        auto config = config_mgr.get_config<config::service_config>(name);
+        if (!config) {
             elog("找不到服务 '${name}' 的配置", ("name", name));
             success = false;
             continue;
         }
         
         // 查找监督器
-        auto supervisor_it = supervisors.find(it->meta.labels->at("supervisor").as<std::string>());
-        if (supervisor_it == supervisors.end()) {
+        auto supervisor = supervisor_mgr.get_supervisor(config->meta.labels->at("supervisor").as<std::string>());
+        if (!supervisor) {
             elog("找不到服务 '${name}' 的监督器", ("name", name));
             success = false;
             continue;
@@ -248,7 +247,7 @@ bool service_manager::initialize_from_configs(
         
         // 创建服务
         try {
-            auto service = factory.create_service(it->type, name, it->properties);
+            auto service = factory.create_service(config->type, name, config->properties);
             if (!service) {
                 elog("创建服务 '${name}' 失败", ("name", name));
                 success = false;
@@ -256,7 +255,7 @@ bool service_manager::initialize_from_configs(
             }
             
             // 设置监督器
-            service->set_supervisor(supervisor_it->second);
+            service->set_supervisor(supervisor);
             
             // 添加到服务列表
             m_services[name] = service;

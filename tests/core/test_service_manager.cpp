@@ -15,6 +15,8 @@
 #include <mc/core/config_schema.h>
 #include <mc/core/service_factory.h>
 #include <mc/core/supervisor.h>
+#include <mc/core/supervisor_manager.h>
+#include <mc/core/config_manager.h>
 #include <mc/variant.h>
 #include <mc/dict.h>
 
@@ -23,6 +25,8 @@ using namespace mc;
 // 测试辅助函数：创建服务配置
 config::service_config make_service_config(const std::string& name, const std::vector<std::string>& deps) {
     config::service_config cfg;
+    cfg.api_version = "v1";
+    cfg.kind = "Service";
     cfg.meta.name = name;
     cfg.meta.labels = dict{{"supervisor", "main"}};
     cfg.type = "test";
@@ -107,13 +111,22 @@ public:
 class service_manager_test : public ::testing::Test {
 protected:
     void SetUp() override {
-        supervisors["main"] = std::make_shared<test_supervisor>();
+        supervisor_mgr.add_supervisor("main", std::make_shared<test_supervisor>());
         factory = std::make_shared<test_service_factory>();
     }
 
-    std::unordered_map<std::string, std::shared_ptr<supervisor>> supervisors;
+    void add_configs(const std::vector<config::service_config>& configs) {
+        for (const auto& config : configs) {
+            variant v;
+            to_variant(config, v);
+            config_mgr.add_config(v);
+        }
+    }
+
+    supervisor_manager supervisor_mgr;
     std::shared_ptr<service_factory> factory;
     service_manager manager;
+    config_manager config_mgr;
 };
 
 // 测试无依赖的服务
@@ -124,7 +137,8 @@ TEST_F(service_manager_test, no_dependencies) {
         make_service_config("service3", {})
     };
     
-    ASSERT_TRUE(manager.initialize_from_configs(configs, supervisors, *factory));
+    add_configs(configs);
+    ASSERT_TRUE(manager.initialize_from_configs(config_mgr, supervisor_mgr, *factory));
     
     // 获取服务名称列表，顺序不重要
     auto names = manager.get_service_names();
@@ -141,7 +155,8 @@ TEST_F(service_manager_test, simple_dependency) {
         make_service_config("service1", {})  // service1 无依赖
     };
     
-    ASSERT_TRUE(manager.initialize_from_configs(configs, supervisors, *factory));
+    add_configs(configs);
+    ASSERT_TRUE(manager.initialize_from_configs(config_mgr, supervisor_mgr, *factory));
     
     // 启动服务，验证启动顺序
     ASSERT_TRUE(manager.start_services());
@@ -164,7 +179,8 @@ TEST_F(service_manager_test, multiple_dependencies) {
         make_service_config("service1", {})  // service1 无依赖
     };
     
-    ASSERT_TRUE(manager.initialize_from_configs(configs, supervisors, *factory));
+    add_configs(configs);
+    ASSERT_TRUE(manager.initialize_from_configs(config_mgr, supervisor_mgr, *factory));
     
     // 启动服务，验证启动顺序
     ASSERT_TRUE(manager.start_services());
@@ -191,7 +207,8 @@ TEST_F(service_manager_test, multiple_dependency_chains) {
         make_service_config("service3", {})
     };
     
-    ASSERT_TRUE(manager.initialize_from_configs(configs, supervisors, *factory));
+    add_configs(configs);
+    ASSERT_TRUE(manager.initialize_from_configs(config_mgr, supervisor_mgr, *factory));
     
     // 启动服务，验证启动顺序
     ASSERT_TRUE(manager.start_services());
@@ -218,6 +235,6 @@ TEST_F(service_manager_test, circular_dependency) {
         make_service_config("service2", {"service1"})   // service2 依赖 service1，形成循环
     };
     
-    // 初始化应该失败，因为存在循环依赖
-    ASSERT_FALSE(manager.initialize_from_configs(configs, supervisors, *factory));
+    add_configs(configs);
+    ASSERT_FALSE(manager.initialize_from_configs(config_mgr, supervisor_mgr, *factory));
 } 

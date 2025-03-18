@@ -48,9 +48,7 @@ public:
     bool stop_supervisors();
 
     // 从配置初始化监督器
-    bool initialize_from_configs(
-        const std::vector<config::supervisor_config>& configs,
-        std::unordered_map<std::string, std::shared_ptr<supervisor>>& supervisors_map);
+    bool initialize_from_configs(const std::vector<config::supervisor_config>& configs);
 
 private:
     // 成员变量

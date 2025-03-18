@@ -173,6 +173,38 @@ void config_manager::process_config(const variant& config) {
     }
     
     std::string kind = dict_config["kind"].as<std::string>();
+    
+    // 验证配置
+    bool valid = false;
+    try {
+        if (kind == "Application") {
+            config::app_config app;
+            from_variant(config, app);
+            valid = config::config_validator::validate_app_config(app);
+        } else if (kind == "Supervisor") {
+            config::supervisor_config supervisor;
+            from_variant(config, supervisor);
+            valid = config::config_validator::validate_supervisor_config(supervisor);
+        } else if (kind == "Service") {
+            config::service_config service;
+            from_variant(config, service);
+            valid = config::config_validator::validate_service_config(service);
+        } else if (kind == "Plugin") {
+            config::plugin_config plugin;
+            from_variant(config, plugin);
+            valid = config::config_validator::validate_plugin_config(plugin);
+        } else {
+            MC_THROW(mc::parse_error_exception, "未知类型：${kind}", ("kind", kind));
+        }
+    } catch (const std::exception& e) {
+        elog("配置验证失败: ${error}", ("error", e.what()));
+        return;
+    }
+    
+    if (!valid) {
+        return;
+    }
+    
     m_configs[kind].push_back(config);
     
     if (kind == "Application") {
@@ -180,18 +212,16 @@ void config_manager::process_config(const variant& config) {
         config::app_config app;
         try {
             from_variant(config, app);
-            if (config::config_validator::validate_app_config(app)) {
-                // 更新插件目录和线程数量
-                if (!app.plugin_dir.empty()) {
-                    m_plugin_dir = app.plugin_dir;
-                }
-                if (app.threads > 0) {
-                    m_thread_count = app.threads;
-                }
-                // 更新插件列表
-                if (!app.plugins.empty()) {
-                    m_plugin_names = app.plugins;
-                }
+            // 更新插件目录和线程数量
+            if (!app.plugin_dir.empty()) {
+                m_plugin_dir = app.plugin_dir;
+            }
+            if (app.threads > 0) {
+                m_thread_count = app.threads;
+            }
+            // 更新插件列表
+            if (!app.plugins.empty()) {
+                m_plugin_names = app.plugins;
             }
         } catch (const std::exception& e) {
             elog("解析应用程序配置失败: ${error}", ("error", e.what()));
@@ -222,6 +252,17 @@ std::string config_manager::get_plugin_dir() const {
 // 获取线程数
 unsigned int config_manager::get_thread_count() const {
     return m_thread_count;
+}
+
+// 添加配置
+bool config_manager::add_config(const variant& config) {
+    try {
+        process_config(config);
+        return true;
+    } catch (const std::exception& e) {
+        elog("添加配置失败: ${error}", ("error", e.what()));
+        return false;
+    }
 }
 
 } // namespace mc 
