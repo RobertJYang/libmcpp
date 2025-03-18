@@ -22,7 +22,7 @@
 #include "mc/core/service_factory.h"
 #include "mc/core/service_manager.h"
 #include "mc/core/supervisor_manager.h"
-#include "mc/core/singleton.h"
+#include "mc/singleton.h"
 #include <boost/asio.hpp>
 #include <memory>
 #include <string>

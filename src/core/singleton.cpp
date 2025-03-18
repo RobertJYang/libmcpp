@@ -10,7 +10,7 @@
  * See the Mulan PSL v2 for more details.
  */
 
-#include "mc/core/singleton.h"
+#include "mc/singleton.h"
 #include <iostream>
 #include <algorithm>
 #include <mc/log.h>
