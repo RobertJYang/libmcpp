@@ -12,28 +12,35 @@
 
 /**
  * @file service_manager.h
- * @brief 服务管理器，负责服务的注册、创建和管理
+ * @brief 服务管理器，负责服务实例的管理
  */
 #ifndef MC_SERVICE_MANAGER_H
 #define MC_SERVICE_MANAGER_H
 
-#include "mc/core/service.h"
-#include <boost/program_options.hpp>
-#include <functional>
 #include <memory>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
+#include <vector>
+
+#include "mc/core/config_schema.h"
+#include "mc/core/service.h"
+#include "mc/core/service_factory.h"
+#include "mc/core/supervisor.h"
+#include "mc/core/supervisor_manager.h"
+#include "mc/core/config_manager.h"
 
 namespace mc {
 
-namespace po = boost::program_options;
-
-/**
- * @brief 服务类型信息结构体
- */
-struct service_type_info {
-    std::function<std::shared_ptr<service>()> factory;                                      // 服务工厂函数
-    std::function<void(po::options_description&, po::options_description&)> register_options;  // 配置选项注册函数
+// 服务依赖图节点
+struct service_node {
+    std::string name;
+    std::string type;
+    std::string supervisor;
+    config::service_config config;
+    std::unordered_set<std::string> dependents;  // 依赖此服务的服务
+    std::unordered_set<std::string> dependencies; // 此服务依赖的服务
+    int in_degree = 0;  // 入度，用于拓扑排序
 };
 
 /**
@@ -41,30 +48,59 @@ struct service_type_info {
  */
 class service_manager {
 public:
-    // 构造和析构
-    service_manager();
+    // 构造函数
+    service_manager() = default;
+    
+    // 析构函数
     ~service_manager();
-
-    // 服务类型注册
-    bool register_service(const std::string& type, 
-                         std::function<std::shared_ptr<service>()> factory,
-                         std::function<void(po::options_description&, po::options_description&)> register_options);
-
-    // 服务创建和获取
-    std::shared_ptr<service> create_service(const std::string& type, const service_config& config);
+    
+    // 从配置初始化服务
+    bool initialize_from_configs(
+        config_manager& config_mgr,
+        supervisor_manager& supervisor_mgr,
+        service_factory& factory);
+    
+    // 获取服务
     std::shared_ptr<service> get_service(const std::string& name) const;
+    
+    // 清理服务
+    void cleanup_services();
 
-    // 配置选项收集
-    void collect_options(po::options_description& cli_opts, po::options_description& cfg_opts) const;
+    // 添加服务
+    bool add_service(const std::string& name, std::shared_ptr<service> service_instance);
 
-    // 服务生命周期管理
+    // 移除服务
+    bool remove_service(const std::string& name);
+
+    // 获取所有服务名称
+    std::vector<std::string> get_service_names() const;
+
+    // 启动所有服务
     bool start_services();
+
+    // 停止所有服务
     bool stop_services();
 
+    // 检查服务是否存在
+    bool has_service(const std::string& name) const;
+
 private:
-    // 成员变量
-    std::unordered_map<std::string, service_type_info> m_service_types;  // 服务类型注册表
-    std::unordered_map<std::string, std::shared_ptr<service>> m_services;  // 服务实例表
+    std::unordered_map<std::string, std::shared_ptr<service>> m_services;
+    std::vector<std::string> m_service_start_order;
+    
+    // 构建服务依赖图
+    std::unordered_map<std::string, service_node> build_dependency_graph(
+        const std::vector<config::service_config>& configs);
+    
+    // 创建单个服务实例
+    bool create_service_instance(
+        const std::string& name,
+        config_manager& config_mgr,
+        supervisor_manager& supervisor_mgr,
+        service_factory& factory);
+    
+    // 拓扑排序，返回服务名称列表
+    std::vector<std::string> topological_sort(const std::unordered_map<std::string, service_node>& graph);
 };
 
 } // namespace mc

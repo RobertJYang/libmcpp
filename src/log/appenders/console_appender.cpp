@@ -13,6 +13,8 @@
 #include <mc/exception.h>
 #include <mc/log/appenders/console_appender.h>
 #include <mc/log/log_message.h>
+#include <mc/filesystem.h>
+#include <mc/time.h>
 #include <mc/reflect.h>
 #include <mc/string.h>
 #include <mc/variant.h>
@@ -92,19 +94,6 @@ static const char* get_console_color(console_appender::color_type clr) {
     }
 }
 
-// 固定宽度字符串
-std::string fixed_width(size_t width, const std::string& str) {
-    if (str.size() == width) {
-        return str;
-    }
-    if (str.size() > width) {
-        return str.substr(0, width);
-    }
-    std::string result = str;
-    result.append(width - str.size(), ' ');
-    return result;
-}
-
 void console_appender::append(const message& msg) {
     std::lock_guard<std::mutex> lock(m_impl->mutex);
 
@@ -114,48 +103,50 @@ void console_appender::append(const message& msg) {
     // 获取上下文信息
     const context& ctx = msg.get_context();
 
-    // 构建日志行
+    // 构建日志行 - 预分配足够的空间避免重新分配
     std::string line;
-    line.reserve(256);
+    line.reserve(512);  // 增加预留空间，避免多次重分配
 
     // 格式化日志消息
-    // 详细格式，包含时间、级别、文件等信息
-    // 日志级别
-    line += fixed_width(5, to_string(msg.get_level()));
-    line += ' ';
+    // 日志级别 (5字符宽度)
+    mc::string::fixed_width_append(line, 5, mc::log::to_string(msg.get_level()));
+    line.push_back(' ');
 
     // 时间戳（使用当前时间而不是消息时间，避免长时间处理导致的时间差）
-    auto    now        = std::chrono::system_clock::now();
-    auto    time_t_now = std::chrono::system_clock::to_time_t(now);
-    std::tm tm_now;
-    localtime_r(&time_t_now, &tm_now);
-    char time_buf[20];
-    std::strftime(time_buf, sizeof(time_buf), "%Y-%m-%d %H:%M:%S", &tm_now);
-    line += time_buf;
-    line += ' ';
+    std::string_view time_str = mc::time_point::now();
+    line.append(time_str);
+    line.push_back(' ');
 
-    // 文件和行号
-    std::string file_line = ctx.m_file.empty() ? "unknown" : ctx.m_file.substr(0, 20);
-    file_line += ':';
-    file_line += std::to_string(ctx.m_line);
-    line += fixed_width(30, file_line);
-    line += ' ';
+    // 文件和行号 (25字符宽度)
+    std::string file_line;
+    file_line.reserve(64);  // 预分配足够空间
 
-    // 函数名
+    if (ctx.m_file.empty()) {
+        file_line.append("unknown");
+    } else {
+        file_line.append(mc::filesystem::basename(ctx.m_file));
+    }
+    file_line.push_back(':');
+    file_line.append(std::to_string(ctx.m_line));
+    
+    mc::string::fixed_width_append(line, 25, file_line);
+    line.push_back(' ');
+
+    // 函数名 (20字符宽度)
     if (!ctx.m_function.empty()) {
-        std::string func = ctx.m_function;
+        std::string_view func_view(ctx.m_function);
         // 去除命名空间前缀
-        size_t pos = func.find_last_of(':');
-        if (pos != std::string::npos && pos + 1 < func.size()) {
-            func = func.substr(pos + 1);
+        size_t pos = func_view.find_last_of(':');
+        if (pos != std::string::npos && pos + 1 < func_view.size()) {
+            func_view = func_view.substr(pos + 1);
         }
-        line += fixed_width(20, func);
-        line += ' ';
+        mc::string::fixed_width_append(line, 20, func_view);
+        line.push_back(' ');
     }
 
     // 消息内容
-    line += "| ";
-    line += msg.get_message();
+    line.append("| ");
+    line.append(msg.get_message());
 
     // 输出带颜色的日志
     color_type text_color = m_impl->level_colors[static_cast<int>(msg.get_level())];

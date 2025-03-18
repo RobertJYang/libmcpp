@@ -155,6 +155,12 @@ variant::variant(std::string val) : variant() {
     m_string_ptr = new std::string(std::move(val));
 }
 
+// 从 std::string_view 构造
+variant::variant(std::string_view val) : variant() {
+    m_type       = type_id::string_type;
+    m_string_ptr = new std::string(val);
+}
+
 // 从 dict 构造
 variant::variant(dict obj) : variant() {
     m_type       = type_id::object_type;

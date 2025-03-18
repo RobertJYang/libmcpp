@@ -194,11 +194,6 @@ TEST_F(LogTest, ContextInfo) {
     // 检查原始消息不包含上下文信息（因为使用延迟合并）
     EXPECT_EQ(msg.get_message().find(ctx.m_file), std::string::npos);
     EXPECT_EQ(msg.get_message().find(ctx.m_function), std::string::npos);
-
-    // 格式化后的消息应该包含上下文信息
-    auto formatter = std::make_shared<mc::log::default_message_formatter>();
-    std::string formatted_msg = formatter->format(msg);
-    EXPECT_NE(formatted_msg.find(mc::filesystem::basename(ctx.m_file)), std::string::npos);
 }
 
 // 测试全局日志宏

@@ -18,13 +18,15 @@
 #define MC_APPLICATION_H
 
 #include "mc/core/config_manager.h"
-#include "mc/core/module_manager.h"
+#include "mc/core/plugin_manager.h"
+#include "mc/core/service_factory.h"
 #include "mc/core/service_manager.h"
 #include "mc/core/supervisor_manager.h"
-#include "mc/core/singleton.h"
+#include "mc/singleton.h"
 #include <boost/asio.hpp>
 #include <memory>
 #include <string>
+#include <unordered_map>
 
 namespace mc {
 
@@ -66,7 +68,8 @@ public:
     const std::string& version() const;
 
     // 各个管理器的访问接口
-    module_manager& get_module_manager();
+    plugin_manager& get_plugin_manager();
+    service_factory& get_service_factory();
     service_manager& get_service_manager();
     config_manager& get_config_manager();
     supervisor_manager& get_supervisor_manager();
@@ -84,6 +87,9 @@ public:
     io_context_type& get_io_context();
     strand_type& get_strand();
 
+    // 重启所有服务
+    void restart_all_services();
+
 private:
     // 让singleton能够访问私有构造函数
     friend class detail::singleton_impl<application>;
@@ -93,10 +99,12 @@ private:
 
     // 成员变量
     std::string m_version;                                // 应用程序版本号
-    std::unique_ptr<module_manager> m_module_manager;     // 模块管理器
+    std::unique_ptr<plugin_manager> m_plugin_manager;     // 插件管理器
+    std::unique_ptr<service_factory> m_service_factory;   // 服务工厂
     std::unique_ptr<service_manager> m_service_manager;   // 服务管理器
     std::unique_ptr<config_manager> m_config_manager;     // 配置管理器
     std::unique_ptr<supervisor_manager> m_supervisor_manager; // 监督器管理器
+    std::unordered_map<std::string, std::shared_ptr<supervisor>> m_supervisors; // 监督器映射表
     
     // IO相关
     io_context_type m_io_context;                         // IO上下文
@@ -104,6 +112,18 @@ private:
     work_guard_type m_work_guard;                         // 工作守卫（单个即可）
     unsigned int m_thread_count;                          // 线程数量
     bool m_stopped;                                       // 停止标志
+
+    // 加载插件
+    bool load_plugins(bool json_config_loaded);
+    
+    // 初始化监督器
+    bool initialize_supervisors(bool json_config_loaded);
+    
+    // 初始化服务
+    bool initialize_services(bool json_config_loaded);
+    
+    // 停止所有服务
+    void stop_all_services();
 };
 
 // 全局访问函数

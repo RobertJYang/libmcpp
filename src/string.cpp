@@ -293,6 +293,114 @@ bool icontains(std::string_view s, std::string_view substring) {
     return false;
 }
 
+/**
+ * @brief 获取子字符串，支持负数索引
+ */
+std::string_view substr(std::string_view s, int start, int end) {
+    const std::size_t length = s.length();
+    
+    // 空字符串直接返回
+    if (length == 0) {
+        return "";
+    }
+    
+    // 调整起始位置（处理负数索引）
+    int adjusted_start = start;
+    if (adjusted_start < 0) {
+        // 负数表示从末尾计数
+        adjusted_start = static_cast<int>(length) + adjusted_start;
+    }
+    
+    // 调整结束位置（处理负数索引）
+    int adjusted_end = end;
+    if (adjusted_end < 0) {
+        // 负数表示从末尾计数
+        adjusted_end = static_cast<int>(length) + adjusted_end;
+    }
+    
+    // 边界检查
+    if (adjusted_start < 0) {
+        adjusted_start = 0;
+    }
+    if (adjusted_start >= static_cast<int>(length)) {
+        return "";
+    }
+    if (adjusted_end >= static_cast<int>(length)) {
+        adjusted_end = static_cast<int>(length) - 1;
+    }
+    if (adjusted_end < adjusted_start) {
+        return "";
+    }
+    
+    // 计算子字符串长度
+    std::size_t substr_length = adjusted_end - adjusted_start + 1;
+    
+    // 返回子字符串
+    return s.substr(adjusted_start, substr_length);
+}
+
+/**
+ * @brief 获取子字符串，第二个参数指定长度而非结束位置
+ */
+std::string_view substring(std::string_view s, int start, std::size_t length) {
+    const std::size_t str_length = s.length();
+    
+    // 空字符串直接返回
+    if (str_length == 0) {
+        return "";
+    }
+    
+    // 调整起始位置（处理负数索引）
+    int adjusted_start = start;
+    if (adjusted_start < 0) {
+        // 负数表示从末尾计数
+        adjusted_start = static_cast<int>(str_length) + adjusted_start;
+    }
+    
+    // 边界检查
+    if (adjusted_start < 0) {
+        // 如果调整后的起始位置仍为负数，表示超出了字符串的开头
+        return "";
+    }
+    if (adjusted_start >= static_cast<int>(str_length)) {
+        return "";
+    }
+    
+    // 调整长度（如果超出字符串范围）
+    if (length == std::string::npos || 
+        adjusted_start + static_cast<std::size_t>(length) > str_length) {
+        length = str_length - adjusted_start;
+    }
+    
+    // 返回子字符串
+    return s.substr(adjusted_start, length);
+}
+
+/**
+ * @brief 使用固定宽度格式化字符串，不足用空格填充，并追加到目标字符串
+ */
+void fixed_width_append(std::string& result, size_t width, std::string_view s, bool left_align) {
+    // 如果字符串长度已经超过或等于目标宽度，直接追加字符串
+    if (s.length() >= width) {
+        result.append(s.data(), width);
+        return;
+    }
+    
+    // 计算需要填充的空格数
+    size_t padding = width - s.length();
+    
+    // 根据对齐方式添加内容
+    if (left_align) {
+        // 左对齐：先添加字符串，再添加空格
+        result.append(s.data(), s.length());
+        result.append(padding, ' ');
+    } else {
+        // 右对齐：先添加空格，再添加字符串
+        result.append(padding, ' ');
+        result.append(s.data(), s.length());
+    }
+}
+
 } // namespace string
 
 // 验证键名是否合法（只能包含字母、数字、下划线，且只能以字母和下划线开头）

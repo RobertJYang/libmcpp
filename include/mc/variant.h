@@ -43,6 +43,15 @@ class variant;
 class dict;
 class mutable_dict;
 
+/**
+ * @brief 类型特征，用于识别固定长度的整数类型
+ */
+template <typename T>
+inline constexpr bool is_variant_integer_v =
+    std::is_same_v<T, bool> || std::is_same_v<T, int8_t> || std::is_same_v<T, uint8_t> ||
+    std::is_same_v<T, int16_t> || std::is_same_v<T, uint16_t> || std::is_same_v<T, int32_t> ||
+    std::is_same_v<T, uint32_t> || std::is_same_v<T, int64_t> || std::is_same_v<T, uint64_t>;
+
 // 定义 blob 类型，用于存储二进制数据
 struct blob {
     std::vector<char> data;
@@ -127,6 +136,30 @@ public:
         max_type       ///< 最大类型值（用于边界检查）
     };
 
+    // 普通整数类型转 variant 的整数类型
+    template <typename T, std::enable_if_t<std::is_integral_v<T>, int> = 0>
+    static type_id fixed_integer_type(T val) {
+        if constexpr (std::is_signed_v<T>) {
+            if constexpr (sizeof(T) == 1) {
+                return type_id::int8_type;
+            } else if constexpr (sizeof(T) == 2) {
+                return type_id::int16_type;
+            } else if constexpr (sizeof(T) == 4) {
+                return type_id::int32_type;
+            }
+            return type_id::int64_type;
+        } else {
+            if constexpr (sizeof(T) == 1) {
+                return type_id::uint8_type;
+            } else if constexpr (sizeof(T) == 2) {
+                return type_id::uint16_type;
+            } else if constexpr (sizeof(T) == 4) {
+                return type_id::uint32_type;
+            }
+            return type_id::uint64_type;
+        }
+    }
+
     /**
      * @brief 默认构造函数，创建一个空的 variant
      */
@@ -141,6 +174,20 @@ public:
      * @brief 从指定类型构造 variant
      */
     variant(type_id type);
+
+    template <typename T>
+    variant(type_id type, T val) {
+        if (std::is_signed_v<T>) {
+            m_int64 = static_cast<int64_t>(val);
+        } else if (std::is_unsigned_v<T>) {
+            m_uint64 = static_cast<uint64_t>(val);
+        } else if (std::is_floating_point_v<T>) {
+            m_double = static_cast<double>(val);
+        } else if (std::is_same_v<T, bool>) {
+            m_bool = static_cast<bool>(val);
+        }
+        m_type = type;
+    }
 
     /**
      * @brief 从各种基本类型构造 variant
@@ -160,6 +207,7 @@ public:
     variant(bool val);
     variant(blob val);
     variant(std::string val);
+    variant(std::string_view val);
     variant(dict obj);
     variant(mutable_dict obj);
     variant(variants arr);
@@ -354,6 +402,13 @@ public:
      * @brief 判断 variant 是否为对象
      */
     bool is_object() const;
+
+    /**
+     * @brief 判断 variant 是否为字典（dict），是 is_object 的别名
+     */
+    bool is_dict() const {
+        return is_object();
+    }
 
     /**
      * @brief 判断 variant 是否为数组
@@ -551,7 +606,7 @@ public:
      * @brief 从 std::optional 构造 variant
      */
     template <typename T>
-    variant(const std::optional<T>& v) {
+    variant(const std::optional<T>& v): variant() {
         if (v.has_value()) {
             *this = variant(v.value());
         }
@@ -841,7 +896,7 @@ public:
 
 template <typename T, std::enable_if_t<std::is_integral_v<T>, int> = 0>
 void to_variant(const T& var, mc::variant& vo) {
-    vo = variant(var);
+    vo = mc::variant(mc::variant::fixed_integer_type(var), var);
 }
 
 template <typename T, std::enable_if_t<std::is_integral_v<T>, int> = 0>

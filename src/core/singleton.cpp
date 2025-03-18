@@ -10,9 +10,10 @@
  * See the Mulan PSL v2 for more details.
  */
 
-#include "mc/core/singleton.h"
+#include "mc/singleton.h"
 #include <iostream>
 #include <algorithm>
+#include <mc/log.h>
 
 namespace mc {
 
@@ -58,9 +59,9 @@ void singleton_manager::destroy_instances() {
         try {
             (*it)();
         } catch (const std::exception& e) {
-            std::cerr << "单例销毁异常: " << e.what() << std::endl;
+            elog("单例销毁异常: ${error}", ("error", e.what()));
         } catch (...) {
-            std::cerr << "单例销毁未知异常" << std::endl;
+            elog("单例销毁未知异常");
         }
     }
     

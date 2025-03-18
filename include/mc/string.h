@@ -139,6 +139,60 @@ std::vector<std::string> split(std::string_view s, std::string_view delim);
 std::string join(const std::vector<std::string>& v, std::string_view delim);
 
 /**
+ * @brief 获取子字符串，支持负数索引
+ * @param s 源字符串
+ * @param start 起始位置（索引从0开始）
+ *        - 正数表示从字符串开头计数的位置（0表示第一个字符）
+ *        - 负数表示从字符串末尾计数的位置（-1表示最后一个字符）
+ * @param end 结束位置（索引从0开始，默认为-1，表示到字符串末尾）
+ *        - 正数表示从字符串开头计数的位置
+ *        - 负数表示从字符串末尾计数的位置（-1表示最后一个字符）
+ * @return 提取的子字符串
+ * 
+ * 示例:
+ * @code
+ * // 获取完整字符串
+ * std::string_view s1 = mc::string::substr("hello", 0, -1);  // "hello"
+ * 
+ * // 获取前三个字符
+ * std::string_view s2 = mc::string::substr("hello", 0, 2);   // "hel"
+ * 
+ * // 获取最后三个字符
+ * std::string_view s3 = mc::string::substr("hello", -3);     // "llo"
+ * 
+ * // 获取从第二个到倒数第二个字符
+ * std::string_view s4 = mc::string::substr("hello", 1, -2);  // "ell"
+ * @endcode
+ */
+std::string_view substr(std::string_view s, int start, int end = -1);
+
+/**
+ * @brief 获取子字符串，第二个参数指定长度而非结束位置
+ * @param s 源字符串
+ * @param start 起始位置（索引从0开始）
+ *        - 正数表示从字符串开头计数的位置（0表示第一个字符）
+ *        - 负数表示从字符串末尾计数的位置（-1表示最后一个字符）
+ * @param length 要提取的字符数量，默认为 std::string::npos 表示提取到字符串末尾
+ * @return 提取的子字符串
+ * 
+ * 示例:
+ * @code
+ * // 获取完整字符串
+ * std::string_view s1 = mc::string::substring("hello", 0);  // "hello"
+ * 
+ * // 获取前三个字符
+ * std::string_view s2 = mc::string::substring("hello", 0, 3);  // "hel"
+ * 
+ * // 获取最后三个字符
+ * std::string_view s3 = mc::string::substring("hello", -3);  // "llo"
+ * 
+ * // 获取从第二个字符开始的三个字符
+ * std::string_view s4 = mc::string::substring("hello", 1, 3);  // "ell"
+ * @endcode
+ */
+std::string_view substring(std::string_view s, int start, std::size_t length = std::string::npos);
+
+/**
  * @brief 将一个或多个值追加到字符串中
  * @param result 要追加到的字符串
  * @param value 要追加的值
@@ -171,6 +225,15 @@ void append(std::string& result, T&& value, Args&&... args) {
     append(result, std::forward<T>(value));
     append(result, std::forward<Args>(args)...);
 }
+
+/**
+ * @brief 使用固定宽度格式化字符串，不足用空格填充，并追加到目标字符串
+ * @param result 要追加结果的目标字符串
+ * @param width 目标宽度
+ * @param s 要格式化的字符串
+ * @param left_align 是否左对齐，默认为true
+ */
+void fixed_width_append(std::string& result, size_t width, std::string_view s, bool left_align = true);
 
 /**
  * @brief 检查字符串是否以指定前缀开始

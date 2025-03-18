@@ -16,18 +16,16 @@
             "externalConsole": false,
             "MIMode": "lldb"
         }, {
-            "name": "example_app",
+            "name": "examples/plugin",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/builddir/examples/example_app",
+            "program": "${workspaceFolder}/builddir/examples/plugin/example_plugin",
             "args": [
-                "-m",
-                "example",
                 "-c",
-                "${workspaceFolder}/builddir/examples/config.ini"
+                "${workspaceFolder}/builddir/examples/plugin/config.json"
             ],
             "stopAtEntry": false,
-            "cwd": "${workspaceFolder}/builddir/examples",
+            "cwd": "${workspaceFolder}/builddir/examples/plugin",
             "environment": [],
             "externalConsole": false,
             "MIMode": "lldb"

@@ -4,8 +4,10 @@ src_files = [
   'exception.cpp',
   'core/application.cpp',
   'core/default_supervisor.cpp',
+  'core/dependency_sorter.cpp',
   'core/config_manager.cpp',
-  'core/module_manager.cpp',
+  'core/config_validator.cpp',
+  'core/plugin_manager.cpp',
   'core/service_manager.cpp',
   'core/supervisor_manager.cpp',
   'core/singleton.cpp',
@@ -23,6 +25,7 @@ src_files = [
   'filesystem.cpp',
   'json.cpp',
   'reflect.cpp',
+  'time.cpp',
 ]
 
 # 创建共享库

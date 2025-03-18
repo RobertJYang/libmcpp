@@ -8,9 +8,9 @@ int main(int argc, char** argv) {
     mc::application& app = mc::application::instance();
     app.set_version("1.0.0");
 
-    // 设置模块目录
-    std::filesystem::path module_dir = std::filesystem::current_path() / "modules";
-    app.get_module_manager().set_module_dir(module_dir);
+    // 设置插件目录
+    std::filesystem::path plugin_dir = std::filesystem::current_path() / "plugins";
+    app.get_plugin_manager().set_plugin_dir(plugin_dir);
 
     // 添加命令行参数
     std::vector<char*> new_argv;

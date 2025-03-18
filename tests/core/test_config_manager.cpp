@@ -23,8 +23,8 @@ namespace test {
 namespace po = boost::program_options;
 
 // 辅助函数：创建临时配置文件
-std::string create_temp_config_file(const std::string& content) {
-    std::string temp_file = "temp_config.ini";
+std::string create_temp_config_file(const std::string& content, const std::string& extension = ".json") {
+    std::string temp_file = "temp_config" + extension;
     std::ofstream file(temp_file);
     file << content;
     file.close();
@@ -34,10 +34,20 @@ std::string create_temp_config_file(const std::string& content) {
 // 配置文件加载测试
 TEST(ConfigManagerTest, ConfigFileLoading) {
     // 创建一个临时配置文件
-    std::string config_content = 
-        "test_option = test_value\n"
-        "int_option = 123\n"
-        "bool_option = true\n";
+    std::string config_content = R"(
+[
+  {
+    "api_version": "v1",
+    "kind": "Application",
+    "meta": {
+      "name": "test-app"
+    },
+    "plugin_dir": "./test_plugins",
+    "plugins": ["test_plugin"],
+    "threads": 4
+  }
+]
+)";
     
     std::string config_file = create_temp_config_file(config_content);
     
@@ -53,48 +63,115 @@ TEST(ConfigManagerTest, ConfigFileLoading) {
         }
     } guard{config_file};
     
-    // 加载配置文件
+    // 创建配置管理器
     config_manager config;
     
-    // 注册将要从配置文件中解析的选项
-    config.get_options().cfg.add_options()
-        ("test_option", po::value<std::string>(), "测试选项")
-        ("int_option", po::value<int>(), "整数选项")
-        ("bool_option", po::value<bool>(), "布尔选项");
+    // 加载配置文件
+    ASSERT_TRUE(config.load_config_file(config_file));
     
-    config.load_config_file(config_file);
-    
-    // 验证选项正确加载
-    EXPECT_TRUE(config.has_option("test_option"));
-    EXPECT_EQ(config.get_option<std::string>("test_option"), "test_value");
-    
-    EXPECT_TRUE(config.has_option("int_option"));
-    EXPECT_EQ(config.get_option<int>("int_option"), 123);
-    
-    EXPECT_TRUE(config.has_option("bool_option"));
-    EXPECT_TRUE(config.get_option<bool>("bool_option"));
+    // 验证配置
+    EXPECT_EQ(config.get_plugin_dir(), "./test_plugins");
+    auto plugin_names = config.get_plugin_names();
+    ASSERT_EQ(plugin_names.size(), 1);
+    EXPECT_EQ(plugin_names[0], "test_plugin");
+    EXPECT_EQ(config.get_thread_count(), 4);
 }
 
-// 静默模式测试
-TEST(ConfigManagerTest, SilentMode) {
+// 命令行参数测试
+TEST(ConfigManagerTest, CommandLineArgs) {
+    // 创建一个临时配置文件
+    std::string config_content = R"(
+[
+  {
+    "api_version": "v1",
+    "kind": "Application",
+    "meta": {
+      "name": "test-app"
+    },
+    "plugin_dir": "./default_plugins",
+    "plugins": ["default_plugin"],
+    "threads": 2
+  }
+]
+)";
+    
+    std::string config_file = create_temp_config_file(config_content);
+    
+    // 确保测试结束时清理文件
+    struct FileGuard {
+        std::string filename;
+        ~FileGuard() { 
+            try {
+                if (!filename.empty() && std::filesystem::exists(filename)) {
+                    std::filesystem::remove(filename); 
+                }
+            } catch (...) {}
+        }
+    } guard{config_file};
+    
+    // 创建配置管理器
     config_manager config;
     
-    // 设置静默模式
-    config.set_silent(true);
-    
-    // 尝试加载不存在的配置文件，应该不抛出异常
-    EXPECT_NO_THROW(config.load_config_file("nonexistent_file.ini"));
-    
-    // 尝试解析错误的命令行参数
+    // 准备命令行参数
     const char* argv[] = {
-        "program",
-        "--unknown-option" // 未知选项
+        "test_program",
+        "--config", config_file.c_str(),
+        "--plugin-dir", "./cmd_line_plugins",
+        "--plugin", "cmd_line_plugin1",
+        "--plugin", "cmd_line_plugin2",
+        "--threads", "8"
     };
     int argc = sizeof(argv) / sizeof(argv[0]);
     
-    // 应该返回成功（未知选项被忽略）
-    bool result = config.parse_command_line(argc, const_cast<char**>(argv));
-    EXPECT_TRUE(result);
+    // 解析命令行参数
+    ASSERT_TRUE(config.parse_command_line(argc, const_cast<char**>(argv)));
+    
+    // 加载配置文件
+    ASSERT_TRUE(config.load_config_file());
+    
+    // 验证命令行参数覆盖了配置文件中的值
+    EXPECT_EQ(config.get_plugin_dir(), "./cmd_line_plugins");
+    
+    auto plugin_names = config.get_plugin_names();
+    ASSERT_EQ(plugin_names.size(), 2);
+    EXPECT_EQ(plugin_names[0], "cmd_line_plugin1");
+    EXPECT_EQ(plugin_names[1], "cmd_line_plugin2");
+    
+    EXPECT_EQ(config.get_thread_count(), 8);
+}
+
+// 文件扩展名测试
+TEST(ConfigManagerTest, FileExtensions) {
+    // 创建一个临时TOML配置文件
+    std::string toml_content = R"(
+[[config]]
+api_version = "v1"
+kind = "Application"
+meta.name = "test-app"
+plugin_dir = "./test_plugins"
+plugins = ["test_plugin"]
+threads = 4
+)";
+    
+    std::string toml_file = create_temp_config_file(toml_content, ".toml");
+    
+    // 确保测试结束时清理文件
+    struct FileGuard {
+        std::string filename;
+        ~FileGuard() { 
+            try {
+                if (!filename.empty() && std::filesystem::exists(filename)) {
+                    std::filesystem::remove(filename); 
+                }
+            } catch (...) {}
+        }
+    } guard{toml_file};
+    
+    // 创建配置管理器
+    config_manager config;
+    
+    // 尝试加载TOML配置文件（应该抛出未实现异常）
+    EXPECT_THROW(config.load_config_file(toml_file), not_implemented_exception);
 }
 
 } // namespace test
