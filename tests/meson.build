@@ -1,10 +1,9 @@
 # 测试源文件列表
 test_files = [
   'main.cpp',
-  'test_object.cpp',
   'test_json.cpp',
   'test_signal_slot.cpp',
-  'test_event.cpp',
+  'test_time.cpp',
   'core/test_singleton.cpp',
   'core/test_service_manager.cpp',
   'string/test_string.cpp',

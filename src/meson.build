@@ -1,6 +1,5 @@
 # 源文件列表
 src_files = [
-  'object.cpp',
   'exception.cpp',
   'filesystem.cpp',
   'json.cpp',
@@ -20,6 +19,8 @@ src_files = [
   'core/plugin_manager.cpp',
   'core/service_manager.cpp',
   'core/supervisor_manager.cpp',
+  'core/object.cpp',
+  'core/event.cpp',
   'log/log_message.cpp',
   'log/logger.cpp',
   'log/log_manager.cpp',

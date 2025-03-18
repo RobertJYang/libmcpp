@@ -18,11 +18,13 @@
 #define MC_APPLICATION_H
 
 #include "mc/core/config_manager.h"
+#include "mc/core/object.h"
 #include "mc/core/plugin_manager.h"
 #include "mc/core/service_factory.h"
 #include "mc/core/service_manager.h"
 #include "mc/core/supervisor_manager.h"
 #include "mc/singleton.h"
+#include "mc/signal_slot.h"
 #include <boost/asio.hpp>
 #include <memory>
 #include <string>
@@ -32,8 +34,10 @@ namespace mc {
 
 /**
  * @brief 应用程序类
+ * 
+ * 继承自 object 类，使其成为对象树的根节点
  */
-class application {
+class application : public core::object {
 public:
     // 类型定义
     using io_context_type = boost::asio::io_context;
@@ -44,7 +48,10 @@ public:
     // 单例访问
     static application& instance() {
         // 使用自定义创建函数访问单例
-        static auto creator = []() { return new application(); };
+        static auto creator = []() {
+            static io_context_type io_context;
+            return new application("application", io_context);
+        };
         return singleton<application>::instance_with_creator(creator);
     }
     
@@ -61,7 +68,7 @@ public:
     application& operator=(application&&) = delete;
 
     // 析构函数
-    ~application();
+    ~application() noexcept override;
 
     // 版本管理
     void set_version(const std::string& version);
@@ -83,19 +90,37 @@ public:
     void cleanup();
     bool is_stopped() const;
 
-    // IO上下文和执行器
-    io_context_type& get_io_context();
-    strand_type& get_strand();
+    // 事件处理
+    bool handle_event(std::shared_ptr<core::event> e) override;
+
+    // 创建子系统对象
+    template <typename T, typename... Args>
+    std::shared_ptr<T> create_subsystem(const std::string& name, Args&&... args) {
+        return core::object::create<T>(name, io_context(), shared_from_this(), std::forward<Args>(args)...);
+    }
+
+    // 获取子系统对象
+    template <typename T>
+    std::shared_ptr<T> get_subsystem(const std::string& name) {
+        auto obj = find_child(name);
+        return std::dynamic_pointer_cast<T>(obj);
+    }
 
     // 重启所有服务
     void restart_all_services();
+
+    // 信号处理
+    signal<void()>& started_signal() { return m_started_signal; }
+    signal<void()>& stopped_signal() { return m_stopped_signal; }
+    signal<void()>& before_cleanup_signal() { return m_before_cleanup_signal; }
+    signal<void()>& after_cleanup_signal() { return m_after_cleanup_signal; }
 
 private:
     // 让singleton能够访问私有构造函数
     friend class detail::singleton_impl<application>;
 
     // 私有构造函数
-    application();
+    application(std::string name, io_context_type& io_context);
 
     // 成员变量
     std::string m_version;                                // 应用程序版本号
@@ -107,11 +132,16 @@ private:
     std::unordered_map<std::string, std::shared_ptr<supervisor>> m_supervisors; // 监督器映射表
     
     // IO相关
-    io_context_type m_io_context;                         // IO上下文
-    strand_type m_strand;                                 // 执行器
     work_guard_type m_work_guard;                         // 工作守卫（单个即可）
     unsigned int m_thread_count;                          // 线程数量
     bool m_stopped;                                       // 停止标志
+    bool m_running;                                       // 运行标志
+
+    // 信号
+    signal<void()> m_started_signal;                // 应用程序启动信号
+    signal<void()> m_stopped_signal;                // 应用程序停止信号
+    signal<void()> m_before_cleanup_signal;         // 清理前信号
+    signal<void()> m_after_cleanup_signal;          // 清理后信号
 
     // 加载插件
     bool load_plugins(bool config_loaded);

@@ -12,6 +12,7 @@
 
 #include "mc/core/application.h"
 #include "mc/core/default_supervisor.h"
+#include "mc/core/event.h"
 #include <boost/program_options.hpp>
 #include <iostream>
 #include <thread>
@@ -28,22 +29,22 @@ namespace mc {
 namespace po = boost::program_options;
 
 // 构造函数
-application::application()
-    : m_version("1.0.0")
+application::application(std::string name, io_context_type& io_context)
+    : core::object(std::move(name), io_context)
+    , m_version("1.0.0")
     , m_plugin_manager(std::make_unique<plugin_manager>())
     , m_service_factory(std::make_unique<service_factory>())
     , m_service_manager(std::make_unique<service_manager>())
     , m_config_manager(std::make_unique<config_manager>())
     , m_supervisor_manager(std::make_unique<supervisor_manager>())
-    , m_io_context()
-    , m_strand(m_io_context.get_executor())
-    , m_work_guard(boost::asio::make_work_guard(m_io_context))
-    , m_thread_count(std::thread::hardware_concurrency() > 0 ? std::thread::hardware_concurrency() : 1)
-    , m_stopped(false) {
+    , m_work_guard(io_context.get_executor())
+    , m_thread_count(0)
+    , m_stopped(false)
+    , m_running(false) {
 }
 
 // 析构函数
-application::~application() {
+application::~application() noexcept {
     cleanup();
 }
 
@@ -80,6 +81,18 @@ config_manager& application::get_config_manager() {
 // 获取监督器管理器
 supervisor_manager& application::get_supervisor_manager() {
     return *m_supervisor_manager;
+}
+
+// 事件处理
+bool application::handle_event(std::shared_ptr<core::event> e) {
+    // 处理应用程序级别的事件
+    if (e && e->type() == core::event::event_type::application) {
+        e->accept();
+        return true;
+    }
+    
+    // 调用父类方法处理其他事件
+    return core::object::handle_event(e);
 }
 
 // 初始化
@@ -191,6 +204,13 @@ bool application::initialize_services(bool config_loaded) {
 
 // 启动
 application& application::start() {
+    if (m_running) {
+        return *this;
+    }
+
+    m_running = true;
+    m_started_signal();
+
     // 启动监督器
     if (!m_supervisor_manager->start_supervisors()) {
         wlog("部分监督器启动失败");
@@ -209,16 +229,19 @@ application& application::start() {
 void application::exec() {
     ilog("启动应用，线程数: ${count}", ("count", m_thread_count));
     
+    // 触发启动信号
+    m_started_signal();
+    
     // 创建工作线程
     std::vector<std::thread> threads;
     for (unsigned int i = 1; i < m_thread_count; ++i) {
         threads.emplace_back([this]() {
-            m_io_context.run();
+            io_context().run();
         });
     }
     
     // 主线程也参与工作
-    m_io_context.run();
+    io_context().run();
     
     // 等待所有线程结束
     for (auto& t : threads) {
@@ -230,6 +253,13 @@ void application::exec() {
 
 // 停止
 void application::stop() {
+    if (!m_running) {
+        return;
+    }
+
+    m_running = false;
+    m_stopped_signal();
+
     if (m_stopped) {
         return;
     }
@@ -239,27 +269,49 @@ void application::stop() {
     // 停止监督器
     m_supervisor_manager->stop_supervisors();
     
+    // 停止所有服务
+    stop_all_services();
+    
     // 停止IO上下文
     m_work_guard.reset(); // 重置work guard，允许io_context在任务完成后退出
-    m_io_context.stop();
+    io_context().stop();
     
     m_stopped = true;
 }
 
 // 清理
 void application::cleanup() {
-    // 停止所有服务
-    stop();
+    if (!m_running) {
+        return;
+    }
+
+    m_before_cleanup_signal();
+
+    if (!m_stopped) {
+        stop();
+    }
     
+    // 停止服务
+    if (m_service_manager) {
+        m_service_manager->stop_services();
+    }
+    
+    // 停止监督器
+    if (m_supervisor_manager) {
+        m_supervisor_manager->stop_supervisors();
+    }
+    
+    // 停止IO上下文
+    io_context().stop();
+    
+    m_after_cleanup_signal();
+
     // 清理资源
     m_supervisor_manager.reset();
     m_service_manager.reset();
     m_service_factory.reset();
     m_plugin_manager.reset();
     m_config_manager.reset();
-    
-    // 停止IO上下文
-    m_io_context.stop();
 }
 
 // 是否已停止
@@ -267,19 +319,18 @@ bool application::is_stopped() const {
     return m_stopped;
 }
 
-// 获取IO上下文
-application::io_context_type& application::get_io_context() {
-    return m_io_context;
-}
-
-// 获取执行器
-application::strand_type& application::get_strand() {
-    return m_strand;
+void application::stop_all_services() {
+    if (m_service_manager) {
+        m_service_manager->stop_services();
+    }
 }
 
 void application::restart_all_services() {
-    for (auto& [name, supervisor] : m_supervisors) {
-        supervisor->restart_all_services();
+    if (m_service_manager) {
+        // 停止服务
+        m_service_manager->stop_services();
+        // 重新启动服务
+        m_service_manager->start_services();
     }
 }
 
