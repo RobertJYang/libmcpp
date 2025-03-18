@@ -114,13 +114,13 @@ private:
     bool m_stopped;                                       // 停止标志
 
     // 加载插件
-    bool load_plugins(bool json_config_loaded);
+    bool load_plugins(bool config_loaded);
     
     // 初始化监督器
-    bool initialize_supervisors(bool json_config_loaded);
+    bool initialize_supervisors(bool config_loaded);
     
     // 初始化服务
-    bool initialize_services(bool json_config_loaded);
+    bool initialize_services(bool config_loaded);
     
     // 停止所有服务
     void stop_all_services();
