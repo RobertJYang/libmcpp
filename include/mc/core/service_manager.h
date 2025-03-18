@@ -17,7 +17,6 @@
 #ifndef MC_SERVICE_MANAGER_H
 #define MC_SERVICE_MANAGER_H
 
-#include <boost/program_options.hpp>
 #include <memory>
 #include <string>
 #include <unordered_map>
@@ -32,8 +31,6 @@
 #include "mc/core/config_manager.h"
 
 namespace mc {
-
-namespace po = boost::program_options;
 
 // 服务依赖图节点
 struct service_node {
@@ -78,9 +75,6 @@ public:
     // 获取所有服务名称
     std::vector<std::string> get_service_names() const;
 
-    // 收集命令行选项
-    void collect_options(po::options_description& cli_opts, po::options_description& cfg_opts) const;
-
     // 启动所有服务
     bool start_services();
 
@@ -91,12 +85,22 @@ public:
     bool has_service(const std::string& name) const;
 
 private:
+    std::unordered_map<std::string, std::shared_ptr<service>> m_services;
+    std::vector<std::string> m_service_start_order;
+    
+    // 构建服务依赖图
+    std::unordered_map<std::string, service_node> build_dependency_graph(
+        const std::vector<config::service_config>& configs);
+    
+    // 创建单个服务实例
+    bool create_service_instance(
+        const std::string& name,
+        config_manager& config_mgr,
+        supervisor_manager& supervisor_mgr,
+        service_factory& factory);
+    
     // 拓扑排序，返回服务名称列表
     std::vector<std::string> topological_sort(const std::unordered_map<std::string, service_node>& graph);
-    
-    // 成员变量
-    std::unordered_map<std::string, std::shared_ptr<service>> m_services;
-    std::vector<std::string> m_service_start_order;  // 保存拓扑排序后的启动顺序
 };
 
 } // namespace mc

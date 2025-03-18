@@ -19,6 +19,7 @@
 
 #include "mc/core/supervisor.h"
 #include "mc/core/service.h"
+#include "core/include/dependency_sorter.h"
 #include <atomic>
 #include <chrono>
 #include <condition_variable>
@@ -28,6 +29,7 @@
 #include <unordered_map>
 #include <memory>
 #include <vector>
+#include <unordered_set>
 
 namespace mc {
 
@@ -126,6 +128,21 @@ private:
     
     // 获取服务停止顺序
     std::vector<std::string> get_service_stop_order(bool already_locked = false) const;
+    
+    // 收集所有依赖于指定服务的服务（包括间接依赖）
+    void collect_dependent_services(
+        const std::unordered_map<std::string, mc::core::internal::dependency_sorter::dependency_node>& graph,
+        const std::string& service_name,
+        std::unordered_set<std::string>& affected_services);
+    
+    // 启动单个服务
+    bool start_one_service(const std::string& name);
+    
+    // 停止单个服务
+    bool stop_one_service(const std::string& name);
+    
+    // 停止单个子监督器
+    bool stop_one_child_supervisor(const std::string& name);
 };
 
 } // namespace mc

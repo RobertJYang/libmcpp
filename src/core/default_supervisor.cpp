@@ -12,12 +12,14 @@
 
 #include "mc/core/default_supervisor.h"
 #include "mc/core/application.h"
+#include "core/include/dependency_sorter.h"
 #include <algorithm>
 #include <iostream>
 #include <vector>
 #include <mc/log.h>
 #include <unordered_set>
 #include <queue>
+#include <mc/string.h>
 
 namespace mc {
 
@@ -57,20 +59,26 @@ bool default_supervisor::start() {
         }
     }
     
-    // 启动服务
-    for (auto& [name, service] : m_services) {
-        try {
-            ilog("正在启动服务: ${name}", ("name", name));
-            if (!service->start()) {
-                wlog("启动服务 '${name}' 失败", ("name", name));
+    // 构建依赖图并获取启动顺序
+    auto get_dependencies = [](const service_ptr& service) -> std::vector<std::string> {
+        return service->get_dependencies();
+    };
+    
+    try {
+        auto graph = core::internal::dependency_sorter::build_dependency_graph<service_ptr>(
+            m_services, get_dependencies);
+        auto start_order = core::internal::dependency_sorter::sort_for_startup(graph);
+        
+        // 按顺序启动服务
+        for (const auto& name : start_order) {
+            if (!start_one_service(name)) {
                 success = false;
-            } else {
-                ilog("服务启动成功: ${name}", ("name", name));
+                break;  // 依赖服务启动失败，停止后续启动
             }
-        } catch (const std::exception& e) {
-            elog("启动服务 '${name}' 异常: ${error}", ("name", name)("error", e.what()));
-            success = false;
         }
+    } catch (const mc::parse_error_exception& e) {
+        elog("服务依赖关系存在循环: ${error}", ("error", e.what()));
+        success = false;
     }
     
     m_started = success;
@@ -90,35 +98,14 @@ bool default_supervisor::stop() {
     
     // 按照顺序停止服务
     for (const auto& name : stop_order) {
-        auto it = m_services.find(name);
-        if (it != m_services.end()) {
-            try {
-                ilog("正在停止服务: ${name}", ("name", name));
-                if (!it->second->stop()) {
-                    wlog("停止服务 '${name}' 失败", ("name", name));
-                    success = false;
-                } else {
-                    ilog("服务停止成功: ${name}", ("name", name));
-                }
-            } catch (const std::exception& e) {
-                elog("停止服务 '${name}' 异常: ${error}", ("name", name)("error", e.what()));
-                success = false;
-            }
+        if (!stop_one_service(name)) {
+            success = false;
         }
     }
     
     // 再停止子监督器
-    for (auto& [name, supervisor] : m_child_supervisors) {
-        try {
-            ilog("正在停止子监督器: ${name}", ("name", name));
-            if (!supervisor->stop()) {
-                wlog("停止子监督器 '${name}' 失败", ("name", name));
-                success = false;
-            } else {
-                ilog("子监督器停止成功: ${name}", ("name", name));
-            }
-        } catch (const std::exception& e) {
-            elog("停止子监督器 '${name}' 异常: ${error}", ("name", name)("error", e.what()));
+    for (const auto& [name, _] : m_child_supervisors) {
+        if (!stop_one_child_supervisor(name)) {
             success = false;
         }
     }
@@ -164,16 +151,14 @@ bool default_supervisor::add_service(service_ptr service) {
     m_services[name] = service;
     ilog("添加服务成功: ${name}", ("name", name));
     
-    // 打印监督器当前管理的所有服务
-    std::string service_list;
+    // 获取所有服务名称并用逗号分隔
+    std::vector<std::string> service_names;
     for (const auto& [name, _] : m_services) {
-        if (!service_list.empty()) {
-            service_list += ", ";
-        }
-        service_list += name;
+        service_names.push_back(name);
     }
+    
     ilog("监督器 ${name} 当前管理服务: ${services}", 
-         ("name", m_name)("services", service_list));
+         ("name", m_name)("services", mc::string::join(service_names, ", ")));
     
     return true;
 }
@@ -298,22 +283,58 @@ bool default_supervisor::restart_all_services() {
 bool default_supervisor::restart_dependent_services(const std::string& service_name) {
     std::lock_guard<std::mutex> lock(m_mutex);
     
-    bool success = true;
-    for (auto& [name, service] : m_services) {
-        // 在此只简单检查服务本身是否依赖于失败的服务
-        // 依赖关系可以在配置中指定，这里使用空列表代替(实际项目会通过配置获取)
-        const std::vector<std::string> deps; // 使用空依赖列表
+    // 构建依赖图
+    auto get_dependencies = [](const service_ptr& service) -> std::vector<std::string> {
+        return service->get_dependencies();
+    };
+    
+    try {
+        auto graph = core::internal::dependency_sorter::build_dependency_graph<service_ptr>(
+            m_services, get_dependencies);
+            
+        // 获取所有受影响的服务（直接和间接依赖）
+        std::unordered_set<std::string> affected_services;
+        collect_dependent_services(graph, service_name, affected_services);
         
-        // 如果服务依赖于失败的服务，则重启它
-        if (std::find(deps.begin(), deps.end(), service_name) != deps.end()) {
-            if (!restart_one_service(name)) {
-                wlog("重启依赖服务 '${name}' 失败", ("name", name));
-                success = false;
+        // 按依赖顺序重启服务
+        auto restart_order = core::internal::dependency_sorter::sort_for_startup(graph);
+        
+        bool success = true;
+        // 只重启受影响的服务
+        for (const auto& name : restart_order) {
+            if (affected_services.find(name) != affected_services.end()) {
+                if (!restart_one_service(name)) {
+                    wlog("重启依赖服务 '${name}' 失败", ("name", name));
+                    success = false;
+                }
             }
         }
+        
+        return success;
+    } catch (const mc::parse_error_exception& e) {
+        elog("服务依赖关系存在循环: ${error}", ("error", e.what()));
+        return false;
+    }
+}
+
+// 收集所有依赖于指定服务的服务（包括间接依赖）
+void default_supervisor::collect_dependent_services(
+    const std::unordered_map<std::string, core::internal::dependency_sorter::dependency_node>& graph,
+    const std::string& service_name,
+    std::unordered_set<std::string>& affected_services) {
+    
+    if (affected_services.find(service_name) != affected_services.end()) {
+        return;  // 已处理过此服务
     }
     
-    return success;
+    affected_services.insert(service_name);
+    
+    auto it = graph.find(service_name);
+    if (it != graph.end()) {
+        for (const auto& dependent : it->second.dependents) {
+            collect_dependent_services(graph, dependent, affected_services);
+        }
+    }
 }
 
 bool default_supervisor::restart_one_service(const std::string& name) {
@@ -394,64 +415,81 @@ std::vector<std::string> default_supervisor::get_service_stop_order(bool already
 }
 
 std::vector<std::string> default_supervisor::get_service_stop_order_internal() const {
-    // 构建服务依赖图
-    std::unordered_map<std::string, service_node> graph;
-    for (const auto& [name, service] : m_services) {
-        service_node node;
-        node.name = name;
-        // 获取服务依赖
-        auto dependencies = service->get_dependencies();
-        for (const auto& dep : dependencies) {
-            node.dependencies.insert(dep);
-            node.in_degree++;
+    // 构建服务依赖关系图的lambda函数
+    auto get_dependencies = [](const service_ptr& service) -> std::vector<std::string> {
+        return service->get_dependencies();
+    };
+    
+    // 使用dependency_sorter构建依赖图
+    auto graph = core::internal::dependency_sorter::build_dependency_graph<service_ptr>(
+        m_services, get_dependencies);
+    
+    // 获取停止顺序（按照被依赖关系的拓扑排序）
+    try {
+        return core::internal::dependency_sorter::sort_for_shutdown(graph);
+    } catch (const mc::parse_error_exception& e) {
+        elog("服务依赖图中存在循环依赖: ${error}", ("error", e.what()));
+        // 如果存在循环依赖，返回空列表
+        return {};
+    }
+}
+
+// 启动单个服务
+bool default_supervisor::start_one_service(const std::string& name) {
+    try {
+        ilog("正在启动服务: ${name}", ("name", name));
+        if (!m_services[name]->start()) {
+            wlog("启动服务 '${name}' 失败", ("name", name));
+            return false;
         }
-        graph[name] = node;
+        ilog("服务启动成功: ${name}", ("name", name));
+        return true;
+    } catch (const std::exception& e) {
+        elog("启动服务 '${name}' 异常: ${error}", ("name", name)("error", e.what()));
+        return false;
+    }
+}
+
+// 停止单个服务
+bool default_supervisor::stop_one_service(const std::string& name) {
+    auto it = m_services.find(name);
+    if (it == m_services.end()) {
+        return true;  // 服务不存在视为成功
     }
     
-    // 构建依赖关系
-    for (const auto& [name, node] : graph) {
-        for (const auto& dep : node.dependencies) {
-            if (graph.find(dep) != graph.end()) {
-                graph[dep].dependents.insert(name);
-            }
+    try {
+        ilog("正在停止服务: ${name}", ("name", name));
+        if (!it->second->stop()) {
+            wlog("停止服务 '${name}' 失败", ("name", name));
+            return false;
         }
+        ilog("服务停止成功: ${name}", ("name", name));
+        return true;
+    } catch (const std::exception& e) {
+        elog("停止服务 '${name}' 异常: ${error}", ("name", name)("error", e.what()));
+        return false;
+    }
+}
+
+// 停止单个子监督器
+bool default_supervisor::stop_one_child_supervisor(const std::string& name) {
+    auto it = m_child_supervisors.find(name);
+    if (it == m_child_supervisors.end()) {
+        return true;  // 子监督器不存在视为成功
     }
     
-    // 拓扑排序
-    std::vector<std::string> stop_order;
-    std::queue<std::string> queue;
-    std::unordered_map<std::string, int> in_degrees;
-    
-    // 计算入度
-    for (const auto& [name, node] : graph) {
-        in_degrees[name] = node.dependents.size();
-        if (in_degrees[name] == 0) {
-            queue.push(name);
+    try {
+        ilog("正在停止子监督器: ${name}", ("name", name));
+        if (!it->second->stop()) {
+            wlog("停止子监督器 '${name}' 失败", ("name", name));
+            return false;
         }
+        ilog("子监督器停止成功: ${name}", ("name", name));
+        return true;
+    } catch (const std::exception& e) {
+        elog("停止子监督器 '${name}' 异常: ${error}", ("name", name)("error", e.what()));
+        return false;
     }
-    
-    // 拓扑排序
-    while (!queue.empty()) {
-        std::string name = queue.front();
-        queue.pop();
-        stop_order.push_back(name);
-        
-        // 更新依赖此服务的服务的入度
-        const auto& node = graph[name];
-        for (const auto& dependent : node.dependents) {
-            in_degrees[dependent]--;
-            if (in_degrees[dependent] == 0) {
-                queue.push(dependent);
-            }
-        }
-    }
-    
-    // 检查是否有循环依赖
-    if (stop_order.size() != graph.size()) {
-        elog("服务依赖图中存在循环依赖");
-    }
-    
-    return stop_order;
 }
 
 } // namespace mc 
