@@ -31,13 +31,14 @@ namespace mc {
  * - 信号触发
  * - 自动断开连接
  *
- * @tparam Args 信号参数类型列表
+ * @tparam Signature 信号函数签名
  */
-template <typename... Args>
-class signal {
+template <typename Signature>
+class signal : public boost::signals2::signal<Signature> {
 public:
-    using slot_type       = std::function<void(Args...)>;
+    using base_type = boost::signals2::signal<Signature>;
     using connection_type = boost::signals2::connection;
+    using slot_type = typename base_type::slot_type;
 
     /**
      * @brief 构造函数
@@ -55,30 +56,14 @@ public:
      * @return 连接对象，可用于手动断开连接
      */
     connection_type connect(const slot_type& slot) {
-        return signal_.connect(slot);
+        return base_type::connect(slot);
     }
 
     /**
      * @brief 断开所有连接
      */
     void disconnect_all() {
-        signal_.disconnect_all_slots();
-    }
-
-    /**
-     * @brief 触发信号
-     * @param args 信号参数
-     */
-    void emit(Args... args) {
-        signal_(args...);
-    }
-
-    /**
-     * @brief 重载函数调用运算符，用于触发信号
-     * @param args 信号参数
-     */
-    void operator()(Args... args) {
-        emit(args...);
+        base_type::disconnect_all_slots();
     }
 
     /**
@@ -86,14 +71,8 @@ public:
      * @return 如果有连接的槽则返回true，否则返回false
      */
     bool empty() const {
-        return signal_.empty();
+        return base_type::empty();
     }
-
-    // 为了保持与原有API兼容，提供connection类型别名
-    using connection = connection_type;
-
-private:
-    boost::signals2::signal<void(Args...)> signal_;
 };
 
 /**
@@ -117,7 +96,6 @@ public:
      * @brief 添加连接
      * @param connection 要管理的连接对象
      */
-    template <typename... Args>
     void add(const boost::signals2::connection& connection) {
         connections_.push_back(connection);
     }

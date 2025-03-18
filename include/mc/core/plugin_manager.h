@@ -56,8 +56,6 @@ public:
     
     // 插件生命周期管理
     bool init_plugins(service_factory& factory);
-    bool start_plugins();
-    bool stop_plugins();
 
     // 获取加载的插件列表
     std::vector<std::string> get_loaded_plugins() const;

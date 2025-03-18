@@ -83,27 +83,6 @@ static bool parse_iso_datetime(const std::string& iso_str,
     return true;
 }
 
-// 工具函数：将tm结构和毫秒转换为ISO 8601字符串
-static std::string tm_to_iso_string(const std::tm& tm, int64_t milliseconds = 0, bool include_ms = false) {
-    std::ostringstream oss;
-    
-    // 格式化年月日时分秒
-    oss << std::setfill('0')
-        << std::setw(4) << (tm.tm_year + 1900) << '-'
-        << std::setw(2) << (tm.tm_mon + 1) << '-'
-        << std::setw(2) << tm.tm_mday << 'T'
-        << std::setw(2) << tm.tm_hour << ':'
-        << std::setw(2) << tm.tm_min << ':'
-        << std::setw(2) << tm.tm_sec;
-    
-    // 如果需要，添加毫秒部分
-    if (include_ms && milliseconds > 0) {
-        oss << '.' << std::setw(3) << milliseconds;
-    }
-    
-    return oss.str();
-}
-
 time_point time_point::now() {
     auto now_tp = std::chrono::system_clock::now();
     return time_point(now_tp);
@@ -232,7 +211,7 @@ std::string_view time_point::to_string() const {
         int64_t ms_since_epoch = time_since_epoch().count();
         
         if (ms_since_epoch < 0) {
-            MC_THROW(mc::parse_error_exception, "不支持负时间点转换为ISO字符串");
+            MC_THROW(mc::bad_cast_exception, "不支持负时间点转换为ISO字符串");
         }
         
         // 分离秒和毫秒部分
@@ -252,12 +231,8 @@ std::string_view time_point::to_string() const {
         }
         
         return std::string_view(cache.str);
-    } catch (const mc::exception& e) {
-        static const std::string error_str = "转换时间点为字符串失败";
-        return std::string_view(error_str);
     } catch (const std::exception& e) {
-        static const std::string error_str = "转换时间点为字符串失败";
-        return std::string_view(error_str);
+        MC_THROW(mc::bad_cast_exception, "转换时间点为ISO字符串失败: ${error}", ("error", e.what()));
     }
 }
 
@@ -265,48 +240,8 @@ time_point::operator std::string_view() const {
     return to_string();
 }
 
-std::string time_point_sec::to_non_delimited_iso_string() const {
-    try {
-        // 转换为时间结构
-        std::time_t time_secs = static_cast<std::time_t>(m_utc_seconds);
-        std::tm* tm_info = std::gmtime(&time_secs);
-        
-        if (!tm_info) {
-            MC_THROW(mc::parse_error_exception, "无法转换时间戳: ${ts}", ("ts", m_utc_seconds));
-        }
-        
-        // 格式化为非分隔ISO字符串
-        std::ostringstream oss;
-        oss << std::setfill('0')
-            << std::setw(4) << (tm_info->tm_year + 1900)
-            << std::setw(2) << (tm_info->tm_mon + 1)
-            << std::setw(2) << tm_info->tm_mday
-            << 'T'
-            << std::setw(2) << tm_info->tm_hour
-            << std::setw(2) << tm_info->tm_min
-            << std::setw(2) << tm_info->tm_sec;
-        
-        return oss.str();
-    } catch (const std::exception& e) {
-        MC_THROW(mc::parse_error_exception, "转换时间点为非分隔ISO字符串失败: ${error}", ("error", e.what()));
-    }
-}
-
-std::string time_point_sec::to_iso_string() const {
-    try {
-        // 转换为时间结构
-        std::time_t time_secs = static_cast<std::time_t>(m_utc_seconds);
-        std::tm* tm_info = std::gmtime(&time_secs);
-        
-        if (!tm_info) {
-            MC_THROW(mc::parse_error_exception, "无法转换时间戳: ${ts}", ("ts", m_utc_seconds));
-        }
-        
-        // 格式化为ISO字符串
-        return tm_to_iso_string(*tm_info);
-    } catch (const std::exception& e) {
-        MC_THROW(mc::parse_error_exception, "转换时间点为ISO字符串失败: ${error}", ("error", e.what()));
-    }
+std::string_view time_point::to_iso_string() const {
+    return to_string();
 }
 
 time_point_sec time_point_sec::from_iso_string(const std::string& s) {
@@ -331,6 +266,38 @@ time_point_sec time_point_sec::from_iso_string(const std::string& s) {
     }
 }
 
+std::string_view time_point_sec::to_string() const {
+    try {
+        // 使用不带毫秒的缓存
+        thread_local time_cache<false> cache;
+        
+        // 秒级精度
+        int64_t seconds = static_cast<int64_t>(m_utc_seconds);
+        
+        if (seconds < 0) {
+            MC_THROW(mc::parse_error_exception, "不支持负时间点转换为ISO字符串");
+        }
+        
+        // 格式化日期时间部分（不包含毫秒）
+        return format_cached_iso_datetime<false>(seconds, cache);
+    } catch (const std::exception& e) {
+        MC_THROW(mc::parse_error_exception, "无法将ISO格式字符串转换为时间点: ${error}", ("error", e.what()));
+    }
+}
+
+time_point_sec time_point_sec::now() {
+    auto now_tp = std::chrono::system_clock::now();
+    return time_point_sec(now_tp);
+}
+
+time_point_sec::operator std::string_view() const {
+    return to_string();
+}
+
+std::string_view time_point_sec::to_iso_string() const {
+    return to_string();
+}
+
 // Variant转换实现
 void to_variant(const milliseconds& ms, variant& v) {
     v = ms.count();
@@ -346,33 +313,6 @@ void to_variant(const time_point& tp, variant& v) {
 
 void from_variant(const variant& v, time_point& tp) {
     tp = time_point::from_iso_string(v.as<std::string>());
-}
-
-std::string_view time_point_sec::to_string() const {
-    try {
-        // 使用不带毫秒的缓存
-        thread_local time_cache<false> cache;
-        
-        // 秒级精度
-        int64_t seconds = static_cast<int64_t>(m_utc_seconds);
-        
-        if (seconds < 0) {
-            MC_THROW(mc::parse_error_exception, "不支持负时间点转换为ISO字符串");
-        }
-        
-        // 格式化日期时间部分（不包含毫秒）
-        return format_cached_iso_datetime<false>(seconds, cache);
-    } catch (const mc::exception& e) {
-        static const std::string error_str = "转换时间点为字符串失败";
-        return std::string_view(error_str);
-    } catch (const std::exception& e) {
-        static const std::string error_str = "转换时间点为字符串失败";
-        return std::string_view(error_str);
-    }
-}
-
-time_point_sec::operator std::string_view() const {
-    return to_string();
 }
 
 void to_variant(const time_point_sec& tps, variant& v) {
