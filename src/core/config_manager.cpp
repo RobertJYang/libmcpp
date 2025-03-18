@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024 Huawei Technologies Co., Ltd.
+ * Copyright (c) 2025 Huawei Technologies Co., Ltd.
  * openUBMC is licensed under Mulan PSL v2.
  * You can use this software according to the terms and conditions of the Mulan PSL v2.
  * You may obtain a copy of Mulan PSL v2 at:
@@ -10,137 +10,218 @@
  * See the Mulan PSL v2 for more details.
  */
 
-/**
- * 配置管理器实现
- * 
- * 配置优先级规则（从高到低）：
- * 1. 命令行参数（优先级最高）
- * 2. 配置文件（优先级次之）
- * 3. 默认值（优先级最低）
- * 
- * 特殊情况：
- * - 对于标记为 composing() 的选项（如 plugin），多处指定的值会被合并而不是覆盖
- * - 服务选项会在插件加载后被收集，所以依赖于插件注册的服务选项只能在插件加载后使用
- */
-
-#include "mc/core/config_manager.h"
-#include "mc/filesystem.h"
-#include <iostream>
-#include <thread>
-#include <unordered_map>
-#include <typeinfo>
-#include <boost/program_options/parsers.hpp>
-#include <boost/program_options/variables_map.hpp>
+#include <mc/core/config_manager.h>
+#include <mc/core/config_schema.h>
+#include <mc/filesystem.h>
+#include <mc/exception.h>
 #include <fstream>
-#include <mc/log.h>
+#include <thread>
+#include <sstream>
 
 namespace mc {
 
+namespace po = boost::program_options;
+
+// JSON配置加载器实现
+variant json_config_loader::load(const std::string& file_path) {
+    if (!mc::filesystem::exists(file_path)) {
+        MC_THROW(file_not_found_exception, "配置文件不存在: ${path}", ("path", file_path));
+    }
+
+    std::ifstream file(file_path);
+    if (!file.is_open()) {
+        MC_THROW(file_open_exception, "无法打开配置文件: ${path}", ("path", file_path));
+    }
+
+    std::stringstream buffer;
+    buffer << file.rdbuf();
+    std::string content = buffer.str();
+
+    try {
+        // 解析JSON内容
+        return json::json_decode(content);
+    } catch (const std::exception& e) {
+        MC_THROW(parse_error_exception, "解析JSON配置文件失败: ${error}", ("error", e.what()));
+    }
+}
+
+// TOML配置加载器实现（预留）
+variant toml_config_loader::load(const std::string& file_path) {
+    // TODO: 实现TOML配置加载
+    MC_THROW(mc::not_implemented_exception, "TOML配置加载器尚未实现");
+}
+
 // 构造函数
-config_manager::config_manager(bool silent) 
-    : m_opts(std::make_unique<options>())
-    , m_silent(silent) {
-    m_opts->cli.add_options()
+config_manager::config_manager()
+    : m_loader(std::make_unique<json_config_loader>())
+    , m_opts("配置选项")
+    , m_config_file("./config.json")
+    , m_plugin_dir("./plugins")
+    , m_thread_count(std::thread::hardware_concurrency() > 0 ? std::thread::hardware_concurrency() : 1) {
+    
+    // 定义命令行选项
+    m_opts.add_options()
         ("help,h", "显示帮助信息")
         ("version,v", "显示版本信息")
-        ("config,c", po::value<std::string>()->default_value("./config.ini"), "配置文件路径")
+        ("config,c", po::value<std::string>()->default_value("./config.json"), "配置文件路径")
         ("plugin-dir", po::value<std::string>(), "插件目录路径")
-        ("threads,t", po::value<unsigned int>()->default_value(std::thread::hardware_concurrency()), "线程数量")
-        ("plugin,p", po::value<std::vector<std::string>>()->composing(), "要加载的插件列表");
-
-    m_opts->cfg.add(m_opts->cli);
+        ("plugin,p", po::value<std::vector<std::string>>()->composing(), "要加载的插件列表")
+        ("threads,t", po::value<unsigned int>()->default_value(m_thread_count), "线程数量");
 }
 
 // 析构函数
-config_manager::~config_manager() {
-}
+config_manager::~config_manager() = default;
 
-// 设置静默模式
-void config_manager::set_silent(bool silent) {
-    m_silent = silent;
-}
-
-// 获取静默模式状态
-bool config_manager::is_silent() const {
-    return m_silent;
-}
-
-// 处理未识别的选项
-void config_manager::process_unrecognized(const std::vector<std::string>& unrecognized) const {
-    if (!m_silent && !unrecognized.empty()) {
-        std::cerr << "警告: 未识别的选项:";
-        for (const auto& opt : unrecognized) {
-            std::cerr << " " << opt;
-        }
-        std::cerr << std::endl;
-    }
-}
-
-// 解析配置文件
-void config_manager::load_config_file(const std::string& cfg_file) {
-    std::string config_file = cfg_file;
-    if (config_file.empty()) {
-        if (!has_option("config")) {
-            return;
-        }
-        config_file = get_option<std::string>("config");
+// 根据文件扩展名选择合适的加载器
+std::unique_ptr<config_loader> config_manager::create_loader(const std::string& file_path) const {
+    std::string ext = mc::filesystem::extension(file_path);
+    if (ext == ".json") {
+        return std::make_unique<json_config_loader>();
+    } else if (ext == ".toml") {
+        return std::make_unique<toml_config_loader>();
     }
     
-    try {
-        std::ifstream file(config_file);
-        if (!file.is_open()) {
-            wlog("警告: 配置文件 '${file}' 不存在", ("file", config_file));
-            return;
-        }
-        
-        // 解析配置文件
-        po::store(po::parse_config_file(file, m_opts->cfg, true), m_options);
-        po::notify(m_options);
-    } catch (const po::error& e) {
-        elog("错误: 解析配置文件 '${file}' 失败: ${error}", ("file", config_file)("error", e.what()));
-    }
+    // 默认使用JSON加载器
+    return std::make_unique<json_config_loader>();
 }
 
-// 从命令行解析配置
+// 解析命令行参数
 bool config_manager::parse_command_line(int argc, char** argv) {
     try {
-        // 处理命令行参数
         po::parsed_options parsed = po::command_line_parser(argc, argv)
-            .options(m_opts->cli)
+            .options(m_opts)
             .allow_unregistered()
             .run();
         
-        // 存储已识别的选项
-        po::store(parsed, m_options);
-        po::notify(m_options);
+        po::store(parsed, m_variables);
+        po::notify(m_variables);
         
         // 处理未识别的选项
         std::vector<std::string> unrecognized = po::collect_unrecognized(parsed.options, po::include_positional);
-        if (!unrecognized.empty() && !m_silent) {
-            wlog("警告: 未识别的选项:");
+        if (!unrecognized.empty()) {
+            wlog("警告: 未识别的命令行选项:");
             for (const auto& opt : unrecognized) {
                 wlog("- ${option}", ("option", opt));
             }
         }
         
+        // 更新配置文件路径
+        if (m_variables.count("config")) {
+            m_config_file = m_variables["config"].as<std::string>();
+        }
+        
+        // 更新插件目录
+        if (m_variables.count("plugin-dir")) {
+            m_plugin_dir = m_variables["plugin-dir"].as<std::string>();
+        }
+        
+        // 更新线程数
+        if (m_variables.count("threads")) {
+            m_thread_count = m_variables["threads"].as<unsigned int>();
+        }
+        
         return true;
     } catch (const po::error& e) {
-        elog("错误: 解析命令行参数失败: ${error}", ("error", e.what()));
+        elog("解析命令行参数失败: ${error}", ("error", e.what()));
         return false;
     }
 }
 
-// 检查选项是否存在
-bool config_manager::has_option(const std::string& name) const {
-    return m_options.count(name) > 0;
+// 加载配置文件
+bool config_manager::load_config_file(const std::string& file_path) {
+    std::string path = file_path.empty() ? m_config_file : file_path;
+    
+    try {
+        // 根据文件扩展名选择合适的加载器
+        m_loader = create_loader(path);
+        
+        // 尝试加载配置文件
+        variant config = m_loader->load(path);
+        
+        // 检查配置类型
+        if (config.is_array()) {
+            // 多资源配置
+            for (const auto& item : config.as<std::vector<variant>>()) {
+                process_config(item);
+            }
+        } else if (config.is_dict()) {
+            // 单资源配置
+            process_config(config);
+        } else {
+            elog("配置文件格式错误: 根节点必须是对象或数组");
+            return false;
+        }
+        
+        return true;
+    } catch (const std::exception& e) {
+        wlog("加载配置文件失败: ${error}，将使用默认配置", ("error", e.what()));
+        return false;
+    }
+}
+
+// 处理单个配置对象
+void config_manager::process_config(const variant& config) {
+    if (!config.is_dict()) {
+        wlog("跳过非对象配置项");
+        return;
+    }
+    
+    auto dict_config = config.as<mc::dict>();
+    if (!dict_config.contains("kind") || !dict_config.contains("api_version")) {
+        wlog("跳过缺少必要字段(kind, api_version)的配置项");
+        return;
+    }
+    
+    std::string kind = dict_config["kind"].as<std::string>();
+    m_configs[kind].push_back(config);
+    
+    if (kind == "Application") {
+        // 应用程序配置特殊处理
+        config::app_config app;
+        try {
+            from_variant(config, app);
+            if (config::config_validator::validate_app_config(app)) {
+                // 更新插件目录和线程数量
+                if (!app.plugin_dir.empty()) {
+                    m_plugin_dir = app.plugin_dir;
+                }
+                if (app.threads > 0) {
+                    m_thread_count = app.threads;
+                }
+                // 更新插件列表
+                if (!app.plugins.empty()) {
+                    m_plugin_names = app.plugins;
+                }
+            }
+        } catch (const std::exception& e) {
+            elog("解析应用程序配置失败: ${error}", ("error", e.what()));
+        }
+    }
 }
 
 // 获取插件列表
 std::vector<std::string> config_manager::get_plugin_names() const {
-    if (has_option("plugin")) {
-        return get_option<std::vector<std::string>>("plugin");
+    // 首先检查命令行参数
+    if (m_variables.count("plugin")) {
+        return m_variables["plugin"].as<std::vector<std::string>>();
     }
+    
+    // 然后检查配置文件中的应用程序配置
+    if (!m_plugin_names.empty()) {
+        return m_plugin_names;
+    }
+    
     return {};
+}
+
+// 获取插件目录
+std::string config_manager::get_plugin_dir() const {
+    return m_plugin_dir;
+}
+
+// 获取线程数
+unsigned int config_manager::get_thread_count() const {
+    return m_thread_count;
 }
 
 } // namespace mc 

@@ -35,9 +35,7 @@ int main(int argc, char* argv[]) {
     // 启动应用程序
     app().start();
 
-    // 等待用户输入
-    std::cout << "服务已启动，按回车停止..." << std::endl;
-    std::cin.get();
+    std::this_thread::sleep_for(std::chrono::milliseconds(200));
 
     // 停止并清理
     app().stop();

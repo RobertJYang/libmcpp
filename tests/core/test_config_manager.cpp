@@ -10,7 +10,7 @@
  * See the Mulan PSL v2 for more details.
  */
 
-#include "mc/core/json_config_manager.h"
+#include "mc/core/config_manager.h"
 #include <gtest/gtest.h>
 #include <fstream>
 #include <filesystem>
@@ -23,8 +23,8 @@ namespace test {
 namespace po = boost::program_options;
 
 // 辅助函数：创建临时配置文件
-std::string create_temp_config_file(const std::string& content) {
-    std::string temp_file = "temp_config.json";
+std::string create_temp_config_file(const std::string& content, const std::string& extension = ".json") {
+    std::string temp_file = "temp_config" + extension;
     std::ofstream file(temp_file);
     file << content;
     file.close();
@@ -32,7 +32,7 @@ std::string create_temp_config_file(const std::string& content) {
 }
 
 // 配置文件加载测试
-TEST(JsonConfigManagerTest, ConfigFileLoading) {
+TEST(ConfigManagerTest, ConfigFileLoading) {
     // 创建一个临时配置文件
     std::string config_content = R"(
 [
@@ -64,12 +64,12 @@ TEST(JsonConfigManagerTest, ConfigFileLoading) {
     } guard{config_file};
     
     // 创建配置管理器
-    json_config_manager config;
+    config_manager config;
     
     // 加载配置文件
     ASSERT_TRUE(config.load_config_file(config_file));
     
-    // 使用json_config_manager的特定API验证配置
+    // 验证配置
     EXPECT_EQ(config.get_plugin_dir(), "./test_plugins");
     auto plugin_names = config.get_plugin_names();
     ASSERT_EQ(plugin_names.size(), 1);
@@ -78,7 +78,7 @@ TEST(JsonConfigManagerTest, ConfigFileLoading) {
 }
 
 // 命令行参数测试
-TEST(JsonConfigManagerTest, CommandLineArgs) {
+TEST(ConfigManagerTest, CommandLineArgs) {
     // 创建一个临时配置文件
     std::string config_content = R"(
 [
@@ -110,7 +110,7 @@ TEST(JsonConfigManagerTest, CommandLineArgs) {
     } guard{config_file};
     
     // 创建配置管理器
-    json_config_manager config;
+    config_manager config;
     
     // 准备命令行参数
     const char* argv[] = {
@@ -138,6 +138,40 @@ TEST(JsonConfigManagerTest, CommandLineArgs) {
     EXPECT_EQ(plugin_names[1], "cmd_line_plugin2");
     
     EXPECT_EQ(config.get_thread_count(), 8);
+}
+
+// 文件扩展名测试
+TEST(ConfigManagerTest, FileExtensions) {
+    // 创建一个临时TOML配置文件
+    std::string toml_content = R"(
+[[config]]
+api_version = "v1"
+kind = "Application"
+meta.name = "test-app"
+plugin_dir = "./test_plugins"
+plugins = ["test_plugin"]
+threads = 4
+)";
+    
+    std::string toml_file = create_temp_config_file(toml_content, ".toml");
+    
+    // 确保测试结束时清理文件
+    struct FileGuard {
+        std::string filename;
+        ~FileGuard() { 
+            try {
+                if (!filename.empty() && std::filesystem::exists(filename)) {
+                    std::filesystem::remove(filename); 
+                }
+            } catch (...) {}
+        }
+    } guard{toml_file};
+    
+    // 创建配置管理器
+    config_manager config;
+    
+    // 尝试加载TOML配置文件（应该抛出未实现异常）
+    EXPECT_THROW(config.load_config_file(toml_file), not_implemented_exception);
 }
 
 } // namespace test

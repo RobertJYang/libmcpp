@@ -4,7 +4,7 @@ src_files = [
   'exception.cpp',
   'core/application.cpp',
   'core/default_supervisor.cpp',
-  'core/json_config_manager.cpp',
+  'core/config_manager.cpp',
   'core/config_validator.cpp',
   'core/plugin_manager.cpp',
   'core/service_manager.cpp',

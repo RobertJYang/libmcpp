@@ -29,11 +29,11 @@ namespace po = boost::program_options;
 
 // 构造函数
 application::application()
-    : m_version("0.1.0")
+    : m_version("1.0.0")
     , m_plugin_manager(std::make_unique<plugin_manager>())
     , m_service_factory(std::make_unique<service_factory>())
     , m_service_manager(std::make_unique<service_manager>())
-    , m_json_config_manager(std::make_unique<json_config_manager>())
+    , m_config_manager(std::make_unique<config_manager>())
     , m_supervisor_manager(std::make_unique<supervisor_manager>())
     , m_io_context()
     , m_strand(m_io_context.get_executor())
@@ -73,8 +73,8 @@ service_manager& application::get_service_manager() {
 }
 
 // 获取配置管理器
-json_config_manager& application::get_config_manager() {
-    return *m_json_config_manager;
+config_manager& application::get_config_manager() {
+    return *m_config_manager;
 }
 
 // 获取监督器管理器
@@ -99,23 +99,23 @@ bool application::initialize() {
 
 bool application::initialize(int argc, char** argv) {
     // 解析命令行参数
-    if (!m_json_config_manager->parse_command_line(argc, argv)) {
+    if (!m_config_manager->parse_command_line(argc, argv)) {
         return false;
     }
 
     // 加载配置文件
-    bool json_config_loaded = m_json_config_manager->load_config_file();
-    if (!json_config_loaded) {
+    bool config_loaded = m_config_manager->load_config_file();
+    if (!config_loaded) {
         wlog("加载配置文件失败，将使用默认配置");
     }
 
     // 加载插件
-    if (!load_plugins(json_config_loaded)) {
+    if (!load_plugins(config_loaded)) {
         return false;
     }
 
     // 初始化监督器
-    if (!initialize_supervisors(json_config_loaded)) {
+    if (!initialize_supervisors(config_loaded)) {
         return false;
     }
 
@@ -126,20 +126,20 @@ bool application::initialize(int argc, char** argv) {
     }
 
     // 初始化服务
-    if (!initialize_services(json_config_loaded)) {
+    if (!initialize_services(config_loaded)) {
         return false;
     }
 
     return true;
 }
 
-bool application::load_plugins(bool json_config_loaded) {
-    if (json_config_loaded) {
-        std::string plugin_dir = m_json_config_manager->get_plugin_dir();
+bool application::load_plugins(bool config_loaded) {
+    if (config_loaded) {
+        std::string plugin_dir = m_config_manager->get_plugin_dir();
         m_plugin_manager->set_plugin_dir(plugin_dir);
     }
     
-    std::vector<std::string> plugin_names = m_json_config_manager->get_plugin_names();
+    std::vector<std::string> plugin_names = m_config_manager->get_plugin_names();
     if (!m_plugin_manager->load_plugins(plugin_names)) {
         elog("加载插件失败");
         return false;
@@ -149,28 +149,28 @@ bool application::load_plugins(bool json_config_loaded) {
     return true;
 }
 
-bool application::initialize_supervisors(bool json_config_loaded) {
-    if (!json_config_loaded) {
+bool application::initialize_supervisors(bool config_loaded) {
+    if (!config_loaded) {
         return true; // 没有配置时使用默认
     }
 
     // 设置线程数量
-    auto app_configs = m_json_config_manager->get_configs<config::app_config>();
+    auto app_configs = m_config_manager->get_configs<config::app_config>();
     if (!app_configs.empty()) {
         m_thread_count = app_configs[0].threads;
         dlog("设置线程数: ${count}", ("count", m_thread_count));
     }
     
     // 处理监督器配置
-    auto supervisor_configs = m_json_config_manager->get_configs<config::supervisor_config>();
+    auto supervisor_configs = m_config_manager->get_configs<config::supervisor_config>();
     ilog("加载监督器配置，共 ${count} 个", ("count", supervisor_configs.size()));
     
     return m_supervisor_manager->initialize_from_configs(supervisor_configs, m_supervisors);
 }
 
-bool application::initialize_services(bool json_config_loaded) {
+bool application::initialize_services(bool config_loaded) {
     // 加载服务配置
-    const auto& services = m_json_config_manager->get_configs<config::service_config>();
+    const auto& services = m_config_manager->get_configs<config::service_config>();
     std::vector<std::string> service_names;
     for (const auto& service : services) {
         service_names.push_back(service.meta.name);
@@ -178,12 +178,12 @@ bool application::initialize_services(bool json_config_loaded) {
     ilog("加载服务配置，共 ${count} 个: ${services}", 
          ("count", services.size())("services", mc::string::join(service_names, ", ")));
 
-    if (!json_config_loaded) {
+    if (!config_loaded) {
         return true; // 没有配置时使用默认
     }
 
     return m_service_manager->initialize_from_configs(
-        m_json_config_manager->get_configs<config::service_config>(),
+        m_config_manager->get_configs<config::service_config>(),
         m_supervisors,
         *m_service_factory
     );
@@ -248,15 +248,18 @@ void application::stop() {
 
 // 清理
 void application::cleanup() {
-    if (!m_stopped) {
-        stop();
-    }
+    // 停止所有服务
+    stop();
     
-    m_json_config_manager.reset();
-    m_service_manager.reset();
+    // 清理资源
     m_supervisor_manager.reset();
+    m_service_manager.reset();
     m_service_factory.reset();
-    m_plugin_manager.reset();  // 直接重置，让 plugin_manager 的析构函数处理卸载
+    m_plugin_manager.reset();
+    m_config_manager.reset();
+    
+    // 停止IO上下文
+    m_io_context.stop();
 }
 
 // 是否已停止

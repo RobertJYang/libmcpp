@@ -85,12 +85,16 @@ public:
     // 停止所有服务
     bool stop_services();
 
+    // 检查服务是否存在
+    bool has_service(const std::string& name) const;
+
 private:
     // 拓扑排序，返回服务名称列表
     std::vector<std::string> topological_sort(const std::unordered_map<std::string, service_node>& graph);
     
     // 成员变量
     std::unordered_map<std::string, std::shared_ptr<service>> m_services;
+    std::vector<std::string> m_service_start_order;  // 保存拓扑排序后的启动顺序
 };
 
 } // namespace mc

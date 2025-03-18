@@ -43,6 +43,9 @@ public:
     service_factory() : m_opts(std::make_unique<service_options>()) {
     }
 
+    // 虚析构函数
+    virtual ~service_factory() = default;
+
     /**
      * @brief 注册服务类型
      * @tparam ServiceType 服务类型
@@ -69,7 +72,7 @@ public:
      * @param args 服务配置
      * @return 服务实例
      */
-    service_ptr create_service(const std::string& service_name, std::string object_name,
+    virtual service_ptr create_service(const std::string& service_name, std::string object_name,
                                mc::dict args) {
         auto it = m_creators.find(service_name);
         if (it == m_creators.end()) {

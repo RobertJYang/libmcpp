@@ -355,6 +355,8 @@ MC_DEFINE_EXCEPTION_CLASS(divide_by_zero_exception, divide_by_zero_code, "除零
                           "divide_by_zero")
 MC_DEFINE_EXCEPTION_CLASS(file_open_exception, file_not_found_exception_code, "无法打开文件",
                           "file_open")
+MC_DEFINE_EXCEPTION_CLASS(not_implemented_exception, file_not_found_exception_code, "未实现",
+                          "not_implemented")
 
 /**
  * @brief 完整自定义异常类宏（MC_DEFINE_EXCEPTION_CLASS 的别名）

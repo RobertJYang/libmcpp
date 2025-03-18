@@ -17,7 +17,7 @@
 #ifndef MC_APPLICATION_H
 #define MC_APPLICATION_H
 
-#include "mc/core/json_config_manager.h"
+#include "mc/core/config_manager.h"
 #include "mc/core/plugin_manager.h"
 #include "mc/core/service_factory.h"
 #include "mc/core/service_manager.h"
@@ -71,7 +71,7 @@ public:
     plugin_manager& get_plugin_manager();
     service_factory& get_service_factory();
     service_manager& get_service_manager();
-    json_config_manager& get_config_manager();
+    config_manager& get_config_manager();
     supervisor_manager& get_supervisor_manager();
 
     // 应用程序生命周期
@@ -102,7 +102,7 @@ private:
     std::unique_ptr<plugin_manager> m_plugin_manager;     // 插件管理器
     std::unique_ptr<service_factory> m_service_factory;   // 服务工厂
     std::unique_ptr<service_manager> m_service_manager;   // 服务管理器
-    std::unique_ptr<json_config_manager> m_json_config_manager; // JSON配置管理器
+    std::unique_ptr<config_manager> m_config_manager;     // 配置管理器
     std::unique_ptr<supervisor_manager> m_supervisor_manager; // 监督器管理器
     std::unordered_map<std::string, std::shared_ptr<supervisor>> m_supervisors; // 监督器映射表
     
