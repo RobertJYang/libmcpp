@@ -29,6 +29,17 @@
             "environment": [],
             "externalConsole": false,
             "MIMode": "lldb"
+        }, {
+            "name": "database_example",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/builddir/examples/database/database_example",
+            "args": [],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}/builddir/examples/database",
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "lldb"
         }
     ]
 }

@@ -345,6 +345,13 @@ public:
     }
 
     /**
+     * @brief 计算字典的哈希值
+     * @return 哈希值
+     * @note 此哈希算法参考了Lua表的哈希算法，考虑了键值对的内容
+     */
+    size_t hash() const;
+
+    /**
      * @brief 查找指定键的元素，返回迭代器
      * @param key 要查找的键
      * @return 指向找到元素的迭代器，如果不存在则返回 end()
@@ -725,5 +732,22 @@ private:
 
 // 包含容器转换头文件
 #include <mc/variant/container_convert.h>
+
+// 定义在std命名空间中特化hash以支持dict和mutable_dict
+namespace std {
+    template<>
+    struct hash<mc::dict> {
+        size_t operator()(const mc::dict& d) const {
+            return d.hash();
+        }
+    };
+
+    template<>
+    struct hash<mc::mutable_dict> {
+        size_t operator()(const mc::mutable_dict& d) const {
+            return d.hash();
+        }
+    };
+}
 
 #endif // MC_DICT_H

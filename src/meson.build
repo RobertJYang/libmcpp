@@ -26,7 +26,11 @@ src_files = [
   'log/log_manager.cpp',
   'log/appender_factory.cpp',
   'log/appenders/console_appender.cpp',
-  # 'log/appenders/file_appender.cpp',
+  'interprocess/shared_memory.cpp',
+  'interprocess/shared_memory_allocator.cpp',
+  'interprocess/shared_memory_manager.cpp',
+  'interprocess/shared_mutex.cpp',
+  'database/path_iterator.cpp',
 ]
 
 # 创建共享库
