@@ -11,14 +11,18 @@
  */
 
 /**
- * @file test_shared_mutex.cpp
- * @brief 共享互斥锁测试
+ * @file test_mutex.cpp
+ * @brief 进程间互斥锁测试
  */
 #include "common.h"
 
-// 测试共享互斥锁
-void test_shared_mutex() {
-    ilog("===== 共享互斥锁测试 =====");
+namespace mc {
+namespace interprocess {
+namespace test {
+
+// 测试进程间互斥锁
+void test_mutex() {
+    ilog("===== 进程间互斥锁测试 =====");
 
     // 创建共享内存管理器
     const std::string shm_name = "shm_mutex_test_memory";
@@ -84,5 +88,10 @@ void test_shared_mutex() {
     allocator.deallocate(mutex_ptr);
 
     // shared_memory_manager会在析构时自动清理共享内存
-    ilog("===== 共享互斥锁测试结束 =====");
+    ilog("===== 进程间互斥锁测试结束 =====");
 }
+
+} // namespace test
+} // namespace interprocess
+} // namespace mc
+    

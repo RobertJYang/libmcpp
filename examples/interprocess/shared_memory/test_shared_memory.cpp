@@ -16,6 +16,10 @@
  */
 #include "common.h"
 
+namespace mc {
+namespace interprocess {
+namespace test {
+
 // 测试共享内存
 void test_shared_memory() {
     ilog("===== 测试共享内存基本功能 =====");
@@ -53,3 +57,7 @@ void test_shared_memory() {
     
     ilog("资源将在程序结束时自动清理");
 } 
+
+} // namespace test
+} // namespace interprocess
+} // namespace mc

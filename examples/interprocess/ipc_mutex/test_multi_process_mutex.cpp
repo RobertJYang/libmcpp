@@ -11,11 +11,9 @@
  */
 
 /**
- * @file shared_mutex_test.h
+ * @file test_multi_process_mutex.cpp
  * @brief 共享互斥锁测试类
  */
-#pragma once
-
 #include "multi_process_test_base.h"
 
 namespace mc {
@@ -23,22 +21,22 @@ namespace interprocess {
 namespace test {
 
 /**
- * @class shared_mutex_test
- * @brief 多进程共享互斥锁测试类
+ * @class multi_process_mutex
+ * @brief 多进程互斥锁测试类
  */
-class shared_mutex_test : public multi_process_test_base {
+class multi_process_mutex : public multi_process_test_base {
 public:
     /**
      * @brief 构造函数
      * @param process_count 测试进程数量
      * @param iterations 每个进程的迭代次数
      */
-    shared_mutex_test(int process_count = 3, int iterations = 10);
+    multi_process_mutex(int process_count = 3, int iterations = 10);
     
     /**
      * @brief 析构函数
      */
-    virtual ~shared_mutex_test();
+    virtual ~multi_process_mutex();
 
 protected:
     /**
@@ -79,19 +77,19 @@ private:
 };
 
 // 实现部分
-shared_mutex_test::shared_mutex_test(int process_count, int iterations)
-    : multi_process_test_base("多进程共享互斥锁测试", 256 * 1024),
+multi_process_mutex::multi_process_mutex(int process_count, int iterations)
+    : multi_process_test_base("多进程互斥锁测试", 256 * 1024),
       m_process_count(process_count),
       m_iterations(iterations),
       m_mutex(nullptr),
       m_counter(nullptr) {
 }
 
-shared_mutex_test::~shared_mutex_test() {
+multi_process_mutex::~multi_process_mutex() {
     // 资源清理在cleanup()中完成
 }
 
-bool shared_mutex_test::initialize() {
+bool multi_process_mutex::initialize() {
     // 创建共享内存管理器
     m_shm_manager = std::make_unique<shared_memory_manager>(
         "shm_multi_process_mutex_test", 
@@ -130,7 +128,7 @@ bool shared_mutex_test::initialize() {
     return true;
 }
 
-bool shared_mutex_test::create_child_processes() {
+bool multi_process_mutex::create_child_processes() {
     for (int i = 0; i < m_process_count; i++) {
         pid_t pid = fork();
         
@@ -181,7 +179,7 @@ bool shared_mutex_test::create_child_processes() {
     return true;
 }
 
-bool shared_mutex_test::verify_results() {
+bool multi_process_mutex::verify_results() {
     // 检查最终计数值
     int final_count = *m_counter;
     int expected_max = m_process_count * m_iterations;
@@ -204,7 +202,7 @@ bool shared_mutex_test::verify_results() {
     }
 }
 
-void shared_mutex_test::cleanup() {
+void multi_process_mutex::cleanup() {
     if (m_counter && m_allocator) {
         // 直接释放内存，int不需要显式析构
         m_allocator->deallocate(m_counter);
@@ -221,6 +219,16 @@ void shared_mutex_test::cleanup() {
     // 共享内存管理器会在析构时自动清理共享内存
     m_shm = nullptr;
     m_allocator = nullptr;
+}
+
+void test_multi_process_mutex() {
+   multi_process_mutex test(3, 10); // 3个进程，每个进程10次增加计数器
+    bool result = test.run_test();
+    if (result) {
+        ilog("多进程共享内存互斥锁测试完成，测试结果：成功");
+    } else {
+        elog("多进程共享内存互斥锁测试完成，测试结果：失败");
+    }
 }
 
 } // namespace test

@@ -11,11 +11,9 @@
  */
 
 /**
- * @file shared_memory_test.h
+ * @file multi_process_shared_memory.h
  * @brief 多进程共享内存测试类
  */
-#pragma once
-
 #include "multi_process_test_base.h"
 #include "mc/interprocess/offset_ptr.h"
 
@@ -24,22 +22,22 @@ namespace interprocess {
 namespace test {
 
 /**
- * @class shared_memory_test
+ * @class multi_process_shared_memory
  * @brief 多进程共享内存测试类
  */
-class shared_memory_test : public multi_process_test_base {
+class multi_process_shared_memory : public multi_process_test_base {
 public:
     /**
      * @brief 构造函数
      * @param process_count 测试进程数量
      * @param increments_per_process 每个进程增加计数器的次数
      */
-    shared_memory_test(int process_count = 3, int increments_per_process = 100);
+    multi_process_shared_memory(int process_count = 3, int increments_per_process = 100);
     
     /**
      * @brief 析构函数
      */
-    virtual ~shared_memory_test();
+    virtual ~multi_process_shared_memory();
 
 protected:
     /**
@@ -80,18 +78,18 @@ private:
 };
 
 // 实现部分
-shared_memory_test::shared_memory_test(int process_count, int increments_per_process)
+multi_process_shared_memory::multi_process_shared_memory(int process_count, int increments_per_process)
     : multi_process_test_base("多进程共享内存测试", 512 * 1024),
       m_process_count(process_count),
       m_increments_per_process(increments_per_process),
       m_counter(nullptr) {
 }
 
-shared_memory_test::~shared_memory_test() {
+multi_process_shared_memory::~multi_process_shared_memory() {
     // 资源清理在cleanup()中完成
 }
 
-bool shared_memory_test::initialize() {
+bool multi_process_shared_memory::initialize() {
     // 创建共享内存管理器
     m_shm_manager = std::make_unique<shared_memory_manager>(
         "multi_process_test", 
@@ -127,7 +125,7 @@ bool shared_memory_test::initialize() {
     return true;
 }
 
-bool shared_memory_test::create_child_processes() {
+bool multi_process_shared_memory::create_child_processes() {
     for (int i = 0; i < m_process_count; i++) {
         pid_t pid = fork();
         
@@ -173,7 +171,7 @@ bool shared_memory_test::create_child_processes() {
     return true;
 }
 
-bool shared_memory_test::verify_results() {
+bool multi_process_shared_memory::verify_results() {
     // 检查最终计数器值
     int final_count = m_counter->load();
     int expected_count = m_process_count * m_increments_per_process;
@@ -191,7 +189,7 @@ bool shared_memory_test::verify_results() {
     }
 }
 
-void shared_memory_test::cleanup() {
+void multi_process_shared_memory::cleanup() {
     if (m_counter && m_allocator) {
         // 显式析构计数器
         m_counter->~atomic<int>();
@@ -202,6 +200,16 @@ void shared_memory_test::cleanup() {
     // 共享内存管理器会在析构时自动清理共享内存
     m_shm = nullptr;
     m_allocator = nullptr;
+}
+
+void test_multi_process_shared_memory() {
+   multi_process_shared_memory test(3, 100); // 3个进程，每个进程100次增加计数器
+    bool result = test.run_test();
+    if (result) {
+        ilog("多进程共享内存测试完成，测试结果：成功");
+    } else {
+        elog("多进程共享内存测试完成，测试结果：失败");
+    }
 }
 
 } // namespace test

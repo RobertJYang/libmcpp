@@ -16,6 +16,10 @@
  */
 #include "common.h"
 
+namespace mc {
+namespace interprocess {
+namespace test {
+
 // 测试共享内存长时间运行
 void test_shared_memory_long_running() {
     ilog("===== 测试共享内存长时间运行 =====");
@@ -58,3 +62,7 @@ void test_shared_memory_long_running() {
     
     // shared_memory_manager会在析构时自动清理资源
 } 
+
+} // namespace test
+} // namespace interprocess
+} // namespace mc

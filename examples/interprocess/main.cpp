@@ -24,56 +24,62 @@ int main(int argc, char** argv) {
 
     // 设置日志级别
     mc::get_default_logger().set_level(mc::log::level::info);
-    
+
     ilog("数据库共享内存组件测试程序启动");
-    
+
     // 确定要运行的测试
     TestType test_type = TestType::ALL;
-    
+
     if (argc > 1) {
         std::string arg = argv[1];
         if (arg == "memory") {
             test_type = TestType::SHARED_MEMORY;
-        } else if (arg == "mutex") {
-            test_type = TestType::SHARED_MUTEX;
         } else if (arg == "multi") {
             test_type = TestType::MULTI_PROCESS;
+        } else if (arg == "mutex") {
+            test_type = TestType::MUTEX;
+        } else if (arg == "shared_mutex") {
+            test_type = TestType::SHARED_MUTEX;
         } else if (arg == "multi_mutex") {
             test_type = TestType::MULTI_PROCESS_MUTEX;
-        } else if (arg == "rwmutex") {
-            test_type = TestType::SHARED_RW_MUTEX;
+        } else if (arg == "multi_shared_mutex") {
+            test_type = TestType::MULTI_PROCESS_SHARED_MUTEX;
         } else if (arg == "long") {
-            test_shared_memory_long_running();
+            test::test_shared_memory_long_running();
             return 0;
         }
     }
-    
+
     // 运行选定的测试
     switch (test_type) {
-        case TestType::SHARED_MEMORY:
-            test_shared_memory();
-            break;
-        case TestType::SHARED_MUTEX:
-            test_shared_mutex();
-            break;
-        case TestType::MULTI_PROCESS:
-            test_multi_process_shared_memory();
-            break;
-        case TestType::MULTI_PROCESS_MUTEX:
-            test_multi_process_shared_mutex();
-            break;
-        case TestType::SHARED_RW_MUTEX:
-            test_shared_rw_mutex();
-            break;
-        case TestType::ALL:
-            test_shared_memory();
-            test_shared_mutex();
-            test_multi_process_shared_mutex();
-            test_multi_process_shared_memory();
-            test_shared_rw_mutex();
-            break;
+    case TestType::SHARED_MEMORY:
+        test::test_shared_memory();
+        break;
+    case TestType::MULTI_PROCESS:
+        test::test_multi_process_shared_memory();
+        break;
+    case TestType::MUTEX:
+        test::test_mutex();
+        break;
+    case TestType::SHARED_MUTEX:
+        test::test_shared_mutex();
+        break;
+    case TestType::MULTI_PROCESS_MUTEX:
+        test::test_multi_process_mutex();
+        break;
+    case TestType::MULTI_PROCESS_SHARED_MUTEX:
+        test::test_multi_process_shared_mutex();
+        break;
+    case TestType::ALL:
+        test::test_shared_memory();
+        test::test_multi_process_shared_memory();
+        test::test_mutex();
+        test::test_shared_mutex();
+        test::test_multi_process_mutex();
+        test::test_multi_process_shared_mutex();
+        break;
     }
-    
+
     ilog("所有测试完成");
     return 0;
-} 
+}
