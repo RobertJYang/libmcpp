@@ -327,6 +327,12 @@ public:
         return milliseconds(m_elapsed.count() - m.m_elapsed.count()); 
     }
 
+    /**
+     * @brief 转换为ISO字符串
+     * @return std::string_view ISO字符串
+     */
+    std::string_view to_iso_string() const;
+
 private:
     milliseconds m_elapsed;
 };
@@ -362,6 +368,12 @@ public:
         auto s_tp = std::chrono::time_point_cast<std::chrono::seconds>(tp);
         m_utc_seconds = s_tp.time_since_epoch().count();
     }
+
+    /**
+     * @brief 获取当前时间点
+     * @return time_point 当前时间点
+     */
+    static time_point_sec now();
 
     /**
      * @brief 获取最大时间点
@@ -520,16 +532,10 @@ public:
     }
 
     /**
-     * @brief 转换为非分隔ISO字符串
-     * @return std::string ISO字符串
-     */
-    std::string to_non_delimited_iso_string() const;
-
-    /**
      * @brief 转换为ISO字符串
-     * @return std::string ISO字符串
+     * @return std::string_view ISO字符串
      */
-    std::string to_iso_string() const;
+    std::string_view to_iso_string() const;
 
     /**
      * @brief 转换为字符串

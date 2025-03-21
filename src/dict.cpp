@@ -325,4 +325,21 @@ variant to_variant(const dict& d) {
     return result;
 }
 
+size_t dict::hash() const {
+    if (empty()) {
+        return 0;
+    }
+
+    // 使用黄金比例作为种子
+    size_t       h    = 0x9e3779b9 ^ size();
+    const size_t step = (size() >> 5) + 1;
+    for (size_t l1 = size(); l1 >= step; l1 -= step) {
+        const entry& e          = at_index(l1 - 1);
+        size_t       entry_hash = std::hash<std::string>{}(e.key) ^ e.value.hash();
+        h                       = h ^ ((h << 5) + (h >> 2) + entry_hash);
+    }
+
+    return h;
+}
+
 } // namespace mc

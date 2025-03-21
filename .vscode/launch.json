@@ -29,6 +29,17 @@
             "environment": [],
             "externalConsole": false,
             "MIMode": "lldb"
+        }, {
+            "name": "interprocess_example",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/builddir/examples/interprocess/interprocess_example",
+            "args": [],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}/builddir/examples/interprocess",
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "lldb"
         }
     ]
 }

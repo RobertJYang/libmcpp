@@ -765,6 +765,12 @@ public:
      */
     static const char* get_type_name(type_id type);
 
+    /**
+     * @brief 获取variant的哈希值，用于支持在容器中使用
+     * @return 哈希值
+     */
+    size_t hash() const;
+
 protected:
     /**
      * @brief 存储数据的联合体
@@ -933,5 +939,15 @@ void to_variant(const typed_variant& var, variant& vo);
 void from_variant(const variant& var, typed_variant& vo);
 
 } // namespace mc
+
+// 定义在std命名空间中特化hash以支持variant
+namespace std {
+    template<>
+    struct hash<mc::variant> {
+        size_t operator()(const mc::variant& v) const {
+            return v.hash();
+        }
+    };
+}
 
 #endif // MC_VARIANT_H

@@ -1002,4 +1002,76 @@ variant::operator bool() const {
     }
 }
 
+// 计算字符串的哈希值
+static size_t calculate_str_hash(const char* data, size_t length) {
+    if (!data || length == 0) {
+        return 0;
+    }
+
+    // 使用黄金比例作为种子
+    size_t h = 0x9e3779b9 ^ length;
+    const size_t step = (length >> 5) + 1;
+    for (size_t l1 = length; l1 >= step; l1 -= step) {
+        h = h ^ ((h << 5) + (h >> 2) + static_cast<uint8_t>(data[l1 - 1]));
+    }
+
+    return h;
+}
+
+// 计算数组的哈希值，使用与字符串相同的哈希算法
+static size_t calculate_array_hash(const variants& array_data) {
+    if (array_data.empty()) {
+        return 0;
+    }
+
+    // 使用黄金比例作为种子
+    size_t h = 0x9e3779b9 ^ array_data.size();
+    const size_t step = (array_data.size() >> 5) + 1;
+    for (size_t l1 = array_data.size(); l1 >= step; l1 -= step) {
+        h = h ^ ((h << 5) + (h >> 2) + array_data[l1 - 1].hash());
+    }
+    
+    return h;
+}
+
+size_t variant::hash() const {
+    switch (m_type) {
+    case type_id::null_type:
+        return 0;
+    case type_id::bool_type:
+        return std::hash<bool>{}(m_bool);
+    case type_id::int8_type:
+    case type_id::int16_type:
+    case type_id::int32_type:
+    case type_id::int64_type:
+        return std::hash<int64_t>{}(m_int64);
+    case type_id::uint8_type:
+    case type_id::uint16_type:
+    case type_id::uint32_type:
+    case type_id::uint64_type:
+        return std::hash<uint64_t>{}(m_uint64);
+    case type_id::double_type:
+        return std::hash<double>{}(m_double);
+    case type_id::string_type: {
+        const std::string& str_data = *static_cast<std::string*>(m_string_ptr);
+        return calculate_str_hash(str_data.c_str(), str_data.size());
+    }
+    case type_id::blob_type: {
+        const blob& blob_data = *static_cast<blob*>(m_blob_ptr);
+        return calculate_str_hash(blob_data.data.data(), blob_data.data.size());
+    }
+    case type_id::array_type: {
+        const variants& array_data = *static_cast<variants*>(m_array_ptr);
+        return calculate_array_hash(array_data);
+    }
+    case type_id::object_type: {
+        // 使用dict的hash方法计算哈希值
+        const dict& obj = *static_cast<dict*>(m_object_ptr);
+        return obj.hash();
+    }
+    default:
+        return 0;
+    }
+}
+
 } // namespace mc

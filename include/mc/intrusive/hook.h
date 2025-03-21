@@ -17,8 +17,10 @@
 #ifndef MC_INTRUSIVE_HOOK_H
 #define MC_INTRUSIVE_HOOK_H
 
+#include <boost/intrusive/link_mode.hpp>
 #include <boost/intrusive/list_hook.hpp>
 #include <boost/intrusive/options.hpp>
+#include <boost/intrusive/set_hook.hpp>
 #include <boost/intrusive/unordered_set_hook.hpp>
 
 namespace mc {
@@ -106,6 +108,34 @@ public:
     // 禁止赋值操作，因为钩子不支持赋值
     unordered_set_hook& operator=(const unordered_set_hook&) = delete;
     unordered_set_hook& operator=(unordered_set_hook&&)      = delete;
+};
+
+/**
+ * @brief 有序集合钩子基类
+ * 
+ * 该类封装了 Boost 的有序集合钩子，提供了更加易用的接口
+ */
+class set_hook : public boost::intrusive::set_base_hook<
+                     typename boost_link_mode<link_mode::safe>::type> {
+public:
+    // 默认构造函数
+    set_hook() = default;
+
+    // 拷贝构造函数 - 不复制钩子状态
+    set_hook(const set_hook&)
+        : boost::intrusive::set_base_hook<
+              typename boost_link_mode<link_mode::safe>::type>() {
+    }
+
+    // 移动构造函数 - 不移动钩子状态
+    set_hook(set_hook&&) noexcept
+        : boost::intrusive::set_base_hook<
+              typename boost_link_mode<link_mode::safe>::type>() {
+    }
+
+    // 禁止赋值操作，因为钩子不支持赋值
+    set_hook& operator=(const set_hook&) = delete;
+    set_hook& operator=(set_hook&&)      = delete;
 };
 
 } // namespace intrusive
