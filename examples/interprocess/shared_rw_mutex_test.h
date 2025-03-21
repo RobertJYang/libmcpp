@@ -75,8 +75,8 @@ private:
     // 每个进程迭代次数
     int m_iterations;
     
-    // 共享读写锁
-    shared_rw_mutex* m_rwlock;
+    // IPC读写锁
+    ipc_rw_mutex* m_rwlock;
     
     // 共享计数器
     int* m_counter;
@@ -117,10 +117,10 @@ bool shared_rw_mutex_test::initialize() {
     // 获取分配器
     m_allocator = &m_shm->get_allocator();
     
-    // 创建读写锁
-    m_rwlock = m_allocator->create<shared_rw_mutex>();
+    // 创建IPC读写锁
+    m_rwlock = m_allocator->create<ipc_rw_mutex>();
     if (!m_rwlock) {
-        elog("创建共享读写锁失败!");
+        elog("创建IPC读写锁失败!");
         return false;
     }
     
@@ -131,7 +131,7 @@ bool shared_rw_mutex_test::initialize() {
         return false;
     }
     
-    ilog("共享读写锁和计数器创建成功");
+    ilog("IPC读写锁和计数器创建成功");
     return true;
 }
 
@@ -157,16 +157,19 @@ bool shared_rw_mutex_test::create_child_processes() {
                 // 读取当前计数值
                 int current = *m_counter;
                 
-                // 模拟读取操作
-                usleep(2000 + (rand() % 5000)); // 2-7ms随机延迟
+                // 适当延迟以模拟读操作
+                usleep(5000 + (rand() % 5000)); // 5-10ms随机延迟
                 
-                ilog("读子进程${i}(PID=${pid})：读取计数器值${value}", 
-                     ("i", i)("pid", getpid())("value", current));
+                // 验证计数值没有被写者修改
+                if (current != *m_counter) {
+                    elog("读者数据竞争：计数器值被写者修改: ${old} -> ${new}",
+                         ("old", current)("new", *m_counter));
+                }
                 
                 // 释放读锁
                 m_rwlock->unlock_shared();
                 
-                // 进程间隔
+                // 进程切换时间
                 usleep(1000 + (rand() % 3000)); // 1-4ms随机延迟
             }
             
@@ -189,7 +192,7 @@ bool shared_rw_mutex_test::create_child_processes() {
             continue;
         } else if (pid == 0) {
             // 写子进程
-            srand(getpid() + time(NULL) + i + 100); // 不同的随机种子
+            srand(getpid() + time(NULL) + i + m_reader_count);
             
             ilog("写子进程${i}(PID=${pid})开始运行", ("i", i)("pid", getpid()));
             
@@ -200,20 +203,20 @@ bool shared_rw_mutex_test::create_child_processes() {
                 // 读取当前计数值
                 int current = *m_counter;
                 
-                // 模拟写入操作
-                usleep(5000 + (rand() % 10000)); // 5-15ms随机延迟
+                // 模拟写操作延迟
+                usleep(8000 + (rand() % 7000)); // 8-15ms随机延迟
                 
-                // 增加计数器
+                // 递增计数器
                 *m_counter = current + 1;
                 
-                ilog("写子进程${i}(PID=${pid})：将计数器从${old}增加到${new}", 
+                ilog("写子进程${i}(PID=${pid})：将计数器从${old}增加到${new}",
                      ("i", i)("pid", getpid())("old", current)("new", current + 1));
                 
                 // 释放写锁
                 m_rwlock->unlock();
                 
-                // 进程间隔
-                usleep(5000 + (rand() % 10000)); // 5-15ms随机延迟
+                // 进程切换时间
+                usleep(3000 + (rand() % 5000)); // 3-8ms随机延迟
             }
             
             ilog("写子进程${i}(PID=${pid})完成", ("i", i)("pid", getpid()));
@@ -229,22 +232,18 @@ bool shared_rw_mutex_test::create_child_processes() {
 }
 
 bool shared_rw_mutex_test::verify_results() {
-    // 检查最终计数值
+    // 验证结果，计数器应等于写进程总共执行的次数
     int final_count = *m_counter;
-    int expected_writes = m_writer_count * m_iterations;
+    int expected = m_writer_count * m_iterations;
     
-    ilog("最终计数器值: ${count}，期望写入次数: ${expected}", 
-         ("count", final_count)("expected", expected_writes));
+    ilog("最终计数器值: ${count}，预期值: ${expected}",
+         ("count", final_count)("expected", expected));
     
-    if (final_count == expected_writes) {
-        ilog("读写锁测试成功：所有写操作正确执行");
+    if (final_count == expected) {
+        ilog("读写锁测试成功：所有写入正确完成");
         return true;
-    } else if (final_count > 0 && final_count < expected_writes) {
-        wlog("读写锁测试部分成功：部分写操作未完成，计数器值(${actual})小于预期值(${expected})",
-             ("actual", final_count)("expected", expected_writes));
-        return true; // 部分成功也视为测试通过
     } else {
-        elog("读写锁测试失败：计数器值异常");
+        elog("读写锁测试失败：写入次数与预期不符");
         return false;
     }
 }
@@ -258,7 +257,7 @@ void shared_rw_mutex_test::cleanup() {
     
     if (m_rwlock && m_allocator) {
         // 显式析构读写锁
-        m_rwlock->~shared_rw_mutex();
+        m_rwlock->~ipc_rw_mutex();
         m_allocator->deallocate(m_rwlock);
         m_rwlock = nullptr;
     }

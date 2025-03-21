@@ -12,10 +12,10 @@
 
 /**
  * @file common.h
- * @brief 数据库组件测试程序的公共定义
+ * @brief 共享内存和互斥锁组件测试程序的公共定义
  */
-#ifndef MC_DATABASE_EXAMPLES_COMMON_H
-#define MC_DATABASE_EXAMPLES_COMMON_H
+#ifndef MC_INTERPROCESS_EXAMPLES_COMMON_H
+#define MC_INTERPROCESS_EXAMPLES_COMMON_H
 
 #include <iostream>
 #include <string>
@@ -72,4 +72,4 @@ extern void test_multi_process_shared_mutex();
 extern void test_multi_process_shared_memory();
 extern void test_shared_rw_mutex();
 
-#endif // MC_DATABASE_EXAMPLES_COMMON_H 
+#endif // MC_INTERPROCESS_EXAMPLES_COMMON_H 

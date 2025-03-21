@@ -1,9 +1,12 @@
 # 测试源文件列表
 test_files = [
   'main.cpp',
-  # 'test_json.cpp',
+  'test_json.cpp',
   # 'test_signal_slot.cpp',
   # 'test_time.cpp',
+  # 'test_futures.cpp',
+  # 'test_priority_queue.cpp',
+  'interprocess/test_shared_mutex.cpp',
   # 'core/test_singleton.cpp',
   # 'core/test_service_manager.cpp',
   # 'string/test_string.cpp',
@@ -24,7 +27,7 @@ test_files = [
   # 'dict/test_dict_conversion.cpp',
   # 'dict/test_dict_performance.cpp',
   # 'filesystem/test_filesystem.cpp',
-  'database/test_path_iterator.cpp',
+  # 'database/test_path_iterator.cpp',
   # 'database/test_shared_tree_db.cpp',
 ]
 
@@ -59,28 +62,3 @@ test_exe = executable('libmcpp_test',
 
 # 注册测试
 test('libmcpp unit tests', test_exe)
-
-# 测试环境配置
-test_env = environment()
-test_env.set('MC_LOG_LEVEL', 'debug')
-
-# tests 目录 meson.build
-
-# 单元测试程序
-mc_tests_sources = [
-  # 这里添加测试程序源文件
-]
-
-# 构建单元测试程序
-if gtest_dep.found() and mc_tests_sources.length() > 0
-  mc_tests = executable(
-    'mc_tests',
-    mc_tests_sources,
-    include_directories: [project_inc],
-    dependencies: [project_deps, gtest_dep, test_utilities_dep],
-    install: false
-  )
-
-  # 添加测试用例
-  test('mc_tests', mc_tests, env: test_env)
-endif

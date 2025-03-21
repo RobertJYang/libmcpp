@@ -71,8 +71,8 @@ private:
     // 每个进程迭代次数
     int m_iterations;
     
-    // 共享互斥锁
-    shared_mutex* m_mutex;
+    // IPC互斥锁
+    ipc_mutex* m_mutex;
     
     // 共享计数器
     int* m_counter;
@@ -112,10 +112,10 @@ bool shared_mutex_test::initialize() {
     // 获取分配器
     m_allocator = &m_shm->get_allocator();
     
-    // 创建共享互斥锁
-    m_mutex = m_allocator->create<shared_mutex>();
+    // 创建IPC互斥锁
+    m_mutex = m_allocator->create<ipc_mutex>();
     if (!m_mutex) {
-        elog("创建共享互斥锁失败!");
+        elog("创建IPC互斥锁失败!");
         return false;
     }
     
@@ -126,7 +126,7 @@ bool shared_mutex_test::initialize() {
         return false;
     }
     
-    ilog("共享互斥锁和计数器创建成功");
+    ilog("IPC互斥锁和计数器创建成功");
     return true;
 }
 
@@ -213,7 +213,7 @@ void shared_mutex_test::cleanup() {
     
     if (m_mutex && m_allocator) {
         // 显式析构互斥锁
-        m_mutex->~shared_mutex();
+        m_mutex->~ipc_mutex();
         m_allocator->deallocate(m_mutex);
         m_mutex = nullptr;
     }

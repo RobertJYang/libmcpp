@@ -40,10 +40,10 @@ void test_shared_mutex() {
     // 获取分配器
     auto& allocator = shm->get_allocator();
 
-    // 创建数据库自定义的共享互斥锁
-    shared_mutex* mutex_ptr = allocator.create<shared_mutex>();
-    shared_mutex& mutex = *mutex_ptr;
-    ilog("共享互斥锁创建成功");
+    // 创建IPC互斥锁
+    ipc_mutex* mutex_ptr = allocator.create<ipc_mutex>();
+    ipc_mutex& mutex = *mutex_ptr;
+    ilog("IPC互斥锁创建成功");
 
     // 测试锁定和解锁
     ilog("尝试锁定互斥锁...");
@@ -71,17 +71,6 @@ void test_shared_mutex() {
         mutex.unlock();
     }
 
-    // 测试锁的所有权检查
-    ilog("检查锁的所有权（应该为false）...");
-    bool has_lock = mutex.owns_lock();
-    ilog("owns_lock() 返回: ${result}", ("result", has_lock ? "true" : "false"));
-
-    mutex.lock();
-    ilog("加锁后再次检查所有权（应该为true）...");
-    has_lock = mutex.owns_lock();
-    ilog("owns_lock() 返回: ${result}", ("result", has_lock ? "true" : "false"));
-    mutex.unlock();
-
     // 测试带超时的锁定
     ilog("测试带超时的锁定（应该成功）...");
     bool lock_success = mutex.try_lock_for(std::chrono::milliseconds(100));
@@ -89,6 +78,10 @@ void test_shared_mutex() {
     if (lock_success) {
         mutex.unlock();
     }
+
+    // 显式析构
+    mutex.~ipc_mutex();
+    allocator.deallocate(mutex_ptr);
 
     // shared_memory_manager会在析构时自动清理共享内存
     ilog("===== 共享互斥锁测试结束 =====");
