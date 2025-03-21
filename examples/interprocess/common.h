@@ -41,7 +41,7 @@
 #include "mc/interprocess/shared_memory_allocator.h"
 #include "mc/interprocess/shared_memory.h"
 #include "mc/interprocess/shared_memory_manager.h"
-#include "mc/interprocess/shared_mutex.h"
+#include "mc/interprocess/mutex.h"
 
 using namespace mc;
 using namespace mc::interprocess;

@@ -76,7 +76,7 @@ private:
     int m_iterations;
     
     // IPC读写锁
-    ipc_rw_mutex* m_rwlock;
+    ipc_shared_mutex* m_rwlock;
     
     // 共享计数器
     int* m_counter;
@@ -118,7 +118,7 @@ bool shared_rw_mutex_test::initialize() {
     m_allocator = &m_shm->get_allocator();
     
     // 创建IPC读写锁
-    m_rwlock = m_allocator->create<ipc_rw_mutex>();
+    m_rwlock = m_allocator->create<ipc_shared_mutex>();
     if (!m_rwlock) {
         elog("创建IPC读写锁失败!");
         return false;
@@ -257,7 +257,7 @@ void shared_rw_mutex_test::cleanup() {
     
     if (m_rwlock && m_allocator) {
         // 显式析构读写锁
-        m_rwlock->~ipc_rw_mutex();
+        m_rwlock->~ipc_shared_mutex();
         m_allocator->deallocate(m_rwlock);
         m_rwlock = nullptr;
     }

@@ -15,7 +15,7 @@
 #include <vector>
 #include <atomic>
 #include <chrono>
-#include "mc/interprocess/shared_mutex.h"
+#include "mc/interprocess/mutex.h"
 #include "mc/interprocess/shared_memory_manager.h"
 
 using namespace mc::interprocess;
@@ -45,28 +45,28 @@ protected:
         ASSERT_TRUE(m_ipc_mutex != nullptr) << "创建IPC互斥锁失败";
         
         // 创建IPC读写互斥锁
-        m_ipc_rw_mutex = m_allocator->create<ipc_rw_mutex>();
-        ASSERT_TRUE(m_ipc_rw_mutex != nullptr) << "创建IPC读写互斥锁失败";
+        m_ipc_shared_mutex = m_allocator->create<ipc_shared_mutex>();
+        ASSERT_TRUE(m_ipc_shared_mutex != nullptr) << "创建IPC读写互斥锁失败";
         
-        // 创建包装的shared_mutex和shared_rw_mutex
-        m_shared_mutex = std::make_unique<shared_mutex>(*m_ipc_mutex);
-        m_shared_rw_mutex = std::make_unique<shared_rw_mutex>(*m_ipc_rw_mutex);
+        // 创建包装的mutex和shared_mutex
+        m_mutex = std::make_unique<mutex>(*m_ipc_mutex);
+        m_shared_mutex = std::make_unique<shared_mutex>(*m_ipc_shared_mutex);
     }
     
     // 在每个测试后清理资源
     void TearDown() override {
         // 释放资源
+        m_mutex.reset();
         m_shared_mutex.reset();
-        m_shared_rw_mutex.reset();
         
         if (m_ipc_mutex && m_allocator) {
             m_ipc_mutex->~ipc_mutex();
             m_allocator->deallocate(m_ipc_mutex);
         }
         
-        if (m_ipc_rw_mutex && m_allocator) {
-            m_ipc_rw_mutex->~ipc_rw_mutex();
-            m_allocator->deallocate(m_ipc_rw_mutex);
+        if (m_ipc_shared_mutex && m_allocator) {
+            m_ipc_shared_mutex->~ipc_shared_mutex();
+            m_allocator->deallocate(m_ipc_shared_mutex);
         }
         
         // 共享内存管理器会在析构时自动清理共享内存
@@ -83,22 +83,22 @@ protected:
     // IPC互斥锁
     ipc_mutex* m_ipc_mutex = nullptr;
     // IPC读写互斥锁
-    ipc_rw_mutex* m_ipc_rw_mutex = nullptr;
-    // 多线程共享互斥锁
-    std::unique_ptr<shared_mutex> m_shared_mutex;
+    ipc_shared_mutex* m_ipc_shared_mutex = nullptr;
+    // 多线程互斥锁
+    std::unique_ptr<mutex> m_mutex;
     // 多线程共享读写互斥锁
-    std::unique_ptr<shared_rw_mutex> m_shared_rw_mutex;
+    std::unique_ptr<shared_mutex> m_shared_mutex;
 };
 
-// 测试 shared_mutex 在单进程多线程环境下的基本功能
+// 测试 mutex 在单进程多线程环境下的基本功能
 TEST_F(SharedMutexTestFixture, BasicThreadSafety) {
     std::atomic<int> counter(0);
     
     auto increment = [this, &counter]() {
         for (int i = 0; i < 1000; ++i) {
-            m_shared_mutex->lock();
+            m_mutex->lock();
             counter++;
-            m_shared_mutex->unlock();
+            m_mutex->unlock();
         }
     };
     
@@ -114,38 +114,38 @@ TEST_F(SharedMutexTestFixture, BasicThreadSafety) {
     EXPECT_EQ(counter, 10 * 1000);
 }
 
-// 测试 shared_mutex 的 try_lock
+// 测试 mutex 的 try_lock
 TEST_F(SharedMutexTestFixture, TryLock) {
     // 锁应该可以成功获取
-    EXPECT_TRUE(m_shared_mutex->try_lock());
+    EXPECT_TRUE(m_mutex->try_lock());
     
     // 第二个线程不应该能获取锁
     std::thread t([this]() {
-        EXPECT_FALSE(m_shared_mutex->try_lock());
+        EXPECT_FALSE(m_mutex->try_lock());
     });
     
     t.join();
     
     // 解锁后应该可以获取
-    m_shared_mutex->unlock();
+    m_mutex->unlock();
     
     std::thread t2([this]() {
-        EXPECT_TRUE(m_shared_mutex->try_lock());
-        m_shared_mutex->unlock();
+        EXPECT_TRUE(m_mutex->try_lock());
+        m_mutex->unlock();
     });
     
     t2.join();
 }
 
-// 测试 shared_mutex 的 try_lock_for
+// 测试 mutex 的 try_lock_for
 TEST_F(SharedMutexTestFixture, TryLockFor) {
     // 首先获取锁
-    m_shared_mutex->lock();
+    m_mutex->lock();
     
     // 启动一个线程尝试获取锁，应该超时
     std::thread t([this]() {
         auto start = std::chrono::steady_clock::now();
-        EXPECT_FALSE(m_shared_mutex->try_lock_for(std::chrono::milliseconds(100)));
+        EXPECT_FALSE(m_mutex->try_lock_for(std::chrono::milliseconds(100)));
         auto end = std::chrono::steady_clock::now();
         
         // 确保时间至少接近超时时间，但原始测试太严格了
@@ -156,19 +156,19 @@ TEST_F(SharedMutexTestFixture, TryLockFor) {
     });
     
     t.join();
-    m_shared_mutex->unlock();
+    m_mutex->unlock();
 }
 
-// 测试 shared_rw_mutex 在单进程多线程环境下的基本功能
-TEST_F(SharedMutexTestFixture, SharedRwMutexBasicThreadSafety) {
+// 测试 shared_mutex 在单进程多线程环境下的基本功能
+TEST_F(SharedMutexTestFixture, SharedMutexBasicThreadSafety) {
     std::atomic<int> counter(0);
     
     // 测试写锁互斥
     auto writer = [this, &counter]() {
         for (int i = 0; i < 100; ++i) {
-            m_shared_rw_mutex->lock();
+            m_shared_mutex->lock();
             counter++;
-            m_shared_rw_mutex->unlock();
+            m_shared_mutex->unlock();
         }
     };
     
@@ -191,26 +191,26 @@ TEST_F(SharedMutexTestFixture, SharedRwMutexBasicThreadSafety) {
     // 测试多读单写的场景
     auto reader = [this, &readers_active, &writer_active]() {
         for (int i = 0; i < 100; ++i) {
-            m_shared_rw_mutex->lock_shared();
+            m_shared_mutex->lock_shared();
             readers_active++;
             // 确保没有写者活跃
             EXPECT_FALSE(writer_active);
             std::this_thread::sleep_for(std::chrono::microseconds(10));
             readers_active--;
-            m_shared_rw_mutex->unlock_shared();
+            m_shared_mutex->unlock_shared();
         }
     };
     
     auto writer2 = [this, &counter, &readers_active, &writer_active]() {
         for (int i = 0; i < 100; ++i) {
-            m_shared_rw_mutex->lock();
+            m_shared_mutex->lock();
             writer_active = true;
             // 确保没有读者活跃
             EXPECT_EQ(readers_active, 0);
             counter++;
             std::this_thread::sleep_for(std::chrono::microseconds(10));
             writer_active = false;
-            m_shared_rw_mutex->unlock();
+            m_shared_mutex->unlock();
         }
     };
     

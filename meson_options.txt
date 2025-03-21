@@ -1,0 +1,4 @@
+option('shared_mutex_max_readers',
+       type : 'integer',
+       value : 0,
+       description : '设置共享读写锁的最大并发读取数，默认为32') 
