@@ -115,6 +115,9 @@ bool service_manager::stop_services() {
     // 按照启动顺序的反序停止服务
     for (auto it = m_service_start_order.rbegin(); it != m_service_start_order.rend(); ++it) {
         const auto& name = *it;
+        if (m_services.count(name) == 0) {
+            continue;
+        }
         try {
             if (!m_services[name]->stop()) {
                 elog("停止服务 '${name}' 失败", ("name", name));

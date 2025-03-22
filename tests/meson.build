@@ -6,7 +6,7 @@ test_files = [
   # 'test_time.cpp',
   # 'test_futures.cpp',
   # 'test_priority_queue.cpp',
-  'interprocess/test_shared_mutex.cpp',
+  # 'interprocess/test_shared_mutex.cpp',
   # 'core/test_singleton.cpp',
   # 'core/test_service_manager.cpp',
   # 'string/test_string.cpp',
@@ -29,6 +29,7 @@ test_files = [
   # 'filesystem/test_filesystem.cpp',
   # 'database/test_path_iterator.cpp',
   # 'database/test_shared_tree_db.cpp',
+  'database/test_database.cpp',
 ]
 
 # 测试工具库 - 构建为独立的静态库
