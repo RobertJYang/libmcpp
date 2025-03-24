@@ -21,6 +21,7 @@
 #include "mc/core/service_manager.h"
 #include "mc/log.h"
 #include <iostream>
+#include <thread>
 
 using namespace mc;
 

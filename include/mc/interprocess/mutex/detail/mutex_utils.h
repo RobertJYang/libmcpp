@@ -20,6 +20,7 @@
 #include <chrono>
 #include <thread>
 #include <sys/time.h>
+#include <algorithm>
 
 namespace mc::interprocess::detail {
 
