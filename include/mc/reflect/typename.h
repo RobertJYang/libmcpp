@@ -31,6 +31,11 @@
 #include <variant>
 #include <vector>
 
+// 添加类型检查，避免重定义
+#if defined(__GNUC__) && (defined(__x86_64__) || defined(__aarch64__))
+#define INT64_IS_LONG
+#endif
+
 namespace mc {
 namespace reflect {
 
@@ -139,6 +144,8 @@ struct get_typename<uint32_t> {
         return "uint32_t";
     }
 };
+
+#ifndef INT64_IS_LONG
 template <>
 struct get_typename<int64_t> {
     static const char* name() {
@@ -151,6 +158,7 @@ struct get_typename<uint64_t> {
         return "uint64_t";
     }
 };
+#endif
 
 // 容器类型特化
 template <typename T, typename A>
