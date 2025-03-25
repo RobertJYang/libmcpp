@@ -33,6 +33,13 @@ src_files = [
   'interprocess/mutex/ipc_shared_mutex.cpp',
   'database/path_iterator.cpp',
   'database/client.cpp',
+  # 'im/iradix.cpp',
+  # 'im/node.cpp',
+  # 'im/node_entry.cpp',
+  # 'im/node_pool.cpp',
+  # 'im/byte_buffer.cpp',
+  # 'im/raw_iterator.cpp',
+  # 'im/txn.cpp',
 ]
 
 # 创建共享库

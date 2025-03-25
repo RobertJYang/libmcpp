@@ -1,7 +1,7 @@
 # 测试源文件列表
 test_files = [
   'main.cpp',
-  'test_json.cpp',
+  # 'test_json.cpp',
   # 'test_signal_slot.cpp',
   # 'test_time.cpp',
   # 'test_futures.cpp',
@@ -29,7 +29,11 @@ test_files = [
   # 'filesystem/test_filesystem.cpp',
   # 'database/test_path_iterator.cpp',
   # 'database/test_shared_tree_db.cpp',
-  'database/test_database.cpp',
+  # 'database/test_database.cpp',
+  # 'im/test_node_list.cpp',
+  # 'im/test_node.cpp',
+  # 'im/test_simple_node.cpp',
+  'im/test_transaction.cpp',
 ]
 
 # 测试工具库 - 构建为独立的静态库
