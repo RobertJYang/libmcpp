@@ -21,18 +21,34 @@
 #include <mc/im/ref_list.h>
 #include <mc/im/ref_ptr.h>
 #include <memory>
+#include <optional>
 #include <vector>
 
 namespace mc::im {
 
+/**
+ * 树配置模板类，集中管理树的各种类型参数
+ * @tparam ValueType 叶子节点存储的数据类型
+ * @tparam Allocator 内存分配器类型
+ * @tparam IsLess 是否使用小于比较器，true为升序（默认），false为降序
+ */
+template <typename ValueType = void*, typename Allocator = std::allocator<char>, bool IsLess = true>
+struct tree_config {
+    using value_type              = ValueType;
+    using leaf_type               = std::optional<ValueType>;
+    using allocator_type          = Allocator;
+    static constexpr bool is_less = IsLess;
+};
+
+// 默认配置
+using default_tree_config = tree_config<>;
+
 // 前向声明node类，用于edge中的引用
-template <typename Allocator = std::allocator<void>, bool IsLess = true>
+template <typename Config = default_tree_config>
 class node;
 
-using leaf_type       = void*;
-using const_leaf_type = const void*;
-
-using walk_fn = std::function<bool(const key_view&, const_leaf_type)>;
+template <typename Config = default_tree_config>
+using walk_fn = std::function<bool(key_view, const typename Config::value_type&)>;
 
 /**
  * 边结构，表示从一个节点到另一个节点的连接
@@ -103,21 +119,25 @@ using edges =
 /**
  * 节点类，表示基数树中的一个节点
  * 继承自 ref_base
- * @tparam Allocator 内存分配器类型
- * @tparam IsLess 是否使用小于比较器，true为升序（默认），false为降序
+ * @tparam Config 树配置类型
  */
-template <typename Allocator, bool IsLess>
-class node : public ref_base<node<Allocator, IsLess>> {
+template <typename Config>
+class node : public ref_base<node<Config>> {
 public:
-    using alloc_traits   = std::allocator_traits<Allocator>;
-    using allocator_type = typename alloc_traits::template rebind_alloc<node>;
-    using pointer_type   = typename allocator_type::pointer;
-    using key_type       = key_buffer<typename alloc_traits::template rebind_alloc<char>>;
-    using edge_type      = edge<node>;
-    using edges_type     = edges<node>;
-    using ref_ptr_type   = ref_ptr<node, pointer_type>;
-    using list_type      = ref_list<node, pointer_type>;
-    using compare_type   = std::conditional_t<IsLess, edge_less<node>, edge_greater<node>>;
+    // 从配置中提取类型
+    using leaf_type              = typename Config::leaf_type;
+    using allocator_type         = typename Config::allocator_type;
+    static constexpr bool IsLess = Config::is_less;
+
+    using alloc_traits        = std::allocator_traits<allocator_type>;
+    using node_allocator_type = typename alloc_traits::template rebind_alloc<node>;
+    using pointer_type        = typename node_allocator_type::pointer;
+    using key_type            = key_buffer<typename alloc_traits::template rebind_alloc<char>>;
+    using edge_type           = edge<node>;
+    using edges_type          = edges<node>;
+    using ref_ptr_type        = ref_ptr<node, pointer_type>;
+    using list_type           = ref_list<node, pointer_type>;
+    using compare_type        = std::conditional_t<IsLess, edge_less<node>, edge_greater<node>>;
 
     // 默认构造函数
     node() {
@@ -128,7 +148,7 @@ public:
     }
 
     // 带前缀构造，使用key_view
-    node(leaf_type leaf, const key_view& prefix, edges_type edges = {})
+    node(leaf_type leaf, key_view prefix, edges_type edges = {})
         : m_leaf(leaf), m_prefix(prefix), m_edges(std::move(edges)), m_version(0) {
     }
 
@@ -138,18 +158,18 @@ public:
     }
 
     // 带分配器的构造函数
-    node(const Allocator& alloc, leaf_type leaf)
+    node(const allocator_type& alloc, leaf_type leaf)
         : m_leaf(leaf), m_prefix(alloc), m_edges(alloc), m_alloc(alloc) {
     }
 
     // 带分配器和前缀的构造函数
-    node(const Allocator& alloc, leaf_type leaf, const key_view& prefix, edges_type edges = {})
+    node(const allocator_type& alloc, leaf_type leaf, key_view prefix, edges_type edges = {})
         : m_leaf(leaf), m_prefix(alloc, prefix), m_edges(alloc, std::move(edges)), m_version(0),
           m_alloc(alloc) {
     }
 
     // 带分配器和前缀的构造函数（前缀为右值引用）
-    node(const Allocator& alloc, leaf_type leaf, key_type prefix, edges_type edges = {})
+    node(const allocator_type& alloc, leaf_type leaf, key_type prefix, edges_type edges = {})
         : m_leaf(leaf), m_prefix(alloc, std::move(prefix)), m_edges(alloc, std::move(edges)),
           m_version(0), m_alloc(alloc) {
     }
@@ -160,7 +180,7 @@ public:
 
     // 判断节点是否为叶子节点
     bool is_leaf() const {
-        return m_leaf != nullptr;
+        return m_leaf.has_value();
     }
 
     // 添加边
@@ -202,26 +222,26 @@ public:
     }
 
     // 查找键
-    std::pair<leaf_type, bool> get(const key_view& k) const {
+    leaf_type get(key_view k) const {
         // 如果前缀不匹配，则返回失败
         size_t prefix_len = m_prefix.size();
         size_t k_len      = k.size();
 
         // 前缀比查询键长，肯定不匹配
         if (prefix_len > k_len) {
-            return {nullptr, false};
+            return std::nullopt;
         }
 
         // 逐字节比较前缀
         for (size_t i = 0; i < prefix_len; i++) {
             if (m_prefix[i] != k[i]) {
-                return {nullptr, false};
+                return std::nullopt;
             }
         }
 
         // 如果前缀正好是整个键，且当前节点是叶子节点，则找到
         if (prefix_len == k_len) {
-            return {m_leaf, m_leaf != nullptr};
+            return m_leaf;
         }
 
         // 尝试在子节点中查找剩余部分
@@ -231,16 +251,16 @@ public:
             return child->get(remaining);
         }
 
-        return {nullptr, false};
+        return std::nullopt;
     }
 
     // 遍历树
-    void walk(const walk_fn& fn) const {
-        recursive_walk(this, fn);
+    void walk(walk_fn<Config>&& fn) const {
+        recursive_walk(this, std::forward<walk_fn<Config>>(fn));
     }
 
     // 遍历指定前缀的子树
-    void walk_prefix(const key_view& prefix, const walk_fn& fn) const {
+    void walk_prefix(key_view prefix, walk_fn<Config>&& fn) const {
         // 如果前缀不匹配，则返回
         size_t prefix_len = m_prefix.size();
         size_t p_len      = prefix.size();
@@ -253,7 +273,7 @@ public:
                 }
             }
             // 节点前缀以查询前缀开头，遍历所有节点
-            recursive_walk(this, fn);
+            recursive_walk(this, std::forward<walk_fn<Config>>(fn));
             return;
         }
 
@@ -267,45 +287,15 @@ public:
         // 如果节点前缀是查询前缀的前缀，继续查找
         if (prefix_len == p_len) {
             // 前缀完全匹配，遍历所有节点
-            recursive_walk(this, fn);
+            recursive_walk(this, std::forward<walk_fn<Config>>(fn));
         } else {
             // 继续在子节点中查找
             auto [idx, child] = get_edge(prefix[prefix_len]);
             if (idx >= 0) {
                 key_view remaining = prefix.substr(prefix_len);
-                child->walk_prefix(remaining, fn);
+                child->walk_prefix(remaining, std::forward<walk_fn<Config>>(fn));
             }
         }
-    }
-
-    // 设置链接（在目标节点之后）
-    void set_links_after(ref_ptr_type pos) {
-        node* next = pos->m_next.get();
-
-        this->m_prev = pos;
-        if (next) {
-            next->m_prev = ref_ptr_type(this);
-            this->m_next = ref_ptr_type(next);
-        } else {
-            this->m_next = nullptr;
-        }
-
-        pos->m_next = ref_ptr_type(this);
-    }
-
-    // 设置链接（在目标节点之前）
-    void set_links_before(ref_ptr_type pos) {
-        node* prev = pos->m_prev.get();
-
-        this->m_next = pos;
-        if (prev) {
-            prev->m_next = ref_ptr_type(this);
-            this->m_prev = ref_ptr_type(prev);
-        } else {
-            this->m_prev = nullptr;
-        }
-
-        pos->m_prev = ref_ptr_type(this);
     }
 
     friend bool operator==(const node& lhs, const node& rhs) {
@@ -319,16 +309,16 @@ public:
 
 private:
     // 递归遍历
-    static bool recursive_walk(const node* n, const walk_fn& fn) {
+    static bool recursive_walk(const node* n, walk_fn<Config>&& fn) {
         if (n->is_leaf()) {
-            if (!fn(n->m_prefix, n->m_leaf)) {
+            if (!fn(n->m_prefix, n->m_leaf.value())) {
                 return false;
             }
         }
 
         // 遍历所有子节点
         for (const auto& e : n->m_edges) {
-            if (!recursive_walk(e.m_node.get(), fn)) {
+            if (!recursive_walk(e.m_node.get(), std::forward<walk_fn<Config>>(fn))) {
                 return false;
             }
         }
@@ -337,18 +327,18 @@ private:
     }
 
 public:
-    leaf_type      m_leaf = nullptr;
-    key_type       m_prefix;
-    edges_type     m_edges;
-    size_t         m_version = 0;
-    ref_ptr_type   m_next;
-    ref_ptr_type   m_prev;
-    allocator_type m_alloc;
+    leaf_type           m_leaf;
+    key_type            m_prefix;
+    edges_type          m_edges;
+    size_t              m_version = 0;
+    ref_ptr_type        m_next;
+    ref_ptr_type        m_prev;
+    node_allocator_type m_alloc;
 };
 
 // 常用类型别名，简化使用
-using default_node = node<std::allocator<void>, true>;  // 默认升序
-using reverse_node = node<std::allocator<void>, false>; // 降序节点
+using default_node = node<default_tree_config>;
+using reverse_node = node<tree_config<void, std::allocator<char>, false>>;
 
 template <typename Node>
 using node_list = typename Node::list_type;

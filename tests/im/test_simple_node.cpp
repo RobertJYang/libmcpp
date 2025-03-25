@@ -17,24 +17,30 @@
 
 namespace mc::im::tests {
 
+// 定义默认配置
+using default_config = tree_config<>;
+using default_node_type = node<default_config>;
+
 TEST(SimpleNodeTest, BasicNodeFunctionality) {
     // 使用非零值作为叶子值
     void* leaf_val = reinterpret_cast<void*>(1);
     
     // 创建一个简单的节点
-    default_node node(leaf_val);
+    default_node_type node(leaf_val);
     
     // 测试基本属性
     EXPECT_TRUE(node.is_leaf());
-    EXPECT_EQ(node.m_leaf, leaf_val);
+    EXPECT_TRUE(node.m_leaf.has_value());
+    EXPECT_EQ(node.m_leaf.value(), leaf_val);
     EXPECT_EQ(node.m_edges.size(), 0);
     EXPECT_EQ(node.m_prefix.size(), 0);
     
     // 测试前缀节点
     key_buffer<> prefix("test");
-    default_node prefix_node(leaf_val, prefix);
+    default_node_type prefix_node(leaf_val, prefix);
     EXPECT_TRUE(prefix_node.is_leaf());
-    EXPECT_EQ(prefix_node.m_leaf, leaf_val);
+    EXPECT_TRUE(prefix_node.m_leaf.has_value());
+    EXPECT_EQ(prefix_node.m_leaf.value(), leaf_val);
     EXPECT_EQ(prefix_node.m_edges.size(), 0);
     EXPECT_EQ(prefix_node.m_prefix.size(), 4);
     EXPECT_EQ(std::string(prefix_node.m_prefix.data(), prefix_node.m_prefix.size()), "test");
@@ -46,28 +52,27 @@ TEST(SimpleNodeTest, GetKey) {
     void* leaf2 = reinterpret_cast<void*>(2);
     
     // 创建一个简单节点
-    default_node node(leaf1);
+    default_node_type node(leaf1);
     
     // 测试空键查找
     key_buffer<> empty_key;
-    auto [result, found] = node.get(empty_key);
-    EXPECT_TRUE(found);
-    EXPECT_EQ(result, leaf1);
+    auto result = node.get(empty_key);
+    EXPECT_TRUE(result.has_value());
+    EXPECT_EQ(result.value(), leaf1);
     
     // 创建一个前缀节点
     key_buffer<> prefix_key("test");
-    default_node prefix_node(leaf2, prefix_key);
+    default_node_type prefix_node(leaf2, prefix_key);
     
     // 测试前缀匹配
-    auto [prefix_result, prefix_found] = prefix_node.get(prefix_key);
-    EXPECT_TRUE(prefix_found);
-    EXPECT_EQ(prefix_result, leaf2);
+    auto prefix_result = prefix_node.get(prefix_key);
+    EXPECT_TRUE(prefix_result.has_value());
+    EXPECT_EQ(prefix_result.value(), leaf2);
     
     // 测试前缀不匹配
     key_buffer<> wrong_key("wrong");
-    auto [wrong_result, wrong_found] = prefix_node.get(wrong_key);
-    EXPECT_FALSE(wrong_found);
-    EXPECT_EQ(wrong_result, nullptr);
+    auto wrong_result = prefix_node.get(wrong_key);
+    EXPECT_FALSE(wrong_result.has_value());
 }
 
 TEST(SimpleNodeTest, AddAndGetEdge) {
@@ -75,11 +80,11 @@ TEST(SimpleNodeTest, AddAndGetEdge) {
     void* leaf1 = reinterpret_cast<void*>(1);
     
     // 创建一个简单的树：root -> a -> child
-    auto root = make_ref<default_node>(nullptr);
-    auto child = make_ref<default_node>(leaf1);
+    auto root = make_ref<default_node_type>(nullptr);
+    auto child = make_ref<default_node_type>(leaf1);
     
     // 测试基本的边添加和获取
-    typename default_node::edge_type edge('a', child);
+    typename default_node_type::edge_type edge('a', child);
     root->add_edge(edge);
     
     // 验证边数量
@@ -91,17 +96,17 @@ TEST(SimpleNodeTest, AddAndGetEdge) {
     EXPECT_EQ(node, child);
     
     // 创建更复杂的测试：带有单字符前缀
-    auto root2 = make_ref<default_node>(nullptr);
+    auto root2 = make_ref<default_node_type>(nullptr);
     key_buffer<> prefix_b("b");
-    auto child2 = make_ref<default_node>(leaf1, prefix_b);  // 使用key_buffer而不是字符串字面量
+    auto child2 = make_ref<default_node_type>(leaf1, prefix_b);  // 使用key_buffer而不是字符串字面量
     
-    root2->add_edge(typename default_node::edge_type('b', child2));
+    root2->add_edge(typename default_node_type::edge_type('b', child2));
     
     // 查找键 "b"
     key_buffer<> key_b("b");
-    auto [result_b, found_b] = root2->get(key_b);
-    EXPECT_TRUE(found_b);
-    EXPECT_EQ(result_b, leaf1);
+    auto result_b = root2->get(key_b);
+    EXPECT_TRUE(result_b.has_value());
+    EXPECT_EQ(result_b.value(), leaf1);
 }
 
 TEST(SimpleNodeTest, SimpleWalkPrefix) {
@@ -110,12 +115,12 @@ TEST(SimpleNodeTest, SimpleWalkPrefix) {
     
     // 创建前缀节点，使用make_ref
     key_buffer<> prefix("test");
-    auto node = make_ref<default_node>(leaf1, prefix);
+    auto node = make_ref<default_node_type>(leaf1, prefix);
     
     // 测试遍历
     std::vector<std::pair<std::string, void*>> walk_results;
-    auto collect_fn = [&walk_results](const key_view& key, const void* val) -> bool {
-        walk_results.push_back({std::string(key.data(), key.size()), const_cast<void*>(val)});
+    auto collect_fn = [&walk_results](key_view key, void* val) -> bool {
+        walk_results.push_back({std::string(key.data(), key.size()), val});
         return true;
     };
     

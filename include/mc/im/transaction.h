@@ -16,6 +16,7 @@
 #include <mc/exception.h>
 #include <mc/im/node_pool.h>
 #include <mc/im/radix_tree.h>
+#include <optional>
 #include <vector>
 
 namespace mc::im {
@@ -23,32 +24,37 @@ namespace mc::im {
 /**
  * 事务对象，用于操作不可变基数树
  */
-template <typename Allocator = std::allocator<void>, bool IsLess = true>
+template <typename Config = default_tree_config>
 class transaction {
 public:
-    using node_type  = node<Allocator, IsLess>;
+    // 从配置中提取类型
+    using leaf_type              = typename Config::leaf_type;
+    using value_type             = typename Config::value_type;
+    using allocator_type         = typename Config::allocator_type;
+    static constexpr bool IsLess = Config::is_less;
+
+    using node_type  = node<Config>;
     using node_ptr   = typename node_type::ref_ptr_type;
     using node_list  = typename node_type::list_type;
     using edges_type = typename node_type::edges_type;
     using edge_type  = typename node_type::edge_type;
-    // 使用全局 leaf_type 定义
-    using radix_tree_type = radix_tree<Allocator, IsLess>;
-    using pool_type       = node_pool<Allocator, IsLess>;
+    using tree_type  = radix_tree<Config>;
+    using pool_type  = node_pool<Config>;
 
     /**
      * 事务保存点，用于支持回滚操作
      */
     class save_point {
     public:
-        save_point(const Allocator& alloc = Allocator())
+        save_point(const allocator_type& alloc = allocator_type())
             : m_node_pool(alloc), m_size(0), m_version(0) {
         }
 
-        save_point(node_ptr root, size_t size, const Allocator& alloc)
+        save_point(node_ptr root, size_t size, const allocator_type& alloc)
             : m_node_pool(alloc), m_root(std::move(root)), m_size(size), m_version(0) {
         }
 
-        save_point(const save_point& other) = delete;
+        save_point(const save_point& other)            = delete;
         save_point& operator=(const save_point& other) = delete;
 
         save_point(save_point&& other) noexcept
@@ -59,9 +65,9 @@ public:
         save_point& operator=(save_point&& other) noexcept {
             if (this != &other) {
                 m_node_pool = std::move(other.m_node_pool);
-                m_root = std::move(other.m_root);
-                m_size = other.m_size;
-                m_version = other.m_version;
+                m_root      = std::move(other.m_root);
+                m_size      = other.m_size;
+                m_version   = other.m_version;
             }
             return *this;
         }
@@ -105,9 +111,17 @@ public:
     };
 
     /**
-     * 创建新的事务
+     * 默认构造函数
      */
-    transaction(radix_tree_type tree) : m_tree(tree), m_def_save_point(tree.get_allocator()) {
+    transaction(const allocator_type& alloc = allocator_type())
+        : m_tree(alloc), m_def_save_point(alloc) {
+    }
+
+    /**
+     * 为给定 tree 创建新的事务
+     * @param tree 给定的树
+     */
+    transaction(tree_type tree) : m_tree(tree), m_def_save_point(tree.get_allocator()) {
     }
 
     ~transaction() {
@@ -151,52 +165,53 @@ public:
      * 插入或更新数据
      * @param k 键
      * @param v 值
-     * @return 旧值和是否更新的标志
+     * @return 返回更新前的值和是否更新的标志
      */
-    std::pair<leaf_type, bool> insert(const key_view& k, leaf_type v) {
-        auto [new_node, old_value, updated] = insert(m_tree.m_root, k, k, v);
+    std::pair<leaf_type, bool> insert(key_view k, value_type v) {
+        auto [new_node, old_value, updated] = insert(m_tree.m_root, k, k, std::move(v));
         if (new_node) {
             m_tree.m_root = new_node;
         }
         if (!updated) {
             m_tree.m_size++;
         }
+
         return {old_value, updated};
     }
 
     /**
      * 删除节点
      * @param k 键
-     * @return 被删除的值和是否删除成功的标志
+     * @return 返回被删除的值和是否删除成功的标志
      */
-    std::pair<leaf_type, bool> delete_key(const key_view& k) {
+    leaf_type remove(key_view k) {
         auto [new_root, leaf] = delete_key(m_tree.m_root, k);
         if (new_root) {
             m_tree.m_root = new_root;
         }
 
-        if (leaf) {
+        if (leaf.has_value()) {
             m_tree.m_size--;
-            return {leaf, true};
+            return leaf;
         }
 
-        return {nullptr, false};
+        return std::nullopt;
     }
 
     /**
      * 获取树的根节点
      * @return 树
      */
-    radix_tree_type* root() {
-        return &m_tree;
+    tree_type& root() {
+        return m_tree;
     }
 
     /**
      * 查找数据
      * @param k 键
-     * @return 值和是否找到的标志
+     * @return 查找到的值（如果有）
      */
-    std::pair<leaf_type, bool> get(const key_view& k) {
+    leaf_type get(key_view k) {
         return m_tree.get(k);
     }
 
@@ -204,7 +219,7 @@ public:
      * 提交事务
      * @return 树
      */
-    radix_tree_type commit() {
+    tree_type& commit() {
         if (m_current_sp) {
             m_version = m_current_sp->m_version;
             for (auto it = m_save_points.rbegin(); it != m_save_points.rend(); it++) {
@@ -254,7 +269,7 @@ public:
     }
 
     /**
-     * 回滚事务
+     * 回滚事务中的所有修改
      */
     void rollback() {
         rollback_to(-1);
@@ -299,7 +314,7 @@ public:
     }
 
 private:
-    radix_tree_type         m_tree;
+    tree_type               m_tree;
     size_t                  m_version    = 0;
     int                     m_lock_db    = 0;
     save_point*             m_current_sp = nullptr;
@@ -308,32 +323,27 @@ private:
     std::vector<save_point> m_save_points;
 
     /**
-     * 返回可被修改的节点
-     * @param n 原节点
-     * @return 可修改的节点
+     * 复制节点以进行写操作
+     * @param n 需要复制的节点
+     * @return 复制后的新节点
      */
     node_ptr write_node(const node_ptr& n) {
         if (!m_current_sp) {
             alloc_save_point();
         }
 
-        return m_current_sp->m_node_pool.new_writeable_node(n, m_lock_db);
+        return m_current_sp->m_node_pool.write_node(n, m_lock_db);
     }
 
     /**
      * 创建新节点
-     * @param leaf 叶子节点的值
-     * @param prefix 前缀
-     * @param edges 边
-     * @return 新节点
      */
-    node_ptr new_node(leaf_type leaf, const key_view& prefix, const edges_type& edges = {}) {
+    node_ptr new_node(leaf_type leaf, key_view prefix, const edges_type& edges = {}) {
         return m_current_sp->m_node_pool.new_node(leaf, prefix, edges);
     }
 
     /**
-     * 合并子节点
-     * @param n 节点
+     * 合并子节点，如果子节点只有一个边且不是叶子节点
      */
     void merge_child(node_ptr& n) {
         auto child = n->m_edges[0].m_node;
@@ -344,22 +354,17 @@ private:
     }
 
     /**
-     * 插入操作的核心实现
-     * @param n 当前节点
-     * @param k 完整的键
-     * @param search 搜索键
-     * @param v 值
-     * @return 节点、旧值、是否更新
+     * 递归插入节点
      */
-    std::tuple<node_ptr, leaf_type, bool> insert(const node_ptr& n, const key_view& k,
-                                                 const key_view& search, leaf_type v) {
+    std::tuple<node_ptr, leaf_type, bool> insert(const node_ptr& n, key_view k, key_view search,
+                                                 value_type v) {
         // 如果搜索到了末尾，更新叶子节点
         if (search.empty()) {
             leaf_type old_leaf   = n->m_leaf;
-            bool      did_update = old_leaf != nullptr;
+            bool      did_update = old_leaf.has_value();
 
             auto new_n    = write_node(n);
-            new_n->m_leaf = v;
+            new_n->m_leaf = std::move(v);
 
             return {new_n, old_leaf, did_update};
         }
@@ -371,9 +376,9 @@ private:
         // 如果没有匹配的边，创建新边
         if (!child) {
             node_ptr new_n     = write_node(n);
-            auto     new_child = new_node(v, search);
+            auto     new_child = new_node(std::move(v), search);
             new_n->add_edge(edge_type(first_char, new_child));
-            return {new_n, nullptr, false};
+            return {new_n, std::nullopt, false};
         }
 
         // 计算公共前缀长度
@@ -382,7 +387,7 @@ private:
         // 如果前缀完全匹配，继续在子节点上递归
         if (prefix_len == child->m_prefix.size()) {
             auto remaining                       = search.substr(prefix_len);
-            auto [new_child, old_value, updated] = insert(child, k, remaining, v);
+            auto [new_child, old_value, updated] = insert(child, k, remaining, std::move(v));
 
             if (!new_child) {
                 return {nullptr, old_value, updated};
@@ -395,7 +400,7 @@ private:
 
         // 如果搜索键是子节点前缀的子集，需要分裂节点
         auto new_n      = write_node(n);
-        auto split_node = new_node(nullptr, search.substr(0, prefix_len));
+        auto split_node = new_node(std::nullopt, search.substr(0, prefix_len));
         new_n->replace_edge(edge_type(search[0], split_node));
 
         auto new_child      = write_node(child);
@@ -405,31 +410,27 @@ private:
         auto remaining = search.substr(prefix_len);
         if (remaining.empty()) {
             // 如果搜索键为空，则将叶子节点设置为v
-            split_node->m_leaf = v;
+            split_node->m_leaf = std::move(v);
         } else {
             // 否则，在分裂节点中添加新的边
-            split_node->add_edge(edge_type(remaining[0], new_node(v, remaining)));
+            split_node->add_edge(edge_type(remaining[0], new_node(std::move(v), remaining)));
         }
 
-        return {new_n, nullptr, false};
+        return {new_n, std::nullopt, false};
     }
 
     /**
-     * 删除操作的核心实现
-     * @param parent 父节点
-     * @param n 当前节点
-     * @param search 搜索键
-     * @return 节点和删除的值
+     * 递归删除节点
      */
-    std::pair<node_ptr, leaf_type> delete_key(const node_ptr& n, const key_view& search) {
+    std::pair<node_ptr, leaf_type> delete_key(const node_ptr& n, key_view search) {
         if (search.empty()) {
-            if (!n->m_leaf) {
-                return {nullptr, nullptr};
+            if (!n->m_leaf.has_value()) {
+                return {nullptr, std::nullopt};
             }
 
             auto old_leaf = n->m_leaf;
             auto new_n    = write_node(n);
-            new_n->m_leaf = nullptr;
+            new_n->m_leaf = std::nullopt;
 
             if (n != m_tree.m_root && new_n->m_edges.size() == 1) {
                 merge_child(new_n);
@@ -442,13 +443,13 @@ private:
         uint8_t first_char = search[0];
         auto [idx, child]  = n->get_edge(first_char);
         if (!child || !has_prefix(search, child->m_prefix)) {
-            return {nullptr, nullptr};
+            return {nullptr, std::nullopt};
         }
 
         key_view remaining     = search.substr(child->m_prefix.size());
         auto [new_child, leaf] = delete_key(child, remaining);
         if (!new_child) {
-            return {nullptr, nullptr};
+            return {nullptr, std::nullopt};
         }
 
         auto new_n = write_node(n);

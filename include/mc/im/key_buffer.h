@@ -34,11 +34,10 @@ key_buffer<Alloc> to_key_buffer(key_view view, const Alloc& alloc) {
     return key_buffer<Alloc>(view, alloc);
 }
 
-template<typename Key1, typename Key2>
-inline size_t longest_prefix(const Key1& k1, const Key2& k2)
-{
+template <typename Key1, typename Key2>
+inline size_t longest_prefix(Key1 k1, Key2 k2) {
     size_t max_len = std::min(k1.size(), k2.size());
-    size_t i = 0;
+    size_t i       = 0;
     for (; i < max_len; i++) {
         if (k1[i] != k2[i]) {
             break;
@@ -53,9 +52,8 @@ inline size_t longest_prefix(const Key1& k1, const Key2& k2)
  * @param prefix 要检查的前缀
  * @return 如果prefix是key的前缀则返回true，否则返回false
  */
-template<typename Key, typename Prefix>
-inline bool has_prefix(const Key& key, const Prefix& prefix)
-{
+template <typename Key, typename Prefix>
+inline bool has_prefix(Key key, Prefix prefix) {
     // 如果前缀长度大于键长度，肯定不是前缀
     if (prefix.size() > key.size()) {
         return false;
@@ -67,7 +65,7 @@ inline bool has_prefix(const Key& key, const Prefix& prefix)
             return false;
         }
     }
-    
+
     return true;
 }
 

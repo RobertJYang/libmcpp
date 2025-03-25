@@ -60,9 +60,11 @@ public:
     }
 };
 
-using node_type      = node<>;
+// 定义默认配置
+using default_config = tree_config<>;
+using node_type = node<default_config>;
 using node_list_type = node_list<node_type>;
-using ref_ptr        = typename node_type::ref_ptr_type;
+using ref_ptr = typename node_type::ref_ptr_type;
 
 // 测试夹具
 class NodeListTest : public ::testing::Test {
@@ -398,15 +400,17 @@ TEST_F(NodeListTest, Init) {
 TEST_F(NodeListTest, CustomAllocator) {
     test_allocator<char> alloc;
 
-    using node_type = node<test_allocator<char>>;
+    // 定义使用自定义分配器的配置
+    using custom_config = tree_config<void*, test_allocator<char>>;
+    using custom_node_type = node<custom_config>;
 
     {
         auto node0 =
-            allocate_ref<node_type>(alloc, reinterpret_cast<void*>(static_cast<intptr_t>(0)));
+            allocate_ref<custom_node_type>(alloc, reinterpret_cast<void*>(static_cast<intptr_t>(0)));
         auto node1 =
-            allocate_ref<node_type>(alloc, reinterpret_cast<void*>(static_cast<intptr_t>(1)));
+            allocate_ref<custom_node_type>(alloc, reinterpret_cast<void*>(static_cast<intptr_t>(1)));
 
-        typename node_type::list_type list;
+        typename custom_node_type::list_type list;
 
         // 测试基本操作
         list.push_back(node0);

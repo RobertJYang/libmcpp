@@ -21,10 +21,15 @@ namespace mc::im {
 /**
  * 节点池管理类，负责节点的分配和回收
  */
-template <typename Allocator = std::allocator<void>, bool IsLess = true>
+template <typename Config = default_tree_config>
 class node_pool {
 public:
-    using node_type  = node<Allocator, IsLess>;
+    // 从配置中提取类型
+    using leaf_type              = typename Config::leaf_type;
+    using allocator_type         = typename Config::allocator_type;
+    static constexpr bool IsLess = Config::is_less;
+
+    using node_type  = node<Config>;
     using node_ptr   = typename node_type::ref_ptr_type;
     using node_list  = typename node_type::list_type;
     using edges_type = typename node_type::edges_type;
@@ -33,7 +38,7 @@ public:
      * 默认构造函数
      * @param alloc 内存分配器
      */
-    explicit node_pool(const Allocator& alloc);
+    explicit node_pool(const allocator_type& alloc);
 
     node_pool(const node_pool& other)            = delete;
     node_pool& operator=(const node_pool& other) = delete;
@@ -83,10 +88,9 @@ public:
     /**
      * 创建可写节点
      * @param n 原节点
-     * @param lock_db 锁定数据库标志
      * @return 可写节点
      */
-    node_ptr new_writeable_node(const node_ptr& n, int lock_db);
+    node_ptr write_node(const node_ptr& n, int lock_db);
 
     /**
      * 创建新节点
@@ -95,7 +99,7 @@ public:
      * @param edges 边
      * @return 新节点
      */
-    node_ptr new_node(leaf_type leaf, key_view prefix, edges_type edges);
+    node_ptr new_node(leaf_type leaf, key_view prefix, edges_type edges = {});
 
     /**
      * 移除节点
@@ -108,17 +112,17 @@ public:
      * 获取内存分配器
      * @return 内存分配器
      */
-    Allocator get_allocator() const;
+    allocator_type get_allocator() const;
 
     int m_version;
     int m_pre_version;
 
 private:
-    node_list* m_free_list;
-    node_list  m_tx_old_nodes;
-    node_list  m_tx_new_nodes;
-    node_list  m_tx_tmp_nodes;
-    Allocator  m_allocator; // 内存分配器
+    node_list*     m_free_list;
+    node_list      m_tx_old_nodes;
+    node_list      m_tx_new_nodes;
+    node_list      m_tx_tmp_nodes;
+    allocator_type m_allocator; // 内存分配器
 
     /**
      * 释放节点列表
@@ -162,14 +166,14 @@ private:
 
 // 模板函数实现
 
-template <typename Allocator, bool IsLess>
-node_pool<Allocator, IsLess>::node_pool(const Allocator& alloc)
+template <typename Config>
+node_pool<Config>::node_pool(const allocator_type& alloc)
     : m_version(0), m_pre_version(0), m_free_list(nullptr), m_tx_old_nodes(), m_tx_new_nodes(),
       m_tx_tmp_nodes(), m_allocator(alloc) {
 }
 
-template <typename Allocator, bool IsLess>
-void node_pool<Allocator, IsLess>::init_node_pool(node_list* free_list) {
+template <typename Config>
+void node_pool<Config>::init_node_pool(node_list* free_list) {
     m_version     = 0;
     m_pre_version = 0;
     m_free_list   = free_list;
@@ -178,28 +182,28 @@ void node_pool<Allocator, IsLess>::init_node_pool(node_list* free_list) {
     m_tx_tmp_nodes.clear();
 }
 
-template <typename Allocator, bool IsLess>
-void node_pool<Allocator, IsLess>::set_version(int pre_version, int version) {
+template <typename Config>
+void node_pool<Config>::set_version(int pre_version, int version) {
     m_version     = version;
     m_pre_version = pre_version;
 }
 
-template <typename Allocator, bool IsLess>
-void node_pool<Allocator, IsLess>::commit() {
+template <typename Config>
+void node_pool<Config>::commit() {
     fix_node_list(&m_tx_new_nodes);
     free_node_list(&m_tx_tmp_nodes);
     free_node_list(&m_tx_old_nodes);
 }
 
-template <typename Allocator, bool IsLess>
-void node_pool<Allocator, IsLess>::rollback() {
+template <typename Config>
+void node_pool<Config>::rollback() {
     free_node_list(&m_tx_new_nodes);
     free_node_list(&m_tx_tmp_nodes);
     fix_node_list(&m_tx_old_nodes);
 }
 
-template <typename Allocator, bool IsLess>
-void node_pool<Allocator, IsLess>::free_node_list(node_list* l) {
+template <typename Config>
+void node_pool<Config>::free_node_list(node_list* l) {
     while (l->len() > 0) {
         auto node = l->front();
         l->remove(node);
@@ -207,8 +211,8 @@ void node_pool<Allocator, IsLess>::free_node_list(node_list* l) {
     }
 }
 
-template <typename Allocator, bool IsLess>
-void node_pool<Allocator, IsLess>::fix_node_list(node_list* l) {
+template <typename Config>
+void node_pool<Config>::fix_node_list(node_list* l) {
     size_t list_len = l->len();
 
     if (list_len == 0) {
@@ -224,17 +228,17 @@ void node_pool<Allocator, IsLess>::fix_node_list(node_list* l) {
     l->clear();
 }
 
-template <typename Allocator, bool IsLess>
-void node_pool<Allocator, IsLess>::free_node(node_ptr n) {
-    n->m_leaf = nullptr;
+template <typename Config>
+void node_pool<Config>::free_node(node_ptr n) {
+    n->m_leaf.reset();
     n->m_edges.clear();
     n->m_prefix.clear();
     n->m_version = 0;
     m_free_list->push_back(std::move(n));
 }
 
-template <typename Allocator, bool IsLess>
-void node_pool<Allocator, IsLess>::remove_node(node_ptr n, int lock_db) {
+template <typename Config>
+void node_pool<Config>::remove_node(node_ptr n, int lock_db) {
     if (lock_db == 0 && n->m_version == m_version) {
         return;
     }
@@ -247,9 +251,8 @@ void node_pool<Allocator, IsLess>::remove_node(node_ptr n, int lock_db) {
     }
 }
 
-template <typename Allocator, bool IsLess>
-typename node_pool<Allocator, IsLess>::node_ptr
-node_pool<Allocator, IsLess>::new_writeable_node(const node_ptr& n, int lock_db) {
+template <typename Config>
+typename node_pool<Config>::node_ptr node_pool<Config>::write_node(const node_ptr& n, int lock_db) {
     if (lock_db == 0 && n->m_version == m_version) {
         return n;
     }
@@ -266,24 +269,18 @@ node_pool<Allocator, IsLess>::new_writeable_node(const node_ptr& n, int lock_db)
     return nc;
 }
 
-template <typename Allocator, bool IsLess>
-typename node_pool<Allocator, IsLess>::node_ptr
-node_pool<Allocator, IsLess>::new_node(leaf_type leaf, key_view prefix, edges_type edges) {
+template <typename Config>
+typename node_pool<Config>::node_ptr
+node_pool<Config>::new_node(leaf_type leaf, key_view prefix, edges_type edges) {
     node_ptr n;
 
     if (m_free_list && m_free_list->len() > 0) {
         n = m_free_list->front();
         m_free_list->remove(n);
 
-        n->m_leaf = leaf;
-        n->m_prefix.clear();
-        if (!prefix.empty()) {
-            n->m_prefix = prefix;
-        }
-        n->m_edges.clear();
-        if (!edges.empty()) {
-            n->m_edges = std::move(edges);
-        }
+        n->m_leaf   = leaf;
+        n->m_prefix = prefix;
+        n->m_edges  = std::move(edges);
     } else {
         n = allocate_ref<node_type>(m_allocator, leaf, prefix, std::move(edges));
     }
@@ -294,8 +291,8 @@ node_pool<Allocator, IsLess>::new_node(leaf_type leaf, key_view prefix, edges_ty
     return n;
 }
 
-template <typename Allocator, bool IsLess>
-Allocator node_pool<Allocator, IsLess>::get_allocator() const {
+template <typename Config>
+typename node_pool<Config>::allocator_type node_pool<Config>::get_allocator() const {
     return m_allocator;
 }
 
