@@ -35,6 +35,7 @@ test_files = [
   'im/test_simple_node.cpp',
   'im/test_transaction.cpp',
   'im/test_tree_config.cpp',
+  'im/test_custom_allocator.cpp',
 ]
 
 # 测试工具库 - 构建为独立的静态库

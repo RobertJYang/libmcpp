@@ -419,7 +419,7 @@ TEST_F(TransactionTest, Rollback) {
     txn->insert("a", leaves[0]);
 
     // 分配保存点
-    int save_point_id = txn->alloc_save_point();
+    int save_point_id = txn->save_point();
 
     // 添加更多数据
     txn->insert("b", leaves[1]);
@@ -429,7 +429,7 @@ TEST_F(TransactionTest, Rollback) {
     EXPECT_EQ(3, txn->root().size());
 
     // 回滚到保存点
-    txn->rollback_to(save_point_id);
+    txn->rollback(save_point_id);
 
     // 验证回滚后的状态
     EXPECT_EQ(1, txn->root().size());
@@ -551,19 +551,19 @@ TEST_F(TransactionTest, ClearTransaction) {
 
 // 测试多个保存点
 TEST_F(TransactionTest, MultipleSavePoints) {
-    int save_point_id = txn->alloc_save_point();
+    int save_point_id = txn->save_point();
 
     // 插入初始数据
     txn->insert("a", leaves[0]);
 
     // 创建第一个保存点
-    int save_point_id1 = txn->alloc_save_point();
+    int save_point_id1 = txn->save_point();
 
     // 添加更多数据
     txn->insert("b", leaves[1]);
 
     // 创建第二个保存点
-    int save_point_id2 = txn->alloc_save_point();
+    int save_point_id2 = txn->save_point();
 
     // 添加更多数据
     txn->insert("c", leaves[2]);
@@ -572,7 +572,7 @@ TEST_F(TransactionTest, MultipleSavePoints) {
     EXPECT_EQ(3, txn->root().size());
 
     // 回滚到第二个保存点
-    txn->rollback_to(save_point_id2);
+    txn->rollback(save_point_id2);
 
     // 验证状态
     EXPECT_EQ(2, txn->root().size());
@@ -581,7 +581,7 @@ TEST_F(TransactionTest, MultipleSavePoints) {
     EXPECT_FALSE(val_c.has_value());
 
     // 回滚到第一个保存点
-    txn->rollback_to(save_point_id1);
+    txn->rollback(save_point_id1);
 
     // 验证状态
     EXPECT_EQ(1, txn->root().size());
@@ -594,7 +594,7 @@ TEST_F(TransactionTest, MultipleSavePoints) {
     EXPECT_EQ(leaves[0], val_a.value());
 
     // 回滚到初始保存点
-    txn->rollback_to(save_point_id);
+    txn->rollback(save_point_id);
 
     auto val_a1 = txn->get("a");
     EXPECT_FALSE(val_a1.has_value());

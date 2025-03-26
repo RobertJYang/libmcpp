@@ -21,6 +21,84 @@
 
 namespace mc::im {
 
+namespace detail {
+/**
+ * 事务保存点，用于支持回滚操作
+ */
+template <typename Config>
+class save_point {
+public:
+    using allocator_type = typename Config::allocator_type;
+    using node_type      = node<Config>;
+    using node_ptr       = typename node_type::ref_ptr_type;
+    using node_list      = typename node_type::list_type;
+    using pool_type      = node_pool<Config>;
+
+    save_point(const allocator_type& alloc = allocator_type())
+        : m_node_pool(alloc), m_size(0), m_version(0) {
+    }
+
+    save_point(node_ptr root, size_t size, const allocator_type& alloc)
+        : m_node_pool(alloc), m_root(std::move(root)), m_size(size), m_version(0) {
+    }
+
+    save_point(const save_point& other)            = delete;
+    save_point& operator=(const save_point& other) = delete;
+
+    save_point(save_point&& other) noexcept
+        : m_node_pool(std::move(other.m_node_pool)), m_root(std::move(other.m_root)),
+          m_size(other.m_size), m_version(other.m_version) {
+    }
+
+    save_point& operator=(save_point&& other) noexcept {
+        if (this != &other) {
+            m_node_pool = std::move(other.m_node_pool);
+            m_root      = std::move(other.m_root);
+            m_size      = other.m_size;
+            m_version   = other.m_version;
+        }
+        return *this;
+    }
+
+    /**
+     * 初始化保存点
+     * @param free_list 空闲列表
+     */
+    void init(node_list* free_list) {
+        m_node_pool.init_node_pool(free_list);
+    }
+
+    /**
+     * 设置版本号
+     * @param pre_version 前一个版本
+     * @param version 当前版本
+     */
+    void set_version(int pre_version, int version) {
+        m_node_pool.set_version(pre_version, version);
+        m_version = version;
+    }
+
+    /**
+     * 提交保存点
+     */
+    void commit() {
+        m_node_pool.commit();
+    }
+
+    /**
+     * 回滚保存点
+     */
+    void rollback() {
+        m_node_pool.rollback();
+    }
+
+    pool_type m_node_pool;
+    node_ptr  m_root;
+    size_t    m_size;
+    size_t    m_version;
+};
+} // namespace detail
+
 /**
  * 事务对象，用于操作不可变基数树
  */
@@ -33,82 +111,14 @@ public:
     using allocator_type         = typename Config::allocator_type;
     static constexpr bool IsLess = Config::is_less;
 
-    using node_type  = node<Config>;
-    using node_ptr   = typename node_type::ref_ptr_type;
-    using node_list  = typename node_type::list_type;
-    using edges_type = typename node_type::edges_type;
-    using edge_type  = typename node_type::edge_type;
-    using tree_type  = radix_tree<Config>;
-    using pool_type  = node_pool<Config>;
-
-    /**
-     * 事务保存点，用于支持回滚操作
-     */
-    class save_point {
-    public:
-        save_point(const allocator_type& alloc = allocator_type())
-            : m_node_pool(alloc), m_size(0), m_version(0) {
-        }
-
-        save_point(node_ptr root, size_t size, const allocator_type& alloc)
-            : m_node_pool(alloc), m_root(std::move(root)), m_size(size), m_version(0) {
-        }
-
-        save_point(const save_point& other)            = delete;
-        save_point& operator=(const save_point& other) = delete;
-
-        save_point(save_point&& other) noexcept
-            : m_node_pool(std::move(other.m_node_pool)), m_root(std::move(other.m_root)),
-              m_size(other.m_size), m_version(other.m_version) {
-        }
-
-        save_point& operator=(save_point&& other) noexcept {
-            if (this != &other) {
-                m_node_pool = std::move(other.m_node_pool);
-                m_root      = std::move(other.m_root);
-                m_size      = other.m_size;
-                m_version   = other.m_version;
-            }
-            return *this;
-        }
-
-        /**
-         * 初始化保存点
-         * @param free_list 空闲列表
-         */
-        void init(node_list* free_list) {
-            m_node_pool.init_node_pool(free_list);
-        }
-
-        /**
-         * 设置版本号
-         * @param pre_version 前一个版本
-         * @param version 当前版本
-         */
-        void set_version(int pre_version, int version) {
-            m_node_pool.set_version(pre_version, version);
-            m_version = version;
-        }
-
-        /**
-         * 提交保存点
-         */
-        void commit() {
-            m_node_pool.commit();
-        }
-
-        /**
-         * 回滚保存点
-         */
-        void rollback() {
-            m_node_pool.rollback();
-        }
-
-        pool_type m_node_pool;
-        node_ptr  m_root;
-        size_t    m_size;
-        size_t    m_version;
-    };
+    using node_type       = node<Config>;
+    using node_ptr        = typename node_type::ref_ptr_type;
+    using node_list       = typename node_type::list_type;
+    using edges_type      = typename node_type::edges_type;
+    using edge_type       = typename node_type::edge_type;
+    using tree_type       = radix_tree<Config>;
+    using pool_type       = node_pool<Config>;
+    using save_point_type = detail::save_point<Config>;
 
     /**
      * 默认构造函数
@@ -142,7 +152,7 @@ public:
         return m_free_list;
     }
 
-    int alloc_save_point() {
+    int save_point() {
         if (!m_current_sp) {
             m_def_save_point.init(&m_free_list);
             m_def_save_point.m_root = m_tree.m_root;
@@ -158,7 +168,7 @@ public:
             sp.set_version(m_version, m_version + m_save_points.size() + 1);
             m_current_sp = &sp;
         }
-        return last_save_point_id();
+        return current_save_point();
     }
 
     /**
@@ -264,29 +274,22 @@ public:
      * 获取最后保存点ID，-1表示没有保存点
      * @return 保存点ID
      */
-    int last_save_point_id() const {
+    int current_save_point() const {
         return m_save_points.size() - 1;
-    }
-
-    /**
-     * 回滚事务中的所有修改
-     */
-    void rollback() {
-        rollback_to(-1);
     }
 
     /**
      * 回滚到指定保存点
      * @param save_point_id 保存点ID
      */
-    void rollback_to(int save_point_id) {
+    void rollback(int save_point_id = -1) {
         if (!m_current_sp) {
             return;
         }
 
-        m_lock_db     = 0;
-        save_point* s = nullptr;
-        int         i = m_save_points.size();
+        m_lock_db          = 0;
+        save_point_type* s = nullptr;
+        int              i = m_save_points.size();
         for (i--; i >= 0; i--) {
             s = &m_save_points[i];
             s->rollback();
@@ -314,13 +317,13 @@ public:
     }
 
 private:
-    tree_type               m_tree;
-    size_t                  m_version    = 0;
-    int                     m_lock_db    = 0;
-    save_point*             m_current_sp = nullptr;
-    node_list               m_free_list;
-    save_point              m_def_save_point;
-    std::vector<save_point> m_save_points;
+    tree_type                    m_tree;
+    size_t                       m_version    = 0;
+    int                          m_lock_db    = 0;
+    save_point_type*             m_current_sp = nullptr;
+    node_list                    m_free_list;
+    save_point_type              m_def_save_point;
+    std::vector<save_point_type> m_save_points;
 
     /**
      * 复制节点以进行写操作
@@ -329,7 +332,7 @@ private:
      */
     node_ptr write_node(const node_ptr& n) {
         if (!m_current_sp) {
-            alloc_save_point();
+            save_point();
         }
 
         return m_current_sp->m_node_pool.write_node(n, m_lock_db);

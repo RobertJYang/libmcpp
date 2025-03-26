@@ -129,15 +129,15 @@ public:
     using allocator_type         = typename Config::allocator_type;
     static constexpr bool IsLess = Config::is_less;
 
-    using alloc_traits        = std::allocator_traits<allocator_type>;
-    using node_allocator_type = typename alloc_traits::template rebind_alloc<node>;
-    using pointer_type        = typename node_allocator_type::pointer;
-    using key_type            = key_buffer<typename alloc_traits::template rebind_alloc<char>>;
-    using edge_type           = edge<node>;
-    using edges_type          = edges<node>;
-    using ref_ptr_type        = ref_ptr<node, pointer_type>;
-    using list_type           = ref_list<node, pointer_type>;
-    using compare_type        = std::conditional_t<IsLess, edge_less<node>, edge_greater<node>>;
+    using alloc_traits = std::allocator_traits<allocator_type>;
+    using alloc_type   = typename alloc_traits::template rebind_alloc<node>;
+    using pointer_type = typename alloc_type::pointer;
+    using key_type     = key_buffer<typename alloc_traits::template rebind_alloc<char>>;
+    using edge_type    = edge<node>;
+    using edges_type   = edges<node>;
+    using ref_ptr_type = ref_ptr<node, pointer_type>;
+    using list_type    = ref_list<node, pointer_type>;
+    using compare_type = std::conditional_t<IsLess, edge_less<node>, edge_greater<node>>;
 
     // 默认构造函数
     node() {
@@ -327,13 +327,13 @@ private:
     }
 
 public:
-    leaf_type           m_leaf;
-    key_type            m_prefix;
-    edges_type          m_edges;
-    size_t              m_version = 0;
-    ref_ptr_type        m_next;
-    ref_ptr_type        m_prev;
-    node_allocator_type m_alloc;
+    leaf_type    m_leaf;
+    key_type     m_prefix;
+    edges_type   m_edges;
+    size_t       m_version = 0;
+    ref_ptr_type m_next;
+    ref_ptr_type m_prev;
+    alloc_type   m_alloc;
 };
 
 // 常用类型别名，简化使用

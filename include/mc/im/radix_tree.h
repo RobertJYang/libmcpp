@@ -47,93 +47,263 @@ public:
     using node_ptr  = typename node_type::ref_ptr_type;
 
     // 迭代器相关类型定义
-    using key_type  = key_buffer<>;
-    using item_type = std::pair<key_type, value_type>;
+    using key_type             = key_buffer<>;
+    using map_value_type       = std::pair<key_view, value_type&>;
+    using const_map_value_type = std::pair<const key_view, const value_type&>;
+
+    // 前向声明
+    class const_iterator;
+    class iterator;
 
     /**
-     * 基数树迭代器
+     * 基数树常量迭代器
      * 支持深度优先遍历树中的所有键值对
      * 轻量级设计，减少复制成本
      */
-    class iterator {
+    class const_iterator {
     public:
         // 标准迭代器类型定义
         using iterator_category = std::forward_iterator_tag;
-        using value_type        = item_type;
+        using value_type        = const_map_value_type;
         using difference_type   = std::ptrdiff_t;
         using pointer           = const value_type*;
         using reference         = const value_type&;
 
+        // 构造节点路径记录项
+        struct path_item {
+            node_ptr node;        // 当前节点
+            size_t   edge_index;  // 下一个要访问的边索引
+            size_t   prefix_size; // 节点前缀在键缓冲区中的大小
+        };
+
         // 默认构造函数（end迭代器）
-        iterator() : m_is_end(true) {
+        const_iterator() : m_is_end(true) {
         }
 
         // 构造函数（begin迭代器）
-        explicit iterator(const node_ptr& root) : m_is_end(false) {
+        explicit const_iterator(const node_ptr& root) : m_is_end(false) {
             if (!root) {
                 m_is_end = true;
                 return;
             }
 
-            // 初始化第一个元素
-            if (findNext(root)) {
-                m_current_item.second = m_current_node->m_leaf.value();
+            // 初始化DFS堆栈
+            if (initialize_stack(root)) {
+                update_current_item();
             } else {
                 m_is_end = true;
             }
         }
 
         // 前置递增
-        iterator& operator++() {
-            if (m_is_end) {
+        const_iterator& operator++() {
+            if (m_is_end || m_path.empty()) {
+                m_is_end = true;
                 return *this;
             }
 
-            // 检查当前节点是否还有未处理的边
-            if (m_current_edge_index < m_current_node->m_edges.size()) {
-                // 保存当前状态并进入下一个边
-                const auto& edge = m_current_node->m_edges[m_current_edge_index++];
+            // 当前节点已处理完毕，回退到上一级
+            m_current_node = nullptr;
 
-                // 保存当前路径信息
-                m_path.push_back({m_current_node, m_current_edge_index - 1});
-
-                // 继续搜索下一个节点
-                if (findNext(edge.m_node)) {
-                    m_current_item.second = m_current_node->m_leaf.value();
-                    return *this;
-                }
+            // 继续深度优先搜索
+            if (advance_to_next_leaf()) {
+                update_current_item();
+            } else {
+                m_is_end = true;
             }
 
-            // 回溯到上一个有未处理边的节点
+            return *this;
+        }
+
+        // 后置递增
+        const_iterator operator++(int) {
+            const_iterator tmp = *this;
+            ++(*this);
+            return tmp;
+        }
+
+        // 解引用操作符
+        reference operator*() const {
+            if (m_is_end) {
+                throw std::out_of_range("迭代器指向了末尾");
+            }
+            return m_current_item;
+        }
+
+        // 箭头操作符
+        pointer operator->() const {
+            if (m_is_end) {
+                throw std::out_of_range("迭代器指向了末尾");
+            }
+            return &m_current_item;
+        }
+
+        // 相等比较操作符
+        bool operator==(const const_iterator& other) const {
+            // 都是末尾迭代器
+            if (m_is_end && other.m_is_end) {
+                return true;
+            }
+
+            // 一个是末尾，一个不是
+            if (m_is_end != other.m_is_end) {
+                return false;
+            }
+
+            // 两个都不是末尾，比较当前节点
+            return m_current_node == other.m_current_node;
+        }
+
+        // 不等比较操作符
+        bool operator!=(const const_iterator& other) const {
+            return !(*this == other);
+        }
+
+    protected:
+        // 初始化DFS堆栈
+        bool initialize_stack(const node_ptr& root) {
+            if (!root) {
+                return false;
+            }
+
+            // 清空堆栈和键缓冲区
+            m_path.clear();
+            m_key_buffer.clear();
+
+            // 记录当前路径前缀大小
+            size_t prev_size = m_key_buffer.size();
+
+            // 添加根节点到堆栈
+            m_key_buffer.append(root->m_prefix);
+            m_path.push_back({root, 0, prev_size});
+
+            return find_first_leaf();
+        }
+
+        // 查找第一个叶子节点
+        bool find_first_leaf() {
             while (!m_path.empty()) {
-                auto [node, idx] = m_path.back();
-                m_path.pop_back();
+                auto& current = m_path.back();
 
-                // 回退键缓冲区
-                size_t last_node_prefix_len = node->m_edges[idx].m_node->m_prefix.size();
-                MC_ASSERT(m_key_buffer.size() >= last_node_prefix_len,
-                          "key_buffer size is less than last_node_prefix_len");
-                m_key_buffer.resize(m_key_buffer.size() - last_node_prefix_len);
+                // 如果当前节点是叶子节点，成功找到
+                if (current.node->is_leaf()) {
+                    m_current_node = current.node;
+                    return true;
+                }
 
-                // 检查当前节点是否还有未处理的边
-                if (idx + 1 < node->m_edges.size()) {
-                    m_current_node       = node;
-                    m_current_edge_index = idx + 1;
+                // 如果已经处理完所有子节点，回溯
+                if (current.edge_index >= current.node->m_edges.size()) {
+                    // 恢复键缓冲区大小
+                    m_key_buffer.resize(current.prefix_size);
+                    m_path.pop_back();
+                    continue;
+                }
 
-                    // 处理下一条边
-                    const auto& edge = node->m_edges[m_current_edge_index++];
-                    m_path.push_back({node, m_current_edge_index - 1});
+                // 处理下一个子节点
+                const auto& edge      = current.node->m_edges[current.edge_index++];
+                size_t      prev_size = m_key_buffer.size();
 
-                    // 继续搜索
-                    if (findNext(edge.m_node)) {
-                        m_current_item.second = m_current_node->m_leaf.value();
-                        return *this;
+                // 添加子节点的前缀到键缓冲区
+                m_key_buffer.append(edge.m_node->m_prefix);
+                m_path.push_back({edge.m_node, 0, prev_size});
+            }
+
+            return false;
+        }
+
+        // 前进到下一个叶子节点
+        bool advance_to_next_leaf() {
+            // 回溯并寻找下一个要处理的边
+            while (!m_path.empty()) {
+                auto& current = m_path.back();
+
+                // 如果当前节点的边已经全部处理完毕
+                if (current.edge_index >= current.node->m_edges.size()) {
+                    // 恢复键缓冲区大小并回溯
+                    m_key_buffer.resize(current.prefix_size);
+                    m_path.pop_back();
+                    continue;
+                }
+
+                // 处理下一个边
+                const auto& edge      = current.node->m_edges[current.edge_index++];
+                size_t      prev_size = m_key_buffer.size();
+
+                // 添加边目标节点的前缀
+                m_key_buffer.append(edge.m_node->m_prefix);
+                m_path.push_back({edge.m_node, 0, prev_size});
+
+                // 如果是叶子节点，找到了下一个元素
+                if (edge.m_node->is_leaf()) {
+                    m_current_node = edge.m_node;
+                    return true;
+                }
+
+                // 如果不是叶子节点，继续向下搜索
+                if (edge.m_node->m_edges.empty()) {
+                    // 如果没有子节点，回溯
+                    m_key_buffer.resize(prev_size);
+                    m_path.pop_back();
+                } else {
+                    // 否则寻找这个子树中的第一个叶子节点
+                    if (find_first_leaf()) {
+                        return true;
                     }
                 }
             }
 
-            // 如果没有更多节点，迭代结束
-            m_is_end = true;
+            return false;
+        }
+
+        // 更新当前项
+        void update_current_item() {
+            if (m_current_node && m_current_node->is_leaf()) {
+                // 为了让m_current_item的值和m_current_node->m_leaf.value()绑定，
+                // 因为C++引用不能重绑定，这里用了一个挫办法，利用placement
+                // new重绑定m_current_item的值
+                m_current_item.~value_type();
+                new (&m_current_item) value_type(m_key_buffer, m_current_node->m_leaf.value());
+            }
+        }
+
+        bool                   m_is_end       = false;
+        node_ptr               m_current_node = nullptr;
+        key_buffer<>           m_key_buffer;
+        std::vector<path_item> m_path;
+        union {
+            const_map_value_type m_current_item;
+            map_value_type       m_mutable_current_item;
+        };
+
+        friend class iterator;
+    };
+
+    /**
+     * 可变迭代器
+     * 不可变基数树原则上不允许通过迭代器修改元素值，但这里提供一个可变迭代器，
+     * 允许修改元素值但不允许修改键，这么做只是出于性能考虑，安全的修改值的办法
+     * 是通过transaction::update()方法，在事务中修改值，保证不可变基数树的不可变特性。
+     */
+    class iterator : public const_iterator {
+    public:
+        // 标准迭代器类型定义
+        using iterator_category = std::forward_iterator_tag;
+        using value_type        = map_value_type;
+        using difference_type   = std::ptrdiff_t;
+        using pointer           = value_type*;
+        using reference         = value_type&;
+
+        // 默认构造函数（end迭代器）
+        iterator() : const_iterator() {
+        }
+
+        // 构造函数（begin迭代器）
+        explicit iterator(const node_ptr& root) : const_iterator(root) {
+        }
+
+        // 前置递增
+        iterator& operator++() {
+            const_iterator::operator++();
             return *this;
         }
 
@@ -144,88 +314,20 @@ public:
             return tmp;
         }
 
-        // 解引用操作符，返回键值对
+        // 解引用操作符
         reference operator*() const {
-            // 懒惰计算 - 仅在需要时构建完整键
-            if (!m_is_key_valid) {
-                m_current_item.first = m_key_buffer;
-                m_is_key_valid       = true;
+            if (this->m_is_end) {
+                throw std::out_of_range("迭代器指向了末尾");
             }
-            return m_current_item;
+            return const_cast<reference>(this->m_mutable_current_item);
         }
 
         // 箭头操作符
         pointer operator->() const {
-            // 懒惰计算 - 仅在需要时构建完整键
-            if (!m_is_key_valid) {
-                m_current_item.first = m_key_buffer;
-                m_is_key_valid       = true;
+            if (this->m_is_end) {
+                throw std::out_of_range("迭代器指向了末尾");
             }
-            return &m_current_item;
-        }
-
-        // 等于比较
-        bool operator==(const iterator& other) const {
-            if (m_is_end && other.m_is_end) {
-                return true;
-            }
-            if (m_is_end != other.m_is_end) {
-                return false;
-            }
-            return m_current_node == other.m_current_node &&
-                   m_current_edge_index == other.m_current_edge_index;
-        }
-
-        // 不等于比较
-        bool operator!=(const iterator& other) const {
-            return !(*this == other);
-        }
-
-    private:
-        using path_item = std::pair<node_ptr, size_t>; // 节点和边索引
-
-        bool                   m_is_end             = false;
-        node_ptr               m_current_node       = nullptr;
-        size_t                 m_current_edge_index = 0;
-        key_buffer<>           m_key_buffer;
-        std::vector<path_item> m_path;
-        mutable item_type      m_current_item;
-        mutable bool           m_is_key_valid = false;
-
-        // 查找下一个叶子节点
-        bool findNext(const node_ptr& node) {
-            if (!node) {
-                return false;
-            }
-
-            // 追加当前节点的前缀
-            m_key_buffer.append(node->m_prefix);
-
-            // 设置当前状态
-            m_current_node       = node;
-            m_current_edge_index = 0;
-            m_is_key_valid       = false;
-
-            // 如果当前节点是叶子节点，返回它
-            if (node->is_leaf()) {
-                return true;
-            }
-
-            // 递归查找第一个叶子节点
-            if (!node->m_edges.empty()) {
-                const auto& edge = node->m_edges[m_current_edge_index++];
-                m_path.push_back({node, m_current_edge_index - 1});
-
-                if (findNext(edge.m_node)) {
-                    return true;
-                }
-
-                // 如果没有找到叶子节点，回溯并清理
-                m_path.pop_back();
-            }
-
-            // 没有找到叶子节点
-            return false;
+            return const_cast<pointer>(&this->m_mutable_current_item);
         }
     };
 
@@ -267,19 +369,51 @@ public:
     leaf_type get(const key_view& key) const;
 
     /**
-     * 返回指向第一个元素的迭代器
+     * 返回指向第一个元素的迭代器（const版本）
+     * @return 常量起始迭代器
+     */
+    const_iterator cbegin() const {
+        return const_iterator(m_root);
+    }
+
+    /**
+     * 返回指向最后一个元素之后的迭代器（const版本）
+     * @return 常量结束迭代器
+     */
+    const_iterator cend() const {
+        return const_iterator();
+    }
+
+    /**
+     * 返回指向第一个元素的迭代器（非const版本）
      * @return 起始迭代器
      */
-    iterator begin() const {
+    iterator begin() {
         return iterator(m_root);
     }
 
     /**
-     * 返回指向最后一个元素之后的迭代器
+     * 返回指向最后一个元素之后的迭代器（非const版本）
      * @return 结束迭代器
      */
-    iterator end() const {
+    iterator end() {
         return iterator();
+    }
+
+    /**
+     * 返回指向第一个元素的迭代器（const版本）
+     * @return 常量起始迭代器
+     */
+    const_iterator begin() const {
+        return const_iterator(m_root);
+    }
+
+    /**
+     * 返回指向最后一个元素之后的迭代器（const版本）
+     * @return 常量结束迭代器
+     */
+    const_iterator end() const {
+        return const_iterator();
     }
 
     /**

@@ -72,7 +72,7 @@ public:
     // 析构函数
     ~ref_ptr() {
         if (m_ptr && m_ptr->release_ref()) {
-            using alloc_type = typename T::node_allocator_type;
+            using alloc_type = typename T::alloc_type;
             using alloc_traits = std::allocator_traits<alloc_type>;
             alloc_traits::destroy(m_ptr->m_alloc, m_ptr);
             alloc_traits::deallocate(m_ptr->m_alloc, m_ptr, 1);
