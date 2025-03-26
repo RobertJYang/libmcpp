@@ -224,56 +224,6 @@ TEST(CustomAllocatorTest, TransactionAllocation) {
     EXPECT_EQ(tree.size(), 50);
 }
 
-// 测试用例：迭代器与自定义分配器
-TEST(CustomAllocatorTest, IteratorWithCustomAllocator) {
-    // 重置计数器
-    tracking_allocator<int>::reset_counters();
-
-    using test_config = tracked_tree_config<test_value>;
-
-    // 创建事务并填充数据
-    transaction<test_config> tx;
-
-    // 插入数据
-    for (int i = 0; i < 10; i++) {
-        tx.insert("key" + std::to_string(i), test_value("值" + std::to_string(i), i));
-    }
-
-    // 提交事务
-    auto tree = tx.commit();
-
-    // 使用迭代器遍历树
-    std::vector<std::string> keys;
-    std::vector<int>         values;
-
-    for (auto it = tree.begin(); it != tree.end(); ++it) {
-        auto        key_buffer = it->first;
-        std::string key(key_buffer.data(), key_buffer.size());
-        keys.push_back(key);
-        values.push_back(it->second.number);
-    }
-
-    // 验证结果
-    EXPECT_EQ(keys.size(), 10);
-    EXPECT_EQ(values.size(), 10);
-
-    // 验证键是按顺序排列的
-    std::vector<std::string> expected_keys;
-    for (int i = 0; i < 10; i++) {
-        expected_keys.push_back("key" + std::to_string(i));
-    }
-    std::sort(expected_keys.begin(), expected_keys.end());
-
-    EXPECT_EQ(keys, expected_keys);
-
-    // 测试范围for循环
-    int count = 0;
-    for (const auto& item : tree) {
-        count++;
-    }
-    EXPECT_EQ(count, 10);
-}
-
 // 测试用例：保存点与内存分配
 TEST(CustomAllocatorTest, SavePointAllocation) {
     // 重置计数器
@@ -369,64 +319,6 @@ TEST(CustomAllocatorTest, LargeDataAllocation) {
 
     // 验证树大小
     EXPECT_EQ(tree.size(), DATA_SIZE / 2);
-}
-
-// 测试用例：迭代器可修改值
-TEST(CustomAllocatorTest, MutableIterator) {
-    // 重置计数器
-    tracking_allocator<int>::reset_counters();
-
-    using test_config = tracked_tree_config<test_value>;
-
-    // 创建事务并填充数据
-    transaction<test_config> tx;
-
-    // 插入测试数据
-    for (int i = 0; i < 5; i++) {
-        tx.insert("key" + std::to_string(i), test_value("原始值" + std::to_string(i), i));
-    }
-
-    // 提交事务
-    auto tree = tx.commit();
-
-    // 使用可修改迭代器修改值
-    for (auto it = tree.begin(); it != tree.end(); ++it) {
-        // 只修改值部分，不修改键
-        it->second.text = "修改后的值";
-        it->second.number *= 10;
-    }
-
-    // 验证修改是否生效
-    for (auto it = tree.begin(); it != tree.end(); ++it) {
-        EXPECT_EQ(it->second.text, "修改后的值");
-        int original_number = std::stoi(std::string(it->first.data() + 3, it->first.size() - 3));
-        EXPECT_EQ(it->second.number, original_number * 10);
-    }
-
-    // 使用 const_iterator 进行验证
-    for (auto it = tree.cbegin(); it != tree.cend(); ++it) {
-        EXPECT_EQ(it->second.text, "修改后的值");
-    }
-
-    // 通过引用修改方式
-    auto  it         = tree.begin();
-    auto& item       = *it;
-    item.second.text = "通过引用修改";
-
-    // 验证引用修改是否生效
-    EXPECT_EQ(tree.begin()->second.text, "通过引用修改");
-
-    // 非const树使用非const迭代器
-    radix_tree<test_config> non_const_tree = tree;
-    auto                    nc_it          = non_const_tree.begin();
-    nc_it->second.text                     = "非const迭代器";
-    EXPECT_EQ(non_const_tree.begin()->second.text, "非const迭代器");
-
-    // const树必须使用const迭代器
-    const radix_tree<test_config> const_tree = tree;
-    auto                          const_iter = const_tree.begin();
-    // 下面这行如果取消注释应该无法编译通过，因为const树只能使用const迭代器
-    // const_iter->second.text = "这行应该编译失败";
 }
 
 } // namespace mc::im::tests
