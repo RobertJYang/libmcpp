@@ -13,8 +13,7 @@
 #include <algorithm>
 #include <cstdint>
 #include <gtest/gtest.h>
-#include <mc/im/key_buffer.h>
-#include <mc/im/transaction.h>
+#include <mc/im/radix_tree.h>
 #include <string>
 #include <vector>
 

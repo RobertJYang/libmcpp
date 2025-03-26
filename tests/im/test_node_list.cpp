@@ -14,7 +14,7 @@
 #include <cstdint>
 #include <gtest/gtest.h>
 #include <list>
-#include <mc/im/node.h>
+#include <mc/im/radix_tree/node.h>
 #include <vector>
 
 namespace mc::im::tests {

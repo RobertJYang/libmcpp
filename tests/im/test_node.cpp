@@ -14,7 +14,7 @@
 #include <cstdint>
 #include <gtest/gtest.h>
 #include <mc/im/key_buffer.h>
-#include <mc/im/node.h>
+#include <mc/im/radix_tree/node.h>
 #include <string>
 #include <vector>
 
@@ -433,6 +433,197 @@ TEST_F(NodeTest, ReverseNodeOrder) {
 
     auto [idx_c, node_c] = root->get_edge('c');
     EXPECT_EQ(idx_c, 0);
+}
+
+TEST_F(NodeTest, OptimizedGetMethod) {
+    // 创建基本树结构
+    auto root = make_ref<node_type>(std::nullopt);
+    root->m_prefix = key_buffer<>(""); // 空前缀
+    
+    // 测试"e"前缀节点
+    auto e_prefix_node = make_ref<node_type>(leaves[0]);
+    e_prefix_node->m_prefix = key_buffer<>("e");
+    root->add_edge(edge_type('e', e_prefix_node));
+    
+    // 测试单字符前缀节点
+    auto s_prefix_node = make_ref<node_type>(leaves[1]);
+    s_prefix_node->m_prefix = key_buffer<>("s");
+    root->add_edge(edge_type('s', s_prefix_node));
+    
+    // 测试长前缀节点
+    auto long_prefix_node = make_ref<node_type>(leaves[2]);
+    long_prefix_node->m_prefix = key_buffer<>("longprefix");
+    root->add_edge(edge_type('l', long_prefix_node));
+    
+    // 测试深层嵌套结构
+    auto n1_node = make_ref<node_type>(std::nullopt);
+    n1_node->m_prefix = key_buffer<>("n1");
+    root->add_edge(edge_type('n', n1_node));
+    
+    // n2子节点 - 这里前缀应该只是区分字符，不是完整路径
+    auto n2_node = make_ref<node_type>(leaves[3]);
+    n2_node->m_prefix = key_buffer<>("2");
+    n1_node->add_edge(edge_type('2', n2_node));
+    
+    // 1. 测试"e"前缀节点匹配
+    auto result1 = root->get("e");
+    EXPECT_TRUE(result1.has_value());
+    EXPECT_EQ(result1.value(), leaves[0]);
+    
+    // 2. 测试单字符前缀节点匹配
+    auto result2 = root->get("s");
+    EXPECT_TRUE(result2.has_value());
+    EXPECT_EQ(result2.value(), leaves[1]);
+    
+    // 3. 测试长前缀节点匹配
+    auto result3 = root->get("longprefix");
+    EXPECT_TRUE(result3.has_value());
+    EXPECT_EQ(result3.value(), leaves[2]);
+    
+    // 4. 测试长前缀节点不完全匹配
+    auto result4 = root->get("long");
+    EXPECT_FALSE(result4.has_value());
+    
+    // 5. 测试前缀超出查询键的情况
+    auto result5 = root->get("l");
+    EXPECT_FALSE(result5.has_value());
+    
+    // 6. 测试深层嵌套匹配
+    auto result6 = root->get("n12");
+    EXPECT_TRUE(result6.has_value());
+    EXPECT_EQ(result6.value(), leaves[3]);
+    
+    // 7. 测试深层嵌套部分匹配
+    auto result7 = root->get("n1");
+    EXPECT_FALSE(result7.has_value());
+}
+
+TEST_F(NodeTest, OptimizedWalkPrefix) {
+    // 创建基本树结构
+    auto root = make_ref<node_type>(std::nullopt);
+    root->m_prefix = key_buffer<>(""); // 空前缀
+    
+    // 创建一棵更符合基数树要求的树:
+    //     (root)
+    //    /   \
+    //   (a)  (b)
+    //  / \    \
+    // (p)(b)  (c)
+    //    /
+    //   (c)
+    
+    auto node_a = make_ref<node_type>(leaves[0]);
+    node_a->m_prefix = key_buffer<>("a");
+    
+    auto node_p = make_ref<node_type>(leaves[1]);
+    node_p->m_prefix = key_buffer<>("p");
+    
+    auto node_b = make_ref<node_type>(leaves[2]);
+    node_b->m_prefix = key_buffer<>("b");
+    
+    auto node_c1 = make_ref<node_type>(leaves[3]);
+    node_c1->m_prefix = key_buffer<>("c");
+    
+    auto node_bc = make_ref<node_type>(leaves[4]);
+    node_bc->m_prefix = key_buffer<>("c");
+    
+    // 构建树
+    root->add_edge(edge_type('a', node_a));
+    node_a->add_edge(edge_type('p', node_p));  // "ap"
+    node_a->add_edge(edge_type('b', node_b));  // "ab"
+    node_b->add_edge(edge_type('c', node_c1)); // "abc"
+    
+    root->add_edge(edge_type('b', node_bc));   // "bc"
+    
+    // 收集遍历结果
+    std::vector<std::pair<std::string, void*>> walk_results;
+    auto collect_fn = [&walk_results](key_view key, void* val) -> bool {
+        if (val != nullptr) { // 只收集叶子节点
+            walk_results.push_back({std::string(key.data(), key.size()), val});
+        }
+        return true;
+    };
+    
+    // 1. 测试以"a"为前缀的遍历
+    walk_results.clear();
+    root->walk_prefix("a", collect_fn);
+    
+    // 应该包含a, ap, ab, abc节点
+    EXPECT_EQ(walk_results.size(), 4);
+    
+    // 2. 测试以"ab"为前缀的遍历
+    walk_results.clear();
+    root->walk_prefix("ab", collect_fn);
+    
+    // 应该包含ab, abc节点
+    EXPECT_EQ(walk_results.size(), 2);
+    
+    // 3. 测试以"abc"为前缀的遍历
+    walk_results.clear();
+    root->walk_prefix("abc", collect_fn);
+    
+    // 应该只包含abc节点
+    EXPECT_EQ(walk_results.size(), 1);
+    EXPECT_EQ(walk_results[0].second, leaves[3]);
+    
+    // 4. 测试不匹配的前缀
+    walk_results.clear();
+    root->walk_prefix("x", collect_fn);
+    
+    // 应该不包含任何节点
+    EXPECT_EQ(walk_results.size(), 0);
+    
+    // 5. 测试部分匹配的前缀
+    walk_results.clear();
+    root->walk_prefix("bd", collect_fn);
+    
+    // 应该不包含任何节点
+    EXPECT_EQ(walk_results.size(), 0);
+}
+
+// 测试边界情况
+TEST_F(NodeTest, EdgeCases) {
+    // 创建空树
+    auto empty_node = make_ref<node_type>(std::nullopt);
+    empty_node->m_prefix = key_buffer<>("");
+    
+    // 测试空树get方法
+    auto result1 = empty_node->get("anything");
+    EXPECT_FALSE(result1.has_value());
+    
+    // 测试空树walk_prefix方法
+    std::vector<std::pair<std::string, void*>> walk_results;
+    auto collect_fn = [&walk_results](key_view key, void* val) -> bool {
+        walk_results.push_back({std::string(key.data(), key.size()), val});
+        return true;
+    };
+    
+    empty_node->walk_prefix("prefix", collect_fn);
+    EXPECT_EQ(walk_results.size(), 0);
+    
+    // 创建特殊字符前缀的节点
+    auto special_node = make_ref<node_type>(leaves[0]);
+    special_node->m_prefix = key_buffer<>("\0\1\2\3", 4);
+    
+    // 测试特殊字符前缀匹配
+    key_buffer<> special_key("\0\1\2\3", 4);
+    auto result2 = special_node->get(special_key);
+    EXPECT_TRUE(result2.has_value());
+    EXPECT_EQ(result2.value(), leaves[0]);
+    
+    // 创建超长前缀的节点
+    std::string long_str(1000, 'x');
+    auto long_node = make_ref<node_type>(leaves[1]);
+    long_node->m_prefix = key_buffer<>(long_str);
+    
+    // 测试超长前缀匹配
+    auto result3 = long_node->get(long_str);
+    EXPECT_TRUE(result3.has_value());
+    EXPECT_EQ(result3.value(), leaves[1]);
+    
+    // 测试超长前缀部分匹配
+    auto result4 = long_node->get(long_str.substr(0, 500));
+    EXPECT_FALSE(result4.has_value());
 }
 
 } // namespace mc::im::tests

@@ -13,7 +13,6 @@
 #include <gtest/gtest.h>
 #include <iostream>
 #include <mc/im/radix_tree.h>
-#include <mc/im/transaction.h>
 #include <memory>
 #include <string>
 #include <utility>

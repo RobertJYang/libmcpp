@@ -91,6 +91,33 @@ struct edge_less {
     bool operator()(uint8_t a, const edge<Node>& b) const {
         return a < b.m_label;
     }
+
+    bool operator()(uint8_t a, uint8_t b) const {
+        return a < b;
+    }
+    
+    // 添加对key_view和key_buffer的比较支持
+    bool operator()(const key_view& a, const key_view& b) const {
+        size_t min_len = std::min(a.size(), b.size());
+        for (size_t i = 0; i < min_len; ++i) {
+            if (a[i] != b[i]) {
+                return a[i] < b[i];
+            }
+        }
+        return a.size() < b.size();
+    }
+    
+    bool operator()(const key_buffer<>& a, const key_view& b) const {
+        return (*this)(key_view(a.data(), a.size()), b);
+    }
+    
+    bool operator()(const key_view& a, const key_buffer<>& b) const {
+        return (*this)(a, key_view(b.data(), b.size()));
+    }
+    
+    bool operator()(const key_buffer<>& a, const key_buffer<>& b) const {
+        return (*this)(key_view(a.data(), a.size()), key_view(b.data(), b.size()));
+    }
 };
 
 template <typename Node>
@@ -105,6 +132,33 @@ struct edge_greater {
 
     bool operator()(uint8_t a, const edge<Node>& b) const {
         return a > b.m_label;
+    }
+
+    bool operator()(uint8_t a, uint8_t b) const {
+        return a > b;
+    }
+    
+    // 添加对key_view和key_buffer的比较支持
+    bool operator()(const key_view& a, const key_view& b) const {
+        size_t min_len = std::min(a.size(), b.size());
+        for (size_t i = 0; i < min_len; ++i) {
+            if (a[i] != b[i]) {
+                return a[i] > b[i];
+            }
+        }
+        return a.size() > b.size();
+    }
+    
+    bool operator()(const key_buffer<>& a, const key_view& b) const {
+        return (*this)(key_view(a.data(), a.size()), b);
+    }
+    
+    bool operator()(const key_view& a, const key_buffer<>& b) const {
+        return (*this)(a, key_view(b.data(), b.size()));
+    }
+    
+    bool operator()(const key_buffer<>& a, const key_buffer<>& b) const {
+        return (*this)(key_view(a.data(), a.size()), key_view(b.data(), b.size()));
     }
 };
 
@@ -199,17 +253,10 @@ public:
 
     // 查找边
     std::pair<int, ref_ptr_type> get_edge(uint8_t label) const {
-        // 使用二分查找
-        compare_type compare;
-
-        // 对不同排序方式使用不同的查找逻辑
-        auto it = std::lower_bound(m_edges.begin(), m_edges.end(), label, compare);
-
-        // 检查是否找到了匹配的边
+        auto it = std::lower_bound(m_edges.begin(), m_edges.end(), label, compare_type());
         if (it != m_edges.end() && it->m_label == label) {
             return {static_cast<int>(std::distance(m_edges.begin(), it)), it->m_node};
         }
-
         return {-1, nullptr};
     }
 
@@ -223,28 +270,13 @@ public:
 
     // 查找键
     leaf_type get(key_view k) const {
-        // 如果前缀不匹配，则返回失败
-        size_t prefix_len = m_prefix.size();
-        size_t k_len      = k.size();
-
-        // 前缀比查询键长，肯定不匹配
-        if (prefix_len > k_len) {
+        auto prefix_len = longest_prefix(m_prefix, k);
+        if (prefix_len != m_prefix.size()) {
             return std::nullopt;
-        }
-
-        // 逐字节比较前缀
-        for (size_t i = 0; i < prefix_len; i++) {
-            if (m_prefix[i] != k[i]) {
-                return std::nullopt;
-            }
-        }
-
-        // 如果前缀正好是整个键，且当前节点是叶子节点，则找到
-        if (prefix_len == k_len) {
+        } else if (prefix_len == k.size()) {
             return m_leaf;
         }
 
-        // 尝试在子节点中查找剩余部分
         auto [idx, child] = get_edge(k[prefix_len]);
         if (idx >= 0) {
             key_view remaining = k.substr(prefix_len);

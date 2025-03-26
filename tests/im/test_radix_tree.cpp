@@ -12,7 +12,6 @@
 
 #include <gtest/gtest.h>
 #include <mc/im/radix_tree.h>
-#include <mc/im/transaction.h>
 #include <memory>
 #include <string>
 #include <vector>
@@ -32,7 +31,7 @@ struct TestValue {
     }
 };
 
-TEST(TreeConfigTest, CustomLeafType) {
+TEST(RadixTreeTest, CustomLeafType) {
     // 定义使用 TestValue 作为 leaf_type 的配置
     using TestConfig = mc::im::tree_config<TestValue>;
 
@@ -131,7 +130,7 @@ TEST(TreeConfigTest, CustomLeafType) {
     EXPECT_FALSE(committed1.has_value());
 }
 
-TEST(TreeConfigTest, MixedConfigs) {
+TEST(RadixTreeTest, MixedConfigs) {
     // 默认配置树（void*）
     mc::im::radix_tree<> default_tree;
 
@@ -169,7 +168,7 @@ TEST(TreeConfigTest, MixedConfigs) {
 }
 
 // 简化的迭代器测试用例
-TEST(TreeConfigTest, BasicIterator) {
+TEST(RadixTreeTest, BasicIterator) {
     // 使用自定义配置创建 radix_tree
     using TestConfig = mc::im::tree_config<TestValue>;
 
@@ -200,7 +199,7 @@ TEST(TreeConfigTest, BasicIterator) {
 }
 
 // 测试迭代器的复制和相等性
-TEST(TreeConfigTest, IteratorCopyAndEquality) {
+TEST(RadixTreeTest, IteratorCopyAndEquality) {
     // 使用自定义配置创建 radix_tree
     using TestConfig = mc::im::tree_config<TestValue>;
 
@@ -238,7 +237,7 @@ TEST(TreeConfigTest, IteratorCopyAndEquality) {
 }
 
 // 测试前缀匹配
-TEST(TreeConfigTest, PrefixMatching) {
+TEST(RadixTreeTest, PrefixMatching) {
     // 使用自定义配置创建 radix_tree
     using TestConfig = mc::im::tree_config<TestValue>;
 
@@ -281,7 +280,7 @@ TEST(TreeConfigTest, PrefixMatching) {
 }
 
 // 测试空树的迭代器
-TEST(TreeConfigTest, EmptyTreeIterator) {
+TEST(RadixTreeTest, EmptyTreeIterator) {
     // 创建空树
     using TestConfig = mc::im::tree_config<TestValue>;
     mc::im::radix_tree<TestConfig> empty_tree;
@@ -298,7 +297,7 @@ TEST(TreeConfigTest, EmptyTreeIterator) {
 }
 
 // 测试后序递增操作
-TEST(TreeConfigTest, PostIncrementIterator) {
+TEST(RadixTreeTest, PostIncrementIterator) {
     // 使用自定义配置创建 radix_tree
     using TestConfig = mc::im::tree_config<TestValue>;
     // 创建事务
@@ -324,7 +323,7 @@ TEST(TreeConfigTest, PostIncrementIterator) {
 }
 
 // 测试for-range语法 - 禁用此测试
-TEST(TreeConfigTest, ForRangeLoop) {
+TEST(RadixTreeTest, ForRangeLoop) {
     // 使用自定义配置创建 radix_tree
     using TestConfig = mc::im::tree_config<TestValue>;
 

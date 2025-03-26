@@ -14,8 +14,8 @@
 #define MC_IM_TRANSACTION_H
 
 #include <mc/exception.h>
-#include <mc/im/node_pool.h>
-#include <mc/im/radix_tree.h>
+#include <mc/im/radix_tree/node.h>
+#include <mc/im/radix_tree/node_pool.h>
 #include <optional>
 #include <vector>
 

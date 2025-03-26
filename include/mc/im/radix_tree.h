@@ -16,7 +16,7 @@
 #include <cstdint>
 #include <functional>
 #include <mc/exception.h>
-#include <mc/im/node.h>
+#include <mc/im/radix_tree/node.h>
 #include <memory>
 #include <optional>
 #include <utility>
@@ -51,285 +51,19 @@ public:
     using map_value_type       = std::pair<key_view, value_type&>;
     using const_map_value_type = std::pair<const key_view, const value_type&>;
 
+    /**
+     * 路径项结构，用于记录遍历路径中的节点信息
+     */
+    struct path_item {
+        node_type* node;        // 当前节点
+        size_t     edge_index;  // 下一个要访问的边索引
+        size_t     prefix_size; // 节点前缀在键缓冲区中的大小
+    };
+    using path_type = std::vector<path_item>;
+
     // 前向声明
     class const_iterator;
     class iterator;
-
-    /**
-     * 基数树常量迭代器
-     * 支持深度优先遍历树中的所有键值对
-     * 轻量级设计，减少复制成本
-     */
-    class const_iterator {
-    public:
-        // 标准迭代器类型定义
-        using iterator_category = std::forward_iterator_tag;
-        using value_type        = const_map_value_type;
-        using difference_type   = std::ptrdiff_t;
-        using pointer           = const value_type*;
-        using reference         = const value_type&;
-
-        // 构造节点路径记录项
-        struct path_item {
-            node_ptr node;        // 当前节点
-            size_t   edge_index;  // 下一个要访问的边索引
-            size_t   prefix_size; // 节点前缀在键缓冲区中的大小
-        };
-
-        // 默认构造函数（end迭代器）
-        const_iterator() : m_is_end(true) {
-        }
-
-        // 构造函数（begin迭代器）
-        explicit const_iterator(const node_ptr& root) : m_is_end(false) {
-            if (!root) {
-                m_is_end = true;
-                return;
-            }
-
-            // 初始化DFS堆栈
-            if (initialize_stack(root)) {
-                update_current_item();
-            } else {
-                m_is_end = true;
-            }
-        }
-
-        // 前置递增
-        const_iterator& operator++() {
-            if (m_is_end || m_path.empty()) {
-                m_is_end = true;
-                return *this;
-            }
-
-            // 当前节点已处理完毕，回退到上一级
-            m_current_node = nullptr;
-
-            // 继续深度优先搜索
-            if (advance_to_next_leaf()) {
-                update_current_item();
-            } else {
-                m_is_end = true;
-            }
-
-            return *this;
-        }
-
-        // 后置递增
-        const_iterator operator++(int) {
-            const_iterator tmp = *this;
-            ++(*this);
-            return tmp;
-        }
-
-        // 解引用操作符
-        reference operator*() const {
-            if (m_is_end) {
-                throw std::out_of_range("迭代器指向了末尾");
-            }
-            return m_current_item;
-        }
-
-        // 箭头操作符
-        pointer operator->() const {
-            if (m_is_end) {
-                throw std::out_of_range("迭代器指向了末尾");
-            }
-            return &m_current_item;
-        }
-
-        // 相等比较操作符
-        bool operator==(const const_iterator& other) const {
-            // 都是末尾迭代器
-            if (m_is_end && other.m_is_end) {
-                return true;
-            }
-
-            // 一个是末尾，一个不是
-            if (m_is_end != other.m_is_end) {
-                return false;
-            }
-
-            // 两个都不是末尾，比较当前节点
-            return m_current_node == other.m_current_node;
-        }
-
-        // 不等比较操作符
-        bool operator!=(const const_iterator& other) const {
-            return !(*this == other);
-        }
-
-    protected:
-        // 初始化DFS堆栈
-        bool initialize_stack(const node_ptr& root) {
-            if (!root) {
-                return false;
-            }
-
-            // 清空堆栈和键缓冲区
-            m_path.clear();
-            m_key_buffer.clear();
-
-            // 记录当前路径前缀大小
-            size_t prev_size = m_key_buffer.size();
-
-            // 添加根节点到堆栈
-            m_key_buffer.append(root->m_prefix);
-            m_path.push_back({root, 0, prev_size});
-
-            return find_first_leaf();
-        }
-
-        // 查找第一个叶子节点
-        bool find_first_leaf() {
-            while (!m_path.empty()) {
-                auto& current = m_path.back();
-
-                // 如果当前节点是叶子节点，成功找到
-                if (current.node->is_leaf()) {
-                    m_current_node = current.node;
-                    return true;
-                }
-
-                // 如果已经处理完所有子节点，回溯
-                if (current.edge_index >= current.node->m_edges.size()) {
-                    // 恢复键缓冲区大小
-                    m_key_buffer.resize(current.prefix_size);
-                    m_path.pop_back();
-                    continue;
-                }
-
-                // 处理下一个子节点
-                const auto& edge      = current.node->m_edges[current.edge_index++];
-                size_t      prev_size = m_key_buffer.size();
-
-                // 添加子节点的前缀到键缓冲区
-                m_key_buffer.append(edge.m_node->m_prefix);
-                m_path.push_back({edge.m_node, 0, prev_size});
-            }
-
-            return false;
-        }
-
-        // 前进到下一个叶子节点
-        bool advance_to_next_leaf() {
-            // 回溯并寻找下一个要处理的边
-            while (!m_path.empty()) {
-                auto& current = m_path.back();
-
-                // 如果当前节点的边已经全部处理完毕
-                if (current.edge_index >= current.node->m_edges.size()) {
-                    // 恢复键缓冲区大小并回溯
-                    m_key_buffer.resize(current.prefix_size);
-                    m_path.pop_back();
-                    continue;
-                }
-
-                // 处理下一个边
-                const auto& edge      = current.node->m_edges[current.edge_index++];
-                size_t      prev_size = m_key_buffer.size();
-
-                // 添加边目标节点的前缀
-                m_key_buffer.append(edge.m_node->m_prefix);
-                m_path.push_back({edge.m_node, 0, prev_size});
-
-                // 如果是叶子节点，找到了下一个元素
-                if (edge.m_node->is_leaf()) {
-                    m_current_node = edge.m_node;
-                    return true;
-                }
-
-                // 如果不是叶子节点，继续向下搜索
-                if (edge.m_node->m_edges.empty()) {
-                    // 如果没有子节点，回溯
-                    m_key_buffer.resize(prev_size);
-                    m_path.pop_back();
-                } else {
-                    // 否则寻找这个子树中的第一个叶子节点
-                    if (find_first_leaf()) {
-                        return true;
-                    }
-                }
-            }
-
-            return false;
-        }
-
-        // 更新当前项
-        void update_current_item() {
-            if (m_current_node && m_current_node->is_leaf()) {
-                // 为了让m_current_item的值和m_current_node->m_leaf.value()绑定，
-                // 因为C++引用不能重绑定，这里用了一个挫办法，利用placement
-                // new重绑定m_current_item的值
-                m_current_item.~value_type();
-                new (&m_current_item) value_type(m_key_buffer, m_current_node->m_leaf.value());
-            }
-        }
-
-        bool                   m_is_end       = false;
-        node_ptr               m_current_node = nullptr;
-        key_buffer<>           m_key_buffer;
-        std::vector<path_item> m_path;
-        union {
-            const_map_value_type m_current_item;
-            map_value_type       m_mutable_current_item;
-        };
-
-        friend class iterator;
-    };
-
-    /**
-     * 可变迭代器
-     * 不可变基数树原则上不允许通过迭代器修改元素值，但这里提供一个可变迭代器，
-     * 允许修改元素值但不允许修改键，这么做只是出于性能考虑，安全的修改值的办法
-     * 是通过transaction::update()方法，在事务中修改值，保证不可变基数树的不可变特性。
-     */
-    class iterator : public const_iterator {
-    public:
-        // 标准迭代器类型定义
-        using iterator_category = std::forward_iterator_tag;
-        using value_type        = map_value_type;
-        using difference_type   = std::ptrdiff_t;
-        using pointer           = value_type*;
-        using reference         = value_type&;
-
-        // 默认构造函数（end迭代器）
-        iterator() : const_iterator() {
-        }
-
-        // 构造函数（begin迭代器）
-        explicit iterator(const node_ptr& root) : const_iterator(root) {
-        }
-
-        // 前置递增
-        iterator& operator++() {
-            const_iterator::operator++();
-            return *this;
-        }
-
-        // 后置递增
-        iterator operator++(int) {
-            iterator tmp = *this;
-            ++(*this);
-            return tmp;
-        }
-
-        // 解引用操作符
-        reference operator*() const {
-            if (this->m_is_end) {
-                throw std::out_of_range("迭代器指向了末尾");
-            }
-            return const_cast<reference>(this->m_mutable_current_item);
-        }
-
-        // 箭头操作符
-        pointer operator->() const {
-            if (this->m_is_end) {
-                throw std::out_of_range("迭代器指向了末尾");
-            }
-            return const_cast<pointer>(&this->m_mutable_current_item);
-        }
-    };
 
     /**
      * 创建一个空的不可变基数树
@@ -366,7 +100,23 @@ public:
      * @param key 查找的键
      * @return 值的可选实例
      */
-    leaf_type get(const key_view& key) const;
+    leaf_type get(key_view key) const;
+
+    /**
+     * 查找具有特定键的元素
+     * @param key 要查找的键
+     * @return 指向找到元素的迭代器，如果未找到则返回end()
+     */
+    iterator find(key_view key);
+
+    /**
+     * 查找具有特定键的元素（const版本）
+     * @param key 要查找的键
+     * @return 指向找到元素的常量迭代器，如果未找到则返回end()
+     */
+    const_iterator find(key_view key) const {
+        return const_cast<radix_tree*>(this)->find(key);
+    }
 
     /**
      * 返回指向第一个元素的迭代器（const版本）
@@ -431,36 +181,76 @@ public:
     // 允许事务类访问私有成员
     friend class transaction<Config>;
 
+    /**
+     * 返回指向大于等于给定键的第一个元素的迭代器
+     * @param key 键值
+     * @return 指向大于等于key的第一个元素的迭代器，如果没有则返回end()
+     */
+    iterator lower_bound(key_view key);
+
+    /**
+     * 返回指向大于等于给定键的第一个元素的迭代器（const版本）
+     * @param key 键值
+     * @return 指向大于等于key的第一个元素的常量迭代器，如果没有则返回end()
+     */
+    const_iterator lower_bound(key_view key) const {
+        return const_cast<radix_tree*>(this)->lower_bound(key);
+    }
+
+    /**
+     * 返回指向大于给定键的第一个元素的迭代器
+     * @param key 键值
+     * @return 指向大于key的第一个元素的迭代器，如果没有则返回end()
+     */
+    iterator upper_bound(key_view key);
+
+    /**
+     * 返回指向大于给定键的第一个元素的迭代器（const版本）
+     * @param key 键值
+     * @return 指向大于key的第一个元素的常量迭代器，如果没有则返回end()
+     */
+    const_iterator upper_bound(key_view key) const {
+        return const_cast<radix_tree*>(this)->upper_bound(key);
+    }
+
+    /**
+     * 返回包含所有等于给定键的元素范围的迭代器对
+     * @param key 键值
+     * @return 表示等于key的元素范围的迭代器对（pair）
+     */
+    std::pair<iterator, iterator> equal_range(key_view key) {
+        return {lower_bound(key), upper_bound(key)};
+    }
+
+    /**
+     * 返回包含所有等于给定键的元素范围的迭代器对（const版本）
+     * @param key 键值
+     * @return 表示等于key的元素范围的常量迭代器对（pair）
+     */
+    std::pair<const_iterator, const_iterator> equal_range(key_view key) const {
+        return {lower_bound(key), upper_bound(key)};
+    }
+
 private:
     node_ptr       m_root;
     size_t         m_size = 0;
     allocator_type m_allocator;
+
+    /**
+     * 创建一个迭代器并设置其状态
+     * @param it_node 迭代器的当前节点
+     * @param it_key_buf 迭代器的键缓冲区
+     * @param it_path 迭代器的路径
+     * @return 设置好状态的迭代器
+     */
+    iterator make_iterator(const node_type* n, key_buffer<>&& key_buf, path_type&& path);
 };
 
-// 模板函数实现
-
-template <typename Config>
-radix_tree<Config>::radix_tree(node_ptr root, size_t size) : m_root(std::move(root)), m_size(size) {
-}
-
-template <typename Config>
-size_t radix_tree<Config>::size() const {
-    return m_size;
-}
-
-template <typename Config>
-const typename radix_tree<Config>::node_type radix_tree<Config>::root() const {
-    return m_root;
-}
-
-template <typename Config>
-typename radix_tree<Config>::leaf_type radix_tree<Config>::get(const key_view& key) const {
-    if (!m_root) {
-        return std::nullopt;
-    }
-    return m_root->get(key);
-}
-
 } // namespace mc::im
+
+// 包含迭代器和实现文件
+#include <mc/im/radix_tree/radix_tree_iterator.h>
+#include <mc/im/radix_tree/radix_tree_impl.h>
+#include <mc/im/radix_tree/transaction.h>
 
 #endif // MC_IM_RADIX_TREE_H

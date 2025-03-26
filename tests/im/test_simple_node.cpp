@@ -11,7 +11,7 @@
  */
 
 #include <gtest/gtest.h>
-#include <mc/im/node.h>
+#include <mc/im/radix_tree/node.h>
 #include <mc/im/key_buffer.h>
 #include <string>
 

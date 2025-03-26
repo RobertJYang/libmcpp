@@ -13,7 +13,7 @@
 #ifndef MC_IM_NODE_POOL_H
 #define MC_IM_NODE_POOL_H
 
-#include <mc/im/node.h>
+#include <mc/im/radix_tree/node.h>
 #include <memory>
 
 namespace mc::im {
