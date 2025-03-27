@@ -198,37 +198,37 @@ private:
     // 编码任意值
     void encode_value(const variant& value) {
         switch (value.get_type()) {
-            case variant::type_id::null_type:
+            case type_id::null_type:
                 m_stream << "null";
                 break;
-            case variant::type_id::bool_type:
+            case type_id::bool_type:
                 m_stream << (value.as_bool() ? "true" : "false");
                 break;
-            case variant::type_id::int8_type:
-            case variant::type_id::int16_type:
-            case variant::type_id::int32_type:
-            case variant::type_id::int64_type:
+            case type_id::int8_type:
+            case type_id::int16_type:
+            case type_id::int32_type:
+            case type_id::int64_type:
                 m_stream << value.as_int64();
                 break;
-            case variant::type_id::uint8_type:
-            case variant::type_id::uint16_type:
-            case variant::type_id::uint32_type:
-            case variant::type_id::uint64_type:
+            case type_id::uint8_type:
+            case type_id::uint16_type:
+            case type_id::uint32_type:
+            case type_id::uint64_type:
                 m_stream << value.as_uint64();
                 break;
-            case variant::type_id::double_type:
+            case type_id::double_type:
                 encode_number(value.as_double());
                 break;
-            case variant::type_id::string_type:
+            case type_id::string_type:
                 encode_string(value.as_string());
                 break;
-            case variant::type_id::array_type:
+            case type_id::array_type:
                 encode_array(value.get_array());
                 break;
-            case variant::type_id::object_type:
+            case type_id::object_type:
                 encode_object(value.get_object());
                 break;
-            case variant::type_id::blob_type:
+            case type_id::blob_type:
                 encode_string(value.as_string()); // blob 类型转换为字符串处理
                 break;
             default:

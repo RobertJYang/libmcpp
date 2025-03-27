@@ -2,13 +2,12 @@
 src_files = [
   'exception.cpp',
   'filesystem.cpp',
+  'variant.cpp',
   'json.cpp',
   'reflect.cpp',
   'time.cpp',
-  'variant.cpp',
   'dict.cpp',
   'mutable_dict.cpp',
-  'typed_variant.cpp',
   'string.cpp',
   'singleton.cpp',
   'core/application.cpp',
@@ -33,13 +32,7 @@ src_files = [
   'interprocess/mutex/ipc_shared_mutex.cpp',
   'database/path_iterator.cpp',
   'database/client.cpp',
-  # 'im/iradix.cpp',
-  # 'im/node.cpp',
-  # 'im/node_entry.cpp',
-  # 'im/node_pool.cpp',
-  # 'im/byte_buffer.cpp',
-  # 'im/raw_iterator.cpp',
-  # 'im/txn.cpp',
+  'im/byte_buffer.cpp',
 ]
 
 # 创建共享库
@@ -48,7 +41,6 @@ libmcpp_lib = shared_library(
   src_files,
   include_directories: [incdir],
   dependencies: [boost_dep, boost_program_options_dep],
-  link_with: [],
   install: true,
 )
 

@@ -18,9 +18,9 @@
 
 #include <gtest/gtest.h>
 #include <limits>
-#include <mc/dict.h>
 #include <mc/variant.h>
 #include <stdexcept>
+#include <mc/dict.h>
 
 namespace mc {
 namespace test {

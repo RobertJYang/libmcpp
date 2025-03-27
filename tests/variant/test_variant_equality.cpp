@@ -77,8 +77,8 @@ TEST_F(VariantEqualityTest, TypedVariantEquality) {
     ASSERT_EQ(tv1, tv2) << "相同类型和值的 typed_variant 应该相等";
 
     // 测试类型锁定后的比较
-    typed_variant tv3(variant::type_id::int32_type);
-    typed_variant tv4(variant::type_id::int32_type);
+    typed_variant tv3(type_id::int32_type);
+    typed_variant tv4(type_id::int32_type);
     tv3 = 42;
     tv4 = 42;
     ASSERT_EQ(tv3, tv4) << "类型锁定后的相同值应该相等";
@@ -88,8 +88,8 @@ TEST_F(VariantEqualityTest, TypedVariantEquality) {
     ASSERT_EQ(tv1, v) << "typed_variant 应该可以与普通 variant 比较";
 
     // 测试不同类型的比较
-    typed_variant tv5(variant::type_id::int32_type);
-    typed_variant tv6(variant::type_id::double_type);
+    typed_variant tv5(type_id::int32_type);
+    typed_variant tv6(type_id::double_type);
     tv5 = 42;
     tv6 = 42.0;
     ASSERT_NE(tv5, tv6) << "不同类型的 typed_variant 不应该相等";

@@ -30,7 +30,6 @@
 // 前向声明
 namespace mc {
 class dict;
-class variant;
 namespace string {
 
 /**
