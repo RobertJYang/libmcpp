@@ -24,6 +24,8 @@ example_plugin = shared_library(
     link_with: [libmcpp_lib],
     install: true,
     install_dir: get_option('libdir') / 'libmcpp/plugins',
+    name_prefix : 'lib',  # 强制使用lib前缀
+    name_suffix : 'so'    # 强制使用.so后缀
 )
 
 # 复制插件到插件目录（用于本地测试）

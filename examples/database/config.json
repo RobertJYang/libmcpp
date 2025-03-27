@@ -1,0 +1,102 @@
+[
+  {
+    "api_version": "v1",
+    "kind": "Application",
+    "meta": {
+      "name": "database-app",
+      "labels": {
+        "app": "database",
+        "env": "example"
+      }
+    },
+    "plugin_dir": "../../lib/libmcpp/plugins",
+    "plugins": ["database_plugin"],
+    "threads": 2
+  },
+  {
+    "api_version": "v1",
+    "kind": "Supervisor",
+    "meta": {
+      "name": "database",
+      "annotations": {
+        "description": "数据库监督器，负责管理数据库服务"
+      }
+    },
+    "strategy": "one_for_one",
+    "max_restarts": 3,
+    "services": ["memory_manager", "communication", "object_tree", "reference_tracker"]
+  },
+  {
+    "api_version": "v1",
+    "kind": "Service",
+    "meta": {
+      "name": "memory_manager",
+      "labels": {
+        "supervisor": "database"
+      }
+    },
+    "type": "memory_manager",
+    "dependencies": [],
+    "properties": {
+      "max_memory_size": 1048576
+    }
+  },
+  {
+    "api_version": "v1",
+    "kind": "Service",
+    "meta": {
+      "name": "communication",
+      "labels": {
+        "supervisor": "database"
+      }
+    },
+    "type": "communication",
+    "dependencies": ["memory_manager"],
+    "properties": {
+      "max_clients": 100,
+      "timeout_ms": 5000
+    }
+  },
+  {
+    "api_version": "v1",
+    "kind": "Service",
+    "meta": {
+      "name": "object_tree",
+      "labels": {
+        "supervisor": "database"
+      }
+    },
+    "type": "object_tree",
+    "dependencies": ["memory_manager"],
+    "properties": {
+      "max_objects": 10000,
+      "max_depth": 10
+    }
+  },
+  {
+    "api_version": "v1",
+    "kind": "Service",
+    "meta": {
+      "name": "reference_tracker",
+      "labels": {
+        "supervisor": "database"
+      }
+    },
+    "type": "reference_tracker",
+    "dependencies": ["communication", "object_tree"],
+    "properties": {
+      "auto_cleanup": true
+    }
+  },
+  {
+    "api_version": "v1",
+    "kind": "Plugin",
+    "meta": {
+      "name": "database_plugin"
+    },
+    "version": "1.0.0",
+    "properties": {
+      "enabled": true
+    }
+  }
+] 

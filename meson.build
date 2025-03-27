@@ -1,8 +1,15 @@
 project('libmcpp', 'cpp',
     version : '0.1.0',
-  default_options : ['cpp_std=c++17', 'warning_level=3', 
-    'cpp_args=-fPIC -Wall -Wno-unused-parameter -Wno-unused-variable -Wno-sign-compare -Wno-gnu-zero-variadic-macro-arguments',
-])
+    default_options : [
+        'warning_level=3', 
+        'cpp_std=c++17',
+        'libdir=lib',
+        'cpp_args=-fPIC -Wall -Wno-unused-parameter -Wno-unused-variable -Wno-sign-compare -Wno-gnu-zero-variadic-macro-arguments',
+    ]
+)
+
+# 添加编译器选项
+add_project_arguments('-Wall', '-Wextra', language : 'cpp')
 
 # 配置选项
 shared_mutex_max_readers = get_option('shared_mutex_max_readers')
@@ -23,4 +30,5 @@ subdir('include')
 subdir('src')
 subdir('tests')
 subdir('examples')
+subdir('plugins')
 subdir('programs/devmon')

@@ -33,6 +33,7 @@
 #include <utility>
 #include <variant>
 #include <vector>
+#include <ostream>
 
 #include <mc/common.h>
 
@@ -138,7 +139,7 @@ public:
 
     // 普通整数类型转 variant 的整数类型
     template <typename T, std::enable_if_t<std::is_integral_v<T>, int> = 0>
-    static type_id fixed_integer_type(T val) {
+    static type_id fixed_integer_type(T) {
         if constexpr (std::is_signed_v<T>) {
             if constexpr (sizeof(T) == 1) {
                 return type_id::int8_type;
@@ -937,6 +938,12 @@ void to_variant(const typed_variant& var, variant& vo);
  * @param vo 目标 typed_variant
  */
 void from_variant(const variant& var, typed_variant& vo);
+
+// 为variant添加输出流运算符
+inline std::ostream& operator<<(std::ostream& os, const variant& v) {
+    os << "[variant]";
+    return os;
+}
 
 } // namespace mc
 
