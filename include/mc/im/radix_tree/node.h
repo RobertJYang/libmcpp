@@ -95,7 +95,7 @@ struct edge_less {
     bool operator()(uint8_t a, uint8_t b) const {
         return a < b;
     }
-    
+
     // 添加对key_view和key_buffer的比较支持
     bool operator()(const key_view& a, const key_view& b) const {
         size_t min_len = std::min(a.size(), b.size());
@@ -106,15 +106,15 @@ struct edge_less {
         }
         return a.size() < b.size();
     }
-    
+
     bool operator()(const key_buffer<>& a, const key_view& b) const {
         return (*this)(key_view(a.data(), a.size()), b);
     }
-    
+
     bool operator()(const key_view& a, const key_buffer<>& b) const {
         return (*this)(a, key_view(b.data(), b.size()));
     }
-    
+
     bool operator()(const key_buffer<>& a, const key_buffer<>& b) const {
         return (*this)(key_view(a.data(), a.size()), key_view(b.data(), b.size()));
     }
@@ -137,7 +137,7 @@ struct edge_greater {
     bool operator()(uint8_t a, uint8_t b) const {
         return a > b;
     }
-    
+
     // 添加对key_view和key_buffer的比较支持
     bool operator()(const key_view& a, const key_view& b) const {
         size_t min_len = std::min(a.size(), b.size());
@@ -148,15 +148,15 @@ struct edge_greater {
         }
         return a.size() > b.size();
     }
-    
+
     bool operator()(const key_buffer<>& a, const key_view& b) const {
         return (*this)(key_view(a.data(), a.size()), b);
     }
-    
+
     bool operator()(const key_view& a, const key_buffer<>& b) const {
         return (*this)(a, key_view(b.data(), b.size()));
     }
-    
+
     bool operator()(const key_buffer<>& a, const key_buffer<>& b) const {
         return (*this)(key_view(a.data(), a.size()), key_view(b.data(), b.size()));
     }
@@ -293,35 +293,15 @@ public:
 
     // 遍历指定前缀的子树
     void walk_prefix(key_view prefix, walk_fn<Config>&& fn) const {
-        // 如果前缀不匹配，则返回
+        // 使用longest_prefix函数获取公共前缀长度
+        size_t common_len = longest_prefix(m_prefix, prefix);
         size_t prefix_len = m_prefix.size();
         size_t p_len      = prefix.size();
 
-        // 如果节点前缀比查询前缀长，检查节点前缀是否以查询前缀开头
-        if (prefix_len > p_len) {
-            for (size_t i = 0; i < p_len; i++) {
-                if (m_prefix[i] != prefix[i]) {
-                    return;
-                }
-            }
-            // 节点前缀以查询前缀开头，遍历所有节点
+        // 如果查询前缀是节点前缀的前缀，遍历所有节点
+        if (common_len == p_len) {
             recursive_walk(this, std::forward<walk_fn<Config>>(fn));
-            return;
-        }
-
-        // 逐字节比较前缀
-        for (size_t i = 0; i < prefix_len; i++) {
-            if (m_prefix[i] != prefix[i]) {
-                return;
-            }
-        }
-
-        // 如果节点前缀是查询前缀的前缀，继续查找
-        if (prefix_len == p_len) {
-            // 前缀完全匹配，遍历所有节点
-            recursive_walk(this, std::forward<walk_fn<Config>>(fn));
-        } else {
-            // 继续在子节点中查找
+        } else if (common_len == prefix_len) {
             auto [idx, child] = get_edge(prefix[prefix_len]);
             if (idx >= 0) {
                 key_view remaining = prefix.substr(prefix_len);
