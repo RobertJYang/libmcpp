@@ -89,10 +89,10 @@ void byte_buffer::truncate(size_t n)
     m_buf.resize(n);
 }
 
-bool byte_buffer::write(const uint8_t* p, size_t size)
+void byte_buffer::write(const uint8_t* p, size_t size)
 {
     if (size == 0) {
-        return true;
+        return;
     }
     
     size_t m;
@@ -104,15 +104,14 @@ bool byte_buffer::write(const uint8_t* p, size_t size)
     }
     
     std::copy(p, p + size, m_buf.begin() + m);
-    return true;
 }
 
-bool byte_buffer::write(const std::vector<uint8_t>& p)
+void byte_buffer::write(const std::vector<uint8_t>& p)
 {
-    return write(p.data(), p.size());
+    write(p.data(), p.size());
 }
 
-bool byte_buffer::write_byte(uint8_t c)
+void byte_buffer::write_byte(uint8_t c)
 {
     size_t m;
     bool ok;
@@ -123,15 +122,14 @@ bool byte_buffer::write_byte(uint8_t c)
     }
     
     m_buf[m] = c;
-    return true;
 }
 
-bool byte_buffer::write_string(std::string_view v)
+void byte_buffer::write_string(std::string_view v)
 {
-    return write(reinterpret_cast<const uint8_t*>(v.data()), v.size());
+    write(reinterpret_cast<const uint8_t*>(v.data()), v.size());
 }
 
-bool byte_buffer::write_uint16(uint16_t v)
+void byte_buffer::write_uint16(uint16_t v)
 {
     size_t m;
     bool ok;
@@ -144,11 +142,9 @@ bool byte_buffer::write_uint16(uint16_t v)
     // 大端序写入
     m_buf[m] = static_cast<uint8_t>((v >> 8) & 0xFF);
     m_buf[m + 1] = static_cast<uint8_t>(v & 0xFF);
-    
-    return true;
 }
 
-bool byte_buffer::write_uint32(uint32_t v)
+void byte_buffer::write_uint32(uint32_t v)
 {
     size_t m;
     bool ok;
@@ -163,11 +159,9 @@ bool byte_buffer::write_uint32(uint32_t v)
     m_buf[m + 1] = static_cast<uint8_t>((v >> 16) & 0xFF);
     m_buf[m + 2] = static_cast<uint8_t>((v >> 8) & 0xFF);
     m_buf[m + 3] = static_cast<uint8_t>(v & 0xFF);
-    
-    return true;
 }
 
-bool byte_buffer::write_uint64(uint64_t v)
+void byte_buffer::write_uint64(uint64_t v)
 {
     size_t m;
     bool ok;
@@ -186,8 +180,6 @@ bool byte_buffer::write_uint64(uint64_t v)
     m_buf[m + 5] = static_cast<uint8_t>((v >> 16) & 0xFF);
     m_buf[m + 6] = static_cast<uint8_t>((v >> 8) & 0xFF);
     m_buf[m + 7] = static_cast<uint8_t>(v & 0xFF);
-    
-    return true;
 }
 
 } // namespace mc::im 

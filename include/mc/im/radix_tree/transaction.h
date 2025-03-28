@@ -226,6 +226,29 @@ public:
     }
 
     /**
+     * 查找键对应的迭代器
+     * @param k 键
+     * @return 包含迭代器和是否找到的标志
+     */
+    std::pair<typename tree_type::iterator, bool> find(key_view k) {
+        auto it = m_tree.find(k);
+        return {it, it != m_tree.end()};
+    }
+
+    /**
+     * 删除指定迭代器位置的元素
+     * @param it 迭代器
+     * @return 是否成功删除
+     */
+    bool erase(const typename tree_type::iterator& it) {
+        if (it != m_tree.end()) {
+            remove(it.key());
+            return true;
+        }
+        return false;
+    }
+
+    /**
      * 提交事务
      * @return 树
      */

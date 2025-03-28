@@ -83,49 +83,49 @@ public:
      * @param size 数据大小
      * @return 是否成功
      */
-    bool write(const uint8_t* p, size_t size);
+    void write(const uint8_t* p, size_t size);
 
     /**
      * 写入字节数据
      * @param p 要写入的数据
      * @return 是否成功
      */
-    bool write(const std::vector<uint8_t>& p);
+    void write(const std::vector<uint8_t>& p);
 
     /**
      * 写入单个字节
      * @param c 要写入的字节
      * @return 是否成功
      */
-    bool write_byte(uint8_t c);
+    void write_byte(uint8_t c);
 
     /**
      * 写入字符串
      * @param v 要写入的字符串
      * @return 是否成功
      */
-    bool write_string(std::string_view v);
+    void write_string(std::string_view v);
 
     /**
      * 写入16位无符号整数
      * @param v 要写入的整数
      * @return 是否成功
      */
-    bool write_uint16(uint16_t v);
+    void write_uint16(uint16_t v);
 
     /**
      * 写入32位无符号整数
      * @param v 要写入的整数
      * @return 是否成功
      */
-    bool write_uint32(uint32_t v);
+    void write_uint32(uint32_t v);
 
     /**
      * 写入64位无符号整数
      * @param v 要写入的整数
      * @return 是否成功
      */
-    bool write_uint64(uint64_t v);
+    void write_uint64(uint64_t v);
 
 private:
     std::vector<uint8_t> m_buf;

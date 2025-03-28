@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2023 Huawei Technologies Co., Ltd.
+* Copyright (c) 2024 Huawei Technologies Co., Ltd.
 * openUBMC is licensed under Mulan PSL v2.
 * You can use this software according to the terms and conditions of the Mulan PSL v2.
 * You may obtain a copy of Mulan PSL v2 at:
@@ -17,44 +17,70 @@
 #include <string>
 #include <string_view>
 #include <vector>
-#include <memory>
-#include <functional>
 
 namespace mc::database {
 
-// 错误码定义
-enum class error_code {
-    success = 0,
-    not_initialized,
-    already_exists,
-    not_found,
-    invalid_path,
-    access_denied,
-    out_of_memory,
-    invalid_argument,
-    internal_error,
-    timeout,
-    connection_failure
+/**
+ * 数据库对象ID类型
+ */
+using object_id_t = uint64_t;
+
+/**
+ * 数据库事务ID类型
+ */
+using txn_id_t = uint64_t;
+
+/**
+ * 空对象ID
+ */
+constexpr object_id_t NULL_OBJECT_ID = 0;
+
+/**
+ * 表类型枚举
+ */
+enum class table_type : uint8_t {
+    unknown = 0,
+    memory = 1,
+    persisten = 2
 };
 
-// 路径类型
-using path = std::string;
-using path_view = std::string_view;
+/**
+ * 数据库异常基类
+ */
+class database_exception : public std::exception {
+public:
+    explicit database_exception(const std::string& message) : m_message(message) {}
+    const char* what() const noexcept override { return m_message.c_str(); }
+private:
+    std::string m_message;
+};
 
-// 客户端ID类型
-using client_id = uint32_t;
+/**
+ * 键不存在异常
+ */
+class key_not_found_exception : public database_exception {
+public:
+    explicit key_not_found_exception(const std::string& key) 
+        : database_exception("键不存在: " + key) {}
+};
 
-// 对象ID类型
-using object_id = uint64_t;
+/**
+ * 键重复异常
+ */
+class key_duplicate_exception : public database_exception {
+public:
+    explicit key_duplicate_exception(const std::string& key) 
+        : database_exception("键重复: " + key) {}
+};
 
-// 标准回调类型
-using completion_handler = std::function<void(error_code)>;
-using data_handler = std::function<void(error_code, void*, size_t)>;
-using boolean_handler = std::function<void(error_code, bool)>;
-using string_list_handler = std::function<void(error_code, const std::vector<std::string>&)>;
-
-// 获取错误码描述
-std::string_view error_to_string(error_code code);
+/**
+ * 无效参数异常
+ */
+class invalid_argument_exception : public database_exception {
+public:
+    explicit invalid_argument_exception(const std::string& message) 
+        : database_exception("无效参数: " + message) {}
+};
 
 } // namespace mc::database
 

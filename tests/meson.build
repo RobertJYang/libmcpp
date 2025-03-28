@@ -27,6 +27,7 @@ test_files = [
   'dict/test_dict_performance.cpp',
   'filesystem/test_filesystem.cpp',
   'database/test_path_iterator.cpp',
+  'database/test_index.cpp',
   # 'database/test_shared_tree_db.cpp',
   # 'database/test_database.cpp',
   'im/test_node_list.cpp',

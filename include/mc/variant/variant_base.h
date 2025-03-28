@@ -27,6 +27,7 @@
 
 #include <mc/common.h>
 #include <mc/im/ref_ptr.h>
+#include <mc/string.h>
 
 namespace mc {
 class dict;
@@ -782,16 +783,6 @@ public:
         }
     }
 
-    static bool iequals(std::string_view a, std::string_view b) {
-        if (a.size() != b.size()) {
-            return false;
-        }
-
-        return std::equal(a.begin(), a.end(), b.begin(), [](char a, char b) {
-            return std::tolower(a) == std::tolower(b);
-        });
-    }
-
     /**
      * @brief 将 variant_base 转换为布尔值
      */
@@ -813,10 +804,10 @@ public:
             return m_double != 0;
         case type_id::string_type: {
             const auto& s = *m_string_ptr;
-            if (s.empty() || iequals(s, "false") || s == "0") {
+            if (s.empty() || mc::string::iequals(s, "false") || s == "0") {
                 return false;
             }
-            return !iequals(s, "false") && s != "0";
+            return true;
         }
         case type_id::null_type:
             return false;
@@ -1388,7 +1379,7 @@ public:
      * 空对象类型的空对象
      * 空blob类型的空blob
      * 空dict类型的空dict
-     * 
+     *
      * 其他情况返回true
      */
     explicit operator bool() const {
