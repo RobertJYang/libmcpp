@@ -135,9 +135,11 @@ typename radix_tree<Config>::iterator radix_tree<Config>::lower_bound(key_view k
         key_pos = current.prefix_size;
 
         // 找到第一个大于等于key当前位置的边
-        auto s  = edges.begin() + current.edge_index;
-        auto it = key_pos < key.size() ? std::lower_bound(s, edges.end(), key[key_pos], compare)
-                                       : s; // 如果key已经用完，从当前位置开始
+        auto s = edges.begin() + current.edge_index;
+        auto it =
+            key_pos < key.size()
+                ? std::lower_bound(s, edges.end(), static_cast<uint8_t>(key[key_pos]), compare)
+                : s; // 如果key已经用完，从当前位置开始
 
         if (it == edges.end()) {
             // 没有找到合适的边，需要回溯

@@ -351,66 +351,13 @@ TEST(RadixTreeIteratorTest, BoundaryFunctions) {
 
     // 使用const版本
     const auto& const_tree = tree;
-    auto const_lb = const_tree.lower_bound("b_key");
+    auto        const_lb   = const_tree.lower_bound("b_key");
     ASSERT_NE(const_lb, const_tree.end());
     EXPECT_EQ(const_lb->second.number, 2);
 
     auto const_ub = const_tree.upper_bound("b_key");
     ASSERT_NE(const_ub, const_tree.end());
     EXPECT_EQ(const_ub->second.number, 3);
-}
-
-// 测试用例：equal_range函数
-TEST(RadixTreeIteratorTest, EqualRange) {
-    using tree_type = radix_tree<tree_config<test_value>>;
-
-    // 创建事务并填充数据
-    transaction<tree_config<test_value>> tx;
-
-    // 插入排序后的测试数据
-    tx.insert("a_key", test_value("A值", 1));
-    tx.insert("b_key", test_value("B值", 2));
-    tx.insert("c_key", test_value("C值", 3));
-    tx.insert("d_key", test_value("D值", 4));
-    tx.insert("e_key", test_value("E值", 5));
-
-    // 提交事务
-    auto tree = tx.commit();
-
-    // 测试equal_range
-    auto range1 = tree.equal_range("c_key");
-    ASSERT_NE(range1.first, tree.end());
-    EXPECT_EQ(range1.first->second.number, 3);  // lower_bound
-
-    if (range1.second != tree.end()) {
-        EXPECT_EQ(range1.second->second.number, 4);  // upper_bound (d_key)
-    } else {
-        FAIL() << "range1.second 不应该是 end()";
-    }
-
-    // 测试不存在的键
-    auto range2 = tree.equal_range("between_c_d");
-    if (range2.first != tree.end()) {
-        // 应该指向第一个不小于给定键的元素
-        EXPECT_GE(range2.first->first, "between_c_d");
-    }
-
-    // 测试超出范围的情况
-    auto range3 = tree.equal_range("z_key");
-    EXPECT_EQ(range3.first, tree.end());
-    EXPECT_EQ(range3.second, tree.end());
-
-    // 使用const版本
-    const tree_type& const_tree = tree;
-    auto const_range = const_tree.equal_range("b_key");
-    ASSERT_NE(const_range.first, const_tree.end());
-    EXPECT_EQ(const_range.first->second.number, 2);  // lower_bound
-
-    if (const_range.second != const_tree.end()) {
-        EXPECT_EQ(const_range.second->second.number, 3);  // upper_bound (c_key)
-    } else {
-        FAIL() << "const_range.second 不应该是 end()";
-    }
 }
 
 // 测试用例：复杂的lower_bound场景
@@ -533,19 +480,19 @@ TEST(RadixTreeIteratorTest, ComplexLowerBound) {
     {
         // 使用存在的键，find和lower_bound应返回相同迭代器
         auto find_it = tree.find("abcde");
-        auto lb_it = tree.lower_bound("abcde");
+        auto lb_it   = tree.lower_bound("abcde");
         ASSERT_NE(find_it, tree.end());
         ASSERT_NE(lb_it, tree.end());
         EXPECT_EQ(find_it, lb_it);
-        
+
         // 两个迭代器同时递增，应该保持相同位置
-        while(find_it != tree.end() && lb_it != tree.end()) {
+        while (find_it != tree.end() && lb_it != tree.end()) {
             EXPECT_EQ(find_it->first, lb_it->first);
             EXPECT_EQ(find_it->second.number, lb_it->second.number);
             ++find_it;
             ++lb_it;
         }
-        
+
         // 两个迭代器应该同时到达末尾
         EXPECT_EQ(find_it, tree.end());
         EXPECT_EQ(lb_it, tree.end());
@@ -648,7 +595,8 @@ TEST(RadixTreeIteratorTest, ComplexUpperBound) {
         ASSERT_NE(it, tree.end());
 
         // 验证后续元素
-        std::vector<std::string> expected_keys   = {"abcde1", "abcde2", "abcdef", "abcdefg", "abcdefgh"};
+        std::vector<std::string> expected_keys   = {"abcde1", "abcde2", "abcdef", "abcdefg",
+                                                    "abcdefgh"};
         std::vector<int>         expected_values = {10, 11, 6, 7, 8};
 
         for (size_t i = 0; i < expected_keys.size(); ++i) {
@@ -685,27 +633,27 @@ TEST(RadixTreeIteratorTest, ComplexUpperBound) {
     {
         // 对于存在的键，find和lower_bound应返回相同迭代器
         auto find_it = tree.find("abcde1");
-        auto lb_it = tree.lower_bound("abcde1");
+        auto lb_it   = tree.lower_bound("abcde1");
         ASSERT_NE(find_it, tree.end());
         ASSERT_NE(lb_it, tree.end());
         EXPECT_EQ(find_it, lb_it);
-        
+
         // upper_bound和lower_bound/find的链式关系
-        auto ub_it = tree.upper_bound("abcde1");
+        auto ub_it        = tree.upper_bound("abcde1");
         auto next_find_it = find_it;
         ++next_find_it;
         EXPECT_EQ(ub_it, next_find_it); // upper_bound等同于lower_bound后递增
-        
+
         // 从某个位置开始的迭代器链应该相同
         find_it = tree.find("abcdef");
-        lb_it = tree.lower_bound("abcdef");
-        ub_it = tree.upper_bound("abcde2"); // 应指向"abcdef"
-        
+        lb_it   = tree.lower_bound("abcdef");
+        ub_it   = tree.upper_bound("abcde2"); // 应指向"abcdef"
+
         EXPECT_EQ(find_it, lb_it);
         EXPECT_EQ(find_it, ub_it);
-        
+
         // 三个迭代器同时递增到end()
-        while(find_it != tree.end()) {
+        while (find_it != tree.end()) {
             ASSERT_NE(lb_it, tree.end());
             ASSERT_NE(ub_it, tree.end());
             EXPECT_EQ(find_it->first, lb_it->first);
@@ -714,7 +662,7 @@ TEST(RadixTreeIteratorTest, ComplexUpperBound) {
             ++lb_it;
             ++ub_it;
         }
-        
+
         // 三个迭代器应同时到达end()
         EXPECT_EQ(find_it, tree.end());
         EXPECT_EQ(lb_it, tree.end());

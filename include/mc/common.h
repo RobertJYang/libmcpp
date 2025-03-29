@@ -412,6 +412,101 @@ private:
     std::chrono::time_point<std::chrono::high_resolution_clock> m_start;
 };
 
+//------------------------------------------------------------------------------
+// 字节序转换函数
+//------------------------------------------------------------------------------
+
+/**
+ * @brief 判断系统是否为小端序
+ */
+inline bool is_little_endian() {
+    static const uint16_t test = 0x0102;
+    return *reinterpret_cast<const uint8_t*>(&test) == 0x02;
+}
+
+/**
+ * @brief 16位整数字节序转换
+ */
+inline uint16_t swap_bytes(uint16_t value) {
+    return ((value & 0xFF00) >> 8) | ((value & 0x00FF) << 8);
+}
+
+/**
+ * @brief 32位整数字节序转换
+ */
+inline uint32_t swap_bytes(uint32_t value) {
+    return ((value & 0xFF000000) >> 24) | ((value & 0x00FF0000) >> 8) |
+           ((value & 0x0000FF00) << 8) | ((value & 0x000000FF) << 24);
+}
+
+/**
+ * @brief 64位整数字节序转换
+ */
+inline uint64_t swap_bytes(uint64_t value) {
+    return ((value & 0xFF00000000000000ULL) >> 56) | ((value & 0x00FF000000000000ULL) >> 40) |
+           ((value & 0x0000FF0000000000ULL) >> 24) | ((value & 0x000000FF00000000ULL) >> 8) |
+           ((value & 0x00000000FF000000ULL) << 8) | ((value & 0x0000000000FF0000ULL) << 24) |
+           ((value & 0x000000000000FF00ULL) << 40) | ((value & 0x00000000000000FFULL) << 56);
+}
+
+/**
+ * @brief 浮点数字节序转换
+ */
+inline float swap_bytes(float value) {
+    uint32_t temp = swap_bytes(*reinterpret_cast<uint32_t*>(&value));
+    return *reinterpret_cast<float*>(&temp);
+}
+
+/**
+ * @brief 双精度浮点数字节序转换
+ */
+inline double swap_bytes(double value) {
+    uint64_t temp = swap_bytes(*reinterpret_cast<uint64_t*>(&value));
+    return *reinterpret_cast<double*>(&temp);
+}
+
+/**
+ * @brief 网络字节序转主机字节序（16位）
+ */
+inline uint16_t ntoh(uint16_t value) {
+    return is_little_endian() ? swap_bytes(value) : value;
+}
+
+/**
+ * @brief 网络字节序转主机字节序（32位）
+ */
+inline uint32_t ntoh(uint32_t value) {
+    return is_little_endian() ? swap_bytes(value) : value;
+}
+
+/**
+ * @brief 网络字节序转主机字节序（64位）
+ */
+inline uint64_t ntoh(uint64_t value) {
+    return is_little_endian() ? swap_bytes(value) : value;
+}
+
+/**
+ * @brief 主机字节序转网络字节序（16位）
+ */
+inline uint16_t hton(uint16_t value) {
+    return is_little_endian() ? swap_bytes(value) : value;
+}
+
+/**
+ * @brief 主机字节序转网络字节序（32位）
+ */
+inline uint32_t hton(uint32_t value) {
+    return is_little_endian() ? swap_bytes(value) : value;
+}
+
+/**
+ * @brief 主机字节序转网络字节序（64位）
+ */
+inline uint64_t hton(uint64_t value) {
+    return is_little_endian() ? swap_bytes(value) : value;
+}
+
 } // namespace mc
 
 #endif // MC_COMMON_H

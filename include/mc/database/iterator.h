@@ -39,6 +39,8 @@ public:
     using reference         = const object_type&;
     using raw_iterator      = typename Index::raw_iterator;
 
+    static constexpr bool is_sort_great = Index::is_sort_great;
+
     /**
      * 默认构造函数 - 生成end迭代器
      */
@@ -53,13 +55,12 @@ public:
      * @param prefix_len 前缀长度
      * @param field_count 字段数量
      * @param key_field_count 键字段数量
-     * @param is_sort_great 是否是大到小排序
      */
     iterator(raw_iterator iter, bool is_compound_key, bool is_unique, size_t prefix_len,
-             size_t field_count, size_t key_field_count, bool is_sort_great)
+             size_t field_count, size_t key_field_count)
         : m_iterator(std::move(iter)), m_is_end(false), m_is_compound_key(is_compound_key),
           m_is_unique(is_unique), m_prefix_len(prefix_len), m_field_count(field_count),
-          m_key_field_count(key_field_count), m_is_sort_great(is_sort_great) {
+          m_key_field_count(key_field_count) {
         if (m_iterator == raw_iterator()) {
             m_is_end = true;
             return;
@@ -160,10 +161,10 @@ public:
             return *this;
         }
 
-        auto next_it       = m_iterator;
+        auto next_it = m_iterator;
         next_it.to_next_prefix(key);
         return iterator(next_it, m_is_compound_key, m_is_unique, m_prefix_len, m_field_count,
-                        m_key_field_count, m_is_sort_great);
+                        m_key_field_count);
     }
 
 private:
@@ -200,10 +201,11 @@ private:
                 // 提取并检查ID
                 uint32_t id = 0;
                 memcpy(&id, key.data() + (n - 4), 4);
-                if (m_is_sort_great) {
+                if constexpr (!is_sort_great) {
                     // 索引从大到小排列时，id需要转换回来
                     id = ~id;
                 }
+                id = mc::ntoh(id);
 
                 if (m_iterator->second->get_id() != id) {
                     return false;
@@ -245,10 +247,9 @@ private:
     size_t       m_prefix_len{0};
     size_t       m_field_count{0};
     size_t       m_key_field_count{0};
-    bool         m_is_sort_great{false};
 
     // 声明mem_index为友元类
-    template <typename O, typename K, bool L>
+    template <typename O, typename K>
     friend class index;
 };
 

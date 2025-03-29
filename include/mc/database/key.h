@@ -1,14 +1,14 @@
 /*
-* Copyright (c) 2024 Huawei Technologies Co., Ltd.
-* openUBMC is licensed under Mulan PSL v2.
-* You can use this software according to the terms and conditions of the Mulan PSL v2.
-* You may obtain a copy of Mulan PSL v2 at:
-*         http://license.coscl.org.cn/MulanPSL2
-* THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
-* EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
-* MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
-* See the Mulan PSL v2 for more details.
-*/
+ * Copyright (c) 2024 Huawei Technologies Co., Ltd.
+ * openUBMC is licensed under Mulan PSL v2.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *         http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
+ */
 
 #ifndef MC_DATABASE_KEY_H
 #define MC_DATABASE_KEY_H
@@ -30,12 +30,12 @@ namespace mc::database {
  * 位转换函数 (C++17兼容版本)
  * 用于在不改变底层位表示的情况下转换类型
  */
-template<typename To, typename From>
+template <typename To, typename From>
 inline To bit_cast(const From& from) {
     static_assert(sizeof(To) == sizeof(From), "类型大小必须相同");
     static_assert(std::is_trivially_copyable<From>::value, "From必须是可平凡复制的");
     static_assert(std::is_trivially_copyable<To>::value, "To必须是可平凡复制的");
-    
+
     To to;
     std::memcpy(&to, &from, sizeof(To));
     return to;
@@ -143,7 +143,7 @@ public:
      */
     void reset() {
         m_buf.reset();
-        m_key_num = 0;
+        m_key_num  = 0;
         m_tail_nil = false;
     }
 
@@ -317,7 +317,8 @@ public:
             append_float32(val);
         } else if constexpr (std::is_same<T, double>::value) {
             append_float64(val);
-        } else if constexpr (std::is_same<T, std::string>::value || std::is_same<T, std::string_view>::value) {
+        } else if constexpr (std::is_same<T, std::string>::value ||
+                             std::is_same<T, std::string_view>::value) {
             append_string(val);
         } else if constexpr (std::is_same<T, const char*>::value) {
             append_string(val);
@@ -328,7 +329,8 @@ public:
             if constexpr (has_val_method<T>::value) {
                 append_value(val.val());
             } else {
-                MC_THROW(mc::invalid_arg_exception, "不支持的key类型[${type}]", ("type", typeid(T).name()));
+                MC_THROW(mc::invalid_arg_exception, "不支持的key类型[${type}]",
+                         ("type", typeid(T).name()));
             }
         }
     }
@@ -348,7 +350,8 @@ private:
      */
     bool write_head(size_t n) {
         if (m_key_num >= m_key_count) {
-            MC_THROW(mc::invalid_arg_exception, "超出给定Key数量[${count}]", ("count", m_key_count));
+            MC_THROW(mc::invalid_arg_exception, "超出给定Key数量[${count}]",
+                     ("count", m_key_count));
             return false;
         }
         if (m_key_count > 1) {
@@ -362,12 +365,12 @@ private:
     }
 
     mc::im::byte_buffer m_buf;
-    bool m_is_unique{false};
-    int m_key_count{0};
-    int m_key_num{0};
-    bool m_tail_nil{false};
+    bool                m_is_unique{false};
+    int                 m_key_count{0};
+    int                 m_key_num{0};
+    bool                m_tail_nil{false};
 };
 
 } // namespace mc::database
 
-#endif // MC_DATABASE_KEY_H 
+#endif // MC_DATABASE_KEY_H

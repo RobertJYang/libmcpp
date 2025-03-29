@@ -62,9 +62,8 @@ struct descending_order {
  * 索引实现
  * @tparam object_type 对象类型
  * @tparam KeyExtractor 键提取器类型
- * @tparam IsLess 是否按升序排序 (true为升序，false为降序)
  */
-template <typename ObjectType, typename KeyExtractor, bool IsLess = true>
+template <typename ObjectType, typename KeyExtractor>
 class index {
 public:
     // 索引相关类型定义
@@ -72,12 +71,15 @@ public:
     using object_type        = ObjectType;
 
     // radix树配置
-    using tree_config   = mc::im::tree_config<object_type*, std::allocator<char>, IsLess>;
+    using tree_config   = mc::im::tree_config<object_type*, std::allocator<char>>;
     using tree_type     = mc::im::radix_tree<tree_config>;
     using raw_iterator  = typename tree_type::iterator;
     using txn_type      = mc::im::transaction<tree_config>;
-    using self_type     = index<object_type, KeyExtractor, IsLess>;
+    using self_type     = index<object_type, KeyExtractor>;
     using iterator_type = iterator<self_type>;
+
+    // radix_tree 的倒序实现还有问题，暂时只支持从小到大排序
+    static constexpr bool is_sort_great = true;
 
     /**
      * 构造函数
@@ -156,7 +158,7 @@ public:
 
         if (old_key != new_key) {
             auto old = m_txn->remove(old_key);
-            if (!old.second) {
+            if (!old.has_value()) {
                 MC_THROW(mc::invalid_arg_exception, "源索引不存在: ${key}", ("key", old_key));
                 return false;
             }
@@ -255,7 +257,7 @@ private:
         auto* buf = key.buffer();
         if (id != 0) {
             // 根据排序方向处理ID
-            if (!IsLess) {
+            if constexpr (!is_sort_great) {
                 // 索引从大到小排列时，id也要倒序处理
                 buf->write_uint32(~id);
             } else {
@@ -266,7 +268,7 @@ private:
 
     iterator_type make_iterator(raw_iterator it, const mdb_key& key) {
         return iterator_type(it, key.is_compound_key(), key.is_unique(), key.key().length(),
-                             key.key_count(), key.key_num(), !IsLess);
+                             key.key_count(), key.key_num());
     }
 
     /**
@@ -307,11 +309,11 @@ private:
  * @param unique 是否唯一索引
  * @return 索引指针
  */
-template <typename ObjectType, typename KeyExtractor, bool IsLess = true>
+template <typename ObjectType, typename KeyExtractor>
 static auto make_index(std::string name, int idx_num, const KeyExtractor& extractor,
                        bool unique = true) {
     auto field_names = mc::string::split(name, '|');
-    return std::make_unique<index<ObjectType, KeyExtractor, IsLess>>(
+    return std::make_unique<index<ObjectType, KeyExtractor>>(
         std::move(name), std::move(field_names), idx_num, extractor, unique);
 }
 

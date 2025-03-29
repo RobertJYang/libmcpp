@@ -98,13 +98,7 @@ struct edge_less {
 
     // 添加对key_view和key_buffer的比较支持
     bool operator()(const key_view& a, const key_view& b) const {
-        size_t min_len = std::min(a.size(), b.size());
-        for (size_t i = 0; i < min_len; ++i) {
-            if (a[i] != b[i]) {
-                return a[i] < b[i];
-            }
-        }
-        return a.size() < b.size();
+        return std::less<std::string_view>()(a, b);
     }
 
     bool operator()(const key_buffer<>& a, const key_view& b) const {
@@ -140,13 +134,7 @@ struct edge_greater {
 
     // 添加对key_view和key_buffer的比较支持
     bool operator()(const key_view& a, const key_view& b) const {
-        size_t min_len = std::min(a.size(), b.size());
-        for (size_t i = 0; i < min_len; ++i) {
-            if (a[i] != b[i]) {
-                return a[i] > b[i];
-            }
-        }
-        return a.size() > b.size();
+        return std::greater<std::string_view>()(a, b);
     }
 
     bool operator()(const key_buffer<>& a, const key_view& b) const {

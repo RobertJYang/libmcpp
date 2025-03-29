@@ -28,12 +28,14 @@
 
 struct user {
     user() = default;
-    user(int id, std::string name, int age) : m_id(id), m_name(name), m_age(age) {
+    user(int id, std::string name, int age, double score = 0.0)
+        : m_id(id), m_name(name), m_age(age), m_score(score) {
     }
 
     int         m_id;
     std::string m_name;
     int         m_age;
+    double      m_score;
 
     const std::string& name() const {
         return m_name;
@@ -41,6 +43,10 @@ struct user {
 
     int age() const {
         return m_age;
+    }
+
+    double score() const {
+        return m_score;
     }
 
     uint32_t get_id() const {
@@ -57,7 +63,7 @@ TEST(database_index_test, mc_database_index_basic) {
     user u3(3, "王五", 22);
 
     auto name_extractor = mc::database::make_key<user, const std::string&, &user::name>();
-    auto index = mc::database::make_index<user>("name", 1, name_extractor);
+    auto index          = mc::database::make_index<user>("name", 1, name_extractor);
 
     // 添加用户到索引
     EXPECT_TRUE(index->add(u1));
@@ -83,44 +89,6 @@ TEST(database_index_test, mc_database_index_basic) {
     // 验证删除后无法找到
     found_u1 = index->find("张三");
     EXPECT_EQ(found_u1, index->end());
-}
-
-// 测试 mc::database::index 降序索引功能
-TEST(database_index_test, mc_database_index_descending) {
-    // 创建测试用户数据
-    user u1(1, "张三", 20);
-    user u2(2, "李四", 25);
-    user u3(3, "王五", 22);
-
-    // 使用mc::database的成员函数键提取器
-    auto age_extractor = mc::database::make_key<user, int, &user::age>();
-
-    // 创建降序索引 - 按年龄索引，降序排序
-    auto index = mc::database::make_index<user, decltype(age_extractor), false>("age", 1, age_extractor);
-
-    // 添加用户到索引
-    EXPECT_TRUE(index->add(u1));
-    EXPECT_TRUE(index->add(u2));
-    EXPECT_TRUE(index->add(u3));
-
-    std::vector<int> all_ids;
-    for (auto &u: *index) {
-        all_ids.push_back(u.m_age);
-    }
-    EXPECT_EQ(all_ids, (std::vector<int>{25, 22, 20}));
-
-    // 按年龄查找用户
-    auto found_u2 = index->find(25);
-    ASSERT_NE(found_u2, index->end());
-    EXPECT_EQ(found_u2->m_id, 2); // 应该找到李四（25岁）
-
-    auto found_u3 = index->find(22);
-    ASSERT_NE(found_u3, index->end());
-    EXPECT_EQ(found_u3->m_id, 3); // 应该找到王五（22岁）
-
-    auto found_u1 = index->find(20);
-    ASSERT_NE(found_u1, index->end());
-    EXPECT_EQ(found_u1->m_id, 1); // 应该找到张三（20岁）
 }
 
 // 测试 mc::database 函数对象键提取器
@@ -273,8 +241,8 @@ TEST(database_index_test, compound_key_test) {
         EXPECT_EQ(found_ids[0], 3);
         EXPECT_EQ(found_ids[1], 4);
 
-        size_t i = 0;
-        auto ret = index->equal_range("李四");
+        size_t i   = 0;
+        auto   ret = index->equal_range("李四");
         for (auto it = ret.first; it != ret.second; ++it) {
             EXPECT_EQ(found_ids[i++], it->m_id);
         }
@@ -295,8 +263,8 @@ TEST(database_index_test, compound_key_test) {
         std::sort(found_ids.begin(), found_ids.end());
         EXPECT_EQ(found_ids[0], 4);
 
-        size_t i = 0;
-        auto ret = index->equal_range("李四", 25);
+        size_t i   = 0;
+        auto   ret = index->equal_range("李四", 25);
         for (auto it = ret.first; it != ret.second; ++it) {
             EXPECT_EQ(found_ids[i++], it->m_id);
         }
@@ -309,7 +277,7 @@ TEST(database_index_test, compound_key_test) {
     // 6. 使用begin/end迭代所有元素
     {
         std::vector<int> all_ids;
-        for (auto &u: *index) {
+        for (auto& u : *index) {
             all_ids.push_back(u.m_id);
         }
 
@@ -321,5 +289,164 @@ TEST(database_index_test, compound_key_test) {
         EXPECT_EQ(all_ids[2], 3);
         EXPECT_EQ(all_ids[3], 4);
         EXPECT_EQ(all_ids[4], 5);
+    }
+}
+
+// 测试浮点数索引功能
+TEST(database_index_test, float_index_test) {
+    // 创建测试用户数据，包含正数、负数和零的分数
+    user u1(1, "张三", 20, 85.5);
+    user u2(2, "李四", 25, -12.3);
+    user u3(3, "王五", 22, 0.0);
+    user u4(4, "赵六", 28, 92.7);
+    user u5(5, "钱七", 30, -5.8);
+
+    // 创建分数提取器
+    auto score_extractor = mc::database::make_key<user, double, &user::score>();
+
+    // 1. 测试正序索引
+    {
+        auto index = mc::database::make_index<user>("score_asc", 1, score_extractor, true);
+
+        // 添加用户到索引
+        EXPECT_TRUE(index->add(u1));
+        EXPECT_TRUE(index->add(u2));
+        EXPECT_TRUE(index->add(u3));
+        EXPECT_TRUE(index->add(u4));
+        EXPECT_TRUE(index->add(u5));
+
+        // 验证正序排序结果
+        std::vector<double> scores;
+        for (auto& u : *index) {
+            scores.push_back(u.m_score);
+        }
+        EXPECT_EQ(scores, (std::vector<double>{-12.3, -5.8, 0.0, 85.5, 92.7}));
+
+        // 测试查找功能
+        auto found = index->find(85.5);
+        ASSERT_FALSE(found.is_end());
+        EXPECT_EQ(found->m_id, 1);
+    }
+
+    // 2. 测试浮点数精度
+    {
+        user u6(6, "孙八", 35, 1.23456789);
+        user u7(7, "周九", 40, 1.23456788);
+
+        auto index = mc::database::make_index<user>("score_precision", 1, score_extractor, true);
+
+        // 添加用户到索引
+        EXPECT_TRUE(index->add(u6));
+        EXPECT_TRUE(index->add(u7));
+
+        // 验证浮点数精度
+        auto found = index->find(1.23456789);
+        ASSERT_FALSE(found.is_end());
+        EXPECT_EQ(found->m_id, 6);
+
+        found = index->find(1.23456788);
+        ASSERT_FALSE(found.is_end());
+        EXPECT_EQ(found->m_id, 7);
+    }
+}
+
+// 测试浮点数作为非唯一键索引功能
+TEST(database_index_test, non_unique_key_test) {
+    // 创建测试用户数据，包含相同分数的用户
+    user u1(1, "张三", 20, 85.5);
+    user u2(2, "李四", 25, 85.5); // 与张三分数相同
+    user u3(3, "王五", 22, 92.7);
+    user u4(4, "赵六", 28, 92.7); // 与王五分数相同
+    user u5(5, "钱七", 30, 0.0);
+
+    // 创建分数提取器，设置为非唯一键
+    auto score_extractor = mc::database::make_key<user, double, &user::score>();
+
+    // 1. 测试正序非唯一索引
+    {
+        auto index = mc::database::make_index<user>("score_asc", 1, score_extractor, false);
+
+        // 添加用户到索引
+        EXPECT_TRUE(index->add(u1));
+        EXPECT_TRUE(index->add(u2));
+        EXPECT_TRUE(index->add(u3));
+        EXPECT_TRUE(index->add(u4));
+        EXPECT_TRUE(index->add(u5));
+
+        // 验证正序排序结果
+        std::vector<double> scores;
+        for (auto& u : *index) {
+            scores.push_back(u.m_score);
+        }
+        EXPECT_EQ(scores, (std::vector<double>{0.0, 85.5, 85.5, 92.7, 92.7}));
+
+        // 测试查找功能 - 查找分数为85.5的用户
+        auto found = index->find(85.5);
+        ASSERT_FALSE(found.is_end());
+
+        // 应该找到两个分数为85.5的用户
+        std::vector<int> found_ids;
+        for (; !found.is_end() && found->m_score == 85.5; ++found) {
+            found_ids.push_back(found->m_id);
+        }
+        ASSERT_EQ(found_ids.size(), 2);
+        std::sort(found_ids.begin(), found_ids.end());
+        EXPECT_EQ(found_ids[0], 1); // 张三
+        EXPECT_EQ(found_ids[1], 2); // 李四
+    }
+
+    // 2. 测试非唯一键的更新操作
+    {
+        auto index = mc::database::make_index<user>("score_update", 1, score_extractor, false);
+
+        // 添加初始用户
+        EXPECT_TRUE(index->add(u1));
+        EXPECT_TRUE(index->add(u2));
+
+        // 更新用户分数
+        user u1_new(1, "张三", 20, 95.0); // 更新张三的分数
+        EXPECT_TRUE(index->update(u1, u1_new));
+
+        // 验证更新后的结果
+        auto found = index->find(95.0);
+        ASSERT_FALSE(found.is_end());
+        EXPECT_EQ(found->m_id, 1);
+
+        // 验证原来的分数85.5仍然存在（李四的分数）
+        found = index->find(85.5);
+        ASSERT_FALSE(found.is_end());
+        EXPECT_EQ(found->m_id, 2);
+    }
+
+    // 3. 测试非唯一键的删除操作
+    {
+        auto index = mc::database::make_index<user>("score_delete", 1, score_extractor, false);
+
+        // 添加用户
+        EXPECT_TRUE(index->add(u1));
+        EXPECT_TRUE(index->add(u2));
+        EXPECT_TRUE(index->add(u3));
+        EXPECT_TRUE(index->add(u4));
+
+        // 删除一个分数为85.5的用户
+        auto result = index->remove(u1);
+        ASSERT_TRUE(result.has_value());
+
+        // 验证另一个分数为85.5的用户仍然存在
+        auto found = index->find(85.5);
+        ASSERT_FALSE(found.is_end());
+        EXPECT_EQ(found->m_id, 2); // 李四仍然存在
+
+        // 验证其他分数为92.7的用户仍然存在
+        found = index->find(92.7);
+        ASSERT_FALSE(found.is_end());
+        std::vector<int> found_ids;
+        for (; !found.is_end() && found->m_score == 92.7; ++found) {
+            found_ids.push_back(found->m_id);
+        }
+        ASSERT_EQ(found_ids.size(), 2);
+        std::sort(found_ids.begin(), found_ids.end());
+        EXPECT_EQ(found_ids[0], 3); // 王五
+        EXPECT_EQ(found_ids[1], 4); // 赵六
     }
 }
