@@ -76,7 +76,6 @@ public:
      */
     template <typename T>
     void append_key(mdb_key& key, const T& value) const {
-        // 让编译器自动处理类型转换
         key.append_value(static_cast<key_type>(value));
     }
 
@@ -126,14 +125,7 @@ public:
      */
     template <typename T>
     void append_key(mdb_key& key, const T& value) const {
-        // 让编译器自动处理类型转换
         key.append_value(static_cast<key_type>(value));
-    }
-
-    // 特化字符数组到字符串的转换
-    template <size_t N>
-    void append_key(mdb_key& key, const char (&value)[N]) const {
-        key.append_value(std::string_view(value));
     }
 };
 
@@ -183,14 +175,7 @@ public:
      */
     template <typename T>
     void append_key(mdb_key& key, const T& value) const {
-        // 让编译器自动处理类型转换
         key.append_value(static_cast<key_type>(value));
-    }
-
-    // 特化字符数组到字符串的转换
-    template <size_t N>
-    void append_key(mdb_key& key, const char (&value)[N]) const {
-        key.append_value(std::string_view(value));
     }
 
 private:
@@ -377,6 +362,47 @@ template <typename FirstExtractor, typename... Extractors>
 auto make_key(const FirstExtractor& first, const Extractors&... extractors) {
     return composite_key<FirstExtractor, Extractors...>(first, extractors...);
 }
+
+/**
+ * 对象ID键提取器
+ * @tparam ObjectType 类类型
+ */
+template <typename ObjectType>
+class object_id_key {
+public:
+    using object_type                     = ObjectType;
+    using key_type                        = typename ObjectType::object_id_type;
+    static constexpr int  key_count       = 1;
+    static constexpr bool is_compound_key = false;
+
+    /**
+     * 提取键值
+     * @param obj 对象
+     * @return 键值
+     */
+    key_type operator()(const object_type& obj) const {
+        return obj.get_object_id();
+    }
+
+    /**
+     * 将键值添加到键缓冲区
+     * @param key 键缓冲区
+     * @param obj 对象
+     */
+    void extract_key(mdb_key& key, const object_type& obj) const {
+        key.append_value(obj.get_object_id());
+    }
+
+    /**
+     * 将指定键值添加到键缓冲区
+     * @param key 键缓冲区
+     * @param value 键值
+     */
+    template <typename T>
+    void append_key(mdb_key& key, const T& value) const {
+        key.append_value(static_cast<key_type>(value));
+    }
+};
 
 } // namespace mc::database
 

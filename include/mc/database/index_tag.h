@@ -25,6 +25,11 @@ namespace mc::database {
 struct tag_base {};
 
 /**
+ * 默认的 object_id 索引标签
+ */
+struct by_object_id_tag : public tag_base {};
+
+/**
  * 确定标签类型是否有效
  */
 template <typename T>
@@ -125,6 +130,13 @@ using member = typename detail::extractor_selector<Class, KeyType, Ptr>::type;
 template <typename... Indices>
 struct indexed_by {
     using indices = std::tuple<Indices...>;
+};
+
+/**
+ * 空索引定义
+ */
+struct no_indices {
+    using indices = std::tuple<>;
 };
 
 } // namespace mc::database

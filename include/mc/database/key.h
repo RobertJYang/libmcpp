@@ -335,6 +335,162 @@ public:
         }
     }
 
+    /**
+     * 直接写入值，不添加类型头信息
+     * @param val 要写入的值
+     */
+    template <typename T>
+    void write_value(const T& val) {
+        if constexpr (std::is_same<T, int16_t>::value) {
+            write_int16(val);
+        } else if constexpr (std::is_same<T, int32_t>::value) {
+            write_int32(val);
+        } else if constexpr (std::is_same<T, int>::value) {
+            write_int(val);
+        } else if constexpr (std::is_same<T, int64_t>::value) {
+            write_int64(val);
+        } else if constexpr (std::is_same<T, uint16_t>::value) {
+            write_uint16(val);
+        } else if constexpr (std::is_same<T, uint32_t>::value) {
+            write_uint32(val);
+        } else if constexpr (std::is_same<T, unsigned int>::value) {
+            write_uint(val);
+        } else if constexpr (std::is_same<T, uint64_t>::value) {
+            write_uint64(val);
+        } else if constexpr (std::is_same<T, float>::value) {
+            write_float32(val);
+        } else if constexpr (std::is_same<T, double>::value) {
+            write_float64(val);
+        } else if constexpr (std::is_same<T, std::string>::value ||
+                             std::is_same<T, std::string_view>::value) {
+            write_string(val);
+        } else if constexpr (std::is_same<T, const char*>::value) {
+            write_string(val);
+        } else if constexpr (std::is_same<T, std::vector<uint8_t>>::value) {
+            write_bytes(val.data(), val.size());
+        } else {
+            // 尝试调用val()方法
+            if constexpr (has_val_method<T>::value) {
+                write_value(val.val());
+            } else {
+                MC_THROW(mc::invalid_arg_exception, "不支持的key类型[${type}]",
+                         ("type", typeid(T).name()));
+            }
+        }
+    }
+
+    /**
+     * 直接写入16位整数，不添加类型头信息
+     * @param val 整数值
+     */
+    void write_int16(int16_t val) {
+        if (val >= 0) {
+            m_buf.write_byte('>');
+        } else {
+            m_buf.write_byte('-');
+        }
+        m_buf.write_uint16(static_cast<uint16_t>(val));
+    }
+
+    /**
+     * 直接写入32位整数，不添加类型头信息
+     * @param val 整数值
+     */
+    void write_int32(int32_t val) {
+        if (val >= 0) {
+            m_buf.write_byte('>');
+        } else {
+            m_buf.write_byte('-');
+        }
+        m_buf.write_uint32(static_cast<uint32_t>(val));
+    }
+
+    /**
+     * 直接写入64位整数，不添加类型头信息
+     * @param val 整数值
+     */
+    void write_int64(int64_t val) {
+        if (val >= 0) {
+            m_buf.write_byte('>');
+        } else {
+            m_buf.write_byte('-');
+        }
+        m_buf.write_uint64(static_cast<uint64_t>(val));
+    }
+
+    /**
+     * 直接写入整数，不添加类型头信息
+     * @param val 整数值
+     */
+    void write_int(int val) {
+        write_int32(static_cast<int32_t>(val));
+    }
+
+    /**
+     * 直接写入无符号整数，不添加类型头信息
+     * @param val 整数值
+     */
+    void write_uint(unsigned int val) {
+        write_uint32(static_cast<uint32_t>(val));
+    }
+
+    /**
+     * 直接写入16位无符号整数，不添加类型头信息
+     * @param val 整数值
+     */
+    void write_uint16(uint16_t val) {
+        m_buf.write_uint16(val);
+    }
+
+    /**
+     * 直接写入32位无符号整数，不添加类型头信息
+     * @param val 整数值
+     */
+    void write_uint32(uint32_t val) {
+        m_buf.write_uint32(val);
+    }
+
+    /**
+     * 直接写入64位无符号整数，不添加类型头信息
+     * @param val 整数值
+     */
+    void write_uint64(uint64_t val) {
+        m_buf.write_uint64(val);
+    }
+
+    /**
+     * 直接写入32位浮点数，不添加类型头信息
+     * @param val 浮点数值
+     */
+    void write_float32(float val) {
+        write_uint32(float32_to_uint32(val));
+    }
+
+    /**
+     * 直接写入64位浮点数，不添加类型头信息
+     * @param val 浮点数值
+     */
+    void write_float64(double val) {
+        write_uint64(float64_to_uint64(val));
+    }
+
+    /**
+     * 直接写入字符串，不添加类型头信息
+     * @param val 字符串值
+     */
+    void write_string(std::string_view val) {
+        m_buf.write_string(val);
+    }
+
+    /**
+     * 直接写入字节数组，不添加类型头信息
+     * @param data 字节数组指针
+     * @param size 字节数组大小
+     */
+    void write_bytes(const uint8_t* data, size_t size) {
+        m_buf.write_string(std::string_view(reinterpret_cast<const char*>(data), size));
+    }
+
 private:
     // SFINAE检测类是否有val()方法
     template <typename T, typename = void>

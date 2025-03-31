@@ -32,13 +32,13 @@ class index;
 template <typename IndexType>
 class iterator {
 public:
-    using object_type  = typename IndexType::object_type;
-    using raw_iterator = typename IndexType::raw_iterator;
-    using key_type     = typename IndexType::key_extractor_type;
-    using id_type      = typename IndexType::id_type;
-    using value_type   = object_type;
-    using pointer      = const object_type*;
-    using reference    = const object_type&;
+    using object_type    = typename IndexType::object_type;
+    using raw_iterator   = typename IndexType::raw_iterator;
+    using key_type       = typename IndexType::key_extractor_type;
+    using object_id_type = typename IndexType::object_id_type;
+    using value_type     = object_type;
+    using pointer        = const object_type*;
+    using reference      = const object_type&;
 
     static constexpr bool is_sort_great   = IndexType::is_sort_great;
     static constexpr bool is_unique       = IndexType::is_unique;
@@ -96,7 +96,7 @@ public:
         if (m_is_end) {
             throw std::out_of_range("迭代器指向末尾");
         }
-        return m_iterator->second;
+        return &*m_iterator->second;
     }
 
     // 相等比较
@@ -156,28 +156,6 @@ public:
     }
 
 private:
-    // 组合键字段检查的辅助类
-    template <bool IsCompound>
-    struct compound_key_checker {
-        static bool check_fields(const char* key, size_t n, size_t prefix_len,
-                                 size_t key_field_count, size_t field_count) {
-            if constexpr (IsCompound) {
-                size_t count = 0;
-                size_t i     = prefix_len;
-
-                // 解析子键
-                while (i < n) {
-                    i += static_cast<uint8_t>(key[i]) + 1;
-                    count++;
-                }
-
-                // 检查字段数量是否符合预期
-                return i == n && count + key_field_count == field_count;
-            }
-            return true;
-        }
-    };
-
     /**
      * 获取下一个匹配条件的对象
      * 实现与Go版doNext类似的逻辑
@@ -195,28 +173,30 @@ private:
             return true;
         }
 
-        if (n > m_prefix_len) {
-            // 处理非唯一键的情况
-            if constexpr (!is_unique) {
-                // 检查键长度（确保有足够空间存储ID）
-                if (n - m_prefix_len < 4) {
-                    return false;
-                }
+        if (n < m_prefix_len) {
+            return false;
+        }
 
-                if constexpr (!is_compound_key) {
-                    return check_unique_key<is_compound_key>(key, n);
-                } else {
-                    if (!check_unique_key<is_compound_key>(key, n)) {
-                        return false;
-                    }
-                }
+        // 处理非唯一键的情况
+        if constexpr (!is_unique) {
+            // 检查键长度（确保有足够空间存储ID）
+            if (n - m_prefix_len < 4) {
+                return false;
             }
 
-            // 处理组合键的情况
-            if constexpr (is_compound_key) {
-                if (check_compound_key<is_compound_key>(key, n)) {
-                    return true;
+            if constexpr (!is_compound_key) {
+                return check_unique_key<is_compound_key>(key, n);
+            } else {
+                if (!check_unique_key<is_compound_key>(key, n)) {
+                    return false;
                 }
+            }
+        }
+
+        // 处理组合键的情况
+        if constexpr (is_compound_key) {
+            if (check_compound_key<is_compound_key>(key, n)) {
+                return true;
             }
         }
 
@@ -250,11 +230,11 @@ private:
 
     template <>
     bool check_unique_key<true>(std::string_view& key, size_t& n) {
-        if (!check_id(key.data() + n - sizeof(id_type))) {
+        if (!check_id(key.data() + n - sizeof(object_id_type))) {
             return false;
         }
 
-        n   = n - sizeof(id_type);
+        n   = n - sizeof(object_id_type);
         key = key.substr(0, n);
         return true;
     }
@@ -262,20 +242,20 @@ private:
     template <>
     bool check_unique_key<false>(std::string_view& key, size_t& n) {
         // 非组合键必须精确匹配长度
-        if (m_prefix_len + sizeof(id_type) != n) {
+        if (m_prefix_len + sizeof(object_id_type) != n) {
             return false;
         }
 
-        return check_id(key.data() + n - sizeof(id_type));
+        return check_id(key.data() + n - sizeof(object_id_type));
     }
 
     bool check_id(const void* p_id) const {
-        id_type id = *static_cast<const id_type*>(p_id);
+        object_id_type id = *static_cast<const object_id_type*>(p_id);
         if constexpr (!is_sort_great) {
             id = ~id; // 索引从大到小排列时，id需要转换回来
         }
         id = mc::ntoh(id);
-        return m_iterator->second->get_id() == id;
+        return m_iterator->second->get_object_id() == id;
     }
 
     raw_iterator m_iterator;

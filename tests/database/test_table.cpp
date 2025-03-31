@@ -30,10 +30,15 @@ struct by_name_age : mdb::tag_base {};
 
 class user : public mdb::object_base<user> {
 public:
+    using object_id_type = uint32_t;
+
     user() = default;
 
-    user(uint32_t id, std::string name, int age, double score = 0.0)
-        : object_base(id), m_name(std::move(name)), m_age(age), m_score(score) {
+    user(std::string name, int age, double score = 0.0)
+        : m_name(std::move(name)), m_age(age), m_score(score) {
+    }
+
+    ~user() override {
     }
 
     const std::string& name() const {
@@ -80,22 +85,22 @@ TEST_F(table_test, create_table) {
     user_table users;
 
     // 添加用户
-    user u1(1, "张三", 25, 88.5);
-    user u2(2, "李四", 30, 92.0);
-    user u3(3, "王五", 25, 76.5);
+    user u1("张三", 25, 88.5);
+    user u2("李四", 30, 92.0);
+    user u3("王五", 25, 76.5);
 
     EXPECT_TRUE(users.add(u1));
     EXPECT_TRUE(users.add(u2));
     EXPECT_TRUE(users.add(u3));
 
     // 通过名称索引查找（成员变量）
-    auto it = users.get<0>().find("张三");
+    auto it = users.template get<1>().find("张三");
     ASSERT_FALSE(it.is_end());
     EXPECT_EQ((*it).name(), "张三");
     EXPECT_EQ((*it).get_age(), 25);
 
     // 通过年龄索引查找（成员函数）
-    auto                     age_range = users.get<1>().equal_range(25);
+    auto                     age_range = users.template get<2>().equal_range(25);
     std::vector<std::string> names;
     for (auto it = age_range.first; it != age_range.second; ++it) {
         names.push_back((*it).name());
@@ -108,7 +113,7 @@ TEST_F(table_test, create_table) {
     }
 
     // 通过复合索引查找（同时使用成员变量）
-    auto composite_it = users.get<2>().find("李四", 30);
+    auto composite_it = users.template get<3>().find("李四", 30);
     ASSERT_FALSE(composite_it.is_end());
     EXPECT_EQ((*composite_it).name(), "李四");
     EXPECT_EQ((*composite_it).get_age(), 30);
@@ -120,10 +125,10 @@ TEST_F(table_test, tag_index_access) {
     user_table users;
 
     // 添加用户
-    user u1(1, "张三", 25, 88.5);
-    user u2(2, "李四", 30, 92.0);
-    user u3(3, "王五", 25, 76.5);
-    user u4(4, "赵六", 35, 95.0);
+    user u1("张三", 25, 88.5);
+    user u2("李四", 30, 92.0);
+    user u3("王五", 25, 76.5);
+    user u4("赵六", 35, 95.0);
 
     EXPECT_TRUE(users.add(u1));
     EXPECT_TRUE(users.add(u2));
@@ -132,7 +137,7 @@ TEST_F(table_test, tag_index_access) {
 
     // 通过名称标签查找
     {
-        auto& name_idx = users.get<0>();
+        auto& name_idx = users.template get<1>();
         auto  it       = name_idx.find("张三");
         ASSERT_FALSE(it.is_end());
         EXPECT_EQ(it->name(), "张三");
@@ -141,7 +146,7 @@ TEST_F(table_test, tag_index_access) {
 
     // 通过年龄标签查找
     {
-        auto& age_idx     = users.get<by_age>();
+        auto& age_idx     = users.template get<by_age>();
         auto [begin, end] = age_idx.equal_range(25);
 
         // 应该找到两个年龄为25的用户
@@ -155,7 +160,7 @@ TEST_F(table_test, tag_index_access) {
 
     // 通过复合键标签查找
     {
-        auto& name_age_idx = users.get<by_name_age>();
+        auto& name_age_idx = users.template get<by_name_age>();
         auto  it           = name_age_idx.find("李四", 30);
         ASSERT_FALSE(it.is_end());
         EXPECT_EQ(it->name(), "李四");
@@ -165,18 +170,19 @@ TEST_F(table_test, tag_index_access) {
 
 // 测试统一的get接口
 TEST_F(table_test, unified_get_interface) {
-    // 创建表
     user_table users;
 
     // 添加用户
-    user u1(1, "张三", 25, 88.5);
-    user u2(2, "李四", 30, 92.0);
-    EXPECT_TRUE(users.add(u1));
-    EXPECT_TRUE(users.add(u2));
+    {
+        user u1("张三", 25, 88.5);
+        user u2("李四", 30, 92.0);
+        EXPECT_TRUE(users.add(u1));
+        EXPECT_TRUE(users.add(u2));
+    }
 
     // 通过数字索引访问
     {
-        auto& name_idx = users.get<0>();
+        auto& name_idx = users.template get<1>();
         auto  it       = name_idx.find("张三");
         ASSERT_FALSE(it.is_end());
         EXPECT_EQ(it->name(), "张三");
@@ -184,7 +190,7 @@ TEST_F(table_test, unified_get_interface) {
 
     // 通过标签访问
     {
-        auto& age_idx = users.get<by_age>();
+        auto& age_idx = users.template get<by_age>();
         auto  it      = age_idx.find(25);
         ASSERT_FALSE(it.is_end());
         EXPECT_EQ(it->get_age(), 25);
@@ -192,8 +198,8 @@ TEST_F(table_test, unified_get_interface) {
 
     // 验证数字索引和标签索引指向相同的索引
     {
-        auto& idx1 = users.get<1>();      // 通过数字
-        auto& idx2 = users.get<by_age>(); // 通过标签
+        auto& idx1 = users.template get<2>();      // 通过数字
+        auto& idx2 = users.template get<by_age>(); // 通过标签
 
         // 应该能找到相同的对象
         auto it1 = idx1.find(25);
