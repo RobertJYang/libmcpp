@@ -472,11 +472,19 @@ inline uint16_t ntoh(uint16_t value) {
     return is_little_endian() ? swap_bytes(value) : value;
 }
 
+inline int16_t ntoh(int16_t value) {
+    return static_cast<int16_t>(ntoh(static_cast<uint16_t>(value)));
+}
+
 /**
  * @brief 网络字节序转主机字节序（32位）
  */
 inline uint32_t ntoh(uint32_t value) {
     return is_little_endian() ? swap_bytes(value) : value;
+}
+
+inline int32_t ntoh(int32_t value) {
+    return static_cast<int32_t>(ntoh(static_cast<uint32_t>(value)));
 }
 
 /**
@@ -486,11 +494,19 @@ inline uint64_t ntoh(uint64_t value) {
     return is_little_endian() ? swap_bytes(value) : value;
 }
 
+inline int64_t ntoh(int64_t value) {
+    return static_cast<int64_t>(ntoh(static_cast<uint64_t>(value)));
+}
+
 /**
  * @brief 主机字节序转网络字节序（16位）
  */
 inline uint16_t hton(uint16_t value) {
     return is_little_endian() ? swap_bytes(value) : value;
+}
+
+inline int16_t hton(int16_t value) {
+    return static_cast<int16_t>(hton(static_cast<uint16_t>(value)));
 }
 
 /**
@@ -500,11 +516,19 @@ inline uint32_t hton(uint32_t value) {
     return is_little_endian() ? swap_bytes(value) : value;
 }
 
+inline int32_t hton(int32_t value) {
+    return static_cast<int32_t>(hton(static_cast<uint32_t>(value)));
+}
+
 /**
  * @brief 主机字节序转网络字节序（64位）
  */
 inline uint64_t hton(uint64_t value) {
     return is_little_endian() ? swap_bytes(value) : value;
+}
+
+inline int64_t hton(int64_t value) {
+    return static_cast<int64_t>(hton(static_cast<uint64_t>(value)));
 }
 
 } // namespace mc

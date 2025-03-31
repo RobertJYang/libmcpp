@@ -27,15 +27,21 @@
 #include <vector>
 
 struct user {
+    using id_type = int;
+
     user() = default;
-    user(int id, std::string name, int age, double score = 0.0)
-        : m_id(id), m_name(name), m_age(age), m_score(score) {
+    user(int id, std::string name, int age, double score = 0.0, std::string city = std::string(),
+         std::string department = std::string())
+        : m_id(id), m_name(name), m_age(age), m_score(score), m_city(city),
+          m_department(department) {
     }
 
     int         m_id;
     std::string m_name;
     int         m_age;
     double      m_score;
+    std::string m_city;
+    std::string m_department;
 
     const std::string& name() const {
         return m_name;
@@ -49,8 +55,8 @@ struct user {
         return m_score;
     }
 
-    uint32_t get_id() const {
-        return static_cast<uint32_t>(m_id);
+    int get_id() const {
+        return m_id;
     }
 };
 
@@ -58,12 +64,11 @@ struct user {
 TEST(database_index_test, mc_database_index_basic) {
     // 创建测试用户数据
     user u1(1, "张三", 20);
-
     user u2(2, "李四", 25);
     user u3(3, "王五", 22);
 
     auto name_extractor = mc::database::make_key<user, const std::string&, &user::name>();
-    auto index          = mc::database::make_index<user>("name", 1, name_extractor);
+    auto index          = mc::database::make_index<user, true>(name_extractor);
 
     // 添加用户到索引
     EXPECT_TRUE(index->add(u1));
@@ -104,7 +109,7 @@ TEST(database_index_test, mc_database_index_functor_key) {
     });
 
     // 创建索引
-    auto index = mc::database::make_index<user>("age", 1, extractor);
+    auto index = mc::database::make_index<user, true>(extractor);
 
     // 添加用户并验证
     EXPECT_TRUE(index->add(u1));
@@ -128,7 +133,7 @@ TEST(database_index_test, mc_database_index_operations) {
     auto name_extractor = mc::database::make_key<user, const std::string&, &user::name>();
 
     // 创建索引
-    auto index = mc::database::make_index<user>("name", 1, name_extractor, true);
+    auto index = mc::database::make_index<user, true>(name_extractor);
 
     // 添加用户到索引
     EXPECT_TRUE(index->add(u1));
@@ -167,12 +172,10 @@ TEST(database_index_test, compound_key_test) {
     user u5(5, "王五", 30);
 
     // 创建组合索引：名字 + 年龄
-    std::string index_name     = "name|age";
-    auto        field_names    = std::vector<std::string>{"name", "age"};
-    auto        name_extractor = mc::database::make_key<user, const std::string&, &user::name>();
-    auto        age_extractor  = mc::database::make_key<user, int, &user::age>();
-    auto        name_age_extractor = mc::database::make_key(name_extractor, age_extractor);
-    auto        index = mc::database::make_index<user>(index_name, 1, name_age_extractor, true);
+    auto name_extractor     = mc::database::make_key<user, const std::string&, &user::name>();
+    auto age_extractor      = mc::database::make_key<user, int, &user::age>();
+    auto name_age_extractor = mc::database::make_key(name_extractor, age_extractor);
+    auto index              = mc::database::make_index<user, true>(name_age_extractor);
 
     // 添加用户到索引
     EXPECT_TRUE(index->add(u1));
@@ -185,7 +188,7 @@ TEST(database_index_test, compound_key_test) {
     {
         auto it = index->find(u1);
         ASSERT_FALSE(it.is_end());
-        EXPECT_EQ(it.get().m_id, 1);
+        EXPECT_EQ(it->m_id, 1);
     }
 
     // 2. 只使用组合索引的前半截查询: 张三
@@ -195,7 +198,7 @@ TEST(database_index_test, compound_key_test) {
 
         // 应该找到多个"张三"的用户
         std::vector<int> found_ids;
-        for (; it->m_name == "张三"; ++it) {
+        for (; !it.is_end() && it->m_name == "张三"; ++it) {
             found_ids.push_back(it->m_id);
         }
 
@@ -231,7 +234,7 @@ TEST(database_index_test, compound_key_test) {
 
         // 应该找到"李四"的用户
         std::vector<int> found_ids;
-        for (; it->m_name == "李四"; ++it) {
+        for (; !it.is_end() && it->m_name == "李四"; ++it) {
             found_ids.push_back(it->m_id);
         }
 
@@ -254,7 +257,7 @@ TEST(database_index_test, compound_key_test) {
 
         // 应该找到"李四"的用户
         std::vector<int> found_ids;
-        for (; it->m_name == "李四"; ++it) {
+        for (; !it.is_end() && it->m_name == "李四"; ++it) {
             found_ids.push_back(it->m_id);
         }
 
@@ -306,7 +309,7 @@ TEST(database_index_test, float_index_test) {
 
     // 1. 测试正序索引
     {
-        auto index = mc::database::make_index<user>("score_asc", 1, score_extractor, true);
+        auto index = mc::database::make_index<user, true>(score_extractor);
 
         // 添加用户到索引
         EXPECT_TRUE(index->add(u1));
@@ -333,7 +336,7 @@ TEST(database_index_test, float_index_test) {
         user u6(6, "孙八", 35, 1.23456789);
         user u7(7, "周九", 40, 1.23456788);
 
-        auto index = mc::database::make_index<user>("score_precision", 1, score_extractor, true);
+        auto index = mc::database::make_index<user, true>(score_extractor);
 
         // 添加用户到索引
         EXPECT_TRUE(index->add(u6));
@@ -364,7 +367,7 @@ TEST(database_index_test, non_unique_key_test) {
 
     // 1. 测试正序非唯一索引
     {
-        auto index = mc::database::make_index<user>("score_asc", 1, score_extractor, false);
+        auto index = mc::database::make_index<user, false>(score_extractor);
 
         // 添加用户到索引
         EXPECT_TRUE(index->add(u1));
@@ -397,7 +400,7 @@ TEST(database_index_test, non_unique_key_test) {
 
     // 2. 测试非唯一键的更新操作
     {
-        auto index = mc::database::make_index<user>("score_update", 1, score_extractor, false);
+        auto index = mc::database::make_index<user, false>(score_extractor);
 
         // 添加初始用户
         EXPECT_TRUE(index->add(u1));
@@ -420,7 +423,7 @@ TEST(database_index_test, non_unique_key_test) {
 
     // 3. 测试非唯一键的删除操作
     {
-        auto index = mc::database::make_index<user>("score_delete", 1, score_extractor, false);
+        auto index = mc::database::make_index<user, false>(score_extractor);
 
         // 添加用户
         EXPECT_TRUE(index->add(u1));
@@ -448,5 +451,52 @@ TEST(database_index_test, non_unique_key_test) {
         std::sort(found_ids.begin(), found_ids.end());
         EXPECT_EQ(found_ids[0], 3); // 王五
         EXPECT_EQ(found_ids[1], 4); // 赵六
+    }
+}
+
+// 测试非唯一索引的组合键场景
+TEST(database_index_test, non_unique_compound_key_test) {
+    // 创建组合键提取器
+    using key_extractor = mc::database::composite_key<
+        mc::database::member_key<user, int, &user::m_age>,
+        mc::database::member_key<user, std::string, &user::m_city>,
+        mc::database::member_key<user, std::string, &user::m_department>>;
+
+    // 创建非唯一索引
+    auto idx = mc::database::make_index<user, false>(key_extractor());
+
+    // 创建测试数据
+    std::vector<user> users = {
+        {1, "张三", 25, 0.0, "北京", "研发部"}, {2, "李四", 25, 0.0, "北京", "测试部"},
+        {3, "王五", 30, 0.0, "上海", "研发部"}, {4, "赵六", 30, 0.0, "上海", "测试部"},
+        {5, "钱七", 35, 0.0, "广州", "研发部"}, {6, "孙八", 35, 0.0, "广州", "测试部"}};
+
+    // 添加数据到索引
+    for (const auto& u : users) {
+        ASSERT_TRUE(idx->add(u));
+    }
+
+    // 测试场景1：按年龄和城市查询
+    {
+        auto [begin, end] = idx->equal_range(25, "北京");
+        std::vector<std::string> names;
+        for (auto it = begin; it != end; ++it) {
+            names.push_back(it->m_name);
+        }
+        ASSERT_EQ(names.size(), 2);
+        ASSERT_TRUE(std::find(names.begin(), names.end(), "张三") != names.end());
+        ASSERT_TRUE(std::find(names.begin(), names.end(), "李四") != names.end());
+    }
+
+    // 测试场景2：按年龄查询
+    {
+        auto [begin, end] = idx->equal_range(30);
+        std::vector<std::string> names;
+        for (auto it = begin; it != end; ++it) {
+            names.push_back(it->m_name);
+        }
+        ASSERT_EQ(names.size(), 2);
+        ASSERT_TRUE(std::find(names.begin(), names.end(), "王五") != names.end());
+        ASSERT_TRUE(std::find(names.begin(), names.end(), "赵六") != names.end());
     }
 }

@@ -21,8 +21,8 @@
 #include <type_traits>
 #include <vector>
 
+#include <mc/database/byte_buffer.h>
 #include <mc/exception.h>
-#include <mc/im/byte_buffer.h>
 
 namespace mc::database {
 
@@ -152,7 +152,7 @@ public:
      * @return 键数据视图
      */
     std::string_view key() const {
-        return std::string_view(reinterpret_cast<const char*>(m_buf.bytes().data()), m_buf.len());
+        return m_buf.bytes();
     }
 
     /**
@@ -167,7 +167,7 @@ public:
      * 获取字节缓冲区
      * @return 字节缓冲区
      */
-    mc::im::byte_buffer* buffer() {
+    mc::database::byte_buffer* buffer() {
         return &m_buf;
     }
 
@@ -364,11 +364,11 @@ private:
         return true;
     }
 
-    mc::im::byte_buffer m_buf;
-    bool                m_is_unique{false};
-    int                 m_key_count{0};
-    int                 m_key_num{0};
-    bool                m_tail_nil{false};
+    mc::database::byte_buffer m_buf;
+    bool                      m_is_unique{false};
+    int                       m_key_count{0};
+    int                       m_key_num{0};
+    bool                      m_tail_nil{false};
 };
 
 } // namespace mc::database

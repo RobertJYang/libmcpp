@@ -30,93 +30,110 @@
 
 namespace mc::database {
 
-/**
- * 基础表接口
- * 用于反射表信息
- */
-class table_factory {
+namespace detail {
+
+// 检测类型是否有 get_id 成员函数
+template <typename T>
+struct has_get_id {
+private:
+    template <typename U>
+    static auto check(U*) -> decltype(std::declval<U>().get_id(), std::true_type());
+    template <typename>
+    static std::false_type check(...);
+
 public:
-    virtual ~table_factory() = default;
-
-    /**
-     * 获取表类型信息
-     * @return 类型信息
-     */
-    virtual const std::type_info& get_type() const = 0;
-
-    /**
-     * 获取表名
-     * @return 表名
-     */
-    virtual std::string_view name() const = 0;
+    static constexpr bool value = decltype(check<T>(nullptr))::value;
 };
 
-/**
- * 降序排序标记类
- */
-struct descending_order {
-    static constexpr bool value = false;
+// 检测类型是否定义了 id_type
+template <typename T>
+struct has_id_type {
+private:
+    template <typename U>
+    static auto check(U*) -> decltype(typename U::id_type(), std::true_type());
+    template <typename>
+    static std::false_type check(...);
+
+public:
+    static constexpr bool value = decltype(check<T>(nullptr))::value;
 };
+
+// 检测 get_id 返回类型是否与 id_type 一致
+template <typename T>
+struct has_matching_id_type {
+private:
+    using id_type            = typename T::id_type;
+    using get_id_return_type = typename std::invoke_result<decltype(&T::get_id), const T&>::type;
+
+public:
+    static constexpr bool value = std::is_same_v<id_type, get_id_return_type>;
+};
+
+// 检测 id_type 是否有效
+template <typename T>
+struct is_valid_id_type
+    : std::integral_constant<bool, has_get_id<T>::value && has_id_type<T>::value &&
+                                       std::is_integral_v<typename T::id_type> &&
+                                       has_matching_id_type<T>::value> {};
+
+// 获取 id_type 的实现
+template <typename ObjectType>
+struct id_type {
+    static_assert(is_valid_id_type<ObjectType>::value,
+                  "ObjectType must have a get_id() member function that returns the same type as "
+                  "ObjectType::id_type");
+    using type = typename ObjectType::id_type;
+};
+
+} // namespace detail
 
 /**
  * 索引实现
- * @tparam object_type 对象类型
+ * @tparam ObjectType 对象类型
  * @tparam KeyExtractor 键提取器类型
+ * @tparam IsUnique 是否唯一索引
  */
-template <typename ObjectType, typename KeyExtractor>
+template <typename ObjectType, typename KeyExtractor, bool IsUnique = true>
 class index {
 public:
     // 索引相关类型定义
-    using key_extractor_type = KeyExtractor;
-    using object_type        = ObjectType;
+    using key_extractor_type        = KeyExtractor;
+    using object_type               = ObjectType;
+    static constexpr bool is_unique = IsUnique;
 
     // radix树配置
     using tree_config   = mc::im::tree_config<object_type*, std::allocator<char>>;
     using tree_type     = mc::im::radix_tree<tree_config>;
     using raw_iterator  = typename tree_type::iterator;
     using txn_type      = mc::im::transaction<tree_config>;
-    using self_type     = index<object_type, KeyExtractor>;
+    using self_type     = index<object_type, KeyExtractor, IsUnique>;
     using iterator_type = iterator<self_type>;
+    using id_type       = typename detail::id_type<ObjectType>::type;
+
+    static constexpr int  key_count       = key_extractor_type::key_count;
+    static constexpr bool is_compound_key = key_extractor_type::is_compound_key;
 
     // radix_tree 的倒序实现还有问题，暂时只支持从小到大排序
     static constexpr bool is_sort_great = true;
 
     /**
      * 构造函数
-     * @param name 索引名称
-     * @param field_names 索引字段名
-     * @param idx_num 索引编号
      * @param extractor 键提取器
-     * @param unique 是否唯一索引
      */
-    index(std::string name, std::vector<std::string> field_names, int idx_num,
-          const key_extractor_type& extractor, bool unique)
-        : m_name(std::move(name)), m_field_names(std::move(field_names)), m_idx_num(idx_num),
-          m_extractor(extractor), m_unique(unique), m_txn(std::make_unique<txn_type>()) {
-        int key_count = static_cast<int>(m_field_names.size());
-        m_key.init(key_count, unique);
-        m_key1.init(key_count, unique);
-    }
-
-    // 实现index_base接口
-    std::string_view name() const {
-        return m_name;
-    }
-
-    const std::vector<std::string>& field_names() const {
-        return m_field_names;
+    explicit index(const key_extractor_type& extractor = key_extractor_type())
+        : m_extractor(extractor), m_txn(std::make_unique<txn_type>()) {
+        m_key.init(std::max(1, key_count), is_unique);
+        m_key1.init(std::max(1, key_count), is_unique);
     }
 
     iterator_type find(const object_type& obj) {
         make_object_key(m_key, obj);
-
         return find_by_key_internal(m_key);
     }
 
     template <typename... KeyType>
     iterator_type find(const KeyType&... keys) {
         make_keys(m_key, keys...);
-
         return find_by_key_internal(m_key);
     }
 
@@ -218,14 +235,14 @@ public:
 
 private:
     void make_object_key(mdb_key& key, const object_type& obj) {
-        make_key_internal(key, obj.get_id(), [&](mdb_key& key) {
+        make_key_internal<is_unique>(key, obj.get_id(), [&](mdb_key& key) {
             m_extractor.extract_key(key, obj);
         });
     }
 
     template <typename... KeyTypes>
     void make_keys(mdb_key& key, const KeyTypes&... keys) {
-        make_key_internal(key, 0, [&](mdb_key& key) {
+        make_key_internal<is_unique>(key, 0, [&](mdb_key& key) {
             m_extractor.append_key(key, keys...);
         });
     }
@@ -235,18 +252,17 @@ private:
      * @param key 键对象
      * @param obj 源对象
      */
-    template <typename F>
+    template <bool KeyIsUnique = false, typename F>
     void make_key_internal(mdb_key& key, uint32_t id, F&& extract_key) {
         key.reset();
 
         // 如果是唯一索引，直接使用提取器提取键
-        if (key.is_unique()) {
+        if constexpr (KeyIsUnique) {
             extract_key(key);
             return;
         }
 
         // 非唯一索引需要添加对象ID作为附加键
-        // 先提取普通键
         extract_key(key);
 
         if (key.len() > 255) {
@@ -267,8 +283,7 @@ private:
     }
 
     iterator_type make_iterator(raw_iterator it, const mdb_key& key) {
-        return iterator_type(it, key.is_compound_key(), key.is_unique(), key.key().length(),
-                             key.key_count(), key.key_num());
+        return iterator_type(it, key.key().length(), key.key_num());
     }
 
     /**
@@ -289,11 +304,7 @@ private:
     }
 
     // 索引基本属性
-    std::string               m_name;
-    std::vector<std::string>  m_field_names;
-    int                       m_idx_num;
     key_extractor_type        m_extractor;
-    bool                      m_unique;
     std::unique_ptr<txn_type> m_txn;
 
     // 缓存的键
@@ -303,18 +314,13 @@ private:
 
 /**
  * 创建内存索引
- * @param name 索引名称
- * @param idx_num 索引编号
  * @param extractor 键提取器
- * @param unique 是否唯一索引
+ * @tparam IsUnique 是否唯一索引
  * @return 索引指针
  */
-template <typename ObjectType, typename KeyExtractor>
-static auto make_index(std::string name, int idx_num, const KeyExtractor& extractor,
-                       bool unique = true) {
-    auto field_names = mc::string::split(name, '|');
-    return std::make_unique<index<ObjectType, KeyExtractor>>(
-        std::move(name), std::move(field_names), idx_num, extractor, unique);
+template <typename ObjectType, bool IsUnique, typename KeyExtractor>
+static auto make_index(const KeyExtractor& extractor = KeyExtractor()) {
+    return std::make_unique<index<ObjectType, KeyExtractor, IsUnique>>(extractor);
 }
 
 } // namespace mc::database

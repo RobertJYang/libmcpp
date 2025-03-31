@@ -13,59 +13,48 @@
 #ifndef MC_DATABASE_ITERATOR_H
 #define MC_DATABASE_ITERATOR_H
 
-#include <cstdint>
-#include <memory>
-#include <string>
+#include <iterator>
+#include <mc/exception.h>
 #include <string_view>
 #include <type_traits>
 
-#include <mc/im/radix_tree.h>
-
 namespace mc::database {
+
+// 前向声明
+template <typename ObjectType, typename KeyExtractor, bool IsUnique>
+class index;
 
 /**
  * 索引迭代器
  * 用于遍历索引中的数据
- * @tparam RadixIterator 底层radix树迭代器类型
+ * @tparam IndexType 索引类型
  */
-template <typename Index>
+template <typename IndexType>
 class iterator {
 public:
-    // 标准迭代器类型定义
-    using iterator_category = std::forward_iterator_tag;
-    using object_type       = typename Index::object_type;
-    using difference_type   = std::ptrdiff_t;
-    using pointer           = const object_type*;
-    using reference         = const object_type&;
-    using raw_iterator      = typename Index::raw_iterator;
+    using object_type  = typename IndexType::object_type;
+    using raw_iterator = typename IndexType::raw_iterator;
+    using key_type     = typename IndexType::key_extractor_type;
+    using id_type      = typename IndexType::id_type;
+    using value_type   = object_type;
+    using pointer      = const object_type*;
+    using reference    = const object_type&;
 
-    static constexpr bool is_sort_great = Index::is_sort_great;
-
-    /**
-     * 默认构造函数 - 生成end迭代器
-     */
-    iterator() : m_is_end(true) {
-    }
+    static constexpr bool is_sort_great   = IndexType::is_sort_great;
+    static constexpr bool is_unique       = IndexType::is_unique;
+    static constexpr bool is_compound_key = IndexType::is_compound_key;
+    static constexpr int  field_count     = IndexType::key_count;
 
     /**
      * 构造函数
-     * @param iter 底层radix树迭代器
-     * @param is_compound_key 是否是复合键
-     * @param is_unique 是否是唯一键
+     * @param it 原始迭代器
      * @param prefix_len 前缀长度
-     * @param field_count 字段数量
      * @param key_field_count 键字段数量
      */
-    iterator(raw_iterator iter, bool is_compound_key, bool is_unique, size_t prefix_len,
-             size_t field_count, size_t key_field_count)
-        : m_iterator(std::move(iter)), m_is_end(false), m_is_compound_key(is_compound_key),
-          m_is_unique(is_unique), m_prefix_len(prefix_len), m_field_count(field_count),
-          m_key_field_count(key_field_count) {
-        if (m_iterator == raw_iterator()) {
-            m_is_end = true;
-            return;
-        }
-
+    explicit iterator(raw_iterator it = raw_iterator(), size_t prefix_len = 0,
+                      size_t key_field_count = 0)
+        : m_iterator(it), m_prefix_len(prefix_len), m_key_field_count(key_field_count),
+          m_is_end(it == raw_iterator()) {
         if (!do_next()) {
             m_is_end = true;
         }
@@ -156,18 +145,39 @@ public:
     }
 
     // 跳到下一个前缀的位置，用于equal_range场景只给定部分key时使用
-    iterator to_next_prefix(std::string_view key) {
+    iterator to_next_prefix(std::string_view key_view) {
         if (m_is_end) {
             return *this;
         }
 
         auto next_it = m_iterator;
-        next_it.to_next_prefix(key);
-        return iterator(next_it, m_is_compound_key, m_is_unique, m_prefix_len, m_field_count,
-                        m_key_field_count);
+        next_it.to_next_prefix(key_view);
+        return iterator(next_it, m_prefix_len, m_key_field_count);
     }
 
 private:
+    // 组合键字段检查的辅助类
+    template <bool IsCompound>
+    struct compound_key_checker {
+        static bool check_fields(const char* key, size_t n, size_t prefix_len,
+                                 size_t key_field_count, size_t field_count) {
+            if constexpr (IsCompound) {
+                size_t count = 0;
+                size_t i     = prefix_len;
+
+                // 解析子键
+                while (i < n) {
+                    i += static_cast<uint8_t>(key[i]) + 1;
+                    count++;
+                }
+
+                // 检查字段数量是否符合预期
+                return i == n && count + key_field_count == field_count;
+            }
+            return true;
+        }
+    };
+
     /**
      * 获取下一个匹配条件的对象
      * 实现与Go版doNext类似的逻辑
@@ -178,8 +188,8 @@ private:
             return false;
         }
 
-        auto key = m_iterator.key();
-        auto n   = key.length();
+        std::string_view key = m_iterator.key();
+        size_t           n   = key.length();
         // 前缀完全匹配或没有前缀要求
         if (n == m_prefix_len || m_prefix_len == 0) {
             return true;
@@ -187,51 +197,24 @@ private:
 
         if (n > m_prefix_len) {
             // 处理非唯一键的情况
-            if (!m_is_unique) {
+            if constexpr (!is_unique) {
                 // 检查键长度（确保有足够空间存储ID）
                 if (n - m_prefix_len < 4) {
                     return false;
                 }
 
-                // 非组合键必须精确匹配长度
-                if (!m_is_compound_key && m_prefix_len + 4 != n) {
-                    return false;
+                if constexpr (!is_compound_key) {
+                    return check_unique_key<is_compound_key>(key, n);
+                } else {
+                    if (!check_unique_key<is_compound_key>(key, n)) {
+                        return false;
+                    }
                 }
-
-                // 提取并检查ID
-                uint32_t id = 0;
-                memcpy(&id, key.data() + (n - 4), 4);
-                if constexpr (!is_sort_great) {
-                    // 索引从大到小排列时，id需要转换回来
-                    id = ~id;
-                }
-                id = mc::ntoh(id);
-
-                if (m_iterator->second->get_id() != id) {
-                    return false;
-                }
-
-                if (!m_is_compound_key) {
-                    return true;
-                }
-
-                n   = n - 4;
-                key = std::string_view(key.data(), n);
             }
 
             // 处理组合键的情况
-            if (m_is_compound_key) {
-                size_t field_count = 0;
-                size_t i           = m_prefix_len;
-
-                // 解析子键
-                while (i < n) {
-                    i += static_cast<uint8_t>(key[i]) + 1;
-                    field_count++;
-                }
-
-                // 检查字段数量是否符合预期
-                if (i == n && field_count + m_key_field_count == m_field_count) {
+            if constexpr (is_compound_key) {
+                if (check_compound_key<is_compound_key>(key, n)) {
                     return true;
                 }
             }
@@ -240,16 +223,68 @@ private:
         return false;
     }
 
+    template <bool IsCompound>
+    bool check_compound_key(std::string_view key, int n);
+
+    template <>
+    bool check_compound_key<true>(std::string_view key, int n) {
+        size_t count = 0;
+        size_t i     = m_prefix_len;
+
+        // 解析子键
+        while (i < n) {
+            i += static_cast<uint8_t>(key[i]) + 1;
+            count++;
+        }
+
+        // 检查字段数量是否符合预期
+        if (i == n && count + m_key_field_count == field_count) {
+            return true;
+        }
+
+        return false;
+    }
+
+    template <bool IsCompound>
+    bool check_unique_key(std::string_view& key, size_t& n);
+
+    template <>
+    bool check_unique_key<true>(std::string_view& key, size_t& n) {
+        if (!check_id(key.data() + n - sizeof(id_type))) {
+            return false;
+        }
+
+        n   = n - sizeof(id_type);
+        key = key.substr(0, n);
+        return true;
+    }
+
+    template <>
+    bool check_unique_key<false>(std::string_view& key, size_t& n) {
+        // 非组合键必须精确匹配长度
+        if (m_prefix_len + sizeof(id_type) != n) {
+            return false;
+        }
+
+        return check_id(key.data() + n - sizeof(id_type));
+    }
+
+    bool check_id(const void* p_id) const {
+        id_type id = *static_cast<const id_type*>(p_id);
+        if constexpr (!is_sort_great) {
+            id = ~id; // 索引从大到小排列时，id需要转换回来
+        }
+        id = mc::ntoh(id);
+        return m_iterator->second->get_id() == id;
+    }
+
     raw_iterator m_iterator;
+    size_t       m_prefix_len;
+    size_t       m_key_field_count;
     bool         m_is_end;
-    bool         m_is_compound_key{false};
-    bool         m_is_unique{false};
-    size_t       m_prefix_len{0};
-    size_t       m_field_count{0};
-    size_t       m_key_field_count{0};
 
     // 声明mem_index为友元类
-    template <typename O, typename K>
+    template <typename, typename, bool>
     friend class index;
 };
 

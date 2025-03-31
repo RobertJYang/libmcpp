@@ -1,28 +1,29 @@
 /*
-* Copyright (c) 2024 Huawei Technologies Co., Ltd.
-* openUBMC is licensed under Mulan PSL v2.
-* You can use this software according to the terms and conditions of the Mulan PSL v2.
-* You may obtain a copy of Mulan PSL v2 at:
-*         http://license.coscl.org.cn/MulanPSL2
-* THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
-* EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
-* MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
-* See the Mulan PSL v2 for more details.
-*/
+ * Copyright (c) 2024 Huawei Technologies Co., Ltd.
+ * openUBMC is licensed under Mulan PSL v2.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *         http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
+ */
 
-#ifndef MC_IM_BYTE_BUFFER_H
-#define MC_IM_BYTE_BUFFER_H
+#ifndef MC_DATABASE_BYTE_BUFFER_H
+#define MC_DATABASE_BYTE_BUFFER_H
 
 #include <cstdint>
-#include <vector>
+#include <cstring>
 #include <string>
 #include <string_view>
-#include <cstring>
+#include <vector>
 
-namespace mc::im {
+namespace mc::database {
 
 /**
  * 字节缓冲区，用于高效处理字节数据
+ * 当数据长度小于 64 字节时使用内部的静态缓冲区，避免动态内存分配
  */
 class byte_buffer {
 public:
@@ -60,9 +61,15 @@ public:
 
     /**
      * 获取缓冲区数据
-     * @return 缓冲区数据
+     * @return 缓冲区数据视图
      */
-    const std::vector<uint8_t>& bytes() const;
+    std::string_view bytes() const;
+
+    /**
+     * 获取缓冲区数据指针
+     * @return 数据指针
+     */
+    const uint8_t* data() const;
 
     /**
      * 增加缓冲区大小（内部实现）
@@ -81,57 +88,58 @@ public:
      * 写入字节数据
      * @param p 要写入的数据
      * @param size 数据大小
-     * @return 是否成功
      */
     void write(const uint8_t* p, size_t size);
 
     /**
      * 写入字节数据
      * @param p 要写入的数据
-     * @return 是否成功
      */
     void write(const std::vector<uint8_t>& p);
 
     /**
      * 写入单个字节
      * @param c 要写入的字节
-     * @return 是否成功
      */
     void write_byte(uint8_t c);
 
     /**
      * 写入字符串
      * @param v 要写入的字符串
-     * @return 是否成功
      */
     void write_string(std::string_view v);
 
     /**
      * 写入16位无符号整数
      * @param v 要写入的整数
-     * @return 是否成功
      */
     void write_uint16(uint16_t v);
 
     /**
      * 写入32位无符号整数
      * @param v 要写入的整数
-     * @return 是否成功
      */
     void write_uint32(uint32_t v);
 
     /**
      * 写入64位无符号整数
      * @param v 要写入的整数
-     * @return 是否成功
      */
     void write_uint64(uint64_t v);
 
 private:
-    std::vector<uint8_t> m_buf;
-    uint8_t m_bootstrap[64];
+    /**
+     * 获取当前实际容量
+     */
+    size_t capacity() const;
+
+    std::vector<uint8_t> m_buf;             // 动态分配的缓冲区
+    uint8_t              m_bootstrap[64];   // 内部静态缓冲区，用于小数据
+    size_t               m_size;            // 当前使用的大小
+    size_t               m_capacity;        // 当前缓冲区的容量
+    bool                 m_using_bootstrap; // 是否使用内部缓冲区
 };
 
-} // namespace mc::im
+} // namespace mc::database
 
-#endif // MC_IM_BYTE_BUFFER_H 
+#endif // MC_DATABASE_BYTE_BUFFER_H
