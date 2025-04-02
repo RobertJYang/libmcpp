@@ -37,7 +37,8 @@ public:
     /**
      * 默认构造函数
      */
-    object_base(const alloc_type& alloc = alloc_type()) : m_object_id(0), m_alloc(alloc) {
+    object_base(object_id_type id = 0, const alloc_type& alloc = alloc_type())
+        : m_object_id(id), m_alloc(alloc) {
     }
 
     virtual ~object_base() = default;

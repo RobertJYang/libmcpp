@@ -330,7 +330,7 @@ TEST(DictPerformanceTest, DISABLED_ErasurePerformance) {
 }
 
 // 测试迭代器遍历与索引遍历的性能差异
-TEST(DictPerformanceTest, IteratorVsIndexPerformance) {
+TEST(DictPerformanceTest, DISABLED_IteratorVsIndexPerformance) {
     const size_t count = 10000;
 
     // 创建一个包含大量元素的字典

@@ -19,18 +19,19 @@
 #include <limits>
 #include <mc/variant.h>
 #include <stdexcept>
+#include <test_utilities/test_base.h>
 
 namespace mc {
 namespace test {
 
-class VariantBasicTest : public ::testing::Test {
+class VariantBasicTest : public TestBase {
 protected:
     void SetUp() override {
-        // 在每个测试前执行
+        TestBase::SetUp();
     }
 
     void TearDown() override {
-        // 在每个测试后执行
+        TestBase::TearDown();
     }
 };
 

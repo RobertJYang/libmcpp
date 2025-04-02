@@ -25,9 +25,9 @@
 #include <mc/database/iterator.h>
 #include <mc/database/key.h>
 #include <mc/database/key_extractor.h>
+#include <mc/database/object.h>
 #include <mc/exception.h>
 #include <mc/im/radix_tree.h>
-
 namespace mc::database {
 
 namespace detail {
@@ -248,6 +248,14 @@ public:
     }
 
     /**
+     * 获取索引的起始迭代器（常量版本）
+     * @return 起始迭代器
+     */
+    iterator_type begin() const {
+        return iterator_type(m_txn->root().begin(), m_key.key().length(), m_key.key_num());
+    }
+
+    /**
      * 获取索引的结束迭代器
      * @return 结束迭代器
      */
@@ -366,7 +374,8 @@ private:
  * @tparam IsUnique 是否唯一索引
  * @return 索引指针
  */
-template <typename ObjectType, bool IsUnique, typename KeyExtractor, typename Alloc>
+template <typename ObjectType, bool IsUnique, typename KeyExtractor,
+          typename Alloc = std::allocator<ObjectType>>
 static auto make_index(const KeyExtractor& extractor = KeyExtractor(),
                        const Alloc&        alloc     = Alloc()) {
     return std::make_unique<index<ObjectType, KeyExtractor, IsUnique>>(extractor, alloc);

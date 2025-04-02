@@ -26,17 +26,16 @@
 #include <unordered_map>
 #include <vector>
 
-struct user {
+struct user : mc::database::object_base<user> {
     using id_type = int;
 
     user() = default;
     user(int id, std::string name, int age, double score = 0.0, std::string city = std::string(),
          std::string department = std::string())
-        : m_id(id), m_name(name), m_age(age), m_score(score), m_city(city),
+        : object_base(id), m_name(name), m_age(age), m_score(score), m_city(city),
           m_department(department) {
     }
 
-    int         m_id;
     std::string m_name;
     int         m_age;
     double      m_score;
@@ -53,10 +52,6 @@ struct user {
 
     double score() const {
         return m_score;
-    }
-
-    int get_id() const {
-        return m_id;
     }
 };
 
@@ -78,11 +73,11 @@ TEST(database_index_test, mc_database_index_basic) {
     // 按名称查找用户
     auto found_u1 = index->find("张三");
     ASSERT_NE(found_u1, index->end());
-    EXPECT_EQ(found_u1->m_id, 1);
+    EXPECT_EQ(found_u1->get_object_id(), 1);
 
     auto found_u2 = index->find("李四");
     ASSERT_NE(found_u2, index->end());
-    EXPECT_EQ(found_u2->m_id, 2);
+    EXPECT_EQ(found_u2->get_object_id(), 2);
 
     // 查找不存在的用户
     auto not_found = index->find("赵六");
@@ -119,7 +114,7 @@ TEST(database_index_test, mc_database_index_functor_key) {
     // 按年龄查找
     auto found = index->find(25);
     ASSERT_NE(found, index->end());
-    EXPECT_EQ(found->m_id, 2);
+    EXPECT_EQ(found->get_object_id(), 2);
 }
 
 // 测试 mc::database 复合操作
@@ -143,7 +138,7 @@ TEST(database_index_test, mc_database_index_operations) {
     // 查找用户
     auto found_u1 = index->find("张三");
     ASSERT_NE(found_u1, index->end());
-    EXPECT_EQ(found_u1->m_id, 1);
+    EXPECT_EQ(found_u1->get_object_id(), 1);
 
     // 删除用户并验证
     EXPECT_TRUE(index->remove("张三").has_value());
@@ -158,8 +153,8 @@ TEST(database_index_test, mc_database_index_operations) {
     // 查找新插入的用户
     auto found_u4 = index->find("赵六");
     ASSERT_NE(found_u4, index->end());
-    EXPECT_EQ(found_u4->m_id, 4);   // 应该是新用户
-    EXPECT_EQ(found_u4->age(), 21); // 验证是新用户
+    EXPECT_EQ(found_u4->get_object_id(), 4); // 应该是新用户
+    EXPECT_EQ(found_u4->age(), 21);          // 验证是新用户
 }
 
 // 测试组合键索引及前缀查询迭代
@@ -188,7 +183,7 @@ TEST(database_index_test, compound_key_test) {
     {
         auto it = index->find(u1);
         ASSERT_FALSE(it.is_end());
-        EXPECT_EQ(it->m_id, 1);
+        EXPECT_EQ(it->get_object_id(), 1);
     }
 
     // 2. 只使用组合索引的前半截查询: 张三
@@ -199,7 +194,7 @@ TEST(database_index_test, compound_key_test) {
         // 应该找到多个"张三"的用户
         std::vector<int> found_ids;
         for (; !it.is_end() && it->m_name == "张三"; ++it) {
-            found_ids.push_back(it->m_id);
+            found_ids.push_back(it->get_object_id());
         }
 
         // 应该找到两个"张三"的用户 (ID: 1, 2)
@@ -218,7 +213,7 @@ TEST(database_index_test, compound_key_test) {
         // 应该找到多个"张三"的用户
         std::vector<int> found_ids;
         for (; it.first != it.second; ++it.first) {
-            found_ids.push_back(it.first->m_id);
+            found_ids.push_back(it.first->get_object_id());
         }
 
         // 应该找到两个"张三"的用户 (ID: 1, 2)
@@ -235,7 +230,7 @@ TEST(database_index_test, compound_key_test) {
         // 应该找到"李四"的用户
         std::vector<int> found_ids;
         for (; !it.is_end() && it->m_name == "李四"; ++it) {
-            found_ids.push_back(it->m_id);
+            found_ids.push_back(it->get_object_id());
         }
 
         // 应该找到两个"李四"的用户 (ID: 3, 4)
@@ -247,7 +242,7 @@ TEST(database_index_test, compound_key_test) {
         size_t i   = 0;
         auto   ret = index->equal_range("李四");
         for (auto it = ret.first; it != ret.second; ++it) {
-            EXPECT_EQ(found_ids[i++], it->m_id);
+            EXPECT_EQ(found_ids[i++], it->get_object_id());
         }
     }
 
@@ -258,7 +253,7 @@ TEST(database_index_test, compound_key_test) {
         // 应该找到"李四"的用户
         std::vector<int> found_ids;
         for (; !it.is_end() && it->m_name == "李四"; ++it) {
-            found_ids.push_back(it->m_id);
+            found_ids.push_back(it->get_object_id());
         }
 
         // 应该找到两个"李四"的用户 (ID: 4)
@@ -269,7 +264,7 @@ TEST(database_index_test, compound_key_test) {
         size_t i   = 0;
         auto   ret = index->equal_range("李四", 25);
         for (auto it = ret.first; it != ret.second; ++it) {
-            EXPECT_EQ(found_ids[i++], it->m_id);
+            EXPECT_EQ(found_ids[i++], it->get_object_id());
         }
 
         auto ret1 = index->equal_range("李四", 20);
@@ -281,7 +276,7 @@ TEST(database_index_test, compound_key_test) {
     {
         std::vector<int> all_ids;
         for (auto& u : *index) {
-            all_ids.push_back(u.m_id);
+            all_ids.push_back(u.get_object_id());
         }
 
         // 应该找到所有5个用户
@@ -328,7 +323,7 @@ TEST(database_index_test, float_index_test) {
         // 测试查找功能
         auto found = index->find(85.5);
         ASSERT_FALSE(found.is_end());
-        EXPECT_EQ(found->m_id, 1);
+        EXPECT_EQ(found->get_object_id(), 1);
     }
 
     // 2. 测试浮点数精度
@@ -345,11 +340,11 @@ TEST(database_index_test, float_index_test) {
         // 验证浮点数精度
         auto found = index->find(1.23456789);
         ASSERT_FALSE(found.is_end());
-        EXPECT_EQ(found->m_id, 6);
+        EXPECT_EQ(found->get_object_id(), 6);
 
         found = index->find(1.23456788);
         ASSERT_FALSE(found.is_end());
-        EXPECT_EQ(found->m_id, 7);
+        EXPECT_EQ(found->get_object_id(), 7);
     }
 }
 
@@ -390,7 +385,7 @@ TEST(database_index_test, non_unique_key_test) {
         // 应该找到两个分数为85.5的用户
         std::vector<int> found_ids;
         for (; !found.is_end() && found->m_score == 85.5; ++found) {
-            found_ids.push_back(found->m_id);
+            found_ids.push_back(found->get_object_id());
         }
         ASSERT_EQ(found_ids.size(), 2);
         std::sort(found_ids.begin(), found_ids.end());
@@ -413,12 +408,12 @@ TEST(database_index_test, non_unique_key_test) {
         // 验证更新后的结果
         auto found = index->find(95.0);
         ASSERT_FALSE(found.is_end());
-        EXPECT_EQ(found->m_id, 1);
+        EXPECT_EQ(found->get_object_id(), 1);
 
         // 验证原来的分数85.5仍然存在（李四的分数）
         found = index->find(85.5);
         ASSERT_FALSE(found.is_end());
-        EXPECT_EQ(found->m_id, 2);
+        EXPECT_EQ(found->get_object_id(), 2);
     }
 
     // 3. 测试非唯一键的删除操作
@@ -438,14 +433,14 @@ TEST(database_index_test, non_unique_key_test) {
         // 验证另一个分数为85.5的用户仍然存在
         auto found = index->find(85.5);
         ASSERT_FALSE(found.is_end());
-        EXPECT_EQ(found->m_id, 2); // 李四仍然存在
+        EXPECT_EQ(found->get_object_id(), 2); // 李四仍然存在
 
         // 验证其他分数为92.7的用户仍然存在
         found = index->find(92.7);
         ASSERT_FALSE(found.is_end());
         std::vector<int> found_ids;
         for (; !found.is_end() && found->m_score == 92.7; ++found) {
-            found_ids.push_back(found->m_id);
+            found_ids.push_back(found->get_object_id());
         }
         ASSERT_EQ(found_ids.size(), 2);
         std::sort(found_ids.begin(), found_ids.end());
