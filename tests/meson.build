@@ -28,6 +28,7 @@ test_files = [
   # 'filesystem/test_filesystem.cpp',
   # 'database/test_path_iterator.cpp',
   'database/test_table.cpp',
+  'database/test_transaction.cpp',
   # 'database/test_index.cpp',
   # 'im/test_node_list.cpp',
   # 'im/test_node.cpp',

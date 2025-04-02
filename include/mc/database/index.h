@@ -176,8 +176,8 @@ public:
         return true;
     }
 
-    bool update(const object_type& old_obj, const object_type& new_obj_ptr) {
-        auto obj_ptr = object_type::create(new_obj_ptr);
+    bool update(const object_type& old_obj, const object_type& new_obj) {
+        auto obj_ptr = object_type::create(new_obj);
         return update(old_obj, obj_ptr);
     }
 
@@ -194,12 +194,18 @@ public:
                 MC_THROW(mc::invalid_arg_exception, "源索引不存在: ${key}", ("key", old_key));
                 return false;
             }
-        }
 
-        auto [_, update] = m_txn->insert(new_key, new_obj_ptr);
-        if (!update) {
-            MC_THROW(mc::invalid_arg_exception, "源索引不存在: ${key}", ("key", old_key));
-            return false;
+            auto [_, update] = m_txn->insert(new_key, new_obj_ptr);
+            if (update) {
+                MC_THROW(mc::invalid_arg_exception, "目标索引键冲突: ${key}", ("key", new_key));
+                return false;
+            }
+        } else {
+            auto [_, update] = m_txn->insert(new_key, new_obj_ptr);
+            if (!update) {
+                MC_THROW(mc::invalid_arg_exception, "源索引不存在: ${key}", ("key", old_key));
+                return false;
+            }
         }
 
         m_tree = m_txn->root();
@@ -263,6 +269,18 @@ public:
     void rollback() {
         m_txn->rollback();
         m_tree = m_txn->root();
+    }
+
+    int32_t last_savepoint_id() const {
+        return m_txn->current_save_point();
+    }
+
+    int32_t alloc_save_point() {
+        return m_txn->save_point();
+    }
+
+    void rollback_to(int32_t savepoint_id) {
+        m_txn->rollback(savepoint_id);
     }
 
 private:

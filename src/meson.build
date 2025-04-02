@@ -32,6 +32,7 @@ src_files = [
   'interprocess/mutex/ipc_shared_mutex.cpp',
   'database/path_iterator.cpp',
   'database/byte_buffer.cpp',
+  'database/transaction.cpp',
 ]
 
 # 创建共享库

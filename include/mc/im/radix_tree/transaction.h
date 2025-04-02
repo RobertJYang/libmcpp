@@ -306,7 +306,7 @@ public:
      * @param save_point_id 保存点ID
      */
     void rollback(int save_point_id = -1) {
-        if (!m_current_sp) {
+        if (!m_current_sp || save_point_id > current_save_point()) {
             return;
         }
 

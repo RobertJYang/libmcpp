@@ -30,6 +30,8 @@
 #include <mc/database/key.h>
 #include <mc/database/key_extractor.h>
 #include <mc/database/object.h>
+#include <mc/database/table_op.h>
+#include <mc/database/transaction.h>
 #include <mc/exception.h>
 #include <mc/im/radix_tree.h>
 #include <mc/im/ref_ptr.h>
@@ -166,8 +168,9 @@ public:
      * 构造函数
      * @param alloc 内存分配器
      */
-    explicit table(const alloc_type& alloc = alloc_type())
-        : m_indices(make_indices(alloc)), m_next_id(1) {
+    explicit table(uint32_t table_id = 0, const alloc_type& alloc = alloc_type())
+        : m_indices(make_indices(alloc)), m_next_id(1),
+          m_table_id(table_id ? table_id : transaction::alloc_table_id()) {
     }
 
     ~table() {
@@ -178,9 +181,9 @@ public:
      * @param obj 记录对象
      * @return 成功返回true，失败返回false
      */
-    bool add(const object_type& obj) {
+    object_ptr_type add(const object_type& obj, transaction* txn = nullptr) {
         auto obj_ptr = object_type::create(obj);
-        return add(obj_ptr);
+        return add(obj_ptr, txn);
     }
 
     /**
@@ -188,10 +191,20 @@ public:
      * @param obj_ptr 记录对象的引用计数指针
      * @return 成功返回true，失败返回false
      */
-    bool add(object_ptr_type obj_ptr) {
+    object_ptr_type add(object_ptr_type obj_ptr, transaction* txn = nullptr) {
         // 如果对象没有有效ID，则分配新ID
         if (!obj_ptr->has_valid_id()) {
             obj_ptr->set_object_id(generate_id());
+        }
+
+        // 是否需要事务管理
+        bool need_txn = (txn != nullptr);
+
+        // 如果使用事务，先创建资源对象
+        std::shared_ptr<db_resource> resource;
+        if (need_txn) {
+            resource = std::make_shared<table_add_resource<table>>(m_table_id, *this, obj_ptr,
+                                                                   alloc_savepoint(txn));
         }
 
         bool success      = true;
@@ -205,13 +218,24 @@ public:
 
         // 添加到所有索引，任一失败即中断
         detail::for_each_index_until(m_indices, add_to_index);
-        if (success) {
-            commit();
-        } else {
+        if (!success) {
             rollback();
+            return nullptr;
         }
 
-        return success;
+        if (!need_txn) {
+            commit();
+        } else {
+            txn->add_resource(resource);
+        }
+        return obj_ptr;
+    }
+
+    object_ptr_type update(object_ptr_type old_obj_ptr, const object_type& new_obj,
+                           transaction* txn = nullptr) {
+        auto new_obj_ptr = object_type::create(new_obj);
+        new_obj_ptr->set_object_id(old_obj_ptr->get_object_id());
+        return update(old_obj_ptr, new_obj_ptr, txn);
     }
 
     /**
@@ -220,10 +244,21 @@ public:
      * @param new_obj 新记录
      * @return 成功返回true，失败返回false
      */
-    bool update(const object_type& old_obj, const object_type& new_obj) {
+    object_ptr_type update(object_ptr_type old_obj_ptr, object_ptr_type new_obj_ptr,
+                           transaction* txn = nullptr) {
+        // 是否需要事务管理
+        bool need_txn = (txn != nullptr);
+
+        // 如果使用事务，先创建资源对象
+        std::shared_ptr<db_resource> resource;
+        if (need_txn) {
+            resource = std::make_shared<table_update_resource<table>>(
+                m_table_id, *this, old_obj_ptr, new_obj_ptr, alloc_savepoint(txn));
+        }
+
         bool success      = true;
         auto update_index = [&](auto& idx) -> bool {
-            bool result = idx.update(old_obj, new_obj);
+            bool result = idx.update(*old_obj_ptr, new_obj_ptr);
             if (!result) {
                 success = false;
             }
@@ -232,12 +267,18 @@ public:
 
         // 更新所有索引，任一失败即中断
         detail::for_each_index_until(m_indices, update_index);
-        if (success) {
+
+        if (!success) {
+            rollback();
+            return nullptr;
+        }
+
+        if (!need_txn) {
             commit();
         } else {
-            rollback();
+            txn->add_resource(resource);
         }
-        return success;
+        return new_obj_ptr;
     }
 
     /**
@@ -245,38 +286,39 @@ public:
      * @param obj 要删除的记录
      * @return 删除的记录数量
      */
-    auto remove(const object_type& obj) {
-        // 从第一个索引删除，并保存结果
-        auto result  = std::get<0>(m_indices).remove(obj);
-        bool success = result.has_value();
-        if (!success) {
-            std::get<0>(m_indices).rollback();
-            return decltype(result)();
+    bool remove(object_ptr_type obj_ptr, transaction* txn = nullptr) {
+        // 是否需要事务管理
+        bool need_txn = (txn != nullptr);
+
+        // 如果使用事务，创建资源对象
+        std::shared_ptr<db_resource> resource;
+        if (need_txn) {
+            resource = std::make_shared<table_remove_resource<table>>(m_table_id, *this, obj_ptr,
+                                                                      alloc_savepoint(txn));
         }
 
         // 从剩余索引删除
-        bool remove_rest_success = true;
-        auto remove_from_rest    = [&](auto& idx) -> bool {
-            if (&idx == &std::get<0>(m_indices)) {
-                return true;
-            }
-
-            auto removed = idx.remove(obj);
+        bool success = true;
+        auto remove  = [&](auto& idx) -> bool {
+            auto removed = idx.remove(*obj_ptr);
             if (!removed.has_value()) {
-                remove_rest_success = false;
-                return false;
+                success = false;
             }
             return true;
         };
 
-        detail::for_each_index_until(m_indices, remove_from_rest);
-        if (remove_rest_success) {
-            commit();
-            return result;
+        detail::for_each_index_until(m_indices, remove);
+        if (!success) {
+            rollback();
+            return false;
         }
 
-        rollback();
-        return decltype(result)();
+        if (!need_txn) {
+            commit();
+        } else {
+            txn->add_resource(resource);
+        }
+        return true;
     }
 
     void commit() {
@@ -284,6 +326,8 @@ public:
             idx.commit();
             return true;
         });
+        m_txn_savepoint_id   = -1;
+        m_index_savepoint_id = -1;
     }
 
     void rollback() {
@@ -291,6 +335,16 @@ public:
             idx.rollback();
             return true;
         });
+        m_txn_savepoint_id   = -1;
+        m_index_savepoint_id = -1;
+    }
+
+    void rollback_to(int32_t savepoint_id) {
+        detail::for_each_index(m_indices, [savepoint_id](auto& idx) {
+            idx.rollback_to(savepoint_id);
+            return true;
+        });
+        m_txn_savepoint_id = std::get<0>(m_indices).last_savepoint_id();
     }
 
     /**
@@ -305,11 +359,23 @@ public:
     /**
      * 根据键查找记录
      * @param keys 键值
+     * @tparam I 索引序号
      * @return 迭代器
      */
-    template <typename... KeyTypes>
+    template <size_t I, typename... KeyTypes>
     auto find(const KeyTypes&... keys) {
-        return std::get<0>(m_indices).find(keys...);
+        return std::get<I>(m_indices).find(keys...);
+    }
+
+    /**
+     * 根据键查找记录
+     * @param keys 键值
+     * @tparam I 索引序号
+     * @return 迭代器
+     */
+    template <typename Tag, typename... KeyTypes>
+    auto find(const KeyTypes&... keys) {
+        return std::get<Tag>(m_indices).find(keys...);
     }
 
     /**
@@ -338,6 +404,26 @@ public:
         }
     }
 
+    int alloc_savepoint(transaction* txn) {
+        auto sp = txn->last_savepoint_id();
+        if (m_txn_savepoint_id != sp) {
+            detail::for_each_index(m_indices, [&](auto& idx) {
+                m_index_savepoint_id = idx.alloc_save_point();
+                return true;
+            });
+            m_txn_savepoint_id = sp;
+        }
+        return m_index_savepoint_id;
+    }
+
+    /**
+     * 获取表ID
+     * @return 表ID
+     */
+    uint32_t get_table_id() const {
+        return m_table_id;
+    }
+
 private:
     /**
      * 生成新的对象ID
@@ -362,7 +448,11 @@ private:
     }
 
     indices_tuple_type          m_indices;
-    std::atomic<object_id_type> m_next_id; ///< 下一个可用的对象ID
+    std::atomic<object_id_type> m_next_id;        ///< 下一个可用的对象ID
+    uint32_t                    m_table_id = {0}; ///< 表ID
+
+    int32_t m_txn_savepoint_id   = {-1}; ///< 事务保存点ID
+    int32_t m_index_savepoint_id = {-1}; ///< 索引保存点ID
 };
 
 } // namespace mc::database
