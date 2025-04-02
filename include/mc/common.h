@@ -531,6 +531,27 @@ inline int64_t hton(int64_t value) {
     return static_cast<int64_t>(hton(static_cast<uint64_t>(value)));
 }
 
+/**
+ * @brief 计算结构体成员相对于结构体起始位置的偏移量
+ *
+ * @param TYPE 结构体类型
+ * @param MEMBER 成员名称
+ * @return size_t 成员偏移量（字节数）
+ */
+#define MC_OFFSETOF(TYPE, MEMBER)                                                                  \
+    (static_cast<size_t>(reinterpret_cast<size_t>(&(reinterpret_cast<TYPE*>(0)->MEMBER))))
+
+/**
+ * @brief 计算成员指针对应的偏移量
+ *
+ * 注意：该宏使用了特殊技巧，在某些编译器可能存在兼容性问题
+ *
+ * @param MEMBER 成员指针
+ * @return size_t 成员偏移量（字节数）
+ */
+#define MC_MEMBER_OFFSETOF(MEMBER)                                                                 \
+    (reinterpret_cast<std::size_t>(&(reinterpret_cast<T*>(0)->*MEMBER)))
+
 } // namespace mc
 
 #endif // MC_COMMON_H

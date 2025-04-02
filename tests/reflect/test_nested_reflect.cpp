@@ -110,8 +110,8 @@ TEST(NestedReflectTest, NestedClassReflection) {
     EXPECT_TRUE(is_reflectable<test_contact>());
 
     // 获取类型名称
-    EXPECT_STREQ(reflector<test_address>::name(), "test_address");
-    EXPECT_STREQ(reflector<test_contact>::name(), "test_contact");
+    EXPECT_EQ(reflector<test_address>::name(), "test_address");
+    EXPECT_EQ(reflector<test_contact>::name(), "test_contact");
 
     // 转换为变体
     variant var(contact);

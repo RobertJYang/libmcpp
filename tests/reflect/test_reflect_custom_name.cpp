@@ -16,15 +16,13 @@
 #include <mc/variant.h>
 #include <string>
 
+namespace {
 // 定义一个简单的用户类，用于测试反射
 struct user {
     int         m_id;
     std::string m_name;
     int         m_age;
 };
-
-// 使用MC_REFLECT宏定义反射信息，包含自定义名称
-MC_REFLECT(user, ((m_id, "ID"))((m_name, "姓名"))((m_age, "年龄")))
 
 // 定义一个混合使用默认名称和自定义名称的类
 struct product {
@@ -33,8 +31,9 @@ struct product {
     double      m_price;
     int         m_stock;
 };
+} // namespace
 
-// 使用MC_REFLECT宏定义反射信息，混合使用默认名称和自定义名称
+MC_REFLECT(user, ((m_id, "ID"))((m_name, "姓名"))((m_age, "年龄")))
 MC_REFLECT(product, (m_id)((m_name, "产品名称"))(m_price)((m_stock, "库存")))
 
 // 测试自定义名称的反射
@@ -108,8 +107,8 @@ TEST(reflect_test, mixed_names) {
 
     // 测试visit_members功能
     std::vector<std::string> member_names;
-    mc::reflect::visit_members<product>([&](const char* name, auto, auto) {
-        member_names.push_back(name);
+    mc::reflect::visit_members<product>([&](std::string_view name, auto, auto) {
+        member_names.push_back(std::string(name));
     });
 
     // 检查成员名称
@@ -125,8 +124,8 @@ TEST(reflect_test, mixed_names) {
 // 测试反射工具函数
 TEST(reflect_test, reflection_utils) {
     // 测试类型名称获取
-    ASSERT_STREQ(mc::reflect::get_type_name<user>(), "user");
-    ASSERT_STREQ(mc::reflect::get_type_name<product>(), "product");
+    ASSERT_EQ(mc::reflect::get_type_name<user>(), "user");
+    ASSERT_EQ(mc::reflect::get_type_name<product>(), "product");
 
     // 测试类型是否可反射
     ASSERT_TRUE(mc::reflect::is_reflectable<user>());

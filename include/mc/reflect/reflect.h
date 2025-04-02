@@ -53,7 +53,8 @@
                         },                                                                         \
                         [](TYPE& obj, const variant& var) {                                        \
                             var.as(obj.MEMBER);                                                    \
-                        }},
+                        },                                                                         \
+                        MC_OFFSETOF(TYPE, MEMBER)},
 
 /**
  * @brief 处理自定义名称的成员
@@ -65,7 +66,8 @@
      },                                                                                            \
      [](TYPE& obj, const variant& var) {                                                           \
          var.as(obj.BOOST_PP_TUPLE_ELEM(0, MEMBER));                                               \
-     }},
+     },                                                                                            \
+     MC_OFFSETOF(TYPE, BOOST_PP_TUPLE_ELEM(0, MEMBER))},
 
 /**
  * @brief 处理成员反射定义
@@ -86,29 +88,32 @@
     struct reflect::reflector<TYPE> {                                                              \
         using is_defined = std::true_type;                                                         \
         using is_enum    = std::false_type;                                                        \
-        static const char* name() {                                                                \
+        static std::string_view name() {                                                           \
             return #TYPE;                                                                          \
         }                                                                                          \
-        template <typename Visitor>                                                                \
-        static void visit(const Visitor& visitor) {                                                \
-            static const std::vector<member_info<TYPE>> members = {
+        static auto& get_members() {                                                               \
+            static const member_info<TYPE> members[] = {
 /**
  * @brief 结束定义类的反射信息
  */
 #define MC_REFLECT_END(TYPE)                                                                       \
     }                                                                                              \
     ;                                                                                              \
-    for (const auto& member : members) {                                                           \
-        visitor(member.name, member.getter, member.setter);                                        \
+    return members;                                                                                \
     }                                                                                              \
+    template <typename Visitor>                                                                    \
+    static void visit(const Visitor& visitor) {                                                    \
+        for (const auto& member : get_members()) {                                                 \
+            visitor(member.name, member.getter, member.setter);                                    \
+        }                                                                                          \
     }                                                                                              \
     static void to_variant(const TYPE& obj, mc::mutable_dict& dict) {                              \
-        visit([&](const char* name, auto getter, auto) {                                           \
+        visit([&](std::string_view name, auto getter, auto) {                                      \
             dict[name] = getter(obj);                                                              \
         });                                                                                        \
     }                                                                                              \
     static void from_variant(const mc::dict& d, TYPE& obj) {                                       \
-        visit([&](const char* name, auto, auto setter) {                                           \
+        visit([&](std::string_view name, auto, auto setter) {                                      \
             if (d.contains(name)) {                                                                \
                 setter(obj, d[name]);                                                              \
             }                                                                                      \
@@ -181,9 +186,10 @@ void throw_bad_enum_cast(const char* k, const char* e);
  */
 template <typename T>
 struct member_info {
-    const char*                             name;
+    std::string_view                        name;
     std::function<variant(const T&)>        getter;
     std::function<void(T&, const variant&)> setter;
+    size_t                                  offset;
 };
 
 /**
@@ -220,10 +226,10 @@ constexpr bool is_enum() {
 /**
  * 获取类型名称
  * @tparam T 要获取名称的类型
- * @return const char* 类型名称
+ * @return std::string_view 类型名称
  */
 template <typename T>
-const char* get_type_name() {
+std::string_view get_type_name() {
     return reflector<T>::name();
 }
 

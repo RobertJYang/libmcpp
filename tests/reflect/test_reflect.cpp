@@ -55,8 +55,8 @@ public:
     }
 
     template <typename Getter, typename Setter>
-    void operator()(const char* name, Getter&& getter, Setter&& setter) const {
-        names.push_back(name);
+    void operator()(std::string_view name, Getter&& getter, Setter&& setter) const {
+        names.push_back(std::string(name));
         values.push_back(getter(m_obj));
     }
 
@@ -76,7 +76,7 @@ TEST(ReflectTest, ClassReflection) {
     EXPECT_FALSE(mc::reflect::is_enum<test_person>());
 
     // 获取类型名称
-    EXPECT_STREQ(mc::reflect::reflector<test_person>::name(), "test_person");
+    EXPECT_EQ(mc::reflect::reflector<test_person>::name(), "test_person");
 
     // 转换为变体
     variant var(p);
