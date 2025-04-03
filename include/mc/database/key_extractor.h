@@ -79,10 +79,8 @@ public:
         key.append_value(static_cast<key_type>(value));
     }
 
-    // 特化字符数组到字符串的转换
-    template <size_t N>
-    void append_key(mdb_key& key, const char (&value)[N]) const {
-        key.append_value(std::string_view(value));
+    void append_variant(mdb_key& key, const mc::variant& value) const {
+        key.append_value(value.as<key_type>());
     }
 
     /**
@@ -138,6 +136,10 @@ public:
     template <typename T>
     void append_key(mdb_key& key, const T& value) const {
         key.append_value(static_cast<key_type>(value));
+    }
+
+    void append_variant(mdb_key& key, const mc::variant& value) const {
+        key.append_value(value.as<key_type>());
     }
 
     /**
@@ -198,6 +200,10 @@ public:
         key.append_value(static_cast<key_type>(value));
     }
 
+    void append_variant(mdb_key& key, const mc::variant& value) const {
+        key.append_value(value.as<key_type>());
+    }
+
     /**
      * 获取字段名称列表
      * @return 字段名称列表
@@ -251,13 +257,16 @@ public:
     template <typename... KeyTypes>
     void append_key(mdb_key& key, const KeyTypes&... keys) const {
         static_assert(sizeof...(KeyTypes) <= sizeof...(Extractors), "键的数量不能超过提取器数量");
+        append_key_impl<0>(key, std::forward_as_tuple(keys...));
+    }
 
-        if constexpr (sizeof...(KeyTypes) == 1) {
-            // 如果只有一个键，使用第一个提取器
-            std::get<0>(m_extractors).append_key(key, std::get<0>(std::forward_as_tuple(keys...)));
+    void append_variant(mdb_key& key, const mc::variant& value) const {
+        if (value.is_array()) {
+            // 如果是数组，则将数组中的每个元素添加到键缓冲区
+            append_variant_impl<0>(key, value);
         } else {
-            // 使用多个键，数量可以小于提取器数量
-            append_key_impl<0>(key, std::forward_as_tuple(keys...));
+            // 对单个值做一个优化，没有必要构建一个数组查询，直接作为第一个元素添加到键缓冲区
+            std::get<0>(m_extractors).append_variant(key, value);
         }
     }
 
@@ -285,6 +294,20 @@ private:
             std::get<I>(m_extractors).append_key(key, std::get<I>(keys));
             append_key_impl<I + 1>(key, keys);
         }
+    }
+
+    template <size_t I>
+    void append_variant_impl(mdb_key& key, const mc::variant& value) const {
+        if constexpr (I >= sizeof...(Extractors)) {
+            return;
+        }
+
+        if (value.size() >= I) {
+            return;
+        }
+
+        std::get<I>(m_extractors).append_variant(key, value[I]);
+        append_variant_impl<I + 1>(key, value);
     }
 
     /**
@@ -461,6 +484,10 @@ public:
     template <typename T>
     void append_key(mdb_key& key, const T& value) const {
         key.append_value(static_cast<key_type>(value));
+    }
+
+    void append_variant(mdb_key& key, const mc::variant& value) const {
+        key.append_value(value.as<key_type>());
     }
 
     /**

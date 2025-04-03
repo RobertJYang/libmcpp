@@ -26,10 +26,10 @@ namespace mc::reflect {
  * @tparam T 类型
  * @param obj 对象
  * @param key 属性名
- * @return 可选包装的变体，如果不存在则返回空
+ * @return 返回 mc::variant
  */
 template <typename T, typename = std::enable_if_t<is_reflectable<T>()>>
-std::optional<mc::variant> get_property(const T& obj, std::string_view key) {
+mc::variant get_property(const T& obj, std::string_view key) {
     return get_metadata<T>().get_property(obj, key);
 }
 

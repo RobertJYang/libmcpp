@@ -32,6 +32,27 @@
 
 namespace mc::database {
 
+template <typename ObjectType>
+class index_base {
+public:
+    using object_type     = ObjectType;
+    using alloc_type      = typename ObjectType::alloc_type;
+    using object_ptr_type = mc::im::ref_ptr<object_type>;
+    using tree_config     = mc::im::tree_config<object_ptr_type, alloc_type>;
+    using tree_type       = mc::im::radix_tree<tree_config>;
+    using raw_iterator    = typename tree_type::iterator;
+
+    virtual raw_iterator raw_begin() const = 0;
+
+    raw_iterator raw_end() const {
+        return raw_iterator();
+    }
+
+    virtual object_ptr_type raw_find(const mc::variant& value)        = 0;
+    virtual raw_iterator    raw_lower_bound(const mc::variant& value) = 0;
+    virtual raw_iterator    raw_upper_bound(const mc::variant& value) = 0;
+};
+
 /**
  * 索引实现
  * @tparam ObjectType 对象类型
@@ -40,7 +61,7 @@ namespace mc::database {
  * @tparam Tag 标签类型
  */
 template <typename ObjectType, typename KeyExtractor, bool IsUnique = true, typename Tag = void>
-class index {
+class index : public index_base<ObjectType> {
     static_assert(std::is_base_of_v<object_base<ObjectType>, ObjectType>,
                   "ObjectType必须继承自object_base");
 
@@ -105,6 +126,23 @@ public:
         return std::make_pair(first, second);
     }
 
+    /**
+     * 返回大于等于给定键的第一个元素的迭代器
+     * @param key 键
+     * @return 迭代器
+     */
+    template <typename... KeyType>
+    iterator_type lower_bound(const KeyType&... keys) {
+        make_keys(m_key, keys...);
+
+        auto first = find_by_key_internal(m_key);
+        if (first.is_end()) {
+            return std::make_pair(iterator_type(), iterator_type());
+        }
+
+        return first;
+    }
+
     bool add(const object_type& obj) {
         auto obj_ptr = object_type::create(obj);
         return add(obj_ptr);
@@ -138,7 +176,7 @@ public:
         auto new_key = m_key1.key();
 
         if (old_key != new_key) {
-            auto old = m_txn->remove(old_key);
+            auto old = m_txn->remove(old_key, &old_obj);
             if (!old.has_value()) {
                 MC_THROW(mc::invalid_arg_exception, "源索引不存在: ${key}", ("key", old_key));
                 return false;
@@ -240,6 +278,68 @@ public:
         m_txn->rollback(savepoint_id);
     }
 
+    object_ptr_type raw_find(const mc::variant& value) override {
+        make_keys(m_key, value);
+
+        auto& root     = m_txn->root();
+        auto  key_view = m_key.key();
+        if constexpr (is_unique) {
+            auto it = root.find(key_view);
+            if (it == root.end()) {
+                return nullptr;
+            }
+
+            return it->second;
+        }
+
+        raw_iterator it = root.lower_bound(key_view);
+        make_object_key(m_key1, *it->second);
+        if (it->first != m_key1.key()) {
+            raw_iterator();
+        }
+
+        return it->second;
+    }
+
+    raw_iterator raw_lower_bound(const mc::variant& value) override {
+        make_keys(m_key, value);
+
+        auto& root     = m_txn->root();
+        auto  key_view = m_key.key();
+        auto  it       = root.lower_bound(key_view);
+
+        return it;
+    }
+
+    raw_iterator raw_upper_bound(const mc::variant& value) override {
+        make_keys(m_key, value);
+
+        auto& root     = m_txn->root();
+        auto  key_view = m_key.key();
+        auto  it       = root.upper_bound(key_view);
+
+        if (it == root.end()) {
+            return raw_iterator();
+        }
+
+        if constexpr (is_unique) {
+            return it;
+        }
+
+        // 非唯一索引，key 后面会拼接对象 id，所以需要遍历到 key 不匹配为止
+        for (; !it.is_end(); ++it) {
+            if (!mc::im::has_prefix(it->first, key_view)) {
+                return it;
+            }
+        }
+
+        return it;
+    }
+
+    raw_iterator raw_begin() const override {
+        return m_txn->root().begin();
+    }
+
 private:
     void make_object_key(mdb_key& key, const object_type& obj) {
         make_key_internal<is_unique>(key, obj.get_object_id(), [&](mdb_key& key) {
@@ -251,6 +351,12 @@ private:
     void make_keys(mdb_key& key, const KeyTypes&... keys) {
         make_key_internal<is_unique>(key, 0, [&](mdb_key& key) {
             m_extractor.append_key(key, keys...);
+        });
+    }
+
+    void make_keys(mdb_key& key, const mc::variant& value) {
+        make_key_internal<is_unique>(key, 0, [&](mdb_key& key) {
+            m_extractor.append_variant(key, value);
         });
     }
 

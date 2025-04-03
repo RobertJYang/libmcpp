@@ -35,7 +35,8 @@ enum class query_plan_type {
     full_scan,         // 全表扫描
     index_exact_match, // 索引精确匹配
     index_range,       // 索引范围查询
-    composite_key      // 复合键查询
+    composite_key,     // 复合键查询
+    empty_result       // 空结果查询（优化，当可以确定查询结果一定为空时使用）
 };
 
 /**
@@ -308,6 +309,18 @@ private:
     query_plan create_best_plan_for_conditions(
         size_t index_id, std::string_view field,
         const std::vector<std::pair<logical_op, condition>>& conditions) const {
+        const auto* index = m_metadata.get_index_by_id(index_id);
+        if (!index) {
+            return create_full_scan_plan();
+        }
+
+        // 检查是否为复合键索引
+        bool is_composite = (index->extractor_type == key_extractor_type::composite_key);
+
+        if (is_composite && index->field_names.size() > 1) {
+            return create_composite_key_plan(index_id, conditions);
+        }
+
         // 先看是否有等值条件
         for (const auto& [op, cond] : conditions) {
             if (op == logical_op::AND && cond.get_op() == compare_op::eq) {
@@ -334,6 +347,12 @@ private:
                 // 从IN条件中提取值列表
                 if (cond.get_value().is_array()) {
                     plan.values = cond.get_value().as_array();
+
+                    // 优化：如果IN列表只有一个值，转换为精确匹配
+                    if (plan.values.size() == 1) {
+                        plan.key_value = plan.values[0];
+                        plan.values.clear();
+                    }
                 }
 
                 plan.use_index = true;
@@ -345,34 +364,65 @@ private:
         // 最后看是否有范围条件
         query_range range;
 
+        // 记录每种比较运算符的最优条件
+        std::map<compare_op, const condition*> best_conditions;
+
         for (const auto& [op, cond] : conditions) {
             if (op != logical_op::AND) {
                 continue;
             }
 
-            switch (cond.get_op()) {
+            // 保存最优条件
+            auto it = best_conditions.find(cond.get_op());
+            if (it == best_conditions.end() ||
+                is_better_condition(cond, *(it->second), cond.get_op())) {
+                best_conditions[cond.get_op()] = &cond;
+            }
+        }
+
+        // 应用最优条件
+        for (const auto& [op, cond_ptr] : best_conditions) {
+            const auto& cond = *cond_ptr;
+
+            switch (op) {
             case compare_op::gt:
-                range.has_lower_bound = true;
-                range.include_lower   = false;
-                range.lower_bound     = cond.get_value();
+                if (!range.has_lower_bound ||
+                    (range.has_lower_bound && range.include_lower &&
+                     compare_values(cond.get_value(), range.lower_bound) > 0)) {
+                    range.has_lower_bound = true;
+                    range.include_lower   = false;
+                    range.lower_bound     = cond.get_value();
+                }
                 break;
 
             case compare_op::ge:
-                range.has_lower_bound = true;
-                range.include_lower   = true;
-                range.lower_bound     = cond.get_value();
+                if (!range.has_lower_bound || (range.has_lower_bound && !range.include_lower) ||
+                    (range.has_lower_bound && range.include_lower &&
+                     compare_values(cond.get_value(), range.lower_bound) > 0)) {
+                    range.has_lower_bound = true;
+                    range.include_lower   = true;
+                    range.lower_bound     = cond.get_value();
+                }
                 break;
 
             case compare_op::lt:
-                range.has_upper_bound = true;
-                range.include_upper   = false;
-                range.upper_bound     = cond.get_value();
+                if (!range.has_upper_bound ||
+                    (range.has_upper_bound && range.include_upper &&
+                     compare_values(cond.get_value(), range.upper_bound) < 0)) {
+                    range.has_upper_bound = true;
+                    range.include_upper   = false;
+                    range.upper_bound     = cond.get_value();
+                }
                 break;
 
             case compare_op::le:
-                range.has_upper_bound = true;
-                range.include_upper   = true;
-                range.upper_bound     = cond.get_value();
+                if (!range.has_upper_bound || (range.has_upper_bound && !range.include_upper) ||
+                    (range.has_upper_bound && range.include_upper &&
+                     compare_values(cond.get_value(), range.upper_bound) < 0)) {
+                    range.has_upper_bound = true;
+                    range.include_upper   = true;
+                    range.upper_bound     = cond.get_value();
+                }
                 break;
 
             case compare_op::between:
@@ -380,19 +430,49 @@ private:
                 if (cond.get_value().is_dict()) {
                     const auto& dict = cond.get_value().as_dict();
                     if (dict.contains("min") && dict.contains("max")) {
-                        range.has_lower_bound = true;
-                        range.include_lower   = true;
-                        range.lower_bound     = dict.at("min");
+                        if (!range.has_lower_bound ||
+                            (range.has_lower_bound &&
+                             compare_values(dict.at("min"), range.lower_bound) > 0)) {
+                            range.has_lower_bound = true;
+                            range.include_lower   = true;
+                            range.lower_bound     = dict.at("min");
+                        }
 
-                        range.has_upper_bound = true;
-                        range.include_upper   = true;
-                        range.upper_bound     = dict.at("max");
+                        if (!range.has_upper_bound ||
+                            (range.has_upper_bound &&
+                             compare_values(dict.at("max"), range.upper_bound) < 0)) {
+                            range.has_upper_bound = true;
+                            range.include_upper   = true;
+                            range.upper_bound     = dict.at("max");
+                        }
                     }
                 }
                 break;
 
             default:
                 break;
+            }
+        }
+
+        // 检查范围条件是否有效
+        if (range.has_lower_bound && range.has_upper_bound) {
+            // 如果下界大于上界，查询结果必然为空
+            if (compare_values(range.lower_bound, range.upper_bound) > 0) {
+                query_plan plan;
+                plan.plan_type = query_plan_type::empty_result;
+                plan.index_id  = index_id;
+                plan.use_index = true;
+                return plan;
+            }
+
+            // 如果下界等于上界，并且至少一个边界是开区间，查询结果必然为空
+            if (compare_values(range.lower_bound, range.upper_bound) == 0 &&
+                (!range.include_lower || !range.include_upper)) {
+                query_plan plan;
+                plan.plan_type = query_plan_type::empty_result;
+                plan.index_id  = index_id;
+                plan.use_index = true;
+                return plan;
             }
         }
 
@@ -410,6 +490,139 @@ private:
 
         // 如果没有找到合适的条件，返回全表扫描计划
         return create_full_scan_plan();
+    }
+
+    /**
+     * 为复合键创建查询计划
+     * @param index_id 索引ID
+     * @param conditions 条件列表
+     * @return 查询计划
+     */
+    query_plan create_composite_key_plan(
+        size_t index_id, const std::vector<std::pair<logical_op, condition>>& conditions) const {
+        const auto* index = m_metadata.get_index_by_id(index_id);
+        if (!index || index->field_names.size() <= 1) {
+            return create_full_scan_plan();
+        }
+
+        // 创建查询计划
+        query_plan plan;
+        plan.plan_type = query_plan_type::composite_key;
+        plan.index_id  = index_id;
+        plan.use_index = true;
+
+        // 为每个字段提取条件
+        std::unordered_map<std::string, const condition*> field_conditions;
+
+        for (const auto& [op, cond] : conditions) {
+            if (op == logical_op::AND && cond.get_op() == compare_op::eq) {
+                const std::string field_name(cond.get_field());
+
+                // 只保留最后一个条件（如果有多个）
+                field_conditions[field_name] = &cond;
+            }
+        }
+
+        // 检查是否有足够的条件覆盖复合键的前缀
+        bool             has_all_leading_fields = true;
+        mc::mutable_dict composite_key;
+
+        for (size_t i = 0; i < index->field_names.size(); ++i) {
+            const auto& field = index->field_names[i];
+
+            // 添加字段到查询计划
+            plan.fields.push_back(field);
+
+            auto it = field_conditions.find(field);
+            if (it != field_conditions.end()) {
+                // 有这个字段的条件，添加到复合键
+                composite_key[field] = it->second->get_value();
+            } else {
+                // 缺少字段条件，只能使用前面的字段
+                has_all_leading_fields = false;
+                break;
+            }
+        }
+
+        // 如果有完整的复合键匹配
+        if (has_all_leading_fields) {
+            plan.key_value = composite_key;
+            return plan;
+        }
+
+        // 如果复合键不完整但至少有第一个字段
+        if (!composite_key.empty()) {
+            // 将复合键转换为部分键查询
+            if (composite_key.size() == 1) {
+                // 只有一个字段，转换为简单索引查询
+                plan.plan_type = query_plan_type::index_exact_match;
+                plan.fields    = {plan.fields[0]};
+                plan.key_value = composite_key.begin()->value;
+            } else {
+                // 多个字段，保持为复合键查询
+                plan.key_value = composite_key;
+            }
+            return plan;
+        }
+
+        // 没有足够的条件，回退到全表扫描
+        return create_full_scan_plan();
+    }
+
+    /**
+     * 比较两个条件的有效性
+     * @param cond1 条件1
+     * @param cond2 条件2
+     * @param op 比较运算符
+     * @return 如果条件1比条件2更优，返回true
+     */
+    bool is_better_condition(const condition& cond1, const condition& cond2, compare_op op) const {
+        // 对于不同类型的比较运算符，有不同的优化策略
+        switch (op) {
+        case compare_op::gt:
+        case compare_op::ge:
+            // 对于下界，值越大越好
+            return compare_values(cond1.get_value(), cond2.get_value()) > 0;
+
+        case compare_op::lt:
+        case compare_op::le:
+            // 对于上界，值越小越好
+            return compare_values(cond1.get_value(), cond2.get_value()) < 0;
+
+        default:
+            // 默认条件下，保持原样
+            return false;
+        }
+    }
+
+    /**
+     * 比较两个值的大小
+     * @param val1 值1
+     * @param val2 值2
+     * @return 比较结果：负数表示val1小于val2，0表示相等，正数表示val1大于val2
+     */
+    int compare_values(const mc::variant& val1, const mc::variant& val2) const {
+        // 简单实现，主要处理基本类型
+        if (val1.is_integer() && val2.is_integer()) {
+            int v1 = val1.as<int>();
+            int v2 = val2.as<int>();
+            return v1 - v2;
+        } else if (val1.is_double() && val2.is_double()) {
+            double v1 = val1.as<double>();
+            double v2 = val2.as<double>();
+            return v1 < v2 ? -1 : (v1 > v2 ? 1 : 0);
+        } else if (val1.is_string() && val2.is_string()) {
+            std::string v1 = val1.as<std::string>();
+            std::string v2 = val2.as<std::string>();
+            return v1.compare(v2);
+        } else if (val1.is_bool() && val2.is_bool()) {
+            bool v1 = val1.as<bool>();
+            bool v2 = val2.as<bool>();
+            return v1 == v2 ? 0 : (v1 ? 1 : -1);
+        }
+
+        // 不同类型之间难以直接比较，返回0表示相等
+        return 0;
     }
 
     const table_index_metadata<ObjectType>& m_metadata;

@@ -91,14 +91,14 @@ public:
      *
      * @param obj 对象实例
      * @param key 属性名
-     * @return std::optional<mc::variant> 属性值，如果不存在则返回空
+     * @return mc::variant 属性值，如果不存在返回mc::variant::null_type
      */
-    std::optional<mc::variant> get_property(const T& obj, std::string_view key) const {
+    mc::variant get_property(const T& obj, std::string_view key) const {
         const member_info<T>* member = get_member(key);
         if (member) {
             return member->getter(obj);
         }
-        return std::nullopt;
+        return mc::variant();
     }
 
     /**

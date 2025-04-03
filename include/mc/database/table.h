@@ -238,6 +238,8 @@ public:
     using index_txn_type   = mc::im::transaction<index_map_config>;
     using object_id_type   = typename ObjectType::object_id_type;
     using alloc_type       = typename index_txn_type::allocator_type;
+    using tree_type        = typename index_txn_type::tree_type;
+    using raw_iterator     = typename tree_type::iterator;
 
     // 确保所有索引使用相同的对象类型
     static_assert(detail::verify_indices_object_type<object_type, indices_def>(),
@@ -251,6 +253,9 @@ public:
             std::make_index_sequence<std::tuple_size_v<indices_def>>{},
             std::declval<alloc_type>()))>;
 
+    using indices_array_type =
+        std::array<index_base<object_type>*, std::tuple_size_v<indices_tuple_type>>;
+
     /**
      * 构造函数
      * @param alloc 内存分配器
@@ -258,6 +263,11 @@ public:
     explicit table(uint32_t table_id = 0, const alloc_type& alloc = alloc_type())
         : m_indices(make_indices(alloc)), m_next_id(1),
           m_table_id(table_id ? table_id : transaction::alloc_table_id()) {
+        size_t i = 0;
+        detail::for_each_index(m_indices, [&i, this](auto& idx) {
+            m_indices_array[i++] = &idx;
+            return true;
+        });
     }
 
     ~table() {
@@ -465,6 +475,46 @@ public:
         return std::get<Tag>(m_indices).find(keys...);
     }
 
+    object_ptr_type find_by_index(size_t index_id, const mc::variant& value) {
+        if (index_id >= std::tuple_size_v<indices_tuple_type>) {
+            return nullptr;
+        }
+
+        return m_indices_array[index_id]->raw_find(value);
+    }
+
+    raw_iterator lower_bound_by_index(size_t index_id, const mc::variant& value) {
+        if (index_id >= std::tuple_size_v<indices_tuple_type>) {
+            return raw_iterator();
+        }
+
+        return m_indices_array[index_id]->raw_lower_bound(value);
+    }
+
+    raw_iterator upper_bound_by_index(size_t index_id, const mc::variant& value) {
+        if (index_id >= std::tuple_size_v<indices_tuple_type>) {
+            return raw_iterator();
+        }
+
+        return m_indices_array[index_id]->raw_upper_bound(value);
+    }
+
+    raw_iterator begin(int index_id = 0) {
+        if (index_id >= std::tuple_size_v<indices_tuple_type>) {
+            return raw_iterator();
+        }
+
+        return m_indices_array[index_id]->raw_begin();
+    }
+
+    raw_iterator end(int index_id = 0) {
+        if (index_id >= std::tuple_size_v<indices_tuple_type>) {
+            return raw_iterator();
+        }
+
+        return m_indices_array[index_id]->raw_end();
+    }
+
     /**
      * 统一的获取索引方法，既支持数字索引又支持标签类型
      * @tparam I 索引序号
@@ -535,6 +585,7 @@ private:
     }
 
     indices_tuple_type          m_indices;
+    indices_array_type          m_indices_array;
     std::atomic<object_id_type> m_next_id;        ///< 下一个可用的对象ID
     uint32_t                    m_table_id = {0}; ///< 表ID
 

@@ -43,20 +43,20 @@ class table_query {
 public:
     using object_type     = typename TableType::object_type;
     using object_ptr_type = typename TableType::object_ptr_type;
+    using raw_iterator    = typename TableType::raw_iterator;
     using object_id_type  = typename object_type::object_id_type;
-
-    /**
-     * 默认构造函数
-     */
-    table_query() : m_table(nullptr) {
-    }
 
     /**
      * 构造函数
      *
      * @param table 表引用
      */
-    explicit table_query(TableType& table) : m_table(&table) {
+    explicit table_query(TableType& table) : m_table(table) {
+    }
+
+    static const auto& get_metadata() {
+        static const auto& metadata = build_table_metadata<TableType>();
+        return metadata;
     }
 
     /**
@@ -111,118 +111,25 @@ public:
     }
 
     /**
-     * 查询对象并收集所有匹配的ID
-     *
-     * @param builder 查询构建器
-     * @return 匹配对象ID列表
-     */
-    std::vector<object_id_type> query_ids(const query_builder& builder) {
-        std::vector<object_id_type> result;
-
-        // 执行查询，只收集ID
-        query_impl(builder, [&result](const object_type& obj) {
-            result.push_back(obj.id());
-            return true;
-        });
-
-        return result;
-    }
-
-    /**
      * 查询对象并使用自定义处理函数处理结果
      *
      * @param builder 查询构建器
      * @param handler 结果处理函数，返回false表示停止查询
      */
     template <typename Handler>
-    void query(const query_builder& builder, Handler handler) {
-        query_impl(builder, handler);
+    void query(const query_builder& builder, Handler&& handler) {
+        query_impl(builder, std::forward<Handler>(handler));
     }
 
 private:
-    /**
-     * 索引类型探测辅助模板
-     */
-    template <typename T, typename = void>
-    struct has_is_unique : std::false_type {};
-
-    template <typename T>
-    struct has_is_unique<T, std::void_t<decltype(std::declval<T>().is_unique())>> : std::true_type {
-    };
-
-    /**
-     * 辅助方法：检查索引是否唯一
-     */
-    template <typename IndexType>
-    static constexpr bool is_index_unique() {
-        if constexpr (has_is_unique<IndexType>::value) {
-            return IndexType::is_unique();
-        } else {
-            // 默认假设为唯一索引
-            return true;
-        }
-    }
-
-    /**
-     * 构建表的索引元数据
-     * @return 表索引元数据
-     */
-    static const query::table_index_metadata<object_type>& get_metadata() {
-        static const auto metadata = query::build_table_metadata<TableType>();
-        return metadata;
-    }
-
-    /**
-     * 查找主键索引
-     * @return 主键索引ID，通常是1（用户自定义的ID索引）
-     */
-    int find_primary_key_index() const {
-        if (m_table == nullptr) {
-            return -1;
-        }
-
-        // 获取表的元数据
-        const auto& metadata = get_metadata();
-
-        // 查找ID字段相关的索引
-        for (const auto& name : {"rowid"}) {
-            auto indices = metadata.find_indices_by_field(name);
-            if (!indices.empty()) {
-                // 优先选择非0的索引，因为0通常是object_id索引
-                for (const auto* index : indices) {
-                    if (index->index_id > 0 && index->is_unique) {
-                        return static_cast<int>(index->index_id);
-                    }
-                }
-
-                // 如果没有找到合适的，返回第一个非0的索引
-                for (const auto* index : indices) {
-                    if (index->index_id > 0) {
-                        return static_cast<int>(index->index_id);
-                    }
-                }
-            }
-        }
-
-        // 默认返回1（用户定义的ID索引）
-        return 1;
-    }
-
     /**
      * 利用元数据查找索引
      * @param field 字段名
      * @return 索引ID，如果没有匹配的索引则返回-1
      */
     int find_index_by_metadata(std::string_view field) const {
-        if (m_table == nullptr) {
-            return -1;
-        }
-
-        // 获取表的元数据
         const auto& metadata = get_metadata();
-
-        // 查找匹配的索引
-        auto indices = metadata.find_indices_by_field(field);
+        auto        indices  = metadata.find_indices_by_field(field);
         if (indices.empty()) {
             return -1;
         }
@@ -251,76 +158,12 @@ private:
      * @return 索引ID，如果没有匹配的索引则返回-1
      */
     int find_index(std::string_view field) const {
-        if (m_table == nullptr) {
-            return -1;
-        }
-
-        // 尝试使用元数据查找索引
         int metadata_index = find_index_by_metadata(field);
         if (metadata_index >= 0) {
             return metadata_index;
         }
 
-        // 如果元数据方式找不到，回退到硬编码方式
-        // 预定义的字段和索引映射
-        // 注意：默认object_id索引为0，用户自定义索引从1开始
-        if (field == "id") {
-            return 1; // 用户自定义的ID索引
-        } else if (field == "name") {
-            return 2; // 姓名索引
-        } else if (field == "age") {
-            return 3; // 年龄索引
-        } else if (field == "city") {
-            return 4; // 城市索引
-        }
-
         return -1;
-    }
-
-    /**
-     * 通用索引查询辅助方法
-     * 模板参数允许为每种索引生成专门的代码
-     */
-    template <size_t IndexId, typename KeyType, typename Handler>
-    bool query_by_specific_index(const mc::variant& value, Handler handler) {
-        try {
-            // 尝试转换值类型
-            auto key_value = value.as<KeyType>();
-
-            // 获取索引
-            auto& index = m_table->template get<IndexId>();
-
-            // 为age和city索引特殊处理，强制使用equal_range
-            if constexpr (IndexId == 3 || IndexId == 4) {
-                // 非唯一索引，使用equal_range
-                auto range = index.equal_range(key_value);
-                for (auto it = range.first; it != range.second; ++it) {
-                    if (!handler(*it)) {
-                        break;
-                    }
-                }
-            } else {
-                // 判断索引类型并选择查询方式
-                if constexpr (is_index_unique<decltype(index)>()) {
-                    // 唯一索引，使用find
-                    auto it = index.find(key_value);
-                    if (it != index.end()) {
-                        handler(*it);
-                    }
-                } else {
-                    // 非唯一索引，使用equal_range
-                    auto range = index.equal_range(key_value);
-                    for (auto it = range.first; it != range.second; ++it) {
-                        if (!handler(*it)) {
-                            break;
-                        }
-                    }
-                }
-            }
-            return true;
-        } catch (const mc::bad_cast_exception&) {
-            return false;
-        }
     }
 
     /**
@@ -333,35 +176,24 @@ private:
      * @return 是否成功使用索引
      */
     template <typename Handler>
-    bool query_by_index(std::string_view field, compare_op op, const mc::variant& value,
-                        Handler handler) {
-        if (m_table == nullptr) {
+    bool query_by_index(const query_builder& builder, query_plan& plan, Handler&& handler) {
+        if (plan.fields.empty() || plan.fields[0].empty()) {
             return false;
         }
 
-        // 只有等值查询才能使用索引
-        if (op != compare_op::eq) {
-            return false;
-        }
-
-        int index_id = find_index(field);
+        int index_id = find_index(plan.fields[0]);
         if (index_id < 0) {
             return false;
         }
 
-        // 使用辅助模板方法实现类型安全的索引查询
-        switch (index_id) {
-        case 1: // id索引
-            return query_by_specific_index<1, object_id_type>(value, handler);
-        case 2: // name索引
-            return query_by_specific_index<2, std::string>(value, handler);
-        case 3: // age索引
-            return query_by_specific_index<3, int>(value, handler);
-        case 4: // city索引
-            return query_by_specific_index<4, std::string>(value, handler);
-        default:
+        auto result = m_table.find_by_index(index_id, plan.key_value);
+        if (result == nullptr ||
+            !builder.eval<const object_type&>(*result, mc::reflect::get_property<object_type>)) {
             return false;
         }
+
+        handler(*result);
+        return true;
     }
 
     /**
@@ -371,32 +203,204 @@ private:
      * @param handler, 结果处理函数
      */
     template <typename Handler>
-    void query_impl(const query_builder& builder, Handler handler) {
-        // 如果查询为空或表为空，直接返回
-        if (builder.is_empty() || m_table == nullptr) {
+    void query_impl(const query_builder& builder, Handler&& handler) {
+        if (builder.is_empty()) {
             return;
         }
 
-        // 尝试找到单个等值条件，用于索引查询
-        const auto& conditions = builder.get_conditions();
-        if (conditions.size() == 1) {
-            const auto& condition_pair = conditions[0];
-            const auto& op             = condition_pair.first;
-            const auto& condition      = condition_pair.second;
+        // 创建查询规划器并生成查询计划
+        const auto& metadata = get_metadata();
+        auto        planner  = query_planner<object_type>(metadata);
+        auto        plan     = planner.plan_for_query(builder);
 
-            if (op == logical_op::AND && condition.get_op() == compare_op::eq) {
-                const auto& field = condition.get_field();
-                const auto& value = condition.get_value();
-
-                // 尝试使用索引查询
-                if (query_by_index(field, compare_op::eq, value, handler)) {
+        // 根据查询计划执行不同的查询策略
+        if (plan.use_index) {
+            switch (plan.plan_type) {
+            case query_plan_type::index_exact_match:
+                if (query_by_index(builder, plan, std::forward<Handler>(handler))) {
                     return;
                 }
+                break;
+
+            case query_plan_type::index_range:
+                if (execute_range_query(builder, plan, std::forward<Handler>(handler))) {
+                    return;
+                }
+                break;
+
+            case query_plan_type::composite_key:
+                if (execute_composite_key_query(plan, std::forward<Handler>(handler))) {
+                    return;
+                }
+                break;
+
+            case query_plan_type::empty_result:
+                return;
+
+            default:
+                break;
             }
         }
 
-        // 如果无法使用索引，则回退到全表扫描
+        // 如果无法使用索引或索引查询失败，则回退到全表扫描
         full_table_scan(builder, handler);
+    }
+
+    /**
+     * 执行范围查询
+     *
+     * @param plan 查询计划
+     * @param handler 结果处理函数
+     * @return 是否成功执行
+     */
+    template <typename Handler>
+    bool execute_range_query(const query_builder& builder, const query_plan& plan,
+                             Handler&& handler) {
+        if (plan.fields.empty() || plan.fields[0].empty()) {
+            return false;
+        }
+
+        // 根据字段名找到索引ID
+        int index_id = find_index(plan.fields[0]);
+        if (index_id < 0) {
+            return false;
+        }
+
+        return range_query_by_index(index_id, builder, plan.range, std::forward<Handler>(handler));
+    }
+
+    /**
+     * 通过索引执行范围查询
+     *
+     * @tparam IndexId 索引ID
+     * @param range 范围条件
+     * @param handler 结果处理函数
+     * @return 是否成功执行
+     */
+    template <typename Handler>
+    bool range_query_by_index(size_t index_id, const query_builder& builder,
+                              const query_range& range, Handler&& handler) {
+        if (range.has_lower_bound && range.has_upper_bound) {
+            return lower_to_upper(index_id, builder, range, std::forward<Handler>(handler));
+        } else if (range.has_lower_bound) {
+            return lower_to_end(index_id, builder, range, std::forward<Handler>(handler));
+        } else if (range.has_upper_bound) {
+            return begin_to_upper(index_id, builder, range, std::forward<Handler>(handler));
+        } else {
+            return false; // 没有边界，相当于全表扫描
+        }
+    }
+
+    template <typename Handler>
+    bool lower_to_end(size_t index_id, const query_builder& builder, const query_range& range,
+                      Handler&& handler) {
+        raw_iterator it;
+        if (range.include_lower) {
+            it = m_table.lower_bound_by_index(index_id, range.lower_bound);
+        } else {
+            it = m_table.upper_bound_by_index(index_id, range.lower_bound);
+        }
+
+        bool found = false;
+        for (; !it.is_end(); ++it) {
+            if (!builder.eval<const object_type>(*it->second,
+                                                 mc::reflect::get_property<object_type>)) {
+                continue;
+            }
+
+            found = true;
+            if (!handler(*it->second)) {
+                break;
+            }
+        }
+        return found;
+    }
+
+    template <typename Handler>
+    bool lower_to_upper(size_t index_id, const query_builder& builder, const query_range& range,
+                        Handler&& handler) {
+        raw_iterator low_it;
+        raw_iterator upper_it;
+        if (range.include_lower && range.include_upper) {
+            // 闭区间 [lower, upper]
+            low_it   = m_table.lower_bound_by_index(index_id, range.lower_bound);
+            upper_it = m_table.upper_bound_by_index(index_id, range.upper_bound);
+        } else if (range.include_lower) {
+            // 左闭右开 [lower, upper)
+            low_it   = m_table.lower_bound_by_index(index_id, range.lower_bound);
+            upper_it = m_table.lower_bound_by_index(index_id, range.upper_bound);
+        } else if (range.include_upper) {
+            // 左开右闭 (lower, upper]
+            low_it   = m_table.lower_bound_by_index(index_id, range.lower_bound);
+            upper_it = m_table.upper_bound_by_index(index_id, range.upper_bound);
+        } else {
+            // 左开右开 (lower, upper)
+            low_it   = m_table.lower_bound_by_index(index_id, range.lower_bound);
+            upper_it = m_table.lower_bound_by_index(index_id, range.upper_bound);
+        }
+
+        return handle_range(low_it, upper_it, builder, std::forward<Handler>(handler));
+    }
+
+    template <typename Handler>
+    bool begin_to_upper(size_t index_id, const query_builder& builder, const query_range& range,
+                        Handler&& handler) {
+        raw_iterator low_it = m_table.begin();
+        raw_iterator upper_it;
+        if (range.include_upper) {
+            // 右闭 [begin, upper]
+            upper_it = m_table.upper_bound_by_index(index_id, range.upper_bound);
+        } else {
+            // 右开 [begin, upper)
+            upper_it = m_table.lower_bound_by_index(index_id, range.upper_bound);
+        }
+
+        return handle_range(low_it, upper_it, builder, std::forward<Handler>(handler));
+    }
+
+    template <typename Handler>
+    bool handle_range(raw_iterator l_it, raw_iterator r_it, const query_builder& builder,
+                      Handler&& handler) {
+        bool found = false;
+        while (!l_it.is_end()) {
+            if (!builder.eval<const object_type>(*l_it->second,
+                                                 mc::reflect::get_property<object_type>)) {
+                if (found || l_it == r_it) {
+                    break;
+                }
+
+                // 左开区间需要右移到第一个位置
+                ++l_it;
+                continue;
+            }
+
+            found = true;
+            if (!handler(*l_it->second)) {
+                break;
+            }
+
+            if (l_it == r_it) {
+                break;
+            }
+
+            ++l_it;
+        }
+        return found;
+    }
+
+    /**
+     * 执行复合键查询
+     *
+     * @param plan 查询计划
+     * @param handler 结果处理函数
+     * @return 是否成功执行
+     */
+    template <typename Handler>
+    bool execute_composite_key_query(const query_plan& plan, Handler&& handler) {
+        // 复合键查询实现
+        // 此处需要结合具体索引类型进行实现
+        // 简单起见，目前返回false，回退到全表扫描
+        return false;
     }
 
     /**
@@ -407,66 +411,20 @@ private:
      */
     template <typename Handler>
     void full_table_scan(const query_builder& builder, Handler handler) {
-        if (m_table == nullptr) {
-            return;
-        }
+        auto end = m_table.end();
+        for (auto it = m_table.begin(); it != end; ++it) {
+            const auto& obj = *it->second;
+            if (!builder.eval<const object_type&>(obj, mc::reflect::get_property<object_type>)) {
+                continue;
+            }
 
-        // 查找主键索引
-        int primary_index_id = find_primary_key_index();
-
-        // 由于template get<>需要编译期常量，使用switch处理不同索引ID
-        switch (primary_index_id) {
-        case 0:
-            scan_by_index<0>(builder, handler);
-            break;
-        case 1:
-            scan_by_index<1>(builder, handler);
-            break;
-        case 2:
-            scan_by_index<2>(builder, handler);
-            break;
-        case 3:
-            scan_by_index<3>(builder, handler);
-            break;
-        case 4:
-            scan_by_index<4>(builder, handler);
-            break;
-        default:
-            // 默认使用索引0（对象ID索引）
-            scan_by_index<0>(builder, handler);
-            break;
-        }
-    }
-
-    /**
-     * 按特定索引进行全表扫描
-     *
-     * @tparam IndexId 索引ID
-     * @param builder 查询构建器
-     * @param handler 结果处理函数
-     */
-    template <size_t IndexId, typename Handler>
-    void scan_by_index(const query_builder& builder, Handler handler) {
-        // 使用指定索引遍历所有对象
-        auto& index = m_table->template get<IndexId>();
-
-        for (auto it = index.begin(); it != index.end(); ++it) {
-            const auto& obj = *it;
-
-            // 使用字段访问器评估条件
-            auto accessor = make_field_accessor(obj);
-
-            if (builder.eval(accessor)) {
-                // 符合条件，调用处理器
-                if (!handler(obj)) {
-                    // 处理器返回false，提前结束查询
-                    break;
-                }
+            if (!handler(obj)) {
+                break;
             }
         }
     }
 
-    TableType* m_table;
+    TableType& m_table;
 };
 
 /**

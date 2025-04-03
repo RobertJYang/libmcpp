@@ -155,6 +155,10 @@ public:
         return iterator(next_it, m_prefix_len, m_key_field_count);
     }
 
+    const raw_iterator& get_raw_iterator() const {
+        return m_iterator;
+    }
+
 private:
     /**
      * 获取下一个匹配条件的对象

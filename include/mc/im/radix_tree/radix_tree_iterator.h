@@ -198,6 +198,10 @@ public:
         m_is_end = true;
     }
 
+    bool is_end() const {
+        return m_is_end;
+    }
+
     friend class radix_tree<Config>; // 添加友元声明，允许radix_tree访问protected成员
 
 protected:

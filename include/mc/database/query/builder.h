@@ -161,7 +161,8 @@ public:
      * @param eval_fn 字段求值函数，接收字段名并返回对应值
      * @return 是否匹配
      */
-    bool eval(std::function<mc::variant(std::string_view)> eval_fn) const {
+    template <typename T>
+    bool eval(T obj, std::function<mc::variant(T, std::string_view)> eval_fn) const {
         if (m_conditions.empty()) {
             return true; // 空条件匹配所有对象
         }
@@ -171,7 +172,7 @@ public:
 
         for (const auto& [op, cond] : m_conditions) {
             has_condition    = true;
-            auto field_value = eval_fn(cond.get_field());
+            auto field_value = eval_fn(obj, cond.get_field());
             bool match       = cond.eval(field_value);
 
             switch (op) {
