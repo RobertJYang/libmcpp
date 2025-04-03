@@ -128,7 +128,8 @@ auto make_indices_with_user_indices_impl(std::index_sequence<Is...>, const Alloc
     return std::make_tuple(
         make_object_id_index<ObjectType>(alloc),
         index<ObjectType, typename std::tuple_element_t<Is, Tuple>::key_extractor_type,
-              std::tuple_element_t<Is, Tuple>::is_unique>(
+              std::tuple_element_t<Is, Tuple>::is_unique,
+              typename std::tuple_element_t<Is, Tuple>::tag_type>(
             typename std::tuple_element_t<Is, Tuple>::key_extractor_type{}, alloc)...);
 }
 
@@ -479,7 +480,7 @@ public:
      * @tparam Tag 标签类型
      * @return 索引引用
      */
-    template <typename Tag, typename = std::enable_if_t<mc::database::is_tag<Tag>::value>>
+    template <typename Tag, typename = std::enable_if_t<mc::database::is_tag_v<Tag>>>
     auto& get() {
         if constexpr (std::is_same_v<Tag, by_object_id_tag>) {
             return std::get<0>(m_indices);

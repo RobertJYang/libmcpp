@@ -84,6 +84,18 @@ public:
     void append_key(mdb_key& key, const char (&value)[N]) const {
         key.append_value(std::string_view(value));
     }
+
+    /**
+     * 获取字段名称
+     * @return 字段名称列表
+     */
+    static std::vector<std::string> get_field_names() {
+        if constexpr (mc::reflect::is_reflectable<ObjectType>()) {
+            return {std::string(mc::reflect::get_member_name<ObjectType>(Member))};
+        } else {
+            return {"<member>"};
+        }
+    }
 };
 
 /**
@@ -126,6 +138,14 @@ public:
     template <typename T>
     void append_key(mdb_key& key, const T& value) const {
         key.append_value(static_cast<key_type>(value));
+    }
+
+    /**
+     * 获取字段名称列表
+     * @return 字段名称列表
+     */
+    static std::vector<std::string> get_field_names() {
+        return {"<member_function>"};
     }
 };
 
@@ -176,6 +196,14 @@ public:
     template <typename T>
     void append_key(mdb_key& key, const T& value) const {
         key.append_value(static_cast<key_type>(value));
+    }
+
+    /**
+     * 获取字段名称列表
+     * @return 字段名称列表
+     */
+    static std::vector<std::string> get_field_names() {
+        return {std::string("<functor>")};
     }
 
 private:
@@ -233,6 +261,16 @@ public:
         }
     }
 
+    /**
+     * 获取字段名称列表
+     * @return 字段名称列表
+     */
+    static std::vector<std::string> get_field_names() {
+        std::vector<std::string> names;
+        get_field_names_impl(names, std::index_sequence_for<Extractors...>());
+        return names;
+    }
+
 private:
     std::tuple<Extractors...> m_extractors;
 
@@ -259,6 +297,28 @@ private:
     void extract_key_impl(mdb_key& key, const object_type& obj,
                           std::index_sequence<Indices...>) const {
         (std::get<Indices>(m_extractors).extract_key(key, obj), ...);
+    }
+
+    /**
+     * 递归实现获取所有提取器的字段名
+     * @param names 字段名容器
+     * @param indices 编译期索引序列
+     */
+    template <size_t... Indices>
+    static void get_field_names_impl(std::vector<std::string_view>& names,
+                                     std::index_sequence<Indices...>) {
+        (append_field_names<Indices>(names), ...);
+    }
+
+    /**
+     * 将单个提取器的字段名添加到列表
+     * @param names 字段名容器
+     */
+    template <size_t I>
+    static void append_field_names(std::vector<std::string_view>& names) {
+        using extractor_type = std::tuple_element_t<I, std::tuple<Extractors...>>;
+        auto extractor_names = extractor_type::get_field_names();
+        names.insert(names.end(), extractor_names.begin(), extractor_names.end());
     }
 };
 
@@ -402,6 +462,25 @@ public:
     void append_key(mdb_key& key, const T& value) const {
         key.append_value(static_cast<key_type>(value));
     }
+
+    /**
+     * 获取字段名称
+     * @return 字段名称
+     */
+    static std::vector<std::string> get_field_names() {
+        return {"rowid"};
+    }
+};
+
+/**
+ * 键提取器特性萃取类，对象ID键版本
+ */
+template <typename ObjectType>
+struct key_extractor_traits<object_id_key<ObjectType>> {
+    using object_type    = ObjectType;
+    using key_type       = typename ObjectType::object_id_type;
+    using extractor_type = object_id_key<ObjectType>;
+    using tag            = tag_member; // 视为成员键
 };
 
 } // namespace mc::database

@@ -34,6 +34,7 @@ test_files = [
   'database/test_table.cpp',
   'database/test_transaction.cpp',
   'database/test_index.cpp',
+  'database/test_query_advanced.cpp',
   'im/test_node_list.cpp',
   'im/test_node.cpp',
   'im/test_simple_node.cpp',

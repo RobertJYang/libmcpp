@@ -14,8 +14,10 @@
 #define MC_DATABASE_INDEX_TAG_H
 
 #include <mc/database/key_extractor.h>
+#include <string>
 #include <tuple>
 #include <type_traits>
+#include <vector>
 
 namespace mc::database {
 
@@ -30,10 +32,45 @@ struct tag_base {};
 struct by_object_id_tag : public tag_base {};
 
 /**
+ * 带字段名称的标签
+ */
+template <const char* FieldName>
+struct field_tag : public mc::database::tag_base {
+    static constexpr const char* field_name = FieldName;
+
+    /**
+     * 获取字段名称列表
+     * @return 字段名称列表
+     */
+    static std::vector<std::string> get_field_names() {
+        return {field_name};
+    }
+};
+
+/**
  * 确定标签类型是否有效
  */
 template <typename T>
 struct is_tag : std::is_base_of<tag_base, T> {};
+
+template <typename T>
+inline constexpr bool is_tag_v = is_tag<T>::value;
+
+/**
+ * 判断类型是否为 field_tag 类型
+ * @tparam T 要检查的类型
+ */
+template <typename T, typename = void>
+struct is_field_tag : std::false_type {};
+
+// field_tag 类型的特化，检测是否继承自 tag_base 且有 field_names 成员
+template <typename T>
+struct is_field_tag<T, std::void_t<std::enable_if_t<std::is_base_of_v<tag_base, T>>,
+                                   decltype(T::field_name), decltype(T::get_field_names())>>
+    : std::true_type {};
+
+template <typename T>
+inline constexpr bool is_field_tag_v = is_field_tag<T>::value;
 
 /**
  * 查找类型在元组中的索引位置
@@ -140,5 +177,10 @@ struct no_indices {
 };
 
 } // namespace mc::database
+
+// 定义单个字段标签
+#define MC_FIELD_INDEX_TAG(tag_name, field_name)                                                   \
+    inline constexpr char field_##tag_name[] = field_name;                                         \
+    using tag_name                           = mc::database::field_tag<field_##tag_name>;
 
 #endif // MC_DATABASE_INDEX_TAG_H

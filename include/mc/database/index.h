@@ -22,86 +22,35 @@
 #include <typeindex>
 #include <vector>
 
+#include <mc/database/index_tag.h>
 #include <mc/database/iterator.h>
 #include <mc/database/key.h>
 #include <mc/database/key_extractor.h>
 #include <mc/database/object.h>
 #include <mc/exception.h>
 #include <mc/im/radix_tree.h>
+
 namespace mc::database {
-
-namespace detail {
-
-// 检测类型是否有 get_object_id 成员函数
-template <typename T>
-struct has_get_id {
-private:
-    template <typename U>
-    static auto check(U*) -> decltype(std::declval<U>().get_object_id(), std::true_type());
-    template <typename>
-    static std::false_type check(...);
-
-public:
-    static constexpr bool value = decltype(check<T>(nullptr))::value;
-};
-
-// 检测类型是否定义了 object_id_type
-template <typename T>
-struct has_id_type {
-private:
-    template <typename U>
-    static auto check(U*) -> decltype(typename U::object_id_type(), std::true_type());
-    template <typename>
-    static std::false_type check(...);
-
-public:
-    static constexpr bool value = decltype(check<T>(nullptr))::value;
-};
-
-// 检测 get_id 返回类型是否与 object_id_type 一致
-template <typename T>
-struct has_matching_id_type {
-private:
-    using object_id_type = typename T::object_id_type;
-    using get_id_return_type =
-        typename std::invoke_result<decltype(&T::get_object_id), const T&>::type;
-
-public:
-    static constexpr bool value = std::is_same_v<object_id_type, get_id_return_type>;
-};
-
-// 检测 object_id_type 是否有效
-template <typename T>
-struct is_valid_id_type
-    : std::integral_constant<bool, has_get_id<T>::value && has_id_type<T>::value &&
-                                       std::is_integral_v<typename T::object_id_type> &&
-                                       has_matching_id_type<T>::value> {};
-
-// 获取 object_id_type 的实现
-template <typename ObjectType>
-struct object_id_type {
-    static_assert(is_valid_id_type<ObjectType>::value,
-                  "ObjectType must have a get_id() member function that returns the same type as "
-                  "ObjectType::object_id_type");
-    using type = typename ObjectType::object_id_type;
-};
-
-} // namespace detail
 
 /**
  * 索引实现
  * @tparam ObjectType 对象类型
  * @tparam KeyExtractor 键提取器类型
  * @tparam IsUnique 是否唯一索引
+ * @tparam Tag 标签类型
  */
-template <typename ObjectType, typename KeyExtractor, bool IsUnique = true>
+template <typename ObjectType, typename KeyExtractor, bool IsUnique = true, typename Tag = void>
 class index {
+    static_assert(std::is_base_of_v<object_base<ObjectType>, ObjectType>,
+                  "ObjectType必须继承自object_base");
+
 public:
     // 索引相关类型定义
     using key_extractor_type        = KeyExtractor;
     using object_type               = ObjectType;
     using object_ptr_type           = mc::im::ref_ptr<object_type>;
     using alloc_type                = typename ObjectType::alloc_type;
+    using tag_type                  = Tag;
     static constexpr bool is_unique = IsUnique;
 
     // radix树配置
@@ -109,9 +58,9 @@ public:
     using tree_type      = mc::im::radix_tree<tree_config>;
     using raw_iterator   = typename tree_type::iterator;
     using txn_type       = mc::im::transaction<tree_config>;
-    using self_type      = index<object_type, KeyExtractor, IsUnique>;
+    using self_type      = index<object_type, KeyExtractor, IsUnique, Tag>;
     using iterator_type  = iterator<self_type>;
-    using object_id_type = typename detail::object_id_type<ObjectType>::type;
+    using object_id_type = typename ObjectType::object_id_type;
 
     static constexpr int  key_count       = key_extractor_type::key_count;
     static constexpr bool is_compound_key = key_extractor_type::is_compound_key;
@@ -372,13 +321,14 @@ private:
  * @param extractor 键提取器
  * @param alloc 内存分配器
  * @tparam IsUnique 是否唯一索引
+ * @tparam Tag 标签类型
  * @return 索引指针
  */
-template <typename ObjectType, bool IsUnique, typename KeyExtractor,
+template <typename ObjectType, bool IsUnique, typename KeyExtractor, typename Tag = void,
           typename Alloc = std::allocator<ObjectType>>
 static auto make_index(const KeyExtractor& extractor = KeyExtractor(),
                        const Alloc&        alloc     = Alloc()) {
-    return std::make_unique<index<ObjectType, KeyExtractor, IsUnique>>(extractor, alloc);
+    return std::make_unique<index<ObjectType, KeyExtractor, IsUnique, Tag>>(extractor, alloc);
 }
 
 } // namespace mc::database
