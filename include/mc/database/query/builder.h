@@ -21,6 +21,7 @@
 #include <vector>
 
 #include <mc/database/query/condition.h>
+#include <mc/database/query/proto_query.h>
 #include <mc/variant.h>
 
 namespace mc::database::query {
@@ -34,6 +35,26 @@ public:
      * 构造函数，创建一个空的查询构建器
      */
     query_builder() = default;
+
+    /**
+     * 从条件对象构造查询构建器
+     *
+     * @param cond 条件对象
+     */
+    query_builder(const condition& cond) {
+        m_condition = cond;
+    }
+
+    /**
+     * 从 Proto 查询表达式构造查询构建器
+     *
+     * @tparam Expr 表达式类型
+     * @param expr 查询表达式
+     */
+    template <typename Expr>
+    query_builder(const dsl::query_expr<Expr>& expr) {
+        m_condition = to_condition(expr);
+    }
 
     /**
      * 添加一个等值条件
@@ -264,6 +285,32 @@ public:
         return m_condition->to_string();
     }
 
+    /**
+     * 设置查询结果的最大数量
+     * @param limit_value 最大数量
+     * @return 查询构建器引用，用于链式调用
+     */
+    query_builder& limit(size_t limit_value) {
+        m_limit = limit_value;
+        return *this;
+    }
+
+    /**
+     * 获取结果限制数量
+     * @return 限制数量，如果未设置则为 0（表示无限制）
+     */
+    size_t get_limit() const {
+        return m_limit;
+    }
+
+    /**
+     * 是否设置了结果限制
+     * @return 是否设置限制
+     */
+    bool has_limit() const {
+        return m_limit > 0;
+    }
+
 private:
     /**
      * 添加条件，与现有条件使用AND连接
@@ -287,6 +334,7 @@ private:
     }
 
     std::optional<condition> m_condition; // 查询条件
+    size_t                   m_limit = 0; // 结果限制数量，0表示无限制
 };
 
 } // namespace mc::database::query

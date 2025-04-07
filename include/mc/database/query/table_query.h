@@ -90,33 +90,16 @@ public:
      * @return 匹配对象列表
      */
     std::vector<object_type> query_limit(const query_builder& builder, size_t limit) {
+        // 创建一个带有限制的查询构建器
+        query_builder limited_builder = builder;
+        limited_builder.limit(limit);
+
         std::vector<object_type> result;
 
-        // 处理等值条件的特殊情况
-        if (builder.has_condition()) {
-            const auto& cond = builder.get_condition();
-
-            // 检查是否为等值条件
-            if (!cond.is_logical() && cond.get_op() == compare_op::eq) {
-                // 检查字段是否为非唯一字段
-                bool is_non_unique_field = is_field_non_unique(cond.get_field());
-
-                if (is_non_unique_field) {
-                    // 特殊处理: 使用非唯一索引或全表扫描来收集所有匹配项
-                    query_impl(builder, [&result, limit](const object_type& obj) {
-                        result.push_back(obj);
-                        return result.size() < limit; // 当达到限制时停止
-                    });
-
-                    return result;
-                }
-            }
-        }
-
-        // 默认实现: 执行查询，收集指定数量的匹配对象
-        query_impl(builder, [&result, limit](const object_type& obj) {
+        // 执行查询，收集匹配对象
+        query_impl(limited_builder, [&result](const object_type& obj) {
             result.push_back(obj);
-            return result.size() < limit;
+            return true;
         });
 
         return result;
@@ -269,6 +252,9 @@ private:
         auto begin_it = m_table.lower_bound_by_index(index_id, value);
         auto end_it   = m_table.upper_bound_by_index(index_id, value);
 
+        size_t count = 0;
+        size_t limit = builder.has_limit() ? builder.get_limit() : 0;
+
         for (auto it = begin_it; it != end_it && !it.is_end(); ++it) {
             const auto& obj = *it->second;
             // 检查对象是否满足所有条件
@@ -279,6 +265,14 @@ private:
             found = true;
             if (!handler(obj)) {
                 return true; // 中断查询/查询成功
+            }
+
+            // 检查是否达到限制
+            if (limit > 0) {
+                count++;
+                if (count >= limit) {
+                    return true;
+                }
             }
         }
         return false; // 继续查询/没有找到匹配项
@@ -437,7 +431,10 @@ private:
     template <typename Handler>
     bool iterate_range(const query_builder& builder, raw_iterator begin_it, raw_iterator end_it,
                        Handler&& handler) {
-        bool found = false;
+        bool   found = false;
+        size_t count = 0;
+        size_t limit = builder.has_limit() ? builder.get_limit() : 0;
+
         for (auto it = begin_it; it != end_it && !it.is_end(); ++it) {
             const auto& obj = *it->second;
             if (!builder.matches(obj)) {
@@ -447,6 +444,14 @@ private:
             found = true;
             if (!handler(obj)) {
                 break;
+            }
+
+            // 检查是否达到限制
+            if (limit > 0) {
+                count++;
+                if (count >= limit) {
+                    break;
+                }
             }
         }
 
@@ -469,41 +474,7 @@ private:
     }
 
     /**
-     * 执行全表扫描（无过滤）
-     * @param handler 结果处理器
-     */
-    template <typename Handler>
-    void full_table_scan(Handler&& handler) {
-        for (auto it = m_table.begin(); !it.is_end(); ++it) {
-            const auto& obj = *it->second;
-            if (!handler(obj)) {
-                break;
-            }
-        }
-    }
-
-    /**
-     * 执行全表扫描（含过滤）
-     * @param builder 查询构建器
-     * @param handler 结果处理器
-     */
-    template <typename Handler>
-    void full_table_scan_with_filter(const query_builder& builder, Handler&& handler) {
-        for (auto it = m_table.begin(); !it.is_end(); ++it) {
-            const auto& obj = *it->second;
-
-            if (!builder.matches(obj)) {
-                continue;
-            }
-
-            if (!handler(obj)) {
-                break;
-            }
-        }
-    }
-
-    /**
-     * 查询执行实现
+     * 查询实现
      * @param builder 查询构建器
      * @param handler 结果处理函数
      */
@@ -520,6 +491,51 @@ private:
 
         // 执行查询
         execute_query_plan(builder, plan, std::forward<Handler>(handler));
+    }
+
+    /**
+     * 全表扫描
+     * @param handler
+     */
+    template <typename Handler>
+    void full_table_scan(Handler&& handler) {
+        for (auto it = m_table.begin(); !it.is_end(); ++it) {
+            const auto& obj = *it->second;
+            if (!handler(obj)) {
+                break;
+            }
+        }
+    }
+
+    /**
+     * 带过滤的全表扫描
+     * @param builder
+     * @param handler
+     */
+    template <typename Handler>
+    void full_table_scan_with_filter(const query_builder& builder, Handler&& handler) {
+        size_t count = 0;
+        size_t limit = builder.has_limit() ? builder.get_limit() : 0;
+
+        for (auto it = m_table.begin(); !it.is_end(); ++it) {
+            const auto& obj = *it->second;
+
+            // 检查条件
+            if (builder.matches(obj)) {
+                bool continue_scan = handler(obj);
+                if (!continue_scan) {
+                    break;
+                }
+
+                // 检查是否达到限制
+                if (limit > 0) {
+                    count++;
+                    if (count >= limit) {
+                        break;
+                    }
+                }
+            }
+        }
     }
 
     /**

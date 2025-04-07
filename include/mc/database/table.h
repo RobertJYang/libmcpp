@@ -30,6 +30,8 @@
 #include <mc/database/key.h>
 #include <mc/database/key_extractor.h>
 #include <mc/database/object.h>
+#include <mc/database/query/builder.h>
+#include <mc/database/query/query.h>
 #include <mc/database/table_op.h>
 #include <mc/database/transaction.h>
 #include <mc/exception.h>
@@ -559,6 +561,49 @@ public:
      */
     uint32_t get_table_id() const {
         return m_table_id;
+    }
+
+    /**
+     * 查询对象并收集所有匹配的结果
+     *
+     * @param builder 查询构建器
+     * @return 匹配对象列表
+     */
+    std::vector<object_type> query(const query_builder& builder) {
+        return table_query<table<object_type, IndexDef>>(*this).query_all(builder);
+    }
+
+    /**
+     * 查询对象，限制返回数量
+     *
+     * @param builder 查询构建器
+     * @param limit 最大返回数量
+     * @return 匹配对象列表
+     */
+    std::vector<object_type> query(const query_builder& builder, size_t limit) {
+        return table_query<table<object_type, IndexDef>>(*this).query_limit(builder, limit);
+    }
+
+    /**
+     * 查询单个对象，返回第一个匹配的结果
+     *
+     * @param builder 查询构建器
+     * @return 匹配的第一个对象的可选包装
+     */
+    std::optional<object_type> find(const query_builder& builder) {
+        return table_query<table<object_type, IndexDef>>(*this).query_one(builder);
+    }
+
+    /**
+     * 自定义处理查询结果
+     *
+     * @param builder 查询构建器
+     * @param handler 结果处理函数，返回false表示停止查询
+     */
+    template <typename Handler>
+    void query(const query_builder& builder, Handler&& handler) {
+        table_query<table<object_type, IndexDef>>(*this).query(builder,
+                                                               std::forward<Handler>(handler));
     }
 
 private:
