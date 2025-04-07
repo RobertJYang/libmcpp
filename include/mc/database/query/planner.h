@@ -132,65 +132,499 @@ public:
     }
 
     /**
-     * 为复杂查询生成计划
+     * 为查询构建器生成查询计划
      * @param builder 查询构建器
      * @return 查询计划
      */
     query_plan plan_for_query(const query_builder& builder) const {
-        // 如果查询为空，返回全表扫描计划
         if (builder.is_empty()) {
             return create_full_scan_plan();
         }
 
-        // 分析所有条件
-        const auto& conditions = builder.get_conditions();
-
-        // 记录每个字段的条件
-        std::unordered_map<std::string_view, std::vector<std::pair<logical_op, condition>>>
-            field_conditions;
-
-        for (const auto& [op, cond] : conditions) {
-            field_conditions[cond.get_field()].push_back({op, cond});
+        // 新系统：使用类型系统
+        if (builder.has_where()) {
+            return generate_plan_for_condition(builder.get_where());
         }
 
-        // 评估每个字段的索引可用性
-        std::optional<size_t> best_index_id;
-        float                 best_score = 0.0f;
-        std::string_view      best_field;
+        // 如果没有条件，返回全表扫描计划
+        return create_full_scan_plan();
+    }
 
-        for (const auto& [field, conds] : field_conditions) {
-            auto indices = m_metadata.find_indices_by_field(field);
+    /**
+     * 为条件生成查询计划
+     * @param condition 条件对象
+     * @return 查询计划
+     */
+    query_plan generate_plan_for_condition(const std::shared_ptr<base_condition>& condition) const {
+        // 基于条件类型生成查询计划
+        switch (condition->get_type()) {
+        case condition_type::equal_condition: {
+            auto eq_cond = std::static_pointer_cast<equal_condition>(condition);
 
-            for (const auto* index : indices) {
-                float score = evaluate_index_for_conditions(index, field, conds);
+            // 检查是否有适合的索引
+            auto field    = eq_cond->get_field();
+            int  index_id = find_best_index_for_field(field);
+
+            if (index_id > 0) {
+                return create_best_plan_for_conditions(index_id, field, condition);
+            }
+            break;
+        }
+        case condition_type::greater_condition:
+        case condition_type::greater_equal_condition:
+        case condition_type::less_condition:
+        case condition_type::less_equal_condition: {
+            std::string field;
+            if (condition->get_type() == condition_type::greater_condition) {
+                auto gt_cond = std::static_pointer_cast<greater_condition>(condition);
+                field        = gt_cond->get_field();
+            } else if (condition->get_type() == condition_type::greater_equal_condition) {
+                auto ge_cond = std::static_pointer_cast<greater_equal_condition>(condition);
+                field        = ge_cond->get_field();
+            } else if (condition->get_type() == condition_type::less_condition) {
+                auto lt_cond = std::static_pointer_cast<less_condition>(condition);
+                field        = lt_cond->get_field();
+            } else if (condition->get_type() == condition_type::less_equal_condition) {
+                auto le_cond = std::static_pointer_cast<less_equal_condition>(condition);
+                field        = le_cond->get_field();
+            }
+
+            // 检查是否有适合的索引
+            int index_id = find_best_index_for_field(field);
+
+            if (index_id > 0) {
+                return create_best_plan_for_conditions(index_id, field, condition);
+            }
+            break;
+        }
+        case condition_type::and_condition: {
+            auto        and_cond   = std::static_pointer_cast<and_condition>(condition);
+            const auto& conditions = and_cond->get_conditions();
+
+            // 分析所有条件，找出最优索引
+            std::unordered_map<std::string, std::vector<std::shared_ptr<base_condition>>>
+                field_conditions;
+
+            // 按字段分组条件
+            for (const auto& cond : conditions) {
+                std::string field;
+
+                if (cond->get_type() == condition_type::equal_condition) {
+                    auto eq_cond = std::static_pointer_cast<equal_condition>(cond);
+                    field        = eq_cond->get_field();
+                } else if (cond->get_type() == condition_type::greater_condition) {
+                    auto gt_cond = std::static_pointer_cast<greater_condition>(cond);
+                    field        = gt_cond->get_field();
+                } else if (cond->get_type() == condition_type::greater_equal_condition) {
+                    auto ge_cond = std::static_pointer_cast<greater_equal_condition>(cond);
+                    field        = ge_cond->get_field();
+                } else if (cond->get_type() == condition_type::less_condition) {
+                    auto lt_cond = std::static_pointer_cast<less_condition>(cond);
+                    field        = lt_cond->get_field();
+                } else if (cond->get_type() == condition_type::less_equal_condition) {
+                    auto le_cond = std::static_pointer_cast<less_equal_condition>(cond);
+                    field        = le_cond->get_field();
+                } else {
+                    continue; // 跳过不支持的条件类型
+                }
+
+                field_conditions[field].push_back(cond);
+            }
+
+            // 评估每个字段的索引适用性，选择最佳字段和索引
+            float       best_score    = 0.0f;
+            int         best_index_id = 0;
+            std::string best_field;
+
+            for (const auto& [field, conds] : field_conditions) {
+                int index_id = find_best_index_for_field(field);
+                if (index_id <= 0) {
+                    continue; // 没有合适的索引
+                }
+
+                const auto* index = m_metadata.get_index_by_id(index_id);
+                if (!index) {
+                    continue;
+                }
+
+                float score = evaluate_index_for_conditions(index, field, condition);
+
                 if (score > best_score) {
                     best_score    = score;
-                    best_index_id = index->index_id;
+                    best_index_id = index_id;
                     best_field    = field;
                 }
             }
-        }
 
-        // 根据最佳索引创建查询计划
-        if (best_index_id.has_value() && best_score > 0) {
-            return create_best_plan_for_conditions(best_index_id.value(), best_field,
-                                                   field_conditions[best_field]);
+            if (best_index_id > 0) {
+                return create_best_plan_for_conditions(best_index_id, best_field, condition);
+            }
+
+            break;
+        }
+        case condition_type::or_condition: {
+            return plan_for_or_condition(condition);
+        }
+        default:
+            break;
         }
 
         // 如果没有找到合适的索引，返回全表扫描计划
         return create_full_scan_plan();
     }
 
+    /**
+     * 处理OR条件的查询计划
+     * @param or_condition_ptr OR条件对象
+     * @return 查询计划
+     */
+    query_plan
+    plan_for_or_condition(const std::shared_ptr<base_condition>& or_condition_ptr) const {
+        auto        or_cond    = std::static_pointer_cast<or_condition>(or_condition_ptr);
+        const auto& conditions = or_cond->get_conditions();
+
+        // 检查是否所有条件都是等值条件且针对同一字段
+        bool        all_equal_on_same_field = true;
+        std::string field_name;
+
+        if (!conditions.empty() && conditions[0]->get_type() == condition_type::equal_condition) {
+            auto first_cond = std::static_pointer_cast<equal_condition>(conditions[0]);
+            field_name      = first_cond->get_field();
+
+            for (size_t i = 1; i < conditions.size(); ++i) {
+                if (conditions[i]->get_type() != condition_type::equal_condition) {
+                    all_equal_on_same_field = false;
+                    break;
+                }
+
+                auto equal_cond = std::static_pointer_cast<equal_condition>(conditions[i]);
+                if (equal_cond->get_field() != field_name) {
+                    all_equal_on_same_field = false;
+                    break;
+                }
+            }
+        } else {
+            all_equal_on_same_field = false;
+        }
+
+        // 如果是IN优化的情况
+        if (all_equal_on_same_field) {
+            int index_id = find_best_index_for_field(field_name);
+            if (index_id > 0) {
+                // 提取所有值
+                std::vector<mc::variant> values;
+                for (const auto& cond : conditions) {
+                    auto eq_cond = std::static_pointer_cast<equal_condition>(cond);
+                    values.push_back(eq_cond->get_value());
+                }
+
+                // 创建IN查询计划
+                query_plan plan;
+                plan.plan_type = query_plan_type::index_exact_match;
+                plan.index_id  = index_id;
+                plan.fields.push_back(field_name);
+                plan.values    = values;
+                plan.use_index = true;
+
+                return plan;
+            }
+        }
+
+        // 尝试对每个OR条件找一个索引
+        // 如果所有OR条件都能找到索引，理论上我们可以合并结果
+        // 但是目前的实现简单地回退到全表扫描
+        return create_full_scan_plan();
+    }
+
+    /**
+     * 为指定字段查找最佳索引
+     * @param field 字段名
+     * @return 索引ID，如果没有匹配的索引则返回0
+     */
+    int find_best_index_for_field(std::string_view field) const {
+        auto indices = m_metadata.find_indices_by_field(field);
+        if (indices.empty()) {
+            return 0;
+        }
+
+        // 如果有多个索引，优先选择唯一索引
+        for (const auto* index : indices) {
+            if (index->is_unique && index->index_id > 0) {
+                return static_cast<int>(index->index_id);
+            }
+        }
+
+        // 其次选择第一个字段匹配的索引
+        for (const auto* index : indices) {
+            if (!index->field_names.empty() && index->field_names[0] == field &&
+                index->index_id > 0) {
+                return static_cast<int>(index->index_id);
+            }
+        }
+
+        // 最后选择任意匹配的索引
+        for (const auto* index : indices) {
+            if (index->index_id > 0) {
+                return static_cast<int>(index->index_id);
+            }
+        }
+
+        return 0;
+    }
+
 private:
     /**
-     * 创建全表扫描计划
-     * @return 全表扫描查询计划
+     * 为空结果创建查询计划
+     */
+    query_plan create_empty_result_plan() const {
+        query_plan plan;
+        plan.use_index = false;
+        plan.plan_type = query_plan_type::empty_result;
+        return plan;
+    }
+
+    /**
+     * 为全表扫描创建查询计划
      */
     query_plan create_full_scan_plan() const {
         query_plan plan;
-        plan.plan_type = query_plan_type::full_scan;
         plan.use_index = false;
+        plan.plan_type = query_plan_type::full_scan;
         return plan;
+    }
+
+    /**
+     * 查找匹配的索引
+     */
+    const index_metadata* find_matching_index(const query_builder& builder) const {
+        if (!builder.has_where()) {
+            return nullptr;
+        }
+
+        // 处理各种条件类型
+        switch (builder.get_where()->get_type()) {
+        case condition_type::equal_condition: {
+            auto eq_cond = std::static_pointer_cast<equal_condition>(builder.get_where());
+            auto indices = m_metadata.find_indices_by_field(eq_cond->get_field());
+            if (!indices.empty()) {
+                return indices[0];
+            }
+            break;
+        }
+        case condition_type::greater_condition: {
+            auto gt_cond = std::static_pointer_cast<greater_condition>(builder.get_where());
+            auto indices = m_metadata.find_indices_by_field(gt_cond->get_field());
+            if (!indices.empty()) {
+                return indices[0];
+            }
+            break;
+        }
+        case condition_type::greater_equal_condition: {
+            auto ge_cond = std::static_pointer_cast<greater_equal_condition>(builder.get_where());
+            auto indices = m_metadata.find_indices_by_field(ge_cond->get_field());
+            if (!indices.empty()) {
+                return indices[0];
+            }
+            break;
+        }
+        case condition_type::less_condition: {
+            auto lt_cond = std::static_pointer_cast<less_condition>(builder.get_where());
+            auto indices = m_metadata.find_indices_by_field(lt_cond->get_field());
+            if (!indices.empty()) {
+                return indices[0];
+            }
+            break;
+        }
+        case condition_type::less_equal_condition: {
+            auto le_cond = std::static_pointer_cast<less_equal_condition>(builder.get_where());
+            auto indices = m_metadata.find_indices_by_field(le_cond->get_field());
+            if (!indices.empty()) {
+                return indices[0];
+            }
+            break;
+        }
+        case condition_type::and_condition: {
+            // 对于AND条件，寻找最优的索引
+            auto        and_cond   = std::static_pointer_cast<and_condition>(builder.get_where());
+            const auto& conditions = and_cond->get_conditions();
+
+            float                 best_score = 0.0f;
+            const index_metadata* best_index = nullptr;
+
+            for (const auto& condition : conditions) {
+                std::string field_name;
+                bool        is_range = false;
+
+                // 获取条件中的字段名和类型
+                switch (condition->get_type()) {
+                case condition_type::equal_condition:
+                    field_name = std::static_pointer_cast<equal_condition>(condition)->get_field();
+                    is_range   = false;
+                    break;
+                case condition_type::greater_condition:
+                    field_name =
+                        std::static_pointer_cast<greater_condition>(condition)->get_field();
+                    is_range = true;
+                    break;
+                case condition_type::greater_equal_condition:
+                    field_name =
+                        std::static_pointer_cast<greater_equal_condition>(condition)->get_field();
+                    is_range = true;
+                    break;
+                case condition_type::less_condition:
+                    field_name = std::static_pointer_cast<less_condition>(condition)->get_field();
+                    is_range   = true;
+                    break;
+                case condition_type::less_equal_condition:
+                    field_name =
+                        std::static_pointer_cast<less_equal_condition>(condition)->get_field();
+                    is_range = true;
+                    break;
+                default:
+                    continue;
+                }
+
+                // 查找该字段的索引
+                auto indices = m_metadata.find_indices_by_field(field_name);
+                for (const auto* index : indices) {
+                    float score;
+                    if (is_range) {
+                        score = evaluate_index_for_range(index, field_name);
+                    } else {
+                        score = evaluate_index_for_eq(index, field_name);
+                    }
+
+                    if (score > best_score) {
+                        best_score = score;
+                        best_index = index;
+                    }
+                }
+            }
+
+            return best_index;
+        }
+        default:
+            break;
+        }
+
+        return nullptr;
+    }
+
+    /**
+     * 检查是否是精确匹配
+     */
+    bool is_exact_match(const query_builder& builder, const index_metadata* index) const {
+        if (!builder.has_where()) {
+            return false;
+        }
+
+        // 简单实现，只处理equal_condition
+        if (builder.get_where()->get_type() == condition_type::equal_condition) {
+            auto eq_cond = std::static_pointer_cast<equal_condition>(builder.get_where());
+            // 检查字段是否与索引的第一个字段匹配
+            return !index->field_names.empty() && eq_cond->get_field() == index->field_names[0];
+        }
+
+        return false;
+    }
+
+    /**
+     * 检查是否是范围查询
+     */
+    bool is_range_query(const query_builder& builder, const index_metadata* index) const {
+        if (!builder.has_where() || index->field_names.empty()) {
+            return false;
+        }
+
+        // 检查条件类型是否为比较运算符（大于、小于等）
+        if (builder.get_where()->get_type() == condition_type::greater_condition ||
+            builder.get_where()->get_type() == condition_type::greater_equal_condition ||
+            builder.get_where()->get_type() == condition_type::less_condition ||
+            builder.get_where()->get_type() == condition_type::less_equal_condition) {
+            std::string field_name;
+
+            // 获取条件中的字段名
+            switch (builder.get_where()->get_type()) {
+            case condition_type::greater_condition:
+                field_name =
+                    std::static_pointer_cast<greater_condition>(builder.get_where())->get_field();
+                break;
+            case condition_type::greater_equal_condition:
+                field_name = std::static_pointer_cast<greater_equal_condition>(builder.get_where())
+                                 ->get_field();
+                break;
+            case condition_type::less_condition:
+                field_name =
+                    std::static_pointer_cast<less_condition>(builder.get_where())->get_field();
+                break;
+            case condition_type::less_equal_condition:
+                field_name = std::static_pointer_cast<less_equal_condition>(builder.get_where())
+                                 ->get_field();
+                break;
+            default:
+                return false;
+            }
+
+            // 检查字段是否与索引的第一个字段匹配
+            return field_name == index->field_names[0];
+        }
+
+        // 检查AND条件中是否包含范围条件
+        if (builder.get_where()->get_type() == condition_type::and_condition) {
+            auto        and_cond   = std::static_pointer_cast<and_condition>(builder.get_where());
+            const auto& conditions = and_cond->get_conditions();
+
+            bool has_range_condition = false;
+
+            for (const auto& condition : conditions) {
+                if (condition->get_type() == condition_type::greater_condition ||
+                    condition->get_type() == condition_type::greater_equal_condition ||
+                    condition->get_type() == condition_type::less_condition ||
+                    condition->get_type() == condition_type::less_equal_condition) {
+                    std::string field_name;
+
+                    // 获取条件中的字段名
+                    switch (condition->get_type()) {
+                    case condition_type::greater_condition:
+                        field_name =
+                            std::static_pointer_cast<greater_condition>(condition)->get_field();
+                        break;
+                    case condition_type::greater_equal_condition:
+                        field_name = std::static_pointer_cast<greater_equal_condition>(condition)
+                                         ->get_field();
+                        break;
+                    case condition_type::less_condition:
+                        field_name =
+                            std::static_pointer_cast<less_condition>(condition)->get_field();
+                        break;
+                    case condition_type::less_equal_condition:
+                        field_name =
+                            std::static_pointer_cast<less_equal_condition>(condition)->get_field();
+                        break;
+                    default:
+                        continue;
+                    }
+
+                    // 检查字段是否与索引的第一个字段匹配
+                    if (field_name == index->field_names[0]) {
+                        has_range_condition = true;
+                        break;
+                    }
+                }
+            }
+
+            return has_range_condition;
+        }
+
+        return false;
+    }
+
+    /**
+     * 检查是否是复合键查询
+     */
+    bool is_composite_key_query(const query_builder& builder, const index_metadata* index) const {
+        // 目前未实现，以后添加
+        return false;
     }
 
     /**
@@ -222,15 +656,37 @@ private:
     }
 
     /**
+     * 评估索引对范围条件的适用性
+     * @param index 索引元数据
+     * @param field 字段名
+     * @return 评分，越高表示越适合使用
+     */
+    float evaluate_index_for_range(const index_metadata* index, std::string_view field) const {
+        // 如果字段不在该索引中，不可用
+        if (std::find(index->field_names.begin(), index->field_names.end(), field) ==
+            index->field_names.end()) {
+            return 0.0f;
+        }
+
+        // 如果字段是索引的第一个字段，则可用性最高
+        if (!index->field_names.empty() && index->field_names[0] == field) {
+            return 8.0f;
+        }
+
+        // 否则，可用性较低
+        return 2.0f;
+    }
+
+    /**
      * 评估索引对一组条件的适用性
      * @param index 索引元数据
      * @param field 字段名
-     * @param conditions 字段上的条件列表
+     * @param where_condition 条件对象
      * @return 评分，越高表示越适合使用
      */
-    float evaluate_index_for_conditions(
-        const index_metadata* index, std::string_view field,
-        const std::vector<std::pair<logical_op, condition>>& conditions) const {
+    float
+    evaluate_index_for_conditions(const index_metadata* index, std::string_view field,
+                                  const std::shared_ptr<base_condition>& where_condition) const {
         // 如果字段不在该索引中，不可用
         if (std::find(index->field_names.begin(), index->field_names.end(), field) ==
             index->field_names.end()) {
@@ -251,33 +707,74 @@ private:
         bool has_range = false;
         bool has_in    = false;
 
-        for (const auto& [op, cond] : conditions) {
-            if (op != logical_op::AND) {
-                // 目前只考虑AND条件
-                continue;
+        // 根据条件类型评估索引适用性
+        switch (where_condition->get_type()) {
+        case condition_type::equal_condition:
+            has_eq = true;
+            break;
+        case condition_type::greater_condition:
+        case condition_type::greater_equal_condition:
+        case condition_type::less_condition:
+        case condition_type::less_equal_condition:
+            has_range = true;
+            break;
+        case condition_type::and_condition: {
+            auto and_cond = std::static_pointer_cast<and_condition>(where_condition);
+            for (const auto& sub_cond : and_cond->get_conditions()) {
+                switch (sub_cond->get_type()) {
+                case condition_type::equal_condition:
+                    has_eq = true;
+                    break;
+                case condition_type::greater_condition:
+                case condition_type::greater_equal_condition:
+                case condition_type::less_condition:
+                case condition_type::less_equal_condition:
+                    has_range = true;
+                    break;
+                default:
+                    break;
+                }
+            }
+            break;
+        }
+        case condition_type::or_condition: {
+            auto or_cond = std::static_pointer_cast<or_condition>(where_condition);
+
+            // 检查是否所有条件都是等值条件且针对同一字段
+            bool        all_equal_on_same_field = true;
+            std::string field_name;
+
+            if (!or_cond->get_conditions().empty() &&
+                or_cond->get_conditions()[0]->get_type() == condition_type::equal_condition) {
+                auto first_cond =
+                    std::static_pointer_cast<equal_condition>(or_cond->get_conditions()[0]);
+                field_name = first_cond->get_field();
+
+                for (size_t i = 1; i < or_cond->get_conditions().size(); ++i) {
+                    if (or_cond->get_conditions()[i]->get_type() !=
+                        condition_type::equal_condition) {
+                        all_equal_on_same_field = false;
+                        break;
+                    }
+
+                    auto equal_cond =
+                        std::static_pointer_cast<equal_condition>(or_cond->get_conditions()[i]);
+                    if (equal_cond->get_field() != field_name) {
+                        all_equal_on_same_field = false;
+                        break;
+                    }
+                }
+            } else {
+                all_equal_on_same_field = false;
             }
 
-            switch (cond.get_op()) {
-            case compare_op::eq:
-                has_eq = true;
-                break;
-
-            case compare_op::gt:
-            case compare_op::ge:
-            case compare_op::lt:
-            case compare_op::le:
-            case compare_op::between:
-                has_range = true;
-                break;
-
-            case compare_op::in:
+            if (all_equal_on_same_field) {
                 has_in = true;
-                break;
-
-            default:
-                // 其他条件不适合直接使用索引
-                break;
             }
+            break;
+        }
+        default:
+            break;
         }
 
         // 等值条件最适合索引
@@ -303,12 +800,12 @@ private:
      * 为给定字段上的条件创建最佳查询计划
      * @param index_id 索引ID
      * @param field 字段名
-     * @param conditions 条件列表
+     * @param where_condition 条件对象
      * @return 查询计划
      */
-    query_plan create_best_plan_for_conditions(
-        size_t index_id, std::string_view field,
-        const std::vector<std::pair<logical_op, condition>>& conditions) const {
+    query_plan
+    create_best_plan_for_conditions(size_t index_id, std::string_view field,
+                                    const std::shared_ptr<base_condition>& where_condition) const {
         const auto* index = m_metadata.get_index_by_id(index_id);
         if (!index) {
             return create_full_scan_plan();
@@ -318,174 +815,170 @@ private:
         bool is_composite = (index->extractor_type == key_extractor_type::composite_key);
 
         if (is_composite && index->field_names.size() > 1) {
-            return create_composite_key_plan(index_id, conditions);
+            return create_composite_key_plan(index_id, where_condition);
         }
 
-        // 先看是否有等值条件
-        for (const auto& [op, cond] : conditions) {
-            if (op == logical_op::AND && cond.get_op() == compare_op::eq) {
-                // 创建精确匹配查询计划
-                query_plan plan;
-                plan.plan_type = query_plan_type::index_exact_match;
-                plan.index_id  = index_id;
-                plan.fields.push_back(field);
-                plan.key_value = cond.get_value();
-                plan.use_index = true;
+        // 处理等值条件
+        if (where_condition->get_type() == condition_type::equal_condition) {
+            auto eq_cond = std::static_pointer_cast<equal_condition>(where_condition);
 
-                return plan;
-            }
-        }
-
-        // 再看是否有IN条件
-        for (const auto& [op, cond] : conditions) {
-            if (op == logical_op::AND && cond.get_op() == compare_op::in) {
-                query_plan plan;
-                plan.plan_type = query_plan_type::index_exact_match;
-                plan.index_id  = index_id;
-                plan.fields.push_back(field);
-
-                // 从IN条件中提取值列表
-                if (cond.get_value().is_array()) {
-                    plan.values = cond.get_value().as_array();
-
-                    // 优化：如果IN列表只有一个值，转换为精确匹配
-                    if (plan.values.size() == 1) {
-                        plan.key_value = plan.values[0];
-                        plan.values.clear();
-                    }
-                }
-
-                plan.use_index = true;
-
-                return plan;
-            }
-        }
-
-        // 最后看是否有范围条件
-        query_range range;
-
-        // 记录每种比较运算符的最优条件
-        std::map<compare_op, const condition*> best_conditions;
-
-        for (const auto& [op, cond] : conditions) {
-            if (op != logical_op::AND) {
-                continue;
-            }
-
-            // 保存最优条件
-            auto it = best_conditions.find(cond.get_op());
-            if (it == best_conditions.end() ||
-                is_better_condition(cond, *(it->second), cond.get_op())) {
-                best_conditions[cond.get_op()] = &cond;
-            }
-        }
-
-        // 应用最优条件
-        for (const auto& [op, cond_ptr] : best_conditions) {
-            const auto& cond = *cond_ptr;
-
-            switch (op) {
-            case compare_op::gt:
-                if (!range.has_lower_bound ||
-                    (range.has_lower_bound && range.include_lower &&
-                     compare_values(cond.get_value(), range.lower_bound) > 0)) {
-                    range.has_lower_bound = true;
-                    range.include_lower   = false;
-                    range.lower_bound     = cond.get_value();
-                }
-                break;
-
-            case compare_op::ge:
-                if (!range.has_lower_bound || (range.has_lower_bound && !range.include_lower) ||
-                    (range.has_lower_bound && range.include_lower &&
-                     compare_values(cond.get_value(), range.lower_bound) > 0)) {
-                    range.has_lower_bound = true;
-                    range.include_lower   = true;
-                    range.lower_bound     = cond.get_value();
-                }
-                break;
-
-            case compare_op::lt:
-                if (!range.has_upper_bound ||
-                    (range.has_upper_bound && range.include_upper &&
-                     compare_values(cond.get_value(), range.upper_bound) < 0)) {
-                    range.has_upper_bound = true;
-                    range.include_upper   = false;
-                    range.upper_bound     = cond.get_value();
-                }
-                break;
-
-            case compare_op::le:
-                if (!range.has_upper_bound || (range.has_upper_bound && !range.include_upper) ||
-                    (range.has_upper_bound && range.include_upper &&
-                     compare_values(cond.get_value(), range.upper_bound) < 0)) {
-                    range.has_upper_bound = true;
-                    range.include_upper   = true;
-                    range.upper_bound     = cond.get_value();
-                }
-                break;
-
-            case compare_op::between:
-                // 从BETWEEN条件中提取上下界
-                if (cond.get_value().is_dict()) {
-                    const auto& dict = cond.get_value().as_dict();
-                    if (dict.contains("min") && dict.contains("max")) {
-                        if (!range.has_lower_bound ||
-                            (range.has_lower_bound &&
-                             compare_values(dict.at("min"), range.lower_bound) > 0)) {
-                            range.has_lower_bound = true;
-                            range.include_lower   = true;
-                            range.lower_bound     = dict.at("min");
-                        }
-
-                        if (!range.has_upper_bound ||
-                            (range.has_upper_bound &&
-                             compare_values(dict.at("max"), range.upper_bound) < 0)) {
-                            range.has_upper_bound = true;
-                            range.include_upper   = true;
-                            range.upper_bound     = dict.at("max");
-                        }
-                    }
-                }
-                break;
-
-            default:
-                break;
-            }
-        }
-
-        // 检查范围条件是否有效
-        if (range.has_lower_bound && range.has_upper_bound) {
-            // 如果下界大于上界，查询结果必然为空
-            if (compare_values(range.lower_bound, range.upper_bound) > 0) {
-                query_plan plan;
-                plan.plan_type = query_plan_type::empty_result;
-                plan.index_id  = index_id;
-                plan.use_index = true;
-                return plan;
-            }
-
-            // 如果下界等于上界，并且至少一个边界是开区间，查询结果必然为空
-            if (compare_values(range.lower_bound, range.upper_bound) == 0 &&
-                (!range.include_lower || !range.include_upper)) {
-                query_plan plan;
-                plan.plan_type = query_plan_type::empty_result;
-                plan.index_id  = index_id;
-                plan.use_index = true;
-                return plan;
-            }
-        }
-
-        // 如果找到了范围条件
-        if (range.has_lower_bound || range.has_upper_bound) {
+            // 创建精确匹配查询计划
             query_plan plan;
-            plan.plan_type = query_plan_type::index_range;
+            plan.plan_type = query_plan_type::index_exact_match;
             plan.index_id  = index_id;
             plan.fields.push_back(field);
-            plan.range     = range;
+            plan.key_value = eq_cond->get_value();
             plan.use_index = true;
 
             return plan;
+        }
+
+        // 处理AND条件
+        if (where_condition->get_type() == condition_type::and_condition) {
+            auto and_cond = std::static_pointer_cast<and_condition>(where_condition);
+
+            // 查找等值条件
+            for (const auto& condition : and_cond->get_conditions()) {
+                if (condition->get_type() == condition_type::equal_condition) {
+                    auto eq_cond = std::static_pointer_cast<equal_condition>(condition);
+
+                    // 检查字段是否匹配
+                    if (eq_cond->get_field() == field) {
+                        // 创建精确匹配查询计划
+                        query_plan plan;
+                        plan.plan_type = query_plan_type::index_exact_match;
+                        plan.index_id  = index_id;
+                        plan.fields.push_back(field);
+                        plan.key_value = eq_cond->get_value();
+                        plan.use_index = true;
+
+                        return plan;
+                    }
+                }
+            }
+
+            // 处理范围条件
+            query_range range;
+
+            for (const auto& condition : and_cond->get_conditions()) {
+                switch (condition->get_type()) {
+                case condition_type::greater_condition: {
+                    auto gt_cond = std::static_pointer_cast<greater_condition>(condition);
+                    if (gt_cond->get_field() == field) {
+                        if (!range.has_lower_bound ||
+                            (range.has_lower_bound && range.include_lower &&
+                             compare_values(gt_cond->get_value(), range.lower_bound) > 0)) {
+                            range.has_lower_bound = true;
+                            range.include_lower   = false;
+                            range.lower_bound     = gt_cond->get_value();
+                        }
+                    }
+                    break;
+                }
+                case condition_type::greater_equal_condition: {
+                    auto ge_cond = std::static_pointer_cast<greater_equal_condition>(condition);
+                    if (ge_cond->get_field() == field) {
+                        if (!range.has_lower_bound ||
+                            (range.has_lower_bound && !range.include_lower) ||
+                            (range.has_lower_bound && range.include_lower &&
+                             compare_values(ge_cond->get_value(), range.lower_bound) > 0)) {
+                            range.has_lower_bound = true;
+                            range.include_lower   = true;
+                            range.lower_bound     = ge_cond->get_value();
+                        }
+                    }
+                    break;
+                }
+                case condition_type::less_condition: {
+                    auto lt_cond = std::static_pointer_cast<less_condition>(condition);
+                    if (lt_cond->get_field() == field) {
+                        if (!range.has_upper_bound ||
+                            (range.has_upper_bound && range.include_upper &&
+                             compare_values(lt_cond->get_value(), range.upper_bound) < 0)) {
+                            range.has_upper_bound = true;
+                            range.include_upper   = false;
+                            range.upper_bound     = lt_cond->get_value();
+                        }
+                    }
+                    break;
+                }
+                case condition_type::less_equal_condition: {
+                    auto le_cond = std::static_pointer_cast<less_equal_condition>(condition);
+                    if (le_cond->get_field() == field) {
+                        if (!range.has_upper_bound ||
+                            (range.has_upper_bound && !range.include_upper) ||
+                            (range.has_upper_bound && range.include_upper &&
+                             compare_values(le_cond->get_value(), range.upper_bound) < 0)) {
+                            range.has_upper_bound = true;
+                            range.include_upper   = true;
+                            range.upper_bound     = le_cond->get_value();
+                        }
+                    }
+                    break;
+                }
+                default:
+                    break;
+                }
+            }
+
+            // 如果找到了范围条件
+            if (range.has_lower_bound || range.has_upper_bound) {
+                query_plan plan;
+                plan.plan_type = query_plan_type::index_range;
+                plan.index_id  = index_id;
+                plan.fields.push_back(field);
+                plan.range     = range;
+                plan.use_index = true;
+
+                return plan;
+            }
+        }
+
+        // 处理OR条件（适合IN优化的情况）
+        if (where_condition->get_type() == condition_type::or_condition) {
+            auto        or_cond    = std::static_pointer_cast<or_condition>(where_condition);
+            const auto& conditions = or_cond->get_conditions();
+
+            // 检查是否所有条件都是等值条件且针对同一字段
+            bool                     all_equal_on_same_field = true;
+            std::string              field_name;
+            std::vector<mc::variant> values;
+
+            if (!conditions.empty() &&
+                conditions[0]->get_type() == condition_type::equal_condition) {
+                auto first_cond = std::static_pointer_cast<equal_condition>(conditions[0]);
+                field_name      = first_cond->get_field();
+                values.push_back(first_cond->get_value());
+
+                for (size_t i = 1; i < conditions.size(); ++i) {
+                    if (conditions[i]->get_type() != condition_type::equal_condition) {
+                        all_equal_on_same_field = false;
+                        break;
+                    }
+
+                    auto equal_cond = std::static_pointer_cast<equal_condition>(conditions[i]);
+                    if (equal_cond->get_field() != field_name) {
+                        all_equal_on_same_field = false;
+                        break;
+                    }
+
+                    values.push_back(equal_cond->get_value());
+                }
+            } else {
+                all_equal_on_same_field = false;
+            }
+
+            if (all_equal_on_same_field && field_name == field) {
+                // 创建IN查询计划
+                query_plan plan;
+                plan.plan_type = query_plan_type::index_exact_match;
+                plan.index_id  = index_id;
+                plan.fields.push_back(field);
+                plan.values    = values;
+                plan.use_index = true;
+
+                return plan;
+            }
         }
 
         // 如果没有找到合适的条件，返回全表扫描计划
@@ -495,11 +988,12 @@ private:
     /**
      * 为复合键创建查询计划
      * @param index_id 索引ID
-     * @param conditions 条件列表
+     * @param where_condition 条件对象
      * @return 查询计划
      */
-    query_plan create_composite_key_plan(
-        size_t index_id, const std::vector<std::pair<logical_op, condition>>& conditions) const {
+    query_plan
+    create_composite_key_plan(size_t                                 index_id,
+                              const std::shared_ptr<base_condition>& where_condition) const {
         const auto* index = m_metadata.get_index_by_id(index_id);
         if (!index || index->field_names.size() <= 1) {
             return create_full_scan_plan();
@@ -511,16 +1005,21 @@ private:
         plan.index_id  = index_id;
         plan.use_index = true;
 
-        // 为每个字段提取条件
-        std::unordered_map<std::string, const condition*> field_conditions;
+        // 提取每个字段的等值条件
+        std::unordered_map<std::string, mc::variant> field_values;
 
-        for (const auto& [op, cond] : conditions) {
-            if (op == logical_op::AND && cond.get_op() == compare_op::eq) {
-                const std::string field_name(cond.get_field());
+        if (where_condition->get_type() == condition_type::and_condition) {
+            auto and_cond = std::static_pointer_cast<and_condition>(where_condition);
 
-                // 只保留最后一个条件（如果有多个）
-                field_conditions[field_name] = &cond;
+            for (const auto& condition : and_cond->get_conditions()) {
+                if (condition->get_type() == condition_type::equal_condition) {
+                    auto eq_cond = std::static_pointer_cast<equal_condition>(condition);
+                    field_values[eq_cond->get_field()] = eq_cond->get_value();
+                }
             }
+        } else if (where_condition->get_type() == condition_type::equal_condition) {
+            auto eq_cond = std::static_pointer_cast<equal_condition>(where_condition);
+            field_values[eq_cond->get_field()] = eq_cond->get_value();
         }
 
         // 检查是否有足够的条件覆盖复合键的前缀
@@ -533,10 +1032,10 @@ private:
             // 添加字段到查询计划
             plan.fields.push_back(field);
 
-            auto it = field_conditions.find(field);
-            if (it != field_conditions.end()) {
+            auto it = field_values.find(std::string(field));
+            if (it != field_values.end()) {
                 // 有这个字段的条件，添加到复合键
-                composite_key[field] = it->second->get_value();
+                composite_key[field] = it->second;
             } else {
                 // 缺少字段条件，只能使用前面的字段
                 has_all_leading_fields = false;
@@ -544,85 +1043,51 @@ private:
             }
         }
 
-        // 如果有完整的复合键匹配
+        if (composite_key.empty()) {
+            // 没有匹配的字段条件，无法使用复合键索引
+            return create_full_scan_plan();
+        }
+
+        // 如果有所有前导字段，设置键值以执行精确匹配
         if (has_all_leading_fields) {
             plan.key_value = composite_key;
-            return plan;
+            plan.plan_type = query_plan_type::index_exact_match;
         }
 
-        // 如果复合键不完整但至少有第一个字段
-        if (!composite_key.empty()) {
-            // 将复合键转换为部分键查询
-            if (composite_key.size() == 1) {
-                // 只有一个字段，转换为简单索引查询
-                plan.plan_type = query_plan_type::index_exact_match;
-                plan.fields    = {plan.fields[0]};
-                plan.key_value = composite_key.begin()->value;
-            } else {
-                // 多个字段，保持为复合键查询
-                plan.key_value = composite_key;
-            }
-            return plan;
-        }
-
-        // 没有足够的条件，回退到全表扫描
-        return create_full_scan_plan();
+        return plan;
     }
 
     /**
-     * 比较两个条件的有效性
-     * @param cond1 条件1
-     * @param cond2 条件2
-     * @param op 比较运算符
-     * @return 如果条件1比条件2更优，返回true
-     */
-    bool is_better_condition(const condition& cond1, const condition& cond2, compare_op op) const {
-        // 对于不同类型的比较运算符，有不同的优化策略
-        switch (op) {
-        case compare_op::gt:
-        case compare_op::ge:
-            // 对于下界，值越大越好
-            return compare_values(cond1.get_value(), cond2.get_value()) > 0;
-
-        case compare_op::lt:
-        case compare_op::le:
-            // 对于上界，值越小越好
-            return compare_values(cond1.get_value(), cond2.get_value()) < 0;
-
-        default:
-            // 默认条件下，保持原样
-            return false;
-        }
-    }
-
-    /**
-     * 比较两个值的大小
-     * @param val1 值1
-     * @param val2 值2
-     * @return 比较结果：负数表示val1小于val2，0表示相等，正数表示val1大于val2
+     * 比较两个值
+     * @param val1 第一个值
+     * @param val2 第二个值
+     * @return 比较结果：-1 表示 val1 < val2，0 表示相等，1 表示 val1 > val2
      */
     int compare_values(const mc::variant& val1, const mc::variant& val2) const {
-        // 简单实现，主要处理基本类型
-        if (val1.is_integer() && val2.is_integer()) {
-            int v1 = val1.as<int>();
-            int v2 = val2.as<int>();
-            return v1 - v2;
-        } else if (val1.is_double() && val2.is_double()) {
-            double v1 = val1.as<double>();
-            double v2 = val2.as<double>();
-            return v1 < v2 ? -1 : (v1 > v2 ? 1 : 0);
-        } else if (val1.is_string() && val2.is_string()) {
-            std::string v1 = val1.as<std::string>();
-            std::string v2 = val2.as<std::string>();
-            return v1.compare(v2);
-        } else if (val1.is_bool() && val2.is_bool()) {
-            bool v1 = val1.as<bool>();
-            bool v2 = val2.as<bool>();
-            return v1 == v2 ? 0 : (v1 ? 1 : -1);
+        if (val1 == val2) {
+            return 0;
         }
 
-        // 不同类型之间难以直接比较，返回0表示相等
-        return 0;
+        // 数值比较
+        if (val1.is_numeric() && val2.is_numeric()) {
+            if (val1.is_integer() && val2.is_integer()) {
+                return val1.as<int64_t>() < val2.as<int64_t>() ? -1 : 1;
+            } else {
+                double d1 =
+                    val1.is_integer() ? static_cast<double>(val1.as<int64_t>()) : val1.as<double>();
+                double d2 =
+                    val2.is_integer() ? static_cast<double>(val2.as<int64_t>()) : val2.as<double>();
+                return d1 < d2 ? -1 : 1;
+            }
+        }
+
+        // 字符串比较
+        if (val1.is_string() && val2.is_string()) {
+            return val1.as_string() < val2.as_string() ? -1 : 1;
+        }
+
+        // 不同类型比较，按类型ID排序
+        return val1.get_type() < val2.get_type() ? -1 : 1;
     }
 
     const table_index_metadata<ObjectType>& m_metadata;

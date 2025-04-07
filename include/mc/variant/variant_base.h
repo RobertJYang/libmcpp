@@ -27,7 +27,10 @@
 
 #include <mc/common.h>
 #include <mc/im/ref_ptr.h>
+#include <mc/pretty_name.h>
 #include <mc/string.h>
+
+#define VARIANT_FLOAT_EPSILON 1e-6
 
 namespace mc {
 class dict;
@@ -94,6 +97,22 @@ struct blob_base {
     bool operator!=(const blob_base& other) const {
         return !(*this == other);
     }
+
+    bool operator<(const blob_base& other) const {
+        auto lhs = std::string_view(data.data(), data.size());
+        auto rhs = std::string_view(other.data.data(), other.data.size());
+        return lhs < rhs;
+    }
+
+    bool operator>(const blob_base& other) const {
+        auto lhs = std::string_view(data.data(), data.size());
+        auto rhs = std::string_view(other.data.data(), other.data.size());
+        return lhs > rhs;
+    }
+
+    std::string_view as_string_view() const {
+        return std::string_view(data.data(), data.size());
+    }
 };
 
 template <typename Config>
@@ -151,7 +170,8 @@ enum class type_id {
 const char* get_type_name_internal(type_id type);
 void        throw_type_error(const char* expected_type, type_id actual_type);
 void        throw_unknow_type_error(type_id actual_type);
-size_t      calculate_str_hash(const char* data, size_t length);
+void   throw_invalid_type_comparison_error(const char* type1, const char* type2, const char* op);
+size_t calculate_str_hash(const char* data, size_t length);
 template <typename Config>
 size_t calculate_array_hash(const variants_base<Config>& array_data);
 
@@ -199,6 +219,9 @@ public:
     using object_ptr_type               = typename Config::object_ptr_type;
     using array_ptr_type                = typename Config::array_ptr_type;
     using blob_ptr_type                 = typename Config::blob_ptr_type;
+
+    template <typename OtherConfig>
+    friend class variant_base;
 
     variant_base() : m_uint64(0), m_type(type_id::null_type) {
         static_assert(sizeof(uint64_t) >= sizeof(void*) && sizeof(uint64_t) >= sizeof(double),
@@ -678,6 +701,22 @@ public:
     }
 
     /**
+     * @brief 判断是否为有符号整数类型
+     */
+    bool is_signed_integer() const {
+        return m_type == type_id::int8_type || m_type == type_id::int16_type ||
+               m_type == type_id::int32_type || m_type == type_id::int64_type;
+    }
+
+    /**
+     * @brief 判断是否为无符号整数类型
+     */
+    bool is_unsigned_integer() const {
+        return m_type == type_id::uint8_type || m_type == type_id::uint16_type ||
+               m_type == type_id::uint32_type || m_type == type_id::uint64_type;
+    }
+
+    /**
      * @brief 将 variant_base 转换为有符号8位整数
      */
     int8_t as_int8() const {
@@ -739,12 +778,9 @@ public:
         case type_id::bool_type:
             return m_bool ? 1 : 0;
         case type_id::string_type:
-            try {
-                return std::stoll(*m_string_ptr);
-            } catch (const std::exception& e) {
-                throw std::runtime_error("无法将字符串 '" + *m_string_ptr +
-                                         "' 转换为整数: " + e.what());
-            }
+            return mc::string::to_number<int64_t>(*m_string_ptr);
+        case type_id::blob_type:
+            return mc::string::to_number<int64_t>(m_blob_ptr->as_string_view());
         default:
             throw_type_error("int64", m_type);
             return 0;
@@ -771,12 +807,9 @@ public:
         case type_id::bool_type:
             return m_bool ? 1 : 0;
         case type_id::string_type:
-            try {
-                return std::stoull(*m_string_ptr);
-            } catch (const std::exception& e) {
-                throw std::runtime_error("无法将字符串 '" + *m_string_ptr +
-                                         "' 转换为无符号64位整数: " + e.what());
-            }
+            return mc::string::to_number<uint64_t>(*m_string_ptr);
+        case type_id::blob_type:
+            return mc::string::to_number<uint64_t>(m_blob_ptr->as_string_view());
         default:
             throw_type_error("uint64", m_type);
             return 0;
@@ -803,11 +836,10 @@ public:
         case type_id::double_type:
             return m_double != 0;
         case type_id::string_type: {
-            const auto& s = *m_string_ptr;
-            if (s.empty() || mc::string::iequals(s, "false") || s == "0") {
-                return false;
-            }
-            return true;
+            return mc::string::to_bool(*m_string_ptr, true);
+        }
+        case type_id::blob_type: {
+            return mc::string::to_bool(m_blob_ptr->as_string_view(), true);
         }
         case type_id::null_type:
             return false;
@@ -815,8 +847,6 @@ public:
             return !m_array_ptr->empty();
         case type_id::object_type:
             return !m_object_ptr->empty();
-        case type_id::blob_type:
-            return !m_blob_ptr->data.empty();
         default:
             return false;
         }
@@ -842,12 +872,10 @@ public:
         case type_id::bool_type:
             return m_bool ? 1.0 : 0.0;
         case type_id::string_type: {
-            try {
-                return std::stod(*m_string_ptr);
-            } catch (const std::exception& e) {
-                throw std::runtime_error("无法将字符串 '" + *m_string_ptr + "' 转换为 double：" +
-                                         e.what());
-            }
+            return mc::string::to_number<double>(*m_string_ptr);
+        }
+        case type_id::blob_type: {
+            return mc::string::to_number<double>(m_blob_ptr->as_string_view());
         }
         default:
             throw_type_error("double", m_type);
@@ -897,8 +925,7 @@ public:
         case type_id::null_type:
             return "null";
         case type_id::blob_type: {
-            const auto& b = *m_blob_ptr;
-            return std::string(b.data.begin(), b.data.end());
+            return std::string(m_blob_ptr->as_string_view());
         }
         default:
             throw_type_error("string", m_type);
@@ -977,8 +1004,15 @@ public:
 
     /**
      * @brief 检查对象是否包含指定键（当variant包含dict对象时）
-     * @param key 要检查的键
-     * @return 如果对象包含指定键则返回true，否则返回false
+     * @param key 要查找的键
+     * @return 如果包含指定键则返回 true，否则返回 false
+     */
+    bool contains(std::string_view key) const;
+
+    /**
+     * @brief 检查对象是否包含指定键（当variant包含dict对象时）
+     * @param key 要查找的键
+     * @return 如果包含指定键则返回 true，否则返回 false
      */
     bool contains(const std::string& key) const {
         return contains(std::string_view(key));
@@ -986,15 +1020,8 @@ public:
 
     /**
      * @brief 检查对象是否包含指定键（当variant包含dict对象时）
-     * @param key 要检查的键
-     * @return 如果对象包含指定键则返回true，否则返回false
-     */
-    bool contains(std::string_view key) const;
-
-    /**
-     * @brief 检查对象是否包含指定键（当variant包含dict对象时）
-     * @param key 要检查的键
-     * @return 如果对象包含指定键则返回true，否则返回false
+     * @param key 要查找的键
+     * @return 如果包含指定键则返回 true，否则返回 false
      */
     bool contains(const char* key) const {
         return contains(std::string_view(key));
@@ -1015,6 +1042,15 @@ public:
         return v;
     }
 
+    template <typename T>
+    std::optional<T> try_as() const {
+        try {
+            return as<T>();
+        } catch (const std::exception&) {
+            return std::nullopt;
+        }
+    }
+
     /**
      * @brief 将 variant_base 转换为指定类型，如果转换失败则返回默认值
      * @param default_value 转换失败时返回的默认值
@@ -1022,13 +1058,10 @@ public:
      */
     template <typename T>
     T as(const T& default_value) const {
-        try {
-            T v;
-            from_variant(*this, v);
-            return v;
-        } catch (const std::exception&) {
-            return default_value;
+        if (auto v = try_as<T>()) {
+            return *v;
         }
+        return default_value;
     }
 
     /**
@@ -1111,12 +1144,10 @@ public:
             if constexpr (!is_fixed_type) {
                 variant_base().swap(*this);
             } else if (m_type == type_id::string_type) {
-                // 对于固定类型来说，给字符串赋值 0 会清空字符串
+                // 对于固定类型来说，给字符串赋值 0(nullptr) 会清空字符串
                 m_string_ptr->clear();
             } else {
-                throw std::runtime_error("类型错误：类型 " +
-                                         std::string(get_type_name_internal(m_type)) +
-                                         " 不支持赋值为 0");
+                throw_type_error(get_type_name(), type_id::string_type);
             }
             break;
         }
@@ -1224,187 +1255,8 @@ public:
         std::swap(m_uint64, other.m_uint64);
     }
 
-    /**
-     * @brief 比较两个 variant_base 对象是否相等
-     * @param other 要比较的 variant_base 对象
-     * @return 如果两个对象相等则返回 true，否则返回 false
-     */
-    template <typename OtherConfig>
-    bool operator==(const variant_base<OtherConfig>& other) const {
-        if (m_type != other.m_type) {
-            return false;
-        }
-
-        switch (m_type) {
-        case type_id::null_type:
-            return true;
-        case type_id::bool_type:
-            return m_bool == other.m_bool;
-        case type_id::int8_type:
-        case type_id::int16_type:
-        case type_id::int32_type:
-        case type_id::int64_type:
-            return m_int64 == other.m_int64;
-        case type_id::uint8_type:
-        case type_id::uint16_type:
-        case type_id::uint32_type:
-        case type_id::uint64_type:
-            return m_uint64 == other.m_uint64;
-        case type_id::double_type:
-            return m_double == other.m_double;
-        case type_id::string_type:
-            return *m_string_ptr == *other.m_string_ptr;
-        case type_id::array_type:
-            return *m_array_ptr == *other.m_array_ptr;
-        case type_id::object_type:
-            return *m_object_ptr == *other.m_object_ptr;
-        case type_id::blob_type:
-            return *m_blob_ptr == *other.m_blob_ptr;
-        default:
-            return false;
-        }
-    }
-
-    /**
-     * @brief 比较两个 variant_base 对象是否不相等
-     * @param other 要比较的 variant_base 对象
-     * @return 如果两个对象不相等则返回 true，否则返回 false
-     */
-    bool operator!=(const variant_base& other) const {
-        return !(*this == other);
-    }
-
-    /**
-     * @brief
-     * 比较运算符重载说明：整数类型只要求值相等；字符串类型支持与string_type和blob_type比较；其他类型要求类型和值精确匹配
-     */
-    template <typename T, typename = std::enable_if_t<std::is_arithmetic_v<T>>>
-    bool operator==(const T& other) const {
-        return as<T>() == other;
-    }
-    bool operator==(const char* other) const {
-        return operator==(std::string_view(other));
-    }
-    bool operator==(const std::string& other) const {
-        return operator==(std::string_view(other));
-    }
-    bool operator==(const std::string_view& other) const {
-        if (is_string()) {
-            return *m_string_ptr == other;
-        } else if (is_blob()) {
-            const blob_type& b = *m_blob_ptr;
-            return std::string_view(b.data.data(), b.data.size()) == other;
-        } else {
-            return false;
-        }
-    }
-    bool operator==(const array_type& other) const {
-        return is_array() && *m_array_ptr == other;
-    }
-    bool operator==(const blob_type& other) const {
-        return is_blob() && *m_blob_ptr == other;
-    }
-    bool operator==(const object_type& other) const {
-        return is_object() && *m_object_ptr == other;
-    }
-    bool operator==(const mutable_dict& other) const {
-        return is_object() && *m_object_ptr == other;
-    }
-    template <typename T, typename = std::enable_if_t<std::is_arithmetic_v<T>>>
-    friend bool operator==(const T& val, const variant_base& var) {
-        return var == val;
-    }
-    friend bool operator==(const char* val, const variant_base& var) {
-        return var == val;
-    }
-    friend bool operator==(const std::string& val, const variant_base& var) {
-        return var == val;
-    }
-    friend bool operator==(const std::string_view& val, const variant_base& var) {
-        return var == val;
-    }
-    friend bool operator==(const array_type& val, const variant_base& var) {
-        return var == val;
-    }
-    friend bool operator==(const blob_type& val, const variant_base& var) {
-        return var == val;
-    }
-    friend bool operator==(const dict& val, const variant_base& var) {
-        return var == val;
-    }
-    friend bool operator==(const mutable_dict& val, const variant_base& var) {
-        return var == val;
-    }
-
-    template <typename T, typename = std::enable_if_t<std::is_arithmetic_v<T>>>
-    bool operator!=(const T& other) const {
-        return !(*this == other);
-    }
-    bool operator!=(const char* other) const {
-        return !(*this == other);
-    }
-    bool operator!=(const std::string& other) const {
-        return !(*this == other);
-    }
-    bool operator!=(const std::string_view& other) const {
-        return !(*this == other);
-    }
-    bool operator!=(const array_type& other) const {
-        return !(*this == other);
-    }
-    bool operator!=(const blob_type& other) const {
-        return !(*this == other);
-    }
-    bool operator!=(const dict& other) const {
-        return !(*this == other);
-    }
-    bool operator!=(const mutable_dict& other) const {
-        return !(*this == other);
-    }
-
-    template <typename T, typename = std::enable_if_t<std::is_arithmetic_v<T>>>
-    friend bool operator!=(const T& val, const variant_base& var) {
-        return !(var == val);
-    }
-
-    /**
-     * @brief 将variant转换为bool类型
-     * @return
-     * 为false的情况：
-     * bool类型的false
-     * 整数类型的0
-     * 浮点数类型的0
-     * 空字符串类型的空串，false，0
-     * 空数组类型的空数组
-     * 空对象类型的空对象
-     * 空blob类型的空blob
-     * 空dict类型的空dict
-     *
-     * 其他情况返回true
-     */
     explicit operator bool() const {
         return as_bool();
-    }
-    friend bool operator!=(const char* val, const variant_base& var) {
-        return !(var == val);
-    }
-    friend bool operator!=(const std::string& val, const variant_base& var) {
-        return !(var == val);
-    }
-    friend bool operator!=(const std::string_view& val, const variant_base& var) {
-        return !(var == val);
-    }
-    friend bool operator!=(const array_type& val, const variant_base& var) {
-        return !(var == val);
-    }
-    friend bool operator!=(const blob_type& val, const variant_base& var) {
-        return !(var == val);
-    }
-    friend bool operator!=(const dict& val, const variant_base& var) {
-        return !(var == val);
-    }
-    friend bool operator!=(const mutable_dict& val, const variant_base& var) {
-        return !(var == val);
     }
 
     /**
@@ -1414,8 +1266,7 @@ public:
      */
     const array_type& get_array() const {
         if (m_type != type_id::array_type) {
-            throw std::runtime_error("类型错误: 期望类型为 array，实际类型为 " +
-                                     std::string(get_type_name(m_type)));
+            throw_type_error("array", m_type);
         }
         return *m_array_ptr;
     }
@@ -1427,8 +1278,7 @@ public:
      */
     const dict& get_object() const {
         if (m_type != type_id::object_type) {
-            throw std::runtime_error("类型错误: 期望类型为 object，实际类型为 " +
-                                     std::string(get_type_name(m_type)));
+            throw_type_error("object", m_type);
         }
         return *m_object_ptr;
     }
@@ -1440,6 +1290,10 @@ public:
      */
     static const char* get_type_name(type_id type) {
         return get_type_name_internal(type);
+    }
+
+    const char* get_type_name() const {
+        return get_type_name_internal(m_type);
     }
 
     /**
@@ -1484,8 +1338,296 @@ public:
         }
     }
 
+    /*
+     * @brief 添加用于与 variant_base 对象的比较
+     */
     template <typename OtherConfig>
-    friend class variant_base;
+    bool operator==(const variant_base<OtherConfig>& other) const;
+    template <typename OtherConfig>
+    bool operator!=(const variant_base<OtherConfig>& other) const {
+        return !(*this == other);
+    }
+    template <typename OtherConfig>
+    bool operator<(const variant_base<OtherConfig>& other) const;
+    template <typename OtherConfig>
+    bool operator>(const variant_base<OtherConfig>& other) const {
+        return other < *this;
+    }
+    template <typename OtherConfig>
+    bool operator<=(const variant_base<OtherConfig>& other) const {
+        if (is_double()) {
+            if (std::isnan(m_double)) {
+                return false;
+            }
+        } else if (other.is_double()) {
+            if (std::isnan(other.as_double())) {
+                return false;
+            }
+        }
+        return !(*this > other);
+    }
+    template <typename OtherConfig>
+    bool operator>=(const variant_base<OtherConfig>& other) const {
+        if (is_double()) {
+            if (std::isnan(m_double)) {
+                return false;
+            }
+        } else if (other.is_double()) {
+            if (std::isnan(other.as_double())) {
+                return false;
+            }
+        }
+        return !(*this < other);
+    }
+
+    /*
+     * @brief 添加用于与算术类型的比较
+     */
+    template <typename T, std::enable_if_t<std::is_arithmetic_v<T>, int> = 0>
+    bool operator==(const T& other) const;
+    template <typename T, std::enable_if_t<std::is_arithmetic_v<T>, int> = 0>
+    bool operator!=(const T& other) const {
+        return !(*this == other);
+    }
+    template <typename T, std::enable_if_t<std::is_arithmetic_v<T>, int> = 0>
+    bool operator<(const T& other) const;
+    template <typename T, std::enable_if_t<std::is_arithmetic_v<T>, int> = 0>
+    bool operator>(const T& other) const;
+    template <typename T, std::enable_if_t<std::is_arithmetic_v<T>, int> = 0>
+    bool operator<=(const T& other) const {
+        if constexpr (std::is_floating_point_v<T>) {
+            if (std::isnan(other)) {
+                return false;
+            }
+        }
+
+        if (is_double()) {
+            if (std::isnan(m_double)) {
+                return false;
+            }
+        }
+
+        return !(*this > other);
+    }
+    template <typename T, std::enable_if_t<std::is_arithmetic_v<T>, int> = 0>
+    bool operator>=(const T& other) const {
+        if constexpr (std::is_floating_point_v<T>) {
+            if (std::isnan(other)) {
+                return false;
+            }
+        }
+
+        if (is_double()) {
+            if (std::isnan(m_double)) {
+                return false;
+            }
+        }
+
+        return !(*this < other);
+    }
+    template <typename T, std::enable_if_t<std::is_arithmetic_v<T>, int> = 0>
+    friend bool operator==(const T& lhs, const variant_base& rhs) {
+        return rhs == lhs;
+    }
+    template <typename T, std::enable_if_t<std::is_arithmetic_v<T>, int> = 0>
+    friend bool operator!=(const T& lhs, const variant_base& rhs) {
+        return !(rhs == lhs);
+    }
+    template <typename T, std::enable_if_t<std::is_arithmetic_v<T>, int> = 0>
+    friend bool operator<(const T& lhs, const variant_base& rhs) {
+        return rhs > lhs;
+    }
+    template <typename T, std::enable_if_t<std::is_arithmetic_v<T>, int> = 0>
+    friend bool operator>(const T& lhs, const variant_base& rhs) {
+        return rhs < lhs;
+    }
+    template <typename T, std::enable_if_t<std::is_arithmetic_v<T>, int> = 0>
+    friend bool operator<=(const T& lhs, const variant_base& rhs) {
+        return rhs >= lhs;
+    }
+    template <typename T, std::enable_if_t<std::is_arithmetic_v<T>, int> = 0>
+    friend bool operator>=(const T& lhs, const variant_base& rhs) {
+        return rhs <= lhs;
+    }
+
+    /*
+     * @brief 添加用于与 std::string_view 的比较
+     */
+    bool operator==(std::string_view other) const;
+    bool operator!=(std::string_view other) const {
+        return !(*this == other);
+    }
+    bool operator<(std::string_view other) const;
+    bool operator>(std::string_view other) const;
+    bool operator<=(std::string_view other) const {
+        return !(*this > other);
+    }
+    bool operator>=(std::string_view other) const {
+        return !(*this < other);
+    }
+    friend bool operator==(std::string_view val, const variant_base& var) {
+        return var.operator==(val);
+    }
+    friend bool operator!=(std::string_view val, const variant_base& var) {
+        return !(var.operator==(val));
+    }
+    friend bool operator<(std::string_view val, const variant_base& var) {
+        return var.operator>(val);
+    }
+    friend bool operator>(std::string_view val, const variant_base& var) {
+        return var.operator<(val);
+    }
+    friend bool operator<=(std::string_view val, const variant_base& var) {
+        return var.operator>=(val);
+    }
+    friend bool operator>=(std::string_view val, const variant_base& var) {
+        return var.operator<=(val);
+    }
+
+    /*
+     * @brief 添加用于与 mc::blob_base 的比较
+     */
+    template <typename OtherAllocator>
+    bool operator==(const blob_base<OtherAllocator>& other) const {
+        return *this == other.as_string_view();
+    }
+    template <typename OtherAllocator>
+    bool operator!=(const blob_base<OtherAllocator>& other) const {
+        return !(*this == other);
+    }
+    template <typename OtherAllocator>
+    bool operator<(const blob_base<OtherAllocator>& other) const {
+        return *this < other.as_string_view();
+    }
+    template <typename OtherAllocator>
+    bool operator>(const blob_base<OtherAllocator>& other) const {
+        return *this > other.as_string_view();
+    }
+    template <typename OtherAllocator>
+    bool operator<=(const blob_base<OtherAllocator>& other) const {
+        return !(*this > other);
+    }
+    template <typename OtherAllocator>
+    bool operator>=(const blob_base<OtherAllocator>& other) const {
+        return !(*this < other);
+    }
+    template <typename OtherAllocator>
+    friend bool operator==(const blob_base<OtherAllocator>& val, const variant_base& var) {
+        return var.operator==(val);
+    }
+    template <typename OtherAllocator>
+    friend bool operator!=(const blob_base<OtherAllocator>& val, const variant_base& var) {
+        return !(var.operator==(val));
+    }
+    template <typename OtherAllocator>
+    friend bool operator<(const blob_base<OtherAllocator>& val, const variant_base& var) {
+        return var.operator>(val);
+    }
+    template <typename OtherAllocator>
+    friend bool operator>(const blob_base<OtherAllocator>& val, const variant_base& var) {
+        return var.operator<(val);
+    }
+    template <typename OtherAllocator>
+    friend bool operator<=(const blob_base<OtherAllocator>& val, const variant_base& var) {
+        return var.operator>=(val);
+    }
+    template <typename OtherAllocator>
+    friend bool operator>=(const blob_base<OtherAllocator>& val, const variant_base& var) {
+        return var.operator<=(val);
+    }
+
+    /*
+     * @brief 添加用于与 mc::variants 的比较
+     */
+    template <typename OtherConfig>
+    bool operator==(const std::vector<variant_base<OtherConfig>>& other) const {
+        if (m_type != type_id::array_type) {
+            return false;
+        }
+        return std::equal(m_array_ptr->begin(), m_array_ptr->end(), other.begin(), other.end());
+    }
+    template <typename OtherConfig>
+    bool operator!=(const std::vector<variant_base<OtherConfig>>& other) const {
+        return !(*this == other);
+    }
+    template <typename OtherConfig>
+    bool operator<(const std::vector<variant_base<OtherConfig>>& other) const {
+        if (m_type != type_id::array_type) {
+            throw_type_error("array", m_type);
+        }
+        return std::lexicographical_compare(m_array_ptr->begin(), m_array_ptr->end(), other.begin(),
+                                            other.end());
+    }
+    template <typename OtherConfig>
+    bool operator>(const std::vector<variant_base<OtherConfig>>& other) const {
+        if (m_type != type_id::array_type) {
+            throw_type_error("array", m_type);
+        }
+        return std::lexicographical_compare(m_array_ptr->begin(), m_array_ptr->end(), other.begin(),
+                                            other.end(), std::greater<variant_base<OtherConfig>>());
+    }
+    template <typename OtherConfig>
+    bool operator<=(const std::vector<variant_base<OtherConfig>>& other) const {
+        return !(*this > other);
+    }
+    template <typename OtherConfig>
+    bool operator>=(const std::vector<variant_base<OtherConfig>>& other) const {
+        return !(*this < other);
+    }
+    template <typename OtherConfig>
+    friend bool operator==(const std::vector<variant_base<OtherConfig>>& val,
+                           const variant_base&                           var) {
+        return var.operator==(val);
+    }
+    template <typename OtherConfig>
+    friend bool operator!=(const std::vector<variant_base<OtherConfig>>& val,
+                           const variant_base&                           var) {
+        return !(var.operator==(val));
+    }
+    template <typename OtherConfig>
+    friend bool operator<(const std::vector<variant_base<OtherConfig>>& val,
+                          const variant_base&                           var) {
+        return var.operator>(val);
+    }
+    template <typename OtherConfig>
+    friend bool operator>(const std::vector<variant_base<OtherConfig>>& val,
+                          const variant_base&                           var) {
+        return var.operator<(val);
+    }
+    template <typename OtherConfig>
+    friend bool operator<=(const std::vector<variant_base<OtherConfig>>& val,
+                           const variant_base&                           var) {
+        return var.operator>=(val);
+    }
+    template <typename OtherConfig>
+    friend bool operator>=(const std::vector<variant_base<OtherConfig>>& val,
+                           const variant_base&                           var) {
+        return var.operator<=(val);
+    }
+
+    /*
+     * @brief 添加用于与 mc::dict 的比较，dict 不支持大小比较，只支持相等比较
+     */
+    bool operator==(const dict& other) const;
+    bool operator!=(const dict& other) const {
+        return !(*this == other);
+    }
+    friend bool operator==(const dict& val, const variant_base& var) {
+        return var.operator==(val);
+    }
+    friend bool operator!=(const dict& val, const variant_base& var) {
+        return !(var.operator==(val));
+    }
+
+private:
+    template <typename OtherConfig>
+    bool same_type_equal(const variant_base<OtherConfig>& other) const;
+    template <typename OtherConfig>
+    bool other_type_equal(const variant_base<OtherConfig>& other) const;
+    template <typename OtherConfig>
+    bool same_type_less(const variant_base<OtherConfig>& other) const;
+    template <typename OtherConfig>
+    bool other_type_less(const variant_base<OtherConfig>& other) const;
 
 protected:
     union {
@@ -1598,13 +1740,6 @@ void from_variant(const variant_base<Config1>& var, variant_base<Config2>& vo) {
 
 } // namespace mc
 
-namespace std {
-template <typename Config>
-struct hash<mc::variant_base<Config>> {
-    size_t operator()(const mc::variant_base<Config>& var) const {
-        return var.hash();
-    }
-};
-} // namespace std
+#include <mc/variant/variant_base_cmp_op.inl>
 
 #endif // MC_VARIANT_VARIANT_BASE_H

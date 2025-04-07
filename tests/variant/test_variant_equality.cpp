@@ -51,7 +51,7 @@ TEST_F(VariantEqualityTest, VariantEquality) {
 
     // 测试不同类型的比较
     variant v7(42), v8(42.0);
-    ASSERT_NE(v7, v8) << "不同类型的值不应该相等";
+    ASSERT_EQ(v7, v8) << "不同类型的值相等则应该相等";
 
     // 测试边界值
     variant v9(std::numeric_limits<int64_t>::max());
@@ -92,7 +92,7 @@ TEST_F(VariantEqualityTest, TypedVariantEquality) {
     typed_variant tv6(type_id::double_type);
     tv5 = 42;
     tv6 = 42.0;
-    ASSERT_NE(tv5, tv6) << "不同类型的 typed_variant 不应该相等";
+    ASSERT_EQ(tv5, tv6) << "不同类型的值相等则应该相等";
 }
 
 /**

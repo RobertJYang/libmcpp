@@ -106,20 +106,20 @@ TEST(ReflectStaticInfo, GetProperty) {
     test_user user{10, "王五", 78.5};
 
     // 使用属性原始名称获取值
-    EXPECT_EQ(mc::reflect::get_property(user, "m_id").value().as<int>(), 10);
-    EXPECT_EQ(mc::reflect::get_property(user, "m_name").value().as<std::string>(), "王五");
-    EXPECT_DOUBLE_EQ(mc::reflect::get_property(user, "m_score").value().as<double>(), 78.5);
+    EXPECT_EQ(mc::reflect::get_property(user, "m_id").as<int>(), 10);
+    EXPECT_EQ(mc::reflect::get_property(user, "m_name").as<std::string>(), "王五");
+    EXPECT_DOUBLE_EQ(mc::reflect::get_property(user, "m_score").as<double>(), 78.5);
 
     // 测试获取不存在的属性
-    EXPECT_FALSE(mc::reflect::get_property(user, "not_exist").has_value());
+    EXPECT_TRUE(mc::reflect::get_property(user, "not_exist").is_null());
 
     // 测试自定义命名的属性
     test_person person{20, "赵六", 30};
 
     // 使用自定义名称获取值
-    EXPECT_EQ(mc::reflect::get_property(person, "用户ID").value().as<int>(), 20);
-    EXPECT_EQ(mc::reflect::get_property(person, "姓名").value().as<std::string>(), "赵六");
-    EXPECT_EQ(mc::reflect::get_property(person, "年龄").value().as<int>(), 30);
+    EXPECT_EQ(mc::reflect::get_property(person, "用户ID").as<int>(), 20);
+    EXPECT_EQ(mc::reflect::get_property(person, "姓名").as<std::string>(), "赵六");
+    EXPECT_EQ(mc::reflect::get_property(person, "年龄").as<int>(), 30);
 }
 
 // 测试通过属性名称设置对象属性值
@@ -164,8 +164,8 @@ TEST(ReflectStaticInfo, CombinedPropertyAccess) {
     // 从源对象获取属性并设置到目标对象
     for (const auto& name : {"m_id", "m_name", "m_score"}) {
         auto value = mc::reflect::get_property(source, name);
-        if (value.has_value()) {
-            EXPECT_TRUE(mc::reflect::set_property(target, name, value.value()));
+        if (!value.is_null()) {
+            EXPECT_TRUE(mc::reflect::set_property(target, name, value));
         }
     }
 

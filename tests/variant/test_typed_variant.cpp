@@ -221,7 +221,7 @@ TEST_F(TypedVariantTest, BoolTypeLocking) {
      * 空对象类型的空对象
      * 空blob类型的空blob
      * 空dict类型的空dict
-     * 
+     *
      * 其他情况返回true
      */
     tv_bool = "not a boolean";

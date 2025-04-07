@@ -17,6 +17,7 @@
 #include <cstring>
 #include <limits>
 #include <mc/dict.h>
+#include <mc/exception.h>
 #include <mc/string.h>
 #include <mc/variant.h>
 #include <mc/variant/variant_base.h>
@@ -53,29 +54,23 @@ const char* get_type_name_internal(type_id type) {
 }
 
 void throw_type_error(const char* expected_type, type_id actual_type) {
-    std::string error = "类型错误：期望 ";
-    error += expected_type;
-    error += "，实际为 ";
-    error += get_type_name_internal(actual_type);
-
-    // 只有未知类型才增加整数值
-    if (actual_type >= type_id::max_type) {
-        error += " (" + std::to_string(static_cast<int>(actual_type)) + ")";
+    if (actual_type < type_id::max_type) {
+        MC_THROW(mc::invalid_arg_exception, "类型错误：期望${type}，实际为${actual_type}",
+                 ("type", expected_type)("actual_type", get_type_name_internal(actual_type)));
+    } else {
+        MC_THROW(mc::invalid_arg_exception, "类型错误：期望${type}，实际为${actual_type}",
+                 ("type", expected_type)("actual_type", static_cast<int>(actual_type)));
     }
-
-    throw std::runtime_error(error);
 }
 
 void throw_unknow_type_error(type_id actual_type) {
-    std::string error = "未知类型：";
-    error += get_type_name_internal(actual_type);
+    MC_THROW(mc::invalid_arg_exception, "未知类型：${type}",
+             ("type", static_cast<int>(actual_type)));
+}
 
-    // 只有未知类型才增加整数值
-    if (actual_type >= type_id::max_type) {
-        error += " (" + std::to_string(static_cast<int>(actual_type)) + ")";
-    }
-
-    throw std::runtime_error(error);
+void throw_invalid_type_comparison_error(const char* type1, const char* type2, const char* op) {
+    MC_THROW(mc::invalid_op_exception, "不支持的类型比较操作: ${type1} ${op} ${type2}",
+             ("type1", type1)("op", op)("type2", type2));
 }
 
 // 计算字符串的哈希值

@@ -17,6 +17,7 @@
 #include "test_variant_helpers.h"
 #include <gtest/gtest.h>
 #include <limits>
+#include <mc/exception.h>
 #include <mc/variant.h>
 #include <stdexcept>
 #include <test_utilities/test_base.h>
@@ -181,11 +182,11 @@ TEST_F(VariantBasicTest, DISABLED_FloatIntegerConversions) {
  */
 TEST_F(VariantBasicTest, TypeMismatchExceptions) {
     variant v_str("string value");
-    EXPECT_THROW(v_str.as<int>(), std::runtime_error) << "字符串转 int 应抛出异常";
-    EXPECT_THROW(v_str.as<double>(), std::runtime_error) << "字符串转 double 应抛出异常";
+    EXPECT_THROW(v_str.as<int>(), mc::invalid_arg_exception) << "字符串转 int 应抛出异常";
+    EXPECT_THROW(v_str.as<double>(), mc::invalid_arg_exception) << "字符串转 double 应抛出异常";
 
     variant v_null;
-    EXPECT_THROW(v_null.as<int>(), std::runtime_error) << "null 转 int 应抛出异常";
+    EXPECT_THROW(v_null.as<int>(), mc::invalid_arg_exception) << "null 转 int 应抛出异常";
 }
 
 /**

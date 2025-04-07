@@ -28,11 +28,8 @@ namespace mc::database {
 
 // 为方便使用，引入query命名空间中的关键类型
 using query::compare_op;
-using query::condition;
-using query::field;
 using query::index_metadata;
 using query::index_type;
-using query::logical_op;
 using query::make_field_accessor;
 using query::make_table_query;
 using query::query_builder;

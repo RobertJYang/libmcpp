@@ -22,6 +22,7 @@
 #include "test_variant_helpers.h"
 #include <gtest/gtest.h>
 #include <limits>
+#include <mc/exception.h>
 #include <mc/variant.h>
 #include <stdexcept>
 
@@ -49,15 +50,47 @@ TEST_F(VariantComparisonTest, VariantToVariantComparison) {
 
     // 不同类型但值相等的比较
     variant v3(42), v4(int64_t(42)); // int32_type vs int64_type
-    ASSERT_NE(v3, v4) << "不同类型的variant即使值相等也不应该相等";
+    ASSERT_EQ(v3, v4) << "不同类型的variant值相等就应该相等";
 
     // 浮点数类型比较
     variant v5(3.14), v6(3.14f); // double vs float->double
-    ASSERT_EQ(v5.as<float>(), v6) << "相同类型和值的浮点数variant应该相等";
+    ASSERT_EQ(v5, v6) << "相同类型和值的浮点数variant应该相等";
 
     // 字符串类型比较
     variant v7("test"), v8(std::string("test"));
     ASSERT_EQ(v7, v8) << "相同内容的字符串variant应该相等";
+}
+
+/**
+ * @brief 测试variant之间的比较(不同类型)
+ */
+TEST_F(VariantComparisonTest, VariantToVariantComparison_DifferentType) {
+    // 数值类型variant之间比较
+    variant v1(42);
+    variant v2(100);
+    variant v3(42.0);
+
+    EXPECT_TRUE(v1 < v2);
+    EXPECT_TRUE(v1 <= v2);
+    EXPECT_TRUE(v2 > v1);
+    EXPECT_TRUE(v2 >= v1);
+
+    // 相同值不同类型比较
+    EXPECT_TRUE(v1 == v3); // int和double，但值相等
+    EXPECT_FALSE(v1 != v3);
+
+    // 字符串variant之间比较
+    variant v4("hello");
+    variant v5("world");
+
+    EXPECT_TRUE(v4 < v5);
+    EXPECT_TRUE(v4 <= v5);
+    EXPECT_TRUE(v5 > v4);
+    EXPECT_TRUE(v5 >= v4);
+
+    // 不同类型variant之间比较
+    EXPECT_THROW({ bool result = v1 < v4; }, mc::invalid_op_exception);
+    EXPECT_THROW({ bool result = v4 < v1; }, mc::invalid_op_exception);
 }
 
 /**
@@ -111,28 +144,777 @@ TEST_F(VariantComparisonTest, VariantToOtherTypesComparison) {
     // 数组类型比较
     variants arr1 = {1, 2};
     variant  v1(arr1);
-    ASSERT_EQ(v1, arr1) << "variant应该可以与相同内容的数组比较";
+    ASSERT_EQ(v1, arr1);
 
     variants arr2 = {1, 2.0};
-    ASSERT_NE(v1, arr2) << "variant不应该与不同类型元素的数组相等";
+    ASSERT_EQ(v1, arr2);
+
+    variants arr3 = {1, 1};
+    ASSERT_GT(v1, arr3);
+
+    variants arr4 = {1, 3};
+    ASSERT_LT(v1, arr4);
 
     // 对象类型比较
-    mutable_dict dict1;
-    dict1["key"] = 42;
+    dict    dict1 = {{"key", 42}};
     variant v2(dict1);
-    ASSERT_EQ(v2, dict1) << "variant应该可以与相同内容的对象比较";
+    ASSERT_EQ(v2, dict1);
+    ASSERT_EQ(dict1, v2);
 
-    mutable_dict dict2;
-    dict2["key"] = 42.0;
-    ASSERT_NE(v2, dict2) << "variant不应该与不同类型值的对象相等";
+    mutable_dict dict2 = {{"key", 42.0}};
+    ASSERT_EQ(v2, dict2);
+    ASSERT_EQ(dict2, v2);
 
     // blob类型比较
     blob    b1{{1, 2, 3}};
     variant v3(b1);
-    ASSERT_EQ(v3, b1) << "variant应该可以与相同内容的blob比较";
+    ASSERT_EQ(v3, b1);
+    ASSERT_EQ(b1, v3);
 
     blob b2{{1, 2, 4}};
-    ASSERT_NE(v3, b2) << "variant不应该与不同内容的blob相等";
+    ASSERT_NE(v3, b2);
+    ASSERT_NE(b2, v3);
+}
+
+/**
+ * @brief 测试variant与整数类型的比较
+ */
+TEST_F(VariantComparisonTest, IntegerVariantComparison) {
+    // int8_t
+    variant v_int8(int8_t(42));
+    EXPECT_TRUE(v_int8 < int8_t(100));
+    EXPECT_TRUE(v_int8 <= int8_t(42));
+    EXPECT_TRUE(v_int8 > int8_t(10));
+    EXPECT_TRUE(v_int8 >= int8_t(42));
+    EXPECT_TRUE(int8_t(10) < v_int8);
+    EXPECT_TRUE(int8_t(42) <= v_int8);
+    EXPECT_TRUE(int8_t(100) > v_int8);
+    EXPECT_TRUE(int8_t(42) >= v_int8);
+
+    // int16_t
+    variant v_int16(int16_t(42));
+    EXPECT_TRUE(v_int16 < int16_t(100));
+    EXPECT_TRUE(v_int16 <= int16_t(42));
+    EXPECT_TRUE(v_int16 > int16_t(10));
+    EXPECT_TRUE(v_int16 >= int16_t(42));
+    EXPECT_TRUE(int16_t(10) < v_int16);
+    EXPECT_TRUE(int16_t(42) <= v_int16);
+    EXPECT_TRUE(int16_t(100) > v_int16);
+    EXPECT_TRUE(int16_t(42) >= v_int16);
+
+    // int32_t
+    variant v_int32(int32_t(42));
+    EXPECT_TRUE(v_int32 < int32_t(100));
+    EXPECT_TRUE(v_int32 <= int32_t(42));
+    EXPECT_TRUE(v_int32 > int32_t(10));
+    EXPECT_TRUE(v_int32 >= int32_t(42));
+    EXPECT_TRUE(int32_t(10) < v_int32);
+    EXPECT_TRUE(int32_t(42) <= v_int32);
+    EXPECT_TRUE(int32_t(100) > v_int32);
+    EXPECT_TRUE(int32_t(42) >= v_int32);
+
+    // int64_t
+    variant v_int64(int64_t(42));
+    EXPECT_TRUE(v_int64 < int64_t(100));
+    EXPECT_TRUE(v_int64 <= int64_t(42));
+    EXPECT_TRUE(v_int64 > int64_t(10));
+    EXPECT_TRUE(v_int64 >= int64_t(42));
+    EXPECT_TRUE(int64_t(10) < v_int64);
+    EXPECT_TRUE(int64_t(42) <= v_int64);
+    EXPECT_TRUE(int64_t(100) > v_int64);
+    EXPECT_TRUE(int64_t(42) >= v_int64);
+}
+
+/**
+ * @brief 测试variant与无符号整数类型的比较
+ */
+TEST_F(VariantComparisonTest, UnsignedIntegerVariantComparison) {
+    // uint8_t
+    variant v_uint8(uint8_t(42));
+    EXPECT_TRUE(v_uint8 < uint8_t(100));
+    EXPECT_TRUE(v_uint8 <= uint8_t(42));
+    EXPECT_TRUE(v_uint8 > uint8_t(10));
+    EXPECT_TRUE(v_uint8 >= uint8_t(42));
+    EXPECT_TRUE(uint8_t(10) < v_uint8);
+    EXPECT_TRUE(uint8_t(42) <= v_uint8);
+    EXPECT_TRUE(uint8_t(100) > v_uint8);
+    EXPECT_TRUE(uint8_t(42) >= v_uint8);
+
+    // uint16_t
+    variant v_uint16(uint16_t(42));
+    EXPECT_TRUE(v_uint16 < uint16_t(100));
+    EXPECT_TRUE(v_uint16 <= uint16_t(42));
+    EXPECT_TRUE(v_uint16 > uint16_t(10));
+    EXPECT_TRUE(v_uint16 >= uint16_t(42));
+    EXPECT_TRUE(uint16_t(10) < v_uint16);
+    EXPECT_TRUE(uint16_t(42) <= v_uint16);
+    EXPECT_TRUE(uint16_t(100) > v_uint16);
+    EXPECT_TRUE(uint16_t(42) >= v_uint16);
+
+    // uint32_t
+    variant v_uint32(uint32_t(42));
+    EXPECT_TRUE(v_uint32 < uint32_t(100));
+    EXPECT_TRUE(v_uint32 <= uint32_t(42));
+    EXPECT_TRUE(v_uint32 > uint32_t(10));
+    EXPECT_TRUE(v_uint32 >= uint32_t(42));
+    EXPECT_TRUE(uint32_t(10) < v_uint32);
+    EXPECT_TRUE(uint32_t(42) <= v_uint32);
+    EXPECT_TRUE(uint32_t(100) > v_uint32);
+    EXPECT_TRUE(uint32_t(42) >= v_uint32);
+
+    // uint64_t
+    variant v_uint64(uint64_t(42));
+    EXPECT_TRUE(v_uint64 < uint64_t(100));
+    EXPECT_TRUE(v_uint64 <= uint64_t(42));
+    EXPECT_TRUE(v_uint64 > uint64_t(10));
+    EXPECT_TRUE(v_uint64 >= uint64_t(42));
+    EXPECT_TRUE(uint64_t(10) < v_uint64);
+    EXPECT_TRUE(uint64_t(42) <= v_uint64);
+    EXPECT_TRUE(uint64_t(100) > v_uint64);
+    EXPECT_TRUE(uint64_t(42) >= v_uint64);
+}
+
+/**
+ * @brief 测试variant与浮点类型的比较
+ */
+TEST_F(VariantComparisonTest, FloatingPointVariantComparison) {
+    // float
+    variant v_float(3.14f);
+    EXPECT_TRUE(v_float < 4.0f);
+    EXPECT_TRUE(v_float <= 3.14f);
+    EXPECT_TRUE(v_float > 1.0f);
+    EXPECT_TRUE(v_float >= 3.14f);
+    EXPECT_TRUE(1.0f < v_float);
+    EXPECT_TRUE(3.14f <= v_float);
+    EXPECT_TRUE(4.0f > v_float);
+    EXPECT_TRUE(3.14f >= v_float);
+
+    // double
+    variant v_double(3.14159);
+    EXPECT_TRUE(v_double < 4.0);
+    EXPECT_TRUE(v_double <= 3.14159);
+    EXPECT_TRUE(v_double > 1.0);
+    EXPECT_TRUE(v_double >= 3.14159);
+    EXPECT_TRUE(1.0 < v_double);
+    EXPECT_TRUE(3.14159 <= v_double);
+    EXPECT_TRUE(4.0 > v_double);
+    EXPECT_TRUE(3.14159 >= v_double);
+}
+
+/**
+ * @brief 测试variant与字符串类型的比较
+ */
+TEST_F(VariantComparisonTest, StringVariantComparison) {
+    // 字符串字面量测试
+    variant v_str("hello");
+    EXPECT_TRUE(v_str < "world");
+    EXPECT_FALSE(v_str > "world");
+    EXPECT_TRUE(v_str <= "hello");
+    EXPECT_TRUE(v_str >= "hello");
+    EXPECT_TRUE(v_str > "abc");
+    EXPECT_TRUE(v_str >= "abc");
+
+    // const char*与variant比较
+    EXPECT_TRUE("abc" < v_str);
+    EXPECT_FALSE("world" < v_str);
+    EXPECT_TRUE("hello" <= v_str);
+    EXPECT_TRUE("hello" >= v_str);
+
+    // std::string测试
+    std::string str1 = "hello";
+    std::string str2 = "world";
+    std::string str3 = "abc";
+
+    EXPECT_TRUE(v_str < str2);
+    EXPECT_FALSE(v_str > str2);
+    EXPECT_TRUE(v_str <= str1);
+    EXPECT_TRUE(v_str >= str1);
+    EXPECT_TRUE(v_str > str3);
+    EXPECT_TRUE(v_str >= str3);
+
+    // std::string与variant比较
+    EXPECT_TRUE(str3 < v_str);
+    EXPECT_FALSE(str2 < v_str);
+    EXPECT_TRUE(str1 <= v_str);
+    EXPECT_TRUE(str1 >= v_str);
+
+    // 空字符串测试
+    variant v_empty("");
+    EXPECT_TRUE(v_empty < "a");
+    EXPECT_TRUE(v_empty <= "");
+    EXPECT_TRUE(v_empty >= "");
+    EXPECT_FALSE(v_empty > "");
+
+    // 特殊字符测试
+    variant v_special("123");
+    EXPECT_TRUE(v_special < "124");
+    EXPECT_TRUE(v_special > "122");
+    EXPECT_TRUE(v_special < "123a");
+
+    // 前缀相等时，还要比较字符串的长度
+
+    const char nullTermStr[] = "123\0";
+    EXPECT_TRUE(v_special < std::string(nullTermStr, 4));
+    EXPECT_TRUE(v_special == std::string(nullTermStr, 3));
+}
+
+/**
+ * @brief 测试变体和类型转换的异常情况
+ */
+TEST_F(VariantComparisonTest, TypecastExceptionTest) {
+    // 字符串与数值不能直接比较
+    variant v_str("hello");
+    variant v_num(42);
+
+    // 直接尝试比较应抛出异常
+    EXPECT_THROW({ bool result = v_str < 42; }, mc::invalid_op_exception);
+    EXPECT_THROW({ bool result = v_str > 42; }, mc::invalid_op_exception);
+    EXPECT_THROW({ bool result = v_str <= 42; }, mc::invalid_op_exception);
+    EXPECT_THROW({ bool result = v_str >= 42; }, mc::invalid_op_exception);
+
+    EXPECT_THROW({ bool result = 42 < v_str; }, mc::invalid_op_exception);
+    EXPECT_THROW({ bool result = 42 > v_str; }, mc::invalid_op_exception);
+    EXPECT_THROW({ bool result = 42 <= v_str; }, mc::invalid_op_exception);
+    EXPECT_THROW({ bool result = 42 >= v_str; }, mc::invalid_op_exception);
+}
+
+/**
+ * @brief 测试边界值情况
+ */
+TEST_F(VariantComparisonTest, BoundaryValueComparison) {
+    // 最大和最小整数值
+    variant v_max(std::numeric_limits<int64_t>::max());
+    variant v_min(std::numeric_limits<int64_t>::min());
+
+    // 与数字0的比较
+    EXPECT_TRUE(v_min < 0);
+    EXPECT_TRUE(v_max > 0);
+    EXPECT_TRUE(0 > v_min);
+    EXPECT_TRUE(0 < v_max);
+
+    // 浮点数边界
+    variant v_inf(std::numeric_limits<double>::infinity());
+    variant v_neginf(-std::numeric_limits<double>::infinity());
+    variant v_nan(std::numeric_limits<double>::quiet_NaN());
+
+    EXPECT_TRUE(v_neginf < 0.0);
+    EXPECT_TRUE(v_inf > 0.0);
+
+    // NaN比较测试
+    EXPECT_FALSE(v_nan < 0.0);
+    EXPECT_FALSE(v_nan > 0.0);
+
+    // 边界值相等测试
+    EXPECT_TRUE(variant(std::numeric_limits<int64_t>::max()) ==
+                std::numeric_limits<int64_t>::max());
+    EXPECT_TRUE(variant(std::numeric_limits<int64_t>::min()) ==
+                std::numeric_limits<int64_t>::min());
+    EXPECT_TRUE(variant(std::numeric_limits<uint64_t>::max()) ==
+                std::numeric_limits<uint64_t>::max());
+}
+
+/**
+ * @brief 测试不兼容类型抛出异常的情况
+ */
+TEST_F(VariantComparisonTest, IncompatibleTypesThrowException) {
+    // null类型与数值比较应抛出异常
+    variant v1(nullptr);
+    EXPECT_THROW({ bool result = v1 < 10; }, mc::invalid_op_exception);
+    EXPECT_THROW({ bool result = v1 > 10; }, mc::invalid_op_exception);
+    EXPECT_THROW({ bool result = v1 <= 10; }, mc::invalid_op_exception);
+    EXPECT_THROW({ bool result = v1 >= 10; }, mc::invalid_op_exception);
+
+    // 对象类型与数值比较应抛出异常
+    mutable_dict dict;
+    dict["key"] = 42;
+    variant v2(dict);
+    EXPECT_THROW({ bool result = v2 < 10; }, mc::invalid_op_exception);
+    EXPECT_THROW({ bool result = v2 > 10; }, mc::invalid_op_exception);
+    EXPECT_THROW({ bool result = v2 <= 10; }, mc::invalid_op_exception);
+    EXPECT_THROW({ bool result = v2 >= 10; }, mc::invalid_op_exception);
+
+    // 数组类型与数值比较应抛出异常
+    variants arr = {1, 2, 3};
+    variant  v3(arr);
+    EXPECT_THROW({ bool result = v3 < 10; }, mc::invalid_op_exception);
+    EXPECT_THROW({ bool result = v3 > 10; }, mc::invalid_op_exception);
+    EXPECT_THROW({ bool result = v3 <= 10; }, mc::invalid_op_exception);
+    EXPECT_THROW({ bool result = v3 >= 10; }, mc::invalid_op_exception);
+}
+
+/**
+ * @brief 测试异常信息中使用pretty_name
+ */
+TEST_F(VariantComparisonTest, ExceptionMessageUsesPrettyName) {
+    // 创建非数值类型的variant
+    variant v(nullptr);
+
+    try {
+        bool result = v < 10;
+        FAIL() << "应当抛出异常";
+    } catch (const mc::invalid_op_exception& e) {
+        std::string error_msg = e.what();
+        // 检查异常信息中是否包含操作符
+        EXPECT_TRUE(error_msg.find("<") != std::string::npos);
+        // 检查异常信息中是否包含类型名称
+        EXPECT_TRUE(error_msg.find("null") != std::string::npos);
+        EXPECT_TRUE(error_msg.find("int") != std::string::npos);
+    }
+
+    // 测试另一种操作符
+    try {
+        bool result = v > 10;
+        FAIL() << "应当抛出异常";
+    } catch (const mc::invalid_op_exception& e) {
+        std::string error_msg = e.what();
+        // 检查异常信息中是否包含操作符
+        EXPECT_TRUE(error_msg.find(">") != std::string::npos);
+    }
+}
+
+/**
+ * @brief 测试数值类型相等和不等操作符
+ */
+TEST_F(VariantComparisonTest, NumericEqualityOperators) {
+    // 整数相等性测试
+    variant v1(42);
+    EXPECT_TRUE(v1.as<int>() == 42);
+    EXPECT_FALSE(v1.as<int>() != 42);
+
+    // 浮点数相等性测试
+    variant v2(3.14159);
+    EXPECT_TRUE(v2.as<double>() == 3.14159);
+    EXPECT_FALSE(v2.as<double>() != 3.14159);
+
+    // 不同整数类型的比较
+    EXPECT_TRUE(variant(42) == int8_t(42));
+    EXPECT_TRUE(variant(42) == int16_t(42));
+    EXPECT_TRUE(variant(42) == int32_t(42));
+    EXPECT_TRUE(variant(42) == int64_t(42));
+    EXPECT_TRUE(variant(42) == uint8_t(42));
+    EXPECT_TRUE(variant(42) == uint16_t(42));
+    EXPECT_TRUE(variant(42) == uint32_t(42));
+    EXPECT_TRUE(variant(42) == uint64_t(42));
+
+    // 整数和浮点数比较
+    EXPECT_TRUE(variant(42) == 42.0);
+    EXPECT_TRUE(variant(42.0) == 42);
+}
+
+/**
+ * @brief 测试字符串类型相等和不等操作符
+ */
+TEST_F(VariantComparisonTest, StringEqualityOperators) {
+    // 字符串相等性测试
+    variant v3("hello");
+    EXPECT_TRUE(v3.as<std::string>() == "hello");
+    EXPECT_FALSE(v3.as<std::string>() != "hello");
+
+    std::string str = "hello";
+    EXPECT_TRUE(v3.as<std::string>() == str);
+    EXPECT_FALSE(v3.as<std::string>() != str);
+}
+
+/**
+ * @brief 测试跨类型数值比较
+ */
+TEST_F(VariantComparisonTest, CrossTypeNumericComparison) {
+    // 有符号与无符号整数比较
+    variant v_int(int64_t(-1));
+    variant v_uint(uint64_t(1));
+
+    EXPECT_TRUE(v_int < v_uint);
+    EXPECT_TRUE(v_uint > v_int);
+
+    // 整数与浮点数比较
+    variant v_int2(42);
+    variant v_float(42.5);
+
+    EXPECT_TRUE(v_int2 < v_float);
+    EXPECT_TRUE(v_float > v_int2);
+
+    // 不同位宽整数比较
+    variant v_int8(int8_t(100));
+    variant v_int32(int32_t(1000));
+
+    EXPECT_TRUE(v_int8 < v_int32);
+    EXPECT_TRUE(v_int32 > v_int8);
+}
+
+/**
+ * @brief 测试bool类型比较
+ */
+TEST_F(VariantComparisonTest, BooleanComparison) {
+    variant v_true(true);
+    variant v_false(false);
+
+    EXPECT_TRUE(v_false < v_true);
+    EXPECT_TRUE(v_true > v_false);
+    EXPECT_TRUE(v_true >= v_true);
+    EXPECT_TRUE(v_false <= v_false);
+
+    // bool与数值比较
+    EXPECT_TRUE(v_false < 1);
+    EXPECT_TRUE(v_true == 1);
+    EXPECT_TRUE(v_false == 0);
+    EXPECT_TRUE(1 == v_true);
+    EXPECT_TRUE(0 == v_false);
+}
+
+/**
+ * @brief 测试variant与字符类型比较
+ */
+TEST_F(VariantComparisonTest, CharacterComparison) {
+    variant v_char('A');
+
+    EXPECT_TRUE(v_char < 'B');
+    EXPECT_TRUE(v_char > '@');
+    EXPECT_TRUE(v_char == 65); // ASCII值比较
+    EXPECT_TRUE(65 == v_char);
+
+    // 字符与字符串比较应当抛出异常
+    EXPECT_THROW({ bool result = v_char < "A"; }, mc::invalid_op_exception);
+}
+
+/**
+ * @brief 测试variant与string_view的比较
+ */
+TEST_F(VariantComparisonTest, StringViewComparison) {
+    std::string_view sv1 = "hello";
+    std::string_view sv2 = "world";
+    std::string_view sv3 = "abc";
+    
+    variant v_str("hello");
+    
+    // 直接比较
+    EXPECT_TRUE(v_str == sv1);
+    EXPECT_FALSE(v_str == sv2);
+    EXPECT_TRUE(v_str != sv2);
+    EXPECT_TRUE(v_str < sv2);
+    EXPECT_TRUE(v_str <= sv1);
+    EXPECT_TRUE(v_str > sv3);
+    EXPECT_TRUE(v_str >= sv1);
+    
+    // 反向比较
+    EXPECT_TRUE(sv1 == v_str);
+    EXPECT_FALSE(sv2 == v_str);
+    EXPECT_TRUE(sv2 != v_str);
+    EXPECT_TRUE(sv2 > v_str);
+    EXPECT_TRUE(sv1 >= v_str);
+    EXPECT_TRUE(sv3 < v_str);
+    EXPECT_TRUE(sv1 <= v_str);
+    
+    // 空视图测试
+    std::string_view empty_sv;
+    variant v_empty("");
+    
+    EXPECT_TRUE(v_empty == empty_sv);
+    EXPECT_TRUE(empty_sv == v_empty);
+    EXPECT_FALSE(v_str == empty_sv);
+    EXPECT_TRUE(v_empty < sv1);
+    EXPECT_TRUE(empty_sv < v_str);
+}
+
+/**
+ * @brief 测试复杂嵌套结构的比较
+ */
+TEST_F(VariantComparisonTest, ComplexNestedStructureComparison) {
+    // 创建深度嵌套的结构
+    mutable_dict level3_1 = {{"name", "inner"}, {"value", 42}};
+    mutable_dict level3_2 = {{"name", "inner"}, {"value", 43}};
+    
+    mutable_dict level2_1 = {{"data", level3_1}, {"index", 1}};
+    mutable_dict level2_2 = {{"data", level3_2}, {"index", 1}};
+    
+    mutable_dict level1_1 = {{"nested", level2_1}, {"top", true}};
+    mutable_dict level1_2 = {{"nested", level2_2}, {"top", true}};
+    
+    variant v1(level1_1);
+    variant v2(level1_2);
+    
+    // 由于内部值不同，两个variant应该不相等
+    EXPECT_NE(v1, v2);
+    
+    // 使结构完全相同
+    level3_2["value"] = 42;
+    variant v3(level1_2);
+    EXPECT_EQ(v1, v3);
+    
+    // 测试包含数组的嵌套结构
+    variants arr1 = {1, "string", level3_1};
+    variants arr2 = {1, "string", level3_2};
+    
+    level1_1["array"] = arr1;
+    level1_2["array"] = arr2;
+    
+    variant v4(level1_1);
+    variant v5(level1_2);
+    EXPECT_EQ(v4, v5);
+    
+    // 修改内部数组，测试比较结果
+    arr2[1] = "different";
+    level1_2["array"] = arr2;
+    variant v6(level1_2);
+    EXPECT_NE(v4, v6);
+}
+
+/**
+ * @brief 测试特殊字符串比较
+ */
+TEST_F(VariantComparisonTest, SpecialStringComparison) {
+    // 包含特殊字符的字符串
+    std::string special_chars = "Special chars: \n\t\r\b\f\\\"\'";
+    variant v_special(special_chars);
+    EXPECT_EQ(v_special, special_chars);
+    
+    // 包含二进制零的字符串
+    const char bin_zero[] = "binary\0zero";
+    std::string bin_zero_str(bin_zero, sizeof(bin_zero) - 1);
+    variant v_bin_zero(bin_zero_str);
+    EXPECT_EQ(v_bin_zero, bin_zero_str);
+    
+    // 非常长的字符串
+    std::string long_string(10000, 'a');
+    variant v_long(long_string);
+    EXPECT_EQ(v_long, long_string);
+    
+    // Unicode字符串
+    std::string unicode = "Unicode: 中文 Русский नमस्ते";
+    variant v_unicode(unicode);
+    EXPECT_EQ(v_unicode, unicode);
+    EXPECT_TRUE(v_unicode < unicode + "a");
+    EXPECT_TRUE(v_unicode > unicode.substr(0, unicode.size() - 1));
+}
+
+/**
+ * @brief 测试字符类型在比较中的自动升级
+ */
+TEST_F(VariantComparisonTest, CharacterUpgradeInComparison) {
+    variant v_char('A');
+    
+    // 与数字比较
+    EXPECT_TRUE(v_char == 65);
+    EXPECT_TRUE(65 == v_char);
+    EXPECT_TRUE(v_char < 66);
+    EXPECT_TRUE(64 < v_char);
+    
+    // 与其他字符比较
+    EXPECT_TRUE(v_char < 'B');
+    EXPECT_TRUE('Z' > v_char);
+    
+    // 与不同类型的数值比较
+    EXPECT_TRUE(v_char == int8_t(65));
+    EXPECT_TRUE(v_char == uint8_t(65));
+    EXPECT_TRUE(v_char == int16_t(65));
+    EXPECT_TRUE(v_char == uint16_t(65));
+    EXPECT_TRUE(v_char == int32_t(65));
+    EXPECT_TRUE(v_char == uint32_t(65));
+    EXPECT_TRUE(v_char == int64_t(65));
+    EXPECT_TRUE(v_char == uint64_t(65));
+    
+    // 与浮点数比较
+    EXPECT_TRUE(v_char == 65.0f);
+    EXPECT_TRUE(v_char == 65.0);
+    
+    // 异常情况
+    EXPECT_THROW({ bool result = v_char < "A"; }, mc::invalid_op_exception);
+    EXPECT_THROW({ bool result = v_char > "Z"; }, mc::invalid_op_exception);
+}
+
+/**
+ * @brief 扩展dict和mutable_dict比较测试
+ */
+TEST_F(VariantComparisonTest, DictComparisonExtended) {
+    // 创建具有相同键值的dict和mutable_dict
+    dict dict1 = {{"key1", 1}, {"key2", "value"}, {"key3", true}};
+    mutable_dict mdict1 = {{"key1", 1}, {"key2", "value"}, {"key3", true}};
+    
+    variant v_dict(dict1);
+    
+    // 测试dict和mutable_dict之间的相等性
+    EXPECT_TRUE(v_dict == dict1);
+    EXPECT_TRUE(v_dict == mdict1);
+    EXPECT_TRUE(dict1 == v_dict);
+    EXPECT_TRUE(mdict1 == v_dict);
+    
+    // 修改mutable_dict并测试
+    mdict1["key1"] = 2;
+    EXPECT_FALSE(v_dict == mdict1);
+    
+    // 测试键顺序不同的字典
+    dict dict2 = {{"key3", true}, {"key1", 1}, {"key2", "value"}};
+    EXPECT_TRUE(v_dict == dict2); // 键的顺序不应该影响相等性
+    
+    // 测试嵌套字典
+    dict nested1 = {{"inner", dict1}};
+    dict nested2 = {{"inner", dict2}};
+    
+    variant v_nested1(nested1);
+    variant v_nested2(nested2);
+    
+    EXPECT_TRUE(v_nested1 == v_nested2);
+    
+    // 与数值类型比较时应抛出异常
+    variant v_number(42);
+    EXPECT_THROW({ bool result = v_dict < v_number; }, mc::invalid_op_exception);
+    EXPECT_THROW({ bool result = v_dict > v_number; }, mc::invalid_op_exception);
+    EXPECT_THROW({ bool result = v_dict <= v_number; }, mc::invalid_op_exception);
+    EXPECT_THROW({ bool result = v_dict >= v_number; }, mc::invalid_op_exception);
+    EXPECT_FALSE(v_dict == v_number);
+    EXPECT_TRUE(v_dict != v_number);
+}
+
+/**
+ * @brief 测试NaN值的比较行为
+ * 
+ * 注意：C++标准对NaN的比较定义如下：
+ * 1. NaN与任何值（包括它自己）比较（<, >, <=, >=）都返回false
+ * 2. NaN与任何值（包括它自己）相等比较（==）返回false
+ * 3. NaN与任何值（包括它自己）不等比较（!=）返回true
+ */
+TEST_F(VariantComparisonTest, NaNComparisonBehavior) {
+    double nan_value = std::numeric_limits<double>::quiet_NaN();
+    variant v_nan(nan_value);
+    variant v_number(42.0);
+    
+    // NaN与普通数值比较 - variant < 值
+    EXPECT_FALSE(v_nan < v_number);
+    EXPECT_FALSE(v_nan > v_number);
+    EXPECT_FALSE(v_nan <= v_number);
+    EXPECT_FALSE(v_nan >= v_number);
+    EXPECT_FALSE(v_nan == v_number);
+    EXPECT_TRUE(v_nan != v_number);
+    
+    // NaN与NaN比较 - variant == variant
+    variant v_nan2(nan_value);
+    EXPECT_FALSE(v_nan == v_nan2);
+    EXPECT_TRUE(v_nan != v_nan2);
+    EXPECT_FALSE(v_nan < v_nan2);
+    EXPECT_FALSE(v_nan > v_nan2);
+    EXPECT_FALSE(v_nan <= v_nan2);
+    EXPECT_FALSE(v_nan >= v_nan2);
+    
+    // 与常量直接比较 - variant op 常量
+    EXPECT_FALSE(v_nan < 0.0);
+    EXPECT_FALSE(v_nan > 0.0);
+    EXPECT_FALSE(v_nan <= 0.0);
+    EXPECT_FALSE(v_nan >= 0.0);
+    EXPECT_FALSE(v_nan == 0.0);
+    EXPECT_TRUE(v_nan != 0.0);
+}
+
+/**
+ * @brief 测试NaN值的友元比较函数
+ */
+TEST_F(VariantComparisonTest, NaNFriendComparisonOperators) {
+    double nan_value = std::numeric_limits<double>::quiet_NaN();
+    variant v_nan(nan_value);
+    
+    // 常量在左侧的比较 - 常量 op variant
+    EXPECT_FALSE(0.0 < v_nan);
+    EXPECT_FALSE(0.0 > v_nan);
+    EXPECT_FALSE(0.0 <= v_nan);
+    EXPECT_FALSE(0.0 >= v_nan);
+    EXPECT_FALSE(0.0 == v_nan);
+    EXPECT_TRUE(0.0 != v_nan);
+    
+    // 不同类型的数值与NaN比较
+    EXPECT_FALSE(42 < v_nan);
+    EXPECT_FALSE(42 > v_nan);
+    EXPECT_FALSE(42 <= v_nan);
+    EXPECT_FALSE(42 >= v_nan);
+    EXPECT_FALSE(42 == v_nan);
+    EXPECT_TRUE(42 != v_nan);
+    
+    // 浮点类型的NaN与variant比较
+    EXPECT_FALSE(nan_value < v_nan);
+    EXPECT_FALSE(nan_value > v_nan);
+    EXPECT_FALSE(nan_value <= v_nan);
+    EXPECT_FALSE(nan_value >= v_nan);
+    EXPECT_FALSE(nan_value == v_nan);
+    EXPECT_TRUE(nan_value != v_nan);
+}
+
+/**
+ * @brief 测试blob与其他类型的比较
+ */
+TEST_F(VariantComparisonTest, BlobComparisonOperators) {
+    // 创建不同的blob对象
+    blob b1{{1, 2, 3}};
+    blob b2{{1, 2, 4}};
+    blob b3{{1, 2, 3, 4}};
+    blob b4{{1, 2}};
+    
+    variant v_blob1(b1);
+    
+    // blob与blob比较
+    EXPECT_TRUE(v_blob1 == b1);
+    EXPECT_FALSE(v_blob1 == b2);
+    EXPECT_TRUE(v_blob1 != b2);
+    
+    // blob的大小比较
+    EXPECT_TRUE(v_blob1 < b2);  // 相同长度，但内容小
+    EXPECT_TRUE(v_blob1 < b3);  // 长度更短
+    EXPECT_TRUE(v_blob1 > b4);  // 长度更长
+    EXPECT_TRUE(v_blob1 <= b1); // 相等
+    EXPECT_TRUE(v_blob1 <= b2); // 小于
+    EXPECT_TRUE(v_blob1 >= b1); // 相等
+    EXPECT_TRUE(v_blob1 >= b4); // 大于
+    
+    // 比较不同长度
+    variant v_blob3(b3);
+    variant v_blob4(b4);
+    EXPECT_TRUE(v_blob1 < v_blob3);
+    EXPECT_TRUE(v_blob1 > v_blob4);
+    
+    // 比较相同长度不同内容
+    variant v_blob2(b2);
+    EXPECT_TRUE(v_blob1 < v_blob2);
+    EXPECT_TRUE(v_blob2 > v_blob1);
+    
+    // 与字符串比较
+    std::string str1 = "\x01\x02\x03";
+    EXPECT_TRUE(v_blob1 == str1);
+    EXPECT_TRUE(str1 == v_blob1);
+    
+    std::string str2 = "\x01\x02\x04";
+    EXPECT_TRUE(v_blob1 < str2);
+    EXPECT_TRUE(str2 > v_blob1);
+}
+
+/**
+ * @brief 测试blob的友元比较函数
+ */
+TEST_F(VariantComparisonTest, BlobFriendComparisonOperators) {
+    blob b1{{1, 2, 3}};
+    blob b2{{1, 2, 4}};
+    
+    variant v_blob1(b1);
+    
+    // blob在左边的比较
+    EXPECT_TRUE(b1 == v_blob1);
+    EXPECT_FALSE(b2 == v_blob1);
+    EXPECT_TRUE(b2 != v_blob1);
+    
+    // blob的大小比较 - blob op variant
+    EXPECT_TRUE(b1 <= v_blob1);
+    EXPECT_TRUE(b1 >= v_blob1);
+    EXPECT_FALSE(b1 < v_blob1);
+    EXPECT_FALSE(b1 > v_blob1);
+    
+    EXPECT_TRUE(b2 > v_blob1);
+    EXPECT_TRUE(b2 >= v_blob1);
+    EXPECT_FALSE(b2 < v_blob1);
+    EXPECT_FALSE(b2 <= v_blob1);
+    
+    // 与其他variant比较
+    variant v_int(42);
+    EXPECT_THROW({ bool result = b1 < v_int; }, mc::invalid_op_exception);
+    EXPECT_THROW({ bool result = b1 > v_int; }, mc::invalid_op_exception);
+    EXPECT_THROW({ bool result = b1 <= v_int; }, mc::invalid_op_exception);
+    EXPECT_THROW({ bool result = b1 >= v_int; }, mc::invalid_op_exception);
+    EXPECT_FALSE(b1 == v_int);
+    EXPECT_TRUE(b1 != v_int);
 }
 
 } // namespace test

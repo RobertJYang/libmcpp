@@ -101,107 +101,6 @@ using user_table = mdb::table<
         mdb::ordered_unique<mdb::member<test_user, uint32_t, &test_user::get_id_add_age>,
                             by_id_add_age>>>;
 
-// 测试条件创建和评估
-TEST(query_test, condition_creation) {
-    // 创建等值条件
-    auto eq_cond = mdb::condition::eq("age", 25);
-    EXPECT_EQ(eq_cond.get_field(), "age");
-    EXPECT_EQ(eq_cond.get_op(), mdb::compare_op::eq);
-    EXPECT_EQ(eq_cond.get_value(), 25);
-
-    // 创建范围条件
-    auto gt_cond = mdb::condition::gt("age", 30);
-    EXPECT_EQ(gt_cond.get_field(), "age");
-    EXPECT_EQ(gt_cond.get_op(), mdb::compare_op::gt);
-    EXPECT_EQ(gt_cond.get_value(), 30);
-
-    // 创建IN条件
-    std::vector<mc::variant> cities  = {"北京", "上海"};
-    auto                     in_cond = mdb::condition::in("city", cities);
-    EXPECT_EQ(in_cond.get_field(), "city");
-    EXPECT_EQ(in_cond.get_op(), mdb::compare_op::in);
-    EXPECT_TRUE(in_cond.get_value().is_array());
-
-    // 创建BETWEEN条件
-    auto between_cond = mdb::condition::between("age", 20, 30);
-    EXPECT_EQ(between_cond.get_field(), "age");
-    EXPECT_EQ(between_cond.get_op(), mdb::compare_op::between);
-    EXPECT_TRUE(between_cond.get_value().is_dict());
-}
-
-// 测试查询构建器
-TEST(query_test, query_builder) {
-    // 创建查询构建器
-    mdb::query_builder qb;
-
-    // 添加条件
-    qb.where("age", mdb::compare_op::gt, 25).where("city", mdb::compare_op::eq, "北京");
-
-    // 验证构建的字典查询
-    auto dict = qb.build_dict();
-    EXPECT_EQ(dict.size(), 1); // 目前只支持等值条件
-    EXPECT_EQ(dict.at("city"), "北京");
-
-    // 清空构建器
-    qb.clear();
-
-    // 使用IN条件
-    std::vector<mc::variant> cities = {"北京", "上海"};
-    qb.where_in("city", cities);
-
-    // 模拟数据
-    std::vector<mc::mutable_dict> test_data = {
-        {{"id", 1}, {"name", "张三"}, {"age", 25}, {"city", "北京"}},
-        {{"id", 2}, {"name", "李四"}, {"age", 30}, {"city", "上海"}},
-        {{"id", 3}, {"name", "王五"}, {"age", 25}, {"city", "广州"}},
-        {{"id", 4}, {"name", "赵六"}, {"age", 35}, {"city", "深圳"}},
-        {{"id", 5}, {"name", "钱七"}, {"age", 40}, {"city", "北京"}}};
-
-    // 测试eval函数评估
-    int  matches = 0;
-    auto eval_fn = [](const mc::dict& user, std::string_view field) -> mc::variant {
-        std::string key(field);
-        if (user.contains(key)) {
-            return user.at(key);
-        }
-        return mc::variant();
-    };
-
-    // 手动评估查询
-    for (auto& user : test_data) {
-        if (qb.eval<const mc::dict&>(user, eval_fn)) {
-            matches++;
-        }
-    }
-
-    EXPECT_EQ(matches, 3); // 北京和上海共3人
-}
-
-// 测试条件直接评估
-TEST(query_test, condition_evaluation) {
-    // 创建等值条件
-    auto eq_cond = mdb::condition::eq("city", "北京");
-
-    // 创建测试数据
-    mc::variant beijing_value("北京");
-    mc::variant shanghai_value("上海");
-
-    // 测试评估
-    EXPECT_TRUE(eq_cond.eval(beijing_value));
-    EXPECT_FALSE(eq_cond.eval(shanghai_value));
-
-    // 创建数值条件
-    auto gt_cond = mdb::condition::gt("age", 30);
-
-    // 创建测试数据
-    mc::variant age_25(25);
-    mc::variant age_35(35);
-
-    // 测试评估
-    EXPECT_FALSE(gt_cond.eval(age_25));
-    EXPECT_TRUE(gt_cond.eval(age_35));
-}
-
 // 测试表查询功能
 class table_query_test : public ::testing::Test {
 protected:
@@ -233,98 +132,6 @@ protected:
     user_table                   users;
     mdb::table_query<user_table> m_query_helper;
 };
-
-// 测试简单条件查询
-TEST_F(table_query_test, simple_condition_query) {
-    // 创建查询：年龄 > 30
-    {
-        mdb::query_builder qb;
-        qb.where("age", mdb::compare_op::gt, 30);
-        auto user_ids = query_users(qb);
-
-        std::sort(user_ids.begin(), user_ids.end());
-        ASSERT_EQ(user_ids.size(), 2);
-        EXPECT_EQ(user_ids[0], 4); // 赵六 (35岁)
-        EXPECT_EQ(user_ids[1], 5); // 钱七 (40岁)
-    }
-
-    // 创建查询：年龄 >= 30 AND 年龄 <= 40
-    {
-        mdb::query_builder qb;
-        qb.where("age", mdb::compare_op::ge, 30).where("age", mdb::compare_op::le, 40);
-        auto user_ids = query_users(qb);
-
-        std::sort(user_ids.begin(), user_ids.end());
-        ASSERT_EQ(user_ids.size(), 3);
-        EXPECT_EQ(user_ids[0], 2); // 李四 (30岁)
-        EXPECT_EQ(user_ids[1], 4); // 赵六 (35岁)
-        EXPECT_EQ(user_ids[2], 5); // 钱七 (40岁)
-    }
-
-    // 创建查询：年龄 >= 30 AND 年龄 < 40
-    {
-        mdb::query_builder qb;
-        qb.where("age", mdb::compare_op::ge, 30).where("age", mdb::compare_op::lt, 40);
-        auto user_ids = query_users(qb);
-
-        std::sort(user_ids.begin(), user_ids.end());
-        ASSERT_EQ(user_ids.size(), 2);
-        EXPECT_EQ(user_ids[0], 2); // 李四 (30岁)
-        EXPECT_EQ(user_ids[1], 4); // 赵六 (35岁)
-    }
-
-    // 创建查询：年龄 > 30 AND 年龄 <= 40
-    {
-        mdb::query_builder qb;
-        qb.where("age", mdb::compare_op::gt, 30).where("age", mdb::compare_op::le, 40);
-        auto user_ids = query_users(qb);
-
-        std::sort(user_ids.begin(), user_ids.end());
-        ASSERT_EQ(user_ids.size(), 2);
-        EXPECT_EQ(user_ids[0], 4); // 赵六 (35岁)
-        EXPECT_EQ(user_ids[1], 5); // 钱七 (40岁)
-    }
-
-    // 创建查询：年龄 > 30 AND 年龄 < 40
-    {
-        mdb::query_builder qb;
-        qb.where("age", mdb::compare_op::gt, 30).where("age", mdb::compare_op::lt, 40);
-        auto user_ids = query_users(qb);
-
-        std::sort(user_ids.begin(), user_ids.end());
-        ASSERT_EQ(user_ids.size(), 1);
-        EXPECT_EQ(user_ids[0], 4); // 赵六 (35岁)
-    }
-
-    // 创建查询：年龄 < 40
-    {
-        mdb::query_builder qb;
-        qb.where("age", mdb::compare_op::lt, 40);
-        auto user_ids = query_users(qb);
-
-        std::sort(user_ids.begin(), user_ids.end());
-        ASSERT_EQ(user_ids.size(), 4);
-        EXPECT_EQ(user_ids[0], 1); // 张三 (25岁)
-        EXPECT_EQ(user_ids[1], 2); // 王五 (25岁)
-        EXPECT_EQ(user_ids[2], 3); // 李四 (30岁)
-        EXPECT_EQ(user_ids[3], 4); // 赵六 (35岁)
-    }
-
-    // 创建查询：年龄 <= 40
-    {
-        mdb::query_builder qb;
-        qb.where("age", mdb::compare_op::le, 40);
-        auto user_ids = query_users(qb);
-
-        std::sort(user_ids.begin(), user_ids.end());
-        ASSERT_EQ(user_ids.size(), 5);
-        EXPECT_EQ(user_ids[0], 1); // 张三 (25岁)
-        EXPECT_EQ(user_ids[1], 2); // 王五 (25岁)
-        EXPECT_EQ(user_ids[2], 3); // 李四 (30岁)
-        EXPECT_EQ(user_ids[3], 4); // 赵六 (35岁)
-        EXPECT_EQ(user_ids[4], 5); // 钱七 (40岁)
-    }
-}
 
 // // 测试复合条件查询
 // TEST_F(table_query_test, complex_condition_query) {
@@ -364,7 +171,7 @@ TEST_F(table_query_test, simple_condition_query) {
 //     }
 // }
 
-// // 测试IN条件查询
+// // // 测试IN条件查询
 // TEST_F(table_query_test, in_condition_query) {
 //     // 创建查询：城市 IN ["北京", "上海"]
 //     mdb::query_builder       qb;
