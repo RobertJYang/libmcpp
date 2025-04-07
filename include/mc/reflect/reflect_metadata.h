@@ -168,9 +168,10 @@ private:
  * @return reflection_metadata<T>& 元数据引用
  */
 template <typename T>
-reflection_metadata<T>& get_metadata() {
-    static_assert(is_reflectable<T>(), "类型必须支持反射才能使用get_metadata");
-    return reflection_metadata<T>::instance();
+reflection_metadata<std::remove_cv_t<std::remove_reference_t<T>>>& get_metadata() {
+    using clean_type = std::remove_cv_t<std::remove_reference_t<T>>;
+    static_assert(is_reflectable<clean_type>(), "类型必须支持反射才能使用get_metadata");
+    return reflection_metadata<clean_type>::instance();
 }
 
 /**
@@ -182,7 +183,8 @@ reflection_metadata<T>& get_metadata() {
  */
 template <typename T>
 std::string_view get_member_name_by_offset(size_t offset) {
-    return get_metadata<T>().get_member_name(offset);
+    using clean_type = std::remove_cv_t<std::remove_reference_t<T>>;
+    return get_metadata<clean_type>().get_member_name(offset);
 }
 
 /**
@@ -195,8 +197,9 @@ std::string_view get_member_name_by_offset(size_t offset) {
  */
 template <typename T, typename M>
 std::string_view get_member_name(M T::* member) {
-    size_t offset = MC_MEMBER_OFFSETOF(member);
-    return get_member_name_by_offset<T>(offset);
+    using clean_type = std::remove_cv_t<std::remove_reference_t<T>>;
+    size_t offset    = MC_MEMBER_OFFSETOF(member);
+    return get_member_name_by_offset<clean_type>(offset);
 }
 
 } // namespace reflect

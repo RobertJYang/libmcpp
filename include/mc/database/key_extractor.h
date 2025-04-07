@@ -80,7 +80,11 @@ public:
     }
 
     void append_variant(mdb_key& key, const mc::variant& value) const {
-        key.append_value(value.as<key_type>());
+        using non_ref_type   = typename std::remove_reference<key_type>::type;
+        using non_const_type = typename std::remove_const<non_ref_type>::type;
+        non_const_type temp;
+        from_variant(value, temp);
+        key.append_value(temp);
     }
 
     /**
@@ -139,7 +143,11 @@ public:
     }
 
     void append_variant(mdb_key& key, const mc::variant& value) const {
-        key.append_value(value.as<key_type>());
+        using non_ref_type   = typename std::remove_reference<key_type>::type;
+        using non_const_type = typename std::remove_const<non_ref_type>::type;
+        non_const_type temp;
+        from_variant(value, temp);
+        key.append_value(temp);
     }
 
     /**
@@ -201,7 +209,11 @@ public:
     }
 
     void append_variant(mdb_key& key, const mc::variant& value) const {
-        key.append_value(value.as<key_type>());
+        using non_ref_type   = typename std::remove_reference<key_type>::type;
+        using non_const_type = typename std::remove_const<non_ref_type>::type;
+        non_const_type temp;
+        from_variant(value, temp);
+        key.append_value(temp);
     }
 
     /**
@@ -298,17 +310,14 @@ private:
 
     template <size_t I>
     void append_variant_impl(mdb_key& key, const mc::variant& value) const {
-        if constexpr (I >= sizeof...(Extractors)) {
-            return;
+        if constexpr (I < sizeof...(Extractors)) {
+            if (I < value.size()) {
+                std::get<I>(m_extractors).append_variant(key, value[I]);
+                append_variant_impl<I + 1>(key, value);
+            }
         }
-
-        if (value.size() >= I) {
-            return;
-        }
-
-        std::get<I>(m_extractors).append_variant(key, value[I]);
-        append_variant_impl<I + 1>(key, value);
     }
+
 
     /**
      * 实现提取组合键并添加到键缓冲区
@@ -487,7 +496,11 @@ public:
     }
 
     void append_variant(mdb_key& key, const mc::variant& value) const {
-        key.append_value(value.as<key_type>());
+        using non_ref_type   = typename std::remove_reference<key_type>::type;
+        using non_const_type = typename std::remove_const<non_ref_type>::type;
+        non_const_type temp;
+        from_variant(value, temp);
+        key.append_value(temp);
     }
 
     /**

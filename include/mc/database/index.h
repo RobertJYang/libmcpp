@@ -42,6 +42,8 @@ public:
     using tree_type       = mc::im::radix_tree<tree_config>;
     using raw_iterator    = typename tree_type::iterator;
 
+    virtual ~index_base() = default;
+
     virtual raw_iterator raw_begin() const = 0;
 
     raw_iterator raw_end() const {
@@ -176,7 +178,7 @@ public:
         auto new_key = m_key1.key();
 
         if (old_key != new_key) {
-            auto old = m_txn->remove(old_key, &old_obj);
+            auto old = m_txn->remove(old_key);
             if (!old.has_value()) {
                 MC_THROW(mc::invalid_arg_exception, "源索引不存在: ${key}", ("key", old_key));
                 return false;

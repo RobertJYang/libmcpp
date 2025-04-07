@@ -28,9 +28,11 @@ namespace mc::reflect {
  * @param key 属性名
  * @return 返回 mc::variant
  */
-template <typename T, typename = std::enable_if_t<is_reflectable<T>()>>
+template <typename T, typename = std::enable_if_t<
+                          is_reflectable<std::remove_cv_t<std::remove_reference_t<T>>>()>>
 mc::variant get_property(const T& obj, std::string_view key) {
-    return get_metadata<T>().get_property(obj, key);
+    using clean_type = std::remove_cv_t<std::remove_reference_t<T>>;
+    return get_metadata<clean_type>().get_property(obj, key);
 }
 
 /**
@@ -41,10 +43,12 @@ mc::variant get_property(const T& obj, std::string_view key) {
  * @param value 属性值
  * @return 设置是否成功
  */
-template <typename T, typename = std::enable_if_t<is_reflectable<T>()>>
+template <typename T, typename = std::enable_if_t<
+                          is_reflectable<std::remove_cv_t<std::remove_reference_t<T>>>()>>
 bool set_property(T& obj, std::string_view key, const mc::variant& value) {
+    using clean_type = std::remove_cv_t<std::remove_reference_t<T>>;
     try {
-        return get_metadata<T>().set_property(obj, key, value);
+        return get_metadata<clean_type>().set_property(obj, key, value);
     } catch (const std::exception& e) {
         return false;
     }
