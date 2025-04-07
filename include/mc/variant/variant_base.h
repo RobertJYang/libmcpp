@@ -1263,6 +1263,30 @@ public:
     }
 
     /**
+     * @brief 获取字符串类型
+     * @return 字符串引用
+     * @throw std::bad_cast 如果类型不匹配
+     */
+    const std::string& get_string() const {
+        if (m_type != type_id::string_type) {
+            throw_type_error("string", m_type);
+        }
+        return *m_string_ptr;
+    }
+
+    /**
+     * @brief 获取blob类型
+     * @return blob引用
+     * @throw std::bad_cast 如果类型不匹配
+     */
+    const blob_type& get_blob() const {
+        if (m_type != type_id::blob_type) {
+            throw_type_error("blob", m_type);
+        }
+        return *m_blob_ptr;
+    }
+
+    /**
      * @brief 获取数组类型
      * @return 数组引用
      * @throw std::bad_cast 如果类型不匹配
@@ -1620,6 +1644,80 @@ public:
     }
     friend bool operator!=(const dict& val, const variant_base& var) {
         return !(var.operator==(val));
+    }
+
+    /**
+     * @brief 将 variant 转换为字符串
+     * @return variant 的字符串表示
+     */
+    std::string to_string() const {
+        switch (m_type) {
+        case type_id::null_type:
+            return "null";
+        case type_id::bool_type:
+            return m_bool ? "true" : "false";
+        case type_id::int8_type:
+            return std::to_string(static_cast<int>(m_int64));
+        case type_id::uint8_type:
+            return std::to_string(static_cast<unsigned int>(m_uint64));
+        case type_id::int16_type:
+            return std::to_string(static_cast<int>(m_int64));
+        case type_id::uint16_type:
+            return std::to_string(static_cast<unsigned int>(m_uint64));
+        case type_id::int32_type:
+            return std::to_string(m_int64);
+        case type_id::uint32_type:
+            return std::to_string(m_uint64);
+        case type_id::int64_type:
+            return std::to_string(m_int64);
+        case type_id::uint64_type:
+            return std::to_string(m_uint64);
+        case type_id::double_type:
+            return std::to_string(m_double);
+        case type_id::string_type:
+            return *m_string_ptr;
+        case type_id::array_type: {
+            const auto& arr = *m_array_ptr;
+            if (arr.empty()) {
+                return "[]";
+            }
+            std::string result = "[";
+            for (size_t i = 0; i < arr.size(); ++i) {
+                if (i > 0) {
+                    result += ", ";
+                }
+                result += arr[i].to_string();
+            }
+            result += "]";
+            return result;
+        }
+        case type_id::object_type: {
+            const auto& obj = *m_object_ptr;
+            if (obj.empty()) {
+                return "{}";
+            }
+            std::string result = "{";
+            bool        first  = true;
+            for (const auto& item : obj) {
+                if (!first) {
+                    result += ", ";
+                }
+                first = false;
+                result += "\"" + item.key + "\": " + item.value.to_string();
+            }
+            result += "}";
+            return result;
+        }
+        case type_id::blob_type: {
+            const auto& blob   = *m_blob_ptr;
+            std::string result = "blob[";
+            result += std::to_string(blob.data.size());
+            result += "]";
+            return result;
+        }
+        default:
+            return "unknown";
+        }
     }
 
 private:

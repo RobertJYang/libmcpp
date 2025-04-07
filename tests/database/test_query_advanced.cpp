@@ -122,10 +122,12 @@ protected:
     // 获取匹配条件的用户ID列表
     std::vector<uint32_t> query_users(const mdb::query_builder& builder) {
         std::vector<uint32_t> result;
+
         m_query_helper.query(builder, [&result](auto& obj) {
             result.push_back(obj.id());
             return true;
         });
+
         return result;
     }
 
@@ -133,154 +135,154 @@ protected:
     mdb::table_query<user_table> m_query_helper;
 };
 
-// // 测试复合条件查询
-// TEST_F(table_query_test, complex_condition_query) {
-//     // 创建查询：(年龄 = 25 AND 城市 = "北京") OR 分数 > 90
-//     // 注意：当前实现的逻辑操作有限制，所以我们需要分开测试
+// 测试复合条件查询
+TEST_F(table_query_test, complex_condition_query) {
+    // 创建查询：(年龄 = 25 AND 城市 = "北京") OR 分数 > 90
+    // 注意：当前实现的逻辑操作有限制，所以我们需要分开测试
 
-//     // 测试 age = 25 AND city = "北京"
-//     {
-//         mdb::query_builder qb;
-//         qb.where("age", mdb::compare_op::eq, 25).where("city", mdb::compare_op::eq, "北京");
+    // 测试 age = 25 AND city = "北京"
+    {
+        mdb::query_builder qb;
+        qb.where("age", mdb::compare_op::eq, 25).where("city", mdb::compare_op::eq, "北京");
 
-//         // 执行查询
-//         auto user_ids = query_users(qb);
+        // 执行查询
+        auto user_ids = query_users(qb);
 
-//         // 验证结果
-//         EXPECT_EQ(user_ids.size(), 1); // 应该有1个用户匹配
-//         ASSERT_EQ(user_ids.size(), 1);
-//         EXPECT_EQ(user_ids[0], 1); // 张三 (25岁, 北京)
-//     }
+        // 验证结果
+        EXPECT_EQ(user_ids.size(), 1); // 应该有1个用户匹配
+        ASSERT_EQ(user_ids.size(), 1);
+        EXPECT_EQ(user_ids[0], 1); // 张三 (25岁, 北京)
+    }
 
-//     // 测试 score > 90
-//     {
-//         mdb::query_builder qb;
-//         qb.where("score", mdb::compare_op::gt, 90.0);
+    // 测试 score > 90
+    {
+        mdb::query_builder qb;
+        qb.where("score", mdb::compare_op::gt, 90.0);
 
-//         // 执行查询
-//         auto user_ids = query_users(qb);
+        // 执行查询
+        auto user_ids = query_users(qb);
 
-//         // 验证结果
-//         EXPECT_EQ(user_ids.size(), 2); // 应该有2个用户匹配
+        // 验证结果
+        EXPECT_EQ(user_ids.size(), 2); // 应该有2个用户匹配
 
-//         // 排序后验证ID
-//         std::sort(user_ids.begin(), user_ids.end());
-//         ASSERT_EQ(user_ids.size(), 2);
-//         EXPECT_EQ(user_ids[0], 2); // 李四 (92分 > 90)
-//         EXPECT_EQ(user_ids[1], 4); // 赵六 (95分 > 90)
-//     }
-// }
+        // 排序后验证ID
+        std::sort(user_ids.begin(), user_ids.end());
+        ASSERT_EQ(user_ids.size(), 2);
+        EXPECT_EQ(user_ids[0], 2); // 李四 (92分 > 90)
+        EXPECT_EQ(user_ids[1], 4); // 赵六 (95分 > 90)
+    }
+}
 
-// // // 测试IN条件查询
-// TEST_F(table_query_test, in_condition_query) {
-//     // 创建查询：城市 IN ["北京", "上海"]
-//     mdb::query_builder       qb;
-//     std::vector<mc::variant> cities = {"北京", "上海"};
-//     qb.where_in("city", cities);
+// 测试IN条件查询
+TEST_F(table_query_test, in_condition_query) {
+    // 创建查询：城市 IN ["北京", "上海"]
+    mdb::query_builder qb;
+    mc::variants       cities = {"北京", "上海"};
+    qb.where_in("city", cities);
 
-//     // 执行查询
-//     auto user_ids = query_users(qb);
+    // 执行查询
+    auto user_ids = query_users(qb);
 
-//     // 验证结果
-//     EXPECT_EQ(user_ids.size(), 3); // 北京和上海共有3人
+    // 验证结果
+    EXPECT_EQ(user_ids.size(), 3); // 北京和上海共有3人
 
-//     // 排序后验证ID
-//     std::sort(user_ids.begin(), user_ids.end());
-//     ASSERT_EQ(user_ids.size(), 3);
-//     EXPECT_EQ(user_ids[0], 1); // 张三 (北京)
-//     EXPECT_EQ(user_ids[1], 2); // 李四 (上海)
-//     EXPECT_EQ(user_ids[2], 5); // 钱七 (北京)
-// }
+    // 排序后验证ID
+    std::sort(user_ids.begin(), user_ids.end());
+    ASSERT_EQ(user_ids.size(), 3);
+    EXPECT_EQ(user_ids[0], 1); // 张三 (北京)
+    EXPECT_EQ(user_ids[1], 2); // 李四 (上海)
+    EXPECT_EQ(user_ids[2], 5); // 钱七 (北京)
+}
 
-// // 测试BETWEEN条件查询
-// TEST_F(table_query_test, between_condition_query) {
-//     // 创建查询：年龄 BETWEEN 25 AND 35
-//     mdb::query_builder qb;
-//     qb.where_between("age", 25, 35);
+// 测试BETWEEN条件查询
+TEST_F(table_query_test, between_condition_query) {
+    // 创建查询：年龄 BETWEEN 25 AND 35
+    mdb::query_builder qb;
+    qb.where_between("age", 25, 35);
 
-//     // 执行查询
-//     auto user_ids = query_users(qb);
+    // 执行查询
+    auto user_ids = query_users(qb);
 
-//     // 验证结果
-//     EXPECT_EQ(user_ids.size(), 4); // 应该有4个用户年龄在25-35之间
+    // 验证结果
+    EXPECT_EQ(user_ids.size(), 4); // 应该有4个用户年龄在25-35之间
 
-//     // 排序后验证ID
-//     std::sort(user_ids.begin(), user_ids.end());
-//     ASSERT_EQ(user_ids.size(), 4);
-//     EXPECT_EQ(user_ids[0], 1); // 张三 (25岁)
-//     EXPECT_EQ(user_ids[1], 2); // 李四 (30岁)
-//     EXPECT_EQ(user_ids[2], 3); // 王五 (25岁)
-//     EXPECT_EQ(user_ids[3], 4); // 赵六 (35岁)
-// }
+    // 排序后验证ID
+    std::sort(user_ids.begin(), user_ids.end());
+    ASSERT_EQ(user_ids.size(), 4);
+    EXPECT_EQ(user_ids[0], 1); // 张三 (25岁)
+    EXPECT_EQ(user_ids[1], 2); // 李四 (30岁)
+    EXPECT_EQ(user_ids[2], 3); // 王五 (25岁)
+    EXPECT_EQ(user_ids[3], 4); // 赵六 (35岁)
+}
 
-// // 测试索引优化查询
-// TEST_F(table_query_test, index_optimized_query) {
-//     // 测试按主键ID查询（应该使用主键索引）
-//     {
-//         mdb::query_builder qb;
-//         qb.where("id", mdb::compare_op::eq, 3);
+// 测试索引优化查询
+TEST_F(table_query_test, index_optimized_query) {
+    // 测试按主键ID查询（应该使用主键索引）
+    {
+        mdb::query_builder qb;
+        qb.where("id", mdb::compare_op::eq, 3);
 
-//         auto users_result = m_query_helper.query_all(qb);
-//         ASSERT_EQ(users_result.size(), 1);
-//         EXPECT_EQ(users_result[0].id(), 3);
-//         EXPECT_EQ(users_result[0].name(), "王五");
-//     }
+        auto users_result = m_query_helper.query_all(qb);
+        ASSERT_EQ(users_result.size(), 1);
+        EXPECT_EQ(users_result[0].id(), 3);
+        EXPECT_EQ(users_result[0].name(), "王五");
+    }
 
-//     // 测试按姓名查询（应该使用姓名索引）
-//     {
-//         mdb::query_builder qb;
-//         qb.where("name", mdb::compare_op::eq, "李四");
+    // 测试按姓名查询（应该使用姓名索引）
+    {
+        mdb::query_builder qb;
+        qb.where("name", mdb::compare_op::eq, "李四");
 
-//         auto user_opt = m_query_helper.query_one(qb);
-//         ASSERT_TRUE(user_opt.has_value());
-//         EXPECT_EQ(user_opt->id(), 2);
-//         EXPECT_EQ(user_opt->city(), "上海");
-//     }
+        auto user_opt = m_query_helper.query_one(qb);
+        ASSERT_TRUE(user_opt.has_value());
+        EXPECT_EQ(user_opt->id(), 2);
+        EXPECT_EQ(user_opt->city(), "上海");
+    }
 
-//     // 测试按年龄查询，限制最多返回2条（应该使用年龄索引）
-//     {
-//         mdb::query_builder qb;
-//         qb.where("age", mdb::compare_op::eq, 25);
+    // 测试按年龄查询，限制最多返回2条（应该使用年龄索引）
+    {
+        mdb::query_builder qb;
+        qb.where("age", mdb::compare_op::eq, 25);
 
-//         auto users_result = m_query_helper.query_limit(qb, 2);
-//         ASSERT_EQ(users_result.size(), 2);
+        auto users_result = m_query_helper.query_limit(qb, 2);
+        ASSERT_EQ(users_result.size(), 2);
 
-//         // 检查查询结果是否包含所有25岁的用户
-//         bool found_zhangsan = false;
-//         bool found_wangwu   = false;
+        // 检查查询结果是否包含所有25岁的用户
+        bool found_zhangsan = false;
+        bool found_wangwu   = false;
 
-//         for (const auto& user : users_result) {
-//             if (user.id() == 1) {
-//                 found_zhangsan = true;
-//             } else if (user.id() == 3) {
-//                 found_wangwu = true;
-//             }
-//         }
+        for (const auto& user : users_result) {
+            if (user.id() == 1) {
+                found_zhangsan = true;
+            } else if (user.id() == 3) {
+                found_wangwu = true;
+            }
+        }
 
-//         EXPECT_TRUE(found_zhangsan);
-//         EXPECT_TRUE(found_wangwu);
-//     }
+        EXPECT_TRUE(found_zhangsan);
+        EXPECT_TRUE(found_wangwu);
+    }
 
-//     // 测试自定义处理器
-//     {
-//         mdb::query_builder qb;
-//         qb.where("city", mdb::compare_op::eq, "北京");
+    // 测试自定义处理器
+    {
+        mdb::query_builder qb;
+        qb.where("city", mdb::compare_op::eq, "北京");
 
-//         std::vector<std::string> names;
+        std::vector<std::string> names;
 
-//         // 使用闭包处理每个结果
-//         m_query_helper.query(qb, [&names](const test_user& user) {
-//             names.push_back(user.name());
-//             return true;
-//         });
+        // 使用闭包处理每个结果
+        m_query_helper.query(qb, [&names](const test_user& user) {
+            names.push_back(user.name());
+            return true;
+        });
 
-//         ASSERT_EQ(names.size(), 2);
+        ASSERT_EQ(names.size(), 2);
 
-//         // 排序后验证名称
-//         std::sort(names.begin(), names.end());
-//         EXPECT_EQ(names[0], "张三");
-//         EXPECT_EQ(names[1], "钱七");
-//     }
-// }
+        // 排序后验证名称
+        std::sort(names.begin(), names.end());
+        EXPECT_EQ(names[0], "张三");
+        EXPECT_EQ(names[1], "钱七");
+    }
+}
 
 } // namespace

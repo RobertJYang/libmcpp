@@ -13,18 +13,20 @@
 #ifndef MC_DATABASE_QUERY_BUILDER_H
 #define MC_DATABASE_QUERY_BUILDER_H
 
+#include <algorithm>
 #include <functional>
 #include <memory>
+#include <optional>
+#include <string>
 #include <vector>
 
 #include <mc/database/query/condition.h>
-#include <mc/dict.h>
 #include <mc/variant.h>
 
 namespace mc::database::query {
 
 /**
- * 查询组合器，用于构建复杂查询条件
+ * 查询构建器，用于构建复杂查询条件
  */
 class query_builder {
 public:
@@ -34,23 +36,29 @@ public:
     query_builder() = default;
 
     /**
-     * 添加一个AND条件
+     * 添加一个等值条件
+     * 如果已有条件则使用AND连接
      *
      * @param field 字段名
      * @param value 比较值
      * @return 查询构建器引用，用于链式调用
      */
     query_builder& where(std::string_view field, const mc::variant& value) {
-        auto condition = std::make_shared<equal_condition>(std::string(field), value);
-        if (!m_where) {
-            m_where = condition;
-        } else {
-            auto and_cond = std::make_shared<and_condition>();
-            and_cond->add_condition(m_where);
-            and_cond->add_condition(condition);
-            m_where = and_cond;
-        }
-        return *this;
+        return where(field, compare_op::eq, value);
+    }
+
+    /**
+     * 添加一个比较条件
+     * 如果已有条件则使用AND连接
+     *
+     * @param field 字段名
+     * @param op 比较操作符
+     * @param value 比较值
+     * @return 查询构建器引用，用于链式调用
+     */
+    query_builder& where(std::string_view field, compare_op op, const mc::variant& value) {
+        condition cond(op, std::string(field), value);
+        return add_condition(cond);
     }
 
     /**
@@ -61,311 +69,224 @@ public:
      * @return 查询构建器引用，用于链式调用
      */
     query_builder& or_where(std::string_view field, const mc::variant& value) {
-        auto condition = std::make_shared<equal_condition>(std::string(field), value);
-        if (!m_where) {
-            m_where = condition;
-        } else {
-            auto or_cond = std::make_shared<or_condition>();
-            or_cond->add_condition(m_where);
-            or_cond->add_condition(condition);
-            m_where = or_cond;
-        }
-        return *this;
+        return or_where(field, compare_op::eq, value);
     }
 
     /**
-     * 添加一个条件对象
-     *
-     * @param cond 条件对象
-     * @return 查询构建器引用，用于链式调用
-     */
-    query_builder& where(std::shared_ptr<base_condition> condition) {
-        if (!m_where) {
-            m_where = condition;
-        } else {
-            auto and_cond = std::make_shared<and_condition>();
-            and_cond->add_condition(m_where);
-            and_cond->add_condition(condition);
-            m_where = and_cond;
-        }
-        return *this;
-    }
-
-    /**
-     * 添加一个IN条件，字段值在指定集合中
-     *
-     * @param field 字段名
-     * @param values 值集合
-     * @return 查询构建器引用，用于链式调用
-     */
-    query_builder& where_in(const std::string& field, const std::vector<mc::variant>& values) {
-        if (values.empty()) {
-            return *this;
-        }
-        if (values.size() == 1) {
-            return where(field, values[0]);
-        }
-
-        // 创建OR条件组
-        auto or_cond = std::make_shared<or_condition>();
-        for (const auto& value : values) {
-            or_cond->add_condition(std::make_shared<equal_condition>(field, value));
-        }
-
-        return where(or_cond);
-    }
-
-    /**
-     * 检查是否有条件
-     */
-    bool has_where() const {
-        return m_where != nullptr;
-    }
-
-    /**
-     * 获取条件
-     */
-    const std::shared_ptr<base_condition>& get_where() const {
-        return m_where;
-    }
-
-    /**
-     * 检查对象是否匹配查询条件
-     * @param obj 要检查的对象
-     * @return 是否匹配
-     */
-    template <typename T>
-    bool matches(const T& obj) const {
-        return has_where() ? m_where->matches(obj) : true; // 没有条件则匹配所有对象
-    }
-
-    /**
-     * 构建用于查询的字典
-     *
-     * @return 包含查询条件的字典
-     */
-    mc::dict build_dict() const {
-        mc::mutable_dict result;
-
-        // 如果没有条件，返回空字典
-        if (!has_where()) {
-            return result;
-        }
-
-        // 处理等值条件和OR条件（针对where_in）
-        if (m_where->get_type() == condition_type::and_condition) {
-            // 处理AND条件
-            auto        and_cond   = std::static_pointer_cast<and_condition>(m_where);
-            const auto& conditions = and_cond->get_conditions();
-
-            // 遍历所有条件，添加所有等值条件
-            for (const auto& condition : conditions) {
-                if (condition->get_type() == condition_type::equal_condition) {
-                    auto eq_cond = std::static_pointer_cast<equal_condition>(condition);
-                    result[eq_cond->get_field()] = eq_cond->get_value();
-                }
-            }
-        } else if (m_where->get_type() == condition_type::or_condition) {
-            // 处理OR条件（第二个测试用例：where_in("city", cities)）
-            auto        or_cond    = std::static_pointer_cast<or_condition>(m_where);
-            const auto& conditions = or_cond->get_conditions();
-
-            // 检查是否所有条件都是等值条件且针对同一字段
-            bool                     all_equal_on_same_field = true;
-            std::string              field_name;
-            std::vector<mc::variant> values;
-
-            if (!conditions.empty() &&
-                conditions[0]->get_type() == condition_type::equal_condition) {
-                auto first_cond = std::static_pointer_cast<equal_condition>(conditions[0]);
-                field_name      = first_cond->get_field();
-                values.push_back(first_cond->get_value());
-
-                for (size_t i = 1; i < conditions.size(); ++i) {
-                    if (conditions[i]->get_type() != condition_type::equal_condition) {
-                        all_equal_on_same_field = false;
-                        break;
-                    }
-
-                    auto equal_cond = std::static_pointer_cast<equal_condition>(conditions[i]);
-                    if (equal_cond->get_field() != field_name) {
-                        all_equal_on_same_field = false;
-                        break;
-                    }
-
-                    values.push_back(equal_cond->get_value());
-                }
-            } else {
-                all_equal_on_same_field = false;
-            }
-
-            if (all_equal_on_same_field) {
-                // 为字段创建数组值（表示IN条件）
-                result[field_name] = mc::variant(values);
-            }
-        } else if (m_where->get_type() == condition_type::equal_condition) {
-            // 直接处理单个等值条件
-            auto eq_cond                 = std::static_pointer_cast<equal_condition>(m_where);
-            result[eq_cond->get_field()] = eq_cond->get_value();
-        }
-
-        return result;
-    }
-
-    /**
-     * 查询是否为空
-     * @return 是否没有条件
-     */
-    bool is_empty() const {
-        return !m_where;
-    }
-
-    /**
-     * 清空所有条件
-     */
-    void clear() {
-        m_where.reset();
-    }
-
-    /**
-     * 添加一个AND条件（新接口）
+     * 添加一个OR条件
      *
      * @param field 字段名
      * @param op 比较操作符
      * @param value 比较值
      * @return 查询构建器引用，用于链式调用
      */
-    query_builder& where(std::string_view field, compare_op op, const mc::variant& value) {
-        // 创建对应的条件
-        std::shared_ptr<base_condition> condition;
-
-        switch (op) {
-        case compare_op::eq:
-            condition = std::make_shared<equal_condition>(std::string(field), value);
-            break;
-        case compare_op::gt:
-            condition = std::make_shared<greater_condition>(std::string(field), value);
-            break;
-        case compare_op::ge:
-            condition = std::make_shared<greater_equal_condition>(std::string(field), value);
-            break;
-        case compare_op::lt:
-            condition = std::make_shared<less_condition>(std::string(field), value);
-            break;
-        case compare_op::le:
-            condition = std::make_shared<less_equal_condition>(std::string(field), value);
-            break;
-        case compare_op::contains:
-        case compare_op::like:
-        case compare_op::in:
-        case compare_op::between:
-        default:
-            // 暂不支持的条件类型，默认使用等值条件
-            condition = std::make_shared<equal_condition>(std::string(field), value);
-            break;
-        }
-
-        if (!m_where) {
-            m_where = condition;
+    query_builder& or_where(std::string_view field, compare_op op, const mc::variant& value) {
+        condition cond(op, std::string(field), value);
+        if (!m_condition.has_value()) {
+            m_condition = cond;
         } else {
-            auto and_cond = std::make_shared<and_condition>();
-            and_cond->add_condition(m_where);
-            and_cond->add_condition(condition);
-            m_where = and_cond;
+            std::vector<condition> conditions;
+            if (m_condition->is_logical() && m_condition->get_logical_op() == logical_op::OR) {
+                // 已有OR条件，添加子条件
+                conditions = m_condition->get_conditions();
+            } else {
+                // 转换为OR条件
+                conditions.push_back(*m_condition);
+            }
+            conditions.push_back(cond);
+            m_condition = condition(logical_op::OR, std::move(conditions));
         }
         return *this;
     }
 
     /**
-     * 评估对象是否匹配查询条件
+     * 添加一个条件
      *
-     * @param obj 要评估的对象
-     * @param eval_fn 字段求值函数，接收字段名并返回对应值
-     * @return 是否匹配
+     * @param cond 条件
+     * @return 查询构建器引用，用于链式调用
+     */
+    query_builder& where(const condition& cond) {
+        return add_condition(cond);
+    }
+
+    /**
+     * 添加一个IN条件（检查字段值是否在给定列表中）
+     *
+     * @param field 字段名
+     * @param values 可能值的列表
+     * @return 查询构建器引用，用于链式调用
      */
     template <typename T>
-    bool eval(T obj, std::function<mc::variant(T, std::string_view)> eval_fn) const {
-        // 如果没有条件，所有对象都匹配
-        if (!has_where()) {
+    query_builder& where_in(std::string_view field, const std::vector<T>& values) {
+        if (values.empty()) {
+            // 空值列表总是返回空结果
+            // 添加一个永假条件
+            condition false_cond(compare_op::eq, std::string(field), mc::variant{});
+            return add_condition(conditions::not_cond(false_cond));
+        }
+
+        // 创建IN条件
+        condition in_cond = conditions::in(std::string(field), values);
+        return add_condition(in_cond);
+    }
+
+    /**
+     * 添加一个BETWEEN条件（检查字段值是否在指定范围内）
+     *
+     * @param field 字段名
+     * @param lower 下界值
+     * @param upper 上界值
+     * @return 查询构建器引用，用于链式调用
+     */
+    template <typename T>
+    query_builder& where_between(std::string_view field, const T& lower, const T& upper) {
+        condition between_cond = conditions::between(std::string(field), lower, upper);
+        return add_condition(between_cond);
+    }
+
+    /**
+     * 添加一个大于条件
+     *
+     * @param field 字段名
+     * @param value 比较值
+     * @return 查询构建器引用，用于链式调用
+     */
+    template <typename T>
+    query_builder& where_gt(std::string_view field, const T& value) {
+        return where(field, compare_op::gt, mc::variant(value));
+    }
+
+    /**
+     * 添加一个大于等于条件
+     *
+     * @param field 字段名
+     * @param value 比较值
+     * @return 查询构建器引用，用于链式调用
+     */
+    template <typename T>
+    query_builder& where_ge(std::string_view field, const T& value) {
+        return where(field, compare_op::ge, mc::variant(value));
+    }
+
+    /**
+     * 添加一个小于条件
+     *
+     * @param field 字段名
+     * @param value 比较值
+     * @return 查询构建器引用，用于链式调用
+     */
+    template <typename T>
+    query_builder& where_lt(std::string_view field, const T& value) {
+        return where(field, compare_op::lt, mc::variant(value));
+    }
+
+    /**
+     * 添加一个小于等于条件
+     *
+     * @param field 字段名
+     * @param value 比较值
+     * @return 查询构建器引用，用于链式调用
+     */
+    template <typename T>
+    query_builder& where_le(std::string_view field, const T& value) {
+        return where(field, compare_op::le, mc::variant(value));
+    }
+
+    /**
+     * 添加一个模糊匹配条件
+     *
+     * @param field 字段名
+     * @param pattern 模式字符串 (包含%通配符)
+     * @return 查询构建器引用，用于链式调用
+     */
+    query_builder& where_like(std::string_view field, std::string_view pattern) {
+        condition like_cond = conditions::like(std::string(field), std::string(pattern));
+        return add_condition(like_cond);
+    }
+
+    /**
+     * 检查查询构建器是否为空（没有条件）
+     * @return 是否为空
+     */
+    bool is_empty() const {
+        return !m_condition.has_value();
+    }
+
+    /**
+     * 检查是否有条件
+     * @return 是否有条件
+     */
+    bool has_condition() const {
+        return m_condition.has_value();
+    }
+
+    /**
+     * 获取查询条件
+     * @return 条件对象
+     */
+    const condition& get_condition() const {
+        if (!m_condition.has_value()) {
+            static condition empty_condition;
+            return empty_condition;
+        }
+        return m_condition.value();
+    }
+
+    /**
+     * 检查对象是否满足条件
+     *
+     * @tparam T 对象类型
+     * @param obj 被检查的对象
+     * @return 是否满足
+     */
+    template <typename T>
+    bool matches(const T& obj) const {
+        if (!has_condition()) {
             return true;
         }
+        return m_condition->matches(obj);
+    }
 
-        // 特殊处理where_in条件（针对测试用例中的OR条件）
-        if (m_where->get_type() == condition_type::or_condition) {
-            auto        or_cond    = std::static_pointer_cast<or_condition>(m_where);
-            const auto& conditions = or_cond->get_conditions();
+    /**
+     * 清空所有条件
+     */
+    void clear() {
+        m_condition.reset();
+    }
 
-            // 检查是否所有条件都是等值条件且针对同一字段
-            // 如果是，则将其视为IN条件（field IN [val1, val2, ...]）
-            bool                     all_equal_on_same_field = true;
-            std::string              field_name;
-            std::vector<mc::variant> values;
-
-            if (!conditions.empty() &&
-                conditions[0]->get_type() == condition_type::equal_condition) {
-                auto first_cond = std::static_pointer_cast<equal_condition>(conditions[0]);
-                field_name      = first_cond->get_field();
-                values.push_back(first_cond->get_value());
-
-                for (size_t i = 1; i < conditions.size(); ++i) {
-                    if (conditions[i]->get_type() != condition_type::equal_condition) {
-                        all_equal_on_same_field = false;
-                        break;
-                    }
-
-                    auto equal_cond = std::static_pointer_cast<equal_condition>(conditions[i]);
-                    if (equal_cond->get_field() != field_name) {
-                        all_equal_on_same_field = false;
-                        break;
-                    }
-
-                    values.push_back(equal_cond->get_value());
-                }
-            } else {
-                all_equal_on_same_field = false;
-            }
-
-            if (all_equal_on_same_field) {
-                // 获取字段的值
-                auto field_value = eval_fn(obj, field_name);
-
-                // 检查值是否在列表中（任一匹配即可）
-                for (const auto& value : values) {
-                    if (field_value == value) {
-                        return true;
-                    }
-                }
-                return false;
-            }
+    /**
+     * 获取条件的字符串表示（用于调试）
+     */
+    std::string to_string() const {
+        if (!has_condition()) {
+            return "空条件";
         }
-
-        // 默认使用matches方法
-        return matches(obj);
+        return m_condition->to_string();
     }
 
 private:
-    // 递归提取等值条件
-    void extract_equal_conditions(const std::shared_ptr<base_condition>& cond,
-                                  mc::mutable_dict&                      result) const {
-        if (!cond) {
-            return;
-        }
-
-        if (cond->get_type() == condition_type::equal_condition) {
-            // 处理等值条件
-            auto eq_cond                 = std::static_pointer_cast<equal_condition>(cond);
-            result[eq_cond->get_field()] = eq_cond->get_value();
-        } else if (cond->get_type() == condition_type::and_condition) {
-            // 处理AND条件，递归提取所有子条件
-            auto and_cond = std::static_pointer_cast<and_condition>(cond);
-            for (const auto& sub_cond : and_cond->get_conditions()) {
-                extract_equal_conditions(sub_cond, result);
+    /**
+     * 添加条件，与现有条件使用AND连接
+     */
+    query_builder& add_condition(const condition& cond) {
+        if (!m_condition.has_value()) {
+            m_condition = cond;
+        } else {
+            std::vector<condition> conditions;
+            if (m_condition->is_logical() && m_condition->get_logical_op() == logical_op::AND) {
+                // 已有AND条件，添加子条件
+                conditions = m_condition->get_conditions();
+            } else {
+                // 转换为AND条件
+                conditions.push_back(*m_condition);
             }
+            conditions.push_back(cond);
+            m_condition = condition(logical_op::AND, std::move(conditions));
         }
-        // 不处理OR条件，因为它们不能直接转换为字典
+        return *this;
     }
 
-    std::shared_ptr<base_condition> m_where;
+    std::optional<condition> m_condition; // 查询条件
 };
 
 } // namespace mc::database::query

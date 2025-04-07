@@ -14,11 +14,11 @@
 #define MC_DATABASE_QUERY_CONDITION_H
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <vector>
 
-#include <mc/dict.h>
 #include <mc/reflect.h>
 #include <mc/variant.h>
 
@@ -47,21 +47,6 @@ enum class logical_op {
     AND, // 逻辑与
     OR,  // 逻辑或
     NOT  // 逻辑非
-};
-
-/**
- * 条件类型枚举
- */
-enum class condition_type {
-    equal_condition,         // 等值条件
-    range_condition,         // 范围条件
-    and_condition,           // AND条件
-    or_condition,            // OR条件
-    not_condition,           // NOT条件
-    greater_condition,       // 大于条件
-    greater_equal_condition, // 大于等于条件
-    less_condition,          // 小于条件
-    less_equal_condition     // 小于等于条件
 };
 
 /**
@@ -108,643 +93,371 @@ inline bool like(std::string_view str, std::string_view pattern) {
 } // namespace string_ops
 
 /**
- * 条件基类，表示一个查询条件
+ * 统一条件类，用于表示查询条件
  */
-class base_condition {
+class condition {
 public:
-    virtual ~base_condition() = default;
-
     /**
-     * 获取条件类型
+     * 默认构造函数
      */
-    virtual condition_type get_type() const = 0;
+    condition() : m_op(compare_op::eq), m_is_logical(false) {
+    }
 
     /**
-     * 评估对象是否匹配条件
+     * 字段条件构造函数
+     * @param op 比较操作符
+     * @param field 字段名
+     * @param value 比较值
+     */
+    condition(compare_op op, std::string field, const mc::variant& value)
+        : m_op(op), m_field(std::move(field)), m_value(value), m_is_logical(false) {
+    }
+
+    /**
+     * 逻辑条件构造函数
+     * @param op 逻辑操作符
+     * @param conditions 子条件
+     */
+    condition(logical_op op, std::vector<condition> conditions)
+        : m_logical_op(op), m_conditions(std::move(conditions)), m_is_logical(true) {
+    }
+
+    /**
+     * 判断对象是否匹配条件
      */
     template <typename T>
     bool matches(const T& obj) const {
-        return eval_impl(obj);
+        if (is_logical()) {
+            return eval_logical(obj);
+        } else {
+            // 通过反射获取字段值
+            return eval_object(obj);
+        }
     }
 
-protected:
     /**
-     * 评估对象是否匹配条件的实现
+     * 获取比较操作符
      */
-    virtual bool eval_impl(const mc::variant& obj) const = 0;
+    compare_op get_op() const {
+        return m_op;
+    }
 
     /**
-     * 对象特化版本的评估
+     * 获取字段名
+     */
+    std::string_view get_field() const {
+        return m_field;
+    }
+
+    /**
+     * 获取比较值
+     */
+    const mc::variant& get_value() const {
+        return m_value;
+    }
+
+    /**
+     * 是否是逻辑条件
+     */
+    bool is_logical() const {
+        return m_is_logical;
+    }
+
+    /**
+     * 获取逻辑操作符
+     */
+    logical_op get_logical_op() const {
+        return m_logical_op;
+    }
+
+    /**
+     * 获取子条件列表
+     */
+    const std::vector<condition>& get_conditions() const {
+        return m_conditions;
+    }
+
+    /**
+     * 生成描述字符串（用于调试）
+     */
+    std::string to_string() const {
+        if (m_is_logical) {
+            std::string result;
+            switch (m_logical_op) {
+            case logical_op::AND:
+                result = "AND(";
+                break;
+            case logical_op::OR:
+                result = "OR(";
+                break;
+            case logical_op::NOT:
+                result = "NOT(";
+                break;
+            }
+
+            for (size_t i = 0; i < m_conditions.size(); ++i) {
+                if (i > 0) {
+                    result += ", ";
+                }
+                result += m_conditions[i].to_string();
+            }
+            result += ")";
+            return result;
+        } else {
+            std::string op_str;
+            switch (m_op) {
+            case compare_op::eq:
+                op_str = "==";
+                break;
+            case compare_op::ne:
+                op_str = "!=";
+                break;
+            case compare_op::gt:
+                op_str = ">";
+                break;
+            case compare_op::ge:
+                op_str = ">=";
+                break;
+            case compare_op::lt:
+                op_str = "<";
+                break;
+            case compare_op::le:
+                op_str = "<=";
+                break;
+            case compare_op::contains:
+                op_str = "contains";
+                break;
+            case compare_op::like:
+                op_str = "like";
+                break;
+            case compare_op::in:
+                op_str = "in";
+                break;
+            case compare_op::between:
+                op_str = "between";
+                break;
+            }
+
+            std::string value_str;
+            if (m_value.is_string()) {
+                value_str = "\"" + m_value.as_string() + "\"";
+            } else {
+                // 简单的值转字符串
+                value_str = "value";
+            }
+
+            return m_field + " " + op_str + " " + value_str;
+        }
+    }
+
+private:
+    /**
+     * 评估逻辑条件
+     * @tparam T 对象类型
+     * @param obj 对象
+     * @return 是否匹配
      */
     template <typename T>
-    bool eval_impl(const T& obj) const {
-        // 使用反射获取对象字段值
-        // 默认实现，子类可以重写此方法
-        return false;
-    }
-};
-
-/**
- * 等值条件，表示 field == value
- */
-class equal_condition : public base_condition {
-public:
-    equal_condition(std::string field, mc::variant value)
-        : m_field(std::move(field)), m_value(std::move(value)) {
-    }
-
-    condition_type get_type() const override {
-        return condition_type::equal_condition;
-    }
-
-    const std::string& get_field() const {
-        return m_field;
-    }
-
-    const mc::variant& get_value() const {
-        return m_value;
-    }
-
-protected:
-    bool eval_impl(const mc::variant& obj) const override {
-        if (obj.is_dict()) {
-            const auto& dict = obj.as<mc::dict>();
-            std::string key(m_field);
-            if (dict.contains(key)) {
-                return dict[key] == m_value;
-            }
-        }
-        return false;
-    }
-
-private:
-    // 对不同类型进行特化的eval_impl方法
-    template <typename Dict, typename std::enable_if_t<std::is_same_v<Dict, mc::dict> ||
-                                                           std::is_same_v<Dict, mc::mutable_dict>,
-                                                       int> = 0>
-    bool eval_impl(const Dict& obj) const {
-        std::string key(m_field);
-        if (obj.contains(key)) {
-            return obj[key] == m_value;
-        }
-        return false;
-    }
-
-    // 通用对象处理方法
-    template <typename T, typename std::enable_if_t<!std::is_same_v<T, mc::dict> &&
-                                                        !std::is_same_v<T, mc::mutable_dict> &&
-                                                        !std::is_same_v<T, mc::variant>,
-                                                    int> = 0>
-    bool eval_impl(const T& obj) const {
-        // 使用反射获取对象字段值
-        auto field_value =
-            mc::reflect::get_property<std::remove_cv_t<std::remove_reference_t<T>>>(obj, m_field);
-        return field_value == m_value;
-    }
-
-    std::string m_field;
-    mc::variant m_value;
-};
-
-/**
- * AND条件，表示所有子条件都必须满足
- */
-class and_condition : public base_condition {
-public:
-    condition_type get_type() const override {
-        return condition_type::and_condition;
-    }
-
-    void add_condition(std::shared_ptr<base_condition> condition) {
-        m_conditions.push_back(std::move(condition));
-    }
-
-    const std::vector<std::shared_ptr<base_condition>>& get_conditions() const {
-        return m_conditions;
-    }
-
-protected:
-    bool eval_impl(const mc::variant& obj) const override {
-        for (const auto& condition : m_conditions) {
-            if (!condition->matches(obj)) {
-                return false;
-            }
-        }
-        return true;
-    }
-
-private:
-    // 字典特化
-    template <typename Dict, typename std::enable_if_t<std::is_same_v<Dict, mc::dict> ||
-                                                           std::is_same_v<Dict, mc::mutable_dict>,
-                                                       int> = 0>
-    bool eval_impl(const Dict& obj) const {
-        for (const auto& condition : m_conditions) {
-            if (!condition->matches(obj)) {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    std::vector<std::shared_ptr<base_condition>> m_conditions;
-};
-
-/**
- * OR条件，表示至少一个子条件必须满足
- */
-class or_condition : public base_condition {
-public:
-    condition_type get_type() const override {
-        return condition_type::or_condition;
-    }
-
-    void add_condition(std::shared_ptr<base_condition> condition) {
-        m_conditions.push_back(std::move(condition));
-    }
-
-    const std::vector<std::shared_ptr<base_condition>>& get_conditions() const {
-        return m_conditions;
-    }
-
-protected:
-    bool eval_impl(const mc::variant& obj) const override {
+    bool eval_logical(const T& obj) const {
         if (m_conditions.empty()) {
+            return true; // 空条件集合默认匹配
+        }
+
+        switch (m_logical_op) {
+        case logical_op::AND: {
+            // 所有条件都必须匹配
+            for (const auto& cond : m_conditions) {
+                if (!cond.matches(obj)) {
+                    return false;
+                }
+            }
             return true;
         }
-
-        for (const auto& condition : m_conditions) {
-            if (condition->matches(obj)) {
-                return true;
+        case logical_op::OR: {
+            // 至少一个条件匹配
+            for (const auto& cond : m_conditions) {
+                if (cond.matches(obj)) {
+                    return true;
+                }
             }
+            return false;
         }
-        return false;
+        case logical_op::NOT: {
+            // 条件取反（通常只有一个子条件）
+            if (m_conditions.size() >= 1) {
+                return !m_conditions[0].matches(obj);
+            }
+            return true; // 空NOT条件默认匹配
+        }
+        default:
+            return false;
+        }
     }
 
-private:
-    // 字典特化
-    template <typename Dict, typename std::enable_if_t<std::is_same_v<Dict, mc::dict> ||
-                                                           std::is_same_v<Dict, mc::mutable_dict>,
-                                                       int> = 0>
-    bool eval_impl(const Dict& obj) const {
-        if (m_conditions.empty()) {
-            return true;
+    /**
+     * 评估对象
+     */
+    template <typename T>
+    bool eval_object(const T& obj) const {
+        // 通过反射获取字段值
+        auto field_value = mc::reflect::get_property<T>(obj, m_field);
+        if (field_value.is_null()) {
+            return false;
         }
-
-        for (const auto& condition : m_conditions) {
-            if (condition->matches(obj)) {
-                return true;
-            }
-        }
-        return false;
+        return compare_values(field_value, m_value, m_op);
     }
 
-    std::vector<std::shared_ptr<base_condition>> m_conditions;
+    /**
+     * 比较两个值
+     */
+    bool compare_values(const mc::variant& field_value, const mc::variant& value,
+                        compare_op op) const {
+        switch (op) {
+        case compare_op::eq:
+            return field_value == value;
+        case compare_op::ne:
+            return field_value != value;
+        case compare_op::gt:
+            return field_value > value;
+        case compare_op::ge:
+            return field_value >= value;
+        case compare_op::lt:
+            return field_value < value;
+        case compare_op::le:
+            return field_value <= value;
+        case compare_op::contains:
+            if (field_value.is_string() && value.is_string()) {
+                return string_ops::contains(field_value.get_string(), value.get_string());
+            }
+            return false;
+        case compare_op::like:
+            if (field_value.is_string() && value.is_string()) {
+                return string_ops::like(field_value.get_string(), value.get_string());
+            }
+            return false;
+        case compare_op::in:
+            if (value.is_array()) {
+                for (const auto& item : value.get_array()) {
+                    if (field_value == item) {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        case compare_op::between:
+            if (value.is_array() && value.size() >= 2) {
+                const auto& arr = value.get_array();
+                return field_value >= arr[0] && field_value <= arr[1];
+            }
+            return false;
+        default:
+            return false;
+        }
+    }
+
+    compare_op             m_op         = compare_op::eq;  // 比较操作符
+    logical_op             m_logical_op = logical_op::AND; // 逻辑操作符
+    std::string            m_field;                        // 字段名
+    mc::variant            m_value;                        // 比较值
+    std::vector<condition> m_conditions;                   // 子条件（用于逻辑条件）
+    bool                   m_is_logical = false;           // 是否是逻辑条件
 };
+
+// 条件工厂函数
+namespace conditions {
 
 /**
- * 大于条件，表示 field > value
+ * 创建等值条件
  */
-class greater_condition : public base_condition {
-public:
-    greater_condition(std::string field, mc::variant value)
-        : m_field(std::move(field)), m_value(std::move(value)) {
-    }
-
-    condition_type get_type() const override {
-        return condition_type::greater_condition;
-    }
-
-    const std::string& get_field() const {
-        return m_field;
-    }
-
-    const mc::variant& get_value() const {
-        return m_value;
-    }
-
-protected:
-    bool eval_impl(const mc::variant& obj) const override {
-        if (obj.is_dict()) {
-            const auto& dict = obj.as<mc::dict>();
-            std::string key(m_field);
-            if (dict.contains(key)) {
-                auto field_value = dict[key];
-                // 根据类型进行比较
-                if (field_value.is_numeric() && m_value.is_numeric()) {
-                    if (field_value.is_integer() && m_value.is_integer()) {
-                        return field_value.template as<int64_t>() > m_value.template as<int64_t>();
-                    } else if (field_value.is_double() && m_value.is_double()) {
-                        return field_value.template as<double>() > m_value.template as<double>();
-                    } else if (field_value.is_integer() && m_value.is_double()) {
-                        return static_cast<double>(field_value.template as<int64_t>()) >
-                               m_value.template as<double>();
-                    } else if (field_value.is_double() && m_value.is_integer()) {
-                        return field_value.template as<double>() >
-                               static_cast<double>(m_value.template as<int64_t>());
-                    }
-                } else if (field_value.is_string() && m_value.is_string()) {
-                    return field_value.as_string() > m_value.as_string();
-                }
-            }
-        }
-        return false;
-    }
-
-private:
-    // 对不同类型进行特化的eval_impl方法
-    template <typename Dict, typename std::enable_if_t<std::is_same_v<Dict, mc::dict> ||
-                                                           std::is_same_v<Dict, mc::mutable_dict>,
-                                                       int> = 0>
-    bool eval_impl(const Dict& obj) const {
-        std::string key(m_field);
-        if (obj.contains(key)) {
-            auto field_value = obj[key];
-            // 根据类型进行比较
-            if (field_value.is_numeric() && m_value.is_numeric()) {
-                if (field_value.is_integer() && m_value.is_integer()) {
-                    return field_value.template as<int64_t>() > m_value.template as<int64_t>();
-                } else if (field_value.is_double() && m_value.is_double()) {
-                    return field_value.template as<double>() > m_value.template as<double>();
-                } else if (field_value.is_integer() && m_value.is_double()) {
-                    return static_cast<double>(field_value.template as<int64_t>()) >
-                           m_value.template as<double>();
-                } else if (field_value.is_double() && m_value.is_integer()) {
-                    return field_value.template as<double>() >
-                           static_cast<double>(m_value.template as<int64_t>());
-                }
-            } else if (field_value.is_string() && m_value.is_string()) {
-                return field_value.as_string() > m_value.as_string();
-            }
-        }
-        return false;
-    }
-
-    // 通用对象处理方法
-    template <typename T, typename std::enable_if_t<!std::is_same_v<T, mc::dict> &&
-                                                        !std::is_same_v<T, mc::mutable_dict> &&
-                                                        !std::is_same_v<T, mc::variant>,
-                                                    int> = 0>
-    bool eval_impl(const T& obj) const {
-        // 使用反射获取对象字段值
-        auto field_value =
-            mc::reflect::get_property<std::remove_cv_t<std::remove_reference_t<T>>>(obj, m_field);
-
-        // 根据类型进行比较
-        if (field_value.is_numeric() && m_value.is_numeric()) {
-            if (field_value.is_integer() && m_value.is_integer()) {
-                return field_value.template as<int64_t>() > m_value.template as<int64_t>();
-            } else if (field_value.is_double() && m_value.is_double()) {
-                return field_value.template as<double>() > m_value.template as<double>();
-            } else if (field_value.is_integer() && m_value.is_double()) {
-                return static_cast<double>(field_value.template as<int64_t>()) >
-                       m_value.template as<double>();
-            } else if (field_value.is_double() && m_value.is_integer()) {
-                return field_value.template as<double>() >
-                       static_cast<double>(m_value.template as<int64_t>());
-            }
-        } else if (field_value.is_string() && m_value.is_string()) {
-            return field_value.as_string() > m_value.as_string();
-        }
-        return false;
-    }
-
-    std::string m_field;
-    mc::variant m_value;
-};
+inline condition eq(std::string field, mc::variant value) {
+    return condition(compare_op::eq, std::move(field), std::move(value));
+}
 
 /**
- * 大于等于条件，表示 field >= value
+ * 创建不等条件
  */
-class greater_equal_condition : public base_condition {
-public:
-    greater_equal_condition(std::string field, mc::variant value)
-        : m_field(std::move(field)), m_value(std::move(value)) {
-    }
-
-    condition_type get_type() const override {
-        return condition_type::greater_equal_condition;
-    }
-
-    const std::string& get_field() const {
-        return m_field;
-    }
-
-    const mc::variant& get_value() const {
-        return m_value;
-    }
-
-protected:
-    bool eval_impl(const mc::variant& obj) const override {
-        if (obj.is_dict()) {
-            const auto& dict = obj.as<mc::dict>();
-            std::string key(m_field);
-            if (dict.contains(key)) {
-                auto field_value = dict[key];
-                // 根据类型进行比较
-                if (field_value.is_numeric() && m_value.is_numeric()) {
-                    if (field_value.is_integer() && m_value.is_integer()) {
-                        return field_value.template as<int64_t>() >= m_value.template as<int64_t>();
-                    } else if (field_value.is_double() && m_value.is_double()) {
-                        return field_value.template as<double>() >= m_value.template as<double>();
-                    } else if (field_value.is_integer() && m_value.is_double()) {
-                        return static_cast<double>(field_value.template as<int64_t>()) >=
-                               m_value.template as<double>();
-                    } else if (field_value.is_double() && m_value.is_integer()) {
-                        return field_value.template as<double>() >=
-                               static_cast<double>(m_value.template as<int64_t>());
-                    }
-                } else if (field_value.is_string() && m_value.is_string()) {
-                    return field_value.as_string() >= m_value.as_string();
-                }
-            }
-        }
-        return false;
-    }
-
-private:
-    // 对不同类型进行特化的eval_impl方法
-    template <typename Dict, typename std::enable_if_t<std::is_same_v<Dict, mc::dict> ||
-                                                           std::is_same_v<Dict, mc::mutable_dict>,
-                                                       int> = 0>
-    bool eval_impl(const Dict& obj) const {
-        std::string key(m_field);
-        if (obj.contains(key)) {
-            auto field_value = obj[key];
-            // 根据类型进行比较
-            if (field_value.is_numeric() && m_value.is_numeric()) {
-                if (field_value.is_integer() && m_value.is_integer()) {
-                    return field_value.template as<int64_t>() >= m_value.template as<int64_t>();
-                } else if (field_value.is_double() && m_value.is_double()) {
-                    return field_value.template as<double>() >= m_value.template as<double>();
-                } else if (field_value.is_integer() && m_value.is_double()) {
-                    return static_cast<double>(field_value.template as<int64_t>()) >=
-                           m_value.template as<double>();
-                } else if (field_value.is_double() && m_value.is_integer()) {
-                    return field_value.template as<double>() >=
-                           static_cast<double>(m_value.template as<int64_t>());
-                }
-            } else if (field_value.is_string() && m_value.is_string()) {
-                return field_value.as_string() >= m_value.as_string();
-            }
-        }
-        return false;
-    }
-
-    // 通用对象处理方法
-    template <typename T, typename std::enable_if_t<!std::is_same_v<T, mc::dict> &&
-                                                        !std::is_same_v<T, mc::mutable_dict> &&
-                                                        !std::is_same_v<T, mc::variant>,
-                                                    int> = 0>
-    bool eval_impl(const T& obj) const {
-        // 使用反射获取对象字段值
-        auto field_value =
-            mc::reflect::get_property<std::remove_cv_t<std::remove_reference_t<T>>>(obj, m_field);
-
-        // 根据类型进行比较
-        if (field_value.is_numeric() && m_value.is_numeric()) {
-            if (field_value.is_integer() && m_value.is_integer()) {
-                return field_value.template as<int64_t>() >= m_value.template as<int64_t>();
-            } else if (field_value.is_double() && m_value.is_double()) {
-                return field_value.template as<double>() >= m_value.template as<double>();
-            } else if (field_value.is_integer() && m_value.is_double()) {
-                return static_cast<double>(field_value.template as<int64_t>()) >=
-                       m_value.template as<double>();
-            } else if (field_value.is_double() && m_value.is_integer()) {
-                return field_value.template as<double>() >=
-                       static_cast<double>(m_value.template as<int64_t>());
-            }
-        } else if (field_value.is_string() && m_value.is_string()) {
-            return field_value.as_string() >= m_value.as_string();
-        }
-        return false;
-    }
-
-    std::string m_field;
-    mc::variant m_value;
-};
+inline condition ne(std::string field, mc::variant value) {
+    return condition(compare_op::ne, std::move(field), std::move(value));
+}
 
 /**
- * 小于条件，表示 field < value
+ * 创建大于条件
  */
-class less_condition : public base_condition {
-public:
-    less_condition(std::string field, mc::variant value)
-        : m_field(std::move(field)), m_value(std::move(value)) {
-    }
-
-    condition_type get_type() const override {
-        return condition_type::less_condition;
-    }
-
-    const std::string& get_field() const {
-        return m_field;
-    }
-
-    const mc::variant& get_value() const {
-        return m_value;
-    }
-
-protected:
-    bool eval_impl(const mc::variant& obj) const override {
-        if (obj.is_dict()) {
-            const auto& dict = obj.as<mc::dict>();
-            std::string key(m_field);
-            if (dict.contains(key)) {
-                auto field_value = dict[key];
-                // 根据类型进行比较
-                if (field_value.is_numeric() && m_value.is_numeric()) {
-                    if (field_value.is_integer() && m_value.is_integer()) {
-                        return field_value.template as<int64_t>() < m_value.template as<int64_t>();
-                    } else if (field_value.is_double() && m_value.is_double()) {
-                        return field_value.template as<double>() < m_value.template as<double>();
-                    } else if (field_value.is_integer() && m_value.is_double()) {
-                        return static_cast<double>(field_value.template as<int64_t>()) <
-                               m_value.template as<double>();
-                    } else if (field_value.is_double() && m_value.is_integer()) {
-                        return field_value.template as<double>() <
-                               static_cast<double>(m_value.template as<int64_t>());
-                    }
-                } else if (field_value.is_string() && m_value.is_string()) {
-                    return field_value.as_string() < m_value.as_string();
-                }
-            }
-        }
-        return false;
-    }
-
-private:
-    // 对不同类型进行特化的eval_impl方法
-    template <typename Dict, typename std::enable_if_t<std::is_same_v<Dict, mc::dict> ||
-                                                           std::is_same_v<Dict, mc::mutable_dict>,
-                                                       int> = 0>
-    bool eval_impl(const Dict& obj) const {
-        std::string key(m_field);
-        if (obj.contains(key)) {
-            auto field_value = obj[key];
-            // 根据类型进行比较
-            if (field_value.is_numeric() && m_value.is_numeric()) {
-                if (field_value.is_integer() && m_value.is_integer()) {
-                    return field_value.template as<int64_t>() < m_value.template as<int64_t>();
-                } else if (field_value.is_double() && m_value.is_double()) {
-                    return field_value.template as<double>() < m_value.template as<double>();
-                } else if (field_value.is_integer() && m_value.is_double()) {
-                    return static_cast<double>(field_value.template as<int64_t>()) <
-                           m_value.template as<double>();
-                } else if (field_value.is_double() && m_value.is_integer()) {
-                    return field_value.template as<double>() <
-                           static_cast<double>(m_value.template as<int64_t>());
-                }
-            } else if (field_value.is_string() && m_value.is_string()) {
-                return field_value.as_string() < m_value.as_string();
-            }
-        }
-        return false;
-    }
-
-    // 通用对象处理方法
-    template <typename T, typename std::enable_if_t<!std::is_same_v<T, mc::dict> &&
-                                                        !std::is_same_v<T, mc::mutable_dict> &&
-                                                        !std::is_same_v<T, mc::variant>,
-                                                    int> = 0>
-    bool eval_impl(const T& obj) const {
-        // 使用反射获取对象字段值
-        auto field_value =
-            mc::reflect::get_property<std::remove_cv_t<std::remove_reference_t<T>>>(obj, m_field);
-
-        // 根据类型进行比较
-        if (field_value.is_numeric() && m_value.is_numeric()) {
-            if (field_value.is_integer() && m_value.is_integer()) {
-                return field_value.template as<int64_t>() < m_value.template as<int64_t>();
-            } else if (field_value.is_double() && m_value.is_double()) {
-                return field_value.template as<double>() < m_value.template as<double>();
-            } else if (field_value.is_integer() && m_value.is_double()) {
-                return static_cast<double>(field_value.template as<int64_t>()) <
-                       m_value.template as<double>();
-            } else if (field_value.is_double() && m_value.is_integer()) {
-                return field_value.template as<double>() <
-                       static_cast<double>(m_value.template as<int64_t>());
-            }
-        } else if (field_value.is_string() && m_value.is_string()) {
-            return field_value.as_string() < m_value.as_string();
-        }
-        return false;
-    }
-
-    std::string m_field;
-    mc::variant m_value;
-};
+inline condition gt(std::string field, mc::variant value) {
+    return condition(compare_op::gt, std::move(field), std::move(value));
+}
 
 /**
- * 小于等于条件，表示 field <= value
+ * 创建大于等于条件
  */
-class less_equal_condition : public base_condition {
-public:
-    less_equal_condition(std::string field, mc::variant value)
-        : m_field(std::move(field)), m_value(std::move(value)) {
+inline condition ge(std::string field, mc::variant value) {
+    return condition(compare_op::ge, std::move(field), std::move(value));
+}
+
+/**
+ * 创建小于条件
+ */
+inline condition lt(std::string field, mc::variant value) {
+    return condition(compare_op::lt, std::move(field), std::move(value));
+}
+
+/**
+ * 创建小于等于条件
+ */
+inline condition le(std::string field, mc::variant value) {
+    return condition(compare_op::le, std::move(field), std::move(value));
+}
+
+/**
+ * 创建LIKE条件
+ */
+inline condition like(std::string field, std::string pattern) {
+    return condition(compare_op::like, std::move(field), mc::variant(std::move(pattern)));
+}
+
+/**
+ * 创建IN条件
+ */
+template <typename T>
+inline condition in(std::string field, std::vector<T> values) {
+    mc::variants variants;
+    for (const auto& value : values) {
+        variants.push_back(mc::variant(value));
     }
+    return condition(compare_op::in, std::move(field), mc::variant(variants));
+}
 
-    condition_type get_type() const override {
-        return condition_type::less_equal_condition;
-    }
+/**
+ * 创建BETWEEN条件
+ */
+template <typename T>
+inline condition between(std::string field, T lower, T upper) {
+    mc::variants range = {mc::variant(lower), mc::variant(upper)};
+    return condition(compare_op::between, std::move(field), mc::variant(range));
+}
 
-    const std::string& get_field() const {
-        return m_field;
-    }
+/**
+ * 创建AND条件
+ */
+inline condition and_cond(std::vector<condition> conditions) {
+    return condition(logical_op::AND, std::move(conditions));
+}
 
-    const mc::variant& get_value() const {
-        return m_value;
-    }
+/**
+ * 创建OR条件
+ */
+inline condition or_cond(std::vector<condition> conditions) {
+    return condition(logical_op::OR, std::move(conditions));
+}
 
-protected:
-    bool eval_impl(const mc::variant& obj) const override {
-        if (obj.is_dict()) {
-            const auto& dict = obj.as<mc::dict>();
-            std::string key(m_field);
-            if (dict.contains(key)) {
-                auto field_value = dict[key];
-                // 根据类型进行比较
-                if (field_value.is_numeric() && m_value.is_numeric()) {
-                    if (field_value.is_integer() && m_value.is_integer()) {
-                        return field_value.template as<int64_t>() <= m_value.template as<int64_t>();
-                    } else if (field_value.is_double() && m_value.is_double()) {
-                        return field_value.template as<double>() <= m_value.template as<double>();
-                    } else if (field_value.is_integer() && m_value.is_double()) {
-                        return static_cast<double>(field_value.template as<int64_t>()) <=
-                               m_value.template as<double>();
-                    } else if (field_value.is_double() && m_value.is_integer()) {
-                        return field_value.template as<double>() <=
-                               static_cast<double>(m_value.template as<int64_t>());
-                    }
-                } else if (field_value.is_string() && m_value.is_string()) {
-                    return field_value.as_string() <= m_value.as_string();
-                }
-            }
-        }
-        return false;
-    }
+/**
+ * 创建NOT条件
+ */
+inline condition not_cond(condition cond) {
+    return condition(logical_op::NOT, std::vector<condition>{std::move(cond)});
+}
 
-private:
-    // 对不同类型进行特化的eval_impl方法
-    template <typename Dict, typename std::enable_if_t<std::is_same_v<Dict, mc::dict> ||
-                                                           std::is_same_v<Dict, mc::mutable_dict>,
-                                                       int> = 0>
-    bool eval_impl(const Dict& obj) const {
-        std::string key(m_field);
-        if (obj.contains(key)) {
-            auto field_value = obj[key];
-            // 根据类型进行比较
-            if (field_value.is_numeric() && m_value.is_numeric()) {
-                if (field_value.is_integer() && m_value.is_integer()) {
-                    return field_value.template as<int64_t>() <= m_value.template as<int64_t>();
-                } else if (field_value.is_double() && m_value.is_double()) {
-                    return field_value.template as<double>() <= m_value.template as<double>();
-                } else if (field_value.is_integer() && m_value.is_double()) {
-                    return static_cast<double>(field_value.template as<int64_t>()) <=
-                           m_value.template as<double>();
-                } else if (field_value.is_double() && m_value.is_integer()) {
-                    return field_value.template as<double>() <=
-                           static_cast<double>(m_value.template as<int64_t>());
-                }
-            } else if (field_value.is_string() && m_value.is_string()) {
-                return field_value.as_string() <= m_value.as_string();
-            }
-        }
-        return false;
-    }
-
-    // 通用对象处理方法
-    template <typename T, typename std::enable_if_t<!std::is_same_v<T, mc::dict> &&
-                                                        !std::is_same_v<T, mc::mutable_dict> &&
-                                                        !std::is_same_v<T, mc::variant>,
-                                                    int> = 0>
-    bool eval_impl(const T& obj) const {
-        // 使用反射获取对象字段值
-        auto field_value =
-            mc::reflect::get_property<std::remove_cv_t<std::remove_reference_t<T>>>(obj, m_field);
-
-        // 根据类型进行比较
-        if (field_value.is_numeric() && m_value.is_numeric()) {
-            if (field_value.is_integer() && m_value.is_integer()) {
-                return field_value.template as<int64_t>() <= m_value.template as<int64_t>();
-            } else if (field_value.is_double() && m_value.is_double()) {
-                return field_value.template as<double>() <= m_value.template as<double>();
-            } else if (field_value.is_integer() && m_value.is_double()) {
-                return static_cast<double>(field_value.template as<int64_t>()) <=
-                       m_value.template as<double>();
-            } else if (field_value.is_double() && m_value.is_integer()) {
-                return field_value.template as<double>() <=
-                       static_cast<double>(m_value.template as<int64_t>());
-            }
-        } else if (field_value.is_string() && m_value.is_string()) {
-            return field_value.as_string() <= m_value.as_string();
-        }
-        return false;
-    }
-
-    std::string m_field;
-    mc::variant m_value;
-};
+} // namespace conditions
 
 } // namespace mc::database::query
 

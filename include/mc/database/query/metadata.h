@@ -64,44 +64,75 @@ struct index_metadata {
 template <typename ObjectType>
 class table_index_metadata {
 public:
+    using index_metadata_list = std::vector<std::unique_ptr<index_metadata>>;
+
     /**
      * 添加索引元数据
      * @param metadata 要添加的索引元数据
      */
     void add_index(const index_metadata& metadata) {
-        m_indices.push_back(metadata);
+        auto& md = m_indices.emplace_back(std::make_unique<index_metadata>(metadata));
 
-        // 为每个字段建立反向索引
-        for (const auto& field : metadata.field_names) {
-            m_field_to_indices[field].push_back(m_indices.size() - 1);
+        for (const auto& field_names : md->field_names) {
+            m_field_to_indices[field_names].push_back(m_indices.size() - 1);
         }
     }
 
     /**
-     * 根据字段名查找索引
+     * 检查字段是否有非唯一索引
      * @param field_name 字段名
-     * @return 使用该字段的索引元数据列表
+     * @return 是否有非唯一索引
      */
-    std::vector<const index_metadata*> find_indices_by_field(std::string_view field_name) const {
-        std::vector<const index_metadata*> result;
+    bool has_non_unique_index(std::string_view field_name) const {
+        auto it = m_field_to_indices.find(field_name);
+        if (it == m_field_to_indices.end()) {
+            return false;
+        }
 
-        // 将std::string_view转换为std::string用于查找
-        std::string field_str(field_name);
-        auto        it = m_field_to_indices.find(field_str);
-
-        if (it != m_field_to_indices.end()) {
-            for (size_t index_id : it->second) {
-                result.push_back(&m_indices[index_id]);
+        for (size_t index_id : it->second) {
+            if (!m_indices[index_id]->is_unique) {
+                return true;
             }
         }
-        return result;
+        return false;
+    }
+
+    /**
+     * 查找字段的最佳索引ID
+     * @param field_name 字段名
+     * @param prefer_unique 是否优先选择唯一索引
+     * @return 索引ID，如果没有找到则返回-1
+     */
+    int find_best_index_id(std::string_view field_name, bool prefer_unique = true) const {
+        auto it = m_field_to_indices.find(field_name);
+        if (it == m_field_to_indices.end()) {
+            return -1;
+        }
+
+        // 优先查找唯一索引
+        if (prefer_unique) {
+            for (size_t index_id : it->second) {
+                if (m_indices[index_id]->is_unique && m_indices[index_id]->index_id > 0) {
+                    return static_cast<int>(m_indices[index_id]->index_id);
+                }
+            }
+        }
+
+        // 查找任意可用索引
+        for (size_t index_id : it->second) {
+            if (m_indices[index_id]->index_id > 0) {
+                return static_cast<int>(m_indices[index_id]->index_id);
+            }
+        }
+
+        return -1;
     }
 
     /**
      * 获取所有索引元数据
      * @return 索引元数据列表
      */
-    const std::vector<index_metadata>& get_all_indices() const {
+    const index_metadata_list& get_all_indices() const {
         return m_indices;
     }
 
@@ -112,14 +143,16 @@ public:
      */
     const index_metadata* get_index_by_id(size_t index_id) const {
         if (index_id < m_indices.size()) {
-            return &m_indices[index_id];
+            return m_indices[index_id].get();
         }
         return nullptr;
     }
 
 private:
-    std::vector<index_metadata>                          m_indices;          // 所有索引元数据
-    std::unordered_map<std::string, std::vector<size_t>> m_field_to_indices; // 字段到索引的映射
+    using field_to_indices_map = std::unordered_map<std::string_view, std::vector<size_t>>;
+
+    index_metadata_list  m_indices;          // 所有索引元数据
+    field_to_indices_map m_field_to_indices; // 字段到索引的映射
 };
 
 namespace detail {

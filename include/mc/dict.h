@@ -731,11 +731,8 @@ private:
 } // namespace mc
 
 // 将 variant 实现相关的代码放到单独的文件中
-// 这样可以减小 variant_base.h 的大小，同时保持编译依赖关系
-#include "variant/variant_dict.inl"
-
-// 包含容器转换头文件
-#include <mc/variant/container_convert.h>
+#include <mc/variant/container_convert.inl>
+#include <mc/variant/variant_dict.inl>
 
 // 定义在std命名空间中特化hash以支持dict和mutable_dict
 namespace std {

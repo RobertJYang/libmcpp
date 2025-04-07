@@ -18,7 +18,6 @@
 #define MC_DATABASE_QUERY_TABLE_QUERY_H
 
 #include <functional>
-#include <iostream>
 #include <string_view>
 #include <tuple>
 #include <type_traits>
@@ -26,8 +25,8 @@
 
 #include <mc/database/query/builder.h>
 #include <mc/database/query/condition.h>
-#include <mc/database/query/field_accessor.h>
 #include <mc/database/query/metadata.h>
+#include <mc/database/query/planner.h>
 #include <mc/variant.h>
 
 namespace mc::database::query {
@@ -55,8 +54,13 @@ public:
     explicit table_query(TableType& table) : m_table(table) {
     }
 
+    /**
+     * 获取表元数据
+     *
+     * @return 表元数据的共享指针
+     */
     static const auto& get_metadata() {
-        static const auto& metadata = build_table_metadata<TableType>();
+        static const auto metadata = build_table_metadata<TableType>();
         return metadata;
     }
 
@@ -88,7 +92,28 @@ public:
     std::vector<object_type> query_limit(const query_builder& builder, size_t limit) {
         std::vector<object_type> result;
 
-        // 执行查询，收集指定数量的匹配对象
+        // 处理等值条件的特殊情况
+        if (builder.has_condition()) {
+            const auto& cond = builder.get_condition();
+
+            // 检查是否为等值条件
+            if (!cond.is_logical() && cond.get_op() == compare_op::eq) {
+                // 检查字段是否为非唯一字段
+                bool is_non_unique_field = is_field_non_unique(cond.get_field());
+
+                if (is_non_unique_field) {
+                    // 特殊处理: 使用非唯一索引或全表扫描来收集所有匹配项
+                    query_impl(builder, [&result, limit](const object_type& obj) {
+                        result.push_back(obj);
+                        return result.size() < limit; // 当达到限制时停止
+                    });
+
+                    return result;
+                }
+            }
+        }
+
+        // 默认实现: 执行查询，收集指定数量的匹配对象
         query_impl(builder, [&result, limit](const object_type& obj) {
             result.push_back(obj);
             return result.size() < limit;
@@ -124,32 +149,21 @@ public:
 
 private:
     /**
+     * 检查字段是否为非唯一字段
+     */
+    bool is_field_non_unique(std::string_view field_name) const {
+        const auto& metadata = get_metadata();
+        return metadata.has_non_unique_index(field_name);
+    }
+
+    /**
      * 利用元数据查找索引
      * @param field 字段名
      * @return 索引ID，如果没有匹配的索引则返回-1
      */
     int find_index_by_metadata(std::string_view field) const {
         const auto& metadata = get_metadata();
-        auto        indices  = metadata.find_indices_by_field(field);
-        if (indices.empty()) {
-            return -1;
-        }
-
-        // 如果有多个索引，优先选择唯一索引
-        for (const auto* index : indices) {
-            if (index->is_unique && index->index_id > 0) {
-                return static_cast<int>(index->index_id);
-            }
-        }
-
-        // 如果没有唯一索引，则选择第一个ID大于0的索引
-        for (const auto* index : indices) {
-            if (index->index_id > 0) {
-                return static_cast<int>(index->index_id);
-            }
-        }
-
-        return -1;
+        return metadata.find_best_index_id(field);
     }
 
     /**
@@ -159,12 +173,8 @@ private:
      * @return 索引ID，如果没有匹配的索引则返回-1
      */
     int find_index(std::string_view field) const {
-        int metadata_index = find_index_by_metadata(field);
-        if (metadata_index >= 0) {
-            return metadata_index;
-        }
-
-        return -1;
+        const auto& metadata = get_metadata();
+        return metadata.find_best_index_id(field);
     }
 
     /**
@@ -204,125 +214,157 @@ private:
         // 直接使用索引ID
         size_t index_id = plan.index_id;
 
-        // 使用新条件系统
-        if (builder.has_where()) {
-            if (builder.get_where()->get_type() == condition_type::equal_condition) {
-                // 处理单一等值条件
-                auto eq_cond = std::static_pointer_cast<equal_condition>(builder.get_where());
+        // 如果查询计划包含特定值
+        if (!plan.key_value.is_null()) {
+            return query_by_single_value(builder, index_id, plan.fields, plan.key_value,
+                                         std::forward<Handler>(handler));
+        }
+        // 处理IN查询（多个值）
+        else if (!plan.values.empty()) {
+            return query_by_multiple_values(builder, index_id, plan.fields, plan.values,
+                                            std::forward<Handler>(handler));
+        }
 
-                // 执行索引查找
-                auto result = m_table.find_by_index(index_id, eq_cond->get_value());
-                if (result) {
-                    if (!builder.matches(*result)) {
-                        return true;
-                    }
+        // 没有具体的值，回退到全表扫描
+        return false;
+    }
 
-                    handler(*result);
+    /**
+     * 使用单个值查询
+     * @param builder 查询构建器
+     * @param index_id 索引ID
+     * @param fields 字段列表
+     * @param value 查询值
+     * @param handler 结果处理器
+     * @return 是否成功
+     */
+    template <typename Handler>
+    bool query_by_single_value(const query_builder& builder, size_t index_id,
+                               const std::vector<std::string_view>& fields,
+                               const mc::variant& value, Handler&& handler) {
+        std::string_view field_name          = fields.empty() ? std::string_view() : fields[0];
+        bool             is_non_unique_field = is_field_non_unique(field_name);
+
+        if (is_non_unique_field) {
+            return query_by_non_unique_index(builder, index_id, value,
+                                             std::forward<Handler>(handler));
+        } else {
+            return query_by_unique_index(builder, index_id, value, std::forward<Handler>(handler));
+        }
+    }
+
+    /**
+     * 使用非唯一索引查询
+     * @param builder 查询构建器
+     * @param index_id 索引ID
+     * @param value 查询值
+     * @param found 是否找到的引用，用于 IN 查询
+     * @param handler 结果处理器
+     * @return 是否中断查询/是否成功
+     */
+    template <typename Handler>
+    bool query_by_non_unique_index(const query_builder& builder, size_t index_id,
+                                   const mc::variant& value, bool& found, Handler&& handler) {
+        // 对于非唯一字段，使用索引范围查询
+        auto begin_it = m_table.lower_bound_by_index(index_id, value);
+        auto end_it   = m_table.upper_bound_by_index(index_id, value);
+
+        for (auto it = begin_it; it != end_it && !it.is_end(); ++it) {
+            const auto& obj = *it->second;
+            // 检查对象是否满足所有条件
+            if (builder.has_condition() && !builder.matches(obj)) {
+                continue;
+            }
+
+            found = true;
+            if (!handler(obj)) {
+                return true; // 中断查询/查询成功
+            }
+        }
+        return false; // 继续查询/没有找到匹配项
+    }
+
+    /**
+     * 使用非唯一索引查询（单值查询简化接口）
+     */
+    template <typename Handler>
+    bool query_by_non_unique_index(const query_builder& builder, size_t index_id,
+                                   const mc::variant& value, Handler&& handler) {
+        bool found = false;
+        query_by_non_unique_index(builder, index_id, value, found, std::forward<Handler>(handler));
+        return found;
+    }
+
+    /**
+     * 使用唯一索引查询
+     * @param builder 查询构建器
+     * @param index_id 索引ID
+     * @param value 查询值
+     * @param found 是否找到的引用，用于 IN 查询
+     * @param handler 结果处理器
+     * @return 是否中断查询
+     */
+    template <typename Handler>
+    bool query_by_unique_index(const query_builder& builder, size_t index_id,
+                               const mc::variant& value, bool& found, Handler&& handler) {
+        // 执行唯一索引查找
+        auto result = m_table.find_by_index(index_id, value);
+        if (result) {
+            // 检查对象是否满足所有条件
+            if (builder.has_condition() && !builder.matches(*result)) {
+                return false;
+            }
+
+            found = true;
+            if (!handler(*result)) {
+                return true; // 中断查询
+            }
+        }
+        return false; // 继续查询
+    }
+
+    /**
+     * 使用唯一索引查询（单值查询简化接口）
+     */
+    template <typename Handler>
+    bool query_by_unique_index(const query_builder& builder, size_t index_id,
+                               const mc::variant& value, Handler&& handler) {
+        bool found = false;
+        query_by_unique_index(builder, index_id, value, found, std::forward<Handler>(handler));
+        return true; // 对于唯一索引，始终返回true表示查询成功完成
+    }
+
+    /**
+     * 使用多个值查询(IN查询)
+     * @param builder 查询构建器
+     * @param index_id 索引ID
+     * @param fields 字段列表
+     * @param values 查询值列表
+     * @param handler 结果处理器
+     * @return 是否成功
+     */
+    template <typename Handler>
+    bool query_by_multiple_values(const query_builder& builder, size_t index_id,
+                                  const std::vector<std::string_view>& fields,
+                                  const mc::variants& values, Handler&& handler) {
+        std::string_view field_name          = fields.empty() ? std::string_view() : fields[0];
+        bool             is_non_unique_field = is_field_non_unique(field_name);
+
+        bool found = false;
+        for (const auto& value : values) {
+            if (is_non_unique_field) {
+                if (query_by_non_unique_index(builder, index_id, value, found,
+                                              std::forward<Handler>(handler))) {
+                    return true;
                 }
-
-                return true;
-            } else if (builder.get_where()->get_type() == condition_type::and_condition) {
-                // 处理AND条件
-                auto and_cond = std::static_pointer_cast<and_condition>(builder.get_where());
-                for (const auto& condition : and_cond->get_conditions()) {
-                    if (condition->get_type() == condition_type::equal_condition) {
-                        auto eq_cond = std::static_pointer_cast<equal_condition>(condition);
-
-                        // 检查字段是否匹配索引
-                        const auto& metadata = get_metadata();
-                        auto        indices  = metadata.find_indices_by_field(eq_cond->get_field());
-                        bool        field_matches_index = false;
-                        for (const auto* idx : indices) {
-                            if (idx->index_id == index_id) {
-                                field_matches_index = true;
-                                break;
-                            }
-                        }
-
-                        if (field_matches_index) {
-                            // 执行索引查找
-                            auto result = m_table.find_by_index(index_id, eq_cond->get_value());
-                            if (result) {
-                                if (!builder.matches(*result)) {
-                                    continue;
-                                }
-
-                                if (!handler(*result)) {
-                                    break;
-                                }
-                            }
-                            return true;
-                        }
-                    }
-                }
-            } else if (builder.get_where()->get_type() == condition_type::or_condition) {
-                // 处理OR条件（IN查询）
-                auto        or_cond = std::static_pointer_cast<or_condition>(builder.get_where());
-                const auto& conditions = or_cond->get_conditions();
-
-                // 检查是否所有条件都是等值条件且针对同一字段
-                bool                     all_equal_on_same_field = true;
-                std::string              field_name;
-                std::vector<mc::variant> values;
-
-                if (!conditions.empty() &&
-                    conditions[0]->get_type() == condition_type::equal_condition) {
-                    auto first_cond = std::static_pointer_cast<equal_condition>(conditions[0]);
-                    field_name      = first_cond->get_field();
-                    values.push_back(first_cond->get_value());
-
-                    for (size_t i = 1; i < conditions.size(); ++i) {
-                        if (conditions[i]->get_type() != condition_type::equal_condition) {
-                            all_equal_on_same_field = false;
-                            break;
-                        }
-
-                        auto equal_cond = std::static_pointer_cast<equal_condition>(conditions[i]);
-                        if (equal_cond->get_field() != field_name) {
-                            all_equal_on_same_field = false;
-                            break;
-                        }
-
-                        values.push_back(equal_cond->get_value());
-                    }
-                } else {
-                    all_equal_on_same_field = false;
-                }
-
-                if (all_equal_on_same_field) {
-                    // 检查字段是否匹配索引
-                    const auto& metadata            = get_metadata();
-                    auto        indices             = metadata.find_indices_by_field(field_name);
-                    bool        field_matches_index = false;
-                    for (const auto* idx : indices) {
-                        if (idx->index_id == index_id) {
-                            field_matches_index = true;
-                            break;
-                        }
-                    }
-
-                    if (field_matches_index) {
-                        // 使用IN优化
-                        for (const auto& value : values) {
-                            auto result = m_table.find_by_index(index_id, value);
-                            if (result) {
-                                if (!builder.matches(*result)) {
-                                    continue;
-                                }
-
-                                if (!handler(*result)) {
-                                    break;
-                                }
-                            }
-                        }
-                        return true;
-                    }
+            } else {
+                if (query_by_unique_index(builder, index_id, value, found,
+                                          std::forward<Handler>(handler))) {
+                    return true;
                 }
             }
         }
-
-        // 如果不符合优化条件，回退到全表扫描
-        return false;
+        return found;
     }
 
     /**
@@ -337,101 +379,64 @@ private:
         // 直接使用索引ID
         size_t index_id = plan.index_id;
 
-        // 构建范围查询
-        query_range range;
+        // 使用计划中的范围
+        query_range range = plan.range;
 
-        // 处理条件系统
-        if (builder.has_where()) {
-            switch (builder.get_where()->get_type()) {
-            case condition_type::greater_condition: {
-                auto gt_cond = std::static_pointer_cast<greater_condition>(builder.get_where());
-                range.has_lower_bound = true;
-                range.include_lower   = false;
-                range.lower_bound     = gt_cond->get_value();
-                break;
-            }
-            case condition_type::greater_equal_condition: {
-                auto ge_cond =
-                    std::static_pointer_cast<greater_equal_condition>(builder.get_where());
-                range.has_lower_bound = true;
-                range.include_lower   = true;
-                range.lower_bound     = ge_cond->get_value();
-                break;
-            }
-            case condition_type::less_condition: {
-                auto lt_cond = std::static_pointer_cast<less_condition>(builder.get_where());
-                range.has_upper_bound = true;
-                range.include_upper   = false;
-                range.upper_bound     = lt_cond->get_value();
-                break;
-            }
-            case condition_type::less_equal_condition: {
-                auto le_cond = std::static_pointer_cast<less_equal_condition>(builder.get_where());
-                range.has_upper_bound = true;
-                range.include_upper   = true;
-                range.upper_bound     = le_cond->get_value();
-                break;
-            }
-            case condition_type::and_condition: {
-                // 处理AND条件中的范围条件
-                auto        and_cond = std::static_pointer_cast<and_condition>(builder.get_where());
-                const auto& conditions = and_cond->get_conditions();
-
-                for (const auto& condition : conditions) {
-                    switch (condition->get_type()) {
-                    case condition_type::greater_condition: {
-                        auto gt_cond = std::static_pointer_cast<greater_condition>(condition);
-                        range.has_lower_bound = true;
-                        range.include_lower   = false;
-                        range.lower_bound     = gt_cond->get_value();
-                        break;
-                    }
-                    case condition_type::greater_equal_condition: {
-                        auto ge_cond = std::static_pointer_cast<greater_equal_condition>(condition);
-                        range.has_lower_bound = true;
-                        range.include_lower   = true;
-                        range.lower_bound     = ge_cond->get_value();
-                        break;
-                    }
-                    case condition_type::less_condition: {
-                        auto lt_cond          = std::static_pointer_cast<less_condition>(condition);
-                        range.has_upper_bound = true;
-                        range.include_upper   = false;
-                        range.upper_bound     = lt_cond->get_value();
-                        break;
-                    }
-                    case condition_type::less_equal_condition: {
-                        auto le_cond = std::static_pointer_cast<less_equal_condition>(condition);
-                        range.has_upper_bound = true;
-                        range.include_upper   = true;
-                        range.upper_bound     = le_cond->get_value();
-                        break;
-                    }
-                    default:
-                        break;
-                    }
-                }
-                break;
-            }
-            default:
-                break;
-            }
-        }
-
-        // 执行范围查询
-        auto begin_it =
-            range.has_lower_bound
-                ? (range.include_lower ? m_table.lower_bound_by_index(index_id, range.lower_bound)
-                                       : m_table.upper_bound_by_index(index_id, range.lower_bound))
-                : m_table.begin();
-
-        auto end_it =
-            range.has_upper_bound
-                ? (range.include_upper ? m_table.upper_bound_by_index(index_id, range.upper_bound)
-                                       : m_table.lower_bound_by_index(index_id, range.upper_bound))
-                : m_table.end();
+        // 获取开始和结束迭代器
+        auto begin_it = get_range_begin_iterator(index_id, range);
+        auto end_it   = get_range_end_iterator(index_id, range);
 
         // 遍历范围内的所有对象
+        return iterate_range(builder, begin_it, end_it, std::forward<Handler>(handler));
+    }
+
+    /**
+     * 获取范围查询的开始迭代器
+     * @param index_id 索引ID
+     * @param range 查询范围
+     * @return 开始迭代器
+     */
+    raw_iterator get_range_begin_iterator(size_t index_id, const query_range& range) {
+        if (range.has_lower_bound) {
+            if (range.include_lower) {
+                return m_table.lower_bound_by_index(index_id, range.lower_bound);
+            } else {
+                return m_table.upper_bound_by_index(index_id, range.lower_bound);
+            }
+        } else {
+            return m_table.begin();
+        }
+    }
+
+    /**
+     * 获取范围查询的结束迭代器
+     * @param index_id 索引ID
+     * @param range 查询范围
+     * @return 结束迭代器
+     */
+    raw_iterator get_range_end_iterator(size_t index_id, const query_range& range) {
+        if (range.has_upper_bound) {
+            if (range.include_upper) {
+                return m_table.upper_bound_by_index(index_id, range.upper_bound);
+            } else {
+                return m_table.lower_bound_by_index(index_id, range.upper_bound);
+            }
+        } else {
+            return m_table.end();
+        }
+    }
+
+    /**
+     * 迭代指定范围的对象
+     * @param builder 查询构建器
+     * @param begin_it 开始迭代器
+     * @param end_it 结束迭代器
+     * @param handler 结果处理器
+     * @return 是否找到匹配对象
+     */
+    template <typename Handler>
+    bool iterate_range(const query_builder& builder, raw_iterator begin_it, raw_iterator end_it,
+                       Handler&& handler) {
         bool found = false;
         for (auto it = begin_it; it != end_it && !it.is_end(); ++it) {
             const auto& obj = *it->second;
@@ -464,19 +469,30 @@ private:
     }
 
     /**
-     * 执行全表扫描
+     * 执行全表扫描（无过滤）
+     * @param handler 结果处理器
+     */
+    template <typename Handler>
+    void full_table_scan(Handler&& handler) {
+        for (auto it = m_table.begin(); !it.is_end(); ++it) {
+            const auto& obj = *it->second;
+            if (!handler(obj)) {
+                break;
+            }
+        }
+    }
+
+    /**
+     * 执行全表扫描（含过滤）
      * @param builder 查询构建器
      * @param handler 结果处理器
      */
     template <typename Handler>
-    void full_table_scan(const query_builder& builder, Handler&& handler) {
-        // 调试信息已移除，但保持功能完整性
-
+    void full_table_scan_with_filter(const query_builder& builder, Handler&& handler) {
         for (auto it = m_table.begin(); !it.is_end(); ++it) {
-            const auto& obj     = *it->second;
-            bool        matches = builder.matches(obj);
+            const auto& obj = *it->second;
 
-            if (!matches) {
+            if (!builder.matches(obj)) {
                 continue;
             }
 
@@ -487,68 +503,63 @@ private:
     }
 
     /**
-     * 内部查询实现
-     *
+     * 查询执行实现
      * @param builder 查询构建器
-     * @param handler, 结果处理函数
+     * @param handler 结果处理函数
      */
     template <typename Handler>
     void query_impl(const query_builder& builder, Handler&& handler) {
-        if (builder.is_empty()) {
+        // 无条件时，执行全表扫描
+        if (!builder.has_condition()) {
+            full_table_scan(std::forward<Handler>(handler));
             return;
         }
 
-        // 创建查询规划器并生成查询计划
+        // 生成查询计划
+        const query_plan plan = generate_query_plan(builder);
+
+        // 执行查询
+        execute_query_plan(builder, plan, std::forward<Handler>(handler));
+    }
+
+    /**
+     * 生成查询计划
+     * @param builder 查询构建器
+     * @return 查询计划
+     */
+    query_plan generate_query_plan(const query_builder& builder) {
+        const auto& cond     = builder.get_condition();
         const auto& metadata = get_metadata();
         auto        planner  = query_planner<object_type>(metadata);
-        auto        plan     = planner.plan_for_query(builder);
+        return planner.generate_plan(cond);
+    }
 
-        // 根据查询计划执行不同的查询策略
-        if (plan.use_index) {
-            switch (plan.plan_type) {
-            case query_plan_type::index_exact_match:
-                if (query_by_exact_match(builder, plan, std::forward<Handler>(handler))) {
-                    return;
-                }
-                break;
+    /**
+     * 根据查询计划执行查询
+     * @param builder 查询构建器
+     * @param plan 查询计划
+     * @param handler 结果处理函数
+     */
+    template <typename Handler>
+    void execute_query_plan(const query_builder& builder, const query_plan& plan,
+                            Handler&& handler) {
+        // 根据查询计划执行查询
+        bool use_index = plan.plan_type != query_plan_type::full_scan &&
+                         plan.plan_type != query_plan_type::empty_result;
 
-            case query_plan_type::index_range:
-                if (query_by_range(builder, plan, std::forward<Handler>(handler))) {
-                    return;
-                }
-                break;
-
-            case query_plan_type::composite_key:
-                if (query_by_composite_key(builder, plan, std::forward<Handler>(handler))) {
-                    return;
-                }
-                break;
-
-            case query_plan_type::empty_result:
-                return; // 空结果优化，直接返回
-
-            default:
-                break;
-            }
+        if (use_index) {
+            query_by_index(builder, plan, std::forward<Handler>(handler));
+        } else if (plan.plan_type == query_plan_type::empty_result) {
+            // 空结果，不执行任何操作
+            return;
+        } else {
+            // 全表扫描
+            full_table_scan_with_filter(builder, std::forward<Handler>(handler));
         }
-
-        // 如果无法使用索引或索引查询失败，则回退到全表扫描
-        full_table_scan(builder, std::forward<Handler>(handler));
     }
 
     TableType& m_table;
 };
-
-/**
- * 创建表查询助手的工厂函数
- *
- * @param table 表对象
- * @return 表查询助手对象
- */
-template <typename TableType>
-auto make_table_query(TableType& table) {
-    return table_query<TableType>(table);
-}
 
 } // namespace mc::database::query
 

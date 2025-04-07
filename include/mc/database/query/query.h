@@ -14,27 +14,28 @@
  * @file query.h
  * @brief 数据库表高级查询功能
  */
-#ifndef MC_DATABASE_QUERY_H
-#define MC_DATABASE_QUERY_H
+#ifndef MC_DATABASE_QUERY_QUERY_H
+#define MC_DATABASE_QUERY_QUERY_H
 
 #include <mc/database/query/builder.h>
 #include <mc/database/query/condition.h>
-#include <mc/database/query/field_accessor.h>
 #include <mc/database/query/metadata.h>
 #include <mc/database/query/planner.h>
 #include <mc/database/query/table_query.h>
 
 namespace mc::database {
-
-// 为方便使用，引入query命名空间中的关键类型
+// 导出便于使用的类型别名
 using query::compare_op;
-using query::index_metadata;
-using query::index_type;
-using query::make_field_accessor;
-using query::make_table_query;
+using query::condition;
+using query::logical_op;
 using query::query_builder;
+using query::query_plan;
+using query::query_plan_type;
+using query::query_range;
 using query::table_query;
 
+// 导出条件工厂函数
+using namespace query::conditions;
 } // namespace mc::database
 
-#endif // MC_DATABASE_QUERY_H
+#endif // MC_DATABASE_QUERY_QUERY_H
