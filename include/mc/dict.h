@@ -360,6 +360,8 @@ public:
     const_iterator find(std::string_view key) const;
     const_iterator find(const char* key) const;
 
+    std::string to_string() const;
+
 protected:
     /**
      * @brief 存储数据的结构
@@ -727,6 +729,14 @@ private:
     entry* find_entry(std::string_view key);
     entry* find_entry(const char* key);
 };
+
+inline std::string to_string(const dict& v) {
+    return v.to_string();
+}
+
+inline std::string to_string(const mutable_dict& v) {
+    return v.to_string();
+}
 
 } // namespace mc
 

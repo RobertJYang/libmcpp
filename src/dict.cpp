@@ -15,6 +15,7 @@
  * @brief 实现 dict.h 中声明的方法
  */
 #include <mc/dict.h>
+#include <mc/json.h>
 #include <mc/variant.h>
 #include <stdexcept>
 #include <unordered_map>
@@ -340,6 +341,12 @@ size_t dict::hash() const {
     }
 
     return h;
+}
+
+std::string dict::to_string() const {
+    // 将 dict 转换为 variant，然后使用 json 库编码
+    variant v = *this;
+    return json::json_encode(v);
 }
 
 } // namespace mc
