@@ -26,7 +26,7 @@ namespace mdb = mc::database;
 
 // 定义标签类型
 struct by_age : mdb::tag_base {};
-struct by_name_age : mdb::tag_base {};
+MC_FIELD_INDEX_TAG(by_name_age, "name_age");
 
 class user : public mdb::object_base<user> {
 public:
@@ -67,7 +67,13 @@ using user_table = mdb::table<
                                                  mdb::member<user, int, &user::m_age>>,
                               by_name_age>>>;
 
+// 拿到表的字段，可用于后续构造查询语句
+auto field_name  = user::field(&user::m_name);
+auto field_age   = user::field(&user::m_age);
+auto field_score = user::field(&user::m_score);
 } // namespace
+
+MC_REFLECT(user, ((m_name, "name"))((m_age, "age"))((m_score, "score")))
 
 // 表类测试
 class table_test : public ::testing::Test {
@@ -208,5 +214,282 @@ TEST_F(table_test, unified_get_interface) {
         ASSERT_FALSE(it1.is_end());
         ASSERT_FALSE(it2.is_end());
         EXPECT_EQ(&(*it1), &(*it2));
+    }
+}
+
+// 高级查询测试，使用DSL构建查询语句
+TEST_F(table_test, advanced_query) {
+    user_table users;
+
+    // 添加一些测试数据
+    user u1("张三", 25, 85.5);
+    user u2("李四", 30, 90.0);
+    user u3("王五", 25, 76.5);
+    user u4("赵六", 35, 95.0);
+    user u5("钱七", 40, 88.0);
+    users.add(u1);
+    users.add(u2);
+    users.add(u3);
+    users.add(u4);
+    users.add(u5);
+
+    // 简单条件查询
+    {
+        auto results = users.query(field_name == "张三");
+        EXPECT_EQ(results.size(), 1);
+        if (!results.empty()) {
+            EXPECT_EQ(results[0].name(), "张三");
+            EXPECT_EQ(results[0].get_age(), 25);
+            EXPECT_DOUBLE_EQ(results[0].score(), 85.5);
+        }
+    }
+
+    // 复合条件查询 (AND)
+    {
+        auto results = users.query(field_age == 25 && field_score > 80.0);
+        EXPECT_EQ(results.size(), 1);
+        if (!results.empty()) {
+            EXPECT_EQ(results[0].name(), "张三");
+            EXPECT_DOUBLE_EQ(results[0].score(), 85.5);
+        }
+    }
+
+    // 复合条件查询 (OR)
+    {
+        auto results = users.query(field_name == "张三" || field_name == "李四");
+        EXPECT_EQ(results.size(), 2);
+        // 排序结果以便于测试
+        std::sort(results.begin(), results.end(), [](const user& a, const user& b) {
+            return a.name() < b.name();
+        });
+        if (results.size() == 2) {
+            EXPECT_EQ(results[0].name(), "张三");
+            EXPECT_EQ(results[1].name(), "李四");
+        }
+    }
+
+    // 范围查询
+    {
+        auto results = users.query(field_age >= 30 && field_age <= 35);
+        EXPECT_EQ(results.size(), 2);
+        // 排序结果以便于测试
+        std::sort(results.begin(), results.end(), [](const user& a, const user& b) {
+            return a.name() < b.name();
+        });
+        if (results.size() == 2) {
+            EXPECT_EQ(results[0].name(), "李四");
+            EXPECT_EQ(results[1].name(), "赵六");
+        }
+    }
+
+    // 限制返回数量的查询
+    {
+        auto results = users.query(field_age >= 25, 2);
+        EXPECT_EQ(results.size(), 2); // 只返回2条记录，尽管有5条匹配
+    }
+
+    // 使用自定义处理函数的查询
+    {
+        std::vector<std::string> names;
+        users.query(field_score >= 85.0, [&names](const user& u) {
+            names.push_back(u.name());
+            return true; // 继续处理下一条记录
+        });
+
+        EXPECT_EQ(names.size(), 4); // 张三、李四、赵六、钱七的分数都 >= 85.0
+
+        // 排序名称以便于测试
+        std::sort(names.begin(), names.end());
+        if (names.size() == 4) {
+            EXPECT_EQ(names[0], "张三");
+            EXPECT_EQ(names[1], "李四");
+            EXPECT_EQ(names[2], "赵六");
+            EXPECT_EQ(names[3], "钱七");
+        }
+    }
+
+    // 查询单个记录
+    {
+        auto result = users.find(field_name == "王五");
+        EXPECT_TRUE(result.has_value());
+        if (result.has_value()) {
+            EXPECT_EQ(result->name(), "王五");
+            EXPECT_EQ(result->get_age(), 25);
+            EXPECT_DOUBLE_EQ(result->score(), 76.5);
+        }
+    }
+
+    // 复合条件查询（AND和OR组合）
+    {
+        auto results = users.query((field_age < 30 && field_score > 80.0) ||
+                                   (field_age > 35 && field_score < 90.0));
+        EXPECT_EQ(results.size(), 2); // 应该匹配张三和钱七
+
+        // 排序结果以便于测试
+        std::sort(results.begin(), results.end(), [](const user& a, const user& b) {
+            return a.name() < b.name();
+        });
+
+        if (results.size() == 2) {
+            EXPECT_EQ(results[0].name(), "张三"); // 满足第一个条件
+            EXPECT_EQ(results[1].name(), "钱七"); // 满足第二个条件
+        }
+    }
+}
+
+// 高级更新测试，使用DSL构建更新语句
+TEST_F(table_test, advanced_update) {
+    user_table users;
+
+    // 添加一些测试数据
+    user u1("Alice", 25, 85.5);
+    user u2("Bob", 30, 90.0);
+    user u3("Charlie", 35, 95.5);
+    users.add(u1);
+    users.add(u2);
+    users.add(u3);
+
+    // 使用 dict 更新
+    {
+        mc::dict update_values = {{"age", 26}, {"score", 88.0}};
+        size_t   updated       = users.update(field_name == "Alice", update_values);
+        EXPECT_EQ(updated, 1);
+
+        auto result = users.find(field_name == "Alice");
+        EXPECT_TRUE(result.has_value());
+        EXPECT_EQ(result->get_age(), 26); // Alice 的年龄被更新为 26
+        EXPECT_DOUBLE_EQ(result->score(), 88.0);
+    }
+
+    // 使用 map 更新
+    {
+        std::map<std::string, mc::variant> update_values = {{"score", 88.0}};
+        size_t updated = users.update(field_name == "Bob", update_values);
+        EXPECT_EQ(updated, 1);
+
+        auto result = users.find(field_name == "Bob");
+        EXPECT_TRUE(result.has_value());
+        EXPECT_DOUBLE_EQ(result->score(), 88.0);
+    }
+
+    // 批量更新测试
+    {
+        mc::dict update_values = {{"age", 26}};
+        auto     expr          = field_age >= 30;
+
+        auto   uu      = users.query(expr);
+        size_t updated = users.update(expr, update_values);
+        EXPECT_EQ(updated, 2); // Bob 和 Charlie 的年龄都 >= 30
+
+        auto results = users.query(field_age >= 26);
+        EXPECT_EQ(results.size(), 3);
+    }
+}
+
+// 高级删除测试，使用DSL构建删除语句
+TEST_F(table_test, advanced_remove) {
+    user_table users;
+
+    // 添加一些测试数据
+    user u1("Alice", 25, 85.5);
+    user u2("Bob", 30, 90.0);
+    user u3("Charlie", 35, 95.5);
+    user u4("David", 40, 100.0);
+    users.add(u1);
+    users.add(u2);
+    users.add(u3);
+    users.add(u4);
+
+    // 测试删除单个记录
+    {
+        size_t removed = users.remove(field_name == "Alice");
+        EXPECT_EQ(removed, 1);
+
+        auto result = users.find(field_name == "Alice");
+        EXPECT_FALSE(result.has_value());
+    }
+
+    // 测试删除多个记录
+    {
+        size_t removed = users.remove(field_age >= 30);
+        EXPECT_EQ(removed, 3); // Bob、Charlie 和 David 的年龄都 >= 30
+
+        auto results = users.query(field_age >= 30);
+        EXPECT_EQ(results.size(), 0);
+    }
+
+    // 前两个测试删除后，表应该为空
+    EXPECT_TRUE(users.empty());
+
+    // 测试复合条件删除
+    {
+        // 重新添加一些数据
+        user u5("Eve", 25, 80.0);
+        user u6("Frank", 30, 85.0);
+        user u7("Grace", 35, 90.0);
+        users.add(u5);
+        users.add(u6);
+        users.add(u7);
+
+        size_t removed = users.remove((field_age >= 30) && (field_score < 90.0));
+        EXPECT_EQ(removed, 1); // 只有 Frank 满足条件
+
+        auto results = users.query((field_age >= 30) && (field_score < 90.0));
+        EXPECT_EQ(results.size(), 0);
+
+        EXPECT_EQ(users.size(), 2);
+        auto all = users.all();
+        EXPECT_EQ(all.size(), 2); // Eve 和 Grace 还在
+
+        users.clear();
+        EXPECT_TRUE(users.empty());
+    }
+
+    // 测试事务中的删除
+    {
+        // 重新添加一些数据
+        user u8("Henry", 25, 75.0);
+        user u9("Ivy", 30, 80.0);
+        users.add(u8);
+        users.add(u9);
+
+        auto& txn = mc::database::transaction::get_instance();
+
+        size_t removed = users.remove(field_score < 85.0, &txn);
+        EXPECT_EQ(removed, 2); // Henry 和 Ivy 的分数都 < 85.0
+        EXPECT_EQ(users.size(), 0);
+
+        // 提交事务
+        txn.commit();
+
+        // 事务提交后，记录应该被删除
+        auto results_after = users.query(field_score < 85.0);
+        EXPECT_EQ(results_after.size(), 0);
+        EXPECT_TRUE(users.empty());
+    }
+
+    // 测试事务中的删除后回滚
+    {
+        // 重新添加一些数据
+        user u8("Henry", 25, 75.0);
+        user u9("Ivy", 30, 80.0);
+        users.add(u8);
+        users.add(u9);
+
+        auto& txn = mc::database::transaction::get_instance();
+
+        size_t removed = users.remove(field_score < 85.0, &txn);
+        EXPECT_EQ(removed, 2); // Henry 和 Ivy 的分数都 < 85.0
+        EXPECT_EQ(users.size(), 0);
+
+        // 回滚事务
+        txn.rollback();
+
+        // 事务回滚后，记录应该还在
+        auto results_after = users.query(field_score < 85.0);
+        EXPECT_EQ(results_after.size(), 2);
+
+        users.clear();
+        EXPECT_TRUE(users.empty());
     }
 }

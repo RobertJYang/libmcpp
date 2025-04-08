@@ -130,7 +130,6 @@ public:
         if (is_logical()) {
             return eval_logical(obj);
         } else {
-            // 通过反射获取字段值
             return eval_object(obj);
         }
     }

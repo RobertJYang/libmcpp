@@ -14,8 +14,10 @@
 #define MC_DATABASE_OBJECT_H
 
 #include <cstdint>
+#include <mc/database/query/proto_query.h>
 #include <mc/im/ref_base.h>
 #include <mc/im/ref_ptr.h>
+#include <mc/reflect/reflect_metadata.h>
 #include <memory>
 #include <utility>
 
@@ -65,6 +67,32 @@ public:
      */
     bool has_valid_id() const {
         return m_object_id != 0;
+    }
+
+    /**
+     * 创建字段引用，通过指定字段名
+     * @param name 字段名
+     * @return 字段引用对象，用于构建查询条件
+     */
+    static query::dsl::query_expr<boost::proto::terminal<query::dsl::field_ref>::type>
+    field(std::string_view name) {
+        return query::dsl::field(name);
+    }
+
+    /**
+     * 创建字段引用，通过成员指针自动获取字段名
+     * @tparam KeyType 字段类型
+     * @param member 成员指针
+     * @return 字段引用对象，用于构建查询条件
+     */
+    template <typename KeyType>
+    static query::dsl::query_expr<boost::proto::terminal<query::dsl::field_ref>::type>
+    field(KeyType ObjectType::* member) {
+        std::string_view name;
+        if constexpr (mc::reflect::is_reflectable<ObjectType>()) {
+            name = mc::reflect::get_member_name<ObjectType>(member);
+        }
+        return query::dsl::field(name);
     }
 
     /**

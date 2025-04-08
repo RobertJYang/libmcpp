@@ -65,10 +65,7 @@ public:
      */
     const member_info<T>* get_member(std::string_view name) const {
         auto it = m_name_to_member.find(name);
-        if (it != m_name_to_member.end()) {
-            return it->second;
-        }
-        return nullptr;
+        return it != m_name_to_member.end() ? it->second : nullptr;
     }
 
     /**
@@ -78,12 +75,8 @@ public:
      * @return const member_info<T>* 成员信息指针，如果不存在则返回nullptr
      */
     const member_info<T>* get_member_by_offset(size_t offset) const {
-        for (const auto& [name, member] : m_name_to_member) {
-            if (member->offset == offset) {
-                return member;
-            }
-        }
-        return nullptr;
+        auto it = m_offset_to_member.find(offset);
+        return it != m_offset_to_member.end() ? it->second : nullptr;
     }
 
     /**
@@ -129,7 +122,7 @@ public:
         if (member) {
             return member->name;
         }
-        return "";
+        return {};
     }
 
     /**
@@ -152,13 +145,16 @@ private:
     void initialize() {
         const auto& members = reflector<T>::get_members();
         for (const auto& member : members) {
-            m_name_to_member[member.name] = &member;
+            m_name_to_member[member.name]     = &member;
+            m_offset_to_member[member.offset] = &member;
         }
     }
 
 private:
     // 成员名称到成员信息的映射
     std::unordered_map<std::string_view, const member_info<T>*> m_name_to_member;
+    // 成员偏移量到成员信息的映射
+    std::unordered_map<size_t, const member_info<T>*> m_offset_to_member;
 };
 
 /**

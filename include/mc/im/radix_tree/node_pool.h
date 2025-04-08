@@ -207,7 +207,11 @@ void node_pool<Config>::free_node_list(node_list* l) {
     while (l->len() > 0) {
         auto node = l->front();
         l->remove(node);
-        free_node(node);
+
+        // 仅仅只有当前节点被引用，则释放节点会缓存池
+        if (node->ref_count() == 1) {
+            free_node(node);
+        }
     }
 }
 
@@ -270,8 +274,8 @@ typename node_pool<Config>::node_ptr node_pool<Config>::write_node(const node_pt
 }
 
 template <typename Config>
-typename node_pool<Config>::node_ptr
-node_pool<Config>::new_node(leaf_type leaf, key_view prefix, edges_type edges) {
+typename node_pool<Config>::node_ptr node_pool<Config>::new_node(leaf_type leaf, key_view prefix,
+                                                                 edges_type edges) {
     node_ptr n;
 
     if (m_free_list && m_free_list->len() > 0) {

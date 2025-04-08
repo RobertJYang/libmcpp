@@ -140,8 +140,8 @@ using namespace mdb::query::dsl;
 TEST_F(table_query_test, complex_condition_query) {
     // 测试 AND 条件：age = 25 AND city = "北京"
     {
-        auto age_field  = field("age");
-        auto city_field = field("city");
+        auto age_field  = test_user::field(&test_user::m_age);
+        auto city_field = test_user::field(&test_user::m_city);
         auto expr       = age_field == 25 && city_field == "北京";
 
         auto user_ids = query_users(expr);
@@ -151,8 +151,8 @@ TEST_F(table_query_test, complex_condition_query) {
 
     // 测试 OR 条件：(age == 25) || (city == "北京")
     {
-        auto age_field  = field("age");
-        auto city_field = field("city");
+        auto age_field  = test_user::field(&test_user::m_age);
+        auto city_field = test_user::field(&test_user::m_city);
         auto expr       = (age_field == 25) || (city_field == "北京");
 
         auto user_ids = query_users(expr);
@@ -166,7 +166,7 @@ TEST_F(table_query_test, complex_condition_query) {
 
     // 测试比较条件：score > 90
     {
-        auto score_field = field("score");
+        auto score_field = test_user::field(&test_user::m_score);
         auto expr        = score_field > 90.0;
 
         auto user_ids = query_users(expr);
@@ -182,7 +182,7 @@ TEST_F(table_query_test, complex_condition_query) {
 TEST_F(table_query_test, special_condition_query) {
     // 测试 IN 条件：city IN ["北京", "上海"]
     {
-        auto city_field = field("city");
+        auto city_field = test_user::field(&test_user::m_city);
         auto expr       = in(city_field, {"北京", "上海"});
 
         auto user_ids = query_users(expr);
@@ -196,7 +196,7 @@ TEST_F(table_query_test, special_condition_query) {
 
     // 测试 BETWEEN 条件：age BETWEEN 25 AND 35
     {
-        auto age_field = field("age");
+        auto age_field = test_user::field(&test_user::m_age);
         auto expr      = between(age_field, 25, 35);
 
         auto user_ids = query_users(expr);
@@ -211,7 +211,7 @@ TEST_F(table_query_test, special_condition_query) {
 
     // 测试 LIKE 操作
     {
-        auto name_field = field("name");
+        auto name_field = test_user::field(&test_user::m_name);
         auto expr       = like(name_field, "%三%");
 
         auto user_ids = query_users(expr);
@@ -221,7 +221,7 @@ TEST_F(table_query_test, special_condition_query) {
 
     // 测试 CONTAINS 操作
     {
-        auto name_field = field("name");
+        auto name_field = test_user::field(&test_user::m_name);
         auto expr       = contains(name_field, "六");
 
         auto user_ids = query_users(expr);
@@ -234,7 +234,7 @@ TEST_F(table_query_test, special_condition_query) {
 TEST_F(table_query_test, index_optimized_query) {
     // 测试按主键ID查询（应该使用主键索引）
     {
-        auto id_field = field("id");
+        auto id_field = test_user::field(&test_user::m_id);
         auto expr     = id_field == 3;
 
         auto users_result = users.query(expr);
@@ -245,7 +245,7 @@ TEST_F(table_query_test, index_optimized_query) {
 
     // 测试按姓名查询（应该使用姓名索引）
     {
-        auto name_field = field("name");
+        auto name_field = test_user::field(&test_user::m_name);
         auto expr       = name_field == "李四";
 
         auto user_opt = users.find(expr);
@@ -259,7 +259,7 @@ TEST_F(table_query_test, index_optimized_query) {
 TEST_F(table_query_test, query_limit_and_custom_handler) {
     // 测试查询并限制返回数量
     {
-        auto age_field = field("age");
+        auto age_field = test_user::field(&test_user::m_age);
         auto expr      = age_field == 25;
 
         auto results = users.query(expr, 2UL);
@@ -283,7 +283,7 @@ TEST_F(table_query_test, query_limit_and_custom_handler) {
 
     // 测试自定义处理器
     {
-        auto city_field = field("city");
+        auto city_field = test_user::field(&test_user::m_city);
         auto expr       = city_field == "北京";
 
         std::vector<std::string> names;
@@ -300,8 +300,8 @@ TEST_F(table_query_test, query_limit_and_custom_handler) {
 
     // 测试复合条件查询
     {
-        auto age_field  = field("age");
-        auto city_field = field("city");
+        auto age_field  = test_user::field(&test_user::m_age);
+        auto city_field = test_user::field(&test_user::m_city);
         auto expr       = (age_field >= 30) && (city_field == "北京");
 
         auto results = users.query(expr);
@@ -310,6 +310,95 @@ TEST_F(table_query_test, query_limit_and_custom_handler) {
         if (!results.empty()) {
             EXPECT_EQ(results[0].id(), 5); // 钱七 (40岁, 北京)
         }
+    }
+}
+
+// 测试直接使用 query_builder 构造查询
+TEST_F(table_query_test, direct_query_builder) {
+    // 使用 query_builder 的 where 方法构建查询
+    {
+        mdb::query_builder builder;
+        builder.where("age", mdb::compare_op::eq, 25);
+
+        auto user_ids = query_users(builder);
+        EXPECT_EQ(user_ids.size(), 2);
+
+        std::sort(user_ids.begin(), user_ids.end());
+        EXPECT_EQ(user_ids[0], 1); // 张三 (25岁)
+        EXPECT_EQ(user_ids[1], 3); // 王五 (25岁)
+    }
+
+    // 使用 query_builder 的 where 和 or_where 方法组合条件
+    {
+        mdb::query_builder builder;
+        builder.where("city", mdb::compare_op::eq, "北京");
+        builder.or_where("city", mdb::compare_op::eq, "上海");
+
+        auto user_ids = query_users(builder);
+        EXPECT_EQ(user_ids.size(), 3);
+
+        std::sort(user_ids.begin(), user_ids.end());
+        EXPECT_EQ(user_ids[0], 1); // 张三 (北京)
+        EXPECT_EQ(user_ids[1], 2); // 李四 (上海)
+        EXPECT_EQ(user_ids[2], 5); // 钱七 (北京)
+    }
+
+    // 使用 query_builder 的 where_not 方法
+    {
+        mdb::query_builder builder;
+        builder.where("age", mdb::compare_op::le, 30);
+
+        auto user_ids = query_users(builder);
+        EXPECT_EQ(user_ids.size(), 3);
+
+        std::sort(user_ids.begin(), user_ids.end());
+        EXPECT_EQ(user_ids[0], 1); // 张三 (25岁)
+        EXPECT_EQ(user_ids[1], 2); // 李四 (30岁)
+        EXPECT_EQ(user_ids[2], 3); // 王五 (25岁)
+    }
+}
+
+// 测试使用字符串版本的 field 方法
+TEST_F(table_query_test, string_field_method) {
+    // 使用字符串版本的 field 方法
+    {
+        auto age_field = test_user::field("age");
+        auto expr      = age_field == 25;
+
+        auto user_ids = query_users(expr);
+        EXPECT_EQ(user_ids.size(), 2);
+
+        std::sort(user_ids.begin(), user_ids.end());
+        EXPECT_EQ(user_ids[0], 1); // 张三 (25岁)
+        EXPECT_EQ(user_ids[1], 3); // 王五 (25岁)
+    }
+
+    // 组合使用字符串版本的 field 方法和成员指针版本
+    {
+        auto name_field = test_user::field("name");
+        auto city_field = test_user::field(&test_user::m_city);
+        auto expr       = (name_field == "张三") || (city_field == "上海");
+
+        auto user_ids = query_users(expr);
+        EXPECT_EQ(user_ids.size(), 2);
+
+        std::sort(user_ids.begin(), user_ids.end());
+        EXPECT_EQ(user_ids[0], 1); // 张三
+        EXPECT_EQ(user_ids[1], 2); // 李四 (上海)
+    }
+
+    // 使用字符串版本的 field 方法构建复杂查询
+    {
+        auto score_field = test_user::field("score");
+        auto city_field  = test_user::field("city");
+        auto expr        = (score_field > 80.0) && (city_field == "北京");
+
+        auto user_ids = query_users(expr);
+        EXPECT_EQ(user_ids.size(), 2);
+
+        std::sort(user_ids.begin(), user_ids.end());
+        EXPECT_EQ(user_ids[0], 1); // 张三 (88.5分, 北京)
+        EXPECT_EQ(user_ids[1], 5); // 钱七 (82.5分, 北京)
     }
 }
 

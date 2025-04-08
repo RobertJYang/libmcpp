@@ -38,7 +38,7 @@ public:
     }
 
     // 构造函数（begin迭代器）
-    explicit const_iterator(const node_ptr& root) : m_is_end(false) {
+    explicit const_iterator(const node_ptr& root) : m_is_end(false), m_root(root) {
         if (!root) {
             m_is_end = true;
             return;
@@ -245,6 +245,7 @@ protected:
     node_type*   m_current_node = nullptr;
     key_buffer<> m_key_buffer;
     path_type    m_path;
+    node_ptr     m_root; // 要持有根节点指针，防止根节点被销毁
     union {
         const_map_value_type m_current_item;
         map_value_type       m_mutable_current_item;

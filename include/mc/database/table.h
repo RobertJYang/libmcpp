@@ -446,6 +446,31 @@ public:
         m_txn_savepoint_id = std::get<0>(m_indices).last_savepoint_id();
     }
 
+    struct lock_guard {
+        lock_guard(table& t) : m_table(t) {
+            m_table.lock_db();
+        }
+        ~lock_guard() {
+            m_table.unlock_db();
+        }
+
+        table& m_table;
+    };
+
+    void lock_db() {
+        detail::for_each_index(m_indices, [](auto& idx) {
+            idx.lock_db();
+            return true;
+        });
+    }
+
+    void unlock_db() {
+        detail::for_each_index(m_indices, [](auto& idx) {
+            idx.unlock_db();
+            return true;
+        });
+    }
+
     /**
      * 根据ID查找记录
      * @param id 对象ID
@@ -564,49 +589,125 @@ public:
     }
 
     /**
-     * 查询对象并收集所有匹配的结果
-     *
+     * 根据查询条件查找单个记录
      * @param builder 查询构建器
-     * @return 匹配对象列表
-     */
-    std::vector<object_type> query(const query_builder& builder) {
-        return table_query<table<object_type, IndexDef>>(*this).query_all(builder);
-    }
-
-    /**
-     * 查询对象，限制返回数量
-     *
-     * @param builder 查询构建器
-     * @param limit 最大返回数量
-     * @return 匹配对象列表
-     */
-    std::vector<object_type> query(const query_builder& builder, size_t limit) {
-        return table_query<table<object_type, IndexDef>>(*this).query_limit(builder, limit);
-    }
-
-    /**
-     * 查询单个对象，返回第一个匹配的结果
-     *
-     * @param builder 查询构建器
-     * @return 匹配的第一个对象的可选包装
+     * @return 找到的记录的可选包装
      */
     std::optional<object_type> find(const query_builder& builder) {
         return table_query<table<object_type, IndexDef>>(*this).query_one(builder);
     }
 
     /**
-     * 自定义处理查询结果
-     *
+     * 查询记录
      * @param builder 查询构建器
-     * @param handler 结果处理函数，返回false表示停止查询
+     * @param limit 限制返回的记录数量，0表示不限制
+     * @return 查询结果
      */
-    template <typename Handler>
-    void query(const query_builder& builder, Handler&& handler) {
-        table_query<table<object_type, IndexDef>>(*this).query(builder,
-                                                               std::forward<Handler>(handler));
+    std::vector<object_type> query(const query_builder& builder, size_t limit = 0) {
+        return table_query<table<object_type, IndexDef>>(*this).query(builder, limit);
+    }
+
+    /**
+     * 查询记录
+     * @param builder 查询构建器
+     * @param handler 处理函数，返回false表示停止查询
+     * @return 是否查询完成
+     */
+    template <typename Handler,
+              typename = std::enable_if_t<std::is_invocable_r_v<bool, Handler, const object_type&>>>
+    bool query(const query_builder& builder, Handler&& handler) {
+        return table_query<table<object_type, IndexDef>>(*this).query(
+            builder, std::forward<Handler>(handler));
+    }
+
+    std::vector<object_type> all() {
+        query_builder builder;
+        return table_query<table<object_type, IndexDef>>(*this).query_all(builder);
+    }
+
+    /**
+     * 高级更新方法，支持通过条件更新多个属性
+     * @param condition 查询条件
+     * @param values 要更新的值，支持多种数据源
+     * @return 更新的记录数量
+     */
+    size_t update(const query_builder& condition, const mc::dict& values,
+                  transaction* txn = nullptr) {
+        return update_internal(condition, values, txn);
+    }
+
+    size_t update(const query_builder& condition, const std::map<std::string, variant>& values,
+                  transaction* txn = nullptr) {
+        return update_internal(condition, values, txn);
+    }
+
+    /**
+     * 高级删除方法，支持通过条件删除多个记录
+     * @param condition 查询条件
+     * @return 删除的记录数量
+     */
+    size_t remove(const query_builder& condition, transaction* txn = nullptr) {
+        size_t removed_count = 0;
+
+        auto handler = [&](const object_type& obj) -> bool {
+            if (remove(mc::im::ref_ptr<object_type>(const_cast<object_type*>(&obj)), txn)) {
+                removed_count++;
+            }
+            return true;
+        };
+
+        query(condition, handler);
+        return removed_count;
+    }
+
+    void clear() {
+        detail::for_each_index(m_indices, [](auto& idx) {
+            idx.clear();
+            return true;
+        });
+    }
+
+    bool empty() const {
+        return std::get<0>(m_indices).empty();
+    }
+
+    size_t size() const {
+        return std::get<0>(m_indices).size();
     }
 
 private:
+    // 从 dict 更新对象
+    void update_object(object_type& obj, const dict& values) {
+        for (auto& entry : values) {
+            mc::reflect::set_property(obj, entry.key, entry.value);
+        }
+    }
+
+    // 从 map 更新对象
+    void update_object(object_type& obj, const std::map<std::string, variant>& values) {
+        for (auto& entry : values) {
+            mc::reflect::set_property(obj, entry.first, entry.second);
+        }
+    }
+
+    template <typename T>
+    size_t update_internal(const query_builder& condition, const T& values, transaction* txn) {
+        size_t updated_count = 0;
+
+        auto handler = [&](const object_type& obj) -> bool {
+            auto new_obj = object_type::create(obj);
+            update_object(*new_obj, values);
+            if (update(mc::im::ref_ptr<object_type>(const_cast<object_type*>(&obj)), new_obj,
+                       txn)) {
+                updated_count++;
+            }
+            return true;
+        };
+
+        query(condition, handler);
+        return updated_count;
+    }
+
     /**
      * 生成新的对象ID
      * @return 新的对象ID

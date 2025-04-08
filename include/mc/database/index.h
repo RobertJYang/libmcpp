@@ -224,7 +224,7 @@ public:
      * 清空索引
      */
     void clear() {
-        m_txn->clear();
+        m_txn  = std::make_unique<txn_type>(alloc_type());
         m_tree = m_txn->root();
     }
 
@@ -278,6 +278,14 @@ public:
 
     void rollback_to(int32_t savepoint_id) {
         m_txn->rollback(savepoint_id);
+    }
+
+    void lock_db() {
+        m_txn->lock_db();
+    }
+
+    void unlock_db() {
+        m_txn->unlock_db();
     }
 
     object_ptr_type raw_find(const mc::variant& value) override {
@@ -340,6 +348,14 @@ public:
 
     raw_iterator raw_begin() const override {
         return m_txn->root().begin();
+    }
+
+    bool empty() const {
+        return m_txn->root().empty();
+    }
+
+    size_t size() const {
+        return m_txn->root().size();
     }
 
 private:

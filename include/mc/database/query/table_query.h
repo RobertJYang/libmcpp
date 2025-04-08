@@ -120,14 +120,36 @@ public:
     }
 
     /**
-     * 查询对象并使用自定义处理函数处理结果
-     *
+     * 查询记录
      * @param builder 查询构建器
-     * @param handler 结果处理函数，返回false表示停止查询
+     * @param limit 限制返回的记录数量，0表示不限制
+     * @return 查询结果
      */
-    template <typename Handler>
-    void query(const query_builder& builder, Handler&& handler) {
+    std::vector<object_type> query(const query_builder& builder, size_t limit = 0) {
+        std::vector<object_type> results;
+        size_t                   count = 0;
+        query(builder, [&](const object_type& obj) -> bool {
+            if (limit > 0 && count >= limit) {
+                return false;
+            }
+            results.push_back(obj);
+            count++;
+            return true;
+        });
+        return results;
+    }
+
+    /**
+     * 查询记录
+     * @param builder 查询构建器
+     * @param handler 处理函数，返回false表示停止查询
+     * @return 是否查询完成
+     */
+    template <typename Handler,
+              typename = std::enable_if_t<std::is_invocable_r_v<bool, Handler, const object_type&>>>
+    bool query(const query_builder& builder, Handler&& handler) {
         query_impl(builder, std::forward<Handler>(handler));
+        return true;
     }
 
 private:
@@ -255,6 +277,7 @@ private:
         size_t count = 0;
         size_t limit = builder.has_limit() ? builder.get_limit() : 0;
 
+        typename TableType::lock_guard lock(m_table);
         for (auto it = begin_it; it != end_it && !it.is_end(); ++it) {
             const auto& obj = *it->second;
             // 检查对象是否满足所有条件
@@ -435,6 +458,7 @@ private:
         size_t count = 0;
         size_t limit = builder.has_limit() ? builder.get_limit() : 0;
 
+        typename TableType::lock_guard lock(m_table);
         for (auto it = begin_it; it != end_it && !it.is_end(); ++it) {
             const auto& obj = *it->second;
             if (!builder.matches(obj)) {
@@ -499,6 +523,7 @@ private:
      */
     template <typename Handler>
     void full_table_scan(Handler&& handler) {
+        typename TableType::lock_guard lock(m_table);
         for (auto it = m_table.begin(); !it.is_end(); ++it) {
             const auto& obj = *it->second;
             if (!handler(obj)) {
@@ -517,23 +542,24 @@ private:
         size_t count = 0;
         size_t limit = builder.has_limit() ? builder.get_limit() : 0;
 
+        typename TableType::lock_guard lock(m_table);
         for (auto it = m_table.begin(); !it.is_end(); ++it) {
             const auto& obj = *it->second;
 
-            // 检查条件
-            if (builder.matches(obj)) {
-                bool continue_scan = handler(obj);
-                if (!continue_scan) {
-                    break;
-                }
+            if (!builder.matches(obj)) {
+                continue;
+            }
 
-                // 检查是否达到限制
-                if (limit > 0) {
-                    count++;
-                    if (count >= limit) {
-                        break;
-                    }
-                }
+            if (!handler(obj)) {
+                break;
+            }
+
+            if (limit == 0) {
+                continue;
+            }
+
+            if (count++ >= limit) {
+                break;
             }
         }
     }
