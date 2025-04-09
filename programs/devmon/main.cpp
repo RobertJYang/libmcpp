@@ -9,18 +9,20 @@ int main(int argc, char** argv) {
     app.set_version("1.0.0");
 
     // 设置插件目录
-    std::filesystem::path plugin_dir = std::filesystem::current_path() / "plugins";
+    std::experimental::filesystem::path plugin_dir =
+        std::experimental::filesystem::current_path() / "plugins";
     app.get_plugin_manager().set_plugin_dir(plugin_dir);
 
     // 添加命令行参数
     std::vector<char*> new_argv;
     new_argv.push_back(argv[0]);
-    
+
     // 添加配置文件路径
-    std::string config_path = (std::filesystem::current_path() / "config" / "config.ini").string();
+    std::string config_path =
+        (std::experimental::filesystem::current_path() / "config" / "config.ini").string();
     std::string config_arg = "--config=" + config_path;
     new_argv.push_back(const_cast<char*>(config_arg.c_str()));
-    
+
     // 复制其他参数
     for (int i = 1; i < argc; i++) {
         new_argv.push_back(argv[i]);
@@ -32,7 +34,7 @@ int main(int argc, char** argv) {
         if (!app.initialize(static_cast<int>(new_argv.size()) - 1, new_argv.data())) {
             throw std::runtime_error("初始化应用程序失败");
         }
-        
+
         // 启动应用程序
         app.start();
 

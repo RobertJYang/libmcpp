@@ -195,20 +195,24 @@ bool variant_base<Config>::operator<(std::string_view other) const {
     } else if (is_blob()) {
         return m_blob_ptr->as_string_view() < other;
     } else if (is_double()) {
-        if (auto v = mc::string::try_to_number<double>(other)) {
-            return m_double < *v;
+        double v;
+        if (mc::string::try_to_number<double>(other, v)) {
+            return m_double < v;
         }
     } else if (is_signed_integer()) {
-        if (auto v = mc::string::try_to_number<int64_t>(other)) {
-            return m_int64 < *v;
+        int64_t v;
+        if (mc::string::try_to_number<int64_t>(other, v)) {
+            return m_int64 < v;
         }
     } else if (is_unsigned_integer()) {
-        if (auto v = mc::string::try_to_number<uint64_t>(other)) {
-            return m_uint64 < *v;
+        uint64_t v;
+        if (mc::string::try_to_number<uint64_t>(other, v)) {
+            return m_uint64 < v;
         }
     } else if (is_bool()) {
-        if (auto v = mc::string::try_to_bool(other)) {
-            return m_bool < *v;
+        bool v;
+        if (mc::string::try_to_bool(other, v)) {
+            return m_bool < v;
         }
     }
     throw_invalid_type_comparison_error(get_type_name(get_type()), "string_view", "<");
@@ -222,20 +226,24 @@ bool variant_base<Config>::operator>(std::string_view other) const {
     } else if (is_blob()) {
         return m_blob_ptr->as_string_view() > other;
     } else if (is_double()) {
-        if (auto v = mc::string::try_to_number<double>(other)) {
-            return m_double > *v;
+        double v;
+        if (mc::string::try_to_number<double>(other, v)) {
+            return m_double > v;
         }
     } else if (is_signed_integer()) {
-        if (auto v = mc::string::try_to_number<int64_t>(other)) {
-            return m_int64 > *v;
+        int64_t v;
+        if (mc::string::try_to_number<int64_t>(other, v)) {
+            return m_int64 > v;
         }
     } else if (is_unsigned_integer()) {
-        if (auto v = mc::string::try_to_number<uint64_t>(other)) {
-            return m_uint64 > *v;
+        uint64_t v;
+        if (mc::string::try_to_number<uint64_t>(other, v)) {
+            return m_uint64 > v;
         }
     } else if (is_bool()) {
-        if (auto v = mc::string::try_to_bool(other)) {
-            return m_bool > *v;
+        bool v;
+        if (mc::string::try_to_bool(other, v)) {
+            return m_bool > v;
         }
     }
     throw_invalid_type_comparison_error(get_type_name(get_type()), "string_view", ">");
@@ -249,20 +257,24 @@ bool variant_base<Config>::operator==(std::string_view other) const {
     } else if (is_blob()) {
         return m_blob_ptr->as_string_view() == other;
     } else if (is_double()) {
-        if (auto v = mc::string::try_to_number<double>(other)) {
-            return MC_FLOAT_EQUAL(m_double, *v, VARIANT_FLOAT_EPSILON);
+        double v;
+        if (mc::string::try_to_number<double>(other, v)) {
+            return MC_FLOAT_EQUAL(m_double, v, VARIANT_FLOAT_EPSILON);
         }
     } else if (is_signed_integer()) {
-        if (auto v = mc::string::try_to_number<int64_t>(other)) {
-            return m_int64 == *v;
+        int64_t v;
+        if (mc::string::try_to_number<int64_t>(other, v)) {
+            return m_int64 == v;
         }
     } else if (is_unsigned_integer()) {
-        if (auto v = mc::string::try_to_number<uint64_t>(other)) {
-            return m_uint64 == *v;
+        uint64_t v;
+        if (mc::string::try_to_number<uint64_t>(other, v)) {
+            return m_uint64 == v;
         }
     } else if (is_bool()) {
-        if (auto v = mc::string::try_to_bool(other)) {
-            return m_bool == *v;
+        bool v;
+        if (mc::string::try_to_bool(other, v)) {
+            return m_bool == v;
         }
     }
 

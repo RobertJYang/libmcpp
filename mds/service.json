@@ -1,0 +1,17 @@
+{
+    "name": "libmcpp",
+    "type": "library",
+    "deployConfig": "",
+    "version": "0.0.1",
+    "license": "",
+    "description": "",
+    "dependencies": {
+        "test": [],
+        "build": [
+            {
+                "conan": "boost/1.82.0.B001"
+            }
+        ]
+    },
+    "required": []
+}

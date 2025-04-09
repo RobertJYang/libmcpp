@@ -25,21 +25,21 @@ namespace mc::im {
 template <typename T, typename PointerType = T*>
 class ref_list {
 public:
-    using ref_ptr        = ref_ptr<T, PointerType>;
+    using ref_ptr_type   = ref_ptr<T, PointerType>;
     using allocator_type = typename T::allocator_type;
 
     ref_list();
 
     ref_list(ref_list&& other) noexcept {
-        m_root = std::move(other.m_root);
-        m_len = other.m_len;
+        m_root      = std::move(other.m_root);
+        m_len       = other.m_len;
         other.m_len = 0;
     }
 
     ref_list& operator=(ref_list&& other) noexcept {
         if (this != &other) {
-            m_root = std::move(other.m_root);
-            m_len = other.m_len;
+            m_root      = std::move(other.m_root);
+            m_len       = other.m_len;
             other.m_len = 0;
         }
         return *this;
@@ -64,13 +64,13 @@ public:
      * 获取首节点
      * @return 首节点
      */
-    ref_ptr front() const;
+    ref_ptr_type front() const;
 
     /**
      * 获取尾节点
      * @return 尾节点
      */
-    ref_ptr back() const;
+    ref_ptr_type back() const;
 
     /**
      * 在指定位置之后插入节点
@@ -78,28 +78,28 @@ public:
      * @param at 插入位置
      * @return 插入的节点
      */
-    ref_ptr insert(ref_ptr e, ref_ptr at);
+    ref_ptr_type insert(ref_ptr_type e, ref_ptr_type at);
 
     /**
      * 删除节点
      * @param e 要删除的节点
      * @return 删除的节点
      */
-    ref_ptr remove(ref_ptr e);
+    ref_ptr_type remove(ref_ptr_type e);
 
     /**
      * 在列表前端添加节点
      * @param e 要添加的节点
      * @return 添加的节点
      */
-    ref_ptr push_front(ref_ptr e);
+    ref_ptr_type push_front(ref_ptr_type e);
 
     /**
      * 在列表后端添加节点
      * @param e 要添加的节点
      * @return 添加的节点
      */
-    ref_ptr push_back(ref_ptr e);
+    ref_ptr_type push_back(ref_ptr_type e);
 
     /**
      * 在指定节点之前插入节点
@@ -107,7 +107,7 @@ public:
      * @param mark 标记节点
      * @return 插入的节点
      */
-    ref_ptr insert_before(ref_ptr v, ref_ptr mark);
+    ref_ptr_type insert_before(ref_ptr_type v, ref_ptr_type mark);
 
     /**
      * 在指定节点之后插入节点
@@ -115,33 +115,33 @@ public:
      * @param mark 标记节点
      * @return 插入的节点
      */
-    ref_ptr insert_after(ref_ptr v, ref_ptr mark);
+    ref_ptr_type insert_after(ref_ptr_type v, ref_ptr_type mark);
 
     /**
      * 将节点移动到列表前端
      * @param e 要移动的节点
      */
-    void move_to_front(ref_ptr e);
+    void move_to_front(ref_ptr_type e);
 
     /**
      * 将节点移动到列表后端
      * @param e 要移动的节点
      */
-    void move_to_back(ref_ptr e);
+    void move_to_back(ref_ptr_type e);
 
     /**
      * 将节点移动到指定节点之前
      * @param e 要移动的节点
      * @param mark 标记节点
      */
-    void move_before(ref_ptr e, ref_ptr mark);
+    void move_before(ref_ptr_type e, ref_ptr_type mark);
 
     /**
      * 将节点移动到指定节点之后
      * @param e 要移动的节点
      * @param mark 标记节点
      */
-    void move_after(ref_ptr e, ref_ptr mark);
+    void move_after(ref_ptr_type e, ref_ptr_type mark);
 
 private:
     /**
@@ -149,7 +149,7 @@ private:
      * @param e 要添加的节点
      * @return 添加的节点
      */
-    ref_ptr init_single_node(ref_ptr e);
+    ref_ptr_type init_single_node(ref_ptr_type e);
 
     /**
      * 预处理节点并准备添加到列表
@@ -157,14 +157,14 @@ private:
      * @param node 要处理的节点
      * @return 如果节点为空或列表为空并已初始化返回true，否则返回false
      */
-    bool prepare_node_for_insertion(ref_ptr& node);
+    bool prepare_node_for_insertion(ref_ptr_type& node);
 
     /**
      * 将节点插入到另一个节点之后
      * @param element 要插入的节点
      * @param pos 插入位置
      */
-    static void link_after(ref_ptr element, ref_ptr pos) {
+    static void link_after(ref_ptr_type element, ref_ptr_type pos) {
         if (!element || !pos) {
             return;
         }
@@ -175,11 +175,11 @@ private:
         pos->m_next         = element;
     }
 
-    static bool is_linked(const ref_ptr& element) {
+    static bool is_linked(const ref_ptr_type& element) {
         return element->m_next != nullptr && element->m_prev != nullptr;
     }
 
-    static void unlink(const ref_ptr& element) {
+    static void unlink(const ref_ptr_type& element) {
         if (is_linked(element)) {
             element->m_prev->m_next = element->m_next;
             element->m_next->m_prev = element->m_prev;
@@ -193,7 +193,7 @@ private:
      * @param element 要插入的节点
      * @param pos 插入位置
      */
-    static void link_before(ref_ptr element, ref_ptr pos) {
+    static void link_before(ref_ptr_type element, ref_ptr_type pos) {
         if (!element || !pos) {
             return;
         }
@@ -204,8 +204,8 @@ private:
         pos->m_prev         = element;
     }
 
-    ref_ptr m_root; // 列表头节点，为 nullptr 时表示空列表
-    size_t  m_len;
+    ref_ptr_type m_root; // 列表头节点，为 nullptr 时表示空列表
+    size_t       m_len;
 };
 
 template <typename T, typename PointerType>
@@ -230,12 +230,12 @@ size_t ref_list<T, PointerType>::len() const {
 }
 
 template <typename T, typename PointerType>
-typename ref_list<T, PointerType>::ref_ptr ref_list<T, PointerType>::front() const {
+typename ref_list<T, PointerType>::ref_ptr_type ref_list<T, PointerType>::front() const {
     return m_root;
 }
 
 template <typename T, typename PointerType>
-typename ref_list<T, PointerType>::ref_ptr ref_list<T, PointerType>::back() const {
+typename ref_list<T, PointerType>::ref_ptr_type ref_list<T, PointerType>::back() const {
     if (!m_root) {
         return nullptr;
     }
@@ -243,7 +243,8 @@ typename ref_list<T, PointerType>::ref_ptr ref_list<T, PointerType>::back() cons
 }
 
 template <typename T, typename PointerType>
-typename ref_list<T, PointerType>::ref_ptr ref_list<T, PointerType>::init_single_node(ref_ptr e) {
+typename ref_list<T, PointerType>::ref_ptr_type
+ref_list<T, PointerType>::init_single_node(ref_ptr_type e) {
     if (!e) {
         return nullptr;
     }
@@ -256,7 +257,7 @@ typename ref_list<T, PointerType>::ref_ptr ref_list<T, PointerType>::init_single
 }
 
 template <typename T, typename PointerType>
-bool ref_list<T, PointerType>::prepare_node_for_insertion(ref_ptr& node) {
+bool ref_list<T, PointerType>::prepare_node_for_insertion(ref_ptr_type& node) {
     if (!node) {
         return true;
     }
@@ -282,7 +283,8 @@ bool ref_list<T, PointerType>::prepare_node_for_insertion(ref_ptr& node) {
 }
 
 template <typename T, typename PointerType>
-typename ref_list<T, PointerType>::ref_ptr ref_list<T, PointerType>::insert(ref_ptr e, ref_ptr at) {
+typename ref_list<T, PointerType>::ref_ptr_type ref_list<T, PointerType>::insert(ref_ptr_type e,
+                                                                                 ref_ptr_type at) {
     if (prepare_node_for_insertion(e)) {
         return e;
     }
@@ -300,7 +302,7 @@ typename ref_list<T, PointerType>::ref_ptr ref_list<T, PointerType>::insert(ref_
 }
 
 template <typename T, typename PointerType>
-typename ref_list<T, PointerType>::ref_ptr ref_list<T, PointerType>::remove(ref_ptr e) {
+typename ref_list<T, PointerType>::ref_ptr_type ref_list<T, PointerType>::remove(ref_ptr_type e) {
     if (!e || !m_root) {
         return nullptr;
     }
@@ -327,7 +329,8 @@ typename ref_list<T, PointerType>::ref_ptr ref_list<T, PointerType>::remove(ref_
 }
 
 template <typename T, typename PointerType>
-typename ref_list<T, PointerType>::ref_ptr ref_list<T, PointerType>::push_front(ref_ptr e) {
+typename ref_list<T, PointerType>::ref_ptr_type
+ref_list<T, PointerType>::push_front(ref_ptr_type e) {
     if (prepare_node_for_insertion(e)) {
         return e;
     }
@@ -341,7 +344,8 @@ typename ref_list<T, PointerType>::ref_ptr ref_list<T, PointerType>::push_front(
 }
 
 template <typename T, typename PointerType>
-typename ref_list<T, PointerType>::ref_ptr ref_list<T, PointerType>::push_back(ref_ptr e) {
+typename ref_list<T, PointerType>::ref_ptr_type
+ref_list<T, PointerType>::push_back(ref_ptr_type e) {
     if (prepare_node_for_insertion(e)) {
         return e;
     }
@@ -354,7 +358,8 @@ typename ref_list<T, PointerType>::ref_ptr ref_list<T, PointerType>::push_back(r
 }
 
 template <typename T, typename PointerType>
-typename ref_list<T, PointerType>::ref_ptr ref_list<T, PointerType>::insert_before(ref_ptr v, ref_ptr mark) {
+typename ref_list<T, PointerType>::ref_ptr_type
+ref_list<T, PointerType>::insert_before(ref_ptr_type v, ref_ptr_type mark) {
     if (!v || !mark) {
         return nullptr;
     }
@@ -376,7 +381,8 @@ typename ref_list<T, PointerType>::ref_ptr ref_list<T, PointerType>::insert_befo
 }
 
 template <typename T, typename PointerType>
-typename ref_list<T, PointerType>::ref_ptr ref_list<T, PointerType>::insert_after(ref_ptr v, ref_ptr mark) {
+typename ref_list<T, PointerType>::ref_ptr_type
+ref_list<T, PointerType>::insert_after(ref_ptr_type v, ref_ptr_type mark) {
     if (!v || !mark) {
         return nullptr;
     }
@@ -385,7 +391,7 @@ typename ref_list<T, PointerType>::ref_ptr ref_list<T, PointerType>::insert_afte
 }
 
 template <typename T, typename PointerType>
-void ref_list<T, PointerType>::move_to_front(ref_ptr e) {
+void ref_list<T, PointerType>::move_to_front(ref_ptr_type e) {
     if (!e || !m_root || m_len <= 1) {
         return;
     }
@@ -399,7 +405,7 @@ void ref_list<T, PointerType>::move_to_front(ref_ptr e) {
 }
 
 template <typename T, typename PointerType>
-void ref_list<T, PointerType>::move_to_back(ref_ptr e) {
+void ref_list<T, PointerType>::move_to_back(ref_ptr_type e) {
     if (!e || !m_root || m_len <= 1) {
         return;
     }
@@ -413,7 +419,7 @@ void ref_list<T, PointerType>::move_to_back(ref_ptr e) {
 }
 
 template <typename T, typename PointerType>
-void ref_list<T, PointerType>::move_before(ref_ptr e, ref_ptr mark) {
+void ref_list<T, PointerType>::move_before(ref_ptr_type e, ref_ptr_type mark) {
     if (!e || !mark || !m_root || m_len <= 1 || e == mark) {
         return;
     }
@@ -422,7 +428,7 @@ void ref_list<T, PointerType>::move_before(ref_ptr e, ref_ptr mark) {
 }
 
 template <typename T, typename PointerType>
-void ref_list<T, PointerType>::move_after(ref_ptr e, ref_ptr mark) {
+void ref_list<T, PointerType>::move_after(ref_ptr_type e, ref_ptr_type mark) {
     if (!e || !mark || !m_root || m_len <= 1 || e == mark) {
         return;
     }
