@@ -360,6 +360,8 @@ public:
     const_iterator find(std::string_view key) const;
     const_iterator find(const char* key) const;
 
+    std::string to_string() const;
+
 protected:
     /**
      * @brief 存储数据的结构
@@ -728,26 +730,35 @@ private:
     entry* find_entry(const char* key);
 };
 
+inline std::string to_string(const dict& v) {
+    return v.to_string();
+}
+
+inline std::string to_string(const mutable_dict& v) {
+    return v.to_string();
+}
+
 } // namespace mc
 
-// 包含容器转换头文件
-#include <mc/variant/container_convert.h>
+// 将 variant 实现相关的代码放到单独的文件中
+#include <mc/variant/container_convert.inl>
+#include <mc/variant/variant_dict.inl>
 
 // 定义在std命名空间中特化hash以支持dict和mutable_dict
 namespace std {
-    template<>
-    struct hash<mc::dict> {
-        size_t operator()(const mc::dict& d) const {
-            return d.hash();
-        }
-    };
+template <>
+struct hash<mc::dict> {
+    size_t operator()(const mc::dict& d) const {
+        return d.hash();
+    }
+};
 
-    template<>
-    struct hash<mc::mutable_dict> {
-        size_t operator()(const mc::mutable_dict& d) const {
-            return d.hash();
-        }
-    };
-}
+template <>
+struct hash<mc::mutable_dict> {
+    size_t operator()(const mc::mutable_dict& d) const {
+        return d.hash();
+    }
+};
+} // namespace std
 
 #endif // MC_DICT_H

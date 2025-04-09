@@ -14,17 +14,17 @@
  * @file json.cpp
  * @brief 实现JSON编解码功能
  */
-#include <mc/json.h>
-#include <mc/dict.h>
-#include <mc/variant.h>
-#include <mc/exception.h>
-#include <sstream>
-#include <iomanip>
-#include <cmath>
-#include <limits>
-#include <cstdint>
-#include <climits>
 #include <algorithm>
+#include <climits>
+#include <cmath>
+#include <cstdint>
+#include <iomanip>
+#include <limits>
+#include <mc/dict.h>
+#include <mc/exception.h>
+#include <mc/json.h>
+#include <mc/variant.h>
+#include <sstream>
 #include <vector>
 
 namespace mc {
@@ -33,12 +33,12 @@ namespace json {
 // 用于JSON编码的辅助类
 class encoder {
 public:
-    explicit encoder(const json_encode_options& options = json_encode_options::default_encode_options) 
-        : m_stream(), m_options(options), m_current_depth(0) 
-    {
+    explicit encoder(
+        const json_encode_options& options = json_encode_options::default_encode_options)
+        : m_stream(), m_options(options), m_current_depth(0) {
         // 规范化选项值
         m_options.normalize();
-        
+
         // 如果指定了浮点数精度，设置流的精度
         if (m_options.float_precision >= 0) {
             m_stream.precision(m_options.float_precision);
@@ -54,9 +54,9 @@ public:
     }
 
 private:
-    std::ostringstream m_stream;
+    std::ostringstream  m_stream;
     json_encode_options m_options;
-    int m_current_depth;
+    int                 m_current_depth;
 
     // 检查嵌套深度
     void check_depth() {
@@ -95,24 +95,38 @@ private:
         m_stream << '"';
         for (unsigned char c : str) {
             switch (c) {
-                case '"': m_stream << "\\\""; break;
-                case '\\': m_stream << "\\\\"; break;
-                case '\b': m_stream << "\\b"; break;
-                case '\f': m_stream << "\\f"; break;
-                case '\n': m_stream << "\\n"; break;
-                case '\r': m_stream << "\\r"; break;
-                case '\t': m_stream << "\\t"; break;
-                default:
-                    if (c < 0x20) {
-                        m_stream << "\\u" << std::hex << std::setw(4) 
-                                << std::setfill('0') << static_cast<int>(c);
-                    } else if (m_options.escape_non_ascii && c >= 0x80) {
-                        // 转义非ASCII字符
-                        m_stream << "\\u" << std::hex << std::setw(4) 
-                                << std::setfill('0') << static_cast<int>(c);
-                    } else {
-                        m_stream << c;
-                    }
+            case '"':
+                m_stream << "\\\"";
+                break;
+            case '\\':
+                m_stream << "\\\\";
+                break;
+            case '\b':
+                m_stream << "\\b";
+                break;
+            case '\f':
+                m_stream << "\\f";
+                break;
+            case '\n':
+                m_stream << "\\n";
+                break;
+            case '\r':
+                m_stream << "\\r";
+                break;
+            case '\t':
+                m_stream << "\\t";
+                break;
+            default:
+                if (c < 0x20) {
+                    m_stream << "\\u" << std::hex << std::setw(4) << std::setfill('0')
+                             << static_cast<int>(c);
+                } else if (m_options.escape_non_ascii && c >= 0x80) {
+                    // 转义非ASCII字符
+                    m_stream << "\\u" << std::hex << std::setw(4) << std::setfill('0')
+                             << static_cast<int>(c);
+                } else {
+                    m_stream << c;
+                }
             }
         }
         m_stream << '"';
@@ -168,8 +182,9 @@ private:
             keys.push_back(std::cref(entry.key));
         }
         if (m_options.sort_keys) {
-            std::sort(keys.begin(), keys.end(), 
-                [](const auto& a, const auto& b) { return a.get() < b.get(); });
+            std::sort(keys.begin(), keys.end(), [](const auto& a, const auto& b) {
+                return a.get() < b.get();
+            });
         }
 
         bool first = true;
@@ -198,42 +213,42 @@ private:
     // 编码任意值
     void encode_value(const variant& value) {
         switch (value.get_type()) {
-            case variant::type_id::null_type:
-                m_stream << "null";
-                break;
-            case variant::type_id::bool_type:
-                m_stream << (value.as_bool() ? "true" : "false");
-                break;
-            case variant::type_id::int8_type:
-            case variant::type_id::int16_type:
-            case variant::type_id::int32_type:
-            case variant::type_id::int64_type:
-                m_stream << value.as_int64();
-                break;
-            case variant::type_id::uint8_type:
-            case variant::type_id::uint16_type:
-            case variant::type_id::uint32_type:
-            case variant::type_id::uint64_type:
-                m_stream << value.as_uint64();
-                break;
-            case variant::type_id::double_type:
-                encode_number(value.as_double());
-                break;
-            case variant::type_id::string_type:
-                encode_string(value.as_string());
-                break;
-            case variant::type_id::array_type:
-                encode_array(value.get_array());
-                break;
-            case variant::type_id::object_type:
-                encode_object(value.get_object());
-                break;
-            case variant::type_id::blob_type:
-                encode_string(value.as_string()); // blob 类型转换为字符串处理
-                break;
-            default:
-                MC_THROW(mc::parse_error_exception, "不支持的值类型");
-                break;
+        case type_id::null_type:
+            m_stream << "null";
+            break;
+        case type_id::bool_type:
+            m_stream << (value.as_bool() ? "true" : "false");
+            break;
+        case type_id::int8_type:
+        case type_id::int16_type:
+        case type_id::int32_type:
+        case type_id::int64_type:
+            m_stream << value.as_int64();
+            break;
+        case type_id::uint8_type:
+        case type_id::uint16_type:
+        case type_id::uint32_type:
+        case type_id::uint64_type:
+            m_stream << value.as_uint64();
+            break;
+        case type_id::double_type:
+            encode_number(value.as_double());
+            break;
+        case type_id::string_type:
+            encode_string(value.as_string());
+            break;
+        case type_id::array_type:
+            encode_array(value.get_array());
+            break;
+        case type_id::object_type:
+            encode_object(value.get_object());
+            break;
+        case type_id::blob_type:
+            encode_string(value.as_string()); // blob 类型转换为字符串处理
+            break;
+        default:
+            MC_THROW(mc::parse_error_exception, "不支持的值类型");
+            break;
         }
     }
 };
@@ -241,11 +256,11 @@ private:
 // 用于JSON解码的辅助类
 class decoder {
 public:
-    explicit decoder(std::string_view json, const json_decode_options& options = json_decode_options::default_decode_options)
-        : m_input(json), m_pos(0), m_options(options), m_current_depth(0)
-    {
+    explicit decoder(std::string_view json, const json_decode_options& options =
+                                                json_decode_options::default_decode_options)
+        : m_input(json), m_pos(0), m_options(options), m_current_depth(0) {
         m_options.normalize();
-        
+
         // 检查输入JSON字符串的总长度
         if (m_input.length() > m_options.max_input_length) {
             MC_THROW(mc::parse_error_exception, "输入JSON字符串长度超过限制");
@@ -264,10 +279,10 @@ public:
     }
 
 private:
-    std::string_view m_input;
-    size_t m_pos;
+    std::string_view    m_input;
+    size_t              m_pos;
     json_decode_options m_options;
-    int m_current_depth;
+    int                 m_current_depth;
 
     // 跳过空白字符
     void skip_whitespace() {
@@ -316,17 +331,23 @@ private:
         skip_whitespace();
         char c = current();
         switch (c) {
-            case 'n': return parse_null();
-            case 't': return parse_true();
-            case 'f': return parse_false();
-            case '"': return parse_string();
-            case '[': return parse_array();
-            case '{': return parse_object();
-            default:
-                if (c == '-' || std::isdigit(c)) {
-                    return parse_number();
-                }
-                MC_THROW(mc::parse_error_exception, "无效的JSON值");
+        case 'n':
+            return parse_null();
+        case 't':
+            return parse_true();
+        case 'f':
+            return parse_false();
+        case '"':
+            return parse_string();
+        case '[':
+            return parse_array();
+        case '{':
+            return parse_object();
+        default:
+            if (c == '-' || std::isdigit(c)) {
+                return parse_number();
+            }
+            MC_THROW(mc::parse_error_exception, "无效的JSON值");
         }
     }
 
@@ -403,16 +424,35 @@ private:
         }
         char c = current();
         switch (c) {
-            case '"': result += '"'; break;
-            case '\\': result += '\\'; break;
-            case '/': result += '/'; break;
-            case 'b': result += '\b'; break;
-            case 'f': result += '\f'; break;
-            case 'n': result += '\n'; break;
-            case 'r': result += '\r'; break;
-            case 't': result += '\t'; break;
-            case 'u': handle_unicode_escape(result); break;
-            default: MC_THROW(mc::parse_error_exception, "无效的转义序列");
+        case '"':
+            result += '"';
+            break;
+        case '\\':
+            result += '\\';
+            break;
+        case '/':
+            result += '/';
+            break;
+        case 'b':
+            result += '\b';
+            break;
+        case 'f':
+            result += '\f';
+            break;
+        case 'n':
+            result += '\n';
+            break;
+        case 'r':
+            result += '\r';
+            break;
+        case 't':
+            result += '\t';
+            break;
+        case 'u':
+            handle_unicode_escape(result);
+            break;
+        default:
+            MC_THROW(mc::parse_error_exception, "无效的转义序列");
         }
     }
 
@@ -441,9 +481,9 @@ private:
 
     // 解析数字
     variant parse_number() {
-        size_t start = m_pos;
-        bool is_float = false;
-        bool is_negative = false;
+        size_t start       = m_pos;
+        bool   is_float    = false;
+        bool   is_negative = false;
 
         // 处理负号
         if (current() == '-') {
@@ -491,7 +531,7 @@ private:
 
         // 获取数字字符串
         std::string number_str(m_input.substr(start, m_pos - start));
-        
+
         try {
             if (is_float) {
                 return variant(std::stod(number_str));
@@ -507,14 +547,14 @@ private:
 
     // 解析数组
     variant parse_array() {
-        enter_scope();  // 进入数组作用域
-        advance(); // 跳过开始的方括号
+        enter_scope(); // 进入数组作用域
+        advance();     // 跳过开始的方括号
         variants result;
         skip_whitespace();
-        
+
         if (current() == ']') {
             advance();
-            leave_scope();  // 离开数组作用域
+            leave_scope(); // 离开数组作用域
             return variant(result);
         }
 
@@ -522,16 +562,16 @@ private:
             if (result.size() >= m_options.max_array_size) {
                 MC_THROW(mc::parse_error_exception, "数组元素数量超过限制");
             }
-            
+
             result.push_back(parse_value());
             skip_whitespace();
-            
+
             if (current() == ']') {
                 advance();
-                leave_scope();  // 离开数组作用域
+                leave_scope(); // 离开数组作用域
                 return variant(result);
             }
-            
+
             if (current() != ',') {
                 MC_THROW(mc::parse_error_exception, "数组元素必须用逗号分隔");
             }
@@ -542,14 +582,14 @@ private:
 
     // 解析对象
     variant parse_object() {
-        enter_scope();  // 进入对象作用域
-        advance(); // 跳过开始的大括号
+        enter_scope(); // 进入对象作用域
+        advance();     // 跳过开始的大括号
         mutable_dict result;
         skip_whitespace();
-        
+
         if (current() == '}') {
             advance();
-            leave_scope();  // 离开对象作用域
+            leave_scope(); // 离开对象作用域
             return variant(result);
         }
 
@@ -559,29 +599,29 @@ private:
                 MC_THROW(mc::parse_error_exception, "对象键值对数量超过限制");
             }
             count++;
-            
+
             if (current() != '"') {
                 MC_THROW(mc::parse_error_exception, "对象键必须是字符串");
             }
-            
+
             std::string key = parse_string().as<std::string>();
             skip_whitespace();
-            
+
             if (current() != ':') {
                 MC_THROW(mc::parse_error_exception, "对象键值对必须用冒号分隔");
             }
             advance();
-            
+
             variant value = parse_value();
             result(key, value);
-            
+
             skip_whitespace();
             if (current() == '}') {
                 advance();
-                leave_scope();  // 离开对象作用域
+                leave_scope(); // 离开对象作用域
                 return variant(result);
             }
-            
+
             if (current() != ',') {
                 MC_THROW(mc::parse_error_exception, "对象键值对必须用逗号分隔");
             }

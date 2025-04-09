@@ -19,8 +19,10 @@
 
 #include <algorithm>
 #include <cctype>
+#include <charconv>
 #include <cstdio>
 #include <locale>
+#include <mc/pretty_name.h>
 #include <memory>
 #include <sstream>
 #include <string>
@@ -30,8 +32,12 @@
 // 前向声明
 namespace mc {
 class dict;
-class variant;
+
 namespace string {
+
+namespace detail {
+void throw_bad_cast_error(const char* type);
+} // namespace detail
 
 /**
  * @brief 忽略大小写比较两个字符串是否相等
@@ -148,18 +154,18 @@ std::string join(const std::vector<std::string>& v, std::string_view delim);
  *        - 正数表示从字符串开头计数的位置
  *        - 负数表示从字符串末尾计数的位置（-1表示最后一个字符）
  * @return 提取的子字符串
- * 
+ *
  * 示例:
  * @code
  * // 获取完整字符串
  * std::string_view s1 = mc::string::substr("hello", 0, -1);  // "hello"
- * 
+ *
  * // 获取前三个字符
  * std::string_view s2 = mc::string::substr("hello", 0, 2);   // "hel"
- * 
+ *
  * // 获取最后三个字符
  * std::string_view s3 = mc::string::substr("hello", -3);     // "llo"
- * 
+ *
  * // 获取从第二个到倒数第二个字符
  * std::string_view s4 = mc::string::substr("hello", 1, -2);  // "ell"
  * @endcode
@@ -174,18 +180,18 @@ std::string_view substr(std::string_view s, int start, int end = -1);
  *        - 负数表示从字符串末尾计数的位置（-1表示最后一个字符）
  * @param length 要提取的字符数量，默认为 std::string::npos 表示提取到字符串末尾
  * @return 提取的子字符串
- * 
+ *
  * 示例:
  * @code
  * // 获取完整字符串
  * std::string_view s1 = mc::string::substring("hello", 0);  // "hello"
- * 
+ *
  * // 获取前三个字符
  * std::string_view s2 = mc::string::substring("hello", 0, 3);  // "hel"
- * 
+ *
  * // 获取最后三个字符
  * std::string_view s3 = mc::string::substring("hello", -3);  // "llo"
- * 
+ *
  * // 获取从第二个字符开始的三个字符
  * std::string_view s4 = mc::string::substring("hello", 1, 3);  // "ell"
  * @endcode
@@ -233,7 +239,8 @@ void append(std::string& result, T&& value, Args&&... args) {
  * @param s 要格式化的字符串
  * @param left_align 是否左对齐，默认为true
  */
-void fixed_width_append(std::string& result, size_t width, std::string_view s, bool left_align = true);
+void fixed_width_append(std::string& result, size_t width, std::string_view s,
+                        bool left_align = true);
 
 /**
  * @brief 检查字符串是否以指定前缀开始
@@ -297,6 +304,91 @@ std::string format_v(const std::string& format, Args... args) {
     std::snprintf(buf.get(), size, format.c_str(), args...);
     return std::string(buf.get(), buf.get() + size - 1);
 }
+
+inline std::optional<bool> try_to_bool(std::string_view s) {
+    if (s.empty()) {
+        return false;
+    }
+
+    if (iequals(s, std::string_view("true", 4)) || s == std::string_view("1", 1)) {
+        return true;
+    } else if (iequals(s, std::string_view("false", 5)) || s == std::string_view("0", 1)) {
+        return false;
+    }
+
+    return std::nullopt;
+}
+
+inline bool to_bool(std::string_view s, bool default_value) {
+    if (s.empty()) {
+        return false;
+    }
+
+    if (auto result = try_to_bool(s); result.has_value()) {
+        return result.value();
+    }
+
+    return default_value;
+}
+
+inline bool to_bool(std::string_view s) {
+    if (auto result = try_to_bool(s); result.has_value()) {
+        return result.value();
+    }
+
+    detail::throw_bad_cast_error("bool");
+    return false;
+}
+
+template <typename T, typename = std::enable_if_t<std::is_arithmetic_v<T>>>
+std::optional<T> try_to_number(std::string_view s) {
+    if constexpr (std::is_floating_point_v<T>) {
+        // 某些编译器可能不支持std::from_chars转浮点数，使用strtod系列函数
+        char* end;
+        T     result = static_cast<T>(std::strtod(s.data(), &end));
+        if (end != s.data() && end == s.data() + s.size()) {
+            return result;
+        }
+    } else {
+        T result;
+        auto [ptr, ec] = std::from_chars(s.data(), s.data() + s.size(), result);
+        if (ec == std::errc() && ptr == s.data() + s.size()) {
+            return result;
+        }
+    }
+
+    return std::nullopt;
+}
+
+template <typename T, typename = std::enable_if_t<std::is_arithmetic_v<T>>>
+std::optional<T> try_to_number(const char* s) {
+    return try_to_number<T>(std::string_view(s));
+}
+
+template <typename T, typename = std::enable_if_t<std::is_arithmetic_v<T>>>
+std::optional<T> try_to_number(const std::string& s) {
+    return try_to_number<T>(std::string_view(s));
+}
+
+template <typename T, typename = std::enable_if_t<std::is_arithmetic_v<T>>>
+T to_number(std::string_view s) {
+    if (auto result = try_to_number<T>(s); result.has_value()) {
+        return result.value();
+    }
+
+    detail::throw_bad_cast_error(mc::pretty_name<T>());
+    return false;
+}
+
+template <typename T, typename = std::enable_if_t<std::is_arithmetic_v<T>>>
+T to_number(std::string_view s, T default_value) {
+    if (auto result = try_to_number<T>(s); result.has_value()) {
+        return result.value();
+    }
+
+    return default_value;
+}
+
 } // namespace string
 
 /**

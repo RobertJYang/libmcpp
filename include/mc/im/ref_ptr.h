@@ -72,7 +72,7 @@ public:
     // 析构函数
     ~ref_ptr() {
         if (m_ptr && m_ptr->release_ref()) {
-            using alloc_type = typename T::alloc_type;
+            using alloc_type   = typename T::alloc_type;
             using alloc_traits = std::allocator_traits<alloc_type>;
             alloc_traits::destroy(m_ptr->m_alloc, m_ptr);
             alloc_traits::deallocate(m_ptr->m_alloc, m_ptr, 1);
@@ -167,7 +167,7 @@ bool operator<(const ref_ptr<T>& lhs, const ref_ptr<U>& rhs) noexcept {
 }
 
 template <typename T, typename Alloc = std::allocator<T>, typename... Args>
-ref_ptr<T> allocate_ref(const Alloc& alloc, Args&&... args) {
+T* allocate(const Alloc& alloc, Args&&... args) {
     using AllocTraits  = std::allocator_traits<Alloc>;
     using ReboundAlloc = typename AllocTraits::template rebind_alloc<T>;
 
@@ -180,13 +180,35 @@ ref_ptr<T> allocate_ref(const Alloc& alloc, Args&&... args) {
     try {
         // 构造对象
         ReboundAllocTraits::construct(rebound_alloc, ptr, std::forward<Args>(args)...);
-
-        // 创建ref_ptr管理对象
-        return ref_ptr<T>(ptr);
+        return ptr;
     } catch (...) {
         ReboundAllocTraits::deallocate(rebound_alloc, ptr, 1);
         throw;
     }
+}
+
+/**
+ * @brief 销毁并释放内存
+ * @tparam T 对象类型
+ * @tparam Alloc 分配器类型
+ * @param alloc 分配器
+ * @param ptr 指向要销毁的对象的指针
+ */
+template <typename T, typename Alloc = std::allocator<T>>
+void destroy(const Alloc& alloc, T* ptr) {
+    using AllocTraits  = std::allocator_traits<Alloc>;
+    using ReboundAlloc = typename AllocTraits::template rebind_alloc<T>;
+
+    ReboundAlloc rebound_alloc(alloc);
+    using ReboundAllocTraits = std::allocator_traits<ReboundAlloc>;
+
+    ReboundAllocTraits::destroy(rebound_alloc, ptr);
+    ReboundAllocTraits::deallocate(rebound_alloc, ptr, 1);
+}
+
+template <typename T, typename Alloc = std::allocator<T>, typename... Args>
+ref_ptr<T> allocate_ref(const Alloc& alloc, Args&&... args) {
+    return ref_ptr<T>(allocate<T, Alloc>(alloc, std::forward<Args>(args)...));
 }
 
 /**

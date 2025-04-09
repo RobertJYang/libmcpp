@@ -25,10 +25,16 @@ test_files = [
   'dict/test_dict_operations.cpp',
   'dict/test_dict_conversion.cpp',
   'dict/test_dict_performance.cpp',
+  'reflect/test_reflect_custom_name.cpp',
+  'reflect/test_nested_reflect.cpp',
+  'reflect/test_reflect.cpp',
+  'reflect/test_reflect_static_info.cpp',
   'filesystem/test_filesystem.cpp',
   'database/test_path_iterator.cpp',
-  # 'database/test_shared_tree_db.cpp',
-  # 'database/test_database.cpp',
+  'database/test_table.cpp',
+  'database/test_transaction.cpp',
+  'database/test_index.cpp',
+  'database/test_query_advanced.cpp',
   'im/test_node_list.cpp',
   'im/test_node.cpp',
   'im/test_simple_node.cpp',
@@ -36,6 +42,7 @@ test_files = [
   'im/test_radix_tree.cpp',
   'im/test_custom_allocator.cpp',
   'im/test_radix_tree_iterator.cpp',
+  'test_pretty_name.cpp',
 ]
 
 # 测试工具库 - 构建为独立的静态库

@@ -17,12 +17,21 @@
 #include <cstring>
 #include <functional>
 #include <mc/dict.h>
+#include <mc/exception.h>
 #include <mc/string.h>
 #include <mc/variant.h>
 #include <type_traits>
 
 namespace mc {
 namespace string {
+
+namespace detail {
+void throw_bad_cast_error(const char* type) {
+    MC_THROW(mc::invalid_arg_exception, "无法将字符串转换为类型: ${type}", ("type", type));
+}
+
+} // namespace detail
+
 // 忽略大小写比较两个字符串是否相等
 bool iequals(std::string_view a, std::string_view b) {
     if (a.size() != b.size()) {
@@ -298,26 +307,26 @@ bool icontains(std::string_view s, std::string_view substring) {
  */
 std::string_view substr(std::string_view s, int start, int end) {
     const std::size_t length = s.length();
-    
+
     // 空字符串直接返回
     if (length == 0) {
         return "";
     }
-    
+
     // 调整起始位置（处理负数索引）
     int adjusted_start = start;
     if (adjusted_start < 0) {
         // 负数表示从末尾计数
         adjusted_start = static_cast<int>(length) + adjusted_start;
     }
-    
+
     // 调整结束位置（处理负数索引）
     int adjusted_end = end;
     if (adjusted_end < 0) {
         // 负数表示从末尾计数
         adjusted_end = static_cast<int>(length) + adjusted_end;
     }
-    
+
     // 边界检查
     if (adjusted_start < 0) {
         adjusted_start = 0;
@@ -331,10 +340,10 @@ std::string_view substr(std::string_view s, int start, int end) {
     if (adjusted_end < adjusted_start) {
         return "";
     }
-    
+
     // 计算子字符串长度
     std::size_t substr_length = adjusted_end - adjusted_start + 1;
-    
+
     // 返回子字符串
     return s.substr(adjusted_start, substr_length);
 }
@@ -344,19 +353,19 @@ std::string_view substr(std::string_view s, int start, int end) {
  */
 std::string_view substring(std::string_view s, int start, std::size_t length) {
     const std::size_t str_length = s.length();
-    
+
     // 空字符串直接返回
     if (str_length == 0) {
         return "";
     }
-    
+
     // 调整起始位置（处理负数索引）
     int adjusted_start = start;
     if (adjusted_start < 0) {
         // 负数表示从末尾计数
         adjusted_start = static_cast<int>(str_length) + adjusted_start;
     }
-    
+
     // 边界检查
     if (adjusted_start < 0) {
         // 如果调整后的起始位置仍为负数，表示超出了字符串的开头
@@ -365,13 +374,13 @@ std::string_view substring(std::string_view s, int start, std::size_t length) {
     if (adjusted_start >= static_cast<int>(str_length)) {
         return "";
     }
-    
+
     // 调整长度（如果超出字符串范围）
-    if (length == std::string::npos || 
+    if (length == std::string::npos ||
         adjusted_start + static_cast<std::size_t>(length) > str_length) {
         length = str_length - adjusted_start;
     }
-    
+
     // 返回子字符串
     return s.substr(adjusted_start, length);
 }
@@ -385,10 +394,10 @@ void fixed_width_append(std::string& result, size_t width, std::string_view s, b
         result.append(s.data(), width);
         return;
     }
-    
+
     // 计算需要填充的空格数
     size_t padding = width - s.length();
-    
+
     // 根据对齐方式添加内容
     if (left_align) {
         // 左对齐：先添加字符串，再添加空格

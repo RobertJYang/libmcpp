@@ -17,8 +17,7 @@
 #ifndef MC_JSON_H
 #define MC_JSON_H
 
-#include <mc/variant.h>
-#include <mc/exception.h>
+#include <mc/variant/variant_common.h>
 #include <string>
 #include <string_view>
 
@@ -171,27 +170,29 @@ struct json_decode_options {
      *       此函数会自动调整无效值到最近的有效值
      */
     void normalize() {
-        max_depth = std::max(1, max_depth);
-        max_input_length = std::max<size_t>(1, max_input_length);
+        max_depth         = std::max(1, max_depth);
+        max_input_length  = std::max<size_t>(1, max_input_length);
         max_string_length = std::max<size_t>(1, max_string_length);
-        max_array_size = std::max<size_t>(1, max_array_size);
-        max_object_size = std::max<size_t>(1, max_object_size);
+        max_array_size    = std::max<size_t>(1, max_array_size);
+        max_object_size   = std::max<size_t>(1, max_object_size);
     }
 };
 
 /**
  * @brief 将variant编码为JSON字符串
- * 
+ *
  * @param value 要编码的variant对象
  * @param options 编码选项
  * @return std::string 编码后的JSON字符串
  * @throw mc::parse_error_exception 当编码失败时抛出异常
  */
-std::string json_encode(const variant& value, const json_encode_options& options = json_encode_options::default_encode_options);
+std::string
+json_encode(const variant&             value,
+            const json_encode_options& options = json_encode_options::default_encode_options);
 
 /**
  * @brief 从JSON字符串解码为variant对象
- * 
+ *
  * @param json JSON字符串视图
  * @param options 解码选项
  * @return variant 解码后的variant对象
@@ -201,27 +202,29 @@ std::string json_encode(const variant& value, const json_encode_options& options
  *       2. std::string_view - 直接使用
  *       3. const char* - 通过string_view的隐式转换
  *       4. const char* + size_t - 通过string_view(const char*, size_t)构造
- *       
+ *
  *       使用示例：
  *       @code
  *       // 使用std::string
  *       std::string str = R"({"name": "张三"})";
  *       variant v1 = json_decode(str);
- *       
+ *
  *       // 使用string_view
  *       std::string_view sv = R"({"age": 30})";
  *       variant v2 = json_decode(sv);
- *       
+ *
  *       // 使用C风格字符串
  *       const char* cstr = R"({"scores": [85, 92]})";
  *       variant v3 = json_decode(cstr);
- *       
+ *
  *       // 使用定长字符数组
  *       const char data[] = R"({"id": 1, "name": "李四"})";
  *       variant v4 = json_decode(std::string_view(data, 10));  // 只解析前10个字符
  *       @endcode
  */
-variant json_decode(std::string_view json, const json_decode_options& options = json_decode_options::default_decode_options);
+variant
+json_decode(std::string_view           json,
+            const json_decode_options& options = json_decode_options::default_decode_options);
 
 } // namespace json
 } // namespace mc

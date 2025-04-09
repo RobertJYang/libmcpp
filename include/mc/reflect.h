@@ -12,136 +12,15 @@
 
 /**
  * @file reflect.h
- * @brief 包含所有反射相关的头文件
+ * @brief 反射相关的头文件总引入
  */
 #ifndef MC_REFLECT_H
 #define MC_REFLECT_H
 
+#include <mc/reflect/property.h>
 #include <mc/reflect/reflect.h>
-#include <mc/reflect/typename.h>
+#include <mc/reflect/reflect_metadata.h>
 
-/**
- * @namespace mc
- * @brief mc 命名空间
- */
-namespace mc {
-
-/**
- * @namespace reflect
- * @brief 反射相关的命名空间
- */
-namespace reflect {
-
-/**
- * @brief 定义类的反射信息
- */
-#define MC_REFLECT(TYPE, MEMBERS)                                                                  \
-    MC_REFLECT_BEGIN(TYPE)                                                                         \
-    BOOST_PP_SEQ_FOR_EACH(MC_REFLECT_MEMBER, TYPE, MEMBERS)                                        \
-    MC_REFLECT_END(TYPE)
-
-/**
- * @brief 定义枚举的反射信息
- */
-#define MC_REFLECT_ENUM(TYPE, VALUES)                                                              \
-    MC_REFLECT_ENUM_BEGIN(TYPE)                                                                    \
-    BOOST_PP_SEQ_FOR_EACH(MC_REFLECT_ENUM_VALUE, TYPE, VALUES)                                     \
-    MC_REFLECT_ENUM_END(TYPE)                                                                      \
-    BOOST_PP_SEQ_FOR_EACH(MC_REFLECT_ENUM_FROM_STRING, TYPE, VALUES)                               \
-    MC_REFLECT_ENUM_FROM_STRING_END(TYPE)
-
-/**
- * @brief 检查类型是否可反射
- *
- * @tparam T 要检查的类型
- * @return true 如果类型可反射
- * @return false 如果类型不可反射
- */
-template <typename T>
-constexpr bool is_reflectable() {
-    return reflector<T>::is_defined::value;
-}
-
-/**
- * @brief 检查类型是否为枚举
- *
- * @tparam T 要检查的类型
- * @return true 如果类型是枚举
- * @return false 如果类型不是枚举
- */
-template <typename T>
-constexpr bool is_enum() {
-    return reflector<T>::is_enum::value;
-}
-
-/**
- * @brief 获取类型名称
- *
- * @tparam T 要获取名称的类型
- * @return const char* 类型名称
- */
-template <typename T>
-const char* get_type_name() {
-    return get_typename<T>::name();
-}
-
-/**
- * @brief 访问类型的所有成员
- *
- * @tparam T 要访问的类型
- * @tparam Visitor 访问器类型
- * @param visitor 访问器实例
- */
-template <typename T, typename Visitor>
-void visit_members(const Visitor& visitor) {
-    reflector<T>::visit(visitor);
-}
-
-/**
- * @brief 将对象转换为变体
- *
- * @tparam T 对象类型
- * @param obj 对象实例
- * @param var 转换后的变体
- */
-template <typename T>
-void to_variant(const T& obj, variant& var) {
-    if constexpr (reflector<T>::is_enum::value) {
-        reflector<T>::to_variant(obj, var);
-    } else {
-        mutable_dict dict;
-        reflector<T>::to_variant(obj, dict);
-        var = dict;
-    }
-}
-
-/**
- * @brief 从变体转换为对象
- *
- * @tparam T 对象类型
- * @param var 变体实例
- * @param obj 转换后的对象
- */
-template <typename T>
-void from_variant(const variant& var, T& obj) {
-    if constexpr (reflector<T>::is_enum::value) {
-        reflector<T>::from_variant(var, obj);
-    } else {
-        reflector<T>::from_variant(var.as<mc::dict>(), obj);
-    }
-}
-
-} // namespace reflect
-
-template <typename T, std::enable_if_t<mc::reflect::is_reflectable<T>(), int> = 0>
-void to_variant(const T& o, variant& v) {
-    mc::reflect::to_variant(o, v);
-}
-
-template <typename T, std::enable_if_t<mc::reflect::is_reflectable<T>(), int> = 0>
-void from_variant(const variant& v, T& o) {
-    mc::reflect::from_variant(v, o);
-}
-} // namespace mc
+// 该文件仅为包含文件，所有实现都在各自的头文件中
 
 #endif // MC_REFLECT_H

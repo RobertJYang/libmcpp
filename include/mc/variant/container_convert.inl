@@ -34,8 +34,6 @@
 #include <variant>
 #include <vector>
 
-#include <mc/dict.h>
-
 // 前向声明
 namespace mc {
 // 检查容器是否具有 reserve 方法的辅助类
@@ -268,12 +266,12 @@ void map_from_variant(const variant& var, MapType<K, T, Args...>& vo) {
 }
 
 // std::vector 特化
-template <typename T, typename Allocator = std::allocator<T>>
+template <typename T, typename Allocator = std::allocator<T>, std::enable_if_t<!is_variant_v<T>, int> = 0>
 void to_variant(const std::vector<T, Allocator>& var, variant& vo) {
     sequence_to_variant(var, vo);
 }
 
-template <typename T, typename Allocator = std::allocator<T>>
+template <typename T, typename Allocator = std::allocator<T>, std::enable_if_t<!is_variant_v<T>, int> = 0>
 void from_variant(const variant& var, std::vector<T, Allocator>& vo) {
     sequence_from_variant(var, vo);
 }

@@ -29,9 +29,17 @@ public:
 
     virtual ~ref_base() = default;
 
-    // 禁止拷贝
-    ref_base(const ref_base&)            = delete;
-    ref_base& operator=(const ref_base&) = delete;
+    // ref_base 的生命周期由 ref_ptr 管理，拷贝构造函数也是初始引用计数为0
+    ref_base(const ref_base&) : m_ref_count(0) {
+    }
+    ref_base& operator=(const ref_base&) {
+        return *this;
+    }
+    ref_base(ref_base&&) noexcept : m_ref_count(0) {
+    }
+    ref_base& operator=(ref_base&&) noexcept {
+        return *this;
+    }
 
     // 增加引用计数
     void add_ref() const {

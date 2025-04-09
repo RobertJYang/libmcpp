@@ -91,7 +91,7 @@ TEST_F(VariantBoolOperatorTest, BoolOperator) {
     // 测试字符串类型
     variant v_empty_str("");
     variant v_str("test");
-    ASSERT_TRUE(static_cast<bool>(v_empty_str)) << "空字符串variant应该转换为true";
+    ASSERT_FALSE(static_cast<bool>(v_empty_str)) << "空字符串variant应该转换为false";
     ASSERT_TRUE(static_cast<bool>(v_str)) << "非空字符串variant应该转换为true";
 
     // 测试数组类型
@@ -99,7 +99,7 @@ TEST_F(VariantBoolOperatorTest, BoolOperator) {
     variants arr = {1, 2};
     variant  v_empty_arr(empty_arr);
     variant  v_arr(arr);
-    ASSERT_TRUE(static_cast<bool>(v_empty_arr)) << "空数组variant应该转换为true";
+    ASSERT_FALSE(static_cast<bool>(v_empty_arr)) << "空数组variant应该转换为false";
     ASSERT_TRUE(static_cast<bool>(v_arr)) << "非空数组variant应该转换为true";
 
     // 测试对象类型
@@ -108,7 +108,7 @@ TEST_F(VariantBoolOperatorTest, BoolOperator) {
     dict["key"] = 42;
     variant v_empty_dict(empty_dict);
     variant v_dict(dict);
-    ASSERT_TRUE(static_cast<bool>(v_empty_dict)) << "空对象variant应该转换为true";
+    ASSERT_FALSE(static_cast<bool>(v_empty_dict)) << "空对象variant应该转换为false";
     ASSERT_TRUE(static_cast<bool>(v_dict)) << "非空对象variant应该转换为true";
 
     // 测试二进制数据类型
@@ -116,7 +116,7 @@ TEST_F(VariantBoolOperatorTest, BoolOperator) {
     blob    b{{1, 2, 3}};
     variant v_empty_blob(empty_blob);
     variant v_blob(b);
-    ASSERT_TRUE(static_cast<bool>(v_empty_blob)) << "空二进制数据variant应该转换为true";
+    ASSERT_FALSE(static_cast<bool>(v_empty_blob)) << "空二进制数据variant应该转换为false";
     ASSERT_TRUE(static_cast<bool>(v_blob)) << "非空二进制数据variant应该转换为true";
 
     // 测试在条件表达式中使用

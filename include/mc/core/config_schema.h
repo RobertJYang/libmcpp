@@ -138,59 +138,7 @@ struct meta_config {
 } // namespace mc
 
 // 反射元数据定义
-// MC_REFLECT(mc::config::metadata, (name)(labels)(annotations))
-namespace mc {
-template <>
-struct reflect::reflector<mc::config::metadata> {
-    using is_defined = std::true_type;
-    using is_enum    = std::false_type;
-    static const char* name() {
-        return "mc::config::metadata";
-    }
-    template <typename Visitor>
-    static void visit(const Visitor& visitor) {
-        static const std::vector<member_info<mc::config::metadata>> members = {
-            {"name",
-             [](const mc::config::metadata& obj) -> variant {
-                 return obj.name;
-             },
-             [](mc::config::metadata& obj, const variant& var) {
-                 var.as(obj.name);
-             }},
-            {"labels",
-             [](const mc::config::metadata& obj) -> variant {
-                 return obj.labels;
-             },
-             [](mc::config::metadata& obj, const variant& var) {
-                 var.as(obj.labels);
-             }},
-            {"annotations",
-             [](const mc::config::metadata& obj) -> variant {
-                 return obj.annotations;
-             },
-             [](mc::config::metadata& obj, const variant& var) {
-                 var.as(obj.annotations);
-             }},
-        };
-        for (const auto& member : members) {
-            visitor(member.name, member.getter, member.setter);
-        }
-    }
-    static void to_variant(const mc::config::metadata& obj, mc::mutable_dict& dict) {
-        visit([&](const char* name, auto getter, auto) {
-            dict[name] = getter(obj);
-        });
-    }
-    static void from_variant(const mc::dict& d, mc::config::metadata& obj) {
-        visit([&](const char* name, auto, auto setter) {
-            if (d.contains(name)) {
-                setter(obj, d[name]);
-            }
-        });
-    }
-};
-} // namespace mc
-
+MC_REFLECT(mc::config::metadata, (name)(labels)(annotations))
 MC_REFLECT(mc::config::resource_base, (api_version)(kind)(meta))
 MC_REFLECT(mc::config::app_config, (api_version)(kind)(meta)(plugin_dir)(plugins)(threads))
 MC_REFLECT_ENUM(mc::config::supervisor_strategy, (one_for_one)(one_for_all)(rest_for_one))

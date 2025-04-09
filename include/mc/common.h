@@ -412,6 +412,146 @@ private:
     std::chrono::time_point<std::chrono::high_resolution_clock> m_start;
 };
 
+//------------------------------------------------------------------------------
+// 字节序转换函数
+//------------------------------------------------------------------------------
+
+/**
+ * @brief 判断系统是否为小端序
+ */
+inline bool is_little_endian() {
+    static const uint16_t test = 0x0102;
+    return *reinterpret_cast<const uint8_t*>(&test) == 0x02;
+}
+
+/**
+ * @brief 16位整数字节序转换
+ */
+inline uint16_t swap_bytes(uint16_t value) {
+    return ((value & 0xFF00) >> 8) | ((value & 0x00FF) << 8);
+}
+
+/**
+ * @brief 32位整数字节序转换
+ */
+inline uint32_t swap_bytes(uint32_t value) {
+    return ((value & 0xFF000000) >> 24) | ((value & 0x00FF0000) >> 8) |
+           ((value & 0x0000FF00) << 8) | ((value & 0x000000FF) << 24);
+}
+
+/**
+ * @brief 64位整数字节序转换
+ */
+inline uint64_t swap_bytes(uint64_t value) {
+    return ((value & 0xFF00000000000000ULL) >> 56) | ((value & 0x00FF000000000000ULL) >> 40) |
+           ((value & 0x0000FF0000000000ULL) >> 24) | ((value & 0x000000FF00000000ULL) >> 8) |
+           ((value & 0x00000000FF000000ULL) << 8) | ((value & 0x0000000000FF0000ULL) << 24) |
+           ((value & 0x000000000000FF00ULL) << 40) | ((value & 0x00000000000000FFULL) << 56);
+}
+
+/**
+ * @brief 浮点数字节序转换
+ */
+inline float swap_bytes(float value) {
+    uint32_t temp = swap_bytes(*reinterpret_cast<uint32_t*>(&value));
+    return *reinterpret_cast<float*>(&temp);
+}
+
+/**
+ * @brief 双精度浮点数字节序转换
+ */
+inline double swap_bytes(double value) {
+    uint64_t temp = swap_bytes(*reinterpret_cast<uint64_t*>(&value));
+    return *reinterpret_cast<double*>(&temp);
+}
+
+/**
+ * @brief 网络字节序转主机字节序（16位）
+ */
+inline uint16_t ntoh(uint16_t value) {
+    return is_little_endian() ? swap_bytes(value) : value;
+}
+
+inline int16_t ntoh(int16_t value) {
+    return static_cast<int16_t>(ntoh(static_cast<uint16_t>(value)));
+}
+
+/**
+ * @brief 网络字节序转主机字节序（32位）
+ */
+inline uint32_t ntoh(uint32_t value) {
+    return is_little_endian() ? swap_bytes(value) : value;
+}
+
+inline int32_t ntoh(int32_t value) {
+    return static_cast<int32_t>(ntoh(static_cast<uint32_t>(value)));
+}
+
+/**
+ * @brief 网络字节序转主机字节序（64位）
+ */
+inline uint64_t ntoh(uint64_t value) {
+    return is_little_endian() ? swap_bytes(value) : value;
+}
+
+inline int64_t ntoh(int64_t value) {
+    return static_cast<int64_t>(ntoh(static_cast<uint64_t>(value)));
+}
+
+/**
+ * @brief 主机字节序转网络字节序（16位）
+ */
+inline uint16_t hton(uint16_t value) {
+    return is_little_endian() ? swap_bytes(value) : value;
+}
+
+inline int16_t hton(int16_t value) {
+    return static_cast<int16_t>(hton(static_cast<uint16_t>(value)));
+}
+
+/**
+ * @brief 主机字节序转网络字节序（32位）
+ */
+inline uint32_t hton(uint32_t value) {
+    return is_little_endian() ? swap_bytes(value) : value;
+}
+
+inline int32_t hton(int32_t value) {
+    return static_cast<int32_t>(hton(static_cast<uint32_t>(value)));
+}
+
+/**
+ * @brief 主机字节序转网络字节序（64位）
+ */
+inline uint64_t hton(uint64_t value) {
+    return is_little_endian() ? swap_bytes(value) : value;
+}
+
+inline int64_t hton(int64_t value) {
+    return static_cast<int64_t>(hton(static_cast<uint64_t>(value)));
+}
+
+/**
+ * @brief 计算结构体成员相对于结构体起始位置的偏移量
+ *
+ * @param TYPE 结构体类型
+ * @param MEMBER 成员名称
+ * @return size_t 成员偏移量（字节数）
+ */
+#define MC_OFFSETOF(TYPE, MEMBER)                                                                  \
+    (static_cast<size_t>(reinterpret_cast<size_t>(&(reinterpret_cast<TYPE*>(0)->MEMBER))))
+
+/**
+ * @brief 计算成员指针对应的偏移量
+ *
+ * 注意：该宏使用了特殊技巧，在某些编译器可能存在兼容性问题
+ *
+ * @param MEMBER 成员指针
+ * @return size_t 成员偏移量（字节数）
+ */
+#define MC_MEMBER_OFFSETOF(MEMBER)                                                                 \
+    (reinterpret_cast<std::size_t>(&(reinterpret_cast<T*>(0)->*MEMBER)))
+
 } // namespace mc
 
 #endif // MC_COMMON_H

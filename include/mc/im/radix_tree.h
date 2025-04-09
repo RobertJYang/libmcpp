@@ -213,24 +213,6 @@ public:
         return const_cast<radix_tree*>(this)->upper_bound(key);
     }
 
-    /**
-     * 返回包含所有等于给定键的元素范围的迭代器对
-     * @param key 键值
-     * @return 表示等于key的元素范围的迭代器对（pair）
-     */
-    std::pair<iterator, iterator> equal_range(key_view key) {
-        return {lower_bound(key), upper_bound(key)};
-    }
-
-    /**
-     * 返回包含所有等于给定键的元素范围的迭代器对（const版本）
-     * @param key 键值
-     * @return 表示等于key的元素范围的常量迭代器对（pair）
-     */
-    std::pair<const_iterator, const_iterator> equal_range(key_view key) const {
-        return {lower_bound(key), upper_bound(key)};
-    }
-
 private:
     node_ptr       m_root;
     size_t         m_size = 0;
@@ -249,8 +231,8 @@ private:
 } // namespace mc::im
 
 // 包含迭代器和实现文件
-#include <mc/im/radix_tree/radix_tree_iterator.h>
 #include <mc/im/radix_tree/radix_tree_impl.h>
+#include <mc/im/radix_tree/radix_tree_iterator.h>
 #include <mc/im/radix_tree/transaction.h>
 
 #endif // MC_IM_RADIX_TREE_H

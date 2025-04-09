@@ -38,7 +38,7 @@ public:
     }
 
     // 构造函数（begin迭代器）
-    explicit const_iterator(const node_ptr& root) : m_is_end(false) {
+    explicit const_iterator(const node_ptr& root) : m_is_end(false), m_root(root) {
         if (!root) {
             m_is_end = true;
             return;
@@ -163,6 +163,45 @@ public:
         return !(*this == other);
     }
 
+    // 跳到下一个前缀
+    void to_next_prefix(std::string_view key) {
+        if (m_is_end || !mc::im::has_prefix(m_key_buffer, key)) {
+            return;
+        }
+
+        while (!m_path.empty()) {
+            auto& current = m_path.back();
+
+            if (current.edge_index >= current.node->m_edges.size()) {
+                m_key_buffer.resize(current.prefix_size);
+                m_path.pop_back();
+                continue;
+            }
+
+            // 处理下一个边
+            const auto& edge = current.node->m_edges[current.edge_index++];
+            m_key_buffer.resize(current.prefix_size);
+            m_key_buffer.append(edge.m_node->m_prefix);
+            if (mc::im::has_prefix(m_key_buffer, key)) {
+                m_key_buffer.resize(current.prefix_size);
+                m_path.pop_back();
+                continue;
+            }
+
+            m_path.push_back({edge.m_node.get(), 0, m_key_buffer.size()});
+            if (edge.m_node->is_leaf()) {
+                m_current_node = edge.m_node.get();
+                update_current_item();
+                return;
+            }
+        }
+        m_is_end = true;
+    }
+
+    bool is_end() const {
+        return m_is_end;
+    }
+
     friend class radix_tree<Config>; // 添加友元声明，允许radix_tree访问protected成员
 
 protected:
@@ -206,6 +245,7 @@ protected:
     node_type*   m_current_node = nullptr;
     key_buffer<> m_key_buffer;
     path_type    m_path;
+    node_ptr     m_root; // 要持有根节点指针，防止根节点被销毁
     union {
         const_map_value_type m_current_item;
         map_value_type       m_mutable_current_item;
@@ -284,8 +324,19 @@ public:
         }
         return const_cast<pointer>(&this->m_mutable_current_item);
     }
+
+    /**
+     * 获取当前项的键
+     * @return 键
+     */
+    key_view key() const {
+        if (this->m_is_end) {
+            throw std::out_of_range("迭代器指向了末尾");
+        }
+        return this->m_key_buffer;
+    }
 };
 
 } // namespace mc::im
 
-#endif // MC_IM_RADIX_TREE_ITERATOR_H 
+#endif // MC_IM_RADIX_TREE_ITERATOR_H
