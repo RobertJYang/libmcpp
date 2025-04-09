@@ -84,39 +84,51 @@ protected:
 
 // 测试基本日志功能
 TEST_F(LogTest, BasicLogging) {
+    // 确保日志级别设置为允许所有级别的日志
+    m_test_logger.set_level(mc::log::level::trace);
+    
     // 使用结构化日志宏
     mc_ilog(m_test_logger, "这是一条信息日志");
 
     // 检查日志消息
-    auto& messages = m_memory_appender->get_messages();
-    ASSERT_FALSE(messages.empty());
+    const auto& messages = m_memory_appender->get_messages();
+    ASSERT_FALSE(messages.empty()) << "日志消息未被添加到内存追加器";
     auto msg = messages.back();
     EXPECT_EQ(mc::log::level::info, msg.get_level());
     EXPECT_TRUE(message_contains(msg, "这是一条信息日志"));
 
+    // 清除之前的消息
+    m_memory_appender->clear();
+    
     // 使用不同级别的日志宏
     mc_tlog(m_test_logger, "跟踪日志");
     mc_dlog(m_test_logger, "调试日志");
     mc_wlog(m_test_logger, "警告日志");
 
+    // 重新获取消息列表
+    const auto& new_messages = m_memory_appender->get_messages();
+    
     // 检查日志消息数量
-    ASSERT_EQ(4, messages.size());
+    ASSERT_EQ(3, new_messages.size()) << "应该有3条日志消息被添加";
 
     // 检查最后一条消息
-    msg = messages.back();
+    msg = new_messages.back();
     EXPECT_EQ(mc::log::level::warn, msg.get_level());
     EXPECT_TRUE(message_contains(msg, "警告日志"));
 }
 
 // 测试结构化日志功能
 TEST_F(LogTest, StructuredLogging) {
+    // 确保日志级别设置为允许所有级别的日志
+    m_test_logger.set_level(mc::log::level::trace);
+    
     // 使用结构化日志宏
     mc_ilog(m_test_logger, "用户 ${user} 登录成功，IP: ${ip}",
             ("user", "admin")("ip", "192.168.1.1"));
 
     // 检查日志消息
-    auto& messages = m_memory_appender->get_messages();
-    ASSERT_FALSE(messages.empty());
+    const auto& messages = m_memory_appender->get_messages();
+    ASSERT_FALSE(messages.empty()) << "日志消息未被添加到内存追加器";
     auto msg = messages.back();
     EXPECT_EQ(mc::log::level::info, msg.get_level());
     EXPECT_TRUE(message_contains(msg, "用户 admin 登录成功，IP: 192.168.1.1"));
@@ -128,13 +140,17 @@ TEST_F(LogTest, StructuredLogging) {
     EXPECT_EQ("admin", args["user"].as_string());
     EXPECT_EQ("192.168.1.1", args["ip"].as_string());
 
+    // 清除之前的消息
+    m_memory_appender->clear();
+    
     // 使用多个参数
     mc_dlog(m_test_logger, "请求 ${method} ${url} 返回 ${status}",
             ("method", "GET")("url", "/api/users")("status", 200));
 
     // 检查日志消息
-    ASSERT_EQ(2, messages.size());
-    msg = messages.back();
+    const auto& new_messages = m_memory_appender->get_messages();
+    ASSERT_EQ(1, new_messages.size()) << "应该有1条日志消息被添加";
+    msg = new_messages.back();
     EXPECT_EQ(mc::log::level::debug, msg.get_level());
     EXPECT_TRUE(message_contains(msg, "请求 GET /api/users 返回 200"));
 
@@ -177,12 +193,18 @@ TEST_F(LogTest, LevelFiltering) {
 
 // 测试日志上下文信息
 TEST_F(LogTest, ContextInfo) {
+    // 确保日志级别设置正确
+    m_test_logger.set_level(mc::log::level::info);
+    
     // 使用带上下文的日志宏
     mc_ilog(m_test_logger, "带有上下文的日志消息");
 
     // 检查日志消息
     auto& messages = m_memory_appender->get_messages();
-    ASSERT_FALSE(messages.empty());
+    
+    // 确保至少有一条消息被记录
+    ASSERT_FALSE(messages.empty()) << "未捕获到日志消息，请检查日志级别设置";
+    
     auto& msg = messages.back();
 
     // 检查上下文信息是否正确捕获
