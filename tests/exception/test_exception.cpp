@@ -166,11 +166,11 @@ TEST(ExceptionTest, NestingAndRethrowTest) {
                 // 最内层抛出异常
                 MC_THROW(mc::file_not_found_exception, "配置文件 ${file} 不存在",
                          ("file", "config.json"));
-            } catch (mc::file_not_found_exception e) {
+            } catch (const mc::file_not_found_exception& e) {
                 // 中层捕获并添加上下文后重抛
                 MC_RETHROW_EXCEPTION(e, "加载配置文件失败: ${reason}", ("reason", e.what()));
             }
-        } catch (mc::exception e) {
+        } catch (const mc::exception& e) {
             // 外层捕获并添加更多上下文后重抛
             MC_RETHROW_EXCEPTION(e, "系统初始化失败: ${reason}", ("reason", e.what()));
         }

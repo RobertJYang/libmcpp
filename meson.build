@@ -25,6 +25,7 @@ if meson.is_cross_build()
 else
   message('当前为本地编译环境')
   cross_compile = false
+  add_project_arguments('-Wno-deprecated-copy', language: 'cpp')
 endif
 if cross_compile == false
   boost_dep = dependency('boost', method : 'pkg-config', required : true)

@@ -15,7 +15,8 @@
             "environment": [],
             "externalConsole": false,
             "MIMode": "lldb"
-        }, {
+        },
+        {
             "name": "examples/plugin",
             "type": "cppdbg",
             "request": "launch",
@@ -29,7 +30,8 @@
             "environment": [],
             "externalConsole": false,
             "MIMode": "lldb"
-        }, {
+        },
+        {
             "name": "interprocess_example",
             "type": "cppdbg",
             "request": "launch",
@@ -40,7 +42,8 @@
             "environment": [],
             "externalConsole": false,
             "MIMode": "lldb"
-        }, {
+        },
+        {
             "name": "examples/database",
             "type": "cppdbg",
             "request": "launch",
@@ -54,6 +57,34 @@
             "environment": [],
             "externalConsole": false,
             "MIMode": "lldb"
+        },
+        {
+            "name": "单元测试 lua",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "/usr/bin/lua",
+            "args": [
+                "${workspaceFolder}/test/unit/test.lua"
+            ],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [
+                {
+                    "name": "ROOT_DIR",
+                    "value": "${workspaceFolder}/temp/"
+                },
+                {
+                    "name": "PROJECT_DIR",
+                    "value": "${workspaceFolder}/"
+                },
+                {
+                    "name": "LD_LIBRARY_PATH",
+                    "value": "${workspaceFolder}/temp/usr/lib64"
+                }
+            ],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "miDebuggerPath": "/usr/bin/gdb"
         }
     ]
 }

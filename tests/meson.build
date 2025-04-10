@@ -75,7 +75,7 @@ test_exe = executable(
     boost_program_options_dep,
     test_utilities_dep,
   ],
-  install: false,
+  install: true,
 )
 else
 test_exe = executable(
