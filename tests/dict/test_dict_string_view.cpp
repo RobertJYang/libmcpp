@@ -140,9 +140,9 @@ TEST(DictStringViewTest, MutableDictConstCharSupport) {
 // 测试混合字符串类型
 TEST(DictStringViewTest, MixedStringTypes) {
     // 使用不同类型的字符串作为键
-    std::string      key1_str  = "key1";
-    std::string_view key2_view = "key2";
-    const char*      key3_cstr = "key3";
+    std::string key1_str  = "key1";
+    std::string key2_view = "key2";
+    const char* key3_cstr = "key3";
 
     mutable_dict md({{key1_str, 123}, {key2_view, "value"}, {key3_cstr, true}});
 

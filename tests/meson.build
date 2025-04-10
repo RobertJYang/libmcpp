@@ -56,13 +56,14 @@ test_utilities_lib = static_library(
   'mc_test_utilities',
   test_utilities_sources,
   include_directories: [incdir, test_utilities_inc],
-  dependencies: [boost_dep, boost_program_options_dep],
+  #dependencies: [boost_dep, boost_program_options_dep],
   install: false,
 )
 
 test_utilities_dep = declare_dependency(link_with: test_utilities_lib, include_directories: [test_utilities_inc])
 
 # 创建测试可执行文件 - 现在依赖test_utilities
+if cross_compile == false 
 test_exe = executable(
   'libmcpp_test',
   test_files,
@@ -74,13 +75,22 @@ test_exe = executable(
     boost_program_options_dep,
     test_utilities_dep,
   ],
-  cpp_args: [
-    '-Wno-self-assign-overloaded',
-    '-Wno-unused-lambda-capture',
-    '-Wno-self-move',
+  install: false,
+)
+else
+test_exe = executable(
+  'libmcpp_test',
+  test_files,
+  include_directories: incdir,
+  dependencies: [
+    libmcpp_dep,
+    gtest_dep,
+    test_utilities_dep,
   ],
   install: false,
 )
+endif
+
 
 # 注册测试
 test('libmcpp unit tests', test_exe)

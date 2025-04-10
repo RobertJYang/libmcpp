@@ -208,10 +208,11 @@ private:
     }
 
     template <bool IsCompound>
-    bool check_compound_key(std::string_view key, int n);
+    bool check_compound_key(std::string_view key, int n) {
+        if constexpr (!IsCompound) {
+            return false;
+        }
 
-    template <>
-    bool check_compound_key<true>(std::string_view key, int n) {
         size_t count = 0;
         size_t i     = m_prefix_len;
 
@@ -230,10 +231,16 @@ private:
     }
 
     template <bool IsCompound>
-    bool check_unique_key(std::string_view& key, size_t& n);
+    bool check_unique_key(std::string_view& key, size_t& n) {
+        if constexpr (!IsCompound) {
+            // 非组合键必须精确匹配长度
+            if (m_prefix_len + sizeof(object_id_type) != n) {
+                return false;
+            }
 
-    template <>
-    bool check_unique_key<true>(std::string_view& key, size_t& n) {
+            return check_id(key.data() + n - sizeof(object_id_type));
+        }
+
         if (!check_id(key.data() + n - sizeof(object_id_type))) {
             return false;
         }
@@ -241,16 +248,6 @@ private:
         n   = n - sizeof(object_id_type);
         key = key.substr(0, n);
         return true;
-    }
-
-    template <>
-    bool check_unique_key<false>(std::string_view& key, size_t& n) {
-        // 非组合键必须精确匹配长度
-        if (m_prefix_len + sizeof(object_id_type) != n) {
-            return false;
-        }
-
-        return check_id(key.data() + n - sizeof(object_id_type));
     }
 
     bool check_id(const void* p_id) const {

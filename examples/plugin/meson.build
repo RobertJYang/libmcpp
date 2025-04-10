@@ -1,6 +1,7 @@
 # 插件示例构建配置
 
 # 创建插件示例可执行文件
+if cross_compile == false
 executable(
     'example_plugin',
     'main.cpp',
@@ -10,12 +11,23 @@ executable(
     install: true,
     install_dir: get_option('bindir'),
 )
+else
+executable(
+    'example_plugin',
+    'main.cpp',
+    include_directories: incdir,
+    link_with: [libmcpp_lib],
+    install: true,
+    install_dir: get_option('bindir'),
+)
+endif
 
 # 创建插件目录
 plugins_dir = meson.current_build_dir() / 'plugins'
 run_command('mkdir', '-p', plugins_dir, check: false)
 
 # 构建示例插件
+if cross_compile == false
 example_plugin = shared_library(
     'example_plugin',
     'example_plugin.cpp',
@@ -27,6 +39,18 @@ example_plugin = shared_library(
     name_prefix : 'lib',  # 强制使用lib前缀
     name_suffix : 'so'    # 强制使用.so后缀
 )
+else
+example_plugin = shared_library(
+    'example_plugin',
+    'example_plugin.cpp',
+    include_directories: incdir,
+    link_with: [libmcpp_lib],
+    install: true,
+    install_dir: get_option('libdir') / 'libmcpp/plugins',
+    name_prefix : 'lib',  # 强制使用lib前缀
+    name_suffix : 'so'    # 强制使用.so后缀
+)
+endif
 
 # 复制插件到插件目录（用于本地测试）
 custom_target(

@@ -351,11 +351,6 @@ TEST_F(transaction_test, transaction_merge) {
 TEST_F(transaction_test, transaction_merge_detailed) {
     auto& txn = mdb::transaction::get_instance();
 
-    // 获取表ID的辅助函数
-    auto get_table_id = [](const uint64_t resource_id) -> uint32_t {
-        return static_cast<uint32_t>(resource_id >> 32);
-    };
-
     // 构造资源ID的辅助函数
     auto make_resource_id = [&](const auto& obj_ptr) -> uint64_t {
         // 使用transaction的静态方法获取表ID

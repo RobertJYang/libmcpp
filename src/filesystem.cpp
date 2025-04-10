@@ -13,7 +13,7 @@
 #include <algorithm>
 #include <chrono>
 #include <ctime>
-#include <filesystem>
+#include <experimental/filesystem>
 #include <fstream>
 #include <mc/filesystem.h>
 #include <sstream>
@@ -22,7 +22,7 @@
 namespace mc {
 namespace filesystem {
 
-namespace fs = std::filesystem;
+namespace fs = std::experimental::filesystem;
 
 std::string basename(const std::string& path) {
     if (path.empty()) {
@@ -135,7 +135,7 @@ std::vector<std::string> list_files(const std::string& path) {
 
     std::error_code ec;
     for (const auto& entry : fs::directory_iterator(path, ec)) {
-        if (!ec && entry.is_regular_file(ec) && !ec) {
+        if (!ec && entry.status().type() == fs::file_type::regular && !ec) {
             result.push_back(entry.path().string());
         }
     }
@@ -152,7 +152,7 @@ std::vector<std::string> list_directories(const std::string& path) {
 
     std::error_code ec;
     for (const auto& entry : fs::directory_iterator(path, ec)) {
-        if (!ec && entry.is_directory(ec) && !ec) {
+        if (!ec && entry.status().type() == fs::file_type::directory && !ec) {
             result.push_back(entry.path().string());
         }
     }
@@ -276,13 +276,13 @@ std::optional<std::string> absolute(const std::string& path) {
         return std::nullopt;
     }
 
-    std::error_code ec;
-    auto            abs_path = fs::absolute(path, ec);
-    if (ec) {
+    try {
+        // GCC 7.3.0的experimental/filesystem不支持带error_code参数的版本
+        auto abs_path = fs::absolute(path);
+        return abs_path.string();
+    } catch (const std::exception&) {
         return std::nullopt;
     }
-
-    return abs_path.string();
 }
 
 std::string normalize(const std::string& path) {
@@ -290,14 +290,32 @@ std::string normalize(const std::string& path) {
         return ".";
     }
 
-    std::error_code ec;
-    auto            norm_path = fs::weakly_canonical(path, ec);
-    if (ec) {
-        // 如果规范化失败，尝试使用简单的方法清除冗余段
-        return fs::path(path).lexically_normal().string();
-    }
+    try {
+        // 实现简单的路径规范化，因为experimental版本没有weakly_canonical和lexically_normal
+        fs::path p(path);
 
-    return norm_path.string();
+        // 移除".."和"."
+        fs::path result;
+        for (const auto& part : p) {
+            if (part == "..") {
+                if (!result.empty()) {
+                    result = result.parent_path();
+                }
+            } else if (part != ".") {
+                result /= part;
+            }
+        }
+
+        // 确保结果不为空
+        if (result.empty()) {
+            return ".";
+        }
+
+        return result.string();
+    } catch (const std::exception&) {
+        // 如果失败，简单返回原路径
+        return path;
+    }
 }
 
 std::string join(const std::string& base, const std::string& path) {

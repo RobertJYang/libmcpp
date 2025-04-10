@@ -19,8 +19,9 @@
 
 #include <algorithm>
 #include <cctype>
-#include <charconv>
 #include <cstdio>
+#include <cstdlib> // 用于strtod等函数
+#include <limits>  // 用于numeric_limits
 #include <locale>
 #include <mc/pretty_name.h>
 #include <memory>
@@ -305,85 +306,194 @@ std::string format_v(const std::string& format, Args... args) {
     return std::string(buf.get(), buf.get() + size - 1);
 }
 
-inline std::optional<bool> try_to_bool(std::string_view s) {
+/**
+ * @brief 尝试将字符串转换为布尔值
+ * @param s 要转换的字符串
+ * @param result 转换结果的引用
+ * @return 是否转换成功
+ */
+inline bool try_to_bool(std::string_view s, bool& result) {
     if (s.empty()) {
-        return false;
+        result = false;
+        return true;
     }
 
     if (iequals(s, std::string_view("true", 4)) || s == std::string_view("1", 1)) {
+        result = true;
         return true;
     } else if (iequals(s, std::string_view("false", 5)) || s == std::string_view("0", 1)) {
-        return false;
+        result = false;
+        return true;
     }
 
-    return std::nullopt;
+    return false;
 }
 
+/**
+ * @brief 将字符串转换为布尔值，如果转换失败则返回默认值
+ * @param s 要转换的字符串
+ * @param default_value 转换失败时返回的默认值
+ * @return 转换结果或默认值
+ */
 inline bool to_bool(std::string_view s, bool default_value) {
     if (s.empty()) {
         return false;
     }
 
-    if (auto result = try_to_bool(s); result.has_value()) {
-        return result.value();
+    bool result;
+    if (try_to_bool(s, result)) {
+        return result;
     }
 
     return default_value;
 }
 
+/**
+ * @brief 将字符串转换为布尔值，如果转换失败则抛出异常
+ * @param s 要转换的字符串
+ * @return 转换结果
+ */
 inline bool to_bool(std::string_view s) {
-    if (auto result = try_to_bool(s); result.has_value()) {
-        return result.value();
+    if (s.empty()) {
+        return false;
+    }
+
+    bool result;
+    if (try_to_bool(s, result)) {
+        return result;
     }
 
     detail::throw_bad_cast_error("bool");
     return false;
 }
 
+/**
+ * @brief 尝试将字符串转换为数字
+ * @param s 要转换的字符串
+ * @param result 转换结果的引用
+ * @return 是否转换成功
+ */
 template <typename T, typename = std::enable_if_t<std::is_arithmetic_v<T>>>
-std::optional<T> try_to_number(std::string_view s) {
-    if constexpr (std::is_floating_point_v<T>) {
-        // 某些编译器可能不支持std::from_chars转浮点数，使用strtod系列函数
+bool try_to_number(std::string_view s, T& result) {
+    if (s.empty()) {
+        return false;
+    }
+
+    // 浮点数转换
+    if (std::is_floating_point<T>::value) {
         char* end;
-        T     result = static_cast<T>(std::strtod(s.data(), &end));
+        T     value = static_cast<T>(std::strtod(s.data(), &end));
         if (end != s.data() && end == s.data() + s.size()) {
-            return result;
+            result = value;
+            return true;
         }
-    } else {
-        T result;
-        auto [ptr, ec] = std::from_chars(s.data(), s.data() + s.size(), result);
-        if (ec == std::errc() && ptr == s.data() + s.size()) {
-            return result;
+        return false;
+    }
+
+    // 整数转换
+    char* end;
+
+    // 有符号整型
+    if (std::is_same<T, int>::value || std::is_same<T, short>::value ||
+        std::is_same<T, signed char>::value) {
+        long value = std::strtol(s.data(), &end, 10);
+        if (end != s.data() && end == s.data() + s.size()) {
+            // 验证是否在T类型的范围内
+            if (value >= std::numeric_limits<T>::min() && value <= std::numeric_limits<T>::max()) {
+                result = static_cast<T>(value);
+                return true;
+            }
+        }
+    } else if (std::is_same<T, long>::value) {
+        long value = std::strtol(s.data(), &end, 10);
+        if (end != s.data() && end == s.data() + s.size()) {
+            result = static_cast<T>(value);
+            return true;
+        }
+    } else if (std::is_same<T, long long>::value) {
+        long long value = std::strtoll(s.data(), &end, 10);
+        if (end != s.data() && end == s.data() + s.size()) {
+            result = static_cast<T>(value);
+            return true;
+        }
+    }
+    // 无符号整型
+    else if (std::is_same<T, unsigned int>::value || std::is_same<T, unsigned short>::value ||
+             std::is_same<T, unsigned char>::value) {
+        unsigned long value = std::strtoul(s.data(), &end, 10);
+        if (end != s.data() && end == s.data() + s.size()) {
+            // 验证是否在T类型的范围内
+            if (value <= std::numeric_limits<T>::max()) {
+                result = static_cast<T>(value);
+                return true;
+            }
+        }
+    } else if (std::is_same<T, unsigned long>::value) {
+        unsigned long value = std::strtoul(s.data(), &end, 10);
+        if (end != s.data() && end == s.data() + s.size()) {
+            result = static_cast<T>(value);
+            return true;
+        }
+    } else if (std::is_same<T, unsigned long long>::value) {
+        unsigned long long value = std::strtoull(s.data(), &end, 10);
+        if (end != s.data() && end == s.data() + s.size()) {
+            result = static_cast<T>(value);
+            return true;
         }
     }
 
-    return std::nullopt;
-}
-
-template <typename T, typename = std::enable_if_t<std::is_arithmetic_v<T>>>
-std::optional<T> try_to_number(const char* s) {
-    return try_to_number<T>(std::string_view(s));
-}
-
-template <typename T, typename = std::enable_if_t<std::is_arithmetic_v<T>>>
-std::optional<T> try_to_number(const std::string& s) {
-    return try_to_number<T>(std::string_view(s));
-}
-
-template <typename T, typename = std::enable_if_t<std::is_arithmetic_v<T>>>
-T to_number(std::string_view s) {
-    if (auto result = try_to_number<T>(s); result.has_value()) {
-        return result.value();
-    }
-
-    detail::throw_bad_cast_error(mc::pretty_name<T>());
     return false;
 }
 
+/**
+ * @brief 尝试将C风格字符串转换为数字
+ * @param s 要转换的C风格字符串
+ * @param result 转换结果的引用
+ * @return 是否转换成功
+ */
+template <typename T, typename = std::enable_if_t<std::is_arithmetic_v<T>>>
+bool try_to_number(const char* s, T& result) {
+    return try_to_number<T>(std::string_view(s), result);
+}
+
+/**
+ * @brief 尝试将标准字符串转换为数字
+ * @param s 要转换的标准字符串
+ * @param result 转换结果的引用
+ * @return 是否转换成功
+ */
+template <typename T, typename = std::enable_if_t<std::is_arithmetic_v<T>>>
+bool try_to_number(const std::string& s, T& result) {
+    return try_to_number<T>(std::string_view(s), result);
+}
+
+/**
+ * @brief 将字符串转换为数字，如果转换失败则抛出异常
+ * @param s 要转换的字符串
+ * @return 转换结果
+ */
+template <typename T, typename = std::enable_if_t<std::is_arithmetic_v<T>>>
+T to_number(std::string_view s) {
+    T result{};
+    if (try_to_number<T>(s, result)) {
+        return result;
+    }
+
+    detail::throw_bad_cast_error(mc::pretty_name<T>());
+    return T{};
+}
+
+/**
+ * @brief 将字符串转换为数字，如果转换失败则返回默认值
+ * @param s 要转换的字符串
+ * @param default_value 转换失败时返回的默认值
+ * @return 转换结果或默认值
+ */
 template <typename T, typename = std::enable_if_t<std::is_arithmetic_v<T>>>
 T to_number(std::string_view s, T default_value) {
-    if (auto result = try_to_number<T>(s); result.has_value()) {
-        return result.value();
+    T result{};
+    if (try_to_number<T>(s, result)) {
+        return result;
     }
 
     return default_value;
