@@ -1,4 +1,4 @@
-#include <mc/database/database.h>
+#include <mc/db/database.h>
 
 namespace mc {
 namespace db {

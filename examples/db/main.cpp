@@ -14,10 +14,10 @@
 #include <future>
 #include <iostream>
 #include <mc/core/application.h>
-#include <mc/database/client.h>
-#include <mc/database/common.h>
-#include <mc/database/object.h>
-#include <mc/database/property.h>
+#include <mc/db/client.h>
+#include <mc/db/common.h>
+#include <mc/db/object.h>
+#include <mc/db/property.h>
 #include <mc/log.h>
 #include <mc/reflect/reflect.h>
 #include <memory>

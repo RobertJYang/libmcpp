@@ -1,4 +1,4 @@
-#include "mc/database/path_iterator.h"
+#include "mc/db/path_iterator.h"
 
 namespace mc {
 namespace db {

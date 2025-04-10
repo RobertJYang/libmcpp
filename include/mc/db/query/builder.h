@@ -20,8 +20,8 @@
 #include <string>
 #include <vector>
 
-#include <mc/database/query/condition.h>
-#include <mc/database/query/proto_query.h>
+#include <mc/db/query/condition.h>
+#include <mc/db/query/proto_query.h>
 #include <mc/variant.h>
 
 namespace mc::db::query {

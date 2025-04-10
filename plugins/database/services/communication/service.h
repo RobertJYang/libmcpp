@@ -14,7 +14,7 @@
 #define MC_DATABASE_COMMUNICATION_SERVICE_H
 
 #include "mc/core/service.h"
-#include "mc/database/common.h"
+#include "mc/db/common.h"
 #include <boost/program_options.hpp>
 #include <functional>
 #include <memory>

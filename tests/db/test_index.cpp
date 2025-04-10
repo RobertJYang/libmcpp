@@ -18,9 +18,9 @@
 #include <algorithm>
 #include <functional>
 #include <gtest/gtest.h>
-#include <mc/database/index.h>
-#include <mc/database/key.h>
-#include <mc/database/key_extractor.h>
+#include <mc/db/index.h>
+#include <mc/db/key.h>
+#include <mc/db/key_extractor.h>
 #include <memory>
 #include <string>
 #include <unordered_map>

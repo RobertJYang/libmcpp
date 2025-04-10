@@ -24,7 +24,7 @@
 #include <type_traits>
 #include <vector>
 
-#include <mc/database/query/condition.h>
+#include <mc/db/query/condition.h>
 #include <mc/variant.h>
 
 namespace mc::db::query {

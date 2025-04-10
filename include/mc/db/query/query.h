@@ -17,12 +17,12 @@
 #ifndef MC_DATABASE_QUERY_QUERY_H
 #define MC_DATABASE_QUERY_QUERY_H
 
-#include <mc/database/query/builder.h>
-#include <mc/database/query/condition.h>
-#include <mc/database/query/metadata.h>
-#include <mc/database/query/planner.h>
-#include <mc/database/query/proto_query.h>
-#include <mc/database/query/table_query.h>
+#include <mc/db/query/builder.h>
+#include <mc/db/query/condition.h>
+#include <mc/db/query/metadata.h>
+#include <mc/db/query/planner.h>
+#include <mc/db/query/proto_query.h>
+#include <mc/db/query/table_query.h>
 
 namespace mc::db {
 // 导出便于使用的类型别名

@@ -11,7 +11,7 @@
  */
 
 #include <algorithm>
-#include <mc/database/transaction.h>
+#include <mc/db/transaction.h>
 #include <mc/exception.h>
 #include <tuple>
 #include <utility>

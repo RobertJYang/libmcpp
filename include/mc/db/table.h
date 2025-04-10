@@ -24,16 +24,16 @@
 #include <unordered_map>
 #include <vector>
 
-#include <mc/database/common.h>
-#include <mc/database/index.h>
-#include <mc/database/index_tag.h>
-#include <mc/database/key.h>
-#include <mc/database/key_extractor.h>
-#include <mc/database/object.h>
-#include <mc/database/query/builder.h>
-#include <mc/database/query/query.h>
-#include <mc/database/table_op.h>
-#include <mc/database/transaction.h>
+#include <mc/db/common.h>
+#include <mc/db/index.h>
+#include <mc/db/index_tag.h>
+#include <mc/db/key.h>
+#include <mc/db/key_extractor.h>
+#include <mc/db/object.h>
+#include <mc/db/query/builder.h>
+#include <mc/db/query/query.h>
+#include <mc/db/table_op.h>
+#include <mc/db/transaction.h>
 #include <mc/exception.h>
 #include <mc/im/radix_tree.h>
 #include <mc/im/ref_ptr.h>

@@ -18,8 +18,8 @@
 #include <string>
 #include <vector>
 
-#include <mc/database/table.h>
-#include <mc/database/transaction.h>
+#include <mc/db/table.h>
+#include <mc/db/transaction.h>
 
 namespace {
 

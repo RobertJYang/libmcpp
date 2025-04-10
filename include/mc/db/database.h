@@ -13,7 +13,7 @@
 #ifndef MC_DATABASE_DATABASE_H
 #define MC_DATABASE_DATABASE_H
 
-#include <mc/database/table.h>
+#include <mc/db/table.h>
 #include <mc/dict.h>
 
 namespace mc {

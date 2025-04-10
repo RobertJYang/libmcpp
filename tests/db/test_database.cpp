@@ -11,7 +11,7 @@
  */
 
 #include <gtest/gtest.h>
-#include <mc/database/database.h>
+#include <mc/db/database.h>
 #include <mc/dict.h>
 #include <mc/variant.h>
 

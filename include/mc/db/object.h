@@ -14,7 +14,7 @@
 #define MC_DATABASE_OBJECT_H
 
 #include <cstdint>
-#include <mc/database/query/proto_query.h>
+#include <mc/db/query/proto_query.h>
 #include <mc/im/ref_base.h>
 #include <mc/im/ref_ptr.h>
 #include <mc/reflect/reflect_metadata.h>

@@ -17,7 +17,7 @@
 
 #include <chrono>
 #include <gtest/gtest.h>
-#include <mc/database/path_iterator.h>
+#include <mc/db/path_iterator.h>
 #include <string>
 #include <vector>
 

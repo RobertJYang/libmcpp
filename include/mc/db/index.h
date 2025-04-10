@@ -22,11 +22,11 @@
 #include <typeindex>
 #include <vector>
 
-#include <mc/database/index_tag.h>
-#include <mc/database/iterator.h>
-#include <mc/database/key.h>
-#include <mc/database/key_extractor.h>
-#include <mc/database/object.h>
+#include <mc/db/index_tag.h>
+#include <mc/db/iterator.h>
+#include <mc/db/key.h>
+#include <mc/db/key_extractor.h>
+#include <mc/db/object.h>
 #include <mc/exception.h>
 #include <mc/im/radix_tree.h>
 

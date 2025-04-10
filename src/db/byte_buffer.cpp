@@ -11,7 +11,7 @@
  */
 
 #include <algorithm>
-#include <mc/database/byte_buffer.h>
+#include <mc/db/byte_buffer.h>
 
 namespace mc::db {
 

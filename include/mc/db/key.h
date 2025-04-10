@@ -21,7 +21,7 @@
 #include <type_traits>
 #include <vector>
 
-#include <mc/database/byte_buffer.h>
+#include <mc/db/byte_buffer.h>
 #include <mc/exception.h>
 
 namespace mc::db {

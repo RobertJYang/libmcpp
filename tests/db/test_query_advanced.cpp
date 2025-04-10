@@ -18,7 +18,7 @@
 #include <string>
 #include <vector>
 
-#include <mc/database/table.h>
+#include <mc/db/table.h>
 #include <mc/dict.h>
 #include <mc/reflect.h>
 #include <mc/variant.h>

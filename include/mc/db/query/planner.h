@@ -24,9 +24,9 @@
 #include <string_view>
 #include <vector>
 
-#include <mc/database/query/builder.h>
-#include <mc/database/query/condition.h>
-#include <mc/database/query/metadata.h>
+#include <mc/db/query/builder.h>
+#include <mc/db/query/condition.h>
+#include <mc/db/query/metadata.h>
 #include <mc/variant.h>
 
 namespace mc::db::query {

@@ -20,7 +20,7 @@
 #include <type_traits>
 #include <utility>
 
-#include <mc/database/key.h>
+#include <mc/db/key.h>
 
 namespace mc::db {
 

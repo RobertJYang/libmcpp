@@ -30,10 +30,10 @@ src_files = [
   'interprocess/shared_memory_manager.cpp',
   'interprocess/mutex/ipc_mutex.cpp',
   'interprocess/mutex/ipc_shared_mutex.cpp',
-  'database/path_iterator.cpp',
-  'database/byte_buffer.cpp',
-  'database/transaction.cpp',
-  'database/database.cpp',
+  'db/path_iterator.cpp',
+  'db/byte_buffer.cpp',
+  'db/transaction.cpp',
+  'db/database.cpp',
 ]
 
 # 创建共享库

@@ -21,8 +21,8 @@
 #include <unordered_map>
 #include <vector>
 
-#include <mc/database/index.h>
-#include <mc/database/key_extractor.h>
+#include <mc/db/index.h>
+#include <mc/db/key_extractor.h>
 #include <mc/reflect/reflect_metadata.h>
 
 namespace mc::db::query {

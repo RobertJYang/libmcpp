@@ -13,7 +13,7 @@
 #ifndef MC_DATABASE_INDEX_TAG_H
 #define MC_DATABASE_INDEX_TAG_H
 
-#include <mc/database/key_extractor.h>
+#include <mc/db/key_extractor.h>
 #include <string>
 #include <tuple>
 #include <type_traits>
