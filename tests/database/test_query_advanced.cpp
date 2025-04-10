@@ -25,7 +25,7 @@
 
 namespace {
 
-namespace mdb = mc::database;
+namespace mdb = mc::db;
 
 // 定义标签类型
 struct by_age : mdb::tag_base {};

@@ -25,7 +25,7 @@
 #include <mc/database/key_extractor.h>
 #include <mc/reflect/reflect_metadata.h>
 
-namespace mc::database::query {
+namespace mc::db::query {
 
 /**
  * 索引类型枚举
@@ -246,6 +246,6 @@ auto build_table_metadata() {
     return result;
 }
 
-} // namespace mc::database::query
+} // namespace mc::db::query
 
 #endif // MC_DATABASE_QUERY_METADATA_H

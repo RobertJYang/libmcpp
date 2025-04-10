@@ -30,7 +30,7 @@
 #include <mc/exception.h>
 #include <mc/im/radix_tree.h>
 
-namespace mc::database {
+namespace mc::db {
 
 template <typename ObjectType>
 class index_base {
@@ -455,6 +455,6 @@ static auto make_index(const KeyExtractor& extractor = KeyExtractor(),
     return std::make_unique<index<ObjectType, KeyExtractor, IsUnique, Tag>>(extractor, alloc);
 }
 
-} // namespace mc::database
+} // namespace mc::db
 
 #endif // MC_DATABASE_INDEX_H

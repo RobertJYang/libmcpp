@@ -19,7 +19,7 @@
 #include <type_traits>
 #include <vector>
 
-namespace mc::database {
+namespace mc::db {
 
 /**
  * 表操作类型
@@ -238,6 +238,6 @@ public:
     }
 };
 
-} // namespace mc::database
+} // namespace mc::db
 
 #endif // MC_DATABASE_TABLE_OP_H

@@ -22,7 +22,7 @@
 
 namespace {
 
-namespace mdb = mc::database;
+namespace mdb = mc::db;
 
 // 定义标签类型
 struct by_age : mdb::tag_base {};
@@ -453,7 +453,7 @@ TEST_F(table_test, advanced_remove) {
         users.add(u8);
         users.add(u9);
 
-        auto& txn = mc::database::transaction::get_instance();
+        auto& txn = mc::db::transaction::get_instance();
 
         size_t removed = users.remove(field_score < 85.0, &txn);
         EXPECT_EQ(removed, 2); // Henry 和 Ivy 的分数都 < 85.0
@@ -476,7 +476,7 @@ TEST_F(table_test, advanced_remove) {
         users.add(u8);
         users.add(u9);
 
-        auto& txn = mc::database::transaction::get_instance();
+        auto& txn = mc::db::transaction::get_instance();
 
         size_t removed = users.remove(field_score < 85.0, &txn);
         EXPECT_EQ(removed, 2); // Henry 和 Ivy 的分数都 < 85.0

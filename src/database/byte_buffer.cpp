@@ -13,7 +13,7 @@
 #include <algorithm>
 #include <mc/database/byte_buffer.h>
 
-namespace mc::database {
+namespace mc::db {
 
 byte_buffer::byte_buffer() : m_size(0), m_capacity(64), m_using_bootstrap(true) {
 }
@@ -170,4 +170,4 @@ void byte_buffer::write_uint64(uint64_t v) {
     dest[7] = static_cast<uint8_t>(v & 0xFF);
 }
 
-} // namespace mc::database
+} // namespace mc::db

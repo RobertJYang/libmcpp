@@ -16,7 +16,7 @@
 #include <tuple>
 #include <utility>
 
-namespace mc::database {
+namespace mc::db {
 
 // 事务保存点实现
 savepoint::savepoint(transaction* txn) : m_txn(txn) {
@@ -225,4 +225,4 @@ void transaction::rollback_back(int sp_id, uint64_t resource_id, db_resource& re
     }
 }
 
-} // namespace mc::database
+} // namespace mc::db

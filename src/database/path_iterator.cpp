@@ -1,7 +1,7 @@
 #include "mc/database/path_iterator.h"
 
 namespace mc {
-namespace database {
+namespace db {
 
 path_iterator::path_iterator(std::string_view path)
     : m_path(path), m_start(0), m_end(0), m_is_initialized(false) {
@@ -12,8 +12,8 @@ path_iterator::path_iterator(std::string_view path)
 }
 
 void path_iterator::reset() {
-    m_start = 0;
-    m_end = 0;
+    m_start          = 0;
+    m_end            = 0;
     m_is_initialized = false;
 }
 
@@ -56,21 +56,21 @@ bool path_iterator::find_next_segment(size_t& start, size_t& end) const {
     if (is_empty_or_root_path()) {
         return false;
     }
-    
+
     // 从起始位置开始查找下一个段
     start = end;
-    
+
     // 跳过分隔符
     start = skip_separators_forward(start);
-    
+
     // 已经到达路径末尾
     if (start >= m_path.length()) {
         return false;
     }
-    
+
     // 找到段的结束位置
     end = find_segment_end(start);
-    
+
     return true;
 }
 
@@ -79,22 +79,22 @@ bool path_iterator::find_prev_segment(size_t& start, size_t& end) const {
     if (is_empty_or_root_path() || m_start == 0 || !m_is_initialized) {
         return false;
     }
-    
+
     // 找到当前段前的最后一个分隔符
     size_t sep_pos = m_start;
-    sep_pos = skip_separators_backward(sep_pos);
-    
+    sep_pos        = skip_separators_backward(sep_pos);
+
     // 如果已经到开头，没有前一个段
     if (sep_pos == 0) {
         return false;
     }
-    
+
     // 找到前一个段的结束位置
     end = sep_pos;
-    
+
     // 找到前一个段的开始位置
     start = find_prev_segment_start(end);
-    
+
     return true;
 }
 
@@ -105,16 +105,16 @@ bool path_iterator::to_next() {
         m_is_initialized = true;
         return has_segment;
     }
-    
+
     // 尝试移动到下一个段
     size_t new_start = m_end, new_end = m_end;
     if (!find_next_segment(new_start, new_end)) {
         return false; // 已经是最后一个段
     }
-    
+
     // 更新位置
     m_start = new_start;
-    m_end = new_end;
+    m_end   = new_end;
     return true;
 }
 
@@ -123,16 +123,16 @@ bool path_iterator::to_prev() {
     if (!m_is_initialized) {
         return false;
     }
-    
+
     // 尝试查找前一个段
     size_t new_start = 0, new_end = 0;
     if (!find_prev_segment(new_start, new_end)) {
         return false; // 已经是第一个段
     }
-    
+
     // 更新位置
     m_start = new_start;
-    m_end = new_end;
+    m_end   = new_end;
     return true;
 }
 
@@ -143,5 +143,5 @@ std::string_view path_iterator::current() const {
     return m_path.substr(m_start, m_end - m_start);
 }
 
-} // namespace database
+} // namespace db
 } // namespace mc

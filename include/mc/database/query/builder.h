@@ -24,7 +24,7 @@
 #include <mc/database/query/proto_query.h>
 #include <mc/variant.h>
 
-namespace mc::database::query {
+namespace mc::db::query {
 
 /**
  * 查询构建器，用于构建复杂查询条件
@@ -337,6 +337,6 @@ private:
     size_t                   m_limit = 0; // 结果限制数量，0表示无限制
 };
 
-} // namespace mc::database::query
+} // namespace mc::db::query
 
 #endif // MC_DATABASE_QUERY_BUILDER_H

@@ -27,7 +27,7 @@
 #include <mc/database/query/condition.h>
 #include <mc/variant.h>
 
-namespace mc::database::query {
+namespace mc::db::query {
 
 namespace proto = boost::proto;
 
@@ -362,6 +362,6 @@ using dsl::field;
 using dsl::in;
 using dsl::like;
 
-} // namespace mc::database::query
+} // namespace mc::db::query
 
 #endif // MC_DATABASE_QUERY_PROTO_QUERY_H

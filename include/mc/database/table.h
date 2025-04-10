@@ -39,7 +39,7 @@
 #include <mc/im/ref_ptr.h>
 #include <mc/reflect.h>
 
-namespace mc::database {
+namespace mc::db {
 /**
  * 使用反射获取对象属性值
  * @tparam T 对象类型
@@ -609,13 +609,12 @@ public:
      * @tparam Tag 标签类型
      * @return 索引引用
      */
-    template <typename Tag, typename = std::enable_if_t<mc::database::is_tag_v<Tag>>>
+    template <typename Tag, typename = std::enable_if_t<mc::db::is_tag_v<Tag>>>
     auto& get() {
         if constexpr (std::is_same_v<Tag, by_object_id_tag>) {
             return std::get<0>(m_indices);
         } else {
-            constexpr size_t index =
-                mc::database::detail::tag_index_of<Tag, indices_def>::value + 1;
+            constexpr size_t index = mc::db::detail::tag_index_of<Tag, indices_def>::value + 1;
             return std::get<index>(m_indices);
         }
     }
@@ -853,6 +852,6 @@ private:
     int32_t m_index_savepoint_id = {-1}; ///< 索引保存点ID
 };
 
-} // namespace mc::database
+} // namespace mc::db
 
 #endif // MC_DATABASE_TABLE_H

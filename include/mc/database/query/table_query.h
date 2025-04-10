@@ -29,7 +29,7 @@
 #include <mc/database/query/planner.h>
 #include <mc/variant.h>
 
-namespace mc::database::query {
+namespace mc::db::query {
 
 /**
  * 表查询助手类
@@ -601,6 +601,6 @@ private:
     TableType& m_table;
 };
 
-} // namespace mc::database::query
+} // namespace mc::db::query
 
 #endif // MC_DATABASE_QUERY_TABLE_QUERY_H

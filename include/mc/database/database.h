@@ -17,7 +17,7 @@
 #include <mc/dict.h>
 
 namespace mc {
-namespace database {
+namespace db {
 
 using table_ptr = std::shared_ptr<table_base>;
 
@@ -41,7 +41,8 @@ public:
      * @param var 字典
      * @return 对象基类的指针
      */
-    const object_base* add(std::string_view table_name, const mc::dict& var);
+    const object_base* add(std::string_view table_name, const mc::dict& var,
+                           transaction* txn = nullptr);
 
     /**
      * 添加对象到工厂
@@ -50,13 +51,31 @@ public:
      * @return 对象指针
      */
     template <typename T>
-    typename T::const_object_ptr_type add(std::string_view table_name, const mc::dict& var) {
-        auto obj = add(table_name, var);
+    typename T::const_object_ptr_type add(std::string_view table_name, const mc::dict& var,
+                                          transaction* txn = nullptr) {
+        auto obj = add(table_name, var, txn);
         if (obj == nullptr) {
             return nullptr;
         }
 
         return obj->to_object_ptr<T>();
+    }
+
+    /**
+     * 查询对象
+     * @param table_name 表名
+     * @param builder 查询构建器
+     * @return 对象指针
+     */
+    template <typename T>
+    typename T::const_object_ptr_type find(std::string_view     table_name,
+                                           const query_builder& builder) {
+        typename T::const_object_ptr_type result;
+        query<T>(table_name, builder, [&result](typename T::const_object_ptr_type obj) {
+            result = obj;
+            return false;
+        });
+        return result;
     }
 
     /**
@@ -108,17 +127,19 @@ public:
             });
     }
 
-    bool remove(std::string_view table_name, const query_builder& builder);
+    bool remove(std::string_view table_name, const query_builder& builder,
+                transaction* txn = nullptr);
 
-    bool update(std::string_view table_name, const query_builder& builder, const mc::dict& values);
+    bool update(std::string_view table_name, const query_builder& builder, const mc::dict& values,
+                transaction* txn = nullptr);
     bool update(std::string_view table_name, const query_builder& builder,
-                const std::map<std::string, variant>& values);
+                const std::map<std::string, variant>& values, transaction* txn = nullptr);
 
 private:
     std::unordered_map<std::string_view, table_ptr> m_tables;
 };
 
-} // namespace database
+} // namespace db
 } // namespace mc
 
 #endif // MC_DATABASE_DATABASE_H

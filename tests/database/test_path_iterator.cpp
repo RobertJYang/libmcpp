@@ -21,7 +21,7 @@
 #include <string>
 #include <vector>
 
-using namespace mc::database;
+using namespace mc::db;
 
 // 辅助函数：收集路径所有片段
 std::vector<std::string> collect_segments(const std::string& path) {

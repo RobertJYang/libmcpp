@@ -19,7 +19,7 @@
 #include <string_view>
 #include <vector>
 
-namespace mc::database {
+namespace mc::db {
 
 /**
  * 字节缓冲区，用于高效处理字节数据
@@ -140,6 +140,6 @@ private:
     bool                 m_using_bootstrap; // 是否使用内部缓冲区
 };
 
-} // namespace mc::database
+} // namespace mc::db
 
 #endif // MC_DATABASE_BYTE_BUFFER_H

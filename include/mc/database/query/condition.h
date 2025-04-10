@@ -22,7 +22,7 @@
 #include <mc/reflect.h>
 #include <mc/variant.h>
 
-namespace mc::database::query {
+namespace mc::db::query {
 
 /**
  * 比较操作符枚举
@@ -458,6 +458,6 @@ inline condition not_cond(condition cond) {
 
 } // namespace conditions
 
-} // namespace mc::database::query
+} // namespace mc::db::query
 
 #endif // MC_DATABASE_QUERY_CONDITION_H

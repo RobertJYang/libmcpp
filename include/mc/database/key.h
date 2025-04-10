@@ -24,7 +24,7 @@
 #include <mc/database/byte_buffer.h>
 #include <mc/exception.h>
 
-namespace mc::database {
+namespace mc::db {
 
 /**
  * 位转换函数 (C++17兼容版本)
@@ -167,7 +167,7 @@ public:
      * 获取字节缓冲区
      * @return 字节缓冲区
      */
-    mc::database::byte_buffer* buffer() {
+    mc::db::byte_buffer* buffer() {
         return &m_buf;
     }
 
@@ -520,13 +520,13 @@ private:
         return true;
     }
 
-    mc::database::byte_buffer m_buf;
-    bool                      m_is_unique{false};
-    int                       m_key_count{0};
-    int                       m_key_num{0};
-    bool                      m_tail_nil{false};
+    mc::db::byte_buffer m_buf;
+    bool                m_is_unique{false};
+    int                 m_key_count{0};
+    int                 m_key_num{0};
+    bool                m_tail_nil{false};
 };
 
-} // namespace mc::database
+} // namespace mc::db
 
 #endif // MC_DATABASE_KEY_H

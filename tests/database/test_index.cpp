@@ -26,7 +26,7 @@
 #include <unordered_map>
 #include <vector>
 
-struct user : mc::database::object<user> {
+struct user : mc::db::object<user> {
     using id_type = int;
 
     user() = default;
@@ -55,15 +55,15 @@ struct user : mc::database::object<user> {
     }
 };
 
-// 测试 mc::database::index 的基本功能
+// 测试 mc::db::index 的基本功能
 TEST(database_index_test, mc_database_index_basic) {
     // 创建测试用户数据
     user u1(1, "张三", 20);
     user u2(2, "李四", 25);
     user u3(3, "王五", 22);
 
-    auto name_extractor = mc::database::make_key<user, const std::string&, &user::name>();
-    auto index          = mc::database::make_index<user, true>(name_extractor);
+    auto name_extractor = mc::db::make_key<user, const std::string&, &user::name>();
+    auto index          = mc::db::make_index<user, true>(name_extractor);
 
     // 添加用户到索引
     EXPECT_TRUE(index->add(u1));
@@ -91,7 +91,7 @@ TEST(database_index_test, mc_database_index_basic) {
     EXPECT_EQ(found_u1, index->end());
 }
 
-// 测试 mc::database 函数对象键提取器
+// 测试 mc::db 函数对象键提取器
 TEST(database_index_test, mc_database_index_functor_key) {
     // 创建测试用户数据
     user u1(1, "张三", 20);
@@ -99,12 +99,12 @@ TEST(database_index_test, mc_database_index_functor_key) {
     user u3(3, "王五", 22);
 
     // 使用函数对象创建键提取器
-    auto extractor = mc::database::make_key<user>([](const user& u) -> int {
+    auto extractor = mc::db::make_key<user>([](const user& u) -> int {
         return u.age();
     });
 
     // 创建索引
-    auto index = mc::database::make_index<user, true>(extractor);
+    auto index = mc::db::make_index<user, true>(extractor);
 
     // 添加用户并验证
     EXPECT_TRUE(index->add(u1));
@@ -117,7 +117,7 @@ TEST(database_index_test, mc_database_index_functor_key) {
     EXPECT_EQ(found->get_object_id(), 2);
 }
 
-// 测试 mc::database 复合操作
+// 测试 mc::db 复合操作
 TEST(database_index_test, mc_database_index_operations) {
     // 创建测试用户数据
     user u1(1, "张三", 20);
@@ -125,10 +125,10 @@ TEST(database_index_test, mc_database_index_operations) {
     user u3(3, "王五", 22);
 
     // 使用mc::database的成员函数键提取器
-    auto name_extractor = mc::database::make_key<user, const std::string&, &user::name>();
+    auto name_extractor = mc::db::make_key<user, const std::string&, &user::name>();
 
     // 创建索引
-    auto index = mc::database::make_index<user, true>(name_extractor);
+    auto index = mc::db::make_index<user, true>(name_extractor);
 
     // 添加用户到索引
     EXPECT_TRUE(index->add(u1));
@@ -167,10 +167,10 @@ TEST(database_index_test, compound_key_test) {
     user u5(5, "王五", 30);
 
     // 创建组合索引：名字 + 年龄
-    auto name_extractor     = mc::database::make_key<user, const std::string&, &user::name>();
-    auto age_extractor      = mc::database::make_key<user, int, &user::age>();
-    auto name_age_extractor = mc::database::make_key(name_extractor, age_extractor);
-    auto index              = mc::database::make_index<user, true>(name_age_extractor);
+    auto name_extractor     = mc::db::make_key<user, const std::string&, &user::name>();
+    auto age_extractor      = mc::db::make_key<user, int, &user::age>();
+    auto name_age_extractor = mc::db::make_key(name_extractor, age_extractor);
+    auto index              = mc::db::make_index<user, true>(name_age_extractor);
 
     // 添加用户到索引
     EXPECT_TRUE(index->add(u1));
@@ -300,11 +300,11 @@ TEST(database_index_test, float_index_test) {
     user u5(5, "钱七", 30, -5.8);
 
     // 创建分数提取器
-    auto score_extractor = mc::database::make_key<user, double, &user::score>();
+    auto score_extractor = mc::db::make_key<user, double, &user::score>();
 
     // 1. 测试正序索引
     {
-        auto index = mc::database::make_index<user, true>(score_extractor);
+        auto index = mc::db::make_index<user, true>(score_extractor);
 
         // 添加用户到索引
         EXPECT_TRUE(index->add(u1));
@@ -331,7 +331,7 @@ TEST(database_index_test, float_index_test) {
         user u6(6, "孙八", 35, 1.23456789);
         user u7(7, "周九", 40, 1.23456788);
 
-        auto index = mc::database::make_index<user, true>(score_extractor);
+        auto index = mc::db::make_index<user, true>(score_extractor);
 
         // 添加用户到索引
         EXPECT_TRUE(index->add(u6));
@@ -358,11 +358,11 @@ TEST(database_index_test, non_unique_key_test) {
     user u5(5, "钱七", 30, 0.0);
 
     // 创建分数提取器，设置为非唯一键
-    auto score_extractor = mc::database::make_key<user, double, &user::score>();
+    auto score_extractor = mc::db::make_key<user, double, &user::score>();
 
     // 1. 测试正序非唯一索引
     {
-        auto index = mc::database::make_index<user, false>(score_extractor);
+        auto index = mc::db::make_index<user, false>(score_extractor);
 
         // 添加用户到索引
         EXPECT_TRUE(index->add(u1));
@@ -395,7 +395,7 @@ TEST(database_index_test, non_unique_key_test) {
 
     // 2. 测试非唯一键的更新操作
     {
-        auto index = mc::database::make_index<user, false>(score_extractor);
+        auto index = mc::db::make_index<user, false>(score_extractor);
 
         // 添加初始用户
         EXPECT_TRUE(index->add(u1));
@@ -418,7 +418,7 @@ TEST(database_index_test, non_unique_key_test) {
 
     // 3. 测试非唯一键的删除操作
     {
-        auto index = mc::database::make_index<user, false>(score_extractor);
+        auto index = mc::db::make_index<user, false>(score_extractor);
 
         // 添加用户
         EXPECT_TRUE(index->add(u1));
@@ -452,13 +452,13 @@ TEST(database_index_test, non_unique_key_test) {
 // 测试非唯一索引的组合键场景
 TEST(database_index_test, non_unique_compound_key_test) {
     // 创建组合键提取器
-    using key_extractor = mc::database::composite_key<
-        mc::database::member_key<user, int, &user::m_age>,
-        mc::database::member_key<user, std::string, &user::m_city>,
-        mc::database::member_key<user, std::string, &user::m_department>>;
+    using key_extractor =
+        mc::db::composite_key<mc::db::member_key<user, int, &user::m_age>,
+                              mc::db::member_key<user, std::string, &user::m_city>,
+                              mc::db::member_key<user, std::string, &user::m_department>>;
 
     // 创建非唯一索引
-    auto idx = mc::database::make_index<user, false>(key_extractor());
+    auto idx = mc::db::make_index<user, false>(key_extractor());
 
     // 创建测试数据
     std::vector<user> users = {

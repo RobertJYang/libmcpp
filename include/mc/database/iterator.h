@@ -18,7 +18,7 @@
 #include <string_view>
 #include <type_traits>
 
-namespace mc::database {
+namespace mc::db {
 
 // 前向声明
 template <typename ObjectType, typename KeyExtractor, bool IsUnique, typename Tag>
@@ -269,6 +269,6 @@ private:
     friend class index;
 };
 
-} // namespace mc::database
+} // namespace mc::db
 
 #endif // MC_DATABASE_ITERATOR_H

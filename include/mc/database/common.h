@@ -20,7 +20,7 @@
 #include <string_view>
 #include <vector>
 
-namespace mc::database {
+namespace mc::db {
 
 /**
  * 数据库对象ID类型
@@ -87,6 +87,6 @@ public:
     }
 };
 
-} // namespace mc::database
+} // namespace mc::db
 
 #endif // MC_DATABASE_COMMON_H

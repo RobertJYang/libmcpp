@@ -19,7 +19,7 @@
 #include <memory>
 #include <vector>
 
-namespace mc::database {
+namespace mc::db {
 
 /**
  * 资源标签
@@ -150,10 +150,16 @@ public:
      * 获取事务单例
      * @return 事务单例引用
      */
+    template <typename tag = default_transaction_tag>
     static transaction& get_instance() {
-        return mc::singleton<transaction, default_transaction_tag>::instance_with_creator([]() {
+        return mc::singleton<transaction, tag>::instance_with_creator([]() {
             return new transaction();
         });
+    }
+
+    template <typename tag = default_transaction_tag>
+    static void reset_for_test() {
+        mc::singleton<transaction, tag>::reset_for_test();
     }
 
     /**
@@ -257,6 +263,6 @@ private:
     int32_t m_current_savepoint_id = -1;
 };
 
-} // namespace mc::database
+} // namespace mc::db
 
 #endif // MC_DATABASE_TRANSACTION_H

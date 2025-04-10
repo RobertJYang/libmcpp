@@ -1,7 +1,7 @@
 #include <mc/database/database.h>
 
 namespace mc {
-namespace database {
+namespace db {
 
 database::database() {
 }
@@ -29,20 +29,21 @@ table_ptr database::get_table(std::string_view table_name) const {
     return it->second;
 }
 
-const object_base* database::add(std::string_view table_name, const mc::dict& var) {
+const object_base* database::add(std::string_view table_name, const mc::dict& var,
+                                 transaction* txn) {
     auto table = m_tables.find(table_name);
     if (table == m_tables.end()) {
         return nullptr;
     }
-    return table->second->add_object(var);
+    return table->second->add_object(var, txn);
 }
 
-bool database::remove(std::string_view table_name, const query_builder& builder) {
+bool database::remove(std::string_view table_name, const query_builder& builder, transaction* txn) {
     auto table = m_tables.find(table_name);
     if (table == m_tables.end()) {
         return false;
     }
-    return table->second->remove_object(builder);
+    return table->second->remove_object(builder, txn);
 }
 
 bool database::empty(std::string_view table_name) const {
@@ -70,22 +71,22 @@ void database::clear(std::string_view table_name) {
 }
 
 bool database::update(std::string_view table_name, const query_builder& builder,
-                      const mc::dict& values) {
+                      const mc::dict& values, transaction* txn) {
     auto table = m_tables.find(table_name);
     if (table == m_tables.end()) {
         return false;
     }
-    return table->second->update_object(builder, values);
+    return table->second->update_object(builder, values, txn);
 }
 
 bool database::update(std::string_view table_name, const query_builder& builder,
-                      const std::map<std::string, variant>& values) {
+                      const std::map<std::string, variant>& values, transaction* txn) {
     auto table = m_tables.find(table_name);
     if (table == m_tables.end()) {
         return false;
     }
-    return table->second->update_object(builder, values);
+    return table->second->update_object(builder, values, txn);
 }
 
-} // namespace database
+} // namespace db
 } // namespace mc

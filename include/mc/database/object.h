@@ -21,7 +21,7 @@
 #include <memory>
 #include <utility>
 
-namespace mc::database {
+namespace mc::db {
 
 class object_base {
 public:
@@ -146,6 +146,6 @@ protected:
     friend class mc::im::ref_ptr<ObjectType>;
 };
 
-} // namespace mc::database
+} // namespace mc::db
 
 #endif // MC_DATABASE_OBJECT_H

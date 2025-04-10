@@ -331,7 +331,7 @@ struct shared_memory_header {
 ### 4.1 管理进程接口
 
 ```cpp
-namespace mc::database {
+namespace mc::db {
 
 class database_manager {
 public:
@@ -370,13 +370,13 @@ private:
     // 内部实现细节
 };
 
-} // namespace mc::database
+} // namespace mc::db
 ```
 
 ### 4.2 客户端接口
 
 ```cpp
-namespace mc::database {
+namespace mc::db {
 
 class database_client {
 public:
@@ -421,7 +421,7 @@ private:
     // 内部实现细节
 };
 
-} // namespace mc::database
+} // namespace mc::db
 ```
 
 ## 5. 工作流程
@@ -685,12 +685,12 @@ classDiagram
 
 ```cpp
 // 用户自定义分布式对象
-class my_object : public mc::database::db_object<my_object> {
+class my_object : public mc::db::db_object<my_object> {
 public:
     // 默认IsOwner=true的属性
-    mc::database::property<int> age;
-    mc::database::property<std::string> name;
-    mc::database::property<double> score;
+    mc::db::property<int> age;
+    mc::db::property<std::string> name;
+    mc::db::property<double> score;
 };
 
 // 使用现有的MC_REFLECT机制添加反射支持
@@ -698,7 +698,7 @@ MC_REFLECT(my_object, (age)(name)(score))
 
 // 使用示例
 void example() {
-    mc::database::client db;
+    mc::db::client db;
     
     // 创建对象（拥有者模式）
     auto obj_owner = db.create<my_object>("/path/to/object");
@@ -721,11 +721,11 @@ void example() {
 
 ```cpp
 // 从schema自动生成的代码
-class ${object_name} : public mc::database::db_object<${object_name}> {
+class ${object_name} : public mc::db::db_object<${object_name}> {
 public:
     // 生成属性声明
     ${foreach property in schema.properties}
-    mc::database::property<${property.type}> ${property.name};
+    mc::db::property<${property.type}> ${property.name};
     ${end}
 };
 
@@ -745,7 +745,7 @@ auto proxy = client.query<db_object<my_object, false>>("/path");
 #### 11.3.3 属性模板实现
 
 ```cpp
-namespace mc::database {
+namespace mc::db {
 
 // 统一的属性模板，根据IsOwner参数区分访问权限
 template<typename T, bool IsOwner = true>
@@ -790,13 +790,13 @@ private:
     friend class db_object;
 };
 
-} // namespace mc::database
+} // namespace mc::db
 ```
 
 #### 11.3.4 对象模板实现
 
 ```cpp
-namespace mc::database {
+namespace mc::db {
 
 // 对象基类
 class db_object_base {
@@ -871,7 +871,7 @@ protected:
     }
 };
 
-} // namespace mc::database
+} // namespace mc::db
 ```
 
 这种统一的对象设计通过C++模板特化和SFINAE技术，在编译时强制执行访问控制，同时简化了代码结构和生成过程。它为基于schema的对象生成提供了更高效的支持，减少了重复代码，并保持了清晰的接口和类型安全。
@@ -1207,7 +1207,7 @@ sequenceDiagram
 客户端库提供了与应用程序框架无缝集成的接口，使应用程序可以轻松地使用数据库功能：
 
 ```cpp
-namespace mc::database {
+namespace mc::db {
 
 // 客户端应用程序入口点
 class client {
@@ -1242,7 +1242,7 @@ private:
     std::unique_ptr<impl> m_impl;
 };
 
-} // namespace mc::database
+} // namespace mc::db
 ```
 
 客户端API提供了面向应用程序开发者的高级接口，隐藏了底层通信和数据交换的复杂性，使得与数据库交互变得简单直观。

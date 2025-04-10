@@ -29,7 +29,7 @@
 #include <mc/database/query/metadata.h>
 #include <mc/variant.h>
 
-namespace mc::database::query {
+namespace mc::db::query {
 
 /**
  * 查询计划类型枚举
@@ -416,6 +416,6 @@ private:
     const table_index_metadata<ObjectType>& m_metadata;
 };
 
-} // namespace mc::database::query
+} // namespace mc::db::query
 
 #endif // MC_DATABASE_QUERY_PLANNER_H

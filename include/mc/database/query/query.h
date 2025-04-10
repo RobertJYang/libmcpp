@@ -24,7 +24,7 @@
 #include <mc/database/query/proto_query.h>
 #include <mc/database/query/table_query.h>
 
-namespace mc::database {
+namespace mc::db {
 // 导出便于使用的类型别名
 using query::compare_op;
 using query::condition;
@@ -63,6 +63,6 @@ using query::field;
 using query::in;
 using query::like;
 using query::to_condition;
-} // namespace mc::database
+} // namespace mc::db
 
 #endif // MC_DATABASE_QUERY_QUERY_H

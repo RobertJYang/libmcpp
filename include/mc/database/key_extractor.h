@@ -22,7 +22,7 @@
 
 #include <mc/database/key.h>
 
-namespace mc::database {
+namespace mc::db {
 
 /**
  * 标签类型，用于SFINAE
@@ -318,7 +318,6 @@ private:
         }
     }
 
-
     /**
      * 实现提取组合键并添加到键缓冲区
      * @param key 键缓冲区
@@ -523,6 +522,6 @@ struct key_extractor_traits<object_id_key<ObjectType>> {
     using tag            = tag_member; // 视为成员键
 };
 
-} // namespace mc::database
+} // namespace mc::db
 
 #endif // MC_DATABASE_KEY_EXTRACTOR_H

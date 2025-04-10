@@ -19,7 +19,7 @@
 #include <type_traits>
 #include <vector>
 
-namespace mc::database {
+namespace mc::db {
 
 /**
  * 标签基类，用于标识索引
@@ -35,7 +35,7 @@ struct by_object_id_tag : public tag_base {};
  * 带字段名称的标签
  */
 template <const char* FieldName>
-struct field_tag : public mc::database::tag_base {
+struct field_tag : public mc::db::tag_base {
     static constexpr const char* field_name = FieldName;
 
     /**
@@ -176,11 +176,11 @@ struct no_indices {
     using indices = std::tuple<>;
 };
 
-} // namespace mc::database
+} // namespace mc::db
 
 // 定义单个字段标签
 #define MC_FIELD_INDEX_TAG(tag_name, field_name)                                                   \
     inline constexpr char field_##tag_name[] = field_name;                                         \
-    using tag_name                           = mc::database::field_tag<field_##tag_name>;
+    using tag_name                           = mc::db::field_tag<field_##tag_name>;
 
 #endif // MC_DATABASE_INDEX_TAG_H
