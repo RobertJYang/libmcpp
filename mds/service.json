@@ -6,7 +6,11 @@
     "license": "",
     "description": "",
     "dependencies": {
-        "test": [],
+        "test": [
+            {
+                "conan": "skynet/1.7.0.B016"
+            }
+        ],
         "build": [
             {
                 "conan": "boost/1.82.0.B001"

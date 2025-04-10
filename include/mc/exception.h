@@ -143,7 +143,7 @@ public:
     virtual const char* what() const noexcept override;
 
     // 添加日志消息
-    void append_log(mc::log::message msg);
+    void append_log(mc::log::message msg) const;
 
     // 获取详细异常信息
     virtual std::string to_detail_string(mc::log::level ll = mc::log::level::all) const;
@@ -187,9 +187,7 @@ protected:
 #define MC_DEFINE_EXCEPTION_CLASS(class_name, code_enum_value, default_msg, class_name_str)        \
     class class_name : public exception {                                                          \
     public:                                                                                        \
-        enum code_enum {                                                                           \
-            code_value = code_enum_value                                                           \
-        };                                                                                         \
+        enum code_enum { code_value = code_enum_value };                                           \
                                                                                                    \
         class_name(mc::log::message&& msg = mc::log::message(mc::log::level::error, default_msg))  \
             : exception(std::move(msg), code_enum_value, class_name_str, default_msg) {            \

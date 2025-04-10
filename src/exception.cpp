@@ -83,8 +83,8 @@ const char* exception::what() const noexcept {
     return top_message().c_str();
 }
 
-void exception::append_log(mc::log::message msg) {
-    m_impl->m_logs.emplace_back(std::move(msg));
+void exception::append_log(mc::log::message msg) const {
+    const_cast<exception*>(this)->m_impl->m_logs.emplace_back(std::move(msg));
 }
 
 std::string exception::to_detail_string(mc::log::level ll) const {
@@ -161,7 +161,7 @@ std::string exception::to_string(mc::log::level ll) const {
     return ss.str();
 }
 
-const std::string &exception::top_message() const {
+const std::string& exception::top_message() const {
     if (m_impl->m_logs.empty()) {
         return m_impl->m_what;
     }
