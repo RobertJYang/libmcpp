@@ -225,17 +225,68 @@ struct has_composite_key<
 
 } // namespace detail
 
+class table_base {
+public:
+    virtual ~table_base() = default;
+
+    virtual uint32_t         get_table_id() const   = 0;
+    virtual std::string_view get_table_name() const = 0;
+    virtual bool             empty() const          = 0;
+    virtual size_t           size() const           = 0;
+    virtual void             clear()                = 0;
+
+    const object_base* add_object(const mc::dict& var, transaction* txn = nullptr) {
+        return do_add_object(var, txn);
+    }
+
+    size_t remove_object(const query_builder& condition, transaction* txn = nullptr) {
+        return do_remove_object(condition, txn);
+    }
+
+    const object_base* find_object(const query_builder& condition) {
+        return do_find_object(condition);
+    }
+
+    using query_handler = std::function<bool(const object_base*)>;
+    bool query_object(const query_builder& builder, query_handler&& handler) {
+        return do_query_object(builder, std::forward<query_handler>(handler));
+    }
+
+    size_t update_object(const query_builder& condition, const mc::dict& values,
+                         transaction* txn = nullptr) {
+        return do_update_object(condition, values, txn);
+    }
+
+    size_t update_object(const query_builder&                  condition,
+                         const std::map<std::string, variant>& values, transaction* txn = nullptr) {
+        return do_update_object(condition, values, txn);
+    }
+
+protected:
+    virtual const object_base* do_add_object(const mc::dict& var, transaction* txn)     = 0;
+    virtual size_t do_remove_object(const query_builder& condition, transaction* txn)   = 0;
+    virtual const object_base* do_find_object(const query_builder& condition)           = 0;
+    virtual bool do_query_object(const query_builder& builder, query_handler&& handler) = 0;
+
+    virtual size_t do_update_object(const query_builder&                  condition,
+                                    const std::map<std::string, variant>& values,
+                                    transaction*                          txn) = 0;
+    virtual size_t do_update_object(const query_builder& condition, const mc::dict& values,
+                                    transaction* txn) = 0;
+};
+
 /**
  * 表的实现，它是多个索引的组合
  * @tparam ObjectType 对象类型
  * @tparam IndexDef 索引定义类型，默认为 no_indices
  */
 template <typename ObjectType, typename IndexDef = no_indices>
-class table {
+class table : public table_base {
 public:
-    using object_type      = ObjectType;
-    using indices_def      = typename IndexDef::indices;
-    using object_ptr_type  = mc::im::ref_ptr<object_type>;
+    using object_type           = ObjectType;
+    using indices_def           = typename IndexDef::indices;
+    using object_ptr_type       = mc::im::ref_ptr<object_type>;
+    using const_object_ptr_type = mc::im::ref_ptr<const object_type>;
     using index_map_config = mc::im::tree_config<object_ptr_type, typename object_type::alloc_type>;
     using index_txn_type   = mc::im::transaction<index_map_config>;
     using object_id_type   = typename ObjectType::object_id_type;
@@ -262,9 +313,10 @@ public:
      * 构造函数
      * @param alloc 内存分配器
      */
-    explicit table(uint32_t table_id = 0, const alloc_type& alloc = alloc_type())
+    table(std::string_view name = std::string_view(), uint32_t table_id = 0,
+          const alloc_type& alloc = alloc_type())
         : m_indices(make_indices(alloc)), m_next_id(1),
-          m_table_id(table_id ? table_id : transaction::alloc_table_id()) {
+          m_table_id(table_id ? table_id : transaction::alloc_table_id()), m_name(name) {
         size_t i = 0;
         detail::for_each_index(m_indices, [&i, this](auto& idx) {
             m_indices_array[i++] = &idx;
@@ -584,8 +636,16 @@ public:
      * 获取表ID
      * @return 表ID
      */
-    uint32_t get_table_id() const {
+    uint32_t get_table_id() const override {
         return m_table_id;
+    }
+
+    /**
+     * 获取表名
+     * @return 表名
+     */
+    std::string_view get_table_name() const override {
+        return m_name;
     }
 
     /**
@@ -593,7 +653,7 @@ public:
      * @param builder 查询构建器
      * @return 找到的记录的可选包装
      */
-    std::optional<object_type> find(const query_builder& builder) {
+    const_object_ptr_type find(const query_builder& builder) {
         return table_query<table<object_type, IndexDef>>(*this).query_one(builder);
     }
 
@@ -603,7 +663,7 @@ public:
      * @param limit 限制返回的记录数量，0表示不限制
      * @return 查询结果
      */
-    std::vector<object_type> query(const query_builder& builder, size_t limit = 0) {
+    std::vector<const_object_ptr_type> query(const query_builder& builder, size_t limit = 0) {
         return table_query<table<object_type, IndexDef>>(*this).query(builder, limit);
     }
 
@@ -620,7 +680,7 @@ public:
             builder, std::forward<Handler>(handler));
     }
 
-    std::vector<object_type> all() {
+    std::vector<const_object_ptr_type> all() {
         query_builder builder;
         return table_query<table<object_type, IndexDef>>(*this).query_all(builder);
     }
@@ -660,19 +720,72 @@ public:
         return removed_count;
     }
 
-    void clear() {
+    void clear() override {
         detail::for_each_index(m_indices, [](auto& idx) {
             idx.clear();
             return true;
         });
     }
 
-    bool empty() const {
+    bool empty() const override {
         return std::get<0>(m_indices).empty();
     }
 
-    size_t size() const {
+    size_t size() const override {
         return std::get<0>(m_indices).size();
+    }
+
+protected:
+    const object_base* do_add_object(const mc::dict& var, transaction* txn) override {
+        if constexpr (mc::reflect::is_reflectable<object_type>()) {
+            return add(object_type::create(mc::variant(var)), txn).get();
+        }
+
+        return nullptr;
+    }
+
+    size_t do_remove_object(const query_builder& condition, transaction* txn) override {
+        if constexpr (mc::reflect::is_reflectable<object_type>()) {
+            return remove(condition, txn);
+        }
+
+        return 0;
+    }
+
+    const object_base* do_find_object(const query_builder& condition) override {
+        if constexpr (mc::reflect::is_reflectable<object_type>()) {
+            return find(condition).get();
+        }
+
+        return nullptr;
+    }
+
+    bool do_query_object(const query_builder&        builder,
+                         table_base::query_handler&& handler) override {
+        if constexpr (mc::reflect::is_reflectable<object_type>()) {
+            return query(builder, [handler = std::forward<table_base::query_handler>(handler)](
+                                      const object_type& obj) {
+                return handler(&obj);
+            });
+        }
+        return false;
+    }
+
+    size_t do_update_object(const query_builder& condition, const mc::dict& values,
+                            transaction* txn) override {
+        if constexpr (mc::reflect::is_reflectable<object_type>()) {
+            return update_internal(condition, values, txn);
+        }
+        return 0;
+    }
+
+    size_t do_update_object(const query_builder&                  condition,
+                            const std::map<std::string, variant>& values,
+                            transaction*                          txn) override {
+        if constexpr (mc::reflect::is_reflectable<object_type>()) {
+            return update_internal(condition, values, txn);
+        }
+        return 0;
     }
 
 private:
@@ -734,6 +847,7 @@ private:
     indices_array_type          m_indices_array;
     std::atomic<object_id_type> m_next_id;        ///< 下一个可用的对象ID
     uint32_t                    m_table_id = {0}; ///< 表ID
+    std::string                 m_name;           ///< 表名
 
     int32_t m_txn_savepoint_id   = {-1}; ///< 事务保存点ID
     int32_t m_index_savepoint_id = {-1}; ///< 索引保存点ID

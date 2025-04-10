@@ -29,7 +29,7 @@ namespace mdb = mc::database;
 struct by_age : mdb::tag_base {};
 struct by_name_age : mdb::tag_base {};
 
-class user : public mdb::object_base<user> {
+class user : public mdb::object<user> {
 public:
     using object_id_type = uint32_t;
 

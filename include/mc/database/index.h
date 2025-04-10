@@ -64,7 +64,7 @@ public:
  */
 template <typename ObjectType, typename KeyExtractor, bool IsUnique = true, typename Tag = void>
 class index : public index_base<ObjectType> {
-    static_assert(std::is_base_of_v<object_base<ObjectType>, ObjectType>,
+    static_assert(std::is_base_of_v<object<ObjectType>, ObjectType>,
                   "ObjectType必须继承自object_base");
 
 public:

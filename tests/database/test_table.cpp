@@ -28,7 +28,7 @@ namespace mdb = mc::database;
 struct by_age : mdb::tag_base {};
 MC_FIELD_INDEX_TAG(by_name_age, "name_age");
 
-class user : public mdb::object_base<user> {
+class user : public mdb::object<user> {
 public:
     using object_id_type = uint32_t;
 
@@ -238,9 +238,9 @@ TEST_F(table_test, advanced_query) {
         auto results = users.query(field_name == "张三");
         EXPECT_EQ(results.size(), 1);
         if (!results.empty()) {
-            EXPECT_EQ(results[0].name(), "张三");
-            EXPECT_EQ(results[0].get_age(), 25);
-            EXPECT_DOUBLE_EQ(results[0].score(), 85.5);
+            EXPECT_EQ(results[0]->name(), "张三");
+            EXPECT_EQ(results[0]->get_age(), 25);
+            EXPECT_DOUBLE_EQ(results[0]->score(), 85.5);
         }
     }
 
@@ -249,8 +249,8 @@ TEST_F(table_test, advanced_query) {
         auto results = users.query(field_age == 25 && field_score > 80.0);
         EXPECT_EQ(results.size(), 1);
         if (!results.empty()) {
-            EXPECT_EQ(results[0].name(), "张三");
-            EXPECT_DOUBLE_EQ(results[0].score(), 85.5);
+            EXPECT_EQ(results[0]->name(), "张三");
+            EXPECT_DOUBLE_EQ(results[0]->score(), 85.5);
         }
     }
 
@@ -259,12 +259,12 @@ TEST_F(table_test, advanced_query) {
         auto results = users.query(field_name == "张三" || field_name == "李四");
         EXPECT_EQ(results.size(), 2);
         // 排序结果以便于测试
-        std::sort(results.begin(), results.end(), [](const user& a, const user& b) {
-            return a.name() < b.name();
+        std::sort(results.begin(), results.end(), [](auto& a, auto& b) {
+            return a->name() < b->name();
         });
         if (results.size() == 2) {
-            EXPECT_EQ(results[0].name(), "张三");
-            EXPECT_EQ(results[1].name(), "李四");
+            EXPECT_EQ(results[0]->name(), "张三");
+            EXPECT_EQ(results[1]->name(), "李四");
         }
     }
 
@@ -273,12 +273,12 @@ TEST_F(table_test, advanced_query) {
         auto results = users.query(field_age >= 30 && field_age <= 35);
         EXPECT_EQ(results.size(), 2);
         // 排序结果以便于测试
-        std::sort(results.begin(), results.end(), [](const user& a, const user& b) {
-            return a.name() < b.name();
+        std::sort(results.begin(), results.end(), [](auto& a, auto& b) {
+            return a->name() < b->name();
         });
         if (results.size() == 2) {
-            EXPECT_EQ(results[0].name(), "李四");
-            EXPECT_EQ(results[1].name(), "赵六");
+            EXPECT_EQ(results[0]->name(), "李四");
+            EXPECT_EQ(results[1]->name(), "赵六");
         }
     }
 
@@ -311,8 +311,8 @@ TEST_F(table_test, advanced_query) {
     // 查询单个记录
     {
         auto result = users.find(field_name == "王五");
-        EXPECT_TRUE(result.has_value());
-        if (result.has_value()) {
+        EXPECT_TRUE(result != nullptr);
+        if (result != nullptr) {
             EXPECT_EQ(result->name(), "王五");
             EXPECT_EQ(result->get_age(), 25);
             EXPECT_DOUBLE_EQ(result->score(), 76.5);
@@ -326,13 +326,13 @@ TEST_F(table_test, advanced_query) {
         EXPECT_EQ(results.size(), 2); // 应该匹配张三和钱七
 
         // 排序结果以便于测试
-        std::sort(results.begin(), results.end(), [](const user& a, const user& b) {
-            return a.name() < b.name();
+        std::sort(results.begin(), results.end(), [](auto& a, auto& b) {
+            return a->name() < b->name();
         });
 
         if (results.size() == 2) {
-            EXPECT_EQ(results[0].name(), "张三"); // 满足第一个条件
-            EXPECT_EQ(results[1].name(), "钱七"); // 满足第二个条件
+            EXPECT_EQ(results[0]->name(), "张三"); // 满足第一个条件
+            EXPECT_EQ(results[1]->name(), "钱七"); // 满足第二个条件
         }
     }
 }
@@ -356,7 +356,7 @@ TEST_F(table_test, advanced_update) {
         EXPECT_EQ(updated, 1);
 
         auto result = users.find(field_name == "Alice");
-        EXPECT_TRUE(result.has_value());
+        EXPECT_TRUE(result != nullptr);
         EXPECT_EQ(result->get_age(), 26); // Alice 的年龄被更新为 26
         EXPECT_DOUBLE_EQ(result->score(), 88.0);
     }
@@ -368,7 +368,7 @@ TEST_F(table_test, advanced_update) {
         EXPECT_EQ(updated, 1);
 
         auto result = users.find(field_name == "Bob");
-        EXPECT_TRUE(result.has_value());
+        EXPECT_TRUE(result != nullptr);
         EXPECT_DOUBLE_EQ(result->score(), 88.0);
     }
 
@@ -406,7 +406,7 @@ TEST_F(table_test, advanced_remove) {
         EXPECT_EQ(removed, 1);
 
         auto result = users.find(field_name == "Alice");
-        EXPECT_FALSE(result.has_value());
+        EXPECT_FALSE(result != nullptr);
     }
 
     // 测试删除多个记录

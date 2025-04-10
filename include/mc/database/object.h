@@ -23,6 +23,17 @@
 
 namespace mc::database {
 
+class object_base {
+public:
+    virtual ~object_base() = default;
+
+    template <typename ObjectType>
+    mc::im::ref_ptr<const ObjectType> to_object_ptr() const {
+        auto* p = static_cast<const ObjectType*>(this);
+        return mc::im::ref_ptr<const ObjectType>(p);
+    }
+};
+
 /**
  * 数据库对象基类，提供ID和引用计数管理
  * @tparam ObjectType 具体对象类型
@@ -31,19 +42,20 @@ namespace mc::database {
  */
 template <typename ObjectType, typename Allocator = std::allocator<ObjectType>,
           typename ObjectIdType = uint32_t>
-class object_base : public mc::im::ref_base<ObjectType> {
+class object : public mc::im::ref_base<ObjectType>, public object_base {
 public:
-    using object_id_type = ObjectIdType;
-    using alloc_type     = Allocator;
+    using object_id_type        = ObjectIdType;
+    using alloc_type            = Allocator;
+    using const_object_ptr_type = mc::im::ref_ptr<const ObjectType>;
 
     /**
      * 默认构造函数
      */
-    object_base(object_id_type id = 0, const alloc_type& alloc = alloc_type())
-        : m_object_id(id), m_alloc(alloc) {
+    object(object_id_type id = 0, const alloc_type& alloc = alloc_type())
+        : m_alloc(alloc), m_object_id(id) {
     }
 
-    virtual ~object_base() = default;
+    virtual ~object() = default;
 
     /**
      * 获取对象ID
@@ -106,6 +118,13 @@ public:
         return mc::im::make_ref<ObjectType>(std::forward<Args>(args)...);
     }
 
+    static mc::im::ref_ptr<ObjectType> create(mc::variant var) {
+        static_assert(mc::reflect::is_reflectable<ObjectType>());
+        auto obj = mc::im::make_ref<ObjectType>();
+        from_variant(var, *obj);
+        return obj;
+    }
+
     /**
      * 使用自定义分配器创建对象
      * @tparam Args 构造函数参数类型
@@ -119,9 +138,10 @@ public:
         return mc::im::allocate_ref<ObjectType>(alloc, std::forward<Args>(args)...);
     }
 
+    alloc_type m_alloc;
+
 protected:
     object_id_type m_object_id;
-    alloc_type     m_alloc;
 
     friend class mc::im::ref_ptr<ObjectType>;
 };

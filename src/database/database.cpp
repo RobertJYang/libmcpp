@@ -1,0 +1,91 @@
+#include <mc/database/database.h>
+
+namespace mc {
+namespace database {
+
+database::database() {
+}
+
+database::~database() {
+}
+
+void database::register_table(table_ptr table) {
+    m_tables[table->get_table_name()] = table;
+}
+
+void database::unregister_table(std::string_view table_name) {
+    m_tables.erase(table_name);
+}
+
+bool database::is_table_registered(std::string_view table_name) const {
+    return m_tables.find(table_name) != m_tables.end();
+}
+
+table_ptr database::get_table(std::string_view table_name) const {
+    auto it = m_tables.find(table_name);
+    if (it == m_tables.end()) {
+        return nullptr;
+    }
+    return it->second;
+}
+
+const object_base* database::add(std::string_view table_name, const mc::dict& var) {
+    auto table = m_tables.find(table_name);
+    if (table == m_tables.end()) {
+        return nullptr;
+    }
+    return table->second->add_object(var);
+}
+
+bool database::remove(std::string_view table_name, const query_builder& builder) {
+    auto table = m_tables.find(table_name);
+    if (table == m_tables.end()) {
+        return false;
+    }
+    return table->second->remove_object(builder);
+}
+
+bool database::empty(std::string_view table_name) const {
+    auto table = m_tables.find(table_name);
+    if (table == m_tables.end()) {
+        return false;
+    }
+    return table->second->empty();
+}
+
+size_t database::size(std::string_view table_name) const {
+    auto table = m_tables.find(table_name);
+    if (table == m_tables.end()) {
+        return 0;
+    }
+    return table->second->size();
+}
+
+void database::clear(std::string_view table_name) {
+    auto table = m_tables.find(table_name);
+    if (table == m_tables.end()) {
+        return;
+    }
+    table->second->clear();
+}
+
+bool database::update(std::string_view table_name, const query_builder& builder,
+                      const mc::dict& values) {
+    auto table = m_tables.find(table_name);
+    if (table == m_tables.end()) {
+        return false;
+    }
+    return table->second->update_object(builder, values);
+}
+
+bool database::update(std::string_view table_name, const query_builder& builder,
+                      const std::map<std::string, variant>& values) {
+    auto table = m_tables.find(table_name);
+    if (table == m_tables.end()) {
+        return false;
+    }
+    return table->second->update_object(builder, values);
+}
+
+} // namespace database
+} // namespace mc

@@ -41,10 +41,11 @@ namespace mc::database::query {
 template <typename TableType>
 class table_query {
 public:
-    using object_type     = typename TableType::object_type;
-    using object_ptr_type = typename TableType::object_ptr_type;
-    using raw_iterator    = typename TableType::raw_iterator;
-    using object_id_type  = typename object_type::object_id_type;
+    using object_type           = typename TableType::object_type;
+    using object_ptr_type       = typename TableType::object_ptr_type;
+    using const_object_ptr_type = typename TableType::const_object_ptr_type;
+    using raw_iterator          = typename TableType::raw_iterator;
+    using object_id_type        = typename object_type::object_id_type;
 
     /**
      * 构造函数
@@ -70,12 +71,10 @@ public:
      * @param builder 查询构建器
      * @return 匹配对象列表
      */
-    std::vector<object_type> query_all(const query_builder& builder) {
-        std::vector<object_type> result;
-
-        // 执行查询，收集所有匹配对象
+    std::vector<const_object_ptr_type> query_all(const query_builder& builder) {
+        std::vector<const_object_ptr_type> result;
         query_impl(builder, [&result](const object_type& obj) {
-            result.push_back(obj);
+            result.emplace_back(&obj);
             return true;
         });
 
@@ -89,16 +88,13 @@ public:
      * @param limit 最大返回数量
      * @return 匹配对象列表
      */
-    std::vector<object_type> query_limit(const query_builder& builder, size_t limit) {
-        // 创建一个带有限制的查询构建器
+    std::vector<const_object_ptr_type> query_limit(const query_builder& builder, size_t limit) {
         query_builder limited_builder = builder;
         limited_builder.limit(limit);
 
-        std::vector<object_type> result;
-
-        // 执行查询，收集匹配对象
+        std::vector<const_object_ptr_type> result;
         query_impl(limited_builder, [&result](const object_type& obj) {
-            result.push_back(obj);
+            result.emplace_back(&obj);
             return true;
         });
 
@@ -111,12 +107,13 @@ public:
      * @param builder 查询构建器
      * @return 匹配的第一个对象的可选包装
      */
-    std::optional<object_type> query_one(const query_builder& builder) {
-        auto results = query_limit(builder, 1);
-        if (results.empty()) {
-            return std::nullopt;
-        }
-        return results[0];
+    const_object_ptr_type query_one(const query_builder& builder) {
+        const_object_ptr_type result;
+        query_impl(builder, [&result](const object_type& obj) {
+            result = const_object_ptr_type(&obj);
+            return false;
+        });
+        return result;
     }
 
     /**
@@ -125,14 +122,15 @@ public:
      * @param limit 限制返回的记录数量，0表示不限制
      * @return 查询结果
      */
-    std::vector<object_type> query(const query_builder& builder, size_t limit = 0) {
-        std::vector<object_type> results;
-        size_t                   count = 0;
+    std::vector<const_object_ptr_type> query(const query_builder& builder, size_t limit = 0) {
+        std::vector<const_object_ptr_type> results;
+
+        size_t count = 0;
         query(builder, [&](const object_type& obj) -> bool {
             if (limit > 0 && count >= limit) {
                 return false;
             }
-            results.push_back(obj);
+            results.emplace_back(&obj);
             count++;
             return true;
         });

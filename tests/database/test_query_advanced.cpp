@@ -31,7 +31,7 @@ namespace mdb = mc::database;
 struct by_age : mdb::tag_base {};
 struct by_city : mdb::tag_base {};
 
-class test_user : public mdb::object_base<test_user> {
+class test_user : public mdb::object<test_user> {
 public:
     using object_id_type = uint32_t;
 
@@ -239,8 +239,8 @@ TEST_F(table_query_test, index_optimized_query) {
 
         auto users_result = users.query(expr);
         ASSERT_EQ(users_result.size(), 1);
-        EXPECT_EQ(users_result[0].id(), 3);
-        EXPECT_EQ(users_result[0].name(), "王五");
+        EXPECT_EQ(users_result[0]->id(), 3);
+        EXPECT_EQ(users_result[0]->name(), "王五");
     }
 
     // 测试按姓名查询（应该使用姓名索引）
@@ -249,7 +249,7 @@ TEST_F(table_query_test, index_optimized_query) {
         auto expr       = name_field == "李四";
 
         auto user_opt = users.find(expr);
-        ASSERT_TRUE(user_opt.has_value());
+        ASSERT_TRUE(user_opt != nullptr);
         EXPECT_EQ(user_opt->id(), 2);
         EXPECT_EQ(user_opt->name(), "李四");
     }
@@ -270,9 +270,9 @@ TEST_F(table_query_test, query_limit_and_custom_handler) {
         bool found_wangwu   = false;
 
         for (const auto& user : results) {
-            if (user.id() == 1) {
+            if (user->id() == 1) {
                 found_zhangsan = true;
-            } else if (user.id() == 3) {
+            } else if (user->id() == 3) {
                 found_wangwu = true;
             }
         }
@@ -308,7 +308,7 @@ TEST_F(table_query_test, query_limit_and_custom_handler) {
         EXPECT_EQ(results.size(), 1);
 
         if (!results.empty()) {
-            EXPECT_EQ(results[0].id(), 5); // 钱七 (40岁, 北京)
+            EXPECT_EQ(results[0]->id(), 5); // 钱七 (40岁, 北京)
         }
     }
 }

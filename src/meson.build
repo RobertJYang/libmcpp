@@ -33,6 +33,7 @@ src_files = [
   'database/path_iterator.cpp',
   'database/byte_buffer.cpp',
   'database/transaction.cpp',
+  'database/database.cpp',
 ]
 
 # 创建共享库
