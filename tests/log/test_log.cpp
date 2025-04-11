@@ -56,6 +56,7 @@ protected:
 
         // 创建测试日志器
         m_test_logger = mc::log::logger("test_logger");
+        m_test_logger.set_level(mc::log::level::all);
         m_test_logger.add_appender(m_memory_appender);
     }
 

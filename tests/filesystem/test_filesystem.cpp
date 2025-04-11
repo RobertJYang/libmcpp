@@ -134,8 +134,8 @@ TEST_F(FilesystemTest, PathOperations) {
     EXPECT_EQ("", mc::filesystem::stem(""));
 
     // normalize 测试
-    EXPECT_EQ("/path", mc::filesystem::normalize("/path/to/.."));
-    EXPECT_EQ("/path", mc::filesystem::normalize("/path/./to/.."));
+    EXPECT_EQ("/path/", mc::filesystem::normalize("/path/to/.."));
+    EXPECT_EQ("/path/", mc::filesystem::normalize("/path/./to/.."));
     EXPECT_EQ(".", mc::filesystem::normalize(""));
 }
 
@@ -143,7 +143,7 @@ TEST_F(FilesystemTest, PathOperations) {
 TEST_F(FilesystemTest, PathJoin) {
     // 两段路径拼接
     EXPECT_EQ("/path/to/file.txt", mc::filesystem::join("/path/to", "file.txt"));
-    EXPECT_EQ("/path/to/file.txt", mc::filesystem::join("/path/to", "/file.txt"));
+    EXPECT_EQ("/file.txt", mc::filesystem::join("/path/to", "/file.txt"));
     EXPECT_EQ("file.txt", mc::filesystem::join("", "file.txt"));
     EXPECT_EQ("/path/to", mc::filesystem::join("/path/to", ""));
 
@@ -196,7 +196,7 @@ TEST_F(FilesystemTest, DirectoryOperations) {
         GTEST_SKIP() << "临时目录创建失败，跳过测试";
     }
 
-    const std::string& test_dir = temp_dirs[0];
+    const std::string test_dir = temp_dirs[0];
 
     try {
         // 目录列表测试

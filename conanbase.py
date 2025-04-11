@@ -13,7 +13,7 @@ urllib3.disable_warnings()
 
 class ConanBase(ConanFile):
     name = "libmcpp"
-    version = "0.0.1"
+    version = "0.1.0"
     settings = "os", "compiler", "build_type", "arch"
     license = "Mulan PSL v2"
     generators = "cmake"
