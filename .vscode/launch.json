@@ -8,25 +8,26 @@
             "name": "单元测试",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/builddir/tests/libmcpp_test",
+            "program": "${workspaceFolder}/build/tests/libmcpp_test",
             "args": [],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
             "environment": [],
             "externalConsole": false,
-            "MIMode": "lldb"
+            "MIMode": "gdb",
+            "miDebuggerPath": "/usr/bin/gdb"
         },
         {
             "name": "examples/plugin",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/builddir/examples/plugin/example_plugin",
+            "program": "${workspaceFolder}/build/examples/plugin/example_plugin",
             "args": [
                 "-c",
-                "${workspaceFolder}/builddir/examples/plugin/config.json"
+                "${workspaceFolder}/build/examples/plugin/config.json"
             ],
             "stopAtEntry": false,
-            "cwd": "${workspaceFolder}/builddir/examples/plugin",
+            "cwd": "${workspaceFolder}/build/examples/plugin",
             "environment": [],
             "externalConsole": false,
             "MIMode": "lldb"

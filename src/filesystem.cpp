@@ -354,7 +354,7 @@ std::string normalize(const std::string& path) {
             if (part == "..") {
                 if (!result.empty()) {
                     // 遇到".."时回退一级目录
-                    result = result.parent_path();
+                    result = result.parent_path().append("/");
                 }
             } else if (part != ".") {
                 // 忽略"."，添加其他正常路径组件
@@ -381,6 +381,11 @@ std::string join(const std::string& base, const std::string& path) {
     }
     if (path.empty()) {
         return base;
+    }
+
+    // 如果path是绝对路径（以/开头），则直接返回path
+    if (!path.empty() && path[0] == '/') {
+        return path;
     }
 
     return (fs::path(base) / fs::path(path)).string(); // 使用/操作符连接路径
