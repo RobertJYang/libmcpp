@@ -549,8 +549,16 @@ inline int64_t hton(int64_t value) {
  * @param MEMBER 成员指针
  * @return size_t 成员偏移量（字节数）
  */
-#define MC_MEMBER_OFFSETOF(MEMBER)                                                                 \
-    (reinterpret_cast<std::size_t>(&(reinterpret_cast<T*>(0)->*MEMBER)))
+#define MC_MEMBER_OFFSETOF(TYPE, MEMBER)                                                           \
+    (reinterpret_cast<std::size_t>(&(reinterpret_cast<TYPE*>(0)->*MEMBER)))
+
+template <typename T>
+struct remove_cvref {
+    using type = std::remove_cv_t<std::remove_reference_t<T>>;
+};
+
+template <typename T>
+using remove_cvref_t = typename remove_cvref<T>::type;
 
 } // namespace mc
 

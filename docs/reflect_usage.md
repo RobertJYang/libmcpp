@@ -93,7 +93,7 @@ const char* type_name = mc::reflect::get_type_name<Person>();
 Person person("张三", 30, true);
 
 // 访问所有成员
-mc::reflect::visit_members<Person>([&](const char* name,
+mc::reflect::visit_properties<Person>([&](const char* name,
                                      auto getter,
                                      auto setter) {
     // name: 成员名称

@@ -102,7 +102,7 @@ public:
     field(KeyType ObjectType::* member) {
         std::string_view name;
         if constexpr (mc::reflect::is_reflectable<ObjectType>()) {
-            name = mc::reflect::get_member_name<ObjectType>(member);
+            name = mc::reflect::get_property_name<ObjectType>(member);
         }
         return query::dsl::field(name);
     }

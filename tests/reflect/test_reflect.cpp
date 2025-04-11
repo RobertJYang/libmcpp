@@ -145,7 +145,7 @@ TEST(ReflectTest, MemberVisit) {
 
     // 访问成员
     member_visitor<test_person> visitor(p);
-    mc::reflect::visit_members<test_person>(visitor);
+    mc::reflect::visit_properties<test_person>(visitor);
 
     // 检查成员名称
     EXPECT_EQ(visitor.names.size(), 3);

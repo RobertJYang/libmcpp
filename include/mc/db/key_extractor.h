@@ -93,7 +93,7 @@ public:
      */
     static std::vector<std::string> get_field_names() {
         if constexpr (mc::reflect::is_reflectable<ObjectType>()) {
-            return {std::string(mc::reflect::get_member_name<ObjectType>(Member))};
+            return {std::string(mc::reflect::get_property_name<ObjectType>(Member))};
         } else {
             return {"<member>"};
         }

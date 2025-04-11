@@ -1,49 +1,79 @@
 # 测试源文件列表
 test_files = [
+  # 主入口文件
   'main.cpp',
+
+  # 根目录测试文件
+  'test_futures.cpp',
   'test_json.cpp',
+  'test_pretty_name.cpp',
   'test_signal_slot.cpp',
   'test_time.cpp',
-  'test_futures.cpp',
-  'interprocess/test_shared_mutex.cpp',
-  'core/test_singleton.cpp',
+
+  # core 目录
   'core/test_service_manager.cpp',
-  'string/test_string.cpp',
-  'exception/test_exception.cpp',
-  'log/test_log.cpp',
-  'log/test_console_appender.cpp',
-  'variant/test_variant_basic.cpp',
-  'variant/test_variant_containers.cpp',
-  'variant/test_variant_standard_containers.cpp',
-  'variant/test_typed_variant.cpp',
-  'variant/test_variant_equality.cpp',
-  'variant/test_variant_comparison.cpp',
-  'variant/test_variant_bool_operator.cpp',
-  'variant/test_variant_visitor.cpp',
-  'dict/test_dict_string_view.cpp',
-  'dict/test_dict_construction.cpp',
-  'dict/test_dict_operations.cpp',
-  'dict/test_dict_conversion.cpp',
-  'dict/test_dict_performance.cpp',
-  'reflect/test_reflect_custom_name.cpp',
-  'reflect/test_nested_reflect.cpp',
-  'reflect/test_reflect.cpp',
-  'reflect/test_reflect_static_info.cpp',
-  'filesystem/test_filesystem.cpp',
+  'core/test_singleton.cpp',
+
+  # db 目录
+  'db/test_database.cpp',
+  'db/test_index.cpp',
   'db/test_path_iterator.cpp',
+  'db/test_query_advanced.cpp',
   'db/test_table.cpp',
   'db/test_transaction.cpp',
-  'db/test_index.cpp',
-  'db/test_query_advanced.cpp',
-  'db/test_database.cpp',
-  'im/test_node_list.cpp',
+
+  # dict 目录
+  'dict/test_dict_construction.cpp',
+  'dict/test_dict_conversion.cpp',
+  'dict/test_dict_operations.cpp',
+  'dict/test_dict_performance.cpp',
+  'dict/test_dict_string_view.cpp',
+
+  # engine 目录
+  'engine/test_interface.cpp',
+
+  # exception 目录
+  'exception/test_exception.cpp',
+
+  # filesystem 目录
+  'filesystem/test_filesystem.cpp',
+
+  # im 目录
+  'im/test_custom_allocator.cpp',
   'im/test_node.cpp',
+  'im/test_node_list.cpp',
+  'im/test_radix_tree.cpp',
+  'im/test_radix_tree_iterator.cpp',
   'im/test_simple_node.cpp',
   'im/test_transaction.cpp',
-  'im/test_radix_tree.cpp',
-  'im/test_custom_allocator.cpp',
-  'im/test_radix_tree_iterator.cpp',
-  'test_pretty_name.cpp',
+
+  # interprocess 目录
+  'interprocess/test_shared_mutex.cpp',
+
+  # log 目录
+  'log/test_console_appender.cpp',
+  'log/test_log.cpp',
+
+  # reflect 目录
+  'reflect/test_nested_reflect.cpp',
+  'reflect/test_reflect.cpp',
+  'reflect/test_reflect_custom_name.cpp',
+  'reflect/test_reflect_static_info.cpp',
+
+  # string 目录
+  'string/test_format_benchmark.cpp',
+  'string/test_string.cpp',
+
+  # variant 目录
+  'variant/test_typed_variant.cpp',
+  'variant/test_variant_basic.cpp',
+  'variant/test_variant_bool_operator.cpp',
+  'variant/test_variant_comparison.cpp',
+  'variant/test_variant_containers.cpp',
+  'variant/test_variant_equality.cpp',
+  'variant/test_variant_operations.cpp',
+  'variant/test_variant_standard_containers.cpp',
+  'variant/test_variant_visitor.cpp',
 ]
 
 # 测试工具库 - 构建为独立的静态库

@@ -172,17 +172,17 @@ struct has_member_key : std::false_type {};
 template <typename KeyExtractor, typename ObjectType, typename MemberType>
 struct has_member_key<
     KeyExtractor, ObjectType, MemberType,
-    std::void_t<
-        decltype(std::declval<KeyExtractor>().template get_member_name<ObjectType, MemberType>())>>
+    std::void_t<decltype(std::declval<KeyExtractor>()
+                             .template get_property_name<ObjectType, MemberType>())>>
     : std::true_type {};
 
 /**
  * 获取成员键名
  */
 template <typename KeyExtractor, typename ObjectType, typename MemberType>
-std::string get_member_name() {
+std::string get_property_name() {
     if constexpr (has_member_key<KeyExtractor, ObjectType, MemberType>::value) {
-        return KeyExtractor::template get_member_name<ObjectType, MemberType>();
+        return KeyExtractor::template get_property_name<ObjectType, MemberType>();
     }
     return "";
 }
