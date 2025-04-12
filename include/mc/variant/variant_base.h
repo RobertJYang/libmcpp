@@ -870,10 +870,9 @@ public:
      */
     template <typename T>
     T as() const {
-        using non_ref_type   = typename std::remove_reference<T>::type;
-        using non_const_type = typename std::remove_const<non_ref_type>::type;
+        using t_type = mc::remove_cvref_t<T>;
 
-        non_const_type v;
+        t_type v;
         from_variant(*this, v);
         return v;
     }

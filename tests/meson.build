@@ -59,6 +59,8 @@ test_files = [
   'reflect/test_reflect.cpp',
   'reflect/test_reflect_custom_name.cpp',
   'reflect/test_reflect_static_info.cpp',
+  'reflect/test_custom_member_info.cpp', 
+  'reflect/test_method_call.cpp',
 
   # string 目录
   'string/test_format_benchmark.cpp',
@@ -74,6 +76,9 @@ test_files = [
   'variant/test_variant_operations.cpp',
   'variant/test_variant_standard_containers.cpp',
   'variant/test_variant_visitor.cpp',
+
+  # engine 目录
+  'engine/test_interface.cpp',
 ]
 
 # 测试工具库 - 构建为独立的静态库

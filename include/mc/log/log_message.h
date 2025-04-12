@@ -28,14 +28,6 @@ namespace mc {
 namespace log {
 
 /**
- * @brief 将字典转换为字符串
- *
- * @param d 字典
- * @return std::string 字符串表示
- */
-std::string dict_to_string(const dict& d);
-
-/**
  * @brief 日志上下文信息
  */
 struct context {

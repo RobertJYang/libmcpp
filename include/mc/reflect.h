@@ -17,6 +17,7 @@
 #ifndef MC_REFLECT_H
 #define MC_REFLECT_H
 
+#include <mc/reflect/method.h>
 #include <mc/reflect/property.h>
 #include <mc/reflect/reflect.h>
 #include <mc/reflect/reflect_metadata.h>

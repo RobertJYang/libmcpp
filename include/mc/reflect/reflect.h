@@ -17,6 +17,7 @@
 #ifndef MC_REFLECT_REFLECT_H
 #define MC_REFLECT_REFLECT_H
 
+#include <array>
 #include <functional>
 #include <string>
 #include <type_traits>
@@ -31,35 +32,24 @@
 #include <boost/preprocessor/seq/for_each.hpp>
 #include <boost/preprocessor/stringize.hpp>
 #include <boost/preprocessor/tuple/elem.hpp>
+#include <boost/preprocessor/variadic/to_seq.hpp>
 
 #include <mc/common.h>
 #include <mc/dict.h>
-#include <mc/reflect/typename.h>
-#include <mc/signal_slot.h>
+#include <mc/reflect/metadata_info.h>
 #include <mc/variant.h>
 
 namespace mc::reflect {
-
-// 成员类型标签
-struct property_tag {};
-struct method_tag {};
-struct signal_tag {};
+void throw_bad_enum_cast(int64_t i, const char* e);
+void throw_bad_enum_cast(const char* k, const char* e);
+void throw_method_arg_not_enough(const char* name, size_t expected, size_t actual);
+void throw_method_arg_not_match(const char* name, const char* expected, const char* actual);
 
 //------------------------------------------------------------------------------
 // 类型特征检测
 //------------------------------------------------------------------------------
 
 namespace detail {
-
-// 检测是否为 mc::signal 类型
-template <typename T>
-struct is_signal : std::false_type {};
-
-template <typename Ret, typename... Args>
-struct is_signal<mc::signal<Ret(Args...)>> : std::true_type {};
-
-template <typename T>
-inline constexpr bool is_signal_v = is_signal<remove_cvref_t<T>>::value;
 
 // 检测是否为方法指针
 template <typename T>
@@ -78,298 +68,25 @@ inline constexpr bool is_method_v = is_method<T>::value;
 template <typename T, typename U = void>
 struct is_property : std::false_type {};
 
-template <typename T>
-struct is_property<
-    T, std::enable_if_t<std::is_member_object_pointer_v<T> && !is_method_v<T> && !is_signal_v<T>>>
+// 从metadata_info.h导入检测类型
+using mc::reflect::is_variant_constructible;
+using mc::reflect::is_variant_constructible_v;
+
+template <typename T, typename M>
+struct is_property<M T::*, std::enable_if_t<!is_method_v<M T::*> &&
+                                            is_variant_constructible_v<mc::remove_cvref_t<M>>>>
     : std::true_type {};
 
+// 检测是否为属性
+// reflect 要求属性必须是可构造为 mc::variant 的类型
 template <typename T>
 inline constexpr bool is_property_v = is_property<T>::value;
 
-// 方法特征提取
-template <typename T>
-struct method_traits;
-
-template <typename R, typename C, typename... Args>
-struct method_traits<R (C::*)(Args...)> {
-    using class_type                   = C;
-    using return_type                  = R;
-    using args_tuple                   = std::tuple<Args...>;
-    static constexpr bool   is_const   = false;
-    static constexpr size_t args_count = sizeof...(Args);
-};
-
-template <typename R, typename C, typename... Args>
-struct method_traits<R (C::*)(Args...) const> {
-    using class_type                   = C;
-    using return_type                  = R;
-    using args_tuple                   = std::tuple<Args...>;
-    static constexpr bool   is_const   = true;
-    static constexpr size_t args_count = sizeof...(Args);
-};
-
-// 类型特征检测辅助类
-template <typename T, typename = void>
-struct member_traits {
-    static constexpr bool is_property = false;
-    static constexpr bool is_method   = false;
-    static constexpr bool is_signal   = false;
-};
-
-// 属性特化
-template <typename C, typename M>
-struct member_traits<M C::*, std::enable_if_t<!is_method_v<M C::*> && !is_signal_v<M>>> {
-    static constexpr bool is_property = true;
-    static constexpr bool is_method   = false;
-    static constexpr bool is_signal   = false;
-
-    using class_type  = C;
-    using member_type = M;
-};
-
-// 方法特化 - 非const版本
-template <typename C, typename R, typename... Args>
-struct member_traits<R (C::*)(Args...)> {
-    static constexpr bool is_property = false;
-    static constexpr bool is_method   = true;
-    static constexpr bool is_signal   = false;
-
-    using class_type               = C;
-    using return_type              = R;
-    using args_tuple               = std::tuple<Args...>;
-    static constexpr bool is_const = false;
-};
-
-// 方法特化 - const版本
-template <typename C, typename R, typename... Args>
-struct member_traits<R (C::*)(Args...) const> {
-    static constexpr bool is_property = false;
-    static constexpr bool is_method   = true;
-    static constexpr bool is_signal   = false;
-
-    using class_type               = C;
-    using return_type              = R;
-    using args_tuple               = std::tuple<Args...>;
-    static constexpr bool is_const = true;
-};
-
-// 信号特化
-template <typename C, typename S>
-struct member_traits<S C::*, std::enable_if_t<!is_method_v<S C::*> && is_signal_v<S>>> {
-    static constexpr bool is_property = false;
-    static constexpr bool is_method   = false;
-    static constexpr bool is_signal   = true;
-
-    using class_type  = C;
-    using signal_type = S;
-};
 } // namespace detail
-
-//------------------------------------------------------------------------------
-// 元数据结构
-//------------------------------------------------------------------------------
-template <typename C>
-struct property_info_base {
-    std::string_view name;
-
-    property_info_base(std::string_view n) : name(n) {
-    }
-
-    virtual mc::variant get_value(const C& obj) const                     = 0;
-    virtual void        set_value(C& obj, const mc::variant& value) const = 0;
-    virtual std::function<mc::variant(const C&)>        getter() const    = 0;
-    virtual std::function<void(C&, const mc::variant&)> setter() const    = 0;
-    virtual size_t                                      offset() const    = 0;
-};
-
-// 属性元数据
-template <typename C, typename M>
-struct property_info : public property_info_base<C> {
-    using class_type  = C;
-    using member_type = M;
-    using tag_type    = property_tag;
-
-    M C::* member_ptr;
-
-    constexpr property_info(std::string_view n, M C::* ptr)
-        : property_info_base<C>(n), member_ptr(ptr) {
-    }
-
-    // 获取属性值
-    mc::variant get_value(const C& obj) const override {
-        return mc::variant(obj.*member_ptr);
-    }
-
-    // 设置属性值
-    void set_value(C& obj, const mc::variant& value) const override {
-        value.as(obj.*member_ptr);
-    }
-
-    std::function<mc::variant(const C&)> getter() const override {
-        return [this](const C& obj) {
-            return get_value(obj);
-        };
-    }
-
-    std::function<void(C&, const mc::variant&)> setter() const override {
-        return [this](C& obj, const mc::variant& value) {
-            set_value(obj, value);
-        };
-    }
-
-    size_t offset() const override {
-        return MC_MEMBER_OFFSETOF(C, member_ptr);
-    }
-};
-
-// 方法元数据
-template <typename C, typename R, typename... Args>
-struct method_info {
-    using class_type  = C;
-    using return_type = R;
-    using tag_type    = method_tag;
-
-    std::string_view name;
-    union {
-        R (C::*method_ptr)(Args...);
-        R (C::*const_method_ptr)(Args...) const;
-    };
-    bool is_const;
-
-    constexpr method_info(std::string_view n, R (C::*ptr)(Args...))
-        : name(n), method_ptr(ptr), is_const(false) {
-    }
-
-    constexpr method_info(std::string_view n, R (C::*ptr)(Args...) const)
-        : name(n), const_method_ptr(ptr), is_const(true) {
-    }
-
-    // 调用方法
-    mc::variant invoke(C* obj, const std::vector<mc::variant>& args) const {
-        if (sizeof...(Args) != args.size()) {
-            return mc::variant(); // 参数数量不匹配
-        }
-
-        if (is_const) {
-            return invoke_const(obj, args, std::index_sequence_for<Args...>{});
-        } else {
-            return invoke_non_const(obj, args, std::index_sequence_for<Args...>{});
-        }
-    }
-
-private:
-    // 调用非const方法
-    template <size_t... I>
-    mc::variant invoke_non_const(C* obj, const std::vector<mc::variant>& args,
-                                 std::index_sequence<I...>) const {
-        if constexpr (std::is_same_v<R, void>) {
-            (obj->*method_ptr)(args[I].as<Args>()...);
-            return mc::variant();
-        } else {
-            return mc::variant((obj->*method_ptr)(args[I].as<Args>()...));
-        }
-    }
-
-    // 调用const方法
-    template <size_t... I>
-    mc::variant invoke_const(const C* obj, const std::vector<mc::variant>& args,
-                             std::index_sequence<I...>) const {
-        if constexpr (std::is_same_v<R, void>) {
-            (obj->*const_method_ptr)(args[I].as<Args>()...);
-            return mc::variant();
-        } else {
-            return mc::variant((obj->*const_method_ptr)(args[I].as<Args>()...));
-        }
-    }
-};
-
-// 信号元数据
-template <typename C, typename S>
-struct signal_info {
-    using class_type  = C;
-    using signal_type = S;
-    using tag_type    = signal_tag;
-
-    std::string_view name;
-    S C::* signal_ptr;
-
-    constexpr signal_info(std::string_view n, S C::* ptr) : name(n), signal_ptr(ptr) {
-    }
-
-    // 获取信号对象引用
-    S& get_signal(C& obj) const {
-        return obj.*signal_ptr;
-    }
-
-    // 获取信号对象的const引用
-    const S& get_signal(const C& obj) const {
-        return obj.*signal_ptr;
-    }
-
-    auto getter() {
-        return [this](C& obj) {
-            return get_signal(obj);
-        };
-    }
-
-    auto setter() {
-        return [this](C& obj, const S& value) {
-            get_signal(obj) = value;
-        };
-    }
-};
 } // namespace mc::reflect
-
-// 创建方法元数据的辅助函数
-namespace mc::reflect {
-template <typename C, typename R, typename... Args>
-constexpr auto make_method_info(R (C::*method)(Args...), std::string_view name) {
-    return method_info<C, R, Args...>{name, method};
-}
-
-template <typename C, typename R, typename... Args>
-constexpr auto make_method_info(R (C::*method)(Args...) const, std::string_view name) {
-    return method_info<C, R, Args...>{name, method};
-}
-} // namespace mc::reflect
-
-// 检测是否为属性
-#define MC_REFLECT_IS_PROPERTY(type, member)                                                       \
-    mc::reflect::detail::is_property_v<decltype(&type::member)>
-
-// 处理自定义名称的属性
-#define MC_REFLECT_PROCESS_PROPERTY_CUSTOM(r, type, elem)                                          \
-    std::tuple<mc::reflect::property_info<type, decltype(std::declval<type>().BOOST_PP_TUPLE_ELEM( \
-                                                    0, elem))>> {                                  \
-        BOOST_PP_TUPLE_ELEM(1, elem), &type::BOOST_PP_TUPLE_ELEM(0, elem)                          \
-    }
-
-// 处理简单名称的属性
-#define MC_REFLECT_PROCESS_PROPERTY_SIMPLE(r, type, elem)                                          \
-    std::tuple<mc::reflect::property_info<type, decltype(std::declval<type>().elem)>> {            \
-        BOOST_PP_STRINGIZE(elem), &type::elem                                                      \
-    }
-
-// 处理属性
-#define MC_REFLECT_PROPERTY(r, type, elem)                                                         \
-    BOOST_PP_IIF(MC_REFLECT_IS_TUPLE(elem), MC_REFLECT_PROCESS_PROPERTY_SIMPLE,                    \
-                 MC_REFLECT_PROCESS_PROPERTY_CUSTOM)
-
-// 空处理
-#define MC_REFLECT_EMPTY(r, type, elem)
-
-// 根据成员类型过滤属性
-#define MC_REFLECT_FILTER_PROPERTY(r, type, elem)                                                  \
-    BOOST_PP_IIF(MC_REFLECT_IS_PROPERTY(type, BOOST_PP_TUPLE_ELEM(0, elem)), MC_REFLECT_PROPERTY,  \
-                 MC_REFLECT_EMPTY)(r, type, elem)
 
 // 检测是否为元组形式（双括号表达式）
 #define MC_REFLECT_IS_TUPLE(x) BOOST_PP_IS_BEGIN_PARENS(x)
-
-// 处理成员
-#define MC_REFLECT_ELEMENT(r, TYPE, MEMBER)                                                        \
-    BOOST_PP_IIF(MC_REFLECT_IS_TUPLE(MEMBER), MC_REFLECT_MEMBER_WITH_NAME,                         \
-                 MC_REFLECT_MEMBER_WITHOUT_NAME)(r, TYPE, MEMBER)
 
 // 处理带名称的成员（双括号形式）
 #define MC_REFLECT_MEMBER_WITH_NAME(r, TYPE, MEMBER)                                               \
@@ -380,26 +97,82 @@ constexpr auto make_method_info(R (C::*method)(Args...) const, std::string_view 
 #define MC_REFLECT_MEMBER_WITHOUT_NAME(r, TYPE, MEMBER)                                            \
     mc::reflect::detail::create_member_info<TYPE>(&TYPE::MEMBER, BOOST_PP_STRINGIZE(MEMBER)),
 
+// 处理成员
+#define MC_REFLECT_ELEMENT(r, TYPE, MEMBER)                                                        \
+    BOOST_PP_IIF(MC_REFLECT_IS_TUPLE(MEMBER), MC_REFLECT_MEMBER_WITH_NAME,                         \
+                 MC_REFLECT_MEMBER_WITHOUT_NAME)(r, TYPE, MEMBER)
+
 // 在命名空间中添加辅助函数
 namespace mc::reflect::detail {
 
-// 创建成员元数据（根据成员类型分发到属性、方法或信号）
+// 默认的成员信息创建器（用于静态断言）
+template <typename T, typename M, typename BaseT = T, typename = void>
+struct member_info_creator {
+    static constexpr auto create(M BaseT::* member_ptr, std::string_view name) {
+        static_assert(is_property_v<M BaseT::*> || is_method_v<M BaseT::*>,
+                      "不支持的成员类型，请为此类型创建特化版本的 member_info_creator");
+        return std::tuple<>(); // 永远不会执行到这里
+    }
+};
+
+// 属性成员特化
 template <typename T, typename M, typename BaseT>
-constexpr auto create_member_info(M BaseT::* member_ptr, std::string_view name) {
-    if constexpr (is_signal_v<M>) {
-        // 信号
-        return std::tuple<signal_info<T, M>>{signal_info<T, M>{name, member_ptr}};
-    } else if constexpr (is_property_v<M BaseT::*>) {
-        // 属性
+struct member_info_creator<T, M, BaseT, std::enable_if_t<is_property_v<M BaseT::*>>> {
+    static constexpr auto create(M BaseT::* member_ptr, std::string_view name) {
         return std::tuple<property_info<T, M>>{property_info<T, M>{name, member_ptr}};
-    } else if constexpr (is_method_v<M BaseT::*>) {
-        // 方法
+    }
+};
+
+// 方法成员特化
+template <typename T, typename M, typename BaseT>
+struct member_info_creator<T, M, BaseT, std::enable_if_t<is_method_v<M BaseT::*>>> {
+    static constexpr auto create(M BaseT::* member_ptr, std::string_view name) {
         return std::tuple<decltype(make_method_info(member_ptr, name))>{
             make_method_info(member_ptr, name)};
-    } else {
-        // 未识别的成员类型
-        return std::tuple<>{};
     }
+};
+
+/**
+ * @brief 用户可以通过特化此模板为自定义成员类型提供反射支持
+ *
+ * 示例：假设有信号成员类型 mc::signal<T>，用户可以这样特化：
+ *
+ * // 首先定义信号标签类型
+ * namespace mc::reflect {
+ * struct signal_tag {};
+ * }
+ *
+ * // 然后定义信号信息类
+ * template <typename C, typename Signature>
+ * struct signal_info : public member_info_base<C> {
+ *     using tag_type = mc::reflect::signal_tag;
+ *
+ *     mc::signal<Signature> C::* signal_ptr;
+ *
+ *     constexpr signal_info(std::string_view n, mc::signal<Signature> C::* ptr)
+ *         : member_info_base<C>(n), signal_ptr(ptr) {}
+ *
+ *     std::type_index typeinfo() const override { return typeid(mc::signal<Signature>); }
+ *     std::string_view type_name() const override { return "signal"; }
+ * };
+ *
+ * // 最后特化 member_info_creator
+ * template <typename T, typename Signature, typename BaseT>
+ * struct member_info_creator<T, mc::signal<Signature>, BaseT, void> {
+ *     static constexpr auto create(mc::signal<Signature> BaseT::* member_ptr, std::string_view
+ * name) { return std::tuple<signal_info<T, Signature>>{signal_info<T, Signature>{name,
+ * member_ptr}};
+ *     }
+ * };
+ *
+ * // 然后可以使用 get_members_by_tag 提取信号成员
+ * auto signals = reflector<T>::get_members_by_tag<mc::reflect::signal_tag>();
+ */
+
+// 创建成员元数据（根据成员类型分发到属性、方法或用户自定义的成员信息）
+template <typename T, typename M, typename BaseT>
+constexpr auto create_member_info(M BaseT::* member_ptr, std::string_view name) {
+    return member_info_creator<T, M, BaseT>::create(member_ptr, name);
 }
 
 // 检查元组元素是否具有特定的标签类型
@@ -413,7 +186,7 @@ struct has_tag<Tag, T, std::enable_if_t<std::is_same_v<typename T::tag_type, Tag
 template <typename Tag, typename T>
 inline constexpr bool has_tag_v = has_tag<Tag, T>::value;
 
-// 辅助函数：获取具有特定索引的元组元素（如果元素具有特定标签，则返回它，否则返回空元组）
+// 辅助函数：获取具有特定索引的元组元素
 template <typename Tag, typename Tuple, size_t Index>
 constexpr auto get_if_has_tag(const Tuple& tuple) {
     using element_type = mc::remove_cvref_t<std::tuple_element_t<Index, Tuple>>;
@@ -507,9 +280,6 @@ constexpr auto filter_members(const Tuple& all_members) {
 
 namespace mc {
 namespace reflect {
-
-void throw_bad_enum_cast(int64_t i, const char* e);
-void throw_bad_enum_cast(const char* k, const char* e);
 
 /**
  * @brief 反射器模板类
@@ -639,33 +409,22 @@ void from_variant(const variant& v, T& o) {
         static constexpr std::string_view name() {                                                 \
             return #TYPE;                                                                          \
         }                                                                                          \
-                                                                                                   \
-        /* 反射成员信息 */                                                                         \
         static const auto& get_members() {                                                         \
             static auto members = std::tuple_cat(                                                  \
                 BOOST_PP_SEQ_FOR_EACH(MC_REFLECT_ELEMENT, TYPE, MEMBERS) std::tuple<>());          \
             return members;                                                                        \
         }                                                                                          \
-                                                                                                   \
-        /* 属性处理 */                                                                             \
+        template <typename Tag>                                                                    \
+        static const auto& get_members_by_tag() {                                                  \
+            static auto filtered_members =                                                         \
+                mc::reflect::detail::filter_members<Tag>(get_members());                           \
+            return filtered_members;                                                               \
+        }                                                                                          \
         static const auto& get_properties() {                                                      \
-            static auto properties =                                                               \
-                mc::reflect::detail::filter_members<mc::reflect::property_tag>(get_members());     \
-            return properties;                                                                     \
+            return get_members_by_tag<mc::reflect::property_tag>();                                \
         }                                                                                          \
-                                                                                                   \
-        /* 方法处理 */                                                                             \
         static const auto& get_methods() {                                                         \
-            static auto methods =                                                                  \
-                mc::reflect::detail::filter_members<mc::reflect::method_tag>(get_members());       \
-            return methods;                                                                        \
-        }                                                                                          \
-                                                                                                   \
-        /* 信号处理 */                                                                             \
-        static const auto& get_signals() {                                                         \
-            static auto signals =                                                                  \
-                mc::reflect::detail::filter_members<mc::reflect::signal_tag>(get_members());       \
-            return signals;                                                                        \
+            return get_members_by_tag<mc::reflect::method_tag>();                                  \
         }                                                                                          \
         template <typename Visitor>                                                                \
         static void visit(const Visitor& visitor) {                                                \
@@ -699,5 +458,10 @@ void from_variant(const variant& v, T& o) {
     MC_REFLECT_ENUM_END(TYPE)                                                                      \
     BOOST_PP_SEQ_FOR_EACH(MC_REFLECT_ENUM_FROM_STRING, TYPE, VALUES)                               \
     MC_REFLECT_ENUM_FROM_STRING_END(TYPE)
+
+// 引入其他反射相关模块
+#include <mc/reflect/method.h>
+#include <mc/reflect/property.h>
+#include <mc/reflect/reflect_metadata.h>
 
 #endif // MC_REFLECT_REFLECT_H
