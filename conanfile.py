@@ -80,6 +80,17 @@ class AppConan(ConanBase):
         if self.settings.build_type in ("Dt", ) and os.getenv('TRANSTOBIN') is None:
             return
         os.chdir(self.package_folder)
+    def package_info(self):
+        if self.settings.arch == "armv8" or self.settings.arch == "x86_64":
+            self.cpp_info.libdirs = ["usr/lib64"]
+            self.env_info.LD_LIBRARY_PATH.append(os.path.join(self.package_folder, "usr/lib64"))
+        else:
+            self.cpp_info.libdirs = ["usr/lib"]
+            self.env_info.LD_LIBRARY_PATH.append(os.path.join(self.package_folder, "usr/lib"))
+        self.env_info.PATH.append(os.path.join(self.package_folder, "opt/bmc/apps/libmcpp"))
+        # 如果使用 pkgconfig
+        self.cpp_info.set_property("pkg_config_custom_content", 
+           "libdir=${prefix}/usr/lib64\n")
         
 
         
