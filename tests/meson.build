@@ -77,20 +77,6 @@ test_exe = executable(
   ],
   install: true,
 )
-else
-test_exe = executable(
-  'libmcpp_test',
-  test_files,
-  include_directories: incdir,
-  dependencies: [
-    libmcpp_dep,
-    gtest_dep,
-    test_utilities_dep,
-  ],
-  install: false,
-)
-endif
-
-
 # 注册测试
 test('libmcpp unit tests', test_exe)
+endif

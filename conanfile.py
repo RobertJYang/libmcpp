@@ -17,6 +17,7 @@ class AppConan(ConanBase):
     def generate(self):
         d = MesonDeps(self)
         if self.settings.build_type != "Dt":
+            d.cpp_link_args.append("-Bstatic")
             d.cpp_link_args.append("-lboost_program_options")
         else:
             self.settings.build_type = "Debug"
@@ -27,6 +28,7 @@ class AppConan(ConanBase):
         d.cpp_args.append("-Wno-sign-compare")
         d.cpp_args.append("-fpermissive")
         d.cpp_args.append("-Wno-pedantic")
+        d.cpp_args.append("-fno-strict-aliasing")
         d.generate()
         tc = MesonToolchain(self, "ninja")
         if self.settings.arch == "armv8" or self.settings.arch == "x86_64":
