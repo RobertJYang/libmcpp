@@ -40,49 +40,8 @@
 #include <mc/variant.h>
 
 namespace mc::reflect {
-void throw_bad_enum_cast(int64_t i, const char* e);
-void throw_bad_enum_cast(const char* k, const char* e);
-void throw_method_arg_not_enough(const char* name, size_t expected, size_t actual);
-void throw_method_arg_not_match(const char* name, const char* expected, const char* actual);
-
-//------------------------------------------------------------------------------
-// 类型特征检测
-//------------------------------------------------------------------------------
-
-namespace detail {
-
-// 检测是否为方法指针
-template <typename T>
-struct is_method : std::false_type {};
-
-template <typename R, typename C, typename... Args>
-struct is_method<R (C::*)(Args...)> : std::true_type {};
-
-template <typename R, typename C, typename... Args>
-struct is_method<R (C::*)(Args...) const> : std::true_type {};
-
-template <typename T>
-inline constexpr bool is_method_v = is_method<T>::value;
-
-// 检测是否为属性（数据成员）
-template <typename T, typename U = void>
-struct is_property : std::false_type {};
-
-// 从metadata_info.h导入检测类型
-using mc::reflect::is_variant_constructible;
-using mc::reflect::is_variant_constructible_v;
-
-template <typename T, typename M>
-struct is_property<M T::*, std::enable_if_t<!is_method_v<M T::*> &&
-                                            is_variant_constructible_v<mc::remove_cvref_t<M>>>>
-    : std::true_type {};
-
-// 检测是否为属性
-// reflect 要求属性必须是可构造为 mc::variant 的类型
-template <typename T>
-inline constexpr bool is_property_v = is_property<T>::value;
-
-} // namespace detail
+[[noreturn]] void throw_bad_enum_cast(int64_t i, const char* e);
+[[noreturn]] void throw_bad_enum_cast(const char* k, const char* e);
 } // namespace mc::reflect
 
 // 检测是否为元组形式（双括号表达式）
@@ -104,71 +63,6 @@ inline constexpr bool is_property_v = is_property<T>::value;
 
 // 在命名空间中添加辅助函数
 namespace mc::reflect::detail {
-
-// 默认的成员信息创建器（用于静态断言）
-template <typename T, typename M, typename BaseT = T, typename = void>
-struct member_info_creator {
-    static constexpr auto create(M BaseT::* member_ptr, std::string_view name) {
-        static_assert(is_property_v<M BaseT::*> || is_method_v<M BaseT::*>,
-                      "不支持的成员类型，请为此类型创建特化版本的 member_info_creator");
-        return std::tuple<>(); // 永远不会执行到这里
-    }
-};
-
-// 属性成员特化
-template <typename T, typename M, typename BaseT>
-struct member_info_creator<T, M, BaseT, std::enable_if_t<is_property_v<M BaseT::*>>> {
-    static constexpr auto create(M BaseT::* member_ptr, std::string_view name) {
-        return std::tuple<property_info<T, M>>{property_info<T, M>{name, member_ptr}};
-    }
-};
-
-// 方法成员特化
-template <typename T, typename M, typename BaseT>
-struct member_info_creator<T, M, BaseT, std::enable_if_t<is_method_v<M BaseT::*>>> {
-    static constexpr auto create(M BaseT::* member_ptr, std::string_view name) {
-        return std::tuple<decltype(make_method_info(member_ptr, name))>{
-            make_method_info(member_ptr, name)};
-    }
-};
-
-/**
- * @brief 用户可以通过特化此模板为自定义成员类型提供反射支持
- *
- * 示例：假设有信号成员类型 mc::signal<T>，用户可以这样特化：
- *
- * // 首先定义信号标签类型
- * namespace mc::reflect {
- * struct signal_tag {};
- * }
- *
- * // 然后定义信号信息类
- * template <typename C, typename Signature>
- * struct signal_info : public member_info_base<C> {
- *     using tag_type = mc::reflect::signal_tag;
- *
- *     mc::signal<Signature> C::* signal_ptr;
- *
- *     constexpr signal_info(std::string_view n, mc::signal<Signature> C::* ptr)
- *         : member_info_base<C>(n), signal_ptr(ptr) {}
- *
- *     std::type_index typeinfo() const override { return typeid(mc::signal<Signature>); }
- *     std::string_view type_name() const override { return "signal"; }
- * };
- *
- * // 最后特化 member_info_creator
- * template <typename T, typename Signature, typename BaseT>
- * struct member_info_creator<T, mc::signal<Signature>, BaseT, void> {
- *     static constexpr auto create(mc::signal<Signature> BaseT::* member_ptr, std::string_view
- * name) { return std::tuple<signal_info<T, Signature>>{signal_info<T, Signature>{name,
- * member_ptr}};
- *     }
- * };
- *
- * // 然后可以使用 get_members_by_tag 提取信号成员
- * auto signals = reflector<T>::get_members_by_tag<mc::reflect::signal_tag>();
- */
-
 // 创建成员元数据（根据成员类型分发到属性、方法或用户自定义的成员信息）
 template <typename T, typename M, typename BaseT>
 constexpr auto create_member_info(M BaseT::* member_ptr, std::string_view name) {
@@ -458,10 +352,5 @@ void from_variant(const variant& v, T& o) {
     MC_REFLECT_ENUM_END(TYPE)                                                                      \
     BOOST_PP_SEQ_FOR_EACH(MC_REFLECT_ENUM_FROM_STRING, TYPE, VALUES)                               \
     MC_REFLECT_ENUM_FROM_STRING_END(TYPE)
-
-// 引入其他反射相关模块
-#include <mc/reflect/method.h>
-#include <mc/reflect/property.h>
-#include <mc/reflect/reflect_metadata.h>
 
 #endif // MC_REFLECT_REFLECT_H

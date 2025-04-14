@@ -49,8 +49,8 @@ void throw_bad_enum_cast(const char* value, const char* enum_type) {
  * @param expect_type 期望的参数类型
  * @param actual_type 实际的参数类型
  */
-void throw_method_arg_not_match(const char* method_name, const char* expect_type,
-                                const char* actual_type) {
+void throw_method_arg_not_match(std::string_view method_name, std::string_view expect_type,
+                                std::string_view actual_type) {
     MC_THROW(mc::bad_function_call_exception,
              "调用方法 ${method_name} 参数不匹配，需要 ${expect_type} 类型，实际提供 "
              "${actual_type} 类型",
@@ -64,7 +64,7 @@ void throw_method_arg_not_match(const char* method_name, const char* expect_type
  * @param expect_count 期望的参数数量
  * @param actual_count 实际的参数数量
  */
-void throw_method_arg_not_enough(const char* method_name, size_t expect_count,
+void throw_method_arg_not_enough(std::string_view method_name, size_t expect_count,
                                  size_t actual_count) {
     MC_THROW(
         mc::bad_function_call_exception,

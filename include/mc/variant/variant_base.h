@@ -369,7 +369,6 @@ public:
             return std::forward<Visitor>(visitor)(*m_blob_ptr);
         default:
             throw_unknow_type_error(m_type);
-            return std::forward<Visitor>(visitor)(nullptr);
         }
     }
 
@@ -730,7 +729,6 @@ public:
         }
         default:
             throw_type_error("blob_base", m_type);
-            return blob_base<>();
         }
     }
 

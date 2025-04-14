@@ -37,7 +37,7 @@ class dict;
 namespace string {
 
 namespace detail {
-void throw_bad_cast_error(const char* type);
+[[noreturn]] void throw_bad_cast_error(const char* type);
 } // namespace detail
 
 /**
@@ -364,7 +364,6 @@ inline bool to_bool(std::string_view s) {
     }
 
     detail::throw_bad_cast_error("bool");
-    return false;
 }
 
 /**
@@ -443,6 +442,25 @@ bool try_to_number(std::string_view s, T& result) {
     }
 
     return false;
+}
+
+template <typename T, typename = std::enable_if_t<std::is_arithmetic_v<T>>>
+std::optional<T> try_to_number(const char* s) {
+    return try_to_number<T>(std::string_view(s));
+}
+
+template <typename T, typename = std::enable_if_t<std::is_arithmetic_v<T>>>
+std::optional<T> try_to_number(const std::string& s) {
+    return try_to_number<T>(std::string_view(s));
+}
+
+template <typename T, typename = std::enable_if_t<std::is_arithmetic_v<T>>>
+T to_number(std::string_view s) {
+    if (auto result = try_to_number<T>(s); result.has_value()) {
+        return result.value();
+    }
+
+    detail::throw_bad_cast_error(mc::pretty_name<T>());
 }
 
 /**

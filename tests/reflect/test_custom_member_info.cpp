@@ -73,7 +73,7 @@ public:
 };
 
 // 3. 现在我们可以为具体类型特化 member_info_creator
-namespace mc::reflect::detail {
+namespace mc::reflect {
 template <typename Signature>
 struct member_info_creator<TestValue, mc::signal<Signature>> {
     static auto create(mc::signal<Signature> TestValue::* member_ptr, std::string_view name) {
@@ -81,7 +81,7 @@ struct member_info_creator<TestValue, mc::signal<Signature>> {
             signal_info<TestValue, Signature>{name, member_ptr}};
     }
 };
-} // namespace mc::reflect::detail
+} // namespace mc::reflect
 
 // 反射TestValue类
 MC_REFLECT(TestValue,
@@ -99,10 +99,9 @@ TEST(CustomMemberInfoTest, SignalMemberInfo) {
 
     // 因为 mc::signal 没有实现 to_variant 函数，不能被转换为 mc::variant 类型
     bool is_property_value_changed =
-        mc::reflect::detail::is_property_v<decltype(&TestValue::value_changed)>;
-    bool is_property_name_changed =
-        mc::reflect::detail::is_property_v<decltype(&TestValue::name_changed)>;
-    bool is_property_value = mc::reflect::detail::is_property_v<decltype(&TestValue::m_value)>;
+        mc::reflect::is_property_v<decltype(&TestValue::value_changed)>;
+    bool is_property_name_changed = mc::reflect::is_property_v<decltype(&TestValue::name_changed)>;
+    bool is_property_value        = mc::reflect::is_property_v<decltype(&TestValue::m_value)>;
 
     EXPECT_FALSE(is_property_value_changed);
     EXPECT_FALSE(is_property_name_changed);

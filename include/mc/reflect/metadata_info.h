@@ -28,6 +28,12 @@
 #include <mc/variant.h>
 
 namespace mc::reflect {
+// 异常抛出辅助函数
+[[noreturn]] void throw_method_arg_not_match(std::string_view method_name,
+                                             std::string_view expect_type,
+                                             std::string_view actual_type);
+[[noreturn]] void throw_method_arg_not_enough(std::string_view method_name, size_t expect_count,
+                                              size_t actual_count);
 
 // 标签类型 - 用于区分不同类型的成员
 struct property_tag {};
@@ -84,6 +90,37 @@ template <typename... Args>
 inline constexpr bool all_variant_constructible_v = all_variant_constructible<Args...>::value;
 
 //------------------------------------------------------------------------------
+// 类型特征检测
+//------------------------------------------------------------------------------
+
+// 检测是否为方法指针
+template <typename T>
+struct is_method : std::false_type {};
+
+template <typename R, typename C, typename... Args>
+struct is_method<R (C::*)(Args...)> : std::true_type {};
+
+template <typename R, typename C, typename... Args>
+struct is_method<R (C::*)(Args...) const> : std::true_type {};
+
+template <typename T>
+inline constexpr bool is_method_v = is_method<T>::value;
+
+// 检测是否为属性（数据成员）
+template <typename T, typename U = void>
+struct is_property : std::false_type {};
+
+template <typename T, typename M>
+struct is_property<M T::*, std::enable_if_t<!is_method_v<M T::*> &&
+                                            is_variant_constructible_v<mc::remove_cvref_t<M>>>>
+    : std::true_type {};
+
+// 检测是否为属性
+// reflect 要求属性必须是可构造为 mc::variant 的类型
+template <typename T>
+inline constexpr bool is_property_v = is_property<T>::value;
+
+//------------------------------------------------------------------------------
 // 元数据结构基类
 //------------------------------------------------------------------------------
 
@@ -122,8 +159,6 @@ struct property_info : public property_info_base<C> {
     using class_type  = C;
     using member_type = M;
     using tag_type    = property_tag;
-
-    static_assert(is_variant_constructible_v<M>, "属性类型必须可以转换为mc::variant");
 
     M C::* member_ptr;
 
@@ -180,10 +215,16 @@ struct method_info_base : public member_info_base<C> {
     virtual size_t      arg_count() const = 0; // 返回方法所需的参数数量
 };
 
-// 异常抛出辅助函数
-void throw_method_arg_not_match(const char* method_name, const char* expect_type,
-                                const char* actual_type);
-void throw_method_arg_not_enough(const char* method_name, size_t expect_count, size_t actual_count);
+namespace detail {
+template <typename Arg>
+static Arg convert_arg(std::string_view name, const mc::variant& var) {
+    if (auto arg = var.try_as<Arg>(); arg) {
+        return *arg;
+    }
+
+    throw_method_arg_not_match(name, pretty_name<Arg>(), var.get_type_name());
+}
+} // namespace detail
 
 // 方法元数据具体实现 - 根据方法是否为const使用不同实现
 template <typename Class, bool IsConst, typename RetType, typename... Args>
@@ -207,25 +248,16 @@ public:
         : method_info_base<Class>(name), m_function(func) {
     }
 
-    // 参数转换
-    template <typename Arg>
-    static Arg convert_arg(const char* name, const variant& var) {
-        if (var.is_null()) {
-            throw_method_arg_not_match(name, mc::pretty_name<Arg>(), "null");
-        }
-        return var.as<Arg>();
-    }
-
-    // 使用精确参数调用方法
     template <size_t... I>
     variant call_with_exact_args(Class& obj, const variants& args,
                                  std::index_sequence<I...>) const {
         if constexpr (std::is_void_v<RetType>) {
-            (obj.*m_function)(convert_arg<mc::remove_cvref_t<Args>>(this->name.data(), args[I])...);
+            (obj.*
+             m_function)(detail::convert_arg<mc::remove_cvref_t<Args>>(this->name, args[I])...);
             return variant();
         } else {
             return variant((obj.*m_function)(
-                convert_arg<mc::remove_cvref_t<Args>>(this->name.data(), args[I])...));
+                detail::convert_arg<mc::remove_cvref_t<Args>>(this->name, args[I])...));
         }
     }
 
@@ -234,7 +266,7 @@ public:
         constexpr size_t arg_count = sizeof...(Args);
 
         if (args.size() < arg_count) {
-            throw_method_arg_not_enough(this->name.data(), arg_count, args.size());
+            throw_method_arg_not_enough(this->name, arg_count, args.size());
         }
 
         return call_with_exact_args(obj, args, std::make_index_sequence<arg_count>());
@@ -266,6 +298,68 @@ template <typename C, typename R, typename... Args>
 constexpr auto make_method_info(R (C::*method)(Args...) const, std::string_view name) {
     return method_info<C, true, R, Args...>{name, method};
 }
+
+/**
+ * @brief 用户可以通过特化此模板为自定义成员类型提供反射支持
+ *
+ * 示例：假设有信号成员类型 mc::signal<T>，用户可以这样特化：
+ *
+ * // 首先定义信号标签类型
+ * namespace mc::reflect {
+ * struct signal_tag {};
+ * }
+ *
+ * // 然后定义信号信息类
+ * template <typename C, typename Signature>
+ * struct signal_info : public member_info_base<C> {
+ *     using tag_type = mc::reflect::signal_tag;
+ *
+ *     mc::signal<Signature> C::* signal_ptr;
+ *
+ *     constexpr signal_info(std::string_view n, mc::signal<Signature> C::* ptr)
+ *         : member_info_base<C>(n), signal_ptr(ptr) {}
+ *
+ *     std::type_index typeinfo() const override { return typeid(mc::signal<Signature>); }
+ *     std::string_view type_name() const override { return "signal"; }
+ * };
+ *
+ * // 最后特化 member_info_creator
+ * template <typename T, typename Signature, typename BaseT>
+ * struct member_info_creator<T, mc::signal<Signature>, BaseT, void> {
+ *     static constexpr auto create(mc::signal<Signature> BaseT::* member_ptr, std::string_view
+ * name) { return std::tuple<signal_info<T, Signature>>{signal_info<T, Signature>{name,
+ * member_ptr}};
+ *     }
+ * };
+ *
+ * // 然后可以使用 get_members_by_tag 提取信号成员
+ * auto signals = reflector<T>::get_members_by_tag<mc::reflect::signal_tag>();
+ */
+template <typename T, typename M, typename BaseT = T, typename = void>
+struct member_info_creator {
+    static constexpr auto create(M BaseT::* member_ptr, std::string_view name) {
+        static_assert(is_property_v<M BaseT::*> || is_method_v<M BaseT::*>,
+                      "不支持的成员类型，请为此类型创建特化版本的 member_info_creator");
+        return std::tuple<>(); // 永远不会执行到这里
+    }
+};
+
+// 属性成员特化
+template <typename T, typename M, typename BaseT>
+struct member_info_creator<T, M, BaseT, std::enable_if_t<is_property_v<M BaseT::*>>> {
+    static constexpr auto create(M BaseT::* member_ptr, std::string_view name) {
+        return std::tuple<property_info<T, M>>{property_info<T, M>{name, member_ptr}};
+    }
+};
+
+// 方法成员特化
+template <typename T, typename M, typename BaseT>
+struct member_info_creator<T, M, BaseT, std::enable_if_t<is_method_v<M BaseT::*>>> {
+    static constexpr auto create(M BaseT::* member_ptr, std::string_view name) {
+        return std::tuple<decltype(make_method_info(member_ptr, name))>{
+            make_method_info(member_ptr, name)};
+    }
+};
 
 } // namespace mc::reflect
 

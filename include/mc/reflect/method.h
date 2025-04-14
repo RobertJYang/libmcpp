@@ -21,6 +21,18 @@
 #include <mc/variant.h>
 
 namespace mc::reflect {
+/**
+ * @brief 获取指定名称的方法信息
+ *
+ * @tparam T 类型
+ * @param method_name 方法名称
+ * @return const method_info_base<T>* 方法信息指针，如果不存在则返回nullptr
+ */
+template <typename T>
+const method_info_base<T>* get_method_info(std::string_view method_name) {
+    using clean_type = std::remove_cv_t<std::remove_reference_t<T>>;
+    return get_metadata<clean_type>().get_method_info(method_name);
+}
 
 /**
  * @brief 调用对象的方法
@@ -43,8 +55,6 @@ namespace mc::reflect {
 template <typename T>
 mc::variant invoke(T& obj, std::string_view method_name, const mc::variants& args = {}) {
     using clean_type = std::remove_cv_t<std::remove_reference_t<T>>;
-    static_assert(is_reflectable<clean_type>(), "类型必须支持反射");
-
     return get_metadata<clean_type>().invoke_method(obj, method_name, args);
 }
 
@@ -58,8 +68,6 @@ mc::variant invoke(T& obj, std::string_view method_name, const mc::variants& arg
 template <typename T>
 bool has_method(std::string_view method_name) {
     using clean_type = std::remove_cv_t<std::remove_reference_t<T>>;
-    static_assert(is_reflectable<clean_type>(), "类型必须支持反射");
-
     return get_metadata<clean_type>().get_method_info(method_name) != nullptr;
 }
 
@@ -72,9 +80,7 @@ bool has_method(std::string_view method_name) {
  */
 template <typename T>
 size_t method_arg_count(std::string_view method_name) {
-    using clean_type = std::remove_cv_t<std::remove_reference_t<T>>;
-    static_assert(is_reflectable<clean_type>(), "类型必须支持反射");
-
+    using clean_type   = std::remove_cv_t<std::remove_reference_t<T>>;
     const auto* method = get_metadata<clean_type>().get_method_info(method_name);
     return method ? method->arg_count() : static_cast<size_t>(-1);
 }
@@ -88,9 +94,7 @@ size_t method_arg_count(std::string_view method_name) {
  */
 template <typename T>
 std::string_view method_return_type(std::string_view method_name) {
-    using clean_type = std::remove_cv_t<std::remove_reference_t<T>>;
-    static_assert(is_reflectable<clean_type>(), "类型必须支持反射才能使用method_return_type");
-
+    using clean_type   = std::remove_cv_t<std::remove_reference_t<T>>;
     const auto* method = get_metadata<clean_type>().get_method_info(method_name);
     return method ? method->type_name() : std::string_view{};
 }

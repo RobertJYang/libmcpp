@@ -48,7 +48,6 @@ bool variant_base<Config>::same_type_less(const variant_base<OtherConfig>& other
     }
 
     throw_invalid_type_comparison_error(get_type_name(), other.get_type_name(), "<");
-    return false;
 }
 
 template <typename Config>
@@ -115,7 +114,6 @@ bool variant_base<Config>::other_type_less(const variant_base<OtherConfig>& othe
     }
 
     throw_invalid_type_comparison_error(get_type_name(), other.get_type_name(), "<");
-    return false;
 }
 
 template <typename Config>
@@ -145,7 +143,6 @@ bool variant_base<Config>::operator<(const T& other) const {
         }
     }
     throw_invalid_type_comparison_error(get_type_name(get_type()), pretty_name<T>(), "<");
-    return false;
 }
 
 template <typename Config>
@@ -165,7 +162,6 @@ bool variant_base<Config>::operator>(const T& other) const {
         }
     }
     throw_invalid_type_comparison_error(get_type_name(get_type()), pretty_name<T>(), ">");
-    return false;
 }
 
 template <typename Config>
@@ -216,7 +212,6 @@ bool variant_base<Config>::operator<(std::string_view other) const {
         }
     }
     throw_invalid_type_comparison_error(get_type_name(get_type()), "string_view", "<");
-    return false;
 }
 
 template <typename Config>
@@ -247,7 +242,6 @@ bool variant_base<Config>::operator>(std::string_view other) const {
         }
     }
     throw_invalid_type_comparison_error(get_type_name(get_type()), "string_view", ">");
-    return false;
 }
 
 template <typename Config>

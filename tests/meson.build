@@ -10,6 +10,7 @@ test_files = [
   'test_signal_slot.cpp',
   'test_time.cpp',
 
+
   # core 目录
   'core/test_service_manager.cpp',
   'core/test_singleton.cpp',
