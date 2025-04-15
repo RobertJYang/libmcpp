@@ -18,6 +18,17 @@
 #include <type_traits>
 
 namespace mc {
+
+namespace traits {
+
+template <typename T>
+struct remove_cvref {
+    using type = std::remove_cv_t<std::remove_reference_t<T>>;
+};
+
+template <typename T>
+using remove_cvref_t = typename remove_cvref<T>::type;
+
 // 函数特征提取工具
 template <typename F>
 struct function_traits;
@@ -65,8 +76,19 @@ struct function_traits<F&> : function_traits<F> {};
 template <typename F>
 struct function_traits<F&&> : function_traits<F> {};
 
-// 这里可以添加其他通用的 trait 工具
+// tuple_for_each实现：遍历元组中的每个元素并应用函数
+template <typename Tuple, typename Func, std::size_t... Is>
+constexpr void tuple_for_each_impl(const Tuple& tuple, Func&& func, std::index_sequence<Is...>) {
+    (func(std::get<Is>(tuple)), ...);
+}
 
+template <typename Tuple, typename Func>
+constexpr void tuple_for_each(const Tuple& tuple, Func&& func) {
+    tuple_for_each_impl(tuple, std::forward<Func>(func),
+                        std::make_index_sequence<std::tuple_size_v<std::decay_t<Tuple>>>{});
+}
+
+} // namespace traits
 } // namespace mc
 
 #endif // MC_TRAITS_H

@@ -229,11 +229,12 @@ class table_base {
 public:
     virtual ~table_base() = default;
 
-    virtual uint32_t         get_table_id() const   = 0;
-    virtual std::string_view get_table_name() const = 0;
-    virtual bool             empty() const          = 0;
-    virtual size_t           size() const           = 0;
-    virtual void             clear()                = 0;
+    virtual uint32_t         get_table_id() const      = 0;
+    virtual void             set_table_id(uint32_t id) = 0;
+    virtual std::string_view get_table_name() const    = 0;
+    virtual bool             empty() const             = 0;
+    virtual size_t           size() const              = 0;
+    virtual void             clear()                   = 0;
 
     const object_base* add_object(const mc::dict& var, transaction* txn = nullptr) {
         return do_add_object(var, txn);
@@ -637,6 +638,14 @@ public:
      */
     uint32_t get_table_id() const override {
         return m_table_id;
+    }
+
+    /**
+     * 设置表ID
+     * @param id 表ID
+     */
+    void set_table_id(uint32_t id) override {
+        m_table_id = id;
     }
 
     /**

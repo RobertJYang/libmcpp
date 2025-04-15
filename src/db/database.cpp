@@ -10,11 +10,21 @@ database::~database() {
 }
 
 void database::register_table(table_ptr table) {
-    m_tables[table->get_table_name()] = table;
+    MC_ASSERT(!table->get_table_name().empty(), "Table name is empty");
+
+    table->set_table_id(++m_next_table_id);
+    m_tables[table->get_table_name()]  = table;
+    m_table_ids[table->get_table_id()] = table;
 }
 
 void database::unregister_table(std::string_view table_name) {
-    m_tables.erase(table_name);
+    auto it = m_tables.find(table_name);
+    if (it == m_tables.end()) {
+        return;
+    }
+
+    m_table_ids.erase(it->second->get_table_id());
+    m_tables.erase(it);
 }
 
 bool database::is_table_registered(std::string_view table_name) const {

@@ -37,6 +37,7 @@
 #include <mc/common.h>
 #include <mc/dict.h>
 #include <mc/reflect/metadata_info.h>
+#include <mc/traits.h>
 #include <mc/variant.h>
 
 namespace mc::reflect {
@@ -69,57 +70,70 @@ constexpr auto create_member_info(M BaseT::* member_ptr, std::string_view name) 
     return member_info_creator<T, M, BaseT>::create(member_ptr, name);
 }
 
-// 检查元组元素是否具有特定的标签类型
-template <typename Tag, typename T, typename = void>
-struct has_tag : std::false_type {};
-
-template <typename Tag, typename T>
-struct has_tag<Tag, T, std::enable_if_t<std::is_same_v<typename T::tag_type, Tag>>>
-    : std::true_type {};
-
-template <typename Tag, typename T>
-inline constexpr bool has_tag_v = has_tag<Tag, T>::value;
-
-// 辅助函数：获取具有特定索引的元组元素
-template <typename Tag, typename Tuple, size_t Index>
-constexpr auto get_if_has_tag(const Tuple& tuple) {
-    using element_type = mc::remove_cvref_t<std::tuple_element_t<Index, Tuple>>;
-    if constexpr (has_tag_v<Tag, element_type>) {
-        return std::get<Index>(tuple);
-    } else {
-        return std::tuple<>();
-    }
-}
-
-// 辅助模板：连接多个元组元素
-template <typename Tag, typename Tuple, size_t... Indices>
-constexpr auto filter_members_indices(const Tuple& tuple, std::index_sequence<Indices...>) {
-    return std::tuple_cat(get_if_has_tag<Tag, Tuple, Indices>(tuple)...);
-}
-
 // 递归过滤元组元素，仅保留具有特定标签的元素
-template <typename Tag, size_t Index, typename Result, typename... Tuples>
+template <typename Filter, size_t Index, typename Result, typename... Tuples>
 constexpr auto filter_members_impl(const std::tuple<Tuples...>& all_members, Result result) {
     if constexpr (Index >= sizeof...(Tuples)) {
         return result;
     } else {
-        using element_type = mc::remove_cvref_t<std::tuple_element_t<Index, std::tuple<Tuples...>>>;
-        if constexpr (has_tag_v<Tag, element_type>) {
-            return filter_members_impl<Tag, Index + 1>(
+        using element_type =
+            mc::traits::remove_cvref_t<std::tuple_element_t<Index, std::tuple<Tuples...>>>;
+        if constexpr (Filter::template check<element_type>) {
+            return filter_members_impl<Filter, Index + 1>(
                 all_members,
                 std::tuple_cat(result, std::tuple<element_type>{std::get<Index>(all_members)}));
         } else {
-            return filter_members_impl<Tag, Index + 1>(all_members, result);
+            return filter_members_impl<Filter, Index + 1>(all_members, result);
         }
     }
 }
 
-// 公共API：按标签类型过滤成员元组
-template <typename Tag, typename Tuple>
+template <typename Filter, typename Tuple>
 constexpr auto filter_members(const Tuple& all_members) {
-    return filter_members_impl<Tag, 0>(all_members, std::tuple<>{});
+    return filter_members_impl<Filter, 0>(all_members, std::tuple<>{});
 }
 
+template <typename Tag>
+struct filter_tag {
+    template <typename ElementType>
+    static constexpr bool check = has_tag_v<Tag, ElementType>;
+};
+
+template <typename Tag, typename Tuple>
+constexpr auto filter_members_by_tag(const Tuple& all_members) {
+    return filter_members<filter_tag<Tag>>(all_members);
+}
+
+// 默认的成员检查模板，总是返回true
+template <typename T, typename Member, typename = void>
+struct has_members_check {
+    static constexpr bool check(const Member&) {
+        return true;
+    }
+};
+
+// 检测类型是否提供了check_member模板函数
+template <typename T, typename Members, typename = void>
+struct has_check_members : std::false_type {};
+
+template <typename T, typename Members>
+struct has_check_members<
+    T, Members, std::void_t<decltype(T::template check_members<Members>(std::declval<Members>()))>>
+    : std::true_type {};
+
+// 如果类型提供了check_member模板，使用它进行检查
+template <typename T, typename Members>
+struct has_members_check<T, Members, std::enable_if_t<has_check_members<T, Members>::value>> {
+    static constexpr bool check(const Members& members) {
+        return T::check_members(members);
+    }
+};
+
+// 辅助函数：验证某个成员
+template <typename T, typename Members>
+static constexpr bool validate_members(const Members& members) {
+    return has_members_check<T, Members>::check(members);
+}
 } // namespace mc::reflect::detail
 
 /**
@@ -306,20 +320,27 @@ void from_variant(const variant& v, T& o) {
         static const auto& get_members() {                                                         \
             static auto members = std::tuple_cat(                                                  \
                 BOOST_PP_SEQ_FOR_EACH(MC_REFLECT_ELEMENT, TYPE, MEMBERS) std::tuple<>());          \
+                                                                                                   \
+            static_assert(mc::reflect::detail::validate_members<TYPE>(members),                    \
+                          "成员验证失败，请检查成员是否符合类型要求");                             \
             return members;                                                                        \
         }                                                                                          \
+                                                                                                   \
         template <typename Tag>                                                                    \
         static const auto& get_members_by_tag() {                                                  \
             static auto filtered_members =                                                         \
-                mc::reflect::detail::filter_members<Tag>(get_members());                           \
+                mc::reflect::detail::filter_members_by_tag<Tag>(get_members());                    \
             return filtered_members;                                                               \
         }                                                                                          \
+                                                                                                   \
         static const auto& get_properties() {                                                      \
             return get_members_by_tag<mc::reflect::property_tag>();                                \
         }                                                                                          \
+                                                                                                   \
         static const auto& get_methods() {                                                         \
             return get_members_by_tag<mc::reflect::method_tag>();                                  \
         }                                                                                          \
+                                                                                                   \
         template <typename Visitor>                                                                \
         static void visit(const Visitor& visitor) {                                                \
             std::apply(                                                                            \
@@ -328,11 +349,13 @@ void from_variant(const variant& v, T& o) {
                 },                                                                                 \
                 get_properties());                                                                 \
         }                                                                                          \
+                                                                                                   \
         static void to_variant(const TYPE& obj, mc::mutable_dict& dict) {                          \
             visit([&](std::string_view name, auto getter, auto) {                                  \
                 dict[name] = getter(obj);                                                          \
             });                                                                                    \
         }                                                                                          \
+                                                                                                   \
         static void from_variant(const mc::dict& d, TYPE& obj) {                                   \
             visit([&](std::string_view name, auto, auto setter) {                                  \
                 if (d.contains(name)) {                                                            \

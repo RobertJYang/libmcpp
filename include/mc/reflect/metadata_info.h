@@ -93,6 +93,17 @@ inline constexpr bool all_variant_constructible_v = all_variant_constructible<Ar
 // 类型特征检测
 //------------------------------------------------------------------------------
 
+// 检查元组元素是否具有特定的标签类型
+template <typename Tag, typename T, typename = void>
+struct has_tag : std::false_type {};
+
+template <typename Tag, typename T>
+struct has_tag<Tag, T, std::enable_if_t<std::is_same_v<typename T::tag_type, Tag>>>
+    : std::true_type {};
+
+template <typename Tag, typename T>
+inline constexpr bool has_tag_v = has_tag<Tag, T>::value;
+
 // 检测是否为方法指针
 template <typename T>
 struct is_method : std::false_type {};
@@ -111,8 +122,9 @@ template <typename T, typename U = void>
 struct is_property : std::false_type {};
 
 template <typename T, typename M>
-struct is_property<M T::*, std::enable_if_t<!is_method_v<M T::*> &&
-                                            is_variant_constructible_v<mc::remove_cvref_t<M>>>>
+struct is_property<M T::*,
+                   std::enable_if_t<!is_method_v<M T::*> &&
+                                    is_variant_constructible_v<mc::traits::remove_cvref_t<M>>>>
     : std::true_type {};
 
 // 检测是否为属性
@@ -241,7 +253,7 @@ public:
                   "方法返回类型必须是void或者可以转换为mc::variant");
 
     // 静态断言确保所有参数类型都可以从variant转换
-    static_assert(all_variant_constructible_v<mc::remove_cvref_t<Args>...>,
+    static_assert(all_variant_constructible_v<mc::traits::remove_cvref_t<Args>...>,
                   "参数类型必须可转换为mc::variant");
 
     method_info(std::string_view name, function_type func)
@@ -252,12 +264,12 @@ public:
     variant call_with_exact_args(Class& obj, const variants& args,
                                  std::index_sequence<I...>) const {
         if constexpr (std::is_void_v<RetType>) {
-            (obj.*
-             m_function)(detail::convert_arg<mc::remove_cvref_t<Args>>(this->name, args[I])...);
+            (obj.*m_function)(
+                detail::convert_arg<mc::traits::remove_cvref_t<Args>>(this->name, args[I])...);
             return variant();
         } else {
             return variant((obj.*m_function)(
-                detail::convert_arg<mc::remove_cvref_t<Args>>(this->name, args[I])...));
+                detail::convert_arg<mc::traits::remove_cvref_t<Args>>(this->name, args[I])...));
         }
     }
 

@@ -187,40 +187,26 @@ public:
     }
 
 private:
-    // 私有构造函数，保证单例
     reflection_metadata() {
         initialize();
     }
 
-    // 初始化元数据缓存
     void initialize() {
         init_properties();
         init_methods();
     }
 
     void init_properties() {
-        auto visitor = [&](auto&... member) {
-            (add_property(member), ...);
-        };
-
-        std::apply(visitor, reflector<T>::get_properties());
+        mc::traits::tuple_for_each(reflector<T>::get_properties(), [&](auto& property) {
+            m_name_to_properties[property.name]       = &property;
+            m_offset_to_properties[property.offset()] = &property;
+        });
     }
 
     void init_methods() {
-        auto visitor = [&](auto&... member) {
-            (add_method(member), ...);
-        };
-
-        std::apply(visitor, reflector<T>::get_methods());
-    }
-
-    void add_property(const property_info_base<T>& property) {
-        m_name_to_properties[property.name]       = &property;
-        m_offset_to_properties[property.offset()] = &property;
-    }
-
-    void add_method(const method_info_base<T>& method) {
-        m_name_to_methods[method.name] = &method;
+        mc::traits::tuple_for_each(reflector<T>::get_methods(), [&](auto& method) {
+            m_name_to_methods[method.name] = &method;
+        });
     }
 
 private:

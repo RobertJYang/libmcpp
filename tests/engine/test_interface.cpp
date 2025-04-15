@@ -16,13 +16,12 @@
 
 namespace {
 
-// 整合的测试类，包含之前 Value、Counter、Logger 的所有功能
-class TestObject : public mc::engine::interface<TestObject> {
+class TestInterface : public mc::engine::interface<TestInterface> {
 public:
-    static constexpr std::string_view interface_name = "org.test.TestObject";
+    MC_INTERFACE("org.test.TestInterface")
 
-    TestObject() = default;
-    TestObject(int32_t value) : m_value(value) {
+    TestInterface() = default;
+    TestInterface(int32_t value) : m_value(value) {
     }
 
     // 属性
@@ -112,7 +111,7 @@ public:
 
 // 反射所有属性、方法和信号
 MC_REFLECT(
-    TestObject,
+    TestInterface,
     ((m_value, "value"))((m_name, "name"))((m_status, "status"))((m_enabled, "enabled"))(
         (m_logs, "logs"))((add, "Add"))((subtract, "Subtract"))((set_name, "SetName"))((get_name,
                                                                                         "GetName"))(
@@ -121,7 +120,7 @@ MC_REFLECT(
 
 class interface_test : public ::testing::Test {
 protected:
-    TestObject                  obj;
+    TestInterface               obj;
     mc::engine::interface_base* iface;
 
     interface_test() : obj(10) {
@@ -136,8 +135,8 @@ protected:
 };
 
 TEST_F(interface_test, test_interface) {
-    TestObject value1(0);
-    TestObject value2(100);
+    TestInterface value1(0);
+    TestInterface value2(100);
 
     // 通过反射链接信息号
     mc::engine::interface_base* v1 = &value1;
@@ -150,13 +149,13 @@ TEST_F(interface_test, test_interface) {
 
     EXPECT_EQ(value2.m_value, 101);
 
-    EXPECT_EQ(v1->get_interface_name(), TestObject::interface_name);
-    EXPECT_EQ(v2->get_interface_name(), TestObject::interface_name);
+    EXPECT_EQ(v1->get_interface_name(), TestInterface::interface_name);
+    EXPECT_EQ(v2->get_interface_name(), TestInterface::interface_name);
 }
 
 // 测试方法调用
 TEST_F(interface_test, test_method_invoke) {
-    TestObject                  value(10);
+    TestInterface               value(10);
     mc::engine::interface_base* iface = &value;
 
     // 测试Add方法
@@ -183,7 +182,7 @@ TEST_F(interface_test, test_method_invoke) {
 
 // 测试属性读写
 TEST_F(interface_test, test_property) {
-    TestObject                  value(42);
+    TestInterface               value(42);
     mc::engine::interface_base* iface = &value;
 
     // 获取属性值
@@ -209,7 +208,7 @@ TEST_F(interface_test, test_property) {
 
 // 测试信号连接和触发
 TEST_F(interface_test, test_signal_connection) {
-    TestObject                  value(0);
+    TestInterface               value(0);
     mc::engine::interface_base* iface = &value;
 
     int signal_called_count = 0;
@@ -238,7 +237,7 @@ TEST_F(interface_test, test_signal_connection) {
 
 // 测试多个信号
 TEST_F(interface_test, test_multiple_signals) {
-    TestObject                  value(10);
+    TestInterface               value(10);
     mc::engine::interface_base* iface = &value;
 
     bool value_changed_called = false;
@@ -293,7 +292,7 @@ TEST_F(interface_test, test_multiple_signals) {
 
 // 测试信号发射
 TEST_F(interface_test, test_emit_signal) {
-    TestObject                  value(0);
+    TestInterface               value(0);
     mc::engine::interface_base* iface = &value;
 
     int signal_calls = 0;
@@ -318,7 +317,7 @@ TEST_F(interface_test, test_emit_signal) {
 
 // 测试有无返回值的信号
 TEST_F(interface_test, test_signals_with_and_without_return) {
-    TestObject                  value(0);
+    TestInterface               value(0);
     mc::engine::interface_base* iface = &value;
 
     bool void_signal_called = false;
@@ -349,9 +348,9 @@ TEST_F(interface_test, test_signals_with_and_without_return) {
 
 // 测试信号连接成链
 TEST_F(interface_test, test_signal_chain) {
-    TestObject value1(0);
-    TestObject value2(0);
-    TestObject value3(0);
+    TestInterface value1(0);
+    TestInterface value2(0);
+    TestInterface value3(0);
 
     mc::engine::interface_base* v1 = &value1;
     mc::engine::interface_base* v2 = &value2;
@@ -384,21 +383,21 @@ TEST_F(interface_test, test_signal_chain) {
 // 测试静态方法
 TEST_F(interface_test, test_static_methods) {
     // 测试获取信号
-    EXPECT_TRUE(TestObject::has_signal("value_changed"));
-    EXPECT_TRUE(TestObject::has_signal("name_changed"));
-    EXPECT_TRUE(TestObject::has_signal("reset_signal"));
-    EXPECT_FALSE(TestObject::has_signal("non_existent_signal"));
+    EXPECT_TRUE(TestInterface::has_signal("value_changed"));
+    EXPECT_TRUE(TestInterface::has_signal("name_changed"));
+    EXPECT_TRUE(TestInterface::has_signal("reset_signal"));
+    EXPECT_FALSE(TestInterface::has_signal("non_existent_signal"));
 
-    const auto* signal_info = TestObject::get_signal("value_changed");
+    const auto* signal_info = TestInterface::get_signal("value_changed");
     EXPECT_NE(signal_info, nullptr);
 
-    const auto* non_existent = TestObject::get_signal("non_existent_signal");
+    const auto* non_existent = TestInterface::get_signal("non_existent_signal");
     EXPECT_EQ(non_existent, nullptr);
 }
 
 // 测试参数异常情况
 TEST_F(interface_test, test_invalid_arguments) {
-    TestObject                  value(10);
+    TestInterface               value(10);
     mc::engine::interface_base* iface = &value;
 
     EXPECT_THROW(iface->invoke("Add", {}), mc::bad_function_call_exception);
@@ -414,7 +413,7 @@ TEST_F(interface_test, test_invalid_arguments) {
 
 // 测试多个插槽连接到同一信号
 TEST_F(interface_test, test_multiple_slots) {
-    TestObject                  value(0);
+    TestInterface               value(0);
     mc::engine::interface_base* iface = &value;
 
     int slot1_calls = 0;
@@ -441,7 +440,7 @@ TEST_F(interface_test, test_multiple_slots) {
 
 // 测试连接管理
 TEST_F(interface_test, test_connection_management) {
-    TestObject                  value(0);
+    TestInterface               value(0);
     mc::engine::interface_base* iface = &value;
 
     int call_count = 0;
@@ -476,21 +475,21 @@ TEST_F(interface_test, test_connection_management) {
 
 // 测试接口类型层次结构
 TEST_F(interface_test, test_interface_hierarchy) {
-    TestObject value(42);
+    TestInterface value(42);
 
     // 测试对象类型
-    EXPECT_TRUE((std::is_same_v<decltype(value)::object_type, TestObject>));
+    EXPECT_TRUE((std::is_same_v<decltype(value)::object_type, TestInterface>));
 
     // 测试继承关系
-    mc::engine::interface_base*        base_ptr    = &value;
-    mc::engine::interface<TestObject>* derived_ptr = &value;
+    mc::engine::interface_base*           base_ptr    = &value;
+    mc::engine::interface<TestInterface>* derived_ptr = &value;
 
     EXPECT_EQ(base_ptr, static_cast<mc::engine::interface_base*>(derived_ptr));
 }
 
 // 测试空信号的行为
 TEST_F(interface_test, test_empty_signal) {
-    TestObject                  value(0);
+    TestInterface               value(0);
     mc::engine::interface_base* iface = &value;
 
     // 不连接任何插槽，直接发射信号
@@ -511,8 +510,8 @@ TEST_F(interface_test, test_empty_signal) {
 
 // 复杂场景测试
 TEST_F(interface_test, test_complex_scenario) {
-    TestObject counter(10);
-    TestObject logger;
+    TestInterface counter(10);
+    TestInterface logger;
 
     mc::engine::interface_base* counter_iface = &counter;
     mc::engine::interface_base* logger_iface  = &logger;

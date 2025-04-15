@@ -266,12 +266,14 @@ void map_from_variant(const variant& var, MapType<K, T, Args...>& vo) {
 }
 
 // std::vector 特化
-template <typename T, typename Allocator = std::allocator<T>, std::enable_if_t<!is_variant_v<T>, int> = 0>
+template <typename T, typename Allocator = std::allocator<T>,
+          std::enable_if_t<!is_variant_v<T>, int> = 0>
 void to_variant(const std::vector<T, Allocator>& var, variant& vo) {
     sequence_to_variant(var, vo);
 }
 
-template <typename T, typename Allocator = std::allocator<T>, std::enable_if_t<!is_variant_v<T>, int> = 0>
+template <typename T, typename Allocator = std::allocator<T>,
+          std::enable_if_t<!is_variant_v<T>, int> = 0>
 void from_variant(const variant& var, std::vector<T, Allocator>& vo) {
     sequence_from_variant(var, vo);
 }
@@ -488,6 +490,19 @@ void from_variant(const mc::variant& var, std::variant<T...>& vo) {
     if (!converted) {
         throw std::bad_cast();
     }
+}
+
+// std::string_view 的转换函数
+inline void from_variant(const mc::variant& var, std::string_view& vo) {
+    if (var.is_null()) {
+        vo = {};
+    } else {
+        vo = var.get_string();
+    }
+}
+
+inline void to_variant(std::string_view var, mc::variant& vo) {
+    vo = var;
 }
 
 } // namespace mc

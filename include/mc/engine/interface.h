@@ -13,13 +13,9 @@
 #ifndef MC_ENGINE_INTERFACE_H
 #define MC_ENGINE_INTERFACE_H
 
-#include <mc/reflect.h>
-#include <mc/signal_slot.h>
-#include <mc/traits.h>
-#include <mc/variant.h>
+#include <mc/engine/base.h>
 
 namespace mc::engine {
-using slot_type = std::function<mc::variant(const mc::variants&)>;
 
 // 信号标签类型
 struct signal_tag {};
@@ -56,12 +52,13 @@ struct signal_info : public signal_info_base<Class> {
     mc::variant call_with_exact_args(Class& obj, const mc::variants& args,
                                      std::index_sequence<I...>) const {
         if constexpr (std::is_void_v<RetType>) {
-            (obj.*signal_ptr)(
-                mc::reflect::detail::convert_arg<mc::remove_cvref_t<Args>>(this->name, args[I])...);
+            (obj.*signal_ptr)(mc::reflect::detail::convert_arg<mc::traits::remove_cvref_t<Args>>(
+                this->name, args[I])...);
             return mc::variant();
         } else {
             auto ret = (obj.*signal_ptr)(
-                mc::reflect::detail::convert_arg<mc::remove_cvref_t<Args>>(this->name, args[I])...);
+                mc::reflect::detail::convert_arg<mc::traits::remove_cvref_t<Args>>(this->name,
+                                                                                   args[I])...);
             return ret ? mc::variant(*ret) : mc::variant();
         }
     }
@@ -109,36 +106,23 @@ namespace mc::engine {
 template <typename T>
 using signal_map = std::unordered_map<std::string_view, const mc::engine::signal_info_base<T>*>;
 
+namespace detail {
 template <typename T>
-auto& get_signals() {
+auto& get_static_signals() {
     using clean_type = std::remove_cv_t<std::remove_reference_t<T>>;
     return mc::reflect::reflector<clean_type>::template get_members_by_tag<
         mc::engine::signal_tag>();
 }
 
-namespace detail {
 template <typename T>
 signal_map<T> init_signal_map() {
     signal_map<T> sigs;
-    std::apply(
-        [&sigs](auto&&... member) {
-            ((sigs[member.name] = &member), ...);
-        },
-        get_signals<T>());
+    mc::traits::tuple_for_each(get_static_signals<T>(), [&](auto& member) {
+        sigs[member.name] = &member;
+    });
     return sigs;
 }
 } // namespace detail
-
-struct interface_base {
-    virtual ~interface_base() = default;
-
-    virtual std::string_view    get_interface_name() const                                     = 0;
-    virtual mc::connection_type connect(std::string_view signal_name, slot_type slot)          = 0;
-    virtual mc::variant         emit(std::string_view signal_name, const mc::variants& args)   = 0;
-    virtual mc::variant         invoke(std::string_view method_name, const mc::variants& args) = 0;
-    virtual mc::variant         get_property(std::string_view property_name)                   = 0;
-    virtual bool set_property(std::string_view property_name, const mc::variant& value)        = 0;
-};
 
 template <typename T>
 struct interface : public interface_base {
@@ -165,6 +149,18 @@ struct interface : public interface_base {
         }
 
         return it->second;
+    }
+
+    static const auto& get_static_signals() {
+        return detail::get_static_signals<object_type>();
+    }
+
+    static const auto& get_static_properties() {
+        return mc::reflect::reflector<object_type>::get_properties();
+    }
+
+    static const auto& get_static_methods() {
+        return mc::reflect::reflector<object_type>::get_methods();
     }
 
     std::string_view get_interface_name() const override {

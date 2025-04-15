@@ -10,7 +10,6 @@ test_files = [
   'test_signal_slot.cpp',
   'test_time.cpp',
 
-
   # core 目录
   'core/test_service_manager.cpp',
   'core/test_singleton.cpp',
@@ -60,7 +59,7 @@ test_files = [
   'reflect/test_reflect.cpp',
   'reflect/test_reflect_custom_name.cpp',
   'reflect/test_reflect_static_info.cpp',
-  'reflect/test_custom_member_info.cpp', 
+  'reflect/test_custom_member_info.cpp',
   'reflect/test_method_call.cpp',
 
   # string 目录
@@ -80,6 +79,8 @@ test_files = [
 
   # engine 目录
   'engine/test_interface.cpp',
+  'engine/test_object.cpp',
+  'engine/test_utils.cpp',
 ]
 
 # 测试工具库 - 构建为独立的静态库

@@ -22,6 +22,9 @@ namespace db {
 using table_ptr = std::shared_ptr<table_base>;
 
 class database {
+    using table_name_map = std::unordered_map<std::string_view, table_ptr>;
+    using table_id_map   = std::unordered_map<uint32_t, table_ptr>;
+
 public:
     database();
     ~database();
@@ -136,7 +139,9 @@ public:
                 const std::map<std::string, variant>& values, transaction* txn = nullptr);
 
 private:
-    std::unordered_map<std::string_view, table_ptr> m_tables;
+    table_name_map m_tables;
+    table_id_map   m_table_ids;
+    uint32_t       m_next_table_id = 0;
 };
 
 } // namespace db

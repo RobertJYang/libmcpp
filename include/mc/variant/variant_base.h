@@ -30,6 +30,7 @@
 #include <mc/json.h>
 #include <mc/pretty_name.h>
 #include <mc/string.h>
+#include <mc/traits.h>
 #include <mc/variant/variant_common.h>
 
 namespace mc {
@@ -868,7 +869,7 @@ public:
      */
     template <typename T>
     T as() const {
-        using t_type = mc::remove_cvref_t<T>;
+        using t_type = mc::traits::remove_cvref_t<T>;
 
         t_type v;
         from_variant(*this, v);
