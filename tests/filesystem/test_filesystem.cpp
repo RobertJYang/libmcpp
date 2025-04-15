@@ -145,10 +145,10 @@ TEST_F(FilesystemTest, PathJoin) {
     EXPECT_EQ("/path/to/file.txt", mc::filesystem::join("/path/to", "file.txt"));
     EXPECT_EQ("/file.txt", mc::filesystem::join("/path/to", "/file.txt"));
     EXPECT_EQ("file.txt", mc::filesystem::join("", "file.txt"));
-    EXPECT_EQ("/path/to", mc::filesystem::join("/path/to", ""));
+    EXPECT_EQ("/path/to/", mc::filesystem::join("/path/to", ""));
 
     // 多段路径拼接
-    std::vector<std::string> paths = {"/path", "to", "file.txt"};
+    std::vector<mc::filesystem::path> paths = {"/path", "to", "file.txt"};
     EXPECT_EQ("/path/to/file.txt", mc::filesystem::join(paths));
 
     paths = {};
@@ -168,12 +168,12 @@ TEST_F(FilesystemTest, FileInfo) {
     EXPECT_FALSE(mc::filesystem::exists(test_file + ".nonexistent"));
 
     // 文件类型测试
-    EXPECT_TRUE(mc::filesystem::is_file(test_file));
+    EXPECT_TRUE(mc::filesystem::is_regular_file(test_file));
     EXPECT_FALSE(mc::filesystem::is_directory(test_file));
 
     if (!temp_dirs.empty()) {
         EXPECT_TRUE(mc::filesystem::is_directory(temp_dirs[0]));
-        EXPECT_FALSE(mc::filesystem::is_file(temp_dirs[0]));
+        EXPECT_FALSE(mc::filesystem::is_regular_file(temp_dirs[0]));
     }
 
     // 文件大小测试
@@ -281,7 +281,7 @@ TEST_F(FilesystemTest, FileOperations) {
 
     // 测试移动/重命名文件
     std::string moved_file = src_file + ".moved";
-    EXPECT_TRUE(mc::filesystem::rename(dst_file, moved_file));
+    mc::filesystem::rename(dst_file, moved_file);
     EXPECT_FALSE(mc::filesystem::exists(dst_file));
     EXPECT_TRUE(mc::filesystem::exists(moved_file));
     temp_files.push_back(moved_file); // 添加到临时文件列表以便清理

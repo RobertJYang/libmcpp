@@ -37,24 +37,13 @@ src_files = [
 ]
 
 # 创建共享库
-if cross_compile == false
 libmcpp_lib = shared_library(
   'libmcpp',
   src_files,
   include_directories: [incdir],
   dependencies: [boost_dep, boost_program_options_dep],
-  link_with: [],
   install: true,
 )
-else
-libmcpp_lib = shared_library(
-  'libmcpp',
-  src_files,
-  include_directories: [incdir],
-  link_with: [],
-  install: true,
-)
-endif
 
 # 导出库依赖
 libmcpp_dep = declare_dependency(include_directories: incdir, link_with: libmcpp_lib)

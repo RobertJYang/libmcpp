@@ -13,18 +13,10 @@ interprocess_example_sources = [
 
 interprocess_example_incdir = include_directories('.')
 
-if cross_compile == false
-executable('interprocess_example',
+executable(
+  'interprocess_example',
   interprocess_example_sources,
-  include_directories : [incdir, interprocess_example_incdir],
-  dependencies : [libmcpp_dep, boost_dep, boost_program_options_dep],
-  install : false
+  include_directories: [incdir, interprocess_example_incdir],
+  dependencies: [libmcpp_dep, boost_dep, boost_program_options_dep],
+  install: false,
 )
-else
-executable('interprocess_example',
-  interprocess_example_sources,
-  include_directories : [incdir, interprocess_example_incdir],
-  dependencies : [libmcpp_dep],
-  install : false
-)
-endif

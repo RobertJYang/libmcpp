@@ -127,8 +127,8 @@ public:
 
     void load_all(const std::string& dir_path) {
         try {
-            for (const auto& entry : std::experimental::filesystem::directory_iterator(dir_path)) {
-                if (entry.status().type() == std::experimental::filesystem::file_type::regular &&
+            for (const auto& entry : mc::filesystem::directory_iterator(dir_path)) {
+                if (entry.status().type() == mc::filesystem::file_type::regular &&
                     entry.path().extension() == ".so") {
                     auto appender_type = entry.path().stem().string();
                     load(entry.path().string(), appender_type);
