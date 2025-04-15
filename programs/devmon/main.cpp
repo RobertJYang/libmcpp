@@ -1,5 +1,5 @@
 #include "mc/core/application.h"
-#include <filesystem>
+#include <mc/filesystem.h>
 #include <iostream>
 #include <thread>
 #include <vector>
@@ -17,8 +17,9 @@ int main(int argc, char** argv) {
     new_argv.push_back(argv[0]);
 
     // 添加配置文件路径
-    std::string config_path = (mc::filesystem::current_path() / "config" / "config.ini").string();
-    std::string config_arg  = "--config=" + config_path;
+    std::string config_path =
+        (mc::filesystem::current_path() / "config" / "config.ini").string();
+    std::string config_arg = "--config=" + config_path;
     new_argv.push_back(const_cast<char*>(config_arg.c_str()));
 
     // 复制其他参数

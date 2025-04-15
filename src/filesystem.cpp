@@ -233,14 +233,70 @@ path absolute(const path& p) {
         return p;
     }
 }
-
+#if defined(MC_HAS_STD_FILESYSTEM)
 fs::path normalize(const fs::path& path) {
     if (path.empty()) {
         return ".";
     }
     return path.lexically_normal();
 }
-
+#else
+fs::path normalize(const fs::path& path) {
+    if (path.empty()) {
+        return ".";
+    }
+    
+    // 自定义路径规范化实现，用于不支持lexically_normal的编译器
+    fs::path result;
+    bool is_absolute = path.is_absolute();
+    bool has_root_name = !path.root_name().empty();
+    bool has_root_directory = !path.root_directory().empty();
+    
+    // 保留根部分
+    if (has_root_name) {
+        result /= path.root_name();
+    }
+    
+    if (has_root_directory) {
+        result /= path.root_directory();
+    }
+    
+    std::vector<fs::path> elements;
+    
+    // 处理每个路径片段
+    for (const auto& part : path) {
+        std::string part_str = part.string();
+        if (part_str == ".") {
+            // 跳过当前目录
+            continue;
+        } else if (part_str == "..") {
+            // 处理父目录
+            if (!elements.empty() && elements.back().string() != "..") {
+                elements.pop_back();
+            } else if (!is_absolute) {
+                // 相对路径中保留前导的".."
+                elements.push_back(part);
+            }
+            // 绝对路径中忽略多余的".."
+        } else if (!part_str.empty() && part_str != path.root_name().string() && part_str != path.root_directory().string()) {
+            // 添加有效路径片段
+            elements.push_back(part);
+        }
+    }
+    
+    // 构建最终路径
+    for (const auto& element : elements) {
+        result /= element;
+    }
+    
+    // 处理空路径的情况
+    if (result.empty()) {
+        return ".";
+    }
+    
+    return result;
+}
+#endif
 path join(const path& base, const path& p) {
     return base / p;
 }

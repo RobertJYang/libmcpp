@@ -113,12 +113,8 @@ test_exe = executable(
     boost_program_options_dep,
     test_utilities_dep,
   ],
-  cpp_args: [
-    '-Wno-self-assign-overloaded',
-    '-Wno-unused-lambda-capture',
-    '-Wno-self-move',
-  ],
-  install: false,
+  cpp_args: [],
+  install: true,
 )
 
 # 注册测试
