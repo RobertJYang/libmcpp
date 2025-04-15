@@ -23,9 +23,16 @@ if shared_mutex_max_readers != 0
 endif
 
 # 依赖项
-boost_dep = dependency('boost', method: 'pkg-config', required: false)
-boost_program_options_dep = dependency('boost', modules: ['program_options'], method: 'pkg-config', required: false)
-
+if not meson.is_cross_build()
+  message('当前为本地构建')
+  boost_dep = dependency('boost', method: 'pkg-config', required: true)
+  boost_program_options_dep = dependency('boost', modules: ['program_options'], method: 'pkg-config', required: true)
+else
+  message('当前为交叉构建')
+  # 交叉构建时创建一个空依赖，但确保变量可用
+  boost_dep = dependency('', required: false)
+  boost_program_options_dep = dependency('', required: false)
+endif
 # 包含目录
 incdir = include_directories('include')
 
