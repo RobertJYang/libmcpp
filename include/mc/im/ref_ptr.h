@@ -72,10 +72,12 @@ public:
     // 析构函数
     ~ref_ptr() {
         if (m_ptr && m_ptr->release_ref()) {
-            using alloc_type   = typename T::alloc_type;
+            using non_const_t  = std::remove_const_t<T>;
+            using alloc_type   = typename non_const_t::alloc_type;
             using alloc_traits = std::allocator_traits<alloc_type>;
-            alloc_traits::destroy(m_ptr->m_alloc, m_ptr);
-            alloc_traits::deallocate(m_ptr->m_alloc, m_ptr, 1);
+            alloc_type alloc   = m_ptr->m_alloc;
+            alloc_traits::destroy(alloc, m_ptr);
+            alloc_traits::deallocate(alloc, const_cast<non_const_t*>(m_ptr), 1);
         }
     }
 

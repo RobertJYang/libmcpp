@@ -107,7 +107,7 @@ TEST(reflect_test, mixed_names) {
 
     // 测试visit_members功能
     std::vector<std::string> member_names;
-    mc::reflect::visit_members<product>([&](std::string_view name, auto, auto) {
+    mc::reflect::visit_properties<product>([&](std::string_view name, auto, auto) {
         member_names.push_back(std::string(name));
     });
 

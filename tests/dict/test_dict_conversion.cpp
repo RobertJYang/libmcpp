@@ -143,7 +143,7 @@ TEST(DictConversionTest, DictToStdMap) {
     dict d({{"key1", 123}, {"key2", "value"}, {"key3", true}});
 
     // 将 dict 转换为 std::map
-    std::map<std::string, variant> m;
+    std::map<variant, variant> m;
     for (const auto& entry : d) {
         m[entry.key] = entry.value;
     }
@@ -161,7 +161,7 @@ TEST(DictConversionTest, DictToStdUnorderedMap) {
     dict d({{"key1", 123}, {"key2", "value"}, {"key3", true}});
 
     // 将 dict 转换为 std::unordered_map
-    std::unordered_map<std::string, variant> m;
+    std::unordered_map<variant, variant> m;
     for (const auto& entry : d) {
         m[entry.key] = entry.value;
     }

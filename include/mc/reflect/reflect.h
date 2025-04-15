@@ -17,6 +17,7 @@
 #ifndef MC_REFLECT_REFLECT_H
 #define MC_REFLECT_REFLECT_H
 
+#include <array>
 #include <functional>
 #include <string>
 #include <type_traits>
@@ -31,97 +32,109 @@
 #include <boost/preprocessor/seq/for_each.hpp>
 #include <boost/preprocessor/stringize.hpp>
 #include <boost/preprocessor/tuple/elem.hpp>
+#include <boost/preprocessor/variadic/to_seq.hpp>
 
 #include <mc/common.h>
 #include <mc/dict.h>
-#include <mc/reflect/typename.h>
+#include <mc/reflect/metadata_info.h>
+#include <mc/traits.h>
 #include <mc/variant.h>
 
-/**
- * @brief 辅助宏，用于检测是否为元组形式的成员
- * 检测方法：BOOST_PP_IS_BEGIN_PARENS 检测是否以左括号开头
- */
+namespace mc::reflect {
+[[noreturn]] void throw_bad_enum_cast(int64_t i, const char* e);
+[[noreturn]] void throw_bad_enum_cast(const char* k, const char* e);
+} // namespace mc::reflect
+
+// 检测是否为元组形式（双括号表达式）
 #define MC_REFLECT_IS_TUPLE(x) BOOST_PP_IS_BEGIN_PARENS(x)
 
-/**
- * @brief 处理简单成员（使用成员名称作为反射名称）
- */
-#define MC_REFLECT_MEMBER_SIMPLE(r, TYPE, MEMBER)                                                  \
-    {BOOST_PP_STRINGIZE(MEMBER),                                                                   \
-                        [](const TYPE& obj) -> variant {                                           \
-                            return obj.MEMBER;                                                     \
-                        },                                                                         \
-                        [](TYPE& obj, const variant& var) {                                        \
-                            var.as(obj.MEMBER);                                                    \
-                        },                                                                         \
-                        MC_OFFSETOF(TYPE, MEMBER)},
+// 处理带名称的成员（双括号形式）
+#define MC_REFLECT_MEMBER_WITH_NAME(r, TYPE, MEMBER)                                               \
+    mc::reflect::detail::create_member_info<TYPE>(&TYPE::BOOST_PP_TUPLE_ELEM(0, MEMBER),           \
+                                                  BOOST_PP_TUPLE_ELEM(1, MEMBER)),
 
-/**
- * @brief 处理自定义名称的成员
- */
-#define MC_REFLECT_MEMBER_CUSTOM(r, TYPE, MEMBER)                                                  \
-    {BOOST_PP_TUPLE_ELEM(1, MEMBER),                                                               \
-     [](const TYPE& obj) -> variant {                                                              \
-         return obj.BOOST_PP_TUPLE_ELEM(0, MEMBER);                                                \
-     },                                                                                            \
-     [](TYPE& obj, const variant& var) {                                                           \
-         var.as(obj.BOOST_PP_TUPLE_ELEM(0, MEMBER));                                               \
-     },                                                                                            \
-     MC_OFFSETOF(TYPE, BOOST_PP_TUPLE_ELEM(0, MEMBER))},
+// 处理不带名称的成员（单括号形式）
+#define MC_REFLECT_MEMBER_WITHOUT_NAME(r, TYPE, MEMBER)                                            \
+    mc::reflect::detail::create_member_info<TYPE>(&TYPE::MEMBER, BOOST_PP_STRINGIZE(MEMBER)),
 
-/**
- * @brief 处理成员反射定义
- *
- * 根据成员的格式自动选择使用简单方式还是自定义名称方式
- * 这里我们使用 BOOST_PP_IIF 来条件选择不同的宏
- */
-#define MC_REFLECT_MEMBER(r, TYPE, MEMBER)                                                         \
-    BOOST_PP_IIF(MC_REFLECT_IS_TUPLE(MEMBER), MC_REFLECT_MEMBER_CUSTOM,                            \
-                 MC_REFLECT_MEMBER_SIMPLE)(r, TYPE, MEMBER)
+// 处理成员
+#define MC_REFLECT_ELEMENT(r, TYPE, MEMBER)                                                        \
+    BOOST_PP_IIF(MC_REFLECT_IS_TUPLE(MEMBER), MC_REFLECT_MEMBER_WITH_NAME,                         \
+                 MC_REFLECT_MEMBER_WITHOUT_NAME)(r, TYPE, MEMBER)
 
-/**
- * @brief 开始定义类的反射信息
- */
-#define MC_REFLECT_BEGIN(TYPE)                                                                     \
-    namespace mc {                                                                                 \
-    template <>                                                                                    \
-    struct reflect::reflector<TYPE> {                                                              \
-        using is_defined = std::true_type;                                                         \
-        using is_enum    = std::false_type;                                                        \
-        static std::string_view name() {                                                           \
-            return #TYPE;                                                                          \
-        }                                                                                          \
-        static auto& get_members() {                                                               \
-            static const member_info<TYPE> members[] = {
-/**
- * @brief 结束定义类的反射信息
- */
-#define MC_REFLECT_END(TYPE)                                                                       \
-    }                                                                                              \
-    ;                                                                                              \
-    return members;                                                                                \
-    }                                                                                              \
-    template <typename Visitor>                                                                    \
-    static void visit(const Visitor& visitor) {                                                    \
-        for (const auto& member : get_members()) {                                                 \
-            visitor(member.name, member.getter, member.setter);                                    \
-        }                                                                                          \
-    }                                                                                              \
-    static void to_variant(const TYPE& obj, mc::mutable_dict& dict) {                              \
-        visit([&](std::string_view name, auto getter, auto) {                                      \
-            dict[name] = getter(obj);                                                              \
-        });                                                                                        \
-    }                                                                                              \
-    static void from_variant(const mc::dict& d, TYPE& obj) {                                       \
-        visit([&](std::string_view name, auto, auto setter) {                                      \
-            if (d.contains(name)) {                                                                \
-                setter(obj, d[name]);                                                              \
-            }                                                                                      \
-        });                                                                                        \
-    }                                                                                              \
-    }                                                                                              \
-    ;                                                                                              \
-    } // namespace mc
+// 在命名空间中添加辅助函数
+namespace mc::reflect::detail {
+// 创建成员元数据（根据成员类型分发到属性、方法或用户自定义的成员信息）
+template <typename T, typename M, typename BaseT>
+constexpr auto create_member_info(M BaseT::* member_ptr, std::string_view name) {
+    return member_info_creator<T, M, BaseT>::create(member_ptr, name);
+}
+
+// 递归过滤元组元素，仅保留具有特定标签的元素
+template <typename Filter, size_t Index, typename Result, typename... Tuples>
+constexpr auto filter_members_impl(const std::tuple<Tuples...>& all_members, Result result) {
+    if constexpr (Index >= sizeof...(Tuples)) {
+        return result;
+    } else {
+        using element_type =
+            mc::traits::remove_cvref_t<std::tuple_element_t<Index, std::tuple<Tuples...>>>;
+        if constexpr (Filter::template check<element_type>) {
+            return filter_members_impl<Filter, Index + 1>(
+                all_members,
+                std::tuple_cat(result, std::tuple<element_type>{std::get<Index>(all_members)}));
+        } else {
+            return filter_members_impl<Filter, Index + 1>(all_members, result);
+        }
+    }
+}
+
+template <typename Filter, typename Tuple>
+constexpr auto filter_members(const Tuple& all_members) {
+    return filter_members_impl<Filter, 0>(all_members, std::tuple<>{});
+}
+
+template <typename Tag>
+struct filter_tag {
+    template <typename ElementType>
+    static constexpr bool check = has_tag_v<Tag, ElementType>;
+};
+
+template <typename Tag, typename Tuple>
+constexpr auto filter_members_by_tag(const Tuple& all_members) {
+    return filter_members<filter_tag<Tag>>(all_members);
+}
+
+// 默认的成员检查模板，总是返回true
+template <typename T, typename Member, typename = void>
+struct has_members_check {
+    static constexpr bool check(const Member&) {
+        return true;
+    }
+};
+
+// 检测类型是否提供了check_member模板函数
+template <typename T, typename Members, typename = void>
+struct has_check_members : std::false_type {};
+
+template <typename T, typename Members>
+struct has_check_members<
+    T, Members, std::void_t<decltype(T::template check_members<Members>(std::declval<Members>()))>>
+    : std::true_type {};
+
+// 如果类型提供了check_member模板，使用它进行检查
+template <typename T, typename Members>
+struct has_members_check<T, Members, std::enable_if_t<has_check_members<T, Members>::value>> {
+    static constexpr bool check(const Members& members) {
+        return T::check_members(members);
+    }
+};
+
+// 辅助函数：验证某个成员
+template <typename T, typename Members>
+static constexpr bool validate_members(const Members& members) {
+    return has_members_check<T, Members>::check(members);
+}
+} // namespace mc::reflect::detail
 
 /**
  * @brief 开始定义枚举的反射信息
@@ -175,22 +188,6 @@
 
 namespace mc {
 namespace reflect {
-
-void throw_bad_enum_cast(int64_t i, const char* e);
-void throw_bad_enum_cast(const char* k, const char* e);
-
-/**
- * @brief 成员信息结构体
- *
- * @tparam T 类型
- */
-template <typename T>
-struct member_info {
-    std::string_view                        name;
-    std::function<variant(const T&)>        getter;
-    std::function<void(T&, const variant&)> setter;
-    size_t                                  offset;
-};
 
 /**
  * @brief 反射器模板类
@@ -288,7 +285,7 @@ void from_variant(const variant& var, T& obj) {
  * @param visitor 访问者函数
  */
 template <typename T, typename Visitor>
-void visit_members(const Visitor& visitor) {
+void visit_properties(const Visitor& visitor) {
     if constexpr (is_reflectable<T>()) {
         reflector<T>::visit(visitor);
     }
@@ -312,9 +309,62 @@ void from_variant(const variant& v, T& o) {
  * @brief 定义类的反射信息
  */
 #define MC_REFLECT(TYPE, MEMBERS)                                                                  \
-    MC_REFLECT_BEGIN(TYPE)                                                                         \
-    BOOST_PP_SEQ_FOR_EACH(MC_REFLECT_MEMBER, TYPE, MEMBERS)                                        \
-    MC_REFLECT_END(TYPE)
+    namespace mc::reflect {                                                                        \
+    template <>                                                                                    \
+    struct reflector<TYPE> {                                                                       \
+        using is_defined = std::true_type;                                                         \
+        using is_enum    = std::false_type;                                                        \
+        static constexpr std::string_view name() {                                                 \
+            return #TYPE;                                                                          \
+        }                                                                                          \
+        static const auto& get_members() {                                                         \
+            static auto members = std::tuple_cat(                                                  \
+                BOOST_PP_SEQ_FOR_EACH(MC_REFLECT_ELEMENT, TYPE, MEMBERS) std::tuple<>());          \
+                                                                                                   \
+            static_assert(mc::reflect::detail::validate_members<TYPE>(members),                    \
+                          "成员验证失败，请检查成员是否符合类型要求");                             \
+            return members;                                                                        \
+        }                                                                                          \
+                                                                                                   \
+        template <typename Tag>                                                                    \
+        static const auto& get_members_by_tag() {                                                  \
+            static auto filtered_members =                                                         \
+                mc::reflect::detail::filter_members_by_tag<Tag>(get_members());                    \
+            return filtered_members;                                                               \
+        }                                                                                          \
+                                                                                                   \
+        static const auto& get_properties() {                                                      \
+            return get_members_by_tag<mc::reflect::property_tag>();                                \
+        }                                                                                          \
+                                                                                                   \
+        static const auto& get_methods() {                                                         \
+            return get_members_by_tag<mc::reflect::method_tag>();                                  \
+        }                                                                                          \
+                                                                                                   \
+        template <typename Visitor>                                                                \
+        static void visit(const Visitor& visitor) {                                                \
+            std::apply(                                                                            \
+                [&](auto&... member) {                                                             \
+                    (visitor(member.name, member.getter(), member.setter()), ...);                 \
+                },                                                                                 \
+                get_properties());                                                                 \
+        }                                                                                          \
+                                                                                                   \
+        static void to_variant(const TYPE& obj, mc::mutable_dict& dict) {                          \
+            visit([&](std::string_view name, auto getter, auto) {                                  \
+                dict[name] = getter(obj);                                                          \
+            });                                                                                    \
+        }                                                                                          \
+                                                                                                   \
+        static void from_variant(const mc::dict& d, TYPE& obj) {                                   \
+            visit([&](std::string_view name, auto, auto setter) {                                  \
+                if (d.contains(name)) {                                                            \
+                    setter(obj, d[name]);                                                          \
+                }                                                                                  \
+            });                                                                                    \
+        }                                                                                          \
+    };                                                                                             \
+    }
 
 /**
  * @brief 定义枚举的反射信息

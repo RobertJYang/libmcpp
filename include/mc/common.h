@@ -202,14 +202,6 @@ protected:
 //------------------------------------------------------------------------------
 
 /**
- * @brief 检查类型是否具有特定成员函数的工具类
- * @note 用法：
- *   has_member_function<T, void(int)>::value 检查 T 是否有 void func(int) 成员函数
- */
-template <typename, typename T>
-struct has_member_function;
-
-/**
  * @brief 类型安全的枚举类辅助工具
  */
 template <typename Enum>
@@ -333,36 +325,6 @@ std::string type_name() {
 //------------------------------------------------------------------------------
 // 实用工具函数
 //------------------------------------------------------------------------------
-
-/**
- * @brief 范围约束函数
- */
-template <typename T>
-T clamp(const T& value, const T& min, const T& max) {
-    return value < min ? min : (value > max ? max : value);
-}
-
-/**
- * @brief 安全地删除指针
- */
-template <typename T>
-void safe_delete(T*& ptr) {
-    if (ptr) {
-        delete ptr;
-        ptr = nullptr;
-    }
-}
-
-/**
- * @brief 安全地删除数组指针
- */
-template <typename T>
-void safe_delete_array(T*& ptr) {
-    if (ptr) {
-        delete[] ptr;
-        ptr = nullptr;
-    }
-}
 
 /**
  * @brief 生成随机整数
@@ -549,8 +511,8 @@ inline int64_t hton(int64_t value) {
  * @param MEMBER 成员指针
  * @return size_t 成员偏移量（字节数）
  */
-#define MC_MEMBER_OFFSETOF(MEMBER)                                                                 \
-    (reinterpret_cast<std::size_t>(&(reinterpret_cast<T*>(0)->*MEMBER)))
+#define MC_MEMBER_OFFSETOF(TYPE, MEMBER)                                                           \
+    (reinterpret_cast<std::size_t>(&(reinterpret_cast<TYPE*>(0)->*MEMBER)))
 
 } // namespace mc
 

@@ -76,7 +76,7 @@ void sequence_to_variant(const Container& container, variant& vo) {
     for (const auto& item : container) {
         variant v;
         to_variant(item, v);
-        vars.push_back(std::move(v));
+        vars.emplace_back(std::move(v));
     }
     vo = std::move(vars);
 }
@@ -103,7 +103,7 @@ void sequence_from_variant(const variant& var, Container& vo) {
     for (const auto& item : vars) {
         typename Container::value_type v;
         from_variant(item, v);
-        vo.push_back(std::move(v));
+        vo.emplace_back(std::move(v));
     }
 }
 
@@ -124,7 +124,7 @@ void associative_to_variant(const Container& container, variant& vo) {
     for (const auto& item : container) {
         variant v;
         to_variant(item, v);
-        vars.push_back(std::move(v));
+        vars.emplace_back(std::move(v));
     }
     vo = std::move(vars);
 }
@@ -168,7 +168,7 @@ void array_to_variant(const std::array<T, S>& arr, variant& vo) {
     for (const auto& item : arr) {
         variant v;
         to_variant(item, v);
-        vars.push_back(std::move(v));
+        vars.emplace_back(std::move(v));
     }
     vo = std::move(vars);
 }
@@ -205,28 +205,12 @@ void map_to_variant(const MapType<K, T, Args...>& map, variant& vo) {
         throw std::range_error("容器元素过多");
     }
 
-    // 创建dict::entry的vector
-    std::vector<dict::entry> entries;
-    entries.reserve(map.size());
-
+    mutable_dict result;
     for (const auto& pair : map) {
-        dict::entry entry;
-        // 将键转换为字符串
-        if constexpr (std::is_same_v<K, std::string>) {
-            entry.key = pair.first;
-        } else {
-            variant key_variant;
-            to_variant(pair.first, key_variant);
-            entry.key = key_variant.as_string();
-        }
-
-        // 将值转换为variant
-        to_variant(pair.second, entry.value);
-        entries.push_back(std::move(entry));
+        result(pair.first, pair.second);
     }
 
-    // 直接使用dict构造函数创建variant
-    vo = dict(std::move(entries));
+    vo = result;
 }
 
 /**
@@ -249,29 +233,24 @@ void map_from_variant(const variant& var, MapType<K, T, Args...>& vo) {
     // 这可以显著提高对链表实现的大型字典的遍历效率
     for (const auto& entry : d) {
         K key;
+        from_variant(entry.key, key);
 
-        // 将键从字符串转换为K类型
-        if constexpr (std::is_same_v<K, std::string>) {
-            key = entry.key;
-        } else {
-            variant key_variant(entry.key);
-            from_variant(key_variant, key);
-        }
-
-        // 将值转换为T类型
-        T value = entry.value.template as<T>();
+        T value;
+        from_variant(entry.value, value);
 
         vo.insert(std::make_pair(key, value));
     }
 }
 
 // std::vector 特化
-template <typename T, typename Allocator = std::allocator<T>, std::enable_if_t<!is_variant_v<T>, int> = 0>
+template <typename T, typename Allocator = std::allocator<T>,
+          std::enable_if_t<!is_variant_v<T>, int> = 0>
 void to_variant(const std::vector<T, Allocator>& var, variant& vo) {
     sequence_to_variant(var, vo);
 }
 
-template <typename T, typename Allocator = std::allocator<T>, std::enable_if_t<!is_variant_v<T>, int> = 0>
+template <typename T, typename Allocator = std::allocator<T>,
+          std::enable_if_t<!is_variant_v<T>, int> = 0>
 void from_variant(const variant& var, std::vector<T, Allocator>& vo) {
     sequence_from_variant(var, vo);
 }
@@ -369,8 +348,8 @@ void to_variant(const std::pair<K, T>& var, variant& vo) {
     variant a, b;
     to_variant(var.first, a);
     to_variant(var.second, b);
-    vars.push_back(std::move(a));
-    vars.push_back(std::move(b));
+    vars.emplace_back(std::move(a));
+    vars.emplace_back(std::move(b));
     vo = std::move(vars);
 }
 
@@ -488,6 +467,19 @@ void from_variant(const mc::variant& var, std::variant<T...>& vo) {
     if (!converted) {
         throw std::bad_cast();
     }
+}
+
+// std::string_view 的转换函数
+inline void from_variant(const mc::variant& var, std::string_view& vo) {
+    if (var.is_null()) {
+        vo = {};
+    } else {
+        vo = var.get_string();
+    }
+}
+
+inline void to_variant(std::string_view var, mc::variant& vo) {
+    vo = var;
 }
 
 } // namespace mc

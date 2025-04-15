@@ -122,17 +122,17 @@ private:
 } // namespace log
 } // namespace mc
 
+// 反射颜色类型
+MC_REFLECT_ENUM(mc::log::console_appender::color_type,
+                (console_default)(red)(green)(brown)(blue)(magenta)(cyan)(white))
+
+// 反射输出流类型
+MC_REFLECT_ENUM(mc::log::console_appender::stream_type, (std_out)(std_error))
+
 // 反射控制台追加器配置
 MC_REFLECT(mc::log::console_appender::config, (stream)(use_color)(flush)(level_colors))
 
 // 反射日志级别颜色配置
 MC_REFLECT(mc::log::console_appender::level_color, (level)(color))
-
-// 反射输出流类型
-MC_REFLECT_ENUM(mc::log::console_appender::stream_type, (std_out)(std_error))
-
-// 反射颜色类型
-MC_REFLECT_ENUM(mc::log::console_appender::color_type,
-                (console_default)(red)(green)(brown)(blue)(magenta)(cyan)(white))
 
 #endif // MC_LOG_CONSOLE_APPENDER_H

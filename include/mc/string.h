@@ -37,7 +37,7 @@ class dict;
 namespace string {
 
 namespace detail {
-void throw_bad_cast_error(const char* type);
+[[noreturn]] void throw_bad_cast_error(const char* type);
 } // namespace detail
 
 /**
@@ -364,7 +364,6 @@ inline bool to_bool(std::string_view s) {
     }
 
     detail::throw_bad_cast_error("bool");
-    return false;
 }
 
 /**
@@ -480,7 +479,6 @@ T to_number(std::string_view s) {
     }
 
     detail::throw_bad_cast_error(mc::pretty_name<T>());
-    return T{};
 }
 
 /**

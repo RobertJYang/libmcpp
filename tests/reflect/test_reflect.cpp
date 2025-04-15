@@ -145,7 +145,7 @@ TEST(ReflectTest, MemberVisit) {
 
     // 访问成员
     member_visitor<test_person> visitor(p);
-    mc::reflect::visit_members<test_person>(visitor);
+    mc::reflect::visit_properties<test_person>(visitor);
 
     // 检查成员名称
     EXPECT_EQ(visitor.names.size(), 3);
@@ -246,7 +246,7 @@ TEST(ReflectTest, Serialization) {
         first = false;
 
         const variant& value = d[key];
-        serialized += "\"" + key + "\": ";
+        serialized += "\"" + key.get_string() + "\": ";
 
         if (value.is_string()) {
             serialized += "\"" + value.as<std::string>() + "\"";

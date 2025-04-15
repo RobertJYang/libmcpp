@@ -8,29 +8,38 @@
             "name": "单元测试",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/build/tests/libmcpp_test",
+            "program": "${workspaceFolder}/builddir/tests/libmcpp_test",
             "args": [],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
             "environment": [],
             "externalConsole": false,
-            "MIMode": "gdb",
-            "miDebuggerPath": "/usr/bin/gdb"
+            "osx": {
+                "MIMode": "lldb",
+            },
+            "linux": {
+                "MIMode": "gdb",
+            }
         },
         {
             "name": "examples/plugin",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/build/examples/plugin/example_plugin",
+            "program": "${workspaceFolder}/builddir/examples/plugin/example_plugin",
             "args": [
                 "-c",
-                "${workspaceFolder}/build/examples/plugin/config.json"
+                "${workspaceFolder}/builddir/examples/plugin/config.json"
             ],
             "stopAtEntry": false,
-            "cwd": "${workspaceFolder}/build/examples/plugin",
+            "cwd": "${workspaceFolder}/builddir/examples/plugin",
             "environment": [],
             "externalConsole": false,
-            "MIMode": "lldb"
+            "osx": {
+                "MIMode": "lldb",
+            },
+            "linux": {
+                "MIMode": "gdb",
+            }
         },
         {
             "name": "interprocess_example",
@@ -42,7 +51,12 @@
             "cwd": "${workspaceFolder}/builddir/examples/interprocess",
             "environment": [],
             "externalConsole": false,
-            "MIMode": "lldb"
+            "osx": {
+                "MIMode": "lldb",
+            },
+            "linux": {
+                "MIMode": "gdb",
+            }
         },
         {
             "name": "examples/database",
@@ -57,35 +71,12 @@
             "cwd": "${workspaceFolder}/builddir/examples/database",
             "environment": [],
             "externalConsole": false,
-            "MIMode": "lldb"
-        },
-        {
-            "name": "单元测试 lua",
-            "type": "cppdbg",
-            "request": "launch",
-            "program": "/usr/bin/lua",
-            "args": [
-                "${workspaceFolder}/test/unit/test.lua"
-            ],
-            "stopAtEntry": false,
-            "cwd": "${workspaceFolder}",
-            "environment": [
-                {
-                    "name": "ROOT_DIR",
-                    "value": "${workspaceFolder}/temp/"
-                },
-                {
-                    "name": "PROJECT_DIR",
-                    "value": "${workspaceFolder}/"
-                },
-                {
-                    "name": "LD_LIBRARY_PATH",
-                    "value": "${workspaceFolder}/temp/usr/lib64"
-                }
-            ],
-            "externalConsole": false,
-            "MIMode": "gdb",
-            "miDebuggerPath": "/usr/bin/gdb"
+            "osx": {
+                "MIMode": "lldb",
+            },
+            "linux": {
+                "MIMode": "gdb",
+            }
         }
     ]
 }

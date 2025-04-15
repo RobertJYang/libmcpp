@@ -22,6 +22,7 @@
 #include <vector>
 
 namespace mc {
+using connection_type = boost::signals2::connection;
 
 /**
  * @brief 信号类模板，用于实现信号槽机制
@@ -37,7 +38,6 @@ template <typename Signature>
 class signal : public boost::signals2::signal<Signature> {
 public:
     using base_type = boost::signals2::signal<Signature>;
-    using connection_type = boost::signals2::connection;
     using slot_type = typename base_type::slot_type;
 
     /**
@@ -55,8 +55,8 @@ public:
      * @param slot 槽函数
      * @return 连接对象，可用于手动断开连接
      */
-    connection_type connect(const slot_type& slot) {
-        return base_type::connect(slot);
+    connection_type connect(slot_type&& slot) {
+        return base_type::connect(std::forward<slot_type>(slot));
     }
 
     /**

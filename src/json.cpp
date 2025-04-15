@@ -14,18 +14,12 @@
  * @file json.cpp
  * @brief 实现JSON编解码功能
  */
-#include <algorithm>
-#include <climits>
-#include <cmath>
-#include <cstdint>
 #include <iomanip>
-#include <limits>
 #include <mc/dict.h>
 #include <mc/exception.h>
 #include <mc/json.h>
 #include <mc/variant.h>
 #include <sstream>
-#include <vector>
 
 namespace mc {
 namespace json {
@@ -52,11 +46,6 @@ public:
         encode_value(value);
         return m_stream.str();
     }
-
-private:
-    std::ostringstream  m_stream;
-    json_encode_options m_options;
-    int                 m_current_depth;
 
     // 检查嵌套深度
     void check_depth() {
@@ -179,7 +168,7 @@ private:
         std::vector<std::reference_wrapper<const std::string>> keys;
         keys.reserve(obj.size());
         for (const auto& entry : obj) {
-            keys.push_back(std::cref(entry.key));
+            keys.push_back(std::cref(entry.key.get_string()));
         }
         if (m_options.sort_keys) {
             std::sort(keys.begin(), keys.end(), [](const auto& a, const auto& b) {
@@ -251,6 +240,15 @@ private:
             break;
         }
     }
+
+    std::string get_result() const {
+        return m_stream.str();
+    }
+
+private:
+    std::ostringstream  m_stream;
+    json_encode_options m_options;
+    int                 m_current_depth;
 };
 
 // 用于JSON解码的辅助类
@@ -277,12 +275,6 @@ public:
         }
         return result;
     }
-
-private:
-    std::string_view    m_input;
-    size_t              m_pos;
-    json_decode_options m_options;
-    int                 m_current_depth;
 
     // 跳过空白字符
     void skip_whitespace() {
@@ -629,6 +621,12 @@ private:
             skip_whitespace();
         }
     }
+
+private:
+    std::string_view    m_input;
+    size_t              m_pos;
+    json_decode_options m_options;
+    int                 m_current_depth;
 };
 
 // 实现json_encode函数
@@ -645,16 +643,38 @@ std::string json_encode(const variant& value, const json_encode_options& options
     }
 }
 
+std::string json_encode(const dict& obj, const json_encode_options& options) {
+    try {
+        encoder enc(options);
+        enc.encode_object(obj);
+        return enc.get_result();
+    } catch (const mc::parse_error_exception&) {
+        throw;
+    } catch (const std::exception& e) {
+        MC_THROW(mc::parse_error_exception, std::string("JSON编码失败: ") + e.what());
+    }
+}
+
+std::string json_encode(const std::vector<variant>& arr, const json_encode_options& options) {
+    try {
+        encoder enc(options);
+        enc.encode_array(arr);
+        return enc.get_result();
+    } catch (const mc::parse_error_exception&) {
+        throw;
+    } catch (const std::exception& e) {
+        MC_THROW(mc::parse_error_exception, std::string("JSON编码失败: ") + e.what());
+    }
+}
+
 // 实现json_decode函数
-variant json_decode(std::string_view json, const json_decode_options& options) {
+mc::variant json_decode(std::string_view json, const json_decode_options& options) {
     try {
         decoder dec(json, options);
         return dec.decode();
     } catch (const mc::parse_error_exception&) {
-        // 如果已经是parse_error_exception，直接重新抛出
         throw;
     } catch (const std::exception& e) {
-        // 将其他异常转换为parse_error_exception
         MC_THROW(mc::parse_error_exception, std::string("JSON解码失败: ") + e.what());
     }
 }

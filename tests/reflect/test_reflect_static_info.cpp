@@ -40,13 +40,13 @@ using namespace test_static_info;
 // 测试获取成员名称
 TEST(ReflectStaticInfo, GetMemberName) {
     // 使用命名空间限定
-    std::string_view name = mc::reflect::get_member_name(&test_person::m_id);
+    std::string_view name = mc::reflect::get_property_name<test_person>(&test_person::m_id);
     EXPECT_EQ(name, "用户ID");
 
-    auto person_name_name = mc::reflect::get_member_name(&test_person::m_name);
+    auto person_name_name = mc::reflect::get_property_name<test_person>(&test_person::m_name);
     EXPECT_EQ(person_name_name, "姓名");
 
-    auto person_age_name = mc::reflect::get_member_name(&test_person::m_age);
+    auto person_age_name = mc::reflect::get_property_name<test_person>(&test_person::m_age);
     EXPECT_EQ(person_age_name, "年龄");
 }
 
@@ -57,10 +57,10 @@ TEST(ReflectStaticInfo, MemberPtrToValueAccess) {
     // 获取m_id成员的指针
     auto get_member_value = [&user](auto member_ptr) {
         mc::variant      result;
-        std::string_view member_name = mc::reflect::get_member_name(member_ptr);
+        std::string_view member_name = mc::reflect::get_property_name<test_user>(member_ptr);
 
         // 使用成员名称通过visit_members获取值
-        mc::reflect::visit_members<test_user>([&](std::string_view name, auto getter, auto) {
+        mc::reflect::visit_properties<test_user>([&](std::string_view name, auto getter, auto) {
             if (name == member_name) {
                 result = getter(user);
             }
@@ -81,9 +81,9 @@ TEST(ReflectStaticInfo, SetValueByMemberPtr) {
 
     // 设置成员值的函数
     auto set_member_value = [&user](auto member_ptr, const mc::variant& value) {
-        std::string_view member_name = mc::reflect::get_member_name(member_ptr);
+        std::string_view member_name = mc::reflect::get_property_name<test_user>(member_ptr);
 
-        mc::reflect::visit_members<test_user>([&](std::string_view name, auto, auto setter) {
+        mc::reflect::visit_properties<test_user>([&](std::string_view name, auto, auto setter) {
             if (name == member_name) {
                 setter(user, value);
             }

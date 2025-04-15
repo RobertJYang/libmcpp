@@ -18,10 +18,11 @@
 #define MC_JSON_H
 
 #include <mc/variant/variant_common.h>
-#include <string>
-#include <string_view>
+#include <vector>
 
 namespace mc {
+class dict;
+
 namespace json {
 
 /**
@@ -189,6 +190,12 @@ struct json_decode_options {
 std::string
 json_encode(const variant&             value,
             const json_encode_options& options = json_encode_options::default_encode_options);
+std::string
+json_encode(const dict&                obj,
+            const json_encode_options& options = json_encode_options::default_encode_options);
+std::string
+json_encode(const std::vector<variant>& arr,
+            const json_encode_options&  options = json_encode_options::default_encode_options);
 
 /**
  * @brief 从JSON字符串解码为variant对象

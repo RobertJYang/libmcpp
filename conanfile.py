@@ -12,7 +12,7 @@ class AppConan(ConanBase):
 # 基于meson构建的基类，适用于libmcpp项目
     def layout(self):
         self.folders.source = '.'
-        self.folders.build = "build"
+        self.folders.build = "builddir"
 
     def generate(self):
         d = MesonDeps(self)

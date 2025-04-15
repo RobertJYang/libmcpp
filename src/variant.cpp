@@ -74,19 +74,12 @@ void throw_invalid_type_comparison_error(const char* type1, const char* type2, c
 }
 
 // 计算字符串的哈希值
-size_t calculate_str_hash(const char* data, size_t length) {
-    if (!data || length == 0) {
+size_t calculate_str_hash(std::string_view data) {
+    if (data.empty()) {
         return 0;
     }
 
-    // 使用黄金比例作为种子
-    size_t       h    = 0x9e3779b9 ^ length;
-    const size_t step = (length >> 5) + 1;
-    for (size_t l1 = length; l1 >= step; l1 -= step) {
-        h = h ^ ((h << 5) + (h >> 2) + static_cast<uint8_t>(data[l1 - 1]));
-    }
-
-    return h;
+    return std::hash<std::string_view>()(data);
 }
 
 } // namespace mc

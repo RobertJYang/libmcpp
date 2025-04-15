@@ -22,17 +22,15 @@
 #include <string_view>
 #include <unordered_map>
 
+#include <mc/reflect/metadata_info.h>
 #include <mc/variant.h>
 
 namespace mc {
 namespace reflect {
+[[noreturn]] void throw_method_not_exist(std::string_view method_name);
 
 template <typename T>
 constexpr bool is_reflectable();
-
-// 前置声明
-template <typename T>
-struct member_info;
 
 template <typename T>
 struct reflector;
@@ -47,6 +45,10 @@ struct reflector;
 template <typename T>
 class reflection_metadata {
 public:
+    using property_map        = std::unordered_map<std::string_view, const property_info_base<T>*>;
+    using property_offset_map = std::unordered_map<size_t, const property_info_base<T>*>;
+    using method_map          = std::unordered_map<std::string_view, const method_info_base<T>*>;
+
     /**
      * @brief 获取单例实例
      *
@@ -61,22 +63,39 @@ public:
      * @brief 获取指定名称的成员信息
      *
      * @param name 成员名称
-     * @return const member_info<T>* 成员信息指针，如果不存在则返回nullptr
+     * @return const property_info_base<T>* 成员信息指针，如果不存在则返回nullptr
      */
-    const member_info<T>* get_member(std::string_view name) const {
-        auto it = m_name_to_member.find(name);
-        return it != m_name_to_member.end() ? it->second : nullptr;
+    const property_info_base<T>* get_property_info(std::string_view name) const {
+        auto it = m_name_to_properties.find(name);
+        return it != m_name_to_properties.end() ? it->second : nullptr;
+    }
+
+    /**
+     * @brief 获取指定名称的方法信息
+     *
+     * @param name 方法名称
+     * @return const method_info_base<T>* 方法信息指针，如果不存在则返回nullptr
+     */
+    const method_info_base<T>* get_method_info(std::string_view name) const {
+        auto it = m_name_to_methods.find(name);
+        return it != m_name_to_methods.end() ? it->second : nullptr;
     }
 
     /**
      * @brief 获取指定偏移量的成员信息
      *
      * @param offset 成员偏移量
-     * @return const member_info<T>* 成员信息指针，如果不存在则返回nullptr
+     * @return const property_info_base<T>* 成员信息指针，如果不存在则返回nullptr
      */
-    const member_info<T>* get_member_by_offset(size_t offset) const {
-        auto it = m_offset_to_member.find(offset);
-        return it != m_offset_to_member.end() ? it->second : nullptr;
+    const property_info_base<T>* get_property_info(size_t offset) const {
+        auto it = m_offset_to_properties.find(offset);
+        return it != m_offset_to_properties.end() ? it->second : nullptr;
+    }
+
+    template <typename M, typename BaseT,
+              typename = std::enable_if_t<std::is_same_v<T, BaseT> || std::is_base_of_v<BaseT, T>>>
+    const property_info_base<T>* get_property_info(M BaseT::* member) const {
+        return get_property_info(MC_MEMBER_OFFSETOF(T, member));
     }
 
     /**
@@ -87,11 +106,29 @@ public:
      * @return mc::variant 属性值，如果不存在返回mc::variant::null_type
      */
     mc::variant get_property(const T& obj, std::string_view key) const {
-        const member_info<T>* member = get_member(key);
-        if (member) {
-            return member->getter(obj);
+        const property_info_base<T>* property = get_property_info(key);
+        if (property) {
+            return property->get_value(obj);
         }
         return mc::variant();
+    }
+
+    /**
+     * @brief 调用对象的方法
+     *
+     * @param obj 对象实例
+     * @param method_name 方法名称
+     * @param args 方法参数
+     * @return mc::variant 方法返回值，如果方法不存在则返回mc::variant::null_type
+     */
+    mc::variant invoke_method(T& obj, std::string_view method_name,
+                              const mc::variants& args = {}) const {
+        const method_info_base<T>* method = get_method_info(method_name);
+        if (method) {
+            return method->invoke(obj, args);
+        }
+
+        throw_method_not_exist(method_name);
     }
 
     /**
@@ -103,9 +140,9 @@ public:
      * @return bool 设置是否成功
      */
     bool set_property(T& obj, std::string_view key, const mc::variant& value) const {
-        const member_info<T>* member = get_member(key);
-        if (member) {
-            member->setter(obj, value);
+        const property_info_base<T>* property = get_property_info(key);
+        if (property) {
+            property->set_value(obj, value);
             return true;
         }
         return false;
@@ -117,44 +154,65 @@ public:
      * @param offset 成员偏移量
      * @return std::string_view 成员名称，如果不存在则返回空字符串
      */
-    std::string_view get_member_name(size_t offset) const {
-        const member_info<T>* member = get_member_by_offset(offset);
-        if (member) {
-            return member->name;
+    std::string_view get_property_name(size_t offset) const {
+        const property_info_base<T>* property = get_property_info(offset);
+        if (property) {
+            return property->name;
         }
         return {};
+    }
+
+    template <typename M, typename BaseT,
+              typename = std::enable_if_t<std::is_same_v<T, BaseT> || std::is_base_of_v<BaseT, T>>>
+    std::string_view get_property_name(M BaseT::* member) {
+        return get_property_name(MC_MEMBER_OFFSETOF(T, member));
     }
 
     /**
      * @brief 获取所有成员信息
      *
-     * @return const std::unordered_map<std::string_view, const member_info<T>*>&
-     * 成员名称到成员信息的映射
+     * @return const property_map& 成员名称到成员信息的映射
      */
-    const std::unordered_map<std::string_view, const member_info<T>*>& get_members() const {
-        return m_name_to_member;
+    const property_map& get_properties() const {
+        return m_name_to_properties;
+    }
+
+    /**
+     * @brief 获取所有方法信息
+     *
+     * @return const method_map& 方法名称到方法信息的映射
+     */
+    const method_map& get_methods() const {
+        return m_name_to_methods;
     }
 
 private:
-    // 私有构造函数，保证单例
     reflection_metadata() {
         initialize();
     }
 
-    // 初始化元数据缓存
     void initialize() {
-        const auto& members = reflector<T>::get_members();
-        for (const auto& member : members) {
-            m_name_to_member[member.name]     = &member;
-            m_offset_to_member[member.offset] = &member;
-        }
+        init_properties();
+        init_methods();
+    }
+
+    void init_properties() {
+        mc::traits::tuple_for_each(reflector<T>::get_properties(), [&](auto& property) {
+            m_name_to_properties[property.name]       = &property;
+            m_offset_to_properties[property.offset()] = &property;
+        });
+    }
+
+    void init_methods() {
+        mc::traits::tuple_for_each(reflector<T>::get_methods(), [&](auto& method) {
+            m_name_to_methods[method.name] = &method;
+        });
     }
 
 private:
-    // 成员名称到成员信息的映射
-    std::unordered_map<std::string_view, const member_info<T>*> m_name_to_member;
-    // 成员偏移量到成员信息的映射
-    std::unordered_map<size_t, const member_info<T>*> m_offset_to_member;
+    property_map        m_name_to_properties;
+    property_offset_map m_offset_to_properties;
+    method_map          m_name_to_methods;
 };
 
 /**
@@ -166,36 +224,8 @@ private:
 template <typename T>
 reflection_metadata<std::remove_cv_t<std::remove_reference_t<T>>>& get_metadata() {
     using clean_type = std::remove_cv_t<std::remove_reference_t<T>>;
-    static_assert(is_reflectable<clean_type>(), "类型必须支持反射才能使用get_metadata");
+    static_assert(is_reflectable<clean_type>(), "类型必须支持反射才能使用");
     return reflection_metadata<clean_type>::instance();
-}
-
-/**
- * @brief 根据偏移量获取成员名称
- *
- * @tparam T 类型
- * @param offset 偏移量
- * @return std::string_view 成员名称
- */
-template <typename T>
-std::string_view get_member_name_by_offset(size_t offset) {
-    using clean_type = std::remove_cv_t<std::remove_reference_t<T>>;
-    return get_metadata<clean_type>().get_member_name(offset);
-}
-
-/**
- * @brief 根据成员指针获取成员名称
- *
- * @tparam T 类型
- * @tparam M 成员类型
- * @param member 成员指针
- * @return std::string_view 成员名称
- */
-template <typename T, typename M>
-std::string_view get_member_name(M T::* member) {
-    using clean_type = std::remove_cv_t<std::remove_reference_t<T>>;
-    size_t offset    = MC_MEMBER_OFFSETOF(member);
-    return get_member_name_by_offset<clean_type>(offset);
 }
 
 } // namespace reflect

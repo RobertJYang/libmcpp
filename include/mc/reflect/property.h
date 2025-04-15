@@ -22,6 +22,46 @@
 namespace mc::reflect {
 
 /**
+ * @brief 获取指定名称的成员信息
+ *
+ * @tparam T 类型
+ * @param name 成员名称
+ * @return const property_info_base<T>* 成员信息指针，如果不存在则返回nullptr
+ */
+template <typename T>
+const property_info_base<T>* get_property_info(std::string_view name) {
+    using clean_type = std::remove_cv_t<std::remove_reference_t<T>>;
+    return get_metadata<clean_type>().get_property_info(name);
+}
+
+/**
+ * @brief 根据偏移量获取成员名称
+ *
+ * @tparam T 类型
+ * @param offset 偏移量
+ * @return std::string_view 成员名称
+ */
+template <typename T>
+std::string_view get_property_name(size_t offset) {
+    using clean_type = std::remove_cv_t<std::remove_reference_t<T>>;
+    return get_metadata<clean_type>().get_property_name(offset);
+}
+
+/**
+ * @brief 根据成员指针获取成员名称
+ *
+ * @tparam T 类型
+ * @tparam M 成员类型
+ * @param member 成员指针
+ * @return std::string_view 成员名称
+ */
+template <typename T, typename M, typename BaseT>
+std::string_view get_property_name(M BaseT::* member) {
+    using clean_type = std::remove_cv_t<std::remove_reference_t<T>>;
+    return get_metadata<clean_type>().get_property_name(member);
+}
+
+/**
  * 获取对象属性值
  * @tparam T 类型
  * @param obj 对象

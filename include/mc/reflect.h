@@ -17,10 +17,9 @@
 #ifndef MC_REFLECT_H
 #define MC_REFLECT_H
 
+#include <mc/reflect/method.h>
 #include <mc/reflect/property.h>
 #include <mc/reflect/reflect.h>
 #include <mc/reflect/reflect_metadata.h>
-
-// 该文件仅为包含文件，所有实现都在各自的头文件中
 
 #endif // MC_REFLECT_H
