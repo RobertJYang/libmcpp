@@ -238,14 +238,7 @@ fs::path normalize(const fs::path& path) {
     if (path.empty()) {
         return ".";
     }
-
-    std::error_code ec;
-    auto            norm_path = fs::weakly_canonical(path, ec);
-    if (ec) {
-        return fs::path(path).lexically_normal();
-    }
-
-    return norm_path;
+    return path.lexically_normal();
 }
 
 path join(const path& base, const path& p) {

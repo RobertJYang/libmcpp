@@ -800,7 +800,7 @@ private:
     // 从 dict 更新对象
     void update_object(object_type& obj, const dict& values) {
         for (auto& entry : values) {
-            mc::reflect::set_property(obj, entry.key, entry.value);
+            mc::reflect::set_property(obj, entry.key.get_string(), entry.value);
         }
     }
 

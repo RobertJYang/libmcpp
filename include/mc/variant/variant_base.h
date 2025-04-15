@@ -1178,11 +1178,11 @@ public:
             return std::hash<double>{}(m_double);
         case type_id::string_type: {
             const auto& str_data = *m_string_ptr;
-            return calculate_str_hash(str_data.c_str(), str_data.size());
+            return calculate_str_hash(str_data);
         }
         case type_id::blob_type: {
             const auto& blob_data = *m_blob_ptr;
-            return calculate_str_hash(blob_data.data.data(), blob_data.data.size());
+            return calculate_str_hash(blob_data.as_string_view());
         }
         case type_id::array_type: {
             return calculate_array_hash(*m_array_ptr);
@@ -1609,4 +1609,12 @@ void from_variant(const variant_base<Config1>& var, variant_base<Config2>& vo) {
 
 #include <mc/variant/variant_base_cmp_op.inl>
 
+namespace std {
+template <typename Config>
+struct hash<mc::variant_base<Config>> {
+    size_t operator()(const mc::variant_base<Config>& v) const {
+        return v.hash();
+    }
+};
+} // namespace std
 #endif // MC_VARIANT_VARIANT_BASE_H

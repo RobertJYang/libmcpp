@@ -17,25 +17,6 @@
 #ifndef MC_VARIANT_H
 #define MC_VARIANT_H
 
-#include <array>
-#include <cstdint>
-#include <deque>
-#include <forward_list>
-#include <list>
-#include <map>
-#include <memory>
-#include <optional>
-#include <ostream>
-#include <set>
-#include <string>
-#include <type_traits>
-#include <unordered_map>
-#include <unordered_set>
-#include <utility>
-#include <variant>
-#include <vector>
-
-#include <mc/common.h>
 #include <mc/variant/variant_base.h>
 
 namespace mc {

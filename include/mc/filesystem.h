@@ -16,6 +16,7 @@
  */
 #ifndef MC_FILESYSTEM_H
 #define MC_FILESYSTEM_H
+#include <optional>
 
 // 检测文件系统库的可用性
 #if defined(__cpp_lib_filesystem)

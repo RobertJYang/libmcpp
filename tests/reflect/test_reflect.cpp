@@ -246,7 +246,7 @@ TEST(ReflectTest, Serialization) {
         first = false;
 
         const variant& value = d[key];
-        serialized += "\"" + key + "\": ";
+        serialized += "\"" + key.get_string() + "\": ";
 
         if (value.is_string()) {
             serialized += "\"" + value.as<std::string>() + "\"";

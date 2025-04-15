@@ -163,7 +163,7 @@ const char*       get_type_name_internal(type_id type);
 [[noreturn]] void throw_unknow_type_error(type_id actual_type);
 [[noreturn]] void throw_invalid_type_comparison_error(const char* type1, const char* type2,
                                                       const char* op);
-size_t            calculate_str_hash(const char* data, size_t length);
+size_t            calculate_str_hash(std::string_view data);
 template <typename Config>
 size_t calculate_array_hash(const variants_base<Config>& array_data);
 

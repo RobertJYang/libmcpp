@@ -27,17 +27,13 @@ dict::dict() : m_data(std::make_shared<data_t>()) {
 }
 
 // 从键值对集合构造
-dict::dict(std::vector<entry> entries)
+dict::dict(const std::vector<entry>& entries)
     : m_data(std::make_shared<data_t>(entries.empty() ? 1 : entries.size())) {
-    // 处理重复的键，保留最后一个值
     for (auto&& entry_val : entries) {
-        // 查找是否已存在该键
         auto it = m_data->index.find(entry_val.key);
         if (it != m_data->index.end()) {
-            // 如果键已存在，替换值
             const_cast<entry&>(*it).value = entry_val.value;
         } else {
-            // 如果键不存在，添加新的键值对
             entry* new_entry = new entry(std::move(entry_val.key), entry_val.value);
             m_data->entries.push_back(*new_entry);
             m_data->index.insert(*new_entry);
@@ -46,17 +42,13 @@ dict::dict(std::vector<entry> entries)
 }
 
 // 从初始化列表构造
-dict::dict(std::initializer_list<std::pair<std::string, variant>> init)
+dict::dict(std::initializer_list<std::pair<variant, variant>> init)
     : m_data(std::make_shared<data_t>(init.size())) {
-    // 处理初始化列表中的键值对
     for (const auto& pair : init) {
-        // 查找是否已存在该键
         auto it = m_data->index.find(pair.first);
         if (it != m_data->index.end()) {
-            // 如果键已存在，替换值
             const_cast<entry&>(*it).value = pair.second;
         } else {
-            // 如果键不存在，添加新的键值对
             entry* new_entry = new entry(pair.first, pair.second);
             m_data->entries.push_back(*new_entry);
             m_data->index.insert(*new_entry);
@@ -100,6 +92,14 @@ const dict::entry* dict::find_entry(const char* key) const {
     return find_entry(std::string_view(key));
 }
 
+const dict::entry* dict::find_entry(const variant& key) const {
+    auto it = m_data->index.find(key);
+    if (it != m_data->index.end()) {
+        return &(*it);
+    }
+    return nullptr;
+}
+
 // 获取指定键的值
 const variant& dict::operator[](const std::string& key) const {
     return (*this)[std::string_view(key)];
@@ -120,6 +120,14 @@ const variant& dict::operator[](const char* key) const {
         throw std::invalid_argument("键不能为空指针");
     }
     return (*this)[std::string_view(key)];
+}
+
+const variant& dict::operator[](const variant& key) const {
+    const entry* e = find_entry(key);
+    if (e) {
+        return e->value;
+    }
+    throw std::out_of_range("字典中不存在键: " + key.to_string());
 }
 
 // 获取指定键的值，如果不存在则返回默认值
@@ -144,6 +152,14 @@ const variant& dict::get(const char* key, const variant& default_value) const {
     return get(std::string_view(key), default_value);
 }
 
+const variant& dict::get(const variant& key, const variant& default_value) const {
+    const entry* e = find_entry(key);
+    if (e) {
+        return e->value;
+    }
+    return default_value;
+}
+
 // 判断是否包含指定键
 bool dict::contains(const std::string& key) const {
     return contains(std::string_view(key));
@@ -160,6 +176,10 @@ bool dict::contains(const char* key) const {
         throw std::invalid_argument("键不能为空指针");
     }
     return contains(std::string_view(key));
+}
+
+bool dict::contains(const variant& key) const {
+    return find_entry(key) != nullptr;
 }
 
 // 获取键值对数量
@@ -183,8 +203,8 @@ dict::const_iterator dict::end() const {
 }
 
 // 获取所有键
-std::vector<std::string> dict::keys() const {
-    std::vector<std::string> result;
+std::vector<variant> dict::keys() const {
+    std::vector<variant> result;
     result.reserve(size());
     for (const auto& item : m_data->entries) {
         result.push_back(item.key);
@@ -233,6 +253,14 @@ const variant& dict::at(const char* key) const {
     return at(std::string_view(key));
 }
 
+const variant& dict::at(const variant& key) const {
+    const entry* e = find_entry(key);
+    if (!e) {
+        throw std::out_of_range("字典中不存在键: " + key.to_string());
+    }
+    return e->value;
+}
+
 // 计算指定元素在列表中的索引位置
 int dict::find_entry_index(const entry* e) const {
     if (!e) {
@@ -265,6 +293,10 @@ int dict::find_index(const char* key) const {
     if (key == nullptr) {
         throw std::invalid_argument("键不能为空指针");
     }
+    return find_entry_index(find_entry(key));
+}
+
+int dict::find_index(const variant& key) const {
     return find_entry_index(find_entry(key));
 }
 
@@ -305,7 +337,6 @@ dict::const_iterator dict::find(const std::string& key) const {
 dict::const_iterator dict::find(std::string_view key) const {
     const entry* e = find_entry(key);
     if (e) {
-        // 直接从元素指针获取迭代器
         return m_data->entries.iterator_to(*const_cast<entry*>(e));
     }
     return m_data->entries.end();
@@ -317,6 +348,14 @@ dict::const_iterator dict::find(const char* key) const {
         throw std::invalid_argument("键不能为空指针");
     }
     return find(std::string_view(key));
+}
+
+dict::const_iterator dict::find(const variant& key) const {
+    const entry* e = find_entry(key);
+    if (e) {
+        return m_data->entries.iterator_to(*const_cast<entry*>(e));
+    }
+    return m_data->entries.end();
 }
 
 // 将 dict 转换为 variant
@@ -336,7 +375,7 @@ size_t dict::hash() const {
     const size_t step = (size() >> 5) + 1;
     for (size_t l1 = size(); l1 >= step; l1 -= step) {
         const entry& e          = at_index(l1 - 1);
-        size_t       entry_hash = std::hash<std::string>{}(e.key) ^ e.value.hash();
+        size_t       entry_hash = e.key.hash() ^ e.value.hash();
         h                       = h ^ ((h << 5) + (h >> 2) + entry_hash);
     }
 
@@ -344,9 +383,7 @@ size_t dict::hash() const {
 }
 
 std::string dict::to_string() const {
-    // 将 dict 转换为 variant，然后使用 json 库编码
-    variant v = *this;
-    return json::json_encode(v);
+    return json::json_encode(*this);
 }
 
 } // namespace mc

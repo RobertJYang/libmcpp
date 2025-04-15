@@ -67,8 +67,8 @@ TEST(DictOperationsTest, DictIterators) {
     dict d({{"key1", 123}, {"key2", "value"}, {"key3", true}});
 
     // 测试迭代器遍历
-    std::vector<std::string> keys;
-    std::vector<variant>     values;
+    std::vector<variant> keys;
+    std::vector<variant> values;
 
     for (const auto& entry : d) {
         keys.push_back(entry.key);
@@ -137,7 +137,7 @@ TEST(DictOperationsTest, DictKeysAndValues) {
     dict d({{"key1", 123}, {"key2", "value"}, {"key3", true}});
 
     // 测试 keys 方法
-    std::vector<std::string> keys = d.keys();
+    std::vector<variant> keys = d.keys();
     EXPECT_EQ(keys.size(), 3);
     EXPECT_EQ(keys[0], "key1");
     EXPECT_EQ(keys[1], "key2");
