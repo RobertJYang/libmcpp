@@ -18,6 +18,7 @@
 #define MC_VARIANT_H
 
 #include <mc/variant/variant_base.h>
+#include <mc/variant/io.h>
 
 namespace mc {
 

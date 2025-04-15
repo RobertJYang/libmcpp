@@ -76,6 +76,7 @@ test_files = [
   'variant/test_variant_operations.cpp',
   'variant/test_variant_standard_containers.cpp',
   'variant/test_variant_visitor.cpp',
+  'variant/test_variant_io.cpp',
 
   # engine 目录
   'engine/test_interface.cpp',
