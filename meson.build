@@ -6,12 +6,12 @@ project(
     'warning_level=3',
     'cpp_std=c++17',
     'libdir=lib',
-    'cpp_args=-fPIC -Wall -Wno-unused-parameter -Wno-unused-variable -Wno-sign-compare -Wno-gnu-zero-variadic-macro-arguments',
+    'cpp_args=-fPIC -Wall -Wno-unused-parameter -Wno-unused-variable -Wno-sign-compare -Wno-pedantic',
   ],
 )
 
 # 添加编译器选项
-add_project_arguments('-Wall', '-Wextra', '-Wno-#warnings', language: 'cpp')
+add_project_arguments('-Wall', '-Wextra', language: 'cpp')
 
 # 配置选项
 shared_mutex_max_readers = get_option('shared_mutex_max_readers')
@@ -44,6 +44,7 @@ subdir('plugins')
 subdir('programs/devmon')
 
 if not meson.is_cross_build()
+  message('构建测试用例')
   gtest_dep = dependency('gtest', required: false)
   subdir('tests')
 endif
