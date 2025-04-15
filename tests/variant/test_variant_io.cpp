@@ -127,6 +127,10 @@ TEST(VariantIOTest, ComplexTypes) {
     EXPECT_TRUE(dict_str.find("30") != std::string::npos);
     EXPECT_TRUE(dict_str.find("是否学生") != std::string::npos);
     EXPECT_TRUE(dict_str.find("false") != std::string::npos);
+    std::cout << "dict_str: " << dict_str << std::endl;
+    std::cout << "dict_var: " << dict_var << std::endl;
+    std::cout << "type: " << dict_var.get_type()  << std::endl;
+    std::cout << "ss: " << ss.str() << std::endl;
     ss.str("");
     
     // 测试二进制数据类型
@@ -192,4 +196,86 @@ TEST(VariantIOTest, StreamOperations) {
     
     ss << "整数: " << int_var << ", 字符串: " << string_var << ", 布尔值: " << bool_var;
     EXPECT_EQ(ss.str(), "整数: 42, 字符串: 测试, 布尔值: true");
+}
+
+// 测试type_id枚举类型的流输出
+TEST(VariantIOTest, TypeIDOutput) {
+    std::stringstream ss;
+    
+    // 测试各种type_id枚举值的输出
+    ss << type_id::null_type;
+    EXPECT_EQ(ss.str(), "0");  // null_type的值为0
+    ss.str("");
+    
+    ss << type_id::bool_type;
+    EXPECT_EQ(ss.str(), "10");  // bool_type的实际值为10
+    ss.str("");
+    
+    ss << type_id::int8_type;
+    EXPECT_EQ(ss.str(), "1");  // int8_type的实际值为1
+    ss.str("");
+    
+    ss << type_id::int16_type;
+    EXPECT_EQ(ss.str(), "3");  // int16_type的值为3
+    ss.str("");
+    
+    ss << type_id::int32_type;
+    EXPECT_EQ(ss.str(), "5");  // int32_type的实际值为5
+    ss.str("");
+    
+    ss << type_id::int64_type;
+    EXPECT_EQ(ss.str(), "7");  // int64_type的实际值为7
+    ss.str("");
+    
+    ss << type_id::uint8_type;
+    EXPECT_EQ(ss.str(), "2");  // uint8_type的实际值为2
+    ss.str("");
+    
+    ss << type_id::uint16_type;
+    EXPECT_EQ(ss.str(), "4");  // uint16_type的实际值为4
+    ss.str("");
+    
+    ss << type_id::uint32_type;
+    EXPECT_EQ(ss.str(), "6");  // uint32_type的实际值为6
+    ss.str("");
+    
+    ss << type_id::uint64_type;
+    EXPECT_EQ(ss.str(), "8");  // uint64_type的实际值为8
+    ss.str("");
+    
+    ss << type_id::double_type;
+    EXPECT_EQ(ss.str(), "9");  // double_type的实际值为9
+    ss.str("");
+    
+    ss << type_id::string_type;
+    EXPECT_EQ(ss.str(), "11");  // string_type的值为11
+    ss.str("");
+    
+    ss << type_id::array_type;
+    EXPECT_EQ(ss.str(), "12");  // array_type的值为12
+    ss.str("");
+    
+    ss << type_id::object_type;
+    EXPECT_EQ(ss.str(), "13");  // object_type的值为13
+    ss.str("");
+    
+    ss << type_id::blob_type;
+    EXPECT_EQ(ss.str(), "14");  // blob_type的值为14
+    ss.str("");
+    
+    // 测试在正常语句中使用type_id
+    variant var_int(42);
+    variant var_str("测试");
+    
+    ss << "整数类型: " << var_int.get_type() << ", 字符串类型: " << var_str.get_type();
+    EXPECT_EQ(ss.str(), "整数类型: 5, 字符串类型: 11");  // int32_type=5, string_type=11
+    ss.str("");
+    
+    // 测试组合使用type_id和variant
+    ss << "类型: " << var_int.get_type() << ", 值: " << var_int;
+    EXPECT_EQ(ss.str(), "类型: 5, 值: 42");  // int32_type=5
+    ss.str("");
+    
+    ss << "类型: " << var_str.get_type() << ", 值: " << var_str;
+    EXPECT_EQ(ss.str(), "类型: 11, 值: 测试");  // string_type=11
 } 
