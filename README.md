@@ -52,8 +52,8 @@ apt-get install -y libgtest-dev ninja-build
 
 ```
 ### 用 ninja 命令构建
-```bash
 
+```bash
 # 初始化 meson 构建目录
 meson setup builddir
 
