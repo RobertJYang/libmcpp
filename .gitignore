@@ -5,6 +5,7 @@ builddir/
 .vscode/*
 !.vscode/tasks.json
 !.vscode/launch.json
+.cursor/
 
 # Subprojects downloaded sources
 subprojects/*
@@ -15,3 +16,40 @@ subprojects/*
 # OS specific files
 .DS_Store
 temp/*
+
+# C++ build related
+*.o
+*.a
+*.so
+*.lo
+*.la
+*.dll
+*.exe
+*.out
+*.app
+*.dylib
+*.obj
+
+# CMake and Meson
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+compile_commands.json
+CTestTestfile.cmake
+Testing/
+meson-private/
+meson-logs/
+ninja_test/
+
+# Debug files
+*.dSYM/
+*.su
+*.idb
+*.pdb
+
+# Editor backup files
+*~
+*.swp
+*.swo
+.*.swp
+.*.swo

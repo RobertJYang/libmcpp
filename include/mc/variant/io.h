@@ -98,6 +98,21 @@ std::ostream& operator<<(std::ostream& os, const variant_base<Config>& v) {
     }
 }
 
+/**
+ * @brief 为 blob 类型实现流输出运算符重载
+ * 
+ * 允许直接将 blob 对象输出到流中。
+ * 输出格式为 "blob[大小]"。
+ * 
+ * @param os 输出流
+ * @param blob 二进制数据对象
+ * @return std::ostream& 输出流引用
+ */
+template <typename Allocator>
+inline std::ostream& operator<<(std::ostream& os, const blob_base<Allocator>& blob) {
+    return os << "blob[" << blob.data.size() << "]";
+}
+
 } // namespace mc
 
 #endif // MC_VARIANT_IO_H 

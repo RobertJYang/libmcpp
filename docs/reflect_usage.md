@@ -4,14 +4,183 @@
 
 mc 反射系统提供了一种在运行时获取和操作类型信息的机制。通过反射系统，你可以：
 
-- 获取类型名称
-- 访问类的成员变量
+- 获取类型名称和元数据
+- 访问和修改类的成员变量
+- 调用类的成员方法
 - 序列化和反序列化对象
 - 支持枚举类型的字符串转换
 
-## 2. 基本用法
+反射系统基于模板元编程实现，无需修改编译器或运行时，完全在C++语言范围内工作。
 
-### 2.1 为类添加反射支持
+## 2. 实现方案
+
+mc 反射系统采用了以下核心技术实现：
+
+### 2.1 反射元数据
+
+系统通过定义特化的`reflector`模板类来存储类型元数据：
+
+```cpp
+namespace mc::reflect {
+    template <typename T>
+    struct reflector {
+        using is_defined = std::false_type;
+        using is_enum = std::false_type;
+        // ...其他元数据
+    };
+}
+```
+
+通过宏（`MC_REFLECT`和`MC_REFLECT_ENUM`）对具体类型特化此模板。
+
+### 2.2 成员信息模型
+
+系统使用以下模型表示类成员：
+
+- `property_info` - 存储属性（数据成员）的元数据和访问方法
+- `method_info` - 存储方法的元数据和调用信息
+
+### 2.3 缓存机制
+
+为提高性能，系统通过`reflection_metadata`单例缓存每个类型的反射信息，避免重复构建：
+
+```cpp
+template <typename T>
+reflection_metadata<std::remove_cv_t<std::remove_reference_t<T>>>& get_metadata();
+```
+
+### 2.4 架构总览
+
+以下是MC++反射系统的架构图和主要流程图：
+
+#### 2.4.1 反射系统类图
+
+```mermaid
+classDiagram
+    class reflector~T~ {
+        +is_defined: std::true_type/false_type
+        +is_enum: std::true_type/false_type
+        +name() string
+        +to_variant(const T&, variant&) void
+        +from_variant(const variant&, T&) void
+        +get_properties() tuple
+        +get_methods() tuple
+    }
+    
+    class property_info_base~T~ {
+        +string_view name
+        +get_value(const T&) variant
+        +set_value(T&, const variant&) void
+        +getter() function
+        +setter() function
+        +offset() size_t
+        +typeinfo() type_index
+        +type_name() string_view
+    }
+    
+    class method_info_base~T~ {
+        +string_view name
+        +invoke(T&, const variants&) variant
+        +arg_count() size_t
+        +typeinfo() type_index
+        +type_name() string_view
+    }
+    
+    class reflection_metadata~T~ {
+        -property_map m_name_to_properties
+        -property_offset_map m_offset_to_properties
+        -method_map m_name_to_methods
+        +instance() reflection_metadata&
+        +get_property_info(string_view) property_info_base*
+        +get_method_info(string_view) method_info_base*
+        +get_property(const T&, string_view) variant
+        +set_property(T&, string_view, const variant&) bool
+        +invoke_method(T&, string_view, const variants&) variant
+    }
+    
+    reflection_metadata "1" --* "多" property_info_base: 包含
+    reflection_metadata "1" --* "多" method_info_base: 包含
+    reflector "1" --> "1" reflection_metadata: 提供元数据
+```
+
+#### 2.4.2 反射注册流程
+
+```mermaid
+flowchart TD
+    A[开始] --> B[定义类/枚举]
+    B --> C{是类还是枚举?}
+    C -->|类| D[使用MC_REFLECT宏]
+    C -->|枚举| E[使用MC_REFLECT_ENUM宏]
+    D --> F[生成reflector特化]
+    E --> F
+    F --> G[定义to_variant和from_variant]
+    G --> H[创建属性和方法元数据]
+    H --> I[结束]
+```
+
+#### 2.4.3 序列化与反序列化流程
+
+```mermaid
+flowchart TD
+    A[开始] --> B{操作类型}
+    B -->|序列化| C[调用mc::variant构造函数]
+    C --> D[调用reflector::to_variant]
+    D --> E[收集所有属性到dict]
+    E --> F[返回variant]
+    
+    B -->|反序列化| G[调用variant::as<T>]
+    G --> H[调用reflector::from_variant]
+    H --> I[从dict获取值并设置属性]
+    I --> J[返回对象实例]
+    
+    F --> K[结束]
+    J --> K
+```
+
+#### 2.4.4 方法调用流程
+
+```mermaid
+flowchart TD
+    A[开始] --> B[获取reflection_metadata单例]
+    B --> C[查找方法信息]
+    C --> D{方法是否存在?}
+    D -->|否| E[抛出异常]
+    D -->|是| F[检查参数数量和类型]
+    F --> G{参数是否匹配?}
+    G -->|否| H[抛出异常]
+    G -->|是| I[转换参数并调用方法]
+    I --> J[返回结果]
+    E --> K[结束]
+    H --> K
+    J --> K
+```
+
+#### 2.4.5 访问成员流程
+
+```mermaid
+flowchart TD
+    A[开始] --> B[获取reflection_metadata单例]
+    B --> C{操作类型}
+    
+    C -->|获取值| D[查找属性信息]
+    D --> E{属性是否存在?}
+    E -->|是| F[调用get_value]
+    E -->|否| G[返回空variant]
+    
+    C -->|设置值| H[查找属性信息]
+    H --> I{属性是否存在?}
+    I -->|是| J[调用set_value]
+    I -->|否| K[返回false]
+    
+    F --> L[结束]
+    G --> L
+    J --> L
+    K --> L
+```
+
+## 3. 基本用法
+
+### 3.1 为类添加反射支持
 
 使用 `MC_REFLECT` 宏来为类添加反射支持。示例：
 
@@ -31,7 +200,14 @@ public:
 MC_REFLECT(Person, (name)(age)(is_male))
 ```
 
-### 2.2 为枚举添加反射支持
+也可以为成员指定自定义名称：
+
+```cpp
+// 使用自定义名称
+MC_REFLECT(Person, ((full_name, name))(age)(is_male))
+```
+
+### 3.2 为枚举添加反射支持
 
 使用 `MC_REFLECT_ENUM` 宏来为枚举添加反射支持：
 
@@ -42,39 +218,9 @@ enum class Color { RED, GREEN, BLUE };
 MC_REFLECT_ENUM(Color, (RED)(GREEN)(BLUE))
 ```
 
-## 3. 反射API
+## 4. 反射API
 
-### 3.5 部分对象更新
-```cpp
-// 部分更新对象成员
-Person person("张三", 30, true);
-mc::reflect::from_variant(mc::dict{{"age", 35}}, person);
-// 仅更新age字段，其他字段保持不变
-```
-
-### 3.6 嵌套对象处理
-```cpp
-class Address {
-public:
-    std::string city;
-    int zip_code;
-};
-MC_REFLECT(Address, (city)(zip_code));
-
-class Company {
-public:
-    std::string name;
-    Address address; 
-};
-MC_REFLECT(Company, (name)(address));
-
-// 序列化嵌套对象
-Company company{"Example", {"Beijing", 100080}};
-mc::variant var = company;
-// 反序列化时会自动处理嵌套结构
-```
-
-### 3.1 类型信息查询
+### 4.1 类型信息查询
 
 ```cpp
 // 检查类型是否支持反射
@@ -87,7 +233,7 @@ bool is_enum = mc::reflect::is_enum<Color>();
 const char* type_name = mc::reflect::get_type_name<Person>();
 ```
 
-### 3.2 成员访问
+### 4.2 属性访问
 
 ```cpp
 Person person("张三", 30, true);
@@ -102,9 +248,57 @@ mc::reflect::visit_properties<Person>([&](const char* name,
     mc::variant value = getter(person);
     std::cout << name << ": " << value << std::endl;
 });
+
+// 获取特定属性
+mc::variant value = mc::reflect::get_property(person, "name");
+assert(value == "张三");
+
+// 设置特定属性
+bool success = mc::reflect::set_property(person, "age", 35);
+assert(success && person.age == 35);
+
+// 获取属性名称（通过偏移量）
+size_t offset = MC_MEMBER_OFFSETOF(Person, &Person::name);
+std::string_view name = mc::reflect::get_property_name<Person>(offset);
+assert(name == "name");
+
+// 获取属性名称（通过成员指针）
+std::string_view name2 = mc::reflect::get_property_name<Person>(&Person::name);
+assert(name2 == "name");
 ```
 
-### 3.3 序列化和反序列化
+### 4.3 方法调用
+
+```cpp
+class Calculator {
+public:
+    int add(int a, int b) { return a + b; }
+    double multiply(double a, double b) { return a * b; }
+    void reset() { /* ... */ }
+};
+
+// 添加反射支持（包括方法）
+MC_REFLECT(Calculator, (add)(multiply)(reset))
+
+// 使用反射调用方法
+Calculator calc;
+mc::variant result = mc::reflect::invoke(calc, "add", {5, 3});
+assert(result.as<int>() == 8);
+
+// 检查方法是否存在
+bool has_method = mc::reflect::has_method<Calculator>("multiply");
+assert(has_method);
+
+// 获取方法参数数量
+size_t arg_count = mc::reflect::method_arg_count<Calculator>("add");
+assert(arg_count == 2);
+
+// 获取方法返回类型
+std::string_view return_type = mc::reflect::method_return_type<Calculator>("add");
+assert(return_type == "int");
+```
+
+### 4.4 序列化和反序列化
 
 ```cpp
 // 序列化为变体
@@ -119,20 +313,19 @@ assert(dict["is_male"] == true);
 
 // 反序列化
 Person new_person = var.as<Person>();
+assert(new_person.name == "张三");
+assert(new_person.age == 30);
+assert(new_person.is_male == true);
 ```
 
-#### 面向C语言开发者的详细解释
-
-##### 什么是序列化和反序列化？
+#### 4.4.1 序列化和反序列化概念
 
 - **序列化**：将对象转换为可传输或存储的格式（例如字节流、字符串、数据结构）
 - **反序列化**：将序列化的数据恢复为原始对象
 
-在C语言中，通常需要手动编写代码来打包/解包结构体。在C++中，特别是使用反射系统，这个过程可以自动化。
+在C语言中，通常需要手动编写代码来打包/解包结构体。而在C++中，特别是使用反射系统，这个过程可以自动化。mc::variant 作为中间容器，可以平滑地处理不同类型之间的转换，大大简化了序列化过程。
 
-##### 代码逐行解析：
-
-1. **序列化部分**:
+##### 1. **序列化部分**:
    ```cpp
    Person person("张三", 30, true);
    ```
@@ -156,7 +349,7 @@ Person new_person = var.as<Person>();
      serialize_person(&person, &serialized_data);
      ```
 
-2. **检查序列化结果**:
+##### 2. **检查序列化结果**:
    ```cpp
    const mc::dict& dict = var.as<mc::dict>();
    ```
@@ -186,7 +379,7 @@ Person new_person = var.as<Person>();
      assert(get_bool_from_dict(dict_ptr, "is_male") == true);
      ```
 
-3. **反序列化部分**:
+##### 3. **反序列化部分**:
    ```cpp
    Person new_person = var.as<Person>();
    ```
@@ -196,21 +389,39 @@ Person new_person = var.as<Person>();
      struct Person new_person;
      deserialize_person(&serialized_data, &new_person);
      ```
+   - 反序列化过程会自动将dict中的每个字段映射到对象的相应成员，无需手动处理每个字段
+   - 这种自动化减少了代码量，同时避免了因手动映射字段而引入的错误
 
 ##### mc::variant与mc::dict的关系
 
-- **mc::variant**：通用数据容器，可以存储任意类型（整数、字符串、对象等）
-- **mc::dict**：键值对映射，类似于C语言中的哈希表，但提供更高级的API
+- **mc::variant**：通用数据容器，可以存储任意类型的数据（整数、字符串、对象等）
+  - 类似于C语言中的联合体(union)，但更安全且功能更强大
+  - 提供类型安全的访问方法，如`as<T>()`和`try_as<T>()`
+  - 支持多态行为，一个variant可以转换为多种不同类型
+  - 在反射系统中作为通用数据传输的桥梁
 
-##### 实际应用场景
+- **mc::dict**：键值对映射容器，类似于C语言中的哈希表
+  - 存储键值对，键为字符串，值为variant类型
+  - 使用`[]`操作符访问元素
+  - 类似于JSON对象结构，适合表示结构化数据
+  - 在反射系统中主要用于表示对象的成员变量集合
 
-此代码在以下场景非常有用：
-- 配置文件处理（加载/保存用户设置）
-- 网络数据传输（API接口数据）
-- 数据持久化（保存应用状态）
-- 跨语言数据交换（如生成JSON数据）
+两者的协作关系：
+1. 当对象被序列化时，其各个成员被收集到一个dict中
+2. 这个dict被封装在一个variant中，便于传输和转换
+3. 反序列化时，variant首先被转换为dict
+4. 然后dict中的各个字段被映射回对象的成员变量
 
-### 3.4 枚举转换
+这种设计使得反射系统可以处理任意复杂度的对象结构，包括嵌套对象和容器类型。
+
+序列化在以下场景特别有用：
+- 网络通信中传输数据
+- 持久化存储对象状态
+- 配置文件的读写
+- 跨语言/跨系统数据交换
+- 分布式系统中的数据共享
+
+### 4.5 枚举转换
 
 ```cpp
 // 枚举转字符串
@@ -231,39 +442,200 @@ try {
 }
 ```
 
-## 4. 测试覆盖
+### 4.6 部分对象更新
 
-我们的测试用例验证了以下关键场景：
+```cpp
+// 部分更新对象成员
+Person person("张三", 30, true);
+mc::reflect::from_variant(mc::dict{{"age", 35}}, person);
+// 仅更新age字段，其他字段保持不变
+assert(person.name == "张三");
+assert(person.age == 35);
+assert(person.is_male == true);
+```
 
-1. **基础功能验证**
-   - 类/枚举的反射元数据正确性
-   - 对象序列化/反序列化的完整性
-   - 枚举类型的双向转换
+### 4.7 嵌套对象处理
 
-2. **高级场景验证**
-   - 嵌套对象的多层反射支持
-   - STL容器(vector/map)的序列化
-   - 对象的部分字段更新
-   - 复杂类型系统的异常处理
+```cpp
+class Address {
+public:
+    std::string city;
+    int zip_code;
+};
+MC_REFLECT(Address, (city)(zip_code));
 
-3. **边界条件验证**
-   - 无效枚举值的转换异常
-   - 空对象的序列化处理
-   - 包含特殊字符的字符串序列化
+class Company {
+public:
+    std::string name;
+    Address address; 
+};
+MC_REFLECT(Company, (name)(address));
 
-## 5. 最佳实践
+// 序列化嵌套对象
+Company company{"Example", {"Beijing", 100080}};
+mc::variant var = company;
+// 反序列化时会自动处理嵌套结构
+Company new_company = var.as<Company>();
+assert(new_company.name == "Example");
+assert(new_company.address.city == "Beijing");
+assert(new_company.address.zip_code == 100080);
+```
 
-1. 只反射需要序列化或运行时访问的成员
-2. 使用枚举反射时，确保所有枚举值都已在 `MC_REFLECT_ENUM` 中声明
-3. 处理反序列化时要考虑异常情况
-4. 对于大型对象，建议使用引用传递避免不必要的拷贝
+## 5. 高级使用
 
-## 5. 注意事项
+### 5.1 自定义类型的序列化支持
 
+要支持自定义类型的序列化，需要特化`to_variant`和`from_variant`函数：
+
+```cpp
+// 自定义类型示例
+struct Custom {
+    int value;
+    // 不使用MC_REFLECT，而是手动实现转换
+};
+
+// 添加自定义序列化支持
+namespace mc {
+namespace reflect {
+    void to_variant(const Custom& obj, variant& var) {
+        var = mc::dict{{"custom_value", obj.value}};
+    }
+    
+    void from_variant(const variant& var, Custom& obj) {
+        if (var.is_dict()) {
+            obj.value = var.as<mc::dict>().get("custom_value", 0);
+        }
+    }
+}
+}
+```
+
+### 5.2 性能优化
+
+反射操作可能比直接访问开销大，可以通过以下方式优化：
+
+```cpp
+// 对频繁访问的属性缓存反射信息
+const auto* property_info = mc::reflect::get_property_info<Person>("name");
+if (property_info) {
+    // 多次使用同一属性
+    for (auto& obj : objects) {
+        mc::variant value = property_info->get_value(obj);
+        // 处理值...
+    }
+}
+```
+
+## 6. 应用场景
+
+### 6.1 配置系统
+
+使用反射可以轻松创建配置系统，实现配置的加载、保存和验证：
+
+```cpp
+struct Config {
+    std::string server_ip;
+    int port;
+    bool use_ssl;
+};
+MC_REFLECT(Config, (server_ip)(port)(use_ssl))
+
+// 从配置文件加载
+mc::variant config_var = load_from_json_file("config.json");
+Config config = config_var.as<Config>();
+
+// 保存配置
+save_to_json_file("config.json", mc::variant(config));
+```
+
+### 6.2 序列化与网络通信
+
+反射系统可简化网络通信中的数据序列化：
+
+```cpp
+// 服务端代码
+void handle_request(const Request& req) {
+    Response res{/* 处理请求 */};
+    send_response(mc::variant(res)); // 自动序列化
+}
+
+// 客户端代码
+void on_response(mc::variant var) {
+    Response res = var.as<Response>(); // 自动反序列化
+    process_response(res);
+}
+```
+
+### 6.3 UI自动绑定
+
+可以基于反射自动生成UI界面：
+
+```cpp
+template <typename T>
+void generate_ui_for_object(T& obj) {
+    mc::reflect::visit_properties<T>([&](const char* name, auto getter, auto setter) {
+        mc::variant value = getter(obj);
+        
+        // 根据属性类型创建相应UI控件
+        if (value.is_int()) {
+            add_number_field(name, value.as<int>(), [&obj, setter](int new_value) {
+                setter(obj, new_value);
+            });
+        } else if (value.is_string()) {
+            add_text_field(name, value.as<std::string>(), [&obj, setter](std::string new_value) {
+                setter(obj, new_value);
+            });
+        }
+        // 处理其他类型...
+    });
+}
+```
+
+### 6.4 数据验证
+
+反射系统可用于实现数据验证：
+
+```cpp
+template <typename T>
+bool validate(const T& obj, mc::dict& errors) {
+    bool valid = true;
+    
+    mc::reflect::visit_properties<T>([&](const char* name, auto getter, auto setter) {
+        mc::variant value = getter(obj);
+        
+        // 根据属性类型和名称应用不同的验证规则
+        if (std::string(name) == "email" && value.is_string()) {
+            std::string email = value.as<std::string>();
+            if (!is_valid_email(email)) {
+                errors[name] = "无效的电子邮件地址";
+                valid = false;
+            }
+        }
+        // 其他验证规则...
+    });
+    
+    return valid;
+}
+```
+
+## 7. 注意事项
+
+1. 反射系统目前支持基本类型、STL容器和自定义类型
+2. 反射的成员必须是公有的
+3. 使用反射API时注意异常处理
+4. 枚举反射不支持自定义值，只支持连续的枚举值
 5. 支持以下STL容器类型：
    - vector
    - map
    - unordered_map
+   - set
+   - unordered_set
+   - list
+   - deque
+   - array
+   - unique_ptr
+   - shared_ptr
+   - optional
    - pair
    - tuple
 
@@ -277,16 +649,14 @@ try {
    MC_REFLECT(Data, (scores)(locations));
 
    // 支持复杂容器的序列化
-   Data d{{"home", {}}, {"work", {}}};
-   variant var = d;
+   Data d;
+   d.scores = {80, 90, 75};
+   d.locations = {{"home", {"Beijing", 100080}}, {"work", {"Shanghai", 200080}}};
+   mc::variant var = d;
+   Data new_d = var.as<Data>();
    ```
 
-1. 反射系统目前支持基本类型、STL容器和自定义类型
-2. 反射的成员必须是公有的
-3. 使用反射API时注意异常处理
-4. 枚举反射不支持自定义值，只支持连续的枚举值
-
-## 6. 完整示例
+## 8. 完整示例
 
 ```cpp
 #include <mc/reflect.h>
@@ -296,37 +666,64 @@ try {
 enum class Status { ACTIVE, INACTIVE, SUSPENDED };
 MC_REFLECT_ENUM(Status, (ACTIVE)(INACTIVE)(SUSPENDED))
 
-// 定义类
+// 定义地址类
+class Address {
+public:
+    std::string city;
+    std::string street;
+    int number;
+
+    Address() : city(""), street(""), number(0) {}
+    Address(const std::string& c, const std::string& s, int n)
+        : city(c), street(s), number(n) {}
+};
+MC_REFLECT(Address, (city)(street)(number))
+
+// 定义用户类
 class User {
 public:
     std::string username;
     int id;
     Status status;
+    Address address;
+    std::vector<std::string> skills;
 
     User() : username(""), id(0), status(Status::INACTIVE) {}
-    User(const std::string& name, int uid, Status s)
-        : username(name), id(uid), status(s) {}
+    User(const std::string& name, int uid, Status s, const Address& addr)
+        : username(name), id(uid), status(s), address(addr) {}
+    
+    double calculate_score() const {
+        return id * 1.5;
+    }
 };
-MC_REFLECT(User, (username)(id)(status))
+MC_REFLECT(User, (username)(id)(status)(address)(skills)(calculate_score))
 
 int main() {
     // 创建对象
-    User user("admin", 1, Status::ACTIVE);
+    Address addr("北京", "中关村大街", 10);
+    User user("admin", 1, Status::ACTIVE, addr);
+    user.skills = {"C++", "Python", "SQL"};
 
     // 序列化
     mc::variant var(user);
-    std::cout << "Serialized: " << var << std::endl;
+    std::cout << "序列化结果: " << var << std::endl;
 
     // 修改序列化数据
     mc::mutable_dict dict = var.as<mc::dict>();
     dict["status"] = "SUSPENDED";
+    dict["username"] = "superadmin";
 
     // 反序列化
     User new_user = mc::variant(dict).as<User>();
     assert(new_user.status == Status::SUSPENDED);
+    assert(new_user.username == "superadmin");
+    
+    // 调用方法
+    mc::variant score = mc::reflect::invoke(new_user, "calculate_score");
+    std::cout << "用户得分: " << score << std::endl;
 
     return 0;
 }
 ```
 
-这个示例展示了如何使用反射系统实现对象的序列化和反序列化，以及如何处理枚举类型。通过这个例子，你可以了解反射系统的主要功能和使用方法。
+这个示例展示了反射系统的主要功能：枚举反射、嵌套对象、STL容器支持、方法调用等。通过这个例子，你可以了解如何在实际应用中利用反射系统提高代码的灵活性和可扩展性。
