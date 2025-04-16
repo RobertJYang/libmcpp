@@ -6,7 +6,7 @@ project(
     'warning_level=3',
     'cpp_std=c++17',
     'libdir=lib',
-    'cpp_args=-fPIC -Wall -Wno-unused-parameter -Wno-unused-variable -Wno-sign-compare -Wno-pedantic',
+    'cpp_args=-fPIC -Wall -Wno-unused-parameter -Wno-unused-variable -Wno-sign-compare -Wno-pedantic'
   ],
 )
 
@@ -33,6 +33,10 @@ else
   boost_dep = dependency('', required: false)
   boost_program_options_dep = dependency('', required: false)
 endif
+
+# 尝试使用 pkg-config 查找依赖
+dbus = dependency('dbus-1', method: 'pkg-config', required: true)
+
 # 包含目录
 incdir = include_directories('include')
 
