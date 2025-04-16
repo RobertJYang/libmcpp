@@ -42,6 +42,40 @@ MC++ 是一个现代化的C++基础库，专为高性能、可扩展的应用程
 
 ## 构建与安装
 
+### 编译环境
+```bash
+# 编译环境： 安装 boost ninja
+apt-get update && apt-get install -y libboost-all-dev
+
+apt-get update
+apt-get install -y libgtest-dev ninja-build
+
+```
+### 用 ninja 命令构建
+
+```bash
+# 初始化 meson 构建目录
+meson setup builddir
+
+# 进入构建目录
+cd builddir
+
+# 基本构建（在当前目录查找 build.ninja 文件并执行构建）
+ninja
+
+# 指定构建目录
+ninja -C builddir
+
+# 并行构建（指定并行任务数）
+ninja -j 4
+
+# 构建特定目标
+ninja target_name
+
+# 清理构建产物
+ninja -t clean
+```
+
 ### 从源码构建
 
 ```bash
