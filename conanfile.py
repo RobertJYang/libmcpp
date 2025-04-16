@@ -30,11 +30,18 @@ class AppConan(ConanBase):
         d.cpp_args.append("-Wno-pedantic")
         d.cpp_args.append("-fno-strict-aliasing")
         d.generate()
+
+        os.environ["PKG_CONFIG"] = "/usr/bin/pkg-config"
+        
         tc = MesonToolchain(self, "ninja")
         if self.settings.arch == "armv8" or self.settings.arch == "x86_64":
             tc.project_options["libdir"] = 'usr/lib64'
         else:
             tc.project_options["libdir"] = 'usr/lib'
+            
+        if self.settings.arch in ["armv8"]:
+            tc.properties["pkg_config_libdir"] = self.env["PKG_CONFIG_PATH"].split(":")
+        
         tc.generate()
         pc = PkgConfigDeps(self)
         pc.generate()
