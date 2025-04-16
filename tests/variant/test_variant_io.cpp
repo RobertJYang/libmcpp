@@ -140,6 +140,8 @@ TEST(VariantIOTest, ComplexTypes) {
     blob_data.data.assign(char_data, char_data + binary_data.size());
     variant blob_var(blob_data);
     ss << blob_var;
+    std::cout << "blob_str: " << blob_data << std::endl;
+    std::cout << "blob_str ss: " << ss.str() << std::endl;
     EXPECT_EQ(ss.str(), "blob[4]");
     ss.str("");
 }
@@ -278,4 +280,29 @@ TEST(VariantIOTest, TypeIDOutput) {
     
     ss << "类型: " << var_str.get_type() << ", 值: " << var_str;
     EXPECT_EQ(ss.str(), "类型: 11, 值: 测试");  // string_type=11
+}
+
+// 测试直接使用blob类型的流输出运算符
+TEST(VariantIOTest, BlobDirectOutput) {
+    std::stringstream ss;
+    
+    // 创建不同大小的blob对象进行测试
+    // 测试空blob
+    blob_base<> empty_blob;
+    ss << empty_blob;
+    EXPECT_EQ(ss.str(), "blob[0]");
+    ss.str("");
+    
+    // 测试带有数据的blob
+    std::vector<uint8_t> binary_data{0x01, 0x02, 0x03, 0xFF};
+    blob_base<> data_blob;
+    auto* char_data = reinterpret_cast<const char*>(binary_data.data());
+    data_blob.data.assign(char_data, char_data + binary_data.size());
+    ss << data_blob;
+    EXPECT_EQ(ss.str(), "blob[4]");
+    ss.str("");
+    
+    // 测试在复杂的流操作中使用blob
+    ss << "二进制数据: " << data_blob << ", 大小: " << data_blob.data.size() << " 字节";
+    EXPECT_EQ(ss.str(), "二进制数据: blob[4], 大小: 4 字节");
 } 
