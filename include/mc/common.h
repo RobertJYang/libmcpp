@@ -270,58 +270,6 @@ typename std::enable_if<enable_enum_flags<Enum>::enable, Enum&>::type operator^=
         static constexpr bool enable = true;                                                       \
     }
 
-/**
- * @brief 安全的数值转换
- */
-template <typename To, typename From>
-typename std::enable_if<std::is_arithmetic<From>::value && std::is_arithmetic<To>::value, To>::type
-safe_cast(From value) {
-    if (std::is_signed<From>::value && std::is_unsigned<To>::value) {
-        if (value < 0) {
-            throw std::out_of_range("Cannot convert negative value to unsigned type");
-        }
-    }
-
-    if ((std::is_integral<From>::value && std::is_integral<To>::value) &&
-        (sizeof(From) > sizeof(To) ||
-         (std::is_signed<From>::value && std::is_unsigned<To>::value))) {
-        if (value > static_cast<From>(std::numeric_limits<To>::max())) {
-            throw std::out_of_range("Value too large for target type");
-        }
-        if (std::is_signed<From>::value &&
-            value < static_cast<From>(std::numeric_limits<To>::min())) {
-            throw std::out_of_range("Value too small for target type");
-        }
-    }
-
-    return static_cast<To>(value);
-}
-
-/**
- * @brief 获取类型的字符串表示
- */
-template <typename T>
-std::string type_name() {
-#ifdef MC_COMPILER_CLANG
-    const char* name  = __PRETTY_FUNCTION__;
-    const char* start = std::strstr(name, "T = ") + 4;
-    const char* end   = std::strstr(start, "]");
-    return std::string(start, end - start);
-#elif defined(MC_COMPILER_GCC)
-    const char* name  = __PRETTY_FUNCTION__;
-    const char* start = std::strstr(name, "T = ") + 4;
-    const char* end   = std::strstr(start, ";");
-    return std::string(start, end - start);
-#elif defined(MC_COMPILER_MSVC)
-    const char* name  = __FUNCSIG__;
-    const char* start = std::strstr(name, "type_name<") + 10;
-    const char* end   = std::strstr(start, ">(void)");
-    return std::string(start, end - start);
-#else
-    return "unknown_type";
-#endif
-}
-
 //------------------------------------------------------------------------------
 // 实用工具函数
 //------------------------------------------------------------------------------
@@ -409,6 +357,17 @@ inline uint64_t swap_bytes(uint64_t value) {
            ((value & 0x0000FF0000000000ULL) >> 24) | ((value & 0x000000FF00000000ULL) >> 8) |
            ((value & 0x00000000FF000000ULL) << 8) | ((value & 0x0000000000FF0000ULL) << 24) |
            ((value & 0x000000000000FF00ULL) << 40) | ((value & 0x00000000000000FFULL) << 56);
+}
+
+/**
+ * @brief 有符号整数字节序转换
+ */
+template <typename T>
+typename std::enable_if<std::is_signed_v<T>, T>::type swap_bytes(T value) {
+    using unsigned_t = typename std::make_unsigned<T>::type;
+    unsigned_t temp  = static_cast<unsigned_t>(value);
+    temp             = swap_bytes(temp);
+    return static_cast<T>(temp);
 }
 
 /**
@@ -513,6 +472,8 @@ inline int64_t hton(int64_t value) {
  */
 #define MC_MEMBER_OFFSETOF(TYPE, MEMBER)                                                           \
     (reinterpret_cast<std::size_t>(&(reinterpret_cast<TYPE*>(0)->*MEMBER)))
+
+#define MC_ALIGN_UP(value, alignment) ((value + alignment - 1) & ~(alignment - 1))
 
 } // namespace mc
 

@@ -55,14 +55,7 @@ enum exception_code {
     underflow_code                = 17, // 下溢异常
     divide_by_zero_code           = 18, // 除零异常
     bad_function_call_code        = 19, // 函数调用异常
-
-    // MC库特定异常代码 (从100开始)
-    variant_error_code     = 100, // 变体类型异常
-    dict_error_code        = 101, // 字典异常
-    future_error_code      = 102, // Future异常
-    object_error_code      = 103, // 对象异常
-    event_error_code       = 104, // 事件异常
-    signal_slot_error_code = 105, // 信号槽异常
+    bad_alloc_code                = 20, // 内存分配异常
 };
 
 /**
@@ -185,26 +178,27 @@ protected:
  * // 在代码中使用
  * MC_THROW(timeout_exception, "连接超时");
  */
-#define MC_DEFINE_EXCEPTION_CLASS(class_name, code_enum_value, default_msg, class_name_str)        \
-    class class_name : public exception {                                                          \
+#define MC_DEFINE_EXCEPTION_CLASS_BASE(class_name, code_enum_value, default_msg, class_name_str,   \
+                                       base_class)                                                 \
+    class class_name : public base_class {                                                         \
     public:                                                                                        \
         enum code_enum { code_value = code_enum_value };                                           \
                                                                                                    \
         class_name(mc::log::message&& msg = mc::log::message(mc::log::level::error, default_msg))  \
-            : exception(std::move(msg), code_enum_value, class_name_str, default_msg) {            \
+            : base_class(std::move(msg), code_enum_value, class_name_str, default_msg) {           \
         }                                                                                          \
                                                                                                    \
-        class_name(const class_name& e) : exception(e) {                                           \
+        class_name(const class_name& e) : base_class(e) {                                          \
         }                                                                                          \
-        class_name(class_name&& e) : exception(std::move(e)) {                                     \
+        class_name(class_name&& e) : base_class(std::move(e)) {                                    \
         }                                                                                          \
                                                                                                    \
         /* 从基类构造 */                                                                           \
-        explicit class_name(const exception& e)                                                    \
-            : exception(code_enum_value, class_name_str, default_msg) {                            \
+        explicit class_name(const base_class& e)                                                   \
+            : base_class(code_enum_value, class_name_str, default_msg) {                           \
         }                                                                                          \
                                                                                                    \
-        virtual std::shared_ptr<exception> dynamic_copy_exception() const override {               \
+        virtual std::shared_ptr<mc::exception> dynamic_copy_exception() const override {           \
             return std::make_shared<class_name>(*this);                                            \
         }                                                                                          \
                                                                                                    \
@@ -212,6 +206,10 @@ protected:
             throw *this;                                                                           \
         }                                                                                          \
     };
+
+#define MC_DEFINE_EXCEPTION_CLASS(class_name, code_enum_value, default_msg, class_name_str)        \
+    MC_DEFINE_EXCEPTION_CLASS_BASE(class_name, code_enum_value, default_msg, class_name_str,       \
+                                   exception)
 
 /**
  * @brief 未处理异常包装类
@@ -358,6 +356,7 @@ MC_DEFINE_EXCEPTION_CLASS(not_implemented_exception, file_not_found_exception_co
                           "not_implemented")
 MC_DEFINE_EXCEPTION_CLASS(bad_function_call_exception, bad_function_call_code, "函数调用错误",
                           "bad_function_call")
+MC_DEFINE_EXCEPTION_CLASS(bad_alloc_exception, bad_alloc_code, "内存分配错误", "bad_alloc")
 
 /**
  * @brief 完整自定义异常类宏（MC_DEFINE_EXCEPTION_CLASS 的别名）

@@ -34,6 +34,8 @@ src_files = [
   'db/byte_buffer.cpp',
   'db/transaction.cpp',
   'db/database.cpp',
+  'io/io_buffer.cpp',
+  'io/io_stream.cpp',
 ]
 
 # 创建共享库

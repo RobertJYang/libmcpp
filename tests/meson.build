@@ -82,6 +82,10 @@ test_files = [
   'engine/test_interface.cpp',
   'engine/test_object.cpp',
   'engine/test_utils.cpp',
+
+  # io 目录
+  'io/test_io_buffer.cpp',
+  'io/test_io_stream.cpp'
 ]
 
 # 测试工具库 - 构建为独立的静态库
