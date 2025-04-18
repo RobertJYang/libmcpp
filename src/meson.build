@@ -36,6 +36,10 @@ src_files = [
   'db/database.cpp',
   'io/io_buffer.cpp',
   'io/io_stream.cpp',
+  'dbus/signature.cpp',
+  'dbus/stream.cpp',
+  'dbus/path.cpp',
+  'dbus/message.cpp',
 ]
 
 # 创建共享库

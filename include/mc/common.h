@@ -359,6 +359,17 @@ inline uint64_t swap_bytes(uint64_t value) {
            ((value & 0x000000000000FF00ULL) << 40) | ((value & 0x00000000000000FFULL) << 56);
 }
 
+inline std::size_t swap_bytes(std::size_t value) {
+    if constexpr (sizeof(std::size_t) == 4) {
+        return swap_bytes(static_cast<uint32_t>(value));
+    } else if constexpr (sizeof(std::size_t) == 8) {
+        return swap_bytes(static_cast<uint64_t>(value));
+    } else {
+        static_assert(sizeof(std::size_t) == 4 || sizeof(std::size_t) == 8,
+                      "Unsupported size_t type");
+    }
+}
+
 /**
  * @brief 有符号整数字节序转换
  */

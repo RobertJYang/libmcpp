@@ -85,8 +85,15 @@ test_files = [
 
   # io 目录
   'io/test_io_buffer.cpp',
-  'io/test_io_stream.cpp'
+  'io/test_io_stream.cpp',
+
+  # dbus 目录
+  'dbus/test_signature.cpp',
+  'dbus/test_path.cpp',
+  'dbus/test_stream.cpp',
 ]
+
+dbus_dep = dependency('dbus-1', method: 'pkg-config', required: true)
 
 # 测试工具库 - 构建为独立的静态库
 test_utilities_inc = include_directories('.')
@@ -116,6 +123,7 @@ test_exe = executable(
     boost_dep,
     boost_program_options_dep,
     test_utilities_dep,
+    dbus_dep,
   ],
   cpp_args: [],
   install: true,

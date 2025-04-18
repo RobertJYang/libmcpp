@@ -81,4 +81,16 @@ void throw_method_not_exist(std::string_view method_name) {
     MC_THROW(mc::bad_function_call_exception, "调用不存在的方法 ${method_name}",
              ("method_name", method_name));
 }
+
+/**
+ * @brief 抛出变体转换异常
+ *
+ * @param k 变体类型
+ * @param e 反射类型
+ */
+void throw_variant_cast(const char* type, const char* variant_type) {
+    MC_THROW(mc::bad_cast_exception, "反射类型 ${type} 不支持从 ${variant_type} 转换",
+             ("type", type)("variant_type", variant_type));
+}
+
 } // namespace mc::reflect

@@ -304,6 +304,14 @@ public:
     std::size_t align(std::size_t alignment);
 
     /**
+     * @brief 对齐读取位置
+     *
+     * @param alignment 对齐字节数
+     * @return 实际填充的字节数
+     */
+    std::size_t align_read(std::size_t alignment);
+
+    /**
      * @brief 清空流
      */
     void clear();

@@ -23,6 +23,7 @@
 #include <forward_list>
 #include <list>
 #include <map>
+#include <mc/traits.h>
 #include <memory>
 #include <optional>
 #include <set>
@@ -363,6 +364,32 @@ void from_variant(const variant& var, std::pair<K, T>& vo) {
     from_variant(vars[1], vo.second);
 }
 
+// std::pair 特化
+template <typename... T>
+void to_variant(const std::tuple<T...>& var, variant& vo) {
+    variants vars;
+    mc::traits::tuple_for_each(var, [&](const auto& item) {
+        vars.emplace_back(item);
+    });
+    vo = std::move(vars);
+}
+
+template <typename... T>
+void from_variant(const variant& var, std::tuple<T...>& vo) {
+    const variants& vars = var.get_array();
+    if (vars.size() != sizeof...(T)) {
+        throw std::runtime_error("tuple 大小不匹配");
+    }
+
+    std::size_t index = 0;
+    mc::traits::tuple_for_each(vo, [&](auto& item) {
+        using item_type = mc::traits::remove_cvref_t<decltype(item)>;
+
+        item = vars[index].as<item_type>();
+        ++index;
+    });
+}
+
 // 智能指针特化
 template <typename T>
 void to_variant(const std::shared_ptr<T>& var, variant& vo) {
@@ -420,11 +447,25 @@ template <typename T>
 void from_variant(const mc::variant& var, std::optional<T>& vo) {
     if (var.is_null()) {
         vo = std::nullopt;
-    } else {
-        T value;
-        from_variant(var, value);
-        vo = std::move(value);
+        return;
     }
+
+    // 如果 variant 是数组，空数组表示空，否则取第一个元素
+    if (var.is_array()) {
+        if (var.size() == 0) {
+            vo = std::nullopt;
+            return;
+        }
+
+        T value;
+        from_variant(var[0], value);
+        vo = std::move(value);
+        return;
+    }
+
+    T value;
+    from_variant(var, value);
+    vo = std::move(value);
 }
 
 // std::variant 的转换函数

@@ -169,7 +169,7 @@ std::size_t io_stream::seek_write(std::int64_t pos, seek_mode mode) {
 }
 
 std::size_t io_stream::skip(std::size_t skip_size) {
-    std::size_t available   = m_buffer->length() - m_read_pos;
+    std::size_t available   = readable_bytes();
     std::size_t actual_skip = std::min(skip_size, available);
     m_read_pos += actual_skip;
     return actual_skip;
@@ -261,6 +261,21 @@ std::size_t io_stream::align(std::size_t alignment) {
         m_write_pos += padding;
     }
 
+    return padding;
+}
+
+std::size_t io_stream::align_read(std::size_t alignment) {
+    auto current_mod = m_read_pos % alignment;
+    if (current_mod == 0) {
+        return 0;
+    }
+
+    std::size_t padding = alignment - current_mod;
+    if (padding > readable_bytes()) {
+        MC_THROW(mc::eof_exception, "无法对齐读取位置");
+    }
+
+    m_read_pos += padding;
     return padding;
 }
 
