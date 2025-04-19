@@ -19,11 +19,10 @@ namespace dbus {
 
 // signature类实现
 
-signature::signature() : m_sig("") {
+signature::signature() {
 }
 
-signature::signature(std::string sig) {
-    m_sig = std::move(sig);
+signature::signature(std::string sig) : m_sig(std::move(sig)) {
 }
 
 signature::signature(const char* sig) : signature(std::string(sig)) {
@@ -92,11 +91,6 @@ bool signature::is_valid(std::string_view sig) {
     // 签名的最大长度为255
     if (sig.size() > max_signature_length) {
         return false;
-    }
-
-    // 空签名是有效的
-    if (sig.empty()) {
-        return true;
     }
 
     // 验证每个完整类型
@@ -281,6 +275,7 @@ signature_iterator::signature_iterator(const signature& sig, size_t pos)
 }
 
 signature_iterator::signature_iterator(std::string_view sig, size_t pos) : m_sig(sig), m_pos(pos) {
+    MC_ASSERT(signature::is_valid(sig), "invalid signature: ${sig}", ("sig", sig));
 }
 
 std::string_view signature_iterator::current_type() const {
@@ -310,6 +305,10 @@ bool signature_iterator::is_basic() const {
 
 bool signature_iterator::is_valid() const {
     return m_pos < m_sig.size();
+}
+
+bool signature_iterator::is_empty() const {
+    return m_sig.empty();
 }
 
 bool signature_iterator::at_end() const {

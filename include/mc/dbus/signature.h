@@ -15,6 +15,8 @@
 
 #include <mc/dbus/enums.h>
 #include <mc/dbus/type_code.h>
+#include <mc/variant.h>
+
 #include <ostream>
 #include <string>
 #include <vector>
@@ -283,9 +285,15 @@ public:
      * @param sig 要遍历的签名
      * @param pos 开始位置，默认为0
      */
-    explicit signature_iterator(const signature& sig, size_t pos = 0);
+    signature_iterator(const signature& sig, size_t pos = 0);
 
-    explicit signature_iterator(std::string_view sig, size_t pos = 0);
+    /**
+     * 使用字符串构造迭代器
+     *
+     * @param sig 要遍历的签名
+     * @param pos 开始位置，默认为0
+     */
+    signature_iterator(std::string_view sig, size_t pos = 0);
 
     /**
      * 获取当前类型
@@ -330,6 +338,13 @@ public:
     bool is_valid() const;
 
     /**
+     * 检查签名是否为空
+     *
+     * @return 如果签名为空返回true
+     */
+    bool is_empty() const;
+
+    /**
      * 检查迭代器是否已遍历到末尾
      *
      * @return 如果已遍历到末尾返回true
@@ -366,6 +381,10 @@ public:
 
     std::string_view str() const {
         return m_sig;
+    }
+
+    size_t pos() const {
+        return m_pos;
     }
 
 private:

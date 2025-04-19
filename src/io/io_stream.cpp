@@ -265,6 +265,15 @@ std::size_t io_stream::align(std::size_t alignment) {
 }
 
 std::size_t io_stream::align_read(std::size_t alignment) {
+    auto padding = try_align_read(alignment);
+    if (!padding) {
+        MC_THROW(mc::eof_exception, "无法对齐读取位置");
+    }
+
+    return padding.value();
+}
+
+std::optional<std::size_t> io_stream::try_align_read(std::size_t alignment) {
     auto current_mod = m_read_pos % alignment;
     if (current_mod == 0) {
         return 0;
@@ -272,7 +281,7 @@ std::size_t io_stream::align_read(std::size_t alignment) {
 
     std::size_t padding = alignment - current_mod;
     if (padding > readable_bytes()) {
-        MC_THROW(mc::eof_exception, "无法对齐读取位置");
+        return std::nullopt;
     }
 
     m_read_pos += padding;

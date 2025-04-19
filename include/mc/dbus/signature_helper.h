@@ -230,20 +230,21 @@ struct signature_helper<mc::dbus::signature> {
     }
 };
 
+// 获取签名字符串的版本
+template <typename T>
+std::string get_signature() {
+    signature sig;
+    signature_helper<T>::apply(sig);
+    return sig.str();
+}
+
 } // namespace detail
 
 // 公共接口函数
 template <typename T>
-void get_signature(signature& sig) {
-    detail::signature_helper<T>::apply(sig);
-}
-
-// 获取签名字符串的版本
-template <typename T>
-signature get_signature() {
-    signature sig;
-    get_signature<T>(sig);
-    return sig;
+std::string_view get_signature() {
+    static std::string sig_str = detail::get_signature<T>();
+    return sig_str;
 }
 
 } // namespace mc::dbus

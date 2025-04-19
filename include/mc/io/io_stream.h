@@ -19,6 +19,7 @@
 #include <type_traits>
 #include <vector>
 
+#include <mc/common.h>
 #include <mc/exception.h>
 #include <mc/io/io_buffer.h>
 
@@ -311,6 +312,8 @@ public:
      */
     std::size_t align_read(std::size_t alignment);
 
+    std::optional<std::size_t> try_align_read(std::size_t alignment);
+
     /**
      * @brief 清空流
      */
@@ -337,6 +340,55 @@ public:
      * @param tailroom 尾部空间大小
      */
     void reserve(std::size_t headroom, std::size_t tailroom);
+
+    // 一个辅助机制用于自动回填写入长度
+    template <typename LengthType = uint32_t, int Alignment = sizeof(uint32_t),
+              int LengthWithSelf = false>
+    struct write_length_guard : mc::noncopyable {
+        static constexpr std::size_t invalid_start_pos = std::numeric_limits<std::size_t>::max();
+
+        write_length_guard(io_stream& stream, bool is_little_endian = mc::is_little_endian())
+            : m_stream(stream), m_is_little_endian(is_little_endian) {
+            // 是否需要对齐
+            if constexpr (Alignment >= 1) {
+                m_stream.align(Alignment);
+            }
+
+            // 预先写入长度并保存写入位置
+            m_start_pos = m_stream.get_write_pos();
+            m_stream.write_value<LengthType>(0, m_is_little_endian);
+        }
+
+        ~write_length_guard() {
+            fire();
+        }
+
+        /**
+         * @brief 触发回填消息体大小
+         */
+        void fire() {
+            if (m_start_pos == invalid_start_pos) {
+                return;
+            }
+
+            std::size_t length;
+            // 计算长度，如果长度不包含自身则需要减去长度自身的大小
+            if constexpr (LengthWithSelf) {
+                length = m_stream.get_write_pos() - m_start_pos;
+            } else {
+                length = m_stream.get_write_pos() - m_start_pos - sizeof(LengthType);
+            }
+
+            m_stream.seek_write(m_start_pos, seek_mode::begin);
+            m_start_pos = invalid_start_pos;
+            m_stream.write_value<LengthType>(length, m_is_little_endian);
+            m_stream.seek_write(0, seek_mode::end);
+        }
+
+        io_stream&  m_stream;
+        std::size_t m_start_pos{invalid_start_pos};
+        bool        m_is_little_endian{false};
+    };
 
 private:
     /**
