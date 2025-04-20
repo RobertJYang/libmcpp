@@ -255,8 +255,12 @@ std::vector<signature> signature::get_complete_types() const {
 }
 
 void signature::validate() const {
-    if (!is_valid(m_sig)) {
-        MC_THROW(invalid_signature_exception, "invalid signature: ${sig}", ("sig", m_sig));
+    validate(m_sig);
+}
+
+void signature::validate(std::string_view sig) {
+    if (!is_valid(sig)) {
+        MC_THROW(invalid_signature_exception, "invalid signature: ${sig}", ("sig", sig));
     }
 }
 
@@ -275,7 +279,7 @@ signature_iterator::signature_iterator(const signature& sig, size_t pos)
 }
 
 signature_iterator::signature_iterator(std::string_view sig, size_t pos) : m_sig(sig), m_pos(pos) {
-    MC_ASSERT(signature::is_valid(sig), "invalid signature: ${sig}", ("sig", sig));
+    signature::validate(sig);
 }
 
 std::string_view signature_iterator::current_type() const {

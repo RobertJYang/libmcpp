@@ -241,6 +241,10 @@ std::size_t io_stream::get_headroom() const noexcept {
 std::size_t io_stream::align(std::size_t alignment) {
     ensure_writable();
 
+    if (alignment <= 1) {
+        return 0;
+    }
+
     std::size_t padding = 0;
     if (m_write_pos == m_buffer->length()) {
         padding = m_buffer->align(alignment);
@@ -300,6 +304,10 @@ void io_stream::ensure_writable() const {
     if (!m_writable) {
         MC_THROW(mc::eof_exception, "流不可写");
     }
+}
+
+std::string_view io_stream::get_data() const {
+    return std::string_view(reinterpret_cast<const char*>(m_buffer->buffer()), m_buffer->length());
 }
 
 } // namespace io

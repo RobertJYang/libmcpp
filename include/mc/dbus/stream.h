@@ -23,31 +23,14 @@
 
 namespace mc::dbus {
 
-template <typename T>
-constexpr std::size_t type_alignment() {
-    using type = mc::traits::remove_cvref_t<T>;
-
-    if constexpr (std::is_same_v<type, bool>) {
-        return 4;
-    } else if constexpr (std::is_same_v<type, int8_t> || std::is_same_v<type, uint8_t>) {
-        return 1;
-    } else if constexpr (std::is_same_v<type, int16_t> || std::is_same_v<type, uint16_t>) {
-        return 2;
-    } else if constexpr (std::is_same_v<type, int32_t> || std::is_same_v<type, uint32_t>) {
-        return 4;
-    } else if constexpr (std::is_same_v<type, int64_t> || std::is_same_v<type, uint64_t>) {
-        return 8;
-    } else if constexpr (std::is_same_v<type, double> || std::is_same_v<type, float>) {
-        return 8;
-    }
-
-    static_assert(!std::is_same_v<type, void>, "Unsupported type");
-}
-
 class stream : public mc::io::io_stream {
 public:
+    using buffer = mc::io::io_buffer;
+    template <typename LengthType = uint32_t>
+    using write_length_guard = mc::io::io_stream::write_length_guard<LengthType>;
+
     stream();
-    stream(std::unique_ptr<mc::io::io_buffer> buffer, bool writable = true);
+    stream(std::unique_ptr<buffer> buffer, bool writable = true);
     ~stream();
 
     bool is_little_endian() const {
@@ -75,28 +58,33 @@ public:
     void write_signature(const signature& sig);
     void write_signature(std::string_view sig);
 
+    std::size_t align(std::size_t alignment);
+
 private:
     bool m_is_little_endian{true};
+
+    std::size_t m_last_alignment{0};     // 最近一次的对齐字节数
+    std::size_t m_last_alignment_pos{0}; // 最近对齐后的位置
 };
+
+void ensure_container_max_length(const char* type_name, std::size_t size);
+void ensure_message_depth(std::size_t depth);
+void ensure_message_size(stream& stream, std::size_t size);
 
 template <typename T>
 void ensure_container_max_length(T& container) {
-    if (container.size() > validator::maximum_array_size) {
-        MC_THROW(mc::dbus::invalid_message_exception,
-                 "类型 ${type} 的大小超过了最大限制, 最大 ${max_size}, 当前 ${current_size}",
-                 ("type", mc::pretty_name<T>())("max_size", validator::maximum_array_size)(
-                     "current_size", container.size()));
-    }
+    ensure_container_max_length(mc::pretty_name<T>(), container.size());
 }
-void ensure_message_depth(std::size_t depth);
-void ensure_message_size(stream& stream, std::size_t size);
 
 /*------------------------------------------------*/
 // 重载 operator>> 用于读取基本类型
 /*------------------------------------------------*/
 template <typename T, std::enable_if_t<std::is_arithmetic_v<T>, int> = 0>
 stream& operator>>(stream& stream, T& v) {
-    stream.align_read(type_alignment<T>());
+    constexpr std::size_t alignment = get_alignment<T>();
+    if constexpr (alignment > 1) {
+        stream.align_read(alignment);
+    }
     if constexpr (std::is_same_v<T, float>) {
         v = static_cast<T>(stream.read_value<double>(stream.is_little_endian()));
     } else if constexpr (std::is_same_v<T, bool>) {
@@ -139,7 +127,10 @@ stream& operator>>(stream& stream, T& v) {
 /*------------------------------------------------*/
 template <typename T, std::enable_if_t<std::is_arithmetic_v<T>, int> = 0>
 stream& operator<<(stream& stream, T v) {
-    stream.align(type_alignment<T>());
+    constexpr std::size_t alignment = get_alignment<T>();
+    if constexpr (alignment > 1) {
+        stream.align(alignment);
+    }
     if constexpr (std::is_same_v<T, float>) {
         stream.write_value(static_cast<double>(v), stream.is_little_endian());
     } else if constexpr (std::is_same_v<T, bool>) {
@@ -173,9 +164,52 @@ template <typename T, typename Allocator>
 stream& operator<<(stream& stream, const std::vector<T, Allocator>& v) {
     ensure_container_max_length(v);
     dbus::stream::write_length_guard<uint32_t> guard(stream, stream.is_little_endian());
+    guard.prepare_length_field();
+    guard.set_body_start_pos();
     for (const auto& item : v) {
         stream << item;
     }
+    return stream;
+}
+
+template <typename T, typename Allocator>
+stream& operator<<(stream& stream, const std::list<T, Allocator>& v) {
+    ensure_container_max_length(v);
+    dbus::stream::write_length_guard<uint32_t> guard(stream, stream.is_little_endian());
+    guard.prepare_length_field();
+    guard.set_body_start_pos();
+    for (const auto& item : v) {
+        stream << item;
+    }
+    return stream;
+}
+
+template <typename T, typename U>
+stream& operator<<(stream& stream, const std::pair<T, U>& v) {
+    stream.align(8);
+    stream << v.first << v.second;
+    return stream;
+}
+
+template <typename T>
+stream& operator<<(stream& stream, const std::optional<T>& v) {
+    // 用数组来表示可选值，如果可选值有值，则写入一个值，否则写入一个空数组
+    dbus::stream::write_length_guard<uint32_t> guard(stream, stream.is_little_endian());
+    guard.prepare_length_field();
+    guard.set_body_start_pos();
+    if (v.has_value()) {
+        stream << v.value();
+    }
+
+    return stream;
+}
+
+template <typename... T>
+stream& operator<<(stream& stream, const std::tuple<T...>& v) {
+    stream.align(8);
+    mc::traits::tuple_for_each(v, [&](auto&& item) {
+        stream << item;
+    });
     return stream;
 }
 
@@ -183,8 +217,23 @@ template <typename K, typename V, typename Comp, typename Alloc>
 stream& operator<<(stream& stream, const std::map<K, V, Comp, Alloc>& v) {
     ensure_container_max_length(v);
     dbus::stream::write_length_guard<uint32_t> guard(stream, stream.is_little_endian());
-
+    guard.prepare_length_field();
     stream.align(8);
+    guard.set_body_start_pos();
+    for (const auto& item : v) {
+        stream.align(8);
+        stream << item;
+    }
+    return stream;
+}
+
+template <typename K, typename V, typename Hash, typename KeyEqual, typename Alloc>
+stream& operator<<(stream& stream, const std::unordered_map<K, V, Hash, KeyEqual, Alloc>& v) {
+    ensure_container_max_length(v);
+    dbus::stream::write_length_guard<uint32_t> guard(stream, stream.is_little_endian());
+    guard.prepare_length_field();
+    stream.align(8);
+    guard.set_body_start_pos();
     for (const auto& item : v) {
         stream.align(8);
         stream << item;

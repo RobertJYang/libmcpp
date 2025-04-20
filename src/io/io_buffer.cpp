@@ -153,7 +153,7 @@ std::unique_ptr<io_buffer> io_buffer::take_ownership(void* buf, std::size_t capa
     return std::unique_ptr<io_buffer>(new io_buffer(buf, capacity, length, free_fn, user_data));
 }
 
-std::unique_ptr<io_buffer> io_buffer::wrap_buffer(const void* buf, std::size_t length) {
+std::unique_ptr<io_buffer> io_buffer::wrap(const void* buf, std::size_t length) {
     if (!buf && length > 0) {
         MC_THROW(mc::invalid_arg_exception, "缓冲区指针为空但长度大于0");
     }

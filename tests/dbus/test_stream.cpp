@@ -12,8 +12,7 @@
 
 #include <gtest/gtest.h>
 #include <mc/dbus/error.h>
-#include <mc/dbus/marshalled.h>
-#include <mc/dbus/message_header.h>
+#include <mc/dbus/message.h>
 #include <mc/dbus/path.h>
 #include <mc/dbus/signature.h>
 #include <mc/dbus/stream.h>

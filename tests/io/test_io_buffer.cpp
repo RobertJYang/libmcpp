@@ -334,14 +334,14 @@ TEST(IOBufferTest, TakeOwnership) {
     EXPECT_TRUE(was_freed);
 }
 
-// 测试 wrap_buffer 函数
+// 测试 wrap 函数
 TEST(IOBufferTest, WrapBuffer) {
     // 创建不会被 io_buffer 释放的静态数据
     static const uint8_t external_data[] = {0x01, 0x23, 0x45, 0x67, 0x89, 0xAB, 0xCD, 0xEF};
     const size_t         data_size       = sizeof(external_data);
 
     // 包装外部缓冲区
-    auto buffer = io::io_buffer::wrap_buffer(external_data, data_size);
+    auto buffer = io::io_buffer::wrap(external_data, data_size);
 
     // 验证基本属性
     ASSERT_TRUE(buffer != nullptr);
@@ -433,12 +433,12 @@ TEST(IOBufferTest, EdgeCases) {
     EXPECT_TRUE(empty_copy->empty());
 
     // 测试包装nullptr但长度为0的缓冲区
-    auto null_wrapped = io::io_buffer::wrap_buffer(nullptr, 0);
+    auto null_wrapped = io::io_buffer::wrap(nullptr, 0);
     EXPECT_EQ(null_wrapped->length(), 0);
     EXPECT_TRUE(null_wrapped->empty());
 
     // 测试无效参数错误处理
-    EXPECT_THROW(io::io_buffer::wrap_buffer(nullptr, 10), mc::exception); // nullptr但长度不为0
+    EXPECT_THROW(io::io_buffer::wrap(nullptr, 10), mc::exception); // nullptr但长度不为0
 
     EXPECT_THROW(io::io_buffer::take_ownership(nullptr, 100), mc::exception); // nullptr缓冲区
 

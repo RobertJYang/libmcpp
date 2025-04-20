@@ -13,24 +13,9 @@
 #include <dbus/dbus.h>
 #include <gtest/gtest.h>
 #include <mc/dbus/error.h>
-#include <mc/dbus/message_header.h>
+#include <mc/dbus/message.h>
 
 using namespace mc::dbus;
-
-// 测试消息生成器和解析器
-class marshalled_test : public ::testing::Test {
-protected:
-    void SetUp() override {
-    }
-
-    void TearDown() override {
-        if (message != nullptr) {
-            dbus_message_unref(message);
-        }
-    }
-
-    DBusMessage* message{nullptr};
-};
 
 struct test_struct {
     int8_t      i8;
@@ -54,7 +39,7 @@ struct test_struct {
     mc::dict     m; // a{sv}
 
     // 标准库类型
-    std::optional<int>                   std_o;    // v
+    std::optional<int>                   std_o;    // ai
     std::pair<int, std::string>          std_p;    // (is)
     std::tuple<int, std::string, bool>   std_t;    // (isb)
     std::vector<int>                     std_vec;  // a(i)
@@ -63,37 +48,53 @@ struct test_struct {
     std::unordered_map<std::string, int> std_umap; // a{si}
 };
 
-MC_REFLECT(test_struct, (i8)(u8)(i16)(u16)(i32)(u32)(i64)(u64)(f)(d)(str)(b)(p)(sig)(v)(a)(m)
+MC_REFLECT(test_struct, (i8)(u8)(i16)(u16)(i32)(u32)(i64)(u64)(f)(d)(str)(b)(p)(sig)
+           // mc 复杂类型
+           (v)(a)(m)
            // 标准库类型
            (std_o)(std_p)(std_t)(std_vec)(std_list)(std_map)(std_umap))
 
-TEST_F(marshalled_test, test_dbus_message) {
-    test_struct ts_out;
-    ts_out.i8       = 1;
-    ts_out.u8       = 2;
-    ts_out.i16      = 3;
-    ts_out.u16      = 4;
-    ts_out.i32      = 5;
-    ts_out.u32      = 6;
-    ts_out.i64      = 7;
-    ts_out.u64      = 8;
-    ts_out.f        = 9.0f;
-    ts_out.d        = 10.0;
-    ts_out.str      = "Hello";
-    ts_out.b        = true;
-    ts_out.p        = "/org/freedesktop/DBus";
-    ts_out.sig      = "s";
-    ts_out.v        = "world";
-    ts_out.a        = {"1", "12", "123", "1234", "12345"};
-    ts_out.m        = {{"key1", "1"}, {"key12", "12"}, {"key123", "123"}};
-    ts_out.std_o    = 1;
-    ts_out.std_p    = {1, "12"};
-    ts_out.std_t    = {1, "12", true};
-    ts_out.std_vec  = {1, 2, 3, 4, 5};
-    ts_out.std_list = {"1", "12", "123", "1234", "12345"};
-    ts_out.std_map  = {{1, 1}, {2, 2}, {3, 3}, {4, 4}, {5, 5}};
-    ts_out.std_umap = {{"1", 1}, {"12", 2}, {"123", 3}, {"1234", 4}, {"12345", 5}};
+// 测试C++标准库类型反射
+class reflect_test : public ::testing::Test {
+protected:
+    void SetUp() override {
+        ts_out.i8       = 1;
+        ts_out.u8       = 2;
+        ts_out.i16      = 3;
+        ts_out.u16      = 4;
+        ts_out.i32      = 5;
+        ts_out.u32      = 6;
+        ts_out.i64      = 7;
+        ts_out.u64      = 8;
+        ts_out.f        = 9.0f;
+        ts_out.d        = 10.0;
+        ts_out.str      = "Hello";
+        ts_out.b        = true;
+        ts_out.p        = "/org/freedesktop/DBus";
+        ts_out.sig      = "s";
+        ts_out.v        = "world";
+        ts_out.a        = {"1", "12", "123", "1234", "12345"};
+        ts_out.m        = {{"key1", "1"}, {"key12", "12"}, {"key123", "123"}};
+        ts_out.std_o    = 1;
+        ts_out.std_p    = {1, "12"};
+        ts_out.std_t    = {1, "12", true};
+        ts_out.std_vec  = {1, 2, 3, 4, 5};
+        ts_out.std_list = {"1", "12", "123", "1234", "12345"};
+        ts_out.std_map  = {{1, 1}, {2, 2}, {3, 3}, {4, 4}, {5, 5}};
+        ts_out.std_umap = {{"1", 1}, {"12", 2}, {"123", 3}, {"1234", 4}, {"12345", 5}};
+    }
 
+    void TearDown() override {
+        if (message != nullptr) {
+            dbus_message_unref(message);
+        }
+    }
+
+    DBusMessage* message{nullptr};
+    test_struct  ts_out;
+};
+
+TEST_F(reflect_test, test_dbus_message_to_struct) {
     message = dbus_message_new_method_call("org.freedesktop.DBus", "/org/freedesktop/DBus",
                                            "org.freedesktop.DBus", "Hello");
     EXPECT_NE(message, nullptr);
@@ -103,6 +104,8 @@ TEST_F(marshalled_test, test_dbus_message) {
 
     DBusMessageIter struct_iter;
     dbus_message_iter_open_container(&iter, DBUS_TYPE_STRUCT, nullptr, &struct_iter);
+
+    // 写入基础类型
     dbus_message_iter_append_basic(&struct_iter, DBUS_TYPE_BYTE, &ts_out.i8);
     dbus_message_iter_append_basic(&struct_iter, DBUS_TYPE_BYTE, &ts_out.u8);
     dbus_message_iter_append_basic(&struct_iter, DBUS_TYPE_INT16, &ts_out.i16);
@@ -252,47 +255,100 @@ TEST_F(marshalled_test, test_dbus_message) {
     dbus_message_marshal(message, &marshalled_data, &len);
     EXPECT_NE(marshalled_data, nullptr);
     EXPECT_GT(len, 0);
-    const char* expected_sig = dbus_message_get_signature(message);
+    std::string_view message_sig = dbus_message_get_signature(message);
+    ASSERT_EQ(get_signature<test_struct>(), message_sig);
 
-    message_header header;
+    mc::dbus::message<test_struct> msg;
 
-    stream stream(mc::io::io_buffer::wrap_buffer(marshalled_data, len), false);
-    stream >> header;
-    EXPECT_EQ(header.m_type, message_type::method_call);
-    EXPECT_EQ(header.m_path, "/org/freedesktop/DBus");
-    EXPECT_EQ(header.m_interface, "org.freedesktop.DBus");
-    EXPECT_EQ(header.m_member, "Hello");
-    EXPECT_EQ(header.m_serial, 123456);
-    EXPECT_EQ(header.m_signature, expected_sig);
-    EXPECT_EQ(header.m_signature, get_signature<test_struct>());
+    stream s(stream::buffer::wrap(marshalled_data, len), false);
+    s >> msg;
+    EXPECT_EQ(msg.type, message_type::method_call);
+    EXPECT_EQ(msg.path, "/org/freedesktop/DBus");
+    EXPECT_EQ(msg.interface, "org.freedesktop.DBus");
+    EXPECT_EQ(msg.member, "Hello");
+    EXPECT_EQ(msg.serial, 123456);
+    ASSERT_EQ(msg.signature, message_sig);
+    EXPECT_EQ(msg.signature, get_signature<test_struct>());
 
-    test_struct body;
-    stream >> body;
+    EXPECT_EQ(msg.body.i8, 1);
+    EXPECT_EQ(msg.body.u8, 2);
+    EXPECT_EQ(msg.body.i16, 3);
+    EXPECT_EQ(msg.body.u16, 4);
+    EXPECT_EQ(msg.body.i32, 5);
+    EXPECT_EQ(msg.body.u32, 6);
+    EXPECT_EQ(msg.body.i64, 7);
+    EXPECT_EQ(msg.body.u64, 8);
+    EXPECT_EQ(msg.body.f, 9.0f);
+    EXPECT_EQ(msg.body.d, 10.0);
+    EXPECT_EQ(msg.body.str, "Hello");
+    EXPECT_EQ(msg.body.b, true);
+    EXPECT_EQ(msg.body.p, "/org/freedesktop/DBus");
+    EXPECT_EQ(msg.body.sig, "s");
+    EXPECT_EQ(msg.body.v, "world");
+    EXPECT_EQ(msg.body.a, ts_out.a);
+    EXPECT_EQ(msg.body.m, ts_out.m);
+    EXPECT_EQ(msg.body.std_o, 1);
+    EXPECT_EQ(msg.body.std_p, ts_out.std_p);
+    EXPECT_EQ(msg.body.std_t, ts_out.std_t);
+    EXPECT_EQ(msg.body.std_vec, ts_out.std_vec);
+    EXPECT_EQ(msg.body.std_list, ts_out.std_list);
+    EXPECT_EQ(msg.body.std_map, ts_out.std_map);
+    EXPECT_EQ(msg.body.std_umap, ts_out.std_umap);
+    EXPECT_EQ(s.readable_bytes(), 0);
+}
 
-    EXPECT_EQ(body.i8, 1);
-    EXPECT_EQ(body.u8, 2);
-    EXPECT_EQ(body.i16, 3);
-    EXPECT_EQ(body.u16, 4);
-    EXPECT_EQ(body.i32, 5);
-    EXPECT_EQ(body.u32, 6);
-    EXPECT_EQ(body.i64, 7);
-    EXPECT_EQ(body.u64, 8);
-    EXPECT_EQ(body.f, 9.0f);
-    EXPECT_EQ(body.d, 10.0);
-    EXPECT_EQ(body.str, "Hello");
-    EXPECT_EQ(body.b, true);
-    EXPECT_EQ(body.p, "/org/freedesktop/DBus");
-    EXPECT_EQ(body.sig, "s");
-    EXPECT_EQ(body.v, "world");
-    EXPECT_EQ(body.a, ts_out.a);
-    EXPECT_EQ(body.m, ts_out.m);
-    EXPECT_EQ(body.std_o, 1);
-    EXPECT_EQ(body.std_p, ts_out.std_p);
-    EXPECT_EQ(body.std_t, ts_out.std_t);
-    EXPECT_EQ(body.std_vec, ts_out.std_vec);
-    EXPECT_EQ(body.std_list, ts_out.std_list);
-    EXPECT_EQ(body.std_map, ts_out.std_map);
-    EXPECT_EQ(body.std_umap, ts_out.std_umap);
+TEST_F(reflect_test, test_struct_to_dbus_message) {
+    mc::dbus::message<test_struct&> msg(ts_out);
 
-    EXPECT_EQ(stream.readable_bytes(), 0);
+    msg.type        = message_type::method_call;
+    msg.path        = "/org/freedesktop/DBus";
+    msg.interface   = "org.freedesktop.DBus";
+    msg.destination = "org.freedesktop.DBus";
+    msg.member      = "Hello";
+    msg.serial      = 123456;
+
+    mc::dbus::stream output_stream;
+    output_stream << msg;
+    std::string_view buffer = output_stream.get_data();
+    const char*      data   = buffer.data();
+
+    DBusError err;
+    dbus_error_init(&err);
+    auto mm = dbus_message_demarshal(data, buffer.size(), &err);
+    if (dbus_error_is_set(&err)) {
+        EXPECT_EQ(std::string_view(err.name), "");
+        EXPECT_EQ(std::string_view(err.message), "");
+    }
+    dbus_error_free(&err);
+    ASSERT_NE(mm, nullptr);
+    EXPECT_EQ(dbus_message_get_signature(mm), get_signature<test_struct>());
+
+    // 反序列化
+    mc::dbus::message<test_struct> msg_in;
+    stream input_stream(stream::buffer::wrap(buffer.data(), buffer.size()), false);
+    input_stream >> msg_in;
+    EXPECT_EQ(msg_in.body.i8, 1);
+    EXPECT_EQ(msg_in.body.u8, 2);
+    EXPECT_EQ(msg_in.body.i16, 3);
+    EXPECT_EQ(msg_in.body.u16, 4);
+    EXPECT_EQ(msg_in.body.i32, 5);
+    EXPECT_EQ(msg_in.body.u32, 6);
+    EXPECT_EQ(msg_in.body.i64, 7);
+    EXPECT_EQ(msg_in.body.u64, 8);
+    EXPECT_EQ(msg_in.body.f, 9.0f);
+    EXPECT_EQ(msg_in.body.d, 10.0);
+    EXPECT_EQ(msg_in.body.str, "Hello");
+    EXPECT_EQ(msg_in.body.b, true);
+    EXPECT_EQ(msg_in.body.p, "/org/freedesktop/DBus");
+    EXPECT_EQ(msg_in.body.sig, "s");
+    EXPECT_EQ(msg_in.body.v, "world");
+    EXPECT_EQ(msg_in.body.a, ts_out.a);
+    EXPECT_EQ(msg_in.body.m, ts_out.m);
+    EXPECT_EQ(msg_in.body.std_o, 1);
+    EXPECT_EQ(msg_in.body.std_p, ts_out.std_p);
+    EXPECT_EQ(msg_in.body.std_t, ts_out.std_t);
+    EXPECT_EQ(msg_in.body.std_vec, ts_out.std_vec);
+    EXPECT_EQ(msg_in.body.std_list, ts_out.std_list);
+    EXPECT_EQ(msg_in.body.std_map, ts_out.std_map);
+    EXPECT_EQ(msg_in.body.std_umap, ts_out.std_umap);
 }

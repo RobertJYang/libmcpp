@@ -69,6 +69,23 @@ struct signature_helper<T, std::enable_if_t<std::is_arithmetic_v<T>>> {
             static_assert(std::is_same_v<T, void>, "Unsupported type");
         }
     }
+
+    static constexpr std::size_t get_alignment() {
+        if constexpr (std::is_same_v<T, bool>) {
+            return 4;
+        } else if constexpr (std::is_same_v<T, int8_t> || std::is_same_v<T, uint8_t>) {
+            return 1;
+        } else if constexpr (std::is_same_v<T, int16_t> || std::is_same_v<T, uint16_t>) {
+            return 2;
+        } else if constexpr (std::is_same_v<T, int32_t> || std::is_same_v<T, uint32_t>) {
+            return 4;
+        } else if constexpr (std::is_same_v<T, int64_t> || std::is_same_v<T, uint64_t>) {
+            return 8;
+        } else if constexpr (std::is_same_v<T, double> || std::is_same_v<T, float>) {
+            return 8;
+        }
+        static_assert(!std::is_same_v<T, void>, "Unsupported type");
+    }
 };
 
 // 对字符串类型的特化
@@ -77,6 +94,10 @@ struct signature_helper<
     T, std::enable_if_t<std::is_same_v<T, std::string> || std::is_same_v<T, std::string_view>>> {
     static void apply(signature& sig) {
         sig += type_code::string_type;
+    }
+
+    static constexpr std::size_t get_alignment() {
+        return 4;
     }
 };
 
@@ -89,6 +110,10 @@ struct signature_helper<std::pair<K, V>> {
         signature_helper<V>::apply(sig);
         sig += type_code::struct_end;
     }
+
+    static constexpr std::size_t get_alignment() {
+        return std::max(signature_helper<K>::get_alignment(), signature_helper<V>::get_alignment());
+    }
 };
 
 // 对 std::tuple 的特化
@@ -98,6 +123,10 @@ struct signature_helper<std::tuple<Args...>> {
         sig += type_code::struct_start;
         ((signature_helper<Args>::apply(sig)), ...);
         sig += type_code::struct_end;
+    }
+
+    static constexpr std::size_t get_alignment() {
+        return (std::max({signature_helper<Args>::get_alignment()...}));
     }
 };
 
@@ -109,6 +138,11 @@ struct signature_helper<std::optional<T>> {
         sig += type_code::array_start;
         signature_helper<T>::apply(sig);
     }
+
+    static constexpr std::size_t get_alignment() {
+        // 类型 T 与数组长度（uint32_t）对齐对最大值
+        return std::max(signature_helper<T>::get_alignment(), std::size_t(4));
+    }
 };
 
 // 对 std::vector 的特化
@@ -117,6 +151,11 @@ struct signature_helper<std::vector<T, Alloc>> {
     static void apply(signature& sig) {
         sig += type_code::array_start;
         signature_helper<T>::apply(sig);
+    }
+
+    static constexpr std::size_t get_alignment() {
+        // 类型 T 与数组长度（uint32_t）对齐对最大值
+        return std::max(signature_helper<T>::get_alignment(), std::size_t(4));
     }
 };
 
@@ -127,6 +166,11 @@ struct signature_helper<std::list<T, Alloc>> {
         sig += type_code::array_start;
         signature_helper<T>::apply(sig);
     }
+
+    static constexpr std::size_t get_alignment() {
+        // 类型 T 与数组长度（uint32_t）对齐对最大值
+        return std::max(signature_helper<T>::get_alignment(), std::size_t(4));
+    }
 };
 
 // 对 std::queue 的特化
@@ -136,6 +180,11 @@ struct signature_helper<std::queue<T, Alloc>> {
         sig += type_code::array_start;
         signature_helper<T>::apply(sig);
     }
+
+    static constexpr std::size_t get_alignment() {
+        // 类型 T 与数组长度（uint32_t）对齐对最大值
+        return std::max(signature_helper<T>::get_alignment(), std::size_t(4));
+    }
 };
 
 // 对 std::deque 的特化
@@ -144,6 +193,11 @@ struct signature_helper<std::deque<T, Alloc>> {
     static void apply(signature& sig) {
         sig += type_code::array_start;
         signature_helper<T>::apply(sig);
+    }
+
+    static constexpr std::size_t get_alignment() {
+        // 类型 T 与数组长度（uint32_t）对齐对最大值
+        return std::max(signature_helper<T>::get_alignment(), std::size_t(4));
     }
 };
 
@@ -156,6 +210,12 @@ struct signature_helper<std::map<K, V, Comp, Alloc>> {
         signature_helper<V>::apply(sig);
         sig += "}";
     }
+
+    static constexpr std::size_t get_alignment() {
+        // 类型 K 与类型 V 对齐对最大值，与数组长度（uint32_t）对齐对最大值
+        return std::max({signature_helper<K>::get_alignment(), signature_helper<V>::get_alignment(),
+                         std::size_t(4)});
+    }
 };
 
 // 对 std::unordered_map 的特化
@@ -166,6 +226,12 @@ struct signature_helper<std::unordered_map<K, V, Hash, KeyEqual, Alloc>> {
         signature_helper<K>::apply(sig);
         signature_helper<V>::apply(sig);
         sig += "}";
+    }
+
+    static constexpr std::size_t get_alignment() {
+        // 类型 K 与类型 V 对齐对最大值，与数组长度（uint32_t）对齐对最大值
+        return std::max({signature_helper<K>::get_alignment(), signature_helper<V>::get_alignment(),
+                         std::size_t(4)});
     }
 };
 
@@ -180,6 +246,15 @@ struct signature_helper<T, std::enable_if_t<mc::reflect::is_reflectable<T>()>> {
         });
         sig += type_code::struct_end;
     }
+
+    static constexpr std::size_t get_alignment() {
+        return std::apply(
+            [](auto&&... args) {
+                return (std::max({signature_helper<
+                    typename std::decay_t<decltype(args)>::member_type>::get_alignment()...}));
+            },
+            mc::reflect::reflector<T>::get_properties());
+    }
 };
 
 // 对 variant 的特化
@@ -187,6 +262,10 @@ template <typename Config>
 struct signature_helper<mc::variant_base<Config>> {
     static void apply(signature& sig) {
         sig += type_code::variant_type;
+    }
+
+    static constexpr std::size_t get_alignment() {
+        return 1;
     }
 };
 
@@ -196,6 +275,10 @@ struct signature_helper<mc::dict> {
     static void apply(signature& sig) {
         sig += container::dict_string_var;
     }
+
+    static constexpr std::size_t get_alignment() {
+        return 8;
+    }
 };
 
 // 对 variants 的特化
@@ -203,6 +286,11 @@ template <>
 struct signature_helper<mc::variants> {
     static void apply(signature& sig) {
         sig += container::array_of_variant;
+    }
+
+    // av 类型
+    static constexpr std::size_t get_alignment() {
+        return 4;
     }
 };
 
@@ -212,6 +300,10 @@ struct signature_helper<mc::blob> {
     static void apply(signature& sig) {
         sig += container::array_of_byte;
     }
+
+    static constexpr std::size_t get_alignment() {
+        return 4;
+    }
 };
 
 // 对 path 的特化
@@ -220,6 +312,10 @@ struct signature_helper<mc::dbus::path> {
     static void apply(signature& sig) {
         sig += type_code::object_path_type;
     }
+
+    static constexpr std::size_t get_alignment() {
+        return 4;
+    }
 };
 
 // 对 signature 的特化
@@ -227,6 +323,10 @@ template <>
 struct signature_helper<mc::dbus::signature> {
     static void apply(signature& sig) {
         sig += type_code::signature_type;
+    }
+
+    static constexpr std::size_t get_alignment() {
+        return 1;
     }
 };
 
@@ -243,8 +343,17 @@ std::string get_signature() {
 // 公共接口函数
 template <typename T>
 std::string_view get_signature() {
-    static std::string sig_str = detail::get_signature<T>();
+    using type = std::decay_t<T>;
+
+    static std::string sig_str = detail::get_signature<type>();
     return sig_str;
+}
+
+template <typename T>
+constexpr std::size_t get_alignment() {
+    using type = std::decay_t<T>;
+
+    return detail::signature_helper<type>::get_alignment();
 }
 
 } // namespace mc::dbus

@@ -145,6 +145,15 @@ static void variant_to_dbus_signature(signature& sig, const mc::variant& v) {
 
 } // namespace detail
 
+void ensure_container_max_length(const char* type_name, std::size_t size) {
+    if (size > validator::maximum_array_size) {
+        MC_THROW(
+            mc::dbus::invalid_message_exception,
+            "类型 ${type} 的大小超过了最大限制, 最大 ${max_size}, 当前 ${current_size}",
+            ("type", type_name)("max_size", validator::maximum_array_size)("current_size", size));
+    }
+}
+
 void ensure_message_depth(std::size_t depth) {
     if (depth >= validator::maximum_message_depth) {
         MC_THROW(mc::dbus::invalid_message_exception,
@@ -238,8 +247,6 @@ void stream::read_variant_dict(signature_iterator it, mc::mutable_dict& dict, st
 
     signature_iterator key_it   = it.get_dict_key_iterator();
     signature_iterator value_it = it.get_dict_value_iterator();
-
-    align_read(8);
 
     int32_t remain_size = dict_size;
     while (remain_size > 0) {
@@ -391,6 +398,8 @@ void stream::write_variant_array(signature_iterator it, const mc::variants& arr,
 
     // 预留数组长度字段，析构的时候自动回填
     write_length_guard<uint32_t> guard(*this, is_little_endian());
+    guard.prepare_length_field();
+    guard.set_body_start_pos();
     for (const auto& item : arr) {
         write_variant(it, item, depth + 1);
     }
@@ -400,6 +409,7 @@ void stream::write_variant_struct(signature_iterator it, const mc::variant& v, s
     ensure_message_depth(depth);
 
     align(8);
+
     const mc::variants& arr = v.get_array();
     for (const auto& item : arr) {
         signature_iterator item_it(it.current_type());
@@ -420,14 +430,18 @@ void stream::write_variant_dict(signature_iterator it, const mc::dict& dict, std
 
     // 预留字典长度字段，析构的时候自动回填
     write_length_guard<uint32_t> guard(*this, is_little_endian());
+    guard.prepare_length_field();
 
     align(8);
+
+    guard.set_body_start_pos();
     for (const auto& entry : dict) {
         align(8);
 
         write_variant(it.get_dict_key_iterator(), entry.key, depth + 1);
         write_variant(it.get_dict_value_iterator(), entry.value, depth + 1);
     }
+    guard.fire();
 }
 
 void stream::write_signature(const signature& sig) {
@@ -440,6 +454,17 @@ void stream::write_signature(std::string_view sig) {
 
     // 添加尾部的0
     write_value<uint8_t>(0);
+}
+
+std::size_t stream::align(std::size_t alignment) {
+    if (alignment <= 1) {
+        return 0;
+    }
+
+    std::size_t padding  = io_stream::align(alignment);
+    m_last_alignment_pos = get_write_pos();
+    m_last_alignment     = alignment;
+    return padding;
 }
 
 // operator>>
@@ -524,9 +549,7 @@ stream& operator<<(stream& stream, const std::string& v) {
 }
 
 stream& operator<<(stream& stream, std::string_view v) {
-    stream.align(4);
-
-    stream.write_value<uint32_t>(v.size(), stream.is_little_endian());
+    stream << static_cast<uint32_t>(v.size());
     stream.write(v.data(), v.size());
 
     // 添加尾部的0

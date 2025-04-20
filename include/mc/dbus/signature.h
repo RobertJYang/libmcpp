@@ -261,7 +261,8 @@ public:
      */
     std::vector<signature> get_complete_types() const;
 
-    void validate() const;
+    void        validate() const;
+    static void validate(std::string_view sig);
 
 private:
     std::string m_sig;
@@ -294,6 +295,9 @@ public:
      * @param pos 开始位置，默认为0
      */
     signature_iterator(std::string_view sig, size_t pos = 0);
+    signature_iterator(const std::string& sig, size_t pos = 0)
+        : signature_iterator(std::string_view(sig), pos) {
+    }
 
     /**
      * 获取当前类型

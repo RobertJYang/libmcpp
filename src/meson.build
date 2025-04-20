@@ -39,8 +39,7 @@ src_files = [
   'dbus/signature.cpp',
   'dbus/stream.cpp',
   'dbus/path.cpp',
-  'dbus/message_header.cpp',
-  'dbus/marshalled.cpp',
+  'dbus/message.cpp',
 ]
 
 # 创建共享库

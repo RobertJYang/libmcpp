@@ -208,7 +208,7 @@ struct reflector {
  */
 template <typename T>
 constexpr bool is_reflectable() {
-    return reflector<T>::is_defined::value;
+    return reflector<std::decay_t<T>>::is_defined::value;
 }
 
 /**

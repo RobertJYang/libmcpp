@@ -156,7 +156,7 @@ public:
      * @param length 有效数据长度
      * @return 创建的 io_buffer 对象指针
      */
-    static std::unique_ptr<io_buffer> wrap_buffer(const void* buf, std::size_t length);
+    static std::unique_ptr<io_buffer> wrap(const void* buf, std::size_t length);
 
     /**
      * @brief 复制数据到新的缓冲区

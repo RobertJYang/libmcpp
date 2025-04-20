@@ -37,7 +37,7 @@ MC_REFLECT(user, ((m_id, "ID"))((m_name, "姓名"))((m_age, "年龄")))
 MC_REFLECT(product, (m_id)((m_name, "产品名称"))(m_price)((m_stock, "库存")))
 
 // 测试自定义名称的反射
-TEST(reflect_test, custom_name) {
+TEST(reflect_custom_name_test, custom_name) {
     // 创建一个用户对象
     user u;
     u.m_id   = 1001;
@@ -75,7 +75,7 @@ TEST(reflect_test, custom_name) {
 }
 
 // 测试混合使用默认名称和自定义名称的反射
-TEST(reflect_test, mixed_names) {
+TEST(reflect_custom_name_test, mixed_names) {
     // 创建一个产品对象
     product p;
     p.m_id    = 101;
@@ -122,7 +122,7 @@ TEST(reflect_test, mixed_names) {
 }
 
 // 测试反射工具函数
-TEST(reflect_test, reflection_utils) {
+TEST(reflect_custom_name_test, reflection_utils) {
     // 测试类型名称获取
     ASSERT_EQ(mc::reflect::get_type_name<user>(), "user");
     ASSERT_EQ(mc::reflect::get_type_name<product>(), "product");
