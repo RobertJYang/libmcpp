@@ -341,6 +341,15 @@ public:
      */
     void reserve(std::size_t headroom, std::size_t tailroom);
 
+    std::string_view
+    get_data(std::size_t max_length = std::numeric_limits<std::size_t>::max()) const;
+
+    struct writeable_data {
+        char*       data;
+        std::size_t length;
+    };
+    writeable_data get_writeable_data() const;
+
     // 一个辅助机制用于自动回填写入长度
     template <typename LengthType = uint32_t>
     struct write_length_guard : mc::noncopyable {
@@ -396,8 +405,6 @@ public:
         std::size_t m_body_start_pos{invalid_pos};
         bool        m_is_little_endian{false};
     };
-
-    std::string_view get_data() const;
 
 private:
     /**

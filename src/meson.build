@@ -40,6 +40,13 @@ src_files = [
   'dbus/stream.cpp',
   'dbus/path.cpp',
   'dbus/message.cpp',
+  'dbus/validator.cpp',
+  'dbus/transport/transport.cpp',
+  'dbus/transport/transport_factory.cpp',
+  'dbus/transport/unix_socket_transport.cpp',
+  'dbus/address.cpp',
+  'dbus/connection.cpp',
+
 ]
 
 # 创建共享库

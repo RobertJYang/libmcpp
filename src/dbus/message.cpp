@@ -169,8 +169,6 @@ stream& operator>>(stream& stream, message_header& header) {
 stream& operator<<(stream& stream, message_header& header) {
     char endianness = stream.is_little_endian() ? 'l' : 'B';
     stream.write_value<char>(endianness);
-
-    // 解析消息类型
     stream.write_value<uint8_t>(static_cast<uint8_t>(header.type));
     stream.write_value<uint8_t>(header.flags);
     stream.write_value<uint8_t>(header.version);

@@ -115,7 +115,8 @@ template <typename T, std::enable_if_t<mc::reflect::is_reflectable<T>(), int> = 
 stream& operator>>(stream& stream, T& v) {
     std::string_view sig = get_signature<T>();
 
-    // TODO:: 反射类型先通过variant中转，后续可以优化成直接从stream中读取到T中
+    // TODO:: 反射类型先通过 mc::variant 中转，后续可以优化成直接从 stream 读取到T中，
+    // operator<< 已经是直接写入到stream中不需要 mc::variant 中转
     mc::variant tmp;
     stream.read_variant(sig, tmp, 0);
     from_variant(tmp, v);

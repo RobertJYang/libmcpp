@@ -56,6 +56,7 @@ enum exception_code {
     divide_by_zero_code           = 18, // 除零异常
     bad_function_call_code        = 19, // 函数调用异常
     bad_alloc_code                = 20, // 内存分配异常
+    busy_exception_code           = 21, // 繁忙异常
 };
 
 /**
@@ -357,6 +358,7 @@ MC_DEFINE_EXCEPTION_CLASS(not_implemented_exception, file_not_found_exception_co
 MC_DEFINE_EXCEPTION_CLASS(bad_function_call_exception, bad_function_call_code, "函数调用错误",
                           "bad_function_call")
 MC_DEFINE_EXCEPTION_CLASS(bad_alloc_exception, bad_alloc_code, "内存分配错误", "bad_alloc")
+MC_DEFINE_EXCEPTION_CLASS(busy_exception, busy_exception_code, "繁忙", "busy")
 
 /**
  * @brief 完整自定义异常类宏（MC_DEFINE_EXCEPTION_CLASS 的别名）

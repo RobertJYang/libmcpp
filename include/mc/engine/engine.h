@@ -49,7 +49,7 @@ public:
 
     // 注册对象表（每个对象类对应一个表）
     template <typename T>
-    bool register_object_table(std::shared_ptr<mc::db::table<T>> table) {
+    bool register_table(std::shared_ptr<mc::db::table<T>> table) {
         if (!table || table->get_table_name().empty()) {
             return false;
         }
@@ -60,7 +60,7 @@ public:
 
     // 注销对象表
     template <typename T>
-    void unregister_object_table(std::shared_ptr<mc::db::table<T>> table) {
+    void unregister_table(std::shared_ptr<mc::db::table<T>> table) {
         if (!table || table->get_table_name().empty()) {
             return;
         }

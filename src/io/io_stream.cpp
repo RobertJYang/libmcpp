@@ -306,8 +306,13 @@ void io_stream::ensure_writable() const {
     }
 }
 
-std::string_view io_stream::get_data() const {
-    return std::string_view(reinterpret_cast<const char*>(m_buffer->buffer()), m_buffer->length());
+std::string_view io_stream::get_data(std::size_t max_length) const {
+    return std::string_view(reinterpret_cast<const char*>(m_buffer->data()),
+                            std::min(m_buffer->length(), max_length));
+}
+
+io_stream::writeable_data io_stream::get_writeable_data() const {
+    return {reinterpret_cast<char*>(m_buffer->mutable_data()) + m_write_pos, get_tailroom()};
 }
 
 } // namespace io

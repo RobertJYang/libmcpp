@@ -78,6 +78,21 @@ struct message_header {
     bool expects_reply() const {
         return flags & DBUS_MESSAGE_NO_REPLY_EXPECTED;
     }
+
+    void set_serial(uint32_t serial) {
+        this->serial = serial;
+    }
+
+    uint32_t get_serial() const {
+        return serial;
+    }
+
+    std::size_t need_bytes() const {
+        if (body_len > 0) {
+            return MC_ALIGN_UP(header_len, 8) + body_len;
+        }
+        return header_len;
+    }
 };
 
 template <typename T = mc::variants, typename = void>
