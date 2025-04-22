@@ -91,6 +91,10 @@ std::size_t io_stream::length() const noexcept {
 }
 
 std::size_t io_stream::readable_bytes() const noexcept {
+    if (m_read_pos >= m_buffer->length()) {
+        return 0;
+    }
+
     return m_buffer->length() - m_read_pos;
 }
 
@@ -306,13 +310,33 @@ void io_stream::ensure_writable() const {
     }
 }
 
-std::string_view io_stream::get_data(std::size_t max_length) const {
-    return std::string_view(reinterpret_cast<const char*>(m_buffer->data()),
-                            std::min(m_buffer->length(), max_length));
+std::string_view io_stream::peek(std::size_t max_length) const {
+    std::size_t length = std::min(readable_bytes(), max_length);
+    if (length == 0) {
+        return {};
+    }
+
+    auto data = m_buffer->data() + m_read_pos;
+    return std::string_view(reinterpret_cast<const char*>(data), std::min(length, max_length));
 }
 
-io_stream::writeable_data io_stream::get_writeable_data() const {
-    return {reinterpret_cast<char*>(m_buffer->mutable_data()) + m_write_pos, get_tailroom()};
+std::string_view io_stream::get_data() const {
+    return std::string_view(reinterpret_cast<const char*>(m_buffer->data()), m_buffer->length());
+}
+
+std::string_view io_stream::get_writeable_data(std::size_t min_length) {
+    if (m_read_pos == m_write_pos) {
+        m_read_pos  = 0;
+        m_write_pos = 0;
+    }
+
+    std::size_t length = get_tailroom();
+    if (length < min_length) {
+        m_buffer->reserve(get_headroom(), min_length);
+    }
+
+    auto data = m_buffer->mutable_data() + m_write_pos;
+    return {reinterpret_cast<char*>(data), length};
 }
 
 } // namespace io

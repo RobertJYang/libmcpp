@@ -13,8 +13,7 @@
 #ifndef MC_FUTURES_DETAIL_PROMISE_IMPL_H
 #define MC_FUTURES_DETAIL_PROMISE_IMPL_H
 
-namespace mc {
-namespace future {
+namespace mc::futures {
 
 template <typename T, typename Executor, typename Allocator>
 Promise<T, Executor, Allocator>::Promise(Executor& executor, const Allocator& alloc)
@@ -65,7 +64,6 @@ Future<T, Executor, Allocator> Promise<T, Executor, Allocator>::get_future() {
     return Future<T, Executor, Allocator>(state_);
 }
 
-} // namespace future
-} // namespace mc
+} // namespace mc::futures
 
 #endif // MC_FUTURES_DETAIL_PROMISE_IMPL_H

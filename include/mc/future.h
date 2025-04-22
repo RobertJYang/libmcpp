@@ -15,15 +15,30 @@
 #include <thread>
 #include <variant>
 
+#include <boost/asio.hpp>
+
 #include "mc/futures/exceptions.h"
 #include "mc/futures/state.h"
 #include "mc/futures/status.h"
+#include "mc/traits.h"
 
-namespace mc {
-namespace future {
+namespace mc ::futures {
 
 template <typename T, typename Executor, typename Allocator = std::allocator<void>>
 class Promise;
+
+namespace detail {
+
+template <typename T, typename = void>
+struct is_future : std::false_type {};
+
+template <typename T>
+struct is_future<T, std::void_t<typename T::is_future>> : std::true_type {};
+
+template <typename T>
+constexpr bool is_future_v = is_future<T>::value;
+
+} // namespace detail
 
 template <typename T, typename Executor, typename Allocator = std::allocator<void>>
 class Future {
@@ -31,8 +46,9 @@ public:
     using value_type     = T;
     using executor_type  = typename Executor::executor_type;
     using allocator_type = Allocator;
+    using is_future      = std::true_type;
 
-    explicit Future(std::shared_ptr<future::State<T, Executor, Allocator>> state) : state_(state) {
+    explicit Future(std::shared_ptr<futures::State<T, Executor, Allocator>> state) : state_(state) {
     }
     ~Future() = default;
 
@@ -47,7 +63,13 @@ public:
     // 链式操作
     template <typename F>
     auto then(F&& func, launch policy = launch::async)
-        -> Future<typename std::invoke_result_t<F, T>, Executor, Allocator>;
+        -> std::enable_if_t<detail::is_future_v<std::invoke_result_t<F, T>>,
+                            std::invoke_result_t<F, T>>;
+
+    template <typename F>
+    auto then(F&& func, launch policy = launch::async)
+        -> std::enable_if_t<!detail::is_future_v<std::invoke_result_t<F, T>>,
+                            Future<std::invoke_result_t<F, T>, Executor, Allocator>>;
 
     // 错误处理
     template <typename F>
@@ -84,7 +106,7 @@ private:
 
     template <typename U, typename E, typename A>
     friend class Future;
-    using State = future::State<T, Executor, Allocator>;
+    using State = futures::State<T, Executor, Allocator>;
     std::shared_ptr<State> state_;
 };
 
@@ -101,8 +123,8 @@ public:
     ~Promise() = default;
 
     // 禁止拷贝
-    Promise(const Promise&)            = delete;
-    Promise& operator=(const Promise&) = delete;
+    Promise(const Promise&)            = default;
+    Promise& operator=(const Promise&) = default;
 
     // 允许移动
     Promise(Promise&&) noexcept            = default;
@@ -124,15 +146,33 @@ private:
     Allocator                                                       allocator_;
 };
 
+template <typename T, typename Executor, typename Allocator>
+using make_promise = Promise<T, Executor, Allocator>;
+
 template <typename T, typename Executor, typename Allocator = std::allocator<void>>
-auto make_promise(Executor& executor, Allocator alloc = Allocator()) {
-    return Promise<T, Executor, Allocator>(executor, alloc);
+auto ok(T value, Executor& executor, Allocator alloc = Allocator()) {
+    auto promise = Promise<T, Executor, Allocator>(executor, alloc).set_value(value);
+    return promise.get_future();
 }
 
-} // namespace future
-} // namespace mc
+} // namespace mc::futures
 
 #include "mc/futures/detail/future_impl.h"
 #include "mc/futures/detail/promise_impl.h"
+
+namespace mc {
+
+template <typename T, typename Executor = boost::asio::io_context,
+          typename Allocator = std::allocator<void>>
+using make_promise = mc::futures::make_promise<T, Executor, Allocator>;
+template <typename T, typename Executor = boost::asio::io_context,
+          typename Allocator = std::allocator<void>>
+using future = mc::futures::Future<T, Executor, Allocator>;
+
+template <typename T, typename Executor = boost::asio::io_context,
+          typename Allocator = std::allocator<void>>
+using promise = mc::futures::Promise<T, Executor, Allocator>;
+
+} // namespace mc
 
 #endif // MC_FUTURE_H

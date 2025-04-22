@@ -22,8 +22,7 @@
 
 #include "status.h"
 
-namespace mc {
-namespace future {
+namespace mc::futures {
 
 template <typename T>
 using result_variant_t =
@@ -58,7 +57,6 @@ struct State {
     }
 };
 
-} // namespace future
 } // namespace mc
 
 #endif // MC_FUTURES_STATE_H
