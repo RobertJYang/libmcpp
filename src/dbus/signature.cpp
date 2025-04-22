@@ -264,6 +264,22 @@ void signature::validate(std::string_view sig) {
     }
 }
 
+type_code signature::first_type_code() const {
+    if (is_empty()) {
+        return type_code::invalid_type;
+    }
+
+    return char_to_type(m_sig[0]);
+}
+
+char signature::first_type() const {
+    if (is_empty()) {
+        return empty_signature;
+    }
+
+    return m_sig[0];
+}
+
 std::ostream& operator<<(std::ostream& os, const signature& sig) {
     os << sig.str();
     return os;

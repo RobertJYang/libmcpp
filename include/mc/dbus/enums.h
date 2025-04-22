@@ -31,11 +31,12 @@ enum class bus_type {
  * @brief DBus消息类型枚举
  */
 enum class message_type {
-    invalid       = 0, /**< 无效消息类型 */
-    method_call   = 1, /**< 方法调用消息 */
-    method_return = 2, /**< 方法返回消息 */
-    error         = 3, /**< 错误消息 */
-    signal        = 4  /**< 信号消息 */
+    invalid           = 0, /**< 无效消息类型 */
+    method_call       = 1, /**< 方法调用消息 */
+    method_return     = 2, /**< 方法返回消息 */
+    error             = 3, /**< 错误消息 */
+    signal            = 4, /**< 信号消息 */
+    num_message_types = 5
 };
 
 /**

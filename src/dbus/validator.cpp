@@ -7,6 +7,7 @@
  */
 
 #include "mc/dbus/validator.h"
+#include <dbus/dbus.h>
 #include <mc/engine/utils.h>
 
 namespace mc::dbus {
@@ -65,6 +66,11 @@ bool validator::is_valid_error_name(std::string_view errorname) {
 
 bool validator::is_message_too_large(std::size_t size) {
     return size >= maximum_message_size;
+}
+
+bool validator::is_valid_path(std::string_view path) {
+    // TODO: 检查路径是否有效
+    return true;
 }
 
 } // namespace mc::dbus

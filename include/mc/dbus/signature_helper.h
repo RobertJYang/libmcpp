@@ -332,20 +332,20 @@ struct signature_helper<mc::dbus::signature> {
 
 // 获取签名字符串的版本
 template <typename T>
-std::string get_signature() {
+signature get_signature() {
     signature sig;
     signature_helper<T>::apply(sig);
-    return sig.str();
+    return sig;
 }
 
 } // namespace detail
 
 // 公共接口函数
 template <typename T>
-std::string_view get_signature() {
+signature get_signature() {
     using type = std::decay_t<T>;
 
-    static std::string sig_str = detail::get_signature<type>();
+    static signature sig_str = detail::get_signature<type>();
     return sig_str;
 }
 

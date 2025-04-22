@@ -37,16 +37,15 @@ src_files = [
   'io/io_buffer.cpp',
   'io/io_stream.cpp',
   'dbus/signature.cpp',
-  'dbus/stream.cpp',
   'dbus/path.cpp',
   'dbus/message.cpp',
   'dbus/validator.cpp',
-  'dbus/transport/transport.cpp',
-  'dbus/transport/transport_factory.cpp',
-  'dbus/transport/unix_socket_transport.cpp',
-  'dbus/address.cpp',
-  'dbus/connection.cpp',
-  'dbus/dbus-daemon/daemon-proxy.cpp',
+  # 'dbus/transport/transport.cpp',
+  # 'dbus/transport/transport_factory.cpp',
+  # 'dbus/transport/unix_socket_transport.cpp',
+  # 'dbus/address.cpp',
+  # 'dbus/connection.cpp',
+  # 'dbus/dbus-daemon/daemon-proxy.cpp',
 ]
 
 # 创建共享库
@@ -54,7 +53,7 @@ libmcpp_lib = shared_library(
   'libmcpp',
   src_files,
   include_directories: [incdir],
-  dependencies: [boost_dep, boost_program_options_dep],
+  dependencies: [boost_dep, boost_program_options_dep, dbus_dep],
   install: true,
 )
 

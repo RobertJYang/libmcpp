@@ -90,11 +90,10 @@ test_files = [
   # dbus 目录
   # 'dbus/test_signature.cpp',
   # 'dbus/test_path.cpp',
-  # 'dbus/test_stream.cpp',
-  # 'dbus/test_reflect.cpp',
-  # 'dbus/test_dbus_message.cpp',
+  'dbus/test_reflect.cpp',
+  'dbus/test_dbus_message.cpp',
   # 'dbus/test_address.cpp',
-  'dbus/test_connection.cpp',
+  # 'dbus/test_connection.cpp',
 ]
 
 dbus_dep = dependency('dbus-1', method: 'pkg-config', required: true)

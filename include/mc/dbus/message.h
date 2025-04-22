@@ -16,150 +16,494 @@
 #include <mc/dbus/enums.h>
 #include <mc/dbus/signature.h>
 #include <mc/dbus/signature_helper.h>
-#include <mc/dbus/stream.h>
+#include <mc/exception.h>
 #include <mc/reflect.h>
 #include <mc/variant.h>
 
-#include <string_view>
+#include <dbus/dbus.h>
+
 namespace mc::dbus {
 
-constexpr std::size_t DBUS_MESSAGE_BODY_LEN_POS = 4;  // 消息体长度字段位置
-constexpr uint32_t    DBUS_MESSAGE_HEADER_SIZE  = 12; // DBus消息头部固定长度为12字节
-constexpr uint32_t    DBUS_MESSAGE_MIN_SIZE     = 16; // 消息最小长度：头部 + 长度字段
+void ensure_container_max_length(const char* type_name, std::size_t size);
+void ensure_message_depth(std::size_t depth);
 
-constexpr uint8_t DBUS_MESSAGE_NO_REPLY_EXPECTED  = 0x01;
-constexpr uint8_t DBUS_MESSAGE_NO_AUTO_START_FLAG = 0x02;
+template <typename T>
+void ensure_container_max_length(T& container) {
+    ensure_container_max_length(mc::pretty_name<T>(), container.size());
+}
 
-struct message_header {
-    message_type type = message_type::invalid;
-    uint8_t      flags{0};
-    uint8_t      version{1};
-    union {
-        uint32_t serial{0};
-        uint32_t reply_serial;
-    };
-
-    dbus::path  path;
-    std::string interface;
-    std::string member;
-    std::string error_name;
-    std::string destination;
-    std::string sender;
-    signature   signature;
-    uint32_t    unix_fds{0};
-
-    // 一些协议辅助字段，不需要手动设置
-    uint32_t body_len{0};   // 消息体长度
-    uint32_t header_len{0}; // 消息头长度
-
-    void set_field(message_header_field field, const variant& value);
-    void write_field(stream& stream, message_header_field field);
-
-    void set_method_call(std::string path, std::string interface, std::string member) {
-        this->type      = message_type::method_call;
-        this->path      = path;
-        this->interface = interface;
-        this->member    = member;
-    }
-
-    void set_auto_start(bool auto_start) {
-        if (auto_start) {
-            flags &= ~DBUS_MESSAGE_NO_AUTO_START_FLAG;
-        } else {
-            flags |= DBUS_MESSAGE_NO_AUTO_START_FLAG;
-        }
-    }
-
-    bool auto_start() {
-        return flags & DBUS_MESSAGE_NO_AUTO_START_FLAG;
-    }
-
-    void set_no_reply(bool no_reply) {
-        if (no_reply) {
-            flags |= DBUS_MESSAGE_NO_REPLY_EXPECTED;
-        } else {
-            flags &= (~DBUS_MESSAGE_NO_REPLY_EXPECTED);
-        }
-    }
-
-    bool expects_reply() const {
-        return flags & DBUS_MESSAGE_NO_REPLY_EXPECTED;
-    }
-
-    void set_serial(uint32_t serial) {
-        this->serial = serial;
-    }
-
-    uint32_t get_serial() const {
-        return serial;
-    }
-
-    std::size_t need_bytes() const {
-        if (body_len > 0) {
-            return MC_ALIGN_UP(header_len, 8) + body_len;
-        }
-        return header_len;
+template <typename T>
+struct auto_dbus_free {
+    void operator()(T* v) const {
+        dbus_free(v);
     }
 };
 
-template <typename T = mc::variants, typename = void>
-struct message : message_header {
-    template <typename U>
-    message& operator<<(U&& value) {
-        signature += get_signature<mc::traits::remove_cvref_t<U>>();
-        body.emplace_back(std::forward<U>(value));
+template <typename T>
+using dbus_ptr = std::unique_ptr<T, auto_dbus_free<T>>;
+
+struct dbus_error : DBusError {
+    dbus_error() {
+        dbus_error_init(this);
+    }
+
+    ~dbus_error() {
+        dbus_error_free(this);
+    }
+
+    dbus_error(const dbus_error& other)            = delete;
+    dbus_error& operator=(const dbus_error& other) = delete;
+
+    dbus_error(dbus_error&& other) noexcept {
+        dbus_move_error(&other, this);
+    }
+
+    dbus_error& operator=(dbus_error&& other) noexcept {
+        dbus_move_error(&other, this);
         return *this;
     }
 
-    mc::variants body;
-};
-using variants_message = message<mc::variants>;
-
-// 针对 T 的特化，用于序列化反射对象
-template <typename T>
-struct message<T,
-               std::enable_if_t<mc::reflect::is_reflectable<T>() && !std::is_reference_v<T>, void>>
-    : message_header {
-    T body;
-};
-
-// 针对 T& 的特化，用于序列号已经存在的对象，避免拷贝
-template <typename T>
-struct message<T&, std::enable_if_t<mc::reflect::is_reflectable<T>(), void>> : message_header {
-    message(T& body) : body(body) {
+    bool is_set() const {
+        return dbus_error_is_set(this);
     }
 
-    T& body;
+    template <typename... Args>
+    void set_error(std::string_view name, Args&&... args) {
+        dbus_set_error(this, name.data(), std::forward<Args>(args)...);
+    }
+
+    void set_error_const(std::string_view name, std::string_view message) {
+        dbus_set_error_const(this, name.data(), message.data());
+    }
 };
 
-// 消息头解析和序列化
-stream& operator>>(stream& stream, message_header& header);
-stream& operator<<(stream& stream, message_header& header);
+class message {
+public:
+    static message new_method_call(std::string_view destination, std::string_view path,
+                                   std::string_view interface, std::string_view member);
+    static message new_method_return(message& msg);
+    static message new_error(message& msg, std::string_view error_name,
+                             std::string_view error_message);
+    static message new_signal(std::string_view path, std::string_view interface,
+                              std::string_view member);
+    static message new_message(message_type msg_type = message_type::method_call);
 
-// 消息解析和序列化
-stream& operator>>(stream& stream, variants_message& msg);
-stream& operator<<(stream& stream, variants_message& msg);
+    DBusMessage* get_dbus_message() const;
+    bool         is_valid() const;
 
-// 反射消息解析和序列化
-template <typename T, std::enable_if_t<mc::reflect::is_reflectable<T>(), int> = 0>
-stream& operator>>(stream& stream, message<T>& msg) {
-    stream >> static_cast<message_header&>(msg) >> msg.body;
-    return stream;
+    message() = default;
+    message(DBusMessage* msg, bool add_ref = false);
+    ~message();
+
+    message(const message&);
+    message& operator=(const message&);
+
+    message(message&& other) noexcept;
+    message& operator=(message&& other) noexcept;
+
+    void release();
+
+    message_type     get_type() const;
+    std::string_view get_path() const;
+    std::string_view get_interface() const;
+    std::string_view get_member() const;
+    std::string_view get_error_name() const;
+    std::string_view get_destination() const;
+    std::string_view get_sender() const;
+    std::string_view get_signature() const;
+    uint32_t         get_serial() const;
+
+    void set_path(std::string_view path);
+    void set_interface(std::string_view interface);
+    void set_member(std::string_view member);
+    void set_error_name(std::string_view error_name);
+    void set_destination(std::string_view destination);
+    void set_sender(std::string_view sender);
+    void set_serial(uint32_t serial);
+
+    void lock();
+    bool has_signature(std::string_view signature);
+
+    struct message_reader reader();
+    struct message_writer writer();
+
+    std::pair<dbus_ptr<char>, std::size_t> marshal();
+
+    bool demarshal(const std::vector<uint8_t>& in, dbus_error& err);
+    bool demarshal(const char* in, std::size_t len, dbus_error& err);
+
+protected:
+    DBusMessage* m_dbus_message{nullptr};
+};
+
+struct message_reader {
+    message_reader();
+    message_reader(message& msg);
+
+    void read_variant(mc::variant& v, std::size_t depth);
+    void read_variant_value(type_code type, mc::variant& v, std::size_t depth);
+    void read_variant_array_or_dict(mc::variant& v, std::size_t depth);
+    void read_variant_array(mc::variants& arr, std::size_t depth);
+    void read_variant_struct(mc::variant& v, std::size_t depth);
+    void read_variant_dict(mc::mutable_dict& dict, std::size_t depth);
+
+    void            recurse(message_reader& parent);
+    message_reader& next();
+    bool            at_end();
+
+    void        ensure_type(int expected);
+    static void ensure_type(int expected, int actual);
+    type_code   current_type();
+
+    DBusMessageIter m_iter;
+};
+
+struct message_writer {
+    message_writer(message& msg);
+    message_writer(DBusMessageIter& parent_iter, int type,
+                   std::string_view signature = std::string_view());
+    ~message_writer();
+
+    void write_variant(const mc::variant& v, std::size_t depth);
+    void write_variant(signature_iterator it, const mc::variant& v, std::size_t depth);
+    void write_variant_array_or_dict(signature_iterator it, const mc::variant& v,
+                                     std::size_t depth);
+    void write_variant_array(signature_iterator it, const mc::variants& arr, std::size_t depth);
+    void write_variant_struct(signature_iterator it, const mc::variant& v, std::size_t depth);
+    void write_variant_dict(signature_iterator it, const mc::dict& dict, std::size_t depth);
+    void write_signature(const signature& sig);
+    void write_signature(std::string_view sig);
+
+    DBusMessageIter* m_parent_iter{nullptr};
+    DBusMessageIter  m_iter;
+};
+/* -------------------- 重载 operator>> -------------------- */
+
+template <typename T, std::enable_if_t<std::is_arithmetic_v<T>, int> = 0>
+message_reader& operator>>(message_reader& reader, T& v) {
+    reader.ensure_type(get_signature<T>().first_type());
+
+    if constexpr (std::is_same_v<T, float>) {
+        double d;
+        dbus_message_iter_get_basic(&reader.m_iter, &d);
+        v = static_cast<T>(d);
+    } else if constexpr (std::is_same_v<T, bool>) {
+        uint32_t b;
+        dbus_message_iter_get_basic(&reader.m_iter, &b);
+        v = b != 0;
+    } else {
+        dbus_message_iter_get_basic(&reader.m_iter, &v);
+    }
+
+    return reader.next();
 }
 
-template <typename T, std::enable_if_t<mc::reflect::is_reflectable<T>(), int> = 0>
-stream& operator<<(stream& stream, message<T>& msg) {
-    if (msg.signature.str().empty()) {
-        msg.signature = get_signature<T>();
-    }
-    stream << static_cast<message_header&>(msg);
+message_reader& operator>>(message_reader& reader, std::string& v);
+message_reader& operator>>(message_reader& reader, std::string_view& v);
+message_reader& operator>>(message_reader& reader, mc::dbus::path& v);
+message_reader& operator>>(message_reader& reader, mc::dbus::signature& v);
+message_reader& operator>>(message_reader& reader, mc::blob& v);
+message_reader& operator>>(message_reader& reader, mc::variant& v);
+message_reader& operator>>(message_reader& reader, mc::variants& v);
+message_reader& operator>>(message_reader& reader, mc::dict& v);
+message_reader& operator>>(message_reader& reader, mc::mutable_dict& v);
 
-    stream::write_length_guard<uint32_t> guard(stream, stream.is_little_endian());
-    guard.set_write_pos(DBUS_MESSAGE_BODY_LEN_POS);
-    guard.set_body_start_pos();
-    stream << msg.body;
-    guard.fire();
-    return stream;
+// 写入标准库类型
+template <typename T, typename Container>
+message_reader& read_array(message_reader& reader, Container& v) {
+    reader.ensure_type(DBUS_TYPE_ARRAY);
+
+    message_reader arr_reader;
+    arr_reader.recurse(reader);
+    arr_reader.ensure_type(get_signature<T>().first_type());
+
+    while (!arr_reader.at_end()) {
+        T item;
+        arr_reader >> item;
+        v.emplace_back(std::move(item));
+    }
+
+    return reader.next();
+}
+
+template <typename T, typename Allocator>
+message_reader& operator>>(message_reader& reader, std::vector<T, Allocator>& v) {
+    return read_array<T>(reader, v);
+}
+
+template <typename T, typename Allocator>
+message_reader& operator>>(message_reader& reader, std::list<T, Allocator>& v) {
+    return read_array<T>(reader, v);
+}
+
+template <typename T, typename U>
+message_reader& operator>>(message_reader& reader, std::pair<T, U>& v) {
+    message_reader sub_reader;
+    sub_reader.recurse(reader);
+    sub_reader >> v.first >> v.second;
+
+    return reader.next();
+}
+
+template <typename T>
+message_reader& operator>>(message_reader& reader, std::optional<T>& v) {
+    // 用数组来表示可选值，数组空表示 nullopt，否则数组的第一个值是 optional 的值
+    reader.ensure_type(DBUS_TYPE_ARRAY);
+
+    message_reader arr_reader;
+    arr_reader.recurse(reader);
+    arr_reader.ensure_type(get_signature<T>().first_type());
+
+    if (arr_reader.at_end()) {
+        v = std::nullopt;
+        return reader.next();
+    }
+
+    T value;
+    arr_reader >> value;
+    v = value;
+
+    return reader.next();
+}
+
+template <typename... T>
+message_reader& operator>>(message_reader& reader, std::tuple<T...>& v) {
+    reader.ensure_type(DBUS_TYPE_STRUCT);
+
+    message_reader sub_reader;
+    sub_reader.recurse(reader);
+
+    mc::traits::tuple_for_each(v, [&](auto&& item) {
+        // 如果 sub_reader 提前遍历完，说明输入的数据只匹配了结构的前半部分，
+        // 按理应该失败才对，但我想支持只提供部分元素初始化元组，所以这里不检查
+        if (sub_reader.at_end()) {
+            return;
+        }
+
+        sub_reader >> item;
+    });
+
+    return reader.next();
+}
+
+template <typename K, typename V, typename Container>
+message_reader& read_dict(message_reader& reader, Container& v) {
+    reader.ensure_type(DBUS_TYPE_ARRAY);
+
+    message_reader sub_reader;
+    sub_reader.recurse(reader);
+    sub_reader.ensure_type(DBUS_TYPE_DICT_ENTRY);
+
+    while (!sub_reader.at_end()) {
+        message_reader entry_reader;
+        entry_reader.recurse(sub_reader);
+
+        K key;
+        entry_reader >> key;
+
+        V value;
+        entry_reader >> value;
+
+        v[key] = value;
+        sub_reader.next();
+    }
+
+    return reader.next();
+}
+
+template <typename K, typename V, typename Comp, typename Alloc>
+message_reader& operator>>(message_reader& reader, std::map<K, V, Comp, Alloc>& v) {
+    return read_dict<K, V>(reader, v);
+}
+
+template <typename K, typename V, typename Hash, typename KeyEqual, typename Alloc>
+message_reader& operator>>(message_reader&                                  reader,
+                           std::unordered_map<K, V, Hash, KeyEqual, Alloc>& v) {
+    return read_dict<K, V>(reader, v);
+}
+
+// 读取反射类型，自动按照反射类型签名读取
+template <typename T, std::enable_if_t<mc::reflect::is_reflectable<T>(), int> = 0>
+message_reader& operator>>(message_reader& reader, T& v) {
+    reader.ensure_type(DBUS_TYPE_STRUCT);
+
+    message_reader sub_reader;
+    sub_reader.recurse(reader);
+    mc::traits::tuple_for_each(mc::reflect::reflector<T>::get_properties(), [&](auto&& item) {
+        // 如果 sub_reader 已经遍历完则直接返回，我们允许只提供前面的部分属性初始化反射类型
+        if (sub_reader.at_end()) {
+            return;
+        }
+
+        sub_reader >> v.*item.member_ptr;
+    });
+
+    return reader.next();
+}
+
+/* -------------------- 重载 operator<< -------------------- */
+
+template <typename T, std::enable_if_t<std::is_arithmetic_v<T>, int> = 0>
+message_writer& operator<<(message_writer& writer, T v) {
+    if constexpr (std::is_same_v<T, bool>) {
+        uint32_t b = v ? 1 : 0;
+        dbus_message_iter_append_basic(&writer.m_iter, DBUS_TYPE_BOOLEAN, &b);
+    } else if constexpr (std::is_same_v<T, int8_t>) {
+        dbus_message_iter_append_basic(&writer.m_iter, DBUS_TYPE_BYTE, &v);
+    } else if constexpr (std::is_same_v<T, uint8_t>) {
+        dbus_message_iter_append_basic(&writer.m_iter, DBUS_TYPE_BYTE, &v);
+    } else if constexpr (std::is_same_v<T, int16_t>) {
+        dbus_message_iter_append_basic(&writer.m_iter, DBUS_TYPE_INT16, &v);
+    } else if constexpr (std::is_same_v<T, uint16_t>) {
+        dbus_message_iter_append_basic(&writer.m_iter, DBUS_TYPE_UINT16, &v);
+    } else if constexpr (std::is_same_v<T, int32_t>) {
+        dbus_message_iter_append_basic(&writer.m_iter, DBUS_TYPE_INT32, &v);
+    } else if constexpr (std::is_same_v<T, uint32_t>) {
+        dbus_message_iter_append_basic(&writer.m_iter, DBUS_TYPE_UINT32, &v);
+    } else if constexpr (std::is_same_v<T, int64_t>) {
+        dbus_message_iter_append_basic(&writer.m_iter, DBUS_TYPE_INT64, &v);
+    } else if constexpr (std::is_same_v<T, uint64_t>) {
+        dbus_message_iter_append_basic(&writer.m_iter, DBUS_TYPE_UINT64, &v);
+    } else if constexpr (std::is_same_v<T, float>) {
+        double d = static_cast<double>(v);
+        dbus_message_iter_append_basic(&writer.m_iter, DBUS_TYPE_DOUBLE, &d);
+    } else if constexpr (std::is_same_v<T, double>) {
+        dbus_message_iter_append_basic(&writer.m_iter, DBUS_TYPE_DOUBLE, &v);
+    } else {
+        static_assert(!std::is_arithmetic_v<T>, "unsupported type");
+    }
+    return writer;
+}
+
+message_writer& operator<<(message_writer& writer, const mc::dbus::path& v);
+message_writer& operator<<(message_writer& writer, const mc::dbus::signature& v);
+message_writer& operator<<(message_writer& writer, const mc::blob& v);
+message_writer& operator<<(message_writer& writer, const mc::variant& v);
+message_writer& operator<<(message_writer& writer, const mc::variants& v);
+message_writer& operator<<(message_writer& writer, const mc::dict& v);
+message_writer& operator<<(message_writer& writer, const mc::mutable_dict& v);
+message_writer& operator<<(message_writer& writer, const std::string& v);
+message_writer& operator<<(message_writer& writer, const char* str);
+message_writer& operator<<(message_writer& writer, const std::string_view& v);
+
+// 写入标准库类型
+template <typename T, typename Allocator>
+message_writer& operator<<(message_writer& writer, const std::vector<T, Allocator>& v) {
+    message_writer sub_writer(writer.m_iter, DBUS_TYPE_ARRAY, get_signature<T>());
+    for (const auto& item : v) {
+        sub_writer << item;
+    }
+    return writer;
+}
+
+template <typename T, typename Allocator>
+message_writer& operator<<(message_writer& writer, const std::list<T, Allocator>& v) {
+    message_writer sub_writer(writer.m_iter, DBUS_TYPE_ARRAY, get_signature<T>());
+    for (const auto& item : v) {
+        sub_writer << item;
+    }
+    return writer;
+}
+
+template <typename T, typename U>
+message_writer& operator<<(message_writer& writer, const std::pair<T, U>& v) {
+    message_writer sub_writer(writer.m_iter, DBUS_TYPE_STRUCT);
+    sub_writer << v.first << v.second;
+    return writer;
+}
+
+template <typename T>
+message_writer& operator<<(message_writer& writer, const std::optional<T>& v) {
+    // 用数组来表示可选值，如果可选值有值，则写入一个值，否则写入一个空数组
+    message_writer sub_writer(writer.m_iter, DBUS_TYPE_ARRAY, get_signature<T>());
+    if (v.has_value()) {
+        sub_writer << v.value();
+    }
+    return writer;
+}
+
+template <typename... T>
+message_writer& operator<<(message_writer& writer, const std::tuple<T...>& v) {
+    message_writer sub_writer(writer.m_iter, DBUS_TYPE_STRUCT);
+    mc::traits::tuple_for_each(v, [&](auto&& item) {
+        sub_writer << item;
+    });
+
+    return writer;
+}
+
+template <typename K, typename V, typename Comp, typename Alloc>
+message_writer& operator<<(message_writer& writer, const std::map<K, V, Comp, Alloc>& v) {
+    ensure_container_max_length(v);
+
+    auto           sig = get_signature<std::map<K, V, Comp, Alloc>>();
+    message_writer sub_writer(writer.m_iter, DBUS_TYPE_ARRAY, sig.str().substr(1));
+    for (const auto& item : v) {
+        message_writer entry_writer(sub_writer.m_iter, DBUS_TYPE_DICT_ENTRY);
+        entry_writer << item.first << item.second;
+    }
+    return writer;
+}
+
+template <typename K, typename V, typename Hash, typename KeyEqual, typename Alloc>
+message_writer& operator<<(message_writer&                                        writer,
+                           const std::unordered_map<K, V, Hash, KeyEqual, Alloc>& v) {
+    ensure_container_max_length(v);
+
+    auto           sig = get_signature<std::unordered_map<K, V, Hash, KeyEqual, Alloc>>();
+    message_writer sub_writer(writer.m_iter, DBUS_TYPE_ARRAY, sig.str().substr(1));
+    for (const auto& item : v) {
+        message_writer entry(sub_writer.m_iter, DBUS_TYPE_DICT_ENTRY);
+        entry << item.first << item.second;
+    }
+    return writer;
+}
+namespace detail {
+// 辅助标签类型
+struct const_ref_tag {};
+struct value_tag {};
+
+// 检测函数指针转换的主模板
+template <typename T, typename Tag = void, typename = void>
+struct has_operator : std::false_type {};
+
+// 检测 const T& 重载版本
+template <typename T>
+struct has_operator<
+    T, const_ref_tag,
+    std::void_t<decltype(static_cast<message_writer& (*)(message_writer&, const T&)>(&operator<<))>>
+    : std::true_type {};
+
+// 检测 T 值重载版本
+template <typename T>
+struct has_operator<
+    T, value_tag,
+    std::void_t<decltype(static_cast<message_writer& (*)(message_writer&, T)>(&operator<<))>>
+    : std::true_type {};
+
+// 侦测 T 类型是否支持通过 operator<< 直接写入到 dbus::stream 中，防止出现类型隐士转换导致
+// 写入的类型签名与 get_signature<> 获取的类型签名不一致
+template <typename T>
+inline constexpr bool has_operator_v =
+    has_operator<T, const_ref_tag>::value || has_operator<T, value_tag>::value;
+} // namespace detail
+
+// 写入反射类型，自动按照反射类型签名写入
+template <typename T, std::enable_if_t<mc::reflect::is_reflectable<T>(), int> = 0>
+message_writer& operator<<(message_writer& writer, const T& v) {
+    message_writer sub_writer(writer.m_iter, DBUS_TYPE_STRUCT);
+
+    mc::traits::tuple_for_each(mc::reflect::reflector<T>::get_properties(), [&](auto&& item) {
+        using item_type     = std::decay_t<decltype(item)>;
+        using property_type = typename item_type::member_type;
+
+        static_assert(detail::has_operator_v<property_type>,
+                      "属性类型T不支持通过 operator<< 写入到 dbus::message 中");
+
+        sub_writer << v.*item.member_ptr;
+    });
+
+    return writer;
 }
 
 } // namespace mc::dbus

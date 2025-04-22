@@ -154,6 +154,10 @@ public:
         return sig.m_sig != str;
     }
 
+    operator std::string_view() const {
+        return m_sig;
+    }
+
     /**
      * 获取签名字符串
      *
@@ -264,6 +268,9 @@ public:
     void        validate() const;
     static void validate(std::string_view sig);
 
+    type_code first_type_code() const;
+    char      first_type() const;
+
 private:
     std::string m_sig;
 };
@@ -295,6 +302,9 @@ public:
      * @param pos 开始位置，默认为0
      */
     signature_iterator(std::string_view sig, size_t pos = 0);
+    signature_iterator(const char* sig, size_t pos = 0)
+        : signature_iterator(std::string_view(sig), pos) {
+    }
     signature_iterator(const std::string& sig, size_t pos = 0)
         : signature_iterator(std::string_view(sig), pos) {
     }

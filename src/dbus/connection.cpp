@@ -11,23 +11,103 @@
  */
 
 #include <mc/dbus/connection.h>
-#include <mc/dbus/transport/transport_factory.h>
-#include <mc/log.h>
+#include <mc/dbus/message.h>
+#include <mc/exception.h>
+#include <mc/log/log.h>
 
 namespace mc::dbus {
 
-constexpr std::size_t max_write_length    = 1024;
-constexpr std::size_t read_buffer_length  = 4096;
-constexpr std::size_t write_buffer_length = 4096;
+// 静态回调函数实现
+dbus_bool_t connection::watch_add(DBusWatch* watch, void* data) {
+    connection* conn = static_cast<connection*>(data);
+    if (!dbus_watch_get_enabled(watch)) {
+        return TRUE;
+    }
 
+    std::lock_guard<std::mutex> lock(conn->m_mutex);
+    // 创建新的watch
+    auto asio_watch        = std::make_unique<connection::asio_watch>(conn, watch);
+    conn->m_watches[watch] = std::move(asio_watch);
+    conn->m_watches[watch]->start();
+
+    return TRUE;
+}
+
+void connection::watch_remove(DBusWatch* watch, void* data) {
+    connection*                 conn = static_cast<connection*>(data);
+    std::lock_guard<std::mutex> lock(conn->m_mutex);
+    conn->m_watches.erase(watch);
+}
+
+void connection::watch_toggled(DBusWatch* watch, void* data) {
+    connection*                 conn = static_cast<connection*>(data);
+    std::lock_guard<std::mutex> lock(conn->m_mutex);
+
+    auto it = conn->m_watches.find(watch);
+    if (it != conn->m_watches.end()) {
+        if (dbus_watch_get_enabled(watch)) {
+            it->second->start();
+        } else {
+            it->second->stop();
+        }
+    }
+}
+
+dbus_bool_t connection::timeout_add(DBusTimeout* timeout, void* data) {
+    connection* conn = static_cast<connection*>(data);
+    if (!dbus_timeout_get_enabled(timeout)) {
+        return TRUE;
+    }
+
+    std::lock_guard<std::mutex> lock(conn->m_mutex);
+    // 创建新的timeout
+    auto asio_timeout         = std::make_unique<connection::asio_timeout>(conn, timeout);
+    conn->m_timeouts[timeout] = std::move(asio_timeout);
+    conn->m_timeouts[timeout]->start();
+
+    return TRUE;
+}
+
+void connection::timeout_remove(DBusTimeout* timeout, void* data) {
+    connection*                 conn = static_cast<connection*>(data);
+    std::lock_guard<std::mutex> lock(conn->m_mutex);
+    conn->m_timeouts.erase(timeout);
+}
+
+void connection::timeout_toggled(DBusTimeout* timeout, void* data) {
+    connection*                 conn = static_cast<connection*>(data);
+    std::lock_guard<std::mutex> lock(conn->m_mutex);
+
+    auto it = conn->m_timeouts.find(timeout);
+    if (it != conn->m_timeouts.end()) {
+        if (dbus_timeout_get_enabled(timeout)) {
+            it->second->start();
+        } else {
+            it->second->stop();
+        }
+    }
+}
+
+void connection::dispatch_status_changed(DBusConnection* connection, DBusDispatchStatus new_status,
+                                         void* data) {
+    if (new_status == DBUS_DISPATCH_DATA_REMAINS) {
+        connection* conn = static_cast<connection*>(data);
+        conn->dispatch_local();
+    }
+}
+
+DBusHandlerResult connection::message_filter(DBusConnection* connection, DBusMessage* message,
+                                             void* user_data) {
+    connection* conn = static_cast<connection*>(user_data);
+    return conn->handle_message(message);
+}
+
+// 类方法实现
 connection_ptr connection::create(io_context_type& io_context) {
     return std::make_shared<connection>(io_context);
 }
 
-connection::connection(io_context_type& io_context)
-    : m_io_context(io_context), m_state(connection_state::disconnected),
-      m_read_stream(stream::buffer::create(read_buffer_length)),
-      m_write_stream(stream::buffer::create(write_buffer_length)) {
+connection::connection(io_context_type& io_context) : m_io_context(io_context) {
 }
 
 connection::~connection() {
@@ -35,284 +115,215 @@ connection::~connection() {
 }
 
 mc::future<error_code> connection::connect(const std::string& address) {
-    auto promise = mc::make_promise<error_code>(m_io_context);
-
     if (m_state.load() != connection_state::disconnected) {
-        promise.set_value(boost::asio::error::already_connected);
+        promise<error_code> promise;
+        promise.set_value(
+            boost::system::errc::make_error_code(boost::system::errc::operation_in_progress));
         return promise.get_future();
     }
+
+    // 更新状态为连接中
     m_state.store(connection_state::connecting);
 
+    // 创建Promise
+    promise<error_code> promise;
+    auto                future = promise.get_future();
+
     try {
-        m_transport = transport_factory::get_instance().create(m_io_context, address);
-        if (!m_transport) {
-            MC_THROW(mc::exception, "没有可用的传输方式");
+        // 创建DBus连接对象
+        DBusError error;
+        dbus_error_init(&error);
+
+        // 注意：这里使用了私有连接，即连接的所有权由我们的应用程序管理
+        m_connection = dbus_connection_open_private(address.c_str(), &error);
+        if (!m_connection) {
+            if (dbus_error_is_set(&error)) {
+                std::string error_msg = "DBus连接失败: " + std::string(error.message);
+                dbus_error_free(&error);
+                m_state.store(connection_state::disconnected);
+                promise.set_value(
+                    boost::system::errc::make_error_code(boost::system::errc::connection_refused));
+                return future;
+            }
+            m_state.store(connection_state::disconnected);
+            promise.set_value(boost::system::errc::make_error_code(boost::system::errc::no_memory));
+            return future;
         }
-    } catch (const mc::exception& e) {
-        elog("创建传输层失败: ${error}", ("error", e.what()));
-        m_state.store(connection_state::disconnected);
-        promise.set_exception(std::make_exception_ptr(e));
+
+        // 初始化libdbus连接
+        initialize_libdbus();
+
+        // 注册到总线
+        m_state.store(connection_state::establishing);
+        if (!dbus_bus_register(m_connection, &error)) {
+            if (dbus_error_is_set(&error)) {
+                std::string error_msg = "DBus注册失败: " + std::string(error.message);
+                dbus_error_free(&error);
+                disconnect();
+                promise.set_value(
+                    boost::system::errc::make_error_code(boost::system::errc::connection_refused));
+                return future;
+            }
+            disconnect();
+            promise.set_value(boost::system::errc::make_error_code(boost::system::errc::no_memory));
+            return future;
+        }
+
+        // 设置过滤器用于接收所有消息
+        if (!dbus_connection_add_filter(m_connection, message_filter, this, nullptr)) {
+            disconnect();
+            promise.set_value(boost::system::errc::make_error_code(boost::system::errc::no_memory));
+            return future;
+        }
+
+        // 连接成功
+        m_state.store(connection_state::connected);
+        promise.set_value(boost::system::errc::make_error_code(boost::system::errc::success));
+
+    } catch (const std::exception& e) {
+        disconnect();
+        promise.set_value(
+            boost::system::errc::make_error_code(boost::system::errc::operation_canceled));
     }
 
-    std::weak_ptr<connection> conn = shared_from_this();
-    m_transport->connect()
-        .then([conn, promise](const auto& ec) mutable {
-            auto self = conn.lock();
-            MC_ASSERT(self, "连接已销毁");
-            self->handle_connect(ec, promise);
-        })
-        .catch_error([promise](const std::exception& ec) mutable {
-            promise.set_exception(std::make_exception_ptr(ec));
-            return 0;
-        });
-
-    return promise.get_future();
+    return future;
 }
 
 void connection::disconnect() {
-    connection_state expected = connection_state::connected;
-    if (m_state.compare_exchange_strong(expected, connection_state::disconnecting)) {
-        if (m_transport) {
-            m_transport->close();
-        }
-        m_state.store(connection_state::disconnected);
+    auto state = m_state.exchange(connection_state::disconnecting);
+    if (state == connection_state::disconnected || state == connection_state::disconnecting) {
+        return;
     }
+
+    // 清空watches和timeouts
+    {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        m_watches.clear();
+        m_timeouts.clear();
+    }
+
+    // 断开libdbus连接
+    if (m_connection) {
+        dbus_connection_close(m_connection);
+        dbus_connection_unref(m_connection);
+        m_connection = nullptr;
+    }
+
+    m_state.store(connection_state::disconnected);
 }
 
 connection_state connection::get_state() const {
     return m_state.load();
 }
 
-void connection::set_transport(transport_ptr transport) {
-    if (m_state.load() != connection_state::disconnected) {
+void connection::initialize_libdbus() {
+    if (!m_connection) {
         return;
     }
 
-    m_transport = std::move(transport);
+    // 不使用自动连接模式
+    dbus_connection_set_exit_on_disconnect(m_connection, FALSE);
+
+    // 设置调度状态回调
+    dbus_connection_set_dispatch_status_function(m_connection, dispatch_status_changed, this,
+                                                 nullptr);
+
+    // 设置watch回调
+    dbus_connection_set_watch_functions(m_connection, watch_add, watch_remove, watch_toggled, this,
+                                        nullptr);
+
+    // 设置timeout回调
+    dbus_connection_set_timeout_functions(m_connection, timeout_add, timeout_remove,
+                                          timeout_toggled, this, nullptr);
 }
 
-void connection::handle_connect(const error_code& ec, promise<error_code>& promise) {
-    if (ec) {
-        m_state.store(connection_state::disconnected);
-        if (m_transport) {
-            m_transport->close();
+DBusHandlerResult connection::handle_message(DBusMessage* dbus_msg) {
+    // 只处理方法返回和信号
+    int msg_type = dbus_message_get_type(dbus_msg);
+    if (msg_type != DBUS_MESSAGE_TYPE_METHOD_RETURN && msg_type != DBUS_MESSAGE_TYPE_ERROR &&
+        msg_type != DBUS_MESSAGE_TYPE_SIGNAL) {
+        return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
+    }
+
+    // 创建message对象
+    message_ptr_type msg = std::make_shared<variants_message>();
+    msg->parse_from_dbus_message(dbus_msg);
+
+    // 检查是否是回复消息
+    if (msg_type == DBUS_MESSAGE_TYPE_METHOD_RETURN || msg_type == DBUS_MESSAGE_TYPE_ERROR) {
+        uint32_t reply_serial = msg->reply_serial;
+        if (reply_serial != 0) {
+            // 寻找对应的回调
+            std::lock_guard<std::mutex> lock(m_mutex);
+            auto                        it = m_pending_calls.find(reply_serial);
+            if (it != m_pending_calls.end()) {
+                // 调用回调
+                message_handler handler = std::move(it->second);
+                m_pending_calls.erase(it);
+                lock.~lock_guard(); // 提前释放锁
+
+                try {
+                    handler(msg);
+                } catch (const std::exception& e) {
+                    ilog("处理回调异常: ${error}", ("error", e.what()));
+                }
+                return DBUS_HANDLER_RESULT_HANDLED;
+            }
         }
-        promise.set_value(ec);
-        return;
     }
-    m_state.store(connection_state::authenticating);
-    m_transport->set_connected(true);
 
-    handle_authenticate(promise);
+    // 发送信号给监听器
+    on_message(msg);
+
+    return DBUS_HANDLER_RESULT_HANDLED;
 }
 
-std::string encode_as_hex(int num) {
-    std::ostringstream out;
-    std::ostringstream numString;
-    std::string        finalNumString;
-
-    numString << num;
-
-    finalNumString = numString.str();
-    out << std::hex;
-
-    for (const char& s : finalNumString) {
-        out << std::hex << (int)s;
+void connection::handle_pending_call_reply(DBusMessage* reply) {
+    uint32_t reply_serial = dbus_message_get_reply_serial(reply);
+    if (reply_serial == 0) {
+        return;
     }
 
-    return out.str();
+    // 创建message对象
+    message_ptr_type msg = std::make_shared<variants_message>();
+    msg->parse_from_dbus_message(reply);
+
+    // 寻找对应的回调
+    std::lock_guard<std::mutex> lock(m_mutex);
+    auto                        it = m_pending_calls.find(reply_serial);
+    if (it != m_pending_calls.end()) {
+        // 调用回调
+        message_handler handler = std::move(it->second);
+        m_pending_calls.erase(it);
+        lock.~lock_guard(); // 提前释放锁
+
+        try {
+            handler(msg);
+        } catch (const std::exception& e) {
+            ilog("处理回调异常: ${error}", ("error", e.what()));
+        }
+    }
 }
 
-void connection::handle_authenticate(promise<error_code>& promise) {
-    m_state.store(connection_state::connected);
-
-    error_code ec;
-
-    // // 1. 首先发送空字节
-    // char null_byte = '\0';
-    // m_transport->write_all(transport::buffer(&null_byte, 1), ec);
-    // if (ec) {
-    //     std::cout << "发送初始字节失败: " << ec.message() << std::endl;
-    //     promise.set_value(ec);
-    //     return;
-    // }
-
-    // // 2. 读取服务器响应 (应该是 "DATA" 或类似消息)
-    // m_transport->read_line(m_read_stream.get_writeable_data(), ec);
-    // if (ec) {
-    //     std::cout << "读取初始响应失败: " << ec.message() << std::endl;
-    //     promise.set_value(ec);
-    //     return;
-    // }
-    // std::cout << "服务器初始响应: " << m_read_stream.get_data() << std::endl;
-    // m_read_stream.skip(m_read_stream.get_data().length());
-
-    // 3. 发送AUTH EXTERNAL 带用户ID的十六进制表示
-    uid_t             uid = getuid();
-    std::stringstream ss;
-    ss << std::hex;
-    std::string uid_str = std::to_string(uid);
-    for (char c : uid_str) {
-        ss << std::setw(2) << std::setfill('0') << static_cast<int>(c);
-    }
-    std::string hex_uid = ss.str();
-
-    std::string auth_command = "AUTH ANONYMOUS";
-    m_transport->write_line(auth_command, ec);
-    if (ec) {
-        elog("发送AUTH EXTERNAL命令失败: ${error}", ("error", ec.message()));
-        promise.set_value(ec);
+void connection::dispatch_local() {
+    if (!m_connection) {
         return;
     }
 
-    // 4. 读取认证响应
-    m_transport->read_line(m_read_stream.get_writeable_data(), ec);
-    if (ec) {
-        elog("读取认证响应失败: ${error}", ("error", ec.message()));
-        promise.set_value(ec);
-        return;
-    }
-
-    std::string_view response = m_read_stream.get_data();
-    elog("认证响应: ${data}", ("data", response));
-    m_read_stream.skip(response.length());
-
-    // 5. 如果成功，发送BEGIN
-    if (response.find("OK") == 0) {
-        m_transport->write_line("BEGIN", ec);
+    // 设置定时器进行调度
+    m_dispatch_timer.expires_from_now(std::chrono::milliseconds(0));
+    m_dispatch_timer.async_wait([this](const boost::system::error_code& ec) {
         if (ec) {
-            elog("发送BEGIN命令失败: ${error}", ("error", ec.message()));
-            promise.set_value(ec);
-            return;
-        }
-        elog("认证成功完成");
-        return;
-    } else {
-        elog("认证失败，服务器响应: ${response}", ("response", response));
-        ec = make_error_code(boost::system::errc::permission_denied);
-        promise.set_value(ec);
-        return;
-    }
-
-    // m_daemon_proxy = std::make_shared<daemon_proxy>(shared_from_this());
-    // m_daemon_proxy->hello();
-
-    // std::lock_guard<std::mutex> lock(m_mutex);
-    // start_read();
-}
-
-void connection::start_read() {
-    if (m_state.load() != connection_state::connected || !m_transport) {
-        return;
-    }
-
-    auto                      data = m_read_stream.get_writeable_data();
-    std::weak_ptr<connection> conn = shared_from_this();
-    elog("开始读取数据: ${data}", ("data", data.length()));
-    // m_transport->read(data, [conn](const auto& ec, std::size_t bytes_transferred) {
-    //     if (auto self = conn.lock()) {
-    //         elog("读取到数据: bytes_transferred=${bytes}, ec=${ec}",
-    //              ("bytes", bytes_transferred)("ec", ec.message()));
-    //         self->handle_read(ec, bytes_transferred);
-    //     }
-    // });
-}
-
-void connection::handle_read(const boost::system::error_code& ec, std::size_t bytes_transferred) {
-    std::lock_guard<std::mutex> lock(m_mutex);
-
-    if (ec) {
-        if (ec == boost::asio::error::operation_aborted) {
             return;
         }
 
-        ilog("DBus连接读取错误: ${error}", ("error", ec.message()));
-        disconnect();
-        return;
-    }
-
-    elog("DBus连接读取成功，字节数: ${bytes}", ("bytes", bytes_transferred));
-    while (m_read_stream.readable_bytes() > DBUS_MESSAGE_MIN_SIZE) {
-        process_message();
-    }
-
-    start_read();
-}
-
-void connection::process_message() {
-    if (!read_message()) {
-        return;
-    }
-
-    if (m_current_message->type == message_type::method_call) {
-        on_message(std::move(m_current_message));
-    } else {
-        // TODO:: 暂时清空消息等待读取下一个消息
-        m_current_message.reset();
-    }
-}
-
-bool connection::read_message() {
-    try {
-        if (m_read_stream.readable_bytes() < DBUS_MESSAGE_MIN_SIZE) {
-            return false;
+        if (m_connection) {
+            dbus_connection_ref(m_connection);
+            while (dbus_connection_dispatch(m_connection) == DBUS_DISPATCH_DATA_REMAINS)
+                ;
+            dbus_connection_unref(m_connection);
         }
-
-        if (!m_current_message) {
-            m_current_message = std::make_shared<variants_message>();
-            m_read_stream >> static_cast<message_header&>(*m_current_message);
-        }
-
-        if (m_current_message->need_bytes() > m_read_stream.readable_bytes()) {
-            return false;
-        }
-
-        m_read_stream >> m_current_message->body;
-        return true;
-    } catch (const mc::exception& e) {
-        elog("读取消息失败: ${error}", ("error", e.what()));
-        disconnect();
-        return false;
-    }
-}
-
-void connection::start_write() {
-    if (m_is_writing) {
-        return;
-    }
-
-    auto data = m_write_stream.peek(max_write_length);
-    if (data.empty()) {
-        return;
-    }
-
-    m_is_writing = true;
-
-    std::weak_ptr<connection> conn = shared_from_this();
-    // m_transport->write(data, [conn](const auto& ec, std::size_t bytes_transferred) {
-    //     if (auto self = conn.lock()) {
-    //         self->handle_write(ec, bytes_transferred);
-    //     }
-    // });
-}
-
-void connection::handle_write(const boost::system::error_code& ec, std::size_t bytes_transferred) {
-    std::lock_guard<std::mutex> lock(m_mutex);
-    m_is_writing = false;
-
-    if (ec) {
-        if (ec == boost::asio::error::operation_aborted) {
-            return;
-        }
-
-        elog("DBus消息发送错误: ${error}，关闭连接", ("error", ec.message()));
-        disconnect();
-        return;
-    }
-
-    dlog("DBus消息发送成功，字节数: ${bytes}", ("bytes", bytes_transferred));
-    m_write_stream.skip(bytes_transferred);
-    start_write();
+    });
 }
 
 } // namespace mc::dbus

@@ -19,6 +19,7 @@ public:
     static bool is_valid_member_name(std::string_view name);
     static bool is_valid_bus_name(std::string_view name);
     static bool is_valid_error_name(std::string_view errorname);
+    static bool is_valid_path(std::string_view path);
     static bool is_message_too_large(std::size_t size);
 
     static constexpr uint32_t maximum_array_size    = (0x01 << 26);

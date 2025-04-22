@@ -10,9 +10,7 @@
  * See the Mulan PSL v2 for more details.
  */
 
-#include <dbus/dbus.h>
 #include <gtest/gtest.h>
-#include <mc/dbus/error.h>
 #include <mc/dbus/message.h>
 
 using namespace mc::dbus;
@@ -85,270 +83,63 @@ protected:
     }
 
     void TearDown() override {
-        if (message != nullptr) {
-            dbus_message_unref(message);
-        }
     }
 
-    DBusMessage* message{nullptr};
-    test_struct  ts_out;
+    test_struct ts_out;
 };
 
-TEST_F(reflect_test, test_dbus_message_to_struct) {
-    message = dbus_message_new_method_call("org.freedesktop.DBus", "/org/freedesktop/DBus",
-                                           "org.freedesktop.DBus", "Hello");
-    EXPECT_NE(message, nullptr);
-
-    DBusMessageIter iter;
-    dbus_message_iter_init_append(message, &iter);
-
-    DBusMessageIter struct_iter;
-    dbus_message_iter_open_container(&iter, DBUS_TYPE_STRUCT, nullptr, &struct_iter);
-
-    // 写入基础类型
-    dbus_message_iter_append_basic(&struct_iter, DBUS_TYPE_BYTE, &ts_out.i8);
-    dbus_message_iter_append_basic(&struct_iter, DBUS_TYPE_BYTE, &ts_out.u8);
-    dbus_message_iter_append_basic(&struct_iter, DBUS_TYPE_INT16, &ts_out.i16);
-    dbus_message_iter_append_basic(&struct_iter, DBUS_TYPE_UINT16, &ts_out.u16);
-    dbus_message_iter_append_basic(&struct_iter, DBUS_TYPE_INT32, &ts_out.i32);
-    dbus_message_iter_append_basic(&struct_iter, DBUS_TYPE_UINT32, &ts_out.u32);
-    dbus_message_iter_append_basic(&struct_iter, DBUS_TYPE_INT64, &ts_out.i64);
-    dbus_message_iter_append_basic(&struct_iter, DBUS_TYPE_UINT64, &ts_out.u64);
-
-    // dbus 不支持 float 类型，需要转换为 double
-    double tmp_f = ts_out.f;
-    dbus_message_iter_append_basic(&struct_iter, DBUS_TYPE_DOUBLE, &tmp_f);
-    dbus_message_iter_append_basic(&struct_iter, DBUS_TYPE_DOUBLE, &ts_out.d);
-
-    const char* str = ts_out.str.c_str();
-    dbus_message_iter_append_basic(&struct_iter, DBUS_TYPE_STRING, &str);
-
-    // dbus 的 bool 类型是 uint32_t 类型
-    uint32_t b = ts_out.b ? 1 : 0;
-    dbus_message_iter_append_basic(&struct_iter, DBUS_TYPE_BOOLEAN, &b);
-
-    const char* p = ts_out.p.str().c_str();
-    dbus_message_iter_append_basic(&struct_iter, DBUS_TYPE_OBJECT_PATH, &p);
-    const char* sig = ts_out.sig.str().c_str();
-    dbus_message_iter_append_basic(&struct_iter, DBUS_TYPE_SIGNATURE, &sig);
-
-    // 写入 variant
-    DBusMessageIter viter;
-    dbus_message_iter_open_container(&struct_iter, DBUS_TYPE_VARIANT, "s", &viter);
-    const char* v = ts_out.v.get_string().c_str();
-    dbus_message_iter_append_basic(&viter, DBUS_TYPE_STRING, &v);
-    dbus_message_iter_close_container(&struct_iter, &viter);
-
-    // 写入 array
-    DBusMessageIter aiter;
-    dbus_message_iter_open_container(&struct_iter, DBUS_TYPE_ARRAY, "v", &aiter);
-    for (auto& v : ts_out.a) {
-        DBusMessageIter viter;
-        dbus_message_iter_open_container(&aiter, DBUS_TYPE_VARIANT, "s", &viter);
-        const char* v_val = v.get_string().c_str();
-        dbus_message_iter_append_basic(&viter, DBUS_TYPE_STRING, &v_val);
-        dbus_message_iter_close_container(&aiter, &viter);
-    }
-    dbus_message_iter_close_container(&struct_iter, &aiter);
-
-    // 写入 dict
-    DBusMessageIter diter;
-    dbus_message_iter_open_container(&struct_iter, DBUS_TYPE_ARRAY, "{sv}", &diter);
-    for (auto& entry : ts_out.m) {
-        DBusMessageIter entry_iter;
-        dbus_message_iter_open_container(&diter, DBUS_TYPE_DICT_ENTRY, nullptr, &entry_iter);
-
-        // 写入 key
-        const char* v_key = entry.key.get_string().c_str();
-        dbus_message_iter_append_basic(&entry_iter, DBUS_TYPE_STRING, &v_key);
-
-        // 写入 value
-        DBusMessageIter viter;
-        dbus_message_iter_open_container(&entry_iter, DBUS_TYPE_VARIANT, "s", &viter);
-        const char* v_val = entry.value.get_string().c_str();
-        dbus_message_iter_append_basic(&viter, DBUS_TYPE_STRING, &v_val);
-        dbus_message_iter_close_container(&entry_iter, &viter);
-
-        dbus_message_iter_close_container(&diter, &entry_iter);
-    }
-    dbus_message_iter_close_container(&struct_iter, &diter);
-
-    // 写入 optional
-    DBusMessageIter std_oiter;
-    dbus_message_iter_open_container(&struct_iter, DBUS_TYPE_ARRAY, "i", &std_oiter);
-    if (ts_out.std_o.has_value()) {
-        int* o_val = &ts_out.std_o.value();
-        dbus_message_iter_append_basic(&std_oiter, DBUS_TYPE_INT32, o_val);
-    }
-    dbus_message_iter_close_container(&struct_iter, &std_oiter);
-
-    // 写入 pair
-    DBusMessageIter std_piter;
-    dbus_message_iter_open_container(&struct_iter, DBUS_TYPE_STRUCT, nullptr, &std_piter);
-    dbus_message_iter_append_basic(&std_piter, DBUS_TYPE_INT32, &ts_out.std_p.first);
-    const char* p_val = ts_out.std_p.second.c_str();
-    dbus_message_iter_append_basic(&std_piter, DBUS_TYPE_STRING, &p_val);
-    dbus_message_iter_close_container(&struct_iter, &std_piter);
-
-    // 写入 tuple
-    DBusMessageIter std_titer;
-    dbus_message_iter_open_container(&struct_iter, DBUS_TYPE_STRUCT, nullptr, &std_titer);
-    dbus_message_iter_append_basic(&std_titer, DBUS_TYPE_INT32, &std::get<0>(ts_out.std_t));
-    const char* t_val = std::get<1>(ts_out.std_t).c_str();
-    dbus_message_iter_append_basic(&std_titer, DBUS_TYPE_STRING, &t_val);
-    uint32_t t_b = std::get<2>(ts_out.std_t) ? 1 : 0;
-    dbus_message_iter_append_basic(&std_titer, DBUS_TYPE_BOOLEAN, &t_b);
-    dbus_message_iter_close_container(&struct_iter, &std_titer);
-
-    // 写入 vector
-    DBusMessageIter std_vec_iter;
-    dbus_message_iter_open_container(&struct_iter, DBUS_TYPE_ARRAY, "i", &std_vec_iter);
-    for (auto& v : ts_out.std_vec) {
-        dbus_message_iter_append_basic(&std_vec_iter, DBUS_TYPE_INT32, &v);
-    }
-    dbus_message_iter_close_container(&struct_iter, &std_vec_iter);
-
-    // 写入 list
-    DBusMessageIter std_list_iter;
-    dbus_message_iter_open_container(&struct_iter, DBUS_TYPE_ARRAY, "s", &std_list_iter);
-    for (auto& v : ts_out.std_list) {
-        const char* l_val = v.c_str();
-        dbus_message_iter_append_basic(&std_list_iter, DBUS_TYPE_STRING, &l_val);
-    }
-    dbus_message_iter_close_container(&struct_iter, &std_list_iter);
-
-    // 写入 map
-    DBusMessageIter std_map_iter;
-    dbus_message_iter_open_container(&struct_iter, DBUS_TYPE_ARRAY, "{ii}", &std_map_iter);
-    for (auto& v : ts_out.std_map) {
-        DBusMessageIter entry_iter;
-        dbus_message_iter_open_container(&std_map_iter, DBUS_TYPE_DICT_ENTRY, nullptr, &entry_iter);
-        dbus_message_iter_append_basic(&entry_iter, DBUS_TYPE_INT32, &v.first);
-        dbus_message_iter_append_basic(&entry_iter, DBUS_TYPE_INT32, &v.second);
-        dbus_message_iter_close_container(&std_map_iter, &entry_iter);
-    }
-    dbus_message_iter_close_container(&struct_iter, &std_map_iter);
-
-    // 写入 unordered_map
-    DBusMessageIter std_umap_iter;
-    dbus_message_iter_open_container(&struct_iter, DBUS_TYPE_ARRAY, "{si}", &std_umap_iter);
-    for (auto& v : ts_out.std_umap) {
-        DBusMessageIter entry_iter;
-        dbus_message_iter_open_container(&std_umap_iter, DBUS_TYPE_DICT_ENTRY, nullptr,
-                                         &entry_iter);
-        const char* um_val = v.first.c_str();
-        dbus_message_iter_append_basic(&entry_iter, DBUS_TYPE_STRING, &um_val);
-        dbus_message_iter_append_basic(&entry_iter, DBUS_TYPE_INT32, &v.second);
-        dbus_message_iter_close_container(&std_umap_iter, &entry_iter);
-    }
-    dbus_message_iter_close_container(&struct_iter, &std_umap_iter);
-
-    // 关闭 struct 容器
-    dbus_message_iter_close_container(&iter, &struct_iter);
-
-    // 设置序列号
-    dbus_message_set_serial(message, 123456);
+TEST_F(reflect_test, test_reflect_struct) {
+    auto msg_out = mc::dbus::message::new_method_call(
+        "org.freedesktop.DBus", "/org/freedesktop/DBus", "org.freedesktop.DBus", "Hello");
+    msg_out.set_serial(123456);
+    EXPECT_TRUE(msg_out.is_valid());
 
     // 序列化消息
-    char* marshalled_data{nullptr};
-    int   len{0};
-    dbus_message_marshal(message, &marshalled_data, &len);
-    EXPECT_NE(marshalled_data, nullptr);
+    auto writer = msg_out.writer();
+    writer << ts_out;
+    auto [data, len] = msg_out.marshal();
+    EXPECT_NE(data, nullptr);
     EXPECT_GT(len, 0);
-    std::string_view message_sig = dbus_message_get_signature(message);
-    ASSERT_EQ(get_signature<test_struct>(), message_sig);
 
-    mc::dbus::message<test_struct> msg;
+    // 反序列化消息
+    test_struct          ts_in;
+    mc::dbus::message    msg_in;
+    mc::dbus::dbus_error err;
+    EXPECT_TRUE(msg_in.demarshal(data.get(), len, err));
 
-    stream s(stream::buffer::wrap(marshalled_data, len), false);
-    s >> msg;
-    EXPECT_EQ(msg.type, message_type::method_call);
-    EXPECT_EQ(msg.path, "/org/freedesktop/DBus");
-    EXPECT_EQ(msg.interface, "org.freedesktop.DBus");
-    EXPECT_EQ(msg.member, "Hello");
-    EXPECT_EQ(msg.serial, 123456);
-    ASSERT_EQ(msg.signature, message_sig);
-    EXPECT_EQ(msg.signature, get_signature<test_struct>());
+    EXPECT_EQ(msg_in.get_type(), message_type::method_call);
+    EXPECT_EQ(msg_in.get_path(), "/org/freedesktop/DBus");
+    EXPECT_EQ(msg_in.get_interface(), "org.freedesktop.DBus");
+    EXPECT_EQ(msg_in.get_member(), "Hello");
+    EXPECT_EQ(msg_in.get_serial(), 123456);
+    EXPECT_EQ(msg_in.get_signature(), get_signature<test_struct>());
+    ASSERT_EQ(msg_in.has_signature(get_signature<test_struct>()), true);
 
-    EXPECT_EQ(msg.body.i8, 1);
-    EXPECT_EQ(msg.body.u8, 2);
-    EXPECT_EQ(msg.body.i16, 3);
-    EXPECT_EQ(msg.body.u16, 4);
-    EXPECT_EQ(msg.body.i32, 5);
-    EXPECT_EQ(msg.body.u32, 6);
-    EXPECT_EQ(msg.body.i64, 7);
-    EXPECT_EQ(msg.body.u64, 8);
-    EXPECT_EQ(msg.body.f, 9.0f);
-    EXPECT_EQ(msg.body.d, 10.0);
-    EXPECT_EQ(msg.body.str, "Hello");
-    EXPECT_EQ(msg.body.b, true);
-    EXPECT_EQ(msg.body.p, "/org/freedesktop/DBus");
-    EXPECT_EQ(msg.body.sig, "s");
-    EXPECT_EQ(msg.body.v, "world");
-    EXPECT_EQ(msg.body.a, ts_out.a);
-    EXPECT_EQ(msg.body.m, ts_out.m);
-    EXPECT_EQ(msg.body.std_o, 1);
-    EXPECT_EQ(msg.body.std_p, ts_out.std_p);
-    EXPECT_EQ(msg.body.std_t, ts_out.std_t);
-    EXPECT_EQ(msg.body.std_vec, ts_out.std_vec);
-    EXPECT_EQ(msg.body.std_list, ts_out.std_list);
-    EXPECT_EQ(msg.body.std_map, ts_out.std_map);
-    EXPECT_EQ(msg.body.std_umap, ts_out.std_umap);
-    EXPECT_EQ(s.readable_bytes(), 0);
-}
+    auto reader = msg_in.reader();
+    reader >> ts_in;
 
-TEST_F(reflect_test, test_struct_to_dbus_message) {
-    mc::dbus::message<test_struct&> msg(ts_out);
-
-    msg.type        = message_type::method_call;
-    msg.path        = "/org/freedesktop/DBus";
-    msg.interface   = "org.freedesktop.DBus";
-    msg.destination = "org.freedesktop.DBus";
-    msg.member      = "Hello";
-    msg.serial      = 123456;
-
-    mc::dbus::stream output_stream;
-    output_stream << msg;
-    std::string_view buffer = output_stream.get_data();
-    const char*      data   = buffer.data();
-
-    DBusError err;
-    dbus_error_init(&err);
-    auto mm = dbus_message_demarshal(data, buffer.size(), &err);
-    if (dbus_error_is_set(&err)) {
-        EXPECT_EQ(std::string_view(err.name), "");
-        EXPECT_EQ(std::string_view(err.message), "");
-    }
-    dbus_error_free(&err);
-    ASSERT_NE(mm, nullptr);
-    EXPECT_EQ(dbus_message_get_signature(mm), get_signature<test_struct>());
-
-    // 反序列化
-    mc::dbus::message<test_struct> msg_in;
-    stream input_stream(stream::buffer::wrap(buffer.data(), buffer.size()), false);
-    input_stream >> msg_in;
-    EXPECT_EQ(msg_in.body.i8, 1);
-    EXPECT_EQ(msg_in.body.u8, 2);
-    EXPECT_EQ(msg_in.body.i16, 3);
-    EXPECT_EQ(msg_in.body.u16, 4);
-    EXPECT_EQ(msg_in.body.i32, 5);
-    EXPECT_EQ(msg_in.body.u32, 6);
-    EXPECT_EQ(msg_in.body.i64, 7);
-    EXPECT_EQ(msg_in.body.u64, 8);
-    EXPECT_EQ(msg_in.body.f, 9.0f);
-    EXPECT_EQ(msg_in.body.d, 10.0);
-    EXPECT_EQ(msg_in.body.str, "Hello");
-    EXPECT_EQ(msg_in.body.b, true);
-    EXPECT_EQ(msg_in.body.p, "/org/freedesktop/DBus");
-    EXPECT_EQ(msg_in.body.sig, "s");
-    EXPECT_EQ(msg_in.body.v, "world");
-    EXPECT_EQ(msg_in.body.a, ts_out.a);
-    EXPECT_EQ(msg_in.body.m, ts_out.m);
-    EXPECT_EQ(msg_in.body.std_o, 1);
-    EXPECT_EQ(msg_in.body.std_p, ts_out.std_p);
-    EXPECT_EQ(msg_in.body.std_t, ts_out.std_t);
-    EXPECT_EQ(msg_in.body.std_vec, ts_out.std_vec);
-    EXPECT_EQ(msg_in.body.std_list, ts_out.std_list);
-    EXPECT_EQ(msg_in.body.std_map, ts_out.std_map);
-    EXPECT_EQ(msg_in.body.std_umap, ts_out.std_umap);
+    EXPECT_EQ(ts_in.i8, 1);
+    EXPECT_EQ(ts_in.u8, 2);
+    EXPECT_EQ(ts_in.i16, 3);
+    EXPECT_EQ(ts_in.u16, 4);
+    EXPECT_EQ(ts_in.i32, 5);
+    EXPECT_EQ(ts_in.u32, 6);
+    EXPECT_EQ(ts_in.i64, 7);
+    EXPECT_EQ(ts_in.u64, 8);
+    EXPECT_EQ(ts_in.f, 9.0f);
+    EXPECT_EQ(ts_in.d, 10.0);
+    EXPECT_EQ(ts_in.str, "Hello");
+    EXPECT_EQ(ts_in.b, true);
+    EXPECT_EQ(ts_in.p, "/org/freedesktop/DBus");
+    EXPECT_EQ(ts_in.sig, "s");
+    EXPECT_EQ(ts_in.v, "world");
+    EXPECT_EQ(ts_in.a, ts_out.a);
+    EXPECT_EQ(ts_in.m, ts_out.m);
+    EXPECT_EQ(ts_in.std_o, 1);
+    EXPECT_EQ(ts_in.std_p, ts_out.std_p);
+    EXPECT_EQ(ts_in.std_t, ts_out.std_t);
+    EXPECT_EQ(ts_in.std_vec, ts_out.std_vec);
+    EXPECT_EQ(ts_in.std_list, ts_out.std_list);
+    EXPECT_EQ(ts_in.std_map, ts_out.std_map);
+    EXPECT_EQ(ts_in.std_umap, ts_out.std_umap);
 }
