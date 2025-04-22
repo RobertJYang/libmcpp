@@ -17,20 +17,33 @@
 namespace mc::dbus {
 
 unix_socket_transport::unix_socket_transport(io_context_type& io_context, address_entry_ptr entry)
-    : transport(io_context, std::move(entry)), m_socket(io_context), m_is_connected(false) {
+    : transport(io_context, std::move(entry)), m_socket(io_context) {
 }
 
 unix_socket_transport::~unix_socket_transport() {
     close();
 }
 
-void unix_socket_transport::connect(connect_handler handler) {
+bool unix_socket_transport::verify_connection() {
+    // 检查socket是否真的连接到了正确的地址
+    struct sockaddr_un peer_addr;
+    socklen_t          peer_addr_size = sizeof(peer_addr);
+    int ret = getpeername(m_socket.native_handle(), (struct sockaddr*)&peer_addr, &peer_addr_size);
+    if (ret == 0) {
+        std::cout << "连接到: " << peer_addr.sun_path << std::endl;
+        return true;
+    } else {
+        std::cout << "无法获取对端地址: " << strerror(errno) << std::endl;
+        return false;
+    }
+}
+
+mc::future<transport::error_code> unix_socket_transport::connect() {
+    auto promise = mc::make_promise<error_code>(m_io_context);
+
     if (m_is_connected) {
-        if (handler) {
-            boost::system::error_code ec(boost::asio::error::already_connected);
-            handler(ec);
-        }
-        return;
+        promise.set_value(boost::asio::error::already_connected);
+        return promise.get_future();
     }
 
     try {
@@ -40,22 +53,22 @@ void unix_socket_transport::connect(connect_handler handler) {
         }
 
         boost::asio::local::stream_protocol::endpoint endpoint(socket_path);
-        m_socket.async_connect(endpoint, [this, handler](const boost::system::error_code& ec) {
-            if (!ec) {
-                m_is_connected = true;
+        m_socket.async_connect(endpoint, [this, promise](const auto& ec) mutable {
+            promise.set_value(ec);
+            if (ec) {
+                return;
             }
 
-            if (handler) {
-                handler(ec);
-            }
+            verify_connection();
         });
+
+        m_socket.non_blocking(true);
     } catch (const std::exception& e) {
         elog("Unix套接字连接异常: ${error}", ("error", e.what()));
-        if (handler) {
-            boost::system::error_code ec(boost::asio::error::invalid_argument);
-            handler(ec);
-        }
+        promise.set_value(boost::asio::error::invalid_argument);
     }
+
+    return promise.get_future();
 }
 
 void unix_socket_transport::close() {
@@ -72,55 +85,60 @@ void unix_socket_transport::close() {
     }
 }
 
-void unix_socket_transport::write(buffer buf, write_handler handler) {
+mc::future<std::pair<transport::error_code, std::size_t>>
+unix_socket_transport::async_write(buffer buf) {
+    auto promise = mc::make_promise<std::pair<error_code, std::size_t>>(m_io_context);
+    auto future  = promise.get_future();
+
     if (!m_is_connected) {
-        if (handler) {
-            boost::system::error_code ec(boost::asio::error::not_connected);
-            handler(ec, 0);
-        }
-        return;
+        promise.set_value(std::make_pair(boost::asio::error::not_connected, 0));
+        return promise.get_future();
     }
 
-    try {
-        boost::asio::async_write(
-            m_socket, boost::asio::buffer(buf),
-            [handler](const boost::system::error_code& ec, std::size_t bytes_transferred) {
-                if (handler) {
-                    handler(ec, bytes_transferred);
-                }
-            });
-    } catch (const std::exception& e) {
-        elog("Unix套接字发送异常: ${error}", ("error", e.what()));
-        if (handler) {
-            boost::system::error_code ec(boost::asio::error::invalid_argument);
-            handler(ec, 0);
-        }
-    }
+    auto buffer = boost::asio::buffer(buf);
+    boost::asio::async_write(m_socket, buffer,
+                             [promise](const auto& ec, std::size_t bytes) mutable {
+                                 promise.set_value(std::make_pair(ec, bytes));
+                             });
+
+    return future;
 }
 
-void unix_socket_transport::read(writable_buffer buf, read_handler handler) {
+std::size_t unix_socket_transport::write_some(buffer buf, error_code& ec) {
     if (!m_is_connected) {
-        if (handler) {
-            boost::system::error_code ec(boost::asio::error::not_connected);
-            handler(ec, 0);
-        }
-        return;
+        ec = boost::asio::error::not_connected;
+        return 0;
     }
 
-    m_socket.async_read_some(
-        boost::asio::buffer(buf.data, buf.length),
-        [handler](const boost::system::error_code& ec, std::size_t bytes_transferred) {
-            if (ec) {
-                if (handler) {
-                    handler(ec, 0);
-                }
-                return;
-            }
+    return m_socket.write_some(boost::asio::buffer(buf.data(), buf.length()), ec);
+}
 
-            if (handler) {
-                handler(ec, bytes_transferred);
-            }
-        });
+std::size_t unix_socket_transport::read_some(buffer buf, error_code& ec) {
+    if (!m_is_connected) {
+        ec = boost::asio::error::not_connected;
+        return 0;
+    }
+
+    auto buffer = boost::asio::buffer(const_cast<char*>(buf.data()), buf.length());
+    return m_socket.read_some(buffer, ec);
+}
+
+mc::future<std::pair<transport::error_code, std::size_t>>
+unix_socket_transport::async_read(buffer buf) {
+    auto promise = mc::make_promise<std::pair<error_code, std::size_t>>(m_io_context);
+    auto future  = promise.get_future();
+
+    if (!m_is_connected) {
+        promise.set_value(std::make_pair(boost::asio::error::not_connected, 0));
+        return promise.get_future();
+    }
+
+    auto buffer = boost::asio::buffer(const_cast<char*>(buf.data()), buf.length());
+    m_socket.async_read_some(buffer, [promise](const auto& ec, std::size_t bytes) mutable {
+        promise.set_value(std::make_pair(ec, bytes));
+    });
+
+    return future;
 }
 
 // 注册Unix套接字传输层创建器

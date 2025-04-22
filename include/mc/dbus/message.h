@@ -55,6 +55,13 @@ struct message_header {
     void set_field(message_header_field field, const variant& value);
     void write_field(stream& stream, message_header_field field);
 
+    void set_method_call(std::string path, std::string interface, std::string member) {
+        this->type      = message_type::method_call;
+        this->path      = path;
+        this->interface = interface;
+        this->member    = member;
+    }
+
     void set_auto_start(bool auto_start) {
         if (auto_start) {
             flags &= ~DBUS_MESSAGE_NO_AUTO_START_FLAG;

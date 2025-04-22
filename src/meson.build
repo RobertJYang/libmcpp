@@ -46,7 +46,7 @@ src_files = [
   'dbus/transport/unix_socket_transport.cpp',
   'dbus/address.cpp',
   'dbus/connection.cpp',
-
+  'dbus/dbus-daemon/daemon-proxy.cpp',
 ]
 
 # 创建共享库

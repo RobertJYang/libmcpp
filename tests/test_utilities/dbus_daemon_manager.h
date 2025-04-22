@@ -76,6 +76,26 @@ public:
      */
     std::filesystem::path get_temp_dir() const;
 
+    /**
+     * @brief 启动socat转发，将Unix域套接字转发到TCP端口，便于tcpdump抓包
+     *
+     * @param tcp_port TCP端口号，为0时随机分配
+     * @return 是否成功启动转发
+     */
+    bool start_socat_forward(uint16_t tcp_port = 0);
+
+    /**
+     * @brief 停止socat转发
+     */
+    void stop_socat_forward();
+
+    /**
+     * @brief 获取socat转发的TCP端口号
+     *
+     * @return TCP端口号，0表示未启动转发
+     */
+    uint16_t get_forward_tcp_port() const;
+
 private:
     /**
      * @brief 创建临时目录
@@ -96,12 +116,31 @@ private:
      */
     void cleanup_temp_dir();
 
+    /**
+     * @brief 清理历史遗留的 DBus 测试实例
+     */
+    void cleanup_stale_instances();
+
+    /**
+     * @brief 清理历史遗留的测试目录
+     */
+    void cleanup_stale_directories();
+
+    /**
+     * @brief 清理历史遗留的 DBus 守护进程
+     */
+    void cleanup_stale_processes();
+
     pid_t                 m_dbus_pid = -1;      // DBus 守护进程 PID
     std::filesystem::path m_temp_dir;           // 临时目录路径
     std::filesystem::path m_socket_path;        // DBus 套接字路径
     std::filesystem::path m_config_path;        // DBus 配置文件路径
     std::string           m_dbus_address;       // DBus 地址
     bool                  m_is_running = false; // DBus 守护进程是否正在运行
+
+    pid_t    m_socat_pid  = -1;    // socat进程PID
+    uint16_t m_tcp_port   = 0;     // 转发的TCP端口
+    bool     m_forwarding = false; // 是否已启动转发
 };
 
 } // namespace mc::test

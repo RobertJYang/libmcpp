@@ -15,8 +15,10 @@
 
 #include <boost/asio.hpp>
 
+#include <mc/dbus/dbus-daemon/daemon-proxy.h>
 #include <mc/dbus/transport/transport.h>
 #include <mc/engine/engine.h>
+#include <mc/future.h>
 #include <mc/io/io_buffer.h>
 #include <mc/signal_slot.h>
 
@@ -34,6 +36,11 @@ enum class connection_state {
     disconnecting   ///< 正在断开连接
 };
 
+using error_code = boost::system::error_code;
+
+class connection;
+using connection_ptr = std::shared_ptr<connection>;
+
 /**
  * @brief DBus连接对象
  *
@@ -43,7 +50,6 @@ class connection : public std::enable_shared_from_this<connection> {
 public:
     using io_context_type  = boost::asio::io_context;
     using message_handler  = std::function<void(const std::shared_ptr<variants_message>&)>;
-    using connect_handler  = std::function<void(const boost::system::error_code&)>;
     using message_map      = std::unordered_map<uint32_t, message_handler>;
     using buffer_type      = mc::io::io_buffer;
     using buffer_ptr_type  = std::unique_ptr<buffer_type>;
@@ -54,7 +60,7 @@ public:
      * @param io_context IO上下文
      * @return 连接对象智能指针
      */
-    static std::shared_ptr<connection> create(io_context_type& io_context);
+    static connection_ptr create(io_context_type& io_context);
 
     /**
      * @brief 构造函数
@@ -80,7 +86,7 @@ public:
      * - unix:abstract=/tmp/abstract-socket
      * - tcp:host=hostname,port=1234
      */
-    void connect(const std::string& address, connect_handler handler);
+    mc::future<error_code> connect(const std::string& address);
 
     /**
      * @brief 断开连接
@@ -92,7 +98,7 @@ public:
      * @param msg 要发送的消息
      */
     template <typename T>
-    bool send(const mc::dbus::message<T>& msg) {
+    bool send(mc::dbus::message<T>& msg) {
         if (m_state.load() != connection_state::connected || !m_transport) {
             return false;
         }
@@ -133,18 +139,8 @@ private:
      */
     void set_transport(transport_ptr transport);
 
-    /**
-     * @brief 处理连接完成事件
-     * @param ec 错误码
-     * @param handler 用户定义的连接回调
-     */
-    void handle_connect(const boost::system::error_code& ec, connect_handler handler);
-
-    /**
-     * @brief 处理认证完成事件
-     * @param ec 错误码
-     */
-    void handle_authenticate(const boost::system::error_code& ec);
+    void handle_connect(const error_code& ec, promise<error_code>& promise);
+    void handle_authenticate(promise<error_code>& promise);
 
     void start_read();
     void start_write();
@@ -154,17 +150,19 @@ private:
     void process_message();
     bool read_message();
 
-    io_context_type&              m_io_context;    ///< IO上下文引用
-    transport_ptr                 m_transport;     ///< 传输层对象
-    std::atomic<connection_state> m_state;         ///< 当前连接状态
-    std::atomic<uint32_t>         m_next_serial;   ///< 下一个消息序列号
-    message_map                   m_pending_calls; ///< 待处理的消息回调
+    io_context_type&              m_io_context;     ///< IO上下文引用
+    transport_ptr                 m_transport;      ///< 传输层对象
+    std::atomic<connection_state> m_state;          ///< 当前连接状态
+    std::atomic<uint32_t>         m_next_serial{1}; ///< 下一个消息序列号
+    message_map                   m_pending_calls;  ///< 待处理的消息回调
 
     stream           m_read_stream; ///< 读取流对象
     message_ptr_type m_current_message;
 
     stream m_write_stream; ///< 写入流对象
     bool   m_is_writing{false};
+
+    daemon_proxy_ptr m_daemon_proxy;
 
     mutable std::mutex m_mutex; ///< 保护共享数据的互斥锁
 };

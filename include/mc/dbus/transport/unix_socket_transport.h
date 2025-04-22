@@ -39,34 +39,34 @@ public:
     /**
      * @brief 连接到DBus服务器
      * @param address Unix套接字路径
-     * @param handler 连接完成回调
      */
-    void connect(connect_handler handler) override;
+    mc::future<error_code> connect() override;
 
     /**
      * @brief 关闭连接
      */
     void close() override;
 
+    std::size_t write_some(buffer buf, error_code& ec) override;
+    std::size_t read_some(buffer buf, error_code& ec) override;
+
     /**
      * @brief 发送消息
      * @param buf 要发送的消息
-     * @param handler 发送完成回调
      */
-    void write(buffer buf, write_handler handler) override;
+    mc::future<std::pair<error_code, std::size_t>> async_write(buffer buf) override;
 
     /**
      * @brief 读取消息
      * @param buf 读取缓冲区
-     * @param handler 读取完成回调
      */
-    void read(writable_buffer buf, read_handler handler) override;
+    mc::future<std::pair<error_code, std::size_t>> async_read(buffer buf) override;
 
 private:
     using socket_type = boost::asio::local::stream_protocol::socket;
+    bool verify_connection();
 
-    socket_type m_socket;       ///< Unix域套接字
-    bool        m_is_connected; ///< 连接状态标志
+    socket_type m_socket; ///< Unix域套接字
 };
 
 } // namespace mc::dbus

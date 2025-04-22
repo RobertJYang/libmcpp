@@ -16,8 +16,7 @@
 #include <stdint.h>
 #include <string>
 
-namespace mc {
-namespace dbus {
+namespace mc::dbus {
 
 /**
  * DBus总线类型
@@ -37,43 +36,6 @@ enum class message_type {
     method_return = 2, /**< 方法返回消息 */
     error         = 3, /**< 错误消息 */
     signal        = 4  /**< 信号消息 */
-};
-
-/**
- * 调度状态
- */
-enum class dispatch_status {
-    data_remains, // 还有数据需要处理
-    complete,     // 处理完成
-    need_memory   // 需要更多内存
-};
-
-/**
- * 请求名称的响应
- */
-enum class request_name_response {
-    primary_owner, // 成为主要拥有者
-    in_queue,      // 在队列中
-    exists,        // 名称已存在
-    already_owner  // 已经是拥有者
-};
-
-/**
- * 释放名称的响应
- */
-enum class release_name_response {
-    released,     // 已释放
-    non_existent, // 不存在
-    not_owner     // 不是拥有者
-};
-
-/**
- * 启动服务的响应
- */
-enum class start_reply {
-    success,         // 成功
-    already_running, // 已在运行
-    not_found        // 未找到
 };
 
 /**
@@ -102,35 +64,6 @@ enum class property_access {
 };
 
 /**
- * 属性更新类型
- */
-enum class property_update_type {
-    updates,     // 更新
-    invalidates, // 失效
-    const_prop   // 常量
-};
-
-/**
- * 处理结果
- */
-enum class handler_result {
-    handled,           // 已处理
-    not_yet_handled,   // 尚未处理
-    invalid_interface, // 无效接口
-    invalid_method,    // 无效方法
-    invalid_parameters // 无效参数
-};
-
-/**
- * 对象注册状态
- */
-enum class registration_status {
-    success,      // 成功
-    invalid_path, // 无效路径
-    path_in_use   // 路径已使用
-};
-
-/**
  * @brief 消息标志位
  */
 enum class message_flag {
@@ -139,7 +72,6 @@ enum class message_flag {
     allow_interactive_authorization = 0x04  /**< 允许交互式授权 */
 };
 
-} // namespace dbus
-} // namespace mc
+} // namespace mc::dbus
 
 #endif // MC_DBUS_ENUMS_H
