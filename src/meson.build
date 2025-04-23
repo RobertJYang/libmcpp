@@ -44,7 +44,10 @@ src_files = [
   # 'dbus/transport/transport_factory.cpp',
   # 'dbus/transport/unix_socket_transport.cpp',
   # 'dbus/address.cpp',
-  # 'dbus/connection.cpp',
+  'dbus/connection.cpp',
+  'dbus/dispatch/watch.cpp',
+  'dbus/dispatch/timeout.cpp',
+  'dbus/dispatch/pending_call.cpp',
   # 'dbus/dbus-daemon/daemon-proxy.cpp',
 ]
 

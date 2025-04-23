@@ -140,6 +140,10 @@ public:
     // 获取关联的Future
     Future<T, Executor, Allocator> get_future();
 
+    operator bool() const {
+        return state_ != nullptr;
+    }
+
 private:
     std::shared_ptr<typename Future<T, Executor, Allocator>::State> state_;
     bool                                                            future_retrieved_ = false;

@@ -93,7 +93,7 @@ test_files = [
   'dbus/test_reflect.cpp',
   'dbus/test_dbus_message.cpp',
   # 'dbus/test_address.cpp',
-  # 'dbus/test_connection.cpp',
+  'dbus/test_connection.cpp',
 ]
 
 dbus_dep = dependency('dbus-1', method: 'pkg-config', required: true)

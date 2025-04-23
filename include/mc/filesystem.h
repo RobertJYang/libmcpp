@@ -310,6 +310,13 @@ std::optional<int64_t> last_modified_time(const path& p);
  */
 space_info space(const path& p);
 
+/**
+ * @brief 获取临时目录路径
+ *
+ * @return fs::path 临时目录路径
+ */
+fs::path temp_directory_path();
+
 } // namespace filesystem
 } // namespace mc
 

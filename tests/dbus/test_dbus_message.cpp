@@ -70,8 +70,8 @@ TEST_F(dbus_message_test, test_writer) {
 
     auto [data, size] = msg.marshal();
 
-    message    msg2;
-    dbus_error err;
+    message msg2;
+    error   err;
     msg2.demarshal(data.get(), size, err);
     EXPECT_FALSE(err.is_set());
     EXPECT_EQ(msg2.get_sender(), "org.example.Test");

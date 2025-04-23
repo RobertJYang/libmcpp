@@ -55,15 +55,9 @@ protected:
 
     void SetUp() override {
         s_io_context->restart();
-        dbus_error_init(&error);
     }
 
     void TearDown() override {
-        dbus_error_free(&error);
-        if (conn) {
-            dbus_connection_close(conn);
-            conn = nullptr;
-        }
     }
 
     std::shared_ptr<boost::asio::io_context> get_io_context() {
@@ -82,9 +76,6 @@ protected:
     static std::unique_ptr<mc::test::dbus_daemon_manager> s_dbus_manager;
     static std::shared_ptr<boost::asio::io_context>       s_io_context;
     static std::unique_ptr<std::thread>                   s_thread;
-
-    DBusError       error;
-    DBusConnection* conn{nullptr};
 };
 
 // 初始化静态成员变量
@@ -92,39 +83,31 @@ std::unique_ptr<mc::test::dbus_daemon_manager> connection_test::s_dbus_manager;
 std::shared_ptr<boost::asio::io_context>       connection_test::s_io_context;
 std::unique_ptr<std::thread>                   connection_test::s_thread;
 
-TEST_F(connection_test, DBusConnection) {
-    conn = dbus_connection_open_private(get_dbus_address().c_str(), &error);
-    ASSERT_NE(conn, nullptr) << "连接失败: " << error.message;
-    if (!dbus_bus_register(conn, &error)) {
-        ASSERT_TRUE(false) << error.message;
-    }
+TEST_F(connection_test, test_call_method_error) {
+    connection_ptr conn = mc::dbus::connection::open_session_bus(*s_io_context);
+    conn->start();
+    ASSERT_TRUE(conn->is_connected());
+    EXPECT_TRUE(conn->request_name("org.test.Connection"));
 
-    dbus_bus_request_name(conn, "org.test.connection", 0, &error);
-    if (dbus_error_is_set(&error)) {
-        ASSERT_TRUE(false) << error.message;
-    }
+    auto msg   = mc::dbus::message::new_method_call("org.test.Connection", "/org/test/Connection",
+                                                    "org.test.Connection", "Hello");
+    auto reply = conn->send_with_reply(std::move(msg), mc::milliseconds(1000));
+    ASSERT_TRUE(reply.is_valid() && reply.is_error());
+    EXPECT_EQ(reply.get_error_name(), error_names::unknown_method);
 }
 
-TEST_F(connection_test, ConnectionState) {
-    auto io_context = get_io_context();
-    auto conn       = connection::create(*io_context);
-    EXPECT_EQ(conn->get_state(), connection_state::disconnected);
-    auto future = conn->connect(get_dbus_address());
-    EXPECT_EQ(conn->get_state(), connection_state::connecting);
-    future.get();
-    EXPECT_EQ(conn->get_state(), connection_state::connected);
+TEST_F(connection_test, test_list_names) {
+    connection_ptr conn = mc::dbus::connection::open_session_bus(*s_io_context);
+    conn->start();
+    ASSERT_TRUE(conn->is_connected());
+    EXPECT_TRUE(conn->request_name("org.test.Connection"));
+
+    auto msg   = mc::dbus::message::new_method_call("org.freedesktop.DBus", "/org/freedesktop/DBus",
+                                                    "org.freedesktop.DBus", "ListNames");
+    auto reply = conn->send_with_reply(std::move(msg), mc::milliseconds(1000));
+    ASSERT_TRUE(reply.is_valid() && reply.is_method_return());
+
+    std::vector<std::string> names;
+    reply.reader() >> names;
+    EXPECT_GE(names.size(), 1);
 }
-
-// // 添加更多测试用例，它们共享同一个 DBus 守护进程
-// TEST_F(connection_test, MultipleConnections) {
-//     auto io_context = get_io_context();
-//     auto conn1      = connection::create(*io_context);
-//     auto conn2      = connection::create(*io_context);
-
-//     auto future1 = conn1->connect("unix:path=" + get_socket_path().string());
-//     auto future2 = conn2->connect("unix:path=" + get_socket_path().string());
-//     future1.get();
-//     future2.get();
-//     EXPECT_EQ(conn1->get_state(), connection_state::connected);
-//     EXPECT_EQ(conn2->get_state(), connection_state::connected);
-// }

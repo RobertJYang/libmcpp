@@ -119,9 +119,6 @@ bool dbus_daemon_manager::start() {
 }
 
 void dbus_daemon_manager::stop() {
-    // 先停止socat转发
-    stop_socat_forward();
-
     if (!m_is_running || m_dbus_pid <= 0) {
         return; // 未在运行，无需停止
     }
@@ -151,21 +148,21 @@ std::string dbus_daemon_manager::get_address() const {
     return m_dbus_address;
 }
 
-std::filesystem::path dbus_daemon_manager::get_socket_path() const {
+mc::filesystem::path dbus_daemon_manager::get_socket_path() const {
     return m_socket_path;
 }
 
-std::filesystem::path dbus_daemon_manager::get_config_path() const {
+mc::filesystem::path dbus_daemon_manager::get_config_path() const {
     return m_config_path;
 }
 
-std::filesystem::path dbus_daemon_manager::get_temp_dir() const {
+mc::filesystem::path dbus_daemon_manager::get_temp_dir() const {
     return m_temp_dir;
 }
 
 bool dbus_daemon_manager::create_temp_dir() {
     // 创建临时目录用于 DBus 套接字和配置文件
-    m_temp_dir                    = std::filesystem::temp_directory_path() / "dbus_test_XXXXXX";
+    m_temp_dir                    = mc::filesystem::temp_directory_path() / "dbus_test_XXXXXX";
     std::string temp_dir_template = m_temp_dir.string();
 
     if (mkdtemp(&temp_dir_template[0]) == nullptr) {
@@ -206,11 +203,11 @@ bool dbus_daemon_manager::create_config_file() {
 }
 
 void dbus_daemon_manager::cleanup_temp_dir() {
-    if (!m_temp_dir.empty() && std::filesystem::exists(m_temp_dir)) {
+    if (!m_temp_dir.empty() && mc::filesystem::exists(m_temp_dir)) {
         try {
-            std::filesystem::remove_all(m_temp_dir);
+            mc::filesystem::remove_all(m_temp_dir);
             dlog("已清理临时目录: ${dir}", ("dir", m_temp_dir.string()));
-        } catch (const std::filesystem::filesystem_error& e) {
+        } catch (const mc::filesystem::filesystem_error& e) {
             wlog("清理临时目录失败: ${error}", ("error", e.what()));
         }
     }
@@ -229,19 +226,14 @@ void dbus_daemon_manager::cleanup_stale_instances() {
 }
 
 void dbus_daemon_manager::cleanup_stale_directories() {
-    std::filesystem::path temp_dir = std::filesystem::temp_directory_path();
+    mc::filesystem::path temp_dir = mc::filesystem::temp_directory_path();
     try {
-        for (const auto& entry : std::filesystem::directory_iterator(temp_dir)) {
+        for (const auto& entry : mc::filesystem::directory_iterator(temp_dir)) {
             std::string name = entry.path().filename().string();
-            if (name.find("dbus_test_") == 0 && std::filesystem::is_directory(entry.path())) {
+            if (name.find("dbus_test_") == 0 && mc::filesystem::is_directory(entry.path())) {
                 try {
-                    std::error_code ec;
                     dlog("正在删除旧的测试目录: ${dir}", ("dir", entry.path().string()));
-                    std::filesystem::remove_all(entry.path(), ec);
-                    if (ec) {
-                        wlog("无法删除旧的测试目录: ${dir} (${error})",
-                             ("dir", entry.path().string())("error", ec.message()));
-                    }
+                    mc::filesystem::remove_all(entry.path());
                 } catch (const std::exception& e) {
                     wlog("清理旧测试目录时出错: ${error}", ("error", e.what()));
                 }
@@ -270,112 +262,6 @@ void dbus_daemon_manager::cleanup_stale_processes() {
         // 这里不需要报错，因为我们使用了"|| true"来确保命令总是成功
         dlog("执行清理进程命令完成，返回值: ${ret}", ("ret", ret));
     }
-
-// 清理相关的socat进程
-// 查找可能是由我们的测试启动的socat进程（连接到dbus_test_目录中的套接字）
-#ifdef __APPLE__
-    std::string socat_cmd =
-        "pgrep -f 'socat.*UNIX-CONNECT.*dbus_test_' | xargs -n1 kill 2>/dev/null || true";
-#else
-    std::string socat_cmd =
-        "pgrep -f 'socat.*UNIX-CONNECT.*dbus_test_' | xargs -r kill 2>/dev/null || true";
-#endif
-
-    ret = system(socat_cmd.c_str());
-    if (ret != 0) {
-        dlog("执行清理socat进程命令完成，返回值: ${ret}", ("ret", ret));
-    }
-}
-bool dbus_daemon_manager::start_socat_forward(uint16_t tcp_port) {
-    if (m_forwarding) {
-        wlog("socat转发已经在运行");
-        return true;
-    }
-
-    if (!m_is_running) {
-        elog("DBus守护进程未运行，无法启动转发");
-        return false;
-    }
-
-    // 使用指定端口或默认端口
-    m_tcp_port           = tcp_port ? tcp_port : 8089;
-    std::string port_str = std::to_string(m_tcp_port);
-
-    // 打印详细信息便于调试
-    ilog("Socket路径: ${path}", ("path", m_socket_path.string()));
-    ilog("转发端口: ${port}", ("port", m_tcp_port));
-
-    // 创建更明确的转发规则，指定本地地址
-    std::string tcp_listen   = "TCP-LISTEN:" + port_str + ",bind=127.0.0.1,reuseaddr";
-    std::string unix_connect = "UNIX-CONNECT:" + m_socket_path.string();
-
-    // 启动socat进程
-    m_socat_pid = fork();
-    if (m_socat_pid == -1) {
-        elog("创建socat进程失败: ${error}", ("error", strerror(errno)));
-        return false;
-    } else if (m_socat_pid == 0) {
-        // 子进程：执行socat，添加-d -d增加调试输出
-        execlp("socat", "socat", "-v", "-d", "-d", tcp_listen.c_str(), unix_connect.c_str(),
-               nullptr);
-
-        // 如果执行失败，输出错误并退出
-        std::cerr << "执行socat失败: " << strerror(errno) << std::endl;
-        exit(1);
-    }
-
-    // 给socat启动一些时间
-    std::this_thread::sleep_for(std::chrono::milliseconds(500));
-
-    // 检查socat是否正在运行
-    int   status;
-    pid_t result = waitpid(m_socat_pid, &status, WNOHANG);
-    if (result == m_socat_pid) {
-        // socat已退出
-        elog("socat进程意外退出，退出码: ${code}", ("code", WEXITSTATUS(status)));
-        m_socat_pid = -1;
-        return false;
-    }
-
-    m_forwarding = true;
-    ilog("已启动socat转发: unix:${socket} -> tcp:127.0.0.1:${port}",
-         ("socket", m_socket_path.string())("port", m_tcp_port));
-
-    // 打印tcpdump命令建议
-    ilog("建议使用的抓包命令: sudo tcpdump -i lo0 -n -vv -s0 host 127.0.0.1 and port ${port}",
-         ("port", m_tcp_port));
-
-    return true;
-}
-
-void dbus_daemon_manager::stop_socat_forward() {
-    if (!m_forwarding || m_socat_pid <= 0) {
-        return; // 未在运行，无需停止
-    }
-
-    // 终止socat进程
-    dlog("正在终止socat进程 (PID: ${pid})", ("pid", m_socat_pid));
-    kill(m_socat_pid, SIGTERM);
-
-    // 等待进程终止
-    int status;
-    waitpid(m_socat_pid, &status, 0);
-
-    if (WIFEXITED(status)) {
-        dlog("socat进程正常退出，退出码: ${code}", ("code", WEXITSTATUS(status)));
-    } else if (WIFSIGNALED(status)) {
-        dlog("socat进程被信号终止，信号: ${signal}", ("signal", WTERMSIG(status)));
-    }
-
-    m_socat_pid  = -1;
-    m_tcp_port   = 0;
-    m_forwarding = false;
-
-    dlog("socat转发已停止");
-}
-
-uint16_t dbus_daemon_manager::get_forward_tcp_port() const {
-    return m_tcp_port;
 }
 
 } // namespace mc::test

@@ -23,7 +23,7 @@ path::path() : m_path("/") {
 
 path::path(std::string p) {
     if (!is_valid(p)) {
-        MC_THROW(invalid_object_path_exception, "无效的DBus对象路径: ${path}", ("path", p));
+        MC_THROW(mc::invalid_arg_exception, "无效的DBus对象路径: ${path}", ("path", p));
     }
     m_path = std::move(p);
 }
@@ -53,8 +53,7 @@ bool path::operator<(const path& other) const {
 
 path path::operator/(const std::string& element) const {
     if (!is_valid_element(element)) {
-        MC_THROW(invalid_object_path_exception, "无效的DBus路径元素: ${element}",
-                 ("element", element));
+        MC_THROW(mc::invalid_arg_exception, "无效的DBus路径元素: ${element}", ("element", element));
     }
 
     std::string new_path;
@@ -68,7 +67,7 @@ path path::operator/(const std::string& element) const {
 
 path& path::operator=(std::string p) {
     if (!is_valid(p)) {
-        MC_THROW(invalid_object_path_exception, "无效的DBus对象路径: ${path}", ("path", p));
+        MC_THROW(mc::invalid_arg_exception, "无效的DBus对象路径: ${path}", ("path", p));
     }
 
     m_path = std::move(p);

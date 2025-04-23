@@ -13,9 +13,10 @@
 #ifndef MC_TEST_UTILITIES_DBUS_DAEMON_MANAGER_H
 #define MC_TEST_UTILITIES_DBUS_DAEMON_MANAGER_H
 
-#include <filesystem>
 #include <string>
 #include <unistd.h>
+
+#include <mc/filesystem.h>
 
 namespace mc::test {
 
@@ -60,41 +61,21 @@ public:
      *
      * @return 套接字路径
      */
-    std::filesystem::path get_socket_path() const;
+    mc::filesystem::path get_socket_path() const;
 
     /**
      * @brief 获取 DBus 配置文件路径
      *
      * @return 配置文件路径
      */
-    std::filesystem::path get_config_path() const;
+    mc::filesystem::path get_config_path() const;
 
     /**
      * @brief 获取临时目录路径
      *
      * @return 临时目录路径
      */
-    std::filesystem::path get_temp_dir() const;
-
-    /**
-     * @brief 启动socat转发，将Unix域套接字转发到TCP端口，便于tcpdump抓包
-     *
-     * @param tcp_port TCP端口号，为0时随机分配
-     * @return 是否成功启动转发
-     */
-    bool start_socat_forward(uint16_t tcp_port = 0);
-
-    /**
-     * @brief 停止socat转发
-     */
-    void stop_socat_forward();
-
-    /**
-     * @brief 获取socat转发的TCP端口号
-     *
-     * @return TCP端口号，0表示未启动转发
-     */
-    uint16_t get_forward_tcp_port() const;
+    mc::filesystem::path get_temp_dir() const;
 
 private:
     /**
@@ -131,16 +112,12 @@ private:
      */
     void cleanup_stale_processes();
 
-    pid_t                 m_dbus_pid = -1;      // DBus 守护进程 PID
-    std::filesystem::path m_temp_dir;           // 临时目录路径
-    std::filesystem::path m_socket_path;        // DBus 套接字路径
-    std::filesystem::path m_config_path;        // DBus 配置文件路径
-    std::string           m_dbus_address;       // DBus 地址
-    bool                  m_is_running = false; // DBus 守护进程是否正在运行
-
-    pid_t    m_socat_pid  = -1;    // socat进程PID
-    uint16_t m_tcp_port   = 0;     // 转发的TCP端口
-    bool     m_forwarding = false; // 是否已启动转发
+    pid_t                m_dbus_pid = -1;      // DBus 守护进程 PID
+    mc::filesystem::path m_temp_dir;           // 临时目录路径
+    mc::filesystem::path m_socket_path;        // DBus 套接字路径
+    mc::filesystem::path m_config_path;        // DBus 配置文件路径
+    std::string          m_dbus_address;       // DBus 地址
+    bool                 m_is_running = false; // DBus 守护进程是否正在运行
 };
 
 } // namespace mc::test

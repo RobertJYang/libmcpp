@@ -95,16 +95,15 @@ TEST_F(reflect_test, test_reflect_struct) {
     EXPECT_TRUE(msg_out.is_valid());
 
     // 序列化消息
-    auto writer = msg_out.writer();
-    writer << ts_out;
+    msg_out.writer() << ts_out;
     auto [data, len] = msg_out.marshal();
     EXPECT_NE(data, nullptr);
     EXPECT_GT(len, 0);
 
     // 反序列化消息
-    test_struct          ts_in;
-    mc::dbus::message    msg_in;
-    mc::dbus::dbus_error err;
+    test_struct       ts_in;
+    mc::dbus::message msg_in;
+    mc::dbus::error   err;
     EXPECT_TRUE(msg_in.demarshal(data.get(), len, err));
 
     EXPECT_EQ(msg_in.get_type(), message_type::method_call);
@@ -115,8 +114,7 @@ TEST_F(reflect_test, test_reflect_struct) {
     EXPECT_EQ(msg_in.get_signature(), get_signature<test_struct>());
     ASSERT_EQ(msg_in.has_signature(get_signature<test_struct>()), true);
 
-    auto reader = msg_in.reader();
-    reader >> ts_in;
+    msg_in.reader() >> ts_in;
 
     EXPECT_EQ(ts_in.i8, 1);
     EXPECT_EQ(ts_in.u8, 2);

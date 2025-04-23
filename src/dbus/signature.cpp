@@ -13,6 +13,7 @@
 #include <mc/dbus/error.h>
 #include <mc/dbus/signature.h>
 #include <mc/dbus/type_code.h>
+#include <mc/exception.h>
 
 namespace mc {
 namespace dbus {
@@ -260,7 +261,7 @@ void signature::validate() const {
 
 void signature::validate(std::string_view sig) {
     if (!is_valid(sig)) {
-        MC_THROW(invalid_signature_exception, "invalid signature: ${sig}", ("sig", sig));
+        MC_THROW(mc::invalid_arg_exception, "invalid signature: ${sig}", ("sig", sig));
     }
 }
 
@@ -348,7 +349,7 @@ signature_iterator signature_iterator::get_content_iterator() const {
     if (current_type_char() == type_to_char(type_code::array_start)) {
         size_t type_len = signature::get_complete_type_length(m_sig, m_pos);
         if (type_len == 0) {
-            MC_THROW(invalid_signature_exception, "invalid signature array: ${sig}, pos: ${pos}",
+            MC_THROW(mc::invalid_arg_exception, "invalid signature array: ${sig}, pos: ${pos}",
                      ("sig", m_sig)("pos", m_pos));
         }
         return signature_iterator(m_sig.substr(m_pos + 1, type_len - 1), 0);
@@ -357,7 +358,7 @@ signature_iterator signature_iterator::get_content_iterator() const {
     if (current_type_char() == type_to_char(type_code::struct_start)) {
         size_t type_len = signature::get_complete_type_length(m_sig, m_pos);
         if (type_len == 0) {
-            MC_THROW(invalid_signature_exception, "invalid signature struct: ${sig}, pos: ${pos}",
+            MC_THROW(mc::invalid_arg_exception, "invalid signature struct: ${sig}, pos: ${pos}",
                      ("sig", m_sig)("pos", m_pos));
         }
         return signature_iterator(m_sig.substr(m_pos + 1, type_len - 2), 0);
