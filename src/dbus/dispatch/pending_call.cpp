@@ -14,8 +14,7 @@
 
 namespace mc::dbus {
 
-pending_call::pending_call(boost::asio::io_context& io_context, DBusPendingCall* pending_call)
-    : m_pending_call(pending_call) {
+pending_call::pending_call(DBusPendingCall* pending_call) : m_pending_call(pending_call) {
 }
 
 pending_call::~pending_call() {
@@ -46,6 +45,8 @@ pending_call::pending_call(pending_call&& other) : m_pending_call(other.m_pendin
 
 pending_call& pending_call::operator=(pending_call&& other) {
     if (this != &other) {
+        release();
+
         m_pending_call       = other.m_pending_call;
         other.m_pending_call = nullptr;
     }

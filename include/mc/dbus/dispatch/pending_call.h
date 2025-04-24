@@ -25,7 +25,7 @@ namespace mc::dbus {
 
 class pending_call {
 public:
-    pending_call(boost::asio::io_context& io_context, DBusPendingCall* pending_call);
+    pending_call(DBusPendingCall* pending_call);
     ~pending_call();
 
     pending_call(const pending_call&);
@@ -38,6 +38,14 @@ public:
     void release();
 
     mc::signal<void(mc::dbus::message)> on_reply;
+
+    bool operator==(const pending_call& other) const {
+        return m_pending_call == other.m_pending_call;
+    }
+
+    bool operator!=(const pending_call& other) const {
+        return m_pending_call != other.m_pending_call;
+    }
 
 private:
     static void notify(DBusPendingCall* pending_call, void* data);

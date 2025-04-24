@@ -64,6 +64,11 @@ Future<T, Executor, Allocator> Promise<T, Executor, Allocator>::get_future() {
     return Future<T, Executor, Allocator>(state_);
 }
 
+template <typename T, typename Executor, typename Allocator>
+Promise<T, Executor, Allocator>::~Promise() {
+    state_.reset();
+}
+
 } // namespace mc::futures
 
 #endif // MC_FUTURES_DETAIL_PROMISE_IMPL_H

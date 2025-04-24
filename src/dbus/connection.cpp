@@ -24,7 +24,7 @@ namespace mc::dbus {
 
 struct pending_data {
     pending_data(mc::promise<message> promise, pending_call pending)
-        : promise(std::move(promise)), pending(std::move(pending)) {
+        : promise(std::move(promise)), pending(std::move(pending)) { 
     }
 
     ~pending_data() {
@@ -46,12 +46,15 @@ constexpr uint32_t MAX_SERIAL_RETRY = 1000000;
 struct connection::connection_impl {
     std::mutex        m_mutex;
     pending_call_map  m_pending_calls;  ///< 等待回复的消息
-    uint32_t          m_next_serial{0}; ///< 下一个消息序列号
+    uint32_t          m_next_serial{1}; ///< 下一个消息序列号
     std::atomic<bool> m_is_running{false};
 
     uint32_t get_next_serial() {
         std::size_t retry = 0;
         do {
+            if (m_next_serial == std::numeric_limits<uint32_t>::max()) {
+                m_next_serial = 1;
+            }
             auto next_serial = m_next_serial++;
             if (m_pending_calls.find(next_serial) == m_pending_calls.end()) {
                 return next_serial;
@@ -153,7 +156,7 @@ mc::future<message> connection::async_send_with_reply(message&& msg, mc::millise
 
     auto [it, inserted] = m_impl->m_pending_calls.emplace(
         std::piecewise_construct, std::forward_as_tuple(serial),
-        std::forward_as_tuple(std::move(promise), pending_call(m_io_context, dbus_pending_call)));
+        std::forward_as_tuple(promise, pending_call(dbus_pending_call)));
 
     if (!inserted) {
         promise.set_value(message::new_error(msg, error_names::failed, "发送消息失败"));
@@ -312,11 +315,10 @@ dbus_bool_t connection::watch_add(DBusWatch* watch, void* data) {
         return TRUE;
     }
 
-    auto w = new mc::dbus::watch(conn->get_io_context(), watch);
-    dbus_watch_set_data(watch, w, [](void* data) {
-        auto watch = static_cast<mc::dbus::watch*>(data);
-        watch->stop();
-        delete watch;
+    auto w = mc::im::make_ref<mc::dbus::watch>(conn->get_io_context(), watch);
+    dbus_watch_set_data(watch, w.get(), [](void* data) {
+        im::ref_ptr<mc::dbus::watch> w(static_cast<mc::dbus::watch*>(data), false);
+        w->stop();
     });
 
     connection_weak_ptr weak_conn = conn->shared_from_this();
@@ -335,6 +337,8 @@ dbus_bool_t connection::watch_add(DBusWatch* watch, void* data) {
     });
 
     w->start();
+
+    w.detach();
     return TRUE;
 }
 

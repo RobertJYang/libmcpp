@@ -42,12 +42,14 @@ void watch::start() {
 }
 
 void watch::stop() {
+    m_watch = nullptr;
     on_ready.disconnect_all();
     m_socket.close();
 }
 
 void watch::watch_readable() {
-    m_socket.async_wait(wait_read, [this](const auto& ec) {
+    mc::im::ref_ptr<watch> self(this);
+    m_socket.async_wait(wait_read, [self = std::move(self)](const auto& ec) {
         if (ec) {
             if (ec == boost::asio::error::operation_aborted) {
                 return;
@@ -57,14 +59,15 @@ void watch::watch_readable() {
             return;
         }
 
-        if (handle_watch_ready(DBUS_WATCH_READABLE)) {
-            watch_readable();
+        if (self->handle_watch_ready(DBUS_WATCH_READABLE)) {
+            self->watch_readable();
         }
     });
 }
 
 void watch::watch_writable() {
-    m_socket.async_wait(wait_write, [this](const auto& ec) {
+    mc::im::ref_ptr<watch> self(this);
+    m_socket.async_wait(wait_write, [self = std::move(self)](const auto& ec) {
         if (ec) {
             if (ec == boost::asio::error::operation_aborted) {
                 return;
@@ -74,13 +77,17 @@ void watch::watch_writable() {
             return;
         }
 
-        if (handle_watch_ready(DBUS_WATCH_WRITABLE)) {
-            watch_writable();
+        if (self->handle_watch_ready(DBUS_WATCH_WRITABLE)) {
+            self->watch_writable();
         }
     });
 }
 
 bool watch::handle_watch_ready(uint32_t flags) {
+    if (m_watch.load() == nullptr) {
+        return false;
+    }
+
     dbus_watch_handle(m_watch, flags);
     on_ready(flags);
     if (dbus_watch_get_enabled(m_watch) && (dbus_watch_get_flags(m_watch) & flags)) {

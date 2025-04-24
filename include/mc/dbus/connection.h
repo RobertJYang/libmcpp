@@ -158,7 +158,7 @@ private:
     struct connection_impl;
     std::unique_ptr<connection_impl> m_impl;
     DBusConnection*                  m_connection{nullptr};
-    io_context_type&                 m_io_context; ///< IO上下文引用
+    io_context_type&                 m_io_context;
     connect_status                   m_status{connect_status::disconnected};
 };
 

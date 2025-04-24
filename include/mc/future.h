@@ -120,7 +120,7 @@ public:
               std::enable_if_t<std::is_same_v<typename Executor::executor_type, E>, int> = 0>
     explicit Promise(E& executor, const Allocator& alloc);
 
-    ~Promise() = default;
+    ~Promise();
 
     // 禁止拷贝
     Promise(const Promise&)            = default;

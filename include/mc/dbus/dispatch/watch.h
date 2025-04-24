@@ -15,12 +15,15 @@
 #include <boost/asio/io_context.hpp>
 #include <boost/asio/posix/stream_descriptor.hpp>
 #include <dbus/dbus.h>
+#include <mc/im/ref_ptr.h>
 #include <mc/signal_slot.h>
 
 namespace mc::dbus {
 
-class watch {
+class watch : public mc::im::ref_base<watch> {
 public:
+    using alloc_type = std::allocator<watch>;
+
     watch(boost::asio::io_context& io_context, DBusWatch* watch);
     ~watch();
 
@@ -35,8 +38,8 @@ private:
     bool handle_watch_ready(uint32_t flags);
 
     using socket_type = boost::asio::posix::stream_descriptor;
-    DBusWatch*  m_watch;
-    socket_type m_socket;
+    std::atomic<DBusWatch*> m_watch;
+    socket_type             m_socket;
 };
 
 } // namespace mc::dbus
