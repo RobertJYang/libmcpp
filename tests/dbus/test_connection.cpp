@@ -107,7 +107,43 @@ TEST_F(connection_test, test_list_names) {
     auto reply = conn->send_with_reply(std::move(msg), mc::milliseconds(1000));
     ASSERT_TRUE(reply.is_valid() && reply.is_method_return());
 
-    std::vector<std::string> names;
-    reply.reader() >> names;
-    EXPECT_GE(names.size(), 1);
+    std::set<std::string> names;
+    reply >> names;
+    EXPECT_GE(names.count("org.test.Connection"), 1);
+}
+
+TEST_F(connection_test, test_async_list_names) {
+    connection_ptr conn = mc::dbus::connection::open_session_bus(*s_io_context);
+    conn->start();
+    ASSERT_TRUE(conn->is_connected());
+    EXPECT_TRUE(conn->request_name("org.test.Connection"));
+
+    auto msg = mc::dbus::message::new_method_call("org.freedesktop.DBus", "/org/freedesktop/DBus",
+                                                  "org.freedesktop.DBus", "ListNames");
+    auto future = conn->async_send_with_reply(std::move(msg), mc::milliseconds(1000));
+
+    std::mutex              mutex;
+    std::condition_variable cv;
+
+    mc::dbus::message reply_msg;
+    future
+        .then([&cv, &reply_msg](const mc::dbus::message& reply) {
+            reply_msg = reply;
+            cv.notify_one();
+        })
+        .catch_error([&cv, &reply_msg](const std::exception& e) {
+            reply_msg =
+                mc::dbus::message::new_error_message(mc::dbus::error_names::io_error, e.what());
+            cv.notify_one();
+            return 0;
+        });
+
+    std::unique_lock lock(mutex);
+    cv.wait(lock, [&reply_msg]() {
+        return reply_msg.is_valid();
+    });
+
+    ASSERT_TRUE(reply_msg.is_method_return());
+    auto names = reply_msg.as<std::set<std::string>>();
+    EXPECT_GE(names.count("org.test.Connection"), 1);
 }

@@ -4,7 +4,6 @@ test_files = [
   'main.cpp',
 
   # # 根目录测试文件
-  # 'test_futures.cpp',
   # 'test_json.cpp',
   # 'test_pretty_name.cpp',
   # 'test_signal_slot.cpp',
@@ -37,6 +36,9 @@ test_files = [
 
   # # filesystem 目录
   # 'filesystem/test_filesystem.cpp',
+
+  # # futures 目录
+  # 'futures/test_futures.cpp',
 
   # # im 目录
   # 'im/test_custom_allocator.cpp',

@@ -50,11 +50,12 @@ public:
                                    std::string_view interface, std::string_view member);
     static message new_method_return(const message& msg);
     static message new_error(const message& msg, std::string_view error_name,
-                             std::string_view error_message);
+                             std::string_view error_message = {});
     static message new_signal(std::string_view path, std::string_view interface,
                               std::string_view member);
     static message new_message(message_type msg_type = message_type::method_call);
-    static message new_error_message(std::string_view error_name);
+    static message new_error_message(std::string_view error_name,
+                                     std::string_view error_message = {});
 
     DBusMessage* get_dbus_message() const;
     bool         is_valid() const;
@@ -98,8 +99,14 @@ public:
     void lock();
     bool has_signature(std::string_view signature);
 
-    struct message_reader reader();
+    struct message_reader reader() const;
     struct message_writer writer();
+
+    template <typename T>
+    T as() const;
+
+    template <typename T>
+    void from(const T& v);
 
     std::pair<dbus_ptr<char>, std::size_t> marshal();
 
@@ -112,7 +119,7 @@ protected:
 
 struct message_reader {
     message_reader();
-    message_reader(message& msg);
+    message_reader(const message& msg);
 
     void read_variant(mc::variant& v, std::size_t depth) const;
     void read_variant_value(type_code type, mc::variant& v, std::size_t depth) const;
@@ -128,6 +135,13 @@ struct message_reader {
     void        ensure_type(int expected) const;
     static void ensure_type(int expected, int actual);
     type_code   current_type() const;
+
+    template <typename T>
+    T as() const {
+        T v;
+        *this >> v;
+        return v;
+    }
 
     mutable DBusMessageIter m_iter;
 };
@@ -148,6 +162,12 @@ struct message_writer {
     void write_variant_dict(signature_iterator it, const mc::dict& dict, std::size_t depth) const;
     void write_signature(const signature& sig) const;
     void write_signature(std::string_view sig) const;
+
+    template <typename T>
+    const message_writer& append(const T& v) const {
+        *this << v;
+        return *this;
+    }
 
     mutable DBusMessageIter* m_parent_iter{nullptr};
     mutable DBusMessageIter  m_iter;
@@ -184,7 +204,7 @@ const message_reader& operator>>(const message_reader& reader, mc::dict& v);
 const message_reader& operator>>(const message_reader& reader, mc::mutable_dict& v);
 
 // 写入标准库类型
-template <typename T, typename Container>
+template <typename T, bool UseEmplaceBack, bool IsContiguous, typename Container>
 const message_reader& read_array(const message_reader& reader, Container& v) {
     reader.ensure_type(DBUS_TYPE_ARRAY);
 
@@ -192,10 +212,25 @@ const message_reader& read_array(const message_reader& reader, Container& v) {
     arr_reader.recurse(reader);
     arr_reader.ensure_type(get_signature<T>().first_type());
 
-    while (!arr_reader.at_end()) {
-        T item;
-        arr_reader >> item;
-        v.emplace_back(std::move(item));
+    auto count = dbus_message_iter_get_element_count(&reader.m_iter);
+
+    if constexpr (std::is_trivially_copyable_v<T> && IsContiguous) {
+        // 对可平凡复制的类型，直接使用 memcpy 优化（必须确保容器内存是连续的）
+        v.resize(count);
+        int   len  = 0;
+        void* data = nullptr;
+        dbus_message_iter_get_fixed_array(&arr_reader.m_iter, &data, &len);
+        std::memcpy(v.data(), data, len * sizeof(T));
+    } else {
+        while (!arr_reader.at_end()) {
+            T item;
+            arr_reader >> item;
+            if constexpr (UseEmplaceBack) {
+                v.emplace_back(std::move(item));
+            } else {
+                v.emplace(std::move(item));
+            }
+        }
     }
 
     return reader.next();
@@ -203,12 +238,62 @@ const message_reader& read_array(const message_reader& reader, Container& v) {
 
 template <typename T, typename Allocator>
 const message_reader& operator>>(const message_reader& reader, std::vector<T, Allocator>& v) {
-    return read_array<T>(reader, v);
+    return read_array<T, true, true>(reader, v);
 }
 
 template <typename T, typename Allocator>
 const message_reader& operator>>(const message_reader& reader, std::list<T, Allocator>& v) {
-    return read_array<T>(reader, v);
+    return read_array<T, true, false>(reader, v);
+}
+
+template <typename T, typename Allocator>
+const message_reader& operator>>(const message_reader& reader, std::deque<T, Allocator>& v) {
+    return read_array<T, true, false>(reader, v);
+}
+
+template <typename T, std::size_t N>
+const message_reader& operator>>(const message_reader& reader, std::array<T, N>& v) {
+    reader.ensure_type(DBUS_TYPE_ARRAY);
+
+    message_reader arr_reader;
+    arr_reader.recurse(reader);
+    arr_reader.ensure_type(get_signature<T>().first_type());
+
+    auto count = dbus_message_iter_get_element_count(&reader.m_iter);
+    if (count != N) {
+        MC_THROW(mc::exception, "array size mismatch, expected ${expected}, got ${actual}",
+                 ("expected", N)("actual", count));
+    }
+
+    if constexpr (std::is_trivially_copyable_v<T>) {
+        // 对可平凡复制的类型，直接使用 memcpy 优化
+        int   len  = 0;
+        void* data = nullptr;
+        dbus_message_iter_get_fixed_array(&arr_reader.m_iter, &data, &len);
+        std::memcpy(v.data(), data, len * sizeof(T));
+    } else {
+        for (std::size_t i = 0; i < N; ++i) {
+            arr_reader >> v[i];
+        }
+    }
+
+    return reader.next();
+}
+
+template <typename T, typename Comp, typename Alloc>
+const message_reader& operator>>(const message_reader& reader, std::set<T, Comp, Alloc>& v) {
+    return read_array<T, false, false>(reader, v);
+}
+
+template <typename T, typename Hash, typename KeyEqual, typename Alloc>
+const message_reader& operator>>(const message_reader&                         reader,
+                                 std::unordered_set<T, Hash, KeyEqual, Alloc>& v) {
+    return read_array<T, false, false>(reader, v);
+}
+
+template <typename T, typename Comp, typename Alloc>
+const message_reader& operator>>(const message_reader& reader, std::multiset<T, Comp, Alloc>& v) {
+    return read_array<T, false, false>(reader, v);
 }
 
 template <typename T, typename U>
@@ -279,7 +364,7 @@ const message_reader& read_dict(const message_reader& reader, Container& v) {
         V value;
         entry_reader >> value;
 
-        v[key] = value;
+        v.emplace(std::move(key), std::move(value));
         sub_reader.next();
     }
 
@@ -288,6 +373,12 @@ const message_reader& read_dict(const message_reader& reader, Container& v) {
 
 template <typename K, typename V, typename Comp, typename Alloc>
 const message_reader& operator>>(const message_reader& reader, std::map<K, V, Comp, Alloc>& v) {
+    return read_dict<K, V>(reader, v);
+}
+
+template <typename K, typename V, typename Comp, typename Alloc>
+const message_reader& operator>>(const message_reader&             reader,
+                                 std::multimap<K, V, Comp, Alloc>& v) {
     return read_dict<K, V>(reader, v);
 }
 
@@ -362,22 +453,59 @@ const message_writer& operator<<(const message_writer& writer, const char* str);
 const message_writer& operator<<(const message_writer& writer, const std::string_view& v);
 
 // 写入标准库类型
-template <typename T, typename Allocator>
-const message_writer& operator<<(const message_writer& writer, const std::vector<T, Allocator>& v) {
-    message_writer sub_writer(writer.m_iter, DBUS_TYPE_ARRAY, get_signature<T>());
-    for (const auto& item : v) {
-        sub_writer << item;
+template <typename T, bool IsContiguous, typename Container>
+const message_writer& write_array(const message_writer& writer, const Container& v) {
+    const signature& sig = get_signature<T>();
+
+    message_writer sub_writer(writer.m_iter, DBUS_TYPE_ARRAY, sig);
+    if constexpr (std::is_trivially_copyable_v<T> && IsContiguous) {
+        // 对可平凡复制的类型，直接使用 fixed array 写入方式优化
+        const T* data = v.data();
+        dbus_message_iter_append_fixed_array(&sub_writer.m_iter, sig.first_type(), &data, v.size());
+    } else {
+        for (const auto& item : v) {
+            sub_writer << item;
+        }
     }
+
     return writer;
 }
 
 template <typename T, typename Allocator>
+const message_writer& operator<<(const message_writer& writer, const std::vector<T, Allocator>& v) {
+    return write_array<T, true>(writer, v);
+}
+
+template <typename T, typename Allocator>
 const message_writer& operator<<(const message_writer& writer, const std::list<T, Allocator>& v) {
-    message_writer sub_writer(writer.m_iter, DBUS_TYPE_ARRAY, get_signature<T>());
-    for (const auto& item : v) {
-        sub_writer << item;
-    }
-    return writer;
+    return write_array<T, false>(writer, v);
+}
+
+template <typename T, typename Allocator>
+const message_writer& operator<<(const message_writer& writer, const std::deque<T, Allocator>& v) {
+    return write_array<T, false>(writer, v);
+}
+
+template <typename T, typename Comp, typename Alloc>
+const message_writer& operator<<(const message_writer& writer, const std::set<T, Comp, Alloc>& v) {
+    return write_array<T, false>(writer, v);
+}
+
+template <typename T, typename Hash, typename KeyEqual, typename Alloc>
+const message_writer& operator<<(const message_writer&                               writer,
+                                 const std::unordered_set<T, Hash, KeyEqual, Alloc>& v) {
+    return write_array<T, false>(writer, v);
+}
+
+template <typename T, typename Comp, typename Alloc>
+const message_writer& operator<<(const message_writer&                writer,
+                                 const std::multiset<T, Comp, Alloc>& v) {
+    return write_array<T, false>(writer, v);
+}
+
+template <typename T, std::size_t N>
+const message_writer& operator<<(const message_writer& writer, const std::array<T, N>& v) {
+    return write_array<T, true>(writer, v);
 }
 
 template <typename T, typename U>
@@ -407,12 +535,11 @@ const message_writer& operator<<(const message_writer& writer, const std::tuple<
     return writer;
 }
 
-template <typename K, typename V, typename Comp, typename Alloc>
-const message_writer& operator<<(const message_writer&              writer,
-                                 const std::map<K, V, Comp, Alloc>& v) {
+template <typename K, typename V, typename Container>
+const message_writer& write_dict(const message_writer& writer, const Container& v) {
     ensure_container_max_length(v);
 
-    auto           sig = get_signature<std::map<K, V, Comp, Alloc>>();
+    auto           sig = get_signature<Container>();
     message_writer sub_writer(writer.m_iter, DBUS_TYPE_ARRAY, sig.str().substr(1));
     for (const auto& item : v) {
         message_writer entry_writer(sub_writer.m_iter, DBUS_TYPE_DICT_ENTRY);
@@ -421,18 +548,22 @@ const message_writer& operator<<(const message_writer&              writer,
     return writer;
 }
 
+template <typename K, typename V, typename Comp, typename Alloc>
+const message_writer& operator<<(const message_writer&              writer,
+                                 const std::map<K, V, Comp, Alloc>& v) {
+    return write_dict<K, V>(writer, v);
+}
+
+template <typename K, typename V, typename Comp, typename Alloc>
+const message_writer& operator<<(const message_writer&                   writer,
+                                 const std::multimap<K, V, Comp, Alloc>& v) {
+    return write_dict<K, V>(writer, v);
+}
+
 template <typename K, typename V, typename Hash, typename KeyEqual, typename Alloc>
 const message_writer& operator<<(const message_writer&                                  writer,
                                  const std::unordered_map<K, V, Hash, KeyEqual, Alloc>& v) {
-    ensure_container_max_length(v);
-
-    auto           sig = get_signature<std::unordered_map<K, V, Hash, KeyEqual, Alloc>>();
-    message_writer sub_writer(writer.m_iter, DBUS_TYPE_ARRAY, sig.str().substr(1));
-    for (const auto& item : v) {
-        message_writer entry(sub_writer.m_iter, DBUS_TYPE_DICT_ENTRY);
-        entry << item.first << item.second;
-    }
-    return writer;
+    return write_dict<K, V>(writer, v);
 }
 namespace detail {
 // 辅助标签类型
@@ -480,6 +611,16 @@ const message_writer& operator<<(const message_writer& writer, const T& v) {
     });
 
     return writer;
+}
+
+template <typename T>
+T message::as() const {
+    return reader().as<T>();
+}
+
+template <typename T>
+void message::from(const T& v) {
+    writer() << v;
 }
 
 } // namespace mc::dbus

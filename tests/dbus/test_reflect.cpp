@@ -37,49 +37,62 @@ struct test_struct {
     mc::dict     m; // a{sv}
 
     // 标准库类型
-    std::optional<int>                   std_o;    // ai
-    std::pair<int, std::string>          std_p;    // (is)
-    std::tuple<int, std::string, bool>   std_t;    // (isb)
-    std::vector<int>                     std_vec;  // a(i)
-    std::list<std::string>               std_list; // a(s)
-    std::map<int, int>                   std_map;  // a{ii}
-    std::unordered_map<std::string, int> std_umap; // a{si}
+    std::optional<int>                   std_o;        // ai
+    std::pair<int, std::string>          std_p;        // (is)
+    std::tuple<int, std::string, bool>   std_t;        // (isb)
+    std::vector<int>                     std_vec;      // a(i)
+    std::list<std::string>               std_list;     // a(s)
+    std::map<int, int>                   std_map;      // a{ii}
+    std::multimap<int, int>              std_mmap;     // a{ii}
+    std::unordered_map<std::string, int> std_umap;     // a{si}
+    std::array<int, 5>                   std_array;    // a(i)
+    std::deque<int>                      std_deque;    // a(i)
+    std::set<int>                        std_set;      // a(i)
+    std::multiset<std::string>           std_multiset; // a(s)
+    std::unordered_set<int>              std_uset;     // a(i)
 };
 
-MC_REFLECT(test_struct, (i8)(u8)(i16)(u16)(i32)(u32)(i64)(u64)(f)(d)(str)(b)(p)(sig)
-           // mc 复杂类型
-           (v)(a)(m)
-           // 标准库类型
-           (std_o)(std_p)(std_t)(std_vec)(std_list)(std_map)(std_umap))
+MC_REFLECT(
+    test_struct, (i8)(u8)(i16)(u16)(i32)(u32)(i64)(u64)(f)(d)(str)(b)(p)(sig)
+    // mc 复杂类型
+    (v)(a)(m)
+    // 标准库类型
+    (std_o)(std_p)(std_t)(std_vec)(std_list)(std_map)(std_mmap)(std_umap)(std_array)(std_deque)(std_set)(std_multiset)(std_uset))
 
 // 测试C++标准库类型反射
 class reflect_test : public ::testing::Test {
 protected:
     void SetUp() override {
-        ts_out.i8       = 1;
-        ts_out.u8       = 2;
-        ts_out.i16      = 3;
-        ts_out.u16      = 4;
-        ts_out.i32      = 5;
-        ts_out.u32      = 6;
-        ts_out.i64      = 7;
-        ts_out.u64      = 8;
-        ts_out.f        = 9.0f;
-        ts_out.d        = 10.0;
-        ts_out.str      = "Hello";
-        ts_out.b        = true;
-        ts_out.p        = "/org/freedesktop/DBus";
-        ts_out.sig      = "s";
-        ts_out.v        = "world";
-        ts_out.a        = {"1", "12", "123", "1234", "12345"};
-        ts_out.m        = {{"key1", "1"}, {"key12", "12"}, {"key123", "123"}};
-        ts_out.std_o    = 1;
-        ts_out.std_p    = {1, "12"};
-        ts_out.std_t    = {1, "12", true};
-        ts_out.std_vec  = {1, 2, 3, 4, 5};
-        ts_out.std_list = {"1", "12", "123", "1234", "12345"};
-        ts_out.std_map  = {{1, 1}, {2, 2}, {3, 3}, {4, 4}, {5, 5}};
-        ts_out.std_umap = {{"1", 1}, {"12", 2}, {"123", 3}, {"1234", 4}, {"12345", 5}};
+        ts_out.i8           = 1;
+        ts_out.u8           = 2;
+        ts_out.i16          = 3;
+        ts_out.u16          = 4;
+        ts_out.i32          = 5;
+        ts_out.u32          = 6;
+        ts_out.i64          = 7;
+        ts_out.u64          = 8;
+        ts_out.f            = 9.0f;
+        ts_out.d            = 10.0;
+        ts_out.str          = "Hello";
+        ts_out.b            = true;
+        ts_out.p            = "/org/freedesktop/DBus";
+        ts_out.sig          = "s";
+        ts_out.v            = "world";
+        ts_out.a            = {"1", "12", "123", "1234", "12345"};
+        ts_out.m            = {{"key1", "1"}, {"key12", "12"}, {"key123", "123"}};
+        ts_out.std_o        = 1;
+        ts_out.std_p        = {1, "12"};
+        ts_out.std_t        = {1, "12", true};
+        ts_out.std_vec      = {1, 2, 3, 4, 5};
+        ts_out.std_list     = {"1", "12", "123", "1234", "12345"};
+        ts_out.std_map      = {{1, 1}, {2, 2}, {3, 3}, {4, 4}, {5, 5}};
+        ts_out.std_mmap     = {{1, 1}, {2, 2}, {2, 22}, {3, 3}, {3, 33}, {4, 4}, {5, 5}};
+        ts_out.std_umap     = {{"1", 1}, {"12", 2}, {"123", 3}, {"1234", 4}, {"12345", 5}};
+        ts_out.std_array    = {1, 2, 3, 4, 5};
+        ts_out.std_deque    = {1, 2, 3, 4, 5};
+        ts_out.std_set      = {1, 2, 3, 4, 5};
+        ts_out.std_multiset = {"1", "12", "123", "1234", "12345"};
+        ts_out.std_uset     = {1, 2, 3, 4, 5};
     }
 
     void TearDown() override {
@@ -139,5 +152,11 @@ TEST_F(reflect_test, test_reflect_struct) {
     EXPECT_EQ(ts_in.std_vec, ts_out.std_vec);
     EXPECT_EQ(ts_in.std_list, ts_out.std_list);
     EXPECT_EQ(ts_in.std_map, ts_out.std_map);
+    EXPECT_EQ(ts_in.std_mmap, ts_out.std_mmap);
     EXPECT_EQ(ts_in.std_umap, ts_out.std_umap);
+    EXPECT_EQ(ts_in.std_array, ts_out.std_array);
+    EXPECT_EQ(ts_in.std_deque, ts_out.std_deque);
+    EXPECT_EQ(ts_in.std_set, ts_out.std_set);
+    EXPECT_EQ(ts_in.std_multiset, ts_out.std_multiset);
+    EXPECT_EQ(ts_in.std_uset, ts_out.std_uset);
 }

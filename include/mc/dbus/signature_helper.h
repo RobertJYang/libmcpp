@@ -173,9 +173,9 @@ struct signature_helper<std::list<T, Alloc>> {
     }
 };
 
-// 对 std::queue 的特化
+// 对 std::deque 的特化
 template <typename T, typename Alloc>
-struct signature_helper<std::queue<T, Alloc>> {
+struct signature_helper<std::deque<T, Alloc>> {
     static void apply(signature& sig) {
         sig += type_code::array_start;
         signature_helper<T>::apply(sig);
@@ -187,9 +187,9 @@ struct signature_helper<std::queue<T, Alloc>> {
     }
 };
 
-// 对 std::deque 的特化
-template <typename T, typename Alloc>
-struct signature_helper<std::deque<T, Alloc>> {
+// 对 std::array 的特化
+template <typename T, std::size_t N>
+struct signature_helper<std::array<T, N>> {
     static void apply(signature& sig) {
         sig += type_code::array_start;
         signature_helper<T>::apply(sig);
@@ -218,6 +218,23 @@ struct signature_helper<std::map<K, V, Comp, Alloc>> {
     }
 };
 
+// 对 std::multimap 的特化
+template <typename K, typename V, typename Comp, typename Alloc>
+struct signature_helper<std::multimap<K, V, Comp, Alloc>> {
+    static void apply(signature& sig) {
+        sig += "a{";
+        signature_helper<K>::apply(sig);
+        signature_helper<V>::apply(sig);
+        sig += "}";
+    }
+
+    static constexpr std::size_t get_alignment() {
+        // 类型 K 与类型 V 对齐对最大值，与数组长度（uint32_t）对齐对最大值
+        return std::max({signature_helper<K>::get_alignment(), signature_helper<V>::get_alignment(),
+                         std::size_t(4)});
+    }
+};
+
 // 对 std::unordered_map 的特化
 template <typename K, typename V, typename Hash, typename KeyEqual, typename Alloc>
 struct signature_helper<std::unordered_map<K, V, Hash, KeyEqual, Alloc>> {
@@ -232,6 +249,48 @@ struct signature_helper<std::unordered_map<K, V, Hash, KeyEqual, Alloc>> {
         // 类型 K 与类型 V 对齐对最大值，与数组长度（uint32_t）对齐对最大值
         return std::max({signature_helper<K>::get_alignment(), signature_helper<V>::get_alignment(),
                          std::size_t(4)});
+    }
+};
+
+// 对 std::set 的特化
+template <typename T, typename Comp, typename Alloc>
+struct signature_helper<std::set<T, Comp, Alloc>> {
+    static void apply(signature& sig) {
+        sig += type_code::array_start;
+        signature_helper<T>::apply(sig);
+    }
+
+    static constexpr std::size_t get_alignment() {
+        // 类型 T 与数组长度（uint32_t）对齐对最大值
+        return std::max(signature_helper<T>::get_alignment(), std::size_t(4));
+    }
+};
+
+// 对 std::multiset 的特化
+template <typename T, typename Comp, typename Alloc>
+struct signature_helper<std::multiset<T, Comp, Alloc>> {
+    static void apply(signature& sig) {
+        sig += type_code::array_start;
+        signature_helper<T>::apply(sig);
+    }
+
+    static constexpr std::size_t get_alignment() {
+        // 类型 T 与数组长度（uint32_t）对齐对最大值
+        return std::max(signature_helper<T>::get_alignment(), std::size_t(4));
+    }
+};
+
+// 对 std::unordered_set 的特化
+template <typename T, typename Hash, typename KeyEqual, typename Alloc>
+struct signature_helper<std::unordered_set<T, Hash, KeyEqual, Alloc>> {
+    static void apply(signature& sig) {
+        sig += type_code::array_start;
+        signature_helper<T>::apply(sig);
+    }
+
+    static constexpr std::size_t get_alignment() {
+        // 类型 T 与数组长度（uint32_t）对齐对最大值
+        return std::max(signature_helper<T>::get_alignment(), std::size_t(4));
     }
 };
 

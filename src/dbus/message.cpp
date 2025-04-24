@@ -241,9 +241,10 @@ message message::new_message(message_type msg_type) {
     return {};
 }
 
-message message::new_error_message(std::string_view error_name) {
+message message::new_error_message(std::string_view error_name, std::string_view error_message) {
     message msg = new_message(message_type::error);
     msg.set_error_name(error_name);
+    msg.writer() << error_message;
     return msg;
 }
 
@@ -307,7 +308,7 @@ void message::release() {
     }
 }
 
-message_reader message::reader() {
+message_reader message::reader() const {
     return message_reader(*this);
 }
 
@@ -543,7 +544,7 @@ void message::lock() {
 message_reader::message_reader() {
 }
 
-message_reader::message_reader(message& msg) {
+message_reader::message_reader(const message& msg) {
     dbus_message_iter_init(msg.get_dbus_message(), &m_iter);
 }
 

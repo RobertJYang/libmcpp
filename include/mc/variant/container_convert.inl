@@ -289,6 +289,17 @@ void from_variant(const variant& var, std::set<T, Compare, Allocator>& vo) {
     associative_from_variant(var, vo);
 }
 
+// std::multiset 特化
+template <typename T, typename Compare = std::less<T>, typename Allocator = std::allocator<T>>
+void to_variant(const std::multiset<T, Compare, Allocator>& var, variant& vo) {
+    associative_to_variant(var, vo);
+}
+
+template <typename T, typename Compare = std::less<T>, typename Allocator = std::allocator<T>>
+void from_variant(const variant& var, std::multiset<T, Compare, Allocator>& vo) {
+    associative_from_variant(var, vo);
+}
+
 // std::unordered_set 特化
 template <typename T, typename Hash = std::hash<T>, typename KeyEqual = std::equal_to<T>,
           typename Allocator = std::allocator<T>>
@@ -312,6 +323,19 @@ void to_variant(const std::map<K, T, Compare, Allocator>& var, variant& vo) {
 template <typename K, typename T, typename Compare = std::less<K>,
           typename Allocator = std::allocator<std::pair<const K, T>>>
 void from_variant(const variant& var, std::map<K, T, Compare, Allocator>& vo) {
+    map_from_variant(var, vo);
+}
+
+// std::multimap 特化
+template <typename K, typename T, typename Compare = std::less<K>,
+          typename Allocator = std::allocator<std::pair<const K, T>>>
+void to_variant(const std::multimap<K, T, Compare, Allocator>& var, variant& vo) {
+    map_to_variant(var, vo);
+}
+
+template <typename K, typename T, typename Compare = std::less<K>,
+          typename Allocator = std::allocator<std::pair<const K, T>>>
+void from_variant(const variant& var, std::multimap<K, T, Compare, Allocator>& vo) {
     map_from_variant(var, vo);
 }
 
