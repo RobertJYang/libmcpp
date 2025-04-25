@@ -15,8 +15,7 @@
 
 namespace mc::dbus {
 
-timeout::timeout(boost::asio::io_context& io_context, DBusTimeout* timeout)
-    : m_timeout(timeout), m_timer(io_context) {
+timeout::timeout(strand_type& strand, DBusTimeout* timeout) : m_timeout(timeout), m_timer(strand) {
 }
 
 timeout::~timeout() {

@@ -13,68 +13,54 @@
 #ifndef MC_ENGINE_ENGINE_H
 #define MC_ENGINE_ENGINE_H
 
+#include <boost/asio/io_context.hpp>
 #include <mc/db/database.h>
-#include <mc/engine/interface.h>
-#include <mc/engine/object.h>
+#include <mc/exception.h>
 #include <mc/singleton.h>
 #include <unordered_map>
 
-namespace mc {
-namespace engine {
+namespace mc::engine {
+using io_context_type = boost::asio::io_context;
+using table_ptr       = mc::db::table_ptr;
 
-// 对象引擎，负责管理所有对象和接口
 class engine {
-    using table_id_map = std::unordered_map<std::string_view, uint32_t>;
-
 public:
-    static engine& get_instance() {
-        return mc::singleton<engine>::instance_with_creator([]() {
-            return new engine();
-        });
-    }
-
     ~engine();
 
-    // 初始化引擎
-    void init();
+    static engine& get_instance();
 
-    // 运行引擎
-    void run();
-
-    // 停止引擎
+    void start(std::size_t thread_num = 1);
+    void join();
     void stop();
 
-    // 获取数据库实例
     mc::db::database& get_database();
 
-    // 注册对象表（每个对象类对应一个表）
-    template <typename T>
-    bool register_table(std::shared_ptr<mc::db::table<T>> table) {
-        if (!table || table->get_table_name().empty()) {
-            return false;
+    template <typename Table>
+    std::shared_ptr<Table> get_table(std::string_view table_name) {
+        mc::engine::table_ptr table = find_table(table_name);
+        if (table) {
+            return std::dynamic_pointer_cast<Table>(table);
         }
 
-        m_database.register_table(table);
-        return true;
+        auto new_table = std::make_shared<Table>(table_name);
+        MC_ASSERT(register_table(new_table), "注册表 ${table_name} 失败",
+                  ("table_name", table_name));
+        return new_table;
     }
 
-    // 注销对象表
-    template <typename T>
-    void unregister_table(std::shared_ptr<mc::db::table<T>> table) {
-        if (!table || table->get_table_name().empty()) {
-            return;
-        }
+    table_ptr find_table(std::string_view table_name);
+    bool      register_table(table_ptr table);
+    void      unregister_table(table_ptr table);
 
-        m_database.unregister_table(table->get_table_name());
-    }
+    io_context_type& get_io_context();
 
 private:
     engine();
 
-    mc::db::database m_database;
+    struct engine_impl;
+    std::shared_ptr<engine_impl> m_impl;
 };
 
-} // namespace engine
-} // namespace mc
+} // namespace mc::engine
 
 #endif // MC_ENGINE_ENGINE_H

@@ -15,22 +15,21 @@
 #include <boost/asio/io_context.hpp>
 #include <boost/asio/posix/stream_descriptor.hpp>
 #include <dbus/dbus.h>
-#include <mc/im/ref_ptr.h>
 #include <mc/signal_slot.h>
 
 namespace mc::dbus {
+class connection;
 
-class watch : public mc::im::ref_base<watch> {
+class watch {
 public:
-    using alloc_type = std::allocator<watch>;
+    using alloc_type  = std::allocator<watch>;
+    using strand_type = boost::asio::strand<boost::asio::io_context::executor_type>;
 
-    watch(boost::asio::io_context& io_context, DBusWatch* watch);
+    watch(strand_type& strand, DBusWatch* watch, connection* conn);
     ~watch();
 
     void start();
     void stop();
-
-    mc::signal<void(uint32_t)> on_ready;
 
 private:
     void watch_readable();
@@ -38,8 +37,9 @@ private:
     bool handle_watch_ready(uint32_t flags);
 
     using socket_type = boost::asio::posix::stream_descriptor;
-    std::atomic<DBusWatch*> m_watch;
-    socket_type             m_socket;
+    DBusWatch*  m_watch;
+    socket_type m_socket;
+    connection* m_conn;
 };
 
 } // namespace mc::dbus

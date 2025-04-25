@@ -139,9 +139,10 @@ public:
                 const std::map<std::string, variant>& values, transaction* txn = nullptr);
 
 private:
-    table_name_map m_tables;
-    table_id_map   m_table_ids;
-    uint32_t       m_next_table_id = 0;
+    mutable std::mutex m_mutex;
+    table_name_map     m_tables;
+    table_id_map       m_table_ids;
+    uint32_t           m_next_table_id = 0;
 };
 
 } // namespace db

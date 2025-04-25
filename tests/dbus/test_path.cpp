@@ -52,19 +52,19 @@ TEST_F(path_test, constructor) {
  */
 TEST_F(path_test, invalid_path) {
     // 不以'/'开头的路径无效
-    EXPECT_THROW(path("org/example"), mc::dbus::invalid_object_path_exception);
+    EXPECT_THROW(path("org/example"), mc::invalid_arg_exception);
 
     // 包含非法字符的路径无效
-    EXPECT_THROW(path("/org/example/test$"), mc::dbus::invalid_object_path_exception);
+    EXPECT_THROW(path("/org/example/test$"), mc::invalid_arg_exception);
 
     // 以'/'结尾的路径无效（除了根路径）
-    EXPECT_THROW(path("/org/example/"), mc::dbus::invalid_object_path_exception);
+    EXPECT_THROW(path("/org/example/"), mc::invalid_arg_exception);
 
     // 包含连续'/'的路径无效
-    EXPECT_THROW(path("/org//example"), mc::dbus::invalid_object_path_exception);
+    EXPECT_THROW(path("/org//example"), mc::invalid_arg_exception);
 
     // 空路径无效
-    EXPECT_THROW(path(""), mc::dbus::invalid_object_path_exception);
+    EXPECT_THROW(path(""), mc::invalid_arg_exception);
 }
 
 /**
@@ -104,9 +104,9 @@ TEST_F(path_test, path_joining) {
     EXPECT_EQ("/org/freedesktop/DBus", p3.str());
 
     // 无效元素
-    EXPECT_THROW(p1 / "invalid/element", mc::dbus::invalid_object_path_exception);
-    EXPECT_THROW(p1 / "invalid$element", mc::dbus::invalid_object_path_exception);
-    EXPECT_THROW(p1 / "", mc::dbus::invalid_object_path_exception);
+    EXPECT_THROW(p1 / "invalid/element", mc::invalid_arg_exception);
+    EXPECT_THROW(p1 / "invalid$element", mc::invalid_arg_exception);
+    EXPECT_THROW(p1 / "", mc::invalid_arg_exception);
 }
 
 /**

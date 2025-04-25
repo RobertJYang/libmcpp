@@ -38,6 +38,7 @@
 #include <mc/im/radix_tree.h>
 #include <mc/im/ref_ptr.h>
 #include <mc/reflect.h>
+#include <mc/signal_slot.h>
 
 namespace mc::db {
 /**
@@ -263,6 +264,10 @@ public:
         return do_update_object(condition, values, txn);
     }
 
+    mc::signal<void(object_base*)>               on_object_added;
+    mc::signal<void(object_base*)>               on_object_removed;
+    mc::signal<void(object_base*, object_base*)> on_object_updated;
+
 protected:
     virtual const object_base* do_add_object(const mc::dict& var, transaction* txn)     = 0;
     virtual size_t do_remove_object(const query_builder& condition, transaction* txn)   = 0;
@@ -344,6 +349,8 @@ public:
      * @return 成功返回true，失败返回false
      */
     object_ptr_type add(object_ptr_type obj_ptr, transaction* txn = nullptr) {
+        std::lock_guard lock(m_mutex);
+
         // 如果对象没有有效ID，则分配新ID
         if (!obj_ptr->has_valid_id()) {
             obj_ptr->set_object_id(generate_id());
@@ -356,7 +363,7 @@ public:
         std::shared_ptr<db_resource> resource;
         if (need_txn) {
             resource = std::make_shared<table_add_resource<table>>(m_table_id, *this, obj_ptr,
-                                                                   alloc_savepoint(txn));
+                                                                   alloc_savepoint_internal(txn));
         }
 
         bool success      = true;
@@ -371,12 +378,12 @@ public:
         // 添加到所有索引，任一失败即中断
         detail::for_each_index_until(m_indices, add_to_index);
         if (!success) {
-            rollback();
+            rollback_internal();
             return nullptr;
         }
 
         if (!need_txn) {
-            commit();
+            commit_internal();
         } else {
             txn->add_resource(resource);
         }
@@ -398,14 +405,14 @@ public:
      */
     object_ptr_type update(object_ptr_type old_obj_ptr, object_ptr_type new_obj_ptr,
                            transaction* txn = nullptr) {
-        // 是否需要事务管理
+        std::lock_guard lock(m_mutex);
+
         bool need_txn = (txn != nullptr);
 
-        // 如果使用事务，先创建资源对象
         std::shared_ptr<db_resource> resource;
         if (need_txn) {
             resource = std::make_shared<table_update_resource<table>>(
-                m_table_id, *this, old_obj_ptr, new_obj_ptr, alloc_savepoint(txn));
+                m_table_id, *this, old_obj_ptr, new_obj_ptr, alloc_savepoint_internal(txn));
         }
 
         bool success      = true;
@@ -421,12 +428,12 @@ public:
         detail::for_each_index_until(m_indices, update_index);
 
         if (!success) {
-            rollback();
+            rollback_internal();
             return nullptr;
         }
 
         if (!need_txn) {
-            commit();
+            commit_internal();
         } else {
             txn->add_resource(resource);
         }
@@ -439,14 +446,15 @@ public:
      * @return 删除的记录数量
      */
     bool remove(object_ptr_type obj_ptr, transaction* txn = nullptr) {
-        // 是否需要事务管理
+        std::lock_guard lock(m_mutex);
+
         bool need_txn = (txn != nullptr);
 
         // 如果使用事务，创建资源对象
         std::shared_ptr<db_resource> resource;
         if (need_txn) {
-            resource = std::make_shared<table_remove_resource<table>>(m_table_id, *this, obj_ptr,
-                                                                      alloc_savepoint(txn));
+            resource = std::make_shared<table_remove_resource<table>>(
+                m_table_id, *this, obj_ptr, alloc_savepoint_internal(txn));
         }
 
         // 从剩余索引删除
@@ -461,12 +469,12 @@ public:
 
         detail::for_each_index_until(m_indices, remove);
         if (!success) {
-            rollback();
+            rollback_internal();
             return false;
         }
 
         if (!need_txn) {
-            commit();
+            commit_internal();
         } else {
             txn->add_resource(resource);
         }
@@ -474,24 +482,20 @@ public:
     }
 
     void commit() {
-        detail::for_each_index(m_indices, [](auto& idx) {
-            idx.commit();
-            return true;
-        });
-        m_txn_savepoint_id   = -1;
-        m_index_savepoint_id = -1;
+        std::lock_guard lock(m_mutex);
+
+        commit_internal();
     }
 
     void rollback() {
-        detail::for_each_index(m_indices, [](auto& idx) {
-            idx.rollback();
-            return true;
-        });
-        m_txn_savepoint_id   = -1;
-        m_index_savepoint_id = -1;
+        std::lock_guard lock(m_mutex);
+
+        rollback_internal();
     }
 
     void rollback_to(int32_t savepoint_id) {
+        std::lock_guard lock(m_mutex);
+
         detail::for_each_index(m_indices, [savepoint_id](auto& idx) {
             idx.rollback_to(savepoint_id);
             return true;
@@ -511,6 +515,8 @@ public:
     };
 
     void lock_db() {
+        std::lock_guard lock(m_mutex);
+
         detail::for_each_index(m_indices, [](auto& idx) {
             idx.lock_db();
             return true;
@@ -518,6 +524,8 @@ public:
     }
 
     void unlock_db() {
+        std::lock_guard lock(m_mutex);
+
         detail::for_each_index(m_indices, [](auto& idx) {
             idx.unlock_db();
             return true;
@@ -530,6 +538,8 @@ public:
      * @return 迭代器
      */
     auto find_by_object_id(object_id_type id) {
+        std::lock_guard lock(m_mutex);
+
         return std::get<0>(m_indices).find(id);
     }
 
@@ -541,6 +551,8 @@ public:
      */
     template <size_t I, typename... KeyTypes>
     auto find(const KeyTypes&... keys) {
+        std::lock_guard lock(m_mutex);
+
         return std::get<I>(m_indices).find(keys...);
     }
 
@@ -552,10 +564,14 @@ public:
      */
     template <typename Tag, typename... KeyTypes>
     auto find(const KeyTypes&... keys) {
+        std::lock_guard lock(m_mutex);
+
         return std::get<Tag>(m_indices).find(keys...);
     }
 
     object_ptr_type find_by_index(size_t index_id, const mc::variant& value) {
+        std::lock_guard lock(m_mutex);
+
         if (index_id >= std::tuple_size_v<indices_tuple_type>) {
             return nullptr;
         }
@@ -564,6 +580,8 @@ public:
     }
 
     raw_iterator lower_bound_by_index(size_t index_id, const mc::variant& value) {
+        std::lock_guard lock(m_mutex);
+
         if (index_id >= std::tuple_size_v<indices_tuple_type>) {
             return raw_iterator();
         }
@@ -572,6 +590,8 @@ public:
     }
 
     raw_iterator upper_bound_by_index(size_t index_id, const mc::variant& value) {
+        std::lock_guard lock(m_mutex);
+
         if (index_id >= std::tuple_size_v<indices_tuple_type>) {
             return raw_iterator();
         }
@@ -580,6 +600,8 @@ public:
     }
 
     raw_iterator begin(int index_id = 0) {
+        std::lock_guard lock(m_mutex);
+
         if (index_id >= std::tuple_size_v<indices_tuple_type>) {
             return raw_iterator();
         }
@@ -588,6 +610,8 @@ public:
     }
 
     raw_iterator end(int index_id = 0) {
+        std::lock_guard lock(m_mutex);
+
         if (index_id >= std::tuple_size_v<indices_tuple_type>) {
             return raw_iterator();
         }
@@ -602,6 +626,8 @@ public:
      */
     template <size_t I>
     auto& get() {
+        std::lock_guard lock(m_mutex);
+
         return std::get<I>(m_indices);
     }
 
@@ -612,6 +638,8 @@ public:
      */
     template <typename Tag, typename = std::enable_if_t<mc::db::is_tag_v<Tag>>>
     auto& get() {
+        std::lock_guard lock(m_mutex);
+
         if constexpr (std::is_same_v<Tag, by_object_id_tag>) {
             return std::get<0>(m_indices);
         } else {
@@ -621,15 +649,9 @@ public:
     }
 
     int alloc_savepoint(transaction* txn) {
-        auto sp = txn->last_savepoint_id();
-        if (m_txn_savepoint_id != sp) {
-            detail::for_each_index(m_indices, [&](auto& idx) {
-                m_index_savepoint_id = idx.alloc_save_point();
-                return true;
-            });
-            m_txn_savepoint_id = sp;
-        }
-        return m_index_savepoint_id;
+        std::lock_guard lock(m_mutex);
+
+        return alloc_savepoint_internal(txn);
     }
 
     /**
@@ -701,11 +723,15 @@ public:
      */
     size_t update(const query_builder& condition, const mc::dict& values,
                   transaction* txn = nullptr) {
+        std::lock_guard lock(m_mutex);
+
         return update_internal(condition, values, txn);
     }
 
     size_t update(const query_builder& condition, const std::map<std::string, variant>& values,
                   transaction* txn = nullptr) {
+        std::lock_guard lock(m_mutex);
+
         return update_internal(condition, values, txn);
     }
 
@@ -729,6 +755,8 @@ public:
     }
 
     void clear() override {
+        std::lock_guard lock(m_mutex);
+
         detail::for_each_index(m_indices, [](auto& idx) {
             idx.clear();
             return true;
@@ -736,14 +764,48 @@ public:
     }
 
     bool empty() const override {
+        std::lock_guard lock(m_mutex);
+
         return std::get<0>(m_indices).empty();
     }
 
     size_t size() const override {
+        std::lock_guard lock(m_mutex);
+
         return std::get<0>(m_indices).size();
     }
 
 protected:
+    void commit_internal() {
+        detail::for_each_index(m_indices, [](auto& idx) {
+            idx.commit();
+            return true;
+        });
+        m_txn_savepoint_id   = -1;
+        m_index_savepoint_id = -1;
+    }
+
+    void rollback_internal() {
+        detail::for_each_index(m_indices, [](auto& idx) {
+            idx.rollback();
+            return true;
+        });
+        m_txn_savepoint_id   = -1;
+        m_index_savepoint_id = -1;
+    }
+
+    int alloc_savepoint_internal(transaction* txn) {
+        auto sp = txn->last_savepoint_id();
+        if (m_txn_savepoint_id != sp) {
+            detail::for_each_index(m_indices, [&](auto& idx) {
+                m_index_savepoint_id = idx.alloc_save_point();
+                return true;
+            });
+            m_txn_savepoint_id = sp;
+        }
+        return m_index_savepoint_id;
+    }
+
     const object_base* do_add_object(const mc::dict& var, transaction* txn) override {
         if constexpr (mc::reflect::is_reflectable<object_type>()) {
             return add(object_type::create(mc::variant(var)), txn).get();
@@ -851,11 +913,12 @@ private:
         }
     }
 
-    indices_tuple_type          m_indices;
-    indices_array_type          m_indices_array;
-    std::atomic<object_id_type> m_next_id;        ///< 下一个可用的对象ID
-    uint32_t                    m_table_id = {0}; ///< 表ID
-    std::string                 m_name;           ///< 表名
+    mutable std::recursive_mutex m_mutex;
+    indices_tuple_type           m_indices;
+    indices_array_type           m_indices_array;
+    std::atomic<object_id_type>  m_next_id;        ///< 下一个可用的对象ID
+    uint32_t                     m_table_id = {0}; ///< 表ID
+    std::string                  m_name;           ///< 表名
 
     int32_t m_txn_savepoint_id   = {-1}; ///< 事务保存点ID
     int32_t m_index_savepoint_id = {-1}; ///< 索引保存点ID

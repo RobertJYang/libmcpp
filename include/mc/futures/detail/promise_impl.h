@@ -16,17 +16,8 @@
 namespace mc::futures {
 
 template <typename T, typename Executor, typename Allocator>
-Promise<T, Executor, Allocator>::Promise(Executor& executor, const Allocator& alloc)
-    : state_(std::make_shared<typename Future<T, Executor, Allocator>::State>(
-          executor.get_executor(), alloc)),
-      allocator_(alloc) {
-}
-
-template <typename T, typename Executor, typename Allocator>
-template <typename E, std::enable_if_t<std::is_same_v<typename Executor::executor_type, E>, int>>
-Promise<T, Executor, Allocator>::Promise(E& executor, const Allocator& alloc)
-    : state_(std::make_shared<typename Future<T, Executor, Allocator>::State>(executor, alloc)),
-      allocator_(alloc) {
+Promise<T, Executor, Allocator>::Promise(Executor executor, const Allocator& alloc)
+    : state_(std::make_shared<state_type>(std::move(executor), alloc)), allocator_(alloc) {
 }
 
 template <typename T, typename Executor, typename Allocator>

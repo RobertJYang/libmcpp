@@ -23,17 +23,14 @@
 #include <thread>
 #include <unistd.h>
 
-#include <test_utilities/dbus_daemon_manager.h>
 #include <test_utilities/test_base.h>
 
 using namespace mc::dbus;
 
-class connection_test : public mc::test::TestBase {
+class connection_test : public mc::test::TestBaseWithDbusDaemon {
 protected:
     static void SetUpTestSuite() {
-        s_dbus_manager = std::make_unique<mc::test::dbus_daemon_manager>();
-        bool success   = s_dbus_manager->start();
-        ASSERT_TRUE(success) << "启动 DBus 守护进程失败";
+        TestBaseWithDbusDaemon::SetUpTestSuite();
 
         s_io_context = std::make_shared<boost::asio::io_context>();
         s_thread     = std::make_unique<std::thread>([io_context = s_io_context]() {
@@ -43,10 +40,8 @@ protected:
     }
 
     static void TearDownTestSuite() {
-        if (s_dbus_manager) {
-            s_dbus_manager->stop();
-            s_dbus_manager.reset();
-        }
+        TestBaseWithDbusDaemon::TearDownTestSuite();
+
         s_io_context->stop();
         s_thread->join();
         s_thread.reset();
@@ -65,23 +60,19 @@ protected:
     }
 
     std::string get_dbus_address() {
-        return s_dbus_manager->get_address();
+        return get_dbus_daemon().get_address();
     }
 
     std::filesystem::path get_socket_path() {
-        return s_dbus_manager->get_socket_path();
+        return get_dbus_daemon().get_socket_path();
     }
 
-    // 静态成员变量，由整个测试类共享
-    static std::unique_ptr<mc::test::dbus_daemon_manager> s_dbus_manager;
-    static std::shared_ptr<boost::asio::io_context>       s_io_context;
-    static std::unique_ptr<std::thread>                   s_thread;
+    static std::shared_ptr<boost::asio::io_context> s_io_context;
+    static std::unique_ptr<std::thread>             s_thread;
 };
 
-// 初始化静态成员变量
-std::unique_ptr<mc::test::dbus_daemon_manager> connection_test::s_dbus_manager;
-std::shared_ptr<boost::asio::io_context>       connection_test::s_io_context;
-std::unique_ptr<std::thread>                   connection_test::s_thread;
+std::shared_ptr<boost::asio::io_context> connection_test::s_io_context;
+std::unique_ptr<std::thread>             connection_test::s_thread;
 
 TEST_F(connection_test, test_call_method_error) {
     connection_ptr conn = mc::dbus::connection::open_session_bus(*s_io_context);

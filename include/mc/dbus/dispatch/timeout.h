@@ -14,6 +14,7 @@
 #define MC_DBUS_DISPATCH_TIMEOUT_H
 #include <boost/asio/io_context.hpp>
 #include <boost/asio/steady_timer.hpp>
+#include <boost/asio/strand.hpp>
 #include <dbus/dbus.h>
 
 namespace mc::dbus {
@@ -21,7 +22,9 @@ class connection;
 
 class timeout {
 public:
-    timeout(boost::asio::io_context& io_context, DBusTimeout* timeout);
+    using strand_type = boost::asio::strand<boost::asio::io_context::executor_type>;
+
+    timeout(strand_type& strand, DBusTimeout* timeout);
     ~timeout();
 
     void start();

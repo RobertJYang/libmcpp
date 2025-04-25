@@ -134,6 +134,12 @@ public:
         this->m_new_obj_ptr = std::move(obj_ptr);
     }
 
+    bool commit() override {
+        base_type::commit();
+        this->m_table.on_object_added(this->m_new_obj_ptr.get());
+        return true;
+    }
+
     bool do_merge(const base_type& other) override {
         if (!this->m_is_valid) {
             return false;
@@ -179,6 +185,12 @@ public:
         this->m_new_obj_ptr = std::move(new_obj_ptr);
     }
 
+    bool commit() override {
+        base_type::commit();
+        this->m_table.on_object_updated(this->m_old_obj_ptr.get(), this->m_new_obj_ptr.get());
+        return true;
+    }
+
     bool do_merge(const base_type& other) override {
         if (!this->m_is_valid) {
             return false;
@@ -219,6 +231,12 @@ public:
     table_remove_resource(uint32_t table_id, table_type& table, object_ptr_type obj_ptr, int32_t sp)
         : base_type(table_id, obj_ptr->get_object_id(), table, sp, table_op_type::remove) {
         this->m_old_obj_ptr = std::move(obj_ptr);
+    }
+
+    bool commit() override {
+        base_type::commit();
+        this->m_table.on_object_removed(this->m_old_obj_ptr.get());
+        return true;
     }
 
     bool do_merge(const base_type& other) override {

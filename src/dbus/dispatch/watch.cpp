@@ -18,8 +18,8 @@ namespace mc::dbus {
 constexpr auto wait_read  = boost::asio::posix::stream_descriptor::wait_read;
 constexpr auto wait_write = boost::asio::posix::stream_descriptor::wait_write;
 
-watch::watch(boost::asio::io_context& io_context, DBusWatch* watch)
-    : m_watch(watch), m_socket(io_context, dbus_watch_get_unix_fd(watch)) {
+watch::watch(strand_type& strand, DBusWatch* watch, connection* conn)
+    : m_watch(watch), m_socket(strand, dbus_watch_get_unix_fd(watch)), m_conn(conn) {
 }
 
 watch::~watch() {
@@ -43,13 +43,11 @@ void watch::start() {
 
 void watch::stop() {
     m_watch = nullptr;
-    on_ready.disconnect_all();
     m_socket.close();
 }
 
 void watch::watch_readable() {
-    mc::im::ref_ptr<watch> self(this);
-    m_socket.async_wait(wait_read, [self = std::move(self)](const auto& ec) {
+    m_socket.async_wait(wait_read, [this](const auto& ec) {
         if (ec) {
             if (ec == boost::asio::error::operation_aborted) {
                 return;
@@ -59,15 +57,14 @@ void watch::watch_readable() {
             return;
         }
 
-        if (self->handle_watch_ready(DBUS_WATCH_READABLE)) {
-            self->watch_readable();
+        if (handle_watch_ready(DBUS_WATCH_READABLE)) {
+            watch_readable();
         }
     });
 }
 
 void watch::watch_writable() {
-    mc::im::ref_ptr<watch> self(this);
-    m_socket.async_wait(wait_write, [self = std::move(self)](const auto& ec) {
+    m_socket.async_wait(wait_write, [this](const auto& ec) {
         if (ec) {
             if (ec == boost::asio::error::operation_aborted) {
                 return;
@@ -77,19 +74,19 @@ void watch::watch_writable() {
             return;
         }
 
-        if (self->handle_watch_ready(DBUS_WATCH_WRITABLE)) {
-            self->watch_writable();
+        if (handle_watch_ready(DBUS_WATCH_WRITABLE)) {
+            watch_writable();
         }
     });
 }
 
 bool watch::handle_watch_ready(uint32_t flags) {
-    if (m_watch.load() == nullptr) {
+    dbus_watch_handle(m_watch, flags);
+    m_conn->dispatch();
+    if (!m_watch) {
         return false;
     }
 
-    dbus_watch_handle(m_watch, flags);
-    on_ready(flags);
     if (dbus_watch_get_enabled(m_watch) && (dbus_watch_get_flags(m_watch) & flags)) {
         return true;
     }

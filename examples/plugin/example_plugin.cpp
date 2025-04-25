@@ -141,15 +141,16 @@ public:
         return m_dependencies;
     }
 
-    // 注册配置选项
-    static void register_options(po::options_description& cli_opts,
-                                 po::options_description& cfg_opts) {
-        cfg_opts.add_options()(
-            "example.message",
-            po::value<std::string>()->default_value("Hello from Example Service!"),
-            "示例服务的消息文本")("example.repeat_count", po::value<int32_t>()->default_value(3),
-                                  "示例服务的消息重复次数");
-    }
+    struct register_options {
+        void operator()(po::options_description& cli_opts, po::options_description& cfg_opts) {
+            cfg_opts.add_options()(
+                "example.message",
+                po::value<std::string>()->default_value("Hello from Example Service!"),
+                "示例服务的消息文本")("example.repeat_count",
+                                      po::value<int32_t>()->default_value(3),
+                                      "示例服务的消息重复次数");
+        }
+    };
 
 protected:
     // 设置服务状态

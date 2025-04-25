@@ -197,6 +197,24 @@ public:
         return metadata_type::get_instance().get_interface_info(name);
     }
 
+    void ref() override {
+        mc::im::ref_ptr<ObjectType> ref_ptr(static_cast<ObjectType*>(this));
+        ref_ptr.detach();
+    }
+
+    void unref() override {
+        mc::im::ref_ptr<ObjectType> ref_ptr(static_cast<ObjectType*>(this), false);
+        ref_ptr.reset();
+    }
+
+    const std::string& get_service_name() const override {
+        return m_service_name;
+    }
+
+    void set_service_name(std::string_view name) override {
+        m_service_name = name;
+    }
+
     const std::string& get_object_name() const override {
         return m_object_name;
     }
@@ -286,6 +304,7 @@ public:
 protected:
     std::string m_object_name;
     std::string m_object_path;
+    std::string m_service_name;
 };
 
 } // namespace mc::engine

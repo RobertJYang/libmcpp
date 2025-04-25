@@ -25,17 +25,15 @@
 namespace mc::test {
 
 dbus_daemon_manager::dbus_daemon_manager() {
-    // 在构造函数中不自动启动进程，由用户显式调用 start()
 }
 
 dbus_daemon_manager::~dbus_daemon_manager() {
-    // 在析构函数中自动停止进程
     stop();
 }
 
 bool dbus_daemon_manager::start() {
     if (m_is_running) {
-        return true; // 已经在运行，无需再次启动
+        return true;
     }
 
     // 清理之前可能存在的测试实例
@@ -108,6 +106,7 @@ bool dbus_daemon_manager::start() {
             m_dbus_address = "unix:path=" + m_socket_path.string();
             wlog("无法从 dbus-daemon 读取地址，使用默认地址: ${address}",
                  ("address", m_dbus_address));
+            setenv("DBUS_SESSION_BUS_ADDRESS", m_dbus_address.c_str(), 1);
         }
 
         // 等待一小段时间，确保 dbus-daemon 已经启动

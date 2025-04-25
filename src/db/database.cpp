@@ -12,12 +12,15 @@ database::~database() {
 void database::register_table(table_ptr table) {
     MC_ASSERT(!table->get_table_name().empty(), "Table name is empty");
 
+    std::lock_guard lock(m_mutex);
     table->set_table_id(++m_next_table_id);
     m_tables[table->get_table_name()]  = table;
     m_table_ids[table->get_table_id()] = table;
 }
 
 void database::unregister_table(std::string_view table_name) {
+    std::lock_guard lock(m_mutex);
+
     auto it = m_tables.find(table_name);
     if (it == m_tables.end()) {
         return;
@@ -28,10 +31,14 @@ void database::unregister_table(std::string_view table_name) {
 }
 
 bool database::is_table_registered(std::string_view table_name) const {
+    std::lock_guard lock(m_mutex);
+
     return m_tables.find(table_name) != m_tables.end();
 }
 
 table_ptr database::get_table(std::string_view table_name) const {
+    std::lock_guard lock(m_mutex);
+
     auto it = m_tables.find(table_name);
     if (it == m_tables.end()) {
         return nullptr;
@@ -41,6 +48,8 @@ table_ptr database::get_table(std::string_view table_name) const {
 
 const object_base* database::add(std::string_view table_name, const mc::dict& var,
                                  transaction* txn) {
+    std::lock_guard lock(m_mutex);
+
     auto table = m_tables.find(table_name);
     if (table == m_tables.end()) {
         return nullptr;
@@ -49,6 +58,8 @@ const object_base* database::add(std::string_view table_name, const mc::dict& va
 }
 
 bool database::remove(std::string_view table_name, const query_builder& builder, transaction* txn) {
+    std::lock_guard lock(m_mutex);
+
     auto table = m_tables.find(table_name);
     if (table == m_tables.end()) {
         return false;
@@ -57,6 +68,8 @@ bool database::remove(std::string_view table_name, const query_builder& builder,
 }
 
 bool database::empty(std::string_view table_name) const {
+    std::lock_guard lock(m_mutex);
+
     auto table = m_tables.find(table_name);
     if (table == m_tables.end()) {
         return false;
@@ -65,6 +78,8 @@ bool database::empty(std::string_view table_name) const {
 }
 
 size_t database::size(std::string_view table_name) const {
+    std::lock_guard lock(m_mutex);
+
     auto table = m_tables.find(table_name);
     if (table == m_tables.end()) {
         return 0;
@@ -73,6 +88,8 @@ size_t database::size(std::string_view table_name) const {
 }
 
 void database::clear(std::string_view table_name) {
+    std::lock_guard lock(m_mutex);
+
     auto table = m_tables.find(table_name);
     if (table == m_tables.end()) {
         return;
@@ -82,6 +99,8 @@ void database::clear(std::string_view table_name) {
 
 bool database::update(std::string_view table_name, const query_builder& builder,
                       const mc::dict& values, transaction* txn) {
+    std::lock_guard lock(m_mutex);
+
     auto table = m_tables.find(table_name);
     if (table == m_tables.end()) {
         return false;
@@ -91,10 +110,13 @@ bool database::update(std::string_view table_name, const query_builder& builder,
 
 bool database::update(std::string_view table_name, const query_builder& builder,
                       const std::map<std::string, variant>& values, transaction* txn) {
+    std::lock_guard lock(m_mutex);
+
     auto table = m_tables.find(table_name);
     if (table == m_tables.end()) {
         return false;
     }
+
     return table->second->update_object(builder, values, txn);
 }
 

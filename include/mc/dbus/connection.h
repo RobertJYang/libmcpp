@@ -37,6 +37,9 @@ constexpr mc::milliseconds DBUS_TIMEOUT_DEFAULT = mc::seconds(60);
 class connection : public std::enable_shared_from_this<connection> {
 public:
     using io_context_type = boost::asio::io_context;
+    using strand_type     = boost::asio::strand<io_context_type::executor_type>;
+    template <typename T>
+    using future = mc::future<T, strand_type>;
 
     static connection_ptr open_system_bus(io_context_type& io_context);
     static connection_ptr open_session_bus(io_context_type& io_context);
@@ -104,8 +107,8 @@ public:
      * @param timeout 超时时间（毫秒）
      * @return 完成后的future，包含回复消息
      */
-    mc::future<message> async_send_with_reply(message&&        msg,
-                                              mc::milliseconds timeout = DBUS_TIMEOUT_DEFAULT);
+    future<message> async_send_with_reply(message&&        msg,
+                                          mc::milliseconds timeout = DBUS_TIMEOUT_DEFAULT);
 
     /**
      * @brief 获取当前连接状态
@@ -121,17 +124,9 @@ public:
         return m_connection;
     }
 
-    /**
-     * @brief 获取IO上下文
-     * @return IO上下文引用
-     */
-    io_context_type& get_io_context() const {
-        return m_io_context;
-    }
-
     void dispatch();
 
-    mc::signal<void(message)> on_message;
+    mc::signal<void(const message&)> on_message;
 
 private:
     void initialize();
@@ -158,7 +153,7 @@ private:
     struct connection_impl;
     std::unique_ptr<connection_impl> m_impl;
     DBusConnection*                  m_connection{nullptr};
-    io_context_type&                 m_io_context;
+    strand_type                      m_strand;
     connect_status                   m_status{connect_status::disconnected};
 };
 

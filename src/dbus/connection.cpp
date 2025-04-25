@@ -23,8 +23,10 @@
 namespace mc::dbus {
 
 struct pending_data {
-    pending_data(mc::promise<message> promise, pending_call pending)
-        : promise(std::move(promise)), pending(std::move(pending)) { 
+    using promise_type = mc::promise<message, connection::strand_type>;
+
+    pending_data(promise_type promise, pending_call pending)
+        : promise(std::move(promise)), pending(std::move(pending)) {
     }
 
     ~pending_data() {
@@ -35,8 +37,8 @@ struct pending_data {
         pending.stop();
     }
 
-    mc::promise<message> promise;
-    pending_call         pending;
+    promise_type promise;
+    pending_call pending;
 };
 
 using pending_call_map = std::unordered_map<uint32_t, pending_data>;
@@ -44,10 +46,9 @@ using io_context_type  = connection::io_context_type;
 
 constexpr uint32_t MAX_SERIAL_RETRY = 1000000;
 struct connection::connection_impl {
-    std::mutex        m_mutex;
-    pending_call_map  m_pending_calls;  ///< 等待回复的消息
-    uint32_t          m_next_serial{1}; ///< 下一个消息序列号
-    std::atomic<bool> m_is_running{false};
+    std::mutex       m_mutex;
+    pending_call_map m_pending_calls;  ///< 等待回复的消息
+    uint32_t         m_next_serial{1}; ///< 下一个消息序列号
 
     uint32_t get_next_serial() {
         std::size_t retry = 0;
@@ -81,7 +82,8 @@ connection_ptr connection::open_session_bus(io_context_type& io_context) {
 }
 
 connection::connection(io_context_type& io_context, DBusConnection* conn, bool add_ref)
-    : m_impl(std::make_unique<connection_impl>()), m_connection(conn), m_io_context(io_context) {
+    : m_impl(std::make_unique<connection_impl>()), m_connection(conn),
+      m_strand(io_context.get_executor()) {
     if (add_ref) {
         dbus_connection_ref(m_connection);
     }
@@ -89,24 +91,20 @@ connection::connection(io_context_type& io_context, DBusConnection* conn, bool a
 }
 
 connection::~connection() {
-    disconnect();
+    release();
 }
 
 void connection::disconnect() {
-    std::unique_lock lock(m_impl->m_mutex);
+    std::lock_guard lock(m_impl->m_mutex);
     if (!m_connection || m_status == connect_status::disconnected ||
         m_status == connect_status::disconnecting) {
         return;
     }
 
-    if (m_impl->m_is_running) {
-        // 正在 dispatch 中，等待 dispatch 结束
-        m_status = connect_status::disconnecting;
-        return;
-    }
-    lock.unlock();
-
-    release();
+    m_status = connect_status::disconnecting;
+    boost::asio::post(m_strand, [conn = shared_from_this()]() {
+        conn->release();
+    });
 }
 
 bool connection::send(message&& msg) {
@@ -128,10 +126,11 @@ message connection::send_with_reply(message&& msg, mc::milliseconds timeout) {
     return async_send_with_reply(std::forward<message>(msg), timeout).get();
 }
 
-mc::future<message> connection::async_send_with_reply(message&& msg, mc::milliseconds timeout) {
+connection::future<message> connection::async_send_with_reply(message&&        msg,
+                                                              mc::milliseconds timeout) {
     std::lock_guard lock(m_impl->m_mutex);
 
-    auto promise = mc::make_promise<message>(m_io_context);
+    auto promise = mc::make_promise<message>(m_strand);
     auto future  = promise.get_future();
 
     if (!check_connected()) {
@@ -192,17 +191,21 @@ bool connection::check_connected() const {
 }
 
 void connection::release() {
-    dbus_connection_close(m_connection);
-    dbus_connection_unref(m_connection);
-    m_connection = nullptr;
-    m_status     = connect_status::disconnected;
+    if (m_connection) {
+        dbus_connection_close(m_connection);
+        dbus_connection_unref(m_connection);
+        m_connection = nullptr;
+        m_status     = connect_status::disconnected;
+    }
 }
 
 bool connection::start() {
     std::lock_guard lock(m_impl->m_mutex);
+
     if (!m_connection || m_status != connect_status::connecting) {
         return false;
     }
+
     initialize();
 
     mc::dbus::error err;
@@ -272,41 +275,13 @@ void connection::process_reply(uint32_t reply_serial, message& msg) {
 
     auto promise = std::move(it->second.promise);
     m_impl->m_pending_calls.erase(it);
-    lock.~lock_guard();
 
     promise.set_value(msg);
 }
 
 void connection::dispatch() {
-    std::unique_lock lock(m_impl->m_mutex);
-    if (!m_connection || m_impl->m_is_running) {
-        return;
+    while (m_connection && dbus_connection_dispatch(m_connection) == DBUS_DISPATCH_DATA_REMAINS) {
     }
-
-    m_impl->m_is_running = true;
-    lock.unlock();
-
-    while (dbus_connection_dispatch(m_connection) == DBUS_DISPATCH_DATA_REMAINS) {
-    }
-
-    lock.lock();
-    m_impl->m_is_running = false;
-
-    // 锁定后再次检测，防止在退出 dispatch 循环后重新拿到锁的边界条件，刚好有 dispatch
-    // 调用进来被提前返回
-    if (dbus_connection_get_dispatch_status(m_connection) == DBUS_DISPATCH_DATA_REMAINS) {
-        delay_dispatch();
-    } else if (m_status == connect_status::disconnecting) {
-        // 到这里说明 dispatch 循环时业务调用了 disconnect 方法，这种情况 disconnect 不会
-        // 立即销毁连接，需要等待 dispatch 结束主动销毁
-        release();
-    }
-}
-
-void connection::delay_dispatch() {
-    boost::asio::post(m_io_context, [conn = shared_from_this()]() {
-        conn->dispatch();
-    });
 }
 
 dbus_bool_t connection::watch_add(DBusWatch* watch, void* data) {
@@ -315,30 +290,14 @@ dbus_bool_t connection::watch_add(DBusWatch* watch, void* data) {
         return TRUE;
     }
 
-    auto w = mc::im::make_ref<mc::dbus::watch>(conn->get_io_context(), watch);
-    dbus_watch_set_data(watch, w.get(), [](void* data) {
-        im::ref_ptr<mc::dbus::watch> w(static_cast<mc::dbus::watch*>(data), false);
+    auto w = new mc::dbus::watch(conn->m_strand, watch, conn);
+    dbus_watch_set_data(watch, w, [](void* data) {
+        auto w = static_cast<mc::dbus::watch*>(data);
         w->stop();
-    });
-
-    connection_weak_ptr weak_conn = conn->shared_from_this();
-    w->on_ready.connect([weak_conn](uint32_t) {
-        auto conn = weak_conn.lock();
-        if (!conn) {
-            return;
-        }
-
-        std::lock_guard lock(conn->m_impl->m_mutex);
-
-        if (conn->m_status == connect_status::disconnecting || conn->m_impl->m_is_running) {
-            return;
-        }
-        conn->delay_dispatch();
+        delete w;
     });
 
     w->start();
-
-    w.detach();
     return TRUE;
 }
 
@@ -368,7 +327,7 @@ dbus_bool_t connection::timeout_add(DBusTimeout* timeout, void* data) {
         return TRUE;
     }
 
-    auto t = new mc::dbus::timeout(conn->get_io_context(), timeout);
+    auto t = new mc::dbus::timeout(conn->m_strand, timeout);
     dbus_timeout_set_data(timeout, t, [](void* data) {
         auto t = static_cast<mc::dbus::timeout*>(data);
         t->stop();

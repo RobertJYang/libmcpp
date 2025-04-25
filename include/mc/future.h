@@ -44,7 +44,7 @@ template <typename T, typename Executor, typename Allocator = std::allocator<voi
 class Future {
 public:
     using value_type     = T;
-    using executor_type  = typename Executor::executor_type;
+    using executor_type  = Executor;
     using allocator_type = Allocator;
     using is_future      = std::true_type;
 
@@ -114,11 +114,10 @@ template <typename T, typename Executor, typename Allocator>
 class Promise {
 public:
     using allocator_type = Allocator;
+    using future_type    = Future<T, Executor, Allocator>;
+    using state_type     = typename future_type::State;
 
-    explicit Promise(Executor& executor, const Allocator& alloc = Allocator());
-    template <typename E,
-              std::enable_if_t<std::is_same_v<typename Executor::executor_type, E>, int> = 0>
-    explicit Promise(E& executor, const Allocator& alloc);
+    explicit Promise(Executor executor, const Allocator& alloc);
 
     ~Promise();
 
@@ -138,23 +137,25 @@ public:
     void set_exception(std::exception_ptr e);
 
     // 获取关联的Future
-    Future<T, Executor, Allocator> get_future();
+    future_type get_future();
 
     operator bool() const {
         return state_ != nullptr;
     }
 
 private:
-    std::shared_ptr<typename Future<T, Executor, Allocator>::State> state_;
-    bool                                                            future_retrieved_ = false;
-    Allocator                                                       allocator_;
+    std::shared_ptr<state_type> state_;
+    bool                        future_retrieved_ = false;
+    Allocator                   allocator_;
 };
 
 template <typename T, typename Executor, typename Allocator>
-using make_promise = Promise<T, Executor, Allocator>;
+auto make_promise(Executor executor, Allocator alloc) {
+    return Promise<T, Executor, Allocator>(std::move(executor), alloc);
+}
 
-template <typename T, typename Executor, typename Allocator = std::allocator<void>>
-auto ok(T value, Executor& executor, Allocator alloc = Allocator()) {
+template <typename T, typename Executor, typename Allocator>
+auto ok(T value, Executor& executor, Allocator alloc) {
     auto promise = Promise<T, Executor, Allocator>(executor, alloc).set_value(value);
     return promise.get_future();
 }
@@ -166,14 +167,40 @@ auto ok(T value, Executor& executor, Allocator alloc = Allocator()) {
 
 namespace mc {
 
-template <typename T, typename Executor = boost::asio::io_context,
+namespace detail {
+template <typename T, typename = void>
+struct is_execution_context : std::false_type {};
+
+template <typename T>
+struct is_execution_context<T, std::void_t<typename T::executor_type>> : std::true_type {};
+
+template <typename T>
+constexpr bool is_execution_context_v = is_execution_context<T>::value;
+
+template <typename T>
+constexpr bool is_executor_v = boost::asio::is_executor<T>::value;
+} // namespace detail
+
+template <typename T, typename Execution = boost::asio::io_context,
           typename Allocator = std::allocator<void>>
-using make_promise = mc::futures::make_promise<T, Executor, Allocator>;
-template <typename T, typename Executor = boost::asio::io_context,
+auto make_promise(Execution& execution, Allocator alloc = Allocator())
+    -> std::enable_if_t<detail::is_execution_context_v<Execution>,
+                        mc::futures::Promise<T, typename Execution::executor_type, Allocator>> {
+    return mc::futures::make_promise<T>(execution.get_executor(), alloc);
+}
+
+template <typename T, typename Executor, typename Allocator = std::allocator<void>>
+auto make_promise(Executor executor, Allocator alloc = Allocator())
+    -> std::enable_if_t<detail::is_executor_v<Executor>,
+                        mc::futures::Promise<T, Executor, Allocator>> {
+    return mc::futures::make_promise<T>(std::move(executor), alloc);
+}
+
+template <typename T, typename Executor = boost::asio::io_context::executor_type,
           typename Allocator = std::allocator<void>>
 using future = mc::futures::Future<T, Executor, Allocator>;
 
-template <typename T, typename Executor = boost::asio::io_context,
+template <typename T, typename Executor = boost::asio::io_context::executor_type,
           typename Allocator = std::allocator<void>>
 using promise = mc::futures::Promise<T, Executor, Allocator>;
 
