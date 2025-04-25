@@ -809,6 +809,8 @@ protected:
     const object_base* do_add_object(const mc::dict& var, transaction* txn) override {
         if constexpr (mc::reflect::is_reflectable<object_type>()) {
             return add(object_type::create(mc::variant(var)), txn).get();
+        } else {
+            MC_UNUSED(txn);
         }
 
         return nullptr;
@@ -817,6 +819,8 @@ protected:
     size_t do_remove_object(const query_builder& condition, transaction* txn) override {
         if constexpr (mc::reflect::is_reflectable<object_type>()) {
             return remove(condition, txn);
+        } else {
+            MC_UNUSED(txn);
         }
 
         return 0;
@@ -845,6 +849,8 @@ protected:
                             transaction* txn) override {
         if constexpr (mc::reflect::is_reflectable<object_type>()) {
             return update_internal(condition, values, txn);
+        } else {
+            MC_UNUSED(txn);
         }
         return 0;
     }
@@ -854,6 +860,8 @@ protected:
                             transaction*                          txn) override {
         if constexpr (mc::reflect::is_reflectable<object_type>()) {
             return update_internal(condition, values, txn);
+        } else {
+            MC_UNUSED(txn);
         }
         return 0;
     }

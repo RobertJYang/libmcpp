@@ -71,7 +71,7 @@ public:
 };
 
 struct object_wrap : public mc::db::object<object_wrap> {
-    object_wrap(mc::engine::object_base* object) {
+    object_wrap(mc::engine::object_base* object) : mc::db::object<object_wrap>() {
         m_object->ref();
     }
 
@@ -86,7 +86,8 @@ struct object_wrap : public mc::db::object<object_wrap> {
         }
     }
 
-    object_wrap(const object_wrap& other) : m_object(other.m_object) {
+    object_wrap(const object_wrap& other)
+        : mc::db::object<object_wrap>(), m_object(other.m_object) {
         if (m_object) {
             m_object->ref();
         }

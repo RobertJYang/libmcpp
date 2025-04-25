@@ -11,7 +11,7 @@ project(
 )
 
 # 添加编译器选项
-add_project_arguments('-Wall', '-Wextra', language: 'cpp')
+add_project_arguments('-Wall', '-Wextra', '-Wno-#warnings',  language: 'cpp')
 
 # 配置选项
 shared_mutex_max_readers = get_option('shared_mutex_max_readers')
@@ -35,7 +35,7 @@ else
 endif
 
 # 尝试使用 pkg-config 查找依赖
-dbus = dependency('dbus-1', method: 'pkg-config', required: true)
+dbus_dep = dependency('dbus-1', method: 'pkg-config', required: true)
 
 # 包含目录
 incdir = include_directories('include')

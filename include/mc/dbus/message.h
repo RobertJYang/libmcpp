@@ -212,10 +212,9 @@ const message_reader& read_array(const message_reader& reader, Container& v) {
     arr_reader.recurse(reader);
     arr_reader.ensure_type(get_signature<T>().first_type());
 
-    auto count = dbus_message_iter_get_element_count(&reader.m_iter);
-
     if constexpr (std::is_trivially_copyable_v<T> && IsContiguous) {
         // 对可平凡复制的类型，直接使用 memcpy 优化（必须确保容器内存是连续的）
+        auto count = dbus_message_iter_get_element_count(&reader.m_iter);
         v.resize(count);
         int   len  = 0;
         void* data = nullptr;
