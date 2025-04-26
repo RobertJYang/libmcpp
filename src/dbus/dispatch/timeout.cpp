@@ -10,6 +10,7 @@
  * See the Mulan PSL v2 for more details.
  */
 
+#include <mc/dbus/connection.h>
 #include <mc/dbus/dispatch/timeout.h>
 #include <mc/log.h>
 
@@ -22,14 +23,13 @@ timeout::~timeout() {
     stop();
 }
 
-void timeout::start() {
+void timeout::start(connection* conn) {
     if (!dbus_timeout_get_enabled(m_timeout)) {
         return;
     }
 
-    int interval = dbus_timeout_get_interval(m_timeout);
-    m_timer.expires_after(std::chrono::milliseconds(interval));
-    m_timer.async_wait([this](const boost::system::error_code& ec) {
+    connection_weak_ptr conn_weak = conn->weak_from_this();
+    m_timer.async_wait([this, conn_weak](const boost::system::error_code& ec) {
         if (ec) {
             if (ec == boost::asio::error::operation_aborted) {
                 return;
@@ -39,8 +39,16 @@ void timeout::start() {
             return;
         }
 
+        auto conn = conn_weak.lock();
+        if (!conn) {
+            return;
+        }
+
         dbus_timeout_handle(m_timeout);
     });
+
+    int interval = dbus_timeout_get_interval(m_timeout);
+    m_timer.expires_after(std::chrono::milliseconds(interval));
 }
 
 void timeout::stop() {

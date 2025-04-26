@@ -25,21 +25,20 @@ public:
     using alloc_type  = std::allocator<watch>;
     using strand_type = boost::asio::strand<boost::asio::io_context::executor_type>;
 
-    watch(strand_type& strand, DBusWatch* watch, connection* conn);
+    watch(strand_type& strand, DBusWatch* watch);
     ~watch();
 
-    void start();
+    void start(connection* conn);
     void stop();
 
 private:
-    void watch_readable();
-    void watch_writable();
-    bool handle_watch_ready(uint32_t flags);
+    void watch_readable(connection* conn);
+    void watch_writable(connection* conn);
+    bool handle_watch_ready(connection* conn, uint32_t flags);
 
     using socket_type = boost::asio::posix::stream_descriptor;
     DBusWatch*  m_watch;
     socket_type m_socket;
-    connection* m_conn;
 };
 
 } // namespace mc::dbus

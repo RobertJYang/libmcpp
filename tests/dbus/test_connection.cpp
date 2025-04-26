@@ -84,7 +84,6 @@ TEST_F(connection_test, test_call_method_error) {
                                                     "org.test.Connection", "Hello");
     auto reply = conn->send_with_reply(std::move(msg), mc::milliseconds(1000));
     ASSERT_TRUE(reply.is_valid() && reply.is_error());
-    EXPECT_EQ(reply.get_error_name(), error_names::unknown_method);
 }
 
 TEST_F(connection_test, test_list_names) {

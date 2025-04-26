@@ -18,26 +18,26 @@ namespace mc::dbus {
 constexpr auto wait_read  = boost::asio::posix::stream_descriptor::wait_read;
 constexpr auto wait_write = boost::asio::posix::stream_descriptor::wait_write;
 
-watch::watch(strand_type& strand, DBusWatch* watch, connection* conn)
-    : m_watch(watch), m_socket(strand, dbus_watch_get_unix_fd(watch)), m_conn(conn) {
+watch::watch(strand_type& strand, DBusWatch* watch)
+    : m_watch(watch), m_socket(strand, dbus_watch_get_unix_fd(watch)) {
 }
 
 watch::~watch() {
     stop();
 }
 
-void watch::start() {
+void watch::start(connection* conn) {
     if (!dbus_watch_get_enabled(m_watch)) {
         return;
     }
 
     unsigned int flags = dbus_watch_get_flags(m_watch);
     if (flags & DBUS_WATCH_READABLE) {
-        watch_readable();
+        watch_readable(conn);
     }
 
     if (flags & DBUS_WATCH_WRITABLE) {
-        watch_writable();
+        watch_writable(conn);
     }
 }
 
@@ -46,8 +46,9 @@ void watch::stop() {
     m_socket.close();
 }
 
-void watch::watch_readable() {
-    m_socket.async_wait(wait_read, [this](const auto& ec) {
+void watch::watch_readable(connection* conn) {
+    connection_weak_ptr conn_weak = conn->weak_from_this();
+    m_socket.async_wait(wait_read, [this, conn_weak](const auto& ec) {
         if (ec) {
             if (ec == boost::asio::error::operation_aborted) {
                 return;
@@ -57,14 +58,21 @@ void watch::watch_readable() {
             return;
         }
 
-        if (handle_watch_ready(DBUS_WATCH_READABLE)) {
-            watch_readable();
+        auto conn = conn_weak.lock();
+        if (!conn) {
+            return;
+        }
+
+        connection* p = conn.get();
+        if (handle_watch_ready(p, DBUS_WATCH_READABLE)) {
+            watch_readable(p);
         }
     });
 }
 
-void watch::watch_writable() {
-    m_socket.async_wait(wait_write, [this](const auto& ec) {
+void watch::watch_writable(connection* conn) {
+    connection_weak_ptr conn_weak = conn->weak_from_this();
+    m_socket.async_wait(wait_write, [this, conn_weak](const auto& ec) {
         if (ec) {
             if (ec == boost::asio::error::operation_aborted) {
                 return;
@@ -74,15 +82,21 @@ void watch::watch_writable() {
             return;
         }
 
-        if (handle_watch_ready(DBUS_WATCH_WRITABLE)) {
-            watch_writable();
+        auto conn = conn_weak.lock();
+        if (!conn) {
+            return;
+        }
+
+        connection* p = conn.get();
+        if (handle_watch_ready(p, DBUS_WATCH_WRITABLE)) {
+            watch_writable(p);
         }
     });
 }
 
-bool watch::handle_watch_ready(uint32_t flags) {
+bool watch::handle_watch_ready(connection* conn, uint32_t flags) {
     dbus_watch_handle(m_watch, flags);
-    m_conn->dispatch();
+    conn->dispatch();
     if (!m_watch) {
         return false;
     }

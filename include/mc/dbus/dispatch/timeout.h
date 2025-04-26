@@ -27,7 +27,7 @@ public:
     timeout(strand_type& strand, DBusTimeout* timeout);
     ~timeout();
 
-    void start();
+    void start(connection* conn);
     void stop();
 
 private:

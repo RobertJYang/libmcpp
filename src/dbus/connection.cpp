@@ -10,6 +10,7 @@
  * See the Mulan PSL v2 for more details.
  */
 
+#include <dbus/dbus.h>
 #include <mc/dbus/connection.h>
 #include <mc/dbus/dispatch/pending_call.h>
 #include <mc/dbus/dispatch/timeout.h>
@@ -19,6 +20,12 @@
 #include <mc/dbus/validator.h>
 #include <mc/exception.h>
 #include <mc/log.h>
+
+#include <algorithm>
+#include <chrono>
+#include <limits>
+#include <string.h>
+#include <thread>
 
 namespace mc::dbus {
 
@@ -46,9 +53,9 @@ using io_context_type  = connection::io_context_type;
 
 constexpr uint32_t MAX_SERIAL_RETRY = 1000000;
 struct connection::connection_impl {
-    std::mutex       m_mutex;
-    pending_call_map m_pending_calls;  ///< 等待回复的消息
-    uint32_t         m_next_serial{1}; ///< 下一个消息序列号
+    std::recursive_mutex m_mutex;
+    pending_call_map     m_pending_calls;  ///< 等待回复的消息
+    uint32_t             m_next_serial{1}; ///< 下一个消息序列号
 
     uint32_t get_next_serial() {
         std::size_t retry = 0;
@@ -221,14 +228,29 @@ bool connection::request_name(std::string_view name, uint32_t flags) {
         return false;
     }
 
-    mc::dbus::error err;
-    dbus_bus_request_name(m_connection, name.data(), flags, &err);
-    if (err.is_set()) {
+    const int max_retries = 3;
+    int       retry_count = 0;
+    while (retry_count < max_retries) {
+        mc::dbus::error err;
+        dbus_bus_request_name(m_connection, name.data(), flags, &err);
+        if (!err.is_set()) {
+            return true;
+        }
+
+        if (err.name == error_names::no_reply) {
+            // 出现 no_reply 错误时重试几次
+            // 在 dbus-daemon 刚启动后立即连接可能会发生这种情况，重试几次基本可以解决
+            std::this_thread::sleep_for(std::chrono::milliseconds(100 * (retry_count + 1)));
+            retry_count++;
+            continue;
+        }
+
         elog("DBus请求名称失败: ${error}", ("error", err.message));
         return false;
     }
 
-    return true;
+    elog("DBus请求名称重试${max}次后失败", ("max", max_retries));
+    return false;
 }
 
 void connection::initialize() {
@@ -272,7 +294,9 @@ void connection::process_reply(uint32_t reply_serial, message& msg) {
 }
 
 void connection::dispatch() {
-    while (m_connection && dbus_connection_dispatch(m_connection) == DBUS_DISPATCH_DATA_REMAINS) {
+    std::lock_guard lock(m_impl->m_mutex);
+
+    while (dbus_connection_dispatch(m_connection) == DBUS_DISPATCH_DATA_REMAINS) {
     }
 }
 
@@ -282,14 +306,14 @@ dbus_bool_t connection::watch_add(DBusWatch* watch, void* data) {
         return TRUE;
     }
 
-    auto w = new mc::dbus::watch(conn->m_strand, watch, conn);
+    auto w = new mc::dbus::watch(conn->m_strand, watch);
     dbus_watch_set_data(watch, w, [](void* data) {
         auto w = static_cast<mc::dbus::watch*>(data);
         w->stop();
         delete w;
     });
 
-    w->start();
+    w->start(conn);
     return TRUE;
 }
 
@@ -300,14 +324,15 @@ void connection::watch_remove(DBusWatch* watch, void*) {
     }
 }
 
-void connection::watch_toggled(DBusWatch* watch, void*) {
+void connection::watch_toggled(DBusWatch* watch, void* data) {
     auto* watch_data = dbus_watch_get_data(watch);
     if (!watch_data) {
         return;
     }
 
     if (dbus_watch_get_enabled(watch)) {
-        static_cast<mc::dbus::watch*>(watch_data)->start();
+        connection* conn = static_cast<connection*>(data);
+        static_cast<mc::dbus::watch*>(watch_data)->start(conn);
     } else {
         static_cast<mc::dbus::watch*>(watch_data)->stop();
     }
@@ -326,7 +351,7 @@ dbus_bool_t connection::timeout_add(DBusTimeout* timeout, void* data) {
         delete t;
     });
 
-    t->start();
+    t->start(conn);
     return TRUE;
 }
 
@@ -337,14 +362,15 @@ void connection::timeout_remove(DBusTimeout* timeout, void*) {
     }
 }
 
-void connection::timeout_toggled(DBusTimeout* timeout, void*) {
+void connection::timeout_toggled(DBusTimeout* timeout, void* data) {
     auto* timeout_data = dbus_timeout_get_data(timeout);
     if (!timeout_data) {
         return;
     }
 
     if (dbus_timeout_get_enabled(timeout)) {
-        static_cast<mc::dbus::timeout*>(timeout_data)->start();
+        connection* conn = static_cast<connection*>(data);
+        static_cast<mc::dbus::timeout*>(timeout_data)->start(conn);
     } else {
         static_cast<mc::dbus::timeout*>(timeout_data)->stop();
     }
@@ -365,7 +391,7 @@ void connection::dispatch_status_changed(DBusConnection*, DBusDispatchStatus new
                                          void* user_data) {
     connection* conn = static_cast<connection*>(user_data);
 
-    if (new_status == DBUS_DISPATCH_COMPLETE) {
+    if (new_status == DBUS_DISPATCH_DATA_REMAINS) {
         conn->dispatch();
     }
 }
