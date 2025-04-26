@@ -188,7 +188,8 @@ TEST_F(dbus_message_test, test_libdbus_write_mc_dbus_message_read) {
     dbus_message_iter_append_basic(&iter, DBUS_TYPE_DOUBLE, &data.m_d);
     const char* str_val = data.m_str.c_str();
     dbus_message_iter_append_basic(&iter, DBUS_TYPE_STRING, &str_val);
-    dbus_message_iter_append_basic(&iter, DBUS_TYPE_BOOLEAN, &data.m_b);
+    dbus_bool_t b = data.m_b;
+    dbus_message_iter_append_basic(&iter, DBUS_TYPE_BOOLEAN, &b);
 
     // 写入 variant
     DBusMessageIter var_iter;
