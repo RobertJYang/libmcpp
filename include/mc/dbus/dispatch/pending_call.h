@@ -18,26 +18,26 @@
 #include <dbus/dbus.h>
 
 #include <mc/dbus/message.h>
-#include <mc/signal_slot.h>
 #include <mc/time.h>
 
 namespace mc::dbus {
 
 class pending_call {
 public:
-    pending_call(DBusPendingCall* pending_call);
+    using reply_cb = std::function<void(mc::dbus::message)>;
+
+    pending_call(DBusPendingCall* pending_call, reply_cb cb);
     ~pending_call();
 
-    pending_call(const pending_call&);
-    pending_call& operator=(const pending_call&);
+    pending_call(const pending_call&)            = delete;
+    pending_call& operator=(const pending_call&) = delete;
+
     pending_call(pending_call&&);
     pending_call& operator=(pending_call&&);
 
     void start();
     void stop();
     void release();
-
-    mc::signal<void(mc::dbus::message)> on_reply;
 
     bool operator==(const pending_call& other) const {
         return m_pending_call == other.m_pending_call;
@@ -54,6 +54,7 @@ private:
     void handle_reply();
 
     DBusPendingCall* m_pending_call;
+    reply_cb         on_reply;
 };
 
 } // namespace mc::dbus

@@ -128,7 +128,7 @@ message connection::send_with_reply(message&& msg, mc::milliseconds timeout) {
 
 connection::future<message> connection::async_send_with_reply(message&&        msg,
                                                               mc::milliseconds timeout) {
-    std::lock_guard lock(m_impl->m_mutex);
+    std::unique_lock lock(m_impl->m_mutex);
 
     auto promise = mc::make_promise<message>(m_strand);
     auto future  = promise.get_future();
@@ -153,30 +153,22 @@ connection::future<message> connection::async_send_with_reply(message&&        m
         return future;
     }
 
+    auto on_reply = [this, serial](message msg) {
+        process_reply(serial, msg);
+    };
+
     auto [it, inserted] = m_impl->m_pending_calls.emplace(
         std::piecewise_construct, std::forward_as_tuple(serial),
-        std::forward_as_tuple(promise, pending_call(dbus_pending_call)));
+        std::forward_as_tuple(promise, pending_call(dbus_pending_call, std::move(on_reply))));
 
     if (!inserted) {
         promise.set_value(message::new_error(msg, error_names::failed, "发送消息失败"));
         return future;
     }
 
-    auto& pending = it->second.pending;
-    pending.on_reply.connect([this, serial](message msg) {
-        std::lock_guard lock(m_impl->m_mutex);
-        auto            it = m_impl->m_pending_calls.find(serial);
-        if (it == m_impl->m_pending_calls.end()) {
-            return;
-        }
+    lock.unlock();
 
-        auto promise = std::move(it->second.promise);
-        m_impl->m_pending_calls.erase(it);
-
-        promise.set_value(msg);
-    });
-    pending.start();
-
+    it->second.pending.start();
     return future;
 }
 
