@@ -107,13 +107,13 @@ public:
             using property_info  = mc::traits::remove_cvref_t<decltype(member)>;
             using interface_type = typename property_info::member_type;
 
-            xml += "<interface name = \"";
+            xml += "<interface name=\"";
             xml += interface_type::interface_name;
-            xml += "\">\n";
+            xml += "\">";
             introspect_properties(member, xml);
             introspect_methods(member, xml);
             introspect_signals(member, xml);
-            xml += "</interface>\n";
+            xml += "</interface>";
         });
         introspect_children(obj, xml);
     }
@@ -185,11 +185,11 @@ private:
             using property_type =
                 typename mc::traits::remove_cvref_t<decltype(property)>::member_type;
             auto& signature = mc::dbus::get_signature<property_type>();
-            xml += "\t<property name=\"";
+            xml += "<property name=\"";
             xml += property.name;
             xml += "\" type=\"";
             xml += signature.str();
-            xml += "\" access=\"readwrite\" />\n";
+            xml += "\" access=\"readwrite\" />";
         });
     }
 
@@ -206,25 +206,25 @@ private:
         mc::traits::tuple_for_each(interface_type::get_static_methods(), [&](auto& method) {
             using method_info_type = mc::traits::remove_cvref_t<decltype(method)>;
             using result_type      = typename method_info_type::result_type;
-            xml += "\t<method name=\"";
+            xml += "<method name=\"";
             xml += method.name;
-            xml += "\">\n";
+            xml += "\">";
             method.for_each_arg([&](auto* arg, auto index) {
                 using arg_type = std::remove_pointer_t<mc::traits::remove_cvref_t<decltype(arg)>>;
                 auto& arg_signature = mc::dbus::get_signature<arg_type>();
-                xml += "\t\t<arg name=\"arg";
+                xml += "<arg name=\"arg";
                 xml += std::to_string(index + 1);
                 xml += "\" type=\"";
                 xml += arg_signature.str();
-                xml += "\" direction=\"in\" />\n";
+                xml += "\" direction=\"in\" />";
             });
             if constexpr (!std::is_void_v<result_type>) {
                 auto& result_signature = mc::dbus::get_signature<result_type>();
-                xml += "\t\t<arg name=\"result\" type = \"";
+                xml += "<arg name=\"result\" type = \"";
                 xml += result_signature.str();
-                xml += "\" direction=\"out\" />\n";
+                xml += "\" direction=\"out\" />";
             }
-            xml += "\t</method>\n";
+            xml += "</method>";
         });
     }
 
@@ -240,19 +240,19 @@ private:
         mc::traits::tuple_for_each(interface_type::get_static_signals(), [&](auto& signal) {
             using signal_info_type = mc::traits::remove_cvref_t<decltype(signal)>;
             using args_type        = typename signal_info_type::args_type;
-            xml += "\t<signal name=\"";
+            xml += "<signal name=\"";
             xml += signal.name;
-            xml += "\" >\n";
+            xml += "\">";
             mc::traits::tuple_element_for_each<args_type>([&](auto arg, auto index) {
                 using arg_type = std::remove_pointer_t<mc::traits::remove_cvref_t<decltype(arg)>>;
                 auto& arg_signature = mc::dbus::get_signature<arg_type>();
-                xml += "\t\t<arg name=\"arg";
+                xml += "<arg name=\"arg";
                 xml += std::to_string(index + 1);
                 xml += "\" type=\"";
                 xml += arg_signature.str();
-                xml += "\" />\n";
+                xml += "\" />";
             });
-            xml += "\t</signal>\n";
+            xml += "</signal>";
         });
     }
 
@@ -274,7 +274,7 @@ private:
 
                 xml += "<node name=\"";
                 xml += current;
-                xml += "\"/>\n";
+                xml += "\"/>";
             }
         }
     }

@@ -10,6 +10,6 @@ src_files = [
 executable(
     'task_service',
     sources: src_files,
-    dependencies: [libmcpp_dep, boost_dep, test_utilities_dep],
+    dependencies: [libmcpp_dep, boost_dep, test_utilities_dep, dbus_dep],
     install: false,
 )
