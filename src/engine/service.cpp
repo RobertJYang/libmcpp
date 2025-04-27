@@ -67,6 +67,9 @@ struct service_impl {
 
     DBusHandlerResult on_method_call(object_base& obj, mc::dbus::message& msg);
 
+    void register_object(object_base& obj);
+    void unregister_object(std::string_view path);
+
     std::mutex                      m_mutex;
     service*                        m_service;
     dbus::connection_ptr            m_connection;
@@ -112,10 +115,7 @@ bool service_impl::start() {
 
     m_connection  = connection;
     m_object_tree = std::make_shared<object_tree>("object_tree");
-    m_object_tree->add(object_wrap::create(m_service_object.get()));
-    m_connection->register_path(m_service_object->get_object_path(), [this](auto& msg) {
-        return on_path_message(msg);
-    });
+    register_object(*m_service_object);
     return true;
 }
 
@@ -126,6 +126,16 @@ void service_impl::stop() {
         m_connection->disconnect();
         m_connection.reset();
     }
+}
+
+void service_impl::register_object(object_base& obj) {
+    m_object_tree->add(object_wrap::create(&obj));
+    m_connection->register_path(obj.get_object_path(), [this](auto& msg) {
+        return on_path_message(msg);
+    });
+}
+
+void service_impl::unregister_object(std::string_view path) {
 }
 
 DBusHandlerResult service_impl::on_filter_message(mc::dbus::message& msg) {
@@ -209,6 +219,18 @@ void service::cleanup() {
 
 bool service::is_healthy() const {
     return true;
+}
+
+void service::register_object(object_base& obj) {
+    auto path = obj.get_object_path();
+    MC_ASSERT(path.empty(), "对象路径不能为空");
+    MC_ASSERT(mc::dbus::validator::is_valid_path(path), "无效的对象路径 ${path}", ("path", path));
+
+    m_impl->register_object(obj);
+}
+
+void service::unregister_object(std::string_view path) {
+    m_impl->unregister_object(path);
 }
 
 } // namespace mc::engine
