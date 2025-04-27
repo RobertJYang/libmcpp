@@ -14,6 +14,7 @@
 #define MC_ENGINE_BASE_H
 
 #include <mc/db/object.h>
+#include <mc/db/table.h>
 #include <mc/engine/utils.h>
 #include <mc/reflect.h>
 #include <mc/signal_slot.h>
@@ -27,24 +28,38 @@
 
 namespace mc::engine {
 using slot_type = std::function<mc::variant(const mc::variants&)>;
+class object_base;
 
 struct interface_base {
     virtual ~interface_base() = default;
+
+    virtual void         set_object(object_base* obj) = 0;
+    virtual object_base* get_object() const           = 0;
 
     virtual std::string_view    get_interface_name() const                                     = 0;
     virtual mc::connection_type connect(std::string_view signal_name, slot_type slot)          = 0;
     virtual mc::variant         emit(std::string_view signal_name, const mc::variants& args)   = 0;
     virtual mc::variant         invoke(std::string_view method_name, const mc::variants& args) = 0;
     virtual mc::variant         get_property(std::string_view property_name)                   = 0;
+    virtual mc::dict            get_all_properties()                                           = 0;
     virtual bool set_property(std::string_view property_name, const mc::variant& value)        = 0;
 };
 
 class object_base {
 public:
+    using childrens_type = std::map<std::string_view, object_base*>;
+
     virtual ~object_base() = default;
 
     virtual void ref()   = 0;
     virtual void unref() = 0;
+
+    virtual void                  set_parent(object_base* obj)   = 0;
+    virtual object_base*          get_parent() const             = 0;
+    virtual void                  add_child(object_base* obj)    = 0;
+    virtual void                  remove_child(object_base* obj) = 0;
+    virtual const childrens_type& get_childrens() const          = 0;
+    virtual void                  introspect(std::string& xml)   = 0;
 
     virtual const std::string& get_service_name() const                = 0;
     virtual void               set_service_name(std::string_view name) = 0;
@@ -57,9 +72,10 @@ public:
     virtual interface_base* get_interface(std::string_view interface_name)       = 0;
 
     virtual mc::variant get_property(std::string_view property_name,
-                                     std::string_view interface_name = {}) = 0;
+                                     std::string_view interface_name = {})  = 0;
+    virtual mc::dict    get_all_properties(std::string_view interface_name) = 0;
     virtual bool        set_property(std::string_view property_name, const mc::variant& value,
-                                     std::string_view interface_name = {}) = 0;
+                                     std::string_view interface_name = {})  = 0;
 
     virtual mc::variant invoke(std::string_view method_name, const mc::variants& args,
                                std::string_view interface_name = {}) = 0;

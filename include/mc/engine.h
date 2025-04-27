@@ -17,6 +17,7 @@
 #include <mc/engine/macro.h>
 #include <mc/engine/object.h>
 #include <mc/engine/service.h>
+#include <mc/engine/std_interface.h>
 
 namespace mc {
 

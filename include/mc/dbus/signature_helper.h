@@ -401,7 +401,7 @@ signature get_signature() {
 
 // 公共接口函数
 template <typename T>
-signature get_signature() {
+const signature& get_signature() {
     using type = std::decay_t<T>;
 
     static signature sig_str = detail::get_signature<type>();

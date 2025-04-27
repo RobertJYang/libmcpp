@@ -123,6 +123,26 @@ void service_impl::stop() {
 
 void service_impl::on_message(const mc::dbus::message& msg) {
     if (msg.is_method_call()) {
+        auto        method = msg.get_member();
+        std::string path(msg.get_path());
+        auto        interface = msg.get_interface();
+
+        mc::variants args;
+        msg >> args;
+
+        auto object = m_object_tree->get<by_path>().find(path);
+        if (object.is_end()) {
+            return;
+        }
+
+        auto result = object->m_object->invoke(method, args, interface);
+        if (result.is_null()) {
+            return;
+        }
+
+        auto reply = mc::dbus::message::new_method_return(msg);
+        reply.writer() << result;
+        m_connection->send(std::move(reply));
     }
 }
 

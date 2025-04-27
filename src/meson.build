@@ -46,6 +46,7 @@ src_files = [
   'dbus/dispatch/pending_call.cpp',
   'engine/engine.cpp',
   'engine/service.cpp',
+  'engine/std_interface.cpp',
 ]
 
 # 创建共享库
