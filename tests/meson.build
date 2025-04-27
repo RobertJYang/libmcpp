@@ -97,8 +97,6 @@ test_files = [
 
 dbus_dep = dependency('dbus-1', method: 'pkg-config', required: true)
 
-subdir('test_utilities')
-
 # 创建测试可执行文件 - 现在依赖test_utilities
 test_exe = executable(
   'libmcpp_test',

@@ -15,19 +15,24 @@
 
 #include <mc/db/object.h>
 #include <mc/db/table.h>
+#include <mc/engine/macro.h>
 #include <mc/engine/utils.h>
 #include <mc/reflect.h>
 #include <mc/signal_slot.h>
 #include <mc/traits.h>
 #include <mc/variant.h>
 
-#include <boost/preprocessor/seq/for_each.hpp>
+#include <boost/asio/io_context.hpp>
+#include <boost/asio/strand.hpp>
 #include <string_view>
 #include <tuple>
 #include <type_traits>
 
 namespace mc::engine {
-using slot_type = std::function<mc::variant(const mc::variants&)>;
+using io_context_type = boost::asio::io_context;
+using strand_type     = boost::asio::strand<boost::asio::io_context::executor_type>;
+using slot_type       = std::function<mc::variant(const mc::variants&)>;
+
 class object_base;
 
 struct interface_base {

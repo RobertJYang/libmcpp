@@ -104,8 +104,11 @@ public:
 
     void introspect(object_type& obj, std::string& xml) {
         mc::traits::tuple_for_each(get_static_interface_infos(), [&](auto& member) {
+            using property_info  = mc::traits::remove_cvref_t<decltype(member)>;
+            using interface_type = typename property_info::member_type;
+
             xml += "<interface name = \"";
-            xml += member.name;
+            xml += interface_type::interface_name;
             xml += "\">\n";
             introspect_properties(member, xml);
             introspect_methods(member, xml);

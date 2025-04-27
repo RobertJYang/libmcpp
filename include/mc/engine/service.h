@@ -44,6 +44,8 @@ public:
     }
     void unregister_object(std::string_view path);
 
+    strand_type& get_strand();
+
 protected:
     void register_object(object_base& obj);
 

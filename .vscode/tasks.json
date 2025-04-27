@@ -43,7 +43,9 @@
             "label": "Build Project",
             "type": "shell",
             "command": "meson",
-            "args": ["compile", "-v"],
+            "args": [
+                "compile"
+            ],
             "options": {
                 "cwd": "${workspaceFolder}/builddir"
             },
@@ -51,7 +53,9 @@
                 "kind": "build",
                 "isDefault": true
             },
-            "dependsOn": ["Meson Setup"],
+            "dependsOn": [
+                "Meson Setup"
+            ],
             "problemMatcher": [
                 "$gcc"
             ]
@@ -60,7 +64,10 @@
             "label": "Run Tests",
             "type": "shell",
             "command": "meson",
-            "args": ["test", "-v"],
+            "args": [
+                "test",
+                "-v"
+            ],
             "options": {
                 "cwd": "${workspaceFolder}/builddir"
             },
@@ -68,7 +75,9 @@
                 "kind": "test",
                 "isDefault": true
             },
-            "dependsOn": ["Meson Setup"],
+            "dependsOn": [
+                "Meson Setup"
+            ],
             "presentation": {
                 "reveal": "always",
                 "panel": "shared"
@@ -81,7 +90,10 @@
             "label": "Clean Build",
             "type": "shell",
             "command": "rm",
-            "args": ["-rf", "${workspaceFolder}/builddir"],
+            "args": [
+                "-rf",
+                "${workspaceFolder}/builddir"
+            ],
             "options": {
                 "cwd": "${workspaceFolder}"
             },

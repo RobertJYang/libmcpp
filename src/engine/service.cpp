@@ -25,14 +25,14 @@ using object_tree_ptr = std::shared_ptr<object_tree>;
 using strand_type     = boost::asio::strand<boost::asio::io_context::executor_type>;
 
 struct service_interface : public mc::engine::interface<service_interface> {
-    MC_INTERFACE("org.openubmc.service")
+    MC_INTERFACE("bmc.kepler.maca")
 
     std::string m_service_name;
     std::string m_service_path;
 };
 
 struct service_object : public mc::engine::object<service_object> {
-    MC_OBJECT("/org/openubmc/service", (service_interface))
+    MC_OBJECT("/bmc/kepler/maca", (service_interface))
 
     void init(service* s) {
         m_interface.m_service_path = path_pattern;
@@ -225,7 +225,7 @@ bool service::is_healthy() const {
 
 void service::register_object(object_base& obj) {
     auto path = obj.get_object_path();
-    MC_ASSERT(path.empty(), "对象路径不能为空");
+    MC_ASSERT(!path.empty(), "对象路径不能为空");
     MC_ASSERT(mc::dbus::validator::is_valid_path(path), "无效的对象路径 ${path}", ("path", path));
 
     m_impl->register_object(obj);
@@ -233,6 +233,10 @@ void service::register_object(object_base& obj) {
 
 void service::unregister_object(std::string_view path) {
     m_impl->unregister_object(path);
+}
+
+strand_type& service::get_strand() {
+    return m_impl->m_strand;
 }
 
 } // namespace mc::engine

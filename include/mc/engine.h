@@ -19,12 +19,9 @@
 #include <mc/engine/service.h>
 #include <mc/engine/std_interface.h>
 
-#include <boost/asio/io_context.hpp>
-#include <boost/asio/strand.hpp>
-
 namespace mc::engine {
-using io_context_type = mc::engine::io_context_type;
-using strand_type     = boost::asio::strand<boost::asio::io_context::executor_type>;
+using mc::engine::io_context_type;
+using mc::engine::strand_type;
 
 inline mc::engine::engine& get_engine() {
     return mc::engine::engine::get_instance();

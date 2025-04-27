@@ -16,4 +16,4 @@ subdir('interprocess')
 # subdir('database')
 
 # DBus连接示例
-# subdir('dbus_connection')
+subdir('task_service')

@@ -298,21 +298,29 @@ struct signature_helper<std::unordered_set<T, Hash, KeyEqual, Alloc>> {
 template <typename T>
 struct signature_helper<T, std::enable_if_t<mc::reflect::is_reflectable<T>()>> {
     static void apply(signature& sig) {
-        sig += type_code::struct_start;
-        mc::traits::tuple_for_each(mc::reflect::reflector<T>::get_properties(), [&](auto& p) {
-            using member_type = typename std::decay_t<decltype(p)>::member_type;
-            signature_helper<member_type>::apply(sig);
-        });
-        sig += type_code::struct_end;
+        if constexpr (mc::reflect::is_enum<T>()) {
+            sig += type_code::int32_type;
+        } else {
+            sig += type_code::struct_start;
+            mc::traits::tuple_for_each(mc::reflect::reflector<T>::get_properties(), [&](auto& p) {
+                using member_type = typename std::decay_t<decltype(p)>::member_type;
+                signature_helper<member_type>::apply(sig);
+            });
+            sig += type_code::struct_end;
+        }
     }
 
     static constexpr std::size_t get_alignment() {
-        return std::apply(
-            [](auto&&... args) {
-                return (std::max({signature_helper<
-                    typename std::decay_t<decltype(args)>::member_type>::get_alignment()...}));
-            },
-            mc::reflect::reflector<T>::get_properties());
+        if constexpr (mc::reflect::is_enum<T>()) {
+            return signature_helper<int32_t>::get_alignment();
+        } else {
+            return std::apply(
+                [](auto&&... args) {
+                    return (std::max({signature_helper<
+                        typename std::decay_t<decltype(args)>::member_type>::get_alignment()...}));
+                },
+                mc::reflect::reflector<T>::get_properties());
+        }
     }
 };
 

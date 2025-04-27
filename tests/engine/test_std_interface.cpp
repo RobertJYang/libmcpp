@@ -248,7 +248,7 @@ TEST_F(std_interface_test, test_introspect) {
     */
     auto object   = decode_introspect(xml.get_string());
     auto expected = mc::dict{{
-        "Interface1",
+        "org.test.TestInterface1",
         mc::dict{
             {
                 "properties",
