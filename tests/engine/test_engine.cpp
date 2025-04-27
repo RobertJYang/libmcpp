@@ -40,8 +40,8 @@ TEST_F(engine_test, test_engine) {
     service.init();
     service.start();
 
-    auto& engine = mc::get_engine();
-    auto  conn   = mc::dbus::connection::open_session_bus(engine.get_io_context());
+    auto strand = mc::engine::make_strand();
+    auto conn   = mc::dbus::connection::open_session_bus(strand);
     conn->start();
 
     auto msg   = mc::dbus::message::new_method_call("org.freedesktop.DBus", "/org/freedesktop/DBus",
@@ -53,6 +53,5 @@ TEST_F(engine_test, test_engine) {
     reply >> names;
     EXPECT_GE(names.count("org.openubmc.test_service"), 1);
 
-    std::this_thread::sleep_for(std::chrono::seconds(10000000));
     service.stop();
 }

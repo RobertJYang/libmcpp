@@ -29,6 +29,11 @@ using namespace mc::dbus;
 
 class connection_test : public mc::test::TestBaseWithDbusDaemon {
 protected:
+    using strand_type = boost::asio::strand<boost::asio::io_context::executor_type>;
+
+    connection_test() : m_strand(get_io_context()->get_executor()) {
+    }
+
     static void SetUpTestSuite() {
         TestBaseWithDbusDaemon::SetUpTestSuite();
 
@@ -67,6 +72,8 @@ protected:
         return get_dbus_daemon().get_socket_path();
     }
 
+    strand_type m_strand;
+
     static std::shared_ptr<boost::asio::io_context> s_io_context;
     static std::unique_ptr<std::thread>             s_thread;
 };
@@ -75,7 +82,7 @@ std::shared_ptr<boost::asio::io_context> connection_test::s_io_context;
 std::unique_ptr<std::thread>             connection_test::s_thread;
 
 TEST_F(connection_test, test_call_method_error) {
-    connection_ptr conn = mc::dbus::connection::open_session_bus(*s_io_context);
+    connection_ptr conn = mc::dbus::connection::open_session_bus(m_strand);
     conn->start();
     ASSERT_TRUE(conn->is_connected());
     EXPECT_TRUE(conn->request_name("org.test.Connection"));
@@ -87,7 +94,7 @@ TEST_F(connection_test, test_call_method_error) {
 }
 
 TEST_F(connection_test, test_list_names) {
-    connection_ptr conn = mc::dbus::connection::open_session_bus(*s_io_context);
+    connection_ptr conn = mc::dbus::connection::open_session_bus(m_strand);
     conn->start();
     ASSERT_TRUE(conn->is_connected());
     EXPECT_TRUE(conn->request_name("org.test.Connection"));
@@ -103,7 +110,7 @@ TEST_F(connection_test, test_list_names) {
 }
 
 TEST_F(connection_test, test_async_list_names) {
-    connection_ptr conn = mc::dbus::connection::open_session_bus(*s_io_context);
+    connection_ptr conn = mc::dbus::connection::open_session_bus(m_strand);
     conn->start();
     ASSERT_TRUE(conn->is_connected());
     EXPECT_TRUE(conn->request_name("org.test.Connection"));

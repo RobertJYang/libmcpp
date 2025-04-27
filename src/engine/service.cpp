@@ -13,12 +13,7 @@
 #include <mc/dbus/connection.h>
 #include <mc/dbus/message.h>
 #include <mc/dbus/validator.h>
-#include <mc/engine/base.h>
-#include <mc/engine/engine.h>
-#include <mc/engine/interface.h>
-#include <mc/engine/macro.h>
-#include <mc/engine/object.h>
-#include <mc/engine/service.h>
+#include <mc/engine.h>
 #include <mc/exception.h>
 #include <mc/log.h>
 
@@ -27,6 +22,7 @@ namespace mdb = mc::db;
 namespace mc::engine {
 using object_tree     = mdb::table<object_wrap, mdb::indexed_by<path_index>>;
 using object_tree_ptr = std::shared_ptr<object_tree>;
+using strand_type     = boost::asio::strand<boost::asio::io_context::executor_type>;
 
 struct service_interface : public mc::engine::interface<service_interface> {
     MC_INTERFACE("org.openubmc.service")
@@ -58,6 +54,8 @@ struct service_object : public mc::engine::object<service_object> {
 };
 
 struct service_impl {
+    service_impl();
+
     bool init(service* s);
     bool start();
     void stop();
@@ -75,6 +73,7 @@ struct service_impl {
     dbus::connection_ptr            m_connection;
     object_tree_ptr                 m_object_tree;
     mc::im::ref_ptr<service_object> m_service_object;
+    strand_type                     m_strand;
 };
 } // namespace mc::engine
 
@@ -87,6 +86,10 @@ using service_table = mdb::table<
                                                     &mc::engine::service_object::get_name>>>>;
 
 namespace mc::engine {
+
+service_impl::service_impl() : m_strand(mc::engine::make_strand()) {
+}
+
 bool service_impl::init(service* s) {
     m_service        = s;
     m_service_object = mc::im::make_ref<service_object>();
@@ -97,8 +100,7 @@ bool service_impl::init(service* s) {
 bool service_impl::start() {
     std::lock_guard lock(m_mutex);
 
-    auto& engine     = mc::engine::engine::get_instance();
-    auto  connection = mc::dbus::connection::open_session_bus(engine.get_io_context());
+    auto connection = mc::dbus::connection::open_session_bus(m_strand);
     if (!connection || !connection->start()) {
         elog("初始化服务失败: 无法打开DBus会话");
         return false;

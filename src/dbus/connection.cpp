@@ -72,25 +72,24 @@ struct connection::connection_impl {
     }
 };
 
-connection_ptr connection::open_system_bus(io_context_type& io_context) {
+connection_ptr connection::open_system_bus(strand_type& strand) {
     mc::dbus::error err;
     DBusConnection* conn = dbus_bus_get_private(DBUS_BUS_SYSTEM, &err);
     MC_ASSERT(!err.is_set(), "DBus连接失败: ${error}", ("error", err.message));
 
-    return std::make_shared<connection>(io_context, conn, false);
+    return std::make_shared<connection>(strand, conn, false);
 }
 
-connection_ptr connection::open_session_bus(io_context_type& io_context) {
+connection_ptr connection::open_session_bus(strand_type& strand) {
     mc::dbus::error err;
     DBusConnection* conn = dbus_bus_get_private(DBUS_BUS_SESSION, &err);
     MC_ASSERT(!err.is_set(), "DBus连接失败: ${error}", ("error", err.message));
 
-    return std::make_shared<connection>(io_context, conn, false);
+    return std::make_shared<connection>(strand, conn, false);
 }
 
-connection::connection(io_context_type& io_context, DBusConnection* conn, bool add_ref)
-    : m_impl(std::make_unique<connection_impl>()), m_connection(conn),
-      m_strand(io_context.get_executor()) {
+connection::connection(strand_type& strand, DBusConnection* conn, bool add_ref)
+    : m_impl(std::make_unique<connection_impl>()), m_connection(conn), m_strand(strand) {
     if (add_ref) {
         dbus_connection_ref(m_connection);
     }

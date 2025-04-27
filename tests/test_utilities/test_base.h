@@ -54,7 +54,7 @@ protected:
 class TestBaseWithEngine : public TestBaseWithDbusDaemon {
 protected:
     static mc::engine::engine& get_engine() {
-        return mc::get_engine();
+        return mc::engine::get_engine();
     }
 
     static void SetUpTestSuite() {

@@ -19,10 +19,23 @@
 #include <mc/engine/service.h>
 #include <mc/engine/std_interface.h>
 
-namespace mc {
+#include <boost/asio/io_context.hpp>
+#include <boost/asio/strand.hpp>
+
+namespace mc::engine {
+using io_context_type = mc::engine::io_context_type;
+using strand_type     = boost::asio::strand<boost::asio::io_context::executor_type>;
 
 inline mc::engine::engine& get_engine() {
     return mc::engine::engine::get_instance();
+}
+
+inline strand_type make_strand() {
+    return strand_type(get_engine().get_io_context().get_executor());
+}
+
+inline strand_type make_strand(boost::asio::io_context& io_context) {
+    return strand_type(io_context.get_executor());
 }
 
 template <typename Table>
@@ -30,8 +43,6 @@ Table& get_table(std::string_view table_name) {
     return mc::engine::engine::get_instance().get_table<Table>(table_name);
 }
 
-using io_context_type = mc::engine::io_context_type;
-
-} // namespace mc
+} // namespace mc::engine
 
 #endif // MC_ENGINE_H

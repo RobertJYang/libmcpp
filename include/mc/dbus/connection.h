@@ -41,8 +41,8 @@ public:
     template <typename T>
     using future = mc::future<T, strand_type>;
 
-    static connection_ptr open_system_bus(io_context_type& io_context);
-    static connection_ptr open_session_bus(io_context_type& io_context);
+    static connection_ptr open_system_bus(strand_type& strand);
+    static connection_ptr open_session_bus(strand_type& strand);
 
     enum class connect_status {
         connected,
@@ -53,9 +53,11 @@ public:
 
     /**
      * @brief 构造函数
-     * @param io_context IO上下文
+     * @param strand 线程池
+     * @param conn DBus连接
+     * @param add_ref 是否增加引用
      */
-    explicit connection(io_context_type& io_context, DBusConnection* conn, bool add_ref = false);
+    explicit connection(strand_type& strand, DBusConnection* conn, bool add_ref = false);
 
     /**
      * @brief 析构函数
@@ -167,7 +169,7 @@ private:
     struct connection_impl;
     std::unique_ptr<connection_impl> m_impl;
     DBusConnection*                  m_connection{nullptr};
-    strand_type                      m_strand;
+    strand_type&                     m_strand;
     connect_status                   m_status{connect_status::disconnected};
 };
 
