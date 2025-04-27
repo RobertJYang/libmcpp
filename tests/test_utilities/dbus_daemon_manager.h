@@ -15,6 +15,7 @@
 
 #include <string>
 #include <unistd.h>
+#include <vector>
 
 #include <mc/filesystem.h>
 
@@ -78,6 +79,28 @@ public:
     mc::filesystem::path get_temp_dir() const;
 
 private:
+    /**
+     * @brief 查找并尝试连接到现有的 DBus 守护进程
+     *
+     * @return 是否找到并成功连接到现有实例
+     */
+    bool find_existing_dbus();
+
+    /**
+     * @brief 扫描临时目录，查找所有可能存在的 DBus 测试目录
+     *
+     * @return 所有找到的 DBus 测试目录路径
+     */
+    std::vector<mc::filesystem::path> scan_dbus_test_dirs();
+
+    /**
+     * @brief 测试 DBus 连接是否可用
+     *
+     * @param socket_path 套接字路径
+     * @return 连接是否可用
+     */
+    bool test_dbus_connection(const mc::filesystem::path& socket_path);
+
     /**
      * @brief 创建临时目录
      *

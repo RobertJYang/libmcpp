@@ -61,7 +61,11 @@ struct service_impl {
     bool init(service* s);
     bool start();
     void stop();
-    void on_message(const mc::dbus::message& msg);
+
+    DBusHandlerResult on_path_message(mc::dbus::message& msg);
+    DBusHandlerResult on_filter_message(mc::dbus::message& msg);
+
+    DBusHandlerResult on_method_call(object_base& obj, mc::dbus::message& msg);
 
     std::mutex                      m_mutex;
     service*                        m_service;
@@ -102,13 +106,16 @@ bool service_impl::start() {
         return false;
     }
 
-    connection->on_message.connect([this](const mc::dbus::message& msg) {
-        on_message(std::move(msg));
+    connection->on_filter_message.connect([this](mc::dbus::message& msg) {
+        return on_filter_message(msg);
     });
 
     m_connection  = connection;
     m_object_tree = std::make_shared<object_tree>("object_tree");
-
+    m_object_tree->add(object_wrap::create(m_service_object.get()));
+    m_connection->register_path(m_service_object->get_object_path(), [this](auto& msg) {
+        return on_path_message(msg);
+    });
     return true;
 }
 
@@ -121,29 +128,40 @@ void service_impl::stop() {
     }
 }
 
-void service_impl::on_message(const mc::dbus::message& msg) {
-    if (msg.is_method_call()) {
-        auto        method = msg.get_member();
-        std::string path(msg.get_path());
-        auto        interface = msg.get_interface();
+DBusHandlerResult service_impl::on_filter_message(mc::dbus::message& msg) {
+    return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
+}
 
-        mc::variants args;
-        msg >> args;
+DBusHandlerResult service_impl::on_path_message(mc::dbus::message& msg) {
+    std::string path(msg.get_path());
 
-        auto object = m_object_tree->get<by_path>().find(path);
-        if (object.is_end()) {
-            return;
-        }
-
-        auto result = object->m_object->invoke(method, args, interface);
-        if (result.is_null()) {
-            return;
-        }
-
-        auto reply = mc::dbus::message::new_method_return(msg);
-        reply.writer() << result;
-        m_connection->send(std::move(reply));
+    auto it = m_object_tree->get<by_path>().find(path);
+    if (it.is_end()) {
+        return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
     }
+
+    if (msg.is_method_call()) {
+        return on_method_call(*it->m_object, msg);
+    }
+
+    return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
+}
+
+DBusHandlerResult service_impl::on_method_call(object_base& object, mc::dbus::message& msg) {
+    auto method    = msg.get_member();
+    auto interface = msg.get_interface();
+    auto args      = msg.read_args();
+
+    auto result = object.invoke(method, args, interface);
+    if (result.is_null()) {
+        return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
+    }
+
+    auto reply = mc::dbus::message::new_method_return(msg);
+    reply.writer() << result;
+    m_connection->send(std::move(reply));
+
+    return DBUS_HANDLER_RESULT_HANDLED;
 }
 
 service::service(std::string_view name) : mc::service_base<service>(std::string(name)) {

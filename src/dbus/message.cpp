@@ -540,6 +540,18 @@ void message::lock() {
     dbus_message_lock(m_dbus_message);
 }
 
+mc::variants message::read_args() const {
+    mc::variants args;
+    auto         sig    = get_signature();
+    auto         reader = this->reader();
+    for (mc::dbus::signature_iterator it(sig); !it.at_end(); it.next()) {
+        mc::variant v;
+        reader.read_variant_value(it.current_type_code(), v, 0);
+        args.emplace_back(std::move(v));
+    }
+    return args;
+}
+
 /* -------------------- message_reader -------------------- */
 message_reader::message_reader() {
 }

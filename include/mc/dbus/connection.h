@@ -111,6 +111,20 @@ public:
                                           mc::milliseconds timeout = DBUS_TIMEOUT_DEFAULT);
 
     /**
+     * @brief 注册路径
+     * @param path 路径
+     * @param object 对象
+     */
+    using path_handler_type = std::function<DBusHandlerResult(message&)>;
+    void register_path(std::string_view path, path_handler_type handler);
+
+    /**
+     * @brief 注销路径
+     * @param path 路径
+     */
+    void unregister_path(std::string_view path);
+
+    /**
      * @brief 获取当前连接状态
      * @return 连接状态
      */
@@ -126,7 +140,7 @@ public:
 
     void dispatch();
 
-    mc::signal<void(const message&)> on_message;
+    mc::signal<DBusHandlerResult(message&)> on_filter_message;
 
 private:
     void initialize();

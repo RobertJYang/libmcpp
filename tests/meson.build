@@ -28,12 +28,6 @@ test_files = [
   'dict/test_dict_performance.cpp',
   'dict/test_dict_string_view.cpp',
 
-  # engine 目录
-  'engine/test_interface.cpp',
-  'engine/test_object.cpp',
-  'engine/test_utils.cpp',
-  'engine/test_engine.cpp',
-
   # exception 目录
   'exception/test_exception.cpp',
 
@@ -88,6 +82,7 @@ test_files = [
   'engine/test_object.cpp',
   'engine/test_utils.cpp',
   'engine/test_std_interface.cpp',
+  'engine/test_engine.cpp',
 
   # io 目录
   'io/test_io_buffer.cpp',

@@ -14,9 +14,12 @@
 
 #include <cstdlib>
 #include <cstring>
+#include <fcntl.h>
 #include <fstream>
 #include <iostream>
 #include <signal.h>
+#include <sys/socket.h>
+#include <sys/un.h>
 #include <sys/wait.h>
 #include <thread>
 
@@ -36,7 +39,17 @@ bool dbus_daemon_manager::start() {
         return true;
     }
 
-    // 清理之前可能存在的测试实例
+    // 首先尝试复用现有的 DBus 实例
+    if (find_existing_dbus()) {
+        ilog("复用现有的 DBus 实例，设置环境变量 \nexport DBUS_SESSION_BUS_ADDRESS=${address}",
+             ("address", m_dbus_address));
+        setenv("DBUS_SESSION_BUS_ADDRESS", m_dbus_address.c_str(), 1);
+        m_is_running = true;
+        return true;
+    }
+
+    // 如果没有可用的现有实例，清理不可用的实例然后创建新的
+    dlog("未找到可用的 DBus 实例，将创建新实例");
     cleanup_stale_instances();
 
     // 创建临时目录
@@ -99,7 +112,8 @@ bool dbus_daemon_manager::start() {
             if (!m_dbus_address.empty() && m_dbus_address.back() == '\n') {
                 m_dbus_address.pop_back();
             }
-            ilog("使用 DBus 地址: ${address}", ("address", m_dbus_address));
+            ilog("设置环境变量 \nexport DBUS_SESSION_BUS_ADDRESS=${address}",
+                 ("address", m_dbus_address));
             setenv("DBUS_SESSION_BUS_ADDRESS", m_dbus_address.c_str(), 1);
         } else {
             // 读取失败，使用默认地址
@@ -118,29 +132,103 @@ bool dbus_daemon_manager::start() {
 }
 
 void dbus_daemon_manager::stop() {
-    if (!m_is_running || m_dbus_pid <= 0) {
+    if (!m_is_running) {
         return; // 未在运行，无需停止
     }
 
-    // 终止 dbus-daemon 进程
-    dlog("正在终止 dbus-daemon 进程 (PID: ${pid})", ("pid", m_dbus_pid));
-    kill(m_dbus_pid, SIGTERM);
+    // 注意：我们不再终止 dbus-daemon 进程或清理文件，而是把它留给下一个测试程序使用
+    dlog("保留 dbus-daemon 进程 (PID: ${pid}) 以供后续测试使用", ("pid", m_dbus_pid));
 
-    // 等待进程终止
-    int status;
-    waitpid(m_dbus_pid, &status, 0);
-
-    if (WIFEXITED(status)) {
-        dlog("dbus-daemon 进程正常退出，退出码: ${code}", ("code", WEXITSTATUS(status)));
-    } else if (WIFSIGNALED(status)) {
-        dlog("dbus-daemon 进程被信号终止，信号: ${signal}", ("signal", WTERMSIG(status)));
-    }
-
+    // 重置实例状态，但不真正终止进程
     m_dbus_pid   = -1;
     m_is_running = false;
+}
 
-    // 清理临时目录
-    cleanup_temp_dir();
+bool dbus_daemon_manager::find_existing_dbus() {
+    dlog("正在查找可用的 DBus 实例...");
+
+    // 扫描所有可能的DBus测试目录
+    auto test_dirs = scan_dbus_test_dirs();
+
+    for (const auto& dir : test_dirs) {
+        mc::filesystem::path socket_path = dir / "dbus.socket";
+        mc::filesystem::path config_path = dir / "dbus.conf";
+
+        // 检查套接字和配置文件是否存在
+        if (!mc::filesystem::exists(socket_path) || !mc::filesystem::exists(config_path)) {
+            dlog("跳过目录 ${dir}：缺少必要文件", ("dir", dir.string()));
+            continue;
+        }
+
+        // 测试连接是否可用
+        if (!test_dbus_connection(socket_path)) {
+            dlog("目录 ${dir} 中的 DBus 实例不可用", ("dir", dir.string()));
+            continue;
+        }
+
+        // 找到可用的实例
+        m_temp_dir     = dir;
+        m_socket_path  = socket_path;
+        m_config_path  = config_path;
+        m_dbus_address = "unix:path=" + m_socket_path.string();
+
+        dlog("找到可用的 DBus 实例，目录: ${dir}", ("dir", dir.string()));
+        return true;
+    }
+
+    dlog("未找到可用的 DBus 实例");
+    return false;
+}
+
+std::vector<mc::filesystem::path> dbus_daemon_manager::scan_dbus_test_dirs() {
+    std::vector<mc::filesystem::path> result;
+    mc::filesystem::path              temp_dir = mc::filesystem::temp_directory_path();
+
+    try {
+        for (const auto& entry : mc::filesystem::directory_iterator(temp_dir)) {
+            std::string name = entry.path().filename().string();
+            if (name.find("dbus_test_") == 0 && mc::filesystem::is_directory(entry.path())) {
+                result.push_back(entry.path());
+                dlog("发现可能的 DBus 测试目录: ${dir}", ("dir", entry.path().string()));
+            }
+        }
+    } catch (const std::exception& e) {
+        wlog("扫描临时目录时出错: ${error}", ("error", e.what()));
+    }
+
+    return result;
+}
+
+bool dbus_daemon_manager::test_dbus_connection(const mc::filesystem::path& socket_path) {
+    // 尝试连接到套接字
+    int sock = socket(AF_UNIX, SOCK_STREAM, 0);
+    if (sock < 0) {
+        wlog("创建套接字失败: ${error}", ("error", strerror(errno)));
+        return false;
+    }
+
+    struct sockaddr_un addr;
+    memset(&addr, 0, sizeof(addr));
+    addr.sun_family = AF_UNIX;
+    strncpy(addr.sun_path, socket_path.c_str(), sizeof(addr.sun_path) - 1);
+
+    // 设置非阻塞模式进行连接测试
+    int flags = fcntl(sock, F_GETFL, 0);
+    fcntl(sock, F_SETFL, flags | O_NONBLOCK);
+
+    int  ret          = connect(sock, (struct sockaddr*)&addr, sizeof(addr));
+    bool is_connected = (ret == 0 || (ret < 0 && errno == EINPROGRESS));
+
+    close(sock);
+
+    if (!is_connected) {
+        wlog("连接到 DBus 套接字失败: ${path}, 错误: ${error}",
+             ("path", socket_path.string())("error", strerror(errno)));
+    } else {
+        dlog("成功连接到 DBus 套接字: ${path}", ("path", socket_path.string()));
+    }
+
+    return is_connected;
 }
 
 std::string dbus_daemon_manager::get_address() const {
@@ -213,13 +301,23 @@ void dbus_daemon_manager::cleanup_temp_dir() {
 }
 
 void dbus_daemon_manager::cleanup_stale_instances() {
-    dlog("开始清理旧的DBus测试实例...");
+    dlog("开始清理不可用的DBus测试实例...");
 
-    // 清理旧的测试目录
-    cleanup_stale_directories();
+    // 仅清理无法连接的实例和目录
+    auto test_dirs = scan_dbus_test_dirs();
+    for (const auto& dir : test_dirs) {
+        mc::filesystem::path socket_path = dir / "dbus.socket";
 
-    // 清理旧的测试进程
-    cleanup_stale_processes();
+        // 如果套接字文件不存在或者无法连接，则清理该目录
+        if (!mc::filesystem::exists(socket_path) || !test_dbus_connection(socket_path)) {
+            try {
+                dlog("清理不可用的测试目录: ${dir}", ("dir", dir.string()));
+                mc::filesystem::remove_all(dir);
+            } catch (const std::exception& e) {
+                wlog("清理目录时出错: ${error}", ("error", e.what()));
+            }
+        }
+    }
 
     dlog("DBus测试实例清理完成");
 }
@@ -230,11 +328,15 @@ void dbus_daemon_manager::cleanup_stale_directories() {
         for (const auto& entry : mc::filesystem::directory_iterator(temp_dir)) {
             std::string name = entry.path().filename().string();
             if (name.find("dbus_test_") == 0 && mc::filesystem::is_directory(entry.path())) {
-                try {
-                    dlog("正在删除旧的测试目录: ${dir}", ("dir", entry.path().string()));
-                    mc::filesystem::remove_all(entry.path());
-                } catch (const std::exception& e) {
-                    wlog("清理旧测试目录时出错: ${error}", ("error", e.what()));
+                // 检查目录中是否有socket文件，如果没有或者不可用，才删除
+                mc::filesystem::path socket_path = entry.path() / "dbus.socket";
+                if (!mc::filesystem::exists(socket_path) || !test_dbus_connection(socket_path)) {
+                    try {
+                        dlog("正在删除不可用的测试目录: ${dir}", ("dir", entry.path().string()));
+                        mc::filesystem::remove_all(entry.path());
+                    } catch (const std::exception& e) {
+                        wlog("清理旧测试目录时出错: ${error}", ("error", e.what()));
+                    }
                 }
             }
         }
@@ -244,23 +346,9 @@ void dbus_daemon_manager::cleanup_stale_directories() {
 }
 
 void dbus_daemon_manager::cleanup_stale_processes() {
-    dlog("正在清理残留的测试dbus-daemon进程");
-
-// 使用pgrep查找包含"dbus-daemon"和"dbus_test_"的进程，并尝试终止它们
-#ifdef __APPLE__
-    // macOS下的pgrep语法稍有不同
-    std::string cmd = "pgrep -f 'dbus-daemon.*dbus_test_' | xargs -n1 kill 2>/dev/null || true";
-#else
-    // Linux下的pgrep语法
-    std::string cmd = "pgrep -f 'dbus-daemon.*dbus_test_' | xargs -r kill 2>/dev/null || true";
-#endif
-
-    int ret = system(cmd.c_str());
-    if (ret != 0) {
-        // 系统调用可能会返回非零值，即使没有找到进程也是正常的
-        // 这里不需要报错，因为我们使用了"|| true"来确保命令总是成功
-        dlog("执行清理进程命令完成，返回值: ${ret}", ("ret", ret));
-    }
+    // 不要清理任何dbus-daemon进程，因为我们希望复用它们
+    // 只有在清理不可用的实例时才会间接地清理对应的进程
+    dlog("跳过清理dbus-daemon进程，保留进程以供后续测试使用");
 }
 
 } // namespace mc::test

@@ -179,6 +179,45 @@ connection::future<message> connection::async_send_with_reply(message&&        m
     return future;
 }
 
+static DBusHandlerResult path_handler(DBusConnection* conn, DBusMessage* msg, void* user_data) {
+    auto handler = static_cast<connection::path_handler_type*>(user_data);
+    try {
+        auto message = mc::dbus::message(msg, true);
+        return (*handler)(message);
+    } catch (const std::exception& e) {
+        elog("DBus路径处理失败: ${error}", ("error", e.what()));
+        return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
+    }
+}
+
+static void path_unregister(DBusConnection* conn, void* user_data) {
+    auto handler = static_cast<connection::path_handler_type*>(user_data);
+    delete handler;
+}
+
+void connection::register_path(std::string_view path, path_handler_type handler) {
+    std::lock_guard lock(m_impl->m_mutex);
+    if (!check_connected()) {
+        return;
+    }
+
+    DBusObjectPathVTable vtable = {
+        .message_function    = path_handler,
+        .unregister_function = path_unregister,
+    };
+    auto handler_data = new path_handler_type(std::move(handler));
+    dbus_connection_register_object_path(m_connection, path.data(), &vtable, handler_data);
+}
+
+void connection::unregister_path(std::string_view path) {
+    std::lock_guard lock(m_impl->m_mutex);
+    if (!check_connected()) {
+        return;
+    }
+
+    dbus_connection_unregister_object_path(m_connection, path.data());
+}
+
 bool connection::is_connected() const {
     std::lock_guard lock(m_impl->m_mutex);
 
@@ -275,8 +314,7 @@ DBusHandlerResult connection::process_message(mc::dbus::message message) {
         // 没有 reply_serial 的 message 发送到 on_message 处理
     }
 
-    on_message(message);
-    return DBUS_HANDLER_RESULT_HANDLED;
+    return on_filter_message(message).get_value_or(DBUS_HANDLER_RESULT_NOT_YET_HANDLED);
 }
 
 void connection::process_reply(uint32_t reply_serial, message& msg) {
@@ -377,12 +415,6 @@ void connection::timeout_toggled(DBusTimeout* timeout, void* data) {
 }
 
 DBusHandlerResult connection::message_filter(DBusConnection*, DBusMessage* msg, void* user_data) {
-    int msg_type = dbus_message_get_type(msg);
-    if (msg_type != DBUS_MESSAGE_TYPE_METHOD_RETURN && msg_type != DBUS_MESSAGE_TYPE_ERROR &&
-        msg_type != DBUS_MESSAGE_TYPE_SIGNAL) {
-        return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
-    }
-
     connection* conn = static_cast<connection*>(user_data);
     return conn->process_message(mc::dbus::message(msg, true));
 }

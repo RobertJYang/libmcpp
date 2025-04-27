@@ -105,6 +105,8 @@ public:
     template <typename T>
     T as() const;
 
+    mc::variants read_args() const;
+
     template <typename T>
     void from(const T& v);
 

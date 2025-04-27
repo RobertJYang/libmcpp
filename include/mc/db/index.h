@@ -137,9 +137,9 @@ public:
     iterator_type lower_bound(const KeyType&... keys) {
         make_keys(m_key, keys...);
 
-        auto first = find_by_key_internal(m_key);
+        auto first = find_by_key_internal(m_key, true);
         if (first.is_end()) {
-            return std::make_pair(iterator_type(), iterator_type());
+            return iterator_type();
         }
 
         return first;
@@ -418,13 +418,17 @@ private:
      * @param key 键
      * @return 迭代器
      */
-    iterator_type find_by_key_internal(const mdb_key& key) {
+    iterator_type find_by_key_internal(const mdb_key& key, bool is_lower_bound = false) {
         auto& root     = m_txn->root();
         auto  key_view = key.key();
         auto  it       = root.lower_bound(key_view);
 
         if (it == root.end() || !mc::im::has_prefix(it->first, key_view)) {
             return iterator_type();
+        }
+
+        if (is_lower_bound) {
+            return make_iterator(it, mdb_key());
         }
 
         return make_iterator(it, key);
