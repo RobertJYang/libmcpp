@@ -201,11 +201,10 @@ void connection::register_path(std::string_view path, path_handler_type handler)
         return;
     }
 
-    DBusObjectPathVTable vtable = {
-        .message_function    = path_handler,
-        .unregister_function = path_unregister,
-    };
-    auto handler_data = new path_handler_type(std::move(handler));
+    DBusObjectPathVTable vtable;
+    vtable.message_function    = path_handler;
+    vtable.unregister_function = path_unregister;
+    auto handler_data          = new path_handler_type(std::move(handler));
     dbus_connection_register_object_path(m_connection, path.data(), &vtable, handler_data);
 }
 
