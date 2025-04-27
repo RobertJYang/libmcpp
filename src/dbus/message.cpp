@@ -157,6 +157,9 @@ static void dict_to_dbus_signature(signature& sig, const mc::dict& v) {
 
 static void variant_to_dbus_signature(signature& sig, const mc::variant& v) {
     switch (v.get_type()) {
+    case mc::type_id::null_type: // dbus 不支持空类型，用一个 std::optional 类型来表示
+        sig += "ai";
+        return;
     case mc::type_id::bool_type:
         return add_type(sig, type_code::boolean_type);
     case mc::type_id::int8_type:
@@ -804,9 +807,10 @@ message_writer::message_writer(DBusMessageIter& parent_iter, int type, std::stri
     dbus_message_iter_open_container(m_parent_iter, type, sig, &m_iter);
 }
 
-message_writer::~message_writer() {
+void message_writer::close_container() {
     if (m_parent_iter) {
         dbus_message_iter_close_container(m_parent_iter, &m_iter);
+        m_parent_iter = nullptr;
     }
 }
 
@@ -871,6 +875,14 @@ void message_writer::write_variant(const mc::variant& v, std::size_t depth) cons
 
     message_writer vit(m_iter, DBUS_TYPE_VARIANT, sig.str());
     vit.write_variant(sig, v, depth + 1);
+    vit.close_container();
+}
+
+void message_writer::write_variant_value(const mc::variant& v) const {
+    signature sig;
+    detail::variant_to_dbus_signature(sig, v);
+
+    write_variant(sig, v, 0);
 }
 
 void message_writer::write_variant(signature_iterator it, const mc::variant& v,
@@ -923,6 +935,12 @@ void message_writer::write_variant_array_or_dict(signature_iterator it, const mc
         return;
     }
 
+    // null 类型用 std::optional<int32_t> 类型来表示
+    if (v.get_type() == mc::type_id::null_type) {
+        *this << std::optional<int32_t>();
+        return;
+    }
+
     write_variant_array(it, v.get_array(), depth + 1);
 }
 
@@ -935,6 +953,7 @@ void message_writer::write_variant_array(signature_iterator it, const mc::varian
     for (const auto& item : arr) {
         writer.write_variant(it, item, depth + 1);
     }
+    writer.close_container();
 }
 
 void message_writer::write_variant_struct(signature_iterator it, const mc::variant& v,
@@ -952,6 +971,7 @@ void message_writer::write_variant_struct(signature_iterator it, const mc::varia
         it.next();
     }
 
+    writer.close_container();
     MC_ASSERT(it.at_end(), "结构体元素数量错误, ${type}, ${pos}",
               ("type", it.str())("pos", it.str().substr(it.pos())));
 }
@@ -969,7 +989,10 @@ void message_writer::write_variant_dict(signature_iterator it, const mc::dict& d
         message_writer entry_writer(writer.m_iter, DBUS_TYPE_DICT_ENTRY);
         entry_writer.write_variant(key_it, entry.key, depth + 1);
         entry_writer.write_variant(val_it, entry.value, depth + 1);
+        entry_writer.close_container();
     }
+
+    writer.close_container();
 }
 
 void message_writer::write_signature(const signature& sig) const {

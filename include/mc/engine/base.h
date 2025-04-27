@@ -17,6 +17,7 @@
 #include <mc/db/table.h>
 #include <mc/engine/macro.h>
 #include <mc/engine/utils.h>
+#include <mc/im/ref_ptr.h>
 #include <mc/reflect.h>
 #include <mc/signal_slot.h>
 #include <mc/traits.h>
@@ -154,9 +155,26 @@ struct object_wrap : public mc::db::object<object_wrap> {
         return m_object->get_object_name();
     }
 
+    operator mc::engine::object_base&() const {
+        return *m_object;
+    }
+
+    operator mc::engine::object_base*() const {
+        return m_object;
+    }
+
+    mc::engine::object_base& operator*() const {
+        return *m_object;
+    }
+
+    mc::engine::object_base* operator->() const {
+        return m_object;
+    }
+
     mc::engine::object_base* m_object;
 };
 
+using object_ptr = mc::im::ref_ptr<object_base>;
 struct by_path : mc::db::tag_base {};
 struct by_object_name : mc::db::tag_base {};
 using path_index = mc::db::ordered_non_unique<
