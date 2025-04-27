@@ -53,5 +53,6 @@ TEST_F(engine_test, test_engine) {
     reply >> names;
     EXPECT_GE(names.count("org.openubmc.test_service"), 1);
 
+    std::this_thread::sleep_for(std::chrono::seconds(10000000));
     service.stop();
 }
