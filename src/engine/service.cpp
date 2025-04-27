@@ -87,7 +87,7 @@ using service_table = mdb::table<
 
 namespace mc::engine {
 
-service_impl::service_impl() : m_strand(mc::get_engine().get_io_context().get_executor()) {
+service_impl::service_impl() : m_strand(mc::engine::make_strand()) {
 }
 
 bool service_impl::init(service* s) {

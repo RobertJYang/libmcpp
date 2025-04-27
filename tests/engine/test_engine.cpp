@@ -40,10 +40,8 @@ TEST_F(engine_test, test_engine) {
     service.init();
     service.start();
 
-    auto& engine      = mc::get_engine();
-    using strand_type = boost::asio::strand<boost::asio::io_context::executor_type>;
-    strand_type strand(engine.get_io_context().get_executor());
-    auto        conn = mc::dbus::connection::open_session_bus(strand);
+    auto strand = mc::engine::make_strand();
+    auto conn   = mc::dbus::connection::open_session_bus(strand);
     conn->start();
 
     auto msg   = mc::dbus::message::new_method_call("org.freedesktop.DBus", "/org/freedesktop/DBus",
