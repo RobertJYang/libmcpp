@@ -34,6 +34,19 @@ src_files = [
   'db/byte_buffer.cpp',
   'db/transaction.cpp',
   'db/database.cpp',
+  'io/io_buffer.cpp',
+  'io/io_stream.cpp',
+  'dbus/signature.cpp',
+  'dbus/path.cpp',
+  'dbus/message.cpp',
+  'dbus/validator.cpp',
+  'dbus/connection.cpp',
+  'dbus/dispatch/watch.cpp',
+  'dbus/dispatch/timeout.cpp',
+  'dbus/dispatch/pending_call.cpp',
+  'engine/engine.cpp',
+  'engine/service.cpp',
+  'engine/std_interface.cpp',
 ]
 
 # 创建共享库
@@ -41,7 +54,7 @@ libmcpp_lib = shared_library(
   'libmcpp',
   src_files,
   include_directories: [incdir],
-  dependencies: [boost_dep, boost_program_options_dep],
+  dependencies: [boost_dep, boost_program_options_dep, dbus_dep],
   install: true,
 )
 

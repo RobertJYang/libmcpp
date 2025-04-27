@@ -15,8 +15,7 @@
 
 #include <stdexcept>
 
-namespace mc {
-namespace future {
+namespace mc::futures {
 
 class future_exception : public std::logic_error {
 public:
@@ -50,7 +49,6 @@ public:
     }
 };
 
-} // namespace future
-} // namespace mc
+} // namespace mc::futures
 
 #endif // MC_FUTURES_EXCEPTIONS_H

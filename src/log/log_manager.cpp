@@ -37,7 +37,7 @@ log_manager::log_manager() {
     mc::dict default_config{
         {"stream", "std_out"},
         {"use_color", true},
-        {"flush", false},
+        {"flush", true},
         {"level_colors", mc::variants{mc::dict{{"level", "debug"}, {"color", "cyan"}},
                                       mc::dict{{"level", "info"}, {"color", "green"}},
                                       mc::dict{{"level", "warn"}, {"color", "blue"}},
@@ -190,7 +190,8 @@ bool log_manager::apply_config(const logging_config& config) {
                 m_loggers[log_config.name] = create_new_logger(log_config);
             }
         } catch (const std::exception& e) {
-            elog("更新logger[${name}]配置失败: ${error}", ("name", log_config.name)("error", e.what()));
+            elog("更新logger[${name}]配置失败: ${error}",
+                 ("name", log_config.name)("error", e.what()));
             continue;
         }
     }

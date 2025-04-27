@@ -76,6 +76,19 @@ mc::variant get_property(const T& obj, std::string_view key) {
 }
 
 /**
+ * 获取对象所有属性值
+ * @tparam T 类型
+ * @param obj 对象
+ * @return 返回 mc::dict
+ */
+template <typename T, typename = std::enable_if_t<
+                          is_reflectable<std::remove_cv_t<std::remove_reference_t<T>>>()>>
+mc::dict get_all_properties(const T& obj) {
+    using clean_type = std::remove_cv_t<std::remove_reference_t<T>>;
+    return get_metadata<clean_type>().get_all_properties(obj);
+}
+
+/**
  * 设置对象属性值
  * @tparam T 类型
  * @param obj 对象

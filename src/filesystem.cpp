@@ -373,5 +373,9 @@ space_info space(const path& p) {
     }
 }
 
+fs::path temp_directory_path() {
+    return std::filesystem::temp_directory_path();
+}
+
 } // namespace filesystem
 } // namespace mc

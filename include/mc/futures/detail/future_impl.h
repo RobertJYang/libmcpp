@@ -13,22 +13,31 @@
 #ifndef MC_FUTURES_DETAIL_FUTURE_IMPL_H
 #define MC_FUTURES_DETAIL_FUTURE_IMPL_H
 
-namespace mc {
-namespace future {
+namespace mc::futures {
+
+template <typename PromisePtr, typename State>
+void set_promise_exception(PromisePtr& promise, State& state) {
+    promise->set_exception(std::get<std::exception_ptr>(state->result));
+}
 
 template <typename PromisePtr, typename F, typename... Args>
 void set_promise_value(PromisePtr& promise, F&& func, Args&&... args) {
     if constexpr (std::is_same_v<std::invoke_result_t<F, Args...>, void>) {
         func(std::forward<Args>(args)...);
         promise->set_value();
+    } else if constexpr (detail::is_future_v<std::invoke_result_t<F, Args...>>) {
+        auto future = func(std::forward<Args>(args)...);
+        future
+            .then([promise](auto&& value) {
+                promise->set_value(std::forward<decltype(value)>(value));
+            })
+            .catch_error([promise](const std::exception& ec) {
+                promise->set_exception(std::current_exception());
+                return 0;
+            });
     } else {
         promise->set_value(func(std::forward<Args>(args)...));
     }
-}
-
-template <typename PromisePtr, typename State>
-void set_promise_exception(PromisePtr& promise, State& state) {
-    promise->set_exception(std::get<std::exception_ptr>(state->result));
 }
 
 template <bool IsVoid, typename T, typename PromisePtr, typename F, typename State>
@@ -54,11 +63,7 @@ auto make_continuation(std::shared_ptr<Promise<ResultType, Executor, Allocator>>
     return [promise = std::move(promise), func = std::forward<F>(func),
             state = std::move(state)]() mutable {
         try {
-            if constexpr (std::is_same_v<T, void>) {
-                handle_result_impl<true, T>(promise, func, state);
-            } else {
-                handle_result_impl<false, T>(promise, func, state);
-            }
+            handle_result_impl<std::is_void_v<T>, T>(promise, func, state);
         } catch (...) {
             promise->set_exception(std::current_exception());
         }
@@ -186,11 +191,44 @@ void Future<T, Executor, Allocator>::async_get(CompletionToken&& token, launch p
 template <typename T, typename Executor, typename Allocator>
 template <typename F>
 auto Future<T, Executor, Allocator>::then(F&& func, launch policy)
-    -> Future<typename std::invoke_result_t<F, T>, Executor, Allocator> {
-    using ResultType = typename std::invoke_result_t<F, T>;
-    auto promise     = std::make_shared<Promise<ResultType, Executor, Allocator>>(state_->executor,
-                                                                                  state_->allocator);
-    auto future      = promise->get_future();
+    -> std::enable_if_t<detail::is_future_v<std::invoke_result_t<F, T>>,
+                        std::invoke_result_t<F, T>> {
+    using ResultFutureType = std::invoke_result_t<F, T>;
+    using ResultType       = typename ResultFutureType::value_type;
+    using PromiseType      = Promise<ResultType, Executor, Allocator>;
+    auto promise           = std::make_shared<PromiseType>(state_->executor, state_->allocator);
+    auto future            = promise->get_future();
+
+    auto continuation = make_continuation<T, ResultType, Executor, Allocator, F>(
+        std::move(promise), std::forward<F>(func), state_);
+
+    std::unique_lock<std::mutex> lock(state_->mutex);
+    if (state_->ready) {
+        if (policy == launch::deferred) {
+            future.state_->continuations.push_back(continuation);
+            future.state_->deferred = true;
+            future.state_->policy   = policy;
+        } else if (policy == launch::dispatch) {
+            state_->executor.dispatch(continuation, state_->allocator);
+        } else {
+            state_->executor.post(continuation, state_->allocator);
+        }
+    } else {
+        state_->continuations.push_back(continuation);
+    }
+
+    return future;
+}
+
+template <typename T, typename Executor, typename Allocator>
+template <typename F>
+auto Future<T, Executor, Allocator>::then(F&& func, launch policy)
+    -> std::enable_if_t<!detail::is_future_v<std::invoke_result_t<F, T>>,
+                        Future<std::invoke_result_t<F, T>, Executor, Allocator>> {
+    using ResultType  = std::invoke_result_t<F, T>;
+    using PromiseType = Promise<ResultType, Executor, Allocator>;
+    auto promise      = std::make_shared<PromiseType>(state_->executor, state_->allocator);
+    auto future       = promise->get_future();
 
     auto continuation = make_continuation<T, ResultType, Executor, Allocator, F>(
         std::move(promise), std::forward<F>(func), state_);
@@ -272,7 +310,6 @@ auto Future<T, Executor, Allocator>::catch_error(F&& handler)
     return future;
 }
 
-} // namespace future
-} // namespace mc
+} // namespace mc::futures
 
 #endif // MC_FUTURES_DETAIL_FUTURE_IMPL_H

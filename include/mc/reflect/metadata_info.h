@@ -247,6 +247,8 @@ public:
     using non_const_function_type = RetType (Class::*)(Args...);
     using const_function_type     = RetType (Class::*)(Args...) const;
     using function_type = std::conditional_t<IsConst, const_function_type, non_const_function_type>;
+    using result_type   = mc::traits::remove_cvref_t<RetType>;
+    using arg_types     = std::tuple<mc::traits::remove_cvref_t<Args>...>;
 
     // 静态断言确保返回类型可以转换为variant
     static_assert(std::is_void_v<RetType> || is_variant_constructible_v<RetType>,
@@ -294,6 +296,19 @@ public:
 
     size_t arg_count() const override {
         return sizeof...(Args);
+    }
+
+    template <typename Func>
+    void for_each_arg(Func&& func) const {
+        arg_types* args{nullptr};
+        for_each_arg_impl(args, std::forward<Func>(func),
+                          std::make_index_sequence<sizeof...(Args)>{});
+    }
+
+    template <typename Tuple, typename Func, size_t... I>
+    void for_each_arg_impl(Tuple* tuple, Func&& func, std::index_sequence<I...>) const {
+        (func(static_cast<mc::traits::remove_cvref_t<std::tuple_element_t<I, Tuple>>*>(nullptr), I),
+         ...);
     }
 
 private:

@@ -4,7 +4,6 @@ test_files = [
   'main.cpp',
 
   # 根目录测试文件
-  'test_futures.cpp',
   'test_json.cpp',
   'test_pretty_name.cpp',
   'test_signal_slot.cpp',
@@ -29,14 +28,14 @@ test_files = [
   'dict/test_dict_performance.cpp',
   'dict/test_dict_string_view.cpp',
 
-  # engine 目录
-  'engine/test_interface.cpp',
-
   # exception 目录
   'exception/test_exception.cpp',
 
   # filesystem 目录
   'filesystem/test_filesystem.cpp',
+
+  # futures 目录
+  'futures/test_futures.cpp',
 
   # im 目录
   'im/test_custom_allocator.cpp',
@@ -82,24 +81,23 @@ test_files = [
   'engine/test_interface.cpp',
   'engine/test_object.cpp',
   'engine/test_utils.cpp',
+  'engine/test_std_interface.cpp',
+  'engine/test_engine.cpp',
+
+  # io 目录
+  'io/test_io_buffer.cpp',
+  'io/test_io_stream.cpp',
+
+  # dbus 目录
+  'dbus/test_path.cpp',
+  'dbus/test_reflect.cpp',
+  'dbus/test_dbus_message.cpp',
+  'dbus/test_connection.cpp',
 ]
 
-# 测试工具库 - 构建为独立的静态库
-test_utilities_inc = include_directories('.')
+dbus_dep = dependency('dbus-1', method: 'pkg-config', required: true)
 
-test_utilities_sources = [
-  'test_utilities/resource_manager.cpp',
-]
-
-test_utilities_lib = static_library(
-  'mc_test_utilities',
-  test_utilities_sources,
-  include_directories: [incdir, test_utilities_inc],
-  dependencies: [boost_dep, boost_program_options_dep],
-  install: false,
-)
-
-test_utilities_dep = declare_dependency(link_with: test_utilities_lib, include_directories: [test_utilities_inc])
+subdir('test_utilities')
 
 # 创建测试可执行文件 - 现在依赖test_utilities
 test_exe = executable(
@@ -112,6 +110,7 @@ test_exe = executable(
     boost_dep,
     boost_program_options_dep,
     test_utilities_dep,
+    dbus_dep,
   ],
   cpp_args: [],
   install: true,

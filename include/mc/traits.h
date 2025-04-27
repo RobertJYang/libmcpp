@@ -78,14 +78,26 @@ struct function_traits<F&&> : function_traits<F> {};
 
 // tuple_for_each实现：遍历元组中的每个元素并应用函数
 template <typename Tuple, typename Func, std::size_t... Is>
-constexpr void tuple_for_each_impl(const Tuple& tuple, Func&& func, std::index_sequence<Is...>) {
+constexpr void tuple_for_each_impl(Tuple& tuple, Func&& func, std::index_sequence<Is...>) {
     (func(std::get<Is>(tuple)), ...);
 }
 
 template <typename Tuple, typename Func>
-constexpr void tuple_for_each(const Tuple& tuple, Func&& func) {
+constexpr void tuple_for_each(Tuple& tuple, Func&& func) {
     tuple_for_each_impl(tuple, std::forward<Func>(func),
                         std::make_index_sequence<std::tuple_size_v<std::decay_t<Tuple>>>{});
+}
+
+template <typename Tuple, typename Func, size_t... I>
+void tuple_element_for_each_impl(Func&& func, std::index_sequence<I...>) {
+    (func(static_cast<mc::traits::remove_cvref_t<std::tuple_element_t<I, Tuple>>*>(nullptr), I),
+     ...);
+}
+template <typename Tuple, typename Func>
+void tuple_element_for_each(Func&& func) {
+    tuple_element_for_each_impl<Tuple>(
+        std::forward<Func>(func),
+        std::make_index_sequence<std::tuple_size_v<std::decay_t<Tuple>>>{});
 }
 
 } // namespace traits

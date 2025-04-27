@@ -13,6 +13,8 @@
 #ifndef MC_ENGINE_BASE_H
 #define MC_ENGINE_BASE_H
 
+#include <mc/db/object.h>
+#include <mc/db/table.h>
 #include <mc/engine/utils.h>
 #include <mc/reflect.h>
 #include <mc/signal_slot.h>
@@ -26,34 +28,54 @@
 
 namespace mc::engine {
 using slot_type = std::function<mc::variant(const mc::variants&)>;
+class object_base;
 
 struct interface_base {
     virtual ~interface_base() = default;
+
+    virtual void         set_object(object_base* obj) = 0;
+    virtual object_base* get_object() const           = 0;
 
     virtual std::string_view    get_interface_name() const                                     = 0;
     virtual mc::connection_type connect(std::string_view signal_name, slot_type slot)          = 0;
     virtual mc::variant         emit(std::string_view signal_name, const mc::variants& args)   = 0;
     virtual mc::variant         invoke(std::string_view method_name, const mc::variants& args) = 0;
     virtual mc::variant         get_property(std::string_view property_name)                   = 0;
+    virtual mc::dict            get_all_properties()                                           = 0;
     virtual bool set_property(std::string_view property_name, const mc::variant& value)        = 0;
 };
 
 class object_base {
 public:
+    using childrens_type = std::map<std::string_view, object_base*>;
+
     virtual ~object_base() = default;
 
-    virtual const std::string& get_object_name() const                = 0;
-    virtual void               set_object_name(std::string_view name) = 0;
-    virtual const std::string& get_object_path() const                = 0;
-    virtual void               set_object_path(std::string_view path) = 0;
+    virtual void ref()   = 0;
+    virtual void unref() = 0;
+
+    virtual void                  set_parent(object_base* obj)   = 0;
+    virtual object_base*          get_parent() const             = 0;
+    virtual void                  add_child(object_base* obj)    = 0;
+    virtual void                  remove_child(object_base* obj) = 0;
+    virtual const childrens_type& get_childrens() const          = 0;
+    virtual void                  introspect(std::string& xml)   = 0;
+
+    virtual const std::string& get_service_name() const                = 0;
+    virtual void               set_service_name(std::string_view name) = 0;
+    virtual const std::string& get_object_name() const                 = 0;
+    virtual void               set_object_name(std::string_view name)  = 0;
+    virtual const std::string& get_object_path() const                 = 0;
+    virtual void               set_object_path(std::string_view path)  = 0;
 
     virtual bool            has_interface(std::string_view interface_name) const = 0;
     virtual interface_base* get_interface(std::string_view interface_name)       = 0;
 
     virtual mc::variant get_property(std::string_view property_name,
-                                     std::string_view interface_name = {}) = 0;
+                                     std::string_view interface_name = {})  = 0;
+    virtual mc::dict    get_all_properties(std::string_view interface_name) = 0;
     virtual bool        set_property(std::string_view property_name, const mc::variant& value,
-                                     std::string_view interface_name = {}) = 0;
+                                     std::string_view interface_name = {})  = 0;
 
     virtual mc::variant invoke(std::string_view method_name, const mc::variants& args,
                                std::string_view interface_name = {}) = 0;
@@ -64,23 +86,76 @@ public:
                                      std::string_view interface_name = {})    = 0;
 };
 
-// 定义接口名称并在编译期检查其是否符合规范
-#define MC_INTERFACE(name)                                                                         \
-    static constexpr std::string_view interface_name = name;                                       \
-    static_assert(mc::engine::detail::is_valid_interface_name(name),                               \
-                  "接口名称必须符合规范: "                                                         \
-                  "使用点分隔的单词，每个单词以字母开头且只包含字母、数字和下划线");
-
-#define MC_OBJECT_INTERFACE(r, _, INTERFACE) std::tuple<INTERFACE*>(),
-
-#define MC_OBJECT(PATH_PATTERN, INTERFACES)                                                        \
-    static constexpr std::string_view path_pattern = PATH_PATTERN;                                 \
-    static constexpr auto             interfaces =                                                 \
-        std::tuple_cat(BOOST_PP_SEQ_FOR_EACH(MC_OBJECT_INTERFACE, _, INTERFACES) std::tuple<>());  \
-    template <typename Members>                                                                    \
-    static constexpr bool check_members(const Members& members) {                                  \
-        return mc::engine::detail::check_members(interfaces, members);                             \
+struct object_wrap : public mc::db::object<object_wrap> {
+    object_wrap(mc::engine::object_base* object) : m_object(object) {
+        m_object->ref();
     }
+
+    ~object_wrap() override {
+        free();
+    }
+
+    void free() {
+        if (m_object) {
+            m_object->unref();
+            m_object = nullptr;
+        }
+    }
+
+    object_wrap(const object_wrap& other)
+        : mc::db::object<object_wrap>(), m_object(other.m_object) {
+        if (m_object) {
+            m_object->ref();
+        }
+    }
+
+    object_wrap& operator=(const object_wrap& other) {
+        if (this != &other && m_object != other.m_object) {
+            free();
+            m_object = other.m_object;
+            if (m_object) {
+                m_object->ref();
+            }
+        }
+
+        return *this;
+    }
+
+    object_wrap(object_wrap&& other) noexcept {
+        m_object       = other.m_object;
+        other.m_object = nullptr;
+    }
+
+    object_wrap& operator=(object_wrap&& other) noexcept {
+        if (this != &other) {
+            free();
+
+            m_object       = other.m_object;
+            other.m_object = nullptr;
+        }
+
+        return *this;
+    }
+
+    const std::string& get_path() const {
+        return m_object->get_object_path();
+    }
+
+    const std::string& get_service_name() const {
+        return m_object->get_service_name();
+    }
+
+    const std::string& get_object_name() const {
+        return m_object->get_object_name();
+    }
+
+    mc::engine::object_base* m_object;
+};
+
+struct by_path : mc::db::tag_base {};
+struct by_object_name : mc::db::tag_base {};
+using path_index = mc::db::ordered_non_unique<
+    mc::db::member<object_wrap, const std::string&, &object_wrap::get_path>, by_path>;
 
 } // namespace mc::engine
 

@@ -61,8 +61,11 @@ public:
             return service_ptr();
         };
 
-        // 注册服务选项（如果有）
-        ServiceType::register_options(m_opts->cli, m_opts->cfg);
+        if constexpr (std::is_invocable_v<typename ServiceType::register_options,
+                                          po::options_description&, po::options_description&>) {
+            using register_options = typename ServiceType::register_options;
+            register_options()(m_opts->cli, m_opts->cfg);
+        }
     }
 
     /**
@@ -73,7 +76,7 @@ public:
      * @return 服务实例
      */
     virtual service_ptr create_service(const std::string& service_name, std::string object_name,
-                               mc::dict args) {
+                                       mc::dict args) {
         auto it = m_creators.find(service_name);
         if (it == m_creators.end()) {
             return service_ptr();

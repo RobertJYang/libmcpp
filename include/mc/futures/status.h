@@ -13,8 +13,7 @@
 #ifndef MC_FUTURES_STATUS_H
 #define MC_FUTURES_STATUS_H
 
-namespace mc {
-namespace future {
+namespace mc::futures {
 
 enum class future_status { ready, timeout, deferred };
 
@@ -25,7 +24,6 @@ enum class launch {
     any      = async | deferred
 };
 
-} // namespace future
-} // namespace mc
+} // namespace mc::futures
 
 #endif // MC_FUTURES_STATUS_H

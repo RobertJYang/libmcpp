@@ -249,7 +249,7 @@ TEST(ExceptionTest, ThreadSafetyTest) {
     std::mutex               mutex;
 
     for (int i = 0; i < num_threads; ++i) {
-        threads.emplace_back([&shared_exception, &mutex, i, msgs_per_thread]() {
+        threads.emplace_back([&shared_exception, &mutex, i]() {
             for (int j = 0; j < msgs_per_thread; ++j) {
                 // 使用互斥锁保护共享对象
                 std::lock_guard<std::mutex> lock(mutex);

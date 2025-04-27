@@ -11,12 +11,12 @@
  */
 
 #include <mc/exception.h>
+#include <mc/filesystem.h>
 #include <mc/log/appenders/console_appender.h>
 #include <mc/log/log_message.h>
-#include <mc/filesystem.h>
-#include <mc/time.h>
 #include <mc/reflect.h>
 #include <mc/string.h>
+#include <mc/time.h>
 #include <mc/variant.h>
 
 #include <unistd.h>
@@ -105,7 +105,7 @@ void console_appender::append(const message& msg) {
 
     // 构建日志行 - 预分配足够的空间避免重新分配
     std::string line;
-    line.reserve(512);  // 增加预留空间，避免多次重分配
+    line.reserve(512); // 增加预留空间，避免多次重分配
 
     // 格式化日志消息
     // 日志级别 (5字符宽度)
@@ -119,7 +119,7 @@ void console_appender::append(const message& msg) {
 
     // 文件和行号 (25字符宽度)
     std::string file_line;
-    file_line.reserve(64);  // 预分配足够空间
+    file_line.reserve(64); // 预分配足够空间
 
     if (ctx.m_file.empty()) {
         file_line.append("unknown");
@@ -128,7 +128,7 @@ void console_appender::append(const message& msg) {
     }
     file_line.push_back(':');
     file_line.append(std::to_string(ctx.m_line));
-    
+
     mc::string::fixed_width_append(line, 25, file_line);
     line.push_back(' ');
 

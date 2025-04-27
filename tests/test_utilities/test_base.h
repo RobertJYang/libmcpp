@@ -14,7 +14,10 @@
 #define MC_TEST_BASE_H
 
 #include <gtest/gtest.h>
+#include <mc/engine.h>
 #include <mc/log.h>
+#include <mc/singleton.h>
+#include <test_utilities/dbus_daemon_manager.h>
 
 namespace mc {
 namespace test {
@@ -33,6 +36,38 @@ protected:
         // 恢复默认日志级别
         mc::log::default_logger().set_level(mc::log::level::info);
     }
+};
+
+class TestBaseWithDbusDaemon : public TestBase {
+protected:
+    static dbus_daemon_manager& get_dbus_daemon() {
+        return mc::singleton<dbus_daemon_manager>::instance();
+    }
+
+    static void SetUpTestSuite() {
+        ASSERT_TRUE(get_dbus_daemon().start()) << "启动 DBus 守护进程失败";
+    }
+
+    static void TearDownTestSuite() {};
+};
+
+class TestBaseWithEngine : public TestBaseWithDbusDaemon {
+protected:
+    static mc::engine::engine& get_engine() {
+        return mc::get_engine();
+    }
+
+    static void SetUpTestSuite() {
+        TestBaseWithDbusDaemon::SetUpTestSuite();
+        get_engine().start();
+    }
+
+    static void TearDownTestSuite() {
+        get_engine().stop();
+
+        mc::singleton<mc::engine::engine>::reset_for_test();
+        TestBaseWithDbusDaemon::TearDownTestSuite();
+    };
 };
 
 } // namespace test

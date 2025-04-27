@@ -72,16 +72,6 @@ public:
         entry(variant k, variant v) : key(std::move(k)), value(std::move(v)) {
         }
 
-        // 模板构造函数，允许直接使用任意类型 T 作为值参数
-        template <typename T>
-        entry(variant k, T&& v) : key(std::move(k)), value(std::forward<T>(v)) {
-        }
-
-        // 模板构造函数，允许使用不同类型的键
-        template <typename K, typename T>
-        entry(K&& k, T&& v) : key(std::forward<K>(k)), value(std::forward<T>(v)) {
-        }
-
         // 拷贝构造函数 - 不拷贝钩子状态
         entry(const entry& other)
             : mc::intrusive::list_hook(), mc::intrusive::unordered_set_hook(), key(other.key),
@@ -316,6 +306,14 @@ public:
     const_iterator find(const char* key) const;
     const_iterator find(const variant& key) const;
     std::string    to_string() const;
+
+    /**
+     * @brief 获取数据指针
+     * @return 数据指针
+     */
+    void* data() const {
+        return m_data.get();
+    }
 
 protected:
     /**

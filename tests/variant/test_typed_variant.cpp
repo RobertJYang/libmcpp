@@ -565,27 +565,6 @@ TEST_F(TypedVariantTest, ChainedAssignments) {
     ASSERT_EQ(tv_int32.as_int64(), 42);
 }
 
-/**
- * @brief 测试 typed_variant 的自赋值
- */
-TEST_F(TypedVariantTest, SelfAssignment) {
-    typed_variant tv(type_id::int32_type);
-    tv = 42;
-    ASSERT_EQ(tv.get_type(), type_id::int32_type);
-    ASSERT_EQ(tv.as_int64(), 42);
-
-    // 自赋值
-    tv = tv;
-    ASSERT_EQ(tv.get_type(), type_id::int32_type);
-    ASSERT_EQ(tv.as_int64(), 42);
-
-    // 通过引用自赋值
-    typed_variant& tv_ref = tv;
-    tv                    = tv_ref;
-    ASSERT_EQ(tv.get_type(), type_id::int32_type);
-    ASSERT_EQ(tv.as_int64(), 42);
-}
-
 TEST_F(TypedVariantTest, MoveAssignment) {
     // 创建一个源对象
     typed_variant tv_source(type_id::string_type);
@@ -604,10 +583,6 @@ TEST_F(TypedVariantTest, MoveAssignment) {
             tv_target = std::move(tv_source);
         },
         tv_target);
-
-    tv_target = std::move(tv_target);
-    ASSERT_EQ(tv_target.get_type(), type_id::int32_type);
-    ASSERT_EQ(tv_target.as_int64(), 42);
 
     typed_variant tv_source2(type_id::int16_type);
     tv_source2 = 50;

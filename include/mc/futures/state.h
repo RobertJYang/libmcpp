@@ -22,8 +22,7 @@
 
 #include "status.h"
 
-namespace mc {
-namespace future {
+namespace mc::futures {
 
 template <typename T>
 using result_variant_t =
@@ -33,19 +32,21 @@ using result_variant_t =
 
 template <typename T, typename Executor, typename Allocator>
 struct State {
+    using executor_type     = Executor;
+    using continuation_list = std::list<std::function<void()>>;
+
     std::mutex              mutex;
     std::condition_variable cv;
     bool                    ready = false;
     result_variant_t<T>     result;
 
-    std::list<std::function<void()>> continuations;
-    typename Executor::executor_type executor;
-    std::atomic<bool>                deferred{false};
-    launch                           policy = launch::async;
-    Allocator                        allocator;
+    continuation_list continuations;
+    executor_type     executor;
+    std::atomic<bool> deferred{false};
+    launch            policy = launch::async;
+    Allocator         allocator;
 
-    explicit State(typename Executor::executor_type e, const Allocator& alloc)
-        : executor(e), allocator(alloc) {
+    explicit State(Executor e, const Allocator& alloc) : executor(std::move(e)), allocator(alloc) {
     }
 
     void mark_ready() {
@@ -58,7 +59,6 @@ struct State {
     }
 };
 
-} // namespace future
-} // namespace mc
+} // namespace mc::futures
 
 #endif // MC_FUTURES_STATE_H

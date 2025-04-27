@@ -22,6 +22,7 @@
 #include <string_view>
 #include <unordered_map>
 
+#include <mc/dict.h>
 #include <mc/reflect/metadata_info.h>
 #include <mc/variant.h>
 
@@ -111,6 +112,20 @@ public:
             return property->get_value(obj);
         }
         return mc::variant();
+    }
+
+    /**
+     * @brief 获取对象所有属性值
+     *
+     * @param obj 对象实例
+     * @return mc::dict 所有属性值
+     */
+    mc::dict get_all_properties(const T& obj) const {
+        mc::mutable_dict result;
+        for (const auto& [name, property] : m_name_to_properties) {
+            result[name] = property->get_value(obj);
+        }
+        return result;
     }
 
     /**

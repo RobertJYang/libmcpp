@@ -33,6 +33,7 @@ struct signal_info_base : public mc::reflect::member_info_base<Class> {
 template <typename Class, typename RetType, typename... Args>
 struct signal_info : public signal_info_base<Class> {
     using tag_type       = mc::engine::signal_tag;
+    using args_type      = std::tuple<Args...>;
     using signature_type = mc::signal<RetType(Args...)>;
 
     signature_type Class::* signal_ptr;
@@ -131,6 +132,14 @@ struct interface : public interface_base {
 
     interface() = default;
 
+    void set_object(object_base* obj) override {
+        object = obj;
+    }
+
+    object_base* get_object() const override {
+        return object;
+    }
+
     static signal_map<object_type>& get_signals() {
         static signal_map<object_type> signals = detail::init_signal_map<object_type>();
         return signals;
@@ -195,10 +204,17 @@ struct interface : public interface_base {
                                                       property_name);
     }
 
+    mc::dict get_all_properties() override {
+        return mc::reflect::get_all_properties<object_type>(static_cast<object_type&>(*this));
+    }
+
     bool set_property(std::string_view property_name, const mc::variant& value) override {
         return mc::reflect::set_property<object_type>(static_cast<object_type&>(*this),
                                                       property_name, value);
     }
+
+protected:
+    object_base* object;
 };
 
 } // namespace mc::engine

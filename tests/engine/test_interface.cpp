@@ -11,7 +11,7 @@
  */
 
 #include <gtest/gtest.h>
-#include <mc/engine/interface.h>
+#include <mc/engine.h>
 #include <mc/exception.h>
 
 namespace {

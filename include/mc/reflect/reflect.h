@@ -43,6 +43,7 @@
 namespace mc::reflect {
 [[noreturn]] void throw_bad_enum_cast(int64_t i, const char* e);
 [[noreturn]] void throw_bad_enum_cast(const char* k, const char* e);
+[[noreturn]] void throw_variant_cast(const char* k, const char* e);
 } // namespace mc::reflect
 
 // 检测是否为元组形式（双括号表达式）
@@ -207,7 +208,7 @@ struct reflector {
  */
 template <typename T>
 constexpr bool is_reflectable() {
-    return reflector<T>::is_defined::value;
+    return reflector<std::decay_t<T>>::is_defined::value;
 }
 
 /**
@@ -274,8 +275,20 @@ template <typename T>
 void from_variant(const variant& var, T& obj) {
     if constexpr (reflector<T>::is_enum::value) {
         reflector<T>::from_variant(var, obj);
-    } else {
+    } else if (var.is_dict()) {
+        // 支持从{key: value}字典转换为对象
         reflector<T>::from_variant(var.as<mc::dict>(), obj);
+    } else if (var.is_array()) {
+        // 支持从[value1, value2, ...]数组转换为对象
+        std::size_t index = 0;
+        mc::traits::tuple_for_each(reflector<T>::get_properties(), [&](auto& v) {
+            if (index < var.size()) {
+                v.set_value(obj, var[index]);
+            }
+            ++index;
+        });
+    } else {
+        throw_variant_cast(get_type_name<T>().data(), var.get_type_name());
     }
 }
 

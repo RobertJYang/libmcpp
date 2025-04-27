@@ -39,8 +39,8 @@ public:
     }
 
     // 接受裸指针的构造函数
-    explicit ref_ptr(pointer_type ptr) noexcept : m_ptr(ptr) {
-        if (m_ptr) {
+    explicit ref_ptr(pointer_type ptr, bool add_ref = true) noexcept : m_ptr(ptr) {
+        if (m_ptr && add_ref) {
             m_ptr->add_ref();
         }
     }
@@ -75,7 +75,7 @@ public:
             using non_const_t  = std::remove_const_t<T>;
             using alloc_type   = typename non_const_t::alloc_type;
             using alloc_traits = std::allocator_traits<alloc_type>;
-            alloc_type alloc   = m_ptr->m_alloc;
+            alloc_type alloc;
             alloc_traits::destroy(alloc, m_ptr);
             alloc_traits::deallocate(alloc, const_cast<non_const_t*>(m_ptr), 1);
         }
@@ -124,6 +124,12 @@ public:
     // 检查是否唯一引用
     bool unique() const noexcept {
         return use_count() == 1;
+    }
+
+    pointer_type detach() noexcept {
+        pointer_type ptr = m_ptr;
+        m_ptr            = nullptr;
+        return ptr;
     }
 
 private:

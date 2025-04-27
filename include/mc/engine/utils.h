@@ -35,11 +35,13 @@ struct filter_interface {
     static constexpr bool check = is_interface_v<typename ElementType::member_type>;
 };
 
-constexpr bool is_valid_interface_char(char c) {
+constexpr std::size_t max_name_length = 255;
+
+constexpr bool is_allowable_char(char c) {
     return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_';
 }
 
-constexpr bool is_valid_interface_first_char(char c) {
+constexpr bool is_allowable_first_char(char c) {
     return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z');
 }
 
@@ -48,7 +50,8 @@ constexpr bool is_valid_interface_name(std::string_view name) {
     bool has_dot = false;
 
     // 不能以点开头或结尾
-    if (name.empty() || name[0] == '.' || name[name.size() - 1] == '.') {
+    if (name.empty() || name[0] == '.' || name[name.size() - 1] == '.' ||
+        name.size() > max_name_length) {
         return false;
     }
 
@@ -69,16 +72,34 @@ constexpr bool is_valid_interface_name(std::string_view name) {
             segment_start = true;
         } else if (segment_start) {
             // 检查分段的第一个字符必须是字母
-            if (!is_valid_interface_first_char(c)) {
+            if (!is_allowable_first_char(c)) {
                 return false;
             }
             segment_start = false;
-        } else if (!is_valid_interface_char(c)) {
+        } else if (!is_allowable_char(c)) {
             return false;
         }
     }
 
     return has_dot;
+}
+
+constexpr bool is_valid_member_name(std::string_view name) {
+    if (name.empty() || name.size() > max_name_length) {
+        return false;
+    }
+
+    if (!is_allowable_first_char(name[0])) {
+        return false;
+    }
+
+    for (size_t i = 1; i < name.size(); ++i) {
+        if (!is_allowable_char(name[i])) {
+            return false;
+        }
+    }
+
+    return true;
 }
 
 // InterfaceTypes： std::tuple<Interface1*, Interface2, ...>
