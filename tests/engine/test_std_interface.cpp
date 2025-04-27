@@ -15,6 +15,9 @@
 #include <mc/exception.h>
 #include <mc/string.h>
 
+#include <test_utilities/test_base.h>
+#include <thread>
+
 // 解析xml
 #include <boost/property_tree/ptree.hpp>
 #include <boost/property_tree/xml_parser.hpp>
@@ -84,7 +87,7 @@ namespace bp = boost::property_tree;
 using namespace tests::engine::std_interface;
 using namespace mc::engine;
 
-class std_interface_test : public ::testing::Test {
+class std_interface_test : public mc::test::TestBaseWithEngine {
 protected:
     TestObject1 obj1;
     TestObject2 obj2;
@@ -217,6 +220,8 @@ TEST_F(std_interface_test, test_properties) {
     EXPECT_EQ(obj1.get_object_path(), "/org/test/TestObject");
     EXPECT_EQ(obj2.get_object_path(), "/org/test/TestObject/Id/00101");
     EXPECT_EQ(obj3.get_object_path(), "/org/test/TestObject/Id/00102");
+
+    std::this_thread::sleep_for(std::chrono::seconds(1000000));
 }
 
 TEST_F(std_interface_test, test_introspect) {

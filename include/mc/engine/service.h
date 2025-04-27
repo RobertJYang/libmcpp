@@ -33,7 +33,20 @@ public:
     void cleanup() override;
     bool is_healthy() const override;
 
+    template <typename ObjectType>
+    void register_object(mc::im::ref_ptr<ObjectType> obj) {
+        register_object(*obj);
+    }
+
+    template <typename ObjectType>
+    void unregister_object(mc::im::ref_ptr<ObjectType> obj) {
+        unregister_object(obj->get_object_path());
+    }
+    void unregister_object(std::string_view path);
+
 protected:
+    void register_object(object_base& obj);
+
     std::unique_ptr<service_impl> m_impl;
 };
 
