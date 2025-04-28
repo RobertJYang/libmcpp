@@ -130,14 +130,15 @@ struct interface : public interface_base {
     using is_interface = std::true_type;
     using object_type  = T;
 
-    interface() = default;
+    interface() {
+    }
 
     void set_object(object_base* obj) override {
-        object = obj;
+        m_object = obj;
     }
 
     object_base* get_object() const override {
-        return object;
+        return m_object;
     }
 
     static signal_map<object_type>& get_signals() {
@@ -214,7 +215,7 @@ struct interface : public interface_base {
     }
 
 protected:
-    object_base* object;
+    object_base* m_object;
 };
 
 } // namespace mc::engine

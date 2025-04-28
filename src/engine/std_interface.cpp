@@ -11,23 +11,23 @@
 namespace mc::engine {
 mc::variant properties_interface::get(std::string_view interface_name,
                                       std::string_view property_name) const {
-    return object->get_property(property_name, interface_name);
+    return m_object->get_property(property_name, interface_name);
 }
 
 mc::dict properties_interface::get_all(std::string_view interface_name) const {
-    return object->get_all_properties(interface_name);
+    return m_object->get_all_properties(interface_name);
 }
 
 void properties_interface::set(std::string_view interface_name, std::string_view property_name,
                                const mc::variant& value) {
-    object->set_property(property_name, value, interface_name);
+    m_object->set_property(property_name, value, interface_name);
 }
 
 std::string introspectable_interface::introspect() const {
     std::string xml_data =
         "<!DOCTYPE node PUBLIC \"-//freedesktop//DTD D-BUS Object Introspection 1.0//EN\" "
         "\"http://www.freedesktop.org/standards/dbus/1.0/introspect.dtd\"><node>";
-    object->introspect(xml_data);
+    m_object->introspect(xml_data);
     xml_data += "</node>";
     return xml_data;
 }

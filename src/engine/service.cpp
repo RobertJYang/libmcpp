@@ -39,10 +39,7 @@ struct service_object : public mc::engine::object<service_object> {
         m_interface.m_service_path += "/";
         m_interface.m_service_path += s->name();
 
-        m_interface.m_service_name = s->name();
-
-        set_service_name(m_service_name);
-        set_object_name(m_service_name);
+        set_object_name(s->name());
         set_object_path(m_object_path);
     }
 
@@ -133,6 +130,7 @@ void service_impl::stop() {
 void service_impl::register_object(object_base& obj) {
     auto obj_wrap = object_wrap::create(&obj);
     m_object_tree->add(obj_wrap);
+    obj.set_service(*m_service);
     m_connection->register_path(obj.get_object_path(), [this, obj_wrap](auto& msg) {
         return on_path_message(msg, *obj_wrap);
     });
@@ -157,6 +155,9 @@ DBusHandlerResult service_impl::on_method_call(object_base& object, mc::dbus::me
     auto method    = msg.get_member();
     auto interface = msg.get_interface();
     auto args      = msg.read_args();
+
+    dbus_call_info           call_info{msg, &object};
+    dbus_call_stack::context ctx(m_service, call_info);
 
     auto result = object.invoke(method, args, interface);
     if (result.is_null()) {

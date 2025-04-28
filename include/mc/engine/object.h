@@ -30,9 +30,34 @@ public:
     using property_info  = typename metadata_type::property_info;
 
     object(object_id_type id = 0) : mc::db::object<ObjectType>(id) {
+        /*
+         * 初始化子类对象的属性（interface、property）
+         *
+         * 这个做法不符合 C++ 对象构造顺序，因为基类先于子类构造，这里强制转换成子类指针，
+         * 并直接调用子类属性的方法，当基类构造函数返回后，子类又会重新构造子类属性，所以
+         * 必须确保已经在这里设置的属性，不要在该属性的构造函数中覆盖掉。
+         *
+         * 基类构造函数 -> 设置子类属性的值 -> 子类构造函数 -> 子类属性构造
+         *                    |                             |
+         *                    v                             v
+         *              设置子类属性值                 需要保证子类属性构造
+         *                                          不要覆盖前面设置的值
+         */
+        ObjectType* obj = static_cast<ObjectType*>(this);
+        mc::traits::tuple_for_each(get_static_interface_infos(), [obj](auto& member) {
+            (obj->*member.member_ptr).set_object(obj);
+        });
     }
 
     virtual ~object() = default;
+
+    service* get_service() const override {
+        return m_service;
+    }
+
+    void set_service(service& s) override {
+        m_service = &s;
+    }
 
     void set_parent(object_base* obj) override {
         m_parent = obj;
@@ -79,14 +104,6 @@ public:
     void unref() override {
         mc::im::ref_ptr<ObjectType> ref_ptr(static_cast<ObjectType*>(this), false);
         ref_ptr.reset();
-    }
-
-    const std::string& get_service_name() const override {
-        return m_service_name;
-    }
-
-    void set_service_name(std::string_view name) override {
-        m_service_name = name;
     }
 
     const std::string& get_object_name() const override {
@@ -162,6 +179,9 @@ public:
 
     mc::variant invoke(std::string_view method_name, const mc::variants& args,
                        std::string_view interface_name = {}) override {
+        // 跟踪对象调用
+        object_call_stack::context object_ctx{m_service, *this};
+
         auto result = standard_interfaces::invoke(this, method_name, args, interface_name);
         if (!result.is_null()) {
             return result;
@@ -202,8 +222,8 @@ public:
 protected:
     mutable std::string m_object_name;
     mutable std::string m_object_path;
-    mutable std::string m_service_name;
 
+    service*       m_service{nullptr};
     object_base*   m_parent{nullptr};
     childrens_type ms_children;
 };

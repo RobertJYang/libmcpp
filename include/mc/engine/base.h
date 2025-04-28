@@ -16,6 +16,8 @@
 #include <mc/db/object.h>
 #include <mc/db/table.h>
 #include <mc/dbus/message.h>
+#include <mc/engine/call_info.h>
+#include <mc/engine/call_stack.h>
 #include <mc/engine/error.h>
 #include <mc/engine/macro.h>
 #include <mc/engine/utils.h>
@@ -38,6 +40,18 @@ using slot_type       = std::function<mc::variant(const mc::variants&)>;
 using message         = mc::dbus::message;
 
 class object_base;
+class service;
+
+using dbus_call_stack   = detail::call_stack<service, dbus_call_info>;
+using object_call_stack = detail::call_stack<service, object_base>;
+
+inline dbus_call_info* top_dbus_call_info() {
+    return dbus_call_stack::top();
+}
+
+inline object_base* top_object() {
+    return object_call_stack::top();
+}
 
 struct interface_base {
     virtual ~interface_base() = default;
@@ -63,6 +77,8 @@ public:
     virtual void ref()   = 0;
     virtual void unref() = 0;
 
+    virtual void                  set_service(service& s)        = 0;
+    virtual service*              get_service() const            = 0;
     virtual void                  set_parent(object_base* obj)   = 0;
     virtual object_base*          get_parent() const             = 0;
     virtual void                  add_child(object_base* obj)    = 0;
@@ -70,12 +86,10 @@ public:
     virtual const childrens_type& get_childrens() const          = 0;
     virtual void                  introspect(std::string& xml)   = 0;
 
-    virtual const std::string& get_service_name() const                = 0;
-    virtual void               set_service_name(std::string_view name) = 0;
-    virtual const std::string& get_object_name() const                 = 0;
-    virtual void               set_object_name(std::string_view name)  = 0;
-    virtual const std::string& get_object_path() const                 = 0;
-    virtual void               set_object_path(std::string_view path)  = 0;
+    virtual const std::string& get_object_name() const                = 0;
+    virtual void               set_object_name(std::string_view name) = 0;
+    virtual const std::string& get_object_path() const                = 0;
+    virtual void               set_object_path(std::string_view path) = 0;
 
     virtual bool            has_interface(std::string_view interface_name) const = 0;
     virtual interface_base* get_interface(std::string_view interface_name)       = 0;
@@ -148,14 +162,6 @@ struct object_wrap : public mc::db::object<object_wrap> {
 
     const std::string& get_path() const {
         return m_object->get_object_path();
-    }
-
-    const std::string& get_service_name() const {
-        return m_object->get_service_name();
-    }
-
-    const std::string& get_object_name() const {
-        return m_object->get_object_name();
     }
 
     operator mc::engine::object_base&() const {

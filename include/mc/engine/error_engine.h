@@ -35,7 +35,6 @@ public:
      * @param name 错误名称
      * @param format 格式化字符串
      * @return 创建的错误
-     *
      */
     error& report_error(std::string_view name);
     error& report_error(const error_info& info);
