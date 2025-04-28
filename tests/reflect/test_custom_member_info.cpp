@@ -30,13 +30,13 @@ struct signal_tag {};
 
 // 2. 然后定义信号信息类
 template <typename C, typename Signature>
-struct signal_info : public mc::reflect::member_info_base<C> {
+struct signal_info : public mc::reflect::member_info_base {
     using tag_type = mc::reflect::signal_tag;
 
     mc::signal<Signature> C::* signal_ptr;
 
     constexpr signal_info(std::string_view n, mc::signal<Signature> C::* ptr)
-        : mc::reflect::member_info_base<C>(n), signal_ptr(ptr) {
+        : mc::reflect::member_info_base(n), signal_ptr(ptr) {
     }
 
     std::type_index typeinfo() const override {

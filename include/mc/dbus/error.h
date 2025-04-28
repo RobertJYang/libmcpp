@@ -15,7 +15,7 @@
 
 #include <dbus/dbus.h>
 #include <mc/exception.h>
-#include <string>
+#include <mc/string.h>
 
 namespace mc::dbus {
 
@@ -24,12 +24,27 @@ struct error : DBusError {
         dbus_error_init(this);
     }
 
+    error(const error& other) {
+        dbus_error_init(this);
+        if (other.is_set()) {
+            dbus_set_error(this, other.name, "%s", other.message);
+        }
+    }
+
+    error& operator=(const error& other) {
+        if (this != &other) {
+            dbus_error_free(this);
+            dbus_error_init(this);
+            if (other.is_set()) {
+                dbus_set_error(this, other.name, "%s", other.message);
+            }
+        }
+        return *this;
+    }
+
     ~error() {
         dbus_error_free(this);
     }
-
-    error(const error& other)            = delete;
-    error& operator=(const error& other) = delete;
 
     error(error&& other) noexcept {
         dbus_move_error(&other, this);
@@ -44,9 +59,17 @@ struct error : DBusError {
         return dbus_error_is_set(this);
     }
 
-    template <typename... Args>
-    void set_error(std::string_view name, Args&&... args) {
-        dbus_set_error(this, name.data(), std::forward<Args>(args)...);
+    void set_error(std::string_view name, std::string_view message) {
+        dbus_set_error(this, name.data(), "%s", message.data());
+    }
+
+    void set_error(std::string_view name, std::string_view message, const mc::dict& args) {
+        if (args.empty()) {
+            dbus_set_error(this, name.data(), "%s", message.data());
+        } else {
+            auto msg = mc::string::format(message, args);
+            dbus_set_error(this, name.data(), "%s", msg.c_str());
+        }
     }
 
     void set_error_const(std::string_view name, std::string_view message) {
@@ -59,31 +82,31 @@ struct error : DBusError {
  */
 namespace error_names {
 // 标准DBus错误名称
-const std::string_view failed             = "org.freedesktop.DBus.Error.Failed";
-const std::string_view no_memory          = "org.freedesktop.DBus.Error.NoMemory";
-const std::string_view service_unknown    = "org.freedesktop.DBus.Error.ServiceUnknown";
-const std::string_view name_has_no_owner  = "org.freedesktop.DBus.Error.NameHasNoOwner";
-const std::string_view no_reply           = "org.freedesktop.DBus.Error.NoReply";
-const std::string_view io_error           = "org.freedesktop.DBus.Error.IOError";
-const std::string_view bad_address        = "org.freedesktop.DBus.Error.BadAddress";
-const std::string_view not_supported      = "org.freedesktop.DBus.Error.NotSupported";
-const std::string_view limits_exceeded    = "org.freedesktop.DBus.Error.LimitsExceeded";
-const std::string_view access_denied      = "org.freedesktop.DBus.Error.AccessDenied";
-const std::string_view auth_failed        = "org.freedesktop.DBus.Error.AuthFailed";
-const std::string_view no_server          = "org.freedesktop.DBus.Error.NoServer";
-const std::string_view timeout            = "org.freedesktop.DBus.Error.Timeout";
-const std::string_view no_network         = "org.freedesktop.DBus.Error.NoNetwork";
-const std::string_view address_in_use     = "org.freedesktop.DBus.Error.AddressInUse";
-const std::string_view disconnected       = "org.freedesktop.DBus.Error.Disconnected";
-const std::string_view invalid_args       = "org.freedesktop.DBus.Error.InvalidArgs";
-const std::string_view file_not_found     = "org.freedesktop.DBus.Error.FileNotFound";
-const std::string_view file_exists        = "org.freedesktop.DBus.Error.FileExists";
-const std::string_view unknown_method     = "org.freedesktop.DBus.Error.UnknownMethod";
-const std::string_view unknown_object     = "org.freedesktop.DBus.Error.UnknownObject";
-const std::string_view unknown_interface  = "org.freedesktop.DBus.Error.UnknownInterface";
-const std::string_view unknown_property   = "org.freedesktop.DBus.Error.UnknownProperty";
-const std::string_view property_read_only = "org.freedesktop.DBus.Error.PropertyReadOnly";
-const std::string_view timed_out          = "org.freedesktop.DBus.Error.TimedOut";
+constexpr std::string_view failed             = "org.freedesktop.DBus.Error.Failed";
+constexpr std::string_view no_memory          = "org.freedesktop.DBus.Error.NoMemory";
+constexpr std::string_view service_unknown    = "org.freedesktop.DBus.Error.ServiceUnknown";
+constexpr std::string_view name_has_no_owner  = "org.freedesktop.DBus.Error.NameHasNoOwner";
+constexpr std::string_view no_reply           = "org.freedesktop.DBus.Error.NoReply";
+constexpr std::string_view io_error           = "org.freedesktop.DBus.Error.IOError";
+constexpr std::string_view bad_address        = "org.freedesktop.DBus.Error.BadAddress";
+constexpr std::string_view not_supported      = "org.freedesktop.DBus.Error.NotSupported";
+constexpr std::string_view limits_exceeded    = "org.freedesktop.DBus.Error.LimitsExceeded";
+constexpr std::string_view access_denied      = "org.freedesktop.DBus.Error.AccessDenied";
+constexpr std::string_view auth_failed        = "org.freedesktop.DBus.Error.AuthFailed";
+constexpr std::string_view no_server          = "org.freedesktop.DBus.Error.NoServer";
+constexpr std::string_view timeout            = "org.freedesktop.DBus.Error.Timeout";
+constexpr std::string_view no_network         = "org.freedesktop.DBus.Error.NoNetwork";
+constexpr std::string_view address_in_use     = "org.freedesktop.DBus.Error.AddressInUse";
+constexpr std::string_view disconnected       = "org.freedesktop.DBus.Error.Disconnected";
+constexpr std::string_view invalid_args       = "org.freedesktop.DBus.Error.InvalidArgs";
+constexpr std::string_view file_not_found     = "org.freedesktop.DBus.Error.FileNotFound";
+constexpr std::string_view file_exists        = "org.freedesktop.DBus.Error.FileExists";
+constexpr std::string_view unknown_method     = "org.freedesktop.DBus.Error.UnknownMethod";
+constexpr std::string_view unknown_object     = "org.freedesktop.DBus.Error.UnknownObject";
+constexpr std::string_view unknown_interface  = "org.freedesktop.DBus.Error.UnknownInterface";
+constexpr std::string_view unknown_property   = "org.freedesktop.DBus.Error.UnknownProperty";
+constexpr std::string_view property_read_only = "org.freedesktop.DBus.Error.PropertyReadOnly";
+constexpr std::string_view timed_out          = "org.freedesktop.DBus.Error.TimedOut";
 } // namespace error_names
 
 } // namespace mc::dbus

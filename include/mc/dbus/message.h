@@ -152,9 +152,10 @@ struct message_writer {
     message_writer(message& msg);
     message_writer(DBusMessageIter& parent_iter, int type,
                    std::string_view signature = std::string_view());
-    ~message_writer();
+    void close_container();
 
     void write_variant(const mc::variant& v, std::size_t depth) const;
+    void write_variant_value(const mc::variant& v) const;
     void write_variant(signature_iterator it, const mc::variant& v, std::size_t depth) const;
     void write_variant_array_or_dict(signature_iterator it, const mc::variant& v,
                                      std::size_t depth) const;
@@ -468,7 +469,7 @@ const message_writer& write_array(const message_writer& writer, const Container&
             sub_writer << item;
         }
     }
-
+    sub_writer.close_container();
     return writer;
 }
 
@@ -513,6 +514,7 @@ template <typename T, typename U>
 const message_writer& operator<<(const message_writer& writer, const std::pair<T, U>& v) {
     message_writer sub_writer(writer.m_iter, DBUS_TYPE_STRUCT);
     sub_writer << v.first << v.second;
+    sub_writer.close_container();
     return writer;
 }
 
@@ -523,6 +525,7 @@ const message_writer& operator<<(const message_writer& writer, const std::option
     if (v.has_value()) {
         sub_writer << v.value();
     }
+    sub_writer.close_container();
     return writer;
 }
 
@@ -532,7 +535,7 @@ const message_writer& operator<<(const message_writer& writer, const std::tuple<
     mc::traits::tuple_for_each(v, [&](auto&& item) {
         sub_writer << item;
     });
-
+    sub_writer.close_container();
     return writer;
 }
 
@@ -545,7 +548,9 @@ const message_writer& write_dict(const message_writer& writer, const Container& 
     for (const auto& item : v) {
         message_writer entry_writer(sub_writer.m_iter, DBUS_TYPE_DICT_ENTRY);
         entry_writer << item.first << item.second;
+        entry_writer.close_container();
     }
+    sub_writer.close_container();
     return writer;
 }
 
@@ -611,6 +616,7 @@ const message_writer& operator<<(const message_writer& writer, const T& v) {
         sub_writer << v.*item.member_ptr;
     });
 
+    sub_writer.close_container();
     return writer;
 }
 

@@ -17,6 +17,7 @@
 #include <unistd.h>
 #include <vector>
 
+#include <dbus/dbus.h>
 #include <mc/filesystem.h>
 
 namespace mc::test {
@@ -134,6 +135,32 @@ private:
      * @brief 清理历史遗留的 DBus 守护进程
      */
     void cleanup_stale_processes();
+
+    /**
+     * @brief 创建 DBus 连接
+     *
+     * @param address DBus 地址字符串
+     * @param error 错误信息
+     * @return DBus 连接对象
+     */
+    DBusConnection* create_dbus_connection(const std::string& address, DBusError* error, int retry,
+                                           int max_retries);
+
+    /**
+     * @brief 注册到 DBus 总线
+     *
+     * @param conn DBus 连接对象
+     * @param error 错误信息
+     * @return 是否成功注册
+     */
+    bool register_to_bus(DBusConnection* conn, DBusError* error, const std::string& socket_path);
+
+    /**
+     * @brief 关闭并释放 DBus 连接
+     *
+     * @param conn DBus 连接对象
+     */
+    void close_connection(DBusConnection* conn);
 
     pid_t                m_dbus_pid = -1;      // DBus 守护进程 PID
     mc::filesystem::path m_temp_dir;           // 临时目录路径

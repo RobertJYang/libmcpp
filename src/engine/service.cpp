@@ -25,24 +25,21 @@ using object_tree_ptr = std::shared_ptr<object_tree>;
 using strand_type     = boost::asio::strand<boost::asio::io_context::executor_type>;
 
 struct service_interface : public mc::engine::interface<service_interface> {
-    MC_INTERFACE("org.openubmc.service")
+    MC_INTERFACE("bmc.kepler.maca")
 
     std::string m_service_name;
     std::string m_service_path;
 };
 
 struct service_object : public mc::engine::object<service_object> {
-    MC_OBJECT("/org/openubmc/service", (service_interface))
+    MC_OBJECT("/bmc/kepler/maca", (service_interface))
 
     void init(service* s) {
         m_interface.m_service_path = path_pattern;
         m_interface.m_service_path += "/";
         m_interface.m_service_path += s->name();
 
-        m_interface.m_service_name = s->name();
-
-        set_service_name(m_service_name);
-        set_object_name(m_service_name);
+        set_object_name(s->name());
         set_object_path(m_object_path);
     }
 
@@ -60,7 +57,7 @@ struct service_impl {
     bool start();
     void stop();
 
-    DBusHandlerResult on_path_message(mc::dbus::message& msg);
+    DBusHandlerResult on_path_message(mc::dbus::message& msg, object_base& obj);
     DBusHandlerResult on_filter_message(mc::dbus::message& msg);
 
     DBusHandlerResult on_method_call(object_base& obj, mc::dbus::message& msg);
@@ -131,9 +128,11 @@ void service_impl::stop() {
 }
 
 void service_impl::register_object(object_base& obj) {
-    m_object_tree->add(object_wrap::create(&obj));
-    m_connection->register_path(obj.get_object_path(), [this](auto& msg) {
-        return on_path_message(msg);
+    auto obj_wrap = object_wrap::create(&obj);
+    m_object_tree->add(obj_wrap);
+    obj.set_service(*m_service);
+    m_connection->register_path(obj.get_object_path(), [this, obj_wrap](auto& msg) {
+        return on_path_message(msg, **obj_wrap);
     });
 }
 
@@ -144,16 +143,9 @@ DBusHandlerResult service_impl::on_filter_message(mc::dbus::message& msg) {
     return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
 }
 
-DBusHandlerResult service_impl::on_path_message(mc::dbus::message& msg) {
-    std::string path(msg.get_path());
-
-    auto it = m_object_tree->get<by_path>().find(path);
-    if (it.is_end()) {
-        return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
-    }
-
+DBusHandlerResult service_impl::on_path_message(mc::dbus::message& msg, object_base& obj) {
     if (msg.is_method_call()) {
-        return on_method_call(*it->m_object, msg);
+        return on_method_call(obj, msg);
     }
 
     return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
@@ -164,13 +156,16 @@ DBusHandlerResult service_impl::on_method_call(object_base& object, mc::dbus::me
     auto interface = msg.get_interface();
     auto args      = msg.read_args();
 
+    dbus_call_info           call_info{msg, &object};
+    dbus_call_stack::context ctx(m_service, call_info);
+
     auto result = object.invoke(method, args, interface);
     if (result.is_null()) {
         return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
     }
 
     auto reply = mc::dbus::message::new_method_return(msg);
-    reply.writer() << result;
+    reply.writer().write_variant_value(result);
     m_connection->send(std::move(reply));
 
     return DBUS_HANDLER_RESULT_HANDLED;
@@ -225,7 +220,7 @@ bool service::is_healthy() const {
 
 void service::register_object(object_base& obj) {
     auto path = obj.get_object_path();
-    MC_ASSERT(path.empty(), "对象路径不能为空");
+    MC_ASSERT(!path.empty(), "对象路径不能为空");
     MC_ASSERT(mc::dbus::validator::is_valid_path(path), "无效的对象路径 ${path}", ("path", path));
 
     m_impl->register_object(obj);
@@ -233,6 +228,10 @@ void service::register_object(object_base& obj) {
 
 void service::unregister_object(std::string_view path) {
     m_impl->unregister_object(path);
+}
+
+strand_type& service::get_strand() {
+    return m_impl->m_strand;
 }
 
 } // namespace mc::engine

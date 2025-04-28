@@ -17,7 +17,17 @@ class validator {
 public:
     static bool is_valid_interface_name(std::string_view name);
     static bool is_valid_member_name(std::string_view name);
+
+    /*
+     * 检查 bus name 是否有效
+     *
+     * 有效 bus name 格式：
+     * bus name 是以点号分段的多段字符串，至少需要一个点的两段名称，如果
+     * 以冒号开头表示唯一的 bus name，每段名称只能包含字母、数字、下划线，
+     * 每段不能以数字和点开头
+     */
     static bool is_valid_bus_name(std::string_view name);
+
     static bool is_valid_error_name(std::string_view errorname);
     static bool is_valid_path(std::string_view path);
     static bool is_message_too_large(std::size_t size);

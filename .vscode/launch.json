@@ -42,6 +42,23 @@
             }
         },
         {
+            "name": "examples/task_service",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/builddir/examples/task_service/task_service",
+            "args": [],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}/builddir/examples/task_service",
+            "environment": [],
+            "externalConsole": false,
+            "osx": {
+                "MIMode": "lldb",
+            },
+            "linux": {
+                "MIMode": "gdb",
+            }
+        },
+        {
             "name": "interprocess_example",
             "type": "cppdbg",
             "request": "launch",

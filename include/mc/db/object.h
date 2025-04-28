@@ -47,6 +47,7 @@ public:
     using object_id_type        = ObjectIdType;
     using alloc_type            = Allocator;
     using const_object_ptr_type = mc::im::ref_ptr<const ObjectType>;
+    using object_ptr_type       = mc::im::ref_ptr<ObjectType>;
 
     /**
      * 默认构造函数

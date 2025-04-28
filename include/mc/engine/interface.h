@@ -21,8 +21,8 @@ namespace mc::engine {
 struct signal_tag {};
 
 template <typename Class>
-struct signal_info_base : public mc::reflect::member_info_base<Class> {
-    signal_info_base(std::string_view n) : mc::reflect::member_info_base<Class>(n) {
+struct signal_info_base : public mc::reflect::member_info_base {
+    signal_info_base(std::string_view n) : mc::reflect::member_info_base(n) {
     }
 
     virtual mc::variant         emit(Class& obj, const mc::variants& args) const = 0;
@@ -34,6 +34,7 @@ template <typename Class, typename RetType, typename... Args>
 struct signal_info : public signal_info_base<Class> {
     using tag_type       = mc::engine::signal_tag;
     using args_type      = std::tuple<Args...>;
+    using result_type    = mc::traits::remove_cvref_t<RetType>;
     using signature_type = mc::signal<RetType(Args...)>;
 
     signature_type Class::* signal_ptr;
@@ -88,8 +89,7 @@ struct signal_info : public signal_info_base<Class> {
 template <typename Class, typename RetType, typename... Args>
 constexpr auto make_signal_info(mc::signal<RetType(Args...)> Class::* signal_ptr,
                                 std::string_view                      name) {
-    return std::tuple<signal_info<Class, RetType, Args...>>{
-        signal_info<Class, RetType, Args...>(name, signal_ptr)};
+    return std::make_tuple(signal_info<Class, RetType, Args...>(name, signal_ptr));
 }
 } // namespace mc::engine
 
@@ -130,14 +130,15 @@ struct interface : public interface_base {
     using is_interface = std::true_type;
     using object_type  = T;
 
-    interface() = default;
+    interface() {
+    }
 
-    void set_object(object_base* obj) override {
-        object = obj;
+    void set_object(object_base* obj) {
+        m_object = obj;
     }
 
     object_base* get_object() const override {
-        return object;
+        return m_object;
     }
 
     static signal_map<object_type>& get_signals() {
@@ -214,7 +215,7 @@ struct interface : public interface_base {
     }
 
 protected:
-    object_base* object;
+    object_base* m_object;
 };
 
 } // namespace mc::engine

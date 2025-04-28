@@ -19,10 +19,14 @@
 #include <iostream>
 #include <signal.h>
 #include <sys/socket.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 #include <sys/un.h>
 #include <sys/wait.h>
 #include <thread>
+#include <unistd.h>
 
+#include <dbus/dbus.h>
 #include <mc/log.h>
 
 namespace mc::test {
@@ -39,7 +43,6 @@ bool dbus_daemon_manager::start() {
         return true;
     }
 
-    // 首先尝试复用现有的 DBus 实例
     if (find_existing_dbus()) {
         ilog("复用现有的 DBus 实例，设置环境变量 \nexport DBUS_SESSION_BUS_ADDRESS=${address}",
              ("address", m_dbus_address));
@@ -48,16 +51,13 @@ bool dbus_daemon_manager::start() {
         return true;
     }
 
-    // 如果没有可用的现有实例，清理不可用的实例然后创建新的
     dlog("未找到可用的 DBus 实例，将创建新实例");
     cleanup_stale_instances();
 
-    // 创建临时目录
     if (!create_temp_dir()) {
         return false;
     }
 
-    // 创建配置文件
     if (!create_config_file()) {
         cleanup_temp_dir();
         return false;
@@ -71,38 +71,34 @@ bool dbus_daemon_manager::start() {
         return false;
     }
 
-    // 启动 dbus-daemon 进程
-    m_dbus_pid = fork();
-    if (m_dbus_pid == -1) {
+    // 使用 double fork 使 dbus-daemon 进程完全脱离父进程
+    pid_t first_pid = fork();
+    if (first_pid == -1) {
         close(pipe_fd[0]);
         close(pipe_fd[1]);
         elog("创建进程失败: ${error}", ("error", strerror(errno)));
         cleanup_temp_dir();
         return false;
-    } else if (m_dbus_pid == 0) {
-        // 子进程：执行 dbus-daemon
-        close(pipe_fd[0]); // 关闭读端
+    }
 
-        // 将标准输出重定向到管道
-        dup2(pipe_fd[1], STDOUT_FILENO);
-        close(pipe_fd[1]);
-
-        // 执行 dbus-daemon
-        execlp("dbus-daemon", "dbus-daemon", "--config-file", m_config_path.c_str(),
-               "--nofork", // 添加 --nofork 选项，使进程不会后台运行
-               "--print-address", nullptr);
-
-        // 如果 execlp 失败，则输出错误并退出
-        std::cerr << "执行 dbus-daemon 失败: " << strerror(errno) << std::endl;
-        exit(1);
-    } else {
-        // 父进程
+    if (first_pid > 0) {
+        // 父进程：等待第一个子进程退出
         close(pipe_fd[1]); // 关闭写端
 
         // 从管道读取 dbus-daemon 输出的地址
         char    buffer[256];
         ssize_t bytes_read = read(pipe_fd[0], buffer, sizeof(buffer) - 1);
         close(pipe_fd[0]);
+
+        // 等待第一个子进程退出
+        int status;
+        waitpid(first_pid, &status, 0);
+
+        // 检查子进程是否正常退出
+        if (!WIFEXITED(status) || WEXITSTATUS(status) != 0) {
+            wlog("第一个子进程异常退出: ${status}", ("status", status));
+            // 尽管子进程异常退出，我们仍然尝试继续
+        }
 
         if (bytes_read > 0) {
             // 成功读取地址
@@ -124,22 +120,91 @@ bool dbus_daemon_manager::start() {
         }
 
         // 等待一小段时间，确保 dbus-daemon 已经启动
-        std::this_thread::sleep_for(std::chrono::milliseconds(500));
+        // 同时进行连接测试以确认服务已经可用
+        bool      dbus_ready  = false;
+        const int max_retries = 10; // 最多尝试10次
+        for (int retry = 0; retry < max_retries; ++retry) {
+            if (test_dbus_connection(m_socket_path)) {
+                dbus_ready = true;
+                break;
+            }
+            std::this_thread::sleep_for(std::chrono::milliseconds(200));
+        }
+
+        if (!dbus_ready) {
+            wlog("DBus 守护进程启动后连接测试失败，可能需要手动检查");
+        }
 
         m_is_running = true;
         return true;
+    } else {
+        // 第一个子进程：创建第二个子进程，然后退出
+        // 创建新会话，成为会话领导者
+        if (setsid() == -1) {
+            std::cerr << "setsid 失败: " << strerror(errno) << std::endl;
+            exit(1);
+        }
+
+        // 创建第二个子进程
+        pid_t second_pid = fork();
+        if (second_pid == -1) {
+            std::cerr << "创建第二个子进程失败: " << strerror(errno) << std::endl;
+            exit(1);
+        }
+
+        if (second_pid > 0) {
+            // 第一个子进程：将第二个子进程的 PID 写入到 PID 文件
+            std::string   pid_file_path = m_temp_dir.string() + "/dbus.pid";
+            std::ofstream pid_file(pid_file_path);
+            if (pid_file.is_open()) {
+                pid_file << second_pid;
+                pid_file.close();
+            }
+
+            // 第一个子进程：退出
+            exit(0);
+        } else {
+            // 第二个子进程：运行 dbus-daemon
+
+            // 关闭所有不需要的文件描述符
+            // 保留标准输出用于输出地址
+            for (int fd = 0; fd < sysconf(_SC_OPEN_MAX); fd++) {
+                if (fd != pipe_fd[1] && fd != STDOUT_FILENO) {
+                    close(fd);
+                }
+            }
+
+            // 将标准输出重定向到管道
+            dup2(pipe_fd[1], STDOUT_FILENO);
+            close(pipe_fd[1]);
+
+            // 忽略终端相关信号
+            signal(SIGHUP, SIG_IGN);
+            signal(SIGINT, SIG_IGN);
+            signal(SIGTERM, SIG_IGN);
+            signal(SIGTSTP, SIG_IGN);
+            signal(SIGTTOU, SIG_IGN);
+            signal(SIGTTIN, SIG_IGN);
+
+            // 执行 dbus-daemon
+            execlp("dbus-daemon", "dbus-daemon", "--config-file", m_config_path.c_str(),
+                   "--nofork", // 添加 --nofork 选项，使进程不会后台运行
+                   "--print-address", nullptr);
+
+            // 如果 execlp 失败，则输出错误并退出
+            std::cerr << "执行 dbus-daemon 失败: " << strerror(errno) << std::endl;
+            exit(1);
+        }
     }
 }
 
 void dbus_daemon_manager::stop() {
     if (!m_is_running) {
-        return; // 未在运行，无需停止
+        return;
     }
 
-    // 注意：我们不再终止 dbus-daemon 进程或清理文件，而是把它留给下一个测试程序使用
     dlog("保留 dbus-daemon 进程 (PID: ${pid}) 以供后续测试使用", ("pid", m_dbus_pid));
 
-    // 重置实例状态，但不真正终止进程
     m_dbus_pid   = -1;
     m_is_running = false;
 }
@@ -199,36 +264,81 @@ std::vector<mc::filesystem::path> dbus_daemon_manager::scan_dbus_test_dirs() {
     return result;
 }
 
-bool dbus_daemon_manager::test_dbus_connection(const mc::filesystem::path& socket_path) {
-    // 尝试连接到套接字
-    int sock = socket(AF_UNIX, SOCK_STREAM, 0);
-    if (sock < 0) {
-        wlog("创建套接字失败: ${error}", ("error", strerror(errno)));
-        return false;
+// 创建 DBus 连接
+DBusConnection* dbus_daemon_manager::create_dbus_connection(const std::string& address,
+                                                            DBusError* error, int retry,
+                                                            int max_retries) {
+    dbus_error_init(error);
+    DBusConnection* conn = dbus_connection_open_private(address.c_str(), error);
+    if (!dbus_error_is_set(error)) {
+        return conn;
     }
 
-    struct sockaddr_un addr;
-    memset(&addr, 0, sizeof(addr));
-    addr.sun_family = AF_UNIX;
-    strncpy(addr.sun_path, socket_path.c_str(), sizeof(addr.sun_path) - 1);
+    wlog("连接到 DBus 套接字失败(重试 ${retry}/${max}): ${path}, 错误: ${error}",
+         ("retry", retry + 1)("max", max_retries)("path", address)("error", error->message));
+    dbus_error_free(error);
+    return nullptr;
+}
 
-    // 设置非阻塞模式进行连接测试
-    int flags = fcntl(sock, F_GETFL, 0);
-    fcntl(sock, F_SETFL, flags | O_NONBLOCK);
+// 注册到 DBus 总线
+bool dbus_daemon_manager::register_to_bus(DBusConnection* conn, DBusError* error,
+                                          const std::string& socket_path) {
+    dbus_error_init(error);
+    if (dbus_bus_register(conn, error)) {
+        return true;
+    }
 
-    int  ret          = connect(sock, (struct sockaddr*)&addr, sizeof(addr));
-    bool is_connected = (ret == 0 || (ret < 0 && errno == EINPROGRESS));
-
-    close(sock);
-
-    if (!is_connected) {
-        wlog("连接到 DBus 套接字失败: ${path}, 错误: ${error}",
-             ("path", socket_path.string())("error", strerror(errno)));
+    if (dbus_error_is_set(error)) {
+        wlog("连接到 DBus 总线失败: ${path}, 错误: ${error}",
+             ("path", socket_path)("error", error->message));
+        dbus_error_free(error);
     } else {
-        dlog("成功连接到 DBus 套接字: ${path}", ("path", socket_path.string()));
+        wlog("连接到 DBus 总线失败: ${path}", ("path", socket_path));
     }
 
-    return is_connected;
+    close_connection(conn);
+    return false;
+}
+
+// 关闭并释放 DBus 连接
+void dbus_daemon_manager::close_connection(DBusConnection* conn) {
+    if (!conn) {
+        return;
+    }
+
+    dbus_connection_close(conn);
+    dbus_connection_unref(conn);
+}
+
+bool dbus_daemon_manager::test_dbus_connection(const mc::filesystem::path& socket_path) {
+    DBusError error;
+    const int max_retries = 3;
+    for (int retry = 0; retry < max_retries; ++retry) {
+        std::string test_address = "unix:path=" + socket_path.string();
+
+        DBusConnection* conn = create_dbus_connection(test_address, &error, retry, max_retries);
+        if (!conn) {
+            if (retry > max_retries - 1) {
+                return false;
+            }
+            std::this_thread::sleep_for(std::chrono::milliseconds(100 * (retry + 1)));
+            continue;
+        }
+
+        if (!register_to_bus(conn, &error, socket_path.string())) {
+            if (retry >= max_retries - 1) {
+                return false;
+            }
+            std::this_thread::sleep_for(std::chrono::milliseconds(100 * (retry + 1)));
+            continue;
+        }
+
+        dlog("成功连接到 DBus 套接字: ${path}", ("path", socket_path.string()));
+        close_connection(conn);
+        return true;
+    }
+
+    return false;
 }
 
 std::string dbus_daemon_manager::get_address() const {
@@ -303,12 +413,10 @@ void dbus_daemon_manager::cleanup_temp_dir() {
 void dbus_daemon_manager::cleanup_stale_instances() {
     dlog("开始清理不可用的DBus测试实例...");
 
-    // 仅清理无法连接的实例和目录
     auto test_dirs = scan_dbus_test_dirs();
     for (const auto& dir : test_dirs) {
         mc::filesystem::path socket_path = dir / "dbus.socket";
 
-        // 如果套接字文件不存在或者无法连接，则清理该目录
         if (!mc::filesystem::exists(socket_path) || !test_dbus_connection(socket_path)) {
             try {
                 dlog("清理不可用的测试目录: ${dir}", ("dir", dir.string()));

@@ -497,6 +497,10 @@ T to_number(std::string_view s, T default_value) {
     return default_value;
 }
 
+// 定义占位符语法的常量
+inline constexpr std::string_view PLACEHOLDER_START = "${";
+inline constexpr char             PLACEHOLDER_END   = '}';
+
 } // namespace string
 
 /**

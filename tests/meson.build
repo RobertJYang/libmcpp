@@ -83,6 +83,7 @@ test_files = [
   'engine/test_utils.cpp',
   'engine/test_std_interface.cpp',
   'engine/test_engine.cpp',
+  'engine/test_error_engine.cpp',
 
   # io 目录
   'io/test_io_buffer.cpp',
@@ -96,8 +97,6 @@ test_files = [
 ]
 
 dbus_dep = dependency('dbus-1', method: 'pkg-config', required: true)
-
-subdir('test_utilities')
 
 # 创建测试可执行文件 - 现在依赖test_utilities
 test_exe = executable(

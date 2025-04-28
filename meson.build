@@ -6,12 +6,12 @@ project(
     'warning_level=3',
     'cpp_std=c++17',
     'libdir=lib',
-    'cpp_args=-fPIC -Wall -Wno-unused-parameter -Wno-unused-variable -Wno-sign-compare -Wno-pedantic'
+    'cpp_args=-fPIC -Wall -Wno-unused-parameter -Wno-unused-variable -Wno-sign-compare -Wno-pedantic',
   ],
 )
 
 # 添加编译器选项
-add_project_arguments('-Wall', '-Wextra', '-Wno-#warnings',  language: 'cpp')
+add_project_arguments('-Wall', '-Wextra', '-Wno-#warnings', language: 'cpp')
 
 # 配置选项
 shared_mutex_max_readers = get_option('shared_mutex_max_readers')
@@ -26,7 +26,12 @@ endif
 if not meson.is_cross_build()
   message('当前为本地构建')
   boost_dep = dependency('boost', method: 'pkg-config', required: true)
-  boost_program_options_dep = dependency('boost', modules: ['program_options'], method: 'pkg-config', required: true)
+  boost_program_options_dep = dependency(
+    'boost',
+    modules: ['program_options'],
+    method: 'pkg-config',
+    required: true,
+  )
 else
   message('当前为交叉构建')
   # 交叉构建时创建一个空依赖，但确保变量可用
@@ -43,6 +48,7 @@ incdir = include_directories('include')
 # 子目录
 subdir('include')
 subdir('src')
+subdir('tests/test_utilities')
 subdir('examples')
 subdir('plugins')
 subdir('programs/devmon')

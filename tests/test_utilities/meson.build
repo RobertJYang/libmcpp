@@ -10,7 +10,7 @@ test_utilities_lib = static_library(
   'mc_test_utilities',
   test_utilities_sources,
   include_directories: [incdir, test_utilities_inc],
-  dependencies: [boost_dep, boost_program_options_dep],
+  dependencies: [boost_dep, boost_program_options_dep, dbus_dep],
   install: false,
 )
 
