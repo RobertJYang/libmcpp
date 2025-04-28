@@ -44,7 +44,8 @@ struct error_engine::error_engine_impl {
 #define REGISTER_ERROR(info) register_const_error(info);
 
 error_engine::error_engine() : m_impl(std::make_unique<error_engine_impl>()) {
-    REGISTER_ERRORS(REGISTER_ERROR);
+    // 注册标准错误
+    REGISTER_ERRORS(REGISTER_ERROR)
 }
 
 error_engine::~error_engine() {

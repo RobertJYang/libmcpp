@@ -63,8 +63,6 @@ struct properties_interface : public mc::engine::interface<properties_interface>
     using properties_changed_signal =
         mc::signal<void(std::string_view, mc::dict, std::vector<std::string>)>;
     properties_changed_signal properties_changed;
-
-    object_base* object;
 };
 
 /*
@@ -80,8 +78,6 @@ struct introspectable_interface : public mc::engine::interface<introspectable_in
     ~introspectable_interface() override = default;
 
     std::string introspect() const;
-
-    object_base* object;
 };
 
 /*
@@ -99,8 +95,6 @@ struct peer_interface : public mc::engine::interface<peer_interface> {
 
     void        ping() const;
     std::string get_machine_id() const;
-
-    object_base* object;
 };
 
 /*
@@ -132,29 +126,39 @@ struct object_manager_interface : public mc::engine::interface<object_manager_in
 
     using interfaces_removed_signal = mc::signal<void(mc::dbus::path, std::vector<std::string>)>;
     interfaces_removed_signal interfaces_removed;
-
-    object_base* object;
 };
 
 class standard_interfaces {
 public:
+    static constexpr std::string_view common_prefix       = "org.freedesktop.DBus.";
+    static constexpr std::string_view properties_name     = "Properties";
+    static constexpr std::string_view introspectable_name = "Introspectable";
+    static constexpr std::string_view peer_name           = "Peer";
+    static constexpr std::string_view object_manager_name = "ObjectManager";
+
     static mc::variant invoke(object_base* object, std::string_view method_name,
                               const mc::variants& args, std::string_view interface_name) {
-        if (interface_name == properties_interface_name) {
+        // 优化：所有的标准接口都有同样的前缀，前缀不匹配可以快速返回
+        if (!mc::string::starts_with(interface_name, common_prefix)) {
+            return {};
+        }
+
+        std::string_view name = interface_name.substr(common_prefix.size());
+        if (name == properties_name) {
             static thread_local properties_interface properties;
-            properties.object = object;
+            properties.set_object(object);
             return properties.invoke(method_name, args);
-        } else if (interface_name == introspectable_interface_name) {
+        } else if (name == introspectable_name) {
             static thread_local introspectable_interface introspectable;
-            introspectable.object = object;
+            introspectable.set_object(object);
             return introspectable.invoke(method_name, args);
-        } else if (interface_name == peer_interface_name) {
+        } else if (name == peer_name) {
             static thread_local peer_interface peer;
-            peer.object = object;
+            peer.set_object(object);
             return peer.invoke(method_name, args);
-        } else if (interface_name == object_manager_interface_name) {
+        } else if (name == object_manager_name) {
             static thread_local object_manager_interface object_manager;
-            object_manager.object = object;
+            object_manager.set_object(object);
             return object_manager.invoke(method_name, args);
         }
 

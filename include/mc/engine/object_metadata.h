@@ -260,20 +260,12 @@ private:
         auto& childs = obj.get_childrens();
         auto& path   = obj.get_object_path();
 
-        std::unordered_set<std::string_view> visited;
         for (auto& child : childs) {
             auto& child_path = child.second->get_object_path();
             if (mc::string::starts_with(child_path, path)) {
-                mc::db::path_iterator it(child_path.substr(path.size()));
-                it.to_next();
-                auto current = it.current();
-                if (visited.find(current) != visited.end()) {
-                    continue;
-                }
-                visited.insert(current);
-
+                auto child_name = child_path.substr(path.size());
                 xml += "<node name=\"";
-                xml += current;
+                xml += child_name;
                 xml += "\"/>";
             }
         }
