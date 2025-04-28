@@ -47,6 +47,8 @@ src_files = [
   'engine/engine.cpp',
   'engine/service.cpp',
   'engine/std_interface.cpp',
+  'engine/error.cpp',
+  'engine/error_engine.cpp',
 ]
 
 # 创建共享库

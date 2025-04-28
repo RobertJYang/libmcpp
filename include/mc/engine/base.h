@@ -15,6 +15,8 @@
 
 #include <mc/db/object.h>
 #include <mc/db/table.h>
+#include <mc/dbus/message.h>
+#include <mc/engine/error.h>
 #include <mc/engine/macro.h>
 #include <mc/engine/utils.h>
 #include <mc/im/ref_ptr.h>
@@ -33,6 +35,7 @@ namespace mc::engine {
 using io_context_type = boost::asio::io_context;
 using strand_type     = boost::asio::strand<boost::asio::io_context::executor_type>;
 using slot_type       = std::function<mc::variant(const mc::variants&)>;
+using message         = mc::dbus::message;
 
 class object_base;
 

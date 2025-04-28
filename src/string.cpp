@@ -468,10 +468,6 @@ static void append_variant_to_string(std::string& result, const variant& value) 
     });
 }
 
-// 定义占位符语法的常量
-static const std::string_view PLACEHOLDER_START = "${";
-static const char             PLACEHOLDER_END   = '}';
-
 // 从字典中获取键对应的值并追加到结果字符串
 static void resolve_fmt_key(std::string& result, std::string_view key, const dict& args) {
     // 验证 key 格式

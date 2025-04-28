@@ -83,6 +83,7 @@ test_files = [
   'engine/test_utils.cpp',
   'engine/test_std_interface.cpp',
   'engine/test_engine.cpp',
+  'engine/test_error_engine.cpp',
 
   # io 目录
   'io/test_io_buffer.cpp',
