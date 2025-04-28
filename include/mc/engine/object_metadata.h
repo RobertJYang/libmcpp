@@ -102,20 +102,18 @@ public:
         return it->second;
     }
 
-    void introspect(object_type& obj, std::string& xml) {
+    void visit(object_type& obj, visitor& v) {
+        auto p_obj = reinterpret_cast<intptr_t>(&obj);
         mc::traits::tuple_for_each(get_static_interface_infos(), [&](auto& member) {
-            using property_info  = mc::traits::remove_cvref_t<decltype(member)>;
-            using interface_type = typename property_info::member_type;
+            using property_info = mc::traits::remove_cvref_t<decltype(member)>;
 
-            xml += "<interface name=\"";
-            xml += interface_type::interface_name;
-            xml += "\">";
-            introspect_properties(member, xml);
-            introspect_methods(member, xml);
-            introspect_signals(member, xml);
-            xml += "</interface>";
+            auto& iface = *reinterpret_cast<interface_base*>(p_obj + member.offset());
+            v.handle_interface_begin(obj, iface);
+            visit_properties<property_info>(obj, iface, v);
+            visit_methods<property_info>(obj, iface, v);
+            visit_signals<property_info>(obj, iface, v);
+            v.handle_interface_end(obj, iface);
         });
-        introspect_children(obj, xml);
     }
 
 private:
@@ -175,100 +173,53 @@ private:
         });
     }
 
-    /*
-    <property name="Property" type="i" access="readwrite" />
-    */
     template <typename PropertyInfo>
-    void introspect_properties(PropertyInfo& member, std::string& xml) {
+    void visit_properties(object_type& obj, interface_base& iface, visitor& v) {
         using interface_type = typename PropertyInfo::member_type;
         mc::traits::tuple_for_each(interface_type::get_static_properties(), [&](auto& property) {
             using property_type =
                 typename mc::traits::remove_cvref_t<decltype(property)>::member_type;
-            auto& signature = mc::dbus::get_signature<property_type>();
-            xml += "<property name=\"";
-            xml += property.name;
-            xml += "\" type=\"";
-            xml += signature.str();
-            xml += "\" access=\"readwrite\" />";
+
+            visitor::property_meta info;
+            info.name      = property.name;
+            info.signature = mc::dbus::get_signature<property_type>();
+            info.access    = 0;
+            v.handle(obj, iface, info);
         });
     }
 
-    /*
-    <method name="Method">
-      <arg name="arg1" type="i" direction="in"/>
-      <arg name="arg2" type="s" direction="in"/>
-      <arg name="result" type="s" direction="out"/>
-    </method>
-    */
     template <typename PropertyInfo>
-    void introspect_methods(PropertyInfo& member, std::string& xml) {
+    void visit_methods(object_type& obj, interface_base& iface, visitor& v) {
         using interface_type = typename PropertyInfo::member_type;
         mc::traits::tuple_for_each(interface_type::get_static_methods(), [&](auto& method) {
             using method_info_type = mc::traits::remove_cvref_t<decltype(method)>;
             using result_type      = typename method_info_type::result_type;
-            xml += "<method name=\"";
-            xml += method.name;
-            xml += "\">";
-            method.for_each_arg([&](auto* arg, auto index) {
-                using arg_type = std::remove_pointer_t<mc::traits::remove_cvref_t<decltype(arg)>>;
-                auto& arg_signature = mc::dbus::get_signature<arg_type>();
-                xml += "<arg name=\"arg";
-                xml += std::to_string(index + 1);
-                xml += "\" type=\"";
-                xml += arg_signature.str();
-                xml += "\" direction=\"in\" />";
-            });
+            using args_type        = typename method_info_type::args_type;
+
+            visitor::method_meta info;
+            info.name = method.name;
             if constexpr (!std::is_void_v<result_type>) {
-                auto& result_signature = mc::dbus::get_signature<result_type>();
-                xml += "<arg name=\"result\" type = \"";
-                xml += result_signature.str();
-                xml += "\" direction=\"out\" />";
+                info.return_signature = mc::dbus::get_signature<result_type>();
             }
-            xml += "</method>";
+            info.args_signature = mc::dbus::get_signature<args_type>();
+            v.handle(obj, iface, info);
         });
     }
 
-    /*
-    <signal name="ValueChanged" >
-        <arg name="arg1" type="i" />
-        <arg name="arg2" type="i" />
-    </signal>
-    */
     template <typename PropertyInfo>
-    void introspect_signals(PropertyInfo& member, std::string& xml) {
+    void visit_signals(object_type& obj, interface_base& iface, visitor& v) {
         using interface_type = typename PropertyInfo::member_type;
         mc::traits::tuple_for_each(interface_type::get_static_signals(), [&](auto& signal) {
             using signal_info_type = mc::traits::remove_cvref_t<decltype(signal)>;
+            using result_type      = typename signal_info_type::result_type;
             using args_type        = typename signal_info_type::args_type;
-            xml += "<signal name=\"";
-            xml += signal.name;
-            xml += "\">";
-            mc::traits::tuple_element_for_each<args_type>([&](auto arg, auto index) {
-                using arg_type = std::remove_pointer_t<mc::traits::remove_cvref_t<decltype(arg)>>;
-                auto& arg_signature = mc::dbus::get_signature<arg_type>();
-                xml += "<arg name=\"arg";
-                xml += std::to_string(index + 1);
-                xml += "\" type=\"";
-                xml += arg_signature.str();
-                xml += "\" />";
-            });
-            xml += "</signal>";
+
+            visitor::signal_meta info;
+            info.name             = signal.name;
+            info.return_signature = mc::dbus::get_signature<result_type>();
+            info.args_signature   = mc::dbus::get_signature<args_type>();
+            v.handle(obj, iface, info);
         });
-    }
-
-    void introspect_children(object_type& obj, std::string& xml) {
-        auto& childs = obj.get_childrens();
-        auto& path   = obj.get_object_path();
-
-        for (auto& child : childs) {
-            auto& child_path = child.second->get_object_path();
-            if (mc::string::starts_with(child_path, path)) {
-                auto child_name = child_path.substr(path.size());
-                xml += "<node name=\"";
-                xml += child_name;
-                xml += "\"/>";
-            }
-        }
     }
 
     name_to_interface_info m_name_to_interface;  // interface 在对象中的属性名到反射信息的映射

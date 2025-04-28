@@ -170,10 +170,9 @@ protected:
     }
 
     static void get_arg(const bp::ptree& pt, mc::variants& method) {
-        auto             name      = pt.get<std::string>("<xmlattr>.name");
         auto             type      = pt.get<std::string>("<xmlattr>.type");
         auto             direction = pt.get<std::string>("<xmlattr>.direction", "");
-        mc::mutable_dict arg       = {{"name", name}, {"type", type}};
+        mc::mutable_dict arg       = {{"type", type}};
         if (!direction.empty()) {
             arg["direction"] = direction;
         }
@@ -257,21 +256,19 @@ TEST_F(std_interface_test, test_introspect) {
             },
             {
                 "methods",
-                mc::variants{
-                    mc::dict{{"name", "SetValue"},
-                             {"args", mc::variants{{mc::dict{
-                                          {"name", "arg1"}, {"type", "i"}, {"direction", "in"}}}}}},
-                    mc::dict{{"name", "GetValue"},
-                             {"args",
-                              mc::variants{{mc::dict{
-                                  {{"name", "result"}, {"type", "i"}, {"direction", "out"}}}}}}}},
+                mc::variants{mc::dict{{"name", "SetValue"},
+                                      {"args", mc::variants{{mc::dict{{"type", "i"},
+                                                                      {"direction", "in"}}}}}},
+                             mc::dict{{"name", "GetValue"},
+                                      {"args", mc::variants{{mc::dict{
+                                                   {{"type", "i"}, {"direction", "out"}}}}}}}},
             },
             {
                 "signals",
                 mc::variants{
                     mc::dict{{"name", "ValueChanged"},
-                             {"args", mc::variants{{mc::dict{{"name", "arg1"}, {"type", "i"}}},
-                                                   {mc::dict{{"name", "arg2"}, {"type", "i"}}}}}},
+                             {"args",
+                              mc::variants{{mc::dict{{"type", "i"}}}, {mc::dict{{"type", "i"}}}}}},
                 },
             },
         },

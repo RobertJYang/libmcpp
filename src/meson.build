@@ -44,6 +44,7 @@ src_files = [
   'dbus/dispatch/watch.cpp',
   'dbus/dispatch/timeout.cpp',
   'dbus/dispatch/pending_call.cpp',
+  'engine/base.cpp',
   'engine/engine.cpp',
   'engine/service.cpp',
   'engine/std_interface.cpp',

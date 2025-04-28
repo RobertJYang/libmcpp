@@ -215,8 +215,8 @@ public:
         return property_info_to_interface(*info)->emit(signal_name, args);
     }
 
-    void introspect(std::string& xml) override {
-        get_metadata().introspect(static_cast<ObjectType&>(*this), xml);
+    virtual void visit(visitor& v) override {
+        get_metadata().visit(static_cast<ObjectType&>(*this), v);
     }
 
 protected:

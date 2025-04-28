@@ -132,7 +132,7 @@ void service_impl::register_object(object_base& obj) {
     m_object_tree->add(obj_wrap);
     obj.set_service(*m_service);
     m_connection->register_path(obj.get_object_path(), [this, obj_wrap](auto& msg) {
-        return on_path_message(msg, *obj_wrap);
+        return on_path_message(msg, **obj_wrap);
     });
 }
 

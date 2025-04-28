@@ -137,7 +137,6 @@ inline constexpr bool is_property_v = is_property<T>::value;
 //------------------------------------------------------------------------------
 
 // 成员信息基类
-template <typename C>
 struct member_info_base {
     std::string_view name;
 
@@ -154,8 +153,8 @@ struct member_info_base {
 
 // 属性信息基类
 template <typename C>
-struct property_info_base : public member_info_base<C> {
-    property_info_base(std::string_view n) : member_info_base<C>(n) {
+struct property_info_base : public member_info_base {
+    property_info_base(std::string_view n) : member_info_base(n) {
     }
 
     virtual mc::variant get_value(const C& obj) const                     = 0;
@@ -219,8 +218,8 @@ struct property_info : public property_info_base<C> {
 
 // 方法信息基类
 template <typename C>
-struct method_info_base : public member_info_base<C> {
-    method_info_base(std::string_view n) : member_info_base<C>(n) {
+struct method_info_base : public member_info_base {
+    method_info_base(std::string_view n) : member_info_base(n) {
     }
 
     virtual mc::variant invoke(C& obj, const mc::variants& args) const = 0;
@@ -248,7 +247,7 @@ public:
     using const_function_type     = RetType (Class::*)(Args...) const;
     using function_type = std::conditional_t<IsConst, const_function_type, non_const_function_type>;
     using result_type   = mc::traits::remove_cvref_t<RetType>;
-    using arg_types     = std::tuple<mc::traits::remove_cvref_t<Args>...>;
+    using args_type     = std::tuple<mc::traits::remove_cvref_t<Args>...>;
 
     // 静态断言确保返回类型可以转换为variant
     static_assert(std::is_void_v<RetType> || is_variant_constructible_v<RetType>,
@@ -300,7 +299,7 @@ public:
 
     template <typename Func>
     void for_each_arg(Func&& func) const {
-        arg_types* args{nullptr};
+        args_type* args{nullptr};
         for_each_arg_impl(args, std::forward<Func>(func),
                           std::make_index_sequence<sizeof...(Args)>{});
     }
@@ -338,13 +337,13 @@ constexpr auto make_method_info(R (C::*method)(Args...) const, std::string_view 
  *
  * // 然后定义信号信息类
  * template <typename C, typename Signature>
- * struct signal_info : public member_info_base<C> {
+ * struct signal_info : public member_info_base {
  *     using tag_type = mc::reflect::signal_tag;
  *
  *     mc::signal<Signature> C::* signal_ptr;
  *
  *     constexpr signal_info(std::string_view n, mc::signal<Signature> C::* ptr)
- *         : member_info_base<C>(n), signal_ptr(ptr) {}
+ *         : member_info_base(n), signal_ptr(ptr) {}
  *
  *     std::type_index typeinfo() const override { return typeid(mc::signal<Signature>); }
  *     std::string_view type_name() const override { return "signal"; }
