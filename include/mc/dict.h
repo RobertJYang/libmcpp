@@ -159,7 +159,7 @@ public:
     /**
      * @brief 默认构造函数
      */
-    dict();
+    dict() = default;
 
     /**
      * @brief 从键值对集合构造
@@ -180,24 +180,24 @@ public:
      * @brief 拷贝构造函数
      * @note 此操作会共享内部数据，不会复制数据
      */
-    dict(const dict& other);
+    dict(const dict& other) = default;
 
     /**
      * @brief 移动构造函数
      */
-    dict(dict&& other) noexcept;
+    dict(dict&& other) noexcept = default;
 
     /**
      * @brief 析构函数
      */
-    ~dict();
+    ~dict() = default;
 
     /**
      * @brief 赋值运算符
      * @note 此操作会共享内部数据，不会复制数据
      */
-    dict& operator=(const dict& other);
-    dict& operator=(dict&& other) noexcept;
+    dict& operator=(const dict& other)     = default;
+    dict& operator=(dict&& other) noexcept = default;
 
     /**
      * @brief 获取指定键的值
@@ -347,7 +347,7 @@ protected:
     /**
      * @brief 共享的数据指针
      */
-    std::shared_ptr<data_t> m_data;
+    mutable std::shared_ptr<data_t> m_data;
 
     /**
      * @brief 查找指定键的元素
@@ -402,10 +402,12 @@ public:
     using iterator       = dict::entry_list::iterator;
     using const_iterator = dict::entry_list::const_iterator;
 
-    /**
-     * @brief 默认构造函数
-     */
-    mutable_dict();
+    mutable_dict()                                         = default;
+    mutable_dict(const mutable_dict& other)                = default;
+    mutable_dict(mutable_dict&& other) noexcept            = default;
+    mutable_dict& operator=(const mutable_dict& other)     = default;
+    mutable_dict& operator=(mutable_dict&& other) noexcept = default;
+    ~mutable_dict()                                        = default;
 
     /**
      * @brief 单键值对构造函数
@@ -462,29 +464,6 @@ public:
      * @note 此操作会共享内部数据，修改会影响原始 dict 对象
      */
     mutable_dict(const dict& other);
-
-    /**
-     * @brief 拷贝构造函数
-     * @note 此操作会共享内部数据，修改会影响原始对象
-     */
-    mutable_dict(const mutable_dict& other);
-
-    /**
-     * @brief 移动构造函数
-     */
-    mutable_dict(mutable_dict&& other) noexcept;
-
-    /**
-     * @brief 析构函数
-     */
-    ~mutable_dict();
-
-    /**
-     * @brief 赋值运算符
-     * @note 此操作会共享内部数据，修改会影响原始对象
-     */
-    mutable_dict& operator=(const mutable_dict& other);
-    mutable_dict& operator=(mutable_dict&& other) noexcept;
     mutable_dict& operator=(const dict& other);
 
     /**
@@ -637,6 +616,8 @@ private:
     entry* find_entry(std::string_view key);
     entry* find_entry(const char* key);
     entry* find_entry(const variant& key);
+
+    data_t& ensure_data() const;
 };
 
 inline std::string to_string(const dict& v) {
