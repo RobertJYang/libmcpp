@@ -14,7 +14,6 @@
 #define MC_ENGINE_OBJECT_METADATA_H
 
 #include <mc/db/path_iterator.h>
-#include <mc/dbus/signature_helper.h>
 #include <mc/engine/std_interface.h>
 #include <mc/exception.h>
 #include <mc/log.h>
@@ -182,7 +181,7 @@ private:
 
             visitor::property_meta info;
             info.name      = property.name;
-            info.signature = mc::dbus::get_signature<property_type>();
+            info.signature = mc::reflect::get_signature<property_type>();
             info.access    = 0;
             v.handle(obj, iface, info);
         });
@@ -199,9 +198,9 @@ private:
             visitor::method_meta info;
             info.name = method.name;
             if constexpr (!std::is_void_v<result_type>) {
-                info.return_signature = mc::dbus::get_signature<result_type>();
+                info.return_signature = mc::reflect::get_signature<result_type>();
             }
-            info.args_signature = mc::dbus::get_signature<args_type>();
+            info.args_signature = mc::reflect::get_signature<args_type>();
             v.handle(obj, iface, info);
         });
     }
@@ -216,8 +215,8 @@ private:
 
             visitor::signal_meta info;
             info.name             = signal.name;
-            info.return_signature = mc::dbus::get_signature<result_type>();
-            info.args_signature   = mc::dbus::get_signature<args_type>();
+            info.return_signature = mc::reflect::get_signature<result_type>();
+            info.args_signature   = mc::reflect::get_signature<args_type>();
             v.handle(obj, iface, info);
         });
     }

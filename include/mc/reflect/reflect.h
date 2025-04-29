@@ -37,6 +37,7 @@
 #include <mc/common.h>
 #include <mc/dict.h>
 #include <mc/reflect/metadata_info.h>
+#include <mc/reflect/signature.h>
 #include <mc/traits.h>
 #include <mc/variant.h>
 
@@ -317,6 +318,26 @@ void from_variant(const variant& v, T& o) {
 }
 
 } // namespace mc
+
+namespace mc::reflect::detail {
+
+// 对反射类型的特化
+template <typename T>
+struct signature_helper<T, std::enable_if_t<mc::reflect::is_reflectable<T>()>> {
+    static void apply(std::string& sig) {
+        if constexpr (mc::reflect::is_enum<T>()) {
+            sig += type_to_char(type_code::int32_type);
+        } else {
+            sig += type_to_char(type_code::struct_start);
+            mc::traits::tuple_for_each(mc::reflect::reflector<T>::get_properties(), [&](auto& p) {
+                using member_type = typename std::decay_t<decltype(p)>::member_type;
+                signature_helper<member_type>::apply(sig);
+            });
+            sig += type_to_char(type_code::struct_end);
+        }
+    }
+};
+} // namespace mc::reflect::detail
 
 /**
  * @brief 定义类的反射信息

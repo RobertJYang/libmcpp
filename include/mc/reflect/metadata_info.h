@@ -24,6 +24,7 @@
 #include <typeinfo>
 #include <vector>
 
+#include <mc/reflect/signature.h>
 #include <mc/reflect/typename.h>
 #include <mc/variant.h>
 
@@ -151,10 +152,17 @@ struct member_info_base {
 // 属性元数据结构
 //------------------------------------------------------------------------------
 
+struct property_type_info : public member_info_base {
+    property_type_info(std::string_view n) : member_info_base(n) {
+    }
+
+    virtual std::string_view get_signature() const = 0;
+};
+
 // 属性信息基类
 template <typename C>
-struct property_info_base : public member_info_base {
-    property_info_base(std::string_view n) : member_info_base(n) {
+struct property_info_base : public property_type_info {
+    property_info_base(std::string_view n) : property_type_info(n) {
     }
 
     virtual mc::variant get_value(const C& obj) const                     = 0;
@@ -210,16 +218,27 @@ struct property_info : public property_info_base<C> {
     std::string_view type_name() const override {
         return pretty_name<member_type>();
     }
+
+    std::string_view get_signature() const override {
+        return mc::reflect::get_signature<member_type>();
+    }
 };
 
 //------------------------------------------------------------------------------
 // 方法元数据结构
 //------------------------------------------------------------------------------
+struct method_type_info : public member_info_base {
+    method_type_info(std::string_view n) : member_info_base(n) {
+    }
+
+    virtual std::string_view get_args_signature() const   = 0;
+    virtual std::string_view get_result_signature() const = 0;
+};
 
 // 方法信息基类
 template <typename C>
-struct method_info_base : public member_info_base {
-    method_info_base(std::string_view n) : member_info_base(n) {
+struct method_info_base : public method_type_info {
+    method_info_base(std::string_view n) : method_type_info(n) {
     }
 
     virtual mc::variant invoke(C& obj, const mc::variants& args) const = 0;
@@ -308,6 +327,14 @@ public:
     void for_each_arg_impl(Tuple* tuple, Func&& func, std::index_sequence<I...>) const {
         (func(static_cast<mc::traits::remove_cvref_t<std::tuple_element_t<I, Tuple>>*>(nullptr), I),
          ...);
+    }
+
+    std::string_view get_args_signature() const override {
+        return mc::reflect::get_signature<args_type>();
+    }
+
+    std::string_view get_result_signature() const override {
+        return mc::reflect::get_signature<result_type>();
     }
 
 private:

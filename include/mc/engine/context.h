@@ -14,27 +14,46 @@
 #define MC_ENGINE_CONTEXT_H
 #include <mc/dbus/message.h>
 #include <mc/dict.h>
+#include <mc/engine/call_stack.h>
 #include <mc/engine/error_engine.h>
 #include <mc/variant.h>
 
 namespace mc::engine {
 class object_base;
+class service;
 
-struct dbus_call_info {
+namespace detail {
+
+struct dbus_call {
+    dbus_call() = default;
+    dbus_call(mc::dbus::message request) : request(std::move(request)) {
+    }
+
     mc::dbus::message request;
     mc::dbus::message response;
 };
 
-struct shm_call_info {
-    mc::variant request;
-    mc::variant response;
+struct variants_call {
+    variants_call(const mc::variants& a, std::string_view interface_name,
+                  std::string_view method_name)
+        : args(&a), interface_name(interface_name), method_name(method_name) {
+    }
+
+    const mc::variants* args;
+    mc::variant         result;
+    std::string_view    interface_name;
+    std::string_view    method_name;
+    std::string_view    sender;
+    std::string_view    path;
 };
 
-using call_info = std::variant<dbus_call_info, shm_call_info>;
+using call_info = std::variant<dbus_call, variants_call>;
+
+} // namespace detail
 
 class context {
 public:
-    context(object_base* object);
+    context(service& s, object_base& object);
     ~context();
 
     void        set_arg(std::string_view key, mc::variant value);
@@ -44,21 +63,31 @@ public:
     mc::dict&       get_args();
     void            set_args(mc::dict args);
 
-    object_base* get_object() const;
+    service&     get_service() const;
+    object_base& get_object() const;
 
-    call_info& get_call_info();
-    void       set_call_info(call_info call_info);
+    detail::call_info& get_call_info();
+    void               set_call_info(detail::call_info call_info);
 
     error& get_error();
-    bool   has_error() const;
+    bool   is_error() const;
     void   report_error(std::string_view error_name, mc::dict args = {});
 
+    std::string_view get_path() const;
+    std::string_view get_method_name() const;
+    std::string_view get_interface_name() const;
+    std::string_view get_sender() const;
+
 private:
-    object_base*     m_object;
-    error            m_error;
-    mc::mutable_dict m_args;
-    call_info        m_call_info;
+    service&          m_service;
+    object_base&      m_object;
+    error             m_error;
+    mc::mutable_dict  m_args;
+    detail::call_info m_call_info;
 };
 
+using context_stack = detail::call_stack<service, context>;
+
 } // namespace mc::engine
+
 #endif // MC_ENGINE_CONTEXT_H

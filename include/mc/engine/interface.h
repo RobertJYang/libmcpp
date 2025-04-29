@@ -21,8 +21,8 @@ namespace mc::engine {
 struct signal_tag {};
 
 template <typename Class>
-struct signal_info_base : public mc::reflect::member_info_base {
-    signal_info_base(std::string_view n) : mc::reflect::member_info_base(n) {
+struct signal_info_base : public mc::reflect::method_type_info {
+    signal_info_base(std::string_view n) : mc::reflect::method_type_info(n) {
     }
 
     virtual mc::variant         emit(Class& obj, const mc::variants& args) const = 0;
@@ -33,7 +33,7 @@ struct signal_info_base : public mc::reflect::member_info_base {
 template <typename Class, typename RetType, typename... Args>
 struct signal_info : public signal_info_base<Class> {
     using tag_type       = mc::engine::signal_tag;
-    using args_type      = std::tuple<Args...>;
+    using args_type      = std::tuple<mc::traits::remove_cvref_t<Args>...>;
     using result_type    = mc::traits::remove_cvref_t<RetType>;
     using signature_type = mc::signal<RetType(Args...)>;
 
@@ -83,6 +83,14 @@ struct signal_info : public signal_info_base<Class> {
                 return slot(mc::variants{args...}).as<RetType>();
             }
         });
+    }
+
+    std::string_view get_args_signature() const override {
+        return mc::reflect::get_signature<args_type>();
+    }
+
+    std::string_view get_result_signature() const override {
+        return mc::reflect::get_signature<result_type>();
     }
 };
 
@@ -195,23 +203,24 @@ struct interface : public interface_base {
         return signal->emit(static_cast<object_type&>(*this), args);
     }
 
-    mc::variant invoke(std::string_view method_name, const mc::variants& args) override {
-        return mc::reflect::invoke<object_type>(static_cast<object_type&>(*this), method_name,
-                                                args);
+    invoke_result invoke(std::string_view method_name, const mc::variants& args) override {
+        auto method = mc::reflect::get_method_info<object_type>(method_name);
+        if (!method) {
+            return {nullptr, mc::variant()};
+        }
+        return {method, method->invoke(static_cast<object_type&>(*this), args)};
     }
 
     mc::variant get_property(std::string_view property_name) override {
-        return mc::reflect::get_property<object_type>(static_cast<object_type&>(*this),
-                                                      property_name);
+        return mc::reflect::get_property(static_cast<object_type&>(*this), property_name);
     }
 
     mc::dict get_all_properties() override {
-        return mc::reflect::get_all_properties<object_type>(static_cast<object_type&>(*this));
+        return mc::reflect::get_all_properties(static_cast<object_type&>(*this));
     }
 
     bool set_property(std::string_view property_name, const mc::variant& value) override {
-        return mc::reflect::set_property<object_type>(static_cast<object_type&>(*this),
-                                                      property_name, value);
+        return mc::reflect::set_property(static_cast<object_type&>(*this), property_name, value);
     }
 
 protected:

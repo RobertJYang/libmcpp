@@ -18,6 +18,7 @@
 #include <mc/reflect.h>
 #include <mc/singleton.h>
 #include <mc/string.h>
+#include <optional>
 
 namespace mc::engine {
 using error_level = mc::log::level;
@@ -26,7 +27,11 @@ using error_level = mc::log::level;
  * @brief 错误信息
  */
 struct error_info {
-    error_info() = default;
+    error_info()                                       = default;
+    error_info(const error_info& other)                = default;
+    error_info& operator=(const error_info& other)     = default;
+    error_info(error_info&& other) noexcept            = default;
+    error_info& operator=(error_info&& other) noexcept = default;
 
     constexpr explicit error_info(std::string_view name, std::string_view format = {},
                                   error_level level = error_level::error)
@@ -73,11 +78,15 @@ struct error_info {
  * 如果需要动态构造错误名或格式化字符串，请使用 error_with_owner 类
  */
 struct error : public error_info {
-    error();
-    error(std::string_view name, std::string_view format);
+    error() = default;
+    error(const error_info& info) : error_info(info) {
+    }
+    error(std::string_view name, std::string_view format, error_level level = error_level::error)
+        : error_info(name, format, level) {
+    }
 
-    error(const error& other)                = default;
-    error& operator=(const error& other)     = default;
+    error(const error& other);
+    error& operator=(const error& other);
     error(error&& other) noexcept            = default;
     error& operator=(error&& other) noexcept = default;
 
@@ -92,6 +101,8 @@ struct error : public error_info {
     void set_name(std::string_view name);
     void set_format(std::string_view format);
     void reset();
+
+    void set_prev_error(error other);
 
     // 添加参数
     template <typename T>
@@ -115,12 +126,18 @@ struct error : public error_info {
 
     std::string to_string() const;
     bool        is_set() const;
+    bool        has_error(std::string_view name) const;
 
     bool operator==(const error& other) const;
     bool operator!=(const error& other) const;
 
     // 错误参数
     mc::mutable_dict args;
+
+    /**
+     * @brief 前一个错误
+     */
+    std::unique_ptr<error> prev_error;
 };
 
 // 由于 error 类的错误名字和format字符串是常量，这里提供一个继承类可以持有 name 和 format 的 owner,

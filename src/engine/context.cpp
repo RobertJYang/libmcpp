@@ -15,7 +15,7 @@
 
 namespace mc::engine {
 
-context::context(object_base* object) : m_object(object) {
+context::context(service& s, object_base& object) : m_service(s), m_object(object) {
 }
 
 context::~context() {
@@ -25,7 +25,7 @@ mc::engine::error& context::get_error() {
     return m_error;
 }
 
-bool context::has_error() const {
+bool context::is_error() const {
     return m_error.is_set();
 }
 
@@ -57,16 +57,60 @@ void context::set_args(mc::dict args) {
     m_args = std::move(args);
 }
 
-object_base* context::get_object() const {
+service& context::get_service() const {
+    return m_service;
+}
+
+object_base& context::get_object() const {
     return m_object;
 }
 
-call_info& context::get_call_info() {
+detail::call_info& context::get_call_info() {
     return m_call_info;
 }
 
-void context::set_call_info(call_info call_info) {
+void context::set_call_info(detail::call_info call_info) {
     m_call_info = std::move(call_info);
+}
+
+std::string_view context::get_path() const {
+    if (std::holds_alternative<detail::dbus_call>(m_call_info)) {
+        return std::get<detail::dbus_call>(m_call_info).request.get_path();
+    } else if (std::holds_alternative<detail::variants_call>(m_call_info)) {
+        return std::get<detail::variants_call>(m_call_info).path;
+    }
+
+    return {};
+}
+
+std::string_view context::get_method_name() const {
+    if (std::holds_alternative<detail::dbus_call>(m_call_info)) {
+        return std::get<detail::dbus_call>(m_call_info).request.get_member();
+    } else if (std::holds_alternative<detail::variants_call>(m_call_info)) {
+        return std::get<detail::variants_call>(m_call_info).method_name;
+    }
+
+    return {};
+}
+
+std::string_view context::get_interface_name() const {
+    if (std::holds_alternative<detail::dbus_call>(m_call_info)) {
+        return std::get<detail::dbus_call>(m_call_info).request.get_interface();
+    } else if (std::holds_alternative<detail::variants_call>(m_call_info)) {
+        return std::get<detail::variants_call>(m_call_info).interface_name;
+    }
+
+    return {};
+}
+
+std::string_view context::get_sender() const {
+    if (std::holds_alternative<detail::dbus_call>(m_call_info)) {
+        return std::get<detail::dbus_call>(m_call_info).request.get_sender();
+    } else if (std::holds_alternative<detail::variants_call>(m_call_info)) {
+        return std::get<detail::variants_call>(m_call_info).sender;
+    }
+
+    return {};
 }
 
 } // namespace mc::engine

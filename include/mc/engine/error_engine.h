@@ -13,6 +13,7 @@
 #ifndef MC_ENGINE_ERROR_ENGINE_H
 #define MC_ENGINE_ERROR_ENGINE_H
 #include <mc/engine/error.h>
+#include <mc/engine/errors/std_errors.h>
 
 namespace mc::engine {
 
@@ -66,7 +67,7 @@ public:
      */
     const error& report_error(std::string_view name, mc::dict args = {});
     const error& report_error(const error_info& info, mc::dict args = {});
-    void         set_last_error(const error& error);
+    error        set_last_error(error new_error);
     void         reset_error();
     const error& last_error();
 

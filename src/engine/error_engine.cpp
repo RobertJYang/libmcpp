@@ -119,15 +119,26 @@ const error& error_engine::report_error(std::string_view name, mc::dict args) {
 const error& error_engine::report_error(const error_info& info, mc::dict args) {
     auto& last_error = m_impl->s_last_error;
 
-    last_error.set_name(info.name);
-    last_error.set_format(info.format);
-    last_error.set_args(std::move(args));
-    last_error.set_level(info.level);
+    if (last_error.is_set()) {
+        error new_error(info);
+        new_error.set_args(std::move(args));
+        new_error.set_prev_error(std::move(last_error));
+        last_error = std::move(new_error);
+    } else {
+        last_error.set_name(info.name);
+        last_error.set_format(info.format);
+        last_error.set_args(std::move(args));
+        last_error.set_level(info.level);
+    }
+
     return last_error;
 }
 
-void error_engine::set_last_error(const error& error) {
-    m_impl->s_last_error = error;
+error error_engine::set_last_error(error new_error) {
+    auto& err        = m_impl->s_last_error;
+    auto  prev_error = std::move(err);
+    err              = std::move(new_error);
+    return prev_error;
 }
 
 void error_engine::reset_error() {

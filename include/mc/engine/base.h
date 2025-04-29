@@ -47,6 +47,19 @@ inline object_base* get_object() {
     return object_call_stack::top_value();
 }
 
+struct invoke_result : public mc::variant {
+    const mc::reflect::method_type_info* method{nullptr};
+
+    invoke_result() = default;
+    invoke_result(const mc::reflect::method_type_info* m, mc::variant v)
+        : mc::variant(std::move(v)), method(m) {
+    }
+
+    bool is_valid() const {
+        return method != nullptr;
+    }
+};
+
 struct visitor {
     virtual void handle_interface_begin(object_base& obj, interface_base& iface) = 0;
     virtual void handle_interface_end(object_base& obj, interface_base& iface)   = 0;
@@ -79,13 +92,14 @@ struct interface_base {
 
     virtual object_base* get_object() const = 0;
 
-    virtual std::string_view    get_interface_name() const                                     = 0;
-    virtual mc::connection_type connect(std::string_view signal_name, slot_type slot)          = 0;
-    virtual mc::variant         emit(std::string_view signal_name, const mc::variants& args)   = 0;
-    virtual mc::variant         invoke(std::string_view method_name, const mc::variants& args) = 0;
-    virtual mc::variant         get_property(std::string_view property_name)                   = 0;
-    virtual mc::dict            get_all_properties()                                           = 0;
-    virtual bool set_property(std::string_view property_name, const mc::variant& value)        = 0;
+    virtual std::string_view    get_interface_name() const                                   = 0;
+    virtual mc::connection_type connect(std::string_view signal_name, slot_type slot)        = 0;
+    virtual mc::variant         emit(std::string_view signal_name, const mc::variants& args) = 0;
+    virtual mc::variant         get_property(std::string_view property_name)                 = 0;
+    virtual mc::dict            get_all_properties()                                         = 0;
+    virtual bool set_property(std::string_view property_name, const mc::variant& value)      = 0;
+
+    virtual invoke_result invoke(std::string_view method_name, const mc::variants& args) = 0;
 };
 
 class object_base {
@@ -114,20 +128,19 @@ public:
     virtual interface_base* get_interface(std::string_view interface_name)       = 0;
 
     virtual mc::variant get_property(std::string_view property_name,
-                                     std::string_view interface_name = {})  = 0;
-    virtual mc::dict    get_all_properties(std::string_view interface_name) = 0;
+                                     std::string_view interface_name = {})    = 0;
+    virtual mc::dict    get_all_properties(std::string_view interface_name)   = 0;
     virtual bool        set_property(std::string_view property_name, const mc::variant& value,
-                                     std::string_view interface_name = {})  = 0;
-
-    virtual mc::variant invoke(std::string_view method_name, const mc::variants& args,
-                               std::string_view interface_name = {}) = 0;
-
+                                     std::string_view interface_name = {})    = 0;
     virtual mc::connection_type connect(std::string_view signal_name, slot_type slot,
                                         std::string_view interface_name = {}) = 0;
     virtual mc::variant         emit(std::string_view signal_name, const mc::variants& args,
                                      std::string_view interface_name = {})    = 0;
 
     virtual void visit(visitor& v) = 0;
+
+    virtual invoke_result invoke(std::string_view method_name, const mc::variants& args,
+                                 std::string_view interface_name = {}) = 0;
 };
 
 struct object_wrap : public mc::db::object<object_wrap> {
@@ -161,5 +174,17 @@ using path_index = mc::db::ordered_non_unique<
     mc::db::member<object_wrap, const std::string&, &object_wrap::get_path>, by_path>;
 
 } // namespace mc::engine
+
+namespace mc {
+
+inline void to_variant(const mc::engine::invoke_result& obj, mc::variant& v) {
+    v = mc::variant(obj);
+}
+
+inline void from_variant(const mc::variant& v, mc::engine::invoke_result& obj) {
+    static_cast<mc::variant&>(obj) = v;
+}
+
+} // namespace mc
 
 #endif // MC_ENGINE_BASE_H

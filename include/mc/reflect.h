@@ -22,4 +22,13 @@
 #include <mc/reflect/reflect.h>
 #include <mc/reflect/reflect_metadata.h>
 
+namespace mc {
+template <typename T, std::enable_if_t<mc::reflect::is_reflectable<T>(), int> = 0>
+std::string to_string(const T& v) {
+    mc::variant var;
+    mc::reflect::to_variant(v, var);
+    return mc::to_string(var);
+}
+} // namespace mc
+
 #endif // MC_REFLECT_H

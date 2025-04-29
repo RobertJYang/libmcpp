@@ -10,13 +10,11 @@
  * See the Mulan PSL v2 for more details.
  */
 
-#include <mc/dbus/error.h>
-#include <mc/dbus/signature.h>
-#include <mc/dbus/type_code.h>
 #include <mc/exception.h>
+#include <mc/reflect/signature.h>
 
 namespace mc {
-namespace dbus {
+namespace reflect {
 
 // signature类实现
 
@@ -386,5 +384,5 @@ signature_iterator signature_iterator::get_dict_value_iterator() const {
     return signature_iterator(m_sig, key_pos + key_len);
 }
 
-} // namespace dbus
+} // namespace reflect
 } // namespace mc

@@ -12,7 +12,6 @@
 
 #include <mc/dbus/error.h>
 #include <mc/dbus/message.h>
-#include <mc/dbus/signature.h>
 #include <mc/dbus/validator.h>
 
 namespace mc::dbus {
@@ -37,7 +36,7 @@ namespace detail {
 
 template <typename T>
 static void demarshal_variant_basic(const message_reader& reader, mc::variant& v) {
-    reader.ensure_type(get_signature<T>().first_type());
+    reader.ensure_type(mc::reflect::first_type(mc::reflect::get_signature<T>()));
 
     T t;
     reader >> t;

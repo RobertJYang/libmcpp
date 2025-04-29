@@ -17,7 +17,9 @@
 #include <string>
 #include <vector>
 
+#include <mc/reflect/signature_helper.h>
 #include <mc/variant.h>
+
 namespace mc {
 namespace dbus {
 
@@ -178,5 +180,19 @@ inline void from_variant(const variant& v, dbus::path& p) {
 }
 
 } // namespace mc
+
+namespace mc::reflect {
+namespace detail {
+
+// 对 path 的特化
+template <>
+struct signature_helper<mc::dbus::path> {
+    static void apply(std::string& sig) {
+        sig += mc::reflect::type_to_char(mc::reflect::type_code::object_path_type);
+    }
+};
+
+} // namespace detail
+} // namespace mc::reflect
 
 #endif // MC_DBUS_PATH_H

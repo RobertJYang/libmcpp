@@ -177,7 +177,7 @@ TEST_F(interface_test, test_method_invoke) {
     EXPECT_EQ(result, "test_name");
 
     // 测试不存在的方法
-    EXPECT_THROW(iface->invoke("NonExistentMethod", {}), mc::bad_function_call_exception);
+    EXPECT_FALSE(iface->invoke("NonExistentMethod", {}).is_valid());
 }
 
 // 测试属性读写
