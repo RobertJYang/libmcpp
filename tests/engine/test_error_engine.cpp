@@ -12,7 +12,6 @@
 
 #include <gtest/gtest.h>
 #include <mc/dict.h>
-#include <mc/engine/error.h>
 #include <mc/engine/error_engine.h>
 #include <mc/exception.h>
 #include <mc/variant.h>
@@ -44,23 +43,22 @@ TEST_F(ErrorEngineTest, RegisterAndGetError) {
     EXPECT_TRUE(engine.is_registered(name));
 
     // 获取错误格式
-    auto retrieved_format = engine.get_error_format(name);
+    auto retrieved_format = engine.get_error_info(name).format;
     EXPECT_EQ(retrieved_format, format);
 
     // 测试未注册的错误
     EXPECT_FALSE(engine.is_registered("not.registered.error"));
-    EXPECT_TRUE(engine.get_error_format("not.registered.error").empty());
+    EXPECT_TRUE(engine.get_error_info("not.registered.error").format.empty());
 }
 
 // 测试格式参数提取
 TEST_F(ErrorEngineTest, GetFormatArgs) {
     // 准备测试数据
-    std::string_view  format = "错误信息：${code}，详细描述：${message}";
-    mc::dict          args;
-    mc::engine::error err;
+    std::string_view format = "错误信息：${code}，详细描述：${message}";
+    mc::dict         args;
 
     // 提取参数
-    bool result = error_engine::get_format_args(format, args, err);
+    bool result = mc::engine::get_error_format_args(format, args);
 
     // 验证结果
     EXPECT_TRUE(result);
@@ -70,13 +68,13 @@ TEST_F(ErrorEngineTest, GetFormatArgs) {
 
     // 测试无参数的格式
     mc::dict args2;
-    result = error_engine::get_format_args("没有参数的格式", args2, err);
+    result = mc::engine::get_error_format_args("没有参数的格式", args2);
     EXPECT_TRUE(result);
     EXPECT_TRUE(args2.empty());
 
     // 测试格式错误的情况
     mc::dict args3;
-    result = error_engine::get_format_args("错误的格式：${name", args3, err);
+    result = mc::engine::get_error_format_args("错误的格式：${name", args3);
     EXPECT_FALSE(result);
 }
 
@@ -87,7 +85,7 @@ TEST_F(ErrorEngineTest, MakeError) {
     std::string_view format = "错误代码：${code}，详细信息：${message}";
 
     // 创建错误
-    auto error = error_engine::make_error(name, format)
+    auto error = mc::engine::make_error(name, format)
                      .append_arg("code", 404)
                      .append_arg("message", "资源不存在");
 
@@ -113,7 +111,7 @@ TEST_F(ErrorEngineTest, ErrorInfo) {
 
     // 验证注册结果
     EXPECT_TRUE(engine.is_registered(info.name));
-    EXPECT_EQ(engine.get_error_format(info.name), info.format);
+    EXPECT_EQ(engine.get_error_info(info.name), info);
 }
 
 // 测试复杂格式和参数
@@ -133,7 +131,7 @@ TEST_F(ErrorEngineTest, ComplexFormat) {
         {"actual_permission", "user:read"},
     };
 
-    auto error = error_engine::make_error(name, format).set_args(md);
+    auto error = mc::engine::make_error(name, format).set_args(md);
 
     std::string expected = "用户admin在2024-05-20 15:30:45尝试访问/api/sensitive-data，但权限不足。"
                            "所需权限：admin:write，实际权限：user:read";
@@ -150,8 +148,7 @@ TEST_F(ErrorEngineTest, ReportError) {
     engine.register_error(name, format);
 
     // 使用名称报告错误
-    error& err1 = engine.report_error(name);
-    err1.append_arg("code", 500).append_arg("message", "服务器内部错误");
+    auto& err1 = engine.report_error(name, {{"code", 500}, {"message", "服务器内部错误"}});
 
     // 验证错误内容
     EXPECT_EQ(err1.get_name(), name);
@@ -162,8 +159,7 @@ TEST_F(ErrorEngineTest, ReportError) {
     error_info info("test.report.info", "信息错误：${info}");
     engine.register_const_error(info);
 
-    error& err2 = engine.report_error(info);
-    err2.append_arg("info", "测试信息");
+    auto& err2 = engine.report_error(info, {{"info", "测试信息"}});
 
     // 验证错误内容
     EXPECT_EQ(err2.get_name(), info.name);
@@ -188,7 +184,7 @@ TEST_F(ErrorEngineTest, LastError) {
     std::string format = "最后错误：${info}";
     engine.register_error(name, format);
 
-    error err = error_engine::make_error(name, format).append_arg("info", "这是最后的错误");
+    auto err = mc::engine::make_error(name, format).append_arg("info", "这是最后的错误");
 
     // 设置为最后错误
     engine.set_last_error(err);
@@ -207,14 +203,14 @@ TEST_F(ErrorEngineTest, LastError) {
 // 测试错误名称验证功能
 TEST_F(ErrorEngineTest, ValidateErrorName) {
     // 测试有效的错误名称
-    EXPECT_TRUE(error_engine::is_valid_error_name("org.valid.error"));
-    EXPECT_TRUE(error_engine::is_valid_error_name("com.example.error"));
-    EXPECT_TRUE(error_engine::is_valid_error_name("x.y.z"));
+    EXPECT_TRUE(mc::engine::is_valid_error_name("org.valid.error"));
+    EXPECT_TRUE(mc::engine::is_valid_error_name("com.example.error"));
+    EXPECT_TRUE(mc::engine::is_valid_error_name("x.y.z"));
 
     // 测试无效的错误名称
-    EXPECT_FALSE(error_engine::is_valid_error_name(""));
-    EXPECT_FALSE(error_engine::is_valid_error_name("invalid"));
-    EXPECT_FALSE(error_engine::is_valid_error_name("invalid."));
-    EXPECT_FALSE(error_engine::is_valid_error_name(".invalid"));
-    EXPECT_FALSE(error_engine::is_valid_error_name("invalid..name"));
+    EXPECT_FALSE(mc::engine::is_valid_error_name(""));
+    EXPECT_FALSE(mc::engine::is_valid_error_name("invalid"));
+    EXPECT_FALSE(mc::engine::is_valid_error_name("invalid."));
+    EXPECT_FALSE(mc::engine::is_valid_error_name(".invalid"));
+    EXPECT_FALSE(mc::engine::is_valid_error_name("invalid..name"));
 }

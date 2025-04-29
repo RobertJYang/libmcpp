@@ -14,19 +14,23 @@
 #define MC_ENGINE_ERROR_H
 #include <mc/common.h>
 #include <mc/dict.h>
+#include <mc/log/log_level.h>
 #include <mc/reflect.h>
 #include <mc/singleton.h>
-#include <string>
-#include <string_view>
+#include <mc/string.h>
 
 namespace mc::engine {
+using error_level = mc::log::level;
 
 /**
  * @brief 错误信息
  */
 struct error_info {
-    constexpr explicit error_info(std::string_view name = {}, std::string_view format = {})
-        : name(name), format(format) {
+    error_info() = default;
+
+    constexpr explicit error_info(std::string_view name, std::string_view format = {},
+                                  error_level level = error_level::error)
+        : name(name), format(format), level(level) {
     }
 
     bool operator==(const error_info& other) const {
@@ -35,6 +39,10 @@ struct error_info {
 
     bool operator!=(const error_info& other) const {
         return !(*this == other);
+    }
+
+    bool is_valid() {
+        return !name.empty();
     }
 
     /**
@@ -46,6 +54,11 @@ struct error_info {
      * @brief 错误格式
      */
     std::string_view format;
+
+    /**
+     * @brief 错误级别
+     */
+    error_level level = error_level::error;
 };
 
 /**
@@ -59,8 +72,7 @@ struct error_info {
  *
  * 如果需要动态构造错误名或格式化字符串，请使用 error_with_owner 类
  */
-class error : public error_info {
-public:
+struct error : public error_info {
     error();
     error(std::string_view name, std::string_view format);
 
@@ -73,6 +85,9 @@ public:
     std::string_view get_format() const;
     const mc::dict&  get_args() const;
     std::string      get_message() const;
+
+    error_level get_level() const;
+    void        set_level(error_level level);
 
     void set_name(std::string_view name);
     void set_format(std::string_view format);
@@ -104,6 +119,7 @@ public:
     bool operator==(const error& other) const;
     bool operator!=(const error& other) const;
 
+    // 错误参数
     mc::mutable_dict args;
 };
 
@@ -118,6 +134,38 @@ private:
     std::string m_name_owner;
     std::string m_format_owner;
 };
+
+/*------------------- 一些辅助函数 -------------------*/
+/*
+ * 检查错误名称是否有效
+ *
+ * @param name 错误名称
+ * @return 如果有效返回 true，否则返回 false
+ */
+bool is_valid_error_name(std::string_view name);
+
+/**
+ * @brief 解析 format 字符串，找到 ${name} 格式的占位符，并将其添加到 arg_names 中
+ *
+ * @param format 格式化字符串
+ * @param arg_names 存储占位符名称的字典
+ * @return 如果解析成功返回 true，否则返回 false
+ */
+inline bool get_error_format_args(std::string_view format, mc::dict& arg_names) {
+    return mc::string::get_format_args(format, arg_names);
+}
+
+/*
+ * 创建错误，如果 name 不满足要求抛出错误
+ *
+ * @param name 错误名称
+ * @param format 格式化字符串
+ * @return 创建的错误
+ *
+ * 注意：这个方法可以创建任意错误，并不要求错误必须注册到错误引擎中
+ */
+error make_error(std::string_view name, std::string_view format);
+error make_error(const error_info& info);
 
 } // namespace mc::engine
 

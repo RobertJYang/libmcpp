@@ -445,6 +445,10 @@ static void append_formatted_number(std::string& result, T val, const char* form
     }
 }
 
+// 定义占位符语法的常量
+constexpr std::string_view PLACEHOLDER_START = "${";
+constexpr char             PLACEHOLDER_END   = '}';
+
 // 将variant值转换为字符串并追加到结果中
 static void append_variant_to_string(std::string& result, const variant& value) {
     value.visit_with([&result](auto&& val) {
@@ -472,7 +476,7 @@ static void append_variant_to_string(std::string& result, const variant& value) 
 static void resolve_fmt_key(std::string& result, std::string_view key, const dict& args) {
     // 验证 key 格式
     if (!is_valid_fmt_key(key)) {
-        mc::string::append(result, "${", key, '}');
+        mc::string::append(result, PLACEHOLDER_START, key, PLACEHOLDER_END);
         return;
     }
 
@@ -482,7 +486,7 @@ static void resolve_fmt_key(std::string& result, std::string_view key, const dic
         append_variant_to_string(result, it->value);
     } else {
         // 键不存在，保留原始占位符
-        mc::string::append(result, "${", key, '}');
+        mc::string::append(result, PLACEHOLDER_START, key, PLACEHOLDER_END);
     }
 }
 
@@ -552,6 +556,39 @@ std::string mc::string::format(std::string_view format_str, const dict& args) {
     std::string result;
     mc::string::format(result, format_str, args);
     return result;
+}
+
+bool mc::string::get_format_args(std::string_view format, mc::dict& arg_names) {
+    if (format.empty()) {
+        return true;
+    }
+
+    std::size_t      pos = 0;
+    mc::mutable_dict args;
+    while (pos < format.size()) {
+        size_t start_pos = format.find(PLACEHOLDER_START, pos);
+        if (start_pos == std::string_view::npos) {
+            break;
+        }
+
+        size_t end_pos = format.find(PLACEHOLDER_END, start_pos + PLACEHOLDER_START.size());
+        if (end_pos == std::string_view::npos) {
+            return false;
+        }
+
+        std::string_view key = format.substr(start_pos + PLACEHOLDER_START.size(),
+                                             end_pos - (start_pos + PLACEHOLDER_START.size()));
+        if (key.empty()) {
+            return false;
+        }
+
+        args[key] = true;
+
+        pos = end_pos + 1;
+    }
+
+    arg_names = std::move(args);
+    return true;
 }
 
 } // namespace mc

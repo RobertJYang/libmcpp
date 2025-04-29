@@ -45,6 +45,14 @@ std::string error::get_message() const {
     return mc::string::format(this->format, args);
 }
 
+error_level error::get_level() const {
+    return this->level;
+}
+
+void error::set_level(error_level level) {
+    this->level = level;
+}
+
 void error::set_name(std::string_view name) {
     this->name = name;
 }

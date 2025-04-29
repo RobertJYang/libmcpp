@@ -156,9 +156,6 @@ DBusHandlerResult service_impl::on_method_call(object_base& object, mc::dbus::me
     auto interface = msg.get_interface();
     auto args      = msg.read_args();
 
-    dbus_call_info           call_info{msg, &object};
-    dbus_call_stack::context ctx(m_service, call_info);
-
     auto result = object.invoke(method, args, interface);
     if (result.is_null()) {
         return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;

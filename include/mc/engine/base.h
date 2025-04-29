@@ -16,9 +16,8 @@
 #include <mc/db/object.h>
 #include <mc/db/table.h>
 #include <mc/dbus/message.h>
-#include <mc/engine/call_info.h>
 #include <mc/engine/call_stack.h>
-#include <mc/engine/error.h>
+#include <mc/engine/context.h>
 #include <mc/engine/macro.h>
 #include <mc/engine/utils.h>
 #include <mc/im/ref_ptr.h>
@@ -43,15 +42,9 @@ class object_base;
 struct interface_base;
 class service;
 
-using dbus_call_stack   = detail::call_stack<service, dbus_call_info>;
 using object_call_stack = detail::call_stack<service, object_base>;
-
-inline dbus_call_info* top_dbus_call_info() {
-    return dbus_call_stack::top();
-}
-
-inline object_base* top_object() {
-    return object_call_stack::top();
+inline object_base* get_object() {
+    return object_call_stack::top_value();
 }
 
 struct visitor {

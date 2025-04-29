@@ -497,9 +497,7 @@ T to_number(std::string_view s, T default_value) {
     return default_value;
 }
 
-// 定义占位符语法的常量
-inline constexpr std::string_view PLACEHOLDER_START = "${";
-inline constexpr char             PLACEHOLDER_END   = '}';
+bool get_format_args(std::string_view format, mc::dict& arg_names);
 
 } // namespace string
 
@@ -544,6 +542,16 @@ inline void format(std::string& result, std::string_view format, const mc::dict&
 template <typename... Args>
 std::string format_v(const std::string& format, Args... args) {
     return mc::string::format_v(format, args...);
+}
+
+/**
+ * @brief 解析格式化字符串，提取占位符
+ * @param format 格式化字符串
+ * @param arg_names 存储占位符名称的字典
+ * @return 如果解析成功返回 true，否则返回 false
+ */
+inline bool get_format_args(std::string_view format, mc::dict& arg_names) {
+    return mc::string::get_format_args(format, arg_names);
 }
 
 /**

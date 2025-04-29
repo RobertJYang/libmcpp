@@ -11,7 +11,7 @@
  */
 
 #include <mc/engine/error_engine.h>
-#include <mc/engine/errors.h>
+#include <mc/engine/errors/std_errors.h>
 #include <mc/engine/utils.h>
 #include <mc/log.h>
 #include <mc/string.h>
@@ -25,21 +25,29 @@ error_engine& error_engine::get_instance() {
     return mc::singleton<error_engine>::instance();
 }
 
+struct error_info_data {
+    error_info_data(std::string name, std::string format, error_level level)
+        : name(std::move(name)), format(std::move(format)), level(level) {
+    }
+
+    std::string name;
+    std::string format;
+    error_level level;
+};
+
 // TODO:: 后续应该放到共享内存中全局有效
 struct error_engine::error_engine_impl {
-    using error_names = std::list<std::string>;
-    using error_map   = std::unordered_map<std::string_view, std::string>;
+    using error_infos = std::list<error_info_data>; // 非常量的错误名称和格式化字符串持有在这里
+    using error_map   = std::unordered_map<std::string_view, error_info>;
 
-    // c++17 不支持透明查询，而我们希望使用 std::string_view 作为查询条件，所以只能将
-    // 错误名称单独存储在 error_names 中，error_map 使用存储的名字引用构造 std::string_view
-    // 作为 key
-    // 注意：这里必须保证 error_names 容器不能移动已经构造的名字对象，否则会导致 error_map 中的 key
-    // 失效
-    error_names m_names;
+    std::mutex  m_mutex;
+    error_infos m_infos;
     error_map   m_errors;
 
-    std::mutex m_mutex;
+    static thread_local error s_last_error;
 };
+
+thread_local error error_engine::error_engine_impl::s_last_error;
 
 #define REGISTER_ERROR(info) register_const_error(info);
 
@@ -51,37 +59,37 @@ error_engine::error_engine() : m_impl(std::make_unique<error_engine_impl>()) {
 error_engine::~error_engine() {
 }
 
-void error_engine::register_const_error(const error_info& info) {
-    register_const_error(info.name, info.format);
+error_info error_engine::register_const_error(const error_info& info) {
+    return register_const_error(info.name, info.format, info.level);
 }
 
-void error_engine::register_const_error(std::string_view name, std::string_view format) {
+error_info error_engine::register_const_error(std::string_view name, std::string_view format,
+                                              error_level level) {
     std::lock_guard lock(m_impl->m_mutex);
 
     if (m_impl->m_errors.find(name) != m_impl->m_errors.end()) {
-        wlog("注册错误失败，错误名称 ${name} 已存在", ("name", name));
-        return;
+        wlog("register error failed, error name ${name} already exists", ("name", name));
+        return error_info();
     }
 
-    m_impl->m_errors.emplace(name, std::move(format));
+    auto ret = m_impl->m_errors.emplace(name, error_info(name, format, level));
+    return ret.second ? ret.first->second : error_info();
 }
 
-void error_engine::register_error(std::string name, std::string format) {
+error_info error_engine::register_error(std::string name, std::string format, error_level level) {
     std::lock_guard lock(m_impl->m_mutex);
 
     if (m_impl->m_errors.find(name) != m_impl->m_errors.end()) {
-        wlog("注册错误失败，错误名称 ${name} 已存在", ("name", name));
-        return;
+        wlog("register error failed, error name ${name} already exists", ("name", name));
+        return error_info();
     }
 
-    // name 移动到 error_names 中
-    auto& name_ref = m_impl->m_names.emplace_back(std::move(name));
-
-    // 再使用 name_ref 作为 key
-    m_impl->m_errors.emplace(name_ref, std::move(format));
+    auto& info = m_impl->m_infos.emplace_back(std::move(name), std::move(format), level);
+    auto  ret = m_impl->m_errors.emplace(info.name, error_info(info.name, info.format, info.level));
+    return ret.second ? ret.first->second : error_info();
 }
 
-std::string_view error_engine::get_error_format(std::string_view name) {
+error_info error_engine::get_error_info(std::string_view name) {
     std::lock_guard lock(m_impl->m_mutex);
 
     auto it = m_impl->m_errors.find(name);
@@ -92,33 +100,42 @@ std::string_view error_engine::get_error_format(std::string_view name) {
     return it->second;
 }
 
-static thread_local error m_last_error;
+const error& error_engine::report_error(std::string_view name, mc::dict args) {
+    std::string_view format;
+    error_level      level;
+    {
+        std::lock_guard lock(m_impl->m_mutex);
 
-error& error_engine::report_error(std::string_view name) {
-    std::lock_guard lock(m_impl->m_mutex);
+        auto it = m_impl->m_errors.find(name);
+        MC_ASSERT(it != m_impl->m_errors.end(), "error name ${name} not registered",
+                  ("name", name));
+        format = it->second.format;
+        level  = it->second.level;
+    }
 
-    auto it = m_impl->m_errors.find(name);
-    MC_ASSERT(it != m_impl->m_errors.end(), "错误名称 ${name} 未注册", ("name", name));
+    return report_error(error_info(name, format, level), std::move(args));
+}
 
-    m_last_error.set_name(it->first);
-    m_last_error.set_format(it->second);
-    return m_last_error;
+const error& error_engine::report_error(const error_info& info, mc::dict args) {
+    auto& last_error = m_impl->s_last_error;
+
+    last_error.set_name(info.name);
+    last_error.set_format(info.format);
+    last_error.set_args(std::move(args));
+    last_error.set_level(info.level);
+    return last_error;
 }
 
 void error_engine::set_last_error(const error& error) {
-    m_last_error = error;
+    m_impl->s_last_error = error;
 }
 
 void error_engine::reset_error() {
-    m_last_error.reset();
+    m_impl->s_last_error.reset();
 }
 
-error& error_engine::last_error() {
-    return m_last_error;
-}
-
-error& error_engine::report_error(const error_info& info) {
-    return report_error(info.name);
+const error& error_engine::last_error() {
+    return m_impl->s_last_error;
 }
 
 bool error_engine::is_registered(std::string_view name) {
@@ -127,57 +144,17 @@ bool error_engine::is_registered(std::string_view name) {
     return m_impl->m_errors.find(name) != m_impl->m_errors.end();
 }
 
-error error_engine::make_error(std::string_view name, std::string_view format) {
-    MC_ASSERT(is_valid_error_name(name), "错误名称 ${name} 无效", ("name", name));
+error make_error(std::string_view name, std::string_view format) {
+    MC_ASSERT(is_valid_error_name(name), "error name ${name} is invalid", ("name", name));
 
     return error(name, format);
 }
 
-error error_engine::make_error(const error_info& info) {
-    return error(info.name, info.format);
+error make_error(const error_info& info) {
+    return make_error(info.name, info.format);
 }
 
-constexpr std::string_view PLACEHOLDER_START = mc::string::PLACEHOLDER_START;
-constexpr char             PLACEHOLDER_END   = mc::string::PLACEHOLDER_END;
-
-bool error_engine::get_format_args(std::string_view format, mc::dict& arg_names, error& error) {
-    if (format.empty()) {
-        return true;
-    }
-
-    std::size_t      pos = 0;
-    mc::mutable_dict args;
-    while (pos < format.size()) {
-        size_t start_pos = format.find(PLACEHOLDER_START, pos);
-        if (start_pos == std::string_view::npos) {
-            break;
-        }
-
-        size_t end_pos = format.find(PLACEHOLDER_END, start_pos + PLACEHOLDER_START.size());
-        if (end_pos == std::string_view::npos) {
-            dlog("错误格式 ${format} 缺少结束括号，位置 ${pos}",
-                 ("format", format)("pos", start_pos));
-            return false;
-        }
-
-        std::string_view key = format.substr(start_pos + PLACEHOLDER_START.size(),
-                                             end_pos - (start_pos + PLACEHOLDER_START.size()));
-        if (key.empty()) {
-            dlog("错误格式 ${format} 缺少占位符，位置 ${pos}",
-                 ("format", format)("pos", start_pos));
-            return false;
-        }
-
-        args[key] = true;
-
-        pos = end_pos + 1;
-    }
-
-    arg_names = std::move(args);
-    return true;
-}
-
-bool error_engine::is_valid_error_name(std::string_view name) {
+bool is_valid_error_name(std::string_view name) {
     return detail::is_valid_interface_name(name);
 }
 
