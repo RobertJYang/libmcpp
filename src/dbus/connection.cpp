@@ -134,7 +134,7 @@ message connection::send_with_reply(message&& msg, mc::milliseconds timeout) {
 
 connection::future<message> connection::async_send_with_reply(message&&        msg,
                                                               mc::milliseconds timeout) {
-    std::unique_lock lock(m_impl->m_mutex);
+    std::lock_guard lock(m_impl->m_mutex);
 
     auto promise = mc::make_promise<message>(m_strand);
     auto future  = promise.get_future();
@@ -171,8 +171,6 @@ connection::future<message> connection::async_send_with_reply(message&&        m
         promise.set_value(message::new_error(msg, error_names::failed, "发送消息失败"));
         return future;
     }
-
-    lock.unlock();
 
     it->second.pending.start();
     return future;

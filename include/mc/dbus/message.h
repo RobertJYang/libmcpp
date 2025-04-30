@@ -557,7 +557,7 @@ const message_writer& write_dict(const message_writer& writer, const Container& 
     ensure_container_max_length(v);
 
     auto           sig = get_signature<Container>();
-    message_writer sub_writer(writer.m_iter, DBUS_TYPE_ARRAY, sig.str().substr(1));
+    message_writer sub_writer(writer.m_iter, DBUS_TYPE_ARRAY, sig.substr(1));
     for (const auto& item : v) {
         message_writer entry_writer(sub_writer.m_iter, DBUS_TYPE_DICT_ENTRY);
         entry_writer << item.first << item.second;
