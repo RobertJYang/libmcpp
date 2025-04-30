@@ -124,6 +124,9 @@ void apply_tuple_element(F&& func, const std::tuple<Ts...>& tup, size_t index) {
     apply_tuple_element_impl<F>(std::forward<F>(func), tup, index);
 }
 
+template <typename T>
+constexpr bool is_copyable_v = std::is_copy_assignable_v<T> && std::is_copy_constructible_v<T>;
+
 } // namespace traits
 } // namespace mc
 

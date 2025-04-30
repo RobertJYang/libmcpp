@@ -1,45 +1,40 @@
 /*
-* Copyright (c) 2024 Huawei Technologies Co., Ltd.
-* openUBMC is licensed under Mulan PSL v2.
-* You can use this software according to the terms and conditions of the Mulan PSL v2.
-* You may obtain a copy of Mulan PSL v2 at:
-*         http://license.coscl.org.cn/MulanPSL2
-* THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
-* EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
-* MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
-* See the Mulan PSL v2 for more details.
-*/
+ * Copyright (c) 2024 Huawei Technologies Co., Ltd.
+ * openUBMC is licensed under Mulan PSL v2.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *         http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
+ */
 
-#include "mc/core/default_supervisor.h"
-#include "mc/core/application.h"
-#include "core/include/dependency_sorter.h"
-#include <algorithm>
-#include <iostream>
-#include <vector>
+#include "include/default_supervisor.h"
+#include "include/dependency_sorter.h"
+
+#include <mc/exception.h>
 #include <mc/log.h>
-#include <unordered_set>
-#include <queue>
-#include <mc/string.h>
 
-namespace mc {
+namespace mc::core {
 
-default_supervisor::default_supervisor() : m_started(false) {}
-default_supervisor::~default_supervisor() = default;
+default_supervisor::default_supervisor() : m_started(false) {
+}
 
 bool default_supervisor::init(const config::supervisor_config& config) {
     std::lock_guard<std::mutex> lock(m_mutex);
-    m_config = config;
-    m_restart_count = 0;
+
+    m_config            = config;
+    m_restart_count     = 0;
     m_last_restart_time = std::chrono::steady_clock::now();
-    m_name = config.meta.name;
-    m_strategy = config.strategy;
-    m_max_restarts = config.max_restarts;
-    
-    ilog("初始化监督器: ${name}, 策略: ${strategy}, 最大重启次数: ${max_restarts}",
-         ("name", m_name)
-         ("strategy", get_strategy_name(m_strategy))
-         ("max_restarts", m_max_restarts));
-    
+    m_name              = config.meta.name;
+    m_strategy          = config.strategy;
+    m_max_restarts      = config.max_restarts;
+
+    ilog("init supervisor: ${name}, strategy: ${strategy}, max_restarts: ${max_restarts}",
+         ("name", m_name)("strategy", get_strategy_name(m_strategy))("max_restarts",
+                                                                     m_max_restarts));
+
     return true;
 }
 
@@ -48,39 +43,37 @@ bool default_supervisor::start() {
     if (m_started) {
         return true;
     }
-    
+
     bool success = true;
-    
-    // 启动子监督器
+
     for (auto& [name, supervisor] : m_child_supervisors) {
         if (!supervisor->start()) {
-            wlog("启动子监督器 '${name}' 失败", ("name", name));
+            wlog("start child supervisor '${name}' failed", ("name", name));
             success = false;
         }
     }
-    
-    // 构建依赖图并获取启动顺序
+
     auto get_dependencies = [](const service_ptr& service) -> std::vector<std::string> {
         return service->get_dependencies();
     };
-    
+
     try {
         auto graph = core::internal::dependency_sorter::build_dependency_graph<service_ptr>(
             m_services, get_dependencies);
         auto start_order = core::internal::dependency_sorter::sort_for_startup(graph);
-        
+
         // 按顺序启动服务
         for (const auto& name : start_order) {
             if (!start_one_service(name)) {
                 success = false;
-                break;  // 依赖服务启动失败，停止后续启动
+                break; // 依赖服务启动失败，停止后续启动
             }
         }
     } catch (const mc::parse_error_exception& e) {
-        elog("服务依赖关系存在循环: ${error}", ("error", e.what()));
+        elog("service dependency cycle: ${error}", ("error", e.what()));
         success = false;
     }
-    
+
     m_started = success;
     return success;
 }
@@ -90,90 +83,87 @@ bool default_supervisor::stop() {
     if (!m_started) {
         return true;
     }
-    
+
     bool success = true;
-    
+
     // 获取服务停止顺序
-    auto stop_order = get_service_stop_order(true);  // 传入 true 表示已经持有锁
-    
+    auto stop_order = get_service_stop_order(true); // 传入 true 表示已经持有锁
+
     // 按照顺序停止服务
     for (const auto& name : stop_order) {
         if (!stop_one_service(name)) {
             success = false;
         }
     }
-    
+
     // 再停止子监督器
     for (const auto& [name, _] : m_child_supervisors) {
         if (!stop_one_child_supervisor(name)) {
             success = false;
         }
     }
-    
+
     m_started = false;
     return success;
 }
 
 void default_supervisor::cleanup() {
     std::lock_guard<std::mutex> lock(m_mutex);
-    
+
     // 清理所有服务
     for (auto& [name, service] : m_services) {
         service->cleanup();
     }
-    
+
     // 清理所有子监督器
     for (auto& [name, child] : m_child_supervisors) {
         child->cleanup();
     }
-    
+
     m_services.clear();
     m_child_supervisors.clear();
 }
 
 bool default_supervisor::add_service(service_ptr service) {
     if (!service) {
-        elog("添加服务失败: 服务指针为空");
+        elog("add service failed: service pointer is null");
         return false;
     }
-    
+
     std::lock_guard<std::mutex> lock(m_mutex);
-    
+
     const auto& name = service->name();
     if (m_services.find(name) != m_services.end()) {
-        elog("添加服务失败: 服务 '${name}' 已存在", ("name", name));
+        elog("add service failed: service '${name}' already exists", ("name", name));
         return false;
     }
-    
-    // 设置监督器
-    service->set_supervisor(shared_from_this());
-    
+
     m_services[name] = service;
-    ilog("添加服务成功: ${name}", ("name", name));
-    
+    ilog("add service success: ${name}", ("name", name));
+
     // 获取所有服务名称并用逗号分隔
     std::vector<std::string> service_names;
     for (const auto& [name, _] : m_services) {
         service_names.push_back(name);
     }
-    
-    ilog("监督器 ${name} 当前管理服务: ${services}", 
+
+    ilog("supervisor ${name} current manage services: ${services}",
          ("name", m_name)("services", mc::string::join(service_names, ", ")));
-    
+
     return true;
 }
 
 bool default_supervisor::remove_service(const std::string& name) {
     std::lock_guard<std::mutex> lock(m_mutex);
-    
+
     auto it = m_services.find(name);
     if (it == m_services.end()) {
         return false;
     }
-    
+
     // 停止服务
     it->second->stop();
-    
+
     // 移除服务
     m_services.erase(it);
     return true;
@@ -181,7 +171,7 @@ bool default_supervisor::remove_service(const std::string& name) {
 
 service_ptr default_supervisor::get_service(const std::string& name) const {
     std::lock_guard<std::mutex> lock(m_mutex);
-    
+
     auto it = m_services.find(name);
     return (it != m_services.end()) ? it->second : nullptr;
 }
@@ -190,29 +180,29 @@ bool default_supervisor::add_child(supervisor_ptr child) {
     if (!child) {
         return false;
     }
-    
+
     std::lock_guard<std::mutex> lock(m_mutex);
-    
+
     const auto& name = child->get_config().meta.name;
     if (m_child_supervisors.find(name) != m_child_supervisors.end()) {
         return false;
     }
-    
+
     m_child_supervisors[name] = child;
     return true;
 }
 
 bool default_supervisor::remove_child(const std::string& name) {
     std::lock_guard<std::mutex> lock(m_mutex);
-    
+
     auto it = m_child_supervisors.find(name);
     if (it == m_child_supervisors.end()) {
         return false;
     }
-    
+
     // 停止子监督器
     it->second->stop();
-    
+
     // 移除子监督器
     m_child_supervisors.erase(it);
     return true;
@@ -220,115 +210,113 @@ bool default_supervisor::remove_child(const std::string& name) {
 
 supervisor_ptr default_supervisor::get_child(const std::string& name) const {
     std::lock_guard<std::mutex> lock(m_mutex);
-    
+
     auto it = m_child_supervisors.find(name);
     return (it != m_child_supervisors.end()) ? it->second : nullptr;
 }
 
 bool default_supervisor::is_healthy() const {
     std::lock_guard<std::mutex> lock(m_mutex);
-    
+
     // 检查所有服务是否健康
     for (const auto& [name, service] : m_services) {
         if (!service->is_healthy()) {
             return false;
         }
     }
-    
+
     // 检查所有子监督器是否健康
     for (const auto& [name, child] : m_child_supervisors) {
         if (!child->is_healthy()) {
             return false;
         }
     }
-    
+
     return true;
 }
 
 bool default_supervisor::restart_all_services() {
     std::lock_guard<std::mutex> lock(m_mutex);
-    
+
     // 检查重启策略
-    auto now = std::chrono::steady_clock::now();
+    auto now     = std::chrono::steady_clock::now();
     auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(now - m_last_restart_time);
-    
+
     if (elapsed > std::chrono::seconds(5)) {
         // 重置重启计数
-        m_restart_count = 0;
+        m_restart_count     = 0;
         m_last_restart_time = now;
     }
-    
+
     if (m_restart_count >= m_max_restarts) {
-        wlog("监督器 '${name}' 重启次数超过限制", ("name", m_name));
+        wlog("supervisor '${name}' restart count over limit", ("name", m_name));
         return false;
     }
-    
+
     // 停止所有服务
     for (auto& [name, service] : m_services) {
         service->stop();
     }
-    
+
     // 启动所有服务
     for (auto& [name, service] : m_services) {
         if (!service->start()) {
-            wlog("重启服务 '${name}' 失败", ("name", name));
+            wlog("restart service '${name}' failed", ("name", name));
             return false;
         }
     }
-    
+
     m_restart_count++;
     return true;
 }
 
 bool default_supervisor::restart_dependent_services(const std::string& service_name) {
     std::lock_guard<std::mutex> lock(m_mutex);
-    
+
     // 构建依赖图
     auto get_dependencies = [](const service_ptr& service) -> std::vector<std::string> {
         return service->get_dependencies();
     };
-    
+
     try {
         auto graph = core::internal::dependency_sorter::build_dependency_graph<service_ptr>(
             m_services, get_dependencies);
-            
+
         // 获取所有受影响的服务（直接和间接依赖）
         std::unordered_set<std::string> affected_services;
         collect_dependent_services(graph, service_name, affected_services);
-        
+
         // 按依赖顺序重启服务
         auto restart_order = core::internal::dependency_sorter::sort_for_startup(graph);
-        
+
         bool success = true;
         // 只重启受影响的服务
         for (const auto& name : restart_order) {
             if (affected_services.find(name) != affected_services.end()) {
                 if (!restart_one_service(name)) {
-                    wlog("重启依赖服务 '${name}' 失败", ("name", name));
+                    wlog("restart dependent service '${name}' failed", ("name", name));
                     success = false;
                 }
             }
         }
-        
+
         return success;
     } catch (const mc::parse_error_exception& e) {
-        elog("服务依赖关系存在循环: ${error}", ("error", e.what()));
+        elog("service dependency cycle: ${error}", ("error", e.what()));
         return false;
     }
 }
 
 // 收集所有依赖于指定服务的服务（包括间接依赖）
 void default_supervisor::collect_dependent_services(
-    const std::unordered_map<std::string, core::internal::dependency_sorter::dependency_node>& graph,
-    const std::string& service_name,
+    const std::unordered_map<std::string, dependency_node>& graph, const std::string& service_name,
     std::unordered_set<std::string>& affected_services) {
-    
     if (affected_services.find(service_name) != affected_services.end()) {
-        return;  // 已处理过此服务
+        return; // 已处理过此服务
     }
-    
+
     affected_services.insert(service_name);
-    
+
     auto it = graph.find(service_name);
     if (it != graph.end()) {
         for (const auto& dependent : it->second.dependents) {
@@ -342,20 +330,20 @@ bool default_supervisor::restart_one_service(const std::string& name) {
     if (it == m_services.end()) {
         return false;
     }
-    
+
     auto& service = it->second;
-    
+
     // 重启服务
     if (!service->stop()) {
-        wlog("重启服务 '${name}' 失败", ("name", name));
+        wlog("restart service '${name}' failed", ("name", name));
         return false;
     }
-    
+
     if (!service->start()) {
-        wlog("重启服务 '${name}' 失败", ("name", name));
+        wlog("restart service '${name}' failed", ("name", name));
         return false;
     }
-    
+
     return true;
 }
 
@@ -364,19 +352,19 @@ void default_supervisor::handle_service_crash(const std::string& name) {
     if (it == m_services.end()) {
         return;
     }
-    
-    auto& service = it->second;
+
+    auto& service      = it->second;
     auto& restart_info = m_restart_infos[name];
-    
+
     // 增加重启次数
     restart_info.restart_count++;
-    
+
     // 如果重启次数超过阈值，不再重启
     if (m_max_restarts > 0 && restart_info.restart_count > m_max_restarts) {
-        wlog("监督器 '${name}' 重启次数超过限制", ("name", m_name));
+        wlog("supervisor '${name}' restart count over limit", ("name", m_name));
         return;
     }
-    
+
     // 根据策略重启服务
     switch (m_strategy) {
     case config::supervisor_strategy::one_for_one:
@@ -394,14 +382,14 @@ void default_supervisor::handle_service_crash(const std::string& name) {
 // 获取策略名称
 std::string default_supervisor::get_strategy_name(config::supervisor_strategy strategy) {
     switch (strategy) {
-        case config::supervisor_strategy::one_for_one:
-            return "one_for_one";
-        case config::supervisor_strategy::one_for_all:
-            return "one_for_all";
-        case config::supervisor_strategy::rest_for_one:
-            return "rest_for_one";
-        default:
-            return "unknown";
+    case config::supervisor_strategy::one_for_one:
+        return "one_for_one";
+    case config::supervisor_strategy::one_for_all:
+        return "one_for_all";
+    case config::supervisor_strategy::rest_for_one:
+        return "rest_for_one";
+    default:
+        return "unknown";
     }
 }
 
@@ -419,16 +407,16 @@ std::vector<std::string> default_supervisor::get_service_stop_order_internal() c
     auto get_dependencies = [](const service_ptr& service) -> std::vector<std::string> {
         return service->get_dependencies();
     };
-    
+
     // 使用dependency_sorter构建依赖图
     auto graph = core::internal::dependency_sorter::build_dependency_graph<service_ptr>(
         m_services, get_dependencies);
-    
+
     // 获取停止顺序（按照被依赖关系的拓扑排序）
     try {
         return core::internal::dependency_sorter::sort_for_shutdown(graph);
     } catch (const mc::parse_error_exception& e) {
-        elog("服务依赖图中存在循环依赖: ${error}", ("error", e.what()));
+        elog("service dependency cycle: ${error}", ("error", e.what()));
         // 如果存在循环依赖，返回空列表
         return {};
     }
@@ -437,15 +425,15 @@ std::vector<std::string> default_supervisor::get_service_stop_order_internal() c
 // 启动单个服务
 bool default_supervisor::start_one_service(const std::string& name) {
     try {
-        ilog("正在启动服务: ${name}", ("name", name));
+        ilog("start service: ${name}", ("name", name));
         if (!m_services[name]->start()) {
-            wlog("启动服务 '${name}' 失败", ("name", name));
+            wlog("start service '${name}' failed", ("name", name));
             return false;
         }
-        ilog("服务启动成功: ${name}", ("name", name));
+        ilog("service start success: ${name}", ("name", name));
         return true;
     } catch (const std::exception& e) {
-        elog("启动服务 '${name}' 异常: ${error}", ("name", name)("error", e.what()));
+        elog("start service '${name}' failed: ${error}", ("name", name)("error", e.what()));
         return false;
     }
 }
@@ -454,19 +442,19 @@ bool default_supervisor::start_one_service(const std::string& name) {
 bool default_supervisor::stop_one_service(const std::string& name) {
     auto it = m_services.find(name);
     if (it == m_services.end()) {
-        return true;  // 服务不存在视为成功
+        return true; // 服务不存在视为成功
     }
-    
+
     try {
-        ilog("正在停止服务: ${name}", ("name", name));
+        ilog("stop service: ${name}", ("name", name));
         if (!it->second->stop()) {
-            wlog("停止服务 '${name}' 失败", ("name", name));
+            wlog("stop service '${name}' failed", ("name", name));
             return false;
         }
-        ilog("服务停止成功: ${name}", ("name", name));
+        ilog("service stop success: ${name}", ("name", name));
         return true;
     } catch (const std::exception& e) {
-        elog("停止服务 '${name}' 异常: ${error}", ("name", name)("error", e.what()));
+        elog("stop service '${name}' failed: ${error}", ("name", name)("error", e.what()));
         return false;
     }
 }
@@ -475,21 +463,21 @@ bool default_supervisor::stop_one_service(const std::string& name) {
 bool default_supervisor::stop_one_child_supervisor(const std::string& name) {
     auto it = m_child_supervisors.find(name);
     if (it == m_child_supervisors.end()) {
-        return true;  // 子监督器不存在视为成功
+        return true; // 子监督器不存在视为成功
     }
-    
+
     try {
-        ilog("正在停止子监督器: ${name}", ("name", name));
+        ilog("stop child supervisor: ${name}", ("name", name));
         if (!it->second->stop()) {
-            wlog("停止子监督器 '${name}' 失败", ("name", name));
+            wlog("stop child supervisor '${name}' failed", ("name", name));
             return false;
         }
-        ilog("子监督器停止成功: ${name}", ("name", name));
+        ilog("stop child supervisor success: ${name}", ("name", name));
         return true;
     } catch (const std::exception& e) {
-        elog("停止子监督器 '${name}' 异常: ${error}", ("name", name)("error", e.what()));
+        elog("stop child supervisor '${name}' failed: ${error}", ("name", name)("error", e.what()));
         return false;
     }
 }
 
-} // namespace mc 
+} // namespace mc

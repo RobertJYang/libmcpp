@@ -39,6 +39,7 @@
 #include <mc/im/ref_ptr.h>
 #include <mc/reflect.h>
 #include <mc/signal_slot.h>
+#include <mc/traits.h>
 
 namespace mc::db {
 /**
@@ -886,13 +887,20 @@ private:
         size_t updated_count = 0;
 
         auto handler = [&](const object_type& obj) -> bool {
-            auto new_obj = object_type::create(obj);
-            update_object(*new_obj, values);
-            if (update(mc::im::ref_ptr<object_type>(const_cast<object_type*>(&obj)), new_obj,
-                       txn)) {
+            if constexpr (mc::traits::is_copyable_v<object_type>) {
+                auto new_obj = object_type::create(obj);
+                update_object(*new_obj, values);
+                if (update(mc::im::ref_ptr<object_type>(const_cast<object_type*>(&obj)), new_obj,
+                           txn)) {
+                    updated_count++;
+                }
+                return true;
+            } else {
+                // 非可复制类型，直接更新对象
+                update_object(const_cast<object_type&>(obj), values);
                 updated_count++;
+                return true;
             }
-            return true;
         };
 
         query(condition, handler);

@@ -10,10 +10,11 @@
  * See the Mulan PSL v2 for more details.
  */
 #include <mc/engine/base.h>
+#include <mc/engine/service.h>
 
 namespace mc::engine {
 
-object_wrap::object_wrap(mc::engine::object_base* object) : m_object(object) {
+object_wrap::object_wrap(mc::engine::abstract_object* object) : m_object(object) {
     m_object->ref();
 }
 
@@ -63,7 +64,7 @@ object_wrap& object_wrap::operator=(object_wrap&& other) noexcept {
     return *this;
 }
 
-const std::string& object_wrap::get_path() const {
+std::string_view object_wrap::get_path() const {
     return m_object->get_object_path();
 }
 

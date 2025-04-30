@@ -93,7 +93,7 @@ public:
         return true;
     }
 
-    std::string name() const override {
+    const std::string& name() const override {
         return m_config.meta.name;
     }
 
@@ -102,9 +102,9 @@ private:
 };
 
 // 测试用服务
-class test_service : public service {
+class test_service : public service_base<test_service> {
 public:
-    test_service(const std::string& name) : m_name(name), m_supervisor(nullptr) {
+    test_service(const std::string& name) : service_base<test_service>(name) {
     }
 
     bool init(dict args) override {
@@ -122,24 +122,10 @@ public:
     service_state get_state() const override {
         return service_state::stopped;
     }
-    const std::string& name() const override {
-        return m_name;
-    }
+
     bool is_healthy() const override {
         return true;
     }
-
-    void set_supervisor(std::shared_ptr<supervisor> supervisor) override {
-        m_supervisor = supervisor;
-    }
-
-    std::shared_ptr<supervisor> get_supervisor() const override {
-        return m_supervisor;
-    }
-
-private:
-    std::string                 m_name;
-    std::shared_ptr<supervisor> m_supervisor;
 };
 
 // 测试用服务工厂
@@ -161,7 +147,7 @@ protected:
     }
 
     ~service_manager_test() {
-     }
+    }
 
     void TearDown() override {
         manager.cleanup_services();

@@ -10,31 +10,17 @@
 #define TASK_OBJECT_H
 
 #include "task_interface.h"
-#include <boost/asio/steady_timer.hpp>
 #include <mc/engine/object.h>
-#include <mc/engine/service.h>
-#include <mc/time.h>
 
-namespace test {
-class task_object;
-using task_object_ptr = mc::im::ref_ptr<task_object>;
-
+namespace gen {
 class task_object : public mc::engine::object<task_object> {
 public:
     MC_OBJECT("/bmc/kepler/TaskService/Tasks/${Id}", (task_interface))
 
-    static task_object_ptr create_task(mc::engine::service* service, mc::milliseconds timeout);
-
     task_interface m_task;
-
-private:
-    using timer_ptr = std::unique_ptr<boost::asio::steady_timer>;
-    mc::engine::service* m_service;
-
-    static uint32_t m_next_task_id;
 };
 
-} // namespace test
+} // namespace gen
 
 MC_REFLECT(test::task_object,
            ((m_task, "Task"))((start, "Start"))((stop, "Stop"))((pause, "Pause"))(

@@ -17,19 +17,20 @@
 #ifndef MC_CORE_PLUGIN_H
 #define MC_CORE_PLUGIN_H
 
-#include "mc/core/service_factory.h"
+#include <mc/core/service_factory.h>
+
 #include <string>
 #include <vector>
 
-namespace mc {
+namespace mc::core {
 
 /**
  * @brief 插件信息结构
  */
 struct plugin_info {
-    std::string name;           // 插件名称
-    std::string version;        // 插件版本
-    std::vector<std::string> dependencies;  // 依赖的其他插件
+    std::string              name;         // 插件名称
+    std::string              version;      // 插件版本
+    std::vector<std::string> dependencies; // 依赖的其他插件
 };
 
 /**
@@ -59,17 +60,17 @@ using create_plugin_func = plugin* (*)();
 // 插件销毁函数类型
 using destroy_plugin_func = void (*)(plugin*);
 
-} // namespace mc
+} // namespace mc::core
 
 // 导出插件的宏定义
-#define MC_EXPORT_PLUGIN(PluginClass) \
-    extern "C" { \
-        mc::plugin* create_plugin() { \
-            return new PluginClass(); \
-        } \
-        void destroy_plugin(mc::plugin* p) { \
-            delete p; \
-        } \
+#define MC_EXPORT_PLUGIN(PluginClass)                                                              \
+    extern "C" {                                                                                   \
+    mc::core::plugin* create_plugin() {                                                            \
+        return new PluginClass();                                                                  \
+    }                                                                                              \
+    void destroy_plugin(mc::core::plugin* p) {                                                     \
+        delete p;                                                                                  \
+    }                                                                                              \
     }
 
-#endif // MC_CORE_PLUGIN_H 
+#endif // MC_CORE_PLUGIN_H

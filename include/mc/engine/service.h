@@ -21,8 +21,10 @@
 namespace mc::engine {
 class engine;
 struct service_impl;
+using strand_type = mc::core::strand_type;
+class abstract_object;
 
-class service : public mc::service_base<service>, public mc::noncopyable_nonmovable {
+class service : public mc::core::service_base, public mc::noncopyable_nonmovable {
 public:
     service(std::string_view name);
     ~service() override;
@@ -47,7 +49,7 @@ public:
     strand_type& get_strand();
 
 protected:
-    void register_object(object_base& obj);
+    void register_object(abstract_object& obj);
 
     std::unique_ptr<service_impl> m_impl;
 };

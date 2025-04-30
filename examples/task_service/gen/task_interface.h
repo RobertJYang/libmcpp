@@ -11,7 +11,7 @@
 
 #include <mc/engine/interface.h>
 
-namespace test {
+namespace gen {
 
 enum class task_state {
     PENDING,
@@ -45,11 +45,9 @@ struct task_interface : public mc::engine::interface<task_interface> {
     uint32_t    m_progress{0};
     task_state  m_state{task_state::PENDING};
     mc::variant m_result;
-
-    timer_ptr m_timer;
 };
 
-} // namespace test
+} // namespace gen
 
 MC_REFLECT_ENUM(test::task_state, (PENDING)(RUNNING)(COMPLETED)(FAILED))
 MC_REFLECT(test::task_interface,

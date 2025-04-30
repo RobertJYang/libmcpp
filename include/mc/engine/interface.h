@@ -134,18 +134,18 @@ signal_map<T> init_signal_map() {
 } // namespace detail
 
 template <typename T>
-struct interface : public interface_base {
+struct interface : public abstract_interface {
     using is_interface = std::true_type;
     using object_type  = T;
 
     interface() {
     }
 
-    void set_object(object_base* obj) {
+    void set_object(abstract_object* obj) {
         m_object = obj;
     }
 
-    object_base* get_object() const override {
+    abstract_object* get_object() const override {
         return m_object;
     }
 
@@ -224,7 +224,7 @@ struct interface : public interface_base {
     }
 
 protected:
-    object_base* m_object;
+    abstract_object* m_object;
 };
 
 } // namespace mc::engine

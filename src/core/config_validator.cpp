@@ -12,116 +12,102 @@
 
 #include <mc/core/config_schema.h>
 #include <mc/log.h>
-#include <mc/exception.h>
 
-namespace mc {
-namespace config {
+namespace mc::config {
 
-// 验证应用程序配置
 bool config_validator::validate_app_config(const app_config& config) {
-    // 基本验证：必须指定类型、名称、API版本
     if (config.kind.empty()) {
-        elog("应用程序配置验证失败: 未指定资源类型(kind)");
-        return false;
-    }
-    
-    if (config.api_version.empty()) {
-        elog("应用程序配置验证失败: 未指定API版本(api_version)");
-        return false;
-    }
-    
-    if (config.meta.name.empty()) {
-        elog("应用程序配置验证失败: 未指定名称(meta.name)");
+        elog("application config validation failed: missing resource type(kind)");
         return false;
     }
 
-    // 应用程序特有验证
+    if (config.api_version.empty()) {
+        elog("application config validation failed: missing api version(api_version)");
+        return false;
+    }
+
+    if (config.meta.name.empty()) {
+        elog("application config validation failed: missing name(meta.name)");
+        return false;
+    }
+
     if (config.plugin_dir.empty()) {
-        wlog("应用程序配置警告: 未指定插件目录(plugin_dir)，将使用默认值");
+        wlog("application config warning: missing plugin directory(plugin_dir), using default "
+             "value");
     }
 
     return true;
 }
 
-// 验证监督器配置
 bool config_validator::validate_supervisor_config(const supervisor_config& config) {
-    // 基本验证：必须指定类型、名称、API版本
     if (config.kind.empty()) {
-        elog("监督器配置验证失败: 未指定资源类型(kind)");
-        return false;
-    }
-    
-    if (config.api_version.empty()) {
-        elog("监督器配置验证失败: 未指定API版本(api_version)");
-        return false;
-    }
-    
-    if (config.meta.name.empty()) {
-        elog("监督器配置验证失败: 未指定名称(meta.name)");
+        elog("supervisor config validation failed: missing resource type(kind)");
         return false;
     }
 
-    // 监督器特有验证
+    if (config.api_version.empty()) {
+        elog("supervisor config validation failed: missing api version(api_version)");
+        return false;
+    }
+
+    if (config.meta.name.empty()) {
+        elog("supervisor config validation failed: missing name(meta.name)");
+        return false;
+    }
+
     if (config.max_restarts < 0) {
-        elog("监督器配置验证失败: 最大重启次数(max_restarts)不能为负数");
+        elog("supervisor config validation failed: max restarts(max_restarts) cannot be negative");
         return false;
     }
 
     return true;
 }
 
-// 验证服务配置
 bool config_validator::validate_service_config(const service_config& config) {
-    // 基本验证：必须指定类型、名称、API版本
     if (config.kind.empty()) {
-        elog("服务配置验证失败: 未指定资源类型(kind)");
-        return false;
-    }
-    
-    if (config.api_version.empty()) {
-        elog("服务配置验证失败: 未指定API版本(api_version)");
-        return false;
-    }
-    
-    if (config.meta.name.empty()) {
-        elog("服务配置验证失败: 未指定名称(meta.name)");
+        elog("service config validation failed: missing resource type(kind)");
         return false;
     }
 
-    // 服务特有验证
+    if (config.api_version.empty()) {
+        elog("service config validation failed: missing api version(api_version)");
+        return false;
+    }
+
+    if (config.meta.name.empty()) {
+        elog("service config validation failed: missing name(meta.name)");
+        return false;
+    }
+
     if (config.type.empty()) {
-        elog("服务配置验证失败: 未指定服务类型(type)");
+        elog("service config validation failed: missing service type(type)");
         return false;
     }
 
     return true;
 }
 
-// 验证插件配置
 bool config_validator::validate_plugin_config(const plugin_config& config) {
-    // 基本验证：必须指定类型、名称、API版本
     if (config.kind.empty()) {
-        elog("插件配置验证失败: 未指定资源类型(kind)");
-        return false;
-    }
-    
-    if (config.api_version.empty()) {
-        elog("插件配置验证失败: 未指定API版本(api_version)");
-        return false;
-    }
-    
-    if (config.meta.name.empty()) {
-        elog("插件配置验证失败: 未指定名称(meta.name)");
+        elog("plugin config validation failed: missing resource type(kind)");
         return false;
     }
 
-    // 插件特有验证
+    if (config.api_version.empty()) {
+        elog("plugin config validation failed: missing api version(api_version)");
+        return false;
+    }
+
+    if (config.meta.name.empty()) {
+        elog("plugin config validation failed: missing name(meta.name)");
+        return false;
+    }
+
     if (config.version.empty()) {
-        wlog("插件配置警告: 未指定版本(version)");
+        wlog("plugin config warning: missing version(version)");
     }
 
     return true;
 }
 
-} // namespace config
-} // namespace mc 
+} // namespace mc::config

@@ -17,13 +17,9 @@
 #ifndef MC_SUPERVISOR_MANAGER_H
 #define MC_SUPERVISOR_MANAGER_H
 
-#include "mc/core/supervisor.h"
-#include <memory>
-#include <string>
-#include <unordered_map>
-#include <vector>
+#include <mc/core/supervisor.h>
 
-namespace mc {
+namespace mc::core {
 
 /**
  * @brief 监督器管理器类
@@ -38,10 +34,10 @@ public:
     bool init();
 
     // 监督器创建和获取
-    std::shared_ptr<supervisor> create_supervisor(const config::supervisor_config& config);
-    std::shared_ptr<supervisor> get_supervisor(const std::string& name) const;
-    std::shared_ptr<supervisor> get_root_supervisor() const;
-    bool add_supervisor(const std::string& name, std::shared_ptr<supervisor> supervisor);
+    supervisor_ptr create_supervisor(const config::supervisor_config& config);
+    supervisor_ptr get_supervisor(const std::string& name) const;
+    supervisor_ptr get_root_supervisor() const;
+    bool           add_supervisor(const std::string& name, supervisor_ptr supervisor);
 
     // 监督器生命周期管理
     bool start_supervisors();
@@ -51,11 +47,12 @@ public:
     bool initialize_from_configs(const std::vector<config::supervisor_config>& configs);
 
 private:
-    // 成员变量
-    std::shared_ptr<supervisor> m_root_supervisor;                          // 根监督器
-    std::unordered_map<std::string, std::shared_ptr<supervisor>> m_supervisors;  // 监督器映射表
+    using supervisor_map = std::unordered_map<std::string, supervisor_ptr>;
+
+    supervisor_ptr m_root_supervisor; // 根监督器
+    supervisor_map m_supervisors;     // 监督器映射表
 };
 
-} // namespace mc
+} // namespace mc::core
 
-#endif // MC_SUPERVISOR_MANAGER_H 
+#endif // MC_SUPERVISOR_MANAGER_H

@@ -12,23 +12,15 @@
 
 /**
  * @file config_schema.h
- * @brief 配置模式定义，基于Kubernetes风格的声明式配置
+ * @brief 配置模式定义
  */
 #ifndef MC_CONFIG_SCHEMA_H
 #define MC_CONFIG_SCHEMA_H
 
 #include <mc/dict.h>
-#include <mc/exception.h>
-#include <mc/json.h>
 #include <mc/reflect.h>
-#include <mc/variant.h>
-#include <memory>
-#include <optional>
-#include <string>
-#include <vector>
 
-namespace mc {
-namespace config {
+namespace mc::config {
 
 /**
  * @brief 元数据结构
@@ -134,8 +126,7 @@ struct meta_config {
     std::shared_ptr<mc::dict> labels;
 };
 
-} // namespace config
-} // namespace mc
+} // namespace mc::config
 
 // 反射元数据定义
 MC_REFLECT(mc::config::metadata, (name)(labels)(annotations))

@@ -136,7 +136,7 @@ public:
     static constexpr std::string_view peer_name           = "Peer";
     static constexpr std::string_view object_manager_name = "ObjectManager";
 
-    static invoke_result invoke(object_base* object, std::string_view method_name,
+    static invoke_result invoke(abstract_object* object, std::string_view method_name,
                                 const mc::variants& args, std::string_view interface_name) {
         // 优化：所有的标准接口都有同样的前缀，前缀不匹配可以快速返回
         if (!mc::string::starts_with(interface_name, common_prefix)) {

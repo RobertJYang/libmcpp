@@ -17,14 +17,15 @@
 #ifndef MC_CORE_SERVICE_FACTORY_H
 #define MC_CORE_SERVICE_FACTORY_H
 
-#include "mc/core/service.h"
+#include <mc/core/service.h>
+
 #include <boost/program_options.hpp>
 #include <functional>
 #include <memory>
 #include <string>
 #include <unordered_map>
 
-namespace mc {
+namespace mc::core {
 
 namespace po          = boost::program_options;
 using service_creator = std::function<service_ptr(std::string&& name, mc::dict&& args)>;
@@ -56,7 +57,7 @@ public:
         m_creators[service_name] = [](std::string&& object_name, mc::dict&& args) {
             auto service = std::make_shared<ServiceType>(std::forward<std::string>(object_name));
             if (service->init(std::forward<mc::dict>(args))) {
-                return std::static_pointer_cast<mc::service, ServiceType>(service);
+                return std::static_pointer_cast<mc::core::abstract_service, ServiceType>(service);
             }
             return service_ptr();
         };
@@ -115,6 +116,6 @@ private:
     std::unique_ptr<service_options>                 m_opts;
 };
 
-} // namespace mc
+} // namespace mc::core
 
 #endif // MC_CORE_SERVICE_FACTORY_H

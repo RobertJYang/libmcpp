@@ -24,20 +24,20 @@ void properties_interface::set(std::string_view interface_name, std::string_view
 }
 
 struct inintrospect_vistor : visitor {
-    void handle_interface_begin(object_base& obj, interface_base& iface) override {
+    void handle_interface_begin(abstract_object& obj, abstract_interface& iface) override {
         xml_data += "<interface name=\"";
         xml_data += iface.get_interface_name();
         xml_data += "\">";
     }
 
-    void handle_interface_end(object_base& obj, interface_base& iface) override {
+    void handle_interface_end(abstract_object& obj, abstract_interface& iface) override {
         xml_data += "</interface>";
     }
 
     /*
         <property name="Property" type="i" access="readwrite" />
     */
-    void handle(object_base& obj, interface_base& iface, property_meta& info) override {
+    void handle(abstract_object& obj, abstract_interface& iface, property_meta& info) override {
         xml_data += "<property name=\"";
         xml_data += info.name;
         xml_data += "\" type=\"";
@@ -52,7 +52,7 @@ struct inintrospect_vistor : visitor {
           <arg type="s" direction="out"/>
         </method>
     */
-    void handle(object_base& obj, interface_base& iface, method_meta& info) override {
+    void handle(abstract_object& obj, abstract_interface& iface, method_meta& info) override {
         xml_data += "<method name=\"";
         xml_data += info.name;
         xml_data += "\">";
@@ -80,7 +80,7 @@ struct inintrospect_vistor : visitor {
             <arg type="i" />
         </signal>
     */
-    void handle(object_base& obj, interface_base& iface, signal_meta& info) override {
+    void handle(abstract_object& obj, abstract_interface& iface, signal_meta& info) override {
         xml_data += "<signal name=\"";
         xml_data += info.name;
         xml_data += "\">";
@@ -96,16 +96,16 @@ struct inintrospect_vistor : visitor {
         xml_data += "</signal>";
     }
 
-    void handle_children(object_base& obj) {
-        auto& childs = obj.get_childrens();
-        auto& path   = obj.get_object_path();
+    void handle_children(abstract_object& obj) {
+        auto& objs = obj.get_managed_objects();
+        auto  path = obj.get_object_path();
 
-        for (auto& child : childs) {
-            auto& child_path = child.second->get_object_path();
-            if (mc::string::starts_with(child_path, path)) {
-                auto child_name = child_path.substr(path.size());
+        for (auto& obj : objs) {
+            auto obj_path = obj.second->get_object_path();
+            if (mc::string::starts_with(obj_path, path)) {
+                auto obj_name = obj_path.substr(path.size());
                 xml_data += "<node name=\"";
-                xml_data += child_name;
+                xml_data += obj_name;
                 xml_data += "\"/>";
             }
         }

@@ -13,6 +13,7 @@
 #ifndef MC_ENGINE_OBJECT_H
 #define MC_ENGINE_OBJECT_H
 
+#include <mc/core/object.h>
 #include <mc/db/object.h>
 #include <mc/engine/interface.h>
 #include <mc/engine/object_metadata.h>
@@ -22,7 +23,7 @@
 namespace mc::engine {
 
 template <typename ObjectType>
-class object : public mc::db::object<ObjectType>, public object_base {
+class object : public mc::db::object<ObjectType>, public mc::core::object, public abstract_object {
 public:
     using object_type    = ObjectType;
     using object_id_type = typename mc::db::object<ObjectType>::object_id_type;
@@ -51,6 +52,10 @@ public:
 
     virtual ~object() = default;
 
+    virtual void destory() override {
+        // 对象的生命周期由 db 管理，这里什么都不用做
+    }
+
     service* get_service() const override {
         return m_service;
     }
@@ -59,25 +64,8 @@ public:
         m_service = &s;
     }
 
-    void set_parent(object_base* obj) override {
-        m_parent = obj;
-    }
-
-    object_base* get_parent() const override {
-        return m_parent;
-    }
-
-    void add_child(object_base* obj) override {
-        obj->set_parent(this);
-        ms_children[obj->get_object_path()] = obj;
-    }
-
-    void remove_child(object_base* obj) override {
-        ms_children.erase(obj->get_object_path());
-    }
-
-    const childrens_type& get_childrens() const override {
-        return ms_children;
+    const managed_objects& get_managed_objects() const override {
+        return m_managed_objects;
     }
 
     static metadata_type& get_metadata() {
@@ -106,15 +94,15 @@ public:
         ref_ptr.reset();
     }
 
-    const std::string& get_object_name() const override {
-        return m_object_name;
+    std::string_view get_object_name() const override {
+        return mc::core::object::get_name();
     }
 
     void set_object_name(std::string_view name) override {
-        m_object_name = name;
+        mc::core::object::set_name(name);
     }
 
-    const std::string& get_object_path() const override {
+    std::string_view get_object_path() const override {
         if (m_object_path.empty()) {
             if (get_parent()) {
                 m_object_path = get_parent()->get_object_path();
@@ -132,12 +120,12 @@ public:
         return get_interface_info(interface_name) != nullptr;
     }
 
-    inline interface_base* property_info_to_interface(property_info& info) {
+    inline abstract_interface* property_info_to_interface(property_info& info) {
         intptr_t p_obj = reinterpret_cast<intptr_t>(static_cast<ObjectType*>(this));
-        return reinterpret_cast<interface_base*>(p_obj + info.offset());
+        return reinterpret_cast<abstract_interface*>(p_obj + info.offset());
     }
 
-    interface_base* get_interface(std::string_view interface_name) override {
+    abstract_interface* get_interface(std::string_view interface_name) override {
         auto info = metadata_type::get_instance().get_interface_info(interface_name);
         if (info == nullptr) {
             return nullptr;
@@ -220,12 +208,28 @@ public:
     }
 
 protected:
-    mutable std::string m_object_name;
+    abstract_object* get_parent() const {
+        return dynamic_cast<abstract_object*>(mc::core::object::parent());
+    }
+
+    void set_parent(abstract_object* parent) {
+        mc::core::object::set_parent(parent);
+    }
+
+    void add_managed_object(abstract_object* obj) {
+        dynamic_cast<mc::core::object*>(obj)->set_parent(this);
+        m_managed_objects[obj->get_object_path()] = obj;
+    }
+
+    void remove_managed_object(abstract_object* obj) {
+        m_managed_objects.erase(obj->get_object_path());
+    }
+
+protected:
     mutable std::string m_object_path;
 
-    service*       m_service{nullptr};
-    object_base*   m_parent{nullptr};
-    childrens_type ms_children;
+    service*        m_service{nullptr};
+    managed_objects m_managed_objects;
 };
 
 } // namespace mc::engine

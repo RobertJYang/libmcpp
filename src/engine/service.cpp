@@ -12,6 +12,7 @@
 #include <mc/db/database.h>
 #include <mc/dbus/connection.h>
 #include <mc/dbus/message.h>
+#include <mc/dbus/path_iterator.h>
 #include <mc/dbus/validator.h>
 #include <mc/engine.h>
 #include <mc/exception.h>
@@ -20,9 +21,8 @@
 namespace mdb = mc::db;
 
 namespace mc::engine {
-using object_tree     = mdb::table<object_wrap, mdb::indexed_by<path_index>>;
+using object_tree     = mdb::table<object_wrap, mdb::indexed_by<path_unique_index>>;
 using object_tree_ptr = std::shared_ptr<object_tree>;
-using strand_type     = boost::asio::strand<boost::asio::io_context::executor_type>;
 
 struct service_interface : public mc::engine::interface<service_interface> {
     MC_INTERFACE("bmc.kepler.maca")
@@ -57,13 +57,15 @@ struct service_impl {
     bool start();
     void stop();
 
-    DBusHandlerResult on_path_message(mc::dbus::message& msg, object_base& obj);
+    DBusHandlerResult on_path_message(mc::dbus::message& msg, abstract_object& obj);
     DBusHandlerResult on_filter_message(mc::dbus::message& msg);
 
-    DBusHandlerResult on_method_call(object_base& obj, mc::dbus::message& msg);
+    DBusHandlerResult on_method_call(abstract_object& obj, mc::dbus::message& msg);
 
-    void register_object(object_base& obj);
+    void register_object(abstract_object& obj);
     void unregister_object(std::string_view path);
+
+    void adjust_object_parent(abstract_object& obj);
 
     std::mutex                      m_mutex;
     service*                        m_service;
@@ -127,10 +129,11 @@ void service_impl::stop() {
     }
 }
 
-void service_impl::register_object(object_base& obj) {
+void service_impl::register_object(abstract_object& obj) {
     auto obj_wrap = object_wrap::create(&obj);
     m_object_tree->add(obj_wrap);
     obj.set_service(*m_service);
+    adjust_object_parent(obj);
     m_connection->register_path(obj.get_object_path(), [this, obj_wrap](auto& msg) {
         return on_path_message(msg, **obj_wrap);
     });
@@ -139,11 +142,36 @@ void service_impl::register_object(object_base& obj) {
 void service_impl::unregister_object(std::string_view path) {
 }
 
+void service_impl::adjust_object_parent(abstract_object& obj) {
+    auto path = obj.get_object_path();
+    if (path.empty()) {
+        // 没有路径的对象，暂时由 servcie 管理
+        dynamic_cast<mc::core::object*>(&obj)->set_parent(m_service);
+        return;
+    }
+
+    auto it = mc::dbus::path_iterator(path);
+    if (it.is_empty_or_root_path()) {
+        // 根路径，直接设置为服务对象的子对象
+        dynamic_cast<mc::core::object*>(&obj)->set_parent(m_service);
+        return;
+    }
+
+    // while (it.to_prev()) {
+    //     auto path = it.current();
+    //     auto it   = m_object_tree->get<by_path>().find(path);
+    //     if (it.is_end()) {
+    //         dynamic_cast<mc::core::object*>(&obj)->set_parent(it->m_object);
+    //         return;
+    //     }
+    // }
+}
+
 DBusHandlerResult service_impl::on_filter_message(mc::dbus::message& msg) {
     return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
 }
 
-DBusHandlerResult service_impl::on_path_message(mc::dbus::message& msg, object_base& obj) {
+DBusHandlerResult service_impl::on_path_message(mc::dbus::message& msg, abstract_object& obj) {
     if (msg.is_method_call()) {
         return on_method_call(obj, msg);
     }
@@ -151,7 +179,7 @@ DBusHandlerResult service_impl::on_path_message(mc::dbus::message& msg, object_b
     return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
 }
 
-DBusHandlerResult service_impl::on_method_call(object_base& object, mc::dbus::message& msg) {
+DBusHandlerResult service_impl::on_method_call(abstract_object& object, mc::dbus::message& msg) {
     context ctx(*m_service, object);
     ctx.set_call_info(detail::dbus_call{msg});
     auto& info = std::get<detail::dbus_call>(ctx.get_call_info());
@@ -180,7 +208,7 @@ DBusHandlerResult service_impl::on_method_call(object_base& object, mc::dbus::me
     return DBUS_HANDLER_RESULT_HANDLED;
 }
 
-service::service(std::string_view name) : mc::service_base<service>(std::string(name)) {
+service::service(std::string_view name) : mc::core::service_base(std::string(name)) {
     m_impl = std::make_unique<service_impl>();
 }
 
@@ -190,8 +218,8 @@ service::~service() {
 bool service::init(dict args) {
     MC_UNUSED(args);
 
-    if (!dbus::validator::is_valid_bus_name(m_name)) {
-        elog("初始化服务失败: 无效的服务名 ${name}", ("name", m_name));
+    if (!dbus::validator::is_valid_bus_name(this->name())) {
+        elog("初始化服务失败: 无效的服务名 ${name}", ("name", this->name()));
         return false;
     }
 
@@ -227,7 +255,7 @@ bool service::is_healthy() const {
     return true;
 }
 
-void service::register_object(object_base& obj) {
+void service::register_object(abstract_object& obj) {
     auto path = obj.get_object_path();
     MC_ASSERT(!path.empty(), "对象路径不能为空");
     MC_ASSERT(mc::dbus::validator::is_valid_path(path), "无效的对象路径 ${path}", ("path", path));

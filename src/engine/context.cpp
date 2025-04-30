@@ -15,7 +15,7 @@
 
 namespace mc::engine {
 
-context::context(service& s, object_base& object) : m_service(s), m_object(object) {
+context::context(service& s, abstract_object& object) : m_service(s), m_object(object) {
 }
 
 context::~context() {
@@ -61,7 +61,7 @@ service& context::get_service() const {
     return m_service;
 }
 
-object_base& context::get_object() const {
+abstract_object& context::get_object() const {
     return m_object;
 }
 

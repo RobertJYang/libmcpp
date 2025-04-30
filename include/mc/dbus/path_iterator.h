@@ -19,8 +19,7 @@
 
 #include <string_view>
 
-namespace mc {
-namespace db {
+namespace mc::dbus {
 
 /**
  * @brief 路径分隔符
@@ -121,7 +120,6 @@ private:
     bool             m_is_initialized; // 是否已初始化
 };
 
-} // namespace db
-} // namespace mc
+} // namespace mc::dbus
 
 #endif // MC_DATABASE_PATH_ITERATOR_H
