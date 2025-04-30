@@ -148,7 +148,6 @@ private:
     void initialize();
     bool check_connected() const;
     void release();
-    void delay_dispatch();
 
     DBusHandlerResult process_message(message msg);
     void              process_reply(uint32_t reply_serial, message& msg);

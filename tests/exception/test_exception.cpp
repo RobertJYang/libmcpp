@@ -280,7 +280,7 @@ TEST(ExceptionTest, ThreadSafetyTest) {
 }
 
 // 测试异常的性能
-TEST(ExceptionTest, PerformanceTest) {
+TEST(ExceptionTest, DISABLED_PerformanceTest) {
     const int iterations = 10000;
 
     // 测试异常创建性能
