@@ -96,7 +96,7 @@ template <typename T>
 std::string_view method_return_type(std::string_view method_name) {
     using clean_type   = std::remove_cv_t<std::remove_reference_t<T>>;
     const auto* method = get_metadata<clean_type>().get_method_info(method_name);
-    return method ? method->type_name() : std::string_view{};
+    return method ? method->get_result_signature() : std::string_view{};
 }
 
 } // namespace mc::reflect

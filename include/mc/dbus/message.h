@@ -15,16 +15,22 @@
 
 #include <mc/dbus/enums.h>
 #include <mc/dbus/error.h>
-#include <mc/dbus/signature.h>
-#include <mc/dbus/signature_helper.h>
+#include <mc/dbus/path.h>
 #include <mc/exception.h>
 #include <mc/future.h>
 #include <mc/reflect.h>
+#include <mc/reflect/signature.h>
+#include <mc/reflect/signature_helper.h>
+#include <mc/reflect/type_code.h>
 #include <mc/variant.h>
 
 #include <dbus/dbus.h>
 
 namespace mc::dbus {
+using signature_iterator = mc::reflect::signature_iterator;
+using signature          = mc::reflect::signature;
+using type_code          = mc::reflect::type_code;
+namespace container      = mc::reflect::container;
 
 void ensure_container_max_length(const char* type_name, std::size_t size);
 void ensure_message_depth(std::size_t depth);
@@ -32,6 +38,11 @@ void ensure_message_depth(std::size_t depth);
 template <typename T>
 void ensure_container_max_length(T& container) {
     ensure_container_max_length(mc::pretty_name<T>(), container.size());
+}
+
+template <typename T>
+inline const std::string& get_signature() {
+    return mc::reflect::get_signature<T>();
 }
 
 template <typename T>
@@ -149,6 +160,7 @@ struct message_reader {
 };
 
 struct message_writer {
+    message_writer() = default;
     message_writer(message& msg);
     message_writer(DBusMessageIter& parent_iter, int type,
                    std::string_view signature = std::string_view());
@@ -179,7 +191,7 @@ struct message_writer {
 
 template <typename T, std::enable_if_t<std::is_arithmetic_v<T>, int> = 0>
 const message_reader& operator>>(const message_reader& reader, T& v) {
-    reader.ensure_type(get_signature<T>().first_type());
+    reader.ensure_type(mc::reflect::first_type(get_signature<T>()));
 
     if constexpr (std::is_same_v<T, float>) {
         double d;
@@ -213,7 +225,7 @@ const message_reader& read_array(const message_reader& reader, Container& v) {
 
     message_reader arr_reader;
     arr_reader.recurse(reader);
-    arr_reader.ensure_type(get_signature<T>().first_type());
+    arr_reader.ensure_type(mc::reflect::first_type(get_signature<T>()));
 
     if constexpr (std::is_trivially_copyable_v<T> && IsContiguous) {
         // 对可平凡复制的类型，直接使用 memcpy 优化（必须确保容器内存是连续的）
@@ -259,7 +271,7 @@ const message_reader& operator>>(const message_reader& reader, std::array<T, N>&
 
     message_reader arr_reader;
     arr_reader.recurse(reader);
-    arr_reader.ensure_type(get_signature<T>().first_type());
+    arr_reader.ensure_type(mc::reflect::first_type(get_signature<T>()));
 
     auto count = dbus_message_iter_get_element_count(&reader.m_iter);
     if (count != N) {
@@ -314,7 +326,7 @@ const message_reader& operator>>(const message_reader& reader, std::optional<T>&
 
     message_reader arr_reader;
     arr_reader.recurse(reader);
-    arr_reader.ensure_type(get_signature<T>().first_type());
+    arr_reader.ensure_type(mc::reflect::first_type(get_signature<T>()));
 
     if (arr_reader.at_end()) {
         v = std::nullopt;
@@ -457,13 +469,14 @@ const message_writer& operator<<(const message_writer& writer, const std::string
 // 写入标准库类型
 template <typename T, bool IsContiguous, typename Container>
 const message_writer& write_array(const message_writer& writer, const Container& v) {
-    const signature& sig = get_signature<T>();
+    const std::string& sig = get_signature<T>();
 
     message_writer sub_writer(writer.m_iter, DBUS_TYPE_ARRAY, sig);
     if constexpr (std::is_trivially_copyable_v<T> && IsContiguous) {
         // 对可平凡复制的类型，直接使用 fixed array 写入方式优化
         const T* data = v.data();
-        dbus_message_iter_append_fixed_array(&sub_writer.m_iter, sig.first_type(), &data, v.size());
+        dbus_message_iter_append_fixed_array(&sub_writer.m_iter, mc::reflect::first_type(sig),
+                                             &data, v.size());
     } else {
         for (const auto& item : v) {
             sub_writer << item;

@@ -67,9 +67,15 @@ public:
     }
 
     // 获取调用栈顶的值
-    static Value* top() {
+    static Value* top_value() {
         context* elem = s_top;
-        return elem ? elem->m_value : 0;
+        return elem ? elem->m_value : nullptr;
+    }
+
+    // 获取调用栈顶的键
+    static Key* top_key() {
+        context* elem = s_top;
+        return elem ? elem->m_key : nullptr;
     }
 
 private:

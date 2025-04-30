@@ -10,11 +10,11 @@
  * See the Mulan PSL v2 for more details.
  */
 
-#ifndef MC_DBUS_SIGNATURE_H
-#define MC_DBUS_SIGNATURE_H
+#ifndef MC_REFLECT_SIGNATURE_H
+#define MC_REFLECT_SIGNATURE_H
 
-#include <mc/dbus/enums.h>
-#include <mc/dbus/type_code.h>
+#include <mc/reflect/signature_helper.h>
+#include <mc/reflect/type_code.h>
 #include <mc/variant.h>
 
 #include <ostream>
@@ -22,34 +22,19 @@
 #include <vector>
 
 namespace mc {
-namespace dbus {
+namespace reflect {
 
-/**
- * 表示DBus签名的类
- *
- * DBus签名用于描述DBus消息中的数据类型
- *
- * 基本类型:
- * - type_code::byte: 字节（byte）
- * - type_code::boolean: 布尔（boolean）
- * - type_code::int16: 16位整数（int16）
- * - type_code::uint16: 16位无符号整数（uint16）
- * - type_code::int32: 32位整数（int32）
- * - type_code::uint32: 32位无符号整数（uint32）
- * - type_code::int64: 64位整数（int64）
- * - type_code::uint64: 64位无符号整数（uint64）
- * - type_code::double_type: 双精度浮点数（double）
- * - type_code::string: 字符串（string）
- * - type_code::object_path: 对象路径（object_path）
- * - type_code::signature: 签名（signature）
- * - type_code::unix_fd: 文件描述符（unix_fd）
- *
- * 容器类型:
- * - type_code::array_start: 数组，后面跟随一个完整类型
- * - type_code::struct_start: 结构体开始，各元素类型后跟')'
- * - type_code::variant: 变体
- * - type_code::dict_entry_start: 字典项开始，格式为{键类型值类型}
- */
+constexpr char   empty_signature      = '\0';
+constexpr size_t max_signature_length = 255;
+
+inline char first_type(const std::string& sig) {
+    if (sig.empty()) {
+        return '\0';
+    }
+
+    return sig[0];
+}
+
 class signature {
 public:
     /**
@@ -406,16 +391,26 @@ private:
     size_t           m_pos{0};
 };
 
-} // namespace dbus
+namespace detail {
+// 对 signature 的特化
+template <>
+struct signature_helper<mc::reflect::signature> {
+    static void apply(std::string& sig) {
+        sig += type_to_char(mc::reflect::type_code::signature_type);
+    }
+};
+} // namespace detail
 
-inline void to_variant(const dbus::signature& sig, variant& v) {
+} // namespace reflect
+
+inline void to_variant(const reflect::signature& sig, variant& v) {
     v = sig.str();
 }
 
-inline void from_variant(const variant& v, dbus::signature& sig) {
-    sig = dbus::signature(v.as_string());
+inline void from_variant(const variant& v, reflect::signature& sig) {
+    sig = reflect::signature(v.as_string());
 }
 
 } // namespace mc
 
-#endif // MC_DBUS_SIGNATURE_H
+#endif // MC_REFLECT_SIGNATURE_H

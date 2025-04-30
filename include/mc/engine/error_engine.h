@@ -13,6 +13,7 @@
 #ifndef MC_ENGINE_ERROR_ENGINE_H
 #define MC_ENGINE_ERROR_ENGINE_H
 #include <mc/engine/error.h>
+#include <mc/engine/errors/std_errors.h>
 
 namespace mc::engine {
 
@@ -23,11 +24,39 @@ public:
 
     static error_engine& get_instance();
 
-    void             register_const_error(const error_info& info);
-    void             register_const_error(std::string_view name, std::string_view format);
-    void             register_error(std::string name, std::string format);
-    std::string_view get_error_format(std::string_view name);
-    bool             is_registered(std::string_view name);
+    /*
+     * 注册常量错误
+     *
+     * @param info 错误信息
+     */
+    error_info register_const_error(const error_info& info);
+    error_info register_const_error(std::string_view name, std::string_view format,
+                                    error_level level = error_level::error);
+
+    /*
+     * 注册动态错误
+     *
+     * @param name 错误名称
+     * @param format 格式化字符串
+     */
+    error_info register_error(std::string name, std::string format,
+                              error_level level = error_level::error);
+
+    /*
+     * 获取错误信息
+     *
+     * @param name 错误名称
+     * @return 错误信息
+     */
+    error_info get_error_info(std::string_view name);
+
+    /*
+     * 检查错误是否已注册
+     *
+     * @param name 错误名称
+     * @return 如果已注册返回 true，否则返回 false
+     */
+    bool is_registered(std::string_view name);
 
     /*
      * 报告错误到错误引擎，错误必须预先注册到错误引擎，否则抛出常
@@ -36,41 +65,11 @@ public:
      * @param format 格式化字符串
      * @return 创建的错误
      */
-    error& report_error(std::string_view name);
-    error& report_error(const error_info& info);
-    void   set_last_error(const error& error);
-    void   reset_error();
-    error& last_error();
-
-    /*------------------- 一些静态辅助函数 -------------------*/
-    /*
-     * 检查错误名称是否有效
-     *
-     * @param name 错误名称
-     * @return 如果有效返回 true，否则返回 false
-     */
-    static bool is_valid_error_name(std::string_view name);
-
-    /**
-     * @brief 解析 format 字符串，找到 ${name} 格式的占位符，并将其添加到 arg_names 中
-     *
-     * @param format 格式化字符串
-     * @param arg_names 存储占位符名称的字典
-     * @return 如果解析成功返回 true，否则返回 false
-     */
-    static bool get_format_args(std::string_view format, mc::dict& arg_names, error& error);
-
-    /*
-     * 创建错误，如果 name 不满足要求抛出错误
-     *
-     * @param name 错误名称
-     * @param format 格式化字符串
-     * @return 创建的错误
-     *
-     * 注意：这个方法可以创建任意错误，并不要求错误必须注册到错误引擎中
-     */
-    static error make_error(std::string_view name, std::string_view format);
-    static error make_error(const error_info& info);
+    const error& report_error(std::string_view name, mc::dict args = {});
+    const error& report_error(const error_info& info, mc::dict args = {});
+    error        set_last_error(error new_error);
+    void         reset_error();
+    const error& last_error();
 
 private:
     struct error_engine_impl;

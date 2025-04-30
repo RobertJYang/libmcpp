@@ -22,10 +22,6 @@
 
 namespace mc {
 
-// 默认构造函数
-dict::dict() : m_data(std::make_shared<data_t>()) {
-}
-
 // 从键值对集合构造
 dict::dict(const std::vector<entry>& entries)
     : m_data(std::make_shared<data_t>(entries.empty() ? 1 : entries.size())) {
@@ -56,20 +52,6 @@ dict::dict(std::initializer_list<std::pair<variant, variant>> init)
     }
 }
 
-// 拷贝构造函数 - 共享数据
-dict::dict(const dict& other) : m_data(other.m_data) {
-}
-
-// 移动构造函数
-dict::dict(dict&& other) noexcept = default;
-
-// 析构函数
-dict::~dict() = default;
-
-// 赋值运算符 - 共享数据
-dict& dict::operator=(const dict& other)     = default;
-dict& dict::operator=(dict&& other) noexcept = default;
-
 // 查找指定键的元素
 const dict::entry* dict::find_entry(const std::string& key) const {
     return find_entry(std::string_view(key));
@@ -77,6 +59,10 @@ const dict::entry* dict::find_entry(const std::string& key) const {
 
 // 查找指定键的元素 (string_view 版本)
 const dict::entry* dict::find_entry(std::string_view key) const {
+    if (!m_data) {
+        return nullptr;
+    }
+
     auto it = m_data->index.find(key);
     if (it != m_data->index.end()) {
         return &(*it);
@@ -93,6 +79,10 @@ const dict::entry* dict::find_entry(const char* key) const {
 }
 
 const dict::entry* dict::find_entry(const variant& key) const {
+    if (!m_data) {
+        return nullptr;
+    }
+
     auto it = m_data->index.find(key);
     if (it != m_data->index.end()) {
         return &(*it);
@@ -184,26 +174,46 @@ bool dict::contains(const variant& key) const {
 
 // 获取键值对数量
 size_t dict::size() const {
+    if (!m_data) {
+        return 0;
+    }
+
     return m_data->entries.size();
 }
 
 // 判断是否为空
 bool dict::empty() const {
+    if (!m_data) {
+        return true;
+    }
+
     return m_data->entries.empty();
 }
 
 // 获取开始迭代器
 dict::const_iterator dict::begin() const {
+    if (!m_data) {
+        return {};
+    }
+
     return m_data->entries.begin();
 }
 
 // 获取结束迭代器
 dict::const_iterator dict::end() const {
+    if (!m_data) {
+        return {};
+    }
+
     return m_data->entries.end();
 }
 
 // 获取所有键
 std::vector<variant> dict::keys() const {
+    if (!m_data) {
+        return {};
+    }
+
     std::vector<variant> result;
     result.reserve(size());
     for (const auto& item : m_data->entries) {
@@ -214,6 +224,10 @@ std::vector<variant> dict::keys() const {
 
 // 获取所有值
 std::vector<variant> dict::values() const {
+    if (!m_data) {
+        return {};
+    }
+
     std::vector<variant> result;
     result.reserve(size());
     for (const auto& item : m_data->entries) {
@@ -224,7 +238,7 @@ std::vector<variant> dict::values() const {
 
 // 获取指定索引位置的键值对
 const dict::entry& dict::at_index(size_t index) const {
-    if (index >= size()) {
+    if (!m_data || index >= size()) {
         throw std::out_of_range("字典索引越界");
     }
 
@@ -263,7 +277,7 @@ const variant& dict::at(const variant& key) const {
 
 // 计算指定元素在列表中的索引位置
 int dict::find_entry_index(const entry* e) const {
-    if (!e) {
+    if (!e || !m_data) {
         return -1;
     }
 
@@ -307,6 +321,11 @@ bool dict::operator==(const dict& other) const {
         return true;
     }
 
+    // 如果不是指向同一个数据，那任意一个为空则一定不相等
+    if (!m_data || !other.m_data) {
+        return false;
+    }
+
     // 如果大小不同，则不相等
     if (size() != other.size()) {
         return false;
@@ -336,10 +355,11 @@ dict::const_iterator dict::find(const std::string& key) const {
 // 查找指定键的元素，返回迭代器 (std::string_view 版本)
 dict::const_iterator dict::find(std::string_view key) const {
     const entry* e = find_entry(key);
-    if (e) {
-        return m_data->entries.iterator_to(*const_cast<entry*>(e));
+    if (!e) {
+        return end();
     }
-    return m_data->entries.end();
+
+    return m_data->entries.iterator_to(*const_cast<entry*>(e));
 }
 
 // 查找指定键的元素，返回迭代器 (const char* 版本)
@@ -352,10 +372,10 @@ dict::const_iterator dict::find(const char* key) const {
 
 dict::const_iterator dict::find(const variant& key) const {
     const entry* e = find_entry(key);
-    if (e) {
-        return m_data->entries.iterator_to(*const_cast<entry*>(e));
+    if (!e) {
+        return end();
     }
-    return m_data->entries.end();
+    return m_data->entries.iterator_to(*const_cast<entry*>(e));
 }
 
 // 将 dict 转换为 variant

@@ -20,38 +20,18 @@
 
 namespace mc {
 
-// 默认构造函数
-mutable_dict::mutable_dict() = default;
-
-// 单键值对构造函数
 mutable_dict::mutable_dict(variant key, variant value) : dict() {
     (*this)(std::move(key), std::move(value));
 }
 
-// 从键值对集合构造
 mutable_dict::mutable_dict(std::vector<entry> entries) : dict(std::move(entries)) {
 }
 
-// 从初始化列表构造
 mutable_dict::mutable_dict(std::initializer_list<std::pair<variant, variant>> init) : dict(init) {
 }
 
-// 从 dict 构造
 mutable_dict::mutable_dict(const dict& other) : dict(other) {
 }
-
-// 拷贝构造函数
-mutable_dict::mutable_dict(const mutable_dict& other) = default;
-
-// 移动构造函数
-mutable_dict::mutable_dict(mutable_dict&& other) noexcept = default;
-
-// 析构函数
-mutable_dict::~mutable_dict() = default;
-
-// 赋值运算符
-mutable_dict& mutable_dict::operator=(const mutable_dict& other)     = default;
-mutable_dict& mutable_dict::operator=(mutable_dict&& other) noexcept = default;
 
 // 从 dict 赋值
 mutable_dict& mutable_dict::operator=(const dict& other) {
@@ -103,9 +83,10 @@ mutable_dict& mutable_dict::operator()(variant key, variant value) {
     if (e) {
         e->value = std::move(value);
     } else {
+        auto&  data      = ensure_data();
         entry* new_entry = new entry(std::move(key), std::move(value));
-        m_data->entries.push_back(*new_entry);
-        m_data->index.insert(*new_entry);
+        data.entries.push_back(*new_entry);
+        data.index.insert(*new_entry);
     }
     return *this;
 }
@@ -122,9 +103,10 @@ variant& mutable_dict::operator[](std::string_view key) {
         return e->value;
     }
 
+    auto&  data      = ensure_data();
     entry* new_entry = new entry(std::string(key), variant());
-    m_data->entries.push_back(*new_entry);
-    m_data->index.insert(*new_entry);
+    data.entries.push_back(*new_entry);
+    data.index.insert(*new_entry);
     return new_entry->value;
 }
 
@@ -146,9 +128,10 @@ variant& mutable_dict::operator[](const variant& key) {
         return e->value;
     }
 
+    auto&  data      = ensure_data();
     entry* new_entry = new entry(key, variant());
-    m_data->entries.push_back(*new_entry);
-    m_data->index.insert(*new_entry);
+    data.entries.push_back(*new_entry);
+    data.index.insert(*new_entry);
     return new_entry->value;
 }
 
@@ -212,6 +195,10 @@ bool mutable_dict::erase(const variant& key) {
 
 // 清空所有键值对
 void mutable_dict::clear() {
+    if (!m_data) {
+        return;
+    }
+
     // 先清空索引，这样钩子就不再链接到容器中
     m_data->index.clear();
     // 然后清空链表并释放内存
@@ -222,21 +209,37 @@ void mutable_dict::clear() {
 
 // 获取开始迭代器
 mutable_dict::iterator mutable_dict::begin() {
+    if (!m_data) {
+        return {};
+    }
+
     return m_data->entries.begin();
 }
 
 // 获取开始迭代器（const 版本）
 mutable_dict::const_iterator mutable_dict::begin() const {
+    if (!m_data) {
+        return {};
+    }
+
     return m_data->entries.begin();
 }
 
 // 获取结束迭代器
 mutable_dict::iterator mutable_dict::end() {
+    if (!m_data) {
+        return {};
+    }
+
     return m_data->entries.end();
 }
 
 // 获取结束迭代器（const 版本）
 mutable_dict::const_iterator mutable_dict::end() const {
+    if (!m_data) {
+        return {};
+    }
+
     return m_data->entries.end();
 }
 
@@ -286,6 +289,10 @@ mutable_dict::iterator mutable_dict::find(const std::string& key) {
 
 // 查找指定键的元素，返回迭代器 (std::string_view 版本)
 mutable_dict::iterator mutable_dict::find(std::string_view key) {
+    if (!m_data) {
+        return end();
+    }
+
     entry* e = find_entry(key);
     if (e) {
         // 直接从元素指针获取迭代器
@@ -304,10 +311,11 @@ mutable_dict::iterator mutable_dict::find(const char* key) {
 
 mutable_dict::iterator mutable_dict::find(const variant& key) {
     entry* e = find_entry(key);
-    if (e) {
-        return m_data->entries.iterator_to(*e);
+    if (!e) {
+        return end();
     }
-    return m_data->entries.end();
+
+    return m_data->entries.iterator_to(*e);
 }
 
 // 查找指定键的元素，返回迭代器 (std::string 版本，const)
@@ -330,6 +338,14 @@ mutable_dict::const_iterator mutable_dict::find(const char* key) const {
 
 mutable_dict::const_iterator mutable_dict::find(const variant& key) const {
     return dict::find(key);
+}
+
+dict::data_t& mutable_dict::ensure_data() const {
+    if (!m_data) {
+        m_data = std::make_shared<dict::data_t>();
+    }
+
+    return *m_data;
 }
 
 } // namespace mc

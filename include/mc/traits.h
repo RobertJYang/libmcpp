@@ -100,6 +100,30 @@ void tuple_element_for_each(Func&& func) {
         std::make_index_sequence<std::tuple_size_v<std::decay_t<Tuple>>>{});
 }
 
+template <typename F, size_t I = 0, typename... Ts>
+void apply_tuple_element_impl(F&& func, const std::tuple<Ts...>& tup, size_t index) {
+    if constexpr (I < sizeof...(Ts)) {
+        if (I == index) {
+            func(std::get<I>(tup));
+        }
+        return apply_tuple_element_impl<F, I + 1>(std::forward<F>(func), tup, index);
+    }
+}
+
+/**
+ * @brief 应用元组的第 index 个元素
+ *
+ * @tparam F 函数类型
+ * @tparam Ts 元组元素类型
+ * @param func 函数
+ * @param tup 元组
+ * @param index 索引
+ */
+template <typename F, typename... Ts>
+void apply_tuple_element(F&& func, const std::tuple<Ts...>& tup, size_t index) {
+    apply_tuple_element_impl<F>(std::forward<F>(func), tup, index);
+}
+
 } // namespace traits
 } // namespace mc
 

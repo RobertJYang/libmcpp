@@ -10,16 +10,16 @@
  * See the Mulan PSL v2 for more details.
  */
 
-#ifndef MC_DBUS_TYPE_CODE_H
-#define MC_DBUS_TYPE_CODE_H
+#ifndef MC_REFLECT_TYPE_CODE_H
+#define MC_REFLECT_TYPE_CODE_H
 #include <string_view>
 
-namespace mc::dbus {
+namespace mc::reflect {
 
 /**
- * @brief DBus类型代码常量
+ * @brief 类型代码常量
  *
- * 定义DBus类型的字符代码，避免代码中硬编码字符
+ * 定义类型的字符代码，避免代码中硬编码字符
  */
 enum class type_code {
     invalid_type     = '\0',
@@ -58,10 +58,6 @@ inline type_code char_to_type(char c) {
     return static_cast<type_code>(c);
 }
 
-// 其他常用常量
-constexpr char empty_signature      = '\0'; // 空签名
-constexpr int  max_signature_length = 255;  // 最大签名长度
-
 // 类型组合
 namespace container {
 constexpr std::string_view array_of_byte    = "ay";    // 字节数组
@@ -70,6 +66,6 @@ constexpr std::string_view array_of_variant = "av";    // 变体数组
 constexpr std::string_view dict_string_var  = "a{sv}"; // 字符串到变体的字典
 } // namespace container
 
-} // namespace mc::dbus
+} // namespace mc::reflect
 
-#endif // MC_DBUS_TYPE_CODE_H
+#endif // MC_REFLECT_TYPE_CODE_H

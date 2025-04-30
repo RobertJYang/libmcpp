@@ -177,19 +177,19 @@ public:
         return property_info_to_interface(*info)->set_property(property_name, value);
     }
 
-    mc::variant invoke(std::string_view method_name, const mc::variants& args,
-                       std::string_view interface_name = {}) override {
+    invoke_result invoke(std::string_view method_name, const mc::variants& args,
+                         std::string_view interface_name = {}) override {
         // 跟踪对象调用
         object_call_stack::context object_ctx{m_service, *this};
 
         auto result = standard_interfaces::invoke(this, method_name, args, interface_name);
-        if (!result.is_null()) {
+        if (result.is_valid()) {
             return result;
         }
 
         auto info = metadata_type::get_instance().get_method_interface(method_name, interface_name);
         if (info == nullptr) {
-            return mc::variant();
+            return {nullptr, mc::variant()};
         }
 
         return property_info_to_interface(*info)->invoke(method_name, args);

@@ -152,22 +152,31 @@ DBusHandlerResult service_impl::on_path_message(mc::dbus::message& msg, object_b
 }
 
 DBusHandlerResult service_impl::on_method_call(object_base& object, mc::dbus::message& msg) {
-    auto method    = msg.get_member();
-    auto interface = msg.get_interface();
-    auto args      = msg.read_args();
+    context ctx(*m_service, object);
+    ctx.set_call_info(detail::dbus_call{msg});
+    auto& info = std::get<detail::dbus_call>(ctx.get_call_info());
 
-    dbus_call_info           call_info{msg, &object};
-    dbus_call_stack::context ctx(m_service, call_info);
+    context_stack::context call_ctx(m_service, ctx);
+    try {
+        auto interface_name = msg.get_interface();
+        auto method_name    = msg.get_member();
+        auto args           = msg.read_args();
 
-    auto result = object.invoke(method, args, interface);
-    if (result.is_null()) {
-        return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
+        auto result = object.invoke(method_name, args, interface_name);
+        if (!result.is_valid()) {
+            info.response =
+                mc::dbus::message::new_error(msg, errors::unknown_method.name, "method not found");
+        } else {
+            info.response = mc::dbus::message::new_method_return(msg);
+            mc::dbus::signature_iterator it(result.method->get_result_signature());
+            info.response.writer().write_variant(it, result, 0);
+        }
+    } catch (const std::exception& e) {
+        elog("method call failed: ${error}", ("error", e.what()));
+        info.response = mc::dbus::message::new_error_message(errors::failed.name, e.what());
     }
 
-    auto reply = mc::dbus::message::new_method_return(msg);
-    reply.writer().write_variant_value(result);
-    m_connection->send(std::move(reply));
-
+    m_connection->send(std::move(info.response));
     return DBUS_HANDLER_RESULT_HANDLED;
 }
 

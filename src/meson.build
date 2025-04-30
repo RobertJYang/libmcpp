@@ -4,7 +4,6 @@ src_files = [
   'filesystem.cpp',
   'variant.cpp',
   'json.cpp',
-  'reflect.cpp',
   'time.cpp',
   'dict.cpp',
   'mutable_dict.cpp',
@@ -25,6 +24,8 @@ src_files = [
   'log/log_manager.cpp',
   'log/appender_factory.cpp',
   'log/appenders/console_appender.cpp',
+  'reflect/signature.cpp',
+  'reflect/reflect.cpp',
   'interprocess/shared_memory.cpp',
   'interprocess/shared_memory_allocator.cpp',
   'interprocess/shared_memory_manager.cpp',
@@ -36,7 +37,6 @@ src_files = [
   'db/database.cpp',
   'io/io_buffer.cpp',
   'io/io_stream.cpp',
-  'dbus/signature.cpp',
   'dbus/path.cpp',
   'dbus/message.cpp',
   'dbus/validator.cpp',
@@ -50,6 +50,7 @@ src_files = [
   'engine/std_interface.cpp',
   'engine/error.cpp',
   'engine/error_engine.cpp',
+  'engine/context.cpp',
 ]
 
 # 创建共享库
