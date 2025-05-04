@@ -21,7 +21,7 @@
 namespace mdb = mc::db;
 
 namespace mc::engine {
-using object_tree     = mdb::table<object_wrap, mdb::indexed_by<path_unique_index>>;
+using object_tree     = mdb::table<abstract_object, mdb::indexed_by<path_unique_index>>;
 using object_tree_ptr = std::shared_ptr<object_tree>;
 
 struct service_interface : public mc::engine::interface<service_interface> {
@@ -130,12 +130,11 @@ void service_impl::stop() {
 }
 
 void service_impl::register_object(abstract_object& obj) {
-    auto obj_wrap = object_wrap::create(&obj);
-    m_object_tree->add(obj_wrap);
+    m_object_tree->add(mc::im::cast<abstract_object>(&obj));
     obj.set_service(*m_service);
     adjust_object_parent(obj);
-    m_connection->register_path(obj.get_object_path(), [this, obj_wrap](auto& msg) {
-        return on_path_message(msg, **obj_wrap);
+    m_connection->register_path(obj.get_object_path(), [this, &obj](auto& msg) {
+        return on_path_message(msg, obj);
     });
 }
 

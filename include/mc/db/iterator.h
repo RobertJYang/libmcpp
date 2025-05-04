@@ -13,15 +13,16 @@
 #ifndef MC_DATABASE_ITERATOR_H
 #define MC_DATABASE_ITERATOR_H
 
-#include <iterator>
+#include <mc/db/common.h>
 #include <mc/exception.h>
+
 #include <string_view>
-#include <type_traits>
 
 namespace mc::db {
 
 // 前向声明
-template <typename ObjectType, typename KeyExtractor, bool IsUnique, typename Tag>
+template <typename ObjectType, typename KeyExtractor, bool IsUnique, typename Tag,
+          typename Allocator>
 class index;
 
 /**
@@ -32,13 +33,12 @@ class index;
 template <typename IndexType>
 class iterator {
 public:
-    using object_type    = typename IndexType::object_type;
-    using raw_iterator   = typename IndexType::raw_iterator;
-    using key_type       = typename IndexType::key_extractor_type;
-    using object_id_type = typename IndexType::object_id_type;
-    using value_type     = object_type;
-    using pointer        = const object_type*;
-    using reference      = const object_type&;
+    using object_type  = typename IndexType::object_type;
+    using raw_iterator = typename IndexType::raw_iterator;
+    using key_type     = typename IndexType::key_extractor_type;
+    using value_type   = object_type;
+    using pointer      = const object_type*;
+    using reference    = const object_type&;
 
     static constexpr bool is_sort_great   = IndexType::is_sort_great;
     static constexpr bool is_unique       = IndexType::is_unique;
@@ -265,7 +265,7 @@ private:
     bool         m_is_end;
 
     // 声明mem_index为友元类
-    template <typename, typename, bool, typename>
+    template <typename, typename, bool, typename, typename>
     friend class index;
 };
 

@@ -13,14 +13,15 @@
 #ifndef MC_DATABASE_KEY_EXTRACTOR_H
 #define MC_DATABASE_KEY_EXTRACTOR_H
 
+#include <mc/db/common.h>
+#include <mc/db/key.h>
+
 #include <functional>
 #include <string>
 #include <string_view>
 #include <tuple>
 #include <type_traits>
 #include <utility>
-
-#include <mc/db/key.h>
 
 namespace mc::db {
 
@@ -462,7 +463,7 @@ template <typename ObjectType>
 class object_id_key {
 public:
     using object_type                     = ObjectType;
-    using key_type                        = typename ObjectType::object_id_type;
+    using key_type                        = object_id_type;
     static constexpr int  key_count       = 1;
     static constexpr bool is_compound_key = false;
 
@@ -517,7 +518,7 @@ public:
 template <typename ObjectType>
 struct key_extractor_traits<object_id_key<ObjectType>> {
     using object_type    = ObjectType;
-    using key_type       = typename ObjectType::object_id_type;
+    using key_type       = object_id_type;
     using extractor_type = object_id_key<ObjectType>;
     using tag            = tag_member; // 视为成员键
 };

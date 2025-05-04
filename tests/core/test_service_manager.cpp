@@ -13,15 +13,18 @@
 #include <gtest/gtest.h>
 #include <mc/core/config_manager.h>
 #include <mc/core/config_schema.h>
+#include <mc/core/service.h>
 #include <mc/core/service_factory.h>
 #include <mc/core/service_manager.h>
 #include <mc/core/supervisor.h>
 #include <mc/core/supervisor_manager.h>
+
 #include <mc/dict.h>
 #include <mc/variant.h>
 #include <test_utilities/test_base.h>
 
 using namespace mc;
+using namespace mc::core;
 
 // 测试辅助函数：创建服务配置
 config::service_config make_service_config(const std::string&              name,
@@ -102,9 +105,9 @@ private:
 };
 
 // 测试用服务
-class test_service : public service_base<test_service> {
+class test_service : public service_base {
 public:
-    test_service(const std::string& name) : service_base<test_service>(name) {
+    test_service(const std::string& name) : service_base(name) {
     }
 
     bool init(dict args) override {

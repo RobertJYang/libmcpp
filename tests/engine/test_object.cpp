@@ -68,9 +68,6 @@ class TestObject : public mc::engine::object<TestObject> {
 public:
     MC_OBJECT("/org/test/TestObject", (TestInterface1)(TestInterface2))
 
-    TestObject() : mc::engine::object<TestObject>(0) {
-    }
-
     int32_t m_prev_value = 0;
 
     TestInterface1 m_iface1;
@@ -94,8 +91,8 @@ protected:
     void TearDown() override {
     }
 
-    TestObject               obj;
-    mc::engine::object_base& obj_base = obj;
+    TestObject                   obj;
+    mc::engine::abstract_object& obj_base = obj;
 };
 
 TEST_F(object_test, test_object_metadata) {

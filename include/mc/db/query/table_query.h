@@ -45,7 +45,6 @@ public:
     using object_ptr_type       = typename TableType::object_ptr_type;
     using const_object_ptr_type = typename TableType::const_object_ptr_type;
     using raw_iterator          = typename TableType::raw_iterator;
-    using object_id_type        = typename object_type::object_id_type;
 
     /**
      * 构造函数

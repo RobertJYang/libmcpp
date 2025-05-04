@@ -60,7 +60,7 @@ class TestObject2 : public mc::engine::object<TestObject2> {
 public:
     MC_OBJECT("/Id/${Id}", (TestInterface2))
 
-    const std::string& get_object_path() const override {
+    std::string_view get_object_path() const override {
         if (this->m_object_path.empty()) {
             if (get_parent()) {
                 this->m_object_path = get_parent()->get_object_path();
@@ -89,22 +89,32 @@ using namespace mc::engine;
 
 class std_interface_test : public mc::test::TestBaseWithEngine {
 protected:
-    TestObject1 obj1;
-    TestObject2 obj2;
-    TestObject2 obj3;
+    TestObject1* root;
+    TestObject2* child_obj2;
+    TestObject2* child_obj3;
+
+    ~std_interface_test() {
+        // 子对象会自动删除
+        delete root;
+    }
 
     void SetUp() override {
-        obj1.m_iface1.m_value = 100;
-        obj1.m_iface1.m_name  = "Name";
+        root                   = new TestObject1();
+        root->m_iface1.m_value = 100;
+        root->m_iface1.m_name  = "Name";
 
-        obj2.m_iface2.m_id  = "00101";
-        obj2.m_iface2.m_map = {{"Key1", 1}, {"Key2", 2}};
+        child_obj2 = new TestObject2();
+        child_obj2->set_parent(root);
+        child_obj2->m_iface2.m_id  = "00101";
+        child_obj2->m_iface2.m_map = {{"Key1", 1}, {"Key2", 2}};
 
-        obj3.m_iface2.m_id  = "00102";
-        obj3.m_iface2.m_map = {{"Key3", 3}, {"Key4", 4}};
+        child_obj3 = new TestObject2();
+        child_obj3->set_parent(root);
+        child_obj3->m_iface2.m_id  = "00102";
+        child_obj3->m_iface2.m_map = {{"Key3", 3}, {"Key4", 4}};
 
-        obj1.add_child(&obj2);
-        obj1.add_child(&obj3);
+        root->add_managed_object(child_obj2);
+        root->add_managed_object(child_obj3);
     }
 
     void TearDown() override {
@@ -200,29 +210,29 @@ protected:
 };
 
 TEST_F(std_interface_test, test_properties) {
-    auto value = obj1.invoke("Get", mc::variants{"org.test.TestInterface1", "Value"},
-                             properties_interface_name);
+    auto value = root->invoke("Get", mc::variants{"org.test.TestInterface1", "Value"},
+                              properties_interface_name);
     EXPECT_EQ(value, 100);
 
     auto i1values =
-        obj1.invoke("GetAll", mc::variants{"org.test.TestInterface1"}, properties_interface_name);
+        root->invoke("GetAll", mc::variants{"org.test.TestInterface1"}, properties_interface_name);
     EXPECT_EQ(i1values, (mc::dict{{"Value", 100}, {"Name", "Name"}}));
 
-    auto i2values =
-        obj2.invoke("GetAll", mc::variants{"org.test.TestInterface2"}, properties_interface_name);
+    auto i2values = child_obj2->invoke("GetAll", mc::variants{"org.test.TestInterface2"},
+                                       properties_interface_name);
     EXPECT_EQ(i2values, (mc::dict{{"Id", "00101"}, {"Map", mc::dict{{"Key1", 1}, {"Key2", 2}}}}));
 
-    obj1.invoke("Set", mc::variants{"org.test.TestInterface1", "Value", 200},
-                properties_interface_name);
-    EXPECT_EQ(obj1.m_iface1.m_value, 200);
+    root->invoke("Set", mc::variants{"org.test.TestInterface1", "Value", 200},
+                 properties_interface_name);
+    EXPECT_EQ(root->m_iface1.m_value, 200);
 
-    EXPECT_EQ(obj1.get_object_path(), "/org/test/TestObject");
-    EXPECT_EQ(obj2.get_object_path(), "/org/test/TestObject/Id/00101");
-    EXPECT_EQ(obj3.get_object_path(), "/org/test/TestObject/Id/00102");
+    EXPECT_EQ(root->get_object_path(), "/org/test/TestObject");
+    EXPECT_EQ(child_obj2->get_object_path(), "/org/test/TestObject/Id/00101");
+    EXPECT_EQ(child_obj3->get_object_path(), "/org/test/TestObject/Id/00102");
 }
 
 TEST_F(std_interface_test, test_introspect) {
-    auto xml = obj1.invoke("Introspect", mc::variants{}, introspectable_interface_name);
+    auto xml = root->invoke("Introspect", mc::variants{}, introspectable_interface_name);
 
     /*
     <!DOCTYPE node PUBLIC "-//freedesktop//DTD D-BUS Object Introspection 1.0//EN"

@@ -21,6 +21,72 @@
 
 namespace mc::im {
 
+template <typename T, typename Alloc = std::allocator<T>, typename... Args>
+T* allocate(const Alloc& alloc, Args&&... args) {
+    using AllocTraits  = std::allocator_traits<Alloc>;
+    using ReboundAlloc = typename AllocTraits::template rebind_alloc<T>;
+
+    ReboundAlloc rebound_alloc(alloc);
+    using ReboundAllocTraits = std::allocator_traits<ReboundAlloc>;
+
+    // 分配内存
+    T* ptr = ReboundAllocTraits::allocate(rebound_alloc, 1);
+
+    try {
+        // 构造对象
+        ReboundAllocTraits::construct(rebound_alloc, ptr, std::forward<Args>(args)...);
+        return ptr;
+    } catch (...) {
+        ReboundAllocTraits::deallocate(rebound_alloc, ptr, 1);
+        throw;
+    }
+}
+
+/**
+ * @brief 销毁并释放内存
+ * @tparam T 对象类型
+ * @tparam Alloc 分配器类型
+ * @param alloc 分配器
+ * @param ptr 指向要销毁的对象的指针
+ */
+template <typename T, typename Alloc = std::allocator<T>>
+void destroy(const Alloc& alloc, T* ptr) {
+    using AllocTraits  = std::allocator_traits<Alloc>;
+    using ReboundAlloc = typename AllocTraits::template rebind_alloc<T>;
+
+    ReboundAlloc rebound_alloc(alloc);
+    using ReboundAllocTraits = std::allocator_traits<ReboundAlloc>;
+
+    ReboundAllocTraits::destroy(rebound_alloc, ptr);
+    ReboundAllocTraits::deallocate(rebound_alloc, ptr, 1);
+}
+
+namespace detail {
+template <typename T>
+static constexpr auto has_m_alloc(int) -> decltype(std::declval<T>().m_alloc, bool()) {
+    return true;
+}
+
+template <typename T>
+static constexpr bool has_m_alloc(...) {
+    return false;
+}
+
+template <typename T>
+void destroy_ptr(T* ptr) {
+    using non_const_t = std::remove_const_t<T>;
+    if constexpr (has_m_alloc<T>(0)) {
+        using alloc_type   = typename non_const_t::alloc_type;
+        using alloc_traits = std::allocator_traits<alloc_type>;
+        alloc_type alloc   = ptr->m_alloc;
+        alloc_traits::destroy(alloc, ptr);
+        alloc_traits::deallocate(alloc, const_cast<non_const_t*>(ptr), 1);
+    } else {
+        std::default_delete<T>()(const_cast<non_const_t*>(ptr));
+    }
+}
+} // namespace detail
+
 /**
  * ref_ptr 智能指针，类似 std::shared_ptr 但专门用于管理 ref_base 对象
  */
@@ -72,12 +138,7 @@ public:
     // 析构函数
     ~ref_ptr() {
         if (m_ptr && m_ptr->release_ref()) {
-            using non_const_t  = std::remove_const_t<T>;
-            using alloc_type   = typename non_const_t::alloc_type;
-            using alloc_traits = std::allocator_traits<alloc_type>;
-            alloc_type alloc;
-            alloc_traits::destroy(alloc, m_ptr);
-            alloc_traits::deallocate(alloc, const_cast<non_const_t*>(m_ptr), 1);
+            detail::destroy_ptr(m_ptr);
         }
     }
 
@@ -152,6 +213,16 @@ bool operator==(std::nullptr_t, const ref_ptr<T>& rhs) noexcept {
     return nullptr == rhs.get();
 }
 
+template <typename T>
+bool operator==(T* lhs, const ref_ptr<T>& rhs) noexcept {
+    return lhs == rhs.get();
+}
+
+template <typename T>
+bool operator==(const ref_ptr<T>& lhs, T* rhs) noexcept {
+    return lhs.get() == rhs;
+}
+
 // 不等运算符
 template <typename T, typename U>
 bool operator!=(const ref_ptr<T>& lhs, const ref_ptr<U>& rhs) noexcept {
@@ -168,50 +239,30 @@ bool operator!=(std::nullptr_t, const ref_ptr<T>& rhs) noexcept {
     return nullptr != rhs.get();
 }
 
+template <typename T>
+bool operator!=(T* lhs, const ref_ptr<T>& rhs) noexcept {
+    return lhs != rhs.get();
+}
+
+template <typename T>
+bool operator!=(const ref_ptr<T>& lhs, T* rhs) noexcept {
+    return lhs.get() != rhs;
+}
+
 // 小于运算符，用于排序容器
 template <typename T, typename U>
 bool operator<(const ref_ptr<T>& lhs, const ref_ptr<U>& rhs) noexcept {
     return lhs.get() < rhs.get();
 }
 
-template <typename T, typename Alloc = std::allocator<T>, typename... Args>
-T* allocate(const Alloc& alloc, Args&&... args) {
-    using AllocTraits  = std::allocator_traits<Alloc>;
-    using ReboundAlloc = typename AllocTraits::template rebind_alloc<T>;
-
-    ReboundAlloc rebound_alloc(alloc);
-    using ReboundAllocTraits = std::allocator_traits<ReboundAlloc>;
-
-    // 分配内存
-    T* ptr = ReboundAllocTraits::allocate(rebound_alloc, 1);
-
-    try {
-        // 构造对象
-        ReboundAllocTraits::construct(rebound_alloc, ptr, std::forward<Args>(args)...);
-        return ptr;
-    } catch (...) {
-        ReboundAllocTraits::deallocate(rebound_alloc, ptr, 1);
-        throw;
-    }
+template <typename T>
+bool operator<(T* lhs, const ref_ptr<T>& rhs) noexcept {
+    return lhs < rhs.get();
 }
 
-/**
- * @brief 销毁并释放内存
- * @tparam T 对象类型
- * @tparam Alloc 分配器类型
- * @param alloc 分配器
- * @param ptr 指向要销毁的对象的指针
- */
-template <typename T, typename Alloc = std::allocator<T>>
-void destroy(const Alloc& alloc, T* ptr) {
-    using AllocTraits  = std::allocator_traits<Alloc>;
-    using ReboundAlloc = typename AllocTraits::template rebind_alloc<T>;
-
-    ReboundAlloc rebound_alloc(alloc);
-    using ReboundAllocTraits = std::allocator_traits<ReboundAlloc>;
-
-    ReboundAllocTraits::destroy(rebound_alloc, ptr);
-    ReboundAllocTraits::deallocate(rebound_alloc, ptr, 1);
+template <typename T>
+bool operator<(const ref_ptr<T>& lhs, T* rhs) noexcept {
+    return lhs.get() < rhs;
 }
 
 template <typename T, typename Alloc = std::allocator<T>, typename... Args>
@@ -230,6 +281,18 @@ ref_ptr<T> allocate_ref(const Alloc& alloc, Args&&... args) {
 template <typename T, typename... Args>
 ref_ptr<T> make_ref(Args&&... args) {
     return allocate_ref<T>(std::allocator<T>(), std::forward<Args>(args)...);
+}
+
+template <typename ObjectType>
+mc::im::ref_ptr<ObjectType> cast(ref_base* ptr) {
+    auto* p = dynamic_cast<ObjectType*>(ptr);
+    return mc::im::ref_ptr<ObjectType>(p);
+}
+
+template <typename ObjectType>
+mc::im::ref_ptr<const ObjectType> cast(const ref_base* ptr) {
+    auto* p = dynamic_cast<const ObjectType*>(ptr);
+    return mc::im::ref_ptr<const ObjectType>(p);
 }
 
 } // namespace mc::im

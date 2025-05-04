@@ -54,10 +54,6 @@ public:
 
     ~application() override;
 
-    void destory() override {
-        // 应用程序对象的生命周期由单例管理，这里什么都不用做
-    }
-
     void               set_version(const std::string& version);
     const std::string& version() const;
 

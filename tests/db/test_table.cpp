@@ -30,8 +30,6 @@ MC_FIELD_INDEX_TAG(by_name_age, "name_age");
 
 class user : public mdb::object<user> {
 public:
-    using object_id_type = uint32_t;
-
     user() = default;
 
     user(std::string name, int age, double score = 0.0)

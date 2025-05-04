@@ -82,10 +82,6 @@ public:
     explicit service_base(std::string name = "");
     ~service_base() override;
 
-    void destory() override {
-        // 服务对象的生命周期由用户自行管理，这里什么都不用做
-    }
-
     void               set_name(std::string name);
     const std::string& name() const override;
 

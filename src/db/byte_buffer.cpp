@@ -10,8 +10,9 @@
  * See the Mulan PSL v2 for more details.
  */
 
-#include <algorithm>
 #include <mc/db/byte_buffer.h>
+
+#include <algorithm>
 
 namespace mc::db {
 

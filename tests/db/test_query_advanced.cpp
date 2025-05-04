@@ -33,8 +33,6 @@ struct by_city : mdb::tag_base {};
 
 class test_user : public mdb::object<test_user> {
 public:
-    using object_id_type = uint32_t;
-
     test_user() = default;
 
     test_user(uint32_t id, std::string name, int age, std::string city, double score = 0.0)

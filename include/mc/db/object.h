@@ -13,50 +13,20 @@
 #ifndef MC_DATABASE_OBJECT_H
 #define MC_DATABASE_OBJECT_H
 
-#include <cstdint>
+#include <mc/db/common.h>
 #include <mc/db/query/proto_query.h>
 #include <mc/im/ref_base.h>
 #include <mc/im/ref_ptr.h>
 #include <mc/reflect/reflect_metadata.h>
+
 #include <memory>
 #include <utility>
 
 namespace mc::db {
-
-class object_base {
+class object_base : public mc::im::ref_base {
 public:
+    object_base()          = default;
     virtual ~object_base() = default;
-
-    template <typename ObjectType>
-    mc::im::ref_ptr<const ObjectType> to_object_ptr() const {
-        auto* p = static_cast<const ObjectType*>(this);
-        return mc::im::ref_ptr<const ObjectType>(p);
-    }
-};
-
-/**
- * 数据库对象基类，提供ID和引用计数管理
- * @tparam ObjectType 具体对象类型
- * @tparam ObjectIdType ID类型
- * @tparam Allocator 分配器类型
- */
-template <typename ObjectType, typename Allocator = std::allocator<ObjectType>,
-          typename ObjectIdType = uint32_t>
-class object : public mc::im::ref_base<ObjectType>, public object_base {
-public:
-    using object_id_type        = ObjectIdType;
-    using alloc_type            = Allocator;
-    using const_object_ptr_type = mc::im::ref_ptr<const ObjectType>;
-    using object_ptr_type       = mc::im::ref_ptr<ObjectType>;
-
-    /**
-     * 默认构造函数
-     */
-    object(object_id_type id = 0, const alloc_type& alloc = alloc_type())
-        : m_alloc(alloc), m_object_id(id) {
-    }
-
-    virtual ~object() = default;
 
     /**
      * 获取对象ID
@@ -80,6 +50,26 @@ public:
      */
     bool has_valid_id() const {
         return m_object_id != 0;
+    }
+
+protected:
+    object_id_type m_object_id{0};
+};
+
+/**
+ * 数据库对象基类，提供ID和引用计数管理
+ * @tparam ObjectType 具体对象类型
+ * @tparam ObjectIdType ID类型
+ * @tparam Allocator 分配器类型
+ */
+template <typename ObjectType>
+class object : public virtual object_base {
+public:
+    using const_object_ptr_type = mc::im::ref_ptr<const ObjectType>;
+    using object_ptr_type       = mc::im::ref_ptr<ObjectType>;
+
+    object(object_id_type id = 0) {
+        set_object_id(id);
     }
 
     /**
@@ -133,16 +123,11 @@ public:
      * @param args 构造函数参数
      * @return 指向新创建对象的引用计数指针
      */
-    template <typename... Args>
+    template <typename Allocator, typename... Args>
     static mc::im::ref_ptr<ObjectType> create_with_allocator(const Allocator& alloc,
                                                              Args&&... args) {
         return mc::im::allocate_ref<ObjectType>(alloc, std::forward<Args>(args)...);
     }
-
-    alloc_type m_alloc;
-
-protected:
-    object_id_type m_object_id;
 
     friend class mc::im::ref_ptr<ObjectType>;
 };

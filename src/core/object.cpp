@@ -42,11 +42,6 @@ object::object_impl::~object_impl() {
         m_parent->remove_child(m_object);
     }
 
-    for (auto& child : m_children) {
-        auto p = child;
-        child  = nullptr;
-        p->destory();
-    }
     m_children.clear();
 }
 
@@ -59,10 +54,6 @@ object::object(object* parent) : m_impl(std::make_unique<object_impl>(parent)) {
 
 object::~object() noexcept {
     m_impl.reset();
-}
-
-void object::destory() {
-    delete this;
 }
 
 object::object(object&& other) noexcept {
@@ -83,10 +74,12 @@ void object::set_parent(object* parent) {
 
     if (old_parent) {
         old_parent->remove_child(this);
+        m_impl->m_parent = nullptr;
     }
 
     if (parent) {
         parent->add_child(this);
+        m_impl->m_parent = parent;
     }
 }
 
@@ -111,12 +104,12 @@ object* object::find_child(std::string_view name) const {
 }
 
 object* object::object_impl::find_child(std::string_view name) const {
-    auto it = std::find_if(m_children.begin(), m_children.end(), [&name](object* child) {
+    auto it = std::find_if(m_children.begin(), m_children.end(), [&name](const object_ptr& child) {
         return child->m_impl->m_name == name;
     });
 
     if (it != m_children.end()) {
-        return *it;
+        return it->get();
     }
 
     return nullptr;
@@ -133,7 +126,7 @@ void object::object_impl::add_child(object* child) {
 
     auto it = std::find(m_children.begin(), m_children.end(), child);
     if (it == m_children.end()) {
-        m_children.push_back(child);
+        m_children.emplace_back(mc::im::cast<object>(child));
     }
 }
 

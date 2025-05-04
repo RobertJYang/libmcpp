@@ -13,17 +13,6 @@
 #ifndef MC_DATABASE_TABLE_H
 #define MC_DATABASE_TABLE_H
 
-#include <atomic>
-#include <functional>
-#include <iostream>
-#include <memory>
-#include <string>
-#include <string_view>
-#include <tuple>
-#include <type_traits>
-#include <unordered_map>
-#include <vector>
-
 #include <mc/db/common.h>
 #include <mc/db/index.h>
 #include <mc/db/index_tag.h>
@@ -40,6 +29,14 @@
 #include <mc/reflect.h>
 #include <mc/signal_slot.h>
 #include <mc/traits.h>
+
+#include <atomic>
+#include <functional>
+#include <memory>
+#include <string>
+#include <string_view>
+#include <tuple>
+#include <vector>
 
 namespace mc::db {
 /**
@@ -121,7 +118,8 @@ constexpr bool verify_indices_object_type() {
  */
 template <typename ObjectType, typename Alloc>
 auto make_object_id_index(const Alloc& alloc = Alloc()) {
-    return index<ObjectType, object_id_key<ObjectType>, true>(object_id_key<ObjectType>{}, alloc);
+    return index<ObjectType, object_id_key<ObjectType>, true, void, Alloc>(
+        object_id_key<ObjectType>{}, alloc);
 }
 
 /**
@@ -130,10 +128,10 @@ auto make_object_id_index(const Alloc& alloc = Alloc()) {
 template <typename ObjectType, typename Tuple, std::size_t... Is, typename Alloc>
 auto make_indices_with_user_indices_impl(std::index_sequence<Is...>, const Alloc& alloc) {
     return std::make_tuple(
-        make_object_id_index<ObjectType>(alloc),
+        make_object_id_index<ObjectType, Alloc>(alloc),
         index<ObjectType, typename std::tuple_element_t<Is, Tuple>::key_extractor_type,
               std::tuple_element_t<Is, Tuple>::is_unique,
-              typename std::tuple_element_t<Is, Tuple>::tag_type>(
+              typename std::tuple_element_t<Is, Tuple>::tag_type, Alloc>(
             typename std::tuple_element_t<Is, Tuple>::key_extractor_type{}, alloc)...);
 }
 
@@ -287,19 +285,19 @@ protected:
  * @tparam ObjectType 对象类型
  * @tparam IndexDef 索引定义类型，默认为 no_indices
  */
-template <typename ObjectType, typename IndexDef = no_indices>
+template <typename ObjectType, typename IndexDef = no_indices,
+          typename Allocator = std::allocator<char>>
 class table : public table_base {
 public:
     using object_type           = ObjectType;
     using indices_def           = typename IndexDef::indices;
     using object_ptr_type       = mc::im::ref_ptr<object_type>;
     using const_object_ptr_type = mc::im::ref_ptr<const object_type>;
-    using index_map_config = mc::im::tree_config<object_ptr_type, typename object_type::alloc_type>;
-    using index_txn_type   = mc::im::transaction<index_map_config>;
-    using object_id_type   = typename ObjectType::object_id_type;
-    using alloc_type       = typename index_txn_type::allocator_type;
-    using tree_type        = typename index_txn_type::tree_type;
-    using raw_iterator     = typename tree_type::iterator;
+    using index_map_config      = mc::im::tree_config<object_ptr_type, Allocator>;
+    using index_txn_type        = mc::im::transaction<index_map_config>;
+    using alloc_type            = typename index_txn_type::allocator_type;
+    using tree_type             = typename index_txn_type::tree_type;
+    using raw_iterator          = typename tree_type::iterator;
 
     // 确保所有索引使用相同的对象类型
     static_assert(detail::verify_indices_object_type<object_type, indices_def>(),

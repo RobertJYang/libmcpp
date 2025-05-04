@@ -13,9 +13,11 @@
 #ifndef MC_DATABASE_TRANSACTION_H
 #define MC_DATABASE_TRANSACTION_H
 
-#include <atomic>
+#include <mc/db/common.h>
 #include <mc/intrusive/intrusive.h>
 #include <mc/singleton.h>
+
+#include <atomic>
 #include <memory>
 #include <vector>
 

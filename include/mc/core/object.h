@@ -13,21 +13,23 @@
 #ifndef MC_CORE_OBJECT_H
 #define MC_CORE_OBJECT_H
 
+#include <mc/common.h>
+#include <mc/db/object.h>
+
 #include <memory>
 #include <string_view>
 #include <vector>
 
-#include <mc/common.h>
-
 namespace mc::core {
-
 class object;
-using child_list = std::vector<object*>;
+using object_ptr  = mc::im::ref_ptr<object>;
+using child_list  = std::vector<object_ptr>;
+using object_base = mc::db::object_base;
 
 /**
  * @brief 对象基类，提供对象层次结构和生命周期管理
  */
-class object : public mc::noncopyable {
+class object : virtual public object_base, public mc::noncopyable {
 public:
     /**
      * @brief 构造函数
@@ -39,11 +41,6 @@ public:
      * @brief 析构函数，会自动删除所有子对象
      */
     virtual ~object() noexcept;
-
-    /**
-     * @brief 销毁对象
-     */
-    virtual void destory();
 
     /**
      * @brief 移动构造函数
