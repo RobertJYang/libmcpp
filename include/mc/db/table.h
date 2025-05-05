@@ -565,7 +565,7 @@ public:
     auto find(const KeyTypes&... keys) {
         std::lock_guard lock(m_mutex);
 
-        return std::get<Tag>(m_indices).find(keys...);
+        return get<Tag>().find(keys...);
     }
 
     object_ptr_type find_by_index(size_t index_id, const mc::variant& value) {

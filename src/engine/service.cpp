@@ -130,40 +130,14 @@ void service_impl::stop() {
 }
 
 void service_impl::register_object(abstract_object& obj) {
-    m_object_tree->add(mc::im::cast<abstract_object>(&obj));
+    m_object_tree->add(mc::im::ref_ptr<abstract_object>(&obj));
     obj.set_service(*m_service);
-    adjust_object_parent(obj);
     m_connection->register_path(obj.get_object_path(), [this, &obj](auto& msg) {
         return on_path_message(msg, obj);
     });
 }
 
 void service_impl::unregister_object(std::string_view path) {
-}
-
-void service_impl::adjust_object_parent(abstract_object& obj) {
-    auto path = obj.get_object_path();
-    if (path.empty()) {
-        // 没有路径的对象，暂时由 servcie 管理
-        dynamic_cast<mc::core::object*>(&obj)->set_parent(m_service);
-        return;
-    }
-
-    auto it = mc::dbus::path_iterator(path);
-    if (it.is_empty_or_root_path()) {
-        // 根路径，直接设置为服务对象的子对象
-        dynamic_cast<mc::core::object*>(&obj)->set_parent(m_service);
-        return;
-    }
-
-    // while (it.to_prev()) {
-    //     auto path = it.current();
-    //     auto it   = m_object_tree->get<by_path>().find(path);
-    //     if (it.is_end()) {
-    //         dynamic_cast<mc::core::object*>(&obj)->set_parent(it->m_object);
-    //         return;
-    //     }
-    // }
 }
 
 DBusHandlerResult service_impl::on_filter_message(mc::dbus::message& msg) {

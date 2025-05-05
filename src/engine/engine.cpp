@@ -54,7 +54,7 @@ engine::engine_impl::~engine_impl() {
 void engine::engine_impl::add_object(abstract_object* object) {
     std::lock_guard lock(m_mutex);
 
-    m_object_tree->add(mc::im::cast<abstract_object>(object));
+    m_object_tree->add(mc::im::ref_ptr<abstract_object>(object));
 }
 
 void engine::engine_impl::remove_object(abstract_object* object) {
@@ -70,11 +70,11 @@ void engine::engine_impl::update_object(abstract_object* old_object, abstract_ob
     auto  it  = idx.find(old_object->get_object_path());
     if (it == idx.end()) {
         idx.remove(old_object->get_object_path());
-        m_object_tree->add(mc::im::cast<abstract_object>(new_object));
+        m_object_tree->add(mc::im::ref_ptr<abstract_object>(new_object));
         return;
     }
 
-    idx.update(*it, mc::im::cast<abstract_object>(new_object));
+    idx.update(*it, mc::im::ref_ptr<abstract_object>(new_object));
 }
 
 engine::engine() {

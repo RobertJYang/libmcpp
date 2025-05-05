@@ -126,7 +126,7 @@ void object::object_impl::add_child(object* child) {
 
     auto it = std::find(m_children.begin(), m_children.end(), child);
     if (it == m_children.end()) {
-        m_children.emplace_back(mc::im::cast<object>(child));
+        m_children.emplace_back(child);
     }
 }
 

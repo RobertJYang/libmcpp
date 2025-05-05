@@ -61,7 +61,7 @@ public:
             return nullptr;
         }
 
-        return mc::im::cast<T>(obj);
+        return mc::im::ref_ptr<T>(obj);
     }
 
     /**
