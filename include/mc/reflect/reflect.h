@@ -223,6 +223,16 @@ constexpr bool is_enum() {
 }
 
 /**
+ * 检查类型是否为非反射的普通枚举
+ * @tparam T 要检查的类型
+ * @return 如果类型是普通的枚举则返回true，否则返回false
+ */
+template <typename T>
+constexpr bool is_normal_enum() {
+    return std::is_enum_v<T> && !is_reflectable<T>();
+}
+
+/**
  * 获取类型名称
  * @tparam T 要获取名称的类型
  * @return std::string_view 类型名称
@@ -317,6 +327,16 @@ void from_variant(const variant& v, T& o) {
     mc::reflect::from_variant(v, o);
 }
 
+template <typename T, std::enable_if_t<mc::reflect::is_normal_enum<T>(), int> = 0>
+void to_variant(const T& o, variant& v) {
+    v = mc::variant(static_cast<int32_t>(o));
+}
+
+template <typename T, std::enable_if_t<mc::reflect::is_normal_enum<T>(), int> = 0>
+void from_variant(const variant& v, T& o) {
+    o = static_cast<T>(v.as_int32());
+}
+
 } // namespace mc
 
 namespace mc::reflect::detail {
@@ -326,7 +346,8 @@ template <typename T>
 struct signature_helper<T, std::enable_if_t<mc::reflect::is_reflectable<T>()>> {
     static void apply(std::string& sig) {
         if constexpr (mc::reflect::is_enum<T>()) {
-            sig += type_to_char(type_code::int32_type);
+            // 可反射的枚举类型用的是 string
+            sig += type_to_char(type_code::string_type);
         } else {
             sig += type_to_char(type_code::struct_start);
             mc::traits::tuple_for_each(mc::reflect::reflector<T>::get_properties(), [&](auto& p) {
@@ -337,6 +358,15 @@ struct signature_helper<T, std::enable_if_t<mc::reflect::is_reflectable<T>()>> {
         }
     }
 };
+
+// 普通的枚举类型用 int32_t 表示，可反射的枚举类型用的是 string
+template <typename T>
+struct signature_helper<T, std::enable_if_t<mc::reflect::is_normal_enum<T>()>> {
+    static void apply(std::string& sig) {
+        sig += type_to_char(type_code::int32_type);
+    }
+};
+
 } // namespace mc::reflect::detail
 
 /**

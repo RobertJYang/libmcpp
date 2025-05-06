@@ -27,7 +27,7 @@ namespace string {
 
 namespace detail {
 void throw_bad_cast_error(const char* type) {
-    MC_THROW(mc::invalid_arg_exception, "无法将字符串转换为类型: ${type}", ("type", type));
+    MC_THROW(mc::invalid_arg_exception, "can not cast string to type: ${type}", ("type", type));
 }
 
 } // namespace detail
