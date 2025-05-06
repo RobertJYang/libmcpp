@@ -51,11 +51,11 @@ public:
     virtual ~object() = default;
 
     service* get_service() const override {
-        return m_service;
+        return static_cast<service*>(mc::core::object::get_service());
     }
 
     void set_service(service& s) override {
-        m_service = &s;
+        mc::core::object::set_service(&s);
     }
 
     const managed_objects& get_managed_objects() const override {
@@ -160,7 +160,7 @@ public:
     invoke_result invoke(std::string_view method_name, const mc::variants& args,
                          std::string_view interface_name = {}) override {
         // 跟踪对象调用
-        object_call_stack::context object_ctx{m_service, *this};
+        object_call_stack::context object_ctx{get_service(), *this};
 
         auto result = standard_interfaces::invoke(this, method_name, args, interface_name);
         if (result.is_valid()) {
@@ -207,7 +207,6 @@ protected:
 protected:
     mutable std::string m_object_path;
 
-    service*        m_service{nullptr};
     managed_objects m_managed_objects;
 };
 

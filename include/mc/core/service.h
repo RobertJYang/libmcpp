@@ -17,7 +17,6 @@
 #ifndef MC_CORE_SERVICE_H
 #define MC_CORE_SERVICE_H
 
-#include <boost/asio.hpp>
 #include <boost/program_options.hpp>
 
 #include <mc/core/object.h>
@@ -28,8 +27,7 @@
 #include <vector>
 
 namespace mc::core {
-using strand_type = boost::asio::strand<boost::asio::io_context::executor_type>;
-namespace po      = boost::program_options;
+namespace po = boost::program_options;
 
 /**
  * @brief 服务状态枚举
@@ -90,6 +88,27 @@ public:
     const service_config& get_config() const override;
 
     const std::vector<std::string>& get_dependencies() const override;
+
+    strand_type& get_strand() const;
+
+    bool init(dict args) override {
+        return true;
+    }
+
+    bool start() override {
+        return true;
+    }
+
+    bool stop() override {
+        return true;
+    }
+
+    void cleanup() override {
+    }
+
+    bool is_healthy() const override {
+        return true;
+    }
 
 protected:
     void set_state(service_state state);

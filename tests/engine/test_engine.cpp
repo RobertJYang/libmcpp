@@ -18,7 +18,7 @@
 
 namespace {
 
-class engine_test : public mc::test::TestBaseWithEngine {
+class engine_test : public mc::test::TestWithEngine {
 protected:
     void SetUp() override {
     }

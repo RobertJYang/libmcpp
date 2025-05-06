@@ -119,4 +119,6 @@ bool database::update(std::string_view table_name, const query_builder& builder,
     return table->second->update_object(builder, values, txn);
 }
 
+std::atomic<object_id_type> table_base::m_next_id{1};
+
 } // namespace mc::db

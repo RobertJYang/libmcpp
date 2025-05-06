@@ -278,6 +278,15 @@ protected:
                                     transaction*                          txn) = 0;
     virtual size_t do_update_object(const query_builder& condition, const mc::dict& values,
                                     transaction* txn) = 0;
+
+    /**
+     * 生成新的对象ID
+     * @return 新的对象ID
+     */
+    object_id_type generate_id() {
+        return m_next_id.fetch_add(1, std::memory_order_relaxed);
+    }
+    static std::atomic<object_id_type> m_next_id; ///< 下一个可用的对象ID
 };
 
 /**
@@ -320,7 +329,7 @@ public:
      */
     table(std::string_view name = std::string_view(), uint32_t table_id = 0,
           const alloc_type& alloc = alloc_type())
-        : m_indices(make_indices(alloc)), m_next_id(1),
+        : m_indices(make_indices(alloc)),
           m_table_id(table_id ? table_id : transaction::alloc_table_id()), m_name(name) {
         size_t i = 0;
         detail::for_each_index(m_indices, [&i, this](auto& idx) {
@@ -906,14 +915,6 @@ private:
     }
 
     /**
-     * 生成新的对象ID
-     * @return 新的对象ID
-     */
-    object_id_type generate_id() {
-        return m_next_id.fetch_add(1, std::memory_order_relaxed);
-    }
-
-    /**
      * 根据IndexDef选择合适的索引创建方法
      */
     indices_tuple_type make_indices(const alloc_type& alloc = alloc_type()) {
@@ -930,7 +931,6 @@ private:
     mutable std::recursive_mutex m_mutex;
     indices_tuple_type           m_indices;
     indices_array_type           m_indices_array;
-    std::atomic<object_id_type>  m_next_id;        ///< 下一个可用的对象ID
     uint32_t                     m_table_id = {0}; ///< 表ID
     std::string                  m_name;           ///< 表名
 

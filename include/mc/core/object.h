@@ -15,6 +15,10 @@
 
 #include <mc/common.h>
 #include <mc/db/object.h>
+#include <mc/exception.h>
+#include <mc/signal_slot.h>
+
+#include <boost/asio.hpp>
 
 #include <memory>
 #include <string_view>
@@ -22,9 +26,28 @@
 
 namespace mc::core {
 class object;
-using object_ptr  = mc::im::ref_ptr<object>;
-using child_list  = std::vector<object_ptr>;
-using object_base = mc::db::object_base;
+
+template <typename T>
+using ref_ptr = mc::im::ref_ptr<T>;
+
+template <typename T, typename... Args>
+ref_ptr<T> make_ref(Args&&... args) {
+    return mc::im::make_ref<T>(std::forward<Args>(args)...);
+}
+
+using object_ptr       = ref_ptr<object>;
+using const_object_ptr = ref_ptr<const object>;
+using child_list       = std::vector<object_ptr>;
+using object_base      = mc::db::object_base;
+using signal_type      = void*;
+using strand_type      = boost::asio::strand<boost::asio::io_context::executor_type>;
+using io_context       = boost::asio::io_context;
+class service_base;
+
+using connection_id_type                           = uint32_t;
+constexpr connection_id_type INVALID_CONNECTION_ID = std::numeric_limits<connection_id_type>::max();
+
+enum class connection_type { Auto, Direct, Queued };
 
 /**
  * @brief 对象基类，提供对象层次结构和生命周期管理
@@ -54,10 +77,6 @@ public:
      */
     object& operator=(object&& other) noexcept;
 
-    /**
-     * @brief 移动赋值运算符
-     * @param other 右值对象
-     */
     /**
      * @brief 获取对象名称
      * @return 对象名称
@@ -97,6 +116,129 @@ public:
      */
     object* find_child(std::string_view name) const;
 
+    /**
+     * @brief 连接信号和槽
+     * @param sig 信号对象
+     * @param slot 槽函数
+     * @param type 连接类型
+     * @return 连接ID
+     */
+    template <typename SignalType, typename SlotType>
+    connection_id_type connect(SignalType& sig, SlotType&& slot,
+                               connection_type type = connection_type::Auto) {
+        return connect(INVALID_CONNECTION_ID, sig, std::forward<SlotType>(slot), type);
+    }
+
+    /**
+     * @brief 使用用户自定义的连接ID连接信号和槽
+     * @param id 连接ID
+     * @param sig 信号对象
+     * @param slot 槽函数
+     * @param type 连接类型
+     */
+    template <typename SignalType, typename SlotType>
+    connection_id_type connect(connection_id_type id, SignalType& sig, SlotType&& slot,
+                               connection_type type = connection_type::Auto) {
+        mc::connection_type conn;
+
+        if (type == connection_type::Auto) {
+            auto dispatcher = [this, slot = std::forward<SlotType>(slot)](auto&&... args) mutable {
+                auto& s = get_strand();
+                if (s.running_in_this_thread()) {
+                    slot(std::forward<decltype(args)>(args)...);
+                } else {
+                    boost::asio::post(s, [slot, args = std::make_tuple(std::forward<decltype(args)>(
+                                                    args)...)]() mutable {
+                        std::apply(slot, std::move(args));
+                    });
+                }
+            };
+            conn = sig.connect(std::move(dispatcher));
+        } else if (type == connection_type::Queued) {
+            conn = sig.connect([this, slot = std::forward<SlotType>(slot)](auto&&... args) mutable {
+                this->post([slot, args = std::make_tuple(
+                                      std::forward<decltype(args)>(args)...)]() mutable {
+                    std::apply(slot, std::move(args));
+                });
+            });
+        } else {
+            conn = sig.connect(std::forward<SlotType>(slot));
+        }
+
+        return add_connection(&sig, std::move(conn), id);
+    }
+
+    /**
+     * @brief 断开连接
+     * @param id 连接ID
+     * @return 是否成功断开
+     */
+    void disconnect(connection_id_type id) const;
+
+    /**
+     * @brief 断开信号的所有连接
+     * @param sig 信号对象
+     * @return 断开的连接数量
+     */
+
+    template <typename SignalType>
+    void disconnect(SignalType& sig) const {
+        disconnect_all(&sig);
+    }
+
+    service_base* get_service() const;
+    void          set_service(service_base* s);
+
+    /**
+     * @brief 异步投递任务到对象关联的执行器
+     * @tparam CompletionToken 完成令牌类型
+     * @param token 完成令牌
+     * @return 根据完成令牌类型返回相应的结果
+     */
+    template <typename CompletionToken>
+    auto post(CompletionToken&& token) const {
+        MC_ASSERT(get_service(), "post on object without service");
+        return boost::asio::post(get_strand(), std::forward<CompletionToken>(token));
+    }
+
+    /**
+     * @brief 延迟投递任务到对象关联的执行器
+     * @tparam CompletionToken 完成令牌类型
+     * @param token 完成令牌
+     * @return 根据完成令牌类型返回相应的结果
+     */
+    template <typename CompletionToken>
+    auto defer(CompletionToken&& token) const {
+        MC_ASSERT(get_service(), "defer on object without service");
+        return boost::asio::defer(get_strand(), std::forward<CompletionToken>(token));
+    }
+
+    /**
+     * @brief 分派任务到对象关联的执行器（可能立即执行）
+     * @tparam CompletionToken 完成令牌类型
+     * @param token 完成令牌
+     * @return 根据完成令牌类型返回相应的结果
+     */
+    template <typename CompletionToken>
+    auto dispatch(CompletionToken&& token) const {
+        MC_ASSERT(get_service(), "dispatch on object without service");
+        return boost::asio::dispatch(get_strand(), std::forward<CompletionToken>(token));
+    }
+
+    /**
+     * @brief 在对象关联的执行器上绑定处理器
+     * @tparam Handler 处理器类型
+     * @param handler 处理器函数或仿函数
+     * @return 绑定到执行器的处理器
+     */
+    template <typename Handler>
+    auto bind_executor(Handler&& handler) const {
+        MC_ASSERT(get_service(), "bind_executor on object without service");
+        return boost::asio::bind_executor(get_strand(), std::forward<Handler>(handler));
+    }
+
+    strand_type& get_strand() const;
+
 protected:
     /**
      * @brief 添加子对象
@@ -109,6 +251,10 @@ protected:
      * @param child 子对象指针
      */
     void remove_child(object* child);
+
+    connection_id_type add_connection(signal_type sig, mc::connection_type conn,
+                                      connection_id_type id);
+    void               disconnect_all(signal_type sig);
 
 private:
     struct object_impl;

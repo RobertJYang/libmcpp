@@ -72,7 +72,6 @@ struct service_impl {
     dbus::connection_ptr            m_connection;
     object_tree_ptr                 m_object_tree;
     mc::im::ref_ptr<service_object> m_service_object;
-    strand_type                     m_strand;
 };
 } // namespace mc::engine
 
@@ -86,7 +85,7 @@ using service_table = mdb::table<
 
 namespace mc::engine {
 
-service_impl::service_impl() : m_strand(mc::engine::make_strand()) {
+service_impl::service_impl() {
 }
 
 bool service_impl::init(service* s) {
@@ -99,7 +98,7 @@ bool service_impl::init(service* s) {
 bool service_impl::start() {
     std::lock_guard lock(m_mutex);
 
-    auto connection = mc::dbus::connection::open_session_bus(m_strand);
+    auto connection = mc::dbus::connection::open_session_bus(m_service->get_strand());
     if (!connection || !connection->start()) {
         elog("初始化服务失败: 无法打开DBus会话");
         return false;
@@ -170,11 +169,13 @@ DBusHandlerResult service_impl::on_method_call(abstract_object& object, mc::dbus
         } else {
             info.response = mc::dbus::message::new_method_return(msg);
             mc::dbus::signature_iterator it(result.method->get_result_signature());
-            info.response.writer().write_variant(it, result, 0);
+            if (!it.at_end()) {
+                info.response.writer().write_variant(it, result, 0);
+            }
         }
     } catch (const std::exception& e) {
         elog("method call failed: ${error}", ("error", e.what()));
-        info.response = mc::dbus::message::new_error_message(errors::failed.name, e.what());
+        info.response = mc::dbus::message::new_error(msg, errors::failed.name, e.what());
     }
 
     m_connection->send(std::move(info.response));
@@ -238,10 +239,6 @@ void service::register_object(abstract_object& obj) {
 
 void service::unregister_object(std::string_view path) {
     m_impl->unregister_object(path);
-}
-
-strand_type& service::get_strand() {
-    return m_impl->m_strand;
 }
 
 } // namespace mc::engine

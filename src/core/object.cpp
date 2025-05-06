@@ -10,7 +10,11 @@
  * See the Mulan PSL v2 for more details.
  */
 
+#include "include/connection_manager.h"
+
 #include <mc/core/object.h>
+#include <mc/core/service.h>
+#include <mc/exception.h>
 
 #include <algorithm>
 
@@ -26,10 +30,12 @@ struct object::object_impl {
     void    add_child(object* child);
     void    remove_child(object* child);
 
-    std::string m_name;
-    object*     m_object{nullptr};
-    object*     m_parent{nullptr};
-    child_list  m_children;
+    std::string        m_name;
+    object*            m_object{nullptr};
+    object*            m_parent{nullptr};
+    child_list         m_children;
+    service_base*      m_service{nullptr};
+    connection_manager m_connection_manager;
 
     uint32_t is_deleted : 1;
 };
@@ -43,12 +49,14 @@ object::object_impl::~object_impl() {
     }
 
     m_children.clear();
+    m_connection_manager.clear();
 }
 
 object::object(object* parent) : m_impl(std::make_unique<object_impl>(parent)) {
     m_impl->m_object = this;
     if (parent) {
         parent->add_child(this);
+        m_impl->m_service = parent->get_service();
     }
 }
 
@@ -143,6 +151,32 @@ void object::object_impl::remove_child(object* child) {
     if (it != m_children.end()) {
         m_children.erase(it);
     }
+}
+
+service_base* object::get_service() const {
+    return m_impl->m_service;
+}
+
+void object::set_service(service_base* s) {
+    m_impl->m_service = s;
+}
+
+connection_id_type object::add_connection(signal_type sig, mc::connection_type conn,
+                                          connection_id_type id) {
+    return m_impl->m_connection_manager.add_connection(sig, std::move(conn), id);
+}
+
+void object::disconnect(connection_id_type id) const {
+    m_impl->m_connection_manager.remove_connection(id);
+}
+
+void object::disconnect_all(signal_type sig) {
+    m_impl->m_connection_manager.remove_connections(&sig);
+}
+
+strand_type& object::get_strand() const {
+    MC_ASSERT(m_impl->m_service, "get strand not available on object with no service");
+    return m_impl->m_service->get_strand();
 }
 
 } // namespace mc::core

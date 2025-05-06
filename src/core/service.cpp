@@ -32,6 +32,7 @@ struct service_base::impl {
 service_base::service_base(std::string name) : m_impl(std::make_unique<impl>()) {
     m_impl->m_name  = std::move(name);
     m_impl->m_state = service_state::stopped;
+    set_service(this);
 }
 
 service_base::~service_base() {
@@ -65,4 +66,9 @@ void service_base::set_dependencies(const std::vector<std::string>& dependencies
 void service_base::set_state(service_state state) {
     m_impl->m_state = state;
 }
+
+strand_type& service_base::get_strand() const {
+    return m_impl->m_strand;
+}
+
 } // namespace mc::core

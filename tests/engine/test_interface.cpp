@@ -478,7 +478,7 @@ TEST_F(interface_test, test_interface_hierarchy) {
     TestInterface value(42);
 
     // 测试对象类型
-    EXPECT_TRUE((std::is_same_v<decltype(value)::object_type, TestInterface>));
+    EXPECT_TRUE((std::is_same_v<decltype(value)::interface_type, TestInterface>));
 
     // 测试继承关系
     mc::engine::abstract_interface*       base_ptr    = &value;

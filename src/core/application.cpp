@@ -58,7 +58,8 @@ application::impl::impl()
       m_supervisor_manager(std::make_unique<supervisor_manager>()) {
 }
 
-application::application() : m_impl(std::make_unique<impl>()) {
+application::application() : service_base("application"), m_impl(std::make_unique<impl>()) {
+    set_service(this);
 }
 
 application::~application() {
@@ -194,8 +195,9 @@ bool application::impl::initialize_services(bool config_loaded) {
                                                       *m_service_factory);
 }
 
-void application::start() {
+bool application::start() {
     m_impl->start();
+    return true;
 }
 
 void application::impl::start() {
@@ -221,6 +223,7 @@ void application::exec() {
 void application::impl::exec() {
     ilog("start application, thread count: ${count}", ("count", m_thread_count));
 
+    m_running    = true;
     auto& engine = mc::engine::engine::get_instance();
     engine.start(m_thread_count);
     engine.join();
@@ -228,8 +231,9 @@ void application::impl::exec() {
     ilog("application stopped");
 }
 
-void application::stop() {
+bool application::stop() {
     m_impl->stop();
+    return true;
 }
 
 void application::impl::stop() {
@@ -287,4 +291,8 @@ void application::impl::stop_all_services() {
     }
 }
 
-} // namespace mc
+io_context& application::get_io_context() {
+    return mc::engine::engine::get_instance().get_io_context();
+}
+
+} // namespace mc::core

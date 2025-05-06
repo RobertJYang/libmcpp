@@ -27,7 +27,7 @@
 
 using namespace mc::dbus;
 
-class connection_test : public mc::test::TestBaseWithDbusDaemon {
+class connection_test : public mc::test::TestWithDbusDaemon {
 protected:
     using strand_type = boost::asio::strand<boost::asio::io_context::executor_type>;
 
@@ -35,7 +35,7 @@ protected:
     }
 
     static void SetUpTestSuite() {
-        TestBaseWithDbusDaemon::SetUpTestSuite();
+        TestWithDbusDaemon::SetUpTestSuite();
 
         s_io_context = std::make_shared<boost::asio::io_context>();
         s_thread     = std::make_unique<std::thread>([io_context = s_io_context]() {
@@ -45,7 +45,7 @@ protected:
     }
 
     static void TearDownTestSuite() {
-        TestBaseWithDbusDaemon::TearDownTestSuite();
+        TestWithDbusDaemon::TearDownTestSuite();
 
         s_io_context->stop();
         s_thread->join();

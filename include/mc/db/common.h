@@ -25,7 +25,7 @@ namespace mc::db {
 /**
  * 数据库对象ID类型
  */
-using object_id_type = uint32_t;
+using object_id_type = uint64_t;
 
 } // namespace mc::db
 

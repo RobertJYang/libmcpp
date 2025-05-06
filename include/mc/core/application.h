@@ -18,8 +18,8 @@
 #define MC_APPLICATION_H
 
 #include <mc/core/config_manager.h>
-#include <mc/core/object.h>
 #include <mc/core/plugin_manager.h>
+#include <mc/core/service.h>
 #include <mc/core/service_factory.h>
 #include <mc/core/service_manager.h>
 #include <mc/core/supervisor_manager.h>
@@ -37,9 +37,9 @@ namespace mc::core {
 /**
  * @brief 应用程序类
  *
- * 继承自 object 类，使其成为对象树的根节点
+ * 继承自 service_base 类，使其成为服务树的根节点
  */
-class application : public core::object {
+class application : public core::service_base {
 public:
     static application& instance() {
         return singleton<application>::instance_with_creator([]() {
@@ -65,10 +65,28 @@ public:
 
     bool initialize();
     bool initialize(int argc, char** argv);
-    void start();
-    void exec();
-    void stop();
+    bool start() override;
+    bool stop() override;
     bool is_stopped() const;
+
+    void exec();
+
+    io_context& get_io_context();
+
+    template <typename CompletionToken>
+    auto post(CompletionToken&& token) {
+        return boost::asio::post(get_io_context(), std::forward<CompletionToken>(token));
+    }
+
+    template <typename CompletionToken>
+    auto defer(CompletionToken&& token) {
+        return boost::asio::defer(get_io_context(), std::forward<CompletionToken>(token));
+    }
+
+    template <typename CompletionToken>
+    auto dispatch(CompletionToken&& token) {
+        return boost::asio::dispatch(get_io_context(), std::forward<CompletionToken>(token));
+    }
 
 private:
     application();

@@ -5,3 +5,6 @@ subdir('plugin')
 
 # 数据库示例
 subdir('interprocess')
+
+# 任务示例
+subdir('task_service')

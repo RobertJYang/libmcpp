@@ -57,28 +57,37 @@ void task_interface::resume() {
 }
 
 void task_interface::start_timer() {
-    m_timer = this->new_timer(mc::milliseconds(1000), [this](const mc::engine::error_code& ec) {
-        if (ec || m_state != task_state::RUNNING) {
-            return;
-        }
+    if (!m_timer) {
+        auto owner = get_owner();
+        m_timer    = new mc::core::timer(owner);
+        owner->connect(m_timer->timeout, [this]() {
+            if (m_state != task_state::RUNNING) {
+                return;
+            }
 
-        ilog("task ${name} progress: ${progress}", ("name", m_name)("progress", m_progress));
+            ilog("task ${name} progress: ${progress}", ("name", m_name)("progress", m_progress));
 
-        m_progress++;
-        if (m_progress >= 100) {
-            set_state(task_state::COMPLETED);
-            m_timer.cancel();
-        }
-    });
+            m_progress++;
+            if (m_progress >= 100) {
+                set_state(task_state::COMPLETED);
+                m_timer->stop();
+            }
+        });
+    } else {
+        m_timer->stop();
+    }
 
+    m_timer->start(mc::milliseconds(1000));
     ilog("task ${name} start, current time: ${time}, progress: ${progress}",
          ("name", m_name)("time", mc::time_point::now())("progress", m_progress));
 }
 
 void task_interface::stop_timer() {
-    m_timer.cancel();
-    ilog("task ${name} stop, current time: ${time}, progress: ${progress}",
-         ("name", m_name)("time", mc::time_point::now())("progress", m_progress));
+    if (m_timer) {
+        m_timer->stop();
+        ilog("task ${name} stop, current time: ${time}, progress: ${progress}",
+             ("name", m_name)("time", mc::time_point::now())("progress", m_progress));
+    }
 }
 
 uint32_t task_interface::get_progress() {

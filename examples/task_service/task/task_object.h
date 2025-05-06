@@ -36,8 +36,6 @@ private:
 
 } // namespace test
 
-MC_REFLECT(test::task_object,
-           ((m_task, "Task"))((start, "Start"))((stop, "Stop"))((pause, "Pause"))(
-               (resume, "Resume"))((get_progress, "GetProgress"))((get_state, "GetState")))
+MC_REFLECT(test::task_object, ((m_task, "Task")))
 
 #endif // TASK_OBJECT_H

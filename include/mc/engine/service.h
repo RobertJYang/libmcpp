@@ -21,7 +21,6 @@
 namespace mc::engine {
 class engine;
 struct service_impl;
-using strand_type = mc::core::strand_type;
 class abstract_object;
 
 class service : public mc::core::service_base, public mc::noncopyable_nonmovable {
@@ -45,8 +44,6 @@ public:
         unregister_object(obj->get_object_path());
     }
     void unregister_object(std::string_view path);
-
-    strand_type& get_strand();
 
 protected:
     void register_object(abstract_object& obj);

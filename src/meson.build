@@ -19,6 +19,8 @@ src_files = [
   'core/supervisor_manager.cpp',
   'core/object.cpp',
   'core/service.cpp',
+  'core/connection_manager.cpp',
+  'core/timer.cpp',
   'log/log_message.cpp',
   'log/logger.cpp',
   'log/log_manager.cpp',

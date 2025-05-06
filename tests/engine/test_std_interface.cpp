@@ -87,7 +87,7 @@ namespace bp = boost::property_tree;
 using namespace tests::engine::std_interface;
 using namespace mc::engine;
 
-class std_interface_test : public mc::test::TestBaseWithEngine {
+class std_interface_test : public mc::test::TestWithEngine {
 protected:
     TestObject1* root;
     TestObject2* child_obj2;

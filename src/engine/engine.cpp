@@ -123,8 +123,6 @@ void engine::stop() {
         m_impl->m_work.reset();
         m_impl->m_io_context.stop();
     }
-
-    join();
 }
 
 mc::db::database& engine::get_database() {
