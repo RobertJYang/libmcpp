@@ -69,14 +69,6 @@ struct signature_helper<T, std::enable_if_t<std::is_arithmetic_v<T>>> {
     }
 };
 
-// // 对枚举类型的特化
-// template <typename T>
-// struct signature_helper<T, std::enable_if_t<std::is_enum_v<T>>> {
-//     static void apply(std::string& sig) {
-//         sig += type_to_char(type_code::int32_type);
-//     }
-// };
-
 // 对字符串类型的特化
 template <typename T>
 struct signature_helper<

@@ -10,11 +10,8 @@
  * See the Mulan PSL v2 for more details.
  */
 
-#include <algorithm>
 #include <mc/db/transaction.h>
 #include <mc/exception.h>
-#include <tuple>
-#include <utility>
 
 namespace mc::db {
 

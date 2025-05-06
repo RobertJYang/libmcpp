@@ -32,8 +32,8 @@ struct user : mc::db::object<user> {
     user() = default;
     user(int id, std::string name, int age, double score = 0.0, std::string city = std::string(),
          std::string department = std::string())
-        : object(id), m_name(name), m_age(age), m_score(score), m_city(city),
-          m_department(department) {
+        : m_name(name), m_age(age), m_score(score), m_city(city), m_department(department) {
+        set_object_id(id);
     }
 
     std::string m_name;

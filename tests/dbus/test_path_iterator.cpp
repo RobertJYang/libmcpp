@@ -15,13 +15,12 @@
  * @brief 路径迭代器单元测试
  */
 
-#include <chrono>
 #include <gtest/gtest.h>
-#include <mc/db/path_iterator.h>
+#include <mc/dbus/path_iterator.h>
 #include <string>
 #include <vector>
 
-using namespace mc::db;
+using namespace mc::dbus;
 
 // 辅助函数：收集路径所有片段
 std::vector<std::string> collect_segments(const std::string& path) {

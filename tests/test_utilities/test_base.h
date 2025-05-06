@@ -15,6 +15,7 @@
 
 #include <dbus_daemon_manager.h>
 #include <gtest/gtest.h>
+#include <mc/core/application.h>
 #include <mc/engine.h>
 #include <mc/log.h>
 #include <mc/singleton.h>
@@ -38,7 +39,7 @@ protected:
     }
 };
 
-class TestBaseWithDbusDaemon : public TestBase {
+class TestWithDbusDaemon : public TestBase {
 protected:
     static dbus_daemon_manager& get_dbus_daemon() {
         return mc::singleton<dbus_daemon_manager>::instance();
@@ -51,22 +52,39 @@ protected:
     static void TearDownTestSuite() {};
 };
 
-class TestBaseWithEngine : public TestBaseWithDbusDaemon {
+class TestWithEngine : public TestWithDbusDaemon {
 protected:
     static mc::engine::engine& get_engine() {
         return mc::engine::get_engine();
     }
 
     static void SetUpTestSuite() {
-        TestBaseWithDbusDaemon::SetUpTestSuite();
+        TestWithDbusDaemon::SetUpTestSuite();
         get_engine().start();
     }
 
     static void TearDownTestSuite() {
         get_engine().stop();
+        get_engine().join();
 
         mc::singleton<mc::engine::engine>::reset_for_test();
-        TestBaseWithDbusDaemon::TearDownTestSuite();
+        TestWithDbusDaemon::TearDownTestSuite();
+    };
+};
+
+class TestWithApplication : public TestWithEngine {
+protected:
+    static void SetUpTestSuite() {
+        TestWithEngine::SetUpTestSuite();
+
+        mc::core::app().start();
+    }
+
+    static void TearDownTestSuite() {
+        mc::core::app().stop();
+        mc::singleton<mc::core::application>::reset_for_test();
+
+        TestWithEngine::TearDownTestSuite();
     };
 };
 

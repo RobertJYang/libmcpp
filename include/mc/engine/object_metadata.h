@@ -13,7 +13,7 @@
 #ifndef MC_ENGINE_OBJECT_METADATA_H
 #define MC_ENGINE_OBJECT_METADATA_H
 
-#include <mc/db/path_iterator.h>
+#include <mc/dbus/path_iterator.h>
 #include <mc/engine/std_interface.h>
 #include <mc/exception.h>
 #include <mc/log.h>
@@ -106,7 +106,7 @@ public:
         mc::traits::tuple_for_each(get_static_interface_infos(), [&](auto& member) {
             using property_info = mc::traits::remove_cvref_t<decltype(member)>;
 
-            auto& iface = *reinterpret_cast<interface_base*>(p_obj + member.offset());
+            auto& iface = *reinterpret_cast<abstract_interface*>(p_obj + member.offset());
             v.handle_interface_begin(obj, iface);
             visit_properties<property_info>(obj, iface, v);
             visit_methods<property_info>(obj, iface, v);
@@ -173,7 +173,7 @@ private:
     }
 
     template <typename PropertyInfo>
-    void visit_properties(object_type& obj, interface_base& iface, visitor& v) {
+    void visit_properties(object_type& obj, abstract_interface& iface, visitor& v) {
         using interface_type = typename PropertyInfo::member_type;
         mc::traits::tuple_for_each(interface_type::get_static_properties(), [&](auto& property) {
             using property_type =
@@ -188,7 +188,7 @@ private:
     }
 
     template <typename PropertyInfo>
-    void visit_methods(object_type& obj, interface_base& iface, visitor& v) {
+    void visit_methods(object_type& obj, abstract_interface& iface, visitor& v) {
         using interface_type = typename PropertyInfo::member_type;
         mc::traits::tuple_for_each(interface_type::get_static_methods(), [&](auto& method) {
             using method_info_type = mc::traits::remove_cvref_t<decltype(method)>;
@@ -206,7 +206,7 @@ private:
     }
 
     template <typename PropertyInfo>
-    void visit_signals(object_type& obj, interface_base& iface, visitor& v) {
+    void visit_signals(object_type& obj, abstract_interface& iface, visitor& v) {
         using interface_type = typename PropertyInfo::member_type;
         mc::traits::tuple_for_each(interface_type::get_static_signals(), [&](auto& signal) {
             using signal_info_type = mc::traits::remove_cvref_t<decltype(signal)>;

@@ -10,135 +10,133 @@
  * See the Mulan PSL v2 for more details.
  */
 
-#include "mc/core/application.h"
-#include "mc/core/default_supervisor.h"
-#include "mc/core/event.h"
-#include <boost/program_options.hpp>
-#include <iostream>
-#include <thread>
-#include <unordered_set>
-#include <algorithm>
+#include <mc/core/application.h>
+#include <mc/engine/engine.h>
 #include <mc/log.h>
-#include <sstream>
 #include <mc/string.h>
-#include <unordered_map>
-#include <queue>
 
-namespace mc {
+#include <boost/program_options.hpp>
+
+namespace mc::core {
 
 namespace po = boost::program_options;
 
-// 构造函数
-application::application(std::string name, io_context_type& io_context)
-    : core::object(std::move(name), io_context)
-    , m_version("1.0.0")
-    , m_plugin_manager(std::make_unique<plugin_manager>())
-    , m_service_factory(std::make_unique<service_factory>())
-    , m_service_manager(std::make_unique<service_manager>())
-    , m_config_manager(std::make_unique<config_manager>())
-    , m_supervisor_manager(std::make_unique<supervisor_manager>())
-    , m_work_guard(io_context.get_executor())
-    , m_thread_count(0)
-    , m_stopped(false)
-    , m_running(false) {
+struct application::impl {
+    impl();
+
+    bool initialize();
+    bool initialize(int argc, char** argv);
+
+    void start();
+    void exec();
+    void stop();
+    void cleanup();
+
+    bool load_plugins(bool config_loaded);
+    bool initialize_supervisors(bool config_loaded);
+    bool initialize_services(bool config_loaded);
+    void stop_all_services();
+
+    std::string                                     m_version;            // 应用程序版本号
+    std::unique_ptr<plugin_manager>                 m_plugin_manager;     // 插件管理器
+    std::unique_ptr<service_factory>                m_service_factory;    // 服务工厂
+    std::unique_ptr<service_manager>                m_service_manager;    // 服务管理器
+    std::unique_ptr<config_manager>                 m_config_manager;     // 配置管理器
+    std::unique_ptr<supervisor_manager>             m_supervisor_manager; // 监督器管理器
+    std::unordered_map<std::string, supervisor_ptr> m_supervisors;        // 监督器映射表
+
+    int  m_thread_count{1};
+    bool m_stopped{false};
+    bool m_running{false};
+};
+
+application::impl::impl()
+    : m_version("1.0.0"), m_plugin_manager(std::make_unique<plugin_manager>()),
+      m_service_factory(std::make_unique<service_factory>()),
+      m_service_manager(std::make_unique<service_manager>()),
+      m_config_manager(std::make_unique<config_manager>()),
+      m_supervisor_manager(std::make_unique<supervisor_manager>()) {
 }
 
-// 析构函数
-application::~application() noexcept {
-    cleanup();
+application::application() : service_base("application"), m_impl(std::make_unique<impl>()) {
+    set_service(this);
 }
 
-// 设置版本
+application::~application() {
+    m_impl->cleanup();
+}
+
 void application::set_version(const std::string& version) {
-    m_version = version;
+    m_impl->m_version = version;
 }
 
-// 获取版本
 const std::string& application::version() const {
-    return m_version;
+    return m_impl->m_version;
 }
 
-// 获取插件管理器
 plugin_manager& application::get_plugin_manager() {
-    return *m_plugin_manager;
+    return *m_impl->m_plugin_manager;
 }
 
-// 获取服务工厂
 service_factory& application::get_service_factory() {
-    return *m_service_factory;
+    return *m_impl->m_service_factory;
 }
 
-// 获取服务管理器
 service_manager& application::get_service_manager() {
-    return *m_service_manager;
+    return *m_impl->m_service_manager;
 }
 
-// 获取配置管理器
 config_manager& application::get_config_manager() {
-    return *m_config_manager;
+    return *m_impl->m_config_manager;
 }
 
-// 获取监督器管理器
 supervisor_manager& application::get_supervisor_manager() {
-    return *m_supervisor_manager;
+    return *m_impl->m_supervisor_manager;
 }
 
-// 事件处理
-bool application::handle_event(std::shared_ptr<core::event> e) {
-    // 处理应用程序级别的事件
-    if (e && e->type() == core::event::event_type::application) {
-        e->accept();
-        return true;
-    }
-    
-    // 调用父类方法处理其他事件
-    return core::object::handle_event(e);
-}
-
-// 初始化
 bool application::initialize() {
-    // 初始化监督器管理器
+    return m_impl->initialize();
+}
+
+bool application::impl::initialize() {
     if (!m_supervisor_manager->init()) {
         return false;
     }
-    
-    // 初始化插件
+
     if (!m_plugin_manager->init_plugins(*m_service_factory)) {
-        wlog("部分插件初始化失败");
+        wlog("some plugin init failed");
     }
-    
+
     return true;
 }
 
 bool application::initialize(int argc, char** argv) {
-    // 解析命令行参数
+    return m_impl->initialize(argc, argv);
+}
+
+bool application::impl::initialize(int argc, char** argv) {
     if (!m_config_manager->parse_command_line(argc, argv)) {
         return false;
     }
 
-    // 加载配置文件
     bool config_loaded = m_config_manager->load_config_file();
     if (!config_loaded) {
-        wlog("加载配置文件失败，将使用默认配置");
+        wlog("load config file failed, use default config");
     }
 
-    // 加载插件
     if (!load_plugins(config_loaded)) {
         return false;
     }
 
-    // 初始化监督器
     if (!initialize_supervisors(config_loaded)) {
         return false;
     }
 
-    // 初始化插件
     if (!m_plugin_manager->init_plugins(*m_service_factory)) {
-        elog("插件初始化失败，无法继续");
+        elog("plugins init failed");
         return false;
     }
 
-    // 初始化服务
     if (!initialize_services(config_loaded)) {
         return false;
     }
@@ -146,167 +144,136 @@ bool application::initialize(int argc, char** argv) {
     return true;
 }
 
-bool application::load_plugins(bool config_loaded) {
+bool application::impl::load_plugins(bool config_loaded) {
     if (config_loaded) {
         std::string plugin_dir = m_config_manager->get_plugin_dir();
         m_plugin_manager->set_plugin_dir(plugin_dir);
     }
-    
+
     std::vector<std::string> plugin_names = m_config_manager->get_plugin_names();
     if (!m_plugin_manager->load_plugins(plugin_names)) {
-        elog("加载插件失败");
+        elog("load plugins failed");
         return false;
     }
-    
-    ilog("加载插件完成，共 ${count} 个插件", ("count", plugin_names.size()));
+
+    ilog("load plugins done, ${count} plugins", ("count", plugin_names.size()));
     return true;
 }
 
-bool application::initialize_supervisors(bool config_loaded) {
+bool application::impl::initialize_supervisors(bool config_loaded) {
     if (!config_loaded) {
-        return true; // 没有配置时使用默认
+        return true;
     }
 
-    // 设置线程数量
     auto app_configs = m_config_manager->get_configs<config::app_config>();
     if (!app_configs.empty()) {
         m_thread_count = app_configs[0].threads;
-        dlog("设置线程数: ${count}", ("count", m_thread_count));
+        dlog("set thread count: ${count}", ("count", m_thread_count));
     }
-    
-    // 处理监督器配置
+
     auto supervisor_configs = m_config_manager->get_configs<config::supervisor_config>();
-    ilog("加载监督器配置，共 ${count} 个", ("count", supervisor_configs.size()));
-    
+    ilog("load supervisor configs, ${count}", ("count", supervisor_configs.size()));
+
     return m_supervisor_manager->initialize_from_configs(supervisor_configs);
 }
 
-bool application::initialize_services(bool config_loaded) {
-    // 加载服务配置
+bool application::impl::initialize_services(bool config_loaded) {
     const auto& services = m_config_manager->get_configs<config::service_config>();
+
     std::vector<std::string> service_names;
     for (const auto& service : services) {
         service_names.push_back(service.meta.name);
     }
-    ilog("加载服务配置，共 ${count} 个: ${services}", 
+    ilog("load service configs, ${count}: ${services}",
          ("count", services.size())("services", mc::string::join(service_names, ", ")));
 
     if (!config_loaded) {
-        return true; // 没有配置时使用默认
+        return true;
     }
 
-    return m_service_manager->initialize_from_configs(
-        *m_config_manager,
-        *m_supervisor_manager,
-        *m_service_factory
-    );
+    return m_service_manager->initialize_from_configs(*m_config_manager, *m_supervisor_manager,
+                                                      *m_service_factory);
 }
 
-// 启动
-application& application::start() {
+bool application::start() {
+    m_impl->start();
+    return true;
+}
+
+void application::impl::start() {
     if (m_running) {
-        return *this;
+        return;
     }
 
     m_running = true;
-    m_started_signal();
-
-    // 启动监督器
     if (!m_supervisor_manager->start_supervisors()) {
-        wlog("部分监督器启动失败");
+        wlog("start supervisors failed");
     }
-    
-    // 启动服务
+
     if (!m_service_manager->start_services()) {
-        wlog("部分服务启动失败");
+        wlog("start services failed");
     }
-    
     m_stopped = false;
-    return *this;
 }
 
-// 执行
 void application::exec() {
-    ilog("启动应用，线程数: ${count}", ("count", m_thread_count));
-    
-    // 触发启动信号
-    m_started_signal();
-    
-    // 创建工作线程
-    std::vector<std::thread> threads;
-    for (unsigned int i = 1; i < m_thread_count; ++i) {
-        threads.emplace_back([this]() {
-            io_context().run();
-        });
-    }
-    
-    // 主线程也参与工作
-    io_context().run();
-    
-    // 等待所有线程结束
-    for (auto& t : threads) {
-        t.join();
-    }
-    
-    ilog("应用已停止");
+    m_impl->exec();
 }
 
-// 停止
-void application::stop() {
+void application::impl::exec() {
+    ilog("start application, thread count: ${count}", ("count", m_thread_count));
+
+    m_running    = true;
+    auto& engine = mc::engine::engine::get_instance();
+    engine.start(m_thread_count);
+    engine.join();
+
+    ilog("application stopped");
+}
+
+bool application::stop() {
+    m_impl->stop();
+    return true;
+}
+
+void application::impl::stop() {
     if (!m_running) {
         return;
     }
 
     m_running = false;
-    m_stopped_signal();
-
     if (m_stopped) {
         return;
     }
-    
-    ilog("正在停止应用...");
-    
-    // 停止监督器
+
+    ilog("stopping application...");
+
     m_supervisor_manager->stop_supervisors();
-    
-    // 停止所有服务
     stop_all_services();
-    
-    // 停止IO上下文
-    m_work_guard.reset(); // 重置work guard，允许io_context在任务完成后退出
-    io_context().stop();
-    
+
+    auto& engine = mc::engine::engine::get_instance();
+    engine.stop();
+
     m_stopped = true;
 }
 
-// 清理
-void application::cleanup() {
+void application::impl::cleanup() {
     if (!m_running) {
         return;
     }
 
-    m_before_cleanup_signal();
-
     if (!m_stopped) {
         stop();
     }
-    
-    // 停止服务
+
     if (m_service_manager) {
         m_service_manager->stop_services();
     }
-    
-    // 停止监督器
+
     if (m_supervisor_manager) {
         m_supervisor_manager->stop_supervisors();
     }
-    
-    // 停止IO上下文
-    io_context().stop();
-    
-    m_after_cleanup_signal();
 
-    // 清理资源
     m_supervisor_manager.reset();
     m_service_manager.reset();
     m_service_factory.reset();
@@ -314,24 +281,18 @@ void application::cleanup() {
     m_config_manager.reset();
 }
 
-// 是否已停止
 bool application::is_stopped() const {
-    return m_stopped;
+    return m_impl->m_stopped;
 }
 
-void application::stop_all_services() {
+void application::impl::stop_all_services() {
     if (m_service_manager) {
         m_service_manager->stop_services();
     }
 }
 
-void application::restart_all_services() {
-    if (m_service_manager) {
-        // 停止服务
-        m_service_manager->stop_services();
-        // 重新启动服务
-        m_service_manager->start_services();
-    }
+io_context& application::get_io_context() {
+    return mc::engine::engine::get_instance().get_io_context();
 }
 
-} // namespace mc
+} // namespace mc::core

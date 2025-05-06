@@ -36,7 +36,7 @@ bool test_service::stop() {
     }
 
     for (auto& task : m_tasks) {
-        task->stop();
+        // task->stop();
     }
     return true;
 }

@@ -61,7 +61,7 @@ public:
             return nullptr;
         }
 
-        return obj->to_object_ptr<T>();
+        return mc::im::ref_ptr<T>(obj);
     }
 
     /**
@@ -126,7 +126,7 @@ public:
             builder,
             [handler = std::forward<std::function<bool(typename T::const_object_ptr_type)>>(
                  handler)](const object_base* obj) {
-                return handler(obj->to_object_ptr<T>());
+                return handler(mc::im::cast<const T>(obj));
             });
     }
 

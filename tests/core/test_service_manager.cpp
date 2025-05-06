@@ -13,15 +13,18 @@
 #include <gtest/gtest.h>
 #include <mc/core/config_manager.h>
 #include <mc/core/config_schema.h>
+#include <mc/core/service.h>
 #include <mc/core/service_factory.h>
 #include <mc/core/service_manager.h>
 #include <mc/core/supervisor.h>
 #include <mc/core/supervisor_manager.h>
+
 #include <mc/dict.h>
 #include <mc/variant.h>
 #include <test_utilities/test_base.h>
 
 using namespace mc;
+using namespace mc::core;
 
 // 测试辅助函数：创建服务配置
 config::service_config make_service_config(const std::string&              name,
@@ -93,7 +96,7 @@ public:
         return true;
     }
 
-    std::string name() const override {
+    const std::string& name() const override {
         return m_config.meta.name;
     }
 
@@ -102,9 +105,9 @@ private:
 };
 
 // 测试用服务
-class test_service : public service {
+class test_service : public service_base {
 public:
-    test_service(const std::string& name) : m_name(name), m_supervisor(nullptr) {
+    test_service(const std::string& name) : service_base(name) {
     }
 
     bool init(dict args) override {
@@ -122,24 +125,10 @@ public:
     service_state get_state() const override {
         return service_state::stopped;
     }
-    const std::string& name() const override {
-        return m_name;
-    }
+
     bool is_healthy() const override {
         return true;
     }
-
-    void set_supervisor(std::shared_ptr<supervisor> supervisor) override {
-        m_supervisor = supervisor;
-    }
-
-    std::shared_ptr<supervisor> get_supervisor() const override {
-        return m_supervisor;
-    }
-
-private:
-    std::string                 m_name;
-    std::shared_ptr<supervisor> m_supervisor;
 };
 
 // 测试用服务工厂
@@ -161,7 +150,7 @@ protected:
     }
 
     ~service_manager_test() {
-     }
+    }
 
     void TearDown() override {
         manager.cleanup_services();

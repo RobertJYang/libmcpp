@@ -28,7 +28,7 @@
 #include <tuple>
 #include <vector>
 
-namespace mc {
+namespace mc::core {
 
 /**
  * @brief 任务优先级常量
@@ -272,7 +272,7 @@ private:
     QueueState m_state;
 };
 
-} // namespace mc
+} // namespace mc::core
 
 namespace boost {
 namespace asio {

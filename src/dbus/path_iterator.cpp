@@ -1,7 +1,6 @@
-#include "mc/db/path_iterator.h"
+#include "mc/dbus/path_iterator.h"
 
-namespace mc {
-namespace db {
+namespace mc::dbus {
 
 path_iterator::path_iterator(std::string_view path)
     : m_path(path), m_start(0), m_end(0), m_is_initialized(false) {
@@ -143,5 +142,4 @@ std::string_view path_iterator::current() const {
     return m_path.substr(m_start, m_end - m_start);
 }
 
-} // namespace db
-} // namespace mc
+} // namespace mc::dbus

@@ -19,7 +19,7 @@
 #include <mc/variant.h>
 
 namespace mc::engine {
-class object_base;
+class abstract_object;
 class service;
 
 namespace detail {
@@ -53,7 +53,7 @@ using call_info = std::variant<dbus_call, variants_call>;
 
 class context {
 public:
-    context(service& s, object_base& object);
+    context(service& s, abstract_object& object);
     ~context();
 
     void        set_arg(std::string_view key, mc::variant value);
@@ -63,8 +63,8 @@ public:
     mc::dict&       get_args();
     void            set_args(mc::dict args);
 
-    service&     get_service() const;
-    object_base& get_object() const;
+    service&         get_service() const;
+    abstract_object& get_object() const;
 
     detail::call_info& get_call_info();
     void               set_call_info(detail::call_info call_info);
@@ -78,15 +78,23 @@ public:
     std::string_view get_interface_name() const;
     std::string_view get_sender() const;
 
+    [[noreturn]] static void throw_error(std::string_view error_name, mc::dict args = {});
+    [[noreturn]] static void throw_error(const error_info& error, mc::dict args = {});
+
 private:
     service&          m_service;
-    object_base&      m_object;
+    abstract_object&  m_object;
     error             m_error;
     mc::mutable_dict  m_args;
     detail::call_info m_call_info;
 };
 
 using context_stack = detail::call_stack<service, context>;
+
+#define MC_REPLY_ERROR(error, args)                                                                \
+    do {                                                                                           \
+        mc::engine::context::throw_error(error, mc::mutable_dict() args);                          \
+    } while (0)
 
 } // namespace mc::engine
 

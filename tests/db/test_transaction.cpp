@@ -31,8 +31,6 @@ struct by_name_age : mdb::tag_base {};
 
 class user : public mdb::object<user> {
 public:
-    using object_id_type = uint32_t;
-
     user() = default;
 
     user(std::string name, int age) : m_name(std::move(name)), m_age(age) {
@@ -79,7 +77,6 @@ protected:
 
     void TearDown() override {
         mc::singleton<mdb::transaction, mdb::default_transaction_tag>::reset_for_test();
-        std::cout << "TearDown" << std::endl;
     }
 
     user       u1, u2, u3, u4;

@@ -29,6 +29,8 @@ using namespace mc;
 enum class test_color { RED, GREEN, BLUE };
 MC_REFLECT_ENUM(test_color, (RED)(GREEN)(BLUE))
 
+enum class test_normal_color { NORMAL_RED, NORMAL_GREEN, NORMAL_BLUE };
+
 // 测试类
 class test_person {
 public:
@@ -104,6 +106,7 @@ TEST(ReflectTest, EnumReflection) {
     // 检查类型是否可反射
     EXPECT_TRUE(mc::reflect::is_reflectable<test_color>());
     EXPECT_TRUE(mc::reflect::is_enum<test_color>());
+    EXPECT_FALSE(mc::reflect::is_normal_enum<test_color>());
 
     // 获取类型名称
     EXPECT_STREQ(mc::reflect::reflector<test_color>::name(), "test_color");
@@ -136,6 +139,40 @@ TEST(ReflectTest, EnumReflection) {
     // 测试无效枚举值
     variant invalid_var = "YELLOW";
     EXPECT_THROW(invalid_var.as<test_color>(), bad_cast_exception);
+}
+
+// 测试普通枚举反射
+TEST(ReflectTest, NormalEnumReflection) {
+    // 检查类型是否可反射
+    EXPECT_FALSE(mc::reflect::is_reflectable<test_normal_color>());
+    EXPECT_TRUE(mc::reflect::is_normal_enum<test_normal_color>());
+
+    // 枚举转变体
+    test_normal_color color = test_normal_color::NORMAL_GREEN;
+    variant           var(color);
+
+    // 检查变体内容
+    EXPECT_TRUE(var.is_integer());
+    EXPECT_EQ(var, 1);
+
+    // 变体转枚举
+    test_normal_color new_color = var.as<test_normal_color>();
+    EXPECT_EQ(new_color, test_normal_color::NORMAL_GREEN);
+
+    // 测试所有枚举值
+    test_normal_color red   = test_normal_color::NORMAL_RED;
+    test_normal_color green = test_normal_color::NORMAL_GREEN;
+    test_normal_color blue  = test_normal_color::NORMAL_BLUE;
+
+    variant var_red(red);
+    variant var_green(green);
+    variant var_blue(blue);
+
+    EXPECT_EQ(var_red, 0);
+    EXPECT_EQ(var_green, 1);
+    EXPECT_EQ(var_blue, 2);
+
+    EXPECT_EQ(mc::reflect::get_signature<test_normal_color>(), "i");
 }
 
 // 测试成员访问

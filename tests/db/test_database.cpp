@@ -26,8 +26,6 @@ struct by_id : tag_base {};
 // 测试用的对象类
 class test_object : public object<test_object> {
 public:
-    using object_id_type = uint32_t;
-
     test_object() = default;
 
     test_object(uint32_t id, std::string name, int value)

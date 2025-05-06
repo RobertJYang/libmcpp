@@ -25,7 +25,6 @@
 #include <vector>
 
 #include <mc/reflect/signature.h>
-#include <mc/reflect/typename.h>
 #include <mc/variant.h>
 
 namespace mc::reflect {

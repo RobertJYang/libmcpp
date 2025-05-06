@@ -1,11 +1,11 @@
 #include "mc/core/application.h"
-#include <mc/filesystem.h>
 #include <iostream>
+#include <mc/filesystem.h>
 #include <thread>
 #include <vector>
 
 int main(int argc, char** argv) {
-    mc::application& app = mc::application::instance();
+    mc::core::application& app = mc::core::application::instance();
     app.set_version("1.0.0");
 
     // 设置插件目录
@@ -17,9 +17,8 @@ int main(int argc, char** argv) {
     new_argv.push_back(argv[0]);
 
     // 添加配置文件路径
-    std::string config_path =
-        (mc::filesystem::current_path() / "config" / "config.ini").string();
-    std::string config_arg = "--config=" + config_path;
+    std::string config_path = (mc::filesystem::current_path() / "config" / "config.ini").string();
+    std::string config_arg  = "--config=" + config_path;
     new_argv.push_back(const_cast<char*>(config_arg.c_str()));
 
     // 复制其他参数
@@ -43,7 +42,7 @@ int main(int argc, char** argv) {
         return 0;
     } catch (const std::exception& e) {
         std::cerr << "错误: " << e.what() << std::endl;
-        app.cleanup();
+        app.stop();
         return 1;
     }
 }

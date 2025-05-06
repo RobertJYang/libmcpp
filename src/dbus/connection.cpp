@@ -182,8 +182,17 @@ static DBusHandlerResult path_handler(DBusConnection* conn, DBusMessage* msg, vo
         auto message = mc::dbus::message(msg, true);
         return (*handler)(message);
     } catch (const std::exception& e) {
-        elog("DBus路径处理失败: ${error}", ("error", e.what()));
-        return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
+        elog("DBus path handler failed: ${error}", ("error", e.what()));
+        if (dbus_message_get_type(msg) != DBUS_MESSAGE_TYPE_METHOD_CALL) {
+            return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
+        }
+
+        // 对于方法调用，主动返回一个错误
+        // TODO:: 为了调试方便这里直接返回错误，后续应该隐藏程序内部信息避免安全隐患
+        auto reply = dbus_message_new_error(msg, "org.freedesktop.DBus.Error.Failed", e.what());
+        dbus_connection_send(conn, reply, nullptr);
+        dbus_message_unref(reply);
+        return DBUS_HANDLER_RESULT_HANDLED;
     }
 }
 

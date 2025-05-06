@@ -13,17 +13,6 @@
 #ifndef MC_DATABASE_TABLE_H
 #define MC_DATABASE_TABLE_H
 
-#include <atomic>
-#include <functional>
-#include <iostream>
-#include <memory>
-#include <string>
-#include <string_view>
-#include <tuple>
-#include <type_traits>
-#include <unordered_map>
-#include <vector>
-
 #include <mc/db/common.h>
 #include <mc/db/index.h>
 #include <mc/db/index_tag.h>
@@ -39,6 +28,15 @@
 #include <mc/im/ref_ptr.h>
 #include <mc/reflect.h>
 #include <mc/signal_slot.h>
+#include <mc/traits.h>
+
+#include <atomic>
+#include <functional>
+#include <memory>
+#include <string>
+#include <string_view>
+#include <tuple>
+#include <vector>
 
 namespace mc::db {
 /**
@@ -120,7 +118,8 @@ constexpr bool verify_indices_object_type() {
  */
 template <typename ObjectType, typename Alloc>
 auto make_object_id_index(const Alloc& alloc = Alloc()) {
-    return index<ObjectType, object_id_key<ObjectType>, true>(object_id_key<ObjectType>{}, alloc);
+    return index<ObjectType, object_id_key<ObjectType>, true, void, Alloc>(
+        object_id_key<ObjectType>{}, alloc);
 }
 
 /**
@@ -129,10 +128,10 @@ auto make_object_id_index(const Alloc& alloc = Alloc()) {
 template <typename ObjectType, typename Tuple, std::size_t... Is, typename Alloc>
 auto make_indices_with_user_indices_impl(std::index_sequence<Is...>, const Alloc& alloc) {
     return std::make_tuple(
-        make_object_id_index<ObjectType>(alloc),
+        make_object_id_index<ObjectType, Alloc>(alloc),
         index<ObjectType, typename std::tuple_element_t<Is, Tuple>::key_extractor_type,
               std::tuple_element_t<Is, Tuple>::is_unique,
-              typename std::tuple_element_t<Is, Tuple>::tag_type>(
+              typename std::tuple_element_t<Is, Tuple>::tag_type, Alloc>(
             typename std::tuple_element_t<Is, Tuple>::key_extractor_type{}, alloc)...);
 }
 
@@ -279,6 +278,15 @@ protected:
                                     transaction*                          txn) = 0;
     virtual size_t do_update_object(const query_builder& condition, const mc::dict& values,
                                     transaction* txn) = 0;
+
+    /**
+     * 生成新的对象ID
+     * @return 新的对象ID
+     */
+    object_id_type generate_id() {
+        return m_next_id.fetch_add(1, std::memory_order_relaxed);
+    }
+    static std::atomic<object_id_type> m_next_id; ///< 下一个可用的对象ID
 };
 
 /**
@@ -286,19 +294,19 @@ protected:
  * @tparam ObjectType 对象类型
  * @tparam IndexDef 索引定义类型，默认为 no_indices
  */
-template <typename ObjectType, typename IndexDef = no_indices>
+template <typename ObjectType, typename IndexDef = no_indices,
+          typename Allocator = std::allocator<char>>
 class table : public table_base {
 public:
     using object_type           = ObjectType;
     using indices_def           = typename IndexDef::indices;
     using object_ptr_type       = mc::im::ref_ptr<object_type>;
     using const_object_ptr_type = mc::im::ref_ptr<const object_type>;
-    using index_map_config = mc::im::tree_config<object_ptr_type, typename object_type::alloc_type>;
-    using index_txn_type   = mc::im::transaction<index_map_config>;
-    using object_id_type   = typename ObjectType::object_id_type;
-    using alloc_type       = typename index_txn_type::allocator_type;
-    using tree_type        = typename index_txn_type::tree_type;
-    using raw_iterator     = typename tree_type::iterator;
+    using index_map_config      = mc::im::tree_config<object_ptr_type, Allocator>;
+    using index_txn_type        = mc::im::transaction<index_map_config>;
+    using alloc_type            = typename index_txn_type::allocator_type;
+    using tree_type             = typename index_txn_type::tree_type;
+    using raw_iterator          = typename tree_type::iterator;
 
     // 确保所有索引使用相同的对象类型
     static_assert(detail::verify_indices_object_type<object_type, indices_def>(),
@@ -321,7 +329,7 @@ public:
      */
     table(std::string_view name = std::string_view(), uint32_t table_id = 0,
           const alloc_type& alloc = alloc_type())
-        : m_indices(make_indices(alloc)), m_next_id(1),
+        : m_indices(make_indices(alloc)),
           m_table_id(table_id ? table_id : transaction::alloc_table_id()), m_name(name) {
         size_t i = 0;
         detail::for_each_index(m_indices, [&i, this](auto& idx) {
@@ -566,7 +574,7 @@ public:
     auto find(const KeyTypes&... keys) {
         std::lock_guard lock(m_mutex);
 
-        return std::get<Tag>(m_indices).find(keys...);
+        return get<Tag>().find(keys...);
     }
 
     object_ptr_type find_by_index(size_t index_id, const mc::variant& value) {
@@ -886,25 +894,24 @@ private:
         size_t updated_count = 0;
 
         auto handler = [&](const object_type& obj) -> bool {
-            auto new_obj = object_type::create(obj);
-            update_object(*new_obj, values);
-            if (update(mc::im::ref_ptr<object_type>(const_cast<object_type*>(&obj)), new_obj,
-                       txn)) {
+            if constexpr (mc::traits::is_copyable_v<object_type>) {
+                auto new_obj = object_type::create(obj);
+                update_object(*new_obj, values);
+                if (update(mc::im::ref_ptr<object_type>(const_cast<object_type*>(&obj)), new_obj,
+                           txn)) {
+                    updated_count++;
+                }
+                return true;
+            } else {
+                // 非可复制类型，直接更新对象
+                update_object(const_cast<object_type&>(obj), values);
                 updated_count++;
+                return true;
             }
-            return true;
         };
 
         query(condition, handler);
         return updated_count;
-    }
-
-    /**
-     * 生成新的对象ID
-     * @return 新的对象ID
-     */
-    object_id_type generate_id() {
-        return m_next_id.fetch_add(1, std::memory_order_relaxed);
     }
 
     /**
@@ -924,7 +931,6 @@ private:
     mutable std::recursive_mutex m_mutex;
     indices_tuple_type           m_indices;
     indices_array_type           m_indices_array;
-    std::atomic<object_id_type>  m_next_id;        ///< 下一个可用的对象ID
     uint32_t                     m_table_id = {0}; ///< 表ID
     std::string                  m_name;           ///< 表名
 

@@ -13,7 +13,6 @@
 #ifndef MC_ENGINE_ERROR_ENGINE_H
 #define MC_ENGINE_ERROR_ENGINE_H
 #include <mc/engine/error.h>
-#include <mc/engine/errors/std_errors.h>
 
 namespace mc::engine {
 
@@ -30,7 +29,7 @@ public:
      * @param info 错误信息
      */
     error_info register_const_error(const error_info& info);
-    error_info register_const_error(std::string_view name, std::string_view format,
+    error_info register_const_error(std::string_view name, std::string_view format = {},
                                     error_level level = error_level::error);
 
     /*
@@ -77,5 +76,14 @@ private:
 };
 
 } // namespace mc::engine
+
+#define REGISTER_CONST_ERROR(NAME, ERROR, ...)                                                     \
+    inline auto NAME =                                                                             \
+        mc::engine::error_engine::get_instance().register_const_error(ERROR, ##__VA_ARGS__)
+
+#define REGISTER_ERROR(NAME, ERROR, ...)                                                           \
+    inline auto NAME = mc::engine::error_engine::get_instance().register_error(ERROR, ##__VA_ARGS__)
+
+#include <mc/engine/errors/std_errors.h>
 
 #endif // MC_ENGINE_ERROR_ENGINE_H

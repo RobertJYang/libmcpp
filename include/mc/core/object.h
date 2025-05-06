@@ -13,69 +13,52 @@
 #ifndef MC_CORE_OBJECT_H
 #define MC_CORE_OBJECT_H
 
-#include <algorithm>
-#include <atomic>
+#include <mc/common.h>
+#include <mc/db/object.h>
+#include <mc/exception.h>
+#include <mc/signal_slot.h>
+
 #include <boost/asio.hpp>
+
 #include <memory>
-#include <mutex>
-#include <string>
+#include <string_view>
 #include <vector>
 
-namespace mc {
-namespace core {
+namespace mc::core {
+class object;
 
-// 前向声明
-class event;
+template <typename T>
+using ref_ptr = mc::im::ref_ptr<T>;
+
+template <typename T, typename... Args>
+ref_ptr<T> make_ref(Args&&... args) {
+    return mc::im::make_ref<T>(std::forward<Args>(args)...);
+}
+
+using object_ptr       = ref_ptr<object>;
+using const_object_ptr = ref_ptr<const object>;
+using child_list       = std::vector<object_ptr>;
+using object_base      = mc::db::object_base;
+using signal_type      = void*;
+using strand_type      = boost::asio::strand<boost::asio::io_context::executor_type>;
+using io_context       = boost::asio::io_context;
+class service_base;
+
+using connection_id_type                           = uint32_t;
+constexpr connection_id_type INVALID_CONNECTION_ID = std::numeric_limits<connection_id_type>::max();
+
+enum class connection_type { Auto, Direct, Queued };
 
 /**
  * @brief 对象基类，提供对象层次结构和生命周期管理
- *
- * object类是框架中所有对象的基类，提供以下功能：
- * - 对象命名
- * - 父子对象关系管理
- * - 对象树遍历
- * - 线程安全的事件处理
- * - 与boost::asio::io_context集成
  */
-class object : public std::enable_shared_from_this<object> {
+class object : virtual public object_base, public mc::noncopyable {
 public:
-    // 添加友元声明
-    friend class event_dispatcher;
-    friend class standard_event_dispatcher;
-
-    // 类型定义
-    using io_context_type = boost::asio::io_context;
-    using executor_type = io_context_type::executor_type;
-    using strand_type = boost::asio::strand<executor_type>;
-    using object_ptr = std::shared_ptr<object>;
-    using const_object_ptr = std::shared_ptr<const object>;
-    using weak_object_ptr = std::weak_ptr<object>;
-
-    /**
-     * @brief 创建对象实例
-     * @param name 对象名称
-     * @param io_context IO上下文
-     * @param parent 父对象指针，默认为nullptr
-     * @return 对象智能指针
-     */
-    template <typename T, typename... Args>
-    static std::shared_ptr<T> create(std::string name, io_context_type& io_context, 
-                                     std::shared_ptr<object> parent = nullptr, Args&&... args) {
-        auto obj = std::make_shared<T>(std::move(name), io_context, std::forward<Args>(args)...);
-        if (parent) {
-            obj->set_parent(parent);
-        }
-        return obj;
-    }
-
     /**
      * @brief 构造函数
-     * @param name 对象名称
-     * @param io_context IO上下文
-     * @param parent 父对象指针，默认为nullptr
+     * @param parent 父对象指针
      */
-    explicit object(std::string name, io_context_type& io_context, 
-                    std::shared_ptr<object> parent = nullptr);
+    explicit object(object* parent = nullptr);
 
     /**
      * @brief 析构函数，会自动删除所有子对象
@@ -83,30 +66,34 @@ public:
     virtual ~object() noexcept;
 
     /**
+     * @brief 移动构造函数
+     * @param other 右值对象
+     */
+    object(object&& other) noexcept;
+
+    /**
+     * @brief 移动赋值运算符
+     * @param other 右值对象
+     */
+    object& operator=(object&& other) noexcept;
+
+    /**
      * @brief 获取对象名称
      * @return 对象名称
      */
-    const std::string& name() const {
-        return m_name;
-    }
+    std::string_view get_name() const;
 
     /**
      * @brief 设置对象名称
      * @param name 新的对象名称
      */
-    void set_name(const std::string& name) {
-        std::lock_guard<std::mutex> lock(m_mutex);
-        m_name = name;
-    }
+    void set_name(std::string_view name);
 
     /**
      * @brief 获取父对象
-     * @return 父对象指针，如果没有父对象则返回nullptr
+     * @return 父对象指针
      */
-    std::shared_ptr<object> parent() const {
-        std::lock_guard<std::mutex> lock(m_mutex);
-        return m_parent.lock();
-    }
+    object* parent() const;
 
     /**
      * @brief 设置父对象
@@ -114,154 +101,166 @@ public:
      *
      * 如果对象已经有父对象，则会先从原父对象的子对象列表中移除
      */
-    void set_parent(std::shared_ptr<object> parent);
+    void set_parent(object* parent);
 
     /**
      * @brief 获取子对象列表
      * @return 子对象指针列表的副本
      */
-    std::vector<std::shared_ptr<object>> children() const {
-        std::lock_guard<std::mutex> lock(m_mutex);
-        return m_children;
-    }
+    const child_list& children() const;
 
     /**
      * @brief 查找子对象
      * @param name 子对象名称
      * @return 子对象指针，如果未找到则返回nullptr
      */
-    std::shared_ptr<object> find_child(const std::string& name) const;
+    object* find_child(std::string_view name) const;
 
     /**
-     * @brief 查找子对象（递归）
-     * @param name 子对象名称
-     * @return 子对象指针，如果未找到则返回nullptr
+     * @brief 连接信号和槽
+     * @param sig 信号对象
+     * @param slot 槽函数
+     * @param type 连接类型
+     * @return 连接ID
      */
-    std::shared_ptr<object> find_child_recursive(const std::string& name) const;
-
-    /**
-     * @brief 获取IO上下文
-     * @return IO上下文引用
-     */
-    io_context_type& io_context() const {
-        return m_io_context;
+    template <typename SignalType, typename SlotType>
+    connection_id_type connect(SignalType& sig, SlotType&& slot,
+                               connection_type type = connection_type::Auto) {
+        return connect(INVALID_CONNECTION_ID, sig, std::forward<SlotType>(slot), type);
     }
 
     /**
-     * @brief 获取执行器
-     * @return 执行器引用
+     * @brief 使用用户自定义的连接ID连接信号和槽
+     * @param id 连接ID
+     * @param sig 信号对象
+     * @param slot 槽函数
+     * @param type 连接类型
      */
-    executor_type get_executor() const {
-        return m_io_context.get_executor();
-    }
+    template <typename SignalType, typename SlotType>
+    connection_id_type connect(connection_id_type id, SignalType& sig, SlotType&& slot,
+                               connection_type type = connection_type::Auto) {
+        mc::connection_type conn;
 
-    /**
-     * @brief 获取strand
-     * @return strand引用
-     */
-    strand_type& strand() const {
-        return m_strand;
-    }
-
-    /**
-     * @brief 在对象的执行器上异步执行任务
-     * @param task 要执行的任务
-     */
-    template <typename Task>
-    void post(Task&& task) {
-        boost::asio::post(m_strand, std::forward<Task>(task));
-    }
-
-    /**
-     * @brief 在对象的执行器上异步执行任务，带延迟
-     * @param duration 延迟时间
-     * @param task 要执行的任务
-     */
-    template <typename Duration, typename Task>
-    void post_after(Duration duration, Task&& task) {
-        auto timer = std::make_shared<boost::asio::steady_timer>(m_io_context, duration);
-        timer->async_wait(
-            boost::asio::bind_executor(m_strand, [timer, task = std::forward<Task>(task)](const boost::system::error_code& ec) {
-                if (!ec) {
-                    task();
+        if (type == connection_type::Auto) {
+            auto dispatcher = [this, slot = std::forward<SlotType>(slot)](auto&&... args) mutable {
+                auto& s = get_strand();
+                if (s.running_in_this_thread()) {
+                    slot(std::forward<decltype(args)>(args)...);
+                } else {
+                    boost::asio::post(s, [slot, args = std::make_tuple(std::forward<decltype(args)>(
+                                                    args)...)]() mutable {
+                        std::apply(slot, std::move(args));
+                    });
                 }
-            }));
+            };
+            conn = sig.connect(std::move(dispatcher));
+        } else if (type == connection_type::Queued) {
+            conn = sig.connect([this, slot = std::forward<SlotType>(slot)](auto&&... args) mutable {
+                this->post([slot, args = std::make_tuple(
+                                      std::forward<decltype(args)>(args)...)]() mutable {
+                    std::apply(slot, std::move(args));
+                });
+            });
+        } else {
+            conn = sig.connect(std::forward<SlotType>(slot));
+        }
+
+        return add_connection(&sig, std::move(conn), id);
     }
 
     /**
-     * @brief 向对象发送事件
-     * @param e 要发送的事件
-     * @return 如果事件被处理则返回true，否则返回false
+     * @brief 断开连接
+     * @param id 连接ID
+     * @return 是否成功断开
      */
-    virtual bool post_event(std::shared_ptr<event> e);
+    void disconnect(connection_id_type id) const;
 
     /**
-     * @brief 处理事件
-     * @param e 要处理的事件
-     * @return 如果事件被处理则返回true，否则返回false
+     * @brief 断开信号的所有连接
+     * @param sig 信号对象
+     * @return 断开的连接数量
      */
-    virtual bool handle_event(std::shared_ptr<event> e);
 
-    // 禁止拷贝构造和赋值操作
-    object(const object&)            = delete;
-    object& operator=(const object&) = delete;
+    template <typename SignalType>
+    void disconnect(SignalType& sig) const {
+        disconnect_all(&sig);
+    }
+
+    service_base* get_service() const;
+    void          set_service(service_base* s);
+
+    /**
+     * @brief 异步投递任务到对象关联的执行器
+     * @tparam CompletionToken 完成令牌类型
+     * @param token 完成令牌
+     * @return 根据完成令牌类型返回相应的结果
+     */
+    template <typename CompletionToken>
+    auto post(CompletionToken&& token) const {
+        MC_ASSERT(get_service(), "post on object without service");
+        return boost::asio::post(get_strand(), std::forward<CompletionToken>(token));
+    }
+
+    /**
+     * @brief 延迟投递任务到对象关联的执行器
+     * @tparam CompletionToken 完成令牌类型
+     * @param token 完成令牌
+     * @return 根据完成令牌类型返回相应的结果
+     */
+    template <typename CompletionToken>
+    auto defer(CompletionToken&& token) const {
+        MC_ASSERT(get_service(), "defer on object without service");
+        return boost::asio::defer(get_strand(), std::forward<CompletionToken>(token));
+    }
+
+    /**
+     * @brief 分派任务到对象关联的执行器（可能立即执行）
+     * @tparam CompletionToken 完成令牌类型
+     * @param token 完成令牌
+     * @return 根据完成令牌类型返回相应的结果
+     */
+    template <typename CompletionToken>
+    auto dispatch(CompletionToken&& token) const {
+        MC_ASSERT(get_service(), "dispatch on object without service");
+        return boost::asio::dispatch(get_strand(), std::forward<CompletionToken>(token));
+    }
+
+    /**
+     * @brief 在对象关联的执行器上绑定处理器
+     * @tparam Handler 处理器类型
+     * @param handler 处理器函数或仿函数
+     * @return 绑定到执行器的处理器
+     */
+    template <typename Handler>
+    auto bind_executor(Handler&& handler) const {
+        MC_ASSERT(get_service(), "bind_executor on object without service");
+        return boost::asio::bind_executor(get_strand(), std::forward<Handler>(handler));
+    }
+
+    strand_type& get_strand() const;
 
 protected:
-    /**
-     * @brief 获取事件过滤器列表
-     * @return 事件过滤器列表的副本
-     */
-    std::vector<std::shared_ptr<object>> event_filters() const {
-        std::lock_guard<std::mutex> lock(m_mutex);
-        return m_event_filters;
-    }
-
-    /**
-     * @brief 安装事件过滤器
-     * @param filter 事件过滤器
-     */
-    void install_event_filter(std::shared_ptr<object> filter);
-
-    /**
-     * @brief 移除事件过滤器
-     * @param filter 事件过滤器
-     */
-    void remove_event_filter(std::shared_ptr<object> filter);
-
-    /**
-     * @brief 过滤事件
-     * @param target 事件目标对象
-     * @param e 要过滤的事件
-     * @return 如果事件被过滤器处理则返回true，否则返回false
-     */
-    virtual bool filter_event(std::shared_ptr<object> target, std::shared_ptr<event> e);
-
-private:
-    std::string m_name;                 ///< 对象名称
-    weak_object_ptr m_parent;           ///< 父对象弱引用
-    std::vector<object_ptr> m_children; ///< 子对象列表
-    std::vector<object_ptr> m_event_filters; ///< 事件过滤器列表
-    
-    mutable std::mutex m_mutex;         ///< 对象锁，保护对象状态
-    std::atomic<bool> m_deleting;       ///< 对象是否正在删除
-    
-    io_context_type& m_io_context;      ///< IO上下文引用
-    mutable strand_type m_strand;       ///< 执行器strand
-
     /**
      * @brief 添加子对象
      * @param child 子对象指针
      */
-    void add_child(std::shared_ptr<object> child);
+    void add_child(object* child);
 
     /**
      * @brief 移除子对象
      * @param child 子对象指针
      */
-    void remove_child(std::shared_ptr<object> child);
+    void remove_child(object* child);
+
+    connection_id_type add_connection(signal_type sig, mc::connection_type conn,
+                                      connection_id_type id);
+    void               disconnect_all(signal_type sig);
+
+private:
+    struct object_impl;
+    std::unique_ptr<object_impl> m_impl;
 };
 
-} // namespace core
-} // namespace mc
+} // namespace mc::core
 
-#endif // MC_CORE_OBJECT_H 
+#endif // MC_CORE_OBJECT_H

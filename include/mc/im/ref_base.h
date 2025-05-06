@@ -21,11 +21,9 @@ namespace mc::im {
 /**
  * 引用计数基类，提供引用计数管理能力
  */
-template <typename T>
 class ref_base {
 public:
-    ref_base() : m_ref_count(0) {
-    }
+    ref_base() = default;
 
     virtual ~ref_base() = default;
 
@@ -57,7 +55,7 @@ public:
     }
 
 private:
-    mutable std::atomic<size_t> m_ref_count;
+    mutable std::atomic<size_t> m_ref_count{0};
 };
 
 } // namespace mc::im

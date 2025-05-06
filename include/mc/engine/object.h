@@ -13,25 +13,25 @@
 #ifndef MC_ENGINE_OBJECT_H
 #define MC_ENGINE_OBJECT_H
 
+#include <mc/core/object.h>
 #include <mc/db/object.h>
 #include <mc/engine/interface.h>
 #include <mc/engine/object_metadata.h>
+#include <mc/engine/service.h>
 #include <mc/exception.h>
 #include <mc/log.h>
 
 namespace mc::engine {
 
 template <typename ObjectType>
-class object : public mc::db::object<ObjectType>, public object_base {
+class object : public abstract_object, public mc::core::object, public mc::db::object<ObjectType> {
 public:
-    using object_type    = ObjectType;
-    using object_id_type = typename mc::db::object<ObjectType>::object_id_type;
-    using metadata_type  = object_metadata<ObjectType>;
-    using property_info  = typename metadata_type::property_info;
+    using object_type   = ObjectType;
+    using metadata_type = object_metadata<ObjectType>;
+    using property_info = typename metadata_type::property_info;
 
-    object(object_id_type id = 0) : mc::db::object<ObjectType>(id) {
-        /*
-         * 初始化子类对象的属性（interface、property）
+    object() {
+        /* 初始化子类对象的属性（interface、property）
          *
          * 这个做法不符合 C++ 对象构造顺序，因为基类先于子类构造，这里强制转换成子类指针，
          * 并直接调用子类属性的方法，当基类构造函数返回后，子类又会重新构造子类属性，所以
@@ -52,32 +52,23 @@ public:
     virtual ~object() = default;
 
     service* get_service() const override {
-        return m_service;
+        return static_cast<service*>(mc::core::object::get_service());
     }
 
     void set_service(service& s) override {
-        m_service = &s;
+        mc::core::object::set_service(&s);
     }
 
-    void set_parent(object_base* obj) override {
-        m_parent = obj;
+    const managed_objects& get_managed_objects() const override {
+        return m_managed_objects;
     }
 
-    object_base* get_parent() const override {
-        return m_parent;
+    void add_managed_object(abstract_object* obj) override {
+        m_managed_objects[obj->get_object_path()] = obj;
     }
 
-    void add_child(object_base* obj) override {
-        obj->set_parent(this);
-        ms_children[obj->get_object_path()] = obj;
-    }
-
-    void remove_child(object_base* obj) override {
-        ms_children.erase(obj->get_object_path());
-    }
-
-    const childrens_type& get_childrens() const override {
-        return ms_children;
+    void remove_managed_object(abstract_object* obj) override {
+        m_managed_objects.erase(obj->get_object_path());
     }
 
     static metadata_type& get_metadata() {
@@ -96,25 +87,15 @@ public:
         return metadata_type::get_instance().get_interface_info(name);
     }
 
-    void ref() override {
-        mc::im::ref_ptr<ObjectType> ref_ptr(static_cast<ObjectType*>(this));
-        ref_ptr.detach();
-    }
-
-    void unref() override {
-        mc::im::ref_ptr<ObjectType> ref_ptr(static_cast<ObjectType*>(this), false);
-        ref_ptr.reset();
-    }
-
-    const std::string& get_object_name() const override {
-        return m_object_name;
+    std::string_view get_object_name() const override {
+        return this->get_name();
     }
 
     void set_object_name(std::string_view name) override {
-        m_object_name = name;
+        this->set_name(name);
     }
 
-    const std::string& get_object_path() const override {
+    std::string_view get_object_path() const override {
         if (m_object_path.empty()) {
             if (get_parent()) {
                 m_object_path = get_parent()->get_object_path();
@@ -132,12 +113,12 @@ public:
         return get_interface_info(interface_name) != nullptr;
     }
 
-    inline interface_base* property_info_to_interface(property_info& info) {
+    inline abstract_interface* property_info_to_interface(property_info& info) {
         intptr_t p_obj = reinterpret_cast<intptr_t>(static_cast<ObjectType*>(this));
-        return reinterpret_cast<interface_base*>(p_obj + info.offset());
+        return reinterpret_cast<abstract_interface*>(p_obj + info.offset());
     }
 
-    interface_base* get_interface(std::string_view interface_name) override {
+    abstract_interface* get_interface(std::string_view interface_name) override {
         auto info = metadata_type::get_instance().get_interface_info(interface_name);
         if (info == nullptr) {
             return nullptr;
@@ -180,7 +161,7 @@ public:
     invoke_result invoke(std::string_view method_name, const mc::variants& args,
                          std::string_view interface_name = {}) override {
         // 跟踪对象调用
-        object_call_stack::context object_ctx{m_service, *this};
+        object_call_stack::context object_ctx{get_service(), *this};
 
         auto result = standard_interfaces::invoke(this, method_name, args, interface_name);
         if (result.is_valid()) {
@@ -220,12 +201,14 @@ public:
     }
 
 protected:
-    mutable std::string m_object_name;
+    abstract_object* get_parent() const {
+        return dynamic_cast<abstract_object*>(mc::core::object::parent());
+    }
+
+protected:
     mutable std::string m_object_path;
 
-    service*       m_service{nullptr};
-    object_base*   m_parent{nullptr};
-    childrens_type ms_children;
+    managed_objects m_managed_objects;
 };
 
 } // namespace mc::engine

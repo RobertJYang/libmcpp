@@ -17,14 +17,15 @@
 #ifndef MC_CORE_PLUGIN_MANAGER_H
 #define MC_CORE_PLUGIN_MANAGER_H
 
-#include "mc/core/plugin.h"
-#include "mc/core/service_factory.h"
+#include <mc/core/plugin.h>
+#include <mc/core/service_factory.h>
+
 #include <memory>
 #include <string>
 #include <unordered_map>
 #include <vector>
 
-namespace mc {
+namespace mc::core {
 
 /**
  * @brief 插件管理器类
@@ -36,13 +37,13 @@ public:
     ~plugin_manager();
 
     // 插件目录管理
-    void set_plugin_dir(const std::string& plugin_dir);
+    void               set_plugin_dir(const std::string& plugin_dir);
     const std::string& plugin_dir() const;
 
     // 插件管理
-    bool register_plugin(std::shared_ptr<plugin> plugin);
+    bool    register_plugin(std::shared_ptr<plugin> plugin);
     plugin* find_plugin(const std::string& name) const;
-    
+
     // 插件加载和卸载
     bool load_plugin(const std::string& name);
     /**
@@ -53,7 +54,7 @@ public:
     bool load_plugins(const std::vector<std::string>& plugin_names);
     bool unload_plugin(const std::string& name);
     void unload_all_plugins();
-    
+
     // 插件生命周期管理
     bool init_plugins(service_factory& factory);
 
@@ -62,14 +63,15 @@ public:
 
 private:
     // 加载动态库并创建插件实例
-    bool load_dynamic_library(const std::string& plugin_name, void*& handle, std::shared_ptr<plugin>& plugin);
+    bool load_dynamic_library(const std::string& plugin_name, void*& handle,
+                              std::shared_ptr<plugin>& plugin);
 
     // 成员变量
-    std::string m_plugin_dir;                                         // 插件目录
-    std::unordered_map<std::string, std::shared_ptr<plugin>> m_plugins;  // 插件映射表
-    std::vector<void*> m_plugin_handles;                              // 动态库句柄列表
+    std::string                                              m_plugin_dir;     // 插件目录
+    std::unordered_map<std::string, std::shared_ptr<plugin>> m_plugins;        // 插件映射表
+    std::vector<void*>                                       m_plugin_handles; // 动态库句柄列表
 };
 
-} // namespace mc
+} // namespace mc::core
 
-#endif // MC_CORE_PLUGIN_MANAGER_H 
+#endif // MC_CORE_PLUGIN_MANAGER_H

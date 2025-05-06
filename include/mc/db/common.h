@@ -25,67 +25,7 @@ namespace mc::db {
 /**
  * 数据库对象ID类型
  */
-using object_id_t = uint64_t;
-
-/**
- * 数据库事务ID类型
- */
-using txn_id_t = uint64_t;
-
-/**
- * 空对象ID
- */
-constexpr object_id_t NULL_OBJECT_ID = 0;
-
-/**
- * 表类型枚举
- */
-enum class table_type : uint8_t { unknown = 0, memory = 1, persisten = 2 };
-
-/**
- * 数据库异常基类
- */
-class database_exception : public std::exception {
-public:
-    explicit database_exception(const std::string& message) : m_message(message) {
-    }
-    const char* what() const noexcept override {
-        return m_message.c_str();
-    }
-
-private:
-    std::string m_message;
-};
-
-/**
- * 键不存在异常
- */
-class key_not_found_exception : public database_exception {
-public:
-    explicit key_not_found_exception(const std::string& key)
-        : database_exception("键不存在: " + key) {
-    }
-};
-
-/**
- * 键重复异常
- */
-class key_duplicate_exception : public database_exception {
-public:
-    explicit key_duplicate_exception(const std::string& key)
-        : database_exception("键重复: " + key) {
-    }
-};
-
-/**
- * 无效参数异常
- */
-class invalid_argument_exception : public database_exception {
-public:
-    explicit invalid_argument_exception(const std::string& message)
-        : database_exception("无效参数: " + message) {
-    }
-};
+using object_id_type = uint64_t;
 
 } // namespace mc::db
 

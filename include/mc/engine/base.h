@@ -13,6 +13,7 @@
 #ifndef MC_ENGINE_BASE_H
 #define MC_ENGINE_BASE_H
 
+#include <mc/core/object.h>
 #include <mc/db/object.h>
 #include <mc/db/table.h>
 #include <mc/dbus/message.h>
@@ -37,13 +38,14 @@ using io_context_type = boost::asio::io_context;
 using strand_type     = boost::asio::strand<boost::asio::io_context::executor_type>;
 using slot_type       = std::function<mc::variant(const mc::variants&)>;
 using message         = mc::dbus::message;
+using object_base     = mc::db::object_base;
 
-class object_base;
-struct interface_base;
+class abstract_object;
+struct abstract_interface;
 class service;
 
-using object_call_stack = detail::call_stack<service, object_base>;
-inline object_base* get_object() {
+using object_call_stack = detail::call_stack<service, abstract_object>;
+inline abstract_object* get_object() {
     return object_call_stack::top_value();
 }
 
@@ -61,22 +63,22 @@ struct invoke_result : public mc::variant {
 };
 
 struct visitor {
-    virtual void handle_interface_begin(object_base& obj, interface_base& iface) = 0;
-    virtual void handle_interface_end(object_base& obj, interface_base& iface)   = 0;
+    virtual void handle_interface_begin(abstract_object& obj, abstract_interface& iface) = 0;
+    virtual void handle_interface_end(abstract_object& obj, abstract_interface& iface)   = 0;
 
     struct property_meta {
         std::string_view name;
         std::string_view signature;
         uint32_t         access;
     };
-    virtual void handle(object_base& obj, interface_base& iface, property_meta& info) = 0;
+    virtual void handle(abstract_object& obj, abstract_interface& iface, property_meta& info) = 0;
 
     struct method_meta {
         std::string_view name;
         std::string_view args_signature;
         std::string_view return_signature;
     };
-    virtual void handle(object_base& obj, interface_base& iface, method_meta& info) = 0;
+    virtual void handle(abstract_object& obj, abstract_interface& iface, method_meta& info) = 0;
 
     struct signal_meta {
         std::string_view name;
@@ -84,13 +86,13 @@ struct visitor {
         std::string_view return_signature;
     };
 
-    virtual void handle(object_base& obj, interface_base& iface, signal_meta& info) = 0;
+    virtual void handle(abstract_object& obj, abstract_interface& iface, signal_meta& info) = 0;
 };
 
-struct interface_base {
-    virtual ~interface_base() = default;
+struct abstract_interface {
+    virtual ~abstract_interface() = default;
 
-    virtual object_base* get_object() const = 0;
+    virtual abstract_object* get_object() const = 0;
 
     virtual std::string_view    get_interface_name() const                                   = 0;
     virtual mc::connection_type connect(std::string_view signal_name, slot_type slot)        = 0;
@@ -102,30 +104,26 @@ struct interface_base {
     virtual invoke_result invoke(std::string_view method_name, const mc::variants& args) = 0;
 };
 
-class object_base {
+class abstract_object : virtual public object_base {
 public:
-    using childrens_type = std::map<std::string_view, object_base*>;
+    using managed_objects = std::map<std::string_view, abstract_object*>;
 
-    virtual ~object_base() = default;
+    virtual ~abstract_object() = default;
 
-    virtual void ref()   = 0;
-    virtual void unref() = 0;
+    virtual void     set_service(service& s) = 0;
+    virtual service* get_service() const     = 0;
 
-    virtual void                  set_service(service& s)        = 0;
-    virtual service*              get_service() const            = 0;
-    virtual void                  set_parent(object_base* obj)   = 0;
-    virtual object_base*          get_parent() const             = 0;
-    virtual void                  add_child(object_base* obj)    = 0;
-    virtual void                  remove_child(object_base* obj) = 0;
-    virtual const childrens_type& get_childrens() const          = 0;
+    virtual const managed_objects& get_managed_objects() const                 = 0;
+    virtual void                   add_managed_object(abstract_object* obj)    = 0;
+    virtual void                   remove_managed_object(abstract_object* obj) = 0;
 
-    virtual const std::string& get_object_name() const                = 0;
-    virtual void               set_object_name(std::string_view name) = 0;
-    virtual const std::string& get_object_path() const                = 0;
-    virtual void               set_object_path(std::string_view path) = 0;
+    virtual std::string_view get_object_name() const                = 0;
+    virtual void             set_object_name(std::string_view name) = 0;
+    virtual std::string_view get_object_path() const                = 0;
+    virtual void             set_object_path(std::string_view path) = 0;
 
-    virtual bool            has_interface(std::string_view interface_name) const = 0;
-    virtual interface_base* get_interface(std::string_view interface_name)       = 0;
+    virtual bool                has_interface(std::string_view interface_name) const = 0;
+    virtual abstract_interface* get_interface(std::string_view interface_name)       = 0;
 
     virtual mc::variant get_property(std::string_view property_name,
                                      std::string_view interface_name = {})    = 0;
@@ -143,36 +141,13 @@ public:
                                  std::string_view interface_name = {}) = 0;
 };
 
-struct object_wrap : public mc::db::object<object_wrap> {
-    object_wrap(mc::engine::object_base* object);
-    ~object_wrap() override;
-
-    void free();
-
-    object_wrap(const object_wrap& other);
-    object_wrap(object_wrap&& other) noexcept;
-    object_wrap& operator=(const object_wrap& other);
-    object_wrap& operator=(object_wrap&& other) noexcept;
-
-    const std::string& get_path() const;
-
-    mc::engine::object_base& operator*() const {
-        return *m_object;
-    }
-
-    mc::engine::object_base* operator->() const {
-        return m_object;
-    }
-
-    mc::engine::object_base* m_object;
-};
-
-using object_ptr = mc::im::ref_ptr<object_base>;
+using object_ptr = mc::im::ref_ptr<abstract_object>;
 struct by_path : mc::db::tag_base {};
 struct by_object_name : mc::db::tag_base {};
 using path_index = mc::db::ordered_non_unique<
-    mc::db::member<object_wrap, const std::string&, &object_wrap::get_path>, by_path>;
-
+    mc::db::member<abstract_object, std::string_view, &abstract_object::get_object_path>, by_path>;
+using path_unique_index = mc::db::ordered_unique<
+    mc::db::member<abstract_object, std::string_view, &abstract_object::get_object_path>, by_path>;
 } // namespace mc::engine
 
 namespace mc {

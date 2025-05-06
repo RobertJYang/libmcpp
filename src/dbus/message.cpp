@@ -886,6 +886,10 @@ void message_writer::write_variant_value(const mc::variant& v) const {
 
 void message_writer::write_variant(signature_iterator it, const mc::variant& v,
                                    std::size_t depth) const {
+    if (it.at_end()) {
+        return;
+    }
+
     ensure_message_depth(depth);
 
     switch (it.current_type_code()) {

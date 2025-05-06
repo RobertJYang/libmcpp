@@ -164,7 +164,7 @@ using edges =
  * @tparam Config 树配置类型
  */
 template <typename Config>
-class node : public ref_base<node<Config>> {
+class node : public ref_base {
 public:
     // 从配置中提取类型
     using leaf_type              = typename Config::leaf_type;

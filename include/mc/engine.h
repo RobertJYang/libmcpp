@@ -35,6 +35,10 @@ inline strand_type make_strand(boost::asio::io_context& io_context) {
     return strand_type(io_context.get_executor());
 }
 
+inline boost::asio::io_context& get_io_context() {
+    return get_engine().get_io_context();
+}
+
 template <typename Table>
 Table& get_table(std::string_view table_name) {
     return mc::engine::engine::get_instance().get_table<Table>(table_name);

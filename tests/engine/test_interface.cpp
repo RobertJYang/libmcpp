@@ -120,8 +120,8 @@ MC_REFLECT(
 
 class interface_test : public ::testing::Test {
 protected:
-    TestInterface               obj;
-    mc::engine::interface_base* iface;
+    TestInterface                   obj;
+    mc::engine::abstract_interface* iface;
 
     interface_test() : obj(10) {
     }
@@ -139,8 +139,8 @@ TEST_F(interface_test, test_interface) {
     TestInterface value2(100);
 
     // 通过反射链接信息号
-    mc::engine::interface_base* v1 = &value1;
-    mc::engine::interface_base* v2 = &value2;
+    mc::engine::abstract_interface* v1 = &value1;
+    mc::engine::abstract_interface* v2 = &value2;
     v1->connect("value_changed", [v2](mc::variants args) {
         return v2->invoke("Add", args);
     });
@@ -155,8 +155,8 @@ TEST_F(interface_test, test_interface) {
 
 // 测试方法调用
 TEST_F(interface_test, test_method_invoke) {
-    TestInterface               value(10);
-    mc::engine::interface_base* iface = &value;
+    TestInterface                   value(10);
+    mc::engine::abstract_interface* iface = &value;
 
     // 测试Add方法
     mc::variant result = iface->invoke("Add", {5});
@@ -182,8 +182,8 @@ TEST_F(interface_test, test_method_invoke) {
 
 // 测试属性读写
 TEST_F(interface_test, test_property) {
-    TestInterface               value(42);
-    mc::engine::interface_base* iface = &value;
+    TestInterface                   value(42);
+    mc::engine::abstract_interface* iface = &value;
 
     // 获取属性值
     mc::variant val_prop = iface->get_property("value");
@@ -208,8 +208,8 @@ TEST_F(interface_test, test_property) {
 
 // 测试信号连接和触发
 TEST_F(interface_test, test_signal_connection) {
-    TestInterface               value(0);
-    mc::engine::interface_base* iface = &value;
+    TestInterface                   value(0);
+    mc::engine::abstract_interface* iface = &value;
 
     int signal_called_count = 0;
     int last_value          = 0;
@@ -237,8 +237,8 @@ TEST_F(interface_test, test_signal_connection) {
 
 // 测试多个信号
 TEST_F(interface_test, test_multiple_signals) {
-    TestInterface               value(10);
-    mc::engine::interface_base* iface = &value;
+    TestInterface                   value(10);
+    mc::engine::abstract_interface* iface = &value;
 
     bool value_changed_called = false;
     bool name_changed_called  = false;
@@ -292,8 +292,8 @@ TEST_F(interface_test, test_multiple_signals) {
 
 // 测试信号发射
 TEST_F(interface_test, test_emit_signal) {
-    TestInterface               value(0);
-    mc::engine::interface_base* iface = &value;
+    TestInterface                   value(0);
+    mc::engine::abstract_interface* iface = &value;
 
     int signal_calls = 0;
 
@@ -317,8 +317,8 @@ TEST_F(interface_test, test_emit_signal) {
 
 // 测试有无返回值的信号
 TEST_F(interface_test, test_signals_with_and_without_return) {
-    TestInterface               value(0);
-    mc::engine::interface_base* iface = &value;
+    TestInterface                   value(0);
+    mc::engine::abstract_interface* iface = &value;
 
     bool void_signal_called = false;
 
@@ -352,9 +352,9 @@ TEST_F(interface_test, test_signal_chain) {
     TestInterface value2(0);
     TestInterface value3(0);
 
-    mc::engine::interface_base* v1 = &value1;
-    mc::engine::interface_base* v2 = &value2;
-    mc::engine::interface_base* v3 = &value3;
+    mc::engine::abstract_interface* v1 = &value1;
+    mc::engine::abstract_interface* v2 = &value2;
+    mc::engine::abstract_interface* v3 = &value3;
 
     // 创建信号链: value1 -> value2 -> value3
     v1->connect("value_changed", [v2](mc::variants args) {
@@ -397,8 +397,8 @@ TEST_F(interface_test, test_static_methods) {
 
 // 测试参数异常情况
 TEST_F(interface_test, test_invalid_arguments) {
-    TestInterface               value(10);
-    mc::engine::interface_base* iface = &value;
+    TestInterface                   value(10);
+    mc::engine::abstract_interface* iface = &value;
 
     EXPECT_THROW(iface->invoke("Add", {}), mc::bad_function_call_exception);
 
@@ -413,8 +413,8 @@ TEST_F(interface_test, test_invalid_arguments) {
 
 // 测试多个插槽连接到同一信号
 TEST_F(interface_test, test_multiple_slots) {
-    TestInterface               value(0);
-    mc::engine::interface_base* iface = &value;
+    TestInterface                   value(0);
+    mc::engine::abstract_interface* iface = &value;
 
     int slot1_calls = 0;
     int slot2_calls = 0;
@@ -440,8 +440,8 @@ TEST_F(interface_test, test_multiple_slots) {
 
 // 测试连接管理
 TEST_F(interface_test, test_connection_management) {
-    TestInterface               value(0);
-    mc::engine::interface_base* iface = &value;
+    TestInterface                   value(0);
+    mc::engine::abstract_interface* iface = &value;
 
     int call_count = 0;
 
@@ -478,19 +478,19 @@ TEST_F(interface_test, test_interface_hierarchy) {
     TestInterface value(42);
 
     // 测试对象类型
-    EXPECT_TRUE((std::is_same_v<decltype(value)::object_type, TestInterface>));
+    EXPECT_TRUE((std::is_same_v<decltype(value)::interface_type, TestInterface>));
 
     // 测试继承关系
-    mc::engine::interface_base*           base_ptr    = &value;
+    mc::engine::abstract_interface*       base_ptr    = &value;
     mc::engine::interface<TestInterface>* derived_ptr = &value;
 
-    EXPECT_EQ(base_ptr, static_cast<mc::engine::interface_base*>(derived_ptr));
+    EXPECT_EQ(base_ptr, static_cast<mc::engine::abstract_interface*>(derived_ptr));
 }
 
 // 测试空信号的行为
 TEST_F(interface_test, test_empty_signal) {
-    TestInterface               value(0);
-    mc::engine::interface_base* iface = &value;
+    TestInterface                   value(0);
+    mc::engine::abstract_interface* iface = &value;
 
     // 不连接任何插槽，直接发射信号
     mc::variant result = iface->emit("value_changed", {42, 10});
@@ -513,8 +513,8 @@ TEST_F(interface_test, test_complex_scenario) {
     TestInterface counter(10);
     TestInterface logger;
 
-    mc::engine::interface_base* counter_iface = &counter;
-    mc::engine::interface_base* logger_iface  = &logger;
+    mc::engine::abstract_interface* counter_iface = &counter;
+    mc::engine::abstract_interface* logger_iface  = &logger;
 
     // 将Counter的状态变化连接到Logger
     counter_iface->connect("status_changed", [logger_iface](mc::variants args) -> mc::variant {

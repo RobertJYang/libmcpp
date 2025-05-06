@@ -13,15 +13,7 @@
 #ifndef MC_DATABASE_INDEX_H
 #define MC_DATABASE_INDEX_H
 
-#include <functional>
-#include <iostream>
-#include <memory>
-#include <string>
-#include <string_view>
-#include <type_traits>
-#include <typeindex>
-#include <vector>
-
+#include <mc/db/common.h>
 #include <mc/db/index_tag.h>
 #include <mc/db/iterator.h>
 #include <mc/db/key.h>
@@ -30,13 +22,19 @@
 #include <mc/exception.h>
 #include <mc/im/radix_tree.h>
 
+#include <functional>
+#include <memory>
+#include <string>
+#include <string_view>
+#include <vector>
+
 namespace mc::db {
 
-template <typename ObjectType>
+template <typename ObjectType, typename Allocator = std::allocator<char>>
 class index_base {
 public:
     using object_type     = ObjectType;
-    using alloc_type      = typename ObjectType::alloc_type;
+    using alloc_type      = Allocator;
     using object_ptr_type = mc::im::ref_ptr<object_type>;
     using tree_config     = mc::im::tree_config<object_ptr_type, alloc_type>;
     using tree_type       = mc::im::radix_tree<tree_config>;
@@ -62,28 +60,27 @@ public:
  * @tparam IsUnique 是否唯一索引
  * @tparam Tag 标签类型
  */
-template <typename ObjectType, typename KeyExtractor, bool IsUnique = true, typename Tag = void>
-class index : public index_base<ObjectType> {
-    static_assert(std::is_base_of_v<object<ObjectType>, ObjectType>,
-                  "ObjectType必须继承自object_base");
+template <typename ObjectType, typename KeyExtractor, bool IsUnique = true, typename Tag = void,
+          typename Allocator = std::allocator<char>>
+class index : public index_base<ObjectType, Allocator> {
+    static_assert(std::is_base_of_v<object_base, ObjectType>, "ObjectType必须继承自object_base");
 
 public:
     // 索引相关类型定义
     using key_extractor_type        = KeyExtractor;
     using object_type               = ObjectType;
     using object_ptr_type           = mc::im::ref_ptr<object_type>;
-    using alloc_type                = typename ObjectType::alloc_type;
+    using alloc_type                = Allocator;
     using tag_type                  = Tag;
     static constexpr bool is_unique = IsUnique;
 
     // radix树配置
-    using tree_config    = mc::im::tree_config<object_ptr_type, alloc_type>;
-    using tree_type      = mc::im::radix_tree<tree_config>;
-    using raw_iterator   = typename tree_type::iterator;
-    using txn_type       = mc::im::transaction<tree_config>;
-    using self_type      = index<object_type, KeyExtractor, IsUnique, Tag>;
-    using iterator_type  = iterator<self_type>;
-    using object_id_type = typename ObjectType::object_id_type;
+    using tree_config   = mc::im::tree_config<object_ptr_type, alloc_type>;
+    using tree_type     = mc::im::radix_tree<tree_config>;
+    using raw_iterator  = typename tree_type::iterator;
+    using txn_type      = mc::im::transaction<tree_config>;
+    using self_type     = index<object_type, KeyExtractor, IsUnique, Tag, Allocator>;
+    using iterator_type = iterator<self_type>;
 
     static constexpr int  key_count       = key_extractor_type::key_count;
     static constexpr bool is_compound_key = key_extractor_type::is_compound_key;
@@ -456,7 +453,8 @@ template <typename ObjectType, bool IsUnique, typename KeyExtractor, typename Ta
           typename Alloc = std::allocator<ObjectType>>
 static auto make_index(const KeyExtractor& extractor = KeyExtractor(),
                        const Alloc&        alloc     = Alloc()) {
-    return std::make_unique<index<ObjectType, KeyExtractor, IsUnique, Tag>>(extractor, alloc);
+    return std::make_unique<index<ObjectType, KeyExtractor, IsUnique, Tag, Alloc>>(extractor,
+                                                                                   alloc);
 }
 
 } // namespace mc::db

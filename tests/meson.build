@@ -12,11 +12,11 @@ test_files = [
   # core 目录
   'core/test_service_manager.cpp',
   'core/test_singleton.cpp',
+  'core/test_timer.cpp',
 
   # db 目录
   'db/test_database.cpp',
   'db/test_index.cpp',
-  'db/test_path_iterator.cpp',
   'db/test_query_advanced.cpp',
   'db/test_table.cpp',
   'db/test_transaction.cpp',
@@ -94,6 +94,7 @@ test_files = [
   'dbus/test_reflect.cpp',
   'dbus/test_dbus_message.cpp',
   'dbus/test_connection.cpp',
+  'dbus/test_path_iterator.cpp',
 ]
 
 dbus_dep = dependency('dbus-1', method: 'pkg-config', required: true)

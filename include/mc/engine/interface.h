@@ -134,23 +134,27 @@ signal_map<T> init_signal_map() {
 } // namespace detail
 
 template <typename T>
-struct interface : public interface_base {
-    using is_interface = std::true_type;
-    using object_type  = T;
+struct interface : public abstract_interface {
+    using is_interface   = std::true_type;
+    using interface_type = T;
 
     interface() {
     }
 
-    void set_object(object_base* obj) {
+    void set_object(abstract_object* obj) {
         m_object = obj;
     }
 
-    object_base* get_object() const override {
+    abstract_object* get_object() const override {
         return m_object;
     }
 
-    static signal_map<object_type>& get_signals() {
-        static signal_map<object_type> signals = detail::init_signal_map<object_type>();
+    mc::core::object* get_owner() const {
+        return dynamic_cast<mc::core::object*>(m_object);
+    }
+
+    static signal_map<interface_type>& get_signals() {
+        static signal_map<interface_type> signals = detail::init_signal_map<interface_type>();
         return signals;
     }
 
@@ -158,7 +162,7 @@ struct interface : public interface_base {
         return get_signals().find(signal_name) != get_signals().end();
     }
 
-    static const mc::engine::signal_info_base<object_type>*
+    static const mc::engine::signal_info_base<interface_type>*
     get_signal(std::string_view signal_name) {
         auto& sigs = get_signals();
         auto  it   = sigs.find(signal_name);
@@ -170,19 +174,19 @@ struct interface : public interface_base {
     }
 
     static const auto& get_static_signals() {
-        return detail::get_static_signals<object_type>();
+        return detail::get_static_signals<interface_type>();
     }
 
     static const auto& get_static_properties() {
-        return mc::reflect::reflector<object_type>::get_properties();
+        return mc::reflect::reflector<interface_type>::get_properties();
     }
 
     static const auto& get_static_methods() {
-        return mc::reflect::reflector<object_type>::get_methods();
+        return mc::reflect::reflector<interface_type>::get_methods();
     }
 
     std::string_view get_interface_name() const override {
-        return object_type::interface_name;
+        return interface_type::interface_name;
     }
 
     mc::connection_type connect(std::string_view signal_name, slot_type slot) override {
@@ -191,7 +195,7 @@ struct interface : public interface_base {
             return {};
         }
 
-        return signal->connect(static_cast<object_type&>(*this), std::move(slot));
+        return signal->connect(static_cast<interface_type&>(*this), std::move(slot));
     }
 
     mc::variant emit(std::string_view signal_name, const mc::variants& args) override {
@@ -200,31 +204,31 @@ struct interface : public interface_base {
             return {};
         }
 
-        return signal->emit(static_cast<object_type&>(*this), args);
+        return signal->emit(static_cast<interface_type&>(*this), args);
     }
 
     invoke_result invoke(std::string_view method_name, const mc::variants& args) override {
-        auto method = mc::reflect::get_method_info<object_type>(method_name);
+        auto method = mc::reflect::get_method_info<interface_type>(method_name);
         if (!method) {
             return {nullptr, mc::variant()};
         }
-        return {method, method->invoke(static_cast<object_type&>(*this), args)};
+        return {method, method->invoke(static_cast<interface_type&>(*this), args)};
     }
 
     mc::variant get_property(std::string_view property_name) override {
-        return mc::reflect::get_property(static_cast<object_type&>(*this), property_name);
+        return mc::reflect::get_property(static_cast<interface_type&>(*this), property_name);
     }
 
     mc::dict get_all_properties() override {
-        return mc::reflect::get_all_properties(static_cast<object_type&>(*this));
+        return mc::reflect::get_all_properties(static_cast<interface_type&>(*this));
     }
 
     bool set_property(std::string_view property_name, const mc::variant& value) override {
-        return mc::reflect::set_property(static_cast<object_type&>(*this), property_name, value);
+        return mc::reflect::set_property(static_cast<interface_type&>(*this), property_name, value);
     }
 
 protected:
-    object_base* m_object;
+    abstract_object* m_object;
 };
 
 } // namespace mc::engine

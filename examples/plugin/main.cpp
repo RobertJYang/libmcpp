@@ -23,7 +23,7 @@
 #include <iostream>
 #include <thread>
 
-using namespace mc;
+using namespace mc::core;
 
 int main(int argc, char* argv[]) {
     // 初始化应用程序
@@ -40,7 +40,6 @@ int main(int argc, char* argv[]) {
 
     // 停止并清理
     app().stop();
-    app().cleanup();
 
     return 0;
 }
