@@ -78,6 +78,9 @@ public:
     std::string_view get_interface_name() const;
     std::string_view get_sender() const;
 
+    [[noreturn]] static void throw_error(std::string_view error_name, mc::dict args = {});
+    [[noreturn]] static void throw_error(const error_info& error, mc::dict args = {});
+
 private:
     service&          m_service;
     abstract_object&  m_object;
@@ -87,6 +90,11 @@ private:
 };
 
 using context_stack = detail::call_stack<service, context>;
+
+#define MC_REPLY_ERROR(error, args)                                                                \
+    do {                                                                                           \
+        mc::engine::context::throw_error(error, mc::mutable_dict() args);                          \
+    } while (0)
 
 } // namespace mc::engine
 

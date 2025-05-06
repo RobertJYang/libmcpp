@@ -17,6 +17,7 @@
 #include <mc/db/object.h>
 #include <mc/engine/interface.h>
 #include <mc/engine/object_metadata.h>
+#include <mc/engine/service.h>
 #include <mc/exception.h>
 #include <mc/log.h>
 

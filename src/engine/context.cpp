@@ -10,8 +10,9 @@
  * See the Mulan PSL v2 for more details.
  */
 
-#include "mc/engine/context.h"
-#include "mc/engine/error_engine.h"
+#include <mc/engine/context.h>
+#include <mc/engine/error_engine.h>
+#include <mc/exception.h>
 
 namespace mc::engine {
 
@@ -111,6 +112,21 @@ std::string_view context::get_sender() const {
     }
 
     return {};
+}
+
+void context::throw_error(std::string_view error_name, mc::dict args) {
+    auto* ctx = context_stack::top_value();
+    if (!ctx) {
+        MC_THROW(mc::method_call_exception, "context not found");
+    }
+
+    ctx->report_error(error_name, std::move(args));
+    MC_THROW(mc::method_call_exception, "call method ${method} at ${path} failed: ${error}",
+             ("method", ctx->get_method_name())("path", ctx->get_path())("error", error_name));
+}
+
+void context::throw_error(const error_info& error, mc::dict args) {
+    throw_error(error.name, std::move(args));
 }
 
 } // namespace mc::engine

@@ -173,8 +173,16 @@ DBusHandlerResult service_impl::on_method_call(abstract_object& object, mc::dbus
                 info.response.writer().write_variant(it, result, 0);
             }
         }
+    } catch (const mc::method_call_exception& e) {
+        // 用户主动抛出的调用错误只记录 debug 日志
+        dlog("method call failed: ${error}", ("error", e.what()));
+
+        auto& err     = ctx.get_error();
+        info.response = mc::dbus::message::new_error(msg, err.name, err.to_string());
     } catch (const std::exception& e) {
-        elog("method call failed: ${error}", ("error", e.what()));
+        // 未知错误记录 error 日志
+        elog("unknow method call failed: ${error}", ("error", e.what()));
+        // TODO:: 目前为了调试方便将 e.what() 作为错误内容访问，后续应该隐藏程序内部信息避免安全隐患
         info.response = mc::dbus::message::new_error(msg, errors::failed.name, e.what());
     }
 

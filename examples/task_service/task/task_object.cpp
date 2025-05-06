@@ -17,11 +17,10 @@ uint32_t task_object::m_next_task_id{1};
 task_object_ptr task_object::create_task(mc::engine::service* service, mc::milliseconds timeout) {
     auto task = mc::im::make_ref<task_object>();
 
-    auto id                  = m_next_task_id++;
-    task->m_task.m_id        = id;
-    task->m_task.m_name      = "Task " + std::to_string(id);
-    task->m_task.m_startTime = mc::time_point::now().to_string();
-    task->m_task.m_endTime   = (mc::time_point::now() + timeout).to_string();
+    auto id                = m_next_task_id++;
+    task->m_task.m_id      = id;
+    task->m_task.m_name    = "Task " + std::to_string(id);
+    task->m_task.m_timeout = timeout;
 
     task->set_object_name(task->m_task.m_name);
     task->set_object_path(mc::string::format(object_type::path_pattern, {{"Id", id}}));
