@@ -21,7 +21,7 @@ using namespace mc::db;
 namespace {
 
 // 定义标签类型
-struct by_id : tag_base {};
+struct by_id : tag_base<by_id> {};
 
 // 测试用的对象类
 class test_object : public object<test_object> {
@@ -53,10 +53,8 @@ public:
 };
 
 // 使用限定命名空间访问
-using test_table =
-    table<test_object,
-          indexed_by<ordered_unique<member<test_object, uint32_t, &test_object::m_id>, by_id>,
-                     ordered_non_unique<member<test_object, std::string, &test_object::m_name>>>>;
+using test_table = table<test_object, indexed_by<ordered_unique<&test_object::m_id, by_id::tag>,
+                                                 ordered_non_unique<&test_object::m_name>>>;
 
 // 拿到表的字段，可用于后续构造查询语句
 auto field_id    = test_object::field(&test_object::m_id);

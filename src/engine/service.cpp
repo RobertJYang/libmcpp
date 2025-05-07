@@ -78,10 +78,9 @@ struct service_impl {
 MC_REFLECT(mc::engine::service_interface, ((m_service_name, "name")))
 MC_REFLECT(mc::engine::service_object, ((m_interface, "interface")))
 
-using service_table = mdb::table<
-    mc::engine::service_object,
-    mdb::indexed_by<mdb::ordered_unique<mdb::member<mc::engine::service_object, const std::string&,
-                                                    &mc::engine::service_object::get_name>>>>;
+using service_table =
+    mdb::table<mc::engine::service_object,
+               mdb::indexed_by<mdb::ordered_unique<&mc::engine::service_object::get_name>>>;
 
 namespace mc::engine {
 

@@ -26,8 +26,8 @@ namespace {
 namespace mdb = mc::db;
 
 // 定义标签类型
-struct by_age : mdb::tag_base {};
-struct by_name_age : mdb::tag_base {};
+struct by_age : mdb::tag_base<by_age> {};
+struct by_name_age : mdb::tag_base<by_name_age> {};
 
 class user : public mdb::object<user> {
 public:
@@ -52,13 +52,11 @@ public:
 };
 
 // 使用限定命名空间访问
-using user_table = mdb::table<
-    user, mdb::indexed_by<mdb::ordered_unique<mdb::member<user, std::string, &user::m_name>>,
-                          mdb::ordered_non_unique<mdb::member<user, int, &user::get_age>, by_age>,
-                          mdb::ordered_non_unique<
-                              mdb::composite_key<mdb::member<user, std::string, &user::m_name>,
-                                                 mdb::member<user, int, &user::m_age>>,
-                              by_name_age>>>;
+using user_table =
+    mdb::table<user,
+               mdb::indexed_by<mdb::ordered_unique<&user::m_name>,
+                               mdb::ordered_non_unique<&user::get_age, by_age::tag>,
+                               mdb::ordered_non_unique<&user::m_name, &user::m_age, by_name_age::tag>>>;
 
 } // namespace
 

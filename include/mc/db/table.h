@@ -118,8 +118,8 @@ constexpr bool verify_indices_object_type() {
  */
 template <typename ObjectType, typename Alloc>
 auto make_object_id_index(const Alloc& alloc = Alloc()) {
-    return index<ObjectType, object_id_key<ObjectType>, true, void, Alloc>(
-        object_id_key<ObjectType>{}, alloc);
+    return index<ObjectType, detail::object_id_key<ObjectType>, true, void, Alloc>(
+        detail::object_id_key<ObjectType>{}, alloc);
 }
 
 /**

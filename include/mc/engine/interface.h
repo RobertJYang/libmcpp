@@ -13,7 +13,9 @@
 #ifndef MC_ENGINE_INTERFACE_H
 #define MC_ENGINE_INTERFACE_H
 
+#include <mc/core/object.h>
 #include <mc/engine/base.h>
+#include <mc/engine/property.h>
 
 namespace mc::engine {
 
@@ -139,6 +141,16 @@ struct interface : public abstract_interface {
     using interface_type = T;
 
     interface() {
+        interface_type* self = static_cast<interface_type*>(this);
+        mc::traits::tuple_for_each(get_static_properties(), [self](auto& member) {
+            using member_type = typename std::decay_t<decltype(member)>::member_type;
+            if constexpr (mc::traits::is_specialization_of_v<member_type, property>) {
+                if constexpr (std::is_same_v<detail::interface_observer,
+                                             typename member_type::observer_type>) {
+                    (self->*member.member_ptr).get_observer().set_interface(self);
+                }
+            }
+        });
     }
 
     void set_object(abstract_object* obj) {
@@ -149,8 +161,8 @@ struct interface : public abstract_interface {
         return m_object;
     }
 
-    mc::core::object* get_owner() const {
-        return dynamic_cast<mc::core::object*>(m_object);
+    mc::core::object* get_owner() const override {
+        return m_object->get_owner();
     }
 
     static signal_map<interface_type>& get_signals() {

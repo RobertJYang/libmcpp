@@ -24,18 +24,22 @@ namespace mc::db {
 /**
  * 标签基类，用于标识索引
  */
-struct tag_base {};
+template <typename Tag>
+struct tag_base {
+    using tag_type                 = Tag;
+    static constexpr tag_type* tag = nullptr;
+};
 
 /**
  * 默认的 object_id 索引标签
  */
-struct by_object_id_tag : public tag_base {};
+struct by_object_id_tag : public tag_base<by_object_id_tag> {};
 
 /**
  * 带字段名称的标签
  */
 template <const char* FieldName>
-struct field_tag : public mc::db::tag_base {
+struct field_tag : public tag_base<field_tag<FieldName>> {
     static constexpr const char* field_name = FieldName;
 
     /**
@@ -50,11 +54,9 @@ struct field_tag : public mc::db::tag_base {
 /**
  * 确定标签类型是否有效
  */
-template <typename T>
-struct is_tag : std::is_base_of<tag_base, T> {};
 
 template <typename T>
-inline constexpr bool is_tag_v = is_tag<T>::value;
+inline constexpr bool is_tag_v = std::is_base_of_v<tag_base<T>, T>;
 
 /**
  * 判断类型是否为 field_tag 类型
@@ -65,7 +67,7 @@ struct is_field_tag : std::false_type {};
 
 // field_tag 类型的特化，检测是否继承自 tag_base 且有 field_names 成员
 template <typename T>
-struct is_field_tag<T, std::void_t<std::enable_if_t<std::is_base_of_v<tag_base, T>>,
+struct is_field_tag<T, std::void_t<std::enable_if_t<std::is_base_of_v<tag_base<T>, T>>,
                                    decltype(T::field_name), decltype(T::get_field_names())>>
     : std::true_type {};
 
@@ -90,11 +92,70 @@ struct index_of<T, std::tuple<U, Types...>> {
     static constexpr size_t value = 1 + index_of<T, std::tuple<Types...>>::value;
 };
 
+/**
+ * 索引定义组合
+ * @tparam Indices 索引定义类型列表
+ */
+template <typename... Indices>
+struct indexed_by {
+    using indices = std::tuple<Indices...>;
+};
+
+/**
+ * 空索引定义
+ */
+struct no_indices {
+    using indices = std::tuple<>;
+};
+
 namespace detail {
 
+template <typename T>
+struct member_pointer_traits {};
+
+// 成员变量指针的类型特征
+template <typename Class, typename T>
+struct member_pointer_traits<T Class::*> {
+    using class_type = Class;
+    using value_type = T;
+};
+
+// 成员函数指针的类型特征
+template <typename Class, typename Ret, typename... Args>
+struct member_pointer_traits<Ret (Class::*)(Args...)> {
+    using class_type = Class;
+    using value_type = Ret;
+};
+
+// const 成员函数指针的类型特征
+template <typename Class, typename Ret, typename... Args>
+struct member_pointer_traits<Ret (Class::*)(Args...) const> {
+    using class_type = Class;
+    using value_type = Ret;
+};
+
 // 提取器选择器的前向声明
-template <typename Class, typename KeyType, auto Ptr, typename = void>
+template <auto Ptr, typename = void>
 struct extractor_selector;
+
+// 成员变量指针特化
+template <auto Ptr>
+struct extractor_selector<Ptr, std::enable_if_t<std::is_member_object_pointer_v<decltype(Ptr)>>> {
+    using class_type = typename member_pointer_traits<decltype(Ptr)>::class_type;
+    using value_type = typename member_pointer_traits<decltype(Ptr)>::value_type;
+    using type       = member_key<class_type, value_type, Ptr>;
+};
+
+// 成员函数指针特化
+template <auto Ptr>
+struct extractor_selector<Ptr, std::enable_if_t<std::is_member_function_pointer_v<decltype(Ptr)>>> {
+    using class_type = typename member_pointer_traits<decltype(Ptr)>::class_type;
+    using value_type = typename member_pointer_traits<decltype(Ptr)>::value_type;
+    using type       = member_function_key<class_type, value_type, Ptr>;
+};
+
+template <auto Ptr>
+using extractor_selector_t = typename extractor_selector<Ptr>::type;
 
 /**
  * 查找标签在索引定义元组中的位置
@@ -109,21 +170,57 @@ struct tag_index_of<Tag, std::tuple<Indices...>> {
     static constexpr size_t value = index_of<Tag, std::tuple<typename Indices::tag_type...>>::value;
 };
 
-// 成员变量指针特化
-template <typename Class, typename KeyType, auto Ptr>
-struct extractor_selector<Class, KeyType, Ptr,
-                          std::enable_if_t<std::is_member_object_pointer_v<decltype(Ptr)>>> {
-    using type = member_key<Class, KeyType, Ptr>;
+/**
+ * 从参数包中提取标签类型
+ */
+template <auto... Ptrs>
+struct extract_tag;
+
+template <auto Ptr, auto... Ptrs>
+struct extract_tag<Ptr, Ptrs...> {
+    using tag_type = mc::traits::remove_pointers_t<decltype(Ptr)>;
+    using type =
+        std::conditional_t<is_tag_v<tag_type>, tag_type, typename extract_tag<Ptrs...>::type>;
 };
 
-// 成员函数指针特化
-template <typename Class, typename KeyType, auto Ptr>
-struct extractor_selector<Class, KeyType, Ptr,
-                          std::enable_if_t<std::is_member_function_pointer_v<decltype(Ptr)>>> {
-    using type = member_function_key<Class, KeyType, Ptr>;
+template <>
+struct extract_tag<> {
+    using type = void;
 };
 
-} // namespace detail
+template <auto... Ptrs>
+using extract_tag_t = typename extract_tag<Ptrs...>::type;
+
+template <typename Tuple, auto... Ptrs>
+struct extract_extractor;
+
+template <typename Tuple, auto Ptr, auto... Ptrs>
+struct extract_extractor<Tuple, Ptr, Ptrs...> {
+    static auto get_type() {
+        if constexpr (is_tag_v<mc::traits::remove_pointers_t<decltype(Ptr)>>) {
+            return Tuple{};
+        } else {
+            return mc::traits::tuple_append_t<Tuple, extractor_selector_t<Ptr>>{};
+        }
+    }
+    using type = typename extract_extractor<decltype(get_type()), Ptrs...>::type;
+};
+
+template <typename Tuple>
+struct extract_extractor<Tuple> {
+    using type = Tuple;
+};
+
+template <typename... Ts>
+struct make_extractor;
+template <typename T, typename... Ts>
+struct make_extractor<std::tuple<T, Ts...>> {
+    using type = std::conditional_t<sizeof...(Ts) == 0, T, composite_key<T, Ts...>>;
+};
+
+template <auto... Ptrs>
+using extract_extractor_t =
+    typename make_extractor<typename extract_extractor<std::tuple<>, Ptrs...>::type>::type;
 
 /**
  * 有序唯一索引定义
@@ -150,31 +247,21 @@ struct ordered_non_unique {
     using tag_type                  = Tag;
     static constexpr bool is_unique = false;
 };
+} // namespace detail
 
 /**
- * 统一的成员提取器，自动判断是成员变量还是成员函数
- * @tparam Class 对象类型
- * @tparam KeyType 键类型
- * @tparam Ptr 成员变量或成员函数指针
+ * 有序唯一索引定义
  */
-template <typename Class, typename KeyType, auto Ptr>
-using member = typename detail::extractor_selector<Class, KeyType, Ptr>::type;
+template <auto... Ptrs>
+using ordered_unique =
+    detail::ordered_unique<detail::extract_extractor_t<Ptrs...>, detail::extract_tag_t<Ptrs...>>;
 
 /**
- * 索引定义组合
- * @tparam Indices 索引定义类型列表
+ * 有序非唯一索引定义
  */
-template <typename... Indices>
-struct indexed_by {
-    using indices = std::tuple<Indices...>;
-};
-
-/**
- * 空索引定义
- */
-struct no_indices {
-    using indices = std::tuple<>;
-};
+template <auto... Ptrs>
+using ordered_non_unique = detail::ordered_non_unique<detail::extract_extractor_t<Ptrs...>,
+                                                      detail::extract_tag_t<Ptrs...>>;
 
 } // namespace mc::db
 

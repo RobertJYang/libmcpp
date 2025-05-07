@@ -91,10 +91,7 @@ private:
 
 using context_stack = detail::call_stack<service, context>;
 
-#define MC_REPLY_ERROR(error, args)                                                                \
-    do {                                                                                           \
-        mc::engine::context::throw_error(error, mc::mutable_dict() args);                          \
-    } while (0)
+#define MC_REPLY_ERROR(error, args) mc::engine::context::throw_error(error, mc::mutable_dict() args)
 
 } // namespace mc::engine
 

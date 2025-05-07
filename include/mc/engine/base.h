@@ -92,7 +92,8 @@ struct visitor {
 struct abstract_interface {
     virtual ~abstract_interface() = default;
 
-    virtual abstract_object* get_object() const = 0;
+    virtual abstract_object*  get_object() const = 0;
+    virtual mc::core::object* get_owner() const  = 0;
 
     virtual std::string_view    get_interface_name() const                                   = 0;
     virtual mc::connection_type connect(std::string_view signal_name, slot_type slot)        = 0;
@@ -112,6 +113,8 @@ public:
 
     virtual void     set_service(service& s) = 0;
     virtual service* get_service() const     = 0;
+
+    virtual mc::core::object* get_owner() const = 0;
 
     virtual const managed_objects& get_managed_objects() const                 = 0;
     virtual void                   add_managed_object(abstract_object* obj)    = 0;
@@ -139,15 +142,17 @@ public:
 
     virtual invoke_result invoke(std::string_view method_name, const mc::variants& args,
                                  std::string_view interface_name = {}) = 0;
+
+    virtual void property_changed(const void* prop, abstract_interface* iface,
+                                  mc::variant value) = 0;
 };
 
 using object_ptr = mc::im::ref_ptr<abstract_object>;
-struct by_path : mc::db::tag_base {};
-struct by_object_name : mc::db::tag_base {};
-using path_index = mc::db::ordered_non_unique<
-    mc::db::member<abstract_object, std::string_view, &abstract_object::get_object_path>, by_path>;
-using path_unique_index = mc::db::ordered_unique<
-    mc::db::member<abstract_object, std::string_view, &abstract_object::get_object_path>, by_path>;
+struct by_path : mc::db::tag_base<by_path> {};
+struct by_object_name : mc::db::tag_base<by_object_name> {};
+using path_index = mc::db::ordered_non_unique<&abstract_object::get_object_path, by_path::tag>;
+using path_unique_index =
+    mc::db::ordered_unique<&abstract_object::get_object_path, by_path::tag>;
 } // namespace mc::engine
 
 namespace mc {

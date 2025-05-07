@@ -26,6 +26,7 @@ namespace mc::engine {
 template <typename ObjectType>
 class object : public abstract_object, public mc::core::object, public mc::db::object<ObjectType> {
 public:
+    using self_type     = object<ObjectType>;
     using object_type   = ObjectType;
     using metadata_type = object_metadata<ObjectType>;
     using property_info = typename metadata_type::property_info;
@@ -198,6 +199,13 @@ public:
 
     virtual void visit(visitor& v) override {
         get_metadata().visit(static_cast<ObjectType&>(*this), v);
+    }
+
+    mc::core::object* get_owner() const override {
+        return const_cast<self_type*>(this);
+    }
+
+    void property_changed(const void* prop, abstract_interface* iface, mc::variant value) override {
     }
 
 protected:

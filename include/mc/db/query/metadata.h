@@ -185,16 +185,20 @@ index_metadata extract_index_metadata_from_tuple() {
     metadata.is_unique = is_unique;
 
     // 根据提取器类型设置元数据
-    if constexpr (std::is_same_v<typename key_extractor_traits<extractor_t>::tag, tag_member>) {
+    if constexpr (std::is_same_v<typename mc::db::detail::key_extractor_traits<extractor_t>::tag,
+                                 mc::db::detail::tag_member>) {
         metadata.extractor_type = key_extractor_type::member_key;
-    } else if constexpr (std::is_same_v<typename key_extractor_traits<extractor_t>::tag,
-                                        tag_member_function>) {
+    } else if constexpr (std::is_same_v<
+                             typename mc::db::detail::key_extractor_traits<extractor_t>::tag,
+                             mc::db::detail::tag_member_function>) {
         metadata.extractor_type = key_extractor_type::member_function_key;
-    } else if constexpr (std::is_same_v<typename key_extractor_traits<extractor_t>::tag,
-                                        tag_functor>) {
+    } else if constexpr (std::is_same_v<
+                             typename mc::db::detail::key_extractor_traits<extractor_t>::tag,
+                             mc::db::detail::tag_functor>) {
         metadata.extractor_type = key_extractor_type::functor_key;
-    } else if constexpr (std::is_same_v<typename key_extractor_traits<extractor_t>::tag,
-                                        tag_composite>) {
+    } else if constexpr (std::is_same_v<
+                             typename mc::db::detail::key_extractor_traits<extractor_t>::tag,
+                             mc::db::detail::tag_composite>) {
         metadata.extractor_type = key_extractor_type::composite_key;
     }
 
@@ -206,11 +210,12 @@ index_metadata extract_index_metadata_from_tuple() {
     }
 
     // 设置键类型
-    if constexpr (std::is_same_v<typename key_extractor_traits<extractor_t>::tag, tag_composite>) {
+    if constexpr (std::is_same_v<typename mc::db::detail::key_extractor_traits<extractor_t>::tag,
+                                 mc::db::detail::tag_composite>) {
         // 复合键类型较复杂，暂时使用void类型
         metadata.key_type = std::type_index(typeid(void));
     } else {
-        using key_t       = typename key_extractor_traits<extractor_t>::key_type;
+        using key_t       = typename mc::db::detail::key_extractor_traits<extractor_t>::key_type;
         metadata.key_type = std::type_index(typeid(key_t));
     }
 
