@@ -25,6 +25,8 @@
 
 namespace mc::db {
 
+namespace detail {
+
 /**
  * 标签类型，用于SFINAE
  */
@@ -406,56 +408,6 @@ struct lambda_return_type {
 };
 
 /**
- * 键提取器工厂函数，成员变量版本
- * @tparam ObjectType 类类型
- * @tparam KeyType 键类型
- * @tparam Member 成员变量指针
- * @return 键提取器
- */
-template <typename ObjectType, typename KeyType, KeyType ObjectType::* Member>
-member_key<ObjectType, KeyType, Member> make_key() {
-    return member_key<ObjectType, KeyType, Member>();
-}
-
-/**
- * 键提取器工厂函数，成员函数版本
- * @tparam ObjectType 类类型
- * @tparam KeyType 键类型
- * @tparam MemberFn 成员函数指针
- * @return 键提取器
- */
-template <typename ObjectType, typename KeyType, KeyType (ObjectType::*MemberFn)() const>
-member_function_key<ObjectType, KeyType, MemberFn> make_key() {
-    return member_function_key<ObjectType, KeyType, MemberFn>();
-}
-
-/**
- * 键提取器工厂函数，函数对象版本
- * @tparam ObjectType 类类型
- * @tparam Functor 函数对象类型
- * @param f 函数对象
- * @return 键提取器
- */
-template <typename ObjectType, typename Functor>
-auto make_key(const Functor& f = Functor()) {
-    using key_type = typename lambda_return_type<ObjectType, Functor>::type;
-    return functor_key<ObjectType, key_type, Functor>(f);
-}
-
-/**
- * 键提取器工厂函数，复合键版本
- * @tparam FirstExtractor 第一个键提取器类型
- * @tparam Extractors 剩余键提取器类型列表
- * @param first 第一个键提取器实例
- * @param extractors 剩余键提取器实例
- * @return 复合键提取器
- */
-template <typename FirstExtractor, typename... Extractors>
-auto make_key(const FirstExtractor& first, const Extractors&... extractors) {
-    return composite_key<FirstExtractor, Extractors...>(first, extractors...);
-}
-
-/**
  * 对象ID键提取器
  * @tparam ObjectType 类类型
  */
@@ -522,6 +474,58 @@ struct key_extractor_traits<object_id_key<ObjectType>> {
     using extractor_type = object_id_key<ObjectType>;
     using tag            = tag_member; // 视为成员键
 };
+
+} // namespace detail
+
+/**
+ * 键提取器工厂函数，成员变量版本
+ * @tparam ObjectType 类类型
+ * @tparam KeyType 键类型
+ * @tparam Member 成员变量指针
+ * @return 键提取器
+ */
+template <typename ObjectType, typename KeyType, KeyType ObjectType::* Member>
+auto make_key() {
+    return detail::member_key<ObjectType, KeyType, Member>();
+}
+
+/**
+ * 键提取器工厂函数，成员函数版本
+ * @tparam ObjectType 类类型
+ * @tparam KeyType 键类型
+ * @tparam MemberFn 成员函数指针
+ * @return 键提取器
+ */
+template <typename ObjectType, typename KeyType, KeyType (ObjectType::*MemberFn)() const>
+auto make_key() {
+    return detail::member_function_key<ObjectType, KeyType, MemberFn>();
+}
+
+/**
+ * 键提取器工厂函数，函数对象版本
+ * @tparam ObjectType 类类型
+ * @tparam Functor 函数对象类型
+ * @param f 函数对象
+ * @return 键提取器
+ */
+template <typename ObjectType, typename Functor>
+auto make_key(const Functor& f = Functor()) {
+    using key_type = typename detail::lambda_return_type<ObjectType, Functor>::type;
+    return detail::functor_key<ObjectType, key_type, Functor>(f);
+}
+
+/**
+ * 键提取器工厂函数，复合键版本
+ * @tparam FirstExtractor 第一个键提取器类型
+ * @tparam Extractors 剩余键提取器类型列表
+ * @param first 第一个键提取器实例
+ * @param extractors 剩余键提取器实例
+ * @return 复合键提取器
+ */
+template <typename FirstExtractor, typename... Extractors>
+auto make_key(const FirstExtractor& first, const Extractors&... extractors) {
+    return detail::composite_key<FirstExtractor, Extractors...>(first, extractors...);
+}
 
 } // namespace mc::db
 

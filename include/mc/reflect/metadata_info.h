@@ -139,6 +139,7 @@ inline constexpr bool is_property_v = is_property<T>::value;
 // 成员信息基类
 struct member_info_base {
     std::string_view name;
+    mutable uint32_t flags{0}; // 扩展 flags，用于存储自定义其他信息
 
     member_info_base(std::string_view n) : name(n) {
     }
@@ -408,8 +409,7 @@ struct member_info_creator<T, M, BaseT, std::enable_if_t<is_property_v<M BaseT::
 template <typename T, typename M, typename BaseT>
 struct member_info_creator<T, M, BaseT, std::enable_if_t<is_method_v<M BaseT::*>>> {
     static constexpr auto create(M BaseT::* member_ptr, std::string_view name) {
-        return std::tuple<decltype(make_method_info(member_ptr, name))>{
-            make_method_info(member_ptr, name)};
+        return std::make_tuple(make_method_info(member_ptr, name));
     }
 };
 

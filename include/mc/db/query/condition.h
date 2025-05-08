@@ -19,6 +19,7 @@
 #include <string_view>
 #include <vector>
 
+#include <mc/log.h>
 #include <mc/reflect.h>
 #include <mc/variant.h>
 
@@ -298,12 +299,25 @@ private:
      */
     template <typename T>
     bool eval_object(const T& obj) const {
-        // 通过反射获取字段值
-        auto field_value = mc::reflect::get_property<T>(obj, m_field);
-        if (field_value.is_null()) {
-            return false;
+        auto property_info = mc::reflect::get_property_info<T>(m_field);
+        if (property_info != nullptr) {
+            auto field_value = property_info->get_value(obj);
+            return compare_values(field_value, m_value, m_op);
         }
-        return compare_values(field_value, m_value, m_op);
+
+        auto method_info = mc::reflect::get_method_info<T>(m_field);
+        if (method_info != nullptr) {
+            try {
+                auto field_value = method_info->invoke(const_cast<T&>(obj), {});
+                return compare_values(field_value, m_value, m_op);
+            } catch (const std::exception& e) {
+                dlog("eval_object error: type: ${type}, field: ${field}, error: ${error}",
+                     ("type", mc::pretty_name<T>())("field", m_field)("error", e.what()));
+                return false;
+            }
+        }
+
+        return false;
     }
 
     /**

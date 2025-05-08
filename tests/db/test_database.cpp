@@ -21,7 +21,7 @@ using namespace mc::db;
 namespace {
 
 // 定义标签类型
-struct by_id : tag_base {};
+struct by_id : tag_base<by_id> {};
 
 // 测试用的对象类
 class test_object : public object<test_object> {
@@ -51,21 +51,20 @@ public:
     std::string m_name;
     int         m_value;
 };
+} // namespace
+
+MC_REFLECT(test_object, ((m_id, "id"))((m_name, "name"))((m_value, "value")))
+
+namespace {
 
 // 使用限定命名空间访问
-using test_table =
-    table<test_object,
-          indexed_by<ordered_unique<member<test_object, uint32_t, &test_object::m_id>, by_id>,
-                     ordered_non_unique<member<test_object, std::string, &test_object::m_name>>>>;
+using test_table = table<test_object, indexed_by<ordered_unique<&test_object::m_id, by_id::tag>,
+                                                 ordered_non_unique<&test_object::m_name>>>;
 
 // 拿到表的字段，可用于后续构造查询语句
 auto field_id    = test_object::field(&test_object::m_id);
 auto field_name  = test_object::field(&test_object::m_name);
 auto field_value = test_object::field(&test_object::m_value);
-
-} // namespace
-
-MC_REFLECT(test_object, ((m_id, "id"))((m_name, "name"))((m_value, "value")))
 
 // 数据库测试类
 class database_test : public ::testing::Test {
@@ -92,6 +91,8 @@ protected:
     mc::db::database            db;
     std::shared_ptr<test_table> table;
 };
+
+} // namespace
 
 // 测试表的基本功能
 TEST_F(database_test, basic_operations) {

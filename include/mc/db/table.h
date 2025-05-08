@@ -118,8 +118,8 @@ constexpr bool verify_indices_object_type() {
  */
 template <typename ObjectType, typename Alloc>
 auto make_object_id_index(const Alloc& alloc = Alloc()) {
-    return index<ObjectType, object_id_key<ObjectType>, true, void, Alloc>(
-        object_id_key<ObjectType>{}, alloc);
+    return index<ObjectType, detail::object_id_key<ObjectType>, true, void, Alloc>(
+        detail::object_id_key<ObjectType>{}, alloc);
 }
 
 /**
@@ -223,6 +223,14 @@ struct has_composite_key<
     std::void_t<decltype(std::declval<KeyExtractor>().template is_composite_key<ObjectType>())>>
     : std::true_type {};
 
+template <typename ObjectType, typename = void>
+struct has_createor : std::false_type {};
+
+template <typename ObjectType>
+struct has_createor<ObjectType,
+                    std::void_t<decltype(ObjectType::create(std::declval<mc::variant>()))>>
+    : std::true_type {};
+
 } // namespace detail
 
 class table_base {
@@ -236,7 +244,7 @@ public:
     virtual size_t           size() const              = 0;
     virtual void             clear()                   = 0;
 
-    const object_base* add_object(const mc::dict& var, transaction* txn = nullptr) {
+    object_base* add_object(const mc::dict& var, transaction* txn = nullptr) {
         return do_add_object(var, txn);
     }
 
@@ -244,7 +252,7 @@ public:
         return do_remove_object(condition, txn);
     }
 
-    const object_base* find_object(const query_builder& condition) {
+    object_base* find_object(const query_builder& condition) {
         return do_find_object(condition);
     }
 
@@ -268,10 +276,10 @@ public:
     mc::signal<void(object_base*, object_base*)> on_object_updated;
 
 protected:
-    virtual const object_base* do_add_object(const mc::dict& var, transaction* txn)     = 0;
-    virtual size_t do_remove_object(const query_builder& condition, transaction* txn)   = 0;
-    virtual const object_base* do_find_object(const query_builder& condition)           = 0;
-    virtual bool do_query_object(const query_builder& builder, query_handler&& handler) = 0;
+    virtual object_base* do_add_object(const mc::dict& var, transaction* txn)                   = 0;
+    virtual size_t       do_remove_object(const query_builder& condition, transaction* txn)     = 0;
+    virtual object_base* do_find_object(const query_builder& condition)                         = 0;
+    virtual bool         do_query_object(const query_builder& builder, query_handler&& handler) = 0;
 
     virtual size_t do_update_object(const query_builder&                  condition,
                                     const std::map<std::string, variant>& values,
@@ -392,6 +400,7 @@ public:
 
         if (!need_txn) {
             commit_internal();
+            on_object_added(obj_ptr.get());
         } else {
             txn->add_resource(resource);
         }
@@ -442,6 +451,7 @@ public:
 
         if (!need_txn) {
             commit_internal();
+            on_object_updated(old_obj_ptr.get(), new_obj_ptr.get());
         } else {
             txn->add_resource(resource);
         }
@@ -483,6 +493,7 @@ public:
 
         if (!need_txn) {
             commit_internal();
+            on_object_removed(obj_ptr.get());
         } else {
             txn->add_resource(resource);
         }
@@ -691,7 +702,7 @@ public:
      * @param builder 查询构建器
      * @return 找到的记录的可选包装
      */
-    const_object_ptr_type find(const query_builder& builder) {
+    object_ptr_type find(const query_builder& builder) {
         return table_query<table<object_type, IndexDef>>(*this).query_one(builder);
     }
 
@@ -701,7 +712,7 @@ public:
      * @param limit 限制返回的记录数量，0表示不限制
      * @return 查询结果
      */
-    std::vector<const_object_ptr_type> query(const query_builder& builder, size_t limit = 0) {
+    std::vector<object_ptr_type> query(const query_builder& builder, size_t limit = 0) {
         return table_query<table<object_type, IndexDef>>(*this).query(builder, limit);
     }
 
@@ -718,7 +729,7 @@ public:
             builder, std::forward<Handler>(handler));
     }
 
-    std::vector<const_object_ptr_type> all() {
+    std::vector<object_ptr_type> all() {
         query_builder builder;
         return table_query<table<object_type, IndexDef>>(*this).query_all(builder);
     }
@@ -764,6 +775,12 @@ public:
 
     void clear() override {
         std::lock_guard lock(m_mutex);
+
+        auto& idx = std::get<0>(m_indices);
+        for (auto it = idx.begin(); it != idx.end(); ++it) {
+            const object_type& obj = *it;
+            on_object_removed(const_cast<object_type*>(&obj));
+        }
 
         detail::for_each_index(m_indices, [](auto& idx) {
             idx.clear();
@@ -814,8 +831,9 @@ protected:
         return m_index_savepoint_id;
     }
 
-    const object_base* do_add_object(const mc::dict& var, transaction* txn) override {
-        if constexpr (mc::reflect::is_reflectable<object_type>()) {
+    object_base* do_add_object(const mc::dict& var, transaction* txn) override {
+        if constexpr (mc::reflect::is_reflectable<object_type>() &&
+                      detail::has_createor<object_type>::value) {
             return add(object_type::create(mc::variant(var)), txn).get();
         } else {
             MC_UNUSED(txn);
@@ -834,7 +852,7 @@ protected:
         return 0;
     }
 
-    const object_base* do_find_object(const query_builder& condition) override {
+    object_base* do_find_object(const query_builder& condition) override {
         if constexpr (mc::reflect::is_reflectable<object_type>()) {
             return find(condition).get();
         }

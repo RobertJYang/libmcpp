@@ -25,7 +25,7 @@ namespace {
 namespace mdb = mc::db;
 
 // 定义标签类型
-struct by_age : mdb::tag_base {};
+struct by_age : mdb::tag_base<by_age> {};
 MC_FIELD_INDEX_TAG(by_name_age, "name_age");
 
 class user : public mdb::object<user> {
@@ -55,25 +55,21 @@ public:
     int         m_age;
     double      m_score;
 };
+} // namespace
 
-// 使用限定命名空间访问
+MC_REFLECT(user, ((m_name, "name"))((m_age, "age"))((m_score, "score")))
+
+namespace {
 using user_table = mdb::table<
-    user, mdb::indexed_by<mdb::ordered_unique<mdb::member<user, std::string, &user::m_name>>,
-                          mdb::ordered_non_unique<mdb::member<user, int, &user::get_age>, by_age>,
-                          mdb::ordered_non_unique<
-                              mdb::composite_key<mdb::member<user, std::string, &user::m_name>,
-                                                 mdb::member<user, int, &user::m_age>>,
-                              by_name_age>>>;
+    user, mdb::indexed_by<mdb::ordered_unique<&user::m_name>,
+                          mdb::ordered_non_unique<&user::get_age, by_age::tag>,
+                          mdb::ordered_non_unique<&user::m_name, &user::m_age, by_name_age::tag>>>;
 
 // 拿到表的字段，可用于后续构造查询语句
 auto field_name  = user::field(&user::m_name);
 auto field_age   = user::field(&user::m_age);
 auto field_score = user::field(&user::m_score);
-} // namespace
 
-MC_REFLECT(user, ((m_name, "name"))((m_age, "age"))((m_score, "score")))
-
-// 表类测试
 class table_test : public ::testing::Test {
 protected:
     void SetUp() override {
@@ -82,6 +78,7 @@ protected:
     void TearDown() override {
     }
 };
+} // namespace
 
 // 测试表格创建和基本操作
 TEST_F(table_test, create_table) {

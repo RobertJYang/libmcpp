@@ -26,6 +26,8 @@
 #include <unordered_map>
 #include <vector>
 
+namespace {
+
 struct user : mc::db::object<user> {
     using id_type = int;
 
@@ -54,6 +56,7 @@ struct user : mc::db::object<user> {
         return m_score;
     }
 };
+} // namespace
 
 // 测试 mc::db::index 的基本功能
 TEST(database_index_test, mc_database_index_basic) {
@@ -452,10 +455,10 @@ TEST(database_index_test, non_unique_key_test) {
 // 测试非唯一索引的组合键场景
 TEST(database_index_test, non_unique_compound_key_test) {
     // 创建组合键提取器
-    using key_extractor =
-        mc::db::composite_key<mc::db::member_key<user, int, &user::m_age>,
-                              mc::db::member_key<user, std::string, &user::m_city>,
-                              mc::db::member_key<user, std::string, &user::m_department>>;
+    using key_extractor = mc::db::detail::composite_key<
+        mc::db::detail::member_key<user, int, &user::m_age>,
+        mc::db::detail::member_key<user, std::string, &user::m_city>,
+        mc::db::detail::member_key<user, std::string, &user::m_department>>;
 
     // 创建非唯一索引
     auto idx = mc::db::make_index<user, false>(key_extractor());

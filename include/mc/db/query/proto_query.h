@@ -97,20 +97,21 @@ struct query_grammar : proto::or_<
 // 前向声明转换上下文
 struct condition_context;
 
+using filed_expr = query_expr<proto::terminal<field_ref>::type>;
+
 /**
  * 创建字段引用表达式
  */
-inline query_expr<proto::terminal<field_ref>::type> field(std::string_view name) {
+inline filed_expr field(std::string_view name) {
     proto::terminal<field_ref>::type term = {{field_ref(name)}};
-    return query_expr<proto::terminal<field_ref>::type>(term);
+    return filed_expr(term);
 }
 
 /**
  * 特殊操作：BETWEEN
  */
 template <typename T>
-inline condition between(const query_expr<proto::terminal<field_ref>::type>& field_expr,
-                         const T& lower, const T& upper) {
+inline condition between(const filed_expr& field_expr, const T& lower, const T& upper) {
     const field_ref& field = proto::value(field_expr);
     mc::variants     range = {mc::variant(lower), mc::variant(upper)};
     return condition(compare_op::between, std::string(field.name()), mc::variant(range));
@@ -120,8 +121,7 @@ inline condition between(const query_expr<proto::terminal<field_ref>::type>& fie
  * 特殊操作：IN
  */
 template <typename T>
-inline condition in(const query_expr<proto::terminal<field_ref>::type>& field_expr,
-                    const std::initializer_list<T>&                     values) {
+inline condition in(const filed_expr& field_expr, const std::initializer_list<T>& values) {
     const field_ref& field = proto::value(field_expr);
     mc::variants     variants;
     for (const auto& value : values) {
@@ -133,8 +133,7 @@ inline condition in(const query_expr<proto::terminal<field_ref>::type>& field_ex
 /**
  * 特殊操作：LIKE
  */
-inline condition like(const query_expr<proto::terminal<field_ref>::type>& field_expr,
-                      const std::string&                                  pattern) {
+inline condition like(const filed_expr& field_expr, const std::string& pattern) {
     const field_ref& field = proto::value(field_expr);
     return condition(compare_op::like, std::string(field.name()), mc::variant(pattern));
 }
@@ -142,8 +141,7 @@ inline condition like(const query_expr<proto::terminal<field_ref>::type>& field_
 /**
  * 特殊操作：CONTAINS
  */
-inline condition contains(const query_expr<proto::terminal<field_ref>::type>& field_expr,
-                          const std::string&                                  substring) {
+inline condition contains(const filed_expr& field_expr, const std::string& substring) {
     const field_ref& field = proto::value(field_expr);
     return condition(compare_op::contains, std::string(field.name()), mc::variant(substring));
 }

@@ -178,7 +178,7 @@ public:
         }
     }
 
-    template <typename T, std::enable_if_t<!is_variant_v<T>, int> = 0>
+    template <typename T, std::enable_if_t<!is_variant_v<T> && !std::is_pointer_v<T>, int> = 0>
     variant_base(const T& obj) : variant_base() {
         to_variant(obj, *this);
     }

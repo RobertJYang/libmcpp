@@ -78,10 +78,9 @@ struct service_impl {
 MC_REFLECT(mc::engine::service_interface, ((m_service_name, "name")))
 MC_REFLECT(mc::engine::service_object, ((m_interface, "interface")))
 
-using service_table = mdb::table<
-    mc::engine::service_object,
-    mdb::indexed_by<mdb::ordered_unique<mdb::member<mc::engine::service_object, const std::string&,
-                                                    &mc::engine::service_object::get_name>>>>;
+using service_table =
+    mdb::table<mc::engine::service_object,
+               mdb::indexed_by<mdb::ordered_unique<&mc::engine::service_object::get_name>>>;
 
 namespace mc::engine {
 
@@ -90,7 +89,7 @@ service_impl::service_impl() {
 
 bool service_impl::init(service* s) {
     m_service        = s;
-    m_service_object = mc::im::make_ref<service_object>();
+    m_service_object = service_object::create();
     m_service_object->init(s);
     return true;
 }
@@ -100,12 +99,12 @@ bool service_impl::start() {
 
     auto connection = mc::dbus::connection::open_session_bus(m_service->get_strand());
     if (!connection || !connection->start()) {
-        elog("初始化服务失败: 无法打开DBus会话");
+        elog("start service failed: cannot open dbus session");
         return false;
     }
 
     if (!connection->request_name(m_service->name())) {
-        elog("初始化服务失败: 无法请求DBus名称");
+        elog("start service failed: cannot request dbus name");
         return false;
     }
 
@@ -114,7 +113,8 @@ bool service_impl::start() {
     });
 
     m_connection  = connection;
-    m_object_tree = std::make_shared<object_tree>("object_tree");
+    m_object_tree = std::make_shared<object_tree>(m_service->name() + ".object_tree");
+    mc::engine::get_engine().register_table(m_object_tree);
     register_object(*m_service_object);
     return true;
 }
@@ -126,6 +126,12 @@ void service_impl::stop() {
         m_connection->disconnect();
         m_connection.reset();
     }
+
+    auto& engine   = mc::engine::engine::get_instance();
+    auto  services = engine.get_table<service_table>("services");
+    services->remove(m_service_object);
+    m_object_tree->clear();
+    engine.unregister_table(m_object_tree);
 }
 
 void service_impl::register_object(abstract_object& obj) {
@@ -201,12 +207,12 @@ bool service::init(dict args) {
     MC_UNUSED(args);
 
     if (!dbus::validator::is_valid_bus_name(this->name())) {
-        elog("初始化服务失败: 无效的服务名 ${name}", ("name", this->name()));
+        elog("initialize service failed: invalid service name ${name}", ("name", this->name()));
         return false;
     }
 
     if (!m_impl->init(this)) {
-        elog("初始化服务失败: 初始化失败");
+        elog("initialize service failed: initialization failed");
         return false;
     }
 
@@ -220,7 +226,7 @@ bool service::start() {
     try {
         return m_impl->start();
     } catch (const std::exception& e) {
-        elog("初始化服务失败: ${error}", ("error", e.what()));
+        elog("start service failed: ${error}", ("error", e.what()));
         return false;
     }
 }
@@ -239,9 +245,11 @@ bool service::is_healthy() const {
 
 void service::register_object(abstract_object& obj) {
     auto path = obj.get_object_path();
-    MC_ASSERT(!path.empty(), "对象路径不能为空");
-    MC_ASSERT(mc::dbus::validator::is_valid_path(path), "无效的对象路径 ${path}", ("path", path));
+    MC_ASSERT(!path.empty(), "object path is empty");
+    MC_ASSERT(mc::dbus::validator::is_valid_path(path), "invalid object path ${path}",
+              ("path", path));
 
+    MC_ASSERT(m_impl->m_object_tree, "service is not started, cannot register object");
     m_impl->register_object(obj);
 }
 

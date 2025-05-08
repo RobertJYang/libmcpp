@@ -14,6 +14,7 @@
 #define MC_DATABASE_OBJECT_H
 
 #include <mc/db/common.h>
+#include <mc/db/index_tag.h>
 #include <mc/db/query/proto_query.h>
 #include <mc/im/ref_base.h>
 #include <mc/im/ref_ptr.h>
@@ -77,8 +78,7 @@ public:
      * @param name 字段名
      * @return 字段引用对象，用于构建查询条件
      */
-    static query::dsl::query_expr<boost::proto::terminal<query::dsl::field_ref>::type>
-    field(std::string_view name) {
+    static auto field(std::string_view name) {
         return query::dsl::field(name);
     }
 
@@ -89,13 +89,19 @@ public:
      * @return 字段引用对象，用于构建查询条件
      */
     template <typename KeyType>
-    static query::dsl::query_expr<boost::proto::terminal<query::dsl::field_ref>::type>
-    field(KeyType ObjectType::* member) {
+    static auto field(KeyType ObjectType::* member) {
         std::string_view name;
         if constexpr (mc::reflect::is_reflectable<ObjectType>()) {
             name = mc::reflect::get_property_name<ObjectType>(member);
         }
         return query::dsl::field(name);
+    }
+
+    template <typename Tag>
+    static auto field() -> std::enable_if_t<
+        mc::db::is_field_tag_v<Tag>,
+        query::dsl::query_expr<boost::proto::terminal<query::dsl::field_ref>::type>> {
+        return query::dsl::field(Tag::field_name);
     }
 
     /**

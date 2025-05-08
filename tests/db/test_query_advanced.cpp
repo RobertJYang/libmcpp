@@ -28,8 +28,8 @@ namespace {
 namespace mdb = mc::db;
 
 // 定义标签类型
-struct by_age : mdb::tag_base {};
-struct by_city : mdb::tag_base {};
+struct by_age : mdb::tag_base<by_age> {};
+struct by_city : mdb::tag_base<by_city> {};
 
 class test_user : public mdb::object<test_user> {
 public:
@@ -90,13 +90,10 @@ MC_FIELD_INDEX_TAG(by_id_add_age, "id_age");
 // 使用限定命名空间访问
 using user_table = mdb::table<
     test_user,
-    mdb::indexed_by<
-        mdb::ordered_unique<mdb::member<test_user, uint32_t, &test_user::m_id>>,
-        mdb::ordered_unique<mdb::member<test_user, std::string, &test_user::m_name>>,
-        mdb::ordered_non_unique<mdb::member<test_user, int, &test_user::m_age>, by_age>,
-        mdb::ordered_non_unique<mdb::member<test_user, std::string, &test_user::m_city>, by_city>,
-        mdb::ordered_unique<mdb::member<test_user, uint32_t, &test_user::get_id_add_age>,
-                            by_id_add_age>>>;
+    mdb::indexed_by<mdb::ordered_unique<&test_user::m_id>, mdb::ordered_unique<&test_user::m_name>,
+                    mdb::ordered_non_unique<&test_user::m_age, by_age::tag>,
+                    mdb::ordered_non_unique<&test_user::m_city, by_city::tag>,
+                    mdb::ordered_unique<&test_user::get_id_add_age, by_id_add_age::tag>>>;
 
 // 测试表查询功能
 class table_query_test : public ::testing::Test {

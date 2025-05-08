@@ -53,6 +53,7 @@ src_files = [
   'engine/error.cpp',
   'engine/error_engine.cpp',
   'engine/context.cpp',
+  'engine/property.cpp',
 ]
 
 # 创建共享库

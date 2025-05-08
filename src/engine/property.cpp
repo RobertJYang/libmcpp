@@ -10,15 +10,22 @@
  * See the Mulan PSL v2 for more details.
  */
 
-#include <mc/engine/object.h>
+#include <mc/engine/property.h>
 
 namespace mc::engine {
-struct object_impl {};
 
-object_impl::object_impl() {
-}
+void detail::interface_observer::notify(const mc::variant& value, const property_base& prop) {
+    if (!m_interface) {
+        return;
+    }
 
-object_impl::~object_impl() {
+    m_interface->notify_property_changed(value, prop);
+    auto object = m_interface->get_object();
+    if (!object) {
+        return;
+    }
+
+    object->notify_property_changed(value, prop);
 }
 
 } // namespace mc::engine

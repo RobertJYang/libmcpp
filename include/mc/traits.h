@@ -29,6 +29,16 @@ struct remove_cvref {
 template <typename T>
 using remove_cvref_t = typename remove_cvref<T>::type;
 
+// 检查类型是否为模板特化
+template <typename T, template <typename...> class Template>
+struct is_specialization_of : std::false_type {};
+
+template <template <typename...> class Template, typename... Args>
+struct is_specialization_of<Template<Args...>, Template> : std::true_type {};
+
+template <typename T, template <typename...> class Template>
+inline constexpr bool is_specialization_of_v = is_specialization_of<T, Template>::value;
+
 // 函数特征提取工具
 template <typename F>
 struct function_traits;
@@ -127,6 +137,42 @@ void apply_tuple_element(F&& func, const std::tuple<Ts...>& tup, size_t index) {
 template <typename T>
 constexpr bool is_copyable_v = std::is_copy_assignable_v<T> && std::is_copy_constructible_v<T>;
 
+// 检测类型T和U是否支持相等比较运算符 (==)
+template <typename T, typename U = T, typename = void>
+struct has_operator_equal : std::false_type {};
+
+template <typename T, typename U>
+struct has_operator_equal<T, U, std::void_t<decltype(std::declval<T>() == std::declval<U>())>>
+    : std::true_type {};
+
+template <typename T, typename U = T>
+inline constexpr bool has_operator_equal_v = has_operator_equal<T, U>::value;
+
+// 追加类型到一个 std::tuple 中
+template <typename Tuple, typename T>
+struct tuple_append;
+
+template <typename... Types, typename T>
+struct tuple_append<std::tuple<Types...>, T> {
+    using type = std::tuple<Types..., T>;
+};
+
+template <typename... Tuples>
+using tuple_append_t = typename tuple_append<Tuples...>::type;
+
+// 移除多级指针类型
+template <typename T>
+struct remove_pointers {
+    using type = T;
+};
+template <typename T>
+struct remove_pointers<T*> {
+    using type = typename remove_pointers<remove_cvref_t<T>>::type;
+};
+
+// 别名模板简化使用
+template <typename T>
+using remove_pointers_t = typename remove_pointers<remove_cvref_t<T>>::type;
 } // namespace traits
 } // namespace mc
 

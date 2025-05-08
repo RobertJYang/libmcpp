@@ -34,15 +34,19 @@
 #include <type_traits>
 
 namespace mc::engine {
-using io_context_type = boost::asio::io_context;
-using strand_type     = boost::asio::strand<boost::asio::io_context::executor_type>;
-using slot_type       = std::function<mc::variant(const mc::variants&)>;
-using message         = mc::dbus::message;
-using object_base     = mc::db::object_base;
+using io_context_type    = boost::asio::io_context;
+using strand_type        = boost::asio::strand<boost::asio::io_context::executor_type>;
+using slot_type          = std::function<mc::variant(const mc::variants&)>;
+using message            = mc::dbus::message;
+using object_base        = mc::db::object_base;
+using connection_id_type = mc::core::connection_id_type;
 
 class abstract_object;
-struct abstract_interface;
+class abstract_interface;
 class service;
+class property_base;
+
+using property_changed_signal = mc::signal<void(const mc::variant&, const property_base&)>;
 
 using object_call_stack = detail::call_stack<service, abstract_object>;
 inline abstract_object* get_object() {
@@ -89,19 +93,41 @@ struct visitor {
     virtual void handle(abstract_object& obj, abstract_interface& iface, signal_meta& info) = 0;
 };
 
-struct abstract_interface {
+class property_base {
+public:
+    virtual std::string_view get_name() const      = 0;
+    virtual std::string_view get_signature() const = 0;
+    virtual uint32_t         get_access() const    = 0;
+    virtual mc::variant      get_value() const     = 0;
+
+    virtual abstract_interface* get_interface() const = 0;
+    virtual abstract_object*    get_object() const    = 0;
+
+    virtual void set_value(const mc::variant& value) = 0;
+
+    virtual property_changed_signal& property_changed() = 0;
+};
+
+class abstract_interface {
+public:
     virtual ~abstract_interface() = default;
 
-    virtual abstract_object* get_object() const = 0;
+    virtual abstract_object*  get_object() const = 0;
+    virtual mc::core::object* get_owner() const  = 0;
 
     virtual std::string_view    get_interface_name() const                                   = 0;
     virtual mc::connection_type connect(std::string_view signal_name, slot_type slot)        = 0;
     virtual mc::variant         emit(std::string_view signal_name, const mc::variants& args) = 0;
     virtual mc::variant         get_property(std::string_view property_name)                 = 0;
+    virtual std::string_view    get_property_name(const property_base* prop)                 = 0;
+    virtual property_base*      get_property_base(std::string_view property_name)            = 0;
     virtual mc::dict            get_all_properties()                                         = 0;
     virtual bool set_property(std::string_view property_name, const mc::variant& value)      = 0;
 
     virtual invoke_result invoke(std::string_view method_name, const mc::variants& args) = 0;
+
+    virtual void notify_property_changed(const mc::variant& value, const property_base& prop) = 0;
+    virtual property_changed_signal& property_changed()                                       = 0;
 };
 
 class abstract_object : virtual public object_base {
@@ -112,6 +138,8 @@ public:
 
     virtual void     set_service(service& s) = 0;
     virtual service* get_service() const     = 0;
+
+    virtual mc::core::object* get_owner() const = 0;
 
     virtual const managed_objects& get_managed_objects() const                 = 0;
     virtual void                   add_managed_object(abstract_object* obj)    = 0;
@@ -125,29 +153,31 @@ public:
     virtual bool                has_interface(std::string_view interface_name) const = 0;
     virtual abstract_interface* get_interface(std::string_view interface_name)       = 0;
 
-    virtual mc::variant get_property(std::string_view property_name,
-                                     std::string_view interface_name = {})    = 0;
-    virtual mc::dict    get_all_properties(std::string_view interface_name)   = 0;
-    virtual bool        set_property(std::string_view property_name, const mc::variant& value,
-                                     std::string_view interface_name = {})    = 0;
+    virtual mc::variant    get_property(std::string_view property_name,
+                                        std::string_view interface_name = {})      = 0;
+    virtual property_base* get_property_base(std::string_view property_name,
+                                             std::string_view interface_name = {}) = 0;
+    virtual mc::dict       get_all_properties(std::string_view interface_name)     = 0;
+    virtual bool           set_property(std::string_view property_name, const mc::variant& value,
+                                        std::string_view interface_name = {})      = 0;
     virtual mc::connection_type connect(std::string_view signal_name, slot_type slot,
-                                        std::string_view interface_name = {}) = 0;
+                                        std::string_view interface_name = {})      = 0;
     virtual mc::variant         emit(std::string_view signal_name, const mc::variants& args,
-                                     std::string_view interface_name = {})    = 0;
+                                     std::string_view interface_name = {})         = 0;
 
     virtual void visit(visitor& v) = 0;
 
     virtual invoke_result invoke(std::string_view method_name, const mc::variants& args,
                                  std::string_view interface_name = {}) = 0;
+
+    virtual void notify_property_changed(const mc::variant& value, const property_base& prop) = 0;
+    virtual property_changed_signal& property_changed()                                       = 0;
 };
 
 using object_ptr = mc::im::ref_ptr<abstract_object>;
-struct by_path : mc::db::tag_base {};
-struct by_object_name : mc::db::tag_base {};
-using path_index = mc::db::ordered_non_unique<
-    mc::db::member<abstract_object, std::string_view, &abstract_object::get_object_path>, by_path>;
-using path_unique_index = mc::db::ordered_unique<
-    mc::db::member<abstract_object, std::string_view, &abstract_object::get_object_path>, by_path>;
+MC_FIELD_INDEX_TAG(by_path, "path");
+using path_index = mc::db::ordered_non_unique<&abstract_object::get_object_path, by_path::tag>;
+using path_unique_index = mc::db::ordered_unique<&abstract_object::get_object_path, by_path::tag>;
 } // namespace mc::engine
 
 namespace mc {
@@ -161,5 +191,7 @@ inline void from_variant(const mc::variant& v, mc::engine::invoke_result& obj) {
 }
 
 } // namespace mc
+
+MC_REFLECT(mc::engine::abstract_object, ((get_object_path, "path")))
 
 #endif // MC_ENGINE_BASE_H

@@ -459,6 +459,15 @@ inline int64_t hton(int64_t value) {
     (static_cast<size_t>(reinterpret_cast<size_t>(&(reinterpret_cast<TYPE*>(0)->MEMBER))))
 
 /**
+ * @brief 计算两个指针之间的偏移量
+ *
+ * @param P1 指针1
+ * @param P2 指针2
+ * @return intptr_t 偏移量（字节数）
+ */
+#define MC_PTR_OFFSET(P1, P2) (reinterpret_cast<intptr_t>(P1) - reinterpret_cast<intptr_t>(P2))
+
+/**
  * @brief 计算成员指针对应的偏移量
  *
  * 注意：该宏使用了特殊技巧，在某些编译器可能存在兼容性问题

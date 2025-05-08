@@ -13,9 +13,13 @@
 #ifndef MC_ENGINE_INTERFACE_H
 #define MC_ENGINE_INTERFACE_H
 
+#include <mc/core/object.h>
 #include <mc/engine/base.h>
+#include <mc/engine/property.h>
 
 namespace mc::engine {
+
+#define MC_ENGINE_PROPERTY_TYPE 0x01
 
 // 信号标签类型
 struct signal_tag {};
@@ -108,6 +112,7 @@ struct member_info_creator<T, mc::signal<Signature>> {
         return mc::engine::make_signal_info(signal_ptr, name);
     }
 };
+
 } // namespace mc::reflect
 
 namespace mc::engine {
@@ -138,7 +143,23 @@ struct interface : public abstract_interface {
     using is_interface   = std::true_type;
     using interface_type = T;
 
+    template <typename Members>
+    static constexpr void initial_members(const Members& members) {
+        foreach_property(members, [&](auto& member) {
+            member.flags |= MC_ENGINE_PROPERTY_TYPE;
+        });
+    }
+
     interface() {
+        interface_type* self = static_cast<interface_type*>(this);
+        foreach_property(get_static_properties(), [&](auto& member) {
+            using member_info_type = mc::traits::remove_pointers_t<std::decay_t<decltype(member)>>;
+            using member_type      = typename member_info_type::member_type;
+            if constexpr (std::is_same_v<detail::interface_observer,
+                                         typename member_type::observer_type>) {
+                (self->*member.member_ptr).get_observer().set_interface(self);
+            }
+        });
     }
 
     void set_object(abstract_object* obj) {
@@ -149,8 +170,8 @@ struct interface : public abstract_interface {
         return m_object;
     }
 
-    mc::core::object* get_owner() const {
-        return dynamic_cast<mc::core::object*>(m_object);
+    mc::core::object* get_owner() const override {
+        return m_object->get_owner();
     }
 
     static signal_map<interface_type>& get_signals() {
@@ -219,16 +240,68 @@ struct interface : public abstract_interface {
         return mc::reflect::get_property(static_cast<interface_type&>(*this), property_name);
     }
 
+    property_base* get_property_base(std::string_view property_name) override {
+        auto* info = mc::reflect::get_property_info<interface_type>(property_name);
+        if (info == nullptr || (info->flags & MC_ENGINE_PROPERTY_TYPE) == 0) {
+            return nullptr;
+        }
+
+        return reinterpret_cast<property_base*>(reinterpret_cast<std::uintptr_t>(this) +
+                                                info->offset());
+    }
+
+    void notify_property_changed(const mc::variant& value, const property_base& prop) override {
+        if (m_property_changed_signal) {
+            (*m_property_changed_signal)(value, prop);
+        }
+    }
+
+    std::string_view get_property_name(const property_base* prop) override {
+        std::uintptr_t offset =
+            reinterpret_cast<std::uintptr_t>(prop) - reinterpret_cast<std::uintptr_t>(this);
+        return mc::reflect::get_property_name<interface_type>(offset);
+    }
+
     mc::dict get_all_properties() override {
         return mc::reflect::get_all_properties(static_cast<interface_type&>(*this));
     }
 
     bool set_property(std::string_view property_name, const mc::variant& value) override {
-        return mc::reflect::set_property(static_cast<interface_type&>(*this), property_name, value);
+        auto* prop = get_property_base(property_name);
+        if (prop == nullptr) {
+            return mc::reflect::set_property(static_cast<interface_type&>(*this), property_name,
+                                             value);
+        }
+
+        prop->set_value(value);
+        return true;
+    }
+
+    property_changed_signal& property_changed() override {
+        if (m_property_changed_signal == nullptr) {
+            m_property_changed_signal = std::make_unique<property_changed_signal>();
+        }
+
+        return *m_property_changed_signal;
     }
 
 protected:
-    abstract_object* m_object;
+    template <typename Members, typename F>
+    static void foreach_property(Members& members, F&& f) {
+        mc::traits::tuple_for_each(members, [f = std::forward<F>(f)](auto& member) {
+            using member_info_type = mc::traits::remove_pointers_t<std::decay_t<decltype(member)>>;
+            if constexpr (mc::reflect::has_tag_v<mc::reflect::property_tag, member_info_type>) {
+                using member_type = typename member_info_type::member_type;
+                if constexpr (mc::traits::is_specialization_of_v<member_type, property>) {
+                    f(member);
+                }
+            }
+        });
+    }
+
+protected:
+    abstract_object*                         m_object;
+    std::unique_ptr<property_changed_signal> m_property_changed_signal;
 };
 
 } // namespace mc::engine

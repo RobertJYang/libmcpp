@@ -123,18 +123,32 @@ struct has_check_members<
     T, Members, std::void_t<decltype(T::template check_members<Members>(std::declval<Members>()))>>
     : std::true_type {};
 
-// 如果类型提供了check_member模板，使用它进行检查
-template <typename T, typename Members>
-struct has_members_check<T, Members, std::enable_if_t<has_check_members<T, Members>::value>> {
-    static constexpr bool check(const Members& members) {
-        return T::check_members(members);
-    }
-};
-
 // 辅助函数：验证某个成员
 template <typename T, typename Members>
 static constexpr bool validate_members(const Members& members) {
-    return has_members_check<T, Members>::check(members);
+    if constexpr (has_check_members<T, Members>::value) {
+        return T::check_members(members);
+    }
+    return true;
+}
+
+// 检测类型是否提供了initial_member模板函数
+template <typename T, typename Members, typename = void>
+struct has_initial_members : std::false_type {};
+
+template <typename T, typename Members>
+struct has_initial_members<
+    T, Members,
+    std::void_t<decltype(T::template initial_members<Members>(std::declval<Members>()))>>
+    : std::true_type {};
+
+// 辅助函数：初始化某个成员
+template <typename T, typename Members>
+static auto initial_members(const Members& members) {
+    if constexpr (has_initial_members<T, Members>::value) {
+        T::initial_members(members);
+    }
+    return members;
 }
 } // namespace mc::reflect::detail
 
@@ -382,11 +396,11 @@ struct signature_helper<T, std::enable_if_t<mc::reflect::is_normal_enum<T>()>> {
             return #TYPE;                                                                          \
         }                                                                                          \
         static const auto& get_members() {                                                         \
-            static auto members = std::tuple_cat(                                                  \
-                BOOST_PP_SEQ_FOR_EACH(MC_REFLECT_ELEMENT, TYPE, MEMBERS) std::tuple<>());          \
+            static auto members = mc::reflect::detail::initial_members<TYPE>(std::tuple_cat(       \
+                BOOST_PP_SEQ_FOR_EACH(MC_REFLECT_ELEMENT, TYPE, MEMBERS) std::tuple<>()));         \
                                                                                                    \
             static_assert(mc::reflect::detail::validate_members<TYPE>(members),                    \
-                          "成员验证失败，请检查成员是否符合类型要求");                             \
+                          "members validate failed, please check members type");                   \
             return members;                                                                        \
         }                                                                                          \
                                                                                                    \
