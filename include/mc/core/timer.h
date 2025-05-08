@@ -78,30 +78,25 @@ public:
 
     mc::signal<void()> timeout;
 
-    template <typename Object>
+    template <typename Object, typename BaseObject = Object>
     static timer_ptr single_shot(mc::milliseconds msec, ref_ptr<Object> receiver,
-                                 void (std::decay_t<Object>::*method)()) {
+                                 void (BaseObject::*method)()) {
+        return single_shot(msec, receiver.get(), method);
+    }
+    template <typename Object, typename BaseObject = Object>
+    static timer_ptr single_shot(mc::milliseconds msec, Object* receiver,
+                                 void (BaseObject::*method)()) {
         if (!receiver || !method) {
             return {};
         }
 
-        return single_shot(msec, receiver, [receiver = std::move(receiver), method]() {
-            (const_cast<Object*>(receiver.get())->*method)();
+        return single_shot(msec, receiver, [receiver, method]() {
+            (receiver->*method)();
         });
     }
     static timer_ptr single_shot(mc::milliseconds msec, std::function<void()> functor);
 
-    template <typename Object>
-    static timer_ptr single_shot(mc::milliseconds msec, ref_ptr<Object> context,
-                                 std::function<void()>&& functor) {
-        if (!context || !functor) {
-            return {};
-        }
-
-        return single_shot(msec, context.get(), std::forward<std::function<void()>>(functor));
-    }
-
-    static timer_ptr single_shot(mc::milliseconds msec, const object* context,
+    static timer_ptr single_shot(mc::milliseconds msec, object* context,
                                  std::function<void()> functor);
 
 private:
