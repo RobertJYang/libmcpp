@@ -255,7 +255,16 @@ TEST_F(std_interface_test, test_introspect) {
     <node name="Id"/>
     </node>
     */
-    auto object   = decode_introspect(xml.get_string());
+    mc::mutable_dict object = decode_introspect(xml.get_string());
+    EXPECT_TRUE(object.contains(mc::engine::properties_interface_name));
+    EXPECT_TRUE(object.contains(mc::engine::introspectable_interface_name));
+    EXPECT_TRUE(object.contains(mc::engine::peer_interface_name));
+    EXPECT_TRUE(object.contains(mc::engine::object_manager_interface_name));
+    object.erase(mc::engine::properties_interface_name);
+    object.erase(mc::engine::introspectable_interface_name);
+    object.erase(mc::engine::peer_interface_name);
+    object.erase(mc::engine::object_manager_interface_name);
+
     auto expected = mc::dict{{
         "org.test.TestInterface1",
         mc::dict{
@@ -283,6 +292,7 @@ TEST_F(std_interface_test, test_introspect) {
             },
         },
     }};
+
     EXPECT_EQ(object, expected) << "======== xml ========" << std::endl
                                 << xml.get_string() << std::endl
                                 << "======== object ========" << std::endl

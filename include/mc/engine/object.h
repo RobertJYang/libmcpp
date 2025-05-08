@@ -212,8 +212,8 @@ public:
         return property_info_to_interface(*info)->emit(signal_name, args);
     }
 
-    void visit(visitor& v) override {
-        get_metadata().visit(static_cast<ObjectType&>(*this), v);
+    void visit(visitor& v) const override {
+        get_metadata().visit(static_cast<const ObjectType&>(*this), v);
     }
 
     mc::core::object* get_owner() const override {
