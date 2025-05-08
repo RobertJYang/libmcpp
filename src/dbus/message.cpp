@@ -690,7 +690,8 @@ void message_reader::read_variant_array_or_dict(mc::variant& v, std::size_t dept
     message_reader sub_reader;
     sub_reader.recurse(*this);
 
-    if (sub_reader.current_type() == type_code::dict_entry_start) {
+    auto type = dbus_message_iter_get_element_type(&m_iter);
+    if (type == DBUS_TYPE_DICT_ENTRY) {
         mc::mutable_dict dict;
         sub_reader.read_variant_dict(dict, depth);
         v = std::move(dict);
