@@ -117,13 +117,13 @@ timer_ptr timer::single_shot(mc::milliseconds msec, std::function<void()> functo
     return single_shot(msec, &mc::core::app(), std::move(functor));
 }
 
-timer_ptr timer::single_shot(mc::milliseconds msec, const object* context,
+timer_ptr timer::single_shot(mc::milliseconds msec, object* context,
                              std::function<void()> functor) {
     if (!context || !functor) {
         return {};
     }
 
-    auto t = mc::core::make_ref<timer>(const_cast<object*>(context));
+    auto t = mc::core::make_ref<timer>(context);
     t->timeout.connect(std::move(functor));
     t->set_single_shot(true);
     t->start(msec);

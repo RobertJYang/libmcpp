@@ -67,22 +67,26 @@ struct invoke_result : public mc::variant {
 };
 
 struct visitor {
-    virtual void handle_interface_begin(abstract_object& obj, abstract_interface& iface) = 0;
-    virtual void handle_interface_end(abstract_object& obj, abstract_interface& iface)   = 0;
+    virtual void handle_interface_begin(const abstract_object&    obj,
+                                        const abstract_interface& iface) = 0;
+    virtual void handle_interface_end(const abstract_object&    obj,
+                                      const abstract_interface& iface)   = 0;
 
     struct property_meta {
         std::string_view name;
         std::string_view signature;
         uint32_t         access;
     };
-    virtual void handle(abstract_object& obj, abstract_interface& iface, property_meta& info) = 0;
+    virtual void handle(const abstract_object& obj, const abstract_interface& iface,
+                        const property_meta& info) = 0;
 
     struct method_meta {
         std::string_view name;
         std::string_view args_signature;
         std::string_view return_signature;
     };
-    virtual void handle(abstract_object& obj, abstract_interface& iface, method_meta& info) = 0;
+    virtual void handle(const abstract_object& obj, const abstract_interface& iface,
+                        const method_meta& info) = 0;
 
     struct signal_meta {
         std::string_view name;
@@ -90,7 +94,8 @@ struct visitor {
         std::string_view return_signature;
     };
 
-    virtual void handle(abstract_object& obj, abstract_interface& iface, signal_meta& info) = 0;
+    virtual void handle(const abstract_object& obj, const abstract_interface& iface,
+                        const signal_meta& info) = 0;
 };
 
 class property_base {
@@ -128,6 +133,8 @@ public:
 
     virtual void notify_property_changed(const mc::variant& value, const property_base& prop) = 0;
     virtual property_changed_signal& property_changed()                                       = 0;
+
+    virtual void visit(visitor& v) const = 0;
 };
 
 class abstract_object : virtual public object_base {
@@ -165,7 +172,7 @@ public:
     virtual mc::variant         emit(std::string_view signal_name, const mc::variants& args,
                                      std::string_view interface_name = {})         = 0;
 
-    virtual void visit(visitor& v) = 0;
+    virtual void visit(visitor& v) const = 0;
 
     virtual invoke_result invoke(std::string_view method_name, const mc::variants& args,
                                  std::string_view interface_name = {}) = 0;

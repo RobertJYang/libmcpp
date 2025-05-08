@@ -172,6 +172,10 @@ public:
         return m_ptr;
     }
 
+    operator pointer_type() const noexcept {
+        return m_ptr;
+    }
+
     // 布尔转换运算符
     explicit operator bool() const noexcept {
         return m_ptr != nullptr;

@@ -24,20 +24,23 @@ void properties_interface::set(std::string_view interface_name, std::string_view
 }
 
 struct inintrospect_vistor : visitor {
-    void handle_interface_begin(abstract_object& obj, abstract_interface& iface) override {
+    void handle_interface_begin(const abstract_object&    obj,
+                                const abstract_interface& iface) override {
         xml_data += "<interface name=\"";
         xml_data += iface.get_interface_name();
         xml_data += "\">";
     }
 
-    void handle_interface_end(abstract_object& obj, abstract_interface& iface) override {
+    void handle_interface_end(const abstract_object&    obj,
+                              const abstract_interface& iface) override {
         xml_data += "</interface>";
     }
 
     /*
         <property name="Property" type="i" access="readwrite" />
     */
-    void handle(abstract_object& obj, abstract_interface& iface, property_meta& info) override {
+    void handle(const abstract_object& obj, const abstract_interface& iface,
+                const property_meta& info) override {
         xml_data += "<property name=\"";
         xml_data += info.name;
         xml_data += "\" type=\"";
@@ -52,7 +55,8 @@ struct inintrospect_vistor : visitor {
           <arg type="s" direction="out"/>
         </method>
     */
-    void handle(abstract_object& obj, abstract_interface& iface, method_meta& info) override {
+    void handle(const abstract_object& obj, const abstract_interface& iface,
+                const method_meta& info) override {
         xml_data += "<method name=\"";
         xml_data += info.name;
         xml_data += "\">";
@@ -80,7 +84,8 @@ struct inintrospect_vistor : visitor {
             <arg type="i" />
         </signal>
     */
-    void handle(abstract_object& obj, abstract_interface& iface, signal_meta& info) override {
+    void handle(const abstract_object& obj, const abstract_interface& iface,
+                const signal_meta& info) override {
         xml_data += "<signal name=\"";
         xml_data += info.name;
         xml_data += "\">";
@@ -119,6 +124,13 @@ std::string introspectable_interface::introspect() const {
     v.xml_data = "<!DOCTYPE node PUBLIC \"-//freedesktop//DTD D-BUS Object Introspection 1.0//EN\" "
                  "\"http://www.freedesktop.org/standards/dbus/1.0/introspect.dtd\"><node>";
     m_object->visit(v);
+
+    // 添加标准接口
+    this->visit(v);
+    properties_interface().visit(v);
+    peer_interface().visit(v);
+    object_manager_interface().visit(v);
+
     v.handle_children(*m_object);
     v.xml_data += "</node>";
     return v.xml_data;

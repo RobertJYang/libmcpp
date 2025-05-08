@@ -101,17 +101,11 @@ public:
         return it->second;
     }
 
-    void visit(object_type& obj, visitor& v) {
+    void visit(const object_type& obj, visitor& v) {
         auto p_obj = reinterpret_cast<intptr_t>(&obj);
         mc::traits::tuple_for_each(get_static_interface_infos(), [&](auto& member) {
-            using property_info = mc::traits::remove_cvref_t<decltype(member)>;
-
             auto& iface = *reinterpret_cast<abstract_interface*>(p_obj + member.offset());
-            v.handle_interface_begin(obj, iface);
-            visit_properties<property_info>(obj, iface, v);
-            visit_methods<property_info>(obj, iface, v);
-            visit_signals<property_info>(obj, iface, v);
-            v.handle_interface_end(obj, iface);
+            iface.visit(v);
         });
     }
 
@@ -169,55 +163,6 @@ private:
             if (m_name_to_signal.find(signal.name) == m_name_to_signal.end()) {
                 m_name_to_signal[signal.name] = &member;
             }
-        });
-    }
-
-    template <typename PropertyInfo>
-    void visit_properties(object_type& obj, abstract_interface& iface, visitor& v) {
-        using interface_type = typename PropertyInfo::member_type;
-        mc::traits::tuple_for_each(interface_type::get_static_properties(), [&](auto& property) {
-            using property_type =
-                typename mc::traits::remove_cvref_t<decltype(property)>::member_type;
-
-            visitor::property_meta info;
-            info.name      = property.name;
-            info.signature = mc::reflect::get_signature<property_type>();
-            info.access    = 0;
-            v.handle(obj, iface, info);
-        });
-    }
-
-    template <typename PropertyInfo>
-    void visit_methods(object_type& obj, abstract_interface& iface, visitor& v) {
-        using interface_type = typename PropertyInfo::member_type;
-        mc::traits::tuple_for_each(interface_type::get_static_methods(), [&](auto& method) {
-            using method_info_type = mc::traits::remove_cvref_t<decltype(method)>;
-            using result_type      = typename method_info_type::result_type;
-            using args_type        = typename method_info_type::args_type;
-
-            visitor::method_meta info;
-            info.name = method.name;
-            if constexpr (!std::is_void_v<result_type>) {
-                info.return_signature = mc::reflect::get_signature<result_type>();
-            }
-            info.args_signature = mc::reflect::get_signature<args_type>();
-            v.handle(obj, iface, info);
-        });
-    }
-
-    template <typename PropertyInfo>
-    void visit_signals(object_type& obj, abstract_interface& iface, visitor& v) {
-        using interface_type = typename PropertyInfo::member_type;
-        mc::traits::tuple_for_each(interface_type::get_static_signals(), [&](auto& signal) {
-            using signal_info_type = mc::traits::remove_cvref_t<decltype(signal)>;
-            using result_type      = typename signal_info_type::result_type;
-            using args_type        = typename signal_info_type::args_type;
-
-            visitor::signal_meta info;
-            info.name             = signal.name;
-            info.return_signature = mc::reflect::get_signature<result_type>();
-            info.args_signature   = mc::reflect::get_signature<args_type>();
-            v.handle(obj, iface, info);
         });
     }
 

@@ -285,6 +285,14 @@ struct interface : public abstract_interface {
         return *m_property_changed_signal;
     }
 
+    void visit(visitor& v) const override {
+        v.handle_interface_begin(*m_object, *this);
+        visit_properties(v);
+        visit_methods(v);
+        visit_signals(v);
+        v.handle_interface_end(*m_object, *this);
+    }
+
 protected:
     template <typename Members, typename F>
     static void foreach_property(Members& members, F&& f) {
@@ -296,6 +304,49 @@ protected:
                     f(member);
                 }
             }
+        });
+    }
+
+    void visit_properties(visitor& v) const {
+        mc::traits::tuple_for_each(interface_type::get_static_properties(), [&](auto& property) {
+            using property_type =
+                typename mc::traits::remove_cvref_t<decltype(property)>::member_type;
+
+            visitor::property_meta info;
+            info.name      = property.name;
+            info.signature = mc::reflect::get_signature<property_type>();
+            info.access    = 0;
+            v.handle(*m_object, *this, info);
+        });
+    }
+
+    void visit_methods(visitor& v) const {
+        mc::traits::tuple_for_each(interface_type::get_static_methods(), [&](auto& method) {
+            using method_info_type = mc::traits::remove_cvref_t<decltype(method)>;
+            using result_type      = typename method_info_type::result_type;
+            using args_type        = typename method_info_type::args_type;
+
+            visitor::method_meta info;
+            info.name = method.name;
+            if constexpr (!std::is_void_v<result_type>) {
+                info.return_signature = mc::reflect::get_signature<result_type>();
+            }
+            info.args_signature = mc::reflect::get_signature<args_type>();
+            v.handle(*m_object, *this, info);
+        });
+    }
+
+    void visit_signals(visitor& v) const {
+        mc::traits::tuple_for_each(interface_type::get_static_signals(), [&](auto& signal) {
+            using signal_info_type = mc::traits::remove_cvref_t<decltype(signal)>;
+            using result_type      = typename signal_info_type::result_type;
+            using args_type        = typename signal_info_type::args_type;
+
+            visitor::signal_meta info;
+            info.name             = signal.name;
+            info.return_signature = mc::reflect::get_signature<result_type>();
+            info.args_signature   = mc::reflect::get_signature<args_type>();
+            v.handle(*m_object, *this, info);
         });
     }
 
