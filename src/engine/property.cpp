@@ -14,17 +14,18 @@
 
 namespace mc::engine {
 
-void detail::interface_observer::notify(mc::variant value) {
+void detail::interface_observer::notify(const mc::variant& value, const property_base& prop) {
     if (!m_interface) {
         return;
     }
 
+    m_interface->notify_property_changed(value, prop);
     auto object = m_interface->get_object();
     if (!object) {
         return;
     }
 
-    object->property_changed(this, m_interface, std::move(value));
+    object->notify_property_changed(value, prop);
 }
 
 } // namespace mc::engine

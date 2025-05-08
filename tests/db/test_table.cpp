@@ -55,7 +55,11 @@ public:
     int         m_age;
     double      m_score;
 };
-// 使用限定命名空间访问
+} // namespace
+
+MC_REFLECT(user, ((m_name, "name"))((m_age, "age"))((m_score, "score")))
+
+namespace {
 using user_table = mdb::table<
     user, mdb::indexed_by<mdb::ordered_unique<&user::m_name>,
                           mdb::ordered_non_unique<&user::get_age, by_age::tag>,
@@ -65,11 +69,7 @@ using user_table = mdb::table<
 auto field_name  = user::field(&user::m_name);
 auto field_age   = user::field(&user::m_age);
 auto field_score = user::field(&user::m_score);
-} // namespace
 
-MC_REFLECT(user, ((m_name, "name"))((m_age, "age"))((m_score, "score")))
-
-// 表类测试
 class table_test : public ::testing::Test {
 protected:
     void SetUp() override {
@@ -78,6 +78,7 @@ protected:
     void TearDown() override {
     }
 };
+} // namespace
 
 // 测试表格创建和基本操作
 TEST_F(table_test, create_table) {

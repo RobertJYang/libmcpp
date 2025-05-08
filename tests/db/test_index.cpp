@@ -26,6 +26,8 @@
 #include <unordered_map>
 #include <vector>
 
+namespace {
+
 struct user : mc::db::object<user> {
     using id_type = int;
 
@@ -54,6 +56,7 @@ struct user : mc::db::object<user> {
         return m_score;
     }
 };
+} // namespace
 
 // 测试 mc::db::index 的基本功能
 TEST(database_index_test, mc_database_index_basic) {

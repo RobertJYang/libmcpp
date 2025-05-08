@@ -70,10 +70,10 @@ public:
      * @param builder 查询构建器
      * @return 匹配对象列表
      */
-    std::vector<const_object_ptr_type> query_all(const query_builder& builder) {
-        std::vector<const_object_ptr_type> result;
+    std::vector<object_ptr_type> query_all(const query_builder& builder) {
+        std::vector<object_ptr_type> result;
         query_impl(builder, [&result](const object_type& obj) {
-            result.emplace_back(&obj);
+            result.emplace_back(const_cast<object_type*>(&obj));
             return true;
         });
 
@@ -87,13 +87,13 @@ public:
      * @param limit 最大返回数量
      * @return 匹配对象列表
      */
-    std::vector<const_object_ptr_type> query_limit(const query_builder& builder, size_t limit) {
+    std::vector<object_ptr_type> query_limit(const query_builder& builder, size_t limit) {
         query_builder limited_builder = builder;
         limited_builder.limit(limit);
 
-        std::vector<const_object_ptr_type> result;
+        std::vector<object_ptr_type> result;
         query_impl(limited_builder, [&result](const object_type& obj) {
-            result.emplace_back(&obj);
+            result.emplace_back(const_cast<object_type*>(&obj));
             return true;
         });
 
@@ -106,10 +106,10 @@ public:
      * @param builder 查询构建器
      * @return 匹配的第一个对象的可选包装
      */
-    const_object_ptr_type query_one(const query_builder& builder) {
-        const_object_ptr_type result;
+    object_ptr_type query_one(const query_builder& builder) {
+        object_ptr_type result;
         query_impl(builder, [&result](const object_type& obj) {
-            result = const_object_ptr_type(&obj);
+            result = object_ptr_type(const_cast<object_type*>(&obj));
             return false;
         });
         return result;
@@ -121,15 +121,15 @@ public:
      * @param limit 限制返回的记录数量，0表示不限制
      * @return 查询结果
      */
-    std::vector<const_object_ptr_type> query(const query_builder& builder, size_t limit = 0) {
-        std::vector<const_object_ptr_type> results;
+    std::vector<object_ptr_type> query(const query_builder& builder, size_t limit = 0) {
+        std::vector<object_ptr_type> results;
 
         size_t count = 0;
         query(builder, [&](const object_type& obj) -> bool {
             if (limit > 0 && count >= limit) {
                 return false;
             }
-            results.emplace_back(&obj);
+            results.emplace_back(const_cast<object_type*>(&obj));
             count++;
             return true;
         });

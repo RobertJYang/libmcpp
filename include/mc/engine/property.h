@@ -23,7 +23,7 @@ namespace mc::engine {
 namespace detail {
 
 struct empty_observer {
-    void notify(mc::variant value) {
+    void notify(const mc::variant& value, const property_base& prop) {
     }
 };
 
@@ -40,7 +40,7 @@ public:
         return m_interface;
     }
 
-    void notify(mc::variant value);
+    void notify(const mc::variant& value, const property_base& prop);
 
 protected:
     // 不要初始化这个值，由 interface 的基类填充
@@ -62,7 +62,7 @@ public:
 } // namespace detail
 
 template <typename T, typename Observer = detail::interface_observer>
-class property {
+class property : public property_base {
     static_assert(std::is_same_v<std::decay_t<T>, T>, "T must be a non-reference type");
 
 public:
@@ -84,12 +84,12 @@ public:
     }
 
     property_type& operator=(rvalue_type new_value) {
-        set_value(std::move(new_value));
+        set_value_impl(std::move(new_value));
         return *this;
     }
 
     property_type& operator=(param_type new_value) {
-        set_value(new_value);
+        set_value_impl(new_value);
         return *this;
     }
 
@@ -97,22 +97,20 @@ public:
         return this->m_value;
     }
 
-    void set_value(rvalue_type new_value) {
-        if (is_equal<T>(new_value)) {
-            return;
-        }
-
-        this->m_value = std::move(new_value);
-        notify(this->m_value);
+    template <typename U = T>
+    std::enable_if_t<!std::is_same_v<U, std::decay_t<U>> || !property_traits::is_basic_type>
+    set_value(U&& new_value) {
+        set_value_impl(std::forward<U>(new_value));
     }
 
-    void set_value(param_type new_value) {
-        if (is_equal<T>(new_value)) {
-            return;
-        }
+    template <typename U = T>
+    std::enable_if_t<std::is_same_v<U, std::decay_t<U>> && property_traits::is_basic_type>
+    set_value(U new_value) {
+        set_value_impl(new_value);
+    }
 
-        this->m_value = new_value;
-        notify(this->m_value);
+    void set_value(const mc::variant& value) override {
+        set_value_impl(value.as<T>());
     }
 
     param_type operator*() const {
@@ -126,7 +124,7 @@ public:
     template <typename F>
     void modify(F&& func) {
         if (func(m_value)) {
-            notify(this->m_value);
+            notify();
         }
     }
 
@@ -139,14 +137,12 @@ public:
     }
 
     template <typename U>
-    auto operator==(const U& v) const
-        -> std::enable_if_t<!mc::traits::is_specialization_of_v<U, property>, bool> {
+    bool operator==(const U& v) const {
         return is_equal(v);
     }
 
     template <typename U>
-    auto operator!=(const U& v) const
-        -> std::enable_if_t<!mc::traits::is_specialization_of_v<U, property>, bool> {
+    bool operator!=(const U& v) const {
         return !(*this == v);
     }
 
@@ -161,14 +157,12 @@ public:
     }
 
     template <typename U>
-    friend auto operator==(const U& v, const property_type& p)
-        -> std::enable_if_t<!mc::traits::is_specialization_of_v<U, property>, bool> {
+    friend bool operator==(const U& v, const property_type& p) {
         return p == v;
     }
 
     template <typename U>
-    friend auto operator!=(const U& v, const property_type& p)
-        -> std::enable_if_t<!mc::traits::is_specialization_of_v<U, property>, bool> {
+    friend bool operator!=(const U& v, const property_type& p) {
         return !(p == v);
     }
 
@@ -178,6 +172,58 @@ public:
 
     friend inline void from_variant(const mc::variant& v, property_type& value) {
         from_variant(v, value.m_value);
+    }
+
+    observer_type& get_observer() {
+        return m_observer;
+    }
+
+    const observer_type& get_observer() const {
+        return m_observer;
+    }
+
+    std::string_view get_name() const override {
+        if constexpr (std::is_same_v<observer_type, detail::interface_observer>) {
+            return m_observer.get_interface()->get_property_name(this);
+        }
+
+        return {};
+    }
+
+    std::string_view get_signature() const override {
+        return mc::reflect::get_signature<T>();
+    }
+
+    uint32_t get_access() const override {
+        return 0;
+    }
+
+    mc::variant get_value() const override {
+        return m_value;
+    }
+
+    abstract_interface* get_interface() const override {
+        if constexpr (std::is_same_v<observer_type, detail::interface_observer>) {
+            return m_observer.get_interface();
+        }
+
+        return nullptr;
+    }
+
+    abstract_object* get_object() const override {
+        if constexpr (std::is_same_v<observer_type, detail::interface_observer>) {
+            return m_observer.get_interface()->get_object();
+        }
+
+        return nullptr;
+    }
+
+    property_changed_signal& property_changed() override {
+        if (m_signal == nullptr) {
+            m_signal = std::make_unique<property_changed_signal>();
+        }
+
+        return *m_signal;
     }
 
 protected:
@@ -191,12 +237,30 @@ protected:
         return false;
     }
 
-    void notify(mc::variant value) {
-        m_observer.notify(std::move(value));
+    void notify() {
+        mc::variant value(m_value);
+        if (m_signal) {
+            (*m_signal)(value, *this);
+            return;
+        }
+
+        m_observer.notify(value, *this);
+    }
+
+    template <typename U>
+    void set_value_impl(U new_value) {
+        if (is_equal(new_value)) {
+            return;
+        }
+
+        this->m_value = std::move(new_value);
+        notify();
     }
 
     T             m_value{};
     observer_type m_observer;
+
+    std::unique_ptr<property_changed_signal> m_signal;
 };
 
 } // namespace mc::engine
@@ -208,6 +272,7 @@ struct signature_helper<mc::engine::property<T, Observer>> {
         sig += mc::reflect::get_signature<T>();
     }
 };
+
 } // namespace mc::reflect::detail
 
 #endif // MC_ENGINE_PROPERTY_H

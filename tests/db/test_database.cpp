@@ -51,6 +51,11 @@ public:
     std::string m_name;
     int         m_value;
 };
+} // namespace
+
+MC_REFLECT(test_object, ((m_id, "id"))((m_name, "name"))((m_value, "value")))
+
+namespace {
 
 // 使用限定命名空间访问
 using test_table = table<test_object, indexed_by<ordered_unique<&test_object::m_id, by_id::tag>,
@@ -60,10 +65,6 @@ using test_table = table<test_object, indexed_by<ordered_unique<&test_object::m_
 auto field_id    = test_object::field(&test_object::m_id);
 auto field_name  = test_object::field(&test_object::m_name);
 auto field_value = test_object::field(&test_object::m_value);
-
-} // namespace
-
-MC_REFLECT(test_object, ((m_id, "id"))((m_name, "name"))((m_value, "value")))
 
 // 数据库测试类
 class database_test : public ::testing::Test {
@@ -90,6 +91,8 @@ protected:
     mc::db::database            db;
     std::shared_ptr<test_table> table;
 };
+
+} // namespace
 
 // 测试表的基本功能
 TEST_F(database_test, basic_operations) {

@@ -120,6 +120,10 @@ public:
     }
 
     abstract_interface* get_interface(std::string_view interface_name) override {
+        if (interface_name.empty()) {
+            return nullptr;
+        }
+
         auto info = metadata_type::get_instance().get_interface_info(interface_name);
         if (info == nullptr) {
             return nullptr;
@@ -137,6 +141,17 @@ public:
         }
 
         return property_info_to_interface(*info)->get_property(property_name);
+    }
+
+    property_base* get_property_base(std::string_view property_name,
+                                     std::string_view interface_name) override {
+        auto info =
+            metadata_type::get_instance().get_property_interface(property_name, interface_name);
+        if (info == nullptr) {
+            return nullptr;
+        }
+
+        return property_info_to_interface(*info)->get_property_base(property_name);
     }
 
     mc::dict get_all_properties(std::string_view interface_name) override {
@@ -197,7 +212,7 @@ public:
         return property_info_to_interface(*info)->emit(signal_name, args);
     }
 
-    virtual void visit(visitor& v) override {
+    void visit(visitor& v) override {
         get_metadata().visit(static_cast<ObjectType&>(*this), v);
     }
 
@@ -205,7 +220,18 @@ public:
         return const_cast<self_type*>(this);
     }
 
-    void property_changed(const void* prop, abstract_interface* iface, mc::variant value) override {
+    void notify_property_changed(const mc::variant& value, const property_base& prop) override {
+        if (m_property_changed_signal) {
+            (*m_property_changed_signal)(value, prop);
+        }
+    }
+
+    property_changed_signal& property_changed() override {
+        if (m_property_changed_signal == nullptr) {
+            m_property_changed_signal = std::make_unique<property_changed_signal>();
+        }
+
+        return *m_property_changed_signal;
     }
 
 protected:
@@ -214,9 +240,9 @@ protected:
     }
 
 protected:
-    mutable std::string m_object_path;
-
-    managed_objects m_managed_objects;
+    mutable std::string                      m_object_path;
+    managed_objects                          m_managed_objects;
+    std::unique_ptr<property_changed_signal> m_property_changed_signal;
 };
 
 } // namespace mc::engine
