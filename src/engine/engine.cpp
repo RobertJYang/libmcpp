@@ -28,9 +28,9 @@ public:
     engine_impl();
     ~engine_impl();
 
-    void add_object(abstract_object* object);
-    void remove_object(abstract_object* object);
-    void update_object(abstract_object* old_object, abstract_object* new_object);
+    void add_object(abstract_object& object);
+    void remove_object(abstract_object& object);
+    void update_object(abstract_object& old_object, abstract_object& new_object);
 
     std::mutex                  m_mutex;
     mdb::database               m_database;
@@ -51,35 +51,35 @@ engine::engine_impl::~engine_impl() {
     m_object_tree->clear();
 }
 
-void engine::engine_impl::add_object(abstract_object* object) {
+void engine::engine_impl::add_object(abstract_object& object) {
     std::lock_guard lock(m_mutex);
 
-    auto object_id = object->get_object_id();
+    auto object_id = object.get_object_id();
     if (object_id > 0 && !m_object_tree->find_by_object_id(object_id).is_end()) {
         return;
     }
 
-    m_object_tree->add(mc::im::ref_ptr<abstract_object>(object));
+    m_object_tree->add(object_ptr(&object));
 }
 
-void engine::engine_impl::remove_object(abstract_object* object) {
+void engine::engine_impl::remove_object(abstract_object& object) {
     std::lock_guard lock(m_mutex);
 
-    m_object_tree->remove(mc::im::ref_ptr<abstract_object>(object));
+    m_object_tree->remove(object_ptr(&object));
 }
 
-void engine::engine_impl::update_object(abstract_object* old_object, abstract_object* new_object) {
+void engine::engine_impl::update_object(abstract_object& old_object, abstract_object& new_object) {
     std::lock_guard lock(m_mutex);
 
     auto& idx = m_object_tree->get<by_path>();
-    auto  it  = idx.find(old_object->get_object_path());
+    auto  it  = idx.find(old_object.get_object_path());
     if (it == idx.end()) {
-        idx.remove(old_object->get_object_path());
-        m_object_tree->add(mc::im::ref_ptr<abstract_object>(new_object));
+        idx.remove(old_object.get_object_path());
+        m_object_tree->add(object_ptr(&new_object));
         return;
     }
 
-    idx.update(*it, mc::im::ref_ptr<abstract_object>(new_object));
+    idx.update(*it, object_ptr(&new_object));
 }
 
 engine::engine() {
@@ -145,18 +145,18 @@ bool engine::register_table(mc::db::table_ptr table) {
 
     std::lock_guard lock(m_impl->m_mutex);
 
-    auto c1 = table->on_object_added.connect([this](mdb::object_base* object) {
-        m_impl->add_object(dynamic_cast<abstract_object*>(object));
+    auto c1 = table->on_object_added.connect([this](mdb::object_base& object) {
+        m_impl->add_object(static_cast<abstract_object&>(object));
     });
 
-    auto c2 = table->on_object_removed.connect([this](mdb::object_base* object) {
-        m_impl->remove_object(dynamic_cast<abstract_object*>(object));
+    auto c2 = table->on_object_removed.connect([this](mdb::object_base& object) {
+        m_impl->remove_object(static_cast<abstract_object&>(object));
     });
 
     auto c3 = table->on_object_updated.connect(
-        [this](mdb::object_base* old_object, mdb::object_base* new_object) {
-            m_impl->update_object(dynamic_cast<abstract_object*>(old_object),
-                                  dynamic_cast<abstract_object*>(new_object));
+        [this](mdb::object_base& old_object, mdb::object_base& new_object) {
+            m_impl->update_object(static_cast<abstract_object&>(old_object),
+                                  static_cast<abstract_object&>(new_object));
         });
 
     std::string_view table_name = table->get_table_name();

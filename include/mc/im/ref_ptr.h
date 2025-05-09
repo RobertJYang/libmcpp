@@ -197,6 +197,11 @@ public:
         return ptr;
     }
 
+    template <typename U>
+    ref_ptr<U> cast() {
+        return ref_ptr<U>(static_cast<U*>(m_ptr));
+    }
+
 private:
     pointer_type m_ptr;
 };
@@ -284,18 +289,18 @@ ref_ptr<T> allocate_ref(const Alloc& alloc, Args&&... args) {
  */
 template <typename T, typename... Args>
 ref_ptr<T> make_ref(Args&&... args) {
-    return allocate_ref<T>(std::allocator<T>(), std::forward<Args>(args)...);
+    return mc::im::allocate_ref<T>(std::allocator<T>(), std::forward<Args>(args)...);
 }
 
 template <typename ObjectType>
 mc::im::ref_ptr<ObjectType> cast(ref_base* ptr) {
-    auto* p = dynamic_cast<ObjectType*>(ptr);
+    auto* p = static_cast<ObjectType*>(ptr);
     return mc::im::ref_ptr<ObjectType>(p);
 }
 
 template <typename ObjectType>
 mc::im::ref_ptr<const ObjectType> cast(const ref_base* ptr) {
-    auto* p = dynamic_cast<const ObjectType*>(ptr);
+    auto* p = static_cast<const ObjectType*>(ptr);
     return mc::im::ref_ptr<const ObjectType>(p);
 }
 

@@ -28,7 +28,7 @@ namespace mdb = mc::db;
 struct by_age : mdb::tag_base<by_age> {};
 MC_FIELD_INDEX_TAG(by_name_age, "name_age");
 
-class user : public mdb::object<user> {
+class user : public mdb::object_base {
 public:
     user() = default;
 
@@ -66,9 +66,9 @@ using user_table = mdb::table<
                           mdb::ordered_non_unique<&user::m_name, &user::m_age, by_name_age::tag>>>;
 
 // 拿到表的字段，可用于后续构造查询语句
-auto field_name  = user::field(&user::m_name);
-auto field_age   = user::field(&user::m_age);
-auto field_score = user::field(&user::m_score);
+auto field_name  = mc::db::field(&user::m_name);
+auto field_age   = mc::db::field(&user::m_age);
+auto field_score = mc::db::field(&user::m_score);
 
 class table_test : public ::testing::Test {
 protected:

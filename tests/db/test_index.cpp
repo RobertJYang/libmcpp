@@ -28,7 +28,7 @@
 
 namespace {
 
-struct user : mc::db::object<user> {
+struct user : mc::db::object_base {
     using id_type = int;
 
     user() = default;
