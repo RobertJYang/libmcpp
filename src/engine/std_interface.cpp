@@ -11,16 +11,31 @@
 namespace mc::engine {
 mc::variant properties_interface::get(std::string_view interface_name,
                                       std::string_view property_name) const {
-    return m_object->get_property(property_name, interface_name);
+    auto* object = object_call_stack::top_value();
+    if (object == nullptr) {
+        return {};
+    }
+
+    return object->get_property(property_name, interface_name);
 }
 
 mc::dict properties_interface::get_all(std::string_view interface_name) const {
-    return m_object->get_all_properties(interface_name);
+    auto* object = object_call_stack::top_value();
+    if (object == nullptr) {
+        return {};
+    }
+
+    return object->get_all_properties(interface_name);
 }
 
 void properties_interface::set(std::string_view interface_name, std::string_view property_name,
                                const mc::variant& value) {
-    m_object->set_property(property_name, value, interface_name);
+    auto* object = object_call_stack::top_value();
+    if (object == nullptr) {
+        return;
+    }
+
+    object->set_property(property_name, value, interface_name);
 }
 
 struct inintrospect_vistor : visitor {
@@ -120,18 +135,23 @@ struct inintrospect_vistor : visitor {
 };
 
 std::string introspectable_interface::introspect() const {
+    auto* object = object_call_stack::top_value();
+    if (object == nullptr) {
+        return {};
+    }
+
     inintrospect_vistor v;
     v.xml_data = "<!DOCTYPE node PUBLIC \"-//freedesktop//DTD D-BUS Object Introspection 1.0//EN\" "
                  "\"http://www.freedesktop.org/standards/dbus/1.0/introspect.dtd\"><node>";
-    m_object->visit(v);
+    object->visit(v);
 
     // 添加标准接口
     this->visit(v);
-    properties_interface().visit(v);
-    peer_interface().visit(v);
-    object_manager_interface().visit(v);
+    properties_interface::get_instance().visit(v);
+    peer_interface::get_instance().visit(v);
+    object_manager_interface::get_instance().visit(v);
 
-    v.handle_children(*m_object);
+    v.handle_children(*object);
     v.xml_data += "</node>";
     return v.xml_data;
 }
