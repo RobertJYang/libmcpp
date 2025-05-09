@@ -102,14 +102,19 @@ public:
     virtual std::string_view get_name() const      = 0;
     virtual std::string_view get_signature() const = 0;
     virtual uint32_t         get_access() const    = 0;
-    virtual mc::variant      get_value() const     = 0;
 
     virtual abstract_interface* get_interface() const = 0;
     virtual abstract_object*    get_object() const    = 0;
 
-    virtual void set_value(const mc::variant& value) = 0;
+    virtual mc::variant get_value() const = 0;
+    void                set_value(const mc::variant& value) {
+        set_variant(value);
+    }
 
     virtual property_changed_signal& property_changed() = 0;
+
+protected:
+    virtual void set_variant(const mc::variant& value) = 0;
 };
 
 class abstract_interface {

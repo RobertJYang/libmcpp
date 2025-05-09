@@ -77,13 +77,14 @@ test_files = [
   'variant/test_variant_visitor.cpp',
   'variant/test_variant_io.cpp',
 
-  # # engine 目录
+  # engine 目录
   'engine/test_interface.cpp',
   'engine/test_object.cpp',
   'engine/test_utils.cpp',
   'engine/test_std_interface.cpp',
   'engine/test_engine.cpp',
   'engine/test_error_engine.cpp',
+  'engine/test_property.cpp',
 
   # io 目录
   'io/test_io_buffer.cpp',

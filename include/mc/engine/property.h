@@ -97,20 +97,16 @@ public:
         return this->m_value;
     }
 
-    template <typename U = T>
-    std::enable_if_t<!std::is_same_v<U, std::decay_t<U>> || !property_traits::is_basic_type>
-    set_value(U&& new_value) {
-        set_value_impl(std::forward<U>(new_value));
+    void set_value(rvalue_type new_value) {
+        set_value_impl(std::forward<T>(new_value));
     }
 
-    template <typename U = T>
-    std::enable_if_t<std::is_same_v<U, std::decay_t<U>> && property_traits::is_basic_type>
-    set_value(U new_value) {
+    void set_value(param_type new_value) {
         set_value_impl(new_value);
     }
 
-    void set_value(const mc::variant& value) override {
-        set_value_impl(value.as<T>());
+    mc::variant get_value() const override {
+        return m_value;
     }
 
     param_type operator*() const {
@@ -137,12 +133,14 @@ public:
     }
 
     template <typename U>
-    bool operator==(const U& v) const {
+    auto operator==(const U& v) const
+        -> std::enable_if_t<!std::is_base_of_v<property_base, U>, bool> {
         return is_equal(v);
     }
 
     template <typename U>
-    bool operator!=(const U& v) const {
+    auto operator!=(const U& v) const
+        -> std::enable_if_t<!std::is_base_of_v<property_base, U>, bool> {
         return !(*this == v);
     }
 
@@ -157,12 +155,14 @@ public:
     }
 
     template <typename U>
-    friend bool operator==(const U& v, const property_type& p) {
+    friend auto operator==(const U& v, const property_type& p)
+        -> std::enable_if_t<!std::is_base_of_v<property_base, U>, bool> {
         return p == v;
     }
 
     template <typename U>
-    friend bool operator!=(const U& v, const property_type& p) {
+    friend auto operator!=(const U& v, const property_type& p)
+        -> std::enable_if_t<!std::is_base_of_v<property_base, U>, bool> {
         return !(p == v);
     }
 
@@ -198,10 +198,6 @@ public:
         return 0;
     }
 
-    mc::variant get_value() const override {
-        return m_value;
-    }
-
     abstract_interface* get_interface() const override {
         if constexpr (std::is_same_v<observer_type, detail::interface_observer>) {
             return m_observer.get_interface();
@@ -227,6 +223,10 @@ public:
     }
 
 protected:
+    void set_variant(const mc::variant& value) override {
+        set_value_impl(value.as<T>());
+    }
+
     template <typename U>
     bool is_equal(const U& v) const {
         if constexpr (mc::traits::has_operator_equal_v<T, U>) {

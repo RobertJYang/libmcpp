@@ -33,7 +33,7 @@ struct test_observer {
     int         m_count{0};
     mc::variant m_last_value;
 
-    void notify(mc::variant value) {
+    void notify(mc::variant value, mc::engine::property_base& property) {
         m_count++;
         m_last_value = value;
     }
