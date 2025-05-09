@@ -63,6 +63,11 @@ struct properties_interface : public mc::engine::interface<properties_interface>
     using properties_changed_signal =
         mc::signal<void(std::string_view, mc::dict, std::vector<std::string>)>;
     properties_changed_signal properties_changed;
+
+    static properties_interface& get_instance() {
+        static properties_interface instance;
+        return instance;
+    }
 };
 
 /*
@@ -78,6 +83,11 @@ struct introspectable_interface : public mc::engine::interface<introspectable_in
     ~introspectable_interface() override = default;
 
     std::string introspect() const;
+
+    static introspectable_interface& get_instance() {
+        static introspectable_interface instance;
+        return instance;
+    }
 };
 
 /*
@@ -95,6 +105,11 @@ struct peer_interface : public mc::engine::interface<peer_interface> {
 
     void        ping() const;
     std::string get_machine_id() const;
+
+    static peer_interface& get_instance() {
+        static peer_interface instance;
+        return instance;
+    }
 };
 
 /*
@@ -126,6 +141,11 @@ struct object_manager_interface : public mc::engine::interface<object_manager_in
 
     using interfaces_removed_signal = mc::signal<void(mc::dbus::path, std::vector<std::string>)>;
     interfaces_removed_signal interfaces_removed;
+
+    static object_manager_interface& get_instance() {
+        static object_manager_interface instance;
+        return instance;
+    }
 };
 
 class standard_interfaces {
@@ -145,21 +165,13 @@ public:
 
         std::string_view name = interface_name.substr(common_prefix.size());
         if (name == properties_name) {
-            static thread_local properties_interface properties;
-            properties.set_object(object);
-            return properties.invoke(method_name, args);
+            return properties_interface::get_instance().invoke(method_name, args);
         } else if (name == introspectable_name) {
-            static thread_local introspectable_interface introspectable;
-            introspectable.set_object(object);
-            return introspectable.invoke(method_name, args);
+            return introspectable_interface::get_instance().invoke(method_name, args);
         } else if (name == peer_name) {
-            static thread_local peer_interface peer;
-            peer.set_object(object);
-            return peer.invoke(method_name, args);
+            return peer_interface::get_instance().invoke(method_name, args);
         } else if (name == object_manager_name) {
-            static thread_local object_manager_interface object_manager;
-            object_manager.set_object(object);
-            return object_manager.invoke(method_name, args);
+            return object_manager_interface::get_instance().invoke(method_name, args);
         }
 
         return {};
