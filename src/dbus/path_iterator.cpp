@@ -75,7 +75,7 @@ bool path_iterator::find_next_segment(size_t& start, size_t& end) const {
 
 bool path_iterator::find_prev_segment(size_t& start, size_t& end) const {
     // 无法向前移动的情况
-    if (is_empty_or_root_path() || m_start == 0 || !m_is_initialized) {
+    if (is_empty_or_root_path() || m_start == 0) {
         return false;
     }
 
@@ -120,7 +120,10 @@ bool path_iterator::to_next() {
 bool path_iterator::to_prev() {
     // 还没有初始化或已在第一个段
     if (!m_is_initialized) {
-        return false;
+        m_start          = m_path.length();
+        bool has_segment = find_prev_segment(m_start, m_end);
+        m_is_initialized = true;
+        return has_segment;
     }
 
     // 尝试查找前一个段
@@ -140,6 +143,18 @@ std::string_view path_iterator::current() const {
         return {};
     }
     return m_path.substr(m_start, m_end - m_start);
+}
+
+std::string_view path_iterator::parent_path() const {
+    if (!m_is_initialized || m_start == 0) {
+        return {};
+    }
+
+    if (m_start == 1) {
+        return "/";
+    }
+
+    return m_path.substr(0, m_start - 1);
 }
 
 } // namespace mc::dbus

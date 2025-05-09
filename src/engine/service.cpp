@@ -140,6 +140,21 @@ void service_impl::register_object(abstract_object& obj) {
     m_connection->register_path(obj.get_object_path(), [this, &obj](auto& msg) {
         return on_path_message(msg, obj);
     });
+
+    auto path = obj.get_object_path();
+    auto it   = mc::dbus::path_iterator(path);
+    do {
+        if (!it.to_prev()) {
+            break;
+        }
+
+        auto node   = it.parent_path();
+        auto parent = m_object_tree->find<by_path>(node);
+        if (!parent.is_end()) {
+            auto* object = const_cast<abstract_object*>(&*parent);
+            object->add_managed_object(&obj);
+        }
+    } while (true);
 }
 
 void service_impl::unregister_object(std::string_view path) {

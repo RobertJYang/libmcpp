@@ -63,6 +63,12 @@ public:
     std::string_view current() const;
 
     /**
+     * @brief 获取父路径
+     * @return 父路径，如果迭代器未初始化或路径为空则返回空字符串
+     */
+    std::string_view parent_path() const;
+
+    /**
      * @brief 检查路径是否为空或根路径
      * @return 如果路径为空或为根路径('/')则返回true
      */
