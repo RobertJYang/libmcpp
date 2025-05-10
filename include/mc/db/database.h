@@ -44,8 +44,7 @@ public:
      * @param var 字典
      * @return 对象基类的指针
      */
-    const object_base* add(std::string_view table_name, const mc::dict& var,
-                           transaction* txn = nullptr);
+    object_ptr add(std::string_view table_name, const mc::dict& var, transaction* txn = nullptr);
 
     /**
      * 添加对象到工厂
@@ -54,14 +53,9 @@ public:
      * @return 对象指针
      */
     template <typename T>
-    typename T::const_object_ptr_type add(std::string_view table_name, const mc::dict& var,
-                                          transaction* txn = nullptr) {
-        auto obj = add(table_name, var, txn);
-        if (obj == nullptr) {
-            return nullptr;
-        }
-
-        return mc::im::ref_ptr<T>(obj);
+    mc::core::ref_ptr<T> add(std::string_view table_name, const mc::dict& var,
+                             transaction* txn = nullptr) {
+        return add(table_name, var, txn).cast<T>();
     }
 
     /**
@@ -71,11 +65,10 @@ public:
      * @return 对象指针
      */
     template <typename T>
-    typename T::const_object_ptr_type find(std::string_view     table_name,
-                                           const query_builder& builder) {
-        typename T::const_object_ptr_type result;
-        query<T>(table_name, builder, [&result](typename T::const_object_ptr_type obj) {
-            result = obj;
+    mc::core::ref_ptr<T> find(std::string_view table_name, const query_builder& builder) {
+        mc::core::ref_ptr<T> result;
+        query<T>(table_name, builder, [&result](T& obj) {
+            result.reset(&obj);
             return false;
         });
         return result;
@@ -89,21 +82,21 @@ public:
      * @return 对象指针数组
      */
     template <typename T>
-    std::vector<typename T::const_object_ptr_type>
-    query(std::string_view table_name, const query_builder& builder, int limit = 0) {
-        std::vector<typename T::const_object_ptr_type> results;
-        query<T>(table_name, builder, [&results, limit](typename T::const_object_ptr_type obj) {
+    std::vector<mc::core::ref_ptr<T>> query(std::string_view     table_name,
+                                            const query_builder& builder, int limit = 0) {
+        std::vector<mc::core::ref_ptr<T>> results;
+        query<T>(table_name, builder, [&results, limit](T& obj) {
             if (limit > 0 && results.size() >= limit) {
                 return false;
             }
-            results.emplace_back(std::move(obj));
+            results.emplace_back(&obj);
             return true;
         });
         return results;
     }
 
     template <typename T>
-    std::vector<typename T::const_object_ptr_type> all(std::string_view table_name) {
+    std::vector<mc::core::ref_ptr<T>> all(std::string_view table_name) {
         return query<T>(table_name, query_builder());
     }
 
@@ -116,17 +109,15 @@ public:
      */
     template <typename T>
     bool query(std::string_view table_name, const query_builder& builder,
-               std::function<bool(typename T::const_object_ptr_type)>&& handler) {
+               std::function<bool(T&)>&& handler) {
         auto table = m_tables.find(table_name);
         if (table == m_tables.end()) {
             return false;
         }
 
         return table->second->query_object(
-            builder,
-            [handler = std::forward<std::function<bool(typename T::const_object_ptr_type)>>(
-                 handler)](const object_base* obj) {
-                return handler(mc::im::cast<const T>(obj));
+            builder, [handler = std::forward<std::function<bool(T&)>>(handler)](object_base& obj) {
+                return handler(static_cast<T&>(obj));
             });
     }
 

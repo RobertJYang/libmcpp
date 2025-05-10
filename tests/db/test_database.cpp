@@ -24,7 +24,7 @@ namespace {
 struct by_id : tag_base<by_id> {};
 
 // 测试用的对象类
-class test_object : public object<test_object> {
+class test_object : public object_base {
 public:
     test_object() = default;
 
@@ -62,9 +62,9 @@ using test_table = table<test_object, indexed_by<ordered_unique<&test_object::m_
                                                  ordered_non_unique<&test_object::m_name>>>;
 
 // 拿到表的字段，可用于后续构造查询语句
-auto field_id    = test_object::field(&test_object::m_id);
-auto field_name  = test_object::field(&test_object::m_name);
-auto field_value = test_object::field(&test_object::m_value);
+auto field_id    = mc::db::field(&test_object::m_id);
+auto field_name  = mc::db::field(&test_object::m_name);
+auto field_value = mc::db::field(&test_object::m_value);
 
 // 数据库测试类
 class database_test : public ::testing::Test {

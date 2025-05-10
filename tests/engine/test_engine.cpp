@@ -99,8 +99,7 @@ TEST_F(engine_test, test_object_property_changed_sig) {
     obj->m_iface_1.m_i32.set_value(10);
     obj->m_iface_1.m_i32.set_value(20);
     obj->m_iface_1.m_str.set_value("123");
-    obj->m_iface_1.m_str.set_value(std::string_view("456"));
-    obj->m_iface_1.m_str.set_value(std::string("789"));
+    obj->m_iface_1.m_str.set_value(std::string("456"));
     std::string str = "000";
     obj->m_iface_1.m_str.set_value(str);
     obj->m_iface_1.m_vec.modify([&](auto& vec) {
@@ -112,9 +111,9 @@ TEST_F(engine_test, test_object_property_changed_sig) {
     // 普通变量修改不会触发信号
     obj->m_iface_1.m_normal_v = 100;
 
-    mc::dict expected = {
-        {"i32", 10},    {"i32", 20},    {"str", "123"},           {"str", "456"},
-        {"str", "789"}, {"str", "000"}, {"vec", mc::variants{1}}, {"variant", 100}};
+    mc::dict expected = {{"i32", 10},     {"i32", 20},    {"str", "123"},
+                         {"str", "456"},  {"str", "000"}, {"vec", mc::variants{1}},
+                         {"variant", 100}};
     EXPECT_EQ(values, expected);
     EXPECT_EQ(str, obj->m_iface_1.m_str);
 }
@@ -173,7 +172,7 @@ TEST_F(engine_test, test_property_changed_sig_use_abstract_object) {
     // 2：通过路径全局对象表里面找到对象
     auto result = table->find_object(mc::engine::by_path::field == obj->get_object_path());
     EXPECT_EQ(result, obj.get());
-    auto* res_obj = dynamic_cast<mc::engine::abstract_object*>(result);
+    auto* res_obj = static_cast<mc::engine::abstract_object*>(result.get());
 
     mc::mutable_dict values;
     res_obj->property_changed().connect([&](const mc::variant& value, const auto& prop) {

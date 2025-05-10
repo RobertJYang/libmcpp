@@ -125,7 +125,7 @@ public:
         std::vector<object_ptr_type> results;
 
         size_t count = 0;
-        query(builder, [&](const object_type& obj) -> bool {
+        query(builder, [&](object_type& obj) -> bool {
             if (limit > 0 && count >= limit) {
                 return false;
             }
@@ -143,7 +143,7 @@ public:
      * @return 是否查询完成
      */
     template <typename Handler,
-              typename = std::enable_if_t<std::is_invocable_r_v<bool, Handler, const object_type&>>>
+              typename = std::enable_if_t<std::is_invocable_r_v<bool, Handler, object_type&>>>
     bool query(const query_builder& builder, Handler&& handler) {
         query_impl(builder, std::forward<Handler>(handler));
         return true;
@@ -276,7 +276,7 @@ private:
 
         typename TableType::lock_guard lock(m_table);
         for (auto it = begin_it; it != end_it && !it.is_end(); ++it) {
-            const auto& obj = *it->second;
+            auto& obj = *it->second;
             // 检查对象是否满足所有条件
             if (builder.has_condition() && !builder.matches(obj)) {
                 continue;
@@ -457,7 +457,7 @@ private:
 
         typename TableType::lock_guard lock(m_table);
         for (auto it = begin_it; it != end_it && !it.is_end(); ++it) {
-            const auto& obj = *it->second;
+            auto& obj = *it->second;
             if (!builder.matches(obj)) {
                 continue;
             }
@@ -522,7 +522,7 @@ private:
     void full_table_scan(Handler&& handler) {
         typename TableType::lock_guard lock(m_table);
         for (auto it = m_table.begin(); !it.is_end(); ++it) {
-            const auto& obj = *it->second;
+            auto& obj = *it->second;
             if (!handler(obj)) {
                 break;
             }
@@ -541,7 +541,7 @@ private:
 
         typename TableType::lock_guard lock(m_table);
         for (auto it = m_table.begin(); !it.is_end(); ++it) {
-            const auto& obj = *it->second;
+            auto& obj = *it->second;
 
             if (!builder.matches(obj)) {
                 continue;

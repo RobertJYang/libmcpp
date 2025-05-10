@@ -13,19 +13,34 @@
 #ifndef MC_DATABASE_COMMON_H
 #define MC_DATABASE_COMMON_H
 
-#include <cstdint>
-#include <functional>
-#include <memory>
-#include <string>
-#include <string_view>
-#include <vector>
+#include <mc/core/object.h>
+#include <mc/db/query/proto_query.h>
 
 namespace mc::db {
 
 /**
  * 数据库对象ID类型
  */
-using object_id_type = uint64_t;
+using object_id_type = mc::core::object_id_type;
+using object_base    = mc::core::object_base;
+using object_ptr     = mc::im::ref_ptr<object_base>;
+
+using query::field;
+
+/**
+ * 创建字段引用，通过成员指针自动获取字段名
+ * @tparam KeyType 字段类型
+ * @param member 成员指针
+ * @return 字段引用对象，用于构建查询条件
+ */
+template <typename ObjectType, typename KeyType>
+static auto field(KeyType ObjectType::* member) {
+    std::string_view name;
+    if constexpr (mc::reflect::is_reflectable<ObjectType>()) {
+        name = mc::reflect::get_property_name<ObjectType>(member);
+    }
+    return query::dsl::field(name);
+}
 
 } // namespace mc::db
 

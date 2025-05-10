@@ -18,7 +18,6 @@
 #include <mc/db/index_tag.h>
 #include <mc/db/key.h>
 #include <mc/db/key_extractor.h>
-#include <mc/db/object.h>
 #include <mc/db/query/builder.h>
 #include <mc/db/query/query.h>
 #include <mc/db/table_op.h>
@@ -244,7 +243,7 @@ public:
     virtual size_t           size() const              = 0;
     virtual void             clear()                   = 0;
 
-    object_base* add_object(const mc::dict& var, transaction* txn = nullptr) {
+    object_ptr add_object(const mc::dict& var, transaction* txn = nullptr) {
         return do_add_object(var, txn);
     }
 
@@ -252,11 +251,11 @@ public:
         return do_remove_object(condition, txn);
     }
 
-    object_base* find_object(const query_builder& condition) {
+    object_ptr find_object(const query_builder& condition) {
         return do_find_object(condition);
     }
 
-    using query_handler = std::function<bool(const object_base*)>;
+    using query_handler = std::function<bool(object_base&)>;
     bool query_object(const query_builder& builder, query_handler&& handler) {
         return do_query_object(builder, std::forward<query_handler>(handler));
     }
@@ -271,15 +270,15 @@ public:
         return do_update_object(condition, values, txn);
     }
 
-    mc::signal<void(object_base*)>               on_object_added;
-    mc::signal<void(object_base*)>               on_object_removed;
-    mc::signal<void(object_base*, object_base*)> on_object_updated;
+    mc::signal<void(object_base&)>               on_object_added;
+    mc::signal<void(object_base&)>               on_object_removed;
+    mc::signal<void(object_base&, object_base&)> on_object_updated;
 
 protected:
-    virtual object_base* do_add_object(const mc::dict& var, transaction* txn)                   = 0;
-    virtual size_t       do_remove_object(const query_builder& condition, transaction* txn)     = 0;
-    virtual object_base* do_find_object(const query_builder& condition)                         = 0;
-    virtual bool         do_query_object(const query_builder& builder, query_handler&& handler) = 0;
+    virtual object_ptr do_add_object(const mc::dict& var, transaction* txn)                   = 0;
+    virtual size_t     do_remove_object(const query_builder& condition, transaction* txn)     = 0;
+    virtual object_ptr do_find_object(const query_builder& condition)                         = 0;
+    virtual bool       do_query_object(const query_builder& builder, query_handler&& handler) = 0;
 
     virtual size_t do_update_object(const query_builder&                  condition,
                                     const std::map<std::string, variant>& values,
@@ -355,7 +354,7 @@ public:
      * @return 成功返回true，失败返回false
      */
     object_ptr_type add(const object_type& obj, transaction* txn = nullptr) {
-        auto obj_ptr = object_type::create(obj);
+        auto obj_ptr = mc::core::make_ref<object_type>(obj);
         return add(obj_ptr, txn);
     }
 
@@ -400,7 +399,7 @@ public:
 
         if (!need_txn) {
             commit_internal();
-            on_object_added(obj_ptr.get());
+            on_object_added(const_cast<object_type&>(*obj_ptr));
         } else {
             txn->add_resource(resource);
         }
@@ -409,7 +408,7 @@ public:
 
     object_ptr_type update(object_ptr_type old_obj_ptr, const object_type& new_obj,
                            transaction* txn = nullptr) {
-        auto new_obj_ptr = object_type::create(new_obj);
+        auto new_obj_ptr = mc::core::make_ref<object_type>(new_obj);
         new_obj_ptr->set_object_id(old_obj_ptr->get_object_id());
         return update(old_obj_ptr, new_obj_ptr, txn);
     }
@@ -451,7 +450,8 @@ public:
 
         if (!need_txn) {
             commit_internal();
-            on_object_updated(old_obj_ptr.get(), new_obj_ptr.get());
+            on_object_updated(const_cast<object_type&>(*old_obj_ptr),
+                              const_cast<object_type&>(*new_obj_ptr));
         } else {
             txn->add_resource(resource);
         }
@@ -493,7 +493,7 @@ public:
 
         if (!need_txn) {
             commit_internal();
-            on_object_removed(obj_ptr.get());
+            on_object_removed(const_cast<object_type&>(*obj_ptr));
         } else {
             txn->add_resource(resource);
         }
@@ -723,7 +723,7 @@ public:
      * @return 是否查询完成
      */
     template <typename Handler,
-              typename = std::enable_if_t<std::is_invocable_r_v<bool, Handler, const object_type&>>>
+              typename = std::enable_if_t<std::is_invocable_r_v<bool, Handler, object_type&>>>
     bool query(const query_builder& builder, Handler&& handler) {
         return table_query<table<object_type, IndexDef>>(*this).query(
             builder, std::forward<Handler>(handler));
@@ -762,7 +762,7 @@ public:
     size_t remove(const query_builder& condition, transaction* txn = nullptr) {
         size_t removed_count = 0;
 
-        auto handler = [&](const object_type& obj) -> bool {
+        auto handler = [&](object_type& obj) -> bool {
             if (remove(mc::im::ref_ptr<object_type>(const_cast<object_type*>(&obj)), txn)) {
                 removed_count++;
             }
@@ -778,8 +778,7 @@ public:
 
         auto& idx = std::get<0>(m_indices);
         for (auto it = idx.begin(); it != idx.end(); ++it) {
-            const object_type& obj = *it;
-            on_object_removed(const_cast<object_type*>(&obj));
+            on_object_removed(const_cast<object_type&>(*it));
         }
 
         detail::for_each_index(m_indices, [](auto& idx) {
@@ -831,10 +830,12 @@ protected:
         return m_index_savepoint_id;
     }
 
-    object_base* do_add_object(const mc::dict& var, transaction* txn) override {
+    object_ptr do_add_object(const mc::dict& var, transaction* txn) override {
         if constexpr (mc::reflect::is_reflectable<object_type>() &&
-                      detail::has_createor<object_type>::value) {
-            return add(object_type::create(mc::variant(var)), txn).get();
+                      std::is_constructible_v<object_type>) {
+            auto obj = mc::core::make_ref<object_type>();
+            from_variant(var, *obj);
+            return add(obj, txn).template cast<object_base>();
         } else {
             MC_UNUSED(txn);
         }
@@ -852,9 +853,9 @@ protected:
         return 0;
     }
 
-    object_base* do_find_object(const query_builder& condition) override {
+    object_ptr do_find_object(const query_builder& condition) override {
         if constexpr (mc::reflect::is_reflectable<object_type>()) {
-            return find(condition).get();
+            return find(condition).template cast<object_base>();
         }
 
         return nullptr;
@@ -864,8 +865,8 @@ protected:
                          table_base::query_handler&& handler) override {
         if constexpr (mc::reflect::is_reflectable<object_type>()) {
             return query(builder, [handler = std::forward<table_base::query_handler>(handler)](
-                                      const object_type& obj) {
-                return handler(&obj);
+                                      object_type& obj) {
+                return handler(obj);
             });
         }
         return false;
@@ -913,7 +914,7 @@ private:
 
         auto handler = [&](const object_type& obj) -> bool {
             if constexpr (mc::traits::is_copyable_v<object_type>) {
-                auto new_obj = object_type::create(obj);
+                auto new_obj = mc::core::make_ref<object_type>(obj);
                 update_object(*new_obj, values);
                 if (update(mc::im::ref_ptr<object_type>(const_cast<object_type*>(&obj)), new_obj,
                            txn)) {

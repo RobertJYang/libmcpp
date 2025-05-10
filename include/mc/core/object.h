@@ -14,8 +14,9 @@
 #define MC_CORE_OBJECT_H
 
 #include <mc/common.h>
-#include <mc/db/object.h>
 #include <mc/exception.h>
+#include <mc/im/ref_base.h>
+#include <mc/im/ref_ptr.h>
 #include <mc/signal_slot.h>
 
 #include <boost/asio.hpp>
@@ -26,6 +27,7 @@
 
 namespace mc::core {
 class object;
+class object_impl;
 
 template <typename T>
 using ref_ptr = mc::im::ref_ptr<T>;
@@ -35,10 +37,14 @@ ref_ptr<T> make_ref(Args&&... args) {
     return mc::im::make_ref<T>(std::forward<Args>(args)...);
 }
 
+template <typename T, typename Alloc = std::allocator<T>, typename... Args>
+ref_ptr<T> allocate_ref(const Alloc& alloc, Args&&... args) {
+    return mc::im::allocate_ref<T>(alloc, std::forward<Args>(args)...);
+}
+
 using object_ptr       = ref_ptr<object>;
 using const_object_ptr = ref_ptr<const object>;
 using child_list       = std::vector<object_ptr>;
-using object_base      = mc::db::object_base;
 using signal_type      = void*;
 using strand_type      = boost::asio::strand<boost::asio::io_context::executor_type>;
 using io_context       = boost::asio::io_context;
@@ -49,16 +55,82 @@ constexpr connection_id_type INVALID_CONNECTION_ID = std::numeric_limits<connect
 
 enum class connection_type { Auto, Direct, Queued };
 
+using object_id_type = uint64_t;
+
+class object_base : public mc::im::ref_base {
+public:
+    object_base()          = default;
+    virtual ~object_base() = default;
+
+    object_base(const object_base& other)
+        : mc::im::ref_base(other), m_object_id(other.m_object_id) {
+    }
+
+    object_base(object_base&& other)
+        : mc::im::ref_base(std::forward<object_base>(other)), m_object_id(other.m_object_id) {
+        other.m_object_id = 0;
+    }
+
+    object_base& operator=(object_base&& other) {
+        if (this != &other) {
+            mc::im::ref_base::operator=(std::forward<object_base>(other));
+            m_object_id       = other.m_object_id;
+            other.m_object_id = 0;
+        }
+        return *this;
+    }
+
+    object_base& operator=(const object_base& other) {
+        if (this != &other) {
+            mc::im::ref_base::operator=(other);
+            m_object_id = other.m_object_id;
+        }
+        return *this;
+    }
+
+    /**
+     * 获取对象ID
+     * @return 对象ID
+     */
+    object_id_type get_object_id() const {
+        return m_object_id;
+    }
+
+    /**
+     * 设置对象ID
+     * @param id 对象ID
+     */
+    void set_object_id(object_id_type id) {
+        m_object_id = id;
+    }
+
+    /**
+     * 检查对象ID是否有效
+     * @return 如果ID不为0则返回true
+     */
+    bool has_valid_id() const {
+        return m_object_id != 0;
+    }
+
+protected:
+    object_id_type m_object_id{0};
+};
+
 /**
  * @brief 对象基类，提供对象层次结构和生命周期管理
  */
-class object : virtual public object_base, public mc::noncopyable {
+class object : public object_base {
 public:
+    /**
+     * @brief 默认构造函数
+     */
+    object();
+
     /**
      * @brief 构造函数
      * @param parent 父对象指针
      */
-    explicit object(object* parent = nullptr);
+    explicit object(object* parent);
 
     /**
      * @brief 析构函数，会自动删除所有子对象
@@ -69,13 +141,25 @@ public:
      * @brief 移动构造函数
      * @param other 右值对象
      */
-    object(object&& other) noexcept;
+    object(object&& other) = delete;
 
     /**
      * @brief 移动赋值运算符
      * @param other 右值对象
      */
-    object& operator=(object&& other) noexcept;
+    object& operator=(object&& other) = delete;
+
+    /**
+     * @brief 拷贝构造函数
+     * @param other 右值对象
+     */
+    object(const object& other);
+
+    /**
+     * @brief 拷贝赋值运算符
+     * @param other 右值对象
+     */
+    object& operator=(const object& other);
 
     /**
      * @brief 获取对象名称
@@ -93,7 +177,7 @@ public:
      * @brief 获取父对象
      * @return 父对象指针
      */
-    object* parent() const;
+    object* get_parent() const;
 
     /**
      * @brief 设置父对象
@@ -123,8 +207,8 @@ public:
      * @param type 连接类型
      * @return 连接ID
      */
-    template <typename SignalType, typename SlotType>
-    connection_id_type connect(SignalType& sig, SlotType&& slot,
+    template <typename RetType, typename... Args, typename SlotType>
+    connection_id_type connect(mc::signal<RetType(Args...)>& sig, SlotType&& slot,
                                connection_type type = connection_type::Auto) {
         return connect(INVALID_CONNECTION_ID, sig, std::forward<SlotType>(slot), type);
     }
@@ -136,9 +220,9 @@ public:
      * @param slot 槽函数
      * @param type 连接类型
      */
-    template <typename SignalType, typename SlotType>
-    connection_id_type connect(connection_id_type id, SignalType& sig, SlotType&& slot,
-                               connection_type type = connection_type::Auto) {
+    template <typename RetType, typename... Args, typename SlotType>
+    connection_id_type connect(connection_id_type id, mc::signal<RetType(Args...)>& sig,
+                               SlotType&& slot, connection_type type = connection_type::Auto) {
         mc::connection_type conn;
 
         if (type == connection_type::Auto) {
@@ -257,8 +341,11 @@ protected:
     void               disconnect_all(signal_type sig);
 
 private:
-    struct object_impl;
-    std::unique_ptr<object_impl> m_impl;
+    friend class object_impl;
+
+    object_impl& ensure_impl() const;
+
+    mutable std::unique_ptr<object_impl> m_impl;
 };
 
 } // namespace mc::core

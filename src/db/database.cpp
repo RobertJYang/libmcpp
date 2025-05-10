@@ -45,8 +45,7 @@ table_ptr database::get_table(std::string_view table_name) const {
     return it->second;
 }
 
-const object_base* database::add(std::string_view table_name, const mc::dict& var,
-                                 transaction* txn) {
+object_ptr database::add(std::string_view table_name, const mc::dict& var, transaction* txn) {
     std::lock_guard lock(m_mutex);
 
     auto table = m_tables.find(table_name);

@@ -14,7 +14,6 @@
 #define MC_ENGINE_BASE_H
 
 #include <mc/core/object.h>
-#include <mc/db/object.h>
 #include <mc/db/table.h>
 #include <mc/dbus/message.h>
 #include <mc/engine/call_stack.h>
@@ -103,22 +102,26 @@ public:
     virtual std::string_view get_name() const      = 0;
     virtual std::string_view get_signature() const = 0;
     virtual uint32_t         get_access() const    = 0;
-    virtual mc::variant      get_value() const     = 0;
 
     virtual abstract_interface* get_interface() const = 0;
     virtual abstract_object*    get_object() const    = 0;
 
-    virtual void set_value(const mc::variant& value) = 0;
+    virtual mc::variant get_value() const = 0;
+    void                set_value(const mc::variant& value) {
+        set_variant(value);
+    }
 
     virtual property_changed_signal& property_changed() = 0;
+
+protected:
+    virtual void set_variant(const mc::variant& value) = 0;
 };
 
 class abstract_interface {
 public:
     virtual ~abstract_interface() = default;
 
-    virtual abstract_object*  get_object() const = 0;
-    virtual mc::core::object* get_owner() const  = 0;
+    virtual abstract_object* get_object() const = 0;
 
     virtual std::string_view    get_interface_name() const                                   = 0;
     virtual mc::connection_type connect(std::string_view signal_name, slot_type slot)        = 0;
@@ -137,16 +140,19 @@ public:
     virtual void visit(visitor& v) const = 0;
 };
 
-class abstract_object : virtual public object_base {
+class abstract_object : public mc::core::object {
 public:
     using managed_objects = std::map<std::string_view, abstract_object*>;
+    using mc::core::object::connect; // 引入基类的 connect 函数
 
     virtual ~abstract_object() = default;
 
+    abstract_object* get_parent() const {
+        return static_cast<abstract_object*>(mc::core::object::get_parent());
+    }
+
     virtual void     set_service(service& s) = 0;
     virtual service* get_service() const     = 0;
-
-    virtual mc::core::object* get_owner() const = 0;
 
     virtual const managed_objects& get_managed_objects() const                 = 0;
     virtual void                   add_managed_object(abstract_object* obj)    = 0;

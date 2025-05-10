@@ -170,10 +170,6 @@ struct interface : public abstract_interface {
         return m_object;
     }
 
-    mc::core::object* get_owner() const override {
-        return m_object->get_owner();
-    }
-
     static signal_map<interface_type>& get_signals() {
         static signal_map<interface_type> signals = detail::init_signal_map<interface_type>();
         return signals;

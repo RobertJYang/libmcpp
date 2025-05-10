@@ -18,7 +18,6 @@
 #include <mc/db/iterator.h>
 #include <mc/db/key.h>
 #include <mc/db/key_extractor.h>
-#include <mc/db/object.h>
 #include <mc/exception.h>
 #include <mc/im/radix_tree.h>
 
@@ -143,7 +142,7 @@ public:
     }
 
     bool add(const object_type& obj) {
-        auto obj_ptr = object_type::create(obj);
+        auto obj_ptr = mc::core::make_ref<object_type>(obj);
         return add(obj_ptr);
     }
 
@@ -163,7 +162,7 @@ public:
     }
 
     bool update(const object_type& old_obj, const object_type& new_obj) {
-        auto obj_ptr = object_type::create(new_obj);
+        auto obj_ptr = mc::core::make_ref<object_type>(new_obj);
         return update(old_obj, obj_ptr);
     }
 

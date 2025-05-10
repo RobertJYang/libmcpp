@@ -69,7 +69,8 @@ public:
      * 创建一个空的不可变基数树
      */
     radix_tree(const allocator_type& alloc = allocator_type())
-        : m_root(allocate_ref<node_type>(alloc, std::nullopt)), m_size(0), m_allocator(alloc) {
+        : m_root(mc::im::allocate_ref<node_type>(alloc, std::nullopt)), m_size(0),
+          m_allocator(alloc) {
     }
 
     /**

@@ -78,9 +78,8 @@ void task_interface::start_timer() {
 }
 
 void task_interface::create_timer() {
-    auto owner = get_owner();
-    m_timer    = new mc::core::timer(owner);
-    owner->connect(m_timer->timeout, [this]() {
+    m_timer = new mc::core::timer(get_object());
+    get_object()->connect(m_timer->timeout, [this]() {
         if (m_state != task_state::RUNNING) {
             return;
         }

@@ -136,7 +136,7 @@ public:
 
     bool commit() override {
         base_type::commit();
-        this->m_table.on_object_added(this->m_new_obj_ptr.get());
+        this->m_table.on_object_added(*this->m_new_obj_ptr);
         return true;
     }
 
@@ -187,7 +187,7 @@ public:
 
     bool commit() override {
         base_type::commit();
-        this->m_table.on_object_updated(this->m_old_obj_ptr.get(), this->m_new_obj_ptr.get());
+        this->m_table.on_object_updated(*this->m_old_obj_ptr, *this->m_new_obj_ptr);
         return true;
     }
 
@@ -235,7 +235,7 @@ public:
 
     bool commit() override {
         base_type::commit();
-        this->m_table.on_object_removed(this->m_old_obj_ptr.get());
+        this->m_table.on_object_removed(*this->m_old_obj_ptr);
         return true;
     }
 

@@ -89,7 +89,7 @@ service_impl::service_impl() {
 
 bool service_impl::init(service* s) {
     m_service        = s;
-    m_service_object = service_object::create();
+    m_service_object = mc::core::make_ref<service_object>();
     m_service_object->init(s);
     return true;
 }

@@ -14,7 +14,6 @@
 #define MC_ENGINE_MIDDLEWARE_DBUS_SERVICE_H
 #include <mc/common.h>
 #include <mc/core/service.h>
-#include <mc/db/object.h>
 
 #include <memory>
 

@@ -14,7 +14,6 @@
 #define MC_ENGINE_OBJECT_H
 
 #include <mc/core/object.h>
-#include <mc/db/object.h>
 #include <mc/engine/interface.h>
 #include <mc/engine/object_metadata.h>
 #include <mc/engine/service.h>
@@ -24,9 +23,8 @@
 namespace mc::engine {
 
 template <typename ObjectType>
-class object : public abstract_object, public mc::core::object, public mc::db::object<ObjectType> {
+class object : public abstract_object {
 public:
-    using self_type     = object<ObjectType>;
     using object_type   = ObjectType;
     using metadata_type = object_metadata<ObjectType>;
     using property_info = typename metadata_type::property_info;
@@ -216,10 +214,6 @@ public:
         get_metadata().visit(static_cast<const ObjectType&>(*this), v);
     }
 
-    mc::core::object* get_owner() const override {
-        return const_cast<self_type*>(this);
-    }
-
     void notify_property_changed(const mc::variant& value, const property_base& prop) override {
         if (m_property_changed_signal) {
             (*m_property_changed_signal)(value, prop);
@@ -234,9 +228,8 @@ public:
         return *m_property_changed_signal;
     }
 
-protected:
-    abstract_object* get_parent() const {
-        return dynamic_cast<abstract_object*>(mc::core::object::parent());
+    static mc::core::ref_ptr<object_type> create() {
+        return mc::core::make_ref<object_type>();
     }
 
 protected:
