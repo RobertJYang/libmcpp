@@ -29,7 +29,7 @@ public:
     using metadata_type = object_metadata<ObjectType>;
     using property_info = typename metadata_type::property_info;
 
-    object() {
+    object(core_object* parent = nullptr) : abstract_object(parent) {
         /* 初始化子类对象的属性（interface、property）
          *
          * 这个做法不符合 C++ 对象构造顺序，因为基类先于子类构造，这里强制转换成子类指针，
@@ -44,7 +44,7 @@ public:
          */
         ObjectType* obj = static_cast<ObjectType*>(this);
         mc::traits::tuple_for_each(get_static_interface_infos(), [obj](auto& member) {
-            (obj->*member.member_ptr).set_object(obj);
+            (obj->*member.member_ptr).set_owner(obj);
         });
     }
 

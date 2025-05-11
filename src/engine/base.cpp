@@ -12,4 +12,10 @@
 #include <mc/engine/base.h>
 #include <mc/engine/service.h>
 
-namespace mc::engine {} // namespace mc::engine
+namespace mc::engine {
+
+abstract_object* abstract_object::get_parent() const {
+    return static_cast<abstract_object*>(mc::core::object::get_parent());
+}
+
+} // namespace mc::engine

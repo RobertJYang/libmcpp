@@ -346,6 +346,7 @@ private:
     object_impl& ensure_impl() const;
 
     mutable std::unique_ptr<object_impl> m_impl;
+    object*                              m_parent{nullptr};
 };
 
 } // namespace mc::core

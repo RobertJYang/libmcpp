@@ -208,7 +208,7 @@ public:
 
     abstract_object* get_object() const override {
         if constexpr (std::is_same_v<observer_type, detail::interface_observer>) {
-            return m_observer.get_interface()->get_object();
+            return m_observer.get_interface()->get_owner();
         }
 
         return nullptr;

@@ -37,7 +37,7 @@ using io_context_type    = boost::asio::io_context;
 using strand_type        = boost::asio::strand<boost::asio::io_context::executor_type>;
 using slot_type          = std::function<mc::variant(const mc::variants&)>;
 using message            = mc::dbus::message;
-using object_base        = mc::db::object_base;
+using core_object        = mc::core::object;
 using connection_id_type = mc::core::connection_id_type;
 
 class abstract_object;
@@ -48,9 +48,6 @@ class property_base;
 using property_changed_signal = mc::signal<void(const mc::variant&, const property_base&)>;
 
 using object_call_stack = detail::call_stack<service, abstract_object>;
-inline abstract_object* get_object() {
-    return object_call_stack::top_value();
-}
 
 struct invoke_result : public mc::variant {
     const mc::reflect::method_type_info* method{nullptr};
@@ -117,11 +114,11 @@ protected:
     virtual void set_variant(const mc::variant& value) = 0;
 };
 
-class abstract_interface {
+class abstract_interface : public mc::core::object {
 public:
     virtual ~abstract_interface() = default;
 
-    virtual abstract_object* get_object() const = 0;
+    virtual abstract_object* get_owner() const = 0;
 
     virtual std::string_view    get_interface_name() const                                   = 0;
     virtual mc::connection_type connect(std::string_view signal_name, slot_type slot)        = 0;
@@ -145,11 +142,12 @@ public:
     using managed_objects = std::map<std::string_view, abstract_object*>;
     using mc::core::object::connect; // 引入基类的 connect 函数
 
+    abstract_object(core_object* parent) : mc::core::object(parent) {
+    }
+
     virtual ~abstract_object() = default;
 
-    abstract_object* get_parent() const {
-        return static_cast<abstract_object*>(mc::core::object::get_parent());
-    }
+    abstract_object* get_parent() const;
 
     virtual void     set_service(service& s) = 0;
     virtual service* get_service() const     = 0;

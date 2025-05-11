@@ -20,9 +20,6 @@ class TestInterface1 : public mc::engine::interface<TestInterface1> {
 public:
     MC_INTERFACE("org.test.TestInterface1")
 
-    TestInterface1(int32_t value = 0) : m_value(value) {
-    }
-
     int32_t m_value = 0;
 
     int32_t add(int32_t a) {
@@ -46,9 +43,6 @@ class TestInterface2 : public mc::engine::interface<TestInterface2> {
 public:
     MC_INTERFACE("org.test.TestInterface2")
 
-    TestInterface2(std::string_view value = {}) : m_value(value) {
-    }
-
     std::string m_value = "default";
 
     void set_value(std::string_view value) {
@@ -67,6 +61,9 @@ public:
 class TestObject : public mc::engine::object<TestObject> {
 public:
     MC_OBJECT("/org/test/TestObject", (TestInterface1)(TestInterface2))
+
+    TestObject(mc::engine::core_object* parent = nullptr) : mc::engine::object<TestObject>(parent) {
+    }
 
     int32_t m_prev_value = 0;
 
@@ -202,9 +199,9 @@ TEST_F(object_test, test_signal_emit) {
     EXPECT_EQ(old_value, "old_test");
     EXPECT_EQ(new_value, "new_test");
 
-    // 通过方法调用间接发送信号，因为没有调用过 SetValue 方法，所以Object的old_value为空
+    // 前面直接通过 emit 发送信号，因为没有调用过 SetValue 方法，所以 old_value 仍然为默认值
     obj_base.invoke("SetValue", {"updated_value"}, "iface2");
-    EXPECT_EQ(old_value, "");
+    EXPECT_EQ(old_value, "default");
     EXPECT_EQ(new_value, "updated_value");
 }
 

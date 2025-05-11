@@ -35,7 +35,6 @@ public:
     void    remove_child(object* child);
 
     std::string        m_name;
-    object*            m_parent{nullptr};
     child_list         m_children;
     service_base*      m_service{nullptr};
     connection_manager m_connection_manager;
@@ -44,14 +43,12 @@ public:
 };
 
 object_impl::object_impl(const object_impl& other)
-    : m_name(other.m_name), m_parent(other.m_parent), m_children(other.m_children),
-      m_service(other.m_service) {
+    : m_name(other.m_name), m_children(other.m_children), m_service(other.m_service) {
 }
 
 object_impl& object_impl::operator=(const object_impl& other) {
     if (this != &other) {
         m_name     = other.m_name;
-        m_parent   = other.m_parent;
         m_children = other.m_children;
         m_service  = other.m_service;
     }
@@ -97,9 +94,8 @@ void object_impl::remove_child(object* child) {
 object::object() {
 }
 
-object::object(object* parent) : m_impl(std::make_unique<object_impl>()) {
+object::object(object* parent) : m_impl(std::make_unique<object_impl>()), m_parent(parent) {
     if (parent) {
-        m_impl->m_parent = parent;
         parent->add_child(this);
         m_impl->m_service = parent->get_service();
     }
@@ -112,8 +108,8 @@ object::~object() noexcept {
 
     m_impl->is_deleted = true;
 
-    if (m_impl->m_parent) {
-        m_impl->m_parent->remove_child(this);
+    if (m_parent) {
+        m_parent->remove_child(this);
     }
 
     m_impl->m_children.clear();
@@ -143,27 +139,21 @@ object& object::operator=(const object& other) {
 }
 
 void object::set_parent(object* parent) {
-    auto impl = ensure_impl();
-
-    object* old_parent = m_impl->m_parent;
+    object* old_parent = m_parent;
 
     if (old_parent) {
         old_parent->remove_child(this);
-        m_impl->m_parent = nullptr;
+        m_parent = nullptr;
     }
 
     if (parent) {
         parent->add_child(this);
-        m_impl->m_parent = parent;
+        m_parent = parent;
     }
 }
 
 object* object::get_parent() const {
-    if (!m_impl) {
-        return nullptr;
-    }
-
-    return m_impl->m_parent;
+    return m_parent;
 }
 
 void object::set_name(std::string_view name) {
