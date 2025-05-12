@@ -36,6 +36,9 @@ constexpr bool is_reflectable();
 template <typename T>
 struct reflector;
 
+template <typename T>
+struct reflector;
+
 /**
  * @brief 类型反射元数据缓存
  *
@@ -49,6 +52,10 @@ public:
     using property_map        = std::unordered_map<std::string_view, const property_info_base<T>*>;
     using property_offset_map = std::unordered_map<size_t, const property_info_base<T>*>;
     using method_map          = std::unordered_map<std::string_view, const method_info_base<T>*>;
+    using base_class_prop_map = std::unordered_map<std::string_view, property_map>;
+    using base_class_method_map = std::unordered_map<std::string_view, method_map>;
+    using base_class_info_map =
+        std::unordered_map<std::string_view, const base_class_info_base<T>*>;
 
     /**
      * @brief 获取单例实例
@@ -115,6 +122,24 @@ public:
     }
 
     /**
+     * @brief 获取成员属性值
+     *
+     * @param obj 对象实例
+     * @param key 属性名
+     * @param base_class_name 基类名称
+     * @return mc::variant 属性值，如果不存在返回mc::variant::null_type
+     */
+    mc::variant get_property(const T& obj, std::string_view key,
+                             std::string_view base_class_name) const {
+        auto it = m_base_class_info_map.find(base_class_name);
+        if (it != m_base_class_info_map.end()) {
+            return it->second->get_value(obj, key);
+        }
+
+        return mc::variant();
+    }
+
+    /**
      * @brief 获取对象所有属性值
      *
      * @param obj 对象实例
@@ -158,6 +183,25 @@ public:
         const property_info_base<T>* property = get_property_info(key);
         if (property) {
             property->set_value(obj, value);
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * @brief 设置成员属性值
+     *
+     * @param obj 对象实例
+     * @param key 属性名
+     * @param base_class_name 基类名称
+     * @param value 属性值
+     * @return bool 设置是否成功
+     */
+    bool set_property(T& obj, std::string_view key, std::string_view base_class_name,
+                      const mc::variant& value) const {
+        auto it = m_base_class_info_map.find(base_class_name);
+        if (it != m_base_class_info_map.end()) {
+            it->second->set_value(obj, key, value);
             return true;
         }
         return false;
@@ -209,25 +253,58 @@ private:
     void initialize() {
         init_properties();
         init_methods();
+        init_base_class_info();
     }
 
     void init_properties() {
         mc::traits::tuple_for_each(reflector<T>::get_properties(), [&](auto& property) {
-            m_name_to_properties[property.name]       = &property;
-            m_offset_to_properties[property.offset()] = &property;
+            // 如果基类有多个同名的属性，默认第一个名字就是当前类的属性
+            if (m_name_to_properties.find(property.name) == m_name_to_properties.end()) {
+                m_name_to_properties[property.name]       = &property;
+                m_offset_to_properties[property.offset()] = &property;
+            }
+
+            using property_type = std::decay_t<decltype(property)>;
+            using base_type     = typename property_type::base_type;
+            using class_type    = typename property_type::class_type;
+            if constexpr (!std::is_same_v<base_type, class_type>) {
+                auto base_name = mc::reflect::reflector<base_type>::name();
+                m_base_class_prop_map[base_name][property.name] = &property;
+            }
         });
     }
 
     void init_methods() {
         mc::traits::tuple_for_each(reflector<T>::get_methods(), [&](auto& method) {
-            m_name_to_methods[method.name] = &method;
+            // 如果基类有多个同名的方法，默认第一个名字就是当前类的方法
+            if (m_name_to_methods.find(method.name) == m_name_to_methods.end()) {
+                m_name_to_methods[method.name] = &method;
+            }
+
+            using method_type = std::decay_t<decltype(method)>;
+            using base_type   = typename method_type::base_type;
+            using class_type  = typename method_type::class_type;
+            if constexpr (!std::is_same_v<base_type, class_type>) {
+                auto base_name = mc::reflect::reflector<base_type>::name();
+                m_base_class_method_map[base_name][method.name] = &method;
+            }
+        });
+    }
+
+    void init_base_class_info() {
+        const auto& base_classes = reflector<T>::get_base_classes();
+        mc::traits::tuple_for_each(base_classes, [&](auto& base_class_info) {
+            m_base_class_info_map[base_class_info.name] = &base_class_info;
         });
     }
 
 private:
-    property_map        m_name_to_properties;
-    property_offset_map m_offset_to_properties;
-    method_map          m_name_to_methods;
+    property_map          m_name_to_properties;
+    property_offset_map   m_offset_to_properties;
+    method_map            m_name_to_methods;
+    base_class_prop_map   m_base_class_prop_map;
+    base_class_method_map m_base_class_method_map;
+    base_class_info_map   m_base_class_info_map;
 };
 
 /**
@@ -241,6 +318,23 @@ reflection_metadata<std::remove_cv_t<std::remove_reference_t<T>>>& get_metadata(
     using clean_type = std::remove_cv_t<std::remove_reference_t<T>>;
     static_assert(is_reflectable<clean_type>(), "类型必须支持反射才能使用");
     return reflection_metadata<clean_type>::instance();
+}
+
+template <typename C, typename BaseT>
+mc::variant base_class_info<C, BaseT>::get_value(const C& obj, std::string_view name) const {
+    return reflection_metadata<BaseT>::instance().get_property(obj, name);
+}
+
+template <typename C, typename BaseT>
+void base_class_info<C, BaseT>::set_value(C& obj, std::string_view name,
+                                          const mc::variant& value) const {
+    reflection_metadata<BaseT>::instance().set_property(obj, name, value);
+}
+
+template <typename C, typename BaseT>
+mc::variant base_class_info<C, BaseT>::invoke(C& obj, std::string_view name,
+                                              const mc::variants& args) const {
+    return reflection_metadata<BaseT>::instance().invoke_method(obj, name, args);
 }
 
 } // namespace reflect

@@ -64,6 +64,20 @@ namespace mc::reflect {
     BOOST_PP_IIF(MC_REFLECT_IS_TUPLE(MEMBER), MC_REFLECT_MEMBER_WITH_NAME,                         \
                  MC_REFLECT_MEMBER_WITHOUT_NAME)(r, TYPE, MEMBER)
 
+// 简单基类，没有别名
+#define MC_REFLECT_BASE_CLASS(r, TYPE, BASE)                                                       \
+    mc::reflect::detail::create_base_class_info<TYPE, BASE>(BOOST_PP_STRINGIZE(BASE)),
+
+// 带别名的基类
+#define MC_REFLECT_BASE_CLSS_WITH_NAME(r, TYPE, BASE)                                              \
+    mc::reflect::detail::create_base_class_info<TYPE, BOOST_PP_TUPLE_ELEM(0, BASE)>(               \
+        BOOST_PP_TUPLE_ELEM(1, BASE)),
+
+// 处理基类
+#define MC_REFLECT_BASE_ELEMENT(r, TYPE, BASE)                                                     \
+    BOOST_PP_IIF(MC_REFLECT_IS_TUPLE(BASE), MC_REFLECT_BASE_CLSS_WITH_NAME,                        \
+                 MC_REFLECT_BASE_CLASS)(r, TYPE, BASE)
+
 // 在命名空间中添加辅助函数
 namespace mc::reflect::detail {
 // 创建成员元数据（根据成员类型分发到属性、方法或用户自定义的成员信息）
@@ -72,8 +86,14 @@ constexpr auto create_member_info(M BaseT::* member_ptr, std::string_view name) 
     return member_info_creator<T, M, BaseT>::create(member_ptr, name);
 }
 
+template <typename T, typename BaseT>
+constexpr auto create_base_class_info(std::string_view name) {
+    return base_class_info_creator<T, BaseT>::create(name);
+}
+
 // 递归过滤元组元素，仅保留具有特定标签的元素
-template <typename Filter, size_t Index, typename Result, typename... Tuples>
+template <typename T, typename Derived, typename Filter, size_t Index, typename Result,
+          typename... Tuples>
 constexpr auto filter_members_impl(const std::tuple<Tuples...>& all_members, Result result) {
     if constexpr (Index >= sizeof...(Tuples)) {
         return result;
@@ -81,18 +101,31 @@ constexpr auto filter_members_impl(const std::tuple<Tuples...>& all_members, Res
         using element_type =
             mc::traits::remove_cvref_t<std::tuple_element_t<Index, std::tuple<Tuples...>>>;
         if constexpr (Filter::template check<element_type>) {
-            return filter_members_impl<Filter, Index + 1>(
-                all_members,
-                std::tuple_cat(result, std::tuple<element_type>{std::get<Index>(all_members)}));
+            auto member = std::get<Index>(all_members);
+            if constexpr (!std::is_same_v<T, Derived> && std::is_base_of_v<T, Derived>) {
+                // 修复基类信息到继承类
+                return filter_members_impl<T, Derived, Filter, Index + 1>(
+                    all_members, std::tuple_cat(result, detail::apply_to_derived<Derived>(member)));
+            } else {
+                return filter_members_impl<T, Derived, Filter, Index + 1>(
+                    all_members, std::tuple_cat(result, std::make_tuple(member)));
+            }
+        } else if constexpr (has_tag_v<base_class_tag, element_type>) {
+            // 整合基类的成员
+            using base_type       = typename element_type::base_type;
+            auto result_with_base = filter_members_impl<base_type, Derived, Filter, 0>(
+                mc::reflect::reflector<base_type>::get_members(), result);
+            return filter_members_impl<T, Derived, Filter, Index + 1>(all_members,
+                                                                      std::move(result_with_base));
         } else {
-            return filter_members_impl<Filter, Index + 1>(all_members, result);
+            return filter_members_impl<T, Derived, Filter, Index + 1>(all_members, result);
         }
     }
 }
 
-template <typename Filter, typename Tuple>
+template <typename T, typename Filter, typename Tuple>
 constexpr auto filter_members(const Tuple& all_members) {
-    return filter_members_impl<Filter, 0>(all_members, std::tuple<>{});
+    return filter_members_impl<T, T, Filter, 0>(all_members, std::tuple<>{});
 }
 
 template <typename Tag>
@@ -101,9 +134,9 @@ struct filter_tag {
     static constexpr bool check = has_tag_v<Tag, ElementType>;
 };
 
-template <typename Tag, typename Tuple>
+template <typename T, typename Tag, typename Tuple>
 constexpr auto filter_members_by_tag(const Tuple& all_members) {
-    return filter_members<filter_tag<Tag>>(all_members);
+    return filter_members<T, filter_tag<Tag>>(all_members);
 }
 
 // 默认的成员检查模板，总是返回true
@@ -204,47 +237,6 @@ static auto initial_members(const Members& members) {
 
 namespace mc {
 namespace reflect {
-
-/**
- * @brief 反射器模板类
- *
- * @tparam T 要反射的类型
- */
-template <typename T>
-struct reflector {
-    using is_defined = std::false_type;
-    using is_enum    = std::false_type;
-};
-
-/**
- * 检查类型是否可反射
- * @tparam T 要检查的类型
- * @return 如果类型可反射则返回true，否则返回false
- */
-template <typename T>
-constexpr bool is_reflectable() {
-    return reflector<std::decay_t<T>>::is_defined::value;
-}
-
-/**
- * 检查类型是否为枚举
- * @tparam T 要检查的类型
- * @return 如果类型是枚举则返回true，否则返回false
- */
-template <typename T>
-constexpr bool is_enum() {
-    return reflector<T>::is_enum::value;
-}
-
-/**
- * 检查类型是否为非反射的普通枚举
- * @tparam T 要检查的类型
- * @return 如果类型是普通的枚举则返回true，否则返回false
- */
-template <typename T>
-constexpr bool is_normal_enum() {
-    return std::is_enum_v<T> && !is_reflectable<T>();
-}
 
 /**
  * 获取类型名称
@@ -386,7 +378,7 @@ struct signature_helper<T, std::enable_if_t<mc::reflect::is_normal_enum<T>()>> {
 /**
  * @brief 定义类的反射信息
  */
-#define MC_REFLECT(TYPE, MEMBERS)                                                                  \
+#define MC_REFLECT_IMPL(TYPE, BASES, MEMBERS)                                                      \
     namespace mc::reflect {                                                                        \
     template <>                                                                                    \
     struct reflector<TYPE> {                                                                       \
@@ -397,7 +389,8 @@ struct signature_helper<T, std::enable_if_t<mc::reflect::is_normal_enum<T>()>> {
         }                                                                                          \
         static const auto& get_members() {                                                         \
             static auto members = mc::reflect::detail::initial_members<TYPE>(std::tuple_cat(       \
-                BOOST_PP_SEQ_FOR_EACH(MC_REFLECT_ELEMENT, TYPE, MEMBERS) std::tuple<>()));         \
+                BOOST_PP_SEQ_FOR_EACH(MC_REFLECT_BASE_ELEMENT, TYPE, BASES)                        \
+                    BOOST_PP_SEQ_FOR_EACH(MC_REFLECT_ELEMENT, TYPE, MEMBERS) std::tuple<>()));     \
                                                                                                    \
             static_assert(mc::reflect::detail::validate_members<TYPE>(members),                    \
                           "members validate failed, please check members type");                   \
@@ -407,7 +400,7 @@ struct signature_helper<T, std::enable_if_t<mc::reflect::is_normal_enum<T>()>> {
         template <typename Tag>                                                                    \
         static const auto& get_members_by_tag() {                                                  \
             static auto filtered_members =                                                         \
-                mc::reflect::detail::filter_members_by_tag<Tag>(get_members());                    \
+                mc::reflect::detail::filter_members_by_tag<TYPE, Tag>(get_members());              \
             return filtered_members;                                                               \
         }                                                                                          \
                                                                                                    \
@@ -417,6 +410,10 @@ struct signature_helper<T, std::enable_if_t<mc::reflect::is_normal_enum<T>()>> {
                                                                                                    \
         static const auto& get_methods() {                                                         \
             return get_members_by_tag<mc::reflect::method_tag>();                                  \
+        }                                                                                          \
+                                                                                                   \
+        static const auto& get_base_classes() {                                                    \
+            return get_members_by_tag<mc::reflect::base_class_tag>();                              \
         }                                                                                          \
                                                                                                    \
         template <typename Visitor>                                                                \
@@ -430,7 +427,9 @@ struct signature_helper<T, std::enable_if_t<mc::reflect::is_normal_enum<T>()>> {
                                                                                                    \
         static void to_variant(const TYPE& obj, mc::mutable_dict& dict) {                          \
             visit([&](std::string_view name, auto getter, auto) {                                  \
-                dict[name] = getter(obj);                                                          \
+                if (!dict.contains(name)) {                                                        \
+                    dict[name] = getter(obj);                                                      \
+                }                                                                                  \
             });                                                                                    \
         }                                                                                          \
                                                                                                    \
@@ -443,6 +442,19 @@ struct signature_helper<T, std::enable_if_t<mc::reflect::is_normal_enum<T>()>> {
         }                                                                                          \
     };                                                                                             \
     }
+
+#define MC_GET_REFLECT_ARG_COUNT(...) BOOST_PP_VARIADIC_SIZE(__VA_ARGS__)
+
+// 一个参数版本 - 只有类成员
+#define MC_REFLECT_1(TYPE, MEMBERS) MC_REFLECT_IMPL(TYPE, BOOST_PP_EMPTY(), MEMBERS)
+
+// 二个参数版本 - 有基类和类成员
+#define MC_REFLECT_2(TYPE, BASES, MEMBERS) MC_REFLECT_IMPL(TYPE, BASES, MEMBERS)
+
+#define MC_REFLECT_DISPATCH(TYPE, ...)                                                             \
+    BOOST_PP_CAT(MC_REFLECT_, MC_GET_REFLECT_ARG_COUNT(__VA_ARGS__))(TYPE, __VA_ARGS__)
+
+#define MC_REFLECT(...) MC_REFLECT_DISPATCH(__VA_ARGS__)
 
 /**
  * @brief 定义枚举的反射信息
