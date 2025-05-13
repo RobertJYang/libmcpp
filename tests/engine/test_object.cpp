@@ -60,7 +60,7 @@ public:
 
 class TestObject : public mc::engine::object<TestObject> {
 public:
-    MC_OBJECT("/org/test/TestObject", (TestInterface1)(TestInterface2))
+    MC_OBJECT(TestObject, "/org/test/TestObject", (TestInterface1)(TestInterface2))
 
     TestObject(mc::engine::core_object* parent = nullptr) : mc::engine::object<TestObject>(parent) {
     }

@@ -13,9 +13,20 @@
 #include <mc/engine/service.h>
 
 namespace mc::engine {
+abstract_object* abstract_interface::get_parent() const {
+    return get_owner();
+}
 
 abstract_object* abstract_object::get_parent() const {
     return static_cast<abstract_object*>(mc::core::object::get_parent());
+}
+
+void abstract_object::set_service(service& s) {
+    mc::core::object::set_service(&s);
+}
+
+service* abstract_object::get_service() const {
+    return static_cast<service*>(mc::core::object::get_service());
 }
 
 } // namespace mc::engine

@@ -45,7 +45,7 @@ public:
 
 class test_object : public mc::engine::object<test_object> {
 public:
-    MC_OBJECT("/org/test/object_1", (test_interface_1)(test_interface_2))
+    MC_OBJECT(test_object, "/org/test/object_1", (test_interface_1)(test_interface_2))
 
     test_interface_1 m_iface_1;
     test_interface_2 m_iface_2;

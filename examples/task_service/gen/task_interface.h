@@ -1,17 +1,21 @@
-/*
- * Copyright (c) 2023, OpenUBMC Team
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
+/**
+ * Copyright (c) 2024 Huawei Technologies Co., Ltd.
+ * openUBMC is licensed under Mulan PSL v2.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *         http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
  */
 
-#ifndef TASK_INTERFACE_H
-#define TASK_INTERFACE_H
+#ifndef GEN_TASK_INTERFACE_H
+#define GEN_TASK_INTERFACE_H
 
 #include <mc/engine/interface.h>
 
-namespace gen {
+namespace test {
 
 enum class task_state {
     PENDING,
@@ -24,34 +28,30 @@ enum class task_state {
 struct task_interface : public mc::engine::interface<task_interface> {
     MC_INTERFACE("bmc.kepler.TaskService.Task")
 
-    task_interface();
-    ~task_interface();
+    virtual ~task_interface()         = default;
+    virtual void       start()        = 0;
+    virtual void       stop()         = 0;
+    virtual void       pause()        = 0;
+    virtual void       resume()       = 0;
+    virtual uint32_t   get_progress() = 0;
+    virtual task_state get_state()    = 0;
 
-    void       start();
-    void       stop();
-    void       pause();
-    void       resume();
-    uint32_t   get_progress();
-    task_state get_state();
-
-    void start_timer();
-    void stop_timer();
-    void set_state(task_state state);
-
-    uint32_t    m_id;
-    std::string m_name;
-    std::string m_startTime;
-    std::string m_endTime;
-    uint32_t    m_progress{0};
-    task_state  m_state{task_state::PENDING};
-    mc::variant m_result;
+    mc::engine::property<uint32_t>    m_id;
+    mc::engine::property<std::string> m_name;
+    mc::engine::property<std::string> m_startTime;
+    mc::engine::property<std::string> m_endTime;
+    mc::engine::property<uint32_t>    m_progress;
+    mc::engine::property<task_state>  m_state;
+    mc::engine::property<mc::variant> m_result;
 };
 
-} // namespace gen
+} // namespace test
 
-MC_REFLECT_ENUM(test::task_state, (PENDING)(RUNNING)(COMPLETED)(FAILED))
+MC_REFLECT_ENUM(test::task_state, (PENDING)(RUNNING)(PAUSED)(COMPLETED)(FAILED))
 MC_REFLECT(test::task_interface,
            ((m_id, "Id"))((m_name, "Name"))((m_startTime, "StartTime"))((m_endTime, "EndTime"))(
-               (m_progress, "Progress"))((m_state, "State"))((m_result, "Result")))
+               (m_progress, "Progress"))((m_state, "State"))((m_result, "Result"))(
+               (start, "Start"))((stop, "Stop"))((pause, "Pause"))((resume, "Resume"))(
+               (get_progress, "GetProgress"))((get_state, "GetState")))
 
-#endif // TASK_INTERFACE_H
+#endif // GEN_TASK_INTERFACE_H

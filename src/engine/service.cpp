@@ -32,7 +32,7 @@ struct service_interface : public mc::engine::interface<service_interface> {
 };
 
 struct service_object : public mc::engine::object<service_object> {
-    MC_OBJECT("/bmc/kepler/maca", (service_interface))
+    MC_OBJECT(service_object, "/bmc/kepler/maca", (service_interface))
 
     void init(service* s) {
         m_interface.m_service_path = path_pattern;

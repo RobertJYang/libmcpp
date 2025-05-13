@@ -433,9 +433,10 @@ struct base_class_info_base : public member_info_base {
 // 属性元数据具体实现
 template <typename C, typename BaseT>
 struct base_class_info : public base_class_info_base<C> {
-    using class_type = C;
-    using base_type  = BaseT;
-    using tag_type   = base_class_tag;
+    using class_type  = C;
+    using member_type = BaseT;
+    using base_type   = BaseT;
+    using tag_type    = base_class_tag;
 
     constexpr base_class_info(std::string_view n) : base_class_info_base<C>(n) {
         this->name = remove_common_namespace(n, pretty_name<class_type>());
@@ -501,13 +502,13 @@ struct base_class_info : public base_class_info_base<C> {
         static_assert(std::is_base_of_v<class_type, Derived>,
                       "Derived must be derived from class_type");
         if (name.empty()) {
-            return base_class_info<Derived, base_type>{this->name};
+            return base_class_info<Derived, member_type>{this->name};
         }
 
         std::string new_name(name);
         new_name += "::";
         new_name += remove_common_namespace(this->name, name);
-        return base_class_info<Derived, base_type>{new_name};
+        return base_class_info<Derived, member_type>{new_name};
     }
 
     static std::string_view remove_common_namespace(std::string_view s1, std::string_view s2) {
@@ -603,11 +604,11 @@ struct base_class_info_creator {
     template <typename Tuple>
     static constexpr auto append_base_classes(Tuple&& base_classes, std::string_view name) {
         return mc::traits::tuple_map(base_classes, [&](auto& base_class) {
-            using base_type = typename std::decay_t<decltype(base_class)>::base_type;
-            auto info       = base_class.template to_derived<T>(name);
+            using member_type = typename std::decay_t<decltype(base_class)>::member_type;
+            auto info         = base_class.template to_derived<T>(name);
             return std::tuple_cat(
                 std::make_tuple(info),
-                append_base_classes(mc::reflect::reflector<base_type>::get_base_classes(),
+                append_base_classes(mc::reflect::reflector<member_type>::get_base_classes(),
                                     info.name));
         });
     }

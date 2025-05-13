@@ -51,14 +51,14 @@ public:
 
 class TestObject1 : public mc::engine::object<TestObject1> {
 public:
-    MC_OBJECT("/org/test/TestObject", (TestInterface1))
+    MC_OBJECT(TestObject1, "/org/test/TestObject", (TestInterface1))
 
     TestInterface1 m_iface1;
 };
 
 class TestObject2 : public mc::engine::object<TestObject2> {
 public:
-    MC_OBJECT("/Id/${Id}", (TestInterface2))
+    MC_OBJECT(TestObject2, "/Id/${Id}", (TestInterface2))
 
     std::string_view get_object_path() const override {
         if (this->m_object_path.empty()) {

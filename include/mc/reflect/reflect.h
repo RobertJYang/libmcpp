@@ -32,7 +32,6 @@
 #include <boost/preprocessor/seq/for_each.hpp>
 #include <boost/preprocessor/stringize.hpp>
 #include <boost/preprocessor/tuple/elem.hpp>
-#include <boost/preprocessor/variadic/to_seq.hpp>
 
 #include <mc/common.h>
 #include <mc/dict.h>
@@ -50,6 +49,8 @@ namespace mc::reflect {
 // 检测是否为元组形式（双括号表达式）
 #define MC_REFLECT_IS_TUPLE(x) BOOST_PP_IS_BEGIN_PARENS(x)
 
+#define MC_REFLECT_ARG_COUNT(...) BOOST_PP_VARIADIC_SIZE(__VA_ARGS__)
+
 // 处理带名称的成员（双括号形式）
 #define MC_REFLECT_MEMBER_WITH_NAME(r, TYPE, MEMBER)                                               \
     mc::reflect::detail::create_member_info<TYPE>(&TYPE::BOOST_PP_TUPLE_ELEM(0, MEMBER),           \
@@ -57,7 +58,9 @@ namespace mc::reflect {
 
 // 处理不带名称的成员（单括号形式）
 #define MC_REFLECT_MEMBER_WITHOUT_NAME(r, TYPE, MEMBER)                                            \
-    mc::reflect::detail::create_member_info<TYPE>(&TYPE::MEMBER, BOOST_PP_STRINGIZE(MEMBER)),
+    BOOST_PP_IIF(BOOST_PP_IS_EMPTY(MEMBER), std::tuple{},                                          \
+                 (mc::reflect::detail::create_member_info<TYPE>(&TYPE::MEMBER,                     \
+                                                                BOOST_PP_STRINGIZE(MEMBER)))),
 
 // 处理成员
 #define MC_REFLECT_ELEMENT(r, TYPE, MEMBER)                                                        \
@@ -65,8 +68,10 @@ namespace mc::reflect {
                  MC_REFLECT_MEMBER_WITHOUT_NAME)(r, TYPE, MEMBER)
 
 // 简单基类，没有别名
-#define MC_REFLECT_BASE_CLASS(r, TYPE, BASE)                                                       \
-    mc::reflect::detail::create_base_class_info<TYPE, BASE>(BOOST_PP_STRINGIZE(BASE)),
+#define MC_REFLECT_BASE_CLASS_WITHOUT_NAME(r, TYPE, BASE)                                          \
+    BOOST_PP_IIF(                                                                                  \
+        BOOST_PP_IS_EMPTY(BASE), std::tuple{},                                                     \
+        (mc::reflect::detail::create_base_class_info<TYPE, BASE>(BOOST_PP_STRINGIZE(BASE)))),
 
 // 带别名的基类
 #define MC_REFLECT_BASE_CLSS_WITH_NAME(r, TYPE, BASE)                                              \
@@ -76,7 +81,7 @@ namespace mc::reflect {
 // 处理基类
 #define MC_REFLECT_BASE_ELEMENT(r, TYPE, BASE)                                                     \
     BOOST_PP_IIF(MC_REFLECT_IS_TUPLE(BASE), MC_REFLECT_BASE_CLSS_WITH_NAME,                        \
-                 MC_REFLECT_BASE_CLASS)(r, TYPE, BASE)
+                 MC_REFLECT_BASE_CLASS_WITHOUT_NAME)(r, TYPE, BASE)
 
 // 在命名空间中添加辅助函数
 namespace mc::reflect::detail {
@@ -443,8 +448,6 @@ struct signature_helper<T, std::enable_if_t<mc::reflect::is_normal_enum<T>()>> {
     };                                                                                             \
     }
 
-#define MC_GET_REFLECT_ARG_COUNT(...) BOOST_PP_VARIADIC_SIZE(__VA_ARGS__)
-
 // 一个参数版本 - 只有类成员
 #define MC_REFLECT_1(TYPE, MEMBERS) MC_REFLECT_IMPL(TYPE, BOOST_PP_EMPTY(), MEMBERS)
 
@@ -452,7 +455,7 @@ struct signature_helper<T, std::enable_if_t<mc::reflect::is_normal_enum<T>()>> {
 #define MC_REFLECT_2(TYPE, BASES, MEMBERS) MC_REFLECT_IMPL(TYPE, BASES, MEMBERS)
 
 #define MC_REFLECT_DISPATCH(TYPE, ...)                                                             \
-    BOOST_PP_CAT(MC_REFLECT_, MC_GET_REFLECT_ARG_COUNT(__VA_ARGS__))(TYPE, __VA_ARGS__)
+    BOOST_PP_CAT(MC_REFLECT_, MC_REFLECT_ARG_COUNT(__VA_ARGS__))(TYPE, __VA_ARGS__)
 
 #define MC_REFLECT(...) MC_REFLECT_DISPATCH(__VA_ARGS__)
 

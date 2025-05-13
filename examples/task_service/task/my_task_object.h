@@ -10,29 +10,28 @@
  * See the Mulan PSL v2 for more details.
  */
 
-#ifndef TEST_SERVICE_H
-#define TEST_SERVICE_H
+#ifndef TASK_OBJECT_H
+#define TASK_OBJECT_H
 
-#include "task/my_task_object.h"
-#include <mc/engine.h>
+#include "my_task_interface.h"
+#include <mc/engine/object.h>
 
 namespace test {
 
-struct test_service : public mc::engine::service {
+class my_task_object : public mc::engine::object<my_task_object> {
 public:
-    test_service(std::string_view name);
-    ~test_service();
+    MC_OBJECT(my_task_object, "/bmc/kepler/TaskService/Tasks/${Id}", (my_task_interface))
 
-    bool init(mc::dict args) override;
-    bool start() override;
-    bool stop() override;
+    my_task_object(mc::core::object* parent = nullptr);
+
+    static my_task_object* create_task(mc::engine::service* service, mc::milliseconds timeout);
 
 private:
-    void create_task();
-
-    std::vector<my_task_object*> m_tasks;
+    my_task_interface m_task;
+    static uint32_t   m_next_task_id;
 };
-
 } // namespace test
 
-#endif // TEST_SERVICE_H
+MC_REFLECT(test::my_task_object, ((m_task, "task")))
+
+#endif // TASK_OBJECT_H

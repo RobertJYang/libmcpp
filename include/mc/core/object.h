@@ -177,7 +177,7 @@ public:
      * @brief 获取父对象
      * @return 父对象指针
      */
-    object* get_parent() const;
+    virtual object* get_parent() const;
 
     /**
      * @brief 设置父对象
@@ -270,8 +270,8 @@ public:
         disconnect_all(&sig);
     }
 
-    service_base* get_service() const;
-    void          set_service(service_base* s);
+    virtual service_base* get_service() const;
+    void                  set_service(service_base* s);
 
     /**
      * @brief 异步投递任务到对象关联的执行器
@@ -347,6 +347,7 @@ private:
 
     mutable std::unique_ptr<object_impl> m_impl;
     object*                              m_parent{nullptr};
+    mutable service_base*                m_service{nullptr};
 };
 
 } // namespace mc::core

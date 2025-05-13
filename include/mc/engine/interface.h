@@ -142,6 +142,7 @@ template <typename T>
 struct interface : public abstract_interface {
     using is_interface   = std::true_type;
     using interface_type = T;
+    using abstract_interface::connect;
 
     template <typename Members>
     static constexpr void initial_members(const Members& members) {
@@ -290,6 +291,14 @@ struct interface : public abstract_interface {
     }
 
 protected:
+    mc::core::service_base* get_service() const override {
+        if (!m_owner) {
+            return nullptr;
+        }
+
+        return m_owner->get_service();
+    }
+
     template <typename Members, typename F>
     static void foreach_property(Members& members, F&& f) {
         mc::traits::tuple_for_each(members, [f = std::forward<F>(f)](auto& member) {

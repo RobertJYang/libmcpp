@@ -39,6 +39,11 @@ public:
     }
 
     template <typename ObjectType>
+    void register_object(ObjectType* obj) {
+        register_object(*obj);
+    }
+
+    template <typename ObjectType>
     void unregister_object(mc::im::ref_ptr<ObjectType> obj) {
         unregister_object(obj->get_object_path());
     }

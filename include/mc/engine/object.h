@@ -16,7 +16,6 @@
 #include <mc/core/object.h>
 #include <mc/engine/interface.h>
 #include <mc/engine/object_metadata.h>
-#include <mc/engine/service.h>
 #include <mc/exception.h>
 #include <mc/log.h>
 
@@ -49,14 +48,6 @@ public:
     }
 
     virtual ~object() = default;
-
-    service* get_service() const override {
-        return static_cast<service*>(mc::core::object::get_service());
-    }
-
-    void set_service(service& s) override {
-        mc::core::object::set_service(&s);
-    }
 
     const managed_objects& get_managed_objects() const override {
         return m_managed_objects;

@@ -1,10 +1,13 @@
-/*
- * Copyright (c) 2023, OpenUBMC Team
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
+/**
+ * Copyright (c) 2024 Huawei Technologies Co., Ltd.
+ * openUBMC is licensed under Mulan PSL v2.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *         http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
  */
 
 #include "test_service.h"
@@ -42,7 +45,7 @@ bool test_service::stop() {
 }
 
 void test_service::create_task() {
-    auto task = task_object::create_task(this, mc::milliseconds(1000));
+    auto task = my_task_object::create_task(this, mc::milliseconds(1000));
     m_tasks.push_back(task);
 }
 
