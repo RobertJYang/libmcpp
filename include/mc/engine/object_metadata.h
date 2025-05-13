@@ -38,8 +38,9 @@ public:
     }
 
     static const auto& get_static_interface_infos() {
-        static auto interfaces = mc::reflect::detail::filter_members<detail::filter_interface>(
-            mc::reflect::reflector<ObjectType>::get_properties());
+        static auto interfaces =
+            mc::reflect::detail::filter_members<ObjectType, detail::filter_interface>(
+                mc::reflect::reflector<ObjectType>::get_properties());
         return interfaces;
     }
 

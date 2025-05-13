@@ -260,6 +260,20 @@ bool starts_with(std::string_view s, std::string_view prefix);
 bool ends_with(std::string_view s, std::string_view suffix);
 
 /**
+ * @brief 查找两个字符串的最长公共前缀
+ * @param s1 第一个字符串
+ * @param s2 第二个字符串
+ * @return 两个字符串的最长公共前缀
+ *
+ * 示例:
+ * @code
+ * std::string_view prefix = mc::string::longest_common_prefix("hello", "help");  // "hel"
+ * std::string_view empty = mc::string::longest_common_prefix("hello", "world");  // ""
+ * @endcode
+ */
+std::string_view longest_common_prefix(std::string_view s1, std::string_view s2);
+
+/**
  * @brief 替换字符串中的所有指定子串
  * @param s 要处理的字符串
  * @param from 要替换的子串

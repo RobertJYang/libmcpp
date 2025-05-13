@@ -123,7 +123,8 @@ constexpr bool check_members_is_declared(const InterfaceTypes& declared_interfac
     bool all_valid = true;
     mc::traits::tuple_for_each(members, [&](auto& element) {
         using element_type = mc::traits::remove_cvref_t<decltype(element)>;
-        if constexpr (mc::reflect::has_tag_v<mc::reflect::property_tag, element_type>) {
+        if constexpr (mc::reflect::has_tag_v<mc::reflect::property_tag, element_type> ||
+                      mc::reflect::has_tag_v<mc::reflect::base_class_tag, element_type>) {
             using member_type = typename element_type::member_type;
             if constexpr (is_interface_v<member_type>) {
                 if (!is_interface_declared<member_type>(declared_interfaces)) {
@@ -156,7 +157,8 @@ constexpr int get_members_count(const Members& members) {
     int count = 0;
     mc::traits::tuple_for_each(members, [&](auto& element) {
         using element_type = mc::traits::remove_cvref_t<decltype(element)>;
-        if constexpr (mc::reflect::has_tag_v<mc::reflect::property_tag, element_type>) {
+        if constexpr (mc::reflect::has_tag_v<mc::reflect::property_tag, element_type> ||
+                      mc::reflect::has_tag_v<mc::reflect::base_class_tag, element_type>) {
             using member_type = typename element_type::member_type;
             if constexpr (is_interface_v<member_type> &&
                           std::is_same_v<member_type, InterfaceType>) {

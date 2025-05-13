@@ -35,25 +35,20 @@ public:
     void    remove_child(object* child);
 
     std::string        m_name;
-    object*            m_parent{nullptr};
     child_list         m_children;
-    service_base*      m_service{nullptr};
     connection_manager m_connection_manager;
 
     uint32_t is_deleted : 1;
 };
 
 object_impl::object_impl(const object_impl& other)
-    : m_name(other.m_name), m_parent(other.m_parent), m_children(other.m_children),
-      m_service(other.m_service) {
+    : m_name(other.m_name), m_children(other.m_children) {
 }
 
 object_impl& object_impl::operator=(const object_impl& other) {
     if (this != &other) {
         m_name     = other.m_name;
-        m_parent   = other.m_parent;
         m_children = other.m_children;
-        m_service  = other.m_service;
     }
 
     return *this;
@@ -97,11 +92,10 @@ void object_impl::remove_child(object* child) {
 object::object() {
 }
 
-object::object(object* parent) : m_impl(std::make_unique<object_impl>()) {
+object::object(object* parent) : m_impl(std::make_unique<object_impl>()), m_parent(parent) {
     if (parent) {
-        m_impl->m_parent = parent;
         parent->add_child(this);
-        m_impl->m_service = parent->get_service();
+        m_service = parent->get_service();
     }
 }
 
@@ -112,8 +106,8 @@ object::~object() noexcept {
 
     m_impl->is_deleted = true;
 
-    if (m_impl->m_parent) {
-        m_impl->m_parent->remove_child(this);
+    if (m_parent) {
+        m_parent->remove_child(this);
     }
 
     m_impl->m_children.clear();
@@ -143,27 +137,21 @@ object& object::operator=(const object& other) {
 }
 
 void object::set_parent(object* parent) {
-    auto impl = ensure_impl();
-
-    object* old_parent = m_impl->m_parent;
+    object* old_parent = m_parent;
 
     if (old_parent) {
         old_parent->remove_child(this);
-        m_impl->m_parent = nullptr;
+        m_parent = nullptr;
     }
 
     if (parent) {
         parent->add_child(this);
-        m_impl->m_parent = parent;
+        m_parent = parent;
     }
 }
 
 object* object::get_parent() const {
-    if (!m_impl) {
-        return nullptr;
-    }
-
-    return m_impl->m_parent;
+    return m_parent;
 }
 
 void object::set_name(std::string_view name) {
@@ -203,15 +191,18 @@ void object::remove_child(object* child) {
 }
 
 service_base* object::get_service() const {
-    if (!m_impl) {
-        return nullptr;
+    if (!m_service && m_parent) {
+        auto* service = m_parent->get_service();
+        if (service) {
+            m_service = service;
+        }
     }
 
-    return m_impl->m_service;
+    return m_service;
 }
 
 void object::set_service(service_base* s) {
-    ensure_impl().m_service = s;
+    m_service = s;
 }
 
 connection_id_type object::add_connection(signal_type sig, mc::connection_type conn,
@@ -236,8 +227,9 @@ void object::disconnect_all(signal_type sig) {
 }
 
 strand_type& object::get_strand() const {
-    MC_ASSERT(!m_impl || m_impl->m_service, "get strand not available on object with no service");
-    return m_impl->m_service->get_strand();
+    auto* service = get_service();
+    MC_ASSERT(service, "get strand not available on object with no service");
+    return service->get_strand();
 }
 
 object_impl& object::ensure_impl() const {

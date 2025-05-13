@@ -227,6 +227,14 @@ bool ends_with(std::string_view s, std::string_view suffix) {
     return s.size() >= suffix.size() && s.substr(s.size() - suffix.size()) == suffix;
 }
 
+std::string_view longest_common_prefix(std::string_view s1, std::string_view s2) {
+    size_t i = 0;
+    while (i < s1.size() && i < s2.size() && s1[i] == s2[i]) {
+        ++i;
+    }
+    return s1.substr(0, i);
+}
+
 // 替换字符串中的所有指定子串
 std::string replace_all(std::string_view s, std::string_view from, std::string_view to) {
     if (from.empty()) {

@@ -19,6 +19,7 @@
 #include <mc/engine/call_stack.h>
 #include <mc/engine/context.h>
 #include <mc/engine/macro.h>
+#include <mc/engine/service.h>
 #include <mc/engine/utils.h>
 #include <mc/im/ref_ptr.h>
 #include <mc/reflect.h>
@@ -37,20 +38,16 @@ using io_context_type    = boost::asio::io_context;
 using strand_type        = boost::asio::strand<boost::asio::io_context::executor_type>;
 using slot_type          = std::function<mc::variant(const mc::variants&)>;
 using message            = mc::dbus::message;
-using object_base        = mc::db::object_base;
+using core_object        = mc::core::object;
 using connection_id_type = mc::core::connection_id_type;
 
 class abstract_object;
 class abstract_interface;
-class service;
 class property_base;
 
 using property_changed_signal = mc::signal<void(const mc::variant&, const property_base&)>;
 
 using object_call_stack = detail::call_stack<service, abstract_object>;
-inline abstract_object* get_object() {
-    return object_call_stack::top_value();
-}
 
 struct invoke_result : public mc::variant {
     const mc::reflect::method_type_info* method{nullptr};
@@ -117,42 +114,20 @@ protected:
     virtual void set_variant(const mc::variant& value) = 0;
 };
 
-class abstract_interface {
-public:
-    virtual ~abstract_interface() = default;
-
-    virtual abstract_object* get_object() const = 0;
-
-    virtual std::string_view    get_interface_name() const                                   = 0;
-    virtual mc::connection_type connect(std::string_view signal_name, slot_type slot)        = 0;
-    virtual mc::variant         emit(std::string_view signal_name, const mc::variants& args) = 0;
-    virtual mc::variant         get_property(std::string_view property_name)                 = 0;
-    virtual std::string_view    get_property_name(const property_base* prop)                 = 0;
-    virtual property_base*      get_property_base(std::string_view property_name)            = 0;
-    virtual mc::dict            get_all_properties()                                         = 0;
-    virtual bool set_property(std::string_view property_name, const mc::variant& value)      = 0;
-
-    virtual invoke_result invoke(std::string_view method_name, const mc::variants& args) = 0;
-
-    virtual void notify_property_changed(const mc::variant& value, const property_base& prop) = 0;
-    virtual property_changed_signal& property_changed()                                       = 0;
-
-    virtual void visit(visitor& v) const = 0;
-};
-
 class abstract_object : public mc::core::object {
 public:
     using managed_objects = std::map<std::string_view, abstract_object*>;
-    using mc::core::object::connect; // 引入基类的 connect 函数
+    using mc::core::object::connect;
+
+    abstract_object(core_object* parent) : mc::core::object(parent) {
+    }
 
     virtual ~abstract_object() = default;
 
-    abstract_object* get_parent() const {
-        return static_cast<abstract_object*>(mc::core::object::get_parent());
-    }
+    abstract_object* get_parent() const override;
 
-    virtual void     set_service(service& s) = 0;
-    virtual service* get_service() const     = 0;
+    void     set_service(service& s);
+    service* get_service() const override;
 
     virtual const managed_objects& get_managed_objects() const                 = 0;
     virtual void                   add_managed_object(abstract_object* obj)    = 0;
@@ -185,6 +160,32 @@ public:
 
     virtual void notify_property_changed(const mc::variant& value, const property_base& prop) = 0;
     virtual property_changed_signal& property_changed()                                       = 0;
+};
+
+class abstract_interface : public mc::core::object {
+public:
+    using mc::core::object::connect;
+
+    virtual ~abstract_interface() = default;
+
+    virtual abstract_object* get_parent() const override;
+    virtual abstract_object* get_owner() const = 0;
+
+    virtual std::string_view    get_interface_name() const                                   = 0;
+    virtual mc::connection_type connect(std::string_view signal_name, slot_type slot)        = 0;
+    virtual mc::variant         emit(std::string_view signal_name, const mc::variants& args) = 0;
+    virtual mc::variant         get_property(std::string_view property_name)                 = 0;
+    virtual std::string_view    get_property_name(const property_base* prop)                 = 0;
+    virtual property_base*      get_property_base(std::string_view property_name)            = 0;
+    virtual mc::dict            get_all_properties()                                         = 0;
+    virtual bool set_property(std::string_view property_name, const mc::variant& value)      = 0;
+
+    virtual invoke_result invoke(std::string_view method_name, const mc::variants& args) = 0;
+
+    virtual void notify_property_changed(const mc::variant& value, const property_base& prop) = 0;
+    virtual property_changed_signal& property_changed()                                       = 0;
+
+    virtual void visit(visitor& v) const = 0;
 };
 
 using object_ptr = mc::im::ref_ptr<abstract_object>;

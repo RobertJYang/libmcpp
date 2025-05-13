@@ -60,6 +60,7 @@ test_files = [
   'reflect/test_reflect_static_info.cpp',
   'reflect/test_custom_member_info.cpp',
   'reflect/test_method_call.cpp',
+  'reflect/test_reflect_base_class.cpp',
 
   # string 目录
   'string/test_format_benchmark.cpp',

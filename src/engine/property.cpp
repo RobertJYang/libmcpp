@@ -20,7 +20,7 @@ void detail::interface_observer::notify(const mc::variant& value, const property
     }
 
     m_interface->notify_property_changed(value, prop);
-    auto object = m_interface->get_object();
+    auto object = m_interface->get_owner();
     if (!object) {
         return;
     }

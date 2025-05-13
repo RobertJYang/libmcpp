@@ -142,6 +142,7 @@ template <typename T>
 struct interface : public abstract_interface {
     using is_interface   = std::true_type;
     using interface_type = T;
+    using abstract_interface::connect;
 
     template <typename Members>
     static constexpr void initial_members(const Members& members) {
@@ -162,12 +163,12 @@ struct interface : public abstract_interface {
         });
     }
 
-    void set_object(abstract_object* obj) {
-        m_object = obj;
+    abstract_object* get_owner() const override {
+        return m_owner;
     }
 
-    abstract_object* get_object() const override {
-        return m_object;
+    void set_owner(abstract_object* owner) {
+        m_owner = owner;
     }
 
     static signal_map<interface_type>& get_signals() {
@@ -282,14 +283,22 @@ struct interface : public abstract_interface {
     }
 
     void visit(visitor& v) const override {
-        v.handle_interface_begin(*m_object, *this);
+        v.handle_interface_begin(*get_owner(), *this);
         visit_properties(v);
         visit_methods(v);
         visit_signals(v);
-        v.handle_interface_end(*m_object, *this);
+        v.handle_interface_end(*get_owner(), *this);
     }
 
 protected:
+    mc::core::service_base* get_service() const override {
+        if (!m_owner) {
+            return nullptr;
+        }
+
+        return m_owner->get_service();
+    }
+
     template <typename Members, typename F>
     static void foreach_property(Members& members, F&& f) {
         mc::traits::tuple_for_each(members, [f = std::forward<F>(f)](auto& member) {
@@ -312,7 +321,7 @@ protected:
             info.name      = property.name;
             info.signature = mc::reflect::get_signature<property_type>();
             info.access    = 0;
-            v.handle(*m_object, *this, info);
+            v.handle(*get_owner(), *this, info);
         });
     }
 
@@ -328,7 +337,7 @@ protected:
                 info.return_signature = mc::reflect::get_signature<result_type>();
             }
             info.args_signature = mc::reflect::get_signature<args_type>();
-            v.handle(*m_object, *this, info);
+            v.handle(*get_owner(), *this, info);
         });
     }
 
@@ -342,12 +351,12 @@ protected:
             info.name             = signal.name;
             info.return_signature = mc::reflect::get_signature<result_type>();
             info.args_signature   = mc::reflect::get_signature<args_type>();
-            v.handle(*m_object, *this, info);
+            v.handle(*get_owner(), *this, info);
         });
     }
 
 protected:
-    abstract_object*                         m_object;
+    abstract_object*                         m_owner;
     std::unique_ptr<property_changed_signal> m_property_changed_signal;
 };
 
