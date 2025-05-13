@@ -243,6 +243,46 @@ static auto initial_members(const Members& members) {
 namespace mc {
 namespace reflect {
 
+namespace detail {
+
+template <typename T, typename = void>
+struct has_custom_to_variant : std::false_type {};
+
+template <typename T>
+struct has_custom_to_variant<T, std::void_t<decltype(T::to_variant(
+                                    std::declval<const T&>(), std::declval<mc::mutable_dict&>()))>>
+    : std::true_type {};
+
+template <typename T>
+inline constexpr bool has_custom_to_variant_v = has_custom_to_variant<T>::value;
+
+template <typename T>
+auto has_custom_from_variant(int)
+    -> decltype(T::from_variant(std::declval<const mc::dict&>(), std::declval<T&>()),
+                std::true_type{});
+
+template <typename T>
+std::false_type has_custom_from_variant(...);
+
+template <typename T>
+inline constexpr bool has_custom_from_variant_v = decltype(has_custom_from_variant<T>(0))::value;
+
+template <typename T>
+void custom_from_variant(const mc::dict& d, T& obj) {
+    if constexpr (has_custom_from_variant_v<T>) {
+        T::from_variant(d, obj);
+    }
+}
+
+template <typename T>
+void custom_to_variant(const T& obj, mc::mutable_dict& dict) {
+    if constexpr (has_custom_to_variant_v<T>) {
+        T::to_variant(obj, dict);
+    }
+}
+
+} // namespace detail
+
 /**
  * 获取类型名称
  * @tparam T 要获取名称的类型
@@ -299,7 +339,7 @@ void from_variant(const variant& var, T& obj) {
         reflector<T>::from_variant(var, obj);
     } else if (var.is_dict()) {
         // 支持从{key: value}字典转换为对象
-        reflector<T>::from_variant(var.as<mc::dict>(), obj);
+        reflector<T>::from_variant(var.get_object(), obj);
     } else if (var.is_array()) {
         // 支持从[value1, value2, ...]数组转换为对象
         std::size_t index = 0;
@@ -431,19 +471,27 @@ struct signature_helper<T, std::enable_if_t<mc::reflect::is_normal_enum<T>()>> {
         }                                                                                          \
                                                                                                    \
         static void to_variant(const TYPE& obj, mc::mutable_dict& dict) {                          \
-            visit([&](std::string_view name, auto getter, auto) {                                  \
-                if (!dict.contains(name)) {                                                        \
-                    dict[name] = getter(obj);                                                      \
-                }                                                                                  \
-            });                                                                                    \
+            if constexpr (mc::reflect::detail::has_custom_to_variant_v<TYPE>) {                    \
+                mc::reflect::detail::custom_to_variant(obj, dict);                                 \
+            } else {                                                                               \
+                visit([&](std::string_view name, auto getter, auto) {                              \
+                    if (!dict.contains(name)) {                                                    \
+                        dict[name] = getter(obj);                                                  \
+                    }                                                                              \
+                });                                                                                \
+            }                                                                                      \
         }                                                                                          \
                                                                                                    \
         static void from_variant(const mc::dict& d, TYPE& obj) {                                   \
-            visit([&](std::string_view name, auto, auto setter) {                                  \
-                if (d.contains(name)) {                                                            \
-                    setter(obj, d[name]);                                                          \
-                }                                                                                  \
-            });                                                                                    \
+            if constexpr (mc::reflect::detail::has_custom_from_variant_v<TYPE>) {                  \
+                mc::reflect::detail::custom_from_variant(d, obj);                                  \
+            } else {                                                                               \
+                visit([&](std::string_view name, auto, auto setter) {                              \
+                    if (d.contains(name)) {                                                        \
+                        setter(obj, d[name]);                                                      \
+                    }                                                                              \
+                });                                                                                \
+            }                                                                                      \
         }                                                                                          \
     };                                                                                             \
     }

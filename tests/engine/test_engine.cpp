@@ -184,3 +184,31 @@ TEST_F(engine_test, test_property_changed_sig_use_abstract_object) {
     mc::dict expected = {{"i32", 10}};
     EXPECT_EQ(values, expected);
 }
+
+TEST_F(engine_test, test_object_reflect) {
+    auto obj = test_object::create();
+
+    obj->m_iface_1.m_i32.set_value(20);
+    obj->m_iface_1.m_str.set_value("123");
+    obj->m_iface_1.m_vec      = std::vector<int>{1, 2, 3};
+    obj->m_iface_1.m_normal_v = 100;
+
+    obj->m_iface_2.m_variant.set_value(100);
+
+    mc::variant var;
+    mc::to_variant(*obj, var);
+
+    mc::dict expected = {
+        {"org.test.test_interface_1",
+         mc::dict{{"i32", 20}, {"str", "123"}, {"vec", mc::variants{1, 2, 3}}, {"normal_v", 100}}},
+        {"org.test.test_interface_2", mc::dict{{"variant", 100}}}};
+    EXPECT_EQ(var.get_object(), expected) << var.to_string() << "\n" << expected.to_string();
+
+    auto obj2 = test_object::create();
+    mc::from_variant(var.get_object(), *obj2);
+    EXPECT_EQ(obj2->m_iface_1.m_i32, 20);
+    EXPECT_EQ(obj2->m_iface_1.m_str, "123");
+    EXPECT_EQ(obj2->m_iface_1.m_vec, (std::vector<int>{1, 2, 3}));
+    EXPECT_EQ(obj2->m_iface_1.m_normal_v, 100);
+    EXPECT_EQ(obj2->m_iface_2.m_variant, 100);
+}

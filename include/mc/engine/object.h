@@ -223,6 +223,27 @@ public:
         return mc::core::make_ref<object_type>();
     }
 
+    static void from_variant(const mc::dict& d, object_type& obj) {
+        mc::traits::tuple_for_each(get_static_interface_infos(), [&](auto& member) {
+            using prop_type      = std::decay_t<decltype(member)>;
+            using interface_type = typename prop_type::member_type;
+            if (d.contains(interface_type::interface_name)) {
+                const auto& sub_dict = d[interface_type::interface_name];
+                mc::reflect::from_variant(sub_dict, obj.*member.member_ptr);
+            }
+        });
+    }
+
+    static void to_variant(const object_type& obj, mc::mutable_dict& dict) {
+        mc::traits::tuple_for_each(get_static_interface_infos(), [&](auto& member) {
+            using prop_type      = std::decay_t<decltype(member)>;
+            using interface_type = typename prop_type::member_type;
+            mc::variant sub_dict;
+            mc::reflect::to_variant(obj.*member.member_ptr, sub_dict);
+            dict[interface_type::interface_name] = std::move(sub_dict);
+        });
+    }
+
 protected:
     mutable std::string                      m_object_path;
     managed_objects                          m_managed_objects;
