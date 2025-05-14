@@ -44,6 +44,10 @@ Table& get_table(std::string_view table_name) {
     return mc::engine::engine::get_instance().get_table<Table>(table_name);
 }
 
+inline object_table& get_object_table() {
+    return get_engine().get_object_table();
+}
+
 } // namespace mc::engine
 
 #endif // MC_ENGINE_H

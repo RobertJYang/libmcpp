@@ -99,6 +99,18 @@ public:
         m_object_path = path;
     }
 
+    std::string_view get_position() const override {
+        return m_position;
+    }
+
+    void set_position(std::string_view position) override {
+        m_position = position;
+    }
+
+    std::string_view get_class_name() const override {
+        return object_type::class_name;
+    }
+
     bool has_interface(std::string_view interface_name) const override {
         return get_interface_info(interface_name) != nullptr;
     }
@@ -246,6 +258,7 @@ public:
 
 protected:
     mutable std::string                      m_object_path;
+    mutable std::string                      m_position;
     managed_objects                          m_managed_objects;
     std::unique_ptr<property_changed_signal> m_property_changed_signal;
 };

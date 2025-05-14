@@ -15,12 +15,11 @@
 #include <mc/common.h>
 #include <mc/core/service.h>
 
-#include <memory>
-
 namespace mc::engine {
 class engine;
 struct service_impl;
 class abstract_object;
+class service_object_table;
 
 class service : public mc::core::service_base, public mc::noncopyable_nonmovable {
 public:
@@ -48,6 +47,8 @@ public:
         unregister_object(obj->get_object_path());
     }
     void unregister_object(std::string_view path);
+
+    service_object_table& get_object_table() const;
 
 protected:
     void register_object(abstract_object& obj);

@@ -98,7 +98,7 @@ constexpr void tuple_for_each(Tuple& tuple, Func&& func) {
                         std::make_index_sequence<std::tuple_size_v<std::decay_t<Tuple>>>{});
 }
 
-// 遍历元组中的每个元素并应用函数
+// 遍历元组中的每个元素并应用函数，返回 map 后的新元组
 template <typename Tuple, typename Func>
 constexpr auto tuple_map(Tuple& tuple, Func&& func) {
     return std::apply(

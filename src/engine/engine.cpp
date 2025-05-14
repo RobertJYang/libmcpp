@@ -14,11 +14,9 @@
 #include <mc/engine/object.h>
 #include <mc/engine/service.h>
 #include <thread>
-namespace mdb = mc::db;
 
 namespace mc::engine {
-using object_tree          = mdb::table<abstract_object, mdb::indexed_by<path_index>>;
-using object_tree_ptr      = std::shared_ptr<object_tree>;
+using object_table_ptr     = std::shared_ptr<object_table>;
 using table_connection_map = std::multimap<std::string, mc::connection_type>;
 using thread_pool          = std::list<std::thread>;
 using work_guard = boost::asio::executor_work_guard<boost::asio::io_context::executor_type>;
@@ -34,7 +32,7 @@ public:
 
     std::mutex                  m_mutex;
     mdb::database               m_database;
-    object_tree_ptr             m_object_tree;
+    object_table_ptr            m_object_table;
     boost::asio::io_context     m_io_context;
     table_connection_map        m_connections;
     thread_pool                 m_threads;
@@ -42,40 +40,40 @@ public:
     std::unique_ptr<work_guard> m_work;
 };
 
-engine::engine_impl::engine_impl() : m_object_tree(std::make_shared<object_tree>("object_tree")) {
-    m_database.register_table(std::dynamic_pointer_cast<mdb::table_base>(m_object_tree));
+engine::engine_impl::engine_impl() : m_object_table(std::make_shared<object_table>()) {
+    m_database.register_table(m_object_table);
     m_work = std::make_unique<work_guard>(m_io_context.get_executor());
 }
 
 engine::engine_impl::~engine_impl() {
-    m_object_tree->clear();
+    m_object_table->clear();
 }
 
 void engine::engine_impl::add_object(abstract_object& object) {
     std::lock_guard lock(m_mutex);
 
     auto object_id = object.get_object_id();
-    if (object_id > 0 && !m_object_tree->find_by_object_id(object_id).is_end()) {
+    if (object_id > 0 && !m_object_table->find_by_object_id(object_id).is_end()) {
         return;
     }
 
-    m_object_tree->add(object_ptr(&object));
+    m_object_table->add(object_ptr(&object));
 }
 
 void engine::engine_impl::remove_object(abstract_object& object) {
     std::lock_guard lock(m_mutex);
 
-    m_object_tree->remove(object_ptr(&object));
+    m_object_table->remove(object_ptr(&object));
 }
 
 void engine::engine_impl::update_object(abstract_object& old_object, abstract_object& new_object) {
     std::lock_guard lock(m_mutex);
 
-    auto& idx = m_object_tree->get<by_path>();
+    auto& idx = m_object_table->get<by_path>();
     auto  it  = idx.find(old_object.get_object_path());
     if (it == idx.end()) {
         idx.remove(old_object.get_object_path());
-        m_object_tree->add(object_ptr(&new_object));
+        m_object_table->add(object_ptr(&new_object));
         return;
     }
 
@@ -183,6 +181,10 @@ void engine::unregister_table(mc::db::table_ptr table) {
 
     std::string table_name(table->get_table_name());
     m_impl->m_database.unregister_table(table->get_table_name());
+}
+
+object_table& engine::get_object_table() {
+    return *m_impl->m_object_table;
 }
 
 } // namespace mc::engine
