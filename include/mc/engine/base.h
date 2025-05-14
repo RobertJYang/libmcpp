@@ -34,6 +34,8 @@
 #include <type_traits>
 
 namespace mc::engine {
+namespace mdb = mc::db;
+
 using io_context_type    = boost::asio::io_context;
 using strand_type        = boost::asio::strand<boost::asio::io_context::executor_type>;
 using slot_type          = std::function<mc::variant(const mc::variants&)>;
@@ -133,10 +135,13 @@ public:
     virtual void                   add_managed_object(abstract_object* obj)    = 0;
     virtual void                   remove_managed_object(abstract_object* obj) = 0;
 
-    virtual std::string_view get_object_name() const                = 0;
-    virtual void             set_object_name(std::string_view name) = 0;
-    virtual std::string_view get_object_path() const                = 0;
-    virtual void             set_object_path(std::string_view path) = 0;
+    virtual std::string_view get_object_name() const                 = 0;
+    virtual void             set_object_name(std::string_view name)  = 0;
+    virtual std::string_view get_object_path() const                 = 0;
+    virtual void             set_object_path(std::string_view path)  = 0;
+    virtual std::string_view get_position() const                    = 0;
+    virtual void             set_position(std::string_view position) = 0;
+    virtual std::string_view get_class_name() const                  = 0;
 
     virtual bool                has_interface(std::string_view interface_name) const = 0;
     virtual abstract_interface* get_interface(std::string_view interface_name)       = 0;
@@ -189,9 +194,51 @@ public:
 };
 
 using object_ptr = mc::im::ref_ptr<abstract_object>;
+
+} // namespace mc::engine
+
+MC_REFLECT(mc::engine::abstract_object,
+           ((get_object_path, "path"))((get_class_name, "class_name"))(
+               (get_object_name, "object_name"))((get_position, "position")))
+
+namespace mc::engine {
 MC_FIELD_INDEX_TAG(by_path, "path");
-using path_index = mc::db::ordered_non_unique<&abstract_object::get_object_path, by_path::tag>;
+MC_FIELD_INDEX_TAG(by_class_name, "class_name");
+MC_FIELD_INDEX_TAG(by_object_name, "object_name");
+
+using path_non_unique_index =
+    mc::db::ordered_non_unique<&abstract_object::get_object_path, by_path::tag>;
 using path_unique_index = mc::db::ordered_unique<&abstract_object::get_object_path, by_path::tag>;
+using class_name_index =
+    mc::db::ordered_non_unique<&abstract_object::get_class_name, &abstract_object::get_position,
+                               by_class_name::tag>;
+using object_name_index =
+    mc::db::ordered_unique<&abstract_object::get_object_name, by_object_name::tag>;
+
+// 每个服务自己的对象表
+using service_object_table_impl =
+    mdb::table<abstract_object,
+               mdb::indexed_by<path_unique_index, class_name_index, object_name_index>>;
+
+using object_table_impl =
+    mdb::table<abstract_object,
+               mdb::indexed_by<path_non_unique_index, class_name_index, object_name_index>>;
+
+// 服务对象表（每个服务一个）
+class service_object_table : public service_object_table_impl {
+public:
+    service_object_table(const std::string& service_name)
+        : service_object_table_impl(service_name + ".object_table") {
+    }
+};
+
+// 全局对象表，与服务对象表的差别是 path 是非唯一索引
+class object_table : public object_table_impl {
+public:
+    object_table() : object_table_impl("object_table") {
+    }
+};
+
 } // namespace mc::engine
 
 namespace mc {
@@ -205,7 +252,5 @@ inline void from_variant(const mc::variant& v, mc::engine::invoke_result& obj) {
 }
 
 } // namespace mc
-
-MC_REFLECT(mc::engine::abstract_object, ((get_object_path, "path")))
 
 #endif // MC_ENGINE_BASE_H

@@ -22,6 +22,7 @@
 namespace mc::engine {
 using io_context_type = boost::asio::io_context;
 using table_ptr       = mc::db::table_ptr;
+class object_table;
 
 class engine {
 public:
@@ -52,6 +53,7 @@ public:
     bool      register_table(table_ptr table);
     void      unregister_table(table_ptr table);
 
+    object_table&    get_object_table();
     io_context_type& get_io_context();
 
 private:

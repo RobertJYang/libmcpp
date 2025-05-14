@@ -23,10 +23,11 @@ namespace mc::engine {
 
 #define MC_OBJECT_INTERFACE(r, _, INTERFACE) std::tuple<INTERFACE*>(),
 
-#define MC_OBJECT(OBJECT_TYPE, PATH_PATTERN, INTERFACES)                                           \
+#define MC_OBJECT(OBJECT_TYPE, CLASS_NAME, PATH_PATTERN, INTERFACES)                               \
     using object_type = OBJECT_TYPE;                                                               \
     friend struct mc::reflect::reflector<OBJECT_TYPE>;                                             \
     static constexpr std::string_view path_pattern = PATH_PATTERN;                                 \
+    static constexpr std::string_view class_name   = CLASS_NAME;                                   \
     template <typename Members>                                                                    \
     static constexpr bool check_members(const Members& members) {                                  \
         constexpr auto interfaces = std::tuple_cat(                                                \

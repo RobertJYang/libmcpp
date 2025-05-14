@@ -99,6 +99,18 @@ public:
         m_object_path = path;
     }
 
+    std::string_view get_position() const override {
+        return m_position;
+    }
+
+    void set_position(std::string_view position) override {
+        m_position = position;
+    }
+
+    std::string_view get_class_name() const override {
+        return object_type::class_name;
+    }
+
     bool has_interface(std::string_view interface_name) const override {
         return get_interface_info(interface_name) != nullptr;
     }
@@ -223,8 +235,30 @@ public:
         return mc::core::make_ref<object_type>();
     }
 
+    static void from_variant(const mc::dict& d, object_type& obj) {
+        mc::traits::tuple_for_each(get_static_interface_infos(), [&](auto& member) {
+            using prop_type      = std::decay_t<decltype(member)>;
+            using interface_type = typename prop_type::member_type;
+            if (d.contains(interface_type::interface_name)) {
+                const auto& sub_dict = d[interface_type::interface_name];
+                mc::reflect::from_variant(sub_dict, obj.*member.member_ptr);
+            }
+        });
+    }
+
+    static void to_variant(const object_type& obj, mc::mutable_dict& dict) {
+        mc::traits::tuple_for_each(get_static_interface_infos(), [&](auto& member) {
+            using prop_type      = std::decay_t<decltype(member)>;
+            using interface_type = typename prop_type::member_type;
+            mc::variant sub_dict;
+            mc::reflect::to_variant(obj.*member.member_ptr, sub_dict);
+            dict[interface_type::interface_name] = std::move(sub_dict);
+        });
+    }
+
 protected:
     mutable std::string                      m_object_path;
+    mutable std::string                      m_position;
     managed_objects                          m_managed_objects;
     std::unique_ptr<property_changed_signal> m_property_changed_signal;
 };

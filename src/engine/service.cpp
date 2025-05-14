@@ -21,8 +21,8 @@
 namespace mdb = mc::db;
 
 namespace mc::engine {
-using object_tree     = mdb::table<abstract_object, mdb::indexed_by<path_unique_index>>;
-using object_tree_ptr = std::shared_ptr<object_tree>;
+
+using object_table_ptr = std::shared_ptr<service_object_table>;
 
 struct service_interface : public mc::engine::interface<service_interface> {
     MC_INTERFACE("bmc.kepler.maca")
@@ -32,7 +32,7 @@ struct service_interface : public mc::engine::interface<service_interface> {
 };
 
 struct service_object : public mc::engine::object<service_object> {
-    MC_OBJECT(service_object, "/bmc/kepler/maca", (service_interface))
+    MC_OBJECT(service_object, "ServiceObject", "/bmc/kepler/maca", (service_interface))
 
     void init(service* s) {
         m_interface.m_service_path = path_pattern;
@@ -70,7 +70,7 @@ struct service_impl {
     std::mutex                      m_mutex;
     service*                        m_service;
     dbus::connection_ptr            m_connection;
-    object_tree_ptr                 m_object_tree;
+    object_table_ptr                m_object_table;
     mc::im::ref_ptr<service_object> m_service_object;
 };
 } // namespace mc::engine
@@ -112,9 +112,9 @@ bool service_impl::start() {
         return on_filter_message(msg);
     });
 
-    m_connection  = connection;
-    m_object_tree = std::make_shared<object_tree>(m_service->name() + ".object_tree");
-    mc::engine::get_engine().register_table(m_object_tree);
+    m_connection   = connection;
+    m_object_table = std::make_shared<service_object_table>(m_service->name());
+    mc::engine::get_engine().register_table(m_object_table);
     register_object(*m_service_object);
     return true;
 }
@@ -130,12 +130,12 @@ void service_impl::stop() {
     auto& engine   = mc::engine::engine::get_instance();
     auto  services = engine.get_table<service_table>("services");
     services->remove(m_service_object);
-    m_object_tree->clear();
-    engine.unregister_table(m_object_tree);
+    m_object_table->clear();
+    engine.unregister_table(m_object_table);
 }
 
 void service_impl::register_object(abstract_object& obj) {
-    m_object_tree->add(mc::im::ref_ptr<abstract_object>(&obj));
+    m_object_table->add(mc::im::ref_ptr<abstract_object>(&obj));
     obj.set_service(*m_service);
     m_connection->register_path(obj.get_object_path(), [this, &obj](auto& msg) {
         return on_path_message(msg, obj);
@@ -249,12 +249,16 @@ void service::register_object(abstract_object& obj) {
     MC_ASSERT(mc::dbus::validator::is_valid_path(path), "invalid object path ${path}",
               ("path", path));
 
-    MC_ASSERT(m_impl->m_object_tree, "service is not started, cannot register object");
+    MC_ASSERT(m_impl->m_object_table, "service is not started, cannot register object");
     m_impl->register_object(obj);
 }
 
 void service::unregister_object(std::string_view path) {
     m_impl->unregister_object(path);
+}
+
+service_object_table& service::get_object_table() const {
+    return *m_impl->m_object_table;
 }
 
 } // namespace mc::engine

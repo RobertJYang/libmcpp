@@ -45,7 +45,7 @@ public:
 
 class test_object : public mc::engine::object<test_object> {
 public:
-    MC_OBJECT(test_object, "/org/test/object_1", (test_interface_1)(test_interface_2))
+    MC_OBJECT(test_object, "TestObject", "/org/test/object_1", (test_interface_1)(test_interface_2))
 
     test_interface_1 m_iface_1;
     test_interface_2 m_iface_2;
@@ -72,7 +72,7 @@ MC_REFLECT(test_interface_1,
 MC_REFLECT(test_interface_2, ((m_variant, "variant")))
 MC_REFLECT(test_object, ((m_iface_1, "iface_1"))((m_iface_2, "iface_2")))
 
-TEST_F(engine_test, test_engine) {
+TEST_F(engine_test, test_engine_dbus_connection) {
     auto strand = mc::engine::make_strand();
     auto conn   = mc::dbus::connection::open_session_bus(strand);
     conn->start();
@@ -165,12 +165,11 @@ TEST_F(engine_test, test_property_changed_sig_use_abstract_object) {
     service.register_object(obj);
 
     // 1：通过引擎从全局对象表里面找到对象
-    auto engine = mc::engine::get_engine();
-    auto table  = engine.find_table("object_tree");
-    EXPECT_NE(table, nullptr);
+    auto  engine = mc::engine::get_engine();
+    auto& table  = engine.get_object_table();
 
     // 2：通过路径全局对象表里面找到对象
-    auto result = table->find_object(mc::engine::by_path::field == obj->get_object_path());
+    auto result = table.find_object(mc::engine::by_path::field == obj->get_object_path());
     EXPECT_EQ(result, obj.get());
     auto* res_obj = static_cast<mc::engine::abstract_object*>(result.get());
 
@@ -183,4 +182,32 @@ TEST_F(engine_test, test_property_changed_sig_use_abstract_object) {
 
     mc::dict expected = {{"i32", 10}};
     EXPECT_EQ(values, expected);
+}
+
+TEST_F(engine_test, test_object_reflect) {
+    auto obj = test_object::create();
+
+    obj->m_iface_1.m_i32.set_value(20);
+    obj->m_iface_1.m_str.set_value("123");
+    obj->m_iface_1.m_vec      = std::vector<int>{1, 2, 3};
+    obj->m_iface_1.m_normal_v = 100;
+
+    obj->m_iface_2.m_variant.set_value(100);
+
+    mc::variant var;
+    mc::to_variant(*obj, var);
+
+    mc::dict expected = {
+        {"org.test.test_interface_1",
+         mc::dict{{"i32", 20}, {"str", "123"}, {"vec", mc::variants{1, 2, 3}}, {"normal_v", 100}}},
+        {"org.test.test_interface_2", mc::dict{{"variant", 100}}}};
+    EXPECT_EQ(var.get_object(), expected) << var.to_string() << "\n" << expected.to_string();
+
+    auto obj2 = test_object::create();
+    mc::from_variant(var.get_object(), *obj2);
+    EXPECT_EQ(obj2->m_iface_1.m_i32, 20);
+    EXPECT_EQ(obj2->m_iface_1.m_str, "123");
+    EXPECT_EQ(obj2->m_iface_1.m_vec, (std::vector<int>{1, 2, 3}));
+    EXPECT_EQ(obj2->m_iface_1.m_normal_v, 100);
+    EXPECT_EQ(obj2->m_iface_2.m_variant, 100);
 }
