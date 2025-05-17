@@ -33,6 +33,8 @@
 
 namespace mc {
 
+class mutable_dict;
+
 /**
  * @brief 不可变的字典类，保持键值对的插入顺序
  *
@@ -290,6 +292,13 @@ public:
     }
 
     /**
+     * @brief 合并两个字典
+     * @param other 要合并的字典
+     * @return 合并后的字典
+     */
+    dict operator+(const dict& other) const;
+
+    /**
      * @brief 计算字典的哈希值
      * @return 哈希值
      * @note 此哈希算法参考了Lua表的哈希算法，考虑了键值对的内容
@@ -363,6 +372,8 @@ protected:
      * @return 元素的索引位置，如果元素不存在则返回 -1
      */
     int find_entry_index(const entry* e) const;
+
+    mutable_dict mut() const;
 };
 
 /**
@@ -632,6 +643,7 @@ inline std::string to_string(const mutable_dict& v) {
 
 // 将 variant 实现相关的代码放到单独的文件中
 #include <mc/variant/container_convert.inl>
+#include <mc/variant/variant_base_op.inl>
 #include <mc/variant/variant_dict.inl>
 
 // 定义在std命名空间中特化hash以支持dict和mutable_dict

@@ -19,6 +19,8 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cerrno>
+#include <cmath>
 #include <cstdio>
 #include <cstdlib> // 用于strtod等函数
 #include <limits>  // 用于numeric_limits
@@ -38,6 +40,9 @@ namespace string {
 
 namespace detail {
 [[noreturn]] void throw_bad_cast_error(const char* type);
+[[noreturn]] void throw_overflow_error(const char* type, std::string_view s);
+
+std::pair<int, std::string_view> detect_number_radix(std::string_view s);
 } // namespace detail
 
 /**
@@ -385,77 +390,53 @@ inline bool to_bool(std::string_view s) {
  * @param s 要转换的字符串
  * @param result 转换结果的引用
  * @return 是否转换成功
+ * 注意：这个函数底层使用了 std::strtod 和 std::strtol 等的 C
+ * 风格版本，必须确保字符串能以尾0结尾，否则存在安全风险，因为 string_view
+ * 不保证以尾0结尾，建议后续用 std::from_chars 替代
  */
 template <typename T, typename = std::enable_if_t<std::is_arithmetic_v<T>>>
-bool try_to_number(std::string_view s, T& result) {
+bool try_to_number(std::string_view s, T& result, int radix = 0) {
+    errno = 0;
     if (s.empty()) {
         return false;
     }
 
-    // 浮点数转换
-    if (std::is_floating_point<T>::value) {
-        char* end;
-        T     value = static_cast<T>(std::strtod(s.data(), &end));
-        if (end != s.data() && end == s.data() + s.size()) {
-            result = value;
-            return true;
+    if (radix == 0) {
+        auto v = detail::detect_number_radix(s);
+        radix  = v.first;
+        s      = v.second;
+    }
+
+    char* end;
+    if constexpr (std::is_floating_point_v<T>) {
+        result = std::strtod(s.data(), &end);
+    } else if constexpr (std::is_integral_v<T> && std::is_signed_v<T>) {
+        if constexpr (sizeof(T) == sizeof(long long)) {
+            result = std::strtoll(s.data(), &end, radix);
+        } else {
+            auto v = std::strtol(s.data(), &end, radix);
+            if (v < std::numeric_limits<T>::min() || v > std::numeric_limits<T>::max()) {
+                return false;
+            }
+            result = static_cast<T>(v);
         }
+    } else if constexpr (std::is_integral_v<T> && std::is_unsigned_v<T>) {
+        if constexpr (sizeof(T) == sizeof(unsigned long long)) {
+            result = std::strtoull(s.data(), &end, radix);
+        } else {
+            auto v = std::strtoul(s.data(), &end, radix);
+            if (v > std::numeric_limits<T>::max()) {
+                return false;
+            }
+            result = static_cast<T>(v);
+        }
+    }
+
+    if (errno == ERANGE) {
         return false;
     }
 
-    // 整数转换
-    char* end;
-
-    // 有符号整型
-    if (std::is_same<T, int>::value || std::is_same<T, short>::value ||
-        std::is_same<T, signed char>::value) {
-        long value = std::strtol(s.data(), &end, 10);
-        if (end != s.data() && end == s.data() + s.size()) {
-            // 验证是否在T类型的范围内
-            if (value >= std::numeric_limits<T>::min() && value <= std::numeric_limits<T>::max()) {
-                result = static_cast<T>(value);
-                return true;
-            }
-        }
-    } else if (std::is_same<T, long>::value) {
-        long value = std::strtol(s.data(), &end, 10);
-        if (end != s.data() && end == s.data() + s.size()) {
-            result = static_cast<T>(value);
-            return true;
-        }
-    } else if (std::is_same<T, long long>::value) {
-        long long value = std::strtoll(s.data(), &end, 10);
-        if (end != s.data() && end == s.data() + s.size()) {
-            result = static_cast<T>(value);
-            return true;
-        }
-    }
-    // 无符号整型
-    else if (std::is_same<T, unsigned int>::value || std::is_same<T, unsigned short>::value ||
-             std::is_same<T, unsigned char>::value) {
-        unsigned long value = std::strtoul(s.data(), &end, 10);
-        if (end != s.data() && end == s.data() + s.size()) {
-            // 验证是否在T类型的范围内
-            if (value <= std::numeric_limits<T>::max()) {
-                result = static_cast<T>(value);
-                return true;
-            }
-        }
-    } else if (std::is_same<T, unsigned long>::value) {
-        unsigned long value = std::strtoul(s.data(), &end, 10);
-        if (end != s.data() && end == s.data() + s.size()) {
-            result = static_cast<T>(value);
-            return true;
-        }
-    } else if (std::is_same<T, unsigned long long>::value) {
-        unsigned long long value = std::strtoull(s.data(), &end, 10);
-        if (end != s.data() && end == s.data() + s.size()) {
-            result = static_cast<T>(value);
-            return true;
-        }
-    }
-
-    return false;
+    return end != s.data() && end == s.data() + s.size();
 }
 
 /**
@@ -465,8 +446,8 @@ bool try_to_number(std::string_view s, T& result) {
  * @return 是否转换成功
  */
 template <typename T, typename = std::enable_if_t<std::is_arithmetic_v<T>>>
-bool try_to_number(const char* s, T& result) {
-    return try_to_number<T>(std::string_view(s), result);
+bool try_to_number(const char* s, T& result, int radix = 0) {
+    return try_to_number<T>(std::string_view(s), result, radix);
 }
 
 /**
@@ -476,8 +457,8 @@ bool try_to_number(const char* s, T& result) {
  * @return 是否转换成功
  */
 template <typename T, typename = std::enable_if_t<std::is_arithmetic_v<T>>>
-bool try_to_number(const std::string& s, T& result) {
-    return try_to_number<T>(std::string_view(s), result);
+bool try_to_number(const std::string& s, T& result, int radix = 0) {
+    return try_to_number<T>(std::string_view(s), result, radix);
 }
 
 /**
@@ -486,10 +467,14 @@ bool try_to_number(const std::string& s, T& result) {
  * @return 转换结果
  */
 template <typename T, typename = std::enable_if_t<std::is_arithmetic_v<T>>>
-T to_number(std::string_view s) {
+T to_number(std::string_view s, int radix = 0) {
     T result{};
-    if (try_to_number<T>(s, result)) {
+    if (try_to_number<T>(s, result, radix)) {
         return result;
+    }
+
+    if (errno == ERANGE) {
+        detail::throw_overflow_error(mc::pretty_name<T>(), s);
     }
 
     detail::throw_bad_cast_error(mc::pretty_name<T>());
@@ -502,10 +487,14 @@ T to_number(std::string_view s) {
  * @return 转换结果或默认值
  */
 template <typename T, typename = std::enable_if_t<std::is_arithmetic_v<T>>>
-T to_number(std::string_view s, T default_value) {
+T to_number(std::string_view s, T default_value, int radix = 0) {
     T result{};
-    if (try_to_number<T>(s, result)) {
+    if (try_to_number<T>(s, result, radix)) {
         return result;
+    }
+
+    if (errno == ERANGE) {
+        detail::throw_overflow_error(mc::pretty_name<T>(), s);
     }
 
     return default_value;

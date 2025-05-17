@@ -761,8 +761,7 @@ public:
             return std::string(m_blob_ptr->as_string_view());
         }
         default:
-            throw_type_error("string", m_type);
-            return std::string();
+            return to_string();
         }
     }
 
@@ -861,7 +860,7 @@ public:
     }
 
     /**
-     * @brief 获取数组的大小
+     * @brief 获取大小
      */
     size_t size() const;
 
@@ -1197,8 +1196,142 @@ public:
         }
     }
 
-    /*
-     * @brief 添加用于与 variant_base 对象的比较
+    // ======== 算术运算操作符 ========
+    template <typename OtherConfig>
+    variant_base operator+(const variant_base<OtherConfig>& other) const;
+
+    template <typename OtherConfig>
+    variant_base operator-(const variant_base<OtherConfig>& other) const;
+
+    template <typename OtherConfig>
+    variant_base operator*(const variant_base<OtherConfig>& other) const;
+
+    template <typename OtherConfig>
+    variant_base operator/(const variant_base<OtherConfig>& other) const;
+
+    template <typename OtherConfig>
+    variant_base operator%(const variant_base<OtherConfig>& other) const;
+
+    // ======== 位运算操作符 ========
+    template <typename OtherConfig>
+    variant_base operator&(const variant_base<OtherConfig>& other) const;
+
+    template <typename OtherConfig>
+    variant_base operator|(const variant_base<OtherConfig>& other) const;
+
+    template <typename OtherConfig>
+    variant_base operator^(const variant_base<OtherConfig>& other) const;
+
+    variant_base operator~() const;
+
+    template <typename OtherConfig>
+    variant_base operator<<(const variant_base<OtherConfig>& other) const;
+
+    template <typename OtherConfig>
+    variant_base operator>>(const variant_base<OtherConfig>& other) const;
+
+    // ======== 算术运算与基本类型 ========
+    template <typename T, std::enable_if_t<std::is_arithmetic_v<T>, int> = 0>
+    variant_base operator+(T other) const;
+
+    template <typename T, std::enable_if_t<std::is_arithmetic_v<T>, int> = 0>
+    variant_base operator-(T other) const;
+
+    template <typename T, std::enable_if_t<std::is_arithmetic_v<T>, int> = 0>
+    variant_base operator*(T other) const;
+
+    template <typename T, std::enable_if_t<std::is_arithmetic_v<T>, int> = 0>
+    variant_base operator/(T other) const;
+
+    template <typename T, std::enable_if_t<std::is_arithmetic_v<T>, int> = 0>
+    variant_base operator%(T other) const;
+
+    // ======== 位运算与基本类型 ========
+    template <typename T, std::enable_if_t<std::is_arithmetic_v<T>, int> = 0>
+    variant_base operator&(T other) const;
+
+    template <typename T, std::enable_if_t<std::is_arithmetic_v<T>, int> = 0>
+    variant_base operator|(T other) const;
+
+    template <typename T, std::enable_if_t<std::is_arithmetic_v<T>, int> = 0>
+    variant_base operator^(T other) const;
+
+    template <typename T, std::enable_if_t<std::is_arithmetic_v<T>, int> = 0>
+    variant_base operator<<(T other) const;
+
+    template <typename T, std::enable_if_t<std::is_arithmetic_v<T>, int> = 0>
+    variant_base operator>>(T other) const;
+
+    // ======== 字符串操作 ========
+    variant_base operator+(std::string_view other) const;
+
+    // ======== 复合赋值操作符 ========
+    template <typename OtherConfig>
+    variant_base& operator+=(const variant_base<OtherConfig>& other);
+
+    template <typename OtherConfig>
+    variant_base& operator-=(const variant_base<OtherConfig>& other);
+
+    template <typename OtherConfig>
+    variant_base& operator*=(const variant_base<OtherConfig>& other);
+
+    template <typename OtherConfig>
+    variant_base& operator/=(const variant_base<OtherConfig>& other);
+
+    template <typename OtherConfig>
+    variant_base& operator%=(const variant_base<OtherConfig>& other);
+
+    template <typename OtherConfig>
+    variant_base& operator&=(const variant_base<OtherConfig>& other);
+
+    template <typename OtherConfig>
+    variant_base& operator|=(const variant_base<OtherConfig>& other);
+
+    template <typename OtherConfig>
+    variant_base& operator^=(const variant_base<OtherConfig>& other);
+
+    template <typename OtherConfig>
+    variant_base& operator<<=(const variant_base<OtherConfig>& other);
+
+    template <typename OtherConfig>
+    variant_base& operator>>=(const variant_base<OtherConfig>& other);
+
+    // ======== 复合赋值操作与基本类型 ========
+    template <typename T, std::enable_if_t<std::is_arithmetic_v<T>, int> = 0>
+    variant_base& operator+=(const T& other);
+
+    template <typename T, std::enable_if_t<std::is_arithmetic_v<T>, int> = 0>
+    variant_base& operator-=(const T& other);
+
+    template <typename T, std::enable_if_t<std::is_arithmetic_v<T>, int> = 0>
+    variant_base& operator*=(const T& other);
+
+    template <typename T, std::enable_if_t<std::is_arithmetic_v<T>, int> = 0>
+    variant_base& operator/=(const T& other);
+
+    template <typename T, std::enable_if_t<std::is_arithmetic_v<T>, int> = 0>
+    variant_base& operator%=(const T& other);
+
+    template <typename T, std::enable_if_t<std::is_arithmetic_v<T>, int> = 0>
+    variant_base& operator&=(const T& other);
+
+    template <typename T, std::enable_if_t<std::is_arithmetic_v<T>, int> = 0>
+    variant_base& operator|=(const T& other);
+
+    template <typename T, std::enable_if_t<std::is_arithmetic_v<T>, int> = 0>
+    variant_base& operator^=(const T& other);
+
+    template <typename T, std::enable_if_t<std::is_arithmetic_v<T>, int> = 0>
+    variant_base& operator<<=(const T& other);
+
+    template <typename T, std::enable_if_t<std::is_arithmetic_v<T>, int> = 0>
+    variant_base& operator>>=(const T& other);
+
+    // 字符串的复合赋值
+    variant_base& operator+=(std::string_view other);
+
+    /**
+     * @brief 比较操作符
      */
     template <typename OtherConfig>
     bool operator==(const variant_base<OtherConfig>& other) const;
@@ -1609,6 +1742,7 @@ void from_variant(const variant_base<Config1>& var, variant_base<Config2>& vo) {
 } // namespace mc
 
 #include <mc/variant/variant_base_cmp_op.inl>
+#include <mc/variant/variant_base_op.inl>
 
 namespace std {
 template <typename Config>

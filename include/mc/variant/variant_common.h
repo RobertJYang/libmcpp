@@ -101,6 +101,16 @@ struct blob_base {
         return lhs > rhs;
     }
 
+    void operator+=(const blob_base& other) {
+        data.reserve(data.size() + other.data.size());
+        data.insert(data.end(), other.data.begin(), other.data.end());
+    }
+
+    void operator+=(std::string_view other) {
+        data.reserve(data.size() + other.size());
+        data.insert(data.end(), other.begin(), other.end());
+    }
+
     std::string_view as_string_view() const {
         return std::string_view(data.data(), data.size());
     }
@@ -163,6 +173,9 @@ const char*       get_type_name_internal(type_id type);
 [[noreturn]] void throw_unknow_type_error(type_id actual_type);
 [[noreturn]] void throw_invalid_type_comparison_error(const char* type1, const char* type2,
                                                       const char* op);
+[[noreturn]] void throw_invalid_type_operation_error(const char* type1, const char* type2,
+                                                     const char* op);
+[[noreturn]] void throw_divide_by_zero_exception(const char* msg);
 size_t            calculate_str_hash(std::string_view data);
 template <typename Config>
 size_t calculate_array_hash(const variants_base<Config>& array_data);

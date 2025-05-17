@@ -30,6 +30,26 @@ void throw_bad_cast_error(const char* type) {
     MC_THROW(mc::invalid_arg_exception, "can not cast string to type: ${type}", ("type", type));
 }
 
+void throw_overflow_error(const char* type, std::string_view s) {
+    MC_THROW(mc::overflow_exception, "can not cast string to type ${type}, value ${value} overflow",
+             ("type", type)("value", s));
+}
+
+std::pair<int, std::string_view> detect_number_radix(std::string_view s) {
+    if (s.size() > 1 && s[0] == '0') {
+        const char c = s[1];
+        if (c == 'x' || c == 'X') {
+            return {16, s.substr(2)};
+        } else if (c == 'b' || c == 'B') {
+            return {2, s.substr(2)};
+        } else if (c >= '0' && c <= '7') {
+            return {8, s.substr(1)};
+        }
+    }
+
+    return {10, s};
+}
+
 } // namespace detail
 
 // 忽略大小写比较两个字符串是否相等
