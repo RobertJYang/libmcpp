@@ -9,6 +9,10 @@ test_files = [
   'test_signal_slot.cpp',
   'test_time.cpp',
 
+  # expr 目录
+  'expr/test_lexer.cpp',
+  'expr/test_expr.cpp',
+
   # core 目录
   'core/test_service_manager.cpp',
   'core/test_singleton.cpp',
@@ -82,6 +86,7 @@ test_files = [
   'variant/test_variant_standard_containers.cpp',
   'variant/test_variant_visitor.cpp',
   'variant/test_variant_io.cpp',
+  'variant/test_variant_operations.cpp',
 
   # engine 目录
   'engine/test_interface.cpp',

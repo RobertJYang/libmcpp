@@ -755,7 +755,7 @@ TEST_F(VariantOperationsTest, StringToNumberConversion) {
     // 加法 - 字符串拼接
     result = v_str_float + v_float;
     ASSERT_TRUE(result.is_string());
-    ASSERT_EQ(result, "45.6710.500000"); // 注意：浮点数转字符串可能有多位小数
+    ASSERT_EQ(result, "45.6710.5"); // 注意：浮点数转字符串可能有多位小数
 
     // 减法 - 尝试数值转换
     result = v_str_float - v_float;

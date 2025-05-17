@@ -619,4 +619,25 @@ bool mc::string::get_format_args(std::string_view format, mc::dict& arg_names) {
     return true;
 }
 
+std::string to_string(double value) {
+    char   buffer[64];
+    double intpart;
+    if (modf(value, &intpart) == 0.0) {
+        // 如果是整数值，不显示小数点和小数位
+        snprintf(buffer, sizeof(buffer), "%.0f", value);
+    } else {
+        // 先使用默认的6位小数格式
+        snprintf(buffer, sizeof(buffer), "%.6f", value);
+        // 移除末尾多余的0和小数点
+        char* end = buffer + strlen(buffer) - 1;
+        while (end > buffer && *end == '0') {
+            *end-- = '\0';
+        }
+        if (end > buffer && *end == '.') {
+            *end = '\0';
+        }
+    }
+    return buffer;
+}
+
 } // namespace mc

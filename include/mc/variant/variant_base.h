@@ -17,7 +17,9 @@
 #ifndef MC_VARIANT_VARIANT_BASE_H
 #define MC_VARIANT_VARIANT_BASE_H
 
+#include <cmath>
 #include <cstdint>
+#include <cstring>
 #include <memory>
 #include <optional>
 #include <ostream>
@@ -751,8 +753,9 @@ public:
         case type_id::uint32_type:
         case type_id::uint64_type:
             return std::to_string(m_uint64);
-        case type_id::double_type:
-            return std::to_string(m_double);
+        case type_id::double_type: {
+            return mc::to_string(m_double);
+        }
         case type_id::bool_type:
             return m_bool ? "true" : "false";
         case type_id::null_type:
@@ -1329,6 +1332,15 @@ public:
 
     // 字符串的复合赋值
     variant_base& operator+=(std::string_view other);
+
+    variant_base& operator++();
+    variant_base& operator--();
+    variant_base  operator++(int);
+    variant_base  operator--(int);
+
+    // 一元操作符
+    variant_base operator-() const;
+    variant_base operator!() const;
 
     /**
      * @brief 比较操作符

@@ -28,17 +28,17 @@ variant_base<Config> variant_base<Config>::operator+(const variant_base<OtherCon
     // 任意一个是字符串，使用字符串拼接
     if (is_string()) {
         if (other.is_string()) {
-            return variant_base<Config>(get_string() + other.get_string());
+            return {get_string() + other.get_string()};
         } else if (other.is_blob()) {
             std::string tmp;
             tmp.reserve(size() + other.size());
             tmp += get_string();
             tmp += other.get_blob().as_string_view();
-            return variant_base<Config>(std::move(tmp));
+            return {std::move(tmp)};
         }
-        return variant_base<Config>(get_string() + other.as_string());
+        return {get_string() + other.as_string()};
     } else if (other.is_string()) {
-        return variant_base<Config>(as_string() + other.get_string());
+        return {as_string() + other.get_string()};
     }
 
     // blob 只允许与 blob 或 string 相加
@@ -46,11 +46,11 @@ variant_base<Config> variant_base<Config>::operator+(const variant_base<OtherCon
         if (other.is_blob()) {
             auto blob = *m_blob_ptr;
             blob += other.get_blob();
-            return variant_base<Config>(std::move(blob));
+            return {std::move(blob)};
         } else if (other.is_string()) {
             auto blob = *m_blob_ptr;
             blob += other.get_string();
-            return variant_base<Config>(std::move(blob));
+            return {std::move(blob)};
         }
         throw_invalid_type_operation_error(get_type_name(), other.get_type_name(), "+");
     }
@@ -63,7 +63,7 @@ variant_base<Config> variant_base<Config>::operator+(const variant_base<OtherCon
         } else {
             result.push_back(other);
         }
-        return variant_base<Config>(std::move(result));
+        return {std::move(result)};
     }
 
     // 如果两个都是对象则使用对象拼接，否则抛出异常
@@ -71,20 +71,20 @@ variant_base<Config> variant_base<Config>::operator+(const variant_base<OtherCon
         if (!other.is_object()) {
             throw_invalid_type_operation_error(get_type_name(), other.get_type_name(), "+");
         }
-        return variant_base<Config>(*m_object_ptr + *other.m_object_ptr);
+        return {*m_object_ptr + *other.m_object_ptr};
     }
 
     // 尝试转换成数值相加，如果失败则抛出异常
     try {
         if (is_double() || other.is_double()) {
-            return variant_base<Config>(as_double() + other.as_double());
+            return {as_double() + other.as_double()};
         }
 
         if (is_unsigned_integer() && other.is_unsigned_integer()) {
-            return variant_base<Config>(as_uint64() + other.as_uint64());
+            return {as_uint64() + other.as_uint64()};
         }
 
-        return variant_base<Config>(as_int64() + other.as_int64());
+        return {as_int64() + other.as_int64()};
     } catch (const std::exception&) {
         throw_invalid_type_operation_error(get_type_name(), other.get_type_name(), "+");
     }
@@ -95,19 +95,19 @@ template <typename OtherConfig>
 variant_base<Config> variant_base<Config>::operator-(const variant_base<OtherConfig>& other) const {
     try {
         if (is_double() || other.is_double()) {
-            return variant_base<Config>(as_double() - other.as_double());
+            return {as_double() - other.as_double()};
         }
 
         if (is_unsigned_integer() && other.is_unsigned_integer()) {
             // 处理下溢
             if (as_uint64() < other.as_uint64()) {
-                return variant_base<Config>(static_cast<int64_t>(as_uint64()) -
-                                            static_cast<int64_t>(other.as_uint64()));
+                return {static_cast<int64_t>(as_uint64()) -
+                        static_cast<int64_t>(other.as_uint64())};
             }
-            return variant_base<Config>(as_uint64() - other.as_uint64());
+            return {as_uint64() - other.as_uint64()};
         }
 
-        return variant_base<Config>(as_int64() - other.as_int64());
+        return {as_int64() - other.as_int64()};
     } catch (const std::exception&) {
         throw_invalid_type_operation_error(get_type_name(), other.get_type_name(), "-");
     }
@@ -118,14 +118,14 @@ template <typename OtherConfig>
 variant_base<Config> variant_base<Config>::operator*(const variant_base<OtherConfig>& other) const {
     try {
         if (is_double() || other.is_double()) {
-            return variant_base<Config>(as_double() * other.as_double());
+            return {as_double() * other.as_double()};
         }
 
         if (is_unsigned_integer() && other.is_unsigned_integer()) {
-            return variant_base<Config>(as_uint64() * other.as_uint64());
+            return {as_uint64() * other.as_uint64()};
         }
 
-        return variant_base<Config>(as_int64() * other.as_int64());
+        return {as_int64() * other.as_int64()};
     } catch (const std::exception&) {
         throw_invalid_type_operation_error(get_type_name(), other.get_type_name(), "*");
     }
@@ -147,7 +147,7 @@ Variant1 variant_divide(const Variant1& self, const Variant2& other) {
         throw_divide_by_zero_exception("除零错误");
     }
 
-    return *s_value / *o_value;
+    return {*s_value / *o_value};
 }
 
 template <typename Config>
@@ -181,9 +181,9 @@ Variant1 variant_mod(const Variant1& self, const Variant2& other) {
     }
 
     if constexpr (std::is_floating_point_v<T>) {
-        return static_cast<int64_t>(*s_value) % static_cast<int64_t>(*o_value);
+        return {static_cast<int64_t>(*s_value) % static_cast<int64_t>(*o_value)};
     } else {
-        return *s_value % *o_value;
+        return {*s_value % *o_value};
     }
 }
 
@@ -208,10 +208,10 @@ template <typename OtherConfig>
 variant_base<Config> variant_base<Config>::operator&(const variant_base<OtherConfig>& other) const {
     try {
         if (is_unsigned_integer() && other.is_unsigned_integer()) {
-            return variant_base<Config>(as_uint64() & other.as_uint64());
+            return {as_uint64() & other.as_uint64()};
         }
 
-        return variant_base<Config>(as_int64() & other.as_int64());
+        return {as_int64() & other.as_int64()};
     } catch (const std::exception&) {
         throw_invalid_type_operation_error(get_type_name(), other.get_type_name(), "&");
     }
@@ -222,10 +222,10 @@ template <typename OtherConfig>
 variant_base<Config> variant_base<Config>::operator|(const variant_base<OtherConfig>& other) const {
     try {
         if (is_unsigned_integer() && other.is_unsigned_integer()) {
-            return variant_base<Config>(as_uint64() | other.as_uint64());
+            return {as_uint64() | other.as_uint64()};
         }
 
-        return variant_base<Config>(as_int64() | other.as_int64());
+        return {as_int64() | other.as_int64()};
     } catch (const std::exception&) {
         throw_invalid_type_operation_error(get_type_name(), other.get_type_name(), "|");
     }
@@ -236,10 +236,10 @@ template <typename OtherConfig>
 variant_base<Config> variant_base<Config>::operator^(const variant_base<OtherConfig>& other) const {
     try {
         if (is_unsigned_integer() && other.is_unsigned_integer()) {
-            return variant_base<Config>(as_uint64() ^ other.as_uint64());
+            return {as_uint64() ^ other.as_uint64()};
         }
 
-        return variant_base<Config>(as_int64() ^ other.as_int64());
+        return {as_int64() ^ other.as_int64()};
     } catch (const std::exception&) {
         throw_invalid_type_operation_error(get_type_name(), other.get_type_name(), "^");
     }
@@ -249,10 +249,10 @@ template <typename Config>
 variant_base<Config> variant_base<Config>::operator~() const {
     try {
         if (is_unsigned_integer()) {
-            return variant_base<Config>(~as_uint64());
+            return {~as_uint64()};
         }
 
-        return variant_base<Config>(~as_int64());
+        return {~as_int64()};
     } catch (const std::exception&) {
         throw_invalid_type_operation_error(get_type_name(), "", "~");
     }
@@ -265,12 +265,12 @@ variant_base<Config>::operator<<(const variant_base<OtherConfig>& other) const {
     try {
         uint64_t shift_amount = other.as_uint64();
         if (shift_amount >= sizeof(uint64_t) * 8) {
-            return variant_base<Config>(0);
+            return {0};
         }
         if (is_unsigned_integer()) {
-            return variant_base<Config>(as_uint64() << shift_amount);
+            return {as_uint64() << shift_amount};
         }
-        return variant_base<Config>(as_int64() << shift_amount);
+        return {as_int64() << shift_amount};
     } catch (const std::exception&) {
         throw_invalid_type_operation_error(get_type_name(), other.get_type_name(), "<<");
     }
@@ -284,14 +284,14 @@ variant_base<Config>::operator>>(const variant_base<OtherConfig>& other) const {
         uint64_t shift_amount = other.as_uint64();
         if (shift_amount >= sizeof(uint64_t) * 8) {
             if (is_signed_integer() && as_int64() < 0) {
-                return variant_base<Config>(-1); // 对负数，保持符号位
+                return {-1}; // 对负数，保持符号位
             }
-            return variant_base<Config>(0);
+            return {0};
         }
         if (is_unsigned_integer()) {
-            return variant_base<Config>(as_uint64() >> shift_amount);
+            return {as_uint64() >> shift_amount};
         }
-        return variant_base<Config>(as_int64() >> shift_amount);
+        return {as_int64() >> shift_amount};
     } catch (const std::exception&) {
         throw_invalid_type_operation_error(get_type_name(), other.get_type_name(), ">>");
     }
@@ -447,12 +447,12 @@ variant_base<Config> variant_base<Config>::operator<<(T other) const {
     try {
         uint64_t shift_amount = static_cast<uint64_t>(other);
         if (shift_amount >= sizeof(uint64_t) * 8) {
-            return variant_base<Config>(0);
+            return {0};
         }
         if (is_unsigned_integer()) {
-            return variant_base<Config>(as_uint64() << shift_amount);
+            return {as_uint64() << shift_amount};
         }
-        return variant_base<Config>(as_int64() << shift_amount);
+        return {as_int64() << shift_amount};
     } catch (const std::exception&) {
         throw_invalid_type_operation_error(get_type_name(), pretty_name<T>(), "<<");
     }
@@ -465,15 +465,15 @@ variant_base<Config> variant_base<Config>::operator>>(T other) const {
         uint64_t shift_amount = static_cast<uint64_t>(other);
         if (shift_amount >= sizeof(uint64_t) * 8) {
             if (is_signed_integer() && as_int64() < 0) {
-                return variant_base<Config>(-1); // 对负数，保持符号位
+                return {-1}; // 对负数，保持符号位
             }
-            return variant_base<Config>(0);
+            return {0};
         }
 
         if (is_unsigned_integer()) {
-            return variant_base<Config>(as_uint64() >> shift_amount);
+            return {as_uint64() >> shift_amount};
         }
-        return variant_base<Config>(as_int64() >> shift_amount);
+        return {as_int64() >> shift_amount};
     } catch (const std::exception&) {
         throw_invalid_type_operation_error(get_type_name(), pretty_name<T>(), ">>");
     }
@@ -741,6 +741,83 @@ inline variant_base<Config> operator+(std::string_view lhs, const variant_base<C
         tmp += s;
     }
     return variant_base<Config>(std::move(tmp));
+}
+
+// ======== 前置自增运算符 ========
+template <typename Config>
+variant_base<Config>& variant_base<Config>::operator++() {
+    if (is_double()) {
+        m_double += 1.0;
+    } else if (is_unsigned_integer()) {
+        m_uint64 += 1;
+    } else if (is_signed_integer()) {
+        m_int64 += 1;
+    } else if (is_bool()) {
+        m_bool = true; // bool类型自增后为true
+    } else {
+        throw_invalid_type_operation_error(get_type_name(), "", "++");
+    }
+    return *this;
+}
+
+// ======== 前置自减运算符 ========
+template <typename Config>
+variant_base<Config>& variant_base<Config>::operator--() {
+    if (is_double()) {
+        m_double -= 1.0;
+    } else if (is_unsigned_integer()) {
+        m_uint64 -= 1;
+    } else if (is_signed_integer()) {
+        m_int64 -= 1;
+    } else if (is_bool()) {
+        m_bool = false; // bool类型自减后为false
+    } else {
+        throw_invalid_type_operation_error(get_type_name(), "", "--");
+    }
+    return *this;
+}
+
+// ======== 后置自增运算符 ========
+template <typename Config>
+variant_base<Config> variant_base<Config>::operator++(int) {
+    variant_base<Config> temp(*this);
+    ++(*this);
+    return temp;
+}
+
+// ======== 后置自减运算符 ========
+template <typename Config>
+variant_base<Config> variant_base<Config>::operator--(int) {
+    variant_base<Config> temp(*this);
+    --(*this);
+    return temp;
+}
+
+// ======== 一元取反运算符 ========
+template <typename Config>
+variant_base<Config> variant_base<Config>::operator-() const {
+    try {
+        if (is_double()) {
+            return {-m_double};
+        } else if (is_unsigned_integer()) {
+            // 无符号数取负，需要转换为有符号数
+            return {-static_cast<int64_t>(m_uint64)};
+        } else if (is_signed_integer()) {
+            return {-m_int64};
+        } else if (is_bool()) {
+            return {m_bool ? -1 : 0};
+        } else {
+            return {-as_int64()};
+        }
+    } catch (const std::exception&) {
+        throw_invalid_type_operation_error(get_type_name(), "", "-");
+    }
+}
+
+// ======== 一元逻辑非运算符 ========
+template <typename Config>
+variant_base<Config> variant_base<Config>::operator!() const {
+    return {!as_bool()};
 }
 
 } // namespace mc

@@ -18,9 +18,13 @@
 
 namespace test {
 
+// 调用函数
+// 绑定对象
+//
 class my_task_object : public mc::engine::object<my_task_object> {
 public:
-    MC_OBJECT(my_task_object, "TaskObject", "/bmc/kepler/TaskService/Tasks/${Id}",
+    MC_OBJECT(my_task_object, "TaskObject",
+              "/bmc/kepler/TaskService/Tasks/${Id}_${concat(Position, SystemId)}",
               (my_task_interface))
 
     my_task_object(mc::core::object* parent = nullptr);
