@@ -208,7 +208,7 @@ struct extract_extractor<Tuple, Ptr, Ptrs...> {
         if constexpr (is_tag_v<mc::traits::remove_pointers_t<decltype(Ptr)>>) {
             return Tuple{};
         } else {
-            return mc::traits::tuple_append_t<Tuple, extractor_selector_t<Ptr>>{};
+            return mc::traits::type_append_t<Tuple, extractor_selector_t<Ptr>>{};
         }
     }
     using type = typename extract_extractor<decltype(get_type()), Ptrs...>::type;

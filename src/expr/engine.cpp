@@ -33,165 +33,68 @@ struct engine::impl {
     // 注册标准内置函数
     void register_standard_functions() {
         // 数学函数
-        built_in_functions["abs"] = make_simple_function(
-            "abs",
-            [](const mc::variants& args) -> mc::variant {
-                if (args.size() != 1) {
-                    MC_THROW(invalid_arg_exception, "表达式求值错误: abs 函数需要一个参数");
-                }
-
-                const mc::variant& arg = args[0];
-                if (arg.is_double()) {
-                    return std::fabs(arg.as_double());
-                } else if (arg.is_integer()) {
-                    return std::abs(arg.as_int64());
-                }
-
-                MC_THROW(invalid_op_exception, "表达式求值错误: abs 函数参数必须是数值类型");
-            },
-            1);
-
-        built_in_functions["min"] = make_simple_function(
-            "min",
-            [](const mc::variants& args) -> mc::variant {
-                if (args.size() < 2) {
-                    MC_THROW(invalid_arg_exception, "表达式求值错误: min 函数至少需要两个参数");
-                }
-
-                mc::variant result = args[0];
-                for (size_t i = 1; i < args.size(); ++i) {
-                    if (args[i].is_numeric() && result.is_numeric()) {
-                        if (args[i].as_double() < result.as_double()) {
-                            result = args[i];
-                        }
+        built_in_functions["abs"] =
+            make_simple_function("abs", [](const mc::variant& value) -> mc::variant {
+                try {
+                    if (value.is_double()) {
+                        return std::fabs(value.as_double());
                     } else {
-                        MC_THROW(invalid_op_exception,
-                                 "表达式求值错误: min 函数参数必须是数值类型");
+                        return std::abs(value.as_int64());
                     }
+                } catch (const std::exception&) {
+                    MC_THROW(invalid_op_exception, "表达式求值错误: abs 函数参数必须是数值类型");
                 }
+            });
 
-                return result;
-            },
-            -1);
-
-        built_in_functions["max"] = make_simple_function(
-            "max",
-            [](const mc::variants& args) -> mc::variant {
-                if (args.size() < 2) {
-                    MC_THROW(invalid_arg_exception, "表达式求值错误: max 函数至少需要两个参数");
+        built_in_functions["min"] = make_simple_function("min", [](const mc::variants& args) {
+            mc::variant result = args[0];
+            for (size_t i = 1; i < args.size(); ++i) {
+                if (args[i] < result) {
+                    result = args[i];
                 }
+            }
 
-                mc::variant result = args[0];
-                for (size_t i = 1; i < args.size(); ++i) {
-                    if (args[i].is_numeric() && result.is_numeric()) {
-                        if (args[i].as_double() > result.as_double()) {
-                            result = args[i];
-                        }
-                    } else {
-                        MC_THROW(invalid_op_exception,
-                                 "表达式求值错误: max 函数参数必须是数值类型");
-                    }
+            return result;
+        });
+
+        built_in_functions["max"] = make_simple_function("max", [](const mc::variants& args) {
+            mc::variant result = args[0];
+            for (size_t i = 1; i < args.size(); ++i) {
+                if (args[i] > result) {
+                    result = args[i];
                 }
+            }
 
-                return result;
-            },
-            -1);
+            return result;
+        });
 
         // 字符串函数
-        built_in_functions["length"] = make_simple_function(
-            "length",
-            [](const mc::variants& args) -> mc::variant {
-                if (args.size() != 1) {
-                    MC_THROW(invalid_arg_exception, "表达式求值错误: length 函数需要一个参数");
-                }
+        built_in_functions["length"] = make_simple_function("length", [](const mc::variant& arg) {
+            return arg.size();
+        });
 
-                const mc::variant& arg = args[0];
-                if (arg.is_string()) {
-                    return static_cast<int64_t>(arg.get_string().size());
-                } else if (arg.is_array()) {
-                    return static_cast<int64_t>(arg.get_array().size());
-                }
-
-                MC_THROW(invalid_op_exception,
-                         "表达式求值错误: length 函数参数必须是字符串或数组类型");
-            },
-            1);
-
-        built_in_functions["concat"] = make_simple_function(
-            "concat",
-            [](const mc::variants& args) -> mc::variant {
-                if (args.empty()) {
-                    return std::string();
-                }
-
-                std::string result;
-                for (const auto& arg : args) {
-                    if (arg.is_string()) {
-                        result += arg.get_string();
-                    } else {
-                        result += mc::to_string(arg);
-                    }
-                }
-
-                return result;
-            },
-            -1);
+        built_in_functions["concat"] = make_simple_function("concat", [](const mc::variants& args) {
+            mc::variant result(mc::type_id::string_type);
+            for (const auto& arg : args) {
+                result += arg;
+            }
+            return result;
+        });
 
         // 类型转换函数
-        built_in_functions["toNumber"] = make_simple_function(
-            "toNumber",
-            [](const mc::variants& args) -> mc::variant {
-                if (args.size() != 1) {
-                    MC_THROW(invalid_arg_exception, "表达式求值错误: toNumber 函数需要一个参数");
-                }
+        built_in_functions["to_number"] =
+            make_simple_function("to_number", [](const mc::variant& arg) {
+                return arg.as_int64();
+            });
 
-                const mc::variant& arg = args[0];
-                if (arg.is_numeric()) {
-                    return arg;
-                } else if (arg.is_string()) {
-                    try {
-                        return std::stod(arg.get_string());
-                    } catch (const std::exception&) {
-                        MC_THROW(invalid_op_exception, "表达式求值错误: 无法将字符串转换为数值");
-                    }
-                } else if (arg.is_bool()) {
-                    return arg.as_bool() ? 1.0 : 0.0;
-                }
+        built_in_functions["to_string"] =
+            make_simple_function("to_string", [](const mc::variant& arg) {
+                return arg.as_string();
+            });
 
-                MC_THROW(invalid_op_exception, "表达式求值错误: 无法将参数转换为数值");
-            },
-            1);
-
-        built_in_functions["toString"] = make_simple_function(
-            "toString",
-            [](const mc::variants& args) -> mc::variant {
-                if (args.size() != 1) {
-                    MC_THROW(invalid_arg_exception, "表达式求值错误: toString 函数需要一个参数");
-                }
-
-                return mc::to_string(args[0]);
-            },
-            1);
-
-        built_in_functions["toBoolean"] = make_simple_function(
-            "toBoolean",
-            [](const mc::variants& args) -> mc::variant {
-                if (args.size() != 1) {
-                    MC_THROW(invalid_arg_exception, "表达式求值错误: toBoolean 函数需要一个参数");
-                }
-
-                const mc::variant& arg = args[0];
-                if (arg.is_bool()) {
-                    return arg;
-                } else if (arg.is_numeric()) {
-                    return arg.as_double() != 0;
-                } else if (arg.is_string()) {
-                    return !arg.get_string().empty();
-                }
-
-                return false;
-            },
-            1);
+        built_in_functions["to_bool"] = make_simple_function("to_bool", [](const mc::variant& arg) {
+            return arg.as_bool();
+        });
     }
 };
 

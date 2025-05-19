@@ -324,6 +324,8 @@ public:
         return m_data.get();
     }
 
+    mutable_dict as_mut() const;
+
 protected:
     /**
      * @brief 存储数据的结构
@@ -372,8 +374,6 @@ protected:
      * @return 元素的索引位置，如果元素不存在则返回 -1
      */
     int find_entry_index(const entry* e) const;
-
-    mutable_dict mut() const;
 };
 
 /**
@@ -608,6 +608,13 @@ public:
     const_iterator find(std::string_view key) const;
     const_iterator find(const char* key) const;
     const_iterator find(const variant& key) const;
+
+    /**
+     * @brief 合并两个字典
+     * @param other 要合并的字典
+     * @return 合并后的字典
+     */
+    mutable_dict& operator+=(const mutable_dict& other);
 
     // 继承基类的const版本operator[]
     using dict::operator[];

@@ -12,12 +12,4 @@
 
 #include <mc/expr/function.h>
 
-namespace mc::expr {
-
-// 创建一个简单函数
-std::shared_ptr<function> make_simple_function(const std::string&             name,
-                                               simple_function::function_type func, int arg_count) {
-    return std::make_shared<simple_function>(name, std::move(func), arg_count);
-}
-
-} // namespace mc::expr
+namespace mc::expr {} // namespace mc::expr

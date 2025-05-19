@@ -361,7 +361,7 @@ dict dict::operator+(const dict& other) const {
     return dict(result);
 }
 
-mutable_dict dict::mut() const {
+mutable_dict dict::as_mut() const {
     return mutable_dict(*this);
 }
 

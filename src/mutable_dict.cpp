@@ -348,4 +348,11 @@ dict::data_t& mutable_dict::ensure_data() const {
     return *m_data;
 }
 
+mutable_dict& mutable_dict::operator+=(const mutable_dict& other) {
+    for (const auto& item : other.m_data->entries) {
+        (*this)(item.key, item.value);
+    }
+    return *this;
+}
+
 } // namespace mc

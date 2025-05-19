@@ -21,6 +21,44 @@ namespace mc {
 
 namespace traits {
 
+// 追加类型到一个 Types 的后面
+template <typename Types, typename T>
+struct type_append;
+
+template <typename... Types, typename T>
+struct type_append<std::tuple<Types...>, T> {
+    using type = std::tuple<Types..., T>;
+};
+
+template <typename... Types>
+using type_append_t = typename type_append<Types...>::type;
+
+// 追加类型到一个 Types 的前面
+template <typename Types, typename T>
+struct type_prepend;
+
+template <typename... Types, typename T>
+struct type_prepend<std::tuple<Types...>, T> {
+    using type = std::tuple<T, Types...>;
+};
+
+template <typename... Types>
+using type_prepend_t = typename type_prepend<Types...>::type;
+
+// 定义一个模板，将一个模板应用到 Types 上
+template <template <typename...> class To, typename Types>
+struct apply_type;
+
+// 特化处理std::tuple
+template <template <typename...> class To, typename... Types>
+struct apply_type<To, std::tuple<Types...>> {
+    using type = To<Types...>;
+};
+
+// 辅助别名模板
+template <template <typename...> class To, typename Types>
+using apply_type_t = typename apply_type<To, Types>::type;
+
 template <typename T>
 struct remove_cvref {
     using type = std::remove_cv_t<std::remove_reference_t<T>>;
@@ -47,8 +85,9 @@ struct function_traits;
 template <typename R, typename... Args>
 struct function_traits<R(Args...)> {
     using return_type                  = R;
-    using args_tuple                   = std::tuple<Args...>;
+    using args_type                    = std::tuple<Args...>;
     static constexpr size_t args_count = sizeof...(Args);
+    using function_type                = std::function<R(Args...)>;
 };
 
 // 函数指针
@@ -75,8 +114,9 @@ private:
 
 public:
     using return_type                  = typename call_type::return_type;
-    using args_tuple                   = typename call_type::args_tuple;
+    using args_type                    = typename call_type::args_type;
     static constexpr size_t args_count = call_type::args_count;
+    using function_type                = typename call_type::function_type;
 };
 
 // 引用类型的特化，移除引用
@@ -158,18 +198,6 @@ struct has_operator_equal<T, U, std::void_t<decltype(std::declval<T>() == std::d
 template <typename T, typename U = T>
 inline constexpr bool has_operator_equal_v = has_operator_equal<T, U>::value;
 
-// 追加类型到一个 std::tuple 中
-template <typename Tuple, typename T>
-struct tuple_append;
-
-template <typename... Types, typename T>
-struct tuple_append<std::tuple<Types...>, T> {
-    using type = std::tuple<Types..., T>;
-};
-
-template <typename... Tuples>
-using tuple_append_t = typename tuple_append<Tuples...>::type;
-
 // 移除多级指针类型
 template <typename T>
 struct remove_pointers {
@@ -183,6 +211,7 @@ struct remove_pointers<T*> {
 // 别名模板简化使用
 template <typename T>
 using remove_pointers_t = typename remove_pointers<remove_cvref_t<T>>::type;
+
 } // namespace traits
 } // namespace mc
 

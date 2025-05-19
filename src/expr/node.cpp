@@ -117,8 +117,9 @@ mc::variant function_call_node::evaluate(const context& ctx) const {
     std::shared_ptr<function> func = ctx.get_function(m_name);
 
     mc::variants args;
+    args.reserve(m_args.size());
     for (const auto& arg_node : m_args) {
-        args.push_back(arg_node->evaluate(ctx));
+        args.emplace_back(arg_node->evaluate(ctx));
     }
 
     return func->call(args);

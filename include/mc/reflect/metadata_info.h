@@ -301,12 +301,19 @@ struct method_info_base : public method_type_info {
 
 namespace detail {
 template <typename Arg>
-static Arg convert_arg(std::string_view name, const mc::variant& var) {
+static auto convert_arg(std::string_view name, const mc::variant& var)
+    -> std::enable_if_t<!mc::is_variant_v<std::decay_t<Arg>>, Arg> {
     if (auto arg = var.try_as<Arg>(); arg) {
         return *arg;
     }
 
     throw_method_arg_not_match(name, pretty_name<Arg>(), var.get_type_name());
+}
+
+template <typename Arg>
+static auto convert_arg(std::string_view name, const mc::variant& var)
+    -> std::enable_if_t<mc::is_variant_v<std::decay_t<Arg>>, const mc::variant&> {
+    return var;
 }
 } // namespace detail
 
@@ -353,11 +360,21 @@ public:
     variant invoke(Class& obj, const variants& args) const override {
         constexpr size_t arg_count = sizeof...(Args);
 
-        if (args.size() < arg_count) {
-            throw_method_arg_not_enough(this->name, arg_count, args.size());
-        }
+        // 如果是单个参数，且参数类型是 mc::variants，优化一下直接调用
+        if constexpr (std::is_same_v<args_type, std::tuple<mc::variants>>) {
+            if constexpr (std::is_void_v<RetType>) {
+                (obj.*m_function)(args);
+                return {};
+            } else {
+                return mc::variant((obj.*m_function)(args));
+            }
+        } else {
+            if (args.size() < arg_count) {
+                throw_method_arg_not_enough(this->name, arg_count, args.size());
+            }
 
-        return call_with_exact_args(obj, args, std::make_index_sequence<arg_count>());
+            return call_with_exact_args(obj, args, std::make_index_sequence<arg_count>());
+        }
     }
 
     std::type_index typeinfo() const override {

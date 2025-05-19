@@ -116,28 +116,42 @@ TEST(ExprTest, Functions) {
     EXPECT_EQ(engine.evaluate("concat('a', 'b', 'c')", ctx), "abc");
 
     // 测试类型转换函数
-    EXPECT_EQ(engine.evaluate("toNumber('42')", ctx), 42);
-    EXPECT_EQ(engine.evaluate("toString(42)", ctx), "42");
-    EXPECT_TRUE(engine.evaluate("toBoolean(1)", ctx));
-    EXPECT_FALSE(engine.evaluate("toBoolean(0)", ctx));
-    EXPECT_TRUE(engine.evaluate("toBoolean('true')", ctx));
-    EXPECT_FALSE(engine.evaluate("toBoolean('')", ctx));
+    EXPECT_EQ(engine.evaluate("to_number('42')", ctx), 42);
+    EXPECT_EQ(engine.evaluate("to_string(42)", ctx), "42");
+    EXPECT_TRUE(engine.evaluate("to_bool(1)", ctx));
+    EXPECT_FALSE(engine.evaluate("to_bool(0)", ctx));
+    EXPECT_TRUE(engine.evaluate("to_bool('true')", ctx));
+    EXPECT_FALSE(engine.evaluate("to_bool('')", ctx));
 
-    // 自定义函数
-    auto square_func = mc::expr::make_simple_function(
-        "square",
-        [](const mc::variants& args) -> mc::variant {
-            if (args.size() != 1) {
-                MC_THROW(mc::invalid_arg_exception, "square 函数需要一个参数");
-            }
-            double value = args[0].as_double();
-            return value * value;
-        },
-        1);
+    auto square_func = mc::expr::make_simple_function("square", [](double value) {
+        return value * value;
+    });
 
     ctx.set_function(square_func);
     EXPECT_EQ(engine.evaluate("square(3)", ctx), 9.0);
     EXPECT_EQ(engine.evaluate("square(4 + 1)", ctx), 25.0);
+
+    // 测试多参数函数
+    auto sum_func = mc::expr::make_simple_function("sum", [](double a, double b, double c) {
+        return a + b + c;
+    });
+
+    ctx.set_function(sum_func);
+    EXPECT_EQ(engine.evaluate("sum(1, 2, 3)", ctx), 6.0);
+
+    // 测试返回字符串的函数
+    auto greet_func = mc::expr::make_simple_function("greet", [](const std::string& name) {
+        return "Hello, " + name + "!";
+    });
+
+    ctx.set_function(greet_func);
+    EXPECT_EQ(engine.evaluate("greet('World')", ctx), "Hello, World!");
+
+    // 测试参数不足的情况
+    EXPECT_THROW(engine.evaluate("sum(1, 2)", ctx), mc::invalid_arg_exception);
+
+    // 测试类型不匹配的情况
+    EXPECT_THROW(engine.evaluate("square('not a number')", ctx), mc::bad_cast_exception);
 }
 
 TEST(ExprTest, Errors) {

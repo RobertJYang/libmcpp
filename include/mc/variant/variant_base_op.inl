@@ -506,6 +506,47 @@ variant_base<Config> variant_base<Config>::operator+(std::string_view other) con
 template <typename Config>
 template <typename OtherConfig>
 variant_base<Config>& variant_base<Config>::operator+=(const variant_base<OtherConfig>& other) {
+    if (is_string()) {
+        if (other.is_string()) {
+            m_string_ptr->append(*other.m_string_ptr);
+        } else if (other.is_blob()) {
+            m_string_ptr->append(other.get_blob().as_string_view());
+        } else {
+            m_string_ptr->append(other.as_string());
+        }
+        return *this;
+    }
+
+    if (is_blob()) {
+        auto& blob = *m_blob_ptr;
+        if (other.is_string()) {
+            blob += other.get_string();
+        } else if (other.is_blob()) {
+            blob += other.get_blob();
+        } else {
+            throw_invalid_type_operation_error(get_type_name(), other.get_type_name(), "+=");
+        }
+        return *this;
+    }
+
+    if (is_array()) {
+        auto& array = *m_array_ptr;
+        if (other.is_array()) {
+            array.insert(array.end(), other.get_array().begin(), other.get_array().end());
+        } else {
+            array.push_back(other);
+        }
+        return *this;
+    }
+
+    if (is_object()) {
+        if (!other.is_object()) {
+            throw_invalid_type_operation_error(get_type_name(), other.get_type_name(), "+=");
+        }
+        m_object_ptr->as_mut() += *other.m_object_ptr;
+        return *this;
+    }
+
     set_value(*this + other);
     return *this;
 }
@@ -818,6 +859,84 @@ variant_base<Config> variant_base<Config>::operator-() const {
 template <typename Config>
 variant_base<Config> variant_base<Config>::operator!() const {
     return {!as_bool()};
+}
+
+template <typename Config>
+template <typename OtherConfig>
+void variant_base<Config>::set_value(const variant_base<OtherConfig>& other) {
+    switch (m_type) {
+    case type_id::int8_type: {
+        m_int64 = other.as_int8();
+        break;
+    }
+    case type_id::uint8_type: {
+        m_uint64 = other.as_uint8();
+        break;
+    }
+    case type_id::int16_type: {
+        m_int64 = other.as_int16();
+        break;
+    }
+    case type_id::uint16_type: {
+        m_uint64 = other.as_uint16();
+        break;
+    }
+    case type_id::int32_type: {
+        m_int64 = other.as_int32();
+        break;
+    }
+    case type_id::uint32_type: {
+        m_uint64 = other.as_uint32();
+        break;
+    }
+    case type_id::int64_type: {
+        m_int64 = other.as_int64();
+        break;
+    }
+    case type_id::uint64_type: {
+        m_uint64 = other.as_uint64();
+        break;
+    }
+    case type_id::double_type: {
+        m_double = other.as_double();
+        break;
+    }
+    case type_id::bool_type: {
+        m_bool = other.as_bool();
+        break;
+    }
+    case type_id::string_type: {
+        *m_string_ptr = other.as_string();
+        break;
+    }
+    case type_id::array_type: {
+        *m_array_ptr = other.as_array();
+        break;
+    }
+    case type_id::object_type: {
+        *m_object_ptr = other.as_object();
+        break;
+    }
+    case type_id::blob_type: {
+        *m_blob_ptr = other.as_blob();
+        break;
+    }
+    default:
+        throw_unknow_type_error(m_type);
+        break;
+    }
+}
+
+template <typename Config>
+template <typename OtherConfig>
+void variant_base<Config>::set_value(variant_base<OtherConfig>&& other) {
+    if (m_type == other.m_type) {
+        // 如果类型相同，直接移动内容
+        swap(other);
+    } else {
+        // 调用普通的常量引用版本
+        set_value(other);
+    }
 }
 
 } // namespace mc
