@@ -10,7 +10,6 @@
  * See the Mulan PSL v2 for more details.
  */
 
-#include <mc/expr/error.h>
 #include <mc/expr/function.h>
 
 namespace mc::expr {

@@ -13,7 +13,6 @@
 #include <mc/exception.h>
 #include <mc/expr/context.h>
 #include <mc/expr/engine.h>
-#include <mc/expr/error.h>
 #include <mc/expr/function.h>
 #include <mc/expr/lexer.h>
 #include <mc/expr/node.h>
@@ -38,7 +37,7 @@ struct engine::impl {
             "abs",
             [](const mc::variants& args) -> mc::variant {
                 if (args.size() != 1) {
-                    MC_THROW(eval_error, "表达式求值错误: abs 函数需要一个参数");
+                    MC_THROW(invalid_arg_exception, "表达式求值错误: abs 函数需要一个参数");
                 }
 
                 const mc::variant& arg = args[0];
@@ -48,7 +47,7 @@ struct engine::impl {
                     return std::abs(arg.as_int64());
                 }
 
-                MC_THROW(type_error, "表达式求值错误: abs 函数参数必须是数值类型");
+                MC_THROW(invalid_op_exception, "表达式求值错误: abs 函数参数必须是数值类型");
             },
             1);
 
@@ -56,7 +55,7 @@ struct engine::impl {
             "min",
             [](const mc::variants& args) -> mc::variant {
                 if (args.size() < 2) {
-                    MC_THROW(eval_error, "表达式求值错误: min 函数至少需要两个参数");
+                    MC_THROW(invalid_arg_exception, "表达式求值错误: min 函数至少需要两个参数");
                 }
 
                 mc::variant result = args[0];
@@ -66,7 +65,8 @@ struct engine::impl {
                             result = args[i];
                         }
                     } else {
-                        MC_THROW(type_error, "表达式求值错误: min 函数参数必须是数值类型");
+                        MC_THROW(invalid_op_exception,
+                                 "表达式求值错误: min 函数参数必须是数值类型");
                     }
                 }
 
@@ -78,7 +78,7 @@ struct engine::impl {
             "max",
             [](const mc::variants& args) -> mc::variant {
                 if (args.size() < 2) {
-                    MC_THROW(eval_error, "表达式求值错误: max 函数至少需要两个参数");
+                    MC_THROW(invalid_arg_exception, "表达式求值错误: max 函数至少需要两个参数");
                 }
 
                 mc::variant result = args[0];
@@ -88,7 +88,8 @@ struct engine::impl {
                             result = args[i];
                         }
                     } else {
-                        MC_THROW(type_error, "表达式求值错误: max 函数参数必须是数值类型");
+                        MC_THROW(invalid_op_exception,
+                                 "表达式求值错误: max 函数参数必须是数值类型");
                     }
                 }
 
@@ -101,7 +102,7 @@ struct engine::impl {
             "length",
             [](const mc::variants& args) -> mc::variant {
                 if (args.size() != 1) {
-                    MC_THROW(eval_error, "表达式求值错误: length 函数需要一个参数");
+                    MC_THROW(invalid_arg_exception, "表达式求值错误: length 函数需要一个参数");
                 }
 
                 const mc::variant& arg = args[0];
@@ -111,7 +112,8 @@ struct engine::impl {
                     return static_cast<int64_t>(arg.get_array().size());
                 }
 
-                MC_THROW(type_error, "表达式求值错误: length 函数参数必须是字符串或数组类型");
+                MC_THROW(invalid_op_exception,
+                         "表达式求值错误: length 函数参数必须是字符串或数组类型");
             },
             1);
 
@@ -140,7 +142,7 @@ struct engine::impl {
             "toNumber",
             [](const mc::variants& args) -> mc::variant {
                 if (args.size() != 1) {
-                    MC_THROW(eval_error, "表达式求值错误: toNumber 函数需要一个参数");
+                    MC_THROW(invalid_arg_exception, "表达式求值错误: toNumber 函数需要一个参数");
                 }
 
                 const mc::variant& arg = args[0];
@@ -150,13 +152,13 @@ struct engine::impl {
                     try {
                         return std::stod(arg.get_string());
                     } catch (const std::exception&) {
-                        MC_THROW(type_error, "表达式求值错误: 无法将字符串转换为数值");
+                        MC_THROW(invalid_op_exception, "表达式求值错误: 无法将字符串转换为数值");
                     }
                 } else if (arg.is_bool()) {
                     return arg.as_bool() ? 1.0 : 0.0;
                 }
 
-                MC_THROW(type_error, "表达式求值错误: 无法将参数转换为数值");
+                MC_THROW(invalid_op_exception, "表达式求值错误: 无法将参数转换为数值");
             },
             1);
 
@@ -164,7 +166,7 @@ struct engine::impl {
             "toString",
             [](const mc::variants& args) -> mc::variant {
                 if (args.size() != 1) {
-                    MC_THROW(eval_error, "表达式求值错误: toString 函数需要一个参数");
+                    MC_THROW(invalid_arg_exception, "表达式求值错误: toString 函数需要一个参数");
                 }
 
                 return mc::to_string(args[0]);
@@ -175,7 +177,7 @@ struct engine::impl {
             "toBoolean",
             [](const mc::variants& args) -> mc::variant {
                 if (args.size() != 1) {
-                    MC_THROW(eval_error, "表达式求值错误: toBoolean 函数需要一个参数");
+                    MC_THROW(invalid_arg_exception, "表达式求值错误: toBoolean 函数需要一个参数");
                 }
 
                 const mc::variant& arg = args[0];
@@ -215,7 +217,7 @@ mc::variant engine::evaluate(std::string_view expr, const context& ctx) {
 // 注册函数
 void engine::register_function(std::shared_ptr<function> func) {
     if (!func) {
-        MC_THROW(error, "表达式引擎错误: 函数指针不能为空");
+        MC_THROW(invalid_arg_exception, "表达式引擎错误: 函数指针不能为空");
     }
 
     m_impl->built_in_functions[func->get_name()] = std::move(func);

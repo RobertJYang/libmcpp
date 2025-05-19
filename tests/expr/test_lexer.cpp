@@ -12,7 +12,7 @@
 
 #include <gtest/gtest.h>
 #include <mc/dict.h>
-#include <mc/expr/error.h>
+#include <mc/exception.h>
 #include <mc/expr/lexer.h>
 #include <mc/expr/token.h>
 
@@ -81,7 +81,7 @@ TEST(LexerTest, ErrorCases) {
             mc::expr::lexer lexer("0xGH");
             lexer.scan_tokens();
         },
-        mc::expr::parse_error);
+        mc::parse_error_exception);
 
     // 非法的二进制数字
     EXPECT_THROW(
@@ -89,5 +89,5 @@ TEST(LexerTest, ErrorCases) {
             mc::expr::lexer lexer("0b102");
             lexer.scan_tokens();
         },
-        mc::expr::parse_error);
+        mc::parse_error_exception);
 }

@@ -10,7 +10,7 @@
  * See the Mulan PSL v2 for more details.
  */
 
-#include <mc/expr/error.h>
+#include <mc/exception.h>
 #include <mc/expr/lexer.h>
 #include <mc/string.h>
 
@@ -230,7 +230,7 @@ void lexer::scan_string() {
     });
 
     if (is_at_end()) {
-        MC_THROW(parse_error, "表达式解析错误: 未闭合的字符串");
+        MC_THROW(parse_error_exception, "表达式解析错误: 未闭合的字符串");
     }
 
     // 跳过结束引号
@@ -292,12 +292,12 @@ void lexer::scan_number() {
     std::string_view num_str = lexeme();
     if ((radix == 16 || radix == 2)) {
         // 只有前缀(如'0x'/'0b')但没有数字部分
-        MC_ASSERT_THROW(lexlen() > 2, parse_error, "表达式解析错误: 无效的${type}数字",
+        MC_ASSERT_THROW(lexlen() > 2, parse_error_exception, "表达式解析错误: 无效的${type}数字",
                         ("type", radix == 16 ? "十六进制" : "二进制"));
         num_str = num_str.substr(2); // 去掉前缀'0x'/'0b'
     } else if (radix == 8) {
         // 只有前缀(如'0')但没有数字部分
-        MC_ASSERT_THROW(lexlen() > 1, parse_error, "表达式解析错误: 无效的八进制数字");
+        MC_ASSERT_THROW(lexlen() > 1, parse_error_exception, "表达式解析错误: 无效的八进制数字");
         num_str = num_str.substr(1); // 去掉前缀'0'
     }
 
@@ -305,7 +305,7 @@ void lexer::scan_number() {
     if (!is_at_end()) {
         char next               = peek();
         bool is_valid_delimiter = is_whitespace(next) || !is_alnum(next);
-        MC_ASSERT_THROW(is_valid_delimiter, parse_error,
+        MC_ASSERT_THROW(is_valid_delimiter, parse_error_exception,
                         "表达式解析错误: 数字 ${num} 后面跟随了非法字符 '${char}'",
                         ("num", lexeme())("char", std::string(1, next)));
     }
@@ -313,15 +313,16 @@ void lexer::scan_number() {
     // 如果是浮点数，直接处理
     if (radix == -1) {
         double value;
-        MC_ASSERT_THROW(mc::string::try_to_number<double>(lexeme(), value), parse_error,
+        MC_ASSERT_THROW(mc::string::try_to_number<double>(lexeme(), value), parse_error_exception,
                         "表达式解析错误: 无法解析浮点数 ${num}", ("num", lexeme()));
         add_token(token_type::number, mc::variant(value));
         return;
     }
 
     int64_t value;
-    MC_ASSERT_THROW(mc::string::try_to_number<int64_t>(num_str, value, radix), parse_error,
-                    "表达式解析错误: 无法解析数字 ${num}", ("num", lexeme()));
+    MC_ASSERT_THROW(mc::string::try_to_number<int64_t>(num_str, value, radix),
+                    parse_error_exception, "表达式解析错误: 无法解析数字 ${num}",
+                    ("num", lexeme()));
     add_token(token_type::number, mc::variant(value));
 }
 

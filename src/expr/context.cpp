@@ -12,7 +12,6 @@
 
 #include <mc/exception.h>
 #include <mc/expr/context.h>
-#include <mc/expr/error.h>
 #include <mc/expr/function.h>
 
 namespace mc::expr {
@@ -51,7 +50,7 @@ void context::import_from_dict(const mc::dict& dict) {
 
 void context::set_function(std::shared_ptr<function> func) {
     if (!func) {
-        MC_THROW(error, "表达式上下文错误: 函数指针不能为空");
+        MC_THROW(invalid_arg_exception, "表达式上下文错误: 函数指针不能为空");
     }
 
     m_functions[func->get_name()] = std::move(func);

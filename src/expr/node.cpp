@@ -13,7 +13,6 @@
 #include <cmath>
 #include <mc/exception.h>
 #include <mc/expr/context.h>
-#include <mc/expr/error.h>
 #include <mc/expr/function.h>
 #include <mc/expr/node.h>
 
@@ -27,7 +26,7 @@ mc::variant literal_node::evaluate(const context& ctx) const {
 // 变量节点求值
 mc::variant variable_node::evaluate(const context& ctx) const {
     if (!ctx.has_variable(m_name)) {
-        MC_THROW(eval_error, "表达式求值错误: 未定义的变量 '${name}'", ("name", m_name));
+        MC_THROW(invalid_arg_exception, "表达式求值错误: 未定义的变量 '${name}'", ("name", m_name));
     }
     return ctx.get_variable(m_name);
 }
@@ -44,7 +43,7 @@ mc::variant unary_op_node::evaluate(const context& ctx) const {
     case operator_type::bit_not:
         return ~operand_val;
     default:
-        MC_THROW(eval_error, "表达式求值错误: 不支持的一元操作符");
+        MC_THROW(invalid_arg_exception, "表达式求值错误: 不支持的一元操作符");
     }
 }
 
@@ -105,14 +104,14 @@ mc::variant binary_op_node::evaluate(const context& ctx) const {
     case operator_type::rshift:
         return left_val >> right_val;
     default:
-        MC_THROW(eval_error, "表达式求值错误: 不支持的二元操作符");
+        MC_THROW(invalid_arg_exception, "表达式求值错误: 不支持的二元操作符");
     }
 }
 
 // 函数调用节点求值
 mc::variant function_call_node::evaluate(const context& ctx) const {
     if (!ctx.has_function(m_name)) {
-        MC_THROW(eval_error, "表达式求值错误: 未定义的函数 '${name}'", ("name", m_name));
+        MC_THROW(invalid_arg_exception, "表达式求值错误: 未定义的函数 '${name}'", ("name", m_name));
     }
 
     std::shared_ptr<function> func = ctx.get_function(m_name);

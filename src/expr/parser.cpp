@@ -10,7 +10,7 @@
  * See the Mulan PSL v2 for more details.
  */
 
-#include <mc/expr/error.h>
+#include <mc/exception.h>
 #include <mc/expr/parser.h>
 
 namespace mc::expr {
@@ -275,13 +275,13 @@ std::shared_ptr<node> parser::primary() {
         auto expr = expression();
 
         if (!match({token_type::right_paren})) {
-            MC_THROW(parse_error, "表达式解析错误: 期望右括号");
+            MC_THROW(parse_error_exception, "表达式解析错误: 期望右括号");
         }
 
         return expr;
     }
 
-    MC_THROW(parse_error, "表达式解析错误: 期望表达式");
+    MC_THROW(parse_error_exception, "表达式解析错误: 期望表达式");
 }
 
 // 解析函数调用
@@ -290,7 +290,7 @@ std::shared_ptr<node> parser::function_call() {
 
     // 匹配左括号
     if (!match({token_type::left_paren})) {
-        MC_THROW(parse_error, "表达式解析错误: 期望左括号");
+        MC_THROW(parse_error_exception, "表达式解析错误: 期望左括号");
     }
 
     std::vector<std::shared_ptr<node>> arguments;
@@ -304,7 +304,7 @@ std::shared_ptr<node> parser::function_call() {
 
     // 匹配右括号
     if (!match({token_type::right_paren})) {
-        MC_THROW(parse_error, "表达式解析错误: 期望右括号");
+        MC_THROW(parse_error_exception, "表达式解析错误: 期望右括号");
     }
 
     return make_function_call(function_name, std::move(arguments));
@@ -314,10 +314,10 @@ std::shared_ptr<node> parser::function_call() {
 std::shared_ptr<node> parser::parse() {
     try {
         return expression();
-    } catch (const parse_error&) {
+    } catch (const parse_error_exception&) {
         throw;
     } catch (const std::exception& e) {
-        MC_THROW(parse_error, "表达式解析错误: ${message}", ("message", e.what()));
+        MC_THROW(parse_error_exception, "表达式解析错误: ${message}", ("message", e.what()));
     }
 }
 
