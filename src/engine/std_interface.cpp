@@ -15,7 +15,9 @@ mc::variant properties_interface::get(std::string_view interface_name,
     if (object == nullptr) {
         return {};
     }
-
+    if (interface_name == common_properties_name) {
+        return common_properties_interface::get(property_name);
+    }
     return object->get_property(property_name, interface_name);
 }
 
@@ -24,7 +26,9 @@ mc::dict properties_interface::get_all(std::string_view interface_name) const {
     if (object == nullptr) {
         return {};
     }
-
+    if (interface_name == common_properties_name) {
+        return common_properties_interface::get_all();
+    }
     return object->get_all_properties(interface_name);
 }
 
@@ -35,6 +39,10 @@ void properties_interface::set(std::string_view interface_name, std::string_view
         return;
     }
 
+    // 通用属性接口不支持修改属性
+    if (interface_name == common_properties_name) {
+        return;
+    }
     object->set_property(property_name, value, interface_name);
 }
 
@@ -123,7 +131,7 @@ struct inintrospect_vistor : visitor {
         for (auto& obj : objs) {
             auto obj_path = obj.second->get_object_path();
             if (mc::string::starts_with(obj_path, path)) {
-                auto obj_name = obj_path.substr(path.size());
+                auto obj_name = obj_path.substr(path.size() + 1);
                 xml_data += "<node name=\"";
                 xml_data += obj_name;
                 xml_data += "\"/>";
@@ -143,6 +151,7 @@ std::string introspectable_interface::introspect() const {
     inintrospect_vistor v;
     v.xml_data = "<!DOCTYPE node PUBLIC \"-//freedesktop//DTD D-BUS Object Introspection 1.0//EN\" "
                  "\"http://www.freedesktop.org/standards/dbus/1.0/introspect.dtd\"><node>";
+    // 添加通用接口在最前面
     object->visit(v);
 
     // 添加标准接口
@@ -150,6 +159,7 @@ std::string introspectable_interface::introspect() const {
     properties_interface::get_instance().visit(v);
     peer_interface::get_instance().visit(v);
     object_manager_interface::get_instance().visit(v);
+    common_properties_interface::get_instance().visit(v);
 
     v.handle_children(*object);
     v.xml_data += "</node>";

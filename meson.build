@@ -48,10 +48,12 @@ incdir = include_directories('include')
 # 子目录
 subdir('include')
 subdir('src')
+if not meson.is_cross_build()
 subdir('tests/test_utilities')
 subdir('examples')
 subdir('plugins')
 subdir('programs/devmon')
+endif
 
 if not meson.is_cross_build()
   message('构建测试用例')
