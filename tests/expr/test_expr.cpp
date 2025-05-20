@@ -16,9 +16,24 @@
 #include <mc/exception.h>
 #include <mc/expr/engine.h>
 
-TEST(ExprTest, BasicArithmetic) {
-    mc::expr::engine  engine;
-    mc::expr::context ctx;
+namespace {
+class expr_test : public ::testing::Test {
+protected:
+    expr_test() {
+    }
+
+    void SetUp() override {
+    }
+
+    void TearDown() override {
+    }
+
+    mc::expr::engine engine;
+};
+} // namespace
+
+TEST_F(expr_test, BasicArithmetic) {
+    auto& ctx = engine.get_global_context();
 
     // 整数算术运算
     EXPECT_EQ(engine.evaluate("1 + 2", ctx), 3);
@@ -39,8 +54,7 @@ TEST(ExprTest, BasicArithmetic) {
     EXPECT_EQ(engine.evaluate("1 + 2 * 3.5", ctx), 8.0);
 }
 
-TEST(ExprTest, Comparison) {
-    mc::expr::engine  engine;
+TEST_F(expr_test, Comparison) {
     mc::expr::context ctx;
 
     // 比较运算
@@ -62,9 +76,8 @@ TEST(ExprTest, Comparison) {
     EXPECT_FALSE(engine.evaluate("1 > 2 || 3 < 2", ctx));
 }
 
-TEST(ExprTest, StringOperations) {
-    mc::expr::engine  engine;
-    mc::expr::context ctx;
+TEST_F(expr_test, StringOperations) {
+    auto& ctx = engine.get_global_context();
 
     // 字符串连接
     EXPECT_EQ(engine.evaluate("'Hello' + ' ' + 'World'", ctx), "Hello World");
@@ -77,14 +90,13 @@ TEST(ExprTest, StringOperations) {
     EXPECT_TRUE(engine.evaluate("'abc' != 'def'", ctx));
 }
 
-TEST(ExprTest, Variables) {
-    mc::expr::engine  engine;
-    mc::expr::context ctx;
+TEST_F(expr_test, Variables) {
+    auto& ctx = engine.get_global_context();
 
     // 设置变量
-    ctx.set_variable("x", 10);
-    ctx.set_variable("y", 20);
-    ctx.set_variable("name", "Alice");
+    ctx.register_variable("x", 10);
+    ctx.register_variable("y", 20);
+    ctx.register_variable("name", "Alice");
 
     // 使用变量
     EXPECT_EQ(engine.evaluate("x + y", ctx), 30);
@@ -101,9 +113,8 @@ TEST(ExprTest, Variables) {
     EXPECT_EQ(engine.evaluate("pi", ctx), 3.14159);
 }
 
-TEST(ExprTest, Functions) {
-    mc::expr::engine  engine;
-    mc::expr::context ctx = engine.create_context();
+TEST_F(expr_test, Functions) {
+    auto ctx = engine.create_context();
 
     // 测试内置函数
     EXPECT_EQ(engine.evaluate("abs(-10)", ctx), 10);
@@ -116,7 +127,8 @@ TEST(ExprTest, Functions) {
     EXPECT_EQ(engine.evaluate("concat('a', 'b', 'c')", ctx), "abc");
 
     // 测试类型转换函数
-    EXPECT_EQ(engine.evaluate("to_number('42')", ctx), 42);
+    EXPECT_EQ(engine.evaluate("to_integer('42')", ctx), 42);
+    EXPECT_EQ(engine.evaluate("to_double('42.1')", ctx), 42.1);
     EXPECT_EQ(engine.evaluate("to_string(42)", ctx), "42");
     EXPECT_TRUE(engine.evaluate("to_bool(1)", ctx));
     EXPECT_FALSE(engine.evaluate("to_bool(0)", ctx));
@@ -127,7 +139,7 @@ TEST(ExprTest, Functions) {
         return value * value;
     });
 
-    ctx.set_function(square_func);
+    ctx.register_function(square_func);
     EXPECT_EQ(engine.evaluate("square(3)", ctx), 9.0);
     EXPECT_EQ(engine.evaluate("square(4 + 1)", ctx), 25.0);
 
@@ -136,7 +148,7 @@ TEST(ExprTest, Functions) {
         return a + b + c;
     });
 
-    ctx.set_function(sum_func);
+    ctx.register_function(sum_func);
     EXPECT_EQ(engine.evaluate("sum(1, 2, 3)", ctx), 6.0);
 
     // 测试返回字符串的函数
@@ -144,19 +156,18 @@ TEST(ExprTest, Functions) {
         return "Hello, " + name + "!";
     });
 
-    ctx.set_function(greet_func);
+    ctx.register_function(greet_func);
     EXPECT_EQ(engine.evaluate("greet('World')", ctx), "Hello, World!");
 
     // 测试参数不足的情况
     EXPECT_THROW(engine.evaluate("sum(1, 2)", ctx), mc::invalid_arg_exception);
 
     // 测试类型不匹配的情况
-    EXPECT_THROW(engine.evaluate("square('not a number')", ctx), mc::bad_cast_exception);
+    EXPECT_THROW(engine.evaluate("square('not a number')", ctx), mc::invalid_arg_exception);
 }
 
-TEST(ExprTest, Errors) {
-    mc::expr::engine  engine;
-    mc::expr::context ctx = engine.create_context();
+TEST_F(expr_test, Errors) {
+    auto ctx = engine.create_context();
 
     // 语法错误
     EXPECT_THROW(engine.evaluate("1 + ", ctx), mc::parse_error_exception);
@@ -180,9 +191,8 @@ TEST(ExprTest, Errors) {
     EXPECT_THROW(engine.evaluate("abs(1, 2)", ctx), mc::invalid_arg_exception);
 }
 
-TEST(ExprTest, BitOperations) {
-    mc::expr::engine  engine;
-    mc::expr::context ctx;
+TEST_F(expr_test, BitOperations) {
+    auto& ctx = engine.get_global_context();
 
     // 测试位与操作(&)
     auto result_and = engine.evaluate("0x0F & 0x33", ctx);

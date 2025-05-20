@@ -52,6 +52,8 @@ public:
     virtual int get_arg_count() const = 0;
 };
 
+using function_ptr = std::shared_ptr<function>;
+
 /**
  * @brief 模板函数实现
  */
@@ -63,11 +65,11 @@ public:
     using args_type     = std::tuple<mc::traits::remove_cvref_t<Args>...>;
 
     // 静态断言确保返回类型可以转换为 mc::variant
-    static_assert(std::is_void_v<RetType> || mc::reflect::is_variant_constructible_v<RetType>,
+    static_assert(std::is_void_v<RetType> || mc::is_variant_constructible_v<RetType>,
                   "函数返回类型必须是 void 或者可以转换为 mc::variant");
 
     // 静态断言确保所有参数类型都可以从 mc::variant 转换
-    static_assert(mc::reflect::all_variant_constructible_v<mc::traits::remove_cvref_t<Args>...>,
+    static_assert(mc::all_variant_constructible_v<mc::traits::remove_cvref_t<Args>...>,
                   "参数类型必须可转换为 mc::variant");
 
     simple_function(std::string name, function_type func)

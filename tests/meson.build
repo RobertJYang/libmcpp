@@ -12,6 +12,10 @@ test_files = [
   # expr 目录
   'expr/test_lexer.cpp',
   'expr/test_expr.cpp',
+  'expr/test_context.cpp',
+  'expr/builtin/test_math.cpp',
+  'expr/builtin/test_string.cpp',
+  'expr/builtin/test_conversion.cpp',
 
   # core 目录
   'core/test_service_manager.cpp',

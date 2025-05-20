@@ -91,6 +91,11 @@ constexpr auto create_member_info(M BaseT::* member_ptr, std::string_view name) 
     return member_info_creator<T, M, BaseT>::create(member_ptr, name);
 }
 
+template <typename T, typename R, typename... Args>
+constexpr auto create_member_info(R (*static_func)(Args...), std::string_view name) {
+    return member_info_creator<T, R (*)(Args...), void>::create(static_func, name);
+}
+
 template <typename T, typename BaseT>
 constexpr auto create_base_class_info(std::string_view name) {
     return base_class_info_creator<T, BaseT>::create(name);

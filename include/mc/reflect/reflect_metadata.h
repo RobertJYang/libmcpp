@@ -28,7 +28,6 @@
 
 namespace mc {
 namespace reflect {
-[[noreturn]] void throw_method_not_exist(std::string_view method_name);
 
 template <typename T>
 constexpr bool is_reflectable();
@@ -166,6 +165,15 @@ public:
         const method_info_base<T>* method = get_method_info(method_name);
         if (method) {
             return method->invoke(obj, args);
+        }
+
+        throw_method_not_exist(method_name);
+    }
+
+    mc::variant invoke_method(std::string_view method_name, const mc::variants& args = {}) const {
+        const method_info_base<T>* method = get_method_info(method_name);
+        if (method && method->is_static()) {
+            return method->invoke(args);
         }
 
         throw_method_not_exist(method_name);

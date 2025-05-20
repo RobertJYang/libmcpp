@@ -34,6 +34,7 @@ namespace mc::reflect {
                                              std::string_view actual_type);
 [[noreturn]] void throw_method_arg_not_enough(std::string_view method_name, size_t expect_count,
                                               size_t actual_count);
+[[noreturn]] void throw_method_not_exist(std::string_view method_name);
 
 /**
  * @brief 反射器模板类
@@ -81,56 +82,6 @@ struct property_tag {};
 struct method_tag {};
 struct base_class_tag {};
 
-// 检测是否存在 to_variant 函数
-template <typename T>
-auto has_to_variant_function(int)
-    -> decltype(to_variant(std::declval<T>(), std::declval<mc::variant&>()), std::true_type{});
-
-template <typename T>
-std::false_type has_to_variant_function(...);
-
-template <typename T>
-inline constexpr bool has_to_variant_function_v = decltype(has_to_variant_function<T>(0))::value;
-
-// 检测类型是否可构造为 variant，分两步检测避免编译错误
-template <typename T>
-struct is_variant_constructible {
-    // 第一步：检查是否可以构造
-    static constexpr bool is_constructible = std::is_constructible_v<mc::variant, T>;
-
-    // 第二步：仅当可构造时，才检查是否有 to_variant 函数
-    template <typename U, bool IsConstructible>
-    struct check_to_variant {
-        static constexpr bool value = false;
-    };
-
-    template <typename U>
-    struct check_to_variant<U, true> {
-        static constexpr bool value = has_to_variant_function_v<U>;
-    };
-
-    static constexpr bool value = check_to_variant<T, is_constructible>::value;
-};
-
-template <typename T>
-inline constexpr bool is_variant_constructible_v = is_variant_constructible<T>::value;
-
-// 检查所有类型是否都可以转换为variant
-template <typename... Args>
-struct all_variant_constructible;
-
-template <>
-struct all_variant_constructible<> : std::true_type {};
-
-template <typename T, typename... Rest>
-struct all_variant_constructible<T, Rest...> {
-    static constexpr bool value =
-        is_variant_constructible_v<T> && all_variant_constructible<Rest...>::value;
-};
-
-template <typename... Args>
-inline constexpr bool all_variant_constructible_v = all_variant_constructible<Args...>::value;
-
 //------------------------------------------------------------------------------
 // 类型特征检测
 //------------------------------------------------------------------------------
@@ -155,6 +106,10 @@ struct is_method<R (C::*)(Args...)> : std::true_type {};
 
 template <typename R, typename C, typename... Args>
 struct is_method<R (C::*)(Args...) const> : std::true_type {};
+
+// 静态函数的特化
+template <typename R, typename... Args>
+struct is_method<R (*)(Args...)> : std::true_type {};
 
 template <typename T>
 inline constexpr bool is_method_v = is_method<T>::value;
@@ -295,7 +250,9 @@ struct method_info_base : public method_type_info {
     method_info_base(std::string_view n) : method_type_info(n) {
     }
 
+    virtual bool        is_static() const                              = 0;
     virtual mc::variant invoke(C& obj, const mc::variants& args) const = 0;
+    virtual mc::variant invoke(const mc::variants& args) const         = 0;
     virtual size_t      arg_count() const = 0; // 返回方法所需的参数数量
 };
 
@@ -318,14 +275,18 @@ static auto convert_arg(std::string_view name, const mc::variant& var)
 } // namespace detail
 
 // 方法元数据具体实现 - 根据方法是否为const使用不同实现
-template <typename Class, typename BaseT, bool IsConst, typename RetType, typename... Args>
+template <typename Class, typename BaseT, bool IsConst, bool IsStatic, typename RetType,
+          typename... Args>
 class method_info : public method_info_base<Class> {
 public:
     using tag_type = method_tag;
 
     using non_const_function_type = RetType (BaseT::*)(Args...);
     using const_function_type     = RetType (BaseT::*)(Args...) const;
-    using function_type = std::conditional_t<IsConst, const_function_type, non_const_function_type>;
+    using static_function_type    = RetType (*)(Args...);
+    using member_function_type =
+        std::conditional_t<IsConst, const_function_type, non_const_function_type>;
+    using function_type = std::conditional_t<IsStatic, static_function_type, member_function_type>;
     using result_type   = mc::traits::remove_cvref_t<RetType>;
     using args_type     = std::tuple<mc::traits::remove_cvref_t<Args>...>;
     using class_type    = Class;
@@ -343,30 +304,47 @@ public:
         : method_info_base<Class>(name), m_function(func) {
     }
 
-    template <size_t... I>
-    variant call_with_exact_args(Class& obj, const variants& args,
-                                 std::index_sequence<I...>) const {
+    bool is_static() const override {
+        return IsStatic;
+    }
+
+    template <typename C>
+    RetType call_impl(C& obj, Args&&... args) const {
+        if constexpr (!IsStatic) {
+            if constexpr (std::is_same_v<C, Class>) {
+                return (obj.*m_function)(std::forward<Args>(args)...);
+            } else {
+                throw_method_not_exist(this->name);
+            }
+        } else {
+            return m_function(std::forward<Args>(args)...);
+        }
+    }
+
+    template <typename C, size_t... I>
+    variant call_with_exact_args(C& obj, const variants& args, std::index_sequence<I...>) const {
         if constexpr (std::is_void_v<RetType>) {
-            (obj.*m_function)(
-                detail::convert_arg<mc::traits::remove_cvref_t<Args>>(this->name, args[I])...);
+            call_impl(
+                obj, detail::convert_arg<mc::traits::remove_cvref_t<Args>>(this->name, args[I])...);
             return variant();
         } else {
-            return variant((obj.*m_function)(
-                detail::convert_arg<mc::traits::remove_cvref_t<Args>>(this->name, args[I])...));
+            return variant(call_impl(obj, detail::convert_arg<mc::traits::remove_cvref_t<Args>>(
+                                              this->name, args[I])...));
         }
     }
 
     // 调用方法，要求参数数量 >= 函数参数数量
-    variant invoke(Class& obj, const variants& args) const override {
+    template <typename C>
+    variant invoke_impl(C& obj, const variants& args) const {
         constexpr size_t arg_count = sizeof...(Args);
 
         // 如果是单个参数，且参数类型是 mc::variants，优化一下直接调用
         if constexpr (std::is_same_v<args_type, std::tuple<mc::variants>>) {
             if constexpr (std::is_void_v<RetType>) {
-                (obj.*m_function)(args);
+                call_impl(obj, args);
                 return {};
             } else {
-                return mc::variant((obj.*m_function)(args));
+                return call_impl(obj, args);
             }
         } else {
             if (args.size() < arg_count) {
@@ -375,6 +353,19 @@ public:
 
             return call_with_exact_args(obj, args, std::make_index_sequence<arg_count>());
         }
+    }
+
+    variant invoke(Class& obj, const variants& args) const override {
+        return invoke_impl(obj, args);
+    }
+
+    mc::variant invoke(const mc::variants& args) const override {
+        if (!IsStatic) {
+            // 非静态方法不能直接调用，需要传入对象，这里抛出方法不存在异常
+            throw_method_not_exist(this->name);
+        }
+        int dummy = 0;
+        return invoke_impl<int>(dummy, args);
     }
 
     std::type_index typeinfo() const override {
@@ -389,19 +380,6 @@ public:
         return sizeof...(Args);
     }
 
-    template <typename Func>
-    void for_each_arg(Func&& func) const {
-        args_type* args{nullptr};
-        for_each_arg_impl(args, std::forward<Func>(func),
-                          std::make_index_sequence<sizeof...(Args)>{});
-    }
-
-    template <typename Tuple, typename Func, size_t... I>
-    void for_each_arg_impl(Tuple* tuple, Func&& func, std::index_sequence<I...>) const {
-        (func(static_cast<mc::traits::remove_cvref_t<std::tuple_element_t<I, Tuple>>*>(nullptr), I),
-         ...);
-    }
-
     std::string_view get_args_signature() const override {
         return mc::reflect::get_signature<args_type>();
     }
@@ -414,22 +392,27 @@ public:
     constexpr auto to_derived() const {
         static_assert(std::is_base_of_v<class_type, Derived>,
                       "Derived must be derived from class_type");
-        return method_info<Derived, base_type, IsConst, RetType, Args...>{this->name, m_function};
+        return method_info<Derived, base_type, IsConst, IsStatic, RetType, Args...>{this->name,
+                                                                                    m_function};
     }
 
-private:
     function_type m_function;
 };
 
 // 创建方法元数据的辅助函数
 template <typename C, typename R, typename... Args>
 constexpr auto make_method_info(R (C::*method)(Args...), std::string_view name) {
-    return method_info<C, C, false, R, Args...>{name, method};
+    return method_info<C, C, false, false, R, Args...>{name, method};
 }
 
 template <typename C, typename R, typename... Args>
 constexpr auto make_method_info(R (C::*method)(Args...) const, std::string_view name) {
-    return method_info<C, C, true, R, Args...>{name, method};
+    return method_info<C, C, true, false, R, Args...>{name, method};
+}
+
+template <typename C, typename R, typename... Args>
+constexpr auto make_static_method_info(R (*method)(Args...), std::string_view name) {
+    return method_info<C, C, false, true, R, Args...>{name, method};
 }
 
 //------------------------------------------------------------------------------
@@ -606,6 +589,13 @@ struct member_info_creator<T, M, BaseT, std::enable_if_t<is_method_v<M BaseT::*>
     }
 };
 
+// 静态成员函数特化
+template <typename T, typename R, typename... Args>
+struct member_info_creator<T, R (*)(Args...), void, std::enable_if_t<is_method_v<R (*)(Args...)>>> {
+    static constexpr auto create(R (*static_func)(Args...), std::string_view name) {
+        return std::make_tuple(make_static_method_info<T>(static_func, name));
+    }
+};
 template <typename T, typename Base>
 struct base_class_info_creator {
     static_assert(std::is_base_of_v<Base, T>, "T must be derived from Base class");

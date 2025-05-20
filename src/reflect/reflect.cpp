@@ -51,7 +51,7 @@ void throw_bad_enum_cast(const char* value, const char* enum_type) {
  */
 void throw_method_arg_not_match(std::string_view method_name, std::string_view expect_type,
                                 std::string_view actual_type) {
-    MC_THROW(mc::bad_cast_exception,
+    MC_THROW(mc::invalid_arg_exception,
              "调用方法 ${method_name} 参数不匹配，需要 ${expect_type} 类型，实际提供 "
              "${actual_type} 类型",
              ("method_name", method_name)("expect_type", expect_type)("actual_type", actual_type));

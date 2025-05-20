@@ -11,6 +11,7 @@
  */
 
 #include <mc/exception.h>
+#include <mc/expr/builtin.h>
 #include <mc/expr/context.h>
 #include <mc/expr/engine.h>
 #include <mc/expr/function.h>
@@ -18,88 +19,18 @@
 #include <mc/expr/node.h>
 #include <mc/expr/parser.h>
 
-#include <cmath>
-#include <deque>
-#include <iostream>
-#include <unordered_map>
-
 namespace mc::expr {
 
-// 表达式引擎实现
 struct engine::impl {
-    // 内置函数注册表
-    std::unordered_map<std::string, std::shared_ptr<function>> built_in_functions;
-
-    // 注册标准内置函数
-    void register_standard_functions() {
-        // 数学函数
-        built_in_functions["abs"] =
-            make_simple_function("abs", [](const mc::variant& value) -> mc::variant {
-                try {
-                    if (value.is_double()) {
-                        return std::fabs(value.as_double());
-                    } else {
-                        return std::abs(value.as_int64());
-                    }
-                } catch (const std::exception&) {
-                    MC_THROW(invalid_op_exception, "表达式求值错误: abs 函数参数必须是数值类型");
-                }
-            });
-
-        built_in_functions["min"] = make_simple_function("min", [](const mc::variants& args) {
-            mc::variant result = args[0];
-            for (size_t i = 1; i < args.size(); ++i) {
-                if (args[i] < result) {
-                    result = args[i];
-                }
-            }
-
-            return result;
-        });
-
-        built_in_functions["max"] = make_simple_function("max", [](const mc::variants& args) {
-            mc::variant result = args[0];
-            for (size_t i = 1; i < args.size(); ++i) {
-                if (args[i] > result) {
-                    result = args[i];
-                }
-            }
-
-            return result;
-        });
-
-        // 字符串函数
-        built_in_functions["length"] = make_simple_function("length", [](const mc::variant& arg) {
-            return arg.size();
-        });
-
-        built_in_functions["concat"] = make_simple_function("concat", [](const mc::variants& args) {
-            mc::variant result(mc::type_id::string_type);
-            for (const auto& arg : args) {
-                result += arg;
-            }
-            return result;
-        });
-
-        // 类型转换函数
-        built_in_functions["to_number"] =
-            make_simple_function("to_number", [](const mc::variant& arg) {
-                return arg.as_int64();
-            });
-
-        built_in_functions["to_string"] =
-            make_simple_function("to_string", [](const mc::variant& arg) {
-                return arg.as_string();
-            });
-
-        built_in_functions["to_bool"] = make_simple_function("to_bool", [](const mc::variant& arg) {
-            return arg.as_bool();
-        });
+    impl() : global_context(&builtin::get_instance().get_context()) {
     }
+
+    ~impl() = default;
+
+    context global_context;
 };
 
 engine::engine() : m_impl(std::make_unique<impl>()) {
-    m_impl->register_standard_functions();
 }
 
 engine::~engine() = default;
@@ -117,23 +48,16 @@ mc::variant engine::evaluate(std::string_view expr, const context& ctx) {
     return ast->evaluate(ctx);
 }
 
-// 注册函数
-void engine::register_function(std::shared_ptr<function> func) {
-    if (!func) {
-        MC_THROW(invalid_arg_exception, "表达式引擎错误: 函数指针不能为空");
-    }
-
-    m_impl->built_in_functions[func->get_name()] = std::move(func);
+context& engine::get_global_context() const {
+    return m_impl->global_context;
 }
 
-context engine::create_context() const {
-    context ctx;
+context engine::create_context(const context* parent) const {
+    return context(parent ? parent : &get_global_context());
+}
 
-    for (const auto& [name, func] : m_impl->built_in_functions) {
-        ctx.set_function(func);
-    }
-
-    return ctx;
+context engine::create_context(const mc::dict& variables, const context* parent) const {
+    return context(variables, parent ? parent : &get_global_context());
 }
 
 } // namespace mc::expr

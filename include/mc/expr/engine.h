@@ -59,16 +59,25 @@ public:
     mc::variant evaluate(std::string_view expr, const context& ctx = {});
 
     /**
-     * @brief 注册函数
-     * @param func 函数对象
+     * @brief 获取全局上下文
+     * @return 包含所有内置函数的全局上下文
      */
-    void register_function(std::shared_ptr<function> func);
+    context& get_global_context() const;
 
     /**
      * @brief 创建上下文
-     * @return 初始化了内置函数的上下文
+     * @param parent 父级上下文指针，如果为空则使用全局上下文
+     * @return 上下文对象
      */
-    context create_context() const;
+    context create_context(const context* parent = nullptr) const;
+
+    /**
+     * @brief 创建带有指定变量的上下文
+     * @param variables 初始变量集合
+     * @param parent 父级上下文指针，如果为空则使用全局上下文
+     * @return 上下文对象
+     */
+    context create_context(const mc::dict& variables, const context* parent = nullptr) const;
 
 private:
     struct impl;

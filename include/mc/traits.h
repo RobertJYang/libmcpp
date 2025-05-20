@@ -84,6 +84,17 @@ struct function_traits;
 // 普通函数
 template <typename R, typename... Args>
 struct function_traits<R(Args...)> {
+    using class_type                   = void;
+    using return_type                  = R;
+    using args_type                    = std::tuple<Args...>;
+    static constexpr size_t args_count = sizeof...(Args);
+    using function_type                = std::function<R(Args...)>;
+};
+
+// 成员函数指针
+template <typename C, typename R, typename... Args>
+struct function_traits<R (C::*)(Args...)> {
+    using class_type                   = C;
     using return_type                  = R;
     using args_type                    = std::tuple<Args...>;
     static constexpr size_t args_count = sizeof...(Args);
@@ -94,13 +105,21 @@ struct function_traits<R(Args...)> {
 template <typename R, typename... Args>
 struct function_traits<R (*)(Args...)> : function_traits<R(Args...)> {};
 
-// 成员函数指针
-template <typename C, typename R, typename... Args>
-struct function_traits<R (C::*)(Args...)> : function_traits<R(Args...)> {};
+// const 限定的函数指针特化
+template <typename R, typename... Args>
+struct function_traits<R (*const)(Args...)> : function_traits<R(Args...)> {};
 
 // const 成员函数指针
 template <typename C, typename R, typename... Args>
-struct function_traits<R (C::*)(Args...) const> : function_traits<R(Args...)> {};
+struct function_traits<R (C::*)(Args...) const> : function_traits<R (C::*)(Args...)> {};
+
+// 处理 volatile 成员函数
+template <typename C, typename R, typename... Args>
+struct function_traits<R (C::*)(Args...) volatile> : function_traits<R (C::*)(Args...)> {};
+
+// 处理 const volatile 成员函数
+template <typename C, typename R, typename... Args>
+struct function_traits<R (C::*)(Args...) const volatile> : function_traits<R (C::*)(Args...)> {};
 
 // std::function
 template <typename R, typename... Args>
@@ -113,6 +132,7 @@ private:
     using call_type = function_traits<decltype(&F::operator())>;
 
 public:
+    using class_type                   = typename call_type::class_type;
     using return_type                  = typename call_type::return_type;
     using args_type                    = typename call_type::args_type;
     static constexpr size_t args_count = call_type::args_count;

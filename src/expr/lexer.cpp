@@ -329,7 +329,18 @@ void lexer::scan_number() {
 void lexer::scan_identifier() {
     skip_while(is_alnum);
 
-    add_token(token_type::identifier, lexeme());
+    std::string_view text = lexeme();
+
+    // 特殊处理布尔字面值
+    if (text == "true") {
+        add_token(token_type::number, mc::variant(true));
+        return;
+    } else if (text == "false") {
+        add_token(token_type::number, mc::variant(false));
+        return;
+    }
+
+    add_token(token_type::identifier, text);
 }
 
 std::vector<token> lexer::scan_tokens() {
