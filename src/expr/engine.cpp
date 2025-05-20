@@ -43,7 +43,7 @@ std::shared_ptr<node> engine::compile(std::string_view expr) {
     return p.parse();
 }
 
-mc::variant engine::evaluate(std::string_view expr, const context& ctx) {
+mc::variant engine::evaluate(std::string_view expr, const context_base& ctx) {
     std::shared_ptr<node> ast = compile(expr);
     return ast->evaluate(ctx);
 }
@@ -52,11 +52,11 @@ context& engine::get_global_context() const {
     return m_impl->global_context;
 }
 
-context engine::create_context(const context* parent) const {
+context engine::create_context(context_base* parent) const {
     return context(parent ? parent : &get_global_context());
 }
 
-context engine::create_context(const mc::dict& variables, const context* parent) const {
+context engine::create_context(const mc::dict& variables, context_base* parent) const {
     return context(variables, parent ? parent : &get_global_context());
 }
 

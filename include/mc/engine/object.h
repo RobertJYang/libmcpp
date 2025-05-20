@@ -155,6 +155,12 @@ public:
         return property_info_to_interface(*info)->get_property_base(property_name);
     }
 
+    bool has_property(std::string_view property_name, std::string_view interface_name) override {
+        auto info =
+            metadata_type::get_instance().get_property_interface(property_name, interface_name);
+        return info != nullptr;
+    }
+
     mc::dict get_all_properties(std::string_view interface_name) override {
         auto info = metadata_type::get_instance().get_interface_info(interface_name);
         if (info == nullptr) {
@@ -191,6 +197,12 @@ public:
         }
 
         return property_info_to_interface(*info)->invoke(method_name, args);
+    }
+
+    bool has_method(std::string_view method_name,
+                    std::string_view interface_name = {}) const override {
+        auto info = metadata_type::get_instance().get_method_interface(method_name, interface_name);
+        return info != nullptr;
     }
 
     mc::connection_type connect(std::string_view signal_name, slot_type slot,

@@ -19,12 +19,12 @@
 namespace mc::expr {
 
 // 字面值节点求值
-mc::variant literal_node::evaluate(const context& ctx) const {
+mc::variant literal_node::evaluate(const context_base& ctx) const {
     return m_value;
 }
 
 // 变量节点求值
-mc::variant variable_node::evaluate(const context& ctx) const {
+mc::variant variable_node::evaluate(const context_base& ctx) const {
     if (!ctx.has_variable(m_name)) {
         MC_THROW(invalid_arg_exception, "表达式求值错误: 未定义的变量 '${name}'", ("name", m_name));
     }
@@ -32,7 +32,7 @@ mc::variant variable_node::evaluate(const context& ctx) const {
 }
 
 // 一元操作节点求值
-mc::variant unary_op_node::evaluate(const context& ctx) const {
+mc::variant unary_op_node::evaluate(const context_base& ctx) const {
     mc::variant operand_val = m_operand->evaluate(ctx);
 
     switch (m_operator) {
@@ -48,7 +48,7 @@ mc::variant unary_op_node::evaluate(const context& ctx) const {
 }
 
 // 二元操作节点求值
-mc::variant binary_op_node::evaluate(const context& ctx) const {
+mc::variant binary_op_node::evaluate(const context_base& ctx) const {
     mc::variant left_val = m_left->evaluate(ctx);
 
     // 短路逻辑操作符
@@ -109,12 +109,10 @@ mc::variant binary_op_node::evaluate(const context& ctx) const {
 }
 
 // 函数调用节点求值
-mc::variant function_call_node::evaluate(const context& ctx) const {
+mc::variant function_call_node::evaluate(const context_base& ctx) const {
     if (!ctx.has_function(m_name)) {
         MC_THROW(invalid_arg_exception, "表达式求值错误: 未定义的函数 '${name}'", ("name", m_name));
     }
-
-    std::shared_ptr<function> func = ctx.get_function(m_name);
 
     mc::variants args;
     args.reserve(m_args.size());
@@ -122,7 +120,16 @@ mc::variant function_call_node::evaluate(const context& ctx) const {
         args.emplace_back(arg_node->evaluate(ctx));
     }
 
-    return func->call(args);
+    return ctx.invoke(m_name, args);
+}
+
+mc::variant property_access_node::evaluate(const context_base& ctx) const {
+    if (m_object->get_type() == node_type::variable) {
+        const variable_node& var_node = static_cast<const variable_node&>(*m_object);
+        return ctx.get_variable(m_property, var_node.get_name());
+    }
+
+    MC_THROW(invalid_arg_exception, "表达式求值错误: 无法访问属性 '${prop}'", ("prop", m_property));
 }
 
 // 辅助函数实现
@@ -146,6 +153,11 @@ std::shared_ptr<node> make_binary_op(operator_type op, std::shared_ptr<node> lef
 std::shared_ptr<node> make_function_call(const std::string&                 name,
                                          std::vector<std::shared_ptr<node>> args) {
     return std::make_shared<function_call_node>(name, std::move(args));
+}
+
+std::shared_ptr<node> make_property_access(std::shared_ptr<node> object,
+                                           const std::string&    property) {
+    return std::make_shared<property_access_node>(std::move(object), property);
 }
 
 } // namespace mc::expr

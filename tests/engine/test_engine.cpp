@@ -179,6 +179,8 @@ TEST_F(engine_test, test_property_changed_sig_use_abstract_object) {
     });
 
     res_obj->set_property("i32", 10);
+    auto value = res_obj->get_property("i32");
+    EXPECT_EQ(value, 10);
 
     mc::dict expected = {{"i32", 10}};
     EXPECT_EQ(values, expected);

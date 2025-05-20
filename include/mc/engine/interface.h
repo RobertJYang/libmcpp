@@ -233,8 +233,12 @@ struct interface : public abstract_interface {
         return {method, method->invoke(static_cast<interface_type&>(*this), args)};
     }
 
-    mc::variant get_property(std::string_view property_name) const override {
-        return mc::reflect::get_property(static_cast<const interface_type&>(*this), property_name);
+    bool has_method(std::string_view method_name) const override {
+        return mc::reflect::get_method_info<interface_type>(method_name) != nullptr;
+    }
+
+    mc::variant get_property(std::string_view property_name) override {
+        return mc::reflect::get_property(static_cast<interface_type&>(*this), property_name);
     }
 
     property_base* get_property_base(std::string_view property_name) override {
@@ -245,6 +249,11 @@ struct interface : public abstract_interface {
 
         return reinterpret_cast<property_base*>(reinterpret_cast<std::uintptr_t>(this) +
                                                 info->offset());
+    }
+
+    bool has_property(std::string_view property_name) override {
+        auto* info = mc::reflect::get_property_info<interface_type>(property_name);
+        return info != nullptr;
     }
 
     void notify_property_changed(const mc::variant& value, const property_base& prop) override {
@@ -318,8 +327,8 @@ protected:
                 typename mc::traits::remove_cvref_t<decltype(property)>::member_type;
 
             visitor::property_meta info;
-            info.name      = property.name;
-            info.signature = mc::reflect::get_signature<property_type>();
+            info.name            = property.name;
+            info.signature       = mc::reflect::get_signature<property_type>();
             info.read_privilege  = 0;
             info.write_privilege = 0;
             info.flags           = 0;

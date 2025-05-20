@@ -24,18 +24,19 @@
 namespace mc::expr {
 
 // 前置声明
-class context;
+class context_base;
 
 /**
  * @brief 表达式节点类型
  */
 enum class node_type {
-    literal,       // 字面值（数字、字符串等）
-    variable,      // 变量引用
-    unary_op,      // 一元操作
-    binary_op,     // 二元操作
-    function_call, // 函数调用
-    conditional    // 条件表达式 (? :)
+    literal,        // 字面值（数字、字符串等）
+    variable,       // 变量引用
+    unary_op,       // 一元操作
+    binary_op,      // 二元操作
+    function_call,  // 函数调用
+    conditional,    // 条件表达式 (? :)
+    property_access // 属性访问 (obj.property)
 };
 
 /**
@@ -89,7 +90,7 @@ public:
      * @param ctx 表达式上下文
      * @return 表达式计算结果
      */
-    virtual mc::variant evaluate(const context& ctx) const = 0;
+    virtual mc::variant evaluate(const context_base& ctx) const = 0;
 };
 
 /**
@@ -104,7 +105,7 @@ public:
         return node_type::literal;
     }
 
-    mc::variant evaluate(const context& ctx) const override;
+    mc::variant evaluate(const context_base& ctx) const override;
 
 private:
     mc::variant m_value;
@@ -122,7 +123,7 @@ public:
         return node_type::variable;
     }
 
-    mc::variant evaluate(const context& ctx) const override;
+    mc::variant evaluate(const context_base& ctx) const override;
 
     const std::string& get_name() const {
         return m_name;
@@ -145,7 +146,7 @@ public:
         return node_type::unary_op;
     }
 
-    mc::variant evaluate(const context& ctx) const override;
+    mc::variant evaluate(const context_base& ctx) const override;
 
     operator_type get_operator() const {
         return m_operator;
@@ -173,7 +174,7 @@ public:
         return node_type::binary_op;
     }
 
-    mc::variant evaluate(const context& ctx) const override;
+    mc::variant evaluate(const context_base& ctx) const override;
 
     operator_type get_operator() const {
         return m_operator;
@@ -206,7 +207,7 @@ public:
         return node_type::function_call;
     }
 
-    mc::variant evaluate(const context& ctx) const override;
+    mc::variant evaluate(const context_base& ctx) const override;
 
     const std::string& get_name() const {
         return m_name;
@@ -221,6 +222,34 @@ private:
     std::vector<std::shared_ptr<node>> m_args;
 };
 
+/**
+ * @brief 属性访问节点
+ */
+class property_access_node : public node {
+public:
+    property_access_node(std::shared_ptr<node> object, std::string property)
+        : m_object(std::move(object)), m_property(std::move(property)) {
+    }
+
+    node_type get_type() const override {
+        return node_type::property_access;
+    }
+
+    mc::variant evaluate(const context_base& ctx) const override;
+
+    const node& get_object() const {
+        return *m_object;
+    }
+
+    const std::string& get_property() const {
+        return m_property;
+    }
+
+private:
+    std::shared_ptr<node> m_object;
+    std::string           m_property;
+};
+
 // 节点类型辅助函数
 std::shared_ptr<node> make_literal(mc::variant value);
 std::shared_ptr<node> make_variable(const std::string& name);
@@ -229,6 +258,8 @@ std::shared_ptr<node> make_binary_op(operator_type op, std::shared_ptr<node> lef
                                      std::shared_ptr<node> right);
 std::shared_ptr<node> make_function_call(const std::string&                 name,
                                          std::vector<std::shared_ptr<node>> args);
+std::shared_ptr<node> make_property_access(std::shared_ptr<node> object,
+                                           const std::string&    property);
 
 } // namespace mc::expr
 

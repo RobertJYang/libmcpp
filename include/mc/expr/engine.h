@@ -56,7 +56,7 @@ public:
      * @param ctx 表达式上下文
      * @return 表达式计算结果
      */
-    mc::variant evaluate(std::string_view expr, const context& ctx = {});
+    mc::variant evaluate(std::string_view expr, const context_base& ctx);
 
     /**
      * @brief 获取全局上下文
@@ -69,7 +69,7 @@ public:
      * @param parent 父级上下文指针，如果为空则使用全局上下文
      * @return 上下文对象
      */
-    context create_context(const context* parent = nullptr) const;
+    context create_context(context_base* parent = nullptr) const;
 
     /**
      * @brief 创建带有指定变量的上下文
@@ -77,7 +77,7 @@ public:
      * @param parent 父级上下文指针，如果为空则使用全局上下文
      * @return 上下文对象
      */
-    context create_context(const mc::dict& variables, const context* parent = nullptr) const;
+    context create_context(const mc::dict& variables, context_base* parent = nullptr) const;
 
 private:
     struct impl;

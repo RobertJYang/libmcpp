@@ -19,7 +19,6 @@
 
 #include <mc/expr/context.h>
 #include <mc/expr/engine.h>
-#include <mc/expr/error.h>
 #include <mc/expr/function.h>
 #include <mc/expr/node.h>
 

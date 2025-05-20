@@ -56,8 +56,6 @@ TEST_F(expr_context_test, ScopeInheritance) {
 
     EXPECT_TRUE(child_ctx.has_function("base_func"));
     EXPECT_TRUE(child_ctx.has_function("child_func"));
-    EXPECT_NE(child_ctx.get_function("base_func"), nullptr);
-    EXPECT_NE(child_ctx.get_function("child_func"), nullptr);
 
     // 测试基础上下文不能访问子上下文中的变量和函数
     EXPECT_TRUE(base_ctx.has_variable("base_var"));
@@ -67,8 +65,6 @@ TEST_F(expr_context_test, ScopeInheritance) {
 
     EXPECT_TRUE(base_ctx.has_function("base_func"));
     EXPECT_FALSE(base_ctx.has_function("child_func"));
-    EXPECT_NE(base_ctx.get_function("base_func"), nullptr);
-    EXPECT_EQ(base_ctx.get_function("child_func"), nullptr);
 }
 
 // 测试多级作用域
@@ -175,7 +171,7 @@ TEST_F(expr_context_test, SetParent) {
     EXPECT_FALSE(ctx2.has_variable("var1"));
 
     // 设置ctx2的父级为ctx1
-    ctx2.set_parent(ctx1);
+    ctx2.set_parent(&ctx1);
 
     // 设置父级后，ctx2可以访问ctx1的变量
     EXPECT_TRUE(ctx2.has_variable("var1"));

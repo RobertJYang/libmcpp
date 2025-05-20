@@ -266,6 +266,27 @@ std::shared_ptr<node> parser::primary() {
             return function_call();
         }
 
+        // 如果后面跟着点号，则是属性访问
+        if (check(token_type::dot)) {
+            auto expr = make_variable(identifier);
+
+            // 处理链式属性访问，如 obj.prop1.prop2
+            while (match({token_type::dot})) {
+                if (!match({token_type::identifier})) {
+                    MC_THROW(parse_error_exception, "表达式解析错误: 点号后期望属性名");
+                }
+                std::string property = previous().lexeme;
+                expr                 = make_property_access(expr, property);
+
+                // 如果属性后面还有点号，继续处理链式访问
+                if (!check(token_type::dot)) {
+                    break;
+                }
+            }
+
+            return expr;
+        }
+
         // 否则是变量引用
         return make_variable(identifier);
     }

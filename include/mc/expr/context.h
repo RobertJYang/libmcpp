@@ -18,7 +18,11 @@
 #define MC_EXPR_CONTEXT_H
 
 #include <mc/dict.h>
+#include <mc/engine/base.h>
+#include <mc/expr/function.h>
+#include <mc/reflect.h>
 #include <mc/variant.h>
+
 #include <memory>
 #include <string>
 
@@ -26,10 +30,68 @@ namespace mc::expr {
 class function;
 class context_impl;
 
+class context_base {
+public:
+    virtual ~context_base() = default;
+
+    /**
+     * @brief 带父级上下文的构造函数
+     * @param parent 父级上下文
+     */
+    explicit context_base(context_base* parent = nullptr);
+
+    context_base(const context_base&);
+    context_base& operator=(const context_base&);
+    context_base(context_base&&) noexcept;
+    context_base& operator=(context_base&&) noexcept;
+
+    /**
+     * @brief 设置父级上下文
+     */
+    virtual void set_parent(context_base* parent);
+
+    /**
+     * @brief 获取父级上下文
+     */
+    context_base* get_parent() const;
+
+    /**
+     * @brief 判断变量是否存在
+     * @note 会递归查找父级上下文
+     */
+    virtual bool has_variable(std::string_view name, std::string_view iface = {}) const;
+
+    /**
+     * @brief 判断函数是否存在
+     * @note 会递归查找父级上下文
+     */
+    virtual bool has_function(std::string_view name, std::string_view iface = {}) const;
+
+    /**
+     * @brief 获取变量值
+     * @param name 变量名
+     * @return 变量值
+     */
+    virtual const mc::variant& get_variable(std::string_view name,
+                                            std::string_view iface = {}) const;
+
+    /**
+     * @brief 函数调用
+     * @param name 函数名
+     * @param args 参数
+     * @return 返回值
+     */
+    virtual mc::variant invoke(std::string_view name, const mc::variants& args,
+                               std::string_view iface = {}) const;
+
+protected:
+    context_base* m_parent{nullptr};
+};
+
 /**
  * @brief 表达式上下文类，用于存储变量和函数
  */
-class context {
+class context : public context_base {
 public:
     /**
      * @brief 默认构造函数
@@ -40,42 +102,17 @@ public:
      * @brief 带父级上下文的构造函数
      * @param parent 父级上下文
      */
-    explicit context(const context* parent);
+    explicit context(context_base* parent);
 
     /**
      * @brief 从dict构造上下文
      */
-    explicit context(const mc::dict& dict, const context* parent = nullptr);
+    explicit context(const mc::dict& dict, context_base* parent = nullptr);
 
-    /**
-     * @brief 移动构造函数
-     */
-    context(context&& other) noexcept = default;
-
-    /**
-     * @brief 移动赋值运算符
-     */
-    context& operator=(context&& other) noexcept = default;
-
-    /**
-     * @brief 拷贝构造函数
-     */
-    context(const context& other) = default;
-
-    /**
-     * @brief 拷贝赋值运算符
-     */
-    context& operator=(const context& other) = default;
-
-    /**
-     * @brief 设置父级上下文
-     */
-    void set_parent(const context& parent);
-
-    /**
-     * @brief 获取父级上下文
-     */
-    context get_parent() const;
+    context(const context& other);
+    context& operator=(const context& other);
+    context(context&& other) noexcept;
+    context& operator=(context&& other) noexcept;
 
     /**
      * @brief 设置变量值
@@ -87,19 +124,14 @@ public:
      * @brief 获取变量值
      * @note 如果当前上下文找不到变量，会尝试从父级上下文查找
      */
-    mc::variant& get_variable(std::string_view name) const;
-
-    /**
-     * @brief 获取变量值
-     * @note 如果当前上下文找不到变量，会尝试从父级上下文查找
-     */
-    mc::variant& get_variable(int id) const;
+    const mc::variant& get_variable(std::string_view name,
+                                    std::string_view iface = {}) const override;
 
     /**
      * @brief 判断变量是否存在
      * @note 会递归查找父级上下文
      */
-    bool has_variable(std::string_view name) const;
+    bool has_variable(std::string_view name, std::string_view iface = {}) const override;
 
     /**
      * @brief 从dict导入变量
@@ -113,25 +145,46 @@ public:
     int register_function(std::shared_ptr<function> func);
 
     /**
-     * @brief 获取函数
-     * @note 如果当前上下文找不到函数，会尝试从父级上下文查找
+     * @brief 注册对象
+     * @return 对象 ID
      */
-    std::shared_ptr<function> get_function(std::string_view name) const;
+    int register_object(std::string name, mc::engine::abstract_object* obj);
 
     /**
      * @brief 判断函数是否存在
      * @note 会递归查找父级上下文
      */
-    bool has_function(std::string_view name) const;
+    bool has_function(std::string_view name, std::string_view iface = {}) const override;
 
     /**
-     * @brief 检查上下文是否为空
-     * @return 如果上下文是默认构造的空上下文，则返回 true
+     * @brief 调用函数
+     * @param name 函数名
+     * @param args 参数
+     * @return 返回值
      */
-    bool is_empty() const;
+    mc::variant invoke(std::string_view name, const mc::variants& args,
+                       std::string_view iface = {}) const override;
 
 private:
     std::shared_ptr<context_impl> m_impl;
+};
+
+class object_context : public context_base {
+public:
+    object_context(mc::engine::abstract_object* obj, context_base* parent = nullptr);
+
+    mc::engine::abstract_object* get_object() const;
+
+    bool has_variable(std::string_view name, std::string_view iface = {}) const override;
+    bool has_function(std::string_view name, std::string_view iface = {}) const override;
+    const mc::variant& get_variable(std::string_view name,
+                                    std::string_view iface = {}) const override;
+    mc::variant        invoke(std::string_view name, const mc::variants& args,
+                              std::string_view iface = {}) const override;
+
+private:
+    mc::engine::abstract_object* m_object;
+    mutable mc::variant          m_property;
 };
 
 } // namespace mc::expr

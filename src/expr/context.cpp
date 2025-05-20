@@ -12,7 +12,6 @@
 
 #include <mc/exception.h>
 #include <mc/expr/context.h>
-#include <mc/expr/function.h>
 #include <mc/log.h>
 
 #include <unordered_map>
@@ -22,11 +21,16 @@ namespace mc::expr {
 static mc::variant empty_variant;
 
 enum class symbol_type {
+    invalid,
     variable,
     function,
+    object,
 };
 
-struct symbol_info : mc::noncopyable {
+struct symbol_info {
+    symbol_info() : type(symbol_type::invalid) {
+    }
+
     symbol_info(std::string name, function_ptr func)
         : name(std::move(name)), type(symbol_type::function), function(std::move(func)) {
     }
@@ -35,16 +39,87 @@ struct symbol_info : mc::noncopyable {
         : name(std::move(name)), type(symbol_type::variable), variable(std::move(variable)) {
     }
 
+    symbol_info(std::string name, mc::engine::abstract_object* object)
+        : name(std::move(name)), type(symbol_type::object), object(object) {
+    }
+
     ~symbol_info() {
     }
 
     std::string name;
     symbol_type type;
     union {
-        mc::variant               variable;
-        std::shared_ptr<function> function;
+        mc::variant                  variable;
+        std::shared_ptr<function>    function;
+        mc::engine::abstract_object* object;
     };
 };
+
+context_base::context_base(context_base* parent) : m_parent(parent) {
+}
+
+void context_base::set_parent(context_base* parent) {
+    m_parent = parent;
+}
+
+context_base* context_base::get_parent() const {
+    return m_parent;
+}
+
+context_base::context_base(const context_base& other) : m_parent(other.m_parent) {
+}
+
+context_base& context_base::operator=(const context_base& other) {
+    if (this != &other) {
+        m_parent = other.m_parent;
+    }
+    return *this;
+}
+
+context_base::context_base(context_base&& other) noexcept : m_parent(other.m_parent) {
+    other.m_parent = nullptr;
+}
+
+context_base& context_base::operator=(context_base&& other) noexcept {
+    if (this != &other) {
+        m_parent       = other.m_parent;
+        other.m_parent = nullptr;
+    }
+    return *this;
+}
+
+bool context_base::has_variable(std::string_view name, std::string_view iface) const {
+    if (m_parent) {
+        return m_parent->has_variable(name, iface);
+    }
+
+    return false;
+}
+
+bool context_base::has_function(std::string_view name, std::string_view iface) const {
+    if (m_parent) {
+        return m_parent->has_function(name, iface);
+    }
+
+    return false;
+}
+
+const mc::variant& context_base::get_variable(std::string_view name, std::string_view iface) const {
+    if (m_parent) {
+        return m_parent->get_variable(name, iface);
+    }
+
+    return empty_variant;
+}
+
+mc::variant context_base::invoke(std::string_view name, const mc::variants& args,
+                                 std::string_view iface) const {
+    if (m_parent) {
+        return m_parent->invoke(name, args, iface);
+    }
+
+    MC_THROW(mc::invalid_arg_exception, "函数 ${name} 不存在", ("name", name));
+}
 
 // 符号名称集合，函数和变量也不能同名
 using symbol_id_map   = std::unordered_map<int, symbol_info>;
@@ -52,54 +127,22 @@ using symbol_name_map = std::unordered_map<std::string_view, symbol_info*>;
 
 class context_impl {
 public:
-    context_impl() = default;
-
-    explicit context_impl(std::shared_ptr<context_impl> parent) : m_parent(std::move(parent)) {
+    context_impl() {
     }
 
     explicit context_impl(const mc::dict& dict) {
         import_from_dict(dict);
     }
 
-    context_impl(const mc::dict& dict, std::shared_ptr<context_impl> parent)
-        : m_parent(std::move(parent)) {
-        import_from_dict(dict);
-    }
-
-    void set_parent(std::shared_ptr<context_impl> parent) {
-        m_parent = std::move(parent);
-    }
-
-    std::shared_ptr<context_impl> get_parent() const {
-        return m_parent;
-    }
-
     int register_variable(std::string name, const mc::variant& value) {
         std::lock_guard<std::mutex> lock(m_mutex);
 
         auto id = m_next_id++;
-        // 使用emplace的两阶段构造，避免symbol_info的复制
         auto it = m_symbols
                       .emplace(std::piecewise_construct, std::forward_as_tuple(id),
                                std::forward_as_tuple(std::move(name), value))
                       .first;
-
-        // 同名符号相互覆盖
-        auto name_ref      = std::string_view(it->second.name);
-        auto it_name       = m_symbol_names.find(name_ref);
-        bool inserted_name = false;
-
-        if (it_name == m_symbol_names.end()) {
-            m_symbol_names.emplace(name_ref, &it->second);
-            inserted_name = true;
-        } else {
-            it_name->second = &it->second;
-        }
-
-        if (!inserted_name) {
-            wlog("注册变量 ${name} 重复", ("name", name_ref));
-        }
-
+        add_symbol_info(it->second);
         return id;
     }
 
@@ -112,29 +155,27 @@ public:
 
         auto        id   = m_next_id++;
         std::string name = func->get_name();
-
-        // 使用emplace的两阶段构造，避免symbol_info的复制
-        auto it = m_symbols
+        auto        it   = m_symbols
                       .emplace(std::piecewise_construct, std::forward_as_tuple(id),
                                std::forward_as_tuple(std::move(name), std::move(func)))
                       .first;
+        add_symbol_info(it->second);
+        return id;
+    }
 
-        // 同名符号相互覆盖
-        auto name_ref      = std::string_view(it->second.name);
-        auto it_name       = m_symbol_names.find(name_ref);
-        bool inserted_name = false;
-
-        if (it_name == m_symbol_names.end()) {
-            m_symbol_names.emplace(name_ref, &it->second);
-            inserted_name = true;
-        } else {
-            it_name->second = &it->second;
+    int register_object(std::string name, mc::engine::abstract_object* obj) {
+        if (!obj) {
+            return -1;
         }
 
-        if (!inserted_name) {
-            wlog("注册函数 ${name} 重复", ("name", name_ref));
-        }
+        std::lock_guard<std::mutex> lock(m_mutex);
 
+        auto id = m_next_id++;
+        auto it = m_symbols
+                      .emplace(std::piecewise_construct, std::forward_as_tuple(id),
+                               std::forward_as_tuple(std::move(name), obj))
+                      .first;
+        add_symbol_info(it->second);
         return id;
     }
 
@@ -146,11 +187,24 @@ public:
             return it->second;
         }
 
-        if (m_parent) {
-            return m_parent->get_symbol(name);
+        return nullptr;
+    }
+
+    void add_symbol_info(symbol_info& info) {
+        auto name          = std::string_view(info.name);
+        auto it_name       = m_symbol_names.find(name);
+        bool inserted_name = false;
+
+        if (it_name == m_symbol_names.end()) {
+            m_symbol_names.emplace(name, &info);
+            inserted_name = true;
+        } else {
+            it_name->second = &info;
         }
 
-        return nullptr;
+        if (!inserted_name) {
+            wlog("注册函数 ${name} 重复", ("name", name));
+        }
     }
 
     symbol_info* get_symbol(int id) {
@@ -164,26 +218,6 @@ public:
         return nullptr;
     }
 
-    bool has_symbol(std::string_view name) const {
-        std::lock_guard<std::mutex> lock(m_mutex);
-
-        if (m_symbol_names.find(name) != m_symbol_names.end()) {
-            return true;
-        }
-
-        if (m_parent) {
-            return m_parent->has_symbol(name);
-        }
-
-        return false;
-    }
-
-    bool has_symbol(int id) const {
-        std::lock_guard<std::mutex> lock(m_mutex);
-
-        return m_symbols.find(id) != m_symbols.end();
-    }
-
     void import_from_dict(const mc::dict& dict) {
         for (const auto& entry : dict) {
             const auto& key = entry.key;
@@ -193,76 +227,106 @@ public:
         }
     }
 
-    bool is_empty() const {
-        return m_symbols.empty() && !m_parent;
-    }
-
 private:
-    mutable std::mutex            m_mutex;
-    symbol_id_map                 m_symbols;
-    symbol_name_map               m_symbol_names;
-    std::shared_ptr<context_impl> m_parent;
-    int                           m_next_id{0};
+    mutable std::mutex m_mutex;
+    symbol_id_map      m_symbols;
+    symbol_name_map    m_symbol_names;
+    int                m_next_id{0};
 };
 
 context::context() : m_impl(std::make_shared<context_impl>()) {
 }
 
-context::context(const context* parent)
-    : m_impl(std::make_shared<context_impl>(parent ? parent->m_impl : nullptr)) {
+context::context(context_base* parent)
+    : context_base(parent), m_impl(std::make_shared<context_impl>()) {
 }
 
-context::context(const mc::dict& dict, const context* parent)
-    : m_impl(std::make_shared<context_impl>(dict, parent ? parent->m_impl : nullptr)) {
+context::context(const mc::dict& dict, context_base* parent)
+    : context_base(parent), m_impl(std::make_shared<context_impl>(dict)) {
 }
 
-void context::set_parent(const context& parent) {
-    m_impl->set_parent(parent.m_impl);
+context::context(const context& other) : context_base(other.get_parent()), m_impl(other.m_impl) {
 }
 
-context context::get_parent() const {
-    auto parent_impl = m_impl->get_parent();
-    if (!parent_impl) {
-        MC_THROW(invalid_op_exception, "表达式上下文错误: 父级上下文不存在");
+context& context::operator=(const context& other) {
+    if (this != &other) {
+        context_base::operator=(other);
+        m_impl = other.m_impl;
     }
+    return *this;
+}
 
-    // 创建新的context对象并设置其impl为父级impl
-    context parent_context;
-    parent_context.m_impl = parent_impl;
-    return parent_context;
+context::context(context&& other) noexcept
+    : context_base(other.get_parent()), m_impl(other.m_impl) {
+    other.set_parent(nullptr);
+    other.m_impl = nullptr;
+}
+
+context& context::operator=(context&& other) noexcept {
+    if (this != &other) {
+        context_base::operator=(other);
+        m_impl = other.m_impl;
+
+        other.set_parent(nullptr);
+        other.m_impl = nullptr;
+    }
+    return *this;
 }
 
 int context::register_variable(std::string name, const mc::variant& value) {
     return m_impl->register_variable(std::move(name), value);
 }
 
-mc::variant& context::get_variable(std::string_view name) const {
+const mc::variant& context::get_variable(std::string_view name, std::string_view iface) const {
+    MC_UNUSED(iface);
+
     auto symbol = m_impl->get_symbol(name);
-    if (!symbol) {
-        return empty_variant;
+    if (symbol) {
+        // 遮蔽父上下文同名符号
+        return symbol->type == symbol_type::variable ? symbol->variable : empty_variant;
     }
 
-    return symbol->variable;
+    return context_base::get_variable(name);
 }
 
-mc::variant& context::get_variable(int id) const {
-    auto symbol = m_impl->get_symbol(id);
-    if (!symbol) {
-        return empty_variant;
-    }
+bool context::has_variable(std::string_view name, std::string_view iface) const {
+    MC_UNUSED(iface);
 
-    return symbol->variable;
-}
-
-bool context::has_variable(std::string_view name) const {
     auto symbol = m_impl->get_symbol(name);
-    if (!symbol) {
-        return false;
+    if (symbol) {
+        // 遮蔽父上下文同名符号
+        return symbol->type == symbol_type::variable;
     }
 
-    return symbol->type == symbol_type::variable;
+    return context_base::has_variable(name);
 }
 
+bool context::has_function(std::string_view name, std::string_view iface) const {
+    MC_UNUSED(iface);
+
+    auto symbol = m_impl->get_symbol(name);
+    if (symbol) {
+        // 遮蔽父上下文同名符号
+        return symbol->type == symbol_type::function;
+    }
+
+    return context_base::has_function(name);
+}
+
+mc::variant context::invoke(std::string_view name, const mc::variants& args,
+                            std::string_view iface) const {
+    MC_UNUSED(iface);
+
+    auto symbol = m_impl->get_symbol(name);
+    if (symbol) {
+        if (symbol->type != symbol_type::function) {
+            MC_THROW(mc::invalid_arg_exception, "符号 ${name} 不是函数", ("name", name));
+        }
+        return symbol->function->call(args);
+    }
+
+    return context_base::invoke(name, args);
+}
 void context::import_from_dict(const mc::dict& dict) {
     m_impl->import_from_dict(dict);
 }
@@ -271,26 +335,35 @@ int context::register_function(std::shared_ptr<function> func) {
     return m_impl->register_function(std::move(func));
 }
 
-std::shared_ptr<function> context::get_function(std::string_view name) const {
-    auto symbol = m_impl->get_symbol(name);
-    if (!symbol) {
-        return nullptr;
-    }
-
-    return symbol->function;
+int context::register_object(std::string name, mc::engine::abstract_object* obj) {
+    return m_impl->register_object(std::move(name), obj);
 }
 
-bool context::has_function(std::string_view name) const {
-    auto symbol = m_impl->get_symbol(name);
-    if (!symbol) {
-        return false;
-    }
-
-    return symbol->type == symbol_type::function;
+object_context::object_context(mc::engine::abstract_object* obj, context_base* parent)
+    : context_base(parent), m_object(obj) {
 }
 
-bool context::is_empty() const {
-    return m_impl->is_empty();
+mc::engine::abstract_object* object_context::get_object() const {
+    return m_object;
+}
+
+bool object_context::has_variable(std::string_view name, std::string_view iface) const {
+    return m_object->has_property(name, iface);
+}
+
+bool object_context::has_function(std::string_view name, std::string_view iface) const {
+    return m_object->has_method(name, iface);
+}
+
+const mc::variant& object_context::get_variable(std::string_view name,
+                                                std::string_view iface) const {
+    m_property = m_object->get_property(name, iface);
+    return m_property;
+}
+
+mc::variant object_context::invoke(std::string_view name, const mc::variants& args,
+                                   std::string_view iface) const {
+    return m_object->invoke(name, args, iface);
 }
 
 } // namespace mc::expr

@@ -14,6 +14,7 @@
  * @file parser.h
  * @brief 定义语法分析器类
  * @note 此头文件尚未启用，语法分析器的实现当前在engine.cpp中，此文件仅为未来拆分做准备
+ * @note 支持点号访问语法 (obj.property) 用于访问对象属性和方法
  */
 #ifndef MC_EXPR_INTERNAL_PARSER_H
 #define MC_EXPR_INTERNAL_PARSER_H
