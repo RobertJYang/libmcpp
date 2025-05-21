@@ -6,7 +6,7 @@ project(
     'warning_level=3',
     'cpp_std=c++17',
     'libdir=lib',
-    'cpp_args=-fPIC -Wall -Wno-unused-parameter -Wno-unused-variable -Wno-sign-compare -Wno-pedantic',
+    'cpp_args=-fPIC -Wall -Wno-unused-parameter -Wno-unused-variable -Wno-sign-compare -Wno-pedantic -Wno-deprecated-copy',
   ],
 )
 
@@ -39,8 +39,30 @@ else
   boost_program_options_dep = dependency('', required: false)
 endif
 
+# 设置编译宏
+if meson.is_cross_build()
+  current_buildtype = get_option('buildtype')
+  if current_buildtype == 'debug'
+    add_project_arguments(
+      '-DBUILD_TYPE=BUILD_TYPE_DEBUG',
+      language: 'cpp'
+    )
+  else
+    add_project_arguments(
+      '-DBUILD_TYPE=BUILD_TYPE_RELEASE',
+      language: 'cpp'
+    )
+  endif
+else
+  add_project_arguments(
+    '-DBUILD_TYPE=BUILD_TYPE_DT',
+    language: 'cpp'
+  )
+endif
+
 # 尝试使用 pkg-config 查找依赖
-dbus_dep = dependency('dbus-1', method: 'pkg-config', required: true)
+dbus_dep = dependency('dbus-1', method : 'pkg-config', required : true)
+glib_dep = dependency('glib-2.0', method : 'pkg-config', required : true)
 
 # 包含目录
 incdir = include_directories('include')

@@ -13,6 +13,7 @@
 #include <mc/engine/engine.h>
 #include <mc/engine/object.h>
 #include <mc/engine/service.h>
+#include <mc/dbus/shm/local_msg.h>
 #include <thread>
 
 namespace mc::engine {

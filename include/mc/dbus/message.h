@@ -612,6 +612,9 @@ struct has_operator<
 template <typename T>
 inline constexpr bool has_operator_v =
     has_operator<T, const_ref_tag>::value || has_operator<T, value_tag>::value;
+
+// 将 variant 解析为 dbus 签名
+void variant_to_dbus_signature(signature& sig, const mc::variant& v);
 } // namespace detail
 
 // 写入反射类型，自动按照反射类型签名写入

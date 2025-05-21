@@ -73,7 +73,9 @@ struct visitor {
     struct property_meta {
         std::string_view name;
         std::string_view signature;
-        uint32_t         access;
+        int              read_privilege;
+        int              write_privilege;
+        int              flags;
     };
     virtual void handle(const abstract_object& obj, const abstract_interface& iface,
                         const property_meta& info) = 0;
@@ -82,6 +84,8 @@ struct visitor {
         std::string_view name;
         std::string_view args_signature;
         std::string_view return_signature;
+        int              privilege;
+        int              flags;
     };
     virtual void handle(const abstract_object& obj, const abstract_interface& iface,
                         const method_meta& info) = 0;
@@ -90,6 +94,7 @@ struct visitor {
         std::string_view name;
         std::string_view args_signature;
         std::string_view return_signature;
+        int              flags;
     };
 
     virtual void handle(const abstract_object& obj, const abstract_interface& iface,
@@ -179,7 +184,7 @@ public:
     virtual std::string_view    get_interface_name() const                                   = 0;
     virtual mc::connection_type connect(std::string_view signal_name, slot_type slot)        = 0;
     virtual mc::variant         emit(std::string_view signal_name, const mc::variants& args) = 0;
-    virtual mc::variant         get_property(std::string_view property_name)                 = 0;
+    virtual mc::variant         get_property(std::string_view property_name) const           = 0;
     virtual std::string_view    get_property_name(const property_base* prop)                 = 0;
     virtual property_base*      get_property_base(std::string_view property_name)            = 0;
     virtual mc::dict            get_all_properties()                                         = 0;

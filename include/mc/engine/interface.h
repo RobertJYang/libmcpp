@@ -233,8 +233,8 @@ struct interface : public abstract_interface {
         return {method, method->invoke(static_cast<interface_type&>(*this), args)};
     }
 
-    mc::variant get_property(std::string_view property_name) override {
-        return mc::reflect::get_property(static_cast<interface_type&>(*this), property_name);
+    mc::variant get_property(std::string_view property_name) const override {
+        return mc::reflect::get_property(static_cast<const interface_type&>(*this), property_name);
     }
 
     property_base* get_property_base(std::string_view property_name) override {
@@ -320,7 +320,9 @@ protected:
             visitor::property_meta info;
             info.name      = property.name;
             info.signature = mc::reflect::get_signature<property_type>();
-            info.access    = 0;
+            info.read_privilege  = 0;
+            info.write_privilege = 0;
+            info.flags           = 0;
             v.handle(*get_owner(), *this, info);
         });
     }
@@ -337,6 +339,8 @@ protected:
                 info.return_signature = mc::reflect::get_signature<result_type>();
             }
             info.args_signature = mc::reflect::get_signature<args_type>();
+            info.privilege      = 0;
+            info.flags          = 0;
             v.handle(*get_owner(), *this, info);
         });
     }
@@ -351,6 +355,7 @@ protected:
             info.name             = signal.name;
             info.return_signature = mc::reflect::get_signature<result_type>();
             info.args_signature   = mc::reflect::get_signature<args_type>();
+            info.flags            = 0;
             v.handle(*get_owner(), *this, info);
         });
     }

@@ -29,6 +29,7 @@ class AppConan(ConanBase):
         d.cpp_args.append("-fpermissive")
         d.cpp_args.append("-Wno-pedantic")
         d.cpp_args.append("-fno-strict-aliasing")
+        d.cpp_args.append("-Wno-deprecated-copy")
         d.generate()
 
         os.environ["PKG_CONFIG"] = "/usr/bin/pkg-config"
@@ -38,10 +39,10 @@ class AppConan(ConanBase):
             tc.project_options["libdir"] = 'usr/lib64'
         else:
             tc.project_options["libdir"] = 'usr/lib'
-            
+        tc.project_options["enable_shared_memory"] = "true"
+
         if self.settings.arch in ["armv8"]:
             tc.properties["pkg_config_libdir"] = self.env["PKG_CONFIG_PATH"].split(":")
-        
         tc.generate()
         pc = PkgConfigDeps(self)
         pc.generate()

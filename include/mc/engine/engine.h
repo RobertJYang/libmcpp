@@ -49,9 +49,9 @@ public:
         return new_table;
     }
 
-    table_ptr find_table(std::string_view table_name);
-    bool      register_table(table_ptr table);
-    void      unregister_table(table_ptr table);
+    table_ptr   find_table(std::string_view table_name);
+    bool        register_table(table_ptr table);
+    void        unregister_table(table_ptr table);
 
     object_table&    get_object_table();
     io_context_type& get_io_context();
