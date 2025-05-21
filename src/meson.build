@@ -46,6 +46,11 @@ src_files = [
   'dbus/dispatch/timeout.cpp',
   'dbus/dispatch/pending_call.cpp',
   'dbus/path_iterator.cpp',
+  'dbus/shm/gvariant_convert.cpp',
+  'dbus/shm/harbor.cpp',
+  'dbus/shm/local_msg.cpp',
+  'dbus/shm/serialize.cpp',
+  'dbus/shm/shm_tree.cpp',
   'engine/base.cpp',
   'engine/engine.cpp',
   'engine/service.cpp',
@@ -56,12 +61,25 @@ src_files = [
   'engine/property.cpp',
 ]
 
+dep_arr = [boost_dep, boost_program_options_dep, dbus_dep, glib_dep]
+
+enable_shared_memory = get_option('enable_shared_memory')
+if enable_shared_memory
+  message('已开启共享内存')
+  add_project_arguments(
+    '-DENABLE_DBUS_SHARED_MEMORY=' + enable_shared_memory.to_int().to_string(),
+    language: 'cpp',
+  )
+  libsomp_dep = dependency('libsomp', method : 'pkg-config', required : true)
+  dep_arr += [libsomp_dep]
+endif
+
 # 创建共享库
 libmcpp_lib = shared_library(
   'libmcpp',
   src_files,
   include_directories: [incdir],
-  dependencies: [boost_dep, boost_program_options_dep, dbus_dep],
+  dependencies: dep_arr,
   install: true,
 )
 

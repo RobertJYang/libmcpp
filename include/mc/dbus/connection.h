@@ -142,6 +142,12 @@ public:
 
     void dispatch();
 
+    /**
+     * @brief 获取DBus连接的唯一名称
+     * @return 唯一名称
+     */
+    std::string get_unique_name() const;
+
     mc::signal<DBusHandlerResult(message&)> on_filter_message;
 
 private:

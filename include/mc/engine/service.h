@@ -14,6 +14,8 @@
 #define MC_ENGINE_MIDDLEWARE_DBUS_SERVICE_H
 #include <mc/common.h>
 #include <mc/core/service.h>
+#include <mc/time.h>
+#include <memory>
 
 namespace mc::engine {
 class engine;
@@ -49,6 +51,17 @@ public:
     void unregister_object(std::string_view path);
 
     service_object_table& get_object_table() const;
+
+    mc::variant timeout_call(mc::milliseconds timeout, std::string_view service_name,
+                             std::string_view path, std::string_view interface,
+                             std::string_view method, std::string_view signature,
+                             const mc::variants& args);
+
+    std::optional<mc::variant> shm_timeout_call(mc::milliseconds timeout,
+                                                std::string_view service_name,
+                                                std::string_view path, std::string_view interface,
+                                                std::string_view method, std::string_view signature,
+                                                const mc::variants& args);
 
 protected:
     void register_object(abstract_object& obj);

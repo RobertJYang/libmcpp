@@ -101,8 +101,6 @@ static std::pair<bool, bool> check_dict_all_type(const mc::dict& v, mc::type_id 
     return {key_equal, value_equal};
 }
 
-static void variant_to_dbus_signature(signature& sig, const mc::variant& v);
-
 static void array_to_dbus_signature(signature& sig, const mc::variants& v) {
     // 如果数组是空，无法探测到数组类型，默认使用byte类型
     if (v.empty()) {
@@ -154,7 +152,7 @@ static void dict_to_dbus_signature(signature& sig, const mc::dict& v) {
     sig += type_code::dict_entry_end;
 }
 
-static void variant_to_dbus_signature(signature& sig, const mc::variant& v) {
+void variant_to_dbus_signature(signature& sig, const mc::variant& v) {
     switch (v.get_type()) {
     case mc::type_id::null_type: // dbus 不支持空类型，用一个 std::optional 类型来表示
         sig += "ai";

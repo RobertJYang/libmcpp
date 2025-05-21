@@ -21,6 +21,11 @@ test_files = [
   'db/test_table.cpp',
   'db/test_transaction.cpp',
 
+  # dbus 目录
+  'dbus/test_local_msg.cpp',
+  'dbus/test_serialize.cpp',
+  'dbus/test_gvariant_convert.cpp',
+
   # dict 目录
   'dict/test_dict_construction.cpp',
   'dict/test_dict_conversion.cpp',
@@ -99,6 +104,11 @@ test_files = [
   'dbus/test_path_iterator.cpp',
 ]
 
+enable_shared_memory = get_option('enable_shared_memory')
+if enable_shared_memory
+  test_files += ['dbus/test_shm_call.cpp']
+endif
+
 dbus_dep = dependency('dbus-1', method: 'pkg-config', required: true)
 
 # 创建测试可执行文件 - 现在依赖test_utilities
@@ -109,10 +119,11 @@ test_exe = executable(
   dependencies: [
     libmcpp_dep,
     gtest_dep,
+    dbus_dep,
+    glib_dep,
     boost_dep,
     boost_program_options_dep,
-    test_utilities_dep,
-    dbus_dep,
+    test_utilities_dep
   ],
   cpp_args: [],
   install: true,

@@ -20,7 +20,7 @@ example_plugin = shared_library(
     'example_plugin',
     'example_plugin.cpp',
     include_directories: incdir,
-    dependencies: [boost_dep, boost_program_options_dep],
+    dependencies: dep_arr,
     link_with: [libmcpp_lib],
     install: true,
     install_dir: get_option('libdir') / 'libmcpp/plugins',

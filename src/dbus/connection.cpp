@@ -433,4 +433,8 @@ void connection::dispatch_status_changed(DBusConnection*, DBusDispatchStatus new
     }
 }
 
+std::string connection::get_unique_name() const {
+    return std::string(dbus_bus_get_unique_name(m_connection));
+}
+
 } // namespace mc::dbus

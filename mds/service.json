@@ -9,11 +9,17 @@
         "test": [
             {
                 "conan": "skynet/1.7.0.B016"
+            },
+            {
+                "conan": "libsomp/1.80.3@openUBMC.dev/dev"
             }
         ],
         "build": [
             {
                 "conan": "boost/1.82.0.B001"
+            },
+            {
+                "conan": "libsomp/1.80.3@openUBMC.dev/dev"
             }
         ]
     },
