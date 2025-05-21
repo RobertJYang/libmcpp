@@ -16,6 +16,7 @@
 #include <boost/asio/io_context.hpp>
 #include <mc/db/database.h>
 #include <mc/exception.h>
+#include <mc/expr.h>
 #include <mc/singleton.h>
 #include <unordered_map>
 
@@ -55,6 +56,9 @@ public:
 
     object_table&    get_object_table();
     io_context_type& get_io_context();
+
+    mc::expr::engine&  get_expr_engine();
+    mc::expr::node_ptr compile(std::string_view expr);
 
 private:
     engine();

@@ -305,6 +305,7 @@ private:
             return compare_values(field_value, m_value, m_op);
         }
 
+        // 允许通过方法获取值，前提是方法不需要参数
         auto method_info = mc::reflect::get_method_info<T>(m_field);
         if (method_info != nullptr) {
             try {

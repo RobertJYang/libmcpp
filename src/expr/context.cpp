@@ -132,6 +132,8 @@ using symbol_name_map = std::unordered_map<std::string_view, symbol_info*>;
 
 class context_impl {
 public:
+    friend class context;
+
     context_impl() {
     }
 
@@ -236,6 +238,7 @@ private:
     mutable std::mutex m_mutex;
     symbol_id_map      m_symbols;
     symbol_name_map    m_symbol_names;
+    mc::variant        m_temp_variable;
     int                m_next_id{0};
 };
 
@@ -282,36 +285,73 @@ int context::register_variable(std::string name, const mc::variant& value) {
     return m_impl->register_variable(std::move(name), value);
 }
 
-const mc::variant& context::get_variable(std::string_view name, std::string_view iface) const {
-    MC_UNUSED(iface);
+const mc::variant& context::get_variable(std::string_view name, std::string_view object) const {
+    if (!object.empty()) {
+        auto obj_symbol = m_impl->get_symbol(object);
+        if (!obj_symbol) {
+            return context_base::get_variable(name, object);
+        }
 
-    auto symbol = m_impl->get_symbol(name);
-    if (symbol) {
-        // 遮蔽父上下文同名符号
-        return symbol->type == symbol_type::variable ? symbol->variable : empty_variant;
+        if (obj_symbol->type == symbol_type::object) {
+            m_impl->m_temp_variable = obj_symbol->object->get_property(name);
+            return m_impl->m_temp_variable;
+        } else if (obj_symbol->type == symbol_type::variable &&
+                   obj_symbol->variable.contains(name)) {
+            return obj_symbol->variable[name];
+        }
+
+        return empty_variant;
     }
 
-    return context_base::get_variable(name);
+    auto symbol = m_impl->get_symbol(name);
+    if (!symbol) {
+        return context_base::get_variable(name);
+    }
+
+    return symbol->type == symbol_type::variable ? symbol->variable : empty_variant;
 }
 
-bool context::has_variable(std::string_view name, std::string_view iface) const {
-    MC_UNUSED(iface);
+bool context::has_variable(std::string_view name, std::string_view object) const {
+    if (!object.empty()) {
+        auto obj_symbol = m_impl->get_symbol(object);
+        if (!obj_symbol) {
+            return context_base::has_variable(name, object);
+        }
+
+        if (obj_symbol->type == symbol_type::object) {
+            return obj_symbol->object->has_property(name);
+        } else if (obj_symbol->type == symbol_type::variable &&
+                   obj_symbol->variable.contains(name)) {
+            return true;
+        }
+
+        return false;
+    }
 
     auto symbol = m_impl->get_symbol(name);
     if (symbol) {
-        // 遮蔽父上下文同名符号
         return symbol->type == symbol_type::variable;
     }
 
     return context_base::has_variable(name);
 }
 
-bool context::has_function(std::string_view name, std::string_view iface) const {
-    MC_UNUSED(iface);
+bool context::has_function(std::string_view name, std::string_view object) const {
+    if (!object.empty()) {
+        auto obj_symbol = m_impl->get_symbol(object);
+        if (!obj_symbol) {
+            return context_base::has_function(name, object);
+        }
+
+        if (obj_symbol->type == symbol_type::object) {
+            return obj_symbol->object->has_method(name);
+        }
+
+        return false;
+    }
 
     auto symbol = m_impl->get_symbol(name);
     if (symbol) {
-        // 遮蔽父上下文同名符号
         return symbol->type == symbol_type::function;
     }
 
@@ -319,15 +359,27 @@ bool context::has_function(std::string_view name, std::string_view iface) const 
 }
 
 mc::variant context::invoke(std::string_view name, const mc::variants& args,
-                            std::string_view iface) const {
-    if (iface.empty()) {
-        auto sym_info = m_impl->get_symbol(name);
-        if (sym_info && sym_info->type == symbol_type::function) {
-            return sym_info->function->call(args);
+                            std::string_view object) const {
+    if (!object.empty()) {
+        auto obj_symbol = m_impl->get_symbol(object);
+        if (!obj_symbol) {
+            return context_base::invoke(name, args, object);
         }
+
+        if (obj_symbol->type == symbol_type::object) {
+            // TODO:: 如果是 object 的指定 interface 如何调用？
+            return obj_symbol->object->invoke(name, args);
+        }
+
+        return empty_variant;
     }
 
-    return context_base::invoke(name, args, iface);
+    auto sym_info = m_impl->get_symbol(name);
+    if (sym_info && sym_info->type == symbol_type::function) {
+        return sym_info->function->call(args);
+    }
+
+    return context_base::invoke(name, args, object);
 }
 
 void context::import_from_dict(const mc::dict& dict) {

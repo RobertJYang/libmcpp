@@ -17,6 +17,7 @@
 #include <mc/engine/interface.h>
 #include <mc/engine/object_metadata.h>
 #include <mc/exception.h>
+#include <mc/expr.h>
 #include <mc/log.h>
 
 namespace mc::engine {
@@ -86,12 +87,11 @@ public:
     }
 
     std::string_view get_object_path() const override {
-        if (m_object_path.empty()) {
-            if (get_parent()) {
-                m_object_path = get_parent()->get_object_path();
-            }
-            m_object_path += object_type::path_pattern;
+        if (!m_object_path.empty()) {
+            return m_object_path;
         }
+
+        m_object_path = mc::engine::service::resolve_object_path(object_type::path_pattern, *this);
         return m_object_path;
     }
 
@@ -138,7 +138,7 @@ public:
         auto info =
             metadata_type::get_instance().get_property_interface(property_name, interface_name);
         if (info == nullptr) {
-            return {};
+            return mc::reflect::get_property<abstract_object>(*this, property_name);
         }
 
         return property_info_to_interface(*info)->get_property(property_name);
@@ -159,7 +159,7 @@ public:
         auto info =
             metadata_type::get_instance().get_property_interface(property_name, interface_name);
         if (info == nullptr) {
-            return false;
+            return mc::reflect::get_property_info<abstract_object>(property_name) != nullptr;
         }
 
         return interface_name.empty()

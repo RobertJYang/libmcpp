@@ -114,7 +114,7 @@ TEST_F(expr_test, Variables) {
 }
 
 TEST_F(expr_test, Functions) {
-    auto ctx = engine.create_context();
+    auto ctx = engine.make_context();
 
     // 测试内置函数
     EXPECT_EQ(engine.evaluate("abs(-10)", ctx), 10);
@@ -167,7 +167,7 @@ TEST_F(expr_test, Functions) {
 }
 
 TEST_F(expr_test, Errors) {
-    auto ctx = engine.create_context();
+    auto ctx = engine.make_context();
 
     // 语法错误
     EXPECT_THROW(engine.evaluate("1 + ", ctx), mc::parse_error_exception);
@@ -243,4 +243,60 @@ TEST_F(expr_test, BitOperations) {
 
     // 测试位操作与非数值类型 - 应该抛出异常
     EXPECT_THROW(engine.evaluate("'abc' | 1", ctx), mc::invalid_op_exception);
+}
+
+TEST_F(expr_test, TemplateStrings) {
+    auto& ctx = engine.get_global_context();
+
+    // 设置变量
+    ctx.register_variable("name", "Alice");
+    ctx.register_variable("age", 30);
+    ctx.register_variable("pi", 3.14159);
+
+    // 基本模板字符串
+    EXPECT_EQ(engine.evaluate("\"Hello, ${name}!\"", ctx), "Hello, Alice!");
+
+    // 包含数值的模板字符串
+    EXPECT_EQ(engine.evaluate("\"Age: ${age}\"", ctx), "Age: 30");
+    EXPECT_EQ(engine.evaluate("\"Pi: ${pi}\"", ctx), "Pi: 3.14159");
+
+    // 多个表达式的模板字符串
+    EXPECT_EQ(engine.evaluate("\"${name} is ${age} years old.\"", ctx), "Alice is 30 years old.");
+
+    // 表达式内的计算
+    EXPECT_EQ(engine.evaluate("\"Sum: ${1 + 2 + 3}\"", ctx), "Sum: 6");
+    EXPECT_EQ(engine.evaluate("\"Pi squared: ${pi * pi}\"", ctx), "Pi squared: 9.869588");
+    EXPECT_EQ(engine.evaluate("\"Next year: ${age + 1}\"", ctx), "Next year: 31");
+
+    // 使用条件表达式
+    EXPECT_EQ(engine.evaluate("\"Status: ${age >= 18 ? 'adult' : 'minor'}\"", ctx),
+              "Status: adult");
+
+    // 嵌套表达式（字符串拼接）
+    EXPECT_EQ(engine.evaluate("\"${name + ' says: \"Hi ' + name + '!\"'}\"", ctx),
+              "Alice says: \"Hi Alice!\"");
+
+    // 复杂表达式组合
+    EXPECT_EQ(engine.evaluate("\"${1 + 2} plus ${3 + 4} equals ${(1 + 2) + (3 + 4)}\"", ctx),
+              "3 plus 7 equals 10");
+
+    // 布尔值
+    EXPECT_EQ(engine.evaluate("\"Is adult: ${age >= 18}\"", ctx), "Is adult: true");
+
+    // 函数调用
+    auto greeting_func = mc::expr::make_simple_function("greeting", [](const std::string& name) {
+        return "Hello, " + name + "!";
+    });
+    ctx.register_function(greeting_func);
+
+    EXPECT_EQ(engine.evaluate("\"Message: ${greeting(name)}\"", ctx), "Message: Hello, Alice!");
+
+    mc::dict user = {{"name", "Bob"}, {"details", mc::dict{{"city", "Beijing"}}}};
+
+    ctx.register_variable("user", user);
+    EXPECT_EQ(engine.evaluate("\"User: ${user.name}\"", ctx), "User: Bob");
+    EXPECT_EQ(engine.evaluate("\"City: ${user.details.city}\"", ctx), "City: Beijing");
+
+    // 异常情况：未定义变量
+    EXPECT_THROW(engine.evaluate("\"${undefined_var}\"", ctx), mc::invalid_arg_exception);
 }

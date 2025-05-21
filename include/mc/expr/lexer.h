@@ -32,6 +32,9 @@ public:
     explicit lexer(std::string_view source);
 
     std::vector<token> scan_tokens();
+    std::vector<token> scan_template_string_tokens();
+
+    static bool is_template_string(std::string_view source);
 
 private:
     bool is_at_end() const;
@@ -57,11 +60,13 @@ private:
     void scan_token();
     void handle_operator(char c);
     void scan_string();
+    void scan_template_string(char delimiter);
     void process_string_literal(char delimiter);
     void scan_number();
     void scan_identifier();
 
-    int detect_number_radix();
+    int  detect_number_radix();
+    bool is_template_string();
 
     std::string_view   m_source;
     std::size_t        m_current;

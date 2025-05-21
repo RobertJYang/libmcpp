@@ -45,7 +45,8 @@ public:
 
 class test_object : public mc::engine::object<test_object> {
 public:
-    MC_OBJECT(test_object, "TestObject", "/org/test/object_1", (test_interface_1)(test_interface_2))
+    MC_OBJECT(test_object, "TestObject", "/org/test/object_${object_id}_${i32 + 100}",
+              (test_interface_1)(test_interface_2))
 
     test_interface_1 m_iface_1;
     test_interface_2 m_iface_2;
@@ -89,7 +90,13 @@ TEST_F(engine_test, test_engine_dbus_connection) {
 
 TEST_F(engine_test, test_object_property_changed_sig) {
     auto obj = test_object::create();
+    obj->m_iface_1.m_i32.set_value(1);
+    obj->set_object_id(1);
     service.register_object(obj);
+
+    // 检查对象路径模板计算是否正确
+    auto path = obj->get_object_path();
+    EXPECT_EQ(path, "/org/test/object_1_101");
 
     mc::mutable_dict values;
     obj->property_changed().connect([&](const mc::variant& value, const auto& prop) {

@@ -47,8 +47,22 @@ public:
     bool operator==(const test_person& other) const {
         return m_name == other.m_name && m_age == other.m_age && m_is_male == other.m_is_male;
     }
+
+    int id{1};
+    int get_id() const {
+        return id;
+    }
+
+    void set_id(int id) {
+        this->id = id;
+    }
+
+    int get_readonly_id() const {
+        return id;
+    }
 };
-MC_REFLECT(test_person, (m_name)(m_age)(m_is_male))
+MC_REFLECT(test_person, (m_name)(m_age)(m_is_male)(MC_COMPUTED_PROPERTY("id", get_id, set_id))(
+                            MC_COMPUTED_PROPERTY("readonly_id", get_id)))
 
 template <typename T>
 class member_visitor {
@@ -88,17 +102,32 @@ TEST(ReflectTest, ClassReflection) {
 
     // 检查字典内容
     const dict& d = var.as<dict>();
-    EXPECT_EQ(d.size(), 3);
+    EXPECT_EQ(d.size(), 5);
     EXPECT_EQ(d["m_name"], "张三");
     EXPECT_EQ(d["m_age"], 30);
     EXPECT_EQ(d["m_is_male"], true);
+    EXPECT_EQ(d["id"], 1);
+    EXPECT_EQ(d["readonly_id"], 1);
 
     // 从变体转回对象
     test_person p2 = var.as<test_person>();
     EXPECT_EQ(p2.m_name, "张三");
     EXPECT_EQ(p2.m_age, 30);
     EXPECT_EQ(p2.m_is_male, true);
+    EXPECT_EQ(p2.id, 1);
     EXPECT_EQ(p, p2);
+
+    auto id_val = mc::reflect::get_property<test_person>(p2, "id");
+    EXPECT_EQ(id_val, 1);
+    mc::reflect::set_property<test_person>(p2, "id", 2);
+    EXPECT_EQ(p2.id, 2);
+
+    auto readonly_id_val = mc::reflect::get_property<test_person>(p2, "readonly_id");
+    EXPECT_EQ(readonly_id_val, 2);
+
+    // 没有 setter 的属性不能设置值
+    mc::reflect::set_property<test_person>(p2, "readonly_id", 3);
+    EXPECT_EQ(p2.id, 2);
 }
 
 // 测试枚举反射
@@ -185,16 +214,19 @@ TEST(ReflectTest, MemberVisit) {
     mc::reflect::visit_properties<test_person>(visitor);
 
     // 检查成员名称
-    EXPECT_EQ(visitor.names.size(), 3);
+    EXPECT_EQ(visitor.names.size(), 5);
     EXPECT_EQ(visitor.names[0], "m_name");
     EXPECT_EQ(visitor.names[1], "m_age");
     EXPECT_EQ(visitor.names[2], "m_is_male");
-
+    EXPECT_EQ(visitor.names[3], "id");
+    EXPECT_EQ(visitor.names[4], "readonly_id");
     // 检查成员值
-    EXPECT_EQ(visitor.values.size(), 3);
+    EXPECT_EQ(visitor.values.size(), 5);
     EXPECT_EQ(visitor.values[0], "李四");
     EXPECT_EQ(visitor.values[1], 25);
     EXPECT_EQ(visitor.values[2], false);
+    EXPECT_EQ(visitor.values[3], 1);
+    EXPECT_EQ(visitor.values[4], 1);
 }
 
 // 测试部分更新对象

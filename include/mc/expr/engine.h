@@ -69,7 +69,7 @@ public:
      * @param parent 父级上下文指针，如果为空则使用全局上下文
      * @return 上下文对象
      */
-    context create_context(context_base* parent = nullptr) const;
+    context make_context(context_base* parent = nullptr) const;
 
     /**
      * @brief 创建带有指定变量的上下文
@@ -77,7 +77,16 @@ public:
      * @param parent 父级上下文指针，如果为空则使用全局上下文
      * @return 上下文对象
      */
-    context create_context(const mc::dict& variables, context_base* parent = nullptr) const;
+    context make_context(const mc::dict& variables, context_base* parent = nullptr) const;
+
+    /**
+     * @brief 创建上下文
+     * @param object 对象指针
+     * @param parent 父级上下文指针，如果为空则使用全局上下文
+     * @return 上下文对象
+     */
+    object_context make_context(mc::engine::abstract_object* object,
+                                context_base*                parent = nullptr) const;
 
 private:
     struct impl;

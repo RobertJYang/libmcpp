@@ -91,3 +91,91 @@ TEST(LexerTest, ErrorCases) {
         },
         mc::parse_error_exception);
 }
+
+// 测试模板字符串词法分析
+TEST(LexerTest, TemplateString) {
+    // 基本模板字符串
+    {
+        mc::expr::lexer lexer("\"Hello, ${name}!\"");
+        auto            tokens = lexer.scan_tokens();
+
+        // 应该有5个token：template_start, template_expr, template_end, EOF
+        ASSERT_EQ(tokens.size(), 4);
+        ASSERT_EQ(tokens[0].type, mc::expr::token_type::template_start);
+        ASSERT_EQ(tokens[0].literal.as_string(), "Hello, ");
+
+        ASSERT_EQ(tokens[1].type, mc::expr::token_type::template_expr);
+        ASSERT_EQ(tokens[1].lexeme, "name");
+
+        ASSERT_EQ(tokens[2].type, mc::expr::token_type::template_end);
+        ASSERT_EQ(tokens[2].literal.as_string(), "!");
+
+        ASSERT_EQ(tokens[3].type, mc::expr::token_type::end_of_file);
+    }
+
+    // 多个表达式的模板字符串
+    {
+        mc::expr::lexer lexer("\"${greeting}, ${name}! Your score is ${score}.\"");
+        auto            tokens = lexer.scan_tokens();
+
+        // 应该有7个token：template_start, template_expr, template_middle, template_expr,
+        // template_middle, template_expr, template_end, EOF
+        ASSERT_EQ(tokens.size(), 8);
+        ASSERT_EQ(tokens[0].type, mc::expr::token_type::template_start);
+        ASSERT_EQ(tokens[0].literal.as_string(), "");
+
+        ASSERT_EQ(tokens[1].type, mc::expr::token_type::template_expr);
+        ASSERT_EQ(tokens[1].lexeme, "greeting");
+
+        ASSERT_EQ(tokens[2].type, mc::expr::token_type::template_middle);
+        ASSERT_EQ(tokens[2].literal.as_string(), ", ");
+
+        ASSERT_EQ(tokens[3].type, mc::expr::token_type::template_expr);
+        ASSERT_EQ(tokens[3].lexeme, "name");
+
+        ASSERT_EQ(tokens[4].type, mc::expr::token_type::template_middle);
+        ASSERT_EQ(tokens[4].literal.as_string(), "! Your score is ");
+
+        ASSERT_EQ(tokens[5].type, mc::expr::token_type::template_expr);
+        ASSERT_EQ(tokens[5].lexeme, "score");
+
+        ASSERT_EQ(tokens[6].type, mc::expr::token_type::template_end);
+        ASSERT_EQ(tokens[6].literal.as_string(), ".");
+
+        ASSERT_EQ(tokens[7].type, mc::expr::token_type::end_of_file);
+    }
+
+    // 测试嵌套花括号
+    {
+        mc::expr::lexer lexer("\"Result: ${if (x > 5) { return a; } else { return b; }}\"");
+        auto            tokens = lexer.scan_tokens();
+
+        ASSERT_EQ(tokens.size(), 4);
+        ASSERT_EQ(tokens[0].type, mc::expr::token_type::template_start);
+        ASSERT_EQ(tokens[0].literal.as_string(), "Result: ");
+
+        ASSERT_EQ(tokens[1].type, mc::expr::token_type::template_expr);
+        ASSERT_EQ(tokens[1].lexeme, "if (x > 5) { return a; } else { return b; }");
+
+        ASSERT_EQ(tokens[2].type, mc::expr::token_type::template_end);
+        ASSERT_EQ(tokens[2].literal.as_string(), "");
+
+        ASSERT_EQ(tokens[3].type, mc::expr::token_type::end_of_file);
+    }
+
+    // 错误情况：未闭合的模板表达式
+    EXPECT_THROW(
+        {
+            mc::expr::lexer lexer("\"Hello, ${name!\"");
+            lexer.scan_tokens();
+        },
+        mc::parse_error_exception);
+
+    // 错误情况：未闭合的模板字符串
+    EXPECT_THROW(
+        {
+            mc::expr::lexer lexer("\"Hello, ${name}");
+            lexer.scan_tokens();
+        },
+        mc::parse_error_exception);
+}

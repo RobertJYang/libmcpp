@@ -26,14 +26,15 @@ class context_base;
  * @brief 表达式节点类型
  */
 enum class node_type {
-    literal,           // 字面值（数字、字符串等）
-    variable,          // 变量引用
-    unary_op,          // 一元操作
-    binary_op,         // 二元操作
-    function_call,     // 函数调用
-    conditional,       // 条件表达式 (? :)
-    property_access,   // 属性访问 (obj.property)
-    object_method_call // 对象方法调用 (obj.method(args))
+    literal,            // 字面值（数字、字符串等）
+    variable,           // 变量引用
+    unary_op,           // 一元操作
+    binary_op,          // 二元操作
+    function_call,      // 函数调用
+    conditional,        // 条件表达式 (? :)
+    property_access,    // 属性访问 (obj.property)
+    object_method_call, // 对象方法调用 (obj.method(args))
+    template_string     // 模板字符串 ("text ${expr} text")
 };
 
 /**
@@ -107,6 +108,7 @@ node_ptr make_function_call(const std::string& name, node_ptrs args);
 node_ptr make_conditional(node_ptr condition, node_ptr true_branch, node_ptr false_branch);
 node_ptr make_property_access(node_ptr object, const std::string& property);
 node_ptr make_object_method_call(node_ptr object, const std::string& method_name, node_ptrs args);
+node_ptr make_template_string(std::vector<std::string> text_parts, node_ptrs expressions);
 
 } // namespace mc::expr
 

@@ -52,12 +52,17 @@ context& engine::get_global_context() const {
     return m_impl->global_context;
 }
 
-context engine::create_context(context_base* parent) const {
+context engine::make_context(context_base* parent) const {
     return context(parent ? parent : &get_global_context());
 }
 
-context engine::create_context(const mc::dict& variables, context_base* parent) const {
+context engine::make_context(const mc::dict& variables, context_base* parent) const {
     return context(variables, parent ? parent : &get_global_context());
+}
+
+object_context engine::make_context(mc::engine::abstract_object* object,
+                                    context_base*                parent) const {
+    return object_context(object, parent ? parent : &get_global_context());
 }
 
 } // namespace mc::expr

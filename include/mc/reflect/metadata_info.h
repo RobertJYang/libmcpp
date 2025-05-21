@@ -24,7 +24,19 @@
 #include <typeinfo>
 #include <vector>
 
+#include <boost/preprocessor/comparison.hpp>
+#include <boost/preprocessor/control/if.hpp>
+#include <boost/preprocessor/control/iif.hpp>
+#include <boost/preprocessor/facilities/is_empty.hpp>
+#include <boost/preprocessor/logical/compl.hpp>
+#include <boost/preprocessor/punctuation/is_begin_parens.hpp>
+#include <boost/preprocessor/seq/for_each.hpp>
+#include <boost/preprocessor/stringize.hpp>
+#include <boost/preprocessor/tuple/elem.hpp>
+#include <boost/preprocessor/tuple/size.hpp>
+
 #include <mc/reflect/signature.h>
+#include <mc/traits.h>
 #include <mc/variant.h>
 
 namespace mc::reflect {
@@ -129,6 +141,14 @@ struct is_property<M T::*,
 template <typename T>
 inline constexpr bool is_property_v = is_property<T>::value;
 
+#define MC_COMPUTED_PROPERTY_2(name, getter)         (0, name, getter)
+#define MC_COMPUTED_PROPERTY_3(name, getter, setter) (0, name, getter, setter)
+
+// 主宏：自动检测参数数量并选择正确的实现
+#define MC_COMPUTED_PROPERTY(...)                                                                  \
+    BOOST_PP_IIF(BOOST_PP_GREATER(BOOST_PP_VARIADIC_SIZE(__VA_ARGS__), 2), MC_COMPUTED_PROPERTY_3, \
+                 MC_COMPUTED_PROPERTY_2)(__VA_ARGS__)
+
 //------------------------------------------------------------------------------
 // 元数据结构基类
 //------------------------------------------------------------------------------
@@ -228,6 +248,76 @@ struct property_info : public property_info_base<C> {
         static_assert(std::is_base_of_v<class_type, Derived>,
                       "Derived must be derived from class_type");
         return property_info<Derived, member_type, class_type>{this->name, member_ptr};
+    }
+};
+
+// 计算属性元数据具体实现
+template <typename C, typename Getter, typename Setter = void*>
+struct computed_property_info : public property_info_base<C> {
+    using class_type  = C;
+    using member_type = typename mc::traits::function_traits<Getter>::return_type;
+    using tag_type    = property_tag;
+    using base_type   = C;
+
+    using set_function_type = Setter;
+    using get_function_type = Getter;
+
+    get_function_type m_getter;
+    set_function_type m_setter;
+
+    constexpr computed_property_info(std::string_view n, get_function_type getter,
+                                     set_function_type setter = nullptr)
+        : property_info_base<C>(n), m_getter(getter), m_setter(setter) {
+    }
+
+    // 获取属性值
+    mc::variant get_value(const C& obj) const override {
+        return (obj.*m_getter)();
+    }
+
+    // 设置属性值
+    void set_value(C& obj, const mc::variant& value) const override {
+        if constexpr (std::is_same_v<set_function_type, void*>) {
+            MC_UNUSED(value);
+        } else {
+            (obj.*m_setter)(value.as<member_type>());
+        }
+    }
+
+    std::function<mc::variant(const C&)> getter() const override {
+        return [this](const C& obj) {
+            return get_value(obj);
+        };
+    }
+
+    std::function<void(C&, const mc::variant&)> setter() const override {
+        return [this](C& obj, const mc::variant& value) {
+            set_value(obj, value);
+        };
+    }
+
+    size_t offset() const override {
+        return 0;
+    }
+
+    std::type_index typeinfo() const override {
+        return typeid(member_type);
+    }
+
+    std::string_view type_name() const override {
+        return pretty_name<member_type>();
+    }
+
+    std::string_view get_signature() const override {
+        return mc::reflect::get_signature<member_type>();
+    }
+
+    template <typename Derived>
+    constexpr auto to_derived() const {
+        static_assert(std::is_base_of_v<class_type, Derived>,
+                      "Derived must be derived from class_type");
+        return computed_property_info<Derived, member_type, class_type>{this->name, m_getter,
+                                                                        m_setter};
     }
 };
 
@@ -400,14 +490,14 @@ public:
 };
 
 // 创建方法元数据的辅助函数
-template <typename C, typename R, typename... Args>
-constexpr auto make_method_info(R (C::*method)(Args...), std::string_view name) {
-    return method_info<C, C, false, false, R, Args...>{name, method};
+template <typename C, typename BaseT, typename R, typename... Args>
+constexpr auto make_method_info(R (BaseT::*method)(Args...), std::string_view name) {
+    return method_info<C, BaseT, false, false, R, Args...>{name, method};
 }
 
-template <typename C, typename R, typename... Args>
-constexpr auto make_method_info(R (C::*method)(Args...) const, std::string_view name) {
-    return method_info<C, C, true, false, R, Args...>{name, method};
+template <typename C, typename BaseT, typename R, typename... Args>
+constexpr auto make_method_info(R (BaseT::*method)(Args...) const, std::string_view name) {
+    return method_info<C, BaseT, true, false, R, Args...>{name, method};
 }
 
 template <typename C, typename R, typename... Args>
@@ -585,7 +675,7 @@ struct member_info_creator<T, M, BaseT, std::enable_if_t<is_property_v<M BaseT::
 template <typename T, typename M, typename BaseT>
 struct member_info_creator<T, M, BaseT, std::enable_if_t<is_method_v<M BaseT::*>>> {
     static constexpr auto create(M BaseT::* member_ptr, std::string_view name) {
-        return std::make_tuple(make_method_info(member_ptr, name));
+        return std::make_tuple(make_method_info<T>(member_ptr, name));
     }
 };
 
@@ -596,6 +686,14 @@ struct member_info_creator<T, R (*)(Args...), void, std::enable_if_t<is_method_v
         return std::make_tuple(make_static_method_info<T>(static_func, name));
     }
 };
+
+struct computed_property_info_creator {
+    template <typename T, typename Getter, typename Setter>
+    static constexpr auto create(Getter getter, Setter setter, std::string_view name) {
+        return std::make_tuple(computed_property_info<T, Getter, Setter>{name, getter, setter});
+    }
+};
+
 template <typename T, typename Base>
 struct base_class_info_creator {
     static_assert(std::is_base_of_v<Base, T>, "T must be derived from Base class");

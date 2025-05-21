@@ -23,16 +23,6 @@
 #include <type_traits>
 #include <vector>
 
-// Boost.Preprocessor
-#include <boost/preprocessor/control/if.hpp>
-#include <boost/preprocessor/control/iif.hpp>
-#include <boost/preprocessor/facilities/is_empty.hpp>
-#include <boost/preprocessor/logical/compl.hpp>
-#include <boost/preprocessor/punctuation/is_begin_parens.hpp>
-#include <boost/preprocessor/seq/for_each.hpp>
-#include <boost/preprocessor/stringize.hpp>
-#include <boost/preprocessor/tuple/elem.hpp>
-
 #include <mc/common.h>
 #include <mc/dict.h>
 #include <mc/reflect/metadata_info.h>
@@ -52,9 +42,20 @@ namespace mc::reflect {
 #define MC_REFLECT_ARG_COUNT(...) BOOST_PP_VARIADIC_SIZE(__VA_ARGS__)
 
 // 处理带名称的成员（双括号形式）
-#define MC_REFLECT_MEMBER_WITH_NAME(r, TYPE, MEMBER)                                               \
+#define MC_REFLECT_MEMBER_WITH_NAME_1(r, TYPE, MEMBER)                                             \
     mc::reflect::detail::create_member_info<TYPE>(&TYPE::BOOST_PP_TUPLE_ELEM(0, MEMBER),           \
                                                   BOOST_PP_TUPLE_ELEM(1, MEMBER)),
+
+#define MC_REFLECT_MEMBER_WITH_NAME_2(r, TYPE, MEMBER)                                             \
+    mc::reflect::detail::create_member_info<TYPE>(                                                 \
+        &TYPE::BOOST_PP_TUPLE_ELEM(2, MEMBER),                                                     \
+        BOOST_PP_IIF(BOOST_PP_GREATER(BOOST_PP_TUPLE_SIZE(MEMBER), 3),                             \
+                     &TYPE::BOOST_PP_TUPLE_ELEM(3, MEMBER), static_cast<void*>(nullptr)),          \
+        BOOST_PP_TUPLE_ELEM(1, MEMBER)),
+
+#define MC_REFLECT_MEMBER_WITH_NAME(r, TYPE, MEMBER)                                               \
+    BOOST_PP_IIF(BOOST_PP_GREATER(BOOST_PP_TUPLE_SIZE(MEMBER), 2), MC_REFLECT_MEMBER_WITH_NAME_2,  \
+                 MC_REFLECT_MEMBER_WITH_NAME_1)(r, TYPE, MEMBER)
 
 // 处理不带名称的成员（单括号形式）
 #define MC_REFLECT_MEMBER_WITHOUT_NAME(r, TYPE, MEMBER)                                            \
@@ -89,6 +90,11 @@ namespace mc::reflect::detail {
 template <typename T, typename M, typename BaseT>
 constexpr auto create_member_info(M BaseT::* member_ptr, std::string_view name) {
     return member_info_creator<T, M, BaseT>::create(member_ptr, name);
+}
+
+template <typename T, typename Getter, typename Setter>
+constexpr auto create_member_info(Getter getter, Setter setter, std::string_view name) {
+    return computed_property_info_creator::create<T>(getter, setter, name);
 }
 
 template <typename T, typename R, typename... Args>

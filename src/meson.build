@@ -17,6 +17,7 @@ src_files = [
   'expr/node/property_access_node.cpp',
   'expr/node/conditional_node.cpp',
   'expr/node/object_method_call_node.cpp',
+  'expr/node/template_string_node.cpp',
   'expr/context.cpp',
   'expr/function.cpp',
   'expr/engine.cpp',

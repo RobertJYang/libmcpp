@@ -92,7 +92,7 @@ public:
      * 获取对象ID
      * @return 对象ID
      */
-    object_id_type get_object_id() const {
+    virtual object_id_type get_object_id() const {
         return m_object_id;
     }
 

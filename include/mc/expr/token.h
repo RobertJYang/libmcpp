@@ -56,6 +56,12 @@ enum class token_type {
     lshift,  // <<
     rshift,  // >>
 
+    // 模板字符串相关
+    template_start,  // 模板字符串开始部分
+    template_middle, // 模板字符串中间部分
+    template_end,    // 模板字符串结束部分
+    template_expr,   // 模板表达式 ${...}
+
     error
 };
 

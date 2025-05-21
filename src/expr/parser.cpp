@@ -11,6 +11,7 @@
  */
 
 #include <mc/exception.h>
+#include <mc/expr/lexer.h>
 #include <mc/expr/parser.h>
 
 namespace mc::expr {
@@ -43,10 +44,16 @@ const token& parser::advance() {
 }
 
 const token& parser::peek() const {
+    if (m_current >= m_tokens.size()) {
+        MC_THROW(parse_error_exception, "表达式解析错误: 解析器索引越界");
+    }
     return m_tokens[m_current];
 }
 
 const token& parser::previous() const {
+    if (m_current <= 0 || m_current > m_tokens.size()) {
+        MC_THROW(parse_error_exception, "表达式解析错误: 解析器索引越界");
+    }
     return m_tokens[m_current - 1];
 }
 
@@ -338,6 +345,44 @@ node_ptr parser::parse_method_call(node_ptr object, const std::string& method_na
     return make_object_method_call(object, method_name, std::move(arguments));
 }
 
+// 解析模板字符串
+node_ptr parser::parse_template_string() {
+    std::vector<std::string> text_parts;
+    node_ptrs                expressions;
+
+    // 获取开始部分的文本
+    std::string start_text = previous().literal.as_string();
+    text_parts.push_back(start_text);
+
+    while (true) {
+        // 解析模板表达式
+        if (!match({token_type::template_expr})) {
+            MC_THROW(parse_error_exception, "表达式解析错误: 期望模板表达式");
+        }
+
+        // 获取表达式文本并解析
+        std::string expr_text = previous().lexeme;
+
+        // 创建独立的词法分析器和解析器来处理表达式
+        mc::expr::lexer expr_lexer(expr_text);
+        auto            tokens = expr_lexer.scan_tokens();
+        parser          expr_parser(tokens);
+        expressions.push_back(expr_parser.parse());
+
+        // 解析下一部分
+        if (match({token_type::template_middle})) {
+            text_parts.push_back(previous().literal.as_string());
+        } else if (match({token_type::template_end})) {
+            text_parts.push_back(previous().literal.as_string());
+            break;
+        } else {
+            MC_THROW(parse_error_exception, "表达式解析错误: 期望模板字符串中间部分或结束部分");
+        }
+    }
+
+    return make_template_string(std::move(text_parts), std::move(expressions));
+}
+
 // 解析基本表达式
 node_ptr parser::primary() {
     // 数字字面值
@@ -348,6 +393,11 @@ node_ptr parser::primary() {
     // 字符串字面值
     if (match({token_type::string})) {
         return make_literal(previous().literal);
+    }
+
+    // 模板字符串
+    if (match({token_type::template_start})) {
+        return parse_template_string();
     }
 
     // 标识符（变量、函数调用或属性访问）

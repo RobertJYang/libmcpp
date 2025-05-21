@@ -113,7 +113,7 @@ TEST_F(expr_context_test, VariableShadowing) {
 // 测试表达式引擎中使用作用域
 TEST_F(expr_context_test, EngineWithScope) {
     auto global_ctx = engine.get_global_context();
-    auto local_ctx  = engine.create_context(&global_ctx);
+    auto local_ctx  = engine.make_context(&global_ctx);
 
     // 设置变量
     global_ctx.register_variable("x", 10);
@@ -127,11 +127,11 @@ TEST_F(expr_context_test, EngineWithScope) {
     EXPECT_THROW(engine.evaluate("z", local_ctx), mc::invalid_arg_exception);
 
     // 测试使用create_context创建的上下文
-    auto ctx1 = engine.create_context();
+    auto ctx1 = engine.make_context();
     ctx1.register_variable("a", 100);
 
     // 创建基于ctx1的子上下文
-    auto ctx2 = engine.create_context(&ctx1);
+    auto ctx2 = engine.make_context(&ctx1);
     ctx2.register_variable("b", 200);
 
     // 在子上下文中可以访问父上下文的变量
@@ -144,7 +144,7 @@ TEST_F(expr_context_test, CreateContextWithDict) {
     variables.insert("x", 10);
     variables.insert("y", 20);
 
-    auto ctx = engine.create_context(variables);
+    auto ctx = engine.make_context(variables);
     EXPECT_EQ(engine.evaluate("x + y", ctx), 30);
     EXPECT_EQ(engine.evaluate("abs(-5)", ctx), 5);
 

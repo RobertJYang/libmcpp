@@ -24,7 +24,7 @@ protected:
     void SetUp() override {
         auto& builtin = mc::expr::builtin::get_instance();
         auto& ctx     = builtin.get_context();
-        m_context     = engine.create_context(&ctx);
+        m_context     = engine.make_context(&ctx);
     }
 
     void TearDown() override {

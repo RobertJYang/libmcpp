@@ -53,6 +53,7 @@ private:
     node_ptr primary();
     node_ptr function_call();
 
+    node_ptr parse_template_string();
     node_ptr parse_identifier();
     node_ptr parse_property_access(node_ptr object);
     node_ptr parse_method_call(node_ptr object, const std::string& method_name);

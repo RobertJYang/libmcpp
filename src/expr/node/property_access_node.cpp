@@ -24,6 +24,13 @@ mc::variant property_access_node::evaluate(const context_base& ctx) const {
         if (ctx.has_variable(m_property, var_node.get_name())) {
             return ctx.get_variable(m_property, var_node.get_name());
         }
+    } else if (m_object->get_type() == node_type::property_access) {
+        const property_access_node& prop_node = static_cast<const property_access_node&>(*m_object);
+
+        auto var = prop_node.evaluate(ctx);
+        if (var.is_object() && var.get_object().contains(m_property)) {
+            return var.get_object()[m_property];
+        }
     }
 
     MC_THROW(invalid_arg_exception, "表达式求值错误: 无法访问属性 '${prop}'", ("prop", m_property));

@@ -47,18 +47,6 @@ protected:
     abstract_interface* m_interface;
 };
 
-template <typename T>
-class property_traits {
-    struct disable_rvalue_typeerence {};
-
-public:
-    static constexpr bool is_basic_type = std::is_arithmetic_v<T> || std::is_enum_v<T>;
-
-    using value_type  = T;
-    using param_type  = std::conditional_t<is_basic_type, T, const T&>;
-    using rvalue_type = std::conditional_t<is_basic_type, disable_rvalue_typeerence, T&&>;
-};
-
 } // namespace detail
 
 template <typename T, typename Observer = detail::interface_observer>
@@ -66,7 +54,7 @@ class property : public property_base {
     static_assert(std::is_same_v<std::decay_t<T>, T>, "T must be a non-reference type");
 
 public:
-    using property_traits = detail::property_traits<T>;
+    using property_traits = mc::traits::property_traits<T>;
 
     using value_type    = typename property_traits::value_type;
     using param_type    = typename property_traits::param_type;

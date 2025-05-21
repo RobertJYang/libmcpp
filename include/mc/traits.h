@@ -146,6 +146,59 @@ struct function_traits<F&> : function_traits<F> {};
 template <typename F>
 struct function_traits<F&&> : function_traits<F> {};
 
+namespace detail {
+template <typename T, typename F, typename = void>
+struct is_getter_impl : std::false_type {};
+
+// 普通函数和函数对象的特化
+template <typename T, typename F>
+struct is_getter_impl<
+    T, F,
+    std::enable_if_t<!std::is_void_v<std::decay_t<T>> &&
+                     std::is_invocable_r_v<std::decay_t<T>, F> && std::is_invocable_v<F>>>
+    : std::true_type {};
+
+// 成员函数指针的特化
+template <typename T, typename ClassType, typename ReturnType>
+struct is_getter_impl<T, ReturnType (ClassType::*)(),
+                      std::enable_if_t<!std::is_void_v<std::decay_t<T>> &&
+                                       std::is_same_v<std::decay_t<T>, std::decay_t<ReturnType>>>>
+    : std::true_type {};
+
+// const 成员函数指针的特化
+template <typename T, typename ClassType, typename ReturnType>
+struct is_getter_impl<T, ReturnType (ClassType::*)() const,
+                      std::enable_if_t<!std::is_void_v<std::decay_t<T>> &&
+                                       std::is_same_v<std::decay_t<T>, std::decay_t<ReturnType>>>>
+    : std::true_type {};
+
+template <typename T, typename F, typename = void>
+struct is_setter_impl : std::false_type {};
+
+// 普通函数和函数对象的特化
+template <typename T, typename F>
+struct is_setter_impl<T, F,
+                      std::enable_if_t<!std::is_void_v<std::decay_t<T>> &&
+                                       std::is_invocable_r_v<void, F, std::decay_t<T>>>>
+    : std::true_type {};
+
+// 成员函数指针的特化
+template <typename T, typename ClassType>
+struct is_setter_impl<T, void (ClassType::*)(std::decay_t<T>),
+                      std::enable_if_t<!std::is_void_v<std::decay_t<T>>>> : std::true_type {};
+
+// const 成员函数指针的特化
+template <typename T, typename ClassType>
+struct is_setter_impl<T, void (ClassType::*)(std::decay_t<T>) const,
+                      std::enable_if_t<!std::is_void_v<std::decay_t<T>>>> : std::true_type {};
+} // namespace detail
+
+template <typename T, typename F>
+inline constexpr bool is_getter_v = detail::is_getter_impl<T, F>::value;
+
+template <typename T, typename F>
+inline constexpr bool is_setter_v = detail::is_setter_impl<T, F>::value;
+
 // tuple_for_each实现：遍历元组中的每个元素并应用函数
 template <typename Tuple, typename Func, std::size_t... Is>
 constexpr void tuple_for_each_impl(Tuple& tuple, Func&& func, std::index_sequence<Is...>) {
@@ -232,6 +285,17 @@ struct remove_pointers<T*> {
 template <typename T>
 using remove_pointers_t = typename remove_pointers<remove_cvref_t<T>>::type;
 
+template <typename T>
+class property_traits {
+    struct disable_rvalue_typeerence {};
+
+public:
+    static constexpr bool is_basic_type = std::is_arithmetic_v<T> || std::is_enum_v<T>;
+
+    using value_type  = T;
+    using param_type  = std::conditional_t<is_basic_type, T, const T&>;
+    using rvalue_type = std::conditional_t<is_basic_type, disable_rvalue_typeerence, T&&>;
+};
 } // namespace traits
 } // namespace mc
 

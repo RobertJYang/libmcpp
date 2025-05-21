@@ -292,7 +292,8 @@ private:
             using method_type = std::decay_t<decltype(method)>;
             using base_type   = typename method_type::base_type;
             using class_type  = typename method_type::class_type;
-            if constexpr (!std::is_same_v<base_type, class_type>) {
+            if constexpr (!std::is_same_v<base_type, class_type> &&
+                          mc::reflect::is_reflectable<base_type>()) {
                 auto base_name = mc::reflect::reflector<base_type>::name();
                 m_base_class_method_map[base_name][method.name] = &method;
             }

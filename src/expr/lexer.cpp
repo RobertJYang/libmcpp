@@ -204,12 +204,185 @@ void lexer::handle_operator(char c) {
     }
 }
 
-// 扫描词法单元
+// 检查是否是模板字符串
+bool lexer::is_template_string(std::string_view source) {
+    // 跳过字符直到遇到 $ 或结束引号
+    size_t current = 0;
+    while (current < source.size()) {
+        char c = source[current];
+
+        // 如果碰到结束引号，那不是模板字符串
+        if (c == '"' || c == '\'') {
+            return false;
+        }
+
+        // 如果碰到 $，再判断后面是否跟着 {
+        if (c == '$' && current + 1 < source.size() && source[current + 1] == '{') {
+            return true;
+        }
+
+        // 处理转义字符
+        if (c == '\\' && current + 1 < source.size()) {
+            current += 2; // 跳过转义字符和被转义的字符
+        } else {
+            current++;
+        }
+    }
+
+    return false;
+}
+
+bool lexer::is_template_string() {
+    if (m_current >= m_source.size()) {
+        return false;
+    }
+
+    return is_template_string(m_source.substr(m_current));
+}
+
+void lexer::scan_template_string(char delimiter) {
+    size_t string_start = m_current; // 记录字符串内容开始位置
+
+    // 扫描第一部分文本直到 ${ 或结束引号
+    while (m_current < m_source.size()) {
+        char c = m_source[m_current];
+
+        // 如果是结束引号，这是一个简单的模板字符串，没有表达式
+        if (c == delimiter) {
+            auto text = lexeme(string_start, m_current);
+            m_current++; // 跳过结束引号
+            add_token(token_type::string, text);
+            return;
+        }
+
+        // 如果找到 ${，开始处理模板表达式
+        if (c == '$' && m_current + 1 < m_source.size() && m_source[m_current + 1] == '{') {
+            // 添加模板字符串的开始部分
+            auto text_part = lexeme(string_start, m_current);
+            add_token(token_type::template_start, text_part);
+
+            // 跳过 ${
+            m_current += 2;
+            m_start = m_current;
+
+            // 扫描表达式直到找到 }
+            int brace_count = 1; // 计算嵌套大括号
+            while (m_current < m_source.size()) {
+                char expr_char = m_source[m_current];
+
+                if (expr_char == '{') {
+                    brace_count++;
+                } else if (expr_char == '}') {
+                    brace_count--;
+                    if (brace_count == 0) {
+                        break;
+                    }
+                }
+
+                m_current++;
+            }
+
+            if (m_current >= m_source.size() || m_source[m_current] != '}') {
+                MC_THROW(parse_error_exception, "表达式解析错误: 未闭合的模板表达式");
+            }
+
+            // 标记表达式部分
+            add_token(token_type::template_expr, lexeme());
+
+            // 跳过 }
+            m_current++;
+            m_start      = m_current;
+            string_start = m_current;
+
+            // 继续扫描剩余部分作为新的模板字符串部分
+            while (m_current < m_source.size()) {
+                char next_char = m_source[m_current];
+
+                // 如果找到结束引号，终止模板字符串
+                if (next_char == delimiter) {
+                    auto end_text = lexeme(string_start, m_current);
+                    m_current++; // 跳过结束引号
+                    add_token(token_type::template_end, end_text);
+                    return;
+                }
+
+                // 如果找到下一个 ${，添加中间部分并递归处理
+                if (next_char == '$' && m_current + 1 < m_source.size() &&
+                    m_source[m_current + 1] == '{') {
+                    auto middle_text = lexeme(string_start, m_current);
+                    add_token(token_type::template_middle, middle_text);
+
+                    // 跳过 ${
+                    m_current += 2;
+                    m_start = m_current;
+
+                    // 扫描表达式直到找到 }
+                    int brace_count = 1;
+                    while (m_current < m_source.size()) {
+                        char expr_char = m_source[m_current];
+
+                        if (expr_char == '{') {
+                            brace_count++;
+                        } else if (expr_char == '}') {
+                            brace_count--;
+                            if (brace_count == 0) {
+                                break;
+                            }
+                        }
+
+                        m_current++;
+                    }
+
+                    if (m_current >= m_source.size() || m_source[m_current] != '}') {
+                        MC_THROW(parse_error_exception, "表达式解析错误: 未闭合的模板表达式");
+                    }
+
+                    // 标记表达式部分
+                    add_token(token_type::template_expr, lexeme());
+
+                    // 跳过 }
+                    m_current++;
+                    m_start      = m_current;
+                    string_start = m_current;
+                } else {
+                    m_current++;
+                }
+            }
+
+            // 如果 delimiter 为 0，则表示扫描的是一个裸字符串，不是用 delimiter 包裹的
+            if (delimiter == 0) {
+                auto end_text = lexeme(string_start, m_current);
+                add_token(token_type::template_end, end_text);
+                return;
+            }
+
+            MC_THROW(parse_error_exception, "表达式解析错误: 未闭合的模板字符串");
+        }
+
+        // 处理转义字符
+        if (c == '\\' && m_current + 1 < m_source.size()) {
+            m_current += 2;
+        } else {
+            m_current++;
+        }
+    }
+
+    MC_THROW(parse_error_exception, "表达式解析错误: 未闭合的模板字符串");
+}
+
+// 修改扫描词法单元的方法
 void lexer::scan_token() {
     char c = advance();
 
     if (c == '"' || c == '\'') {
-        scan_string();
+        // 检查是否是模板字符串
+        if (is_template_string()) {
+            // 回退光标，重新扫描为模板字符串
+            m_current = m_start + 1; // 跳过引号
+            scan_template_string(m_source[m_start]);
+        } else {
+            scan_string();
+        }
     } else if (is_digit(c)) {
         scan_number();
     } else if (is_alpha(c)) {
@@ -355,6 +528,18 @@ std::vector<token> lexer::scan_tokens() {
     while (!is_at_end()) {
         m_start = m_current;
         scan_token();
+    }
+
+    m_tokens.emplace_back(token_type::end_of_file, "", mc::variant(), m_source.size());
+    return m_tokens;
+}
+
+std::vector<token> lexer::scan_template_string_tokens() {
+    m_tokens.clear();
+
+    while (!is_at_end()) {
+        m_start = m_current;
+        scan_template_string(0);
     }
 
     m_tokens.emplace_back(token_type::end_of_file, "", mc::variant(), m_source.size());
