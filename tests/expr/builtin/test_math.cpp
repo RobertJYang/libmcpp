@@ -54,8 +54,10 @@ TEST_F(math_builtin_test, AbsFunction) {
 
     // 测试参数错误
     EXPECT_THROW(engine.evaluate("abs()", context), mc::invalid_arg_exception);
-    EXPECT_THROW(engine.evaluate("abs(1, 2)", context), mc::invalid_arg_exception);
     EXPECT_THROW(engine.evaluate("abs('string')", context), mc::invalid_arg_exception);
+
+    // 实参个数比形参个数多，允许
+    EXPECT_NO_THROW(engine.evaluate("abs(1, 2)", context));
 }
 
 // 测试 min 函数
@@ -112,8 +114,10 @@ TEST_F(math_builtin_test, PowFunction) {
 
     // 测试参数错误
     EXPECT_THROW(engine.evaluate("pow(2)", context), mc::invalid_arg_exception);
-    EXPECT_THROW(engine.evaluate("pow(2, 3, 4)", context), mc::invalid_arg_exception);
     EXPECT_THROW(engine.evaluate("pow('string', 2)", context), mc::invalid_arg_exception);
+
+    // 实参个数比形参个数多，允许
+    EXPECT_NO_THROW(engine.evaluate("pow(2, 3, 4)", context));
 }
 
 // 测试 sqrt 函数
@@ -133,8 +137,10 @@ TEST_F(math_builtin_test, SqrtFunction) {
 
     // 测试参数错误
     EXPECT_THROW(engine.evaluate("sqrt()", context), mc::invalid_arg_exception);
-    EXPECT_THROW(engine.evaluate("sqrt(1, 2)", context), mc::invalid_arg_exception);
     EXPECT_THROW(engine.evaluate("sqrt('string')", context), mc::invalid_arg_exception);
+
+    // 实参个数比形参个数多，允许
+    EXPECT_NO_THROW(engine.evaluate("sqrt(1, 2)", context));
 }
 
 // 测试 floor 函数
@@ -152,6 +158,8 @@ TEST_F(math_builtin_test, FloorFunction) {
 
     // 测试参数错误
     EXPECT_THROW(engine.evaluate("floor()", context), mc::invalid_arg_exception);
-    EXPECT_THROW(engine.evaluate("floor(1, 2)", context), mc::invalid_arg_exception);
     EXPECT_THROW(engine.evaluate("floor('string')", context), mc::invalid_arg_exception);
+
+    // 实参个数比形参个数多，允许
+    EXPECT_NO_THROW(engine.evaluate("floor(1, 2)", context));
 }

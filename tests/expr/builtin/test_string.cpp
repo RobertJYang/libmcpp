@@ -49,7 +49,9 @@ TEST_F(string_builtin_test, LengthFunction) {
 
     // 测试参数错误
     EXPECT_THROW(engine.evaluate("length()", m_context), mc::invalid_arg_exception);
-    EXPECT_THROW(engine.evaluate("length('a', 'b')", m_context), mc::invalid_arg_exception);
+
+    // 实参个数比形参个数多，允许
+    EXPECT_NO_THROW(engine.evaluate("length('a', 'b')", m_context));
 
     // 测试数值类型 - 应该尝试转换
     EXPECT_THROW(engine.evaluate("length(123)", m_context), mc::invalid_arg_exception);
@@ -119,8 +121,10 @@ TEST_F(string_builtin_test, UpperFunction) {
 
     // 测试参数错误
     EXPECT_THROW(engine.evaluate("to_upper()", m_context), mc::invalid_arg_exception);
-    EXPECT_THROW(engine.evaluate("to_upper('a', 'b')", m_context), mc::invalid_arg_exception);
     EXPECT_THROW(engine.evaluate("to_upper(123)", m_context), mc::invalid_arg_exception);
+
+    // 实参个数比形参个数多，允许
+    EXPECT_NO_THROW(engine.evaluate("to_upper('a', 'b')", m_context));
 }
 
 // 测试 to_lower 函数
@@ -142,8 +146,11 @@ TEST_F(string_builtin_test, LowerFunction) {
 
     // 测试参数错误
     EXPECT_THROW(engine.evaluate("to_lower()", m_context), mc::invalid_arg_exception);
-    EXPECT_THROW(engine.evaluate("to_lower('a', 'b')", m_context), mc::invalid_arg_exception);
+
     EXPECT_THROW(engine.evaluate("to_lower(123)", m_context), mc::invalid_arg_exception);
+
+    // 实参个数比形参个数多，允许
+    EXPECT_NO_THROW(engine.evaluate("to_lower('a', 'b')", m_context));
 }
 
 // 测试 trim 函数
@@ -168,6 +175,9 @@ TEST_F(string_builtin_test, TrimFunction) {
 
     // 测试参数错误
     EXPECT_THROW(engine.evaluate("trim()", m_context), mc::invalid_arg_exception);
-    EXPECT_THROW(engine.evaluate("trim('a', 'b')", m_context), mc::invalid_arg_exception);
+
     EXPECT_THROW(engine.evaluate("trim(123)", m_context), mc::invalid_arg_exception);
+
+    // 实参个数比形参个数多，允许
+    EXPECT_NO_THROW(engine.evaluate("trim('a', 'b')", m_context));
 }

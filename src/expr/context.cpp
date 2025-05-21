@@ -118,7 +118,12 @@ mc::variant context_base::invoke(std::string_view name, const mc::variants& args
         return m_parent->invoke(name, args, iface);
     }
 
-    MC_THROW(mc::invalid_arg_exception, "函数 ${name} 不存在", ("name", name));
+    if (iface.empty()) {
+        MC_THROW(mc::invalid_arg_exception, "函数 ${name} 不存在", ("name", name));
+    } else {
+        MC_THROW(mc::invalid_arg_exception, "接口 ${iface}.${name} 不存在",
+                 ("iface", iface)("name", name));
+    }
 }
 
 // 符号名称集合，函数和变量也不能同名
@@ -315,18 +320,16 @@ bool context::has_function(std::string_view name, std::string_view iface) const 
 
 mc::variant context::invoke(std::string_view name, const mc::variants& args,
                             std::string_view iface) const {
-    MC_UNUSED(iface);
-
-    auto symbol = m_impl->get_symbol(name);
-    if (symbol) {
-        if (symbol->type != symbol_type::function) {
-            MC_THROW(mc::invalid_arg_exception, "符号 ${name} 不是函数", ("name", name));
+    if (iface.empty()) {
+        auto sym_info = m_impl->get_symbol(name);
+        if (sym_info && sym_info->type == symbol_type::function) {
+            return sym_info->function->call(args);
         }
-        return symbol->function->call(args);
     }
 
-    return context_base::invoke(name, args);
+    return context_base::invoke(name, args, iface);
 }
+
 void context::import_from_dict(const mc::dict& dict) {
     m_impl->import_from_dict(dict);
 }

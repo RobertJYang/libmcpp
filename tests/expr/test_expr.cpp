@@ -188,7 +188,9 @@ TEST_F(expr_test, Errors) {
 
     // 函数参数不匹配
     EXPECT_THROW(engine.evaluate("abs()", ctx), mc::invalid_arg_exception);
-    EXPECT_THROW(engine.evaluate("abs(1, 2)", ctx), mc::invalid_arg_exception);
+
+    // 实参个数比形参个数多，允许
+    EXPECT_NO_THROW(engine.evaluate("abs(1, 2)", ctx));
 }
 
 TEST_F(expr_test, BitOperations) {

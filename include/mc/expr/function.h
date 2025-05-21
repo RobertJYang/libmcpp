@@ -99,7 +99,7 @@ public:
                 return mc::variant(m_func(args));
             }
         } else {
-            MC_ASSERT_THROW(args.size() == arg_count, mc::invalid_arg_exception,
+            MC_ASSERT_THROW(args.size() >= arg_count, mc::invalid_arg_exception,
                             "函数参数不匹配: ${func_name} 期望 ${expected}, 实际 ${actual}",
                             ("func_name", m_name)("expected", arg_count)("actual", args.size()));
             return call_with_exact_args(args, std::make_index_sequence<arg_count>());

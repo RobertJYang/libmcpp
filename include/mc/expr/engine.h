@@ -48,7 +48,7 @@ public:
      * @param expr 表达式字符串
      * @return 表达式语法树根节点
      */
-    std::shared_ptr<node> compile(std::string_view expr);
+    node_ptr compile(std::string_view expr);
 
     /**
      * @brief 求值表达式

@@ -115,8 +115,8 @@ public:
         return get_interface_info(interface_name) != nullptr;
     }
 
-    inline abstract_interface* property_info_to_interface(property_info& info) {
-        intptr_t p_obj = reinterpret_cast<intptr_t>(static_cast<ObjectType*>(this));
+    inline abstract_interface* property_info_to_interface(property_info& info) const {
+        intptr_t p_obj = reinterpret_cast<intptr_t>(static_cast<const ObjectType*>(this));
         return reinterpret_cast<abstract_interface*>(p_obj + info.offset());
     }
 
@@ -158,7 +158,13 @@ public:
     bool has_property(std::string_view property_name, std::string_view interface_name) override {
         auto info =
             metadata_type::get_instance().get_property_interface(property_name, interface_name);
-        return info != nullptr;
+        if (info == nullptr) {
+            return false;
+        }
+
+        return interface_name.empty()
+                   ? true
+                   : property_info_to_interface(*info)->has_property(property_name);
     }
 
     mc::dict get_all_properties(std::string_view interface_name) override {
@@ -202,7 +208,12 @@ public:
     bool has_method(std::string_view method_name,
                     std::string_view interface_name = {}) const override {
         auto info = metadata_type::get_instance().get_method_interface(method_name, interface_name);
-        return info != nullptr;
+        if (info == nullptr) {
+            return false;
+        }
+
+        return interface_name.empty() ? true
+                                      : property_info_to_interface(*info)->has_method(method_name);
     }
 
     mc::connection_type connect(std::string_view signal_name, slot_type slot,

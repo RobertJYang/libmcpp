@@ -10,33 +10,30 @@
  * See the Mulan PSL v2 for more details.
  */
 
-/**
- * @file node.h
- * @brief 定义了表达式语法树的节点类型
- */
 #ifndef MC_EXPR_NODE_H
 #define MC_EXPR_NODE_H
 
 #include <mc/variant.h>
+
 #include <memory>
+#include <string>
 #include <vector>
 
 namespace mc::expr {
-
-// 前置声明
 class context_base;
 
 /**
  * @brief 表达式节点类型
  */
 enum class node_type {
-    literal,        // 字面值（数字、字符串等）
-    variable,       // 变量引用
-    unary_op,       // 一元操作
-    binary_op,      // 二元操作
-    function_call,  // 函数调用
-    conditional,    // 条件表达式 (? :)
-    property_access // 属性访问 (obj.property)
+    literal,           // 字面值（数字、字符串等）
+    variable,          // 变量引用
+    unary_op,          // 一元操作
+    binary_op,         // 二元操作
+    function_call,     // 函数调用
+    conditional,       // 条件表达式 (? :)
+    property_access,   // 属性访问 (obj.property)
+    object_method_call // 对象方法调用 (obj.method(args))
 };
 
 /**
@@ -91,175 +88,25 @@ public:
      * @return 表达式计算结果
      */
     virtual mc::variant evaluate(const context_base& ctx) const = 0;
+
+    /**
+     * @brief 将节点转换为字符串
+     * @return 节点字符串表示
+     */
+    virtual std::string to_string() const = 0;
 };
 
-/**
- * @brief 字面值节点
- */
-class literal_node : public node {
-public:
-    explicit literal_node(mc::variant value) : m_value(std::move(value)) {
-    }
+using node_ptr  = std::shared_ptr<node>;
+using node_ptrs = std::vector<node_ptr>;
 
-    node_type get_type() const override {
-        return node_type::literal;
-    }
-
-    mc::variant evaluate(const context_base& ctx) const override;
-
-private:
-    mc::variant m_value;
-};
-
-/**
- * @brief 变量引用节点
- */
-class variable_node : public node {
-public:
-    explicit variable_node(std::string name) : m_name(std::move(name)) {
-    }
-
-    node_type get_type() const override {
-        return node_type::variable;
-    }
-
-    mc::variant evaluate(const context_base& ctx) const override;
-
-    const std::string& get_name() const {
-        return m_name;
-    }
-
-private:
-    std::string m_name;
-};
-
-/**
- * @brief 一元操作节点
- */
-class unary_op_node : public node {
-public:
-    unary_op_node(operator_type op, std::shared_ptr<node> operand)
-        : m_operator(op), m_operand(std::move(operand)) {
-    }
-
-    node_type get_type() const override {
-        return node_type::unary_op;
-    }
-
-    mc::variant evaluate(const context_base& ctx) const override;
-
-    operator_type get_operator() const {
-        return m_operator;
-    }
-
-    const node& get_operand() const {
-        return *m_operand;
-    }
-
-private:
-    operator_type         m_operator;
-    std::shared_ptr<node> m_operand;
-};
-
-/**
- * @brief 二元操作节点
- */
-class binary_op_node : public node {
-public:
-    binary_op_node(operator_type op, std::shared_ptr<node> left, std::shared_ptr<node> right)
-        : m_operator(op), m_left(std::move(left)), m_right(std::move(right)) {
-    }
-
-    node_type get_type() const override {
-        return node_type::binary_op;
-    }
-
-    mc::variant evaluate(const context_base& ctx) const override;
-
-    operator_type get_operator() const {
-        return m_operator;
-    }
-
-    const node& get_left() const {
-        return *m_left;
-    }
-
-    const node& get_right() const {
-        return *m_right;
-    }
-
-private:
-    operator_type         m_operator;
-    std::shared_ptr<node> m_left;
-    std::shared_ptr<node> m_right;
-};
-
-/**
- * @brief 函数调用节点
- */
-class function_call_node : public node {
-public:
-    function_call_node(std::string name, std::vector<std::shared_ptr<node>> args)
-        : m_name(std::move(name)), m_args(std::move(args)) {
-    }
-
-    node_type get_type() const override {
-        return node_type::function_call;
-    }
-
-    mc::variant evaluate(const context_base& ctx) const override;
-
-    const std::string& get_name() const {
-        return m_name;
-    }
-
-    const std::vector<std::shared_ptr<node>>& get_args() const {
-        return m_args;
-    }
-
-private:
-    std::string                        m_name;
-    std::vector<std::shared_ptr<node>> m_args;
-};
-
-/**
- * @brief 属性访问节点
- */
-class property_access_node : public node {
-public:
-    property_access_node(std::shared_ptr<node> object, std::string property)
-        : m_object(std::move(object)), m_property(std::move(property)) {
-    }
-
-    node_type get_type() const override {
-        return node_type::property_access;
-    }
-
-    mc::variant evaluate(const context_base& ctx) const override;
-
-    const node& get_object() const {
-        return *m_object;
-    }
-
-    const std::string& get_property() const {
-        return m_property;
-    }
-
-private:
-    std::shared_ptr<node> m_object;
-    std::string           m_property;
-};
-
-// 节点类型辅助函数
-std::shared_ptr<node> make_literal(mc::variant value);
-std::shared_ptr<node> make_variable(const std::string& name);
-std::shared_ptr<node> make_unary_op(operator_type op, std::shared_ptr<node> operand);
-std::shared_ptr<node> make_binary_op(operator_type op, std::shared_ptr<node> left,
-                                     std::shared_ptr<node> right);
-std::shared_ptr<node> make_function_call(const std::string&                 name,
-                                         std::vector<std::shared_ptr<node>> args);
-std::shared_ptr<node> make_property_access(std::shared_ptr<node> object,
-                                           const std::string&    property);
+node_ptr make_literal(mc::variant value);
+node_ptr make_variable(const std::string& name);
+node_ptr make_unary_op(operator_type op, node_ptr operand);
+node_ptr make_binary_op(operator_type op, node_ptr left, node_ptr right);
+node_ptr make_function_call(const std::string& name, node_ptrs args);
+node_ptr make_conditional(node_ptr condition, node_ptr true_branch, node_ptr false_branch);
+node_ptr make_property_access(node_ptr object, const std::string& property);
+node_ptr make_object_method_call(node_ptr object, const std::string& method_name, node_ptrs args);
 
 } // namespace mc::expr
 

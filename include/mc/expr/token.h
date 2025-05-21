@@ -45,6 +45,8 @@ enum class token_type {
     comma,          // ,
     dot,            // .
     semicolon,      // ;
+    question,       // ?
+    colon,          // :
 
     // 位操作运算符
     bit_and, // &

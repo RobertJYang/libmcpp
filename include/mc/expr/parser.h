@@ -34,23 +34,28 @@ class parser {
 public:
     explicit parser(std::vector<token> tokens);
 
-    std::shared_ptr<node> parse();
+    node_ptr parse();
 
 private:
-    std::shared_ptr<node> expression();
-    std::shared_ptr<node> logical_or();
-    std::shared_ptr<node> logical_and();
-    std::shared_ptr<node> bit_or();
-    std::shared_ptr<node> bit_xor();
-    std::shared_ptr<node> bit_and();
-    std::shared_ptr<node> shift();
-    std::shared_ptr<node> equality();
-    std::shared_ptr<node> comparison();
-    std::shared_ptr<node> term();
-    std::shared_ptr<node> factor();
-    std::shared_ptr<node> unary();
-    std::shared_ptr<node> primary();
-    std::shared_ptr<node> function_call();
+    node_ptr expression();
+    node_ptr conditional();
+    node_ptr logical_or();
+    node_ptr logical_and();
+    node_ptr bit_or();
+    node_ptr bit_xor();
+    node_ptr bit_and();
+    node_ptr shift();
+    node_ptr equality();
+    node_ptr comparison();
+    node_ptr term();
+    node_ptr factor();
+    node_ptr unary();
+    node_ptr primary();
+    node_ptr function_call();
+
+    node_ptr parse_identifier();
+    node_ptr parse_property_access(node_ptr object);
+    node_ptr parse_method_call(node_ptr object, const std::string& method_name);
 
     bool         match(std::initializer_list<token_type> types);
     bool         check(token_type type) const;

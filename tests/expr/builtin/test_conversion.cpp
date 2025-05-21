@@ -55,7 +55,9 @@ TEST_F(conversion_builtin_test, ToStringFunction) {
 
     // 测试参数错误
     EXPECT_THROW(engine.evaluate("to_string()", m_context), mc::invalid_arg_exception);
-    EXPECT_THROW(engine.evaluate("to_string(1, 2)", m_context), mc::invalid_arg_exception);
+
+    // 实参个数比形参个数多，允许
+    EXPECT_NO_THROW(engine.evaluate("to_string(1, 2)", m_context));
 }
 
 // 测试 to_bool 函数
@@ -89,7 +91,9 @@ TEST_F(conversion_builtin_test, ToBoolFunction) {
 
     // 测试参数错误
     EXPECT_THROW(engine.evaluate("to_bool()", m_context), mc::invalid_arg_exception);
-    EXPECT_THROW(engine.evaluate("to_bool(true, false)", m_context), mc::invalid_arg_exception);
+
+    // 实参个数比形参个数多，允许
+    EXPECT_NO_THROW(engine.evaluate("to_bool(true, false)", m_context));
 }
 
 // 测试 to_int 函数
@@ -117,7 +121,9 @@ TEST_F(conversion_builtin_test, ToIntFunction) {
 
     // 测试参数错误
     EXPECT_THROW(engine.evaluate("to_integer()", m_context), mc::invalid_arg_exception);
-    EXPECT_THROW(engine.evaluate("to_integer(42, 43)", m_context), mc::invalid_arg_exception);
+
+    // 实参个数比形参个数多，允许
+    EXPECT_NO_THROW(engine.evaluate("to_integer(42, 43)", m_context));
 }
 
 // 测试 to_double 函数
@@ -145,5 +151,7 @@ TEST_F(conversion_builtin_test, ToDoubleFunction) {
 
     // 测试参数错误
     EXPECT_THROW(engine.evaluate("to_double()", m_context), mc::invalid_arg_exception);
-    EXPECT_THROW(engine.evaluate("to_double(3.14, 2.71)", m_context), mc::invalid_arg_exception);
+
+    // 实参个数比形参个数多，允许
+    EXPECT_NO_THROW(engine.evaluate("to_double(3.14, 2.71)", m_context));
 }

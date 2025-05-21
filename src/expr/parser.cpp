@@ -54,12 +54,36 @@ bool parser::is_at_end() const {
     return peek().type == token_type::end_of_file;
 }
 
-std::shared_ptr<node> parser::expression() {
-    return logical_or();
+node_ptr parser::expression() {
+    return conditional();
+}
+
+// 解析条件表达式 (? :)
+node_ptr parser::conditional() {
+    auto expr = logical_or();
+
+    // 如果遇到问号，则解析为条件表达式
+    if (match({token_type::question})) {
+        // 解析真分支
+        auto true_branch = logical_or();
+
+        // 必须有冒号
+        if (!match({token_type::colon})) {
+            MC_THROW(parse_error_exception, "表达式解析错误: 期望冒号");
+        }
+
+        // 解析假分支
+        auto false_branch = conditional();
+
+        // 创建条件表达式节点
+        expr = make_conditional(expr, true_branch, false_branch);
+    }
+
+    return expr;
 }
 
 // 解析逻辑或表达式
-std::shared_ptr<node> parser::logical_or() {
+node_ptr parser::logical_or() {
     auto expr = logical_and();
 
     while (match({token_type::logical_or})) {
@@ -71,7 +95,7 @@ std::shared_ptr<node> parser::logical_or() {
 }
 
 // 解析逻辑与表达式
-std::shared_ptr<node> parser::logical_and() {
+node_ptr parser::logical_and() {
     auto expr = bit_or();
 
     while (match({token_type::logical_and})) {
@@ -83,7 +107,7 @@ std::shared_ptr<node> parser::logical_and() {
 }
 
 // 解析位或表达式
-std::shared_ptr<node> parser::bit_or() {
+node_ptr parser::bit_or() {
     auto expr = bit_xor();
 
     while (match({token_type::bit_or})) {
@@ -95,7 +119,7 @@ std::shared_ptr<node> parser::bit_or() {
 }
 
 // 解析位异或表达式
-std::shared_ptr<node> parser::bit_xor() {
+node_ptr parser::bit_xor() {
     auto expr = bit_and();
 
     while (match({token_type::bit_xor})) {
@@ -107,7 +131,7 @@ std::shared_ptr<node> parser::bit_xor() {
 }
 
 // 解析位与表达式
-std::shared_ptr<node> parser::bit_and() {
+node_ptr parser::bit_and() {
     auto expr = shift();
 
     while (match({token_type::bit_and})) {
@@ -119,7 +143,7 @@ std::shared_ptr<node> parser::bit_and() {
 }
 
 // 解析位移表达式
-std::shared_ptr<node> parser::shift() {
+node_ptr parser::shift() {
     auto expr = equality();
 
     while (match({token_type::lshift, token_type::rshift})) {
@@ -133,7 +157,7 @@ std::shared_ptr<node> parser::shift() {
 }
 
 // 解析相等性表达式
-std::shared_ptr<node> parser::equality() {
+node_ptr parser::equality() {
     auto expr = comparison();
 
     while (match({token_type::equals, token_type::not_equals})) {
@@ -147,7 +171,7 @@ std::shared_ptr<node> parser::equality() {
 }
 
 // 解析比较表达式
-std::shared_ptr<node> parser::comparison() {
+node_ptr parser::comparison() {
     auto expr = term();
 
     while (match({token_type::less, token_type::less_equals, token_type::greater,
@@ -179,7 +203,7 @@ std::shared_ptr<node> parser::comparison() {
 }
 
 // 解析项表达式（加法和减法）
-std::shared_ptr<node> parser::term() {
+node_ptr parser::term() {
     auto expr = factor();
 
     while (match({token_type::plus, token_type::minus})) {
@@ -193,7 +217,7 @@ std::shared_ptr<node> parser::term() {
 }
 
 // 解析因子表达式（乘法、除法和求模）
-std::shared_ptr<node> parser::factor() {
+node_ptr parser::factor() {
     auto expr = unary();
 
     while (match({token_type::asterisk, token_type::slash, token_type::percent})) {
@@ -221,7 +245,7 @@ std::shared_ptr<node> parser::factor() {
 }
 
 // 解析一元表达式
-std::shared_ptr<node> parser::unary() {
+node_ptr parser::unary() {
     if (match({token_type::minus, token_type::logical_not, token_type::bit_not})) {
         operator_type op;
         switch (previous().type) {
@@ -245,8 +269,77 @@ std::shared_ptr<node> parser::unary() {
     return primary();
 }
 
+// 解析标识符（变量、函数调用或属性访问）
+node_ptr parser::parse_identifier() {
+    std::string identifier = previous().lexeme;
+
+    // 如果后面跟着左括号，则是函数调用
+    if (check(token_type::left_paren)) {
+        return function_call();
+    }
+
+    // 如果后面跟着点号，则是属性访问或对象方法调用
+    if (check(token_type::dot)) {
+        return parse_property_access(make_variable(identifier));
+    }
+
+    // 否则是变量引用
+    return make_variable(identifier);
+}
+
+// 解析对象属性访问和方法调用
+node_ptr parser::parse_property_access(node_ptr object) {
+    node_ptr expr = object;
+
+    // 处理链式属性访问，如 obj.prop1.prop2
+    while (match({token_type::dot})) {
+        if (!match({token_type::identifier})) {
+            MC_THROW(parse_error_exception, "表达式解析错误: 点号后期望属性名");
+        }
+        std::string property = previous().lexeme;
+
+        // 检查是否是对象方法调用 (obj.method(...))
+        if (check(token_type::left_paren)) {
+            expr = parse_method_call(expr, property);
+        } else {
+            // 否则是普通属性访问
+            expr = make_property_access(expr, property);
+        }
+
+        // 如果属性后面还有点号，继续处理链式访问
+        if (!check(token_type::dot)) {
+            break;
+        }
+    }
+
+    return expr;
+}
+
+// 解析对象方法调用
+node_ptr parser::parse_method_call(node_ptr object, const std::string& method_name) {
+    // 匹配左括号
+    match({token_type::left_paren});
+
+    node_ptrs arguments;
+
+    // 解析参数列表
+    if (!check(token_type::right_paren)) {
+        do {
+            arguments.push_back(expression());
+        } while (match({token_type::comma}));
+    }
+
+    // 匹配右括号
+    if (!match({token_type::right_paren})) {
+        MC_THROW(parse_error_exception, "表达式解析错误: 期望右括号");
+    }
+
+    // 创建对象方法调用节点
+    return make_object_method_call(object, method_name, std::move(arguments));
+}
+
 // 解析基本表达式
-std::shared_ptr<node> parser::primary() {
+node_ptr parser::primary() {
     // 数字字面值
     if (match({token_type::number})) {
         return make_literal(previous().literal);
@@ -257,38 +350,9 @@ std::shared_ptr<node> parser::primary() {
         return make_literal(previous().literal);
     }
 
-    // 标识符（变量或函数）
+    // 标识符（变量、函数调用或属性访问）
     if (match({token_type::identifier})) {
-        std::string identifier = previous().lexeme;
-
-        // 如果后面跟着左括号，则是函数调用
-        if (check(token_type::left_paren)) {
-            return function_call();
-        }
-
-        // 如果后面跟着点号，则是属性访问
-        if (check(token_type::dot)) {
-            auto expr = make_variable(identifier);
-
-            // 处理链式属性访问，如 obj.prop1.prop2
-            while (match({token_type::dot})) {
-                if (!match({token_type::identifier})) {
-                    MC_THROW(parse_error_exception, "表达式解析错误: 点号后期望属性名");
-                }
-                std::string property = previous().lexeme;
-                expr                 = make_property_access(expr, property);
-
-                // 如果属性后面还有点号，继续处理链式访问
-                if (!check(token_type::dot)) {
-                    break;
-                }
-            }
-
-            return expr;
-        }
-
-        // 否则是变量引用
-        return make_variable(identifier);
+        return parse_identifier();
     }
 
     // 带括号的表达式
@@ -306,7 +370,7 @@ std::shared_ptr<node> parser::primary() {
 }
 
 // 解析函数调用
-std::shared_ptr<node> parser::function_call() {
+node_ptr parser::function_call() {
     std::string function_name = previous().lexeme;
 
     // 匹配左括号
@@ -314,7 +378,7 @@ std::shared_ptr<node> parser::function_call() {
         MC_THROW(parse_error_exception, "表达式解析错误: 期望左括号");
     }
 
-    std::vector<std::shared_ptr<node>> arguments;
+    node_ptrs arguments;
 
     // 解析参数列表
     if (!check(token_type::right_paren)) {
@@ -332,7 +396,7 @@ std::shared_ptr<node> parser::function_call() {
 }
 
 // 语法分析入口函数
-std::shared_ptr<node> parser::parse() {
+node_ptr parser::parse() {
     try {
         return expression();
     } catch (const parse_error_exception&) {

@@ -143,6 +143,12 @@ void lexer::handle_operator(char c) {
     case ';':
         add_token(token_type::semicolon);
         break;
+    case '?':
+        add_token(token_type::question);
+        break;
+    case ':':
+        add_token(token_type::colon);
+        break;
     case '*':
         add_token(token_type::asterisk);
         break;

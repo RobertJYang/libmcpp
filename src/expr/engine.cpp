@@ -35,7 +35,7 @@ engine::engine() : m_impl(std::make_unique<impl>()) {
 
 engine::~engine() = default;
 
-std::shared_ptr<node> engine::compile(std::string_view expr) {
+node_ptr engine::compile(std::string_view expr) {
     lexer              lex(expr);
     std::vector<token> tokens = lex.scan_tokens();
 
@@ -44,7 +44,7 @@ std::shared_ptr<node> engine::compile(std::string_view expr) {
 }
 
 mc::variant engine::evaluate(std::string_view expr, const context_base& ctx) {
-    std::shared_ptr<node> ast = compile(expr);
+    node_ptr ast = compile(expr);
     return ast->evaluate(ctx);
 }
 

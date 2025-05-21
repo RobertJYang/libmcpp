@@ -143,15 +143,15 @@ protected:
 TEST_F(object_expr_test, test_read_properties) {
     // 读取数值属性（指定interface）
     auto iface1_value = expr_engine.evaluate("iface1.value", *obj_ctx);
-    EXPECT_TRUE(iface1_value.is_int64());
-    EXPECT_EQ(iface1_value.as_int64(), 10);
+    EXPECT_TRUE(iface1_value.is_int32());
+    EXPECT_EQ(iface1_value.as_int32(), 10);
 
     // 读取数值属性（不指定interface，返回的是第一个interface的属性）
     auto value = expr_engine.evaluate("value", *obj_ctx);
-    EXPECT_TRUE(value.is_int64());
-    EXPECT_EQ(value.as_int64(), 10);
+    EXPECT_TRUE(value.is_int32());
+    EXPECT_EQ(value.as_int32(), 10);
 
-    // 读取字符串属性
+    // 读取字符串属性（同名属性，必须增加限定符才能访问）
     auto iface2_value = expr_engine.evaluate("iface2.value", *obj_ctx);
     EXPECT_TRUE(iface2_value.is_string());
     EXPECT_EQ(iface2_value.as_string(), "初始值");
@@ -159,28 +159,35 @@ TEST_F(object_expr_test, test_read_properties) {
 
 // 测试通过表达式调用对象方法
 TEST_F(object_expr_test, test_call_methods) {
-    // 调用Add方法
+    // 调用Add方法（指定interface）
     auto add_result = expr_engine.evaluate("iface1.Add(5)", *obj_ctx);
-    EXPECT_TRUE(add_result.is_int64());
-    EXPECT_EQ(add_result.as_int64(), 15);
+    EXPECT_TRUE(add_result.is_int32());
+    EXPECT_EQ(add_result.as_int32(), 15);
 
-    // 验证信号被触发
     EXPECT_EQ(value_change_count, 1);
     EXPECT_EQ(last_old_value, 10);
     EXPECT_EQ(last_new_value, 15);
-
-    // 验证对象属性被修改
     EXPECT_EQ(obj->m_iface1.m_value, 15);
+
+    // 调用Add方法（不指定interface，调用的是第一个实现了该方法的interface的方法）
+    auto add_result_1 = expr_engine.evaluate("Add(5)", *obj_ctx);
+    EXPECT_TRUE(add_result_1.is_int32());
+    EXPECT_EQ(add_result_1.as_int32(), 20);
+
+    EXPECT_EQ(value_change_count, 2);
+    EXPECT_EQ(last_old_value, 15);
+    EXPECT_EQ(last_new_value, 20);
+    EXPECT_EQ(obj->m_iface1.m_value, 20);
 
     // 调用Subtract方法
     auto sub_result = expr_engine.evaluate("iface1.Subtract(3)", *obj_ctx);
-    EXPECT_TRUE(sub_result.is_int64());
-    EXPECT_EQ(sub_result.as_int64(), 12);
+    EXPECT_TRUE(sub_result.is_int32());
+    EXPECT_EQ(sub_result.as_int32(), 17);
 
     // 验证信号被触发
-    EXPECT_EQ(value_change_count, 2);
-    EXPECT_EQ(last_old_value, 15);
-    EXPECT_EQ(last_new_value, 12);
+    EXPECT_EQ(value_change_count, 3);
+    EXPECT_EQ(last_old_value, 20);
+    EXPECT_EQ(last_new_value, 17);
 }
 
 // 测试通过表达式修改对象属性
@@ -210,10 +217,10 @@ TEST_F(object_expr_test, test_set_properties) {
 // 测试复杂表达式
 TEST_F(object_expr_test, test_complex_expressions) {
     // 条件表达式
-    auto complex_expr = "iface1.value > 5 ? iface1.Add(10) : iface1.Subtract(5)";
+    auto complex_expr = "value > 5 ? Add(10) : Subtract(5)";
     auto result       = expr_engine.evaluate(complex_expr, *obj_ctx);
-    EXPECT_TRUE(result.is_int64());
-    EXPECT_EQ(result.as_int64(), 20); // 10 + 10 = 20
+    EXPECT_TRUE(result.is_int32());
+    EXPECT_EQ(result.as_int32(), 20); // 10 + 10 = 20
 
     // 字符串拼接
     auto concat_expr = "'当前值: ' + iface2.GetValue()";
@@ -239,6 +246,8 @@ TEST_F(object_expr_test, test_error_handling) {
 
     // 参数错误
     EXPECT_THROW(expr_engine.evaluate("iface1.Add('not a number')", *obj_ctx),
-                 mc::bad_cast_exception);
-    EXPECT_THROW(expr_engine.evaluate("iface1.Add(1, 2)", *obj_ctx), mc::invalid_arg_exception);
+                 mc::invalid_arg_exception);
+
+    // 实参个数比形参个数多，允许
+    EXPECT_NO_THROW(expr_engine.evaluate("iface1.Add(1, 2)", *obj_ctx));
 }
