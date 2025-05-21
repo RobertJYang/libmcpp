@@ -16,6 +16,7 @@
 #include <mc/core/service.h>
 #include <mc/time.h>
 #include <memory>
+#include <mc/dbus/connection.h>
 
 namespace mc::engine {
 class engine;
@@ -51,6 +52,7 @@ public:
     void unregister_object(std::string_view path);
 
     service_object_table& get_object_table() const;
+    mc::dbus::connection_ptr get_connection();
 
     mc::variant timeout_call(mc::milliseconds timeout, std::string_view service_name,
                              std::string_view path, std::string_view interface,

@@ -377,4 +377,9 @@ std::optional<mc::variant> service::shm_timeout_call(mc::milliseconds timeout,
                                                      const mc::variants& args) {
     return m_impl->shm_timeout_call(timeout, service_name, path, interface, method, signature, args);
 }
+
+dbus::connection_ptr service::get_connection() {
+    return m_impl->m_connection;
+}
+
 } // namespace mc::engine
