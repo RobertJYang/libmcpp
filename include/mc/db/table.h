@@ -381,20 +381,25 @@ public:
                                                                    alloc_savepoint_internal(txn));
         }
 
-        bool success      = true;
-        auto add_to_index = [&](auto& idx) -> bool {
-            bool result = idx.add(obj_ptr);
-            if (!result) {
-                success = false;
-            }
-            return result;
-        };
+        try {
+            bool success      = true;
+            auto add_to_index = [&](auto& idx) -> bool {
+                bool result = idx.add(obj_ptr);
+                if (!result) {
+                    success = false;
+                }
+                return result;
+            };
 
-        // 添加到所有索引，任一失败即中断
-        detail::for_each_index_until(m_indices, add_to_index);
-        if (!success) {
+            // 添加到所有索引，任一失败即中断
+            detail::for_each_index_until(m_indices, add_to_index);
+            if (!success) {
+                rollback_internal();
+                return nullptr;
+            }
+        } catch (...) {
             rollback_internal();
-            return nullptr;
+            throw;
         }
 
         if (!need_txn) {
@@ -431,21 +436,25 @@ public:
                 m_table_id, *this, old_obj_ptr, new_obj_ptr, alloc_savepoint_internal(txn));
         }
 
-        bool success      = true;
-        auto update_index = [&](auto& idx) -> bool {
-            bool result = idx.update(*old_obj_ptr, new_obj_ptr);
-            if (!result) {
-                success = false;
+        try {
+            bool success      = true;
+            auto update_index = [&](auto& idx) -> bool {
+                bool result = idx.update(*old_obj_ptr, new_obj_ptr);
+                if (!result) {
+                    success = false;
+                }
+                return result;
+            };
+
+            // 更新所有索引，任一失败即中断
+            detail::for_each_index_until(m_indices, update_index);
+            if (!success) {
+                rollback_internal();
+                return nullptr;
             }
-            return result;
-        };
-
-        // 更新所有索引，任一失败即中断
-        detail::for_each_index_until(m_indices, update_index);
-
-        if (!success) {
+        } catch (...) {
             rollback_internal();
-            return nullptr;
+            throw;
         }
 
         if (!need_txn) {
@@ -476,19 +485,24 @@ public:
         }
 
         // 从剩余索引删除
-        bool success = true;
-        auto remove  = [&](auto& idx) -> bool {
-            auto removed = idx.remove(*obj_ptr);
-            if (!removed.has_value()) {
-                success = false;
-            }
-            return true;
-        };
+        try {
+            bool success = true;
+            auto remove  = [&](auto& idx) -> bool {
+                auto removed = idx.remove(*obj_ptr);
+                if (!removed.has_value()) {
+                    success = false;
+                }
+                return true;
+            };
 
-        detail::for_each_index_until(m_indices, remove);
-        if (!success) {
+            detail::for_each_index_until(m_indices, remove);
+            if (!success) {
+                rollback_internal();
+                return false;
+            }
+        } catch (...) {
             rollback_internal();
-            return false;
+            throw;
         }
 
         if (!need_txn) {

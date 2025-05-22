@@ -70,6 +70,7 @@ src_files = [
   'dbus/shm/serialize.cpp',
   'dbus/shm/shm_tree.cpp',
   'engine/base.cpp',
+  'engine/object.cpp',
   'engine/engine.cpp',
   'engine/service.cpp',
   'engine/std_interface.cpp',
@@ -77,6 +78,7 @@ src_files = [
   'engine/error_engine.cpp',
   'engine/context.cpp',
   'engine/property.cpp',
+  'engine/utils.cpp',
 ]
 
 dep_arr = [boost_dep, boost_program_options_dep, dbus_dep, glib_dep]

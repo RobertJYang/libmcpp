@@ -239,6 +239,10 @@ std::string join(const std::vector<std::string>& v, std::string_view delim) {
 
 // 检查字符串是否以指定前缀开始
 bool starts_with(std::string_view s, std::string_view prefix) {
+    if (prefix.empty()) {
+        return true;
+    }
+
     return s.size() >= prefix.size() && s.substr(0, prefix.size()) == prefix;
 }
 
@@ -584,6 +588,49 @@ std::string mc::string::format(std::string_view format_str, const dict& args) {
     std::string result;
     mc::string::format(result, format_str, args);
     return result;
+}
+
+std::string mc::string::format_v(const char* format, ...) {
+    va_list args;
+    va_start(args, format);
+    std::string result = format_vv(format, args);
+    va_end(args);
+    return result;
+}
+
+std::string mc::string::format_vv(const char* format, va_list args) {
+    std::string result;
+    if (!format_vv(result, format, args)) {
+        return {};
+    }
+
+    return result;
+}
+
+bool mc::string::format_v(std::string& result, const char* format, ...) {
+    va_list args;
+    va_start(args, format);
+    bool ret = format_vv(result, format, args);
+    va_end(args);
+    return ret;
+}
+
+bool mc::string::format_vv(std::string& result, const char* format, va_list args) {
+    int size = std::vsnprintf(nullptr, 0, format, args);
+    if (size <= 0) {
+        result.clear();
+        return false;
+    }
+
+    result.resize(size + 1);
+    int ret = std::vsnprintf(const_cast<char*>(result.data()), size + 1, format, args);
+    if (ret <= 0) {
+        result.clear();
+        return false;
+    }
+
+    result.resize(ret);
+    return true;
 }
 
 bool mc::string::get_format_args(std::string_view format, mc::dict& arg_names) {

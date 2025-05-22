@@ -314,16 +314,37 @@ bool icontains(std::string_view s, std::string_view substring);
 std::string format(std::string_view format, const mc::dict& args);
 void        format(std::string& result, std::string_view format, const mc::dict& args);
 
-template <typename... Args>
-std::string format_v(const std::string& format, Args... args) {
-    int size = std::snprintf(nullptr, 0, format.c_str(), args...) + 1;
-    if (size <= 0) {
-        return "";
-    }
-    std::unique_ptr<char[]> buf(new char[size]);
-    std::snprintf(buf.get(), size, format.c_str(), args...);
-    return std::string(buf.get(), buf.get() + size - 1);
-}
+/**
+ * @brief 使用可变参数格式化字符串
+ * @param format 格式化字符串
+ * @param ... 可变参数
+ * @return 格式化后的字符串
+ */
+std::string format_v(const char* format, ...);
+
+/**
+ * @brief 使用可变参数格式化字符串
+ * @param format 格式化字符串
+ * @param args 可变参数
+ * @return 格式化后的字符串
+ */
+std::string format_vv(const char* format, va_list args);
+
+/**
+ * @brief 使用可变参数格式化字符串，并追加到目标字符串
+ * @param result 接收格式化结果的目标字符串
+ * @param format 格式化字符串
+ * @param ... 可变参数
+ */
+bool format_v(std::string& result, const char* format, ...);
+
+/**
+ * @brief 使用可变参数格式化字符串，并追加到目标字符串
+ * @param result 接收格式化结果的目标字符串
+ * @param format 格式化字符串
+ * @param args 可变参数
+ */
+bool format_vv(std::string& result, const char* format, va_list args);
 
 /**
  * @brief 尝试将字符串转换为布尔值

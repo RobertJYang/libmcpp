@@ -17,6 +17,7 @@
 #include <mc/dbus/shm/shm_tree.h>
 #include <mc/dbus/validator.h>
 #include <mc/engine.h>
+#include <mc/engine/utils.h>
 #include <mc/exception.h>
 #include <mc/expr/lexer.h>
 #include <mc/expr/parser.h>
@@ -61,6 +62,15 @@ struct service_object : public mc::engine::object<service_object> {
     service_interface m_interface;
 };
 
+struct root_object : public mc::engine::object<root_object> {
+    MC_OBJECT(root_object, "RootObject", "/")
+
+    root_object() {
+        set_object_name("root");
+        set_object_path("/");
+    }
+};
+
 struct service_impl {
     service_impl();
 
@@ -88,18 +98,21 @@ struct service_impl {
                                                 std::string_view path, std::string_view interface,
                                                 std::string_view method, std::string_view signature,
                                                 const variants& args);
+    static abstract_object*    find_owner(abstract_object& obj, std::string_view path);
 
     std::mutex                      m_mutex;
     service*                        m_service;
     dbus::connection_ptr            m_connection;
     object_table_ptr                m_object_table;
     mc::im::ref_ptr<service_object> m_service_object;
+    root_object                     m_root;
     mc::dbus::shm_tree*             m_shm_tree;
 };
 } // namespace mc::engine
 
 MC_REFLECT(mc::engine::service_interface, ((m_service_name, "name")))
 MC_REFLECT(mc::engine::service_object, ((m_interface, "interface")))
+MC_REFLECT(mc::engine::root_object, ())
 
 using service_table =
     mdb::table<mc::engine::service_object,
@@ -176,16 +189,67 @@ void service_impl::stop() {
 
 void service_impl::register_object(abstract_object& obj) {
     m_object_table->add(mc::im::ref_ptr<abstract_object>(&obj));
-    obj.set_service(*m_service);
+    obj.set_service(m_service);
     m_connection->register_path(obj.get_object_path(), [this, &obj](auto& msg) {
         return on_path_message(msg, obj);
     });
+
+    auto* owner = find_owner(m_root, obj.get_object_path());
+    if (owner) {
+        obj.set_owner(owner);
+    }
+}
+
+abstract_object* service_impl::find_owner(abstract_object& obj, std::string_view path) {
+    if (path.empty() || path[0] != '/') {
+        return nullptr;
+    }
+
+    // 如果不是 obj 的子路径，直接返回失败
+    auto my_path = obj.get_object_path();
+    if (!detail::path_starts_with(path, my_path)) {
+        return nullptr;
+    }
+
+    // 在子对象中递归查找更接近的 owner
+    auto child_objects = obj.get_managed_objects();
+    auto it            = child_objects.lower_bound(path);
+    if (it != child_objects.end() && it->first.size() == path.size()) {
+        return it->second; // 如果精确匹配直接返回
+    }
+
+    // 如果没有精确匹配且已经到达 map 末尾或者找到的键不是 path 的前缀
+    // 则需要向前查找可能的前缀
+    if (it == child_objects.end() || !detail::path_starts_with(path, it->first)) {
+        if (it == child_objects.begin()) {
+            return &obj;
+        }
+        --it; // 向前查找可能的前缀
+    }
+
+    if (detail::path_starts_with(path, it->first)) {
+        return find_owner(*(it->second), path);
+    }
+
+    return &obj;
     mc::dbus::shm_lock_call([this, &obj]() {
         m_shm_tree->register_object(obj);
     });
 }
 
 void service_impl::unregister_object(std::string_view path) {
+    m_connection->unregister_path(path);
+
+    auto it = m_object_table->find<by_path>(path);
+    if (it.is_end()) {
+        return;
+    }
+
+    auto& obj = const_cast<abstract_object&>(*it);
+    m_object_table->remove(mc::im::ref_ptr<abstract_object>(&obj));
+
+    obj.set_owner(nullptr);
+    obj.set_service(nullptr);
     m_shm_tree->unregister_object(path);
 }
 
@@ -390,20 +454,21 @@ std::string service::resolve_object_path(std::string_view       path_pattern,
     }
 
     mc::string::trim_inplace(path);
+
+    // 是绝对路径则直接返回
     if (!path.empty() && path.front() == '/') {
-        return path; // 是绝对路径
+        return path;
     }
+
+    // 否则拼接上父路径
+    auto parent = obj.get_parent();
+    MC_ASSERT_THROW(parent, mc::invalid_arg_exception,
+                    "object parent is nullptr or not abstract_object");
+    auto parent_path = parent->get_object_path();
 
     std::string tmp;
-    auto        parent = obj.get_parent();
-    if (parent) {
-        auto parent_path = parent->get_object_path();
-        tmp.reserve(parent_path.size() + path.size() + 1);
-        tmp = parent_path;
-    } else {
-        tmp.reserve(path.size() + 1);
-    }
-
+    tmp.reserve(parent_path.size() + 1 + path.size());
+    tmp = parent_path;
     tmp += "/";
     tmp += path;
     return tmp;

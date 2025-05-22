@@ -126,19 +126,19 @@ public:
     using managed_objects = std::map<std::string_view, abstract_object*>;
     using mc::core::object::connect;
 
-    abstract_object(core_object* parent) : mc::core::object(parent) {
+    abstract_object(core_object* parent = nullptr) : mc::core::object(parent) {
     }
 
     virtual ~abstract_object() = default;
 
-    abstract_object* get_parent() const override;
-
-    void     set_service(service& s);
+    void     set_service(service* s);
     service* get_service() const override;
 
-    virtual const managed_objects& get_managed_objects() const                 = 0;
-    virtual void                   add_managed_object(abstract_object* obj)    = 0;
-    virtual void                   remove_managed_object(abstract_object* obj) = 0;
+    abstract_object* get_parent() const override;
+
+    virtual abstract_object*       get_owner() const                 = 0;
+    virtual void                   set_owner(abstract_object* owner) = 0;
+    virtual const managed_objects& get_managed_objects() const       = 0;
 
     virtual std::string_view get_object_name() const                 = 0;
     virtual void             set_object_name(std::string_view name)  = 0;
@@ -174,6 +174,11 @@ public:
 
     virtual void notify_property_changed(const mc::variant& value, const property_base& prop) = 0;
     virtual property_changed_signal& property_changed()                                       = 0;
+
+protected:
+    friend class object_impl;
+    virtual void add_managed_object(abstract_object* obj)    = 0;
+    virtual void remove_managed_object(abstract_object* obj) = 0;
 };
 
 class abstract_interface : public mc::core::object {
