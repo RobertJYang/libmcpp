@@ -618,7 +618,10 @@ bool mc::string::format_v(std::string& result, const char* format, ...) {
 }
 
 bool mc::string::format_vv(std::string& result, const char* format, va_list args) {
-    int size = std::vsnprintf(nullptr, 0, format, args);
+    va_list args_tmp;
+    va_copy(args_tmp, args);
+    int size = std::vsnprintf(nullptr, 0, format, args_tmp);
+    va_end(args_tmp);
     if (size <= 0) {
         result.clear();
         return false;
