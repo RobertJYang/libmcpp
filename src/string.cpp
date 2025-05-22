@@ -22,6 +22,8 @@
 #include <mc/variant.h>
 #include <type_traits>
 
+#include <stdarg.h>
+
 namespace mc {
 namespace string {
 

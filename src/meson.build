@@ -56,14 +56,12 @@ src_files = [
   'db/database.cpp',
   'io/io_buffer.cpp',
   'io/io_stream.cpp',
-  'dbus/path.cpp',
   'dbus/message.cpp',
   'dbus/validator.cpp',
   'dbus/connection.cpp',
   'dbus/dispatch/watch.cpp',
   'dbus/dispatch/timeout.cpp',
   'dbus/dispatch/pending_call.cpp',
-  'dbus/path_iterator.cpp',
   'dbus/shm/gvariant_convert.cpp',
   'dbus/shm/harbor.cpp',
   'dbus/shm/local_msg.cpp',
@@ -79,6 +77,8 @@ src_files = [
   'engine/context.cpp',
   'engine/property.cpp',
   'engine/utils.cpp',
+  'engine/path.cpp',
+  'engine/path_iterator.cpp',
 ]
 
 dep_arr = [boost_dep, boost_program_options_dep, dbus_dep, glib_dep]

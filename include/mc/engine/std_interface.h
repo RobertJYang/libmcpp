@@ -13,7 +13,7 @@
 #ifndef MC_ENGINE_STD_INTERFACE_H
 #define MC_ENGINE_STD_INTERFACE_H
 
-#include <mc/dbus/path.h>
+#include <mc/engine/path.h>
 #include <mc/dict.h>
 #include <mc/engine/base.h>
 #include <mc/engine/interface.h>

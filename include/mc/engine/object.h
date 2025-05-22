@@ -105,7 +105,8 @@ public:
             return m_object_path;
         }
 
-        m_object_path = mc::engine::service::resolve_object_path(object_type::path_pattern, *this);
+        const_cast<object<ObjectType>*>(this)->set_object_path(
+            mc::engine::service::resolve_object_path(object_type::path_pattern, *this));
         return m_object_path;
     }
 

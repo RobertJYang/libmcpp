@@ -14,12 +14,12 @@
  * @file path_iterator.h
  * @brief 高效路径迭代器
  */
-#ifndef MC_DATABASE_PATH_ITERATOR_H
-#define MC_DATABASE_PATH_ITERATOR_H
+#ifndef MC_ENGINE_PATH_ITERATOR_H
+#define MC_ENGINE_PATH_ITERATOR_H
 
 #include <string_view>
 
-namespace mc::dbus {
+namespace mc::engine {
 
 /**
  * @brief 路径分隔符
@@ -126,6 +126,6 @@ private:
     bool             m_is_initialized; // 是否已初始化
 };
 
-} // namespace mc::dbus
+} // namespace mc::engine
 
-#endif // MC_DATABASE_PATH_ITERATOR_H
+#endif // MC_ENGINE_PATH_ITERATOR_H

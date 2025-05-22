@@ -11,6 +11,7 @@
  */
 
 #include <mc/engine/object.h>
+#include <mc/engine/path.h>
 #include <mc/engine/utils.h>
 
 namespace mc::engine {
@@ -129,6 +130,15 @@ void object_impl::set_object_name(std::string_view name) {
 }
 
 void object_impl::set_object_path(std::string_view path) {
+    // 去除尾部多余的 '/'
+    while (path.size() > 1 && path.back() == '/') {
+        path = path.substr(0, path.size() - 1);
+    }
+
+    if (!path.empty() && !mc::engine::path::is_valid(path)) {
+        MC_THROW(mc::invalid_arg_exception, "invalid object path ${path}", ("path", path));
+    }
+
     // 如果已经注册到服务中则不能修改路径
     MC_ASSERT_THROW(m_object_path.empty() || !get_service(), mc::invalid_arg_exception,
                     "object ”${path}“ is registered, please unregister first",

@@ -10,13 +10,13 @@
  * See the Mulan PSL v2 for more details.
  */
 
+#include <mc/engine/path.h>
+#include <mc/exception.h>
+
 #include <algorithm>
-#include <cctype>
-#include <mc/dbus/error.h>
-#include <mc/dbus/path.h>
 
 namespace mc {
-namespace dbus {
+namespace engine {
 
 path::path() : m_path("/") {
 }
@@ -95,7 +95,7 @@ std::string path::basename() const {
     return m_path.substr(pos + 1);
 }
 
-bool path::is_valid(const std::string& p) {
+bool path::is_valid(std::string_view p) {
     // 必须以'/'开头
     if (p.empty() || p[0] != '/') {
         return false;
@@ -132,7 +132,7 @@ bool path::is_valid(const std::string& p) {
     return true;
 }
 
-bool path::is_valid_element(const std::string& element) {
+bool path::is_valid_element(std::string_view element) {
     if (element.empty()) {
         return false;
     }
@@ -147,5 +147,5 @@ std::ostream& operator<<(std::ostream& os, const path& p) {
     return os;
 }
 
-} // namespace dbus
+} // namespace engine
 } // namespace mc

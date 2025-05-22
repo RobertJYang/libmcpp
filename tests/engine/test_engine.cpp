@@ -349,12 +349,12 @@ TEST_F(engine_test, test_managed_object_comprehensive) {
 
     // ======= 特殊路径测试 =======
     // 测试7：带有特殊字符的路径
-    auto special1 = create_object("/org/test/special-dash");
-    auto special2 = create_object("/org/test/special.dot");
+    auto special1 = create_object("/org/test/special_dash///");
+    auto special2 = create_object("/org/test/special_dot");
     auto special3 = create_object("/org/test/special_underscore");
     EXPECT_EQ(get_managed_objects(*test_obj),
               objects({"/org/test/o1", "/org/test/o2", "/org/test/deep", "/org/test/o11",
-                       "/org/test/special-dash", "/org/test/special.dot",
+                       "/org/test/special_dash", "/org/test/special_dot",
                        "/org/test/special_underscore"}));
 
     // ======= 极端情况测试 =======

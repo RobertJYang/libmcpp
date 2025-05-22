@@ -13,7 +13,7 @@
 #ifndef MC_ENGINE_OBJECT_METADATA_H
 #define MC_ENGINE_OBJECT_METADATA_H
 
-#include <mc/dbus/path_iterator.h>
+#include <mc/engine/path_iterator.h>
 #include <mc/engine/std_interface.h>
 #include <mc/exception.h>
 #include <mc/log.h>

@@ -101,17 +101,17 @@ test_files = [
   'engine/test_engine.cpp',
   'engine/test_error_engine.cpp',
   'engine/test_property.cpp',
+  'engine/test_path.cpp',
+  'engine/test_path_iterator.cpp',
 
   # io 目录
   'io/test_io_buffer.cpp',
   'io/test_io_stream.cpp',
 
   # dbus 目录
-  'dbus/test_path.cpp',
   'dbus/test_reflect.cpp',
   'dbus/test_dbus_message.cpp',
   'dbus/test_connection.cpp',
-  'dbus/test_path_iterator.cpp',
 ]
 
 enable_shared_memory = get_option('enable_shared_memory')

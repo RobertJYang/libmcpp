@@ -12,11 +12,11 @@
 #include <mc/db/database.h>
 #include <mc/dbus/connection.h>
 #include <mc/dbus/message.h>
-#include <mc/dbus/path_iterator.h>
 #include <mc/dbus/shm/harbor.h>
 #include <mc/dbus/shm/shm_tree.h>
 #include <mc/dbus/validator.h>
 #include <mc/engine.h>
+#include <mc/engine/path_iterator.h>
 #include <mc/engine/utils.h>
 #include <mc/exception.h>
 #include <mc/expr/lexer.h>

@@ -14,7 +14,6 @@
 #include <gtest/gtest.h>
 #include <mc/dbus/error.h>
 #include <mc/dbus/message.h>
-#include <mc/dbus/path.h>
 #include <mc/variant.h>
 
 using namespace mc::dbus;

@@ -398,10 +398,6 @@ void lexer::scan_token() {
 void lexer::scan_string() {
     char delimiter = m_source[m_start]; // 获取字符串的开始引号类型（单引号或双引号）
 
-    auto is_end = [delimiter, this](char c) {
-        return c == delimiter && (this->peek_next() != delimiter || this->advance());
-    };
-
     // 跳过字符直到遇到未转义的结束引号
     skip_until([delimiter, this](char c) {
         return c == delimiter ||

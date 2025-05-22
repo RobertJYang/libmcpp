@@ -1,6 +1,6 @@
-#include "mc/dbus/path_iterator.h"
+#include "mc/engine/path_iterator.h"
 
-namespace mc::dbus {
+namespace mc::engine {
 
 path_iterator::path_iterator(std::string_view path)
     : m_path(path), m_start(0), m_end(0), m_is_initialized(false) {
@@ -157,4 +157,4 @@ std::string_view path_iterator::parent_path() const {
     return m_path.substr(0, m_start - 1);
 }
 
-} // namespace mc::dbus
+} // namespace mc::engine

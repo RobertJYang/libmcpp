@@ -49,9 +49,9 @@ struct symbol_info {
     std::string name;
     symbol_type type;
     union {
-        mc::variant                  variable;
-        std::shared_ptr<function>    function;
-        mc::engine::abstract_object* object;
+        mc::variant                         variable;
+        std::shared_ptr<mc::expr::function> function;
+        mc::engine::abstract_object*        object;
     };
 };
 
