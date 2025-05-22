@@ -198,6 +198,10 @@ void service_impl::register_object(abstract_object& obj) {
     if (owner) {
         obj.set_owner(owner);
     }
+
+    mc::dbus::shm_lock_call([this, &obj]() {
+        m_shm_tree->register_object(obj);
+    });
 }
 
 abstract_object* service_impl::find_owner(abstract_object& obj, std::string_view path) {
@@ -232,9 +236,6 @@ abstract_object* service_impl::find_owner(abstract_object& obj, std::string_view
     }
 
     return &obj;
-    mc::dbus::shm_lock_call([this, &obj]() {
-        m_shm_tree->register_object(obj);
-    });
 }
 
 void service_impl::unregister_object(std::string_view path) {
@@ -250,7 +251,10 @@ void service_impl::unregister_object(std::string_view path) {
 
     obj.set_owner(nullptr);
     obj.set_service(nullptr);
-    m_shm_tree->unregister_object(path);
+
+    mc::dbus::shm_lock_call([this, path]() {
+        m_shm_tree->unregister_object(path);
+    });
 }
 
 static mc::variant convert_method_result(const mc::variants& arr) {

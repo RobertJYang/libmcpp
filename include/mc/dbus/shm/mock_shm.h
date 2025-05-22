@@ -197,7 +197,7 @@ public:
     }
 
     std::string_view get_harbor_name(const std::string_view& name) {
-        std::string harbor_name;
+        std::string_view harbor_name;
         if (tree_map.find(name) != tree_map.end()) {
             harbor_name = unique_name_map[std::string(tree_map[name]->unique_name())];
         } else {
@@ -212,7 +212,7 @@ public:
     object_tree* get_tree(const std::string_view& name) {
         auto it = tree_map.find(name);
         if (it == tree_map.end()) {
-            auto p = new object_tree();
+            auto p   = new object_tree();
             auto ret = tree_map.emplace(name, p);
             it       = ret.first;
         }

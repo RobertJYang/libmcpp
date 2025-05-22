@@ -237,8 +237,8 @@ struct interface : public abstract_interface {
         return mc::reflect::get_method_info<interface_type>(method_name) != nullptr;
     }
 
-    mc::variant get_property(std::string_view property_name) override {
-        return mc::reflect::get_property(static_cast<interface_type&>(*this), property_name);
+    mc::variant get_property(std::string_view property_name) const override {
+        return mc::reflect::get_property(static_cast<const interface_type&>(*this), property_name);
     }
 
     property_base* get_property_base(std::string_view property_name) override {

@@ -253,6 +253,7 @@ TEST_F(std_interface_test, test_introspect) {
     object.erase(mc::engine::introspectable_interface_name);
     object.erase(mc::engine::peer_interface_name);
     object.erase(mc::engine::object_manager_interface_name);
+    object.erase(mc::engine::common_properties_name);
 
     auto expected = mc::dict{{
         "org.test.TestInterface1",

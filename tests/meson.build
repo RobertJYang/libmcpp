@@ -34,6 +34,9 @@ test_files = [
   'dbus/test_local_msg.cpp',
   'dbus/test_serialize.cpp',
   'dbus/test_gvariant_convert.cpp',
+  'dbus/test_reflect.cpp',
+  'dbus/test_dbus_message.cpp',
+  'dbus/test_connection.cpp',
 
   # dict 目录
   'dict/test_dict_construction.cpp',
@@ -107,11 +110,6 @@ test_files = [
   # io 目录
   'io/test_io_buffer.cpp',
   'io/test_io_stream.cpp',
-
-  # dbus 目录
-  'dbus/test_reflect.cpp',
-  'dbus/test_dbus_message.cpp',
-  'dbus/test_connection.cpp',
 ]
 
 enable_shared_memory = get_option('enable_shared_memory')
