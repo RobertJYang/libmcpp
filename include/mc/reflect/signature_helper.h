@@ -45,19 +45,19 @@ struct signature_helper<T, std::enable_if_t<std::is_arithmetic_v<T>>> {
         // 处理基本数值类型
         if constexpr (std::is_same_v<T, bool>) {
             sig += type_to_char(type_code::boolean_type);
-        } else if constexpr (std::is_same_v<T, int8_t> || std::is_same_v<T, uint8_t>) {
+        } else if constexpr (sizeof(T) == 1) {
             sig += type_to_char(type_code::byte_type);
-        } else if constexpr (std::is_same_v<T, int16_t>) {
+        } else if constexpr (sizeof(T) == 2 && std::is_integral_v<T> && std::is_signed_v<T>) {
             sig += type_to_char(type_code::int16_type);
-        } else if constexpr (std::is_same_v<T, uint16_t>) {
+        } else if constexpr (sizeof(T) == 2 && std::is_integral_v<T> && std::is_unsigned_v<T>) {
             sig += type_to_char(type_code::uint16_type);
-        } else if constexpr (std::is_same_v<T, int32_t>) {
+        } else if constexpr (sizeof(T) == 4 && std::is_integral_v<T> && std::is_signed_v<T>) {
             sig += type_to_char(type_code::int32_type);
-        } else if constexpr (std::is_same_v<T, uint32_t>) {
+        } else if constexpr (sizeof(T) == 4 && std::is_integral_v<T> && std::is_unsigned_v<T>) {
             sig += type_to_char(type_code::uint32_type);
-        } else if constexpr (std::is_same_v<T, int64_t>) {
+        } else if constexpr (sizeof(T) == 8 && std::is_integral_v<T> && std::is_signed_v<T>) {
             sig += type_to_char(type_code::int64_type);
-        } else if constexpr (std::is_same_v<T, uint64_t>) {
+        } else if constexpr (sizeof(T) == 8 && std::is_integral_v<T> && std::is_unsigned_v<T>) {
             sig += type_to_char(type_code::uint64_type);
         } else if constexpr (std::is_same_v<T, double>) {
             sig += type_to_char(type_code::double_type);

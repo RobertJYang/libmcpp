@@ -28,7 +28,6 @@
 
 namespace mc {
 namespace reflect {
-[[noreturn]] void throw_method_not_exist(std::string_view method_name);
 
 template <typename T>
 constexpr bool is_reflectable();
@@ -171,6 +170,15 @@ public:
         throw_method_not_exist(method_name);
     }
 
+    mc::variant invoke_method(std::string_view method_name, const mc::variants& args = {}) const {
+        const method_info_base<T>* method = get_method_info(method_name);
+        if (method && method->is_static()) {
+            return method->invoke(args);
+        }
+
+        throw_method_not_exist(method_name);
+    }
+
     /**
      * @brief 设置成员属性值
      *
@@ -284,7 +292,8 @@ private:
             using method_type = std::decay_t<decltype(method)>;
             using base_type   = typename method_type::base_type;
             using class_type  = typename method_type::class_type;
-            if constexpr (!std::is_same_v<base_type, class_type>) {
+            if constexpr (!std::is_same_v<base_type, class_type> &&
+                          mc::reflect::is_reflectable<base_type>()) {
                 auto base_name = mc::reflect::reflector<base_type>::name();
                 m_base_class_method_map[base_name][method.name] = &method;
             }

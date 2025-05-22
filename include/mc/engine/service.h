@@ -65,6 +65,9 @@ public:
                                                 std::string_view method, std::string_view signature,
                                                 const mc::variants& args);
 
+    static std::string resolve_object_path(std::string_view       path_pattern,
+                                           const abstract_object& obj);
+
 protected:
     void register_object(abstract_object& obj);
 

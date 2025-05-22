@@ -67,7 +67,7 @@ TEST(SerializeTest, SerializeMsg) {
     msg_arr.push_back(msg1->to_variants());
 
     auto msg2 = new dbus::local_msg("bmc.kepler.test2", "/bmc/kepler/test/obj2",
-                                       "bmc.kepler.test.intf2", "TestMethod2");
+                                    "bmc.kepler.test.intf2", "TestMethod2");
     msg2->set_local_call(false);
     msg2->set_sender(":456");
     msg2->set_serial(789);
@@ -121,14 +121,14 @@ TEST(SerializeTest, SerializeBasicTypes) {
     msg_arr.push_back(0);
     msg_arr.push_back(1);
     msg_arr.push_back(-1);
-    msg_arr.push_back(0x7F);
-    msg_arr.push_back(0x80);
-    msg_arr.push_back(0x7FFF);
-    msg_arr.push_back(0x8000);
-    msg_arr.push_back(0x7FFFFFFF);
-    msg_arr.push_back(0x80000000);
-    msg_arr.push_back(0x7FFFFFFFFFFFFFFF);
-    msg_arr.push_back(0x8000000000000000);
+    msg_arr.push_back(int64_t(0x7F));
+    msg_arr.push_back(int64_t(0x80));
+    msg_arr.push_back(int64_t(0x7FFF));
+    msg_arr.push_back(int64_t(0x8000));
+    msg_arr.push_back(int64_t(0x7FFFFFFF));
+    msg_arr.push_back(int64_t(0x80000000));
+    msg_arr.push_back(int64_t(0x7FFFFFFFFFFFFFFF));
+    msg_arr.push_back(int64_t(0x8000000000000000));
     msg_arr.push_back(3.14);
     // 测试字符串
     msg_arr.push_back("");
@@ -138,9 +138,9 @@ TEST(SerializeTest, SerializeBasicTypes) {
     msg_arr.push_back(std::string(0xFFFF, 'c'));
     msg_arr.push_back(std::string(0x10000, 'd'));
 
-    auto packed = dbus::serialize::pack(msg_arr);
+    auto packed   = dbus::serialize::pack(msg_arr);
     auto unpacked = dbus::serialize::unpack(packed);
-    
+
     ASSERT_EQ(unpacked.size(), msg_arr.size());
     ASSERT_EQ(unpacked[0].as_bool(), true);
     ASSERT_EQ(unpacked[1].as_bool(), false);
@@ -176,8 +176,11 @@ TEST(SerializeTest, SerializeNestedArrays) {
     nested1.push_back(variants({3, 4}));
     msg_arr.push_back(nested1);
     // 测试深度嵌套
-    variants deep_nested;
-    deep_nested.push_back(variants({variants({variants({1})})}));
+    variants     deep_nested;
+    mc::variants v1 = {1};
+    mc::variants v2 = {mc::variant(v1)};
+    mc::variants v3 = {mc::variant(v2)};
+    deep_nested.push_back(v3);
     msg_arr.push_back(deep_nested);
     // 测试混合类型的数组
     variants mixed;
@@ -188,7 +191,7 @@ TEST(SerializeTest, SerializeNestedArrays) {
     mixed.push_back(variants({1, 2}));
     msg_arr.push_back(mixed);
 
-    auto packed = dbus::serialize::pack(msg_arr);
+    auto packed   = dbus::serialize::pack(msg_arr);
     auto unpacked = dbus::serialize::unpack(packed);
 
     ASSERT_EQ(unpacked.size(), msg_arr.size());
@@ -231,25 +234,25 @@ TEST(SerializeTest, SerializeDicts) {
     variants msg_arr;
     // 测试包含基本类型的字典
     mutable_dict basic_dict;
-    basic_dict["int"] = 1;
-    basic_dict["str"] = "string";
+    basic_dict["int"]    = 1;
+    basic_dict["str"]    = "string";
     basic_dict["double"] = 3.14;
-    basic_dict["bool"] = true;
+    basic_dict["bool"]   = true;
     msg_arr.push_back(basic_dict);
     // 测试包含嵌套数组的字典
     mutable_dict nested_dict;
-    nested_dict["arr"] = variants({1, 2, 3});
+    nested_dict["arr"]        = variants({1, 2, 3});
     nested_dict["nested_arr"] = variants({variants({1, 2}), variants({3, 4})});
     msg_arr.push_back(nested_dict);
     // 测试包含嵌套字典的字典
     mutable_dict deep_dict;
     mutable_dict inner_dict;
-    inner_dict["a"] = 1;
-    inner_dict["b"] = 2;
+    inner_dict["a"]    = 1;
+    inner_dict["b"]    = 2;
     deep_dict["inner"] = inner_dict;
     msg_arr.push_back(deep_dict);
 
-    auto packed = dbus::serialize::pack(msg_arr);
+    auto packed   = dbus::serialize::pack(msg_arr);
     auto unpacked = dbus::serialize::unpack(packed);
 
     ASSERT_EQ(unpacked.size(), msg_arr.size());
@@ -281,13 +284,13 @@ TEST(SerializeTest, SerializeMixedTypes) {
     msg_arr.push_back(mixed_arr);
     // 测试混合类型的字典
     mutable_dict mixed_dict;
-    mixed_dict["int"] = 1;
-    mixed_dict["str"] = "string";
-    mixed_dict["arr"] = variants({1, 2, 3});
+    mixed_dict["int"]  = 1;
+    mixed_dict["str"]  = "string";
+    mixed_dict["arr"]  = variants({1, 2, 3});
     mixed_dict["dict"] = dict({{"a", 1}, {"b", 2}});
     msg_arr.push_back(mixed_dict);
 
-    auto packed = dbus::serialize::pack(msg_arr);
+    auto packed   = dbus::serialize::pack(msg_arr);
     auto unpacked = dbus::serialize::unpack(packed);
 
     ASSERT_EQ(unpacked.size(), msg_arr.size());

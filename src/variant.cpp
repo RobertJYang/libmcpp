@@ -73,6 +73,15 @@ void throw_invalid_type_comparison_error(const char* type1, const char* type2, c
              ("type1", type1)("op", op)("type2", type2));
 }
 
+void throw_invalid_type_operation_error(const char* type1, const char* type2, const char* op) {
+    MC_THROW(mc::invalid_op_exception, "无效的类型操作: ${type1} ${op} ${type2}",
+             ("type1", type1)("op", op)("type2", type2));
+}
+
+void throw_divide_by_zero_exception(const char* msg) {
+    MC_THROW(mc::divide_by_zero_exception, "${msg}", ("msg", msg));
+}
+
 // 计算字符串的哈希值
 size_t calculate_str_hash(std::string_view data) {
     if (data.empty()) {

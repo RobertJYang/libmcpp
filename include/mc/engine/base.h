@@ -126,19 +126,19 @@ public:
     using managed_objects = std::map<std::string_view, abstract_object*>;
     using mc::core::object::connect;
 
-    abstract_object(core_object* parent) : mc::core::object(parent) {
+    abstract_object(core_object* parent = nullptr) : mc::core::object(parent) {
     }
 
     virtual ~abstract_object() = default;
 
-    abstract_object* get_parent() const override;
-
-    void     set_service(service& s);
+    void     set_service(service* s);
     service* get_service() const override;
 
-    virtual const managed_objects& get_managed_objects() const                 = 0;
-    virtual void                   add_managed_object(abstract_object* obj)    = 0;
-    virtual void                   remove_managed_object(abstract_object* obj) = 0;
+    abstract_object* get_parent() const override;
+
+    virtual abstract_object*       get_owner() const                 = 0;
+    virtual void                   set_owner(abstract_object* owner) = 0;
+    virtual const managed_objects& get_managed_objects() const       = 0;
 
     virtual std::string_view get_object_name() const                 = 0;
     virtual void             set_object_name(std::string_view name)  = 0;
@@ -155,6 +155,8 @@ public:
                                         std::string_view interface_name = {})      = 0;
     virtual property_base* get_property_base(std::string_view property_name,
                                              std::string_view interface_name = {}) = 0;
+    virtual bool           has_property(std::string_view property_name,
+                                        std::string_view interface_name = {})      = 0;
     virtual mc::dict       get_all_properties(std::string_view interface_name)     = 0;
     virtual bool           set_property(std::string_view property_name, const mc::variant& value,
                                         std::string_view interface_name = {})      = 0;
@@ -165,11 +167,18 @@ public:
 
     virtual void visit(visitor& v) const = 0;
 
+    virtual bool          has_method(std::string_view method_name,
+                                     std::string_view interface_name = {}) const = 0;
     virtual invoke_result invoke(std::string_view method_name, const mc::variants& args,
-                                 std::string_view interface_name = {}) = 0;
+                                 std::string_view interface_name = {})           = 0;
 
     virtual void notify_property_changed(const mc::variant& value, const property_base& prop) = 0;
     virtual property_changed_signal& property_changed()                                       = 0;
+
+protected:
+    friend class object_impl;
+    virtual void add_managed_object(abstract_object* obj)    = 0;
+    virtual void remove_managed_object(abstract_object* obj) = 0;
 };
 
 class abstract_interface : public mc::core::object {
@@ -187,9 +196,11 @@ public:
     virtual mc::variant         get_property(std::string_view property_name) const           = 0;
     virtual std::string_view    get_property_name(const property_base* prop)                 = 0;
     virtual property_base*      get_property_base(std::string_view property_name)            = 0;
+    virtual bool                has_property(std::string_view property_name)                 = 0;
     virtual mc::dict            get_all_properties()                                         = 0;
     virtual bool set_property(std::string_view property_name, const mc::variant& value)      = 0;
 
+    virtual bool          has_method(std::string_view method_name) const                 = 0;
     virtual invoke_result invoke(std::string_view method_name, const mc::variants& args) = 0;
 
     virtual void notify_property_changed(const mc::variant& value, const property_base& prop) = 0;
@@ -202,9 +213,13 @@ using object_ptr = mc::im::ref_ptr<abstract_object>;
 
 } // namespace mc::engine
 
-MC_REFLECT(mc::engine::abstract_object,
-           ((get_object_path, "path"))((get_class_name, "class_name"))(
-               (get_object_name, "object_name"))((get_position, "position")))
+MC_REFLECT(mc::engine::abstract_object,                           // 配置计算属性（只读）
+           (MC_COMPUTED_PROPERTY("path", get_object_path))        // path
+           (MC_COMPUTED_PROPERTY("class_name", get_class_name))   // class_name
+           (MC_COMPUTED_PROPERTY("object_name", get_object_name)) // object_name
+           (MC_COMPUTED_PROPERTY("position", get_position))       // position
+           (MC_COMPUTED_PROPERTY("object_id", get_object_id))     // object_id
+)
 
 namespace mc::engine {
 MC_FIELD_INDEX_TAG(by_path, "path");

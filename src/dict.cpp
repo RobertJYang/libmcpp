@@ -347,6 +347,24 @@ bool dict::operator==(const dict& other) const {
     return true;
 }
 
+dict dict::operator+(const dict& other) const {
+    mutable_dict result;
+
+    for (const auto& item : m_data->entries) {
+        result[item.key] = item.value;
+    }
+
+    for (const auto& item : other.m_data->entries) {
+        result[item.key] = item.value;
+    }
+
+    return dict(result);
+}
+
+mutable_dict dict::as_mut() const {
+    return mutable_dict(*this);
+}
+
 // 查找指定键的元素，返回迭代器 (std::string 版本)
 dict::const_iterator dict::find(const std::string& key) const {
     return find(std::string_view(key));

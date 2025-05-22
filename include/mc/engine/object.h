@@ -17,18 +17,53 @@
 #include <mc/engine/interface.h>
 #include <mc/engine/object_metadata.h>
 #include <mc/exception.h>
+#include <mc/expr.h>
 #include <mc/log.h>
 
 namespace mc::engine {
+using mc::string::starts_with;
+
+class object_impl : public abstract_object {
+public:
+    object_impl(core_object* parent);
+    ~object_impl() override;
+
+    const managed_objects& get_managed_objects() const override;
+
+    void notify_property_changed(const mc::variant& value, const property_base& prop) override;
+    property_changed_signal& property_changed() override;
+
+    abstract_object* get_owner() const override;
+    void             set_owner(abstract_object* owner) override;
+
+    std::string_view get_object_name() const override;
+    void             set_object_name(std::string_view name) override;
+
+    void set_object_path(std::string_view path) override;
+
+    std::string_view get_position() const override;
+    void             set_position(std::string_view position) override;
+
+protected:
+    void add_managed_object(abstract_object* obj) override;
+    void remove_managed_object(abstract_object* obj) override;
+
+protected:
+    mutable std::string                      m_object_path;
+    mutable std::string                      m_position;
+    abstract_object*                         m_owner{nullptr};
+    managed_objects                          m_managed_objects;
+    std::unique_ptr<property_changed_signal> m_property_changed_signal;
+};
 
 template <typename ObjectType>
-class object : public abstract_object {
+class object : public object_impl {
 public:
     using object_type   = ObjectType;
     using metadata_type = object_metadata<ObjectType>;
     using property_info = typename metadata_type::property_info;
 
-    object(core_object* parent = nullptr) : abstract_object(parent) {
+    object(core_object* parent = nullptr) : object_impl(parent) {
         /* 初始化子类对象的属性（interface、property）
          *
          * 这个做法不符合 C++ 对象构造顺序，因为基类先于子类构造，这里强制转换成子类指针，
@@ -49,18 +84,6 @@ public:
 
     virtual ~object() = default;
 
-    const managed_objects& get_managed_objects() const override {
-        return m_managed_objects;
-    }
-
-    void add_managed_object(abstract_object* obj) override {
-        m_managed_objects[obj->get_object_path()] = obj;
-    }
-
-    void remove_managed_object(abstract_object* obj) override {
-        m_managed_objects.erase(obj->get_object_path());
-    }
-
     static metadata_type& get_metadata() {
         return metadata_type::get_instance();
     }
@@ -77,34 +100,14 @@ public:
         return metadata_type::get_instance().get_interface_info(name);
     }
 
-    std::string_view get_object_name() const override {
-        return this->get_name();
-    }
-
-    void set_object_name(std::string_view name) override {
-        this->set_name(name);
-    }
-
     std::string_view get_object_path() const override {
-        if (m_object_path.empty()) {
-            if (get_parent()) {
-                m_object_path = get_parent()->get_object_path();
-            }
-            m_object_path += object_type::path_pattern;
+        if (!m_object_path.empty()) {
+            return m_object_path;
         }
+
+        const_cast<object<ObjectType>*>(this)->set_object_path(
+            mc::engine::service::resolve_object_path(object_type::path_pattern, *this));
         return m_object_path;
-    }
-
-    void set_object_path(std::string_view path) override {
-        m_object_path = path;
-    }
-
-    std::string_view get_position() const override {
-        return m_position;
-    }
-
-    void set_position(std::string_view position) override {
-        m_position = position;
     }
 
     std::string_view get_class_name() const override {
@@ -115,8 +118,8 @@ public:
         return get_interface_info(interface_name) != nullptr;
     }
 
-    inline abstract_interface* property_info_to_interface(property_info& info) {
-        intptr_t p_obj = reinterpret_cast<intptr_t>(static_cast<ObjectType*>(this));
+    inline abstract_interface* property_info_to_interface(property_info& info) const {
+        intptr_t p_obj = reinterpret_cast<intptr_t>(static_cast<const ObjectType*>(this));
         return reinterpret_cast<abstract_interface*>(p_obj + info.offset());
     }
 
@@ -138,7 +141,7 @@ public:
         auto info =
             metadata_type::get_instance().get_property_interface(property_name, interface_name);
         if (info == nullptr) {
-            return {};
+            return mc::reflect::get_property<abstract_object>(*this, property_name);
         }
 
         return property_info_to_interface(*info)->get_property(property_name);
@@ -153,6 +156,18 @@ public:
         }
 
         return property_info_to_interface(*info)->get_property_base(property_name);
+    }
+
+    bool has_property(std::string_view property_name, std::string_view interface_name) override {
+        auto info =
+            metadata_type::get_instance().get_property_interface(property_name, interface_name);
+        if (info == nullptr) {
+            return mc::reflect::get_property_info<abstract_object>(property_name) != nullptr;
+        }
+
+        return interface_name.empty()
+                   ? true
+                   : property_info_to_interface(*info)->has_property(property_name);
     }
 
     mc::dict get_all_properties(std::string_view interface_name) override {
@@ -193,6 +208,17 @@ public:
         return property_info_to_interface(*info)->invoke(method_name, args);
     }
 
+    bool has_method(std::string_view method_name,
+                    std::string_view interface_name = {}) const override {
+        auto info = metadata_type::get_instance().get_method_interface(method_name, interface_name);
+        if (info == nullptr) {
+            return false;
+        }
+
+        return interface_name.empty() ? true
+                                      : property_info_to_interface(*info)->has_method(method_name);
+    }
+
     mc::connection_type connect(std::string_view signal_name, slot_type slot,
                                 std::string_view interface_name = {}) override {
         auto info = metadata_type::get_instance().get_signal_interface(signal_name, interface_name);
@@ -215,20 +241,6 @@ public:
 
     void visit(visitor& v) const override {
         get_metadata().visit(static_cast<const ObjectType&>(*this), v);
-    }
-
-    void notify_property_changed(const mc::variant& value, const property_base& prop) override {
-        if (m_property_changed_signal) {
-            (*m_property_changed_signal)(value, prop);
-        }
-    }
-
-    property_changed_signal& property_changed() override {
-        if (m_property_changed_signal == nullptr) {
-            m_property_changed_signal = std::make_unique<property_changed_signal>();
-        }
-
-        return *m_property_changed_signal;
     }
 
     static mc::core::ref_ptr<object_type> create() {
@@ -255,12 +267,6 @@ public:
             dict[interface_type::interface_name] = std::move(sub_dict);
         });
     }
-
-protected:
-    mutable std::string                      m_object_path;
-    mutable std::string                      m_position;
-    managed_objects                          m_managed_objects;
-    std::unique_ptr<property_changed_signal> m_property_changed_signal;
 };
 
 } // namespace mc::engine

@@ -39,6 +39,7 @@ public:
     thread_pool                 m_threads;
     std::mutex                  m_threads_mutex;
     std::unique_ptr<work_guard> m_work;
+    mc::expr::engine            m_expr_engine;
 };
 
 engine::engine_impl::engine_impl() : m_object_table(std::make_shared<object_table>()) {
@@ -186,6 +187,14 @@ void engine::unregister_table(mc::db::table_ptr table) {
 
 object_table& engine::get_object_table() {
     return *m_impl->m_object_table;
+}
+
+mc::expr::engine& engine::get_expr_engine() {
+    return m_impl->m_expr_engine;
+}
+
+mc::expr::node_ptr engine::compile(std::string_view expr) {
+    return m_impl->m_expr_engine.compile(expr);
 }
 
 } // namespace mc::engine

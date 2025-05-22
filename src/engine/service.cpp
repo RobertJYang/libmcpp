@@ -12,12 +12,15 @@
 #include <mc/db/database.h>
 #include <mc/dbus/connection.h>
 #include <mc/dbus/message.h>
-#include <mc/dbus/path_iterator.h>
 #include <mc/dbus/shm/harbor.h>
 #include <mc/dbus/shm/shm_tree.h>
 #include <mc/dbus/validator.h>
 #include <mc/engine.h>
+#include <mc/engine/path_iterator.h>
+#include <mc/engine/utils.h>
 #include <mc/exception.h>
+#include <mc/expr/lexer.h>
+#include <mc/expr/parser.h>
 #include <mc/log.h>
 
 namespace mdb = mc::db;
@@ -25,7 +28,7 @@ namespace mdb = mc::db;
 namespace mc::engine {
 
 using object_table_ptr = std::shared_ptr<service_object_table>;
-using strand_type     = boost::asio::strand<boost::asio::io_context::executor_type>;
+using strand_type      = boost::asio::strand<boost::asio::io_context::executor_type>;
 template <typename T>
 using future = mc::future<T, strand_type>;
 
@@ -59,6 +62,15 @@ struct service_object : public mc::engine::object<service_object> {
     service_interface m_interface;
 };
 
+struct root_object : public mc::engine::object<root_object> {
+    MC_OBJECT(root_object, "RootObject", "/")
+
+    root_object() {
+        set_object_name("root");
+        set_object_path("/");
+    }
+};
+
 struct service_impl {
     service_impl();
 
@@ -86,18 +98,21 @@ struct service_impl {
                                                 std::string_view path, std::string_view interface,
                                                 std::string_view method, std::string_view signature,
                                                 const variants& args);
+    static abstract_object*    find_owner(abstract_object& obj, std::string_view path);
 
     std::mutex                      m_mutex;
     service*                        m_service;
     dbus::connection_ptr            m_connection;
     object_table_ptr                m_object_table;
     mc::im::ref_ptr<service_object> m_service_object;
+    root_object                     m_root;
     mc::dbus::shm_tree*             m_shm_tree;
 };
 } // namespace mc::engine
 
 MC_REFLECT(mc::engine::service_interface, ((m_service_name, "name")))
 MC_REFLECT(mc::engine::service_object, ((m_interface, "interface")))
+MC_REFLECT(mc::engine::root_object, ())
 
 using service_table =
     mdb::table<mc::engine::service_object,
@@ -133,18 +148,18 @@ bool service_impl::start() {
         return on_filter_message(msg);
     });
 
-    m_connection     = connection;
-    m_object_table   = std::make_shared<service_object_table>(m_service->name());
+    m_connection   = connection;
+    m_object_table = std::make_shared<service_object_table>(m_service->name());
     mc::engine::get_engine().register_table(m_object_table);
-    auto unique_name = connection->get_unique_name();
-    auto& harbor = mc::dbus::harbor::get_instance();
+    auto  unique_name = connection->get_unique_name();
+    auto& harbor      = mc::dbus::harbor::get_instance();
     // 如果harbor名未设置，则设置为"harbor.服务名"
     harbor.set_harbor_name_if_empty("harbor." + service_name);
     harbor.register_unique_name(unique_name, service_name);
     m_shm_tree   = new mc::dbus::shm_tree(m_service->get_strand(), harbor.get_harbor_name(),
                                           service_name, unique_name);
-    auto handler = [this](std::string_view path, std::string_view interface, std::string_view method,
-                          const mc::variants& args) {
+    auto handler = [this](std::string_view path, std::string_view interface,
+                          std::string_view method, const mc::variants& args) {
         return invoke_method(path, interface, method, args);
     };
     harbor.register_method_handler(service_name, unique_name, handler);
@@ -174,17 +189,72 @@ void service_impl::stop() {
 
 void service_impl::register_object(abstract_object& obj) {
     m_object_table->add(mc::im::ref_ptr<abstract_object>(&obj));
-    obj.set_service(*m_service);
+    obj.set_service(m_service);
     m_connection->register_path(obj.get_object_path(), [this, &obj](auto& msg) {
         return on_path_message(msg, obj);
     });
+
+    auto* owner = find_owner(m_root, obj.get_object_path());
+    if (owner) {
+        obj.set_owner(owner);
+    }
+
     mc::dbus::shm_lock_call([this, &obj]() {
         m_shm_tree->register_object(obj);
     });
 }
 
+abstract_object* service_impl::find_owner(abstract_object& obj, std::string_view path) {
+    if (path.empty() || path[0] != '/') {
+        return nullptr;
+    }
+
+    // 如果不是 obj 的子路径，直接返回失败
+    auto my_path = obj.get_object_path();
+    if (!detail::path_starts_with(path, my_path)) {
+        return nullptr;
+    }
+
+    // 在子对象中递归查找更接近的 owner
+    auto child_objects = obj.get_managed_objects();
+    auto it            = child_objects.lower_bound(path);
+    if (it != child_objects.end() && it->first.size() == path.size()) {
+        return it->second; // 如果精确匹配直接返回
+    }
+
+    // 如果没有精确匹配且已经到达 map 末尾或者找到的键不是 path 的前缀
+    // 则需要向前查找可能的前缀
+    if (it == child_objects.end() || !detail::path_starts_with(path, it->first)) {
+        if (it == child_objects.begin()) {
+            return &obj;
+        }
+        --it; // 向前查找可能的前缀
+    }
+
+    if (detail::path_starts_with(path, it->first)) {
+        return find_owner(*(it->second), path);
+    }
+
+    return &obj;
+}
+
 void service_impl::unregister_object(std::string_view path) {
-    m_shm_tree->unregister_object(path);
+    m_connection->unregister_path(path);
+
+    auto it = m_object_table->find<by_path>(path);
+    if (it.is_end()) {
+        return;
+    }
+
+    auto& obj = const_cast<abstract_object&>(*it);
+    m_object_table->remove(mc::im::ref_ptr<abstract_object>(&obj));
+
+    obj.set_owner(nullptr);
+    obj.set_service(nullptr);
+
+    mc::dbus::shm_lock_call([this, path]() {
+        m_shm_tree->unregister_object(path);
+    });
 }
 
 static mc::variant convert_method_result(const mc::variants& arr) {
@@ -363,6 +433,51 @@ service_object_table& service::get_object_table() const {
     return *m_impl->m_object_table;
 }
 
+// 解析对象路径
+// 将路径求解放在 service 中的目的是，后续看是否需要将 service 和 engine 的属性
+// 注册到路径表达式引擎，目前只允许路径表达式使用对象本身的属性以及表达式引擎的内建函数库
+std::string service::resolve_object_path(std::string_view       path_pattern,
+                                         const abstract_object& obj) {
+    std::string path;
+    if (mc::expr::lexer::is_template_string(path_pattern)) {
+        // 是路径表达式，使用表达式引擎计算路径
+        auto& expr_engine = mc::engine::engine::get_instance().get_expr_engine();
+        auto  ctx         = expr_engine.make_context(const_cast<abstract_object*>(&obj));
+
+        mc::expr::lexer  lex(path_pattern);
+        auto             tokens = lex.scan_template_string_tokens();
+        mc::expr::parser p(std::move(tokens));
+        auto             node     = p.parse();
+        auto             path_val = node->evaluate(ctx);
+        MC_ASSERT_THROW(path_val.is_string(), mc::invalid_arg_exception,
+                        "resolve object path ${path} failed", ("path", path_pattern));
+        path = std::string(path_val.get_string());
+    } else {
+        // 是普通字符串，直接使用
+        path = std::string(path_pattern);
+    }
+
+    mc::string::trim_inplace(path);
+
+    // 是绝对路径则直接返回
+    if (!path.empty() && path.front() == '/') {
+        return path;
+    }
+
+    // 否则拼接上父路径
+    auto parent = obj.get_parent();
+    MC_ASSERT_THROW(parent, mc::invalid_arg_exception,
+                    "object parent is nullptr or not abstract_object");
+    auto parent_path = parent->get_object_path();
+
+    std::string tmp;
+    tmp.reserve(parent_path.size() + 1 + path.size());
+    tmp = parent_path;
+    tmp += "/";
+    tmp += path;
+    return tmp;
+}
+
 mc::variant service::timeout_call(mc::milliseconds timeout, std::string_view service_name,
                                   std::string_view path, std::string_view interface,
                                   std::string_view method, std::string_view signature,
@@ -370,12 +485,13 @@ mc::variant service::timeout_call(mc::milliseconds timeout, std::string_view ser
     return m_impl->timeout_call(timeout, service_name, path, interface, method, signature, args);
 }
 
-std::optional<mc::variant> service::shm_timeout_call(mc::milliseconds timeout,
-                                                     std::string_view service_name,
-                                                     std::string_view path, std::string_view interface,
-                                                     std::string_view method, std::string_view signature,
-                                                     const mc::variants& args) {
-    return m_impl->shm_timeout_call(timeout, service_name, path, interface, method, signature, args);
+std::optional<mc::variant>
+service::shm_timeout_call(mc::milliseconds timeout, std::string_view service_name,
+                          std::string_view path, std::string_view interface,
+                          std::string_view method, std::string_view signature,
+                          const mc::variants& args) {
+    return m_impl->shm_timeout_call(timeout, service_name, path, interface, method, signature,
+                                    args);
 }
 
 dbus::connection_ptr service::get_connection() {

@@ -15,7 +15,7 @@
 
 #include <mc/dbus/enums.h>
 #include <mc/dbus/error.h>
-#include <mc/dbus/path.h>
+#include <mc/engine/path.h>
 #include <mc/exception.h>
 #include <mc/future.h>
 #include <mc/reflect.h>
@@ -30,6 +30,7 @@ namespace mc::dbus {
 using signature_iterator = mc::reflect::signature_iterator;
 using signature          = mc::reflect::signature;
 using type_code          = mc::reflect::type_code;
+using path               = mc::engine::path;
 namespace container      = mc::reflect::container;
 
 void ensure_container_max_length(const char* type_name, std::size_t size);

@@ -129,13 +129,16 @@ struct inintrospect_vistor : visitor {
         auto  path = obj.get_object_path();
 
         for (auto& obj : objs) {
-            auto obj_path = obj.second->get_object_path();
+            auto        obj_path = obj.second->get_object_path();
+            std::string obj_name;
             if (mc::string::starts_with(obj_path, path)) {
-                auto obj_name = obj_path.substr(path.size() + 1);
-                xml_data += "<node name=\"";
-                xml_data += obj_name;
-                xml_data += "\"/>";
+                // 如果是子路径，跳过前缀只取后半部分
+                obj_name = obj_path.substr(path.size());
             }
+
+            xml_data += "<node name=\"";
+            xml_data += obj_name;
+            xml_data += "\"/>";
         }
     }
 

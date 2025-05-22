@@ -17,8 +17,8 @@
 #ifndef MC_VARIANT_H
 #define MC_VARIANT_H
 
-#include <mc/variant/variant_base.h>
 #include <mc/variant/io.h>
+#include <mc/variant/variant_base.h>
 
 namespace mc {
 
@@ -26,6 +26,59 @@ using variant       = variant_base<>;
 using blob          = blob_base<>;
 using variants      = typename variant::array_type;
 using typed_variant = variant_base<variant_config<std::allocator<char>, true>>;
+
+namespace detail {
+// 检测是否存在 to_variant 函数
+template <typename T>
+auto has_to_variant_function(int)
+    -> decltype(to_variant(std::declval<T>(), std::declval<mc::variant&>()), std::true_type{});
+
+template <typename T>
+std::false_type has_to_variant_function(...);
+
+template <typename T>
+inline constexpr bool has_to_variant_function_v = decltype(has_to_variant_function<T>(0))::value;
+
+// 检测类型是否可构造为 variant，分两步检测避免编译错误
+template <typename T>
+struct is_variant_constructible {
+    // 第一步：检查是否可以构造
+    static constexpr bool is_constructible = std::is_constructible_v<mc::variant, T>;
+
+    // 第二步：仅当可构造时，才检查是否有 to_variant 函数
+    template <typename U, bool IsConstructible>
+    struct check_to_variant {
+        static constexpr bool value = false;
+    };
+
+    template <typename U>
+    struct check_to_variant<U, true> {
+        static constexpr bool value = detail::has_to_variant_function_v<U>;
+    };
+
+    static constexpr bool value = check_to_variant<T, is_constructible>::value;
+};
+
+} // namespace detail
+
+template <typename T>
+inline constexpr bool is_variant_constructible_v = detail::is_variant_constructible<T>::value;
+
+// 检查所有类型是否都可以转换为variant
+template <typename... Args>
+struct all_variant_constructible;
+
+template <>
+struct all_variant_constructible<> : std::true_type {};
+
+template <typename T, typename... Rest>
+struct all_variant_constructible<T, Rest...> {
+    static constexpr bool value =
+        is_variant_constructible_v<T> && all_variant_constructible<Rest...>::value;
+};
+
+template <typename... Args>
+inline constexpr bool all_variant_constructible_v = all_variant_constructible<Args...>::value;
 
 } // namespace mc
 

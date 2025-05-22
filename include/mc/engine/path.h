@@ -10,8 +10,8 @@
  * See the Mulan PSL v2 for more details.
  */
 
-#ifndef MC_DBUS_PATH_H
-#define MC_DBUS_PATH_H
+#ifndef MC_ENGINE_PATH_H
+#define MC_ENGINE_PATH_H
 
 #include <ostream>
 #include <string>
@@ -21,12 +21,12 @@
 #include <mc/variant.h>
 
 namespace mc {
-namespace dbus {
+namespace engine {
 
 /**
- * 表示DBus对象路径的类
+ * 表示对象路径的类
  *
- * DBus对象路径必须遵循以下规则：
+ * 对象路径必须遵循以下规则：
  * - 以斜杠（/）开头
  * - 路径元素由斜杠分隔
  * - 每个元素必须只包含ASCII字母、数字和下划线
@@ -150,7 +150,7 @@ public:
      * @param p 要验证的路径字符串
      * @return 如果是有效的DBus对象路径返回true
      */
-    static bool is_valid(const std::string& p);
+    static bool is_valid(std::string_view p);
 
     /**
      * 验证字符串是否为有效的路径元素
@@ -158,7 +158,7 @@ public:
      * @param element 要验证的路径元素
      * @return 如果是有效的路径元素返回true
      */
-    static bool is_valid_element(const std::string& element);
+    static bool is_valid_element(std::string_view element);
 
 private:
     std::string m_path;
@@ -169,14 +169,14 @@ private:
  */
 std::ostream& operator<<(std::ostream& os, const path& p);
 
-} // namespace dbus
+} // namespace engine
 
-inline void to_variant(const dbus::path& p, variant& v) {
+inline void to_variant(const engine::path& p, variant& v) {
     v = p.str();
 }
 
-inline void from_variant(const variant& v, dbus::path& p) {
-    p = dbus::path(v.as_string());
+inline void from_variant(const variant& v, engine::path& p) {
+    p = engine::path(v.as_string());
 }
 
 } // namespace mc
@@ -186,7 +186,7 @@ namespace detail {
 
 // 对 path 的特化
 template <>
-struct signature_helper<mc::dbus::path> {
+struct signature_helper<mc::engine::path> {
     static void apply(std::string& sig) {
         sig += mc::reflect::type_to_char(mc::reflect::type_code::object_path_type);
     }
@@ -195,4 +195,4 @@ struct signature_helper<mc::dbus::path> {
 } // namespace detail
 } // namespace mc::reflect
 
-#endif // MC_DBUS_PATH_H
+#endif // MC_ENGINE_PATH_H

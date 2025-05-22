@@ -22,12 +22,34 @@
 #include <mc/variant.h>
 #include <type_traits>
 
+#include <stdarg.h>
+
 namespace mc {
 namespace string {
 
 namespace detail {
 void throw_bad_cast_error(const char* type) {
     MC_THROW(mc::invalid_arg_exception, "can not cast string to type: ${type}", ("type", type));
+}
+
+void throw_overflow_error(const char* type, std::string_view s) {
+    MC_THROW(mc::overflow_exception, "can not cast string to type ${type}, value ${value} overflow",
+             ("type", type)("value", s));
+}
+
+std::pair<int, std::string_view> detect_number_radix(std::string_view s) {
+    if (s.size() > 1 && s[0] == '0') {
+        const char c = s[1];
+        if (c == 'x' || c == 'X') {
+            return {16, s.substr(2)};
+        } else if (c == 'b' || c == 'B') {
+            return {2, s.substr(2)};
+        } else if (c >= '0' && c <= '7') {
+            return {8, s.substr(1)};
+        }
+    }
+
+    return {10, s};
 }
 
 } // namespace detail
@@ -219,6 +241,10 @@ std::string join(const std::vector<std::string>& v, std::string_view delim) {
 
 // 检查字符串是否以指定前缀开始
 bool starts_with(std::string_view s, std::string_view prefix) {
+    if (prefix.empty()) {
+        return true;
+    }
+
     return s.size() >= prefix.size() && s.substr(0, prefix.size()) == prefix;
 }
 
@@ -566,6 +592,49 @@ std::string mc::string::format(std::string_view format_str, const dict& args) {
     return result;
 }
 
+std::string mc::string::format_v(const char* format, ...) {
+    va_list args;
+    va_start(args, format);
+    std::string result = format_vv(format, args);
+    va_end(args);
+    return result;
+}
+
+std::string mc::string::format_vv(const char* format, va_list args) {
+    std::string result;
+    if (!format_vv(result, format, args)) {
+        return {};
+    }
+
+    return result;
+}
+
+bool mc::string::format_v(std::string& result, const char* format, ...) {
+    va_list args;
+    va_start(args, format);
+    bool ret = format_vv(result, format, args);
+    va_end(args);
+    return ret;
+}
+
+bool mc::string::format_vv(std::string& result, const char* format, va_list args) {
+    int size = std::vsnprintf(nullptr, 0, format, args);
+    if (size <= 0) {
+        result.clear();
+        return false;
+    }
+
+    result.resize(size + 1);
+    int ret = std::vsnprintf(const_cast<char*>(result.data()), size + 1, format, args);
+    if (ret <= 0) {
+        result.clear();
+        return false;
+    }
+
+    result.resize(ret);
+    return true;
+}
+
 bool mc::string::get_format_args(std::string_view format, mc::dict& arg_names) {
     if (format.empty()) {
         return true;
@@ -597,6 +666,27 @@ bool mc::string::get_format_args(std::string_view format, mc::dict& arg_names) {
 
     arg_names = std::move(args);
     return true;
+}
+
+std::string to_string(double value) {
+    char   buffer[64];
+    double intpart;
+    if (modf(value, &intpart) == 0.0) {
+        // 如果是整数值，不显示小数点和小数位
+        snprintf(buffer, sizeof(buffer), "%.0f", value);
+    } else {
+        // 先使用默认的6位小数格式
+        snprintf(buffer, sizeof(buffer), "%.6f", value);
+        // 移除末尾多余的0和小数点
+        char* end = buffer + strlen(buffer) - 1;
+        while (end > buffer && *end == '0') {
+            *end-- = '\0';
+        }
+        if (end > buffer && *end == '.') {
+            *end = '\0';
+        }
+    }
+    return buffer;
 }
 
 } // namespace mc

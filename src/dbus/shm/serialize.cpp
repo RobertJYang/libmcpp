@@ -239,38 +239,38 @@ const char* read_buffer::read(size_t size) {
 
 int64_t read_buffer::read_integer(uint8_t cookie) {
     switch (cookie) {
-        case COOKIE_NUMBER_ZERO:
-            return 0;
-        case COOKIE_NUMBER_BYTE: {
-            uint8_t n;
-            auto    pn = reinterpret_cast<const uint8_t*>(read(sizeof(n)));
-            MC_ASSERT(pn != nullptr, ERROR_INVALID_FORMAT);
-            n = *pn;
-            return n;
-        }
-        case COOKIE_NUMBER_WORD: {
-            uint16_t n;
-            auto     pn = read(sizeof(n));
-            MC_ASSERT(pn != nullptr, ERROR_INVALID_FORMAT);
-            memcpy(&n, pn, sizeof(n));
-            return n;
-        }
-        case COOKIE_NUMBER_DWORD: {
-            int32_t n;
-            auto    pn = read(sizeof(n));
-            MC_ASSERT(pn != nullptr, ERROR_INVALID_FORMAT);
-            memcpy(&n, pn, sizeof(n));
-            return n;
-        }
-        case COOKIE_NUMBER_QWORD: {
-            int64_t n;
-            auto    pn = read(sizeof(n));
-            MC_ASSERT(pn != nullptr, ERROR_INVALID_FORMAT);
-            memcpy(&n, pn, sizeof(n));
-            return n;
-        }
-        default:
-            break;
+    case COOKIE_NUMBER_ZERO:
+        return 0;
+    case COOKIE_NUMBER_BYTE: {
+        uint8_t n;
+        auto    pn = reinterpret_cast<const uint8_t*>(read(sizeof(n)));
+        MC_ASSERT(pn != nullptr, ERROR_INVALID_FORMAT);
+        n = *pn;
+        return n;
+    }
+    case COOKIE_NUMBER_WORD: {
+        uint16_t n;
+        auto     pn = read(sizeof(n));
+        MC_ASSERT(pn != nullptr, ERROR_INVALID_FORMAT);
+        memcpy(&n, pn, sizeof(n));
+        return n;
+    }
+    case COOKIE_NUMBER_DWORD: {
+        int32_t n;
+        auto    pn = read(sizeof(n));
+        MC_ASSERT(pn != nullptr, ERROR_INVALID_FORMAT);
+        memcpy(&n, pn, sizeof(n));
+        return n;
+    }
+    case COOKIE_NUMBER_QWORD: {
+        int64_t n;
+        auto    pn = read(sizeof(n));
+        MC_ASSERT(pn != nullptr, ERROR_INVALID_FORMAT);
+        memcpy(&n, pn, sizeof(n));
+        return n;
+    }
+    default:
+        break;
     }
     return 0;
 }
@@ -311,41 +311,41 @@ variant read_buffer::read_value(uint8_t type, uint8_t cookie) {
     }
     auto value_type = static_cast<data_type>(type);
     switch (value_type) {
-        case data_type::nil:
-            return variant();
-        case data_type::boolean:
-            return variant(cookie != 0);
-        case data_type::number:
-            if (cookie == COOKIE_NUMBER_REAL) {
-                return variant(read_double());
+    case data_type::nil:
+        return variant();
+    case data_type::boolean:
+        return variant(cookie != 0);
+    case data_type::number:
+        if (cookie == COOKIE_NUMBER_REAL) {
+            return variant(read_double());
+        }
+        return variant(read_integer(cookie));
+    case data_type::userdata:
+        return variant(reinterpret_cast<uint64_t>(read_pointer()));
+    case data_type::short_string:
+        return variant(read_string(cookie));
+    case data_type::long_string:
+        if (cookie == 2) {
+            const void* plen = read(2);
+            MC_ASSERT(plen != nullptr, ERROR_INVALID_FORMAT);
+            uint16_t n;
+            memcpy(&n, plen, sizeof(n));
+            return variant(read_string(n));
+        } else {
+            if (cookie != 4) {
+                MC_THROW(mc::invalid_arg_exception, "invalid cookie: ${cookie}",
+                         ("cookie", cookie));
             }
-            return variant(read_integer(cookie));
-        case data_type::userdata:
-            return variant(reinterpret_cast<uint64_t>(read_pointer()));
-        case data_type::short_string:
-            return variant(read_string(cookie));
-        case data_type::long_string:
-            if (cookie == 2) {
-                const void* plen = read(2);
-                MC_ASSERT(plen != nullptr, ERROR_INVALID_FORMAT);
-                uint16_t n;
-                memcpy(&n, plen, sizeof(n));
-                return variant(read_string(n));
-            } else {
-                if (cookie != 4) {
-                    MC_THROW(mc::invalid_arg_exception, "invalid cookie: ${cookie}",
-                            ("cookie", cookie));
-                }
-                const void* plen = read(4);
-                MC_ASSERT(plen != nullptr, ERROR_INVALID_FORMAT);
-                uint32_t n;
-                memcpy(&n, plen, sizeof(n));
-                return variant(read_string(n));
-            }
-        case data_type::table:
-            return read_table(cookie);
-        default:
-            break;
+            const void* plen = read(4);
+            MC_ASSERT(plen != nullptr, ERROR_INVALID_FORMAT);
+            uint32_t n;
+            memcpy(&n, plen, sizeof(n));
+            return variant(read_string(n));
+        }
+    case data_type::table:
+        return read_table(cookie);
+    default:
+        break;
     }
     MC_THROW(mc::invalid_arg_exception, "unsupported type: ${type}", ("type", type));
 }

@@ -18,6 +18,9 @@
 
 namespace test {
 
+// 调用函数
+// 绑定对象
+//
 class my_task_object : public mc::engine::object<my_task_object> {
 public:
     MC_OBJECT(my_task_object, "TaskObject", "/bmc/kepler/TaskService/Tasks/${Id}",

@@ -9,6 +9,15 @@ test_files = [
   'test_signal_slot.cpp',
   'test_time.cpp',
 
+  # expr 目录
+  'expr/test_lexer.cpp',
+  'expr/test_expr.cpp',
+  'expr/test_context.cpp',
+  'expr/test_object_expr.cpp',
+  'expr/builtin/test_math.cpp',
+  'expr/builtin/test_string.cpp',
+  'expr/builtin/test_conversion.cpp',
+
   # core 目录
   'core/test_service_manager.cpp',
   'core/test_singleton.cpp',
@@ -25,6 +34,9 @@ test_files = [
   'dbus/test_local_msg.cpp',
   'dbus/test_serialize.cpp',
   'dbus/test_gvariant_convert.cpp',
+  'dbus/test_reflect.cpp',
+  'dbus/test_dbus_message.cpp',
+  'dbus/test_connection.cpp',
 
   # dict 目录
   'dict/test_dict_construction.cpp',
@@ -82,6 +94,7 @@ test_files = [
   'variant/test_variant_standard_containers.cpp',
   'variant/test_variant_visitor.cpp',
   'variant/test_variant_io.cpp',
+  'variant/test_variant_operations.cpp',
 
   # engine 目录
   'engine/test_interface.cpp',
@@ -91,17 +104,12 @@ test_files = [
   'engine/test_engine.cpp',
   'engine/test_error_engine.cpp',
   'engine/test_property.cpp',
+  'engine/test_path.cpp',
+  'engine/test_path_iterator.cpp',
 
   # io 目录
   'io/test_io_buffer.cpp',
   'io/test_io_stream.cpp',
-
-  # dbus 目录
-  'dbus/test_path.cpp',
-  'dbus/test_reflect.cpp',
-  'dbus/test_dbus_message.cpp',
-  'dbus/test_connection.cpp',
-  'dbus/test_path_iterator.cpp',
 ]
 
 enable_shared_memory = get_option('enable_shared_memory')
@@ -123,7 +131,7 @@ test_exe = executable(
     glib_dep,
     boost_dep,
     boost_program_options_dep,
-    test_utilities_dep
+    test_utilities_dep,
   ],
   cpp_args: [],
   install: true,

@@ -16,11 +16,11 @@
  */
 
 #include <gtest/gtest.h>
-#include <mc/dbus/path_iterator.h>
+#include <mc/engine/path_iterator.h>
 #include <string>
 #include <vector>
 
-using namespace mc::dbus;
+using namespace mc::engine;
 
 // 辅助函数：收集路径所有片段
 std::vector<std::string> collect_segments(const std::string& path) {

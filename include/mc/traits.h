@@ -21,6 +21,44 @@ namespace mc {
 
 namespace traits {
 
+// 追加类型到一个 Types 的后面
+template <typename Types, typename T>
+struct type_append;
+
+template <typename... Types, typename T>
+struct type_append<std::tuple<Types...>, T> {
+    using type = std::tuple<Types..., T>;
+};
+
+template <typename... Types>
+using type_append_t = typename type_append<Types...>::type;
+
+// 追加类型到一个 Types 的前面
+template <typename Types, typename T>
+struct type_prepend;
+
+template <typename... Types, typename T>
+struct type_prepend<std::tuple<Types...>, T> {
+    using type = std::tuple<T, Types...>;
+};
+
+template <typename... Types>
+using type_prepend_t = typename type_prepend<Types...>::type;
+
+// 定义一个模板，将一个模板应用到 Types 上
+template <template <typename...> class To, typename Types>
+struct apply_type;
+
+// 特化处理std::tuple
+template <template <typename...> class To, typename... Types>
+struct apply_type<To, std::tuple<Types...>> {
+    using type = To<Types...>;
+};
+
+// 辅助别名模板
+template <template <typename...> class To, typename Types>
+using apply_type_t = typename apply_type<To, Types>::type;
+
 template <typename T>
 struct remove_cvref {
     using type = std::remove_cv_t<std::remove_reference_t<T>>;
@@ -46,22 +84,42 @@ struct function_traits;
 // 普通函数
 template <typename R, typename... Args>
 struct function_traits<R(Args...)> {
+    using class_type                   = void;
     using return_type                  = R;
-    using args_tuple                   = std::tuple<Args...>;
+    using args_type                    = std::tuple<Args...>;
     static constexpr size_t args_count = sizeof...(Args);
+    using function_type                = std::function<R(Args...)>;
+};
+
+// 成员函数指针
+template <typename C, typename R, typename... Args>
+struct function_traits<R (C::*)(Args...)> {
+    using class_type                   = C;
+    using return_type                  = R;
+    using args_type                    = std::tuple<Args...>;
+    static constexpr size_t args_count = sizeof...(Args);
+    using function_type                = std::function<R(Args...)>;
 };
 
 // 函数指针
 template <typename R, typename... Args>
 struct function_traits<R (*)(Args...)> : function_traits<R(Args...)> {};
 
-// 成员函数指针
-template <typename C, typename R, typename... Args>
-struct function_traits<R (C::*)(Args...)> : function_traits<R(Args...)> {};
+// const 限定的函数指针特化
+template <typename R, typename... Args>
+struct function_traits<R (*const)(Args...)> : function_traits<R(Args...)> {};
 
 // const 成员函数指针
 template <typename C, typename R, typename... Args>
-struct function_traits<R (C::*)(Args...) const> : function_traits<R(Args...)> {};
+struct function_traits<R (C::*)(Args...) const> : function_traits<R (C::*)(Args...)> {};
+
+// 处理 volatile 成员函数
+template <typename C, typename R, typename... Args>
+struct function_traits<R (C::*)(Args...) volatile> : function_traits<R (C::*)(Args...)> {};
+
+// 处理 const volatile 成员函数
+template <typename C, typename R, typename... Args>
+struct function_traits<R (C::*)(Args...) const volatile> : function_traits<R (C::*)(Args...)> {};
 
 // std::function
 template <typename R, typename... Args>
@@ -74,9 +132,11 @@ private:
     using call_type = function_traits<decltype(&F::operator())>;
 
 public:
+    using class_type                   = typename call_type::class_type;
     using return_type                  = typename call_type::return_type;
-    using args_tuple                   = typename call_type::args_tuple;
+    using args_type                    = typename call_type::args_type;
     static constexpr size_t args_count = call_type::args_count;
+    using function_type                = typename call_type::function_type;
 };
 
 // 引用类型的特化，移除引用
@@ -85,6 +145,59 @@ struct function_traits<F&> : function_traits<F> {};
 
 template <typename F>
 struct function_traits<F&&> : function_traits<F> {};
+
+namespace detail {
+template <typename T, typename F, typename = void>
+struct is_getter_impl : std::false_type {};
+
+// 普通函数和函数对象的特化
+template <typename T, typename F>
+struct is_getter_impl<
+    T, F,
+    std::enable_if_t<!std::is_void_v<std::decay_t<T>> &&
+                     std::is_invocable_r_v<std::decay_t<T>, F> && std::is_invocable_v<F>>>
+    : std::true_type {};
+
+// 成员函数指针的特化
+template <typename T, typename ClassType, typename ReturnType>
+struct is_getter_impl<T, ReturnType (ClassType::*)(),
+                      std::enable_if_t<!std::is_void_v<std::decay_t<T>> &&
+                                       std::is_same_v<std::decay_t<T>, std::decay_t<ReturnType>>>>
+    : std::true_type {};
+
+// const 成员函数指针的特化
+template <typename T, typename ClassType, typename ReturnType>
+struct is_getter_impl<T, ReturnType (ClassType::*)() const,
+                      std::enable_if_t<!std::is_void_v<std::decay_t<T>> &&
+                                       std::is_same_v<std::decay_t<T>, std::decay_t<ReturnType>>>>
+    : std::true_type {};
+
+template <typename T, typename F, typename = void>
+struct is_setter_impl : std::false_type {};
+
+// 普通函数和函数对象的特化
+template <typename T, typename F>
+struct is_setter_impl<T, F,
+                      std::enable_if_t<!std::is_void_v<std::decay_t<T>> &&
+                                       std::is_invocable_r_v<void, F, std::decay_t<T>>>>
+    : std::true_type {};
+
+// 成员函数指针的特化
+template <typename T, typename ClassType>
+struct is_setter_impl<T, void (ClassType::*)(std::decay_t<T>),
+                      std::enable_if_t<!std::is_void_v<std::decay_t<T>>>> : std::true_type {};
+
+// const 成员函数指针的特化
+template <typename T, typename ClassType>
+struct is_setter_impl<T, void (ClassType::*)(std::decay_t<T>) const,
+                      std::enable_if_t<!std::is_void_v<std::decay_t<T>>>> : std::true_type {};
+} // namespace detail
+
+template <typename T, typename F>
+inline constexpr bool is_getter_v = detail::is_getter_impl<T, F>::value;
+
+template <typename T, typename F>
+inline constexpr bool is_setter_v = detail::is_setter_impl<T, F>::value;
 
 // tuple_for_each实现：遍历元组中的每个元素并应用函数
 template <typename Tuple, typename Func, std::size_t... Is>
@@ -158,18 +271,6 @@ struct has_operator_equal<T, U, std::void_t<decltype(std::declval<T>() == std::d
 template <typename T, typename U = T>
 inline constexpr bool has_operator_equal_v = has_operator_equal<T, U>::value;
 
-// 追加类型到一个 std::tuple 中
-template <typename Tuple, typename T>
-struct tuple_append;
-
-template <typename... Types, typename T>
-struct tuple_append<std::tuple<Types...>, T> {
-    using type = std::tuple<Types..., T>;
-};
-
-template <typename... Tuples>
-using tuple_append_t = typename tuple_append<Tuples...>::type;
-
 // 移除多级指针类型
 template <typename T>
 struct remove_pointers {
@@ -183,6 +284,18 @@ struct remove_pointers<T*> {
 // 别名模板简化使用
 template <typename T>
 using remove_pointers_t = typename remove_pointers<remove_cvref_t<T>>::type;
+
+template <typename T>
+class property_traits {
+    struct disable_rvalue_typeerence {};
+
+public:
+    static constexpr bool is_basic_type = std::is_arithmetic_v<T> || std::is_enum_v<T>;
+
+    using value_type  = T;
+    using param_type  = std::conditional_t<is_basic_type, T, const T&>;
+    using rvalue_type = std::conditional_t<is_basic_type, disable_rvalue_typeerence, T&&>;
+};
 } // namespace traits
 } // namespace mc
 

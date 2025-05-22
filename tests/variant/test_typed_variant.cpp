@@ -216,7 +216,7 @@ TEST_F(TypedVariantTest, BoolTypeLocking) {
      * bool类型的false
      * 整数类型的0
      * 浮点数类型的0
-     * 空字符串类型的空串，false，0
+     * 空字符串类型除了 true 和 1
      * 空数组类型的空数组
      * 空对象类型的空对象
      * 空blob类型的空blob
@@ -226,7 +226,7 @@ TEST_F(TypedVariantTest, BoolTypeLocking) {
      */
     tv_bool = "not a boolean";
     ASSERT_EQ(tv_bool.get_type(), type_id::bool_type);
-    ASSERT_EQ(tv_bool.as_bool(), true);
+    ASSERT_EQ(tv_bool.as_bool(), false);
 }
 
 /**

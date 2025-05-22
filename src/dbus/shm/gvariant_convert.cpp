@@ -185,8 +185,10 @@ GVariant* gvariant_convert::new_gvariant_struct(const variant& v, sig_unit& sig)
     if (len > MAX_CONTAINER_SIZE) {
         MC_THROW(mc::invalid_arg_exception, "struct size too large");
     }
-    GVariant* buf[len] = {nullptr};
-    size_t    i        = 0;
+    std::vector<GVariant*> buf;
+    buf.resize(len);
+
+    size_t i = 0;
     for (; i < len && *types != '\0'; i++) {
         auto pair = to_gvariant_inner(arr[i], types);
         buf[i]    = g_variant_ref(std::get<0>(pair));
@@ -197,7 +199,7 @@ GVariant* gvariant_convert::new_gvariant_struct(const variant& v, sig_unit& sig)
                  "invalid number of elements ${len} for struct: ${types}",
                  ("len", len)("types", std::string(types)));
     }
-    return g_variant_new_tuple(reinterpret_cast<GVariant* const*>(buf), i);
+    return g_variant_new_tuple(reinterpret_cast<GVariant* const*>(&buf[0]), i);
 }
 
 static size_t get_element_size(int type) {
@@ -266,14 +268,15 @@ static GVariant* new_gvariant_fixed_array(const variant& v, const char* types) {
         return g_variant_new_fixed_array(reinterpret_cast<const GVariantType*>(types), nullptr, 0,
                                          element_size);
     }
-    void*  data         = g_malloc0(len * element_size);
+    void* data = g_malloc0(len * element_size);
     if (data == nullptr) {
         MC_THROW(mc::exception, "g_malloc0 failed, len: ${len}, element_size: ${element_size}",
                  ("len", len)("element_size", element_size));
     }
     uint8_t* p = reinterpret_cast<uint8_t*>(data);
     for (auto& item : arr) {
-        DBusBasicValue value = {0};
+        DBusBasicValue value;
+        std::memset(&value, 0, sizeof(value));
         set_basic_value(value, types[0], item);
         std::memcpy(p, &value, element_size);
         p += element_size;

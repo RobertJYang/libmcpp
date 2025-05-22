@@ -33,6 +33,8 @@
 
 namespace mc {
 
+class mutable_dict;
+
 /**
  * @brief 不可变的字典类，保持键值对的插入顺序
  *
@@ -290,6 +292,13 @@ public:
     }
 
     /**
+     * @brief 合并两个字典
+     * @param other 要合并的字典
+     * @return 合并后的字典
+     */
+    dict operator+(const dict& other) const;
+
+    /**
      * @brief 计算字典的哈希值
      * @return 哈希值
      * @note 此哈希算法参考了Lua表的哈希算法，考虑了键值对的内容
@@ -314,6 +323,8 @@ public:
     void* data() const {
         return m_data.get();
     }
+
+    mutable_dict as_mut() const;
 
 protected:
     /**
@@ -598,6 +609,118 @@ public:
     const_iterator find(const char* key) const;
     const_iterator find(const variant& key) const;
 
+    /**
+     * @brief 合并两个字典
+     * @param other 要合并的字典
+     * @return 合并后的字典
+     */
+    mutable_dict& operator+=(const mutable_dict& other);
+
+    /**
+     * @brief 插入键值对
+     * @param e 键值对
+     * @return 返回自身引用
+     */
+    mutable_dict& insert(entry e);
+
+    /**
+     * @brief 插入键值对
+     * @param key 键
+     * @param value 值
+     * @return 返回包含插入结果的std::pair，first为指向插入位置的迭代器，second为是否成功插入
+     */
+    std::pair<iterator, bool> insert(variant key, variant value);
+
+    /**
+     * @brief 带提示位置的插入键值对
+     * @param hint 提示位置的迭代器，如果提示正确可以提高插入性能
+     * @param key 键
+     * @param value 值
+     * @return 指向插入位置的迭代器
+     */
+    iterator insert(const_iterator hint, variant key, variant value);
+
+    /**
+     * @brief 插入迭代器范围，仅适用于dict::entry迭代器
+     * @tparam InputIt 输入迭代器类型，必须能够解引用为dict::entry类型
+     * @param first 起始迭代器
+     * @param last 结束迭代器
+     */
+    template <typename InputIt>
+    auto insert(InputIt first, InputIt last) -> std::enable_if_t<
+        std::is_convertible_v<typename std::iterator_traits<InputIt>::value_type, entry>> {
+        for (; first != last; ++first) {
+            insert(*first);
+        }
+    }
+
+    /**
+     * @brief 插入键值对迭代器范围
+     * @tparam InputIt 输入迭代器类型，必须能够解引用为std::pair<K,V>类型
+     * @param first 起始迭代器
+     * @param last 结束迭代器
+     */
+    template <typename InputIt>
+    auto insert(InputIt first, InputIt last)
+        -> std::enable_if_t<is_variant_constructible_v<
+                                typename std::iterator_traits<InputIt>::value_type::first_type> &&
+                            is_variant_constructible_v<
+                                typename std::iterator_traits<InputIt>::value_type::second_type>> {
+        for (; first != last; ++first) {
+            insert(first->first, first->second);
+        }
+    }
+
+    /**
+     * @brief 插入初始化列表
+     * @param ilist 包含键值对的初始化列表
+     */
+    void insert(std::initializer_list<entry> ilist) {
+        insert(ilist.begin(), ilist.end());
+    }
+
+    /**
+     * @brief 插入初始化列表模板版本，支持自动转换其他类型为variant
+     * @tparam K 键的类型
+     * @tparam V 值的类型
+     * @param ilist 包含键值对的初始化列表
+     */
+    template <typename K, typename V>
+    void insert(std::initializer_list<std::pair<K, V>> ilist) {
+        for (const auto& pair : ilist) {
+            insert(pair.first, pair.second);
+        }
+    }
+
+    /**
+     * @brief 尝试原地创建并插入元素
+     * @tparam Arg 构造值的参数类型
+     * @param key 键
+     * @param arg 构造值的参数
+     * @return 返回包含插入结果的std::pair，first为指向插入位置的迭代器，second为是否成功插入
+     */
+    template <typename Arg>
+    std::pair<iterator, bool> emplace(variant key, Arg&& arg) {
+        return insert(std::move(key), variant(std::forward<Arg>(arg)));
+    }
+
+    /**
+     * @brief 如果键不存在，则尝试原地创建并插入元素
+     * @tparam K 键的类型
+     * @tparam Arg 构造值的参数类型
+     * @param key 键
+     * @param arg 构造值的参数
+     * @return 返回包含插入结果的std::pair，first为指向插入位置的迭代器，second为是否成功插入
+     */
+    template <typename K, typename Arg>
+    std::pair<iterator, bool> try_emplace(const K& key, Arg&& arg) {
+        variant vkey(key);
+        if (!contains(vkey)) {
+            return emplace(vkey, std::forward<Arg>(arg));
+        }
+        return {find(vkey), false};
+    }
+
     // 继承基类的const版本operator[]
     using dict::operator[];
 
@@ -629,9 +752,9 @@ inline std::string to_string(const mutable_dict& v) {
 }
 
 } // namespace mc
-
 // 将 variant 实现相关的代码放到单独的文件中
 #include <mc/variant/container_convert.inl>
+#include <mc/variant/variant_base_op.inl>
 #include <mc/variant/variant_dict.inl>
 
 // 定义在std命名空间中特化hash以支持dict和mutable_dict

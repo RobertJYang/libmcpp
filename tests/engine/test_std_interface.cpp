@@ -58,18 +58,7 @@ public:
 
 class TestObject2 : public mc::engine::object<TestObject2> {
 public:
-    MC_OBJECT(TestObject2, "TestObject", "/Id/${Id}", (TestInterface2))
-
-    std::string_view get_object_path() const override {
-        if (this->m_object_path.empty()) {
-            if (get_parent()) {
-                this->m_object_path = get_parent()->get_object_path();
-            }
-            this->m_object_path += mc::string::format(path_pattern, {{"Id", this->m_iface2.m_id}});
-        }
-
-        return this->m_object_path;
-    }
+    MC_OBJECT(TestObject2, "TestObject", "Id/${Id}", (TestInterface2))
 
     TestInterface2 m_iface2;
 };
@@ -113,8 +102,8 @@ protected:
         child_obj3->m_iface2.m_id  = "00102";
         child_obj3->m_iface2.m_map = {{"Key3", 3}, {"Key4", 4}};
 
-        root->add_managed_object(child_obj2);
-        root->add_managed_object(child_obj3);
+        child_obj2->set_owner(root);
+        child_obj3->set_owner(root);
     }
 
     void TearDown() override {
@@ -264,6 +253,7 @@ TEST_F(std_interface_test, test_introspect) {
     object.erase(mc::engine::introspectable_interface_name);
     object.erase(mc::engine::peer_interface_name);
     object.erase(mc::engine::object_manager_interface_name);
+    object.erase(mc::engine::common_properties_name);
 
     auto expected = mc::dict{{
         "org.test.TestInterface1",

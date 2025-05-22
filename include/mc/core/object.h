@@ -92,7 +92,7 @@ public:
      * 获取对象ID
      * @return 对象ID
      */
-    object_id_type get_object_id() const {
+    virtual object_id_type get_object_id() const {
         return m_object_id;
     }
 
@@ -185,7 +185,7 @@ public:
      *
      * 如果对象已经有父对象，则会先从原父对象的子对象列表中移除
      */
-    void set_parent(object* parent);
+    virtual void set_parent(object* parent);
 
     /**
      * @brief 获取子对象列表

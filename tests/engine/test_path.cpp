@@ -11,10 +11,10 @@
  */
 
 #include <gtest/gtest.h>
-#include <mc/dbus/error.h>
-#include <mc/dbus/path.h>
+#include <mc/engine/path.h>
+#include <mc/exception.h>
 
-using namespace mc::dbus;
+using namespace mc::engine;
 
 /**
  * 路径类单元测试

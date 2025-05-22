@@ -204,6 +204,8 @@ constexpr bool check_members(const InterfaceTypes& declared_interfaces, const Me
     return true;
 }
 
+bool path_starts_with(std::string_view path, std::string_view prefix);
+
 } // namespace detail
 } // namespace mc::engine
 #endif // MC_ENGINE_UTILS_H
