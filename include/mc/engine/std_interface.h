@@ -13,11 +13,11 @@
 #ifndef MC_ENGINE_STD_INTERFACE_H
 #define MC_ENGINE_STD_INTERFACE_H
 
-#include <mc/engine/path.h>
 #include <mc/dict.h>
 #include <mc/engine/base.h>
 #include <mc/engine/interface.h>
 #include <mc/engine/macro.h>
+#include <mc/engine/path.h>
 #include <mc/signal_slot.h>
 #include <mc/variant.h>
 
@@ -26,7 +26,7 @@ constexpr std::string_view properties_interface_name     = "org.freedesktop.DBus
 constexpr std::string_view introspectable_interface_name = "org.freedesktop.DBus.Introspectable";
 constexpr std::string_view peer_interface_name           = "org.freedesktop.DBus.Peer";
 constexpr std::string_view object_manager_interface_name = "org.freedesktop.DBus.ObjectManager";
-constexpr std::string_view common_properties_name        = "bmc.kepler.Object.Properties";  // 通用属性接口
+constexpr std::string_view common_properties_name = "bmc.kepler.Object.Properties"; // 通用属性接口
 
 /*
  <interface name="org.freedesktop.DBus.Properties">
@@ -157,35 +157,8 @@ struct common_properties_interface : public mc::engine::interface<common_propert
     std::string_view m_object_name;
     std::string_view m_class_name;
 
-    static std::string_view get(std::string_view property_name)
-    {
-        auto* object = object_call_stack::top_value();
-        if (object == nullptr) {
-            return {};
-        }
-        if (property_name == "ParentPath") {
-            return object->get_parent()->get_object_path();
-        }
-        if (property_name == "ObjectName") {
-            return object->get_object_name();
-        }
-        if (property_name == "ClassName") {
-            return object->get_class_name();
-        }
-        return {};
-    }
-    static mc::dict get_all()
-    {
-        auto* object = object_call_stack::top_value();
-        if (object == nullptr) {
-            return {};
-        }
-        mc::mutable_dict dict;
-        dict["ParentPath"] = object->get_parent()->get_object_path();
-        dict["ObjectName"] = object->get_object_name();
-        dict["ClassName"]  = object->get_class_name();
-        return dict;
-    }
+    static std::string_view get(std::string_view property_name);
+    static mc::dict         get_all();
 
     static common_properties_interface& get_instance() {
         static common_properties_interface instance;
@@ -195,35 +168,14 @@ struct common_properties_interface : public mc::engine::interface<common_propert
 
 class standard_interfaces {
 public:
-    static constexpr std::string_view common_prefix       = "org.freedesktop.DBus.";
-    static constexpr std::string_view properties_name     = "Properties";
-    static constexpr std::string_view introspectable_name = "Introspectable";
-    static constexpr std::string_view peer_name           = "Peer";
-    static constexpr std::string_view object_manager_name = "ObjectManager";
+    static constexpr std::string_view common_prefix          = "org.freedesktop.DBus.";
+    static constexpr std::string_view properties_name        = "Properties";
+    static constexpr std::string_view introspectable_name    = "Introspectable";
+    static constexpr std::string_view peer_name              = "Peer";
+    static constexpr std::string_view object_manager_name    = "ObjectManager";
     static constexpr std::string_view common_properties_name = "bmc.kepler.Object.Properties";
-    static invoke_result invoke(abstract_object* object, std::string_view method_name,
-                                const mc::variants& args, std::string_view interface_name) {
-        // 优化：所有的标准接口都有同样的前缀，前缀不匹配可以快速返回
-        if (!mc::string::starts_with(interface_name, common_prefix)) {
-            if (interface_name == common_properties_name) {
-                return common_properties_interface::get_instance().invoke(method_name, args);
-            }
-            return {nullptr, mc::variant()};
-        }
-
-        std::string_view name = interface_name.substr(common_prefix.size());
-        if (name == properties_name) {
-            return properties_interface::get_instance().invoke(method_name, args);
-        } else if (name == introspectable_name) {
-            return introspectable_interface::get_instance().invoke(method_name, args);
-        } else if (name == peer_name) {
-            return peer_interface::get_instance().invoke(method_name, args);
-        } else if (name == object_manager_name) {
-            return object_manager_interface::get_instance().invoke(method_name, args);
-        } 
-
-        return {};
-    }
+    static invoke_result              invoke(abstract_object* object, std::string_view method_name,
+                                             const mc::variants& args, std::string_view interface_name);
 };
 
 } // namespace mc::engine
@@ -237,7 +189,7 @@ MC_REFLECT(mc::engine::object_manager_interface,
            ((get_managed_objects, "GetManagedObjects"))((interfaces_added, "InterfacesAdded"))(
                (interfaces_removed, "InterfacesRemoved")))
 MC_REFLECT(mc::engine::common_properties_interface,
-           ((m_parent_path, "ParentPath"))((m_object_name, "ObjectName"))
-           ((m_class_name, "ClassName")))
+           ((m_parent_path, "ParentPath"))((m_object_name, "ObjectName"))((m_class_name,
+                                                                           "ClassName")))
 
 #endif // MC_ENGINE_STD_INTERFACE_H
