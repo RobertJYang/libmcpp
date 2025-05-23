@@ -180,4 +180,57 @@ object_manager_interface::objects_type object_manager_interface::get_managed_obj
     return {};
 }
 
+std::string_view common_properties_interface::get(std::string_view property_name) {
+    auto* object = object_call_stack::top_value();
+    if (object == nullptr) {
+        return {};
+    }
+    if (property_name == "ParentPath") {
+        return object->get_owner()->get_object_path();
+    }
+    if (property_name == "ObjectName") {
+        return object->get_object_name();
+    }
+    if (property_name == "ClassName") {
+        return object->get_class_name();
+    }
+    return {};
+}
+
+mc::dict common_properties_interface::get_all() {
+    auto* object = object_call_stack::top_value();
+    if (object == nullptr) {
+        return {};
+    }
+    mc::mutable_dict dict;
+    dict["ParentPath"] = object->get_owner()->get_object_path();
+    dict["ObjectName"] = object->get_object_name();
+    dict["ClassName"]  = object->get_class_name();
+    return dict;
+}
+
+invoke_result standard_interfaces::invoke(abstract_object* object, std::string_view method_name,
+                                          const mc::variants& args,
+                                          std::string_view    interface_name) {
+    // 优化：所有的标准接口都有同样的前缀，前缀不匹配可以快速返回
+    if (!mc::string::starts_with(interface_name, common_prefix)) {
+        if (interface_name == common_properties_name) {
+            return common_properties_interface::get_instance().invoke(method_name, args);
+        }
+        return {nullptr, mc::variant()};
+    }
+
+    std::string_view name = interface_name.substr(common_prefix.size());
+    if (name == properties_name) {
+        return properties_interface::get_instance().invoke(method_name, args);
+    } else if (name == introspectable_name) {
+        return introspectable_interface::get_instance().invoke(method_name, args);
+    } else if (name == peer_name) {
+        return peer_interface::get_instance().invoke(method_name, args);
+    } else if (name == object_manager_name) {
+        return object_manager_interface::get_instance().invoke(method_name, args);
+    }
+
+    return {};
+}
 } // namespace mc::engine
