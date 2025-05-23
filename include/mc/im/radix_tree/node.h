@@ -330,7 +330,7 @@ public:
     leaf_type    m_leaf;
     key_type     m_prefix;
     edges_type   m_edges;
-    size_t       m_version = 0;
+    int          m_version = 0;
     ref_ptr_type m_next;
     ref_ptr_type m_prev;
     alloc_type   m_alloc;
