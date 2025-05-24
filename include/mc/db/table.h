@@ -632,7 +632,7 @@ public:
         return m_indices_array[index_id]->raw_upper_bound(value);
     }
 
-    raw_iterator begin(int index_id = 0) {
+    raw_iterator begin(std::size_t index_id = 0) {
         std::lock_guard lock(m_mutex);
 
         if (index_id >= std::tuple_size_v<indices_tuple_type>) {
@@ -642,7 +642,7 @@ public:
         return m_indices_array[index_id]->raw_begin();
     }
 
-    raw_iterator end(int index_id = 0) {
+    raw_iterator end(std::size_t index_id = 0) {
         std::lock_guard lock(m_mutex);
 
         if (index_id >= std::tuple_size_v<indices_tuple_type>) {

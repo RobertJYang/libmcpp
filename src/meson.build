@@ -104,4 +104,8 @@ libmcpp_lib = shared_library(
 )
 
 # 导出库依赖
-libmcpp_dep = declare_dependency(include_directories: incdir, link_with: libmcpp_lib)
+libmcpp_dep = declare_dependency(
+  include_directories: incdir,
+  link_with: libmcpp_lib,
+  dependencies: dep_arr,
+)
