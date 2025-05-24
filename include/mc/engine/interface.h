@@ -300,7 +300,7 @@ struct interface : public abstract_interface {
     }
 
 protected:
-    mc::core::service_base* get_service() const override {
+    service* get_service() const override {
         if (!m_owner) {
             return nullptr;
         }
