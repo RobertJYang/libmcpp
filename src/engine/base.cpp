@@ -17,6 +17,15 @@ abstract_object* abstract_interface::get_parent() const {
     return get_owner();
 }
 
+service* abstract_interface::get_service() const {
+    auto owner = get_owner();
+    if (!owner) {
+        return nullptr;
+    }
+
+    return owner->get_service();
+}
+
 abstract_object* abstract_object::get_parent() const {
     return dynamic_cast<abstract_object*>(mc::core::object::get_parent());
 }

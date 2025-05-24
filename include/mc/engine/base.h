@@ -190,6 +190,8 @@ public:
     virtual abstract_object* get_parent() const override;
     virtual abstract_object* get_owner() const = 0;
 
+    service* get_service() const override;
+
     virtual std::string_view    get_interface_name() const                                   = 0;
     virtual mc::connection_type connect(std::string_view signal_name, slot_type slot)        = 0;
     virtual mc::variant         emit(std::string_view signal_name, const mc::variants& args) = 0;
