@@ -133,7 +133,7 @@ struct inintrospect_vistor : visitor {
             std::string obj_name;
             if (mc::string::starts_with(obj_path, path)) {
                 // 如果是子路径，跳过前缀只取后半部分
-                obj_name = obj_path.substr(path.size());
+                obj_name = obj_path.substr(path.size() + 1);
             }
 
             xml_data += "<node name=\"";

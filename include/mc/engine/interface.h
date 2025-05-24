@@ -300,14 +300,6 @@ struct interface : public abstract_interface {
     }
 
 protected:
-    service* get_service() const override {
-        if (!m_owner) {
-            return nullptr;
-        }
-
-        return m_owner->get_service();
-    }
-
     template <typename Members, typename F>
     static void foreach_property(Members& members, F&& f) {
         mc::traits::tuple_for_each(members, [f = std::forward<F>(f)](auto& member) {
