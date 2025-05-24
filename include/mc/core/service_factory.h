@@ -23,12 +23,29 @@
 #include <functional>
 #include <memory>
 #include <string>
+#include <type_traits>
 #include <unordered_map>
 
 namespace mc::core {
 
 namespace po          = boost::program_options;
 using service_creator = std::function<service_ptr(std::string&& name, mc::dict&& args)>;
+
+namespace detail {
+
+// 检测类型是否具有register_options成员类型
+template <typename, typename = void>
+struct has_register_options : std::false_type {};
+
+template <typename T>
+struct has_register_options<T, std::void_t<typename T::register_options>>
+    : std::bool_constant<std::is_invocable_v<typename T::register_options, po::options_description&,
+                                             po::options_description&>> {};
+
+template <typename T>
+inline constexpr bool has_register_options_v = has_register_options<T>::value;
+
+} // namespace detail
 
 /**
  * @brief 服务工厂类
@@ -62,8 +79,8 @@ public:
             return service_ptr();
         };
 
-        if constexpr (std::is_invocable_v<typename ServiceType::register_options,
-                                          po::options_description&, po::options_description&>) {
+        // 使用类型特征检测是否具有register_options成员类型
+        if constexpr (detail::has_register_options_v<ServiceType>) {
             using register_options = typename ServiceType::register_options;
             register_options()(m_opts->cli, m_opts->cfg);
         }
