@@ -6,9 +6,6 @@ from conan.tools.gnu import PkgConfigDeps
 class AppConan(ConanBase):
     language = "c++"
 
-    def package_info(self):
-        pass
-
 # 基于meson构建的基类，适用于libmcpp项目
     def layout(self):
         self.folders.source = '.'
@@ -88,18 +85,35 @@ class AppConan(ConanBase):
         if self.settings.build_type in ("Dt", ) and os.getenv('TRANSTOBIN') is None:
             return
         os.chdir(self.package_folder)
+
     def package_info(self):
         if self.settings.arch == "armv8" or self.settings.arch == "x86_64":
             self.cpp_info.libdirs = ["usr/lib64"]
             self.env_info.LD_LIBRARY_PATH.append(os.path.join(self.package_folder, "usr/lib64"))
+            libdir = "usr/lib64"
         else:
             self.cpp_info.libdirs = ["usr/lib"]
             self.env_info.LD_LIBRARY_PATH.append(os.path.join(self.package_folder, "usr/lib"))
+            libdir = "usr/lib"
+            
         self.env_info.PATH.append(os.path.join(self.package_folder, "opt/bmc/apps/libmcpp"))
-        # 如果使用 pkgconfig
-        self.cpp_info.set_property("pkg_config_custom_content", 
-           "libdir=${prefix}/usr/lib64\n")
         
-
+        # 配置libmcpp的pkg-config
+        self.cpp_info.components["libmcpp"].libs = ["libmcpp"]
+        self.cpp_info.components["libmcpp"].libdirs = ["usr/lib64"]
+        self.cpp_info.components["libmcpp"].system_libs = ["dbus-1", "glib-2.0", "boost_program_options"]
+        self.cpp_info.components["libmcpp"].set_property("pkg_config_name", "libmcpp")
+        self.cpp_info.components["libmcpp"].set_property("pkg_config_custom_content", 
+           f"libdir=${{prefix}}/{libdir}\n"
+           "Requires: dbus-1 glib-2.0\n")
+        
+        # 配置test_utilities的pkg-config
+        self.cpp_info.components["test_utilities"].libs = ["mc_test_utilities"]
+        self.cpp_info.components["test_utilities"].libdirs = ["usr/lib64"]
+        self.cpp_info.components["test_utilities"].system_libs = ["dbus-1", "boost_program_options"]
+        self.cpp_info.components["test_utilities"].set_property("pkg_config_name", "test_utilities")
+        self.cpp_info.components["test_utilities"].set_property("pkg_config_custom_content",
+           f"libdir=${{prefix}}/{libdir}\n"
+           "Requires: dbus-1\n")
         
         

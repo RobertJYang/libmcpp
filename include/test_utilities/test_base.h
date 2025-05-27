@@ -13,12 +13,12 @@
 #ifndef MC_TEST_BASE_H
 #define MC_TEST_BASE_H
 
-#include <dbus_daemon_manager.h>
 #include <gtest/gtest.h>
 #include <mc/core/application.h>
 #include <mc/engine.h>
 #include <mc/log.h>
 #include <mc/singleton.h>
+#include <test_utilities/dbus_daemon_manager.h>
 
 namespace mc {
 namespace test {

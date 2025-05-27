@@ -11,7 +11,7 @@ test_utilities_lib = static_library(
   test_utilities_sources,
   include_directories: [incdir, test_utilities_inc],
   dependencies: [boost_dep, boost_program_options_dep, dbus_dep],
-  install: false,
+  install: true,  # 设置为可安装
 )
 
 test_utilities_dep = declare_dependency(link_with: test_utilities_lib, include_directories: [test_utilities_inc])
