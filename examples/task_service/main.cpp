@@ -13,7 +13,7 @@
 #include "test_service.h"
 #include <mc/engine.h>
 #include <mc/log.h>
-#include <test_base.h>
+#include <test_utilities/test_base.h>
 
 #include <thread>
 

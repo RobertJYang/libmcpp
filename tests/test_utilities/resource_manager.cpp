@@ -10,19 +10,18 @@
  * See the Mulan PSL v2 for more details.
  */
 
-#include "resource_manager.h"
+#include "test_utilities/resource_manager.h"
 #include "mc/log.h"
 
-#include <unistd.h>
 #include <cstring>
 #include <fstream>
 #include <system_error>
+#include <unistd.h>
 
 namespace mc {
 namespace test_utilities {
 
-resource_manager::resource_manager(bool auto_cleanup)
-    : m_auto_cleanup(auto_cleanup) {
+resource_manager::resource_manager(bool auto_cleanup) : m_auto_cleanup(auto_cleanup) {
     ilog("测试资源管理器初始化，自动清理: ${auto_cleanup}", ("auto_cleanup", auto_cleanup));
 }
 
@@ -43,25 +42,24 @@ bool resource_manager::create_temp_file(const std::string& path, const std::stri
     try {
         std::ofstream file(path);
         if (!file) {
-            elog("无法创建临时文件: ${path}, 错误: ${error}", 
+            elog("无法创建临时文件: ${path}, 错误: ${error}",
                  ("path", path)("error", std::strerror(errno)));
             return false;
         }
-        
+
         if (!content.empty()) {
             file << content;
         }
-        
+
         file.close();
-        
+
         // 添加到清理列表
         add_temp_file(path);
-        
+
         ilog("创建临时文件成功: ${path}", ("path", path));
         return true;
     } catch (const std::exception& e) {
-        elog("创建临时文件异常: ${path}, 错误: ${error}", 
-             ("path", path)("error", e.what()));
+        elog("创建临时文件异常: ${path}, 错误: ${error}", ("path", path)("error", e.what()));
         return false;
     }
 }
@@ -83,18 +81,18 @@ void resource_manager::cleanup() {
         }
     }
     m_cleanup_funcs.clear();
-    
+
     // 删除所有临时文件
     for (const auto& file : m_temp_files) {
         if (unlink(file.c_str()) == 0) {
             ilog("临时文件已删除: ${file}", ("file", file));
         } else if (errno != ENOENT) { // 忽略文件不存在的错误
-            wlog("删除临时文件失败: ${file}, 错误: ${error}", 
+            wlog("删除临时文件失败: ${file}, 错误: ${error}",
                  ("file", file)("error", std::strerror(errno)));
         }
     }
     m_temp_files.clear();
-    
+
     ilog("资源管理器清理完成");
 }
 
@@ -104,4 +102,4 @@ void resource_manager::set_auto_cleanup(bool auto_cleanup) {
 }
 
 } // namespace test_utilities
-} // namespace mc 
+} // namespace mc

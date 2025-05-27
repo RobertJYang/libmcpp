@@ -10,7 +10,7 @@
  * See the Mulan PSL v2 for more details.
  */
 
-#include "dbus_daemon_manager.h"
+#include "test_utilities/dbus_daemon_manager.h"
 
 #include <cstdlib>
 #include <cstring>
