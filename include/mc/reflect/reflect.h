@@ -107,10 +107,36 @@ constexpr auto create_base_class_info(std::string_view name) {
     return base_class_info_creator<T, BaseT>::create(name);
 }
 
+template <size_t Index, typename... Tuples>
+bool is_member_override(const member_info_base&      base_member,
+                        const std::tuple<Tuples...>& all_members) {
+    if constexpr (Index >= sizeof...(Tuples)) {
+        return false;
+    } else {
+        if (std::get<Index>(all_members).name == base_member.name) {
+            return true;
+        } else {
+            return is_member_override<Index + 1>(base_member, all_members);
+        }
+    }
+}
+
+template <size_t BaseIndex, size_t Index, typename... BaseTuples, typename... Tuples>
+void filter_base_members(const std::tuple<BaseTuples...>& base_members,
+                         const std::tuple<Tuples...>&     all_members) {
+    if constexpr (BaseIndex < sizeof...(BaseTuples)) {
+        const member_info_base& base_member = std::get<BaseIndex>(base_members);
+        if (is_member_override<Index + 1>(base_member, all_members)) {
+            base_member.is_override = 1;
+        }
+        filter_base_members<BaseIndex + 1, Index>(base_members, all_members);
+    }
+}
+
 // 递归过滤元组元素，仅保留具有特定标签的元素
 template <typename T, typename Derived, typename Filter, size_t Index, typename Result,
           typename... Tuples>
-constexpr auto filter_members_impl(const std::tuple<Tuples...>& all_members, Result result) {
+auto filter_members_impl(const std::tuple<Tuples...>& all_members, Result result) {
     if constexpr (Index >= sizeof...(Tuples)) {
         return result;
     } else {
@@ -120,19 +146,23 @@ constexpr auto filter_members_impl(const std::tuple<Tuples...>& all_members, Res
             auto member = std::get<Index>(all_members);
             if constexpr (!std::is_same_v<T, Derived> && std::is_base_of_v<T, Derived>) {
                 // 修复基类信息到继承类
+                auto member_tuple = std::make_tuple(detail::apply_to_derived<Derived>(member));
                 return filter_members_impl<T, Derived, Filter, Index + 1>(
-                    all_members, std::tuple_cat(result, detail::apply_to_derived<Derived>(member)));
+                    all_members, std::tuple_cat(result, member_tuple));
             } else {
+                auto member_tuple = std::make_tuple(member);
                 return filter_members_impl<T, Derived, Filter, Index + 1>(
-                    all_members, std::tuple_cat(result, std::make_tuple(member)));
+                    all_members, std::tuple_cat(result, member_tuple));
             }
         } else if constexpr (has_tag_v<base_class_tag, element_type>) {
             // 整合基类的成员
-            using base_type       = typename element_type::base_type;
-            auto result_with_base = filter_members_impl<base_type, Derived, Filter, 0>(
-                mc::reflect::reflector<base_type>::get_members(), result);
-            return filter_members_impl<T, Derived, Filter, Index + 1>(all_members,
-                                                                      std::move(result_with_base));
+            using base_type    = typename element_type::base_type;
+            auto& base_members = mc::reflect::reflector<base_type>::get_members();
+            auto  base_result =
+                filter_members_impl<base_type, Derived, Filter, 0>(base_members, std::tuple<>{});
+            filter_base_members<0, Index + 1>(base_result, all_members);
+            return filter_members_impl<T, Derived, Filter, Index + 1>(
+                all_members, std::tuple_cat(result, base_result));
         } else {
             return filter_members_impl<T, Derived, Filter, Index + 1>(all_members, result);
         }
@@ -140,7 +170,7 @@ constexpr auto filter_members_impl(const std::tuple<Tuples...>& all_members, Res
 }
 
 template <typename T, typename Filter, typename Tuple>
-constexpr auto filter_members(const Tuple& all_members) {
+auto filter_members(const Tuple& all_members) {
     return filter_members_impl<T, T, Filter, 0>(all_members, std::tuple<>{});
 }
 
@@ -151,7 +181,7 @@ struct filter_tag {
 };
 
 template <typename T, typename Tag, typename Tuple>
-constexpr auto filter_members_by_tag(const Tuple& all_members) {
+auto filter_members_by_tag(const Tuple& all_members) {
     return filter_members<T, filter_tag<Tag>>(all_members);
 }
 
@@ -474,11 +504,11 @@ struct signature_helper<T, std::enable_if_t<mc::reflect::is_normal_enum<T>()>> {
                                                                                                    \
         template <typename Visitor>                                                                \
         static void visit(const Visitor& visitor) {                                                \
-            std::apply(                                                                            \
-                [&](auto&... member) {                                                             \
-                    (visitor(member.name, member.getter(), member.setter()), ...);                 \
-                },                                                                                 \
-                get_properties());                                                                 \
+            mc::traits::tuple_for_each(get_properties(), [&](auto& member) {                       \
+                if (member.is_override == 0) {                                                     \
+                    visitor(member.name, member.getter(), member.setter());                        \
+                }                                                                                  \
+            });                                                                                    \
         }                                                                                          \
                                                                                                    \
         static void to_variant(const TYPE& obj, mc::mutable_dict& dict) {                          \

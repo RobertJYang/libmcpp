@@ -140,7 +140,7 @@ private:
     template <typename PropertyInfo>
     void init_properties(PropertyInfo& member) {
         using interface_type = typename PropertyInfo::member_type;
-        mc::traits::tuple_for_each(interface_type::get_static_properties(), [&](auto& property) {
+        interface_type::visit_static_properties([&](auto& property) {
             if (m_name_to_property.find(property.name) == m_name_to_property.end()) {
                 m_name_to_property[property.name] = &member;
             }
@@ -150,7 +150,7 @@ private:
     template <typename PropertyInfo>
     void init_methods(PropertyInfo& member) {
         using interface_type = typename PropertyInfo::member_type;
-        mc::traits::tuple_for_each(interface_type::get_static_methods(), [&](auto& method) {
+        interface_type::visit_static_methods([&](auto& method) {
             if (m_name_to_method.find(method.name) == m_name_to_method.end()) {
                 m_name_to_method[method.name] = &member;
             }
@@ -160,7 +160,7 @@ private:
     template <typename PropertyInfo>
     void init_signals(PropertyInfo& member) {
         using interface_type = typename PropertyInfo::member_type;
-        mc::traits::tuple_for_each(interface_type::get_static_signals(), [&](auto& signal) {
+        interface_type::visit_static_signals([&](auto& signal) {
             if (m_name_to_signal.find(signal.name) == m_name_to_signal.end()) {
                 m_name_to_signal[signal.name] = &member;
             }

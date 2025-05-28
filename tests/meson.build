@@ -98,6 +98,7 @@ test_files = [
 
   # engine 目录
   'engine/test_interface.cpp',
+  'engine/test_interface_inherit.cpp',
   'engine/test_object.cpp',
   'engine/test_utils.cpp',
   'engine/test_std_interface.cpp',

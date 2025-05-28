@@ -132,36 +132,21 @@ template <typename T>
 signal_map<T> init_signal_map() {
     signal_map<T> sigs;
     mc::traits::tuple_for_each(get_static_signals<T>(), [&](auto& member) {
-        sigs[member.name] = &member;
+        sigs[member.name] = reinterpret_cast<const signal_info_base<T>*>(&member);
     });
     return sigs;
 }
-} // namespace detail
 
 template <typename T>
-struct interface : public abstract_interface {
-    using is_interface   = std::true_type;
-    using interface_type = T;
-    using abstract_interface::connect;
+signal_map<T>& get_signals() {
+    static signal_map<T> signals = detail::init_signal_map<T>();
+    return signals;
+}
+} // namespace detail
 
-    template <typename Members>
-    static constexpr void initial_members(const Members& members) {
-        foreach_property(members, [&](auto& member) {
-            member.flags |= MC_ENGINE_PROPERTY_TYPE;
-        });
-    }
-
-    interface() {
-        interface_type* self = static_cast<interface_type*>(this);
-        foreach_property(get_static_properties(), [&](auto& member) {
-            using member_info_type = mc::traits::remove_pointers_t<std::decay_t<decltype(member)>>;
-            using member_type      = typename member_info_type::member_type;
-            if constexpr (std::is_same_v<detail::interface_observer,
-                                         typename member_type::observer_type>) {
-                (self->*member.member_ptr).get_observer().set_interface(self);
-            }
-        });
-    }
+class interface_impl : public abstract_interface {
+public:
+    ~interface_impl() override = default;
 
     abstract_object* get_owner() const override {
         return m_owner;
@@ -171,36 +156,126 @@ struct interface : public abstract_interface {
         m_owner = owner;
     }
 
-    static signal_map<interface_type>& get_signals() {
-        static signal_map<interface_type> signals = detail::init_signal_map<interface_type>();
-        return signals;
+    property_changed_signal& property_changed() override {
+        if (m_property_changed_signal == nullptr) {
+            m_property_changed_signal = std::make_unique<property_changed_signal>();
+        }
+
+        return *m_property_changed_signal;
+    }
+
+    void notify_property_changed(const mc::variant& value, const property_base& prop) override {
+        if (m_property_changed_signal) {
+            (*m_property_changed_signal)(value, prop);
+        }
+    }
+
+protected:
+    abstract_object*                         m_owner;
+    std::unique_ptr<property_changed_signal> m_property_changed_signal;
+};
+
+template <typename T, typename BaseT = interface_impl>
+class interface : public BaseT {
+public:
+    static_assert(std::is_same_v<interface_impl, BaseT> || std::is_base_of_v<interface_impl, BaseT>,
+                  "BaseT must be interface_impl or derived from interface_impl");
+
+    using is_interface   = std::true_type;
+    using interface_type = T;
+    using base_type      = std::conditional_t<std::is_same_v<interface_impl, BaseT>, void, BaseT>;
+    using abstract_interface::connect;
+    static constexpr bool has_base_v = !std::is_void_v<base_type>;
+
+    template <typename Members>
+    static constexpr void initial_members(const Members& members) {
+        foreach_property(members, [&](auto& member) {
+            member.flags |= MC_ENGINE_PROPERTY_TYPE;
+        });
+    }
+
+    interface() {
+        interface_type* self  = static_cast<interface_type*>(this);
+        auto&           props = mc::reflect::reflector<interface_type>::get_properties();
+        foreach_property(props, [&](auto& member) {
+            using member_info_type = mc::traits::remove_pointers_t<std::decay_t<decltype(member)>>;
+            using member_type      = typename member_info_type::member_type;
+            if constexpr (std::is_same_v<detail::interface_observer,
+                                         typename member_type::observer_type>) {
+                (self->*member.member_ptr).get_observer().set_interface(self);
+            }
+        });
     }
 
     static bool has_signal(std::string_view signal_name) {
-        return get_signals().find(signal_name) != get_signals().end();
+        auto& sigs = detail::get_signals<interface_type>();
+        if (sigs.find(signal_name) != sigs.end()) {
+            return true;
+        }
+
+        if constexpr (has_base_v) {
+            return base_type::has_signal(signal_name);
+        } else {
+            return false;
+        }
     }
 
     static const mc::engine::signal_info_base<interface_type>*
     get_signal(std::string_view signal_name) {
-        auto& sigs = get_signals();
+        auto& sigs = detail::get_signals<interface_type>();
         auto  it   = sigs.find(signal_name);
-        if (it == sigs.end()) {
-            return nullptr;
+        if (it != sigs.end()) {
+            return it->second;
         }
 
-        return it->second;
+        if constexpr (has_base_v) {
+            auto* info = base_type::get_signal(signal_name);
+            return reinterpret_cast<const signal_info_base<interface_type>*>(info);
+        } else {
+            return nullptr;
+        }
     }
 
-    static const auto& get_static_signals() {
-        return detail::get_static_signals<interface_type>();
+    template <typename F>
+    static void visit_static_signals(F&& visitor) {
+        auto& sigs = detail::get_static_signals<interface_type>();
+        mc::traits::tuple_for_each(sigs, [&](auto& signal) {
+            if (signal.is_override == 0) {
+                visitor(signal);
+            }
+        });
+
+        if constexpr (has_base_v) {
+            base_type::visit_static_signals(std::forward<F>(visitor));
+        }
     }
 
-    static const auto& get_static_properties() {
-        return mc::reflect::reflector<interface_type>::get_properties();
+    template <typename F>
+    static void visit_static_properties(F&& visitor) {
+        auto& props = mc::reflect::reflector<interface_type>::get_properties();
+        mc::traits::tuple_for_each(props, [&](auto& property) {
+            if (property.is_override == 0) {
+                visitor(property);
+            }
+        });
+
+        if constexpr (has_base_v) {
+            base_type::visit_static_properties(std::forward<F>(visitor));
+        }
     }
 
-    static const auto& get_static_methods() {
-        return mc::reflect::reflector<interface_type>::get_methods();
+    template <typename F>
+    static void visit_static_methods(F&& visitor) {
+        auto& methods = mc::reflect::reflector<interface_type>::get_methods();
+        mc::traits::tuple_for_each(methods, [&](auto& method) {
+            if (method.is_override == 0) {
+                visitor(method);
+            }
+        });
+
+        if constexpr (has_base_v) {
+            base_type::visit_static_methods(std::forward<F>(visitor));
+        }
     }
 
     std::string_view get_interface_name() const override {
@@ -226,77 +301,160 @@ struct interface : public abstract_interface {
     }
 
     invoke_result invoke(std::string_view method_name, const mc::variants& args) override {
+        // 先从当前接口中查找方法
         auto method = mc::reflect::get_method_info<interface_type>(method_name);
-        if (!method) {
+        if (method) {
+            return {method, method->invoke(static_cast<interface_type&>(*this), args)};
+        }
+
+        // 如果当前接口中没有找到方法，则从基类中查找
+        if constexpr (has_base_v) {
+            return base_type::invoke(method_name, args);
+        } else {
             return {nullptr, mc::variant()};
         }
-        return {method, method->invoke(static_cast<interface_type&>(*this), args)};
     }
 
     bool has_method(std::string_view method_name) const override {
-        return mc::reflect::get_method_info<interface_type>(method_name) != nullptr;
+        if (mc::reflect::get_method_info<interface_type>(method_name) != nullptr) {
+            return true;
+        }
+
+        if constexpr (has_base_v) {
+            return base_type::has_method(method_name);
+        } else {
+            return false;
+        }
     }
 
     mc::variant get_property(std::string_view property_name) const override {
-        return mc::reflect::get_property(static_cast<const interface_type&>(*this), property_name);
-    }
-
-    property_base* get_property_base(std::string_view property_name) override {
         auto* info = mc::reflect::get_property_info<interface_type>(property_name);
-        if (info == nullptr || (info->flags & MC_ENGINE_PROPERTY_TYPE) == 0) {
-            return nullptr;
+        if (info != nullptr) {
+            if (info->flags & MC_ENGINE_PROPERTY_TYPE) {
+                return prop_info_to_base(info)->get_value();
+            } else {
+                return info->get_value(static_cast<const interface_type&>(*this));
+            }
         }
 
+        if constexpr (has_base_v) {
+            return base_type::get_property(property_name);
+        } else {
+            return {};
+        }
+    }
+
+    property_base*
+    prop_info_to_base(const mc::reflect::property_info_base<interface_type>* info) const {
         return reinterpret_cast<property_base*>(reinterpret_cast<std::uintptr_t>(this) +
                                                 info->offset());
     }
 
-    bool has_property(std::string_view property_name) override {
+    property_base* get_property_base(std::string_view property_name) override {
         auto* info = mc::reflect::get_property_info<interface_type>(property_name);
-        return info != nullptr;
+        if (info != nullptr) {
+            if (info->flags & MC_ENGINE_PROPERTY_TYPE) {
+                return prop_info_to_base(info);
+            }
+
+            // 子类覆盖了基类的属性，虽然覆盖的类型不是 mc::engine::property<T>，
+            // 但是也不再看见基类的属性
+            return nullptr;
+        }
+
+        if constexpr (has_base_v) {
+            return base_type::get_property_base(property_name);
+        } else {
+            return nullptr;
+        }
     }
 
-    void notify_property_changed(const mc::variant& value, const property_base& prop) override {
-        if (m_property_changed_signal) {
-            (*m_property_changed_signal)(value, prop);
+    bool has_property(std::string_view property_name) override {
+        auto* info = mc::reflect::get_property_info<interface_type>(property_name);
+        if (info != nullptr) {
+            return true;
+        }
+
+        if constexpr (has_base_v) {
+            return base_type::has_property(property_name);
+        } else {
+            return false;
         }
     }
 
     std::string_view get_property_name(const property_base* prop) override {
         std::uintptr_t offset =
             reinterpret_cast<std::uintptr_t>(prop) - reinterpret_cast<std::uintptr_t>(this);
-        return mc::reflect::get_property_name<interface_type>(offset);
+        auto name = mc::reflect::get_property_name<interface_type>(offset);
+        if (!name.empty()) {
+            return name;
+        }
+
+        if constexpr (has_base_v) {
+            return base_type::get_property_name(prop);
+        } else {
+            return {};
+        }
     }
 
     mc::dict get_all_properties() override {
-        return mc::reflect::get_all_properties(static_cast<interface_type&>(*this));
+        mc::mutable_dict dict;
+        mc::reflect::to_variant(static_cast<interface_type&>(*this), dict);
+        if constexpr (has_base_v) {
+            mc::reflect::to_variant(static_cast<base_type&>(*this), dict);
+        }
+        return dict;
     }
 
     bool set_property(std::string_view property_name, const mc::variant& value) override {
-        auto* prop = get_property_base(property_name);
-        if (prop == nullptr) {
-            return mc::reflect::set_property(static_cast<interface_type&>(*this), property_name,
-                                             value);
+        try {
+            // 先从当前接口中查找属性
+            auto* info = mc::reflect::get_property_info<interface_type>(property_name);
+            if (info != nullptr) {
+                if (info->flags & MC_ENGINE_PROPERTY_TYPE) {
+                    prop_info_to_base(info)->set_value(value);
+                } else {
+                    info->set_value(static_cast<interface_type&>(*this), value);
+                }
+                return true;
+            }
+
+            // 如果当前接口中没有找到属性，则从基类中查找
+            if constexpr (has_base_v) {
+                return base_type::set_property(property_name, value);
+            } else {
+                return false;
+            }
+        } catch (const std::exception& e) {
+            dlog("set property ${class}.${name} failed: ${error}",
+                 ("class", mc::pretty_name<interface_type>())("name", property_name)("error",
+                                                                                     e.what()));
+            return false;
         }
-
-        prop->set_value(value);
-        return true;
-    }
-
-    property_changed_signal& property_changed() override {
-        if (m_property_changed_signal == nullptr) {
-            m_property_changed_signal = std::make_unique<property_changed_signal>();
-        }
-
-        return *m_property_changed_signal;
     }
 
     void visit(visitor& v) const override {
-        v.handle_interface_begin(*get_owner(), *this);
+        v.handle_interface_begin(*this->get_owner(), *this);
         visit_properties(v);
         visit_methods(v);
         visit_signals(v);
-        v.handle_interface_end(*get_owner(), *this);
+        v.handle_interface_end(*this->get_owner(), *this);
+    }
+
+    static void from_variant(const mc::dict& d, interface_type& obj) {
+        visit_static_properties([&](auto& property) {
+            if (d.contains(property.name)) {
+                property.set_value(obj, d[property.name]);
+            }
+        });
+    }
+
+    static void to_variant(const interface_type& obj, mc::mutable_dict& dict) {
+        visit_static_properties([&](auto& property) {
+            if (!dict.contains(property.name)) {
+                dict[property.name] = property.get_value(obj);
+            }
+        });
     }
 
 protected:
@@ -314,7 +472,7 @@ protected:
     }
 
     void visit_properties(visitor& v) const {
-        mc::traits::tuple_for_each(interface_type::get_static_properties(), [&](auto& property) {
+        visit_static_properties([&](auto& property) {
             using property_type =
                 typename mc::traits::remove_cvref_t<decltype(property)>::member_type;
 
@@ -324,12 +482,12 @@ protected:
             info.read_privilege  = 0;
             info.write_privilege = 0;
             info.flags           = 0;
-            v.handle(*get_owner(), *this, info);
+            v.handle(*this->get_owner(), *this, info);
         });
     }
 
     void visit_methods(visitor& v) const {
-        mc::traits::tuple_for_each(interface_type::get_static_methods(), [&](auto& method) {
+        visit_static_methods([&](auto& method) {
             using method_info_type = mc::traits::remove_cvref_t<decltype(method)>;
             using result_type      = typename method_info_type::result_type;
             using args_type        = typename method_info_type::args_type;
@@ -342,12 +500,12 @@ protected:
             info.args_signature = mc::reflect::get_signature<args_type>();
             info.privilege      = 0;
             info.flags          = 0;
-            v.handle(*get_owner(), *this, info);
+            v.handle(*this->get_owner(), *this, info);
         });
     }
 
     void visit_signals(visitor& v) const {
-        mc::traits::tuple_for_each(interface_type::get_static_signals(), [&](auto& signal) {
+        visit_static_signals([&](auto& signal) {
             using signal_info_type = mc::traits::remove_cvref_t<decltype(signal)>;
             using result_type      = typename signal_info_type::result_type;
             using args_type        = typename signal_info_type::args_type;
@@ -357,13 +515,9 @@ protected:
             info.return_signature = mc::reflect::get_signature<result_type>();
             info.args_signature   = mc::reflect::get_signature<args_type>();
             info.flags            = 0;
-            v.handle(*get_owner(), *this, info);
+            v.handle(*this->get_owner(), *this, info);
         });
     }
-
-protected:
-    abstract_object*                         m_owner;
-    std::unique_ptr<property_changed_signal> m_property_changed_signal;
 };
 
 } // namespace mc::engine

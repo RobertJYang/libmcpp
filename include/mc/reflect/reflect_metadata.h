@@ -265,9 +265,11 @@ private:
     }
 
     void init_properties() {
-        mc::traits::tuple_for_each(reflector<T>::get_properties(), [&](auto& property) {
+        auto& props = reflector<T>::get_properties();
+        mc::traits::tuple_for_each(props, [&](auto& property) {
             // 如果基类有多个同名的属性，默认第一个名字就是当前类的属性
-            if (m_name_to_properties.find(property.name) == m_name_to_properties.end()) {
+            if (property.is_override == 0 &&
+                m_name_to_properties.find(property.name) == m_name_to_properties.end()) {
                 m_name_to_properties[property.name]       = &property;
                 m_offset_to_properties[property.offset()] = &property;
             }
@@ -285,7 +287,8 @@ private:
     void init_methods() {
         mc::traits::tuple_for_each(reflector<T>::get_methods(), [&](auto& method) {
             // 如果基类有多个同名的方法，默认第一个名字就是当前类的方法
-            if (m_name_to_methods.find(method.name) == m_name_to_methods.end()) {
+            if (method.is_override == 0 &&
+                m_name_to_methods.find(method.name) == m_name_to_methods.end()) {
                 m_name_to_methods[method.name] = &method;
             }
 
