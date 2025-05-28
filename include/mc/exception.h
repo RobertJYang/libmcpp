@@ -35,29 +35,30 @@ class exception_impl;
  */
 enum exception_code {
     // 通用异常代码
-    unknow_exception_code         = 0,  // 未知异常代码
-    unhandled_exception_code      = 1,  // 未处理的第三方异常
-    timeout_exception_code        = 2,  // 超时异常
-    file_not_found_exception_code = 3,  // 文件未找到异常
-    parse_error_exception_code    = 4,  // 解析错误异常
-    invalid_arg_exception_code    = 5,  // 无效参数异常
-    key_not_found_exception_code  = 6,  // 键未找到异常
-    bad_cast_exception_code       = 7,  // 类型转换异常
-    out_of_range_exception_code   = 8,  // 越界异常
-    canceled_exception_code       = 9,  // 取消操作异常
-    assert_exception_code         = 10, // 断言异常
-    eof_exception_code            = 11, // 文件结束异常
-    system_error_code             = 12, // 标准库异常
-    std_exception_code            = 13, // 标准库异常
-    invalid_op_exception_code     = 14, // 无效操作异常
-    null_optional_code            = 15, // 空可选值异常
-    overflow_code                 = 16, // 溢出异常
-    underflow_code                = 17, // 下溢异常
-    divide_by_zero_code           = 18, // 除零异常
-    bad_function_call_code        = 19, // 函数调用异常
-    bad_alloc_code                = 20, // 内存分配异常
-    busy_exception_code           = 21, // 繁忙异常
-    method_call_exception_code    = 22, // 方法调用异常
+    unknow_exception_code          = 0,  // 未知异常代码
+    unhandled_exception_code       = 1,  // 未处理的第三方异常
+    timeout_exception_code         = 2,  // 超时异常
+    file_not_found_exception_code  = 3,  // 文件未找到异常
+    parse_error_exception_code     = 4,  // 解析错误异常
+    invalid_arg_exception_code     = 5,  // 无效参数异常
+    key_not_found_exception_code   = 6,  // 键未找到异常
+    bad_cast_exception_code        = 7,  // 类型转换异常
+    out_of_range_exception_code    = 8,  // 越界异常
+    canceled_exception_code        = 9,  // 取消操作异常
+    assert_exception_code          = 10, // 断言异常
+    eof_exception_code             = 11, // 文件结束异常
+    system_error_code              = 12, // 标准库异常
+    std_exception_code             = 13, // 标准库异常
+    invalid_op_exception_code      = 14, // 无效操作异常
+    null_optional_code             = 15, // 空可选值异常
+    overflow_code                  = 16, // 溢出异常
+    underflow_code                 = 17, // 下溢异常
+    divide_by_zero_code            = 18, // 除零异常
+    bad_function_call_code         = 19, // 函数调用异常
+    bad_alloc_code                 = 20, // 内存分配异常
+    busy_exception_code            = 21, // 繁忙异常
+    method_call_exception_code     = 22, // 方法调用异常
+    not_implemented_exception_code = 23, // 未实现异常
 };
 
 /**
@@ -354,7 +355,7 @@ MC_DEFINE_EXCEPTION_CLASS(divide_by_zero_exception, divide_by_zero_code, "除零
                           "divide_by_zero")
 MC_DEFINE_EXCEPTION_CLASS(file_open_exception, file_not_found_exception_code, "无法打开文件",
                           "file_open")
-MC_DEFINE_EXCEPTION_CLASS(not_implemented_exception, file_not_found_exception_code, "未实现",
+MC_DEFINE_EXCEPTION_CLASS(not_implemented_exception, not_implemented_exception_code, "未实现",
                           "not_implemented")
 MC_DEFINE_EXCEPTION_CLASS(bad_function_call_exception, bad_function_call_code, "函数调用错误",
                           "bad_function_call")
