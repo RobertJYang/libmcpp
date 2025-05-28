@@ -138,6 +138,13 @@ public:
 
     mc::variant get_property(std::string_view property_name,
                              std::string_view interface_name = {}) override {
+        // 先检查对象是否存在该属性
+        auto object_prop_info = get_object_property_info(property_name, interface_name);
+        if (object_prop_info != nullptr) {
+            return object_prop_info->get_value(static_cast<object_type&>(*this));
+        }
+
+        // 再检查对象实现的接口是否存在该属性
         auto info =
             metadata_type::get_instance().get_property_interface(property_name, interface_name);
         if (info == nullptr) {
@@ -149,6 +156,15 @@ public:
 
     property_base* get_property_base(std::string_view property_name,
                                      std::string_view interface_name) override {
+        // 先检查对象是否存在该属性
+        auto object_prop_info = get_object_property_info(property_name, interface_name);
+        if (object_prop_info != nullptr &&
+            (object_prop_info->flags & MC_ENGINE_PROPERTY_TYPE) != 0) {
+            return reinterpret_cast<property_base*>(reinterpret_cast<std::uintptr_t>(this) +
+                                                    object_prop_info->offset());
+        }
+
+        // 再检查对象实现的接口是否存在该属性
         auto info =
             metadata_type::get_instance().get_property_interface(property_name, interface_name);
         if (info == nullptr) {
@@ -159,6 +175,13 @@ public:
     }
 
     bool has_property(std::string_view property_name, std::string_view interface_name) override {
+        // 先检查对象是否存在该属性
+        auto object_prop_info = get_object_property_info(property_name, interface_name);
+        if (object_prop_info != nullptr) {
+            return true;
+        }
+
+        // 再检查对象实现的接口是否存在该属性
         auto info =
             metadata_type::get_instance().get_property_interface(property_name, interface_name);
         if (info == nullptr) {
@@ -170,7 +193,13 @@ public:
                    : property_info_to_interface(*info)->has_property(property_name);
     }
 
-    mc::dict get_all_properties(std::string_view interface_name) override {
+    mc::dict get_all_properties(std::string_view interface_name = {}) override {
+        if (interface_name.empty()) {
+            mc::mutable_dict dict;
+            to_variant(static_cast<const object_type&>(*this), dict);
+            return dict;
+        }
+
         auto info = metadata_type::get_instance().get_interface_info(interface_name);
         if (info == nullptr) {
             return {};
@@ -181,6 +210,14 @@ public:
 
     bool set_property(std::string_view property_name, const mc::variant& value,
                       std::string_view interface_name = {}) override {
+        // 先检查对象是否存在该属性
+        auto object_prop_info = get_object_property_info(property_name, interface_name);
+        if (object_prop_info != nullptr) {
+            object_prop_info->set_value(static_cast<object_type&>(*this), value);
+            return true;
+        }
+
+        // 再检查对象实现的接口是否存在该属性
         auto info =
             metadata_type::get_instance().get_property_interface(property_name, interface_name);
         if (info == nullptr) {
@@ -200,6 +237,11 @@ public:
             return result;
         }
 
+        auto method_info = get_object_method_info(method_name, interface_name);
+        if (method_info != nullptr) {
+            return {method_info, method_info->invoke(static_cast<object_type&>(*this), args)};
+        }
+
         auto info = metadata_type::get_instance().get_method_interface(method_name, interface_name);
         if (info == nullptr) {
             return {nullptr, mc::variant()};
@@ -210,6 +252,10 @@ public:
 
     bool has_method(std::string_view method_name,
                     std::string_view interface_name = {}) const override {
+        if (get_object_method_info(method_name, interface_name) != nullptr) {
+            return true;
+        }
+
         auto info = metadata_type::get_instance().get_method_interface(method_name, interface_name);
         if (info == nullptr) {
             return false;
@@ -221,6 +267,11 @@ public:
 
     mc::connection_type connect(std::string_view signal_name, slot_type slot,
                                 std::string_view interface_name = {}) override {
+        auto obj_info = get_object_sig_info(signal_name, interface_name);
+        if (obj_info) {
+            return obj_info->connect(static_cast<object_type&>(*this), slot);
+        }
+
         auto info = metadata_type::get_instance().get_signal_interface(signal_name, interface_name);
         if (info == nullptr) {
             return mc::connection_type();
@@ -231,6 +282,11 @@ public:
 
     mc::variant emit(std::string_view signal_name, const mc::variants& args,
                      std::string_view interface_name = {}) override {
+        auto obj_info = get_object_sig_info(signal_name, interface_name);
+        if (obj_info) {
+            return obj_info->emit(static_cast<object_type&>(*this), args);
+        }
+
         auto info = metadata_type::get_instance().get_signal_interface(signal_name, interface_name);
         if (info == nullptr) {
             return mc::variant();
@@ -256,6 +312,13 @@ public:
                 mc::reflect::from_variant(sub_dict, obj.*member.member_ptr);
             }
         });
+
+        auto& prop_infos = mc::reflect::reflector<object_type>::get_properties();
+        mc::traits::tuple_for_each(prop_infos, [&](auto& prop) {
+            if (d.contains(prop.name)) {
+                prop.set_value(obj, d[prop.name]);
+            }
+        });
     }
 
     static void to_variant(const object_type& obj, mc::mutable_dict& dict) {
@@ -266,6 +329,56 @@ public:
             mc::reflect::to_variant(obj.*member.member_ptr, sub_dict);
             dict[interface_type::interface_name] = std::move(sub_dict);
         });
+
+        auto& prop_infos = mc::reflect::reflector<object_type>::get_properties();
+        mc::traits::tuple_for_each(prop_infos, [&](auto& prop) {
+            using prop_type   = std::decay_t<decltype(prop)>;
+            using member_type = typename prop_type::member_type;
+            if constexpr (detail::is_interface_v<member_type>) {
+                // 是 interface 类型，但并不是在对象中声明过实现的 interface，当作普通属性看
+                if (dict.contains(member_type::interface_name)) {
+                    return;
+                }
+            }
+
+            dict[prop.name] = prop.get_value(obj);
+        });
+    }
+
+    const mc::reflect::property_info_base<object_type>*
+    get_object_property_info(std::string_view property_name, std::string_view interface_name) {
+        // 如果精确的指定 interface_name 则不读取对象的属性
+        if (!interface_name.empty()) {
+            return nullptr;
+        }
+
+        return mc::reflect::get_property_info<object_type>(property_name);
+    }
+
+    const mc::reflect::method_info_base<object_type>*
+    get_object_method_info(std::string_view method_name, std::string_view interface_name) const {
+        // 如果精确的指定 interface_name 则不判断对象的方法
+        if (!interface_name.empty()) {
+            return nullptr;
+        }
+
+        return mc::reflect::get_method_info<object_type>(method_name);
+    }
+
+    const signal_info_base<object_type>* get_object_sig_info(std::string_view method_name,
+                                                             std::string_view interface_name) {
+        // 如果精确的指定 interface_name 则不判断对象的信号
+        if (!interface_name.empty()) {
+            return nullptr;
+        }
+
+        auto& sigs = detail::get_signals<object_type>();
+        auto  it   = sigs.find(method_name);
+        if (it != sigs.end()) {
+            return it->second;
+        }
+
+        return nullptr;
     }
 };
 

@@ -156,9 +156,10 @@ inline constexpr bool is_property_v = is_property<T>::value;
 // 成员信息基类
 struct member_info_base {
     std::string_view name;
-    mutable uint32_t flags{0}; // 扩展 flags，用于存储自定义其他信息
+    mutable uint32_t is_override : 1;  // 是否被派生类覆盖
+    mutable uint32_t flags       : 31; // 扩展 flags，用于存储自定义其他信息
 
-    member_info_base(std::string_view n) : name(n) {
+    member_info_base(std::string_view n) : name(n), is_override(false), flags(0) {
     }
 
     virtual std::type_index  typeinfo() const  = 0;
@@ -731,9 +732,9 @@ struct has_to_derived<T, Derived,
 template <typename Derived, typename Member>
 constexpr auto apply_to_derived(const Member& member) {
     if constexpr (has_to_derived<Member, Derived>::value) {
-        return std::make_tuple(member.template to_derived<Derived>());
+        return member.template to_derived<Derived>();
     } else {
-        return std::make_tuple(member);
+        return member;
     }
 }
 } // namespace detail
