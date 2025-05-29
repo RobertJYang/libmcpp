@@ -101,7 +101,7 @@ class AppConan(ConanBase):
         # 配置libmcpp的pkg-config
         self.cpp_info.components["libmcpp"].libs = ["libmcpp"]
         self.cpp_info.components["libmcpp"].libdirs = ["usr/lib64"]
-        self.cpp_info.components["libmcpp"].system_libs = ["dbus-1", "glib-2.0", "boost_program_options"]
+        self.cpp_info.components["libmcpp"].system_libs = ["dbus-1", "glib-2.0", "boost_program_options", "somp"]
         self.cpp_info.components["libmcpp"].set_property("pkg_config_name", "libmcpp")
         self.cpp_info.components["libmcpp"].set_property("pkg_config_custom_content", 
            f"libdir=${{prefix}}/{libdir}\n"
@@ -110,7 +110,7 @@ class AppConan(ConanBase):
         # 配置test_utilities的pkg-config
         self.cpp_info.components["test_utilities"].libs = ["mc_test_utilities"]
         self.cpp_info.components["test_utilities"].libdirs = ["usr/lib64"]
-        self.cpp_info.components["test_utilities"].system_libs = ["dbus-1", "boost_program_options"]
+        self.cpp_info.components["test_utilities"].system_libs = ["dbus-1", "boost_program_options", "somp"]
         self.cpp_info.components["test_utilities"].set_property("pkg_config_name", "test_utilities")
         self.cpp_info.components["test_utilities"].set_property("pkg_config_custom_content",
            f"libdir=${{prefix}}/{libdir}\n"
