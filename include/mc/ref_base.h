@@ -29,7 +29,7 @@ class ref_base {
 public:
     using element_type = T;
     using pointer_type = PointerType;
-    using ref_ptr      = ref_ptr<element_type, pointer_type>;
+    using ref_ptr      = mc::ref_ptr<element_type, pointer_type>;
 
     ref_base() = default;
 
