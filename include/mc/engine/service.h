@@ -14,9 +14,9 @@
 #define MC_ENGINE_MIDDLEWARE_DBUS_SERVICE_H
 #include <mc/common.h>
 #include <mc/core/service.h>
+#include <mc/dbus/connection.h>
 #include <mc/time.h>
 #include <memory>
-#include <mc/dbus/connection.h>
 
 namespace mc::engine {
 class engine;
@@ -36,7 +36,7 @@ public:
     bool is_healthy() const override;
 
     template <typename ObjectType>
-    void register_object(mc::im::ref_ptr<ObjectType> obj) {
+    void register_object(mc::ref_ptr<ObjectType> obj) {
         register_object(*obj);
     }
 
@@ -46,13 +46,13 @@ public:
     }
 
     template <typename ObjectType>
-    void unregister_object(mc::im::ref_ptr<ObjectType> obj) {
+    void unregister_object(mc::ref_ptr<ObjectType> obj) {
         unregister_object(obj->get_object_path());
     }
     void unregister_object(std::string_view path);
 
     service_object_table& get_object_table() const;
-    mc::dbus::connection_ptr get_connection();
+    mc::dbus::connection  get_connection() const;
 
     mc::variant timeout_call(mc::milliseconds timeout, std::string_view service_name,
                              std::string_view path, std::string_view interface,

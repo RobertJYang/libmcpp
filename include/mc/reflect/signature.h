@@ -185,6 +185,8 @@ public:
      */
     void clear();
 
+    bool is_valid() const;
+
     /**
      * 验证签名字符串是否有效
      *

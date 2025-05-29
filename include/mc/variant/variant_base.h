@@ -29,9 +29,9 @@
 #include <vector>
 
 #include <mc/common.h>
-#include <mc/im/ref_ptr.h>
 #include <mc/json.h>
 #include <mc/pretty_name.h>
+#include <mc/ref_ptr.h>
 #include <mc/string.h>
 #include <mc/traits.h>
 #include <mc/variant/variant_common.h>
@@ -69,16 +69,16 @@ public:
     variant_base(type_id type) : m_uint64(0), m_type(type) {
         switch (type) {
         case type_id::string_type:
-            m_string_ptr = mc::im::allocate<string_type>(m_alloc);
+            m_string_ptr = mc::allocate_ptr<string_type>(m_alloc);
             break;
         case type_id::array_type:
-            m_array_ptr = mc::im::allocate<array_type>(m_alloc);
+            m_array_ptr = mc::allocate_ptr<array_type>(m_alloc);
             break;
         case type_id::object_type:
-            m_object_ptr = mc::im::allocate<object_type>(m_alloc);
+            m_object_ptr = mc::allocate_ptr<object_type>(m_alloc);
             break;
         case type_id::blob_type:
-            m_blob_ptr = mc::im::allocate<blob_type>(m_alloc);
+            m_blob_ptr = mc::allocate_ptr<blob_type>(m_alloc);
             break;
         default:
             break;
@@ -113,7 +113,7 @@ public:
     }
     variant_base(std::string_view str, const allocator_type& alloc = allocator_type())
         : m_uint64(0), m_type(type_id::string_type), m_alloc(alloc) {
-        m_string_ptr = mc::im::allocate<string_type>(m_alloc, str.data(), str.size(), m_alloc);
+        m_string_ptr = mc::allocate_ptr<string_type>(m_alloc, str.data(), str.size(), m_alloc);
     }
 
     /*
@@ -144,27 +144,27 @@ public:
     template <typename OtherAllocator>
     variant_base(const blob_base<OtherAllocator>& val) : variant_base(type_id::blob_type) {
         m_blob_ptr =
-            mc::im::allocate<blob_type>(m_alloc, val.data.data(), val.data.size(), m_alloc);
+            mc::allocate_ptr<blob_type>(m_alloc, val.data.data(), val.data.size(), m_alloc);
     }
 
     // 从字典构造 variant_base
     variant_base(const dict& obj) : variant_base(type_id::object_type) {
-        m_object_ptr = mc::im::allocate<object_type>(m_alloc, obj);
+        m_object_ptr = mc::allocate_ptr<object_type>(m_alloc, obj);
     }
     variant_base(mutable_dict& obj) : variant_base(type_id::object_type) {
-        m_object_ptr = mc::im::allocate<object_type>(m_alloc, obj);
+        m_object_ptr = mc::allocate_ptr<object_type>(m_alloc, obj);
     }
 
     // 从 array_type 构造 variant_base
     variant_base(const array_type& arr, const allocator_type& alloc = allocator_type())
         : m_type(type_id::array_type), m_alloc(alloc) {
-        m_array_ptr = mc::im::allocate<array_type>(m_alloc, arr, alloc);
+        m_array_ptr = mc::allocate_ptr<array_type>(m_alloc, arr, alloc);
     }
     template <typename OtherConfig>
     variant_base(const variants_base<OtherConfig>& arr,
                  const allocator_type&             alloc = allocator_type())
         : m_type(type_id::array_type), m_alloc(alloc) {
-        m_array_ptr = mc::im::allocate<array_type>(m_alloc, alloc);
+        m_array_ptr = mc::allocate_ptr<array_type>(m_alloc, alloc);
         for (const auto& item : arr) {
             m_array_ptr->emplace_back(item, alloc);
         }

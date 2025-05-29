@@ -14,13 +14,19 @@
  * @file string.cpp
  * @brief 实现 string.h 中声明的字符串处理函数
  */
-#include <cstring>
-#include <functional>
+
 #include <mc/dict.h>
 #include <mc/exception.h>
 #include <mc/string.h>
 #include <mc/variant.h>
+
+#include <cstring>
+#include <functional>
 #include <type_traits>
+
+// utf8 编码检查
+#include <codecvt>
+#include <locale>
 
 #include <stdarg.h>
 
@@ -690,6 +696,92 @@ std::string to_string(double value) {
         }
     }
     return buffer;
+}
+
+bool string::is_valid_utf8(std::string_view s) {
+    const unsigned char* bytes  = reinterpret_cast<const unsigned char*>(s.data());
+    size_t               length = s.size();
+
+    for (size_t i = 0; i < length;) {
+        // 检查单字节字符（0xxxxxxx）
+        if (bytes[i] <= 0x7F) {
+            i += 1;
+            continue;
+        }
+
+        // 检查双字节字符（110xxxxx 10xxxxxx）
+        else if ((bytes[i] & 0xE0) == 0xC0) {
+            // 需要至少2个字节
+            if (i + 1 >= length) {
+                return false;
+            }
+
+            // 检查第二个字节是否符合 10xxxxxx 格式
+            if ((bytes[i + 1] & 0xC0) != 0x80) {
+                return false;
+            }
+
+            // 检查是否为过长编码
+            unsigned int code_point = ((bytes[i] & 0x1F) << 6) | (bytes[i + 1] & 0x3F);
+            if (code_point < 0x80) {
+                return false; // 过长编码
+            }
+
+            i += 2;
+        }
+
+        // 检查三字节字符（1110xxxx 10xxxxxx 10xxxxxx）
+        else if ((bytes[i] & 0xF0) == 0xE0) {
+            // 需要至少3个字节
+            if (i + 2 >= length) {
+                return false;
+            }
+
+            // 检查第二、三个字节是否符合 10xxxxxx 格式
+            if ((bytes[i + 1] & 0xC0) != 0x80 || (bytes[i + 2] & 0xC0) != 0x80) {
+                return false;
+            }
+
+            // 检查是否为过长编码，以及是否为代理区间（U+D800-U+DFFF）
+            unsigned int code_point =
+                ((bytes[i] & 0x0F) << 12) | ((bytes[i + 1] & 0x3F) << 6) | (bytes[i + 2] & 0x3F);
+            if (code_point < 0x800 || (code_point >= 0xD800 && code_point <= 0xDFFF)) {
+                return false; // 过长编码或代理区间
+            }
+
+            i += 3;
+        }
+
+        // 检查四字节字符（11110xxx 10xxxxxx 10xxxxxx 10xxxxxx）
+        else if ((bytes[i] & 0xF8) == 0xF0) {
+            // 需要至少4个字节
+            if (i + 3 >= length) {
+                return false;
+            }
+
+            // 检查第二、三、四个字节是否符合 10xxxxxx 格式
+            if ((bytes[i + 1] & 0xC0) != 0x80 || (bytes[i + 2] & 0xC0) != 0x80 ||
+                (bytes[i + 3] & 0xC0) != 0x80) {
+                return false;
+            }
+
+            // 检查是否为过长编码，以及是否超过 Unicode 范围（U+10FFFF）
+            unsigned int code_point = ((bytes[i] & 0x07) << 18) | ((bytes[i + 1] & 0x3F) << 12) |
+                                      ((bytes[i + 2] & 0x3F) << 6) | (bytes[i + 3] & 0x3F);
+            if (code_point < 0x10000 || code_point > 0x10FFFF) {
+                return false; // 过长编码或超出范围
+            }
+
+            i += 4;
+        }
+
+        // 无效的 UTF-8 起始字节
+        else {
+            return false;
+        }
+    }
+
+    return true;
 }
 
 } // namespace mc

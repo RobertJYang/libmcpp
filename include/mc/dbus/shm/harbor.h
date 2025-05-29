@@ -106,7 +106,7 @@ private:
     std::string                                  m_harbor_name;
     std::string                                  m_unique_name;
     strand_type                                  m_strand;
-    connection_ptr                               m_connection;
+    connection                                   m_connection;
     bool                                         m_is_running;
     message_queue*                               m_mq;
     std::mutex                                   m_mutex;

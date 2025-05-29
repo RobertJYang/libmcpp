@@ -15,7 +15,7 @@
 
 #include <dbus/dbus.h>
 
-#include <boost/asio/io_context.hpp>
+#include <mc/core/object.h>
 #include <mc/dbus/message.h>
 #include <mc/future.h>
 #include <mc/signal_slot.h>
@@ -24,32 +24,31 @@
 #include <mutex>
 
 namespace mc::dbus {
-
-class connection;
-using connection_ptr      = std::shared_ptr<connection>;
-using connection_weak_ptr = std::weak_ptr<connection>;
-
+struct connection_impl;
 constexpr mc::milliseconds DBUS_TIMEOUT_DEFAULT = mc::seconds(60);
+
+using filter_message_signal_type = mc::signal<DBusHandlerResult(message&)>;
+using path_handler_type          = std::function<DBusHandlerResult(message&)>;
+
+enum class connect_status {
+    connected,
+    disconnected,
+    connecting,
+    disconnecting,
+};
 
 /**
  * @brief DBus连接对象
  */
-class connection : public std::enable_shared_from_this<connection> {
+class connection {
 public:
-    using io_context_type = boost::asio::io_context;
-    using strand_type     = boost::asio::strand<io_context_type::executor_type>;
     template <typename T>
-    using future = mc::future<T, strand_type>;
+    using future = mc::future<T>;
 
-    static connection_ptr open_system_bus(strand_type& strand);
-    static connection_ptr open_session_bus(strand_type& strand);
+    static connection open_system_bus(mc::core::io_context& executor);
+    static connection open_session_bus(mc::core::io_context& executor);
 
-    enum class connect_status {
-        connected,
-        disconnected,
-        connecting,
-        disconnecting,
-    };
+    connection();
 
     /**
      * @brief 构造函数
@@ -57,17 +56,18 @@ public:
      * @param conn DBus连接
      * @param add_ref 是否增加引用
      */
-    explicit connection(strand_type& strand, DBusConnection* conn, bool add_ref = false);
+    explicit connection(mc::core::io_context& executor, DBusConnection* conn, bool add_ref = false);
 
     /**
      * @brief 析构函数
+     * @note 连接是共享的，析构函数不会关闭连接，如果需要关闭连接，请调用 disconnect 方法
      */
     ~connection();
 
-    connection(const connection&)            = delete;
-    connection& operator=(const connection&) = delete;
-    connection(connection&&)                 = delete;
-    connection& operator=(connection&&)      = delete;
+    connection(const connection&)            = default;
+    connection& operator=(const connection&) = default;
+    connection(connection&&)                 = default;
+    connection& operator=(connection&&)      = default;
 
     /**
      * @brief 断开连接
@@ -117,7 +117,6 @@ public:
      * @param path 路径
      * @param object 对象
      */
-    using path_handler_type = std::function<DBusHandlerResult(message&)>;
     void register_path(std::string_view path, path_handler_type handler);
 
     /**
@@ -136,9 +135,7 @@ public:
      * @brief 获取DBus连接
      * @return DBus连接
      */
-    DBusConnection* get_connection() const {
-        return m_connection;
-    }
+    DBusConnection* get_connection() const;
 
     void dispatch();
 
@@ -146,36 +143,16 @@ public:
      * @brief 获取DBus连接的唯一名称
      * @return 唯一名称
      */
-    std::string get_unique_name() const;
+    std::string_view get_unique_name() const;
 
-    mc::signal<DBusHandlerResult(message&)> on_filter_message;
+    connection_impl& get_impl() const;
+
+    filter_message_signal_type& filter_message() const;
 
 private:
-    void initialize();
-    bool check_connected() const;
-    void release();
+    void ensure_impl() const;
 
-    DBusHandlerResult process_message(message msg);
-    void              process_reply(uint32_t reply_serial, message& msg);
-
-    static dbus_bool_t watch_add(DBusWatch* watch, void* data);
-    static void        watch_remove(DBusWatch* watch, void* data);
-    static void        watch_toggled(DBusWatch* watch, void* data);
-
-    static dbus_bool_t timeout_add(DBusTimeout* timeout, void* data);
-    static void        timeout_remove(DBusTimeout* timeout, void* data);
-    static void        timeout_toggled(DBusTimeout* timeout, void* data);
-
-    static void dispatch_status_changed(DBusConnection* connection, DBusDispatchStatus new_status,
-                                        void* user_data);
-    static DBusHandlerResult message_filter(DBusConnection* conn, DBusMessage* msg,
-                                            void* user_data);
-
-    struct connection_impl;
-    std::unique_ptr<connection_impl> m_impl;
-    DBusConnection*                  m_connection{nullptr};
-    strand_type&                     m_strand;
-    connect_status                   m_status{connect_status::disconnected};
+    std::shared_ptr<connection_impl> m_impl;
 };
 
 } // namespace mc::dbus

@@ -103,6 +103,9 @@ std::string exception::to_detail_string(mc::log::level ll) const {
 
         ss << std::put_time(tm, "%Y-%m-%d %H:%M:%S") << " ";
 
+        // 添加线程ID
+        ss << "[" << log.get_thread_id() << "] ";
+
         // 添加日志级别
         switch (log.get_level()) {
         case mc::log::level::debug:

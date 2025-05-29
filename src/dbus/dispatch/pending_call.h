@@ -50,7 +50,6 @@ public:
 private:
     static void notify(DBusPendingCall* pending_call, void* data);
 
-    void handle_timeout();
     void handle_reply();
 
     DBusPendingCall* m_pending_call;

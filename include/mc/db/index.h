@@ -34,7 +34,7 @@ class index_base {
 public:
     using object_type     = ObjectType;
     using alloc_type      = Allocator;
-    using object_ptr_type = mc::im::ref_ptr<object_type>;
+    using object_ptr_type = mc::ref_ptr<object_type>;
     using tree_config     = mc::im::tree_config<object_ptr_type, alloc_type>;
     using tree_type       = mc::im::radix_tree<tree_config>;
     using raw_iterator    = typename tree_type::iterator;
@@ -68,7 +68,7 @@ public:
     // 索引相关类型定义
     using key_extractor_type        = KeyExtractor;
     using object_type               = ObjectType;
-    using object_ptr_type           = mc::im::ref_ptr<object_type>;
+    using object_ptr_type           = mc::ref_ptr<object_type>;
     using alloc_type                = Allocator;
     using tag_type                  = Tag;
     static constexpr bool is_unique = IsUnique;
@@ -142,7 +142,7 @@ public:
     }
 
     bool add(const object_type& obj) {
-        auto obj_ptr = mc::core::make_ref<object_type>(obj);
+        auto obj_ptr = mc::make_ref<object_type>(obj);
         return add(obj_ptr);
     }
 
@@ -162,7 +162,7 @@ public:
     }
 
     bool update(const object_type& old_obj, const object_type& new_obj) {
-        auto obj_ptr = mc::core::make_ref<object_type>(new_obj);
+        auto obj_ptr = mc::make_ref<object_type>(new_obj);
         return update(old_obj, obj_ptr);
     }
 

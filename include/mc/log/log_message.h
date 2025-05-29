@@ -21,11 +21,11 @@
 #include <memory>
 #include <sstream>
 #include <string>
+#include <thread>
 #include <utility>
 #include <vector>
 
-namespace mc {
-namespace log {
+namespace mc::log {
 
 /**
  * @brief 日志上下文信息
@@ -51,6 +51,7 @@ private:
     std::chrono::system_clock::time_point m_timestamp; // 时间戳
     dict                                  m_args;      // 参数字典
     std::string                           m_format;    // 格式模板
+    mc::thread_id                         m_thread_id; // 线程ID
     mutable bool                          m_formatted; // 是否已格式化
 
 public:
@@ -66,7 +67,7 @@ public:
             mc::mutable_dict args = mc::mutable_dict())
         : m_level(lvl), m_message(std::move(msg)), m_context(std::move(ctx)),
           m_timestamp(std::chrono::system_clock::now()), m_args(std::move(args)),
-          m_formatted(true) {
+          m_thread_id(mc::get_thread_id()), m_formatted(true) {
     }
 
     /**
@@ -81,7 +82,8 @@ public:
             mc::mutable_dict args = mc::mutable_dict())
         : m_level(lvl), m_message(""), // 初始为空，将在需要时格式化
           m_context(std::move(ctx)), m_timestamp(std::chrono::system_clock::now()),
-          m_args(std::move(args)), m_format(std::move(fmt_template)), m_formatted(false) {
+          m_args(std::move(args)), m_format(std::move(fmt_template)),
+          m_thread_id(mc::get_thread_id()), m_formatted(false) {
     } // 标记为未格式化
 
     /**
@@ -130,6 +132,15 @@ public:
     }
 
     /**
+     * @brief 获取线程ID
+     *
+     * @return const std::thread::id& 线程ID
+     */
+    mc::thread_id get_thread_id() const {
+        return m_thread_id;
+    }
+
+    /**
      * @brief 获取消息内容
      *
      * @return std::string 消息内容
@@ -159,7 +170,11 @@ public:
         context_dict["file"]     = m_context.m_file;
         context_dict["function"] = m_context.m_function;
         context_dict["line"]     = m_context.m_line;
-        result["context"]        = context_dict;
+        // 使用stringstream转换thread::id为字符串
+        std::ostringstream thread_id_stream;
+        thread_id_stream << m_thread_id;
+        context_dict["thread_id"] = thread_id_stream.str();
+        result["context"]         = context_dict;
 
         // 消息内容
         if (!m_format.empty()) {
@@ -180,26 +195,6 @@ public:
  */
 using messages = std::vector<message>;
 
-/**
- * @brief 日志消息格式化器
- */
-class message_formatter {
-public:
-    /**
-     * @brief 格式化日志消息
-     *
-     * @param msg 日志消息
-     * @return std::string 格式化后的日志消息
-     */
-    virtual std::string format(const message& msg) const = 0;
-
-    /**
-     * @brief 虚析构函数
-     */
-    virtual ~message_formatter() = default;
-};
-
-} // namespace log
-} // namespace mc
+} // namespace mc::log
 
 #endif // MC_LOG_MESSAGE_H

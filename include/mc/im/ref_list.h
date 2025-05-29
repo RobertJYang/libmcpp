@@ -13,7 +13,7 @@
 #ifndef MC_IM_NODE_LIST_H
 #define MC_IM_NODE_LIST_H
 
-#include <mc/im/ref_ptr.h>
+#include <mc/ref_ptr.h>
 #include <memory>
 
 namespace mc::im {

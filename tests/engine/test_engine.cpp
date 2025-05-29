@@ -107,13 +107,12 @@ MC_REFLECT(test_interface_2, ((m_variant, "variant")))
 MC_REFLECT(test_object, ((m_iface_1, "iface_1"))((m_iface_2, "iface_2")))
 
 TEST_F(engine_test, test_engine_dbus_connection) {
-    auto strand = mc::engine::make_strand();
-    auto conn   = mc::dbus::connection::open_session_bus(strand);
-    conn->start();
+    auto conn = mc::dbus::connection::open_session_bus(mc::engine::get_io_context());
+    conn.start();
 
     auto msg   = mc::dbus::message::new_method_call("org.freedesktop.DBus", "/org/freedesktop/DBus",
                                                     "org.freedesktop.DBus", "ListNames");
-    auto reply = conn->send_with_reply(std::move(msg), mc::milliseconds(1000));
+    auto reply = conn.send_with_reply(std::move(msg), mc::milliseconds(1000));
     ASSERT_TRUE(reply.is_valid() && reply.is_method_return());
 
     std::set<std::string> names;

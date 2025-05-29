@@ -84,6 +84,17 @@ public:
 
     virtual ~object() = default;
 
+    bool init(const mc::dict& args = {}) {
+        try {
+            from_variant(args, *static_cast<ObjectType*>(this));
+            return true;
+        } catch (const std::exception& e) {
+            elog("init object ${class} failed: ${error}",
+                 ("class", mc::pretty_name<ObjectType>())("error", e.what()));
+            return false;
+        }
+    }
+
     static metadata_type& get_metadata() {
         return metadata_type::get_instance();
     }
@@ -299,8 +310,8 @@ public:
         get_metadata().visit(static_cast<const ObjectType&>(*this), v);
     }
 
-    static mc::core::ref_ptr<object_type> create() {
-        return mc::core::make_ref<object_type>();
+    static mc::ref_ptr<object_type> create() {
+        return mc::make_ref<object_type>();
     }
 
     static void from_variant(const mc::dict& d, object_type& obj) {

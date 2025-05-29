@@ -523,6 +523,8 @@ T to_number(std::string_view s, T default_value, int radix = 0) {
 
 bool get_format_args(std::string_view format, mc::dict& arg_names);
 
+bool is_valid_utf8(std::string_view s);
+
 } // namespace string
 
 /**
@@ -612,6 +614,7 @@ inline bool get_format_args(std::string_view format, mc::dict& arg_names) {
     mc::format(result, fmt, static_cast<const mc::dict&>(mc::mutable_dict() __VA_ARGS__))
 
 std::string to_string(double value);
+
 } // namespace mc
 
 #endif // MC_STRING_H

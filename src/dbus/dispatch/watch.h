@@ -12,29 +12,27 @@
 
 #ifndef MC_DBUS_DISPATCH_WATCH_H
 #define MC_DBUS_DISPATCH_WATCH_H
-#include <boost/asio/io_context.hpp>
-#include <boost/asio/posix/stream_descriptor.hpp>
-#include <dbus/dbus.h>
-#include <mc/signal_slot.h>
+
+#include "dbus/connection_impl.h"
 
 namespace mc::dbus {
-class connection;
 
-class watch {
+class watch : public mc::ref_base<watch> {
 public:
-    using alloc_type  = std::allocator<watch>;
-    using strand_type = boost::asio::strand<boost::asio::io_context::executor_type>;
+    template <typename Executor>
+    watch(Executor& executor, DBusWatch* watch)
+        : m_watch(watch), m_socket(executor, dbus_watch_get_unix_fd(watch)) {
+    }
 
-    watch(strand_type& strand, DBusWatch* watch);
     ~watch();
 
-    void start(connection* conn);
+    void start(connection_weak_ptr conn);
     void stop();
 
 private:
-    void watch_readable(connection* conn);
-    void watch_writable(connection* conn);
-    bool handle_watch_ready(connection* conn, uint32_t flags);
+    void watch_readable(connection_weak_ptr conn, watch::ref_ptr self);
+    void watch_writable(connection_weak_ptr conn, watch::ref_ptr self);
+    bool handle_watch_ready(connection_ptr& conn, uint32_t flags);
 
     using socket_type = boost::asio::posix::stream_descriptor;
     DBusWatch*  m_watch;

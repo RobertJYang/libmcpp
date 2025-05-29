@@ -314,7 +314,6 @@ public:
         auto end = std::chrono::high_resolution_clock::now();
         auto duration =
             std::chrono::duration_cast<std::chrono::milliseconds>(end - m_start).count();
-        std::cout << m_name << " 耗时: " << duration << "ms" << std::endl;
     }
 
 private:
@@ -479,6 +478,9 @@ inline int64_t hton(int64_t value) {
     (reinterpret_cast<std::size_t>(&(reinterpret_cast<TYPE*>(0)->*MEMBER)))
 
 #define MC_ALIGN_UP(value, alignment) ((value + alignment - 1) & ~(alignment - 1))
+
+using thread_id = uint32_t;
+thread_id get_thread_id();
 
 } // namespace mc
 

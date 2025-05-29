@@ -35,13 +35,13 @@ struct timer_service : public mc::core::service_base {
 class timer_test : public mc::test::TestWithApplication {
 protected:
     void SetUp() override {
-        service = mc::core::make_ref<timer_service>();
+        service = mc::make_ref<timer_service>();
     }
 
     void TearDown() override {
     }
 
-    mc::core::ref_ptr<timer_service> service;
+    mc::ref_ptr<timer_service> service;
 };
 
 } // namespace

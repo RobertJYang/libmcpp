@@ -123,7 +123,7 @@ protected:
         obj.reset();
     }
 
-    mc::core::ref_ptr<TestObject>             obj;
+    mc::ref_ptr<TestObject>                   obj;
     std::unique_ptr<mc::expr::object_context> obj_ctx;
     mc::expr::engine                          expr_engine;
 

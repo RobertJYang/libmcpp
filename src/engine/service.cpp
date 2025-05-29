@@ -100,13 +100,13 @@ struct service_impl {
                                                 const variants& args);
     static abstract_object*    find_owner(abstract_object& obj, std::string_view path);
 
-    std::mutex                      m_mutex;
-    service*                        m_service;
-    dbus::connection_ptr            m_connection;
-    object_table_ptr                m_object_table;
-    mc::im::ref_ptr<service_object> m_service_object;
-    root_object                     m_root;
-    mc::dbus::shm_tree*             m_shm_tree;
+    std::mutex                  m_mutex;
+    service*                    m_service;
+    dbus::connection            m_connection;
+    object_table_ptr            m_object_table;
+    mc::ref_ptr<service_object> m_service_object;
+    root_object                 m_root;
+    mc::dbus::shm_tree*         m_shm_tree;
 };
 } // namespace mc::engine
 
@@ -125,7 +125,7 @@ service_impl::service_impl() {
 
 bool service_impl::init(service* s) {
     m_service        = s;
-    m_service_object = mc::core::make_ref<service_object>();
+    m_service_object = mc::make_ref<service_object>();
     m_service_object->init(s);
     return true;
 }
@@ -133,29 +133,30 @@ bool service_impl::init(service* s) {
 bool service_impl::start() {
     std::lock_guard lock(m_mutex);
 
-    auto connection = mc::dbus::connection::open_session_bus(m_service->get_strand());
-    if (!connection || !connection->start()) {
+    auto connection = mc::dbus::connection::open_session_bus(mc::engine::get_io_context());
+    if (!connection.start()) {
         elog("start service failed: cannot open dbus session");
         return false;
     }
+
     auto service_name = m_service->name();
-    if (!connection->request_name(service_name)) {
+    if (!connection.request_name(service_name)) {
         elog("start service failed: cannot request dbus name");
         return false;
     }
 
-    connection->on_filter_message.connect([this](mc::dbus::message& msg) {
+    connection.filter_message().connect([this](mc::dbus::message& msg) {
         return on_filter_message(msg);
     });
 
     m_connection   = connection;
     m_object_table = std::make_shared<service_object_table>(m_service->name());
     mc::engine::get_engine().register_table(m_object_table);
-    auto  unique_name = connection->get_unique_name();
+    auto  unique_name = connection.get_unique_name();
     auto& harbor      = mc::dbus::harbor::get_instance();
     // 如果harbor名未设置，则设置为"harbor.服务名"
     harbor.set_harbor_name_if_empty("harbor." + service_name);
-    harbor.register_unique_name(unique_name, service_name);
+    harbor.register_unique_name(std::string(unique_name), service_name);
     m_shm_tree   = new mc::dbus::shm_tree(m_service->get_strand(), harbor.get_harbor_name(),
                                           service_name, unique_name);
     auto handler = [this](std::string_view path, std::string_view interface,
@@ -173,25 +174,26 @@ bool service_impl::start() {
 void service_impl::stop() {
     std::lock_guard lock(m_mutex);
 
-    if (m_connection) {
-        m_connection->disconnect();
-        m_connection.reset();
-    }
+    m_connection.disconnect();
 
     auto& engine   = mc::engine::engine::get_instance();
     auto  services = engine.get_table<service_table>("services");
     services->remove(m_service_object);
-    m_object_table->clear();
-    engine.unregister_table(m_object_table);
+
+    if (m_object_table) {
+        m_object_table->clear();
+        engine.unregister_table(m_object_table);
+    }
+
     auto& harbor = mc::dbus::harbor::get_instance();
     harbor.unregister_service(m_service->name());
 }
 
 void service_impl::register_object(abstract_object& obj) {
-    m_object_table->add(mc::im::ref_ptr<abstract_object>(&obj));
+    m_object_table->add(mc::ref_ptr<abstract_object>(&obj));
     obj.set_service(m_service);
-    m_connection->register_path(obj.get_object_path(), [this, &obj](auto& msg) {
-        return on_path_message(msg, obj);
+    m_connection.register_path(obj.get_object_path(), [this, pobj = obj.from_this()](auto& msg) {
+        return on_path_message(msg, *pobj);
     });
 
     auto* owner = find_owner(m_root, obj.get_object_path());
@@ -239,7 +241,7 @@ abstract_object* service_impl::find_owner(abstract_object& obj, std::string_view
 }
 
 void service_impl::unregister_object(std::string_view path) {
-    m_connection->unregister_path(path);
+    m_connection.unregister_path(path);
 
     auto it = m_object_table->find<by_path>(path);
     if (it.is_end()) {
@@ -247,7 +249,7 @@ void service_impl::unregister_object(std::string_view path) {
     }
 
     auto& obj = const_cast<abstract_object&>(*it);
-    m_object_table->remove(mc::im::ref_ptr<abstract_object>(&obj));
+    m_object_table->remove(mc::ref_ptr<abstract_object>(&obj));
 
     obj.set_owner(nullptr);
     obj.set_service(nullptr);
@@ -304,7 +306,7 @@ mc::variant service_impl::timeout_call(mc::milliseconds timeout, std::string_vie
         return result.value();
     }
     auto msg   = mc::dbus::message::new_method_call(service_name, path, interface, method);
-    auto reply = m_connection->send_with_reply(std::move(msg), timeout);
+    auto reply = m_connection.send_with_reply(std::move(msg), timeout);
     if (reply.is_valid() && reply.is_method_return()) {
         return convert_method_result(reply.read_args());
     }
@@ -359,7 +361,7 @@ DBusHandlerResult service_impl::on_method_call(abstract_object& object, mc::dbus
         info.response = mc::dbus::message::new_error(msg, errors::failed.name, e.what());
     }
 
-    m_connection->send(std::move(info.response));
+    m_connection.send(std::move(info.response));
     return DBUS_HANDLER_RESULT_HANDLED;
 }
 
@@ -494,7 +496,7 @@ service::shm_timeout_call(mc::milliseconds timeout, std::string_view service_nam
                                     args);
 }
 
-dbus::connection_ptr service::get_connection() {
+mc::dbus::connection service::get_connection() const {
     return m_impl->m_connection;
 }
 
