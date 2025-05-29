@@ -117,6 +117,9 @@ void console_appender::append(const message& msg) {
     line.append(time_str);
     line.push_back(' ');
 
+    // 添加线程ID
+    line.append("[" + std::to_string(msg.get_thread_id()) + "] ");
+
     // 文件和行号 (25字符宽度)
     std::string file_line;
     file_line.reserve(64); // 预分配足够空间

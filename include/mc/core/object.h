@@ -15,8 +15,7 @@
 
 #include <mc/common.h>
 #include <mc/exception.h>
-#include <mc/im/ref_base.h>
-#include <mc/im/ref_ptr.h>
+#include <mc/ref_ptr.h>
 #include <mc/signal_slot.h>
 
 #include <boost/asio.hpp>
@@ -29,25 +28,14 @@ namespace mc::core {
 class object;
 class object_impl;
 
-template <typename T>
-using ref_ptr = mc::im::ref_ptr<T>;
-
-template <typename T, typename... Args>
-ref_ptr<T> make_ref(Args&&... args) {
-    return mc::im::make_ref<T>(std::forward<Args>(args)...);
-}
-
-template <typename T, typename Alloc = std::allocator<T>, typename... Args>
-ref_ptr<T> allocate_ref(const Alloc& alloc, Args&&... args) {
-    return mc::im::allocate_ref<T>(alloc, std::forward<Args>(args)...);
-}
-
 using object_ptr       = ref_ptr<object>;
 using const_object_ptr = ref_ptr<const object>;
 using child_list       = std::vector<object_ptr>;
 using signal_type      = void*;
 using strand_type      = boost::asio::strand<boost::asio::io_context::executor_type>;
 using io_context       = boost::asio::io_context;
+using any_io_executor  = boost::asio::any_io_executor;
+using executor         = boost::asio::executor;
 class service_base;
 
 using connection_id_type                           = uint32_t;
@@ -57,23 +45,23 @@ enum class connection_type { Auto, Direct, Queued };
 
 using object_id_type = uint64_t;
 
-class object_base : public mc::im::ref_base {
+class object_base : public ref_base<object_base> {
 public:
     object_base()          = default;
     virtual ~object_base() = default;
 
     object_base(const object_base& other)
-        : mc::im::ref_base(other), m_object_id(other.m_object_id) {
+        : ref_base<object_base>(other), m_object_id(other.m_object_id) {
     }
 
     object_base(object_base&& other)
-        : mc::im::ref_base(std::forward<object_base>(other)), m_object_id(other.m_object_id) {
+        : ref_base<object_base>(std::forward<object_base>(other)), m_object_id(other.m_object_id) {
         other.m_object_id = 0;
     }
 
     object_base& operator=(object_base&& other) {
         if (this != &other) {
-            mc::im::ref_base::operator=(std::forward<object_base>(other));
+            ref_base<object_base>::operator=(std::forward<object_base>(other));
             m_object_id       = other.m_object_id;
             other.m_object_id = 0;
         }
@@ -82,7 +70,7 @@ public:
 
     object_base& operator=(const object_base& other) {
         if (this != &other) {
-            mc::im::ref_base::operator=(other);
+            ref_base<object_base>::operator=(other);
             m_object_id = other.m_object_id;
         }
         return *this;

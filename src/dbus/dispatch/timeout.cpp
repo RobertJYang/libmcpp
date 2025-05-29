@@ -11,25 +11,24 @@
  */
 
 #include <mc/dbus/connection.h>
-#include <mc/dbus/dispatch/timeout.h>
 #include <mc/log.h>
 
-namespace mc::dbus {
+#include "dbus/connection_impl.h"
+#include "timeout.h"
 
-timeout::timeout(strand_type& strand, DBusTimeout* timeout) : m_timeout(timeout), m_timer(strand) {
-}
+namespace mc::dbus {
 
 timeout::~timeout() {
     stop();
 }
 
-void timeout::start(connection* conn) {
+void timeout::start(connection_weak_ptr conn) {
     if (!dbus_timeout_get_enabled(m_timeout)) {
         return;
     }
 
-    connection_weak_ptr conn_weak = conn->weak_from_this();
-    m_timer.async_wait([this, conn_weak](const boost::system::error_code& ec) {
+    auto self = this->from_this();
+    m_timer.async_wait([s = std::move(self), c = std::move(conn)](const auto& ec) {
         if (ec) {
             if (ec == boost::asio::error::operation_aborted) {
                 return;
@@ -39,12 +38,16 @@ void timeout::start(connection* conn) {
             return;
         }
 
-        auto conn = conn_weak.lock();
+        auto conn = c.lock();
         if (!conn) {
             return;
         }
 
-        dbus_timeout_handle(m_timeout);
+        timeout*        t = s.get();
+        std::lock_guard lock(conn->m_mutex);
+        if (t->m_timeout && conn->is_connected()) {
+            dbus_timeout_handle(t->m_timeout);
+        }
     });
 
     int interval = dbus_timeout_get_interval(m_timeout);
@@ -52,6 +55,7 @@ void timeout::start(connection* conn) {
 }
 
 void timeout::stop() {
+    m_timeout = nullptr;
     m_timer.cancel();
 }
 

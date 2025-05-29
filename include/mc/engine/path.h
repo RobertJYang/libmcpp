@@ -145,6 +145,13 @@ public:
     std::string basename() const;
 
     /**
+     * 验证路径是否有效
+     *
+     * @return 如果路径有效返回true
+     */
+    bool is_valid() const;
+
+    /**
      * 验证字符串是否为有效的DBus对象路径
      *
      * @param p 要验证的路径字符串

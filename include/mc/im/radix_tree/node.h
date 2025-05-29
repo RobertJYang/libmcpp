@@ -17,9 +17,8 @@
 #include <cstdint>
 #include <functional>
 #include <mc/im/key_buffer.h>
-#include <mc/im/ref_base.h>
 #include <mc/im/ref_list.h>
-#include <mc/im/ref_ptr.h>
+#include <mc/ref_ptr.h>
 #include <memory>
 #include <optional>
 #include <vector>
@@ -164,7 +163,7 @@ using edges =
  * @tparam Config 树配置类型
  */
 template <typename Config>
-class node : public ref_base {
+class node : public ref_base<node<Config>> {
 public:
     // 从配置中提取类型
     using leaf_type              = typename Config::leaf_type;

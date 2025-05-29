@@ -244,7 +244,9 @@ message message::new_message(message_type msg_type) {
 message message::new_error_message(std::string_view error_name, std::string_view error_message) {
     message msg = new_message(message_type::error);
     msg.set_error_name(error_name);
-    msg.writer() << error_message;
+    if (!error_message.empty()) {
+        msg.writer() << error_message;
+    }
     return msg;
 }
 
@@ -639,8 +641,7 @@ const message_reader& operator>>(const message_reader& reader, mc::blob& v) {
 
 const message_reader& operator>>(const message_reader& reader, mc::variant& v) {
     reader.read_variant(v, 0);
-
-    return reader.next();
+    return reader;
 }
 
 const message_reader& operator>>(const message_reader& reader, mc::variants& v) {
@@ -693,12 +694,13 @@ void message_reader::read_variant_array_or_dict(mc::variant& v, std::size_t dept
         mc::mutable_dict dict;
         sub_reader.read_variant_dict(dict, depth);
         v = std::move(dict);
-        return;
+    } else {
+        mc::variants arr;
+        sub_reader.read_variant_array(arr, depth);
+        v = std::move(arr);
     }
 
-    mc::variants arr;
-    sub_reader.read_variant_array(arr, depth);
-    v = std::move(arr);
+    next();
 }
 
 void message_reader::read_variant_array(mc::variants& arr, std::size_t depth) const {
@@ -708,7 +710,6 @@ void message_reader::read_variant_array(mc::variants& arr, std::size_t depth) co
         mc::variant item;
         read_variant_value(current_type(), item, depth + 1);
         arr.emplace_back(std::move(item));
-        next();
     }
 }
 
@@ -720,7 +721,6 @@ void message_reader::read_variant_struct(mc::variant& v, std::size_t depth) cons
         mc::variant item;
         read_variant_value(current_type(), item, depth + 1);
         arr.emplace_back(std::move(item));
-        next();
     }
 
     v = std::move(arr);
@@ -750,6 +750,7 @@ void message_reader::read_variant(mc::variant& v, std::size_t depth) const {
     message_reader v_reader;
     v_reader.recurse(*this);
     v_reader.read_variant_value(v_reader.current_type(), v, depth + 1);
+    next();
 }
 
 void message_reader::read_variant_value(type_code type, mc::variant& v, std::size_t depth) const {
@@ -813,29 +814,39 @@ void message_writer::close_container() {
 }
 
 const message_writer& operator<<(const message_writer& writer, const std::string& v) {
-    const char* str = v.c_str();
-    dbus_message_iter_append_basic(&writer.m_iter, DBUS_TYPE_STRING, &str);
-    return writer;
+    return operator<<(writer, std::string_view(v));
 }
 
 const message_writer& operator<<(const message_writer& writer, const char* str) {
-    dbus_message_iter_append_basic(&writer.m_iter, DBUS_TYPE_STRING, str);
-    return writer;
+    if (str == nullptr) {
+        return writer;
+    }
+    return operator<<(writer, std::string_view(str));
 }
 
 const message_writer& operator<<(const message_writer& writer, const std::string_view& v) {
+    MC_ASSERT(mc::string::is_valid_utf8(v), "invalid utf-8 string: ${str}", ("str", v));
+
     const char* str = v.data();
+    if (str == nullptr) {
+        str = "";
+    }
+
     dbus_message_iter_append_basic(&writer.m_iter, DBUS_TYPE_STRING, &str);
     return writer;
 }
 
 const message_writer& operator<<(const message_writer& writer, const mc::dbus::path& v) {
+    MC_ASSERT(v.is_valid(), "invalid path: ${v}", ("v", v.str()));
+
     const char* str = v.str().c_str();
     dbus_message_iter_append_basic(&writer.m_iter, DBUS_TYPE_OBJECT_PATH, &str);
     return writer;
 }
 
 const message_writer& operator<<(const message_writer& writer, const mc::dbus::signature& v) {
+    MC_ASSERT(v.is_valid(), "invalid signature: ${v}", ("v", v.str()));
+
     const char* str = v.str().c_str();
     dbus_message_iter_append_basic(&writer.m_iter, DBUS_TYPE_SIGNATURE, &str);
     return writer;

@@ -68,12 +68,12 @@ void message_queue::dispatch(int timeout_ms, int max_read_count,
         message_data msg_data;
         if (is_dbus_message(data)) {
             mc::dbus::error err;
-            DBusMessage* dbus_msg = dbus_message_demarshal(data.data(), data.size(), &err);
+            DBusMessage*    dbus_msg = dbus_message_demarshal(data.data(), data.size(), &err);
             if (err.is_set()) {
                 elog("dbus message marshal failed: ${error}", ("error", err.message));
                 return;
             }
-            msg_data.ptr = dbus_msg;
+            msg_data.ptr  = dbus_msg;
             msg_data.size = -1;
         } else {
             msg_data.ptr = malloc(data.size());
@@ -227,7 +227,7 @@ shm::message_queue_t* harbor::get_destination_msg_queue(std::string_view destina
 void harbor::dbus_reply(local_msg* msg) {
     auto dbus_msg = msg->new_dbus_msg();
     dbus_msg.set_member("shm_reply");
-    m_connection->send(std::move(dbus_msg));
+    m_connection.send(std::move(dbus_msg));
 }
 
 void harbor::invoke_method(local_msg* msg) {
@@ -258,14 +258,15 @@ void harbor::invoke_method(local_msg* msg) {
     }
     set_serial(msg);
     auto reply_destination = msg->destination();
-    auto msg_queue = get_destination_msg_queue(reply_destination);
+    auto msg_queue         = get_destination_msg_queue(reply_destination);
     if (msg_queue == nullptr) {
         elog("failed to get message queue: ${destination}", ("destination", reply_destination));
         dbus_reply(msg);
         return;
     }
     if (!msg_queue->push_back(serialize::pack(msg->to_variants()), MSG_QUEUE_PUSH_TIMEOUT)) {
-        elog("failed to push message to message queue: ${destination}", ("destination", reply_destination));
+        elog("failed to push message to message queue: ${destination}",
+             ("destination", reply_destination));
         dbus_reply(msg);
     }
 }
@@ -274,13 +275,14 @@ void harbor::process_message(message_data& msg_data) {
     if (msg_data.size < 0) {
         process_dbus_message(reinterpret_cast<DBusMessage*>(msg_data.ptr));
     } else {
-        auto unpacked = serialize::unpack(std::string_view(static_cast<char*>(msg_data.ptr), msg_data.size));
+        auto unpacked =
+            serialize::unpack(std::string_view(static_cast<char*>(msg_data.ptr), msg_data.size));
         free(msg_data.ptr);
         process_local_message(unpacked);
     }
 }
 
-void harbor::process_dbus_message(DBusMessage *msg) {
+void harbor::process_dbus_message(DBusMessage* msg) {
     int msg_type = dbus_message_get_type(msg);
     if (msg_type != DBUS_MESSAGE_TYPE_SIGNAL) {
         elog("invalid message type ${type} for shared memory queue", ("type", msg_type));
@@ -317,17 +319,17 @@ void harbor::start() {
         MC_THROW(mc::exception, "harbor name is empty");
     }
     std::lock_guard<std::mutex> lock(m_mutex);
-    if (m_connection) {
+    if (m_connection.is_connected()) {
         return;
     }
-    auto connection = connection::open_session_bus(m_strand);
-    if (!connection || !connection->start()) {
+    auto connection = connection::open_session_bus(mc::engine::get_io_context());
+    if (!connection.start()) {
         MC_THROW(mc::exception, "failed to start dbus connection");
     }
-    if (!connection->request_name(m_harbor_name)) {
+    if (!connection.request_name(m_harbor_name)) {
         MC_THROW(mc::exception, "failed to request name: ${name}", ("name", m_harbor_name));
     }
-    m_unique_name = connection->get_unique_name();
+    m_unique_name = connection.get_unique_name();
     m_connection  = connection;
     create_shm_tree(m_harbor_name, m_harbor_name, m_unique_name);
     shm_lock_call([this]() {
@@ -337,7 +339,7 @@ void harbor::start() {
         MC_THROW(mc::exception, "failed to init message queue");
     }
     m_is_running = true;
-    m_worker = std::make_unique<std::thread>([this]() {
+    m_worker     = std::make_unique<std::thread>([this]() {
         while (m_is_running) {
             m_mq->dispatch(1000, 1000, [this](message_data& msg_data) {
                 process_message(msg_data);
@@ -350,10 +352,7 @@ void harbor::start() {
 void harbor::stop() {
     std::lock_guard<std::mutex> lock(m_mutex);
     m_is_running = false;
-    if (m_connection) {
-        m_connection->disconnect();
-        m_connection.reset();
-    }
+    m_connection.disconnect();
     if (m_worker) {
         m_worker->join();
         m_worker.reset();
@@ -367,7 +366,7 @@ void harbor::register_unique_name(std::string unique_name, std::string service_n
 
 std::string harbor::get_unique_name(std::string_view service_name) {
     std::lock_guard lock(m_unique_name_map_mutex);
-    auto it = m_unique_name_map.find(std::string(service_name));
+    auto            it = m_unique_name_map.find(std::string(service_name));
     if (it == m_unique_name_map.end()) {
         MC_THROW(mc::system_exception, "failed to get unique name for service ${service_name}",
                  ("service_name", service_name));
@@ -393,7 +392,7 @@ bool harbor::reply_shm_msg(std::string_view destination_name, uint32_t serial,
 
 void harbor::unregister_service(std::string service_name) {
     std::lock_guard lock(m_unique_name_map_mutex);
-    auto it = m_unique_name_map.find(std::string(service_name));
+    auto            it = m_unique_name_map.find(std::string(service_name));
     if (it != m_unique_name_map.end()) {
         m_shm_pending_msgs.clear(it->second);
         m_unique_name_map.erase(it);

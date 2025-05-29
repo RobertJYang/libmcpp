@@ -10,7 +10,7 @@
  * See the Mulan PSL v2 for more details.
  */
 
-#include <mc/dbus/dispatch/pending_call.h>
+#include "pending_call.h"
 
 namespace mc::dbus {
 
@@ -69,11 +69,6 @@ void pending_call::handle_reply() {
     if (msg) {
         on_reply(message(msg));
     }
-}
-
-void pending_call::handle_timeout() {
-    stop();
-    on_reply(message::new_error_message(error_names::timeout));
 }
 
 } // namespace mc::dbus

@@ -13,16 +13,15 @@
 #ifndef MC_IM_NODE_PTR_H
 #define MC_IM_NODE_PTR_H
 
-#include <cstddef>
-#include <mc/im/ref_base.h>
+#include <mc/ref_base.h>
+
 #include <memory>
 #include <type_traits>
 #include <utility>
 
-namespace mc::im {
-
+namespace mc {
 template <typename T, typename Alloc = std::allocator<T>, typename... Args>
-T* allocate(const Alloc& alloc, Args&&... args) {
+T* allocate_ptr(const Alloc& alloc, Args&&... args) {
     using AllocTraits  = std::allocator_traits<Alloc>;
     using ReboundAlloc = typename AllocTraits::template rebind_alloc<T>;
 
@@ -50,7 +49,7 @@ T* allocate(const Alloc& alloc, Args&&... args) {
  * @param ptr 指向要销毁的对象的指针
  */
 template <typename T, typename Alloc = std::allocator<T>>
-void destroy(const Alloc& alloc, T* ptr) {
+void destroy_ptr(const Alloc& alloc, T* ptr) {
     using AllocTraits  = std::allocator_traits<Alloc>;
     using ReboundAlloc = typename AllocTraits::template rebind_alloc<T>;
 
@@ -90,7 +89,7 @@ void destroy_ptr(T* ptr) {
 /**
  * ref_ptr 智能指针，类似 std::shared_ptr 但专门用于管理 ref_base 对象
  */
-template <typename T, typename PointerType = T*>
+template <typename T, typename PointerType>
 class ref_ptr {
 public:
     using element_type = T;
@@ -276,7 +275,7 @@ bool operator<(const ref_ptr<T>& lhs, T* rhs) noexcept {
 
 template <typename T, typename Alloc = std::allocator<T>, typename... Args>
 ref_ptr<T> allocate_ref(const Alloc& alloc, Args&&... args) {
-    return ref_ptr<T>(allocate<T, Alloc>(alloc, std::forward<Args>(args)...));
+    return ref_ptr<T>(allocate_ptr<T, Alloc>(alloc, std::forward<Args>(args)...));
 }
 
 /**
@@ -289,21 +288,9 @@ ref_ptr<T> allocate_ref(const Alloc& alloc, Args&&... args) {
  */
 template <typename T, typename... Args>
 ref_ptr<T> make_ref(Args&&... args) {
-    return mc::im::allocate_ref<T>(std::allocator<T>(), std::forward<Args>(args)...);
+    return ref_ptr<T>(allocate_ptr<T>(std::allocator<T>(), std::forward<Args>(args)...));
 }
 
-template <typename ObjectType>
-mc::im::ref_ptr<ObjectType> cast(ref_base* ptr) {
-    auto* p = static_cast<ObjectType*>(ptr);
-    return mc::im::ref_ptr<ObjectType>(p);
-}
-
-template <typename ObjectType>
-mc::im::ref_ptr<const ObjectType> cast(const ref_base* ptr) {
-    auto* p = static_cast<const ObjectType*>(ptr);
-    return mc::im::ref_ptr<const ObjectType>(p);
-}
-
-} // namespace mc::im
+} // namespace mc
 
 #endif // MC_IM_NODE_PTR_H

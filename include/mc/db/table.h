@@ -24,7 +24,7 @@
 #include <mc/db/transaction.h>
 #include <mc/exception.h>
 #include <mc/im/radix_tree.h>
-#include <mc/im/ref_ptr.h>
+#include <mc/ref_ptr.h>
 #include <mc/reflect.h>
 #include <mc/signal_slot.h>
 #include <mc/traits.h>
@@ -307,8 +307,8 @@ class table : public table_base {
 public:
     using object_type           = ObjectType;
     using indices_def           = typename IndexDef::indices;
-    using object_ptr_type       = mc::im::ref_ptr<object_type>;
-    using const_object_ptr_type = mc::im::ref_ptr<const object_type>;
+    using object_ptr_type       = mc::ref_ptr<object_type>;
+    using const_object_ptr_type = mc::ref_ptr<const object_type>;
     using index_map_config      = mc::im::tree_config<object_ptr_type, Allocator>;
     using index_txn_type        = mc::im::transaction<index_map_config>;
     using alloc_type            = typename index_txn_type::allocator_type;
@@ -354,7 +354,7 @@ public:
      * @return 成功返回true，失败返回false
      */
     object_ptr_type add(const object_type& obj, transaction* txn = nullptr) {
-        auto obj_ptr = mc::core::make_ref<object_type>(obj);
+        auto obj_ptr = mc::make_ref<object_type>(obj);
         return add(obj_ptr, txn);
     }
 
@@ -413,7 +413,7 @@ public:
 
     object_ptr_type update(object_ptr_type old_obj_ptr, const object_type& new_obj,
                            transaction* txn = nullptr) {
-        auto new_obj_ptr = mc::core::make_ref<object_type>(new_obj);
+        auto new_obj_ptr = mc::make_ref<object_type>(new_obj);
         new_obj_ptr->set_object_id(old_obj_ptr->get_object_id());
         return update(old_obj_ptr, new_obj_ptr, txn);
     }
@@ -777,7 +777,7 @@ public:
         size_t removed_count = 0;
 
         auto handler = [&](object_type& obj) -> bool {
-            if (remove(mc::im::ref_ptr<object_type>(const_cast<object_type*>(&obj)), txn)) {
+            if (remove(mc::ref_ptr<object_type>(const_cast<object_type*>(&obj)), txn)) {
                 removed_count++;
             }
             return true;
@@ -847,7 +847,7 @@ protected:
     object_ptr do_add_object(const mc::dict& var, transaction* txn) override {
         if constexpr (mc::reflect::is_reflectable<object_type>() &&
                       std::is_constructible_v<object_type>) {
-            auto obj = mc::core::make_ref<object_type>();
+            auto obj = mc::make_ref<object_type>();
             from_variant(var, *obj);
             return add(obj, txn).template cast<object_base>();
         } else {
@@ -928,9 +928,9 @@ private:
 
         auto handler = [&](const object_type& obj) -> bool {
             if constexpr (mc::traits::is_copyable_v<object_type>) {
-                auto new_obj = mc::core::make_ref<object_type>(obj);
+                auto new_obj = mc::make_ref<object_type>(obj);
                 update_object(*new_obj, values);
-                if (update(mc::im::ref_ptr<object_type>(const_cast<object_type*>(&obj)), new_obj,
+                if (update(mc::ref_ptr<object_type>(const_cast<object_type*>(&obj)), new_obj,
                            txn)) {
                     updated_count++;
                 }

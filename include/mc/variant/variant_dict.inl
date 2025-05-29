@@ -66,17 +66,17 @@ variant_base<Config>::variant_base(const variant_base& other) {
         m_bool = other.m_bool;
         break;
     case type_id::string_type:
-        m_string_ptr = mc::im::allocate<string_type>(m_alloc, other.m_string_ptr->data(),
+        m_string_ptr = mc::allocate_ptr<string_type>(m_alloc, other.m_string_ptr->data(),
                                                      other.m_string_ptr->size(), m_alloc);
         break;
     case type_id::array_type:
-        m_array_ptr = mc::im::allocate<array_type>(m_alloc, *other.m_array_ptr, m_alloc);
+        m_array_ptr = mc::allocate_ptr<array_type>(m_alloc, *other.m_array_ptr, m_alloc);
         break;
     case type_id::object_type:
-        m_object_ptr = mc::im::allocate<object_type>(m_alloc, *other.m_object_ptr);
+        m_object_ptr = mc::allocate_ptr<object_type>(m_alloc, *other.m_object_ptr);
         break;
     case type_id::blob_type:
-        m_blob_ptr = mc::im::allocate<blob_type>(m_alloc, other.m_blob_ptr->data.data(),
+        m_blob_ptr = mc::allocate_ptr<blob_type>(m_alloc, other.m_blob_ptr->data.data(),
                                                  other.m_blob_ptr->data.size(), m_alloc);
         break;
     default:
@@ -112,21 +112,21 @@ variant_base<Config>::variant_base(const variant_base<OtherConfig>& other,
         m_bool = other.m_bool;
         break;
     case type_id::string_type:
-        m_string_ptr = mc::im::allocate<string_type>(m_alloc, other.m_string_ptr->data(),
+        m_string_ptr = mc::allocate_ptr<string_type>(m_alloc, other.m_string_ptr->data(),
                                                      other.m_string_ptr->size(), m_alloc);
         break;
     case type_id::array_type: {
-        m_array_ptr = mc::im::allocate<array_type>(m_alloc, m_alloc);
+        m_array_ptr = mc::allocate_ptr<array_type>(m_alloc, m_alloc);
         for (auto& item : *other.m_array_ptr) {
             m_array_ptr->emplace_back(item, m_alloc);
         }
         break;
     }
     case type_id::object_type:
-        m_object_ptr = mc::im::allocate<object_type>(m_alloc, *other.m_object_ptr);
+        m_object_ptr = mc::allocate_ptr<object_type>(m_alloc, *other.m_object_ptr);
         break;
     case type_id::blob_type:
-        m_blob_ptr = mc::im::allocate<blob_type>(m_alloc, other.m_blob_ptr->data.data(),
+        m_blob_ptr = mc::allocate_ptr<blob_type>(m_alloc, other.m_blob_ptr->data.data(),
                                                  other.m_blob_ptr->data.size(), m_alloc);
         break;
     default:
@@ -138,16 +138,16 @@ template <typename Config>
 void variant_base<Config>::clear() {
     switch (m_type) {
     case type_id::string_type:
-        mc::im::destroy(m_alloc, m_string_ptr);
+        mc::destroy_ptr(m_alloc, m_string_ptr);
         break;
     case type_id::array_type:
-        mc::im::destroy(m_alloc, m_array_ptr);
+        mc::destroy_ptr(m_alloc, m_array_ptr);
         break;
     case type_id::object_type:
-        mc::im::destroy(m_alloc, m_object_ptr);
+        mc::destroy_ptr(m_alloc, m_object_ptr);
         break;
     case type_id::blob_type:
-        mc::im::destroy(m_alloc, m_blob_ptr);
+        mc::destroy_ptr(m_alloc, m_blob_ptr);
         break;
     default:
         break;

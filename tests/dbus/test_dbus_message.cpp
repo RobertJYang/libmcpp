@@ -809,3 +809,41 @@ TEST_F(dbus_message_test, test_empty_array) {
     EXPECT_EQ(args.size(), 1);
     EXPECT_EQ(args[0].get_type(), mc::type_id::array_type);
 }
+
+TEST_F(dbus_message_test, test_read_args) {
+    mc::dbus::message msg = message::new_method_call("org.example.Test", "/org/example/Test",
+                                                     "org.example.Test", "TestVariantNesting");
+    msg.set_sender("org.example.Test");
+    msg.set_serial(1);
+
+    auto writer = msg.writer();
+    writer << mc::dict{{"key", "value"}, {"key2", "value2"}} << "123" << 123 << true;
+
+    auto [data_ptr, size] = msg.marshal();
+
+    // 使用原生 libdbus 接口读取数据
+    DBusError dbus_err;
+    dbus_error_init(&dbus_err);
+
+    DBusMessage* dbus_msg = dbus_message_demarshal(data_ptr.get(), size, &dbus_err);
+    ASSERT_FALSE(dbus_error_is_set(&dbus_err));
+    ASSERT_TRUE(dbus_msg != nullptr);
+
+    EXPECT_STREQ(dbus_message_get_signature(dbus_msg), "a{sv}sib");
+
+    dbus_message_unref(dbus_msg);
+    dbus_error_free(&dbus_err);
+
+    // 使用 mc::dbus::message 读取数据
+    mc::dbus::message mc_msg;
+    error             err;
+    mc_msg.demarshal(data_ptr.get(), size, err);
+    EXPECT_FALSE(err.is_set());
+
+    auto args = mc_msg.read_args();
+    EXPECT_EQ(args.size(), 4);
+    EXPECT_EQ(args[0].get_type(), mc::type_id::object_type);
+    EXPECT_EQ(args[1].get_type(), mc::type_id::string_type);
+    EXPECT_EQ(args[2].get_type(), mc::type_id::int32_type);
+    EXPECT_EQ(args[3].get_type(), mc::type_id::bool_type);
+}

@@ -95,6 +95,10 @@ std::string path::basename() const {
     return m_path.substr(pos + 1);
 }
 
+bool path::is_valid() const {
+    return is_valid(m_path);
+}
+
 bool path::is_valid(std::string_view p) {
     // 必须以'/'开头
     if (p.empty() || p[0] != '/') {

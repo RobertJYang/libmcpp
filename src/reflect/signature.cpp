@@ -86,6 +86,10 @@ void signature::clear() {
     m_sig.clear();
 }
 
+bool signature::is_valid() const {
+    return is_valid(m_sig);
+}
+
 bool signature::is_valid(std::string_view sig) {
     // 签名的最大长度为255
     if (sig.size() > max_signature_length) {

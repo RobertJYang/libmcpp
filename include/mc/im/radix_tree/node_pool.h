@@ -286,7 +286,7 @@ typename node_pool<Config>::node_ptr node_pool<Config>::new_node(leaf_type leaf,
         n->m_prefix = prefix;
         n->m_edges  = std::move(edges);
     } else {
-        n = mc::im::allocate_ref<node_type>(m_allocator, leaf, prefix, std::move(edges));
+        n = mc::allocate_ref<node_type>(m_allocator, leaf, prefix, std::move(edges));
     }
 
     n->m_version = m_version;
