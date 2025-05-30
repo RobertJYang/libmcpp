@@ -15,28 +15,25 @@
 
 namespace mc::futures {
 
-template <typename PromisePtr, typename State>
-void set_promise_exception(PromisePtr& promise, State& state) {
-    promise->set_exception(std::get<std::exception_ptr>(state->result));
-}
-
-template <typename PromisePtr, typename F, typename... Args>
-void set_promise_value(PromisePtr& promise, F&& func, Args&&... args) {
-    if constexpr (std::is_same_v<std::invoke_result_t<F, Args...>, void>) {
-        func(std::forward<Args>(args)...);
-        promise->set_value();
-    } else if constexpr (detail::is_future_v<std::invoke_result_t<F, Args...>>) {
-        auto future = func(std::forward<Args>(args)...);
-        future
-            .then([promise](auto&& value) {
+// 调用 handler 并根据返回值类型设置 promise 结果
+template <typename PromisePtr, typename Handler, typename... Args>
+void set_promise_value(PromisePtr& promise, Handler&& handler, Args&&... args) {
+    try {
+        if constexpr (std::is_same_v<std::invoke_result_t<Handler, Args...>, void>) {
+            handler(std::forward<Args>(args)...);
+            promise->set_value();
+        } else if constexpr (detail::is_future_v<std::invoke_result_t<Handler, Args...>>) {
+            auto future = handler(std::forward<Args>(args)...);
+            future.then([promise](auto&& value) {
                 promise->set_value(std::forward<decltype(value)>(value));
-            })
-            .catch_error([promise](const std::exception& ec) {
+            }).catch_error([promise](const mc::exception& ec) {
                 promise->set_exception(std::current_exception());
-                return 0;
             });
-    } else {
-        promise->set_value(func(std::forward<Args>(args)...));
+        } else {
+            promise->set_value(handler(std::forward<Args>(args)...));
+        }
+    } catch (...) {
+        promise->set_exception(std::current_exception());
     }
 }
 
@@ -53,6 +50,51 @@ void handle_result_impl(PromisePtr& promise, F&& func, State& state) {
             set_promise_value(promise, func, std::move(*value));
         } else {
             set_promise_exception(promise, state);
+        }
+    }
+}
+
+// 可以处理值传递或异常传递的情况
+template <typename T, typename PromisePtr, typename F, typename State>
+void handle_state_result(PromisePtr& promise, F&& func, State& state) {
+    handle_result_impl<std::is_void_v<T>, T>(promise, std::forward<F>(func), state);
+}
+
+// 直接传递状态结果（不调用任何函数，仅传递值或异常）
+template <typename T, typename PromisePtr, typename State>
+void forward_state_result(PromisePtr& promise, State& state) {
+    if constexpr (std::is_void_v<T>) {
+        if (std::holds_alternative<std::monostate>(state->result)) {
+            promise->set_value();
+        } else {
+            promise->set_exception(std::get<std::exception_ptr>(state->result));
+        }
+    } else {
+        if (auto* value = std::get_if<T>(&state->result)) {
+            promise->set_value(std::move(*value));
+        } else {
+            promise->set_exception(std::get<std::exception_ptr>(state->result));
+        }
+    }
+}
+
+// 在传递状态结果前先调用检查函数（用于 tap）
+template <typename T, typename PromisePtr, typename F, typename State>
+void inspect_and_forward_state_result(PromisePtr& promise, F&& inspector, State& state) {
+    if constexpr (std::is_void_v<T>) {
+        if (std::holds_alternative<std::monostate>(state->result)) {
+            inspector(); // 查看成功状态
+            promise->set_value();
+        } else {
+            // 对于异常情况，直接传递异常
+            promise->set_exception(std::get<std::exception_ptr>(state->result));
+        }
+    } else {
+        if (auto* value = std::get_if<T>(&state->result)) {
+            inspector(*value);          // 查看值但不改变
+            promise->set_value(*value); // 传递原值
+        } else {
+            promise->set_exception(std::get<std::exception_ptr>(state->result));
         }
     }
 }
@@ -93,7 +135,7 @@ T Future<T, Executor, Allocator>::get_for(
     const std::chrono::duration<Rep, Period>& timeout_duration) {
     auto status = wait_for(timeout_duration);
     if (status == future_status::timeout) {
-        throw timeout_error();
+        MC_THROW(mc::timeout_exception, "Future 超时");
     }
     return get();
 }
@@ -110,8 +152,8 @@ void Future<T, Executor, Allocator>::wait() const {
     if (state_->deferred) {
         return;
     }
-    state_->cv.wait(lock, [this] {
-        return state_->ready;
+    state_->cv.wait(lock, [&] {
+        return state_->ready.load();
     });
 }
 
@@ -123,9 +165,9 @@ future_status Future<T, Executor, Allocator>::wait_for(
     if (state_->deferred) {
         return future_status::deferred;
     }
-    if (state_->cv.wait_for(lock, timeout_duration, [this] {
-            return state_->ready;
-        })) {
+    if (state_->cv.wait_for(lock, timeout_duration, [&] {
+        return state_->ready.load();
+    })) {
         return future_status::ready;
     }
     return future_status::timeout;
@@ -139,9 +181,9 @@ future_status Future<T, Executor, Allocator>::wait_until(
     if (state_->deferred) {
         return future_status::deferred;
     }
-    if (state_->cv.wait_until(lock, timeout_time, [this] {
-            return state_->ready;
-        })) {
+    if (state_->cv.wait_until(lock, timeout_time, [&] {
+        return state_->ready.load();
+    })) {
         return future_status::ready;
     }
     return future_status::timeout;
@@ -163,28 +205,25 @@ void Future<T, Executor, Allocator>::async_get(CompletionToken&& token, launch p
         if (policy == launch::deferred) {
             state_->continuations.push_back(
                 [state = state_, handler = std::move(handle_result)]() mutable {
-                    handler(state);
-                });
+                handler(state);
+            });
             state_->deferred = true;
             state_->policy   = policy;
         } else if (policy == launch::dispatch) {
             state_->executor.dispatch(
                 [state = state_, handler = std::move(handle_result)]() mutable {
-                    handler(state);
-                },
-                state_->allocator);
+                handler(state);
+            }, state_->allocator);
         } else {
-            state_->executor.post(
-                [state = state_, handler = std::move(handle_result)]() mutable {
-                    handler(state);
-                },
-                state_->allocator);
+            state_->executor.post([state = state_, handler = std::move(handle_result)]() mutable {
+                handler(state);
+            }, state_->allocator);
         }
     } else {
         state_->continuations.push_back(
             [state = state_, handler = std::move(handle_result)]() mutable {
-                handler(state);
-            });
+            handler(state);
+        });
     }
 }
 
@@ -251,50 +290,73 @@ auto Future<T, Executor, Allocator>::then(F&& func, launch policy)
     return future;
 }
 
+template <typename PromisePtr>
+void handle_no_error_case(PromisePtr& promise) {
+    using ValueType = typename PromisePtr::element_type::future_type::value_type;
+    if constexpr (std::is_same_v<ValueType, void>) {
+        promise->set_value();
+    } else {
+        promise->set_exception(std::make_exception_ptr(std::runtime_error("No error occurred")));
+    }
+}
+
+template <typename PromisePtr, typename Handler, typename State>
+void handle_exception_case(PromisePtr& promise, Handler&& handler, State& state) {
+    try {
+        std::exception_ptr eptr = std::get<std::exception_ptr>(state->result);
+        std::rethrow_exception(eptr);
+
+    } catch (const mc::exception& mc_ex) {
+        set_promise_value(promise, std::forward<Handler>(handler), mc_ex);
+    } catch (const std::exception& std_ex) {
+        auto wrapped_ex = mc::std_exception_wrapper::from_current_exception(std_ex);
+        set_promise_value(promise, std::forward<Handler>(handler), wrapped_ex);
+    } catch (...) {
+        auto unknown_ex = MC_MAKE_EXCEPTION(mc::exception, "Unknown Future Exception");
+        set_promise_value(promise, std::forward<Handler>(handler), unknown_ex);
+    }
+}
+
+template <typename T, typename PromisePtr, typename Handler, typename State>
+void process_error_result(PromisePtr& promise, Handler&& handler, State& state) {
+    using HandlerResultType = std::invoke_result_t<Handler, const mc::exception&>;
+
+    if constexpr (std::is_same_v<T, void>) {
+        if (std::holds_alternative<std::monostate>(state->result)) {
+            if constexpr (std::is_same_v<HandlerResultType, void>) {
+                promise->set_value();
+            } else {
+                promise->set_exception(std::make_exception_ptr(std::runtime_error("Cannot change return type from void in catch_error")));
+            }
+        } else {
+            handle_exception_case(promise, std::forward<Handler>(handler), state);
+        }
+    } else {
+        if (auto* value = std::get_if<T>(&state->result)) {
+            if constexpr (std::is_same_v<HandlerResultType, T>) {
+                promise->set_value(std::move(*value));
+            } else {
+                promise->set_exception(std::make_exception_ptr(std::runtime_error("catch_error handler return type must match previous chain type when no error occurs")));
+            }
+        } else {
+            handle_exception_case(promise, std::forward<Handler>(handler), state);
+        }
+    }
+}
+
 template <typename T, typename Executor, typename Allocator>
 template <typename F>
 auto Future<T, Executor, Allocator>::catch_error(F&& handler)
-    -> Future<typename std::invoke_result_t<F, std::exception&>, Executor, Allocator> {
-    using ResultType = typename std::invoke_result_t<F, std::exception&>;
-    auto promise     = std::make_shared<Promise<ResultType, Executor, Allocator>>(state_->executor,
-                                                                                  state_->allocator);
-    auto future      = promise->get_future();
+    -> Future<std::invoke_result_t<F, const mc::exception&>, Executor, Allocator> {
+    using ResultType = std::invoke_result_t<F, const mc::exception&>;
+
+    auto promise = std::make_shared<Promise<ResultType, Executor, Allocator>>(state_->executor,
+                                                                              state_->allocator);
+    auto future  = promise->get_future();
 
     auto handle_result = [promise, handler = std::forward<F>(handler), state = state_]() mutable {
         try {
-            if constexpr (std::is_same_v<T, void>) {
-                if (std::holds_alternative<std::monostate>(state->result)) {
-                    promise->set_exception(
-                        std::make_exception_ptr(std::runtime_error("No error occurred")));
-                } else {
-                    try {
-                        std::exception_ptr eptr = std::get<std::exception_ptr>(state->result);
-                        try {
-                            std::rethrow_exception(eptr);
-                        } catch (std::exception& e) {
-                            promise->set_value(handler(e));
-                        }
-                    } catch (...) {
-                        promise->set_exception(std::current_exception());
-                    }
-                }
-            } else {
-                if (auto* value = std::get_if<T>(&state->result)) {
-                    promise->set_exception(
-                        std::make_exception_ptr(std::runtime_error("No error occurred")));
-                } else {
-                    try {
-                        std::exception_ptr eptr = std::get<std::exception_ptr>(state->result);
-                        try {
-                            std::rethrow_exception(eptr);
-                        } catch (std::exception& e) {
-                            promise->set_value(handler(e));
-                        }
-                    } catch (...) {
-                        promise->set_exception(std::current_exception());
-                    }
-                }
-            }
+            process_error_result<T>(promise, std::move(handler), state);
         } catch (...) {
             promise->set_exception(std::current_exception());
         }
@@ -308,6 +370,321 @@ auto Future<T, Executor, Allocator>::catch_error(F&& handler)
     }
 
     return future;
+}
+
+template <typename T, typename Executor, typename Allocator>
+template <typename F>
+auto Future<T, Executor, Allocator>::finally(F&& cleanup) -> Future<T, Executor, Allocator> {
+    auto promise = std::make_shared<Promise<T, Executor, Allocator>>(state_->executor, state_->allocator);
+    auto future  = promise->get_future();
+
+    auto handle_result = [promise, cleanup = std::forward<F>(cleanup), state = state_]() mutable {
+        try {
+            // 无论成功失败都执行清理操作
+            cleanup();
+
+            // 然后传递原来的结果或异常
+            forward_state_result<T>(promise, state);
+        } catch (...) {
+            promise->set_exception(std::current_exception());
+        }
+    };
+
+    std::unique_lock<std::mutex> lock(state_->mutex);
+    if (state_->ready) {
+        state_->executor.post(handle_result, state_->allocator);
+    } else {
+        state_->continuations.push_back(handle_result);
+    }
+
+    return future;
+}
+
+template <typename T, typename Executor, typename Allocator>
+template <typename F>
+auto Future<T, Executor, Allocator>::tap(F&& inspector) -> Future<T, Executor, Allocator> {
+    auto promise = std::make_shared<Promise<T, Executor, Allocator>>(state_->executor, state_->allocator);
+    auto future  = promise->get_future();
+
+    auto handle_result = [promise, inspector = std::forward<F>(inspector), state = state_]() mutable {
+        try {
+            inspect_and_forward_state_result<T>(promise, inspector, state);
+        } catch (...) {
+            promise->set_exception(std::current_exception());
+        }
+    };
+
+    std::unique_lock<std::mutex> lock(state_->mutex);
+    if (state_->ready) {
+        state_->executor.post(handle_result, state_->allocator);
+    } else {
+        state_->continuations.push_back(handle_result);
+    }
+
+    return future;
+}
+
+namespace detail {
+
+// 辅助结构体用于递归处理 tuple 中的 future
+template <std::size_t I, std::size_t N>
+struct when_all_helper {
+    template <typename SharedState, typename Tuple>
+    static void process(SharedState shared_state, Tuple& tuple_futures) {
+        auto&                 fut           = std::get<I>(tuple_futures);
+        constexpr std::size_t current_index = I;
+
+        fut.then([shared_state](auto&& value) {
+            std::lock_guard<std::mutex> lock(shared_state->mutex);
+            std::get<current_index>(shared_state->results) = std::forward<decltype(value)>(value);
+            shared_state->completed_count++;
+
+            if (shared_state->completed_count == shared_state->total_count) {
+                if (shared_state->first_exception) {
+                    shared_state->promise->set_exception(shared_state->first_exception);
+                } else {
+                    shared_state->promise->set_value(std::move(shared_state->results));
+                }
+            }
+        }).catch_error([shared_state](const mc::exception& e) {
+            std::lock_guard<std::mutex> lock(shared_state->mutex);
+            if (!shared_state->first_exception) {
+                shared_state->first_exception = std::current_exception();
+
+                // 如果是取消异常，立即取消其他子future
+                if (e.code() == mc::canceled_exception_code) {
+                    for (auto& cancel_cb : shared_state->cancel_callbacks) {
+                        cancel_cb();
+                    }
+                }
+            }
+            shared_state->completed_count++;
+            if (shared_state->completed_count == shared_state->total_count) {
+                shared_state->promise->set_exception(shared_state->first_exception);
+            }
+        });
+
+        // 递归处理下一个
+        when_all_helper<I + 1, N>::process(shared_state, tuple_futures);
+    }
+};
+
+// 递归终止条件
+template <std::size_t N>
+struct when_all_helper<N, N> {
+    template <typename SharedState, typename Tuple>
+    static void process(SharedState, Tuple&) {
+        // 递归终止，什么都不做
+    }
+};
+
+template <std::size_t I, std::size_t N>
+struct when_any_helper {
+    template <typename SharedState, typename Tuple, typename VariantType>
+    static void process(SharedState shared_state, Tuple& tuple_futures) {
+        auto&                 fut           = std::get<I>(tuple_futures);
+        constexpr std::size_t current_index = I;
+
+        fut.then([shared_state, current_index](auto&& value) {
+            std::lock_guard<std::mutex> lock(shared_state->mutex);
+            if (!shared_state->completed) {
+                shared_state->completed   = true;
+                VariantType variant_value = std::forward<decltype(value)>(value);
+                shared_state->promise->set_value(std::make_pair(current_index, std::move(variant_value)));
+
+                // 成功完成后，立即取消其他子future
+                for (auto& cancel_cb : shared_state->cancel_callbacks) {
+                    cancel_cb();
+                }
+            }
+        }).catch_error([shared_state](const mc::exception& e) {
+            std::lock_guard<std::mutex> lock(shared_state->mutex);
+            if (!shared_state->completed) {
+                // 如果是取消异常，增加取消计数
+                if (e.code() == mc::canceled_exception_code) {
+                    shared_state->canceled_count++;
+
+                    // 如果所有子future都被取消，传播取消异常
+                    if (shared_state->canceled_count == shared_state->total_count) {
+                        shared_state->completed = true;
+                        shared_state->promise->set_exception(std::current_exception());
+                    }
+                } else {
+                    // 非取消异常，立即传播
+                    shared_state->completed = true;
+                    shared_state->promise->set_exception(std::current_exception());
+                }
+            }
+        });
+
+        // 递归处理下一个
+        when_any_helper<I + 1, N>::template process<SharedState, Tuple, VariantType>(shared_state, tuple_futures);
+    }
+};
+
+// 递归终止条件
+template <std::size_t N>
+struct when_any_helper<N, N> {
+    template <typename SharedState, typename Tuple, typename VariantType>
+    static void process(SharedState, Tuple&) {
+        // 递归终止，什么都不做
+    }
+};
+
+} // namespace detail
+
+// all 实现：等待所有 future 完成
+template <typename... Futures>
+auto all(Futures&&... futures)
+    -> Future<std::tuple<typename std::decay_t<Futures>::value_type...>,
+              typename std::decay_t<std::tuple_element_t<0, std::tuple<Futures...>>>::executor_type,
+              typename std::decay_t<std::tuple_element_t<0, std::tuple<Futures...>>>::allocator_type> {
+    static_assert(sizeof...(Futures) > 0, "all requires at least one future");
+
+    using FirstFuture = std::tuple_element_t<0, std::tuple<Futures...>>;
+    using Executor    = typename std::decay_t<FirstFuture>::executor_type;
+    using Allocator   = typename std::decay_t<FirstFuture>::allocator_type;
+    using ResultType  = std::tuple<typename std::decay_t<Futures>::value_type...>;
+
+    auto  tuple_futures = std::forward_as_tuple(futures...);
+    auto& first_future  = std::get<0>(tuple_futures);
+    auto  promise       = std::make_shared<Promise<ResultType, Executor, Allocator>>(
+        first_future.state_->executor, first_future.state_->allocator);
+    auto result_future = promise->get_future();
+
+    struct SharedState {
+        std::mutex                                                mutex;
+        std::size_t                                               completed_count = 0;
+        std::size_t                                               total_count     = sizeof...(Futures);
+        ResultType                                                results;
+        std::exception_ptr                                        first_exception = nullptr;
+        std::shared_ptr<Promise<ResultType, Executor, Allocator>> promise;
+        Executor                                                  executor;
+        Allocator                                                 allocator;
+        // 保存子future的state，用于取消传递
+        std::vector<std::function<void()>> cancel_callbacks;
+
+        SharedState(Executor executor, Allocator allocator)
+            : executor(std::move(executor)), allocator(std::move(allocator)) {
+        }
+    };
+
+    auto shared_state = std::make_shared<SharedState>(
+        first_future.state_->executor, first_future.state_->allocator);
+    shared_state->promise = promise;
+
+    // 收集子future的取消回调
+    auto collect_cancel_callback = [&](auto& fut) {
+        shared_state->cancel_callbacks.push_back([state = fut.get_state()]() {
+            state->cancel();
+        });
+    };
+
+    std::apply([&](auto&... fs) {
+        (collect_cancel_callback(fs), ...);
+    }, tuple_futures);
+
+    // 设置取消回调：当result_future被取消时，取消所有子future
+    result_future.on_cancel([shared_state]() {
+        for (auto& cancel_cb : shared_state->cancel_callbacks) {
+            cancel_cb();
+        }
+    });
+
+    // 使用递归模板处理所有 future
+    detail::when_all_helper<0, sizeof...(Futures)>::process(shared_state, tuple_futures);
+
+    return result_future;
+}
+
+// any 实现：等待任意一个 future 完成
+template <typename... Futures>
+auto any(Futures&&... futures)
+    -> Future<std::pair<std::size_t, std::variant<typename std::decay_t<Futures>::value_type...>>,
+              typename std::decay_t<std::tuple_element_t<0, std::tuple<Futures...>>>::executor_type,
+              typename std::decay_t<std::tuple_element_t<0, std::tuple<Futures...>>>::allocator_type> {
+    static_assert(sizeof...(Futures) > 0, "any requires at least one future");
+
+    using FirstFuture = std::tuple_element_t<0, std::tuple<Futures...>>;
+    using Executor    = typename std::decay_t<FirstFuture>::executor_type;
+    using Allocator   = typename std::decay_t<FirstFuture>::allocator_type;
+    using VariantType = std::variant<typename std::decay_t<Futures>::value_type...>;
+    using ResultType  = std::pair<std::size_t, VariantType>;
+
+    auto  tuple_futures = std::forward_as_tuple(futures...);
+    auto& first_future  = std::get<0>(tuple_futures);
+    auto  promise       = std::make_shared<Promise<ResultType, Executor, Allocator>>(
+        first_future.state_->executor, first_future.state_->allocator);
+    auto result_future = promise->get_future();
+
+    struct SharedState {
+        std::mutex                                                mutex;
+        bool                                                      completed      = false;
+        std::size_t                                               canceled_count = 0;
+        std::size_t                                               total_count    = sizeof...(Futures);
+        std::shared_ptr<Promise<ResultType, Executor, Allocator>> promise;
+        Executor                                                  executor;
+        Allocator                                                 allocator;
+
+        // 保存子future的state，用于取消传递
+        std::vector<std::function<void()>> cancel_callbacks;
+
+        SharedState(Executor executor, Allocator allocator)
+            : executor(std::move(executor)), allocator(std::move(allocator)) {
+        }
+    };
+
+    auto shared_state = std::make_shared<SharedState>(
+        first_future.state_->executor, first_future.state_->allocator);
+    shared_state->promise = promise;
+
+    // 收集子future的取消回调
+    auto collect_cancel_callback = [&](auto& fut) {
+        shared_state->cancel_callbacks.push_back([state = fut.get_state()]() {
+            state->cancel();
+        });
+    };
+
+    std::apply([&](auto&... fs) {
+        (collect_cancel_callback(fs), ...);
+    }, tuple_futures);
+
+    // 设置取消回调：当result_future被取消时，取消所有子future
+    result_future.on_cancel([shared_state]() {
+        for (auto& cancel_cb : shared_state->cancel_callbacks) {
+            cancel_cb();
+        }
+    });
+
+    // 使用递归模板处理所有 future
+    detail::when_any_helper<0, sizeof...(Futures)>::template process<decltype(shared_state), decltype(tuple_futures), VariantType>(shared_state, tuple_futures);
+
+    return result_future;
+}
+
+template <typename T, typename Executor, typename Allocator>
+void Future<T, Executor, Allocator>::cancel() {
+    if (state_) {
+        state_->cancel();
+    }
+}
+
+template <typename T, typename Executor, typename Allocator>
+bool Future<T, Executor, Allocator>::is_cancelled() const {
+    return state_ && state_->cancelled.load();
+}
+
+template <typename T, typename Executor, typename Allocator>
+template <typename F>
+void Future<T, Executor, Allocator>::on_cancel(F&& callback) {
+    if (state_) {
+        state_->add_cancel_callback(std::forward<F>(callback));
+    }
+}
+
+template <typename PromisePtr, typename State>
+void set_promise_exception(PromisePtr& promise, State& state) {
+    promise->set_exception(std::get<std::exception_ptr>(state->result));
 }
 
 } // namespace mc::futures

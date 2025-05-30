@@ -19,7 +19,9 @@
 #include <list>
 #include <mutex>
 #include <variant>
+#include <vector>
 
+#include "exceptions.h"
 #include "status.h"
 
 namespace mc::futures {
@@ -30,23 +32,39 @@ using result_variant_t =
                                 std::variant<std::monostate, std::exception_ptr>,
                                 std::variant<T, std::exception_ptr>>;
 
+template <typename F>
+void safe_invoke(F&& callback) {
+    try {
+        callback();
+    } catch (...) {
+        // 忽略异常
+    }
+}
+
 template <typename T, typename Executor, typename Allocator>
 struct State {
-    using executor_type     = Executor;
-    using continuation_list = std::list<std::function<void()>>;
+    using executor_type = Executor;
+    using callbacks     = std::vector<std::function<void()>>;
 
     std::mutex              mutex;
     std::condition_variable cv;
-    bool                    ready = false;
-    result_variant_t<T>     result;
+    std::atomic<bool>       ready{false};
+    std::atomic<bool>       deferred{false};
+    std::atomic<bool>       cancelled{false};
+    launch                  policy{launch::async};
 
-    continuation_list continuations;
-    executor_type     executor;
-    std::atomic<bool> deferred{false};
-    launch            policy = launch::async;
-    Allocator         allocator;
+    result_variant_t<T> result;
 
-    explicit State(Executor e, const Allocator& alloc) : executor(std::move(e)), allocator(alloc) {
+    callbacks     continuations;
+    executor_type executor;
+    Allocator     allocator;
+
+    // 取消回调列表
+    callbacks  cancel_callbacks;
+    std::mutex cancel_mutex;
+
+    State(Executor executor, Allocator allocator)
+        : executor(std::move(executor)), allocator(std::move(allocator)) {
     }
 
     void mark_ready() {
@@ -56,6 +74,52 @@ struct State {
             executor.post(cont, allocator);
         }
         continuations.clear();
+    }
+
+    // 取消操作
+    void cancel() {
+        bool expected = false;
+        if (!cancelled.compare_exchange_strong(expected, true)) {
+            return;
+        }
+
+        callbacks temp_callbacks;
+        {
+            std::lock_guard<std::mutex> lock(cancel_mutex);
+            temp_callbacks = std::move(cancel_callbacks);
+            cancel_callbacks.clear();
+        }
+
+        for (auto& callback : temp_callbacks) {
+            safe_invoke(std::forward<decltype(callback)>(callback));
+        }
+
+        // 设置取消异常
+        std::lock_guard<std::mutex> lock(mutex);
+        if (!ready) {
+            result = std::make_exception_ptr(canceled_exception());
+            ready  = true;
+            cv.notify_all();
+        }
+    }
+
+    // 添加取消回调
+    template <typename F>
+    void add_cancel_callback(F&& callback) {
+        bool should_execute_immediately = false;
+        {
+            std::lock_guard<std::mutex> lock(cancel_mutex);
+            if (cancelled.load()) {
+                should_execute_immediately = true;
+            } else {
+                cancel_callbacks.emplace_back(std::forward<F>(callback));
+            }
+        }
+
+        // 在锁外执行回调，避免死锁
+        if (should_execute_immediately) {
+            safe_invoke(std::forward<F>(callback));
+        }
     }
 };
 

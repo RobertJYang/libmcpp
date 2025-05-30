@@ -12,7 +12,7 @@ IndentCaseLabels: false
 NamespaceIndentation: None
 
 # 行长度设置
-ColumnLimit: 100
+ColumnLimit: 0
 
 # 括号设置
 BreakBeforeBraces: Custom
@@ -124,3 +124,7 @@ Standard: Cpp11
 IndentCaseBlocks: false
 IndentGotoLabels: false
 IndentWrappedFunctionNames: false
+
+# 链式调用配置
+# 关键：lambda体不额外缩进
+LambdaBodyIndentation: OuterScope

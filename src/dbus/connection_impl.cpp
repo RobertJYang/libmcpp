@@ -90,8 +90,9 @@ connection::future<message> connection_impl::async_send_with_reply(message&&    
     }
 
     DBusPendingCall* dbus_pending_call = nullptr;
-    auto             ret = dbus_connection_send_with_reply(m_connection, msg.get_dbus_message(),
-                                                           &dbus_pending_call, timeout.count());
+
+    auto ret = dbus_connection_send_with_reply(m_connection, msg.get_dbus_message(),
+                                               &dbus_pending_call, timeout.count());
     if (ret != TRUE) {
         promise.set_value(message::new_error(msg, error_names::failed, "发送消息失败"));
         return future;

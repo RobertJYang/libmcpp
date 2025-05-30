@@ -25,7 +25,7 @@ template <typename U, typename... Args>
 void Promise<T, Executor, Allocator>::set_value(Args&&... args) {
     std::lock_guard<std::mutex> lock(state_->mutex);
     if (state_->ready) {
-        throw promise_already_satisfied();
+        MC_THROW(promise_already_satisfied, "Promise 值已被设置");
     }
 
     if constexpr (std::is_same_v<U, void>) {
@@ -40,16 +40,21 @@ template <typename T, typename Executor, typename Allocator>
 void Promise<T, Executor, Allocator>::set_exception(std::exception_ptr e) {
     std::lock_guard<std::mutex> lock(state_->mutex);
     if (state_->ready) {
-        throw promise_already_satisfied();
+        MC_THROW(promise_already_satisfied, "Promise 值已被设置");
     }
     state_->result = e;
     state_->mark_ready();
 }
 
 template <typename T, typename Executor, typename Allocator>
+void Promise<T, Executor, Allocator>::cancel() {
+    set_exception(std::make_exception_ptr(MC_MAKE_EXCEPTION(mc::canceled_exception, "Promise被取消")));
+}
+
+template <typename T, typename Executor, typename Allocator>
 Future<T, Executor, Allocator> Promise<T, Executor, Allocator>::get_future() {
     if (future_retrieved_) {
-        throw future_already_retrieved();
+        MC_THROW(future_already_retrieved, "Future 已被获取");
     }
     future_retrieved_ = true;
     return Future<T, Executor, Allocator>(state_);
