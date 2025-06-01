@@ -281,60 +281,7 @@ private:
     std::exception_ptr m_inner;
 };
 
-/**
- * @brief 异常工厂类
- *
- * 用于注册和创建异常
- */
-class exception_factory {
-public:
-    // 异常构建器基类
-    struct base_exception_builder {
-        virtual void rethrow(const exception& e) const = 0;
-        virtual ~base_exception_builder()              = default;
-    };
-
-    // 异常构建器模板类
-    template <typename T>
-    struct exception_builder : public base_exception_builder {
-        virtual void rethrow(const exception& e) const override {
-            throw T(e);
-        }
-    };
-
-    // 获取单例实例
-    static exception_factory& instance();
-
-    // 注册异常类型
-    template <typename T>
-    void register_exception() {
-        static exception_builder<T> builder;
-        m_registered_exceptions[T::code_enum::code_value] = &builder;
-    }
-
-    // 重新抛出异常
-    void rethrow(const exception& e) const;
-
-private:
-    // 私有构造函数（单例模式）
-    exception_factory() = default;
-
-    // 注册的异常映射表
-    std::unordered_map<int64_t, base_exception_builder*> m_registered_exceptions;
-};
-
-/**
- * @brief 注册异常类宏
- *
- * 用于注册异常类到异常工厂
- *
- * @param exception_class 要注册的异常类名
- */
-#define MC_REGISTER_EXCEPTION(exception_class) \
-    mc::exception_factory::instance().register_exception<exception_class>()
-
 // 常用异常类定义
-
 MC_DEFINE_EXCEPTION_CLASS(timeout_exception, timeout_exception_code, "操作超时", "timeout")
 MC_DEFINE_EXCEPTION_CLASS(file_not_found_exception, file_not_found_exception_code, "文件未找到",
                           "file_not_found")

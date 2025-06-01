@@ -17,10 +17,10 @@
 
 #include <boost/asio.hpp>
 
-#include "mc/futures/exceptions.h"
-#include "mc/futures/state.h"
-#include "mc/futures/status.h"
-#include "mc/traits.h"
+#include <mc/futures/exceptions.h>
+#include <mc/futures/state.h>
+#include <mc/futures/state_pool.h>
+#include <mc/futures/status.h>
 
 namespace mc ::futures {
 
@@ -28,7 +28,8 @@ template <typename T, typename Executor, typename Allocator = std::allocator<voi
 class Promise;
 
 namespace detail {
-
+template <typename ResultType, typename Executor, typename Allocator>
+struct CombinatorState;
 template <typename T, typename = void>
 struct is_future : std::false_type {};
 
@@ -37,6 +38,29 @@ struct is_future<T, std::void_t<typename T::is_future>> : std::true_type {};
 
 template <typename T>
 constexpr bool is_future_v = is_future<T>::value;
+
+// 用于简化 then 方法返回类型推导的工具类
+template <typename T, typename F>
+struct continuation_result {
+private:
+    // 检测 F 是否可以用 T 参数调用
+    template <typename U, typename G>
+    static auto test_with_arg(int) -> std::invoke_result_t<G, U>;
+
+    template <typename U, typename G>
+    static auto test_with_arg(...) -> std::invoke_result_t<G>;
+
+public:
+    using type = decltype(test_with_arg<T, F>(0));
+};
+
+template <typename F>
+struct continuation_result<void, F> {
+    using type = std::invoke_result_t<F>;
+};
+
+template <typename T, typename F>
+using result_t = typename continuation_result<T, F>::type;
 
 template <typename T, typename = void>
 struct is_execution_context : std::false_type {};
@@ -74,13 +98,12 @@ public:
     // 链式操作
     template <typename F>
     auto then(F&& func, launch policy = launch::async)
-        -> std::enable_if_t<detail::is_future_v<std::invoke_result_t<F, T>>,
-                            std::invoke_result_t<F, T>>;
+        -> std::enable_if_t<detail::is_future_v<detail::result_t<T, F>>, detail::result_t<T, F>>;
 
     template <typename F>
     auto then(F&& func, launch policy = launch::async)
-        -> std::enable_if_t<!detail::is_future_v<std::invoke_result_t<F, T>>,
-                            Future<std::invoke_result_t<F, T>, Executor, Allocator>>;
+        -> std::enable_if_t<!detail::is_future_v<detail::result_t<T, F>>,
+                            Future<detail::result_t<T, F>, Executor, Allocator>>;
 
     // 错误处理 - 统一接受 mc::exception，标准异常自动包装
     template <typename F>
@@ -136,18 +159,8 @@ private:
     template <typename U, typename E, typename A>
     friend class Future;
 
-    // 添加 all 和 any 的友元声明
-    template <typename... F>
-    friend auto all(F&&... futures)
-        -> Future<std::tuple<typename std::decay_t<F>::value_type...>,
-                  typename std::decay_t<std::tuple_element_t<0, std::tuple<F...>>>::executor_type,
-                  typename std::decay_t<std::tuple_element_t<0, std::tuple<F...>>>::allocator_type>;
-
-    template <typename... F>
-    friend auto any(F&&... futures)
-        -> Future<std::pair<std::size_t, std::variant<typename std::decay_t<F>::value_type...>>,
-                  typename std::decay_t<std::tuple_element_t<0, std::tuple<F...>>>::executor_type,
-                  typename std::decay_t<std::tuple_element_t<0, std::tuple<F...>>>::allocator_type>;
+    template <typename R, typename E, typename A>
+    friend struct detail::CombinatorState;
 
     using State = futures::State<T, Executor, Allocator>;
     std::shared_ptr<State> state_;
@@ -225,8 +238,8 @@ auto any(Futures&&... futures)
 
 } // namespace mc::futures
 
-#include "mc/futures/detail/future_impl.h"
-#include "mc/futures/detail/promise_impl.h"
+#include <mc/futures/detail/future_impl.h>
+#include <mc/futures/detail/promise_impl.h>
 
 namespace mc {
 

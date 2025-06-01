@@ -13,17 +13,27 @@
 #ifndef MC_FUTURES_DETAIL_PROMISE_IMPL_H
 #define MC_FUTURES_DETAIL_PROMISE_IMPL_H
 
+#include <mc/futures/state_pool.h>
+
 namespace mc::futures {
 
 template <typename T, typename Executor, typename Allocator>
 Promise<T, Executor, Allocator>::Promise(Executor executor, const Allocator& alloc)
-    : state_(std::make_shared<state_type>(std::move(executor), alloc)), allocator_(alloc) {
+    : state_(make_pooled_state<T>(std::move(executor), alloc)), allocator_(alloc) {
 }
 
 template <typename T, typename Executor, typename Allocator>
 template <typename U, typename... Args>
 void Promise<T, Executor, Allocator>::set_value(Args&&... args) {
-    std::lock_guard<std::mutex> lock(state_->mutex);
+    if (state_->cancelled.load()) {
+        return;
+    }
+
+    std::lock_guard<std::mutex> lock(state_->m_mutex);
+    if (state_->cancelled.load()) {
+        return;
+    }
+
     if (state_->ready) {
         MC_THROW(promise_already_satisfied, "Promise 值已被设置");
     }
@@ -38,7 +48,7 @@ void Promise<T, Executor, Allocator>::set_value(Args&&... args) {
 
 template <typename T, typename Executor, typename Allocator>
 void Promise<T, Executor, Allocator>::set_exception(std::exception_ptr e) {
-    std::lock_guard<std::mutex> lock(state_->mutex);
+    std::lock_guard<std::mutex> lock(state_->m_mutex);
     if (state_->ready) {
         MC_THROW(promise_already_satisfied, "Promise 值已被设置");
     }

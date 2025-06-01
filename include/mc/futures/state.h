@@ -16,13 +16,12 @@
 #include <atomic>
 #include <condition_variable>
 #include <functional>
-#include <list>
 #include <mutex>
 #include <variant>
-#include <vector>
 
-#include "exceptions.h"
-#include "status.h"
+#include <mc/futures/callback_list.h>
+#include <mc/futures/exceptions.h>
+#include <mc/futures/status.h>
 
 namespace mc::futures {
 
@@ -32,94 +31,120 @@ using result_variant_t =
                                 std::variant<std::monostate, std::exception_ptr>,
                                 std::variant<T, std::exception_ptr>>;
 
-template <typename F>
-void safe_invoke(F&& callback) {
-    try {
-        callback();
-    } catch (...) {
-        // 忽略异常
-    }
-}
+struct state_base {
+    std::mutex              m_mutex;
+    std::condition_variable m_cv;
+
+    callback_list     m_continuations;
+    std::atomic<bool> ready{false};
+    std::atomic<bool> deferred{false};
+    std::atomic<bool> cancelled{false};
+    launch            policy{launch::async};
+    callback_list     m_cancel_callbacks;
+
+    void reset();
+    void reuse();
+};
 
 template <typename T, typename Executor, typename Allocator>
-struct State {
+struct state_value {
     using executor_type = Executor;
-    using callbacks     = std::vector<std::function<void()>>;
 
-    std::mutex              mutex;
-    std::condition_variable cv;
-    std::atomic<bool>       ready{false};
-    std::atomic<bool>       deferred{false};
-    std::atomic<bool>       cancelled{false};
-    launch                  policy{launch::async};
+    state_value(Executor executor, Allocator allocator)
+        : executor(std::move(executor)), allocator(std::move(allocator)) {
+    }
+
+    ~state_value() {
+    }
+
+    void reset() {
+        this->~state_value<T, Executor, Allocator>();
+    }
+
+    void reuse(Executor executor, Allocator allocator) {
+        new (this) state_value<T, Executor, Allocator>(std::move(executor), std::move(allocator));
+        if constexpr (std::is_same_v<T, void>) {
+            result = std::monostate{};
+        } else {
+            result = std::variant<T, std::exception_ptr>{};
+        }
+    }
 
     result_variant_t<T> result;
+    executor_type       executor;
+    Allocator           allocator;
+};
 
-    callbacks     continuations;
-    executor_type executor;
-    Allocator     allocator;
-
-    // 取消回调列表
-    callbacks  cancel_callbacks;
-    std::mutex cancel_mutex;
+template <typename T, typename Executor, typename Allocator>
+struct State : public state_base, public state_value<T, Executor, Allocator> {
+    using value_type = state_value<T, Executor, Allocator>;
 
     State(Executor executor, Allocator allocator)
-        : executor(std::move(executor)), allocator(std::move(allocator)) {
+        : state_base(), value_type(std::move(executor), std::move(allocator)) {
     }
 
     void mark_ready() {
         ready = true;
-        cv.notify_all();
-        for (auto& cont : continuations) {
-            executor.post(cont, allocator);
-        }
-        continuations.clear();
+        m_cv.notify_all();
+
+        // 移动到临时变量执行，避免回调过程中修改链表
+        callback_list callbacks;
+        m_continuations.swap(callbacks);
+        callbacks.execute_and_clear();
     }
 
     // 取消操作
     void cancel() {
+        // 先检查是否已经 ready，如果已经完成则忽略取消操作
+        if (ready.load()) {
+            return;
+        }
+
         bool expected = false;
         if (!cancelled.compare_exchange_strong(expected, true)) {
             return;
         }
 
-        callbacks temp_callbacks;
+        // 移动到临时变量执行，避免回调过程中修改链表或死锁
+        callback_list callbacks;
         {
-            std::lock_guard<std::mutex> lock(cancel_mutex);
-            temp_callbacks = std::move(cancel_callbacks);
-            cancel_callbacks.clear();
+            std::lock_guard<std::mutex> lock(m_mutex);
+            m_cancel_callbacks.swap(callbacks);
         }
+        callbacks.execute_and_clear();
 
-        for (auto& callback : temp_callbacks) {
-            safe_invoke(std::forward<decltype(callback)>(callback));
-        }
-
-        // 设置取消异常
-        std::lock_guard<std::mutex> lock(mutex);
-        if (!ready) {
-            result = std::make_exception_ptr(canceled_exception());
-            ready  = true;
-            cv.notify_all();
+        // 设置取消异常（再次检查 ready 状态以防竞态条件）
+        std::lock_guard<std::mutex> lock(m_mutex);
+        if (!ready.load()) {
+            this->result = std::make_exception_ptr(canceled_exception());
+            this->ready  = true;
+            this->m_cv.notify_all();
         }
     }
 
     // 添加取消回调
     template <typename F>
     void add_cancel_callback(F&& callback) {
-        bool should_execute_immediately = false;
-        {
-            std::lock_guard<std::mutex> lock(cancel_mutex);
-            if (cancelled.load()) {
-                should_execute_immediately = true;
-            } else {
-                cancel_callbacks.emplace_back(std::forward<F>(callback));
+        if (!cancelled.load()) {
+            std::lock_guard<std::mutex> lock(m_mutex);
+            if (!cancelled.load()) {
+                m_cancel_callbacks.push_back(std::forward<F>(callback));
+                return;
             }
         }
 
-        // 在锁外执行回调，避免死锁
-        if (should_execute_immediately) {
-            safe_invoke(std::forward<F>(callback));
-        }
+        // 已经撤销了立即执行回调，解锁后执行避免死锁
+        safe_invoke(std::forward<F>(callback));
+    }
+
+    void reset() {
+        state_base::reset();
+        value_type::reset();
+    }
+
+    void reuse(Executor executor, Allocator allocator) {
+        state_base::reuse();
+        value_type::reuse(std::move(executor), std::move(allocator));
     }
 };
 

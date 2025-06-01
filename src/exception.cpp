@@ -260,19 +260,4 @@ std::string std_exception_wrapper::to_detail_string(mc::log::level ll) const {
     return result;
 }
 
-// 异常工厂实现
-
-exception_factory& exception_factory::instance() {
-    static exception_factory instance;
-    return instance;
-}
-
-void exception_factory::rethrow(const exception& e) const {
-    auto itr = m_registered_exceptions.find(e.code());
-    if (itr != m_registered_exceptions.end()) {
-        itr->second->rethrow(e);
-    }
-    throw e;
-}
-
 } // namespace mc
