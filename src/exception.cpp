@@ -220,7 +220,7 @@ std::shared_ptr<exception> unhandled_exception::dynamic_copy_exception() const {
 std_exception_wrapper::std_exception_wrapper(mc::log::message&& msg, std::exception_ptr e,
                                              const std::string& name_value,
                                              const std::string& what_value)
-    : exception(std::move(msg), system_error_code, name_value, what_value), m_inner(e) {
+    : exception(std::move(msg), std_exception_code, name_value, what_value), m_inner(e) {
 }
 
 std::exception_ptr std_exception_wrapper::get_inner_exception() const {
@@ -258,21 +258,6 @@ std::string std_exception_wrapper::to_detail_string(mc::log::level ll) const {
     }
 
     return result;
-}
-
-// 异常工厂实现
-
-exception_factory& exception_factory::instance() {
-    static exception_factory instance;
-    return instance;
-}
-
-void exception_factory::rethrow(const exception& e) const {
-    auto itr = m_registered_exceptions.find(e.code());
-    if (itr != m_registered_exceptions.end()) {
-        itr->second->rethrow(e);
-    }
-    throw e;
 }
 
 } // namespace mc

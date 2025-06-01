@@ -81,6 +81,8 @@ src_files = [
   'engine/utils.cpp',
   'engine/path.cpp',
   'engine/path_iterator.cpp',
+  'futures/state_pool.cpp',
+  'futures/callback_list.cpp',
 ]
 
 dep_arr = [boost_dep, boost_program_options_dep, dbus_dep, glib_dep]

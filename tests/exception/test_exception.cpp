@@ -208,10 +208,6 @@ TEST(ExceptionTest, LogLevelFilterTest) {
 
 // 测试异常的动态复制和重抛
 TEST(ExceptionTest, DynamicCopyAndRethrowTest) {
-    // 注册异常类型
-    MC_REGISTER_EXCEPTION(mc::timeout_exception);
-    MC_REGISTER_EXCEPTION(mc::invalid_arg_exception);
-
     try {
         // 创建一个超时异常
         auto original = MC_MAKE_EXCEPTION(mc::timeout_exception, "操作超时: ${operation}",

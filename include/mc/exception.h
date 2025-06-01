@@ -164,6 +164,8 @@ protected:
     std::unique_ptr<detail::exception_impl> m_impl;
 };
 
+using exception_ptr = std::shared_ptr<exception>;
+
 /**
  * @brief 统一的异常类定义宏
  *
@@ -181,37 +183,37 @@ protected:
  * // 在代码中使用
  * MC_THROW(timeout_exception, "连接超时");
  */
-#define MC_DEFINE_EXCEPTION_CLASS_BASE(class_name, code_enum_value, default_msg, class_name_str,   \
-                                       base_class)                                                 \
-    class class_name : public base_class {                                                         \
-    public:                                                                                        \
-        enum code_enum { code_value = code_enum_value };                                           \
-                                                                                                   \
-        class_name(mc::log::message&& msg = mc::log::message(mc::log::level::error, default_msg))  \
-            : base_class(std::move(msg), code_enum_value, class_name_str, default_msg) {           \
-        }                                                                                          \
-                                                                                                   \
-        class_name(const class_name& e) : base_class(e) {                                          \
-        }                                                                                          \
-        class_name(class_name&& e) : base_class(std::move(e)) {                                    \
-        }                                                                                          \
-                                                                                                   \
-        /* 从基类构造 */                                                                           \
-        explicit class_name(const base_class& e)                                                   \
-            : base_class(code_enum_value, class_name_str, default_msg) {                           \
-        }                                                                                          \
-                                                                                                   \
-        virtual std::shared_ptr<mc::exception> dynamic_copy_exception() const override {           \
-            return std::make_shared<class_name>(*this);                                            \
-        }                                                                                          \
-                                                                                                   \
-        virtual void dynamic_rethrow_exception() const override {                                  \
-            throw *this;                                                                           \
-        }                                                                                          \
+#define MC_DEFINE_EXCEPTION_CLASS_BASE(class_name, code_enum_value, default_msg, class_name_str,  \
+                                       base_class)                                                \
+    class class_name : public base_class {                                                        \
+    public:                                                                                       \
+        enum code_enum { code_value = code_enum_value };                                          \
+                                                                                                  \
+        class_name(mc::log::message&& msg = mc::log::message(mc::log::level::error, default_msg)) \
+            : base_class(std::move(msg), code_enum_value, class_name_str, default_msg) {          \
+        }                                                                                         \
+                                                                                                  \
+        class_name(const class_name& e) : base_class(e) {                                         \
+        }                                                                                         \
+        class_name(class_name&& e) : base_class(std::move(e)) {                                   \
+        }                                                                                         \
+                                                                                                  \
+        /* 从基类构造 */                                                                          \
+        explicit class_name(const base_class& e)                                                  \
+            : base_class(code_enum_value, class_name_str, default_msg) {                          \
+        }                                                                                         \
+                                                                                                  \
+        virtual std::shared_ptr<mc::exception> dynamic_copy_exception() const override {          \
+            return std::make_shared<class_name>(*this);                                           \
+        }                                                                                         \
+                                                                                                  \
+        virtual void dynamic_rethrow_exception() const override {                                 \
+            throw *this;                                                                          \
+        }                                                                                         \
     };
 
-#define MC_DEFINE_EXCEPTION_CLASS(class_name, code_enum_value, default_msg, class_name_str)        \
-    MC_DEFINE_EXCEPTION_CLASS_BASE(class_name, code_enum_value, default_msg, class_name_str,       \
+#define MC_DEFINE_EXCEPTION_CLASS(class_name, code_enum_value, default_msg, class_name_str)  \
+    MC_DEFINE_EXCEPTION_CLASS_BASE(class_name, code_enum_value, default_msg, class_name_str, \
                                    exception)
 
 /**
@@ -250,6 +252,10 @@ private:
  */
 class std_exception_wrapper : public exception {
 public:
+    enum code_enum {
+        code_value = std_exception_code,
+    };
+
     // 构造函数
     explicit std_exception_wrapper(mc::log::message&& msg,
                                    std::exception_ptr e          = std::current_exception(),
@@ -275,60 +281,7 @@ private:
     std::exception_ptr m_inner;
 };
 
-/**
- * @brief 异常工厂类
- *
- * 用于注册和创建异常
- */
-class exception_factory {
-public:
-    // 异常构建器基类
-    struct base_exception_builder {
-        virtual void rethrow(const exception& e) const = 0;
-        virtual ~base_exception_builder()              = default;
-    };
-
-    // 异常构建器模板类
-    template <typename T>
-    struct exception_builder : public base_exception_builder {
-        virtual void rethrow(const exception& e) const override {
-            throw T(e);
-        }
-    };
-
-    // 获取单例实例
-    static exception_factory& instance();
-
-    // 注册异常类型
-    template <typename T>
-    void register_exception() {
-        static exception_builder<T> builder;
-        m_registered_exceptions[T::code_enum::code_value] = &builder;
-    }
-
-    // 重新抛出异常
-    void rethrow(const exception& e) const;
-
-private:
-    // 私有构造函数（单例模式）
-    exception_factory() = default;
-
-    // 注册的异常映射表
-    std::unordered_map<int64_t, base_exception_builder*> m_registered_exceptions;
-};
-
-/**
- * @brief 注册异常类宏
- *
- * 用于注册异常类到异常工厂
- *
- * @param exception_class 要注册的异常类名
- */
-#define MC_REGISTER_EXCEPTION(exception_class)                                                     \
-    mc::exception_factory::instance().register_exception<exception_class>()
-
 // 常用异常类定义
-
 MC_DEFINE_EXCEPTION_CLASS(timeout_exception, timeout_exception_code, "操作超时", "timeout")
 MC_DEFINE_EXCEPTION_CLASS(file_not_found_exception, file_not_found_exception_code, "文件未找到",
                           "file_not_found")
@@ -388,7 +341,7 @@ MC_DEFINE_EXCEPTION_CLASS(method_call_exception, method_call_exception_code, "�
  *     std::cout << e.to_string() << std::endl;
  * }
  */
-#define MC_DEFINE_CUSTOM_EXCEPTION(class_name, code_enum_value, default_msg, class_name_str)       \
+#define MC_DEFINE_CUSTOM_EXCEPTION(class_name, code_enum_value, default_msg, class_name_str) \
     MC_DEFINE_EXCEPTION_CLASS(class_name, code_enum_value, default_msg, class_name_str)
 
 // 宏定义
@@ -398,7 +351,7 @@ MC_DEFINE_EXCEPTION_CLASS(method_call_exception, method_call_exception_code, "�
  *
  * 构造指定类型的异常
  */
-#define MC_MAKE_EXCEPTION(EXCEPTION, FORMAT, ...)                                                  \
+#define MC_MAKE_EXCEPTION(EXCEPTION, FORMAT, ...) \
     EXCEPTION(MC_LOG_MESSAGE(error, FORMAT, __VA_ARGS__))
 
 /**
@@ -406,11 +359,11 @@ MC_DEFINE_EXCEPTION_CLASS(method_call_exception, method_call_exception_code, "�
  *
  * 如果条件为假，则抛出断言异常
  */
-#define MC_ASSERT(CONDITION, FORMAT, ...)                                                          \
-    do {                                                                                           \
-        if (!(CONDITION)) {                                                                        \
-            throw MC_MAKE_EXCEPTION(mc::assert_exception, FORMAT, __VA_ARGS__);                    \
-        }                                                                                          \
+#define MC_ASSERT(CONDITION, FORMAT, ...)                                       \
+    do {                                                                        \
+        if (!(CONDITION)) {                                                     \
+            throw MC_MAKE_EXCEPTION(mc::assert_exception, FORMAT, __VA_ARGS__); \
+        }                                                                       \
     } while (0)
 
 /**
@@ -418,11 +371,11 @@ MC_DEFINE_EXCEPTION_CLASS(method_call_exception, method_call_exception_code, "�
  *
  * 如果条件为假，则抛出指定异常
  */
-#define MC_ASSERT_THROW(CONDITION, EXCEPTION, FORMAT, ...)                                         \
-    do {                                                                                           \
-        if (!(CONDITION)) {                                                                        \
-            throw MC_MAKE_EXCEPTION(EXCEPTION, FORMAT, __VA_ARGS__);                               \
-        }                                                                                          \
+#define MC_ASSERT_THROW(CONDITION, EXCEPTION, FORMAT, ...)           \
+    do {                                                             \
+        if (!(CONDITION)) {                                          \
+            throw MC_MAKE_EXCEPTION(EXCEPTION, FORMAT, __VA_ARGS__); \
+        }                                                            \
     } while (0)
 
 /**
@@ -430,7 +383,7 @@ MC_DEFINE_EXCEPTION_CLASS(method_call_exception, method_call_exception_code, "�
  *
  * 抛出指定类型的异常
  */
-#define MC_THROW(EXCEPTION_TYPE, FORMAT, ...)                                                      \
+#define MC_THROW(EXCEPTION_TYPE, FORMAT, ...) \
     throw MC_MAKE_EXCEPTION(EXCEPTION_TYPE, FORMAT, __VA_ARGS__)
 
 /**
@@ -438,10 +391,10 @@ MC_DEFINE_EXCEPTION_CLASS(method_call_exception, method_call_exception_code, "�
  *
  * 捕获异常并添加上下文信息后重新抛出
  */
-#define MC_RETHROW_EXCEPTION(EXCEPTION, FORMAT, ...)                                               \
-    do {                                                                                           \
-        EXCEPTION.append_log(MC_LOG_MESSAGE(error, FORMAT, __VA_ARGS__));                          \
-        throw EXCEPTION;                                                                           \
+#define MC_RETHROW_EXCEPTION(EXCEPTION, FORMAT, ...)                      \
+    do {                                                                  \
+        EXCEPTION.append_log(MC_LOG_MESSAGE(error, FORMAT, __VA_ARGS__)); \
+        throw EXCEPTION;                                                  \
     } while (0)
 
 /**
@@ -449,9 +402,9 @@ MC_DEFINE_EXCEPTION_CLASS(method_call_exception, method_call_exception_code, "�
  *
  * 捕获标准异常并包装为MC异常
  */
-#define MC_CAPTURE_AND_WRAP_EXCEPTION(FORMAT, ...)                                                 \
-    catch (const std::exception& e) {                                                              \
-        throw mc::std_exception_wrapper(MC_LOG_MESSAGE(error, FORMAT, __VA_ARGS__));               \
+#define MC_CAPTURE_AND_WRAP_EXCEPTION(FORMAT, ...)                                   \
+    catch (const std::exception& e) {                                                \
+        throw mc::std_exception_wrapper(MC_LOG_MESSAGE(error, FORMAT, __VA_ARGS__)); \
     }
 
 } // namespace mc

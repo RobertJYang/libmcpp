@@ -13,41 +13,18 @@
 #ifndef MC_FUTURES_EXCEPTIONS_H
 #define MC_FUTURES_EXCEPTIONS_H
 
-#include <stdexcept>
+#include <mc/exception.h>
 
 namespace mc::futures {
 
-class future_exception : public std::logic_error {
-public:
-    future_exception() : std::logic_error{""} {
-    }
+// 定义 Future 相关的异常代码
+enum future_exception_codes {
+    future_already_retrieved_code = 5001, // Future 已被获取异常
+    promise_already_set_code      = 5002, // Promise 值已被设置异常
 };
 
-class timeout_error : public future_exception {
-public:
-    timeout_error() = default;
-    const char* what() const noexcept override {
-        return "Operation timed out";
-    }
-};
-
-class future_already_retrieved : public future_exception {
-public:
-    future_already_retrieved() : future_exception() {
-    }
-    const char* what() const noexcept override {
-        return "Future already retrieved";
-    }
-};
-
-class promise_already_satisfied : public future_exception {
-public:
-    promise_already_satisfied() : future_exception() {
-    }
-    const char* what() const noexcept override {
-        return "Promise value already set";
-    }
-};
+MC_DEFINE_EXCEPTION_CLASS(future_already_retrieved, future_already_retrieved_code, "Future 已被获取", "future_already_retrieved")
+MC_DEFINE_EXCEPTION_CLASS(promise_already_satisfied, promise_already_set_code, "Promise 值已被设置", "promise_already_satisfied")
 
 } // namespace mc::futures
 

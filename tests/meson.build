@@ -53,6 +53,7 @@ test_files = [
 
   # futures 目录
   'futures/test_futures.cpp',
+  'futures/test_state_pool.cpp',
 
   # im 目录
   'im/test_custom_allocator.cpp',
