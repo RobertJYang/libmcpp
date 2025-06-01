@@ -219,7 +219,8 @@ const message_reader& operator>>(const message_reader& reader, mc::variants& v);
 const message_reader& operator>>(const message_reader& reader, mc::dict& v);
 const message_reader& operator>>(const message_reader& reader, mc::mutable_dict& v);
 
-// 写入标准库类型
+// 读取标准库类型
+
 template <typename T, bool UseEmplaceBack, bool IsContiguous, typename Container>
 const message_reader& read_array(const message_reader& reader, Container& v) {
     reader.ensure_type(DBUS_TYPE_ARRAY);
@@ -468,6 +469,7 @@ const message_writer& operator<<(const message_writer& writer, const char* str);
 const message_writer& operator<<(const message_writer& writer, const std::string_view& v);
 
 // 写入标准库类型
+
 template <typename T, bool IsContiguous, typename Container>
 const message_writer& write_array(const message_writer& writer, const Container& v) {
     const std::string& sig = get_signature<T>();

@@ -201,8 +201,14 @@ sized_state_pool* state_pool::impl::get_global_pool(std::size_t state_size, bool
         return &*it->second;
     }
 
-    // 检查是否需要创建或者超过最大大小池数量
-    if (!need_create || m_global_pools.size() >= m_config.max_pool_count) {
+    // 检查是否需要创建
+    if (!need_create) {
+        return nullptr;
+    }
+
+    // 检查是否超过最大池数量
+    // TODO:: 这里应该有一个淘汰策略，比如 LRU 或者 LFU
+    if (m_global_pools.size() >= m_config.max_pool_count) {
         return nullptr;
     }
 
