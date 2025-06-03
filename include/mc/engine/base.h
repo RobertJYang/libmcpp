@@ -151,19 +151,19 @@ public:
     virtual bool                has_interface(std::string_view interface_name) const = 0;
     virtual abstract_interface* get_interface(std::string_view interface_name)       = 0;
 
-    virtual mc::variant    get_property(std::string_view property_name,
-                                        std::string_view interface_name = {})      = 0;
-    virtual property_base* get_property_base(std::string_view property_name,
-                                             std::string_view interface_name = {}) = 0;
-    virtual bool           has_property(std::string_view property_name,
-                                        std::string_view interface_name = {})      = 0;
-    virtual mc::dict       get_all_properties(std::string_view interface_name)     = 0;
-    virtual bool           set_property(std::string_view property_name, const mc::variant& value,
-                                        std::string_view interface_name = {})      = 0;
+    virtual mc::variant         get_property(std::string_view property_name,
+                                             std::string_view interface_name = {})      = 0;
+    virtual property_base*      get_property_base(std::string_view property_name,
+                                                  std::string_view interface_name = {}) = 0;
+    virtual bool                has_property(std::string_view property_name,
+                                             std::string_view interface_name = {})      = 0;
+    virtual mc::dict            get_all_properties(std::string_view interface_name)     = 0;
+    virtual bool                set_property(std::string_view property_name, const mc::variant& value,
+                                             std::string_view interface_name = {})      = 0;
     virtual mc::connection_type connect(std::string_view signal_name, slot_type slot,
-                                        std::string_view interface_name = {})      = 0;
+                                        std::string_view interface_name = {})           = 0;
     virtual mc::variant         emit(std::string_view signal_name, const mc::variants& args,
-                                     std::string_view interface_name = {})         = 0;
+                                     std::string_view interface_name = {})              = 0;
 
     virtual void visit(visitor& v) const = 0;
 
@@ -172,8 +172,8 @@ public:
     virtual invoke_result invoke(std::string_view method_name, const mc::variants& args,
                                  std::string_view interface_name = {})           = 0;
 
-    virtual void notify_property_changed(const mc::variant& value, const property_base& prop) = 0;
-    virtual property_changed_signal& property_changed()                                       = 0;
+    virtual void                     notify_property_changed(const mc::variant& value, const property_base& prop) = 0;
+    virtual property_changed_signal& property_changed()                                                           = 0;
 
     mc::ref_ptr<abstract_object> from_this() {
         return mc::ref_ptr<abstract_object>(this);
@@ -196,21 +196,21 @@ public:
 
     service* get_service() const override;
 
-    virtual std::string_view    get_interface_name() const                                   = 0;
-    virtual mc::connection_type connect(std::string_view signal_name, slot_type slot)        = 0;
-    virtual mc::variant         emit(std::string_view signal_name, const mc::variants& args) = 0;
-    virtual mc::variant         get_property(std::string_view property_name) const           = 0;
-    virtual std::string_view    get_property_name(const property_base* prop)                 = 0;
-    virtual property_base*      get_property_base(std::string_view property_name)            = 0;
-    virtual bool                has_property(std::string_view property_name)                 = 0;
-    virtual mc::dict            get_all_properties()                                         = 0;
-    virtual bool set_property(std::string_view property_name, const mc::variant& value)      = 0;
+    virtual std::string_view    get_interface_name() const                                             = 0;
+    virtual mc::connection_type connect(std::string_view signal_name, slot_type slot)                  = 0;
+    virtual mc::variant         emit(std::string_view signal_name, const mc::variants& args)           = 0;
+    virtual mc::variant         get_property(std::string_view property_name) const                     = 0;
+    virtual std::string_view    get_property_name(const property_base* prop)                           = 0;
+    virtual property_base*      get_property_base(std::string_view property_name)                      = 0;
+    virtual bool                has_property(std::string_view property_name)                           = 0;
+    virtual mc::dict            get_all_properties()                                                   = 0;
+    virtual bool                set_property(std::string_view property_name, const mc::variant& value) = 0;
 
     virtual bool          has_method(std::string_view method_name) const                 = 0;
     virtual invoke_result invoke(std::string_view method_name, const mc::variants& args) = 0;
 
-    virtual void notify_property_changed(const mc::variant& value, const property_base& prop) = 0;
-    virtual property_changed_signal& property_changed()                                       = 0;
+    virtual void                     notify_property_changed(const mc::variant& value, const property_base& prop) = 0;
+    virtual property_changed_signal& property_changed()                                                           = 0;
 
     virtual void visit(visitor& v) const = 0;
 };

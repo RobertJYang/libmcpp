@@ -264,10 +264,10 @@ typename std::enable_if<enable_enum_flags<Enum>::enable, Enum&>::type operator^=
  *   MC_ENABLE_ENUM_FLAGS(MyFlags)
  *   MyFlags flags = MyFlags::Flag1 | MyFlags::Flag2;
  */
-#define MC_ENABLE_ENUM_FLAGS(Enum)                                                                 \
-    template <>                                                                                    \
-    struct mc::enable_enum_flags<Enum> {                                                           \
-        static constexpr bool enable = true;                                                       \
+#define MC_ENABLE_ENUM_FLAGS(Enum)           \
+    template <>                              \
+    struct mc::enable_enum_flags<Enum> {     \
+        static constexpr bool enable = true; \
     }
 
 //------------------------------------------------------------------------------
@@ -454,7 +454,7 @@ inline int64_t hton(int64_t value) {
  * @param MEMBER 成员名称
  * @return size_t 成员偏移量（字节数）
  */
-#define MC_OFFSETOF(TYPE, MEMBER)                                                                  \
+#define MC_OFFSETOF(TYPE, MEMBER) \
     (static_cast<size_t>(reinterpret_cast<size_t>(&(reinterpret_cast<TYPE*>(0)->MEMBER))))
 
 /**
@@ -474,13 +474,35 @@ inline int64_t hton(int64_t value) {
  * @param MEMBER 成员指针
  * @return size_t 成员偏移量（字节数）
  */
-#define MC_MEMBER_OFFSETOF(TYPE, MEMBER)                                                           \
+#define MC_MEMBER_OFFSETOF(TYPE, MEMBER) \
     (reinterpret_cast<std::size_t>(&(reinterpret_cast<TYPE*>(0)->*MEMBER)))
 
 #define MC_ALIGN_UP(value, alignment) ((value + alignment - 1) & ~(alignment - 1))
 
 using thread_id = uint32_t;
 thread_id get_thread_id();
+
+namespace detail {
+template <typename T>
+struct is_function_pointer : std::false_type {};
+
+template <typename R, typename... Args>
+struct is_function_pointer<R (*)(Args...)> : std::true_type {};
+} // namespace detail
+
+template <typename F>
+inline auto get_function_offset(F function)
+    -> std::enable_if_t<std::is_member_function_pointer_v<F> ||
+                            detail::is_function_pointer<F>::value,
+                        std::uintptr_t> {
+    union {
+        F              function;
+        std::uintptr_t offset;
+    } u;
+    u.offset   = 0;
+    u.function = function;
+    return u.offset;
+}
 
 } // namespace mc
 

@@ -35,6 +35,19 @@ const method_info_base<T>* get_method_info(std::string_view method_name) {
 }
 
 /**
+ * @brief 获取指定名称的方法信息
+ *
+ * @tparam T 类型
+ * @param method_name 方法名称
+ * @return const method_info_base<T>* 方法信息指针，如果不存在则返回nullptr
+ */
+template <typename T, typename M>
+const method_info_base<T>* get_method_info(M T::* member_ptr) {
+    using clean_type = std::remove_cv_t<std::remove_reference_t<T>>;
+    return get_metadata<clean_type>().get_method_info(member_ptr);
+}
+
+/**
  * @brief 调用对象的方法
  *
  * @tparam T 对象类型

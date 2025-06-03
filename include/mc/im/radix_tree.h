@@ -55,9 +55,9 @@ public:
      * 路径项结构，用于记录遍历路径中的节点信息
      */
     struct path_item {
-        node_type* node;        // 当前节点
-        size_t     edge_index;  // 下一个要访问的边索引
-        size_t     prefix_size; // 节点前缀在键缓冲区中的大小
+        node_ptr node;        // 当前节点
+        size_t   edge_index;  // 下一个要访问的边索引
+        size_t   prefix_size; // 节点前缀在键缓冲区中的大小
     };
     using path_type = std::vector<path_item>;
 
@@ -225,7 +225,7 @@ private:
      * @param it_path 迭代器的路径
      * @return 设置好状态的迭代器
      */
-    iterator make_iterator(const node_type* n, key_buffer<>&& key_buf, path_type&& path);
+    iterator make_iterator(node_ptr n, key_buffer<>&& key_buf, path_type&& path);
 };
 
 } // namespace mc::im

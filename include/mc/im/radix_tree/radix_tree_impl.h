@@ -53,7 +53,7 @@ typename radix_tree<Config>::iterator radix_tree<Config>::find(key_view key) {
     key_buffer<> key_buf;
 
     key_buf.append(m_root->m_prefix);
-    path.push_back({m_root.get(), 0, 0});
+    path.push_back({m_root, 0, 0});
 
     using compare_type = typename node_type::compare_type;
     compare_type compare;
@@ -85,13 +85,13 @@ typename radix_tree<Config>::iterator radix_tree<Config>::find(key_view key) {
         auto& edge = *it;
         key_buf.resize(current.prefix_size);
         key_buf.append(edge.m_node->m_prefix);
-        path.push_back({edge.m_node.get(), 0, key_buf.size()});
+        path.push_back({edge.m_node, 0, key_buf.size()});
 
         if (edge.m_node->m_prefix == key.substr(key_pos)) {
             if (!edge.m_node->is_leaf()) {
                 break;
             }
-            return make_iterator(edge.m_node.get(), std::move(key_buf), std::move(path));
+            return make_iterator(edge.m_node, std::move(key_buf), std::move(path));
         }
     }
 
@@ -112,7 +112,7 @@ typename radix_tree<Config>::iterator radix_tree<Config>::lower_bound(key_view k
     key_buffer<> key_buf;
 
     key_buf.append(m_root->m_prefix);
-    path.push_back({m_root.get(), 0, 0});
+    path.push_back({m_root, 0, 0});
 
     using compare_type = typename node_type::compare_type;
     compare_type compare;
@@ -155,11 +155,11 @@ typename radix_tree<Config>::iterator radix_tree<Config>::lower_bound(key_view k
         auto& edge = *it;
         key_buf.resize(current.prefix_size);
         key_buf.append(edge.m_node->m_prefix);
-        path.push_back({edge.m_node.get(), 0, key_buf.size()});
+        path.push_back({edge.m_node, 0, key_buf.size()});
 
         // 如果找到叶子节点且键满足要求，返回迭代器
         if (edge.m_node->is_leaf() && (key_buf == key || !compare(key_buf, key))) {
-            return make_iterator(edge.m_node.get(), std::move(key_buf), std::move(path));
+            return make_iterator(edge.m_node, std::move(key_buf), std::move(path));
         }
     }
 
@@ -176,7 +176,7 @@ typename radix_tree<Config>::iterator radix_tree<Config>::upper_bound(key_view k
     key_buffer<> key_buf;
 
     key_buf.append(m_root->m_prefix);
-    path.push_back({m_root.get(), 0, 0});
+    path.push_back({m_root, 0, 0});
 
     using compare_type = typename node_type::compare_type;
     compare_type compare;
@@ -217,11 +217,11 @@ typename radix_tree<Config>::iterator radix_tree<Config>::upper_bound(key_view k
         auto& edge = *it;
         key_buf.resize(current.prefix_size);
         key_buf.append(edge.m_node->m_prefix);
-        path.push_back({edge.m_node.get(), 0, key_buf.size()});
+        path.push_back({edge.m_node, 0, key_buf.size()});
 
         // 如果找到叶子节点且键严格大于给定键，返回迭代器
         if (edge.m_node->is_leaf() && compare(key, key_buf)) {
-            return make_iterator(edge.m_node.get(), std::move(key_buf), std::move(path));
+            return make_iterator(edge.m_node, std::move(key_buf), std::move(path));
         }
     }
 
@@ -231,10 +231,10 @@ typename radix_tree<Config>::iterator radix_tree<Config>::upper_bound(key_view k
 // 创建一个迭代器并设置其状态
 template <typename Config>
 typename radix_tree<Config>::iterator
-radix_tree<Config>::make_iterator(const node_type* n, key_buffer<>&& key_buf, path_type&& path) {
+radix_tree<Config>::make_iterator(node_ptr n, key_buffer<>&& key_buf, path_type&& path) {
     iterator result;
     result.m_is_end       = false;
-    result.m_current_node = const_cast<node_type*>(n);
+    result.m_current_node = n;
     result.m_key_buffer   = std::move(key_buf);
     result.m_path         = std::move(path);
     result.update_current_item();

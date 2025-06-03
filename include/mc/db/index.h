@@ -18,8 +18,8 @@
 #include <mc/db/iterator.h>
 #include <mc/db/key.h>
 #include <mc/db/key_extractor.h>
+#include <mc/db/table_base.h>
 #include <mc/exception.h>
-#include <mc/im/radix_tree.h>
 
 #include <functional>
 #include <memory>
@@ -28,29 +28,6 @@
 #include <vector>
 
 namespace mc::db {
-
-template <typename ObjectType, typename Allocator = std::allocator<char>>
-class index_base {
-public:
-    using object_type     = ObjectType;
-    using alloc_type      = Allocator;
-    using object_ptr_type = mc::ref_ptr<object_type>;
-    using tree_config     = mc::im::tree_config<object_ptr_type, alloc_type>;
-    using tree_type       = mc::im::radix_tree<tree_config>;
-    using raw_iterator    = typename tree_type::iterator;
-
-    virtual ~index_base() = default;
-
-    virtual raw_iterator raw_begin() const = 0;
-
-    raw_iterator raw_end() const {
-        return raw_iterator();
-    }
-
-    virtual object_ptr_type raw_find(const mc::variant& value)        = 0;
-    virtual raw_iterator    raw_lower_bound(const mc::variant& value) = 0;
-    virtual raw_iterator    raw_upper_bound(const mc::variant& value) = 0;
-};
 
 /**
  * 索引实现
@@ -93,10 +70,21 @@ public:
      * @param alloc 内存分配器
      */
     explicit index(const key_extractor_type& extractor = key_extractor_type(),
-                   const alloc_type&         alloc     = alloc_type())
-        : m_extractor(extractor), m_txn(std::make_unique<txn_type>(alloc)) {
+                   const alloc_type&         alloc     = alloc_type(),
+                   uint8_t                   index_id  = 0,
+                   table_base*               table     = nullptr)
+        : m_extractor(extractor), m_txn(std::make_unique<txn_type>(alloc)),
+          m_index_id(index_id), m_table(table) {
         m_key.init(key_count, is_unique);
         m_key1.init(key_count, is_unique);
+    }
+
+    void set_table(table_base* table) {
+        m_table = table;
+    }
+
+    table_base* get_table() const override {
+        return m_table;
     }
 
     iterator_type find(const object_type& obj) {
@@ -153,7 +141,8 @@ public:
         auto [_, updated] = m_txn->insert(key_view, obj_ptr);
 
         if (updated) {
-            MC_THROW(mc::invalid_arg_exception, "索引键冲突: ${key}", ("key", key_view));
+            MC_THROW(mc::invalid_arg_exception, "表 ${table} 索引键冲突: ${key}(${name})",
+                     ("table", table_name())("name", index_name())("key", get_key_values(*obj_ptr)));
             return false;
         }
 
@@ -176,19 +165,22 @@ public:
         if (old_key != new_key) {
             auto old = m_txn->remove(old_key);
             if (!old.has_value()) {
-                MC_THROW(mc::invalid_arg_exception, "源索引不存在: ${key}", ("key", old_key));
+                MC_THROW(mc::invalid_arg_exception, "表 ${table} 源索引不存在: ${key}(${name})",
+                         ("table", table_name())("name", index_name())("key", get_key_values(old_obj)));
                 return false;
             }
 
             auto [_, update] = m_txn->insert(new_key, new_obj_ptr);
             if (update) {
-                MC_THROW(mc::invalid_arg_exception, "目标索引键冲突: ${key}", ("key", new_key));
+                MC_THROW(mc::invalid_arg_exception, "表 ${table} 目标索引键冲突: ${key}(${name})",
+                         ("table", table_name())("name", index_name())("key", get_key_values(*new_obj_ptr)));
                 return false;
             }
         } else {
             auto [_, update] = m_txn->insert(new_key, new_obj_ptr);
             if (!update) {
-                MC_THROW(mc::invalid_arg_exception, "源索引不存在: ${key}", ("key", old_key));
+                MC_THROW(mc::invalid_arg_exception, "表 ${table} 源索引不存在: ${key}(${name})",
+                         ("table", table_name())("name", index_name())("key", get_key_values(old_obj)));
                 return false;
             }
         }
@@ -354,6 +346,27 @@ public:
         return m_txn->root().size();
     }
 
+    std::string index_name() const {
+        if constexpr (is_field_tag_v<Tag>) {
+            return mc::string::join(Tag::get_field_names(), ",");
+        } else {
+            auto names = m_extractor.get_field_names();
+            if (names.empty()) {
+                return "index_" + std::to_string(m_index_id);
+            }
+
+            return mc::string::join(names, ",");
+        }
+    }
+
+    std::string_view table_name() const {
+        return m_table ? m_table->get_table_name() : "anonymous_table";
+    }
+
+    mc::variant get_key_values(const object_type& obj) {
+        return m_extractor(obj);
+    }
+
 private:
     void make_object_key(mdb_key& key, const object_type& obj) {
         make_key_internal<is_unique>(key, obj.get_object_id(), [&](mdb_key& key) {
@@ -434,6 +447,8 @@ private:
     key_extractor_type        m_extractor;
     std::unique_ptr<txn_type> m_txn;
     tree_type                 m_tree;
+    uint8_t                   m_index_id;
+    table_base*               m_table{nullptr};
 
     // 缓存的键
     mdb_key m_key;
