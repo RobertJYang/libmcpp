@@ -336,7 +336,7 @@ auto timeout(mc::futures::Future<T, Executor, Allocator> future,
     -> mc::futures::Future<T, Executor, Allocator> {
     // 优化：如果传入的future已经ready，直接返回它
     if (future.is_ready()) {
-        return std::move(future);
+        return future;
     }
 
     // 优化：如果传入的future已经cancelled，创建一个已取消的future返回
