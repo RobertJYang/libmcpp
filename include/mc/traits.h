@@ -216,8 +216,8 @@ template <typename Tuple, typename Func>
 constexpr auto tuple_map(Tuple& tuple, Func&& func) {
     return std::apply(
         [&](auto&... element) {
-            return (std::tuple_cat(func(element)...));
-        },
+        return (std::tuple_cat(func(element)...));
+    },
         tuple);
 }
 

@@ -48,10 +48,10 @@ struct reflector;
 template <typename T>
 class reflection_metadata {
 public:
-    using property_map        = std::unordered_map<std::string_view, const property_info_base<T>*>;
-    using property_offset_map = std::unordered_map<size_t, const property_info_base<T>*>;
-    using method_map          = std::unordered_map<std::string_view, const method_info_base<T>*>;
-    using base_class_prop_map = std::unordered_map<std::string_view, property_map>;
+    using property_map          = std::unordered_map<std::string_view, const property_info_base<T>*>;
+    using property_offset_map   = std::unordered_map<size_t, const property_info_base<T>*>;
+    using method_map            = std::unordered_map<std::string_view, const method_info_base<T>*>;
+    using base_class_prop_map   = std::unordered_map<std::string_view, property_map>;
     using base_class_method_map = std::unordered_map<std::string_view, method_map>;
     using base_class_info_map =
         std::unordered_map<std::string_view, const base_class_info_base<T>*>;
@@ -86,6 +86,17 @@ public:
     const method_info_base<T>* get_method_info(std::string_view name) const {
         auto it = m_name_to_methods.find(name);
         return it != m_name_to_methods.end() ? it->second : nullptr;
+    }
+
+    template <typename M>
+    const method_info_base<T>* get_method_info(M T::* member_ptr) const {
+        auto offset = get_function_offset(member_ptr);
+        for (auto& [name, method] : m_name_to_methods) {
+            if (method->offset() == offset) {
+                return method;
+            }
+        }
+        return nullptr;
     }
 
     /**
@@ -278,7 +289,7 @@ private:
             using base_type     = typename property_type::base_type;
             using class_type    = typename property_type::class_type;
             if constexpr (!std::is_same_v<base_type, class_type>) {
-                auto base_name = mc::reflect::reflector<base_type>::name();
+                auto base_name                                  = mc::reflect::reflector<base_type>::name();
                 m_base_class_prop_map[base_name][property.name] = &property;
             }
         });
@@ -297,7 +308,7 @@ private:
             using class_type  = typename method_type::class_type;
             if constexpr (!std::is_same_v<base_type, class_type> &&
                           mc::reflect::is_reflectable<base_type>()) {
-                auto base_name = mc::reflect::reflector<base_type>::name();
+                auto base_name                                  = mc::reflect::reflector<base_type>::name();
                 m_base_class_method_map[base_name][method.name] = &method;
             }
         });

@@ -140,32 +140,32 @@ TEST_F(StringTest, StringSplitJoinTest) {
  */
 TEST_F(StringTest, SubstrLuaStyleTest) {
     const std::string test_str = "Hello, World!";
-    
+
     // 测试正常情况下的子字符串提取（正数索引）
     ASSERT_EQ(substr(test_str, 0, 4), "Hello") << "从开头提取子字符串应该正确";
     ASSERT_EQ(substr(test_str, 7, 11), "World") << "从中间提取子字符串应该正确";
-    
+
     // 测试负数索引
     ASSERT_EQ(substr(test_str, -6, -2), "World") << "使用负数索引提取子字符串应该正确";
     ASSERT_EQ(substr(test_str, -13, -8), "Hello,") << "使用负数索引从开头提取子字符串应该正确";
-    
+
     // 测试默认结束位置
     ASSERT_EQ(substr(test_str, 7), "World!") << "省略结束位置应该提取到字符串末尾";
     ASSERT_EQ(substr(test_str, -6), "World!") << "使用负数起始索引并省略结束位置应该正确";
-    
+
     // 测试完整字符串
     ASSERT_EQ(substr(test_str, 0, -1), "Hello, World!") << "提取完整字符串应该正确";
     ASSERT_EQ(substr(test_str, 0, test_str.length() - 1), "Hello, World!") << "使用字符串长度作为结束位置应该正确";
-    
+
     // 测试边界情况
     ASSERT_EQ(substr(test_str, 0, 0), "H") << "提取单个字符应该正确";
     ASSERT_EQ(substr(test_str, -1, -1), "!") << "提取最后一个字符应该正确";
-    
+
     // 测试超出范围的情况
     ASSERT_EQ(substr(test_str, 100, 200), "") << "超出范围的索引应该返回空字符串";
     ASSERT_EQ(substr(test_str, -100, -50), "") << "超出范围的负数索引应该返回空字符串";
     ASSERT_EQ(substr(test_str, 5, 2), "") << "结束索引小于起始索引应该返回空字符串";
-    
+
     // 测试空字符串
     ASSERT_EQ(substr("", 0, 5), "") << "空字符串应该返回空字符串";
 }
@@ -175,36 +175,36 @@ TEST_F(StringTest, SubstrLuaStyleTest) {
  */
 TEST_F(StringTest, SubstringTest) {
     const std::string test_str = "Hello, World!";
-    
+
     // 测试正常情况下的子字符串提取（正数索引）
     ASSERT_EQ(substring(test_str, 0, 5), "Hello") << "从开头提取指定长度的子字符串应该正确";
     ASSERT_EQ(substring(test_str, 7, 5), "World") << "从中间提取指定长度的子字符串应该正确";
-    
+
     // 测试负数索引
     ASSERT_EQ(substring(test_str, -6, 5), "World") << "使用负数索引提取指定长度的子字符串应该正确";
     ASSERT_EQ(substring(test_str, -13, 6), "Hello,") << "使用负数索引从开头提取指定长度的子字符串应该正确";
-    
+
     // 测试默认长度（提取到末尾）
     ASSERT_EQ(substring(test_str, 7), "World!") << "默认长度应该提取到字符串末尾";
     ASSERT_EQ(substring(test_str, -6), "World!") << "使用负数起始索引并使用默认长度应该正确";
-    
+
     // 测试完整字符串
     ASSERT_EQ(substring(test_str, 0), "Hello, World!") << "从开头提取整个字符串应该正确";
     ASSERT_EQ(substring(test_str, 0, test_str.length()), "Hello, World!") << "使用字符串长度作为长度应该正确";
-    
+
     // 测试长度超出字符串范围
     ASSERT_EQ(substring(test_str, 0, 100), "Hello, World!") << "超出范围的长度应该被调整";
     ASSERT_EQ(substring(test_str, 7, 100), "World!") << "从中间开始超出范围的长度应该被调整";
     ASSERT_EQ(substring(test_str, -6, 100), "World!") << "使用负索引时超出范围的长度应该被调整";
-    
+
     // 测试零长度
     ASSERT_EQ(substring(test_str, 0, 0), "") << "零长度应该返回空字符串";
     ASSERT_EQ(substring(test_str, 5, 0), "") << "从中间开始的零长度应该返回空字符串";
-    
+
     // 测试超出范围的索引
     ASSERT_EQ(substring(test_str, 100, 5), "") << "超出范围的索引应该返回空字符串";
     ASSERT_EQ(substring(test_str, -100, 5), "") << "超出范围的负数索引应该返回空字符串";
-    
+
     // 测试空字符串
     ASSERT_EQ(substring("", 0, 5), "") << "空字符串应该返回空字符串";
 }
@@ -314,6 +314,26 @@ TEST_F(StringTest, FormatWithDictTest) {
     // 测试多个参数
     result = mc_format("${a}-${b}-${c}", ("a", 1)("b", 2.5)("c", "文本"));
     ASSERT_EQ(result, "1-2.5-文本") << "多参数调用应该正确格式化";
+}
+
+TEST_F(StringTest, JoinTest) {
+    ASSERT_EQ(join(",", "a", "b", "c"), "a,b,c");
+    ASSERT_EQ(join(",", "a", "b", "c", "d"), "a,b,c,d");
+    ASSERT_EQ(join(",", "a", "b", "c", "d", "e"), "a,b,c,d,e");
+
+    ASSERT_EQ(join(std::vector<std::string>{"a", "b", "c"}, ","), "a,b,c");
+    ASSERT_EQ(join(std::vector<std::string>{"a", "b", "c", "d"}, ","), "a,b,c,d");
+    ASSERT_EQ(join(std::vector<std::string>{"a", "b", "c", "d", "e"}, ","), "a,b,c,d,e");
+}
+
+TEST_F(StringTest, ConcatTest) {
+    ASSERT_EQ(concat("a", "b", "c"), "abc");
+    ASSERT_EQ(concat("a", "b", "c", "d"), "abcd");
+    ASSERT_EQ(concat("a", "b", "c", "d", "e"), "abcde");
+
+    ASSERT_EQ(concat(std::vector<std::string>{"a", "b", "c"}), "abc");
+    ASSERT_EQ(concat(std::vector<std::string>{"a", "b", "c", "d"}), "abcd");
+    ASSERT_EQ(concat(std::vector<std::string>{"a", "b", "c", "d", "e"}), "abcde");
 }
 
 } // namespace test

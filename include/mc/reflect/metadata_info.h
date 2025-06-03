@@ -185,11 +185,11 @@ struct property_info_base : public property_type_info {
     property_info_base(std::string_view n) : property_type_info(n) {
     }
 
-    virtual mc::variant get_value(const C& obj) const                     = 0;
-    virtual void        set_value(C& obj, const mc::variant& value) const = 0;
-    virtual std::function<mc::variant(const C&)>        getter() const    = 0;
-    virtual std::function<void(C&, const mc::variant&)> setter() const    = 0;
-    virtual size_t                                      offset() const    = 0;
+    virtual mc::variant                                 get_value(const C& obj) const                     = 0;
+    virtual void                                        set_value(C& obj, const mc::variant& value) const = 0;
+    virtual std::function<mc::variant(const C&)>        getter() const                                    = 0;
+    virtual std::function<void(C&, const mc::variant&)> setter() const                                    = 0;
+    virtual size_t                                      offset() const                                    = 0;
 };
 
 // 属性元数据具体实现
@@ -341,10 +341,11 @@ struct method_info_base : public method_type_info {
     method_info_base(std::string_view n) : method_type_info(n) {
     }
 
-    virtual bool        is_static() const                              = 0;
-    virtual mc::variant invoke(C& obj, const mc::variants& args) const = 0;
-    virtual mc::variant invoke(const mc::variants& args) const         = 0;
-    virtual size_t      arg_count() const = 0; // 返回方法所需的参数数量
+    virtual bool           is_static() const                              = 0;
+    virtual mc::variant    invoke(C& obj, const mc::variants& args) const = 0;
+    virtual mc::variant    invoke(const mc::variants& args) const         = 0;
+    virtual size_t         arg_count() const                              = 0; // 返回方法所需的参数数量
+    virtual std::uintptr_t offset() const                                 = 0;
 };
 
 namespace detail {
@@ -479,6 +480,10 @@ public:
         return mc::reflect::get_signature<result_type>();
     }
 
+    std::uintptr_t offset() const override {
+        return get_function_offset(m_function);
+    }
+
     template <typename Derived>
     constexpr auto to_derived() const {
         static_assert(std::is_base_of_v<class_type, Derived>,
@@ -515,10 +520,10 @@ struct base_class_info_base : public member_info_base {
     base_class_info_base(std::string_view n = {}) : member_info_base(n) {
     }
 
-    virtual std::string_view get_signature() const                                            = 0;
-    virtual mc::variant      get_value(const C& obj, std::string_view name) const             = 0;
-    virtual void set_value(C& obj, std::string_view name, const mc::variant& value) const     = 0;
-    virtual mc::variant invoke(C& obj, std::string_view name, const mc::variants& args) const = 0;
+    virtual std::string_view get_signature() const                                                    = 0;
+    virtual mc::variant      get_value(const C& obj, std::string_view name) const                     = 0;
+    virtual void             set_value(C& obj, std::string_view name, const mc::variant& value) const = 0;
+    virtual mc::variant      invoke(C& obj, std::string_view name, const mc::variants& args) const    = 0;
 };
 
 // 属性元数据具体实现

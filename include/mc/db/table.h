@@ -13,15 +13,12 @@
 #ifndef MC_DATABASE_TABLE_H
 #define MC_DATABASE_TABLE_H
 
-#include <mc/db/common.h>
 #include <mc/db/index.h>
 #include <mc/db/index_tag.h>
 #include <mc/db/key.h>
 #include <mc/db/key_extractor.h>
-#include <mc/db/query/builder.h>
-#include <mc/db/query/query.h>
+#include <mc/db/table_base.h>
 #include <mc/db/table_op.h>
-#include <mc/db/transaction.h>
 #include <mc/exception.h>
 #include <mc/im/radix_tree.h>
 #include <mc/ref_ptr.h>
@@ -38,31 +35,6 @@
 #include <vector>
 
 namespace mc::db {
-/**
- * 使用反射获取对象属性值
- * @tparam T 对象类型
- * @param obj 对象
- * @param key 属性名
- * @return 属性值的可选包装
- */
-template <typename T>
-std::optional<mc::variant> get_property(const T& obj, std::string_view key) {
-    // 使用反射框架中的缓存机制获取属性
-    return mc::reflect::get_property(obj, key);
-}
-
-/**
- * 使用反射获取对象属性值
- * @tparam T 对象类型
- * @param obj 对象
- * @param key 属性名
- * @return 属性值的可选包装
- */
-template <typename T>
-std::optional<mc::variant> set_property(T& obj, std::string_view key, const mc::variant& value) {
-    // 使用反射框架中的缓存机制获取属性
-    return mc::reflect::set_property(obj, key, value);
-}
 
 /**
  * 辅助函数，从索引定义中提取信息
@@ -118,7 +90,7 @@ constexpr bool verify_indices_object_type() {
 template <typename ObjectType, typename Alloc>
 auto make_object_id_index(const Alloc& alloc = Alloc()) {
     return index<ObjectType, detail::object_id_key<ObjectType>, true, void, Alloc>(
-        detail::object_id_key<ObjectType>{}, alloc);
+        detail::object_id_key<ObjectType>{}, alloc, 0);
 }
 
 /**
@@ -131,7 +103,7 @@ auto make_indices_with_user_indices_impl(std::index_sequence<Is...>, const Alloc
         index<ObjectType, typename std::tuple_element_t<Is, Tuple>::key_extractor_type,
               std::tuple_element_t<Is, Tuple>::is_unique,
               typename std::tuple_element_t<Is, Tuple>::tag_type, Alloc>(
-            typename std::tuple_element_t<Is, Tuple>::key_extractor_type{}, alloc)...);
+            typename std::tuple_element_t<Is, Tuple>::key_extractor_type{}, alloc, Is + 1)...);
 }
 
 /**
@@ -232,70 +204,6 @@ struct has_createor<ObjectType,
 
 } // namespace detail
 
-class table_base {
-public:
-    virtual ~table_base() = default;
-
-    virtual uint32_t         get_table_id() const      = 0;
-    virtual void             set_table_id(uint32_t id) = 0;
-    virtual std::string_view get_table_name() const    = 0;
-    virtual bool             empty() const             = 0;
-    virtual size_t           size() const              = 0;
-    virtual void             clear()                   = 0;
-
-    object_ptr add_object(const mc::dict& var, transaction* txn = nullptr) {
-        return do_add_object(var, txn);
-    }
-
-    size_t remove_object(const query_builder& condition, transaction* txn = nullptr) {
-        return do_remove_object(condition, txn);
-    }
-
-    object_ptr find_object(const query_builder& condition) {
-        return do_find_object(condition);
-    }
-
-    using query_handler = std::function<bool(object_base&)>;
-    bool query_object(const query_builder& builder, query_handler&& handler) {
-        return do_query_object(builder, std::forward<query_handler>(handler));
-    }
-
-    size_t update_object(const query_builder& condition, const mc::dict& values,
-                         transaction* txn = nullptr) {
-        return do_update_object(condition, values, txn);
-    }
-
-    size_t update_object(const query_builder&                  condition,
-                         const std::map<std::string, variant>& values, transaction* txn = nullptr) {
-        return do_update_object(condition, values, txn);
-    }
-
-    mc::signal<void(object_base&)>               on_object_added;
-    mc::signal<void(object_base&)>               on_object_removed;
-    mc::signal<void(object_base&, object_base&)> on_object_updated;
-
-protected:
-    virtual object_ptr do_add_object(const mc::dict& var, transaction* txn)                   = 0;
-    virtual size_t     do_remove_object(const query_builder& condition, transaction* txn)     = 0;
-    virtual object_ptr do_find_object(const query_builder& condition)                         = 0;
-    virtual bool       do_query_object(const query_builder& builder, query_handler&& handler) = 0;
-
-    virtual size_t do_update_object(const query_builder&                  condition,
-                                    const std::map<std::string, variant>& values,
-                                    transaction*                          txn) = 0;
-    virtual size_t do_update_object(const query_builder& condition, const mc::dict& values,
-                                    transaction* txn) = 0;
-
-    /**
-     * 生成新的对象ID
-     * @return 新的对象ID
-     */
-    object_id_type generate_id() {
-        return m_next_id.fetch_add(1, std::memory_order_relaxed);
-    }
-    static std::atomic<object_id_type> m_next_id; ///< 下一个可用的对象ID
-};
-
 /**
  * 表的实现，它是多个索引的组合
  * @tparam ObjectType 对象类型
@@ -341,8 +249,13 @@ public:
         size_t i = 0;
         detail::for_each_index(m_indices, [&i, this](auto& idx) {
             m_indices_array[i++] = &idx;
+            idx.set_table(this);
             return true;
         });
+        if (m_name.empty()) {
+            m_name = mc::string::join("", "table_", std::to_string(m_table_id),
+                                      mc::pretty_name<object_type>());
+        }
     }
 
     ~table() {

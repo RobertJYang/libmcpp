@@ -359,7 +359,7 @@ TEST_F(table_test, advanced_update) {
     // 使用 map 更新
     {
         std::map<std::string, mc::variant> update_values = {{"score", 88.0}};
-        size_t updated = users.update(field_name == "Bob", update_values);
+        size_t                             updated       = users.update(field_name == "Bob", update_values);
         EXPECT_EQ(updated, 1);
 
         auto result = users.find(field_name == "Bob");
@@ -487,4 +487,36 @@ TEST_F(table_test, advanced_remove) {
         users.clear();
         EXPECT_TRUE(users.empty());
     }
+}
+
+TEST_F(table_test, index_name) {
+    user_table users;
+
+    // 使用反射名命名索引
+    EXPECT_EQ(users.get<1>().index_name(), "name");
+
+    // 非反射信息的索引，使用索引编号命名
+    EXPECT_EQ(users.get<2>().index_name(), "index_2");
+
+    // MC_FIELD_INDEX_TAG 自定义的命名索引，使用自定义的名字
+    EXPECT_EQ(users.get<3>().index_name(), "name_age");
+}
+
+TEST_F(table_test, index_name_composite) {
+    using user_table_1 = mdb::table<
+        user, mdb::indexed_by<
+                  mdb::ordered_unique<&user::m_name, &user::get_age>>>;
+    user_table_1 users;
+
+    // 0: user::m_name 有反射信息
+    // 1: user::get_age 没有反射信息，使用 key_type 加 key 编号命名
+    EXPECT_EQ(users.get<1>().index_name(), "name,int_1");
+
+    user u1("张三", 25, 88.5);
+    auto key_values = users.get<1>().get_key_values(u1);
+    EXPECT_EQ(key_values.size(), 2);
+    EXPECT_EQ(key_values.to_string(), "[\"张三\",25]");
+
+    users.add(u1);
+    EXPECT_THROW(users.add(u1), mc::invalid_arg_exception);
 }

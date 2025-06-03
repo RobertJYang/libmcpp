@@ -22,11 +22,12 @@
 #include <cerrno>
 #include <cmath>
 #include <cstdio>
-#include <cstdlib> // 用于strtod等函数
-#include <limits>  // 用于numeric_limits
+#include <cstdlib>
+#include <limits>
 #include <locale>
 #include <mc/pretty_name.h>
 #include <memory>
+#include <numeric>
 #include <sstream>
 #include <string>
 #include <string_view>
@@ -35,6 +36,49 @@
 // 前向声明
 namespace mc {
 class dict;
+
+namespace detail {
+// 辅助函数：直接将格式化后的数值追加到结果字符串
+template <typename T>
+void append_formatted_number(std::string& result, T val, const char* format) {
+    constexpr std::size_t BUFFER_SIZE = 64;
+    char                  buffer[BUFFER_SIZE];
+    int                   len = std::snprintf(buffer, BUFFER_SIZE, format, val);
+    if (len > 0) {
+        result.append(buffer, len);
+    }
+}
+} // namespace detail
+
+template <typename T>
+auto to_string(std::string& result, T value) -> std::enable_if_t<std::is_integral_v<T> && std::is_signed_v<T>, void> {
+    detail::append_formatted_number(result, static_cast<long long>(value), "%lld");
+}
+
+template <typename T>
+auto to_string(T value) -> std::enable_if_t<std::is_integral_v<T> && std::is_signed_v<T>, std::string> {
+    std::string result;
+    to_string(result, value);
+    return result;
+}
+
+template <typename T>
+auto to_string(std::string& result, T value) -> std::enable_if_t<std::is_integral_v<T> && std::is_unsigned_v<T>, void> {
+    detail::append_formatted_number(result, static_cast<unsigned long long>(value), "%llu");
+}
+
+template <typename T>
+auto to_string(T value) -> std::enable_if_t<std::is_integral_v<T> && std::is_unsigned_v<T>, std::string> {
+    std::string result;
+    to_string(result, value);
+    return result;
+}
+
+std::string to_string(double value);
+void        to_string(std::string& result, double value);
+
+std::string to_string(bool value);
+void        to_string(std::string& result, bool value);
 
 namespace string {
 
@@ -143,14 +187,6 @@ std::vector<std::string> split(std::string_view s, char delim);
 std::vector<std::string> split(std::string_view s, std::string_view delim);
 
 /**
- * @brief 将字符串数组连接成一个字符串
- * @param v 字符串数组
- * @param delim 连接符
- * @return 连接后的字符串
- */
-std::string join(const std::vector<std::string>& v, std::string_view delim);
-
-/**
  * @brief 获取子字符串，支持负数索引
  * @param s 源字符串
  * @param start 起始位置（索引从0开始）
@@ -224,7 +260,7 @@ void append(std::string& result, T&& value) {
         result.append(1, value);
     } else if constexpr (std::is_arithmetic_v<std::decay_t<T>>) {
         // 对于数值类型，转换为字符串后追加
-        result.append(std::to_string(value));
+        result.append(mc::to_string(value));
     } else {
         // 对于其他类型，尝试使用std::ostringstream
         std::ostringstream oss;
@@ -236,6 +272,68 @@ template <typename T, typename... Args>
 void append(std::string& result, T&& value, Args&&... args) {
     append(result, std::forward<T>(value));
     append(result, std::forward<Args>(args)...);
+}
+
+/**
+ * @brief 将字符串数组连接成一个字符串
+ * @param v 字符串数组
+ * @param delim 连接符
+ * @return 连接后的字符串
+ */
+std::string join(const std::vector<std::string>& v, std::string_view delim);
+
+template <typename... Args>
+std::string join(std::string_view delim, Args&&... args) {
+    std::string result;
+    if constexpr (sizeof...(args) == 0) {
+        // 无参数时返回空字符串
+    } else if constexpr (sizeof...(args) == 1) {
+        // 单个参数时直接转换并追加
+        append(result, args...);
+    } else if constexpr (sizeof...(args) > 1) {
+        // 多个参数时，先添加第一个参数
+        auto add_with_delim = [&result, delim](const auto& arg) {
+            if (!result.empty()) {
+                result.append(delim);
+            }
+            append(result, arg);
+        };
+        (add_with_delim(args), ...);
+    }
+    return result;
+}
+
+/**
+ * @brief 将字符串数组连接成一个字符串
+ * @param v 字符串数组
+ * @return 连接后的字符串
+ */
+inline std::string concat(const std::vector<std::string>& v) {
+    std::string result;
+    result.reserve(std::accumulate(v.begin(), v.end(), size_t{0},
+                                   [](size_t sum, const std::string& s) {
+        return sum + s.size();
+    }));
+    for (const auto& s : v) {
+        result.append(s);
+    }
+    return result;
+}
+
+/**
+ * @brief 将多个参数连接成一个字符串
+ * @param args 要连接的参数
+ * @return 连接后的字符串
+ */
+template <typename T, typename... Args,
+          typename = std::enable_if_t<!std::is_same_v<std::decay_t<T>, std::vector<std::string>>>>
+std::string concat(T&& first, Args&&... args) {
+    std::string result;
+    append(result, std::forward<T>(first));
+    if constexpr (sizeof...(args) > 0) {
+        append(result, std::forward<Args>(args)...);
+    }
+    return result;
 }
 
 /**
@@ -595,7 +693,7 @@ inline bool get_format_args(std::string_view format, mc::dict& arg_names) {
  * std::string s2 = mc_format("${host}:${port}", ("host", "example.com")("port", 8080));
  * @endcode
  */
-#define mc_format(fmt, ...)                                                                        \
+#define mc_format(fmt, ...) \
     mc::format(fmt, static_cast<const mc::dict&>(mc::mutable_dict() __VA_ARGS__))
 
 /**
@@ -610,10 +708,8 @@ inline bool get_format_args(std::string_view format, mc::dict& arg_names) {
  * mc_format_append(result, "${host}:${port}", ("host", "example.com")("port", 8080));
  * @endcode
  */
-#define mc_format_append(result, fmt, ...)                                                         \
+#define mc_format_append(result, fmt, ...) \
     mc::format(result, fmt, static_cast<const mc::dict&>(mc::mutable_dict() __VA_ARGS__))
-
-std::string to_string(double value);
 
 } // namespace mc
 

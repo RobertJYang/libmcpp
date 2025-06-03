@@ -671,3 +671,11 @@ TEST_F(database_test, multi_table_transaction) {
     // 清理第二张表
     db.unregister_table("second_table");
 }
+
+TEST_F(database_test, index_name) {
+    auto name_id = table->get<by_id>().index_name();
+    EXPECT_EQ(name_id, "id");
+
+    auto name2 = table->get<2>().index_name();
+    EXPECT_EQ(name2, "name");
+}

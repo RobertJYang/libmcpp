@@ -98,7 +98,7 @@ public:
         if constexpr (mc::reflect::is_reflectable<ObjectType>()) {
             return {std::string(mc::reflect::get_property_name<ObjectType>(Member))};
         } else {
-            return {"<member>"};
+            return {};
         }
     }
 };
@@ -158,7 +158,12 @@ public:
      * @return 字段名称列表
      */
     static std::vector<std::string> get_field_names() {
-        return {"<member_function>"};
+        if constexpr (mc::reflect::is_reflectable<ObjectType>()) {
+            auto* method = mc::reflect::get_method_info<ObjectType>(MemberFn);
+            return method ? std::vector<std::string>{std::string(method->name)} : std::vector<std::string>{};
+        } else {
+            return {};
+        }
     }
 };
 
@@ -224,7 +229,7 @@ public:
      * @return 字段名称列表
      */
     static std::vector<std::string> get_field_names() {
-        return {std::string("<functor>")};
+        return {};
     }
 
 private:
@@ -239,7 +244,8 @@ template <typename... Extractors>
 class composite_key {
 public:
     // 从第一个提取器中获取 object_type
-    using object_type = typename std::tuple_element_t<0, std::tuple<Extractors...>>::object_type;
+    using object_type                     = typename std::tuple_element_t<0, std::tuple<Extractors...>>::object_type;
+    using key_type                        = typename std::tuple<typename Extractors::key_type...>;
     static constexpr int  key_count       = sizeof...(Extractors);
     static constexpr bool is_compound_key = true;
 
@@ -255,12 +261,19 @@ public:
     composite_key(Extractors... extractors) : m_extractors(std::move(extractors)...) {
     }
 
+    key_type operator()(const object_type& obj) const {
+        return mc::traits::tuple_map(m_extractors, [&](auto& extractor) {
+            return std::make_tuple(extractor(obj));
+        });
+    }
+
     /**
      * 提取组合键并添加到键缓冲区
      * @param key 键缓冲区
      * @param obj 对象
      */
-    void extract_key(mdb_key& key, const object_type& obj) const {
+    void
+    extract_key(mdb_key& key, const object_type& obj) const {
         extract_key_impl(key, obj, std::index_sequence_for<Extractors...>());
     }
 
@@ -334,25 +347,33 @@ private:
     }
 
     /**
-     * 递归实现获取所有提取器的字段名
-     * @param names 字段名容器
+     * 获取字段名称列表的辅助函数
+     * @param names 字段名称列表
      * @param indices 编译期索引序列
      */
-    template <size_t... Indices>
-    static void get_field_names_impl(std::vector<std::string_view>& names,
-                                     std::index_sequence<Indices...>) {
-        (append_field_names<Indices>(names), ...);
+    template <size_t... I>
+    static void get_field_names_impl(std::vector<std::string>& names,
+                                     std::index_sequence<I...>) {
+        (append_field_names<I>(names), ...);
     }
 
     /**
-     * 将单个提取器的字段名添加到列表
-     * @param names 字段名容器
+     * 将指定提取器的字段名称添加到列表中
+     * @param names 字段名称列表
      */
     template <size_t I>
-    static void append_field_names(std::vector<std::string_view>& names) {
+    static void append_field_names(std::vector<std::string>& names) {
         using extractor_type = std::tuple_element_t<I, std::tuple<Extractors...>>;
         auto extractor_names = extractor_type::get_field_names();
-        names.insert(names.end(), extractor_names.begin(), extractor_names.end());
+        if (extractor_names.empty()) {
+            using key_type   = typename extractor_type::key_type;
+            std::string name = mc::pretty_name<key_type>();
+            name += "_";
+            name += std::to_string(I);
+            names.emplace_back(std::move(name));
+        } else {
+            names.insert(names.end(), extractor_names.begin(), extractor_names.end());
+        }
     }
 };
 
@@ -460,7 +481,7 @@ public:
      * @return 字段名称
      */
     static std::vector<std::string> get_field_names() {
-        return {"rowid"};
+        return {"object_id"};
     }
 };
 

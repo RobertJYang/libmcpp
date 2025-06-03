@@ -24,10 +24,6 @@
 #include <functional>
 #include <type_traits>
 
-// utf8 编码检查
-#include <codecvt>
-#include <locale>
-
 #include <stdarg.h>
 
 namespace mc {
@@ -146,8 +142,8 @@ std::string ltrim(std::string_view s) {
 // 原地去除字符串左侧的空白字符
 void ltrim_inplace(std::string& s) {
     s.erase(s.begin(), std::find_if(s.begin(), s.end(), [](unsigned char ch) {
-                return !std::isspace(ch);
-            }));
+        return !std::isspace(ch);
+    }));
 }
 
 // 去除字符串右侧的空白字符
@@ -169,8 +165,8 @@ std::string rtrim(std::string_view s) {
 void rtrim_inplace(std::string& s) {
     s.erase(std::find_if(s.rbegin(), s.rend(),
                          [](unsigned char ch) {
-                             return !std::isspace(ch);
-                         })
+        return !std::isspace(ch);
+    })
                 .base(),
             s.end());
 }
@@ -221,7 +217,7 @@ std::vector<std::string> split(std::string_view s, std::string_view delim) {
 // 将字符串数组连接成一个字符串
 std::string join(const std::vector<std::string>& v, std::string_view delim) {
     if (v.empty()) {
-        return "";
+        return {};
     }
 
     std::string result;
@@ -473,41 +469,23 @@ static bool is_valid_fmt_key(std::string_view key) {
     return true;
 }
 
-// 辅助函数：直接将格式化后的数值追加到结果字符串
-template <typename T>
-static void append_formatted_number(std::string& result, T val, const char* format) {
-    // 对于数值类型，64字节的缓冲区通常足够了
-    constexpr std::size_t BUFFER_SIZE = 64;
-    char                  buffer[BUFFER_SIZE];
-    int                   len = std::snprintf(buffer, BUFFER_SIZE, format, val);
-    if (len > 0) {
-        result.append(buffer, len);
-    }
-}
-
 // 定义占位符语法的常量
 constexpr std::string_view PLACEHOLDER_START = "${";
 constexpr char             PLACEHOLDER_END   = '}';
 
 // 将variant值转换为字符串并追加到结果中
 static void append_variant_to_string(std::string& result, const variant& value) {
-    value.visit_with([&result](auto&& val) {
+    value.visit_with([&](auto&& val) {
         using T = std::decay_t<decltype(val)>;
 
-        if constexpr (std::is_same_v<T, void>) {
+        if constexpr (std::is_same_v<T, void> || std::is_same_v<T, std::nullptr_t>) {
             result.append("null");
-        } else if constexpr (std::is_same_v<T, int64_t>) {
-            append_formatted_number(result, static_cast<long long>(val), "%lld");
-        } else if constexpr (std::is_same_v<T, uint64_t>) {
-            append_formatted_number(result, static_cast<unsigned long long>(val), "%llu");
-        } else if constexpr (std::is_same_v<T, double>) {
-            append_formatted_number(result, val, "%g");
-        } else if constexpr (std::is_same_v<T, bool>) {
-            result.append(val ? "true" : "false");
+        } else if constexpr (std::is_arithmetic_v<T> || std::is_same_v<T, bool>) {
+            mc::to_string(result, val);
         } else if constexpr (std::is_same_v<T, std::string>) {
             result.append(val);
         } else {
-            result.append("[complex type]");
+            result.append(value.to_string());
         }
     });
 }
@@ -677,7 +655,7 @@ bool mc::string::get_format_args(std::string_view format, mc::dict& arg_names) {
     return true;
 }
 
-std::string to_string(double value) {
+void to_string(std::string& result, double value) {
     char   buffer[64];
     double intpart;
     if (modf(value, &intpart) == 0.0) {
@@ -695,7 +673,23 @@ std::string to_string(double value) {
             *end = '\0';
         }
     }
-    return buffer;
+    result.append(buffer);
+}
+
+std::string to_string(double value) {
+    std::string result;
+    to_string(result, value);
+    return result;
+}
+
+std::string to_string(bool value) {
+    std::string result;
+    to_string(result, value);
+    return result;
+}
+
+void to_string(std::string& result, bool value) {
+    result.append(value ? "true" : "false");
 }
 
 bool string::is_valid_utf8(std::string_view s) {
