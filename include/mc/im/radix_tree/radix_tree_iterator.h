@@ -44,11 +44,10 @@ public:
             return;
         }
 
-        auto* n      = root.get();
-        m_key_buffer = n->m_prefix;
-        m_path.push_back({n, 0, 0});
-        if (n->m_leaf) {
-            m_current_node = n;
+        m_key_buffer = root->m_prefix;
+        m_path.push_back({root, 0, 0});
+        if (root->m_leaf) {
+            m_current_node = root;
             update_current_item();
         } else if (advance_to_next_leaf()) {
             update_current_item();
@@ -188,9 +187,9 @@ public:
                 continue;
             }
 
-            m_path.push_back({edge.m_node.get(), 0, m_key_buffer.size()});
+            m_path.push_back({edge.m_node, 0, m_key_buffer.size()});
             if (edge.m_node->is_leaf()) {
-                m_current_node = edge.m_node.get();
+                m_current_node = edge.m_node;
                 update_current_item();
                 return;
             }
@@ -220,9 +219,9 @@ protected:
             const auto& edge = current.node->m_edges[current.edge_index++];
             m_key_buffer.resize(current.prefix_size);
             m_key_buffer.append(edge.m_node->m_prefix);
-            m_path.push_back({edge.m_node.get(), 0, m_key_buffer.size()});
+            m_path.push_back({edge.m_node, 0, m_key_buffer.size()});
             if (edge.m_node->is_leaf()) {
-                m_current_node = edge.m_node.get();
+                m_current_node = edge.m_node;
                 return true;
             }
         }
@@ -241,8 +240,8 @@ protected:
         }
     }
 
-    bool         m_is_end       = false;
-    node_type*   m_current_node = nullptr;
+    bool         m_is_end{false};
+    node_ptr     m_current_node;
     key_buffer<> m_key_buffer;
     path_type    m_path;
     node_ptr     m_root; // 要持有根节点指针，防止根节点被销毁

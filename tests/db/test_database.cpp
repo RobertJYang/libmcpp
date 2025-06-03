@@ -192,7 +192,6 @@ TEST_F(database_test, query_operations) {
 }
 
 // 测试更新功能
-// TODO:: 这个用例偶尔会崩溃，原因可能是 im 的 node_pool 过早的重用了旧对象，有时间再解决
 TEST_F(database_test, update_operations) {
     // 更新单个对象
     dict updates1{{"name", "updated_name"}, {"value", 999}};
