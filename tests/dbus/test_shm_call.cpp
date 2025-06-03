@@ -101,7 +101,7 @@ struct test_service_1 : public mc::engine::service {
             return false;
         }
 
-        m_obj_a = mc::im::make_ref<TestObjectA>();
+        m_obj_a = mc::make_ref<TestObjectA>();
         m_obj_a->init();
         register_object(*m_obj_a);
         return true;
@@ -126,7 +126,7 @@ struct test_service_2 : public mc::engine::service {
             return false;
         }
 
-        m_obj_b = mc::im::make_ref<TestObjectB>();
+        m_obj_b = mc::make_ref<TestObjectB>();
         m_obj_b->init();
         register_object(*m_obj_b);
         return true;
