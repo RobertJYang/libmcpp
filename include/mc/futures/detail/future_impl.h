@@ -17,7 +17,7 @@ namespace mc::futures {
 
 namespace detail {
 
-// SharedState 基类 - 包含 all 和 any 的公共部分
+// CombinatorState - 包含 all 和 any 的公共部分
 template <typename ResultType, typename Executor, typename Allocator>
 struct CombinatorState {
     using promise_type = Promise<ResultType, Executor, Allocator>;
@@ -55,7 +55,7 @@ struct CombinatorState {
     }
 };
 
-// all 操作专用的 SharedState
+// all 操作专用的 CombinatorState
 template <typename ResultType, typename Executor, typename Allocator>
 struct AllState : public CombinatorState<ResultType, Executor, Allocator> {
     std::size_t        completed_count = 0;
@@ -68,7 +68,7 @@ struct AllState : public CombinatorState<ResultType, Executor, Allocator> {
     }
 };
 
-// any 操作专用的 SharedState
+// any 操作专用的 CombinatorState
 template <typename ResultType, typename Executor, typename Allocator>
 struct AnyState : public CombinatorState<ResultType, Executor, Allocator> {
     bool        completed      = false;
@@ -183,7 +183,7 @@ template <typename T, typename Executor, typename Allocator>
 template <typename U>
 U Future<T, Executor, Allocator>::get() {
     wait();
-    std::unique_lock<std::mutex> lock(state_->m_mutex);
+    std::lock_guard<std::mutex> lock(state_->m_mutex);
     if constexpr (std::is_same_v<U, void>) {
         if (std::holds_alternative<std::monostate>(state_->result)) {
             return;
