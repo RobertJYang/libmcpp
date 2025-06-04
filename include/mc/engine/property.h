@@ -288,6 +288,10 @@ public:
         return 0;
     }
 
+    uint64_t get_flags() const override {
+        return 0;
+    }
+
     abstract_interface* get_interface() const override {
         if constexpr (std::is_same_v<observer_type, detail::interface_observer>) {
             return m_observer.get_interface();

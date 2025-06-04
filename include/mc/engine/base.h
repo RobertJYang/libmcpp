@@ -106,6 +106,7 @@ public:
     virtual std::string_view get_name() const      = 0;
     virtual std::string_view get_signature() const = 0;
     virtual uint32_t         get_access() const    = 0;
+    virtual uint64_t         get_flags() const    = 0;
 
     virtual abstract_interface* get_interface() const = 0;
     virtual abstract_object*    get_object() const    = 0;

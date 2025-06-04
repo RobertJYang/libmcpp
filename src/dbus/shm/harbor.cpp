@@ -284,7 +284,10 @@ void harbor::process_message(message_data& msg_data) {
 
 void harbor::process_dbus_message(DBusMessage* msg) {
     int msg_type = dbus_message_get_type(msg);
-    if (msg_type != DBUS_MESSAGE_TYPE_SIGNAL) {
+    if (msg_type == DBUS_MESSAGE_TYPE_SIGNAL) {
+        auto& match = m_connection.get_match();
+        match.run_msg(msg);
+    } else {
         elog("invalid message type ${type} for shared memory queue", ("type", msg_type));
     }
     dbus_message_unref(msg);
@@ -404,4 +407,13 @@ void harbor::unregister_service(std::string service_name) {
     }
 #endif
 }
+
+void harbor::add_rule(mc::dbus::match_rule& rule, mc::dbus::match_cb_t&& cb, uint64_t id) {
+    m_connection.add_match(rule, std::forward<mc::dbus::match_cb_t>(cb), id);
+}
+
+void harbor::remove_rule(uint64_t id) {
+    m_connection.remove_match(id);
+}
+
 } // namespace mc::dbus

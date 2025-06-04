@@ -13,10 +13,117 @@
 #ifndef MC_DBUS_SHM_MOCK_SHM_H
 #define MC_DBUS_SHM_MOCK_SHM_H
 
+#include <dbus/dbus.h>
 #include <functional>
+#include <memory>
 #include <string>
 #include <string_view>
 #include <unordered_map>
+
+namespace DBus {
+namespace Match {
+
+enum class MessageType : int {
+    invalid       = DBUS_MESSAGE_TYPE_INVALID,
+    signal        = DBUS_MESSAGE_TYPE_SIGNAL,
+    method_call   = DBUS_MESSAGE_TYPE_METHOD_CALL,
+    method_return = DBUS_MESSAGE_TYPE_METHOD_RETURN,
+    error         = DBUS_MESSAGE_TYPE_ERROR
+};
+
+class shared_memory;
+
+class Rule {
+public:
+    Rule() {
+    }
+
+    void member(const std::string_view& member) {
+    }
+
+    std::string_view member() const {
+        return "";
+    }
+
+    void interface(const std::string_view& interface) {
+    }
+
+    std::string_view interface() const {
+        return "";
+    }
+
+    void path(const std::string_view& path) {
+    }
+
+    std::string_view path() const {
+        return "";
+    }
+
+    void path_namespace(const std::string_view& path_namespace) {
+    }
+
+    bool path_namespace() const {
+        return false;
+    }
+
+    void sender(const std::string_view& sender) {
+    }
+
+    std::string_view sender() const {
+        return "";
+    }
+
+    void type(MessageType type) {
+    }
+
+    MessageType type() const {
+        return MessageType::signal;
+    }
+
+    bool is_connected() {
+        return false;
+    }
+
+    void disconnect() {
+    }
+
+    void destination(const std::string_view& destination) {
+    }
+
+    std::string_view destination() const {
+        return "";
+    }
+
+    std::string as_string() const {
+        return "";
+    }
+};
+
+using RulePtr = std::shared_ptr<Rule>;
+
+struct Context {
+    void set_req(DBusMessage* msg) {
+    }
+
+    DBusMessage* req;
+};
+
+class Matchs {
+public:
+    void add_rule(RulePtr& rule, std::function<void(Context&)> cb) {
+    }
+
+    bool run(Context& ctx) {
+        return true;
+    }
+
+    bool test_match(Context& ctx) {
+        return true;
+    }
+};
+
+} // namespace Match
+} // namespace DBus
 
 namespace shm {
 class shared_memory;
@@ -137,6 +244,10 @@ public:
         return m_unique_name;
     }
 
+    std::string_view wellknow_name() const {
+        return m_wellknow_name;
+    }
+
     std::string_view harbor_name() const {
         return m_harbor_name;
     }
@@ -168,9 +279,27 @@ public:
     }
 
     std::string     m_unique_name;
+    std::string     m_wellknow_name;
     std::string     m_harbor_name;
     message_queue_t m_queue;
     object          m_object;
+};
+
+class matchs {
+public:
+    using match_cb_t = std::function<void(DBus::Match::Context&, object_tree*)>;
+
+    void run(DBus::Match::Context& ctx, match_cb_t cb) {
+    }
+
+    std::function<void()> add_rule(shared_memory& ins, DBus::Match::Rule& rule, object_tree* tree) {
+        return []() {
+        };
+    }
+};
+
+struct shared_memory_base {
+    matchs _matchs;
 };
 
 class shared_memory {
@@ -184,6 +313,10 @@ public:
     static shared_memory& get_instance() {
         static shared_memory instance;
         return instance;
+    }
+
+    shm::shared_memory_base& get_base() {
+        return m_base;
     }
 
     void lock() {
@@ -227,8 +360,9 @@ public:
         return tree_map;
     }
 
-    tree_map_t        tree_map;
-    unique_name_map_t unique_name_map;
+    tree_map_t         tree_map;
+    unique_name_map_t  unique_name_map;
+    shared_memory_base m_base;
 };
 
 } // namespace shm

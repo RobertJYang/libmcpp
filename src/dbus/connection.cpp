@@ -166,4 +166,24 @@ void connection::ensure_impl() const {
     MC_ASSERT(m_impl, "DBus Connection not initialized");
 }
 
+void connection::add_match(match_rule& rule, match_cb_t&& cb, uint64_t id) {
+    ensure_impl();
+    m_impl->add_match(rule, std::forward<match_cb_t>(cb), id);
+}
+
+void connection::remove_match(uint64_t id) {
+    ensure_impl();
+    m_impl->remove_match(id);
+}
+
+match& connection::get_match() {
+    ensure_impl();
+    return m_impl->get_match();
+}
+
+uint32_t connection::get_next_serial() {
+    ensure_impl();
+    return m_impl->get_next_serial();
+}
+
 } // namespace mc::dbus

@@ -9,6 +9,7 @@
  * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
  * See the Mulan PSL v2 for more details.
  */
+#include <mc/dbus/shm/gvariant_convert.h>
 #include <mc/dbus/shm/serialize.h>
 #include <mc/dict.h>
 #include <mc/exception.h>
@@ -311,43 +312,69 @@ variant read_buffer::read_value(uint8_t type, uint8_t cookie) {
     }
     auto value_type = static_cast<data_type>(type);
     switch (value_type) {
-    case data_type::nil:
-        return variant();
-    case data_type::boolean:
-        return variant(cookie != 0);
-    case data_type::number:
-        if (cookie == COOKIE_NUMBER_REAL) {
-            return variant(read_double());
-        }
-        return variant(read_integer(cookie));
-    case data_type::userdata:
-        return variant(reinterpret_cast<uint64_t>(read_pointer()));
-    case data_type::short_string:
-        return variant(read_string(cookie));
-    case data_type::long_string:
-        if (cookie == 2) {
-            const void* plen = read(2);
-            MC_ASSERT(plen != nullptr, ERROR_INVALID_FORMAT);
-            uint16_t n;
-            memcpy(&n, plen, sizeof(n));
-            return variant(read_string(n));
-        } else {
-            if (cookie != 4) {
-                MC_THROW(mc::invalid_arg_exception, "invalid cookie: ${cookie}",
-                         ("cookie", cookie));
+        case data_type::nil:
+            return variant();
+        case data_type::boolean:
+            return variant(cookie != 0);
+        case data_type::number:
+            if (cookie == COOKIE_NUMBER_REAL) {
+                return variant(read_double());
             }
-            const void* plen = read(4);
-            MC_ASSERT(plen != nullptr, ERROR_INVALID_FORMAT);
-            uint32_t n;
-            memcpy(&n, plen, sizeof(n));
-            return variant(read_string(n));
-        }
-    case data_type::table:
-        return read_table(cookie);
-    default:
-        break;
+            return variant(read_integer(cookie));
+        case data_type::userdata:
+            return variant(reinterpret_cast<uint64_t>(read_pointer()));
+        case data_type::short_string:
+            return variant(read_string(cookie));
+        case data_type::long_string:
+            if (cookie == 2) {
+                const void* plen = read(2);
+                MC_ASSERT(plen != nullptr, ERROR_INVALID_FORMAT);
+                uint16_t n;
+                memcpy(&n, plen, sizeof(n));
+                return variant(read_string(n));
+            } else {
+                if (cookie != 4) {
+                    MC_THROW(mc::invalid_arg_exception, "invalid cookie: ${cookie}",
+                            ("cookie", cookie));
+                }
+                const void* plen = read(4);
+                MC_ASSERT(plen != nullptr, ERROR_INVALID_FORMAT);
+                uint32_t n;
+                memcpy(&n, plen, sizeof(n));
+                return variant(read_string(n));
+            }
+        case data_type::table:
+            return read_table(cookie);
+        case data_type::gvariant:
+            return read_gvariant(cookie);
+        default:
+            break;
     }
     MC_THROW(mc::invalid_arg_exception, "unsupported type: ${type}", ("type", type));
+}
+
+variant read_buffer::read_gvariant(size_t len) {
+    const char* t = read(len + 1);
+    MC_ASSERT(t != nullptr, ERROR_INVALID_FORMAT);
+    int size = *reinterpret_cast<const int*>(read(sizeof(int)));
+    const char* data = read(size);
+    void* p_data = nullptr;
+    if (size > 0) {
+        p_data = malloc(size);
+        if (!p_data) {
+            MC_THROW(mc::exception, "failed to allocate memory for p_data");
+        }
+        memcpy(p_data, data, size);
+    }
+    GVariant* gvar = g_variant_new_from_data(G_VARIANT_TYPE(t),
+                                             p_data, size, true, g_free, p_data);
+    if (!gvar) {
+        if (p_data) {
+            free(p_data);
+        }
+        MC_THROW(mc::exception, "failed to create gvariant");
+    }
+    return gvariant_convert::to_mc_variant(gvar);
 }
 
 variant read_buffer::read_table(int64_t array_size) {

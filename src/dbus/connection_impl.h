@@ -13,9 +13,9 @@
 #ifndef MC_DBUS_CONNECTION_IMPL_H
 #define MC_DBUS_CONNECTION_IMPL_H
 
-#include <mc/dbus/connection.h>
-
 #include "dbus/dispatch/pending_call.h"
+#include <mc/dbus/connection.h>
+#include <mc/dbus/match.h>
 
 namespace mc::dbus {
 
@@ -82,12 +82,18 @@ struct connection_impl : public std::enable_shared_from_this<connection_impl> {
     static DBusHandlerResult message_filter(DBusConnection* conn, DBusMessage* msg,
                                             void* user_data);
 
-    std::recursive_mutex  m_mutex;
-    pending_call_map      m_pending_calls;  ///< 等待回复的消息
-    uint32_t              m_next_serial{1}; ///< 下一个消息序列号
-    DBusConnection*       m_connection{nullptr};
-    mc::core::io_context& m_executor;
-    connect_status        m_status{connect_status::disconnected};
+    void   add_match(match_rule& rule, match_cb_t&& cb, uint64_t id);
+    void   remove_match(uint64_t id);
+    match& get_match();
+
+    std::recursive_mutex                      m_mutex;
+    pending_call_map                          m_pending_calls;  ///< 等待回复的消息
+    uint32_t                                  m_next_serial{1}; ///< 下一个消息序列号
+    DBusConnection*                           m_connection{nullptr};
+    mc::core::io_context&                     m_executor;
+    connect_status                            m_status{connect_status::disconnected};
+    match                                     m_match;
+    std::unordered_map<uint64_t, std::string> m_match_strs;
 
     mc::signal<DBusHandlerResult(message&)> on_filter_message;
 

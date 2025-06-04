@@ -24,14 +24,7 @@ fi
 
 export PKG_CONFIG_PATH=$CONAN_BUILD_DIR
 export LD_LIBRARY_PATH="$CWD/temp/lib:$CWD/temp/usr/lib64:$LD_LIBRARY_PATH"
-if [ ! -d $CWD/builddir ]; then
-    meson setup builddir --buildtype=$BUILD_TYPE
-else
-    CURRENT_BUILDTYPE=$(grep "buildtype = " builddir/meson-private/cmd_line.txt | cut -d'=' -f2 | tr -d ' ')
-    if [ "$CURRENT_BUILDTYPE" != "$BUILD_TYPE" ]; then
-        meson setup builddir --buildtype=$BUILD_TYPE --reconfigure
-    fi
-fi
+meson setup -Denable_shared_memory=true builddir --buildtype=$BUILD_TYPE --reconfigure
 
 cd builddir
 set +e

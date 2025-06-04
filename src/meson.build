@@ -61,6 +61,8 @@ src_files = [
   'dbus/validator.cpp',
   'dbus/connection.cpp',
   'dbus/connection_impl.cpp',
+  'dbus/signal.cpp',
+  'dbus/match.cpp',
   'dbus/dispatch/watch.cpp',
   'dbus/dispatch/timeout.cpp',
   'dbus/dispatch/pending_call.cpp',
@@ -88,14 +90,13 @@ src_files = [
 dep_arr = [boost_dep, boost_program_options_dep, dbus_dep, glib_dep]
 
 enable_shared_memory = get_option('enable_shared_memory')
+add_project_arguments(
+  '-DENABLE_SHARED_MEMORY=' + enable_shared_memory.to_int().to_string(),
+  language: 'cpp',
+)
 if enable_shared_memory
   message('已开启共享内存')
-  add_project_arguments(
-    '-DENABLE_DBUS_SHARED_MEMORY='
-    + enable_shared_memory.to_int().to_string(),
-    language: 'cpp',
-  )
-  libsomp_dep = dependency('libsomp', method: 'pkg-config', required: true)
+  libsomp_dep = dependency('libsomp', method : 'pkg-config', required : true)
   dep_arr += [libsomp_dep]
 endif
 

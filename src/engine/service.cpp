@@ -14,6 +14,7 @@
 #include <mc/dbus/message.h>
 #include <mc/dbus/shm/harbor.h>
 #include <mc/dbus/shm/shm_tree.h>
+#include <mc/dbus/signal.h>
 #include <mc/dbus/validator.h>
 #include <mc/engine.h>
 #include <mc/engine/path_iterator.h>
@@ -87,6 +88,7 @@ struct service_impl {
     void unregister_object(std::string_view path);
 
     void                       adjust_object_parent(abstract_object& obj);
+
     invoke_result              invoke_method(std::string_view path, std::string_view interface,
                                              std::string_view method, const variants& args);
     mc::variant                timeout_call(mc::milliseconds timeout, std::string_view service_name,
@@ -99,6 +101,8 @@ struct service_impl {
                                                 std::string_view method, std::string_view signature,
                                                 const variants& args);
     static abstract_object*    find_owner(abstract_object& obj, std::string_view path);
+    uint64_t add_match(mc::dbus::match_rule& rule, mc::dbus::match_cb_t&& cb);
+    void remove_match(uint64_t id);
 
     std::mutex                  m_mutex;
     service*                    m_service;
@@ -204,6 +208,10 @@ void service_impl::register_object(abstract_object& obj) {
     mc::dbus::shm_lock_call([this, &obj]() {
         m_shm_tree->register_object(obj);
     });
+    mc::dbus::emit_interfaces_added(m_connection, obj);
+    obj.property_changed().connect([this, &obj](const mc::variant& value, const property_base& prop) {
+        mc::dbus::emit_properties_changed(m_connection, obj, prop, value);
+    });
 }
 
 abstract_object* service_impl::find_owner(abstract_object& obj, std::string_view path) {
@@ -257,6 +265,7 @@ void service_impl::unregister_object(std::string_view path) {
     mc::dbus::shm_lock_call([this, path]() {
         m_shm_tree->unregister_object(path);
     });
+    mc::dbus::emit_interfaces_removed(m_connection, obj);
 }
 
 static mc::variant convert_method_result(const mc::variants& arr) {
@@ -363,6 +372,28 @@ DBusHandlerResult service_impl::on_method_call(abstract_object& object, mc::dbus
 
     m_connection.send(std::move(info.response));
     return DBUS_HANDLER_RESULT_HANDLED;
+}
+
+static std::mutex s_rule_id_mutex;
+static uint64_t s_rule_id = 0;
+
+static uint64_t get_rule_id() {   
+    std::lock_guard lock(s_rule_id_mutex);
+    return s_rule_id++;
+}
+
+uint64_t service_impl::add_match(mc::dbus::match_rule& rule, mc::dbus::match_cb_t&& cb) {
+    auto id = get_rule_id();
+    m_shm_tree->add_match(rule, std::forward<mc::dbus::match_cb_t>(cb), id);
+    // harbor和服务都会调用add_rule，所以需要克隆一个rule，否则服务调用rule->set_slot会导致harbor的slot被析构
+    auto cloned_rule = rule.clone();
+    m_connection.add_match(cloned_rule, std::forward<mc::dbus::match_cb_t>(cb), id);
+    return id;
+}
+
+void service_impl::remove_match(uint64_t id) {
+    m_shm_tree->remove_match(id);
+    m_connection.remove_match(id);
 }
 
 service::service(std::string_view name) : mc::core::service_base(std::string(name)) {
@@ -498,6 +529,14 @@ service::shm_timeout_call(mc::milliseconds timeout, std::string_view service_nam
 
 mc::dbus::connection service::get_connection() const {
     return m_impl->m_connection;
+}
+
+uint64_t service::add_match(mc::dbus::match_rule& rule, mc::dbus::match_cb_t&& cb) {
+    return m_impl->add_match(rule, std::forward<mc::dbus::match_cb_t>(cb));
+}
+
+void service::remove_match(uint64_t id) {
+    m_impl->remove_match(id);
 }
 
 } // namespace mc::engine

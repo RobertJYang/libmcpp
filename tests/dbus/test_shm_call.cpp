@@ -79,11 +79,31 @@ public:
     TestInterfaceB m_iface;
 };
 
+class TestInterfaceC : public mc::engine::interface<TestInterfaceC> {
+public:
+    MC_INTERFACE("org.openubmc.test_interface_c")
+
+    property<int32_t> m_prop1{0};
+};
+
+class TestObjectC : public mc::engine::object<TestObjectC> {
+public:
+    MC_OBJECT(TestObjectC, "TestObjectC", "/org/openubmc/test_object_c", (TestInterfaceC))
+
+    void init() {
+        set_object_name("TestObjectC");
+    }
+
+    TestInterfaceC m_iface;
+};
+
 MC_REFLECT(TestInterfaceA, ((add, "Add"))((set_num, "SetNum"))((set_str, "SetStr"))(
                                (get_num_and_str, "GetNumAndStr"))((m_num, "Num"))((m_str, "Str")))
 MC_REFLECT(TestInterfaceB, ((increment, "Increment"))((m_cnt, "Cnt")))
 MC_REFLECT(TestObjectA, ((m_iface, "InterfaceA")))
 MC_REFLECT(TestObjectB, ((m_iface, "InterfaceB")))
+MC_REFLECT(TestInterfaceC, ((m_prop1, "Prop1")))
+MC_REFLECT(TestObjectC, ((m_iface, "InterfaceC")))
 
 struct test_service_1 : public mc::engine::service {
     test_service_1() : mc::engine::service("org.openubmc.test_service_1") {
@@ -107,7 +127,19 @@ struct test_service_1 : public mc::engine::service {
         return true;
     }
 
+    void init_obj_c() {
+        m_obj_c = mc::make_ref<TestObjectC>();
+        m_obj_c->init();
+        register_object(*m_obj_c);
+    }
+
+    void remove_obj_c() {
+        unregister_object(m_obj_c->get_object_path());
+        m_obj_c.reset();
+    }
+
     mc::ref_ptr<TestObjectA> m_obj_a;
+    mc::ref_ptr<TestObjectC> m_obj_c;
 };
 
 struct test_service_2 : public mc::engine::service {
@@ -271,4 +303,38 @@ TEST_F(ShmCallTest, TestAdd) {
     ASSERT_EQ(opt.has_value(), true);
     result = opt.value();
     ASSERT_EQ(result.as_int32(), 112);
+}
+
+TEST_F(ShmCallTest, TestSubscribePropertiesChanged) {
+    mc::dbus::match_rule rule = mc::dbus::match_rule::new_signal(
+        mc::dbus::PROPERTIES_CHANGED_MEMBER, mc::dbus::DBUS_PROPERTIES_INTERFACE);
+    rule.with_path("/org/openubmc/test_object_a");
+    DBusMessage* raw_msg = nullptr;
+    service_2->add_match(rule, [&raw_msg](DBusMessage* msg) {
+        raw_msg = msg;
+    });
+    service_1->m_obj_a->m_iface.m_str.set_value("test_property_changed");
+    std::this_thread::sleep_for(std::chrono::milliseconds(500));
+    ASSERT_TRUE(raw_msg != nullptr);
+    mc::dbus::message msg(raw_msg, true);
+    ASSERT_EQ(msg.get_type(), mc::dbus::message_type::signal);
+    ASSERT_EQ(msg.get_path(), "/org/openubmc/test_object_a");
+    ASSERT_EQ(msg.get_interface(), "org.freedesktop.DBus.Properties");
+    ASSERT_EQ(msg.get_member(), "PropertiesChanged");
+
+    auto reader = msg.reader();
+    mc::dbus::signature_iterator it("sa{sv}as");
+    mc::variant                  interface;
+    reader.read_variant_value(it.current_type_code(), interface, 0);
+    ASSERT_TRUE(interface.is_string());
+    ASSERT_EQ(interface.as_string(), "org.openubmc.test_interface_a");
+    it.next();
+    mc::variant properties;
+    reader.read_variant_value(it.current_type_code(), properties, 0);
+    ASSERT_TRUE(properties.is_dict());
+    auto d = properties.as_dict();
+    ASSERT_EQ(d.size(), 1);
+    ASSERT_EQ(d.contains("Str"), true);
+    ASSERT_TRUE(d["Str"].is_string());
+    ASSERT_EQ(d["Str"].as_string(), "test_property_changed");
 }
