@@ -251,6 +251,9 @@ DBusHandlerResult connection_impl::process_message(mc::dbus::message message) {
         }
 
         // 没有 reply_serial 的 message 发送到 on_message 处理
+    } else if (msg_type == message_type::signal) {
+        m_match.run_msg(message.get_dbus_message());
+        return DBUS_HANDLER_RESULT_HANDLED;
     }
 
     return on_filter_message(message).get_value_or(DBUS_HANDLER_RESULT_NOT_YET_HANDLED);
@@ -366,4 +369,32 @@ void connection_impl::dispatch_status_changed(DBusConnection*, DBusDispatchStatu
     }
 }
 
+void connection_impl::add_match(match_rule& rule, match_cb_t&& cb, uint64_t id) {
+    m_match.add_rule(rule, std::forward<match_cb_t>(cb), id);
+    auto str = rule.as_string();
+    mc::dbus::error err;
+    dbus_bus_add_match(m_connection, str.c_str(), &err);
+    if (err.is_set()) {
+        elog("dbus add match failed: ${error}", ("error", err.message));
+    }
+    m_match_strs.emplace(id, std::move(str));
+}
+
+void connection_impl::remove_match(uint64_t id) {
+    m_match.remove_rule(id);
+    auto it = m_match_strs.find(id);
+    if (it == m_match_strs.end()) {
+        return;
+    }
+    mc::dbus::error err;
+    dbus_bus_remove_match(m_connection, it->second.c_str(), &err);
+    if (err.is_set()) {
+        elog("dbus remove match failed: ${error}", ("error", err.message));
+    }
+    m_match_strs.erase(it);
+}
+
+match& connection_impl::get_match() {
+    return m_match;
+}
 } // namespace mc::dbus

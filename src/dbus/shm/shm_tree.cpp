@@ -25,7 +25,7 @@ shm_tree::shm_tree(strand_type& strand, std::string_view harbor_name, std::strin
 }
 
 void shm_tree::register_object(mc::engine::abstract_object& obj) {
-#if defined(ENABLE_DBUS_SHARED_MEMORY) && ENABLE_DBUS_SHARED_MEMORY == 1
+#if defined(ENABLE_SHARED_MEMORY) && ENABLE_SHARED_MEMORY == 1
     auto&           ins     = shm::shared_memory::get_instance();
     auto            path    = obj.get_object_path();
     shm::object&    shm_obj = m_tree->register_object(ins, path);
@@ -80,9 +80,9 @@ shm_tree::timeout_call(mc::milliseconds timeout, std::string_view service_name,
              ("service_name", service_name));
         return std::nullopt;
     }
-    auto promise = mc::make_promise<local_msg>(m_strand);
-    auto future  = promise.get_future();
-    auto& harbor = mc::dbus::harbor::get_instance();
+    auto  promise = mc::make_promise<local_msg>(m_strand);
+    auto  future  = promise.get_future();
+    auto& harbor  = mc::dbus::harbor::get_instance();
     if (!harbor.send_shm_msg(m_unique_name, serial, promise)) {
         MC_THROW(mc::exception, "failed to save promise");
     }
@@ -183,4 +183,31 @@ void shm_tree::set_property(std::string_view service_name, std::string_view path
     });
 }
 
+void shm_tree::add_match(match_rule& rule, mc::dbus::match_cb_t&& cb, uint64_t id) {
+    auto& harbor      = harbor::get_instance();
+    auto  harbor_name = harbor.get_harbor_name();
+    harbor.add_rule(rule, std::forward<mc::dbus::match_cb_t>(cb), id);
+    shm_lock_call([this, &rule, harbor_name, id]() {
+        auto& ins      = shm::shared_memory::get_instance();
+        auto& tree_map = ins.get_object_tree_map(harbor_name);
+        auto  it       = tree_map.find(harbor_name);
+        if (it == tree_map.end()) {
+            return;
+        }
+        auto shm_slot = ins.get_base()._matchs.add_rule(ins, *rule.rule(), &*it->second);
+        m_shm_slots.emplace(id, shm_slot);
+    });
+}
+
+void shm_tree::remove_match(uint64_t id) {
+    auto it = m_shm_slots.find(id);
+    if (it == m_shm_slots.end()) {
+        return;
+    }
+    auto slot = it->second;
+    m_shm_slots.erase(it);
+    shm_lock_call([slot]() {
+        slot();
+    });
+}
 } // namespace mc::dbus

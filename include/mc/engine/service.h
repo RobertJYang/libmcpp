@@ -68,6 +68,9 @@ public:
     static std::string resolve_object_path(std::string_view       path_pattern,
                                            const abstract_object& obj);
 
+    uint64_t add_match(mc::dbus::match_rule& rule, mc::dbus::match_cb_t&& cb);
+    void     remove_match(uint64_t id);
+
 protected:
     void register_object(abstract_object& obj);
 

@@ -43,12 +43,15 @@ public:
                                 std::string_view interface, std::string_view property,
                                 const variant& value);
     static void    set_property_inner(shm::property& prop, const variant& value);
+    void           add_match(match_rule& rule, mc::dbus::match_cb_t&& cb, uint64_t id);
+    void           remove_match(uint64_t id);
 
 private:
-    strand_type&      m_strand;
-    std::string       m_service_name;
-    std::string       m_unique_name;
-    shm::object_tree* m_tree;
+    strand_type&                                        m_strand;
+    std::string                                         m_service_name;
+    std::string                                         m_unique_name;
+    shm::object_tree*                                   m_tree;
+    std::unordered_map<uint64_t, std::function<void()>> m_shm_slots;
 };
 
 struct shm_obj_visitor : mc::engine::visitor {
@@ -56,7 +59,7 @@ struct shm_obj_visitor : mc::engine::visitor {
         : m_shm_ins(shm::shared_memory::get_instance()), m_shm_obj(shm_obj) {
     }
 
-    void handle_interface_begin(const mc::engine::abstract_object& obj,
+    void handle_interface_begin(const mc::engine::abstract_object&    obj,
                                 const mc::engine::abstract_interface& iface) override {
         m_shm_intf = &m_shm_obj.register_interface(m_shm_ins, false, iface.get_interface_name());
         if (iface.get_interface_name() == OBJECT_PROPERTIES_INTERFACE) {
@@ -64,12 +67,11 @@ struct shm_obj_visitor : mc::engine::visitor {
         }
     }
 
-    void handle_interface_end(const mc::engine::abstract_object& obj,
+    void handle_interface_end(const mc::engine::abstract_object&    obj,
                               const mc::engine::abstract_interface& iface) override {
     }
 
-    void handle(const mc::engine::abstract_object& obj,
-                const mc::engine::abstract_interface& iface,
+    void handle(const mc::engine::abstract_object& obj, const mc::engine::abstract_interface& iface,
                 const mc::engine::visitor::property_meta& info) override {
         shm::property& shm_prop = m_shm_intf->add_p(m_shm_ins, info.name, info.signature);
         shm_prop.set_read_privilege(info.read_privilege);
@@ -79,8 +81,7 @@ struct shm_obj_visitor : mc::engine::visitor {
         shm_tree::set_property_inner(shm_prop, value);
     }
 
-    void handle(const mc::engine::abstract_object& obj,
-                const mc::engine::abstract_interface& iface,
+    void handle(const mc::engine::abstract_object& obj, const mc::engine::abstract_interface& iface,
                 const mc::engine::visitor::method_meta& info) override {
         shm::method& shm_method =
             m_shm_intf->add_m(m_shm_ins, info.name, info.args_signature, info.return_signature);
@@ -88,8 +89,7 @@ struct shm_obj_visitor : mc::engine::visitor {
         shm_method.set_flags(info.flags);
     }
 
-    void handle(const mc::engine::abstract_object& obj,
-                const mc::engine::abstract_interface& iface,
+    void handle(const mc::engine::abstract_object& obj, const mc::engine::abstract_interface& iface,
                 const mc::engine::visitor::signal_meta& info) override {
         shm::signal& shm_signal = m_shm_intf->add_s(m_shm_ins, info.name, info.args_signature);
         shm_signal.set_flags(info.flags);
@@ -99,7 +99,6 @@ struct shm_obj_visitor : mc::engine::visitor {
     shm::object&        m_shm_obj;
     shm::interface*     m_shm_intf;
 };
-
 } // namespace mc::dbus
 
 #endif // MC_DBUS_SHM_SHM_TREE_H

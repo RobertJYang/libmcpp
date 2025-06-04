@@ -41,7 +41,8 @@ enum class data_type : uint8_t {
     short_string = 4,
     long_string  = 5,
     table        = 6,
-    tail         = 7
+    gvariant     = 7,
+    tail         = 8
 };
 
 struct data_block {
@@ -90,6 +91,7 @@ private:
     void*       read_pointer();
     std::string read_string(size_t len);
     variant     read_table(int64_t array_size);
+    variant     read_gvariant(size_t len);
 
     std::string_view m_buf;
     size_t           m_offset;

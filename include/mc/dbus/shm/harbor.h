@@ -15,21 +15,10 @@
 
 #include <dbus/dbus.h>
 #include <mc/dbus/connection.h>
+#include <mc/dbus/match.h>
 #include <mc/dbus/shm/local_msg.h>
 #include <mc/engine.h>
 #include <mc/variant.h>
-
-#define BUILD_TYPE_DT (0x0a)
-
-#if defined(ENABLE_DBUS_SHARED_MEMORY) && ENABLE_DBUS_SHARED_MEMORY == 1
-#include <dbus/shm_tree/object.h>
-#include <dbus/shm_tree/shared_memory.h>
-#include <dbus/shm_tree/shared_memory_base.h>
-#include <dbus/shm_tree/tree.h>
-#elif defined(BUILD_TYPE) && defined(BUILD_TYPE_DT) && BUILD_TYPE == BUILD_TYPE_DT
-// DT环境下如果禁用共享内存，使用打桩的定义
-#include <mc/dbus/shm/mock_shm.h>
-#endif
 
 namespace mc::dbus {
 constexpr int MSG_QUEUE_PUSH_TIMEOUT = 100;
@@ -43,20 +32,6 @@ struct message_data {
     void* ptr;
     int   size;
 };
-
-template <typename Fn, typename... Args>
-auto shm_lock_call(Fn&& callback, Args&&... args) {
-    auto& ins = shm::shared_memory::get_instance();
-    ins.lock();
-    if constexpr (std::is_void_v<std::invoke_result_t<Fn, Args...>>) {
-        std::invoke(std::forward<Fn>(callback), std::forward<Args>(args)...);
-        ins.unlock();
-    } else {
-        auto result = std::invoke(std::forward<Fn>(callback), std::forward<Args>(args)...);
-        ins.unlock();
-        return result;
-    }
-}
 
 shm::object_tree* create_shm_tree(std::string_view harbor_name, std::string_view service_name,
                                   std::string_view unique_name);
@@ -78,12 +53,13 @@ class harbor {
 public:
     harbor();
     ~harbor();
-    static harbor&   get_instance();
-    void             set_harbor_name(std::string_view name);
-    void             set_harbor_name_if_empty(std::string_view name);
-    std::string_view get_harbor_name() const;
-    void             start();
-    void             stop();
+    static harbor&               get_instance();
+    static shm::message_queue_t* get_destination_msg_queue(std::string_view destination);
+    void                         set_harbor_name(std::string_view name);
+    void                         set_harbor_name_if_empty(std::string_view name);
+    std::string_view             get_harbor_name() const;
+    void                         start();
+    void                         stop();
     void        register_method_handler(std::string_view service_name, std::string_view unique_name,
                                         method_handler_t handler);
     bool        send_shm_msg(std::string_view source_name, uint32_t serial,
@@ -93,7 +69,8 @@ public:
     void        register_unique_name(std::string unique_name, std::string service_name);
     std::string get_unique_name(std::string_view service_name);
     void        unregister_service(std::string service_name);
-    static shm::message_queue_t* get_destination_msg_queue(std::string_view destination);
+    void        add_rule(mc::dbus::match_rule& rule, mc::dbus::match_cb_t&& cb, uint64_t id);
+    void        remove_rule(uint64_t id);
 
 private:
     void init_message_queue();

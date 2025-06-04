@@ -20,6 +20,7 @@
 #include <mc/future.h>
 #include <mc/signal_slot.h>
 #include <mc/time.h>
+#include <mc/dbus/match.h>
 
 #include <mutex>
 
@@ -144,6 +145,14 @@ public:
      * @return 唯一名称
      */
     std::string_view get_unique_name() const;
+
+    void add_match(match_rule& rule, match_cb_t&& cb, uint64_t id);
+
+    void remove_match(uint64_t id);
+
+    match& get_match();
+
+    uint32_t get_next_serial();
 
     connection_impl& get_impl() const;
 
