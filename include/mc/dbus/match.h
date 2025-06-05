@@ -17,9 +17,8 @@
 
 #define BUILD_TYPE_DT (0x0a)
 
-#if defined(BUILD_TYPE) && defined(BUILD_TYPE_DT) && BUILD_TYPE != BUILD_TYPE_DT && \
-    defined(ENABLE_SHARED_MEMORY) && ENABLE_SHARED_MEMORY != 0
-
+#if (defined(BUILD_TYPE) && defined(BUILD_TYPE_DT) && BUILD_TYPE != BUILD_TYPE_DT) || \
+    (defined(ENABLE_SHARED_MEMORY) && ENABLE_SHARED_MEMORY == 1)
 #include <dbus/match/matchs.h>
 #include <dbus/shm_tree/object.h>
 #include <dbus/shm_tree/shared_memory.h>

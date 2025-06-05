@@ -31,6 +31,7 @@ void shm_tree::register_object(mc::engine::abstract_object& obj) {
     shm::object&    shm_obj = m_tree->register_object(ins, path);
     shm_obj_visitor visitor(shm_obj);
     obj.visit(visitor);
+    mc::engine::common_properties_interface::get_instance().visit(visitor);
     obj.property_changed().connect([this, &obj](const mc::variant& value, const auto& prop) {
         auto iface     = prop.get_interface()->get_interface_name();
         auto prop_name = prop.get_name();
