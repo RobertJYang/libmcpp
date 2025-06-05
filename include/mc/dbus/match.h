@@ -17,16 +17,17 @@
 
 #define BUILD_TYPE_DT (0x0a)
 
-#if defined(BUILD_TYPE) && defined(BUILD_TYPE_DT) && BUILD_TYPE == BUILD_TYPE_DT &&                \
-    defined(ENABLE_SHARED_MEMORY) && ENABLE_SHARED_MEMORY == 0
-// DT环境下如果禁用共享内存，使用打桩的定义
-#include <mc/dbus/shm/mock_shm.h>
-#else
+#if defined(BUILD_TYPE) && defined(BUILD_TYPE_DT) && BUILD_TYPE != BUILD_TYPE_DT && \
+    defined(ENABLE_SHARED_MEMORY) && ENABLE_SHARED_MEMORY != 0
+
 #include <dbus/match/matchs.h>
 #include <dbus/shm_tree/object.h>
 #include <dbus/shm_tree/shared_memory.h>
 #include <dbus/shm_tree/shared_memory_base.h>
 #include <dbus/shm_tree/tree.h>
+#else
+// DT环境下如果禁用共享内存，使用打桩的定义
+#include <mc/dbus/shm/mock_shm.h>
 #endif
 
 namespace mc::dbus {
@@ -56,16 +57,16 @@ class match_rule {
 public:
     match_rule(DBus::Match::MessageType type, const std::string_view& member,
                const std::string_view& interface);
-    static match_rule new_signal(const std::string_view& member, const std::string_view& interface);
-    void              with_interface(const std::string_view& interface);
-    void              with_member(const std::string_view& member);
-    void              with_path(const std::string_view& path);
-    void              with_path_namespace(const std::string_view& path_namespace);
-    void              with_sender(const std::string_view& sender);
-    void              with_type(DBus::Match::MessageType type);
-    void              with_destination(const std::string_view& destination);
-    match_rule        clone() const;
-    std::string       as_string() const;
+    static match_rule     new_signal(const std::string_view& member, const std::string_view& interface);
+    void                  with_interface(const std::string_view& interface);
+    void                  with_member(const std::string_view& member);
+    void                  with_path(const std::string_view& path);
+    void                  with_path_namespace(const std::string_view& path_namespace);
+    void                  with_sender(const std::string_view& sender);
+    void                  with_type(DBus::Match::MessageType type);
+    void                  with_destination(const std::string_view& destination);
+    match_rule            clone() const;
+    std::string           as_string() const;
     DBus::Match::RulePtr& rule();
 
 private:
