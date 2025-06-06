@@ -77,8 +77,13 @@ struct shm_obj_visitor : mc::engine::visitor {
         shm_prop.set_read_privilege(info.read_privilege);
         shm_prop.set_write_privilege(info.write_privilege);
         shm_prop.set_flags(info.flags);
-        auto value = iface.get_property(info.name);
-        shm_tree::set_property_inner(shm_prop, value);
+        if (iface.get_interface_name() == OBJECT_PROPERTIES_INTERFACE) {
+            auto value = mc::engine::common_properties_interface::get_instance().get(info.name);
+            shm_tree::set_property_inner(shm_prop, value);
+        } else {
+            auto value = iface.get_property(info.name);
+            shm_tree::set_property_inner(shm_prop, value);
+        }
     }
 
     void handle(const mc::engine::abstract_object& obj, const mc::engine::abstract_interface& iface,

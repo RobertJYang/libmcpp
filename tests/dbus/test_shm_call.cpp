@@ -190,6 +190,37 @@ protected:
     }
 };
 
+TEST_F(ShmCallTest, TestRegisterProperties) {
+    mc::variant result = mc::dbus::shm_tree::get_property("org.openubmc.test_service_1",
+                                              "/org/openubmc/test_object_a", "org.openubmc.test_interface_a", "Num");
+    ASSERT_EQ(result.as_int32(), 100);
+
+    result = mc::dbus::shm_tree::get_property("org.openubmc.test_service_1",
+                                              "/org/openubmc/test_object_a", "org.openubmc.test_interface_a", "Str");
+    ASSERT_EQ(result.as_string(), "default");
+
+    result = mc::dbus::shm_tree::get_property("org.openubmc.test_service_1",
+                                              "/org/openubmc/test_object_a", "bmc.kepler.Object.Properties", "ObjectName");
+    ASSERT_EQ(result.as_string(), "TestObjectA");
+
+    result = mc::dbus::shm_tree::get_property("org.openubmc.test_service_1",
+                                              "/org/openubmc/test_object_a", "bmc.kepler.Object.Properties", "ClassName");
+    ASSERT_EQ(result.as_string(), "TestObjectA");
+
+    result = mc::dbus::shm_tree::get_property("org.openubmc.test_service_2",
+                                                          "/org/openubmc/test_object_b",
+                                                          "org.openubmc.test_interface_b", "Cnt");
+    ASSERT_EQ(result.as_int32(), 0);
+
+    result = mc::dbus::shm_tree::get_property("org.openubmc.test_service_2",
+                                              "/org/openubmc/test_object_b", "bmc.kepler.Object.Properties", "ObjectName");
+    ASSERT_EQ(result.as_string(), "TestObjectB");
+
+    result = mc::dbus::shm_tree::get_property("org.openubmc.test_service_2",
+                                              "/org/openubmc/test_object_b", "bmc.kepler.Object.Properties", "ClassName");
+    ASSERT_EQ(result.as_string(), "TestObjectB");
+}
+
 TEST_F(ShmCallTest, TestIncrement) {
     mc::variant result =
         service_1->timeout_call(mc::milliseconds(CALL_TIMEOUT), "org.openubmc.test_service_2",
