@@ -21,6 +21,7 @@
 namespace mc::engine {
 class abstract_object;
 class service;
+using method_type_info = mc::reflect::method_type_info;
 
 namespace detail {
 
@@ -69,6 +70,9 @@ public:
     detail::call_info& get_call_info();
     void               set_call_info(detail::call_info call_info);
 
+    const method_type_info* get_method() const;
+    void                    set_method(const method_type_info* method);
+
     error& get_error();
     bool   is_error() const;
     void   report_error(std::string_view error_name, mc::dict args = {});
@@ -82,11 +86,12 @@ public:
     [[noreturn]] static void throw_error(const error_info& error, mc::dict args = {});
 
 private:
-    service&          m_service;
-    abstract_object&  m_object;
-    error             m_error;
-    mc::mutable_dict  m_args;
-    detail::call_info m_call_info;
+    service&                m_service;
+    abstract_object&        m_object;
+    error                   m_error;
+    mc::mutable_dict        m_args;
+    detail::call_info       m_call_info;
+    const method_type_info* m_method{nullptr};
 };
 
 using context_stack = detail::call_stack<service, context>;

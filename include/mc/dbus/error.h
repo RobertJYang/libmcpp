@@ -106,7 +106,6 @@ constexpr std::string_view unknown_object     = "org.freedesktop.DBus.Error.Unkn
 constexpr std::string_view unknown_interface  = "org.freedesktop.DBus.Error.UnknownInterface";
 constexpr std::string_view unknown_property   = "org.freedesktop.DBus.Error.UnknownProperty";
 constexpr std::string_view property_read_only = "org.freedesktop.DBus.Error.PropertyReadOnly";
-constexpr std::string_view timed_out          = "org.freedesktop.DBus.Error.TimedOut";
 } // namespace error_names
 
 } // namespace mc::dbus

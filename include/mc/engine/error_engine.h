@@ -12,7 +12,12 @@
 
 #ifndef MC_ENGINE_ERROR_ENGINE_H
 #define MC_ENGINE_ERROR_ENGINE_H
+
 #include <mc/engine/error.h>
+#include <mc/reflect.h>
+
+MC_REFLECT(mc::engine::error_info, (name)(format))
+MC_REFLECT(mc::engine::error, (name)(format)(args))
 
 namespace mc::engine {
 
@@ -77,11 +82,11 @@ private:
 
 } // namespace mc::engine
 
-#define REGISTER_CONST_ERROR(NAME, ERROR, ...)                                                     \
-    inline auto NAME =                                                                             \
+#define REGISTER_CONST_ERROR(NAME, ERROR, ...) \
+    inline auto NAME =                         \
         mc::engine::error_engine::get_instance().register_const_error(ERROR, ##__VA_ARGS__)
 
-#define REGISTER_ERROR(NAME, ERROR, ...)                                                           \
+#define REGISTER_ERROR(NAME, ERROR, ...) \
     inline auto NAME = mc::engine::error_engine::get_instance().register_error(ERROR, ##__VA_ARGS__)
 
 #include <mc/engine/errors/std_errors.h>

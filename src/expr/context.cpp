@@ -12,6 +12,7 @@
 
 #include <mc/exception.h>
 #include <mc/expr/context.h>
+#include <mc/engine/base.h>
 #include <mc/log.h>
 
 #include <unordered_map>

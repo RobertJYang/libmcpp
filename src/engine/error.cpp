@@ -11,6 +11,8 @@
  */
 
 #include <mc/engine/error.h>
+#include <mc/engine/error_engine.h>
+#include <mc/exception.h>
 #include <mc/json.h>
 #include <mc/log.h>
 #include <mc/string.h>
@@ -26,6 +28,42 @@ error::error(const error& other) : error_info(other.name, other.format, other.le
     if (other.prev_error) {
         this->prev_error.reset(new error(*other.prev_error));
     }
+}
+
+error error::from_exception(std::exception_ptr e) {
+    try {
+        std::rethrow_exception(e);
+    } catch (mc::exception& e) {
+        return from_exception(e);
+    } catch (std::exception& e) {
+        return from_exception(e);
+    } catch (...) {
+        return from_exception(mc::exception());
+    }
+}
+
+error error::from_exception(const mc::exception& e) {
+    error err;
+
+    err.set_name(e.name());
+    auto& msgs = e.messages();
+    if (!msgs.empty()) {
+        auto& msg = msgs.back();
+        err.set_format(msg.get_format_template());
+        err.set_level(msg.get_level());
+        err.set_args(msg.get_args());
+    }
+
+    return err;
+}
+
+error error::from_exception(const std::exception& e) {
+    return from_exception(mc::std_exception_wrapper::from_current_exception(e));
+}
+
+void error::to_exception(mc::exception& e) const {
+    e.set_name(this->name);
+    e.append_log(this->to_log_message());
 }
 
 error& error::operator=(const error& other) {
@@ -129,6 +167,14 @@ bool error::operator==(const error& other) const {
 
 bool error::operator!=(const error& other) const {
     return !(*this == other);
+}
+
+mc::log::message error::to_log_message() const {
+    return mc::log::message(
+        this->level,
+        mc::log::context("", std::string(this->name), 0),
+        std::string(this->format),
+        this->args);
 }
 
 error_with_owner::error_with_owner() {

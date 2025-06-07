@@ -19,11 +19,14 @@
 #include <mc/engine/call_stack.h>
 #include <mc/engine/context.h>
 #include <mc/engine/macro.h>
+#include <mc/engine/result.h>
 #include <mc/engine/service.h>
 #include <mc/engine/utils.h>
 #include <mc/ref_ptr.h>
 #include <mc/reflect.h>
+#include <mc/reflect/signature_helper.h>
 #include <mc/signal_slot.h>
+#include <mc/time.h>
 #include <mc/traits.h>
 #include <mc/variant.h>
 
@@ -36,8 +39,7 @@
 namespace mc::engine {
 namespace mdb = mc::db;
 
-using io_context_type    = boost::asio::io_context;
-using strand_type        = boost::asio::strand<boost::asio::io_context::executor_type>;
+using strand_type        = strand_t<io_context_type::executor_type>;
 using slot_type          = std::function<mc::variant(const mc::variants&)>;
 using message            = mc::dbus::message;
 using core_object        = mc::core::object;
@@ -51,18 +53,7 @@ using property_changed_signal = mc::signal<void(const mc::variant&, const proper
 
 using object_call_stack = detail::call_stack<service, abstract_object>;
 
-struct invoke_result : public mc::variant {
-    const mc::reflect::method_type_info* method{nullptr};
-
-    invoke_result() = default;
-    invoke_result(const mc::reflect::method_type_info* m, mc::variant v)
-        : mc::variant(std::move(v)), method(m) {
-    }
-
-    bool is_valid() const {
-        return method != nullptr;
-    }
-};
+using invoke_result = mc::variant;
 
 struct visitor {
     virtual void handle_interface_begin(const abstract_object&    obj,
@@ -168,10 +159,12 @@ public:
 
     virtual void visit(visitor& v) const = 0;
 
-    virtual bool          has_method(std::string_view method_name,
-                                     std::string_view interface_name = {}) const = 0;
-    virtual invoke_result invoke(std::string_view method_name, const mc::variants& args,
-                                 std::string_view interface_name = {})           = 0;
+    virtual bool                has_method(std::string_view method_name,
+                                           std::string_view interface_name = {}) const = 0;
+    virtual invoke_result       invoke(std::string_view method_name, const mc::variants& args = {},
+                                       std::string_view interface_name = {})           = 0;
+    virtual result<mc::variant> async_invoke(std::string_view method_name, const mc::variants& args = {},
+                                             std::string_view interface_name = {})     = 0;
 
     virtual void                     notify_property_changed(const mc::variant& value, const property_base& prop) = 0;
     virtual property_changed_signal& property_changed()                                                           = 0;
@@ -207,8 +200,9 @@ public:
     virtual mc::dict            get_all_properties()                                                   = 0;
     virtual bool                set_property(std::string_view property_name, const mc::variant& value) = 0;
 
-    virtual bool          has_method(std::string_view method_name) const                 = 0;
-    virtual invoke_result invoke(std::string_view method_name, const mc::variants& args) = 0;
+    virtual bool                has_method(std::string_view method_name) const                            = 0;
+    virtual invoke_result       invoke(std::string_view method_name, const mc::variants& args = {})       = 0;
+    virtual result<mc::variant> async_invoke(std::string_view method_name, const mc::variants& args = {}) = 0;
 
     virtual void                     notify_property_changed(const mc::variant& value, const property_base& prop) = 0;
     virtual property_changed_signal& property_changed()                                                           = 0;
@@ -267,17 +261,5 @@ public:
 };
 
 } // namespace mc::engine
-
-namespace mc {
-
-inline void to_variant(const mc::engine::invoke_result& obj, mc::variant& v) {
-    v = mc::variant(obj);
-}
-
-inline void from_variant(const mc::variant& v, mc::engine::invoke_result& obj) {
-    static_cast<mc::variant&>(obj) = v;
-}
-
-} // namespace mc
 
 #endif // MC_ENGINE_BASE_H

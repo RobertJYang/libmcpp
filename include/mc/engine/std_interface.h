@@ -26,7 +26,7 @@ constexpr std::string_view properties_interface_name     = "org.freedesktop.DBus
 constexpr std::string_view introspectable_interface_name = "org.freedesktop.DBus.Introspectable";
 constexpr std::string_view peer_interface_name           = "org.freedesktop.DBus.Peer";
 constexpr std::string_view object_manager_interface_name = "org.freedesktop.DBus.ObjectManager";
-constexpr std::string_view common_properties_name = "bmc.kepler.Object.Properties"; // 通用属性接口
+constexpr std::string_view common_properties_name        = "bmc.kepler.Object.Properties"; // 通用属性接口
 
 /*
  <interface name="org.freedesktop.DBus.Properties">

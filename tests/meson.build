@@ -51,7 +51,7 @@ test_files = [
   # filesystem 目录
   'filesystem/test_filesystem.cpp',
 
-  # futures 目录
+  # # futures 目录
   'futures/test_futures.cpp',
   'futures/test_state_pool.cpp',
 
@@ -108,6 +108,8 @@ test_files = [
   'engine/test_property.cpp',
   'engine/test_path.cpp',
   'engine/test_path_iterator.cpp',
+  'engine/test_async_invoke.cpp',
+  'engine/test_result.cpp',
 
   # io 目录
   'io/test_io_buffer.cpp',

@@ -105,6 +105,8 @@ private:
     void clear_all_pools_unlocked();
     void remove_global_pool_unlocked(std::size_t state_size);
 
+    // TODO:: 暂时只有全局缓存池，后续可以增加线程局部缓存池
+
     mutable std::mutex m_mutex;        // 保护全局状态的互斥锁
     state_pool_config  m_config;       // 缓存池配置
     state_pool_map     m_global_pools; // 全局缓存池

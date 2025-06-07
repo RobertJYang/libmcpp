@@ -117,8 +117,7 @@ struct State : public state_base, public state_value<T, Executor, Allocator> {
         std::lock_guard<std::mutex> lock(m_mutex);
         if (!ready.load()) {
             this->result = std::make_exception_ptr(canceled_exception());
-            this->ready  = true;
-            this->m_cv.notify_all();
+            this->mark_ready();
         }
     }
 
@@ -128,13 +127,18 @@ struct State : public state_base, public state_value<T, Executor, Allocator> {
         if (!cancelled.load()) {
             std::lock_guard<std::mutex> lock(m_mutex);
             if (!cancelled.load()) {
-                m_cancel_callbacks.push_back(std::forward<F>(callback));
+                add_cancel_callback_inner(std::forward<F>(callback));
                 return;
             }
         }
 
         // 已经撤销了立即执行回调，解锁后执行避免死锁
         safe_invoke(std::forward<F>(callback));
+    }
+
+    template <typename F>
+    void add_cancel_callback_inner(F&& callback) {
+        m_cancel_callbacks.push_back(std::forward<F>(callback));
     }
 
     void reset() {

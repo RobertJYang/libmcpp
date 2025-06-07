@@ -78,6 +78,27 @@ mc::variant invoke(std::string_view method_name, const mc::variants& args = {}) 
 }
 
 /**
+ * @brief 异步调用对象的方法
+ *
+ * @tparam T 对象类型
+ * @param obj 对象实例
+ * @param method_name 方法名
+ * @param args 方法参数
+ * @return mc::variant 方法返回值
+ */
+template <typename T>
+async_result async_invoke(T& obj, std::string_view method_name, const mc::variants& args = {}) {
+    using clean_type = std::remove_cv_t<std::remove_reference_t<T>>;
+    return get_metadata<clean_type>().async_invoke_method(obj, method_name, args);
+}
+
+template <typename T>
+async_result async_invoke(std::string_view method_name, const mc::variants& args = {}) {
+    using clean_type = std::remove_cv_t<std::remove_reference_t<T>>;
+    return get_metadata<clean_type>().async_invoke_method(method_name, args);
+}
+
+/**
  * @brief 检查对象是否有指定名称的方法
  *
  * @tparam T 对象类型

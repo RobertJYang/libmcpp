@@ -35,59 +35,15 @@
 #include <boost/preprocessor/tuple/elem.hpp>
 #include <boost/preprocessor/tuple/size.hpp>
 
-#include <mc/reflect/signature.h>
+#include <mc/engine/error.h>
+#include <mc/engine/result.h>
+#include <mc/future.h>
+#include <mc/reflect/base.h>
+#include <mc/reflect/signature_helper.h>
 #include <mc/traits.h>
 #include <mc/variant.h>
 
 namespace mc::reflect {
-// 异常抛出辅助函数
-[[noreturn]] void throw_method_arg_not_match(std::string_view method_name,
-                                             std::string_view expect_type,
-                                             std::string_view actual_type);
-[[noreturn]] void throw_method_arg_not_enough(std::string_view method_name, size_t expect_count,
-                                              size_t actual_count);
-[[noreturn]] void throw_method_not_exist(std::string_view method_name);
-
-/**
- * @brief 反射器模板类
- *
- * @tparam T 要反射的类型
- */
-template <typename T>
-struct reflector {
-    using is_defined = std::false_type;
-    using is_enum    = std::false_type;
-};
-
-/**
- * 检查类型是否可反射
- * @tparam T 要检查的类型
- * @return 如果类型可反射则返回true，否则返回false
- */
-template <typename T>
-constexpr bool is_reflectable() {
-    return reflector<std::decay_t<T>>::is_defined::value;
-}
-
-/**
- * 检查类型是否为枚举
- * @tparam T 要检查的类型
- * @return 如果类型是枚举则返回true，否则返回false
- */
-template <typename T>
-constexpr bool is_enum() {
-    return reflector<T>::is_enum::value;
-}
-
-/**
- * 检查类型是否为非反射的普通枚举
- * @tparam T 要检查的类型
- * @return 如果类型是普通的枚举则返回true，否则返回false
- */
-template <typename T>
-constexpr bool is_normal_enum() {
-    return std::is_enum_v<T> && !is_reflectable<T>();
-}
 
 // 标签类型 - 用于区分不同类型的成员
 struct property_tag {};
@@ -341,30 +297,17 @@ struct method_info_base : public method_type_info {
     method_info_base(std::string_view n) : method_type_info(n) {
     }
 
-    virtual bool           is_static() const                              = 0;
-    virtual mc::variant    invoke(C& obj, const mc::variants& args) const = 0;
-    virtual mc::variant    invoke(const mc::variants& args) const         = 0;
-    virtual size_t         arg_count() const                              = 0; // 返回方法所需的参数数量
-    virtual std::uintptr_t offset() const                                 = 0;
+    virtual bool is_static() const = 0;
+
+    virtual mc::variant invoke(C& obj, const mc::variants& args) const = 0;
+    virtual mc::variant invoke(const mc::variants& args) const         = 0;
+
+    virtual async_result async_invoke(C& obj, const mc::variants& args) const = 0;
+    virtual async_result async_invoke(const mc::variants& args) const         = 0;
+
+    virtual size_t         arg_count() const = 0; // 返回方法所需的参数数量
+    virtual std::uintptr_t offset() const    = 0;
 };
-
-namespace detail {
-template <typename Arg>
-static auto convert_arg(std::string_view name, const mc::variant& var)
-    -> std::enable_if_t<!mc::is_variant_v<std::decay_t<Arg>>, Arg> {
-    if (auto arg = var.try_as<Arg>(); arg) {
-        return *arg;
-    }
-
-    throw_method_arg_not_match(name, pretty_name<Arg>(), var.get_type_name());
-}
-
-template <typename Arg>
-static auto convert_arg(std::string_view name, const mc::variant& var)
-    -> std::enable_if_t<mc::is_variant_v<std::decay_t<Arg>>, const mc::variant&> {
-    return var;
-}
-} // namespace detail
 
 // 方法元数据具体实现 - 根据方法是否为const使用不同实现
 template <typename Class, typename BaseT, bool IsConst, bool IsStatic, typename RetType,
@@ -413,21 +356,22 @@ public:
         }
     }
 
-    template <typename C, size_t... I>
-    variant call_with_exact_args(C& obj, const variants& args, std::index_sequence<I...>) const {
+    template <typename C, typename ResultType, size_t... I>
+    ResultType call_with_exact_args(C& obj, const mc::variants& args, std::index_sequence<I...>) const {
         if constexpr (std::is_void_v<RetType>) {
             call_impl(
-                obj, detail::convert_arg<mc::traits::remove_cvref_t<Args>>(this->name, args[I])...);
-            return variant();
+                obj, mc::detail::convert_arg<mc::traits::remove_cvref_t<Args>>(this->name, args[I])...);
+            return {};
         } else {
-            return variant(call_impl(obj, detail::convert_arg<mc::traits::remove_cvref_t<Args>>(
-                                              this->name, args[I])...));
+            return ResultType(call_impl(
+                obj, mc::detail::convert_arg<mc::traits::remove_cvref_t<Args>>(
+                         this->name, args[I])...));
         }
     }
 
     // 调用方法，要求参数数量 >= 函数参数数量
-    template <typename C>
-    variant invoke_impl(C& obj, const variants& args) const {
+    template <typename C, typename ResultType>
+    ResultType invoke_impl(C& obj, const variants& args) const {
         constexpr size_t arg_count = sizeof...(Args);
 
         // 如果是单个参数，且参数类型是 mc::variants，优化一下直接调用
@@ -443,12 +387,13 @@ public:
                 throw_method_arg_not_enough(this->name, arg_count, args.size());
             }
 
-            return call_with_exact_args(obj, args, std::make_index_sequence<arg_count>());
+            return call_with_exact_args<C, ResultType>(
+                obj, args, std::make_index_sequence<arg_count>());
         }
     }
 
-    variant invoke(Class& obj, const variants& args) const override {
-        return invoke_impl(obj, args);
+    mc::variant invoke(Class& obj, const mc::variants& args) const override {
+        return invoke_impl<Class, mc::variant>(obj, args);
     }
 
     mc::variant invoke(const mc::variants& args) const override {
@@ -457,7 +402,28 @@ public:
             throw_method_not_exist(this->name);
         }
         int dummy = 0;
-        return invoke_impl<int>(dummy, args);
+        return invoke_impl<int, mc::variant>(dummy, args);
+    }
+
+    async_result async_invoke(Class& obj, const mc::variants& args) const override {
+        try {
+            return invoke_impl<Class, async_result>(obj, args);
+        } catch (...) {
+            return mc::reject<async_result>(std::current_exception());
+        }
+    }
+
+    async_result async_invoke(const mc::variants& args) const override {
+        try {
+            if (!IsStatic) {
+                // 非静态方法不能直接调用，需要传入对象，这里抛出方法不存在异常
+                throw_method_not_exist(this->name);
+            }
+            int dummy = 0;
+            return invoke_impl<int, async_result>(dummy, args);
+        } catch (...) {
+            return mc::reject<async_result>(std::current_exception());
+        }
     }
 
     std::type_index typeinfo() const override {
@@ -520,10 +486,11 @@ struct base_class_info_base : public member_info_base {
     base_class_info_base(std::string_view n = {}) : member_info_base(n) {
     }
 
-    virtual std::string_view get_signature() const                                                    = 0;
-    virtual mc::variant      get_value(const C& obj, std::string_view name) const                     = 0;
-    virtual void             set_value(C& obj, std::string_view name, const mc::variant& value) const = 0;
-    virtual mc::variant      invoke(C& obj, std::string_view name, const mc::variants& args) const    = 0;
+    virtual std::string_view get_signature() const                                                       = 0;
+    virtual mc::variant      get_value(const C& obj, std::string_view name) const                        = 0;
+    virtual void             set_value(C& obj, std::string_view name, const mc::variant& value) const    = 0;
+    virtual mc::variant      invoke(C& obj, std::string_view name, const mc::variants& args) const       = 0;
+    virtual async_result     async_invoke(C& obj, std::string_view name, const mc::variants& args) const = 0;
 };
 
 // 属性元数据具体实现
@@ -589,9 +556,10 @@ struct base_class_info : public base_class_info_base<C> {
         return mc::reflect::get_signature<base_type>();
     }
 
-    mc::variant get_value(const C& obj, std::string_view name) const override;
-    void        set_value(C& obj, std::string_view name, const mc::variant& value) const override;
-    mc::variant invoke(C& obj, std::string_view name, const mc::variants& args) const override;
+    mc::variant  get_value(const C& obj, std::string_view name) const override;
+    void         set_value(C& obj, std::string_view name, const mc::variant& value) const override;
+    mc::variant  invoke(C& obj, std::string_view name, const mc::variants& args) const override;
+    async_result async_invoke(C& obj, std::string_view name, const mc::variants& args) const override;
 
     template <typename Derived>
     auto to_derived(std::string_view name) const {

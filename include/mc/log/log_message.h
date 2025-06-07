@@ -18,11 +18,10 @@
 #include <mc/log/log_level.h>
 #include <mc/string.h>
 #include <mc/variant.h>
+
 #include <memory>
-#include <sstream>
 #include <string>
 #include <thread>
-#include <utility>
 #include <vector>
 
 namespace mc::log {
@@ -44,16 +43,6 @@ struct context {
  * @brief 日志消息结构
  */
 class message {
-private:
-    level                                 m_level;     // 日志级别
-    mutable std::string                   m_message;   // 消息内容
-    context                               m_context;   // 上下文信息
-    std::chrono::system_clock::time_point m_timestamp; // 时间戳
-    dict                                  m_args;      // 参数字典
-    std::string                           m_format;    // 格式模板
-    mc::thread_id                         m_thread_id; // 线程ID
-    mutable bool                          m_formatted; // 是否已格式化
-
 public:
     /**
      * @brief 构造函数
@@ -64,11 +53,7 @@ public:
      * @param args 参数字典
      */
     message(level lvl = level::info, std::string msg = "", context ctx = context(),
-            mc::mutable_dict args = mc::mutable_dict())
-        : m_level(lvl), m_message(std::move(msg)), m_context(std::move(ctx)),
-          m_timestamp(std::chrono::system_clock::now()), m_args(std::move(args)),
-          m_thread_id(mc::get_thread_id()), m_formatted(true) {
-    }
+            mc::mutable_dict args = mc::mutable_dict());
 
     /**
      * @brief 格式化构造函数
@@ -79,12 +64,13 @@ public:
      * @param args 参数字典
      */
     message(level lvl, context ctx, std::string fmt_template,
-            mc::mutable_dict args = mc::mutable_dict())
-        : m_level(lvl), m_message(""), // 初始为空，将在需要时格式化
-          m_context(std::move(ctx)), m_timestamp(std::chrono::system_clock::now()),
-          m_args(std::move(args)), m_format(std::move(fmt_template)),
-          m_thread_id(mc::get_thread_id()), m_formatted(false) {
-    } // 标记为未格式化
+            mc::mutable_dict args = mc::mutable_dict());
+
+    message(const message& other)            = default;
+    message& operator=(const message& other) = default;
+
+    message(message&& other) noexcept            = default;
+    message& operator=(message&& other) noexcept = default;
 
     /**
      * @brief 获取日志级别
@@ -145,49 +131,24 @@ public:
      *
      * @return std::string 消息内容
      */
-    const std::string& get_message() const {
-        if (!m_formatted && !m_format.empty()) {
-            // 如果未格式化且有格式模板，执行格式化
-            m_message   = mc::format(m_format, m_args);
-            m_formatted = true;
-        }
-        return m_message;
-    }
+    const std::string& get_message() const;
 
     /**
      * @brief 获取结构化数据
      *
      * @return dict 结构化数据
      */
-    dict to_structured_data() const {
-        mc::mutable_dict result;
+    dict to_structured_data() const;
 
-        // 基本元数据
-        result["level"] = static_cast<int>(m_level);
-
-        // 上下文信息
-        mc::mutable_dict context_dict;
-        context_dict["file"]     = m_context.m_file;
-        context_dict["function"] = m_context.m_function;
-        context_dict["line"]     = m_context.m_line;
-        // 使用stringstream转换thread::id为字符串
-        std::ostringstream thread_id_stream;
-        thread_id_stream << m_thread_id;
-        context_dict["thread_id"] = thread_id_stream.str();
-        result["context"]         = context_dict;
-
-        // 消息内容
-        if (!m_format.empty()) {
-            result["message_template"] = m_format;
-            result["args"]             = m_args;
-        }
-
-        // 获取消息（如果需要会自动格式化）
-        result["message"] = get_message();
-
-        // 直接返回，会自动调用转换操作符
-        return result;
-    }
+private:
+    level                                 m_level;     // 日志级别
+    mutable std::string                   m_message;   // 消息内容
+    context                               m_context;   // 上下文信息
+    std::chrono::system_clock::time_point m_timestamp; // 时间戳
+    dict                                  m_args;      // 参数字典
+    std::string                           m_format;    // 格式模板
+    mc::thread_id                         m_thread_id; // 线程ID
+    mutable bool                          m_formatted; // 是否已格式化
 };
 
 /**
@@ -196,5 +157,12 @@ public:
 using messages = std::vector<message>;
 
 } // namespace mc::log
+
+/**
+ * @brief 基础日志宏 - 所有级别共用
+ */
+#define MC_LOG_MESSAGE(LEVEL, FORMAT, ...)                                                      \
+    mc::log::message(mc::log::level::LEVEL, mc::log::context(__FILE__, __FUNCTION__, __LINE__), \
+                     FORMAT, mc::mutable_dict() __VA_ARGS__)
 
 #endif // MC_LOG_MESSAGE_H

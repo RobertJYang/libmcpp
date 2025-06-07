@@ -13,7 +13,6 @@
 #include <mc/exception.h>
 #include <mc/filesystem.h>
 #include <mc/log/appenders/console_appender.h>
-#include <mc/log/log_message.h>
 #include <mc/reflect.h>
 #include <mc/string.h>
 #include <mc/time.h>
@@ -39,8 +38,8 @@ public:
     config     cfg;
     color_type level_colors[static_cast<int>(level::off) + 1] = {
         color_type::console_default, color_type::console_default, color_type::cyan,
-        color_type::green,           color_type::brown,           color_type::red,
-        color_type::magenta,         color_type::console_default};
+        color_type::green, color_type::brown, color_type::red,
+        color_type::magenta, color_type::console_default};
 
     std::mutex mutex;
 };

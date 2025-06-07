@@ -89,7 +89,7 @@ public:
 
     const std::vector<std::string>& get_dependencies() const override;
 
-    strand_type& get_strand() const;
+    executor_type& get_executor() const;
 
     bool init(dict args) override {
         return true;

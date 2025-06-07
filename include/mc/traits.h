@@ -45,6 +45,49 @@ struct type_prepend<std::tuple<Types...>, T> {
 template <typename... Types>
 using type_prepend_t = typename type_prepend<Types...>::type;
 
+// 类型去重
+template <typename... Ts>
+struct type_set;
+
+template <>
+struct type_set<> {
+    using type = std::tuple<>;
+};
+
+template <typename T>
+struct type_set<T> {
+    using type = std::tuple<T>;
+};
+
+template <typename T, typename... Rest>
+struct type_set<T, Rest...> {
+private:
+    template <typename U, typename Tuple>
+    struct contains_impl;
+
+    template <typename U>
+    struct contains_impl<U, std::tuple<>> {
+        static constexpr bool value = false;
+    };
+
+    template <typename U, typename First, typename... Types>
+    struct contains_impl<U, std::tuple<First, Types...>> {
+        static constexpr bool value = std::is_same_v<U, First> || contains_impl<U, std::tuple<Types...>>::value;
+    };
+
+    using rest_unique                  = typename type_set<Rest...>::type;
+    static constexpr bool is_contained = contains_impl<T, rest_unique>::value;
+
+public:
+    using type = std::conditional_t<
+        is_contained,
+        rest_unique,
+        decltype(std::tuple_cat(std::declval<std::tuple<T>>(), std::declval<rest_unique>()))>;
+};
+
+template <typename... Ts>
+using type_set_t = typename type_set<Ts...>::type;
+
 // 定义一个模板，将一个模板应用到 Types 上
 template <template <typename...> class To, typename Types>
 struct apply_type;
@@ -295,6 +338,16 @@ public:
     using value_type  = T;
     using param_type  = std::conditional_t<is_basic_type, T, const T&>;
     using rvalue_type = std::conditional_t<is_basic_type, disable_rvalue_typeerence, T&&>;
+};
+
+template <>
+class property_traits<void> {
+    struct disable_rvalue_typeerence {};
+
+public:
+    using value_type  = std::monostate;
+    using param_type  = std::monostate;
+    using rvalue_type = disable_rvalue_typeerence;
 };
 } // namespace traits
 } // namespace mc

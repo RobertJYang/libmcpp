@@ -321,20 +321,16 @@ TEST_F(interface_inherit_test, test_abstract_interface_method) {
 
     // 调用各个接口的方法
     mc::engine::invoke_result base_result = iface->invoke("BaseMethod", {42});
-    EXPECT_TRUE(base_result.is_valid());
     EXPECT_EQ(base_result, "base:42");
 
     mc::engine::invoke_result middle_result = iface->invoke("MiddleMethod", {"21"});
-    EXPECT_TRUE(middle_result.is_valid());
     EXPECT_EQ(middle_result, 42.0);
 
     mc::engine::invoke_result extended_result = iface->invoke("ExtendedMethod", {10.0});
-    EXPECT_TRUE(extended_result.is_valid());
     EXPECT_EQ(extended_result, true);
 
     // 调用被覆盖的方法 - 应该调用扩展接口的版本
     mc::engine::invoke_result common_result = iface->invoke("CommonMethod", {"test"});
-    EXPECT_TRUE(common_result.is_valid());
     EXPECT_EQ(common_result, "extended:test");
 }
 
@@ -344,18 +340,15 @@ TEST_F(interface_inherit_test, test_abstract_object_method) {
 
     // 不指定接口名 - 应该调用对象的方法
     mc::engine::invoke_result obj_result = base_obj->invoke("CommonMethod", {"test"});
-    EXPECT_TRUE(obj_result.is_valid());
     EXPECT_EQ(obj_result, "object:test");
 
     // 指定接口名 - 应该调用接口的方法
     mc::engine::invoke_result iface_result =
         base_obj->invoke("CommonMethod", {"test"}, "org.test.ExtendedInterface");
-    EXPECT_TRUE(iface_result.is_valid());
     EXPECT_EQ(iface_result, "extended:test");
 
     // 调用只在接口中存在的方法
     mc::engine::invoke_result base_result = base_obj->invoke("BaseMethod", {42});
-    EXPECT_TRUE(base_result.is_valid());
     EXPECT_EQ(base_result, "base:42");
 }
 
@@ -412,11 +405,11 @@ TEST_F(interface_inherit_test, test_abstract_signal_override) {
         auto conn2 = base_obj->connect(
             "CommonSignal",
             [&](const mc::variants& args) -> mc::variant {
-                signal_triggered = true;
-                EXPECT_EQ(args.size(), 1);
-                EXPECT_EQ(args[0], "interface_common");
-                return {};
-            },
+            signal_triggered = true;
+            EXPECT_EQ(args.size(), 1);
+            EXPECT_EQ(args[0], "interface_common");
+            return {};
+        },
             "org.test.ExtendedInterface");
 
         // 触发指定接口的信号

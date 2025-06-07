@@ -18,13 +18,16 @@
 #define MC_EXPR_CONTEXT_H
 
 #include <mc/dict.h>
-#include <mc/engine/base.h>
 #include <mc/expr/function.h>
 #include <mc/reflect.h>
 #include <mc/variant.h>
 
 #include <memory>
 #include <string>
+
+namespace mc::engine {
+class abstract_object;
+}
 
 namespace mc::expr {
 class function;

@@ -190,6 +190,25 @@ public:
         throw_method_not_exist(method_name);
     }
 
+    mc::variant async_invoke_method(T& obj, std::string_view method_name,
+                                    const mc::variants& args = {}) const {
+        const method_info_base<T>* method = get_method_info(method_name);
+        if (method) {
+            return method->async_invoke(obj, args);
+        }
+
+        throw_method_not_exist(method_name);
+    }
+
+    async_result async_invoke_method(std::string_view method_name, const mc::variants& args = {}) const {
+        const method_info_base<T>* method = get_method_info(method_name);
+        if (method && method->is_static()) {
+            return method->async_invoke(args);
+        }
+
+        throw_method_not_exist(method_name);
+    }
+
     /**
      * @brief 设置成员属性值
      *
@@ -358,6 +377,12 @@ template <typename C, typename BaseT>
 mc::variant base_class_info<C, BaseT>::invoke(C& obj, std::string_view name,
                                               const mc::variants& args) const {
     return reflection_metadata<BaseT>::instance().invoke_method(obj, name, args);
+}
+
+template <typename C, typename BaseT>
+async_result base_class_info<C, BaseT>::async_invoke(C& obj, std::string_view name,
+                                                     const mc::variants& args) const {
+    return reflection_metadata<BaseT>::instance().async_invoke_method(obj, name, args);
 }
 
 } // namespace reflect

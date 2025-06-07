@@ -30,7 +30,7 @@ public:
 
     const managed_objects& get_managed_objects() const override;
 
-    void notify_property_changed(const mc::variant& value, const property_base& prop) override;
+    void                     notify_property_changed(const mc::variant& value, const property_base& prop) override;
     property_changed_signal& property_changed() override;
 
     abstract_object* get_owner() const override;
@@ -238,27 +238,14 @@ public:
         return property_info_to_interface(*info)->set_property(property_name, value);
     }
 
-    invoke_result invoke(std::string_view method_name, const mc::variants& args,
+    invoke_result invoke(std::string_view method_name, const mc::variants& args = {},
                          std::string_view interface_name = {}) override {
-        // 跟踪对象调用
-        object_call_stack::context object_ctx{get_service(), *this};
+        return invoke_impl<invoke_result>(method_name, args, interface_name);
+    }
 
-        auto result = standard_interfaces::invoke(this, method_name, args, interface_name);
-        if (result.is_valid()) {
-            return result;
-        }
-
-        auto method_info = get_object_method_info(method_name, interface_name);
-        if (method_info != nullptr) {
-            return {method_info, method_info->invoke(static_cast<object_type&>(*this), args)};
-        }
-
-        auto info = metadata_type::get_instance().get_method_interface(method_name, interface_name);
-        if (info == nullptr) {
-            return {nullptr, mc::variant()};
-        }
-
-        return property_info_to_interface(*info)->invoke(method_name, args);
+    result<mc::variant> async_invoke(std::string_view method_name, const mc::variants& args = {},
+                                     std::string_view interface_name = {}) override {
+        return invoke_impl<result<mc::variant>>(method_name, args, interface_name);
     }
 
     bool has_method(std::string_view method_name,
@@ -390,6 +377,54 @@ public:
         }
 
         return nullptr;
+    }
+
+private:
+    template <typename ResultType>
+    ResultType invoke_impl(std::string_view method_name, const mc::variants& args,
+                           std::string_view interface_name) {
+        // 跟踪对象调用
+        object_call_stack::context object_ctx{get_service(), *this};
+
+        auto* ctx = context_stack::top_value();
+        if (ctx) {
+            return do_invoke_impl<ResultType>(*ctx, method_name, args, interface_name);
+        }
+
+        context tmp_ctx(*get_service(), *this);
+        tmp_ctx.set_call_info(detail::variants_call{args, interface_name, method_name});
+        context_stack::context call_ctx(get_service(), tmp_ctx);
+        return do_invoke_impl<ResultType>(tmp_ctx, method_name, args, interface_name);
+    }
+
+    template <typename ResultType>
+    ResultType do_invoke_impl(context& ctx, std::string_view method_name, const mc::variants& args,
+                              std::string_view interface_name) {
+        auto result = standard_interfaces::invoke(this, method_name, args, interface_name);
+        if (ctx.get_method() != nullptr) {
+            return result;
+        }
+
+        auto method_info = get_object_method_info(method_name, interface_name);
+        if (method_info != nullptr) {
+            ctx.set_method(method_info);
+            if constexpr (std::is_same_v<ResultType, invoke_result>) {
+                return method_info->invoke(static_cast<object_type&>(*this), args);
+            } else {
+                return method_info->async_invoke(static_cast<object_type&>(*this), args);
+            }
+        }
+
+        auto info = metadata_type::get_instance().get_method_interface(method_name, interface_name);
+        if (info == nullptr) {
+            return {};
+        }
+
+        if constexpr (std::is_same_v<ResultType, invoke_result>) {
+            return property_info_to_interface(*info)->invoke(method_name, args);
+        } else {
+            return property_info_to_interface(*info)->async_invoke(method_name, args);
+        }
     }
 };
 

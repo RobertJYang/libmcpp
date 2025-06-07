@@ -16,7 +16,6 @@
 #include <chrono>
 #include <exception>
 #include <mc/log/log_message.h>
-#include <mc/log/logger.h>
 #include <memory>
 #include <string>
 #include <unordered_map>
@@ -133,14 +132,23 @@ public:
     // 获取异常代码
     int64_t code() const noexcept;
 
+    // 设置异常代码
+    void set_code(int64_t code);
+
     // 获取异常名称
-    const char* name() const noexcept;
+    std::string_view name() const noexcept;
+
+    // 设置异常名称
+    void set_name(std::string_view name);
 
     // 获取异常描述
     virtual const char* what() const noexcept override;
 
     // 添加日志消息
     void append_log(mc::log::message msg) const;
+
+    // 添加日志消息
+    void append_log(mc::log::messages msgs) const;
 
     // 获取详细异常信息
     virtual std::string to_detail_string(mc::log::level ll = mc::log::level::all) const;
@@ -158,6 +166,8 @@ public:
     virtual std::shared_ptr<exception> dynamic_copy_exception() const;
 
     const mc::log::messages& messages() const;
+
+    mc::log::messages take_messages() const;
 
 protected:
     // 异常实现细节

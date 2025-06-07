@@ -29,7 +29,7 @@ struct state_pool_config {
     std::size_t alignment          = 8;    // 缓存池对齐大小
 };
 
-// State 缓存池类 - 复用 Future/Promise 的 State 对象，减少内存分配开销
+// State 缓存池类
 class state_pool {
 public:
     static state_pool& instance() {
@@ -83,7 +83,7 @@ private:
     void  try_release_to_pool(void* state_ptr, std::size_t state_size);
 };
 
-// 便利函数：创建使用池的 State 对象
+// 从缓存池创建 State 对象
 template <typename T, typename Executor, typename Allocator>
 std::shared_ptr<State<T, Executor, Allocator>> make_pooled_state(Executor executor, Allocator allocator) {
     return state_pool::instance().acquire_state<T, Executor, Allocator>(std::move(executor), std::move(allocator));

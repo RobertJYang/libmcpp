@@ -75,8 +75,16 @@ int64_t exception::code() const noexcept {
     return m_impl->m_code;
 }
 
-const char* exception::name() const noexcept {
-    return m_impl->m_name.c_str();
+void exception::set_code(int64_t code) {
+    m_impl->m_code = code;
+}
+
+std::string_view exception::name() const noexcept {
+    return m_impl->m_name;
+}
+
+void exception::set_name(std::string_view name) {
+    m_impl->m_name = name;
 }
 
 const char* exception::what() const noexcept {
@@ -84,7 +92,19 @@ const char* exception::what() const noexcept {
 }
 
 void exception::append_log(mc::log::message msg) const {
-    const_cast<exception*>(this)->m_impl->m_logs.emplace_back(std::move(msg));
+    detail::exception_impl& impl = *const_cast<exception*>(this)->m_impl;
+    impl.m_logs.emplace_back(std::move(msg));
+}
+
+void exception::append_log(mc::log::messages msgs) const {
+    if (msgs.empty()) {
+        return;
+    }
+
+    detail::exception_impl& impl = *const_cast<exception*>(this)->m_impl;
+    for (const auto& msg : msgs) {
+        impl.m_logs.emplace_back(std::move(msg));
+    }
 }
 
 std::string exception::to_detail_string(mc::log::level ll) const {
@@ -182,6 +202,10 @@ std::shared_ptr<exception> exception::dynamic_copy_exception() const {
 
 const mc::log::messages& exception::messages() const {
     return m_impl->m_logs;
+}
+
+mc::log::messages exception::take_messages() const {
+    return std::move(m_impl->m_logs);
 }
 
 // 未处理异常实现

@@ -69,9 +69,15 @@ private:
     std::size_t                    m_max_pool_size{1000}; // 默认最大池大小
 };
 
-class callback_list : public mc::noncopyable {
+class callback_list {
 public:
     callback_list() = default;
+
+    callback_list(const callback_list&) = delete;
+    callback_list& operator=(const callback_list&) = delete;
+
+    callback_list(callback_list&& other) noexcept            = default;
+    callback_list& operator=(callback_list&& other) noexcept = default;
 
     void push_back(std::function<void()> callback);
     void swap(callback_list& other) noexcept;

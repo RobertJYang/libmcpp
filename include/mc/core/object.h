@@ -15,6 +15,7 @@
 
 #include <mc/common.h>
 #include <mc/exception.h>
+#include <mc/future.h>
 #include <mc/ref_ptr.h>
 #include <mc/signal_slot.h>
 
@@ -34,19 +35,22 @@ using child_list       = std::vector<object_ptr>;
 using signal_type      = void*;
 using strand_type      = boost::asio::strand<boost::asio::io_context::executor_type>;
 using io_context       = boost::asio::io_context;
-using any_io_executor  = boost::asio::any_io_executor;
 using executor         = boost::asio::executor;
 class service_base;
 
 using connection_id_type                           = uint32_t;
 constexpr connection_id_type INVALID_CONNECTION_ID = std::numeric_limits<connection_id_type>::max();
 
-enum class connection_type { Auto, Direct, Queued };
+enum class connection_type { Auto,
+                             Direct,
+                             Queued };
 
 using object_id_type = uint64_t;
 
 class object_base : public ref_base<object_base> {
 public:
+    using executor_type = strand_type;
+
     object_base()          = default;
     virtual ~object_base() = default;
 
@@ -215,7 +219,7 @@ public:
 
         if (type == connection_type::Auto) {
             auto dispatcher = [this, slot = std::forward<SlotType>(slot)](auto&&... args) mutable {
-                auto& s = get_strand();
+                auto& s = get_executor();
                 if (s.running_in_this_thread()) {
                     slot(std::forward<decltype(args)>(args)...);
                 } else {
@@ -270,7 +274,7 @@ public:
     template <typename CompletionToken>
     auto post(CompletionToken&& token) const {
         MC_ASSERT(get_service(), "post on object without service");
-        return boost::asio::post(get_strand(), std::forward<CompletionToken>(token));
+        return boost::asio::post(get_executor(), std::forward<CompletionToken>(token));
     }
 
     /**
@@ -282,7 +286,7 @@ public:
     template <typename CompletionToken>
     auto defer(CompletionToken&& token) const {
         MC_ASSERT(get_service(), "defer on object without service");
-        return boost::asio::defer(get_strand(), std::forward<CompletionToken>(token));
+        return boost::asio::defer(get_executor(), std::forward<CompletionToken>(token));
     }
 
     /**
@@ -294,7 +298,7 @@ public:
     template <typename CompletionToken>
     auto dispatch(CompletionToken&& token) const {
         MC_ASSERT(get_service(), "dispatch on object without service");
-        return boost::asio::dispatch(get_strand(), std::forward<CompletionToken>(token));
+        return boost::asio::dispatch(get_executor(), std::forward<CompletionToken>(token));
     }
 
     /**
@@ -306,10 +310,10 @@ public:
     template <typename Handler>
     auto bind_executor(Handler&& handler) const {
         MC_ASSERT(get_service(), "bind_executor on object without service");
-        return boost::asio::bind_executor(get_strand(), std::forward<Handler>(handler));
+        return boost::asio::bind_executor(get_executor(), std::forward<Handler>(handler));
     }
 
-    strand_type& get_strand() const;
+    executor_type& get_executor() const;
 
 protected:
     /**

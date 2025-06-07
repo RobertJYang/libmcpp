@@ -40,7 +40,6 @@ REGISTER_CONST_ERROR(unknown_object, mc::dbus::error_names::unknown_object);
 REGISTER_CONST_ERROR(unknown_interface, mc::dbus::error_names::unknown_interface);
 REGISTER_CONST_ERROR(unknown_property, mc::dbus::error_names::unknown_property);
 REGISTER_CONST_ERROR(property_read_only, mc::dbus::error_names::property_read_only);
-REGISTER_CONST_ERROR(timed_out, mc::dbus::error_names::timed_out);
 
 } // namespace mc::engine::errors
 
