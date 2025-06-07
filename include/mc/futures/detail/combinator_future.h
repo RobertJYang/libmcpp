@@ -23,11 +23,10 @@ namespace detail {
 template <typename ResultType, typename Executor, typename Allocator>
 struct CombinatorState {
     using promise_type = Promise<ResultType, Executor, Allocator>;
-    using promise_ptr  = std::shared_ptr<promise_type>;
 
     std::mutex    mutex;
     std::size_t   total_count;
-    promise_ptr   promise;
+    promise_type  promise;
     Executor      executor;
     Allocator     allocator;
     callback_list cancel_callbacks;
@@ -73,7 +72,7 @@ struct CombinatorState {
 
     template <typename Future>
     static auto make_promise(const Future& future) {
-        return std::make_shared<promise_type>(
+        return mc::make_promise<ResultType>(
             future.state_->executor, future.state_->allocator);
     }
 };
@@ -103,7 +102,7 @@ struct AllState : public CombinatorState<ResultType, Executor, Allocator> {
         result = std::forward<Value>(value);
         this->completed_count++;
         if (this->completed_count == this->total_count) {
-            this->promise->set_value(std::move(this->results));
+            this->promise.set_value(std::move(this->results));
         }
     }
 
@@ -118,7 +117,7 @@ struct AllState : public CombinatorState<ResultType, Executor, Allocator> {
 
             // all 操作传播第一个异常，因为这个异常发生后整体就失败了
             this->first_exception = true;
-            this->promise->set_exception(e);
+            this->promise.set_exception(e);
         }
 
         // 异常后取消所有子 future
@@ -148,7 +147,7 @@ struct AnyState : public CombinatorState<ResultType, Executor, Allocator> {
         }
 
         this->completed = true;
-        this->promise->set_value(std::make_pair(index, std::forward<Value>(value)));
+        this->promise.set_value(std::make_pair(index, std::forward<Value>(value)));
         return true;
     }
 
@@ -174,7 +173,7 @@ struct AnyState : public CombinatorState<ResultType, Executor, Allocator> {
 
         // 全部失败了
         this->completed = true;
-        this->promise->set_exception(*this->last_exception);
+        this->promise.set_exception(*this->last_exception);
         return true;
     }
 };
@@ -251,7 +250,7 @@ auto all(Futures&&... futures)
     auto& first         = std::get<0>(tuple_futures);
     using State         = detail::AllState<ResultType, Executor, Allocator>;
     auto state          = std::make_shared<State>(sizeof...(Futures), first);
-    auto result         = state->promise->get_future();
+    auto result         = state->promise.get_future();
 
     state->add_cancel_callbacks(tuple_futures);
 
@@ -282,7 +281,7 @@ auto all(Iterator begin, Iterator end)
     MC_ASSERT(begin != end, "all requires at least one future");
     auto total  = std::distance(begin, end);
     auto state  = std::make_shared<State>(total, *begin);
-    auto result = state->promise->get_future();
+    auto result = state->promise.get_future();
 
     std::size_t index = 0;
     state->results.resize(total);
@@ -323,7 +322,7 @@ auto any(Futures&&... futures)
     auto  tuple_futures = std::forward_as_tuple(futures...);
     auto& first         = std::get<0>(tuple_futures);
     auto  state         = std::make_shared<State>(sizeof...(Futures), first);
-    auto  result        = state->promise->get_future();
+    auto  result        = state->promise.get_future();
 
     state->add_cancel_callbacks(tuple_futures);
 
@@ -354,7 +353,7 @@ auto any(Iterator begin, Iterator end)
     MC_ASSERT(begin != end, "Empty future sequence");
     auto total  = std::distance(begin, end);
     auto state  = std::make_shared<State>(total, *begin);
-    auto result = state->promise->get_future();
+    auto result = state->promise.get_future();
 
     std::size_t index = 0;
     state->add_cancel_callbacks(begin, end);
