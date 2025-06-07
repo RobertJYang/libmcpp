@@ -21,8 +21,6 @@
 namespace mc::dbus {
 constexpr std::string_view OBJECT_PROPERTIES_INTERFACE = "bmc.kepler.Object.Properties";
 
-template <typename T>
-using future = mc::future<T, strand_type>;
 class shm_tree {
 public:
     shm_tree(strand_type& strand, std::string_view harbor_name, std::string_view service_name,
@@ -71,7 +69,8 @@ struct shm_obj_visitor : mc::engine::visitor {
                               const mc::engine::abstract_interface& iface) override {
     }
 
-    void handle(const mc::engine::abstract_object& obj, const mc::engine::abstract_interface& iface,
+    void handle(const mc::engine::abstract_object&        obj,
+                const mc::engine::abstract_interface&     iface,
                 const mc::engine::visitor::property_meta& info) override {
         shm::property& shm_prop = m_shm_intf->add_p(m_shm_ins, info.name, info.signature);
         shm_prop.set_read_privilege(info.read_privilege);
@@ -86,7 +85,8 @@ struct shm_obj_visitor : mc::engine::visitor {
         }
     }
 
-    void handle(const mc::engine::abstract_object& obj, const mc::engine::abstract_interface& iface,
+    void handle(const mc::engine::abstract_object&      obj,
+                const mc::engine::abstract_interface&   iface,
                 const mc::engine::visitor::method_meta& info) override {
         shm::method& shm_method =
             m_shm_intf->add_m(m_shm_ins, info.name, info.args_signature, info.return_signature);
@@ -94,7 +94,8 @@ struct shm_obj_visitor : mc::engine::visitor {
         shm_method.set_flags(info.flags);
     }
 
-    void handle(const mc::engine::abstract_object& obj, const mc::engine::abstract_interface& iface,
+    void handle(const mc::engine::abstract_object&      obj,
+                const mc::engine::abstract_interface&   iface,
                 const mc::engine::visitor::signal_meta& info) override {
         shm::signal& shm_signal = m_shm_intf->add_s(m_shm_ins, info.name, info.args_signature);
         shm_signal.set_flags(info.flags);

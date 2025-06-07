@@ -129,4 +129,12 @@ void context::throw_error(const error_info& error, mc::dict args) {
     throw_error(error.name, std::move(args));
 }
 
+const method_type_info* context::get_method() const {
+    return m_method;
+}
+
+void context::set_method(const method_type_info* method) {
+    m_method = method;
+}
+
 } // namespace mc::engine

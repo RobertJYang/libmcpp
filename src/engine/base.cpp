@@ -11,6 +11,7 @@
  */
 #include <mc/engine/base.h>
 #include <mc/engine/service.h>
+#include <mc/exception.h>
 
 namespace mc::engine {
 abstract_object* abstract_interface::get_parent() const {

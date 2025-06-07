@@ -25,6 +25,25 @@
 
 namespace mc {
 
+namespace detail {
+
+/**
+ * @brief 抛出方法参数类型不匹配异常
+ *
+ * @param method_name 方法名称
+ * @param expect_type 期望的参数类型
+ * @param actual_type 实际的参数类型
+ */
+void throw_method_arg_not_match(std::string_view method_name, std::string_view expect_type,
+                                std::string_view actual_type) {
+    MC_THROW(mc::invalid_arg_exception,
+             "调用方法 ${method_name} 参数不匹配，需要 ${expect_type} 类型，实际提供 "
+             "${actual_type} 类型",
+             ("method_name", method_name)("expect_type", expect_type)("actual_type", actual_type));
+}
+
+} // namespace detail
+
 // 获取类型名称
 const char* get_type_name_internal(type_id type) {
     static const char* type_names[] = {

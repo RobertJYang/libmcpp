@@ -130,10 +130,10 @@ struct variant_config {
 
     using allocator_type                = Allocator;
     static constexpr bool is_fixed_type = FixedType;
-    using string_type = std::basic_string<char, std::char_traits<char>, char_alloc_type>;
-    using object_type = dict;
-    using array_type  = std::vector<variant_base<self_type>, variant_alloc_type>;
-    using blob_type   = blob_base<char_alloc_type>;
+    using string_type                   = std::basic_string<char, std::char_traits<char>, char_alloc_type>;
+    using object_type                   = dict;
+    using array_type                    = std::vector<variant_base<self_type>, variant_alloc_type>;
+    using blob_type                     = blob_base<char_alloc_type>;
 
     using string_alloc_type = typename alloc_traits::template rebind_alloc<string_type>;
     using object_alloc_type = typename alloc_traits::template rebind_alloc<object_type>;

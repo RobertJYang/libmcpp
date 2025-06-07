@@ -15,11 +15,9 @@
 
 #include <mc/log/appender.h>
 #include <mc/log/log_message.h>
-#include <memory>
-#include <mutex>
-#include <string>
-#include <unordered_map>
-#include <vector>
+#include <mc/reflect.h>
+
+MC_REFLECT_ENUM(mc::log::level, (all)(trace)(debug)(info)(warn)(error)(fatal)(off))
 
 namespace mc {
 namespace log {
@@ -170,18 +168,11 @@ private:
 /**
  * @brief 基础日志宏 - 所有级别共用
  */
-#define MC_LOG_MESSAGE(LEVEL, FORMAT, ...)                                                         \
-    mc::log::message(mc::log::level::LEVEL, mc::log::context(__FILE__, __FUNCTION__, __LINE__),    \
-                     FORMAT, mc::mutable_dict() __VA_ARGS__)
-
-/**
- * @brief 基础日志宏 - 所有级别共用
- */
-#define MC_LOG_BASE(LOGGER, LEVEL, FORMAT, ...)                                                    \
-    do {                                                                                           \
-        if (LOGGER.is_enabled(mc::log::level::LEVEL)) {                                            \
-            LOGGER.log(MC_LOG_MESSAGE(LEVEL, FORMAT, __VA_ARGS__));                                \
-        }                                                                                          \
+#define MC_LOG_BASE(LOGGER, LEVEL, FORMAT, ...)                     \
+    do {                                                            \
+        if (LOGGER.is_enabled(mc::log::level::LEVEL)) {             \
+            LOGGER.log(MC_LOG_MESSAGE(LEVEL, FORMAT, __VA_ARGS__)); \
+        }                                                           \
     } while (0)
 
 /**

@@ -247,9 +247,9 @@ void harbor::invoke_method(local_msg* msg) {
     auto handler   = it->second;
     try {
         auto result = handler(path, interface, member, args);
-        if (result.is_valid()) {
+        if (result.first) {
             msg->method_return();
-            msg->append_return_args(result.method->get_result_signature(), result);
+            msg->append_return_args(result.first->get_result_signature(), result.second);
         } else {
             msg->error(error_names::unknown_method, "method not found");
         }

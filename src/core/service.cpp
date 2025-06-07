@@ -20,13 +20,13 @@ namespace mc::core {
 struct service_base::impl {
     impl()
         : m_state(service_state::stopped),
-          m_strand(mc::engine::engine::get_instance().get_io_context().get_executor()) {
+          m_executor(mc::engine::engine::get_instance().get_io_context().get_executor()) {
     }
 
     std::string              m_name;
     std::vector<std::string> m_dependencies;
     service_state            m_state;
-    strand_type              m_strand;
+    executor_type            m_executor;
 };
 
 service_base::service_base(std::string name) : m_impl(std::make_unique<impl>()) {
@@ -67,8 +67,8 @@ void service_base::set_state(service_state state) {
     m_impl->m_state = state;
 }
 
-strand_type& service_base::get_strand() const {
-    return m_impl->m_strand;
+object_base::executor_type& service_base::get_executor() const {
+    return m_impl->m_executor;
 }
 
 } // namespace mc::core

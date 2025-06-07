@@ -14,8 +14,8 @@
 #define MC_ENGINE_ERROR_H
 #include <mc/common.h>
 #include <mc/dict.h>
-#include <mc/log/log_level.h>
-#include <mc/reflect.h>
+#include <mc/exception.h>
+#include <mc/log/log_message.h>
 #include <mc/singleton.h>
 #include <mc/string.h>
 #include <optional>
@@ -131,6 +131,14 @@ struct error : public error_info {
     bool operator==(const error& other) const;
     bool operator!=(const error& other) const;
 
+    mc::log::message to_log_message() const;
+
+    static error from_exception(std::exception_ptr e);
+    static error from_exception(const mc::exception& e);
+    static error from_exception(const std::exception& e);
+
+    void to_exception(mc::exception& e) const;
+
     // 错误参数
     mc::mutable_dict args;
 
@@ -185,8 +193,5 @@ error make_error(std::string_view name, std::string_view format);
 error make_error(const error_info& info);
 
 } // namespace mc::engine
-
-MC_REFLECT(mc::engine::error_info, (name)(format))
-MC_REFLECT(mc::engine::error, (name)(format)(args))
 
 #endif // MC_ENGINE_ERROR_H

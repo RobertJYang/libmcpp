@@ -226,10 +226,10 @@ void object::disconnect_all(signal_type sig) {
     m_impl->m_connection_manager.remove_connections(&sig);
 }
 
-strand_type& object::get_strand() const {
+object_base::executor_type& object::get_executor() const {
     auto* service = get_service();
-    MC_ASSERT(service, "get strand not available on object with no service");
-    return service->get_strand();
+    MC_ASSERT(service, "get executor not available on object with no service");
+    return service->get_executor();
 }
 
 object_impl& object::ensure_impl() const {

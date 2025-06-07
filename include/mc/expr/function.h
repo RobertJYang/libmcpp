@@ -79,11 +79,11 @@ public:
     template <size_t... I>
     variant call_with_exact_args(const variants& args, std::index_sequence<I...>) const {
         if constexpr (std::is_void_v<RetType>) {
-            m_func(mc::reflect::detail::convert_arg<mc::traits::remove_cvref_t<Args>>(m_name,
-                                                                                      args[I])...);
+            m_func(mc::detail::convert_arg<mc::traits::remove_cvref_t<Args>>(m_name,
+                                                                             args[I])...);
             return {};
         } else {
-            return m_func(mc::reflect::detail::convert_arg<mc::traits::remove_cvref_t<Args>>(
+            return m_func(mc::detail::convert_arg<mc::traits::remove_cvref_t<Args>>(
                 m_name, args[I])...);
         }
     }

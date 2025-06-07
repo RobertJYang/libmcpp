@@ -94,7 +94,7 @@ bool timer::check_active() const {
 void timer::start(mc::milliseconds msec) {
     m_interval = msec;
     if (!m_impl) {
-        m_impl = std::make_unique<timer_impl>(get_strand());
+        m_impl = std::make_unique<timer_impl>(get_executor());
     }
 
     m_impl->start(mc::ref_ptr<timer>(this));

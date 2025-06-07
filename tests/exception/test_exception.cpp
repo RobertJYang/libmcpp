@@ -27,7 +27,7 @@ TEST(ExceptionTest, BasicExceptionTest) {
 
     // 检查异常属性
     EXPECT_EQ(e.code(), mc::unhandled_exception_code);
-    EXPECT_STREQ(e.name(), "test_exception");
+    EXPECT_EQ(e.name(), "test_exception");
     EXPECT_STREQ(e.what(), "测试异常");
 
     // 测试异常消息
@@ -112,7 +112,7 @@ TEST(ExceptionTest, AllGeneralExceptionCodesTest) {
 
         auto e = test_case.exception;
         EXPECT_EQ(e.code(), test_case.code);
-        EXPECT_STREQ(e.name(), test_case.name);
+        EXPECT_EQ(e.name(), test_case.name);
         EXPECT_TRUE(e.to_string().find(test_case.message) != std::string::npos);
     }
 }
@@ -123,7 +123,7 @@ TEST(ExceptionTest, ThrowExceptionTest) {
                  ("expected", "int")("actual", "bool"));
     } catch (const mc::exception& e) {
         EXPECT_EQ(e.code(), mc::bad_cast_exception_code);
-        EXPECT_STREQ(e.name(), "bad_cast");
+        EXPECT_EQ(e.name(), "bad_cast");
         EXPECT_TRUE(e.to_string().find("int") != std::string::npos);
     }
 }
@@ -137,7 +137,7 @@ TEST(ExceptionTest, FormattedMessageTest) {
         FAIL() << "应该抛出异常";
     } catch (const mc::bad_cast_exception& e) {
         EXPECT_EQ(e.code(), mc::exception_code::bad_cast_exception_code);
-        EXPECT_STREQ(e.name(), "bad_cast");
+        EXPECT_EQ(e.name(), "bad_cast");
         std::string msg = e.to_string();
         EXPECT_TRUE(msg.find("int") != std::string::npos);
         EXPECT_TRUE(msg.find("bool") != std::string::npos);
@@ -218,7 +218,7 @@ TEST(ExceptionTest, DynamicCopyAndRethrowTest) {
 
         // 验证复制的异常
         EXPECT_EQ(copy->code(), mc::exception_code::timeout_exception_code);
-        EXPECT_STREQ(copy->name(), "timeout");
+        EXPECT_EQ(copy->name(), "timeout");
         EXPECT_TRUE(copy->to_string().find("数据库查询") != std::string::npos);
 
         // 动态重抛异常
@@ -227,7 +227,7 @@ TEST(ExceptionTest, DynamicCopyAndRethrowTest) {
     } catch (const mc::timeout_exception& e) {
         // 验证重抛的异常保持了正确的类型和信息
         EXPECT_EQ(e.code(), mc::exception_code::timeout_exception_code);
-        EXPECT_STREQ(e.name(), "timeout");
+        EXPECT_EQ(e.name(), "timeout");
         EXPECT_TRUE(e.to_string().find("数据库查询") != std::string::npos);
     }
 }
@@ -320,7 +320,7 @@ TEST(ExceptionTest, StdExceptionWrapperTest) {
         FAIL() << "应该抛出异常";
     } catch (const mc::system_exception& e) {
         EXPECT_EQ(e.code(), mc::exception_code::system_error_code);
-        EXPECT_STREQ(e.name(), "system");
+        EXPECT_EQ(e.name(), "system");
         EXPECT_TRUE(e.to_string().find("标准库运行时错误") != std::string::npos);
     }
 }

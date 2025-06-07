@@ -40,6 +40,15 @@ void Promise<T, Executor, Allocator>::set_value(Args&&... args) {
 
     if constexpr (std::is_same_v<U, void>) {
         state_->result = std::monostate{};
+    } else if constexpr (detail::is_future_v<std::decay_t<U>>) {
+        // 如果参数是 Future 类型，我们需要等待它完成并获取其值
+        auto future = std::get<0>(std::forward_as_tuple(std::forward<Args>(args)...));
+        future.then([this](auto&& value) {
+            this->set_value(std::forward<decltype(value)>(value));
+        }).catch_error([this](const mc::exception& ec) {
+            this->set_exception(std::current_exception());
+        });
+        return;
     } else {
         state_->result = std::get<0>(std::forward_as_tuple(std::forward<Args>(args)...));
     }
@@ -48,7 +57,15 @@ void Promise<T, Executor, Allocator>::set_value(Args&&... args) {
 
 template <typename T, typename Executor, typename Allocator>
 void Promise<T, Executor, Allocator>::set_exception(std::exception_ptr e) {
+    if (state_->cancelled.load()) {
+        return;
+    }
+
     std::lock_guard<std::mutex> lock(state_->m_mutex);
+    if (state_->cancelled.load()) {
+        return;
+    }
+
     if (state_->ready) {
         MC_THROW(promise_already_satisfied, "Promise 值已被设置");
     }
@@ -57,8 +74,28 @@ void Promise<T, Executor, Allocator>::set_exception(std::exception_ptr e) {
 }
 
 template <typename T, typename Executor, typename Allocator>
+void Promise<T, Executor, Allocator>::set_exception(const mc::exception& e) {
+    try {
+        e.dynamic_rethrow_exception();
+    } catch (...) {
+        set_exception(std::current_exception());
+    }
+}
+
+template <typename T, typename Executor, typename Allocator>
 void Promise<T, Executor, Allocator>::cancel() {
-    set_exception(std::make_exception_ptr(MC_MAKE_EXCEPTION(mc::canceled_exception, "Promise被取消")));
+    if (state_) {
+        state_->cancel();
+    }
+}
+
+template <typename T, typename Executor, typename Allocator>
+template <typename F>
+auto Promise<T, Executor, Allocator>::on_cancel(F&& callback)
+    -> std::enable_if_t<detail::is_cancel_callback_v<F>, void> {
+    if (state_) {
+        detail::on_cancel(state_, std::forward<F>(callback));
+    }
 }
 
 template <typename T, typename Executor, typename Allocator>

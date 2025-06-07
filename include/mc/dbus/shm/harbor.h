@@ -23,8 +23,9 @@
 namespace mc::dbus {
 constexpr int MSG_QUEUE_PUSH_TIMEOUT = 100;
 
-using reply_msg_map_t  = std::unordered_map<std::string, std::unordered_map<uint32_t, local_msg*>>;
-using method_handler_t = std::function<mc::engine::invoke_result(
+using reply_msg_map_t      = std::unordered_map<std::string, std::unordered_map<uint32_t, local_msg*>>;
+using invoke_result        = std::pair<const mc::reflect::method_type_info*, mc::engine::invoke_result>;
+using method_handler_t     = std::function<invoke_result(
     std::string_view, std::string_view, std::string_view, const mc::variants&)>;
 using method_handler_map_t = std::unordered_map<std::string, method_handler_t>;
 
@@ -60,17 +61,17 @@ public:
     std::string_view             get_harbor_name() const;
     void                         start();
     void                         stop();
-    void        register_method_handler(std::string_view service_name, std::string_view unique_name,
-                                        method_handler_t handler);
-    bool        send_shm_msg(std::string_view source_name, uint32_t serial,
-                             mc::dbus::shm_msg_promise promise);
-    bool        reply_shm_msg(std::string_view destination_name, uint32_t serial,
-                              mc::dbus::local_msg& msg);
-    void        register_unique_name(std::string unique_name, std::string service_name);
-    std::string get_unique_name(std::string_view service_name);
-    void        unregister_service(std::string service_name);
-    void        add_rule(mc::dbus::match_rule& rule, mc::dbus::match_cb_t&& cb, uint64_t id);
-    void        remove_rule(uint64_t id);
+    void                         register_method_handler(std::string_view service_name, std::string_view unique_name,
+                                                         method_handler_t handler);
+    bool                         send_shm_msg(std::string_view source_name, uint32_t serial,
+                                              mc::dbus::shm_msg_promise promise);
+    bool                         reply_shm_msg(std::string_view destination_name, uint32_t serial,
+                                               mc::dbus::local_msg& msg);
+    void                         register_unique_name(std::string unique_name, std::string service_name);
+    std::string                  get_unique_name(std::string_view service_name);
+    void                         unregister_service(std::string service_name);
+    void                         add_rule(mc::dbus::match_rule& rule, mc::dbus::match_cb_t&& cb, uint64_t id);
+    void                         remove_rule(uint64_t id);
 
 private:
     void init_message_queue();

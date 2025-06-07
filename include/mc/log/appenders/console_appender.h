@@ -14,6 +14,7 @@
 #define MC_LOG_CONSOLE_APPENDER_H
 
 #include <mc/log/appender.h>
+#include <mc/log/logger.h>
 #include <mc/reflect.h>
 #include <mc/variant.h>
 #include <memory>

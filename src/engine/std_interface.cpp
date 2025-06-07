@@ -217,7 +217,7 @@ invoke_result standard_interfaces::invoke(abstract_object* object, std::string_v
         if (interface_name == common_properties_name) {
             return common_properties_interface::get_instance().invoke(method_name, args);
         }
-        return {nullptr, mc::variant()};
+        return {};
     }
 
     std::string_view name = interface_name.substr(common_prefix.size());

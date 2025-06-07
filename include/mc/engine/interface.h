@@ -58,13 +58,13 @@ struct signal_info : public signal_info_base<Class> {
     mc::variant call_with_exact_args(Class& obj, const mc::variants& args,
                                      std::index_sequence<I...>) const {
         if constexpr (std::is_void_v<RetType>) {
-            (obj.*signal_ptr)(mc::reflect::detail::convert_arg<mc::traits::remove_cvref_t<Args>>(
+            (obj.*signal_ptr)(mc::detail::convert_arg<mc::traits::remove_cvref_t<Args>>(
                 this->name, args[I])...);
             return mc::variant();
         } else {
             auto ret = (obj.*signal_ptr)(
-                mc::reflect::detail::convert_arg<mc::traits::remove_cvref_t<Args>>(this->name,
-                                                                                   args[I])...);
+                mc::detail::convert_arg<mc::traits::remove_cvref_t<Args>>(this->name,
+                                                                          args[I])...);
             return ret ? mc::variant(*ret) : mc::variant();
         }
     }
@@ -304,14 +304,39 @@ public:
         // 先从当前接口中查找方法
         auto method = mc::reflect::get_method_info<interface_type>(method_name);
         if (method) {
-            return {method, method->invoke(static_cast<interface_type&>(*this), args)};
+            auto* ctx = context_stack::top_value();
+            if (ctx) {
+                ctx->set_method(method);
+            }
+
+            return method->invoke(static_cast<interface_type&>(*this), args);
         }
 
         // 如果当前接口中没有找到方法，则从基类中查找
         if constexpr (has_base_v) {
             return base_type::invoke(method_name, args);
         } else {
-            return {nullptr, mc::variant()};
+            return {};
+        }
+    }
+
+    async_result async_invoke(std::string_view method_name, const mc::variants& args = {}) override {
+        // 先从当前接口中查找方法
+        auto method = mc::reflect::get_method_info<interface_type>(method_name);
+        if (method) {
+            auto* ctx = context_stack::top_value();
+            if (ctx) {
+                ctx->set_method(method);
+            }
+
+            return method->async_invoke(static_cast<interface_type&>(*this), args);
+        }
+
+        // 如果当前接口中没有找到方法，则从基类中查找
+        if constexpr (has_base_v) {
+            return base_type::async_invoke(method_name, args);
+        } else {
+            return {};
         }
     }
 

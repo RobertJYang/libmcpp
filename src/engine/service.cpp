@@ -29,9 +29,6 @@ namespace mdb = mc::db;
 namespace mc::engine {
 
 using object_table_ptr = std::shared_ptr<service_object_table>;
-using strand_type      = boost::asio::strand<boost::asio::io_context::executor_type>;
-template <typename T>
-using future = mc::future<T, strand_type>;
 
 struct service_interface : public mc::engine::interface<service_interface> {
     MC_INTERFACE("bmc.kepler.maca")
@@ -72,6 +69,8 @@ struct root_object : public mc::engine::object<root_object> {
     }
 };
 
+using invoke_method_result = std::pair<const mc::reflect::method_type_info*, invoke_result>;
+
 struct service_impl {
     service_impl();
 
@@ -87,9 +86,9 @@ struct service_impl {
     void register_object(abstract_object& obj);
     void unregister_object(std::string_view path);
 
-    void                       adjust_object_parent(abstract_object& obj);
+    void adjust_object_parent(abstract_object& obj);
 
-    invoke_result              invoke_method(std::string_view path, std::string_view interface,
+    invoke_method_result       invoke_method(std::string_view path, std::string_view interface,
                                              std::string_view method, const variants& args);
     mc::variant                timeout_call(mc::milliseconds timeout, std::string_view service_name,
                                             std::string_view path, std::string_view interface,
@@ -101,8 +100,8 @@ struct service_impl {
                                                 std::string_view method, std::string_view signature,
                                                 const variants& args);
     static abstract_object*    find_owner(abstract_object& obj, std::string_view path);
-    uint64_t add_match(mc::dbus::match_rule& rule, mc::dbus::match_cb_t&& cb);
-    void remove_match(uint64_t id);
+    uint64_t                   add_match(mc::dbus::match_rule& rule, mc::dbus::match_cb_t&& cb);
+    void                       remove_match(uint64_t id);
 
     std::mutex                  m_mutex;
     service*                    m_service;
@@ -161,7 +160,7 @@ bool service_impl::start() {
     // 如果harbor名未设置，则设置为"harbor.服务名"
     harbor.set_harbor_name_if_empty("harbor." + service_name);
     harbor.register_unique_name(std::string(unique_name), service_name);
-    m_shm_tree   = new mc::dbus::shm_tree(m_service->get_strand(), harbor.get_harbor_name(),
+    m_shm_tree   = new mc::dbus::shm_tree(m_service->get_executor(), harbor.get_harbor_name(),
                                           service_name, unique_name);
     auto handler = [this](std::string_view path, std::string_view interface,
                           std::string_view method, const mc::variants& args) {
@@ -278,15 +277,22 @@ static mc::variant convert_method_result(const mc::variants& arr) {
     return arr;
 }
 
-invoke_result service_impl::invoke_method(std::string_view path, std::string_view interface,
-                                          std::string_view method, const variants& args) {
+invoke_method_result service_impl::invoke_method(std::string_view path, std::string_view interface,
+                                                 std::string_view method, const variants& args) {
     auto& idx = m_object_table->get<by_path>();
     auto  it  = idx.find(std::string(path));
     if (it == idx.end()) {
         MC_THROW(mc::exception, "failed to find object: ${path}", ("path", path));
     }
     auto& obj = const_cast<abstract_object&>(*it);
-    return obj.invoke(method, args, interface);
+
+    context ctx(*m_service, obj);
+    ctx.set_call_info(detail::variants_call{args, interface, method});
+
+    context_stack::context call_ctx(m_service, ctx);
+
+    auto result = obj.invoke(method, args, interface);
+    return {ctx.get_method(), result};
 }
 
 std::optional<mc::variant>
@@ -308,7 +314,7 @@ mc::variant service_impl::timeout_call(mc::milliseconds timeout, std::string_vie
                                        const variants& args) {
     if (service_name == m_service->name()) {
         // 自己服务的方法直接调用
-        return invoke_method(path, interface, method, args);
+        return invoke_method(path, interface, method, args).second;
     }
     auto result = shm_timeout_call(timeout, service_name, path, interface, method, signature, args);
     if (result != std::nullopt) {
@@ -347,12 +353,12 @@ DBusHandlerResult service_impl::on_method_call(abstract_object& object, mc::dbus
         auto args           = msg.read_args();
 
         auto result = object.invoke(method_name, args, interface_name);
-        if (!result.is_valid()) {
+        if (!ctx.get_method()) {
             info.response =
                 mc::dbus::message::new_error(msg, errors::unknown_method.name, "method not found");
         } else {
             info.response = mc::dbus::message::new_method_return(msg);
-            mc::dbus::signature_iterator it(result.method->get_result_signature());
+            mc::dbus::signature_iterator it(ctx.get_method()->get_result_signature());
             if (!it.at_end()) {
                 info.response.writer().write_variant(it, result, 0);
             }
@@ -375,9 +381,9 @@ DBusHandlerResult service_impl::on_method_call(abstract_object& object, mc::dbus
 }
 
 static std::mutex s_rule_id_mutex;
-static uint64_t s_rule_id = 0;
+static uint64_t   s_rule_id = 0;
 
-static uint64_t get_rule_id() {   
+static uint64_t get_rule_id() {
     std::lock_guard lock(s_rule_id_mutex);
     return s_rule_id++;
 }
