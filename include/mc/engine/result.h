@@ -37,6 +37,7 @@ namespace detail {
 template <typename T, typename F, typename Arg>
 static auto call_impl(F&& func, Arg v) {
     if constexpr (std::is_invocable_v<F>) {
+        MC_UNUSED(v);
         return func();
     } else if constexpr (mc::is_variant_v<T>) {
         // 针对 lamda: [](auto &&) {} 这种场景可以直接调用，没有必要做参数转换。
@@ -346,22 +347,21 @@ public:
         -> std::enable_if_t<
             detail::result_traits<T, F, param_type>::value,
             typename detail::result_traits<T, F, param_type>::future_type> {
-        using result_traits      = detail::result_traits<T, F, param_type>;
-        using result_type        = typename result_traits::return_type;
-        using future_type        = typename result_traits::future_type;
-        constexpr bool is_future = result_traits::is_future;
+        using result_traits = detail::result_traits<T, F, param_type>;
+        using result_type   = typename result_traits::return_type;
+        using future_type   = typename result_traits::future_type;
 
         return std::visit([f = std::forward<F>(func)](auto&& v) -> future_type {
             using arg_type = std::decay_t<decltype(v)>;
             if constexpr (mc::futures::detail::is_future_v<arg_type>) {
-                return then_impl<result_type, is_future>(
+                return then_impl<result_type, result_traits::is_future>(
                     std::move(f), std::forward<decltype(v)>(v));
             } else if constexpr (std::is_same_v<arg_type, mc::engine::error>) {
                 mc::method_call_exception ex;
                 v.to_exception(ex);
                 return mc::reject<result_type>(std::move(ex));
             } else if constexpr (std::is_same_v<arg_type, value_type>) {
-                return then_impl<result_type, is_future>(
+                return then_impl<result_type, result_traits::is_future>(
                     std::move(f), mc::resolve(std::forward<decltype(v)>(v)));
             }
         }, m_value);
@@ -372,23 +372,22 @@ public:
         -> std::enable_if_t<
             detail::result_traits<T, F, const mc::exception&>::value,
             typename detail::result_traits<T, F, const mc::exception&>::future_type> {
-        using result_traits      = detail::result_traits<T, F, const mc::exception&>;
-        using result_type        = typename result_traits::return_type;
-        using future_type        = typename result_traits::future_type;
-        constexpr bool is_future = result_traits::is_future;
+        using result_traits = detail::result_traits<T, F, const mc::exception&>;
+        using result_type   = typename result_traits::return_type;
+        using future_type   = typename result_traits::future_type;
 
         return std::visit([f = std::forward<F>(func)](auto&& v) -> future_type {
             using arg_type = std::decay_t<decltype(v)>;
             if constexpr (mc::futures::detail::is_future_v<arg_type>) {
-                return catch_error_impl<result_type, is_future>(
+                return catch_error_impl<result_type, result_traits::is_future>(
                     std::move(f), std::forward<decltype(v)>(v));
             } else if constexpr (std::is_same_v<arg_type, mc::engine::error>) {
                 mc::method_call_exception ex;
                 v.to_exception(ex);
-                return catch_error_impl<result_type, is_future>(
+                return catch_error_impl<result_type, result_traits::is_future>(
                     std::move(f), mc::reject<result_type>(std::move(ex)));
             } else if constexpr (std::is_same_v<arg_type, value_type>) {
-                return catch_error_impl<result_type, is_future>(
+                return catch_error_impl<result_type, result_traits::is_future>(
                     std::move(f), mc::resolve(std::forward<decltype(v)>(v)));
             }
         }, m_value);
