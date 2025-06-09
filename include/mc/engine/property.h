@@ -91,78 +91,81 @@ public:
 
     // 普通属性构造函数
     property() = default;
-    
-    template<typename U = T, typename = std::enable_if_t<std::is_convertible_v<U, T>>>
-    explicit property(param_type value) : m_value(value) {}
-    
-    template<typename U = T, typename = std::enable_if_t<std::is_convertible_v<U, T>>>
-    explicit property(rvalue_type value) : m_value(std::move(value)) {}
+
+    template <typename U = T, typename = std::enable_if_t<std::is_convertible_v<U, T>>>
+    explicit property(param_type value) : m_value(value) {
+    }
+
+    template <typename U = T, typename = std::enable_if_t<std::is_convertible_v<U, T>>>
+    explicit property(rvalue_type value) : m_value(std::move(value)) {
+    }
+
+    template <typename Getter, std::size_t... Is, typename... SyncProps>
+    auto make_sync_getter(Getter&& getter, std::index_sequence<Is...>, SyncProps&... syncs) {
+        auto* cache = static_cast<detail::property_cache<typename SyncProps::value_type...>*>(m_cache.get());
+        (cache->template set<Is>(syncs.value()), ...);
+        return [getter = std::forward<Getter>(getter), cache = cache]() -> T {
+            return getter(cache->template get<Is>()...);
+        };
+    }
 
     // 同步属性构造函数
     template <typename Getter, typename... SyncProps,
               typename = std::enable_if_t<(sizeof...(SyncProps) > 0)>,
               typename = std::enable_if_t<std::is_invocable_r_v<T, Getter, const typename SyncProps::value_type&...>>>
     property(Getter&& getter, SyncProps&... syncs)
-        : m_cache(new detail::property_cache<typename SyncProps::value_type...>(), 
-                  [](void* p) { delete static_cast<detail::property_cache<typename SyncProps::value_type...>*>(p); })
-    {
+        : m_cache(new detail::property_cache<typename SyncProps::value_type...>(), [](void* p) {
+              delete static_cast<detail::property_cache<typename SyncProps::value_type...>*>(p);
+          }) {
         static_assert(sizeof...(SyncProps) <= 10, "At most 10 sync properties are allowed");
-        
+
         // 添加同步源
-        m_syncs = { &syncs... };
-        
-        // 初始化缓存值
-        auto* cache = static_cast<detail::property_cache<typename SyncProps::value_type...>*>(m_cache.get());
-        [&]<size_t... I>(std::index_sequence<I...>) {
-            (cache->template set<I>(syncs.value()), ...);
-        }(std::make_index_sequence<sizeof...(SyncProps)>{});
-        
+        m_syncs = {&syncs...};
+
         // 包装getter
-        m_getter = [this, getter = std::forward<Getter>(getter)]() -> T {
-            auto* cache = static_cast<detail::property_cache<typename SyncProps::value_type...>*>(m_cache.get());
-            return [&]<size_t... I>(std::index_sequence<I...>) -> T {
-                return getter(cache->template get<I>()...);
-            }(std::make_index_sequence<sizeof...(SyncProps)>{});
-        };
-        
+        m_getter = make_sync_getter(std::forward<Getter>(getter), std::index_sequence_for<SyncProps...>{}, syncs...);
+
         // 设置同步处理器
         setup_sync_handlers<SyncProps...>(std::index_sequence_for<SyncProps...>{}, syncs...);
-        
+
         // 更新初始值
         update_value();
+    }
+
+    template <typename Getter, std::size_t... Is, typename... Props>
+    auto make_ref_getter(Getter&& getter, std::index_sequence<Is...>, Props&... refs) {
+        return [getter = std::forward<Getter>(getter), refs_ptrs = std::make_tuple(&refs...)]() -> T {
+            return getter(*std::get<Is>(refs_ptrs)...);
+        };
+    }
+
+    template <typename Setter, std::size_t... Is, typename... Props>
+    auto make_ref_setter(Setter&& setter, std::index_sequence<Is...>, Props&... refs) {
+        return [setter = std::forward<Setter>(setter), refs_ptrs = std::make_tuple(&refs...)](const T& v) {
+            setter(v, *std::get<Is>(refs_ptrs)...);
+        };
     }
 
     // 引用属性构造函数
     template <typename Getter, typename Setter, typename... Props,
               typename = std::enable_if_t<(sizeof...(Props) > 0)>,
               typename = std::enable_if_t<std::is_invocable_r_v<T, Getter, Props&...>>,
-              typename = std::enable_if_t<std::is_same_v<Setter, std::nullptr_t> || 
-                                         std::is_invocable_r_v<void, Setter, const T&, Props&...>>>
-    property(Getter&& getter, Setter&& setter, Props&... refs)
-    {
+              typename = std::enable_if_t<std::is_same_v<Setter, std::nullptr_t> ||
+                                          std::is_invocable_r_v<void, Setter, const T&, Props&...>>>
+    property(Getter&& getter, Setter&& setter, Props&... refs) {
         static_assert(sizeof...(Props) <= 10, "At most 10 reference properties are allowed");
-        
+
         // 添加引用源
         (m_refs.push_back(&refs), ...);
 
         // 包装 getter
-        m_getter = [getter = std::forward<Getter>(getter),
-                   refs_ptrs = std::make_tuple(&refs...)]() -> T {
-            return [&getter, &refs_ptrs]<size_t... I>(std::index_sequence<I...>) -> T {
-                return getter(*std::get<I>(refs_ptrs)...);
-            }(std::make_index_sequence<sizeof...(Props)>{});
-        };
+        m_getter = make_ref_getter(std::forward<Getter>(getter), std::index_sequence_for<Props...>{}, refs...);
 
         // 包装 setter
         if constexpr (!std::is_same_v<std::decay_t<Setter>, std::nullptr_t>) {
-            m_setter = [setter = std::forward<Setter>(setter),
-                       refs_ptrs = std::make_tuple(&refs...)](const T& v) {
-                [&setter, &v, &refs_ptrs]<size_t... I>(std::index_sequence<I...>) {
-                    setter(v, *std::get<I>(refs_ptrs)...);
-                }(std::make_index_sequence<sizeof...(Props)>{});
-            };
+            m_setter = make_ref_setter(std::forward<Setter>(setter), std::index_sequence_for<Props...>{}, refs...);
         }
-        
+
         // 更新初始值
         update_value();
     }
@@ -366,7 +369,7 @@ protected:
     void setup_sync_handler(property_base& sync) {
         sync.property_changed().connect([this](const mc::variant& value, const property_base&) {
             using ValueType = typename std::tuple_element<I, std::tuple<typename SyncProps::value_type...>>::type;
-            auto* cache = static_cast<detail::property_cache<typename SyncProps::value_type...>*>(m_cache.get());
+            auto* cache     = static_cast<detail::property_cache<typename SyncProps::value_type...>*>(m_cache.get());
             cache->template set<I>(value.as<ValueType>());
             update_value();
         });
@@ -377,13 +380,14 @@ protected:
             set_value_impl(m_getter());
         }
     }
-    
+
     T                                        m_value{};
     observer_type                            m_observer;
     std::unique_ptr<property_changed_signal> m_signal;
     std::vector<property_base*>              m_syncs;
     std::vector<property_base*>              m_refs;
-    std::unique_ptr<void, void (*)(void*)>   m_cache{nullptr, [](void*) {}};
+    std::unique_ptr<void, void (*)(void*)>   m_cache{nullptr, [](void*) {
+    }};
     std::function<T()>                       m_getter;
     std::function<void(const T&)>            m_setter;
 };

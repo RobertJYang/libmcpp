@@ -201,11 +201,11 @@ TEST(PropertyTest, Notify) {
 // 测试同步属性
 TEST(PropertyTest, SingleSyncProperty) {
     // 测试单个同步源属性
-    property<int, test_observer> source(10);
+    property<int, test_observer>    source(10);
     property<double, test_observer> sync(
-        [](const int& src) { return src * 2.0; },
-        source
-    );
+        [](const int& src) {
+        return src * 2.0;
+    }, source);
     EXPECT_DOUBLE_EQ(sync.value(), 20.0);
     EXPECT_DOUBLE_EQ(sync.value(true), 20.0);
 
@@ -224,16 +224,14 @@ TEST(PropertyTest, SingleSyncProperty) {
 
 TEST(PropertyTest, MultiSyncProperty) {
     // 测试多个同步源属性
-    property<Point, test_observer> p1(Point{1, 2});
-    property<Point, test_observer> p2(Point{4, 6});
+    property<Point, test_observer>  p1(Point{1, 2});
+    property<Point, test_observer>  p2(Point{4, 6});
     property<double, test_observer> distance(
         [](const Point& p1, const Point& p2) {
-            auto dx = p2.x - p1.x;
-            auto dy = p2.y - p1.y;
-            return std::sqrt(dx * dx + dy * dy);
-        },
-        p1, p2
-    );
+        auto dx = p2.x - p1.x;
+        auto dy = p2.y - p1.y;
+        return std::sqrt(dx * dx + dy * dy);
+    }, p1, p2);
     EXPECT_DOUBLE_EQ(distance.value(), 5.0);
     EXPECT_DOUBLE_EQ(distance.value(true), 5.0);
 
@@ -252,14 +250,12 @@ TEST(PropertyTest, MultiSyncProperty) {
 }
 
 TEST(PropertyTest, MultiDiffTypeSyncProperty) {
-    property<int, test_observer> p1(2);
-    property<Point, test_observer> p2(Point{5, 6});
+    property<int, test_observer>    p1(2);
+    property<Point, test_observer>  p2(Point{5, 6});
     property<double, test_observer> distance(
         [](const int& p1, const Point& p2) {
-            return std::sqrt((p2.x - p1) * (p2.x - p1) + (p2.y - p1) * (p2.y - p1));
-        },
-        p1, p2
-    );
+        return std::sqrt((p2.x - p1) * (p2.x - p1) + (p2.y - p1) * (p2.y - p1));
+    }, p1, p2);
     EXPECT_DOUBLE_EQ(distance.value(), 5.0);
     EXPECT_DOUBLE_EQ(distance.value(true), 5.0);
 
@@ -282,12 +278,12 @@ TEST(PropertyTest, SingleRefProperty) {
     property<double, test_observer> ref(
         std::function<double(const property<int, test_observer>&)>(
             [](const property<int, test_observer>& src) -> double {
-                return src.value() * 2.0;
-            }),
+        return src.value() * 2.0;
+    }),
         std::function<void(const double&, property<int, test_observer>&)>(
             [](const double& value, property<int, test_observer>& src) -> void {
-                src = static_cast<int>(value / 2);
-            }),
+        src = static_cast<int>(value / 2);
+    }),
         source);
     EXPECT_EQ(source.value(), 10);
     EXPECT_EQ(source.value(true), 10);
@@ -311,20 +307,20 @@ TEST(PropertyTest, MultiRefProperty) {
                              const property<Point, test_observer>&)>(
             [](const property<Point, test_observer>& p1,
                const property<Point, test_observer>& p2) -> double {
-                auto dx = p2.value().x - p1.value().x;
-                auto dy = p2.value().y - p1.value().y;
-                return std::sqrt(dx * dx + dy * dy);
-            }),
+        auto dx = p2.value().x - p1.value().x;
+        auto dy = p2.value().y - p1.value().y;
+        return std::sqrt(dx * dx + dy * dy);
+    }),
         std::function<void(const double&, property<Point, test_observer>&,
                            property<Point, test_observer>&)>(
             [](const double& value, property<Point, test_observer>& p1,
                property<Point, test_observer>& p2) -> void {
-                // 根据距离更新两个点的位置
-                auto angle = std::atan2(p2.value().y - p1.value().y, p2.value().x - p1.value().x);
-                p1         = Point{0, 0};
-                p2         = Point{static_cast<int>(std::floor(value * std::cos(angle))),
-                           static_cast<int>(std::ceil(value * std::sin(angle)))};
-            }),
+        // 根据距离更新两个点的位置
+        auto angle = std::atan2(p2.value().y - p1.value().y, p2.value().x - p1.value().x);
+        p1         = Point{0, 0};
+        p2         = Point{static_cast<int>(std::floor(value * std::cos(angle))),
+                   static_cast<int>(std::ceil(value * std::sin(angle)))};
+    }),
         p1, p2);
     EXPECT_DOUBLE_EQ(distance.value(), 5.0);
     EXPECT_DOUBLE_EQ(distance.value(true), 5.0);
@@ -345,20 +341,20 @@ TEST(PropertyTest, MultiRefProperty) {
 
 // 测试多个不同类型引用源属性
 TEST(PropertyTest, MultiDiffTypeRefProperty) {
-    property<uint32_t, test_observer> count(10);
-    property<uint8_t, test_observer> element(10);
+    property<uint32_t, test_observer>             count(10);
+    property<uint8_t, test_observer>              element(10);
     property<std::vector<uint8_t>, test_observer> container(
         [](const property<uint32_t, test_observer>& count,
-           const property<uint8_t, test_observer>& element) -> std::vector<uint8_t> {
-            std::vector<uint8_t> result(count.value(), element.value());
-            return result;
-        },
-        [](const std::vector<uint8_t>& value,
+           const property<uint8_t, test_observer>&  element) -> std::vector<uint8_t> {
+        std::vector<uint8_t> result(count.value(), element.value());
+        return result;
+    },
+        [](const std::vector<uint8_t>&        value,
            property<uint32_t, test_observer>& count,
-           property<uint8_t, test_observer>& element) -> void {
-            count = value.size();
-            element = value[0];
-        },
+           property<uint8_t, test_observer>&  element) -> void {
+        count   = value.size();
+        element = value[0];
+    },
         count, element);
 
     EXPECT_EQ(container.value().size(), 10);
@@ -388,13 +384,11 @@ TEST(PropertyTest, MultiDiffTypeRefProperty) {
 
 // 测试单个只读引用属性
 TEST(PropertyTest, ReadOnlySingleRefProperty) {
-    property<int, test_observer> source(10);
+    property<int, test_observer>    source(10);
     property<double, test_observer> ref(
         [](const property<int, test_observer>& src) -> double {
-            return src.value() * 2.0;
-        },
-        nullptr,
-        source);
+        return src.value() * 2.0;
+    }, nullptr, source);
 
     EXPECT_DOUBLE_EQ(ref.value(), 20.0);
     EXPECT_DOUBLE_EQ(ref.value(true), 20.0);
@@ -408,15 +402,14 @@ TEST(PropertyTest, ReadOnlySingleRefProperty) {
 
 // 测试多个只读引用属性
 TEST(PropertyTest, ReadOnlyMultiRefProperty) {
-    property<int, test_observer> source1(10);
-    property<int, test_observer> source2(20);
+    property<int, test_observer>    source1(10);
+    property<int, test_observer>    source2(20);
     property<double, test_observer> ref(
         [](const property<int, test_observer>& src1,
            const property<int, test_observer>& src2) -> double {
-            return src1.value() * 2.0 + src2.value() * 3.0;
-        },
-        nullptr,
-        source1, source2);
+        return src1.value() * 2.0 + src2.value() * 3.0;
+    },
+        nullptr, source1, source2);
 
     EXPECT_DOUBLE_EQ(ref.value(), 80.0);
     EXPECT_DOUBLE_EQ(ref.value(true), 80.0);
@@ -436,18 +429,17 @@ TEST(PropertyTest, ReadOnlyMultiRefProperty) {
 
 // 测试多个不同类型只读引用属性
 TEST(PropertyTest, ReadOnlyMultiDiffTypeRefProperty) {
-    property<uint32_t, test_observer> hour(10);
-    property<uint8_t, test_observer> minute(20);
+    property<uint32_t, test_observer>    hour(10);
+    property<uint8_t, test_observer>     minute(20);
     property<std::string, test_observer> ref(
         [](const property<uint32_t, test_observer>& src1,
-           const property<uint8_t, test_observer>& src2) -> std::string {
-            std::ostringstream oss;
-            oss << std::dec << src1.value() << ":" << std::dec
-                << static_cast<uint32_t>(src2.value());
-            return oss.str();
-        },
-        nullptr,
-        hour, minute);
+           const property<uint8_t, test_observer>&  src2) -> std::string {
+        std::ostringstream oss;
+        oss << std::dec << src1.value() << ":" << std::dec
+            << static_cast<uint32_t>(src2.value());
+        return oss.str();
+    },
+        nullptr, hour, minute);
 
     EXPECT_EQ(ref.value(), "10:20");
     EXPECT_EQ(ref.value(true), "10:20");
