@@ -409,8 +409,12 @@ bool contains(std::string_view s, std::string_view substring);
  */
 bool icontains(std::string_view s, std::string_view substring);
 
+void        format_base(std::string& result, std::string_view format_str, const mc::dict& args, bool icase);
 std::string format(std::string_view format, const mc::dict& args);
 void        format(std::string& result, std::string_view format, const mc::dict& args);
+
+std::string format_icase(std::string_view format, const mc::dict& args);
+void        format_icase(std::string& result, std::string_view format, const mc::dict& args);
 
 /**
  * @brief 使用可变参数格式化字符串
@@ -655,6 +659,42 @@ inline std::string format(std::string_view format, const mc::dict& args) {
  */
 inline void format(std::string& result, std::string_view format, const mc::dict& args) {
     mc::string::format(result, format, args);
+}
+
+/**
+ * @brief 使用参数字典格式化字符串（大小写不敏感版本）
+ * @param format 格式化字符串，使用 ${key} 作为占位符
+ * @param args 包含替换值的字典
+ * @return 格式化后的字符串
+ *
+ * 在查找替换值时忽略键名的大小写。首先尝试精确匹配，如果失败则进行大小写不敏感的查找。
+ *
+ * 示例:
+ * @code
+ * std::string result = mc::format_icase("${HOST}:${port}",
+ *                                       mc::dict("host", hostname)("PORT", port));
+ * @endcode
+ */
+inline std::string format_icase(std::string_view format, const mc::dict& args) {
+    return mc::string::format_icase(format, args);
+}
+
+/**
+ * @brief 使用参数字典格式化字符串并写入到给定的结果字符串中（大小写不敏感版本）
+ * @param result 接收格式化结果的字符串引用
+ * @param format 格式化字符串，使用 ${key} 作为占位符
+ * @param args 包含替换值的字典
+ *
+ * 在查找替换值时忽略键名的大小写。首先尝试精确匹配，如果失败则进行大小写不敏感的查找。
+ *
+ * 示例:
+ * @code
+ * std::string result;
+ * mc::format_icase(result, "${HOST}:${port}", mc::dict("host", hostname)("PORT", port));
+ * @endcode
+ */
+inline void format_icase(std::string& result, std::string_view format, const mc::dict& args) {
+    mc::string::format_icase(result, format, args);
 }
 
 /**

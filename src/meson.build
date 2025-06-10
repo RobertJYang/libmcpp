@@ -100,6 +100,13 @@ if enable_shared_memory
   dep_arr += [libsomp_dep]
 endif
 
+if meson_build
+  install_dir = meson.project_build_root() / 'usr/lib64'
+  run_command('mkdir', '-p', install_dir, check: false)
+else
+  install_dir = 'usr/lib64'
+endif
+
 # 创建共享库
 libmcpp_lib = shared_library(
   'libmcpp',
@@ -107,6 +114,7 @@ libmcpp_lib = shared_library(
   include_directories: [incdir],
   dependencies: dep_arr,
   install: true,
+  install_dir: install_dir,
 )
 
 # 导出库依赖
