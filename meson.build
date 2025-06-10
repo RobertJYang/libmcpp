@@ -22,20 +22,17 @@ if shared_mutex_max_readers != 0
   )
 endif
 
+meson_build = get_option('meson_build')
+build_tests = get_option('tests')
+
 # 依赖项
-if not meson.is_cross_build()
-  boost_dep = dependency('boost', method: 'pkg-config', required: true)
-  boost_program_options_dep = dependency(
-    'boost',
-    modules: ['program_options'],
-    method: 'pkg-config',
-    required: true,
-  )
-else
-  # 交叉构建时创建一个空依赖，但确保变量可用
-  boost_dep = dependency('', required: false)
-  boost_program_options_dep = dependency('', required: false)
-endif
+boost_dep = dependency('boost', method: 'pkg-config', required: true)
+boost_program_options_dep = dependency(
+  'boost',
+  modules: ['program_options'],
+  method: 'pkg-config',
+  required: true,
+)
 
 # 设置编译宏
 if meson.is_cross_build()
@@ -59,16 +56,13 @@ incdir = include_directories('include')
 # 子目录
 subdir('include')
 subdir('src')
-if not meson.is_cross_build()
-  subdir('tests/test_utilities')
-
-  build_tests = get_option('tests')
-  if build_tests
+subdir('tests/test_utilities')
+if build_tests
+  if meson_build
     subdir('examples')
     subdir('plugins')
     subdir('programs/devmon')
-
-    gtest_dep = dependency('gtest', required: false)
-    subdir('tests')
   endif
+  gtest_dep = dependency('gtest', required: false)
+  subdir('tests')
 endif

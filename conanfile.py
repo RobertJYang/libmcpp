@@ -37,6 +37,11 @@ class AppConan(ConanBase):
         else:
             tc.project_options["libdir"] = 'usr/lib'
         tc.project_options["enable_shared_memory"] = "true"
+        if self.settings.build_type == "Dt":
+            tc.project_options["tests"] = "true"
+        else:
+            tc.project_options["tests"] = "false"
+        tc.project_options["meson_build"] = "false"
 
         if self.settings.arch in ["armv8"]:
             tc.properties["pkg_config_libdir"] = self.env["PKG_CONFIG_PATH"].split(":")
@@ -44,28 +49,16 @@ class AppConan(ConanBase):
         pc = PkgConfigDeps(self)
         pc.generate()
     
-    def _configure_meson(self):
-        # 设置meson构建选项
-        defs = {}
-        if self.settings.build_type == "Dt":
-            defs["tests"] = "true"
-            self.settings.build_type = "Debug"
-        else:
-            defs["tests"] = "false"
-            
-        defs["shared_mutex_max_readers"] = "0"
       
     def build(self):
         if self.language != "c++":
             return
         #self._codegen()
-        self._configure_meson()
         meson = Meson(self)
         meson.configure()
         meson.build()
 
     def package(self):
-        self._configure_meson()
         meson = Meson(self)
         meson.install()
         if os.path.isfile("permissions.ini"):

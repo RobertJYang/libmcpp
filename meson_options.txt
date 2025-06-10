@@ -18,3 +18,10 @@ option(
        value: true,
        description: '是否构建测试用例，默认为true',
 )
+
+option(
+       'meson_build',
+       type: 'boolean',
+       value: true,
+       description: 'Build in meson environment',
+)

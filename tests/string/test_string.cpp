@@ -316,6 +316,32 @@ TEST_F(StringTest, FormatWithDictTest) {
     ASSERT_EQ(result, "1-2.5-文本") << "多参数调用应该正确格式化";
 }
 
+TEST_F(StringTest, FormatIcaseTest) {
+    mc::dict args{{"host", "example.com"},
+                  {"port", 8080},
+                  {"protocol", "https"},
+                  {"enabled", true},
+                  {"ratio", 0.75}};
+
+    std::string result = mc::format_icase("${host}:${port}", args);
+    ASSERT_EQ(result, "example.com:8080") << "大小写不敏感格式化应该正确";
+
+    result = mc::format_icase("${HOST}:${port}", args);
+    ASSERT_EQ(result, "example.com:8080") << "大小写不敏感格式化应该正确";
+
+    result = mc::format_icase("${host}:${PORT}", args);
+    ASSERT_EQ(result, "example.com:8080") << "大小写不敏感格式化应该正确";
+
+    result = mc::format_icase("${HOST}:${PORT}", args);
+    ASSERT_EQ(result, "example.com:8080") << "大小写不敏感格式化应该正确";
+
+    result = mc::format("${HOST}:${PORT}", args);
+    ASSERT_EQ(result, "${HOST}:${PORT}") << "大小写敏感格式化应该失败";
+
+    result = mc::format("${HOST}:${port}", args);
+    ASSERT_EQ(result, "${HOST}:8080") << "大小写敏感格式化应该失败";
+}
+
 TEST_F(StringTest, JoinTest) {
     ASSERT_EQ(join(",", "a", "b", "c"), "a,b,c");
     ASSERT_EQ(join(",", "a", "b", "c", "d"), "a,b,c,d");

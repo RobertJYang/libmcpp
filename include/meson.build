@@ -1,10 +1,10 @@
 # 安装头文件
 install_headers(
-  subdir : 'mc'
+  subdir : 'mc',
 )
 
-if not meson.is_cross_build()
+if build_tests
   install_headers(
-    subdir : 'test_utilities'
+    subdir : 'test_utilities',
   )
 endif

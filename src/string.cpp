@@ -508,8 +508,36 @@ static void resolve_fmt_key(std::string& result, std::string_view key, const dic
     }
 }
 
+// 从字典中获取键对应的值并追加到结果字符串（大小写不敏感版本）
+static void resolve_fmt_key_icase(std::string& result, std::string_view key, const dict& args) {
+    // 验证 key 格式
+    if (!is_valid_fmt_key(key)) {
+        mc::string::append(result, PLACEHOLDER_START, key, PLACEHOLDER_END);
+        return;
+    }
+
+    // 首先尝试精确匹配
+    auto it = args.find(key);
+    if (it != args.end()) {
+        // 直接转换值为字符串，不处理嵌套占位符
+        append_variant_to_string(result, it->value);
+        return;
+    }
+
+    // 如果精确匹配失败，进行大小写不敏感的查找
+    for (const auto& entry : args) {
+        if (mc::string::iequals(entry.key.as_string(), key)) {
+            append_variant_to_string(result, entry.value);
+            return;
+        }
+    }
+
+    // 键不存在，保留原始占位符
+    mc::string::append(result, PLACEHOLDER_START, key, PLACEHOLDER_END);
+}
+
 // 使用参数字典格式化字符串并追加到结果字符串中
-void mc::string::format(std::string& result, std::string_view format_str, const dict& args) {
+void mc::string::format_base(std::string& result, std::string_view format_str, const dict& args, bool icase) {
     if (format_str.empty()) {
         return;
     }
@@ -553,13 +581,21 @@ void mc::string::format(std::string& result, std::string_view format_str, const 
                               placeholder_end - (placeholder_start + PLACEHOLDER_START.size()));
 
         // 解析键并添加到结果
-        resolve_fmt_key(result, key, args);
+        if (icase) {
+            resolve_fmt_key_icase(result, key, args);
+        } else {
+            resolve_fmt_key(result, key, args);
+        }
 
         // 移动到占位符之后
         pos = placeholder_end + 1;
     }
 }
 
+// 使用参数字典格式化字符串并追加到结果字符串中
+void mc::string::format(std::string& result, std::string_view format_str, const dict& args) {
+    format_base(result, format_str, args, false);
+}
 // 使用参数字典格式化字符串
 std::string mc::string::format(std::string_view format_str, const dict& args) {
     if (format_str.empty()) {
@@ -572,7 +608,28 @@ std::string mc::string::format(std::string_view format_str, const dict& args) {
     }
 
     std::string result;
-    mc::string::format(result, format_str, args);
+    mc::string::format_base(result, format_str, args, false);
+    return result;
+}
+
+// 使用参数字典格式化字符串（大小写不敏感版本）并追加到结果字符串中
+void mc::string::format_icase(std::string& result, std::string_view format_str, const dict& args) {
+    format_base(result, format_str, args, true);
+}
+
+// 使用参数字典格式化字符串（大小写不敏感版本）
+std::string mc::string::format_icase(std::string_view format_str, const dict& args) {
+    if (format_str.empty()) {
+        return std::string();
+    }
+
+    // 快速检查是否有占位符，如果没有直接返回原始字符串
+    if (format_str.find(PLACEHOLDER_START) == std::string_view::npos) {
+        return std::string(format_str);
+    }
+
+    std::string result;
+    mc::string::format_base(result, format_str, args, true);
     return result;
 }
 
