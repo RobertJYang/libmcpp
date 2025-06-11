@@ -96,7 +96,7 @@ add_project_arguments(
 )
 if enable_shared_memory
   message('已开启共享内存')
-  libsomp_dep = dependency('libsomp', method : 'pkg-config', required : true)
+  libsomp_dep = dependency('libsomp', method: 'pkg-config', required: true)
   dep_arr += [libsomp_dep]
 endif
 
