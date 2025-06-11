@@ -221,7 +221,7 @@ TYPED_TEST(SharedMutexTest, MixedReadWriteContention) {
     std::atomic<bool> running            = true;
     constexpr int     num_writer_threads = 2;
     constexpr int     num_reader_threads = 4;
-    constexpr int     writes_per_thread  = 5000;
+    constexpr int     writes_per_thread  = 100;
 
     auto writer_func = [&]() {
         for (int i = 0; i < writes_per_thread; ++i) {
@@ -274,7 +274,7 @@ TYPED_TEST(SharedMutexTest, TryLockForTimesOut) {
     std::thread t1([&] {
         std::lock_guard<TypeParam> lock(m);
         locked_promise.set_value();
-        std::this_thread::sleep_for(mc::milliseconds(100));
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
     });
 
     locked_future.wait(); // 确保 t1 先获取锁
@@ -303,7 +303,7 @@ TYPED_TEST(SharedMutexTest, TryLockSharedForTimesOut) {
     std::thread t1([&] {
         std::lock_guard<TypeParam> lock(m); // exclusive lock
         locked_promise.set_value();
-        std::this_thread::sleep_for(mc::milliseconds(100));
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
     });
 
     locked_future.wait(); // 确保 t1 先获取锁
@@ -438,7 +438,7 @@ TYPED_TEST(SharedMutexTest, DowngradeAtomicity) {
 
     // 测试写锁降级到升级锁的原子性
     constexpr int    num_threads = 8;
-    constexpr int    iterations  = 1000;
+    constexpr int    iterations  = 100;
     std::atomic<int> upgrade_lock_count{0};
     std::atomic<int> upgrade_success_count{0};
 

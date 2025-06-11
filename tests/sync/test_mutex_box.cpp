@@ -632,7 +632,7 @@ TEST_F(mutex_box_test, timeout_lock_functions) {
         std::thread reader_thread([&]() {
             auto locked     = sync_data.rlock();
             reader_acquired = true;
-            std::this_thread::sleep_for(mc::milliseconds(200));
+            std::this_thread::sleep_for(std::chrono::milliseconds(200));
             // 读锁持有200ms
         });
 
