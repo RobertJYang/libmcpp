@@ -540,12 +540,6 @@ public:
     using try_u_locked_ptr       = locked_ptr<mutex_box, detail::lock_type::try_upgrade>;
     using const_try_u_locked_ptr = locked_ptr<const mutex_box, detail::lock_type::try_upgrade>;
 
-    // 通用锁类型别名（独占锁）
-    using locked_ptr           = w_locked_ptr;
-    using const_locked_ptr     = const_w_locked_ptr;
-    using try_locked_ptr       = try_w_locked_ptr;
-    using const_try_locked_ptr = const_try_w_locked_ptr;
-
     /**
      * @brief 默认构造函数
      */
@@ -1067,7 +1061,7 @@ private:
     }
 
     // 数据成员
-    T             m_data;
+    T             m_data{};
     mutable Mutex m_mutex;
 };
 
