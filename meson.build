@@ -26,6 +26,7 @@ meson_build = get_option('meson_build')
 build_tests = get_option('tests')
 
 # 依赖项
+if build_tests
 boost_dep = dependency('boost', method: 'pkg-config', required: true)
 boost_program_options_dep = dependency(
   'boost',
@@ -33,6 +34,10 @@ boost_program_options_dep = dependency(
   method: 'pkg-config',
   required: true,
 )
+else
+  boost_dep = dependency('', required: false)
+  boost_program_options_dep = dependency('', required: false)
+endif
 
 # 设置编译宏
 if meson.is_cross_build()
