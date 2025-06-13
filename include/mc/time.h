@@ -55,6 +55,14 @@ public:
     }
 
     /**
+     * @brief 获取零毫秒值
+     * @return milliseconds 零毫秒值
+     */
+    static constexpr milliseconds zero() {
+        return milliseconds(0);
+    }
+
+    /**
      * @brief 加法运算符
      */
     friend constexpr milliseconds operator+(const milliseconds& l, const milliseconds& r) {

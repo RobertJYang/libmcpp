@@ -325,11 +325,15 @@ private:
 // 字节序转换函数
 //------------------------------------------------------------------------------
 
+#ifndef MC_IS_LITTLE_ENDIAN
+#define MC_IS_LITTLE_ENDIAN (__BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__)
+#endif
+
 /**
  * @brief 判断系统是否为小端序
  */
-inline bool is_little_endian() {
-    static const uint16_t test = 0x0102;
+inline bool is_little_endian() noexcept {
+    constexpr uint16_t test = 0x0102;
     return *reinterpret_cast<const uint8_t*>(&test) == 0x02;
 }
 
@@ -477,6 +481,7 @@ inline int64_t hton(int64_t value) {
 #define MC_MEMBER_OFFSETOF(TYPE, MEMBER) \
     (reinterpret_cast<std::size_t>(&(reinterpret_cast<TYPE*>(0)->*MEMBER)))
 
+#define MC_ALIGN(value, alignment)    (value & ~(alignment - 1))
 #define MC_ALIGN_UP(value, alignment) ((value + alignment - 1) & ~(alignment - 1))
 
 using thread_id = uint32_t;
