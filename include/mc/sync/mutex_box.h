@@ -1026,17 +1026,17 @@ public:
      *
      * 仅在确保线程安全的情况下使用
      */
-    T& unsafe_get_unlocked() {
+    T& unsafe_get_data() {
         return m_data;
     }
-    const T& unsafe_get_unlocked() const {
+    const T& unsafe_get_data() const {
         return m_data;
     }
 
     /**
      * @brief 不安全地直接访问互斥锁
      */
-    Mutex& unsafe_get_mutex() {
+    Mutex& unsafe_get_mutex() const {
         return m_mutex;
     }
 

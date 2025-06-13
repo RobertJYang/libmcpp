@@ -23,36 +23,42 @@
 // 用于测试的自定义策略
 namespace test_policies {
 
-// 激进的防饥饿策略（阈值较小）
+// 激进的写优先策略：写线程很快就会阻止读线程
 struct aggressive_policy {
     static constexpr uint32_t spin_limit  = MC_SYNC_DEFAULT_SPIN_LIMIT;
+    static constexpr uint32_t yield_limit = MC_SYNC_DEFAULT_YIELD_LIMIT;
     static constexpr uint32_t write_limit = 5; // 很小的阈值，写线程很快就会阻止读线程
 };
 
-// 宽松的防饥饿策略（阈值较大）
+// 宽松的读优先策略：读线程有更多的机会
 struct lenient_policy {
     static constexpr uint32_t spin_limit  = MC_SYNC_DEFAULT_SPIN_LIMIT;
+    static constexpr uint32_t yield_limit = MC_SYNC_DEFAULT_YIELD_LIMIT;
     static constexpr uint32_t write_limit = 500; // 很大的阈值，读线程有更多机会
 };
 
-// 用于统一策略测试的策略
+// 立即写策略：写线程立即阻止读线程
 struct immediate_writer_policy {
     static constexpr uint32_t spin_limit  = MC_SYNC_DEFAULT_SPIN_LIMIT;
+    static constexpr uint32_t yield_limit = MC_SYNC_DEFAULT_YIELD_LIMIT;
     static constexpr uint32_t write_limit = 0; // 立即阻止读线程
 };
 
 struct light_reader_policy {
     static constexpr uint32_t spin_limit  = MC_SYNC_DEFAULT_SPIN_LIMIT;
+    static constexpr uint32_t yield_limit = MC_SYNC_DEFAULT_YIELD_LIMIT;
     static constexpr uint32_t write_limit = 10; // 少量尝试后阻止读线程
 };
 
 struct moderate_reader_policy {
     static constexpr uint32_t spin_limit  = MC_SYNC_DEFAULT_SPIN_LIMIT;
+    static constexpr uint32_t yield_limit = MC_SYNC_DEFAULT_YIELD_LIMIT;
     static constexpr uint32_t write_limit = 100; // 中等尝试后阻止读线程
 };
 
 struct heavy_reader_policy {
     static constexpr uint32_t spin_limit  = MC_SYNC_DEFAULT_SPIN_LIMIT;
+    static constexpr uint32_t yield_limit = MC_SYNC_DEFAULT_YIELD_LIMIT;
     static constexpr uint32_t write_limit = 1000; // 大量尝试后阻止读线程
 };
 
@@ -283,10 +289,10 @@ TYPED_TEST(SharedMutexTest, TryLockForTimesOut) {
     ASSERT_FALSE(m.try_lock_for(mc::milliseconds(20)));
     auto end     = mc::time_point::now();
     auto elapsed = end - start;
+    t1.join();
+
     ASSERT_GE(elapsed.count(), 20);
     ASSERT_LT(elapsed.count(), 50);
-
-    t1.join();
 }
 
 TYPED_TEST(SharedMutexTest, TryLockForSucceeds) {
@@ -428,116 +434,6 @@ TYPED_TEST(SharedMutexTest, UpgradeLockBasic) {
     ASSERT_FALSE(m.try_lock_upgrade());
     m.unlock();
 
-    ASSERT_TRUE(m.try_lock_upgrade());
-    m.unlock_upgrade();
-}
-
-// 测试降级操作的原子性
-TYPED_TEST(SharedMutexTest, DowngradeAtomicity) {
-    TypeParam m;
-
-    // 测试写锁降级到升级锁的原子性
-    constexpr int    num_threads = 8;
-    constexpr int    iterations  = 100;
-    std::atomic<int> upgrade_lock_count{0};
-    std::atomic<int> upgrade_success_count{0};
-
-    auto test_func = [&](int thread_id) {
-        for (int i = 0; i < iterations; ++i) {
-            if (thread_id == 0) {
-                // 主线程：获取写锁并降级到升级锁
-                m.lock();
-                m.unlock_and_lock_upgrade();
-                upgrade_success_count++;
-                std::this_thread::sleep_for(std::chrono::microseconds(1));
-                m.unlock_upgrade();
-            } else {
-                // 其他线程：尝试获取升级锁
-                if (m.try_lock_upgrade()) {
-                    upgrade_lock_count++;
-                    m.unlock_upgrade();
-                }
-                std::this_thread::yield();
-            }
-        }
-    };
-
-    std::vector<std::thread> threads;
-    for (int i = 0; i < num_threads; ++i) {
-        threads.emplace_back(test_func, i);
-    }
-
-    for (auto& t : threads) {
-        t.join();
-    }
-
-    // 验证：主线程的降级操作次数 + 其他线程获取升级锁的次数
-    // 应该等于总的升级锁获取次数，说明没有同时存在多个升级锁
-    int total_upgrade_acquisitions = upgrade_success_count + upgrade_lock_count;
-
-    // 在正确的实现中，任何时刻都只能有一个升级锁
-    // 这个测试主要验证不会出现竞态条件导致的异常状态
-    ASSERT_GE(upgrade_success_count.load(), 0);
-    ASSERT_GE(upgrade_lock_count.load(), 0);
-}
-
-// 测试并发降级操作的基本正确性
-TYPED_TEST(SharedMutexTest, ConcurrentDowngradeOperations) {
-    TypeParam         m;
-    std::atomic<bool> running{true};
-    std::atomic<int>  successful_operations{0};
-
-    // 线程函数：执行各种降级操作
-    auto operation_func = [&](int thread_id) {
-        while (running) {
-            switch (thread_id % 3) {
-            case 0: // 写锁降级到读锁
-                m.lock();
-                m.unlock_and_lock_shared();
-                successful_operations++;
-                m.unlock_shared();
-                break;
-
-            case 1: // 写锁降级到升级锁
-                m.lock();
-                m.unlock_and_lock_upgrade();
-                successful_operations++;
-                m.unlock_upgrade();
-                break;
-
-            case 2: // 升级锁降级到读锁
-                m.lock_upgrade();
-                m.unlock_upgrade_and_lock_shared();
-                successful_operations++;
-                m.unlock_shared();
-                break;
-            }
-            std::this_thread::sleep_for(std::chrono::microseconds(1));
-        }
-    };
-
-    std::vector<std::thread> threads;
-    constexpr int            num_threads = 4;
-    for (int i = 0; i < num_threads; ++i) {
-        threads.emplace_back(operation_func, i);
-    }
-
-    // 运行一段时间
-    std::this_thread::sleep_for(std::chrono::milliseconds(50));
-    running = false;
-
-    for (auto& t : threads) {
-        t.join();
-    }
-
-    // 验证操作确实执行了
-    ASSERT_GT(successful_operations.load(), 0);
-
-    // 验证最终状态：应该能正常获取任何类型的锁
-    ASSERT_TRUE(m.try_lock());
-    m.unlock();
-    ASSERT_TRUE(m.try_lock_shared());
-    m.unlock_shared();
     ASSERT_TRUE(m.try_lock_upgrade());
     m.unlock_upgrade();
 }

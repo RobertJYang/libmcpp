@@ -278,7 +278,7 @@ TEST_F(mutex_box_test, unsafe_access) {
     mutex_box<std::string> sync_str("test");
 
     // 测试不安全获取数据
-    auto& unsafe_ref = sync_str.unsafe_get_unlocked();
+    auto& unsafe_ref = sync_str.unsafe_get_data();
     EXPECT_EQ(unsafe_ref, "test");
 
     unsafe_ref = "modified_unsafe";
@@ -287,7 +287,7 @@ TEST_F(mutex_box_test, unsafe_access) {
     // 测试不安全获取互斥锁
     auto& mutex = sync_str.unsafe_get_mutex();
     mutex.lock();
-    sync_str.unsafe_get_unlocked() = "mutex_locked";
+    sync_str.unsafe_get_data() = "mutex_locked";
     mutex.unlock();
 
     EXPECT_EQ(*sync_str.lock(), "mutex_locked");
