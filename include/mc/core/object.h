@@ -319,8 +319,8 @@ public:
      * @brief 获取当前对象的ref_ptr
      * @return 指向当前对象的object_ptr
      */
-    object_ptr from_this() {
-        return object_base::from_this().template cast<object>();
+    object_ptr shared_from_this() {
+        return object_base::shared_from_this().template static_pointer_cast<object>();
     }
 
 protected:

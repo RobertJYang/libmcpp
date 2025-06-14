@@ -371,7 +371,7 @@ void connection_impl::dispatch_status_changed(DBusConnection*, DBusDispatchStatu
 
 void connection_impl::add_match(match_rule& rule, match_cb_t&& cb, uint64_t id) {
     m_match.add_rule(rule, std::forward<match_cb_t>(cb), id);
-    auto str = rule.as_string();
+    auto            str = rule.as_string();
     mc::dbus::error err;
     dbus_bus_add_match(m_connection, str.c_str(), &err);
     if (err.is_set()) {

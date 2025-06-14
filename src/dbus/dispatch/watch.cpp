@@ -31,11 +31,11 @@ void watch::start(connection_weak_ptr conn) {
 
     unsigned int flags = dbus_watch_get_flags(m_watch);
     if (flags & DBUS_WATCH_READABLE) {
-        watch_readable(conn, this->from_this());
+        watch_readable(conn, this->shared_from_this());
     }
 
     if (flags & DBUS_WATCH_WRITABLE) {
-        watch_writable(conn, this->from_this());
+        watch_writable(conn, this->shared_from_this());
     }
 }
 

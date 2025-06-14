@@ -195,7 +195,7 @@ void service_impl::stop() {
 void service_impl::register_object(abstract_object& obj) {
     m_object_table->add(mc::ref_ptr<abstract_object>(&obj));
     obj.set_service(m_service);
-    m_connection.register_path(obj.get_object_path(), [this, pobj = obj.from_this()](auto& msg) {
+    m_connection.register_path(obj.get_object_path(), [this, pobj = obj.shared_from_this()](auto& msg) {
         return on_path_message(msg, *pobj);
     });
 

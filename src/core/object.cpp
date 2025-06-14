@@ -235,7 +235,7 @@ void object::cleanup_on_destroy() noexcept {
 
         // 从父对象中移除自己
         if (current_parent) {
-            current_parent->remove_child(this->from_this());
+            current_parent->remove_child(this->shared_from_this());
         }
 
         // 清空所有子对象的父指针，让它们知道父对象已经不存在了
@@ -297,12 +297,12 @@ void object::set_parent(object* parent) {
 
     // 从旧父对象中移除
     if (old_parent) {
-        old_parent->remove_child(this->from_this());
+        old_parent->remove_child(this->shared_from_this());
     }
 
     // 添加到新父对象
     if (parent) {
-        parent->add_child(this->from_this());
+        parent->add_child(this->shared_from_this());
         if (!m_service) {
             m_service = parent->get_service();
         }
