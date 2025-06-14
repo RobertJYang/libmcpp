@@ -703,6 +703,16 @@ void message_reader::read_variant_array_or_dict(mc::variant& v, std::size_t dept
     next();
 }
 
+void message_reader::read_variant_raw_struct(mc::variant& v, std::size_t depth) const {
+    ensure_message_depth(depth);
+    ensure_type(DBUS_TYPE_STRUCT);
+
+    message_reader sub_reader;
+    sub_reader.recurse(*this);
+    sub_reader.read_variant_struct(v, depth);
+    next();
+}
+
 void message_reader::read_variant_array(mc::variants& arr, std::size_t depth) const {
     ensure_message_depth(depth);
 
@@ -783,6 +793,8 @@ void message_reader::read_variant_value(type_code type, mc::variant& v, std::siz
         return detail::demarshal_variant_basic<mc::dbus::path>(*this, v);
     case type_code::array_start:
         return read_variant_array_or_dict(v, depth + 1);
+    case type_code::struct_type:
+        return read_variant_raw_struct(v, depth + 1);
     case type_code::struct_start:
         return read_variant_struct(v, depth + 1);
     case type_code::variant_type: {

@@ -340,14 +340,13 @@ TEST_F(ShmCallTest, TestSubscribePropertiesChanged) {
     mc::dbus::match_rule rule = mc::dbus::match_rule::new_signal(
         mc::dbus::PROPERTIES_CHANGED_MEMBER, mc::dbus::DBUS_PROPERTIES_INTERFACE);
     rule.with_path("/org/openubmc/test_object_a");
-    DBusMessage* raw_msg = nullptr;
-    service_2->add_match(rule, [&raw_msg](DBusMessage* msg) {
-        raw_msg = msg;
+    mc::dbus::message msg;
+    service_2->add_match(rule, [&msg](mc::dbus::message& signal_msg) {
+        msg = mc::dbus::message(signal_msg);
     });
     service_1->m_obj_a->m_iface.m_str.set_value("test_property_changed");
     std::this_thread::sleep_for(std::chrono::milliseconds(500));
-    ASSERT_TRUE(raw_msg != nullptr);
-    mc::dbus::message msg(raw_msg, true);
+    ASSERT_TRUE(msg.is_valid());
     ASSERT_EQ(msg.get_type(), mc::dbus::message_type::signal);
     ASSERT_EQ(msg.get_path(), "/org/openubmc/test_object_a");
     ASSERT_EQ(msg.get_interface(), "org.freedesktop.DBus.Properties");

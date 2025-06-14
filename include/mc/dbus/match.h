@@ -14,6 +14,7 @@
 #define MC_DBUS_MATCH_H
 
 #include <dbus/dbus.h>
+#include <mc/dbus/message.h>
 
 #define BUILD_TYPE_DT (0x0a)
 
@@ -50,7 +51,7 @@ auto shm_lock_call(Fn&& callback, Args&&... args) {
     }
 }
 
-using match_cb_t = std::function<void(DBusMessage*)>;
+using match_cb_t = std::function<void(mc::dbus::message&)>;
 
 class match_rule {
 public:
