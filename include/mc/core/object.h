@@ -155,9 +155,9 @@ public:
 
     /**
      * @brief 获取对象名称
-     * @return 对象名称
+     * @return 对象名称的副本
      */
-    std::string_view get_name() const;
+    std::string get_name() const;
 
     /**
      * @brief 设置对象名称
@@ -183,7 +183,7 @@ public:
      * @brief 获取子对象列表
      * @return 子对象指针列表的副本
      */
-    const child_list& children() const;
+    child_list get_children() const;
 
     /**
      * @brief 查找子对象
@@ -315,18 +315,26 @@ public:
 
     executor_type& get_executor() const;
 
+    /**
+     * @brief 获取当前对象的ref_ptr
+     * @return 指向当前对象的object_ptr
+     */
+    object_ptr from_this() {
+        return object_base::from_this().template cast<object>();
+    }
+
 protected:
     /**
      * @brief 添加子对象
-     * @param child 子对象指针
+     * @param child 子对象指针，必须是ref_ptr管理的对象
      */
-    void add_child(object* child);
+    void add_child(object_ptr child);
 
     /**
      * @brief 移除子对象
      * @param child 子对象指针
      */
-    void remove_child(object* child);
+    void remove_child(object_ptr child);
 
     connection_id_type add_connection(signal_type sig, mc::connection_type conn,
                                       connection_id_type id);
@@ -338,8 +346,10 @@ private:
     object_impl& ensure_impl() const;
 
     mutable std::unique_ptr<object_impl> m_impl;
-    object*                              m_parent{nullptr};
     mutable service_base*                m_service{nullptr};
+
+    // 辅助方法
+    void cleanup_on_destroy() noexcept;
 };
 
 } // namespace mc::core

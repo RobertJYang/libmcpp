@@ -10,8 +10,8 @@
  * See the Mulan PSL v2 for more details.
  */
 
-#ifndef MC_IM_NODE_PTR_H
-#define MC_IM_NODE_PTR_H
+#ifndef MC_REF_PTR_H
+#define MC_REF_PTR_H
 
 #include <mc/ref_base.h>
 
@@ -293,4 +293,4 @@ ref_ptr<T> make_ref(Args&&... args) {
 
 } // namespace mc
 
-#endif // MC_IM_NODE_PTR_H
+#endif // MC_REF_PTR_H
