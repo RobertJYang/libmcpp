@@ -33,10 +33,12 @@ bool match::test_match(DBusMessage* msg) {
 }
 
 void match::add_rule(match_rule& rule, match_cb_t&& cb, uint64_t id) {
-    m_matchs.add_rule(rule.rule(), [cb = std::forward<match_cb_t>(cb)](DBus::Match::Context& ctx) {
+    auto cb_ptr = std::make_shared<match_cb_t>(std::forward<match_cb_t>(cb));
+    m_matchs.add_rule(rule.rule(), [cb_ptr](DBus::Match::Context& ctx) {
         try {
             dbus_message_ref(ctx.req);
-            return cb(ctx.req);
+            message msg(ctx.req, true);
+            return (*cb_ptr)(msg);
         } catch (std::exception& e) {
             elog("DBus error: match rule failed: ${error}", ("error", e.what()));
         } catch (...) {

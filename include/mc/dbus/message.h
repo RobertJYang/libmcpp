@@ -141,6 +141,7 @@ struct message_reader {
     void read_variant_array(mc::variants& arr, std::size_t depth) const;
     void read_variant_struct(mc::variant& v, std::size_t depth) const;
     void read_variant_dict(mc::mutable_dict& dict, std::size_t depth) const;
+    void read_variant_raw_struct(mc::variant& v, std::size_t depth) const;
 
     void                  recurse(const message_reader& parent) const;
     const message_reader& next() const;
