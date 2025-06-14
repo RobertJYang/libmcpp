@@ -55,7 +55,7 @@ public:
     template <typename T>
     mc::ref_ptr<T> add(std::string_view table_name, const mc::dict& var,
                        transaction* txn = nullptr) {
-        return add(table_name, var, txn).cast<T>();
+        return add(table_name, var, txn).template static_pointer_cast<T>();
     }
 
     /**
@@ -117,8 +117,8 @@ public:
 
         return table->second->query_object(
             builder, [handler = std::forward<std::function<bool(T&)>>(handler)](object_base& obj) {
-                return handler(static_cast<T&>(obj));
-            });
+            return handler(static_cast<T&>(obj));
+        });
     }
 
     bool remove(std::string_view table_name, const query_builder& builder,

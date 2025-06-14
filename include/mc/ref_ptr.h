@@ -84,6 +84,19 @@ void destroy_ptr(T* ptr) {
         std::default_delete<T>()(const_cast<non_const_t*>(ptr));
     }
 }
+
+template <typename T>
+void deallocate_ptr(T* ptr) {
+    using non_const_t = std::remove_const_t<T>;
+    if constexpr (has_m_alloc<T>(0)) {
+        using alloc_type   = typename non_const_t::alloc_type;
+        using alloc_traits = std::allocator_traits<alloc_type>;
+        alloc_type alloc   = ptr->m_alloc;
+        alloc_traits::deallocate(alloc, const_cast<non_const_t*>(ptr), 1);
+    } else {
+        operator delete(const_cast<non_const_t*>(ptr));
+    }
+}
 } // namespace detail
 
 /**
@@ -117,9 +130,26 @@ public:
         }
     }
 
+    // 类型转换拷贝构造函数
+    template <typename U, typename UP>
+    ref_ptr(const ref_ptr<U, UP>& other) noexcept
+        : m_ptr(other.get()) {
+        static_assert(std::is_convertible_v<U*, T*>, "U* must be convertible to T*");
+        if (m_ptr) {
+            m_ptr->add_ref();
+        }
+    }
+
     // 移动构造函数
     ref_ptr(ref_ptr&& other) noexcept : m_ptr(other.m_ptr) {
         other.m_ptr = nullptr;
+    }
+
+    // 类型转换移动构造函数
+    template <typename U, typename UP>
+    ref_ptr(ref_ptr<U, UP>&& other) noexcept
+        : m_ptr(other.detach()) {
+        static_assert(std::is_convertible_v<U*, T*>, "U* must be convertible to T*");
     }
 
     // 拷贝赋值运算符
@@ -134,10 +164,32 @@ public:
         return *this;
     }
 
+    // 类型转换拷贝赋值运算符
+    template <typename U, typename UP>
+    ref_ptr& operator=(const ref_ptr<U, UP>& other) noexcept {
+        static_assert(std::is_convertible_v<U*, T*>, "U* must be convertible to T*");
+        ref_ptr(other).swap(*this);
+        return *this;
+    }
+
+    // 类型转换移动赋值运算符
+    template <typename U, typename UP>
+    ref_ptr& operator=(ref_ptr<U, UP>&& other) noexcept {
+        static_assert(std::is_convertible_v<U*, T*>, "U* must be convertible to T*");
+        ref_ptr(std::move(other)).swap(*this);
+        return *this;
+    }
+
     // 析构函数
     ~ref_ptr() {
         if (m_ptr && m_ptr->release_ref()) {
-            detail::destroy_ptr(m_ptr);
+            // 强引用计数为0时，立即调用对象析构函数
+            static_cast<element_type*>(m_ptr)->~element_type();
+
+            // 如果没有弱引用，则立即释放内存
+            if (m_ptr->weak_count() == 0) {
+                detail::deallocate_ptr(m_ptr);
+            }
         }
     }
 
@@ -149,6 +201,13 @@ public:
     // 重置为新指针
     void reset(pointer_type ptr) noexcept {
         ref_ptr(ptr).swap(*this);
+    }
+
+    // 重置为新指针（类型转换版本）
+    template <typename U>
+    void reset(U* ptr) noexcept {
+        static_assert(std::is_convertible_v<U*, T*>, "U* must be convertible to T*");
+        ref_ptr(static_cast<pointer_type>(ptr)).swap(*this);
     }
 
     // 交换两个指针
@@ -196,9 +255,31 @@ public:
         return ptr;
     }
 
-    template <typename U>
-    ref_ptr<U> cast() {
-        return ref_ptr<U>(static_cast<U*>(m_ptr));
+    // 静态类型转换
+    template <typename U, typename UP = U*>
+    ref_ptr<U, UP> static_pointer_cast() const noexcept {
+        return ref_ptr<U, UP>(static_cast<UP>(m_ptr));
+    }
+
+    // 动态类型转换
+    template <typename U, typename UP = U*>
+    ref_ptr<U, UP> dynamic_pointer_cast() const noexcept {
+        if (auto* ptr = dynamic_cast<UP>(m_ptr)) {
+            return ref_ptr<U, UP>(ptr);
+        }
+        return ref_ptr<U, UP>();
+    }
+
+    // 常量类型转换
+    template <typename U, typename UP = U*>
+    ref_ptr<U, UP> const_pointer_cast() const noexcept {
+        return ref_ptr<U, UP>(const_cast<UP>(m_ptr));
+    }
+
+    // 重新解释类型转换
+    template <typename U, typename UP = U*>
+    ref_ptr<U, UP> reinterpret_pointer_cast() const noexcept {
+        return ref_ptr<U, UP>(reinterpret_cast<UP>(m_ptr));
     }
 
 private:
@@ -291,6 +372,50 @@ ref_ptr<T> make_ref(Args&&... args) {
     return ref_ptr<T>(allocate_ptr<T>(std::allocator<T>(), std::forward<Args>(args)...));
 }
 
+// 全局类型转换函数，类似于标准库的 static_pointer_cast 等
+
+/**
+ * 静态类型转换 ref_ptr
+ */
+template <typename T, typename U, typename UP>
+ref_ptr<T> static_pointer_cast(const ref_ptr<U, UP>& r) noexcept {
+    return r.template static_pointer_cast<T>();
+}
+
+/**
+ * 动态类型转换 ref_ptr
+ */
+template <typename T, typename U, typename UP>
+ref_ptr<T> dynamic_pointer_cast(const ref_ptr<U, UP>& r) noexcept {
+    return r.template dynamic_pointer_cast<T>();
+}
+
+/**
+ * 常量类型转换 ref_ptr
+ */
+template <typename T, typename U, typename UP>
+ref_ptr<T> const_pointer_cast(const ref_ptr<U, UP>& r) noexcept {
+    return r.template const_pointer_cast<T>();
+}
+
+/**
+ * 重新解释类型转换 ref_ptr
+ */
+template <typename T, typename U, typename UP>
+ref_ptr<T> reinterpret_pointer_cast(const ref_ptr<U, UP>& r) noexcept {
+    return r.template reinterpret_pointer_cast<T>();
+}
+
 } // namespace mc
+
+// 为 std::hash 提供特化支持
+namespace std {
+template <typename T, typename PointerType>
+struct hash<mc::ref_ptr<T, PointerType>> {
+    size_t operator()(const mc::ref_ptr<T, PointerType>& p) const noexcept {
+        return hash<PointerType>{}(p.get());
+    }
+};
+} // namespace std
 
 #endif // MC_REF_PTR_H

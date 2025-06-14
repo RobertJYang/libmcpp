@@ -97,7 +97,7 @@ public:
     virtual std::string_view get_name() const      = 0;
     virtual std::string_view get_signature() const = 0;
     virtual uint32_t         get_access() const    = 0;
-    virtual uint64_t         get_flags() const    = 0;
+    virtual uint64_t         get_flags() const     = 0;
 
     virtual abstract_interface* get_interface() const = 0;
     virtual abstract_object*    get_object() const    = 0;
@@ -169,7 +169,7 @@ public:
     virtual void                     notify_property_changed(const mc::variant& value, const property_base& prop) = 0;
     virtual property_changed_signal& property_changed()                                                           = 0;
 
-    mc::ref_ptr<abstract_object> from_this() {
+    mc::ref_ptr<abstract_object> shared_from_this() {
         return mc::ref_ptr<abstract_object>(this);
     }
 

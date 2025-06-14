@@ -101,8 +101,8 @@ private:
 
     // 搜集依赖服务
     void collect_dependent_services(const std::unordered_map<std::string, dependency_node>& graph,
-                                    const std::string&               service_name,
-                                    std::unordered_set<std::string>& affected_services);
+                                    const std::string&                                      service_name,
+                                    std::unordered_set<std::string>&                        affected_services);
 
     // 启动单个服务
     bool start_one_service(const std::string& name);

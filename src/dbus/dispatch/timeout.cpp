@@ -27,7 +27,7 @@ void timeout::start(connection_weak_ptr conn) {
         return;
     }
 
-    auto self = this->from_this();
+    auto self = this->shared_from_this();
     m_timer.async_wait([s = std::move(self), c = std::move(conn)](const auto& ec) {
         if (ec) {
             if (ec == boost::asio::error::operation_aborted) {

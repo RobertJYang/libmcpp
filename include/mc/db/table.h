@@ -762,7 +762,7 @@ protected:
                       std::is_constructible_v<object_type>) {
             auto obj = mc::make_ref<object_type>();
             from_variant(var, *obj);
-            return add(obj, txn).template cast<object_base>();
+            return add(obj, txn).template static_pointer_cast<object_base>();
         } else {
             MC_UNUSED(txn);
         }
@@ -782,7 +782,7 @@ protected:
 
     object_ptr do_find_object(const query_builder& condition) override {
         if constexpr (mc::reflect::is_reflectable<object_type>()) {
-            return find(condition).template cast<object_base>();
+            return find(condition).template static_pointer_cast<object_base>();
         }
 
         return nullptr;
