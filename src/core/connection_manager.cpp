@@ -20,8 +20,6 @@ namespace mc::core {
 
 connection_id_type connection_manager::add_connection(signal_type sig, mc::connection_type conn,
                                                       connection_id_type id) {
-    std::lock_guard<std::mutex> lock(m_mutex);
-
     if (id == INVALID_CONNECTION_ID) {
         id = new_id();
     } else if (m_connections.find(id) != m_connections.end()) {
@@ -35,8 +33,6 @@ connection_id_type connection_manager::add_connection(signal_type sig, mc::conne
 }
 
 void connection_manager::remove_connection(connection_id_type id) {
-    std::lock_guard<std::mutex> lock(m_mutex);
-
     auto it = m_connections.find(id);
     if (it == m_connections.end()) {
         return;
@@ -57,8 +53,6 @@ void connection_manager::remove_connection(connection_id_type id) {
 }
 
 size_t connection_manager::remove_connections(signal_type sig) {
-    std::lock_guard<std::mutex> lock(m_mutex);
-
     auto it = m_signal_connections.find(sig);
     if (it == m_signal_connections.end()) {
         return 0;
@@ -73,8 +67,6 @@ size_t connection_manager::remove_connections(signal_type sig) {
 }
 
 void connection_manager::clear() {
-    std::lock_guard<std::mutex> lock(m_mutex);
-
     m_connections.clear();
     m_signal_connections.clear();
     m_next_id = 1;

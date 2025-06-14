@@ -13,9 +13,9 @@
 #define MC_SYNC_SHARED_MUTEX_H
 
 #include <atomic>
+#include <limits>
 #include <mc/sync/detail/wait_context.h>
 #include <thread>
-#include <limits>
 
 /**
  * @file shared_mutex.h
@@ -80,7 +80,7 @@
  * | 升级锁    |  ❌  |  ✅  |   ❌   |    ❌    |
  * | 写等待位  |  ✅  |  ❌  |   ❌   |    ✅    |
  * ```
- * 
+ *
  * 说明：
  * - ✅ 表示兼容（可以同时存在）
  * - ❌ 表示互斥（不能同时存在）
@@ -101,11 +101,6 @@
  * 3. **锁的层次结构**：
  *    - 写锁 > 升级锁 > 读锁（按独占性排序）
  *    - 高级别的锁与低级别的锁互斥，同级别的锁之间的关系取决于具体类型
- *
- * 4. **设计权衡**：
- *    - 升级锁与写等待位互斥确保了清晰的优先级语义
- *    - 避免了升级锁与写线程之间的复杂竞争条件
- *    - 简化了实现逻辑，提高了可靠性
  *
  * ## 基本用法
  *
@@ -172,9 +167,9 @@ class basic_shared_mutex {
     static constexpr uint32_t UPGRADE_MASK = WRITER_BIT | UPGRADE_BIT | WRITER_WAITING_BIT;
 
     // wait_mask 定义：只监视特定位的变化，减少虚假唤醒
-    static constexpr uint32_t SHARED_WAIT_MASK   = WRITER_BIT | WRITER_WAITING_BIT;          // 共享锁等待：关心写位和写等待位
-    static constexpr uint32_t UPGRADE_WAIT_MASK  = WRITER_BIT | UPGRADE_BIT | WRITER_WAITING_BIT; // 升级锁等待：关心写位、升级位和写等待位
-    static constexpr uint32_t WRITER_WAIT_MASK   = WRITER_BIT | READER_MASK | UPGRADE_BIT;   // 写锁等待：关心写位、读计数和升级位
+    static constexpr uint32_t SHARED_WAIT_MASK  = WRITER_BIT | WRITER_WAITING_BIT;               // 共享锁等待：关心写位和写等待位
+    static constexpr uint32_t UPGRADE_WAIT_MASK = WRITER_BIT | UPGRADE_BIT | WRITER_WAITING_BIT; // 升级锁等待：关心写位、升级位和写等待位
+    static constexpr uint32_t WRITER_WAIT_MASK  = WRITER_BIT | READER_MASK | UPGRADE_BIT;        // 写锁等待：关心写位、读计数和升级位
 
     static constexpr uint32_t ALL = std::numeric_limits<int>::max();
 
@@ -336,12 +331,12 @@ public:
     // 从升级锁降级到读锁
     void unlock_upgrade_and_lock_shared() noexcept {
         uint32_t expected = m_state.load(std::memory_order_acquire);
-        
+
         // 必须持有升级锁才能降级
         if (!(expected & UPGRADE_BIT)) {
             return; // 没有升级锁，直接返回
         }
-        
+
         while (expected & UPGRADE_BIT) {
             uint32_t new_state = (expected & ~UPGRADE_BIT) + 1;
             if (m_state.compare_exchange_weak(
@@ -357,12 +352,12 @@ public:
     // 从写锁降级到升级锁
     void unlock_and_lock_upgrade() noexcept {
         uint32_t expected = m_state.load(std::memory_order_acquire);
-        
+
         // 必须持有写锁才能降级
         if (!(expected & WRITER_BIT)) {
             return; // 没有写锁，直接返回
         }
-        
+
         while (expected & WRITER_BIT) {
             uint32_t new_state = (expected & ~WRITER_BIT) | UPGRADE_BIT;
             if (m_state.compare_exchange_weak(
@@ -377,12 +372,12 @@ public:
     // 从写锁降级到读锁
     void unlock_and_lock_shared() noexcept {
         uint32_t expected = m_state.load(std::memory_order_acquire);
-        
+
         // 必须持有写锁才能降级
         if (!(expected & WRITER_BIT)) {
             return; // 没有写锁，直接返回
         }
-        
+
         while (expected & WRITER_BIT) {
             uint32_t new_state = (expected & ~WRITER_BIT) + 1;
             if (m_state.compare_exchange_weak(
@@ -398,14 +393,14 @@ private:
     // 写锁抢占逻辑
     template <bool IsUpgrade, typename Context>
     bool acquire_writer_lock(Context& ctx) noexcept {
-        constexpr uint32_t wait_mask  = 
-        IsUpgrade ? (WRITER_BIT | READER_MASK) : (WRITER_BIT | READER_MASK | UPGRADE_BIT);
-        constexpr uint32_t clear_mask = 
+        constexpr uint32_t wait_mask =
+            IsUpgrade ? (WRITER_BIT | READER_MASK) : (WRITER_BIT | READER_MASK | UPGRADE_BIT);
+        constexpr uint32_t clear_mask =
             IsUpgrade ? (UPGRADE_BIT | WRITER_WAITING_BIT) : WRITER_WAITING_BIT;
 
         uint32_t count   = 0;
         uint32_t current = m_state.load(std::memory_order_acquire);
-        
+
         while (!ctx.should_timeout()) {
             // 如果是升级锁，检查升级锁是否还存在
             if constexpr (IsUpgrade) {
@@ -415,7 +410,7 @@ private:
             }
 
             // 设置写等待位
-            if (!(current & WRITER_WAITING_BIT) && 
+            if (!(current & WRITER_WAITING_BIT) &&
                 (count >= Policy::write_limit) &&
                 !m_state.compare_exchange_weak(
                     current, current | WRITER_WAITING_BIT,
@@ -437,7 +432,7 @@ private:
 
             // 清除指定位，设置写位
             uint32_t new_state = (current & ~clear_mask) | WRITER_BIT;
-            
+
             if (m_state.compare_exchange_strong(
                     current, new_state,
                     std::memory_order_acquire, std::memory_order_relaxed)) {
@@ -448,14 +443,14 @@ private:
         // 超时失败，清理WRITER_WAITING_BIT避免读线程被永久阻塞
         m_state.fetch_and(~WRITER_WAITING_BIT, std::memory_order_relaxed);
         detail::futex_wake(&m_state, ALL, WRITER_BIT);
-        
+
         return false;
     }
 
     template <typename Context>
     bool acquire_shared_lock(Context& ctx) noexcept {
         uint32_t current = m_state.load(std::memory_order_acquire);
-        
+
         while (!ctx.should_timeout()) {
             if (current & (WRITER_BIT | WRITER_WAITING_BIT)) {
                 ctx.wait(&m_state, current, SHARED_WAIT_MASK);

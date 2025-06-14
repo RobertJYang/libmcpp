@@ -122,7 +122,10 @@ void object_impl::set_owner(abstract_object* new_owner) {
 }
 
 std::string_view object_impl::get_object_name() const {
-    return this->get_name();
+    // 由于 get_name() 现在返回 std::string，我们需要缓存结果
+    static thread_local std::string cached_name;
+    cached_name = this->get_name();
+    return cached_name;
 }
 
 void object_impl::set_object_name(std::string_view name) {

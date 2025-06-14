@@ -16,7 +16,6 @@
 #include <mc/core/object.h>
 #include <mc/signal_slot.h>
 
-#include <mutex>
 #include <string_view>
 #include <unordered_map>
 #include <vector>
@@ -52,7 +51,7 @@ public:
     using signal_connection_map_type = std::unordered_map<signal_type, connection_id_list_type>;
 
     /**
-     * @brief 添加连接
+     * @brief 添加连接（非线程安全，应由调用者确保同步）
      * @param sig 信号指针
      * @param conn 连接对象
      * @param id 连接ID，如果为0则自动生成
@@ -62,27 +61,26 @@ public:
                                       connection_id_type id = INVALID_CONNECTION_ID);
 
     /**
-     * @brief 移除连接
+     * @brief 移除连接（非线程安全，应由调用者确保同步）
      * @param id 连接ID
      */
     void remove_connection(connection_id_type id);
 
     /**
-     * @brief 移除信号的所有连接
+     * @brief 移除信号的所有连接（非线程安全，应由调用者确保同步）
      * @param sig 信号指针
      * @return 移除的连接数量
      */
     size_t remove_connections(signal_type sig);
 
     /**
-     * @brief 清空所有连接
+     * @brief 清空所有连接（非线程安全，应由调用者确保同步）
      */
     void clear();
 
 private:
     connection_id_type new_id();
 
-    mutable std::mutex         m_mutex;
     connection_map_type        m_connections;
     signal_connection_map_type m_signal_connections;
     connection_id_type         m_next_id{1};
