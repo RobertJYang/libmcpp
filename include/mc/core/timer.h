@@ -19,7 +19,7 @@
 namespace mc::core {
 
 class timer;
-using timer_ptr = mc::ref_ptr<timer>;
+using timer_ptr = mc::shared_ptr<timer>;
 
 /*
  * 定时器
@@ -79,7 +79,7 @@ public:
     mc::signal<void()> timeout;
 
     template <typename Object, typename BaseObject = Object>
-    static timer_ptr single_shot(mc::milliseconds msec, mc::ref_ptr<Object> receiver,
+    static timer_ptr single_shot(mc::milliseconds msec, mc::shared_ptr<Object> receiver,
                                  void (BaseObject::*method)()) {
         return single_shot(msec, receiver.get(), method);
     }

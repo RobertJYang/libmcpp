@@ -23,7 +23,7 @@ namespace mc::db {
  */
 using object_id_type = mc::core::object_id_type;
 using object_base    = mc::core::object_base;
-using object_ptr     = mc::ref_ptr<object_base>;
+using object_ptr     = mc::shared_ptr<object_base>;
 
 using query::field;
 

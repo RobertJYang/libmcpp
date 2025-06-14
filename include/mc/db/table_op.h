@@ -14,7 +14,7 @@
 #define MC_DATABASE_TABLE_OP_H
 
 #include <mc/db/transaction.h>
-#include <mc/ref_ptr.h>
+#include <mc/memory.h>
 #include <memory>
 #include <type_traits>
 #include <vector>

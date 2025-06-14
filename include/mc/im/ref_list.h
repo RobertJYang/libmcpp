@@ -13,7 +13,7 @@
 #ifndef MC_IM_NODE_LIST_H
 #define MC_IM_NODE_LIST_H
 
-#include <mc/ref_ptr.h>
+#include <mc/memory.h>
 #include <memory>
 
 namespace mc::im {
@@ -25,7 +25,7 @@ namespace mc::im {
 template <typename T, typename PointerType = T*>
 class ref_list {
 public:
-    using ref_ptr_type   = ref_ptr<T, PointerType>;
+    using ref_ptr_type   = shared_ptr<T, PointerType>;
     using allocator_type = typename T::allocator_type;
 
     ref_list();

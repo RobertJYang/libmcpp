@@ -22,7 +22,7 @@
 #include <mc/engine/result.h>
 #include <mc/engine/service.h>
 #include <mc/engine/utils.h>
-#include <mc/ref_ptr.h>
+#include <mc/memory.h>
 #include <mc/reflect.h>
 #include <mc/reflect/signature_helper.h>
 #include <mc/signal_slot.h>
@@ -169,8 +169,8 @@ public:
     virtual void                     notify_property_changed(const mc::variant& value, const property_base& prop) = 0;
     virtual property_changed_signal& property_changed()                                                           = 0;
 
-    mc::ref_ptr<abstract_object> shared_from_this() {
-        return mc::ref_ptr<abstract_object>(this);
+    mc::shared_ptr<abstract_object> shared_from_this() {
+        return mc::shared_ptr<abstract_object>(this);
     }
 
 protected:
@@ -210,7 +210,7 @@ public:
     virtual void visit(visitor& v) const = 0;
 };
 
-using object_ptr = mc::ref_ptr<abstract_object>;
+using object_ptr = mc::shared_ptr<abstract_object>;
 
 } // namespace mc::engine
 

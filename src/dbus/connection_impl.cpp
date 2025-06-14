@@ -285,7 +285,7 @@ dbus_bool_t connection_impl::watch_add(DBusWatch* watch, void* data) {
         return TRUE;
     }
 
-    auto w = mc::make_ref<mc::dbus::watch>(conn->m_executor, watch);
+    auto w = mc::make_shared<mc::dbus::watch>(conn->m_executor, watch);
     dbus_watch_set_data(watch, w.get(), [](void* data) {
         auto w = mc::dbus::watch::from_raw(data);
         w->stop();
@@ -322,7 +322,7 @@ dbus_bool_t connection_impl::timeout_add(DBusTimeout* timeout, void* data) {
         return TRUE;
     }
 
-    auto t = mc::make_ref<mc::dbus::timeout>(conn->m_executor, timeout);
+    auto t = mc::make_shared<mc::dbus::timeout>(conn->m_executor, timeout);
     dbus_timeout_set_data(timeout, t.get(), [](void* data) {
         auto t = mc::dbus::timeout::from_raw(data);
         t->stop();

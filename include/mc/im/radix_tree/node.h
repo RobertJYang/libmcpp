@@ -18,7 +18,7 @@
 #include <functional>
 #include <mc/im/key_buffer.h>
 #include <mc/im/ref_list.h>
-#include <mc/ref_ptr.h>
+#include <mc/memory.h>
 #include <memory>
 #include <optional>
 #include <vector>
@@ -159,11 +159,11 @@ using edges =
 
 /**
  * 节点类，表示基数树中的一个节点
- * 继承自 ref_base
+ * 继承自 shared_base
  * @tparam Config 树配置类型
  */
 template <typename Config>
-class node : public ref_base<node<Config>> {
+class node : public shared_base<node<Config>> {
 public:
     // 从配置中提取类型
     using leaf_type              = typename Config::leaf_type;
@@ -176,7 +176,7 @@ public:
     using key_type     = key_buffer<typename alloc_traits::template rebind_alloc<char>>;
     using edge_type    = edge<node>;
     using edges_type   = edges<node>;
-    using ref_ptr_type = ref_ptr<node, pointer_type>;
+    using ref_ptr_type = shared_ptr<node, pointer_type>;
     using list_type    = ref_list<node, pointer_type>;
     using compare_type = std::conditional_t<IsLess, edge_less<node>, edge_greater<node>>;
 

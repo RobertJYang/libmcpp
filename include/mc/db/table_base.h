@@ -89,7 +89,7 @@ class index_base {
 public:
     using object_type     = ObjectType;
     using alloc_type      = Allocator;
-    using object_ptr_type = mc::ref_ptr<object_type>;
+    using object_ptr_type = mc::shared_ptr<object_type>;
     using tree_config     = mc::im::tree_config<object_ptr_type, alloc_type>;
     using tree_type       = mc::im::radix_tree<tree_config>;
     using raw_iterator    = typename tree_type::iterator;

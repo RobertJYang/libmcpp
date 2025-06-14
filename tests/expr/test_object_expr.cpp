@@ -110,10 +110,10 @@ protected:
 
         string_conn = obj->m_iface2.value_changed.connect(
             [this](std::string_view old_val, std::string_view new_val) {
-                string_change_count++;
-                last_old_string = old_val;
-                last_new_string = new_val;
-            });
+            string_change_count++;
+            last_old_string = old_val;
+            last_new_string = new_val;
+        });
     }
 
     void TearDown() override {
@@ -123,7 +123,7 @@ protected:
         obj.reset();
     }
 
-    mc::ref_ptr<TestObject>                   obj;
+    mc::shared_ptr<TestObject>                obj;
     std::unique_ptr<mc::expr::object_context> obj_ctx;
     mc::expr::engine                          expr_engine;
 

@@ -17,7 +17,7 @@
 
 namespace mc::dbus {
 
-class timeout : public mc::ref_base<timeout> {
+class timeout : public mc::shared_base<timeout> {
 public:
     template <typename Executor>
     timeout(Executor& executor, DBusTimeout* timeout) : m_timeout(timeout), m_timer(executor) {

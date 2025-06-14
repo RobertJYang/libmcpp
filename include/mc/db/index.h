@@ -45,7 +45,7 @@ public:
     // 索引相关类型定义
     using key_extractor_type        = KeyExtractor;
     using object_type               = ObjectType;
-    using object_ptr_type           = mc::ref_ptr<object_type>;
+    using object_ptr_type           = mc::shared_ptr<object_type>;
     using alloc_type                = Allocator;
     using tag_type                  = Tag;
     static constexpr bool is_unique = IsUnique;
@@ -130,7 +130,7 @@ public:
     }
 
     bool add(const object_type& obj) {
-        auto obj_ptr = mc::make_ref<object_type>(obj);
+        auto obj_ptr = mc::make_shared<object_type>(obj);
         return add(obj_ptr);
     }
 
@@ -151,7 +151,7 @@ public:
     }
 
     bool update(const object_type& old_obj, const object_type& new_obj) {
-        auto obj_ptr = mc::make_ref<object_type>(new_obj);
+        auto obj_ptr = mc::make_shared<object_type>(new_obj);
         return update(old_obj, obj_ptr);
     }
 

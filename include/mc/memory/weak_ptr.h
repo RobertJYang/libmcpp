@@ -13,24 +13,24 @@
 #ifndef MC_WEAK_PTR_H
 #define MC_WEAK_PTR_H
 
-#include <mc/ref_base.h>
-#include <mc/ref_ptr.h>
+#include <mc/memory/shared_base.h>
+#include <mc/memory/shared_ptr.h>
 
 #include <memory>
 #include <type_traits>
 
-namespace mc {
+namespace mc::memory {
 
 /**
- * weak_ptr 智能指针，类似 std::weak_ptr 但专门用于管理 ref_base 对象
+ * weak_ptr 智能指针，类似 std::weak_ptr 但专门用于管理 shared_base 对象
  * 支持共享内存中的 offset_ptr
  */
-template <typename T, typename PointerType = T*>
+template <typename T, typename PointerType>
 class weak_ptr {
 public:
     using element_type = T;
     using pointer_type = PointerType;
-    using ref_ptr_type = ref_ptr<element_type, pointer_type>;
+    using ref_ptr_type = shared_ptr<element_type, pointer_type>;
 
     // 默认构造函数
     constexpr weak_ptr() noexcept : m_ptr(nullptr) {
@@ -40,7 +40,7 @@ public:
     constexpr weak_ptr(std::nullptr_t) noexcept : m_ptr(nullptr) {
     }
 
-    // 从 ref_ptr 构造
+    // 从 shared_ptr 构造
     weak_ptr(const ref_ptr_type& ref) noexcept : m_ptr(ref.get()) {
         if (m_ptr) {
             m_ptr->add_weak_ref();
@@ -94,7 +94,7 @@ public:
         return *this;
     }
 
-    // 从 ref_ptr 赋值
+    // 从 shared_ptr 赋值
     weak_ptr& operator=(const ref_ptr_type& ref) noexcept {
         weak_ptr(ref).swap(*this);
         return *this;
@@ -116,9 +116,9 @@ public:
         return *this;
     }
 
-    // 从不同类型的 ref_ptr 赋值
+    // 从不同类型的 shared_ptr 赋值
     template <typename U, typename UP>
-    weak_ptr& operator=(const ref_ptr<U, UP>& ref) noexcept {
+    weak_ptr& operator=(const shared_ptr<U, UP>& ref) noexcept {
         static_assert(std::is_convertible_v<U*, T*>, "U* must be convertible to T*");
         weak_ptr(ref).swap(*this);
         return *this;
@@ -153,7 +153,7 @@ public:
         return !m_ptr || m_ptr->ref_count() == 0;
     }
 
-    // 尝试获取强引用，如果对象已过期则返回空的 ref_ptr
+    // 尝试获取强引用，如果对象已过期则返回空的 shared_ptr
     ref_ptr_type lock() const noexcept {
         if (!m_ptr || !m_ptr->try_add_ref()) {
             return ref_ptr_type();
@@ -218,13 +218,13 @@ bool operator<(const weak_ptr<T>& lhs, const weak_ptr<U>& rhs) noexcept {
     return lhs.get() < rhs.get();
 }
 
-} // namespace mc
+} // namespace mc::memory
 
 // 为 std::hash 提供特化支持
 namespace std {
 template <typename T, typename PointerType>
-struct hash<mc::weak_ptr<T, PointerType>> {
-    size_t operator()(const mc::weak_ptr<T, PointerType>& p) const noexcept {
+struct hash<mc::memory::weak_ptr<T, PointerType>> {
+    size_t operator()(const mc::memory::weak_ptr<T, PointerType>& p) const noexcept {
         return hash<PointerType>{}(p.get());
     }
 };

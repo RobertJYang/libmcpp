@@ -103,13 +103,13 @@ struct service_impl {
     uint64_t                   add_match(mc::dbus::match_rule& rule, mc::dbus::match_cb_t&& cb);
     void                       remove_match(uint64_t id);
 
-    std::mutex                  m_mutex;
-    service*                    m_service;
-    dbus::connection            m_connection;
-    object_table_ptr            m_object_table;
-    mc::ref_ptr<service_object> m_service_object;
-    root_object                 m_root;
-    mc::dbus::shm_tree*         m_shm_tree;
+    std::mutex                     m_mutex;
+    service*                       m_service;
+    dbus::connection               m_connection;
+    object_table_ptr               m_object_table;
+    mc::shared_ptr<service_object> m_service_object;
+    root_object                    m_root;
+    mc::dbus::shm_tree*            m_shm_tree;
 };
 } // namespace mc::engine
 
@@ -128,7 +128,7 @@ service_impl::service_impl() {
 
 bool service_impl::init(service* s) {
     m_service        = s;
-    m_service_object = mc::make_ref<service_object>();
+    m_service_object = mc::make_shared<service_object>();
     m_service_object->init(s);
     return true;
 }
@@ -193,7 +193,7 @@ void service_impl::stop() {
 }
 
 void service_impl::register_object(abstract_object& obj) {
-    m_object_table->add(mc::ref_ptr<abstract_object>(&obj));
+    m_object_table->add(mc::shared_ptr<abstract_object>(&obj));
     obj.set_service(m_service);
     m_connection.register_path(obj.get_object_path(), [this, pobj = obj.shared_from_this()](auto& msg) {
         return on_path_message(msg, *pobj);
@@ -256,7 +256,7 @@ void service_impl::unregister_object(std::string_view path) {
     }
 
     auto& obj = const_cast<abstract_object&>(*it);
-    m_object_table->remove(mc::ref_ptr<abstract_object>(&obj));
+    m_object_table->remove(mc::shared_ptr<abstract_object>(&obj));
 
     obj.set_owner(nullptr);
     obj.set_service(nullptr);

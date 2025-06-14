@@ -17,7 +17,7 @@
 
 namespace mc::dbus {
 
-class watch : public mc::ref_base<watch> {
+class watch : public mc::shared_base<watch> {
 public:
     template <typename Executor>
     watch(Executor& executor, DBusWatch* watch)
@@ -30,8 +30,8 @@ public:
     void stop();
 
 private:
-    void watch_readable(connection_weak_ptr conn, watch::ref_ptr self);
-    void watch_writable(connection_weak_ptr conn, watch::ref_ptr self);
+    void watch_readable(connection_weak_ptr conn, watch::shared_ptr self);
+    void watch_writable(connection_weak_ptr conn, watch::shared_ptr self);
     bool handle_watch_ready(connection_ptr& conn, uint32_t flags);
 
     using socket_type = boost::asio::posix::stream_descriptor;
