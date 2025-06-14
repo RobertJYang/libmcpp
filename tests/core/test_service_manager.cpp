@@ -62,13 +62,13 @@ public:
     void cleanup() override {
     }
 
-    bool add_service(service_ptr service) override {
+    bool add_service(service_base_ptr service) override {
         return true;
     }
     bool remove_service(const std::string& name) override {
         return true;
     }
-    service_ptr get_service(const std::string& name) const override {
+    service_base_ptr get_service(const std::string& name) const override {
         return nullptr;
     }
 
@@ -134,9 +134,9 @@ public:
 // 测试用服务工厂
 class test_service_factory : public service_factory {
 public:
-    service_ptr create_service(const std::string& service_name, std::string object_name,
-                               mc::dict args) override {
-        return std::make_shared<test_service>(object_name);
+    service_base_ptr create_service(const std::string& service_name, std::string object_name,
+                                    mc::dict args) override {
+        return mc::make_shared<test_service>(object_name);
     }
 };
 

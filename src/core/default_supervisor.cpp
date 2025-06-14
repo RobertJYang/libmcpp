@@ -53,12 +53,12 @@ bool default_supervisor::start() {
         }
     }
 
-    auto get_dependencies = [](const service_ptr& service) -> std::vector<std::string> {
+    auto get_dependencies = [](const service_base_ptr& service) -> std::vector<std::string> {
         return service->get_dependencies();
     };
 
     try {
-        auto graph = core::internal::dependency_sorter::build_dependency_graph<service_ptr>(
+        auto graph = core::internal::dependency_sorter::build_dependency_graph<service_base_ptr>(
             m_services, get_dependencies);
         auto start_order = core::internal::dependency_sorter::sort_for_startup(graph);
 
@@ -124,7 +124,7 @@ void default_supervisor::cleanup() {
     m_child_supervisors.clear();
 }
 
-bool default_supervisor::add_service(service_ptr service) {
+bool default_supervisor::add_service(service_base_ptr service) {
     if (!service) {
         elog("add service failed: service pointer is null");
         return false;
@@ -169,7 +169,7 @@ bool default_supervisor::remove_service(const std::string& name) {
     return true;
 }
 
-service_ptr default_supervisor::get_service(const std::string& name) const {
+service_base_ptr default_supervisor::get_service(const std::string& name) const {
     std::lock_guard<std::mutex> lock(m_mutex);
 
     auto it = m_services.find(name);
@@ -274,12 +274,12 @@ bool default_supervisor::restart_dependent_services(const std::string& service_n
     std::lock_guard<std::mutex> lock(m_mutex);
 
     // 构建依赖图
-    auto get_dependencies = [](const service_ptr& service) -> std::vector<std::string> {
+    auto get_dependencies = [](const service_base_ptr& service) -> std::vector<std::string> {
         return service->get_dependencies();
     };
 
     try {
-        auto graph = core::internal::dependency_sorter::build_dependency_graph<service_ptr>(
+        auto graph = core::internal::dependency_sorter::build_dependency_graph<service_base_ptr>(
             m_services, get_dependencies);
 
         // 获取所有受影响的服务（直接和间接依赖）
@@ -404,12 +404,12 @@ std::vector<std::string> default_supervisor::get_service_stop_order(bool already
 
 std::vector<std::string> default_supervisor::get_service_stop_order_internal() const {
     // 构建服务依赖关系图的lambda函数
-    auto get_dependencies = [](const service_ptr& service) -> std::vector<std::string> {
+    auto get_dependencies = [](const service_base_ptr& service) -> std::vector<std::string> {
         return service->get_dependencies();
     };
 
     // 使用dependency_sorter构建依赖图
-    auto graph = core::internal::dependency_sorter::build_dependency_graph<service_ptr>(
+    auto graph = core::internal::dependency_sorter::build_dependency_graph<service_base_ptr>(
         m_services, get_dependencies);
 
     // 获取停止顺序（按照被依赖关系的拓扑排序）

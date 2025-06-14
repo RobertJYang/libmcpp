@@ -53,6 +53,11 @@ using mc::memory::destroy_ptr;
 using mc::memory::allocate_shared;
 using mc::memory::make_shared;
 
+using mc::memory::const_pointer_cast;
+using mc::memory::dynamic_pointer_cast;
+using mc::memory::reinterpret_pointer_cast;
+using mc::memory::static_pointer_cast;
+
 namespace memory {
 /**
  * @brief 获取对象的引用计数

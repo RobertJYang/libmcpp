@@ -59,13 +59,13 @@ public:
                                  service_factory& factory);
 
     // 获取服务
-    service_ptr get_service(const std::string& name) const;
+    service_base_ptr get_service(const std::string& name) const;
 
     // 清理服务
     void cleanup_services();
 
     // 添加服务
-    bool add_service(const std::string& name, service_ptr service_instance);
+    bool add_service(const std::string& name, service_base_ptr service_instance);
 
     // 移除服务
     bool remove_service(const std::string& name);
@@ -83,8 +83,8 @@ public:
     bool has_service(const std::string& name) const;
 
 private:
-    std::unordered_map<std::string, service_ptr> m_services;
-    std::vector<std::string>                     m_service_start_order;
+    std::unordered_map<std::string, service_base_ptr> m_services;
+    std::vector<std::string>                          m_service_start_order;
 
     // 构建服务依赖图
     std::unordered_map<std::string, service_node>

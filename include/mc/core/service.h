@@ -53,10 +53,8 @@ struct service_config {
 /**
  * @brief 服务接口类
  */
-class abstract_service {
+class abstract_service : public mc::core::object {
 public:
-    using ptr = std::shared_ptr<abstract_service>;
-
     virtual ~abstract_service() = default;
 
     virtual bool init(dict args) = 0;
@@ -75,7 +73,7 @@ public:
 /**
  * @brief 基础服务类，提供通用功能实现
  */
-class service_base : public abstract_service, public mc::core::object {
+class service_base : public abstract_service {
 public:
     explicit service_base(std::string name = "");
     ~service_base() override;
@@ -118,7 +116,7 @@ protected:
     std::unique_ptr<impl> m_impl;
 };
 
-using service_ptr = std::shared_ptr<abstract_service>;
+using service_base_ptr = mc::shared_ptr<abstract_service>;
 
 } // namespace mc::core
 
