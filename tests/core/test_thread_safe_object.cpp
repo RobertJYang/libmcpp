@@ -11,7 +11,7 @@
  */
 
 #include <mc/core/object.h>
-#include <mc/ref_ptr.h>
+#include <mc/memory.h>
 
 #include <gtest/gtest.h>
 
@@ -26,7 +26,7 @@ class ThreadSafeObjectTest : public ::testing::Test {
 protected:
     void SetUp() override {
         // 创建根对象
-        root_object = mc::make_ref<object>();
+        root_object = mc::make_shared<object>();
         root_object->set_name("root");
     }
 
@@ -34,15 +34,15 @@ protected:
         root_object.reset();
     }
 
-    mc::ref_ptr<object> root_object;
+    mc::shared_ptr<object> root_object;
 };
 
 // 测试基本的父子关系设置
 TEST_F(ThreadSafeObjectTest, BasicParentChildRelationship) {
-    auto child1 = mc::make_ref<object>(root_object.get());
+    auto child1 = mc::make_shared<object>(root_object.get());
     child1->set_name("child1");
 
-    auto child2 = mc::make_ref<object>(root_object.get());
+    auto child2 = mc::make_shared<object>(root_object.get());
     child2->set_name("child2");
 
     // 验证父子关系
@@ -70,7 +70,7 @@ TEST_F(ThreadSafeObjectTest, ConcurrentAddChildren) {
     for (int t = 0; t < num_threads; ++t) {
         threads.emplace_back([this, t, &created_count]() {
             for (int i = 0; i < children_per_thread; ++i) {
-                auto child = mc::make_ref<object>(root_object.get());
+                auto child = mc::make_shared<object>(root_object.get());
                 child->set_name("thread_" + std::to_string(t) + "_child_" + std::to_string(i));
                 created_count.fetch_add(1);
             }
@@ -95,12 +95,12 @@ TEST_F(ThreadSafeObjectTest, ConcurrentAddChildren) {
 
 // 测试并发销毁对象时的安全性
 TEST_F(ThreadSafeObjectTest, ConcurrentDestruction) {
-    const int                        num_children = 100;
-    std::vector<mc::ref_ptr<object>> children;
+    const int                           num_children = 100;
+    std::vector<mc::shared_ptr<object>> children;
 
     // 创建多个子对象
     for (int i = 0; i < num_children; ++i) {
-        auto child = mc::make_ref<object>(root_object.get());
+        auto child = mc::make_shared<object>(root_object.get());
         child->set_name("child_" + std::to_string(i));
         children.push_back(child);
     }
@@ -143,16 +143,16 @@ TEST_F(ThreadSafeObjectTest, ConcurrentDestruction) {
 
 // 测试父对象销毁时子对象的处理
 TEST_F(ThreadSafeObjectTest, ParentDestructionHandling) {
-    std::vector<mc::ref_ptr<object>> orphaned_children;
+    std::vector<mc::shared_ptr<object>> orphaned_children;
 
     {
         // 创建一个临时父对象
-        auto temp_parent = mc::make_ref<object>();
+        auto temp_parent = mc::make_shared<object>();
         temp_parent->set_name("temp_parent");
 
         // 创建子对象
         for (int i = 0; i < 10; ++i) {
-            auto child = mc::make_ref<object>(temp_parent.get());
+            auto child = mc::make_shared<object>(temp_parent.get());
             child->set_name("child_" + std::to_string(i));
             orphaned_children.push_back(child);
         }
@@ -177,7 +177,7 @@ TEST_F(ThreadSafeObjectTest, ParentDestructionHandling) {
 
 // 测试设置和获取名称的线程安全性
 TEST_F(ThreadSafeObjectTest, ConcurrentNameOperations) {
-    auto                     test_object = mc::make_ref<object>();
+    auto                     test_object = mc::make_shared<object>();
     std::vector<std::thread> threads;
     const int                num_operations = 1000;
 
@@ -207,20 +207,20 @@ TEST_F(ThreadSafeObjectTest, ConcurrentNameOperations) {
 
 // 测试多线程设置父对象
 TEST_F(ThreadSafeObjectTest, ConcurrentSetParent) {
-    const int                        num_children = 100;
-    std::vector<mc::ref_ptr<object>> children;
-    std::vector<mc::ref_ptr<object>> parents;
+    const int                           num_children = 100;
+    std::vector<mc::shared_ptr<object>> children;
+    std::vector<mc::shared_ptr<object>> parents;
 
     // 创建多个父对象
     for (int i = 0; i < 5; ++i) {
-        auto parent = mc::make_ref<object>();
+        auto parent = mc::make_shared<object>();
         parent->set_name("parent_" + std::to_string(i));
         parents.push_back(parent);
     }
 
     // 创建子对象（初始时没有父对象）
     for (int i = 0; i < num_children; ++i) {
-        auto child = mc::make_ref<object>();
+        auto child = mc::make_shared<object>();
         child->set_name("child_" + std::to_string(i));
         children.push_back(child);
     }

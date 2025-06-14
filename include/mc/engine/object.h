@@ -297,8 +297,8 @@ public:
         get_metadata().visit(static_cast<const ObjectType&>(*this), v);
     }
 
-    static mc::ref_ptr<object_type> create() {
-        return mc::make_ref<object_type>();
+    static mc::shared_ptr<object_type> create() {
+        return mc::make_shared<object_type>();
     }
 
     static void from_variant(const mc::dict& d, object_type& obj) {

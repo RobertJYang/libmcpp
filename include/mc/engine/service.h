@@ -36,7 +36,7 @@ public:
     bool is_healthy() const override;
 
     template <typename ObjectType>
-    void register_object(mc::ref_ptr<ObjectType> obj) {
+    void register_object(mc::shared_ptr<ObjectType> obj) {
         register_object(*obj);
     }
 
@@ -46,7 +46,7 @@ public:
     }
 
     template <typename ObjectType>
-    void unregister_object(mc::ref_ptr<ObjectType> obj) {
+    void unregister_object(mc::shared_ptr<ObjectType> obj) {
         unregister_object(obj->get_object_path());
     }
     void unregister_object(std::string_view path);

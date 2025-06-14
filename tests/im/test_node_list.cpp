@@ -62,9 +62,9 @@ public:
 
 // 定义默认配置
 using default_config = tree_config<>;
-using node_type = node<default_config>;
+using node_type      = node<default_config>;
 using node_list_type = node_list<node_type>;
-using ref_ptr = typename node_type::ref_ptr_type;
+using shared_ptr     = typename node_type::ref_ptr_type;
 
 // 测试夹具
 class NodeListTest : public ::testing::Test {
@@ -72,7 +72,7 @@ protected:
     void SetUp() override {
         // 创建一些测试用的节点
         for (int i = 0; i < 5; ++i) {
-            nodes.push_back(make_ref<node_type>(reinterpret_cast<void*>(static_cast<intptr_t>(i))));
+            nodes.push_back(make_shared<node_type>(reinterpret_cast<void*>(static_cast<intptr_t>(i))));
         }
     }
 
@@ -86,7 +86,7 @@ protected:
     }
 
     // 辅助函数，验证列表中的节点顺序
-    bool verify_order(const node_list_type& list, const std::vector<ref_ptr>& expected) {
+    bool verify_order(const node_list_type& list, const std::vector<shared_ptr>& expected) {
         if (list.len() != expected.size()) {
             return false;
         }
@@ -95,7 +95,7 @@ protected:
             return is_empty(list);
         }
 
-        ref_ptr current = list.front();
+        shared_ptr current = list.front();
         for (size_t i = 0; i < expected.size(); ++i) {
             if (current != expected[i]) {
                 return false;
@@ -108,7 +108,7 @@ protected:
     }
 
     // 测试节点
-    std::vector<ref_ptr> nodes;
+    std::vector<shared_ptr> nodes;
 };
 
 // 测试空列表
@@ -159,7 +159,7 @@ TEST_F(NodeListTest, PushFront) {
     }
 
     // 验证顺序应该和原始顺序相反
-    std::vector<ref_ptr> expected_order = nodes;
+    std::vector<shared_ptr> expected_order = nodes;
     std::reverse(expected_order.begin(), expected_order.end());
 
     EXPECT_EQ(list.len(), nodes.size());
@@ -183,7 +183,7 @@ TEST_F(NodeListTest, Insert) {
     list.insert(nodes[2], nodes[1]); // 在nodes[1]后插入nodes[2]
 
     // 预期顺序：0, 1, 2, 3
-    std::vector<ref_ptr> expected = {nodes[0], nodes[1], nodes[2], nodes[3]};
+    std::vector<shared_ptr> expected = {nodes[0], nodes[1], nodes[2], nodes[3]};
     EXPECT_TRUE(verify_order(list, expected));
 
     // 测试在列表末尾插入（at为nullptr）
@@ -205,7 +205,7 @@ TEST_F(NodeListTest, Remove) {
     list.remove(nodes[2]);
 
     // 预期顺序：0, 1, 3, 4
-    std::vector<ref_ptr> expected = {nodes[0], nodes[1], nodes[3], nodes[4]};
+    std::vector<shared_ptr> expected = {nodes[0], nodes[1], nodes[3], nodes[4]};
     EXPECT_TRUE(verify_order(list, expected));
     EXPECT_EQ(list.len(), 4);
 
@@ -266,7 +266,7 @@ TEST_F(NodeListTest, MoveToFront) {
     list.move_to_front(nodes[2]);
 
     // 预期顺序：2, 0, 1, 3, 4
-    std::vector<ref_ptr> expected = {nodes[2], nodes[0], nodes[1], nodes[3], nodes[4]};
+    std::vector<shared_ptr> expected = {nodes[2], nodes[0], nodes[1], nodes[3], nodes[4]};
     EXPECT_TRUE(verify_order(list, expected));
 
     // 移动尾节点到前端
@@ -296,7 +296,7 @@ TEST_F(NodeListTest, MoveToBack) {
     list.move_to_back(nodes[0]);
 
     // 预期顺序：1, 2, 3, 4, 0
-    std::vector<ref_ptr> expected = {nodes[1], nodes[2], nodes[3], nodes[4], nodes[0]};
+    std::vector<shared_ptr> expected = {nodes[1], nodes[2], nodes[3], nodes[4], nodes[0]};
     EXPECT_TRUE(verify_order(list, expected));
 
     // 移动中间节点到后端
@@ -326,7 +326,7 @@ TEST_F(NodeListTest, MoveBefore) {
     list.move_before(nodes[3], nodes[1]);
 
     // 预期顺序：0, 3, 1, 2, 4
-    std::vector<ref_ptr> expected = {nodes[0], nodes[3], nodes[1], nodes[2], nodes[4]};
+    std::vector<shared_ptr> expected = {nodes[0], nodes[3], nodes[1], nodes[2], nodes[4]};
     EXPECT_TRUE(verify_order(list, expected));
 
     // 移动头节点到中间位置
@@ -356,7 +356,7 @@ TEST_F(NodeListTest, MoveAfter) {
     list.move_after(nodes[3], nodes[0]);
 
     // 预期顺序：0, 3, 1, 2, 4
-    std::vector<ref_ptr> expected = {nodes[0], nodes[3], nodes[1], nodes[2], nodes[4]};
+    std::vector<shared_ptr> expected = {nodes[0], nodes[3], nodes[1], nodes[2], nodes[4]};
     EXPECT_TRUE(verify_order(list, expected));
 
     // 移动尾节点到中间位置
@@ -401,14 +401,14 @@ TEST_F(NodeListTest, CustomAllocator) {
     test_allocator<char> alloc;
 
     // 定义使用自定义分配器的配置
-    using custom_config = tree_config<void*, test_allocator<char>>;
+    using custom_config    = tree_config<void*, test_allocator<char>>;
     using custom_node_type = node<custom_config>;
 
     {
         auto node0 =
-            allocate_ref<custom_node_type>(alloc, reinterpret_cast<void*>(static_cast<intptr_t>(0)));
+            mc::allocate_shared<custom_node_type>(alloc, reinterpret_cast<void*>(static_cast<intptr_t>(0)));
         auto node1 =
-            allocate_ref<custom_node_type>(alloc, reinterpret_cast<void*>(static_cast<intptr_t>(1)));
+            mc::allocate_shared<custom_node_type>(alloc, reinterpret_cast<void*>(static_cast<intptr_t>(1)));
 
         typename custom_node_type::list_type list;
 
@@ -440,8 +440,8 @@ TEST_F(NodeListTest, CircularNature) {
     EXPECT_EQ(list.front()->m_prev, list.back());
 
     // 从头开始遍历一圈
-    ref_ptr current = list.front();
-    size_t  count   = 0;
+    shared_ptr current = list.front();
+    size_t     count   = 0;
     do {
         current = current->m_next;
         ++count;

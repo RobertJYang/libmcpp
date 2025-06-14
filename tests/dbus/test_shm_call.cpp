@@ -121,14 +121,14 @@ struct test_service_1 : public mc::engine::service {
             return false;
         }
 
-        m_obj_a = mc::make_ref<TestObjectA>();
+        m_obj_a = mc::make_shared<TestObjectA>();
         m_obj_a->init();
         register_object(*m_obj_a);
         return true;
     }
 
     void init_obj_c() {
-        m_obj_c = mc::make_ref<TestObjectC>();
+        m_obj_c = mc::make_shared<TestObjectC>();
         m_obj_c->init();
         register_object(*m_obj_c);
     }
@@ -138,8 +138,8 @@ struct test_service_1 : public mc::engine::service {
         m_obj_c.reset();
     }
 
-    mc::ref_ptr<TestObjectA> m_obj_a;
-    mc::ref_ptr<TestObjectC> m_obj_c;
+    mc::shared_ptr<TestObjectA> m_obj_a;
+    mc::shared_ptr<TestObjectC> m_obj_c;
 };
 
 struct test_service_2 : public mc::engine::service {
@@ -158,13 +158,13 @@ struct test_service_2 : public mc::engine::service {
             return false;
         }
 
-        m_obj_b = mc::make_ref<TestObjectB>();
+        m_obj_b = mc::make_shared<TestObjectB>();
         m_obj_b->init();
         register_object(*m_obj_b);
         return true;
     }
 
-    mc::ref_ptr<TestObjectB> m_obj_b;
+    mc::shared_ptr<TestObjectB> m_obj_b;
 };
 
 static test_service_1*   service_1;
@@ -192,7 +192,7 @@ protected:
 
 TEST_F(ShmCallTest, TestRegisterProperties) {
     mc::variant result = mc::dbus::shm_tree::get_property("org.openubmc.test_service_1",
-                                              "/org/openubmc/test_object_a", "org.openubmc.test_interface_a", "Num");
+                                                          "/org/openubmc/test_object_a", "org.openubmc.test_interface_a", "Num");
     ASSERT_EQ(result.as_int32(), 100);
 
     result = mc::dbus::shm_tree::get_property("org.openubmc.test_service_1",
@@ -208,8 +208,8 @@ TEST_F(ShmCallTest, TestRegisterProperties) {
     ASSERT_EQ(result.as_string(), "TestObjectA");
 
     result = mc::dbus::shm_tree::get_property("org.openubmc.test_service_2",
-                                                          "/org/openubmc/test_object_b",
-                                                          "org.openubmc.test_interface_b", "Cnt");
+                                              "/org/openubmc/test_object_b",
+                                              "org.openubmc.test_interface_b", "Cnt");
     ASSERT_EQ(result.as_int32(), 0);
 
     result = mc::dbus::shm_tree::get_property("org.openubmc.test_service_2",
@@ -352,7 +352,7 @@ TEST_F(ShmCallTest, TestSubscribePropertiesChanged) {
     ASSERT_EQ(msg.get_interface(), "org.freedesktop.DBus.Properties");
     ASSERT_EQ(msg.get_member(), "PropertiesChanged");
 
-    auto reader = msg.reader();
+    auto                         reader = msg.reader();
     mc::dbus::signature_iterator it("sa{sv}as");
     mc::variant                  interface;
     reader.read_variant_value(it.current_type_code(), interface, 0);

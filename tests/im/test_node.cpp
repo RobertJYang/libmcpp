@@ -44,7 +44,7 @@ protected:
     // 辅助方法：创建一个带有前缀的节点
     ref_ptr_type create_node_with_prefix(std::optional<void*> leaf, const std::string& prefix) {
         key_buffer<> key_buf(prefix);
-        ref_ptr_type node = make_ref<node_type>(leaf, key_buf);
+        ref_ptr_type node = mc::make_shared<node_type>(leaf, key_buf);
         nodes.push_back(node); // 保存引用以避免内存泄漏
         return node;
     }
@@ -86,14 +86,14 @@ protected:
 // 测试节点的基本构造函数
 TEST_F(NodeTest, BasicConstruction) {
     // 创建空节点
-    auto empty_node = make_ref<node_type>();
+    auto empty_node = make_shared<node_type>();
     EXPECT_FALSE(empty_node->is_leaf());
     EXPECT_FALSE(empty_node->m_leaf.has_value());
     EXPECT_EQ(empty_node->m_edges.size(), 0);
     EXPECT_EQ(empty_node->m_prefix.size(), 0);
 
     // 创建带叶子的节点
-    auto leaf_node = make_ref<node_type>(leaves[0]);
+    auto leaf_node = make_shared<node_type>(leaves[0]);
     EXPECT_TRUE(leaf_node->is_leaf());
     EXPECT_TRUE(leaf_node->m_leaf.has_value());
     EXPECT_EQ(leaf_node->m_leaf.value(), leaves[0]);
@@ -114,12 +114,12 @@ TEST_F(NodeTest, BasicConstruction) {
 // 测试添加和获取边
 TEST_F(NodeTest, AddAndGetEdge) {
     // 创建根节点
-    auto root = make_ref<node_type>(nullptr);
+    auto root = make_shared<node_type>(nullptr);
 
     // 创建子节点
-    auto child1 = make_ref<node_type>(leaves[0]);
-    auto child2 = make_ref<node_type>(leaves[1]);
-    auto child3 = make_ref<node_type>(leaves[2]);
+    auto child1 = make_shared<node_type>(leaves[0]);
+    auto child2 = make_shared<node_type>(leaves[1]);
+    auto child3 = make_shared<node_type>(leaves[2]);
 
     // 添加边
     root->add_edge(edge_type('a', child1));
@@ -154,9 +154,9 @@ TEST_F(NodeTest, AddAndGetEdge) {
 
 // 测试替换边
 TEST_F(NodeTest, ReplaceEdge) {
-    auto root   = make_ref<node_type>(nullptr);
-    auto child1 = make_ref<node_type>(leaves[0]);
-    auto child2 = make_ref<node_type>(leaves[1]);
+    auto root   = make_shared<node_type>(nullptr);
+    auto child1 = make_shared<node_type>(leaves[0]);
+    auto child2 = make_shared<node_type>(leaves[1]);
 
     // 添加边
     root->add_edge(edge_type('a', child1));
@@ -179,11 +179,11 @@ TEST_F(NodeTest, ReplaceEdge) {
 
 // 测试删除边
 TEST_F(NodeTest, DeleteEdge) {
-    auto root = make_ref<node_type>(nullptr);
+    auto root = make_shared<node_type>(nullptr);
 
     // 添加多个边
     for (int i = 0; i < 3; i++) {
-        auto child = make_ref<node_type>(leaves[i]);
+        auto child = make_shared<node_type>(leaves[i]);
         root->add_edge(edge_type('a' + i, child));
     }
 
@@ -215,7 +215,7 @@ TEST_F(NodeTest, DeleteEdge) {
 // 测试查找键
 TEST_F(NodeTest, GetKey) {
     // 创建一个空的根节点（不是叶子）
-    auto root = make_ref<node_type>(std::nullopt);
+    auto root = mc::make_shared<node_type>(std::nullopt);
 
     // 创建一级节点，a为叶子节点，b不是叶子节点
     auto node_a = create_node_with_prefix(leaves[0], "a");
@@ -282,7 +282,7 @@ TEST_F(NodeTest, WalkTree) {
      *   / \     \
      * (an) (at) (bc)
      **/
-    auto root    = make_ref<node_type>(nullptr);
+    auto root    = make_shared<node_type>(nullptr);
     auto node_a  = create_node_with_prefix(leaves[0], "a");
     auto node_b  = create_node_with_prefix(nullptr, "b");
     auto node_an = create_node_with_prefix(leaves[1], "an");
@@ -298,7 +298,7 @@ TEST_F(NodeTest, WalkTree) {
 
     // 收集遍历结果
     std::vector<std::pair<std::string, void*>> walk_results;
-    auto collect_fn = [&walk_results](key_view key, void* val) -> bool {
+    auto                                       collect_fn = [&walk_results](key_view key, void* val) -> bool {
         if (val != nullptr) { // 只收集叶子节点
             walk_results.push_back({std::string(key.data(), key.size()), val});
         }
@@ -328,7 +328,7 @@ TEST_F(NodeTest, WalkTree) {
 // 测试使用前缀遍历 - 使用正确的相对前缀设计
 TEST_F(NodeTest, WalkPrefix) {
     // 创建根节点 (空前缀)
-    auto root = make_ref<node_type>(nullptr);
+    auto root = make_shared<node_type>(nullptr);
 
     // 创建一级节点 - 设置相对前缀
     auto node_a = create_node_with_prefix(leaves[0], "a");
@@ -348,7 +348,7 @@ TEST_F(NodeTest, WalkPrefix) {
 
     // 收集遍历结果
     std::vector<std::pair<std::string, void*>> walk_results;
-    auto collect_fn = [&walk_results](key_view key, void* val) -> bool {
+    auto                                       collect_fn = [&walk_results](key_view key, void* val) -> bool {
         if (val != nullptr) { // 只收集叶子节点
             walk_results.push_back({std::string(key.data(), key.size()), val});
         }
@@ -406,11 +406,11 @@ TEST_F(NodeTest, ReverseNodeOrder) {
     // 创建降序排序的节点
     using reverse_config    = tree_config<void*, std::allocator<char>, false>;
     using reverse_node_type = node<reverse_config>;
-    auto root               = make_ref<reverse_node_type>(nullptr);
+    auto root               = make_shared<reverse_node_type>(nullptr);
 
     // 添加多个边
     for (int i = 0; i < 3; i++) {
-        auto child = make_ref<reverse_node_type>(leaves[i]);
+        auto child = make_shared<reverse_node_type>(leaves[i]);
         root->add_edge(typename reverse_node_type::edge_type('a' + i, child));
     }
 
@@ -438,31 +438,31 @@ TEST_F(NodeTest, ReverseNodeOrder) {
 
 TEST_F(NodeTest, OptimizedGetMethod) {
     // 创建基本树结构
-    auto root      = make_ref<node_type>(std::nullopt);
+    auto root      = mc::make_shared<node_type>(std::nullopt);
     root->m_prefix = key_buffer<>(""); // 空前缀
 
     // 测试"e"前缀节点
-    auto e_prefix_node      = make_ref<node_type>(leaves[0]);
+    auto e_prefix_node      = make_shared<node_type>(leaves[0]);
     e_prefix_node->m_prefix = key_buffer<>("e");
     root->add_edge(edge_type('e', e_prefix_node));
 
     // 测试单字符前缀节点
-    auto s_prefix_node      = make_ref<node_type>(leaves[1]);
+    auto s_prefix_node      = make_shared<node_type>(leaves[1]);
     s_prefix_node->m_prefix = key_buffer<>("s");
     root->add_edge(edge_type('s', s_prefix_node));
 
     // 测试长前缀节点
-    auto long_prefix_node      = make_ref<node_type>(leaves[2]);
+    auto long_prefix_node      = make_shared<node_type>(leaves[2]);
     long_prefix_node->m_prefix = key_buffer<>("longprefix");
     root->add_edge(edge_type('l', long_prefix_node));
 
     // 测试深层嵌套结构
-    auto n1_node      = make_ref<node_type>(std::nullopt);
+    auto n1_node      = mc::make_shared<node_type>(std::nullopt);
     n1_node->m_prefix = key_buffer<>("n1");
     root->add_edge(edge_type('n', n1_node));
 
     // n2子节点 - 这里前缀应该只是区分字符，不是完整路径
-    auto n2_node      = make_ref<node_type>(leaves[3]);
+    auto n2_node      = make_shared<node_type>(leaves[3]);
     n2_node->m_prefix = key_buffer<>("2");
     n1_node->add_edge(edge_type('2', n2_node));
 
@@ -501,7 +501,7 @@ TEST_F(NodeTest, OptimizedGetMethod) {
 
 TEST_F(NodeTest, OptimizedWalkPrefix) {
     // 创建基本树结构
-    auto root      = make_ref<node_type>(std::nullopt);
+    auto root      = mc::make_shared<node_type>(std::nullopt);
     root->m_prefix = key_buffer<>(""); // 空前缀
 
     /**
@@ -515,19 +515,19 @@ TEST_F(NodeTest, OptimizedWalkPrefix) {
      *   (c)
      **/
 
-    auto node_a      = make_ref<node_type>(leaves[0]);
+    auto node_a      = make_shared<node_type>(leaves[0]);
     node_a->m_prefix = key_buffer<>("a");
 
-    auto node_p      = make_ref<node_type>(leaves[1]);
+    auto node_p      = make_shared<node_type>(leaves[1]);
     node_p->m_prefix = key_buffer<>("p");
 
-    auto node_b      = make_ref<node_type>(leaves[2]);
+    auto node_b      = make_shared<node_type>(leaves[2]);
     node_b->m_prefix = key_buffer<>("b");
 
-    auto node_c1      = make_ref<node_type>(leaves[3]);
+    auto node_c1      = make_shared<node_type>(leaves[3]);
     node_c1->m_prefix = key_buffer<>("c");
 
-    auto node_bc      = make_ref<node_type>(leaves[4]);
+    auto node_bc      = make_shared<node_type>(leaves[4]);
     node_bc->m_prefix = key_buffer<>("c");
 
     // 构建树
@@ -540,7 +540,7 @@ TEST_F(NodeTest, OptimizedWalkPrefix) {
 
     // 收集遍历结果
     std::vector<std::pair<std::string, void*>> walk_results;
-    auto collect_fn = [&walk_results](key_view key, void* val) -> bool {
+    auto                                       collect_fn = [&walk_results](key_view key, void* val) -> bool {
         if (val != nullptr) { // 只收集叶子节点
             walk_results.push_back({std::string(key.data(), key.size()), val});
         }
@@ -587,7 +587,7 @@ TEST_F(NodeTest, OptimizedWalkPrefix) {
 // 测试边界情况
 TEST_F(NodeTest, EdgeCases) {
     // 创建空树
-    auto empty_node      = make_ref<node_type>(std::nullopt);
+    auto empty_node      = mc::make_shared<node_type>(std::nullopt);
     empty_node->m_prefix = key_buffer<>("");
 
     // 测试空树get方法
@@ -596,7 +596,7 @@ TEST_F(NodeTest, EdgeCases) {
 
     // 测试空树walk_prefix方法
     std::vector<std::pair<std::string, void*>> walk_results;
-    auto collect_fn = [&walk_results](key_view key, void* val) -> bool {
+    auto                                       collect_fn = [&walk_results](key_view key, void* val) -> bool {
         walk_results.push_back({std::string(key.data(), key.size()), val});
         return true;
     };
@@ -605,7 +605,7 @@ TEST_F(NodeTest, EdgeCases) {
     EXPECT_EQ(walk_results.size(), 0);
 
     // 创建特殊字符前缀的节点
-    auto special_node      = make_ref<node_type>(leaves[0]);
+    auto special_node      = make_shared<node_type>(leaves[0]);
     special_node->m_prefix = key_buffer<>("\0\1\2\3", 4);
 
     // 测试特殊字符前缀匹配
@@ -616,7 +616,7 @@ TEST_F(NodeTest, EdgeCases) {
 
     // 创建超长前缀的节点
     std::string long_str(1000, 'x');
-    auto        long_node = make_ref<node_type>(leaves[1]);
+    auto        long_node = make_shared<node_type>(leaves[1]);
     long_node->m_prefix   = key_buffer<>(long_str);
 
     // 测试超长前缀匹配

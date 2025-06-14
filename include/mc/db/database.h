@@ -53,8 +53,8 @@ public:
      * @return 对象指针
      */
     template <typename T>
-    mc::ref_ptr<T> add(std::string_view table_name, const mc::dict& var,
-                       transaction* txn = nullptr) {
+    mc::shared_ptr<T> add(std::string_view table_name, const mc::dict& var,
+                          transaction* txn = nullptr) {
         return add(table_name, var, txn).template static_pointer_cast<T>();
     }
 
@@ -65,8 +65,8 @@ public:
      * @return 对象指针
      */
     template <typename T>
-    mc::ref_ptr<T> find(std::string_view table_name, const query_builder& builder) {
-        mc::ref_ptr<T> result;
+    mc::shared_ptr<T> find(std::string_view table_name, const query_builder& builder) {
+        mc::shared_ptr<T> result;
         query<T>(table_name, builder, [&result](T& obj) {
             result.reset(&obj);
             return false;
@@ -82,9 +82,9 @@ public:
      * @return 对象指针数组
      */
     template <typename T>
-    std::vector<mc::ref_ptr<T>> query(std::string_view table_name, const query_builder& builder,
-                                      int limit = 0) {
-        std::vector<mc::ref_ptr<T>> results;
+    std::vector<mc::shared_ptr<T>> query(std::string_view table_name, const query_builder& builder,
+                                         int limit = 0) {
+        std::vector<mc::shared_ptr<T>> results;
         query<T>(table_name, builder, [&results, limit](T& obj) {
             if (limit > 0 && results.size() >= limit) {
                 return false;
@@ -96,7 +96,7 @@ public:
     }
 
     template <typename T>
-    std::vector<mc::ref_ptr<T>> all(std::string_view table_name) {
+    std::vector<mc::shared_ptr<T>> all(std::string_view table_name) {
         return query<T>(table_name, query_builder());
     }
 

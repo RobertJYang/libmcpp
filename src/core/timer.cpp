@@ -26,13 +26,13 @@ struct timer::timer_impl {
         m_timer.cancel();
     }
 
-    void start(mc::ref_ptr<timer> t);
+    void start(mc::shared_ptr<timer> t);
 
     bool                      m_is_cancelled{false};
     boost::asio::steady_timer m_timer;
 };
 
-void timer::timer_impl::start(mc::ref_ptr<timer> t) {
+void timer::timer_impl::start(mc::shared_ptr<timer> t) {
     m_is_cancelled = false;
     m_timer.expires_after(std::chrono::milliseconds(t->m_interval));
     m_timer.async_wait([this, t](const auto& ec) {
@@ -68,7 +68,7 @@ void timer::set_interval(mc::milliseconds msec) {
     }
 
     m_impl->m_timer.cancel();
-    m_impl->start(mc::ref_ptr<timer>(this));
+    m_impl->start(mc::shared_ptr<timer>(this));
 }
 
 bool timer::is_single_shot() const {
@@ -97,7 +97,7 @@ void timer::start(mc::milliseconds msec) {
         m_impl = std::make_unique<timer_impl>(get_executor());
     }
 
-    m_impl->start(mc::ref_ptr<timer>(this));
+    m_impl->start(mc::shared_ptr<timer>(this));
 }
 
 void timer::stop() {
@@ -123,7 +123,7 @@ timer_ptr timer::single_shot(mc::milliseconds msec, object* context,
         return {};
     }
 
-    auto t = mc::make_ref<timer>(context);
+    auto t = mc::make_shared<timer>(context);
     t->timeout.connect(std::move(functor));
     t->set_single_shot(true);
     t->start(msec);

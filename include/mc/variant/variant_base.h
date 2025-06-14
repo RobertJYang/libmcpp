@@ -30,8 +30,8 @@
 
 #include <mc/common.h>
 #include <mc/json.h>
+#include <mc/memory.h>
 #include <mc/pretty_name.h>
-#include <mc/ref_ptr.h>
 #include <mc/string.h>
 #include <mc/traits.h>
 #include <mc/variant/variant_common.h>
