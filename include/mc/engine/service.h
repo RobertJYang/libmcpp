@@ -77,7 +77,7 @@ protected:
     std::unique_ptr<service_impl> m_impl;
 };
 
-using service_ptr = std::shared_ptr<service>;
+using service_ptr = mc::shared_ptr<service>;
 
 } // namespace mc::engine
 

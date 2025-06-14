@@ -24,7 +24,7 @@ service_manager::~service_manager() {
     cleanup_services();
 }
 
-bool service_manager::add_service(const std::string& name, service_ptr service_instance) {
+bool service_manager::add_service(const std::string& name, service_base_ptr service_instance) {
     if (!service_instance) {
         elog("error: try to add null service instance '${name}'", ("name", name));
         return false;
@@ -41,7 +41,7 @@ bool service_manager::add_service(const std::string& name, service_ptr service_i
 }
 
 // 获取服务实例
-service_ptr service_manager::get_service(const std::string& name) const {
+service_base_ptr service_manager::get_service(const std::string& name) const {
     auto it = m_services.find(name);
     if (it != m_services.end()) {
         return it->second;

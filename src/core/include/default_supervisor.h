@@ -42,9 +42,9 @@ public:
     bool stop() override;
     void cleanup() override;
 
-    bool        add_service(service_ptr service) override;
-    bool        remove_service(const std::string& name) override;
-    service_ptr get_service(const std::string& name) const override;
+    bool             add_service(service_base_ptr service) override;
+    bool             remove_service(const std::string& name) override;
+    service_base_ptr get_service(const std::string& name) const override;
 
     bool           add_child(supervisor_ptr child) override;
     bool           remove_child(const std::string& name) override;
@@ -78,7 +78,7 @@ private:
     std::atomic<bool>  m_started;
 
     // 服务映射表 (name -> service)
-    std::unordered_map<std::string, service_ptr> m_services;
+    std::unordered_map<std::string, service_base_ptr> m_services;
 
     // 子监督器映射表 (name -> supervisor)
     std::unordered_map<std::string, supervisor_ptr> m_child_supervisors;

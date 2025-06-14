@@ -36,9 +36,9 @@ public:
     virtual void cleanup()                                     = 0; // 清理资源
 
     // 服务管理
-    virtual bool        add_service(service_ptr service)           = 0; // 添加服务
-    virtual bool        remove_service(const std::string& name)    = 0; // 移除服务
-    virtual service_ptr get_service(const std::string& name) const = 0; // 获取服务
+    virtual bool             add_service(service_base_ptr service)      = 0; // 添加服务
+    virtual bool             remove_service(const std::string& name)    = 0; // 移除服务
+    virtual service_base_ptr get_service(const std::string& name) const = 0; // 获取服务
 
     // 子监督器管理
     virtual bool           add_child(supervisor_ptr child)          = 0; // 添加子监督器
@@ -70,8 +70,8 @@ public:
 protected:
     void set_config(const config::supervisor_config& config);
 
-    virtual void handle_service_failure(const service_ptr& failed_service);
-    virtual bool restart_service(const service_ptr& service);
+    virtual void handle_service_failure(const service_base_ptr& failed_service);
+    virtual bool restart_service(const service_base_ptr& service);
 
 private:
     config::supervisor_config m_config;

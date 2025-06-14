@@ -29,7 +29,7 @@
 namespace mc::core {
 
 namespace po          = boost::program_options;
-using service_creator = std::function<service_ptr(std::string&& name, mc::dict&& args)>;
+using service_creator = std::function<service_base_ptr(std::string&& name, mc::dict&& args)>;
 
 namespace detail {
 
@@ -72,11 +72,11 @@ public:
     template <typename ServiceType>
     void register_service(const std::string& service_name) {
         m_creators[service_name] = [](std::string&& object_name, mc::dict&& args) {
-            auto service = std::make_shared<ServiceType>(std::forward<std::string>(object_name));
+            auto service = mc::make_shared<ServiceType>(std::forward<std::string>(object_name));
             if (service->init(std::forward<mc::dict>(args))) {
-                return std::static_pointer_cast<mc::core::abstract_service, ServiceType>(service);
+                return mc::static_pointer_cast<mc::core::abstract_service, ServiceType>(service);
             }
-            return service_ptr();
+            return service_base_ptr();
         };
 
         // 使用类型特征检测是否具有register_options成员类型
@@ -93,11 +93,11 @@ public:
      * @param args 服务配置
      * @return 服务实例
      */
-    virtual service_ptr create_service(const std::string& service_name, std::string object_name,
-                                       mc::dict args) {
+    virtual service_base_ptr create_service(const std::string& service_name, std::string object_name,
+                                            mc::dict args) {
         auto it = m_creators.find(service_name);
         if (it == m_creators.end()) {
-            return service_ptr();
+            return service_base_ptr();
         }
 
         return it->second(std::forward<std::string>(object_name), std::forward<mc::dict>(args));

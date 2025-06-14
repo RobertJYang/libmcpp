@@ -29,8 +29,8 @@ namespace mc::core {
 class object;
 class object_impl;
 
-using object_ptr       = shared_ptr<object>;
-using const_object_ptr = shared_ptr<const object>;
+using object_ptr       = mc::shared_ptr<object>;
+using const_object_ptr = mc::shared_ptr<const object>;
 using child_list       = std::vector<object_ptr>;
 using signal_type      = void*;
 using strand_type      = boost::asio::strand<boost::asio::io_context::executor_type>;
