@@ -210,33 +210,59 @@ node_ptr parser::comparison() {
 }
 
 // 解析项表达式（加法和减法）
+// 示例：解析表达式 -a * b + c
+// 解析过程：
+// 1. term() 调用 factor() 解析 -a * b
+// 2. factor() 调用 unary() 解析 -a
+// 3. unary() 解析 -a 形成AST: -a
+// 4. factor() 解析 * b 形成AST: (-a) * b
+// 5. term() 解析 + c 形成AST: ((-a) * b) + c
+//
+// AST结构：
+//        +
+//       / \
+//      *   c
+//     / \
+//    -   b
+//    |
+//    a
 node_ptr parser::term() {
-    auto expr = factor();
+    // 1. 声明并初始化变量
+    auto expr = factor();  // auto是C++的类型推导关键字，编译器会自动推导expr的类型
 
+    // 2. while循环处理连续的加减运算
     while (match({token_type::plus, token_type::minus})) {
+        // 3. 三元运算符：condition ? value_if_true : value_if_false
         operator_type op =
             previous().type == token_type::plus ? operator_type::add : operator_type::sub;
+        
+        // 4. 解析右操作数
         auto right = factor();
-        expr       = make_binary_op(op, expr, right);
+        
+        // 5. 创建二元运算符节点
+        expr = make_binary_op(op, expr, right);
     }
 
     return expr;
 }
 
-// 解析因子表达式（乘法、除法和求模）
+// 解析因子表达式（乘法、除法和求模），优先级高于加减
 node_ptr parser::factor() {
+    // 1. 首先解析一元表达式
     auto expr = unary();
 
+    // 2. 循环处理连续的乘除和求模运算
     while (match({token_type::asterisk, token_type::slash, token_type::percent})) {
+        // 3. 根据运算符类型确定操作类型
         operator_type op;
         switch (previous().type) {
-        case token_type::asterisk:
+        case token_type::asterisk:  // *
             op = operator_type::mul;
             break;
-        case token_type::slash:
+        case token_type::slash:     // /
             op = operator_type::div;
             break;
-        case token_type::percent:
+        case token_type::percent:   // %
             op = operator_type::mod;
             break;
         default:
@@ -244,76 +270,87 @@ node_ptr parser::factor() {
             break; // 不应该到达这里
         }
 
+        // 4. 解析右操作数并创建二元运算节点
         auto right = unary();
-        expr       = make_binary_op(op, expr, right);
+        expr = make_binary_op(op, expr, right);
     }
 
     return expr;
 }
 
-// 解析一元表达式
+// 解析一元表达式，优先级最高，一元运算符包括：-、!、~
+// 例如：-a * b 会先解析 -a，再解析 * b
 node_ptr parser::unary() {
+    // 1. 检查是否是一元运算符
     if (match({token_type::minus, token_type::logical_not, token_type::bit_not})) {
+        // 2. 根据运算符类型确定操作类型
         operator_type op;
         switch (previous().type) {
-        case token_type::minus:
+        case token_type::minus:         // -
             op = operator_type::neg;
             break;
-        case token_type::logical_not:
+        case token_type::logical_not:   // !
             op = operator_type::not_op;
             break;
-        case token_type::bit_not:
+        case token_type::bit_not:       // ~
             op = operator_type::bit_not;
             break;
         default:
-            op = operator_type::neg; // 不应该到达这里
+            op = operator_type::neg;    // 不应该到达这里
             break;
         }
+        // 3. 解析操作数并创建一元运算节点
         auto right = unary();
         return make_unary_op(op, right);
     }
 
+    // 4. 如果不是一元运算符，则解析基本表达式
     return primary();
 }
 
 // 解析标识符（变量、函数调用或属性访问）
 node_ptr parser::parse_identifier() {
+    // 1. 获取标识符的名称
     std::string identifier = previous().lexeme;
 
-    // 如果后面跟着左括号，则是函数调用
+    // 2. 根据后续token类型判断标识符的用途
+    // 2.1 如果后面是左括号，说明是函数调用，比如 max(1, 2)
     if (check(token_type::left_paren)) {
         return function_call();
     }
 
-    // 如果后面跟着点号，则是属性访问或对象方法调用
+    // 2.2 如果后面是点号，说明是属性访问或对象方法调用，比如 obj.prop1
     if (check(token_type::dot)) {
         return parse_property_access(make_variable(identifier));
     }
 
-    // 否则是变量引用
+    // 2.3 如果都不是，说明是普通变量引用，比如 a
     return make_variable(identifier);
 }
 
 // 解析对象属性访问和方法调用
+// 支持以下语法：
+// 1. 属性访问：obj.name, user.address.city
+// 2. 方法调用：obj.getValue(), user.getAddress().getCity()
 node_ptr parser::parse_property_access(node_ptr object) {
     node_ptr expr = object;
 
-    // 处理链式属性访问，如 obj.prop1.prop2
+    // 处理链式访问：obj.prop1.prop2.method()
     while (match({token_type::dot})) {
+        // 检查点号后的标识符
         if (!match({token_type::identifier})) {
             MC_THROW(parse_error_exception, "表达式解析错误: 点号后期望属性名");
         }
         std::string property = previous().lexeme;
 
-        // 检查是否是对象方法调用 (obj.method(...))
+        // 根据是否有左括号区分方法调用和属性访问
         if (check(token_type::left_paren)) {
-            expr = parse_method_call(expr, property);
+            expr = parse_method_call(expr, property);     // obj.method(...)
         } else {
-            // 否则是普通属性访问
-            expr = make_property_access(expr, property);
+            expr = make_property_access(expr, property);  // obj.property
         }
 
-        // 如果属性后面还有点号，继续处理链式访问
+        // 检查是否继续链式访问
         if (!check(token_type::dot)) {
             break;
         }
@@ -323,91 +360,100 @@ node_ptr parser::parse_property_access(node_ptr object) {
 }
 
 // 解析对象方法调用
+// 语法：obj.method(arg1, arg2, ...)
+// 示例：user.getName(), list.add(1, 2)
 node_ptr parser::parse_method_call(node_ptr object, const std::string& method_name) {
-    // 匹配左括号
+    // 1. 匹配左括号 '('
     match({token_type::left_paren});
 
+    // 2. 存储方法参数列表
     node_ptrs arguments;
 
-    // 解析参数列表
-    if (!check(token_type::right_paren)) {
+    // 3. 解析参数列表：method(expr1, expr2, ...)
+    if (!check(token_type::right_paren)) {  // 不是空参数列表
         do {
-            arguments.push_back(expression());
-        } while (match({token_type::comma}));
+            arguments.push_back(expression());  // 解析每个参数表达式
+        } while (match({token_type::comma}));  // 如果遇到逗号，继续解析下一个参数
     }
 
-    // 匹配右括号
+    // 4. 检查右括号 ')'
     if (!match({token_type::right_paren})) {
         MC_THROW(parse_error_exception, "表达式解析错误: 期望右括号");
     }
 
-    // 创建对象方法调用节点
+    // 5. 创建方法调用节点
     return make_object_method_call(object, method_name, std::move(arguments));
 }
 
 // 解析模板字符串
+// 语法：`text ${expr1} text ${expr2} text`
+// 示例：`Hello ${name}! Your age is ${age + 1}`
 node_ptr parser::parse_template_string() {
-    std::vector<std::string> text_parts;
-    node_ptrs                expressions;
+    // 1. 存储模板字符串的文本部分和表达式部分
+    std::vector<std::string> text_parts;   // 存储普通文本
+    node_ptrs expressions;                 // 存储表达式节点
 
-    // 获取开始部分的文本
+    // 2. 获取起始文本部分
     std::string start_text = previous().literal.as_string();
     text_parts.push_back(start_text);
 
     while (true) {
-        // 解析模板表达式
+        // 3. 解析 ${...} 表达式部分
         if (!match({token_type::template_expr})) {
             MC_THROW(parse_error_exception, "表达式解析错误: 期望模板表达式");
         }
 
-        // 获取表达式文本并解析
+        // 4. 解析表达式内容
         std::string expr_text = previous().lexeme;
-
-        // 创建独立的词法分析器和解析器来处理表达式
+        // 为表达式创建新的解析器
         mc::expr::lexer expr_lexer(expr_text);
-        auto            tokens = expr_lexer.scan_tokens();
-        parser          expr_parser(tokens);
+        auto tokens = expr_lexer.scan_tokens();
+        parser expr_parser(tokens);
         expressions.push_back(expr_parser.parse());
 
-        // 解析下一部分
+        // 5. 解析表达式后的文本部分
         if (match({token_type::template_middle})) {
+            // 还有更多部分要解析
             text_parts.push_back(previous().literal.as_string());
         } else if (match({token_type::template_end})) {
+            // 到达模板字符串结尾
             text_parts.push_back(previous().literal.as_string());
             break;
         } else {
-            MC_THROW(parse_error_exception, "表达式解析错误: 期望模板字符串中间部分或结束部分");
+            MC_THROW(parse_error_exception, 
+                "表达式解析错误: 期望模板字符串中间部分或结束部分");
         }
     }
 
+    // 6. 创建模板字符串节点
     return make_template_string(std::move(text_parts), std::move(expressions));
 }
 
 // 解析基本表达式
 node_ptr parser::primary() {
-    // 数字字面值
+    // 1. 解析数字字面值
     if (match({token_type::number})) {
-        return make_literal(previous().literal);
+        return make_literal(previous().literal);  // 如：123, 3.14
     }
 
-    // 字符串字面值
+    // 2. 解析字符串字面值
     if (match({token_type::string})) {
-        return make_literal(previous().literal);
+        return make_literal(previous().literal);  // 如："hello", 'world'
     }
 
-    // 模板字符串
+    // 3. 解析模板字符串
     if (match({token_type::template_start})) {
-        return parse_template_string();
+        return parse_template_string();  // 如：`Hello ${name}`
     }
 
-    // 标识符（变量、函数调用或属性访问）
+    // 4. 解析标识符
     if (match({token_type::identifier})) {
-        return parse_identifier();
+        return parse_identifier();  // 变量、函数调用或属性访问
     }
 
-    // 带括号的表达式
+    // 5. 解析括号表达式：(1 + 2)
     if (match({token_type::left_paren})) {
-        auto expr = expression();
+        auto expr = expression();  // 解析括号内的表达式
 
         if (!match({token_type::right_paren})) {
             MC_THROW(parse_error_exception, "表达式解析错误: 期望右括号");
@@ -416,6 +462,7 @@ node_ptr parser::primary() {
         return expr;
     }
 
+    // 无法识别的表达式
     MC_THROW(parse_error_exception, "表达式解析错误: 期望表达式");
 }
 
