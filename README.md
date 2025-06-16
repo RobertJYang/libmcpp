@@ -95,6 +95,18 @@ meson test -C builddir
 # 安装到系统
 meson configure builddir --prefix=/usr/local
 meson install -C builddir
+
+# 默认是48核构建（并行任务数量），参数配置与对于编译耗时测试结果，结合编译器实际性能进行配置
+rm -rf builddir; meson setup builddir; time meson compile -C builddir -j 48
+rm -rf builddir; meson setup builddir; time meson compile -C builddir -j 4
+rm -rf builddir; meson setup builddir; time meson compile -C builddir -j 16
+rm -rf builddir; meson setup builddir; time meson compile -C builddir -j 24
+
+编译核数     耗时
+-j4          346s
+-j16         126s
+-j24         106s
+-j48         90s, 96s    默认值，若系统CPU核数小于等于48时，编译过程中CPU占用率将会是100%
 ```
 
 ### 使用包管理器安装
