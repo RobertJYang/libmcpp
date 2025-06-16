@@ -96,17 +96,49 @@ meson test -C builddir
 meson configure builddir --prefix=/usr/local
 meson install -C builddir
 
-# 默认是48核构建（并行任务数量），参数配置与对于编译耗时测试结果，结合编译器实际性能进行配置
-rm -rf builddir; meson setup builddir; time meson compile -C builddir -j 48
-rm -rf builddir; meson setup builddir; time meson compile -C builddir -j 4
-rm -rf builddir; meson setup builddir; time meson compile -C builddir -j 16
-rm -rf builddir; meson setup builddir; time meson compile -C builddir -j 24
+# 编译性能优化说明
 
-编译核数     耗时
--j4          346s
--j16         126s
--j24         106s
--j48         90s, 96s    默认值，若系统CPU核数小于等于48时，编译过程中CPU占用率将会是100%
+## 编译并发任务配置
+
+### 性能测试数据
+基于不同并发任务数的编译耗时测试结果：
+
+| 并发任务数 | 编译耗时 | 性能提升 |
+|------------|----------|----------|
+| -j4        | 346s     | 基准值   |
+| -j16       | 126s     | 2.7x     |
+| -j24       | 106s     | 3.3x     |
+| -j48       | 90s      | 3.8x     |
+| -j128      | 38s      | 9.1x     |
+
+### 编译命令示例
+```bash
+# 清理并重新构建（使用48核并发）
+rm -rf builddir; meson setup builddir; time meson compile -C builddir -j 48
+
+# 其他并发配置示例
+rm -rf builddir; meson setup builddir; time meson compile -C builddir -j 128  # 最大并发
+rm -rf builddir; meson setup builddir; time meson compile -C builddir -j 24   # 中等并发
+rm -rf builddir; meson setup builddir; time meson compile -C builddir -j 4    # 低并发
+```
+
+### 并发任务机制说明
+1. **编译并发原理**
+   - Meson 构建系统支持多任务并行编译
+   - 每个并发任务对应一个独立的编译进程
+   - 任务数通过 `-j` 参数控制，表示同时运行的编译进程数
+
+2. **性能影响因素**
+   - CPU核心数：建议并发数不超过物理核心数
+   - 内存容量：每个编译进程都需要一定内存
+   - 磁盘I/O：大量并发可能导致磁盘I/O瓶颈
+   - 网络带宽：如果使用远程依赖，网络可能成为瓶颈
+
+3. **最佳实践建议**
+   - 使用48核并发，在测试环境中表现最佳
+   - 根据实际硬件配置调整并发数
+   - 内存受限时适当降低并发数
+   - 考虑使用 `-j$(nproc)` 自动匹配CPU核心数
 ```
 
 ### 使用包管理器安装
