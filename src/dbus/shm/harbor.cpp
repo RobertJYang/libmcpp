@@ -409,11 +409,13 @@ void harbor::unregister_service(std::string service_name) {
 }
 
 void harbor::add_rule(mc::dbus::match_rule& rule, mc::dbus::match_cb_t&& cb, uint64_t id) {
-    m_connection.add_match(rule, std::forward<mc::dbus::match_cb_t>(cb), id);
+    auto& match = m_connection.get_match();
+    match.add_rule(rule, std::forward<match_cb_t>(cb), id);
 }
 
 void harbor::remove_rule(uint64_t id) {
-    m_connection.remove_match(id);
+    auto& match = m_connection.get_match();
+    match.remove_rule(id);
 }
 
 } // namespace mc::dbus

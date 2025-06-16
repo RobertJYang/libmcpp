@@ -13,7 +13,8 @@ class AppConan(ConanBase):
 
     def generate(self):
         d = MesonDeps(self)
-        if self.settings.build_type != "Dt":
+        is_dt = self.settings.build_type == "Dt"
+        if not is_dt:
             d.cpp_link_args.append("-Bstatic")
             d.cpp_link_args.append("-lboost_program_options")
         else:
@@ -37,7 +38,7 @@ class AppConan(ConanBase):
         else:
             tc.project_options["libdir"] = 'usr/lib'
         tc.project_options["enable_shared_memory"] = "true"
-        if self.settings.build_type == "Dt":
+        if is_dt:
             tc.project_options["tests"] = "true"
         else:
             tc.project_options["tests"] = "false"
