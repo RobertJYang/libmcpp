@@ -14,12 +14,18 @@
 
 #include <functional>
 #include <mc/engine/base.h>
+#include <mc/expr/function/call.h>
+#include <mc/expr/function/collection.h>
+#include <mc/expr/function/parser.h>
+#include <mc/log.h>
 #include <mc/reflect.h>
 #include <mc/signal_slot.h>
 #include <mc/traits.h>
 #include <mc/variant.h>
 #include <tuple>
 #include <vector>
+
+using namespace mc::expr;
 
 namespace mc::engine {
 
@@ -93,11 +99,13 @@ public:
     property() = default;
 
     template <typename U = T, typename = std::enable_if_t<std::is_convertible_v<U, T>>>
-    explicit property(param_type value) : m_value(value) {
+    explicit property(param_type value)
+        : m_value(value) {
     }
 
     template <typename U = T, typename = std::enable_if_t<std::is_convertible_v<U, T>>>
-    explicit property(rvalue_type value) : m_value(std::move(value)) {
+    explicit property(rvalue_type value)
+        : m_value(std::move(value)) {
     }
 
     template <typename Getter, std::size_t... Is, typename... SyncProps>
@@ -263,8 +271,357 @@ public:
         to_variant(value.m_value, v);
     }
 
+    // 查找对象的辅助方法
+    abstract_object* find_related_object(const std::string& object_name) {
+        auto position = get_object()->get_position();
+        auto service  = func_collection::get_instance().get_service(position);
+        if (service == nullptr) {
+            elog("Service not found for position: ${position}", ("position", std::string(position)));
+            return nullptr;
+        }
+
+        std::string full_object_name = object_name + "_" + std::string(position);
+        auto&       object_table     = service->get_object_table();
+        auto&       idx              = object_table.template get<mc::engine::by_object_name>();
+        auto        obj_it           = idx.find(full_object_name);
+
+        if (obj_it == idx.end()) {
+            elog("Object not found: ${object_name}", ("object_name", full_object_name));
+            return nullptr;
+        }
+
+        return const_cast<mc::engine::abstract_object*>(&(*obj_it));
+    }
+
+    // 执行函数调用的辅助方法
+    mc::variant call_function_with_result() {
+        auto position = get_object()->get_position();
+        auto result   = m_func.template as<func>().call(position, m_func_params);
+        if (result.is_null()) {
+            elog("Function call failed for property: ${name}", ("name", get_name()));
+        }
+        return result;
+    }
+
+    // 设置函数getter的辅助方法
+    void setup_function_getter() {
+        m_getter = [this]() -> T {
+            auto result = call_function_with_result();
+            if (result.is_null()) {
+                return T{};
+            }
+
+            T value;
+            from_variant(result, value);
+            return value;
+        };
+    }
+
+    void hook_ref_properties(mc::mutable_dict& relate_properties) {
+        setup_function_getter();
+
+        // 引用属性不支持设置值
+        m_setter = [this](const T& value) {
+            MC_THROW(mc::invalid_op_exception, "设置引用属性值不被允许");
+        };
+    }
+
+    mc::variant get_relate_property(const relate_property& relate_property) {
+        auto* target_object = find_related_object(relate_property.object_name);
+        if (target_object == nullptr) {
+            return mc::variant();
+        }
+
+        return target_object->get_property(relate_property.property_name);
+    }
+
+    void set_relate_property(const relate_property& relate_property, const mc::variant& value) {
+        auto* target_object = find_related_object(relate_property.object_name);
+        if (target_object == nullptr) {
+            return;
+        }
+
+        target_object->set_property(relate_property.property_name, value);
+    }
+
+    void hook_ref_property(const relate_property& relate_property) {
+        m_getter = [this, relate_property]() -> T {
+            auto result = get_relate_property(relate_property);
+            if (result.is_null()) {
+                elog("获取引用属性失败: ${object_name}.${property_name}",
+                     ("object_name", relate_property.object_name)("property_name", relate_property.property_name));
+                return T{};
+            }
+
+            T value;
+            from_variant(result, value);
+            return value;
+        };
+
+        m_setter = [this, relate_property](const T& value) {
+            mc::variant variant_value(value);
+            set_relate_property(relate_property, variant_value);
+        };
+    }
+
+    // 连接属性变化监听器的辅助方法
+    void connect_property_listener(abstract_object&      target_object,
+                                   const std::string&    property_name,
+                                   std::function<void()> callback) {
+        target_object.property_changed().connect(
+            [this, property_name, callback](const mc::variant& value, const property_base& prop) {
+            if (prop.get_name() == property_name) {
+                callback();
+            }
+        });
+    }
+
+    // 断开所有已有的连接
+    void disconnect_all_connections() {
+        // 主动断开所有连接
+        for (auto& slot : m_connection_slots) {
+            slot.disconnect();
+        }
+        // 清理现有的连接状态
+        m_connection_slots.clear();
+    }
+
+    // 设置同步属性连接的辅助方法
+    void setup_sync_property_connection(const relate_property& relate_property,
+                                        abstract_object&       target_object) {
+        // 断开旧连接
+        disconnect_all_connections();
+
+        // 创建新的连接
+        auto slot = target_object.property_changed().connect(
+            [this, relate_property](const mc::variant& value, const property_base& prop) {
+            if (prop.get_name() == relate_property.property_name) {
+                auto result = get_relate_property(relate_property);
+                if (!result.is_null()) {
+                    T new_value;
+                    from_variant(result, new_value);
+                    set_value_impl(std::move(new_value));
+                }
+            }
+        });
+
+        // 存储连接以便后续管理
+        m_connection_slots.push_back(slot);
+
+        // 设置初始值
+        auto initial_value = target_object.get_property(relate_property.property_name);
+        if (!initial_value.is_null()) {
+            T value;
+            from_variant(initial_value, value);
+            set_value_impl(std::move(value));
+        }
+    }
+
+    // 设置延迟同步连接的辅助方法
+    void setup_deferred_sync_connection(const relate_property& relate_property) {
+        auto position = get_object()->get_position();
+        auto service  = func_collection::get_instance().get_service(position);
+        if (service == nullptr) {
+            return;
+        }
+
+        std::string full_object_name = relate_property.object_name + "_" + std::string(position);
+        auto&       object_table     = service->get_object_table();
+
+        auto slot = object_table.template on_object_added.connect(
+            [this, full_object_name, relate_property](mc::core::object_base& base_object) {
+            auto& object = static_cast<mc::engine::abstract_object&>(base_object);
+            if (object.get_name() == full_object_name) {
+                setup_sync_property_connection(relate_property, object);
+            }
+        });
+
+        // 存储延迟连接
+        m_connection_slots.push_back(slot);
+    }
+
+    void hook_sync_property(const relate_property& relate_property) {
+        auto* target_object = find_related_object(relate_property.object_name);
+        if (target_object == nullptr) {
+            setup_deferred_sync_connection(relate_property);
+        } else {
+            setup_sync_property_connection(relate_property, *target_object);
+        }
+
+        // 同步属性不支持设置值
+        m_setter = [this](const T& value) {
+            MC_THROW(mc::invalid_op_exception, "设置同步属性值不被允许");
+        };
+    }
+
+    // 更新同步属性值的辅助方法
+    void update_sync_value_from_function() {
+        auto result = call_function_with_result();
+        if (result.is_null()) {
+            return;
+        }
+
+        T value;
+        from_variant(result, value);
+        set_value_impl(std::move(value));
+    }
+
+    // 按对象分组属性的辅助方法
+    mc::mutable_dict group_properties_by_object(const mc::mutable_dict& relate_properties) {
+        mc::mutable_dict object_properties;
+
+        for (const auto& entry : relate_properties) {
+            auto relate_property = entry.value.template as<mc::expr::relate_property>();
+
+            if (!object_properties.contains(relate_property.object_name)) {
+                object_properties[relate_property.object_name] = mc::mutable_dict{};
+            }
+
+            auto object_property = object_properties[relate_property.object_name].as<mc::mutable_dict>();
+            object_property.insert(relate_property.property_name, true);
+            object_properties[relate_property.object_name] = object_property;
+        }
+
+        return object_properties;
+    }
+
+    // 处理单个对象的同步属性
+    void process_sync_properties_for_object(const std::string&      object_name,
+                                            const mc::mutable_dict& object_properties) {
+        auto* target_object = find_related_object(object_name);
+        if (target_object == nullptr) {
+            setup_deferred_multi_sync_connection(object_name, object_properties);
+            return;
+        }
+
+        setup_multi_sync_connection(*target_object, object_properties);
+    }
+
+    // 设置多属性同步连接
+    void setup_multi_sync_connection(abstract_object&        target_object,
+                                     const mc::mutable_dict& object_properties) {
+        auto slot = target_object.property_changed().connect(
+            [this, object_properties](const mc::variant& value, const property_base& prop) {
+            if (object_properties.contains(prop.get_name())) {
+                update_sync_value_from_function();
+            }
+        });
+
+        // 存储连接
+        m_connection_slots.push_back(slot);
+
+        // 设置初始值
+        update_sync_value_from_function();
+    }
+
+    // 设置延迟多属性同步连接
+    void setup_deferred_multi_sync_connection(const std::string&      object_name,
+                                              const mc::mutable_dict& object_properties) {
+        auto position = get_object()->get_position();
+        auto service  = func_collection::get_instance().get_service(position);
+        if (service == nullptr) {
+            return;
+        }
+
+        std::string full_object_name = object_name + "_" + std::string(position);
+        auto&       object_table     = service->get_object_table();
+
+        auto slot = object_table.template on_object_added.connect(
+            [this, full_object_name, object_properties](mc::core::object_base& base_object) {
+            auto& object = static_cast<mc::engine::abstract_object&>(base_object);
+            if (object.get_name() == full_object_name) {
+                setup_multi_sync_connection(object, object_properties);
+            }
+        });
+
+        // 存储延迟连接
+        m_connection_slots.push_back(slot);
+    }
+
+    void hook_sync_properties(mc::mutable_dict& relate_properties) {
+        // 断开旧连接
+        disconnect_all_connections();
+
+        auto grouped_properties = group_properties_by_object(relate_properties);
+
+        for (const auto& entry : grouped_properties) {
+            auto object_name       = entry.key.template as<std::string>();
+            auto object_properties = entry.value.template as<mc::mutable_dict>();
+            process_sync_properties_for_object(object_name, object_properties);
+        }
+
+        // 同步属性不支持设置值
+        m_setter = [this](const T& value) {
+            MC_THROW(mc::invalid_op_exception, "设置同步属性值不被允许");
+        };
+    }
+
+    void hook_relate_properties(mc::variant& call_func, mc::mutable_dict& func_params) {
+        m_func        = call_func;
+        m_func_params = func_params;
+
+        auto relate_properties = m_func.template as<func>().get_relate_properties(
+            get_object()->get_position(), func_params);
+
+        if (relate_properties.empty()) {
+            return;
+        }
+
+        // 处理第一个关联属性的类型
+        for (const auto& entry : relate_properties) {
+            auto value = entry.value.template as<mc::expr::relate_property>();
+            if (value.type == "ref") {
+                hook_ref_properties(relate_properties);
+            } else if (value.type == "sync") {
+                hook_sync_properties(relate_properties);
+            }
+            break;
+        }
+    }
+
+    void process_property_value(const std::string& value_str) {
+        auto func_info = func_parser::get_instance().parse_function_call(value_str);
+        auto position  = get_object()->get_position();
+        auto call_func = func_collection::get_instance().get(position, func_info.func);
+
+        if (call_func.is_null()) {
+            elog("函数未找到: ${name}", ("name", func_info.func));
+            // 函数未找到时，不修改属性值，保持原有值
+            return;
+        }
+
+        hook_relate_properties(call_func, func_info.params);
+
+        auto result = call_func.template as<func>().call(position, func_info.params);
+        if (result.is_null()) {
+            elog("函数调用失败: ${name}", ("name", func_info.func));
+            return;
+        }
+
+        T value;
+        from_variant(result, value);
+        set_value_impl(std::move(value));
+    }
+
     friend inline void from_variant(const mc::variant& v, property_type& value) {
-        from_variant(v, value.m_value);
+        if (!v.is_string()) {
+            from_variant(v, value.m_value);
+            return;
+        }
+
+        auto str = v.as<std::string>();
+
+        if (str.substr(0, 3) == "<=/") {
+            auto sync_prop = func_parser::get_instance().parse_sync_property(str);
+            value.hook_sync_property(sync_prop);
+        } else if (str.substr(0, 2) == "#/") {
+            auto ref_prop = func_parser::get_instance().parse_ref_property(str);
+            value.hook_ref_property(ref_prop);
+        } else if (str.substr(0, 6) == "$Func_") {
+            value.process_property_value(str);
+        } else {
+            from_variant(v, value.m_value);
+        }
     }
 
     observer_type& get_observer() {
@@ -390,6 +747,9 @@ protected:
     }};
     std::function<T()>                       m_getter;
     std::function<void(const T&)>            m_setter;
+    mc::variant                              m_func;
+    mc::mutable_dict                         m_func_params;
+    std::vector<mc::connection_type>         m_connection_slots;
 };
 
 } // namespace mc::engine

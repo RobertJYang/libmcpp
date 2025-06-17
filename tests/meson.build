@@ -17,6 +17,8 @@ test_files = [
   'expr/builtin/test_math.cpp',
   'expr/builtin/test_string.cpp',
   'expr/builtin/test_conversion.cpp',
+  'expr/function/test_call.cpp',
+  'expr/function/test_parser.cpp',
 
   # core 目录
   'core/test_service_manager.cpp',

@@ -16,7 +16,14 @@
 #include <mc/engine/interface.h>
 #include <mc/engine/object.h>
 #include <mc/engine/property.h>
+#include <mc/engine/service.h>
+#include <mc/expr/function/collection.h>
+#include <test_utilities/test_base.h>
+#include <iostream>
 #include <sstream>
+#include <unordered_map>
+#include <thread>
+#include <chrono>
 
 namespace {
 struct Point {
@@ -41,11 +48,178 @@ struct test_observer {
         m_last_value = value;
     }
 };
+
 template <typename T, typename Observer = mc::engine::detail::empty_observer>
 using property = mc::engine::property<T, Observer>;
+
+// 创建真实的测试接口和对象
+class cpu_interface : public mc::engine::interface<cpu_interface> {
+public:
+    MC_INTERFACE("org.test.CPUInterface")
+
+    mc::engine::property<double> temperature;
+    mc::engine::property<double> usage;
+};
+
+class memory_interface : public mc::engine::interface<memory_interface> {
+public:
+    MC_INTERFACE("org.test.MemoryInterface")
+
+    mc::engine::property<double> usage;
+    mc::engine::property<uint64_t> total;
+};
+
+class gpu_interface : public mc::engine::interface<gpu_interface> {
+public:
+    MC_INTERFACE("org.test.GPUInterface")
+
+    mc::engine::property<double> load;
+    mc::engine::property<double> temperature;
+};
+
+class cpu_object : public mc::engine::object<cpu_object> {
+public:
+    MC_OBJECT(cpu_object, "CPU", "/test/cpu_${position}", (cpu_interface))
+
+    cpu_interface m_interface;
+    
+    cpu_object() {
+        m_interface.temperature = 75.5;
+        m_interface.usage = 50.0;
+    }
+};
+
+class memory_object : public mc::engine::object<memory_object> {
+public:
+    MC_OBJECT(memory_object, "Memory", "/test/memory_${position}", (memory_interface))
+
+    memory_interface m_interface;
+    
+    memory_object() {
+        m_interface.usage = 85.2;
+        m_interface.total = 16384ULL; // 16GB
+    }
+};
+
+class gpu_object : public mc::engine::object<gpu_object> {
+public:
+    MC_OBJECT(gpu_object, "GPU", "/test/gpu_${position}", (gpu_interface))
+
+    gpu_interface m_interface;
+    
+    gpu_object() {
+        m_interface.load = 60.8;
+        m_interface.temperature = 70.0;
+    }
+};
+
+// 测试接口，包含字符串属性
+class test_interface : public mc::engine::interface<test_interface> {
+public:
+    MC_INTERFACE("org.test.TestInterface")
+
+    mc::engine::property<std::string> test_prop;
+    
+    test_interface() {
+        test_prop = "initial_value";
+    }
+};
+
+// 用于测试的主要对象，包含属性引用
+class test_object_with_properties : public mc::engine::object<test_object_with_properties> {
+public:
+    MC_OBJECT(test_object_with_properties, "TestObject", "/test/object_${position}", (test_interface))
+
+    test_interface m_interface;
+};
+
+// 真实的测试服务
+class real_test_service : public mc::engine::service {
+public:
+    real_test_service() : mc::engine::service(generate_unique_service_name()) {}
+    
+    bool init_for_test() {
+        // 为测试初始化服务，设置服务路径参数
+        mc::mutable_dict args;
+        args["service_path"] = "/org/test/service";
+        args["service_name"] = name();
+        return mc::engine::service::init(args);
+    }
+    
+    bool start_for_test() {
+        // 启动真实的服务
+        return mc::engine::service::start();
+    }
+
+    void setup_test_objects() {
+        // 创建真实的对象并注册到服务
+        // 为每个对象使用不同的位置以避免名称冲突
+        m_cpu = cpu_object::create();
+        m_cpu->set_position("04");  // 所有对象使用相同的位置
+        m_cpu->set_object_name("CPU_04");  // 设置与位置匹配的对象名
+        register_object(m_cpu);
+
+        m_memory = memory_object::create();
+        m_memory->set_position("04");  // 所有对象使用相同的位置
+        m_memory->set_object_name("Memory_04");  // 设置与位置匹配的对象名
+        register_object(m_memory);
+
+        m_gpu = gpu_object::create();
+        m_gpu->set_position("04");  // 所有对象使用相同的位置
+        m_gpu->set_object_name("GPU_04");  // 设置与位置匹配的对象名
+        register_object(m_gpu);
+
+        m_test_obj = test_object_with_properties::create();
+        m_test_obj->set_position("04");
+        m_test_obj->set_object_name("TestObject_04");  // 设置与位置匹配的对象名
+        register_object(m_test_obj);
+    }
+    
+    // 创建一个模拟函数用于测试hook_ref_properties
+    mc::variant create_test_function() {
+        // 创建一个简单的测试函数，计算CPU和GPU温度的平均值
+        [[maybe_unused]] auto test_func = [this](const std::string& position, const mc::mutable_dict& params) -> mc::variant {
+            auto cpu_temp = m_cpu->m_interface.temperature.value();
+            auto gpu_temp = m_gpu->m_interface.temperature.value();
+            double avg_temp = (cpu_temp + gpu_temp) / 2.0;
+            return std::to_string(avg_temp);
+        };
+        
+        // 包装成func对象
+        // 注意：这里需要根据实际的func类型来创建，简化为返回字符串
+        return mc::variant(std::string("computed_average_temp"));
+    }
+
+    mc::shared_ptr<cpu_object> get_cpu() const { return m_cpu; }
+    mc::shared_ptr<memory_object> get_memory() const { return m_memory; }
+    mc::shared_ptr<gpu_object> get_gpu() const { return m_gpu; }
+    mc::shared_ptr<test_object_with_properties> get_test_obj() const { return m_test_obj; }
+
+private:
+    static std::string generate_unique_service_name() {
+        static int counter = 0;
+        return "org.test.property_test_" + std::to_string(++counter);
+    }
+
+    mc::shared_ptr<cpu_object> m_cpu;
+    mc::shared_ptr<memory_object> m_memory;
+    mc::shared_ptr<gpu_object> m_gpu;
+    mc::shared_ptr<test_object_with_properties> m_test_obj;
+};
+
+// 删除全局设置函数，改为每个测试独立创建服务
+
 } // namespace
 
 MC_REFLECT(Point, (x)(y))
+MC_REFLECT(cpu_interface, ((temperature, "Temperature"))((usage, "Usage")))
+MC_REFLECT(memory_interface, ((usage, "Usage"))((total, "Total")))
+MC_REFLECT(gpu_interface, ((load, "Load"))((temperature, "Temperature")))
+MC_REFLECT(cpu_object, ((m_interface, "interface")))
+MC_REFLECT(memory_object, ((m_interface, "interface")))
+MC_REFLECT(gpu_object, ((m_interface, "interface")))
+MC_REFLECT(test_interface, ((test_prop, "test_prop")))
+MC_REFLECT(test_object_with_properties, ((m_interface, "interface")))
 
 // 测试基础类型的 property
 TEST(PropertyTest, BasicType) {
@@ -451,4 +625,1456 @@ TEST(PropertyTest, ReadOnlyMultiDiffTypeRefProperty) {
     minute = 40;
     EXPECT_EQ(ref.value(), "30:20");
     EXPECT_EQ(ref.value(true), "30:40");
+}
+
+// 测试属性相关功能的测试基类
+class PropertyRelateTest : public mc::test::TestWithEngine {
+protected:
+    void SetUp() override {
+        TestWithEngine::SetUp();
+        
+        // 创建独立的服务实例
+        m_service = std::make_shared<real_test_service>();
+        ASSERT_TRUE(m_service->init_for_test());
+        ASSERT_TRUE(m_service->start_for_test());
+        m_service->setup_test_objects();
+        
+        mc::mutable_dict functions; // 空的函数字典，因为我们只测试属性访问
+        // 使用测试对象的实际位置作为服务注册的key，这样属性查找时能找到正确的服务
+        auto test_obj = m_service->get_test_obj();
+        std::string position = std::string(test_obj->get_position());
+        mc::expr::func_collection::get_instance().add(position, m_service, functions);
+    }
+    
+    void TearDown() override {
+        if (m_service) {
+            m_service->stop();
+        }
+        TestWithEngine::TearDown();
+    }
+    
+    std::shared_ptr<real_test_service> m_service;
+};
+
+// 测试 property 的 get_relate_property 方法（使用真实的对象）
+TEST_F(PropertyRelateTest, GetRelateProperty) {
+    // 创建一个带有接口的真实对象
+    auto test_obj = m_service->get_test_obj();
+    ASSERT_NE(test_obj, nullptr);
+    
+    // 从对象中获取属性，但要确保属性有正确的对象关联
+    // 我们使用测试对象自己的属性，因为它保证有正确的owner关系
+    auto& test_prop = test_obj->m_interface.test_prop;
+    
+    // 确保属性有正确的对象关联
+    ASSERT_NE(test_prop.get_object(), nullptr);
+    ASSERT_EQ(test_prop.get_object(), test_obj.get());
+    
+    // 创建一个 relate_property 指向 CPU 对象
+    mc::expr::relate_property rp;
+    rp.type = "ref";
+    rp.object_name = "CPU";  // 使用基础名称，系统会自动添加位置后缀
+    rp.property_name = "Temperature";
+    rp.full_name = "CPU.Temperature";
+    
+    // 测试获取relate_property
+    EXPECT_NO_THROW({
+        auto result = test_prop.get_relate_property(rp);
+        // 现在对象不为空，应该能够尝试查找 CPU_01 对象
+        // 但是由于 CPU_01 对象实际存在，应该能获取到属性值
+        EXPECT_FALSE(result.is_null());
+        EXPECT_DOUBLE_EQ(result.as<double>(), 75.5);
+    });
+    
+    // 测试不存在的对象
+    mc::expr::relate_property rp_invalid;
+    rp_invalid.type = "ref";
+    rp_invalid.object_name = "InvalidObject";
+    rp_invalid.property_name = "TestProperty";
+    rp_invalid.full_name = "InvalidObject.TestProperty";
+    
+    EXPECT_NO_THROW({
+        auto result = test_prop.get_relate_property(rp_invalid);
+        // 不存在的对象应该返回null
+        EXPECT_TRUE(result.is_null());
+    });
+}
+
+// 测试 property 的 set_relate_property 方法
+TEST_F(PropertyRelateTest, SetRelateProperty) {
+    // 创建一个带有接口的真实对象
+    auto test_obj = m_service->get_test_obj();
+    ASSERT_NE(test_obj, nullptr);
+    
+    // 确保属性有正确的对象关联
+    auto& test_prop = test_obj->m_interface.test_prop;
+    ASSERT_NE(test_prop.get_object(), nullptr);
+    ASSERT_EQ(test_prop.get_object(), test_obj.get());
+    
+    mc::expr::relate_property rp;
+    rp.type = "ref";
+    rp.object_name = "CPU";  // 使用基础名称，系统会自动添加位置后缀
+    rp.property_name = "Temperature";
+    rp.full_name = "CPU.Temperature";
+    
+    mc::variant test_value(80.0);
+    
+    // 测试设置relate_property
+    EXPECT_NO_THROW({
+        test_prop.set_relate_property(rp, test_value);
+    });
+    
+    // 验证值是否设置成功
+    auto result = test_prop.get_relate_property(rp);
+    EXPECT_FALSE(result.is_null());
+    EXPECT_DOUBLE_EQ(result.as<double>(), 80.0);
+}
+
+// 测试 property 的 hook_ref_property 方法
+TEST_F(PropertyRelateTest, HookRefProperty) {
+    // 创建一个带有接口的真实对象
+    auto test_obj = m_service->get_test_obj();
+    ASSERT_NE(test_obj, nullptr);
+    
+    // 确保属性有正确的对象关联
+    auto& test_prop = test_obj->m_interface.test_prop;
+    ASSERT_NE(test_prop.get_object(), nullptr);
+    ASSERT_EQ(test_prop.get_object(), test_obj.get());
+    
+    mc::expr::relate_property rp;
+    rp.type = "ref";
+    rp.object_name = "CPU";  // 使用基础名称，系统会自动添加位置后缀
+    rp.property_name = "Temperature";
+    rp.full_name = "CPU.Temperature";
+    
+    // 测试hook ref property操作
+    EXPECT_NO_THROW({
+        test_prop.hook_ref_property(rp);
+    });
+    
+    // 验证property现在能够反映被引用的值
+    // 注意：这里需要检查property的值是否等于被引用对象的属性值
+    // 但由于类型转换（double -> string），我们需要检查字符串表示
+    std::string expected_value = "75.5";
+    EXPECT_EQ(test_prop.value(true), expected_value);
+    
+    // 修改被引用对象的值，验证引用属性是否能同步更新
+    m_service->get_cpu()->m_interface.temperature = 88.8;
+    EXPECT_EQ(test_prop.value(true), "88.8");  // 应该反映新的温度值
+}
+
+// 测试 relate_property 中不同对象类型的属性访问
+TEST_F(PropertyRelateTest, DifferentObjectTypes) {
+    auto test_obj = m_service->get_test_obj();
+    ASSERT_NE(test_obj, nullptr);
+    
+    auto& test_prop = test_obj->m_interface.test_prop;
+    ASSERT_NE(test_prop.get_object(), nullptr);
+    
+    // 测试CPU对象的不同属性
+    mc::expr::relate_property cpu_usage;
+    cpu_usage.type = "ref";
+    cpu_usage.object_name = "CPU";
+    cpu_usage.property_name = "Usage";
+    cpu_usage.full_name = "CPU.Usage";
+    
+    auto cpu_usage_result = test_prop.get_relate_property(cpu_usage);
+    EXPECT_FALSE(cpu_usage_result.is_null());
+    EXPECT_DOUBLE_EQ(cpu_usage_result.as<double>(), 50.0);
+    
+    // 测试Memory对象的属性
+    mc::expr::relate_property memory_total;
+    memory_total.type = "ref";
+    memory_total.object_name = "Memory";
+    memory_total.property_name = "Total";
+    memory_total.full_name = "Memory.Total";
+    
+    auto memory_total_result = test_prop.get_relate_property(memory_total);
+    EXPECT_FALSE(memory_total_result.is_null());
+    EXPECT_EQ(memory_total_result.as<uint64_t>(), 16384ULL);
+    
+    // 测试GPU对象的属性
+    mc::expr::relate_property gpu_temp;
+    gpu_temp.type = "ref";
+    gpu_temp.object_name = "GPU";
+    gpu_temp.property_name = "Temperature";
+    gpu_temp.full_name = "GPU.Temperature";
+    
+    auto gpu_temp_result = test_prop.get_relate_property(gpu_temp);
+    EXPECT_FALSE(gpu_temp_result.is_null());
+    EXPECT_DOUBLE_EQ(gpu_temp_result.as<double>(), 70.0);
+}
+
+// 测试错误场景处理
+TEST_F(PropertyRelateTest, ErrorHandling) {
+    auto test_obj = m_service->get_test_obj();
+    ASSERT_NE(test_obj, nullptr);
+    
+    auto& test_prop = test_obj->m_interface.test_prop;
+    ASSERT_NE(test_prop.get_object(), nullptr);
+    
+    // 测试不存在的对象
+    mc::expr::relate_property invalid_object;
+    invalid_object.type = "ref";
+    invalid_object.object_name = "NonExistentObject";
+    invalid_object.property_name = "SomeProperty";
+    invalid_object.full_name = "NonExistentObject.SomeProperty";
+    
+    auto result = test_prop.get_relate_property(invalid_object);
+    EXPECT_TRUE(result.is_null());
+    
+    // 测试不存在的属性
+    mc::expr::relate_property invalid_property;
+    invalid_property.type = "ref";
+    invalid_property.object_name = "CPU";
+    invalid_property.property_name = "NonExistentProperty";
+    invalid_property.full_name = "CPU.NonExistentProperty";
+    
+    auto result2 = test_prop.get_relate_property(invalid_property);
+    EXPECT_TRUE(result2.is_null());
+}
+
+// 测试 property 的 hook_ref_properties 方法
+TEST_F(PropertyRelateTest, HookRefProperties) {
+    // 创建一个带有接口的真实对象
+    auto test_obj = m_service->get_test_obj();
+    ASSERT_NE(test_obj, nullptr);
+    
+    // 确保属性有正确的对象关联
+    auto& test_prop = test_obj->m_interface.test_prop;
+    ASSERT_NE(test_prop.get_object(), nullptr);
+    ASSERT_EQ(test_prop.get_object(), test_obj.get());
+    
+    // 创建一个模拟的relate_properties字典
+    mc::mutable_dict relate_properties;
+    relate_properties["cpu_temp"] = mc::mutable_dict{
+        {"type", "ref"},
+        {"object_name", "CPU"},
+        {"property_name", "Temperature"},
+        {"full_name", "CPU.Temperature"}
+    };
+    relate_properties["gpu_temp"] = mc::mutable_dict{
+        {"type", "ref"},
+        {"object_name", "GPU"},
+        {"property_name", "Temperature"},
+        {"full_name", "GPU.Temperature"}
+    };
+    
+    // 测试hook_ref_properties方法不会抛出异常
+    EXPECT_NO_THROW({
+        test_prop.hook_ref_properties(relate_properties);
+    });
+    
+    // 验证设置了setter后，尝试设置值会抛出异常
+    EXPECT_THROW({
+        test_prop = "new_value";
+    }, mc::invalid_op_exception);
+}
+
+// 测试 hook_ref_properties 使用函数表达式计算多个属性值
+TEST_F(PropertyRelateTest, HookRefPropertiesWithExpressionCalculation) {
+    mc::expr::func_collection::get_instance().clear();
+    // 创建一个带有接口的真实对象
+    auto test_obj = m_service->get_test_obj();
+    ASSERT_NE(test_obj, nullptr);
+    
+    // 确保属性有正确的对象关联
+    auto& test_prop = test_obj->m_interface.test_prop;
+    ASSERT_NE(test_prop.get_object(), nullptr);
+    ASSERT_EQ(test_prop.get_object(), test_obj.get());
+    
+    // 清理func_collection确保没有残留的函数
+    mc::expr::func_collection::get_instance().clear();
+    
+    // 创建一个计算函数，参考BasicUsage的实现
+    mc::mutable_dict functions;
+    
+    // 创建函数参数，包含多个引用属性
+    mc::dict func_args = {
+        {"cpu_temp", mc::mutable_dict{
+            {"type", "ref"},
+            {"object_name", "CPU"},
+            {"property_name", "Temperature"},
+            {"full_name", "CPU.Temperature"}
+        }},
+        {"memory_usage", mc::mutable_dict{
+            {"type", "ref"},
+            {"object_name", "Memory"},
+            {"property_name", "Usage"},
+            {"full_name", "Memory.Usage"}
+        }},
+        {"gpu_load", mc::mutable_dict{
+            {"type", "ref"},
+            {"object_name", "GPU"},
+            {"property_name", "Load"},
+            {"full_name", "GPU.Load"}
+        }}
+    };
+    
+    // 创建计算表达式：CPU温度 + Memory使用率 + GPU负载的加权平均
+    std::string expression = "(cpu_temp * 0.4) + (memory_usage * 0.3) + (gpu_load * 0.3)";
+    mc::expr::func calc_func(expression, func_args);
+    functions.insert("Func_CalculateAverage", mc::variant(calc_func));
+    
+    // 注册函数到func_collection
+    std::string position = std::string(test_obj->get_position());
+    mc::expr::func_collection::get_instance().add(position, m_service, functions);
+    
+    // 创建relate_properties字典，包含所有引用的属性
+    mc::mutable_dict relate_properties;
+    relate_properties["cpu_temp"] = mc::mutable_dict{
+        {"type", "ref"},
+        {"object_name", "CPU"},
+        {"property_name", "Temperature"},
+        {"full_name", "CPU.Temperature"}
+    };
+    relate_properties["memory_usage"] = mc::mutable_dict{
+        {"type", "ref"},
+        {"object_name", "Memory"},
+        {"property_name", "Usage"},
+        {"full_name", "Memory.Usage"}
+    };
+    relate_properties["gpu_load"] = mc::mutable_dict{
+        {"type", "ref"},
+        {"object_name", "GPU"},
+        {"property_name", "Load"},
+        {"full_name", "GPU.Load"}
+    };
+    
+    // 使用process_property_value方法，它会自动处理函数注册和调用
+    std::string func_call_str = "$Func_CalculateAverage({})";
+    EXPECT_NO_THROW({
+        test_prop.process_property_value(func_call_str);
+    });
+    
+    // 直接验证属性的表达式计算结果
+    // 由于hook_ref_properties设置了getter，属性值应该通过表达式计算得出
+    std::string property_value = test_prop.value(true);
+    EXPECT_FALSE(property_value.empty());
+    
+    // 如果hook_ref_properties正确实现了表达式计算，验证具体计算结果
+    // 预期值：(75.5 * 0.4) + (85.2 * 0.3) + (60.8 * 0.3) = 30.2 + 25.56 + 18.24 = 74.0
+    double expected_result = (75.5 * 0.4) + (85.2 * 0.3) + (60.8 * 0.3);
+    
+    // 尝试解析属性值为数值进行验证
+    try {
+        double actual_result = std::stod(property_value);
+        EXPECT_NEAR(actual_result, expected_result, 0.01) 
+            << "表达式计算结果不匹配。期望: " << expected_result 
+            << ", 实际: " << actual_result 
+            << ", 属性值: " << property_value;
+    } catch (const std::exception& e) {
+        // 如果无法解析为数值，说明hook_ref_properties可能有不同的实现
+        // 这里至少验证属性值包含了某些预期的信息
+        EXPECT_TRUE(property_value.find("75.5") != std::string::npos || 
+                   property_value.find("85.2") != std::string::npos ||
+                   property_value.find("60.8") != std::string::npos)
+            << "属性值应该包含源属性的值: " << property_value;
+    }
+    
+    // 修改源属性值，验证表达式重新计算
+    m_service->get_cpu()->m_interface.temperature = 80.0;
+    m_service->get_memory()->m_interface.usage = 90.0;
+    m_service->get_gpu()->m_interface.load = 70.0;
+    
+    // 获取新的计算结果
+    std::string new_property_value = test_prop.value(true);
+    EXPECT_FALSE(new_property_value.empty());
+    EXPECT_NE(property_value, new_property_value) 
+        << "修改源属性后，表达式计算结果应该发生变化";
+    
+    // 验证新的计算结果
+    // 新的期望值：(80.0 * 0.4) + (90.0 * 0.3) + (70.0 * 0.3) = 32.0 + 27.0 + 21.0 = 80.0
+    double new_expected = (80.0 * 0.4) + (90.0 * 0.3) + (70.0 * 0.3);
+    
+    try {
+        double new_actual = std::stod(new_property_value);
+        EXPECT_NEAR(new_actual, new_expected, 0.01)
+            << "更新后的表达式计算结果不匹配。期望: " << new_expected 
+            << ", 实际: " << new_actual 
+            << ", 属性值: " << new_property_value;
+    } catch (const std::exception& e) {
+        // 验证新值包含更新后的源属性值
+        EXPECT_TRUE(new_property_value.find("80") != std::string::npos || 
+                   new_property_value.find("90") != std::string::npos ||
+                   new_property_value.find("70") != std::string::npos)
+            << "更新后的属性值应该包含新的源属性值: " << new_property_value;
+    }
+    
+    // 验证属性仍然是只读的（设置了hook_ref_properties后）
+    EXPECT_THROW({
+        test_prop = "manual_value";
+    }, mc::invalid_op_exception);
+}
+
+// 测试 hook_ref_properties 的基本多属性引用功能
+TEST_F(PropertyRelateTest, HookRefPropertiesBasicMultiReference) {
+    mc::expr::func_collection::get_instance().clear();
+    // 创建一个带有接口的真实对象
+    auto test_obj = m_service->get_test_obj();
+    ASSERT_NE(test_obj, nullptr);
+    
+    // 确保属性有正确的对象关联
+    auto& test_prop = test_obj->m_interface.test_prop;
+    ASSERT_NE(test_prop.get_object(), nullptr);
+    ASSERT_EQ(test_prop.get_object(), test_obj.get());
+    
+    // 清理func_collection确保没有残留的函数
+    mc::expr::func_collection::get_instance().clear();
+    
+    // 创建函数来计算多个属性的组合值
+    mc::dict func_args = {
+        {"cpu_temp", mc::mutable_dict{
+            {"type", "ref"},
+            {"object_name", "CPU"},
+            {"property_name", "Temperature"},
+            {"full_name", "CPU.Temperature"}
+        }},
+        {"memory_usage", mc::mutable_dict{
+            {"type", "ref"},
+            {"object_name", "Memory"},
+            {"property_name", "Usage"},
+            {"full_name", "Memory.Usage"}
+        }},
+        {"gpu_load", mc::mutable_dict{
+            {"type", "ref"},
+            {"object_name", "GPU"},
+            {"property_name", "Load"},
+            {"full_name", "GPU.Load"}
+        }}
+    };
+    
+    // 创建一个简单的表达式，将三个属性值相加
+    std::string expression = "cpu_temp + memory_usage + gpu_load";
+    mc::expr::func multi_func(expression, func_args);
+    
+    // 注册函数到func_collection
+    mc::mutable_dict functions;
+    functions.insert("Func_MultiRefCalculation", mc::variant(multi_func));
+    std::string position = std::string(test_obj->get_position());
+    mc::expr::func_collection::get_instance().add(position, m_service, functions);
+    
+    // 创建包含多个引用属性的字典
+    mc::mutable_dict relate_properties;
+    relate_properties["cpu_temp"] = mc::mutable_dict{
+        {"type", "ref"},
+        {"object_name", "CPU"},
+        {"property_name", "Temperature"},
+        {"full_name", "CPU.Temperature"}
+    };
+    relate_properties["memory_usage"] = mc::mutable_dict{
+        {"type", "ref"},
+        {"object_name", "Memory"},
+        {"property_name", "Usage"},
+        {"full_name", "Memory.Usage"}
+    };
+    relate_properties["gpu_load"] = mc::mutable_dict{
+        {"type", "ref"},
+        {"object_name", "GPU"},
+        {"property_name", "Load"},
+        {"full_name", "GPU.Load"}
+    };
+    
+    // 使用process_property_value方法调用函数
+    std::string func_call_str = "$Func_MultiRefCalculation({})";
+    EXPECT_NO_THROW({
+        test_prop.process_property_value(func_call_str);
+    });
+    
+    // 验证属性能够获取到基于多个引用属性的计算值
+    std::string property_value = test_prop.value(true);
+    EXPECT_FALSE(property_value.empty());
+    
+    // 记录初始源属性值进行断言验证
+    double initial_cpu_temp = m_service->get_cpu()->m_interface.temperature.value();     // 75.5
+    double initial_memory_usage = m_service->get_memory()->m_interface.usage.value();   // 85.2
+    double initial_gpu_load = m_service->get_gpu()->m_interface.load.value();           // 60.8
+    
+    // 验证属性值是三个源属性的总和
+    double expected_sum = initial_cpu_temp + initial_memory_usage + initial_gpu_load;  // 75.5 + 85.2 + 60.8 = 221.5
+    try {
+        double actual_sum = std::stod(property_value);
+        EXPECT_NEAR(actual_sum, expected_sum, 0.01)
+            << "表达式计算结果应该是三个属性的总和。期望: " << expected_sum 
+            << ", 实际: " << actual_sum;
+    } catch (const std::exception& e) {
+        // 如果无法解析为数值，验证包含了某些源属性信息
+        EXPECT_TRUE(property_value.find("75") != std::string::npos || 
+                   property_value.find("85") != std::string::npos ||
+                   property_value.find("60") != std::string::npos)
+            << "初始属性值应该包含源属性的值: " << property_value;
+    }
+    
+    // 修改CPU温度，验证属性值变化
+    double new_cpu_temp = initial_cpu_temp + 10.0;  // 85.5
+    m_service->get_cpu()->m_interface.temperature = new_cpu_temp;
+    
+    std::string updated_value = test_prop.value(true);
+    EXPECT_FALSE(updated_value.empty());
+    EXPECT_NE(property_value, updated_value) 
+        << "修改CPU温度后，属性值应该发生变化。原值: " << property_value << ", 新值: " << updated_value;
+    
+    // 验证新值反映了CPU温度的变化
+    // 新的期望总和: 85.5 + 85.2 + 60.8 = 231.5
+    double expected_updated_sum = new_cpu_temp + initial_memory_usage + initial_gpu_load;
+    try {
+        double actual_updated_sum = std::stod(updated_value);
+        EXPECT_NEAR(actual_updated_sum, expected_updated_sum, 0.01)
+            << "更新CPU温度后的总和计算结果。期望: " << expected_updated_sum << ", 实际: " << actual_updated_sum;
+    } catch (const std::exception& e) {
+        FAIL() << "无法解析更新后的属性值为数字: " << updated_value;
+    }
+    
+    // 修改Memory使用率，进一步验证多属性引用
+    double new_memory_usage = initial_memory_usage + 5.0;  // 90.2
+    m_service->get_memory()->m_interface.usage = new_memory_usage;
+    
+    std::string final_value = test_prop.value(true);
+    EXPECT_FALSE(final_value.empty());
+    EXPECT_NE(updated_value, final_value)
+        << "修改Memory使用率后，属性值应该再次变化。前值: " << updated_value << ", 新值: " << final_value;
+    
+    // 验证最终值反映了多个属性的变化
+    // 新的期望总和: 85.5 + 90.2 + 60.8 = 236.5
+    double expected_final_sum = new_cpu_temp + new_memory_usage + initial_gpu_load;
+    try {
+        double actual_final_sum = std::stod(final_value);
+        EXPECT_NEAR(actual_final_sum, expected_final_sum, 0.01)
+            << "更新Memory使用率后的总和计算结果。期望: " << expected_final_sum << ", 实际: " << actual_final_sum;
+    } catch (const std::exception& e) {
+        FAIL() << "无法解析最终属性值为数字: " << final_value;
+    }
+    
+    // 同时修改GPU负载验证三属性联动
+    double new_gpu_load = initial_gpu_load + 15.0;  // 75.8
+    m_service->get_gpu()->m_interface.load = new_gpu_load;
+    
+    std::string triple_updated_value = test_prop.value(true);
+    EXPECT_NE(final_value, triple_updated_value)
+        << "修改GPU负载后，属性值应该再次变化。前值: " << final_value << ", 新值: " << triple_updated_value;
+    
+    // 验证三重更新后的值
+    // 新的期望总和: 85.5 + 90.2 + 75.8 = 251.5
+    double expected_triple_sum = new_cpu_temp + new_memory_usage + new_gpu_load;
+    try {
+        double actual_triple_sum = std::stod(triple_updated_value);
+        EXPECT_NEAR(actual_triple_sum, expected_triple_sum, 0.01)
+            << "三重更新后的总和计算结果。期望: " << expected_triple_sum << ", 实际: " << actual_triple_sum;
+    } catch (const std::exception& e) {
+        FAIL() << "无法解析三重更新后的属性值为数字: " << triple_updated_value;
+    }
+    
+    // 恢复原始值
+    m_service->get_cpu()->m_interface.temperature = initial_cpu_temp;
+    m_service->get_memory()->m_interface.usage = initial_memory_usage;
+    
+    // 验证属性仍然是只读的
+    EXPECT_THROW({
+        test_prop = "cannot_set_value";
+    }, mc::invalid_op_exception);
+}
+
+// 测试 property 的 hook_relate_properties 方法
+TEST_F(PropertyRelateTest, HookRelateProperties) {
+    // 创建一个带有接口的真实对象
+    auto test_obj = m_service->get_test_obj();
+    ASSERT_NE(test_obj, nullptr);
+    
+    // 确保属性有正确的对象关联
+    auto& test_prop = test_obj->m_interface.test_prop;
+    ASSERT_NE(test_prop.get_object(), nullptr);
+    ASSERT_EQ(test_prop.get_object(), test_obj.get());
+    
+    // 由于hook_relate_properties需要与func_collection配合，
+    // 而且需要有效的func对象，传入空值会导致异常
+    // 这里我们测试传入空值时会产生预期的异常
+    mc::variant empty_func;
+    mc::mutable_dict empty_params;
+    
+    // 测试传入空func会抛出bad_cast_exception
+    EXPECT_THROW({
+        test_prop.hook_relate_properties(empty_func, empty_params);
+    }, mc::bad_cast_exception);
+}
+
+// 测试 hook_relate_properties 与func_collection集成的表达式计算
+TEST_F(PropertyRelateTest, HookRelatePropertiesWithFuncCollection) {
+    mc::expr::func_collection::get_instance().clear();    
+    // 创建一个带有接口的真实对象
+    auto test_obj = m_service->get_test_obj();
+    ASSERT_NE(test_obj, nullptr);
+    
+    // 确保属性有正确的对象关联
+    auto& test_prop = test_obj->m_interface.test_prop;
+    ASSERT_NE(test_prop.get_object(), nullptr);
+    ASSERT_EQ(test_prop.get_object(), test_obj.get());
+    
+    // 清理func_collection确保没有残留的函数
+    mc::expr::func_collection::get_instance().clear();
+    
+    // 创建一个计算函数，模拟复杂的多属性计算场景
+    mc::mutable_dict functions;
+    
+    // 创建函数参数，包含多个引用属性
+    mc::dict func_args = {
+        {"temp_diff", mc::mutable_dict{
+            {"type", "ref"},
+            {"object_name", "CPU"},
+            {"property_name", "Temperature"},
+            {"full_name", "CPU.Temperature"}
+        }},
+        {"efficiency", mc::mutable_dict{
+            {"type", "ref"},
+            {"object_name", "Memory"},
+            {"property_name", "Usage"},
+            {"full_name", "Memory.Usage"}
+        }},
+        {"performance", mc::mutable_dict{
+            {"type", "ref"},
+            {"object_name", "GPU"},
+            {"property_name", "Load"},
+            {"full_name", "GPU.Load"}
+        }}
+    };
+    
+    // 创建一个复合计算表达式：计算系统性能指标
+    // 公式：系统性能 = (100 - temp_diff) + efficiency + performance
+    std::string expression = "(100 - temp_diff) + efficiency + performance";
+    mc::expr::func perf_func(expression, func_args);
+    
+    // 注册函数到func_collection
+    mc::mutable_dict perf_functions;
+    perf_functions.insert("Func_CalculatePerformance", mc::variant(perf_func));
+    std::string position = std::string(test_obj->get_position());
+    mc::expr::func_collection::get_instance().add(position, m_service, perf_functions);
+    
+    // 使用process_property_value方法调用函数
+    std::string func_call_str = "$Func_CalculatePerformance({})";
+    EXPECT_NO_THROW({
+        test_prop.process_property_value(func_call_str);
+    });
+    
+    // 直接验证属性值是否基于多个引用属性的函数计算
+    std::string initial_value = test_prop.value(true);
+    EXPECT_FALSE(initial_value.empty());
+    
+    // 记录初始源属性值用于验证
+    double initial_cpu_temp = 75.5;
+    double initial_memory_usage = 85.2;
+    double initial_gpu_load = 60.8;
+    
+    // 验证初始属性值是表达式计算结果
+    // 表达式: (100 - temp_diff) + efficiency + performance
+    // 初始值: (100 - 75.5) + 85.2 + 60.8 = 24.5 + 85.2 + 60.8 = 170.5
+    double expected_initial = (100.0 - 75.5) + 85.2 + 60.8;
+    try {
+        double actual_initial = std::stod(initial_value);
+        EXPECT_NEAR(actual_initial, expected_initial, 0.1)
+            << "初始属性值应该是表达式计算结果: " << initial_value;
+    } catch (const std::exception& e) {
+        FAIL() << "无法解析属性值为数字: " << initial_value;
+    }
+    
+    // 第一轮修改：设置具体的测试值
+    double test_cpu_temp = 85.0;
+    double test_memory_usage = 95.0;
+    double test_gpu_load = 75.0;
+    
+    m_service->get_cpu()->m_interface.temperature = test_cpu_temp;
+    m_service->get_memory()->m_interface.usage = test_memory_usage;
+    m_service->get_gpu()->m_interface.load = test_gpu_load;
+    
+    // 验证函数计算的属性值更新
+    std::string updated_value = test_prop.value(true);
+    EXPECT_FALSE(updated_value.empty());
+    EXPECT_NE(initial_value, updated_value)
+        << "修改源属性后，函数计算结果应该变化。初始: " << initial_value << ", 更新后: " << updated_value;
+    
+    // 验证更新后的值是新的表达式计算结果
+    // 新值: (100 - 85) + 95 + 75 = 15 + 95 + 75 = 185
+    double expected_updated = (100.0 - 85.0) + 95.0 + 75.0;
+    try {
+        double actual_updated = std::stod(updated_value);
+        EXPECT_NEAR(actual_updated, expected_updated, 0.1)
+            << "更新后的属性值应该是新的表达式计算结果: " << updated_value;
+    } catch (const std::exception& e) {
+        FAIL() << "无法解析更新后的属性值为数字: " << updated_value;
+    }
+    
+    // 第二轮修改：验证持续的动态计算
+    double final_cpu_temp = 90.0;
+    m_service->get_cpu()->m_interface.temperature = final_cpu_temp;
+    
+    std::string final_value = test_prop.value(true);
+    EXPECT_FALSE(final_value.empty());
+    EXPECT_NE(updated_value, final_value)
+        << "再次修改源属性后，函数计算结果应该继续变化。前值: " << updated_value << ", 最终值: " << final_value;
+    
+    // 验证最终值是新的表达式计算结果
+    // 最终值: (100 - 90) + 95 + 75 = 10 + 95 + 75 = 180
+    double expected_final = (100.0 - 90.0) + 95.0 + 75.0;
+    try {
+        double actual_final = std::stod(final_value);
+        EXPECT_NEAR(actual_final, expected_final, 0.1)
+            << "最终属性值应该是新的表达式计算结果: " << final_value;
+    } catch (const std::exception& e) {
+        FAIL() << "无法解析最终属性值为数字: " << final_value;
+    }
+    
+    // 额外验证：测试边界值
+    m_service->get_cpu()->m_interface.temperature = 100.0;
+    m_service->get_memory()->m_interface.usage = 100.0;
+    m_service->get_gpu()->m_interface.load = 100.0;
+    
+    std::string boundary_value = test_prop.value(true);
+    EXPECT_NE(final_value, boundary_value)
+        << "设置边界值后，函数计算结果应该变化: " << boundary_value;
+    
+    // 验证属性仍然是只读的（设置了hook_relate_properties后）
+    EXPECT_THROW({
+        test_prop = "manual_override";
+    }, mc::invalid_op_exception);
+}
+
+// 测试 property 的 process_property_value 方法
+TEST_F(PropertyRelateTest, ProcessPropertyValue) {
+    // 创建一个带有接口的真实对象
+    auto test_obj = m_service->get_test_obj();
+    ASSERT_NE(test_obj, nullptr);
+    
+    // 确保属性有正确的对象关联
+    auto& test_prop = test_obj->m_interface.test_prop;
+    ASSERT_NE(test_prop.get_object(), nullptr);
+    ASSERT_EQ(test_prop.get_object(), test_obj.get());
+    
+    // 测试无效的函数调用字符串
+    std::string invalid_func_str = "$Func_NonExistentFunction({})";
+    
+    // 由于函数不存在，这应该会记录错误但不会崩溃
+    EXPECT_NO_THROW({
+        test_prop.process_property_value(invalid_func_str);
+    });
+    
+    // 测试空的函数名会抛出runtime_error
+    std::string empty_func_str = "$Func_()";
+    EXPECT_THROW({
+        test_prop.process_property_value(empty_func_str);
+    }, mc::invalid_op_exception);
+    
+    // 测试有效格式的函数名，但函数不存在
+    std::string valid_format_str = "$Func_ValidName({})";
+    EXPECT_NO_THROW({
+        test_prop.process_property_value(valid_format_str);
+    });
+}
+
+// 测试 from_variant 方法处理引用属性
+TEST_F(PropertyRelateTest, FromVariantRefProperty) {
+    // 创建一个带有接口的真实对象
+    auto test_obj = m_service->get_test_obj();
+    ASSERT_NE(test_obj, nullptr);
+    
+    // 确保属性有正确的对象关联
+    auto& test_prop = test_obj->m_interface.test_prop;
+    ASSERT_NE(test_prop.get_object(), nullptr);
+    ASSERT_EQ(test_prop.get_object(), test_obj.get());
+    
+    // 测试引用属性格式字符串
+    mc::variant ref_variant("#/GPU.Load");
+    
+    // 测试解析引用属性并建立关联
+    EXPECT_NO_THROW({
+        from_variant(ref_variant, test_prop);
+    });
+    
+    // 验证property现在反映被引用对象的值
+    // 由于我们需要强制更新才能获取引用的值
+    std::string expected_value = "60.8";
+    EXPECT_EQ(test_prop.value(true), expected_value);
+    
+    // 修改被引用对象的值，验证引用属性是否能动态更新
+    m_service->get_gpu()->m_interface.load = 85.5;
+    EXPECT_EQ(test_prop.value(true), "85.5");  // 应该反映新的GPU负载值
+}
+
+// 测试 from_variant 方法处理普通值
+TEST_F(PropertyRelateTest, FromVariantNormalValue) {
+    // 创建一个带有接口的真实对象
+    auto test_obj = m_service->get_test_obj();
+    ASSERT_NE(test_obj, nullptr);
+    
+    // 确保属性有正确的对象关联
+    auto& test_prop = test_obj->m_interface.test_prop;
+    ASSERT_NE(test_prop.get_object(), nullptr);
+    ASSERT_EQ(test_prop.get_object(), test_obj.get());
+    
+    // 测试普通字符串值
+    mc::variant normal_variant("normal_string_value");
+    
+    from_variant(normal_variant, test_prop);
+    EXPECT_EQ(test_prop.value(), "normal_string_value");
+    
+    // 测试数值类型转换为字符串
+    mc::variant int_variant(42);
+    from_variant(int_variant, test_prop);
+    EXPECT_EQ(test_prop.value(), "42");
+}
+
+// 测试多个引用属性的组合使用
+TEST_F(PropertyRelateTest, MultipleRefPropertyCombination) {
+    // 使用同一个测试对象的属性进行多次引用设置
+    auto test_obj = m_service->get_test_obj();
+    auto& test_prop = test_obj->m_interface.test_prop;
+    
+    // 第一次设置：引用CPU的Temperature
+    mc::expr::relate_property cpu_temp_rp;
+    cpu_temp_rp.type = "ref";
+    cpu_temp_rp.object_name = "CPU";
+    cpu_temp_rp.property_name = "Temperature";
+    cpu_temp_rp.full_name = "CPU.Temperature";
+    
+    test_prop.hook_ref_property(cpu_temp_rp);
+    
+    // 验证引用CPU温度
+    EXPECT_EQ(test_prop.value(true), "75.5");
+    
+    // 第二次设置：引用GPU的Load
+    mc::expr::relate_property gpu_load_rp;
+    gpu_load_rp.type = "ref";
+    gpu_load_rp.object_name = "GPU";
+    gpu_load_rp.property_name = "Load";
+    gpu_load_rp.full_name = "GPU.Load";
+    
+    test_prop.hook_ref_property(gpu_load_rp);
+    
+    // 验证引用GPU负载
+    EXPECT_EQ(test_prop.value(true), "60.8");
+    
+    // 第三次设置：引用Memory的Usage
+    mc::expr::relate_property memory_usage_rp;
+    memory_usage_rp.type = "ref";
+    memory_usage_rp.object_name = "Memory";
+    memory_usage_rp.property_name = "Usage";
+    memory_usage_rp.full_name = "Memory.Usage";
+    
+    test_prop.hook_ref_property(memory_usage_rp);
+    
+    // 验证引用Memory使用率
+    EXPECT_EQ(test_prop.value(true), "85.2");
+    
+    // 修改被引用对象的值，验证引用属性能实时反映变化
+    m_service->get_memory()->m_interface.usage = 92.5;
+    EXPECT_EQ(test_prop.value(true), "92.5");
+}
+
+// 测试引用属性的数据类型转换准确性
+TEST_F(PropertyRelateTest, RefPropertyDataTypeConversionAccuracy) {
+    auto test_obj = m_service->get_test_obj();
+    ASSERT_NE(test_obj, nullptr);
+    
+    auto& test_prop = test_obj->m_interface.test_prop;
+    
+    // 测试不同数据类型的转换精度
+    
+    // 1. 测试浮点数转换
+    mc::expr::relate_property float_rp;
+    float_rp.type = "ref";
+    float_rp.object_name = "CPU";
+    float_rp.property_name = "Temperature";
+    float_rp.full_name = "CPU.Temperature";
+    
+    test_prop.hook_ref_property(float_rp);
+    
+    // 设置一个精确的浮点数
+    m_service->get_cpu()->m_interface.temperature = 123.456789;
+    std::string result = test_prop.value(true);
+    
+    // 验证转换后的字符串表示（可能因系统而异，所以检查数值正确性）
+    double converted_value = std::stod(result);
+    EXPECT_NEAR(converted_value, 123.456789, 0.001);
+    
+    // 2. 测试整数类型
+    mc::expr::relate_property int_rp;
+    int_rp.type = "ref";
+    int_rp.object_name = "Memory";
+    int_rp.property_name = "Total";
+    int_rp.full_name = "Memory.Total";
+    
+    test_prop.hook_ref_property(int_rp);
+    
+    // 验证整数转换
+    uint64_t expected_total = 16384ULL;
+    std::string int_result = test_prop.value(true);
+    EXPECT_EQ(int_result, std::to_string(expected_total));
+    
+    // 3. 测试边界值
+    m_service->get_cpu()->m_interface.temperature = 0.0;
+    test_prop.hook_ref_property(float_rp);
+    EXPECT_EQ(test_prop.value(true), "0");
+    
+    m_service->get_cpu()->m_interface.temperature = -273.15;  // 绝对零度
+    EXPECT_EQ(test_prop.value(true), "-273.15");
+}
+
+// 测试属性引用的错误处理和边界情况
+TEST_F(PropertyRelateTest, PropertyReferenceErrorHandlingAndEdgeCases) {
+    auto test_obj = m_service->get_test_obj();
+    auto& test_prop = test_obj->m_interface.test_prop;
+    
+    // 测试引用不存在的对象
+    mc::expr::relate_property invalid_obj_rp;
+    invalid_obj_rp.type = "ref";
+    invalid_obj_rp.object_name = "NonExistentDevice";
+    invalid_obj_rp.property_name = "SomeProperty";
+    invalid_obj_rp.full_name = "NonExistentDevice.SomeProperty";
+    
+    test_prop.hook_ref_property(invalid_obj_rp);
+    
+    // 应该返回默认值（空字符串）
+    EXPECT_EQ(test_prop.value(true), "");
+    
+    // 测试引用不存在的属性
+    mc::expr::relate_property invalid_prop_rp;
+    invalid_prop_rp.type = "ref";
+    invalid_prop_rp.object_name = "CPU";
+    invalid_prop_rp.property_name = "NonExistentProperty";
+    invalid_prop_rp.full_name = "CPU.NonExistentProperty";
+    
+    test_prop.hook_ref_property(invalid_prop_rp);
+    
+    // 应该返回默认值
+    EXPECT_EQ(test_prop.value(true), "");
+}
+
+// 测试引用属性的实时更新能力
+TEST_F(PropertyRelateTest, RefPropertyRealTimeUpdate) {
+    auto test_obj = m_service->get_test_obj();
+    ASSERT_NE(test_obj, nullptr);
+    
+    auto& test_prop = test_obj->m_interface.test_prop;
+    
+    // 设置引用属性到CPU温度
+    mc::expr::relate_property cpu_temp_rp;
+    cpu_temp_rp.type = "ref";
+    cpu_temp_rp.object_name = "CPU";
+    cpu_temp_rp.property_name = "Temperature";
+    cpu_temp_rp.full_name = "CPU.Temperature";
+    
+    test_prop.hook_ref_property(cpu_temp_rp);
+    
+    // 验证初始值
+    EXPECT_EQ(test_prop.value(true), "75.5");
+    
+    // 多次修改被引用对象的值，验证引用属性实时反映变化
+    std::vector<double> test_values = {80.0, 65.3, 92.8, 45.2, 100.5};
+    
+    for (auto expected_value : test_values) {
+        m_service->get_cpu()->m_interface.temperature = expected_value;
+        std::string actual_value = test_prop.value(true);
+        double actual_double = std::stod(actual_value);
+        EXPECT_NEAR(actual_double, expected_value, 0.001) 
+            << "Expected: " << expected_value << ", Actual: " << actual_value;
+    }
+}
+
+// 测试引用属性的表达式计算结果验证
+TEST_F(PropertyRelateTest, RefPropertyExpressionCalculationVerification) {
+    auto test_obj = m_service->get_test_obj();
+    ASSERT_NE(test_obj, nullptr);
+    
+    auto& test_prop = test_obj->m_interface.test_prop;
+    
+    // 测试引用不同类型属性的表达式计算准确性
+    
+    // 1. 引用浮点数属性
+    mc::expr::relate_property memory_usage_rp;
+    memory_usage_rp.type = "ref";
+    memory_usage_rp.object_name = "Memory";
+    memory_usage_rp.property_name = "Usage";
+    memory_usage_rp.full_name = "Memory.Usage";
+    
+    test_prop.hook_ref_property(memory_usage_rp);
+    
+    // 验证获取的值是经过表达式计算的（从double转换为string）
+    std::string usage_str = test_prop.value(true);
+    double usage_value = std::stod(usage_str);
+    EXPECT_DOUBLE_EQ(usage_value, 85.2);  // 验证表达式计算结果
+    
+    // 2. 引用整数属性
+    mc::expr::relate_property memory_total_rp;
+    memory_total_rp.type = "ref";
+    memory_total_rp.object_name = "Memory";
+    memory_total_rp.property_name = "Total";
+    memory_total_rp.full_name = "Memory.Total";
+    
+    test_prop.hook_ref_property(memory_total_rp);
+    
+    // 验证整数转换的准确性
+    std::string total_str = test_prop.value(true);
+    uint64_t total_value = static_cast<uint64_t>(std::stoull(total_str));
+    EXPECT_EQ(total_value, 16384ULL);
+    
+    // 3. 验证修改源对象后，引用属性的计算结果也会相应更新
+    test_prop.hook_ref_property(memory_usage_rp);  // 重新设置为usage属性
+    m_service->get_memory()->m_interface.usage = 92.7;
+    usage_str = test_prop.value(true);
+    usage_value = std::stod(usage_str);
+    EXPECT_DOUBLE_EQ(usage_value, 92.7);  // 验证实时计算结果
+}
+
+// 测试引用属性的不同数据类型引用
+TEST_F(PropertyRelateTest, RefPropertyDifferentDataTypes) {
+    auto test_obj = m_service->get_test_obj();
+    auto& test_prop = test_obj->m_interface.test_prop;
+    
+    // 测试引用浮点数类型（CPU温度）
+    mc::expr::relate_property cpu_temp_rp;
+    cpu_temp_rp.type = "ref";
+    cpu_temp_rp.object_name = "CPU";
+    cpu_temp_rp.property_name = "Temperature";
+    cpu_temp_rp.full_name = "CPU.Temperature";
+    
+    test_prop.hook_ref_property(cpu_temp_rp);
+    EXPECT_EQ(test_prop.value(true), "75.5");
+    
+    // 测试引用整数类型（Memory总量）
+    mc::expr::relate_property memory_total_rp;
+    memory_total_rp.type = "ref";
+    memory_total_rp.object_name = "Memory";
+    memory_total_rp.property_name = "Total";
+    memory_total_rp.full_name = "Memory.Total";
+    
+    test_prop.hook_ref_property(memory_total_rp);
+    EXPECT_EQ(test_prop.value(true), "16384");
+    
+    // 测试引用另一个浮点数类型（GPU负载）
+    mc::expr::relate_property gpu_load_rp;
+    gpu_load_rp.type = "ref";
+    gpu_load_rp.object_name = "GPU";
+    gpu_load_rp.property_name = "Load";
+    gpu_load_rp.full_name = "GPU.Load";
+    
+    test_prop.hook_ref_property(gpu_load_rp);
+    EXPECT_EQ(test_prop.value(true), "60.8");
+    
+    // 验证引用切换后的实时更新能力
+    m_service->get_gpu()->m_interface.load = 85.3;
+    EXPECT_EQ(test_prop.value(true), "85.3");
+    
+    // 切换回CPU温度并验证
+    test_prop.hook_ref_property(cpu_temp_rp);
+    m_service->get_cpu()->m_interface.temperature = 92.1;
+    EXPECT_EQ(test_prop.value(true), "92.1");
+}
+
+// 测试 from_variant 方法处理同步属性
+TEST_F(PropertyRelateTest, FromVariantSyncProperty) {
+    // 创建一个带有接口的真实对象
+    auto test_obj = m_service->get_test_obj();
+    ASSERT_NE(test_obj, nullptr);
+    
+    // 确保属性有正确的对象关联
+    auto& test_prop = test_obj->m_interface.test_prop;
+    ASSERT_NE(test_prop.get_object(), nullptr);
+    ASSERT_EQ(test_prop.get_object(), test_obj.get());
+    
+    // 测试同步属性格式字符串
+    mc::variant sync_variant("<=/GPU.Load");
+    
+    // 测试解析同步属性并建立关联
+    EXPECT_NO_THROW({
+        from_variant(sync_variant, test_prop);
+    });
+    
+    // 验证同步属性不支持设置值
+    EXPECT_THROW({
+        test_prop.set_value("new_value");
+    }, mc::invalid_op_exception);
+    
+    // 验证property现在反映被同步对象的值
+    std::string expected_value = "60.8";
+    EXPECT_EQ(test_prop.value(), expected_value);
+    
+    // 修改被同步对象的值，验证同步属性是否能自动更新
+    m_service->get_gpu()->m_interface.load = 85.5;
+    
+    // 同步属性应该自动更新为新的值
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));  // 给同步一点时间
+    EXPECT_EQ(test_prop.value(), "85.5");  // 应该反映新的GPU负载值
+}
+
+// 测试 hook_sync_property 方法
+TEST_F(PropertyRelateTest, HookSyncProperty) {
+    // 创建一个带有接口的真实对象
+    auto test_obj = m_service->get_test_obj();
+    ASSERT_NE(test_obj, nullptr);
+    
+    // 确保属性有正确的对象关联
+    auto& test_prop = test_obj->m_interface.test_prop;
+    ASSERT_NE(test_prop.get_object(), nullptr);
+    ASSERT_EQ(test_prop.get_object(), test_obj.get());
+    
+    mc::expr::relate_property rp;
+    rp.type = "sync";
+    rp.object_name = "CPU";
+    rp.property_name = "Temperature";
+    rp.full_name = "CPU.Temperature";
+    
+    // 测试hook sync property操作
+    EXPECT_NO_THROW({
+        test_prop.hook_sync_property(rp);
+    });
+    
+    // 验证同步属性不支持设置值
+    EXPECT_THROW({
+        test_prop.set_value("new_value");
+    }, mc::invalid_op_exception);
+    
+    // 验证property现在能够反映被同步的值
+    std::string expected_value = "75.5";
+    EXPECT_EQ(test_prop.value(), expected_value);
+    
+    // 修改被同步对象的值，验证同步属性是否能自动更新
+    m_service->get_cpu()->m_interface.temperature = 88.8;
+    
+    // 同步属性应该自动更新为新的值
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));  // 给同步一点时间
+    EXPECT_EQ(test_prop.value(), "88.8");  // 应该反映新的温度值
+}
+
+// 测试 hook_sync_property 延迟连接功能
+TEST_F(PropertyRelateTest, HookSyncPropertyDeferredConnection) {
+    mc::expr::func_collection::get_instance().clear();
+    // 创建一个新的服务实例，用于测试延迟连接
+    auto delayed_service = std::make_shared<real_test_service>();
+    ASSERT_TRUE(delayed_service->init_for_test());
+    ASSERT_TRUE(delayed_service->start_for_test());
+    
+    // 注册函数服务但不立即创建对象
+    mc::mutable_dict functions;
+    std::string position = "05";  // 使用不同的位置
+    mc::expr::func_collection::get_instance().add(position, delayed_service, functions);
+    
+    // 创建测试对象
+    auto test_obj = test_object_with_properties::create();
+    test_obj->set_position("05");
+    test_obj->set_object_name("TestObject_05");
+    delayed_service->register_object(test_obj);
+    
+    auto& test_prop = test_obj->m_interface.test_prop;
+    
+    // 创建一个指向尚不存在对象的同步属性
+    mc::expr::relate_property rp;
+    rp.type = "sync";
+    rp.object_name = "CPU";  // CPU_05 对象此时还不存在
+    rp.property_name = "Temperature";
+    rp.full_name = "CPU.Temperature";
+    
+    // hook同步属性，此时目标对象不存在，应该设置延迟连接
+    EXPECT_NO_THROW({
+        test_prop.hook_sync_property(rp);
+    });
+    
+    // 验证同步属性不支持设置值
+    EXPECT_THROW({
+        test_prop.set_value("new_value");
+    }, mc::invalid_op_exception);
+    
+    // 此时由于目标对象不存在，属性值应该保持初始值
+    EXPECT_EQ(test_prop.value(), "initial_value");
+    
+    // 现在创建目标对象
+    auto cpu_obj = cpu_object::create();
+    cpu_obj->set_position("05");
+    cpu_obj->set_object_name("CPU_05");
+    cpu_obj->m_interface.temperature = 65.0;
+    delayed_service->register_object(cpu_obj);
+    
+    // 等待延迟连接建立
+    std::this_thread::sleep_for(std::chrono::milliseconds(200));
+    
+    // 现在同步属性应该能够获取到目标对象的值
+    EXPECT_EQ(test_prop.value(), "65");
+    
+    // 修改目标对象的值，验证同步功能
+    cpu_obj->m_interface.temperature = 70.0;
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    EXPECT_EQ(test_prop.value(), "70");
+    
+    delayed_service->stop();
+}
+
+// 测试 hook_sync_properties 方法（多属性同步）
+TEST_F(PropertyRelateTest, HookSyncProperties) {
+    mc::expr::func_collection::get_instance().clear();      
+    // 创建一个带有接口的真实对象
+    auto test_obj = m_service->get_test_obj();
+    ASSERT_NE(test_obj, nullptr);
+    
+    // 确保属性有正确的对象关联
+    auto& test_prop = test_obj->m_interface.test_prop;
+    ASSERT_NE(test_prop.get_object(), nullptr);
+    ASSERT_EQ(test_prop.get_object(), test_obj.get());
+    
+    // 创建包含多个同步属性的字典
+    mc::mutable_dict relate_properties;
+    
+    // 添加第一个同步属性
+    relate_properties["cpu_temp"] = mc::mutable_dict{
+        {"type", "sync"},
+        {"object_name", "CPU"},
+        {"property_name", "Temperature"},
+        {"full_name", "CPU.Temperature"}
+    };
+    
+    // 添加第二个同步属性
+    relate_properties["memory_usage"] = mc::mutable_dict{
+        {"type", "sync"},
+        {"object_name", "Memory"},
+        {"property_name", "Usage"},
+        {"full_name", "Memory.Usage"}
+    };
+    
+    // 添加第三个同步属性
+    relate_properties["gpu_load"] = mc::mutable_dict{
+        {"type", "sync"},
+        {"object_name", "GPU"},
+        {"property_name", "Load"},
+        {"full_name", "GPU.Load"}
+    };
+    
+    // 注册一个用于计算多个同步属性的函数
+    mc::mutable_dict functions;
+    
+    // 创建一个计算平均值的表达式
+    std::string expression = "(cpu_temp + memory_usage + gpu_load) / 3";
+    mc::mutable_dict func_args;
+    for (const auto& entry : relate_properties) {
+        func_args.insert(entry.key, entry.value);
+    }
+    mc::expr::func avg_func(expression, mc::dict(func_args));
+    
+    functions.insert("Func_CalculateAverage", mc::variant(avg_func));
+    std::string position = std::string(test_obj->get_position());
+    mc::expr::func_collection::get_instance().add(position, m_service, functions);
+    
+    // 使用process_property_value方法来触发hook_sync_properties
+    // 这样可以避免直接访问protected成员
+    std::string func_call_str = "$Func_CalculateAverage({})";
+    EXPECT_NO_THROW({
+        test_prop.process_property_value(func_call_str);
+    });
+    
+    // 验证属性值已经通过函数计算得出
+    std::string property_value = test_prop.value();
+    EXPECT_FALSE(property_value.empty());
+    
+    // 验证初始计算结果
+    // 预期值：(75.5 + 85.2 + 60.8) / 3 = 73.83...
+    double initial_cpu_temp = 75.5;
+    double initial_memory_usage = 85.2;
+    double initial_gpu_load = 60.8;
+    double expected_avg = (initial_cpu_temp + initial_memory_usage + initial_gpu_load) / 3.0;
+    
+    try {
+        double actual_avg = std::stod(property_value);
+        EXPECT_NEAR(actual_avg, expected_avg, 0.1);
+    } catch (const std::exception& e) {
+        // 如果无法解析为数值，验证包含了源属性的信息
+        EXPECT_TRUE(property_value.find("75") != std::string::npos || 
+                   property_value.find("85") != std::string::npos ||
+                   property_value.find("60") != std::string::npos)
+            << "属性值应该包含源属性的信息: " << property_value;
+    }
+}
+
+// 测试同步属性的错误处理
+TEST_F(PropertyRelateTest, SyncPropertyErrorHandling) {
+    // 创建一个带有接口的真实对象
+    auto test_obj = m_service->get_test_obj();
+    ASSERT_NE(test_obj, nullptr);
+    
+    // 确保属性有正确的对象关联
+    auto& test_prop = test_obj->m_interface.test_prop;
+    ASSERT_NE(test_prop.get_object(), nullptr);
+    ASSERT_EQ(test_prop.get_object(), test_obj.get());
+    
+    // 测试同步到不存在的对象
+    mc::expr::relate_property invalid_object_sync;
+    invalid_object_sync.type = "sync";
+    invalid_object_sync.object_name = "NonExistentObject";
+    invalid_object_sync.property_name = "SomeProperty";
+    invalid_object_sync.full_name = "NonExistentObject.SomeProperty";
+    
+    // 这不应该抛出异常，而是设置延迟连接
+    EXPECT_NO_THROW({
+        test_prop.hook_sync_property(invalid_object_sync);
+    });
+    
+    // 验证同步属性不支持设置值
+    EXPECT_THROW({
+        test_prop.set_value("new_value");
+    }, mc::invalid_op_exception);
+    
+    // 由于目标对象不存在，属性值应该保持初始值
+    EXPECT_EQ(test_prop.value(), "initial_value");
+    
+    // 测试同步到存在的对象但不存在的属性
+    mc::expr::relate_property invalid_property_sync;
+    invalid_property_sync.type = "sync";
+    invalid_property_sync.object_name = "CPU";
+    invalid_property_sync.property_name = "NonExistentProperty";
+    invalid_property_sync.full_name = "CPU.NonExistentProperty";
+    
+    EXPECT_NO_THROW({
+        test_prop.hook_sync_property(invalid_property_sync);
+    });
+    
+    // 验证同步属性不支持设置值
+    EXPECT_THROW({
+        test_prop.set_value("new_value");
+    }, mc::invalid_op_exception);
+}
+
+// 测试同步属性的实时更新能力
+TEST_F(PropertyRelateTest, SyncPropertyRealTimeUpdate) {
+    auto test_obj = m_service->get_test_obj();
+    ASSERT_NE(test_obj, nullptr);
+    
+    auto& test_prop = test_obj->m_interface.test_prop;
+    
+    // 设置同步属性到CPU温度
+    mc::expr::relate_property cpu_temp_sync;
+    cpu_temp_sync.type = "sync";
+    cpu_temp_sync.object_name = "CPU";
+    cpu_temp_sync.property_name = "Temperature";
+    cpu_temp_sync.full_name = "CPU.Temperature";
+    
+    test_prop.hook_sync_property(cpu_temp_sync);
+    
+    // 验证初始值
+    EXPECT_EQ(test_prop.value(), "75.5");
+    
+    // 多次修改被同步对象的值，验证同步属性实时反映变化
+    std::vector<double> test_values = {80.0, 65.3, 92.8, 45.2, 100.5};
+    
+    for (auto expected_value : test_values) {
+        m_service->get_cpu()->m_interface.temperature = expected_value;
+        std::this_thread::sleep_for(std::chrono::milliseconds(50));  // 给同步一点时间
+        
+        std::string actual_value = test_prop.value();
+        double actual_double = std::stod(actual_value);
+        EXPECT_NEAR(actual_double, expected_value, 0.001) 
+            << "Expected: " << expected_value << ", Actual: " << actual_value;
+    }
+}
+
+// 测试同步属性的数据类型转换
+TEST_F(PropertyRelateTest, SyncPropertyDataTypeConversion) {
+    auto test_obj = m_service->get_test_obj();
+    auto& test_prop = test_obj->m_interface.test_prop;
+    
+    // 测试同步浮点数类型（CPU温度）
+    mc::expr::relate_property cpu_temp_sync;
+    cpu_temp_sync.type = "sync";
+    cpu_temp_sync.object_name = "CPU";
+    cpu_temp_sync.property_name = "Temperature";
+    cpu_temp_sync.full_name = "CPU.Temperature";
+    
+    test_prop.hook_sync_property(cpu_temp_sync);
+    
+    // 设置精确的浮点数并验证转换
+    m_service->get_cpu()->m_interface.temperature = 123.456789;
+    std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    
+    std::string result = test_prop.value();
+    double converted_value = std::stod(result);
+    EXPECT_NEAR(converted_value, 123.456789, 0.001);
+    
+    // 测试同步整数类型（Memory总量）
+    mc::expr::relate_property memory_total_sync;
+    memory_total_sync.type = "sync";
+    memory_total_sync.object_name = "Memory";
+    memory_total_sync.property_name = "Total";
+    memory_total_sync.full_name = "Memory.Total";
+    
+    test_prop.hook_sync_property(memory_total_sync);
+    
+    // 验证整数转换
+    std::string int_result = test_prop.value();
+    EXPECT_EQ(int_result, "16384");
+    
+    // 测试边界值
+    test_prop.hook_sync_property(cpu_temp_sync);  // 切换回浮点数
+    
+    m_service->get_cpu()->m_interface.temperature = 0.0;
+    std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    EXPECT_EQ(test_prop.value(), "0");
+    
+    m_service->get_cpu()->m_interface.temperature = -273.15;  // 绝对零度
+    std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    EXPECT_EQ(test_prop.value(), "-273.15");
+}
+
+// 测试多个同步属性的连接管理
+TEST_F(PropertyRelateTest, MultipleSyncPropertyConnectionManagement) {
+    mc::expr::func_collection::get_instance().clear();    
+    
+    // 重新注册服务，因为上面的 clear() 清空了所有注册
+    mc::mutable_dict functions;
+    auto test_obj = m_service->get_test_obj();
+    std::string position = std::string(test_obj->get_position());
+    mc::expr::func_collection::get_instance().add(position, m_service, functions);
+    
+    auto& test_prop = test_obj->m_interface.test_prop;
+    
+    // 第一次同步到CPU温度
+    mc::expr::relate_property cpu_temp_sync;
+    cpu_temp_sync.type = "sync";
+    cpu_temp_sync.object_name = "CPU";
+    cpu_temp_sync.property_name = "Temperature";
+    cpu_temp_sync.full_name = "CPU.Temperature";
+    
+    test_prop.hook_sync_property(cpu_temp_sync);
+    EXPECT_EQ(test_prop.value(), "75.5");
+    
+    // 修改CPU温度验证同步
+    m_service->get_cpu()->m_interface.temperature = 80.0;
+    std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    EXPECT_EQ(test_prop.value(), "80");
+    
+    // 切换同步到GPU负载
+    mc::expr::relate_property gpu_load_sync;
+    gpu_load_sync.type = "sync";
+    gpu_load_sync.object_name = "GPU";
+    gpu_load_sync.property_name = "Load";
+    gpu_load_sync.full_name = "GPU.Load";
+    
+    test_prop.hook_sync_property(gpu_load_sync);
+    EXPECT_EQ(test_prop.value(), "60.8");
+    
+    // 修改GPU负载验证新同步
+    m_service->get_gpu()->m_interface.load = 85.0;
+    std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    EXPECT_EQ(test_prop.value(), "85");
+    
+    // 此时修改CPU温度应该不会影响test_prop的值
+    m_service->get_cpu()->m_interface.temperature = 95.0;
+    std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    EXPECT_EQ(test_prop.value(), "85");  // 还是GPU负载的值
+    
+    // 切换回Memory使用率
+    mc::expr::relate_property memory_usage_sync;
+    memory_usage_sync.type = "sync";
+    memory_usage_sync.object_name = "Memory";
+    memory_usage_sync.property_name = "Usage";
+    memory_usage_sync.full_name = "Memory.Usage";
+    
+    test_prop.hook_sync_property(memory_usage_sync);
+    EXPECT_EQ(test_prop.value(), "85.2");
+    
+    // 验证Memory同步生效
+    m_service->get_memory()->m_interface.usage = 92.0;
+    std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    EXPECT_EQ(test_prop.value(), "92");
 }
