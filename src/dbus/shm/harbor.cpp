@@ -94,7 +94,7 @@ void message_queue::dispatch(int timeout_ms, int max_read_count,
     }
 }
 
-harbor::harbor() : m_strand(mc::engine::make_strand()), m_is_running(false) {
+harbor::harbor() : m_is_running(false) {
 }
 
 harbor::~harbor() {

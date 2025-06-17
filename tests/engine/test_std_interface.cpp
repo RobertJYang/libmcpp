@@ -60,6 +60,10 @@ class TestObject2 : public mc::engine::object<TestObject2> {
 public:
     MC_OBJECT(TestObject2, "TestObject", "Id/${Id}", (TestInterface2))
 
+    ~TestObject2() {
+        std::cout << "TestObject2 destructor" << std::hex << this << std::endl;
+    }
+
     TestInterface2 m_iface2;
 };
 
@@ -78,17 +82,15 @@ using namespace mc::engine;
 
 class std_interface_test : public mc::test::TestWithEngine {
 protected:
-    TestObject1* root;
-    TestObject2* child_obj2;
-    TestObject2* child_obj3;
+    mc::shared_ptr<TestObject1> root;
+    TestObject2*                child_obj2;
+    TestObject2*                child_obj3;
 
     ~std_interface_test() {
-        // 子对象会自动删除
-        delete root;
     }
 
     void SetUp() override {
-        root                   = new TestObject1();
+        root                   = mc::make_shared<TestObject1>();
         root->m_iface1.m_value = 100;
         root->m_iface1.m_name  = "Name";
 

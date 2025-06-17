@@ -23,9 +23,9 @@ int main(int argc, char* argv[]) {
 
     ilog("服务连接示例启动");
 
-    test::test_service service("org.openubmc.test_service");
-    service.init({});
-    service.start();
+    auto service = mc::make_shared<test::test_service>("org.openubmc.test_service");
+    service->init({});
+    service->start();
 
     mc::engine::get_engine().start(std::thread::hardware_concurrency());
     mc::engine::get_engine().join();

@@ -86,12 +86,39 @@ public:
         return load();
     }
 
+    // 原子位或操作（仅限整数类型）
+    template <typename U = T>
+    typename std::enable_if_t<std::is_integral_v<U>, T>
+    fetch_or(T arg, std::memory_order order = std::memory_order_seq_cst) noexcept {
+        return reinterpret_cast<volatile std::atomic<T>*>(m_ptr)->fetch_or(arg, order);
+    }
+
+    // 原子位与操作（仅限整数类型）
+    template <typename U = T>
+    typename std::enable_if_t<std::is_integral_v<U>, T>
+    fetch_and(T arg, std::memory_order order = std::memory_order_seq_cst) noexcept {
+        return reinterpret_cast<volatile std::atomic<T>*>(m_ptr)->fetch_and(arg, order);
+    }
+
+    // 原子位异或操作（仅限整数类型）
+    template <typename U = T>
+    typename std::enable_if_t<std::is_integral_v<U>, T>
+    fetch_xor(T arg, std::memory_order order = std::memory_order_seq_cst) noexcept {
+        return reinterpret_cast<volatile std::atomic<T>*>(m_ptr)->fetch_xor(arg, order);
+    }
+
 private:
     T* m_ptr;
 };
 
-// 特化 size_t 类型
-using atomic_size_ref = atomic_ref<size_t>;
+// 特化 std::size_t 类型
+using atomic_size_ref = atomic_ref<std::size_t>;
+
+// 特化 uint8_t 类型
+using atomic_uint8_ref = atomic_ref<uint8_t>;
+
+// 特化 uint32_t 类型
+using atomic_uint32_ref = atomic_ref<uint32_t>;
 
 } // namespace mc
 

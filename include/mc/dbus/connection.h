@@ -16,11 +16,11 @@
 #include <dbus/dbus.h>
 
 #include <mc/core/object.h>
+#include <mc/dbus/match.h>
 #include <mc/dbus/message.h>
 #include <mc/future.h>
 #include <mc/signal_slot.h>
 #include <mc/time.h>
-#include <mc/dbus/match.h>
 
 #include <mutex>
 
@@ -44,10 +44,10 @@ enum class connect_status {
 class connection {
 public:
     template <typename T>
-    using future = mc::future<T, mc::core::io_context::executor_type>;
+    using future = mc::future<T, mc::io_context::executor_type>;
 
-    static connection open_system_bus(mc::core::io_context& executor);
-    static connection open_session_bus(mc::core::io_context& executor);
+    static connection open_system_bus(mc::io_context& executor);
+    static connection open_session_bus(mc::io_context& executor);
 
     connection();
 
@@ -57,7 +57,7 @@ public:
      * @param conn DBus连接
      * @param add_ref 是否增加引用
      */
-    explicit connection(mc::core::io_context& executor, DBusConnection* conn, bool add_ref = false);
+    explicit connection(mc::io_context& executor, DBusConnection* conn, bool add_ref = false);
 
     /**
      * @brief 析构函数

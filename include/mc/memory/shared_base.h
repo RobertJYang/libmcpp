@@ -14,34 +14,52 @@
 #define MC_REF_BASE_H
 
 #include <atomic>
-#include <cstddef>
 #include <mc/atomic_ref.h>
+#include <mc/exception.h>
 
 /**
  * @file shared_base.h
  * @brief MC智能指针系统基础设施
  *
- * 本文件定义了MC库的智能指针基础类shared_base，配合shared_ptr和weak_ptr
+ * 本文件定义了MC库的智能指针基础类 shared_base，配合 shared_ptr 和 weak_ptr
  * 提供完整的引用计数内存管理解决方案。
  *
  * ## 为什么重新实现智能指针？
  *
- * 虽然标准库的std::shared_ptr功能完善，但在以下场景下我们需要自定义实现：
+ * 虽然标准库的 std::shared_ptr 功能完善，但在以下场景下我们需要自定义实现：
  *
  * ### 1. 内存布局紧凑性
- * - std::shared_ptr使用独立的控制块，导致对象和控制块分离
+ * - std::shared_ptr 使用独立的控制块，导致对象和控制块分离
  * - 我们的实现将引用计数直接嵌入对象中，避免额外内存分配
  * - 减少内存碎片，提高缓存局部性，特别适合嵌入式和高性能场景
  *
  * ### 2. 共享内存支持
  * - 标准库智能指针无法直接用于进程间共享内存
- * - 通过模板参数PointerType，支持offset_ptr等共享内存指针类型
+ * - 通过模板参数 PointerType，支持 offset_ptr 等共享内存指针类型
  * - 为分布式系统和进程间通信提供基础设施
  *
  * ### 3. 定制化内存管理
  * - 支持自定义分配器，适应特殊内存需求
- * - 与MC库的其他组件（如variant、dict）无缝集成
+ * - 与MC库的其他组件（如 variant、dict）无缝集成
  * - 提供统一的内存管理语义
+ *
+ * shared_base 实现的功能与 std::enable_shared_from_this 类似，但做了一些修改：
+ * 1. 初始化引用计数为 INVALID 表示对象未被管理。
+ * 2. 初始化过程中允许创建 weak_ptr，并确保 weak_ptr 不会误销毁未管理的对象。
+ * 3. 延迟 shared_ptr 构造，可以从未管理对象的指针直接构造 shared_ptr。
+ *
+ * 这些机制对 object 体系的实现至关重要，根据我们 object 体系设计，父对象使用 mc::shared_ptr 管理子对象生命周期，
+ * 并且我们支持子对象在构造过程中就将自己加入到父对象的管理列表中，但这个时候外部没有机会构造子对象的 shared_ptr 指针，
+ * 因为子对象的构造函数还未返回。
+ *
+ * 举例：
+ * ```cpp
+ * class ChildObject : public mc::object {
+ *     ChildObject(mc::object *parent): mc::object(parent) {
+ *         // 如果指定了 parent，在这里 this 就已经被加入到 parent 的管理列表中
+ *     }
+ * };
+ * ```
  *
  * ## 使用方式
  *
@@ -73,101 +91,133 @@ class weak_ptr;
 /**
  * 引用计数基类，提供引用计数管理能力
  * 支持强引用和弱引用，适用于共享内存场景
+ *
  */
-template <typename T, typename PointerType = T*>
+template <typename T, typename PointerType = T*, typename CounterType = uint32_t>
 class shared_base {
 public:
-    using element_type = T;
-    using pointer_type = PointerType;
-    using shared_ptr   = mc::memory::shared_ptr<element_type, pointer_type>;
-    using weak_ptr     = mc::memory::weak_ptr<element_type, pointer_type>;
+    using element_type       = T;
+    using pointer_type       = PointerType;
+    using shared_ptr         = mc::memory::shared_ptr<element_type, pointer_type>;
+    using weak_ptr           = mc::memory::weak_ptr<element_type, pointer_type>;
+    using counter_type       = CounterType;
+    using atomic_counter_ref = mc::atomic_ref<counter_type>;
 
-    shared_base() = default;
+    static constexpr counter_type INVALID   = std::numeric_limits<counter_type>::max();
+    static constexpr counter_type DESTROYED = 0;
+
+    shared_base() : m_ref_count(INVALID), m_weak_count(0) {
+    }
 
     virtual ~shared_base() {
     }
 
-    // shared_base 的生命周期由 shared_ptr 管理，拷贝构造函数也是初始引用计数为0
-    shared_base(const shared_base&) {
-        m_ref_count  = 0;
-        m_weak_count = 0;
+    shared_base(const shared_base&) : m_ref_count(INVALID), m_weak_count(0) {
     }
 
     shared_base& operator=(const shared_base&) {
-        // 赋值操作不改变引用计数
+        // 赋值操作不改变引用计数和管理状态
         return *this;
     }
 
-    shared_base(shared_base&&) noexcept {
-        // 新对象的引用计数为0
-        m_ref_count  = 0;
-        m_weak_count = 0;
+    shared_base(shared_base&&) noexcept : m_ref_count(INVALID), m_weak_count(0) {
     }
 
     shared_base& operator=(shared_base&&) noexcept {
-        // 赋值操作不改变引用计数
+        // 赋值操作不改变引用计数和管理状态
         return *this;
     }
 
     // 增加强引用计数
     void add_ref() const {
-        atomic_size_ref(m_ref_count).fetch_add(1, std::memory_order_relaxed);
+        atomic_counter_ref ref(m_ref_count);
+        counter_type       current = ref.load(std::memory_order_acquire);
+
+        while (current != DESTROYED) {
+            // 如果引用计数为初始值，由第一个 shared_ptr 将其引用计数设置为 1，否则增加引用计数
+            counter_type next = current == INVALID ? 1 : current + 1;
+            if (ref.compare_exchange_weak(
+                    current, next, std::memory_order_acq_rel,
+                    std::memory_order_acquire)) {
+                return;
+            }
+        }
+
+        MC_THROW(mc::invalid_op_exception, "attempt to add reference to a destroyed object");
     }
 
-    // 减少强引用计数，如果引用计数为0则返回true
+    // 减少强引用计数，如果引用计数为 0 则返回 true
     bool release_ref() const {
-        return atomic_size_ref(m_ref_count).fetch_sub(1, std::memory_order_acq_rel) == 1;
+        atomic_counter_ref ref(m_ref_count);
+        counter_type       current = ref.load(std::memory_order_acquire);
+
+        while (current != DESTROYED && current != INVALID) {
+            if (ref.compare_exchange_weak(
+                    current, current - 1, std::memory_order_acq_rel,
+                    std::memory_order_acquire)) {
+                return current == 1; // 前一个引用计数为 1，对象可以销毁了
+            }
+        }
+
+        MC_THROW(mc::invalid_op_exception,
+                 "attempt to release reference to a destroyed or not managed object");
     }
 
     // 增加弱引用计数
     void add_weak_ref() const {
-        atomic_size_ref(m_weak_count).fetch_add(1, std::memory_order_relaxed);
+        atomic_counter_ref(m_weak_count).fetch_add(1, std::memory_order_relaxed);
     }
 
     // 减少弱引用计数，如果弱引用计数为0且对象已销毁则返回true
     bool release_weak_ref() const {
-        if (atomic_size_ref(m_weak_count).fetch_sub(1, std::memory_order_acq_rel) == 1) {
+        if (atomic_counter_ref(m_weak_count).fetch_sub(1, std::memory_order_acq_rel) == 1) {
             // 弱引用计数为0且对象已销毁时，可以释放内存
-            return atomic_size_ref(m_ref_count).load(std::memory_order_acquire) == 0;
+            return is_destroyed();
         }
+
         return false;
     }
 
     // 获取当前强引用计数
-    size_t ref_count() const {
-        return atomic_size_ref(m_ref_count).load(std::memory_order_relaxed);
+    counter_type ref_count() const {
+        return atomic_counter_ref(m_ref_count).load(std::memory_order_relaxed);
     }
 
     // 获取当前弱引用计数
-    size_t weak_count() const {
-        return atomic_size_ref(m_weak_count).load(std::memory_order_relaxed);
-    }
-
-    // 检查对象是否已销毁
-    bool is_destroyed() const {
-        return atomic_size_ref(m_ref_count).load(std::memory_order_acquire) == 0;
+    counter_type weak_count() const {
+        return atomic_counter_ref(m_weak_count).load(std::memory_order_relaxed);
     }
 
     // 尝试从弱引用升级为强引用
     bool try_add_ref() const {
-        atomic_size_ref ref_atomic(m_ref_count);
-        size_t          current = ref_atomic.load(std::memory_order_acquire);
-        do {
-            if (current == 0) {
-                return false; // 对象已销毁，无法升级
+        atomic_counter_ref ref(m_ref_count);
+        counter_type       current = ref.load(std::memory_order_acquire);
+
+        while (current != DESTROYED && current != INVALID) {
+            if (ref.compare_exchange_weak(
+                    current, current + 1, std::memory_order_acq_rel,
+                    std::memory_order_acquire)) {
+                return true;
             }
-        } while (!ref_atomic.compare_exchange_weak(current, current + 1,
-                                                   std::memory_order_acq_rel,
-                                                   std::memory_order_acquire));
-        return true;
+        }
+
+        return false;
     }
 
+    /**
+     * @brief 安全地获取 shared_ptr，类似 std::shared_base
+     *
+     * 由于对象创建时引用计数就是1，现在总是安全的
+     */
     shared_ptr shared_from_this() const {
-        return shared_ptr(static_cast<const element_type*>(this), false);
+        return shared_ptr(static_cast<const element_type*>(this));
     }
 
-    shared_ptr shared_from_this(bool add_ref = true) {
-        return shared_ptr(static_cast<element_type*>(this), add_ref);
+    /**
+     * @brief 安全地获取 shared_ptr，类似 std::shared_base
+     */
+    shared_ptr shared_from_this() {
+        return shared_ptr(static_cast<element_type*>(this));
     }
 
     weak_ptr weak_from_this() const {
@@ -179,12 +229,38 @@ public:
     }
 
     static shared_ptr from_raw(void* ptr, bool add_ref = false) {
-        return shared_ptr(static_cast<element_type*>(ptr), add_ref);
+        if (!ptr) {
+            return shared_ptr();
+        }
+
+        auto typed_ptr = static_cast<element_type*>(ptr);
+        if (add_ref) {
+            return shared_ptr(typed_ptr);
+        } else {
+            // 不需要增加引用计数，使用内部构造函数
+            return shared_ptr(typed_ptr, typename shared_ptr::already_referenced_tag{});
+        }
+    }
+
+    /**
+     * @brief 检查对象是否已被智能指针管理
+     */
+    bool is_managed() const {
+        counter_type current = atomic_counter_ref(m_ref_count).load(std::memory_order_acquire);
+        return current != INVALID;
+    }
+
+    /**
+     * @brief 检查对象是否已析构
+     */
+    bool is_destroyed() const {
+        counter_type current = atomic_counter_ref(m_ref_count).load(std::memory_order_acquire);
+        return current == DESTROYED;
     }
 
 private:
-    mutable size_t m_ref_count{0};  // 强引用计数
-    mutable size_t m_weak_count{0}; // 弱引用计数
+    mutable counter_type m_ref_count;  // 强引用计数
+    mutable counter_type m_weak_count; // 弱引用计数
 };
 
 } // namespace mc::memory

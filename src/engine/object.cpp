@@ -158,4 +158,12 @@ void object_impl::set_position(std::string_view position) {
     m_position = position;
 }
 
+void object_impl::set_service(service* s) {
+    m_service = s;
+}
+
+service* object_impl::get_service() const {
+    return m_service;
+}
+
 } // namespace mc::engine

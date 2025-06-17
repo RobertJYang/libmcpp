@@ -39,7 +39,6 @@
 namespace mc::engine {
 namespace mdb = mc::db;
 
-using strand_type        = strand_t<io_context_type::executor_type>;
 using slot_type          = std::function<mc::variant(const mc::variants&)>;
 using message            = mc::dbus::message;
 using core_object        = mc::core::object;
@@ -123,10 +122,8 @@ public:
 
     virtual ~abstract_object() = default;
 
-    void     set_service(service* s);
-    service* get_service() const override;
-
-    abstract_object* get_parent() const override;
+    virtual void     set_service(service* s) = 0;
+    virtual service* get_service() const     = 0;
 
     virtual abstract_object*       get_owner() const                 = 0;
     virtual void                   set_owner(abstract_object* owner) = 0;
@@ -185,10 +182,9 @@ public:
 
     virtual ~abstract_interface() = default;
 
-    virtual abstract_object* get_parent() const override;
     virtual abstract_object* get_owner() const = 0;
 
-    service* get_service() const override;
+    service* get_service() const;
 
     virtual std::string_view    get_interface_name() const                                             = 0;
     virtual mc::connection_type connect(std::string_view signal_name, slot_type slot)                  = 0;

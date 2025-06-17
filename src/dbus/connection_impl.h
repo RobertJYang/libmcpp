@@ -22,7 +22,7 @@ namespace mc::dbus {
 constexpr uint32_t MAX_SERIAL_RETRY = 1000000;
 
 struct pending_data {
-    using promise_type = mc::promise<message, mc::core::io_context::executor_type>;
+    using promise_type = mc::promise<message, mc::io_context::executor_type>;
 
     pending_data(promise_type promise, pending_call pending)
         : promise(std::move(promise)), pending(std::move(pending)) {
@@ -43,7 +43,7 @@ struct pending_data {
 using pending_call_map = std::unordered_map<uint32_t, pending_data>;
 
 struct connection_impl : public std::enable_shared_from_this<connection_impl> {
-    connection_impl(mc::core::io_context& executor);
+    connection_impl(mc::io_context& executor);
     ~connection_impl();
 
     connection_impl(const connection_impl&)            = delete;
@@ -90,7 +90,7 @@ struct connection_impl : public std::enable_shared_from_this<connection_impl> {
     pending_call_map                          m_pending_calls;  ///< 等待回复的消息
     uint32_t                                  m_next_serial{1}; ///< 下一个消息序列号
     DBusConnection*                           m_connection{nullptr};
-    mc::core::io_context&                     m_executor;
+    mc::io_context&                           m_executor;
     connect_status                            m_status{connect_status::disconnected};
     match                                     m_match;
     std::unordered_map<uint64_t, std::string> m_match_strs;

@@ -68,7 +68,7 @@ void timer::set_interval(mc::milliseconds msec) {
     }
 
     m_impl->m_timer.cancel();
-    m_impl->start(mc::shared_ptr<timer>(this));
+    m_impl->start(mc::static_pointer_cast<timer>(this->shared_from_this()));
 }
 
 bool timer::is_single_shot() const {
@@ -97,7 +97,7 @@ void timer::start(mc::milliseconds msec) {
         m_impl = std::make_unique<timer_impl>(get_executor());
     }
 
-    m_impl->start(mc::shared_ptr<timer>(this));
+    m_impl->start(mc::static_pointer_cast<timer>(this->shared_from_this()));
 }
 
 void timer::stop() {
@@ -114,12 +114,12 @@ timer_ptr timer::single_shot(mc::milliseconds msec, std::function<void()> functo
         return {};
     }
 
-    return single_shot(msec, &mc::core::app(), std::move(functor));
+    return single_shot(msec, nullptr, std::move(functor));
 }
 
 timer_ptr timer::single_shot(mc::milliseconds msec, object* context,
                              std::function<void()> functor) {
-    if (!context || !functor) {
+    if (!functor) {
         return {};
     }
 

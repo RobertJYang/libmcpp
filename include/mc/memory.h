@@ -37,6 +37,7 @@
  */
 
 // 核心内存管理组件
+#include <mc/memory/allocator.h>
 #include <mc/memory/shared_base.h>
 #include <mc/memory/shared_ptr.h>
 #include <mc/memory/weak_ptr.h>
@@ -46,9 +47,6 @@ namespace mc {
 using mc::memory::shared_base;
 using mc::memory::shared_ptr;
 using mc::memory::weak_ptr;
-
-using mc::memory::allocate_ptr;
-using mc::memory::destroy_ptr;
 
 using mc::memory::allocate_shared;
 using mc::memory::make_shared;

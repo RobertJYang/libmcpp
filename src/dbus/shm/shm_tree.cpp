@@ -18,9 +18,9 @@
 namespace mc::dbus {
 static uint32_t g_serial = 0;
 
-shm_tree::shm_tree(strand_type& strand, std::string_view harbor_name, std::string_view service_name,
+shm_tree::shm_tree(std::string_view harbor_name, std::string_view service_name,
                    std::string_view unique_name)
-    : m_strand(strand), m_service_name(service_name), m_unique_name(unique_name),
+    : m_service_name(service_name), m_unique_name(unique_name),
       m_tree(create_shm_tree(harbor_name, service_name, unique_name)) {
 }
 
@@ -83,7 +83,7 @@ shm_tree::timeout_call(mc::milliseconds timeout, std::string_view service_name,
              ("service_name", service_name));
         return std::nullopt;
     }
-    auto  promise = mc::make_promise<local_msg>(m_strand);
+    auto  promise = mc::make_promise<local_msg>();
     auto  future  = promise.get_future();
     auto& harbor  = mc::dbus::harbor::get_instance();
     if (!harbor.send_shm_msg(m_unique_name, serial, promise)) {
@@ -147,8 +147,8 @@ static std::optional<variant> get_property_inner(std::string_view service_name,
     }
     std::memcpy(p_data, prop_value.data(), p_data_len);
     std::string_view signature = prop->get_signature();
-    GVariant* v = g_variant_new_from_data(G_VARIANT_TYPE(signature.data()), p_data, p_data_len,
-                                          false, g_free, p_data);
+    GVariant*        v         = g_variant_new_from_data(G_VARIANT_TYPE(signature.data()), p_data, p_data_len,
+                                                         false, g_free, p_data);
     return gvariant_convert::to_mc_variant(v);
 }
 

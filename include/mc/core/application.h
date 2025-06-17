@@ -39,7 +39,7 @@ namespace mc::core {
  *
  * 继承自 service_base 类，使其成为服务树的根节点
  */
-class application : public core::service_base {
+class application {
 public:
     static application& instance() {
         return singleton<application>::instance_with_creator([]() {
@@ -52,7 +52,7 @@ public:
     application(application&&)                 = delete;
     application& operator=(application&&)      = delete;
 
-    ~application() override;
+    ~application();
 
     void               set_version(const std::string& version);
     const std::string& version() const;
@@ -65,8 +65,8 @@ public:
 
     bool initialize();
     bool initialize(int argc, char** argv);
-    bool start() override;
-    bool stop() override;
+    bool start();
+    bool stop();
     bool is_stopped() const;
 
     void exec();

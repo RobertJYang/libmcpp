@@ -187,7 +187,8 @@ template <typename T>
 constexpr bool is_execution_context_v = is_execution_context<T>::value;
 
 template <typename T>
-constexpr bool is_executor_v = boost::asio::is_executor<T>::value;
+constexpr bool is_executor_v = boost::asio::is_executor<T>::value ||
+                               std::is_same_v<T, boost::asio::any_io_executor>;
 
 // immediate_executor 用于立即执行回调的执行器
 class immediate_context;
@@ -235,6 +236,16 @@ public:
     }
 
     void on_work_finished() const noexcept {
+    }
+
+    // 支持 execution::blocking.never 属性
+    immediate_executor require(boost::asio::execution::blocking_t::never_t) const {
+        return *this;
+    }
+
+    // 查询执行器属性
+    static constexpr boost::asio::execution::blocking_t query(boost::asio::execution::blocking_t) {
+        return boost::asio::execution::blocking.never;
     }
 
     immediate_context& context() const noexcept;
@@ -756,6 +767,16 @@ using futures::timeout;
 using futures::detail::is_future_v;
 
 } // namespace mc
+
+// Boost.Asio 特化
+namespace boost {
+namespace asio {
+
+template <>
+struct is_executor<mc::futures::detail::immediate_executor> : std::true_type {};
+
+} // namespace asio
+} // namespace boost
 
 #include <mc/futures/detail/combinator_future.h>
 #include <mc/futures/detail/future_impl.h>

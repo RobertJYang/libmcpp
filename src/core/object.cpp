@@ -10,21 +10,20 @@
  * See the Mulan PSL v2 for more details.
  */
 
-#include "include/connection_manager.h"
-
 #include <mc/core/object.h>
-#include <mc/core/service.h>
-#include <mc/exception.h>
 #include <mc/sync/mutex_box.h>
 #include <mc/sync/shared_mutex.h>
 
+#include "include/connection_manager.h"
 #include <algorithm>
 
 namespace mc::core {
 
+/* ------------------------ object_data & object_impl ----------------------- */
+
 struct object_data {
     std::string        name;           // 对象名称
-    object*            parent;         // 父对象指针
+    object_weak_ptr    parent;         // 父对象指针
     child_list         children;       // 子对象列表
     bool               is_deleted;     // 标记对象是否已被删除
     connection_manager connection_mgr; // 连接管理器
@@ -65,15 +64,15 @@ public:
     // 线程安全的数据访问方法
     std::string get_name() const;
     void        set_name(std::string_view name);
-    object*     get_parent() const;
+    object_ptr  get_parent() const;
     void        set_parent(object* parent);
     child_list  get_children() const;
-    object*     find_child(std::string_view name) const;
-    void        add_child(object_ptr child);
-    void        remove_child(object_ptr child);
+    object_ptr  find_child(std::string_view name) const;
+    void        add_child(object* child);
+    void        remove_child(object* child);
 
     // 清理方法，返回需要清理的子对象列表和父对象
-    std::pair<child_list, object*> cleanup_data();
+    std::pair<child_list, object_ptr> cleanup_data();
 
     // 连接管理方法
     connection_id_type add_connection(signal_type sig, mc::connection_type conn,
@@ -115,20 +114,20 @@ void object_impl::set_name(std::string_view name) {
     m_data.wlock()->name = std::string(name);
 }
 
-object* object_impl::get_parent() const {
-    return m_data.rlock()->parent;
+object_ptr object_impl::get_parent() const {
+    return m_data.rlock()->parent.lock();
 }
 
 void object_impl::set_parent(object* parent) {
-    m_data.wlock()->parent = parent;
+    m_data.wlock()->parent = parent->weak_from_this();
 }
 
 child_list object_impl::get_children() const {
     return m_data.rlock()->children;
 }
 
-object* object_impl::find_child(std::string_view name) const {
-    return m_data.with_lock([name](auto& data) {
+object_ptr object_impl::find_child(std::string_view name) const {
+    return m_data.with_lock([name](auto& data) -> object_ptr {
         auto it = std::find_if(data.children.begin(), data.children.end(),
                                [name](const object_ptr& child) {
             if (!child) {
@@ -137,11 +136,11 @@ object* object_impl::find_child(std::string_view name) const {
             return child->get_name() == name;
         });
 
-        return (it != data.children.end()) ? it->get() : nullptr;
+        return (it != data.children.end()) ? *it : nullptr;
     });
 }
 
-void object_impl::add_child(object_ptr child) {
+void object_impl::add_child(object* child) {
     if (!child) {
         return;
     }
@@ -159,7 +158,7 @@ void object_impl::add_child(object_ptr child) {
     });
 }
 
-void object_impl::remove_child(object_ptr child) {
+void object_impl::remove_child(object* child) {
     if (!child) {
         return;
     }
@@ -172,12 +171,13 @@ void object_impl::remove_child(object_ptr child) {
     });
 }
 
-std::pair<child_list, object*> object_impl::cleanup_data() {
+std::pair<child_list, object_ptr> object_impl::cleanup_data() {
     return m_data.with_lock([](auto& data) {
-        data.is_deleted        = true;
-        object* current_parent = data.parent;
-        if (current_parent) {
-            data.parent = nullptr;
+        data.is_deleted = true;
+
+        auto parent = data.parent.lock();
+        if (parent) {
+            data.parent.reset();
         }
 
         // 移动子对象列表，这样就不会持有对子对象的引用了
@@ -187,7 +187,7 @@ std::pair<child_list, object*> object_impl::cleanup_data() {
         // 清理所有连接
         data.connection_mgr.clear();
 
-        return std::make_pair(std::move(children_to_cleanup), current_parent);
+        return std::make_pair(std::move(children_to_cleanup), parent);
     });
 }
 
@@ -214,9 +214,9 @@ object::object() {
 }
 
 object::object(object* parent) {
+    // 现在可以安全地设置父对象，因为 shared_from_this() 总是可用
     if (parent) {
         set_parent(parent);
-        m_service = parent->get_service();
     }
 }
 
@@ -225,44 +225,34 @@ object::~object() noexcept {
 }
 
 void object::cleanup_on_destroy() noexcept {
-    if (!m_impl) {
+    auto impl = std::move(m_object_impl);
+    if (!impl) {
         return;
     }
 
     try {
-        // 从 impl 中获取需要清理的数据
-        auto [children_to_cleanup, current_parent] = m_impl->cleanup_data();
+        auto [to_cleanup, parent] = impl->cleanup_data();
 
         // 从父对象中移除自己
-        if (current_parent) {
-            current_parent->remove_child(this->shared_from_this());
+        if (parent) {
+            parent->remove_child(this);
         }
 
         // 清空所有子对象的父指针，让它们知道父对象已经不存在了
-        for (auto& child : children_to_cleanup) {
-            if (child && child->m_impl) {
-                try {
-                    auto child_parent = child->m_impl->get_parent();
-                    if (child_parent == this) {
-                        child->m_impl->set_parent(nullptr);
-                    }
-                } catch (...) {
-                    // 静默处理子对象的错误
-                }
-            }
+        for (auto& child : to_cleanup) {
+            child->set_parent(nullptr);
         }
-        // children_to_cleanup 在这里析构，释放所有子对象的引用
+        to_cleanup.clear();
     } catch (...) {
         // 析构函数中不能抛出异常，静默处理
     }
 
-    // 连接已在 cleanup_data() 中清理
-    m_impl.reset();
+    impl.reset();
 }
 
 object::object(const object& other) : object_base(other) {
-    if (other.m_impl) {
-        m_impl = std::make_unique<object_impl>(*other.m_impl);
+    if (other.m_object_impl) {
+        m_object_impl = std::make_unique<object_impl>(*other.m_object_impl);
     }
     // 复制基本数据但不复制父子关系在 object_impl 的构造函数中处理
 }
@@ -271,14 +261,14 @@ object& object::operator=(const object& other) {
     if (this != &other) {
         object_base::operator=(other);
 
-        if (other.m_impl) {
-            if (!m_impl) {
-                m_impl = std::make_unique<object_impl>(*other.m_impl);
+        if (other.m_object_impl) {
+            if (!m_object_impl) {
+                m_object_impl = std::make_unique<object_impl>(*other.m_object_impl);
             } else {
-                *m_impl = *other.m_impl;
+                *m_object_impl = *other.m_object_impl;
             }
         } else {
-            m_impl.reset();
+            m_object_impl.reset();
         }
         // 复制基本数据但不复制父子关系在 object_impl 的赋值运算符中处理
     }
@@ -286,8 +276,8 @@ object& object::operator=(const object& other) {
 }
 
 void object::set_parent(object* parent) {
-    auto&   impl       = ensure_impl();
-    object* old_parent = impl.get_parent();
+    auto& impl       = ensure_impl();
+    auto  old_parent = impl.get_parent();
     if (old_parent == parent) {
         return; // 父对象没有变化
     }
@@ -297,23 +287,20 @@ void object::set_parent(object* parent) {
 
     // 从旧父对象中移除
     if (old_parent) {
-        old_parent->remove_child(this->shared_from_this());
+        old_parent->remove_child(this);
     }
 
-    // 添加到新父对象
+    // 添加到新父对象（现在可以安全调用 shared_from_this()）
     if (parent) {
         parent->add_child(this->shared_from_this());
-        if (!m_service) {
-            m_service = parent->get_service();
-        }
     }
 }
 
-object* object::get_parent() const {
-    if (!m_impl) {
+object_ptr object::get_parent() const {
+    if (!m_object_impl) {
         return nullptr;
     }
-    return m_impl->get_parent();
+    return m_object_impl->get_parent();
 }
 
 void object::set_name(std::string_view name) {
@@ -325,52 +312,35 @@ std::string object::get_name() const {
 }
 
 child_list object::get_children() const {
-    if (!m_impl) {
+    if (!m_object_impl) {
         return {};
     }
-    return m_impl->get_children();
+    return m_object_impl->get_children();
 }
 
-object* object::find_child(std::string_view name) const {
-    if (!m_impl) {
+object_ptr object::find_child(std::string_view name) const {
+    if (!m_object_impl) {
         return nullptr;
     }
-    return m_impl->find_child(name);
+    return m_object_impl->find_child(name);
 }
 
-void object::add_child(object_ptr child) {
+void object::add_child(object* child) {
     ensure_impl().add_child(child);
 }
 
-void object::remove_child(object_ptr child) {
-    if (!m_impl) {
+void object::remove_child(object* child) {
+    if (!m_object_impl) {
         return;
     }
-    m_impl->remove_child(child);
-}
-
-service_base* object::get_service() const {
-    if (!m_service && m_impl) {
-        auto parent = m_impl->get_parent();
-        if (parent) {
-            auto* service = parent->get_service();
-            if (service) {
-                m_service = service;
-            }
-        }
-    }
-    return m_service;
-}
-
-void object::set_service(service_base* s) {
-    m_service = s;
+    m_object_impl->remove_child(child);
 }
 
 object_impl& object::ensure_impl() const {
-    if (!m_impl) {
-        m_impl = std::make_unique<object_impl>();
+    if (!m_object_impl) {
+        m_object_impl = std::make_unique<object_impl>();
     }
-    return *m_impl;
+    return *m_object_impl;
 }
 
 connection_id_type object::add_connection(signal_type sig, mc::connection_type conn,
@@ -379,23 +349,21 @@ connection_id_type object::add_connection(signal_type sig, mc::connection_type c
 }
 
 void object::disconnect(connection_id_type id) const {
-    if (!m_impl) {
+    if (!m_object_impl) {
         return;
     }
-    m_impl->remove_connection(id);
+    m_object_impl->remove_connection(id);
 }
 
 void object::disconnect_all(signal_type sig) {
-    if (!m_impl) {
+    if (!m_object_impl) {
         return;
     }
-    m_impl->remove_connections(&sig);
+    m_object_impl->remove_connections(&sig);
 }
 
-object_base::executor_type& object::get_executor() const {
-    auto* service = get_service();
-    MC_ASSERT(service, "get executor not available on object with no service");
-    return service->get_executor();
+object::executor_type object::get_executor() const {
+    return mc::futures::detail::get_system_context().get_executor();
 }
 
 } // namespace mc::core

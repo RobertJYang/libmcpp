@@ -429,7 +429,11 @@ TEST_F(mutex_box_test, lock_pair) {
     {
         std::promise<void> wait_promise1;
         std::promise<void> wait_promise2;
-        std::thread        t1([&]() {
+
+        // 主线程锁定 box2
+        auto locked2 = box2.lock();
+
+        std::thread t1([&]() {
             // 先锁定 box1，再锁定 box2
             auto locked1 = box1.lock();
             wait_promise1.set_value(); // 通知主线程，t1 线程已经锁定 box1
@@ -440,8 +444,6 @@ TEST_F(mutex_box_test, lock_pair) {
             wait_promise2.get_future().wait(); // 通知主线程，t1 线程已经锁定 box2
         });
 
-        // 主线程锁定 box2
-        auto locked2 = box2.lock();
         // 等待 t1 线程锁定 box1
         wait_promise1.get_future().wait();
         // 主线程尝试锁定 box1，应该失败

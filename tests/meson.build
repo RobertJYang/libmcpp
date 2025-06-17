@@ -121,6 +121,14 @@ test_files = [
   'sync/test_mutex_box.cpp',
   'sync/test_upgrade_mutex.cpp',
   'sync/test_small_mutex.cpp',
+
+  # memory 目录
+  'memory/test_shared_base.cpp',
+  'memory/test_shared_ptr_basic.cpp',
+  'memory/test_shared_object_ctor.cpp',
+  'memory/test_shared_ptr_thread_safety.cpp',
+  'memory/test_weak_ptr.cpp',
+
 ]
 
 enable_shared_memory = get_option('enable_shared_memory')

@@ -10,17 +10,17 @@
  * See the Mulan PSL v2 for more details.
  */
 
+#include <mc/dbus/shm/local_msg.h>
 #include <mc/engine/engine.h>
 #include <mc/engine/object.h>
 #include <mc/engine/service.h>
-#include <mc/dbus/shm/local_msg.h>
 #include <thread>
 
 namespace mc::engine {
 using object_table_ptr     = std::shared_ptr<object_table>;
 using table_connection_map = std::multimap<std::string, mc::connection_type>;
-using thread_pool          = std::list<std::thread>;
-using work_guard = boost::asio::executor_work_guard<boost::asio::io_context::executor_type>;
+using thread_list          = std::list<std::thread>;
+using work_guard           = boost::asio::executor_work_guard<boost::asio::io_context::executor_type>;
 
 struct engine::engine_impl {
 public:
@@ -34,9 +34,9 @@ public:
     std::mutex                  m_mutex;
     mdb::database               m_database;
     object_table_ptr            m_object_table;
-    boost::asio::io_context     m_io_context;
+    io_context                  m_io_context;
     table_connection_map        m_connections;
-    thread_pool                 m_threads;
+    thread_list                 m_threads;
     std::mutex                  m_threads_mutex;
     std::unique_ptr<work_guard> m_work;
     mc::expr::engine            m_expr_engine;
@@ -155,9 +155,9 @@ bool engine::register_table(mc::db::table_ptr table) {
 
     auto c3 = table->on_object_updated.connect(
         [this](mdb::object_base& old_object, mdb::object_base& new_object) {
-            m_impl->update_object(static_cast<abstract_object&>(old_object),
-                                  static_cast<abstract_object&>(new_object));
-        });
+        m_impl->update_object(static_cast<abstract_object&>(old_object),
+                              static_cast<abstract_object&>(new_object));
+    });
 
     std::string_view table_name = table->get_table_name();
     m_impl->m_connections.emplace(table_name, c1);

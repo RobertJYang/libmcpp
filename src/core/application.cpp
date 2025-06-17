@@ -58,8 +58,7 @@ application::impl::impl()
       m_supervisor_manager(std::make_unique<supervisor_manager>()) {
 }
 
-application::application() : service_base("application"), m_impl(std::make_unique<impl>()) {
-    set_service(this);
+application::application() : m_impl(std::make_unique<impl>()) {
 }
 
 application::~application() {

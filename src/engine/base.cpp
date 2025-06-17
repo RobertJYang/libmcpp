@@ -14,9 +14,6 @@
 #include <mc/exception.h>
 
 namespace mc::engine {
-abstract_object* abstract_interface::get_parent() const {
-    return get_owner();
-}
 
 service* abstract_interface::get_service() const {
     auto owner = get_owner();
@@ -25,18 +22,6 @@ service* abstract_interface::get_service() const {
     }
 
     return owner->get_service();
-}
-
-abstract_object* abstract_object::get_parent() const {
-    return dynamic_cast<abstract_object*>(mc::core::object::get_parent());
-}
-
-void abstract_object::set_service(service* s) {
-    mc::core::object::set_service(s);
-}
-
-service* abstract_object::get_service() const {
-    return static_cast<service*>(mc::core::object::get_service());
 }
 
 } // namespace mc::engine

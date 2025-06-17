@@ -128,7 +128,6 @@ public:
     ~weak_ptr() {
         if (m_ptr && m_ptr->release_weak_ref()) {
             // 弱引用计数为0且强引用计数也为0时，释放内存
-            // 由于引用计数使用普通size_t，不会被析构函数破坏
             detail::deallocate_ptr(m_ptr);
         }
     }
@@ -158,7 +157,7 @@ public:
         if (!m_ptr || !m_ptr->try_add_ref()) {
             return ref_ptr_type();
         }
-        return ref_ptr_type(m_ptr, false); // 已经增加了引用计数，不需要再次增加
+        return ref_ptr_type(m_ptr, typename ref_ptr_type::already_referenced_tag{}); // 已经增加了引用计数，不需要再次增加
     }
 
     // 获取原始指针

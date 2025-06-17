@@ -28,12 +28,14 @@ public:
 
     my_task_object(mc::core::object* parent = nullptr);
 
-    static my_task_object* create_task(mc::engine::service* service, mc::milliseconds timeout);
+    static mc::shared_ptr<my_task_object> create_task(mc::engine::service* service, mc::milliseconds timeout);
 
 private:
     my_task_interface m_task;
     static uint32_t   m_next_task_id;
 };
+
+using task_object_ptr = mc::shared_ptr<my_task_object>;
 } // namespace test
 
 MC_REFLECT(test::my_task_object, ((m_task, "task")))

@@ -22,9 +22,9 @@ my_task_object::my_task_object(mc::core::object* parent)
     : mc::engine::object<my_task_object>(parent) {
 }
 
-my_task_object* my_task_object::create_task(mc::engine::service* service,
-                                            mc::milliseconds     timeout) {
-    auto task = new my_task_object(service);
+mc::shared_ptr<my_task_object> my_task_object::create_task(mc::engine::service* service,
+                                                           mc::milliseconds     timeout) {
+    auto task = mc::make_shared<my_task_object>(service);
 
     auto id = m_next_task_id++;
     task->m_task.m_id.set_value(id);
