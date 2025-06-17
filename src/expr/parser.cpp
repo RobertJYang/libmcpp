@@ -220,9 +220,9 @@ node_ptr parser::comparison() {
 //
 // AST结构：
 //        +
-//       / \
+//       / |
 //      *   c
-//     / \
+//     / |
 //    -   b
 //    |
 //    a
