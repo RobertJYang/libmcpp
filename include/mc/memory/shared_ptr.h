@@ -13,6 +13,7 @@
 #ifndef MC_REF_PTR_H
 #define MC_REF_PTR_H
 
+#include <mc/memory/allocator.h>
 #include <mc/memory/shared_base.h>
 
 #include <memory>
@@ -20,84 +21,6 @@
 #include <utility>
 
 namespace mc::memory {
-template <typename T, typename Alloc = std::allocator<T>, typename... Args>
-T* allocate_ptr(const Alloc& alloc, Args&&... args) {
-    using AllocTraits  = std::allocator_traits<Alloc>;
-    using ReboundAlloc = typename AllocTraits::template rebind_alloc<T>;
-
-    ReboundAlloc rebound_alloc(alloc);
-    using ReboundAllocTraits = std::allocator_traits<ReboundAlloc>;
-
-    // 分配内存
-    T* ptr = ReboundAllocTraits::allocate(rebound_alloc, 1);
-
-    try {
-        // 构造对象
-        ReboundAllocTraits::construct(rebound_alloc, ptr, std::forward<Args>(args)...);
-        return ptr;
-    } catch (...) {
-        ReboundAllocTraits::deallocate(rebound_alloc, ptr, 1);
-        throw;
-    }
-}
-
-/**
- * @brief 销毁并释放内存
- * @tparam T 对象类型
- * @tparam Alloc 分配器类型
- * @param alloc 分配器
- * @param ptr 指向要销毁的对象的指针
- */
-template <typename T, typename Alloc = std::allocator<T>>
-void destroy_ptr(const Alloc& alloc, T* ptr) {
-    using AllocTraits  = std::allocator_traits<Alloc>;
-    using ReboundAlloc = typename AllocTraits::template rebind_alloc<T>;
-
-    ReboundAlloc rebound_alloc(alloc);
-    using ReboundAllocTraits = std::allocator_traits<ReboundAlloc>;
-
-    ReboundAllocTraits::destroy(rebound_alloc, ptr);
-    ReboundAllocTraits::deallocate(rebound_alloc, ptr, 1);
-}
-
-namespace detail {
-template <typename T>
-static constexpr auto has_m_alloc(int) -> decltype(std::declval<T>().m_alloc, bool()) {
-    return true;
-}
-
-template <typename T>
-static constexpr bool has_m_alloc(...) {
-    return false;
-}
-
-template <typename T>
-void destroy_ptr(T* ptr) {
-    using non_const_t = std::remove_const_t<T>;
-    if constexpr (has_m_alloc<T>(0)) {
-        using alloc_type   = typename non_const_t::alloc_type;
-        using alloc_traits = std::allocator_traits<alloc_type>;
-        alloc_type alloc   = ptr->m_alloc;
-        alloc_traits::destroy(alloc, ptr);
-        alloc_traits::deallocate(alloc, const_cast<non_const_t*>(ptr), 1);
-    } else {
-        std::default_delete<T>()(const_cast<non_const_t*>(ptr));
-    }
-}
-
-template <typename T>
-void deallocate_ptr(T* ptr) {
-    using non_const_t = std::remove_const_t<T>;
-    if constexpr (has_m_alloc<T>(0)) {
-        using alloc_type   = typename non_const_t::alloc_type;
-        using alloc_traits = std::allocator_traits<alloc_type>;
-        alloc_type alloc   = ptr->m_alloc;
-        alloc_traits::deallocate(alloc, const_cast<non_const_t*>(ptr), 1);
-    } else {
-        operator delete(const_cast<non_const_t*>(ptr));
-    }
-}
-} // namespace detail
 
 /**
  * shared_ptr 智能指针，类似 std::shared_ptr 但专门用于管理 shared_base 对象
@@ -105,6 +28,7 @@ void deallocate_ptr(T* ptr) {
 template <typename T, typename PointerType>
 class shared_ptr {
 public:
+    // 类型别名
     using element_type = T;
     using pointer_type = PointerType;
 
@@ -117,8 +41,8 @@ public:
     }
 
     // 接受裸指针的构造函数
-    explicit shared_ptr(pointer_type ptr, bool add_ref = true) noexcept : m_ptr(ptr) {
-        if (m_ptr && add_ref) {
+    explicit shared_ptr(pointer_type ptr) noexcept : m_ptr(ptr) {
+        if (m_ptr) {
             m_ptr->add_ref();
         }
     }
@@ -182,14 +106,20 @@ public:
 
     // 析构函数
     ~shared_ptr() {
-        if (m_ptr && m_ptr->release_ref()) {
-            // 强引用计数为0时，立即调用对象析构函数
-            static_cast<element_type*>(m_ptr)->~element_type();
+        if (!m_ptr || !m_ptr->release_ref()) {
+            return;
+        }
 
-            // 如果没有弱引用，则立即释放内存
-            if (m_ptr->weak_count() == 0) {
-                detail::deallocate_ptr(m_ptr);
-            }
+        // 强引用计数为 0 时，对象开始进入销毁阶段，这里临时增加弱引用计数，
+        // 避免析构过程中因为持有该对象的弱指针被销毁而导致计数为 0 提前释放内存。
+        m_ptr->add_weak_ref();
+
+        // 调用对象析构函数
+        static_cast<element_type*>(m_ptr)->~element_type();
+
+        // 减少临时弱引用计数，如果弱引用计数为 0 则释放内存
+        if (m_ptr->release_weak_ref()) {
+            detail::deallocate_ptr(m_ptr);
         }
     }
 
@@ -203,7 +133,7 @@ public:
         shared_ptr(ptr).swap(*this);
     }
 
-    // 重置为新指针（类型转换版本）
+    // 重置为新指针
     template <typename U>
     void reset(U* ptr) noexcept {
         static_assert(std::is_convertible_v<U*, T*>, "U* must be convertible to T*");
@@ -284,6 +214,20 @@ public:
 
 private:
     pointer_type m_ptr;
+
+    // 内部构造函数，用于已经增加引用计数的情况
+    struct already_referenced_tag {};
+    explicit shared_ptr(pointer_type ptr, already_referenced_tag) noexcept : m_ptr(ptr) {
+        // 不增加引用计数，因为调用者已经增加了
+    }
+
+    // 允许 weak_ptr 访问私有构造函数
+    template <typename U, typename UP>
+    friend class weak_ptr;
+
+    // 允许 shared_base 访问私有构造函数
+    template <typename U, typename UP, typename CounterType>
+    friend class shared_base;
 };
 
 // 相等运算符

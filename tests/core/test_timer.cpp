@@ -39,6 +39,7 @@ protected:
     }
 
     void TearDown() override {
+        service.reset();
     }
 
     mc::shared_ptr<timer_service> service;
@@ -47,17 +48,17 @@ protected:
 } // namespace
 
 TEST_F(timer_test, test_single_shot) {
-    mc::core::timer::single_shot(mc::milliseconds(100), service, &timer_service::test_single_shot);
+    mc::core::timer::single_shot(mc::milliseconds(10), service, &timer_service::test_single_shot);
 
     auto future = service->m_is_called.get_future();
-    auto status = future.wait_for(std::chrono::milliseconds(300));
+    auto status = future.wait_for(std::chrono::milliseconds(100));
     EXPECT_EQ(status, std::future_status::ready);
     EXPECT_TRUE(future.get());
 }
 
 // 测试周期性定时器
 TEST_F(timer_test, test_periodic_timer) {
-    auto timer = new mc::core::timer(service.get());
+    auto timer = mc::make_shared<mc::core::timer>(service.get());
 
     int                count          = 0;
     int                expected_count = 3;

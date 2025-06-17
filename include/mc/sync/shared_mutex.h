@@ -200,7 +200,7 @@ public:
         uint32_t expected = 0;
         if (m_state.compare_exchange_strong(
                 expected, WRITER_BIT,
-                std::memory_order_acquire, std::memory_order_relaxed)) {
+                std::memory_order_acq_rel, std::memory_order_acquire)) {
             return true;
         }
 
@@ -230,7 +230,7 @@ public:
     }
 
     bool try_lock_shared() noexcept {
-        uint32_t current = m_state.load(std::memory_order_relaxed);
+        uint32_t current = m_state.load(std::memory_order_acquire);
         if ((current & (WRITER_BIT | WRITER_WAITING_BIT)) != 0) {
             return false;
         }
@@ -238,7 +238,7 @@ public:
         uint32_t expected = current;
         return m_state.compare_exchange_strong(
             expected, current + 1,
-            std::memory_order_acquire, std::memory_order_relaxed);
+            std::memory_order_acq_rel, std::memory_order_acquire);
     }
 
     template <typename Duration>
@@ -269,7 +269,7 @@ public:
 
         return m_state.compare_exchange_strong(
             current, current | UPGRADE_BIT,
-            std::memory_order_acq_rel, std::memory_order_relaxed);
+            std::memory_order_acq_rel, std::memory_order_acquire);
     }
 
     template <typename Duration>
@@ -306,7 +306,7 @@ public:
             uint32_t new_state = (current & ~UPGRADE_BIT) | WRITER_BIT;
             if (m_state.compare_exchange_strong(
                     current, new_state,
-                    std::memory_order_acq_rel, std::memory_order_relaxed)) {
+                    std::memory_order_acq_rel, std::memory_order_acquire)) {
                 // 升级成功，唤醒其他等待升级锁的线程
                 detail::futex_wake(&m_state, ALL, UPGRADE_BIT);
                 return true;
@@ -341,7 +341,7 @@ public:
             uint32_t new_state = (expected & ~UPGRADE_BIT) + 1;
             if (m_state.compare_exchange_weak(
                     expected, new_state,
-                    std::memory_order_acq_rel, std::memory_order_relaxed)) {
+                    std::memory_order_acq_rel, std::memory_order_acquire)) {
                 // 降级成功，唤醒等待升级锁的线程
                 detail::futex_wake(&m_state, ALL, UPGRADE_BIT);
                 return;
@@ -362,7 +362,7 @@ public:
             uint32_t new_state = (expected & ~WRITER_BIT) | UPGRADE_BIT;
             if (m_state.compare_exchange_weak(
                     expected, new_state,
-                    std::memory_order_acq_rel, std::memory_order_relaxed)) {
+                    std::memory_order_acq_rel, std::memory_order_acquire)) {
                 detail::futex_wake(&m_state, ALL, WRITER_BIT);
                 return;
             }
@@ -382,7 +382,7 @@ public:
             uint32_t new_state = (expected & ~WRITER_BIT) + 1;
             if (m_state.compare_exchange_weak(
                     expected, new_state,
-                    std::memory_order_acq_rel, std::memory_order_relaxed)) {
+                    std::memory_order_acq_rel, std::memory_order_acquire)) {
                 detail::futex_wake(&m_state, ALL, WRITER_BIT);
                 return;
             }
@@ -414,7 +414,7 @@ private:
                 (count >= Policy::write_limit) &&
                 !m_state.compare_exchange_weak(
                     current, current | WRITER_WAITING_BIT,
-                    std::memory_order_relaxed, std::memory_order_relaxed)) {
+                    std::memory_order_acq_rel, std::memory_order_acquire)) {
                 continue;
             }
 
@@ -435,13 +435,13 @@ private:
 
             if (m_state.compare_exchange_strong(
                     current, new_state,
-                    std::memory_order_acquire, std::memory_order_relaxed)) {
+                    std::memory_order_acq_rel, std::memory_order_acquire)) {
                 return true; // 成功获取写锁
             }
         }
 
         // 超时失败，清理WRITER_WAITING_BIT避免读线程被永久阻塞
-        m_state.fetch_and(~WRITER_WAITING_BIT, std::memory_order_relaxed);
+        m_state.fetch_and(~WRITER_WAITING_BIT, std::memory_order_acq_rel);
         detail::futex_wake(&m_state, ALL, WRITER_BIT);
 
         return false;
@@ -460,7 +460,7 @@ private:
             uint32_t new_state = current + 1;
             if (m_state.compare_exchange_strong(
                     current, new_state,
-                    std::memory_order_acq_rel, std::memory_order_relaxed)) {
+                    std::memory_order_acq_rel, std::memory_order_acquire)) {
                 return true;
             }
         }
@@ -479,7 +479,7 @@ private:
 
             if (m_state.compare_exchange_strong(
                     current, current | UPGRADE_BIT,
-                    std::memory_order_acq_rel, std::memory_order_relaxed)) {
+                    std::memory_order_acq_rel, std::memory_order_acquire)) {
                 return true;
             }
         }

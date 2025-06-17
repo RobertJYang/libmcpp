@@ -27,11 +27,12 @@
 #include <boost/asio/thread_pool.hpp>
 
 namespace mc::engine {
-using io_context_type     = boost::asio::io_context;
-using system_context_type = boost::asio::system_context;
-using thread_pool_type    = boost::asio::thread_pool;
+using io_context     = boost::asio::io_context;
+using system_context = boost::asio::system_context;
+using thread_pool    = boost::asio::thread_pool;
 template <typename Executor>
-using strand_t = boost::asio::strand<Executor>;
+using strand_t     = boost::asio::strand<Executor>;
+using any_executor = boost::asio::any_io_executor;
 
 namespace detail {
 template <typename T, typename F, typename Arg>
@@ -94,13 +95,14 @@ using result_variant = std::variant<
     // 同步返回值类型
     std::conditional_t<std::is_same_v<T, void>, std::monostate, T>,
     // 异步返回值类型，暂时值支持这几种 Executor 类型，有需要再扩展
-    mc::future<T, io_context_type::executor_type>,
-    mc::future<T, system_context_type::executor_type>,
-    mc::future<T, thread_pool_type::executor_type>,
-    mc::future<T, strand_t<io_context_type::executor_type>>,
-    mc::future<T, strand_t<system_context_type::executor_type>>,
-    mc::future<T, strand_t<thread_pool_type::executor_type>>,
+    mc::future<T, io_context::executor_type>,
+    mc::future<T, system_context::executor_type>,
+    mc::future<T, thread_pool::executor_type>,
+    mc::future<T, strand_t<io_context::executor_type>>,
+    mc::future<T, strand_t<system_context::executor_type>>,
+    mc::future<T, strand_t<thread_pool::executor_type>>,
     mc::future<T, mc::futures::detail::immediate_executor>,
+    mc::future<T, any_executor>,
     // 错误类型
     mc::engine::error>;
 

@@ -81,7 +81,17 @@ public:
     template <typename Object, typename BaseObject = Object>
     static timer_ptr single_shot(mc::milliseconds msec, mc::shared_ptr<Object> receiver,
                                  void (BaseObject::*method)()) {
-        return single_shot(msec, receiver.get(), method);
+        if (!receiver || !method) {
+            return {};
+        }
+
+        auto weak_ptr = receiver->weak_from_this();
+        return single_shot(msec, receiver, [weak_ptr = std::move(weak_ptr), method]() {
+            auto ptr = weak_ptr.lock();
+            if (ptr) {
+                (static_cast<BaseObject*>(ptr.get())->*method)();
+            }
+        });
     }
     template <typename Object, typename BaseObject = Object>
     static timer_ptr single_shot(mc::milliseconds msec, Object* receiver,
@@ -89,13 +99,15 @@ public:
         if (!receiver || !method) {
             return {};
         }
-
-        return single_shot(msec, receiver, [receiver, method]() {
-            (receiver->*method)();
-        });
+        auto ptr = mc::static_pointer_cast<Object>(receiver->shared_from_this());
+        return single_shot(msec, std::move(ptr), method);
     }
     static timer_ptr single_shot(mc::milliseconds msec, std::function<void()> functor);
 
+    static timer_ptr single_shot(mc::milliseconds msec, object_ptr& context,
+                                 std::function<void()> functor) {
+        return single_shot(msec, context.get(), std::move(functor));
+    }
     static timer_ptr single_shot(mc::milliseconds msec, object* context,
                                  std::function<void()> functor);
 

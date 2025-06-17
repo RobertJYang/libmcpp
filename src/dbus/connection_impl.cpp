@@ -21,7 +21,7 @@ namespace mc::dbus {
 
 static std::once_flag s_init_dbus;
 
-connection_impl::connection_impl(mc::core::io_context& executor) : m_executor(executor) {
+connection_impl::connection_impl(mc::io_context& executor) : m_executor(executor) {
     std::call_once(s_init_dbus, []() {
         dbus_threads_init_default();
     });

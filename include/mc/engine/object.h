@@ -44,6 +44,9 @@ public:
     std::string_view get_position() const override;
     void             set_position(std::string_view position) override;
 
+    void     set_service(service* s) override;
+    service* get_service() const override;
+
 protected:
     void add_managed_object(abstract_object* obj) override;
     void remove_managed_object(abstract_object* obj) override;
@@ -52,6 +55,7 @@ protected:
     mutable std::string                      m_object_path;
     mutable std::string                      m_position;
     abstract_object*                         m_owner{nullptr};
+    service*                                 m_service{nullptr};
     managed_objects                          m_managed_objects;
     std::unique_ptr<property_changed_signal> m_property_changed_signal;
 };

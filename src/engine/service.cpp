@@ -160,7 +160,7 @@ bool service_impl::start() {
     // 如果harbor名未设置，则设置为"harbor.服务名"
     harbor.set_harbor_name_if_empty("harbor." + service_name);
     harbor.register_unique_name(std::string(unique_name), service_name);
-    m_shm_tree   = new mc::dbus::shm_tree(m_service->get_executor(), harbor.get_harbor_name(),
+    m_shm_tree   = new mc::dbus::shm_tree(harbor.get_harbor_name(),
                                           service_name, unique_name);
     auto handler = [this](std::string_view path, std::string_view interface,
                           std::string_view method, const mc::variants& args) {
@@ -193,9 +193,15 @@ void service_impl::stop() {
 }
 
 void service_impl::register_object(abstract_object& obj) {
-    m_object_table->add(mc::shared_ptr<abstract_object>(&obj));
+    auto shared_obj = obj.shared_from_this();
+    if (!shared_obj) {
+        flog("Object is not managed by shared_ptr: ${path}", ("path", obj.get_object_path()));
+        MC_ASSERT(false, "Object must be managed by shared_ptr");
+    }
+
+    m_object_table->add(shared_obj);
     obj.set_service(m_service);
-    m_connection.register_path(obj.get_object_path(), [this, pobj = obj.shared_from_this()](auto& msg) {
+    m_connection.register_path(obj.get_object_path(), [this, pobj = shared_obj](auto& msg) {
         return on_path_message(msg, *pobj);
     });
 
@@ -460,7 +466,21 @@ void service::register_object(abstract_object& obj) {
     MC_ASSERT(mc::dbus::validator::is_valid_path(path), "invalid object path ${path}",
               ("path", path));
 
-    MC_ASSERT(m_impl->m_object_table, "service is not started, cannot register object");
+    // 添加调试信息
+    dlog("Registering object: ${path}, service: ${service}, m_impl: ${impl}",
+         ("path", path)("service", reinterpret_cast<uintptr_t>(this))("impl", reinterpret_cast<uintptr_t>(m_impl.get())));
+
+    if (!m_impl) {
+        flog("m_impl is nullptr! service: ${service}", ("service", reinterpret_cast<uintptr_t>(this)));
+        MC_ASSERT(false, "m_impl is nullptr");
+    }
+
+    if (!m_impl->m_object_table) {
+        flog("m_object_table is nullptr! service: ${service}, m_impl: ${impl}",
+             ("service", reinterpret_cast<uintptr_t>(this))("impl", reinterpret_cast<uintptr_t>(m_impl.get())));
+        MC_ASSERT(false, "service is not started, cannot register object");
+    }
+
     m_impl->register_object(obj);
 }
 
@@ -504,7 +524,7 @@ std::string service::resolve_object_path(std::string_view       path_pattern,
     }
 
     // 否则拼接上父路径
-    auto parent = obj.get_parent();
+    auto parent = mc::static_pointer_cast<abstract_object>(obj.get_parent());
     MC_ASSERT_THROW(parent, mc::invalid_arg_exception,
                     "object parent is nullptr or not abstract_object");
     auto parent_path = parent->get_object_path();

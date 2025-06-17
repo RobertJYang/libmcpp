@@ -22,8 +22,20 @@
 #include <boost/asio.hpp>
 
 #include <memory>
+#include <shared_mutex>
 #include <string_view>
+#include <unordered_map>
 #include <vector>
+
+namespace mc {
+using io_context  = boost::asio::io_context;
+using io_executor = boost::asio::io_context::executor_type;
+
+using system_context  = boost::asio::system_context;
+using system_executor = boost::asio::system_context::executor_type;
+
+using any_executor = boost::asio::any_io_executor;
+} // namespace mc
 
 namespace mc::core {
 class object;
@@ -31,25 +43,24 @@ class object_impl;
 
 using object_ptr       = mc::shared_ptr<object>;
 using const_object_ptr = mc::shared_ptr<const object>;
+using object_weak_ptr  = mc::weak_ptr<object>;
 using child_list       = std::vector<object_ptr>;
 using signal_type      = void*;
-using strand_type      = boost::asio::strand<boost::asio::io_context::executor_type>;
-using io_context       = boost::asio::io_context;
-using executor         = boost::asio::executor;
-class service_base;
 
 using connection_id_type                           = uint32_t;
 constexpr connection_id_type INVALID_CONNECTION_ID = std::numeric_limits<connection_id_type>::max();
 
-enum class connection_type { Auto,
-                             Direct,
-                             Queued };
+enum class connection_type {
+    Auto,
+    Direct,
+    Queued
+};
 
 using object_id_type = uint64_t;
 
 class object_base : public shared_base<object_base> {
 public:
-    using executor_type = strand_type;
+    using executor_type = boost::asio::any_io_executor;
 
     object_base()          = default;
     virtual ~object_base() = default;
@@ -169,7 +180,7 @@ public:
      * @brief 获取父对象
      * @return 父对象指针
      */
-    virtual object* get_parent() const;
+    object_ptr get_parent() const;
 
     /**
      * @brief 设置父对象
@@ -177,7 +188,7 @@ public:
      *
      * 如果对象已经有父对象，则会先从原父对象的子对象列表中移除
      */
-    virtual void set_parent(object* parent);
+    void set_parent(object* parent);
 
     /**
      * @brief 获取子对象列表
@@ -190,7 +201,7 @@ public:
      * @param name 子对象名称
      * @return 子对象指针，如果未找到则返回nullptr
      */
-    object* find_child(std::string_view name) const;
+    object_ptr find_child(std::string_view name) const;
 
     /**
      * @brief 连接信号和槽
@@ -218,18 +229,12 @@ public:
         mc::connection_type conn;
 
         if (type == connection_type::Auto) {
-            auto dispatcher = [this, slot = std::forward<SlotType>(slot)](auto&&... args) mutable {
-                auto& s = get_executor();
-                if (s.running_in_this_thread()) {
-                    slot(std::forward<decltype(args)>(args)...);
-                } else {
-                    boost::asio::post(s, [slot, args = std::make_tuple(std::forward<decltype(args)>(
-                                                    args)...)]() mutable {
-                        std::apply(slot, std::move(args));
-                    });
-                }
-            };
-            conn = sig.connect(std::move(dispatcher));
+            conn = sig.connect([this, slot = std::forward<SlotType>(slot)](auto&&... args) mutable {
+                this->dispatch([slot, args = std::make_tuple(
+                                          std::forward<decltype(args)>(args)...)]() mutable {
+                    std::apply(slot, std::move(args));
+                });
+            });
         } else if (type == connection_type::Queued) {
             conn = sig.connect([this, slot = std::forward<SlotType>(slot)](auto&&... args) mutable {
                 this->post([slot, args = std::make_tuple(
@@ -262,9 +267,6 @@ public:
         disconnect_all(&sig);
     }
 
-    virtual service_base* get_service() const;
-    void                  set_service(service_base* s);
-
     /**
      * @brief 异步投递任务到对象关联的执行器
      * @tparam CompletionToken 完成令牌类型
@@ -273,7 +275,6 @@ public:
      */
     template <typename CompletionToken>
     auto post(CompletionToken&& token) const {
-        MC_ASSERT(get_service(), "post on object without service");
         return boost::asio::post(get_executor(), std::forward<CompletionToken>(token));
     }
 
@@ -285,7 +286,6 @@ public:
      */
     template <typename CompletionToken>
     auto defer(CompletionToken&& token) const {
-        MC_ASSERT(get_service(), "defer on object without service");
         return boost::asio::defer(get_executor(), std::forward<CompletionToken>(token));
     }
 
@@ -297,7 +297,6 @@ public:
      */
     template <typename CompletionToken>
     auto dispatch(CompletionToken&& token) const {
-        MC_ASSERT(get_service(), "dispatch on object without service");
         return boost::asio::dispatch(get_executor(), std::forward<CompletionToken>(token));
     }
 
@@ -309,11 +308,10 @@ public:
      */
     template <typename Handler>
     auto bind_executor(Handler&& handler) const {
-        MC_ASSERT(get_service(), "bind_executor on object without service");
         return boost::asio::bind_executor(get_executor(), std::forward<Handler>(handler));
     }
 
-    executor_type& get_executor() const;
+    executor_type get_executor() const;
 
     /**
      * @brief 获取当前对象的ref_ptr
@@ -323,18 +321,34 @@ public:
         return object_base::shared_from_this().template static_pointer_cast<object>();
     }
 
+    /**
+     * @brief 获取当前对象的weak_ptr
+     * @return 指向当前对象的mc::weak_ptr<object>
+     */
+    mc::weak_ptr<object> weak_from_this() {
+        return mc::weak_ptr<object>(this);
+    }
+
+    /**
+     * @brief 获取当前对象的weak_ptr (const版本)
+     * @return 指向当前对象的mc::weak_ptr<const object>
+     */
+    mc::weak_ptr<const object> weak_from_this() const {
+        return mc::weak_ptr<const object>(this);
+    }
+
 protected:
     /**
      * @brief 添加子对象
      * @param child 子对象指针，必须是ref_ptr管理的对象
      */
-    void add_child(object_ptr child);
+    void add_child(object* child);
 
     /**
      * @brief 移除子对象
      * @param child 子对象指针
      */
-    void remove_child(object_ptr child);
+    void remove_child(object* child);
 
     connection_id_type add_connection(signal_type sig, mc::connection_type conn,
                                       connection_id_type id);
@@ -345,8 +359,7 @@ private:
 
     object_impl& ensure_impl() const;
 
-    mutable std::unique_ptr<object_impl> m_impl;
-    mutable service_base*                m_service{nullptr};
+    mutable std::unique_ptr<object_impl> m_object_impl;
 
     // 辅助方法
     void cleanup_on_destroy() noexcept;

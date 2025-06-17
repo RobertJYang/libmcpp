@@ -105,11 +105,11 @@ public:
      * 由于 2 位被锁使用，提供的值的最低 2 位将被忽略。
      */
     void store_data(uint32_t value, std::memory_order order = std::memory_order_seq_cst) noexcept {
-        uint32_t old_word = m_lock_word.load(std::memory_order_relaxed);
+        uint32_t old_word = m_lock_word.load(std::memory_order_acquire);
         while (true) {
             uint32_t new_word = (old_word & LOCK_MASK) | encode_data(value);
             if (m_lock_word.compare_exchange_weak(
-                    old_word, new_word, order, std::memory_order_relaxed)) {
+                    old_word, new_word, order, std::memory_order_acquire)) {
                 break;
             }
         }
@@ -163,7 +163,7 @@ public:
      */
     void unlock() noexcept {
         uint32_t new_word;
-        uint32_t old_word = m_lock_word.load(std::memory_order_relaxed);
+        uint32_t old_word = m_lock_word.load(std::memory_order_acquire);
         do {
             if (!(old_word & LOCK_BIT)) {
                 break;
@@ -171,7 +171,8 @@ public:
 
             new_word = old_word & ~(LOCK_BIT | WAIT_BIT);
         } while (!m_lock_word.compare_exchange_weak(
-            old_word, new_word, std::memory_order_release, std::memory_order_relaxed));
+            old_word, new_word,
+            std::memory_order_acq_rel, std::memory_order_acquire));
 
         // 如果有等待线程，唤醒它们
         if (old_word & WAIT_BIT) {
@@ -215,14 +216,14 @@ private:
     }
 
     bool try_lock_impl(uint32_t& old_word) noexcept {
-        old_word = m_lock_word.load(std::memory_order_relaxed);
+        old_word = m_lock_word.load(std::memory_order_acquire);
         if (old_word & LOCK_BIT) {
             return false;
         }
 
         return m_lock_word.compare_exchange_strong(
             old_word, old_word | LOCK_BIT,
-            std::memory_order_acquire, std::memory_order_relaxed);
+            std::memory_order_acq_rel, std::memory_order_acquire);
     }
 
     /**
@@ -235,7 +236,7 @@ private:
             if ((old_word & WAIT_BIT) == 0 &&
                 !m_lock_word.compare_exchange_weak(
                     old_word, old_word | WAIT_BIT,
-                    std::memory_order_relaxed, std::memory_order_relaxed)) {
+                    std::memory_order_acq_rel, std::memory_order_acquire)) {
                 continue;
             }
 
@@ -248,7 +249,7 @@ private:
             // 尝试获取锁
             if (m_lock_word.compare_exchange_weak(
                     old_word, old_word | LOCK_BIT,
-                    std::memory_order_acquire, std::memory_order_relaxed)) {
+                    std::memory_order_acq_rel, std::memory_order_acquire)) {
                 return true;
             }
         }

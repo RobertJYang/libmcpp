@@ -234,14 +234,15 @@ void Future<T, Executor, Allocator>::async_get(CompletionToken&& token, launch p
             state_->deferred = true;
             state_->policy   = policy;
         } else if (policy == launch::dispatch) {
-            state_->executor.dispatch(
-                [state = state_, handler = std::move(handle_result)]() mutable {
+            boost::asio::dispatch(
+                state_->executor,
+                boost::asio::bind_allocator(state_->allocator, [state = state_, handler = std::move(handle_result)]() mutable {
                 handler(state);
-            }, state_->allocator);
+            }));
         } else {
-            state_->executor.post([state = state_, handler = std::move(handle_result)]() mutable {
+            boost::asio::post(state_->executor, boost::asio::bind_allocator(state_->allocator, [state = state_, handler = std::move(handle_result)]() mutable {
                 handler(state);
-            }, state_->allocator);
+            }));
         }
     } else {
         state_->m_continuations.push_back(
@@ -271,9 +272,9 @@ auto Future<T, Executor, Allocator>::then(F&& func, launch policy)
             future.state_->deferred = true;
             future.state_->policy   = policy;
         } else if (policy == launch::dispatch) {
-            state_->executor.dispatch(continuation, state_->allocator);
+            boost::asio::dispatch(state_->executor, boost::asio::bind_allocator(state_->allocator, continuation));
         } else {
-            state_->executor.post(continuation, state_->allocator);
+            boost::asio::post(state_->executor, boost::asio::bind_allocator(state_->allocator, continuation));
         }
     } else {
         state_->m_continuations.push_back(continuation);
@@ -301,9 +302,9 @@ auto Future<T, Executor, Allocator>::then(F&& func, launch policy)
             future.state_->deferred = true;
             future.state_->policy   = policy;
         } else if (policy == launch::dispatch) {
-            state_->executor.dispatch(continuation, state_->allocator);
+            boost::asio::dispatch(state_->executor, boost::asio::bind_allocator(state_->allocator, continuation));
         } else {
-            state_->executor.post(continuation, state_->allocator);
+            boost::asio::post(state_->executor, boost::asio::bind_allocator(state_->allocator, continuation));
         }
     } else {
         state_->m_continuations.push_back(continuation);
@@ -394,7 +395,7 @@ auto Future<T, Executor, Allocator>::catch_error(F&& handler)
 
     std::unique_lock<std::mutex> lock(state_->m_mutex);
     if (state_->ready) {
-        state_->executor.post(handle_result, state_->allocator);
+        boost::asio::post(state_->executor, boost::asio::bind_allocator(state_->allocator, handle_result));
     } else {
         state_->m_continuations.push_back(handle_result);
     }
@@ -422,7 +423,7 @@ auto Future<T, Executor, Allocator>::finally(F&& cleanup) -> future_type {
 
     std::unique_lock<std::mutex> lock(state_->m_mutex);
     if (state_->ready) {
-        state_->executor.post(handle_result, state_->allocator);
+        boost::asio::post(state_->executor, boost::asio::bind_allocator(state_->allocator, handle_result));
     } else {
         state_->m_continuations.push_back(handle_result);
     }
@@ -446,7 +447,7 @@ auto Future<T, Executor, Allocator>::tap(F&& inspector) -> future_type {
 
     std::unique_lock<std::mutex> lock(state_->m_mutex);
     if (state_->ready) {
-        state_->executor.post(handle_result, state_->allocator);
+        boost::asio::post(state_->executor, boost::asio::bind_allocator(state_->allocator, handle_result));
     } else {
         state_->m_continuations.push_back(handle_result);
     }

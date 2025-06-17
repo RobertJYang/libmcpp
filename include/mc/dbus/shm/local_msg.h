@@ -112,9 +112,7 @@ private:
     variants    m_args;
 };
 
-using io_context_type  = boost::asio::io_context;
-using strand_type      = boost::asio::strand<io_context_type::executor_type>;
-using shm_msg_promise  = mc::promise<local_msg, strand_type>;
+using shm_msg_promise  = mc::promise<local_msg>;
 using serial_map_type  = std::unordered_map<uint32_t, shm_msg_promise>;
 using service_map_type = std::unordered_map<std::string, serial_map_type>;
 

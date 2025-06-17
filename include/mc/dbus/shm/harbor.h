@@ -83,7 +83,6 @@ private:
 
     std::string                                  m_harbor_name;
     std::string                                  m_unique_name;
-    strand_type                                  m_strand;
     connection                                   m_connection;
     bool                                         m_is_running;
     message_queue*                               m_mq;

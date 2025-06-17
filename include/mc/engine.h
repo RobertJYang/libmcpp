@@ -25,15 +25,7 @@ inline engine& get_engine() {
     return mc::engine::engine::get_instance();
 }
 
-inline strand_type make_strand() {
-    return strand_type(get_engine().get_io_context().get_executor());
-}
-
-inline strand_type make_strand(io_context_type& io_context) {
-    return strand_type(io_context.get_executor());
-}
-
-inline boost::asio::io_context& get_io_context() {
+inline io_context& get_io_context() {
     return get_engine().get_io_context();
 }
 
@@ -49,14 +41,11 @@ inline object_table& get_object_table() {
 } // namespace mc::engine
 
 namespace mc {
-using engine::io_context_type;
-using engine::strand_type;
 
 using engine::get_engine;
 using engine::get_io_context;
 using engine::get_object_table;
 using engine::get_table;
-using engine::make_strand;
 
 } // namespace mc
 

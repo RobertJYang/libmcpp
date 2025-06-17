@@ -18,7 +18,7 @@
 namespace mc::dbus {
 
 template <DBusBusType bus_type>
-connection open_bus(mc::core::io_context& executor) {
+connection open_bus(mc::io_context& executor) {
     mc::dbus::error err;
     int             i = 0;
     while (true) {
@@ -38,15 +38,15 @@ connection open_bus(mc::core::io_context& executor) {
     MC_THROW(mc::system_exception, "DBus连接失败: ${error}", ("error", err.message));
 }
 
-connection connection::open_system_bus(mc::core::io_context& executor) {
+connection connection::open_system_bus(mc::io_context& executor) {
     return open_bus<DBUS_BUS_SYSTEM>(executor);
 }
 
-connection connection::open_session_bus(mc::core::io_context& executor) {
+connection connection::open_session_bus(mc::io_context& executor) {
     return open_bus<DBUS_BUS_SESSION>(executor);
 }
 
-connection::connection(mc::core::io_context& executor, DBusConnection* conn, bool add_ref)
+connection::connection(mc::io_context& executor, DBusConnection* conn, bool add_ref)
     : m_impl(std::make_unique<connection_impl>(executor)) {
     if (add_ref) {
         dbus_connection_ref(conn);

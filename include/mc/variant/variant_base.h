@@ -30,7 +30,7 @@
 
 #include <mc/common.h>
 #include <mc/json.h>
-#include <mc/memory.h>
+#include <mc/memory/allocator.h>
 #include <mc/pretty_name.h>
 #include <mc/string.h>
 #include <mc/traits.h>

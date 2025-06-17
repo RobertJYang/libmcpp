@@ -23,7 +23,7 @@ constexpr std::string_view OBJECT_PROPERTIES_INTERFACE = "bmc.kepler.Object.Prop
 
 class shm_tree {
 public:
-    shm_tree(strand_type& strand, std::string_view harbor_name, std::string_view service_name,
+    shm_tree(std::string_view harbor_name, std::string_view service_name,
              std::string_view unique_name);
 
     void register_object(mc::engine::abstract_object& obj);
@@ -45,7 +45,6 @@ public:
     void           remove_match(uint64_t id);
 
 private:
-    strand_type&                                        m_strand;
     std::string                                         m_service_name;
     std::string                                         m_unique_name;
     shm::object_tree*                                   m_tree;

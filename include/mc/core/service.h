@@ -87,8 +87,6 @@ public:
 
     const std::vector<std::string>& get_dependencies() const override;
 
-    executor_type& get_executor() const;
-
     bool init(dict args) override {
         return true;
     }
@@ -113,7 +111,7 @@ protected:
     void set_dependencies(const std::vector<std::string>& dependencies);
 
     struct impl;
-    std::unique_ptr<impl> m_impl;
+    std::unique_ptr<impl> m_base_impl;
 };
 
 using service_base_ptr = mc::shared_ptr<abstract_service>;

@@ -40,8 +40,12 @@ public:
         register_object(*obj);
     }
 
-    template <typename ObjectType>
-    void register_object(ObjectType* obj) {
+    void register_object(abstract_object& obj);
+    void register_object(abstract_object* obj) {
+        if (obj == nullptr) {
+            return;
+        }
+
         register_object(*obj);
     }
 
@@ -72,8 +76,6 @@ public:
     void     remove_match(uint64_t id);
 
 protected:
-    void register_object(abstract_object& obj);
-
     std::unique_ptr<service_impl> m_impl;
 };
 
