@@ -22,6 +22,7 @@
 #include <mc/futures/callback_list.h>
 #include <mc/futures/exceptions.h>
 #include <mc/futures/status.h>
+#include <mc/memory.h>
 
 namespace mc::futures {
 
@@ -76,11 +77,18 @@ struct state_value {
 };
 
 template <typename T, typename Executor, typename Allocator>
-struct State : public state_base, public state_value<T, Executor, Allocator> {
-    using value_type = state_value<T, Executor, Allocator>;
+struct State : public mc::shared_base<State<T, Executor, Allocator>>,
+               public state_base,
+               public state_value<T, Executor, Allocator> {
+    using value_type       = state_value<T, Executor, Allocator>;
+    using shared_base_type = mc::shared_base<State<T, Executor, Allocator>>;
 
     State(Executor executor, Allocator allocator)
-        : state_base(), value_type(std::move(executor), std::move(allocator)) {
+        : shared_base_type(), state_base(),
+          value_type(std::move(executor), std::move(allocator)) {
+    }
+
+    ~State() override {
     }
 
     void mark_ready() {
@@ -147,6 +155,7 @@ struct State : public state_base, public state_value<T, Executor, Allocator> {
     }
 
     void reuse(Executor executor, Allocator allocator) {
+        new (static_cast<shared_base_type*>(this)) shared_base_type();
         state_base::reuse();
         value_type::reuse(std::move(executor), std::move(allocator));
     }

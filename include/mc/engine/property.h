@@ -321,7 +321,7 @@ public:
         setup_function_getter();
 
         // 引用属性不支持设置值
-        m_setter = [this](const T& value) {
+        m_setter = [](const T& value) {
             MC_THROW(mc::invalid_op_exception, "设置引用属性值不被允许");
         };
     }
@@ -428,7 +428,7 @@ public:
         std::string full_object_name = relate_property.object_name + "_" + std::string(position);
         auto&       object_table     = service->get_object_table();
 
-        auto slot = object_table.template on_object_added.connect(
+        auto slot = object_table.on_object_added.connect(
             [this, full_object_name, relate_property](mc::core::object_base& base_object) {
             auto& object = static_cast<mc::engine::abstract_object&>(base_object);
             if (object.get_name() == full_object_name) {
@@ -449,7 +449,7 @@ public:
         }
 
         // 同步属性不支持设置值
-        m_setter = [this](const T& value) {
+        m_setter = [](const T& value) {
             MC_THROW(mc::invalid_op_exception, "设置同步属性值不被允许");
         };
     }
@@ -526,7 +526,7 @@ public:
         std::string full_object_name = object_name + "_" + std::string(position);
         auto&       object_table     = service->get_object_table();
 
-        auto slot = object_table.template on_object_added.connect(
+        auto slot = object_table.on_object_added.connect(
             [this, full_object_name, object_properties](mc::core::object_base& base_object) {
             auto& object = static_cast<mc::engine::abstract_object&>(base_object);
             if (object.get_name() == full_object_name) {
@@ -551,7 +551,7 @@ public:
         }
 
         // 同步属性不支持设置值
-        m_setter = [this](const T& value) {
+        m_setter = [](const T& value) {
             MC_THROW(mc::invalid_op_exception, "设置同步属性值不被允许");
         };
     }

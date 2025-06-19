@@ -13,6 +13,7 @@
 #ifndef MC_WEAK_PTR_H
 #define MC_WEAK_PTR_H
 
+#include <mc/memory/allocator.h>
 #include <mc/memory/shared_base.h>
 #include <mc/memory/shared_ptr.h>
 
@@ -25,12 +26,12 @@ namespace mc::memory {
  * weak_ptr 智能指针，类似 std::weak_ptr 但专门用于管理 shared_base 对象
  * 支持共享内存中的 offset_ptr
  */
-template <typename T, typename PointerType>
+template <typename T, typename Deleter, typename PointerType>
 class weak_ptr {
 public:
     using element_type = T;
     using pointer_type = PointerType;
-    using ref_ptr_type = shared_ptr<element_type, pointer_type>;
+    using ref_ptr_type = shared_ptr<element_type, Deleter, pointer_type>;
 
     // 默认构造函数
     constexpr weak_ptr() noexcept : m_ptr(nullptr) {
@@ -128,7 +129,7 @@ public:
     ~weak_ptr() {
         if (m_ptr && m_ptr->release_weak_ref()) {
             // 弱引用计数为0且强引用计数也为0时，释放内存
-            detail::deallocate_ptr(m_ptr);
+            mc::deleter_traits<Deleter, element_type>::deallocate(m_ptr);
         }
     }
 
@@ -175,55 +176,67 @@ public:
         return m_ptr != nullptr;
     }
 
+    // 相等运算符
+    template <typename U, typename UDeleter, typename UPointerType>
+    bool operator==(const weak_ptr<U, UDeleter, UPointerType>& rhs) noexcept {
+        return this->get() == rhs.get();
+    }
+
+    bool operator==(std::nullptr_t) noexcept {
+        return this->get() == nullptr;
+    }
+
+    bool operator==(T* rhs) noexcept {
+        return this->get() == rhs;
+    }
+
+    friend bool operator==(std::nullptr_t, const weak_ptr<T, Deleter, PointerType>& rhs) noexcept {
+        return nullptr == rhs.get();
+    }
+
+    friend bool operator==(T* lhs, const weak_ptr<T, Deleter, PointerType>& rhs) noexcept {
+        return lhs == rhs.get();
+    }
+
+    // 不等运算符
+    template <typename U, typename UDeleter, typename UPointerType>
+    bool operator!=(const weak_ptr<U, UDeleter, UPointerType>& rhs) noexcept {
+        return this->get() != rhs.get();
+    }
+
+    bool operator!=(std::nullptr_t) noexcept {
+        return this->get() != nullptr;
+    }
+
+    bool operator!=(T* rhs) noexcept {
+        return this->get() != rhs;
+    }
+
+    friend bool operator!=(std::nullptr_t, const weak_ptr<T, Deleter, PointerType>& rhs) noexcept {
+        return nullptr != rhs.get();
+    }
+
+    friend bool operator!=(T* lhs, const weak_ptr<T, Deleter, PointerType>& rhs) noexcept {
+        return lhs != rhs.get();
+    }
+
+    // 小于运算符，用于排序容器
+    template <typename U, typename UDeleter, typename UPointerType>
+    bool operator<(const weak_ptr<U, UDeleter, UPointerType>& rhs) noexcept {
+        return this->get() < rhs.get();
+    }
+
 private:
     pointer_type m_ptr;
 };
-
-// 相等运算符
-template <typename T, typename U>
-bool operator==(const weak_ptr<T>& lhs, const weak_ptr<U>& rhs) noexcept {
-    return lhs.get() == rhs.get();
-}
-
-template <typename T>
-bool operator==(const weak_ptr<T>& lhs, std::nullptr_t) noexcept {
-    return lhs.get() == nullptr;
-}
-
-template <typename T>
-bool operator==(std::nullptr_t, const weak_ptr<T>& rhs) noexcept {
-    return nullptr == rhs.get();
-}
-
-// 不等运算符
-template <typename T, typename U>
-bool operator!=(const weak_ptr<T>& lhs, const weak_ptr<U>& rhs) noexcept {
-    return lhs.get() != rhs.get();
-}
-
-template <typename T>
-bool operator!=(const weak_ptr<T>& lhs, std::nullptr_t) noexcept {
-    return lhs.get() != nullptr;
-}
-
-template <typename T>
-bool operator!=(std::nullptr_t, const weak_ptr<T>& rhs) noexcept {
-    return nullptr != rhs.get();
-}
-
-// 小于运算符，用于排序容器
-template <typename T, typename U>
-bool operator<(const weak_ptr<T>& lhs, const weak_ptr<U>& rhs) noexcept {
-    return lhs.get() < rhs.get();
-}
 
 } // namespace mc::memory
 
 // 为 std::hash 提供特化支持
 namespace std {
-template <typename T, typename PointerType>
-struct hash<mc::memory::weak_ptr<T, PointerType>> {
-    size_t operator()(const mc::memory::weak_ptr<T, PointerType>& p) const noexcept {
+template <typename T, typename Deleter, typename PointerType>
+struct hash<mc::memory::weak_ptr<T, Deleter, PointerType>> {
+    size_t operator()(const mc::memory::weak_ptr<T, Deleter, PointerType>& p) const noexcept {
         return hash<PointerType>{}(p.get());
     }
 };

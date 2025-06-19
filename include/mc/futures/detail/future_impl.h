@@ -105,7 +105,7 @@ void inspect_and_forward_state_result(Promise& promise, F&& inspector, State& st
 
 template <typename T, typename ResultType, typename Executor, typename Allocator, typename F>
 auto make_continuation(Promise<ResultType, Executor, Allocator>&& promise,
-                       F&& func, std::shared_ptr<State<T, Executor, Allocator>> state) {
+                       F&& func, state_ptr<State<T, Executor, Allocator>> state) {
     return [promise = std::move(promise), func = std::forward<F>(func),
             state = std::move(state)]() mutable {
         try {

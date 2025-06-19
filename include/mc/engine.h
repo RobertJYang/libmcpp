@@ -25,10 +25,6 @@ inline engine& get_engine() {
     return mc::engine::engine::get_instance();
 }
 
-inline io_context& get_io_context() {
-    return get_engine().get_io_context();
-}
-
 template <typename Table>
 Table& get_table(std::string_view table_name) {
     return mc::engine::engine::get_instance().get_table<Table>(table_name);
@@ -43,7 +39,6 @@ inline object_table& get_object_table() {
 namespace mc {
 
 using engine::get_engine;
-using engine::get_io_context;
 using engine::get_object_table;
 using engine::get_table;
 

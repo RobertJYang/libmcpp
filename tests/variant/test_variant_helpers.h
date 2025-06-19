@@ -14,13 +14,14 @@
  * @file test_variant_helpers.h
  * @brief 测试 variant 类型的辅助函数和工具
  */
-#pragma once
+#ifndef TEST_VARIANT_HELPERS_H
+#define TEST_VARIANT_HELPERS_H
 
 #include <gtest/gtest.h>
 #include <limits>
+#include <mc/dict.h>
 #include <mc/variant.h>
 #include <stdexcept>
-#include <mc/dict.h>
 
 namespace mc {
 namespace test {
@@ -87,3 +88,5 @@ inline void verify_string_value(const variant& v, const std::string& expected_va
 
 } // namespace test
 } // namespace mc
+
+#endif // TEST_VARIANT_HELPERS_H

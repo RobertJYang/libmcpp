@@ -15,6 +15,7 @@
 #include <mc/dbus/shm/harbor.h>
 #include <mc/dbus/shm/serialize.h>
 #include <mc/log.h>
+#include <mc/runtime.h>
 
 namespace mc::dbus {
 
@@ -325,7 +326,7 @@ void harbor::start() {
     if (m_connection.is_connected()) {
         return;
     }
-    auto connection = connection::open_session_bus(mc::engine::get_io_context());
+    auto connection = connection::open_session_bus(mc::get_io_context());
     if (!connection.start()) {
         MC_THROW(mc::exception, "failed to start dbus connection");
     }

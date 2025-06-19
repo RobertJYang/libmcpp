@@ -23,6 +23,7 @@
 #include <mc/expr/lexer.h>
 #include <mc/expr/parser.h>
 #include <mc/log.h>
+#include <mc/runtime.h>
 
 namespace mdb = mc::db;
 
@@ -136,7 +137,7 @@ bool service_impl::init(service* s) {
 bool service_impl::start() {
     std::lock_guard lock(m_mutex);
 
-    auto connection = mc::dbus::connection::open_session_bus(mc::engine::get_io_context());
+    auto connection = mc::dbus::connection::open_session_bus(mc::get_io_context());
     if (!connection.start()) {
         elog("start service failed: cannot open dbus session");
         return false;

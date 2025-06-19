@@ -44,7 +44,7 @@ void watch::stop() {
     m_socket.close();
 }
 
-void watch::watch_readable(connection_weak_ptr conn, watch::shared_ptr self) {
+void watch::watch_readable(connection_weak_ptr conn, mc::shared_ptr<watch> self) {
     m_socket.async_wait(wait_read, [s = std::move(self), c = std::move(conn)](const auto& ec) {
         if (ec) {
             if (ec == boost::asio::error::operation_aborted) {
@@ -72,7 +72,7 @@ void watch::watch_readable(connection_weak_ptr conn, watch::shared_ptr self) {
     });
 }
 
-void watch::watch_writable(connection_weak_ptr conn, watch::shared_ptr self) {
+void watch::watch_writable(connection_weak_ptr conn, mc::shared_ptr<watch> self) {
     m_socket.async_wait(wait_write, [s = std::move(self), c = std::move(conn)](const auto& ec) {
         if (ec) {
             if (ec == boost::asio::error::operation_aborted) {

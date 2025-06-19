@@ -131,6 +131,11 @@ test_files = [
   'memory/test_shared_ptr_thread_safety.cpp',
   'memory/test_weak_ptr.cpp',
 
+  # runtime 目录
+  'runtime/test_runtime_basic.cpp',
+  'runtime/test_runtime_context.cpp',
+  'runtime/test_any_executor.cpp',
+  'runtime/test_executor.cpp',
 ]
 
 enable_shared_memory = get_option('enable_shared_memory')

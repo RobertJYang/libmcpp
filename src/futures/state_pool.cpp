@@ -12,6 +12,7 @@
 
 #include <mc/futures/state_pool.h>
 #include <mc/intrusive/list.h>
+#include <mc/runtime/executor.h>
 
 #include <algorithm>
 #include <queue>
@@ -43,17 +44,17 @@ public:
             return nullptr;
         }
 
-        auto state_ptr = m_pool.front();
+        auto ptr = m_pool.front();
         m_pool.pop();
-        return state_ptr;
+        return ptr;
     }
 
-    bool release(void* state_ptr) {
+    bool release(void* ptr) {
         if (m_pool.size() >= m_max_size) {
             return false;
         }
 
-        m_pool.push(state_ptr);
+        m_pool.push(ptr);
         return true;
     }
 
@@ -68,13 +69,17 @@ public:
     // 清空池中的所有对象
     void clear() {
         while (!m_pool.empty()) {
-            auto* state_ptr = m_pool.front();
+            auto* ptr = m_pool.front();
             m_pool.pop();
 
-            // 放入缓存池的对象，state_value 部分已经析构了，要补充 state_base 析构
-            auto* base = static_cast<state_base*>(state_ptr);
-            base->~state_base();
-            free(state_ptr);
+            // 构造一个 State 类型作为中介用于获取 state_base 指针
+            // 这是安全的因为 State 的继承顺序是：shared_base -> state_base -> state_value，模板参数只影响
+            // state_value 部分，不会影响 state_base 的偏移。
+            using state_type     = State<int, mc::runtime::executor, std::allocator<void>>;
+            auto* state          = static_cast<state_type*>(ptr);
+            auto* state_base_ptr = static_cast<state_base*>(state);
+            state_base_ptr->~state_base();
+            free(ptr);
         }
     }
 
@@ -97,7 +102,7 @@ public:
 
     void  clear_all_pools();
     void* try_acquire_state(std::size_t state_size);
-    bool  try_release_state_to_pool(void* state_ptr, std::size_t state_size);
+    bool  try_release_state_to_pool(void* ptr, std::size_t state_size);
 
 private:
     sized_state_pool* get_global_pool(std::size_t state_size, bool need_create = true);
@@ -176,8 +181,8 @@ void* state_pool::impl::try_acquire_state(std::size_t size) {
 }
 
 // 将 State 对象释放回池中，返回是否成功放入池中
-bool state_pool::impl::try_release_state_to_pool(void* state_ptr, std::size_t size) {
-    if (!state_ptr) {
+bool state_pool::impl::try_release_state_to_pool(void* ptr, std::size_t size) {
+    if (!ptr) {
         return false;
     }
 
@@ -189,7 +194,7 @@ bool state_pool::impl::try_release_state_to_pool(void* state_ptr, std::size_t si
     std::lock_guard<std::mutex> lock(m_mutex);
 
     auto* global_pool = get_global_pool(aligned_size, false);
-    if (global_pool && global_pool->release(state_ptr)) {
+    if (global_pool && global_pool->release(ptr)) {
         return true;
     }
 
@@ -259,12 +264,8 @@ void* state_pool::try_acquire_state(std::size_t state_size) {
     return m_pimpl->try_acquire_state(state_size);
 }
 
-void state_pool::try_release_to_pool(void* state_ptr, std::size_t state_size) {
-    if (!m_pimpl->try_release_state_to_pool(state_ptr, state_size)) {
-        auto* p = static_cast<state_base*>(state_ptr);
-        p->~state_base(); // 回收失败，析构 State 对象（state_value部分在reset时已经析构了）
-        free(state_ptr);
-    }
+bool state_pool::try_release_to_pool(void* ptr, std::size_t state_size) {
+    return m_pimpl->try_release_state_to_pool(ptr, state_size);
 }
 
 } // namespace mc::futures

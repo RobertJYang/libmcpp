@@ -18,6 +18,11 @@
 namespace mc::core {
 
 struct timer::timer_impl {
+    using timer_type = boost::asio::basic_waitable_timer<
+        std::chrono::steady_clock,
+        boost::asio::wait_traits<std::chrono::steady_clock>,
+        mc::any_executor>;
+
     template <typename Executor>
     timer_impl(Executor&& executor) : m_timer(std::forward<Executor>(executor)) {
     }
@@ -28,8 +33,8 @@ struct timer::timer_impl {
 
     void start(mc::shared_ptr<timer> t);
 
-    bool                      m_is_cancelled{false};
-    boost::asio::steady_timer m_timer;
+    bool       m_is_cancelled{false};
+    timer_type m_timer;
 };
 
 void timer::timer_impl::start(mc::shared_ptr<timer> t) {

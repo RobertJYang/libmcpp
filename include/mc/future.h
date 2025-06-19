@@ -21,6 +21,7 @@
 #include <mc/futures/state.h>
 #include <mc/futures/state_pool.h>
 #include <mc/futures/status.h>
+#include <mc/runtime.h>
 #include <mc/time.h>
 #include <mc/traits.h>
 
@@ -117,12 +118,12 @@ void on_cancel(StatePtr& state, F&& callback) {
     } else if constexpr (detail::is_future_v<F> || detail::is_promise_v<F>) {
         // 如果是 future 或 promise，则双向 on_cancel 取消对方
         auto other_state = callback.get_state();
-        state->add_cancel_callback([state = std::weak_ptr(other_state)]() {
+        state->add_cancel_callback([state = mc::weak_ptr(other_state)]() {
             if (auto state_ptr = state.lock()) {
                 state_ptr->cancel();
             }
         });
-        other_state->add_cancel_callback([state = std::weak_ptr(state)]() {
+        other_state->add_cancel_callback([state = mc::weak_ptr(state)]() {
             if (auto state_ptr = state.lock()) {
                 state_ptr->cancel();
             }
@@ -190,94 +191,6 @@ template <typename T>
 constexpr bool is_executor_v = boost::asio::is_executor<T>::value ||
                                std::is_same_v<T, boost::asio::any_io_executor>;
 
-// immediate_executor 用于立即执行回调的执行器
-class immediate_context;
-class immediate_executor {
-public:
-    immediate_executor()  = default;
-    ~immediate_executor() = default;
-
-    immediate_executor(const immediate_executor&)            = default;
-    immediate_executor& operator=(const immediate_executor&) = default;
-
-    // 在当前线程立即执行工作
-    template <typename F>
-    void execute(F&& f) const {
-        std::forward<F>(f)();
-    }
-
-    bool operator==(const immediate_executor&) const noexcept {
-        return true;
-    }
-
-    bool operator!=(const immediate_executor&) const noexcept {
-        return false;
-    }
-
-    // 在当前线程立即派发工作
-    template <typename F, typename Allocator>
-    void dispatch(F&& f, const Allocator& alloc = Allocator()) const {
-        std::forward<F>(f)();
-    }
-
-    // 在当前线程立即投递工作
-    template <typename F, typename Allocator>
-    void post(F&& f, const Allocator& alloc = Allocator()) const {
-        std::forward<F>(f)();
-    }
-
-    // 延迟执行（在这里等同于立即执行）
-    template <typename F, typename Allocator>
-    void defer(F&& f, const Allocator& alloc = Allocator()) const {
-        std::forward<F>(f)();
-    }
-
-    void on_work_started() const noexcept {
-    }
-
-    void on_work_finished() const noexcept {
-    }
-
-    // 支持 execution::blocking.never 属性
-    immediate_executor require(boost::asio::execution::blocking_t::never_t) const {
-        return *this;
-    }
-
-    // 查询执行器属性
-    static constexpr boost::asio::execution::blocking_t query(boost::asio::execution::blocking_t) {
-        return boost::asio::execution::blocking.never;
-    }
-
-    immediate_context& context() const noexcept;
-};
-
-// immediate_context 用于立即执行回调的上下文
-class immediate_context {
-public:
-    using executor_type = immediate_executor;
-
-    immediate_context() = default;
-
-    executor_type get_executor() const noexcept {
-        return executor_type();
-    }
-};
-
-// 全局单例
-inline immediate_context& get_immediate_context() {
-    static immediate_context ctx;
-    return ctx;
-}
-
-inline immediate_context& immediate_executor::context() const noexcept {
-    return get_immediate_context();
-}
-
-inline boost::asio::system_context& get_system_context() {
-    static boost::asio::system_context system_context;
-    return system_context;
-}
-
 // 快速构造已完成的 future，直接设置结果和状态避免加锁
 template <typename T, typename Executor, typename Allocator>
 auto make_resolved_state(T value, Executor executor, Allocator alloc) {
@@ -318,7 +231,7 @@ public:
     using state_type     = futures::State<T, Executor, Allocator>;
     using future_type    = Future<T, Executor, Allocator>;
 
-    explicit Future(std::shared_ptr<state_type> state) : state_(state) {
+    explicit Future(state_ptr<state_type> state) : state_(state) {
     }
     ~Future() = default;
 
@@ -418,10 +331,10 @@ private:
     template <typename R, typename E, typename A>
     friend struct detail::CombinatorState;
 
-    std::shared_ptr<state_type> state_;
+    state_ptr<state_type> state_;
 
     // 内部方法：从State创建新的Future（仅供内部使用）
-    static Future from_state(const std::shared_ptr<state_type>& state) {
+    static Future from_state(const state_ptr<state_type>& state) {
         return Future(state);
     }
 };
@@ -472,9 +385,9 @@ public:
     }
 
 private:
-    std::shared_ptr<state_type> state_;
-    bool                        future_retrieved_ = false;
-    Allocator                   allocator_;
+    state_ptr<state_type> state_;
+    bool                  future_retrieved_ = false;
+    Allocator             allocator_;
 };
 
 template <typename T, typename Executor, typename Allocator>
@@ -516,36 +429,36 @@ auto any(Iterator begin, Iterator end)
 
 namespace mc {
 // 从执行器创建 promise
-template <typename T, typename Executor,
+template <typename T, typename Executor = mc::work_context::executor_type,
           typename Allocator = std::allocator<void>>
-auto make_promise(Executor executor, Allocator alloc = Allocator())
+auto make_promise(Executor executor = mc::get_work_executor(), Allocator alloc = Allocator())
     -> std::enable_if_t<futures::detail::is_executor_v<Executor>,
                         mc::futures::Promise<T, Executor, Allocator>> {
     return mc::futures::make_promise<T>(std::move(executor), alloc);
 }
 
-template <typename T, typename Execution = boost::asio::system_context,
+template <typename T, typename Execution,
           typename Allocator = std::allocator<void>>
-auto make_promise(Execution& execution = futures::detail::get_system_context(), Allocator alloc = Allocator())
+auto make_promise(Execution& execution, Allocator alloc = Allocator())
     -> std::enable_if_t<futures::detail::is_execution_context_v<Execution>,
                         mc::futures::Promise<T, typename Execution::executor_type, Allocator>> {
     return mc::futures::make_promise<T>(execution.get_executor(), alloc);
 }
 
-template <typename T, typename Executor = boost::asio::system_context::executor_type,
+template <typename T, typename Executor = mc::work_context::executor_type,
           typename Allocator = std::allocator<void>>
 using future = mc::futures::Future<T, Executor, Allocator>;
 
-template <typename T, typename Executor = boost::asio::system_context::executor_type,
+template <typename T, typename Executor = mc::work_context::executor_type,
           typename Allocator = std::allocator<void>>
 using promise = mc::futures::Promise<T, Executor, Allocator>;
 
 namespace futures {
 
 // 创建已完成的 future
-template <typename T, typename Executor = detail::immediate_executor,
+template <typename T, typename Executor = runtime::immediate_executor,
           typename Allocator = std::allocator<void>>
-auto resolve(T&& value, Executor executor = detail::immediate_executor(),
+auto resolve(T&& value, Executor executor = runtime::immediate_executor(),
              Allocator alloc = Allocator())
     -> std::enable_if_t<detail::is_executor_v<Executor>,
                         mc::futures::Future<mc::traits::remove_cvref_t<T>, Executor, Allocator>> {
@@ -554,7 +467,7 @@ auto resolve(T&& value, Executor executor = detail::immediate_executor(),
     return Future<mc::traits::remove_cvref_t<T>, Executor, Allocator>(std::move(state));
 }
 
-template <typename T, typename Execution = detail::immediate_context,
+template <typename T, typename Execution = runtime::immediate_context,
           typename Allocator = std::allocator<void>>
 auto resolve(T&& value, Execution& execution,
              Allocator alloc = Allocator())
@@ -565,9 +478,9 @@ auto resolve(T&& value, Execution& execution,
 }
 
 // 创建已完成的 future (void 版本)
-template <typename Executor  = detail::immediate_executor,
+template <typename Executor  = runtime::immediate_executor,
           typename Allocator = std::allocator<void>>
-auto resolve(Executor  executor = detail::immediate_executor(),
+auto resolve(Executor  executor = runtime::immediate_executor(),
              Allocator alloc    = Allocator())
     -> std::enable_if_t<detail::is_executor_v<Executor>,
                         mc::futures::Future<void, Executor, Allocator>> {
@@ -576,7 +489,7 @@ auto resolve(Executor  executor = detail::immediate_executor(),
     return Future<void, Executor, Allocator>(std::move(state));
 }
 
-template <typename Execution = detail::immediate_context,
+template <typename Execution = runtime::immediate_context,
           typename Allocator = std::allocator<void>>
 auto resolve(Execution& execution,
              Allocator  alloc = Allocator())
@@ -587,10 +500,10 @@ auto resolve(Execution& execution,
 }
 
 // 创建已失败的 future
-template <typename T, typename Executor = detail::immediate_executor,
+template <typename T, typename Executor = runtime::immediate_executor,
           typename Allocator = std::allocator<void>>
 auto reject(std::exception_ptr eptr,
-            Executor           executor = detail::immediate_executor(),
+            Executor           executor = runtime::immediate_executor(),
             Allocator          alloc    = Allocator())
     -> std::enable_if_t<detail::is_executor_v<Executor>,
                         mc::futures::Future<T, Executor, Allocator>> {
@@ -599,7 +512,7 @@ auto reject(std::exception_ptr eptr,
     return Future<T, Executor, Allocator>(std::move(state));
 }
 
-template <typename T, typename Execution = detail::immediate_context,
+template <typename T, typename Execution = runtime::immediate_context,
           typename Allocator = std::allocator<void>>
 auto reject(std::exception_ptr eptr, Execution& execution,
             Allocator alloc = Allocator())
@@ -610,7 +523,7 @@ auto reject(std::exception_ptr eptr, Execution& execution,
 
 // 便利函数：直接从异常创建
 template <typename T, typename Exception,
-          typename Execution = detail::immediate_context,
+          typename Execution = runtime::immediate_context,
           typename Allocator = std::allocator<void>>
 auto reject(Exception&& ex, Execution& execution,
             Allocator alloc = Allocator())
@@ -620,9 +533,9 @@ auto reject(Exception&& ex, Execution& execution,
 }
 
 template <typename T, typename Exception,
-          typename Executor  = detail::immediate_executor,
+          typename Executor  = mc::immediate_executor,
           typename Allocator = std::allocator<void>>
-auto reject(Exception&& ex, Executor executor = detail::immediate_executor(),
+auto reject(Exception&& ex, Executor executor = mc::immediate_executor(),
             Allocator alloc = Allocator())
     -> std::enable_if_t<detail::is_executor_v<Executor>,
                         mc::futures::Future<T, Executor, Allocator>> {
@@ -631,10 +544,10 @@ auto reject(Exception&& ex, Executor executor = detail::immediate_executor(),
 
 // 超时函数：给 future 添加超时功能
 template <typename FutureType, typename Duration,
-          typename Executor  = boost::asio::system_context::executor_type,
+          typename Executor  = mc::work_context::executor_type,
           typename Allocator = std::allocator<void>>
 auto timeout(FutureType future, Duration timeout_duration,
-             Executor  executor = detail::get_system_context().get_executor(),
+             Executor  executor = mc::get_work_executor(),
              Allocator alloc    = Allocator())
     -> std::enable_if_t<detail::is_future_v<FutureType> && detail::is_executor_v<Executor>,
                         mc::futures::Future<typename FutureType::value_type, Executor, Allocator>> {
@@ -648,20 +561,29 @@ auto timeout(FutureType future, Duration timeout_duration,
 
     // 优化：如果传入的future已经ready
     if (future.is_ready()) {
-        return mc::futures::resolve(future.get(), executor, alloc);
+        if constexpr (std::is_same_v<value_type, void>) {
+            return mc::futures::resolve(executor, alloc);
+        } else {
+            return mc::futures::resolve(future.get(), executor, alloc);
+        }
     }
 
     auto promise       = mc::make_promise<value_type>(executor, alloc);
     auto result_future = promise.get_future().on_cancel(future);
 
     struct timer_data {
+        using timer_type = boost::asio::basic_waitable_timer<
+            std::chrono::steady_clock,
+            boost::asio::wait_traits<std::chrono::steady_clock>,
+            Executor>;
+
         timer_data(Executor executor, Duration duration)
             : timer(executor, static_cast<duration_type>(duration)),
               completed(false) {
         }
 
-        boost::asio::steady_timer timer;
-        std::atomic<bool>         completed;
+        timer_type        timer;
+        std::atomic<bool> completed;
     };
     auto data = std::make_shared<timer_data>(executor, timeout_duration);
 
@@ -698,19 +620,19 @@ auto timeout(FutureType future, Duration timeout_duration,
     return result_future;
 }
 
-template <typename FutureType, typename Duration, typename Exception,
+template <typename FutureType, typename Duration, typename Execution,
           typename Allocator = std::allocator<void>>
 auto timeout(FutureType future, Duration timeout_duration,
-             Exception& execution,
+             Execution& execution,
              Allocator  alloc = Allocator()) {
     return timeout(std::move(future), timeout_duration, execution.get_executor(), alloc);
 }
 
 // 延迟执行函数：创建一个在指定时间后完成的 future
-template <typename Duration, typename Executor = boost::asio::system_context::executor_type,
+template <typename Duration, typename Executor = mc::work_context::executor_type,
           typename Allocator = std::allocator<void>>
 auto delay(Duration  delay_duration,
-           Executor  executor = detail::get_system_context().get_executor(),
+           Executor  executor = mc::get_work_executor(),
            Allocator alloc    = Allocator())
     -> std::enable_if_t<detail::is_executor_v<Executor>,
                         mc::futures::Future<void, Executor, Allocator>> {
@@ -719,7 +641,12 @@ auto delay(Duration  delay_duration,
     auto promise = mc::make_promise<void>(executor, alloc);
     auto future  = promise.get_future();
 
-    auto timer = std::make_shared<boost::asio::steady_timer>(
+    using timer_type = boost::asio::basic_waitable_timer<
+        std::chrono::steady_clock,
+        boost::asio::wait_traits<std::chrono::steady_clock>,
+        Executor>;
+
+    auto timer = std::make_shared<timer_type>(
         executor,
         static_cast<duration_type>(delay_duration));
 
@@ -767,16 +694,6 @@ using futures::timeout;
 using futures::detail::is_future_v;
 
 } // namespace mc
-
-// Boost.Asio 特化
-namespace boost {
-namespace asio {
-
-template <>
-struct is_executor<mc::futures::detail::immediate_executor> : std::true_type {};
-
-} // namespace asio
-} // namespace boost
 
 #include <mc/futures/detail/combinator_future.h>
 #include <mc/futures/detail/future_impl.h>

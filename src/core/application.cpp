@@ -11,8 +11,8 @@
  */
 
 #include <mc/core/application.h>
-#include <mc/engine/engine.h>
 #include <mc/log.h>
+#include <mc/runtime.h>
 #include <mc/string.h>
 
 #include <boost/program_options.hpp>
@@ -45,9 +45,10 @@ struct application::impl {
     std::unique_ptr<supervisor_manager>             m_supervisor_manager; // 监督器管理器
     std::unordered_map<std::string, supervisor_ptr> m_supervisors;        // 监督器映射表
 
-    int  m_thread_count{1};
-    bool m_stopped{false};
-    bool m_running{false};
+    std::size_t m_thread_count{1};
+    std::size_t m_work_thread_count{1};
+    bool        m_stopped{false};
+    bool        m_running{false};
 };
 
 application::impl::impl()
@@ -166,8 +167,10 @@ bool application::impl::initialize_supervisors(bool config_loaded) {
 
     auto app_configs = m_config_manager->get_configs<config::app_config>();
     if (!app_configs.empty()) {
-        m_thread_count = app_configs[0].threads;
-        dlog("set thread count: ${count}", ("count", m_thread_count));
+        m_thread_count      = app_configs[0].threads;
+        m_work_thread_count = app_configs[0].work_threads;
+        dlog("set thread count: ${count}, work thread count: ${work_count}",
+             ("count", m_thread_count)("work_count", m_work_thread_count));
     }
 
     auto supervisor_configs = m_config_manager->get_configs<config::supervisor_config>();
@@ -222,10 +225,10 @@ void application::exec() {
 void application::impl::exec() {
     ilog("start application, thread count: ${count}", ("count", m_thread_count));
 
-    m_running    = true;
-    auto& engine = mc::engine::engine::get_instance();
-    engine.start(m_thread_count);
-    engine.join();
+    m_running     = true;
+    auto& runtime = mc::get_runtime_context();
+    runtime.initialize(mc::runtime_config{m_thread_count, m_work_thread_count});
+    runtime.start();
 
     ilog("application stopped");
 }
@@ -249,9 +252,6 @@ void application::impl::stop() {
 
     m_supervisor_manager->stop_supervisors();
     stop_all_services();
-
-    auto& engine = mc::engine::engine::get_instance();
-    engine.stop();
 
     m_stopped = true;
 }
@@ -288,10 +288,6 @@ void application::impl::stop_all_services() {
     if (m_service_manager) {
         m_service_manager->stop_services();
     }
-}
-
-io_context& application::get_io_context() {
-    return mc::engine::engine::get_instance().get_io_context();
 }
 
 } // namespace mc::core

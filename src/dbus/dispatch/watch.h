@@ -30,8 +30,8 @@ public:
     void stop();
 
 private:
-    void watch_readable(connection_weak_ptr conn, watch::shared_ptr self);
-    void watch_writable(connection_weak_ptr conn, watch::shared_ptr self);
+    void watch_readable(connection_weak_ptr conn, mc::shared_ptr<watch> self);
+    void watch_writable(connection_weak_ptr conn, mc::shared_ptr<watch> self);
     bool handle_watch_ready(connection_ptr& conn, uint32_t flags);
 
     using socket_type = boost::asio::posix::stream_descriptor;

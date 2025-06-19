@@ -31,20 +31,15 @@ public:
     void remove_object(abstract_object& object);
     void update_object(abstract_object& old_object, abstract_object& new_object);
 
-    std::mutex                  m_mutex;
-    mdb::database               m_database;
-    object_table_ptr            m_object_table;
-    io_context                  m_io_context;
-    table_connection_map        m_connections;
-    thread_list                 m_threads;
-    std::mutex                  m_threads_mutex;
-    std::unique_ptr<work_guard> m_work;
-    mc::expr::engine            m_expr_engine;
+    std::mutex           m_mutex;
+    mdb::database        m_database;
+    object_table_ptr     m_object_table;
+    table_connection_map m_connections;
+    mc::expr::engine     m_expr_engine;
 };
 
 engine::engine_impl::engine_impl() : m_object_table(std::make_shared<object_table>()) {
     m_database.register_table(m_object_table);
-    m_work = std::make_unique<work_guard>(m_io_context.get_executor());
 }
 
 engine::engine_impl::~engine_impl() {
@@ -87,7 +82,6 @@ engine::engine() {
 }
 
 engine::~engine() {
-    stop();
     m_impl.reset();
 }
 
@@ -97,45 +91,8 @@ engine& engine::get_instance() {
     });
 }
 
-void engine::start(std::size_t thread_num) {
-    std::lock_guard lock(m_impl->m_mutex);
-
-    if (thread_num == 0) {
-        thread_num = std::thread::hardware_concurrency();
-    }
-
-    for (std::size_t i = 0; i < thread_num; ++i) {
-        m_impl->m_threads.emplace_back([this]() {
-            m_impl->m_io_context.run();
-        });
-    }
-}
-
-void engine::join() {
-    auto impl = m_impl;
-
-    std::unique_lock lock(impl->m_threads_mutex);
-    for (auto& t : impl->m_threads) {
-        t.join();
-    }
-    impl->m_threads.clear();
-}
-
-void engine::stop() {
-    {
-        std::lock_guard lock(m_impl->m_mutex);
-
-        m_impl->m_work.reset();
-        m_impl->m_io_context.stop();
-    }
-}
-
 mc::db::database& engine::get_database() {
     return m_impl->m_database;
-}
-
-io_context_type& engine::get_io_context() {
-    return m_impl->m_io_context;
 }
 
 bool engine::register_table(mc::db::table_ptr table) {
