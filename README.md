@@ -1,9 +1,5 @@
 # MC++ 现代C++基础库
 
-[![构建状态](https://img.shields.io/badge/build-passing-brightgreen)](https://gitcode.com/zjp99/libmcpp)
-[![版本](https://img.shields.io/badge/version-0.1.0-blue)](https://gitcode.com/zjp99/libmcpp)
-[![许可证](https://img.shields.io/badge/license-Apache%202.0-green)](LICENSE)
-
 ## 概述
 
 MC++ 是一个现代化的C++基础库，专为高性能、可扩展的应用程序设计。它提供了丰富的功能组件，帮助开发者构建健壮、高效的C++应用。
