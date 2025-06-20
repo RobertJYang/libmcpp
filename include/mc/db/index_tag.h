@@ -28,8 +28,11 @@ namespace mc::db {
  */
 template <typename Tag>
 struct tag_base {
-    using tag_type                 = Tag;
-    static constexpr tag_type* tag = nullptr;
+    using base_type = tag_base<Tag>;
+    using tag_type  = Tag;
+
+    tag_type*                  dummy;
+    static constexpr tag_type* base_type::* tag = &base_type::dummy;
 };
 
 /**
@@ -186,7 +189,8 @@ struct extract_tag;
 
 template <auto Ptr, auto... Ptrs>
 struct extract_tag<Ptr, Ptrs...> {
-    using tag_type = mc::traits::remove_pointers_t<decltype(Ptr)>;
+    using value_type = typename member_pointer_traits<decltype(Ptr)>::value_type;
+    using tag_type   = mc::traits::remove_pointers_t<value_type>;
     using type =
         std::conditional_t<is_tag_v<tag_type>, tag_type, typename extract_tag<Ptrs...>::type>;
 };
@@ -204,8 +208,9 @@ struct extract_extractor;
 
 template <typename Tuple, auto Ptr, auto... Ptrs>
 struct extract_extractor<Tuple, Ptr, Ptrs...> {
+    using value_type = typename member_pointer_traits<decltype(Ptr)>::value_type;
     static auto get_type() {
-        if constexpr (is_tag_v<mc::traits::remove_pointers_t<decltype(Ptr)>>) {
+        if constexpr (is_tag_v<mc::traits::remove_pointers_t<value_type>>) {
             return Tuple{};
         } else {
             return mc::traits::type_append_t<Tuple, extractor_selector_t<Ptr>>{};
@@ -274,8 +279,8 @@ using ordered_non_unique = detail::ordered_non_unique<detail::extract_extractor_
 } // namespace mc::db
 
 // 定义单个字段标签
-#define MC_FIELD_INDEX_TAG(tag_name, field_name)                                                   \
-    inline constexpr char field_##tag_name[] = field_name;                                         \
+#define MC_FIELD_INDEX_TAG(tag_name, field_name)           \
+    inline constexpr char field_##tag_name[] = field_name; \
     using tag_name                           = mc::db::field_tag<field_##tag_name>;
 
 #endif // MC_DATABASE_INDEX_TAG_H
