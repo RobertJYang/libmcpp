@@ -39,43 +39,43 @@ protected:
     }
 };
 
-class TestWithDbusDaemon : public TestBase {
+class TestWithRuntime : public TestBase {
+protected:
+    static mc::runtime::runtime_context& get_runtime() {
+        return mc::runtime::get_runtime_context();
+    }
+
+    static void SetUpTestSuite() {
+        mc::singleton<mc::runtime::runtime_context>::reset_for_test();
+    }
+
+    static void TearDownTestSuite() {
+        get_runtime().stop();
+        get_runtime().join();
+        mc::singleton<mc::runtime::runtime_context>::reset_for_test();
+    }
+};
+
+class TestWithDbusDaemon : public TestWithRuntime {
 protected:
     static dbus_daemon_manager& get_dbus_daemon() {
         return mc::singleton<dbus_daemon_manager>::instance();
     }
 
     static void SetUpTestSuite() {
+        TestWithRuntime::SetUpTestSuite();
         ASSERT_TRUE(get_dbus_daemon().start()) << "启动 DBus 守护进程失败";
     }
 
-    static void TearDownTestSuite() {};
-};
-
-class TestWithEngine : public TestWithDbusDaemon {
-protected:
-    static mc::engine::engine& get_engine() {
-        return mc::engine::get_engine();
-    }
-
-    static void SetUpTestSuite() {
-        TestWithDbusDaemon::SetUpTestSuite();
-        get_engine().start();
-    }
-
     static void TearDownTestSuite() {
-        get_engine().stop();
-        get_engine().join();
-
-        mc::singleton<mc::engine::engine>::reset_for_test();
-        TestWithDbusDaemon::TearDownTestSuite();
+        TestWithRuntime::TearDownTestSuite();
     };
 };
 
-class TestWithApplication : public TestWithEngine {
+class TestWithApplication : public TestWithDbusDaemon {
 protected:
     static void SetUpTestSuite() {
-        TestWithEngine::SetUpTestSuite();
+        TestWithDbusDaemon::SetUpTestSuite();
 
         mc::core::app().start();
     }
@@ -83,8 +83,23 @@ protected:
     static void TearDownTestSuite() {
         mc::core::app().stop();
         mc::singleton<mc::core::application>::reset_for_test();
+        TestWithDbusDaemon::TearDownTestSuite();
+    };
+};
 
-        TestWithEngine::TearDownTestSuite();
+class TestWithEngine : public TestWithApplication {
+protected:
+    static mc::engine::engine& get_engine() {
+        return mc::engine::get_engine();
+    }
+
+    static void SetUpTestSuite() {
+        TestWithApplication::SetUpTestSuite();
+    }
+
+    static void TearDownTestSuite() {
+        mc::singleton<mc::engine::engine>::reset_for_test();
+        TestWithApplication::TearDownTestSuite();
     };
 };
 

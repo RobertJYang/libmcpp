@@ -31,8 +31,7 @@ using io_context     = boost::asio::io_context;
 using system_context = boost::asio::system_context;
 using thread_pool    = boost::asio::thread_pool;
 template <typename Executor>
-using strand_t     = boost::asio::strand<Executor>;
-using any_executor = boost::asio::any_io_executor;
+using strand_t = boost::asio::strand<Executor>;
 
 namespace detail {
 template <typename T, typename F, typename Arg>
@@ -85,7 +84,7 @@ struct result_traits<
 
     static constexpr bool is_future = mc::futures::detail::is_future_v<call_result_type>;
     using return_type               = typename future_value_type<call_result_type>::type;
-    using future_type               = mc::future<return_type, mc::futures::detail::immediate_executor>;
+    using future_type               = mc::future<return_type, mc::immediate_executor>;
 };
 
 } // namespace detail
@@ -101,10 +100,13 @@ using result_variant = std::variant<
     mc::future<T, strand_t<io_context::executor_type>>,
     mc::future<T, strand_t<system_context::executor_type>>,
     mc::future<T, strand_t<thread_pool::executor_type>>,
-    mc::future<T, mc::futures::detail::immediate_executor>,
-    mc::future<T, any_executor>,
+    mc::future<T, mc::immediate_executor>,
+    mc::future<T, boost::asio::any_io_executor>,
     // 错误类型
     mc::engine::error>;
+
+constexpr int a = sizeof(result_variant<void>);
+constexpr int b = sizeof(mc::future<int, boost::asio::any_io_executor>);
 
 template <typename T = mc::variant>
 class result {
@@ -426,7 +428,7 @@ public:
 private:
     template <typename ResultType, bool IsFuture, typename F, typename FutureType>
     static auto then_impl(F&& func, FutureType&& v) {
-        auto promise = mc::make_promise<ResultType>(mc::futures::detail::immediate_executor());
+        auto promise = mc::make_promise<ResultType>(mc::immediate_executor());
         auto future  = promise.get_future();
 
         v.then([f = std::forward<F>(func), promise](auto&& val) mutable {
@@ -468,7 +470,7 @@ private:
 
     template <typename ResultType, bool IsFuture, typename F, typename FutureType>
     static auto catch_error_impl(F&& func, FutureType&& v) {
-        auto promise = mc::make_promise<ResultType>(mc::futures::detail::immediate_executor());
+        auto promise = mc::make_promise<ResultType>(mc::immediate_executor());
         auto future  = promise.get_future();
 
         v.catch_error([f = std::forward<F>(func), promise](auto&& vv) mutable {

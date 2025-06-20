@@ -19,36 +19,16 @@
 #include <thread>
 
 #include <mc/future.h>
+#include <test_utilities/test_base.h>
 
 using namespace std::chrono_literals;
 
 namespace {
-class FuturesTest : public ::testing::Test {
+class FuturesTest : public mc::test::TestWithRuntime {
 public:
-    void SetUp() override {
-        io_context = std::make_unique<boost::asio::io_context>();
-    }
-
-    void TearDown() override {
-        io_context->stop();
-        io_context->run();
-    }
-
     boost::asio::io_context& get_io_context() {
-        return *io_context;
+        return get_runtime().get_io_context();
     }
-
-    void run_to_completion() {
-        io_context->run();
-    }
-
-    template <typename Rep, typename Period>
-    void run_for(const std::chrono::duration<Rep, Period>& timeout) {
-        io_context->run_for(timeout);
-    }
-
-private:
-    std::unique_ptr<boost::asio::io_context> io_context;
 };
 } // namespace
 
@@ -71,7 +51,6 @@ TEST_F(FuturesTest, BasicErrorHandling) {
     });
 
     promise.set_value(0);
-    run_to_completion();
     EXPECT_EQ(future.get(), "测试异常");
 }
 
@@ -86,7 +65,6 @@ TEST_F(FuturesTest, AsyncExecutionPolicy) {
     }, mc::launch::async);
 
     promise.set_value(20);
-    run_to_completion();
 
     auto result  = future.get();
     auto elapsed = std::chrono::steady_clock::now() - start_time;
@@ -104,8 +82,6 @@ TEST_F(FuturesTest, DeferredExecutionPolicy) {
     }, mc::launch::deferred);
 
     promise.set_value(20);
-    run_to_completion();
-
     EXPECT_EQ(future.get(), 40);
 }
 
@@ -127,7 +103,6 @@ TEST_F(FuturesTest, SimpleChain) {
     });
 
     promise.set_value(20);
-    run_to_completion();
     EXPECT_EQ(future.get(), 41);
 }
 
@@ -146,7 +121,6 @@ TEST_F(FuturesTest, ChainWithFutureReturn) {
     });
 
     promise.set_value(20);
-    run_to_completion();
     EXPECT_EQ(future.get(), 41);
 }
 
@@ -162,7 +136,6 @@ TEST_F(FuturesTest, CatchErrorWithException) {
     });
 
     promise.set_value(10);
-    run_to_completion();
     future.get();
     EXPECT_EQ(code, mc::std_exception_code);
 }
@@ -179,7 +152,6 @@ TEST_F(FuturesTest, CatchErrorWithoutException) {
     });
 
     promise.set_value(21);
-    run_to_completion();
     future.get();
 }
 
@@ -195,7 +167,6 @@ TEST_F(FuturesTest, CatchErrorVoidReturnWithException) {
     });
 
     promise.set_value(42);
-    run_to_completion();
     future.get();
     EXPECT_TRUE(caught);
 }
@@ -212,7 +183,6 @@ TEST_F(FuturesTest, CatchErrorVoidReturnWithoutException) {
     });
 
     promise.set_value(42);
-    run_to_completion();
     future.get();
     EXPECT_FALSE(caught);
 }
@@ -231,8 +201,7 @@ TEST_F(FuturesTest, ErrorRecoveryWithIntValue) {
         return value + 5;
     });
 
-    promise.set_value(0); // 触发异常
-    run_to_completion();
+    promise.set_value(0);        // 触发异常
     EXPECT_EQ(future.get(), 15); // 10 + 5
 }
 
@@ -249,7 +218,6 @@ TEST_F(FuturesTest, ErrorRecoveryChain) {
     });
 
     promise.set_value(5);
-    run_to_completion();
     EXPECT_EQ(future.get(), 10); // 5 * 2，没有触发异常
 }
 
@@ -265,7 +233,6 @@ TEST_F(FuturesTest, FinallyWithSuccess) {
     });
 
     promise.set_value(10);
-    run_to_completion();
     EXPECT_EQ(future.get(), 20);
     EXPECT_TRUE(cleanup_called);
 }
@@ -283,7 +250,7 @@ TEST_F(FuturesTest, FinallyWithException) {
     });
 
     promise.set_value(10);
-    run_to_completion();
+
     EXPECT_THROW(future.get(), std::exception);
     EXPECT_TRUE(cleanup_called);
 }
@@ -300,7 +267,7 @@ TEST_F(FuturesTest, TapWithSuccess) {
     });
 
     promise.set_value(10);
-    run_to_completion();
+
     EXPECT_EQ(future.get(), 20);
     EXPECT_EQ(observed_value, 20);
 }
@@ -318,7 +285,7 @@ TEST_F(FuturesTest, TapWithException) {
     });
 
     promise.set_value(10);
-    run_to_completion();
+
     EXPECT_THROW(future.get(), std::exception);
     EXPECT_EQ(observed_value, -1); // 没有被调用
 }
@@ -335,7 +302,6 @@ TEST_F(FuturesTest, AllWithSuccess) {
     p2.set_value(3.14);
     p3.set_value("hello");
 
-    run_to_completion();
     auto result = all_future.get();
 
     EXPECT_EQ(std::get<0>(result), 42);
@@ -355,7 +321,6 @@ TEST_F(FuturesTest, AllWithException) {
     p2.set_exception(std::make_exception_ptr(std::runtime_error("测试异常")));
     p3.set_value("hello");
 
-    run_to_completion();
     EXPECT_THROW(all_future.get(), std::exception);
 }
 
@@ -418,7 +383,6 @@ TEST_F(FuturesTest, ContainerAllWithSuccess) {
         promises[i].set_value(expected[i]);
     }
 
-    run_to_completion();
     EXPECT_EQ(all_future.get(), expected);
 }
 
@@ -441,7 +405,6 @@ TEST_F(FuturesTest, ContainerAllWithException) {
     promises[1].set_exception(std::make_exception_ptr(std::runtime_error("测试异常")));
     promises[2].set_value(3);
 
-    run_to_completion();
     EXPECT_THROW(all_future.get(), std::exception);
     EXPECT_EQ(futures[0].is_ready(), true);     // 第一个完成
     EXPECT_EQ(futures[1].is_rejected(), true);  // 第二个异常
@@ -467,7 +430,6 @@ TEST_F(FuturesTest, ContainerAllWithAnyFutureCancel) {
     promises[1].cancel();
     promises[2].set_value(3);
 
-    run_to_completion();
     EXPECT_THROW(all_future.get(), mc::canceled_exception);
     EXPECT_EQ(futures[0].is_ready(), true);     // 第一个完成
     EXPECT_EQ(futures[1].is_cancelled(), true); // 第二个取消
@@ -493,7 +455,6 @@ TEST_F(FuturesTest, ContainerAllWithResultFutureCancel) {
     promises[1].set_value(2);
     promises[2].set_value(3);
 
-    run_to_completion();
     EXPECT_THROW(all_future.get(), mc::canceled_exception);
     EXPECT_EQ(futures[0].is_ready(), true);     // 第一个完成
     EXPECT_EQ(futures[1].is_cancelled(), true); // 第二个因为结果future被取消而取消
@@ -510,7 +471,6 @@ TEST_F(FuturesTest, AnyWithSuccess) {
 
     p2.set_value(3.14); // 第二个完成
 
-    run_to_completion();
     auto result = any_future.get();
 
     EXPECT_EQ(result.first, 1); // 索引 1（第二个）
@@ -569,8 +529,6 @@ TEST_F(FuturesTest, AnyAllChildrenCanceled) {
     p2.cancel();
     p3.cancel();
 
-    run_to_completion();
-
     // 验证any_future被取消
     EXPECT_TRUE(any_future.is_rejected());
     try {
@@ -619,7 +577,7 @@ TEST_F(FuturesTest, TimeoutFunctionSuccess) {
     auto future  = mc::timeout(promise.get_future(), 100ms, get_io_context());
 
     promise.set_value(42);
-    run_to_completion();
+
     EXPECT_EQ(future.get(), 42);
 }
 
@@ -629,7 +587,6 @@ TEST_F(FuturesTest, TimeoutFunctionTimeout) {
     auto future  = mc::timeout(promise.get_future(), 50ms, get_io_context());
 
     // 不设置值，让其超时
-    run_for(100ms);
     EXPECT_THROW(future.get(), mc::timeout_exception);
 }
 
@@ -654,8 +611,6 @@ TEST_F(FuturesTest, TimeoutFunctionCancelOnOriginalPromiseCancel) {
     original_future.cancel();
     auto timeout_future = mc::timeout(std::move(original_future), 1000ms, get_io_context());
 
-    run_to_completion();
-
     // 原始 future 被取消，timeout_future 应该也抛出 canceled_exception
     EXPECT_THROW(timeout_future.get(), mc::canceled_exception);
 }
@@ -668,8 +623,6 @@ TEST_F(FuturesTest, TimeoutFunctionCancelOnPromiseAfterTimeout) {
     // 先创建 timeout future，然后取消原始 promise
     auto timeout_future = mc::timeout(std::move(original_future), 1000ms, get_io_context());
     promise.cancel(); // 通过promise取消，因为original_future已经被move到内部了
-
-    run_to_completion();
 
     // 原始 promise 被取消，timeout_future 应该也抛出 canceled_exception
     EXPECT_THROW(timeout_future.get(), mc::canceled_exception);
@@ -704,10 +657,9 @@ TEST_F(FuturesTest, DelayedExecution) {
         promise.set_value(42);
     });
 
-    run_to_completion();
-    auto elapsed = std::chrono::steady_clock::now() - start_time;
-
     EXPECT_EQ(future.get(), 42);
+
+    auto elapsed = std::chrono::steady_clock::now() - start_time;
     EXPECT_GE(elapsed, 100ms);
 }
 
@@ -719,10 +671,9 @@ TEST_F(FuturesTest, DelayedFuture) {
         return 42;
     });
 
-    run_to_completion();
-    auto elapsed = std::chrono::steady_clock::now() - start_time;
-
     EXPECT_EQ(future.get(), 42);
+
+    auto elapsed = std::chrono::steady_clock::now() - start_time;
     EXPECT_GE(elapsed, 100ms);
 }
 
@@ -790,7 +741,6 @@ TEST_F(FuturesTest, TimeoutException) {
     auto future         = promise.get_future();
     auto timeout_future = mc::timeout(std::move(future), 50ms, get_io_context());
 
-    run_for(100ms);
     EXPECT_THROW(timeout_future.get(), mc::timeout_exception);
 }
 
@@ -808,7 +758,6 @@ TEST_F(FuturesTest, ExceptionInfoPreservationInCatchError) {
     });
 
     promise.set_value(42);
-    run_to_completion();
 
     auto result = future.get();
     EXPECT_EQ(ex->code(), mc::timeout_exception_code);
@@ -829,7 +778,6 @@ TEST_F(FuturesTest, CancelExceptionHandling) {
     });
 
     promise.set_value(42);
-    run_to_completion();
 
     EXPECT_THROW(future.get(), mc::canceled_exception);
     EXPECT_FALSE(error_called);
@@ -847,7 +795,6 @@ TEST_F(FuturesTest, StdExceptionHandling) {
     });
 
     promise.set_value(42);
-    run_to_completion();
 
     auto result = future.get();
     EXPECT_TRUE(ex != nullptr);
@@ -881,7 +828,6 @@ TEST_F(FuturesTest, AnyFirstSuccessCancel) {
 
     // 第一个完成
     p1.set_value(42);
-    run_to_completion();
 
     auto result = any_future.get();
     EXPECT_EQ(result.first, 0); // 第一个future的索引
@@ -922,8 +868,6 @@ TEST_F(FuturesTest, AllOneChildCancelPropagation) {
     // 第三个被取消
     p3.cancel();
 
-    run_to_completion();
-
     // all_future应该抛出取消异常
     EXPECT_THROW(all_future.get(), mc::canceled_exception);
 
@@ -951,8 +895,6 @@ TEST_F(FuturesTest, AnySuccessAfterSomeCanceled) {
     // 第二个成功
     p2.set_value(3.14);
 
-    run_to_completion();
-
     auto result = any_future.get();
     EXPECT_EQ(result.first, 1); // 第二个future的索引
     EXPECT_DOUBLE_EQ(std::get<double>(result.second), 3.14);
@@ -973,7 +915,6 @@ TEST_F(FuturesTest, AllPartialSuccessThenException) {
     // 第三个抛出异常
     p3.set_exception(std::make_exception_ptr(std::runtime_error("第三个失败")));
 
-    run_to_completion();
     EXPECT_THROW(all_future.get(), std::runtime_error);
 }
 
@@ -989,8 +930,6 @@ TEST_F(FuturesTest, AllMultipleSimultaneousExceptions) {
     p1.set_exception(std::make_exception_ptr(std::runtime_error("第一个异常")));
     p2.set_exception(std::make_exception_ptr(std::logic_error("第二个异常")));
     p3.set_exception(std::make_exception_ptr(std::invalid_argument("第三个异常")));
-
-    run_to_completion();
 
     // 对于 all 来说，第一个异常意味着整体失败，其他异常会被忽略
     EXPECT_THROW(all_future.get(), std::runtime_error);
@@ -1014,8 +953,6 @@ TEST_F(FuturesTest, AllMixedExceptionAndCancel) {
     p2.set_exception(std::make_exception_ptr(std::runtime_error("第二个异常")));
     // 第三个尚未完成
 
-    run_to_completion();
-
     // 对于 all 来说，第一个取消意味着整体取消，其他异常会被忽略
     EXPECT_THROW(all_future.get(), mc::canceled_exception);
 }
@@ -1037,7 +974,6 @@ TEST_F(FuturesTest, AllWithDeferredExecution) {
     p1.set_value(21);
     p2.set_value(1.57);
 
-    run_to_completion();
     auto result = all_future.get();
     EXPECT_EQ(std::get<0>(result), 42);
     EXPECT_DOUBLE_EQ(std::get<1>(result), 3.14);
@@ -1058,8 +994,6 @@ TEST_F(FuturesTest, AnySuccessAfterSomeExceptions) {
     // 第三个成功
     p3.set_value("success");
 
-    run_to_completion();
-
     // 任何一个成功都算整体成功
     auto result = any_future.get();
     EXPECT_EQ(result.first, 2); // 第三个的索引
@@ -1078,8 +1012,6 @@ TEST_F(FuturesTest, AnyWithMixedExceptions) {
     p1.set_exception(std::make_exception_ptr(std::runtime_error("运行时错误")));
     p2.set_exception(std::make_exception_ptr(std::logic_error("逻辑错误")));
     p3.set_exception(std::make_exception_ptr(std::invalid_argument("参数错误")));
-
-    run_to_completion();
 
     // any 整体失败后，返回最后一个异常
     EXPECT_THROW(any_future.get(), std::invalid_argument);
@@ -1103,7 +1035,6 @@ TEST_F(FuturesTest, ContainerAnyWithSuccess) {
     // 第二个成功完成
     promises[1].set_value(42);
 
-    run_to_completion();
     auto result = any_future.get();
     EXPECT_EQ(result.first, 1); // 第二个的索引
     EXPECT_EQ(result.second, 42);
@@ -1132,7 +1063,6 @@ TEST_F(FuturesTest, AnyWithDeferredExecution) {
 
     p2.set_value(1.57); // 只设置第二个值
 
-    run_to_completion();
     auto result = any_future.get();
     EXPECT_EQ(result.first, 1); // 第二个的索引
     EXPECT_DOUBLE_EQ(std::get<double>(result.second), 3.14);
@@ -1152,9 +1082,8 @@ TEST_F(FuturesTest, CancelWithCacheError) {
     // 取消操作
     promise.cancel();
 
-    run_to_completion();
-    EXPECT_FALSE(catch_error_called);
     EXPECT_THROW(future.get(), mc::canceled_exception);
+    EXPECT_FALSE(catch_error_called);
 }
 
 // 测试取消链式 future，会传递取消动作到所有 future
@@ -1197,14 +1126,13 @@ TEST_F(FuturesTest, CancelChainedNested) {
     // 取消外层 future，触发嵌套的 future 取消
     future.cancel();
 
-    run_to_completion();
+    EXPECT_THROW(future.get(), mc::canceled_exception);
     EXPECT_FALSE(nested_canceled0); // 外层已经求解，不会触发 cancel 回调
     EXPECT_TRUE(nested_canceled1);
     EXPECT_TRUE(nested_canceled2);
     EXPECT_TRUE(nested_canceled3);
     EXPECT_TRUE(nested_canceled4);
     EXPECT_TRUE(nested_canceled5);
-    EXPECT_THROW(future.get(), mc::canceled_exception);
 }
 
 // 测试取消内部 future，会传递取消动作到外部 future
@@ -1217,7 +1145,8 @@ TEST_F(FuturesTest, CancelInnerFuture) {
         auto outer_future = mc::delay(100ms);
 
         // 创建一个内部定时器，在 10ms 后取消外部定时器
-        mc::delay(10ms, get_io_context()).then([outer_future]() mutable {
+        // 故意用 runtime 的 work 上下文而不是 io 上下文，测试 future 可以跨上下文运行
+        mc::delay(10ms, get_runtime().get_work_context()).then([outer_future]() mutable {
             outer_future.cancel();
         });
 
@@ -1232,8 +1161,7 @@ TEST_F(FuturesTest, CancelInnerFuture) {
 
     promise.set_value(1);
 
-    run_to_completion();
+    EXPECT_THROW(future.get(), mc::canceled_exception);
     EXPECT_TRUE(inner_canceled1);
     EXPECT_TRUE(inner_canceled2);
-    EXPECT_THROW(future.get(), mc::canceled_exception);
 }

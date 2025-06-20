@@ -107,10 +107,86 @@ void deallocate_ptr(T* ptr) {
 }
 } // namespace detail
 
+template <typename T>
+struct default_deleter {
+    template <typename U>
+    using rebind = default_deleter<U>;
+
+    // 对象析构
+    void destroy(T* ptr) {
+        if constexpr (detail::has_m_alloc<T>(0)) {
+            using alloc_type   = typename std::remove_const_t<T>::alloc_type;
+            using alloc_traits = std::allocator_traits<alloc_type>;
+            alloc_type alloc   = ptr->m_alloc;
+            alloc_traits::destroy(alloc, ptr);
+        } else {
+            ptr->~T();
+        }
+    }
+
+    // 内存释放
+    void deallocate(const void* ptr) {
+        detail::deallocate_ptr<T>(static_cast<T*>(const_cast<void*>(ptr)));
+    }
+};
+
+/**
+ * @brief Deleter traits 用于检测和调用 Deleter 的方法
+ * 支持检测 Deleter 是否具有 destroy 和 deallocate 方法，并提供统一的调用接口
+ */
+template <typename Deleter, typename T>
+struct deleter_traits {
+private:
+    template <typename D, typename = void>
+    struct has_destroy_method_impl : std::false_type {};
+    template <typename D>
+    struct has_destroy_method_impl<
+        D, std::void_t<decltype(std::declval<D&>().destroy(std::declval<T*>()))>>
+        : std::true_type {};
+
+    template <typename D, typename = void>
+    struct has_deallocate_method_impl : std::false_type {};
+    template <typename D>
+    struct has_deallocate_method_impl<
+        D, std::void_t<decltype(std::declval<D&>().deallocate(std::declval<const void*>()))>>
+        : std::true_type {};
+
+public:
+    static constexpr bool has_destroy_method    = has_destroy_method_impl<Deleter>::value;
+    static constexpr bool has_deallocate_method = has_deallocate_method_impl<Deleter>::value;
+
+    /**
+     * @brief 调用对象析构
+     * 如果 Deleter 有 destroy 方法则调用它，否则直接调用析构函数
+     * @param ptr 要析构的对象指针
+     */
+    static void destroy(T* ptr) {
+        if constexpr (has_destroy_method) {
+            Deleter{}.destroy(ptr);
+        } else {
+            ptr->~T();
+        }
+    }
+
+    /**
+     * @brief 调用内存释放
+     * 如果 Deleter 有 deallocate 方法则调用它，否则调用 operator()
+     * @param ptr 要释放的内存指针
+     */
+    static void deallocate(const void* ptr) {
+        if constexpr (has_deallocate_method) {
+            Deleter{}.deallocate(ptr);
+        } else {
+            operator delete(const_cast<void*>(ptr));
+        }
+    }
+};
 } // namespace mc::memory
 
 namespace mc {
 using mc::memory::allocate_ptr;
+using mc::memory::default_deleter;
+using mc::memory::deleter_traits;
 using mc::memory::destroy_ptr;
 } // namespace mc
 

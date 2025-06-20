@@ -39,7 +39,7 @@ struct CombinatorState {
 
     template <typename Future>
     void add_cancel_callback(Future& future) {
-        cancel_callbacks.push_back([state = std::weak_ptr(future.get_state())]() {
+        cancel_callbacks.push_back([state = mc::weak_ptr(future.get_state())]() {
             if (auto s = state.lock()) {
                 s->cancel();
             }

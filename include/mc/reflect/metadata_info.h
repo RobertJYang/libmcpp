@@ -100,7 +100,7 @@ inline constexpr bool is_property_v = is_property<T>::value;
 #define MC_COMPUTED_PROPERTY_2(name, getter)         (0, name, getter)
 #define MC_COMPUTED_PROPERTY_3(name, getter, setter) (0, name, getter, setter)
 
-// 主宏：自动检测参数数量并选择正确的实现
+// 声明计算属性的宏
 #define MC_COMPUTED_PROPERTY(...)                                                                  \
     BOOST_PP_IIF(BOOST_PP_GREATER(BOOST_PP_VARIADIC_SIZE(__VA_ARGS__), 2), MC_COMPUTED_PROPERTY_3, \
                  MC_COMPUTED_PROPERTY_2)(__VA_ARGS__)

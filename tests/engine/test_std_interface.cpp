@@ -61,7 +61,6 @@ public:
     MC_OBJECT(TestObject2, "TestObject", "Id/${Id}", (TestInterface2))
 
     ~TestObject2() {
-        std::cout << "TestObject2 destructor" << std::hex << this << std::endl;
     }
 
     TestInterface2 m_iface2;

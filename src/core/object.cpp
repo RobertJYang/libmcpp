@@ -27,6 +27,7 @@ struct object_data {
     child_list         children;       // 子对象列表
     bool               is_deleted;     // 标记对象是否已被删除
     connection_manager connection_mgr; // 连接管理器
+    mc::executor       executor;       // 绑定的执行器
 
     object_data() : parent(nullptr), is_deleted(false) {
     }
@@ -62,14 +63,16 @@ public:
     object_impl& operator=(object_impl&& other) = delete;
 
     // 线程安全的数据访问方法
-    std::string get_name() const;
-    void        set_name(std::string_view name);
-    object_ptr  get_parent() const;
-    void        set_parent(object* parent);
-    child_list  get_children() const;
-    object_ptr  find_child(std::string_view name) const;
-    void        add_child(object* child);
-    void        remove_child(object* child);
+    std::string      get_name() const;
+    void             set_name(std::string_view name);
+    object_ptr       get_parent() const;
+    void             set_parent(object* parent);
+    child_list       get_children() const;
+    object_ptr       find_child(std::string_view name) const;
+    void             add_child(object* child);
+    void             remove_child(object* child);
+    void             set_executor(mc::executor executor);
+    mc::any_executor get_executor() const;
 
     // 清理方法，返回需要清理的子对象列表和父对象
     std::pair<child_list, object_ptr> cleanup_data();
@@ -206,6 +209,19 @@ size_t object_impl::remove_connections(signal_type sig) {
 
 void object_impl::clear_connections() {
     m_data.wlock()->connection_mgr.clear();
+}
+
+void object_impl::set_executor(mc::executor executor) {
+    m_data.wlock()->executor = std::move(executor);
+}
+
+mc::any_executor object_impl::get_executor() const {
+    return m_data.with_lock([](auto& data) -> mc::any_executor {
+        if (data.executor.valid()) {
+            return {data.executor};
+        }
+        return {mc::get_default_executor()};
+    });
 }
 
 /* ------------------------ object ----------------------- */
@@ -363,7 +379,14 @@ void object::disconnect_all(signal_type sig) {
 }
 
 object::executor_type object::get_executor() const {
-    return mc::futures::detail::get_system_context().get_executor();
+    if (m_object_impl) {
+        return m_object_impl->get_executor();
+    }
+    return mc::get_default_executor();
+}
+
+void object::set_executor(mc::executor executor) {
+    ensure_impl().set_executor(std::move(executor));
 }
 
 } // namespace mc::core

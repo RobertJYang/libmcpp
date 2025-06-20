@@ -11,6 +11,7 @@
  */
 
 #include "test_service.h"
+#include <mc/core/application.h>
 #include <mc/engine.h>
 #include <mc/log.h>
 #include <test_utilities/test_base.h>
@@ -27,8 +28,8 @@ int main(int argc, char* argv[]) {
     service->init({});
     service->start();
 
-    mc::engine::get_engine().start(std::thread::hardware_concurrency());
-    mc::engine::get_engine().join();
+    mc::app().start();
+    mc::app().exec();
 
     ilog("服务连接示例结束");
     return 0;

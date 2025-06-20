@@ -25,7 +25,7 @@ namespace mc::im {
 template <typename T, typename PointerType = T*>
 class ref_list {
 public:
-    using ref_ptr_type   = shared_ptr<T, PointerType>;
+    using ref_ptr_type   = shared_ptr<T, default_deleter<T>, PointerType>;
     using allocator_type = typename T::allocator_type;
 
     ref_list();

@@ -17,25 +17,14 @@
 #include <mc/exception.h>
 #include <mc/future.h>
 #include <mc/memory.h>
+#include <mc/runtime.h>
 #include <mc/signal_slot.h>
-
-#include <boost/asio.hpp>
 
 #include <memory>
 #include <shared_mutex>
 #include <string_view>
 #include <unordered_map>
 #include <vector>
-
-namespace mc {
-using io_context  = boost::asio::io_context;
-using io_executor = boost::asio::io_context::executor_type;
-
-using system_context  = boost::asio::system_context;
-using system_executor = boost::asio::system_context::executor_type;
-
-using any_executor = boost::asio::any_io_executor;
-} // namespace mc
 
 namespace mc::core {
 class object;
@@ -60,7 +49,7 @@ using object_id_type = uint64_t;
 
 class object_base : public shared_base<object_base> {
 public:
-    using executor_type = boost::asio::any_io_executor;
+    using executor_type = mc::any_executor;
 
     object_base()          = default;
     virtual ~object_base() = default;
@@ -273,9 +262,9 @@ public:
      * @param token 完成令牌
      * @return 根据完成令牌类型返回相应的结果
      */
-    template <typename CompletionToken>
-    auto post(CompletionToken&& token) const {
-        return boost::asio::post(get_executor(), std::forward<CompletionToken>(token));
+    template <typename CompletionToken, typename Allocator = std::allocator<void>>
+    auto post(CompletionToken&& token, Allocator alloc = Allocator()) const {
+        return get_executor().post(std::forward<CompletionToken>(token), alloc);
     }
 
     /**
@@ -284,9 +273,9 @@ public:
      * @param token 完成令牌
      * @return 根据完成令牌类型返回相应的结果
      */
-    template <typename CompletionToken>
-    auto defer(CompletionToken&& token) const {
-        return boost::asio::defer(get_executor(), std::forward<CompletionToken>(token));
+    template <typename CompletionToken, typename Allocator = std::allocator<void>>
+    auto defer(CompletionToken&& token, Allocator alloc = Allocator()) const {
+        return get_executor().defer(std::forward<CompletionToken>(token), alloc);
     }
 
     /**
@@ -295,9 +284,9 @@ public:
      * @param token 完成令牌
      * @return 根据完成令牌类型返回相应的结果
      */
-    template <typename CompletionToken>
-    auto dispatch(CompletionToken&& token) const {
-        return boost::asio::dispatch(get_executor(), std::forward<CompletionToken>(token));
+    template <typename CompletionToken, typename Allocator = std::allocator<void>>
+    auto dispatch(CompletionToken&& token, Allocator alloc = Allocator()) const {
+        return get_executor().dispatch(std::forward<CompletionToken>(token), alloc);
     }
 
     /**
@@ -312,6 +301,7 @@ public:
     }
 
     executor_type get_executor() const;
+    void          set_executor(mc::executor executor);
 
     /**
      * @brief 获取当前对象的ref_ptr

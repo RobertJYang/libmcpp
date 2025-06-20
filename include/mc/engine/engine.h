@@ -13,7 +13,6 @@
 #ifndef MC_ENGINE_ENGINE_H
 #define MC_ENGINE_ENGINE_H
 
-#include <boost/asio/io_context.hpp>
 #include <mc/db/database.h>
 #include <mc/exception.h>
 #include <mc/expr.h>
@@ -21,8 +20,7 @@
 #include <unordered_map>
 
 namespace mc::engine {
-using io_context_type = boost::asio::io_context;
-using table_ptr       = mc::db::table_ptr;
+using table_ptr = mc::db::table_ptr;
 class object_table;
 
 class engine {
@@ -30,10 +28,6 @@ public:
     ~engine();
 
     static engine& get_instance();
-
-    void start(std::size_t thread_num = 1);
-    void join();
-    void stop();
 
     mc::db::database& get_database();
 
@@ -50,12 +44,11 @@ public:
         return new_table;
     }
 
-    table_ptr   find_table(std::string_view table_name);
-    bool        register_table(table_ptr table);
-    void        unregister_table(table_ptr table);
+    table_ptr find_table(std::string_view table_name);
+    bool      register_table(table_ptr table);
+    void      unregister_table(table_ptr table);
 
-    object_table&    get_object_table();
-    io_context_type& get_io_context();
+    object_table& get_object_table();
 
     mc::expr::engine&  get_expr_engine();
     mc::expr::node_ptr compile(std::string_view expr);

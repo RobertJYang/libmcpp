@@ -16,12 +16,13 @@
 #include <atomic>
 #include <mc/atomic_ref.h>
 #include <mc/exception.h>
+#include <mc/memory/allocator.h>
 
 /**
  * @file shared_base.h
- * @brief MC智能指针系统基础设施
+ * @brief MC 智能指针基础设施
  *
- * 本文件定义了MC库的智能指针基础类 shared_base，配合 shared_ptr 和 weak_ptr
+ * 本文件定义了 MC 库的智能指针基础类 shared_base，配合 shared_ptr 和 weak_ptr
  * 提供完整的引用计数内存管理解决方案。
  *
  * ## 为什么重新实现智能指针？
@@ -82,10 +83,10 @@
 
 namespace mc::memory {
 
-template <typename T, typename PointerType = T*>
+template <typename T, typename Deleter = mc::default_deleter<T>, typename PointerType = T*>
 class shared_ptr;
 
-template <typename T, typename PointerType = T*>
+template <typename T, typename Deleter = mc::default_deleter<T>, typename PointerType = T*>
 class weak_ptr;
 
 /**
@@ -98,8 +99,6 @@ class shared_base {
 public:
     using element_type       = T;
     using pointer_type       = PointerType;
-    using shared_ptr         = mc::memory::shared_ptr<element_type, pointer_type>;
-    using weak_ptr           = mc::memory::weak_ptr<element_type, pointer_type>;
     using counter_type       = CounterType;
     using atomic_counter_ref = mc::atomic_ref<counter_type>;
 
@@ -209,36 +208,37 @@ public:
      *
      * 由于对象创建时引用计数就是1，现在总是安全的
      */
-    shared_ptr shared_from_this() const {
-        return shared_ptr(static_cast<const element_type*>(this));
+    shared_ptr<element_type> shared_from_this() const {
+        return shared_ptr<element_type>(static_cast<const element_type*>(this));
     }
 
     /**
      * @brief 安全地获取 shared_ptr，类似 std::shared_base
      */
-    shared_ptr shared_from_this() {
-        return shared_ptr(static_cast<element_type*>(this));
+    shared_ptr<element_type> shared_from_this() {
+        return shared_ptr<element_type>(static_cast<element_type*>(this));
     }
 
-    weak_ptr weak_from_this() const {
-        return weak_ptr(static_cast<const element_type*>(this));
+    weak_ptr<element_type> weak_from_this() const {
+        return weak_ptr<element_type>(static_cast<const element_type*>(this));
     }
 
-    weak_ptr weak_from_this() {
-        return weak_ptr(static_cast<element_type*>(this));
+    weak_ptr<element_type> weak_from_this() {
+        return weak_ptr<element_type>(static_cast<element_type*>(this));
     }
 
-    static shared_ptr from_raw(void* ptr, bool add_ref = false) {
+    static shared_ptr<element_type> from_raw(void* ptr, bool add_ref = false) {
         if (!ptr) {
-            return shared_ptr();
+            return {};
         }
 
-        auto typed_ptr = static_cast<element_type*>(ptr);
+        auto* p_element = static_cast<element_type*>(ptr);
         if (add_ref) {
-            return shared_ptr(typed_ptr);
+            return shared_ptr<element_type>{p_element};
         } else {
             // 不需要增加引用计数，使用内部构造函数
-            return shared_ptr(typed_ptr, typename shared_ptr::already_referenced_tag{});
+            return shared_ptr<element_type>{
+                p_element, typename shared_ptr<element_type>::already_referenced_tag{}};
         }
     }
 

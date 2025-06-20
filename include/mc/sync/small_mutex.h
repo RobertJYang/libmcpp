@@ -174,10 +174,7 @@ public:
             old_word, new_word,
             std::memory_order_acq_rel, std::memory_order_acquire));
 
-        // 如果有等待线程，唤醒它们
-        if (old_word & WAIT_BIT) {
-            detail::futex_wake(&m_lock_word, ALL, LOCK_WAIT_MASK);
-        }
+        detail::futex_wake(&m_lock_word, ALL, LOCK_WAIT_MASK);
     }
 
     /**

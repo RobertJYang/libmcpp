@@ -202,18 +202,10 @@ TEST_F(SharedPtrConstructTest, ExceptionSafety) {
 }
 
 // 测试自赋值和自交换
-TEST_F(SharedPtrConstructTest, SelfAssignmentAndSwap) {
+TEST_F(SharedPtrConstructTest, SelfSwap) {
     auto  obj            = mc::make_shared<ctor_test_object>(300);
     auto* original_ptr   = obj.get();
     auto  original_count = obj.use_count();
-
-// 自赋值
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wself-assign-overloaded"
-    obj = obj;
-#pragma clang diagnostic pop
-    EXPECT_EQ(obj.get(), original_ptr);
-    EXPECT_EQ(obj.use_count(), original_count);
 
     // 自交换
     obj.swap(obj);

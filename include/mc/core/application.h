@@ -26,8 +26,6 @@
 #include <mc/signal_slot.h>
 #include <mc/singleton.h>
 
-#include <boost/asio.hpp>
-
 #include <memory>
 #include <string>
 #include <unordered_map>
@@ -71,23 +69,6 @@ public:
 
     void exec();
 
-    io_context& get_io_context();
-
-    template <typename CompletionToken>
-    auto post(CompletionToken&& token) {
-        return boost::asio::post(get_io_context(), std::forward<CompletionToken>(token));
-    }
-
-    template <typename CompletionToken>
-    auto defer(CompletionToken&& token) {
-        return boost::asio::defer(get_io_context(), std::forward<CompletionToken>(token));
-    }
-
-    template <typename CompletionToken>
-    auto dispatch(CompletionToken&& token) {
-        return boost::asio::dispatch(get_io_context(), std::forward<CompletionToken>(token));
-    }
-
 private:
     application();
 
@@ -96,9 +77,16 @@ private:
 };
 
 inline application& app() {
-    return application::instance();
+    return mc::core::application::instance();
+}
+} // namespace mc::core
+
+namespace mc {
+
+inline mc::core::application& app() {
+    return mc::core::app();
 }
 
-} // namespace mc::core
+} // namespace mc
 
 #endif // MC_APPLICATION_H

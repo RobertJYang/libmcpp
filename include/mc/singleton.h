@@ -113,7 +113,7 @@ public:
     // 使用自定义创建函数和选项获取单例实例
     template <typename Creator>
     static T& get_instance_with_creator(Creator creator, const singleton_options& options = {}) {
-        if (LIKELY(instance_ptr.load(std::memory_order_acquire) != nullptr)) {
+        if (MC_LIKELY(instance_ptr.load(std::memory_order_acquire) != nullptr)) {
             return *instance_ptr.load(std::memory_order_acquire);
         }
 

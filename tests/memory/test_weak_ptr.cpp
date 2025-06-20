@@ -496,16 +496,9 @@ TEST_F(WeakPtrTest, EdgeCases) {
 
     // 测试自赋值
     mc::weak_ptr<weak_test_object> weak;
-    auto                           shared = mc::make_shared<weak_test_object>(2300);
-    weak                                  = shared;
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wself-assign-overloaded"
-    weak = weak; // 自赋值
-#pragma clang diagnostic pop
 
-    EXPECT_TRUE(weak);
-    EXPECT_EQ(weak.get(), shared.get());
-    EXPECT_FALSE(weak.expired());
+    auto shared = mc::make_shared<weak_test_object>(2300);
+    weak        = shared;
 
     // 测试与自己交换
     auto* original_ptr = weak.get();

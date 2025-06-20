@@ -107,13 +107,14 @@ MC_REFLECT(test_interface_2, ((m_variant, "variant")))
 MC_REFLECT(test_object, ((m_iface_1, "iface_1"))((m_iface_2, "iface_2")))
 
 TEST_F(engine_test, test_engine_dbus_connection) {
-    auto conn = mc::dbus::connection::open_session_bus(mc::engine::get_io_context());
+    auto conn = mc::dbus::connection::open_session_bus(mc::get_io_context());
     conn.start();
 
     auto msg   = mc::dbus::message::new_method_call("org.freedesktop.DBus", "/org/freedesktop/DBus",
                                                     "org.freedesktop.DBus", "ListNames");
     auto reply = conn.send_with_reply(std::move(msg), mc::milliseconds(1000));
-    ASSERT_TRUE(reply.is_valid() && reply.is_method_return());
+    ASSERT_TRUE(reply.is_valid());
+    ASSERT_TRUE(!reply.is_error()) << reply.get_error_name() << " " << mc::json::json_encode(reply.read_args());
 
     std::set<std::string> names;
     reply >> names;
@@ -150,9 +151,14 @@ TEST_F(engine_test, test_object_property_changed_sig) {
     // 普通变量修改不会触发信号
     obj->m_iface_1.m_normal_v = 100;
 
-    mc::dict expected = {{"i32", 10},     {"i32", 20},    {"str", "123"},
-                         {"str", "456"},  {"str", "000"}, {"vec", mc::variants{1}},
-                         {"variant", 100}};
+    mc::dict expected = {
+        {"i32", 10},
+        {"i32", 20},
+        {"str", "123"},
+        {"str", "456"},
+        {"str", "000"},
+        {"vec", mc::variants{1}},
+        {"variant", 100}};
     EXPECT_EQ(values, expected);
     EXPECT_EQ(str, obj->m_iface_1.m_str);
 }
@@ -184,8 +190,8 @@ TEST_F(engine_test, test_property_changed_sig) {
     mc::mutable_dict values;
     obj->m_iface_1.m_i32.property_changed().connect(
         [&](const mc::variant& value, const auto& prop) {
-            values[prop.get_name()] = value;
-        });
+        values[prop.get_name()] = value;
+    });
 
     obj->m_iface_1.m_i32.set_value(10);
 
@@ -242,7 +248,8 @@ TEST_F(engine_test, test_object_reflect) {
         {"org.test.test_interface_1",
          mc::dict{{"i32", 20}, {"str", "123"}, {"vec", mc::variants{1, 2, 3}}, {"normal_v", 100}}},
         {"org.test.test_interface_2", mc::dict{{"variant", 100}}}};
-    EXPECT_EQ(var.get_object(), expected) << var.to_string() << "\n" << expected.to_string();
+    EXPECT_EQ(var.get_object(), expected) << var.to_string() << "\n"
+                                          << expected.to_string();
 
     auto obj2 = test_object::create();
     mc::from_variant(var.get_object(), *obj2);
