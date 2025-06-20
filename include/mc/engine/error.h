@@ -12,12 +12,15 @@
 
 #ifndef MC_ENGINE_ERROR_H
 #define MC_ENGINE_ERROR_H
+
 #include <mc/common.h>
 #include <mc/dict.h>
 #include <mc/exception.h>
 #include <mc/log/log_message.h>
+#include <mc/memory.h>
 #include <mc/singleton.h>
 #include <mc/string.h>
+
 #include <optional>
 
 namespace mc::engine {
@@ -77,7 +80,7 @@ struct error_info {
  *
  * 如果需要动态构造错误名或格式化字符串，请使用 error_with_owner 类
  */
-struct error : public error_info {
+struct error : public mc::shared_base<error>, public error_info {
     error() = default;
     error(const error_info& info) : error_info(info) {
     }
@@ -102,7 +105,7 @@ struct error : public error_info {
     void set_format(std::string_view format);
     void reset();
 
-    void set_prev_error(error other);
+    void set_prev_error(mc::shared_ptr<error> other);
 
     // 添加参数
     template <typename T>
@@ -133,9 +136,9 @@ struct error : public error_info {
 
     mc::log::message to_log_message() const;
 
-    static error from_exception(std::exception_ptr e);
-    static error from_exception(const mc::exception& e);
-    static error from_exception(const std::exception& e);
+    static mc::shared_ptr<error> from_exception(std::exception_ptr e);
+    static mc::shared_ptr<error> from_exception(const mc::exception& e);
+    static mc::shared_ptr<error> from_exception(const std::exception& e);
 
     void to_exception(mc::exception& e) const;
 
@@ -145,8 +148,10 @@ struct error : public error_info {
     /**
      * @brief 前一个错误
      */
-    std::unique_ptr<error> prev_error;
+    mc::shared_ptr<error> prev_error;
 };
+
+using error_ptr = mc::shared_ptr<error>;
 
 // 由于 error 类的错误名字和format字符串是常量，这里提供一个继承类可以持有 name 和 format 的 owner,
 // 方便某些需要动态构造错误名或格式化字符串的场景使用
@@ -189,9 +194,15 @@ inline bool get_error_format_args(std::string_view format, mc::dict& arg_names) 
  *
  * 注意：这个方法可以创建任意错误，并不要求错误必须注册到错误引擎中
  */
-error make_error(std::string_view name, std::string_view format);
-error make_error(const error_info& info);
+error_ptr make_error(std::string_view name, std::string_view format);
+error_ptr make_error(const error_info& info);
 
 } // namespace mc::engine
+
+namespace mc {
+using mc::engine::error;
+using mc::engine::error_ptr;
+using mc::engine::make_error;
+} // namespace mc
 
 #endif // MC_ENGINE_ERROR_H

@@ -71,7 +71,7 @@ bool executor::operator==(const executor& other) const noexcept {
         return false;
     }
 
-    return m_impl->equal_impl(*other.m_impl);
+    return m_impl->equal(*other.m_impl);
 }
 
 bool executor::operator!=(const executor& other) const noexcept {

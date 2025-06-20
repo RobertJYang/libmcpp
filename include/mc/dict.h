@@ -30,6 +30,7 @@
 #include <unordered_map>
 
 #include <mc/intrusive/intrusive.h>
+#include <mc/memory.h>
 
 namespace mc {
 
@@ -330,7 +331,7 @@ protected:
     /**
      * @brief 存储数据的结构
      */
-    struct data_t {
+    struct data_t : public mc::shared_base<data_t> {
         // 哈希表桶数组
         mc::intrusive::bucket_array buckets;
         // 有序链表
@@ -358,7 +359,7 @@ protected:
     /**
      * @brief 共享的数据指针
      */
-    mutable std::shared_ptr<data_t> m_data;
+    mutable mc::shared_ptr<data_t> m_data;
 
     /**
      * @brief 查找指定键的元素

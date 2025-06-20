@@ -30,7 +30,7 @@ error::error(const error& other) : error_info(other.name, other.format, other.le
     }
 }
 
-error error::from_exception(std::exception_ptr e) {
+error_ptr error::from_exception(std::exception_ptr e) {
     try {
         std::rethrow_exception(e);
     } catch (mc::exception& e) {
@@ -42,22 +42,22 @@ error error::from_exception(std::exception_ptr e) {
     }
 }
 
-error error::from_exception(const mc::exception& e) {
-    error err;
+error_ptr error::from_exception(const mc::exception& e) {
+    auto err = mc::make_shared<error>();
 
-    err.set_name(e.name());
+    err->set_name(e.name());
     auto& msgs = e.messages();
     if (!msgs.empty()) {
         auto& msg = msgs.back();
-        err.set_format(msg.get_format_template());
-        err.set_level(msg.get_level());
-        err.set_args(msg.get_args());
+        err->set_format(msg.get_format_template());
+        err->set_level(msg.get_level());
+        err->set_args(msg.get_args());
     }
 
     return err;
 }
 
-error error::from_exception(const std::exception& e) {
+error_ptr error::from_exception(const std::exception& e) {
     return from_exception(mc::std_exception_wrapper::from_current_exception(e));
 }
 
@@ -117,8 +117,8 @@ void error::set_format(std::string_view format) {
     this->format = format;
 }
 
-void error::set_prev_error(error other) {
-    this->prev_error.reset(new error(std::move(other)));
+void error::set_prev_error(error_ptr other) {
+    this->prev_error = std::move(other);
 }
 
 void error::reset() {

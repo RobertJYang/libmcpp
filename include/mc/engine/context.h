@@ -12,10 +12,12 @@
 
 #ifndef MC_ENGINE_CONTEXT_H
 #define MC_ENGINE_CONTEXT_H
+
 #include <mc/dbus/message.h>
 #include <mc/dict.h>
 #include <mc/engine/call_stack.h>
 #include <mc/engine/error_engine.h>
+#include <mc/memory.h>
 #include <mc/variant.h>
 
 namespace mc::engine {
@@ -73,9 +75,9 @@ public:
     const method_type_info* get_method() const;
     void                    set_method(const method_type_info* method);
 
-    error& get_error();
-    bool   is_error() const;
-    void   report_error(std::string_view error_name, mc::dict args = {});
+    error_ptr get_error();
+    bool      is_error() const;
+    void      report_error(std::string_view error_name, mc::dict args = {});
 
     std::string_view get_path() const;
     std::string_view get_method_name() const;
@@ -88,7 +90,7 @@ public:
 private:
     service&                m_service;
     abstract_object&        m_object;
-    error                   m_error;
+    error_ptr               m_error;
     mc::mutable_dict        m_args;
     detail::call_info       m_call_info;
     const method_type_info* m_method{nullptr};

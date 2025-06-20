@@ -15,7 +15,6 @@
 
 #include <atomic>
 #include <mc/atomic_ref.h>
-#include <mc/exception.h>
 #include <mc/memory/allocator.h>
 
 /**
@@ -89,6 +88,10 @@ class shared_ptr;
 template <typename T, typename Deleter = mc::default_deleter<T>, typename PointerType = T*>
 class weak_ptr;
 
+namespace detail {
+[[noreturn]] void throw_invalid_op_exception(const char* msg);
+} // namespace detail
+
 /**
  * 引用计数基类，提供引用计数管理能力
  * 支持强引用和弱引用，适用于共享内存场景
@@ -142,7 +145,7 @@ public:
             }
         }
 
-        MC_THROW(mc::invalid_op_exception, "attempt to add reference to a destroyed object");
+        detail::throw_invalid_op_exception("attempt to add reference to a destroyed object");
     }
 
     // 减少强引用计数，如果引用计数为 0 则返回 true
@@ -158,8 +161,8 @@ public:
             }
         }
 
-        MC_THROW(mc::invalid_op_exception,
-                 "attempt to release reference to a destroyed or not managed object");
+        detail::throw_invalid_op_exception(
+            "attempt to release reference to a destroyed or not managed object");
     }
 
     // 增加弱引用计数

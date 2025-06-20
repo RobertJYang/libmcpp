@@ -44,10 +44,10 @@ struct error_engine::error_engine_impl {
     error_infos m_infos;
     error_map   m_errors;
 
-    static thread_local error s_last_error;
+    static thread_local error_ptr s_last_error;
 };
 
-thread_local error error_engine::error_engine_impl::s_last_error;
+thread_local error_ptr error_engine::error_engine_impl::s_last_error;
 
 error_engine::error_engine() : m_impl(std::make_unique<error_engine_impl>()) {
 }
@@ -81,7 +81,7 @@ error_info error_engine::register_error(std::string name, std::string format, er
     }
 
     auto& info = m_impl->m_infos.emplace_back(std::move(name), std::move(format), level);
-    auto  ret = m_impl->m_errors.emplace(info.name, error_info(info.name, info.format, info.level));
+    auto  ret  = m_impl->m_errors.emplace(info.name, error_info(info.name, info.format, info.level));
     return ret.second ? ret.first->second : error_info();
 }
 
@@ -96,7 +96,7 @@ error_info error_engine::get_error_info(std::string_view name) {
     return it->second;
 }
 
-const error& error_engine::report_error(std::string_view name, mc::dict args) {
+error_ptr error_engine::report_error(std::string_view name, mc::dict args) {
     std::string_view format;
     error_level      level;
     {
@@ -112,25 +112,29 @@ const error& error_engine::report_error(std::string_view name, mc::dict args) {
     return report_error(error_info(name, format, level), std::move(args));
 }
 
-const error& error_engine::report_error(const error_info& info, mc::dict args) {
+error_ptr error_engine::report_error(const error_info& info, mc::dict args) {
     auto& last_error = m_impl->s_last_error;
 
-    if (last_error.is_set()) {
-        error new_error(info);
-        new_error.set_args(std::move(args));
-        new_error.set_prev_error(std::move(last_error));
+    if (!last_error) {
+        last_error = mc::make_shared<error>(info);
+    }
+
+    if (last_error->is_set()) {
+        auto new_error = mc::make_shared<error>(info);
+        new_error->set_args(std::move(args));
+        new_error->set_prev_error(std::move(last_error));
         last_error = std::move(new_error);
     } else {
-        last_error.set_name(info.name);
-        last_error.set_format(info.format);
-        last_error.set_args(std::move(args));
-        last_error.set_level(info.level);
+        last_error->set_name(info.name);
+        last_error->set_format(info.format);
+        last_error->set_args(std::move(args));
+        last_error->set_level(info.level);
     }
 
     return last_error;
 }
 
-error error_engine::set_last_error(error new_error) {
+error_ptr error_engine::set_last_error(error_ptr new_error) {
     auto& err        = m_impl->s_last_error;
     auto  prev_error = std::move(err);
     err              = std::move(new_error);
@@ -138,10 +142,10 @@ error error_engine::set_last_error(error new_error) {
 }
 
 void error_engine::reset_error() {
-    m_impl->s_last_error.reset();
+    m_impl->s_last_error = mc::shared_ptr<error>();
 }
 
-const error& error_engine::last_error() {
+error_ptr error_engine::last_error() {
     return m_impl->s_last_error;
 }
 
@@ -151,13 +155,13 @@ bool error_engine::is_registered(std::string_view name) {
     return m_impl->m_errors.find(name) != m_impl->m_errors.end();
 }
 
-error make_error(std::string_view name, std::string_view format) {
+error_ptr make_error(std::string_view name, std::string_view format) {
     MC_ASSERT(is_valid_error_name(name), "error name ${name} is invalid", ("name", name));
 
-    return error(name, format);
+    return mc::make_shared<error>(name, format);
 }
 
-error make_error(const error_info& info) {
+error_ptr make_error(const error_info& info) {
     return make_error(info.name, info.format);
 }
 

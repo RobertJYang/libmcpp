@@ -22,12 +22,12 @@ context::context(service& s, abstract_object& object) : m_service(s), m_object(o
 context::~context() {
 }
 
-mc::engine::error& context::get_error() {
+mc::engine::error_ptr context::get_error() {
     return m_error;
 }
 
 bool context::is_error() const {
-    return m_error.is_set();
+    return m_error && m_error->is_set();
 }
 
 void context::report_error(std::string_view error_name, mc::dict args) {
