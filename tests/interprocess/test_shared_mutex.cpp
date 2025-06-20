@@ -10,14 +10,12 @@
  * See the Mulan PSL v2 for more details.
  */
 
-#include "mc/interprocess/mutex.h"
-#include "mc/interprocess/shared_memory_manager.h"
-#include <atomic>
-#include <chrono>
 #include <gtest/gtest.h>
+
+#include <mc/interprocess/mutex.h>
+#include <mc/interprocess/shared_memory_manager.h>
+#include <mc/runtime/thread_list.h>
 #include <test_utilities/test_base.h>
-#include <thread>
-#include <vector>
 
 using namespace mc::interprocess;
 
@@ -105,14 +103,10 @@ TEST_F(SharedMutexTestFixture, BasicThreadSafety) {
         }
     };
 
-    std::vector<std::thread> threads;
-    for (int i = 0; i < 10; ++i) {
-        threads.emplace_back(increment);
-    }
+    mc::runtime::thread_list threads;
+    threads.start_threads(10, increment);
 
-    for (auto& t : threads) {
-        t.join();
-    }
+    threads.join_all();
 
     EXPECT_EQ(counter, 10 * 1000);
 }
@@ -175,14 +169,10 @@ TEST_F(SharedMutexTestFixture, SharedMutexBasicThreadSafety) {
         }
     };
 
-    std::vector<std::thread> threads;
-    for (int i = 0; i < 10; ++i) {
-        threads.emplace_back(writer);
-    }
+    mc::runtime::thread_list threads;
+    threads.start_threads(10, writer);
 
-    for (auto& t : threads) {
-        t.join();
-    }
+    threads.join_all();
 
     EXPECT_EQ(counter, 10 * 100);
 
@@ -218,18 +208,14 @@ TEST_F(SharedMutexTestFixture, SharedMutexBasicThreadSafety) {
     };
 
     // 先启动读线程
-    std::vector<std::thread> read_threads;
-    for (int i = 0; i < 5; ++i) {
-        read_threads.emplace_back(reader);
-    }
+    mc::runtime::thread_list read_threads;
+    read_threads.start_threads(5, reader);
 
     // 再启动写线程
     std::thread write_thread(writer2);
 
     // 等待所有线程完成
-    for (auto& t : read_threads) {
-        t.join();
-    }
+    read_threads.join_all();
 
     write_thread.join();
 

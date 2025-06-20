@@ -92,6 +92,7 @@ src_files = [
   'runtime/runtime_context.cpp',
   'runtime/any_executor.cpp',
   'runtime/executor.cpp',
+  'runtime/thread_list.cpp',
 ]
 
 dep_arr = [boost_dep, boost_program_options_dep, dbus_dep, glib_dep]

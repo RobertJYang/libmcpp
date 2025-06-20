@@ -14,6 +14,7 @@
 #include <mc/exception.h>
 #include <mc/log.h>
 #include <mc/runtime/runtime_context.h>
+#include <mc/runtime/thread_list.h>
 #include <mc/singleton.h>
 #include <mc/sync/mutex_box.h>
 
@@ -34,40 +35,6 @@
 namespace mc::runtime {
 using io_work_guard = boost::asio::executor_work_guard<io_context::executor_type>;
 using work_guard    = boost::asio::executor_work_guard<work_context::executor_type>;
-
-struct thread_pool {
-    thread_pool() {
-    }
-
-    void start(std::size_t threads, std::function<void()> func) {
-        m_threads.reserve(threads);
-        for (std::size_t i = 0; i < threads; ++i) {
-            m_threads.emplace_back(func);
-        }
-    }
-
-    std::size_t get_thread_count() const {
-        return m_threads.size();
-    }
-
-    bool empty() const {
-        return m_threads.empty();
-    }
-
-    void join() {
-        for (auto& thread : m_threads) {
-            if (thread.joinable()) {
-                thread.join();
-            }
-        }
-    }
-
-    void clear() {
-        m_threads.clear();
-    }
-
-    std::vector<std::thread> m_threads;
-};
 
 static inline std::size_t get_thread_count(std::size_t threads) {
     if (threads == 0) {
@@ -137,11 +104,11 @@ public:
 
 private:
     io_context                     m_io_context;
-    thread_pool                    m_io_threads;
+    thread_list                    m_io_threads;
     std::unique_ptr<io_work_guard> m_io_guard;
 
     work_context                m_work_context;
-    thread_pool                 m_work_threads;
+    thread_list                 m_work_threads;
     std::unique_ptr<work_guard> m_work_guard;
 
     enum class state_t : std::uint8_t {
@@ -242,7 +209,7 @@ void runtime_context::impl::start_impl() {
     m_work_guard = std::make_unique<work_guard>(boost::asio::make_work_guard(m_work_context));
 
     // 启动IO线程池
-    m_io_threads.start(data.config.io_threads, [this]() {
+    m_io_threads.start_threads(data.config.io_threads, [this]() {
         dlog("IO thread started");
         try {
             m_io_context.run();
@@ -253,7 +220,7 @@ void runtime_context::impl::start_impl() {
     });
 
     // 启动系统线程池
-    m_work_threads.start(data.config.work_threads, [this]() {
+    m_work_threads.start_threads(data.config.work_threads, [this]() {
         dlog("work thread started");
         try {
             m_work_context.run();
@@ -296,8 +263,8 @@ void runtime_context::impl::join() {
 
     dlog("waiting for IO threads to finish...");
 
-    m_io_threads.join();
-    m_work_threads.join();
+    m_io_threads.join_all();
+    m_work_threads.join_all();
 
     m_io_threads.clear();
     m_work_threads.clear();

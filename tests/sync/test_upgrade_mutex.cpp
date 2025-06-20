@@ -10,14 +10,13 @@
  * See the Mulan PSL v2 for more details.
  */
 
-#include <atomic>
-#include <chrono>
-#include <future>
 #include <gtest/gtest.h>
+
+#include <mc/runtime/thread_list.h>
 #include <mc/sync/shared_mutex.h>
+
+#include <future>
 #include <shared_mutex>
-#include <thread>
-#include <vector>
 
 using namespace mc::sync;
 
@@ -255,34 +254,26 @@ TYPED_TEST(UpgradeMutexTest, ComplexConcurrentScenario) {
         }
     };
 
-    std::vector<std::thread> threads;
+    mc::runtime::thread_list read_threads;
+    mc::runtime::thread_list write_threads;
+    mc::runtime::thread_list upgrader_threads;
 
     // 启动读线程
-    for (int i = 0; i < num_readers; ++i) {
-        threads.emplace_back(reader_func);
-    }
+    read_threads.start_threads(num_readers, reader_func);
 
     // 启动写线程
-    for (int i = 0; i < num_writers; ++i) {
-        threads.emplace_back(writer_func);
-    }
+    write_threads.start_threads(num_writers, writer_func);
 
     // 启动升级锁线程
-    for (int i = 0; i < num_upgraders; ++i) {
-        threads.emplace_back(upgrader_func);
-    }
+    upgrader_threads.start_threads(num_upgraders, upgrader_func);
 
     // 等待写线程和升级锁线程完成
-    for (int i = num_readers; i < threads.size(); ++i) {
-        threads[i].join();
-    }
+    write_threads.join_all();
+    upgrader_threads.join_all();
 
     running = false;
 
-    // 等待读线程完成
-    for (int i = 0; i < num_readers; ++i) {
-        threads[i].join();
-    }
+    read_threads.join_all();
 
     // 验证最终状态一致性
     ASSERT_EQ(data.value, data.validation);

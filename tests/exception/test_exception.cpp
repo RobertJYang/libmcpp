@@ -10,15 +10,10 @@
  * See the Mulan PSL v2 for more details.
  */
 
-#include <chrono>
-#include <functional>
 #include <gtest/gtest.h>
+
 #include <mc/exception.h>
-#include <mutex>
-#include <stdexcept>
-#include <string>
-#include <thread>
-#include <vector>
+#include <mc/runtime/thread_list.h>
 
 // 测试基本异常功能
 TEST(ExceptionTest, BasicExceptionTest) {
@@ -241,25 +236,20 @@ TEST(ExceptionTest, ThreadSafetyTest) {
     // 创建多个线程，每个线程都添加日志消息
     const int                num_threads     = 10;
     const int                msgs_per_thread = 100;
-    std::vector<std::thread> threads;
+    mc::runtime::thread_list threads;
     std::mutex               mutex;
 
-    for (int i = 0; i < num_threads; ++i) {
-        threads.emplace_back([&shared_exception, &mutex, i]() {
-            for (int j = 0; j < msgs_per_thread; ++j) {
-                // 使用互斥锁保护共享对象
-                std::lock_guard<std::mutex> lock(mutex);
-                shared_exception.append_log(
-                    MC_LOG_MESSAGE(info, "线程 ${thread} 消息 ${msg}",
-                                   ("thread", std::to_string(i))("msg", std::to_string(j))));
-            }
-        });
-    }
+    threads.start_threads(num_threads, [&shared_exception, &mutex](std::size_t i) {
+        for (int j = 0; j < msgs_per_thread; ++j) {
+            // 使用互斥锁保护共享对象
+            std::lock_guard<std::mutex> lock(mutex);
+            shared_exception.append_log(
+                MC_LOG_MESSAGE(info, "线程 ${thread} 消息 ${msg}",
+                               ("thread", std::to_string(i))("msg", std::to_string(j))));
+        }
+    });
 
-    // 等待所有线程完成
-    for (auto& thread : threads) {
-        thread.join();
-    }
+    threads.join_all();
 
     // 验证所有日志消息都被正确添加
     std::string detail    = shared_exception.to_detail_string();

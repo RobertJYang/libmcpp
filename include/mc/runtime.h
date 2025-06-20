@@ -17,6 +17,7 @@
 #include <mc/runtime/executor.h>
 #include <mc/runtime/immediate_context.h>
 #include <mc/runtime/runtime_context.h>
+#include <mc/runtime/thread_list.h>
 
 namespace mc::runtime {
 
@@ -195,6 +196,8 @@ using runtime::runtime_context;
 using runtime::work_context;
 
 using runtime::runtime_config;
+using runtime::thread_list;
+using runtime::thread_node;
 
 using runtime::defer;
 using runtime::dispatch;

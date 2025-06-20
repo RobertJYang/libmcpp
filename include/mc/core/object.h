@@ -20,6 +20,7 @@
 #include <mc/runtime.h>
 #include <mc/signal_slot.h>
 
+#include <atomic>
 #include <memory>
 #include <shared_mutex>
 #include <string_view>
@@ -349,7 +350,7 @@ private:
 
     object_impl& ensure_impl() const;
 
-    mutable std::unique_ptr<object_impl> m_object_impl;
+    mutable std::atomic<object_impl*> m_object_impl{nullptr};
 
     // 辅助方法
     void cleanup_on_destroy() noexcept;

@@ -115,14 +115,14 @@ private:
 
         virtual ~impl_base() = default;
 
-        virtual void                  post(function&&) const                   = 0;
-        virtual void                  defer(function&&) const                  = 0;
-        virtual void                  dispatch(function&&) const               = 0;
-        virtual bool                  equal_impl(const impl_base& other) const = 0;
-        virtual std::type_info const& target_type() const                      = 0;
-        virtual void                  on_work_started() const noexcept         = 0;
-        virtual void                  on_work_finished() const noexcept        = 0;
-        virtual execution_context&    context() const                          = 0;
+        virtual void                  post(function&&) const              = 0;
+        virtual void                  defer(function&&) const             = 0;
+        virtual void                  dispatch(function&&) const          = 0;
+        virtual bool                  equal(const impl_base& other) const = 0;
+        virtual std::type_info const& target_type() const                 = 0;
+        virtual void                  on_work_started() const noexcept    = 0;
+        virtual void                  on_work_finished() const noexcept   = 0;
+        virtual execution_context&    context() const                     = 0;
 
         // 引用计数管理
         void add_ref() const noexcept {
@@ -160,7 +160,7 @@ private:
             m_executor.dispatch(std::forward<function&&>(f), m_allocator);
         }
 
-        bool equal_impl(const impl_base& other) const override {
+        bool equal(const impl_base& other) const override {
             if (target_type() != other.target_type()) {
                 return false;
             }
