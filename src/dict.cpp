@@ -24,7 +24,7 @@ namespace mc {
 
 // 从键值对集合构造
 dict::dict(const std::vector<entry>& entries)
-    : m_data(std::make_shared<data_t>(entries.empty() ? 1 : entries.size())) {
+    : m_data(mc::make_shared<data_t>(entries.empty() ? 1 : entries.size())) {
     for (auto&& entry_val : entries) {
         auto it = m_data->index.find(entry_val.key);
         if (it != m_data->index.end()) {
@@ -39,7 +39,7 @@ dict::dict(const std::vector<entry>& entries)
 
 // 从初始化列表构造
 dict::dict(std::initializer_list<std::pair<variant, variant>> init)
-    : m_data(std::make_shared<data_t>(init.size())) {
+    : m_data(mc::make_shared<data_t>(init.size())) {
     for (const auto& pair : init) {
         auto it = m_data->index.find(pair.first);
         if (it != m_data->index.end()) {

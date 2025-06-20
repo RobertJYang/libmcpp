@@ -69,11 +69,11 @@ public:
      * @param format 格式化字符串
      * @return 创建的错误
      */
-    const error& report_error(std::string_view name, mc::dict args = {});
-    const error& report_error(const error_info& info, mc::dict args = {});
-    error        set_last_error(error new_error);
-    void         reset_error();
-    const error& last_error();
+    error_ptr report_error(std::string_view name, mc::dict args = {});
+    error_ptr report_error(const error_info& info, mc::dict args = {});
+    error_ptr set_last_error(error_ptr new_error);
+    void      reset_error();
+    error_ptr last_error();
 
 private:
     struct error_engine_impl;
@@ -81,6 +81,10 @@ private:
 };
 
 } // namespace mc::engine
+
+namespace mc {
+using mc::engine::error_engine;
+} // namespace mc
 
 #define REGISTER_CONST_ERROR(NAME, ERROR, ...) \
     inline auto NAME =                         \

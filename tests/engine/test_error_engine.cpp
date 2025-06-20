@@ -85,15 +85,15 @@ TEST_F(ErrorEngineTest, MakeError) {
     std::string_view format = "错误代码：${code}，详细信息：${message}";
 
     // 创建错误
-    auto error = mc::engine::make_error(name, format)
-                     .append_arg("code", 404)
-                     .append_arg("message", "资源不存在");
+    auto error = mc::engine::make_error(name, format);
+    error->append_arg("code", 404);
+    error->append_arg("message", "资源不存在");
 
     // 验证结果
-    EXPECT_EQ(error.get_name(), name);
-    EXPECT_EQ(error.get_format(), format);
-    EXPECT_EQ(error.get_args().size(), 2);
-    EXPECT_EQ(error.get_message(), "错误代码：404，详细信息：资源不存在");
+    EXPECT_EQ(error->get_name(), name);
+    EXPECT_EQ(error->get_format(), format);
+    EXPECT_EQ(error->get_args().size(), 2);
+    EXPECT_EQ(error->get_message(), "错误代码：404，详细信息：资源不存在");
 }
 
 // 测试错误信息结构体
@@ -131,11 +131,12 @@ TEST_F(ErrorEngineTest, ComplexFormat) {
         {"actual_permission", "user:read"},
     };
 
-    auto error = mc::engine::make_error(name, format).set_args(md);
+    auto error = mc::engine::make_error(name, format);
+    error->set_args(md);
 
     std::string expected = "用户admin在2024-05-20 15:30:45尝试访问/api/sensitive-data，但权限不足。"
                            "所需权限：admin:write，实际权限：user:read";
-    EXPECT_EQ(error.get_message(), expected);
+    EXPECT_EQ(error->get_message(), expected);
 }
 
 // 测试报告错误功能
@@ -148,23 +149,23 @@ TEST_F(ErrorEngineTest, ReportError) {
     engine.register_error(name, format);
 
     // 使用名称报告错误
-    auto& err1 = engine.report_error(name, {{"code", 500}, {"message", "服务器内部错误"}});
+    auto err1 = engine.report_error(name, {{"code", 500}, {"message", "服务器内部错误"}});
 
     // 验证错误内容
-    EXPECT_EQ(err1.get_name(), name);
-    EXPECT_EQ(err1.get_format(), format);
-    EXPECT_EQ(err1.get_message(), "报告错误：500，消息：服务器内部错误");
+    EXPECT_EQ(err1->get_name(), name);
+    EXPECT_EQ(err1->get_format(), format);
+    EXPECT_EQ(err1->get_message(), "报告错误：500，消息：服务器内部错误");
 
     // 使用info结构体报告错误
     error_info info("test.report.info", "信息错误：${info}");
     engine.register_const_error(info);
 
-    auto& err2 = engine.report_error(info, {{"info", "测试信息"}});
+    auto err2 = engine.report_error(info, {{"info", "测试信息"}});
 
     // 验证错误内容
-    EXPECT_EQ(err2.get_name(), info.name);
-    EXPECT_EQ(err2.get_format(), info.format);
-    EXPECT_EQ(err2.get_message(), "信息错误：测试信息");
+    EXPECT_EQ(err2->get_name(), info.name);
+    EXPECT_EQ(err2->get_format(), info.format);
+    EXPECT_EQ(err2->get_message(), "信息错误：测试信息");
 
     EXPECT_THROW(engine.report_error("not.registered.error"), mc::assert_exception);
 }
@@ -177,27 +178,28 @@ TEST_F(ErrorEngineTest, LastError) {
     engine.reset_error();
 
     // 验证重置后的错误状态
-    EXPECT_FALSE(engine.last_error().is_set());
+    EXPECT_TRUE(!engine.last_error());
 
     // 创建并设置一个错误
     std::string name   = "test.last.error";
     std::string format = "最后错误：${info}";
     engine.register_error(name, format);
 
-    auto err = mc::engine::make_error(name, format).append_arg("info", "这是最后的错误");
+    auto err = mc::engine::make_error(name, format);
+    err->append_arg("info", "这是最后的错误");
 
     // 设置为最后错误
     engine.set_last_error(err);
 
     // 验证最后错误
-    auto& last = engine.last_error();
-    EXPECT_TRUE(last.is_set());
-    EXPECT_EQ(last.get_name(), name);
-    EXPECT_EQ(last.get_message(), "最后错误：这是最后的错误");
+    auto last = engine.last_error();
+    EXPECT_TRUE(last && last->is_set());
+    EXPECT_EQ(last->get_name(), name);
+    EXPECT_EQ(last->get_message(), "最后错误：这是最后的错误");
 
     // 再次重置错误
     engine.reset_error();
-    EXPECT_FALSE(engine.last_error().is_set());
+    EXPECT_TRUE(!engine.last_error());
 }
 
 // 测试错误名称验证功能

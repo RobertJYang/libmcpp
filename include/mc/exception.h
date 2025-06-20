@@ -13,13 +13,12 @@
 #ifndef MC_EXCEPTION_H
 #define MC_EXCEPTION_H
 
+#include <mc/log/log_message.h>
+
 #include <chrono>
 #include <exception>
-#include <mc/log/log_message.h>
-#include <memory>
 #include <string>
-#include <unordered_map>
-#include <vector>
+
 namespace mc {
 
 // 前向声明
@@ -46,7 +45,7 @@ enum exception_code {
     canceled_exception_code        = 9,  // 取消操作异常
     assert_exception_code          = 10, // 断言异常
     eof_exception_code             = 11, // 文件结束异常
-    system_error_code              = 12, // 标准库异常
+    system_error_code              = 12, // 系统错误异常
     std_exception_code             = 13, // 标准库异常
     invalid_op_exception_code      = 14, // 无效操作异常
     null_optional_code             = 15, // 空可选值异常
@@ -58,7 +57,6 @@ enum exception_code {
     busy_exception_code            = 21, // 繁忙异常
     method_call_exception_code     = 22, // 方法调用异常
     not_implemented_exception_code = 23, // 未实现异常
-    bad_weak_ptr_exception_code    = 24, // 弱指针异常
 };
 
 /**
@@ -327,8 +325,6 @@ MC_DEFINE_EXCEPTION_CLASS(bad_alloc_exception, bad_alloc_code, "内存分配错�
 MC_DEFINE_EXCEPTION_CLASS(busy_exception, busy_exception_code, "繁忙", "busy")
 MC_DEFINE_EXCEPTION_CLASS(method_call_exception, method_call_exception_code, "方法调用错误",
                           "method_call")
-MC_DEFINE_EXCEPTION_CLASS(bad_weak_ptr_exception, bad_weak_ptr_exception_code, "弱指针异常",
-                          "bad_weak_ptr")
 
 /**
  * @brief 完整自定义异常类宏（MC_DEFINE_EXCEPTION_CLASS 的别名）

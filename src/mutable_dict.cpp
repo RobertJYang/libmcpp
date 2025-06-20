@@ -314,7 +314,7 @@ mutable_dict::const_iterator mutable_dict::find(const variant& key) const {
 
 dict::data_t& mutable_dict::ensure_data() const {
     if (!m_data) {
-        m_data = std::make_shared<dict::data_t>();
+        m_data = mc::make_shared<dict::data_t>();
     }
 
     return *m_data;

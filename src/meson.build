@@ -86,6 +86,7 @@ src_files = [
   'engine/utils.cpp',
   'engine/path.cpp',
   'engine/path_iterator.cpp',
+  'engine/result.cpp',
   'futures/state_pool.cpp',
   'futures/callback_list.cpp',
   'runtime/runtime.cpp',
@@ -93,6 +94,7 @@ src_files = [
   'runtime/any_executor.cpp',
   'runtime/executor.cpp',
   'runtime/thread_list.cpp',
+  'memory/shared_base.cpp',
 ]
 
 dep_arr = [boost_dep, boost_program_options_dep, dbus_dep, glib_dep]

@@ -29,6 +29,8 @@ protected:
     }
 };
 
+constexpr std::string_view TestErrorName = "Test.TestError";
+
 // 测试基本构造
 TEST_F(ResultTest, test_basic_construction) {
     // 测试基本类型构造
@@ -58,17 +60,18 @@ TEST_F(ResultTest, test_basic_construction) {
 // 测试错误构造
 TEST_F(ResultTest, test_error_construction) {
     // 测试从错误名和消息构造
-    mc::result<int> error_result(mc::engine::error("TestError", "test error message"));
+    mc::result<int> error_result(mc::make_error(TestErrorName, "test error message"));
     EXPECT_TRUE(error_result.is_error());
     EXPECT_TRUE(error_result.is_completed());
 
     auto error = error_result.get_error();
-    EXPECT_EQ(error.get_name(), "TestError");
-    EXPECT_EQ(error.get_message(), "test error message");
+    EXPECT_EQ(error && error->is_set(), true);
+    EXPECT_EQ(error->get_name(), TestErrorName);
+    EXPECT_EQ(error->get_message(), "test error message");
 
     // 测试从异常构造
     auto            ex = MC_MAKE_EXCEPTION(mc::invalid_arg_exception, "test exception");
-    mc::result<int> exception_result(mc::engine::error::from_exception(ex));
+    mc::result<int> exception_result(mc::error::from_exception(ex));
     EXPECT_TRUE(exception_result.is_error());
     EXPECT_TRUE(exception_result.is_completed());
     EXPECT_THROW(exception_result.get(), mc::method_call_exception);
@@ -121,7 +124,7 @@ TEST_F(ResultTest, test_chaining) {
     EXPECT_EQ(chained_future.get(), 84);
 
     // 测试错误的链式操作
-    mc::result<int> error_result(mc::engine::error("TestError", "test error"));
+    mc::result<int> error_result(mc::make_error(TestErrorName, "test error"));
     auto            chained_error = error_result.then([](int v) {
         return v * 2;
     });
@@ -132,7 +135,7 @@ TEST_F(ResultTest, test_chaining) {
 // 测试错误处理
 TEST_F(ResultTest, test_error_handling) {
     // 测试catch_error处理
-    mc::result<int> error_result(mc::engine::error("TestError", "test error"));
+    mc::result<int> error_result(mc::make_error(TestErrorName, "test error"));
 
     auto recovered = error_result.catch_error([](const mc::exception& ex) {
         return 42;
@@ -272,7 +275,7 @@ TEST_F(ResultTest, test_make_result) {
     EXPECT_EQ(r2.get(), "test");
 
     // mc::result<int>
-    auto r3 = mc::make_result<int>(mc::engine::error("TestError", "test error"));
+    auto r3 = mc::make_result<int>(mc::make_error(TestErrorName, "test error"));
     EXPECT_THROW(r3.get(), mc::method_call_exception);
 
     // mc::result<void>

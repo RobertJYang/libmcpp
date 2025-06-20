@@ -374,8 +374,12 @@ DBusHandlerResult service_impl::on_method_call(abstract_object& object, mc::dbus
         // 用户主动抛出的调用错误只记录 debug 日志
         dlog("method call failed: ${error}", ("error", e.what()));
 
-        auto& err     = ctx.get_error();
-        info.response = mc::dbus::message::new_error(msg, err.name, err.to_string());
+        auto err = ctx.get_error();
+        if (err) {
+            info.response = mc::dbus::message::new_error(msg, err->name, err->to_string());
+        } else {
+            info.response = mc::dbus::message::new_error(msg, errors::failed.name, e.what());
+        }
     } catch (const std::exception& e) {
         // 未知错误记录 error 日志
         elog("unknow method call failed: ${error}", ("error", e.what()));
