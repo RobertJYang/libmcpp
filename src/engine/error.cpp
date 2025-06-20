@@ -22,7 +22,9 @@
 
 namespace mc::engine {
 
-error::error(const error& other) : error_info(other.name, other.format, other.level) {
+error::error(const error& other)
+    : mc::shared_base<error>(other),
+      error_info(other.name, other.format, other.level) {
     this->args = other.args;
 
     if (other.prev_error) {
@@ -68,6 +70,8 @@ void error::to_exception(mc::exception& e) const {
 
 error& error::operator=(const error& other) {
     if (this != &other) {
+        mc::shared_base<error>::operator=(other);
+
         this->name   = other.name;
         this->format = other.format;
         this->level  = other.level;
