@@ -10,12 +10,10 @@
  * See the Mulan PSL v2 for more details.
  */
 
-#include <boost/asio.hpp>
 #include <gtest/gtest.h>
-#include <thread>
-#include <vector>
 
-#include "mc/future.h"
+#include <mc/future.h>
+#include <mc/runtime/thread_list.h>
 
 class state_pool_test : public ::testing::Test {
 protected:
@@ -319,29 +317,24 @@ TEST_F(state_pool_test, concurrent_access) {
     const int num_threads = 4;
     const int iterations  = 1000;
 
-    std::vector<std::thread> threads;
+    mc::runtime::thread_list threads;
     std::atomic<int>         completed{0};
 
     // 多个线程并发访问池
-    for (int t = 0; t < num_threads; ++t) {
-        threads.emplace_back([&completed]() {
-            boost::asio::io_context local_io;
+    threads.start_threads(num_threads, [&completed]() {
+        boost::asio::io_context local_io;
 
-            for (int i = 0; i < iterations; ++i) {
-                auto promise = mc::make_promise<int>(local_io);
-                auto future  = promise.get_future();
-                promise.set_value(i);
-                future.get();
-            }
+        for (int i = 0; i < iterations; ++i) {
+            auto promise = mc::make_promise<int>(local_io);
+            auto future  = promise.get_future();
+            promise.set_value(i);
+            future.get();
+        }
 
-            completed++;
-        });
-    }
+        completed++;
+    });
 
-    // 等待所有线程完成
-    for (auto& thread : threads) {
-        thread.join();
-    }
+    threads.join_all();
 
     EXPECT_EQ(completed.load(), num_threads);
 

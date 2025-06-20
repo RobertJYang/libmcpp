@@ -13,6 +13,7 @@
 #include <chrono>
 #include <gtest/gtest.h>
 
+#include <mc/runtime/thread_list.h>
 #include <mc/sync/mutex_box.h>
 #include <mc/sync/shared_mutex.h>
 
@@ -240,34 +241,27 @@ TEST_F(mutex_box_test, multithreaded_access) {
     constexpr int                     num_threads           = 10;
     constexpr int                     increments_per_thread = 100;
 
-    std::vector<std::thread> threads;
+    mc::runtime::thread_list threads;
 
     // 创建多个写线程
-    for (int i = 0; i < num_threads; ++i) {
-        threads.emplace_back([&sync_counter]() {
-            for (int j = 0; j < increments_per_thread; ++j) {
-                auto locked = sync_counter.wlock();
-                (*locked)++;
-            }
-        });
-    }
+    threads.start_threads(num_threads, [&sync_counter](std::size_t i) {
+        for (int j = 0; j < increments_per_thread; ++j) {
+            auto locked = sync_counter.wlock();
+            (*locked)++;
+        }
+    });
 
     // 创建多个读线程
-    for (int i = 0; i < num_threads; ++i) {
-        threads.emplace_back([&sync_counter]() {
-            for (int j = 0; j < 50; ++j) {
-                auto         locked = sync_counter.rlock();
-                volatile int value  = *locked; // 读取值
-                (void)value;                   // 避免未使用变量警告
-                std::this_thread::sleep_for(std::chrono::microseconds(1));
-            }
-        });
-    }
+    threads.start_threads(num_threads, [&sync_counter](std::size_t i) {
+        for (int j = 0; j < 50; ++j) {
+            auto         locked = sync_counter.rlock();
+            volatile int value  = *locked; // 读取值
+            (void)value;                   // 避免未使用变量警告
+            std::this_thread::sleep_for(std::chrono::microseconds(1));
+        }
+    });
 
-    // 等待所有线程完成
-    for (auto& thread : threads) {
-        thread.join();
-    }
+    threads.join_all();
 
     // 验证最终结果
     EXPECT_EQ(*sync_counter.rlock(), num_threads * increments_per_thread);
@@ -321,10 +315,10 @@ TEST_F(mutex_box_test, performance_light) {
     auto start = std::chrono::high_resolution_clock::now();
 
     // 测试读写混合性能
-    std::vector<std::thread> threads;
+    mc::runtime::thread_list threads;
 
     // 一个写线程
-    threads.emplace_back([&sync_counter]() {
+    threads.add_thread([&sync_counter]() {
         for (int i = 0; i < iterations; ++i) {
             auto locked = sync_counter.wlock();
             (*locked)++;
@@ -332,19 +326,15 @@ TEST_F(mutex_box_test, performance_light) {
     });
 
     // 两个读线程
-    for (int i = 0; i < 2; ++i) {
-        threads.emplace_back([&sync_counter]() {
-            for (int j = 0; j < iterations / 2; ++j) {
-                auto         locked = sync_counter.rlock();
-                volatile int value  = *locked;
-                (void)value;
-            }
-        });
-    }
+    threads.start_threads(2, [&sync_counter]() {
+        for (int j = 0; j < iterations / 2; ++j) {
+            auto         locked = sync_counter.rlock();
+            volatile int value  = *locked;
+            (void)value;
+        }
+    });
 
-    for (auto& thread : threads) {
-        thread.join();
-    }
+    threads.join_all();
 
     auto end      = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);

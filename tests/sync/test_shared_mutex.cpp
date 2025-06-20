@@ -12,13 +12,12 @@
 #include <gtest/gtest.h>
 
 #include <mc/common.h>
+#include <mc/runtime/thread_list.h>
 #include <mc/sync/shared_mutex.h>
 #include <mc/time.h>
 
 #include <future>
 #include <shared_mutex>
-#include <thread>
-#include <vector>
 
 // 用于测试的自定义策略
 namespace test_policies {
@@ -138,14 +137,9 @@ TYPED_TEST(SharedMutexTest, MultipleReaders) {
         }
     };
 
-    std::vector<std::thread> threads;
-    for (int i = 0; i < num_threads; ++i) {
-        threads.emplace_back(reader_func);
-    }
-
-    for (auto& t : threads) {
-        t.join();
-    }
+    mc::runtime::thread_list threads;
+    threads.start_threads(num_threads, reader_func);
+    threads.join_all();
 }
 
 TYPED_TEST(SharedMutexTest, WriterAndReaders) {
@@ -170,18 +164,15 @@ TYPED_TEST(SharedMutexTest, WriterAndReaders) {
         }
     };
 
-    std::thread              writer(writer_func);
-    std::vector<std::thread> readers;
-    for (int i = 0; i < 4; ++i) {
-        readers.emplace_back(reader_func);
-    }
+    mc::runtime::thread_list writer_threads;
+    mc::runtime::thread_list reader_threads;
+    writer_threads.add_thread(writer_func);
+    reader_threads.start_threads(4, reader_func);
 
-    writer.join();
+    writer_threads.join_all();
     running = false;
 
-    for (auto& t : readers) {
-        t.join();
-    }
+    reader_threads.join_all();
 
     ASSERT_EQ(value, 100);
 }
@@ -200,14 +191,9 @@ TYPED_TEST(SharedMutexTest, MultipleWritersContention) {
         }
     };
 
-    std::vector<std::thread> threads;
-    for (int i = 0; i < num_threads; ++i) {
-        threads.emplace_back(writer_func);
-    }
-
-    for (auto& t : threads) {
-        t.join();
-    }
+    mc::runtime::thread_list threads;
+    threads.start_threads(num_threads, writer_func);
+    threads.join_all();
 
     // 验证最终的计数值是否正确，这间接证明了互斥的正确性
     // 同时，如果测试能够成功结束，也证明了没有发生死锁或饿死
@@ -248,23 +234,16 @@ TYPED_TEST(SharedMutexTest, MixedReadWriteContention) {
         }
     };
 
-    std::vector<std::thread> threads;
-    for (int i = 0; i < num_writer_threads; ++i) {
-        threads.emplace_back(writer_func);
-    }
-    for (int i = 0; i < num_reader_threads; ++i) {
-        threads.emplace_back(reader_func);
-    }
+    mc::runtime::thread_list writer_threads;
+    mc::runtime::thread_list reader_threads;
 
-    for (int i = 0; i < num_writer_threads; ++i) {
-        threads[i].join();
-    }
+    writer_threads.start_threads(num_writer_threads, writer_func);
+    reader_threads.start_threads(num_reader_threads, reader_func);
 
+    writer_threads.join_all();
     running = false;
 
-    for (int i = num_writer_threads; i < threads.size(); ++i) {
-        threads[i].join();
-    }
+    reader_threads.join_all();
 
     // 验证最终写入的计数值是否正确
     ASSERT_EQ(data.write_count, num_writer_threads * writes_per_thread);

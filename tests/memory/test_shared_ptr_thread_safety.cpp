@@ -10,13 +10,11 @@
  * See the Mulan PSL v2 for more details.
  */
 
-#include <atomic>
-#include <chrono>
 #include <gtest/gtest.h>
+
 #include <mc/exception.h>
 #include <mc/memory.h>
-#include <thread>
-#include <vector>
+#include <mc/runtime/thread_list.h>
 
 class thread_safe_object : public mc::shared_base<thread_safe_object> {
 public:
@@ -56,33 +54,29 @@ TEST_F(SharedPtrThreadSafetyTest, TryAddRefReleaseRefRaceCondition) {
         std::atomic<int>  failed_upgrades{0};
         std::atomic<bool> released{false};
 
-        std::vector<std::thread> threads;
+        mc::runtime::thread_list threads;
 
         // 创建多个线程尝试从弱引用升级到强引用
-        for (int i = 0; i < num_threads - 1; ++i) {
-            threads.emplace_back([&]() {
-                // 等待一小段时间，让释放操作有机会发生
-                std::this_thread::sleep_for(std::chrono::microseconds(10));
+        threads.start_threads(num_threads - 1, [&]() {
+            // 等待一小段时间，让释放操作有机会发生
+            std::this_thread::sleep_for(std::chrono::microseconds(10));
 
-                if (auto strong = weak.lock()) {
-                    successful_upgrades.fetch_add(1);
-                } else {
-                    failed_upgrades.fetch_add(1);
-                }
-            });
-        }
+            if (auto strong = weak.lock()) {
+                successful_upgrades.fetch_add(1);
+            } else {
+                failed_upgrades.fetch_add(1);
+            }
+        });
 
         // 一个线程负责释放最后的强引用
-        threads.emplace_back([&]() {
+        threads.add_thread([&]() {
             std::this_thread::sleep_for(std::chrono::microseconds(5));
             obj.reset(); // 释放强引用
             released.store(true);
         });
 
         // 等待所有线程完成
-        for (auto& thread : threads) {
-            thread.join();
-        }
+        threads.join_all();
 
         // 验证结果
         EXPECT_TRUE(released.load());
@@ -105,31 +99,26 @@ TEST_F(SharedPtrThreadSafetyTest, DestroyedMarkerAtomicity) {
         std::atomic<int>  upgrade_attempts{0};
         std::atomic<int>  successful_upgrades{0};
 
-        std::thread destroyer([&]() {
+        mc::runtime::thread_list threads;
+        threads.add_thread([&]() {
             std::this_thread::sleep_for(std::chrono::microseconds(1));
             obj.reset();
             destroy_completed.store(true);
         });
 
-        std::vector<std::thread> upgraders;
-        for (int i = 0; i < 4; ++i) {
-            upgraders.emplace_back([&]() {
-                while (!destroy_completed.load()) {
-                    upgrade_attempts.fetch_add(1);
-                    if (auto strong = weak.lock()) {
-                        successful_upgrades.fetch_add(1);
-                        // 立即释放，避免阻止销毁
-                        strong.reset();
-                    }
-                    std::this_thread::yield();
+        threads.start_threads(4, [&]() {
+            while (!destroy_completed.load()) {
+                upgrade_attempts.fetch_add(1);
+                if (auto strong = weak.lock()) {
+                    successful_upgrades.fetch_add(1);
+                    // 立即释放，避免阻止销毁
+                    strong.reset();
                 }
-            });
-        }
+                std::this_thread::yield();
+            }
+        });
 
-        destroyer.join();
-        for (auto& upgrader : upgraders) {
-            upgrader.join();
-        }
+        threads.join_all();
 
         // 在销毁完成后，不应该再有成功的升级
         EXPECT_FALSE(weak.lock());
@@ -170,34 +159,30 @@ TEST_F(SharedPtrThreadSafetyTest, MemoryOrderingConsistency) {
             shared_ptrs.push_back(obj);
         }
 
-        std::vector<std::thread> threads;
+        mc::runtime::thread_list threads;
         std::atomic<int>         total_operations{0};
 
         // 每个线程随机进行增减引用计数操作
-        for (int i = 0; i < 8; ++i) {
-            threads.emplace_back([&, i]() {
-                auto local_ptr = shared_ptrs[i];
+        threads.start_threads(8, [&](std::size_t i) {
+            auto local_ptr = shared_ptrs[i];
 
-                for (int op = 0; op < operations_per_thread; ++op) {
-                    // 随机操作：复制指针或清空指针
-                    if (op % 2 == 0) {
-                        auto temp = local_ptr; // 增加引用计数
-                        local_ptr->increment();
-                        // temp 自动销毁，减少引用计数
-                    } else {
-                        local_ptr = shared_ptrs[i]; // 重新赋值
-                        local_ptr->increment();
-                    }
-
-                    total_operations.fetch_add(1);
+            for (int op = 0; op < operations_per_thread; ++op) {
+                // 随机操作：复制指针或清空指针
+                if (op % 2 == 0) {
+                    auto temp = local_ptr; // 增加引用计数
+                    local_ptr->increment();
+                    // temp 自动销毁，减少引用计数
+                } else {
+                    local_ptr = shared_ptrs[i]; // 重新赋值
+                    local_ptr->increment();
                 }
-            });
-        }
+
+                total_operations.fetch_add(1);
+            }
+        });
 
         // 等待所有操作完成
-        for (auto& thread : threads) {
-            thread.join();
-        }
+        threads.join_all();
 
         // 验证对象状态一致性
         EXPECT_EQ(total_operations.load(), 8 * operations_per_thread);

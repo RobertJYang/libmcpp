@@ -88,6 +88,8 @@ private:
     mc::mutex_box<object_data, mc::shared_mutex> m_data;
 };
 
+using impl_ptr = std::unique_ptr<object_impl>;
+
 object_impl::object_impl(const object_impl& other) {
     // 复制基本数据但不复制父子关系
     auto other_data = other.m_data.rlock();
@@ -241,7 +243,7 @@ object::~object() noexcept {
 }
 
 void object::cleanup_on_destroy() noexcept {
-    auto impl = std::move(m_object_impl);
+    impl_ptr impl(m_object_impl.exchange(nullptr, std::memory_order_acq_rel));
     if (!impl) {
         return;
     }
@@ -262,31 +264,35 @@ void object::cleanup_on_destroy() noexcept {
     } catch (...) {
         // 析构函数中不能抛出异常，静默处理
     }
-
-    impl.reset();
 }
 
 object::object(const object& other) : object_base(other) {
-    if (other.m_object_impl) {
-        m_object_impl = std::make_unique<object_impl>(*other.m_object_impl);
+    auto* impl = other.m_object_impl.load(std::memory_order_acquire);
+    if (impl) {
+        m_object_impl.store(new object_impl(*impl), std::memory_order_release);
     }
     // 复制基本数据但不复制父子关系在 object_impl 的构造函数中处理
 }
 
 object& object::operator=(const object& other) {
-    if (this != &other) {
-        object_base::operator=(other);
+    if (this == &other) {
+        return *this;
+    }
 
-        if (other.m_object_impl) {
-            if (!m_object_impl) {
-                m_object_impl = std::make_unique<object_impl>(*other.m_object_impl);
-            } else {
-                *m_object_impl = *other.m_object_impl;
-            }
-        } else {
-            m_object_impl.reset();
-        }
-        // 复制基本数据但不复制父子关系在 object_impl 的赋值运算符中处理
+    object_base::operator=(other);
+
+    auto* other_impl = other.m_object_impl.load(std::memory_order_acquire);
+    if (!other_impl) {
+        impl_ptr(m_object_impl.exchange(nullptr, std::memory_order_acq_rel)).reset();
+        return *this;
+    }
+
+    auto* current_impl = m_object_impl.load(std::memory_order_acquire);
+    if (!current_impl) {
+        auto new_impl = std::make_unique<object_impl>(*other_impl);
+        m_object_impl.store(new_impl.release(), std::memory_order_release);
+    } else {
+        *current_impl = *other_impl;
     }
     return *this;
 }
@@ -313,10 +319,11 @@ void object::set_parent(object* parent) {
 }
 
 object_ptr object::get_parent() const {
-    if (!m_object_impl) {
+    auto* impl = m_object_impl.load(std::memory_order_acquire);
+    if (!impl) {
         return nullptr;
     }
-    return m_object_impl->get_parent();
+    return impl->get_parent();
 }
 
 void object::set_name(std::string_view name) {
@@ -328,17 +335,19 @@ std::string object::get_name() const {
 }
 
 child_list object::get_children() const {
-    if (!m_object_impl) {
+    auto* impl = m_object_impl.load(std::memory_order_acquire);
+    if (!impl) {
         return {};
     }
-    return m_object_impl->get_children();
+    return impl->get_children();
 }
 
 object_ptr object::find_child(std::string_view name) const {
-    if (!m_object_impl) {
+    auto* impl = m_object_impl.load(std::memory_order_acquire);
+    if (!impl) {
         return nullptr;
     }
-    return m_object_impl->find_child(name);
+    return impl->find_child(name);
 }
 
 void object::add_child(object* child) {
@@ -346,17 +355,27 @@ void object::add_child(object* child) {
 }
 
 void object::remove_child(object* child) {
-    if (!m_object_impl) {
+    auto* impl = m_object_impl.load(std::memory_order_acquire);
+    if (!impl) {
         return;
     }
-    m_object_impl->remove_child(child);
+    impl->remove_child(child);
 }
 
 object_impl& object::ensure_impl() const {
-    if (!m_object_impl) {
-        m_object_impl = std::make_unique<object_impl>();
+    // 使用双重检查确保线程安全的延迟初始化
+    object_impl* impl = m_object_impl.load(std::memory_order_acquire);
+    if (impl) {
+        return *impl;
     }
-    return *m_object_impl;
+
+    impl_ptr new_impl = std::make_unique<object_impl>();
+    if (m_object_impl.compare_exchange_strong(
+            impl, new_impl.get(),
+            std::memory_order_release, std::memory_order_acquire)) {
+        impl = new_impl.release();
+    }
+    return *impl;
 }
 
 connection_id_type object::add_connection(signal_type sig, mc::connection_type conn,
@@ -365,22 +384,25 @@ connection_id_type object::add_connection(signal_type sig, mc::connection_type c
 }
 
 void object::disconnect(connection_id_type id) const {
-    if (!m_object_impl) {
+    auto* impl = m_object_impl.load(std::memory_order_acquire);
+    if (!impl) {
         return;
     }
-    m_object_impl->remove_connection(id);
+    impl->remove_connection(id);
 }
 
 void object::disconnect_all(signal_type sig) {
-    if (!m_object_impl) {
+    auto* impl = m_object_impl.load(std::memory_order_acquire);
+    if (!impl) {
         return;
     }
-    m_object_impl->remove_connections(&sig);
+    impl->remove_connections(&sig);
 }
 
 object::executor_type object::get_executor() const {
-    if (m_object_impl) {
-        return m_object_impl->get_executor();
+    auto* impl = m_object_impl.load(std::memory_order_acquire);
+    if (impl) {
+        return impl->get_executor();
     }
     return mc::get_default_executor();
 }

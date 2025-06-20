@@ -12,6 +12,7 @@
 
 #include <mc/core/object.h>
 #include <mc/memory.h>
+#include <mc/runtime/thread_list.h>
 
 #include <gtest/gtest.h>
 
@@ -34,7 +35,7 @@ protected:
         root_object.reset();
     }
 
-    mc::shared_ptr<object> root_object;
+    object_ptr root_object;
 };
 
 // 测试基本的父子关系设置
@@ -59,206 +60,335 @@ TEST_F(ThreadSafeObjectTest, BasicParentChildRelationship) {
     EXPECT_EQ(root_object->find_child("nonexistent"), nullptr);
 }
 
-// // 测试多线程并发添加子对象
-// TEST_F(ThreadSafeObjectTest, ConcurrentAddChildren) {
-//     const int                num_threads         = 10;
-//     const int                children_per_thread = 50;
-//     std::vector<std::thread> threads;
-//     std::atomic<int>         created_count{0};
+// 测试多线程同时访问 ensure_impl 的情况 - 这是新增的关键测试
+TEST_F(ThreadSafeObjectTest, ConcurrentEnsureImplAccess) {
+    const int num_threads    = 8;
+    const int num_iterations = 100;
 
-//     // 启动多个线程同时添加子对象
-//     for (int t = 0; t < num_threads; ++t) {
-//         threads.emplace_back([this, t, &created_count]() {
-//             for (int i = 0; i < children_per_thread; ++i) {
-//                 auto child = mc::make_shared<object>(root_object.get());
-//                 child->set_name("thread_" + std::to_string(t) + "_child_" + std::to_string(i));
-//                 created_count.fetch_add(1);
-//             }
-//         });
-//     }
+    for (int iter = 0; iter < num_iterations; ++iter) {
+        auto obj = mc::make_shared<object>();
 
-//     // 等待所有线程完成
-//     for (auto& thread : threads) {
-//         thread.join();
-//     }
+        std::atomic<int>         success_count{0};
+        mc::runtime::thread_list threads;
 
-//     // 验证所有子对象都被正确添加
-//     auto children = root_object->get_children();
-//     EXPECT_EQ(children.size(), num_threads * children_per_thread);
-//     EXPECT_EQ(created_count.load(), num_threads * children_per_thread);
+        // 创建多个线程同时访问 ensure_impl
+        threads.start_threads(num_threads, [&obj, &success_count]() {
+            // 同时设置对象名称，这会触发 ensure_impl()
+            obj->set_name("test_name");
+            success_count.fetch_add(1);
+        });
 
-//     // 验证所有子对象的父指针都正确
-//     for (const auto& child : children) {
-//         EXPECT_EQ(child->get_parent(), root_object.get());
-//     }
-// }
+        // 等待所有线程完成
+        threads.join_all();
 
-// // 测试并发销毁对象时的安全性
-// TEST_F(ThreadSafeObjectTest, ConcurrentDestruction) {
-//     const int                           num_children = 100;
-//     std::vector<mc::shared_ptr<object>> children;
+        // 验证所有线程都成功执行
+        EXPECT_EQ(success_count.load(), num_threads);
+        EXPECT_EQ(obj->get_name(), "test_name");
+    }
+}
 
-//     // 创建多个子对象
-//     for (int i = 0; i < num_children; ++i) {
-//         auto child = mc::make_shared<object>(root_object.get());
-//         child->set_name("child_" + std::to_string(i));
-//         children.push_back(child);
-//     }
+// 测试多线程同时访问对象属性
+TEST_F(ThreadSafeObjectTest, ConcurrentPropertyAccess) {
+    const int num_threads           = 4;
+    const int operations_per_thread = 50;
 
-//     // 验证初始状态
-//     EXPECT_EQ(root_object->get_children().size(), num_children);
+    auto obj = mc::make_shared<object>();
 
-//     std::vector<std::thread> threads;
-//     std::atomic<int>         removed_count{0};
+    std::atomic<int>         name_operations{0};
+    std::atomic<int>         parent_operations{0};
+    mc::runtime::thread_list threads;
 
-//     // 启动多个线程同时从父对象中移除子对象
-//     for (int t = 0; t < 5; ++t) {
-//         threads.emplace_back([&children, &removed_count, t]() {
-//             int start = (t * num_children) / 5;
-//             int end   = ((t + 1) * num_children) / 5;
+    // 创建多个线程进行各种操作
+    threads.start_threads(num_threads, [&](std::size_t i) {
+        for (int j = 0; j < operations_per_thread; ++j) {
+            // 设置和获取名称
+            std::string name = "thread_" + std::to_string(i) + "_op_" + std::to_string(j);
+            obj->set_name(name);
+            auto retrieved_name = obj->get_name();
+            if (!retrieved_name.empty()) {
+                name_operations.fetch_add(1);
+            }
 
-//             for (int i = start; i < end; ++i) {
-//                 // 先从父对象中移除，然后释放引用
-//                 children[i]->set_parent(nullptr);
-//                 children[i].reset();
-//                 removed_count.fetch_add(1);
-//             }
-//         });
-//     }
+            // 获取父对象
+            auto parent = obj->get_parent();
+            parent_operations.fetch_add(1);
 
-//     // 等待所有线程完成
-//     for (auto& thread : threads) {
-//         thread.join();
-//     }
+            // 小延时增加竞争几率
+            std::this_thread::yield();
+        }
+    });
 
-//     // 给一点时间让操作完成
-//     std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    threads.join_all();
 
-//     EXPECT_EQ(removed_count.load(), num_children);
+    // 验证操作计数
+    EXPECT_EQ(name_operations.load(), num_threads * operations_per_thread);
+    EXPECT_EQ(parent_operations.load(), num_threads * operations_per_thread);
+}
 
-//     // 验证根对象的子对象列表为空
-//     auto remaining_children = root_object->get_children();
-//     EXPECT_EQ(remaining_children.size(), 0);
-// }
+// 测试多线程并发添加子对象
+TEST_F(ThreadSafeObjectTest, ConcurrentAddChildren) {
+    const int                num_threads         = 10;
+    const int                children_per_thread = 50;
+    mc::runtime::thread_list threads;
+    std::atomic<int>         created_count{0};
 
-// // 测试父对象销毁时子对象的处理
-// TEST_F(ThreadSafeObjectTest, ParentDestructionHandling) {
-//     std::vector<mc::shared_ptr<object>> orphaned_children;
+    threads.start_threads(num_threads, [this, &created_count](std::size_t i) {
+        for (int j = 0; j < children_per_thread; ++j) {
+            auto child = mc::make_shared<object>(root_object.get());
+            child->set_name("thread_" + std::to_string(i) + "_child_" + std::to_string(j));
+            created_count.fetch_add(1);
+        }
+    });
 
-//     {
-//         // 创建一个临时父对象
-//         auto temp_parent = mc::make_shared<object>();
-//         temp_parent->set_name("temp_parent");
+    threads.join_all();
 
-//         // 创建子对象
-//         for (int i = 0; i < 10; ++i) {
-//             auto child = mc::make_shared<object>(temp_parent.get());
-//             child->set_name("child_" + std::to_string(i));
-//             orphaned_children.push_back(child);
-//         }
+    // 验证所有子对象都被正确添加
+    auto children = root_object->get_children();
+    EXPECT_EQ(children.size(), num_threads * children_per_thread);
+    EXPECT_EQ(created_count.load(), num_threads * children_per_thread);
 
-//         // 验证父子关系
-//         EXPECT_EQ(temp_parent->get_children().size(), 10);
-//         for (const auto& child : orphaned_children) {
-//             EXPECT_EQ(child->get_parent(), temp_parent.get());
-//         }
+    // 验证所有子对象的父指针都正确
+    for (const auto& child : children) {
+        EXPECT_EQ(child->get_parent(), root_object.get());
+    }
+}
 
-//         // temp_parent 在此处析构
-//     }
+// 测试父子关系的多线程安全性
+TEST_F(ThreadSafeObjectTest, ConcurrentParentChildOperations) {
+    const int num_children = 10;
 
-//     // 给一点时间让析构函数完成
-//     std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    auto parent = mc::make_shared<object>();
+    parent->set_name("parent");
 
-//     // 验证所有子对象的父指针都被设置为nullptr
-//     for (const auto& child : orphaned_children) {
-//         EXPECT_EQ(child->get_parent(), nullptr);
-//     }
-// }
+    std::vector<mc::shared_ptr<object>> children;
+    mc::runtime::thread_list            threads;
 
-// // 测试设置和获取名称的线程安全性
-// TEST_F(ThreadSafeObjectTest, ConcurrentNameOperations) {
-//     auto                     test_object = mc::make_shared<object>();
-//     std::vector<std::thread> threads;
-//     const int                num_operations = 1000;
+    // 创建子对象并并发地设置父对象
+    for (int i = 0; i < num_children; ++i) {
+        auto child = mc::make_shared<object>();
+        child->set_name("child_" + std::to_string(i));
+        children.push_back(child);
 
-//     // 启动多个线程同时设置名称
-//     for (int t = 0; t < 5; ++t) {
-//         threads.emplace_back([test_object, t]() {
-//             for (int i = 0; i < num_operations; ++i) {
-//                 std::string name = "thread_" + std::to_string(t) + "_name_" + std::to_string(i);
-//                 test_object->set_name(name);
+        threads.add_thread([child, parent]() {
+            child->set_parent(parent.get());
+        });
+    }
 
-//                 // 同时读取名称
-//                 auto current_name = test_object->get_name();
-//                 EXPECT_FALSE(current_name.empty());
-//             }
-//         });
-//     }
+    threads.join_all();
 
-//     // 等待所有线程完成
-//     for (auto& thread : threads) {
-//         thread.join();
-//     }
+    // 验证父子关系
+    auto parent_children = parent->get_children();
+    EXPECT_EQ(parent_children.size(), num_children);
 
-//     // 最终名称应该是有效的
-//     auto final_name = test_object->get_name();
-//     EXPECT_FALSE(final_name.empty());
-// }
+    for (auto& child : children) {
+        EXPECT_EQ(child->get_parent(), parent);
+    }
+}
 
-// // 测试多线程设置父对象
-// TEST_F(ThreadSafeObjectTest, ConcurrentSetParent) {
-//     const int                           num_children = 100;
-//     std::vector<mc::shared_ptr<object>> children;
-//     std::vector<mc::shared_ptr<object>> parents;
+// 测试并发销毁对象时的安全性
+TEST_F(ThreadSafeObjectTest, ConcurrentDestruction) {
+    const int                           num_children = 100;
+    std::vector<mc::shared_ptr<object>> children;
 
-//     // 创建多个父对象
-//     for (int i = 0; i < 5; ++i) {
-//         auto parent = mc::make_shared<object>();
-//         parent->set_name("parent_" + std::to_string(i));
-//         parents.push_back(parent);
-//     }
+    // 创建多个子对象
+    for (int i = 0; i < num_children; ++i) {
+        auto child = mc::make_shared<object>(root_object.get());
+        child->set_name("child_" + std::to_string(i));
+        children.push_back(child);
+    }
 
-//     // 创建子对象（初始时没有父对象）
-//     for (int i = 0; i < num_children; ++i) {
-//         auto child = mc::make_shared<object>();
-//         child->set_name("child_" + std::to_string(i));
-//         children.push_back(child);
-//     }
+    // 验证初始状态
+    EXPECT_EQ(root_object->get_children().size(), num_children);
 
-//     std::vector<std::thread> threads;
+    mc::runtime::thread_list threads;
+    std::atomic<int>         removed_count{0};
 
-//     // 启动多个线程同时设置父对象
-//     for (int t = 0; t < 10; ++t) {
-//         threads.emplace_back([&children, &parents, t]() {
-//             int start = (t * num_children) / 10;
-//             int end   = ((t + 1) * num_children) / 10;
+    // 启动多个线程同时从父对象中移除子对象
+    threads.start_threads(5, [&children, &removed_count](std::size_t i) {
+        int start = (i * num_children) / 5;
+        int end   = ((i + 1) * num_children) / 5;
 
-//             for (int i = start; i < end; ++i) {
-//                 // 随机选择一个父对象
-//                 int parent_idx = i % parents.size();
-//                 children[i]->set_parent(parents[parent_idx].get());
-//             }
-//         });
-//     }
+        for (int i = start; i < end; ++i) {
+            // 先从父对象中移除，然后释放引用
+            children[i]->set_parent(nullptr);
+            children[i].reset();
+            removed_count.fetch_add(1);
+        }
+    });
 
-//     // 等待所有线程完成
-//     for (auto& thread : threads) {
-//         thread.join();
-//     }
+    threads.join_all();
 
-//     // 验证所有子对象都有正确的父对象
-//     int total_children_count = 0;
-//     for (const auto& parent : parents) {
-//         auto parent_children = parent->get_children();
-//         total_children_count += parent_children.size();
+    // 给一点时间让操作完成
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
 
-//         // 验证每个子对象的父指针
-//         for (const auto& child : parent_children) {
-//             EXPECT_EQ(child->get_parent(), parent.get());
-//         }
-//     }
+    EXPECT_EQ(removed_count.load(), num_children);
 
-//     EXPECT_EQ(total_children_count, num_children);
-// }
+    // 验证根对象的子对象列表为空
+    auto remaining_children = root_object->get_children();
+    EXPECT_EQ(remaining_children.size(), 0);
+}
+
+// 测试父对象销毁时子对象的处理
+TEST_F(ThreadSafeObjectTest, ParentDestructionHandling) {
+    std::vector<mc::shared_ptr<object>> orphaned_children;
+
+    {
+        // 创建一个临时父对象
+        auto temp_parent = mc::make_shared<object>();
+        temp_parent->set_name("temp_parent");
+
+        // 创建子对象
+        for (int i = 0; i < 10; ++i) {
+            auto child = mc::make_shared<object>(temp_parent.get());
+            child->set_name("child_" + std::to_string(i));
+            orphaned_children.push_back(child);
+        }
+
+        // 验证父子关系
+        EXPECT_EQ(temp_parent->get_children().size(), 10);
+        for (const auto& child : orphaned_children) {
+            EXPECT_EQ(child->get_parent(), temp_parent.get());
+        }
+
+        // temp_parent 在此处析构
+    }
+
+    // 给一点时间让析构函数完成
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+
+    // 验证所有子对象的父指针都被设置为nullptr
+    for (const auto& child : orphaned_children) {
+        EXPECT_EQ(child->get_parent(), nullptr);
+    }
+}
+
+// 测试设置和获取名称的线程安全性
+TEST_F(ThreadSafeObjectTest, ConcurrentNameOperations) {
+    auto                     test_object = mc::make_shared<object>();
+    mc::runtime::thread_list threads;
+    const int                num_operations = 1000;
+
+    // 使用新的 start_threads 重载版本
+    threads.start_threads(5, [test_object](std::size_t i) {
+        for (int j = 0; j < num_operations; ++j) {
+            std::string name = "thread_" + std::to_string(i) + "_name_" + std::to_string(j);
+            test_object->set_name(name);
+
+            // 同时读取名称
+            auto current_name = test_object->get_name();
+            EXPECT_FALSE(current_name.empty());
+        }
+    });
+
+    threads.join_all();
+
+    // 最终名称应该是有效的
+    auto final_name = test_object->get_name();
+    EXPECT_FALSE(final_name.empty());
+}
+
+// 测试多线程设置父对象
+TEST_F(ThreadSafeObjectTest, ConcurrentSetParent) {
+    const int                           num_children = 100;
+    std::vector<mc::shared_ptr<object>> children;
+    std::vector<mc::shared_ptr<object>> parents;
+
+    // 创建多个父对象
+    for (int i = 0; i < 5; ++i) {
+        auto parent = mc::make_shared<object>();
+        parent->set_name("parent_" + std::to_string(i));
+        parents.push_back(parent);
+    }
+
+    // 创建子对象（初始时没有父对象）
+    for (int i = 0; i < num_children; ++i) {
+        auto child = mc::make_shared<object>();
+        child->set_name("child_" + std::to_string(i));
+        children.push_back(child);
+    }
+
+    mc::runtime::thread_list threads;
+
+    threads.start_threads(10, [&children, &parents](std::size_t i) {
+        int start = (i * num_children) / 10;
+        int end   = ((i + 1) * num_children) / 10;
+
+        for (int i = start; i < end; ++i) {
+            // 随机选择一个父对象
+            int parent_idx = i % parents.size();
+            children[i]->set_parent(parents[parent_idx].get());
+        }
+    });
+
+    threads.join_all();
+
+    // 验证所有子对象都有正确的父对象
+    int total_children_count = 0;
+    for (const auto& parent : parents) {
+        auto parent_children = parent->get_children();
+        total_children_count += parent_children.size();
+
+        // 验证每个子对象的父指针
+        for (const auto& child : parent_children) {
+            EXPECT_EQ(child->get_parent(), parent.get());
+        }
+    }
+
+    EXPECT_EQ(total_children_count, num_children);
+}
+
+// 测试对象销毁时的线程安全性（使用弱引用进行安全访问）
+TEST_F(ThreadSafeObjectTest, ConcurrentDestructionAccess) {
+    const int num_iterations = 10;
+
+    for (int iter = 0; iter < num_iterations; ++iter) {
+        auto obj = mc::make_shared<object>();
+        obj->set_name("test_object");
+
+        // 创建一个弱引用来避免直接访问可能已经销毁的对象
+        mc::weak_ptr<object> weak_obj = obj;
+
+        std::atomic<bool> destruction_started{false};
+        std::atomic<int>  access_attempts{0};
+        std::atomic<int>  successful_accesses{0};
+
+        mc::runtime::thread_list threads;
+
+        // 线程1：尝试通过弱引用安全地访问对象
+        threads.add_thread([&]() {
+            while (!destruction_started.load()) {
+                std::this_thread::yield();
+            }
+
+            // 在对象可能被销毁时尝试访问
+            for (int i = 0; i < 5; ++i) {
+                access_attempts.fetch_add(1);
+                try {
+                    if (auto locked_obj = weak_obj.lock()) {
+                        auto name = locked_obj->get_name();
+                        if (!name.empty()) {
+                            successful_accesses.fetch_add(1);
+                        }
+                    }
+                } catch (...) {
+                    // 可能会有异常，这是预期的
+                }
+                std::this_thread::sleep_for(std::chrono::microseconds(1));
+            }
+        });
+
+        // 线程2：销毁对象
+        threads.add_thread([&]() {
+            std::this_thread::sleep_for(std::chrono::microseconds(10));
+            destruction_started.store(true);
+            obj.reset(); // 销毁对象
+        });
+
+        threads.join_all();
+
+        // 至少应该有一些访问尝试
+        EXPECT_GT(access_attempts.load(), 0);
+    }
+}
 
 } // namespace mc::core::test

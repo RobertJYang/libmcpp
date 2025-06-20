@@ -10,11 +10,10 @@
  * See the Mulan PSL v2 for more details.
  */
 
-#include <chrono>
 #include <gtest/gtest.h>
+
+#include <mc/runtime/thread_list.h>
 #include <mc/sync/small_mutex.h>
-#include <thread>
-#include <vector>
 
 namespace mc::sync::test {
 
@@ -68,21 +67,16 @@ TEST_F(SmallMutexTest, BasicConcurrency) {
     constexpr int num_threads           = 4;
     constexpr int iterations_per_thread = 100;
 
-    std::vector<std::thread> threads;
+    mc::runtime::thread_list threads;
     std::atomic<int>         counter{0};
 
-    for (int i = 0; i < num_threads; ++i) {
-        threads.emplace_back([&]() {
-            for (int j = 0; j < iterations_per_thread; ++j) {
-                std::lock_guard<small_mutex> lock(mutex);
-                ++counter;
-            }
-        });
-    }
-
-    for (auto& t : threads) {
-        t.join();
-    }
+    threads.start_threads(num_threads, [&]() {
+        for (int j = 0; j < iterations_per_thread; ++j) {
+            std::lock_guard<small_mutex> lock(mutex);
+            ++counter;
+        }
+    });
+    threads.join_all();
 
     EXPECT_EQ(counter.load(), num_threads * iterations_per_thread);
 }
@@ -92,26 +86,22 @@ TEST_F(SmallMutexTest, ConcurrentDataAccess) {
     constexpr int num_threads           = 4;
     constexpr int iterations_per_thread = 50;
 
-    std::vector<std::thread> threads;
+    mc::runtime::thread_list threads;
     std::atomic<int>         total_ops{0};
 
-    for (int i = 0; i < num_threads; ++i) {
-        threads.emplace_back([&]() {
-            for (int j = 0; j < iterations_per_thread; ++j) {
-                std::lock_guard<small_mutex> lock(mutex);
+    threads.start_threads(num_threads, [&]() {
+        for (int j = 0; j < iterations_per_thread; ++j) {
+            std::lock_guard<small_mutex> lock(mutex);
 
-                uint32_t current_data = mutex.load_data();
-                uint32_t new_data     = (current_data + 1) % 0x40000000; // 确保不超过 30 位
-                mutex.store_data(new_data);
+            uint32_t current_data = mutex.load_data();
+            uint32_t new_data     = (current_data + 1) % 0x40000000; // 确保不超过 30 位
+            mutex.store_data(new_data);
 
-                total_ops.fetch_add(1);
-            }
-        });
-    }
+            total_ops.fetch_add(1);
+        }
+    });
 
-    for (auto& t : threads) {
-        t.join();
-    }
+    threads.join_all();
 
     EXPECT_EQ(total_ops.load(), num_threads * iterations_per_thread);
     // 最终数据应该等于总的操作次数模 30 位最大值
