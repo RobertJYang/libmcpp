@@ -229,6 +229,7 @@ void application::impl::exec() {
     auto& runtime = mc::get_runtime_context();
     runtime.initialize(mc::runtime_config{m_thread_count, m_work_thread_count});
     runtime.start();
+    runtime.join();
 
     ilog("application stopped");
 }
