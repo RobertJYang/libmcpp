@@ -1,0 +1,15 @@
+engine_src_files = [
+  'engine/base.cpp',
+  'engine/object.cpp',
+  'engine/engine.cpp',
+  'engine/service.cpp',
+  'engine/std_interface.cpp',
+  'engine/error.cpp',
+  'engine/error_engine.cpp',
+  'engine/context.cpp',
+  'engine/property.cpp',
+  'engine/utils.cpp',
+  'engine/path.cpp',
+  'engine/path_iterator.cpp',
+  'engine/result.cpp',
+] 

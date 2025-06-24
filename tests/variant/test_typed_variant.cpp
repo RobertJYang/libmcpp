@@ -226,7 +226,7 @@ TEST_F(TypedVariantTest, BoolTypeLocking) {
      */
     tv_bool = "not a boolean";
     ASSERT_EQ(tv_bool.get_type(), type_id::bool_type);
-    ASSERT_EQ(tv_bool.as_bool(), false);
+    ASSERT_EQ(tv_bool.as_bool(), true);
 }
 
 /**
@@ -289,8 +289,8 @@ TEST_F(TypedVariantTest, ArrayTypeLocking) {
     // 赋值一个非数组类型，类型应该保持为 array_type，但值不会改变
     verify_assignment_exception(
         [&] {
-            tv_array = 42;
-        },
+        tv_array = 42;
+    },
         tv_array);
 
     // 创建一个新的数组
@@ -330,8 +330,8 @@ TEST_F(TypedVariantTest, ObjectTypeLocking) {
     size_t prev_size = tv_object.get_object().size();
     verify_assignment_exception(
         [&]() {
-            tv_object = 42;
-        },
+        tv_object = 42;
+    },
         tv_object);
     ASSERT_EQ(tv_object.get_object().size(), prev_size);
 
@@ -371,8 +371,8 @@ TEST_F(TypedVariantTest, BlobTypeLocking) {
     // 赋值一个非 blob 类型，类型应该保持为 blob_type，但值不会改变
     verify_assignment_exception(
         [&]() {
-            tv_blob = 42;
-        },
+        tv_blob = 42;
+    },
         tv_blob);
 
     // 创建一个新的 blob
@@ -578,11 +578,9 @@ TEST_F(TypedVariantTest, MoveAssignment) {
     ASSERT_EQ(tv_target.get_type(), type_id::int32_type);
     ASSERT_EQ(tv_target.as_int64(), 42);
 
-    verify_assignment_exception(
-        [&]() {
-            tv_target = std::move(tv_source);
-        },
-        tv_target);
+    verify_assignment_exception([&]() {
+        tv_target = std::move(tv_source);
+    }, tv_target);
 
     typed_variant tv_source2(type_id::int16_type);
     tv_source2 = 50;

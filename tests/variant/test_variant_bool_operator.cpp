@@ -92,7 +92,7 @@ TEST_F(VariantBoolOperatorTest, BoolOperator) {
     variant v_empty_str("");
     variant v_str("test");
     ASSERT_FALSE(static_cast<bool>(v_empty_str)) << "空字符串variant应该转换为false";
-    ASSERT_FALSE(static_cast<bool>(v_str)) << "只有 true 和 1 是 true";
+    ASSERT_TRUE(static_cast<bool>(v_str)) << "非严格模式下，非空字符串是 true";
 
     // 测试数组类型
     variants empty_arr;
@@ -117,7 +117,7 @@ TEST_F(VariantBoolOperatorTest, BoolOperator) {
     variant v_empty_blob(empty_blob);
     variant v_blob(b);
     ASSERT_FALSE(static_cast<bool>(v_empty_blob)) << "空二进制数据variant应该转换为false";
-    ASSERT_FALSE(static_cast<bool>(v_blob)) << "只有 true 和 1 是 true";
+    ASSERT_TRUE(static_cast<bool>(v_blob)) << "非严格模式：非空二进制数据variant应该转换为true";
 
     // 测试在条件表达式中使用
     variant v_cond_true(true);

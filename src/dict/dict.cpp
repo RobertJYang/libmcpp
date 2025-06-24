@@ -15,6 +15,7 @@
  * @brief 实现 dict.h 中声明的方法
  */
 #include <mc/dict.h>
+#include <mc/dict/entry.h>
 #include <mc/json.h>
 #include <mc/variant.h>
 #include <stdexcept>
@@ -97,7 +98,7 @@ const variant& dict::operator[](const std::string& key) const {
 
 // 获取指定键的值 (string_view 版本)
 const variant& dict::operator[](std::string_view key) const {
-    const entry* e = find_entry(key);
+    const auto* e = find_entry(key);
     if (e) {
         return e->value;
     }
@@ -113,7 +114,7 @@ const variant& dict::operator[](const char* key) const {
 }
 
 const variant& dict::operator[](const variant& key) const {
-    const entry* e = find_entry(key);
+    const auto* e = find_entry(key);
     if (e) {
         return e->value;
     }
@@ -127,7 +128,7 @@ const variant& dict::get(const std::string& key, const variant& default_value) c
 
 // 获取指定键的值，如果不存在则返回默认值 (string_view 版本)
 const variant& dict::get(std::string_view key, const variant& default_value) const {
-    const entry* e = find_entry(key);
+    const auto* e = find_entry(key);
     if (e) {
         return e->value;
     }
@@ -143,7 +144,7 @@ const variant& dict::get(const char* key, const variant& default_value) const {
 }
 
 const variant& dict::get(const variant& key, const variant& default_value) const {
-    const entry* e = find_entry(key);
+    const auto* e = find_entry(key);
     if (e) {
         return e->value;
     }
@@ -253,7 +254,7 @@ const variant& dict::at(const std::string& key) const {
 }
 
 const variant& dict::at(std::string_view key) const {
-    const entry* e = find_entry(key);
+    const auto* e = find_entry(key);
     if (!e) {
         throw std::out_of_range("字典中不存在键: " + std::string(key));
     }
@@ -268,7 +269,7 @@ const variant& dict::at(const char* key) const {
 }
 
 const variant& dict::at(const variant& key) const {
-    const entry* e = find_entry(key);
+    const auto* e = find_entry(key);
     if (!e) {
         throw std::out_of_range("字典中不存在键: " + key.to_string());
     }
@@ -334,7 +335,7 @@ bool dict::operator==(const dict& other) const {
     // 检查每个键值对是否相等
     for (const auto& item : m_data->entries) {
         // 检查键是否存在
-        const entry* other_entry = other.find_entry(item.key);
+        const auto* other_entry = other.find_entry(item.key);
         if (!other_entry) {
             return false;
         }
@@ -365,6 +366,19 @@ mutable_dict dict::as_mut() const {
     return mutable_dict(*this);
 }
 
+void dict::clear() {
+    if (!m_data) {
+        return;
+    }
+
+    // 先清空索引，这样钩子就不再链接到容器中
+    m_data->index.clear();
+    // 然后清空链表并释放内存
+    m_data->entries.clear_and_dispose([](dict_types::entry* p) {
+        delete p;
+    });
+}
+
 // 查找指定键的元素，返回迭代器 (std::string 版本)
 dict::const_iterator dict::find(const std::string& key) const {
     return find(std::string_view(key));
@@ -372,7 +386,7 @@ dict::const_iterator dict::find(const std::string& key) const {
 
 // 查找指定键的元素，返回迭代器 (std::string_view 版本)
 dict::const_iterator dict::find(std::string_view key) const {
-    const entry* e = find_entry(key);
+    const auto* e = find_entry(key);
     if (!e) {
         return end();
     }
@@ -389,7 +403,7 @@ dict::const_iterator dict::find(const char* key) const {
 }
 
 dict::const_iterator dict::find(const variant& key) const {
-    const entry* e = find_entry(key);
+    const auto* e = find_entry(key);
     if (!e) {
         return end();
     }
@@ -412,9 +426,9 @@ size_t dict::hash() const {
     size_t       h    = 0x9e3779b9 ^ size();
     const size_t step = (size() >> 5) + 1;
     for (size_t l1 = size(); l1 >= step; l1 -= step) {
-        const entry& e          = at_index(l1 - 1);
-        size_t       entry_hash = e.key.hash() ^ e.value.hash();
-        h                       = h ^ ((h << 5) + (h >> 2) + entry_hash);
+        const auto& e          = at_index(l1 - 1);
+        size_t      entry_hash = e.key.hash() ^ e.value.hash();
+        h                      = h ^ ((h << 5) + (h >> 2) + entry_hash);
     }
 
     return h;

@@ -1,0 +1,16 @@
+dbus_src_files = [
+  'dbus/message.cpp',
+  'dbus/validator.cpp',
+  'dbus/connection.cpp',
+  'dbus/connection_impl.cpp',
+  'dbus/signal.cpp',
+  'dbus/match.cpp',
+  'dbus/dispatch/watch.cpp',
+  'dbus/dispatch/timeout.cpp',
+  'dbus/dispatch/pending_call.cpp',
+  'dbus/shm/gvariant_convert.cpp',
+  'dbus/shm/harbor.cpp',
+  'dbus/shm/local_msg.cpp',
+  'dbus/shm/serialize.cpp',
+  'dbus/shm/shm_tree.cpp',
+] 

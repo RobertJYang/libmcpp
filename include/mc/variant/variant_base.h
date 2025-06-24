@@ -29,6 +29,7 @@
 #include <vector>
 
 #include <mc/common.h>
+#include <mc/dict/dict.h>
 #include <mc/json.h>
 #include <mc/memory/allocator.h>
 #include <mc/pretty_name.h>
@@ -655,7 +656,7 @@ public:
     /**
      * @brief 将 variant_base 转换为布尔值
      */
-    bool as_bool() const {
+    bool as_bool(bool strict = false) const {
         switch (m_type) {
         case type_id::bool_type:
             return m_bool;
@@ -672,10 +673,10 @@ public:
         case type_id::double_type:
             return m_double != 0;
         case type_id::string_type: {
-            return mc::string::to_bool(*m_string_ptr, false);
+            return mc::string::to_bool(*m_string_ptr, !strict);
         }
         case type_id::blob_type: {
-            return mc::string::to_bool(m_blob_ptr->as_string_view(), false);
+            return mc::string::to_bool(m_blob_ptr->as_string_view(), !strict);
         }
         case type_id::null_type:
             return false;
@@ -1627,7 +1628,7 @@ void from_variant(const variant_base<Config>& var, T& vo) {
 // 整数
 template <typename Config, typename T, std::enable_if_t<std::is_integral_v<T>, int> = 0>
 void to_variant(const T& var, variant_base<Config>& vo) {
-    variant_base<Config>(detail::fixed_integer_type(var), var).swap(vo);
+    variant_base<Config>(detail::fixed_integer_type<T>(), var).swap(vo);
 }
 template <typename Config, typename T, std::enable_if_t<std::is_integral_v<T>, int> = 0>
 void from_variant(const variant_base<Config>& var, T& vo) {

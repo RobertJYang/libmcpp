@@ -20,7 +20,6 @@
 #include <functional>
 #include <mc/expr/function.h>
 #include <mc/reflect.h>
-#include <mc/singleton.h>
 
 namespace mc::expr {
 
@@ -35,9 +34,9 @@ public:
      * @brief 获取单例实例
      */
     static builtin& get_instance() {
-        return mc::singleton<builtin>::instance_with_creator([]() {
-            return new builtin();
-        });
+        // 不使用 mc::singleton 管理，在程序启动时各个模块会注册自己的内建函数，单例销毁后无法重建
+        static builtin instance;
+        return instance;
     }
 
     /**
@@ -97,12 +96,12 @@ private:
  *
  * 在cpp文件的命名空间外部使用此宏自动注册内建函数或内建变量
  */
-#define MC_REGISTER_BUILTIN_SYMBOL(name, symbol)                                                   \
+#define MC_REGISTER_BUILTIN_SYMBOL(name, symbol) \
     inline auto name##_symbol_id = mc::expr::builtin::get_instance().register_symbol(#name, symbol);
 
-#define MC_REGISTER_BUILTIN_MODULE(name, module)                                                   \
-    namespace {                                                                                    \
-    inline auto module_##name##_id = mc::expr::builtin::get_instance().register_module<module>();  \
+#define MC_REGISTER_BUILTIN_MODULE(name, module)                                                  \
+    namespace {                                                                                   \
+    inline auto module_##name##_id = mc::expr::builtin::get_instance().register_module<module>(); \
     }
 
 } // namespace mc::expr
