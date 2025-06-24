@@ -39,7 +39,7 @@ struct conversion_funcs {
 
     static bool to_bool(const mc::variant& arg) {
         try {
-            return arg.as_bool();
+            return arg.as_bool(true);
         } catch (const std::exception&) {
             MC_THROW(mc::invalid_arg_exception, "表达式求值错误: 无法将值转换为布尔类型");
         }

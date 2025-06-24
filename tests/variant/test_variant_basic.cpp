@@ -262,7 +262,12 @@ TEST_F(VariantBasicTest, AsWithDefaultValue) {
     variant v_str("string value");
     ASSERT_EQ(v_str.as<int>(100), 100) << "字符串转整数失败时应返回默认值";
     ASSERT_EQ(v_str.as<double>(3.14), 3.14) << "字符串转浮点数失败时应返回默认值";
-    ASSERT_EQ(v_str.as<bool>(true), false) << "只有 true 和 1 是 true";
+
+    bool strict = false;
+    ASSERT_EQ(v_str.as_bool(strict), true) << "非严格模式，除了false外，只要字符串非空，就返回 true";
+
+    strict = true;
+    ASSERT_EQ(v_str.as_bool(strict), false) << "严格模式，只有 true 和 1 是 true";
 
     // 测试null转换时返回默认值
     variant v_null;

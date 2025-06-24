@@ -14,7 +14,7 @@
  * @file mutable_dict.cpp
  * @brief 实现 dict.h 中声明的 mutable_dict 类的方法
  */
-#include <mc/dict.h>
+#include <mc/dict/mutable_dict.h>
 #include <mc/variant.h>
 #include <stdexcept>
 
@@ -74,7 +74,7 @@ dict::entry* mutable_dict::find_entry(const variant& key) {
 }
 
 mutable_dict& mutable_dict::operator()(variant key, variant value) {
-    entry* e = find_entry(key);
+    auto* e = find_entry(key);
     if (e) {
         e->value = std::move(value);
     } else {
@@ -91,7 +91,7 @@ variant& mutable_dict::operator[](const std::string& key) {
 }
 
 variant& mutable_dict::operator[](std::string_view key) {
-    entry* e = find_entry(key);
+    auto* e = find_entry(key);
     if (e) {
         return e->value;
     }
@@ -115,7 +115,7 @@ variant& mutable_dict::operator[](const variant& key) {
         throw std::invalid_argument("键不能为空指针");
     }
 
-    entry* e = find_entry(key);
+    auto* e = find_entry(key);
     if (e) {
         return e->value;
     }
@@ -151,7 +151,7 @@ bool mutable_dict::erase(const std::string& key) {
 }
 
 bool mutable_dict::erase(std::string_view key) {
-    entry* e = find_entry(key);
+    auto* e = find_entry(key);
     if (e) {
         m_data->index.erase(m_data->index.iterator_to(*e));
         m_data->entries.erase(m_data->entries.iterator_to(*e));
@@ -169,7 +169,7 @@ bool mutable_dict::erase(const char* key) {
 }
 
 bool mutable_dict::erase(const variant& key) {
-    entry* e = find_entry(key);
+    auto* e = find_entry(key);
     if (e) {
         m_data->index.erase(m_data->index.iterator_to(*e));
         m_data->entries.erase(m_data->entries.iterator_to(*e));
@@ -180,16 +180,7 @@ bool mutable_dict::erase(const variant& key) {
 }
 
 void mutable_dict::clear() {
-    if (!m_data) {
-        return;
-    }
-
-    // 先清空索引，这样钩子就不再链接到容器中
-    m_data->index.clear();
-    // 然后清空链表并释放内存
-    m_data->entries.clear_and_dispose([](entry* p) {
-        delete p;
-    });
+    dict::clear();
 }
 
 mutable_dict::iterator mutable_dict::begin() {
@@ -224,7 +215,7 @@ mutable_dict::const_iterator mutable_dict::end() const {
     return m_data->entries.end();
 }
 
-mutable_dict::entry& mutable_dict::at_index(size_t index) {
+dict_types::entry& mutable_dict::at_index(size_t index) {
     if (index >= size()) {
         throw std::out_of_range("字典索引越界");
     }
@@ -239,7 +230,7 @@ variant& mutable_dict::at(const std::string& key) {
 }
 
 variant& mutable_dict::at(std::string_view key) {
-    entry* e = find_entry(key);
+    auto* e = find_entry(key);
     if (!e) {
         throw std::out_of_range("字典中不存在键: " + std::string(key));
     }
@@ -254,7 +245,7 @@ variant& mutable_dict::at(const char* key) {
 }
 
 variant& mutable_dict::at(const variant& key) {
-    entry* e = find_entry(key);
+    auto* e = find_entry(key);
     if (!e) {
         throw std::out_of_range("字典中不存在键: " + key.to_string());
     }
@@ -270,7 +261,7 @@ mutable_dict::iterator mutable_dict::find(std::string_view key) {
         return end();
     }
 
-    entry* e = find_entry(key);
+    auto* e = find_entry(key);
     if (e) {
         return m_data->entries.iterator_to(*e);
     }
@@ -285,7 +276,7 @@ mutable_dict::iterator mutable_dict::find(const char* key) {
 }
 
 mutable_dict::iterator mutable_dict::find(const variant& key) {
-    entry* e = find_entry(key);
+    auto* e = find_entry(key);
     if (!e) {
         return end();
     }
@@ -327,7 +318,7 @@ mutable_dict& mutable_dict::operator+=(const mutable_dict& other) {
     return *this;
 }
 
-mutable_dict& mutable_dict::insert(entry e) {
+mutable_dict& mutable_dict::insert(dict_types::entry e) {
     auto&  data      = ensure_data();
     entry* new_entry = new entry(std::move(e.key), std::move(e.value));
     data.entries.push_back(*new_entry);
@@ -336,7 +327,7 @@ mutable_dict& mutable_dict::insert(entry e) {
 }
 
 std::pair<mutable_dict::iterator, bool> mutable_dict::insert(variant key, variant value) {
-    entry* e = find_entry(key);
+    auto* e = find_entry(key);
     if (e) {
         return {m_data->entries.iterator_to(*e), false};
     }
@@ -349,7 +340,7 @@ std::pair<mutable_dict::iterator, bool> mutable_dict::insert(variant key, varian
 }
 
 mutable_dict::iterator mutable_dict::insert(const_iterator hint, variant key, variant value) {
-    entry* e = find_entry(key);
+    auto* e = find_entry(key);
     if (e) {
         return m_data->entries.iterator_to(*e);
     }
@@ -358,7 +349,7 @@ mutable_dict::iterator mutable_dict::insert(const_iterator hint, variant key, va
     entry* new_entry = new entry(std::move(key), std::move(value));
 
     if (hint != data.entries.end()) {
-        entry* hint_entry = const_cast<entry*>(&*hint);
+        auto* hint_entry = const_cast<dict_types::entry*>(&*hint);
         data.entries.insert(data.entries.iterator_to(*hint_entry), *new_entry);
     } else {
         data.entries.push_back(*new_entry);

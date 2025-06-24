@@ -119,6 +119,13 @@ struct blob_base {
 template <typename Config>
 using variants_base = std::vector<variant_base<Config>, typename Config::variant_alloc_type>;
 
+// 为 expr2 预留的类型前向声明
+namespace expr2 {
+class function;
+class closure;
+class upvalue;
+} // namespace expr2
+
 template <typename Allocator = std::allocator<char>, bool FixedType = false>
 struct variant_config {
     using self_type = variant_config<Allocator, FixedType>;
@@ -134,6 +141,11 @@ struct variant_config {
     using object_type                   = dict;
     using array_type                    = std::vector<variant_base<self_type>, variant_alloc_type>;
     using blob_type                     = blob_base<char_alloc_type>;
+
+    // 为 expr2 预留的类型
+    using function_type = std::shared_ptr<expr2::function>;
+    using closure_type  = std::shared_ptr<expr2::closure>;
+    using upvalue_type  = std::shared_ptr<expr2::upvalue>;
 
     using string_alloc_type = typename alloc_traits::template rebind_alloc<string_type>;
     using object_alloc_type = typename alloc_traits::template rebind_alloc<object_type>;
@@ -183,7 +195,7 @@ size_t calculate_array_hash(const variants_base<Config>& array_data);
 namespace detail {
 // 普通整数类型转 variant_base 的整数类型
 template <typename T, std::enable_if_t<std::is_integral_v<T>, int> = 0>
-static type_id fixed_integer_type(T) {
+static type_id fixed_integer_type() {
     if constexpr (std::is_signed_v<T>) {
         if constexpr (sizeof(T) == 1) {
             return type_id::int8_type;
@@ -204,14 +216,75 @@ static type_id fixed_integer_type(T) {
         return type_id::uint64_type;
     }
 }
+
+template <typename T, std::enable_if_t<std::is_integral_v<T>, int> = 0>
+static auto fixed_integer(T val) {
+    if constexpr (std::is_signed_v<T>) {
+        if constexpr (sizeof(T) == 1) {
+            return static_cast<int8_t>(val);
+        } else if constexpr (sizeof(T) == 2) {
+            return static_cast<int16_t>(val);
+        } else if constexpr (sizeof(T) == 4) {
+            return static_cast<int32_t>(val);
+        }
+        return static_cast<int64_t>(val);
+    } else {
+        if constexpr (sizeof(T) == 1) {
+            return static_cast<uint8_t>(val);
+        } else if constexpr (sizeof(T) == 2) {
+            return static_cast<uint16_t>(val);
+        } else if constexpr (sizeof(T) == 4) {
+            return static_cast<uint32_t>(val);
+        }
+        return static_cast<uint64_t>(val);
+    }
+}
 } // namespace detail
 
-using variant = variant_base<variant_config<>>;
+using variant  = variant_base<variant_config<>>;
+using variants = std::vector<variant>;
 
 template <typename Config>
 std::string to_string(const variant_base<Config>& v) {
     return v.to_string();
 }
+
+namespace detail {
+// 检测是否存在 to_variant 函数
+template <typename T>
+auto has_to_variant_function(int)
+    -> decltype(to_variant(std::declval<T>(), std::declval<mc::variant&>()), std::true_type{});
+
+template <typename T>
+std::false_type has_to_variant_function(...);
+
+template <typename T>
+inline constexpr bool has_to_variant_function_v = decltype(has_to_variant_function<T>(0))::value;
+
+// 检测类型是否可构造为 variant，分两步检测避免编译错误
+template <typename T>
+struct is_variant_constructible {
+    // 第一步：检查是否可以构造
+    static constexpr bool is_constructible = std::is_constructible_v<mc::variant, T>;
+
+    // 第二步：仅当可构造时，才检查是否有 to_variant 函数
+    template <typename U, bool IsConstructible>
+    struct check_to_variant {
+        static constexpr bool value = false;
+    };
+
+    template <typename U>
+    struct check_to_variant<U, true> {
+        static constexpr bool value = detail::has_to_variant_function_v<U>;
+    };
+
+    static constexpr bool value = check_to_variant<T, is_constructible>::value;
+};
+
+} // namespace detail
+
+template <typename T>
+inline constexpr bool is_variant_constructible_v = detail::is_variant_constructible<T>::value;
 
 } // namespace mc
 
