@@ -1195,7 +1195,7 @@ union {
     string_ptr_type m_string_ptr;
     blob_ptr_type   m_blob_ptr;
     array_ptr_type  m_array_ptr;
-    object_ptr_type m_object_ptr;
+    object_type     m_object;
 };
 ```
 

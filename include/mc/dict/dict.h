@@ -235,7 +235,7 @@ public:
      * @brief 获取数据指针
      * @return 数据指针
      */
-    void* data() const {
+    data_t* data() const {
         return m_data.get();
     }
 
