@@ -167,7 +167,7 @@ public:
     }
 
     // 布尔转换运算符
-    explicit operator bool() const noexcept {
+    operator bool() const noexcept {
         return m_ptr != nullptr;
     }
 

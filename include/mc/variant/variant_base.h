@@ -36,6 +36,7 @@
 #include <mc/string.h>
 #include <mc/traits.h>
 #include <mc/variant/variant_common.h>
+#include <mc/variant/variant_extension.h>
 
 namespace mc {
 
@@ -52,10 +53,12 @@ public:
     using object_type                   = typename Config::object_type;
     using array_type                    = typename Config::array_type;
     using blob_type                     = typename Config::blob_type;
+    using extension_type                = typename Config::extension_type;
     static constexpr bool is_fixed_type = Config::is_fixed_type;
     using string_ptr_type               = typename Config::string_ptr_type;
     using array_ptr_type                = typename Config::array_ptr_type;
     using blob_ptr_type                 = typename Config::blob_ptr_type;
+    using extension_ptr_type            = typename Config::extension_ptr_type;
 
     template <typename OtherConfig>
     friend class variant_base;
@@ -79,6 +82,9 @@ public:
             break;
         case type_id::blob_type:
             m_blob_ptr = mc::allocate_ptr<blob_type>(m_alloc);
+            break;
+        case type_id::extension_type:
+            new (&m_extension) extension_ptr_type();
             break;
         default:
             break;
@@ -180,6 +186,12 @@ public:
         }
     }
 
+    template <typename T, std::enable_if_t<std::is_base_of_v<variant_extension_base, T>, int> = 0>
+    variant_base(mc::shared_ptr<T> ext, const allocator_type& alloc = allocator_type())
+        : m_type(type_id::extension_type), m_alloc(alloc) {
+        new (&m_extension) extension_ptr_type(mc::static_pointer_cast<variant_extension_base>(ext));
+    }
+
     template <typename T, std::enable_if_t<!is_variant_v<T> && !std::is_pointer_v<T>, int> = 0>
     variant_base(const T& obj) : variant_base() {
         to_variant(obj, *this);
@@ -223,10 +235,13 @@ public:
             m_array_ptr = other.m_array_ptr;
             break;
         case type_id::object_type:
-            new (&m_object) object_type(other.m_object);
+            new (&m_object) object_type(std::move(other.m_object));
             break;
         case type_id::blob_type:
             m_blob_ptr = other.m_blob_ptr;
+            break;
+        case type_id::extension_type:
+            new (&m_extension) extension_ptr_type(std::move(other.m_extension));
             break;
         default:
             break;
@@ -256,15 +271,16 @@ public:
         virtual ~visitor() {
         }
 
-        virtual void handle() const                     = 0;
-        virtual void handle(const int64_t& v) const     = 0;
-        virtual void handle(const uint64_t& v) const    = 0;
-        virtual void handle(const double& v) const      = 0;
-        virtual void handle(const bool& v) const        = 0;
-        virtual void handle(const std::string& v) const = 0;
-        virtual void handle(const object_type& v) const = 0;
-        virtual void handle(const array_type& v) const  = 0;
-        virtual void handle(const blob_type& v) const   = 0;
+        virtual void handle() const                                = 0;
+        virtual void handle(const int64_t& v) const                = 0;
+        virtual void handle(const uint64_t& v) const               = 0;
+        virtual void handle(const double& v) const                 = 0;
+        virtual void handle(const bool& v) const                   = 0;
+        virtual void handle(const std::string& v) const            = 0;
+        virtual void handle(const object_type& v) const            = 0;
+        virtual void handle(const array_type& v) const             = 0;
+        virtual void handle(const blob_type& v) const              = 0;
+        virtual void handle(const variant_extension_base& v) const = 0;
     };
 
     /**
@@ -305,72 +321,50 @@ public:
         case type_id::blob_type:
             v.handle(*m_blob_ptr);
             break;
+        case type_id::extension_type:
+            if (m_extension) {
+                v.handle(*m_extension);
+            }
+            break;
         default:
             throw_unknow_type_error(m_type);
-            break;
         }
     }
 
     /**
-     * @brief 使用函数对象访问 variant_base 中的数据
-     * @tparam Visitor 函数对象类型，必须能够处理所有可能的类型
-     * @param visitor 函数对象
-     * @return 函数对象的返回值
-     *
-     * 函数对象必须能够处理以下类型：
-     * - void (对应 null_type)
-     * - int64_t (对应 int8_type, int16_type, int32_type, int64_type)
-     * - uint64_t (对应 uint8_type, uint16_type, uint32_type, uint64_type)
-     * - double (对应 double_type)
-     * - bool (对应 bool_type)
-     * - std::string (对应 string_type)
-     * - dict (对应 object_type)
-     * - mutable_dict (对应 object_type)
-     * - variants (对应 array_type)
-     * - blob_base (对应 blob_type)
-     *
-     * 示例：
-     * @code
-     * variant_base v = 42;
-     * auto result = v.visit_with([](auto&& value) {
-     *     using T = std::decay_t<decltype(value)>;
-     *     if constexpr (std::is_same_v<T, int64_t>) {
-     *         return "整数: " + std::to_string(value);
-     *     } else if constexpr (std::is_same_v<T, std::string>) {
-     *         return "字符串: " + value;
-     *     } else {
-     *         return "其他类型";
-     *     }
-     * });
-     * @endcode
+     * @brief 使用访问者模式访问 variant_base 中的数据，并返回访问者的结果
      */
     template <typename Visitor>
     auto visit_with(Visitor&& visitor) const {
         switch (m_type) {
         case type_id::null_type:
-            return std::forward<Visitor>(visitor)(nullptr);
+            return visitor(nullptr);
         case type_id::int8_type:
         case type_id::int16_type:
         case type_id::int32_type:
         case type_id::int64_type:
-            return std::forward<Visitor>(visitor)(m_int64);
+            return visitor(m_int64);
         case type_id::uint8_type:
         case type_id::uint16_type:
         case type_id::uint32_type:
         case type_id::uint64_type:
-            return std::forward<Visitor>(visitor)(m_uint64);
+            return visitor(m_uint64);
         case type_id::double_type:
-            return std::forward<Visitor>(visitor)(m_double);
+            return visitor(m_double);
         case type_id::bool_type:
-            return std::forward<Visitor>(visitor)(m_bool);
+            return visitor(m_bool);
         case type_id::string_type:
-            return std::forward<Visitor>(visitor)(*m_string_ptr);
+            return visitor(*m_string_ptr);
         case type_id::object_type:
-            return std::forward<Visitor>(visitor)(m_object);
+            return visitor(m_object);
         case type_id::array_type:
-            return std::forward<Visitor>(visitor)(*m_array_ptr);
+            return visitor(*m_array_ptr);
         case type_id::blob_type:
-            return std::forward<Visitor>(visitor)(*m_blob_ptr);
+            return visitor(*m_blob_ptr);
+        case type_id::extension_type:
+            if (m_extension) {
+                return visitor(*m_extension);
+            }
         default:
             throw_unknow_type_error(m_type);
         }
@@ -496,6 +490,13 @@ public:
     }
 
     /**
+     * @brief 判断 variant_base 是否为扩展类型
+     */
+    bool is_extension() const {
+        return m_type == type_id::extension_type;
+    }
+
+    /**
      * @brief 判断 variant_base 是否为数值类型（整数或浮点数）
      */
     bool is_numeric() const {
@@ -617,9 +618,10 @@ public:
             return mc::string::to_number<int64_t>(*m_string_ptr);
         case type_id::blob_type:
             return mc::string::to_number<int64_t>(m_blob_ptr->as_string_view());
+        case type_id::extension_type:
+            return m_extension ? m_extension->as_int64() : 0;
         default:
             throw_type_error("int64", m_type);
-            return 0;
         }
     }
 
@@ -646,6 +648,8 @@ public:
             return mc::string::to_number<uint64_t>(*m_string_ptr);
         case type_id::blob_type:
             return mc::string::to_number<uint64_t>(m_blob_ptr->as_string_view());
+        case type_id::extension_type:
+            return m_extension ? m_extension->as_uint64() : 0;
         default:
             throw_type_error("uint64", m_type);
             return 0;
@@ -677,6 +681,8 @@ public:
         case type_id::blob_type: {
             return mc::string::to_bool(m_blob_ptr->as_string_view(), !strict);
         }
+        case type_id::extension_type:
+            return m_extension ? m_extension->as_bool() : false;
         case type_id::null_type:
             return false;
         case type_id::array_type:
@@ -713,6 +719,8 @@ public:
         case type_id::blob_type: {
             return mc::string::to_number<double>(m_blob_ptr->as_string_view());
         }
+        case type_id::extension_type:
+            return m_extension ? m_extension->as_double() : 0.0;
         default:
             throw_type_error("double", m_type);
             return 0.0;
@@ -731,9 +739,29 @@ public:
             b.data.assign(m_string_ptr->begin(), m_string_ptr->end());
             return b;
         }
+        case type_id::extension_type: {
+            if (!m_extension) {
+                return {};
+            }
+
+            blob_base<> b;
+            auto        s = m_extension->as_string();
+            b.data.assign(s.begin(), s.end());
+            return b;
+        }
         default:
             throw_type_error("blob_base", m_type);
         }
+    }
+
+    /**
+     * @brief 获取扩展类型对象
+     */
+    extension_ptr_type as_extension() const {
+        if (m_type != type_id::extension_type) {
+            throw_type_error("extension", m_type);
+        }
+        return m_extension;
     }
 
     /**
@@ -763,6 +791,8 @@ public:
         case type_id::blob_type: {
             return std::string(m_blob_ptr->as_string_view());
         }
+        case type_id::extension_type:
+            return m_extension ? m_extension->as_string() : std::string();
         default:
             return to_string();
         }
@@ -977,6 +1007,7 @@ public:
         case type_id::array_type:
         case type_id::object_type:
         case type_id::blob_type:
+        case type_id::extension_type:
         default: {
             if constexpr (!is_fixed_type) {
                 variant_base().swap(*this);
@@ -1095,6 +1126,9 @@ public:
     }
 
     const char* get_type_name() const {
+        if (m_type == type_id::extension_type && m_extension) {
+            return m_extension->get_type_name().data();
+        }
         return get_type_name_internal(m_type);
     }
 
@@ -1135,6 +1169,8 @@ public:
             // 使用dict的hash方法计算哈希值
             return m_object.hash();
         }
+        case type_id::extension_type:
+            return m_extension ? m_extension->hash() : 0;
         default:
             return 0;
         }
@@ -1585,14 +1621,15 @@ private:
 
 protected:
     union {
-        double          m_double;
-        int64_t         m_int64;
-        uint64_t        m_uint64;
-        bool            m_bool;
-        string_ptr_type m_string_ptr;
-        blob_ptr_type   m_blob_ptr;
-        array_ptr_type  m_array_ptr;
-        object_type     m_object;
+        double             m_double;
+        int64_t            m_int64;
+        uint64_t           m_uint64;
+        bool               m_bool;
+        string_ptr_type    m_string_ptr;
+        blob_ptr_type      m_blob_ptr;
+        array_ptr_type     m_array_ptr;
+        object_type        m_object;
+        extension_ptr_type m_extension;
     };
     type_id        m_type;
     allocator_type m_alloc = allocator_type();
@@ -1690,6 +1727,30 @@ void to_variant(const variant_base<Config1>& var, variant_base<Config2>& vo) {
 template <typename Config1, typename Config2>
 void from_variant(const variant_base<Config1>& var, variant_base<Config2>& vo) {
     variant_base<Config2>(var).swap(vo);
+}
+
+// 为继承自 variant_extension 的类型提供 to_variant 转换
+template <typename Config, typename T,
+          std::enable_if_t<std::is_base_of_v<variant_extension_base, T>, int> = 0>
+void to_variant(const T& var, variant_base<Config>& vo) {
+    variant_base<Config>(var.clone()).swap(vo);
+}
+template <typename Config, typename T,
+          std::enable_if_t<std::is_base_of_v<variant_extension_base, T>, int> = 0>
+void from_variant(const variant_base<Config>& var, T& vo) {
+    if (var.is_extension()) {
+        auto ext_ptr = var.as_extension();
+        if (!ext_ptr) {
+            return;
+        }
+
+        auto ext = mc::dynamic_pointer_cast<T>(ext_ptr);
+        if (ext) {
+            vo = *ext;
+            return;
+        }
+    }
+    throw_type_error("extension", var.get_type());
 }
 
 } // namespace mc
