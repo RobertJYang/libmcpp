@@ -153,7 +153,6 @@ struct variant_config {
     using blob_alloc_type   = typename alloc_traits::template rebind_alloc<blob_type>;
 
     using string_ptr_type = typename string_alloc_type::pointer;
-    using object_ptr_type = typename object_alloc_type::pointer;
     using array_ptr_type  = typename array_alloc_type::pointer;
     using blob_ptr_type   = typename blob_alloc_type::pointer;
 };

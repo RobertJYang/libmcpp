@@ -71,7 +71,7 @@ variant_base<Config> variant_base<Config>::operator+(const variant_base<OtherCon
         if (!other.is_object()) {
             throw_invalid_type_operation_error(get_type_name(), other.get_type_name(), "+");
         }
-        return {*m_object_ptr + *other.m_object_ptr};
+        return {m_object + other.m_object};
     }
 
     // 尝试转换成数值相加，如果失败则抛出异常
@@ -543,7 +543,7 @@ variant_base<Config>& variant_base<Config>::operator+=(const variant_base<OtherC
         if (!other.is_object()) {
             throw_invalid_type_operation_error(get_type_name(), other.get_type_name(), "+=");
         }
-        m_object_ptr->as_mut() += *other.m_object_ptr;
+        m_object.as_mut() += other.m_object;
         return *this;
     }
 
@@ -914,7 +914,7 @@ void variant_base<Config>::set_value(const variant_base<OtherConfig>& other) {
         break;
     }
     case type_id::object_type: {
-        *m_object_ptr = other.as_object();
+        new (&m_object) object_type(other.as_object());
         break;
     }
     case type_id::blob_type: {

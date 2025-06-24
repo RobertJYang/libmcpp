@@ -33,7 +33,7 @@ mutable_dict variant_base<Config>::as_mutable_dict() const {
 template <typename Config>
 dict variant_base<Config>::as_object() const {
     if (is_object()) {
-        return *m_object_ptr;
+        return m_object;
     }
 
     throw_type_error("object", m_type);
@@ -73,7 +73,7 @@ variant_base<Config>::variant_base(const variant_base& other) {
         m_array_ptr = mc::allocate_ptr<array_type>(m_alloc, *other.m_array_ptr, m_alloc);
         break;
     case type_id::object_type:
-        m_object_ptr = mc::allocate_ptr<object_type>(m_alloc, *other.m_object_ptr);
+        new (&m_object) object_type(other.m_object);
         break;
     case type_id::blob_type:
         m_blob_ptr = mc::allocate_ptr<blob_type>(m_alloc, other.m_blob_ptr->data.data(),
@@ -123,7 +123,7 @@ variant_base<Config>::variant_base(const variant_base<OtherConfig>& other,
         break;
     }
     case type_id::object_type:
-        m_object_ptr = mc::allocate_ptr<object_type>(m_alloc, *other.m_object_ptr);
+        new (&m_object) object_type(other.m_object);
         break;
     case type_id::blob_type:
         m_blob_ptr = mc::allocate_ptr<blob_type>(m_alloc, other.m_blob_ptr->data.data(),
@@ -144,7 +144,7 @@ void variant_base<Config>::clear() {
         mc::destroy_ptr(m_alloc, m_array_ptr);
         break;
     case type_id::object_type:
-        mc::destroy_ptr(m_alloc, m_object_ptr);
+        m_object.~object_type();
         break;
     case type_id::blob_type:
         mc::destroy_ptr(m_alloc, m_blob_ptr);
@@ -162,7 +162,7 @@ size_t variant_base<Config>::size() const {
     case type_id::array_type:
         return m_array_ptr->size();
     case type_id::object_type:
-        return m_object_ptr->size();
+        return m_object.size();
     case type_id::string_type:
         return m_string_ptr->size();
     case type_id::blob_type:
@@ -178,7 +178,7 @@ const variant_base<Config>& variant_base<Config>::operator[](std::string_view ke
         throw_type_error("object", m_type);
     }
 
-    return (*m_object_ptr)[key];
+    return (m_object)[key];
 }
 
 template <typename Config>
@@ -188,7 +188,7 @@ variant_base<Config>::get(std::string_view key, const variant_base<Config>& defa
         return default_value;
     }
 
-    return m_object_ptr->get(key, default_value);
+    return m_object.get(key, default_value);
 }
 
 template <typename Config>
@@ -197,7 +197,7 @@ bool variant_base<Config>::contains(std::string_view key) const {
         return false;
     }
 
-    return m_object_ptr->contains(key);
+    return m_object.contains(key);
 }
 
 template <typename Config>
@@ -229,7 +229,7 @@ bool variant_base<Config>::same_type_equal(const variant_base<OtherConfig>& othe
         }
         return std::equal(m_array_ptr->begin(), m_array_ptr->end(), other.m_array_ptr->begin());
     case type_id::object_type:
-        return *m_object_ptr == *other.m_object_ptr;
+        return m_object == other.m_object;
     case type_id::blob_type:
         return m_blob_ptr->as_string_view() == other.m_blob_ptr->as_string_view();
     default:
@@ -310,7 +310,7 @@ bool variant_base<Config>::operator==(const dict& other) const {
     if (m_type != type_id::object_type) {
         return false;
     }
-    return *m_object_ptr == other;
+    return m_object == other;
 }
 
 template <typename Config>

@@ -54,7 +54,6 @@ public:
     using blob_type                     = typename Config::blob_type;
     static constexpr bool is_fixed_type = Config::is_fixed_type;
     using string_ptr_type               = typename Config::string_ptr_type;
-    using object_ptr_type               = typename Config::object_ptr_type;
     using array_ptr_type                = typename Config::array_ptr_type;
     using blob_ptr_type                 = typename Config::blob_ptr_type;
 
@@ -76,7 +75,7 @@ public:
             m_array_ptr = mc::allocate_ptr<array_type>(m_alloc);
             break;
         case type_id::object_type:
-            m_object_ptr = mc::allocate_ptr<object_type>(m_alloc);
+            new (&m_object) object_type();
             break;
         case type_id::blob_type:
             m_blob_ptr = mc::allocate_ptr<blob_type>(m_alloc);
@@ -150,10 +149,10 @@ public:
 
     // 从字典构造 variant_base
     variant_base(const dict& obj) : variant_base(type_id::object_type) {
-        m_object_ptr = mc::allocate_ptr<object_type>(m_alloc, obj);
+        new (&m_object) object_type(obj);
     }
     variant_base(mutable_dict& obj) : variant_base(type_id::object_type) {
-        m_object_ptr = mc::allocate_ptr<object_type>(m_alloc, obj);
+        new (&m_object) object_type(obj);
     }
 
     // 从 array_type 构造 variant_base
@@ -224,7 +223,7 @@ public:
             m_array_ptr = other.m_array_ptr;
             break;
         case type_id::object_type:
-            m_object_ptr = other.m_object_ptr;
+            new (&m_object) object_type(other.m_object);
             break;
         case type_id::blob_type:
             m_blob_ptr = other.m_blob_ptr;
@@ -298,7 +297,7 @@ public:
             v.handle(*m_string_ptr);
             break;
         case type_id::object_type:
-            v.handle(*m_object_ptr);
+            v.handle(m_object);
             break;
         case type_id::array_type:
             v.handle(*m_array_ptr);
@@ -367,7 +366,7 @@ public:
         case type_id::string_type:
             return std::forward<Visitor>(visitor)(*m_string_ptr);
         case type_id::object_type:
-            return std::forward<Visitor>(visitor)(*m_object_ptr);
+            return std::forward<Visitor>(visitor)(m_object);
         case type_id::array_type:
             return std::forward<Visitor>(visitor)(*m_array_ptr);
         case type_id::blob_type:
@@ -683,7 +682,7 @@ public:
         case type_id::array_type:
             return !m_array_ptr->empty();
         case type_id::object_type:
-            return !m_object_ptr->empty();
+            return !m_object.empty();
         default:
             return false;
         }
@@ -1083,7 +1082,7 @@ public:
         if (m_type != type_id::object_type) {
             throw_type_error("object", m_type);
         }
-        return *m_object_ptr;
+        return m_object;
     }
 
     /**
@@ -1134,7 +1133,7 @@ public:
         }
         case type_id::object_type: {
             // 使用dict的hash方法计算哈希值
-            return m_object_ptr->hash();
+            return m_object.hash();
         }
         default:
             return 0;
@@ -1593,7 +1592,7 @@ protected:
         string_ptr_type m_string_ptr;
         blob_ptr_type   m_blob_ptr;
         array_ptr_type  m_array_ptr;
-        object_ptr_type m_object_ptr;
+        object_type     m_object;
     };
     type_id        m_type;
     allocator_type m_alloc = allocator_type();
