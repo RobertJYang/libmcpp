@@ -68,7 +68,8 @@ public:
     // 添加缩进
     void add_indent() {
         if (m_options.pretty_print) {
-            m_stream << '\n' << std::string(m_current_depth * m_options.indent_size, ' ');
+            m_stream << '\n'
+                     << std::string(m_current_depth * m_options.indent_size, ' ');
         }
     }
 
@@ -80,7 +81,7 @@ public:
     }
 
     // 编码字符串
-    void encode_string(const std::string& str) {
+    void encode_string(std::string_view str) {
         m_stream << '"';
         for (unsigned char c : str) {
             switch (c) {
@@ -201,44 +202,31 @@ public:
 
     // 编码任意值
     void encode_value(const variant& value) {
-        switch (value.get_type()) {
-        case type_id::null_type:
-            m_stream << "null";
-            break;
-        case type_id::bool_type:
-            m_stream << (value.as_bool() ? "true" : "false");
-            break;
-        case type_id::int8_type:
-        case type_id::int16_type:
-        case type_id::int32_type:
-        case type_id::int64_type:
-            m_stream << value.as_int64();
-            break;
-        case type_id::uint8_type:
-        case type_id::uint16_type:
-        case type_id::uint32_type:
-        case type_id::uint64_type:
-            m_stream << value.as_uint64();
-            break;
-        case type_id::double_type:
-            encode_number(value.as_double());
-            break;
-        case type_id::string_type:
-            encode_string(value.as_string());
-            break;
-        case type_id::array_type:
-            encode_array(value.get_array());
-            break;
-        case type_id::object_type:
-            encode_object(value.get_object());
-            break;
-        case type_id::blob_type:
-            encode_string(value.as_string()); // blob 类型转换为字符串处理
-            break;
-        default:
-            MC_THROW(mc::parse_error_exception, "不支持的值类型");
-            break;
-        }
+        value.visit_with([this](auto&& v) {
+            using T = std::decay_t<decltype(v)>;
+            if constexpr (std::is_same_v<T, std::nullptr_t>) {
+                m_stream << "null";
+            } else if constexpr (std::is_same_v<T, bool>) {
+                m_stream << (v ? "true" : "false");
+            } else if constexpr (std::is_integral_v<T>) {
+                m_stream << v;
+            } else if constexpr (std::is_floating_point_v<T>) {
+                encode_number(v);
+            } else if constexpr (std::is_same_v<T, typename variant::string_type>) {
+                encode_string(v);
+            } else if constexpr (std::is_same_v<T, typename variant::blob_type>) {
+                encode_string(v.as_string_view());
+            } else if constexpr (std::is_same_v<T, typename variant::array_type>) {
+                encode_array(v);
+            } else if constexpr (std::is_same_v<T, typename variant::object_type>) {
+                encode_object(v);
+            } else if constexpr (std::is_same_v<T, typename variant::extension_type>) {
+                encode_string(v.as_string());
+            } else {
+                MC_THROW(mc::parse_error_exception, "不支持的 JSON 值类型 ${type}",
+                         ("type", mc::pretty_name<T>()));
+            }
+        });
     }
 
     std::string get_result() const {

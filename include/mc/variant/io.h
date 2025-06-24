@@ -17,18 +17,18 @@
 #ifndef MC_VARIANT_IO_H
 #define MC_VARIANT_IO_H
 
-#include <ostream>
 #include <mc/variant/variant_base.h>
 #include <mc/variant/variant_common.h>
+#include <ostream>
 
 namespace mc {
 
 /**
  * @brief 为 type_id 枚举类型实现流输出运算符重载
- * 
+ *
  * 允许直接将 type_id 类型输出到流中，无需进行显式类型转换。
  * 输出枚举值对应的整数值。
- * 
+ *
  * @param os 输出流
  * @param type 类型ID枚举值
  * @return std::ostream& 输出流引用
@@ -39,7 +39,7 @@ inline std::ostream& operator<<(std::ostream& os, const type_id& type) {
 
 /**
  * @brief 为 variant 类型实现流输出运算符重载
- * 
+ *
  * 此函数允许将任意 variant 对象通过流操作符 (<<) 输出到标准输出流中。
  * 根据 variant 存储的数据类型，输出格式会有所不同：
  * - null: 输出字符串 "null"
@@ -49,7 +49,7 @@ inline std::ostream& operator<<(std::ostream& os, const type_id& type) {
  * - 字符串: 直接输出字符串内容(不包含引号)
  * - 数组/对象: 通过 mc::to_string 转换为字符串后输出
  * - 二进制数据: 输出格式为 "blob[大小]"
- * 
+ *
  * @tparam Config variant 配置类型
  * @param os 输出流
  * @param v variant 对象
@@ -92,6 +92,10 @@ std::ostream& operator<<(std::ostream& os, const variant_base<Config>& v) {
         // 二进制数据输出为 "blob[大小]" 格式
         os << "blob[" << v.get_blob().data.size() << "]";
         return os;
+    case type_id::extension_type:
+        if (auto extension = v.as_extension()) {
+            return os << extension->get_type_name();
+        }
     default:
         // 未知类型或未处理的类型输出为 "unknown_type"
         return os << "unknown_type";
@@ -100,10 +104,10 @@ std::ostream& operator<<(std::ostream& os, const variant_base<Config>& v) {
 
 /**
  * @brief 为 blob 类型实现流输出运算符重载
- * 
+ *
  * 允许直接将 blob 对象输出到流中。
  * 输出格式为 "blob[大小]"。
- * 
+ *
  * @param os 输出流
  * @param blob 二进制数据对象
  * @return std::ostream& 输出流引用
@@ -115,4 +119,4 @@ inline std::ostream& operator<<(std::ostream& os, const blob_base<Allocator>& bl
 
 } // namespace mc
 
-#endif // MC_VARIANT_IO_H 
+#endif // MC_VARIANT_IO_H

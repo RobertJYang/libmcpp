@@ -20,6 +20,8 @@
 #include <cstdint>
 #include <string>
 
+#include <mc/memory.h>
+
 #define VARIANT_FLOAT_EPSILON 1e-6
 
 namespace mc {
@@ -29,6 +31,7 @@ class mutable_dict;
 // 前置声明
 template <typename Config>
 class variant_base;
+class variant_extension_base;
 
 /**
  * @brief 类型特征，用于识别固定长度的整数类型
@@ -119,13 +122,6 @@ struct blob_base {
 template <typename Config>
 using variants_base = std::vector<variant_base<Config>, typename Config::variant_alloc_type>;
 
-// 为 expr2 预留的类型前向声明
-namespace expr2 {
-class function;
-class closure;
-class upvalue;
-} // namespace expr2
-
 template <typename Allocator = std::allocator<char>, bool FixedType = false>
 struct variant_config {
     using self_type = variant_config<Allocator, FixedType>;
@@ -141,42 +137,39 @@ struct variant_config {
     using object_type                   = dict;
     using array_type                    = std::vector<variant_base<self_type>, variant_alloc_type>;
     using blob_type                     = blob_base<char_alloc_type>;
-
-    // 为 expr2 预留的类型
-    using function_type = std::shared_ptr<expr2::function>;
-    using closure_type  = std::shared_ptr<expr2::closure>;
-    using upvalue_type  = std::shared_ptr<expr2::upvalue>;
+    using extension_type                = variant_extension_base;
 
     using string_alloc_type = typename alloc_traits::template rebind_alloc<string_type>;
-    using object_alloc_type = typename alloc_traits::template rebind_alloc<object_type>;
     using array_alloc_type  = typename alloc_traits::template rebind_alloc<array_type>;
     using blob_alloc_type   = typename alloc_traits::template rebind_alloc<blob_type>;
 
-    using string_ptr_type = typename string_alloc_type::pointer;
-    using array_ptr_type  = typename array_alloc_type::pointer;
-    using blob_ptr_type   = typename blob_alloc_type::pointer;
+    using string_ptr_type    = typename string_alloc_type::pointer;
+    using array_ptr_type     = typename array_alloc_type::pointer;
+    using blob_ptr_type      = typename blob_alloc_type::pointer;
+    using extension_ptr_type = typename mc::shared_ptr<extension_type>;
 };
 
 /**
  * @brief 数据类型枚举
  */
 enum class type_id {
-    null_type = 0, ///< 空类型
-    int8_type,     ///< 有符号8位整数
-    uint8_type,    ///< 无符号8位整数
-    int16_type,    ///< 有符号16位整数
-    uint16_type,   ///< 无符号16位整数
-    int32_type,    ///< 有符号32位整数
-    uint32_type,   ///< 无符号32位整数
-    int64_type,    ///< 有符号64位整数
-    uint64_type,   ///< 无符号64位整数
-    double_type,   ///< 双精度浮点数
-    bool_type,     ///< 布尔类型
-    string_type,   ///< 字符串类型
-    array_type,    ///< 数组类型
-    object_type,   ///< 对象类型
-    blob_type,     ///< 二进制数据类型
-    max_type       ///< 最大类型值（用于边界检查）
+    null_type = 0,  ///< 空类型
+    int8_type,      ///< 有符号8位整数
+    uint8_type,     ///< 无符号8位整数
+    int16_type,     ///< 有符号16位整数
+    uint16_type,    ///< 无符号16位整数
+    int32_type,     ///< 有符号32位整数
+    uint32_type,    ///< 无符号32位整数
+    int64_type,     ///< 有符号64位整数
+    uint64_type,    ///< 无符号64位整数
+    double_type,    ///< 双精度浮点数
+    bool_type,      ///< 布尔类型
+    string_type,    ///< 字符串类型
+    array_type,     ///< 数组类型
+    object_type,    ///< 对象类型
+    blob_type,      ///< 二进制数据类型
+    extension_type, ///< 扩展类型
+    max_type        ///< 最大类型值（用于边界检查）
 };
 
 const char*       get_type_name_internal(type_id type);

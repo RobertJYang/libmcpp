@@ -921,6 +921,10 @@ void variant_base<Config>::set_value(const variant_base<OtherConfig>& other) {
         *m_blob_ptr = other.as_blob();
         break;
     }
+    case type_id::extension_type: {
+        new (&m_extension) extension_ptr_type(other.as_extension());
+        break;
+    }
     default:
         throw_unknow_type_error(m_type);
         break;

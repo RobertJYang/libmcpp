@@ -32,18 +32,15 @@ mutable_dict variant_base<Config>::as_mutable_dict() const {
 
 template <typename Config>
 dict variant_base<Config>::as_object() const {
-    if (is_object()) {
-        return m_object;
+    if (!is_object()) {
+        throw_type_error("object", m_type);
     }
-
-    throw_type_error("object", m_type);
-    return dict();
+    return m_object;
 }
 
 template <typename Config>
-variant_base<Config>::variant_base(const variant_base& other) {
-    m_type  = other.m_type;
-    m_alloc = other.m_alloc;
+variant_base<Config>::variant_base(const variant_base& other)
+    : m_type(other.m_type), m_alloc(other.m_alloc) {
     switch (other.m_type) {
     case type_id::null_type:
         break;
@@ -78,6 +75,9 @@ variant_base<Config>::variant_base(const variant_base& other) {
     case type_id::blob_type:
         m_blob_ptr = mc::allocate_ptr<blob_type>(m_alloc, other.m_blob_ptr->data.data(),
                                                  other.m_blob_ptr->data.size(), m_alloc);
+        break;
+    case type_id::extension_type:
+        new (&m_extension) extension_ptr_type(other.m_extension);
         break;
     default:
         break;
@@ -129,6 +129,9 @@ variant_base<Config>::variant_base(const variant_base<OtherConfig>& other,
         m_blob_ptr = mc::allocate_ptr<blob_type>(m_alloc, other.m_blob_ptr->data.data(),
                                                  other.m_blob_ptr->data.size(), m_alloc);
         break;
+    case type_id::extension_type:
+        new (&m_extension) extension_ptr_type(other.m_extension);
+        break;
     default:
         break;
     }
@@ -148,6 +151,9 @@ void variant_base<Config>::clear() {
         break;
     case type_id::blob_type:
         mc::destroy_ptr(m_alloc, m_blob_ptr);
+        break;
+    case type_id::extension_type:
+        m_extension.~extension_ptr_type();
         break;
     default:
         break;
@@ -232,6 +238,15 @@ bool variant_base<Config>::same_type_equal(const variant_base<OtherConfig>& othe
         return m_object == other.m_object;
     case type_id::blob_type:
         return m_blob_ptr->as_string_view() == other.m_blob_ptr->as_string_view();
+    case type_id::extension_type: {
+        if (m_extension == other.m_extension) {
+            return true;
+        } else if (!m_extension || !other.m_extension) {
+            return false;
+        } else {
+            return m_extension->equals(*other.m_extension);
+        }
+    }
     default:
         break;
     }

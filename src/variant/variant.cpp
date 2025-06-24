@@ -47,21 +47,22 @@ void throw_method_arg_not_match(std::string_view method_name, std::string_view e
 // 获取类型名称
 const char* get_type_name_internal(type_id type) {
     static const char* type_names[] = {
-        "null",   // null_type
-        "int8",   // int8_type
-        "uint8",  // uint8_type
-        "int16",  // int16_type
-        "uint16", // uint16_type
-        "int32",  // int32_type
-        "uint32", // uint32_type
-        "int64",  // int64_type
-        "uint64", // uint64_type
-        "double", // double_type
-        "bool",   // bool_type
-        "string", // string_type
-        "array",  // array_type
-        "object", // object_type
-        "blob"    // blob_type
+        "null",     // null_type
+        "int8",     // int8_type
+        "uint8",    // uint8_type
+        "int16",    // int16_type
+        "uint16",   // uint16_type
+        "int32",    // int32_type
+        "uint32",   // uint32_type
+        "int64",    // int64_type
+        "uint64",   // uint64_type
+        "double",   // double_type
+        "bool",     // bool_type
+        "string",   // string_type
+        "array",    // array_type
+        "object",   // object_type
+        "blob",     // blob_type
+        "extension" // extension_type
     };
 
     int index = static_cast<int>(type);

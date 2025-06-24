@@ -71,6 +71,11 @@ protected:
         void handle(const blob& value) const override {
             result = "blob: " + std::to_string(value.data.size()) + " bytes";
         }
+
+        void handle(const variant_extension_base& value) const override {
+            result = "extension: ";
+            result += value.get_type_name();
+        }
     };
 };
 
