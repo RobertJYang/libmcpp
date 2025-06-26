@@ -24,16 +24,20 @@
 #include <string>
 #include <vector>
 
-using namespace mc;
-using namespace mc::reflect;
-
+namespace test_nested_reflect {
 // 测试用的状态枚举
-enum class test_status { ACTIVE, INACTIVE, PENDING };
-MC_REFLECT_ENUM(test_status, (ACTIVE)(INACTIVE)(PENDING))
+enum class test_status {
+    ACTIVE,
+    INACTIVE,
+    PENDING
+};
 
 // 测试用的权限枚举
-enum class test_permission { READ, WRITE, EXECUTE };
-MC_REFLECT_ENUM(test_permission, (READ)(WRITE)(EXECUTE))
+enum class test_permission {
+    READ,
+    WRITE,
+    EXECUTE
+};
 
 // 测试用的地址类
 class test_address {
@@ -52,7 +56,6 @@ public:
         return m_city == other.m_city && m_street == other.m_street && m_number == other.m_number;
     }
 };
-MC_REFLECT(test_address, (m_city)(m_street)(m_number))
 
 // 测试用的联系信息类
 class test_contact {
@@ -71,7 +74,6 @@ public:
         return m_email == other.m_email && m_phone == other.m_phone && m_address == other.m_address;
     }
 };
-MC_REFLECT(test_contact, (m_email)(m_phone)(m_address))
 
 // 测试用的用户类（包含嵌套对象和枚举）
 class test_user {
@@ -97,7 +99,21 @@ public:
                m_addresses == other.m_addresses;
     }
 };
-MC_REFLECT(test_user, (m_username)(m_contact)(m_status)(m_permissions)(m_addresses))
+
+} // namespace test_nested_reflect
+
+MC_REFLECT_ENUM(test_nested_reflect::test_status,
+                (ACTIVE)(INACTIVE)(PENDING))
+MC_REFLECT_ENUM(test_nested_reflect::test_permission,
+                (READ)(WRITE)(EXECUTE))
+MC_REFLECT(test_nested_reflect::test_address,
+           (m_city)(m_street)(m_number))
+MC_REFLECT(test_nested_reflect::test_contact,
+           (m_email)(m_phone)(m_address))
+MC_REFLECT(test_nested_reflect::test_user,
+           (m_username)(m_contact)(m_status)(m_permissions)(m_addresses))
+
+using namespace test_nested_reflect;
 
 // 测试嵌套类反射
 TEST(NestedReflectTest, NestedClassReflection) {
@@ -106,28 +122,30 @@ TEST(NestedReflectTest, NestedClassReflection) {
     test_contact contact("test@example.com", "12345678901", address);
 
     // 检查类型是否可反射
-    EXPECT_TRUE(is_reflectable<test_address>());
-    EXPECT_TRUE(is_reflectable<test_contact>());
+    EXPECT_TRUE(mc::reflect::is_reflectable<test_address>());
+    EXPECT_TRUE(mc::reflect::is_reflectable<test_contact>());
 
     // 获取类型名称
-    EXPECT_EQ(reflector<test_address>::name(), "test_address");
-    EXPECT_EQ(reflector<test_contact>::name(), "test_contact");
+    EXPECT_EQ(mc::reflect::reflector<test_address>::name(),
+              "test_nested_reflect::test_address");
+    EXPECT_EQ(mc::reflect::reflector<test_contact>::name(),
+              "test_nested_reflect::test_contact");
 
     // 转换为变体
-    variant var(contact);
+    mc::variant var(contact);
 
     // 检查变体类型
     EXPECT_TRUE(var.is_object());
 
     // 检查字典内容
-    const dict& d = var.as<dict>();
+    const mc::dict& d = var.as<mc::dict>();
     EXPECT_EQ(d.size(), 3);
     EXPECT_EQ(d["m_email"], "test@example.com");
     EXPECT_EQ(d["m_phone"], "12345678901");
     EXPECT_TRUE(d["m_address"].is_object());
 
     // 检查嵌套对象
-    const dict& addr_dict = d["m_address"].as<dict>();
+    const mc::dict& addr_dict = d["m_address"].as<mc::dict>();
     EXPECT_EQ(addr_dict["m_city"], "北京");
     EXPECT_EQ(addr_dict["m_street"], "中关村");
     EXPECT_EQ(addr_dict["m_number"], 123);
@@ -145,27 +163,27 @@ TEST(NestedReflectTest, NestedClassReflection) {
 // 测试嵌套枚举反射
 TEST(NestedReflectTest, NestedEnumReflection) {
     // 创建测试对象
-    test_address                 address("上海", "南京路", 456);
-    test_contact                 contact("admin@example.com", "98765432101", address);
-    std::vector<test_permission> permissions      = {test_permission::READ, test_permission::WRITE};
-    std::map<std::string, test_address> addresses = {{"home", test_address("北京", "中关村", 123)},
-                                                     {"work", test_address("上海", "南京路", 456)}};
-    test_user user("admin", contact, test_status::ACTIVE, permissions, addresses);
+    test_address                        address("上海", "南京路", 456);
+    test_contact                        contact("admin@example.com", "98765432101", address);
+    std::vector<test_permission>        permissions = {test_permission::READ, test_permission::WRITE};
+    std::map<std::string, test_address> addresses   = {{"home", test_address("北京", "中关村", 123)},
+                                                       {"work", test_address("上海", "南京路", 456)}};
+    test_user                           user("admin", contact, test_status::ACTIVE, permissions, addresses);
 
     // 转换为变体
-    variant var(user);
+    mc::variant var(user);
 
     // 检查变体类型
     EXPECT_TRUE(var.is_object());
 
     // 检查字典内容
-    const dict& d = var.as<dict>();
+    const mc::dict& d = var.as<mc::dict>();
     EXPECT_EQ(d["m_username"], "admin");
     EXPECT_EQ(d["m_status"], "ACTIVE");
 
     // 检查权限数组
     EXPECT_TRUE(d["m_permissions"].is_array());
-    const auto& perms_array = d["m_permissions"].as<std::vector<variant>>();
+    const auto& perms_array = d["m_permissions"].as<mc::variants>();
     EXPECT_EQ(perms_array.size(), 2);
     EXPECT_EQ(perms_array[0], "READ");
     EXPECT_EQ(perms_array[1], "WRITE");
@@ -186,14 +204,14 @@ TEST(NestedReflectTest, PartialNestedUpdate) {
     test_address                        address("北京", "中关村", 123);
     test_contact                        contact("test@example.com", "12345678901", address);
     std::vector<test_permission>        permissions = {test_permission::READ};
-    std::map<std::string, test_address> addresses = {{"home", test_address("北京", "中关村", 123)}};
-    test_user user("user1", contact, test_status::INACTIVE, permissions, addresses);
+    std::map<std::string, test_address> addresses   = {{"home", test_address("北京", "中关村", 123)}};
+    test_user                           user("user1", contact, test_status::INACTIVE, permissions, addresses);
 
     // 使用初始化列表构造字典并更新对象
     mc::reflect::reflector<test_user>::from_variant(
-        dict{{"m_status", "ACTIVE"},
-             {"m_contact",
-              dict{{"m_phone", "99999999999"}, {"m_address", dict{{"m_city", "上海"}}}}}},
+        mc::dict{{"m_status", "ACTIVE"},
+                 {"m_contact",
+                  mc::dict{{"m_phone", "99999999999"}, {"m_address", mc::dict{{"m_city", "上海"}}}}}},
         user);
 
     // 检查更新后的对象
@@ -209,41 +227,41 @@ TEST(NestedReflectTest, PartialNestedUpdate) {
 // 测试复杂嵌套结构的序列化和反序列化
 TEST(NestedReflectTest, ComplexNestedSerialization) {
     // 创建复杂嵌套对象
-    test_address                 home("北京", "中关村", 123);
-    test_address                 work("上海", "南京路", 456);
-    test_contact                 contact("admin@example.com", "12345678901", home);
-    std::vector<test_permission> permissions      = {test_permission::READ, test_permission::WRITE,
-                                                     test_permission::EXECUTE};
-    std::map<std::string, test_address> addresses = {{"home", home}, {"work", work}};
-    test_user user("admin", contact, test_status::ACTIVE, permissions, addresses);
+    test_address                        home("北京", "中关村", 123);
+    test_address                        work("上海", "南京路", 456);
+    test_contact                        contact("admin@example.com", "12345678901", home);
+    std::vector<test_permission>        permissions = {test_permission::READ, test_permission::WRITE,
+                                                       test_permission::EXECUTE};
+    std::map<std::string, test_address> addresses   = {{"home", home}, {"work", work}};
+    test_user                           user("admin", contact, test_status::ACTIVE, permissions, addresses);
 
     // 转换为变体
-    variant var(user);
+    mc::variant var(user);
 
     // 检查变体类型
     EXPECT_TRUE(var.is_object());
 
     // 检查嵌套结构
-    const dict& d = var.as<dict>();
+    const mc::dict& d = var.as<mc::dict>();
 
     // 检查联系信息
-    const dict& contact_dict = d["m_contact"].as<dict>();
+    const mc::dict& contact_dict = d["m_contact"].as<mc::dict>();
     EXPECT_EQ(contact_dict["m_email"], "admin@example.com");
     EXPECT_EQ(contact_dict["m_phone"], "12345678901");
 
     // 检查地址
-    const dict& addr_dict = contact_dict["m_address"].as<dict>();
+    const mc::dict& addr_dict = contact_dict["m_address"].as<mc::dict>();
     EXPECT_EQ(addr_dict["m_city"], "北京");
 
     // 检查地址映射
-    const dict& addresses_dict = d["m_addresses"].as<dict>();
+    const mc::dict& addresses_dict = d["m_addresses"].as<mc::dict>();
     EXPECT_EQ(addresses_dict.size(), 2);
 
-    const dict& home_dict = addresses_dict["home"].as<dict>();
+    const mc::dict& home_dict = addresses_dict["home"].as<mc::dict>();
     EXPECT_EQ(home_dict["m_city"], "北京");
     EXPECT_EQ(home_dict["m_street"], "中关村");
 
-    const dict& work_dict = addresses_dict["work"].as<dict>();
+    const mc::dict& work_dict = addresses_dict["work"].as<mc::dict>();
     EXPECT_EQ(work_dict["m_city"], "上海");
     EXPECT_EQ(work_dict["m_street"], "南京路");
 
@@ -259,13 +277,13 @@ TEST(NestedReflectTest, DynamicNestedModification) {
     test_contact contact("test@example.com", "12345678901", address);
 
     // 转换为变体
-    variant var(contact);
+    mc::variant var(contact);
 
     // 获取可变字典
-    mutable_dict md(var.as<dict>());
+    mc::mutable_dict md(var.as<mc::dict>());
 
     // 修改嵌套对象
-    mutable_dict addr_md(md["m_address"].as<dict>());
+    mc::mutable_dict addr_md(md["m_address"].as<mc::dict>());
     addr_md["m_city"]   = "广州";
     addr_md["m_number"] = 789;
     md["m_address"]     = addr_md;
@@ -274,7 +292,7 @@ TEST(NestedReflectTest, DynamicNestedModification) {
     md["m_email"] = "new@example.com";
 
     // 从修改后的变体转回对象
-    test_contact modified = variant(md).as<test_contact>();
+    test_contact modified = mc::variant(md).as<test_contact>();
 
     // 检查修改结果
     EXPECT_EQ(modified.m_email, "new@example.com");
@@ -287,20 +305,20 @@ TEST(NestedReflectTest, DynamicNestedModification) {
 // 测试嵌套集合的反射
 TEST(NestedReflectTest, NestedCollections) {
     // 创建带有集合的测试对象
-    test_address                 home("北京", "中关村", 123);
-    test_address                 work("上海", "南京路", 456);
-    std::vector<test_permission> permissions      = {test_permission::READ, test_permission::WRITE};
-    std::map<std::string, test_address> addresses = {{"home", home}, {"work", work}};
+    test_address                        home("北京", "中关村", 123);
+    test_address                        work("上海", "南京路", 456);
+    std::vector<test_permission>        permissions = {test_permission::READ, test_permission::WRITE};
+    std::map<std::string, test_address> addresses   = {{"home", home}, {"work", work}};
 
     // 使用初始化列表构造复杂嵌套结构
-    dict complex_dict{
+    mc::dict complex_dict{
         {"user_info",
-         dict{{"username", "admin"},
-              {"permissions", variants{"READ", "WRITE", "EXECUTE"}},
-              {"addresses",
-               dict{{"home", dict{{"m_city", "北京"}, {"m_street", "中关村"}, {"m_number", 123}}},
-                    {"work",
-                     dict{{"m_city", "上海"}, {"m_street", "南京路"}, {"m_number", 456}}}}}}}};
+         mc::dict{{"username", "admin"},
+                  {"permissions", mc::variants{"READ", "WRITE", "EXECUTE"}},
+                  {"addresses",
+                   mc::dict{{"home", mc::dict{{"m_city", "北京"}, {"m_street", "中关村"}, {"m_number", 123}}},
+                            {"work",
+                             mc::dict{{"m_city", "上海"}, {"m_street", "南京路"}, {"m_number", 456}}}}}}}};
 
     // 从字典中提取数据
     const auto& user_info = complex_dict["user_info"];

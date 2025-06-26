@@ -14,7 +14,7 @@
 #include <mc/engine.h>
 #include <mc/exception.h>
 
-namespace {
+namespace test_interface_inherit {
 
 // 基础接口
 class BaseInterface : public mc::engine::interface<BaseInterface> {
@@ -95,27 +95,31 @@ public:
     }
 };
 
-} // namespace
+} // namespace test_interface_inherit
 
 // 反射定义
-MC_REFLECT(BaseInterface, ((m_base_value, "BaseValue"))((m_common_prop, "CommonProp"))(
-                              (m_base_signal, "BaseSignal"))((m_common_signal, "CommonSignal"))(
-                              (base_method, "BaseMethod"))((common_method, "CommonMethod")))
+MC_REFLECT(test_interface_inherit::BaseInterface,
+           ((m_base_value, "BaseValue"))((m_common_prop, "CommonProp"))(
+               (m_base_signal, "BaseSignal"))((m_common_signal, "CommonSignal"))(
+               (base_method, "BaseMethod"))((common_method, "CommonMethod")))
 
-MC_REFLECT(MiddleInterface,
+MC_REFLECT(test_interface_inherit::MiddleInterface,
            ((m_middle_value, "MiddleValue"))((m_common_prop, "CommonProp")) // 覆盖基础接口的属性
            ((m_middle_signal, "MiddleSignal"))((m_common_signal,
                                                 "CommonSignal"))               // 覆盖基础接口的信号
            ((middle_method, "MiddleMethod"))((common_method, "CommonMethod"))) // 覆盖基础接口的方法
 
 MC_REFLECT(
-    ExtendedInterface,
+    test_interface_inherit::ExtendedInterface,
     ((m_extended_value, "ExtendedValue"))((m_common_prop, "CommonProp"))       // 覆盖中间接口的属性
     ((m_extended_signal, "ExtendedSignal"))((m_common_signal, "CommonSignal")) // 覆盖中间接口的信号
     ((extended_method, "ExtendedMethod"))((common_method, "CommonMethod")))    // 覆盖中间接口的方法
 
-MC_REFLECT(TestObject, ((m_iface, "iface"))((m_common_prop, "CommonProp"))       // 覆盖接口的属性
+MC_REFLECT(test_interface_inherit::TestObject,
+           ((m_iface, "iface"))((m_common_prop, "CommonProp"))                   // 覆盖接口的属性
            ((common_method, "CommonMethod"))((m_common_signal, "CommonSignal"))) // 覆盖接口的方法
+
+using namespace test_interface_inherit;
 
 class interface_inherit_test : public ::testing::Test {
 protected:

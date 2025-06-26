@@ -92,10 +92,12 @@ std::ostream& operator<<(std::ostream& os, const variant_base<Config>& v) {
         // 二进制数据输出为 "blob[大小]" 格式
         os << "blob[" << v.get_blob().data.size() << "]";
         return os;
-    case type_id::extension_type:
+    case type_id::extension_type: {
         if (auto extension = v.as_extension()) {
             return os << extension->get_type_name();
         }
+        return os;
+    }
     default:
         // 未知类型或未处理的类型输出为 "unknown_type"
         return os << "unknown_type";

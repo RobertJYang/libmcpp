@@ -17,7 +17,7 @@
 #include <mc/string.h>
 #include <test_utilities/test_base.h>
 
-namespace {
+namespace test_engine {
 
 struct test_service : public mc::engine::service {
     test_service() : mc::engine::service("org.openubmc.test_service") {
@@ -99,12 +99,14 @@ protected:
     test_service service;
 };
 
-} // namespace
+} // namespace test_engine
 
-MC_REFLECT(test_interface_1,
+MC_REFLECT(test_engine::test_interface_1,
            ((m_i32, "i32"))((m_str, "str"))((m_vec, "vec"))((m_normal_v, "normal_v")))
-MC_REFLECT(test_interface_2, ((m_variant, "variant")))
-MC_REFLECT(test_object, ((m_iface_1, "iface_1"))((m_iface_2, "iface_2")))
+MC_REFLECT(test_engine::test_interface_2, ((m_variant, "variant")))
+MC_REFLECT(test_engine::test_object, ((m_iface_1, "iface_1"))((m_iface_2, "iface_2")))
+
+using namespace test_engine;
 
 TEST_F(engine_test, test_engine_dbus_connection) {
     auto conn = mc::dbus::connection::open_session_bus(mc::get_io_context());

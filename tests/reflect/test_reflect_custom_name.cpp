@@ -16,7 +16,7 @@
 #include <mc/variant.h>
 #include <string>
 
-namespace {
+namespace test_reflect_custom_name {
 // 定义一个简单的用户类，用于测试反射
 struct user {
     int         m_id;
@@ -31,10 +31,14 @@ struct product {
     double      m_price;
     int         m_stock;
 };
-} // namespace
+} // namespace test_reflect_custom_name
 
-MC_REFLECT(user, ((m_id, "ID"))((m_name, "姓名"))((m_age, "年龄")))
-MC_REFLECT(product, (m_id)((m_name, "产品名称"))(m_price)((m_stock, "库存")))
+MC_REFLECT(test_reflect_custom_name::user,
+           ((m_id, "ID"))((m_name, "姓名"))((m_age, "年龄")))
+MC_REFLECT(test_reflect_custom_name::product,
+           (m_id)((m_name, "产品名称"))(m_price)((m_stock, "库存")))
+
+namespace test_reflect_custom_name {
 
 // 测试自定义名称的反射
 TEST(reflect_custom_name_test, custom_name) {
@@ -124,8 +128,10 @@ TEST(reflect_custom_name_test, mixed_names) {
 // 测试反射工具函数
 TEST(reflect_custom_name_test, reflection_utils) {
     // 测试类型名称获取
-    ASSERT_EQ(mc::reflect::get_type_name<user>(), "user");
-    ASSERT_EQ(mc::reflect::get_type_name<product>(), "product");
+    ASSERT_EQ(mc::reflect::get_type_name<user>(),
+              "test_reflect_custom_name::user");
+    ASSERT_EQ(mc::reflect::get_type_name<product>(),
+              "test_reflect_custom_name::product");
 
     // 测试类型是否可反射
     ASSERT_TRUE(mc::reflect::is_reflectable<user>());
@@ -136,3 +142,5 @@ TEST(reflect_custom_name_test, reflection_utils) {
     ASSERT_FALSE(mc::reflect::is_enum<user>());
     ASSERT_FALSE(mc::reflect::is_enum<product>());
 }
+
+} // namespace test_reflect_custom_name
