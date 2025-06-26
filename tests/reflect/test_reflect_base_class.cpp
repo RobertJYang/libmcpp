@@ -29,7 +29,7 @@ public:
 };
 } // namespace test
 
-namespace {
+namespace test_reflect_base_class {
 
 class test_person : public test::test_person_base {
 public:
@@ -62,22 +62,23 @@ public:
     }
     double m_score;
 };
-} // namespace
+} // namespace test_reflect_base_class
 
 MC_REFLECT(test::test_person_base,
            ((m_id, "Id"))((m_name, "Name"))((set_id, "SetId"))((get_id, "GetId")))
 
 // 在不同命名空间的基类，基类名称会保留完整名称，为了使用方便定义别名
-MC_REFLECT(test_person, ((test::test_person_base, "test_person_base")), ((m_age, "Age")))
+MC_REFLECT(test_reflect_base_class::test_person, ((test::test_person_base, "test_person_base")), ((m_age, "Age")))
 
-MC_REFLECT(test_company,
+MC_REFLECT(test_reflect_base_class::test_company,
            ((m_name, "Name"))((m_address, "Address"))((m_employee_count, "EmployeeCount")))
 
 // 在同一个命名空间的基类，基类名称会去掉公共命名空间
-MC_REFLECT(test_user, (test_company)(test_person),
+MC_REFLECT(test_reflect_base_class::test_user,
+           (test_reflect_base_class::test_company)(test_reflect_base_class::test_person),
            ((m_score, "Score"))((set_score, "SetScore"))((get_score, "GetScore")))
 
-namespace {
+namespace test_reflect_base_class {
 
 class reflect_base_class_test : public ::testing::Test {
 protected:
@@ -96,8 +97,6 @@ protected:
 
     test_user user;
 };
-
-} // namespace
 
 TEST_F(reflect_base_class_test, TestGetProperties) {
     // 获取属性，对于同名属性，会返回反射类型的第一个该名称的属性
@@ -119,8 +118,12 @@ TEST_F(reflect_base_class_test, TestGetProperties) {
 
     // 获取所有属性，对于同名属性，会返回反射类型的第一个该名称的属性
     mc::dict expected = {
-        {"Id", 1},       {"Name", "Company"},   {"Age", 20},
-        {"Score", 95.5}, {"EmployeeCount", 10}, {"Address", "Beijing"},
+        {"Id", 1},
+        {"Name", "Company"},
+        {"Age", 20},
+        {"Score", 95.5},
+        {"EmployeeCount", 10},
+        {"Address", "Beijing"},
     };
     auto properties = mc::reflect::get_all_properties(user);
     EXPECT_EQ(properties, expected);
@@ -148,8 +151,12 @@ TEST_F(reflect_base_class_test, TestSetProperties) {
     EXPECT_EQ(mc::reflect::get_property(user, "Name", "test_company"), "Company2");
 
     mc::dict expected = {
-        {"Id", 1},       {"Name", "Company2"},  {"Age", 20},
-        {"Score", 95.5}, {"EmployeeCount", 10}, {"Address", "Beijing"},
+        {"Id", 1},
+        {"Name", "Company2"},
+        {"Age", 20},
+        {"Score", 95.5},
+        {"EmployeeCount", 10},
+        {"Address", "Beijing"},
     };
     auto properties = mc::reflect::get_all_properties(user);
     EXPECT_EQ(properties, expected);
@@ -159,8 +166,12 @@ TEST_F(reflect_base_class_test, TestVariant) {
     mc::variant var;
     mc::to_variant(user, var);
     mc::dict expected = {
-        {"Id", 1},       {"Name", "Company"},   {"Age", 20},
-        {"Score", 95.5}, {"EmployeeCount", 10}, {"Address", "Beijing"},
+        {"Id", 1},
+        {"Name", "Company"},
+        {"Age", 20},
+        {"Score", 95.5},
+        {"EmployeeCount", 10},
+        {"Address", "Beijing"},
     };
     EXPECT_EQ(var, expected);
 
@@ -172,3 +183,5 @@ TEST_F(reflect_base_class_test, TestVariant) {
     mc::to_variant(static_cast<test_person&>(user), base_var1);
     EXPECT_EQ(base_var1, (mc::dict{{"Id", 1}, {"Name", "John"}, {"Age", 20}}));
 }
+
+} // namespace test_reflect_base_class

@@ -15,7 +15,7 @@
 #include <mc/exception.h>
 #include <mc/expr.h>
 
-namespace {
+namespace test_object_expr {
 
 // 测试接口1：包含整数属性和加减操作
 class TestInterface1 : public mc::engine::interface<TestInterface1> {
@@ -77,15 +77,19 @@ public:
     TestInterface2 m_iface2;
 };
 
-} // namespace
+} // namespace test_object_expr
 
 // 反射声明
-MC_REFLECT(TestInterface1,
+MC_REFLECT(test_object_expr::TestInterface1,
            ((m_value, "value"))((add, "Add"))((subtract, "Subtract"))((value_changed,
                                                                        "value_changed")))
-MC_REFLECT(TestInterface2, ((m_value, "value"))((set_value, "SetValue"))((get_value, "GetValue"))(
-                               (is_empty, "IsEmpty"))((value_changed, "value_changed")))
-MC_REFLECT(TestObject, ((m_iface1, "iface1"))((m_iface2, "iface2")))
+MC_REFLECT(test_object_expr::TestInterface2,
+           ((m_value, "value"))((set_value, "SetValue"))((get_value, "GetValue"))(
+               (is_empty, "IsEmpty"))((value_changed, "value_changed")))
+MC_REFLECT(test_object_expr::TestObject,
+           ((m_iface1, "iface1"))((m_iface2, "iface2")))
+
+using namespace test_object_expr;
 
 class object_expr_test : public ::testing::Test {
 protected:

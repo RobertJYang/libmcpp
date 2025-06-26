@@ -361,10 +361,13 @@ public:
             return visitor(*m_array_ptr);
         case type_id::blob_type:
             return visitor(*m_blob_ptr);
-        case type_id::extension_type:
+        case type_id::extension_type: {
             if (m_extension) {
                 return visitor(*m_extension);
             }
+            throw_unknow_type_error(m_type);
+            break;
+        }
         default:
             throw_unknow_type_error(m_type);
         }

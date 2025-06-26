@@ -674,6 +674,9 @@ struct base_class_info_creator {
     static_assert(is_reflectable<Base>(), "Base class must be reflectable");
 
     static constexpr auto create(std::string_view name) {
+        if (name.empty()) {
+            name = mc::reflect::reflector<Base>::name();
+        }
         auto info = base_class_info<T, Base>{name};
         return std::tuple_cat(
             std::make_tuple(info),

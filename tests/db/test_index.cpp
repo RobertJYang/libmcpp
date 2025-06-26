@@ -26,7 +26,7 @@
 #include <unordered_map>
 #include <vector>
 
-namespace {
+namespace test_index {
 
 struct user : mc::db::object_base {
     using id_type = int;
@@ -56,7 +56,6 @@ struct user : mc::db::object_base {
         return m_score;
     }
 };
-} // namespace
 
 // 测试 mc::db::index 的基本功能
 TEST(database_index_test, mc_database_index_basic) {
@@ -465,9 +464,7 @@ TEST(database_index_test, non_unique_compound_key_test) {
 
     // 创建测试数据
     std::vector<user> users = {
-        {1, "张三", 25, 0.0, "北京", "研发部"}, {2, "李四", 25, 0.0, "北京", "测试部"},
-        {3, "王五", 30, 0.0, "上海", "研发部"}, {4, "赵六", 30, 0.0, "上海", "测试部"},
-        {5, "钱七", 35, 0.0, "广州", "研发部"}, {6, "孙八", 35, 0.0, "广州", "测试部"}};
+        {1, "张三", 25, 0.0, "北京", "研发部"}, {2, "李四", 25, 0.0, "北京", "测试部"}, {3, "王五", 30, 0.0, "上海", "研发部"}, {4, "赵六", 30, 0.0, "上海", "测试部"}, {5, "钱七", 35, 0.0, "广州", "研发部"}, {6, "孙八", 35, 0.0, "广州", "测试部"}};
 
     // 添加数据到索引
     for (const auto& u : users) {
@@ -498,3 +495,5 @@ TEST(database_index_test, non_unique_compound_key_test) {
         ASSERT_TRUE(std::find(names.begin(), names.end(), "赵六") != names.end());
     }
 }
+
+} // namespace test_index

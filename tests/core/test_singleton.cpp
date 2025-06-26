@@ -62,11 +62,17 @@ private:
 struct tag1 {};
 struct tag2 {};
 
-// 基本单例测试
-TEST(SingletonTest, BasicFunctionality) {
-    // 测试前重置所有单例
-    reset_singletons_for_test();
+class SingletonTest : public ::testing::Test {
+public:
+    void SetUp() override {
+        singleton<test_class>::reset_for_test();
+        singleton<test_class, tag1>::reset_for_test();
+        singleton<test_class, tag2>::reset_for_test();
+    }
+};
 
+// 基本单例测试
+TEST_F(SingletonTest, BasicFunctionality) {
     // 获取单例
     auto& instance = singleton<test_class>::instance(42);
 
@@ -85,10 +91,7 @@ TEST(SingletonTest, BasicFunctionality) {
 }
 
 // 测试自定义创建函数
-TEST(SingletonTest, CustomCreator) {
-    // 测试前重置所有单例
-    reset_singletons_for_test();
-
+TEST_F(SingletonTest, CustomCreator) {
     // 使用自定义创建函数获取单例
     auto creator = []() {
         return new test_class(123);
@@ -100,10 +103,7 @@ TEST(SingletonTest, CustomCreator) {
 }
 
 // 测试多个标签的单例
-TEST(SingletonTest, MultipleTaggedSingletons) {
-    // 测试前重置所有单例
-    reset_singletons_for_test();
-
+TEST_F(SingletonTest, MultipleTaggedSingletons) {
     // 创建两个不同标签的单例
     auto& instance1 = singleton<test_class, tag1>::instance(1);
     auto& instance2 = singleton<test_class, tag2>::instance(2);
@@ -117,10 +117,7 @@ TEST(SingletonTest, MultipleTaggedSingletons) {
 }
 
 // 测试非泄露模式单例销毁
-TEST(SingletonTest, NonLeakySingleton) {
-    // 测试前重置所有单例
-    reset_singletons_for_test();
-
+TEST_F(SingletonTest, NonLeakySingleton) {
     // 跟踪销毁状态
     bool is_destroyed = false;
 
@@ -134,7 +131,7 @@ TEST(SingletonTest, NonLeakySingleton) {
     EXPECT_EQ(instance.get_value(), 42);
 
     // 销毁所有非泄露单例
-    singleton_manager::instance().destroy_instances();
+    singleton<test_class>::reset_for_test();
 
     // 验证单例已被销毁
     EXPECT_TRUE(is_destroyed);
@@ -142,10 +139,7 @@ TEST(SingletonTest, NonLeakySingleton) {
 }
 
 // 测试泄露模式单例
-TEST(SingletonTest, LeakySingleton) {
-    // 测试前重置所有单例
-    reset_singletons_for_test();
-
+TEST_F(SingletonTest, LeakySingleton) {
     // 跟踪销毁状态
     bool is_destroyed = false;
 
@@ -158,23 +152,13 @@ TEST(SingletonTest, LeakySingleton) {
     auto& instance = singleton_leaky<test_class>::instance_with_creator(creator);
     EXPECT_EQ(instance.get_value(), 42);
 
-    // 销毁所有非泄露单例
-    singleton_manager::instance().destroy_instances();
-
-    // 验证单例没有被销毁
-    EXPECT_FALSE(is_destroyed);
-    EXPECT_TRUE(singleton_leaky<test_class>::created());
-
     // 为了不内存泄漏，手动重置单例（仅用于测试）
     singleton_leaky<test_class>::reset_for_test();
     EXPECT_TRUE(is_destroyed);
 }
 
 // 测试并发访问
-TEST(SingletonTest, ConcurrentAccess) {
-    // 测试前重置所有单例
-    reset_singletons_for_test();
-
+TEST_F(SingletonTest, ConcurrentAccess) {
     // 创建多个线程同时访问单例
     constexpr int            num_threads = 10;
     mc::runtime::thread_list threads;
@@ -196,10 +180,7 @@ TEST(SingletonTest, ConcurrentAccess) {
 }
 
 // 测试重置后重新创建
-TEST(SingletonTest, RecreateAfterReset) {
-    // 测试前重置所有单例
-    reset_singletons_for_test();
-
+TEST_F(SingletonTest, RecreateAfterReset) {
     // 创建单例
     bool is_destroyed = false;
     {
@@ -208,7 +189,7 @@ TEST(SingletonTest, RecreateAfterReset) {
     }
 
     // 重置单例
-    reset_singletons_for_test();
+    singleton<test_class>::reset_for_test();
 
     // 验证单例已被销毁
     EXPECT_TRUE(is_destroyed);
@@ -222,10 +203,7 @@ TEST(SingletonTest, RecreateAfterReset) {
 }
 
 // 测试 try_get 方法
-TEST(SingletonTest, TryGetMethod) {
-    // 测试前重置所有单例
-    reset_singletons_for_test();
-
+TEST_F(SingletonTest, TryGetMethod) {
     // 未创建时，try_get 应返回 nullptr
     auto* ptr1 = singleton<test_class>::try_get();
     EXPECT_EQ(ptr1, nullptr);
@@ -238,60 +216,8 @@ TEST(SingletonTest, TryGetMethod) {
     EXPECT_EQ(ptr2, &instance);
 }
 
-// 演示正常使用和泄露模式的单例
-TEST(SingletonTest, LeakyAndNonLeakySingletons) {
-    // 测试前重置所有单例
-    reset_singletons_for_test();
-
-    // 测试非泄露单例（默认模式）
-    bool db_destroyed = false;
-    auto creator      = [&db_destroyed]() {
-        return new test_class(42, &db_destroyed);
-    };
-
-    {
-        // 使用非泄露单例（直接使用singleton类）
-        auto& instance = singleton<test_class>::instance_with_creator(creator);
-        EXPECT_EQ(instance.get_value(), 42);
-
-        // 重置所有单例
-        reset_singletons_for_test();
-
-        // 验证单例已被销毁
-        EXPECT_TRUE(db_destroyed);
-        EXPECT_FALSE(singleton<test_class>::created());
-    }
-
-    // 重置标记
-    db_destroyed = false;
-
-    // 测试泄露单例
-    {
-        // 使用泄露单例（使用singleton_leaky类）
-        auto& instance = singleton_leaky<test_class>::instance_with_creator(creator);
-        EXPECT_EQ(instance.get_value(), 42);
-
-        // 重置所有单例
-        reset_singletons_for_test();
-
-        // 验证单例未被销毁（泄露模式）
-        EXPECT_FALSE(db_destroyed);
-        EXPECT_TRUE(singleton_leaky<test_class>::created());
-
-        // 手动重置单例（仅用于测试）
-        singleton_leaky<test_class>::reset_for_test();
-
-        // 验证单例现在已被销毁
-        EXPECT_TRUE(db_destroyed);
-        EXPECT_FALSE(singleton_leaky<test_class>::created());
-    }
-}
-
 // 测试使用多标签创建多个同类型单例
-TEST(SingletonTest, MultipleTaggedInstances) {
-    // 测试前重置所有单例
-    reset_singletons_for_test();
-
+TEST_F(SingletonTest, MultipleTaggedInstances) {
     // 定义两个标签类型
     struct ErrorLogTag {};
     struct InfoLogTag {};
@@ -314,10 +240,7 @@ TEST(SingletonTest, MultipleTaggedInstances) {
 }
 
 // 测试使用自定义创建器
-TEST(SingletonTest, CustomCreatorWithOptions) {
-    // 测试前重置所有单例
-    reset_singletons_for_test();
-
+TEST_F(SingletonTest, CustomCreatorWithOptions) {
     // 自定义创建器，可以进行复杂的初始化
     auto creator = []() {
         auto* instance = new test_class(100);

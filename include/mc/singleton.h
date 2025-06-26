@@ -306,13 +306,6 @@ private:
     ~singleton_leaky() = delete;
 };
 
-/**
- * @brief 清空所有单例（仅用于测试）
- */
-inline void reset_singletons_for_test() {
-    singleton_manager::instance().reset_for_test();
-}
-
 } // namespace mc
 
 #endif // MC_SINGLETON_H
