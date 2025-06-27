@@ -21,11 +21,12 @@
 #include <mc/variant.h>
 #include <stdexcept>
 #include <string>
+#include <test_utilities/test_base.h>
 
 namespace mc {
 namespace test {
 
-class TypedVariantTest : public ::testing::Test {
+class typed_variant_test : public mc::test::TestBase {
 protected:
     void SetUp() override {
         // 在每个测试前执行
@@ -39,7 +40,7 @@ protected:
 /**
  * @brief 测试创建 typed_variant
  */
-TEST_F(TypedVariantTest, Creation) {
+TEST_F(typed_variant_test, Creation) {
     // 从 type_id 创建
     typed_variant tv1(type_id::int64_type);
     ASSERT_EQ(tv1.get_type(), type_id::int64_type)
@@ -72,7 +73,7 @@ TEST_F(TypedVariantTest, Creation) {
 /**
  * @brief 测试 typed_variant 的整数类型锁定功能
  */
-TEST_F(TypedVariantTest, IntegerTypeLocking) {
+TEST_F(typed_variant_test, IntegerTypeLocking) {
     // 测试 int8_type
     typed_variant tv_int8(type_id::int8_type);
     ASSERT_EQ(tv_int8.get_type(), type_id::int8_type);
@@ -159,7 +160,7 @@ TEST_F(TypedVariantTest, IntegerTypeLocking) {
 /**
  * @brief 测试 typed_variant 的浮点类型锁定功能
  */
-TEST_F(TypedVariantTest, FloatingPointTypeLocking) {
+TEST_F(typed_variant_test, FloatingPointTypeLocking) {
     // 测试 double_type
     typed_variant tv_double(type_id::double_type);
     ASSERT_EQ(tv_double.get_type(), type_id::double_type);
@@ -183,7 +184,7 @@ TEST_F(TypedVariantTest, FloatingPointTypeLocking) {
 /**
  * @brief 测试 typed_variant 的布尔类型锁定功能
  */
-TEST_F(TypedVariantTest, BoolTypeLocking) {
+TEST_F(typed_variant_test, BoolTypeLocking) {
     // 测试 bool_type
     typed_variant tv_bool(type_id::bool_type);
     ASSERT_EQ(tv_bool.get_type(), type_id::bool_type);
@@ -232,7 +233,7 @@ TEST_F(TypedVariantTest, BoolTypeLocking) {
 /**
  * @brief 测试 typed_variant 的字符串类型锁定功能
  */
-TEST_F(TypedVariantTest, StringTypeLocking) {
+TEST_F(typed_variant_test, StringTypeLocking) {
     // 测试 string_type
     typed_variant tv_string(type_id::string_type);
     ASSERT_EQ(tv_string.get_type(), type_id::string_type);
@@ -266,7 +267,7 @@ TEST_F(TypedVariantTest, StringTypeLocking) {
 /**
  * @brief 测试 typed_variant 的数组类型锁定功能
  */
-TEST_F(TypedVariantTest, ArrayTypeLocking) {
+TEST_F(typed_variant_test, ArrayTypeLocking) {
     // 创建一个数组
     variants arr;
     arr.push_back(1);
@@ -309,7 +310,7 @@ TEST_F(TypedVariantTest, ArrayTypeLocking) {
 /**
  * @brief 测试 typed_variant 的对象类型锁定功能
  */
-TEST_F(TypedVariantTest, ObjectTypeLocking) {
+TEST_F(typed_variant_test, ObjectTypeLocking) {
     // 创建一个对象
     mutable_dict obj;
     obj["name"] = "John";
@@ -351,7 +352,7 @@ TEST_F(TypedVariantTest, ObjectTypeLocking) {
 /**
  * @brief 测试 typed_variant 的 blob 类型锁定功能
  */
-TEST_F(TypedVariantTest, BlobTypeLocking) {
+TEST_F(typed_variant_test, BlobTypeLocking) {
     // 创建一个 blob
     std::vector<char> data1 = {1, 2, 3, 4, 5};
     blob              b1;
@@ -391,7 +392,7 @@ TEST_F(TypedVariantTest, BlobTypeLocking) {
 /**
  * @brief 测试 typed_variant 的边界值测试
  */
-TEST_F(TypedVariantTest, BoundaryValues) {
+TEST_F(typed_variant_test, BoundaryValues) {
     // 测试 int8_type 的边界值
     typed_variant tv_int8(type_id::int8_type);
     tv_int8 = -128; // int8_t 的最小值
@@ -489,7 +490,7 @@ TEST_F(TypedVariantTest, BoundaryValues) {
 /**
  * @brief 测试 typed_variant 的复杂转换场景
  */
-TEST_F(TypedVariantTest, ComplexConversions) {
+TEST_F(typed_variant_test, ComplexConversions) {
     // 测试从字符串到各种类型的转换
     typed_variant tv_int32(type_id::int32_type);
     try {
@@ -546,7 +547,7 @@ TEST_F(TypedVariantTest, ComplexConversions) {
 /**
  * @brief 测试 typed_variant 的链式赋值
  */
-TEST_F(TypedVariantTest, ChainedAssignments) {
+TEST_F(typed_variant_test, ChainedAssignments) {
     typed_variant tv_int32(type_id::int32_type);
     typed_variant tv_int64(type_id::int64_type);
     typed_variant tv_double(type_id::double_type);
@@ -565,7 +566,7 @@ TEST_F(TypedVariantTest, ChainedAssignments) {
     ASSERT_EQ(tv_int32.as_int64(), 42);
 }
 
-TEST_F(TypedVariantTest, MoveAssignment) {
+TEST_F(typed_variant_test, MoveAssignment) {
     // 创建一个源对象
     typed_variant tv_source(type_id::string_type);
     tv_source = "hello world";
@@ -604,7 +605,7 @@ TEST_F(TypedVariantTest, MoveAssignment) {
 /**
  * @brief 测试 typed_variant 与 variant 之间的转换函数
  */
-TEST_F(TypedVariantTest, VariantConversionFunctions) {
+TEST_F(typed_variant_test, VariantConversionFunctions) {
     // 测试 from_variant 函数
     typed_variant tv_target;
     from_variant(variant(1), tv_target);

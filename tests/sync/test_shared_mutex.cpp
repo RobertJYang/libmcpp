@@ -19,6 +19,8 @@
 #include <future>
 #include <shared_mutex>
 
+#include <test_utilities/test_base.h>
+
 // 用于测试的自定义策略
 namespace test_policies {
 
@@ -64,28 +66,28 @@ struct heavy_reader_policy {
 } // namespace test_policies
 
 template <typename Mutex>
-class SharedMutexTest : public ::testing::Test {
+class shared_mutex_test : public mc::test::TestBase {
 };
 
 using MutexTypes = ::testing::Types<mc::sync::shared_mutex, mc::sync::reader_priority_shared_mutex>;
-TYPED_TEST_SUITE(SharedMutexTest, MutexTypes);
+TYPED_TEST_SUITE(shared_mutex_test, MutexTypes);
 
 // 测试基本的独占锁和解锁
-TYPED_TEST(SharedMutexTest, BasicLockUnlock) {
+TYPED_TEST(shared_mutex_test, BasicLockUnlock) {
     TypeParam m;
     m.lock();
     m.unlock();
 }
 
 // 测试基本的共享锁和解锁
-TYPED_TEST(SharedMutexTest, BasicSharedLockUnlock) {
+TYPED_TEST(shared_mutex_test, BasicSharedLockUnlock) {
     TypeParam m;
     m.lock_shared();
     m.unlock_shared();
 }
 
 // 测试 try_lock
-TYPED_TEST(SharedMutexTest, TryLock) {
+TYPED_TEST(shared_mutex_test, TryLock) {
     TypeParam m;
     ASSERT_TRUE(m.try_lock());
     ASSERT_FALSE(m.try_lock());
@@ -95,7 +97,7 @@ TYPED_TEST(SharedMutexTest, TryLock) {
 }
 
 // 测试 try_lock_shared
-TYPED_TEST(SharedMutexTest, TryLockShared) {
+TYPED_TEST(shared_mutex_test, TryLockShared) {
     TypeParam m;
     ASSERT_TRUE(m.try_lock_shared());
     ASSERT_TRUE(m.try_lock_shared());
@@ -104,7 +106,7 @@ TYPED_TEST(SharedMutexTest, TryLockShared) {
 }
 
 // 测试写锁会阻塞其他写锁和读锁
-TYPED_TEST(SharedMutexTest, WriteLockBlocksOthers) {
+TYPED_TEST(shared_mutex_test, WriteLockBlocksOthers) {
     TypeParam m;
     m.lock();
     ASSERT_FALSE(m.try_lock());
@@ -113,7 +115,7 @@ TYPED_TEST(SharedMutexTest, WriteLockBlocksOthers) {
 }
 
 // 测试读锁会阻塞写锁，但允许其他读锁
-TYPED_TEST(SharedMutexTest, ReadLockBlocksWrite) {
+TYPED_TEST(shared_mutex_test, ReadLockBlocksWrite) {
     TypeParam m;
     m.lock_shared();
     ASSERT_FALSE(m.try_lock());
@@ -123,7 +125,7 @@ TYPED_TEST(SharedMutexTest, ReadLockBlocksWrite) {
 }
 
 // 多线程读写测试
-TYPED_TEST(SharedMutexTest, MultipleReaders) {
+TYPED_TEST(shared_mutex_test, MultipleReaders) {
     TypeParam     m;
     int           counter     = 0;
     constexpr int num_threads = 4;
@@ -142,7 +144,7 @@ TYPED_TEST(SharedMutexTest, MultipleReaders) {
     threads.join_all();
 }
 
-TYPED_TEST(SharedMutexTest, WriterAndReaders) {
+TYPED_TEST(shared_mutex_test, WriterAndReaders) {
     TypeParam         m;
     int               value   = 0;
     std::atomic<bool> running = true;
@@ -178,7 +180,7 @@ TYPED_TEST(SharedMutexTest, WriterAndReaders) {
 }
 
 // 专门测试多个写竞争的场景
-TYPED_TEST(SharedMutexTest, MultipleWritersContention) {
+TYPED_TEST(shared_mutex_test, MultipleWritersContention) {
     TypeParam     m;
     long long     counter               = 0;
     constexpr int num_threads           = 4;
@@ -201,7 +203,7 @@ TYPED_TEST(SharedMutexTest, MultipleWritersContention) {
 }
 
 // 专门测试多个读线程和写线程混合竞争的场景
-TYPED_TEST(SharedMutexTest, MixedReadWriteContention) {
+TYPED_TEST(shared_mutex_test, MixedReadWriteContention) {
     TypeParam m;
 
     struct SharedData {
@@ -251,7 +253,7 @@ TYPED_TEST(SharedMutexTest, MixedReadWriteContention) {
 }
 
 // 专门测试超时功能
-TYPED_TEST(SharedMutexTest, TryLockForTimesOut) {
+TYPED_TEST(shared_mutex_test, TryLockForTimesOut) {
     TypeParam          m;
     std::promise<void> locked_promise;
     auto               locked_future = locked_promise.get_future();
@@ -274,13 +276,13 @@ TYPED_TEST(SharedMutexTest, TryLockForTimesOut) {
     ASSERT_LT(elapsed.count(), 50);
 }
 
-TYPED_TEST(SharedMutexTest, TryLockForSucceeds) {
+TYPED_TEST(shared_mutex_test, TryLockForSucceeds) {
     TypeParam m;
     ASSERT_TRUE(m.try_lock_for(std::chrono::milliseconds(50)));
     m.unlock();
 }
 
-TYPED_TEST(SharedMutexTest, TryLockSharedForTimesOut) {
+TYPED_TEST(shared_mutex_test, TryLockSharedForTimesOut) {
     TypeParam          m;
     std::promise<void> locked_promise;
     auto               locked_future = locked_promise.get_future();
@@ -303,7 +305,7 @@ TYPED_TEST(SharedMutexTest, TryLockSharedForTimesOut) {
     t1.join();
 }
 
-TYPED_TEST(SharedMutexTest, TryLockSharedForSucceeds) {
+TYPED_TEST(shared_mutex_test, TryLockSharedForSucceeds) {
     TypeParam m;
     ASSERT_TRUE(m.try_lock_shared_for(mc::milliseconds(50)));
     m.unlock_shared();
@@ -317,7 +319,7 @@ TYPED_TEST(SharedMutexTest, TryLockSharedForSucceeds) {
 }
 
 // 测试升级锁降级操作
-TYPED_TEST(SharedMutexTest, UpgradeLockDowngrade) {
+TYPED_TEST(shared_mutex_test, UpgradeLockDowngrade) {
     TypeParam m;
 
     // 测试正常的升级锁降级到读锁
@@ -336,7 +338,7 @@ TYPED_TEST(SharedMutexTest, UpgradeLockDowngrade) {
 }
 
 // 测试写锁降级操作
-TYPED_TEST(SharedMutexTest, WriteLockDowngrade) {
+TYPED_TEST(shared_mutex_test, WriteLockDowngrade) {
     TypeParam m;
 
     // 测试写锁降级到升级锁
@@ -367,7 +369,7 @@ TYPED_TEST(SharedMutexTest, WriteLockDowngrade) {
 }
 
 // 测试升级锁升级操作
-TYPED_TEST(SharedMutexTest, UpgradeLockUpgrade) {
+TYPED_TEST(shared_mutex_test, UpgradeLockUpgrade) {
     TypeParam m;
 
     // 测试基本的升级锁升级到写锁
@@ -393,7 +395,7 @@ TYPED_TEST(SharedMutexTest, UpgradeLockUpgrade) {
 }
 
 // 测试升级锁的基本操作
-TYPED_TEST(SharedMutexTest, UpgradeLockBasic) {
+TYPED_TEST(shared_mutex_test, UpgradeLockBasic) {
     TypeParam m;
 
     // 测试升级锁获取和释放

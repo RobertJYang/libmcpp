@@ -13,6 +13,7 @@
 #include <gtest/gtest.h>
 #include <mc/engine.h>
 #include <mc/exception.h>
+#include <test_utilities/test_base.h>
 
 namespace {
 
@@ -80,7 +81,7 @@ MC_REFLECT(TestInterface2, ((m_value, "value"))((set_value, "SetValue"))((get_va
                                (value_changed, "value_changed")))
 MC_REFLECT(TestObject, ((m_iface1, "iface1"))((m_iface2, "iface2")))
 
-class object_test : public ::testing::Test {
+class object_test : public mc::test::TestBase {
 protected:
     void SetUp() override {
     }
@@ -156,10 +157,10 @@ TEST_F(object_test, test_signal_connect) {
     auto conn = obj_base.connect(
         "value_changed",
         [&](const mc::variants& args) -> mc::variant {
-            old_value = args[0].as<int32_t>();
-            new_value = args[1].as<int32_t>();
-            return {};
-        },
+        old_value = args[0].as<int32_t>();
+        new_value = args[1].as<int32_t>();
+        return {};
+    },
         "iface1");
 
     EXPECT_TRUE(conn.connected());
@@ -187,10 +188,10 @@ TEST_F(object_test, test_signal_emit) {
     auto conn = obj_base.connect(
         "value_changed",
         [&](const mc::variants& args) -> mc::variant {
-            old_value = args[0].as<std::string>();
-            new_value = args[1].as<std::string>();
-            return {};
-        },
+        old_value = args[0].as<std::string>();
+        new_value = args[1].as<std::string>();
+        return {};
+    },
         "iface2");
 
     // 通过 emit 直接发送信号
@@ -212,9 +213,9 @@ TEST_F(object_test, test_connect_by_interface_name) {
     auto conn = obj_base.connect(
         "value_changed",
         [&](const mc::variants& args) -> mc::variant {
-            signal_count++;
-            return {};
-        },
+        signal_count++;
+        return {};
+    },
         "org.test.TestInterface1");
 
     EXPECT_TRUE(conn.connected());
@@ -236,18 +237,18 @@ TEST_F(object_test, test_multiple_connections) {
     auto conn1 = obj_base.connect(
         "value_changed",
         [&](const mc::variants& args) -> mc::variant {
-            count1++;
-            return {};
-        },
+        count1++;
+        return {};
+    },
         "iface1");
 
     // 第二个连接
     auto conn2 = obj_base.connect(
         "value_changed",
         [&](const mc::variants& args) -> mc::variant {
-            count2++;
-            return {};
-        },
+        count2++;
+        return {};
+    },
         "iface1");
 
     // 触发信号

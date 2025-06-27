@@ -28,13 +28,23 @@ namespace test {
  */
 class TestBase : public ::testing::Test {
 protected:
-    void SetUp() override {
+    static void SetUpTestSuite() {
         // 设置默认日志级别为 warn，减少测试输出
         mc::log::default_logger().set_level(mc::log::level::warn);
     }
 
-    void TearDown() override {
+    static void TearDownTestSuite() {
         // 恢复默认日志级别
+        mc::log::default_logger().set_level(mc::log::level::info);
+    }
+
+    void SetUp() override {
+        // 每个测试用例开始时确保日志级别为 warn
+        mc::log::default_logger().set_level(mc::log::level::warn);
+    }
+
+    void TearDown() override {
+        // 每个测试用例结束时恢复日志级别为 info
         mc::log::default_logger().set_level(mc::log::level::info);
     }
 };

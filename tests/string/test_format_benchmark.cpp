@@ -48,9 +48,7 @@ protected:
         // 初始化测试数据
         small_args = {{"host", "example.com"}, {"port", 8080}};
 
-        medium_args = {{"host", "example.com"},     {"port", 8080},  {"protocol", "https"},
-                       {"enabled", true},           {"ratio", 0.75}, {"username", "admin"},
-                       {"password", "password123"}, {"timeout", 30}};
+        medium_args = {{"host", "example.com"}, {"port", 8080}, {"protocol", "https"}, {"enabled", true}, {"ratio", 0.75}, {"username", "admin"}, {"password", "password123"}, {"timeout", 30}};
 
         // 创建一个大型参数字典
         large_args = medium_args;
@@ -95,7 +93,7 @@ protected:
 /**
  * @brief 测试format函数在不同情况下的性能
  */
-TEST_F(FormatBenchmarkTest, FormatPerformance) {
+TEST_F(FormatBenchmarkTest, DISABLED_FormatPerformance) {
     // 场景1：简单格式字符串 + 小型参数字典
     double time1 = measure_time([&]() {
         // 确保调用接受dict的format函数

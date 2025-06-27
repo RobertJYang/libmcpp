@@ -18,12 +18,13 @@
 #include <mc/dict.h>
 #include <mc/variant.h>
 #include <string>
+#include <test_utilities/test_base.h>
 #include <type_traits>
 
 namespace mc {
 namespace test {
 
-class VariantVisitorTest : public ::testing::Test {
+class VariantVisitorTest : public mc::test::TestBase {
 protected:
     void SetUp() override {
     }

@@ -20,11 +20,12 @@
 #include <mc/dict.h>
 #include <mc/variant.h>
 #include <stdexcept>
+#include <test_utilities/test_base.h>
 
 namespace mc {
 namespace test {
 
-class VariantEqualityTest : public ::testing::Test {
+class VariantEqualityTest : public mc::test::TestBase {
 protected:
     void SetUp() override {
         // 在每个测试前执行

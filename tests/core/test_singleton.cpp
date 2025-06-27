@@ -14,6 +14,7 @@
 #include <gtest/gtest.h>
 #include <mc/runtime/thread_list.h>
 #include <mutex>
+#include <test_utilities/test_base.h>
 #include <thread>
 #include <vector>
 
@@ -62,7 +63,7 @@ private:
 struct tag1 {};
 struct tag2 {};
 
-class SingletonTest : public ::testing::Test {
+class singleton_test : public mc::test::TestBase {
 public:
     void SetUp() override {
         singleton<test_class>::reset_for_test();
@@ -72,7 +73,7 @@ public:
 };
 
 // 基本单例测试
-TEST_F(SingletonTest, BasicFunctionality) {
+TEST_F(singleton_test, BasicFunctionality) {
     // 获取单例
     auto& instance = singleton<test_class>::instance(42);
 
@@ -91,7 +92,7 @@ TEST_F(SingletonTest, BasicFunctionality) {
 }
 
 // 测试自定义创建函数
-TEST_F(SingletonTest, CustomCreator) {
+TEST_F(singleton_test, CustomCreator) {
     // 使用自定义创建函数获取单例
     auto creator = []() {
         return new test_class(123);
@@ -103,7 +104,7 @@ TEST_F(SingletonTest, CustomCreator) {
 }
 
 // 测试多个标签的单例
-TEST_F(SingletonTest, MultipleTaggedSingletons) {
+TEST_F(singleton_test, MultipleTaggedSingletons) {
     // 创建两个不同标签的单例
     auto& instance1 = singleton<test_class, tag1>::instance(1);
     auto& instance2 = singleton<test_class, tag2>::instance(2);
@@ -117,7 +118,7 @@ TEST_F(SingletonTest, MultipleTaggedSingletons) {
 }
 
 // 测试非泄露模式单例销毁
-TEST_F(SingletonTest, NonLeakySingleton) {
+TEST_F(singleton_test, NonLeakySingleton) {
     // 跟踪销毁状态
     bool is_destroyed = false;
 
@@ -139,7 +140,7 @@ TEST_F(SingletonTest, NonLeakySingleton) {
 }
 
 // 测试泄露模式单例
-TEST_F(SingletonTest, LeakySingleton) {
+TEST_F(singleton_test, LeakySingleton) {
     // 跟踪销毁状态
     bool is_destroyed = false;
 
@@ -158,7 +159,7 @@ TEST_F(SingletonTest, LeakySingleton) {
 }
 
 // 测试并发访问
-TEST_F(SingletonTest, ConcurrentAccess) {
+TEST_F(singleton_test, ConcurrentAccess) {
     // 创建多个线程同时访问单例
     constexpr int            num_threads = 10;
     mc::runtime::thread_list threads;
@@ -180,7 +181,7 @@ TEST_F(SingletonTest, ConcurrentAccess) {
 }
 
 // 测试重置后重新创建
-TEST_F(SingletonTest, RecreateAfterReset) {
+TEST_F(singleton_test, RecreateAfterReset) {
     // 创建单例
     bool is_destroyed = false;
     {
@@ -203,7 +204,7 @@ TEST_F(SingletonTest, RecreateAfterReset) {
 }
 
 // 测试 try_get 方法
-TEST_F(SingletonTest, TryGetMethod) {
+TEST_F(singleton_test, TryGetMethod) {
     // 未创建时，try_get 应返回 nullptr
     auto* ptr1 = singleton<test_class>::try_get();
     EXPECT_EQ(ptr1, nullptr);
@@ -217,7 +218,7 @@ TEST_F(SingletonTest, TryGetMethod) {
 }
 
 // 测试使用多标签创建多个同类型单例
-TEST_F(SingletonTest, MultipleTaggedInstances) {
+TEST_F(singleton_test, MultipleTaggedInstances) {
     // 定义两个标签类型
     struct ErrorLogTag {};
     struct InfoLogTag {};
@@ -240,7 +241,7 @@ TEST_F(SingletonTest, MultipleTaggedInstances) {
 }
 
 // 测试使用自定义创建器
-TEST_F(SingletonTest, CustomCreatorWithOptions) {
+TEST_F(singleton_test, CustomCreatorWithOptions) {
     // 自定义创建器，可以进行复杂的初始化
     auto creator = []() {
         auto* instance = new test_class(100);

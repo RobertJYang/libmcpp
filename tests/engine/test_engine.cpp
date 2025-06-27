@@ -56,12 +56,14 @@ public:
 class engine_test : public mc::test::TestWithEngine {
 protected:
     void SetUp() override {
+        TestWithEngine::SetUp();
         service.init();
         service.start();
     }
 
     void TearDown() override {
         service.stop();
+        TestWithEngine::TearDown();
     }
 
     auto create_object(std::string_view path) {

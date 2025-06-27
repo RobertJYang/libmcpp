@@ -20,6 +20,7 @@
 #include <mc/exception.h>
 #include <mc/variant.h>
 #include <mc/variant/variant_extension.h>
+#include <test_utilities/test_base.h>
 
 namespace mc {
 namespace test {
@@ -126,7 +127,7 @@ private:
     int         m_count;
 };
 
-class VariantExtensionTest : public ::testing::Test {
+class VariantExtensionTest : public mc::test::TestBase {
 protected:
     void SetUp() override {
     }

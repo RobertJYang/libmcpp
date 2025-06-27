@@ -12,6 +12,7 @@
 
 #include <gtest/gtest.h>
 #include <mc/reflect.h>
+#include <test_utilities/test_base.h>
 
 namespace test {
 class test_person_base {
@@ -31,7 +32,7 @@ public:
 
 namespace test_reflect_base_class {
 
-class test_person : public test::test_person_base {
+class test_person : public ::test::test_person_base {
 public:
     int m_age;
 
@@ -64,11 +65,12 @@ public:
 };
 } // namespace test_reflect_base_class
 
-MC_REFLECT(test::test_person_base,
+MC_REFLECT(::test::test_person_base,
            ((m_id, "Id"))((m_name, "Name"))((set_id, "SetId"))((get_id, "GetId")))
 
 // 在不同命名空间的基类，基类名称会保留完整名称，为了使用方便定义别名
-MC_REFLECT(test_reflect_base_class::test_person, ((test::test_person_base, "test_person_base")), ((m_age, "Age")))
+MC_REFLECT(test_reflect_base_class::test_person,
+           ((::test::test_person_base, "test_person_base")), ((m_age, "Age")))
 
 MC_REFLECT(test_reflect_base_class::test_company,
            ((m_name, "Name"))((m_address, "Address"))((m_employee_count, "EmployeeCount")))
@@ -80,7 +82,7 @@ MC_REFLECT(test_reflect_base_class::test_user,
 
 namespace test_reflect_base_class {
 
-class reflect_base_class_test : public ::testing::Test {
+class reflect_base_class_test : public mc::test::TestBase {
 protected:
     void SetUp() override {
         user.m_id                 = 1;
