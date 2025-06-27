@@ -99,6 +99,19 @@ public:
         }
         return false;
     }
+
+    mc::shared_ptr<T> shared_from_this() const {
+        return mc::shared_ptr<T>(static_cast<const T*>(this));
+    }
+    mc::shared_ptr<T> shared_from_this() {
+        return mc::shared_ptr<T>(static_cast<T*>(this));
+    }
+    mc::weak_ptr<T> weak_from_this() const {
+        return mc::weak_ptr<T>(static_cast<const T*>(this));
+    }
+    mc::weak_ptr<T> weak_from_this() {
+        return mc::weak_ptr<T>(static_cast<T*>(this));
+    }
 };
 
 } // namespace mc

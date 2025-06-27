@@ -33,6 +33,13 @@ struct method_type_info;
 [[noreturn]] void throw_method_arg_not_enough(std::string_view method_name, size_t expect_count,
                                               size_t actual_count);
 [[noreturn]] void throw_method_not_exist(std::string_view method_name);
+[[noreturn]] void throw_not_enum_type(std::string_view type_name);
+[[noreturn]] void throw_enum_value_not_found(std::string_view type_name, std::string_view value_name);
+[[noreturn]] void throw_enum_value_not_found(std::string_view type_name, uint64_t value);
+[[noreturn]] void throw_bad_enum_cast(int64_t i, const char* e);
+[[noreturn]] void throw_bad_enum_cast(const char* k, const char* e);
+[[noreturn]] void throw_variant_cast(const char* k, const char* e);
+[[noreturn]] void throw_enum_not_support_create_object(std::string_view type_name);
 
 /**
  * @brief 反射器模板类
@@ -185,6 +192,30 @@ public:
      * @return std::vector<std::string_view> 方法名列表
      */
     virtual std::vector<std::string_view> get_method_names() const = 0;
+
+    /**
+     * @brief 获取是否为枚举类型
+     * @return bool 是否为枚举类型
+     */
+    bool is_enum() const {
+        return m_is_enum;
+    }
+
+    virtual uint64_t get_enum_value(std::string_view name) const {
+        throw_not_enum_type(get_type_name());
+    }
+    virtual std::string_view get_enum_name(uint64_t value) const {
+        throw_not_enum_type(get_type_name());
+    }
+    virtual std::vector<std::string_view> get_enum_names() const {
+        throw_not_enum_type(get_type_name());
+    }
+    virtual bool has_enum_value(std::string_view name) const {
+        throw_not_enum_type(get_type_name());
+    }
+
+protected:
+    bool m_is_enum = false;
 };
 
 using reflected_object_ptr     = std::shared_ptr<reflected_object>;

@@ -30,12 +30,6 @@
 #include <mc/traits.h>
 #include <mc/variant.h>
 
-namespace mc::reflect {
-[[noreturn]] void throw_bad_enum_cast(int64_t i, const char* e);
-[[noreturn]] void throw_bad_enum_cast(const char* k, const char* e);
-[[noreturn]] void throw_variant_cast(const char* k, const char* e);
-} // namespace mc::reflect
-
 // 检测是否为元组形式（双括号表达式）
 #define MC_REFLECT_IS_TUPLE(x) BOOST_PP_IS_BEGIN_PARENS(x)
 
@@ -122,6 +116,11 @@ constexpr auto create_member_info(R (*static_func)(Args...), std::string_view na
 template <typename T, typename BaseT>
 constexpr auto create_base_class_info(std::string_view name = {}) {
     return base_class_info_creator<T, BaseT>::create(name);
+}
+
+template <typename EnumType>
+constexpr auto create_enum_member_info(EnumType value, std::string_view name) {
+    return enum_member_info<EnumType>(name, value);
 }
 
 template <size_t Index, typename... Tuples>
@@ -530,29 +529,61 @@ struct signature_helper<T, std::enable_if_t<mc::reflect::is_normal_enum<T>()>> {
 #define MC_REFLECT(...) MC_REFLECT_DISPATCH(__VA_ARGS__)
 
 /**
+ * @brief 定义枚举成员（不带别名）
+ */
+#define MC_REFLECT_ENUM_MEMBER_WITHOUT_NAME(r, ENUM_TYPE, VALUE)  \
+    std::make_tuple(mc::reflect::detail::create_enum_member_info( \
+                        ENUM_TYPE::VALUE, BOOST_PP_STRINGIZE(VALUE))),
+
+/**
+ * @brief 定义枚举成员（带别名）
+ */
+#define MC_REFLECT_ENUM_MEMBER_WITH_NAME(r, ENUM_TYPE, VALUE)     \
+    std::make_tuple(mc::reflect::detail::create_enum_member_info( \
+        ENUM_TYPE::BOOST_PP_TUPLE_ELEM(0, VALUE),                 \
+        BOOST_PP_TUPLE_ELEM(1, VALUE))),
+
+/**
+ * @brief 处理枚举成员
+ */
+#define MC_REFLECT_ENUM_ELEMENT(r, ENUM_TYPE, VALUE)                           \
+    BOOST_PP_IIF(MC_REFLECT_IS_TUPLE(VALUE), MC_REFLECT_ENUM_MEMBER_WITH_NAME, \
+                 MC_REFLECT_ENUM_MEMBER_WITHOUT_NAME)(r, ENUM_TYPE, VALUE)
+
+/**
  * @brief 定义枚举的反射信息
  */
-#define MC_REFLECT_ENUM_IMPL(TYPE, NAME, VALUES)                                  \
-    namespace mc {                                                                \
-    template <>                                                                   \
-    struct reflect::reflector<TYPE> {                                             \
-        using is_defined = std::true_type;                                        \
-        using is_enum    = std::true_type;                                        \
-        static constexpr std::string_view name() {                                \
-            return NAME;                                                          \
-        }                                                                         \
-        static void to_variant(const TYPE& e, variant& var) {                     \
-            switch (e) {                                                          \
-                BOOST_PP_SEQ_FOR_EACH(MC_REFLECT_ENUM_VALUE, TYPE, VALUES)        \
-            default:                                                              \
-                mc::reflect::throw_bad_enum_cast(static_cast<int64_t>(e), #TYPE); \
-            }                                                                     \
-        }                                                                         \
-        static void from_variant(const variant& var, TYPE& e) {                   \
-            BOOST_PP_SEQ_FOR_EACH(MC_REFLECT_ENUM_FROM_STRING, TYPE, VALUES)      \
-            mc::reflect::throw_bad_enum_cast(var.as_string().c_str(), #TYPE);     \
-        }                                                                         \
-    };                                                                            \
+#define MC_REFLECT_ENUM_IMPL(TYPE, NAME, VALUES)                                                     \
+    namespace mc {                                                                                   \
+    template <>                                                                                      \
+    struct reflect::reflector<TYPE> {                                                                \
+        using is_defined                = std::true_type;                                            \
+        using is_enum                   = std::true_type;                                            \
+        static inline const int type_id = reflection_factory::instance().register_enum_type<TYPE>(); \
+        static int              get_type_id() {                                                      \
+            return type_id;                                                             \
+        }                                                                                            \
+        static constexpr std::string_view name() {                                                   \
+            return NAME;                                                                             \
+        }                                                                                            \
+        static const auto& get_members() {                                                           \
+            static auto members = std::tuple_cat(                                                    \
+                BOOST_PP_SEQ_FOR_EACH(MC_REFLECT_ENUM_ELEMENT, TYPE, VALUES)                         \
+                    std::tuple<>{});                                                                 \
+            return members;                                                                          \
+        }                                                                                            \
+        static void to_variant(const TYPE& e, variant& var) {                                        \
+            switch (e) {                                                                             \
+                BOOST_PP_SEQ_FOR_EACH(MC_REFLECT_ENUM_VALUE, TYPE, VALUES)                           \
+            default:                                                                                 \
+                mc::reflect::throw_bad_enum_cast(static_cast<int64_t>(e), NAME);                     \
+            }                                                                                        \
+        }                                                                                            \
+        static void from_variant(const variant& var, TYPE& e) {                                      \
+            BOOST_PP_SEQ_FOR_EACH(MC_REFLECT_ENUM_FROM_STRING, TYPE, VALUES)                         \
+            mc::reflect::throw_bad_enum_cast(var.as_string().c_str(), NAME);                         \
+        }                                                                                            \
+    };                                                                                               \
     }
 
 #define MC_REFLECT_ENUM_WITH_NAME(r, TYPE, VALUES) \

@@ -17,7 +17,7 @@
 #ifndef MC_REFLECT_PROPERTY_H
 #define MC_REFLECT_PROPERTY_H
 
-#include <mc/reflect/reflect_metadata.h>
+#include <mc/reflect/reflection_metadata.h>
 
 namespace mc::reflect {
 

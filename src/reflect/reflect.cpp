@@ -78,4 +78,24 @@ void throw_variant_cast(const char* type, const char* variant_type) {
              ("type", type)("variant_type", variant_type));
 }
 
+void throw_not_enum_type(std::string_view type_name) {
+    MC_THROW(mc::bad_type_exception, "类型不是枚举类型: ${type_name}",
+             ("type_name", type_name));
+}
+
+void throw_enum_value_not_found(std::string_view type_name, std::string_view value_name) {
+    MC_THROW(mc::bad_type_exception, "枚举类型 ${type_name} 不存在值 ${value_name}",
+             ("type_name", type_name)("value_name", value_name));
+}
+
+void throw_enum_value_not_found(std::string_view type_name, uint64_t value) {
+    MC_THROW(mc::bad_type_exception, "枚举类型 ${type_name} 不存在值 ${value}",
+             ("type_name", type_name)("value", value));
+}
+
+void throw_enum_not_support_create_object(std::string_view type_name) {
+    MC_THROW(mc::bad_type_exception, "枚举类型不支持创建对象实例: ${type_name}",
+             ("type_name", type_name));
+}
+
 } // namespace mc::reflect

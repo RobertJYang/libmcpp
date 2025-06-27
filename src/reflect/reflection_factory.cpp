@@ -12,23 +12,21 @@
 
 #include <mc/exception.h>
 #include <mc/log.h>
-#include <mc/reflect/reflect_metadata.h>
 #include <mc/reflect/reflection_factory.h>
+#include <mc/reflect/reflection_metadata.h>
 #include <mc/singleton.h>
+#include <mc/string.h>
+
+using split_iterator = mc::string::split_iterator;
 
 namespace mc::reflect {
-
-reflection_factory& reflection_factory::instance() {
-    return mc::singleton<reflection_factory>::instance_with_creator([]() {
-        return new reflection_factory();
-    });
-}
 
 reflection_factory::~reflection_factory() {
     m_data.with_lock([](auto& data) {
         data.m_metadata.clear();
         data.m_metadata_initializers.clear();
         data.m_type_ids.clear();
+        data.m_root_module = module_node{};
     });
 }
 
@@ -122,6 +120,106 @@ int reflection_factory::register_type(std::string_view type_name, metadata_creat
         data.m_metadata_initializers[new_id] = std::move(creator);
         return new_id;
     });
+}
+
+std::vector<std::pair<std::string, int>> reflection_factory::get_module_types(std::string_view module_path) const {
+    return m_data.with_lock([&](auto& data) -> std::vector<std::pair<std::string, int>> {
+        auto* node = find_module_node(module_path, const_cast<module_node&>(data.m_root_module));
+        if (!node) {
+            return {};
+        }
+
+        std::vector<std::pair<std::string, int>> result;
+        result.reserve(node->types.size());
+        for (const auto& [name, type_id] : node->types) {
+            result.emplace_back(name, type_id);
+        }
+        return result;
+    });
+}
+
+std::vector<std::string> reflection_factory::get_all_module_paths() const {
+    return m_data.with_lock([&](auto& data) {
+        std::vector<std::string> paths;
+        collect_module_paths(data.m_root_module, "", paths);
+        return paths;
+    });
+}
+
+bool reflection_factory::has_module(std::string_view module_path) const {
+    return m_data.with_lock([&](auto& data) {
+        return find_module_node(module_path, const_cast<module_node&>(data.m_root_module)) != nullptr;
+    });
+}
+
+void reflection_factory::register_to_module_tree(std::string_view full_name, int type_id) {
+    m_data.with_lock([&](auto& data) {
+        module_node* current_node = &data.m_root_module;
+        auto         it           = split_iterator(full_name, ".:");
+        while (!it.is_end()) {
+            auto name = *it;
+            ++it;
+            if (it.is_end()) {
+                current_node->types.emplace(name, type_id);
+                break;
+            }
+
+            auto& submodules = current_node->submodules;
+            auto  sub_it     = submodules.find(name);
+            if (sub_it == submodules.end()) {
+                sub_it = submodules.emplace(name, std::make_unique<module_node>()).first;
+            }
+            current_node = sub_it->second.get();
+        }
+    });
+}
+
+module_node* reflection_factory::find_module_node(std::string_view path, module_node& root) const {
+    if (path.empty()) {
+        return &root;
+    }
+
+    module_node* current = &root;
+    for (auto it = split_iterator(path, ".:"); it != split_iterator::end(); ++it) {
+        auto sub_it = current->submodules.find(*it);
+        if (sub_it == current->submodules.end()) {
+            return nullptr;
+        }
+        current = sub_it->second.get();
+    }
+
+    return current;
+}
+
+void reflection_factory::collect_module_paths(const module_node&        node,
+                                              const std::string&        current_path,
+                                              std::vector<std::string>& paths) const {
+    // 如果当前是叶子节点(有类型的节点)，则添加当前路径
+    if (!node.types.empty() && !current_path.empty()) {
+        paths.push_back(current_path);
+    }
+
+    // 递归遍历子模块
+    for (const auto& [name, subnode] : node.submodules) {
+        std::string child_path;
+        if (current_path.empty()) {
+            child_path = name;
+        } else {
+            child_path = current_path;
+            child_path += ".";
+            child_path += name;
+        }
+        collect_module_paths(*subnode, child_path, paths);
+    }
+}
+
+// 全局便利函数实现
+reflected_object_ptr create_object(int type_id) {
+    return reflection_factory::instance().create_object(type_id);
+}
+
+reflected_object_ptr create_object(std::string_view type_name) {
+    return reflection_factory::instance().create_object(type_name);
 }
 
 } // namespace mc::reflect

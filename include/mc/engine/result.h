@@ -172,6 +172,22 @@ public:
         }, std::forward<result<OtherT>>(other).m_value);
     }
 
+    result(const mc::exception& ex)
+        : result(mc::engine::error::from_exception(ex)) {
+    }
+
+    // 处理类型到 result<mc::variant> 的转换
+    template <typename U>
+    result(U value, std::enable_if_t<
+                        std::is_same_v<T, mc::variant> &&
+                            mc::is_variant_constructible_v<U> &&
+                            !std::is_same_v<std::decay_t<U>, mc::exception> &&
+                            !std::is_same_v<std::decay_t<U>, mc::engine::error_ptr> &&
+                            !mc::futures::detail::is_future_v<std::decay_t<U>>,
+                        int> = 0)
+        : m_value(mc::variant(value)) {
+    }
+
     // 不允许拷贝
     result(const result& other)            = delete;
     result& operator=(const result& other) = delete;
@@ -535,7 +551,7 @@ inline auto make_result() {
 
 template <typename T>
 auto make_result(const mc::exception& ex) {
-    return result<T>(mc::engine::error::from_exception(ex));
+    return result<T>(ex);
 }
 
 template <typename T>

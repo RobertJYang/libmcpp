@@ -25,15 +25,35 @@
 #include <unordered_map>
 
 #include <mc/reflect/base.h>
-#include <mc/reflect/reflect_metadata.h>
+#include <mc/reflect/reflection_enum_metadata.h>
+#include <mc/reflect/reflection_metadata.h>
 #include <mc/sync/mutex_box.h>
 
 namespace mc::reflect {
 
 /**
+ * @brief 模块节点结构
+ *
+ * 用于构建模块树，支持层次化的类型组织
+ */
+struct module_node {
+    using submodules_map = std::unordered_map<std::string_view, std::unique_ptr<module_node>>;
+    using types_map      = std::unordered_map<std::string_view, int>;
+
+    module_node()                              = default;
+    module_node(const module_node&)            = delete;
+    module_node& operator=(const module_node&) = delete;
+    module_node(module_node&&)                 = default;
+    module_node& operator=(module_node&&)      = default;
+
+    submodules_map submodules; // 子模块
+    types_map      types;      // 该模块下直接包含的类型ID
+};
+
+/**
  * @brief 反射工厂类
  *
- * 管理类型注册和反射对象创建
+ * 管理类型注册和反射对象创建，支持模块系统
  */
 class reflection_factory {
 public:
@@ -41,7 +61,11 @@ public:
      * @brief 获取单例实例
      * @return reflection_factory& 工厂实例引用
      */
-    static reflection_factory& instance();
+    static reflection_factory& instance() {
+        return mc::singleton<reflection_factory>::instance_with_creator([]() {
+            return new reflection_factory();
+        });
+    }
 
     ~reflection_factory();
 
@@ -52,9 +76,27 @@ public:
      */
     template <typename T>
     int register_type() {
-        return register_type(reflector<T>::name(), []() {
+        auto type_id = register_type(reflector<T>::name(), []() {
             return reflection_metadata<T>::instance_ptr();
         });
+        register_to_module_tree(reflector<T>::name(), type_id);
+        return type_id;
+    }
+
+    /**
+     * @brief 注册枚举类型（枚举类型不需要完整的反射元数据）
+     * @tparam T 要注册的枚举类型
+     * @return int 分配的类型ID
+     */
+    template <typename T>
+    int register_enum_type() {
+        static_assert(std::is_enum_v<T>, "T must be an enum type");
+
+        auto type_id = register_type(reflector<T>::name(), []() -> reflection_metadata_ptr {
+            return reflection_enum_metadata<T>::instance_ptr();
+        });
+        register_to_module_tree(reflector<T>::name(), type_id);
+        return type_id;
     }
 
     /**
@@ -98,16 +140,40 @@ public:
      */
     std::vector<std::string_view> get_registered_types() const;
 
+    /**
+     * @brief 根据模块路径获取该模块下的所有类型
+     * @param module_path 模块路径（如 "mc::devices" 或 "mc.devices"）
+     * @return std::vector<std::pair<std::string, int>> 类型名和类型ID的列表
+     */
+    std::vector<std::pair<std::string, int>> get_module_types(std::string_view module_path) const;
+
+    /**
+     * @brief 获取所有模块路径
+     * @return std::vector<std::string> 模块路径列表
+     */
+    std::vector<std::string> get_all_module_paths() const;
+
+    /**
+     * @brief 检查模块是否存在
+     * @param module_path 模块路径
+     * @return bool 模块是否存在
+     */
+    bool has_module(std::string_view module_path) const;
+
+    void sort_searchers();
+
 private:
     using metadata_creator = std::function<reflection_metadata_ptr()>;
     using type_ids_map     = std::unordered_map<std::string_view, int>;
     using metadata_map     = std::unordered_map<int, reflection_metadata_wptr>;
     using initializer_map  = std::unordered_map<int, metadata_creator>;
+
     struct data_t {
         type_ids_map    m_type_ids;
         metadata_map    m_metadata;
         initializer_map m_metadata_initializers;
         int             m_next_type_id{0};
+        module_node     m_root_module;
     };
 
     reflection_factory() = default;
@@ -115,36 +181,47 @@ private:
 
     reflection_metadata_ptr get_metadata_inner(int type_id, data_t& data);
 
+    /**
+     * @brief 将类型注册到模块树中
+     * @param full_name 完整类型名（如 "mc::devices::sensor_device"）
+     * @param type_id 类型ID
+     */
+    void register_to_module_tree(std::string_view full_name, int type_id);
+
+    /**
+     * @brief 查找模块节点
+     * @param path 模块路径
+     * @param root 根节点
+     * @return module_node* 找到的节点，不存在返回nullptr
+     */
+    module_node* find_module_node(std::string_view path, module_node& root) const;
+
+    /**
+     * @brief 收集所有模块路径（递归遍历模块树）
+     * @param node 当前节点
+     * @param current_path 当前路径
+     * @param paths 路径列表（输出参数）
+     */
+    void collect_module_paths(const module_node&        node,
+                              const std::string&        current_path,
+                              std::vector<std::string>& paths) const;
+
     mc::mutex_box<data_t, std::mutex> m_data;
 };
 
 /**
- * @brief 通过类型名创建反射对象
- * @param type_name 类型名
- * @return reflected_object_ptr 反射对象实例
- */
-inline reflected_object_ptr create_object(std::string_view type_name) {
-    auto& factory  = reflection_factory::instance();
-    auto  metadata = factory.get_metadata(type_name);
-    if (!metadata) {
-        MC_THROW(mc::bad_type_exception, "类型不存在: ${type_name}", ("type_name", type_name));
-    }
-    return metadata->create_object();
-}
-
-/**
- * @brief 通过类型ID创建反射对象
+ * @brief 全局便利函数：通过类型ID创建反射对象
  * @param type_id 类型ID
  * @return reflected_object_ptr 反射对象实例
  */
-inline reflected_object_ptr create_object(int type_id) {
-    auto& factory  = reflection_factory::instance();
-    auto  metadata = factory.get_metadata(type_id);
-    if (!metadata) {
-        MC_THROW(mc::bad_type_exception, "类型ID不存在: ${type_id}", ("type_id", type_id));
-    }
-    return metadata->create_object();
-}
+reflected_object_ptr create_object(int type_id);
+
+/**
+ * @brief 全局便利函数：通过类型名创建反射对象
+ * @param type_name 类型名
+ * @return reflected_object_ptr 反射对象实例
+ */
+reflected_object_ptr create_object(std::string_view type_name);
 
 /**
  * @brief 获取已注册的所有类型名

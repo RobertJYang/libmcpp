@@ -11,7 +11,7 @@
  */
 
 /**
- * @file reflect_metadata.h
+ * @file reflection_metadata.h
  * @brief 反射元数据缓存
  */
 #ifndef MC_REFLECT_METADATA_H
