@@ -14,6 +14,7 @@
 #include <mc/db/database.h>
 #include <mc/dict.h>
 #include <mc/variant.h>
+#include <test_utilities/test_base.h>
 
 using namespace mc;
 using namespace mc::db;
@@ -67,7 +68,7 @@ auto field_name  = mc::db::field(&test_object::m_name);
 auto field_value = mc::db::field(&test_object::m_value);
 
 // 数据库测试类
-class database_test : public ::testing::Test {
+class database_test : public mc::test::TestBase {
 protected:
     void SetUp() override {
         // 创建测试表

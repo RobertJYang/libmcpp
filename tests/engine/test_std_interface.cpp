@@ -89,6 +89,8 @@ protected:
     }
 
     void SetUp() override {
+        mc::test::TestBase::SetUp();
+
         root                   = mc::make_shared<TestObject1>();
         root->m_iface1.m_value = 100;
         root->m_iface1.m_name  = "Name";
@@ -108,6 +110,7 @@ protected:
     }
 
     void TearDown() override {
+        mc::test::TestBase::TearDown();
     }
 
     static mc::dict decode_introspect(const std::string& xml) {

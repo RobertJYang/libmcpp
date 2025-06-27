@@ -13,6 +13,7 @@
 #include <gtest/gtest.h>
 #include <mc/engine.h>
 #include <mc/exception.h>
+#include <test_utilities/test_base.h>
 
 namespace {
 
@@ -118,7 +119,7 @@ MC_REFLECT(
         (reset, "Reset"))((set_enabled, "SetEnabled"))((log, "Log"))((clear_logs, "ClearLogs"))(
         value_changed)(name_changed)(status_changed)(reset_signal)(enabled_changed)(log_added)(log_cleared))
 
-class interface_test : public ::testing::Test {
+class interface_test : public mc::test::TestBase {
 protected:
     TestInterface                   obj;
     mc::engine::abstract_interface* iface;

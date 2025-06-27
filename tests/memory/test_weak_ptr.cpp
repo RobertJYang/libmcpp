@@ -13,6 +13,7 @@
 #include <gtest/gtest.h>
 #include <mc/exception.h>
 #include <mc/memory.h>
+#include <test_utilities/test_base.h>
 #include <vector>
 
 // 测试用的简单类
@@ -75,7 +76,7 @@ public:
     }
 };
 
-class WeakPtrTest : public ::testing::Test {
+class weak_ptr_test : public mc::test::TestBase {
 protected:
     void SetUp() override {
         weak_test_object::reset_counters();
@@ -88,7 +89,7 @@ protected:
 };
 
 // 测试默认构造
-TEST_F(WeakPtrTest, DefaultConstruction) {
+TEST_F(weak_ptr_test, DefaultConstruction) {
     mc::weak_ptr<weak_test_object> weak;
 
     EXPECT_FALSE(weak);
@@ -100,7 +101,7 @@ TEST_F(WeakPtrTest, DefaultConstruction) {
 }
 
 // 测试 nullptr 构造
-TEST_F(WeakPtrTest, NullptrConstruction) {
+TEST_F(weak_ptr_test, NullptrConstruction) {
     mc::weak_ptr<weak_test_object> weak(nullptr);
 
     EXPECT_FALSE(weak);
@@ -111,7 +112,7 @@ TEST_F(WeakPtrTest, NullptrConstruction) {
 }
 
 // 测试从 shared_ptr 构造
-TEST_F(WeakPtrTest, ConstructionFromSharedPtr) {
+TEST_F(weak_ptr_test, ConstructionFromSharedPtr) {
     auto                           shared = mc::make_shared<weak_test_object>(300);
     mc::weak_ptr<weak_test_object> weak(shared);
 
@@ -129,7 +130,7 @@ TEST_F(WeakPtrTest, ConstructionFromSharedPtr) {
 }
 
 // 测试从原始指针构造
-TEST_F(WeakPtrTest, ConstructionFromRawPointer) {
+TEST_F(weak_ptr_test, ConstructionFromRawPointer) {
     auto                           shared = mc::make_shared<weak_test_object>(400);
     mc::weak_ptr<weak_test_object> weak(shared.get());
 
@@ -141,7 +142,7 @@ TEST_F(WeakPtrTest, ConstructionFromRawPointer) {
 }
 
 // 测试拷贝构造
-TEST_F(WeakPtrTest, CopyConstruction) {
+TEST_F(weak_ptr_test, CopyConstruction) {
     auto                           shared = mc::make_shared<weak_test_object>(500);
     mc::weak_ptr<weak_test_object> weak1(shared);
     mc::weak_ptr<weak_test_object> weak2(weak1);
@@ -157,7 +158,7 @@ TEST_F(WeakPtrTest, CopyConstruction) {
 }
 
 // 测试移动构造
-TEST_F(WeakPtrTest, MoveConstruction) {
+TEST_F(weak_ptr_test, MoveConstruction) {
     auto                           shared = mc::make_shared<weak_test_object>(600);
     mc::weak_ptr<weak_test_object> weak1(shared);
     auto*                          raw_ptr = weak1.get();
@@ -173,7 +174,7 @@ TEST_F(WeakPtrTest, MoveConstruction) {
 }
 
 // 测试类型转换构造
-TEST_F(WeakPtrTest, TypeConversionConstruction) {
+TEST_F(weak_ptr_test, TypeConversionConstruction) {
     auto                              derived_shared = mc::make_shared<weak_derived_object>(700);
     mc::weak_ptr<weak_derived_object> derived_weak(derived_shared);
     mc::weak_ptr<weak_test_object>    base_weak(derived_weak);
@@ -189,7 +190,7 @@ TEST_F(WeakPtrTest, TypeConversionConstruction) {
 }
 
 // 测试拷贝赋值
-TEST_F(WeakPtrTest, CopyAssignment) {
+TEST_F(weak_ptr_test, CopyAssignment) {
     auto                           shared1 = mc::make_shared<weak_test_object>(800);
     auto                           shared2 = mc::make_shared<weak_test_object>(900);
     mc::weak_ptr<weak_test_object> weak1(shared1);
@@ -206,7 +207,7 @@ TEST_F(WeakPtrTest, CopyAssignment) {
 }
 
 // 测试移动赋值
-TEST_F(WeakPtrTest, MoveAssignment) {
+TEST_F(weak_ptr_test, MoveAssignment) {
     auto                           shared1 = mc::make_shared<weak_test_object>(1000);
     auto                           shared2 = mc::make_shared<weak_test_object>(1100);
     mc::weak_ptr<weak_test_object> weak1(shared1);
@@ -224,7 +225,7 @@ TEST_F(WeakPtrTest, MoveAssignment) {
 }
 
 // 测试从 shared_ptr 赋值
-TEST_F(WeakPtrTest, AssignmentFromSharedPtr) {
+TEST_F(weak_ptr_test, AssignmentFromSharedPtr) {
     auto                           shared = mc::make_shared<weak_test_object>(1200);
     mc::weak_ptr<weak_test_object> weak;
 
@@ -239,7 +240,7 @@ TEST_F(WeakPtrTest, AssignmentFromSharedPtr) {
 }
 
 // 测试类型转换赋值
-TEST_F(WeakPtrTest, TypeConversionAssignment) {
+TEST_F(weak_ptr_test, TypeConversionAssignment) {
     auto                              derived_shared = mc::make_shared<weak_derived_object>(1300);
     mc::weak_ptr<weak_derived_object> derived_weak(derived_shared);
     mc::weak_ptr<weak_test_object>    base_weak;
@@ -260,7 +261,7 @@ TEST_F(WeakPtrTest, TypeConversionAssignment) {
 }
 
 // 测试 reset 操作
-TEST_F(WeakPtrTest, Reset) {
+TEST_F(weak_ptr_test, Reset) {
     auto                           shared = mc::make_shared<weak_test_object>(1400);
     mc::weak_ptr<weak_test_object> weak(shared);
 
@@ -276,7 +277,7 @@ TEST_F(WeakPtrTest, Reset) {
 }
 
 // 测试 swap 操作
-TEST_F(WeakPtrTest, Swap) {
+TEST_F(weak_ptr_test, Swap) {
     auto                           shared1 = mc::make_shared<weak_test_object>(1500);
     auto                           shared2 = mc::make_shared<weak_test_object>(1600);
     mc::weak_ptr<weak_test_object> weak1(shared1);
@@ -293,7 +294,7 @@ TEST_F(WeakPtrTest, Swap) {
 }
 
 // 测试 lock 和 expired 的基本行为
-TEST_F(WeakPtrTest, LockAndExpiredBasic) {
+TEST_F(weak_ptr_test, LockAndExpiredBasic) {
     mc::weak_ptr<weak_test_object> weak;
 
     {
@@ -320,7 +321,7 @@ TEST_F(WeakPtrTest, LockAndExpiredBasic) {
 }
 
 // 测试多个 weak_ptr 指向同一对象
-TEST_F(WeakPtrTest, MultipleWeakPtrs) {
+TEST_F(weak_ptr_test, MultipleWeakPtrs) {
     auto shared = mc::make_shared<weak_test_object>(1800);
 
     std::vector<mc::weak_ptr<weak_test_object>> weak_ptrs;
@@ -352,7 +353,7 @@ TEST_F(WeakPtrTest, MultipleWeakPtrs) {
 }
 
 // 测试 weak_ptr 在对象生命周期中的行为
-TEST_F(WeakPtrTest, LifecycleManagement) {
+TEST_F(weak_ptr_test, LifecycleManagement) {
     EXPECT_EQ(weak_test_object::get_construct_count(), 0);
     EXPECT_EQ(weak_test_object::get_destruct_count(), 0);
 
@@ -429,7 +430,7 @@ private:
 int circular_a::s_destruct_count = 0;
 int circular_b::s_destruct_count = 0;
 
-TEST_F(WeakPtrTest, CircularReferenceResolution) {
+TEST_F(weak_ptr_test, CircularReferenceResolution) {
     circular_a::reset_counter();
     circular_b::reset_counter();
 
@@ -458,7 +459,7 @@ TEST_F(WeakPtrTest, CircularReferenceResolution) {
 }
 
 // 测试 weak_ptr 的比较操作
-TEST_F(WeakPtrTest, ComparisonOperators) {
+TEST_F(weak_ptr_test, ComparisonOperators) {
     auto shared1 = mc::make_shared<weak_test_object>(2000);
     auto shared2 = mc::make_shared<weak_test_object>(2100);
 
@@ -482,7 +483,7 @@ TEST_F(WeakPtrTest, ComparisonOperators) {
 }
 
 // 测试 weak_ptr 的边界情况
-TEST_F(WeakPtrTest, EdgeCases) {
+TEST_F(weak_ptr_test, EdgeCases) {
     // 测试对已过期的 weak_ptr 进行操作
     mc::weak_ptr<weak_test_object> expired_weak;
     {
@@ -507,7 +508,7 @@ TEST_F(WeakPtrTest, EdgeCases) {
 }
 
 // 测试 shared_from_this 和 weak_from_this
-TEST_F(WeakPtrTest, SharedFromThisAndWeakFromThis) {
+TEST_F(weak_ptr_test, SharedFromThisAndWeakFromThis) {
     auto shared = mc::make_shared<weak_test_object>(2400);
 
     // 测试 shared_from_this

@@ -13,6 +13,7 @@
 #include <gtest/gtest.h>
 #include <mc/reflect/reflect.h>
 #include <mc/reflect/reflection_factory.h>
+#include <test_utilities/test_base.h>
 
 namespace test_reflection_factory {
 
@@ -53,7 +54,7 @@ MC_REFLECT((test_reflection_factory::test_person, "FactoryPerson"),
 
 namespace test_reflection_factory {
 
-class ReflectFactoryTest : public ::testing::Test {
+class reflect_factory_test : public mc::test::TestBase {
 protected:
     void SetUp() override {
         // 为了测试销毁反射元数据，这里显示获取一次单例确保被销毁后还能重新创建，否则其他用例会失败
@@ -64,7 +65,7 @@ protected:
     }
 };
 
-TEST_F(ReflectFactoryTest, TypeRegistration) {
+TEST_F(reflect_factory_test, TypeRegistration) {
     // 测试类型ID分配
     EXPECT_NE(mc::reflect::reflector<test_person>::type_id, -1);
 
@@ -73,7 +74,7 @@ TEST_F(ReflectFactoryTest, TypeRegistration) {
     EXPECT_EQ(type_name, "FactoryPerson");
 }
 
-TEST_F(ReflectFactoryTest, FactoryBasicOperations) {
+TEST_F(reflect_factory_test, FactoryBasicOperations) {
     auto& factory = mc::reflect::reflection_factory::instance();
 
     // 测试类型ID查询
@@ -93,7 +94,7 @@ TEST_F(ReflectFactoryTest, FactoryBasicOperations) {
     EXPECT_TRUE(found);
 }
 
-TEST_F(ReflectFactoryTest, ObjectCreation) {
+TEST_F(reflect_factory_test, ObjectCreation) {
     // 通过类型名创建对象
     auto obj1 = mc::reflect::create_object("FactoryPerson");
     ASSERT_NE(obj1, nullptr);
@@ -106,7 +107,7 @@ TEST_F(ReflectFactoryTest, ObjectCreation) {
     EXPECT_EQ(obj2->get_type_id(), type_id);
 }
 
-TEST_F(ReflectFactoryTest, PropertyAccess) {
+TEST_F(reflect_factory_test, PropertyAccess) {
     auto obj = mc::reflect::create_object("FactoryPerson");
     ASSERT_NE(obj, nullptr);
 
@@ -122,7 +123,7 @@ TEST_F(ReflectFactoryTest, PropertyAccess) {
     EXPECT_EQ(age, mc::variant(25));
 }
 
-TEST_F(ReflectFactoryTest, MethodInvocation) {
+TEST_F(reflect_factory_test, MethodInvocation) {
     auto obj = mc::reflect::create_object("FactoryPerson");
     ASSERT_NE(obj, nullptr);
 
@@ -140,7 +141,7 @@ TEST_F(ReflectFactoryTest, MethodInvocation) {
     EXPECT_EQ(greeting_with_prefix.as<std::string>(), "Hi: Hello, I'm Bob and I'm 30 years old.");
 }
 
-TEST_F(ReflectFactoryTest, ObjectWrapping) {
+TEST_F(reflect_factory_test, ObjectWrapping) {
     // 创建普通对象
     auto person = std::make_shared<test_person>("Charlie", 35);
 
@@ -163,7 +164,7 @@ TEST_F(ReflectFactoryTest, ObjectWrapping) {
     EXPECT_EQ(greeting.as<std::string>(), "Hello, I'm Charlie and I'm 35 years old.");
 }
 
-TEST_F(ReflectFactoryTest, PropertyAndMethodListing) {
+TEST_F(reflect_factory_test, PropertyAndMethodListing) {
     auto obj = mc::reflect::create_object("FactoryPerson");
     ASSERT_NE(obj, nullptr);
 
@@ -196,7 +197,7 @@ TEST_F(ReflectFactoryTest, PropertyAndMethodListing) {
     EXPECT_TRUE(has_greet);
 }
 
-TEST_F(ReflectFactoryTest, ErrorHandling) {
+TEST_F(reflect_factory_test, ErrorHandling) {
     auto obj = mc::reflect::create_object("FactoryPerson");
     ASSERT_NE(obj, nullptr);
 
@@ -211,7 +212,7 @@ TEST_F(ReflectFactoryTest, ErrorHandling) {
     EXPECT_THROW(mc::reflect::create_object("nonexistent_type"), mc::bad_type_exception);
 }
 
-TEST_F(ReflectFactoryTest, TestDestoryReflectedMetaData) {
+TEST_F(reflect_factory_test, TestDestoryReflectedMetaData) {
     // 创建对象成功
     auto obj = mc::reflect::create_object("FactoryPerson");
     ASSERT_NE(obj, nullptr);

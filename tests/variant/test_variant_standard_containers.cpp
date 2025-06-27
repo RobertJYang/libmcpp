@@ -25,6 +25,7 @@
 #include <mc/variant.h>
 #include <set>
 #include <string>
+#include <test_utilities/test_base.h>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
@@ -32,7 +33,7 @@
 namespace mc {
 namespace test {
 
-class VariantStdContainersTest : public ::testing::Test {
+class VariantStdContainersTest : public mc::test::TestBase {
 protected:
     void SetUp() override {
         // 在每个测试前执行

@@ -15,12 +15,13 @@
 #include <mc/exception.h>
 #include <mc/future.h>
 #include <mc/log/log_message.h>
+#include <test_utilities/test_base.h>
 
 using namespace std::chrono_literals;
 
 namespace {
 
-class ResultTest : public ::testing::Test {
+class result_test : public mc::test::TestBase {
 protected:
     void SetUp() override {
     }
@@ -32,7 +33,7 @@ protected:
 constexpr std::string_view TestErrorName = "Test.TestError";
 
 // 测试基本构造
-TEST_F(ResultTest, test_basic_construction) {
+TEST_F(result_test, test_basic_construction) {
     // 测试基本类型构造
     mc::result<int> int_result(42);
     EXPECT_TRUE(int_result.is_value());
@@ -58,7 +59,7 @@ TEST_F(ResultTest, test_basic_construction) {
 }
 
 // 测试错误构造
-TEST_F(ResultTest, test_error_construction) {
+TEST_F(result_test, test_error_construction) {
     // 测试从错误名和消息构造
     mc::result<int> error_result(mc::make_error(TestErrorName, "test error message"));
     EXPECT_TRUE(error_result.is_error());
@@ -78,7 +79,7 @@ TEST_F(ResultTest, test_error_construction) {
 }
 
 // 测试移动构造和赋值
-TEST_F(ResultTest, test_move_operations) {
+TEST_F(result_test, test_move_operations) {
     // 测试移动构造
     mc::result<int> original(42);
     mc::result<int> moved(std::move(original));
@@ -103,7 +104,7 @@ TEST_F(ResultTest, test_move_operations) {
 }
 
 // 测试链式操作
-TEST_F(ResultTest, test_chaining) {
+TEST_F(result_test, test_chaining) {
     // 测试值的链式操作
     mc::result<int> value_result(42);
     auto            chained_value = value_result.then([](int v) {
@@ -133,7 +134,7 @@ TEST_F(ResultTest, test_chaining) {
 }
 
 // 测试错误处理
-TEST_F(ResultTest, test_error_handling) {
+TEST_F(result_test, test_error_handling) {
     // 测试catch_error处理
     mc::result<int> error_result(mc::make_error(TestErrorName, "test error"));
 
@@ -159,7 +160,7 @@ TEST_F(ResultTest, test_error_handling) {
 }
 
 // 测试超时处理
-TEST_F(ResultTest, test_timeout) {
+TEST_F(result_test, test_timeout) {
     auto            promise = mc::make_promise<int>();
     mc::result<int> result  = promise.get_future();
 
@@ -177,7 +178,7 @@ TEST_F(ResultTest, test_timeout) {
 }
 
 // 测试取消操作
-TEST_F(ResultTest, test_cancellation_result_then) {
+TEST_F(result_test, test_cancellation_result_then) {
     auto            promise      = mc::make_promise<int>();
     mc::result<int> result       = promise.get_future();
     auto            chain_result = result.then([]() {
@@ -193,7 +194,7 @@ TEST_F(ResultTest, test_cancellation_result_then) {
 }
 
 // 测试取消操作
-TEST_F(ResultTest, test_cancellation_result_catch_error) {
+TEST_F(result_test, test_cancellation_result_catch_error) {
     auto            promise      = mc::make_promise<int>();
     mc::result<int> result       = promise.get_future();
     auto            chain_result = result.catch_error([]() {
@@ -209,7 +210,7 @@ TEST_F(ResultTest, test_cancellation_result_catch_error) {
 }
 
 // 测试组合操作
-TEST_F(ResultTest, test_combined_operations) {
+TEST_F(result_test, test_combined_operations) {
     auto p1 = mc::make_promise<int>();
     auto p2 = mc::make_promise<std::string>();
 
@@ -227,7 +228,7 @@ TEST_F(ResultTest, test_combined_operations) {
 }
 
 // 测试类型转换
-TEST_F(ResultTest, test_type_conversion) {
+TEST_F(result_test, test_type_conversion) {
     // 测试基础类型转换
     mc::result<int> int_result(42);
 
@@ -246,7 +247,7 @@ TEST_F(ResultTest, test_type_conversion) {
 }
 
 // 测试void类型特化
-TEST_F(ResultTest, test_void_specialization) {
+TEST_F(result_test, test_void_specialization) {
     // 测试void返回值
     mc::result<void> void_result;
     EXPECT_NO_THROW(void_result.get());
@@ -265,7 +266,7 @@ TEST_F(ResultTest, test_void_specialization) {
     EXPECT_NO_THROW(converted_void.get());
 }
 
-TEST_F(ResultTest, test_make_result) {
+TEST_F(result_test, test_make_result) {
     // mc::result<int>
     auto r1 = mc::make_result(42);
     EXPECT_EQ(r1.get(), 42);

@@ -11,6 +11,7 @@
  */
 
 #include <gtest/gtest.h>
+#include <test_utilities/test_base.h>
 
 #include <algorithm>
 #include <cstdint>
@@ -60,7 +61,7 @@ using user_table = mdb::table<
 } // namespace
 
 // 事务测试类
-class transaction_test : public ::testing::Test {
+class transaction_test : public mc::test::TestBase {
 protected:
     void SetUp() override {
         mc::singleton<mdb::transaction, mdb::default_transaction_tag>::reset_for_test();

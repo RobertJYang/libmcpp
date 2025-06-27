@@ -15,6 +15,7 @@
 #include <mc/dbus/error.h>
 #include <mc/dbus/message.h>
 #include <mc/variant.h>
+#include <test_utilities/test_base.h>
 
 using namespace mc::dbus;
 
@@ -108,7 +109,7 @@ static void verify_data(test_data& data, test_data& other) {
     EXPECT_EQ(other.m_std_deque, data.m_std_deque);
     EXPECT_EQ(other.m_std_array, data.m_std_array);
 }
-class dbus_message_test : public ::testing::Test {
+class dbus_message_test : public mc::test::TestBase {
 protected:
     void SetUp() override {
         prepare_test_data(data);

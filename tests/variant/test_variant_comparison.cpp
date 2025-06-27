@@ -25,11 +25,12 @@
 #include <mc/exception.h>
 #include <mc/variant.h>
 #include <stdexcept>
+#include <test_utilities/test_base.h>
 
 namespace mc {
 namespace test {
 
-class VariantComparisonTest : public ::testing::Test {
+class VariantComparisonTest : public mc::test::TestBase {
 protected:
     void SetUp() override {
         // 在每个测试前执行
@@ -583,9 +584,9 @@ TEST_F(VariantComparisonTest, StringViewComparison) {
     std::string_view sv1 = "hello";
     std::string_view sv2 = "world";
     std::string_view sv3 = "abc";
-    
+
     variant v_str("hello");
-    
+
     // 直接比较
     EXPECT_TRUE(v_str == sv1);
     EXPECT_FALSE(v_str == sv2);
@@ -594,7 +595,7 @@ TEST_F(VariantComparisonTest, StringViewComparison) {
     EXPECT_TRUE(v_str <= sv1);
     EXPECT_TRUE(v_str > sv3);
     EXPECT_TRUE(v_str >= sv1);
-    
+
     // 反向比较
     EXPECT_TRUE(sv1 == v_str);
     EXPECT_FALSE(sv2 == v_str);
@@ -603,11 +604,11 @@ TEST_F(VariantComparisonTest, StringViewComparison) {
     EXPECT_TRUE(sv1 >= v_str);
     EXPECT_TRUE(sv3 < v_str);
     EXPECT_TRUE(sv1 <= v_str);
-    
+
     // 空视图测试
     std::string_view empty_sv;
-    variant v_empty("");
-    
+    variant          v_empty("");
+
     EXPECT_TRUE(v_empty == empty_sv);
     EXPECT_TRUE(empty_sv == v_empty);
     EXPECT_FALSE(v_str == empty_sv);
@@ -622,37 +623,37 @@ TEST_F(VariantComparisonTest, ComplexNestedStructureComparison) {
     // 创建深度嵌套的结构
     mutable_dict level3_1 = {{"name", "inner"}, {"value", 42}};
     mutable_dict level3_2 = {{"name", "inner"}, {"value", 43}};
-    
+
     mutable_dict level2_1 = {{"data", level3_1}, {"index", 1}};
     mutable_dict level2_2 = {{"data", level3_2}, {"index", 1}};
-    
+
     mutable_dict level1_1 = {{"nested", level2_1}, {"top", true}};
     mutable_dict level1_2 = {{"nested", level2_2}, {"top", true}};
-    
+
     variant v1(level1_1);
     variant v2(level1_2);
-    
+
     // 由于内部值不同，两个variant应该不相等
     EXPECT_NE(v1, v2);
-    
+
     // 使结构完全相同
     level3_2["value"] = 42;
     variant v3(level1_2);
     EXPECT_EQ(v1, v3);
-    
+
     // 测试包含数组的嵌套结构
     variants arr1 = {1, "string", level3_1};
     variants arr2 = {1, "string", level3_2};
-    
+
     level1_1["array"] = arr1;
     level1_2["array"] = arr2;
-    
+
     variant v4(level1_1);
     variant v5(level1_2);
     EXPECT_EQ(v4, v5);
-    
+
     // 修改内部数组，测试比较结果
-    arr2[1] = "different";
+    arr2[1]           = "different";
     level1_2["array"] = arr2;
     variant v6(level1_2);
     EXPECT_NE(v4, v6);
@@ -664,23 +665,23 @@ TEST_F(VariantComparisonTest, ComplexNestedStructureComparison) {
 TEST_F(VariantComparisonTest, SpecialStringComparison) {
     // 包含特殊字符的字符串
     std::string special_chars = "Special chars: \n\t\r\b\f\\\"\'";
-    variant v_special(special_chars);
+    variant     v_special(special_chars);
     EXPECT_EQ(v_special, special_chars);
-    
+
     // 包含二进制零的字符串
-    const char bin_zero[] = "binary\0zero";
+    const char  bin_zero[] = "binary\0zero";
     std::string bin_zero_str(bin_zero, sizeof(bin_zero) - 1);
-    variant v_bin_zero(bin_zero_str);
+    variant     v_bin_zero(bin_zero_str);
     EXPECT_EQ(v_bin_zero, bin_zero_str);
-    
+
     // 非常长的字符串
     std::string long_string(10000, 'a');
-    variant v_long(long_string);
+    variant     v_long(long_string);
     EXPECT_EQ(v_long, long_string);
-    
+
     // Unicode字符串
     std::string unicode = "Unicode: 中文 Русский नमस्ते";
-    variant v_unicode(unicode);
+    variant     v_unicode(unicode);
     EXPECT_EQ(v_unicode, unicode);
     EXPECT_TRUE(v_unicode < unicode + "a");
     EXPECT_TRUE(v_unicode > unicode.substr(0, unicode.size() - 1));
@@ -691,17 +692,17 @@ TEST_F(VariantComparisonTest, SpecialStringComparison) {
  */
 TEST_F(VariantComparisonTest, CharacterUpgradeInComparison) {
     variant v_char('A');
-    
+
     // 与数字比较
     EXPECT_TRUE(v_char == 65);
     EXPECT_TRUE(65 == v_char);
     EXPECT_TRUE(v_char < 66);
     EXPECT_TRUE(64 < v_char);
-    
+
     // 与其他字符比较
     EXPECT_TRUE(v_char < 'B');
     EXPECT_TRUE('Z' > v_char);
-    
+
     // 与不同类型的数值比较
     EXPECT_TRUE(v_char == int8_t(65));
     EXPECT_TRUE(v_char == uint8_t(65));
@@ -711,11 +712,11 @@ TEST_F(VariantComparisonTest, CharacterUpgradeInComparison) {
     EXPECT_TRUE(v_char == uint32_t(65));
     EXPECT_TRUE(v_char == int64_t(65));
     EXPECT_TRUE(v_char == uint64_t(65));
-    
+
     // 与浮点数比较
     EXPECT_TRUE(v_char == 65.0f);
     EXPECT_TRUE(v_char == 65.0);
-    
+
     // 异常情况
     EXPECT_THROW({ bool result = v_char < "A"; }, mc::invalid_op_exception);
     EXPECT_THROW({ bool result = v_char > "Z"; }, mc::invalid_op_exception);
@@ -726,34 +727,34 @@ TEST_F(VariantComparisonTest, CharacterUpgradeInComparison) {
  */
 TEST_F(VariantComparisonTest, DictComparisonExtended) {
     // 创建具有相同键值的dict和mutable_dict
-    dict dict1 = {{"key1", 1}, {"key2", "value"}, {"key3", true}};
+    dict         dict1  = {{"key1", 1}, {"key2", "value"}, {"key3", true}};
     mutable_dict mdict1 = {{"key1", 1}, {"key2", "value"}, {"key3", true}};
-    
+
     variant v_dict(dict1);
-    
+
     // 测试dict和mutable_dict之间的相等性
     EXPECT_TRUE(v_dict == dict1);
     EXPECT_TRUE(v_dict == mdict1);
     EXPECT_TRUE(dict1 == v_dict);
     EXPECT_TRUE(mdict1 == v_dict);
-    
+
     // 修改mutable_dict并测试
     mdict1["key1"] = 2;
     EXPECT_FALSE(v_dict == mdict1);
-    
+
     // 测试键顺序不同的字典
     dict dict2 = {{"key3", true}, {"key1", 1}, {"key2", "value"}};
     EXPECT_TRUE(v_dict == dict2); // 键的顺序不应该影响相等性
-    
+
     // 测试嵌套字典
     dict nested1 = {{"inner", dict1}};
     dict nested2 = {{"inner", dict2}};
-    
+
     variant v_nested1(nested1);
     variant v_nested2(nested2);
-    
+
     EXPECT_TRUE(v_nested1 == v_nested2);
-    
+
     // 与数值类型比较时应抛出异常
     variant v_number(42);
     EXPECT_THROW({ bool result = v_dict < v_number; }, mc::invalid_op_exception);
@@ -766,17 +767,17 @@ TEST_F(VariantComparisonTest, DictComparisonExtended) {
 
 /**
  * @brief 测试NaN值的比较行为
- * 
+ *
  * 注意：C++标准对NaN的比较定义如下：
  * 1. NaN与任何值（包括它自己）比较（<, >, <=, >=）都返回false
  * 2. NaN与任何值（包括它自己）相等比较（==）返回false
  * 3. NaN与任何值（包括它自己）不等比较（!=）返回true
  */
 TEST_F(VariantComparisonTest, NaNComparisonBehavior) {
-    double nan_value = std::numeric_limits<double>::quiet_NaN();
+    double  nan_value = std::numeric_limits<double>::quiet_NaN();
     variant v_nan(nan_value);
     variant v_number(42.0);
-    
+
     // NaN与普通数值比较 - variant < 值
     EXPECT_FALSE(v_nan < v_number);
     EXPECT_FALSE(v_nan > v_number);
@@ -784,7 +785,7 @@ TEST_F(VariantComparisonTest, NaNComparisonBehavior) {
     EXPECT_FALSE(v_nan >= v_number);
     EXPECT_FALSE(v_nan == v_number);
     EXPECT_TRUE(v_nan != v_number);
-    
+
     // NaN与NaN比较 - variant == variant
     variant v_nan2(nan_value);
     EXPECT_FALSE(v_nan == v_nan2);
@@ -793,7 +794,7 @@ TEST_F(VariantComparisonTest, NaNComparisonBehavior) {
     EXPECT_FALSE(v_nan > v_nan2);
     EXPECT_FALSE(v_nan <= v_nan2);
     EXPECT_FALSE(v_nan >= v_nan2);
-    
+
     // 与常量直接比较 - variant op 常量
     EXPECT_FALSE(v_nan < 0.0);
     EXPECT_FALSE(v_nan > 0.0);
@@ -807,9 +808,9 @@ TEST_F(VariantComparisonTest, NaNComparisonBehavior) {
  * @brief 测试NaN值的友元比较函数
  */
 TEST_F(VariantComparisonTest, NaNFriendComparisonOperators) {
-    double nan_value = std::numeric_limits<double>::quiet_NaN();
+    double  nan_value = std::numeric_limits<double>::quiet_NaN();
     variant v_nan(nan_value);
-    
+
     // 常量在左侧的比较 - 常量 op variant
     EXPECT_FALSE(0.0 < v_nan);
     EXPECT_FALSE(0.0 > v_nan);
@@ -817,7 +818,7 @@ TEST_F(VariantComparisonTest, NaNFriendComparisonOperators) {
     EXPECT_FALSE(0.0 >= v_nan);
     EXPECT_FALSE(0.0 == v_nan);
     EXPECT_TRUE(0.0 != v_nan);
-    
+
     // 不同类型的数值与NaN比较
     EXPECT_FALSE(42 < v_nan);
     EXPECT_FALSE(42 > v_nan);
@@ -825,7 +826,7 @@ TEST_F(VariantComparisonTest, NaNFriendComparisonOperators) {
     EXPECT_FALSE(42 >= v_nan);
     EXPECT_FALSE(42 == v_nan);
     EXPECT_TRUE(42 != v_nan);
-    
+
     // 浮点类型的NaN与variant比较
     EXPECT_FALSE(nan_value < v_nan);
     EXPECT_FALSE(nan_value > v_nan);
@@ -844,14 +845,14 @@ TEST_F(VariantComparisonTest, BlobComparisonOperators) {
     blob b2{{1, 2, 4}};
     blob b3{{1, 2, 3, 4}};
     blob b4{{1, 2}};
-    
+
     variant v_blob1(b1);
-    
+
     // blob与blob比较
     EXPECT_TRUE(v_blob1 == b1);
     EXPECT_FALSE(v_blob1 == b2);
     EXPECT_TRUE(v_blob1 != b2);
-    
+
     // blob的大小比较
     EXPECT_TRUE(v_blob1 < b2);  // 相同长度，但内容小
     EXPECT_TRUE(v_blob1 < b3);  // 长度更短
@@ -860,23 +861,23 @@ TEST_F(VariantComparisonTest, BlobComparisonOperators) {
     EXPECT_TRUE(v_blob1 <= b2); // 小于
     EXPECT_TRUE(v_blob1 >= b1); // 相等
     EXPECT_TRUE(v_blob1 >= b4); // 大于
-    
+
     // 比较不同长度
     variant v_blob3(b3);
     variant v_blob4(b4);
     EXPECT_TRUE(v_blob1 < v_blob3);
     EXPECT_TRUE(v_blob1 > v_blob4);
-    
+
     // 比较相同长度不同内容
     variant v_blob2(b2);
     EXPECT_TRUE(v_blob1 < v_blob2);
     EXPECT_TRUE(v_blob2 > v_blob1);
-    
+
     // 与字符串比较
     std::string str1 = "\x01\x02\x03";
     EXPECT_TRUE(v_blob1 == str1);
     EXPECT_TRUE(str1 == v_blob1);
-    
+
     std::string str2 = "\x01\x02\x04";
     EXPECT_TRUE(v_blob1 < str2);
     EXPECT_TRUE(str2 > v_blob1);
@@ -888,25 +889,25 @@ TEST_F(VariantComparisonTest, BlobComparisonOperators) {
 TEST_F(VariantComparisonTest, BlobFriendComparisonOperators) {
     blob b1{{1, 2, 3}};
     blob b2{{1, 2, 4}};
-    
+
     variant v_blob1(b1);
-    
+
     // blob在左边的比较
     EXPECT_TRUE(b1 == v_blob1);
     EXPECT_FALSE(b2 == v_blob1);
     EXPECT_TRUE(b2 != v_blob1);
-    
+
     // blob的大小比较 - blob op variant
     EXPECT_TRUE(b1 <= v_blob1);
     EXPECT_TRUE(b1 >= v_blob1);
     EXPECT_FALSE(b1 < v_blob1);
     EXPECT_FALSE(b1 > v_blob1);
-    
+
     EXPECT_TRUE(b2 > v_blob1);
     EXPECT_TRUE(b2 >= v_blob1);
     EXPECT_FALSE(b2 < v_blob1);
     EXPECT_FALSE(b2 <= v_blob1);
-    
+
     // 与其他variant比较
     variant v_int(42);
     EXPECT_THROW({ bool result = b1 < v_int; }, mc::invalid_op_exception);
