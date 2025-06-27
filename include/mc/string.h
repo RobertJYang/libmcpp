@@ -627,6 +627,73 @@ bool get_format_args(std::string_view format, mc::dict& arg_names);
 
 bool is_valid_utf8(std::string_view s);
 
+/**
+ * @brief 字符串分割迭代器
+ * 用于高效地遍历分隔符分割的字符串片段
+ */
+class split_iterator {
+public:
+    using iterator_category = std::forward_iterator_tag;
+    using value_type        = std::string_view;
+    using difference_type   = std::ptrdiff_t;
+
+    /**
+     * @brief 默认构造函数，构造一个结束迭代器
+     */
+    split_iterator() noexcept {
+    }
+
+    /**
+     * @brief 构造函数
+     * @param str 要分割的字符串
+     * @param delims 分隔符集合，其中的任意字符都视为分隔符
+     */
+    split_iterator(std::string_view str, std::string_view delims = " ") noexcept
+        : m_str(str), m_delims(delims) {
+        find_next();
+    }
+
+    value_type operator*() const noexcept {
+        return std::string_view(m_str.data() + m_pos, m_end - m_pos);
+    }
+
+    value_type operator->() const noexcept {
+        return operator*();
+    }
+
+    split_iterator& operator++() noexcept;
+    split_iterator  operator++(int) noexcept;
+
+    bool operator==(const split_iterator& other) const noexcept {
+        if (is_end() && other.is_end()) {
+            return true;
+        } else if (is_end() || other.is_end()) {
+            return false;
+        }
+        return m_str.data() == other.m_str.data() && m_pos == other.m_pos;
+    }
+
+    bool operator!=(const split_iterator& other) const noexcept {
+        return !(*this == other);
+    }
+
+    bool is_end() const noexcept {
+        return m_pos >= m_str.size();
+    }
+
+    static split_iterator end() noexcept {
+        return split_iterator();
+    }
+
+private:
+    void find_next() noexcept;
+
+    std::string_view m_str;    ///< 要分割的字符串
+    std::string_view m_delims; ///< 分隔符集合
+    std::size_t      m_pos{0}; ///< 当前片段的起始位置
+    std::size_t      m_end{0}; ///< 当前片段的结束位置
+};
+
 } // namespace string
 
 /**

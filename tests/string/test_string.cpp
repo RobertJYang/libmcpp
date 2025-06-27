@@ -362,5 +362,140 @@ TEST_F(StringTest, ConcatTest) {
     ASSERT_EQ(concat(std::vector<std::string>{"a", "b", "c", "d", "e"}), "abcde");
 }
 
+TEST_F(StringTest, SplitIteratorTest) {
+    // 测试空字符串
+    {
+        std::string_view str;
+        auto             it = split_iterator(str, ".");
+        EXPECT_EQ(it, split_iterator::end());
+    }
+
+    // 测试单个分隔符
+    {
+        std::string_view              str = "a.b.c";
+        std::vector<std::string_view> parts;
+        for (auto it = split_iterator(str, "."); it != split_iterator::end(); ++it) {
+            parts.push_back(*it);
+        }
+        ASSERT_EQ(parts.size(), 3);
+        EXPECT_EQ(parts[0], "a");
+        EXPECT_EQ(parts[1], "b");
+        EXPECT_EQ(parts[2], "c");
+    }
+
+    // 测试多个分隔符
+    {
+        std::string_view              str = "a::b.c::d";
+        std::vector<std::string_view> parts;
+        for (auto it = split_iterator(str, ".:"); it != split_iterator::end(); ++it) {
+            parts.push_back(*it);
+        }
+        ASSERT_EQ(parts.size(), 4);
+        EXPECT_EQ(parts[0], "a");
+        EXPECT_EQ(parts[1], "b");
+        EXPECT_EQ(parts[2], "c");
+        EXPECT_EQ(parts[3], "d");
+    }
+
+    // 测试连续分隔符
+    {
+        std::string_view              str = "a...b::c";
+        std::vector<std::string_view> parts;
+        for (auto it = split_iterator(str, ".:"); it != split_iterator::end(); ++it) {
+            parts.push_back(*it);
+        }
+        ASSERT_EQ(parts.size(), 3);
+        EXPECT_EQ(parts[0], "a");
+        EXPECT_EQ(parts[1], "b");
+        EXPECT_EQ(parts[2], "c");
+    }
+
+    // 测试边界情况
+    {
+        std::string_view              str = "..a..b..";
+        std::vector<std::string_view> parts;
+        for (auto it = split_iterator(str, "."); it != split_iterator::end(); ++it) {
+            parts.push_back(*it);
+        }
+        ASSERT_EQ(parts.size(), 2);
+        EXPECT_EQ(parts[0], "a");
+        EXPECT_EQ(parts[1], "b");
+    }
+}
+
+TEST(string, split_iterator) {
+    // 基本分割测试
+    {
+        std::string                   str = "a.b.c";
+        std::vector<std::string_view> parts;
+        for (auto it = split_iterator(str, "."); it != split_iterator::end(); ++it) {
+            parts.push_back(*it);
+        }
+        ASSERT_EQ(parts.size(), 3);
+        ASSERT_EQ(parts[0], "a");
+        ASSERT_EQ(parts[1], "b");
+        ASSERT_EQ(parts[2], "c");
+    }
+
+    // 多个分隔符测试
+    {
+        std::string                   str = "a.b:c";
+        std::vector<std::string_view> parts;
+        for (auto it = split_iterator(str, ".:"); it != split_iterator::end(); ++it) {
+            parts.push_back(*it);
+        }
+        ASSERT_EQ(parts.size(), 3);
+        ASSERT_EQ(parts[0], "a");
+        ASSERT_EQ(parts[1], "b");
+        ASSERT_EQ(parts[2], "c");
+    }
+
+    // 连续分隔符测试
+    {
+        std::string                   str = "a..b:::c";
+        std::vector<std::string_view> parts;
+        for (auto it = split_iterator(str, ".:"); it != split_iterator::end(); ++it) {
+            parts.push_back(*it);
+        }
+        ASSERT_EQ(parts.size(), 3);
+        ASSERT_EQ(parts[0], "a");
+        ASSERT_EQ(parts[1], "b");
+        ASSERT_EQ(parts[2], "c");
+    }
+
+    // 空字符串测试
+    {
+        std::string                   str = "";
+        std::vector<std::string_view> parts;
+        for (auto it = split_iterator(str, "."); it != split_iterator::end(); ++it) {
+            parts.push_back(*it);
+        }
+        ASSERT_TRUE(parts.empty());
+    }
+
+    // 只有分隔符的字符串测试
+    {
+        std::string                   str = "...:::";
+        std::vector<std::string_view> parts;
+        for (auto it = split_iterator(str, ".:"); it != split_iterator::end(); ++it) {
+            parts.push_back(*it);
+        }
+        ASSERT_TRUE(parts.empty());
+    }
+
+    // 前后有分隔符的字符串测试
+    {
+        std::string                   str = "..a:b..c::";
+        std::vector<std::string_view> parts;
+        for (auto it = split_iterator(str, ".:"); it != split_iterator::end(); ++it) {
+            parts.push_back(*it);
+        }
+        ASSERT_EQ(parts.size(), 3);
+        ASSERT_EQ(parts[0], "a");
+        ASSERT_EQ(parts[1], "b");
+        ASSERT_EQ(parts[2], "c");
+    }
+}
+
 } // namespace test
 } // namespace mc
