@@ -446,6 +446,42 @@ void fixed_width_append(std::string& result, size_t width, std::string_view s, b
     }
 }
 
+static std::size_t skip_delims(std::string_view str, std::size_t pos, std::string_view delims) {
+    while (pos < str.size() && delims.find(str[pos]) != std::string_view::npos) {
+        ++pos;
+    }
+    return pos;
+}
+
+static std::size_t find_next_delim(std::string_view str, std::size_t pos, std::string_view delims) {
+    while (pos < str.size() && delims.find(str[pos]) == std::string_view::npos) {
+        ++pos;
+    }
+    return pos;
+}
+
+void split_iterator::find_next() noexcept {
+    // 跳过当前片段
+    m_pos = m_end;
+
+    // 跳过连续的分隔符
+    m_pos = skip_delims(m_str, m_pos, m_delims);
+
+    // 找到下一个分隔符
+    m_end = find_next_delim(m_str, m_pos, m_delims);
+}
+
+split_iterator& split_iterator::operator++() noexcept {
+    find_next();
+    return *this;
+}
+
+split_iterator split_iterator::operator++(int) noexcept {
+    auto tmp = *this;
+    ++(*this);
+    return tmp;
+}
+
 } // namespace string
 
 // 验证键名是否合法（只能包含字母、数字、下划线，且只能以字母和下划线开头）
