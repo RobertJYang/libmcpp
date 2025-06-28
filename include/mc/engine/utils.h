@@ -38,11 +38,11 @@ struct filter_interface {
 constexpr std::size_t max_name_length = 255;
 
 constexpr bool is_allowable_char(char c) {
-    return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_';
+    return is_identifier_char(c);
 }
 
 constexpr bool is_allowable_first_char(char c) {
-    return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z');
+    return is_first_identifier_char(c);
 }
 
 constexpr bool is_valid_interface_name(std::string_view name) {

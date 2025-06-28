@@ -17,7 +17,7 @@
 
 namespace mc::dbus {
 
-class watch : public mc::shared_base<watch> {
+class watch : public mc::enable_shared_from_this<watch> {
 public:
     template <typename Executor>
     watch(Executor& executor, DBusWatch* watch)

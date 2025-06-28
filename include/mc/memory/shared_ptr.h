@@ -23,7 +23,7 @@
 namespace mc::memory {
 
 /**
- * shared_ptr 智能指针，类似 std::shared_ptr 但专门用于管理 shared_base 对象
+ * shared_ptr 智能指针，类似 std::shared_ptr 但专门用于管理 enable_shared_from_this 对象
  */
 template <typename T, typename Deleter, typename PointerType>
 class shared_ptr {
@@ -289,9 +289,9 @@ private:
     template <typename U, typename DeleterU, typename UP>
     friend class weak_ptr;
 
-    // 允许 shared_base 访问私有构造函数
+    // 允许 enable_shared_from_this 访问私有构造函数
     template <typename U, typename UP, typename CounterType>
-    friend class shared_base;
+    friend class enable_shared_from_this;
 };
 
 template <typename T, typename Alloc = std::allocator<T>, typename... Args>

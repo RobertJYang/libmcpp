@@ -16,7 +16,7 @@
 #include <vector>
 
 // 测试用的简单类
-class test_object : public mc::shared_base<test_object> {
+class test_object : public mc::enable_shared_from_this<test_object> {
 public:
     test_object() : m_value(42) {
         ++s_construct_count;
@@ -366,7 +366,7 @@ TEST_F(SharedPtrBasicTest, LifecycleManagement) {
 class circular_test_a;
 class circular_test_b;
 
-class circular_test_a : public mc::shared_base<circular_test_a> {
+class circular_test_a : public mc::enable_shared_from_this<circular_test_a> {
 public:
     mc::shared_ptr<circular_test_b> m_b_ptr;
 
@@ -385,7 +385,7 @@ private:
     static int s_destruct_count;
 };
 
-class circular_test_b : public mc::shared_base<circular_test_b> {
+class circular_test_b : public mc::enable_shared_from_this<circular_test_b> {
 public:
     mc::shared_ptr<circular_test_a> m_a_ptr;
 

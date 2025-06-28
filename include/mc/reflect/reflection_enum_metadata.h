@@ -36,7 +36,7 @@ class reflection_enum_metadata : public reflection_metadata_base {
     static_assert(std::is_enum_v<EnumType>, "EnumType must be an enum type");
 
 public:
-    using metadata_ptr = std::shared_ptr<reflection_enum_metadata<EnumType>>;
+    using metadata_ptr = mc::shared_ptr<reflection_enum_metadata<EnumType>>;
 
     /**
      * @brief 获取单例实例
@@ -52,6 +52,8 @@ public:
             return new metadata_ptr(new reflection_enum_metadata<EnumType>());
         });
     }
+
+    ~reflection_enum_metadata();
 
     /**
      * @brief 通过名称获取枚举值
@@ -110,11 +112,15 @@ public:
         return reflector<EnumType>::name();
     }
 
-    std::vector<int> get_base_type_ids() const override {
+    type_id_type get_type_id() const override {
+        return reflector<EnumType>::get_type_id();
+    }
+
+    std::vector<type_id_type> get_base_type_ids() const override {
         return {}; // 枚举类型没有基类
     }
 
-    bool is_derived_from(int base_type_id) const override {
+    bool is_derived_from(type_id_type base_type_id) const override {
         return false; // 枚举类型不继承任何类型
     }
 

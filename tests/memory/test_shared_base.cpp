@@ -16,8 +16,8 @@
 #include <mc/memory.h>
 #include <test_utilities/test_base.h>
 
-// 测试用的简单类，直接继承 shared_base
-class base_test_object : public mc::shared_base<base_test_object> {
+// 测试用的简单类，直接继承 enable_shared_from_this
+class base_test_object : public mc::enable_shared_from_this<base_test_object> {
 public:
     base_test_object() : m_value(0) {
         ++s_construct_count;
@@ -28,19 +28,23 @@ public:
     }
 
     // 拷贝构造函数
-    base_test_object(const base_test_object& other) : mc::shared_base<base_test_object>(other), m_value(other.m_value) {
+    base_test_object(const base_test_object& other)
+        : mc::enable_shared_from_this<base_test_object>(other),
+          m_value(other.m_value) {
         ++s_construct_count;
     }
 
     // 移动构造函数
-    base_test_object(base_test_object&& other) noexcept : mc::shared_base<base_test_object>(std::move(other)), m_value(other.m_value) {
+    base_test_object(base_test_object&& other) noexcept
+        : mc::enable_shared_from_this<base_test_object>(std::move(other)),
+          m_value(other.m_value) {
         ++s_construct_count;
     }
 
     // 拷贝赋值运算符
     base_test_object& operator=(const base_test_object& other) {
         if (this != &other) {
-            mc::shared_base<base_test_object>::operator=(other);
+            mc::enable_shared_from_this<base_test_object>::operator=(other);
             m_value = other.m_value;
         }
         return *this;
@@ -49,7 +53,7 @@ public:
     // 移动赋值运算符
     base_test_object& operator=(base_test_object&& other) noexcept {
         if (this != &other) {
-            mc::shared_base<base_test_object>::operator=(std::move(other));
+            mc::enable_shared_from_this<base_test_object>::operator=(std::move(other));
             m_value = other.m_value;
         }
         return *this;

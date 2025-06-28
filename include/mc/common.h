@@ -509,6 +509,40 @@ inline auto get_function_offset(F function)
     return u.offset;
 }
 
+/*
+ * 检查字符是否是合法的 identifier 字符
+ *
+ * 允许的字符包括：
+ * 1. 字母（a-z, A-Z）
+ * 2. 数字（0-9）
+ * 3. 下划线（_）
+ */
+constexpr bool is_identifier_char(char c) {
+    return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_';
+}
+
+constexpr bool is_first_identifier_char(char c) {
+    return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z');
+}
+
+constexpr bool is_identifier(std::string_view s) {
+    if (s.empty()) {
+        return false;
+    }
+
+    if (!is_first_identifier_char(s[0])) {
+        return false;
+    }
+
+    for (size_t i = 1; i < s.size(); i++) {
+        if (!is_identifier_char(s[i])) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
 } // namespace mc
 
 #endif // MC_COMMON_H

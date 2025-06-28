@@ -23,7 +23,7 @@
 namespace mc::memory {
 
 /**
- * weak_ptr 智能指针，类似 std::weak_ptr 但专门用于管理 shared_base 对象
+ * weak_ptr 智能指针，类似 std::weak_ptr 但专门用于管理 enable_shared_from_this 对象
  * 支持共享内存中的 offset_ptr
  */
 template <typename T, typename Deleter, typename PointerType>

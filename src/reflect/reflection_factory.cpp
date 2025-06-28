@@ -10,216 +10,298 @@
  * See the Mulan PSL v2 for more details.
  */
 
-#include <mc/exception.h>
-#include <mc/log.h>
-#include <mc/reflect/reflection_factory.h>
-#include <mc/reflect/reflection_metadata.h>
-#include <mc/singleton.h>
-#include <mc/string.h>
-
-using split_iterator = mc::string::split_iterator;
+#include "reflect/include/reflection_factory_impl.h"
 
 namespace mc::reflect {
 
-reflection_factory::~reflection_factory() {
-    m_data.with_lock([](auto& data) {
-        data.m_metadata.clear();
-        data.m_metadata_initializers.clear();
-        data.m_type_ids.clear();
-        data.m_root_module = module_node{};
+static std::optional<std::string_view> remove_prefix_if_matches(std::string_view text, std::string_view prefix) {
+    if (prefix.empty()) {
+        return text;
+    }
+
+    bool is_first_match = false;
+    auto text_it        = split_iterator(text, delims);
+    auto prefix_it      = split_iterator(prefix, delims);
+    while (!text_it.is_end() && !prefix_it.is_end()) {
+        if (*text_it != *prefix_it) {
+            if (is_first_match) {
+                return std::nullopt; // 部分前缀匹配，不允许
+            }
+
+            return text; // 第一个就不匹配，允许，整个放到 prefix 命名空间之下
+        }
+
+        ++text_it;
+        ++prefix_it;
+        is_first_match = true;
+    }
+
+    if (!prefix_it.is_end()) {
+        return std::nullopt; // 不允许，竟然在当前命名空间之上
+    }
+
+    if (text_it.is_end()) {
+        return std::string_view{}; // 完全匹配，返回一个空字符串，实际也不允许，因为不允许空类型名
+    }
+
+    return text_it.tail();
+}
+
+reflection_factory& reflection_factory::global() {
+    return *global_ptr();
+}
+
+factory_ptr& reflection_factory::global_ptr() {
+    return mc::singleton<factory_ptr, global_namespace>::instance_with_creator([]() {
+        return new factory_ptr(new reflection_factory(global_namespace::factory_name, true));
     });
 }
 
-reflection_metadata_ptr reflection_factory::get_metadata(int type_id) {
-    return m_data.with_lock([&](auto& data) {
-        return get_metadata_inner(type_id, data);
+factory_ptr reflection_factory::try_global_ptr() {
+    auto p = mc::singleton<factory_ptr, global_namespace>::try_get();
+    return p ? *p : factory_ptr();
+}
+
+reflection_factory::reflection_factory(std::string_view factory_name, bool is_global)
+    : m_impl(std::make_unique<impl>(factory_name, is_global)) {
+}
+
+reflection_factory::~reflection_factory() = default;
+
+reflection_metadata_ptr reflection_factory::get_metadata(type_id_type type_id) {
+    return m_impl->m_data.with_rlock([&](auto& data) {
+        return m_impl->get_metadata_by_id(type_id, data);
     });
 }
 
 reflection_metadata_ptr reflection_factory::get_metadata(std::string_view type_name) {
-    return m_data.with_lock([&](auto& data) -> reflection_metadata_ptr {
-        auto it = data.m_type_ids.find(type_name);
-        if (it == data.m_type_ids.end()) {
+    auto result = remove_prefix_if_matches(type_name, get_factory_name());
+    if (!result) {
+        return nullptr;
+    }
+
+    return m_impl->m_data.with_rlock([&](auto& data) {
+        return m_impl->get_metadata_by_name(*result, data);
+    });
+}
+
+reflected_object_ptr reflection_factory::try_create_object(type_id_type type_id) {
+    return m_impl->m_data.with_rlock([&](auto& data) -> reflected_object_ptr {
+        auto metadata = m_impl->get_metadata_by_id(type_id, data);
+        if (!metadata) {
             return nullptr;
         }
 
-        return get_metadata_inner(it->second, data);
+        return metadata->create_object();
     });
 }
 
-reflection_metadata_ptr reflection_factory::get_metadata_inner(int type_id, data_t& data) {
-    auto it = data.m_metadata.find(type_id);
-    if (it != data.m_metadata.end()) {
-        auto ptr = it->second.lock();
-        if (ptr) {
-            return ptr;
+reflected_object_ptr reflection_factory::try_create_object(std::string_view type_name) {
+    auto result = remove_prefix_if_matches(type_name, get_factory_name());
+    if (!result) {
+        return nullptr;
+    }
+
+    return m_impl->m_data.with_rlock([&](auto& data) -> reflected_object_ptr {
+        auto metadata = m_impl->get_metadata_by_name(*result, data);
+        if (!metadata) {
+            return nullptr;
         }
 
-        // 如果 metadata 被销毁，则删除该项
-        data.m_metadata.erase(it);
-        data.m_metadata_initializers.erase(type_id);
-        return nullptr;
-    }
-
-    // 延迟初始化 metadata
-    auto init_it = data.m_metadata_initializers.find(type_id);
-    if (init_it == data.m_metadata_initializers.end()) {
-        return nullptr;
-    }
-
-    auto metadata            = init_it->second();
-    data.m_metadata[type_id] = metadata;
-    return metadata;
+        return metadata->create_object();
+    });
 }
 
-reflected_object_ptr reflection_factory::create_object(int type_id) {
-    auto metadata = get_metadata(type_id);
-    if (!metadata) {
+reflected_object_ptr reflection_factory::create_object(type_id_type type_id) {
+    auto obj = try_create_object(type_id);
+    if (!obj) {
         MC_THROW(mc::bad_type_exception, "类型不存在: ${type_id}", ("type_id", type_id));
     }
-    return metadata->create_object();
+    return obj;
 }
 
 reflected_object_ptr reflection_factory::create_object(std::string_view type_name) {
-    auto type_id = get_type_id(type_name);
-    if (type_id == -1) {
+    auto obj = try_create_object(type_name);
+    if (!obj) {
         MC_THROW(mc::bad_type_exception, "类型不存在: ${type_name}", ("type_name", type_name));
     }
-    return create_object(type_id);
+    return obj;
 }
 
-int reflection_factory::get_type_id(std::string_view type_name) const {
-    return m_data.with_lock([&](auto& data) {
-        auto it = data.m_type_ids.find(type_name);
-        return it != data.m_type_ids.end() ? it->second : -1;
+type_id_type reflection_factory::get_type_id(std::string_view type_name) const {
+    auto result = remove_prefix_if_matches(type_name, get_factory_name());
+    if (!result) {
+        return INVALID_TYPE_ID;
+    }
+
+    return m_impl->m_data.with_rlock([&](auto& data) {
+        auto metadata = m_impl->get_metadata_by_name(*result, data);
+        if (!metadata) {
+            return INVALID_TYPE_ID;
+        }
+
+        return metadata->get_type_id();
     });
 }
 
-std::vector<std::string_view> reflection_factory::get_registered_types() const {
-    return m_data.with_lock([&](auto& data) {
-        std::vector<std::string_view> types;
-        for (const auto& [name, _] : data.m_type_ids) {
-            types.push_back(name);
-        }
+std::vector<std::string> reflection_factory::get_registered_types() const {
+    return m_impl->m_data.with_rlock([&](auto& data) {
+        std::vector<std::string> types;
+        m_impl->get_registered_types(data, types, std::string(get_factory_name()));
         return types;
     });
 }
 
-int reflection_factory::register_type(std::string_view type_name, metadata_creator&& creator) {
-    return m_data.with_lock([&](auto& data) {
-        auto it = data.m_type_ids.find(type_name);
-        if (it != data.m_type_ids.end()) {
-            wlog("类型已注册: ${type_name}", ("type_name", type_name));
-            return it->second;
-        }
-
-        int new_id                 = data.m_next_type_id++;
-        data.m_type_ids[type_name] = new_id;
-
-        // 延迟初始化 metadata
-        data.m_metadata_initializers[new_id] = std::move(creator);
-        return new_id;
-    });
-}
-
-std::vector<std::pair<std::string, int>> reflection_factory::get_module_types(std::string_view module_path) const {
-    return m_data.with_lock([&](auto& data) -> std::vector<std::pair<std::string, int>> {
-        auto* node = find_module_node(module_path, const_cast<module_node&>(data.m_root_module));
+std::vector<std::pair<std::string, type_id_type>>
+reflection_factory::get_module_types(std::string_view module_path) const {
+    return m_impl->m_data.with_rlock([&](auto& data) -> std::vector<std::pair<std::string, type_id_type>> {
+        auto* node = m_impl->find_module_node(module_path, *data.m_root_module);
         if (!node) {
             return {};
         }
 
-        std::vector<std::pair<std::string, int>> result;
-        result.reserve(node->types.size());
-        for (const auto& [name, type_id] : node->types) {
-            result.emplace_back(name, type_id);
-        }
-        return result;
+        return node->get_module_types(data.m_factory_id);
     });
 }
 
-std::vector<std::string> reflection_factory::get_all_module_paths() const {
-    return m_data.with_lock([&](auto& data) {
+std::vector<std::string> reflection_factory::get_module_paths() const {
+    return m_impl->m_data.with_rlock([&](auto& data) {
         std::vector<std::string> paths;
-        collect_module_paths(data.m_root_module, "", paths);
+        m_impl->collect_module_paths(
+            data, *data.m_root_module, std::string(get_factory_name()), paths);
         return paths;
     });
 }
 
 bool reflection_factory::has_module(std::string_view module_path) const {
-    return m_data.with_lock([&](auto& data) {
-        return find_module_node(module_path, const_cast<module_node&>(data.m_root_module)) != nullptr;
+    return m_impl->m_data.with_rlock([&](auto& data) {
+        return m_impl->find_module_node(module_path, *data.m_root_module) != nullptr;
     });
 }
 
-void reflection_factory::register_to_module_tree(std::string_view full_name, int type_id) {
-    m_data.with_lock([&](auto& data) {
-        module_node* current_node = &data.m_root_module;
-        auto         it           = split_iterator(full_name, ".:");
-        while (!it.is_end()) {
-            auto name = *it;
-            ++it;
-            if (it.is_end()) {
-                current_node->types.emplace(name, type_id);
-                break;
-            }
+factory_id_type reflection_factory::register_factory(factory_ptr factory) {
+    auto sub_factory_name = factory->get_factory_name();
+    if (sub_factory_name.empty()) {
+        wlog("注册反射模块失败：子模块名不能为空");
+        return INVALID_FACTORY_ID;
+    }
 
-            auto& submodules = current_node->submodules;
-            auto  sub_it     = submodules.find(name);
-            if (sub_it == submodules.end()) {
-                sub_it = submodules.emplace(name, std::make_unique<module_node>()).first;
-            }
-            current_node = sub_it->second.get();
-        }
+    auto result = remove_prefix_if_matches(sub_factory_name, get_factory_name());
+    if (!result) {
+        wlog("注册反射模块失败：子模块名=${sub_factory_name} 不匹配当前模块名=${factory_name}",
+             ("sub_factory_name", sub_factory_name)("factory_name", get_factory_name()));
+        return INVALID_FACTORY_ID;
+    } else if (result->empty()) {
+        wlog("注册反射模块失败：子模块名不能和当前模块名相同, 子模块名=${sub_factory_name}",
+             ("sub_factory_name", sub_factory_name));
+        return INVALID_FACTORY_ID;
+    }
+
+    // 去掉模块名前缀后，注册到当前模块命名空间中
+    auto factory_id = m_impl->register_factory(*result, factory);
+    if (factory_id == INVALID_FACTORY_ID) {
+        wlog("注册反射模块失败：子模块名=${sub_factory_name} 已存在", ("sub_factory_name", sub_factory_name));
+        return INVALID_FACTORY_ID;
+    }
+
+    dlog("注册反射模块成功：当前模块名=${factory_name}, 子模块名=${sub_factory_name}, 模块ID=${factory_id}",
+         ("factory_name", m_impl->get_pretty_name()) // 当前模块名
+         ("sub_factory_name", sub_factory_name)      // 子模块名
+         ("factory_id", factory_id));                // 模块ID
+    return factory_id;
+}
+
+void reflection_factory::unregister_factory(std::string_view factory_name) {
+    if (m_impl->unregister_factory(factory_name)) {
+        dlog("注销反射模块: 当前模块名=${factory_name}, 子模块名=${sub_factory_name}",
+             ("factory_name", m_impl->get_pretty_name()) // 当前模块名
+             ("sub_factory_name", factory_name));        // 子模块名
+    }
+}
+
+factory_ptr reflection_factory::get_factory(std::string_view factory_name) const {
+    return m_impl->m_data.with_rlock([&](auto& data) -> factory_ptr {
+        auto it = data.m_factories.find(factory_name);
+        return it != data.m_factories.end() ? it->second->factory.lock() : nullptr;
     });
 }
 
-module_node* reflection_factory::find_module_node(std::string_view path, module_node& root) const {
-    if (path.empty()) {
-        return &root;
-    }
-
-    module_node* current = &root;
-    for (auto it = split_iterator(path, ".:"); it != split_iterator::end(); ++it) {
-        auto sub_it = current->submodules.find(*it);
-        if (sub_it == current->submodules.end()) {
-            return nullptr;
+std::vector<std::string_view> reflection_factory::get_factory_names() const {
+    return m_impl->m_data.with_rlock([&](auto& data) {
+        std::vector<std::string_view> names;
+        names.reserve(data.m_factories.size());
+        for (const auto& [name, _] : data.m_factories) {
+            names.push_back(name);
         }
-        current = sub_it->second.get();
-    }
-
-    return current;
+        return names;
+    });
 }
 
-void reflection_factory::collect_module_paths(const module_node&        node,
-                                              const std::string&        current_path,
-                                              std::vector<std::string>& paths) const {
-    // 如果当前是叶子节点(有类型的节点)，则添加当前路径
-    if (!node.types.empty() && !current_path.empty()) {
-        paths.push_back(current_path);
+std::string_view reflection_factory::get_factory_name() const {
+    return m_impl->m_factory_name;
+}
+
+type_id_type reflection_factory::register_type_impl(std::string_view type_name, std::function<reflection_metadata_ptr()>&& creator) {
+    if (type_name.empty()) {
+        wlog("注册类型失败：类型名不能为空");
+        return INVALID_TYPE_ID;
     }
 
-    // 递归遍历子模块
-    for (const auto& [name, subnode] : node.submodules) {
-        std::string child_path;
-        if (current_path.empty()) {
-            child_path = name;
-        } else {
-            child_path = current_path;
-            child_path += ".";
-            child_path += name;
-        }
-        collect_module_paths(*subnode, child_path, paths);
+    auto result = remove_prefix_if_matches(type_name, get_factory_name());
+    if (!result) {
+        wlog("注册类型失败：类型名=${type_name} 不匹配模块名=${factory_name}",
+             ("type_name", type_name)("factory_name", get_factory_name()));
+        return INVALID_TYPE_ID;
+    } else if (result->empty()) {
+        wlog("注册类型失败：类型名不能和模块名相同, 类型名=${type_name}",
+             ("type_name", type_name));
+        return INVALID_TYPE_ID;
+    }
+
+    // 去掉模块名前缀后，注册到当前模块命名空间中
+    auto type_id = m_impl->register_type(*result, std::move(creator));
+    if (type_id == INVALID_TYPE_ID) {
+        wlog("注册类型失败：类型名=${type_name} 已存在", ("type_name", type_name));
+        return INVALID_TYPE_ID;
+    }
+
+    dlog("注册类型成功：模块名=${factory_name}, 类型名=${type_name}, 类型ID=${type_id}",
+         ("factory_name", get_factory_name())("type_name", *result)("type_id", type_id));
+    return type_id;
+}
+
+void reflection_factory::unregister_type_impl(std::string_view type_name) {
+    if (type_name.empty()) {
+        return;
+    }
+
+    auto result = remove_prefix_if_matches(type_name, get_factory_name());
+    if (!result || result->empty()) {
+        return;
+    }
+
+    if (m_impl->unregister_type(*result)) {
+        dlog("注销类型: 当前模块名=${factory_name}, 类型名=${type_name}",
+             ("factory_name", m_impl->get_pretty_name()) // 当前模块名
+             ("type_name", type_name));                  // 类型名
     }
 }
 
 // 全局便利函数实现
-reflected_object_ptr create_object(int type_id) {
-    return reflection_factory::instance().create_object(type_id);
+reflected_object_ptr try_create_object(type_id_type type_id) {
+    return reflection_factory::global().try_create_object(type_id);
+}
+
+reflected_object_ptr try_create_object(std::string_view type_name) {
+    return reflection_factory::global().try_create_object(type_name);
+}
+
+reflected_object_ptr create_object(type_id_type type_id) {
+    return reflection_factory::global().create_object(type_id);
 }
 
 reflected_object_ptr create_object(std::string_view type_name) {
-    return reflection_factory::instance().create_object(type_name);
+    return reflection_factory::global().create_object(type_name);
 }
 
 } // namespace mc::reflect

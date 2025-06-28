@@ -18,7 +18,7 @@
 #include <mc/memory/allocator.h>
 
 /**
- * @file shared_base.h
+ * @file shared_counter.h
  * @brief MC 智能指针基础设施
  *
  * 本文件定义了 MC 库的智能指针基础类 shared_base，配合 shared_ptr 和 weak_ptr
@@ -43,7 +43,7 @@
  * - 与MC库的其他组件（如 variant、dict）无缝集成
  * - 提供统一的内存管理语义
  *
- * shared_base 实现的功能与 std::enable_shared_from_this 类似，但做了一些修改：
+ * enable_shared_from_this 实现的功能与 std::enable_shared_from_this 类似，但做了一些修改：
  * 1. 初始化引用计数为 INVALID 表示对象未被管理。
  * 2. 初始化过程中允许创建 weak_ptr，并确保 weak_ptr 不会误销毁未管理的对象。
  * 3. 延迟 shared_ptr 构造，可以从未管理对象的指针直接构造 shared_ptr。
@@ -65,7 +65,7 @@
  *
  * ```cpp
  * // 定义业务类
- * class MyClass : public mc::shared_base<MyClass> {
+ * class MyClass : public mc::enable_shared_from_this<MyClass> {
  *     // 业务逻辑...
  * };
  *
@@ -93,39 +93,37 @@ namespace detail {
 } // namespace detail
 
 /**
- * 引用计数基类，提供引用计数管理能力
+ * 共享计数器，提供引用计数管理能力
  * 支持强引用和弱引用，适用于共享内存场景
- *
+ * 作为智能指针的控制块，管理对象的生命周期
  */
-template <typename T, typename PointerType = T*, typename CounterType = uint32_t>
-class shared_base {
+template <typename CounterType = uint32_t>
+class shared_counter {
 public:
-    using element_type       = T;
-    using pointer_type       = PointerType;
     using counter_type       = CounterType;
     using atomic_counter_ref = mc::atomic_ref<counter_type>;
 
     static constexpr counter_type INVALID   = std::numeric_limits<counter_type>::max();
     static constexpr counter_type DESTROYED = 0;
 
-    shared_base() : m_ref_count(INVALID), m_weak_count(0) {
+    shared_counter() : m_ref_count(INVALID), m_weak_count(0) {
     }
 
-    virtual ~shared_base() {
+    virtual ~shared_counter() {
     }
 
-    shared_base(const shared_base&) : m_ref_count(INVALID), m_weak_count(0) {
+    shared_counter(const shared_counter&) : m_ref_count(INVALID), m_weak_count(0) {
     }
 
-    shared_base& operator=(const shared_base&) {
+    shared_counter& operator=(const shared_counter&) {
         // 赋值操作不改变引用计数和管理状态
         return *this;
     }
 
-    shared_base(shared_base&&) noexcept : m_ref_count(INVALID), m_weak_count(0) {
+    shared_counter(shared_counter&&) noexcept : m_ref_count(INVALID), m_weak_count(0) {
     }
 
-    shared_base& operator=(shared_base&&) noexcept {
+    shared_counter& operator=(shared_counter&&) noexcept {
         // 赋值操作不改变引用计数和管理状态
         return *this;
     }
@@ -207,7 +205,43 @@ public:
     }
 
     /**
-     * @brief 安全地获取 shared_ptr，类似 std::shared_base
+     * @brief 检查对象是否已被智能指针管理
+     */
+    bool is_managed() const {
+        counter_type current = atomic_counter_ref(m_ref_count).load(std::memory_order_acquire);
+        return current != INVALID;
+    }
+
+    /**
+     * @brief 检查对象是否已析构
+     */
+    bool is_destroyed() const {
+        counter_type current = atomic_counter_ref(m_ref_count).load(std::memory_order_acquire);
+        return current == DESTROYED;
+    }
+
+private:
+    mutable counter_type m_ref_count;  // 强引用计数
+    mutable counter_type m_weak_count; // 弱引用计数
+};
+
+/*
+ * 共享计数器基类，提供引用计数管理能力
+ * 作为智能指针的控制块，管理对象的生命周期
+ */
+using shared_base = shared_counter<>;
+
+/*
+ * 与 std::enable_shared_from_this 类似，提供 shared_from_this 方法
+ */
+template <typename T, typename PointerType = T*, typename CounterType = uint32_t>
+class enable_shared_from_this : public shared_counter<CounterType> {
+public:
+    using element_type = T;
+    using pointer_type = PointerType;
+
+    /**
+     * @brief 安全地获取 shared_ptr，类似 std::enable_shared_from_this
      *
      * 由于对象创建时引用计数就是1，现在总是安全的
      */
@@ -216,7 +250,7 @@ public:
     }
 
     /**
-     * @brief 安全地获取 shared_ptr，类似 std::shared_base
+     * @brief 安全地获取 shared_ptr，类似 std::enable_shared_from_this
      */
     shared_ptr<element_type> shared_from_this() {
         return shared_ptr<element_type>(static_cast<element_type*>(this));
@@ -244,26 +278,6 @@ public:
                 p_element, typename shared_ptr<element_type>::already_referenced_tag{}};
         }
     }
-
-    /**
-     * @brief 检查对象是否已被智能指针管理
-     */
-    bool is_managed() const {
-        counter_type current = atomic_counter_ref(m_ref_count).load(std::memory_order_acquire);
-        return current != INVALID;
-    }
-
-    /**
-     * @brief 检查对象是否已析构
-     */
-    bool is_destroyed() const {
-        counter_type current = atomic_counter_ref(m_ref_count).load(std::memory_order_acquire);
-        return current == DESTROYED;
-    }
-
-private:
-    mutable counter_type m_ref_count;  // 强引用计数
-    mutable counter_type m_weak_count; // 弱引用计数
 };
 
 } // namespace mc::memory

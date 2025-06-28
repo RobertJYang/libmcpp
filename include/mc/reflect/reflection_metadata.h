@@ -48,7 +48,7 @@ class reflected_object_impl : public reflected_object {
 public:
     explicit reflected_object_impl(std::shared_ptr<T> obj);
 
-    int get_type_id() const override;
+    type_id_type get_type_id() const override;
 
     variant get_property(std::string_view name) const override;
     void    set_property(std::string_view name, const variant& value) override;
@@ -83,6 +83,8 @@ public:
     using base_class_info_map =
         std::unordered_map<std::string_view, const base_class_info_base<T>*>;
 
+    using metadata_ptr = mc::shared_ptr<reflection_metadata<T>>;
+
     /**
      * @brief 获取单例实例
      *
@@ -92,11 +94,13 @@ public:
         return *instance_ptr();
     }
 
-    static std::shared_ptr<reflection_metadata<T>>& instance_ptr() {
-        return mc::singleton<std::shared_ptr<reflection_metadata<T>>>::instance_with_creator([]() {
-            return new std::shared_ptr<reflection_metadata<T>>(new reflection_metadata<T>());
+    static metadata_ptr& instance_ptr() {
+        return mc::singleton<metadata_ptr>::instance_with_creator([]() {
+            return new metadata_ptr(new reflection_metadata<T>());
         });
     }
+
+    ~reflection_metadata();
 
     /**
      * @brief 获取指定名称的成员信息
@@ -327,17 +331,21 @@ public:
         return reflector<T>::name();
     }
 
-    std::vector<int> get_base_type_ids() const override {
-        std::vector<int> base_ids;
-        auto             base_classes = reflector<T>::get_base_classes();
+    type_id_type get_type_id() const override {
+        return reflector<T>::get_type_id();
+    }
+
+    std::vector<type_id_type> get_base_type_ids() const override {
+        std::vector<type_id_type> base_ids;
+        auto                      base_classes = reflector<T>::get_base_classes();
         mc::traits::tuple_for_each(base_classes, [&](auto& base) {
             using base_type = typename std::decay_t<decltype(base)>::base_type;
-            base_ids.push_back(reflector<base_type>::type_id);
+            base_ids.push_back(reflector<base_type>::get_type_id());
         });
         return base_ids;
     }
 
-    bool is_derived_from(int base_type_id) const override {
+    bool is_derived_from(type_id_type base_type_id) const override {
         auto base_ids = get_base_type_ids();
         return std::find(base_ids.begin(), base_ids.end(), base_type_id) != base_ids.end();
     }
@@ -466,8 +474,8 @@ reflected_object_impl<T>::reflected_object_impl(std::shared_ptr<T> obj)
 }
 
 template <typename T>
-int reflected_object_impl<T>::get_type_id() const {
-    return reflector<T>::type_id;
+type_id_type reflected_object_impl<T>::get_type_id() const {
+    return reflector<T>::get_type_id();
 }
 
 template <typename T>

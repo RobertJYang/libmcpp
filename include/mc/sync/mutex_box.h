@@ -540,6 +540,12 @@ public:
     using try_u_locked_ptr       = locked_ptr<mutex_box, detail::lock_type::try_upgrade>;
     using const_try_u_locked_ptr = locked_ptr<const mutex_box, detail::lock_type::try_upgrade>;
 
+    // 读锁类型别名（仅支持读锁的互斥量）
+    using r_locked_ptr           = locked_ptr<mutex_box, detail::lock_type::shared>;
+    using const_r_locked_ptr     = locked_ptr<const mutex_box, detail::lock_type::shared>;
+    using try_r_locked_ptr       = locked_ptr<mutex_box, detail::lock_type::try_shared>;
+    using const_try_r_locked_ptr = locked_ptr<const mutex_box, detail::lock_type::try_shared>;
+
     /**
      * @brief 默认构造函数
      */
@@ -748,13 +754,13 @@ public:
     template <typename M                                   = Mutex,
               std::enable_if_t<detail::has_shared<M>, int> = 0>
     auto rlock() {
-        return ::mc::sync::locked_ptr<mutex_box, detail::lock_type::shared>(this);
+        return r_locked_ptr(this);
     }
 
     template <typename M                                   = Mutex,
               std::enable_if_t<detail::has_shared<M>, int> = 0>
     auto rlock() const {
-        return ::mc::sync::locked_ptr<const mutex_box, detail::lock_type::shared>(this);
+        return const_r_locked_ptr(this);
     }
 
     /**
@@ -763,13 +769,13 @@ public:
     template <typename M                                   = Mutex,
               std::enable_if_t<detail::has_shared<M>, int> = 0>
     auto try_rlock() {
-        return ::mc::sync::locked_ptr<mutex_box, detail::lock_type::try_shared>(this);
+        return try_r_locked_ptr(this);
     }
 
     template <typename M                                   = Mutex,
               std::enable_if_t<detail::has_shared<M>, int> = 0>
     auto try_rlock() const {
-        return ::mc::sync::locked_ptr<const mutex_box, detail::lock_type::try_shared>(this);
+        return const_try_r_locked_ptr(this);
     }
 
     /**
@@ -782,10 +788,9 @@ public:
 
         std::shared_lock<M> lock(m_mutex, std::defer_lock);
         if (lock.try_lock_for(static_cast<duration_type>(timeout))) {
-            return ::mc::sync::locked_ptr<mutex_box, detail::lock_type::shared>(std::move(lock));
+            return r_locked_ptr(std::move(lock));
         }
-        return ::mc::sync::locked_ptr<mutex_box, detail::lock_type::shared>(
-            std::shared_lock<M>{}); // 空锁
+        return r_locked_ptr(std::shared_lock<M>{}); // 空锁
     }
 
     template <typename Duration, typename M = Mutex,
@@ -795,10 +800,9 @@ public:
 
         std::shared_lock<M> lock(m_mutex, std::defer_lock);
         if (lock.try_lock_for(static_cast<duration_type>(timeout))) {
-            return ::mc::sync::locked_ptr<const mutex_box, detail::lock_type::shared>(std::move(lock));
+            return const_r_locked_ptr(std::move(lock));
         }
-        return ::mc::sync::locked_ptr<const mutex_box, detail::lock_type::shared>(
-            std::shared_lock<M>{}); // 空锁
+        return const_r_locked_ptr(std::shared_lock<M>{}); // 空锁
     }
 
     /**
@@ -811,10 +815,9 @@ public:
 
         std::unique_lock<M> lock(m_mutex, std::defer_lock);
         if (lock.try_lock_for(static_cast<duration_type>(timeout))) {
-            return ::mc::sync::locked_ptr<mutex_box, detail::lock_type::unique>(std::move(lock));
+            return w_locked_ptr(std::move(lock));
         }
-        return ::mc::sync::locked_ptr<mutex_box, detail::lock_type::unique>(
-            std::unique_lock<M>{}); // 空锁
+        return w_locked_ptr(std::unique_lock<M>{}); // 空锁
     }
 
     template <typename Duration, typename M = Mutex,
@@ -824,10 +827,9 @@ public:
 
         std::unique_lock<M> lock(m_mutex, std::defer_lock);
         if (lock.try_lock_for(static_cast<duration_type>(timeout))) {
-            return ::mc::sync::locked_ptr<const mutex_box, detail::lock_type::unique>(std::move(lock));
+            return const_w_locked_ptr(std::move(lock));
         }
-        return ::mc::sync::locked_ptr<const mutex_box, detail::lock_type::unique>(
-            std::unique_lock<M>{}); // 空锁
+        return const_w_locked_ptr(std::unique_lock<M>{}); // 空锁
     }
 
     /**

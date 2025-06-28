@@ -159,11 +159,11 @@ using edges =
 
 /**
  * 节点类，表示基数树中的一个节点
- * 继承自 shared_base
+ * 继承自 enable_shared_from_this
  * @tparam Config 树配置类型
  */
 template <typename Config>
-class node : public shared_base<node<Config>> {
+class node : public enable_shared_from_this<node<Config>> {
 public:
     // 从配置中提取类型
     using leaf_type              = typename Config::leaf_type;

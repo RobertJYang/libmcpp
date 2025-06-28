@@ -16,7 +16,7 @@
 #include <mc/memory.h>
 #include <mc/runtime/thread_list.h>
 
-class thread_safe_object : public mc::shared_base<thread_safe_object> {
+class thread_safe_object : public mc::enable_shared_from_this<thread_safe_object> {
 public:
     thread_safe_object()  = default;
     ~thread_safe_object() = default;

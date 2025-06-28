@@ -48,7 +48,7 @@ enum class connection_type {
 
 using object_id_type = uint64_t;
 
-class object_base : public shared_base<object_base> {
+class object_base : public enable_shared_from_this<object_base> {
 public:
     using executor_type = mc::any_executor;
 
@@ -56,17 +56,17 @@ public:
     virtual ~object_base() = default;
 
     object_base(const object_base& other)
-        : shared_base<object_base>(other), m_object_id(other.m_object_id) {
+        : enable_shared_from_this<object_base>(other), m_object_id(other.m_object_id) {
     }
 
     object_base(object_base&& other)
-        : shared_base<object_base>(std::forward<object_base>(other)), m_object_id(other.m_object_id) {
+        : enable_shared_from_this<object_base>(std::forward<object_base>(other)), m_object_id(other.m_object_id) {
         other.m_object_id = 0;
     }
 
     object_base& operator=(object_base&& other) {
         if (this != &other) {
-            shared_base<object_base>::operator=(std::forward<object_base>(other));
+            enable_shared_from_this<object_base>::operator=(std::forward<object_base>(other));
             m_object_id       = other.m_object_id;
             other.m_object_id = 0;
         }
@@ -75,7 +75,7 @@ public:
 
     object_base& operator=(const object_base& other) {
         if (this != &other) {
-            shared_base<object_base>::operator=(other);
+            enable_shared_from_this<object_base>::operator=(other);
             m_object_id = other.m_object_id;
         }
         return *this;

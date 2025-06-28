@@ -80,12 +80,12 @@ struct error_info {
  *
  * 如果需要动态构造错误名或格式化字符串，请使用 error_with_owner 类
  */
-struct error : public mc::shared_base<error>, public error_info {
+struct error : public mc::enable_shared_from_this<error>, public error_info {
     error() = default;
-    error(const error_info& info) : mc::shared_base<error>(), error_info(info) {
+    error(const error_info& info) : mc::enable_shared_from_this<error>(), error_info(info) {
     }
     error(std::string_view name, std::string_view format, error_level level = error_level::error)
-        : mc::shared_base<error>(), error_info(name, format, level) {
+        : mc::enable_shared_from_this<error>(), error_info(name, format, level) {
     }
 
     error(const error& other);

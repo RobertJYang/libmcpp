@@ -685,6 +685,34 @@ public:
         return split_iterator();
     }
 
+    /**
+     * @brief 获取当前位置在原字符串中的起始偏移
+     * @return 当前片段在原字符串中的起始位置
+     */
+    std::size_t current_pos() const noexcept {
+        return m_pos;
+    }
+
+    /**
+     * @brief 获取当前位置在原字符串中的结束偏移
+     * @return 当前片段在原字符串中的结束位置
+     */
+    std::size_t end_pos() const noexcept {
+        return m_end;
+    }
+
+    /**
+     * @brief 获取当前位置在原字符串中的剩余部分
+     * @return 当前片段在原字符串中的剩余部分，会跳过分隔符
+     */
+    std::string_view tail() const noexcept;
+
+    /**
+     * @brief 获取当前位置在原字符串中的前置部分
+     * @return 当前片段在原字符串中的前置部分
+     */
+    std::string_view head() const noexcept;
+
 private:
     void find_next() noexcept;
 

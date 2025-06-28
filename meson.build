@@ -27,13 +27,13 @@ build_tests = get_option('tests')
 
 # 依赖项
 if not meson.is_cross_build()
-boost_dep = dependency('boost', method: 'pkg-config', required: true)
-boost_program_options_dep = dependency(
-  'boost',
-  modules: ['program_options'],
-  method: 'pkg-config',
-  required: true,
-)
+  boost_dep = dependency('boost', method: 'pkg-config', required: true)
+  boost_program_options_dep = dependency(
+    'boost',
+    modules: ['program_options'],
+    method: 'pkg-config',
+    required: true,
+  )
 else
   boost_dep = dependency('', required: false)
   boost_program_options_dep = dependency('', required: false)
@@ -57,6 +57,7 @@ glib_dep = dependency('glib-2.0', method: 'pkg-config', required: true)
 
 # 包含目录
 incdir = include_directories('include')
+srcdir = include_directories('src')
 
 # 子目录
 subdir('include')

@@ -23,7 +23,7 @@
 namespace mc::engine {
 
 error::error(const error& other)
-    : mc::shared_base<error>(other),
+    : mc::enable_shared_from_this<error>(other),
       error_info(other.name, other.format, other.level) {
     this->args = other.args;
 
@@ -70,7 +70,7 @@ void error::to_exception(mc::exception& e) const {
 
 error& error::operator=(const error& other) {
     if (this != &other) {
-        mc::shared_base<error>::operator=(other);
+        mc::enable_shared_from_this<error>::operator=(other);
 
         this->name   = other.name;
         this->format = other.format;

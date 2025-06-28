@@ -44,6 +44,7 @@
 
 namespace mc {
 
+using mc::memory::enable_shared_from_this;
 using mc::memory::shared_base;
 using mc::memory::shared_ptr;
 using mc::memory::weak_ptr;

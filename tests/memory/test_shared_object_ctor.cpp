@@ -17,7 +17,7 @@
 #include <memory>
 
 // 测试用的复杂对象
-class ctor_test_object : public mc::shared_base<ctor_test_object> {
+class ctor_test_object : public mc::enable_shared_from_this<ctor_test_object> {
 public:
     ctor_test_object()
         : m_id(s_next_id++), m_data(std::make_unique<int>(42)) {
@@ -73,7 +73,7 @@ int ctor_test_object::s_destruct_count  = 0;
 int ctor_test_object::s_next_id         = 1;
 
 // 异常安全测试对象
-class exception_test_object : public mc::shared_base<exception_test_object> {
+class exception_test_object : public mc::enable_shared_from_this<exception_test_object> {
 public:
     explicit exception_test_object(bool throw_in_constructor = false) {
         if (throw_in_constructor) {
@@ -309,7 +309,7 @@ TEST_F(SharedPtrConstructTest, WeakPtrEdgeCases) {
 }
 
 // 测试类型转换的边界情况
-class edge_base : public mc::shared_base<edge_base> {
+class edge_base : public mc::enable_shared_from_this<edge_base> {
 public:
     virtual ~edge_base() = default;
     virtual int get_type() const {
