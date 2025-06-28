@@ -593,6 +593,18 @@ struct base_class_info : public base_class_info_base<C> {
 };
 
 /**
+ * @brief 枚举成员信息
+ */
+template <typename EnumType>
+struct enum_member_info {
+    std::string_view name;  // 枚举成员名称
+    EnumType         value; // 枚举值
+
+    enum_member_info(std::string_view n, EnumType v) : name(n), value(v) {
+    }
+};
+
+/**
  * @brief 用户可以通过特化此模板为自定义成员类型提供反射支持
  *
  * 示例：假设有信号成员类型 mc::signal<T>，用户可以这样特化：

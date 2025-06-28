@@ -46,11 +46,66 @@ private:
     int         m_age = 0;
 };
 
+// 测试用的枚举类型
+enum class test_status {
+    ACTIVE,
+    INACTIVE,
+    PENDING
+};
+
+// 测试用的模块A中的类
+class module_a_person {
+public:
+    std::string m_name;
+    int         m_age;
+};
+
+// 测试用的模块B中的类
+class module_b_person {
+public:
+    std::string m_name;
+    std::string m_address;
+};
+
+// 定义一个名字空间
+struct devices_namespace {
+    constexpr static std::string_view factory_name = "devices";
+};
+
+// 测试去重功能的类型
+class devices_sensor {
+public:
+    using reflect_namespace = devices_namespace;
+
+    std::string m_name;
+    double      m_value;
+};
+
 } // namespace test_reflection_factory
 
 // 注册反射信息
 MC_REFLECT((test_reflection_factory::test_person, "FactoryPerson"),
-           ((m_name, "name"))(MC_COMPUTED_PROPERTY("age", get_age, set_age))((greet, "greet"))((greet_with, "greetWith")))
+           ((m_name, "name"))                              // 名称 name
+           (MC_COMPUTED_PROPERTY("age", get_age, set_age)) // 计算属性 age
+           ((greet, "greet"))                              // 方法 greet
+           ((greet_with, "greetWith"))                     // 方法 greetWith
+)
+
+// 注册枚举类型
+MC_REFLECT_ENUM((test_reflection_factory::test_status, "Status"),
+                (ACTIVE)(INACTIVE)(PENDING))
+
+// 注册模块A中的类
+MC_REFLECT((test_reflection_factory::module_a_person, "module.a.Person"),
+           ((m_name, "name"))((m_age, "age")))
+
+// 注册模块B中的类
+MC_REFLECT((test_reflection_factory::module_b_person, "module.b.Person"),
+           ((m_name, "name"))((m_address, "address")))
+
+// 注册用于测试去重的类，模拟使用工厂前缀的类型名
+MC_REFLECT((test_reflection_factory::devices_sensor, "devices.sensor"),
+           ((m_name, "name"))((m_value, "value")))
 
 namespace test_reflection_factory {
 
@@ -75,7 +130,7 @@ TEST_F(reflect_factory_test, TypeRegistration) {
 }
 
 TEST_F(reflect_factory_test, FactoryBasicOperations) {
-    auto& factory = mc::reflect::reflection_factory::instance();
+    auto& factory = mc::reflect::reflection_factory::global();
 
     // 测试类型ID查询
     auto type_id = factory.get_type_id("FactoryPerson");
@@ -218,8 +273,104 @@ TEST_F(reflect_factory_test, TestDestoryReflectedMetaData) {
     ASSERT_NE(obj, nullptr);
 
     // 测试反射元数据被销毁后，创建对象会失败
-    mc::singleton<std::shared_ptr<mc::reflect::reflection_metadata<test_person>>>::reset_for_test();
+    mc::singleton<mc::reflect::reflection_metadata<test_person>::metadata_ptr>::reset_for_test();
     EXPECT_THROW(mc::reflect::create_object("FactoryPerson"), mc::bad_type_exception);
+}
+
+TEST_F(reflect_factory_test, EnumTypeRegistration) {
+    auto& factory = mc::reflect::reflection_factory::global();
+
+    // 测试枚举类型ID查询
+    auto type_id = factory.get_type_id("Status");
+    EXPECT_NE(type_id, -1);
+    EXPECT_EQ(type_id, mc::reflect::reflector<test_status>::type_id);
+
+    // 测试获取枚举元数据
+    auto metadata = factory.get_metadata(type_id);
+    ASSERT_NE(metadata, nullptr);
+
+    // 测试枚举值转换
+    mc::variant active_value("ACTIVE");
+    auto        enum_value = active_value.as<test_status>();
+    EXPECT_EQ(enum_value, test_status::ACTIVE);
+
+    // 测试无效枚举值
+    EXPECT_THROW(mc::variant("INVALID").as<test_status>(), mc::bad_cast_exception);
+}
+
+TEST_F(reflect_factory_test, ModuleOperations) {
+    auto& factory = mc::reflect::reflection_factory::global();
+
+    // 测试模块路径获取
+    auto paths = factory.get_module_paths();
+    EXPECT_TRUE(std::find(paths.begin(), paths.end(), "module.a") != paths.end());
+    EXPECT_TRUE(std::find(paths.begin(), paths.end(), "module.b") != paths.end());
+
+    // 测试模块存在性检查
+    EXPECT_TRUE(factory.has_module("module.a"));
+    EXPECT_TRUE(factory.has_module("module.b"));
+    EXPECT_FALSE(factory.has_module("module.c"));
+
+    // 测试获取模块中的类型
+    auto module_a_types = factory.get_module_types("module.a");
+    EXPECT_EQ(module_a_types.size(), 1);
+    EXPECT_EQ(module_a_types[0].first, "Person");
+    EXPECT_NE(module_a_types[0].second, -1);
+
+    auto module_b_types = factory.get_module_types("module.b");
+    EXPECT_EQ(module_b_types.size(), 1);
+    EXPECT_EQ(module_b_types[0].first, "Person");
+    EXPECT_NE(module_b_types[0].second, -1);
+
+    // 测试创建不同模块中的对象
+    auto obj_a = factory.create_object("module.a.Person");
+    ASSERT_NE(obj_a, nullptr);
+    obj_a->set_property("name", mc::variant("张三"));
+    obj_a->set_property("age", mc::variant(30));
+    EXPECT_EQ(obj_a->get_property("name"), mc::variant("张三"));
+    EXPECT_EQ(obj_a->get_property("age"), mc::variant(30));
+
+    auto obj_b = factory.create_object("module.b.Person");
+    ASSERT_NE(obj_b, nullptr);
+    obj_b->set_property("name", mc::variant("李四"));
+    obj_b->set_property("address", mc::variant("北京"));
+    EXPECT_EQ(obj_b->get_property("name"), mc::variant("李四"));
+    EXPECT_EQ(obj_b->get_property("address"), mc::variant("北京"));
+}
+
+TEST_F(reflect_factory_test, TypeNameDeduplication) {
+    // 测试去重功能：使用devices工厂，注册一个"devices.sensor"类型
+    // 验证去重后这个类型应该被注册为"sensor"而不是"devices.sensor"
+
+    // 获取devices工厂实例
+    auto& devices_factory = mc::reflect::reflection_factory::instance<devices_namespace>();
+
+    // 获取所有模块路径
+    auto paths = devices_factory.get_module_paths();
+
+    // 检查根模块下的类型（应该有去重后的"sensor"类型）
+    auto root_types = devices_factory.get_module_types("");
+
+    // 验证去重功能：原类型名"devices.sensor"应该被去重为"sensor"
+    bool has_sensor = false;
+    for (const auto& [name, type_id] : root_types) {
+        if (name == "sensor") {
+            has_sensor = true;
+            // 验证类型ID正确
+            EXPECT_EQ(type_id, mc::reflect::reflector<devices_sensor>::get_type_id());
+        }
+    }
+    EXPECT_TRUE(has_sensor);
+
+    // 验证可以通过去重后的名称"sensor"创建对象
+    auto obj = devices_factory.try_create_object("sensor");
+    ASSERT_NE(obj, nullptr);
+    EXPECT_EQ(obj->get_type_id(), mc::reflect::reflector<devices_sensor>::get_type_id());
+
+    // 验证也可以通过完整名称"devices.sensor"创建对象
+    auto obj2 = devices_factory.try_create_object("devices.sensor");
+    ASSERT_NE(obj2, nullptr);
+    EXPECT_EQ(obj2->get_type_id(), mc::reflect::reflector<devices_sensor>::get_type_id());
 }
 
 } // namespace test_reflection_factory

@@ -461,14 +461,22 @@ static std::size_t find_next_delim(std::string_view str, std::size_t pos, std::s
 }
 
 void split_iterator::find_next() noexcept {
-    // 跳过当前片段
     m_pos = m_end;
-
-    // 跳过连续的分隔符
     m_pos = skip_delims(m_str, m_pos, m_delims);
-
-    // 找到下一个分隔符
     m_end = find_next_delim(m_str, m_pos, m_delims);
+}
+
+std::string_view split_iterator::tail() const noexcept {
+    if (is_end()) {
+        return {};
+    }
+
+    auto pos = skip_delims(m_str, m_pos, m_delims);
+    return m_str.substr(pos);
+}
+
+std::string_view split_iterator::head() const noexcept {
+    return m_str.substr(0, m_pos);
 }
 
 split_iterator& split_iterator::operator++() noexcept {

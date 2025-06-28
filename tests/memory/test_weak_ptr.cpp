@@ -17,7 +17,7 @@
 #include <vector>
 
 // 测试用的简单类
-class weak_test_object : public mc::shared_base<weak_test_object> {
+class weak_test_object : public mc::enable_shared_from_this<weak_test_object> {
 public:
     weak_test_object() : m_value(100) {
         ++s_construct_count;
@@ -389,7 +389,7 @@ TEST_F(weak_ptr_test, LifecycleManagement) {
 class circular_a;
 class circular_b;
 
-class circular_a : public mc::shared_base<circular_a> {
+class circular_a : public mc::enable_shared_from_this<circular_a> {
 public:
     mc::weak_ptr<circular_b> m_b_weak; // 使用 weak_ptr 打破循环
 
@@ -408,7 +408,7 @@ private:
     static int s_destruct_count;
 };
 
-class circular_b : public mc::shared_base<circular_b> {
+class circular_b : public mc::enable_shared_from_this<circular_b> {
 public:
     mc::shared_ptr<circular_a> m_a_shared; // 保持强引用
 

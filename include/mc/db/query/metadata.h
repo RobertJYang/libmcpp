@@ -23,7 +23,7 @@
 
 #include <mc/db/index.h>
 #include <mc/db/key_extractor.h>
-#include <mc/reflect/reflect_metadata.h>
+#include <mc/reflect/reflection_metadata.h>
 
 namespace mc::db::query {
 
@@ -52,9 +52,9 @@ struct index_metadata {
     size_t                   index_id       = 0;                              // 索引ID
     index_type               type           = index_type::ordered_unique;     // 索引类型
     key_extractor_type       extractor_type = key_extractor_type::member_key; // 键提取类型
-    std::vector<std::string> field_names; // 相关字段名称(对于复合键可能有多个)
-    std::type_index          key_type  = std::type_index(typeid(void)); // 键类型的类型索引
-    bool                     is_unique = true;                          // 是否唯一索引
+    std::vector<std::string> field_names;                                     // 相关字段名称(对于复合键可能有多个)
+    std::type_index          key_type  = std::type_index(typeid(void));       // 键类型的类型索引
+    bool                     is_unique = true;                                // 是否唯一索引
 };
 
 /**

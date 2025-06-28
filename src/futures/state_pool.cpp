@@ -73,7 +73,7 @@ public:
             m_pool.pop();
 
             // 构造一个 State 类型作为中介用于获取 state_base 指针
-            // 这是安全的因为 State 的继承顺序是：shared_base -> state_base -> state_value，模板参数只影响
+            // 这是安全的因为 State 的继承顺序是：enable_shared_from_this -> state_base -> state_value，模板参数只影响
             // state_value 部分，不会影响 state_base 的偏移。
             using state_type     = State<int, mc::runtime::executor, std::allocator<void>>;
             auto* state          = static_cast<state_type*>(ptr);

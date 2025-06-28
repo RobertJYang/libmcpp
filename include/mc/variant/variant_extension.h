@@ -32,7 +32,7 @@ namespace mc {
  * 所有需要在 variant 中管理的复杂类型都应该继承此类，
  * 提供统一的接口用于复制、克隆、类型信息等操作
  */
-class variant_extension_base : public mc::shared_base<variant_extension_base> {
+class variant_extension_base : public mc::enable_shared_from_this<variant_extension_base> {
 public:
     /**
      * @brief 创建当前对象的深拷贝
@@ -98,6 +98,19 @@ public:
             }
         }
         return false;
+    }
+
+    mc::shared_ptr<T> shared_from_this() const {
+        return mc::shared_ptr<T>(static_cast<const T*>(this));
+    }
+    mc::shared_ptr<T> shared_from_this() {
+        return mc::shared_ptr<T>(static_cast<T*>(this));
+    }
+    mc::weak_ptr<T> weak_from_this() const {
+        return mc::weak_ptr<T>(static_cast<const T*>(this));
+    }
+    mc::weak_ptr<T> weak_from_this() {
+        return mc::weak_ptr<T>(static_cast<T*>(this));
     }
 };
 

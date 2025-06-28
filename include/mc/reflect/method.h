@@ -17,7 +17,7 @@
 #ifndef MC_REFLECT_METHOD_H
 #define MC_REFLECT_METHOD_H
 
-#include <mc/reflect/reflect_metadata.h>
+#include <mc/reflect/reflection_metadata.h>
 #include <mc/variant.h>
 
 namespace mc::reflect {

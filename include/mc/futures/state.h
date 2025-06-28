@@ -77,11 +77,11 @@ struct state_value {
 };
 
 template <typename T, typename Executor, typename Allocator>
-struct State : public mc::shared_base<State<T, Executor, Allocator>>,
+struct State : public mc::enable_shared_from_this<State<T, Executor, Allocator>>,
                public state_base,
                public state_value<T, Executor, Allocator> {
     using value_type       = state_value<T, Executor, Allocator>;
-    using shared_base_type = mc::shared_base<State<T, Executor, Allocator>>;
+    using shared_base_type = mc::enable_shared_from_this<State<T, Executor, Allocator>>;
 
     State(Executor executor, Allocator allocator)
         : shared_base_type(), state_base(),

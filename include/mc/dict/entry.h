@@ -123,31 +123,35 @@ using iterator = entry_list::iterator;
 // 定义迭代器结构体，继承自底层迭代器，方便 dict 中定义前向声明
 struct const_iterator : public entry_list::const_iterator {
     // 继承所有迭代器特性类型
-    using base_type = entry_list::const_iterator;
+    using base_type         = entry_list::const_iterator;
     using iterator_category = typename base_type::iterator_category;
-    using value_type = typename base_type::value_type;
-    using difference_type = typename base_type::difference_type;
-    using pointer = typename base_type::pointer;
-    using reference = typename base_type::reference;
+    using value_type        = typename base_type::value_type;
+    using difference_type   = typename base_type::difference_type;
+    using pointer           = typename base_type::pointer;
+    using reference         = typename base_type::reference;
 
     // 默认构造函数
     const_iterator() = default;
 
     // 从基类构造函数构造
-    const_iterator(const base_type& iter) : base_type(iter) {}
-    const_iterator(base_type&& iter) : base_type(std::move(iter)) {}
+    const_iterator(const base_type& iter) : base_type(iter) {
+    }
+    const_iterator(base_type&& iter) : base_type(std::move(iter)) {
+    }
 
     // 拷贝和移动构造函数
     const_iterator(const const_iterator& other) = default;
-    const_iterator(const_iterator&& other) = default;
-    
+    const_iterator(const_iterator&& other)      = default;
+
     // 从 iterator 构造
-    const_iterator(const iterator& iter) : base_type(iter) {}
-    const_iterator(iterator&& iter) : base_type(std::move(iter)) {}
+    const_iterator(const iterator& iter) : base_type(iter) {
+    }
+    const_iterator(iterator&& iter) : base_type(std::move(iter)) {
+    }
 
     // 赋值运算符
     const_iterator& operator=(const const_iterator& other) = default;
-    const_iterator& operator=(const_iterator&& other) = default;
+    const_iterator& operator=(const_iterator&& other)      = default;
 
     // 析构函数
     ~const_iterator() = default;
@@ -156,9 +160,8 @@ struct const_iterator : public entry_list::const_iterator {
     // operator*, operator->, operator++, operator==, operator!= 等都会自动继承
 };
 
-
 // 完整的 data_t 定义
-struct data_t : public mc::shared_base<data_t> {
+struct data_t : public mc::enable_shared_from_this<data_t> {
     // 哈希表桶数组
     mc::intrusive::bucket_array buckets;
     // 有序链表

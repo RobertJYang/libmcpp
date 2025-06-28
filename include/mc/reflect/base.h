@@ -12,6 +12,7 @@
 #ifndef MC_REFLECT_BASE_H
 #define MC_REFLECT_BASE_H
 
+#include <mc/memory.h>
 #include <mc/variant.h>
 
 #include <memory>
@@ -33,6 +34,17 @@ struct method_type_info;
 [[noreturn]] void throw_method_arg_not_enough(std::string_view method_name, size_t expect_count,
                                               size_t actual_count);
 [[noreturn]] void throw_method_not_exist(std::string_view method_name);
+[[noreturn]] void throw_not_enum_type(std::string_view type_name);
+[[noreturn]] void throw_enum_value_not_found(std::string_view type_name, std::string_view value_name);
+[[noreturn]] void throw_enum_value_not_found(std::string_view type_name, uint64_t value);
+[[noreturn]] void throw_bad_enum_cast(int64_t i, const char* e);
+[[noreturn]] void throw_bad_enum_cast(const char* k, const char* e);
+[[noreturn]] void throw_variant_cast(const char* k, const char* e);
+[[noreturn]] void throw_enum_not_support_create_object(std::string_view type_name);
+
+using type_id_type       = int64_t;
+using local_type_id_type = int32_t;
+using factory_id_type    = int32_t;
 
 /**
  * @brief 反射器模板类
@@ -88,7 +100,7 @@ public:
      * @brief 获取类型ID
      * @return int 类型ID
      */
-    virtual int get_type_id() const = 0;
+    virtual type_id_type get_type_id() const = 0;
 
     /**
      * @brief 获取属性值
@@ -131,7 +143,7 @@ public:
  *
  * 提供类型信息和对象创建功能
  */
-class reflection_metadata_base {
+class reflection_metadata_base : public mc::shared_base {
 public:
     virtual ~reflection_metadata_base() = default;
 
@@ -148,17 +160,23 @@ public:
     virtual std::string_view get_type_name() const = 0;
 
     /**
+     * @brief 获取类型ID
+     * @return type_id_type 类型ID
+     */
+    virtual type_id_type get_type_id() const = 0;
+
+    /**
      * @brief 获取基类类型ID列表
      * @return std::vector<int> 基类类型ID列表
      */
-    virtual std::vector<int> get_base_type_ids() const = 0;
+    virtual std::vector<type_id_type> get_base_type_ids() const = 0;
 
     /**
      * @brief 检查是否是某个类型的子类
      * @param base_type_id 基类类型ID
      * @return bool 是否为子类
      */
-    virtual bool is_derived_from(int base_type_id) const = 0;
+    virtual bool is_derived_from(type_id_type base_type_id) const = 0;
 
     /**
      * @brief 获取属性信息
@@ -185,11 +203,36 @@ public:
      * @return std::vector<std::string_view> 方法名列表
      */
     virtual std::vector<std::string_view> get_method_names() const = 0;
+
+    /**
+     * @brief 获取是否为枚举类型
+     * @return bool 是否为枚举类型
+     */
+    bool is_enum() const {
+        return m_is_enum;
+    }
+
+    virtual uint64_t get_enum_value(std::string_view name) const {
+        throw_not_enum_type(get_type_name());
+    }
+    virtual std::string_view get_enum_name(uint64_t value) const {
+        throw_not_enum_type(get_type_name());
+    }
+    virtual std::vector<std::string_view> get_enum_names() const {
+        throw_not_enum_type(get_type_name());
+    }
+    virtual bool has_enum_value(std::string_view name) const {
+        throw_not_enum_type(get_type_name());
+    }
+
+protected:
+    bool m_is_enum = false;
 };
 
-using reflected_object_ptr     = std::shared_ptr<reflected_object>;
-using reflection_metadata_ptr  = std::shared_ptr<reflection_metadata_base>;
-using reflection_metadata_wptr = std::weak_ptr<reflection_metadata_base>;
+using reflected_object_ptr = std::shared_ptr<reflected_object>;
+
+using reflection_metadata_ptr  = mc::shared_ptr<reflection_metadata_base>;
+using reflection_metadata_wptr = mc::weak_ptr<reflection_metadata_base>;
 
 } // namespace mc::reflect
 
