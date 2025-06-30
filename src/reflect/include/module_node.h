@@ -31,9 +31,7 @@
 namespace mc::reflect {
 using split_iterator = mc::string::split_iterator;
 
-static constexpr std::string_view delims             = ".:";
-static constexpr type_id_type     INVALID_TYPE_ID    = -1;
-static constexpr factory_id_type  INVALID_FACTORY_ID = -1;
+static constexpr std::string_view delims = ".:";
 static std::atomic<int>           s_factory_id{1};
 
 inline type_id_type encode_type_id(factory_id_type factory_id, local_type_id_type type_id) {
@@ -43,6 +41,16 @@ inline type_id_type encode_type_id(factory_id_type factory_id, local_type_id_typ
 inline std::pair<factory_id_type, local_type_id_type> decode_type_id(type_id_type id) {
     return {static_cast<factory_id_type>(id >> 32),
             static_cast<local_type_id_type>(id & 0xFFFFFFFF)};
+}
+
+inline std::string make_full_path(std::string_view path, std::string_view name) {
+    if (path.empty()) {
+        return std::string(name);
+    } else if (name.empty()) {
+        return std::string(path);
+    } else {
+        return mc::string::concat(path, ".", name);
+    }
 }
 
 using metadata_creator = std::function<reflection_metadata_ptr()>;
@@ -64,7 +72,7 @@ struct type_info {
 
 struct factory_info {
     factory_info(factory_id_type id, std::string name, factory_ptr f)
-        : factory_id(id), factory_name(std::move(name)), factory(f) {
+        : factory_id(id), module_name(std::move(name)), factory(f) {
     }
 
     factory_info(const factory_info& other)                = delete;
@@ -73,7 +81,7 @@ struct factory_info {
     factory_info& operator=(factory_info&& other) noexcept = default;
 
     factory_id_type factory_id;
-    std::string     factory_name; // 模块名
+    std::string     module_name; // 工厂在本模块中的名称，不包含当前模块名前缀
     factory_wptr    factory;
 };
 
@@ -109,13 +117,19 @@ struct module_node {
     reflection_metadata_ptr get_metadata(std::string_view type_name) const;
     reflection_metadata_ptr get_metadata(split_iterator& type_it) const;
 
-    std::vector<std::pair<std::string, type_id_type>> get_module_types(factory_id_type factory_id) const;
+    void collect_module_paths(std::string& path, std::vector<std::string>& paths) const;
+    void collect_sub_factory_module_paths(std::string& path, std::vector<std::string>& paths) const;
+
+    void collect_module_types(std::string& path, std::vector<std::string>& types) const;
+
+    const module_node* find_module_node(split_iterator& type_it) const;
+    factory_ptr        find_factory(split_iterator& type_it) const;
 
     module_node* new_module_node(std::string_view name);
 
     std::string           name;                 // 当前模块名称
     submodules_map        submodules;           // 本地子模块
-    mutable types_map     types;                // 该模块下直接包含的类型ID
+    mutable types_map     types;                // 该模块下直接包含的类型
     mutable factory_info* sub_factory{nullptr}; // 其他子模块
 };
 

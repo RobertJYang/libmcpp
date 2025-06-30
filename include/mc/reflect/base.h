@@ -46,6 +46,10 @@ using type_id_type       = int64_t;
 using local_type_id_type = int32_t;
 using factory_id_type    = int32_t;
 
+// 无效的类型ID和工厂ID常量
+constexpr type_id_type    INVALID_TYPE_ID    = -1;
+constexpr factory_id_type INVALID_FACTORY_ID = -1;
+
 /**
  * @brief 反射器模板类
  *
@@ -86,6 +90,136 @@ template <typename T>
 constexpr bool is_normal_enum() {
     return std::is_enum_v<T> && !is_reflectable<T>();
 }
+
+/*
+ * 检查类型名称是否有效
+ *
+ * 由于类型名称由命名空间加类型名组成，以 . 或 :: 分隔，支持多级命名空间：
+ * 1. 类型名称不能为空
+ * 2. 类型名称按点号分隔，每段名称只能包含字母、数字、下划线，每段不能以数字开头
+ * 3. 不能有连续的点号，也不能以点号开头或结尾
+ * 例如：
+ * - mc.devices.Sensor：表示 mc.devices 命名空间下的 Sensor 类型
+ * - mc::devices::Sensor：表示 mc.devices 命名空间下的 Sensor 类型
+ * - mc::devices.Sensor：表示 mc.devices 命名空间下的 Sensor 类型
+ * - mc::devices.sensors.TemperatureSensor：表示 mc.devices.sensors 命名空间下的 TemperatureSensor 类型
+ */
+constexpr std::size_t max_type_name_length = 255;
+constexpr inline bool is_valid_type_name(std::string_view name) {
+    // 类型名称不能为空
+    if (name.empty() || name.size() > max_type_name_length) {
+        return false;
+    }
+
+    // 不能以分隔符开头或结尾
+    if (name[0] == '.' || name[0] == ':' ||
+        name[name.size() - 1] == '.' || name[name.size() - 1] == ':') {
+        return false;
+    }
+
+    bool segment_start = true; // 标记当前是否是段的开始
+    for (size_t pos = 0; pos < name.size(); pos++) {
+        char c = name[pos];
+
+        if (c == '.') {
+            // 不允许连续的分隔符
+            if (segment_start) {
+                return false;
+            }
+            segment_start = true;
+        } else if (c == ':') {
+            // 检查是否是 ::
+            if (pos + 1 >= name.size() || name[pos + 1] != ':') {
+                return false; // 单独的 : 不合法
+            }
+            // 不允许连续的分隔符
+            if (segment_start) {
+                return false;
+            }
+            segment_start = true;
+            pos++; // 跳过第二个 :
+        } else if (segment_start) {
+            // 段的第一个字符必须是字母或下划线
+            if (!mc::is_first_identifier_char(c)) {
+                return false;
+            }
+            segment_start = false;
+        } else {
+            // 其他字符必须是合法的标识符字符
+            if (!mc::is_identifier_char(c)) {
+                return false;
+            }
+        }
+    }
+
+    return true;
+}
+
+namespace detail {
+
+// 类型命名空间映射特化
+// 用户可以通过特化此模板来为任何类型（包括枚举）指定命名空间
+template <typename T, typename = void>
+struct reflect_namespace {
+    using type = void; // 默认无命名空间，使用全局工厂
+};
+
+// 检查类型是否有全局命名空间映射
+template <typename T, typename = void>
+struct has_reflect_namespace : std::false_type {};
+
+template <typename T>
+struct has_reflect_namespace<
+    T,
+    std::enable_if_t<
+        !std::is_same_v<typename reflect_namespace<T>::type, void>>>
+    : std::true_type {};
+
+/**
+ * 检查类型是否在命名空间中，为了兼容C++宏自动填充的类型名，类型名可以用 :: 或 . 分隔，但命名空间只能用 . 分隔
+ * @param type_name 类型名，格式为：mc.devices.TemperatureSensor 或 mc::devices::TemperatureSensor
+ * @param namespace_name 命名空间名，格式为：mc.devices
+ * @return 如果类型在命名空间中则返回true，否则返回false
+ */
+constexpr bool type_in_namespace(std::string_view type_name, std::string_view namespace_name) {
+    if (!is_valid_type_name(type_name) || !is_valid_type_name(namespace_name)) {
+        return false;
+    }
+
+    auto type_name_it      = mc::string::split_iterator(type_name, "::.");
+    auto namespace_name_it = mc::string::split_iterator(namespace_name, ".");
+    while (!type_name_it.is_end() && !namespace_name_it.is_end()) {
+        if (*type_name_it != *namespace_name_it) {
+            return false;
+        }
+        ++type_name_it;
+        ++namespace_name_it;
+    }
+
+    // 命名空间名未遍历完，说明类型名不包含命名空间
+    if (!namespace_name_it.is_end()) {
+        return false;
+    }
+
+    // 类型名遍历完，说明类型名包含命名空间
+    if (type_name_it.is_end()) {
+        return false;
+    }
+
+    return true;
+}
+
+template <typename T>
+constexpr bool check_type_namespace(std::string_view type_name) {
+    if constexpr (has_reflect_namespace<T>::value) {
+        using namespace_type = typename reflect_namespace<T>::type;
+        return type_in_namespace(type_name, namespace_type::factory_name);
+    } else {
+        MC_UNUSED(type_name);
+        return true;
+    }
+}
+} // namespace detail
 
 /**
  * @brief 反射对象基类

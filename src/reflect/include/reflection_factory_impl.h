@@ -29,6 +29,7 @@ class reflection_factory::impl {
 
         mutable factories_map m_factories;
         factories_id_map      m_factories_by_id;
+        factory_wptr          m_parent;
 
         local_type_id_type           m_next_type_id{0};
         factory_id_type              m_factory_id{0};
@@ -37,17 +38,20 @@ class reflection_factory::impl {
     using data_box = mc::mutex_box<data_t, std::shared_mutex>;
 
 public:
-    std::string_view m_factory_name;
-    data_box         m_data;
+    std::string m_factory_name;
+    std::string m_namespace_type_name;
+    data_box    m_data;
 
-    explicit impl(std::string_view factory_name, bool is_global);
+    explicit impl(std::string_view factory_name, std::string_view factory_type_name, bool is_global);
     ~impl();
 
-    type_id_type register_type(std::string_view type_name, metadata_creator&& creator);
-    bool         unregister_type(std::string_view type_name);
+    type_id_type register_type(
+        std::string_view type_name, type_id_type type_id, metadata_creator&& creator);
+    bool unregister_type(std::string_view type_name);
 
-    factory_id_type register_factory(std::string_view factory_name, factory_ptr factory);
-    bool            unregister_factory(std::string_view factory_name);
+    std::pair<factory_id_type, factory_ptr> register_factory(
+        std::string_view module_name, factory_id_type factory_id, factory_ptr factory);
+    bool unregister_factory(std::string_view factory_name);
 
     reflection_metadata_ptr get_metadata_by_id(type_id_type global_id, const data_t& data);
     reflection_metadata_ptr get_local_metadata_by_id(local_type_id_type type_id, const data_t& data);
@@ -55,23 +59,18 @@ public:
     reflection_metadata_ptr get_metadata_by_name(std::string_view type_name, const data_t& data);
     reflection_metadata_ptr get_local_metadata_by_name(std::string_view type_name, const data_t& data);
 
-    factory_ptr get_factory_by_name(std::string_view factory_name, const data_t& data);
+    factory_ptr get_factory_by_name(std::string_view module_name, const data_t& data);
     factory_ptr get_factory_by_id(factory_id_type factory_id, const data_t& data);
+    void        collect_factory_names(
+               std::string_view path, std::vector<std::string>& names, const data_t& data) const;
 
-    void get_registered_types(
-        const data_t& data, std::vector<std::string>& types, const std::string& prefix) const;
+    void get_registered_types(const data_t& data, std::vector<std::string>& types) const;
 
-    void foreach_factory(const data_t& data, std::function<void(factory_ptr)> callback) const;
+    const module_node* find_module_node(std::string_view path, const data_t& data) const;
+    void               collect_module_paths(std::vector<std::string>& paths, const data_t& data) const;
 
-    module_node* find_module_node(std::string_view path, module_node& root) const;
-    bool         is_leaf_node(const module_node& node) const;
-    void         collect_module_paths(
-                const data_t&             data,
-                const module_node&        node,
-                const std::string&        current_path,
-                std::vector<std::string>& paths) const;
-
-    std::string_view get_pretty_name() const;
+    const std::string& get_pretty_name() const;
+    const std::string& get_namespace_type_name() const;
 };
 
 } // namespace mc::reflect

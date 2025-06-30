@@ -66,7 +66,7 @@ endif
 libmcpp_lib = shared_library(
   'libmcpp',
   src_files,
-  include_directories: [incdir],
+  include_directories: [incdir, srcdir],
   dependencies: dep_arr,
   install: true,
   install_dir: install_dir,

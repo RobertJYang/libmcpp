@@ -640,7 +640,7 @@ public:
     /**
      * @brief 默认构造函数，构造一个结束迭代器
      */
-    split_iterator() noexcept {
+    constexpr split_iterator() noexcept {
     }
 
     /**
@@ -648,23 +648,31 @@ public:
      * @param str 要分割的字符串
      * @param delims 分隔符集合，其中的任意字符都视为分隔符
      */
-    split_iterator(std::string_view str, std::string_view delims = " ") noexcept
+    constexpr split_iterator(std::string_view str, std::string_view delims = " ") noexcept
         : m_str(str), m_delims(delims) {
         find_next();
     }
 
-    value_type operator*() const noexcept {
+    constexpr value_type operator*() const noexcept {
         return std::string_view(m_str.data() + m_pos, m_end - m_pos);
     }
 
-    value_type operator->() const noexcept {
+    constexpr value_type operator->() const noexcept {
         return operator*();
     }
 
-    split_iterator& operator++() noexcept;
-    split_iterator  operator++(int) noexcept;
+    constexpr split_iterator& operator++() noexcept {
+        find_next();
+        return *this;
+    }
 
-    bool operator==(const split_iterator& other) const noexcept {
+    constexpr split_iterator operator++(int) noexcept {
+        auto tmp = *this;
+        ++(*this);
+        return tmp;
+    }
+
+    constexpr bool operator==(const split_iterator& other) const noexcept {
         if (is_end() && other.is_end()) {
             return true;
         } else if (is_end() || other.is_end()) {
@@ -673,15 +681,15 @@ public:
         return m_str.data() == other.m_str.data() && m_pos == other.m_pos;
     }
 
-    bool operator!=(const split_iterator& other) const noexcept {
+    constexpr bool operator!=(const split_iterator& other) const noexcept {
         return !(*this == other);
     }
 
-    bool is_end() const noexcept {
+    constexpr bool is_end() const noexcept {
         return m_pos >= m_str.size();
     }
 
-    static split_iterator end() noexcept {
+    static constexpr split_iterator end() noexcept {
         return split_iterator();
     }
 
@@ -689,7 +697,7 @@ public:
      * @brief 获取当前位置在原字符串中的起始偏移
      * @return 当前片段在原字符串中的起始位置
      */
-    std::size_t current_pos() const noexcept {
+    constexpr std::size_t current_pos() const noexcept {
         return m_pos;
     }
 
@@ -697,7 +705,7 @@ public:
      * @brief 获取当前位置在原字符串中的结束偏移
      * @return 当前片段在原字符串中的结束位置
      */
-    std::size_t end_pos() const noexcept {
+    constexpr std::size_t end_pos() const noexcept {
         return m_end;
     }
 
@@ -705,16 +713,43 @@ public:
      * @brief 获取当前位置在原字符串中的剩余部分
      * @return 当前片段在原字符串中的剩余部分，会跳过分隔符
      */
-    std::string_view tail() const noexcept;
+    constexpr std::string_view tail() const noexcept {
+        if (is_end()) {
+            return {};
+        }
+
+        auto pos = skip_delims(m_str, m_pos, m_delims);
+        return m_str.substr(pos);
+    }
 
     /**
      * @brief 获取当前位置在原字符串中的前置部分
      * @return 当前片段在原字符串中的前置部分
      */
-    std::string_view head() const noexcept;
+    constexpr std::string_view head() const noexcept {
+        return m_str.substr(0, m_pos);
+    }
 
 private:
-    void find_next() noexcept;
+    static constexpr std::size_t skip_delims(std::string_view str, std::size_t pos, std::string_view delims) {
+        while (pos < str.size() && delims.find(str[pos]) != std::string_view::npos) {
+            ++pos;
+        }
+        return pos;
+    }
+
+    static constexpr std::size_t find_next_delim(std::string_view str, std::size_t pos, std::string_view delims) {
+        while (pos < str.size() && delims.find(str[pos]) == std::string_view::npos) {
+            ++pos;
+        }
+        return pos;
+    }
+
+    constexpr void find_next() noexcept {
+        m_pos = m_end;
+        m_pos = skip_delims(m_str, m_pos, m_delims);
+        m_end = find_next_delim(m_str, m_pos, m_delims);
+    }
 
     std::string_view m_str;    ///< 要分割的字符串
     std::string_view m_delims; ///< 分隔符集合

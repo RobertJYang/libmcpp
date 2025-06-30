@@ -35,49 +35,8 @@ class reflection_factory;
 using factory_ptr  = mc::shared_ptr<reflection_factory>;
 using factory_wptr = mc::weak_ptr<reflection_factory>;
 
-/*
- * 检查工厂名称是否有效
- *
- * 由于工厂名称同时也是命名空间，所以需要验证工厂名称是否合理：
- * 1. 工厂名称不能为空（全局工厂除外）
- * 2. 工厂名称按点号分隔，每段名称只能包含字母、数字、下划线，每段不能以数字开头
- * 3. 不能有连续的点号，也不能以点号开头或结尾
- */
-constexpr std::size_t max_factory_name_length = 255;
-constexpr inline bool is_valid_factory_name(std::string_view name) {
-    if (name.empty() || name.size() > max_factory_name_length) {
-        return false;
-    }
-
-    // 不能以点号开头或结尾
-    if (name[0] == '.' || name[name.size() - 1] == '.') {
-        return false;
-    }
-
-    bool segment_start = true; // 标记当前是否是段的开始
-    for (size_t pos = 0; pos < name.size(); pos++) {
-        char c = name[pos];
-        if (c == '.') {
-            // 不允许连续的点号
-            if (segment_start) {
-                return false;
-            }
-            segment_start = true;
-        } else if (segment_start) {
-            // 段的第一个字符必须是字母
-            if (!mc::is_first_identifier_char(c)) {
-                return false;
-            }
-            segment_start = false;
-        } else {
-            // 其他字符必须是合法的标识符字符
-            if (!mc::is_identifier_char(c)) {
-                return false;
-            }
-        }
-    }
-
-    return true;
+constexpr inline bool is_valid_namespace(std::string_view name) {
+    return is_valid_type_name(name);
 }
 
 struct global_namespace {
@@ -122,10 +81,12 @@ public:
         if constexpr (std::is_same_v<NameSpace, global_namespace>) {
             return global_ptr();
         } else {
-            static_assert(is_valid_factory_name(NameSpace::factory_name),
+            static_assert(is_valid_namespace(NameSpace::factory_name),
                           "factory_name is not valid");
             return mc::singleton<factory_ptr, NameSpace>::instance_with_creator([]() {
-                return new factory_ptr(new reflection_factory(NameSpace::factory_name, false));
+                return new factory_ptr(
+                    new reflection_factory(
+                        NameSpace::factory_name, mc::pretty_name<NameSpace>(), false));
             });
         }
     }
@@ -199,11 +160,10 @@ public:
 
     /**
      * @brief 根据模块路径获取该模块下的所有类型
-     * @param module_path 模块路径（如 "mc::devices" 或 "mc.devices"）
+     * @param module_path 模块路径（如 "mc::devices" 或 "mc.devices"），如果为空，则获取当前工厂下的所有类型
      * @return std::vector<std::pair<std::string_view, type_id_type>> 类型名和类型ID的列表
      */
-    std::vector<std::pair<std::string, type_id_type>>
-    get_module_types(std::string_view module_path) const;
+    std::vector<std::string> get_module_types(std::string_view module_path = std::string_view{}) const;
 
     /**
      * @brief 获取所有模块路径
@@ -239,19 +199,38 @@ public:
     factory_ptr get_factory(std::string_view factory_name) const;
 
     /**
+     * @brief 获取反射工厂
+     * @param factory_id 工厂ID
+     * @return factory_ptr 反射工厂实例
+     */
+    factory_ptr get_factory_by_id(factory_id_type factory_id) const;
+
+    /**
+     * @brief 获取父工厂
+     * @return factory_ptr 父工厂实例
+     */
+    factory_ptr get_parent_factory() const;
+
+    /**
      * @brief 获取所有已注册的工厂名称
      * @return std::vector<std::string> 工厂名称列表
      */
-    std::vector<std::string_view> get_factory_names() const;
+    std::vector<std::string> get_factory_names() const;
 
     /**
      * @brief 获取工厂名称
      * @return std::string_view 工厂名称
      */
-    std::string_view get_factory_name() const;
+    const std::string& get_factory_name() const;
+
+    /**
+     * @brief 获取工厂命名空间类型名
+     * @return std::string_view 工厂类型名
+     */
+    const std::string& get_namespace_type_name() const;
 
 private:
-    reflection_factory(std::string_view factory_name, bool is_global);
+    reflection_factory(std::string_view factory_name, std::string_view factory_type_name, bool is_global);
 
     template <typename T>
     friend struct reflector; // 反射器需要访问 register_type、 register_enum_type
@@ -262,14 +241,16 @@ private:
     template <typename T>
     friend class reflection_enum_metadata; // 反射枚举元数据需要访问 unregister_type_impl
 
+    friend struct module_node;
+
     /**
      * @brief 注册类型
      * @tparam T 要注册的类型
      * @return type_id_type 分配的类型ID
      */
     template <typename T>
-    type_id_type register_type() {
-        return register_type_impl(reflector<T>::name(), []() {
+    type_id_type register_type(type_id_type type_id = INVALID_TYPE_ID) {
+        return register_type_impl(reflector<T>::name(), type_id, []() {
             return reflection_metadata<T>::instance_ptr();
         });
     }
@@ -280,15 +261,17 @@ private:
      * @return type_id_type 分配的类型ID
      */
     template <typename T>
-    type_id_type register_enum_type() {
+    type_id_type register_enum_type(type_id_type type_id = INVALID_TYPE_ID) {
         static_assert(std::is_enum_v<T>, "T must be an enum type");
 
-        return register_type_impl(reflector<T>::name(), []() {
+        return register_type_impl(reflector<T>::name(), type_id, []() {
             return reflection_enum_metadata<T>::instance_ptr();
         });
     }
 
-    type_id_type register_type_impl(std::string_view type_name, std::function<reflection_metadata_ptr()>&& creator);
+    type_id_type register_type_impl(std::string_view                           type_name,
+                                    type_id_type                               type_id,
+                                    std::function<reflection_metadata_ptr()>&& creator);
     void         unregister_type_impl(std::string_view type_name);
 
     class impl;
@@ -363,21 +346,11 @@ reflected_object_ptr wrap_object(const T& obj) {
     return wrap_object(copy);
 }
 
-namespace detail {
-template <typename T, typename = void>
-struct has_reflect_namespace : std::false_type {};
-
-template <typename T>
-struct has_reflect_namespace<T,
-                             std::enable_if_t<
-                                 !std::is_same_v<typename T::reflect_namespace, void>>>
-    : std::true_type {};
-} // namespace detail
-
 template <typename T>
 reflection_factory& get_reflect_factory() {
     if constexpr (detail::has_reflect_namespace<T>::value) {
-        return reflection_factory::instance<typename T::reflect_namespace>();
+        return reflection_factory::instance<
+            typename detail::reflect_namespace<T>::type>();
     } else {
         return reflection_factory::global();
     }
@@ -386,7 +359,8 @@ reflection_factory& get_reflect_factory() {
 template <typename T>
 factory_ptr try_get_reflect_factory() {
     if constexpr (detail::has_reflect_namespace<T>::value) {
-        return reflection_factory::try_instance_ptr<typename T::reflect_namespace>();
+        return reflection_factory::try_instance_ptr<
+            typename detail::reflect_namespace<T>::type>();
     } else {
         return reflection_factory::try_global_ptr();
     }

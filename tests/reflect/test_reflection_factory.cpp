@@ -75,8 +75,6 @@ struct devices_namespace {
 // 测试去重功能的类型
 class devices_sensor {
 public:
-    using reflect_namespace = devices_namespace;
-
     std::string m_name;
     double      m_value;
 };
@@ -104,8 +102,9 @@ MC_REFLECT((test_reflection_factory::module_b_person, "module.b.Person"),
            ((m_name, "name"))((m_address, "address")))
 
 // 注册用于测试去重的类，模拟使用工厂前缀的类型名
-MC_REFLECT((test_reflection_factory::devices_sensor, "devices.sensor"),
-           ((m_name, "name"))((m_value, "value")))
+MC_REFLECT_WITH_NAMESPACE(test_reflection_factory::devices_namespace,
+                          (test_reflection_factory::devices_sensor, "devices.sensor"),
+                          ((m_name, "name"))((m_value, "value")))
 
 namespace test_reflection_factory {
 
@@ -313,14 +312,12 @@ TEST_F(reflect_factory_test, ModuleOperations) {
 
     // 测试获取模块中的类型
     auto module_a_types = factory.get_module_types("module.a");
-    EXPECT_EQ(module_a_types.size(), 1);
-    EXPECT_EQ(module_a_types[0].first, "Person");
-    EXPECT_NE(module_a_types[0].second, -1);
+    ASSERT_EQ(module_a_types.size(), 1);
+    EXPECT_EQ(module_a_types[0], "module.a.Person");
 
     auto module_b_types = factory.get_module_types("module.b");
-    EXPECT_EQ(module_b_types.size(), 1);
-    EXPECT_EQ(module_b_types[0].first, "Person");
-    EXPECT_NE(module_b_types[0].second, -1);
+    ASSERT_EQ(module_b_types.size(), 1);
+    EXPECT_EQ(module_b_types[0], "module.b.Person");
 
     // 测试创建不同模块中的对象
     auto obj_a = factory.create_object("module.a.Person");
@@ -349,17 +346,10 @@ TEST_F(reflect_factory_test, TypeNameDeduplication) {
     auto paths = devices_factory.get_module_paths();
 
     // 检查根模块下的类型（应该有去重后的"sensor"类型）
-    auto root_types = devices_factory.get_module_types("");
+    auto root_types = devices_factory.get_module_types();
 
     // 验证去重功能：原类型名"devices.sensor"应该被去重为"sensor"
-    bool has_sensor = false;
-    for (const auto& [name, type_id] : root_types) {
-        if (name == "sensor") {
-            has_sensor = true;
-            // 验证类型ID正确
-            EXPECT_EQ(type_id, mc::reflect::reflector<devices_sensor>::get_type_id());
-        }
-    }
+    bool has_sensor = std::find(root_types.begin(), root_types.end(), "devices.sensor") != root_types.end();
     EXPECT_TRUE(has_sensor);
 
     // 验证可以通过去重后的名称"sensor"创建对象

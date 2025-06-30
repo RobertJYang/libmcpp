@@ -517,15 +517,15 @@ inline auto get_function_offset(F function)
  * 2. 数字（0-9）
  * 3. 下划线（_）
  */
-constexpr bool is_identifier_char(char c) {
+constexpr bool is_identifier_char(char c) noexcept {
     return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_';
 }
 
-constexpr bool is_first_identifier_char(char c) {
-    return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z');
+constexpr bool is_first_identifier_char(char c) noexcept {
+    return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_';
 }
 
-constexpr bool is_identifier(std::string_view s) {
+constexpr bool is_identifier(std::string_view s) noexcept {
     if (s.empty()) {
         return false;
     }

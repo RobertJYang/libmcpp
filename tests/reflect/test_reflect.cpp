@@ -391,4 +391,67 @@ TEST(ReflectTest, ComplexNestedStructure) {
     EXPECT_EQ(extracted_color, test_color::BLUE);
 }
 
+// 测试类型名称验证函数
+TEST(ReflectTest, TypeNameValidation) {
+    // 测试有效的类型名称
+    // 单一类型名
+    EXPECT_TRUE(mc::reflect::is_valid_type_name("Sensor"));
+    EXPECT_TRUE(mc::reflect::is_valid_type_name("_Sensor"));
+    EXPECT_TRUE(mc::reflect::is_valid_type_name("sensor_1"));
+
+    // 点号分隔符
+    EXPECT_TRUE(mc::reflect::is_valid_type_name("mc.devices.Sensor"));
+    EXPECT_TRUE(mc::reflect::is_valid_type_name("mc.devices.sensors.TemperatureSensor"));
+    EXPECT_TRUE(mc::reflect::is_valid_type_name("a.b.c"));
+
+    // 双冒号分隔符
+    EXPECT_TRUE(mc::reflect::is_valid_type_name("mc::devices::Sensor"));
+    EXPECT_TRUE(mc::reflect::is_valid_type_name("mc::devices::sensors::TemperatureSensor"));
+    EXPECT_TRUE(mc::reflect::is_valid_type_name("a::b::c"));
+
+    // 混合分隔符
+    EXPECT_TRUE(mc::reflect::is_valid_type_name("mc::devices.Sensor"));
+    EXPECT_TRUE(mc::reflect::is_valid_type_name("mc.devices::Sensor"));
+    EXPECT_TRUE(mc::reflect::is_valid_type_name("mc.core::services.manager.TaskManager"));
+
+    // 测试无效的类型名称
+    // 空字符串
+    EXPECT_FALSE(mc::reflect::is_valid_type_name(""));
+
+    // 以分隔符开头
+    EXPECT_FALSE(mc::reflect::is_valid_type_name(".abc"));
+    EXPECT_FALSE(mc::reflect::is_valid_type_name("::abc"));
+    EXPECT_FALSE(mc::reflect::is_valid_type_name(":abc"));
+
+    // 以分隔符结尾
+    EXPECT_FALSE(mc::reflect::is_valid_type_name("abc."));
+    EXPECT_FALSE(mc::reflect::is_valid_type_name("abc::"));
+    EXPECT_FALSE(mc::reflect::is_valid_type_name("abc:"));
+
+    // 连续分隔符
+    EXPECT_FALSE(mc::reflect::is_valid_type_name("abc..def"));
+    EXPECT_FALSE(mc::reflect::is_valid_type_name("abc::::def"));
+    EXPECT_FALSE(mc::reflect::is_valid_type_name("abc.::def"));
+    EXPECT_FALSE(mc::reflect::is_valid_type_name("abc::.def"));
+
+    // 单独的冒号
+    EXPECT_FALSE(mc::reflect::is_valid_type_name("abc:def"));
+    EXPECT_FALSE(mc::reflect::is_valid_type_name("a:b:c"));
+
+    // 段名以数字开头
+    EXPECT_FALSE(mc::reflect::is_valid_type_name("mc.123abc"));
+    EXPECT_FALSE(mc::reflect::is_valid_type_name("123abc"));
+    EXPECT_FALSE(mc::reflect::is_valid_type_name("mc::1abc"));
+
+    // 非法字符
+    EXPECT_FALSE(mc::reflect::is_valid_type_name("mc.ab-c"));
+    EXPECT_FALSE(mc::reflect::is_valid_type_name("mc.ab@c"));
+    EXPECT_FALSE(mc::reflect::is_valid_type_name("mc::ab#c"));
+    EXPECT_FALSE(mc::reflect::is_valid_type_name("mc.ab c"));
+
+    // 超长名称
+    std::string long_name(256, 'a');
+    EXPECT_FALSE(mc::reflect::is_valid_type_name(long_name));
+}
+
 } // namespace test_reflect

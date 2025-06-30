@@ -64,7 +64,7 @@ dbus_dep = dependency('dbus-1', method: 'pkg-config', required: true)
 test_exe = executable(
   'libmcpp_test',
   test_files,
-  include_directories: incdir,
+  include_directories: [incdir, srcdir],
   dependencies: [
     libmcpp_dep,
     gtest_dep,
