@@ -216,7 +216,6 @@ public:
     /**
      * @brief 计算字典的哈希值
      * @return 哈希值
-     * @note 此哈希算法参考了Lua表的哈希算法，考虑了键值对的内容
      */
     size_t hash() const;
 

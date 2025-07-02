@@ -8,3 +8,6 @@ subdir('interprocess')
 
 # 任务示例
 subdir('task_service')
+
+# Module test example
+subdir('module_test')

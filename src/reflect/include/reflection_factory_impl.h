@@ -47,11 +47,11 @@ public:
 
     type_id_type register_type(
         std::string_view type_name, type_id_type type_id, metadata_creator&& creator);
-    bool unregister_type(std::string_view type_name);
+    type_id_type unregister_type(std::string_view type_name);
 
     std::pair<factory_id_type, factory_ptr> register_factory(
         std::string_view module_name, factory_id_type factory_id, factory_ptr factory);
-    bool unregister_factory(std::string_view factory_name);
+    factory_id_type unregister_factory(std::string_view factory_name);
 
     reflection_metadata_ptr get_metadata_by_id(type_id_type global_id, const data_t& data);
     reflection_metadata_ptr get_local_metadata_by_id(local_type_id_type type_id, const data_t& data);

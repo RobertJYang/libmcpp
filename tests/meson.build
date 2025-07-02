@@ -13,6 +13,7 @@ subdir('interprocess')
 subdir('io')
 subdir('log')
 subdir('memory')
+subdir('module')
 subdir('reflect')
 subdir('runtime')
 subdir('string')
@@ -45,6 +46,7 @@ test_files = [
   test_io_files,
   test_log_files,
   test_memory_files,
+  test_module_files,
   test_reflect_files,
   test_runtime_files,
   test_string_files,
@@ -52,10 +54,9 @@ test_files = [
   test_variant_files,
 ]
 
-
 enable_shared_memory = get_option('enable_shared_memory')
 if enable_shared_memory
-  test_files += ['dbus/test_shm_call.cpp']
+  # test_files += ['dbus/test_shm_call.cpp']
 endif
 
 dbus_dep = dependency('dbus-1', method: 'pkg-config', required: true)

@@ -10,6 +10,7 @@ subdir('interprocess')
 subdir('io')
 subdir('log')
 subdir('memory')
+subdir('module')
 subdir('reflect')
 subdir('runtime')
 subdir('variant')
@@ -24,7 +25,7 @@ src_files = [
   'time.cpp',
   'string.cpp',
   'singleton.cpp',
-  
+
   # 各子目录的源文件
   core_src_files,
   db_src_files,
@@ -37,6 +38,7 @@ src_files = [
   io_src_files,
   log_src_files,
   memory_src_files,
+  module_src_files,
   reflect_src_files,
   runtime_src_files,
   variant_src_files,

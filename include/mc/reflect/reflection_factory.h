@@ -27,7 +27,7 @@
 #include <mc/reflect/base.h>
 #include <mc/reflect/reflection_enum_metadata.h>
 #include <mc/reflect/reflection_metadata.h>
-#include <mc/sync/mutex_box.h>
+#include <mc/signal_slot.h>
 
 namespace mc::reflect {
 
@@ -228,6 +228,11 @@ public:
      * @return std::string_view 工厂类型名
      */
     const std::string& get_namespace_type_name() const;
+
+    factory_id_type get_factory_id() const;
+
+    mc::signal<void(type_id_type)>    on_type_unregister;
+    mc::signal<void(factory_id_type)> on_factory_unregister;
 
 private:
     reflection_factory(std::string_view factory_name, std::string_view factory_type_name, bool is_global);

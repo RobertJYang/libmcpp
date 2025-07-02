@@ -207,18 +207,18 @@ void module_node::register_factory(split_iterator& type_it, factory_info* factor
 }
 
 bool module_node::unregister_factory(split_iterator& type_it) {
-    auto name = *type_it;
-    ++type_it;
     if (type_it.is_end()) {
         sub_factory = nullptr;
         return true;
     }
 
+    auto name   = *type_it;
     auto sub_it = submodules.find(name);
     if (sub_it == submodules.end()) {
         return false;
     }
 
+    ++type_it;
     auto sub_node = sub_it->second.get();
     if (sub_node->unregister_factory(type_it) && sub_node->is_empty()) {
         // 移除空子模块

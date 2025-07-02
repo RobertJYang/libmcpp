@@ -96,6 +96,23 @@
             "linux": {
                 "MIMode": "gdb",
             }
-        }
+        },
+        {
+            "name": "examples/module_test",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/builddir/examples/module_test/module_test_example",
+            "args": [],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [],
+            "externalConsole": false,
+            "osx": {
+                "MIMode": "lldb",
+            },
+            "linux": {
+                "MIMode": "gdb",
+            }
+        },
     ]
 }

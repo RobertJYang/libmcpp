@@ -186,12 +186,17 @@ constexpr bool type_in_namespace(std::string_view type_name, std::string_view na
         return false;
     }
 
-    auto type_name_it      = mc::string::split_iterator(type_name, "::.");
-    auto namespace_name_it = mc::string::split_iterator(namespace_name, ".");
+    std::size_t segment_count     = 0;
+    auto        type_name_it      = mc::string::split_iterator(type_name, "::.");
+    auto        namespace_name_it = mc::string::split_iterator(namespace_name, ".");
     while (!type_name_it.is_end() && !namespace_name_it.is_end()) {
         if (*type_name_it != *namespace_name_it) {
-            return false;
+            // 如果第一段就不匹配，那整个类型会放到命名空间之下，这也是允许的
+            // 但如果是部分匹配就不允许，说明类型名不包含命名空间
+            return segment_count == 0 ? true : false;
         }
+
+        ++segment_count;
         ++type_name_it;
         ++namespace_name_it;
     }

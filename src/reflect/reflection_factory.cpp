@@ -270,10 +270,13 @@ void reflection_factory::unregister_factory(std::string_view factory_name) {
         return;
     }
 
-    if (m_impl->unregister_factory(*result)) {
+    auto factory_id = m_impl->unregister_factory(*result);
+    if (factory_id != INVALID_FACTORY_ID) {
         dlog("注销反射模块: 当前模块名=${factory_name}, 子模块名=${sub_name}",
              ("factory_name", m_impl->get_pretty_name()) // 当前模块名
              ("sub_name", factory_name));                // 子模块名
+
+        on_factory_unregister(factory_id);
     }
 }
 
@@ -314,6 +317,10 @@ const std::string& reflection_factory::get_factory_name() const {
 
 const std::string& reflection_factory::get_namespace_type_name() const {
     return m_impl->m_namespace_type_name;
+}
+
+factory_id_type reflection_factory::get_factory_id() const {
+    return m_impl->m_data.unsafe_get_data().m_factory_id;
 }
 
 type_id_type reflection_factory::register_type_impl(
@@ -358,10 +365,13 @@ void reflection_factory::unregister_type_impl(std::string_view type_name) {
         return;
     }
 
-    if (m_impl->unregister_type(*result)) {
+    auto type_id = m_impl->unregister_type(*result);
+    if (type_id != INVALID_TYPE_ID) {
         dlog("注销类型: 当前模块名=${factory_name}, 类型名=${type_name}",
              ("factory_name", m_impl->get_pretty_name()) // 当前模块名
              ("type_name", type_name));                  // 类型名
+
+        on_type_unregister(type_id);
     }
 }
 

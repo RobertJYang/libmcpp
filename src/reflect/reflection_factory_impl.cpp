@@ -203,13 +203,13 @@ type_id_type reflection_factory::impl::register_type(
     });
 }
 
-bool reflection_factory::impl::unregister_type(std::string_view type_name) {
+type_id_type reflection_factory::impl::unregister_type(std::string_view type_name) {
     return m_data.with_lock([&](auto& data) {
         std::string name = normalize_type_name(type_name);
 
         auto it = data.m_type_infos.find(name);
         if (it == data.m_type_infos.end()) {
-            return false;
+            return INVALID_TYPE_ID;
         }
 
         // 一定要先从模块树中移除，因为 module_node 用了 type_info 的 name 视图作为索引
@@ -221,7 +221,7 @@ bool reflection_factory::impl::unregister_type(std::string_view type_name) {
         data.m_type_infos_by_id.erase(type_id);
         data.m_type_infos.erase(it);
 
-        return true;
+        return encode_type_id(data.m_factory_id, type_id);
     });
 }
 
@@ -256,11 +256,11 @@ std::pair<factory_id_type, factory_ptr> reflection_factory::impl::register_facto
     });
 }
 
-bool reflection_factory::impl::unregister_factory(std::string_view factory_name) {
+factory_id_type reflection_factory::impl::unregister_factory(std::string_view factory_name) {
     return m_data.with_lock([&](auto& data) {
         auto it = data.m_factories.find(factory_name);
         if (it == data.m_factories.end()) {
-            return false;
+            return INVALID_FACTORY_ID;
         }
 
         auto factory_id = it->second->factory_id;
@@ -271,7 +271,7 @@ bool reflection_factory::impl::unregister_factory(std::string_view factory_name)
         split_iterator type_it(factory_name, delims);
         data.m_root_module->unregister_factory(type_it);
 
-        return true;
+        return factory_id;
     });
 }
 

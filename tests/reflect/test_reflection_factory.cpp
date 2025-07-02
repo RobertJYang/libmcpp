@@ -108,14 +108,41 @@ MC_REFLECT_WITH_NAMESPACE(test_reflection_factory::devices_namespace,
 
 namespace test_reflection_factory {
 
+using test_types = std::tuple<
+    test_person,
+    test_status,
+    module_a_person,
+    module_b_person,
+    devices_sensor>;
+
 class reflect_factory_test : public mc::test::TestBase {
 protected:
     void SetUp() override {
-        // 为了测试销毁反射元数据，这里显示获取一次单例确保被销毁后还能重新创建，否则其他用例会失败
-        mc::reflect::reflection_metadata<test_person>::instance();
+        // 重置工厂单例，确保每个测试开始时都有干净的工厂状态
+        mc::singleton<mc::reflect::factory_ptr, mc::reflect::global_namespace>::reset_for_test();
+        mc::singleton<mc::reflect::factory_ptr, devices_namespace>::reset_for_test();
+
+        // 先注销后注册再重新注册，确保所有类型都重新注册到对应的工厂
+        mc::traits::tuple_element_for_each<test_types>([](auto&& type_wrap) {
+            using type = typename std::decay_t<decltype(type_wrap)>::type;
+            mc::reflect::reflector<type>::unregister_type();
+        });
+        mc::traits::tuple_element_for_each<test_types>([](auto&& type_wrap) {
+            using type = std::tuple_element_t<std::decay_t<decltype(type_wrap)>::index, test_types>;
+            mc::reflect::reflector<type>::register_type();
+        });
     }
 
     void TearDown() override {
+        // 清理测试单例
+        mc::singleton<mc::reflect::factory_ptr, mc::reflect::global_namespace>::reset_for_test();
+        mc::singleton<mc::reflect::factory_ptr, devices_namespace>::reset_for_test();
+
+        // 清理所有的测试类型
+        mc::traits::tuple_element_for_each<test_types>([](auto&& type_wrap) {
+            using type = typename std::decay_t<decltype(type_wrap)>::type;
+            mc::reflect::reflector<type>::unregister_type();
+        });
     }
 };
 
