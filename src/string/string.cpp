@@ -12,7 +12,7 @@
 
 /**
  * @file string.cpp
- * @brief 实现 string.h 中声明的字符串处理函数
+ * @brief 实现基本字符串处理函数
  */
 
 #include <mc/dict.h>
@@ -527,310 +527,7 @@ void fixed_width_append(std::string& result, size_t width, std::string_view s, b
     }
 }
 
-} // namespace string
-
-// 验证键名是否合法（只能包含字母、数字、下划线，且只能以字母和下划线开头）
-static bool is_valid_fmt_key(std::string_view key) {
-    if (key.empty()) {
-        return false;
-    }
-
-    // 首字符必须是字母或下划线
-    if (!std::isalpha(static_cast<unsigned char>(key[0])) && key[0] != '_') {
-        return false;
-    }
-
-    // 其余字符必须是字母、数字或下划线
-    for (size_t i = 1; i < key.size(); ++i) {
-        if (!std::isalnum(static_cast<unsigned char>(key[i])) && key[i] != '_') {
-            return false;
-        }
-    }
-
-    return true;
-}
-
-// 定义占位符语法的常量
-constexpr std::string_view PLACEHOLDER_START = "${";
-constexpr char             PLACEHOLDER_END   = '}';
-
-// 将variant值转换为字符串并追加到结果中
-static void append_variant_to_string(std::string& result, const variant& value) {
-    value.visit_with([&](auto&& val) {
-        using T = std::decay_t<decltype(val)>;
-
-        if constexpr (std::is_same_v<T, void> || std::is_same_v<T, std::nullptr_t>) {
-            result.append("null");
-        } else if constexpr (std::is_arithmetic_v<T> || std::is_same_v<T, bool>) {
-            mc::to_string(result, val);
-        } else if constexpr (std::is_same_v<T, std::string>) {
-            result.append(val);
-        } else {
-            result.append(value.to_string());
-        }
-    });
-}
-
-// 从字典中获取键对应的值并追加到结果字符串
-static void resolve_fmt_key(std::string& result, std::string_view key, const dict& args) {
-    // 验证 key 格式
-    if (!is_valid_fmt_key(key)) {
-        mc::string::append(result, PLACEHOLDER_START, key, PLACEHOLDER_END);
-        return;
-    }
-
-    auto it = args.find(key);
-    if (it != args.end()) {
-        // 直接转换值为字符串，不处理嵌套占位符
-        append_variant_to_string(result, it->value);
-    } else {
-        // 键不存在，保留原始占位符
-        mc::string::append(result, PLACEHOLDER_START, key, PLACEHOLDER_END);
-    }
-}
-
-// 从字典中获取键对应的值并追加到结果字符串（大小写不敏感版本）
-static void resolve_fmt_key_icase(std::string& result, std::string_view key, const dict& args) {
-    // 验证 key 格式
-    if (!is_valid_fmt_key(key)) {
-        mc::string::append(result, PLACEHOLDER_START, key, PLACEHOLDER_END);
-        return;
-    }
-
-    // 首先尝试精确匹配
-    auto it = args.find(key);
-    if (it != args.end()) {
-        // 直接转换值为字符串，不处理嵌套占位符
-        append_variant_to_string(result, it->value);
-        return;
-    }
-
-    // 如果精确匹配失败，进行大小写不敏感的查找
-    for (const auto& entry : args) {
-        if (mc::string::iequals(entry.key.as_string(), key)) {
-            append_variant_to_string(result, entry.value);
-            return;
-        }
-    }
-
-    // 键不存在，保留原始占位符
-    mc::string::append(result, PLACEHOLDER_START, key, PLACEHOLDER_END);
-}
-
-// 使用参数字典格式化字符串并追加到结果字符串中
-void mc::string::format_base(std::string& result, std::string_view format_str, const dict& args, bool icase) {
-    if (format_str.empty()) {
-        return;
-    }
-
-    // 快速检查是否有占位符，如果没有直接追加原始字符串
-    if (format_str.find(PLACEHOLDER_START) == std::string_view::npos) {
-        result.append(format_str);
-        return;
-    }
-
-    result.reserve(result.size() + format_str.size() * 2); // 预分配空间
-
-    std::size_t pos = 0;
-    while (pos < format_str.size()) {
-        // 查找下一个占位符开始位置
-        size_t placeholder_start = format_str.find(PLACEHOLDER_START, pos);
-        if (placeholder_start == std::string_view::npos) {
-            // 没有找到更多占位符，添加剩余文本并返回
-            result.append(format_str.substr(pos));
-            break;
-        }
-
-        // 添加占位符前的普通文本
-        if (placeholder_start > pos) {
-            result.append(format_str.substr(pos, placeholder_start - pos));
-        }
-
-        // 查找占位符的结束位置
-        size_t placeholder_end =
-            format_str.find(PLACEHOLDER_END, placeholder_start + PLACEHOLDER_START.size());
-
-        if (placeholder_end == std::string_view::npos) {
-            // 没有找到结束括号，将剩余内容视为普通文本
-            result.append(format_str.substr(pos));
-            break;
-        }
-
-        // 提取占位符内容（不包含 ${ 和 }）
-        std::string_view key =
-            format_str.substr(placeholder_start + PLACEHOLDER_START.size(),
-                              placeholder_end - (placeholder_start + PLACEHOLDER_START.size()));
-
-        // 解析键并添加到结果
-        if (icase) {
-            resolve_fmt_key_icase(result, key, args);
-        } else {
-            resolve_fmt_key(result, key, args);
-        }
-
-        // 移动到占位符之后
-        pos = placeholder_end + 1;
-    }
-}
-
-// 使用参数字典格式化字符串并追加到结果字符串中
-void mc::string::format(std::string& result, std::string_view format_str, const dict& args) {
-    format_base(result, format_str, args, false);
-}
-// 使用参数字典格式化字符串
-std::string mc::string::format(std::string_view format_str, const dict& args) {
-    if (format_str.empty()) {
-        return std::string();
-    }
-
-    // 快速检查是否有占位符，如果没有直接返回原始字符串
-    if (format_str.find(PLACEHOLDER_START) == std::string_view::npos) {
-        return std::string(format_str);
-    }
-
-    std::string result;
-    mc::string::format_base(result, format_str, args, false);
-    return result;
-}
-
-// 使用参数字典格式化字符串（大小写不敏感版本）并追加到结果字符串中
-void mc::string::format_icase(std::string& result, std::string_view format_str, const dict& args) {
-    format_base(result, format_str, args, true);
-}
-
-// 使用参数字典格式化字符串（大小写不敏感版本）
-std::string mc::string::format_icase(std::string_view format_str, const dict& args) {
-    if (format_str.empty()) {
-        return std::string();
-    }
-
-    // 快速检查是否有占位符，如果没有直接返回原始字符串
-    if (format_str.find(PLACEHOLDER_START) == std::string_view::npos) {
-        return std::string(format_str);
-    }
-
-    std::string result;
-    mc::string::format_base(result, format_str, args, true);
-    return result;
-}
-
-std::string mc::string::format_v(const char* format, ...) {
-    va_list args;
-    va_start(args, format);
-    std::string result = format_vv(format, args);
-    va_end(args);
-    return result;
-}
-
-std::string mc::string::format_vv(const char* format, va_list args) {
-    std::string result;
-    if (!format_vv(result, format, args)) {
-        return {};
-    }
-
-    return result;
-}
-
-bool mc::string::format_v(std::string& result, const char* format, ...) {
-    va_list args;
-    va_start(args, format);
-    bool ret = format_vv(result, format, args);
-    va_end(args);
-    return ret;
-}
-
-bool mc::string::format_vv(std::string& result, const char* format, va_list args) {
-    va_list args_tmp;
-    va_copy(args_tmp, args);
-    int size = std::vsnprintf(nullptr, 0, format, args_tmp);
-    va_end(args_tmp);
-    if (size <= 0) {
-        result.clear();
-        return false;
-    }
-
-    result.resize(size + 1);
-    int ret = std::vsnprintf(const_cast<char*>(result.data()), size + 1, format, args);
-    if (ret <= 0) {
-        result.clear();
-        return false;
-    }
-
-    result.resize(ret);
-    return true;
-}
-
-bool mc::string::get_format_args(std::string_view format, mc::dict& arg_names) {
-    if (format.empty()) {
-        return true;
-    }
-
-    std::size_t      pos = 0;
-    mc::mutable_dict args;
-    while (pos < format.size()) {
-        size_t start_pos = format.find(PLACEHOLDER_START, pos);
-        if (start_pos == std::string_view::npos) {
-            break;
-        }
-
-        size_t end_pos = format.find(PLACEHOLDER_END, start_pos + PLACEHOLDER_START.size());
-        if (end_pos == std::string_view::npos) {
-            return false;
-        }
-
-        std::string_view key = format.substr(start_pos + PLACEHOLDER_START.size(),
-                                             end_pos - (start_pos + PLACEHOLDER_START.size()));
-        if (key.empty()) {
-            return false;
-        }
-
-        args[key] = true;
-
-        pos = end_pos + 1;
-    }
-
-    arg_names = std::move(args);
-    return true;
-}
-
-void to_string(std::string& result, double value) {
-    char   buffer[64];
-    double intpart;
-    if (modf(value, &intpart) == 0.0) {
-        // 如果是整数值，不显示小数点和小数位
-        snprintf(buffer, sizeof(buffer), "%.0f", value);
-    } else {
-        // 先使用默认的6位小数格式
-        snprintf(buffer, sizeof(buffer), "%.6f", value);
-        // 移除末尾多余的0和小数点
-        char* end = buffer + strlen(buffer) - 1;
-        while (end > buffer && *end == '0') {
-            *end-- = '\0';
-        }
-        if (end > buffer && *end == '.') {
-            *end = '\0';
-        }
-    }
-    result.append(buffer);
-}
-
-std::string to_string(double value) {
-    std::string result;
-    to_string(result, value);
-    return result;
-}
-
-std::string to_string(bool value) {
-    std::string result;
-    to_string(result, value);
-    return result;
-}
-
-void to_string(std::string& result, bool value) {
-    result.append(value ? "true" : "false");
-}
-
-bool string::is_valid_utf8(std::string_view s) {
+bool is_valid_utf8(std::string_view s) {
     const unsigned char* bytes  = reinterpret_cast<const unsigned char*>(s.data());
     size_t               length = s.size();
 
@@ -914,6 +611,45 @@ bool string::is_valid_utf8(std::string_view s) {
     }
 
     return true;
+}
+
+} // namespace string
+
+void to_string(std::string& result, double value) {
+    char   buffer[64];
+    double intpart;
+    if (modf(value, &intpart) == 0.0) {
+        // 如果是整数值，不显示小数点和小数位
+        snprintf(buffer, sizeof(buffer), "%.0f", value);
+    } else {
+        // 先使用默认的6位小数格式
+        snprintf(buffer, sizeof(buffer), "%.6f", value);
+        // 移除末尾多余的0和小数点
+        char* end = buffer + strlen(buffer) - 1;
+        while (end > buffer && *end == '0') {
+            *end-- = '\0';
+        }
+        if (end > buffer && *end == '.') {
+            *end = '\0';
+        }
+    }
+    result.append(buffer);
+}
+
+std::string to_string(double value) {
+    std::string result;
+    to_string(result, value);
+    return result;
+}
+
+std::string to_string(bool value) {
+    std::string result;
+    to_string(result, value);
+    return result;
+}
+
+void to_string(std::string& result, bool value) {
+    result.append(value ? "true" : "false");
 }
 
 } // namespace mc

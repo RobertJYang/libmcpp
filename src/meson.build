@@ -13,6 +13,7 @@ subdir('memory')
 subdir('module')
 subdir('reflect')
 subdir('runtime')
+subdir('string')
 subdir('variant')
 
 # 源文件列表
@@ -23,7 +24,6 @@ src_files = [
   'filesystem.cpp',
   'json.cpp',
   'time.cpp',
-  'string.cpp',
   'singleton.cpp',
 
   # 各子目录的源文件
@@ -41,6 +41,7 @@ src_files = [
   module_src_files,
   reflect_src_files,
   runtime_src_files,
+  string_src_files,
   variant_src_files,
 ]
 
