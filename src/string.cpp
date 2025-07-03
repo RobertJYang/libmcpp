@@ -54,7 +54,88 @@ std::pair<int, std::string_view> detect_number_radix(std::string_view s) {
     return {10, s};
 }
 
+std::string_view prepare_number_string(
+    std::string_view s, int radix, char* buffer, std::size_t buffer_size) noexcept {
+    if (s.empty()) {
+        return {};
+    }
+
+    // 根据进制检查字符串长度是否合法
+    size_t max_len;
+    switch (radix) {
+    case 2:
+        max_len = 64;
+        break;
+    case 8:
+        max_len = 22;
+        break;
+    case 16:
+        max_len = 16;
+        break;
+    default: // 10进制
+        max_len = 20;
+        break;
+    }
+
+    if (s.size() > max_len || (s.size() + 1) > buffer_size) {
+        return {};
+    }
+
+    std::memcpy(buffer, s.data(), s.size());
+    buffer[s.size()] = '\0';
+    return std::string_view(buffer, s.size());
+}
+
 } // namespace detail
+
+/**
+ * @brief 尝试将字符串转换为布尔值
+ * @param s 要转换的字符串
+ * @param result 转换结果的引用
+ * @return 是否转换成功
+ */
+inline bool try_to_bool(std::string_view s, bool& result) {
+    if (s.empty()) {
+        result = false;
+        return true;
+    }
+
+    if (iequals(s, std::string_view("true", 4)) || s == std::string_view("1", 1)) {
+        result = true;
+        return true;
+    } else if (iequals(s, std::string_view("false", 5)) || s == std::string_view("0", 1)) {
+        result = false;
+        return true;
+    }
+
+    return false;
+}
+
+bool to_bool_with_default(std::string_view s, bool default_value) {
+    if (s.empty()) {
+        return false;
+    }
+
+    bool result;
+    if (try_to_bool(s, result)) {
+        return result;
+    }
+
+    return default_value;
+}
+
+bool to_bool(std::string_view s) {
+    if (s.empty()) {
+        return false;
+    }
+
+    bool result;
+    if (try_to_bool(s, result)) {
+        return result;
+    }
+
+    detail::throw_bad_cast_error("bool");
+}
 
 // 忽略大小写比较两个字符串是否相等
 bool iequals(std::string_view a, std::string_view b) {

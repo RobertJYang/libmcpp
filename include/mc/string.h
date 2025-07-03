@@ -87,6 +87,16 @@ namespace detail {
 [[noreturn]] void throw_overflow_error(const char* type, std::string_view s);
 
 std::pair<int, std::string_view> detect_number_radix(std::string_view s);
+
+/**
+ * @brief 准备一个以尾0结尾的字符串，用于安全地转换为数字
+ * @param s 输入字符串
+ * @param radix 进制
+ * @param buffer 栈上分配的缓冲区
+ * @return 可以安全用于 std::strtoX 函数的字符串指针，如果字符串无效则返回 nullptr
+ */
+std::string_view prepare_number_string(
+    std::string_view s, int radix, char* buffer, std::size_t buffer_size) noexcept;
 } // namespace detail
 
 /**
@@ -454,22 +464,7 @@ bool format_vv(std::string& result, const char* format, va_list args);
  * @param result 转换结果的引用
  * @return 是否转换成功
  */
-inline bool try_to_bool(std::string_view s, bool& result) {
-    if (s.empty()) {
-        result = false;
-        return true;
-    }
-
-    if (iequals(s, std::string_view("true", 4)) || s == std::string_view("1", 1)) {
-        result = true;
-        return true;
-    } else if (iequals(s, std::string_view("false", 5)) || s == std::string_view("0", 1)) {
-        result = false;
-        return true;
-    }
-
-    return false;
-}
+bool try_to_bool(std::string_view s, bool& result);
 
 /**
  * @brief 将字符串转换为布尔值，如果转换失败则返回默认值
@@ -477,36 +472,14 @@ inline bool try_to_bool(std::string_view s, bool& result) {
  * @param default_value 转换失败时返回的默认值
  * @return 转换结果或默认值
  */
-inline bool to_bool(std::string_view s, bool default_value) {
-    if (s.empty()) {
-        return false;
-    }
-
-    bool result;
-    if (try_to_bool(s, result)) {
-        return result;
-    }
-
-    return default_value;
-}
+bool to_bool_with_default(std::string_view s, bool default_value);
 
 /**
  * @brief 将字符串转换为布尔值，如果转换失败则抛出异常
  * @param s 要转换的字符串
  * @return 转换结果
  */
-inline bool to_bool(std::string_view s) {
-    if (s.empty()) {
-        return false;
-    }
-
-    bool result;
-    if (try_to_bool(s, result)) {
-        return result;
-    }
-
-    detail::throw_bad_cast_error("bool");
-}
+bool to_bool(std::string_view s);
 
 /**
  * @brief 尝试将字符串转换为数字
@@ -518,7 +491,7 @@ inline bool to_bool(std::string_view s) {
  * 不保证以尾0结尾，建议后续用 std::from_chars 替代
  */
 template <typename T, typename = std::enable_if_t<std::is_arithmetic_v<T>>>
-bool try_to_number(std::string_view s, T& result, int radix = 0) {
+bool try_to_number_unsafe(std::string_view s, T& result, int radix = 0) {
     errno = 0;
     if (s.empty()) {
         return false;
@@ -528,6 +501,8 @@ bool try_to_number(std::string_view s, T& result, int radix = 0) {
         auto v = detail::detect_number_radix(s);
         radix  = v.first;
         s      = v.second;
+    } else if (radix != 2 && radix != 8 && radix != 10 && radix != 16) {
+        radix = 10;
     }
 
     char* end;
@@ -562,6 +537,24 @@ bool try_to_number(std::string_view s, T& result, int radix = 0) {
     return end != s.data() && end == s.data() + s.size();
 }
 
+#ifndef MC_NUMBER_STRING_BUFFER_SIZE
+#define MC_NUMBER_STRING_BUFFER_SIZE 128
+#endif
+
+/**
+ * @brief 尝试安全的将字符串转换为数字，使用栈上分配的缓冲区
+ * @param s 要转换的字符串
+ * @param result 转换结果的引用
+ * @param radix 进制
+ * @return 是否转换成功
+ */
+template <typename T, typename = std::enable_if_t<std::is_arithmetic_v<T>>>
+bool try_to_number_safe(std::string_view s, T& result, int radix = 0) {
+    char buffer[MC_NUMBER_STRING_BUFFER_SIZE];
+    auto str_data = detail::prepare_number_string(s, radix, buffer, sizeof(buffer));
+    return try_to_number_unsafe(str_data, result, radix);
+}
+
 /**
  * @brief 尝试将C风格字符串转换为数字
  * @param s 要转换的C风格字符串
@@ -570,7 +563,19 @@ bool try_to_number(std::string_view s, T& result, int radix = 0) {
  */
 template <typename T, typename = std::enable_if_t<std::is_arithmetic_v<T>>>
 bool try_to_number(const char* s, T& result, int radix = 0) {
-    return try_to_number<T>(std::string_view(s), result, radix);
+    return try_to_number_safe<T>(std::string_view(s), result, radix);
+}
+
+/**
+ * @brief 尝试将字符串转换为数字
+ * @param s 要转换的字符串
+ * @param result 转换结果的引用
+ * @param radix 进制
+ * @return 是否转换成功
+ */
+template <typename T, typename = std::enable_if_t<std::is_arithmetic_v<T>>>
+bool try_to_number(std::string_view s, T& result, int radix = 0) {
+    return try_to_number_safe<T>(s, result, radix);
 }
 
 /**
@@ -581,7 +586,7 @@ bool try_to_number(const char* s, T& result, int radix = 0) {
  */
 template <typename T, typename = std::enable_if_t<std::is_arithmetic_v<T>>>
 bool try_to_number(const std::string& s, T& result, int radix = 0) {
-    return try_to_number<T>(std::string_view(s), result, radix);
+    return try_to_number_unsafe<T>(s, result, radix);
 }
 
 /**
@@ -589,6 +594,7 @@ bool try_to_number(const std::string& s, T& result, int radix = 0) {
  * @param s 要转换的字符串
  * @return 转换结果
  */
+
 template <typename T, typename = std::enable_if_t<std::is_arithmetic_v<T>>>
 T to_number(std::string_view s, int radix = 0) {
     T result{};
@@ -604,13 +610,13 @@ T to_number(std::string_view s, int radix = 0) {
 }
 
 /**
- * @brief 将字符串转换为数字，如果转换失败则返回默认值
- * @param s 要转换的字符串
- * @param default_value 转换失败时返回的默认值
- * @return 转换结果或默认值
+ * @brief 将标准字符串转换为数字
+ * @param s 要转换的标准字符串
+ * @param radix 进制
+ * @return 转换结果
  */
 template <typename T, typename = std::enable_if_t<std::is_arithmetic_v<T>>>
-T to_number(std::string_view s, T default_value, int radix = 0) {
+T to_number(const std::string& s, int radix = 0) {
     T result{};
     if (try_to_number<T>(s, result, radix)) {
         return result;
@@ -620,7 +626,63 @@ T to_number(std::string_view s, T default_value, int radix = 0) {
         detail::throw_overflow_error(mc::pretty_name<T>(), s);
     }
 
+    detail::throw_bad_cast_error(mc::pretty_name<T>());
+}
+
+/**
+ * @brief 将C风格字符串转换为数字
+ * @param s 要转换的C风格字符串
+ * @param radix 进制
+ * @return 转换结果
+ */
+template <typename T, typename = std::enable_if_t<std::is_arithmetic_v<T>>>
+T to_number(const char* s, int radix = 0) {
+    return to_number<T>(std::string_view(s), radix);
+}
+
+/**
+ * @brief 将字符串转换为数字，如果转换失败则返回默认值
+ * @param s 要转换的字符串
+ * @param default_value 转换失败时返回的默认值
+ * @return 转换结果或默认值
+ */
+template <typename T, typename = std::enable_if_t<std::is_arithmetic_v<T>>>
+T to_number_with_default(std::string_view s, T default_value, int radix = 0) {
+    T result{};
+    if (try_to_number<T>(s, result, radix)) {
+        return result;
+    }
+
     return default_value;
+}
+
+/**
+ * @brief 将标准字符串转换为数字，如果转换失败则返回默认值
+ * @param s 要转换的标准字符串
+ * @param default_value 转换失败时返回的默认值
+ * @param radix 进制
+ * @return 转换结果或默认值
+ */
+template <typename T, typename = std::enable_if_t<std::is_arithmetic_v<T>>>
+T to_number_with_default(const std::string& s, T default_value, int radix = 0) {
+    T result{};
+    if (try_to_number<T>(s, result, radix)) {
+        return result;
+    }
+
+    return default_value;
+}
+
+/**
+ * @brief 将C风格字符串转换为数字，如果转换失败则返回默认值
+ * @param s 要转换的C风格字符串
+ * @param default_value 转换失败时返回的默认值
+ * @param radix 进制
+ * @return 转换结果或默认值
+ */
+template <typename T, typename = std::enable_if_t<std::is_arithmetic_v<T>>>
+T to_number_with_default(const char* s, T default_value, int radix = 0) {
+    return to_number_with_default<T>(std::string_view(s), default_value, radix);
 }
 
 bool get_format_args(std::string_view format, mc::dict& arg_names);
@@ -881,6 +943,11 @@ inline bool get_format_args(std::string_view format, mc::dict& arg_names) {
 #define mc_format_append(result, fmt, ...) \
     mc::format(result, fmt, static_cast<const mc::dict&>(mc::mutable_dict() __VA_ARGS__))
 
+using mc::string::to_bool;
+using mc::string::to_bool_with_default;
+using mc::string::to_number;
+using mc::string::to_number_with_default;
+using mc::string::try_to_number;
 } // namespace mc
 
 #endif // MC_STRING_H

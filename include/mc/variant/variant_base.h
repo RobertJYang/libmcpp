@@ -679,10 +679,10 @@ public:
         case type_id::double_type:
             return m_double != 0;
         case type_id::string_type: {
-            return mc::string::to_bool(*m_string_ptr, !strict);
+            return mc::string::to_bool_with_default(*m_string_ptr, !strict);
         }
         case type_id::blob_type: {
-            return mc::string::to_bool(m_blob_ptr->as_string_view(), !strict);
+            return mc::string::to_bool_with_default(m_blob_ptr->as_string_view(), !strict);
         }
         case type_id::extension_type:
             return m_extension ? m_extension->as_bool() : false;
