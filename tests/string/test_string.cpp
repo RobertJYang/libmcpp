@@ -17,7 +17,9 @@
 #include <gtest/gtest.h>
 #include <iostream>
 #include <mc/dict.h>
+#include <mc/exception.h>
 #include <mc/string.h>
+
 using namespace mc::string;
 
 namespace mc {
@@ -495,6 +497,180 @@ TEST(string, split_iterator) {
         ASSERT_EQ(parts[1], "b");
         ASSERT_EQ(parts[2], "c");
     }
+}
+
+/**
+ * @brief 测试字符串转数字的安全性
+ */
+TEST_F(StringTest, TestStringToNumberSafety) {
+    // 测试 string_view 的安全性
+    {
+        // 构造一个较长的字符串，包含合法数字后跟其他字符
+        std::string long_str = "42000hello";
+
+        // 创建一个只包含数字部分的 string_view
+        std::string_view num_view(long_str.data(), 2); // 只取 "42"
+
+        // 验证转换
+        int result = 0;
+        ASSERT_TRUE(mc::try_to_number(num_view, result));
+        ASSERT_EQ(result, 42);
+
+        // 验证 to_number
+        ASSERT_EQ(mc::to_number<int>(num_view), 42);
+    }
+
+    // 测试 std::string 的安全性
+    {
+        std::string str    = "42";
+        int         result = 0;
+        ASSERT_TRUE(mc::try_to_number(str, result));
+        ASSERT_EQ(result, 42);
+
+        // 验证 to_number
+        ASSERT_EQ(mc::to_number<int>(str), 42);
+    }
+
+    // 测试 C 风格字符串的安全性
+    {
+        const char* str    = "42";
+        int         result = 0;
+        ASSERT_TRUE(mc::try_to_number(str, result));
+        ASSERT_EQ(result, 42);
+
+        // 验证 to_number
+        ASSERT_EQ(mc::to_number<int>(str), 42);
+    }
+
+    // 测试不同进制的边界情况
+    {
+        // 二进制
+        std::string      bin_str(64, '1'); // 64个1
+        std::string_view bin_view(bin_str);
+        uint64_t         result = 0;
+        ASSERT_TRUE(mc::try_to_number(bin_view, result, 2));
+        ASSERT_EQ(result, std::numeric_limits<uint64_t>::max());
+
+        // 八进制
+        std::string      oct_str = "1777777777777777777777"; // 最大64位八进制
+        std::string_view oct_view(oct_str);
+        ASSERT_TRUE(mc::try_to_number(oct_view, result, 8));
+        ASSERT_EQ(result, std::numeric_limits<uint64_t>::max());
+
+        // 十六进制
+        std::string      hex_str = "FFFFFFFFFFFFFFFF"; // 最大64位十六进制
+        std::string_view hex_view(hex_str);
+        ASSERT_TRUE(mc::try_to_number(hex_view, result, 16));
+        ASSERT_EQ(result, std::numeric_limits<uint64_t>::max());
+    }
+
+    // 测试超长字符串
+    {
+        // 二进制超长
+        std::string too_long_bin(65, '1');
+        int         result = 0;
+        ASSERT_FALSE(mc::try_to_number(too_long_bin, result, 2));
+
+        // 八进制超长
+        std::string too_long_oct(23, '7');
+        ASSERT_FALSE(mc::try_to_number(too_long_oct, result, 8));
+
+        // 十六进制超长
+        std::string too_long_hex(17, 'F');
+        ASSERT_FALSE(mc::try_to_number(too_long_hex, result, 16));
+
+        // 十进制超长
+        std::string too_long_dec(21, '9');
+        ASSERT_FALSE(mc::try_to_number(too_long_dec, result));
+    }
+
+    // 测试字符串后面有非数字字符的情况
+    {
+        // string_view 情况
+        std::string      str1 = "42abc";
+        std::string_view view1(str1.data(), 2); // 只取 "42"
+        int              result = 0;
+        ASSERT_TRUE(mc::try_to_number(view1, result));
+        ASSERT_EQ(result, 42);
+
+        // string 情况
+        std::string str2 = "42abc";
+        ASSERT_FALSE(mc::try_to_number(str2, result));
+
+        // C 字符串情况
+        const char* str3 = "42abc";
+        ASSERT_FALSE(mc::try_to_number(str3, result));
+    }
+
+    // 测试空字符串
+    {
+        int result = 0;
+        ASSERT_FALSE(mc::try_to_number(std::string_view{}, result));
+        ASSERT_FALSE(mc::try_to_number(std::string{}, result));
+        ASSERT_FALSE(mc::try_to_number("", result));
+    }
+
+    // 测试带符号数
+    {
+        std::string str    = "-42";
+        int         result = 0;
+        ASSERT_TRUE(mc::try_to_number(str, result));
+        ASSERT_EQ(result, -42);
+
+        // 验证 string_view
+        std::string      long_str = "-42000";
+        std::string_view view(long_str.data(), 3); // 只取 "-42"
+        ASSERT_TRUE(mc::try_to_number(view, result));
+        ASSERT_EQ(result, -42);
+    }
+
+    // 测试浮点数
+    {
+        std::string str    = "3.14159";
+        double      result = 0;
+        ASSERT_TRUE(mc::try_to_number(str, result));
+        ASSERT_DOUBLE_EQ(result, 3.14159);
+
+        // 验证 string_view
+        std::string      long_str = "3.14159265359";
+        std::string_view view(long_str.data(), 7); // 只取 "3.14159"
+        ASSERT_TRUE(mc::try_to_number(view, result));
+        ASSERT_DOUBLE_EQ(result, 3.14159);
+    }
+
+    // 测试溢出情况
+    {
+        std::string str    = "999999999999999999999"; // 超过 int64_t 范围
+        int64_t     result = 0;
+        ASSERT_FALSE(mc::try_to_number(str, result));
+        ASSERT_EQ(errno, ERANGE);
+
+        // 验证 to_number 抛出异常
+        EXPECT_THROW(mc::to_number<int64_t>(str), mc::overflow_exception);
+    }
+}
+
+/**
+ * @brief 测试字符串转数字的默认值功能
+ */
+TEST_F(StringTest, TestStringToNumberWithDefault) {
+    // 测试正常转换
+    ASSERT_EQ(mc::to_number_with_default<int>("42", -1), 42);
+    ASSERT_EQ(mc::to_number_with_default<int>(std::string("42"), -1), 42);
+    ASSERT_EQ(mc::to_number_with_default<int>(std::string_view("42"), -1), 42);
+
+    // 测试转换失败返回默认值
+    ASSERT_EQ(mc::to_number_with_default<int>("abc", -1), -1);
+    ASSERT_EQ(mc::to_number_with_default<int>(std::string("abc"), -1), -1);
+    ASSERT_EQ(mc::to_number_with_default<int>(std::string_view("abc"), -1), -1);
+
+    // 测试空字符串返回默认值
+    ASSERT_EQ(mc::to_number_with_default<int>("", -1), -1);
+    ASSERT_EQ(mc::to_number_with_default<int>(std::string(), -1), -1);
+    ASSERT_EQ(mc::to_number_with_default<int>(std::string_view(), -1), -1);
+
+    // 测试溢出返回默认值
+    ASSERT_EQ(mc::to_number_with_default<int>("999999999999999999999", -1), -1);
 }
 
 } // namespace test
