@@ -140,6 +140,9 @@ std::string exception::to_detail_string(mc::log::level ll) const {
         case mc::log::level::error:
             ss << "ERROR ";
             break;
+        case mc::log::level::notice:
+            ss << "NOTICE";
+            break;
         default:
             ss << "      ";
             break;

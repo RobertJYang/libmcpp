@@ -172,9 +172,9 @@ private:
             return std::make_shared<console_appender>();
         });
 
-        // register_creator("file", []() {
-        //     return std::make_shared<file_appender>();
-        // });
+        register_creator("file", []() {
+            return std::make_shared<file_appender>();
+        });
     }
 
     void cleanup() {

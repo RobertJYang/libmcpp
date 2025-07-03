@@ -6,7 +6,7 @@ option(
 )
 
 option(
-       'enable_shared_memory',
+       'enable_conan_complie',
        type: 'boolean',
        value: false,
        description: '是否开启共享内存，默认为false',

@@ -50,6 +50,13 @@ log_manager::log_manager() {
         default_logger.add_appender(console_appender);
     }
 
+    appender_ptr file_appender =
+        appender_factory::instance().create("default_file", "file", {});
+
+    if (file_appender) {
+        default_logger.add_appender(file_appender);
+    }
+
     default_logger.set_level(mc::log::level::info);
     m_loggers[DEFAULT_LOGGER] = default_logger;
 }

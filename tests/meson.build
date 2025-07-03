@@ -53,8 +53,8 @@ test_files = [
 ]
 
 
-enable_shared_memory = get_option('enable_shared_memory')
-if enable_shared_memory
+enable_conan_complie = get_option('enable_conan_complie')
+if enable_conan_complie
   test_files += ['dbus/test_shm_call.cpp']
 endif
 

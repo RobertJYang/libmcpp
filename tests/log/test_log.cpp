@@ -105,17 +105,18 @@ TEST_F(LogTest, BasicLogging) {
     mc_tlog(m_test_logger, "跟踪日志");
     mc_dlog(m_test_logger, "调试日志");
     mc_wlog(m_test_logger, "警告日志");
+    mc_nlog(m_test_logger, "通知日志");
 
     // 重新获取消息列表
     const auto& new_messages = m_memory_appender->get_messages();
     
     // 检查日志消息数量
-    ASSERT_EQ(3, new_messages.size()) << "应该有3条日志消息被添加";
+    ASSERT_EQ(4, new_messages.size()) << "应该有4条日志消息被添加";
 
     // 检查最后一条消息
     msg = new_messages.back();
-    EXPECT_EQ(mc::log::level::warn, msg.get_level());
-    EXPECT_TRUE(message_contains(msg, "警告日志"));
+    EXPECT_EQ(mc::log::level::notice, msg.get_level());
+    EXPECT_TRUE(message_contains(msg, "通知日志"));
 }
 
 // 测试结构化日志功能

@@ -11,6 +11,9 @@
  */
 
 #include <mc/log/appenders/file_appender.h>
+#include <mc/filesystem.h>
+#include "logging.h"
+#undef debug_log
 
 namespace mc {
 namespace log {
@@ -51,41 +54,65 @@ file_appender::~file_appender() {
 }
 
 void file_appender::append(const message& msg) {
-    if (static_cast<int>(msg.get_level()) < static_cast<int>(m_config.m_level)) {
-        return;
-    }
-
-    std::string formatted_msg = format_message(msg);
-
     std::lock_guard<std::mutex> lock(m_mutex);
-    if (m_file.is_open()) {
-        m_file << formatted_msg << std::endl;
 
-        if (m_file_config.m_flush_on_write) {
-            m_file.flush();
-        }
+    // 获取上下文信息
+    const context& ctx = msg.get_context();
+
+    DLOG_LEVEL_E level;
+    switch (msg.get_level()) {
+        case level::debug:
+            level = DLOG_DEBUG;
+            break;
+        case level::info:
+            level = DLOG_INFO;
+            break;
+        case level::warn:
+            level = DLOG_WARN;
+            break;
+        case level::error:
+            level = DLOG_ERROR;
+            break;
+        case level::notice:
+            level = DLOG_NOTICE;
+            break;
+        default:
+            level = DLOG_DEBUG;
+            break;
     }
+
+    std::string file_str;
+    file_str.reserve(64); // 预分配足够空间
+    if (ctx.m_file.empty()) {
+        file_str.append("unknown");
+    } else {
+        file_str.append(mc::filesystem::basename(ctx.m_file));
+    }
+
+    std::string message_str = msg.get_message();
+
+    debug_log(level, file_str.c_str(), ctx.m_line, "%s", message_str.c_str());
 }
 
 void file_appender::set_filename(const std::string& filename) {
     std::lock_guard<std::mutex> lock(m_mutex);
-    if (m_file_config.m_filename != filename) {
+    if (m_file_config.filename != filename) {
         close_file();
-        m_file_config.m_filename = filename;
+        m_file_config.filename = filename;
         open_file();
     }
 }
 
 const std::string& file_appender::get_filename() const {
-    return m_file_config.m_filename;
+    return m_file_config.filename;
 }
 
 void file_appender::set_flush_on_write(bool flush_on_write) {
-    m_file_config.m_flush_on_write = flush_on_write;
+    m_file_config.flush_on_write = flush_on_write;
 }
 
 bool file_appender::get_flush_on_write() const {
-    return m_file_config.m_flush_on_write;
+    return m_file_config.flush_on_write;
 }
 
 void file_appender::flush() {
@@ -96,15 +123,15 @@ void file_appender::flush() {
 }
 
 void file_appender::open_file() {
-    if (!m_file_config.m_filename.empty()) {
+    if (!m_file_config.filename.empty()) {
         std::ios_base::openmode mode = std::ios::out;
-        if (m_file_config.m_truncate) {
+        if (m_file_config.truncate) {
             mode |= std::ios::trunc;
         } else {
             mode |= std::ios::app;
         }
 
-        m_file.open(m_file_config.m_filename, mode);
+        m_file.open(m_file_config.filename, mode);
     }
 }
 
