@@ -7,4 +7,5 @@ test_reflect_files = [
     'reflect/test_method_call.cpp',
     'reflect/test_reflect_base_class.cpp',
     'reflect/test_reflection_factory.cpp',
-]
+    'reflect/test_reflection_namespace.cpp',
+] 

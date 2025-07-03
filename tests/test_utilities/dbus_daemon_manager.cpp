@@ -179,12 +179,12 @@ bool dbus_daemon_manager::start() {
             close(pipe_fd[1]);
 
             // 忽略终端相关信号
-            signal(SIGHUP, SIG_IGN);
-            signal(SIGINT, SIG_IGN);
-            signal(SIGTERM, SIG_IGN);
-            signal(SIGTSTP, SIG_IGN);
-            signal(SIGTTOU, SIG_IGN);
-            signal(SIGTTIN, SIG_IGN);
+            ::signal(SIGHUP, SIG_IGN);
+            ::signal(SIGINT, SIG_IGN);
+            ::signal(SIGTERM, SIG_IGN);
+            ::signal(SIGTSTP, SIG_IGN);
+            ::signal(SIGTTOU, SIG_IGN);
+            ::signal(SIGTTIN, SIG_IGN);
 
             // 执行 dbus-daemon
             execlp("dbus-daemon", "dbus-daemon", "--config-file", m_config_path.c_str(),

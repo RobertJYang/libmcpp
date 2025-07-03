@@ -265,10 +265,16 @@ constexpr auto tuple_map(Tuple& tuple, Func&& func) {
         tuple);
 }
 
+namespace detail {
+template <typename Tuple, size_t Index>
+struct tuple_element_for_each_type_wrap {
+    using type                    = std::tuple_element_t<Index, Tuple>;
+    static constexpr size_t index = Index;
+};
+} // namespace detail
 template <typename Tuple, typename Func, size_t... I>
 void tuple_element_for_each_impl(Func&& func, std::index_sequence<I...>) {
-    (func(static_cast<mc::traits::remove_cvref_t<std::tuple_element_t<I, Tuple>>*>(nullptr), I),
-     ...);
+    (func(detail::tuple_element_for_each_type_wrap<Tuple, I>{}), ...);
 }
 template <typename Tuple, typename Func>
 void tuple_element_for_each(Func&& func) {

@@ -290,7 +290,7 @@ private:
     friend class weak_ptr;
 
     // 允许 enable_shared_from_this 访问私有构造函数
-    template <typename U, typename UP, typename CounterType>
+    template <typename U, typename DeleterU, typename UP, typename CounterType>
     friend class enable_shared_from_this;
 };
 

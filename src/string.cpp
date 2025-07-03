@@ -446,50 +446,6 @@ void fixed_width_append(std::string& result, size_t width, std::string_view s, b
     }
 }
 
-static std::size_t skip_delims(std::string_view str, std::size_t pos, std::string_view delims) {
-    while (pos < str.size() && delims.find(str[pos]) != std::string_view::npos) {
-        ++pos;
-    }
-    return pos;
-}
-
-static std::size_t find_next_delim(std::string_view str, std::size_t pos, std::string_view delims) {
-    while (pos < str.size() && delims.find(str[pos]) == std::string_view::npos) {
-        ++pos;
-    }
-    return pos;
-}
-
-void split_iterator::find_next() noexcept {
-    m_pos = m_end;
-    m_pos = skip_delims(m_str, m_pos, m_delims);
-    m_end = find_next_delim(m_str, m_pos, m_delims);
-}
-
-std::string_view split_iterator::tail() const noexcept {
-    if (is_end()) {
-        return {};
-    }
-
-    auto pos = skip_delims(m_str, m_pos, m_delims);
-    return m_str.substr(pos);
-}
-
-std::string_view split_iterator::head() const noexcept {
-    return m_str.substr(0, m_pos);
-}
-
-split_iterator& split_iterator::operator++() noexcept {
-    find_next();
-    return *this;
-}
-
-split_iterator split_iterator::operator++(int) noexcept {
-    auto tmp = *this;
-    ++(*this);
-    return tmp;
-}
-
 } // namespace string
 
 // 验证键名是否合法（只能包含字母、数字、下划线，且只能以字母和下划线开头）

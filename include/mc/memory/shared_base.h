@@ -234,48 +234,53 @@ using shared_base = shared_counter<>;
 /*
  * 与 std::enable_shared_from_this 类似，提供 shared_from_this 方法
  */
-template <typename T, typename PointerType = T*, typename CounterType = uint32_t>
+template <typename T,
+          typename Deleter     = mc::default_deleter<T>,
+          typename PointerType = T*,
+          typename CounterType = uint32_t>
 class enable_shared_from_this : public shared_counter<CounterType> {
 public:
     using element_type = T;
     using pointer_type = PointerType;
+
+    using shared_ptr_type = shared_ptr<element_type, Deleter, PointerType>;
+    using weak_ptr_type   = weak_ptr<element_type, Deleter, PointerType>;
 
     /**
      * @brief 安全地获取 shared_ptr，类似 std::enable_shared_from_this
      *
      * 由于对象创建时引用计数就是1，现在总是安全的
      */
-    shared_ptr<element_type> shared_from_this() const {
-        return shared_ptr<element_type>(static_cast<const element_type*>(this));
+    shared_ptr_type shared_from_this() const {
+        return shared_ptr_type(static_cast<const element_type*>(this));
     }
 
     /**
      * @brief 安全地获取 shared_ptr，类似 std::enable_shared_from_this
      */
-    shared_ptr<element_type> shared_from_this() {
-        return shared_ptr<element_type>(static_cast<element_type*>(this));
+    shared_ptr_type shared_from_this() {
+        return shared_ptr_type(static_cast<element_type*>(this));
     }
 
-    weak_ptr<element_type> weak_from_this() const {
-        return weak_ptr<element_type>(static_cast<const element_type*>(this));
+    weak_ptr_type weak_from_this() const {
+        return weak_ptr_type(static_cast<const element_type*>(this));
     }
 
-    weak_ptr<element_type> weak_from_this() {
-        return weak_ptr<element_type>(static_cast<element_type*>(this));
+    weak_ptr_type weak_from_this() {
+        return weak_ptr_type(static_cast<element_type*>(this));
     }
 
-    static shared_ptr<element_type> from_raw(void* ptr, bool add_ref = false) {
+    static shared_ptr_type from_raw(void* ptr, bool add_ref = false) {
         if (!ptr) {
             return {};
         }
 
         auto* p_element = static_cast<element_type*>(ptr);
         if (add_ref) {
-            return shared_ptr<element_type>{p_element};
+            return shared_ptr_type{p_element};
         } else {
             // 不需要增加引用计数，使用内部构造函数
-            return shared_ptr<element_type>{
-                p_element, typename shared_ptr<element_type>::already_referenced_tag{}};
+            return shared_ptr_type{p_element, typename shared_ptr_type::already_referenced_tag{}};
         }
     }
 };

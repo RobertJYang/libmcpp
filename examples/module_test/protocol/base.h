@@ -1,0 +1,52 @@
+/*
+ * Copyright (c) 2024 Huawei Technologies Co., Ltd.
+ * openUBMC is licensed under Mulan PSL v2.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *         http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
+ */
+
+#ifndef MC_PROTOCOL_BASE_H
+#define MC_PROTOCOL_BASE_H
+
+#include <mc/module.h>
+
+MC_MODULE(mc_protocol)
+
+namespace mc::protocol {
+
+/**
+ * @brief 消息类型枚举
+ */
+enum class message_type {
+    REQUEST,     // 请求消息
+    RESPONSE,    // 响应消息
+    NOTIFICATION // 通知消息
+};
+
+/**
+ * @brief 协议版本枚举
+ */
+enum class protocol_version {
+    V1_0, // 版本 1.0
+    V1_1, // 版本 1.1
+    V2_0  // 版本 2.0
+};
+
+} // namespace mc::protocol
+
+// 导出消息类型枚举到模块
+MC_MODULE_REFLECT_ENUM(mc_protocol,
+                       (mc::protocol::message_type, "MessageType"),
+                       (REQUEST)(RESPONSE)(NOTIFICATION))
+
+// 导出协议版本枚举到模块
+MC_MODULE_REFLECT_ENUM(mc_protocol,
+                       (mc::protocol::protocol_version, "ProtocolVersion"),
+                       (V1_0)(V1_1)(V2_0))
+
+#endif // MC_PROTOCOL_BASE_H
