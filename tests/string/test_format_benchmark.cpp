@@ -97,35 +97,35 @@ TEST_F(FormatBenchmarkTest, DISABLED_FormatPerformance) {
     // 场景1：简单格式字符串 + 小型参数字典
     double time1 = measure_time([&]() {
         // 确保调用接受dict的format函数
-        mc::format(simple_format, static_cast<const dict&>(small_args));
+        mc::format_dict(simple_format, static_cast<const dict&>(small_args));
     });
     std::cout << "简单格式 + 小型参数字典: " << time1 << " ms/次" << std::endl;
 
     // 场景2：中等复杂度格式字符串 + 中型参数字典
     double time2 = measure_time([&]() {
         // 确保调用接受dict的format函数
-        mc::format(medium_format, static_cast<const dict&>(medium_args));
+        mc::format_dict(medium_format, static_cast<const dict&>(medium_args));
     });
     std::cout << "中等格式 + 中型参数字典: " << time2 << " ms/次" << std::endl;
 
     // 场景3：复杂格式字符串 + 大型参数字典
     double time3 = measure_time([&]() {
         // 确保调用接受dict的format函数
-        mc::format(complex_format, large_args);
+        mc::format_dict(complex_format, large_args);
     });
     std::cout << "复杂格式 + 大型参数字典: " << time3 << " ms/次" << std::endl;
 
     // 场景4：没有占位符的格式字符串
     double time4 = measure_time([&]() {
         // 确保调用接受dict的format函数
-        mc::format(no_placeholders, large_args);
+        mc::format_dict(no_placeholders, large_args);
     });
     std::cout << "无占位符格式: " << time4 << " ms/次" << std::endl;
 
     // 场景5：空格式字符串
     double time5 = measure_time([&]() {
         // 确保调用接受dict的format函数
-        mc::format("", large_args);
+        mc::format_dict("", large_args);
     });
     std::cout << "空格式字符串: " << time5 << " ms/次" << std::endl;
 

@@ -71,7 +71,7 @@ protected:
 
         int         object_id = m_object_id++;
         std::string object_name =
-            mc::string::format_v("%s_%d", obj->get_class_name().data(), object_id);
+            mc::format_v("%s_%d", obj->get_class_name().data(), object_id);
 
         obj->set_object_path(path);
         obj->set_object_name(object_name);

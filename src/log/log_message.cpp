@@ -11,6 +11,7 @@
  */
 
 #include <mc/log/log_message.h>
+#include <mc/string.h>
 namespace mc::log {
 
 message::message(level lvl, std::string msg, context ctx, mc::mutable_dict args)
@@ -30,7 +31,7 @@ message::message(level lvl, context ctx, std::string fmt_template,
 const std::string& message::get_message() const {
     if (!m_formatted && !m_format.empty()) {
         // 如果未格式化且有格式模板，执行格式化
-        m_message   = mc::format(m_format, m_args);
+        m_message   = mc::format_dict(m_format, m_args);
         m_formatted = true;
     }
     return m_message;

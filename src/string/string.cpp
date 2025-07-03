@@ -26,8 +26,7 @@
 
 #include <stdarg.h>
 
-namespace mc {
-namespace string {
+namespace mc::string {
 
 namespace detail {
 void throw_bad_cast_error(const char* type) {
@@ -94,7 +93,7 @@ std::string_view prepare_number_string(
  * @param result 转换结果的引用
  * @return 是否转换成功
  */
-inline bool try_to_bool(std::string_view s, bool& result) {
+ bool try_to_bool(std::string_view s, bool& result) {
     if (s.empty()) {
         result = false;
         return true;
@@ -613,8 +612,6 @@ bool is_valid_utf8(std::string_view s) {
     return true;
 }
 
-} // namespace string
-
 void to_string(std::string& result, double value) {
     char   buffer[64];
     double intpart;
@@ -652,4 +649,4 @@ void to_string(std::string& result, bool value) {
     result.append(value ? "true" : "false");
 }
 
-} // namespace mc
+} // namespace mc::string

@@ -5,6 +5,7 @@ subdir('dbus')
 subdir('dict')
 subdir('engine')
 subdir('expr')
+subdir('fmt')
 subdir('futures')
 subdir('interprocess')
 subdir('io')
@@ -33,6 +34,7 @@ src_files = [
   dict_src_files,
   engine_src_files,
   expr_src_files,
+  fmt_src_files,
   futures_src_files,
   interprocess_src_files,
   io_src_files,

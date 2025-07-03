@@ -102,7 +102,7 @@ std::string error::get_message() const {
         return {};
     }
 
-    return mc::string::format(this->format, args);
+    return mc::format_dict(this->format, args);
 }
 
 error_level error::get_level() const {

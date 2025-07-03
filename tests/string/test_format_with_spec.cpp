@@ -22,7 +22,7 @@ TEST_F(test_format_with_spec, test_float_precision) {
     args["value"] = 3.14159;
 
     // 预期输出：2位小数精度
-    std::string result   = mc::string::format("数值: ${value:.2f}", args);
+    std::string result   = mc::format_dict("数值: ${value:.2f}", args);
     std::string expected = "数值: 3.14";
 
     EXPECT_EQ(expected, result);
@@ -34,7 +34,7 @@ TEST_F(test_format_with_spec, test_int_hex) {
     args["value"] = 255;
 
     // 预期输出：十六进制格式
-    std::string result   = mc::string::format("十六进制: ${value:x}", args);
+    std::string result   = mc::format_dict("十六进制: ${value:x}", args);
     std::string expected = "十六进制: ff";
 
     EXPECT_EQ(expected, result);
@@ -46,7 +46,7 @@ TEST_F(test_format_with_spec, test_int_oct) {
     args["value"] = 64;
 
     // 预期输出：八进制格式
-    std::string result   = mc::string::format("八进制: ${value:o}", args);
+    std::string result   = mc::format_dict("八进制: ${value:o}", args);
     std::string expected = "八进制: 100";
 
     EXPECT_EQ(expected, result);
@@ -58,7 +58,7 @@ TEST_F(test_format_with_spec, test_string_width) {
     args["name"] = "Alice";
 
     // 预期输出：10个字符宽度，左对齐
-    std::string result   = mc::string::format("姓名: '${name:<10}'", args);
+    std::string result   = mc::format_dict("姓名: '${name:<10}'", args);
     std::string expected = "姓名: 'Alice     '";
 
     EXPECT_EQ(expected, result);
@@ -70,7 +70,7 @@ TEST_F(test_format_with_spec, test_bool_format) {
     args["flag"] = true;
 
     // 预期输出：布尔值作为数字
-    std::string result   = mc::string::format("标志: ${flag:d}", args);
+    std::string result   = mc::format_dict("标志: ${flag:d}", args);
     std::string expected = "标志: 1";
 
     EXPECT_EQ(expected, result);
@@ -82,7 +82,7 @@ TEST_F(test_format_with_spec, test_scientific_notation) {
     args["value"] = 1234.5;
 
     // 预期输出：科学计数法
-    std::string result   = mc::string::format("科学计数法: ${value:.2e}", args);
+    std::string result   = mc::format_dict("科学计数法: ${value:.2e}", args);
     std::string expected = "科学计数法: 1.23e+03";
 
     EXPECT_EQ(expected, result);
@@ -96,7 +96,7 @@ TEST_F(test_format_with_spec, test_mixed_format) {
     args["count"] = 5;
     args["total"] = 499.95;
 
-    std::string result = mc::string::format(
+    std::string result = mc::format_dict(
         "${name}: 单价${price:.2f}元, 数量${count:d}, 总计${total:.2f}元",
         args);
     std::string expected = "产品: 单价99.99元, 数量5, 总计499.95元";
@@ -110,7 +110,7 @@ TEST_F(test_format_with_spec, test_no_format_spec) {
     args["value"] = 42;
 
     // 预期输出：无格式规范时使用默认格式
-    std::string result   = mc::string::format("值: ${value}", args);
+    std::string result   = mc::format_dict("值: ${value}", args);
     std::string expected = "值: 42";
 
     EXPECT_EQ(expected, result);
@@ -121,10 +121,86 @@ TEST_F(test_format_with_spec, test_invalid_format_spec) {
     mc::mutable_dict args;
     args["value"] = 42;
 
-    // 预期：无效的格式规范应该保留原样
-    std::string result = mc::string::format("值: ${value:invalid}", args);
+    std::string result = mc::format_dict("值: ${value:invalid}", args);
 
-    // 注意：这个测试可能需要根据实际实现调整
-    // 如果无效格式规范被忽略，则应该输出默认格式
-    // 如果保留原样，则应该输出原始占位符
+    // 无效的格式规范，应该保留原样
+    EXPECT_EQ("值: 42", result);
 }
+
+// TEST(FormatTest, PositionalArguments) {
+//     // 基本位置参数测试
+//     EXPECT_EQ(mc::format("{0}, {1}!", "Hello", "world"), "Hello, world!");
+
+//     // 参数重用测试
+//     EXPECT_EQ(mc::format("{0}, {0}!", "Hello"), "Hello, Hello!");
+
+//     // 参数顺序调整测试
+//     EXPECT_EQ(mc::format("{1}, {0}!", "world", "Hello"), "Hello, world!");
+
+//     // 混合位置参数和格式说明符
+//     EXPECT_EQ(mc::format("{0}, {1:}!", "Hello", "world"), "Hello, world!");
+
+//     // 位置参数越界测试
+//     EXPECT_THROW(mc::format("{2}", "Hello"), mc::format_error);
+
+//     // 无效位置参数测试
+//     EXPECT_THROW(mc::format("{-1}", "Hello"), mc::format_error);
+// }
+
+// // 测试位置参数与其他格式化特性的组合
+// TEST(FormatTest, PositionalArgumentsWithFormatting) {
+//     // 位置参数与数字格式化
+//     EXPECT_EQ(mc::format("{0}, {1:d}!", "Test", 42), "Test, 42!");
+
+//     // 位置参数与字符串格式化
+//     EXPECT_EQ(mc::format("{1}, {0}!", "world", "Hello"), "Hello, world!");
+
+//     // 位置参数与浮点数格式化
+//     EXPECT_EQ(mc::format("{0}, {1:.2f}!", "Pi", 3.14159), "Pi, 3.14!");
+// }
+
+// TEST(FormatTest, FormatSpecifiers) {
+//     // 基本格式化
+//     EXPECT_EQ(mc::format("{0:d}", 42), "42");
+//     EXPECT_EQ(mc::format("{0:x}", 255), "ff");
+//     EXPECT_EQ(mc::format("{0:X}", 255), "FF");
+
+//     // 对齐和填充
+//     EXPECT_EQ(mc::format("{0:>5}", 42), "   42");
+//     EXPECT_EQ(mc::format("{0:<5}", 42), "42   ");
+//     EXPECT_EQ(mc::format("{0:^5}", 42), " 42  ");
+//     EXPECT_EQ(mc::format("{0:0>5}", 42), "00042");
+
+//     // 符号控制
+//     EXPECT_EQ(mc::format("{0:+}", 42), "+42");
+//     EXPECT_EQ(mc::format("{0:+}", -42), "-42");
+//     EXPECT_EQ(mc::format("{0: }", 42), " 42");
+//     EXPECT_EQ(mc::format("{0: }", -42), "-42");
+
+//     // 替代形式（进制前缀）
+//     EXPECT_EQ(mc::format("{0:#x}", 255), "0xff");
+//     EXPECT_EQ(mc::format("{0:#X}", 255), "0xFF");
+
+//     // 精度控制
+//     EXPECT_EQ(mc::format("{0:.2f}", 3.14159), "3.14");
+//     EXPECT_EQ(mc::format("{0:.0f}", 3.14159), "3");
+
+//     // 组合使用
+//     EXPECT_EQ(mc::format("{0:+#08X}", 255), "+0x000FF");
+//     EXPECT_EQ(mc::format("{0:^10.2f}", 3.14159), "   3.14   ");
+// }
+
+// TEST(FormatTest, InvalidFormatSpec) {
+//     // 无效的类型说明符
+//     EXPECT_THROW(mc::format("{0:z}", 42), mc::format_error);
+
+//     // 无效的对齐方式
+//     EXPECT_THROW(mc::format("{0:@5}", 42), mc::format_error);
+
+//     // 无效的符号说明符
+//     EXPECT_THROW(mc::format("{0:@}", 42), mc::format_error);
+
+//     // 精度格式错误
+//     EXPECT_THROW(mc::format("{0:.}", 3.14), mc::format_error);
+//     EXPECT_THROW(mc::format("{0:.a}", 3.14), mc::format_error);
+// }
