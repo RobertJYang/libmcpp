@@ -25,6 +25,7 @@
 #include <cstdlib>
 #include <limits>
 #include <locale>
+#include <mc/format.h>
 #include <mc/pretty_name.h>
 #include <memory>
 #include <numeric>
@@ -34,11 +35,9 @@
 #include <vector>
 
 // 前向声明
-namespace mc {
-class dict;
+namespace mc::string {
 
 namespace detail {
-// 辅助函数：直接将格式化后的数值追加到结果字符串
 template <typename T>
 void append_formatted_number(std::string& result, T val, const char* format) {
     constexpr std::size_t BUFFER_SIZE = 64;
@@ -48,6 +47,21 @@ void append_formatted_number(std::string& result, T val, const char* format) {
         result.append(buffer, len);
     }
 }
+
+[[noreturn]] void throw_bad_cast_error(const char* type);
+[[noreturn]] void throw_overflow_error(const char* type, std::string_view s);
+
+std::pair<int, std::string_view> detect_number_radix(std::string_view s);
+
+/**
+ * @brief 准备一个以尾0结尾的字符串，用于安全地转换为数字
+ * @param s 输入字符串
+ * @param radix 进制
+ * @param buffer 栈上分配的缓冲区
+ * @return 可以安全用于 std::strtoX 函数的字符串指针，如果字符串无效则返回 nullptr
+ */
+std::string_view prepare_number_string(
+    std::string_view s, int radix, char* buffer, std::size_t buffer_size) noexcept;
 } // namespace detail
 
 template <typename T>
@@ -79,25 +93,6 @@ void        to_string(std::string& result, double value);
 
 std::string to_string(bool value);
 void        to_string(std::string& result, bool value);
-
-namespace string {
-
-namespace detail {
-[[noreturn]] void throw_bad_cast_error(const char* type);
-[[noreturn]] void throw_overflow_error(const char* type, std::string_view s);
-
-std::pair<int, std::string_view> detect_number_radix(std::string_view s);
-
-/**
- * @brief 准备一个以尾0结尾的字符串，用于安全地转换为数字
- * @param s 输入字符串
- * @param radix 进制
- * @param buffer 栈上分配的缓冲区
- * @return 可以安全用于 std::strtoX 函数的字符串指针，如果字符串无效则返回 nullptr
- */
-std::string_view prepare_number_string(
-    std::string_view s, int radix, char* buffer, std::size_t buffer_size) noexcept;
-} // namespace detail
 
 /**
  * @brief 忽略大小写比较两个字符串是否相等
@@ -270,7 +265,7 @@ void append(std::string& result, T&& value) {
         result.append(1, value);
     } else if constexpr (std::is_arithmetic_v<std::decay_t<T>>) {
         // 对于数值类型，转换为字符串后追加
-        result.append(mc::to_string(value));
+        result.append(to_string(value));
     } else {
         // 对于其他类型，尝试使用std::ostringstream
         std::ostringstream oss;
@@ -418,45 +413,6 @@ bool contains(std::string_view s, std::string_view substring);
  * @return 如果字符串忽略大小写后包含指定子串则返回 true，否则返回 false
  */
 bool icontains(std::string_view s, std::string_view substring);
-
-void        format_base(std::string& result, std::string_view format_str, const mc::dict& args, bool icase);
-std::string format(std::string_view format, const mc::dict& args);
-void        format(std::string& result, std::string_view format, const mc::dict& args);
-
-std::string format_icase(std::string_view format, const mc::dict& args);
-void        format_icase(std::string& result, std::string_view format, const mc::dict& args);
-
-/**
- * @brief 使用可变参数格式化字符串
- * @param format 格式化字符串
- * @param ... 可变参数
- * @return 格式化后的字符串
- */
-std::string format_v(const char* format, ...);
-
-/**
- * @brief 使用可变参数格式化字符串
- * @param format 格式化字符串
- * @param args 可变参数
- * @return 格式化后的字符串
- */
-std::string format_vv(const char* format, va_list args);
-
-/**
- * @brief 使用可变参数格式化字符串，并追加到目标字符串
- * @param result 接收格式化结果的目标字符串
- * @param format 格式化字符串
- * @param ... 可变参数
- */
-bool format_v(std::string& result, const char* format, ...);
-
-/**
- * @brief 使用可变参数格式化字符串，并追加到目标字符串
- * @param result 接收格式化结果的目标字符串
- * @param format 格式化字符串
- * @param args 可变参数
- */
-bool format_vv(std::string& result, const char* format, va_list args);
 
 /**
  * @brief 尝试将字符串转换为布尔值
@@ -685,8 +641,6 @@ T to_number_with_default(const char* s, T default_value, int radix = 0) {
     return to_number_with_default<T>(std::string_view(s), default_value, radix);
 }
 
-bool get_format_args(std::string_view format, mc::dict& arg_names);
-
 bool is_valid_utf8(std::string_view s);
 
 /**
@@ -818,135 +772,14 @@ private:
     std::size_t      m_pos{0}; ///< 当前片段的起始位置
     std::size_t      m_end{0}; ///< 当前片段的结束位置
 };
+} // namespace mc::string
 
-} // namespace string
-
-/**
- * @brief 使用参数字典格式化字符串
- * @param format 格式化字符串，使用 ${key} 作为占位符
- * @param args 包含替换值的字典
- * @return 格式化后的字符串
- *
- * 示例:
- * @code
- * std::string result = mc::format("${host}:${port}",
- *                                 mc::dict("host", hostname)("port", port));
- * @endcode
- */
-inline std::string format(std::string_view format, const mc::dict& args) {
-    return mc::string::format(format, args);
-}
-
-/**
- * @brief 使用参数字典格式化字符串并写入到给定的结果字符串中
- * @param result 接收格式化结果的字符串引用
- * @param format 格式化字符串，使用 ${key} 作为占位符
- * @param args 包含替换值的字典
- *
- * 示例:
- * @code
- * std::string result;
- * mc::format(result, "${host}:${port}", mc::dict("host", hostname)("port", port));
- * @endcode
- */
-inline void format(std::string& result, std::string_view format, const mc::dict& args) {
-    mc::string::format(result, format, args);
-}
-
-/**
- * @brief 使用参数字典格式化字符串（大小写不敏感版本）
- * @param format 格式化字符串，使用 ${key} 作为占位符
- * @param args 包含替换值的字典
- * @return 格式化后的字符串
- *
- * 在查找替换值时忽略键名的大小写。首先尝试精确匹配，如果失败则进行大小写不敏感的查找。
- *
- * 示例:
- * @code
- * std::string result = mc::format_icase("${HOST}:${port}",
- *                                       mc::dict("host", hostname)("PORT", port));
- * @endcode
- */
-inline std::string format_icase(std::string_view format, const mc::dict& args) {
-    return mc::string::format_icase(format, args);
-}
-
-/**
- * @brief 使用参数字典格式化字符串并写入到给定的结果字符串中（大小写不敏感版本）
- * @param result 接收格式化结果的字符串引用
- * @param format 格式化字符串，使用 ${key} 作为占位符
- * @param args 包含替换值的字典
- *
- * 在查找替换值时忽略键名的大小写。首先尝试精确匹配，如果失败则进行大小写不敏感的查找。
- *
- * 示例:
- * @code
- * std::string result;
- * mc::format_icase(result, "${HOST}:${port}", mc::dict("host", hostname)("PORT", port));
- * @endcode
- */
-inline void format_icase(std::string& result, std::string_view format, const mc::dict& args) {
-    mc::string::format_icase(result, format, args);
-}
-
-/**
- * @brief 字符串格式化
- * @param format_v 格式化字符串，类似于 printf 的格式
- * @param args 格式化参数
- * @return 格式化后的字符串
- */
-template <typename... Args>
-std::string format_v(const std::string& format, Args... args) {
-    return mc::string::format_v(format, args...);
-}
-
-/**
- * @brief 解析格式化字符串，提取占位符
- * @param format 格式化字符串
- * @param arg_names 存储占位符名称的字典
- * @return 如果解析成功返回 true，否则返回 false
- */
-inline bool get_format_args(std::string_view format, mc::dict& arg_names) {
-    return mc::string::get_format_args(format, arg_names);
-}
-
-/**
- * @brief 简化format函数调用的宏
- * @param fmt 格式字符串，使用 ${key} 作为占位符
- * @param ... 键值对序列，形式为 (key1, value1)(key2, value2)
- * @return 格式化后的字符串
- *
- * 示例:
- * @code
- * // 不带参数的调用
- * std::string s1 = mc_format("无参数字符串");
- *
- * // 带参数的调用
- * std::string s2 = mc_format("${host}:${port}", ("host", "example.com")("port", 8080));
- * @endcode
- */
-#define mc_format(fmt, ...) \
-    mc::format(fmt, static_cast<const mc::dict&>(mc::mutable_dict() __VA_ARGS__))
-
-/**
- * @brief 简化format函数调用的宏，将结果追加到现有字符串
- * @param result 接收格式化结果的字符串引用
- * @param fmt 格式字符串，使用 ${key} 作为占位符
- * @param ... 键值对序列，形式为 (key1, value1)(key2, value2)
- *
- * 示例:
- * @code
- * std::string result = "前缀：";
- * mc_format_append(result, "${host}:${port}", ("host", "example.com")("port", 8080));
- * @endcode
- */
-#define mc_format_append(result, fmt, ...) \
-    mc::format(result, fmt, static_cast<const mc::dict&>(mc::mutable_dict() __VA_ARGS__))
-
+namespace mc {
 using mc::string::to_bool;
 using mc::string::to_bool_with_default;
 using mc::string::to_number;
 using mc::string::to_number_with_default;
+using mc::string::to_string;
 using mc::string::try_to_number;
 } // namespace mc
 

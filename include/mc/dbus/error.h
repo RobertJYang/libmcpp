@@ -67,7 +67,7 @@ struct error : DBusError {
         if (args.empty()) {
             dbus_set_error(this, name.data(), "%s", message.data());
         } else {
-            auto msg = mc::string::format(message, args);
+            auto msg = mc::format_dict(message, args);
             dbus_set_error(this, name.data(), "%s", msg.c_str());
         }
     }

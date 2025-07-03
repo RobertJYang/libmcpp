@@ -182,7 +182,7 @@ bool is_valid_error_name(std::string_view name);
  * @return 如果解析成功返回 true，否则返回 false
  */
 inline bool get_error_format_args(std::string_view format, mc::dict& arg_names) {
-    return mc::string::get_format_args(format, arg_names);
+    return mc::fmt::get_format_args(format, arg_names);
 }
 
 /*

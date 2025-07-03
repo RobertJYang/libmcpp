@@ -63,6 +63,7 @@ enum exception_code {
     not_found_exception_code        = 27, // 未找到异常
     invalid_argument_exception_code = 28, // 无效参数异常
     runtime_exception_code          = 29, // 运行时异常
+    format_error_code               = 30, // 格式化错误异常
 };
 
 /**
@@ -343,6 +344,9 @@ MC_DEFINE_EXCEPTION_CLASS(invalid_argument_exception, invalid_argument_exception
 
 // 运行时异常
 MC_DEFINE_EXCEPTION_CLASS(runtime_exception, runtime_exception_code, "运行时错误", "runtime")
+
+// 格式化错误异常类
+MC_DEFINE_EXCEPTION_CLASS(format_error, format_error_code, "格式化错误", "format_error")
 
 /**
  * @brief 完整自定义异常类宏（MC_DEFINE_EXCEPTION_CLASS 的别名）
