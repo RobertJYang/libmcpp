@@ -271,7 +271,9 @@ void connection_impl::process_reply(uint32_t reply_serial, message& msg) {
     it->second.pending.stop();
     m_pending_calls.erase(it);
 
-    promise.set_value(msg);
+    boost::asio::post(m_executor, [promise = std::move(promise), msg = std::move(msg)]() mutable {
+        promise.set_value(msg);
+    });
 }
 
 void connection_impl::dispatch() {
