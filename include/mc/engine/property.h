@@ -22,6 +22,7 @@
 #include <mc/signal_slot.h>
 #include <mc/traits.h>
 #include <mc/variant.h>
+#include <mc/variant/variant_extension.h>
 #include <tuple>
 #include <vector>
 
@@ -29,11 +30,31 @@ using namespace mc::expr;
 
 namespace mc::engine {
 
+// 属性类型枚举
+enum class p_type : uint32_t {
+    normal = 0,     // 普通属性
+    sync = 1,       // 同步属性
+    reference = 2,  // 引用属性
+    ref_object = 3  // 引用对象属性
+};
+
+// 定义常量以便与 int 类型兼容
+namespace property_options {
+    constexpr int memory = 1;
+    constexpr int from_mdb = 2;
+}
+
 namespace detail {
 
 struct empty_observer {
     void notify(const mc::variant& value, const property_base& prop) {
     }
+};
+
+// 用于存储函数调用相关的数据
+struct func_data {
+    mc::expr::func   func_obj;
+    mc::mutable_dict params;
 };
 
 class interface_observer {
@@ -56,31 +77,120 @@ protected:
     abstract_interface* m_interface;
 };
 
-// 用于存储同步和引用属性的值缓存
-template <typename... Types>
-class property_cache {
+} // namespace detail
+
+// 引用对象类，实现弱引用语义
+class ref_object : public variant_extension_base {
 public:
-    using tuple_type = std::tuple<Types...>;
+    using object_finder_type = std::function<abstract_object*(const std::string&)>;
 
-    template <size_t I>
-    void set(const std::tuple_element_t<I, tuple_type>& value) {
-        std::get<I>(m_values) = value;
+    ref_object(const std::string& object_name, object_finder_type finder = nullptr) 
+        : m_object_name(object_name), m_object_finder(finder) {
     }
 
-    template <size_t I>
-    const std::tuple_element_t<I, tuple_type>& get() const {
-        return std::get<I>(m_values);
+    // 获取被引用对象的属性
+    mc::variant get_property(const std::string& property_name) const {
+        auto* target_object = find_related_object();
+        if (target_object == nullptr) {
+            MC_THROW(mc::invalid_op_exception, "引用对象不存在: ${object_name}", ("object_name", m_object_name));
+        }
+        return target_object->get_property(property_name);
     }
 
-    const tuple_type& get_all() const {
-        return m_values;
+    // 获取被引用对象的接口属性
+    mc::variant get_property(const std::string& interface_name, const std::string& property_name) const {
+        auto* target_object = find_related_object();
+        if (target_object == nullptr) {
+            MC_THROW(mc::invalid_op_exception, "引用对象不存在: ${object_name}", ("object_name", m_object_name));
+        }
+
+        if (!interface_name.empty()) {
+            auto interface_obj = target_object->get_interface(interface_name);
+            if (interface_obj == nullptr) {
+                MC_THROW(mc::invalid_op_exception, "Interface not found: ${interface} in object: ${object_name}",
+                         ("interface", interface_name)("object_name", m_object_name));
+            }
+            return interface_obj->get_property(property_name);
+        }
+
+        return target_object->get_property(property_name);
+    }
+
+    // 设置被引用对象的属性
+    void set_property(const std::string& property_name, const mc::variant& value) const {
+        auto* target_object = find_related_object();
+        if (target_object == nullptr) {
+            MC_THROW(mc::invalid_op_exception, "引用对象不存在，无法设置属性: ${object_name}", ("object_name", m_object_name));
+        }
+        target_object->set_property(property_name, value);
+    }
+
+    // 设置被引用对象的接口属性
+    void set_property(const std::string& interface_name, const std::string& property_name, const mc::variant& value) const {
+        auto* target_object = find_related_object();
+        if (target_object == nullptr) {
+            MC_THROW(mc::invalid_op_exception, "引用对象不存在，无法设置属性: ${object_name}", ("object_name", m_object_name));
+        }
+
+        if (!interface_name.empty()) {  
+            auto interface_obj = target_object->get_interface(interface_name);
+            if (interface_obj == nullptr) {
+                MC_THROW(mc::invalid_op_exception, "Interface not found: ${interface} in object: ${object_name}",
+                         ("interface", interface_name)("object_name", m_object_name));
+            }
+            interface_obj->set_property(property_name, value);
+        } else {
+            target_object->set_property(property_name, value);
+        }
+    }
+
+    // 获取对象名称
+    const std::string& get_object_name() const {
+        return m_object_name;
+    }
+
+    // 检查被引用的对象是否存在
+    bool is_valid() const {
+        return find_related_object() != nullptr;
+    }
+
+    // 获取被引用的对象指针（可能为空）
+    abstract_object* get_object() const {
+        return find_related_object();
+    }
+
+    std::string as_string() const override {
+        return m_object_name;
+    }
+
+    bool equals(const variant_extension_base& other) const override {
+        if (auto* other_ref = dynamic_cast<const ref_object*>(&other)) {
+            return m_object_name == other_ref->m_object_name;
+        }
+        return false;
+    }
+
+    // 实现 variant_extension_base 的纯虚函数
+    mc::shared_ptr<variant_extension_base> clone() const override {
+        return mc::make_shared<ref_object>(m_object_name, m_object_finder);
+    }
+
+    std::string_view get_type_name() const override {
+        return "ref_object";
     }
 
 private:
-    tuple_type m_values;
-};
+    std::string m_object_name;
+    object_finder_type m_object_finder;
 
-} // namespace detail
+    // 查找被引用的对象（弱引用，可能返回 nullptr）
+    abstract_object* find_related_object() const {
+        if (m_object_finder) {
+            return m_object_finder(m_object_name);
+        }
+        return nullptr;
+    }
+};
 
 template <typename T, typename Observer = detail::interface_observer>
 class property : public property_base {
@@ -108,76 +218,6 @@ public:
         : m_value(std::move(value)) {
     }
 
-    template <typename Getter, std::size_t... Is, typename... SyncProps>
-    auto make_sync_getter(Getter&& getter, std::index_sequence<Is...>, SyncProps&... syncs) {
-        auto* cache = static_cast<detail::property_cache<typename SyncProps::value_type...>*>(m_cache.get());
-        (cache->template set<Is>(syncs.value()), ...);
-        return [getter = std::forward<Getter>(getter), cache = cache]() -> T {
-            return getter(cache->template get<Is>()...);
-        };
-    }
-
-    // 同步属性构造函数
-    template <typename Getter, typename... SyncProps,
-              typename = std::enable_if_t<(sizeof...(SyncProps) > 0)>,
-              typename = std::enable_if_t<std::is_invocable_r_v<T, Getter, const typename SyncProps::value_type&...>>>
-    property(Getter&& getter, SyncProps&... syncs)
-        : m_cache(new detail::property_cache<typename SyncProps::value_type...>(), [](void* p) {
-              delete static_cast<detail::property_cache<typename SyncProps::value_type...>*>(p);
-          }) {
-        static_assert(sizeof...(SyncProps) <= 10, "At most 10 sync properties are allowed");
-
-        // 添加同步源
-        m_syncs = {&syncs...};
-
-        // 包装getter
-        m_getter = make_sync_getter(std::forward<Getter>(getter), std::index_sequence_for<SyncProps...>{}, syncs...);
-
-        // 设置同步处理器
-        setup_sync_handlers<SyncProps...>(std::index_sequence_for<SyncProps...>{}, syncs...);
-
-        // 更新初始值
-        update_value();
-    }
-
-    template <typename Getter, std::size_t... Is, typename... Props>
-    auto make_ref_getter(Getter&& getter, std::index_sequence<Is...>, Props&... refs) {
-        return [getter = std::forward<Getter>(getter), refs_ptrs = std::make_tuple(&refs...)]() -> T {
-            return getter(*std::get<Is>(refs_ptrs)...);
-        };
-    }
-
-    template <typename Setter, std::size_t... Is, typename... Props>
-    auto make_ref_setter(Setter&& setter, std::index_sequence<Is...>, Props&... refs) {
-        return [setter = std::forward<Setter>(setter), refs_ptrs = std::make_tuple(&refs...)](const T& v) {
-            setter(v, *std::get<Is>(refs_ptrs)...);
-        };
-    }
-
-    // 引用属性构造函数
-    template <typename Getter, typename Setter, typename... Props,
-              typename = std::enable_if_t<(sizeof...(Props) > 0)>,
-              typename = std::enable_if_t<std::is_invocable_r_v<T, Getter, Props&...>>,
-              typename = std::enable_if_t<std::is_same_v<Setter, std::nullptr_t> ||
-                                          std::is_invocable_r_v<void, Setter, const T&, Props&...>>>
-    property(Getter&& getter, Setter&& setter, Props&... refs) {
-        static_assert(sizeof...(Props) <= 10, "At most 10 reference properties are allowed");
-
-        // 添加引用源
-        (m_refs.push_back(&refs), ...);
-
-        // 包装 getter
-        m_getter = make_ref_getter(std::forward<Getter>(getter), std::index_sequence_for<Props...>{}, refs...);
-
-        // 包装 setter
-        if constexpr (!std::is_same_v<std::decay_t<Setter>, std::nullptr_t>) {
-            m_setter = make_ref_setter(std::forward<Setter>(setter), std::index_sequence_for<Props...>{}, refs...);
-        }
-
-        // 更新初始值
-        update_value();
-    }
-
     // 赋值与取值
     property_type& operator=(rvalue_type new_value) {
         set_value(std::move(new_value));
@@ -188,6 +228,13 @@ public:
         return *this;
     }
     param_type value(bool realtime = false) const {
+        // 如果是引用对象类型，m_value 已经存储了转换后的结果
+        if (m_property_type == p_type::ref_object) {
+            // 确保缓存已初始化（这会同时更新 m_value）
+            ensure_ref_object_cache();
+            return m_value;
+        }
+        
         if (m_getter && realtime) {
             const_cast<property_type*>(this)->update_value();
         }
@@ -206,8 +253,17 @@ public:
         set_value_impl(std::move(new_value));
     }
 
-    mc::variant get_value() const override {
-        return value();
+    mc::variant get_value(int options = 0) const override {
+        if (m_property_type == p_type::ref_object) {
+            if ((options & property_options::memory) || (options & property_options::from_mdb)) {
+                // 返回对象名称字符串
+                return mc::variant(get_ref_object_name());
+            } else {
+                // 返回缓存的引用对象
+                return ensure_ref_object_cache();
+            }
+        }       
+        return value(!(options & property_options::memory));
     }
 
     param_type operator*() const {
@@ -271,36 +327,157 @@ public:
         to_variant(value.m_value, v);
     }
 
+private:
+    // 获取引用对象名称的统一方法
+    std::string get_ref_object_name() const {
+        if (m_property_type == p_type::ref_object && m_ref_object_cache) {
+            // 从缓存的 ref_object 获取对象名称
+            if (m_ref_object_cache->is_extension()) {
+                auto ref_obj_ptr = m_ref_object_cache->as<ref_object*>();
+                if (ref_obj_ptr) {
+                    return ref_obj_ptr->get_object_name();
+                }
+            }
+        }
+        
+        // 对于非引用对象类型或未初始化的情况，从 m_value 获取
+        if constexpr (std::is_convertible_v<T, std::string>) {
+            return static_cast<std::string>(m_value);
+        } else {
+            mc::variant temp_variant(m_value);
+            if (temp_variant.is_string()) {
+                return temp_variant.as_string();
+            }
+        }
+        return "";
+    }
+
+    // 确保引用对象缓存已初始化，返回引用对象的 variant
+    mc::variant& ensure_ref_object_cache() const {
+        if (!m_ref_object_cache) {
+            const_cast<property_type*>(this)->initialize_ref_object_cache();
+        }
+        return *m_ref_object_cache;
+    }
+
+    // 处理引用对象的 from_variant 逻辑
+    void process_ref_object_from_variant(const std::string& ref_object_str) {
+        auto ref_obj = func_parser::get_instance().parse_ref_object(ref_object_str);
+        m_property_type = p_type::ref_object;
+        
+        // 清理旧的缓存（如果有的话）
+        m_ref_object_cache.reset();
+        
+        // 暂时存储对象名称到属性值中（懒加载，等到需要时再转换）
+        if constexpr (std::is_convertible_v<T, std::string>) {
+            m_value = static_cast<T>(ref_obj.object_name);
+        } else {
+            from_variant(mc::variant(ref_obj.object_name), m_value);
+        }
+
+        m_setter = [this](const T& value) {
+            MC_THROW(mc::invalid_op_exception, "设置引用对象属性值不被允许: ${name}", ("name", get_name()));
+        };
+    }
+
+public:
+
+    // 获取引用对象的variant包装器（现在直接使用缓存）
+    mc::variant get_ref_object_variant() const {
+        return ensure_ref_object_cache();
+    }
+
     // 查找对象的辅助方法
     abstract_object* find_related_object(const std::string& object_name) {
         auto position = get_object()->get_position();
         auto service  = func_collection::get_instance().get_service(position);
         if (service == nullptr) {
-            elog("Service not found for position: ${position}", ("position", std::string(position)));
+            elog("Service not found for position: ${position}", 
+                 ("position", std::string(position)));
             return nullptr;
         }
 
         std::string full_object_name = object_name + "_" + std::string(position);
+        
         auto&       object_table     = service->get_object_table();
         auto&       idx              = object_table.template get<mc::engine::by_object_name>();
         auto        obj_it           = idx.find(full_object_name);
 
         if (obj_it == idx.end()) {
-            elog("Object not found: ${object_name}", ("object_name", full_object_name));
+            elog("Object not found: ${object_name}, searched for: ${full_name}", 
+                 ("object_name", object_name)("full_name", full_object_name));
             return nullptr;
         }
 
         return const_cast<mc::engine::abstract_object*>(&(*obj_it));
     }
 
+    // 初始化引用对象缓存（只在属性设置时调用一次）
+    void initialize_ref_object_cache() {
+        if (m_property_type != p_type::ref_object) {
+            return;
+        }
+
+        // 分配缓存内存
+        if (!m_ref_object_cache) {
+            m_ref_object_cache = std::make_unique<mc::variant>();
+            
+            // 获取对象名称（从当前 m_value 中获取，因为这时候还未改变 m_value）
+            std::string object_name;
+            if constexpr (std::is_convertible_v<T, std::string>) {
+                object_name = static_cast<std::string>(m_value);
+            } else {
+                mc::variant temp_variant(m_value);
+                if (temp_variant.is_string()) {
+                    object_name = temp_variant.as_string();
+                } else {
+                    MC_THROW(mc::invalid_op_exception, "引用对象属性值不是字符串类型: ${name}", ("name", get_name()));
+                }
+            }
+
+            // 创建弱引用对象包装器
+            auto object_finder = [this](const std::string& name) -> abstract_object* {
+                return const_cast<property_type*>(this)->find_related_object(name);
+            };
+            auto ref_obj = std::make_shared<ref_object>(object_name, object_finder);
+            
+            // 在缓存中存储 ref_object
+            *m_ref_object_cache = mc::variant(ref_obj);
+            
+            // 将转换后的结果存储到 m_value
+            if constexpr (std::is_same_v<T, mc::variant>) {
+                const_cast<property_type*>(this)->m_value = mc::variant(ref_obj);
+            } else {
+                // 对于非 variant 类型，尝试转换并存储
+                try {
+                    from_variant(mc::variant(ref_obj), const_cast<property_type*>(this)->m_value);
+                } catch (const std::exception&) {
+                    // 转换失败时使用默认值
+                    const_cast<property_type*>(this)->m_value = T{};
+                }
+            }
+        }
+    }
+
     // 执行函数调用的辅助方法
     mc::variant call_function_with_result() {
-        auto position = get_object()->get_position();
-        auto result   = m_func.template as<func>().call(position, m_func_params);
-        if (result.is_null()) {
-            elog("Function call failed for property: ${name}", ("name", get_name()));
+        if (!m_func_data) {
+            elog("Function data is null for property: ${name}", ("name", get_name()));
+            return mc::variant();
         }
-        return result;
+        
+        try {
+            auto position = get_object()->get_position();
+            auto result   = m_func_data->func_obj.call(position, m_func_data->params);
+            if (result.is_null()) {
+                elog("Function call failed for property: ${name}", ("name", get_name()));
+            }
+            return result;
+        } catch (const std::exception& e) {
+            elog("Function call exception for property: ${name}, 错误: ${error}", 
+                 ("name", get_name())("error", e.what()));
+            return mc::variant();
+        }
     }
 
     // 设置函数getter的辅助方法
@@ -321,8 +498,8 @@ public:
         setup_function_getter();
 
         // 引用属性不支持设置值
-        m_setter = [](const T& value) {
-            MC_THROW(mc::invalid_op_exception, "设置引用属性值不被允许");
+        m_setter = [this](const T& value) {
+            MC_THROW(mc::invalid_op_exception, "设置引用属性值不被允许: ${name}", ("name", get_name()));
         };
     }
 
@@ -332,25 +509,48 @@ public:
             return mc::variant();
         }
 
-        return target_object->get_property(relate_property.property_name);
+        // 如果指定了接口，先获取接口再获取属性
+        if (!relate_property.interface.empty()) {
+            auto interface_obj = target_object->get_interface(relate_property.interface);
+            if (interface_obj == nullptr) {
+                elog("Interface not found: ${interface} in object: ${object_name}",
+                     ("interface", relate_property.interface)("object_name", relate_property.object_name));
+                return mc::variant();
+            }
+            return interface_obj->get_property(relate_property.property_name);
+        } else {
+            // 传统方式：直接从对象获取属性
+            return target_object->get_property(relate_property.property_name);
+        }
     }
 
     void set_relate_property(const relate_property& relate_property, const mc::variant& value) {
         auto* target_object = find_related_object(relate_property.object_name);
         if (target_object == nullptr) {
-            return;
+            MC_THROW(mc::invalid_op_exception, "set_relate_property ${name} failed: Object not found: ${object_name}", 
+                     ("name", get_name())("object_name", relate_property.object_name));
         }
 
-        target_object->set_property(relate_property.property_name, value);
+        // 如果指定了接口，先获取接口再设置属性
+        if (!relate_property.interface.empty()) {
+            auto interface_obj = target_object->get_interface(relate_property.interface);
+            if (interface_obj == nullptr) {
+                MC_THROW(mc::invalid_op_exception, "set_relate_property ${name} failed: Interface not found: ${interface} in object: ${object_name}", 
+                         ("name", get_name())("interface", relate_property.interface)("object_name", relate_property.object_name));
+            }
+            interface_obj->set_property(relate_property.property_name, value);
+        } else {
+            // 传统方式：直接在对象上设置属性
+            target_object->set_property(relate_property.property_name, value);
+        }
     }
 
     void hook_ref_property(const relate_property& relate_property) {
         m_getter = [this, relate_property]() -> T {
             auto result = get_relate_property(relate_property);
             if (result.is_null()) {
-                elog("获取引用属性失败: ${object_name}.${property_name}",
-                     ("object_name", relate_property.object_name)("property_name", relate_property.property_name));
-                return T{};
+                MC_THROW(mc::invalid_op_exception, "获取引用属性${name}失败: ${object_name}.${property_name}", 
+                         ("name", get_name())("object_name", relate_property.object_name)("property_name", relate_property.property_name));
             }
 
             T value;
@@ -449,8 +649,8 @@ public:
         }
 
         // 同步属性不支持设置值
-        m_setter = [](const T& value) {
-            MC_THROW(mc::invalid_op_exception, "设置同步属性值不被允许");
+        m_setter = [this](const T& value) {
+            MC_THROW(mc::invalid_op_exception, "设置同步属性值不被允许: ${name}", ("name", get_name()));
         };
     }
 
@@ -509,9 +709,6 @@ public:
 
         // 存储连接
         m_connection_slots.push_back(slot);
-
-        // 设置初始值
-        update_sync_value_from_function();
     }
 
     // 设置延迟多属性同步连接
@@ -531,6 +728,7 @@ public:
             auto& object = static_cast<mc::engine::abstract_object&>(base_object);
             if (object.get_name() == full_object_name) {
                 setup_multi_sync_connection(object, object_properties);
+                update_sync_value_from_function();
             }
         });
 
@@ -550,33 +748,13 @@ public:
             process_sync_properties_for_object(object_name, object_properties);
         }
 
+        // 所有监听器设置完毕后，统一进行一次初始化
+        update_sync_value_from_function();
+
         // 同步属性不支持设置值
-        m_setter = [](const T& value) {
+        m_setter = [this](const T& value) {
             MC_THROW(mc::invalid_op_exception, "设置同步属性值不被允许");
         };
-    }
-
-    void hook_relate_properties(mc::variant& call_func, mc::mutable_dict& func_params) {
-        m_func        = call_func;
-        m_func_params = func_params;
-
-        auto relate_properties = m_func.template as<func>().get_relate_properties(
-            get_object()->get_position(), func_params);
-
-        if (relate_properties.empty()) {
-            return;
-        }
-
-        // 处理第一个关联属性的类型
-        for (const auto& entry : relate_properties) {
-            auto value = entry.value.template as<mc::expr::relate_property>();
-            if (value.type == "ref") {
-                hook_ref_properties(relate_properties);
-            } else if (value.type == "sync") {
-                hook_sync_properties(relate_properties);
-            }
-            break;
-        }
     }
 
     void process_property_value(const std::string& value_str) {
@@ -590,17 +768,39 @@ public:
             return;
         }
 
-        hook_relate_properties(call_func, func_info.params);
+        auto func_params = func_info.params;
+        auto relate_properties = call_func.template as<func>().get_relate_properties(
+            get_object()->get_position(), func_params);
 
-        auto result = call_func.template as<func>().call(position, func_info.params);
-        if (result.is_null()) {
-            elog("函数调用失败: ${name}", ("name", func_info.func));
+        if (relate_properties.empty()) {
+            // 没有关联属性，只计算一次，不需要保存函数对象
+            auto result = call_func.template as<func>().call(position, func_params);
+            if (result.is_null()) {
+                return;
+            }
+            T value;
+            from_variant(result, value);
+            set_value_impl(std::move(value));
             return;
         }
 
-        T value;
-        from_variant(result, value);
-        set_value_impl(std::move(value));
+        // 分配func_data，保存函数对象
+        m_func_data = std::make_unique<detail::func_data>();
+        mc::from_variant(call_func, m_func_data->func_obj);  // 正确转换到func类型
+        m_func_data->params = func_params;
+
+        // 处理第一个关联属性的类型
+        for (const auto& entry : relate_properties) {
+            auto value = entry.value.template as<mc::expr::relate_property>();
+            if (value.type == "ref") {
+                hook_ref_properties(relate_properties);
+                m_property_type = p_type::reference;
+            } else if (value.type == "sync") {
+                hook_sync_properties(relate_properties);
+                m_property_type = p_type::sync;
+            }
+            break;
+        }
     }
 
     friend inline void from_variant(const mc::variant& v, property_type& value) {
@@ -614,9 +814,17 @@ public:
         if (str.substr(0, 3) == "<=/") {
             auto sync_prop = func_parser::get_instance().parse_sync_property(str);
             value.hook_sync_property(sync_prop);
+            value.m_property_type = p_type::sync;
         } else if (str.substr(0, 2) == "#/") {
-            auto ref_prop = func_parser::get_instance().parse_ref_property(str);
-            value.hook_ref_property(ref_prop);
+            // 根据是否包含点号来区分引用对象和引用属性
+            if (str.find('.') != std::string::npos) {
+                auto ref_prop = func_parser::get_instance().parse_ref_property(str);
+                value.hook_ref_property(ref_prop);
+                value.m_property_type = p_type::reference;
+            } else {
+                // 处理引用对象
+                value.process_ref_object_from_variant(str);
+            }
         } else if (str.substr(0, 6) == "$Func_") {
             value.process_property_value(str);
         } else {
@@ -650,6 +858,14 @@ public:
 
     uint64_t get_flags() const override {
         return 0;
+    }
+
+    property_type get_property_type() const {
+        return m_property_type;
+    }
+
+    uint32_t get_property_type_value() const {
+        return static_cast<uint32_t>(m_property_type);
     }
 
     abstract_interface* get_interface() const override {
@@ -717,21 +933,6 @@ protected:
         notify();
     }
 
-    template <typename... SyncProps, size_t... Is>
-    void setup_sync_handlers(std::index_sequence<Is...>, SyncProps&... syncs) {
-        (setup_sync_handler<Is, SyncProps...>(syncs), ...);
-    }
-
-    template <size_t I, typename... SyncProps>
-    void setup_sync_handler(property_base& sync) {
-        sync.property_changed().connect([this](const mc::variant& value, const property_base&) {
-            using ValueType = typename std::tuple_element<I, std::tuple<typename SyncProps::value_type...>>::type;
-            auto* cache     = static_cast<detail::property_cache<typename SyncProps::value_type...>*>(m_cache.get());
-            cache->template set<I>(value.as<ValueType>());
-            update_value();
-        });
-    }
-
     void update_value() {
         if (m_getter) {
             set_value_impl(m_getter());
@@ -741,15 +942,13 @@ protected:
     T                                        m_value{};
     observer_type                            m_observer;
     std::unique_ptr<property_changed_signal> m_signal;
-    std::vector<property_base*>              m_syncs;
-    std::vector<property_base*>              m_refs;
-    std::unique_ptr<void, void (*)(void*)>   m_cache{nullptr, [](void*) {
-    }};
+
     std::function<T()>                       m_getter;
     std::function<void(const T&)>            m_setter;
-    mc::variant                              m_func;
-    mc::mutable_dict                         m_func_params;
+    std::unique_ptr<detail::func_data>       m_func_data; // 只有需要时才分配
     std::vector<mc::connection_type>         m_connection_slots;
+    p_type                                   m_property_type{p_type::normal}; // 属性类型，默认为普通属性
+    mutable std::unique_ptr<mc::variant>     m_ref_object_cache; // 缓存引用对象的 variant
 };
 
 } // namespace mc::engine
@@ -763,5 +962,22 @@ struct signature_helper<mc::engine::property<T, Observer>> {
 };
 
 } // namespace mc::reflect::detail
+
+// 为 ref_object* 指针类型添加 from_variant 特化，支持 obj_variant.as<ref_object*>() 语法
+namespace mc {
+template<typename Config>
+void from_variant(const mc::variant_base<Config>& var, mc::engine::ref_object*& ptr) {
+    if (var.is_extension()) {
+        auto ext_ptr = var.as_extension();
+        if (ext_ptr) {
+            ptr = dynamic_cast<mc::engine::ref_object*>(ext_ptr.get());
+            if (ptr) {
+                return;
+            }
+        }
+    }
+    ptr = nullptr;
+}
+} // namespace mc
 
 #endif // MC_ENGINE_PROPERTY_H

@@ -12,6 +12,7 @@
 
 #include <mc/dbus/shm/harbor.h>
 #include <mc/dbus/signal.h>
+#include <mc/engine/property.h>
 
 namespace mc::dbus {
 
@@ -40,7 +41,7 @@ struct interface_added_visitor : mc::engine::visitor {
     void handle(const mc::engine::abstract_object& obj, const mc::engine::abstract_interface& iface,
                 const mc::engine::visitor::property_meta& info) override {
         auto& properties      = m_properties[std::string(iface.get_interface_name())];
-        properties[info.name] = iface.get_property(info.name);
+        properties[info.name] = iface.get_property(info.name, mc::engine::property_options::memory);
     }
 
     void handle(const mc::engine::abstract_object& obj, const mc::engine::abstract_interface& iface,

@@ -57,6 +57,7 @@ TEST(FunctionCallTest, GetRelatePropertiesBasic) {
     relate_prop_dict["object_name"]   = "CPU";
     relate_prop_dict["property_name"] = "Temperature";
     relate_prop_dict["full_name"]     = "CPU.Temperature";
+    relate_prop_dict["interface"]     = ""; // 添加interface字段
 
     mc::dict args = {
         {"prop_param", relate_prop_dict}};
@@ -75,7 +76,133 @@ TEST(FunctionCallTest, GetRelatePropertiesBasic) {
     EXPECT_EQ(result.size(), 1);
     EXPECT_TRUE(result.contains("CPU.Temperature"));
 }
-#include <iostream>
+
+// 测试带接口的 relate_properties 处理
+TEST(FunctionCallTest, GetRelatePropertiesWithInterface) {
+    func_collection::get_instance().clear();
+    mc::mutable_dict functions;
+
+    // 创建包含带接口的 relate_property 的函数参数
+    mc::mutable_dict interface_prop_dict;
+    interface_prop_dict["type"]          = "ref";
+    interface_prop_dict["object_name"]   = "Device";
+    interface_prop_dict["property_name"] = "Temperature";
+    interface_prop_dict["interface"]     = "bmc.dev.TestInterface";
+    interface_prop_dict["full_name"]     = "#/Device[bmc.dev.TestInterface].Temperature";
+
+    mc::mutable_dict traditional_prop_dict;
+    traditional_prop_dict["type"]          = "ref";
+    traditional_prop_dict["object_name"]   = "CPU";
+    traditional_prop_dict["property_name"] = "Usage";
+    traditional_prop_dict["interface"]     = ""; // 传统语法接口为空
+    traditional_prop_dict["full_name"]     = "#/CPU.Usage";
+
+    mc::dict args = {
+        {"interface_prop", interface_prop_dict},
+        {"traditional_prop", traditional_prop_dict}
+    };
+
+    func test_func("interface_prop + traditional_prop", args);
+    functions.insert("$Func_Test", mc::variant(test_func));
+    func_collection::get_instance().add("01", nullptr, functions);
+
+    // 测试参数
+    mc::mutable_dict params;
+    // 不传入参数，使用默认值
+
+    auto result = test_func.get_relate_properties("01", params);
+
+    // 应该返回两个 relate_property
+    EXPECT_EQ(result.size(), 2);
+    EXPECT_TRUE(result.contains("Device[bmc.dev.TestInterface].Temperature"));
+    EXPECT_TRUE(result.contains("CPU.Usage"));
+    
+    // 验证带接口的属性信息
+    auto interface_result = result["Device[bmc.dev.TestInterface].Temperature"].as<relate_property>();
+    EXPECT_EQ(interface_result.object_name, "Device");
+    EXPECT_EQ(interface_result.interface, "bmc.dev.TestInterface");
+    EXPECT_EQ(interface_result.property_name, "Temperature");
+    
+    // 验证传统语法的属性信息
+    auto traditional_result = result["CPU.Usage"].as<relate_property>();
+    EXPECT_EQ(traditional_result.object_name, "CPU");
+    EXPECT_EQ(traditional_result.interface, "");
+    EXPECT_EQ(traditional_result.property_name, "Usage");
+}
+
+// 测试混合新旧语法的函数参数
+TEST(FunctionCallTest, GetRelatePropertiesMixedSyntax) {
+    func_collection::get_instance().clear();
+    mc::mutable_dict functions;
+
+    // 创建混合新旧语法的函数参数
+    mc::mutable_dict new_syntax_dict;
+    new_syntax_dict["type"]          = "sync";
+    new_syntax_dict["object_name"]   = "GPU";
+    new_syntax_dict["property_name"] = "Load";
+    new_syntax_dict["interface"]     = "bmc.hardware.Graphics";
+    new_syntax_dict["full_name"]     = "<=/GPU[bmc.hardware.Graphics].Load";
+
+    mc::mutable_dict old_syntax_dict;
+    old_syntax_dict["type"]          = "ref";
+    old_syntax_dict["object_name"]   = "Memory";
+    old_syntax_dict["property_name"] = "Usage";
+    old_syntax_dict["interface"]     = "";
+    old_syntax_dict["full_name"]     = "#/Memory.Usage";
+
+    mc::dict args = {
+        {"normal_param", mc::variant("value")},
+        {"new_syntax", new_syntax_dict},
+        {"old_syntax", old_syntax_dict}
+    };
+
+    func test_func("normal_param + new_syntax + old_syntax", args);
+    functions.insert("$Func_Test", mc::variant(test_func));
+    func_collection::get_instance().add("01", nullptr, functions);
+
+    // 测试参数 - 覆盖部分参数
+    mc::mutable_dict params;
+    params["normal_param"] = "new_value";
+    // new_syntax 和 old_syntax 使用默认值
+
+    auto result = test_func.get_relate_properties("01", params);
+
+    // 应该识别出两个 relate_property
+    EXPECT_EQ(result.size(), 2);
+    EXPECT_TRUE(result.contains("GPU[bmc.hardware.Graphics].Load"));
+    EXPECT_TRUE(result.contains("Memory.Usage"));
+}
+
+// 测试 is_relate_property 函数对新语法的支持
+TEST(FunctionCallTest, IsRelatePropertyWithInterface) {
+    // 测试带接口的 relate_property 格式
+    mc::mutable_dict interface_prop;
+    interface_prop["type"]          = "ref";
+    interface_prop["object_name"]   = "Device";
+    interface_prop["property_name"] = "Temperature";
+    interface_prop["interface"]     = "bmc.dev.TestInterface";
+    interface_prop["full_name"]     = "#/Device[bmc.dev.TestInterface].Temperature";
+    EXPECT_TRUE(is_relate_property(mc::variant(interface_prop)));
+
+    // 测试传统格式（interface为空）
+    mc::mutable_dict traditional_prop;
+    traditional_prop["type"]          = "ref";
+    traditional_prop["object_name"]   = "CPU";
+    traditional_prop["property_name"] = "Usage";
+    traditional_prop["interface"]     = "";
+    traditional_prop["full_name"]     = "#/CPU.Usage";
+    EXPECT_TRUE(is_relate_property(mc::variant(traditional_prop)));
+
+    // 测试缺少interface字段的情况（不再支持旧格式）
+    mc::mutable_dict legacy_prop;
+    legacy_prop["type"]          = "ref";
+    legacy_prop["object_name"]   = "Memory";
+    legacy_prop["property_name"] = "Total";
+    legacy_prop["full_name"]     = "#/Memory.Total";
+    // 注意：没有interface字段，所以现在只有4个字段
+    EXPECT_FALSE(is_relate_property(mc::variant(legacy_prop))); // 因为字段数不为5，现在严格要求5个字段
+}
+
 // 测试嵌套函数调用中的 relate_properties
 TEST(FunctionCallTest, GetRelatePropertiesNested) {
     // 清理之前测试的状态
@@ -92,6 +219,7 @@ TEST(FunctionCallTest, GetRelatePropertiesNested) {
     nested_prop_dict["object_name"]   = "Memory";
     nested_prop_dict["property_name"] = "Usage";
     nested_prop_dict["full_name"]     = "Memory.Usage";
+    nested_prop_dict["interface"]     = ""; // 添加interface字段
     nested_params["nested_prop"]      = nested_prop_dict;
     nested_func_dict["params"]        = nested_params;
 
@@ -129,12 +257,14 @@ TEST(FunctionCallTest, GetRelatePropertiesMixed) {
     prop1_dict["object_name"]   = "CPU";
     prop1_dict["property_name"] = "Temperature";
     prop1_dict["full_name"]     = "CPU.Temperature";
+    prop1_dict["interface"]     = ""; // 添加interface字段
 
     mc::mutable_dict prop2_dict;
     prop2_dict["type"]          = "ref";
     prop2_dict["object_name"]   = "GPU";
     prop2_dict["property_name"] = "Load";
     prop2_dict["full_name"]     = "GPU.Load";
+    prop2_dict["interface"]     = ""; // 添加interface字段
 
     mc::dict args = {
         {"normal_param", mc::variant("value")},
@@ -183,20 +313,22 @@ TEST(FunctionCallTest, GetRelatePropertiesEmpty) {
 
 // 测试 is_relate_property 函数的各种情况
 TEST(FunctionCallTest, IsRelatePropertyFunction) {
-    // 测试正确的 relate_property 格式（大小为2，包含必要字段）
+    // 测试正确的 relate_property 格式（大小为5，包含必要字段）
     mc::mutable_dict valid_prop;
     valid_prop["type"]          = "ref";
     valid_prop["full_name"]     = "CPU.Temperature";
     valid_prop["object_name"]   = "CPU";
     valid_prop["property_name"] = "Temperature";
+    valid_prop["interface"]     = ""; // 新增interface字段
     EXPECT_TRUE(is_relate_property(mc::variant(valid_prop)));
 
-    // 测试包含额外字段的字典（大小不为2）
+    // 测试包含额外字段的字典（大小不为5）
     mc::mutable_dict extended_prop;
     extended_prop["type"]          = "ref";
     extended_prop["full_name"]     = "CPU.Temperature";
     extended_prop["object_name"]   = "CPU";
     extended_prop["property_name"] = "Temperature";
+    extended_prop["interface"]     = "";
     extended_prop["test"]          = "test";
     EXPECT_FALSE(is_relate_property(mc::variant(extended_prop)));
 
@@ -205,6 +337,7 @@ TEST(FunctionCallTest, IsRelatePropertyFunction) {
     incomplete_prop["type"]        = "ref";
     incomplete_prop["full_name"]   = "CPU.Temperature";
     incomplete_prop["object_name"] = "CPU";
+    // 缺少 property_name 和 interface
     EXPECT_FALSE(is_relate_property(mc::variant(incomplete_prop)));
 
     // 测试字段名错误的字典
@@ -282,6 +415,7 @@ TEST(FunctionCallTest, ComplexNestedScenario) {
     inner_prop["object_name"]   = "Memory";
     inner_prop["property_name"] = "Usage";
     inner_prop["full_name"]     = "Memory.Usage";
+    inner_prop["interface"]     = ""; // 添加interface字段
 
     mc::mutable_dict inner_params;
     inner_params["memory_param"] = inner_prop;
@@ -297,6 +431,7 @@ TEST(FunctionCallTest, ComplexNestedScenario) {
     outer_prop["object_name"]   = "CPU";
     outer_prop["property_name"] = "Temperature";
     outer_prop["full_name"]     = "CPU.Temperature";
+    outer_prop["interface"]     = ""; // 添加interface字段
 
     mc::dict outer_args = {
         {"cpu_param", outer_prop},

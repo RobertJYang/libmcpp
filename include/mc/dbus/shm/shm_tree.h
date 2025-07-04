@@ -79,7 +79,7 @@ struct shm_obj_visitor : mc::engine::visitor {
             auto value = mc::engine::common_properties_interface::get_instance().get(info.name);
             shm_tree::set_property_inner(shm_prop, value);
         } else {
-            auto value = iface.get_property(info.name);
+            auto value = iface.get_property(info.name, mc::engine::property_options::memory);
             shm_tree::set_property_inner(shm_prop, value);
         }
     }
