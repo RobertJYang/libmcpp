@@ -222,7 +222,7 @@ mc::any_executor object_impl::get_executor() const {
         if (data.executor.valid()) {
             return {data.executor};
         }
-        return {mc::get_default_executor()};
+        return {mc::get_work_executor()};
     });
 }
 
@@ -312,9 +312,9 @@ void object::set_parent(object* parent) {
         old_parent->remove_child(this);
     }
 
-    // 添加到新父对象（现在可以安全调用 shared_from_this()）
+    // 添加到新父对象
     if (parent) {
-        parent->add_child(this->shared_from_this());
+        parent->add_child(this);
     }
 }
 
@@ -404,7 +404,7 @@ object::executor_type object::get_executor() const {
     if (impl) {
         return impl->get_executor();
     }
-    return mc::get_default_executor();
+    return mc::get_work_executor();
 }
 
 void object::set_executor(mc::executor executor) {

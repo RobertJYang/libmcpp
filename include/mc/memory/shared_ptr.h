@@ -162,10 +162,6 @@ public:
         return m_ptr;
     }
 
-    operator pointer_type() const noexcept {
-        return m_ptr;
-    }
-
     // 布尔转换运算符
     operator bool() const noexcept {
         return m_ptr != nullptr;
@@ -220,60 +216,40 @@ public:
 
     // 相等运算符
     template <typename U, typename UDeleter, typename UPointerType>
-    bool operator==(const shared_ptr<U, UDeleter, UPointerType>& rhs) noexcept {
+    bool operator==(const shared_ptr<U, UDeleter, UPointerType>& rhs) const noexcept {
         return this->get() == rhs.get();
     }
 
-    bool operator==(std::nullptr_t) noexcept {
+    bool operator==(std::nullptr_t) const noexcept {
         return this->get() == nullptr;
     }
 
-    bool operator==(T* rhs) noexcept {
+    bool operator==(T* rhs) const noexcept {
         return this->get() == rhs;
-    }
-
-    friend bool operator==(std::nullptr_t, const shared_ptr<T, Deleter, PointerType>& rhs) noexcept {
-        return nullptr == rhs.get();
-    }
-
-    friend bool operator==(T* lhs, const shared_ptr<T, Deleter, PointerType>& rhs) noexcept {
-        return lhs == rhs.get();
     }
 
     // 不等运算符
     template <typename U, typename UDeleter, typename UPointerType>
-    bool operator!=(const shared_ptr<U, UDeleter, UPointerType>& rhs) noexcept {
+    bool operator!=(const shared_ptr<U, UDeleter, UPointerType>& rhs) const noexcept {
         return this->get() != rhs.get();
     }
 
-    bool operator!=(std::nullptr_t) noexcept {
+    bool operator!=(std::nullptr_t) const noexcept {
         return this->get() != nullptr;
     }
 
-    friend bool operator!=(std::nullptr_t, const shared_ptr<T, Deleter, PointerType>& rhs) noexcept {
-        return nullptr != rhs.get();
-    }
-
-    bool operator!=(T* rhs) noexcept {
+    bool operator!=(T* rhs) const noexcept {
         return this->get() != rhs;
-    }
-
-    friend bool operator!=(T* lhs, const shared_ptr<T, Deleter, PointerType>& rhs) noexcept {
-        return lhs != rhs.get();
     }
 
     // 小于运算符，用于排序容器
     template <typename U, typename UDeleter, typename UPointerType>
-    bool operator<(const shared_ptr<U, UDeleter, UPointerType>& rhs) noexcept {
+    bool operator<(const shared_ptr<U, UDeleter, UPointerType>& rhs) const noexcept {
         return this->get() < rhs.get();
     }
 
-    bool operator<(T* rhs) noexcept {
+    bool operator<(T* rhs) const noexcept {
         return this->get() < rhs;
-    }
-
-    friend bool operator<(T* lhs, const shared_ptr<T, Deleter, PointerType>& rhs) noexcept {
-        return lhs < rhs.get();
     }
 
 private:
@@ -346,6 +322,34 @@ auto reinterpret_pointer_cast(const shared_ptr<U, UDeleter, UPointerType>& r) no
     return r.template reinterpret_pointer_cast<T>();
 }
 
+} // namespace mc::memory
+
+// 全局比较运算符重载，支持与 std::nullptr_t 的比较
+namespace mc::memory {
+template <typename T, typename Deleter, typename PointerType>
+bool operator==(std::nullptr_t, const shared_ptr<T, Deleter, PointerType>& rhs) noexcept {
+    return nullptr == rhs.get();
+}
+
+template <typename T, typename Deleter, typename PointerType>
+bool operator!=(std::nullptr_t, const shared_ptr<T, Deleter, PointerType>& rhs) noexcept {
+    return nullptr != rhs.get();
+}
+
+template <typename T, typename Deleter, typename PointerType>
+bool operator==(T* lhs, const shared_ptr<T, Deleter, PointerType>& rhs) noexcept {
+    return lhs == rhs.get();
+}
+
+template <typename T, typename Deleter, typename PointerType>
+bool operator!=(T* lhs, const shared_ptr<T, Deleter, PointerType>& rhs) noexcept {
+    return lhs != rhs.get();
+}
+
+template <typename T, typename Deleter, typename PointerType>
+bool operator<(T* lhs, const shared_ptr<T, Deleter, PointerType>& rhs) noexcept {
+    return lhs < rhs.get();
+}
 } // namespace mc::memory
 
 // 为 std::hash 提供特化支持
