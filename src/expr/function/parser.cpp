@@ -54,12 +54,24 @@ mc::variant parse_value(const std::string& value) {
 }
 
 std::pair<std::string, std::string> func_parser::parse_dotted_property(const std::string& input) {
-    std::regex  pattern(R"(([^.]+)\.([^.]+))");
+    // 支持两种格式：
+    // 1. AAA[bmc.dev.xxx].DeviceName - 带接口的新语法
+    // 2. AAA.DeviceName - 传统语法（向后兼容）
+    
+    std::regex pattern_with_interface(R"(([^.\[]+)\[([^\]]+)\]\.([^.]+))");
     std::smatch matches;
-    if (!std::regex_match(input, matches, pattern)) {
-        MC_THROW(mc::invalid_arg_exception, "Invalid property format: ${input}", ("input", input));
+    
+    if (std::regex_match(input, matches, pattern_with_interface)) {
+        // 新语法：AAA[bmc.dev.xxx].DeviceName
+        return {matches[1].str(), matches[3].str()}; // 返回对象名和属性名
+    } else {
+        // 传统语法：AAA.DeviceName
+        std::regex traditional_pattern(R"(([^.]+)\.([^.]+))");
+        if (!std::regex_match(input, matches, traditional_pattern)) {
+            MC_THROW(mc::invalid_arg_exception, "Invalid property format: ${input}", ("input", input));
+        }
+        return {matches[1].str(), matches[2].str()}; // 返回对象名和属性名
     }
-    return {matches[1].str(), matches[2].str()};
 }
 
 // 通用属性解析函数
@@ -74,7 +86,26 @@ relate_property func_parser::parse_property_with_type(const std::string& input,
     
     // 提取去除前缀后的内容
     std::string dotted_part = input.substr(config.prefix.length());
-    auto [obj_name, prop_name] = parse_dotted_property(dotted_part);
+    
+    // 解析接口信息
+    std::string interface_name;
+    std::regex pattern_with_interface(R"(([^.\[]+)\[([^\]]+)\]\.([^.]+))");
+    std::smatch matches;
+    
+    std::string obj_name, prop_name;
+    
+    if (std::regex_match(dotted_part, matches, pattern_with_interface)) {
+        // 新语法：AAA[bmc.dev.xxx].DeviceName
+        obj_name = matches[1].str();
+        interface_name = matches[2].str();
+        prop_name = matches[3].str();
+    } else {
+        // 传统语法：AAA.DeviceName
+        auto [object_name, property_name] = parse_dotted_property(dotted_part);
+        obj_name = object_name;
+        prop_name = property_name;
+        interface_name = ""; // 传统语法接口为空
+    }
     
     // 构造结果
     relate_property prop;
@@ -84,17 +115,37 @@ relate_property func_parser::parse_property_with_type(const std::string& input,
     prop.object_name = obj_name;
     prop.property_name = prop_name; 
     prop.full_name = input;
+    prop.interface = interface_name;
     
     return prop;
 }
 
 relate_property func_parser::parse_property(const std::string& input) {
-    auto [obj_name, prop_name] = parse_dotted_property(input);
+    // 解析接口信息
+    std::string interface_name;
+    std::regex pattern_with_interface(R"(([^.\[]+)\[([^\]]+)\]\.([^.]+))");
+    std::smatch matches;
+    
+    std::string obj_name, prop_name;
+    
+    if (std::regex_match(input, matches, pattern_with_interface)) {
+        // 新语法：AAA[bmc.dev.xxx].DeviceName
+        obj_name = matches[1].str();
+        interface_name = matches[2].str();
+        prop_name = matches[3].str();
+    } else {
+        // 传统语法：AAA.DeviceName
+        auto [object_name, property_name] = parse_dotted_property(input);
+        obj_name = object_name;
+        prop_name = property_name;
+        interface_name = ""; // 传统语法接口为空
+    }
     
     relate_property prop;
     prop.object_name = obj_name;
     prop.property_name = prop_name;
     prop.full_name = input;  // 设置完整名称
+    prop.interface = interface_name;
     return prop;
 }
 
@@ -106,6 +157,29 @@ relate_property func_parser::parse_sync_property(const std::string& input) {
 relate_property func_parser::parse_ref_property(const std::string& input) {
     static const property_type_config config = {"#/", "ref", "引用"};
     return parse_property_with_type(input, config);
+}
+
+relate_object func_parser::parse_ref_object(const std::string& input) {
+    // 验证格式 #/ObjectName
+    if (input.length() < 3 || input.substr(0, 2) != "#/") {
+        MC_THROW(mc::invalid_arg_exception, "引用对象格式无效: ${input}", ("input", input));
+    }
+    
+    // 提取对象名，去除前缀 #/
+    std::string object_name = input.substr(2);
+    
+    // 验证对象名不为空且只包含字母、数字和下划线
+    if (object_name.empty() || !std::regex_match(object_name, std::regex(R"([A-Za-z_][A-Za-z0-9_]*)"))) {
+        MC_THROW(mc::invalid_arg_exception, "引用对象名称格式无效: ${object_name}", ("object_name", object_name));
+    }
+    
+    // 构造结果
+    relate_object obj;
+    obj.type = "ref";
+    obj.object_name = object_name;
+    obj.full_name = input;
+    
+    return obj;
 }
 
 std::string func_parser::parse_function_name(const std::string& input) {
@@ -233,7 +307,12 @@ func_call func_parser::parse_function_call(const std::string& input) {
         } else if (param_value.substr(0, 3) == "<=/") {
             result.params[param_name] = mc::variant(parse_sync_property(param_value));
         } else if (param_value.substr(0, 2) == "#/") {
-            result.params[param_name] = mc::variant(parse_ref_property(param_value));
+            // 根据是否包含点号来区分引用对象和引用属性
+            if (param_value.find('.') != std::string::npos) {
+                result.params[param_name] = mc::variant(parse_ref_property(param_value));
+            } else {
+                result.params[param_name] = mc::variant(parse_ref_object(param_value));
+            }
         } else if (std::regex_match(
                        param_value,
                        std::regex(R"([A-Za-z_][A-Za-z0-9_]*\.[A-Za-z_][A-Za-z0-9_]*)"))) {

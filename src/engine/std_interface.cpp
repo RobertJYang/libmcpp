@@ -7,6 +7,7 @@
  */
 
 #include "mc/engine/std_interface.h"
+#include <mc/engine/property.h>
 
 namespace mc::engine {
 mc::variant properties_interface::get(std::string_view interface_name,
@@ -18,7 +19,7 @@ mc::variant properties_interface::get(std::string_view interface_name,
     if (interface_name == common_properties_name) {
         return common_properties_interface::get(property_name);
     }
-    return object->get_property(property_name, interface_name);
+    return object->get_property(property_name, interface_name, mc::engine::property_options::from_mdb);
 }
 
 mc::dict properties_interface::get_all(std::string_view interface_name) const {
@@ -29,7 +30,7 @@ mc::dict properties_interface::get_all(std::string_view interface_name) const {
     if (interface_name == common_properties_name) {
         return common_properties_interface::get_all();
     }
-    return object->get_all_properties(interface_name);
+    return object->get_all_properties(interface_name, mc::engine::property_options::from_mdb);
 }
 
 void properties_interface::set(std::string_view interface_name, std::string_view property_name,

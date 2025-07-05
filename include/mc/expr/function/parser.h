@@ -26,6 +26,14 @@ struct relate_property {
     std::string object_name;
     std::string property_name;
     std::string full_name;
+    std::string interface;  // 新增接口字段，支持 AAA[bmc.dev.xxx].DeviceName 语法
+};
+
+// 引用对象结构
+struct relate_object {
+    std::string type;
+    std::string object_name;
+    std::string full_name;
 };
 
 // 属性类型配置结构
@@ -46,6 +54,7 @@ public:
     relate_property parse_property(const std::string& input);
     relate_property parse_sync_property(const std::string& input);
     relate_property parse_ref_property(const std::string& input);
+    relate_object parse_ref_object(const std::string& input);
 
 private:
     func_parser()                         = default;
@@ -106,6 +115,7 @@ private:
 
 } // namespace mc::expr
 
-MC_REFLECT(mc::expr::relate_property, ((type, "type"))((object_name, "object_name"))((property_name, "property_name"))((full_name, "full_name")));
+MC_REFLECT(mc::expr::relate_property, ((type, "type"))((object_name, "object_name"))((property_name, "property_name"))((full_name, "full_name"))((interface, "interface")));
+MC_REFLECT(mc::expr::relate_object, ((type, "type"))((object_name, "object_name"))((full_name, "full_name")));
 
 #endif // MC_EXPR_FUNCTION_PARSER_H

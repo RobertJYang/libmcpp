@@ -42,7 +42,7 @@ bool check_property_value(const mc::variant& value, const std::string& expected_
         return false;
     }
     const auto& dict = value.as_dict();
-    if (dict.size() != 4) {
+    if (dict.size() != 5) {  // 现在有5个字段：type, object_name, property_name, full_name, interface
         return false;
     }
 
@@ -65,6 +65,14 @@ bool check_property_value(const mc::variant& value, const std::string& expected_
     if (type_it == dict.end() || !check_string_value(type_it->value, expected_type)) {
         return false;
     }
+
+    // 检查interface字段是否存在
+    auto interface_it = dict.find("interface");
+    if (interface_it == dict.end() || !interface_it->value.is_string()) {
+        return false;
+    }
+    // 对于传统语法，interface应该为空字符串
+    // 这里我们不强制检查具体的interface值，只要是字符串类型即可
 
     return true;
 }
@@ -315,6 +323,7 @@ TEST(FunctionParserTest, ParseNestedFunctionCallWithProperties) {
     prop.insert("property_name", mc::variant("Temperature"));
     prop.insert("full_name", mc::variant("CPU.Temperature"));
     prop.insert("type", mc::variant(""));
+    prop.insert("interface", mc::variant(""));
     expected_nested.params["normal"] = mc::variant(prop);
     
     prop = mc::mutable_dict();
@@ -322,6 +331,7 @@ TEST(FunctionParserTest, ParseNestedFunctionCallWithProperties) {
     prop.insert("property_name", mc::variant("Temperature"));
     prop.insert("full_name", mc::variant("<=/CPU.Temperature"));
     prop.insert("type", mc::variant("sync"));
+    prop.insert("interface", mc::variant(""));
     expected_nested.params["sync"] = mc::variant(prop);
     
     prop = mc::mutable_dict();
@@ -329,6 +339,7 @@ TEST(FunctionParserTest, ParseNestedFunctionCallWithProperties) {
     prop.insert("property_name", mc::variant("Temperature"));
     prop.insert("full_name", mc::variant("#/CPU.Temperature"));
     prop.insert("type", mc::variant("ref"));
+    prop.insert("interface", mc::variant(""));
     expected_nested.params["ref"] = mc::variant(prop);
     
     EXPECT_TRUE(check_function_call_value(result.params["nested"], expected_nested));
@@ -357,6 +368,7 @@ TEST(RelatePropertyTest, VariantConversion) {
     prop.object_name = "CPU";
     prop.property_name = "Temperature";
     prop.full_name = "#/CPU.Temperature";
+    prop.interface = "";  // 添加interface字段
     
     // 测试 to_variant
     mc::variant v;
@@ -364,11 +376,12 @@ TEST(RelatePropertyTest, VariantConversion) {
     
     EXPECT_TRUE(v.is_dict());
     const auto& dict = v.as_dict();
-    EXPECT_EQ(dict.size(), 4);
+    EXPECT_EQ(dict.size(), 5);  // 现在有5个字段
     EXPECT_EQ(dict["type"].as_string(), "ref");
     EXPECT_EQ(dict["object_name"].as_string(), "CPU");
     EXPECT_EQ(dict["property_name"].as_string(), "Temperature");
     EXPECT_EQ(dict["full_name"].as_string(), "#/CPU.Temperature");
+    EXPECT_EQ(dict["interface"].as_string(), "");
     
     // 测试 from_variant
     relate_property prop2;
@@ -378,6 +391,7 @@ TEST(RelatePropertyTest, VariantConversion) {
     EXPECT_EQ(prop2.object_name, "CPU");
     EXPECT_EQ(prop2.property_name, "Temperature");
     EXPECT_EQ(prop2.full_name, "#/CPU.Temperature");
+    EXPECT_EQ(prop2.interface, "");
 }
 
 // 测试空的 relate_property 转换
@@ -390,11 +404,12 @@ TEST(RelatePropertyTest, EmptyVariantConversion) {
     
     EXPECT_TRUE(v.is_dict());
     const auto& dict = v.as_dict();
-    EXPECT_EQ(dict.size(), 4);
+    EXPECT_EQ(dict.size(), 5);  // 现在有5个字段
     EXPECT_EQ(dict["type"].as_string(), "");
     EXPECT_EQ(dict["object_name"].as_string(), "");
     EXPECT_EQ(dict["property_name"].as_string(), "");
     EXPECT_EQ(dict["full_name"].as_string(), "");
+    EXPECT_EQ(dict["interface"].as_string(), "");
 }
 
 // 测试不完整字典的 from_variant
@@ -598,6 +613,221 @@ TEST(FunctionParserTest, ParseSpecialCharacters) {
     // 测试浮点数参数
     auto result4 = parser.parse_function_call("$Func_Test({decimal: 3.14159})");
     EXPECT_DOUBLE_EQ(result4.params["decimal"].as_double(), 3.14159);
+}
+
+// 测试新语法：带接口的属性解析
+TEST(FunctionParserTest, ParsePropertyWithInterface) {
+    auto& parser = func_parser::get_instance();
+    
+    // 测试引用属性的新语法
+    auto ref_result = parser.parse_ref_property("#/Device[bmc.dev.TestInterface].Temperature");
+    EXPECT_EQ(ref_result.type, "ref");
+    EXPECT_EQ(ref_result.object_name, "Device");
+    EXPECT_EQ(ref_result.interface, "bmc.dev.TestInterface");
+    EXPECT_EQ(ref_result.property_name, "Temperature");
+    EXPECT_EQ(ref_result.full_name, "#/Device[bmc.dev.TestInterface].Temperature");
+    
+    // 测试同步属性的新语法
+    auto sync_result = parser.parse_sync_property("<=/CPU[bmc.hardware.Processor].Usage");
+    EXPECT_EQ(sync_result.type, "sync");
+    EXPECT_EQ(sync_result.object_name, "CPU");
+    EXPECT_EQ(sync_result.interface, "bmc.hardware.Processor");
+    EXPECT_EQ(sync_result.property_name, "Usage");
+    EXPECT_EQ(sync_result.full_name, "<=/CPU[bmc.hardware.Processor].Usage");
+    
+    // 测试传统语法（向后兼容）
+    auto traditional_ref = parser.parse_ref_property("#/CPU.Temperature");
+    EXPECT_EQ(traditional_ref.type, "ref");
+    EXPECT_EQ(traditional_ref.object_name, "CPU");
+    EXPECT_EQ(traditional_ref.interface, ""); // 传统语法接口为空
+    EXPECT_EQ(traditional_ref.property_name, "Temperature");
+    EXPECT_EQ(traditional_ref.full_name, "#/CPU.Temperature");
+    
+    auto traditional_sync = parser.parse_sync_property("<=/Memory.Usage");
+    EXPECT_EQ(traditional_sync.type, "sync");
+    EXPECT_EQ(traditional_sync.object_name, "Memory");
+    EXPECT_EQ(traditional_sync.interface, ""); // 传统语法接口为空
+    EXPECT_EQ(traditional_sync.property_name, "Usage");
+    EXPECT_EQ(traditional_sync.full_name, "<=/Memory.Usage");
+}
+
+// 测试普通属性解析的新语法支持
+TEST(FunctionParserTest, ParsePropertyWithInterfaceNoPrefix) {
+    auto& parser = func_parser::get_instance();
+    
+    // 测试不带前缀的新语法
+    auto result = parser.parse_property("GPU[bmc.hardware.Graphics].Load");
+    EXPECT_EQ(result.object_name, "GPU");
+    EXPECT_EQ(result.interface, "bmc.hardware.Graphics");
+    EXPECT_EQ(result.property_name, "Load");
+    EXPECT_EQ(result.full_name, "GPU[bmc.hardware.Graphics].Load");
+    
+    // 测试不带前缀的传统语法
+    auto traditional = parser.parse_property("GPU.Load");
+    EXPECT_EQ(traditional.object_name, "GPU");
+    EXPECT_EQ(traditional.interface, "");
+    EXPECT_EQ(traditional.property_name, "Load");
+    EXPECT_EQ(traditional.full_name, "GPU.Load");
+}
+
+// 测试函数调用中的新语法参数
+TEST(FunctionParserTest, ParseFunctionCallWithInterfaceParameters) {
+    auto& parser = func_parser::get_instance();
+    auto result = parser.parse_function_call(
+        "$Func_test({device_temp: #/Device[bmc.dev.TestInterface].Temperature, "
+        "cpu_usage: <=/CPU[bmc.hardware.Processor].Usage, "
+        "traditional: #/GPU.Load})");
+    
+    EXPECT_EQ(result.func, "Func_test");
+    ASSERT_EQ(result.params.size(), 3);
+    
+    // 检查带接口的引用属性
+    auto device_temp = result.params["device_temp"].as<relate_property>();
+    EXPECT_EQ(device_temp.type, "ref");
+    EXPECT_EQ(device_temp.object_name, "Device");
+    EXPECT_EQ(device_temp.interface, "bmc.dev.TestInterface");
+    EXPECT_EQ(device_temp.property_name, "Temperature");
+    
+    // 检查带接口的同步属性
+    auto cpu_usage = result.params["cpu_usage"].as<relate_property>();
+    EXPECT_EQ(cpu_usage.type, "sync");
+    EXPECT_EQ(cpu_usage.object_name, "CPU");
+    EXPECT_EQ(cpu_usage.interface, "bmc.hardware.Processor");
+    EXPECT_EQ(cpu_usage.property_name, "Usage");
+    
+    // 检查传统语法
+    auto traditional = result.params["traditional"].as<relate_property>();
+    EXPECT_EQ(traditional.type, "ref");
+    EXPECT_EQ(traditional.object_name, "GPU");
+    EXPECT_EQ(traditional.interface, "");
+    EXPECT_EQ(traditional.property_name, "Load");
+}
+
+// 测试引用对象解析功能
+TEST(PropertyParserTest, ParseRefObject) {
+    auto& parser = func_parser::get_instance();
+    
+    // 测试基本引用对象解析
+    auto ref_obj = parser.parse_ref_object("#/CPU");
+    EXPECT_EQ(ref_obj.type, "ref");
+    EXPECT_EQ(ref_obj.object_name, "CPU");
+    EXPECT_EQ(ref_obj.full_name, "#/CPU");
+    
+    // 测试不同对象名的引用对象
+    auto ref_memory = parser.parse_ref_object("#/Memory_Controller");
+    EXPECT_EQ(ref_memory.type, "ref");
+    EXPECT_EQ(ref_memory.object_name, "Memory_Controller");
+    EXPECT_EQ(ref_memory.full_name, "#/Memory_Controller");
+    
+    auto ref_gpu = parser.parse_ref_object("#/GPU_Device");
+    EXPECT_EQ(ref_gpu.type, "ref");
+    EXPECT_EQ(ref_gpu.object_name, "GPU_Device");
+    EXPECT_EQ(ref_gpu.full_name, "#/GPU_Device");
+}
+
+// 测试引用对象解析的错误情况
+TEST(PropertyParserTest, ParseRefObjectErrors) {
+    auto& parser = func_parser::get_instance();
+    
+    // 测试无效前缀
+    EXPECT_THROW(parser.parse_ref_object("CPU"), mc::invalid_arg_exception);
+    EXPECT_THROW(parser.parse_ref_object("/CPU"), mc::invalid_arg_exception);
+    EXPECT_THROW(parser.parse_ref_object("#CPU"), mc::invalid_arg_exception);
+    
+    // 测试空对象名
+    EXPECT_THROW(parser.parse_ref_object("#/"), mc::invalid_arg_exception);
+    
+    // 测试无效对象名（包含点号等特殊字符）
+    EXPECT_THROW(parser.parse_ref_object("#/CPU.Temperature"), mc::invalid_arg_exception);
+    EXPECT_THROW(parser.parse_ref_object("#/CPU-Device"), mc::invalid_arg_exception);
+    EXPECT_THROW(parser.parse_ref_object("#/123CPU"), mc::invalid_arg_exception);
+    EXPECT_THROW(parser.parse_ref_object("#/CPU@Device"), mc::invalid_arg_exception);
+    
+    // 测试有效的对象名（应该成功）
+    EXPECT_NO_THROW(parser.parse_ref_object("#/CPU"));
+    EXPECT_NO_THROW(parser.parse_ref_object("#/_Memory"));
+    EXPECT_NO_THROW(parser.parse_ref_object("#/Device123"));
+    EXPECT_NO_THROW(parser.parse_ref_object("#/Memory_Controller"));
+}
+
+// 测试函数调用解析中的引用对象vs引用属性区分
+TEST(PropertyParserTest, ParseFunctionCallWithRefObjectAndRefProperty) {
+    auto& parser = func_parser::get_instance();
+    
+    // 测试包含引用对象的函数调用
+    std::string func_call_with_ref_obj = "$Func_Test({ref_obj: #/CPU, ref_prop: #/Memory.Usage})";
+    auto result = parser.parse_function_call(func_call_with_ref_obj);
+    
+    EXPECT_EQ(result.func, "Func_Test");
+    EXPECT_EQ(result.params.size(), 2);
+    
+    // 验证引用对象参数
+    EXPECT_TRUE(result.params.contains("ref_obj"));
+    auto ref_obj_variant = result.params["ref_obj"];
+    auto ref_obj = ref_obj_variant.as<mc::expr::relate_object>();
+    EXPECT_EQ(ref_obj.type, "ref");
+    EXPECT_EQ(ref_obj.object_name, "CPU");
+    EXPECT_EQ(ref_obj.full_name, "#/CPU");
+    
+    // 验证引用属性参数
+    EXPECT_TRUE(result.params.contains("ref_prop"));
+    auto ref_prop_variant = result.params["ref_prop"];
+    auto ref_prop = ref_prop_variant.as<mc::expr::relate_property>();
+    EXPECT_EQ(ref_prop.type, "ref");
+    EXPECT_EQ(ref_prop.object_name, "Memory");
+    EXPECT_EQ(ref_prop.property_name, "Usage");
+    EXPECT_EQ(ref_prop.full_name, "#/Memory.Usage");
+}
+
+// 测试 relate_object 的 variant 转换
+TEST(RelateObjectTest, VariantConversion) {
+    mc::expr::relate_object obj;
+    obj.type = "ref";
+    obj.object_name = "CPU";
+    obj.full_name = "#/CPU";
+    
+    // to_variant 测试
+    mc::variant v;
+    to_variant(obj, v);
+    EXPECT_TRUE(v.is_dict());
+    
+    auto dict = v.as_dict();
+    EXPECT_EQ(dict["type"].as_string(), "ref");
+    EXPECT_EQ(dict["object_name"].as_string(), "CPU");
+    EXPECT_EQ(dict["full_name"].as_string(), "#/CPU");
+    
+    // from_variant 测试
+    mc::expr::relate_object obj2;
+    from_variant(v, obj2);
+    EXPECT_EQ(obj2.type, "ref");
+    EXPECT_EQ(obj2.object_name, "CPU");
+    EXPECT_EQ(obj2.full_name, "#/CPU");
+}
+
+// 测试 relate_object 的部分字段转换
+TEST(RelateObjectTest, PartialVariantConversion) {
+    mc::mutable_dict dict;
+    dict["type"] = "ref";
+    dict["object_name"] = "Memory";
+    // 缺少 full_name
+    
+    mc::variant v = dict;
+    mc::expr::relate_object obj;
+    from_variant(v, obj);
+    
+    EXPECT_EQ(obj.type, "ref");
+    EXPECT_EQ(obj.object_name, "Memory");
+    EXPECT_EQ(obj.full_name, ""); // 应该为空
+}
+
+// 测试非字典类型的 relate_object from_variant
+TEST(RelateObjectTest, InvalidVariantConversion) {
+    mc::variant v("not a dict");
+    mc::expr::relate_object obj;
+    obj.type = "original";
+    
+    // 由于反射系统的实现，当传入非字典类型时会抛出异常
+    EXPECT_THROW(from_variant(v, obj), mc::bad_cast_exception);
 }
 
 } // namespace

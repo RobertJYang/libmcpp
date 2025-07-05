@@ -45,29 +45,47 @@ bool is_relate_property(const mc::variant& value) {
     }
 
     const auto& dict = value.as_dict();
-    if (dict.size() != 4) {
+    if (dict.size() != 5) {  // 现在有5个字段：type, object_name, property_name, full_name, interface
         return false;
     }
-    // 检查是否包含 object_name 和 property_name
+    
+    // 检查是否包含所有必要字段
     auto type_it = dict.find("type");
     auto obj_it  = dict.find("object_name");
     auto prop_it = dict.find("property_name");
     auto full_it = dict.find("full_name");
+    auto intf_it = dict.find("interface");
 
-    if (type_it == dict.end() || obj_it == dict.end() || prop_it == dict.end() || full_it == dict.end()) {
+    if (type_it == dict.end() || obj_it == dict.end() || prop_it == dict.end() || 
+        full_it == dict.end() || intf_it == dict.end()) {
         return false;
     }
 
-    // 检查两个字段的值是否都是字符串类型
+    // 检查所有字段的值是否都是字符串类型
     if (!type_it->value.is_string() || !obj_it->value.is_string() || !prop_it->value.is_string()) {
         return false;
     }
 
-    if (!full_it->value.is_string()) {
+    if (!full_it->value.is_string() || !intf_it->value.is_string()) {
         return false;
     }
 
     return true;
+}
+
+// 生成 relate_property 的标准化key
+std::string generate_relate_property_key(const mc::variant& prop_value) {
+    std::string object_name = prop_value["object_name"].as<std::string>();
+    std::string property_name = prop_value["property_name"].as<std::string>();
+    std::string interface_name = prop_value["interface"].as<std::string>();
+    
+    if (interface_name.empty()) {
+        // 传统格式：ObjectName.PropertyName
+        return object_name + "." + property_name;
+    } else {
+        // 新格式：ObjectName[interface].PropertyName
+        return object_name + "[" + interface_name + "]." + property_name;
+    }
 }
 
 // 处理函数调用
@@ -160,7 +178,7 @@ mc::mutable_dict func::get_relate_properties(const std::string_view& position, m
         if (it == params.end()) {
             // 使用默认值
             if (is_relate_property(item.value)) {
-                relate_properties[item.value["full_name"].as<std::string>()] = item.value;
+                relate_properties[generate_relate_property_key(item.value)] = item.value;
             }
         } else {
             // 处理传入的参数
@@ -179,7 +197,7 @@ mc::mutable_dict func::get_relate_properties(const std::string_view& position, m
                     relate_properties[entry.key] = entry.value;
                 }
             } else if (is_relate_property(it->value)) {
-                relate_properties[it->value["full_name"].as<std::string>()] = mc::variant(it->value);
+                relate_properties[generate_relate_property_key(it->value)] = mc::variant(it->value);
             }
         }
     }

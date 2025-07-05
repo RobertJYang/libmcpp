@@ -352,11 +352,11 @@ public:
         }
     }
 
-    mc::variant get_property(std::string_view property_name) const override {
+    mc::variant get_property(std::string_view property_name, int options = 0) const override {
         auto* info = mc::reflect::get_property_info<interface_type>(property_name);
         if (info != nullptr) {
             if (info->flags & MC_ENGINE_PROPERTY_TYPE) {
-                return prop_info_to_base(info)->get_value();
+                return prop_info_to_base(info)->get_value(options);
             } else {
                 return info->get_value(static_cast<const interface_type&>(*this));
             }
@@ -422,12 +422,36 @@ public:
         }
     }
 
-    mc::dict get_all_properties() override {
+    mc::dict get_all_properties(int options = 0) override {
         mc::mutable_dict dict;
-        mc::reflect::to_variant(static_cast<interface_type&>(*this), dict);
-        if constexpr (has_base_v) {
-            mc::reflect::to_variant(static_cast<base_type&>(*this), dict);
-        }
+        visit_static_properties([&](auto& property) {
+            if (dict.contains(property.name)) {
+                return;
+            }
+
+            auto* info = mc::reflect::get_property_info<interface_type>(property.name);
+            if (info != nullptr) {
+                if (info->flags & MC_ENGINE_PROPERTY_TYPE) {
+                    const auto* prop_base = reinterpret_cast<const property_base*>(
+                        reinterpret_cast<std::uintptr_t>(this) + info->offset());
+                    dict[property.name] = prop_base->get_value(options);
+                } else {
+                    dict[property.name] = info->get_value(static_cast<const interface_type&>(*this));
+                }
+            } else {
+                if constexpr (has_base_v) {
+                    // 递归调用基类的 get_all_properties 方法来处理基类属性
+                    auto base_dict = base_type::get_all_properties(options);
+                    if (base_dict.contains(property.name)) {
+                        dict[property.name] = base_dict[property.name];
+                    } else {
+                        dict[property.name] = {};
+                    }
+                } else {
+                    dict[property.name] = {};
+                }
+            }
+        });
         return dict;
     }
 
@@ -474,10 +498,34 @@ public:
         });
     }
 
-    static void to_variant(const interface_type& obj, mc::mutable_dict& dict) {
-        visit_static_properties([&](auto& property) {
-            if (!dict.contains(property.name)) {
-                dict[property.name] = property.get_value(obj);
+    static void to_variant(const interface_type& obj, mc::mutable_dict& dict, int options = 0) {
+        visit_static_properties([&obj, &dict, options](auto& property) {
+            if (dict.contains(property.name)) {
+                return;
+            }
+
+            auto* info = mc::reflect::get_property_info<interface_type>(property.name);
+            if (info != nullptr) {
+                if (info->flags & MC_ENGINE_PROPERTY_TYPE) {
+                    const auto* prop_base = reinterpret_cast<const property_base*>(
+                        reinterpret_cast<std::uintptr_t>(&obj) + info->offset());
+                    dict[property.name] = prop_base->get_value(options);
+                } else {
+                    dict[property.name] = info->get_value(obj);
+                }
+            } else {
+                if constexpr (has_base_v) {
+                    // 递归调用基类的 to_variant 方法来处理基类属性
+                    mc::mutable_dict base_dict;
+                    base_type::to_variant(static_cast<const base_type&>(obj), base_dict, options);
+                    if (base_dict.contains(property.name)) {
+                        dict[property.name] = base_dict[property.name];
+                    } else {
+                        dict[property.name] = {};
+                    }
+                } else {
+                    dict[property.name] = {};
+                }
             }
         });
     }

@@ -152,7 +152,7 @@ public:
     }
 
     mc::variant get_property(std::string_view property_name,
-                             std::string_view interface_name = {}) override {
+                             std::string_view interface_name = {}, int options = 0) override {
         // 先检查对象是否存在该属性
         auto object_prop_info = get_object_property_info(property_name, interface_name);
         if (object_prop_info != nullptr) {
@@ -166,7 +166,7 @@ public:
             return mc::reflect::get_property<abstract_object>(*this, property_name);
         }
 
-        return property_info_to_interface(*info)->get_property(property_name);
+        return property_info_to_interface(*info)->get_property(property_name, options);
     }
 
     property_base* get_property_base(std::string_view property_name,
@@ -208,10 +208,10 @@ public:
                    : property_info_to_interface(*info)->has_property(property_name);
     }
 
-    mc::dict get_all_properties(std::string_view interface_name = {}) override {
+    mc::dict get_all_properties(std::string_view interface_name = {}, int options = 0) override {
         if (interface_name.empty()) {
             mc::mutable_dict dict;
-            to_variant(static_cast<const object_type&>(*this), dict);
+            to_variant(static_cast<const object_type&>(*this), dict, options);
             return dict;
         }
 
@@ -220,7 +220,7 @@ public:
             return {};
         }
 
-        return property_info_to_interface(*info)->get_all_properties();
+        return property_info_to_interface(*info)->get_all_properties(options);
     }
 
     bool set_property(std::string_view property_name, const mc::variant& value,
@@ -323,13 +323,13 @@ public:
         });
     }
 
-    static void to_variant(const object_type& obj, mc::mutable_dict& dict) {
+    static void to_variant(const object_type& obj, mc::mutable_dict& dict, int options = 0) {
         mc::traits::tuple_for_each(get_static_interface_infos(), [&](auto& member) {
             using prop_type      = std::decay_t<decltype(member)>;
             using interface_type = typename prop_type::member_type;
-            mc::variant sub_dict;
-            mc::reflect::to_variant(obj.*member.member_ptr, sub_dict);
-            dict[interface_type::interface_name] = std::move(sub_dict);
+            mc::mutable_dict sub_dict;
+            interface_type::to_variant(obj.*member.member_ptr, sub_dict, options);
+            dict[interface_type::interface_name] = sub_dict;
         });
 
         auto& prop_infos = mc::reflect::reflector<object_type>::get_properties();

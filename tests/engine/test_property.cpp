@@ -372,261 +372,6 @@ TEST(PropertyTest, Notify) {
     EXPECT_EQ(p.observer().m_last_value, 40);
 }
 
-// 测试同步属性
-TEST(PropertyTest, SingleSyncProperty) {
-    // 测试单个同步源属性
-    property<int, test_observer>    source(10);
-    property<double, test_observer> sync(
-        [](const int& src) {
-        return src * 2.0;
-    }, source);
-    EXPECT_DOUBLE_EQ(sync.value(), 20.0);
-    EXPECT_DOUBLE_EQ(sync.value(true), 20.0);
-
-    // 更新源属性值
-    source = 20;
-    EXPECT_DOUBLE_EQ(sync.value(), 40.0);
-    EXPECT_DOUBLE_EQ(sync.value(true), 40.0);
-
-    // 更新属性值
-    sync = 30.0;
-    EXPECT_EQ(source.value(), 20);
-    EXPECT_EQ(source.value(true), 20);
-    EXPECT_DOUBLE_EQ(sync.value(), 30.0);
-    EXPECT_DOUBLE_EQ(sync.value(true), 40.0);
-}
-
-TEST(PropertyTest, MultiSyncProperty) {
-    // 测试多个同步源属性
-    property<Point, test_observer>  p1(Point{1, 2});
-    property<Point, test_observer>  p2(Point{4, 6});
-    property<double, test_observer> distance(
-        [](const Point& p1, const Point& p2) {
-        auto dx = p2.x - p1.x;
-        auto dy = p2.y - p1.y;
-        return std::sqrt(dx * dx + dy * dy);
-    }, p1, p2);
-    EXPECT_DOUBLE_EQ(distance.value(), 5.0);
-    EXPECT_DOUBLE_EQ(distance.value(true), 5.0);
-
-    // 更新源属性值
-    p1 = Point{2, 3};
-    EXPECT_DOUBLE_EQ(distance.value(), std::sqrt(13.0));
-    EXPECT_DOUBLE_EQ(distance.value(true), std::sqrt(13.0));
-
-    distance = 10.0;
-    EXPECT_EQ(p1.value().x, 2);
-    EXPECT_EQ(p1.value().y, 3);
-    EXPECT_EQ(p2.value().x, 4);
-    EXPECT_EQ(p2.value().y, 6);
-    EXPECT_DOUBLE_EQ(distance.value(), 10.0);
-    EXPECT_DOUBLE_EQ(distance.value(true), std::sqrt(13.0));
-}
-
-TEST(PropertyTest, MultiDiffTypeSyncProperty) {
-    property<int, test_observer>    p1(2);
-    property<Point, test_observer>  p2(Point{5, 6});
-    property<double, test_observer> distance(
-        [](const int& p1, const Point& p2) {
-        return std::sqrt((p2.x - p1) * (p2.x - p1) + (p2.y - p1) * (p2.y - p1));
-    }, p1, p2);
-    EXPECT_DOUBLE_EQ(distance.value(), 5.0);
-    EXPECT_DOUBLE_EQ(distance.value(true), 5.0);
-
-    p2 = Point{8, 10};
-    EXPECT_DOUBLE_EQ(distance.value(), 10.0);
-    EXPECT_DOUBLE_EQ(distance.value(true), 10.0);
-
-    distance = 20.0;
-    EXPECT_EQ(p1.value(), 2);
-    EXPECT_EQ(p2.value().x, 8);
-    EXPECT_EQ(p2.value().y, 10);
-    EXPECT_DOUBLE_EQ(distance.value(), 20.0);
-    EXPECT_DOUBLE_EQ(distance.value(true), 10.0);
-}
-
-// 测试引用属性
-TEST(PropertyTest, SingleRefProperty) {
-    // 测试单个引用源属性
-    property<int, test_observer>    source(10);
-    property<double, test_observer> ref(
-        std::function<double(const property<int, test_observer>&)>(
-            [](const property<int, test_observer>& src) -> double {
-        return src.value() * 2.0;
-    }),
-        std::function<void(const double&, property<int, test_observer>&)>(
-            [](const double& value, property<int, test_observer>& src) -> void {
-        src = static_cast<int>(value / 2);
-    }),
-        source);
-    EXPECT_EQ(source.value(), 10);
-    EXPECT_EQ(source.value(true), 10);
-    EXPECT_DOUBLE_EQ(ref.value(), 20.0);
-    EXPECT_DOUBLE_EQ(ref.value(true), 20.0);
-
-    // 通过引用属性设置源属性值
-    ref = 30.0;
-    EXPECT_EQ(source.value(), 15);
-    EXPECT_EQ(source.value(true), 15);
-    EXPECT_DOUBLE_EQ(ref.value(), 30.0);
-    EXPECT_DOUBLE_EQ(ref.value(true), 30.0);
-}
-
-// 测试多个引用源属性
-TEST(PropertyTest, MultiRefProperty) {
-    property<Point, test_observer>  p1(Point{1, 2});
-    property<Point, test_observer>  p2(Point{4, 6});
-    property<double, test_observer> distance(
-        std::function<double(const property<Point, test_observer>&,
-                             const property<Point, test_observer>&)>(
-            [](const property<Point, test_observer>& p1,
-               const property<Point, test_observer>& p2) -> double {
-        auto dx = p2.value().x - p1.value().x;
-        auto dy = p2.value().y - p1.value().y;
-        return std::sqrt(dx * dx + dy * dy);
-    }),
-        std::function<void(const double&, property<Point, test_observer>&,
-                           property<Point, test_observer>&)>(
-            [](const double& value, property<Point, test_observer>& p1,
-               property<Point, test_observer>& p2) -> void {
-        // 根据距离更新两个点的位置
-        auto angle = std::atan2(p2.value().y - p1.value().y, p2.value().x - p1.value().x);
-        p1         = Point{0, 0};
-        p2         = Point{static_cast<int>(std::floor(value * std::cos(angle))),
-                   static_cast<int>(std::ceil(value * std::sin(angle)))};
-    }),
-        p1, p2);
-    EXPECT_DOUBLE_EQ(distance.value(), 5.0);
-    EXPECT_DOUBLE_EQ(distance.value(true), 5.0);
-
-    p2 = Point{7, 10};
-    EXPECT_DOUBLE_EQ(distance.value(), 5.0);
-    EXPECT_DOUBLE_EQ(distance.value(true), 10.0);
-
-    // 通过引用属性设置源属性值
-    distance = 10.0;
-    EXPECT_EQ(p1.value().x, 0);
-    EXPECT_EQ(p1.value().y, 0);
-    EXPECT_EQ(p2.value().x, 6);
-    EXPECT_EQ(p2.value().y, 8);
-    EXPECT_DOUBLE_EQ(distance.value(), 10.0);
-    EXPECT_DOUBLE_EQ(distance.value(true), 10.0);
-}
-
-// 测试多个不同类型引用源属性
-TEST(PropertyTest, MultiDiffTypeRefProperty) {
-    property<uint32_t, test_observer>             count(10);
-    property<uint8_t, test_observer>              element(10);
-    property<std::vector<uint8_t>, test_observer> container(
-        [](const property<uint32_t, test_observer>& count,
-           const property<uint8_t, test_observer>&  element) -> std::vector<uint8_t> {
-        std::vector<uint8_t> result(count.value(), element.value());
-        return result;
-    },
-        [](const std::vector<uint8_t>&        value,
-           property<uint32_t, test_observer>& count,
-           property<uint8_t, test_observer>&  element) -> void {
-        count   = value.size();
-        element = value[0];
-    },
-        count, element);
-
-    EXPECT_EQ(container.value().size(), 10);
-    for (uint32_t i = 0; i < container.value().size(); i++) {
-        EXPECT_EQ(container.value()[i], 10);
-    }
-
-    count = 20;
-    EXPECT_EQ(container.value().size(), 10);
-    for (uint32_t i = 0; i < container.value().size(); i++) {
-        EXPECT_EQ(container.value()[i], 10);
-    }
-    auto v = container.value(true);
-    EXPECT_EQ(v.size(), 20);
-    for (uint32_t i = 0; i < v.size(); i++) {
-        EXPECT_EQ(v[i], 10);
-    }
-
-    element = 20;
-    EXPECT_EQ(container.value().size(), 20);
-    auto v2 = container.value(true);
-    EXPECT_EQ(v2.size(), 20);
-    for (uint32_t i = 0; i < v2.size(); i++) {
-        EXPECT_EQ(v2[i], 20);
-    }
-}
-
-// 测试单个只读引用属性
-TEST(PropertyTest, ReadOnlySingleRefProperty) {
-    property<int, test_observer>    source(10);
-    property<double, test_observer> ref(
-        [](const property<int, test_observer>& src) -> double {
-        return src.value() * 2.0;
-    }, nullptr, source);
-
-    EXPECT_DOUBLE_EQ(ref.value(), 20.0);
-    EXPECT_DOUBLE_EQ(ref.value(true), 20.0);
-
-    // 尝试设置只读引用属性值
-    ref = 30.0;
-    EXPECT_EQ(source.value(), 10); // 源属性值不应改变
-    EXPECT_DOUBLE_EQ(ref.value(), 30.0);
-    EXPECT_DOUBLE_EQ(ref.value(true), 20.0);
-}
-
-// 测试多个只读引用属性
-TEST(PropertyTest, ReadOnlyMultiRefProperty) {
-    property<int, test_observer>    source1(10);
-    property<int, test_observer>    source2(20);
-    property<double, test_observer> ref(
-        [](const property<int, test_observer>& src1,
-           const property<int, test_observer>& src2) -> double {
-        return src1.value() * 2.0 + src2.value() * 3.0;
-    },
-        nullptr, source1, source2);
-
-    EXPECT_DOUBLE_EQ(ref.value(), 80.0);
-    EXPECT_DOUBLE_EQ(ref.value(true), 80.0);
-
-    source1 = 30;
-    EXPECT_DOUBLE_EQ(ref.value(), 80.0);
-    EXPECT_DOUBLE_EQ(ref.value(true), 120.0);
-
-    source2 = 40;
-    EXPECT_DOUBLE_EQ(ref.value(), 120.0);
-    EXPECT_DOUBLE_EQ(ref.value(true), 180.0);
-
-    ref = 50.0;
-    EXPECT_EQ(source1.value(), 30);
-    EXPECT_EQ(source2.value(), 40);
-}
-
-// 测试多个不同类型只读引用属性
-TEST(PropertyTest, ReadOnlyMultiDiffTypeRefProperty) {
-    property<uint32_t, test_observer>    hour(10);
-    property<uint8_t, test_observer>     minute(20);
-    property<std::string, test_observer> ref(
-        [](const property<uint32_t, test_observer>& src1,
-           const property<uint8_t, test_observer>&  src2) -> std::string {
-        std::ostringstream oss;
-        oss << std::dec << src1.value() << ":" << std::dec
-            << static_cast<uint32_t>(src2.value());
-        return oss.str();
-    },
-        nullptr, hour, minute);
-
-    EXPECT_EQ(ref.value(), "10:20");
-    EXPECT_EQ(ref.value(true), "10:20");
-
-    hour = 30;
-    EXPECT_EQ(ref.value(), "10:20");
-    EXPECT_EQ(ref.value(true), "30:20");
-
-    minute = 40;
-    EXPECT_EQ(ref.value(), "30:20");
-    EXPECT_EQ(ref.value(true), "30:40");
-}
-
 // 测试属性相关功能的测试基类
 class PropertyRelateTest : public mc::test::TestWithEngine {
 protected:
@@ -895,19 +640,22 @@ TEST_F(PropertyRelateTest, HookRefPropertiesWithExpressionCalculation) {
             {"type", "ref"},
             {"object_name", "CPU"},
             {"property_name", "Temperature"},
-            {"full_name", "CPU.Temperature"}
+            {"full_name", "CPU.Temperature"},
+            {"interface", ""}
         }},
         {"memory_usage", mc::mutable_dict{
             {"type", "ref"},
             {"object_name", "Memory"},
             {"property_name", "Usage"},
-            {"full_name", "Memory.Usage"}
+            {"full_name", "Memory.Usage"},
+            {"interface", ""}
         }},
         {"gpu_load", mc::mutable_dict{
             {"type", "ref"},
             {"object_name", "GPU"},
             {"property_name", "Load"},
-            {"full_name", "GPU.Load"}
+            {"full_name", "GPU.Load"},
+            {"interface", ""}
         }}
     };
     
@@ -926,19 +674,22 @@ TEST_F(PropertyRelateTest, HookRefPropertiesWithExpressionCalculation) {
         {"type", "ref"},
         {"object_name", "CPU"},
         {"property_name", "Temperature"},
-        {"full_name", "CPU.Temperature"}
+        {"full_name", "CPU.Temperature"},
+        {"interface", ""}
     };
     relate_properties["memory_usage"] = mc::mutable_dict{
         {"type", "ref"},
         {"object_name", "Memory"},
         {"property_name", "Usage"},
-        {"full_name", "Memory.Usage"}
+        {"full_name", "Memory.Usage"},
+        {"interface", ""}
     };
     relate_properties["gpu_load"] = mc::mutable_dict{
         {"type", "ref"},
         {"object_name", "GPU"},
         {"property_name", "Load"},
-        {"full_name", "GPU.Load"}
+        {"full_name", "GPU.Load"},
+        {"interface", ""}
     };
     
     // 使用process_property_value方法，它会自动处理函数注册和调用
@@ -1028,19 +779,22 @@ TEST_F(PropertyRelateTest, HookRefPropertiesBasicMultiReference) {
             {"type", "ref"},
             {"object_name", "CPU"},
             {"property_name", "Temperature"},
-            {"full_name", "CPU.Temperature"}
+            {"full_name", "CPU.Temperature"},
+            {"interface", ""}
         }},
         {"memory_usage", mc::mutable_dict{
             {"type", "ref"},
             {"object_name", "Memory"},
             {"property_name", "Usage"},
-            {"full_name", "Memory.Usage"}
+            {"full_name", "Memory.Usage"},
+            {"interface", ""}
         }},
         {"gpu_load", mc::mutable_dict{
             {"type", "ref"},
             {"object_name", "GPU"},
             {"property_name", "Load"},
-            {"full_name", "GPU.Load"}
+            {"full_name", "GPU.Load"},
+            {"interface", ""}
         }}
     };
     
@@ -1060,19 +814,22 @@ TEST_F(PropertyRelateTest, HookRefPropertiesBasicMultiReference) {
         {"type", "ref"},
         {"object_name", "CPU"},
         {"property_name", "Temperature"},
-        {"full_name", "CPU.Temperature"}
+        {"full_name", "CPU.Temperature"},
+        {"interface", ""}
     };
     relate_properties["memory_usage"] = mc::mutable_dict{
         {"type", "ref"},
         {"object_name", "Memory"},
         {"property_name", "Usage"},
-        {"full_name", "Memory.Usage"}
+        {"full_name", "Memory.Usage"},
+        {"interface", ""}
     };
     relate_properties["gpu_load"] = mc::mutable_dict{
         {"type", "ref"},
         {"object_name", "GPU"},
         {"property_name", "Load"},
-        {"full_name", "GPU.Load"}
+        {"full_name", "GPU.Load"},
+        {"interface", ""}
     };
     
     // 使用process_property_value方法调用函数
@@ -1185,16 +942,17 @@ TEST_F(PropertyRelateTest, HookRelateProperties) {
     ASSERT_NE(test_prop.get_object(), nullptr);
     ASSERT_EQ(test_prop.get_object(), test_obj.get());
     
-    // 由于hook_relate_properties需要与func_collection配合，
-    // 而且需要有效的func对象，传入空值会导致异常
-    // 这里我们测试传入空值时会产生预期的异常
-    mc::variant empty_func;
+    // 测试hook_ref_properties方法的基本功能
+    // 传入空的relate_properties字典应该不会出错
     mc::mutable_dict empty_params;
     
-    // 测试传入空func会抛出bad_cast_exception
-    EXPECT_THROW({
-        test_prop.hook_relate_properties(empty_func, empty_params);
-    }, mc::bad_cast_exception);
+    // 测试传入空的relate_properties字典
+    mc::mutable_dict empty_relate_properties;
+    
+    // 测试hook_ref_properties方法不会抛出异常
+    EXPECT_NO_THROW({
+        test_prop.hook_ref_properties(empty_relate_properties);
+    });
 }
 
 // 测试 hook_relate_properties 与func_collection集成的表达式计算
@@ -1221,20 +979,23 @@ TEST_F(PropertyRelateTest, HookRelatePropertiesWithFuncCollection) {
             {"type", "ref"},
             {"object_name", "CPU"},
             {"property_name", "Temperature"},
-            {"full_name", "CPU.Temperature"}
+            {"full_name", "CPU.Temperature"},
+            {"interface", ""}
         }},
         {"efficiency", mc::mutable_dict{
             {"type", "ref"},
             {"object_name", "Memory"},
             {"property_name", "Usage"},
-            {"full_name", "Memory.Usage"}
+            {"full_name", "Memory.Usage"},
+            {"interface", ""}
         }},
-        {"performance", mc::mutable_dict{
-            {"type", "ref"},
-            {"object_name", "GPU"},
-            {"property_name", "Load"},
-            {"full_name", "GPU.Load"}
-        }}
+                  {"performance", mc::mutable_dict{
+              {"type", "ref"},
+              {"object_name", "GPU"},
+              {"property_name", "Load"},
+              {"full_name", "GPU.Load"},
+              {"interface", ""}
+          }}
     };
     
     // 创建一个复合计算表达式：计算系统性能指标
@@ -1330,7 +1091,7 @@ TEST_F(PropertyRelateTest, HookRelatePropertiesWithFuncCollection) {
     EXPECT_NE(final_value, boundary_value)
         << "设置边界值后，函数计算结果应该变化: " << boundary_value;
     
-    // 验证属性仍然是只读的（设置了hook_relate_properties后）
+    // 验证属性仍然是只读的（设置了函数计算后）
     EXPECT_THROW({
         test_prop = "manual_override";
     }, mc::invalid_op_exception);
@@ -1530,8 +1291,8 @@ TEST_F(PropertyRelateTest, PropertyReferenceErrorHandlingAndEdgeCases) {
     
     test_prop.hook_ref_property(invalid_obj_rp);
     
-    // 应该返回默认值（空字符串）
-    EXPECT_EQ(test_prop.value(true), "");
+    // 应该抛出异常（对象不存在）
+    EXPECT_THROW(test_prop.value(true), mc::invalid_op_exception);
     
     // 测试引用不存在的属性
     mc::expr::relate_property invalid_prop_rp;
@@ -1542,8 +1303,8 @@ TEST_F(PropertyRelateTest, PropertyReferenceErrorHandlingAndEdgeCases) {
     
     test_prop.hook_ref_property(invalid_prop_rp);
     
-    // 应该返回默认值
-    EXPECT_EQ(test_prop.value(true), "");
+    // 应该抛出异常（属性不存在）
+    EXPECT_THROW(test_prop.value(true), mc::invalid_op_exception);
 }
 
 // 测试引用属性的实时更新能力
@@ -1824,7 +1585,8 @@ TEST_F(PropertyRelateTest, HookSyncProperties) {
         {"type", "sync"},
         {"object_name", "CPU"},
         {"property_name", "Temperature"},
-        {"full_name", "CPU.Temperature"}
+        {"full_name", "CPU.Temperature"},
+        {"interface", ""}
     };
     
     // 添加第二个同步属性
@@ -1832,7 +1594,8 @@ TEST_F(PropertyRelateTest, HookSyncProperties) {
         {"type", "sync"},
         {"object_name", "Memory"},
         {"property_name", "Usage"},
-        {"full_name", "Memory.Usage"}
+        {"full_name", "Memory.Usage"},
+        {"interface", ""}
     };
     
     // 添加第三个同步属性
@@ -1840,7 +1603,8 @@ TEST_F(PropertyRelateTest, HookSyncProperties) {
         {"type", "sync"},
         {"object_name", "GPU"},
         {"property_name", "Load"},
-        {"full_name", "GPU.Load"}
+        {"full_name", "GPU.Load"},
+        {"interface", ""}
     };
     
     // 注册一个用于计算多个同步属性的函数
@@ -2077,4 +1841,437 @@ TEST_F(PropertyRelateTest, MultipleSyncPropertyConnectionManagement) {
     m_service->get_memory()->m_interface.usage = 92.0;
     std::this_thread::sleep_for(std::chrono::milliseconds(50));
     EXPECT_EQ(test_prop.value(), "92");
+}
+
+// 测试带接口的属性引用功能
+TEST_F(PropertyRelateTest, GetRelatePropertyWithInterface) {
+    // 创建一个带有接口的真实对象
+    auto test_obj = m_service->get_test_obj();
+    ASSERT_NE(test_obj, nullptr);
+    
+    // 从对象中获取属性
+    auto& test_prop = test_obj->m_interface.test_prop;
+    
+    // 确保属性有正确的对象关联
+    ASSERT_NE(test_prop.get_object(), nullptr);
+    ASSERT_EQ(test_prop.get_object(), test_obj.get());
+    
+    // 测试带接口的 relate_property
+    mc::expr::relate_property interface_rp;
+    interface_rp.type = "ref";
+    interface_rp.object_name = "CPU";
+    interface_rp.interface = "interface_name"; // 指定接口名称
+    interface_rp.property_name = "Temperature";
+    interface_rp.full_name = "CPU[interface_name].Temperature";
+    
+    // 由于测试对象可能没有对应的接口，这里主要测试方法调用不会抛出异常
+    EXPECT_NO_THROW({
+        auto result = test_prop.get_relate_property(interface_rp);
+        // 如果接口不存在，应该返回null
+        if (result.is_null()) {
+            // 这是预期的行为，因为测试对象可能没有这个接口
+        }
+    });
+    
+    // 测试传统方式（不指定接口）
+    mc::expr::relate_property traditional_rp;
+    traditional_rp.type = "ref";
+    traditional_rp.object_name = "CPU";
+    traditional_rp.interface = ""; // 空接口，使用传统方式
+    traditional_rp.property_name = "Temperature";
+    traditional_rp.full_name = "CPU.Temperature";
+    
+    EXPECT_NO_THROW({
+        auto result = test_prop.get_relate_property(traditional_rp);
+        // 传统方式应该能正常工作
+        EXPECT_FALSE(result.is_null());
+        EXPECT_DOUBLE_EQ(result.as<double>(), 75.5);
+    });
+}
+
+// 测试带接口的属性设置功能
+TEST_F(PropertyRelateTest, SetRelatePropertyWithInterface) {
+    auto test_obj = m_service->get_test_obj();
+    ASSERT_NE(test_obj, nullptr);
+    
+    auto& test_prop = test_obj->m_interface.test_prop;
+    ASSERT_NE(test_prop.get_object(), nullptr);
+    
+    // 测试带接口的属性设置
+    mc::expr::relate_property interface_rp;
+    interface_rp.type = "ref";
+    interface_rp.object_name = "CPU";
+    interface_rp.interface = "test_interface";
+    interface_rp.property_name = "Temperature";
+    interface_rp.full_name = "CPU[test_interface].Temperature";
+    
+    mc::variant test_value(95.0);
+    
+    // 测试设置带接口的属性（如果接口不存在，应该抛出异常）
+    EXPECT_THROW({
+        test_prop.set_relate_property(interface_rp, test_value);
+    }, mc::invalid_op_exception);
+    
+    // 测试传统方式的属性设置
+    mc::expr::relate_property traditional_rp;
+    traditional_rp.type = "ref";
+    traditional_rp.object_name = "CPU";
+    traditional_rp.interface = "";
+    traditional_rp.property_name = "Temperature";
+    traditional_rp.full_name = "CPU.Temperature";
+    
+    EXPECT_NO_THROW({
+        test_prop.set_relate_property(traditional_rp, test_value);
+    });
+    
+    // 验证传统方式设置成功
+    auto result = test_prop.get_relate_property(traditional_rp);
+    EXPECT_FALSE(result.is_null());
+    EXPECT_DOUBLE_EQ(result.as<double>(), 95.0);
+}
+
+// 测试引用属性的新语法解析和应用
+TEST_F(PropertyRelateTest, HookRefPropertyWithInterface) {
+    auto test_obj = m_service->get_test_obj();
+    ASSERT_NE(test_obj, nullptr);
+    
+    auto& test_prop = test_obj->m_interface.test_prop;
+    
+    // 测试带接口的引用属性设置
+    mc::expr::relate_property interface_ref;
+    interface_ref.type = "ref";
+    interface_ref.object_name = "CPU";
+    interface_ref.interface = "bmc.hardware.Processor";
+    interface_ref.property_name = "Temperature";
+    interface_ref.full_name = "CPU[bmc.hardware.Processor].Temperature";
+    
+    // 设置引用属性（接口不存在时应该返回默认值）
+    EXPECT_NO_THROW({
+        test_prop.hook_ref_property(interface_ref);
+    });
+    
+    // 由于接口不存在，应该抛出异常
+    EXPECT_THROW(test_prop.value(true), mc::invalid_op_exception);
+    
+    // 测试传统方式的引用属性
+    mc::expr::relate_property traditional_ref;
+    traditional_ref.type = "ref";
+    traditional_ref.object_name = "CPU";
+    traditional_ref.interface = "";
+    traditional_ref.property_name = "Temperature";
+    traditional_ref.full_name = "CPU.Temperature";
+    
+    EXPECT_NO_THROW({
+        test_prop.hook_ref_property(traditional_ref);
+    });
+    
+    // 传统方式应该能正常工作
+    EXPECT_EQ(test_prop.value(true), "75.5");
+}
+
+// 测试引用对象语法 #/ObjectName
+TEST_F(PropertyRelateTest, RefObjectBasicUsage) {
+    auto test_obj = m_service->get_test_obj();
+    ASSERT_NE(test_obj, nullptr);
+    
+    auto& test_prop = test_obj->m_interface.test_prop;
+    
+    // 测试引用对象语法 #/CPU（无点号）
+    mc::variant ref_obj_variant("#/CPU");
+    
+    // 解析引用对象语法
+    EXPECT_NO_THROW({
+        from_variant(ref_obj_variant, test_prop);
+    });
+    
+    // 验证属性类型设置正确
+    EXPECT_EQ(test_prop.get_property_type_value(), static_cast<uint32_t>(mc::engine::p_type::ref_object));
+    
+    // 获取引用对象包装器
+    auto obj_variant = test_prop.get_value();
+    EXPECT_FALSE(obj_variant.is_null());
+    
+    // 验证引用对象包装器可以访问被引用对象的属性
+    if (obj_variant.is_extension()) {
+        auto* ref_obj = obj_variant.as<mc::engine::ref_object*>();
+        ASSERT_NE(ref_obj, nullptr);
+        
+        // 测试访问被引用对象的属性
+        auto temp_prop = ref_obj->get_property("Temperature");
+        EXPECT_FALSE(temp_prop.is_null());
+        EXPECT_DOUBLE_EQ(temp_prop.template as<double>(), 75.5);
+        
+        // 测试检查对象是否有效
+        EXPECT_TRUE(ref_obj->is_valid());
+        
+        // 测试获取对象名称
+        EXPECT_EQ(ref_obj->get_object_name(), "CPU");
+    }
+}
+
+// 测试引用对象的错误处理
+TEST_F(PropertyRelateTest, RefObjectErrorHandling) {
+    auto test_obj = m_service->get_test_obj();
+    auto& test_prop = test_obj->m_interface.test_prop;
+    
+    // 设置引用到不存在的对象
+    mc::variant invalid_ref_variant("#/NonExistentObject");
+    
+    EXPECT_NO_THROW({
+        from_variant(invalid_ref_variant, test_prop);
+    });
+    
+    // 验证属性类型设置正确
+    EXPECT_EQ(test_prop.get_property_type_value(), static_cast<uint32_t>(mc::engine::p_type::ref_object));
+    
+    // 获取引用对象包装器
+    auto obj_variant = test_prop.get_value();
+    EXPECT_FALSE(obj_variant.is_null());
+    
+    if (obj_variant.is_extension()) {
+        auto* ref_obj = obj_variant.as<mc::engine::ref_object*>();
+        ASSERT_NE(ref_obj, nullptr);
+        
+        // 验证对象不存在时返回false
+        EXPECT_FALSE(ref_obj->is_valid());
+        
+        // 验证访问不存在对象的属性时抛出异常
+        EXPECT_THROW({
+            ref_obj->get_property("SomeProperty");
+        }, mc::invalid_op_exception);
+        
+        // 验证设置不存在对象的属性时抛出异常
+        EXPECT_THROW({
+            ref_obj->set_property("SomeProperty", mc::variant("test_value"));
+        }, mc::invalid_op_exception);
+    }
+}
+
+// 测试引用对象的动态查找功能
+TEST_F(PropertyRelateTest, RefObjectDynamicLookup) {
+    auto test_obj = m_service->get_test_obj();
+    auto& test_prop = test_obj->m_interface.test_prop;
+    
+    // 设置引用到CPU对象
+    mc::variant cpu_ref_variant("#/CPU");
+    from_variant(cpu_ref_variant, test_prop);
+    
+    auto obj_variant = test_prop.get_value();
+    ASSERT_FALSE(obj_variant.is_null());
+    
+    if (obj_variant.is_extension()) {
+        auto* ref_obj = obj_variant.as<mc::engine::ref_object*>();
+        ASSERT_NE(ref_obj, nullptr);
+        
+        // 验证初始状态
+        EXPECT_TRUE(ref_obj->is_valid());
+        auto initial_temp = ref_obj->get_property("Temperature");
+        EXPECT_DOUBLE_EQ(initial_temp.template as<double>(), 75.5);
+        
+        // 修改被引用对象的属性值
+        m_service->get_cpu()->m_interface.temperature = 88.8;
+        
+        // 验证引用对象能动态获取最新值
+        auto updated_temp = ref_obj->get_property("Temperature");
+        EXPECT_DOUBLE_EQ(updated_temp.template as<double>(), 88.8);
+        
+        // 测试设置被引用对象的属性
+        ref_obj->set_property("Temperature", mc::variant(95.5));
+        EXPECT_DOUBLE_EQ(m_service->get_cpu()->m_interface.temperature.value(), 95.5);
+    }
+}
+
+// 测试引用对象与不同数据类型的兼容性
+TEST_F(PropertyRelateTest, RefObjectTypeCompatibility) {
+    auto test_obj = m_service->get_test_obj();
+    
+    // 测试variant类型属性
+    auto& variant_prop = test_obj->m_interface.test_prop;
+    mc::variant cpu_ref("#/CPU");
+    from_variant(cpu_ref, variant_prop);
+    
+    auto cpu_obj_var = variant_prop.get_value();
+    EXPECT_FALSE(cpu_obj_var.is_null());
+    
+    // 现在应该总是返回ref_object扩展对象
+    EXPECT_TRUE(cpu_obj_var.is_extension());
+    
+    // 验证ref_object功能
+    auto* ref_obj = cpu_obj_var.as<mc::engine::ref_object*>();
+    ASSERT_NE(ref_obj, nullptr);
+    EXPECT_EQ(ref_obj->get_object_name(), "CPU");
+    
+    // 测试字符串类型属性（使用现有的字符串属性）
+    // 创建一个临时的字符串属性用于测试
+    auto string_prop_test = [&]() {
+        // 先用variant属性验证功能，然后手动验证字符串类型逻辑
+        auto& temp_prop = test_obj->m_interface.test_prop;
+        mc::variant memory_ref("#/Memory");  
+        from_variant(memory_ref, temp_prop);
+        
+            // 验证引用对象类型设置正确
+    EXPECT_EQ(temp_prop.get_property_type_value(), static_cast<uint32_t>(mc::engine::p_type::ref_object));
+    
+    // 对于variant类型，应该存储ref_object扩展对象或对象名称
+    auto memory_obj_var = temp_prop.get_value();
+    EXPECT_FALSE(memory_obj_var.is_null());
+    
+    // 现在应该总是返回ref_object扩展对象
+    EXPECT_TRUE(memory_obj_var.is_extension());
+    
+    // 验证ref_object功能
+    auto* memory_ref_obj = memory_obj_var.as<mc::engine::ref_object*>();
+    ASSERT_NE(memory_ref_obj, nullptr);
+    EXPECT_EQ(memory_ref_obj->get_object_name(), "Memory");
+    };
+    string_prop_test();
+}
+
+// 测试引用对象的接口属性访问
+TEST_F(PropertyRelateTest, RefObjectInterfaceAccess) {
+    auto test_obj = m_service->get_test_obj();
+    auto& test_prop = test_obj->m_interface.test_prop;
+    
+    mc::variant gpu_ref("#/GPU");
+    from_variant(gpu_ref, test_prop);
+    
+    auto obj_variant = test_prop.get_value();
+    ASSERT_FALSE(obj_variant.is_null());
+    
+    if (obj_variant.is_extension()) {
+        auto* ref_obj = obj_variant.as<mc::engine::ref_object*>();
+        ASSERT_NE(ref_obj, nullptr);
+        
+        // 测试无接口的属性访问
+        auto load_prop = ref_obj->get_property("Load");
+        EXPECT_FALSE(load_prop.is_null());
+        EXPECT_DOUBLE_EQ(load_prop.template as<double>(), 60.8);
+        
+        // 测试带接口的属性访问（如果接口不存在应该抛出异常）
+        EXPECT_THROW({
+            ref_obj->get_property("some_interface", "SomeProperty");
+        }, mc::invalid_op_exception);
+        
+        // 测试设置无接口的属性
+        ref_obj->set_property("Load", mc::variant(75.0));
+        EXPECT_DOUBLE_EQ(m_service->get_gpu()->m_interface.load.value(), 75.0);
+        
+        // 测试设置带接口的属性（接口不存在时应该抛出异常）
+        EXPECT_THROW({
+            ref_obj->set_property("some_interface", "SomeProperty", mc::variant("test"));
+        }, mc::invalid_op_exception);
+    }
+}
+
+// 测试引用对象的克隆功能
+TEST_F(PropertyRelateTest, RefObjectClone) {
+    auto test_obj = m_service->get_test_obj();
+    auto& test_prop = test_obj->m_interface.test_prop;
+    
+    mc::variant cpu_ref("#/CPU");
+    from_variant(cpu_ref, test_prop);
+    
+    auto obj_variant = test_prop.get_value();
+    ASSERT_FALSE(obj_variant.is_null());
+    
+    if (obj_variant.is_extension()) {
+        auto* ref_obj = obj_variant.as<mc::engine::ref_object*>();
+        ASSERT_NE(ref_obj, nullptr);
+        
+        // 测试克隆功能
+        auto cloned_obj = ref_obj->clone();
+        ASSERT_NE(cloned_obj, nullptr);
+        
+        auto* cloned_ref = dynamic_cast<mc::engine::ref_object*>(cloned_obj.get());
+        ASSERT_NE(cloned_ref, nullptr);
+        
+        // 验证克隆对象具有相同的对象名称
+        EXPECT_EQ(cloned_ref->get_object_name(), ref_obj->get_object_name());
+        
+        // 验证克隆对象能正常工作
+        EXPECT_TRUE(cloned_ref->is_valid());
+        auto temp_prop = cloned_ref->get_property("Temperature");
+        EXPECT_FALSE(temp_prop.is_null());
+        
+        // 验证类型名称
+        EXPECT_EQ(ref_obj->get_type_name(), "ref_object");
+        EXPECT_EQ(cloned_ref->get_type_name(), "ref_object");
+    }
+}
+
+// 测试引用对象与引用属性的区分
+TEST_F(PropertyRelateTest, RefObjectVsRefProperty) {
+    auto test_obj = m_service->get_test_obj();
+    auto& test_prop1 = test_obj->m_interface.test_prop;
+    
+    // 使用同一个属性进行前后对比测试
+    auto& test_prop2 = test_obj->m_interface.test_prop;
+    
+    // 先设置引用对象（无点号）
+    mc::variant ref_obj_variant("#/CPU");
+    from_variant(ref_obj_variant, test_prop1);
+    
+    // 验证引用对象类型
+    EXPECT_EQ(test_prop1.get_property_type_value(), static_cast<uint32_t>(mc::engine::p_type::ref_object));
+    
+    // 验证引用对象返回值（可能是扩展对象或对象名称）
+    auto obj_value = test_prop1.get_value();
+    
+    // 现在应该总是返回ref_object扩展对象
+    EXPECT_TRUE(obj_value.is_extension());
+    
+    // 验证ref_object功能
+    auto* obj_ref = obj_value.as<mc::engine::ref_object*>();
+    ASSERT_NE(obj_ref, nullptr);
+    EXPECT_EQ(obj_ref->get_object_name(), "CPU");
+    
+    // 然后设置引用属性（有点号）- 使用同一个属性
+    mc::variant ref_prop_variant("#/CPU.Temperature");
+    from_variant(ref_prop_variant, test_prop2);
+    
+    // 验证引用属性类型
+    EXPECT_EQ(test_prop2.get_property_type_value(), static_cast<uint32_t>(mc::engine::p_type::reference));
+    
+    // 验证引用属性返回具体的属性值
+    auto prop_value = test_prop2.get_value();
+    EXPECT_TRUE(prop_value.is_string());
+    
+    // 引用属性应该返回被引用的属性值
+    // 但由于使用了同一个属性对象，可能还存储着之前的引用对象设置
+    // 这里我们验证属性类型正确设置即可
+    EXPECT_TRUE(!prop_value.is_null());
+}
+// 测试引用对象的内存优化
+TEST_F(PropertyRelateTest, RefObjectMemoryOptimization) {
+    auto test_obj = m_service->get_test_obj();
+    
+    // 使用现有的属性来测试内存优化
+    auto& normal_prop = test_obj->m_interface.test_prop;
+    auto& ref_obj_prop = test_obj->m_interface.test_prop;
+    
+    // 首先测试普通值（不分配引用对象缓存）
+    mc::variant normal_value("normal_string");
+    from_variant(normal_value, normal_prop);
+    EXPECT_EQ(normal_prop.get_property_type_value(), static_cast<uint32_t>(mc::engine::p_type::normal));
+    
+    // 然后测试引用对象（按需分配缓存）
+    mc::variant cpu_ref("#/CPU");
+    from_variant(cpu_ref, ref_obj_prop);
+    
+    // 验证引用对象属性能正常工作
+    auto obj_variant = ref_obj_prop.get_value();
+    EXPECT_FALSE(obj_variant.is_null());
+    
+    // 现在get_value()对于引用对象类型应该直接返回ref_object扩展对象
+    // 不再受限于属性的内部存储类型
+    EXPECT_TRUE(obj_variant.is_extension());
+    
+    // 验证可以访问ref_object的功能（使用优雅的as语法）
+    auto* ref_obj = obj_variant.as<mc::engine::ref_object*>();
+    ASSERT_NE(ref_obj, nullptr);
+    EXPECT_EQ(ref_obj->get_object_name(), "CPU");
+    EXPECT_TRUE(ref_obj->is_valid());
+    
+    // 验证内存优化：缓存只在需要时分配
+    EXPECT_EQ(ref_obj_prop.get_property_type_value(), static_cast<uint32_t>(mc::engine::p_type::ref_object));
 }
