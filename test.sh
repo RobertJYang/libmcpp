@@ -24,7 +24,7 @@ fi
 
 export PKG_CONFIG_PATH=$CONAN_BUILD_DIR
 export LD_LIBRARY_PATH="$CWD/temp/lib:$CWD/temp/usr/lib64:$LD_LIBRARY_PATH"
-meson setup -Denable_shared_memory=true builddir --buildtype=$BUILD_TYPE --reconfigure
+meson setup -Denable_conan_complie=true builddir --buildtype=$BUILD_TYPE --reconfigure
 
 cd builddir
 set +e

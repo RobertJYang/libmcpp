@@ -191,6 +191,11 @@ private:
 #define MC_LOG_INFO(LOGGER, FORMAT, ...) MC_LOG_BASE(LOGGER, info, FORMAT, __VA_ARGS__)
 
 /**
+ * @brief 日志宏 - 通知级别
+ */
+#define MC_LOG_NOTICE(LOGGER, FORMAT, ...) MC_LOG_BASE(LOGGER, notice, FORMAT, __VA_ARGS__)
+
+/**
  * @brief 日志宏 - 警告级别
  */
 #define MC_LOG_WARN(LOGGER, FORMAT, ...) MC_LOG_BASE(LOGGER, warn, FORMAT, __VA_ARGS__)

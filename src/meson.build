@@ -49,15 +49,19 @@ src_files = [
 
 dep_arr = [boost_dep, boost_program_options_dep, dbus_dep, glib_dep]
 
-enable_shared_memory = get_option('enable_shared_memory')
+enable_conan_compile = get_option('enable_conan_compile')
 add_project_arguments(
-  '-DENABLE_SHARED_MEMORY=' + enable_shared_memory.to_int().to_string(),
+  '-DENABLE_CONAN_COMPILE=' + enable_conan_compile.to_int().to_string(),
   language: 'cpp',
 )
-if enable_shared_memory
-  message('已开启共享内存')
+if enable_conan_compile
+  message('使用conan构建')
   libsomp_dep = dependency('libsomp', method: 'pkg-config', required: true)
-  dep_arr += [libsomp_dep]
+  liblogging_dep = dependency('liblogging', method: 'pkg-config', required: true)
+  dep_arr += [libsomp_dep, liblogging_dep]
+else
+  # 添加logging.cpp（需要特殊的包含路径）
+  src_files += ['../tests/log/logging.cpp']
 endif
 
 if meson_build
@@ -71,7 +75,7 @@ endif
 libmcpp_lib = shared_library(
   'libmcpp',
   src_files,
-  include_directories: [incdir, srcdir],
+  include_directories: [incdir, srcdir, file_appender_inc],
   dependencies: dep_arr,
   install: true,
   install_dir: install_dir,
