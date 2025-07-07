@@ -48,6 +48,7 @@ struct test_data {
     std::unordered_set<int32_t>              m_std_uset;
     std::deque<int32_t>                      m_std_deque;
     std::array<int32_t, 5>                   m_std_array;
+    std::vector<std::tuple<int32_t, bool>>   m_std_vec_tuple;
 };
 
 static void prepare_test_data(test_data& data) {
@@ -66,19 +67,20 @@ static void prepare_test_data(test_data& data) {
     data.m_dict = {{"key1", 100}, {"key2", "value2"}, {"key3", true}}; // a{sv}
 
     // C++ 标准库数据类型
-    data.m_std_o        = 1;                                                            // ai
-    data.m_std_p        = {1, "12"};                                                    // (is)
-    data.m_std_t        = {1, "12", true};                                              // (isb)
-    data.m_std_vec      = {1, 2, 3, 4, 5};                                              // a(i)
-    data.m_std_list     = {"1", "12", "123", "1234", "12345"};                          // a(s)
-    data.m_std_map      = {{1, 1}, {2, 2}, {3, 3}, {4, 4}, {5, 5}};                     // a{ii}
-    data.m_std_mmap     = {{1, 1}, {2, 2}, {2, 22}, {3, 3}, {2, 33}, {4, 4}, {5, 5}};   // a{ii}
-    data.m_std_umap     = {{"1", 1}, {"12", 2}, {"123", 3}, {"1234", 4}, {"12345", 5}}; // a{si}
-    data.m_std_set      = {1, 2, 3, 4, 5};                                              // a(i)
-    data.m_std_multiset = {"1", "12", "12", "123", "123", "1234", "12345"};             // a(s)
-    data.m_std_uset     = {1, 2, 3, 4, 5};                                              // a(i)
-    data.m_std_deque    = {1, 2, 3, 4, 5};                                              // a(i)
-    data.m_std_array    = {1, 2, 3, 4, 5};                                              // a(i)
+    data.m_std_o         = 1;                                                            // ai
+    data.m_std_p         = {1, "12"};                                                    // (is)
+    data.m_std_t         = {1, "12", true};                                              // (isb)
+    data.m_std_vec       = {1, 2, 3, 4, 5};                                              // a(i)
+    data.m_std_list      = {"1", "12", "123", "1234", "12345"};                          // a(s)
+    data.m_std_map       = {{1, 1}, {2, 2}, {3, 3}, {4, 4}, {5, 5}};                     // a{ii}
+    data.m_std_mmap      = {{1, 1}, {2, 2}, {2, 22}, {3, 3}, {2, 33}, {4, 4}, {5, 5}};   // a{ii}
+    data.m_std_umap      = {{"1", 1}, {"12", 2}, {"123", 3}, {"1234", 4}, {"12345", 5}}; // a{si}
+    data.m_std_set       = {1, 2, 3, 4, 5};                                              // a(i)
+    data.m_std_multiset  = {"1", "12", "12", "123", "123", "1234", "12345"};             // a(s)
+    data.m_std_uset      = {1, 2, 3, 4, 5};                                              // a(i)
+    data.m_std_deque     = {1, 2, 3, 4, 5};                                              // a(i)
+    data.m_std_array     = {1, 2, 3, 4, 5};                                              // a(i)
+    data.m_std_vec_tuple = {{1, true}, {2, false}, {3, true}};                           // a(ib)
 }
 
 static void verify_data(test_data& data, test_data& other) {
@@ -108,6 +110,7 @@ static void verify_data(test_data& data, test_data& other) {
     EXPECT_EQ(other.m_std_multiset, data.m_std_multiset);
     EXPECT_EQ(other.m_std_deque, data.m_std_deque);
     EXPECT_EQ(other.m_std_array, data.m_std_array);
+    EXPECT_EQ(other.m_std_vec_tuple, data.m_std_vec_tuple);
 }
 class dbus_message_test : public mc::test::TestBase {
 protected:
@@ -135,7 +138,8 @@ TEST_F(dbus_message_test, test_message_reader_writer) {
     writer << data.m_v << data.m_arr << data.m_dict;
     writer << data.m_std_o << data.m_std_p << data.m_std_t << data.m_std_vec << data.m_std_list
            << data.m_std_map << data.m_std_mmap << data.m_std_umap << data.m_std_set
-           << data.m_std_multiset << data.m_std_uset << data.m_std_deque << data.m_std_array;
+           << data.m_std_multiset << data.m_std_uset << data.m_std_deque << data.m_std_array
+           << data.m_std_vec_tuple;
 
     // 将消息系列化成二进制数据
     auto [data_ptr, size] = msg.marshal();
@@ -162,7 +166,7 @@ TEST_F(dbus_message_test, test_message_reader_writer) {
     reader >> data2.m_std_o >> data2.m_std_p >> data2.m_std_t >> data2.m_std_vec >>
         data2.m_std_list >> data2.m_std_map >> data2.m_std_mmap >> data2.m_std_umap >>
         data2.m_std_set >> data2.m_std_multiset >> data2.m_std_uset >> data2.m_std_deque >>
-        data2.m_std_array;
+        data2.m_std_array >> data2.m_std_vec_tuple;
 
     verify_data(data, data2);
 }
@@ -352,6 +356,18 @@ TEST_F(dbus_message_test, test_libdbus_write_mc_dbus_message_read) {
                                          data.m_std_array.size());
     dbus_message_iter_close_container(&iter, &std_array_iter);
 
+    DBusMessageIter std_vec_tuple_iter;
+    dbus_message_iter_open_container(&iter, DBUS_TYPE_ARRAY, "(ib)", &std_vec_tuple_iter);
+    for (const auto& val : data.m_std_vec_tuple) {
+        DBusMessageIter tuple_iter;
+        dbus_message_iter_open_container(&std_vec_tuple_iter, DBUS_TYPE_STRUCT, nullptr,
+                                         &tuple_iter);
+        dbus_message_iter_append_basic(&tuple_iter, DBUS_TYPE_INT32, &std::get<0>(val));
+        dbus_message_iter_append_basic(&tuple_iter, DBUS_TYPE_BOOLEAN, &std::get<1>(val));
+        dbus_message_iter_close_container(&std_vec_tuple_iter, &tuple_iter);
+    }
+    dbus_message_iter_close_container(&iter, &std_vec_tuple_iter);
+
     // 获取消息数据
     int   size     = 0;
     char* data_ptr = nullptr;
@@ -377,7 +393,7 @@ TEST_F(dbus_message_test, test_libdbus_write_mc_dbus_message_read) {
         data2.m_str >> data2.m_b >> data2.m_v >> data2.m_arr >> data2.m_dict >> data2.m_std_o >>
         data2.m_std_p >> data2.m_std_t >> data2.m_std_vec >> data2.m_std_list >> data2.m_std_map >>
         data2.m_std_mmap >> data2.m_std_umap >> data2.m_std_set >> data2.m_std_multiset >>
-        data2.m_std_uset >> data2.m_std_deque >> data2.m_std_array;
+        data2.m_std_uset >> data2.m_std_deque >> data2.m_std_array >> data2.m_std_vec_tuple;
 
     verify_data(data, data2);
     dbus_message_unref(msg);
@@ -395,7 +411,8 @@ TEST_F(dbus_message_test, test_mc_dbus_message_write_libdbus_read) {
                  << data.m_b << data.m_v << data.m_arr << data.m_dict << data.m_std_o
                  << data.m_std_p << data.m_std_t << data.m_std_vec << data.m_std_list
                  << data.m_std_map << data.m_std_mmap << data.m_std_umap << data.m_std_set
-                 << data.m_std_multiset << data.m_std_uset << data.m_std_deque << data.m_std_array;
+                 << data.m_std_multiset << data.m_std_uset << data.m_std_deque << data.m_std_array
+                 << data.m_std_vec_tuple;
 
     auto [data_ptr, size] = msg.marshal();
 
@@ -732,6 +749,28 @@ TEST_F(dbus_message_test, test_mc_dbus_message_write_libdbus_read) {
     ASSERT_NE(array_data, nullptr);
     ASSERT_EQ(array_len, array_count);
     std::memcpy(data2.m_std_array.data(), array_data, array_len * sizeof(int32_t));
+    dbus_message_iter_next(&iter);
+
+    // 读取 std::vector<std::tuple<int32_t, bool>>
+    ASSERT_EQ(dbus_message_iter_get_arg_type(&iter), DBUS_TYPE_ARRAY);
+    DBusMessageIter vec_tuple_iter2;
+    dbus_message_iter_recurse(&iter, &vec_tuple_iter2);
+    int vec_tuple_count = dbus_message_iter_get_element_count(&iter);
+    ASSERT_EQ(vec_tuple_count, data.m_std_vec_tuple.size());
+    ASSERT_EQ(dbus_message_iter_get_arg_type(&vec_tuple_iter2), DBUS_TYPE_STRUCT);
+    while (dbus_message_iter_get_arg_type(&vec_tuple_iter2) != DBUS_TYPE_INVALID) {
+        DBusMessageIter tuple_iter2;
+        dbus_message_iter_recurse(&vec_tuple_iter2, &tuple_iter2);
+        int32_t val = 0;
+        dbus_message_iter_get_basic(&tuple_iter2, &val);
+        dbus_message_iter_next(&tuple_iter2);
+        bool b = false;
+        dbus_message_iter_get_basic(&tuple_iter2, &b);
+        dbus_message_iter_next(&tuple_iter2);
+        data2.m_std_vec_tuple.push_back(std::make_tuple(val, b));
+        dbus_message_iter_next(&vec_tuple_iter2);
+    }
+    dbus_message_iter_next(&iter);
 
     // 验证读取的数据与原始数据一致
     verify_data(data, data2);

@@ -45,7 +45,8 @@ shm::object_tree* create_shm_tree(std::string_view harbor_name, std::string_view
     });
 }
 
-message_queue::message_queue(shm::message_queue_t& msg_queue) : m_msg_queue(msg_queue) {
+message_queue::message_queue(shm::message_queue_t& msg_queue)
+    : m_msg_queue(msg_queue) {
 }
 
 message_queue::~message_queue() {
@@ -95,7 +96,8 @@ void message_queue::dispatch(int timeout_ms, int max_read_count,
     }
 }
 
-harbor::harbor() : m_is_running(false) {
+harbor::harbor()
+    : m_is_running(false) {
 }
 
 harbor::~harbor() {
@@ -265,7 +267,7 @@ void harbor::invoke_method(local_msg* msg) {
         dbus_reply(msg);
         return;
     }
-    if (!msg_queue->push_back(serialize::pack(msg->to_variants()), MSG_QUEUE_PUSH_TIMEOUT)) {
+    if (!msg_queue->push_back(msg->pack(), MSG_QUEUE_PUSH_TIMEOUT)) {
         elog("failed to push message to message queue: ${destination}",
              ("destination", reply_destination));
         dbus_reply(msg);

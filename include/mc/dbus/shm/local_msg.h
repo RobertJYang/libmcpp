@@ -14,6 +14,7 @@
 
 #include <dbus/dbus.h>
 #include <mc/dbus/message.h>
+#include <mc/dbus/shm/serialize.h>
 #include <mc/dict.h>
 #include <mc/variant.h>
 
@@ -89,7 +90,7 @@ public:
 
     message new_dbus_msg() const;
 
-    variants to_variants() const;
+    std::string pack() const;
 
     static variant parse_variant(signature_iterator it, const variant& v, size_t depth);
 

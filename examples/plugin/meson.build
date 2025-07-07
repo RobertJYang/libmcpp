@@ -1,11 +1,13 @@
 # 插件示例构建配置
 
+dep_arr = [boost_dep, boost_program_options_dep, dbus_dep, glib_dep]
+
 # 创建插件示例可执行文件
 executable(
     'example_plugin',
     'main.cpp',
     include_directories: incdir,
-    dependencies: [boost_dep, boost_program_options_dep],
+    dependencies: dep_arr,
     link_with: [libmcpp_lib],
     install: true,
     install_dir: get_option('bindir'),

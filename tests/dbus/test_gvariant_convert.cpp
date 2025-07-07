@@ -12,11 +12,43 @@
 
 #include <glib-2.0/glib.h>
 #include <gtest/gtest.h>
+#include <mc/dbus/shm/gvariant_convert.h>
 #include <mc/dict.h>
 #include <mc/variant.h>
-#include <mc/dbus/shm/gvariant_convert.h>
 
 using namespace mc;
+
+TEST(GvariantConvertTest, GetVariantSignature) {
+    auto v   = variant(1);
+    auto sig = dbus::gvariant_convert::get_variant_signature(v);
+    ASSERT_EQ(sig, "i");
+    v   = variant(2.2);
+    sig = dbus::gvariant_convert::get_variant_signature(v);
+    ASSERT_EQ(sig, "d");
+    v   = variant(true);
+    sig = dbus::gvariant_convert::get_variant_signature(v);
+    ASSERT_EQ(sig, "b");
+    auto arr = mc::variants();
+    arr.push_back("test1");
+    arr.push_back("test2");
+    sig = dbus::gvariant_convert::get_variant_signature(arr);
+    ASSERT_EQ(sig, "as");
+    arr = mc::variants();
+    arr.push_back(33);
+    arr.push_back(55);
+    sig = dbus::gvariant_convert::get_variant_signature(arr);
+    ASSERT_EQ(sig, "ai");
+    arr = mc::variants();
+    arr.push_back(33);
+    arr.push_back("test2");
+    sig = dbus::gvariant_convert::get_variant_signature(arr);
+    ASSERT_EQ(sig, "(is)");
+    mc::mutable_dict d;
+    d["a"] = 1;
+    d["b"] = 2;
+    sig    = dbus::gvariant_convert::get_variant_signature(d);
+    ASSERT_EQ(sig, "a{si}");
+}
 
 TEST(GvariantConvertTest, ArrayToGVariant) {
     variants msg_arr;
@@ -125,7 +157,7 @@ TEST(GvariantConvertTest, DictToGVariant) {
     basic_dict["int1"] = 1;
     basic_dict["int2"] = 2;
     basic_dict["int3"] = 3;
-    auto gvariant = dbus::gvariant_convert::to_gvariant(basic_dict, "a{si}");
+    auto gvariant      = dbus::gvariant_convert::to_gvariant(basic_dict, "a{si}");
     ASSERT_NE(gvariant, nullptr);
     auto value = dbus::gvariant_convert::to_mc_variant(gvariant);
     ASSERT_EQ(value.is_dict(), true);
@@ -140,12 +172,12 @@ TEST(GvariantConvertTest, DictToGVariant) {
     mutable_dict nested_dict;
     nested_dict["arr1"] = variants({1.1, 2.2, 3.3});
     nested_dict["arr2"] = variants({9.9, 8.8, 7.7, 6.6});
-    gvariant = dbus::gvariant_convert::to_gvariant(nested_dict, "a{sad}");
+    gvariant            = dbus::gvariant_convert::to_gvariant(nested_dict, "a{sad}");
     ASSERT_NE(gvariant, nullptr);
     value = dbus::gvariant_convert::to_mc_variant(gvariant);
     ASSERT_EQ(value.is_dict(), true);
     auto nested_dict_unpacked = value.as_dict();
-    auto arr1 = nested_dict_unpacked["arr1"].as_array();
+    auto arr1                 = nested_dict_unpacked["arr1"].as_array();
     ASSERT_EQ(arr1.size(), 3);
     ASSERT_EQ(arr1[0].as_double(), 1.1);
     ASSERT_EQ(arr1[1].as_double(), 2.2);
@@ -161,14 +193,14 @@ TEST(GvariantConvertTest, DictToGVariant) {
     // 测试包含嵌套字典的字典
     mutable_dict deep_dict;
     mutable_dict inner_dict;
-    inner_dict["a"] = 1;
-    inner_dict["b"] = 2;
+    inner_dict["a"]    = 1;
+    inner_dict["b"]    = 2;
     deep_dict["inner"] = inner_dict;
-    gvariant = dbus::gvariant_convert::to_gvariant(deep_dict, "a{sa{si}}");
+    gvariant           = dbus::gvariant_convert::to_gvariant(deep_dict, "a{sa{si}}");
     ASSERT_NE(gvariant, nullptr);
     value = dbus::gvariant_convert::to_mc_variant(gvariant);
     ASSERT_EQ(value.is_dict(), true);
-    auto deep_dict_unpacked = value.as_dict();
+    auto deep_dict_unpacked  = value.as_dict();
     auto inner_dict_unpacked = deep_dict_unpacked["inner"].as_dict();
     ASSERT_EQ(inner_dict_unpacked["a"].as_int32(), 1);
     ASSERT_EQ(inner_dict_unpacked["b"].as_int32(), 2);

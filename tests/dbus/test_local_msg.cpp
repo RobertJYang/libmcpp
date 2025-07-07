@@ -54,33 +54,6 @@ TEST_F(LocalMsgTest, ErrorInfo) {
     ASSERT_EQ(error_message, "this is an error message");
 }
 
-// 测试转换为 variants
-TEST_F(LocalMsgTest, ToVariants) {
-    sample_msg->set_local_call(true);
-    sample_msg->set_sender(":1.23");
-    sample_msg->set_serial(123);
-    sample_msg->append("ai", variants({123, 456}));
-    auto v = sample_msg->to_variants();
-    ASSERT_EQ(v.size(), 12);
-    ASSERT_EQ(v[0].as_uint32(), DBUS_MESSAGE_TYPE_METHOD_CALL);
-    ASSERT_EQ(v[1].as_string(), "bmc.kepler.test");
-    ASSERT_EQ(v[2].as_string(), "/bmc/kepler/test/obj");
-    ASSERT_EQ(v[3].as_string(), "bmc.kepler.test.intf");
-    ASSERT_EQ(v[4].as_string(), "TestMethod");
-
-    auto args = v[7].as_array();
-    ASSERT_EQ(args.size(), 1);
-    auto arg = args[0].as_array();
-    ASSERT_EQ(arg.size(), 2);
-    ASSERT_EQ(arg[0].as_int32(), 123);
-    ASSERT_EQ(arg[1].as_int32(), 456);
-
-    ASSERT_EQ(v[8].as_string(), ":1.23");
-    ASSERT_EQ(v[9].as_uint32(), 123);
-    ASSERT_EQ(v[10].as_bool(), true);
-    ASSERT_EQ(v[11].as_uint32(), 0);
-}
-
 // 测试 append 方法
 TEST_F(LocalMsgTest, Append) {
     auto     msg = new dbus::local_msg("bmc.kepler.test", "/bmc/kepler/test/obj",

@@ -12,6 +12,8 @@
 
 #include <mc/dbus/shm/gvariant_convert.h>
 #include <mc/exception.h>
+#include <mc/log.h>
+#include <mc/reflect.h>
 
 namespace mc::dbus {
 
@@ -447,6 +449,115 @@ variant gvariant_convert::to_mc_variant(GVariant* value) {
         }
         MC_THROW(mc::invalid_arg_exception, "unsupported type: ${type}", ("type", type));
     }
+}
+
+std::string gvariant_convert::get_array_signature(const variants& v, int depth) {
+    if (v.size() == 0) {
+        return "ay";
+    }
+    std::string struct_elements;
+    std::string last_element;
+    bool        is_struct = false;
+    for (const auto& item : v) {
+        auto item_sig = get_variant_signature(item, depth);
+        if (last_element.empty()) {
+            struct_elements = item_sig;
+            last_element    = item_sig;
+            continue;
+        }
+        if (item_sig == last_element) {
+            if (struct_elements.size() < MAX_SIGNATURE_LEN) {
+                struct_elements += item_sig;
+            }
+            continue;
+        }
+        // 如果包含不同数据类型，则认为是一个结构体
+        is_struct = true;
+        struct_elements += item_sig;
+        if (struct_elements.size() > MAX_SIGNATURE_LEN) {
+            // 如果结构体元素长度超过最大长度，则认为是一个可变类型元素数组
+            return "av";
+        }
+        last_element = item_sig;
+    }
+    if (is_struct) {
+        return "(" + struct_elements + ")";
+    }
+    return "a" + last_element;
+}
+
+std::string gvariant_convert::get_dict_signature(const dict& v, int depth) {
+    if (v.size() == 0) {
+        return "a{ss}";
+    }
+    std::string key_sig;
+    std::string value_sig;
+    for (const auto& entry : v) {
+        if (key_sig != "v") {
+            auto entry_key_sig = get_variant_signature(entry.key, depth);
+            if (key_sig.empty()) {
+                key_sig = entry_key_sig;
+            } else if (key_sig != entry_key_sig) {
+                key_sig = "v";
+            }
+        }
+        if (value_sig != "v") {
+            auto entry_value_sig = get_variant_signature(entry.value, depth);
+            if (value_sig.empty()) {
+                value_sig = entry_value_sig;
+            } else if (value_sig != entry_value_sig) {
+                value_sig = "v";
+            }
+        }
+        if (key_sig == "v" && value_sig == "v") {
+            break;
+        }
+    }
+    return "a{" + key_sig + value_sig + "}";
+}
+
+std::string gvariant_convert::get_variant_signature(const variant& v, int depth) {
+    if (depth >= MAX_CONTAINER_DEPTH) {
+        MC_THROW(mc::invalid_arg_exception, "container depth too deep");
+    }
+    switch (v.get_type()) {
+    case type_id::bool_type:
+        return "b";
+    case type_id::uint8_type:
+        return "y";
+    case type_id::int16_type:
+        return "n";
+    case type_id::uint16_type:
+        return "q";
+    case type_id::int32_type:
+        return "i";
+    case type_id::uint32_type:
+        return "u";
+    case type_id::int64_type:
+        return "x";
+    case type_id::uint64_type:
+        return "t";
+    case type_id::double_type:
+        return "d";
+    case type_id::string_type:
+        return "s";
+    case type_id::array_type:
+        return get_array_signature(v.as_array(), depth + 1);
+    case type_id::object_type:
+        return get_dict_signature(v.as_dict(), depth + 1);
+    default:
+        MC_THROW(mc::invalid_arg_exception, "unsupported variant type ${type} to get signature",
+                 ("type", static_cast<int>(v.get_type())));
+    }
+}
+
+GVariant* gvariant_convert::to_gvariant(const variant& v) {
+    auto sig = get_variant_signature(v);
+    if (sig.size() > MAX_SIGNATURE_LEN) {
+        wlog("signature length too long, using variant type instead: ${sig}", ("sig", sig));
+        sig = "v";
+    }
+    return to_gvariant(v, sig.c_str());
 }
 
 } // namespace mc::dbus

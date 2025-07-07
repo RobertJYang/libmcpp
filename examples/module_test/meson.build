@@ -9,7 +9,7 @@ executable(
     'module_test_example',
     ['main.cpp'],
     include_directories: [incdir, include_directories('.')],
-    dependencies: [boost_dep, boost_program_options_dep],
+    dependencies: [boost_dep, boost_program_options_dep, dbus_dep, glib_dep],
     link_with: [libmcpp_lib],
     install: false,
 )

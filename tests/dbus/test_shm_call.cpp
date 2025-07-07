@@ -54,7 +54,8 @@ public:
         return m_cnt.value();
     }
 
-    property<int32_t> m_cnt{0};
+    property<int32_t>              m_cnt{0};
+    property<std::vector<uint8_t>> m_arr{std::vector<uint8_t>{1, 2, 3}};
 };
 
 class TestObjectA : public mc::engine::object<TestObjectA> {
@@ -99,14 +100,15 @@ public:
 
 MC_REFLECT(TestInterfaceA, ((add, "Add"))((set_num, "SetNum"))((set_str, "SetStr"))(
                                (get_num_and_str, "GetNumAndStr"))((m_num, "Num"))((m_str, "Str")))
-MC_REFLECT(TestInterfaceB, ((increment, "Increment"))((m_cnt, "Cnt")))
+MC_REFLECT(TestInterfaceB, ((increment, "Increment"))((m_cnt, "Cnt"))((m_arr, "Arr")))
 MC_REFLECT(TestObjectA, ((m_iface, "InterfaceA")))
 MC_REFLECT(TestObjectB, ((m_iface, "InterfaceB")))
 MC_REFLECT(TestInterfaceC, ((m_prop1, "Prop1")))
 MC_REFLECT(TestObjectC, ((m_iface, "InterfaceC")))
 
 struct test_service_1 : public mc::engine::service {
-    test_service_1() : mc::engine::service("org.openubmc.test_service_1") {
+    test_service_1()
+        : mc::engine::service("org.openubmc.test_service_1") {
     }
 
     bool init(mc::dict args = {}) override {
@@ -143,7 +145,8 @@ struct test_service_1 : public mc::engine::service {
 };
 
 struct test_service_2 : public mc::engine::service {
-    test_service_2() : mc::engine::service("org.openubmc.test_service_2") {
+    test_service_2()
+        : mc::engine::service("org.openubmc.test_service_2") {
     }
 
     bool init(mc::dict args = {}) override {
@@ -367,4 +370,26 @@ TEST_F(ShmCallTest, TestSubscribePropertiesChanged) {
     ASSERT_EQ(d.contains("Str"), true);
     ASSERT_TRUE(d["Str"].is_string());
     ASSERT_EQ(d["Str"].as_string(), "test_property_changed");
+}
+
+TEST_F(ShmCallTest, TestGetWithContext) {
+    auto conn = mc::dbus::connection::open_session_bus(mc::get_io_context());
+    conn.start();
+    auto msg =
+        mc::dbus::message::new_method_call("org.openubmc.test_service_2", "/org/openubmc/test_object_b", "bmc.kepler.Object.Properties", "GetWithContext");
+    msg.set_sender("bmc.kepler.test_client");
+    msg.set_serial(1);
+    auto                               writer = msg.writer();
+    std::map<std::string, std::string> ctx;
+    writer << ctx << "org.openubmc.test_interface_b" << "Arr";
+    auto reply = conn.send_with_reply(std::move(msg), mc::milliseconds(1000));
+    ASSERT_TRUE(reply.is_valid() && reply.is_method_return());
+    mc::variant result;
+    reply >> result;
+    ASSERT_TRUE(result.is_array());
+    auto arr = result.as_array();
+    ASSERT_EQ(arr.size(), 3);
+    ASSERT_EQ(arr[0].as_uint8(), 1);
+    ASSERT_EQ(arr[1].as_uint8(), 2);
+    ASSERT_EQ(arr[2].as_uint8(), 3);
 }

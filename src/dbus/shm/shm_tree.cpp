@@ -77,7 +77,7 @@ shm_tree::timeout_call(mc::milliseconds timeout, std::string_view service_name,
     }
     msg.set_sender(m_unique_name);
     uint32_t serial = set_serial(msg);
-    auto     data   = serialize::pack(msg.to_variants());
+    auto     data   = msg.pack();
     if (!msg_queue->push_back(data, MSG_QUEUE_PUSH_TIMEOUT)) {
         elog("failed to push to message queue of destination service: ${service_name}",
              ("service_name", service_name));
