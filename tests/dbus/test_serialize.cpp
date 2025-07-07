@@ -64,7 +64,23 @@ TEST(SerializeTest, SerializeMsg) {
     msg1->set_local_call(true);
     msg1->set_sender(":123");
     msg1->set_serial(123);
-    msg_arr.push_back(msg1->to_variants());
+    auto data     = msg1->pack();
+    auto unpacked = dbus::serialize::unpack(data);
+    ASSERT_EQ(unpacked[0].as_uint32(), DBUS_MESSAGE_TYPE_METHOD_CALL);
+    ASSERT_EQ(unpacked[1].as_string(), "bmc.kepler.test1");
+    ASSERT_EQ(unpacked[2].as_string(), "/bmc/kepler/test/obj1");
+    ASSERT_EQ(unpacked[3].as_string(), "bmc.kepler.test.intf1");
+    ASSERT_EQ(unpacked[4].as_string(), "TestMethod1");
+    ASSERT_EQ(unpacked[5].as_string(), "NA");
+    ASSERT_EQ(unpacked[6].as_string(), "a{ss}");
+    auto msg1_args = unpacked[7].as_array();
+    ASSERT_TRUE(msg1_args[0].is_dict());
+    ASSERT_EQ(msg1_args[0].as_dict()["a"].as_string(), "str1");
+    ASSERT_EQ(msg1_args[0].as_dict()["b"].as_string(), "str2");
+    ASSERT_EQ(unpacked[8].as_string(), ":123");
+    ASSERT_EQ(unpacked[9].as_uint32(), 123);
+    ASSERT_EQ(unpacked[10].as_bool(), true);
+    ASSERT_EQ(unpacked[11].as_uint32(), 0);
 
     auto msg2 = new dbus::local_msg("bmc.kepler.test2", "/bmc/kepler/test/obj2",
                                     "bmc.kepler.test.intf2", "TestMethod2");
@@ -73,43 +89,21 @@ TEST(SerializeTest, SerializeMsg) {
     msg2->set_serial(789);
     msg2->error("TestErrorName2", "test error msg2");
     msg2->set_serial(456);
-    msg_arr.push_back(msg2->to_variants());
-
-    auto packed   = dbus::serialize::pack(msg_arr);
-    auto unpacked = dbus::serialize::unpack(packed);
-    ASSERT_EQ(unpacked.size(), 2);
-    ASSERT_TRUE(unpacked[0].is_array());
-    ASSERT_TRUE(unpacked[1].is_array());
-    auto msg1_unpacked = unpacked[0].as_array();
-    auto msg2_unpacked = unpacked[1].as_array();
-    ASSERT_EQ(msg1_unpacked[0].as_uint32(), DBUS_MESSAGE_TYPE_METHOD_CALL);
-    ASSERT_EQ(msg1_unpacked[1].as_string(), "bmc.kepler.test1");
-    ASSERT_EQ(msg1_unpacked[2].as_string(), "/bmc/kepler/test/obj1");
-    ASSERT_EQ(msg1_unpacked[3].as_string(), "bmc.kepler.test.intf1");
-    ASSERT_EQ(msg1_unpacked[4].as_string(), "TestMethod1");
-    ASSERT_EQ(msg1_unpacked[5].as_string(), "NA");
-    ASSERT_EQ(msg1_unpacked[6].as_string(), "a{ss}");
-    auto msg1_args = msg1_unpacked[7].as_array();
-    ASSERT_EQ(msg1_args[0].as_dict()["a"].as_string(), "str1");
-    ASSERT_EQ(msg1_args[0].as_dict()["b"].as_string(), "str2");
-    ASSERT_EQ(msg1_unpacked[8].as_string(), ":123");
-    ASSERT_EQ(msg1_unpacked[9].as_uint32(), 123);
-    ASSERT_EQ(msg1_unpacked[10].as_bool(), true);
-    ASSERT_EQ(msg1_unpacked[11].as_uint32(), 0);
-
-    ASSERT_EQ(msg2_unpacked[0].as_uint32(), DBUS_MESSAGE_TYPE_ERROR);
-    ASSERT_EQ(msg2_unpacked[1].as_string(), ":456");
-    ASSERT_EQ(msg2_unpacked[2].as_string(), "/bmc/kepler/test/obj2");
-    ASSERT_EQ(msg2_unpacked[3].as_string(), "bmc.kepler.test.intf2");
-    ASSERT_EQ(msg2_unpacked[4].as_string(), "TestMethod2");
-    ASSERT_EQ(msg2_unpacked[5].as_string(), "TestErrorName2");
-    ASSERT_EQ(msg2_unpacked[6].as_string(), "s");
-    auto msg2_args = msg2_unpacked[7].as_array();
+    data     = msg2->pack();
+    unpacked = dbus::serialize::unpack(data);
+    ASSERT_EQ(unpacked[0].as_uint32(), DBUS_MESSAGE_TYPE_ERROR);
+    ASSERT_EQ(unpacked[1].as_string(), ":456");
+    ASSERT_EQ(unpacked[2].as_string(), "/bmc/kepler/test/obj2");
+    ASSERT_EQ(unpacked[3].as_string(), "bmc.kepler.test.intf2");
+    ASSERT_EQ(unpacked[4].as_string(), "TestMethod2");
+    ASSERT_EQ(unpacked[5].as_string(), "TestErrorName2");
+    ASSERT_EQ(unpacked[6].as_string(), "s");
+    auto msg2_args = unpacked[7].as_array();
     ASSERT_EQ(msg2_args[0].as_string(), "test error msg2");
-    ASSERT_EQ(msg2_unpacked[8].as_string(), ":456");
-    ASSERT_EQ(msg2_unpacked[9].as_uint32(), 456);
-    ASSERT_EQ(msg2_unpacked[10].as_bool(), false);
-    ASSERT_EQ(msg2_unpacked[11].as_uint32(), 789);
+    ASSERT_EQ(unpacked[8].as_string(), ":456");
+    ASSERT_EQ(unpacked[9].as_uint32(), 456);
+    ASSERT_EQ(unpacked[10].as_bool(), false);
+    ASSERT_EQ(unpacked[11].as_uint32(), 789);
 }
 
 TEST(SerializeTest, SerializeBasicTypes) {

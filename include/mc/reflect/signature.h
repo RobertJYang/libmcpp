@@ -13,6 +13,7 @@
 #ifndef MC_REFLECT_SIGNATURE_H
 #define MC_REFLECT_SIGNATURE_H
 
+#include <dbus/dbus.h>
 #include <mc/reflect/signature_helper.h>
 #include <mc/reflect/type_code.h>
 #include <mc/variant.h>
@@ -30,6 +31,9 @@ constexpr size_t max_signature_length = 255;
 inline char first_type(const std::string& sig) {
     if (sig.empty()) {
         return '\0';
+    }
+    if (sig[0] == DBUS_STRUCT_BEGIN_CHAR) {
+        return DBUS_TYPE_STRUCT;
     }
 
     return sig[0];

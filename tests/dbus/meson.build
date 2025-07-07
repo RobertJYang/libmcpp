@@ -6,3 +6,8 @@ test_dbus_files = [
     'dbus/test_dbus_message.cpp',
     'dbus/test_connection.cpp',
 ]
+
+enable_shared_memory = get_option('enable_shared_memory')
+if enable_shared_memory
+  test_dbus_files += ['dbus/test_shm_call.cpp']
+endif

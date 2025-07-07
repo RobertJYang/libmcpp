@@ -54,11 +54,6 @@ test_files = [
   test_variant_files,
 ]
 
-enable_shared_memory = get_option('enable_shared_memory')
-if enable_shared_memory
-  # test_files += ['dbus/test_shm_call.cpp']
-endif
-
 dbus_dep = dependency('dbus-1', method: 'pkg-config', required: true)
 
 # 创建测试可执行文件 - 现在依赖test_utilities

@@ -250,7 +250,8 @@ message message::new_error_message(std::string_view error_name, std::string_view
     return msg;
 }
 
-message::message(DBusMessage* msg, bool add_ref) : m_dbus_message(msg) {
+message::message(DBusMessage* msg, bool add_ref)
+    : m_dbus_message(msg) {
     if (add_ref && m_dbus_message) {
         dbus_message_ref(m_dbus_message);
     }
@@ -260,7 +261,8 @@ message::~message() {
     release();
 }
 
-message::message(const message& other) : m_dbus_message(other.m_dbus_message) {
+message::message(const message& other)
+    : m_dbus_message(other.m_dbus_message) {
     if (m_dbus_message) {
         dbus_message_ref(m_dbus_message);
     }
@@ -352,7 +354,8 @@ bool message::demarshal(const char* in, std::size_t len, error& err) {
     return true;
 }
 
-message::message(message&& other) noexcept : m_dbus_message(other.m_dbus_message) {
+message::message(message&& other) noexcept
+    : m_dbus_message(other.m_dbus_message) {
     other.m_dbus_message = nullptr;
 }
 
@@ -580,9 +583,17 @@ void message_reader::ensure_type(int expected) const {
     ensure_type(expected, actual);
 }
 
+static bool is_struct_type(int type) {
+    return type == DBUS_TYPE_STRUCT || type == DBUS_STRUCT_BEGIN_CHAR;
+}
+
 void message_reader::ensure_type(int expected, int actual) {
     char actual_type[]   = {static_cast<char>(actual), 0};
     char expected_type[] = {static_cast<char>(expected), 0};
+    if (is_struct_type(actual) && is_struct_type(expected)) {
+        // TODO: 需要梳理DBUS什么场景用DBUS_TYPE_STRUCT，什么场景用DBUS_STRUCT_BEGIN_CHAR
+        return;
+    }
     if (actual != expected) {
         MC_THROW(mc::invalid_arg_exception, "类型不匹配，期望${expected}, 实际为${actual}",
                  ("expected", expected_type)("actual", actual_type));
@@ -814,7 +825,7 @@ message_writer::message_writer(message& msg) {
 
 message_writer::message_writer(DBusMessageIter& parent_iter, int type, std::string_view signature)
     : m_parent_iter(&parent_iter) {
-    const char* sig = signature.empty() ? nullptr : signature.data();
+    const char* sig = signature.empty() ? nullptr : std::string(signature).c_str();
     dbus_message_iter_open_container(m_parent_iter, type, sig, &m_iter);
 }
 

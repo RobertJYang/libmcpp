@@ -198,6 +198,15 @@ std::string_view common_properties_interface::get(std::string_view property_name
     return {};
 }
 
+mc::variant common_properties_interface::get_with_context(std::map<std::string, std::string> context, std::string_view interface_name,
+                                                          std::string_view property_name) {
+    auto* object = object_call_stack::top_value();
+    if (object == nullptr) {
+        return {};
+    }
+    return object->get_property(property_name, interface_name);
+}
+
 mc::dict common_properties_interface::get_all() {
     auto* object = object_call_stack::top_value();
     if (object == nullptr) {

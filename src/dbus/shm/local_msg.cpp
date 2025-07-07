@@ -321,21 +321,22 @@ message local_msg::new_dbus_msg() const {
     MC_THROW(mc::invalid_arg_exception, "invalid message type");
 }
 
-variants local_msg::to_variants() const {
-    variants arr(MSG_SIZE);
-    arr[TYPE_INDEX]         = m_type;
-    arr[SERVICE_NAME_INDEX] = m_service_name;
-    arr[PATH_INDEX]         = m_path;
-    arr[INTERFACE_INDEX]    = m_interface;
-    arr[MEMBER_INDEX]       = m_member;
-    arr[ERROR_NAME_INDEX]   = m_error_name;
-    arr[SIGNATURE_INDEX]    = m_signature;
-    arr[ARGS_INDEX]         = m_args;
-    arr[SENDER_INDEX]       = m_sender;
-    arr[SERIAL_INDEX]       = m_serial;
-    arr[LOCAL_CALL_INDEX]   = m_local_call;
-    arr[REPLY_SERIAL_INDEX] = m_reply_serial;
-    return arr;
+std::string local_msg::pack() const {
+    mc::dbus::serialize::write_buffer wb;
+    wb.write_arg(m_type);
+    wb.write_arg(m_service_name);
+    wb.write_arg(m_path);
+    wb.write_arg(m_interface);
+    wb.write_arg(m_member);
+    wb.write_arg(m_error_name);
+    wb.write_arg(m_signature);
+    signature_iterator it(m_signature);
+    wb.write_array(it, m_args);
+    wb.write_arg(m_sender);
+    wb.write_arg(m_serial);
+    wb.write_arg(m_local_call);
+    wb.write_arg(m_reply_serial);
+    return wb.to_string();
 }
 
 std::string local_msg::get_error_message() const {
@@ -373,7 +374,7 @@ bool shm_pending_msgs::reply(std::string_view destination_unique_name, uint32_t 
 
 void shm_pending_msgs::clear(std::string_view unique_name) {
     std::lock_guard lock(m_mutex);
-    auto it = m_pending_msgs.find(std::string(unique_name));
+    auto            it = m_pending_msgs.find(std::string(unique_name));
     if (it != m_pending_msgs.end()) {
         m_pending_msgs.erase(it);
     }

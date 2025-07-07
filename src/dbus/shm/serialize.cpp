@@ -21,7 +21,8 @@ inline static uint8_t pack_value(data_type t, uint8_t value) {
     return static_cast<uint8_t>(t) | (value << 3);
 }
 
-write_buffer::write_buffer() : m_head(new data_block()), m_current(m_head), m_len(0), m_offset(0) {
+write_buffer::write_buffer()
+    : m_head(new data_block()), m_current(m_head), m_len(0), m_offset(0) {
 }
 
 write_buffer::~write_buffer() {
@@ -30,12 +31,6 @@ write_buffer::~write_buffer() {
         data_block* next = node->next;
         delete node;
         node = next;
-    }
-}
-
-void write_buffer::write(const variants& args) {
-    for (const auto& arg : args) {
-        write_arg(arg, 0);
     }
 }
 
@@ -67,6 +62,59 @@ void write_buffer::write_arg(const variant& arg, int depth) {
     }
     MC_THROW(mc::invalid_arg_exception, "unsupported variant type: ${type_id}",
              ("type_id", arg.get_type()));
+}
+
+void write_buffer::write_arg_with_signature(signature_iterator it, const variant& arg, int depth) {
+    ensure_message_depth(depth);
+    if (arg.is_null()) {
+        write_nil();
+        return;
+    }
+    switch (it.current_type_code()) {
+    case type_code::boolean_type:
+        write_boolean(arg.as_bool());
+        break;
+    case type_code::byte_type:
+    case type_code::int16_type:
+    case type_code::uint16_type:
+    case type_code::int32_type:
+    case type_code::uint32_type:
+    case type_code::int64_type:
+    case type_code::uint64_type:
+    case type_code::double_type:
+        write_number(arg);
+        break;
+    case type_code::string_type:
+    case type_code::signature_type:
+    case type_code::object_path_type:
+        write_string(arg.as_string());
+        break;
+    case type_code::array_start:
+        write_array_or_dict(it.get_content_iterator(), arg, depth + 1);
+        break;
+    case type_code::struct_start:
+        write_variant_elements(it.get_content_iterator(), arg.as_array(), depth + 1);
+        break;
+    case type_code::variant_type:
+        write_gvariant(arg);
+        break;
+    default:
+        MC_THROW(mc::invalid_arg_exception, "unsupported type for write_arg_with_signature: ${type}",
+                 ("type", it.current_type_char()));
+    }
+}
+
+void write_buffer::write_array_or_dict(signature_iterator it, const variant& arg, int depth) {
+    ensure_message_depth(depth);
+    if (it.current_type_code() == type_code::dict_entry_start) {
+        write_dict(it, arg.as_dict(), depth + 1);
+        return;
+    }
+    if (arg.is_null()) {
+        write_nil();
+        return;
+    }
+    write_array(it, arg.as_array(), depth + 1);
 }
 
 void write_buffer::write_inner(const uint8_t* input, size_t size) {
@@ -198,6 +246,47 @@ void write_buffer::write_array(const variants& arg, int depth) {
     write_nil();
 }
 
+void write_buffer::write_array(signature_iterator it, const variants& arg, int depth) {
+    ensure_message_depth(depth);
+    ensure_container_max_length(arg);
+    size_t array_size = arg.size();
+    if (array_size >= MAX_COOKIE - 1) {
+        uint8_t n = pack_value(data_type::table, MAX_COOKIE - 1);
+        write_inner(&n, 1);
+        write_integer(array_size);
+    } else {
+        uint8_t n = pack_value(data_type::table, array_size);
+        write_inner(&n, 1);
+    }
+    for (const auto& item : arg) {
+        write_arg_with_signature(it, item, depth + 1);
+    }
+    write_nil();
+}
+
+void write_buffer::write_variant_elements(signature_iterator it, const variants& arg, int depth) {
+    ensure_message_depth(depth);
+    ensure_container_max_length(arg);
+    size_t array_size = arg.size();
+    if (array_size >= MAX_COOKIE - 1) {
+        uint8_t n = pack_value(data_type::table, MAX_COOKIE - 1);
+        write_inner(&n, 1);
+        write_integer(array_size);
+    } else {
+        uint8_t n = pack_value(data_type::table, array_size);
+        write_inner(&n, 1);
+    }
+    for (const auto& item : arg) {
+        signature_iterator item_it(it.current_type());
+        MC_ASSERT(!item_it.at_end() && !it.at_end(),
+                  "invalid number of elements ${size} for signature: ${signature}",
+                  ("size", arg.size())("signature", it.str()));
+        write_arg_with_signature(item_it, item, depth + 1);
+        it.next();
+    }
+    write_nil();
+}
+
 void write_buffer::write_dict(const dict& arg, int depth) {
     uint8_t n = pack_value(data_type::table, 0);
     write_inner(&n, 1);
@@ -206,6 +295,39 @@ void write_buffer::write_dict(const dict& arg, int depth) {
         write_arg(item.value, depth);
     }
     write_nil();
+}
+
+void write_buffer::write_dict(signature_iterator it, const dict& arg, int depth) {
+    ensure_message_depth(depth);
+    ensure_container_max_length(arg);
+    uint8_t n = pack_value(data_type::table, 0);
+    write_inner(&n, 1);
+    auto key_it = it.get_dict_key_iterator();
+    auto val_it = it.get_dict_value_iterator();
+    for (const auto& entry : arg) {
+        write_arg_with_signature(key_it, entry.key, depth + 1);
+        write_arg_with_signature(val_it, entry.value, depth + 1);
+    }
+    write_nil();
+}
+
+void write_buffer::write_gvariant(const variant& arg) {
+    if (arg.is_null()) {
+        write_nil();
+        return;
+    }
+    GVariant*   gvar = gvariant_convert::to_gvariant(arg);
+    const char* t    = g_variant_get_type_string(gvar);
+    size_t      len  = strlen(t);
+    MC_ASSERT(len < MAX_COOKIE, "invalid gvariant type: ${type}", ("type", t));
+    uint8_t n = pack_value(data_type::gvariant, len);
+    write_inner(&n, 1);
+    write_inner(reinterpret_cast<const uint8_t*>(t), len + 1);
+    int         size = g_variant_get_size(gvar);
+    const void* data = g_variant_get_data(gvar);
+    write_inner(reinterpret_cast<const uint8_t*>(&size), sizeof(int));
+    write_inner(reinterpret_cast<const uint8_t*>(data), size);
+    g_variant_unref(gvar);
 }
 
 std::string write_buffer::to_string() const {
@@ -226,7 +348,8 @@ std::string write_buffer::to_string() const {
     return std::string(reinterpret_cast<char*>(buffer), m_len);
 }
 
-read_buffer::read_buffer(std::string_view msg) : m_buf(msg), m_offset(0) {
+read_buffer::read_buffer(std::string_view msg)
+    : m_buf(msg), m_offset(0) {
 }
 
 const char* read_buffer::read(size_t size) {
@@ -312,43 +435,43 @@ variant read_buffer::read_value(uint8_t type, uint8_t cookie) {
     }
     auto value_type = static_cast<data_type>(type);
     switch (value_type) {
-        case data_type::nil:
-            return variant();
-        case data_type::boolean:
-            return variant(cookie != 0);
-        case data_type::number:
-            if (cookie == COOKIE_NUMBER_REAL) {
-                return variant(read_double());
+    case data_type::nil:
+        return variant();
+    case data_type::boolean:
+        return variant(cookie != 0);
+    case data_type::number:
+        if (cookie == COOKIE_NUMBER_REAL) {
+            return variant(read_double());
+        }
+        return variant(read_integer(cookie));
+    case data_type::userdata:
+        return variant(reinterpret_cast<uint64_t>(read_pointer()));
+    case data_type::short_string:
+        return variant(read_string(cookie));
+    case data_type::long_string:
+        if (cookie == 2) {
+            const void* plen = read(2);
+            MC_ASSERT(plen != nullptr, ERROR_INVALID_FORMAT);
+            uint16_t n;
+            memcpy(&n, plen, sizeof(n));
+            return variant(read_string(n));
+        } else {
+            if (cookie != 4) {
+                MC_THROW(mc::invalid_arg_exception, "invalid cookie: ${cookie}",
+                         ("cookie", cookie));
             }
-            return variant(read_integer(cookie));
-        case data_type::userdata:
-            return variant(reinterpret_cast<uint64_t>(read_pointer()));
-        case data_type::short_string:
-            return variant(read_string(cookie));
-        case data_type::long_string:
-            if (cookie == 2) {
-                const void* plen = read(2);
-                MC_ASSERT(plen != nullptr, ERROR_INVALID_FORMAT);
-                uint16_t n;
-                memcpy(&n, plen, sizeof(n));
-                return variant(read_string(n));
-            } else {
-                if (cookie != 4) {
-                    MC_THROW(mc::invalid_arg_exception, "invalid cookie: ${cookie}",
-                            ("cookie", cookie));
-                }
-                const void* plen = read(4);
-                MC_ASSERT(plen != nullptr, ERROR_INVALID_FORMAT);
-                uint32_t n;
-                memcpy(&n, plen, sizeof(n));
-                return variant(read_string(n));
-            }
-        case data_type::table:
-            return read_table(cookie);
-        case data_type::gvariant:
-            return read_gvariant(cookie);
-        default:
-            break;
+            const void* plen = read(4);
+            MC_ASSERT(plen != nullptr, ERROR_INVALID_FORMAT);
+            uint32_t n;
+            memcpy(&n, plen, sizeof(n));
+            return variant(read_string(n));
+        }
+    case data_type::table:
+        return read_table(cookie);
+    case data_type::gvariant:
+        return read_gvariant(cookie);
+    default:
+        break;
     }
     MC_THROW(mc::invalid_arg_exception, "unsupported type: ${type}", ("type", type));
 }
@@ -356,9 +479,9 @@ variant read_buffer::read_value(uint8_t type, uint8_t cookie) {
 variant read_buffer::read_gvariant(size_t len) {
     const char* t = read(len + 1);
     MC_ASSERT(t != nullptr, ERROR_INVALID_FORMAT);
-    int size = *reinterpret_cast<const int*>(read(sizeof(int)));
-    const char* data = read(size);
-    void* p_data = nullptr;
+    int         size   = *reinterpret_cast<const int*>(read(sizeof(int)));
+    const char* data   = read(size);
+    void*       p_data = nullptr;
     if (size > 0) {
         p_data = malloc(size);
         if (!p_data) {
@@ -417,7 +540,9 @@ variant read_buffer::read_table(int64_t array_size) {
 
 std::string pack(const variants& args) {
     write_buffer wb;
-    wb.write(args);
+    for (const auto& arg : args) {
+        wb.write_arg(arg, 0);
+    }
     return wb.to_string();
 }
 

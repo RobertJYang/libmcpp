@@ -12,6 +12,7 @@
 #ifndef MC_DBUS_SERIALIZE_H
 #define MC_DBUS_SERIALIZE_H
 
+#include <mc/dbus/message.h>
 #include <mc/dict.h>
 #include <mc/variant.h>
 
@@ -46,7 +47,8 @@ enum class data_type : uint8_t {
 };
 
 struct data_block {
-    data_block() : next(nullptr), buf(BLOCK_SIZE) {
+    data_block()
+        : next(nullptr), buf(BLOCK_SIZE) {
     }
 
     data_block*          next;
@@ -57,11 +59,13 @@ class write_buffer {
 public:
     write_buffer();
     ~write_buffer();
-    void        write(const variants& args);
+    void        write_arg(const variant& arg, int depth = 0);
+    void        write_arg_with_signature(signature_iterator it, const variant& arg, int depth = 0);
+    void        write_array(signature_iterator it, const variants& args, int depth = 0);
     std::string to_string() const;
 
 private:
-    void write_arg(const variant& arg, int depth);
+    void write_array_or_dict(signature_iterator it, const variant& arg, int depth);
     void write_inner(const uint8_t* input, size_t size);
     void write_nil();
     void write_boolean(bool value);
@@ -71,6 +75,9 @@ private:
     void write_string(std::string_view value);
     void write_array(const variants& args, int depth);
     void write_dict(const dict& args, int depth);
+    void write_dict(signature_iterator it, const dict& args, int depth);
+    void write_variant_elements(signature_iterator it, const variants& args, int depth);
+    void write_gvariant(const variant& arg);
 
     data_block* m_head;
     data_block* m_current;
