@@ -105,8 +105,8 @@ protected:
         child_obj3->m_iface2.m_id  = "00102";
         child_obj3->m_iface2.m_map = {{"Key3", 3}, {"Key4", 4}};
 
-        child_obj2->set_owner(root);
-        child_obj3->set_owner(root);
+        child_obj2->set_owner(root.get());
+        child_obj3->set_owner(root.get());
     }
 
     void TearDown() override {
