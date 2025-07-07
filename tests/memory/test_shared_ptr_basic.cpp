@@ -250,7 +250,7 @@ TEST_F(SharedPtrBasicTest, Operators) {
     EXPECT_EQ(ptr->get_value(), 2020);
 
     // 测试隐式转换为原始指针
-    test_object* raw_ptr = ptr;
+    test_object* raw_ptr = ptr.get();
     EXPECT_EQ(raw_ptr, ptr.get());
     EXPECT_EQ(raw_ptr->get_value(), 2020);
 

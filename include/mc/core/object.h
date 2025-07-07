@@ -181,6 +181,17 @@ public:
     void set_parent(object* parent);
 
     /**
+     * @brief 设置父对象
+     * @param parent 新的父对象指针
+     *
+     * 如果对象已经有父对象，则会先从原父对象的子对象列表中移除
+     */
+    template <typename Object, std::enable_if_t<std::is_base_of_v<object, Object>, int> = 0>
+    void set_parent(const mc::shared_ptr<Object>& parent) {
+        set_parent(parent.get());
+    }
+
+    /**
      * @brief 获取子对象列表
      * @return 子对象指针列表的副本
      */
