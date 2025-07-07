@@ -89,7 +89,7 @@ public:
     }
 
     // 获取被引用对象的属性
-    mc::variant get_property(const std::string& property_name) const {
+    mc::variant get_property(const std::string_view property_name) const {
         auto* target_object = find_related_object();
         if (target_object == nullptr) {
             MC_THROW(mc::invalid_op_exception, "引用对象不存在: ${object_name}", ("object_name", m_object_name));
@@ -98,7 +98,7 @@ public:
     }
 
     // 获取被引用对象的接口属性
-    mc::variant get_property(const std::string& interface_name, const std::string& property_name) const {
+    mc::variant get_property(const std::string_view interface_name, const std::string_view property_name) const {
         auto* target_object = find_related_object();
         if (target_object == nullptr) {
             MC_THROW(mc::invalid_op_exception, "引用对象不存在: ${object_name}", ("object_name", m_object_name));
@@ -117,7 +117,7 @@ public:
     }
 
     // 设置被引用对象的属性
-    void set_property(const std::string& property_name, const mc::variant& value) const {
+    void set_property(const std::string_view property_name, const mc::variant& value) const {
         auto* target_object = find_related_object();
         if (target_object == nullptr) {
             MC_THROW(mc::invalid_op_exception, "引用对象不存在，无法设置属性: ${object_name}", ("object_name", m_object_name));
@@ -126,7 +126,7 @@ public:
     }
 
     // 设置被引用对象的接口属性
-    void set_property(const std::string& interface_name, const std::string& property_name, const mc::variant& value) const {
+    void set_property(const std::string_view interface_name, const std::string_view property_name, const mc::variant& value) const {
         auto* target_object = find_related_object();
         if (target_object == nullptr) {
             MC_THROW(mc::invalid_op_exception, "引用对象不存在，无法设置属性: ${object_name}", ("object_name", m_object_name));
@@ -142,6 +142,60 @@ public:
         } else {
             target_object->set_property(property_name, value);
         }
+    }
+
+    invoke_result invoke(std::string_view method_name, const mc::variants& args) {
+        auto* target_object = find_related_object();
+        if (target_object == nullptr) {
+            MC_THROW(mc::invalid_op_exception, "引用对象不存在: ${object_name}", ("object_name", m_object_name));
+        }
+
+        return target_object->invoke(method_name, args);
+    }
+
+    invoke_result invoke(const std::string& interface_name, std::string_view method_name, const mc::variants& args) {
+        auto* target_object = find_related_object();
+        if (target_object == nullptr) {
+            MC_THROW(mc::invalid_op_exception, "引用对象不存在: ${object_name}", ("object_name", m_object_name));
+        }
+
+        if (!interface_name.empty()) {
+            auto interface_obj = target_object->get_interface(interface_name);
+            if (interface_obj == nullptr) {
+                MC_THROW(mc::invalid_op_exception, "Interface not found: ${interface} in object: ${object_name}",
+                         ("interface", interface_name)("object_name", m_object_name));
+            }
+            return interface_obj->invoke(method_name, args);
+        }
+
+        return target_object->invoke(method_name, args);
+    }
+
+    async_result async_invoke(std::string_view method_name, const mc::variants& args = {}) {
+        auto* target_object = find_related_object();
+        if (target_object == nullptr) {
+            MC_THROW(mc::invalid_op_exception, "引用对象不存在: ${object_name}", ("object_name", m_object_name));
+        }
+
+        return target_object->async_invoke(method_name, args);
+    }
+
+    async_result async_invoke(const std::string& interface_name, std::string_view method_name, const mc::variants& args = {}) {
+        auto* target_object = find_related_object();
+        if (target_object == nullptr) {
+            MC_THROW(mc::invalid_op_exception, "引用对象不存在: ${object_name}", ("object_name", m_object_name));
+        }
+
+        if (!interface_name.empty()) {
+            auto interface_obj = target_object->get_interface(interface_name);
+            if (interface_obj == nullptr) {
+                MC_THROW(mc::invalid_op_exception, "Interface not found: ${interface} in object: ${object_name}",
+                         ("interface", interface_name)("object_name", m_object_name));
+            }
+            return interface_obj->async_invoke(method_name, args);
+        }
+
+        return target_object->async_invoke(method_name, args);
     }
 
     // 获取对象名称

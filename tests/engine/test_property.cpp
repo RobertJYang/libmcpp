@@ -2275,3 +2275,241 @@ TEST_F(PropertyRelateTest, RefObjectMemoryOptimization) {
     // 验证内存优化：缓存只在需要时分配
     EXPECT_EQ(ref_obj_prop.get_property_type_value(), static_cast<uint32_t>(mc::engine::p_type::ref_object));
 }
+
+// 测试引用对象的 invoke 方法（不指定接口）
+TEST_F(PropertyRelateTest, RefObjectBasicInvoke) {
+    auto test_obj = m_service->get_test_obj();
+    auto& test_prop = test_obj->m_interface.test_prop;
+    
+    // 设置引用对象
+    mc::variant cpu_ref("#/CPU");
+    from_variant(cpu_ref, test_prop);
+    
+    auto obj_variant = test_prop.get_value();
+    auto* ref_obj = obj_variant.as<mc::engine::ref_object*>();
+    ASSERT_NE(ref_obj, nullptr);
+    
+    // 测试调用被引用对象的方法
+    // 由于CPU对象存在但没有对应的方法，invoke应该返回空结果而不是抛出异常
+    auto result = ref_obj->invoke("NonExistentMethod", {});
+    EXPECT_TRUE(result.is_null());
+}
+
+// 测试引用对象的 invoke 方法（指定接口）
+TEST_F(PropertyRelateTest, RefObjectInterfaceInvoke) {
+    auto test_obj = m_service->get_test_obj();
+    auto& test_prop = test_obj->m_interface.test_prop;
+    
+    // 设置引用对象
+    mc::variant cpu_ref("#/CPU");
+    from_variant(cpu_ref, test_prop);
+    
+    auto obj_variant = test_prop.get_value();
+    auto* ref_obj = obj_variant.as<mc::engine::ref_object*>();
+    ASSERT_NE(ref_obj, nullptr);
+    
+    // 测试指定接口的方法调用
+    // 测试不存在的接口（应该抛出异常）
+    EXPECT_THROW({
+        ref_obj->invoke("org.test.NonExistentInterface", "SomeMethod", {});
+    }, mc::invalid_op_exception);
+    
+    // 测试空接口名称（应该等同于不指定接口）
+    auto result = ref_obj->invoke("", "NonExistentMethod", {});
+    EXPECT_TRUE(result.is_null());
+}
+
+// 测试引用对象的 async_invoke 方法（不指定接口）
+TEST_F(PropertyRelateTest, RefObjectBasicAsyncInvoke) {
+    auto test_obj = m_service->get_test_obj();
+    auto& test_prop = test_obj->m_interface.test_prop;
+    
+    // 设置引用对象
+    mc::variant cpu_ref("#/CPU");
+    from_variant(cpu_ref, test_prop);
+    
+    auto obj_variant = test_prop.get_value();
+    auto* ref_obj = obj_variant.as<mc::engine::ref_object*>();
+    ASSERT_NE(ref_obj, nullptr);
+    
+    // 测试异步调用不存在的方法（应该返回空结果）
+    auto result = ref_obj->async_invoke(std::string_view("NonExistentAsyncMethod"), {});
+    EXPECT_TRUE(result.is_value() && result.get_value().is_null());
+}
+
+// 测试引用对象的 async_invoke 方法（指定接口）
+TEST_F(PropertyRelateTest, RefObjectInterfaceAsyncInvoke) {
+    auto test_obj = m_service->get_test_obj();
+    auto& test_prop = test_obj->m_interface.test_prop;
+    
+    // 设置引用对象
+    mc::variant cpu_ref("#/CPU");
+    from_variant(cpu_ref, test_prop);
+    
+    auto obj_variant = test_prop.get_value();
+    auto* ref_obj = obj_variant.as<mc::engine::ref_object*>();
+    ASSERT_NE(ref_obj, nullptr);
+    
+    // 测试指定接口的异步方法调用
+    // 测试不存在的接口（应该抛出异常）
+    EXPECT_THROW({
+        ref_obj->async_invoke("org.test.NonExistentInterface", "SomeAsyncMethod", {});
+    }, mc::invalid_op_exception);
+    
+    // 测试空接口名称（应该等同于不指定接口）
+    auto result = ref_obj->async_invoke("", "NonExistentAsyncMethod", {});
+    EXPECT_TRUE(result.is_value() && result.get_value().is_null());
+}
+
+// 测试引用对象不存在时的 invoke 方法
+TEST_F(PropertyRelateTest, RefObjectInvokeNonExistentObject) {
+    auto test_obj = m_service->get_test_obj();
+    auto& test_prop = test_obj->m_interface.test_prop;
+    
+    // 设置引用到不存在的对象
+    mc::variant invalid_ref("#/NonExistentObject");
+    from_variant(invalid_ref, test_prop);
+    
+    auto obj_variant = test_prop.get_value();
+    auto* ref_obj = obj_variant.as<mc::engine::ref_object*>();
+    ASSERT_NE(ref_obj, nullptr);
+    
+    // 验证对象不存在
+    EXPECT_FALSE(ref_obj->is_valid());
+    
+    // 测试调用方法时抛出异常
+    EXPECT_THROW({
+        ref_obj->invoke("SomeMethod", {});
+    }, mc::invalid_op_exception);
+    
+    EXPECT_THROW({
+        ref_obj->invoke("org.test.SomeInterface", "SomeMethod", {});
+    }, mc::invalid_op_exception);
+    
+    EXPECT_THROW({
+        ref_obj->async_invoke(std::string_view("SomeAsyncMethod"), {});
+    }, mc::invalid_op_exception);
+    
+    EXPECT_THROW({
+        ref_obj->async_invoke("org.test.SomeInterface", std::string_view("SomeAsyncMethod"), {});
+    }, mc::invalid_op_exception);
+}
+
+// 测试引用对象的复杂参数传递
+TEST_F(PropertyRelateTest, RefObjectComplexParameterPassing) {
+    auto test_obj = m_service->get_test_obj();
+    auto& test_prop = test_obj->m_interface.test_prop;
+    
+    // 设置引用对象
+    mc::variant cpu_ref("#/CPU");
+    from_variant(cpu_ref, test_prop);
+    
+    auto obj_variant = test_prop.get_value();
+    auto* ref_obj = obj_variant.as<mc::engine::ref_object*>();
+    ASSERT_NE(ref_obj, nullptr);
+    
+    // 测试传递不同类型的参数
+    mc::variants args = {42, "test_string", 3.14, true};
+    
+    // 由于CPU对象没有对应的方法，这里主要测试参数传递不会导致崩溃
+    auto result1 = ref_obj->invoke("TestMethod", args);
+    EXPECT_TRUE(result1.is_null());
+    
+    auto result2 = ref_obj->async_invoke("TestAsyncMethod", args);
+    EXPECT_TRUE(result2.is_value() && result2.get_value().is_null());
+}
+
+// 测试引用对象的并发调用
+TEST_F(PropertyRelateTest, RefObjectConcurrentInvoke) {
+    auto test_obj = m_service->get_test_obj();
+    auto& test_prop = test_obj->m_interface.test_prop;
+    
+    // 设置引用对象
+    mc::variant cpu_ref("#/CPU");
+    from_variant(cpu_ref, test_prop);
+    
+    auto obj_variant = test_prop.get_value();
+    auto* ref_obj = obj_variant.as<mc::engine::ref_object*>();
+    ASSERT_NE(ref_obj, nullptr);
+    
+    // 并发调用多个方法（虽然方法不存在，但测试并发访问不会导致问题）
+    std::vector<std::thread> threads;
+    std::vector<std::exception_ptr> exceptions(5);
+    
+    for (int i = 0; i < 5; ++i) {
+        threads.emplace_back([ref_obj, i, &exceptions]() {
+            try {
+                ref_obj->invoke("ConcurrentMethod" + std::to_string(i), {});
+            } catch (...) {
+                exceptions[i] = std::current_exception();
+            }
+        });
+    }
+    
+    // 等待所有线程完成
+    for (auto& thread : threads) {
+        thread.join();
+    }
+    
+    // 验证所有调用都没有抛出异常（因为方法不存在时返回空结果而不是抛出异常）
+    for (const auto& exception : exceptions) {
+        EXPECT_TRUE(exception == nullptr);
+    }
+}
+
+// 测试引用对象的对象查找器为空的情况
+TEST_F(PropertyRelateTest, RefObjectNullObjectFinder) {
+    // 创建一个没有对象查找器的引用对象
+    mc::engine::ref_object ref_obj("TestObject", nullptr);
+    
+    // 所有调用都应该抛出异常
+    EXPECT_THROW({
+        ref_obj.invoke("SomeMethod", {});
+    }, mc::invalid_op_exception);
+    
+    EXPECT_THROW({
+        ref_obj.async_invoke(std::string_view("SomeAsyncMethod"), {});
+    }, mc::invalid_op_exception);
+    
+    EXPECT_THROW({
+        ref_obj.invoke("org.test.SomeInterface", "SomeMethod", {});
+    }, mc::invalid_op_exception);
+    
+    EXPECT_THROW({
+        ref_obj.async_invoke("org.test.SomeInterface", "SomeAsyncMethod", {});
+    }, mc::invalid_op_exception);
+}
+
+// 测试引用对象的边界情况
+TEST_F(PropertyRelateTest, RefObjectEdgeCases) {
+    // 测试明确不存在的对象名称
+    mc::engine::ref_object non_existent_ref_obj("NonExistentObjectForEdgeCase", [this](const std::string& name) -> mc::engine::abstract_object* {
+        auto& object_table = m_service->get_object_table();
+        auto& idx = object_table.template get<mc::engine::by_object_name>();
+        auto obj_it = idx.find(name);
+        if (obj_it == idx.end()) {
+            return nullptr;
+        }
+        return const_cast<mc::engine::abstract_object*>(&(*obj_it));
+    });
+    
+    // 不存在的对象应该导致对象查找失败，从而抛出异常
+    EXPECT_THROW({
+        non_existent_ref_obj.invoke("SomeMethod", {});
+    }, mc::invalid_op_exception);
+    
+    // 测试包含特殊字符的对象名称
+    mc::engine::ref_object special_ref_obj("Test.Object.With.Dots", [this](const std::string& name) -> mc::engine::abstract_object* {
+        auto& object_table = m_service->get_object_table();
+        auto& idx = object_table.template get<mc::engine::by_object_name>();
+        auto obj_it = idx.find(name);
+        if (obj_it == idx.end()) {
+            return nullptr;
+        }
+        return const_cast<mc::engine::abstract_object*>(&(*obj_it));
+    });
+    
+    EXPECT_THROW({
+        special_ref_obj.invoke("SomeMethod", {});
+    }, mc::invalid_op_exception);
+}
