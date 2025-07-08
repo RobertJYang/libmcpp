@@ -25,7 +25,7 @@ shm_tree::shm_tree(std::string_view harbor_name, std::string_view service_name,
 }
 
 void shm_tree::register_object(mc::engine::abstract_object& obj) {
-#if defined(ENABLE_SHARED_MEMORY) && ENABLE_SHARED_MEMORY == 1
+#if defined(ENABLE_CONAN_COMPILE) && ENABLE_CONAN_COMPILE == 1
     auto&           ins     = shm::shared_memory::get_instance();
     auto            path    = obj.get_object_path();
     shm::object&    shm_obj = m_tree->register_object(ins, path);

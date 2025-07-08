@@ -26,6 +26,7 @@ enum class level {
     trace, // 跟踪日志
     debug, // 调试日志
     info,  // 信息日志
+    notice, // 注意日志
     warn,  // 警告日志
     error, // 错误日志
     fatal, // 致命错误日志
@@ -48,6 +49,8 @@ inline std::string_view to_string(level lvl) {
         return "DEBUG";
     case level::info:
         return "INFO";
+    case level::notice:
+        return "NOTICE";
     case level::warn:
         return "WARN";
     case level::error:

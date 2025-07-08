@@ -37,7 +37,7 @@ class AppConan(ConanBase):
             tc.project_options["libdir"] = 'usr/lib64'
         else:
             tc.project_options["libdir"] = 'usr/lib'
-        tc.project_options["enable_shared_memory"] = "true"
+        tc.project_options["enable_conan_compile"] = "true"
         if is_dt:
             tc.project_options["tests"] = "true"
         else:

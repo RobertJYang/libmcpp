@@ -7,7 +7,7 @@ test_dbus_files = [
     'dbus/test_connection.cpp',
 ]
 
-enable_shared_memory = get_option('enable_shared_memory')
-if enable_shared_memory
+enable_conan_compile = get_option('enable_conan_compile')
+if enable_conan_compile
   test_dbus_files += ['dbus/test_shm_call.cpp']
 endif

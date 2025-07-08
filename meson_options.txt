@@ -6,10 +6,10 @@ option(
 )
 
 option(
-       'enable_shared_memory',
+       'enable_conan_compile',
        type: 'boolean',
        value: false,
-       description: '是否开启共享内存，默认为false',
+       description: '是否为conan构建，默认为false',
 )
 
 option(
