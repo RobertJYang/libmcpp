@@ -3,7 +3,7 @@ enable_conan_compile = get_option('enable_conan_compile')
 if enable_conan_compile
   file_appender_inc = include_directories('.')
 else
-  file_appender_inc = include_directories('../../../tests/log')
+  file_appender_inc = include_directories('../../tests/log')
 endif
 
 log_src_files = [
