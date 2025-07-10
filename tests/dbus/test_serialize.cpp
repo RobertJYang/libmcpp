@@ -305,3 +305,19 @@ TEST(SerializeTest, SerializeMixedTypes) {
     ASSERT_EQ(dict["dict"].as_dict()["a"].as_int32(), 1);
     ASSERT_EQ(dict["dict"].as_dict()["b"].as_int32(), 2);
 }
+
+TEST(SerializeTest, WriteVariantElements) {
+    dbus::signature_iterator      it = "a{ss}s";
+    dbus::serialize::write_buffer wb;
+    mc::variants                  args;
+    args.push_back(dict({{"a", "str1"}, {"b", "str2"}}));
+    args.push_back("test");
+    wb.write_variant_elements(it, args);
+    auto packed   = wb.to_string();
+    auto unpacked = dbus::serialize::unpack(packed);
+    ASSERT_EQ(unpacked.size(), 1);
+    ASSERT_EQ(unpacked[0].as_array().size(), 2);
+    ASSERT_EQ(unpacked[0].as_array()[0].as_dict()["a"].as_string(), "str1");
+    ASSERT_EQ(unpacked[0].as_array()[0].as_dict()["b"].as_string(), "str2");
+    ASSERT_EQ(unpacked[0].as_array()[1].as_string(), "test");
+}

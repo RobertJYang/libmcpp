@@ -62,6 +62,7 @@ public:
     void        write_arg(const variant& arg, int depth = 0);
     void        write_arg_with_signature(signature_iterator it, const variant& arg, int depth = 0);
     void        write_array(signature_iterator it, const variants& args, int depth = 0);
+    void        write_variant_elements(signature_iterator it, const variants& args, int depth = 0);
     std::string to_string() const;
 
 private:
@@ -76,7 +77,6 @@ private:
     void write_array(const variants& args, int depth);
     void write_dict(const dict& args, int depth);
     void write_dict(signature_iterator it, const dict& args, int depth);
-    void write_variant_elements(signature_iterator it, const variants& args, int depth);
     void write_gvariant(const variant& arg);
 
     data_block* m_head;

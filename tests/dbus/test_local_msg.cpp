@@ -73,6 +73,60 @@ TEST_F(LocalMsgTest, Append) {
     ASSERT_EQ(args[2].as_uint32(), 5);
 }
 
+// 测试 pack 方法
+TEST_F(LocalMsgTest, Pack) {
+    auto msg = new dbus::local_msg("bmc.kepler.test", "/bmc/kepler/test/obj",
+                                   "bmc.kepler.test.intf", "TestMethod");
+    msg->append("a{ss}s", dict({{"a", "str1"}, {"b", "str2"}}), "test");
+    auto packed   = msg->pack();
+    auto unpacked = dbus::serialize::unpack(packed);
+    ASSERT_EQ(unpacked.size(), 12);
+    ASSERT_TRUE(unpacked[7].is_array());
+    auto args = unpacked[7].as_array();
+    ASSERT_EQ(args.size(), 2);
+    ASSERT_EQ(args[0].as_dict()["a"].as_string(), "str1");
+    ASSERT_EQ(args[0].as_dict()["b"].as_string(), "str2");
+    ASSERT_EQ(args[1].as_string(), "test");
+
+    variant arg1 = "str1";
+    variant arg2 = variants{variants{257, false, 3, "abc"}, variants{88, true, 4, "def"}};
+    variant arg3 = 33;
+    variant arg4 = dict({{"a", dict({{"b", "str2"}, {"c", 33}})}});
+    variant arg5 = variants{7, 8, 9, 10};
+    msg->append("sa(ibys)ua{sa{sv}}ay", arg1, arg2, arg3, arg4, arg5);
+    packed   = msg->pack();
+    unpacked = dbus::serialize::unpack(packed);
+    ASSERT_EQ(unpacked.size(), 12);
+    ASSERT_TRUE(unpacked[7].is_array());
+    args = unpacked[7].as_array();
+    ASSERT_EQ(args.size(), 5);
+    ASSERT_EQ(args[0].as_string(), "str1");
+    auto unpacked_arg2 = args[1].as_array();
+    ASSERT_EQ(unpacked_arg2.size(), 2);
+    auto unpacked_arg2_1 = unpacked_arg2[0].as_array();
+    ASSERT_EQ(unpacked_arg2_1.size(), 4);
+    ASSERT_EQ(unpacked_arg2_1[0].as_int32(), 257);
+    ASSERT_EQ(unpacked_arg2_1[1].as_bool(), false);
+    ASSERT_EQ(unpacked_arg2_1[2].as_int32(), 3);
+    ASSERT_EQ(unpacked_arg2_1[3].as_string(), "abc");
+    auto unpacked_arg2_2 = unpacked_arg2[1].as_array();
+    ASSERT_EQ(unpacked_arg2_2.size(), 4);
+    ASSERT_EQ(unpacked_arg2_2[0].as_int32(), 88);
+    ASSERT_EQ(unpacked_arg2_2[1].as_bool(), true);
+    ASSERT_EQ(unpacked_arg2_2[2].as_int32(), 4);
+    ASSERT_EQ(unpacked_arg2_2[3].as_string(), "def");
+    ASSERT_EQ(args[2].as_int32(), 33);
+    auto unpacked_arg4 = args[3].as_dict();
+    ASSERT_EQ(unpacked_arg4["a"].as_dict()["b"].as_string(), "str2");
+    ASSERT_EQ(unpacked_arg4["a"].as_dict()["c"].as_int32(), 33);
+    auto unpacked_arg5 = args[4].as_array();
+    ASSERT_EQ(unpacked_arg5.size(), 4);
+    ASSERT_EQ(unpacked_arg5[0].as_int32(), 7);
+    ASSERT_EQ(unpacked_arg5[1].as_int32(), 8);
+    ASSERT_EQ(unpacked_arg5[2].as_int32(), 9);
+    ASSERT_EQ(unpacked_arg5[3].as_int32(), 10);
+}
+
 // 测试 append_args 方法
 TEST_F(LocalMsgTest, AppendArgs) {
     auto     msg = new dbus::local_msg("bmc.kepler.test", "/bmc/kepler/test/obj",
