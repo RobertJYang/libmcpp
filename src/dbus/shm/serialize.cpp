@@ -264,10 +264,10 @@ void write_buffer::write_array(signature_iterator it, const variants& arg, int d
     write_nil();
 }
 
-void write_buffer::write_variant_elements(signature_iterator it, const variants& arg, int depth) {
+void write_buffer::write_variant_elements(signature_iterator it, const variants& args, int depth) {
     ensure_message_depth(depth);
-    ensure_container_max_length(arg);
-    size_t array_size = arg.size();
+    ensure_container_max_length(args);
+    size_t array_size = args.size();
     if (array_size >= MAX_COOKIE - 1) {
         uint8_t n = pack_value(data_type::table, MAX_COOKIE - 1);
         write_inner(&n, 1);
@@ -276,11 +276,11 @@ void write_buffer::write_variant_elements(signature_iterator it, const variants&
         uint8_t n = pack_value(data_type::table, array_size);
         write_inner(&n, 1);
     }
-    for (const auto& item : arg) {
+    for (const auto& item : args) {
         signature_iterator item_it(it.current_type());
         MC_ASSERT(!item_it.at_end() && !it.at_end(),
                   "invalid number of elements ${size} for signature: ${signature}",
-                  ("size", arg.size())("signature", it.str()));
+                  ("size", args.size())("signature", it.str()));
         write_arg_with_signature(item_it, item, depth + 1);
         it.next();
     }

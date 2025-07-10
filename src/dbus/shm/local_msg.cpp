@@ -331,7 +331,7 @@ std::string local_msg::pack() const {
     wb.write_arg(m_error_name);
     wb.write_arg(m_signature);
     signature_iterator it(m_signature);
-    wb.write_array(it, m_args);
+    wb.write_variant_elements(it, m_args);
     wb.write_arg(m_sender);
     wb.write_arg(m_serial);
     wb.write_arg(m_local_call);
