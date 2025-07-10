@@ -54,6 +54,8 @@ using object_call_stack = detail::call_stack<service, abstract_object>;
 
 using invoke_result = mc::variant;
 
+using object_identifier_t = std::tuple<uint8_t, std::string, std::string, std::string>;
+
 struct visitor {
     virtual void handle_interface_begin(const abstract_object&    obj,
                                         const abstract_interface& iface) = 0;
@@ -117,7 +119,8 @@ public:
     using managed_objects = std::map<std::string_view, abstract_object*>;
     using mc::core::object::connect;
 
-    abstract_object(core_object* parent = nullptr) : mc::core::object(parent) {
+    abstract_object(core_object* parent = nullptr)
+        : mc::core::object(parent) {
     }
 
     virtual ~abstract_object() = default;
@@ -129,30 +132,32 @@ public:
     virtual void                   set_owner(abstract_object* owner) = 0;
     virtual const managed_objects& get_managed_objects() const       = 0;
 
-    virtual std::string_view get_object_name() const                 = 0;
-    virtual void             set_object_name(std::string_view name)  = 0;
-    virtual std::string_view get_object_path() const                 = 0;
-    virtual void             set_object_path(std::string_view path)  = 0;
-    virtual std::string_view get_position() const                    = 0;
-    virtual void             set_position(std::string_view position) = 0;
-    virtual std::string_view get_class_name() const                  = 0;
+    virtual std::string_view    get_object_name() const                                      = 0;
+    virtual void                set_object_name(std::string_view name)                       = 0;
+    virtual std::string_view    get_object_path() const                                      = 0;
+    virtual void                set_object_path(std::string_view path)                       = 0;
+    virtual std::string_view    get_position() const                                         = 0;
+    virtual void                set_position(std::string_view position)                      = 0;
+    virtual std::string_view    get_class_name() const                                       = 0;
+    virtual object_identifier_t get_object_identifier() const                                = 0;
+    virtual void                set_object_identifier(const object_identifier_t& identifier) = 0;
 
     virtual bool                has_interface(std::string_view interface_name) const = 0;
     virtual abstract_interface* get_interface(std::string_view interface_name)       = 0;
 
     virtual mc::variant         get_property(std::string_view property_name,
-                                             std::string_view interface_name = {}, int options = 0)      = 0;
+                                             std::string_view interface_name = {}, int options = 0)  = 0;
     virtual property_base*      get_property_base(std::string_view property_name,
-                                                  std::string_view interface_name = {}) = 0;
+                                                  std::string_view interface_name = {})              = 0;
     virtual bool                has_property(std::string_view property_name,
-                                             std::string_view interface_name = {})      = 0;
-    virtual mc::dict            get_all_properties(std::string_view interface_name, int options = 0)     = 0;
+                                             std::string_view interface_name = {})                   = 0;
+    virtual mc::dict            get_all_properties(std::string_view interface_name, int options = 0) = 0;
     virtual bool                set_property(std::string_view property_name, const mc::variant& value,
-                                             std::string_view interface_name = {})      = 0;
+                                             std::string_view interface_name = {})                   = 0;
     virtual mc::connection_type connect(std::string_view signal_name, slot_type slot,
-                                        std::string_view interface_name = {})           = 0;
+                                        std::string_view interface_name = {})                        = 0;
     virtual mc::variant         emit(std::string_view signal_name, const mc::variants& args,
-                                     std::string_view interface_name = {})              = 0;
+                                     std::string_view interface_name = {})                           = 0;
 
     virtual void visit(visitor& v) const = 0;
 
@@ -189,11 +194,11 @@ public:
     virtual std::string_view    get_interface_name() const                                             = 0;
     virtual mc::connection_type connect(std::string_view signal_name, slot_type slot)                  = 0;
     virtual mc::variant         emit(std::string_view signal_name, const mc::variants& args)           = 0;
-    virtual mc::variant         get_property(std::string_view property_name, int options = 0) const                     = 0;
+    virtual mc::variant         get_property(std::string_view property_name, int options = 0) const    = 0;
     virtual std::string_view    get_property_name(const property_base* prop)                           = 0;
     virtual property_base*      get_property_base(std::string_view property_name)                      = 0;
     virtual bool                has_property(std::string_view property_name)                           = 0;
-    virtual mc::dict            get_all_properties(int options = 0)                              = 0;
+    virtual mc::dict            get_all_properties(int options = 0)                                    = 0;
     virtual bool                set_property(std::string_view property_name, const mc::variant& value) = 0;
 
     virtual bool                has_method(std::string_view method_name) const                            = 0;
@@ -252,7 +257,8 @@ public:
 // 全局对象表，与服务对象表的差别是 path 是非唯一索引
 class object_table : public object_table_impl {
 public:
-    object_table() : object_table_impl("object_table") {
+    object_table()
+        : object_table_impl("object_table") {
     }
 };
 
