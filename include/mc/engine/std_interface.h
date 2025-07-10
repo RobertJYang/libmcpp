@@ -153,14 +153,15 @@ struct common_properties_interface : public mc::engine::interface<common_propert
     MC_INTERFACE(common_properties_name)
 
     ~common_properties_interface() override = default;
-    std::string_view m_parent_path;
-    std::string_view m_object_name;
-    std::string_view m_class_name;
+    std::string_view                                           m_parent_path;
+    std::string_view                                           m_object_name;
+    std::string_view                                           m_class_name;
+    std::tuple<uint8_t, std::string, std::string, std::string> m_object_identifier;
 
-    static std::string_view get(std::string_view property_name);
-    static mc::dict         get_all();
-    static mc::variant      get_with_context(std::map<std::string, std::string> context, std::string_view interface_name,
-                                             std::string_view property_name);
+    static mc::variant get(std::string_view property_name);
+    static mc::dict    get_all();
+    static mc::variant get_with_context(std::map<std::string, std::string> context, std::string_view interface_name,
+                                        std::string_view property_name);
 
     static common_properties_interface& get_instance() {
         static common_properties_interface instance;
@@ -191,7 +192,6 @@ MC_REFLECT(mc::engine::object_manager_interface,
            ((get_managed_objects, "GetManagedObjects"))((interfaces_added, "InterfacesAdded"))(
                (interfaces_removed, "InterfacesRemoved")))
 MC_REFLECT(mc::engine::common_properties_interface,
-           ((m_parent_path, "ParentPath"))((m_object_name, "ObjectName"))((m_class_name,
-                                                                           "ClassName"))((get_with_context, "GetWithContext")))
+           ((m_parent_path, "ParentPath"))((m_object_name, "ObjectName"))((m_class_name, "ClassName"))((m_object_identifier, "ObjectIdentifier"))((get_with_context, "GetWithContext")))
 
 #endif // MC_ENGINE_STD_INTERFACE_H

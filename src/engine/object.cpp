@@ -16,7 +16,8 @@
 
 namespace mc::engine {
 
-object_impl::object_impl(core_object* parent) : abstract_object(parent) {
+object_impl::object_impl(core_object* parent)
+    : abstract_object(parent) {
 }
 
 object_impl::~object_impl() {
@@ -130,6 +131,14 @@ std::string_view object_impl::get_object_name() const {
 
 void object_impl::set_object_name(std::string_view name) {
     this->set_name(name);
+}
+
+object_identifier_t object_impl::get_object_identifier() const {
+    return m_object_identifier;
+}
+
+void object_impl::set_object_identifier(const object_identifier_t& identifier) {
+    m_object_identifier = identifier;
 }
 
 void object_impl::set_object_path(std::string_view path) {

@@ -177,11 +177,66 @@ std::string peer_interface::get_machine_id() const {
     return {};
 }
 
-object_manager_interface::objects_type object_manager_interface::get_managed_objects() const {
-    return {};
+struct object_manager_vistor : visitor {
+    void handle_interface_begin(const abstract_object&    obj,
+                                const abstract_interface& iface) override {
+        m_interfaces[std::string(iface.get_interface_name())] = {};
+    }
+
+    void handle(const abstract_object& obj, const abstract_interface& iface,
+                const property_meta& info) override {
+        auto  interface_name = std::string(iface.get_interface_name());
+        auto& interface      = m_interfaces[interface_name];
+        if (interface_name == common_properties_name) {
+            mc::variant value                 = common_properties_interface::get(info.name);
+            interface[std::string(info.name)] = value;
+        } else {
+            mc::variant value                 = iface.get_property(info.name, mc::engine::property_options::memory);
+            interface[std::string(info.name)] = value;
+        }
+    }
+
+    void handle(const mc::engine::abstract_object&      obj,
+                const mc::engine::abstract_interface&   iface,
+                const mc::engine::visitor::method_meta& info) override {
+    }
+
+    void handle(const mc::engine::abstract_object&      obj,
+                const mc::engine::abstract_interface&   iface,
+                const mc::engine::visitor::signal_meta& info) override {
+    }
+
+    void handle_interface_end(const abstract_object&    obj,
+                              const abstract_interface& iface) override {
+    }
+
+    std::map<std::string, mc::mutable_dict> m_interfaces;
+};
+
+object_manager_interface::objects_type
+object_manager_interface::get_managed_objects() const {
+    auto* object = object_call_stack::top_value();
+    if (object == nullptr) {
+        return {};
+    }
+    auto&        objs = object->get_managed_objects();
+    objects_type objects;
+    for (auto& [obj_path, obj] : objs) {
+        object_manager_vistor v;
+        obj->visit(v);
+        object_call_stack::context object_ctx{obj->get_service(), *obj};
+        common_properties_interface::get_instance().visit(v);
+        interfaces_type interfaces;
+        for (auto& [name, value] : v.m_interfaces) {
+            interfaces[name] = value;
+        }
+        auto key     = path(std::string(obj_path));
+        objects[key] = interfaces;
+    }
+    return objects;
 }
 
-std::string_view common_properties_interface::get(std::string_view property_name) {
+mc::variant common_properties_interface::get(std::string_view property_name) {
     auto* object = object_call_stack::top_value();
     if (object == nullptr) {
         return {};
@@ -195,11 +250,17 @@ std::string_view common_properties_interface::get(std::string_view property_name
     if (property_name == "ClassName") {
         return object->get_class_name();
     }
+    if (property_name == "ObjectIdentifier") {
+        return object->get_object_identifier();
+    }
     return {};
 }
 
 mc::variant common_properties_interface::get_with_context(std::map<std::string, std::string> context, std::string_view interface_name,
                                                           std::string_view property_name) {
+    if (interface_name == common_properties_name) {
+        return get(property_name);
+    }
     auto* object = object_call_stack::top_value();
     if (object == nullptr) {
         return {};

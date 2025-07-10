@@ -39,6 +39,9 @@ public:
     std::string_view get_object_name() const override;
     void             set_object_name(std::string_view name) override;
 
+    object_identifier_t get_object_identifier() const override;
+    void                set_object_identifier(const object_identifier_t& identifier) override;
+
     void set_object_path(std::string_view path) override;
 
     std::string_view get_position() const override;
@@ -58,6 +61,7 @@ protected:
     service*                                 m_service{nullptr};
     managed_objects                          m_managed_objects;
     std::unique_ptr<property_changed_signal> m_property_changed_signal;
+    object_identifier_t                      m_object_identifier;
 };
 
 template <typename ObjectType>
@@ -67,7 +71,8 @@ public:
     using metadata_type = object_metadata<ObjectType>;
     using property_info = typename metadata_type::property_info;
 
-    object(core_object* parent = nullptr) : object_impl(parent) {
+    object(core_object* parent = nullptr)
+        : object_impl(parent) {
         /* 初始化子类对象的属性（interface、property）
          *
          * 这个做法不符合 C++ 对象构造顺序，因为基类先于子类构造，这里强制转换成子类指针，
