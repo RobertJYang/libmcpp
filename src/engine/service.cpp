@@ -48,6 +48,7 @@ struct service_object : public mc::engine::object<service_object> {
 
         set_object_name(s->name());
         set_object_path(m_object_path);
+        set_name(s->name());
     }
 
     const std::string& get_name() const {
