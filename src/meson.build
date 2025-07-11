@@ -1,5 +1,6 @@
 # 包含子目录的 meson.build 文件
 subdir('core')
+subdir('crypto')
 subdir('db')
 subdir('dbus')
 subdir('dict')
@@ -29,6 +30,7 @@ src_files = [
 
   # 各子目录的源文件
   core_src_files,
+  crypto_src_files,
   db_src_files,
   dbus_src_files,
   dict_src_files,

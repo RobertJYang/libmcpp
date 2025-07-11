@@ -1,5 +1,6 @@
 # 包含子目录的 meson.build 文件
 subdir('core')
+subdir('crypto')
 subdir('db')
 subdir('dbus')
 subdir('dict')
@@ -33,6 +34,7 @@ test_files = [
 
   # 各子目录的测试文件
   test_core_files,
+  test_crypto_files,
   test_db_files,
   test_dbus_files,
   test_dict_files,
