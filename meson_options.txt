@@ -25,3 +25,10 @@ option(
        value: true,
        description: 'Build in meson environment',
 )
+
+option(
+       'compatibility_tests',
+       type: 'boolean',
+       value: false,
+       description: '是否构建兼容性测试程序（mc::format vs std::format），默认为false',
+)

@@ -20,9 +20,12 @@
 #include <cstdint>
 #include <string>
 
+#include <mc/common.h>
 #include <mc/memory.h>
 
-#define VARIANT_FLOAT_EPSILON 1e-6
+#ifndef VARIANT_FLOAT_EPSILON
+#define VARIANT_FLOAT_EPSILON MC_FLOAT_EPSILON
+#endif
 
 namespace mc {
 class dict;

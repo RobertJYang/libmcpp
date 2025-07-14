@@ -9,6 +9,7 @@ subdir('exception')
 subdir('expr')
 subdir('filesystem')
 subdir('futures')
+subdir('fmt')
 subdir('im')
 subdir('interprocess')
 subdir('io')
@@ -43,6 +44,7 @@ test_files = [
   test_expr_files,
   test_filesystem_files,
   test_futures_files,
+  test_fmt_files,
   test_im_files,
   test_interprocess_files,
   test_io_files,
