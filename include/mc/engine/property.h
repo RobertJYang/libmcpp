@@ -132,7 +132,7 @@ public:
             MC_THROW(mc::invalid_op_exception, "引用对象不存在，无法设置属性: ${object_name}", ("object_name", m_object_name));
         }
 
-        if (!interface_name.empty()) {  
+        if (!interface_name.empty()) { 
             auto interface_obj = target_object->get_interface(interface_name);
             if (interface_obj == nullptr) {
                 MC_THROW(mc::invalid_op_exception, "Interface not found: ${interface} in object: ${object_name}",
@@ -282,25 +282,46 @@ public:
         return *this;
     }
     param_type value(bool realtime = false) const {
+        // 如果设置了外部getter，优先调用外部getter
+        if (m_outsider_getter) {
+            const_cast<property_type*>(this)->update_value();
+        }
+
         // 如果是引用对象类型，m_value 已经存储了转换后的结果
         if (m_property_type == p_type::ref_object) {
             // 确保缓存已初始化（这会同时更新 m_value）
             ensure_ref_object_cache();
             return m_value;
         }
-        
+
         if (m_getter && realtime) {
             const_cast<property_type*>(this)->update_value();
         }
         return m_value;
     }
     void set_value(param_type new_value) {
+        // 如果设置了外部setter，先调用外部setter进行验证
+        if (m_outsider_setter) {
+            if (!m_outsider_setter(new_value)) {
+                // 外部setter返回false，不进行实际设置
+                return;
+            }
+        }
+
         if (m_setter) {
             m_setter(new_value);
         }
         set_value_impl(new_value);
     }
     void set_value(rvalue_type new_value) {
+        // 如果设置了外部setter，先调用外部setter进行验证
+        if (m_outsider_setter) {
+            if (!m_outsider_setter(new_value)) {
+                // 外部setter返回false，不进行实际设置
+                return;
+            }
+        }
+
         if (m_setter) {
             m_setter(new_value);
         }
@@ -316,7 +337,7 @@ public:
                 // 返回缓存的引用对象
                 return ensure_ref_object_cache();
             }
-        }       
+        }   
         return value(!(options & property_options::memory));
     }
 
@@ -333,6 +354,13 @@ public:
         if (func(m_value)) {
             notify();
         }
+    }
+
+    // 设置外部getter和setter方法
+    void make_outsider_getter_setter(std::function<value_type()>     outsider_getter,
+                                     std::function<bool(param_type)> outsider_setter) {
+        m_outsider_getter = std::move(outsider_getter);
+        m_outsider_setter = std::move(outsider_setter);
     }
 
     observer_type& observer() {
@@ -393,7 +421,7 @@ private:
                 }
             }
         }
-        
+
         // 对于非引用对象类型或未初始化的情况，从 m_value 获取
         if constexpr (std::is_convertible_v<T, std::string>) {
             return static_cast<std::string>(m_value);
@@ -418,10 +446,10 @@ private:
     void process_ref_object_from_variant(const std::string& ref_object_str) {
         auto ref_obj = func_parser::get_instance().parse_ref_object(ref_object_str);
         m_property_type = p_type::ref_object;
-        
+
         // 清理旧的缓存（如果有的话）
         m_ref_object_cache.reset();
-        
+
         // 暂时存储对象名称到属性值中（懒加载，等到需要时再转换）
         if constexpr (std::is_convertible_v<T, std::string>) {
             m_value = static_cast<T>(ref_obj.object_name);
@@ -446,19 +474,19 @@ public:
         auto position = get_object()->get_position();
         auto service  = func_collection::get_instance().get_service(position);
         if (service == nullptr) {
-            elog("Service not found for position: ${position}", 
+            elog("Service not found for position: ${position}",
                  ("position", std::string(position)));
             return nullptr;
         }
 
         std::string full_object_name = object_name + "_" + std::string(position);
-        
+
         auto&       object_table     = service->get_object_table();
         auto&       idx              = object_table.template get<mc::engine::by_object_name>();
         auto        obj_it           = idx.find(full_object_name);
 
         if (obj_it == idx.end()) {
-            elog("Object not found: ${object_name}, searched for: ${full_name}", 
+            elog("Object not found: ${object_name}, searched for: ${full_name}",
                  ("object_name", object_name)("full_name", full_object_name));
             return nullptr;
         }
@@ -475,7 +503,7 @@ public:
         // 分配缓存内存
         if (!m_ref_object_cache) {
             m_ref_object_cache = std::make_unique<mc::variant>();
-            
+
             // 获取对象名称（从当前 m_value 中获取，因为这时候还未改变 m_value）
             std::string object_name;
             if constexpr (std::is_convertible_v<T, std::string>) {
@@ -494,10 +522,10 @@ public:
                 return const_cast<property_type*>(this)->find_related_object(name);
             };
             auto ref_obj = std::make_shared<ref_object>(object_name, object_finder);
-            
+
             // 在缓存中存储 ref_object
             *m_ref_object_cache = mc::variant(ref_obj);
-            
+
             // 将转换后的结果存储到 m_value
             if constexpr (std::is_same_v<T, mc::variant>) {
                 const_cast<property_type*>(this)->m_value = mc::variant(ref_obj);
@@ -519,7 +547,7 @@ public:
             elog("Function data is null for property: ${name}", ("name", get_name()));
             return mc::variant();
         }
-        
+
         try {
             auto position = get_object()->get_position();
             auto result   = m_func_data->func_obj.call(position, m_func_data->params);
@@ -528,7 +556,7 @@ public:
             }
             return result;
         } catch (const std::exception& e) {
-            elog("Function call exception for property: ${name}, 错误: ${error}", 
+            elog("Function call exception for property: ${name}, 错误: ${error}",
                  ("name", get_name())("error", e.what()));
             return mc::variant();
         }
@@ -581,7 +609,7 @@ public:
     void set_relate_property(const relate_property& relate_property, const mc::variant& value) {
         auto* target_object = find_related_object(relate_property.object_name);
         if (target_object == nullptr) {
-            MC_THROW(mc::invalid_op_exception, "set_relate_property ${name} failed: Object not found: ${object_name}", 
+            MC_THROW(mc::invalid_op_exception, "set_relate_property ${name} failed: Object not found: ${object_name}",
                      ("name", get_name())("object_name", relate_property.object_name));
         }
 
@@ -589,7 +617,7 @@ public:
         if (!relate_property.interface.empty()) {
             auto interface_obj = target_object->get_interface(relate_property.interface);
             if (interface_obj == nullptr) {
-                MC_THROW(mc::invalid_op_exception, "set_relate_property ${name} failed: Interface not found: ${interface} in object: ${object_name}", 
+                MC_THROW(mc::invalid_op_exception, "set_relate_property ${name} failed: Interface not found: ${interface} in object: ${object_name}",
                          ("name", get_name())("interface", relate_property.interface)("object_name", relate_property.object_name));
             }
             interface_obj->set_property(relate_property.property_name, value);
@@ -603,7 +631,7 @@ public:
         m_getter = [this, relate_property]() -> T {
             auto result = get_relate_property(relate_property);
             if (result.is_null()) {
-                MC_THROW(mc::invalid_op_exception, "获取引用属性${name}失败: ${object_name}.${property_name}", 
+                MC_THROW(mc::invalid_op_exception, "获取引用属性${name}失败: ${object_name}.${property_name}",
                          ("name", get_name())("object_name", relate_property.object_name)("property_name", relate_property.property_name));
             }
 
@@ -990,6 +1018,8 @@ protected:
     void update_value() {
         if (m_getter) {
             set_value_impl(m_getter());
+        } else if (m_outsider_getter) {
+            set_value_impl(m_outsider_getter());
         }
     }
 
@@ -999,6 +1029,8 @@ protected:
 
     std::function<T()>                       m_getter;
     std::function<void(const T&)>            m_setter;
+    std::function<value_type()>              m_outsider_getter; // 外部getter方法
+    std::function<bool(param_type)>          m_outsider_setter; // 外部setter方法，返回false表示不进行实际设置
     std::unique_ptr<detail::func_data>       m_func_data; // 只有需要时才分配
     std::vector<mc::connection_type>         m_connection_slots;
     p_type                                   m_property_type{p_type::normal}; // 属性类型，默认为普通属性

@@ -561,4 +561,15 @@ variants unpack(std::string_view msg) {
     return v;
 }
 
+variants deserialize(std::string_view msg) {
+    // 跳过前4字节的长度头，直接处理序列化数据
+    if (msg.size() < 4) {
+        MC_THROW(mc::invalid_arg_exception, "invalid message format: size too small");
+    }
+    
+    // 跳过长度头，处理实际的序列化数据
+    std::string_view data = msg.substr(4);
+    return unpack(data);
+}
+
 } // namespace mc::dbus::serialize
