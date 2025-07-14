@@ -41,6 +41,14 @@ namespace mc {
 //------------------------------------------------------------------------------
 constexpr std::size_t MAX_NUM_ARRAY_ELEMENTS = 1024 * 1024;
 
+#ifndef MC_FLOAT_PRECISION
+#define MC_FLOAT_PRECISION 6
+#endif
+
+#ifndef MC_FLOAT_EPSILON
+#define MC_FLOAT_EPSILON 1e-6
+#endif
+
 //------------------------------------------------------------------------------
 // 编译器和平台相关宏
 //------------------------------------------------------------------------------
