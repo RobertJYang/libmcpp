@@ -396,7 +396,7 @@ private:
         object_call_stack::context object_ctx{get_service(), *this};
 
         auto* ctx = context_stack::top_value();
-        if (ctx) {
+        if (ctx && &ctx->get_object() == this && ctx->get_method_name() == method_name) {
             return do_invoke_impl<ResultType>(*ctx, method_name, args, interface_name);
         }
 

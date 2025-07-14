@@ -2513,3 +2513,228 @@ TEST_F(PropertyRelateTest, RefObjectEdgeCases) {
         special_ref_obj.invoke("SomeMethod", {});
     }, mc::invalid_op_exception);
 }
+
+
+// 测试outsider getter和setter功能
+TEST(PropertyTest, OutsiderGetterSetter) {
+    // 创建测试属性
+    property<int> test_prop(42);
+    
+    // 使用静态变量避免捕获问题
+    static int access_count = 0;
+    static int set_count = 0;
+    static bool allow_negative = false;
+    static int internal_value = 42;
+    
+    // 重置计数器
+    access_count = 0;
+    set_count = 0;
+    allow_negative = false;
+    internal_value = 42;
+    
+    // 设置外部getter，用于统计访问次数
+    auto outsider_getter = []() -> int {
+        access_count++;
+        return internal_value;
+    };
+    
+    // 设置外部setter，用于类型验证（不允许负数）
+    auto outsider_setter = [](int value) -> bool {
+        set_count++;
+        if (!allow_negative && value < 0) {
+            return false; // 拒绝负数
+        }
+        internal_value = value; // 更新内部值
+        return true; // 允许设置
+    };
+    
+    // 应用外部getter和setter
+    test_prop.make_outsider_getter_setter(outsider_getter, outsider_setter);
+    
+    // 测试读取属性会调用外部getter并统计次数
+    EXPECT_EQ(access_count, 0);
+    int value1 = test_prop.value();
+    EXPECT_EQ(value1, 42);
+    EXPECT_EQ(access_count, 1);
+    
+    int value2 = *test_prop;
+    EXPECT_EQ(value2, 42);
+    EXPECT_EQ(access_count, 2);
+    
+    int value3 = test_prop;
+    EXPECT_EQ(value3, 42);
+    EXPECT_EQ(access_count, 3);
+    
+    // 测试设置正数值（应该成功）
+    EXPECT_EQ(set_count, 0);
+    test_prop = 100;
+    EXPECT_EQ(set_count, 1);
+    EXPECT_EQ(internal_value, 100); // 确认内部值被更新
+    
+    test_prop.set_value(200);
+    EXPECT_EQ(set_count, 2);
+    EXPECT_EQ(internal_value, 200);
+    
+    // 测试设置负数值（应该被拒绝）
+    test_prop = -50;
+    EXPECT_EQ(set_count, 3);
+    EXPECT_EQ(internal_value, 200); // 值应该保持不变
+    
+    test_prop.set_value(-75);
+    EXPECT_EQ(set_count, 4);
+    EXPECT_EQ(internal_value, 200); // 值应该保持不变
+    
+    // 修改策略，允许负数
+    allow_negative = true;
+    test_prop = -100;
+    EXPECT_EQ(set_count, 5);
+    EXPECT_EQ(internal_value, -100); // 现在应该允许设置负数
+    
+    // 验证getter仍然被调用
+    int final_value = test_prop.value();
+    EXPECT_EQ(final_value, -100);
+    EXPECT_EQ(access_count, 4);
+}
+
+// 测试outsider getter和setter的字符串类型验证
+TEST(PropertyTest, OutsiderGetterSetterStringValidation) {
+    property<std::string> string_prop("initial");
+    
+    // 简化测试，只测试基本功能避免复杂的状态管理
+    bool getter_called = false;
+    bool setter_called = false;
+    std::string internal_string = "external_value";
+    
+    // 外部getter
+    auto outsider_getter = [&getter_called, &internal_string]() -> std::string {
+        getter_called = true;
+        return internal_string;
+    };
+    
+    // 外部setter验证字符串长度（不能超过10个字符）
+    auto outsider_setter = [&setter_called](const std::string& str) -> bool {
+        setter_called = true;
+        return str.length() <= 10; // 只允许长度不超过10的字符串
+    };
+    
+    string_prop.make_outsider_getter_setter(outsider_getter, outsider_setter);
+    
+    // 测试读取会调用外部getter
+    std::string value = string_prop.value();
+    EXPECT_EQ(value, "external_value");
+    EXPECT_TRUE(getter_called);
+    
+    // 测试设置有效字符串
+    setter_called = false;
+    string_prop = "short";
+    EXPECT_TRUE(setter_called);
+    
+    // 测试设置过长字符串（应该被拒绝）
+    setter_called = false;
+    string_prop = "this_is_too_long_string";
+    EXPECT_TRUE(setter_called); // setter应该被调用但拒绝设置
+    
+    // 边界测试：恰好10个字符
+    setter_called = false;
+    string_prop.set_value("exactly10c");
+    EXPECT_TRUE(setter_called); // setter应该被调用并允许设置
+}
+
+// 测试outsider getter和setter与观察者模式的交互
+TEST(PropertyTest, OutsiderGetterSetterWithObserver) {
+    property<int, test_observer> observed_prop(100);
+    
+    // 简化测试，使用基本的标志变量
+    bool getter_called = false;
+    bool setter_called = false;
+    int external_value = 200;
+    
+    auto outsider_getter = [&getter_called, &external_value]() -> int {
+        getter_called = true;
+        return external_value;
+    };
+    
+    auto outsider_setter = [&setter_called](int value) -> bool {
+        setter_called = true;
+        // 只允许偶数
+        return value % 2 == 0;
+    };
+    
+    observed_prop.make_outsider_getter_setter(outsider_getter, outsider_setter);
+    
+    // 获取观察者引用
+    auto& observer = observed_prop.observer();
+    EXPECT_EQ(observer.m_count, 0);
+    
+    // 测试设置偶数（应该成功并触发观察者）
+    setter_called = false;
+    observed_prop = 200;
+    EXPECT_TRUE(setter_called);
+    EXPECT_EQ(observer.m_count, 1); // 观察者应该被通知
+    EXPECT_EQ(observer.m_last_value.as<int>(), 200);
+    
+    // 测试设置奇数（应该被拒绝，不触发观察者）
+    setter_called = false;
+    int old_count = observer.m_count;
+    observed_prop = 101;
+    EXPECT_TRUE(setter_called); // setter被调用但拒绝设置
+    EXPECT_EQ(observer.m_count, old_count); // 观察者不应该被再次通知
+    
+    // 测试读取
+    getter_called = false;
+    int value = observed_prop.value();
+    EXPECT_EQ(value, external_value);
+    EXPECT_TRUE(getter_called);
+    
+    // 再次设置偶数
+    setter_called = false;
+    observed_prop.set_value(300);
+    EXPECT_TRUE(setter_called);
+    EXPECT_EQ(observer.m_count, 2); // 观察者应该被再次通知
+    EXPECT_EQ(observer.m_last_value.as<int>(), 300);
+}
+
+// 测试outsider getter和setter的复杂类型（Point）
+TEST(PropertyTest, OutsiderGetterSetterComplexType) {
+    property<Point> point_prop(Point(10, 20));
+    
+    // 简化测试，使用基本的标志变量
+    bool getter_called = false;
+    bool setter_called = false;
+    Point external_point(50, 60);
+    
+    // 外部getter
+    auto outsider_getter = [&getter_called, &external_point]() -> Point {
+        getter_called = true;
+        return external_point;
+    };
+    
+    // 外部setter验证点是否在有效范围内（坐标值不能超过100）
+    auto outsider_setter = [&setter_called](const Point& pt) -> bool {
+        setter_called = true;
+        return pt.x >= 0 && pt.y >= 0 && pt.x <= 100 && pt.y <= 100;
+    };
+    
+    point_prop.make_outsider_getter_setter(outsider_getter, outsider_setter);
+    
+    // 测试读取
+    Point read_point = point_prop.value();
+    EXPECT_EQ(read_point.x, 50);
+    EXPECT_EQ(read_point.y, 60);
+    EXPECT_TRUE(getter_called);
+    
+    // 测试设置有效坐标
+    setter_called = false;
+    point_prop = Point(80, 90);
+    EXPECT_TRUE(setter_called);
+    
+    // 测试设置无效坐标（超出范围）
+    setter_called = false;
+    point_prop = Point(150, 200);
+    EXPECT_TRUE(setter_called); // setter被调用但拒绝设置
+    
+    // 测试设置负坐标（无效）
+    setter_called = false;
+    point_prop.set_value(Point(-10, 30));
+    EXPECT_TRUE(setter_called); // setter被调用但拒绝设置
+}

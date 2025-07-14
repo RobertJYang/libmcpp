@@ -34,6 +34,8 @@ std::string pack(const variants& args);
 
 variants unpack(std::string_view msg);
 
+variants deserialize(std::string_view msg);
+
 enum class data_type : uint8_t {
     nil          = 0,
     boolean      = 1,
