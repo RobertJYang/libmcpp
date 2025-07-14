@@ -17,6 +17,7 @@
 #ifndef MC_EXPR_ENGINE_H
 #define MC_EXPR_ENGINE_H
 
+#include <glib-2.0/glib.h>
 #include <mc/expr/context.h>
 #include <mc/expr/function.h>
 #include <mc/expr/node.h>
@@ -57,6 +58,14 @@ public:
      * @return 表达式计算结果
      */
     mc::variant evaluate(std::string_view expr, const context_base& ctx);
+
+    /**
+     * @brief 求值表达式并返回GVariant类型结果
+     * @param expr 表达式字符串
+     * @param ctx 表达式上下文
+     * @return 表达式计算结果（GVariant类型）
+     */
+    GVariant* evaluate_as_gvariant(std::string_view expr, const context_base& ctx);
 
     /**
      * @brief 获取全局上下文

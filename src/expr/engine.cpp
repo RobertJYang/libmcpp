@@ -18,6 +18,7 @@
 #include <mc/expr/lexer.h>
 #include <mc/expr/node.h>
 #include <mc/expr/parser.h>
+#include <mc/dbus/shm/gvariant_convert.h>
 
 namespace mc::expr {
 
@@ -46,6 +47,11 @@ node_ptr engine::compile(std::string_view expr) {
 mc::variant engine::evaluate(std::string_view expr, const context_base& ctx) {
     node_ptr ast = compile(expr);
     return ast->evaluate(ctx);
+}
+
+GVariant* engine::evaluate_as_gvariant(std::string_view expr, const context_base& ctx) {
+    mc::variant result = evaluate(expr, ctx);
+    return mc::dbus::gvariant_convert::to_gvariant(result);
 }
 
 context& engine::get_global_context() const {
