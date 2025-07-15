@@ -82,10 +82,6 @@ void debug_log(DLOG_LEVEL_E level, const char* file, unsigned int line, const ch
         return;
     }
     
-    // 打印入参信息
-    std::cout << "=== debug_log 函数调用信息 === 日志级别: " << get_level_string(level);
-    std::cout << " (" << level << ") 文件名: " << file << " 行号: " << line << " 格式化字符串: " << format;
-    
     // 处理可变参数并打印消息内容
     va_list args;
     va_start(args, format);
@@ -102,7 +98,6 @@ void debug_log(DLOG_LEVEL_E level, const char* file, unsigned int line, const ch
         char* buffer = new char[length + 1];
         vsnprintf(buffer, length + 1, format, args);
         message_content = buffer;
-        std::cout << " 消息内容: " << message_content << std::endl;
         delete[] buffer;
     } else {
         message_content = "(格式化失败)";
@@ -121,16 +116,4 @@ void debug_log(DLOG_LEVEL_E level, const char* file, unsigned int line, const ch
             g_log_file.flush();
         }
     }
-    
-    // 模拟实际的日志输出格式
-    std::cout << "[" << get_level_string(level) << "] " 
-              << file << ":" << line << " - ";
-    
-    // 重新格式化输出
-    va_start(args, format);
-    vprintf(format, args);
-    va_end(args);
-    std::cout << std::endl;
-    
-    std::cout << "=== debug_log 函数调用结束 ===" << std::endl;
 } 
