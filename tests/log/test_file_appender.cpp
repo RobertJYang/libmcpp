@@ -37,7 +37,6 @@ protected:
         
         // 设置测试日志文件路径
         m_test_log_file = std::filesystem::temp_directory_path() / "test_file_appender.log";
-        std::cout << "m_test_log_file: " << m_test_log_file << std::endl;
         
         // 初始化日志文件
         init_log_file(m_test_log_file.string());
