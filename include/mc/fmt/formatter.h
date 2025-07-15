@@ -39,6 +39,13 @@ struct has_parse<T, std::void_t<decltype(&mc::fmt::formatter<T>::template parse<
     : std::true_type {};
 
 template <typename T, typename = void>
+struct has_get_value : std::false_type {};
+
+template <typename T>
+struct has_get_value<T, std::void_t<decltype(&mc::fmt::formatter<T>::get_value)>>
+    : std::true_type {};
+
+template <typename T, typename = void>
 struct is_basic_formatter : std::false_type {};
 
 template <typename T>
@@ -84,6 +91,20 @@ constexpr bool is_string_v =
 
 constexpr bool isdigit(char c) {
     return c >= '0' && c <= '9';
+}
+
+constexpr bool to_integer(std::string_view s, size_t& out) {
+    size_t value = 0;
+    for (char c : s) {
+        if (!isdigit(c)) {
+            return false;
+        }
+
+        value = value * 10 + (c - '0');
+    }
+
+    out = value;
+    return true;
 }
 
 } // namespace detail

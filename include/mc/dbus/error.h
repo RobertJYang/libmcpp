@@ -20,61 +20,19 @@
 namespace mc::dbus {
 
 struct error : DBusError {
-    error() {
-        dbus_error_init(this);
-    }
+    error();
+    error(const error& other);
+    ~error();
 
-    error(const error& other) {
-        dbus_error_init(this);
-        if (other.is_set()) {
-            dbus_set_error(this, other.name, "%s", other.message);
-        }
-    }
+    error(error&& other) noexcept;
 
-    error& operator=(const error& other) {
-        if (this != &other) {
-            dbus_error_free(this);
-            dbus_error_init(this);
-            if (other.is_set()) {
-                dbus_set_error(this, other.name, "%s", other.message);
-            }
-        }
-        return *this;
-    }
+    error& operator=(const error& other);
+    error& operator=(error&& other) noexcept;
 
-    ~error() {
-        dbus_error_free(this);
-    }
-
-    error(error&& other) noexcept {
-        dbus_move_error(&other, this);
-    }
-
-    error& operator=(error&& other) noexcept {
-        dbus_move_error(&other, this);
-        return *this;
-    }
-
-    bool is_set() const {
-        return dbus_error_is_set(this);
-    }
-
-    void set_error(std::string_view name, std::string_view message) {
-        dbus_set_error(this, name.data(), "%s", message.data());
-    }
-
-    void set_error(std::string_view name, std::string_view message, const mc::dict& args) {
-        if (args.empty()) {
-            dbus_set_error(this, name.data(), "%s", message.data());
-        } else {
-            auto msg = mc::format_dict(message, args);
-            dbus_set_error(this, name.data(), "%s", msg.c_str());
-        }
-    }
-
-    void set_error_const(std::string_view name, std::string_view message) {
-        dbus_set_error_const(this, name.data(), message.data());
-    }
+    bool is_set() const;
+    void set_error(std::string_view name, std::string_view message);
+    void set_error(std::string_view name, std::string_view message, const mc::dict& args);
+    void set_error_const(std::string_view name, std::string_view message);
 };
 
 /**

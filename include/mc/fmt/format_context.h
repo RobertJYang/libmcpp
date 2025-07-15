@@ -13,23 +13,52 @@
 #ifndef MC_FMT_FORMAT_CONTEXT_H
 #define MC_FMT_FORMAT_CONTEXT_H
 
+#include <mc/dict.h>
 #include <mc/fmt/format_arg.h>
 #include <mc/fmt/format_spec.h>
+#include <mc/fmt/formatter_mc.h>
 
 namespace mc::fmt {
+
+namespace detail {
+struct runtime_arg_store : public arg_store {
+    using arg_store::add_arg;
+
+    runtime_arg_store() = default;
+
+    template <typename... Args>
+    constexpr runtime_arg_store(Args&&... args) {
+        (add_arg(std::forward<Args>(args)), ...);
+    }
+
+    void set_dict_args(const mc::dict* args);
+    bool get_arg(size_t index, format_arg& arg) const;
+    bool get_positional(size_t index, format_arg& arg) const;
+    bool get_named(std::string_view name, format_arg& arg, size_t& index) const;
+    bool resolve_dynamic_param(size_t index, std::string_view name, int& out);
+
+    const mc::variant* get_variant(size_t index) const;
+    const mc::variant* get_variant(std::string_view name) const;
+
+    const dict* named_args{nullptr};
+    bool        icase{false};
+};
+} // namespace detail
 
 // 格式化上下文
 class format_context {
 public:
     using char_type = char;
 
-    explicit format_context(std::string& out, const detail::arg_store& args);
+    explicit format_context(std::string& out, detail::runtime_arg_store& args);
     explicit format_context(std::string& out);
 
     std::string& out();
 
-    const detail::format_arg* get_arg(size_t index) const;
-    const detail::format_arg* get_named_arg(std::string_view name) const;
+    bool get_arg(size_t index, detail::format_arg& arg) const;
+    bool get_named_arg(std::string_view name, detail::format_arg& arg, size_t& index) const;
+    void set_used(size_t index);
+    bool resolve_dynamic_param(size_t index, std::string_view name, int& out);
 
     void format_arg(const detail::format_arg& arg, detail::format_spec& spec);
     void append(char c);
@@ -45,8 +74,8 @@ public:
     void invalid_index_arg(size_t index);
 
 private:
-    std::string&             m_out;
-    const detail::arg_store& m_args;
+    std::string&               m_out;
+    detail::runtime_arg_store& m_args;
 };
 
 } // namespace mc::fmt

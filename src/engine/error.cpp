@@ -13,6 +13,7 @@
 #include <mc/engine/error.h>
 #include <mc/engine/error_engine.h>
 #include <mc/exception.h>
+#include <mc/fmt/format_dict.h>
 #include <mc/json.h>
 #include <mc/log.h>
 #include <mc/string.h>
@@ -188,6 +189,10 @@ error_with_owner::error_with_owner(std::string name, std::string format)
     : m_name_owner(std::move(name)), m_format_owner(std::move(format)) {
     this->name   = m_name_owner;
     this->format = m_format_owner;
+}
+
+bool get_error_format_args(std::string_view format, mc::dict& arg_names) {
+    return mc::fmt::get_format_args(format, arg_names);
 }
 
 } // namespace mc::engine

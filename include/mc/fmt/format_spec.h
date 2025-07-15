@@ -35,20 +35,20 @@ struct format_spec {
         space, // 正数显示空格，负数显示符号 ' '
     };
 
-    align            alignment       = align::none; // 对齐方式
-    sign             sign_mode       = sign::none;  // 符号处理方式
-    char             fill            = ' ';         // 填充字符
-    int              width           = 0;           // 字段宽度
-    int              precision       = -1;          // 精度
-    int              width_index     = -1;          // 动态宽度参数索引，-1表示未使用
-    int              precision_index = -1;          // 动态精度参数索引，-1表示未使用
-    std::string_view width_name;                    // 动态宽度参数名称（命名参数）
-    std::string_view precision_name;                // 动态精度参数名称（命名参数）
-    char             type               = '\0';     // 类型标识符
-    bool             zero_pad           = false;    // 是否使用零填充
-    bool             alternate_form     = false;    // 支持 # 标志
-    bool             custom_spec_in_use = false;    // 自定义格式是否被使用
-    char             custom_spec[128]   = {0};      // 自定义格式
+    align            alignment       = align::none;   // 对齐方式
+    sign             sign_mode       = sign::none;    // 符号处理方式
+    char             fill            = ' ';           // 填充字符
+    int              width           = 0;             // 字段宽度
+    int              precision       = -1;            // 精度
+    size_t           width_index     = INVALID_INDEX; // 动态宽度参数索引，INVALID_INDEX 表示未使用
+    size_t           precision_index = INVALID_INDEX; // 动态精度参数索引，INVALID_INDEX 表示未使用
+    std::string_view width_name;                      // 动态宽度参数名称（命名参数）
+    std::string_view precision_name;                  // 动态精度参数名称（命名参数）
+    char             type               = '\0';       // 类型标识符
+    bool             zero_pad           = false;      // 是否使用零填充
+    bool             alternate_form     = false;      // 支持 # 标志
+    bool             custom_spec_in_use = false;      // 自定义格式是否被使用
+    char             custom_spec[128]   = {0};        // 自定义格式
 
     constexpr format_spec() {
     }
@@ -159,24 +159,7 @@ struct format_spec {
             std::string_view name(name_start, ptr - name_start);
             ++ptr; // 跳过 '}'
 
-            // 检查是否为纯数字（位置参数）
-            bool is_number = true;
-            for (char c : name) {
-                if (c < '0' || c > '9') {
-                    is_number = false;
-                    break;
-                }
-            }
-
-            if (is_number && !name.empty()) {
-                // 位置参数
-                int idx = 0;
-                for (char c : name) {
-                    idx = idx * 10 + (c - '0');
-                }
-                width_index = idx;
-            } else {
-                // 命名参数
+            if (!name.empty() && !mc::fmt::detail::to_integer(name, width_index)) {
                 width_name = name;
             }
         } else if (ptr < end && isdigit(*ptr)) {
@@ -209,24 +192,7 @@ struct format_spec {
                 std::string_view name(name_start, ptr - name_start);
                 ++ptr; // 跳过 '}'
 
-                // 检查是否为纯数字（位置参数）
-                bool is_number = true;
-                for (char c : name) {
-                    if (c < '0' || c > '9') {
-                        is_number = false;
-                        break;
-                    }
-                }
-
-                if (is_number && !name.empty()) {
-                    // 位置参数
-                    int idx = 0;
-                    for (char c : name) {
-                        idx = idx * 10 + (c - '0');
-                    }
-                    precision_index = idx;
-                } else {
-                    // 命名参数
+                if (!name.empty() && !mc::fmt::detail::to_integer(name, precision_index)) {
                     precision_name = name;
                 }
             } else if (ptr < end && isdigit(*ptr)) {

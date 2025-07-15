@@ -764,7 +764,7 @@ TEST_F(dbus_message_test, test_mc_dbus_message_write_libdbus_read) {
         int32_t val = 0;
         dbus_message_iter_get_basic(&tuple_iter2, &val);
         dbus_message_iter_next(&tuple_iter2);
-        bool b = false;
+        dbus_bool_t b = FALSE;
         dbus_message_iter_get_basic(&tuple_iter2, &b);
         dbus_message_iter_next(&tuple_iter2);
         data2.m_std_vec_tuple.push_back(std::make_tuple(val, b));

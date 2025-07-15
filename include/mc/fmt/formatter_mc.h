@@ -14,12 +14,13 @@
 #define MC_FMT_FORMATTER_MC_H
 
 #include <mc/dict.h>
-#include <mc/fmt/format.h>
 #include <mc/fmt/formatter.h>
 #include <mc/variant.h>
 
 namespace mc::fmt {
+class format_context;
 namespace detail {
+struct format_spec;
 
 void format_variant(const mc::variant& v, format_context& ctx, const format_spec& spec);
 void format_dict(const mc::dict& dict, format_context& ctx, const format_spec& spec);
@@ -28,8 +29,11 @@ void format_extension(const mc::variant_extension_base& ext, format_context& ctx
 
 } // namespace detail
 
+using format_spec = detail::format_spec;
+
 template <>
 struct formatter<mc::variant> {
+    using is_basic_type = std::true_type;
     template <typename Context>
     void format(const mc::variant& v, Context& ctx, const format_spec& spec) const {
         detail::format_variant(v, ctx, spec);

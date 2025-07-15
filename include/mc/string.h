@@ -25,7 +25,6 @@
 #include <cstdlib>
 #include <limits>
 #include <locale>
-#include <mc/format.h>
 #include <mc/pretty_name.h>
 #include <memory>
 #include <numeric>

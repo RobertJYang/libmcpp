@@ -22,8 +22,6 @@ namespace mc::fmt {
 class format_context;
 } // namespace mc::fmt
 
-constexpr size_t INVALID_INDEX = std::numeric_limits<size_t>::max();
-
 namespace mc::fmt::detail {
 struct arg_store;
 struct custom_t;
@@ -148,27 +146,12 @@ constexpr const char* parse_index_placeholder(Context& ctx, const char* ptr, con
 }
 
 template <typename Context>
-constexpr bool resolve_dynamic_param(Context& ctx, int index, std::string_view name, int& out) {
-    if (index < 0 && name.empty()) {
+constexpr bool resolve_dynamic_param(Context& ctx, size_t index, std::string_view name, int& out) {
+    if (index == INVALID_INDEX && name.empty()) {
         return true; // 没有动态参数
     }
 
-    auto* arg_ptr = index >= 0 ? ctx.get_arg(index) : ctx.get_named_arg(name);
-    if (arg_ptr == nullptr) {
-        return false;
-    }
-
-    bool ok = false;
-    arg_ptr->visit([&](auto&& v) {
-        using VT = std::decay_t<decltype(v)>;
-        if constexpr (mc::fmt::detail::is_integer<VT>::value) {
-            out = static_cast<int>(v);
-            ok  = true;
-            const_cast<format_arg*>(arg_ptr)->make_unused();
-        }
-    });
-
-    return ok;
+    return ctx.resolve_dynamic_param(index, name, out);
 }
 
 template <typename Context>
@@ -202,20 +185,22 @@ constexpr bool parse_named_arg(Context& ctx, const char*& ptr, const char* end, 
     }
 
     format_spec spec;
-    auto*       arg = ctx.get_named_arg(name);
-    if (arg == nullptr) {
+    format_arg  arg;
+    size_t      index = INVALID_INDEX;
+    if (!ctx.get_named_arg(name, arg, index)) {
         ctx.invalid_named_arg(name);
         return false;
     }
 
     if (format_start != nullptr) {
-        if (!parse_format_spec(format_start, next_ptr, spec, arg)) {
+        if (!parse_format_spec(format_start, next_ptr, spec, &arg)) {
             return false;
         }
     }
 
     resolve_dynamic_spec(ctx, spec);
-    ctx.format_arg(*arg, spec);
+    ctx.format_arg(arg, spec);
+    ctx.set_used(index);
     ptr = next_ptr;
     ++arg_index;
     return true;
@@ -237,20 +222,21 @@ constexpr bool parse_index_arg(Context& ctx, const char*& ptr, const char* end, 
     }
 
     format_spec spec;
-    auto*       arg = ctx.get_arg(index);
-    if (arg == nullptr) {
+    format_arg  arg;
+    if (!ctx.get_arg(index, arg)) {
         ctx.invalid_index_arg(index);
         return false;
     }
 
     if (format_start != nullptr) {
-        if (!parse_format_spec(format_start, next_ptr, spec, arg)) {
+        if (!parse_format_spec(format_start, next_ptr, spec, &arg)) {
             return false;
         }
     }
 
     resolve_dynamic_spec(ctx, spec);
-    ctx.format_arg(*arg, spec);
+    ctx.format_arg(arg, spec);
+    ctx.set_used(index);
     ptr = next_ptr;
     return true;
 }

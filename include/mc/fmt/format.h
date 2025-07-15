@@ -74,8 +74,8 @@ std::string& format_to(Context& ctx, const format_spec& spec, const T& value) {
 
 template <typename... Args>
 std::string& format_to(std::string& out, std::string_view fmt, Args&&... args) {
-    detail::arg_store store(std::forward<Args>(args)...);
-    format_context    ctx(out, store);
+    detail::runtime_arg_store store(std::forward<Args>(args)...);
+    format_context            ctx(out, store);
     detail::format_parser::parse(fmt, ctx);
     return out;
 }
