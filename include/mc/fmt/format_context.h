@@ -21,8 +21,8 @@
 namespace mc::fmt {
 
 namespace detail {
-struct runtime_arg_store : public arg_store {
-    using arg_store::add_arg;
+struct runtime_arg_store : public arg_store<format_arg> {
+    using arg_store<format_arg>::add_arg;
 
     runtime_arg_store() = default;
 
@@ -48,7 +48,7 @@ struct runtime_arg_store : public arg_store {
 // 格式化上下文
 class format_context {
 public:
-    using char_type = char;
+    using arg_type = detail::format_arg;
 
     explicit format_context(std::string& out, detail::runtime_arg_store& args);
     explicit format_context(std::string& out);

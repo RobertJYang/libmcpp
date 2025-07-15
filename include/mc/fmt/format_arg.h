@@ -53,12 +53,12 @@ private:
 
 // 创建命名参数的辅助函数
 template <typename T>
-constexpr auto arg(std::string_view name, const T& value) -> named_arg<T> {
+auto arg(std::string_view name, const T& value) -> named_arg<T> {
     return named_arg<T>{name, value};
 }
 
 template <typename T>
-constexpr auto arg(const T& value) -> const T& {
+auto arg(const T& value) -> const T& {
     return std::forward<const T&>(value);
 }
 
@@ -87,132 +87,132 @@ struct format_arg {
     storage_type value;
     bool         used = false;
 
-    constexpr format_arg() : value(monostate{}) {
+    format_arg() : value(monostate{}) {
     }
 
-    constexpr explicit format_arg(bool v) : value(v) {
+    explicit format_arg(bool v) : value(v) {
     }
 
-    constexpr explicit format_arg(char v) : value(v) {
+    explicit format_arg(char v) : value(v) {
     }
 
     template <typename T, std::enable_if_t<std::is_integral_v<T> &&
                                                std::is_signed_v<T>,
                                            int> = 0>
-    constexpr explicit format_arg(T v) : value(static_cast<int64_t>(v)) {
+    explicit format_arg(T v) : value(static_cast<int64_t>(v)) {
     }
 
     template <typename T, std::enable_if_t<std::is_integral_v<T> &&
                                                std::is_unsigned_v<T>,
                                            int> = 0>
-    constexpr explicit format_arg(T v) : value(static_cast<uint64_t>(v)) {
+    explicit format_arg(T v) : value(static_cast<uint64_t>(v)) {
     }
 
-    constexpr explicit format_arg(double v) : value(v) {
+    explicit format_arg(double v) : value(v) {
     }
 
-    constexpr explicit format_arg(float v) : value(v) {
+    explicit format_arg(float v) : value(v) {
     }
 
-    constexpr explicit format_arg(long double v) : value(v) {
+    explicit format_arg(long double v) : value(v) {
     }
 
-    constexpr explicit format_arg(std::string_view v) : value(v) {
+    explicit format_arg(std::string_view v) : value(v) {
     }
 
     explicit format_arg(const std::string& v) : value(std::string_view{v}) {
     }
 
-    constexpr explicit format_arg(const char* v) : value(v) {
+    explicit format_arg(const char* v) : value(v) {
     }
 
-    constexpr explicit format_arg(const void* v) : value(v) {
-    }
-
-    template <typename T, std::enable_if_t<
-                              has_formatter_v<T> &&
-                                  !is_basic_formatter_v<T>,
-                              int> = 0>
-    explicit format_arg(const T& v) : value(make_custom_value(v)) {
+    explicit format_arg(const void* v) : value(v) {
     }
 
     template <typename T, std::enable_if_t<
                               has_formatter_v<T> &&
                                   !is_basic_formatter_v<T>,
                               int> = 0>
-    constexpr explicit format_arg(const T* v)
+    format_arg(const T& v) : value(make_custom_value(v)) {
+    }
+
+    template <typename T, std::enable_if_t<
+                              has_formatter_v<T> &&
+                                  !is_basic_formatter_v<T>,
+                              int> = 0>
+    explicit format_arg(const T* v)
         : value(compile_make_custom_value(v)) {
     }
 
-    constexpr format_arg(const format_arg& other)
+    format_arg(const format_arg& other)
         : value(other.value), used(other.used) {
     }
 
-    constexpr format_arg(format_arg&& other)
+    format_arg(format_arg&& other)
         : value(std::move(other.value)), used(other.used) {
     }
 
-    constexpr format_arg& operator=(const format_arg& other) {
+    format_arg& operator=(const format_arg& other) {
         value = other.value;
         used  = other.used;
         return *this;
     }
 
-    constexpr format_arg& operator=(format_arg&& other) {
+    format_arg& operator=(format_arg&& other) {
         value      = std::move(other.value);
         used       = other.used;
         other.used = false;
         return *this;
     }
 
-    constexpr void make_unused() {
+    void make_unused() {
         used = true;
     }
 
-    constexpr bool is_used() const {
+    bool is_used() const {
         return used;
     }
 
     template <typename Visitor>
-    constexpr void visit(Visitor&& vis) const {
+    void visit(Visitor&& vis) const {
         std::visit(vis, value);
     }
 
     // 类型判断方法
-    constexpr bool is_null() const {
+    bool is_null() const {
         return std::holds_alternative<monostate>(value);
     }
-    constexpr bool is_signed_integer() const {
+    bool is_signed_integer() const {
         return std::holds_alternative<int64_t>(value);
     }
-    constexpr bool is_unsigned_integer() const {
+    bool is_unsigned_integer() const {
         return std::holds_alternative<uint64_t>(value);
     }
-    constexpr bool is_float() const {
+    bool is_float() const {
         return std::holds_alternative<float>(value);
     }
-    constexpr bool is_double() const {
+    bool is_double() const {
         return std::holds_alternative<double>(value);
     }
-    constexpr bool is_long_double() const {
+    bool is_long_double() const {
         return std::holds_alternative<long double>(value);
     }
-    constexpr bool is_bool() const {
+    bool is_bool() const {
         return std::holds_alternative<bool>(value);
     }
-    constexpr bool is_char() const {
+    bool is_char() const {
         return std::holds_alternative<char>(value);
     }
-    constexpr bool is_string() const {
+    bool is_string() const {
         return std::holds_alternative<std::string_view>(value);
     }
-    constexpr bool is_cstring() const {
+    bool is_cstring() const {
         return std::holds_alternative<const char*>(value);
     }
-    constexpr bool is_pointer() const {
+    bool is_pointer() const {
         return std::holds_alternative<const void*>(value);
     }
-    constexpr bool is_custom() const {
+    bool is_custom() const {
         return std::holds_alternative<custom_t>(value);
     }
 
@@ -248,7 +248,7 @@ struct format_arg {
         return std::get<const void*>(value);
     }
 
-    constexpr const custom_t& as_custom() const {
+    const custom_t& as_custom() const {
         return std::get<custom_t>(value);
     }
 
@@ -256,12 +256,12 @@ struct format_arg {
         return !is_null();
     }
 
-    constexpr bool parse_custom(const char*& ptr, const char* end, format_spec& spec) const {
+    bool parse_custom(const char*& ptr, const char* end, format_spec& spec) const {
         std::string_view format_str(ptr, end - ptr - 1);
         return as_custom().parse_fn(format_str, spec);
     }
 
-    constexpr bool parser(const char*& ptr, const char* end, format_spec& spec) const {
+    bool parser(const char*& ptr, const char* end, format_spec& spec) const {
         if (!is_custom() || !as_custom().parse_fn) {
             return false;
         }
@@ -291,21 +291,6 @@ private:
 
         return custom_val;
     }
-
-    template <typename T>
-    constexpr custom_t compile_make_custom_value(const T*) const {
-        custom_t custom_val;
-        custom_val.obj       = nullptr;
-        custom_val.format_fn = nullptr;
-        if constexpr (has_parse_v<T>) {
-            custom_val.parse_fn = [](std::string_view fmt_str, format_spec& spec) -> bool {
-                return formatter<T>{}.template parse<true>(fmt_str, spec);
-            };
-        } else {
-            custom_val.parse_fn = nullptr;
-        }
-        return custom_val;
-    }
 };
 
 #ifndef MC_FMT_MAX_ARGS
@@ -314,9 +299,10 @@ private:
 
 constexpr size_t max_args = MC_FMT_MAX_ARGS;
 
+template <typename Arg>
 struct arg_entry {
     std::string_view name;
-    format_arg       arg;
+    Arg              arg;
 };
 
 // 类型特征，用于检测是否是命名参数
@@ -326,9 +312,10 @@ struct is_named_arg : std::false_type {};
 template <typename T>
 inline constexpr bool is_named_arg_v = is_named_arg<T>::value;
 
+template <typename Arg>
 struct arg_store {
-    std::array<arg_entry, max_args> entries;
-    size_t                          m_size = 0;
+    std::array<arg_entry<Arg>, max_args> entries;
+    size_t                               m_size = 0;
 
     constexpr arg_store() = default;
 
@@ -341,7 +328,7 @@ struct arg_store {
     template <typename T, std::enable_if_t<!is_named_arg_v<T>, int> = 0>
     constexpr void add_arg(const T& value) {
         entries[m_size].name = std::string_view{};
-        entries[m_size].arg  = format_arg(value);
+        entries[m_size].arg  = Arg(value);
         ++m_size;
     }
 
@@ -349,14 +336,14 @@ struct arg_store {
     template <typename T>
     constexpr void add_arg(const named_arg<T>& arg) {
         entries[m_size].name = arg.name();
-        entries[m_size].arg  = format_arg(arg.value());
+        entries[m_size].arg  = Arg(arg.value());
         ++m_size;
     }
 
     constexpr void add_arg(const std::monostate&) {
     }
 
-    constexpr void add_arg(std::string_view name, format_arg arg) {
+    constexpr void add_arg(std::string_view name, Arg arg) {
         entries[m_size].name = name;
         entries[m_size].arg  = arg;
         ++m_size;
@@ -366,7 +353,7 @@ struct arg_store {
         return m_size;
     }
 
-    constexpr bool get_arg(size_t index, format_arg& arg) const {
+    constexpr bool get_arg(size_t index, Arg& arg) const {
         if (index >= m_size) {
             return false;
         }
@@ -376,12 +363,12 @@ struct arg_store {
     }
 
     // 按位置获取参数
-    constexpr bool get_positional(size_t index, format_arg& arg) const {
+    constexpr bool get_positional(size_t index, Arg& arg) const {
         return get_arg(index, arg);
     }
 
     // 按名称获取参数
-    constexpr bool get_named(std::string_view name, format_arg& arg, size_t& index) const {
+    constexpr bool get_named(std::string_view name, Arg& arg, size_t& index) const {
         for (size_t i = 0; i < m_size; ++i) {
             if (entries[i].name == name) {
                 arg   = entries[i].arg;
@@ -409,7 +396,7 @@ struct arg_store {
     }
 
     constexpr bool resolve_dynamic_param(size_t& index, std::string_view name, int& out) {
-        detail::format_arg arg;
+        Arg arg;
         if (index != INVALID_INDEX ? !get_arg(index, arg) : !get_named(name, arg, index)) {
             return false;
         }
