@@ -106,6 +106,9 @@ public:
      */
     void flush();
 
+    // 添加debug_log_ptr的setter
+    static void set_debug_log_ptr(void* func_ptr);
+
 private:
     /**
      * @brief 打开日志文件

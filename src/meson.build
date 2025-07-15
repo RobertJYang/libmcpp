@@ -61,9 +61,6 @@ if enable_conan_compile
   libsomp_dep = dependency('libsomp', method: 'pkg-config', required: true)
   liblogging_dep = dependency('liblogging', method: 'pkg-config', required: true)
   dep_arr += [libsomp_dep, liblogging_dep]
-else
-  # 添加logging.cpp（需要特殊的包含路径）
-  src_files += ['../tests/log/logging.cpp']
 endif
 
 if meson_build
@@ -77,7 +74,7 @@ endif
 libmcpp_lib = shared_library(
   'libmcpp',
   src_files,
-  include_directories: [incdir, srcdir, file_appender_inc],
+  include_directories: [incdir, srcdir],
   dependencies: dep_arr,
   install: true,
   install_dir: install_dir,

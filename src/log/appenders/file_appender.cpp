@@ -12,8 +12,20 @@
 
 #include <mc/log/appenders/file_appender.h>
 #include <mc/filesystem.h>
-#include "logging.h"
-#undef debug_log
+#include <dlfcn.h>
+#include <stdio.h>
+#include <stdarg.h>
+
+typedef enum {
+    DLOG_DEBUG,
+    DLOG_INFO,
+    DLOG_WARN,
+    DLOG_ERROR,
+    DLOG_NOTICE
+} DLOG_LEVEL_E;
+
+typedef void (*debug_log_func_t)(DLOG_LEVEL_E, const char*, int, const char*, ...);
+static debug_log_func_t debug_log_ptr = nullptr;
 
 namespace mc {
 namespace log {
@@ -24,6 +36,15 @@ file_appender::file_appender() {
 bool file_appender::init(const variant& args) {
     if (!args.is_object()) {
         return false;
+    }
+    void* handle = dlopen(LOGGING_PATH, RTLD_NOW);
+    if (!handle) {
+        fprintf(stderr, "dlopen failed: %s\n", dlerror());
+    } else {
+        debug_log_ptr = (debug_log_func_t)dlsym(handle, "debug_log");
+        if (!debug_log_ptr) {
+            fprintf(stderr, "dlsym debug_log failed: %s\n", dlerror());
+        }
     }
 
     // auto dict = args.as_object();
@@ -91,7 +112,9 @@ void file_appender::append(const message& msg) {
 
     std::string message_str = msg.get_message();
 
-    debug_log(level, file_str.c_str(), ctx.m_line, "%s", message_str.c_str());
+    if (debug_log_ptr) {
+        debug_log_ptr(level, file_str.c_str(), ctx.m_line, "%s", message_str.c_str());
+    }
 }
 
 void file_appender::set_filename(const std::string& filename) {
@@ -140,6 +163,10 @@ void file_appender::close_file() {
         m_file.flush();
         m_file.close();
     }
+}
+
+void file_appender::set_debug_log_ptr(void* func_ptr) {
+    debug_log_ptr = reinterpret_cast<debug_log_func_t>(func_ptr);
 }
 
 } // namespace log

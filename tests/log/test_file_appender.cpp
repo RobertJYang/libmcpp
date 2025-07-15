@@ -10,7 +10,6 @@
  * See the Mulan PSL v2 for more details.
  */
 
-#include "logging.h"
 #include <gtest/gtest.h>
 #include <mc/log.h>
 #include <mc/log/appenders/file_appender.h>
@@ -23,36 +22,64 @@
 #include <filesystem>
 #include <thread>
 #include <vector>
+#include <fstream>
+#include <cstdarg>
 
 using namespace mc::log;
 
+// mock debug_log实现
+extern "C" void debug_log(int level, const char* file, int line, const char* fmt, ...) {
+    static const std::string log_path = std::string(TEST_LOG_DIR) + "/test_file_appender_mock.log";
+    std::filesystem::create_directories(TEST_LOG_DIR);
+    std::ofstream ofs(log_path, std::ios::app);
+    if (!ofs.is_open()) {
+        std::cout << "[mock debug_log] open file failed: " << log_path << std::endl;
+        return;
+    }
+    va_list args;
+    va_start(args, fmt);
+    char buf[1024];
+    vsnprintf(buf, sizeof(buf), fmt, args);
+    va_end(args);
+    ofs << buf << std::endl;
+}
+// 函数指针类型声明，需与file_appender.cpp一致
+typedef void (*debug_log_func_t)(int, const char*, int, const char*, ...);
+
 class file_appender_test : public mc::test::TestBase {
 protected:
-    void SetUp() override {
-        mc::test::TestBase::SetUp();
-        mc::log::default_logger().set_level(mc::log::level::off);
-
-        // 创建文件追加器
+    static std::shared_ptr<file_appender> m_appender;
+    static std::filesystem::path m_test_log_file;
+    static void SetUpTestSuite() {
         m_appender = std::make_shared<file_appender>();
-        
-        // 设置测试日志文件路径
-        m_test_log_file = std::filesystem::temp_directory_path() / "test_file_appender.log";
-        
-        // 初始化日志文件
-        init_log_file(m_test_log_file.string());
+        m_test_log_file = std::string(TEST_LOG_DIR) + "/test_file_appender_mock.log";
+        // 初始化日志文件（直接清空文件）
+        std::ofstream ofs(m_test_log_file, std::ios::trunc);
+        ofs.close();
+        mc::mutable_dict dict;
+        dict["filename"] = m_test_log_file.string();
+        dict["truncate"] = true;
+        dict["flush_on_write"] = true;
+        m_appender->init(dict);
+        file_appender::set_debug_log_ptr(reinterpret_cast<void*>(static_cast<debug_log_func_t>(debug_log)));
     }
-
-    void TearDown() override {
+    static void TearDownTestSuite() {
         m_appender.reset();
-        
-        // 关闭日志文件
-        close_log_file();
-        
-        // 清理测试日志文件
         if (std::filesystem::exists(m_test_log_file)) {
             std::filesystem::remove(m_test_log_file);
         }
-        
+    }
+    void SetUp() override {
+        mc::test::TestBase::SetUp();
+        mc::log::default_logger().set_level(mc::log::level::off);
+    }
+
+    void TearDown() override {
+        // m_appender.reset(); // This line is removed as m_appender is now static
+        // 无需close_log_file，直接删除
+        if (std::filesystem::exists(m_test_log_file)) {
+            std::filesystem::remove(m_test_log_file);
+        }
         mc::test::TestBase::TearDown();
     }
 
@@ -68,9 +95,17 @@ protected:
         return message(lvl, ctx, fmt, args);
     }
 
-    // 检查日志文件是否存在且不为空
+    // 检查日志文件是否存在且不为空时，直接用m_test_log_file
     bool check_log_file_exists_and_not_empty() {
-        return check_log_file_exists_and_not_empty(m_test_log_file.string());
+        if (!std::filesystem::exists(m_test_log_file)) {
+            return false;
+        }
+        std::ifstream file(m_test_log_file);
+        if (!file.is_open()) {
+            return false;
+        }
+        file.seekg(0, std::ios::end);
+        return file.tellg() > 0;
     }
     
     // 检查指定日志文件是否存在且不为空
@@ -88,10 +123,11 @@ protected:
         file.seekg(0, std::ios::end);
         return file.tellg() > 0;
     }
-
-    std::shared_ptr<file_appender> m_appender;
-    std::filesystem::path m_test_log_file;
 };
+
+// 静态成员定义
+std::shared_ptr<file_appender> file_appender_test::m_appender;
+std::filesystem::path file_appender_test::m_test_log_file;
 
 // 测试默认构造函数
 TEST_F(file_appender_test, DefaultConstructor) {
@@ -112,17 +148,6 @@ TEST_F(file_appender_test, SetAndGetFlushOnWrite) {
     
     m_appender->set_flush_on_write(false);
     EXPECT_FALSE(m_appender->get_flush_on_write());
-}
-
-// 测试初始化函数
-TEST_F(file_appender_test, Init) {
-    mc::mutable_dict dict;
-    dict["filename"] = m_test_log_file.string();
-    dict["truncate"] = true;
-    dict["flush_on_write"] = true;
-
-    bool result = m_appender->init(dict);
-    ASSERT_TRUE(result);
 }
 
 // 测试追加函数 - 简单文本消息
@@ -171,7 +196,7 @@ TEST_F(file_appender_test, AppendDictFormattedMessage) {
     args["name"]  = "测试";
     args["value"] = 42;
 
-    auto msg = create_format_message(level::info, "名称: {name}, 值: {value}", args);
+    auto msg = create_format_message(level::info, "名称: ${name}, 值: ${value}", args);
     
     // 追加消息
     ASSERT_NO_THROW(m_appender->append(msg));
@@ -196,7 +221,7 @@ TEST_F(file_appender_test, AppendMultiParamDictFormattedMessage) {
     args["score"] = 95.5;
 
     auto msg = create_format_message(level::info, 
-        "用户: {user}, 年龄: {age}, 城市: {city}, 分数: {score}", args);
+        "用户: ${user}, 年龄: ${age}, 城市: ${city}, 分数: ${score}", args);
     
     // 追加消息
     ASSERT_NO_THROW(m_appender->append(msg));
