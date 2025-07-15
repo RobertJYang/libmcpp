@@ -144,6 +144,27 @@ struct format_arg {
         : value(compile_make_custom_value(v)) {
     }
 
+    constexpr format_arg(const format_arg& other)
+        : value(other.value), used(other.used) {
+    }
+
+    constexpr format_arg(format_arg&& other)
+        : value(std::move(other.value)), used(other.used) {
+    }
+
+    constexpr format_arg& operator=(const format_arg& other) {
+        value = other.value;
+        used  = other.used;
+        return *this;
+    }
+
+    constexpr format_arg& operator=(format_arg&& other) {
+        value      = std::move(other.value);
+        used       = other.used;
+        other.used = false;
+        return *this;
+    }
+
     constexpr void make_unused() {
         used = true;
     }
