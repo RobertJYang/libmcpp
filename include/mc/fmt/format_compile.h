@@ -37,13 +37,241 @@ struct compile_arg_type<std::string> {
     using type = std::string_view;
 };
 
+enum class compile_arg_enum {
+    null_type,
+    bool_type,
+    char_type,
+    signed_type,
+    unsigned_type,
+    double_type,
+    float_type,
+    long_double_type,
+    string_type,
+    pointer_type,
+    custom_type
+};
+
+struct compile_custom_t {
+    constexpr compile_custom_t()
+        : parse_fn(nullptr) {
+    }
+
+    bool (*parse_fn)(std::string_view, format_spec&);
+};
+
+struct compile_format_arg {
+    compile_arg_enum type;
+    compile_custom_t custom_value;
+    bool             used = false;
+
+    constexpr compile_format_arg()
+        : type(compile_arg_enum::null_type),
+          custom_value() {
+    }
+
+    constexpr explicit compile_format_arg(bool v)
+        : type(compile_arg_enum::bool_type),
+          custom_value() {
+    }
+
+    constexpr explicit compile_format_arg(char v)
+        : type(compile_arg_enum::char_type),
+          custom_value() {
+    }
+
+    template <typename T, std::enable_if_t<std::is_integral_v<T> &&
+                                               std::is_signed_v<T>,
+                                           int> = 0>
+    constexpr explicit compile_format_arg(T v)
+        : type(compile_arg_enum::signed_type),
+          custom_value() {
+    }
+
+    template <typename T, std::enable_if_t<std::is_integral_v<T> &&
+                                               std::is_unsigned_v<T>,
+                                           int> = 0>
+    constexpr explicit compile_format_arg(T v)
+        : type(compile_arg_enum::unsigned_type),
+          custom_value() {
+    }
+
+    constexpr explicit compile_format_arg(double v)
+        : type(compile_arg_enum::double_type),
+          custom_value() {
+    }
+
+    constexpr explicit compile_format_arg(float v)
+        : type(compile_arg_enum::float_type),
+          custom_value() {
+    }
+
+    constexpr explicit compile_format_arg(long double v)
+        : type(compile_arg_enum::long_double_type),
+          custom_value() {
+    }
+
+    constexpr explicit compile_format_arg(std::string_view v)
+        : type(compile_arg_enum::string_type),
+          custom_value() {
+    }
+
+    constexpr explicit compile_format_arg(const char* v)
+        : type(compile_arg_enum::string_type),
+          custom_value() {
+    }
+
+    constexpr explicit compile_format_arg(const void* v)
+        : type(compile_arg_enum::pointer_type),
+          custom_value() {
+    }
+
+    template <typename T, std::enable_if_t<
+                              has_formatter_v<T> &&
+                                  !is_basic_formatter_v<T>,
+                              int> = 0>
+    explicit compile_format_arg(const T& v)
+        : type(compile_arg_enum::custom_type),
+          custom_value() {
+    }
+
+    template <typename T, std::enable_if_t<
+                              has_formatter_v<T> &&
+                                  !is_basic_formatter_v<T>,
+                              int> = 0>
+    constexpr explicit compile_format_arg(const T* v)
+        : type(compile_arg_enum::custom_type),
+          custom_value(compile_make_custom_value(v)) {
+    }
+
+    constexpr compile_format_arg(const compile_format_arg& other)
+        : type(other.type),
+          custom_value(other.custom_value),
+          used(other.used) {
+    }
+
+    constexpr compile_format_arg(compile_format_arg&& other)
+        : type(other.type),
+          custom_value(std::move(other.custom_value)),
+          used(other.used) {
+    }
+
+    constexpr compile_format_arg& operator=(const compile_format_arg& other) {
+        type         = other.type;
+        custom_value = other.custom_value;
+        used         = other.used;
+        return *this;
+    }
+
+    constexpr compile_format_arg& operator=(compile_format_arg&& other) {
+        type         = other.type;
+        custom_value = std::move(other.custom_value);
+        used         = other.used;
+        other.used   = false;
+        return *this;
+    }
+
+    constexpr void make_unused() {
+        used = true;
+    }
+
+    constexpr bool is_used() const {
+        return used;
+    }
+
+    template <typename Visitor>
+    constexpr void visit(Visitor&& vis) const {
+        switch (type) {
+        case compile_arg_enum::null_type:
+            vis(nullptr);
+            break;
+        case compile_arg_enum::bool_type:
+            vis(false);
+            break;
+        case compile_arg_enum::char_type:
+            vis(char{});
+            break;
+        case compile_arg_enum::signed_type:
+            vis(int64_t{});
+            break;
+        case compile_arg_enum::unsigned_type:
+            vis(uint64_t{});
+            break;
+        case compile_arg_enum::double_type:
+            vis(double{});
+            break;
+        case compile_arg_enum::float_type:
+            vis(float{});
+            break;
+        case compile_arg_enum::long_double_type:
+            vis(static_cast<long double>(0));
+            break;
+        case compile_arg_enum::string_type:
+            vis(std::string_view{});
+            break;
+        case compile_arg_enum::pointer_type:
+            vis(static_cast<const void*>(nullptr));
+            break;
+        case compile_arg_enum::custom_type:
+            vis(custom_value);
+            break;
+        }
+    }
+
+    constexpr bool is_custom() const {
+        return type == compile_arg_enum::custom_type;
+    }
+
+    constexpr const compile_custom_t& as_custom() const {
+        return custom_value;
+    }
+
+    explicit operator bool() const {
+        return type != compile_arg_enum::null_type;
+    }
+
+    constexpr bool parse_custom(const char*& ptr, const char* end, format_spec& spec) const {
+        std::string_view format_str(ptr, end - ptr - 1);
+        return as_custom().parse_fn(format_str, spec);
+    }
+
+    constexpr bool parser(const char*& ptr, const char* end, format_spec& spec) const {
+        if (!is_custom() || !as_custom().parse_fn) {
+            return false;
+        }
+
+        if (!parse_custom(ptr, end, spec)) {
+            ptr = nullptr;
+        }
+
+        return true;
+    }
+
+private:
+    template <typename T>
+    constexpr compile_custom_t compile_make_custom_value(const T*) const {
+        compile_custom_t custom_val;
+        if constexpr (has_parse_v<T>) {
+            custom_val.parse_fn = [](std::string_view fmt_str, format_spec& spec) -> bool {
+                return formatter<T>{}.template parse<true>(fmt_str, spec);
+            };
+        } else {
+            custom_val.parse_fn = nullptr;
+        }
+        return custom_val;
+    }
+};
+
+using compile_arg_store = detail::arg_store<compile_format_arg>;
+
 class compile_format_context {
 public:
-    constexpr compile_format_context(detail::arg_store& args)
+    using arg_type = compile_format_arg;
+
+    constexpr compile_format_context(compile_arg_store& args)
         : m_args(args) {
     }
 
-    constexpr bool get_arg(size_t index, detail::format_arg& arg) const {
+    constexpr bool get_arg(size_t index, compile_format_arg& arg) const {
         if (m_args.get_positional(index, arg)) {
             return true;
         }
@@ -52,7 +280,7 @@ public:
         return false;
     }
 
-    constexpr bool get_named_arg(std::string_view name, detail::format_arg& arg, size_t& index) const {
+    constexpr bool get_named_arg(std::string_view name, compile_format_arg& arg, size_t& index) const {
         if (m_args.get_named(name, arg, index)) {
             return true;
         }
@@ -61,7 +289,7 @@ public:
         return false;
     }
 
-    constexpr void format_arg(const detail::format_arg& arg, detail::format_spec& spec) {
+    constexpr void format_arg(const compile_format_arg& arg, detail::format_spec& spec) {
     }
 
     constexpr void append(char) {
@@ -143,7 +371,7 @@ public:
     }
 
 private:
-    detail::arg_store& m_args;
+    compile_arg_store& m_args;
     bool               m_is_valid{true};
 };
 
@@ -183,7 +411,7 @@ constexpr auto compile_arg() {
     return compile_null_arg{};
 }
 
-// 编译期参数构建器 - 专门处理编译期参数结构
+// 编译期参数构建器
 class compile_args_builder {
 public:
     constexpr compile_args_builder() = default;
@@ -193,7 +421,7 @@ public:
     constexpr compile_args_builder& operator()(const compile_named_arg<T>& arg) {
         if constexpr (has_formatter_v<T> && !is_basic_formatter_v<T>) {
             using value_type = typename compile_arg_type<T>::type;
-            m_args.add_arg(arg.name, format_arg(static_cast<value_type*>(nullptr)));
+            m_args.add_arg(arg.name, compile_format_arg(static_cast<value_type*>(nullptr)));
         } else {
             m_args.add_arg(named_arg{arg.name, typename compile_arg_type<T>::type{}});
         }
@@ -205,7 +433,7 @@ public:
     constexpr compile_args_builder& operator()(const compile_positional_arg<T>&) {
         if constexpr (has_formatter_v<T> && !is_basic_formatter_v<T>) {
             using value_type = typename compile_arg_type<T>::type;
-            m_args.add_arg(std::string_view(), format_arg(static_cast<value_type*>(nullptr)));
+            m_args.add_arg(std::string_view(), compile_format_arg(static_cast<value_type*>(nullptr)));
         } else {
             m_args.add_arg(typename compile_arg_type<T>::type());
         }
@@ -216,7 +444,7 @@ public:
         return *this;
     }
 
-    constexpr detail::arg_store& arg_store() {
+    constexpr compile_arg_store& arg_store() {
         return m_args;
     }
 
@@ -225,7 +453,7 @@ public:
     }
 
 private:
-    detail::arg_store m_args;
+    compile_arg_store m_args;
 };
 
 template <typename T>

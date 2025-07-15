@@ -28,7 +28,7 @@ bool runtime_arg_store::get_arg(size_t index, format_arg& arg) const {
         return true;
     }
 
-    return arg_store::get_arg(index, arg);
+    return arg_store<format_arg>::get_arg(index, arg);
 }
 
 bool runtime_arg_store::get_positional(size_t index, format_arg& arg) const {
@@ -42,12 +42,12 @@ bool runtime_arg_store::get_named(std::string_view name, format_arg& arg, size_t
             return true;
         }
     }
-    return arg_store::get_named(name, arg, index);
+    return arg_store<format_arg>::get_named(name, arg, index);
 }
 
 bool runtime_arg_store::resolve_dynamic_param(size_t index, std::string_view name, int& out) {
     if (named_args == nullptr) {
-        return arg_store::resolve_dynamic_param(index, name, out);
+        return arg_store<format_arg>::resolve_dynamic_param(index, name, out);
     }
 
     const mc::variant* v = index != INVALID_INDEX ? get_variant(index) : get_variant(name);

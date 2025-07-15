@@ -23,7 +23,9 @@ class format_context;
 } // namespace mc::fmt
 
 namespace mc::fmt::detail {
+template <typename Arg>
 struct arg_store;
+
 struct custom_t;
 
 // 查找匹配的 '}' 位置，正确处理嵌套的 {}
@@ -184,9 +186,9 @@ constexpr bool parse_named_arg(Context& ctx, const char*& ptr, const char* end, 
         return false;
     }
 
-    format_spec spec;
-    format_arg  arg;
-    size_t      index = INVALID_INDEX;
+    format_spec                spec;
+    typename Context::arg_type arg;
+    size_t                     index = INVALID_INDEX;
     if (!ctx.get_named_arg(name, arg, index)) {
         ctx.invalid_named_arg(name);
         return false;
@@ -221,8 +223,8 @@ constexpr bool parse_index_arg(Context& ctx, const char*& ptr, const char* end, 
         arg_index = index + 1;
     }
 
-    format_spec spec;
-    format_arg  arg;
+    format_spec                spec;
+    typename Context::arg_type arg;
     if (!ctx.get_arg(index, arg)) {
         ctx.invalid_index_arg(index);
         return false;
@@ -305,7 +307,6 @@ public:
     static void format_char(format_context& ctx, char c, const format_spec& spec);
     static void format_bool(format_context& ctx, bool value, const format_spec& spec);
     static void format_custom(format_context& ctx, const custom_t& custom, const format_spec& spec);
-    static void resolve_dynamic_spec(const arg_store& args, format_spec& spec);
 
     template <typename T, std::enable_if_t<std::is_integral_v<T>, int> = 0>
     static void format_integer(format_context& ctx, T value, const format_spec& spec) {

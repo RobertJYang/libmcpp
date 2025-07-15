@@ -102,6 +102,8 @@ bool format_vv(std::string& result, const char* format, va_list args) {
 
 class get_format_args_context {
 public:
+    using arg_type = detail::format_arg;
+
     get_format_args_context() {
     }
 
