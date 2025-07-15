@@ -10,8 +10,10 @@
  * See the Mulan PSL v2 for more details.
  */
 
+#include <mc/fmt/format_dict.h>
 #include <mc/log/log_message.h>
 #include <mc/string.h>
+
 namespace mc::log {
 
 message::message(level lvl, std::string msg, context ctx, mc::mutable_dict args)

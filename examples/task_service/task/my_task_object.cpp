@@ -11,6 +11,7 @@
  */
 
 #include "my_task_object.h"
+#include <mc/format.h>
 #include <mc/log.h>
 #include <mc/string.h>
 #include <mc/time.h>
@@ -32,7 +33,7 @@ mc::shared_ptr<my_task_object> my_task_object::create_task(mc::engine::service* 
     task->m_task.m_timeout = timeout;
 
     task->set_object_name(task->m_task.m_name.value());
-    task->set_object_path(mc::format_dict(object_type::path_pattern, {{"Id", id}}));
+    task->set_object_path(sformat(object_type::path_pattern, ("Id", id)));
 
     service->register_object(task);
 

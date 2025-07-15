@@ -181,9 +181,7 @@ bool is_valid_error_name(std::string_view name);
  * @param arg_names 存储占位符名称的字典
  * @return 如果解析成功返回 true，否则返回 false
  */
-inline bool get_error_format_args(std::string_view format, mc::dict& arg_names) {
-    return mc::fmt::get_format_args(format, arg_names);
-}
+bool get_error_format_args(std::string_view format, mc::dict& arg_names);
 
 /*
  * 创建错误，如果 name 不满足要求抛出错误

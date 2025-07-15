@@ -5,6 +5,7 @@ dbus_src_files = [
   'dbus/connection_impl.cpp',
   'dbus/signal.cpp',
   'dbus/match.cpp',
+  'dbus/error.cpp',
   'dbus/dispatch/watch.cpp',
   'dbus/dispatch/timeout.cpp',
   'dbus/dispatch/pending_call.cpp',
@@ -13,4 +14,4 @@ dbus_src_files = [
   'dbus/shm/local_msg.cpp',
   'dbus/shm/serialize.cpp',
   'dbus/shm/shm_tree.cpp',
-] 
+]

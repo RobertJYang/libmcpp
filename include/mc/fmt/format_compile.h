@@ -39,33 +39,31 @@ struct compile_arg_type<std::string> {
 
 class compile_format_context {
 public:
-    constexpr compile_format_context(const detail::arg_store& args)
+    constexpr compile_format_context(detail::arg_store& args)
         : m_args(args) {
     }
 
-    constexpr const detail::format_arg* get_arg(size_t index) const {
-        if (auto arg = m_args.get_positional(index)) {
-            return arg;
+    constexpr bool get_arg(size_t index, detail::format_arg& arg) const {
+        if (m_args.get_positional(index, arg)) {
+            return true;
         }
 
         MC_COMPILE_TIME_ERROR("找不到位置参数");
-        return nullptr;
+        return false;
     }
 
-    constexpr const detail::format_arg* get_named_arg(std::string_view name) const {
-        if (auto arg = m_args.get_named(name)) {
-            return arg;
+    constexpr bool get_named_arg(std::string_view name, detail::format_arg& arg, size_t& index) const {
+        if (m_args.get_named(name, arg, index)) {
+            return true;
         }
 
         MC_COMPILE_TIME_ERROR("找不到命名参数");
-        return nullptr;
+        return false;
     }
 
     constexpr void format_arg(const detail::format_arg& arg, detail::format_spec& spec) {
-        const_cast<detail::format_arg&>(arg).make_unused();
     }
 
-public:
     constexpr void append(char) {
     }
 
@@ -120,20 +118,33 @@ public:
     constexpr std::size_t used_size() const {
         std::size_t count = 0;
         for (std::size_t i = 0; i < m_args.size(); ++i) {
-            if (m_args.get_arg(i) && m_args.get_arg(i)->is_used()) {
+            if (m_args.is_used(i)) {
                 ++count;
             }
         }
         return count; // 返回已使用的参数数量
     }
 
+    constexpr void set_used(size_t index) {
+        m_args.set_used(index);
+    }
+
     constexpr size_t arg_count() const {
         return m_args.size();
     }
 
+    constexpr bool resolve_dynamic_param(size_t index, std::string_view name, int& out) {
+        if (!m_args.resolve_dynamic_param(index, name, out)) {
+            return false;
+        }
+
+        set_used(index);
+        return true;
+    }
+
 private:
-    const detail::arg_store& m_args;
-    bool                     m_is_valid{true};
+    detail::arg_store& m_args;
+    bool               m_is_valid{true};
 };
 
 // 编译期参数表示结构 - 只包含类型信息，不包含值
@@ -205,7 +216,7 @@ public:
         return *this;
     }
 
-    constexpr const detail::arg_store& arg_store() const {
+    constexpr detail::arg_store& arg_store() {
         return m_args;
     }
 

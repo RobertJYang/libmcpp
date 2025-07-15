@@ -27,7 +27,8 @@
 
 namespace mc::fmt {
 class format_context;
-}
+constexpr size_t INVALID_INDEX = std::numeric_limits<size_t>::max();
+} // namespace mc::fmt
 namespace mc::fmt::detail {
 
 // 命名参数
@@ -151,40 +152,6 @@ struct format_arg {
         return used;
     }
 
-private:
-    template <typename T>
-    custom_t make_custom_value(const T& v) const {
-        custom_t custom_val;
-        custom_val.obj       = &v;
-        custom_val.format_fn = [](const void* p, format_context& ctx, const format_spec& spec) {
-            formatter<T>{}.template format<format_context>(*static_cast<const T*>(p), ctx, spec);
-        };
-        if constexpr (has_parse_v<T>) {
-            custom_val.parse_fn = [](std::string_view fmt_str, format_spec& spec) -> bool {
-                return formatter<T>{}.template parse<false>(fmt_str, spec);
-            };
-        } else {
-            custom_val.parse_fn = nullptr;
-        }
-        return custom_val;
-    }
-
-    template <typename T>
-    constexpr custom_t compile_make_custom_value(const T*) const {
-        custom_t custom_val;
-        custom_val.obj       = nullptr;
-        custom_val.format_fn = nullptr;
-        if constexpr (has_parse_v<T>) {
-            custom_val.parse_fn = [](std::string_view fmt_str, format_spec& spec) -> bool {
-                return formatter<T>{}.template parse<true>(fmt_str, spec);
-            };
-        } else {
-            custom_val.parse_fn = nullptr;
-        }
-        return custom_val;
-    }
-
-public:
     template <typename Visitor>
     constexpr void visit(Visitor&& vis) const {
         std::visit(vis, value);
@@ -284,6 +251,40 @@ public:
 
         return true;
     }
+
+private:
+    template <typename T>
+    custom_t make_custom_value(const T& v) const {
+        custom_t custom_val;
+        custom_val.obj       = &v;
+        custom_val.format_fn = [](const void* p, format_context& ctx, const format_spec& spec) {
+            formatter<T>{}.template format<format_context>(*static_cast<const T*>(p), ctx, spec);
+        };
+        if constexpr (has_parse_v<T>) {
+            custom_val.parse_fn = [](std::string_view fmt_str, format_spec& spec) -> bool {
+                return formatter<T>{}.template parse<false>(fmt_str, spec);
+            };
+        } else {
+            custom_val.parse_fn = nullptr;
+        }
+
+        return custom_val;
+    }
+
+    template <typename T>
+    constexpr custom_t compile_make_custom_value(const T*) const {
+        custom_t custom_val;
+        custom_val.obj       = nullptr;
+        custom_val.format_fn = nullptr;
+        if constexpr (has_parse_v<T>) {
+            custom_val.parse_fn = [](std::string_view fmt_str, format_spec& spec) -> bool {
+                return formatter<T>{}.template parse<true>(fmt_str, spec);
+            };
+        } else {
+            custom_val.parse_fn = nullptr;
+        }
+        return custom_val;
+    }
 };
 
 #ifndef MC_FMT_MAX_ARGS
@@ -344,30 +345,64 @@ struct arg_store {
         return m_size;
     }
 
-    constexpr const format_arg* get_arg(size_t index) const {
-        return &entries[index].arg;
+    constexpr bool get_arg(size_t index, format_arg& arg) const {
+        if (index >= m_size) {
+            return false;
+        }
+
+        arg = entries[index].arg;
+        return true;
     }
 
     // 按位置获取参数
-    constexpr const format_arg* get_positional(size_t index) const {
-        size_t positional_count = 0;
-        for (size_t i = 0; i < m_size; ++i) {
-            if (positional_count == index) {
-                return &entries[i].arg;
-            }
-            ++positional_count;
-        }
-        return nullptr;
+    constexpr bool get_positional(size_t index, format_arg& arg) const {
+        return get_arg(index, arg);
     }
 
     // 按名称获取参数
-    constexpr const format_arg* get_named(std::string_view name) const {
+    constexpr bool get_named(std::string_view name, format_arg& arg, size_t& index) const {
         for (size_t i = 0; i < m_size; ++i) {
             if (entries[i].name == name) {
-                return &entries[i].arg;
+                arg   = entries[i].arg;
+                index = i;
+                return true;
             }
         }
-        return nullptr;
+        return false;
+    }
+
+    constexpr bool is_used(size_t index) const {
+        if (index >= m_size) {
+            return false;
+        }
+
+        return entries[index].arg.is_used();
+    }
+
+    constexpr void set_used(size_t index) {
+        if (index >= m_size) {
+            return;
+        }
+
+        entries[index].arg.make_unused();
+    }
+
+    constexpr bool resolve_dynamic_param(size_t& index, std::string_view name, int& out) {
+        detail::format_arg arg;
+        if (index != INVALID_INDEX ? !get_arg(index, arg) : !get_named(name, arg, index)) {
+            return false;
+        }
+
+        bool ok = false;
+        arg.visit([&](auto&& v) {
+            using VT = std::decay_t<decltype(v)>;
+            if constexpr (mc::fmt::detail::is_integer<VT>::value) {
+                out = static_cast<int>(v);
+                ok  = true;
+            }
+        });
+
+        return ok;
     }
 };
 

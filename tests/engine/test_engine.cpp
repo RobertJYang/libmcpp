@@ -13,6 +13,7 @@
 #include <gtest/gtest.h>
 #include <mc/dbus/connection.h>
 #include <mc/engine.h>
+#include <mc/format.h>
 #include <mc/singleton.h>
 #include <mc/string.h>
 #include <test_utilities/test_base.h>
@@ -69,9 +70,8 @@ protected:
     auto create_object(std::string_view path) {
         auto obj = test_object::create();
 
-        int         object_id = m_object_id++;
-        std::string object_name =
-            mc::format_v("%s_%d", obj->get_class_name().data(), object_id);
+        int         object_id   = m_object_id++;
+        std::string object_name = sformat("{}_{}", obj->get_class_name(), object_id);
 
         obj->set_object_path(path);
         obj->set_object_name(object_name);

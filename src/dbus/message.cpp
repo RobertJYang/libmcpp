@@ -825,7 +825,18 @@ message_writer::message_writer(message& msg) {
 
 message_writer::message_writer(DBusMessageIter& parent_iter, int type, std::string_view signature)
     : m_parent_iter(&parent_iter) {
-    const char* sig = signature.empty() ? nullptr : std::string(signature).c_str();
+    MC_ASSERT_THROW(signature.size() <= mc::reflect::max_signature_length,
+                    mc::invalid_arg_exception,
+                    "signature too long: ${sig}", ("sig", signature));
+
+    char        sig_buf[mc::reflect::max_signature_length + 1];
+    const char* sig = nullptr;
+    if (!signature.empty()) {
+        std::strncpy(sig_buf, signature.data(), signature.size());
+        sig_buf[signature.size()] = '\0';
+        sig                       = sig_buf;
+    }
+
     dbus_message_iter_open_container(m_parent_iter, type, sig, &m_iter);
 }
 

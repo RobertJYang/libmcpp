@@ -10,6 +10,7 @@
  * See the Mulan PSL v2 for more details.
  */
 
+#include <mc/fmt/format.h>
 #include <mc/fmt/formatter_mc.h>
 
 namespace mc::fmt::detail {
