@@ -44,6 +44,8 @@ public:
      */
     ~engine();
 
+    static engine& get_instance();
+
     /**
      * @brief 编译表达式
      * @param expr 表达式字符串

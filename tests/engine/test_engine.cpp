@@ -128,12 +128,12 @@ TEST_F(engine_test, test_engine_dbus_connection) {
 TEST_F(engine_test, test_object_property_changed_sig) {
     auto obj = test_object::create();
     obj->m_iface_1.m_i32.set_value(1);
-    obj->set_object_id(1);
     service.register_object(obj);
 
     // 检查对象路径模板计算是否正确
     auto path = obj->get_object_path();
-    EXPECT_EQ(path, "/org/test/object_1_101");
+    EXPECT_EQ(path, sformat("/org/test/object_{}_{}",
+                            obj->get_object_id(), obj->m_iface_1.m_i32.get_value() + 100));
 
     mc::mutable_dict values;
     obj->property_changed().connect([&](const mc::variant& value, const auto& prop) {

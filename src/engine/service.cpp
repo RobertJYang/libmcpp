@@ -20,8 +20,6 @@
 #include <mc/engine/path_iterator.h>
 #include <mc/engine/utils.h>
 #include <mc/exception.h>
-#include <mc/expr/lexer.h>
-#include <mc/expr/parser.h>
 #include <mc/log.h>
 #include <mc/runtime.h>
 
@@ -467,6 +465,11 @@ bool service::is_healthy() const {
 }
 
 void service::register_object(abstract_object& obj) {
+    // 如果对象没有ID则生成一个，避免构造对象路径时使用了对象ID
+    if (!obj.has_valid_id()) {
+        obj.set_object_id(m_impl->m_object_table->generate_id());
+    }
+
     auto path = obj.get_object_path();
     MC_ASSERT(!path.empty(), "object path is empty");
     MC_ASSERT(mc::dbus::validator::is_valid_path(path), "invalid object path ${path}",
@@ -504,22 +507,9 @@ service_object_table& service::get_object_table() const {
 std::string service::resolve_object_path(std::string_view       path_pattern,
                                          const abstract_object& obj) {
     std::string path;
-    if (mc::expr::lexer::is_template_string(path_pattern)) {
-        // 是路径表达式，使用表达式引擎计算路径
-        auto& expr_engine = mc::engine::engine::get_instance().get_expr_engine();
-        auto  ctx         = expr_engine.make_context(const_cast<abstract_object*>(&obj));
-
-        mc::expr::lexer  lex(path_pattern);
-        auto             tokens = lex.scan_template_string_tokens();
-        mc::expr::parser p(std::move(tokens));
-        auto             node     = p.parse();
-        auto             path_val = node->evaluate(ctx);
-        MC_ASSERT_THROW(path_val.is_string(), mc::invalid_arg_exception,
-                        "resolve object path ${path} failed", ("path", path_pattern));
-        path = std::string(path_val.get_string());
-    } else {
-        // 是普通字符串，直接使用
-        path = std::string(path_pattern);
+    auto&       resolver = mc::engine::engine::get_path_resolver();
+    if (!resolver || !resolver(path_pattern, obj, path)) {
+        path = std::string(path_pattern); // 是普通字符串，直接使用
     }
 
     mc::string::trim_inplace(path);

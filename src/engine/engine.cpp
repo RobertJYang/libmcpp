@@ -22,6 +22,18 @@ using table_connection_map = std::multimap<std::string, mc::connection_type>;
 using thread_list          = std::list<std::thread>;
 using work_guard           = boost::asio::executor_work_guard<boost::asio::io_context::executor_type>;
 
+// 我们支持路径表达式求值，路径表达式是在 expr 模块实现的，但我不希望 engine 需要反向依赖表达式才能工作，这里提供一个全局函数
+// 用于外部注册路径表达式求值函数。
+// 使用全局变量而不是跟随 engine 单例的原因是避免在单例销毁后 path_resolver 被销毁，导致路径表达式求值函数无法使用，因为
+// 在单元测试中经常需要销毁 engine 单例。
+static path_resolver s_path_resolver;
+void                 engine::set_path_resolver(path_resolver resolver) {
+    s_path_resolver = resolver;
+}
+path_resolver& engine::get_path_resolver() {
+    return s_path_resolver;
+}
+
 struct engine::engine_impl {
 public:
     engine_impl();
@@ -35,7 +47,6 @@ public:
     mdb::database        m_database;
     object_table_ptr     m_object_table;
     table_connection_map m_connections;
-    mc::expr::engine     m_expr_engine;
 };
 
 engine::engine_impl::engine_impl() : m_object_table(std::make_shared<object_table>()) {
@@ -144,14 +155,6 @@ void engine::unregister_table(mc::db::table_ptr table) {
 
 object_table& engine::get_object_table() {
     return *m_impl->m_object_table;
-}
-
-mc::expr::engine& engine::get_expr_engine() {
-    return m_impl->m_expr_engine;
-}
-
-mc::expr::node_ptr engine::compile(std::string_view expr) {
-    return m_impl->m_expr_engine.compile(expr);
 }
 
 } // namespace mc::engine

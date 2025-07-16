@@ -58,6 +58,12 @@ public:
         return do_update_object(condition, values, txn);
     }
 
+    /**
+     * 生成新的对象ID
+     * @return 新的对象ID
+     */
+    object_id_type generate_id();
+
     mc::signal<void(object_base&)>               on_object_added;
     mc::signal<void(object_base&)>               on_object_removed;
     mc::signal<void(object_base&, object_base&)> on_object_updated;
@@ -73,15 +79,6 @@ protected:
                                     transaction*                          txn) = 0;
     virtual size_t do_update_object(const query_builder& condition, const mc::dict& values,
                                     transaction* txn) = 0;
-
-    /**
-     * 生成新的对象ID
-     * @return 新的对象ID
-     */
-    object_id_type generate_id() {
-        return m_next_id.fetch_add(1, std::memory_order_relaxed);
-    }
-    static std::atomic<object_id_type> m_next_id; ///< 下一个可用的对象ID
 };
 
 template <typename ObjectType, typename Allocator = std::allocator<char>>

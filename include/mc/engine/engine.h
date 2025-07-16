@@ -15,13 +15,15 @@
 
 #include <mc/db/database.h>
 #include <mc/exception.h>
-#include <mc/expr.h>
 #include <mc/singleton.h>
 #include <unordered_map>
 
 namespace mc::engine {
 using table_ptr = mc::db::table_ptr;
 class object_table;
+
+class abstract_object;
+using path_resolver = std::function<bool(std::string_view, const abstract_object&, std::string& path)>;
 
 class engine {
 public:
@@ -50,8 +52,8 @@ public:
 
     object_table& get_object_table();
 
-    mc::expr::engine&  get_expr_engine();
-    mc::expr::node_ptr compile(std::string_view expr);
+    static void           set_path_resolver(path_resolver resolver);
+    static path_resolver& get_path_resolver();
 
 private:
     engine();
