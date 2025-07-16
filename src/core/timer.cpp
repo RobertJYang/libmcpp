@@ -11,7 +11,6 @@
  */
 #include <mc/core/application.h>
 #include <mc/core/timer.h>
-#include <mc/engine.h>
 
 #include <boost/asio/steady_timer.hpp>
 
