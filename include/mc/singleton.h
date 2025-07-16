@@ -54,26 +54,26 @@ struct singleton_options {
 /**
  * @brief 单例管理器类，管理所有单例的创建和销毁
  */
-class singleton_manager {
+class MC_API singleton_manager {
 public:
     using destroy_fn_t = std::function<void()>;
     using type_key_t   = std::pair<std::type_index, std::size_t>;
 
     // 单例访问
-    static singleton_manager& instance();
+    MC_API static singleton_manager& instance();
 
     // 注册单例销毁函数
-    void register_singleton(const type_key_t& key, destroy_fn_t destroy_fn, bool leaky);
+    MC_API void register_singleton(const type_key_t& key, destroy_fn_t destroy_fn, bool leaky);
 
     // 销毁所有非泄露单例
-    void destroy_instances();
+    MC_API void destroy_instances();
 
     // 清空所有单例相关信息（仅用于测试）
-    void reset_for_test();
+    MC_API void reset_for_test();
 
 private:
     singleton_manager() = default;
-    ~singleton_manager();
+    MC_API ~singleton_manager();
 
     struct type_key_hash {
         std::size_t operator()(const type_key_t& key) const {

@@ -25,7 +25,6 @@
 #include <cstdlib>
 #include <limits>
 #include <locale>
-#include <mc/pretty_name.h>
 #include <memory>
 #include <numeric>
 #include <sstream>
@@ -33,7 +32,9 @@
 #include <string_view>
 #include <vector>
 
-// 前向声明
+#include <mc/common.h>
+#include <mc/pretty_name.h>
+
 namespace mc::string {
 
 namespace detail {
@@ -47,10 +48,10 @@ void append_formatted_number(std::string& result, T val, const char* format) {
     }
 }
 
-[[noreturn]] void throw_bad_cast_error(const char* type);
-[[noreturn]] void throw_overflow_error(const char* type, std::string_view s);
+[[noreturn]] MC_API void throw_bad_cast_error(const char* type);
+[[noreturn]] MC_API void throw_overflow_error(const char* type, std::string_view s);
 
-std::pair<int, std::string_view> detect_number_radix(std::string_view s);
+MC_API std::pair<int, std::string_view> detect_number_radix(std::string_view s);
 
 /**
  * @brief 准备一个以尾0结尾的字符串，用于安全地转换为数字
@@ -59,7 +60,7 @@ std::pair<int, std::string_view> detect_number_radix(std::string_view s);
  * @param buffer 栈上分配的缓冲区
  * @return 可以安全用于 std::strtoX 函数的字符串指针，如果字符串无效则返回 nullptr
  */
-std::string_view prepare_number_string(
+MC_API std::string_view prepare_number_string(
     std::string_view s, int radix, char* buffer, std::size_t buffer_size) noexcept;
 } // namespace detail
 
@@ -87,11 +88,11 @@ auto to_string(T value) -> std::enable_if_t<std::is_integral_v<T> && std::is_uns
     return result;
 }
 
-std::string to_string(double value);
-void        to_string(std::string& result, double value);
+MC_API std::string to_string(double value);
+MC_API void        to_string(std::string& result, double value);
 
-std::string to_string(bool value);
-void        to_string(std::string& result, bool value);
+MC_API std::string to_string(bool value);
+MC_API void        to_string(std::string& result, bool value);
 
 /**
  * @brief 忽略大小写比较两个字符串是否相等
@@ -99,7 +100,7 @@ void        to_string(std::string& result, bool value);
  * @param b 第二个字符串
  * @return 如果两个字符串忽略大小写后相等则返回 true，否则返回 false
  */
-bool iequals(std::string_view a, std::string_view b);
+MC_API bool iequals(std::string_view a, std::string_view b);
 
 /**
  * @brief 忽略大小写比较两个 C 风格字符串是否相等
@@ -107,72 +108,72 @@ bool iequals(std::string_view a, std::string_view b);
  * @param b 第二个 C 风格字符串
  * @return 如果两个 C 风格字符串忽略大小写后相等则返回 true，否则返回 false
  */
-bool iequals(const char* a, const char* b);
+MC_API bool iequals(const char* a, const char* b);
 
 /**
  * @brief 将字符串转换为小写
  * @param s 要转换的字符串
  * @return 转换后的小写字符串
  */
-std::string to_lower(std::string_view s);
+MC_API std::string to_lower(std::string_view s);
 
 /**
  * @brief 将字符串转换为大写
  * @param s 要转换的字符串
  * @return 转换后的大写字符串
  */
-std::string to_upper(std::string_view s);
+MC_API std::string to_upper(std::string_view s);
 
 /**
  * @brief 原地将字符串转换为小写
  * @param s 要转换的字符串
  */
-void to_lower_inplace(std::string& s);
+MC_API void to_lower_inplace(std::string& s);
 
 /**
  * @brief 原地将字符串转换为大写
  * @param s 要转换的字符串
  */
-void to_upper_inplace(std::string& s);
+MC_API void to_upper_inplace(std::string& s);
 
 /**
  * @brief 去除字符串两端的空白字符
  * @param s 要处理的字符串
  * @return 处理后的字符串
  */
-std::string trim(std::string_view s);
+MC_API std::string trim(std::string_view s);
 
 /**
  * @brief 原地去除字符串两端的空白字符
  * @param s 要处理的字符串
  */
-void trim_inplace(std::string& s);
+MC_API void trim_inplace(std::string& s);
 
 /**
  * @brief 去除字符串左侧的空白字符
  * @param s 要处理的字符串
  * @return 处理后的字符串
  */
-std::string ltrim(std::string_view s);
+MC_API std::string ltrim(std::string_view s);
 
 /**
  * @brief 原地去除字符串左侧的空白字符
  * @param s 要处理的字符串
  */
-void ltrim_inplace(std::string& s);
+MC_API void ltrim_inplace(std::string& s);
 
 /**
  * @brief 去除字符串右侧的空白字符
  * @param s 要处理的字符串
  * @return 处理后的字符串
  */
-std::string rtrim(std::string_view s);
+MC_API std::string rtrim(std::string_view s);
 
 /**
  * @brief 原地去除字符串右侧的空白字符
  * @param s 要处理的字符串
  */
-void rtrim_inplace(std::string& s);
+MC_API void rtrim_inplace(std::string& s);
 
 /**
  * @brief 按指定分隔符分割字符串
@@ -180,7 +181,7 @@ void rtrim_inplace(std::string& s);
  * @param delim 分隔符
  * @return 分割后的字符串数组
  */
-std::vector<std::string> split(std::string_view s, char delim);
+MC_API std::vector<std::string> split(std::string_view s, char delim);
 
 /**
  * @brief 按指定分隔符分割字符串
@@ -188,7 +189,7 @@ std::vector<std::string> split(std::string_view s, char delim);
  * @param delim 分隔符字符串
  * @return 分割后的字符串数组
  */
-std::vector<std::string> split(std::string_view s, std::string_view delim);
+MC_API std::vector<std::string> split(std::string_view s, std::string_view delim);
 
 /**
  * @brief 获取子字符串，支持负数索引
@@ -216,7 +217,7 @@ std::vector<std::string> split(std::string_view s, std::string_view delim);
  * std::string_view s4 = mc::string::substr("hello", 1, -2);  // "ell"
  * @endcode
  */
-std::string_view substr(std::string_view s, int start, int end = -1);
+MC_API std::string_view substr(std::string_view s, int start, int end = -1);
 
 /**
  * @brief 获取子字符串，第二个参数指定长度而非结束位置
@@ -242,7 +243,7 @@ std::string_view substr(std::string_view s, int start, int end = -1);
  * std::string_view s4 = mc::string::substring("hello", 1, 3);  // "ell"
  * @endcode
  */
-std::string_view substring(std::string_view s, int start, std::size_t length = std::string::npos);
+MC_API std::string_view substring(std::string_view s, int start, std::size_t length = std::string::npos);
 
 /**
  * @brief 将一个或多个值追加到字符串中
@@ -284,7 +285,7 @@ void append(std::string& result, T&& value, Args&&... args) {
  * @param delim 连接符
  * @return 连接后的字符串
  */
-std::string join(const std::vector<std::string>& v, std::string_view delim);
+MC_API std::string join(const std::vector<std::string>& v, std::string_view delim);
 
 template <typename... Args>
 std::string join(std::string_view delim, Args&&... args) {
@@ -347,8 +348,8 @@ std::string concat(T&& first, Args&&... args) {
  * @param s 要格式化的字符串
  * @param left_align 是否左对齐，默认为true
  */
-void fixed_width_append(std::string& result, size_t width, std::string_view s,
-                        bool left_align = true);
+MC_API void fixed_width_append(std::string& result, size_t width, std::string_view s,
+                               bool left_align = true);
 
 /**
  * @brief 检查字符串是否以指定前缀开始
@@ -356,7 +357,7 @@ void fixed_width_append(std::string& result, size_t width, std::string_view s,
  * @param prefix 前缀
  * @return 如果字符串以指定前缀开始则返回 true，否则返回 false
  */
-bool starts_with(std::string_view s, std::string_view prefix);
+MC_API bool starts_with(std::string_view s, std::string_view prefix);
 
 /**
  * @brief 检查字符串是否以指定后缀结束
@@ -364,7 +365,7 @@ bool starts_with(std::string_view s, std::string_view prefix);
  * @param suffix 后缀
  * @return 如果字符串以指定后缀结束则返回 true，否则返回 false
  */
-bool ends_with(std::string_view s, std::string_view suffix);
+MC_API bool ends_with(std::string_view s, std::string_view suffix);
 
 /**
  * @brief 查找两个字符串的最长公共前缀
@@ -378,7 +379,7 @@ bool ends_with(std::string_view s, std::string_view suffix);
  * std::string_view empty = mc::string::longest_common_prefix("hello", "world");  // ""
  * @endcode
  */
-std::string_view longest_common_prefix(std::string_view s1, std::string_view s2);
+MC_API std::string_view longest_common_prefix(std::string_view s1, std::string_view s2);
 
 /**
  * @brief 替换字符串中的所有指定子串
@@ -387,7 +388,7 @@ std::string_view longest_common_prefix(std::string_view s1, std::string_view s2)
  * @param to 替换成的子串
  * @return 处理后的字符串
  */
-std::string replace_all(std::string_view s, std::string_view from, std::string_view to);
+MC_API std::string replace_all(std::string_view s, std::string_view from, std::string_view to);
 
 /**
  * @brief 原地替换字符串中的所有指定子串
@@ -395,7 +396,7 @@ std::string replace_all(std::string_view s, std::string_view from, std::string_v
  * @param from 要替换的子串
  * @param to 替换成的子串
  */
-void replace_all_inplace(std::string& s, std::string_view from, std::string_view to);
+MC_API void replace_all_inplace(std::string& s, std::string_view from, std::string_view to);
 
 /**
  * @brief 检查字符串是否包含指定子串
@@ -403,7 +404,7 @@ void replace_all_inplace(std::string& s, std::string_view from, std::string_view
  * @param substring 子串
  * @return 如果字符串包含指定子串则返回 true，否则返回 false
  */
-bool contains(std::string_view s, std::string_view substring);
+MC_API bool contains(std::string_view s, std::string_view substring);
 
 /**
  * @brief 忽略大小写检查字符串是否包含指定子串
@@ -411,15 +412,9 @@ bool contains(std::string_view s, std::string_view substring);
  * @param substring 子串
  * @return 如果字符串忽略大小写后包含指定子串则返回 true，否则返回 false
  */
-bool icontains(std::string_view s, std::string_view substring);
+MC_API bool icontains(std::string_view s, std::string_view substring);
 
-/**
- * @brief 尝试将字符串转换为布尔值
- * @param s 要转换的字符串
- * @param result 转换结果的引用
- * @return 是否转换成功
- */
-bool try_to_bool(std::string_view s, bool& result);
+MC_API bool try_to_bool(std::string_view s, bool& result);
 
 /**
  * @brief 将字符串转换为布尔值，如果转换失败则返回默认值
@@ -427,14 +422,14 @@ bool try_to_bool(std::string_view s, bool& result);
  * @param default_value 转换失败时返回的默认值
  * @return 转换结果或默认值
  */
-bool to_bool_with_default(std::string_view s, bool default_value);
+MC_API bool to_bool_with_default(std::string_view s, bool default_value);
 
 /**
  * @brief 将字符串转换为布尔值，如果转换失败则抛出异常
  * @param s 要转换的字符串
  * @return 转换结果
  */
-bool to_bool(std::string_view s);
+MC_API bool to_bool(std::string_view s);
 
 /**
  * @brief 尝试将字符串转换为数字
@@ -640,13 +635,13 @@ T to_number_with_default(const char* s, T default_value, int radix = 0) {
     return to_number_with_default<T>(std::string_view(s), default_value, radix);
 }
 
-bool is_valid_utf8(std::string_view s);
+MC_API bool is_valid_utf8(std::string_view s);
 
 /**
  * @brief 字符串分割迭代器
  * 用于高效地遍历分隔符分割的字符串片段
  */
-class split_iterator {
+class MC_API split_iterator {
 public:
     using iterator_category = std::forward_iterator_tag;
     using value_type        = std::string_view;

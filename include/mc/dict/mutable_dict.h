@@ -42,7 +42,7 @@ namespace mc {
  *           // 处理 entry...
  *       }
  */
-class mutable_dict : public dict {
+class MC_API mutable_dict : public dict {
 public:
     // 使用基类的 entry 类型
     using entry = dict::entry;
@@ -51,12 +51,13 @@ public:
     using iterator       = dict_types::iterator;
     using const_iterator = dict_types::const_iterator;
 
-    mutable_dict()                                         = default;
-    mutable_dict(const mutable_dict& other)                = default;
-    mutable_dict(mutable_dict&& other) noexcept            = default;
-    mutable_dict& operator=(const mutable_dict& other)     = default;
-    mutable_dict& operator=(mutable_dict&& other) noexcept = default;
-    ~mutable_dict()                                        = default;
+    MC_API mutable_dict()                              = default;
+    MC_API mutable_dict(const mutable_dict& other)     = default;
+    MC_API mutable_dict(mutable_dict&& other) noexcept = default;
+
+    MC_API mutable_dict& operator=(const mutable_dict& other)     = default;
+    MC_API mutable_dict& operator=(mutable_dict&& other) noexcept = default;
+    MC_API ~mutable_dict()                                        = default;
 
     /**
      * @brief 单键值对构造函数
@@ -67,12 +68,12 @@ public:
      * @note 此构造函数允许使用链式调用创建字典：
      *       mutable_dict(key1, value1)(key2, value2)(key3, value3);
      */
-    mutable_dict(variant key, variant value);
+    MC_API mutable_dict(variant key, variant value);
 
     /**
      * @brief 从键值对集合构造
      */
-    mutable_dict(std::vector<entry> entries);
+    MC_API mutable_dict(std::vector<entry> entries);
 
     /**
      * @brief 从初始化列表构造
@@ -82,7 +83,7 @@ public:
      * @note 此构造函数允许使用更简洁的语法创建字典：
      *       mutable_dict md = {{"key1", 123}, {"key2", "value"}, {"key3", true}};
      */
-    mutable_dict(std::initializer_list<std::pair<variant, variant>> init);
+    MC_API mutable_dict(std::initializer_list<std::pair<variant, variant>> init);
 
     /**
      * @brief 从初始化列表构造（模板版本）
@@ -112,8 +113,8 @@ public:
      * @brief 从 dict 构造
      * @note 此操作会共享内部数据，修改会影响原始 dict 对象
      */
-    mutable_dict(const dict& other);
-    mutable_dict& operator=(const dict& other);
+    MC_API               mutable_dict(const dict& other);
+    MC_API mutable_dict& operator=(const dict& other);
 
     /**
      * @brief 从初始化列表赋值
@@ -121,7 +122,7 @@ public:
      * @return 返回自身引用
      * @note 此操作会替换当前的内容
      */
-    mutable_dict& operator=(std::initializer_list<std::pair<variant, variant>> init);
+    MC_API mutable_dict& operator=(std::initializer_list<std::pair<variant, variant>> init);
 
     /**
      * @brief 从初始化列表赋值（模板版本）
@@ -165,70 +166,70 @@ public:
      *       mutable_dict md;
      *       md("key1", 123)("key2", "value")("key3", true);
      */
-    mutable_dict& operator()(variant key, variant value);
+    MC_API mutable_dict& operator()(variant key, variant value);
 
     /**
      * @brief 获取或设置指定键的值
      * @note 如果键不存在，会自动创建
      * @note 此操作可能会修改共享数据，影响所有共享该数据的对象
      */
-    variant& operator[](const std::string& key);
-    variant& operator[](std::string_view key);
-    variant& operator[](const char* key);
-    variant& operator[](const variant& key);
+    MC_API variant& operator[](const std::string& key);
+    MC_API variant& operator[](std::string_view key);
+    MC_API variant& operator[](const char* key);
+    MC_API variant& operator[](const variant& key);
     /**
      * @brief 获取指定键的值（const 版本）
      * @throw std::out_of_range 如果键不存在
      */
-    const variant& operator[](const std::string& key) const;
-    const variant& operator[](std::string_view key) const;
-    const variant& operator[](const char* key) const;
-    const variant& operator[](const variant& key) const;
+    MC_API const variant& operator[](const std::string& key) const;
+    MC_API const variant& operator[](std::string_view key) const;
+    MC_API const variant& operator[](const char* key) const;
+    MC_API const variant& operator[](const variant& key) const;
 
     /**
      * @brief 移除指定键的键值对
      * @return 如果键存在并被移除则返回 true，否则返回 false
      * @note 此操作会修改共享数据，影响所有共享该数据的对象
      */
-    bool erase(const std::string& key);
-    bool erase(std::string_view key);
-    bool erase(const char* key);
-    bool erase(const variant& key);
+    MC_API bool erase(const std::string& key);
+    MC_API bool erase(std::string_view key);
+    MC_API bool erase(const char* key);
+    MC_API bool erase(const variant& key);
 
     /**
      * @brief 清空所有键值对
      * @note 此操作会修改共享数据，影响所有共享该数据的对象
      */
-    void clear();
+    MC_API void clear();
 
     /**
      * @brief 获取开始迭代器
      * @note 通过迭代器修改数据会影响所有共享该数据的对象
      */
-    iterator       begin();
-    const_iterator begin() const;
+    MC_API iterator       begin();
+    MC_API const_iterator begin() const;
 
     /**
      * @brief 获取结束迭代器
      */
-    iterator       end();
-    const_iterator end() const;
+    MC_API iterator       end();
+    MC_API const_iterator end() const;
 
     /**
      * @brief 获取指定索引位置的键值对
      * @throw std::out_of_range 如果索引越界
      * @note 修改返回的引用会影响所有共享该数据的对象
      */
-    entry& at_index(size_t index);
+    MC_API entry& at_index(size_t index);
 
     /**
      * @brief 获取指定键的值（可变）
      * @throw std::out_of_range 如果键不存在
      */
-    variant& at(const std::string& key);
-    variant& at(std::string_view key);
-    variant& at(const char* key);
-    variant& at(const variant& key);
+    MC_API variant& at(const std::string& key);
+    MC_API variant& at(std::string_view key);
+    MC_API variant& at(const char* key);
+    MC_API variant& at(const variant& key);
 
     // 继承基类的所有 const 版本 at 方法
     using dict::at;
@@ -238,28 +239,28 @@ public:
      * @param key 要查找的键
      * @return 指向找到元素的迭代器，如果不存在则返回 end()
      */
-    iterator       find(const std::string& key);
-    iterator       find(std::string_view key);
-    iterator       find(const char* key);
-    iterator       find(const variant& key);
-    const_iterator find(const std::string& key) const;
-    const_iterator find(std::string_view key) const;
-    const_iterator find(const char* key) const;
-    const_iterator find(const variant& key) const;
+    MC_API iterator       find(const std::string& key);
+    MC_API iterator       find(std::string_view key);
+    MC_API iterator       find(const char* key);
+    MC_API iterator       find(const variant& key);
+    MC_API const_iterator find(const std::string& key) const;
+    MC_API const_iterator find(std::string_view key) const;
+    MC_API const_iterator find(const char* key) const;
+    MC_API const_iterator find(const variant& key) const;
 
     /**
      * @brief 合并两个字典
      * @param other 要合并的字典
      * @return 合并后的字典
      */
-    mutable_dict& operator+=(const mutable_dict& other);
+    MC_API mutable_dict& operator+=(const mutable_dict& other);
 
     /**
      * @brief 插入键值对
      * @param e 键值对
      * @return 返回自身引用
      */
-    mutable_dict& insert(entry e);
+    MC_API mutable_dict& insert(entry e);
 
     /**
      * @brief 插入键值对
@@ -267,7 +268,7 @@ public:
      * @param value 值
      * @return 返回包含插入结果的std::pair，first为指向插入位置的迭代器，second为是否成功插入
      */
-    std::pair<iterator, bool> insert(variant key, variant value);
+    MC_API std::pair<iterator, bool> insert(variant key, variant value);
 
     /**
      * @brief 带提示位置的插入键值对
@@ -276,7 +277,7 @@ public:
      * @param value 值
      * @return 指向插入位置的迭代器
      */
-    iterator insert(const_iterator hint, variant key, variant value);
+    MC_API iterator insert(const_iterator hint, variant key, variant value);
 
     /**
      * @brief 插入迭代器范围，仅适用于dict::entry迭代器

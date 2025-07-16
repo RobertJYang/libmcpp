@@ -68,6 +68,10 @@ factory_ptr reflection_factory::try_global_ptr() {
     return p ? *p : factory_ptr();
 }
 
+void reflection_factory::reset_global() {
+    mc::singleton<factory_ptr, global_namespace>::reset_for_test();
+}
+
 reflection_factory::reflection_factory(
     std::string_view factory_name, std::string_view factory_type_name, bool is_global)
     : m_impl(std::make_unique<impl>(factory_name, factory_type_name, is_global)) {

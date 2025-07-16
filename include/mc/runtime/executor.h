@@ -29,12 +29,12 @@ using execution_context = boost::asio::execution_context;
 /**
  * @brief 执行器包装器，支持包装任意 boost::asio 执行器
  */
-class executor {
+class MC_API executor {
 public:
     /**
      * @brief 默认构造函数
      */
-    executor() = default;
+    MC_API executor() = default;
 
     /**
      * @brief 从任意执行器构造
@@ -48,27 +48,27 @@ public:
     /**
      * @brief 拷贝构造函数
      */
-    executor(const executor& other) noexcept;
+    MC_API executor(const executor& other) noexcept;
 
     /**
      * @brief 移动构造函数
      */
-    executor(executor&& other) noexcept;
+    MC_API executor(executor&& other) noexcept;
 
     /**
      * @brief 拷贝赋值运算符
      */
-    executor& operator=(const executor& other) noexcept;
+    MC_API executor& operator=(const executor& other) noexcept;
 
     /**
      * @brief 移动赋值运算符
      */
-    executor& operator=(executor&& other) noexcept;
+    MC_API executor& operator=(executor&& other) noexcept;
 
     /**
      * @brief 析构函数
      */
-    ~executor();
+    MC_API ~executor();
 
     /**
      * @brief 提交任务到队列末尾执行
@@ -91,20 +91,20 @@ public:
     /**
      * @brief 检查执行器是否有效
      */
-    bool valid() const noexcept;
+    MC_API bool valid() const noexcept;
     /**
      * @brief 比较两个执行器是否相等
      */
-    bool operator==(const executor& other) const noexcept;
+    MC_API bool operator==(const executor& other) const noexcept;
 
     /**
      * @brief 比较两个执行器是否不等
      */
-    bool operator!=(const executor& other) const noexcept;
+    MC_API bool operator!=(const executor& other) const noexcept;
 
-    void               on_work_started() const noexcept;
-    void               on_work_finished() const noexcept;
-    execution_context& context() const;
+    MC_API void               on_work_started() const noexcept;
+    MC_API void               on_work_finished() const noexcept;
+    MC_API execution_context& context() const;
 
 private:
     using function = boost::asio::detail::executor_function;

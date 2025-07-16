@@ -88,35 +88,35 @@ struct plugin_config : resource_base {
 /**
  * @brief 配置验证器，验证配置对象是否有效
  */
-class config_validator {
+class MC_API config_validator {
 public:
     /**
      * @brief 验证应用程序配置
      * @param config 应用程序配置
      * @return 验证结果，true表示有效，false表示无效
      */
-    static bool validate_app_config(const app_config& config);
+    MC_API static bool validate_app_config(const app_config& config);
 
     /**
      * @brief 验证监督器配置
      * @param config 监督器配置
      * @return 验证结果，true表示有效，false表示无效
      */
-    static bool validate_supervisor_config(const supervisor_config& config);
+    MC_API static bool validate_supervisor_config(const supervisor_config& config);
 
     /**
      * @brief 验证服务配置
      * @param config 服务配置
      * @return 验证结果，true表示有效，false表示无效
      */
-    static bool validate_service_config(const service_config& config);
+    MC_API static bool validate_service_config(const service_config& config);
 
     /**
      * @brief 验证插件配置
      * @param config 插件配置
      * @return 验证结果，true表示有效，false表示无效
      */
-    static bool validate_plugin_config(const plugin_config& config);
+    MC_API static bool validate_plugin_config(const plugin_config& config);
 };
 
 // 元数据配置

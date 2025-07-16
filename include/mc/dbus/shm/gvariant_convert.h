@@ -24,7 +24,7 @@ constexpr int32_t MAX_CONTAINER_DEPTH = 32;
 constexpr int32_t MAX_CONTAINER_SIZE  = 1024;
 constexpr int32_t MAX_SIGNATURE_LEN   = 255;
 
-struct sig_unit {
+struct MC_API sig_unit {
 public:
     int         type;
     int         len;
@@ -36,8 +36,8 @@ public:
         return sub_types != nullptr && *sub_types != '\0';
     }
 
-    static int get_sig_len(const char* types, bool allow_dict_entry, size_t array_depth,
-                           size_t struct_depth);
+    static MC_API int get_sig_len(const char* types, bool allow_dict_entry, size_t array_depth,
+                                  size_t struct_depth);
 
 private:
     static int get_dict_len(const char* types, bool allow_dict_entry, size_t array_depth,
@@ -46,7 +46,7 @@ private:
                               size_t struct_depth);
 };
 
-class gvariant_convert {
+class MC_API gvariant_convert {
 public:
     static variant   to_mc_variant(GVariant* value);
     static GVariant* to_gvariant(const variant& value, const char* types);

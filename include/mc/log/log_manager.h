@@ -62,7 +62,7 @@ struct logging_config {
  *
  * 负责管理日志记录器和追加器
  */
-class log_manager {
+class MC_API log_manager {
 public:
     /**
      * @brief 获取单例实例

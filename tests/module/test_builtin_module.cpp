@@ -53,8 +53,8 @@ class builtin_module_test : public mc::test::TestBase {
 protected:
     void SetUp() override {
         mc::log::default_logger().set_level(mc::log::level::error);
-        mc::singleton<mc::module::module_manager>::reset_for_test();
-        mc::singleton<mc::reflect::factory_ptr, mc::reflect::global_namespace>::reset_for_test();
+        mc::module::module_manager::reset_for_test();
+        mc::reflect::reflection_factory::reset_global();
         MC_REGISTER_BUILTIN_MODULE(mc_test_module);
     }
 
@@ -64,8 +64,7 @@ protected:
 
     static void SetUpTestSuite() {
         // 销毁全局反射工厂，避免其他测试污染当前测试
-        mc::singleton<mc::reflect::factory_ptr, mc::reflect::global_namespace>::reset_for_test();
-
+        mc::reflect::reflection_factory::reset_global();
         mc::test::TestBase::TearDownTestSuite();
     }
 
@@ -77,11 +76,8 @@ protected:
         using test_module_ns = mc_test_module_namespace;
         mc::singleton<mc::reflect::factory_ptr, test_module_ns>::reset_for_test();
 
-        // 销毁全局反射工厂，避免污染其他测试
-        mc::singleton<mc::reflect::reflection_factory>::reset_for_test();
-
         // 销毁模块管理器，避免污染其他测试
-        mc::singleton<mc::reflect::factory_ptr, mc::reflect::global_namespace>::reset_for_test();
+        mc::reflect::reflection_factory::reset_global();
 
         // 调用基类清理方法
         mc::test::TestBase::TearDownTestSuite();

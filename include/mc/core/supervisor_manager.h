@@ -24,27 +24,27 @@ namespace mc::core {
 /**
  * @brief 监督器管理器类
  */
-class supervisor_manager {
+class MC_API supervisor_manager {
 public:
     // 构造和析构
-    supervisor_manager();
-    ~supervisor_manager();
+    MC_API supervisor_manager();
+    MC_API ~supervisor_manager();
 
     // 初始化
-    bool init();
+    MC_API bool init();
 
     // 监督器创建和获取
-    supervisor_ptr create_supervisor(const config::supervisor_config& config);
-    supervisor_ptr get_supervisor(const std::string& name) const;
-    supervisor_ptr get_root_supervisor() const;
-    bool           add_supervisor(const std::string& name, supervisor_ptr supervisor);
+    MC_API supervisor_ptr create_supervisor(const config::supervisor_config& config);
+    MC_API supervisor_ptr get_supervisor(const std::string& name) const;
+    MC_API supervisor_ptr get_root_supervisor() const;
+    MC_API bool           add_supervisor(const std::string& name, supervisor_ptr supervisor);
 
     // 监督器生命周期管理
-    bool start_supervisors();
-    bool stop_supervisors();
+    MC_API bool start_supervisors();
+    MC_API bool stop_supervisors();
 
     // 从配置初始化监督器
-    bool initialize_from_configs(const std::vector<config::supervisor_config>& configs);
+    MC_API bool initialize_from_configs(const std::vector<config::supervisor_config>& configs);
 
 private:
     using supervisor_map = std::unordered_map<std::string, supervisor_ptr>;

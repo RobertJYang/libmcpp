@@ -19,20 +19,20 @@
 
 namespace mc::dbus {
 
-struct error : DBusError {
-    error();
-    error(const error& other);
-    ~error();
+struct MC_API error : DBusError {
+    MC_API error();
+    MC_API error(const error& other);
+    MC_API ~error();
 
-    error(error&& other) noexcept;
+    MC_API error(error&& other) noexcept;
 
-    error& operator=(const error& other);
-    error& operator=(error&& other) noexcept;
+    MC_API error& operator=(const error& other);
+    MC_API error& operator=(error&& other) noexcept;
 
-    bool is_set() const;
-    void set_error(std::string_view name, std::string_view message);
-    void set_error(std::string_view name, std::string_view message, const mc::dict& args);
-    void set_error_const(std::string_view name, std::string_view message);
+    MC_API bool is_set() const;
+    MC_API void set_error(std::string_view name, std::string_view message);
+    MC_API void set_error(std::string_view name, std::string_view message, const mc::dict& args);
+    MC_API void set_error_const(std::string_view name, std::string_view message);
 };
 
 /**

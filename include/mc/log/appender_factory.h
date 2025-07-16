@@ -39,14 +39,14 @@ using appender_destroyer_c = void (*)(void*);
  *
  * 负责创建和管理追加器实例，包括从动态库加载追加器
  */
-class appender_factory {
+class MC_API appender_factory {
 public:
     /**
      * @brief 获取单例实例
      *
      * @return appender_factory& 单例实例引用
      */
-    static appender_factory& instance();
+    static MC_API appender_factory& instance();
 
     /**
      * @brief 注册追加器创建函数
@@ -54,7 +54,7 @@ public:
      * @param type 追加器类型
      * @param creator 创建函数
      */
-    void register_creator(const std::string& type, std::function<appender_ptr()> creator);
+    MC_API void register_creator(const std::string& type, std::function<appender_ptr()> creator);
 
     /**
      * @brief 根据类型创建追加器实例（不设置名称，不保存实例）
@@ -62,11 +62,11 @@ public:
      * @param type 追加器类型
      * @return 追加器实例
      */
-    template<typename T>
+    template <typename T>
     std::shared_ptr<T> create_by_type(const std::string& type) {
         return std::dynamic_pointer_cast<T>(create_impl(type));
     }
-    
+
     /**
      * @brief 创建追加器实例并设置名称
      *
@@ -77,7 +77,7 @@ public:
      * @param config 追加器配置
      * @return appender_ptr 追加器实例
      */
-    appender_ptr create(const std::string& name, const std::string& type, const dict& config);
+    MC_API appender_ptr create(const std::string& name, const std::string& type, const dict& config);
 
     /**
      * @brief 从动态库加载追加器
@@ -86,14 +86,14 @@ public:
      * @param appender_type 追加器类型
      * @return bool 是否成功加载
      */
-    bool load(const std::string& library_path, const std::string& appender_type);
+    MC_API bool load(const std::string& library_path, const std::string& appender_type);
 
     /**
      * @brief 从目录加载所有追加器
      *
      * @param dir_path 目录路径
      */
-    void load_all(const std::string& dir_path);
+    MC_API void load_all(const std::string& dir_path);
 
     /**
      * @brief 获取已存在的追加器实例
@@ -101,7 +101,7 @@ public:
      * @param name 追加器名称
      * @return appender_ptr 追加器实例，如果不存在则返回nullptr
      */
-    appender_ptr get_appender(const std::string& name);
+    MC_API appender_ptr get_appender(const std::string& name);
 
     /**
      * @brief 获取或创建追加器实例
@@ -113,17 +113,17 @@ public:
      * @param config 追加器配置
      * @return appender_ptr 追加器实例
      */
-    appender_ptr get_or_create_appender(const std::string& name, const std::string& type, const mc::dict& config);
+    MC_API appender_ptr get_or_create_appender(const std::string& name, const std::string& type, const mc::dict& config);
 
     /**
      * @brief 清理所有资源
      */
-    static void cleanup();
+    MC_API static void cleanup();
 
     /**
      * @brief 析构函数
      */
-    ~appender_factory();
+    MC_API ~appender_factory();
 
     // 禁止拷贝和赋值
     appender_factory(const appender_factory&)            = delete;

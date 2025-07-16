@@ -175,15 +175,15 @@ enum class type_id {
     max_type        ///< 最大类型值（用于边界检查）
 };
 
-const char*       get_type_name_internal(type_id type);
-[[noreturn]] void throw_type_error(const char* expected_type, type_id actual_type);
-[[noreturn]] void throw_unknow_type_error(type_id actual_type);
-[[noreturn]] void throw_invalid_type_comparison_error(const char* type1, const char* type2,
-                                                      const char* op);
-[[noreturn]] void throw_invalid_type_operation_error(const char* type1, const char* type2,
-                                                     const char* op);
-[[noreturn]] void throw_divide_by_zero_exception(const char* msg);
-size_t            calculate_str_hash(std::string_view data);
+[[noreturn]] MC_API void throw_type_error(const char* expected_type, type_id actual_type);
+MC_API const char*       get_type_name_internal(type_id type);
+[[noreturn]] MC_API void throw_unknow_type_error(type_id actual_type);
+[[noreturn]] MC_API void throw_invalid_type_comparison_error(const char* type1, const char* type2,
+                                                             const char* op);
+[[noreturn]] MC_API void throw_invalid_type_operation_error(const char* type1, const char* type2,
+                                                            const char* op);
+[[noreturn]] MC_API void throw_divide_by_zero_exception(const char* msg);
+MC_API size_t            calculate_str_hash(std::string_view data);
 template <typename Config>
 size_t calculate_array_hash(const variants_base<Config>& array_data);
 

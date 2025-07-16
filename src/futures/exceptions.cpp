@@ -10,31 +10,11 @@
  * See the Mulan PSL v2 for more details.
  */
 
-/**
- * @file crc32.h
- * @brief 定义了crc32校验方法
- */
+#include <mc/futures/exceptions.h>
 
-#ifndef MC_CRYPTO_CRC32_H
-#define MC_CRYPTO_CRC32_H
-
-#include <cstddef>
-#include <cstdint>
-#include <string>
-#include <vector>
-
-#include <mc/common.h>
-
-namespace mc::crypto {
-
-class MC_API CRC32 {
-public:
-    MC_API          CRC32();
-    MC_API uint32_t calculate(const std::string& bytes, uint32_t init = 0xFFFFFFFF, bool is_last = false);
-
-private:
-    void initialize_table();
-};
-} // namespace mc::crypto
-
-#endif
+namespace mc::futures {
+MC_IMPLEMENT_EXCEPTION_CLASS(future_already_retrieved, future_already_retrieved_code,
+                             "Future 已被获取", "future_already_retrieved")
+MC_IMPLEMENT_EXCEPTION_CLASS(promise_already_satisfied, promise_already_set_code,
+                             "Promise 值已被设置", "promise_already_satisfied")
+} // namespace mc::futures

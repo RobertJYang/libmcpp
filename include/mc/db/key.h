@@ -86,7 +86,7 @@ inline double uint64_to_float64(uint64_t u) {
  * 数据库索引键
  * 支持多种数据类型，可用于创建和管理复合键
  */
-class mdb_key {
+class MC_API mdb_key {
 public:
     mdb_key() = default;
 

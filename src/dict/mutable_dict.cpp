@@ -10,10 +10,6 @@
  * See the Mulan PSL v2 for more details.
  */
 
-/**
- * @file mutable_dict.cpp
- * @brief 实现 dict.h 中声明的 mutable_dict 类的方法
- */
 #include <mc/dict/mutable_dict.h>
 #include <mc/variant.h>
 #include <stdexcept>

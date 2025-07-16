@@ -77,26 +77,26 @@ struct load_lib_func_t {
  * 模块名称为 "mc.devices"，那导出函数名称为 "mc_open_mc_devices" 和 "mc_close_mc_devices"
  * 模块名称为 "mc.test.module"，那导出函数名称为 "mc_open_mc_test_module" 和 "mc_close_mc_test_module"
  */
-class module_loader {
+class MC_API module_loader {
 public:
-    module_loader();
-    ~module_loader() = default;
+    MC_API module_loader();
+    MC_API ~module_loader();
 
     using load_callback = std::function<bool(library_info_ptr, bool& is_resuse)>;
-    bool load_module(std::string_view module_name, load_callback callback) const;
+    MC_API bool load_module(std::string_view module_name, load_callback callback) const;
 
     // 添加自定义搜索路径
-    void add_search_path(std::string_view path);
+    MC_API void add_search_path(std::string_view path);
 
     // 清除所有搜索路径
-    void clear_search_paths();
+    MC_API void clear_search_paths();
 
     // 获取当前的搜索路径列表
-    const std::vector<std::string>& search_paths() const;
+    MC_API const std::vector<std::string>& search_paths() const;
 
     // 设置加载库函数，默认使用 dlopen/dlsym/dlclose
-    void             set_load_lib_func(load_lib_func_t func);
-    load_lib_func_t& get_load_lib_func();
+    MC_API void             set_load_lib_func(load_lib_func_t func);
+    MC_API load_lib_func_t& get_load_lib_func();
 
 private:
     void add_load_paths(const std::string& paths);

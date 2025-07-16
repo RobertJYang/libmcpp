@@ -25,7 +25,7 @@ protected:
     }
 
     void TearDown() override {
-        mc::singleton<error_engine>::reset_for_test();
+        error_engine::reset_for_test();
     }
 };
 

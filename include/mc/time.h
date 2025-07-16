@@ -203,7 +203,7 @@ inline constexpr milliseconds days(int64_t d) {
 /**
  * @brief 时间点类
  */
-class time_point {
+class MC_API time_point {
 public:
     /**
      * @brief 构造函数
@@ -225,7 +225,7 @@ public:
      * @brief 获取当前时间点
      * @return time_point 当前时间点
      */
-    static time_point now();
+    static MC_API time_point now();
 
     /**
      * @brief 获取最大时间点
@@ -248,21 +248,21 @@ public:
      * @param s ISO字符串
      * @return time_point 时间点
      */
-    static time_point from_iso_string(const std::string& s);
+    static MC_API time_point from_iso_string(const std::string& s);
 
     /**
      * @brief 转换为字符串
      * @return std::string_view 字符串视图
      * @note 返回的字符串视图仅在当前调用堆栈内有效，由thread_local存储管理
      */
-    operator std::string_view() const;
+    MC_API operator std::string_view() const;
 
     /**
      * @brief 转换为字符串表示
      * @return std::string_view 字符串视图
      * @note 返回的字符串视图仅在当前调用堆栈内有效，由thread_local存储管理
      */
-    std::string_view to_string() const;
+    MC_API std::string_view to_string() const;
 
     /**
      * @brief 获取从纪元以来的时间间隔
@@ -372,7 +372,7 @@ public:
      * @brief 转换为ISO字符串
      * @return std::string_view ISO字符串
      */
-    std::string_view to_iso_string() const;
+    MC_API std::string_view to_iso_string() const;
 
 private:
     milliseconds m_elapsed;
@@ -381,7 +381,7 @@ private:
 /**
  * @brief 精确到秒的时间点类
  */
-class time_point_sec {
+class MC_API time_point_sec {
 public:
     /**
      * @brief 默认构造函数
@@ -417,7 +417,7 @@ public:
      * @brief 获取当前时间点
      * @return time_point 当前时间点
      */
-    static time_point_sec now();
+    static MC_API time_point_sec now();
 
     /**
      * @brief 获取最大时间点
@@ -587,28 +587,28 @@ public:
      * @brief 转换为ISO字符串
      * @return std::string_view ISO字符串
      */
-    std::string_view to_iso_string() const;
+    MC_API std::string_view to_iso_string() const;
 
     /**
      * @brief 转换为字符串
      * @return std::string_view 字符串视图
      * @note 返回的字符串视图仅在当前调用堆栈内有效，由thread_local存储管理
      */
-    operator std::string_view() const;
+    MC_API operator std::string_view() const;
 
     /**
      * @brief 转换为字符串表示
      * @return std::string_view 字符串视图
      * @note 返回的字符串视图仅在当前调用堆栈内有效，由thread_local存储管理
      */
-    std::string_view to_string() const;
+    MC_API std::string_view to_string() const;
 
     /**
      * @brief 从ISO字符串转换为时间点
      * @param s ISO字符串
      * @return time_point_sec 时间点
      */
-    static time_point_sec from_iso_string(const std::string& s);
+    static MC_API time_point_sec from_iso_string(const std::string& s);
 
 private:
     uint32_t m_utc_seconds;
@@ -620,12 +620,12 @@ private:
 typedef std::optional<time_point> opt_time_point;
 
 // variant转换函数声明
-void to_variant(const milliseconds& ms, variant& v);
-void from_variant(const variant& v, milliseconds& ms);
-void to_variant(const time_point& tp, variant& v);
-void from_variant(const variant& v, time_point& tp);
-void to_variant(const time_point_sec& tps, variant& v);
-void from_variant(const variant& v, time_point_sec& tps);
+MC_API void to_variant(const milliseconds& ms, variant& v);
+MC_API void from_variant(const variant& v, milliseconds& ms);
+MC_API void to_variant(const time_point& tp, variant& v);
+MC_API void from_variant(const variant& v, time_point& tp);
+MC_API void to_variant(const time_point_sec& tps, variant& v);
+MC_API void from_variant(const variant& v, time_point_sec& tps);
 
 } // namespace mc
 

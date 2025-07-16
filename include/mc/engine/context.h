@@ -54,38 +54,38 @@ using call_info = std::variant<dbus_call, variants_call>;
 
 } // namespace detail
 
-class context {
+class MC_API context {
 public:
-    context(service& s, abstract_object& object);
-    ~context();
+    MC_API context(service& s, abstract_object& object);
+    MC_API ~context();
 
-    void        set_arg(std::string_view key, mc::variant value);
-    mc::variant get_arg(std::string_view key) const;
+    MC_API void set_arg(std::string_view key, mc::variant value);
+    MC_API mc::variant get_arg(std::string_view key) const;
 
-    const mc::dict& get_args() const;
-    mc::dict&       get_args();
-    void            set_args(mc::dict args);
+    MC_API const mc::dict& get_args() const;
+    MC_API mc::dict& get_args();
+    MC_API void      set_args(mc::dict args);
 
-    service&         get_service() const;
-    abstract_object& get_object() const;
+    MC_API service&         get_service() const;
+    MC_API abstract_object& get_object() const;
 
-    detail::call_info& get_call_info();
-    void               set_call_info(detail::call_info call_info);
+    MC_API detail::call_info& get_call_info();
+    MC_API void               set_call_info(detail::call_info call_info);
 
-    const method_type_info* get_method() const;
-    void                    set_method(const method_type_info* method);
+    MC_API const method_type_info* get_method() const;
+    MC_API void                    set_method(const method_type_info* method);
 
-    error_ptr get_error();
-    bool      is_error() const;
-    void      report_error(std::string_view error_name, mc::dict args = {});
+    MC_API error_ptr get_error();
+    MC_API bool      is_error() const;
+    MC_API void      report_error(std::string_view error_name, mc::dict args = {});
 
-    std::string_view get_path() const;
-    std::string_view get_method_name() const;
-    std::string_view get_interface_name() const;
-    std::string_view get_sender() const;
+    MC_API std::string_view get_path() const;
+    MC_API std::string_view get_method_name() const;
+    MC_API std::string_view get_interface_name() const;
+    MC_API std::string_view get_sender() const;
 
-    [[noreturn]] static void throw_error(std::string_view error_name, mc::dict args = {});
-    [[noreturn]] static void throw_error(const error_info& error, mc::dict args = {});
+    [[noreturn]] static MC_API void throw_error(std::string_view error_name, mc::dict args = {});
+    [[noreturn]] static MC_API void throw_error(const error_info& error, mc::dict args = {});
 
 private:
     service&                m_service;

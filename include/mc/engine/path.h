@@ -33,12 +33,12 @@ namespace engine {
  * - 元素不能为空（不允许连续斜杠）
  * - 可以是单个斜杠（表示根路径）
  */
-class path {
+class MC_API path {
 public:
     /**
      * 默认构造函数，创建根路径
      */
-    path();
+    MC_API path();
 
     /**
      * 使用字符串构造路径
@@ -46,7 +46,7 @@ public:
      * @param p 路径字符串
      * @throws invalid_object_path_exception 如果路径格式无效
      */
-    explicit path(std::string p);
+    MC_API explicit path(std::string p);
 
     /**
      * 使用C风格字符串构造路径
@@ -54,21 +54,21 @@ public:
      * @param p 路径C风格字符串
      * @throws invalid_object_path_exception 如果路径格式无效
      */
-    explicit path(const char* p);
+    MC_API explicit path(const char* p);
 
     /**
      * 获取路径字符串
      *
      * @return 路径字符串
      */
-    const std::string& str() const;
+    MC_API const std::string& str() const;
 
     /**
      * 转换为字符串
      *
      * @return 路径字符串
      */
-    operator std::string() const;
+    MC_API operator std::string() const;
 
     /**
      * 等于比较运算符
@@ -76,7 +76,7 @@ public:
      * @param other 要比较的路径
      * @return 如果路径相等返回true
      */
-    bool operator==(const path& other) const;
+    MC_API bool operator==(const path& other) const;
 
     /**
      * 不等于比较运算符
@@ -84,7 +84,7 @@ public:
      * @param other 要比较的路径
      * @return 如果路径不相等返回true
      */
-    bool operator!=(const path& other) const;
+    MC_API bool operator!=(const path& other) const;
 
     /**
      * 小于比较运算符（用于容器排序）
@@ -92,7 +92,7 @@ public:
      * @param other 要比较的路径
      * @return 如果this小于other返回true
      */
-    bool operator<(const path& other) const;
+    MC_API bool operator<(const path& other) const;
 
     /**
      * 路径连接操作符
@@ -100,7 +100,7 @@ public:
      * @param element 要添加的路径元素
      * @return 连接后的新路径
      */
-    path operator/(const std::string& element) const;
+    MC_API path operator/(const std::string& element) const;
 
     /**
      * 赋值操作符
@@ -108,7 +108,7 @@ public:
      * @param p 要赋值的路径字符串
      * @return 赋值后的路径引用
      */
-    path& operator=(std::string p);
+    MC_API path& operator=(std::string p);
 
     /**
      * 等于比较运算符
@@ -135,21 +135,21 @@ public:
      *
      * @return 父路径
      */
-    path parent() const;
+    MC_API path parent() const;
 
     /**
      * 获取路径的最后一个元素
      *
      * @return 路径的最后一个元素
      */
-    std::string basename() const;
+    MC_API std::string basename() const;
 
     /**
      * 验证路径是否有效
      *
      * @return 如果路径有效返回true
      */
-    bool is_valid() const;
+    MC_API bool is_valid() const;
 
     /**
      * 验证字符串是否为有效的DBus对象路径
@@ -157,7 +157,7 @@ public:
      * @param p 要验证的路径字符串
      * @return 如果是有效的DBus对象路径返回true
      */
-    static bool is_valid(std::string_view p);
+    static MC_API bool is_valid(std::string_view p);
 
     /**
      * 验证字符串是否为有效的路径元素
@@ -165,7 +165,7 @@ public:
      * @param element 要验证的路径元素
      * @return 如果是有效的路径元素返回true
      */
-    static bool is_valid_element(std::string_view element);
+    static MC_API bool is_valid_element(std::string_view element);
 
 private:
     std::string m_path;
@@ -174,7 +174,7 @@ private:
 /**
  * 输出流操作符重载
  */
-std::ostream& operator<<(std::ostream& os, const path& p);
+MC_API std::ostream& operator<<(std::ostream& os, const path& p);
 
 } // namespace engine
 

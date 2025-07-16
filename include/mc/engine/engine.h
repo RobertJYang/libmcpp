@@ -25,13 +25,14 @@ class object_table;
 class abstract_object;
 using path_resolver = std::function<bool(std::string_view, const abstract_object&, std::string& path)>;
 
-class engine {
+class MC_API engine {
 public:
-    ~engine();
+    MC_API ~engine();
 
-    static engine& get_instance();
+    static MC_API engine& get_instance();
+    static MC_API void    reset_for_test();
 
-    mc::db::database& get_database();
+    MC_API mc::db::database& get_database();
 
     template <typename Table>
     std::shared_ptr<Table> get_table(std::string_view table_name) {
@@ -46,14 +47,14 @@ public:
         return new_table;
     }
 
-    table_ptr find_table(std::string_view table_name);
-    bool      register_table(table_ptr table);
-    void      unregister_table(table_ptr table);
+    MC_API table_ptr find_table(std::string_view table_name);
+    MC_API bool      register_table(table_ptr table);
+    MC_API void      unregister_table(table_ptr table);
 
-    object_table& get_object_table();
+    MC_API object_table& get_object_table();
 
-    static void           set_path_resolver(path_resolver resolver);
-    static path_resolver& get_path_resolver();
+    static MC_API void           set_path_resolver(path_resolver resolver);
+    static MC_API path_resolver& get_path_resolver();
 
 private:
     engine();

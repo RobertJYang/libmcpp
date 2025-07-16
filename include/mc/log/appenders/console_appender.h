@@ -29,7 +29,7 @@ namespace log {
  *
  * 将日志消息输出到标准输出或标准错误，支持颜色输出
  */
-class console_appender : public appender {
+class MC_API console_appender : public appender {
 public:
     /**
      * @brief 输出流类型
@@ -78,12 +78,12 @@ public:
     /**
      * @brief 默认构造函数
      */
-    console_appender();
+    MC_API console_appender();
 
     /**
      * @brief 析构函数
      */
-    ~console_appender() override;
+    MC_API ~console_appender() override;
 
     /**
      * @brief 初始化追加器
@@ -91,14 +91,14 @@ public:
      * @param args 配置参数
      * @return bool 初始化是否成功
      */
-    bool init(const variant& args) override;
+    MC_API bool init(const variant& args) override;
 
     /**
      * @brief 追加日志消息
      *
      * @param msg 日志消息
      */
-    void append(const message& msg) override;
+    MC_API void append(const message& msg) override;
 
 private:
     /**

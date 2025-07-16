@@ -39,9 +39,7 @@ base_src_files = [
 ]
 
 # 源文件列表
-libmcpp_src_files = [
-  'variant_c_api.cpp',
-]
+libmcpp_src_files = ['variant_c_api.cpp']
 
 dep_arr = [boost_dep, boost_program_options_dep, dbus_dep, glib_dep]
 
@@ -65,13 +63,14 @@ else
 endif
 
 # 创建基础库
-libmcpp_base_lib = shared_library(
+libmcpp_base_lib = library(
   'mcpp_base',
   base_src_files,
   include_directories: [incdir, srcdir],
   dependencies: dep_arr,
   install: true,
   install_dir: install_dir,
+  build_by_default: true,
 )
 libmcpp_base_dep = declare_dependency(
   include_directories: incdir,
@@ -93,7 +92,6 @@ dep_arr += [
   libmcpp_module_dep,
 ]
 
-# 创建共享库
 libmcpp_lib = shared_library(
   'mcpp',
   libmcpp_src_files,
@@ -101,6 +99,13 @@ libmcpp_lib = shared_library(
   dependencies: dep_arr,
   install: true,
   install_dir: install_dir,
+  link_whole: [
+    libmcpp_base_lib,
+    libmcpp_core_lib,
+    libmcpp_engine_lib,
+    libmcpp_expr_lib,
+    libmcpp_module_lib,
+  ],
 )
 
 # 导出库依赖

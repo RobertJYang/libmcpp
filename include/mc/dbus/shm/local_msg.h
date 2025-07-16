@@ -24,34 +24,34 @@ inline bool is_unique_name(std::string_view name) {
     return !name.empty() && name.at(0) == ':';
 }
 
-class local_msg {
+class MC_API local_msg {
 public:
-    local_msg() = default;
+    MC_API local_msg() = default;
 
-    local_msg(std::string_view service_name, std::string_view path, std::string_view interface,
-              std::string_view member);
+    MC_API local_msg(std::string_view service_name, std::string_view path, std::string_view interface,
+                     std::string_view member);
 
-    local_msg(const variants& v);
+    MC_API local_msg(const variants& v);
 
-    std::tuple<std::string, std::string> get_error() const;
+    MC_API std::tuple<std::string, std::string> get_error() const;
 
-    void method_return();
+    MC_API void method_return();
 
-    void error(std::string_view error_name, std::string_view message);
+    MC_API void error(std::string_view error_name, std::string_view message);
 
-    void set_member(std::string_view member);
+    MC_API void set_member(std::string_view member);
 
-    uint32_t msg_type() const;
+    MC_API uint32_t msg_type() const;
 
-    std::string_view path() const;
+    MC_API std::string_view path() const;
 
-    std::string_view interface() const;
+    MC_API std::string_view interface() const;
 
-    std::string_view member() const;
+    MC_API std::string_view member() const;
 
-    std::string_view signature() const;
+    MC_API std::string_view signature() const;
 
-    void append_args(std::string_view signature, const variants& args);
+    MC_API void append_args(std::string_view signature, const variants& args);
 
     template <typename... Args>
     void append(std::string_view signature, Args&&... args) {
@@ -68,33 +68,33 @@ public:
         (func(std::forward<Args>(args)), ...);
     }
 
-    void append_return_args(std::string_view signature, const variant& arg);
+    MC_API void append_return_args(std::string_view signature, const variant& arg);
 
-    const variants& read() const;
+    MC_API const variants& read() const;
 
-    void set_sender(std::string_view sender);
+    MC_API void set_sender(std::string_view sender);
 
-    std::string_view sender() const;
+    MC_API std::string_view sender() const;
 
-    void set_serial(uint32_t serial);
+    MC_API void set_serial(uint32_t serial);
 
-    uint32_t get_serial() const;
+    MC_API uint32_t get_serial() const;
 
-    uint32_t get_reply_serial() const;
+    MC_API uint32_t get_reply_serial() const;
 
-    std::string_view destination() const;
+    MC_API std::string_view destination() const;
 
-    void set_local_call(bool v);
+    MC_API void set_local_call(bool v);
 
-    bool is_local_call() const;
+    MC_API bool is_local_call() const;
 
-    message new_dbus_msg() const;
+    MC_API message new_dbus_msg() const;
 
-    std::string pack() const;
+    MC_API std::string pack() const;
 
-    static variant parse_variant(signature_iterator it, const variant& v, size_t depth);
+    static MC_API variant parse_variant(signature_iterator it, const variant& v, size_t depth);
 
-    static variants parse_variant_elements(signature_iterator it, const variants& v, size_t depth);
+    static MC_API variants parse_variant_elements(signature_iterator it, const variants& v, size_t depth);
 
 private:
     std::string get_error_message() const;
@@ -117,11 +117,11 @@ using shm_msg_promise  = mc::promise<local_msg>;
 using serial_map_type  = std::unordered_map<uint32_t, shm_msg_promise>;
 using service_map_type = std::unordered_map<std::string, serial_map_type>;
 
-class shm_pending_msgs {
+class MC_API shm_pending_msgs {
 public:
-    bool send(std::string_view source_unique_name, uint32_t serial, shm_msg_promise promise);
-    bool reply(std::string_view destination_unique_name, uint32_t serial, local_msg& msg);
-    void clear(std::string_view unique_name);
+    MC_API bool send(std::string_view source_unique_name, uint32_t serial, shm_msg_promise promise);
+    MC_API bool reply(std::string_view destination_unique_name, uint32_t serial, local_msg& msg);
+    MC_API void clear(std::string_view unique_name);
 
 private:
     std::mutex       m_mutex;

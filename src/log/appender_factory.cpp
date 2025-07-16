@@ -23,6 +23,17 @@
 namespace mc {
 namespace log {
 
+appender::~appender() {
+}
+
+const std::string& appender::get_name() const {
+    return m_name;
+}
+
+void appender::set_name(const std::string& name) {
+    m_name = name;
+}
+
 class appender_factory::impl {
     struct library_info {
         void*                handle;    // 动态库句柄

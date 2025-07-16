@@ -15,6 +15,10 @@
 
 namespace mc::db {
 
+db_resource::db_resource()
+    : m_savepoint_id(-1), m_next(nullptr), m_is_head(false), m_is_valid(true) {
+}
+
 // 事务保存点实现
 savepoint::savepoint(transaction* txn) : m_txn(txn) {
 }
@@ -220,6 +224,42 @@ void transaction::rollback_back(int sp_id, uint64_t resource_id, db_resource& re
         first_node->rollback();
         head->m_next = first_node->m_next;
     }
+}
+
+int32_t transaction::last_savepoint_id() const {
+    return m_current_savepoint_id;
+}
+
+uint32_t transaction::alloc_table_id() {
+    static std::atomic<uint32_t> table_id = 0;
+    return ++table_id;
+}
+
+size_t transaction::get_resource_count() const {
+    return m_resources.size();
+}
+
+size_t transaction::get_resource_map_size() const {
+    return m_resource_map.size();
+}
+
+bool transaction::has_resource(uint64_t resource_id) const {
+    return m_resource_map.find(resource_id) != m_resource_map.end();
+}
+
+size_t transaction::get_resource_chain_length(uint64_t resource_id) const {
+    auto it = m_resource_map.find(resource_id);
+    if (it == m_resource_map.end()) {
+        return 0;
+    }
+
+    size_t count = 1; // 头节点
+    auto*  node  = const_cast<db_resource*>(&(*it))->m_next;
+    while (node) {
+        ++count;
+        node = node->m_next;
+    }
+    return count;
 }
 
 } // namespace mc::db

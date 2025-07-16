@@ -32,26 +32,26 @@ namespace mc::expr {
 /**
  * @brief 表达式引擎类
  */
-class engine {
+class MC_API engine {
 public:
     /**
      * @brief 默认构造函数
      */
-    engine();
+    MC_API engine();
 
     /**
      * @brief 析构函数
      */
-    ~engine();
+    MC_API ~engine();
 
-    static engine& get_instance();
+    MC_API static engine& get_instance();
 
     /**
      * @brief 编译表达式
      * @param expr 表达式字符串
      * @return 表达式语法树根节点
      */
-    node_ptr compile(std::string_view expr);
+    MC_API node_ptr compile(std::string_view expr);
 
     /**
      * @brief 求值表达式
@@ -59,7 +59,7 @@ public:
      * @param ctx 表达式上下文
      * @return 表达式计算结果
      */
-    mc::variant evaluate(std::string_view expr, const context_base& ctx);
+    MC_API mc::variant evaluate(std::string_view expr, const context_base& ctx);
 
     /**
      * @brief 求值表达式并返回GVariant类型结果
@@ -67,20 +67,20 @@ public:
      * @param ctx 表达式上下文
      * @return 表达式计算结果（GVariant类型）
      */
-    GVariant* evaluate_as_gvariant(std::string_view expr, const context_base& ctx);
+    MC_API GVariant* evaluate_as_gvariant(std::string_view expr, const context_base& ctx);
 
     /**
      * @brief 获取全局上下文
      * @return 包含所有内置函数的全局上下文
      */
-    context& get_global_context() const;
+    MC_API context& get_global_context() const;
 
     /**
      * @brief 创建上下文
      * @param parent 父级上下文指针，如果为空则使用全局上下文
      * @return 上下文对象
      */
-    context make_context(context_base* parent = nullptr) const;
+    MC_API context make_context(context_base* parent = nullptr) const;
 
     /**
      * @brief 创建带有指定变量的上下文
@@ -88,7 +88,7 @@ public:
      * @param parent 父级上下文指针，如果为空则使用全局上下文
      * @return 上下文对象
      */
-    context make_context(const mc::dict& variables, context_base* parent = nullptr) const;
+    MC_API context make_context(const mc::dict& variables, context_base* parent = nullptr) const;
 
     /**
      * @brief 创建上下文
@@ -96,8 +96,8 @@ public:
      * @param parent 父级上下文指针，如果为空则使用全局上下文
      * @return 上下文对象
      */
-    object_context make_context(mc::engine::abstract_object* object,
-                                context_base*                parent = nullptr) const;
+    MC_API object_context make_context(mc::engine::abstract_object* object,
+                                       context_base*                parent = nullptr) const;
 
 private:
     struct impl;

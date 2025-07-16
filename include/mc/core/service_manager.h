@@ -46,41 +46,41 @@ struct service_node {
 /**
  * @brief 服务管理器类
  */
-class service_manager {
+class MC_API service_manager {
 public:
     // 构造函数
-    service_manager() = default;
+    MC_API service_manager();
 
     // 析构函数
-    ~service_manager();
+    MC_API ~service_manager();
 
     // 从配置初始化服务
-    bool initialize_from_configs(config_manager& config_mgr, supervisor_manager& supervisor_mgr,
-                                 service_factory& factory);
+    MC_API bool initialize_from_configs(config_manager& config_mgr, supervisor_manager& supervisor_mgr,
+                                        service_factory& factory);
 
     // 获取服务
-    service_base_ptr get_service(const std::string& name) const;
+    MC_API service_base_ptr get_service(const std::string& name) const;
 
     // 清理服务
-    void cleanup_services();
+    MC_API void cleanup_services();
 
     // 添加服务
-    bool add_service(const std::string& name, service_base_ptr service_instance);
+    MC_API bool add_service(const std::string& name, service_base_ptr service_instance);
 
     // 移除服务
-    bool remove_service(const std::string& name);
+    MC_API bool remove_service(const std::string& name);
 
     // 获取所有服务名称
-    std::vector<std::string> get_service_names() const;
+    MC_API std::vector<std::string> get_service_names() const;
 
     // 启动所有服务
-    bool start_services();
+    MC_API bool start_services();
 
     // 停止所有服务
-    bool stop_services();
+    MC_API bool stop_services();
 
     // 检查服务是否存在
-    bool has_service(const std::string& name) const;
+    MC_API bool has_service(const std::string& name) const;
 
 private:
     std::unordered_map<std::string, service_base_ptr> m_services;

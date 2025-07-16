@@ -17,11 +17,13 @@
 #ifndef MC_INTERPROCESS_MUTEX_SHARED_MUTEX_H
 #define MC_INTERPROCESS_MUTEX_SHARED_MUTEX_H
 
-#include "mc/interprocess/mutex/ipc_shared_mutex.h"
 #include <mutex>
 #include <shared_mutex>
 #include <system_error>
 #include <thread>
+
+#include <mc/interprocess/mutex/ipc_shared_mutex.h>
+
 
 namespace mc::interprocess {
 

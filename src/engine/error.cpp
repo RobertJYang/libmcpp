@@ -23,6 +23,15 @@
 
 namespace mc::engine {
 
+error::error() = default;
+
+error::error(const error_info& info) : mc::enable_shared_from_this<error>(), error_info(info) {
+}
+
+error::error(std::string_view name, std::string_view format, error_level level)
+    : mc::enable_shared_from_this<error>(), error_info(name, format, level) {
+}
+
 error::error(const error& other)
     : mc::enable_shared_from_this<error>(other),
       error_info(other.name, other.format, other.level) {
@@ -32,6 +41,9 @@ error::error(const error& other)
         this->prev_error.reset(new error(*other.prev_error));
     }
 }
+
+error::error(error&& other) noexcept            = default;
+error& error::operator=(error&& other) noexcept = default;
 
 error_ptr error::from_exception(std::exception_ptr e) {
     try {

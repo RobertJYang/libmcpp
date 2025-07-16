@@ -116,6 +116,8 @@ module_loader::module_loader() {
     add_load_paths(MC_MODULE_PATH);
 }
 
+module_loader::~module_loader() = default;
+
 void module_loader::add_load_paths(const std::string& paths) {
     for (auto it = split_iterator(paths, MC_MODULE_PATH_SEP); it != split_iterator(); ++it) {
         auto path = mc::string::trim(*it);

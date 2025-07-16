@@ -11,12 +11,14 @@
  */
 #include <string_view>
 
+#include <mc/common.h>
+
 namespace mc::dbus {
 
-class validator {
+class MC_API validator {
 public:
-    static bool is_valid_interface_name(std::string_view name);
-    static bool is_valid_member_name(std::string_view name);
+    MC_API static bool is_valid_interface_name(std::string_view name);
+    MC_API static bool is_valid_member_name(std::string_view name);
 
     /*
      * 检查 bus name 是否有效
@@ -26,15 +28,15 @@ public:
      * 以冒号开头表示唯一的 bus name，每段名称只能包含字母、数字、下划线，
      * 每段不能以数字和点开头
      */
-    static bool is_valid_bus_name(std::string_view name);
+    MC_API static bool is_valid_bus_name(std::string_view name);
 
-    static bool is_valid_error_name(std::string_view errorname);
-    static bool is_valid_path(std::string_view path);
-    static bool is_message_too_large(std::size_t size);
+    MC_API static bool is_valid_error_name(std::string_view errorname);
+    MC_API static bool is_valid_path(std::string_view path);
+    MC_API static bool is_message_too_large(std::size_t size);
 
-    static constexpr uint32_t maximum_array_size    = (0x01 << 26);
-    static constexpr uint32_t maximum_message_size  = (0x01 << 27);
-    static constexpr uint32_t maximum_message_depth = 64;
+    MC_API static constexpr uint32_t maximum_array_size    = (0x01 << 26);
+    MC_API static constexpr uint32_t maximum_message_size  = (0x01 << 27);
+    MC_API static constexpr uint32_t maximum_message_depth = 64;
 };
 
 } // namespace mc::dbus

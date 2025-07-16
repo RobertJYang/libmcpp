@@ -56,7 +56,7 @@ using invoke_result = mc::variant;
 
 using object_identifier_t = std::tuple<uint8_t, std::string, std::string, std::string>;
 
-struct visitor {
+struct MC_API visitor {
     virtual void handle_interface_begin(const abstract_object&    obj,
                                         const abstract_interface& iface) = 0;
     virtual void handle_interface_end(const abstract_object&    obj,
@@ -93,7 +93,7 @@ struct visitor {
                         const signal_meta& info) = 0;
 };
 
-class property_base {
+class MC_API property_base {
 public:
     virtual std::string_view get_name() const      = 0;
     virtual std::string_view get_signature() const = 0;
@@ -114,7 +114,7 @@ protected:
     virtual void set_variant(const mc::variant& value) = 0;
 };
 
-class abstract_object : public mc::core::object {
+class MC_API abstract_object : public mc::core::object {
 public:
     using managed_objects = std::map<std::string_view, abstract_object*>;
     using mc::core::object::connect;
@@ -181,7 +181,7 @@ protected:
     virtual void remove_managed_object(abstract_object* obj) = 0;
 };
 
-class abstract_interface : public mc::core::object {
+class MC_API abstract_interface : public mc::core::object {
 public:
     using mc::core::object::connect;
 
@@ -189,7 +189,7 @@ public:
 
     virtual abstract_object* get_owner() const = 0;
 
-    service* get_service() const;
+    MC_API service* get_service() const;
 
     virtual std::string_view    get_interface_name() const                                             = 0;
     virtual mc::connection_type connect(std::string_view signal_name, slot_type slot)                  = 0;

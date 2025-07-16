@@ -32,7 +32,7 @@ namespace log {
  *
  * 日志记录器负责收集日志消息并将其分发到各个追加器
  */
-class logger {
+class MC_API logger {
 public:
     /**
      * @brief 获取指定名称的日志记录器
@@ -40,30 +40,30 @@ public:
      * @param name 日志记录器名称
      * @return logger 日志记录器
      */
-    static logger get(const char* name = DEFAULT_LOGGER);
+    MC_API static logger get(const char* name = DEFAULT_LOGGER);
 
-    logger();
+    MC_API logger();
 
     /**
      * @brief 构造函数
      *
      * @param name 日志记录器名称
      */
-    logger(const std::string& name);
+    MC_API logger(const std::string& name);
 
     /**
      * @brief 复制构造函数
      *
      * @param other 其他日志记录器
      */
-    logger(const logger& other);
+    MC_API logger(const logger& other);
 
     /**
      * @brief 移动构造函数
      *
      * @param other 其他日志记录器
      */
-    logger(logger&& other) noexcept;
+    MC_API logger(logger&& other) noexcept;
 
     /**
      * @brief 复制赋值运算符
@@ -71,7 +71,7 @@ public:
      * @param other 其他日志记录器
      * @return logger& 日志记录器引用
      */
-    logger& operator=(const logger& other);
+    MC_API logger& operator=(const logger& other);
 
     /**
      * @brief 移动赋值运算符
@@ -79,7 +79,7 @@ public:
      * @param other 其他日志记录器
      * @return logger& 日志记录器引用
      */
-    logger& operator=(logger&& other) noexcept;
+    MC_API logger& operator=(logger&& other) noexcept;
 
     /**
      * @brief 设置日志级别
@@ -87,28 +87,28 @@ public:
      * @param lvl 日志级别
      * @return logger& 日志记录器引用
      */
-    logger& set_level(level lvl);
+    MC_API logger& set_level(level lvl);
 
     /**
      * @brief 获取日志级别
      *
      * @return level 日志级别
      */
-    level get_level() const;
+    MC_API level get_level() const;
 
     /**
      * @brief 设置日志记录器名称
      *
      * @param name 日志记录器名称
      */
-    void set_name(const std::string& name);
+    MC_API void set_name(const std::string& name);
 
     /**
      * @brief 获取日志记录器名称
      *
      * @return const std::string& 日志记录器名称
      */
-    const std::string& get_name() const;
+    MC_API const std::string& get_name() const;
 
     /**
      * @brief 检查指定日志级别是否启用
@@ -116,21 +116,21 @@ public:
      * @param lvl 日志级别
      * @return bool 是否启用
      */
-    bool is_enabled(level lvl) const;
+    MC_API bool is_enabled(level lvl) const;
 
     /**
      * @brief 记录日志消息
      *
      * @param msg 日志消息
      */
-    void log(message msg);
+    MC_API void log(message msg);
 
     /**
      * @brief 添加日志追加器
      *
      * @param a 日志追加器
      */
-    void add_appender(const appender_ptr& a);
+    MC_API void add_appender(const appender_ptr& a);
 
     /**
      * @brief 删除指定名称的日志追加器
@@ -138,7 +138,7 @@ public:
      * @param name 日志追加器名称
      * @return bool 是否成功删除
      */
-    bool remove_appender(const std::string& name);
+    MC_API bool remove_appender(const std::string& name);
 
     /**
      * @brief 查找指定名称的日志追加器
@@ -146,19 +146,19 @@ public:
      * @param name 日志追加器名称
      * @return appender_ptr 日志追加器指针，如果未找到则返回nullptr
      */
-    appender_ptr find_appender(const std::string& name) const;
+    MC_API appender_ptr find_appender(const std::string& name) const;
 
     /**
      * @brief 获取所有日志追加器
      *
      * @return std::vector<appender_ptr> 日志追加器列表
      */
-    const std::vector<appender_ptr>& get_appenders() const;
+    MC_API const std::vector<appender_ptr>& get_appenders() const;
 
     /**
      * @brief 清除所有日志追加器
      */
-    void clear_appenders();
+    MC_API void clear_appenders();
 
 private:
     class impl;

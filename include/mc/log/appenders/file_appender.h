@@ -44,19 +44,19 @@ struct file_appender_config {
  *
  * 将日志消息输出到文件
  */
-class file_appender : public appender {
+class MC_API file_appender : public appender {
 public:
     /**
      * @brief 构造函数
      *
      * @param config 文件追加器配置
      */
-    explicit file_appender();
+    MC_API explicit file_appender();
 
     /**
      * @brief 析构函数
      */
-    ~file_appender() override;
+    MC_API ~file_appender() override;
 
     /**
      * @brief 初始化追加器
@@ -64,47 +64,47 @@ public:
      * @param args 配置参数
      * @return bool 初始化是否成功
      */
-    bool init(const variant& args) override;
+    MC_API bool init(const variant& args) override;
 
     /**
      * @brief 追加日志消息
      *
      * @param msg 日志消息
      */
-    void append(const message& msg) override;
+    MC_API void append(const message& msg) override;
 
     /**
      * @brief 设置日志文件名
      *
      * @param filename 日志文件名
      */
-    void set_filename(const std::string& filename);
+    MC_API void set_filename(const std::string& filename);
 
     /**
      * @brief 获取日志文件名
      *
      * @return const std::string& 日志文件名
      */
-    const std::string& get_filename() const;
+    MC_API const std::string& get_filename() const;
 
     /**
      * @brief 设置是否在每次写入后刷新
      *
      * @param flush_on_write 是否在每次写入后刷新
      */
-    void set_flush_on_write(bool flush_on_write);
+    MC_API void set_flush_on_write(bool flush_on_write);
 
     /**
      * @brief 获取是否在每次写入后刷新
      *
      * @return bool 是否在每次写入后刷新
      */
-    bool get_flush_on_write() const;
+    MC_API bool get_flush_on_write() const;
 
     /**
      * @brief 刷新日志文件
      */
-    void flush();
+    MC_API void flush();
 
     // 添加debug_log_ptr的setter
     static void set_debug_log_ptr(void* func_ptr);

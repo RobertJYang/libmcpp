@@ -24,24 +24,24 @@ namespace mc::module {
 /**
  * @brief 模块接口
  */
-class module_base : public mc::shared_base {
+class MC_API module_base : public mc::shared_base {
 public:
-    virtual ~module_base() = default;
+    MC_API virtual ~module_base() = default;
 
     /**
      * @brief 获取模块名称
      */
-    virtual std::string_view name() const = 0;
+    MC_API virtual std::string_view name() const = 0;
 
     /**
      * @brief 获取模块版本
      */
-    virtual std::string_view version() const = 0;
+    MC_API virtual std::string_view version() const = 0;
 
     /**
      * @brief 获取模块的反射工厂 - 供脚本使用
      */
-    virtual mc::reflect::reflection_factory* get_factory() const = 0;
+    MC_API virtual mc::reflect::reflection_factory* get_factory() const = 0;
 };
 
 using module_ptr = mc::shared_ptr<module_base>;

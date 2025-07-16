@@ -21,22 +21,22 @@ namespace db {
 
 using table_ptr = std::shared_ptr<table_base>;
 
-class database {
+class MC_API database {
     using table_name_map = std::unordered_map<std::string_view, table_ptr>;
     using table_id_map   = std::unordered_map<uint32_t, table_ptr>;
 
 public:
-    database();
-    ~database();
+    MC_API database();
+    MC_API ~database();
 
-    void      register_table(table_ptr table);
-    void      unregister_table(std::string_view table_name);
-    bool      is_table_registered(std::string_view table_name) const;
-    table_ptr get_table(std::string_view table_name) const;
+    MC_API void      register_table(table_ptr table);
+    MC_API void      unregister_table(std::string_view table_name);
+    MC_API bool      is_table_registered(std::string_view table_name) const;
+    MC_API table_ptr get_table(std::string_view table_name) const;
 
-    bool   empty(std::string_view table_name) const;
-    size_t size(std::string_view table_name) const;
-    void   clear(std::string_view table_name);
+    MC_API bool   empty(std::string_view table_name) const;
+    MC_API size_t size(std::string_view table_name) const;
+    MC_API void   clear(std::string_view table_name);
 
     /**
      * 添加对象到工厂
@@ -44,7 +44,7 @@ public:
      * @param var 字典
      * @return 对象基类的指针
      */
-    object_ptr add(std::string_view table_name, const mc::dict& var, transaction* txn = nullptr);
+    MC_API object_ptr add(std::string_view table_name, const mc::dict& var, transaction* txn = nullptr);
 
     /**
      * 添加对象到工厂
@@ -121,13 +121,13 @@ public:
         });
     }
 
-    bool remove(std::string_view table_name, const query_builder& builder,
-                transaction* txn = nullptr);
+    MC_API bool remove(std::string_view table_name, const query_builder& builder,
+                       transaction* txn = nullptr);
 
-    bool update(std::string_view table_name, const query_builder& builder, const mc::dict& values,
-                transaction* txn = nullptr);
-    bool update(std::string_view table_name, const query_builder& builder,
-                const std::map<std::string, variant>& values, transaction* txn = nullptr);
+    MC_API bool update(std::string_view table_name, const query_builder& builder, const mc::dict& values,
+                       transaction* txn = nullptr);
+    MC_API bool update(std::string_view table_name, const query_builder& builder,
+                       const std::map<std::string, variant>& values, transaction* txn = nullptr);
 
 private:
     mutable std::mutex m_mutex;

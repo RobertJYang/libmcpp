@@ -80,32 +80,30 @@ struct error_info {
  *
  * 如果需要动态构造错误名或格式化字符串，请使用 error_with_owner 类
  */
-struct error : public mc::enable_shared_from_this<error>, public error_info {
-    error() = default;
-    error(const error_info& info) : mc::enable_shared_from_this<error>(), error_info(info) {
-    }
-    error(std::string_view name, std::string_view format, error_level level = error_level::error)
-        : mc::enable_shared_from_this<error>(), error_info(name, format, level) {
-    }
+struct MC_API error : public mc::enable_shared_from_this<error>, public error_info {
+    MC_API error();
+    MC_API error(const error_info& info);
+    MC_API error(std::string_view name, std::string_view format,
+                 error_level level = error_level::error);
 
-    error(const error& other);
-    error& operator=(const error& other);
-    error(error&& other) noexcept            = default;
-    error& operator=(error&& other) noexcept = default;
+    MC_API        error(const error& other);
+    MC_API error& operator=(const error& other);
+    MC_API        error(error&& other) noexcept;
+    MC_API error& operator=(error&& other) noexcept;
 
-    std::string_view get_name() const;
-    std::string_view get_format() const;
-    const mc::dict&  get_args() const;
-    std::string      get_message() const;
+    MC_API std::string_view get_name() const;
+    MC_API std::string_view get_format() const;
+    MC_API const mc::dict& get_args() const;
+    MC_API std::string get_message() const;
 
-    error_level get_level() const;
-    void        set_level(error_level level);
+    MC_API error_level get_level() const;
+    MC_API void        set_level(error_level level);
 
-    void set_name(std::string_view name);
-    void set_format(std::string_view format);
-    void reset();
+    MC_API void set_name(std::string_view name);
+    MC_API void set_format(std::string_view format);
+    MC_API void reset();
 
-    void set_prev_error(mc::shared_ptr<error> other);
+    MC_API void set_prev_error(mc::shared_ptr<error> other);
 
     // 添加参数
     template <typename T>
@@ -125,22 +123,22 @@ struct error : public mc::enable_shared_from_this<error>, public error_info {
         return *this;
     }
 
-    error& set_args(const mc::dict& args);
+    MC_API error& set_args(const mc::dict& args);
 
-    std::string to_string() const;
-    bool        is_set() const;
-    bool        has_error(std::string_view name) const;
+    MC_API std::string to_string() const;
+    MC_API bool        is_set() const;
+    MC_API bool        has_error(std::string_view name) const;
 
-    bool operator==(const error& other) const;
-    bool operator!=(const error& other) const;
+    MC_API bool operator==(const error& other) const;
+    MC_API bool operator!=(const error& other) const;
 
-    mc::log::message to_log_message() const;
+    MC_API mc::log::message to_log_message() const;
 
-    static mc::shared_ptr<error> from_exception(std::exception_ptr e);
-    static mc::shared_ptr<error> from_exception(const mc::exception& e);
-    static mc::shared_ptr<error> from_exception(const std::exception& e);
+    MC_API static mc::shared_ptr<error> from_exception(std::exception_ptr e);
+    MC_API static mc::shared_ptr<error> from_exception(const mc::exception& e);
+    MC_API static mc::shared_ptr<error> from_exception(const std::exception& e);
 
-    void to_exception(mc::exception& e) const;
+    MC_API void to_exception(mc::exception& e) const;
 
     // 错误参数
     mc::mutable_dict args;
@@ -155,10 +153,10 @@ using error_ptr = mc::shared_ptr<error>;
 
 // 由于 error 类的错误名字和format字符串是常量，这里提供一个继承类可以持有 name 和 format 的 owner,
 // 方便某些需要动态构造错误名或格式化字符串的场景使用
-class error_with_owner : public mc::engine::error {
+class MC_API error_with_owner : public mc::engine::error {
 public:
-    error_with_owner();
-    error_with_owner(std::string name, std::string format);
+    MC_API error_with_owner();
+    MC_API error_with_owner(std::string name, std::string format);
 
 private:
     std::string m_name_owner;
@@ -172,7 +170,7 @@ private:
  * @param name 错误名称
  * @return 如果有效返回 true，否则返回 false
  */
-bool is_valid_error_name(std::string_view name);
+MC_API bool is_valid_error_name(std::string_view name);
 
 /**
  * @brief 解析 format 字符串，找到 ${name} 格式的占位符，并将其添加到 arg_names 中
@@ -181,7 +179,7 @@ bool is_valid_error_name(std::string_view name);
  * @param arg_names 存储占位符名称的字典
  * @return 如果解析成功返回 true，否则返回 false
  */
-bool get_error_format_args(std::string_view format, mc::dict& arg_names);
+MC_API bool get_error_format_args(std::string_view format, mc::dict& arg_names);
 
 /*
  * 创建错误，如果 name 不满足要求抛出错误
@@ -192,8 +190,8 @@ bool get_error_format_args(std::string_view format, mc::dict& arg_names);
  *
  * 注意：这个方法可以创建任意错误，并不要求错误必须注册到错误引擎中
  */
-error_ptr make_error(std::string_view name, std::string_view format);
-error_ptr make_error(const error_info& info);
+MC_API error_ptr make_error(std::string_view name, std::string_view format);
+MC_API error_ptr make_error(const error_info& info);
 
 } // namespace mc::engine
 

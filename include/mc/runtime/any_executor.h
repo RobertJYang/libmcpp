@@ -40,27 +40,27 @@ using executor_variant = std::variant<
  * - 对于轻量级的 boost::asio 执行器（如 io_context::executor_type），直接存储
  * - 对于重量级执行器（如 strand、thread_pool），使用 mc::runtime::executor 包装
  */
-class any_executor {
+class MC_API any_executor {
 public:
     /**
      * @brief 默认构造函数
      */
-    any_executor() = default;
+    MC_API any_executor() = default;
 
     /**
      * @brief 从 IO 执行器构造
      */
-    any_executor(boost::asio::io_context::executor_type executor);
+    MC_API any_executor(boost::asio::io_context::executor_type executor);
 
     /**
      * @brief 从系统执行器构造
      */
-    any_executor(boost::asio::system_context::executor_type executor);
+    MC_API any_executor(boost::asio::system_context::executor_type executor);
 
     /**
      * @brief 从 mc::runtime::executor 构造
      */
-    any_executor(runtime::executor executor);
+    MC_API any_executor(runtime::executor executor);
 
     /**
      * @brief 从任意执行器构造（会被包装到 mc::runtime::executor 中）
@@ -76,27 +76,27 @@ public:
     /**
      * @brief 拷贝构造函数
      */
-    any_executor(const any_executor&) = default;
+    MC_API any_executor(const any_executor&) = default;
 
     /**
      * @brief 移动构造函数
      */
-    any_executor(any_executor&&) = default;
+    MC_API any_executor(any_executor&&) = default;
 
     /**
      * @brief 拷贝赋值运算符
      */
-    any_executor& operator=(const any_executor&) = default;
+    MC_API any_executor& operator=(const any_executor&) = default;
 
     /**
      * @brief 移动赋值运算符
      */
-    any_executor& operator=(any_executor&&) = default;
+    MC_API any_executor& operator=(any_executor&&) = default;
 
     /**
      * @brief 析构函数
      */
-    ~any_executor() = default;
+    MC_API ~any_executor() = default;
 
     /**
      * @brief 提交任务到队列末尾执行
@@ -119,43 +119,21 @@ public:
     /**
      * @brief 检查执行器是否有效
      */
-    bool valid() const noexcept;
+    MC_API bool valid() const noexcept;
 
     /**
      * @brief 比较两个执行器是否相等
      */
-    bool operator==(const any_executor& other) const noexcept;
+    MC_API bool operator==(const any_executor& other) const noexcept;
 
     /**
      * @brief 比较两个执行器是否不等
      */
-    bool operator!=(const any_executor& other) const noexcept;
+    MC_API bool operator!=(const any_executor& other) const noexcept;
 
-    void on_work_started() const noexcept {
-        std::visit([&](const auto& exec) {
-            if constexpr (!std::is_same_v<std::decay_t<decltype(exec)>, std::monostate>) {
-                exec.on_work_started();
-            }
-        }, m_executor);
-    }
-
-    void on_work_finished() const noexcept {
-        std::visit([&](const auto& exec) {
-            if constexpr (!std::is_same_v<std::decay_t<decltype(exec)>, std::monostate>) {
-                exec.on_work_finished();
-            }
-        }, m_executor);
-    }
-
-    execution_context& context() const {
-        return std::visit([&](const auto& exec) -> execution_context& {
-            if constexpr (std::is_same_v<std::decay_t<decltype(exec)>, std::monostate>) {
-                MC_THROW(mc::invalid_op_exception, "Cannot get context from invalid executor");
-            } else {
-                return exec.context();
-            }
-        }, m_executor);
-    }
+    MC_API void               on_work_started() const noexcept;
+    MC_API void               on_work_finished() const noexcept;
+    MC_API execution_context& context() const;
 
 private:
     detail::executor_variant m_executor;

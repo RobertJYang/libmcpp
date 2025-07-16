@@ -48,62 +48,38 @@ enum class connection_type {
 
 using object_id_type = uint64_t;
 
-class object_base : public enable_shared_from_this<object_base> {
+class MC_API object_base : public enable_shared_from_this<object_base> {
 public:
     using executor_type = mc::any_executor;
 
-    object_base()          = default;
-    virtual ~object_base() = default;
+    MC_API object_base();
+    MC_API virtual ~object_base();
 
-    object_base(const object_base& other)
-        : enable_shared_from_this<object_base>(other), m_object_id(other.m_object_id) {
-    }
+    MC_API object_base(const object_base& other);
 
-    object_base(object_base&& other)
-        : enable_shared_from_this<object_base>(std::forward<object_base>(other)), m_object_id(other.m_object_id) {
-        other.m_object_id = 0;
-    }
+    MC_API object_base(object_base&& other);
 
-    object_base& operator=(object_base&& other) {
-        if (this != &other) {
-            enable_shared_from_this<object_base>::operator=(std::forward<object_base>(other));
-            m_object_id       = other.m_object_id;
-            other.m_object_id = 0;
-        }
-        return *this;
-    }
+    MC_API object_base& operator=(object_base&& other);
 
-    object_base& operator=(const object_base& other) {
-        if (this != &other) {
-            enable_shared_from_this<object_base>::operator=(other);
-            m_object_id = other.m_object_id;
-        }
-        return *this;
-    }
+    MC_API object_base& operator=(const object_base& other);
 
     /**
      * 获取对象ID
      * @return 对象ID
      */
-    virtual object_id_type get_object_id() const {
-        return m_object_id;
-    }
+    MC_API virtual object_id_type get_object_id() const;
 
     /**
      * 设置对象ID
      * @param id 对象ID
      */
-    void set_object_id(object_id_type id) {
-        m_object_id = id;
-    }
+    MC_API void set_object_id(object_id_type id);
 
     /**
      * 检查对象ID是否有效
      * @return 如果ID不为0则返回true
      */
-    bool has_valid_id() const {
-        return m_object_id != 0;
-    }
+    MC_API bool has_valid_id() const;
 
 protected:
     object_id_type m_object_id{0};
@@ -112,23 +88,23 @@ protected:
 /**
  * @brief 对象基类，提供对象层次结构和生命周期管理
  */
-class object : public object_base {
+class MC_API object : public object_base {
 public:
     /**
      * @brief 默认构造函数
      */
-    object();
+    MC_API object();
 
     /**
      * @brief 构造函数
      * @param parent 父对象指针
      */
-    explicit object(object* parent);
+    MC_API explicit object(object* parent);
 
     /**
      * @brief 析构函数，会自动删除所有子对象
      */
-    virtual ~object() noexcept;
+    MC_API virtual ~object() noexcept;
 
     /**
      * @brief 移动构造函数
@@ -146,31 +122,31 @@ public:
      * @brief 拷贝构造函数
      * @param other 右值对象
      */
-    object(const object& other);
+    MC_API object(const object& other);
 
     /**
      * @brief 拷贝赋值运算符
      * @param other 右值对象
      */
-    object& operator=(const object& other);
+    MC_API object& operator=(const object& other);
 
     /**
      * @brief 获取对象名称
      * @return 对象名称的副本
      */
-    std::string get_name() const;
+    MC_API std::string get_name() const;
 
     /**
      * @brief 设置对象名称
      * @param name 新的对象名称
      */
-    void set_name(std::string_view name);
+    MC_API void set_name(std::string_view name);
 
     /**
      * @brief 获取父对象
      * @return 父对象指针
      */
-    object_ptr get_parent() const;
+    MC_API object_ptr get_parent() const;
 
     /**
      * @brief 设置父对象
@@ -178,7 +154,7 @@ public:
      *
      * 如果对象已经有父对象，则会先从原父对象的子对象列表中移除
      */
-    void set_parent(object* parent);
+    MC_API void set_parent(object* parent);
 
     /**
      * @brief 设置父对象
@@ -195,14 +171,14 @@ public:
      * @brief 获取子对象列表
      * @return 子对象指针列表的副本
      */
-    child_list get_children() const;
+    MC_API child_list get_children() const;
 
     /**
      * @brief 查找子对象
      * @param name 子对象名称
      * @return 子对象指针，如果未找到则返回nullptr
      */
-    object_ptr find_child(std::string_view name) const;
+    MC_API object_ptr find_child(std::string_view name) const;
 
     /**
      * @brief 连接信号和槽
@@ -255,7 +231,7 @@ public:
      * @param id 连接ID
      * @return 是否成功断开
      */
-    void disconnect(connection_id_type id) const;
+    MC_API void disconnect(connection_id_type id) const;
 
     /**
      * @brief 断开信号的所有连接
@@ -312,32 +288,26 @@ public:
         return boost::asio::bind_executor(get_executor(), std::forward<Handler>(handler));
     }
 
-    executor_type get_executor() const;
-    void          set_executor(mc::executor executor);
+    MC_API executor_type get_executor() const;
+    MC_API void          set_executor(mc::executor executor);
 
     /**
      * @brief 获取当前对象的ref_ptr
      * @return 指向当前对象的object_ptr
      */
-    object_ptr shared_from_this() {
-        return object_base::shared_from_this().template static_pointer_cast<object>();
-    }
+    MC_API object_ptr shared_from_this();
 
     /**
      * @brief 获取当前对象的weak_ptr
      * @return 指向当前对象的mc::weak_ptr<object>
      */
-    mc::weak_ptr<object> weak_from_this() {
-        return mc::weak_ptr<object>(this);
-    }
+    MC_API mc::weak_ptr<object> weak_from_this();
 
     /**
      * @brief 获取当前对象的weak_ptr (const版本)
      * @return 指向当前对象的mc::weak_ptr<const object>
      */
-    mc::weak_ptr<const object> weak_from_this() const {
-        return mc::weak_ptr<const object>(this);
-    }
+    MC_API mc::weak_ptr<const object> weak_from_this() const;
 
 protected:
     /**

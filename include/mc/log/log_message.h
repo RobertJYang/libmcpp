@@ -42,7 +42,7 @@ struct context {
 /**
  * @brief 日志消息结构
  */
-class message {
+class MC_API message {
 public:
     /**
      * @brief 构造函数
@@ -52,8 +52,8 @@ public:
      * @param ctx 上下文信息
      * @param args 参数字典
      */
-    message(level lvl = level::info, std::string msg = "", context ctx = context(),
-            mc::mutable_dict args = mc::mutable_dict());
+    MC_API message(level lvl = level::info, std::string msg = "", context ctx = context(),
+                   mc::mutable_dict args = mc::mutable_dict());
 
     /**
      * @brief 格式化构造函数
@@ -63,8 +63,8 @@ public:
      * @param fmt_template 格式模板
      * @param args 参数字典
      */
-    message(level lvl, context ctx, std::string fmt_template,
-            mc::mutable_dict args = mc::mutable_dict());
+    MC_API message(level lvl, context ctx, std::string fmt_template,
+                   mc::mutable_dict args = mc::mutable_dict());
 
     message(const message& other)            = default;
     message& operator=(const message& other) = default;
@@ -77,68 +77,56 @@ public:
      *
      * @return level 日志级别
      */
-    level get_level() const {
-        return m_level;
-    }
+    MC_API level get_level() const;
 
     /**
      * @brief 获取上下文信息
      *
      * @return const context& 上下文信息
      */
-    const context& get_context() const {
-        return m_context;
-    }
+    MC_API const context& get_context() const;
 
     /**
      * @brief 获取时间戳
      *
      * @return const std::chrono::system_clock::time_point& 时间戳
      */
-    const std::chrono::system_clock::time_point& get_timestamp() const {
-        return m_timestamp;
-    }
+    MC_API const std::chrono::system_clock::time_point& get_timestamp() const;
 
     /**
      * @brief 获取参数字典
      *
      * @return const dict& 参数字典
      */
-    const dict& get_args() const {
-        return m_args;
-    }
+    MC_API const dict& get_args() const;
 
     /**
      * @brief 获取格式模板
      *
      * @return const std::string& 格式模板
      */
-    const std::string& get_format_template() const {
-        return m_format;
-    }
+    MC_API const std::string& get_format_template() const;
 
     /**
      * @brief 获取线程ID
      *
      * @return const std::thread::id& 线程ID
      */
-    mc::thread_id get_thread_id() const {
-        return m_thread_id;
-    }
+    MC_API mc::thread_id get_thread_id() const;
 
     /**
      * @brief 获取消息内容
      *
      * @return std::string 消息内容
      */
-    const std::string& get_message() const;
+    MC_API const std::string& get_message() const;
 
     /**
      * @brief 获取结构化数据
      *
      * @return dict 结构化数据
      */
-    dict to_structured_data() const;
+    MC_API dict to_structured_data() const;
 
 private:
     level                                 m_level;     // 日志级别

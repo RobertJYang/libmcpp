@@ -38,12 +38,11 @@ class transaction;
 /**
  * 数据库资源基类，所有需要事务管理的资源都需要继承此类
  */
-class db_resource : public mc::intrusive::unordered_set_hook {
+class MC_API db_resource : public mc::intrusive::unordered_set_hook {
 public:
-    db_resource() : m_savepoint_id(-1), m_next(nullptr), m_is_head(false), m_is_valid(true) {
-    }
+    MC_API db_resource();
 
-    virtual ~db_resource() = default;
+    MC_API virtual ~db_resource() = default;
 
     /**
      * 提交资源
@@ -116,13 +115,13 @@ struct resource_equal {
 /**
  * 事务保存点
  */
-class savepoint : public db_resource {
+class MC_API savepoint : public db_resource {
     friend class transaction;
 
 public:
-    bool     commit() override;
-    bool     rollback() override;
-    uint64_t resource_id() const override;
+    MC_API bool     commit() override;
+    MC_API bool     rollback() override;
+    MC_API uint64_t resource_id() const override;
 
     savepoint(savepoint&&)                 = delete;
     savepoint& operator=(savepoint&&)      = delete;
@@ -144,9 +143,9 @@ struct default_transaction_tag {};
 /**
  * 数据库事务类
  */
-class transaction {
+class MC_API transaction {
 public:
-    ~transaction();
+    MC_API ~transaction();
 
     /**
      * 获取事务单例
@@ -168,83 +167,59 @@ public:
      * 分配一个新的保存点
      * @return 保存点引用
      */
-    savepoint& alloc_savepoint();
+    MC_API savepoint& alloc_savepoint();
 
     /**
      * 添加资源到事务中
      * @param resource 资源
      */
-    void add_resource(std::shared_ptr<db_resource> resource);
+    MC_API void add_resource(std::shared_ptr<db_resource> resource);
 
     /**
      * 提交事务
      */
-    void commit();
+    MC_API void commit();
 
     /**
      * 回滚事务
      */
-    void rollback();
+    MC_API void rollback();
 
     /**
      * 回滚到指定保存点
      * @param sp 保存点
      */
-    void rollback_to(const savepoint& sp);
+    MC_API void rollback_to(const savepoint& sp);
 
-    int32_t last_savepoint_id() const {
-        return m_current_savepoint_id;
-    }
+    MC_API int32_t last_savepoint_id() const;
 
-    static uint32_t alloc_table_id() {
-        static std::atomic<uint32_t> table_id = 0;
-        return ++table_id;
-    }
+    MC_API static uint32_t alloc_table_id();
 
     /**
      * 获取当前事务中的资源数量
      * @return 资源数量
      */
-    size_t get_resource_count() const {
-        return m_resources.size();
-    }
+    MC_API size_t get_resource_count() const;
 
     /**
      * 获取当前事务中的资源映射表大小
      * @return 资源映射表大小
      */
-    size_t get_resource_map_size() const {
-        return m_resource_map.size();
-    }
+    MC_API size_t get_resource_map_size() const;
 
     /**
      * 检查指定资源ID是否在事务中存在
      * @param resource_id 资源ID
      * @return 存在返回true，否则返回false
      */
-    bool has_resource(uint64_t resource_id) const {
-        return m_resource_map.find(resource_id) != m_resource_map.end();
-    }
+    MC_API bool has_resource(uint64_t resource_id) const;
 
     /**
      * 获取指定资源ID对应的资源数量（链表长度）
      * @param resource_id 资源ID
      * @return 资源数量
      */
-    size_t get_resource_chain_length(uint64_t resource_id) const {
-        auto it = m_resource_map.find(resource_id);
-        if (it == m_resource_map.end()) {
-            return 0;
-        }
-
-        size_t count = 1; // 头节点
-        auto*  node  = const_cast<db_resource*>(&(*it))->m_next;
-        while (node) {
-            ++count;
-            node = node->m_next;
-        }
-        return count;
-    }
+    MC_API size_t get_resource_chain_length(uint64_t resource_id) const;
 
 private:
     transaction();

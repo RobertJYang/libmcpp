@@ -10,6 +10,11 @@
 #include <mc/engine/property.h>
 
 namespace mc::engine {
+properties_interface& properties_interface::get_instance() {
+    static properties_interface instance;
+    return instance;
+}
+
 mc::variant properties_interface::get(std::string_view interface_name,
                                       std::string_view property_name) const {
     auto* object = object_call_stack::top_value();
@@ -146,6 +151,11 @@ struct inintrospect_vistor : visitor {
     std::string xml_data;
 };
 
+introspectable_interface& introspectable_interface::get_instance() {
+    static introspectable_interface instance;
+    return instance;
+}
+
 std::string introspectable_interface::introspect() const {
     auto* object = object_call_stack::top_value();
     if (object == nullptr) {
@@ -170,6 +180,11 @@ std::string introspectable_interface::introspect() const {
     return v.xml_data;
 }
 
+peer_interface& peer_interface::get_instance() {
+    static peer_interface instance;
+    return instance;
+}
+
 void peer_interface::ping() const {
 }
 
@@ -177,6 +192,10 @@ std::string peer_interface::get_machine_id() const {
     return {};
 }
 
+object_manager_interface& object_manager_interface::get_instance() {
+    static object_manager_interface instance;
+    return instance;
+}
 struct object_manager_vistor : visitor {
     void handle_interface_begin(const abstract_object&    obj,
                                 const abstract_interface& iface) override {
@@ -234,6 +253,11 @@ object_manager_interface::get_managed_objects() const {
         objects[key] = interfaces;
     }
     return objects;
+}
+
+common_properties_interface& common_properties_interface::get_instance() {
+    static common_properties_interface instance;
+    return instance;
 }
 
 mc::variant common_properties_interface::get(std::string_view property_name) {
@@ -318,4 +342,5 @@ invoke_result standard_interfaces::invoke(abstract_object* object, std::string_v
 
     return {};
 }
+
 } // namespace mc::engine

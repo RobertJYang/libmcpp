@@ -19,6 +19,8 @@
 
 #include <string_view>
 
+#include <mc/common.h>
+
 namespace mc::engine {
 
 /**
@@ -31,48 +33,48 @@ constexpr char IMMUTABLE_PATH_SEP = '/';
  *
  * 用于高效遍历路径的各个段，支持前向和后向迭代
  */
-class path_iterator {
+class MC_API path_iterator {
 public:
     /**
      * @brief 构造函数
      * @param path 要遍历的路径
      */
-    explicit path_iterator(std::string_view path);
+    MC_API explicit path_iterator(std::string_view path);
 
     /**
      * @brief 重置迭代器到初始状态
      */
-    void reset();
+    MC_API void reset();
 
     /**
      * @brief 移动到下一个路径段
      * @return 如果成功移动则返回true，如果已经到达最后一个段则返回false
      */
-    bool to_next();
+    MC_API bool to_next();
 
     /**
      * @brief 移动到前一个路径段
      * @return 如果成功移动则返回true，如果已经在第一个段则返回false
      */
-    bool to_prev();
+    MC_API bool to_prev();
 
     /**
      * @brief 获取当前路径段
      * @return 当前路径段，如果迭代器未初始化或路径为空则返回空字符串
      */
-    std::string_view current() const;
+    MC_API std::string_view current() const;
 
     /**
      * @brief 获取父路径
      * @return 父路径，如果迭代器未初始化或路径为空则返回空字符串
      */
-    std::string_view parent_path() const;
+    MC_API std::string_view parent_path() const;
 
     /**
      * @brief 检查路径是否为空或根路径
      * @return 如果路径为空或为根路径('/')则返回true
      */
-    bool is_empty_or_root_path() const;
+    MC_API bool is_empty_or_root_path() const;
 
 private:
     /**

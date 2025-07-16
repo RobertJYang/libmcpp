@@ -21,36 +21,36 @@
 
 namespace mc::fmt {
 namespace detail {
-void format_float(std::string& out, double value, int precision, bool has_precision);
+MC_API void format_float(std::string& out, double value, int precision, bool has_precision);
 
-class duration_format_handler_base {
+class MC_API duration_format_handler_base {
 public:
-    duration_format_handler_base(std::string& output, int precision, bool has_precision);
-    virtual ~duration_format_handler_base() = default;
+    MC_API duration_format_handler_base(std::string& output, int precision, bool has_precision);
+    MC_API virtual ~duration_format_handler_base() = default;
 
-    void on_text(std::string_view text);
-    void on_year(numeric_system, pad_type);
-    void on_short_year(numeric_system);
-    void on_month(numeric_system, pad_type);
-    void on_day(numeric_system, pad_type);
-    void on_hour_24(numeric_system, pad_type);
-    void on_hour_12(numeric_system, pad_type);
-    void on_minute(numeric_system, pad_type);
-    void on_second(numeric_system, pad_type);
-    void on_datetime(numeric_system);
-    void on_iso_date();
-    void on_iso_time();
-    void on_12_hour_time();
-    void on_24_hour_time();
-    void on_duration_value();
-    void on_duration_unit();
-    void on_am_pm();
-    void on_timezone_offset(numeric_system);
-    void on_timezone_name(numeric_system);
+    MC_API void on_text(std::string_view text);
+    MC_API void on_year(numeric_system, pad_type);
+    MC_API void on_short_year(numeric_system);
+    MC_API void on_month(numeric_system, pad_type);
+    MC_API void on_day(numeric_system, pad_type);
+    MC_API void on_hour_24(numeric_system, pad_type);
+    MC_API void on_hour_12(numeric_system, pad_type);
+    MC_API void on_minute(numeric_system, pad_type);
+    MC_API void on_second(numeric_system, pad_type);
+    MC_API void on_datetime(numeric_system);
+    MC_API void on_iso_date();
+    MC_API void on_iso_time();
+    MC_API void on_12_hour_time();
+    MC_API void on_24_hour_time();
+    MC_API void on_duration_value();
+    MC_API void on_duration_unit();
+    MC_API void on_am_pm();
+    MC_API void on_timezone_offset(numeric_system);
+    MC_API void on_timezone_name(numeric_system);
 
     // 错误处理方法
-    void on_invalid_spec();
-    void on_incomplete_spec();
+    MC_API void on_invalid_spec();
+    MC_API void on_incomplete_spec();
 
 protected:
     std::string& m_output;
@@ -67,34 +67,34 @@ protected:
     virtual void        output_duration_value() = 0;
 };
 
-class time_point_format_handler_base {
+class MC_API time_point_format_handler_base {
 public:
-    time_point_format_handler_base(std::string& output);
-    ~time_point_format_handler_base() = default;
+    MC_API time_point_format_handler_base(std::string& output);
+    MC_API ~time_point_format_handler_base() = default;
 
-    void on_text(std::string_view text);
-    void on_year(numeric_system, pad_type);
-    void on_short_year(numeric_system);
-    void on_month(numeric_system, pad_type);
-    void on_day(numeric_system, pad_type);
-    void on_hour_24(numeric_system, pad_type);
-    void on_hour_12(numeric_system, pad_type);
-    void on_minute(numeric_system, pad_type);
-    void on_second(numeric_system, pad_type);
-    void on_datetime(numeric_system);
-    void on_iso_date();
-    void on_iso_time();
-    void on_12_hour_time();
-    void on_24_hour_time();
-    void on_duration_value();
-    void on_duration_unit();
-    void on_am_pm();
-    void on_timezone_offset(numeric_system);
-    void on_timezone_name(numeric_system);
+    MC_API void on_text(std::string_view text);
+    MC_API void on_year(numeric_system, pad_type);
+    MC_API void on_short_year(numeric_system);
+    MC_API void on_month(numeric_system, pad_type);
+    MC_API void on_day(numeric_system, pad_type);
+    MC_API void on_hour_24(numeric_system, pad_type);
+    MC_API void on_hour_12(numeric_system, pad_type);
+    MC_API void on_minute(numeric_system, pad_type);
+    MC_API void on_second(numeric_system, pad_type);
+    MC_API void on_datetime(numeric_system);
+    MC_API void on_iso_date();
+    MC_API void on_iso_time();
+    MC_API void on_12_hour_time();
+    MC_API void on_24_hour_time();
+    MC_API void on_duration_value();
+    MC_API void on_duration_unit();
+    MC_API void on_am_pm();
+    MC_API void on_timezone_offset(numeric_system);
+    MC_API void on_timezone_name(numeric_system);
 
     // 错误处理方法
-    void on_invalid_spec();
-    void on_incomplete_spec();
+    MC_API void on_invalid_spec();
+    MC_API void on_incomplete_spec();
 
 protected:
     std::string& m_output;

@@ -21,7 +21,7 @@
 namespace mc::fmt {
 
 namespace detail {
-struct runtime_arg_store : public arg_store<format_arg> {
+struct MC_API runtime_arg_store : public arg_store<format_arg> {
     using arg_store<format_arg>::add_arg;
 
     runtime_arg_store() = default;
@@ -31,14 +31,14 @@ struct runtime_arg_store : public arg_store<format_arg> {
         (add_arg(std::forward<Args>(args)), ...);
     }
 
-    void set_dict_args(const mc::dict* args);
-    bool get_arg(size_t index, format_arg& arg) const;
-    bool get_positional(size_t index, format_arg& arg) const;
-    bool get_named(std::string_view name, format_arg& arg, size_t& index) const;
-    bool resolve_dynamic_param(size_t index, std::string_view name, int& out);
+    MC_API void set_dict_args(const mc::dict* args);
+    MC_API bool get_arg(size_t index, format_arg& arg) const;
+    MC_API bool get_positional(size_t index, format_arg& arg) const;
+    MC_API bool get_named(std::string_view name, format_arg& arg, size_t& index) const;
+    MC_API bool resolve_dynamic_param(size_t index, std::string_view name, int& out);
 
-    const mc::variant* get_variant(size_t index) const;
-    const mc::variant* get_variant(std::string_view name) const;
+    MC_API const mc::variant* get_variant(size_t index) const;
+    MC_API const mc::variant* get_variant(std::string_view name) const;
 
     const dict* named_args{nullptr};
     bool        icase{false};
@@ -48,23 +48,23 @@ struct parser_result;
 } // namespace detail
 
 // 格式化上下文
-class format_context {
+class MC_API format_context {
 public:
     using arg_type = detail::format_arg;
 
-    explicit format_context(std::string& out, detail::runtime_arg_store& args);
-    explicit format_context(std::string& out);
+    explicit MC_API format_context(std::string& out, detail::runtime_arg_store& args);
+    explicit MC_API format_context(std::string& out);
 
-    std::string& out();
+    MC_API std::string& out();
 
-    bool get_arg(size_t index, detail::format_arg& arg) const;
-    bool get_named_arg(std::string_view name, detail::format_arg& arg, size_t& index) const;
-    void set_used(size_t index);
-    bool resolve_dynamic_param(size_t index, std::string_view name, int& out);
+    MC_API bool get_arg(size_t index, detail::format_arg& arg) const;
+    MC_API bool get_named_arg(std::string_view name, detail::format_arg& arg, size_t& index) const;
+    MC_API void set_used(size_t index);
+    MC_API bool resolve_dynamic_param(size_t index, std::string_view name, int& out);
 
-    void format_arg(const detail::format_arg& arg, detail::format_spec& spec);
-    void append(char c);
-    void append(std::string_view s);
+    MC_API void format_arg(const detail::format_arg& arg, detail::format_spec& spec);
+    MC_API void append(char c);
+    MC_API void append(std::string_view s);
 
     bool process_result(const detail::parser_result& result);
     void raise_error(const detail::parser_result& result);

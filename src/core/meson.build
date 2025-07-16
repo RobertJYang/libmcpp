@@ -13,13 +13,14 @@ core_src_files = files(
   'timer.cpp',
 )
 
-libmcpp_core_lib = shared_library(
+libmcpp_core_lib = library(
   'mcpp_core',
   core_src_files,
   include_directories: [incdir, srcdir],
   dependencies: dep_arr,
   install: true,
   install_dir: install_dir,
+  build_by_default: true,
 )
 libmcpp_core_dep = declare_dependency(
   include_directories: incdir,

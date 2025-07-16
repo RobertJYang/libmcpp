@@ -25,13 +25,14 @@ expr_src_files = files(
   'parser.cpp',
 )
 
-libmcpp_expr_lib = shared_library(
+libmcpp_expr_lib = library(
   'mcpp_expr',
   expr_src_files,
   include_directories: [incdir, srcdir],
   dependencies: [dep_arr, libmcpp_engine_dep],
   install: true,
   install_dir: install_dir,
+  build_by_default: true,
 )
 libmcpp_expr_dep = declare_dependency(
   include_directories: incdir,

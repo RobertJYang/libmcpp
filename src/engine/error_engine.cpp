@@ -25,6 +25,10 @@ error_engine& error_engine::get_instance() {
     return mc::singleton<error_engine>::instance();
 }
 
+void error_engine::reset_for_test() {
+    mc::singleton<error_engine>::reset_for_test();
+}
+
 struct error_info_data {
     error_info_data(std::string name, std::string format, error_level level)
         : name(std::move(name)), format(std::move(format)), level(level) {

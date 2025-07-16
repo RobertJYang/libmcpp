@@ -31,16 +31,16 @@ struct property_type_info;
 struct method_type_info;
 
 // 异常抛出辅助函数
-[[noreturn]] void throw_method_arg_not_enough(std::string_view method_name, size_t expect_count,
-                                              size_t actual_count);
-[[noreturn]] void throw_method_not_exist(std::string_view method_name);
-[[noreturn]] void throw_not_enum_type(std::string_view type_name);
-[[noreturn]] void throw_enum_value_not_found(std::string_view type_name, std::string_view value_name);
-[[noreturn]] void throw_enum_value_not_found(std::string_view type_name, uint64_t value);
-[[noreturn]] void throw_bad_enum_cast(int64_t i, const char* e);
-[[noreturn]] void throw_bad_enum_cast(const char* k, const char* e);
-[[noreturn]] void throw_variant_cast(const char* k, const char* e);
-[[noreturn]] void throw_enum_not_support_create_object(std::string_view type_name);
+[[noreturn]] MC_API void throw_method_arg_not_enough(std::string_view method_name, size_t expect_count,
+                                                     size_t actual_count);
+[[noreturn]] MC_API void throw_method_not_exist(std::string_view method_name);
+[[noreturn]] MC_API void throw_not_enum_type(std::string_view type_name);
+[[noreturn]] MC_API void throw_enum_value_not_found(std::string_view type_name, std::string_view value_name);
+[[noreturn]] MC_API void throw_enum_value_not_found(std::string_view type_name, uint64_t value);
+[[noreturn]] MC_API void throw_bad_enum_cast(int64_t i, const char* e);
+[[noreturn]] MC_API void throw_bad_enum_cast(const char* k, const char* e);
+[[noreturn]] MC_API void throw_variant_cast(const char* k, const char* e);
+[[noreturn]] MC_API void throw_enum_not_support_create_object(std::string_view type_name);
 
 using type_id_type       = int64_t;
 using local_type_id_type = int32_t;

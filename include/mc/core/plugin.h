@@ -36,22 +36,22 @@ struct plugin_info {
 /**
  * @brief 插件基类
  */
-class plugin {
+class MC_API plugin {
 public:
-    virtual ~plugin() = default;
+    MC_API virtual ~plugin() = default;
 
     /**
      * @brief 获取插件信息
      * @return 插件信息
      */
-    virtual const plugin_info& get_info() const = 0;
+    MC_API virtual const plugin_info& get_info() const = 0;
 
     /**
      * @brief 初始化插件
      * @param factory 服务工厂实例
      * @return 初始化是否成功
      */
-    virtual bool init(service_factory& factory) = 0;
+    MC_API virtual bool init(service_factory& factory) = 0;
 };
 
 // 插件创建函数类型
@@ -63,14 +63,14 @@ using destroy_plugin_func = void (*)(plugin*);
 } // namespace mc::core
 
 // 导出插件的宏定义
-#define MC_EXPORT_PLUGIN(PluginClass)                                                              \
-    extern "C" {                                                                                   \
-    mc::core::plugin* create_plugin() {                                                            \
-        return new PluginClass();                                                                  \
-    }                                                                                              \
-    void destroy_plugin(mc::core::plugin* p) {                                                     \
-        delete p;                                                                                  \
-    }                                                                                              \
+#define MC_EXPORT_PLUGIN(PluginClass)                 \
+    extern "C" {                                      \
+    MC_API mc::core::plugin* create_plugin() {        \
+        return new PluginClass();                     \
+    }                                                 \
+    MC_API void destroy_plugin(mc::core::plugin* p) { \
+        delete p;                                     \
+    }                                                 \
     }
 
 #endif // MC_CORE_PLUGIN_H

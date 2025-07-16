@@ -10,10 +10,6 @@
  * See the Mulan PSL v2 for more details.
  */
 
-/**
- * @file dict.cpp
- * @brief 实现 dict.h 中声明的方法
- */
 #include <mc/dict.h>
 #include <mc/dict/entry.h>
 #include <mc/json.h>

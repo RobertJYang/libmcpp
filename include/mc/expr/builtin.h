@@ -28,30 +28,26 @@ class context;
 /**
  * @brief 内建注册表类，管理所有内建函数和内建常量
  */
-class builtin {
+class MC_API builtin {
 public:
     /**
      * @brief 获取单例实例
      */
-    static builtin& get_instance() {
-        // 不使用 mc::singleton 管理，在程序启动时各个模块会注册自己的内建函数，单例销毁后无法重建
-        static builtin instance;
-        return instance;
-    }
+    MC_API static builtin& get_instance();
 
     /**
      * @brief 析构函数
      */
-    ~builtin();
+    MC_API ~builtin();
 
     /**
      * @brief 注册内建函数
      * @param func 函数对象
      */
-    int register_symbol(std::shared_ptr<function> func);
+    MC_API int register_symbol(std::shared_ptr<function> func);
 
     template <typename F>
-    int register_symbol(std::string name, F&& func) {
+    MC_API int register_symbol(std::string name, F&& func) {
         return register_symbol(make_simple_function(std::move(name), std::forward<F>(func)));
     }
 
@@ -60,7 +56,7 @@ public:
      * @param name 变量名称
      * @param value 变量值
      */
-    int register_symbol(std::string name, mc::variant value);
+    MC_API int register_symbol(std::string name, mc::variant value);
 
     /**
      * @brief 注册模块的所有方法
@@ -82,7 +78,7 @@ public:
      * @brief 获取内建上下文
      * @return 内建上下文
      */
-    context& get_context();
+    MC_API context& get_context();
 
 private:
     builtin();

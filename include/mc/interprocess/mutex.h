@@ -17,9 +17,9 @@
 #ifndef MC_INTERPROCESS_MUTEX_H
 #define MC_INTERPROCESS_MUTEX_H
 
-#include "mc/interprocess/mutex/ipc_mutex.h"
-#include "mc/interprocess/mutex/ipc_shared_mutex.h"
-#include "mc/interprocess/mutex/mutex.h"
-#include "mc/interprocess/mutex/shared_mutex.h"
+#include <mc/interprocess/mutex/ipc_mutex.h>
+#include <mc/interprocess/mutex/ipc_shared_mutex.h>
+#include <mc/interprocess/mutex/mutex.h>
+#include <mc/interprocess/mutex/shared_mutex.h>
 
-#endif // MC_INTERPROCESS_MUTEX_H 
+#endif // MC_INTERPROCESS_MUTEX_H

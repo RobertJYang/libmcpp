@@ -73,19 +73,19 @@ public:
 /**
  * @brief 基础服务类，提供通用功能实现
  */
-class service_base : public abstract_service {
+class MC_API service_base : public abstract_service {
 public:
-    explicit service_base(std::string name = "");
-    ~service_base() override;
+    MC_API explicit service_base(std::string name = "");
+    MC_API ~service_base() override;
 
-    void               set_name(std::string name);
-    const std::string& name() const override;
+    MC_API void  set_name(std::string name);
+    MC_API const std::string& name() const override;
 
-    service_state get_state() const override;
+    MC_API service_state get_state() const override;
 
-    const service_config& get_config() const override;
+    MC_API const service_config& get_config() const override;
 
-    const std::vector<std::string>& get_dependencies() const override;
+    MC_API const std::vector<std::string>& get_dependencies() const override;
 
     bool init(dict args) override {
         return true;

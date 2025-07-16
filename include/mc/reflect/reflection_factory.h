@@ -48,15 +48,16 @@ struct global_namespace {
  *
  * 管理类型注册和反射对象创建，支持模块系统
  */
-class reflection_factory : public mc::enable_shared_from_this<reflection_factory> {
+class MC_API reflection_factory : public mc::enable_shared_from_this<reflection_factory> {
 public:
     /**
      * @brief 获取全局反射工厂实例
      * @return reflection_factory& 工厂实例引用
      */
-    static reflection_factory& global();
-    static factory_ptr&        global_ptr();
-    static factory_ptr         try_global_ptr();
+    static MC_API reflection_factory& global();
+    static MC_API factory_ptr&        global_ptr();
+    static MC_API factory_ptr         try_global_ptr();
+    static MC_API void                reset_global();
 
     /**
      * @brief 获取单例实例，指定工厂标签
@@ -101,135 +102,135 @@ public:
         }
     }
 
-    ~reflection_factory();
+    MC_API ~reflection_factory();
 
     /**
      * @brief 获取反射元数据
      * @param type_id 类型ID
      * @return reflection_metadata_ptr 反射元数据
      */
-    reflection_metadata_ptr get_metadata(type_id_type type_id);
+    MC_API reflection_metadata_ptr get_metadata(type_id_type type_id);
 
     /**
      * @brief 通过类型名获取反射元数据（在所有已注册的工厂中查找）
      * @param type_name 类型名
      * @return reflection_metadata_ptr 反射元数据
      */
-    reflection_metadata_ptr get_metadata(std::string_view type_name);
+    MC_API reflection_metadata_ptr get_metadata(std::string_view type_name);
 
     /**
      * @brief 尝试创建反射对象，失败时返回nullptr
      * @param type_id 类型ID
      * @return reflected_object_ptr 反射对象实例，失败时返回nullptr
      */
-    reflected_object_ptr try_create_object(type_id_type type_id);
+    MC_API reflected_object_ptr try_create_object(type_id_type type_id);
 
     /**
      * @brief 尝试通过类型名创建反射对象（在所有已注册的工厂中查找），失败时返回nullptr
      * @param type_name 类型名
      * @return reflected_object_ptr 反射对象实例，失败时返回nullptr
      */
-    reflected_object_ptr try_create_object(std::string_view type_name);
+    MC_API reflected_object_ptr try_create_object(std::string_view type_name);
 
     /**
      * @brief 创建反射对象
      * @param type_id 类型ID
      * @return reflected_object_ptr 反射对象实例
      */
-    reflected_object_ptr create_object(type_id_type type_id);
+    MC_API reflected_object_ptr create_object(type_id_type type_id);
 
     /**
      * @brief 通过类型名创建反射对象（在所有已注册的工厂中查找）
      * @param type_name 类型名
      * @return reflected_object_ptr 反射对象实例
      */
-    reflected_object_ptr create_object(std::string_view type_name);
+    MC_API reflected_object_ptr create_object(std::string_view type_name);
 
     /**
      * @brief 获取类型ID
      * @param type_name 类型名
      * @return int 类型ID，如果不存在返回-1
      */
-    type_id_type get_type_id(std::string_view type_name) const;
+    MC_API type_id_type get_type_id(std::string_view type_name) const;
 
     /**
      * @brief 获取所有已注册的类型名（包括所有子模块的类型）
      * @return std::vector<std::string> 类型名列表
      */
-    std::vector<std::string> get_registered_types() const;
+    MC_API std::vector<std::string> get_registered_types() const;
 
     /**
      * @brief 根据模块路径获取该模块下的所有类型
      * @param module_path 模块路径（如 "mc::devices" 或 "mc.devices"），如果为空，则获取当前工厂下的所有类型
      * @return std::vector<std::pair<std::string_view, type_id_type>> 类型名和类型ID的列表
      */
-    std::vector<std::string> get_module_types(std::string_view module_path = std::string_view{}) const;
+    MC_API std::vector<std::string> get_module_types(std::string_view module_path = std::string_view{}) const;
 
     /**
      * @brief 获取所有模块路径
      * @return std::vector<std::string> 模块路径列表
      */
-    std::vector<std::string> get_module_paths() const;
+    MC_API std::vector<std::string> get_module_paths() const;
 
     /**
      * @brief 检查模块是否存在
      * @param module_path 模块路径
      * @return bool 模块是否存在
      */
-    bool has_module(std::string_view module_path) const;
+    MC_API bool has_module(std::string_view module_path) const;
 
     /**
      * @brief 注册反射工厂
      * @param factory_name 工厂名称
      * @param factory 反射工厂实例
      */
-    factory_id_type register_factory(factory_ptr factory);
+    MC_API factory_id_type register_factory(factory_ptr factory);
 
     /**
      * @brief 注销反射工厂
      * @param factory_name 工厂名称
      */
-    void unregister_factory(std::string_view factory_name);
+    MC_API void unregister_factory(std::string_view factory_name);
 
     /**
      * @brief 获取反射工厂
      * @param factory_name 工厂名称
      * @return factory_ptr 反射工厂实例
      */
-    factory_ptr get_factory(std::string_view factory_name) const;
+    MC_API factory_ptr get_factory(std::string_view factory_name) const;
 
     /**
      * @brief 获取反射工厂
      * @param factory_id 工厂ID
      * @return factory_ptr 反射工厂实例
      */
-    factory_ptr get_factory_by_id(factory_id_type factory_id) const;
+    MC_API factory_ptr get_factory_by_id(factory_id_type factory_id) const;
 
     /**
      * @brief 获取父工厂
      * @return factory_ptr 父工厂实例
      */
-    factory_ptr get_parent_factory() const;
+    MC_API factory_ptr get_parent_factory() const;
 
     /**
      * @brief 获取所有已注册的工厂名称
      * @return std::vector<std::string> 工厂名称列表
      */
-    std::vector<std::string> get_factory_names() const;
+    MC_API std::vector<std::string> get_factory_names() const;
 
     /**
      * @brief 获取工厂名称
      * @return std::string_view 工厂名称
      */
-    const std::string& get_factory_name() const;
+    MC_API const std::string& get_factory_name() const;
 
     /**
      * @brief 获取工厂命名空间类型名
      * @return std::string_view 工厂类型名
      */
-    const std::string& get_namespace_type_name() const;
+    MC_API const std::string& get_namespace_type_name() const;
 
-    factory_id_type get_factory_id() const;
+    MC_API factory_id_type get_factory_id() const;
 
     mc::signal<void(type_id_type)>    on_type_unregister;
     mc::signal<void(factory_id_type)> on_factory_unregister;
@@ -274,10 +275,10 @@ private:
         });
     }
 
-    type_id_type register_type_impl(std::string_view                           type_name,
-                                    type_id_type                               type_id,
-                                    std::function<reflection_metadata_ptr()>&& creator);
-    void         unregister_type_impl(std::string_view type_name);
+    MC_API type_id_type register_type_impl(std::string_view                           type_name,
+                                           type_id_type                               type_id,
+                                           std::function<reflection_metadata_ptr()>&& creator);
+    MC_API void         unregister_type_impl(std::string_view type_name);
 
     class impl;
     std::unique_ptr<impl> m_impl;
@@ -288,28 +289,28 @@ private:
  * @param type_id 类型ID
  * @return reflected_object_ptr 反射对象实例，失败时返回nullptr
  */
-reflected_object_ptr try_create_object(type_id_type type_id);
+MC_API reflected_object_ptr try_create_object(type_id_type type_id);
 
 /**
  * @brief 全局便利函数：尝试通过类型名创建反射对象，失败时返回nullptr
  * @param type_name 类型名
  * @return reflected_object_ptr 反射对象实例，失败时返回nullptr
  */
-reflected_object_ptr try_create_object(std::string_view type_name);
+MC_API reflected_object_ptr try_create_object(std::string_view type_name);
 
 /**
  * @brief 全局便利函数：通过类型ID创建反射对象
  * @param type_id 类型ID
  * @return reflected_object_ptr 反射对象实例
  */
-reflected_object_ptr create_object(type_id_type type_id);
+MC_API reflected_object_ptr create_object(type_id_type type_id);
 
 /**
  * @brief 全局便利函数：通过类型名创建反射对象
  * @param type_name 类型名
  * @return reflected_object_ptr 反射对象实例
  */
-reflected_object_ptr create_object(std::string_view type_name);
+MC_API reflected_object_ptr create_object(std::string_view type_name);
 
 /**
  * @brief 获取已注册的所有类型名

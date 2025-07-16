@@ -23,36 +23,36 @@
 namespace mc::engine {
 using mc::string::starts_with;
 
-class object_impl : public abstract_object {
+class MC_API object_impl : public abstract_object {
 public:
-    object_impl(core_object* parent);
-    ~object_impl() override;
+    MC_API object_impl(core_object* parent);
+    MC_API ~object_impl() override;
 
-    const managed_objects& get_managed_objects() const override;
+    MC_API const managed_objects& get_managed_objects() const override;
 
-    void                     notify_property_changed(const mc::variant& value, const property_base& prop) override;
-    property_changed_signal& property_changed() override;
+    MC_API void                     notify_property_changed(const mc::variant& value, const property_base& prop) override;
+    MC_API property_changed_signal& property_changed() override;
 
-    abstract_object* get_owner() const override;
-    void             set_owner(abstract_object* owner) override;
+    MC_API abstract_object* get_owner() const override;
+    MC_API void             set_owner(abstract_object* owner) override;
 
-    std::string_view get_object_name() const override;
-    void             set_object_name(std::string_view name) override;
+    MC_API std::string_view get_object_name() const override;
+    MC_API void             set_object_name(std::string_view name) override;
 
-    object_identifier_t get_object_identifier() const override;
-    void                set_object_identifier(const object_identifier_t& identifier) override;
+    MC_API object_identifier_t get_object_identifier() const override;
+    MC_API void                set_object_identifier(const object_identifier_t& identifier) override;
 
-    void set_object_path(std::string_view path) override;
+    MC_API void set_object_path(std::string_view path) override;
 
-    std::string_view get_position() const override;
-    void             set_position(std::string_view position) override;
+    MC_API std::string_view get_position() const override;
+    MC_API void             set_position(std::string_view position) override;
 
-    void     set_service(service* s) override;
-    service* get_service() const override;
+    MC_API void     set_service(service* s) override;
+    MC_API service* get_service() const override;
 
 protected:
-    void add_managed_object(abstract_object* obj) override;
-    void remove_managed_object(abstract_object* obj) override;
+    MC_API void add_managed_object(abstract_object* obj) override;
+    MC_API void remove_managed_object(abstract_object* obj) override;
 
 protected:
     mutable std::string                      m_object_path;

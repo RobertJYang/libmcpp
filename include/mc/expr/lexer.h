@@ -27,14 +27,14 @@ namespace mc::expr {
 /**
  * @brief 词法分析器类
  */
-class lexer {
+class MC_API lexer {
 public:
-    explicit lexer(std::string_view source);
+    explicit MC_API lexer(std::string_view source);
 
-    std::vector<token> scan_tokens();
-    std::vector<token> scan_template_string_tokens();
+    MC_API std::vector<token> scan_tokens();
+    MC_API std::vector<token> scan_template_string_tokens();
 
-    static bool is_template_string(std::string_view source);
+    static MC_API bool is_template_string(std::string_view source);
 
 private:
     bool is_at_end() const;
@@ -48,8 +48,8 @@ private:
     void skip_until(const std::function<bool(char)>& predicate);
 
     // 提取词素
-    std::string_view lexeme() const;                // 提取从m_start到m_current的子串
-    std::string_view lexeme(std::size_t end) const; // 提取从m_start到指定位置的子串
+    std::string_view lexeme() const;                                   // 提取从m_start到m_current的子串
+    std::string_view lexeme(std::size_t end) const;                    // 提取从m_start到指定位置的子串
     std::string_view lexeme(std::size_t start, std::size_t end) const; // 提取指定范围的子串
     std::size_t      lexlen() const;
 

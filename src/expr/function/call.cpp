@@ -26,6 +26,40 @@
 
 namespace mc::expr {
 
+void to_variant(const func_call& fc, mc::variant& v) {
+    mc::mutable_dict d;
+    d.insert("func", mc::variant(fc.func));
+    d.insert("params", mc::variant(fc.params));
+    v = mc::variant(d);
+}
+
+void from_variant(const mc::variant& v, func_call& fc) {
+    const auto& d = v.as_dict();
+    fc.func       = d.at("func").as_string();
+    fc.params     = d.at("params").as_dict();
+}
+
+bool is_function_call(const mc::variant& v) {
+    if (!v.is_dict()) {
+        return false;
+    }
+
+    const auto& d = v.as_dict();
+    if (!d.contains("func") || !d.contains("params")) {
+        return false;
+    }
+
+    if (!d.at("func").is_string()) {
+        return false;
+    }
+
+    if (!d.at("params").is_dict()) {
+        return false;
+    }
+
+    return true;
+}
+
 void func::validate_result() {
     if (m_result == "") {
         MC_THROW(mc::parse_error_exception, "Func result is not initialized");
@@ -45,10 +79,10 @@ bool is_relate_property(const mc::variant& value) {
     }
 
     const auto& dict = value.as_dict();
-    if (dict.size() != 5) {  // 现在有5个字段：type, object_name, property_name, full_name, interface
+    if (dict.size() != 5) { // 现在有5个字段：type, object_name, property_name, full_name, interface
         return false;
     }
-    
+
     // 检查是否包含所有必要字段
     auto type_it = dict.find("type");
     auto obj_it  = dict.find("object_name");
@@ -56,7 +90,7 @@ bool is_relate_property(const mc::variant& value) {
     auto full_it = dict.find("full_name");
     auto intf_it = dict.find("interface");
 
-    if (type_it == dict.end() || obj_it == dict.end() || prop_it == dict.end() || 
+    if (type_it == dict.end() || obj_it == dict.end() || prop_it == dict.end() ||
         full_it == dict.end() || intf_it == dict.end()) {
         return false;
     }
@@ -75,10 +109,10 @@ bool is_relate_property(const mc::variant& value) {
 
 // 生成 relate_property 的标准化key
 std::string generate_relate_property_key(const mc::variant& prop_value) {
-    std::string object_name = prop_value["object_name"].as<std::string>();
-    std::string property_name = prop_value["property_name"].as<std::string>();
+    std::string object_name    = prop_value["object_name"].as<std::string>();
+    std::string property_name  = prop_value["property_name"].as<std::string>();
     std::string interface_name = prop_value["interface"].as<std::string>();
-    
+
     if (interface_name.empty()) {
         // 传统格式：ObjectName.PropertyName
         return object_name + "." + property_name;

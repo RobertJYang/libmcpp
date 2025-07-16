@@ -119,7 +119,7 @@ class reflect_factory_test : public mc::test::TestBase {
 protected:
     void SetUp() override {
         // 重置工厂单例，确保每个测试开始时都有干净的工厂状态
-        mc::singleton<mc::reflect::factory_ptr, mc::reflect::global_namespace>::reset_for_test();
+        mc::reflect::reflection_factory::reset_global();
         mc::singleton<mc::reflect::factory_ptr, devices_namespace>::reset_for_test();
 
         // 先注销后注册再重新注册，确保所有类型都重新注册到对应的工厂
@@ -135,7 +135,7 @@ protected:
 
     void TearDown() override {
         // 清理测试单例
-        mc::singleton<mc::reflect::factory_ptr, mc::reflect::global_namespace>::reset_for_test();
+        mc::reflect::reflection_factory::reset_global();
         mc::singleton<mc::reflect::factory_ptr, devices_namespace>::reset_for_test();
 
         // 清理所有的测试类型

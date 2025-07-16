@@ -191,6 +191,8 @@ void variant_to_dbus_signature(signature& sig, const mc::variant& v) {
 }
 } // namespace detail
 
+message::message() = default;
+
 message message::new_method_call(std::string_view destination, std::string_view path,
                                  std::string_view interface, std::string_view member) {
     MC_ASSERT(validator::is_valid_bus_name(destination), "invalid destination: ${destination}",

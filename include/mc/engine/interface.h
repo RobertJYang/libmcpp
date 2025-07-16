@@ -144,31 +144,16 @@ signal_map<T>& get_signals() {
 }
 } // namespace detail
 
-class interface_impl : public abstract_interface {
+class MC_API interface_impl : public abstract_interface {
 public:
-    ~interface_impl() override = default;
+    MC_API ~interface_impl() override;
 
-    abstract_object* get_owner() const override {
-        return m_owner;
-    }
+    MC_API abstract_object* get_owner() const override;
+    MC_API void             set_owner(abstract_object* owner);
 
-    void set_owner(abstract_object* owner) {
-        m_owner = owner;
-    }
+    MC_API property_changed_signal& property_changed() override;
 
-    property_changed_signal& property_changed() override {
-        if (m_property_changed_signal == nullptr) {
-            m_property_changed_signal = std::make_unique<property_changed_signal>();
-        }
-
-        return *m_property_changed_signal;
-    }
-
-    void notify_property_changed(const mc::variant& value, const property_base& prop) override {
-        if (m_property_changed_signal) {
-            (*m_property_changed_signal)(value, prop);
-        }
-    }
+    MC_API void notify_property_changed(const mc::variant& value, const property_base& prop) override;
 
 protected:
     abstract_object*                         m_owner;

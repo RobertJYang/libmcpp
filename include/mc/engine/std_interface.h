@@ -51,24 +51,21 @@ constexpr std::string_view common_properties_name        = "bmc.kepler.Object.Pr
 </signal>
 </interface>
 */
-struct properties_interface : public mc::engine::interface<properties_interface> {
+struct MC_API properties_interface : public mc::engine::interface<properties_interface> {
     MC_INTERFACE(properties_interface_name)
 
-    ~properties_interface() override = default;
+    MC_API ~properties_interface() override = default;
 
-    mc::variant get(std::string_view interface_name, std::string_view property_name) const;
-    mc::dict    get_all(std::string_view interface_name) const;
-    void        set(std::string_view interface_name, std::string_view property_name,
-                    const mc::variant& value);
+    MC_API mc::variant get(std::string_view interface_name, std::string_view property_name) const;
+    MC_API mc::dict get_all(std::string_view interface_name) const;
+    MC_API void     set(std::string_view interface_name, std::string_view property_name,
+                        const mc::variant& value);
 
     using properties_changed_signal =
         mc::signal<void(std::string_view, mc::dict, std::vector<std::string>)>;
     properties_changed_signal properties_changed;
 
-    static properties_interface& get_instance() {
-        static properties_interface instance;
-        return instance;
-    }
+    static MC_API properties_interface& get_instance();
 };
 
 /*
@@ -78,17 +75,14 @@ struct properties_interface : public mc::engine::interface<properties_interface>
     </method>
   </interface>
 */
-struct introspectable_interface : public mc::engine::interface<introspectable_interface> {
+struct MC_API introspectable_interface : public mc::engine::interface<introspectable_interface> {
     MC_INTERFACE(introspectable_interface_name)
 
-    ~introspectable_interface() override = default;
+    MC_API ~introspectable_interface() override = default;
 
-    std::string introspect() const;
+    MC_API std::string introspect() const;
 
-    static introspectable_interface& get_instance() {
-        static introspectable_interface instance;
-        return instance;
-    }
+    static MC_API introspectable_interface& get_instance();
 };
 
 /*
@@ -99,18 +93,15 @@ struct introspectable_interface : public mc::engine::interface<introspectable_in
     </method>
   </interface>
 */
-struct peer_interface : public mc::engine::interface<peer_interface> {
+struct MC_API peer_interface : public mc::engine::interface<peer_interface> {
     MC_INTERFACE(peer_interface_name)
 
-    ~peer_interface() override = default;
+    MC_API ~peer_interface() override = default;
 
     void        ping() const;
     std::string get_machine_id() const;
 
-    static peer_interface& get_instance() {
-        static peer_interface instance;
-        return instance;
-    }
+    static MC_API peer_interface& get_instance();
 };
 
 /*
@@ -128,14 +119,14 @@ struct peer_interface : public mc::engine::interface<peer_interface> {
     </signal>
   </interface>
 */
-struct object_manager_interface : public mc::engine::interface<object_manager_interface> {
+struct MC_API object_manager_interface : public mc::engine::interface<object_manager_interface> {
     MC_INTERFACE(object_manager_interface_name)
 
-    ~object_manager_interface() override = default;
+    MC_API ~object_manager_interface() override = default;
 
     using interfaces_type = std::map<std::string, mc::dict>;
     using objects_type    = std::map<mc::dbus::path, interfaces_type>;
-    objects_type get_managed_objects() const;
+    MC_API objects_type get_managed_objects() const;
 
     using interfaces_added_signal = mc::signal<void(mc::dbus::path, interfaces_type)>;
     interfaces_added_signal interfaces_added;
@@ -143,16 +134,13 @@ struct object_manager_interface : public mc::engine::interface<object_manager_in
     using interfaces_removed_signal = mc::signal<void(mc::dbus::path, std::vector<std::string>)>;
     interfaces_removed_signal interfaces_removed;
 
-    static object_manager_interface& get_instance() {
-        static object_manager_interface instance;
-        return instance;
-    }
+    static MC_API object_manager_interface& get_instance();
 };
 
-struct common_properties_interface : public mc::engine::interface<common_properties_interface> {
+struct MC_API common_properties_interface : public mc::engine::interface<common_properties_interface> {
     MC_INTERFACE(common_properties_name)
 
-    ~common_properties_interface() override = default;
+    MC_API ~common_properties_interface() override = default;
     std::string_view                                           m_parent_path;
     std::string_view                                           m_object_name;
     std::string_view                                           m_class_name;
@@ -165,13 +153,10 @@ struct common_properties_interface : public mc::engine::interface<common_propert
     static void        set_with_context(std::map<std::string, std::string> context, std::string_view interface_name,
                                         std::string_view property_name, const mc::variant& value);
 
-    static common_properties_interface& get_instance() {
-        static common_properties_interface instance;
-        return instance;
-    }
+    static MC_API common_properties_interface& get_instance();
 };
 
-class standard_interfaces {
+class MC_API standard_interfaces {
 public:
     static constexpr std::string_view common_prefix          = "org.freedesktop.DBus.";
     static constexpr std::string_view properties_name        = "Properties";
@@ -179,7 +164,7 @@ public:
     static constexpr std::string_view peer_name              = "Peer";
     static constexpr std::string_view object_manager_name    = "ObjectManager";
     static constexpr std::string_view common_properties_name = "bmc.kepler.Object.Properties";
-    static invoke_result              invoke(abstract_object* object, std::string_view method_name,
+    static MC_API invoke_result       invoke(abstract_object* object, std::string_view method_name,
                                              const mc::variants& args, std::string_view interface_name);
 };
 

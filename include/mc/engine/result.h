@@ -53,9 +53,9 @@ static auto call_impl(F&& func, Arg v) {
     }
 }
 
-[[noreturn]] void         throw_method_call_exception(const mc::engine::error_ptr& err);
-mc::error_ptr             get_default_error();
-mc::method_call_exception make_method_call_exception(const mc::engine::error_ptr& err);
+[[noreturn]] MC_API void throw_method_call_exception(const mc::engine::error_ptr& err);
+MC_API mc::error_ptr get_default_error();
+MC_API mc::method_call_exception make_method_call_exception(const mc::engine::error_ptr& err);
 
 template <typename T, typename = void>
 struct future_value_type {

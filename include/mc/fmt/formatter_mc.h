@@ -22,10 +22,10 @@ class format_context;
 namespace detail {
 struct format_spec;
 
-void format_variant(const mc::variant& v, format_context& ctx, const format_spec& spec);
-void format_dict(const mc::dict& dict, format_context& ctx, const format_spec& spec);
-void format_blob(const mc::blob& blob, format_context& ctx, const format_spec& spec);
-void format_extension(const mc::variant_extension_base& ext, format_context& ctx, const format_spec& spec);
+MC_API void format_variant(const mc::variant& v, format_context& ctx, const format_spec& spec);
+MC_API void format_dict(const mc::dict& dict, format_context& ctx, const format_spec& spec);
+MC_API void format_blob(const mc::blob& blob, format_context& ctx, const format_spec& spec);
+MC_API void format_extension(const mc::variant_extension_base& ext, format_context& ctx, const format_spec& spec);
 
 } // namespace detail
 

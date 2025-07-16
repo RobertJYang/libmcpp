@@ -18,6 +18,7 @@
 #include <vector>
 
 #include <dbus/dbus.h>
+#include <mc/common.h>
 #include <mc/filesystem.h>
 
 namespace mc::test {
@@ -27,57 +28,57 @@ namespace mc::test {
  *
  * 这个类负责启动和关闭 DBus 守护进程，创建和清理相关的临时文件和目录
  */
-class dbus_daemon_manager {
+class MC_API dbus_daemon_manager {
 public:
     /**
      * @brief 构造函数
      */
-    dbus_daemon_manager();
+    MC_API dbus_daemon_manager();
 
     /**
      * @brief 析构函数，自动清理资源
      */
-    ~dbus_daemon_manager();
+    MC_API ~dbus_daemon_manager();
 
     /**
      * @brief 启动 DBus 守护进程
      *
      * @return 是否成功启动
      */
-    bool start();
+    MC_API bool start();
 
     /**
      * @brief 停止 DBus 守护进程
      */
-    void stop();
+    MC_API void stop();
 
     /**
      * @brief 获取 DBus 地址
      *
      * @return DBus 地址字符串
      */
-    std::string get_address() const;
+    MC_API std::string get_address() const;
 
     /**
      * @brief 获取 DBus 套接字路径
      *
      * @return 套接字路径
      */
-    mc::filesystem::path get_socket_path() const;
+    MC_API mc::filesystem::path get_socket_path() const;
 
     /**
      * @brief 获取 DBus 配置文件路径
      *
      * @return 配置文件路径
      */
-    mc::filesystem::path get_config_path() const;
+    MC_API mc::filesystem::path get_config_path() const;
 
     /**
      * @brief 获取临时目录路径
      *
      * @return 临时目录路径
      */
-    mc::filesystem::path get_temp_dir() const;
+    MC_API mc::filesystem::path get_temp_dir() const;
 
 private:
     /**

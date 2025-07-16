@@ -26,7 +26,7 @@ namespace test {
 /**
  * @brief 测试基类，提供通用的测试功能
  */
-class TestBase : public ::testing::Test {
+class MC_API TestBase : public ::testing::Test {
 protected:
     static void SetUpTestSuite() {
         // 设置默认日志级别为 warn，减少测试输出
@@ -49,24 +49,26 @@ protected:
     }
 };
 
-class TestWithRuntime : public TestBase {
+class MC_API TestWithRuntime : public TestBase {
 protected:
-    static mc::runtime::runtime_context& get_runtime() {
+    static MC_API mc::runtime::runtime_context& get_runtime() {
         return mc::runtime::get_runtime_context();
     }
 
+    static MC_API void reset_runtime() {
+        mc::runtime::reset_runtime_context();
+    }
+
     static void SetUpTestSuite() {
-        mc::singleton<mc::runtime::runtime_context>::reset_for_test();
+        mc::runtime::reset_runtime_context();
     }
 
     static void TearDownTestSuite() {
-        get_runtime().stop();
-        get_runtime().join();
-        mc::singleton<mc::runtime::runtime_context>::reset_for_test();
+        reset_runtime();
     }
 };
 
-class TestWithDbusDaemon : public TestWithRuntime {
+class MC_API TestWithDbusDaemon : public TestWithRuntime {
 protected:
     static dbus_daemon_manager& get_dbus_daemon() {
         return mc::singleton<dbus_daemon_manager>::instance();
@@ -82,7 +84,7 @@ protected:
     };
 };
 
-class TestWithApplication : public TestWithDbusDaemon {
+class MC_API TestWithApplication : public TestWithDbusDaemon {
 protected:
     static void SetUpTestSuite() {
         TestWithDbusDaemon::SetUpTestSuite();
@@ -92,12 +94,12 @@ protected:
 
     static void TearDownTestSuite() {
         mc::core::app().stop();
-        mc::singleton<mc::core::application>::reset_for_test();
+        mc::core::application::reset_for_test();
         TestWithDbusDaemon::TearDownTestSuite();
     };
 };
 
-class TestWithEngine : public TestWithApplication {
+class MC_API TestWithEngine : public TestWithApplication {
 protected:
     static mc::engine::engine& get_engine() {
         return mc::engine::get_engine();
@@ -108,7 +110,7 @@ protected:
     }
 
     static void TearDownTestSuite() {
-        mc::singleton<mc::engine::engine>::reset_for_test();
+        mc::engine::engine::reset_for_test();
         TestWithApplication::TearDownTestSuite();
     };
 };
