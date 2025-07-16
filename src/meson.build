@@ -1,25 +1,20 @@
 # 包含子目录的 meson.build 文件
-subdir('core')
 subdir('crypto')
 subdir('db')
 subdir('dbus')
 subdir('dict')
-subdir('engine')
-subdir('expr')
 subdir('fmt')
 subdir('futures')
 subdir('interprocess')
 subdir('io')
 subdir('log')
 subdir('memory')
-subdir('module')
 subdir('reflect')
 subdir('runtime')
 subdir('string')
 subdir('variant')
 
-# 源文件列表
-src_files = [
+base_src_files = [
   # 根目录源文件
   'common.cpp',
   'exception.cpp',
@@ -28,25 +23,24 @@ src_files = [
   'time.cpp',
   'singleton.cpp',
 
-  # 各子目录的源文件
-  core_src_files,
-  crypto_src_files,
-  db_src_files,
-  dbus_src_files,
   dict_src_files,
-  engine_src_files,
-  expr_src_files,
   fmt_src_files,
-  futures_src_files,
-  interprocess_src_files,
-  io_src_files,
   log_src_files,
   memory_src_files,
-  module_src_files,
   reflect_src_files,
   runtime_src_files,
   string_src_files,
   variant_src_files,
+  crypto_src_files,
+  db_src_files,
+  interprocess_src_files,
+  io_src_files,
+  futures_src_files,
+]
+
+# 源文件列表
+libmcpp_src_files = [
+  'variant_c_api.cpp',
 ]
 
 dep_arr = [boost_dep, boost_program_options_dep, dbus_dep, glib_dep]
@@ -70,10 +64,39 @@ else
   install_dir = 'usr/lib64'
 endif
 
+# 创建基础库
+libmcpp_base_lib = shared_library(
+  'mcpp_base',
+  base_src_files,
+  include_directories: [incdir, srcdir],
+  dependencies: dep_arr,
+  install: true,
+  install_dir: install_dir,
+)
+libmcpp_base_dep = declare_dependency(
+  include_directories: incdir,
+  link_with: libmcpp_base_lib,
+  dependencies: dep_arr,
+)
+dep_arr += [libmcpp_base_dep]
+
+subdir('core')
+subdir('engine')
+subdir('expr')
+subdir('module')
+
+dep_arr += [
+  libmcpp_base_dep,
+  libmcpp_core_dep,
+  libmcpp_engine_dep,
+  libmcpp_expr_dep,
+  libmcpp_module_dep,
+]
+
 # 创建共享库
 libmcpp_lib = shared_library(
-  'libmcpp',
-  src_files,
+  'mcpp',
+  libmcpp_src_files,
   include_directories: [incdir, srcdir],
   dependencies: dep_arr,
   install: true,

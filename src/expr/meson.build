@@ -1,26 +1,40 @@
-expr_src_files = [
-  'expr/builtin/conversion.cpp',
-  'expr/builtin/math.cpp',
-  'expr/builtin/string.cpp',
+expr_src_files = files(
+  'builtin/conversion.cpp',
+  'builtin/math.cpp',
+  'builtin/string.cpp',
 
-  'expr/function/call.cpp',
-  'expr/function/collection.cpp',
-  'expr/function/parser.cpp',
+  'function/call.cpp',
+  'function/collection.cpp',
+  'function/parser.cpp',
 
-  'expr/node/binary_op_node.cpp',
-  'expr/node/conditional_node.cpp',
-  'expr/node/function_call_node.cpp',
-  'expr/node/literal_node.cpp',
-  'expr/node/object_method_call_node.cpp',
-  'expr/node/property_access_node.cpp',
-  'expr/node/template_string_node.cpp',
-  'expr/node/unary_op_node.cpp',
-  'expr/node/variable_node.cpp',
+  'node/binary_op_node.cpp',
+  'node/conditional_node.cpp',
+  'node/function_call_node.cpp',
+  'node/literal_node.cpp',
+  'node/object_method_call_node.cpp',
+  'node/property_access_node.cpp',
+  'node/template_string_node.cpp',
+  'node/unary_op_node.cpp',
+  'node/variable_node.cpp',
 
-  'expr/builtin.cpp',
-  'expr/context.cpp',
-  'expr/engine.cpp',
-  'expr/function.cpp',
-  'expr/lexer.cpp',
-  'expr/parser.cpp',
-]
+  'builtin.cpp',
+  'context.cpp',
+  'engine.cpp',
+  'function.cpp',
+  'lexer.cpp',
+  'parser.cpp',
+)
+
+libmcpp_expr_lib = shared_library(
+  'mcpp_expr',
+  expr_src_files,
+  include_directories: [incdir, srcdir],
+  dependencies: [dep_arr, libmcpp_engine_dep],
+  install: true,
+  install_dir: install_dir,
+)
+libmcpp_expr_dep = declare_dependency(
+  include_directories: incdir,
+  link_with: libmcpp_expr_lib,
+  dependencies: [dep_arr, libmcpp_engine_dep],
+)

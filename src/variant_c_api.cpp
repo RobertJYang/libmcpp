@@ -16,9 +16,10 @@
  */
 #include <mc/variant_c_api.h>
 #include <mc/variant.h>
+
 #include <mc/expr/engine.h>
 #include <mc/expr/context.h>
-#include <glib-2.0/glib.h>
+
 #include <string>
 
 extern "C" {

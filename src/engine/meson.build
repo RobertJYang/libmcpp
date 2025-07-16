@@ -1,15 +1,31 @@
-engine_src_files = [
-  'engine/base.cpp',
-  'engine/object.cpp',
-  'engine/engine.cpp',
-  'engine/service.cpp',
-  'engine/std_interface.cpp',
-  'engine/error.cpp',
-  'engine/error_engine.cpp',
-  'engine/context.cpp',
-  'engine/property.cpp',
-  'engine/utils.cpp',
-  'engine/path.cpp',
-  'engine/path_iterator.cpp',
-  'engine/result.cpp',
-] 
+engine_src_files = files(
+  'base.cpp',
+  'context.cpp',
+  'engine.cpp',
+  'error.cpp',
+  'error_engine.cpp',
+  'object.cpp',
+  'path.cpp',
+  'path_iterator.cpp',
+  'property.cpp',
+  'result.cpp',
+  'service.cpp',
+  'std_interface.cpp',
+  'utils.cpp',
+)
+
+engine_src_files += dbus_src_files
+
+libmcpp_engine_lib = shared_library(
+  'mcpp_engine',
+  engine_src_files,
+  include_directories: [incdir, srcdir],
+  dependencies: [dep_arr, libmcpp_core_dep],
+  install: true,
+  install_dir: install_dir,
+)
+libmcpp_engine_dep = declare_dependency(
+  include_directories: incdir,
+  link_with: libmcpp_engine_lib,
+  dependencies: [dep_arr, libmcpp_core_dep],
+)
