@@ -162,6 +162,8 @@ struct common_properties_interface : public mc::engine::interface<common_propert
     static mc::dict    get_all();
     static mc::variant get_with_context(std::map<std::string, std::string> context, std::string_view interface_name,
                                         std::string_view property_name);
+    static void        set_with_context(std::map<std::string, std::string> context, std::string_view interface_name,
+                                        std::string_view property_name, const mc::variant& value);
 
     static common_properties_interface& get_instance() {
         static common_properties_interface instance;
@@ -192,6 +194,6 @@ MC_REFLECT(mc::engine::object_manager_interface,
            ((get_managed_objects, "GetManagedObjects"))((interfaces_added, "InterfacesAdded"))(
                (interfaces_removed, "InterfacesRemoved")))
 MC_REFLECT(mc::engine::common_properties_interface,
-           ((m_parent_path, "ParentPath"))((m_object_name, "ObjectName"))((m_class_name, "ClassName"))((m_object_identifier, "ObjectIdentifier"))((get_with_context, "GetWithContext")))
+           ((m_parent_path, "ParentPath"))((m_object_name, "ObjectName"))((m_class_name, "ClassName"))((m_object_identifier, "ObjectIdentifier"))((get_with_context, "GetWithContext"))((set_with_context, "SetWithContext")))
 
 #endif // MC_ENGINE_STD_INTERFACE_H

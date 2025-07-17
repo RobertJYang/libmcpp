@@ -37,16 +37,49 @@ constexpr std::string_view DBUS_OBJECT_MANAGER_INTERFACE = "org.freedesktop.DBus
 constexpr std::string_view INTERFACES_ADDED_MEMBER       = "InterfacesAdded";
 constexpr std::string_view INTERFACES_REMOVED_MEMBER     = "InterfacesRemoved";
 
+class shm_lock {
+public:
+    shm_lock()
+        : m_shm(shm::shared_memory::get_instance()), m_locked(false) {
+        lock();
+    }
+
+    ~shm_lock() {
+        try {
+            unlock();
+        } catch (...) {
+            // 析构函数中避免抛异常
+        }
+    }
+
+    void lock() {
+        if (!m_locked) {
+            m_shm.lock();
+            m_locked = true;
+        }
+    }
+
+    void unlock() {
+        if (m_locked) {
+            m_locked = false;
+            m_shm.unlock();
+        }
+    }
+
+private:
+    shm::shared_memory& m_shm;
+    bool                m_locked;
+};
+
 template <typename Fn, typename... Args>
 auto shm_lock_call(Fn&& callback, Args&&... args) {
-    auto& ins = shm::shared_memory::get_instance();
-    ins.lock();
+    shm_lock lock;
     if constexpr (std::is_void_v<std::invoke_result_t<Fn, Args...>>) {
         std::invoke(std::forward<Fn>(callback), std::forward<Args>(args)...);
-        ins.unlock();
+        lock.unlock();
     } else {
         auto result = std::invoke(std::forward<Fn>(callback), std::forward<Args>(args)...);
-        ins.unlock();
+        lock.unlock();
         return result;
     }
 }
