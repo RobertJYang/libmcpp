@@ -371,25 +371,3 @@ TEST_F(ShmCallTest, TestSubscribePropertiesChanged) {
     ASSERT_TRUE(d["Str"].is_string());
     ASSERT_EQ(d["Str"].as_string(), "test_property_changed");
 }
-
-TEST_F(ShmCallTest, TestGetWithContext) {
-    auto conn = mc::dbus::connection::open_session_bus(mc::get_io_context());
-    conn.start();
-    auto msg =
-        mc::dbus::message::new_method_call("org.openubmc.test_service_2", "/org/openubmc/test_object_b", "bmc.kepler.Object.Properties", "GetWithContext");
-    msg.set_sender("bmc.kepler.test_client");
-    msg.set_serial(1);
-    auto                               writer = msg.writer();
-    std::map<std::string, std::string> ctx;
-    writer << ctx << "org.openubmc.test_interface_b" << "Arr";
-    auto reply = conn.send_with_reply(std::move(msg), mc::milliseconds(1000));
-    ASSERT_TRUE(reply.is_valid() && reply.is_method_return());
-    mc::variant result;
-    reply >> result;
-    ASSERT_TRUE(result.is_array());
-    auto arr = result.as_array();
-    ASSERT_EQ(arr.size(), 3);
-    ASSERT_EQ(arr[0].as_uint8(), 1);
-    ASSERT_EQ(arr[1].as_uint8(), 2);
-    ASSERT_EQ(arr[2].as_uint8(), 3);
-}

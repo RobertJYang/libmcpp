@@ -274,10 +274,24 @@ mc::dict common_properties_interface::get_all() {
         return {};
     }
     mc::mutable_dict dict;
-    dict["ParentPath"] = object->get_owner()->get_object_path();
-    dict["ObjectName"] = object->get_object_name();
-    dict["ClassName"]  = object->get_class_name();
+    dict["ParentPath"]       = object->get_owner()->get_object_path();
+    dict["ObjectName"]       = object->get_object_name();
+    dict["ClassName"]        = object->get_class_name();
+    dict["ObjectIdentifier"] = object->get_object_identifier();
     return dict;
+}
+
+void common_properties_interface::set_with_context(std::map<std::string, std::string> context, std::string_view interface_name,
+                                                   std::string_view property_name, const mc::variant& value) {
+    if (interface_name == common_properties_name) {
+        return;
+    }
+    auto* object = object_call_stack::top_value();
+    if (object == nullptr) {
+        elog("failed to get object from call stack");
+        return;
+    }
+    object->set_property(property_name, value, interface_name);
 }
 
 invoke_result standard_interfaces::invoke(abstract_object* object, std::string_view method_name,
