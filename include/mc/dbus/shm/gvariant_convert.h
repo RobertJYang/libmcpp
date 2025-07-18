@@ -48,10 +48,9 @@ private:
 
 class gvariant_convert {
 public:
-    static variant     to_mc_variant(GVariant* value);
-    static GVariant*   to_gvariant(const variant& value, const char* types);
-    static GVariant*   to_gvariant(const variant& value);
-    static std::string get_variant_signature(const variant& value, int depth = 0);
+    static variant   to_mc_variant(GVariant* value);
+    static GVariant* to_gvariant(const variant& value, const char* types);
+    static GVariant* to_gvariant(const variant& value);
 
 private:
     static std::tuple<GVariant*, const char*> to_gvariant_inner(const variant& v,
@@ -62,8 +61,6 @@ private:
     static GVariant*                          new_gvariant_dict(const variant& v, sig_unit& sig);
     static GVariant*                          new_gvariant_struct(const variant& v, sig_unit& sig);
     static GVariant*                          new_gvariant_array(const variant& v, sig_unit& sig);
-    static std::string                        get_array_signature(const variants& v, int depth);
-    static std::string                        get_dict_signature(const dict& v, int depth);
 };
 
 } // namespace mc::dbus

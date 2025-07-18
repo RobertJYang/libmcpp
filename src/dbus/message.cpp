@@ -102,9 +102,9 @@ static std::pair<bool, bool> check_dict_all_type(const mc::dict& v, mc::type_id 
 }
 
 static void array_to_dbus_signature(signature& sig, const mc::variants& v) {
-    // 如果数组是空，无法探测到数组类型，默认使用byte类型
+    // 如果数组是空，无法探测到数组类型，默认使用ai类型
     if (v.empty()) {
-        sig += container::array_of_byte;
+        sig += "ai";
         return;
     }
 

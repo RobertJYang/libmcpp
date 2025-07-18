@@ -18,36 +18,28 @@
 
 using namespace mc;
 
-TEST(GvariantConvertTest, GetVariantSignature) {
-    auto v   = variant(1);
-    auto sig = dbus::gvariant_convert::get_variant_signature(v);
-    ASSERT_EQ(sig, "i");
-    v   = variant(2.2);
-    sig = dbus::gvariant_convert::get_variant_signature(v);
-    ASSERT_EQ(sig, "d");
-    v   = variant(true);
-    sig = dbus::gvariant_convert::get_variant_signature(v);
-    ASSERT_EQ(sig, "b");
-    auto arr = mc::variants();
-    arr.push_back("test1");
-    arr.push_back("test2");
-    sig = dbus::gvariant_convert::get_variant_signature(arr);
-    ASSERT_EQ(sig, "as");
-    arr = mc::variants();
-    arr.push_back(33);
-    arr.push_back(55);
-    sig = dbus::gvariant_convert::get_variant_signature(arr);
-    ASSERT_EQ(sig, "ai");
-    arr = mc::variants();
-    arr.push_back(33);
-    arr.push_back("test2");
-    sig = dbus::gvariant_convert::get_variant_signature(arr);
-    ASSERT_EQ(sig, "(is)");
-    mc::mutable_dict d;
-    d["a"] = 1;
-    d["b"] = 2;
-    sig    = dbus::gvariant_convert::get_variant_signature(d);
-    ASSERT_EQ(sig, "a{si}");
+TEST(GvariantConvertTest, ArrayOfVariantsToGVariant) {
+    variants msg_arr;
+    msg_arr.push_back(1);
+    GVariant* gvariant = dbus::gvariant_convert::to_gvariant(msg_arr, "av");
+    ASSERT_NE(gvariant, nullptr);
+    ASSERT_EQ(std::string(g_variant_get_type_string(gvariant)), "av");
+    auto n = g_variant_n_children(gvariant);
+    ASSERT_EQ(n, 1);
+    auto child = g_variant_get_child_value(gvariant, 0);
+    ASSERT_NE(child, nullptr);
+    ASSERT_EQ(std::string(g_variant_get_type_string(child)), "v");
+    auto inner_gvariant = g_variant_get_child_value(child, 0);
+    ASSERT_NE(inner_gvariant, nullptr);
+    ASSERT_EQ(std::string(g_variant_get_type_string(inner_gvariant)), "i");
+    ASSERT_EQ(g_variant_get_int32(inner_gvariant), 1);
+
+    auto value = dbus::gvariant_convert::to_mc_variant(gvariant);
+    ASSERT_EQ(value.is_array(), true);
+    auto array = value.as_array();
+    ASSERT_EQ(array.size(), 1);
+    ASSERT_TRUE(array[0].is_integer());
+    ASSERT_EQ(array[0].as_uint32(), 1);
 }
 
 TEST(GvariantConvertTest, ArrayToGVariant) {
@@ -92,6 +84,55 @@ TEST(GvariantConvertTest, ArrayToGVariant) {
     auto msg3_dict = msg3_unpacked[0].as_dict();
     ASSERT_EQ(msg3_dict["a"].as_int32(), 1);
     ASSERT_EQ(msg3_dict["b"].as_int32(), 2);
+}
+
+TEST(GvariantConvertTest, ArrayToGVariantWithoutSignature) {
+    variants msg_arr;
+    auto     msg1 = variants({1, "str1", "str2", 3.3});
+    auto     msg2 = variants();
+    msg2.push_back(2);
+    msg2.push_back(variants({"str3", "str4", 4.4}));
+    auto msg3 = variants();
+    dict d({{"a", 1}, {"b", 2}});
+    msg3.push_back(d);
+    auto msg4 = variants();
+    msg_arr.push_back(msg1);
+    msg_arr.push_back(msg2);
+    msg_arr.push_back(msg3);
+    msg_arr.push_back(msg4);
+    GVariant* gvariant = dbus::gvariant_convert::to_gvariant(msg_arr);
+    ASSERT_NE(gvariant, nullptr);
+    auto value = dbus::gvariant_convert::to_mc_variant(gvariant);
+    g_variant_unref(gvariant);
+    ASSERT_EQ(value.is_array(), true);
+    auto array = value.as_array();
+    ASSERT_EQ(array.size(), 4);
+    ASSERT_EQ(array[0].is_array(), true);
+    auto msg1_unpacked = array[0].as_array();
+    ASSERT_EQ(msg1_unpacked.size(), 4);
+    ASSERT_EQ(array[1].is_array(), true);
+    auto msg2_unpacked = array[1].as_array();
+    ASSERT_EQ(msg2_unpacked.size(), 2);
+    ASSERT_EQ(msg1_unpacked[0].as_uint32(), 1);
+    ASSERT_EQ(msg1_unpacked[1].as_string(), "str1");
+    ASSERT_EQ(msg1_unpacked[2].as_string(), "str2");
+    ASSERT_EQ(msg1_unpacked[3].as_double(), 3.3);
+    ASSERT_EQ(msg2_unpacked[0].as_uint32(), 2);
+    ASSERT_EQ(msg2_unpacked[1].is_array(), true);
+    auto msg2_array = msg2_unpacked[1].as_array();
+    ASSERT_EQ(msg2_array.size(), 3);
+    ASSERT_EQ(msg2_array[0].as_string(), "str3");
+    ASSERT_EQ(msg2_array[1].as_string(), "str4");
+    ASSERT_EQ(msg2_array[2].as_double(), 4.4);
+    ASSERT_EQ(array[2].is_array(), true);
+    auto msg3_unpacked = array[2].as_array();
+    ASSERT_EQ(msg3_unpacked.size(), 1);
+    auto msg3_dict = msg3_unpacked[0].as_dict();
+    ASSERT_EQ(msg3_dict["a"].as_int32(), 1);
+    ASSERT_EQ(msg3_dict["b"].as_int32(), 2);
+    ASSERT_EQ(array[3].is_array(), true);
+    auto msg4_unpacked = array[3].as_array();
+    ASSERT_EQ(msg4_unpacked.size(), 0);
 }
 
 TEST(GvariantConvertTest, BasicTypesToGVariant) {
