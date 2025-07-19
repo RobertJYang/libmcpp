@@ -22,7 +22,7 @@
                 "conan": "libsomp/[>1.80.6]"
             },
             {
-                "conan": "liblogging/1.80.3@openUBMC.dev/dev"
+                "conan": "liblogger/1.90.0@openUBMC.dev/dev"
             }
         ]
     },
