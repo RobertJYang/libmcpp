@@ -76,6 +76,13 @@ calculate_optimal_jobs() {
 # 主函数
 main() {
     print_info "开始智能编译..."
+
+    # 检查是否需要清理构建目录
+    if [[ "$1" == "--clean" || "$1" == "clean" ]]; then
+        print_warning "检测到 clean 参数，正在删除构建目录 builddir..."
+        rm -rf builddir
+        print_info "构建目录 builddir 已删除"
+    fi
     
     # 检查是否在项目根目录
     if [ ! -f "meson.build" ]; then

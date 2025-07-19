@@ -59,8 +59,8 @@ add_project_arguments(
 if enable_conan_compile
   message('使用conan构建')
   libsomp_dep = dependency('libsomp', method: 'pkg-config', required: true)
-  liblogging_dep = dependency('liblogging', method: 'pkg-config', required: true)
-  dep_arr += [libsomp_dep, liblogging_dep]
+  liblogger_dep = dependency('liblogger', method: 'pkg-config', required: true)
+  dep_arr += [libsomp_dep, liblogger_dep]
 endif
 
 if meson_build
