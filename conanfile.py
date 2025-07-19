@@ -64,7 +64,79 @@ class AppConan(ConanBase):
         #self._codegen()
         meson = Meson(self)
         meson.configure()
-        meson.build()
+        # 智能计算最优并发数量
+        optimal_jobs = self._calculate_optimal_jobs()
+        print(f"[INFO] 使用 {optimal_jobs} 个并发任务进行编译")
+        meson.build(f"-j {optimal_jobs}")
+    
+    def _calculate_optimal_jobs(self):
+        """智能计算最优编译并发数量，参考smart_build.sh的逻辑"""
+        import subprocess
+        
+        try:
+            # 获取CPU核数
+            cpu_cores = os.cpu_count() or 1
+            
+            # 获取内存信息
+            total_mem_kb = 0
+            available_mem_kb = 0
+            swap_total_kb = 0
+            
+            try:
+                # 读取内存信息
+                with open('/proc/meminfo', 'r') as f:
+                    for line in f:
+                        if line.startswith('MemTotal:'):
+                            total_mem_kb = int(line.split()[1])
+                        elif line.startswith('MemAvailable:'):
+                            available_mem_kb = int(line.split()[1])
+                        elif line.startswith('SwapTotal:'):
+                            swap_total_kb = int(line.split()[1])
+            except (FileNotFoundError, IOError):
+                # 如果无法读取/proc/meminfo，使用保守估计
+                print("[WARNING] 无法读取内存信息，使用保守的并发策略")
+                return min(cpu_cores // 2, 8)
+            
+            # 转换为GB
+            total_mem_gb = total_mem_kb // 1024 // 1024
+            available_mem_gb = available_mem_kb // 1024 // 1024
+            swap_total_gb = swap_total_kb // 1024 // 1024
+            
+            print(f"[INFO] 系统信息: CPU核数={cpu_cores}, 总内存={total_mem_gb}GB, 可用内存={available_mem_gb}GB, Swap={swap_total_gb}GB")
+            
+            # 检查内存是否足够
+            if available_mem_gb < 4:
+                print("[WARNING] 可用内存不足4GB，使用最小并发数")
+                return 1
+            
+            # 基于内存的并发数计算
+            # C++编译平均每个进程消耗约1-2GB内存，保守估计用2GB
+            mem_based_jobs = (available_mem_gb * 2 // 3) // 2  # 使用2/3可用内存，每个任务2GB
+            
+            # 基于CPU的并发数计算
+            cpu_based_jobs = cpu_cores // 2  # 使用一半CPU核数
+            
+            # 如果没有swap，更保守一些
+            if swap_total_gb == 0:
+                mem_based_jobs = (mem_based_jobs * 2) // 3
+                print("[WARNING] 系统没有配置swap分区，使用更保守的并发策略")
+            
+            # 取较小值，但至少为1
+            optimal_jobs = min(mem_based_jobs, cpu_based_jobs)
+            optimal_jobs = max(optimal_jobs, 1)
+            
+            # 最大并发数限制（避免过度并发）
+            max_jobs = 64
+            optimal_jobs = min(optimal_jobs, max_jobs)
+            
+            # 显示计算过程
+            print(f"[INFO] 计算结果: 基于内存={mem_based_jobs}, 基于CPU={cpu_based_jobs}, 最终选择={optimal_jobs}")
+            
+            return optimal_jobs
+            
+        except Exception as e:
+            print(f"[WARNING] 计算并发数时出错: {e}，使用默认值8")
+            return 8
 
     def package(self):
         meson = Meson(self)
