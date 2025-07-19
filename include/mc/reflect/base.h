@@ -19,14 +19,16 @@
 #include <string_view>
 #include <vector>
 
-namespace mc::engine {
+#include <boost/preprocessor.hpp>
+
+namespace mc {
 template <typename T>
 class result;
 }
 
 namespace mc::reflect {
 
-using async_result = mc::engine::result<mc::variant>;
+using async_result = mc::result<mc::variant>;
 struct property_type_info;
 struct method_type_info;
 
@@ -56,10 +58,24 @@ constexpr factory_id_type INVALID_FACTORY_ID = -1;
  * @tparam T 要反射的类型
  */
 template <typename T>
-struct reflector {
+struct reflectable {
     using is_defined = std::false_type;
     using is_enum    = std::false_type;
 };
+
+template <typename T, typename = void>
+struct reflector;
+
+namespace detail {
+template <typename T, typename = void>
+struct has_reflectable : std::false_type {};
+
+template <typename T>
+struct has_reflectable<
+    T, std::enable_if_t<std::is_same_v<typename T::is_reflectable, std::true_type>, void>>
+    : std::true_type {};
+
+} // namespace detail
 
 /**
  * 检查类型是否可反射
@@ -68,7 +84,8 @@ struct reflector {
  */
 template <typename T>
 constexpr bool is_reflectable() {
-    return reflector<std::decay_t<T>>::is_defined::value;
+    return reflectable<std::decay_t<T>>::is_defined::value ||
+           detail::has_reflectable<T>::value;
 }
 
 /**
@@ -78,7 +95,7 @@ constexpr bool is_reflectable() {
  */
 template <typename T>
 constexpr bool is_enum() {
-    return reflector<T>::is_enum::value;
+    return reflectable<T>::is_enum::value;
 }
 
 /**
@@ -153,6 +170,20 @@ constexpr inline bool is_valid_type_name(std::string_view name) {
     }
 
     return true;
+}
+
+constexpr inline std::string_view remove_common_namespace(std::string_view s1, std::string_view s2) {
+    auto prefix = mc::string::longest_common_prefix(s1, s2);
+    if (prefix.empty()) {
+        return s1;
+    }
+
+    auto pos = prefix.find_last_of(':');
+    if (pos == std::string_view::npos) {
+        return s1;
+    }
+
+    return s1.substr(pos + 1);
 }
 
 namespace detail {
@@ -282,9 +313,9 @@ public:
  *
  * 提供类型信息和对象创建功能
  */
-class reflection_metadata_base : public mc::shared_base {
+class reflection_base : public mc::shared_base {
 public:
-    virtual ~reflection_metadata_base() = default;
+    virtual ~reflection_base() = default;
 
     /**
      * @brief 创建反射对象
@@ -363,6 +394,9 @@ public:
     virtual bool has_enum_value(std::string_view name) const {
         throw_not_enum_type(get_type_name());
     }
+    virtual bool has_enum_value(uint64_t value) const {
+        throw_not_enum_type(get_type_name());
+    }
 
 protected:
     bool m_is_enum = false;
@@ -370,8 +404,28 @@ protected:
 
 using reflected_object_ptr = std::shared_ptr<reflected_object>;
 
-using reflection_metadata_ptr  = mc::shared_ptr<reflection_metadata_base>;
-using reflection_metadata_wptr = mc::weak_ptr<reflection_metadata_base>;
+using reflection_metadata_ptr  = mc::shared_ptr<reflection_base>;
+using reflection_metadata_wptr = mc::weak_ptr<reflection_base>;
+
+/**
+ * @brief 定义类的反射信息
+ */
+#define MC_GLOBAL_REFLECTABLE(TYPE)                                    \
+    template <>                                                        \
+    struct mc::reflect::reflectable<TYPE> {                            \
+        using is_defined = std::true_type;                             \
+        using is_enum    = std::conditional_t<                         \
+               std::is_enum_v<TYPE>, std::true_type, std::false_type>; \
+    };
+
+#define MC_CLASS_REFLECTABLE()             \
+    using is_reflectable = std::true_type; \
+    template <typename, typename>          \
+    friend struct mc::reflect::reflector;
+
+#define MC_REFLECTABLE(...)                      \
+    BOOST_PP_IIF(BOOST_PP_IS_EMPTY(__VA_ARGS__), \
+                 MC_CLASS_REFLECTABLE, MC_GLOBAL_REFLECTABLE)(__VA_ARGS__)
 
 } // namespace mc::reflect
 

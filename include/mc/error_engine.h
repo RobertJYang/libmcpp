@@ -10,21 +10,17 @@
  * See the Mulan PSL v2 for more details.
  */
 
-#ifndef MC_ENGINE_ERROR_ENGINE_H
-#define MC_ENGINE_ERROR_ENGINE_H
+#ifndef MC_ERROR_ENGINE_H
+#define MC_ERROR_ENGINE_H
 
-#include <mc/engine/error.h>
-#include <mc/reflect.h>
+#include <mc/error.h>
 
-MC_REFLECT(mc::engine::error_info, (name)(format))
-MC_REFLECT(mc::engine::error, (name)(format)(args))
+namespace mc {
 
-namespace mc::engine {
-
-class MC_API error_engine : public mc::noncopyable_nonmovable {
+class error_engine : public mc::noncopyable_nonmovable {
 public:
-    MC_API error_engine();
-    MC_API ~error_engine();
+    error_engine();
+    ~error_engine();
 
     static MC_API error_engine& get_instance();
     static MC_API void          reset_for_test();
@@ -81,10 +77,6 @@ private:
     std::unique_ptr<error_engine_impl> m_impl;
 };
 
-} // namespace mc::engine
-
-namespace mc {
-using mc::engine::error_engine;
 } // namespace mc
 
 #define REGISTER_CONST_ERROR(NAME, ERROR, ...) \
@@ -93,7 +85,5 @@ using mc::engine::error_engine;
 
 #define REGISTER_ERROR(NAME, ERROR, ...) \
     inline auto NAME = mc::engine::error_engine::get_instance().register_error(ERROR, ##__VA_ARGS__)
-
-#include <mc/engine/errors/std_errors.h>
 
 #endif // MC_ENGINE_ERROR_ENGINE_H

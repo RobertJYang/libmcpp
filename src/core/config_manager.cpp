@@ -233,4 +233,14 @@ bool config_manager::add_config(const variant& config) {
     }
 }
 
-} // namespace mc
+} // namespace mc::core
+
+// 反射元数据定义
+MC_REFLECT(mc::config::metadata, (name)(labels)(annotations))
+MC_REFLECT(mc::config::resource_base, (api_version)(kind)(meta))
+MC_REFLECT(mc::config::app_config, (api_version)(kind)(meta)(plugin_dir)(plugins)(threads)(work_threads))
+MC_REFLECT_ENUM(mc::config::supervisor_strategy, (one_for_one)(one_for_all)(rest_for_one))
+MC_REFLECT(mc::config::supervisor_config,
+           (api_version)(kind)(meta)(strategy)(max_restarts)(services))
+MC_REFLECT(mc::config::service_config, (api_version)(kind)(meta)(type)(dependencies)(properties))
+MC_REFLECT(mc::config::plugin_config, (api_version)(kind)(meta)(version)(properties))

@@ -132,8 +132,8 @@ private:
 } // namespace log
 } // namespace mc
 
-MC_REFLECT(mc::log::appender_config, (name)(type)(lib_path))
-MC_REFLECT(mc::log::logger_config, (name)(level)(appenders))
-MC_REFLECT(mc::log::logging_config, (appenders)(loggers))
+MC_REFLECTABLE(mc::log::appender_config)
+MC_REFLECTABLE(mc::log::logger_config)
+MC_REFLECTABLE(mc::log::logging_config)
 
 #endif // MC_LOG_MANAGER_H

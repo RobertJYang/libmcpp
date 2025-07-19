@@ -299,7 +299,7 @@ TEST_F(reflect_factory_test, TestDestoryReflectedMetaData) {
     ASSERT_NE(obj, nullptr);
 
     // 测试反射元数据被销毁后，创建对象会失败
-    mc::singleton<mc::reflect::reflection_metadata<test_person>::metadata_ptr>::reset_for_test();
+    mc::singleton<mc::reflect::reflection<test_person>::reflection_ptr>::reset_for_test();
     EXPECT_THROW(mc::reflect::create_object("FactoryPerson"), mc::bad_type_exception);
 }
 

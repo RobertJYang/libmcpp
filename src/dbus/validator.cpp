@@ -21,7 +21,7 @@ bool validator::is_valid_member_name(std::string_view name) {
 }
 
 bool validator::is_valid_bus_name(std::string_view name) {
-    if (name.empty() || name.size() > mc::engine::detail::max_name_length) {
+    if (name.empty() || name.size() > mc::max_identifier_length) {
         return false;
     }
 

@@ -14,8 +14,8 @@
 
 #include <mc/exception.h>
 #include <mc/log.h>
+#include <mc/reflect/reflection.h>
 #include <mc/reflect/reflection_factory.h>
-#include <mc/reflect/reflection_metadata.h>
 #include <mc/singleton.h>
 #include <mc/string.h>
 #include <mc/sync/mutex_box.h>

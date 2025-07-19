@@ -20,8 +20,8 @@
 #include <mc/reflect/method.h>
 #include <mc/reflect/property.h>
 #include <mc/reflect/reflect.h>
+#include <mc/reflect/reflection.h>
 #include <mc/reflect/reflection_factory.h>
-#include <mc/reflect/reflection_metadata.h>
 
 namespace mc {
 template <typename T, std::enable_if_t<mc::reflect::is_reflectable<T>(), int> = 0>

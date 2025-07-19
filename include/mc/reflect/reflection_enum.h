@@ -31,29 +31,12 @@ namespace mc::reflect {
  *
  * 专门用于处理枚举类型的反射，提供枚举值的访问和转换功能
  */
-template <typename EnumType>
-class reflection_enum_metadata : public reflection_metadata_base {
-    static_assert(std::is_enum_v<EnumType>, "EnumType must be an enum type");
-
+template <typename T>
+class reflection<T, std::enable_if_t<is_reflectable<T>() && std::is_enum<T>()>> : public reflection_base {
 public:
-    using metadata_ptr = mc::shared_ptr<reflection_enum_metadata<EnumType>>;
+    using reflection_ptr = mc::shared_ptr<reflection<T>>;
 
-    /**
-     * @brief 获取单例实例
-     *
-     * @return reflection_metadata<T>& 单例引用
-     */
-    static reflection_enum_metadata<EnumType>& instance() {
-        return *instance_ptr();
-    }
-
-    static metadata_ptr& instance_ptr() {
-        return mc::singleton<metadata_ptr>::instance_with_creator([]() {
-            return new metadata_ptr(new reflection_enum_metadata<EnumType>());
-        });
-    }
-
-    ~reflection_enum_metadata();
+    ~reflection();
 
     /**
      * @brief 通过名称获取枚举值
@@ -61,11 +44,7 @@ public:
      * @return uint64_t 枚举值
      */
     uint64_t get_enum_value(std::string_view name) const override {
-        auto it = m_name_to_value.find(name);
-        if (it != m_name_to_value.end()) {
-            return static_cast<uint64_t>(it->second);
-        }
-        throw_enum_value_not_found(get_type_name(), name);
+        return m_data.get_value(name);
     }
 
     /**
@@ -74,11 +53,7 @@ public:
      * @return std::string_view 枚举值名称
      */
     std::string_view get_enum_name(uint64_t value) const override {
-        auto it = m_value_to_name.find(value);
-        if (it != m_value_to_name.end()) {
-            return it->second;
-        }
-        throw_enum_value_not_found(get_type_name(), value);
+        return m_data.get_name(value);
     }
 
     /**
@@ -86,12 +61,7 @@ public:
      * @return std::vector<std::string_view> 枚举值名称列表
      */
     std::vector<std::string_view> get_enum_names() const override {
-        std::vector<std::string_view> names;
-        names.reserve(m_value_to_name.size());
-        for (const auto& [_, name] : m_value_to_name) {
-            names.push_back(name);
-        }
-        return names;
+        return m_data.get_names();
     }
 
     /**
@@ -100,20 +70,24 @@ public:
      * @return bool 是否包含
      */
     bool has_enum_value(std::string_view name) const override {
-        return m_name_to_value.find(name) != m_name_to_value.end();
+        return m_data.has_value(name);
     }
 
-    // 继承自 reflection_metadata_base 的接口实现
+    bool has_enum_value(uint64_t value) const override {
+        return m_data.has_value(value);
+    }
+
+    // 继承自 reflection_base 的接口实现
     std::shared_ptr<reflected_object> create_object() override {
         throw_enum_not_support_create_object(get_type_name());
     }
 
     std::string_view get_type_name() const override {
-        return reflector<EnumType>::name();
+        return reflector<T>::get_name();
     }
 
     type_id_type get_type_id() const override {
-        return reflector<EnumType>::get_type_id();
+        return reflector<T>::get_type_id();
     }
 
     std::vector<type_id_type> get_base_type_ids() const override {
@@ -140,27 +114,30 @@ public:
         return {}; // 枚举类型没有方法
     }
 
-private:
-    reflection_enum_metadata() {
-        m_is_enum = true;
-        initialize();
+    reflection_ptr shared_from_this() {
+        return reflection_ptr(this);
     }
 
-    void initialize() {
-        auto& members = reflector<EnumType>::get_members();
-        mc::traits::tuple_for_each(members, [this](const auto& member) {
-            add_enum_value(member.name, static_cast<uint64_t>(member.value));
+private:
+    template <typename, typename>
+    friend struct reflector; // 需要访问 instance
+
+    static reflection<T>& instance() {
+        return *instance_ptr();
+    }
+
+    static reflection_ptr& instance_ptr() {
+        return mc::singleton<reflection_ptr>::instance_with_creator([]() {
+            return new reflection_ptr(new reflection<T>());
         });
     }
 
-    void add_enum_value(std::string_view name, uint64_t value) {
-        m_name_to_value[name]  = value;
-        m_value_to_name[value] = name;
+    reflection() : m_data(reflector<T>::get_metadata()) {
+        m_is_enum = true;
     }
 
 private:
-    std::unordered_map<std::string_view, uint64_t> m_name_to_value;
-    std::unordered_map<uint64_t, std::string_view> m_value_to_name;
+    detail::enum_metadata& m_data;
 };
 
 } // namespace mc::reflect

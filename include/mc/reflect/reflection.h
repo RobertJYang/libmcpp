@@ -11,11 +11,11 @@
  */
 
 /**
- * @file reflection_metadata.h
+ * @file reflection.h
  * @brief 反射元数据缓存
  */
-#ifndef MC_REFLECT_METADATA_H
-#define MC_REFLECT_METADATA_H
+#ifndef MC_REFLECTION_METADATA_H
+#define MC_REFLECTION_METADATA_H
 
 #include <mutex>
 #include <optional>
@@ -24,17 +24,12 @@
 
 #include <mc/dict.h>
 #include <mc/memory.h>
+#include <mc/reflect/metadata.h>
 #include <mc/reflect/metadata_info.h>
 #include <mc/singleton.h>
 #include <mc/variant.h>
 
 namespace mc::reflect {
-
-template <typename T>
-constexpr bool is_reflectable();
-
-template <typename T>
-struct reflector;
 
 /**
  * @brief 反射对象包装器实现
@@ -59,7 +54,7 @@ public:
     std::vector<std::string_view> get_property_names() const override;
     std::vector<std::string_view> get_method_names() const override;
 
-    std::shared_ptr<T> get_object() const;
+    const std::shared_ptr<T>& get_object() const;
 
 private:
     std::shared_ptr<T> m_obj;
@@ -73,34 +68,11 @@ private:
  * @tparam T 要缓存元数据的类型
  */
 template <typename T>
-class reflection_metadata : public reflection_metadata_base {
+class reflection<T, std::enable_if_t<is_reflectable<T>() && !std::is_enum<T>()>> : public reflection_base {
 public:
-    using property_map          = std::unordered_map<std::string_view, const property_info_base<T>*>;
-    using property_offset_map   = std::unordered_map<size_t, const property_info_base<T>*>;
-    using method_map            = std::unordered_map<std::string_view, const method_info_base<T>*>;
-    using base_class_prop_map   = std::unordered_map<std::string_view, property_map>;
-    using base_class_method_map = std::unordered_map<std::string_view, method_map>;
-    using base_class_info_map =
-        std::unordered_map<std::string_view, const base_class_info_base<T>*>;
+    using reflection_ptr = mc::shared_ptr<reflection<T>>;
 
-    using metadata_ptr = mc::shared_ptr<reflection_metadata<T>>;
-
-    /**
-     * @brief 获取单例实例
-     *
-     * @return reflection_metadata<T>& 单例引用
-     */
-    static reflection_metadata<T>& instance() {
-        return *instance_ptr();
-    }
-
-    static metadata_ptr& instance_ptr() {
-        return mc::singleton<metadata_ptr>::instance_with_creator([]() {
-            return new metadata_ptr(new reflection_metadata<T>());
-        });
-    }
-
-    ~reflection_metadata();
+    ~reflection() override;
 
     /**
      * @brief 获取指定名称的成员信息
@@ -109,8 +81,7 @@ public:
      * @return const property_info_base<T>* 成员信息指针，如果不存在则返回nullptr
      */
     const property_info_base<T>* get_property_info(std::string_view name) const override {
-        auto it = m_name_to_properties.find(name);
-        return it != m_name_to_properties.end() ? it->second : nullptr;
+        return static_cast<const property_info_base<T>*>(m_struct_data.get_property_info(name));
     }
 
     /**
@@ -120,19 +91,13 @@ public:
      * @return const method_info_base<T>* 方法信息指针，如果不存在则返回nullptr
      */
     const method_info_base<T>* get_method_info(std::string_view name) const override {
-        auto it = m_name_to_methods.find(name);
-        return it != m_name_to_methods.end() ? it->second : nullptr;
+        return static_cast<const method_info_base<T>*>(m_struct_data.get_method_info(name));
     }
 
     template <typename M>
     const method_info_base<T>* get_method_info(M T::* member_ptr) const {
         auto offset = get_function_offset(member_ptr);
-        for (auto& [name, method] : m_name_to_methods) {
-            if (method->offset() == offset) {
-                return method;
-            }
-        }
-        return nullptr;
+        return static_cast<const method_info_base<T>*>(m_struct_data.get_method_info(offset));
     }
 
     /**
@@ -142,8 +107,7 @@ public:
      * @return const property_info_base<T>* 成员信息指针，如果不存在则返回nullptr
      */
     const property_info_base<T>* get_property_info(size_t offset) const {
-        auto it = m_offset_to_properties.find(offset);
-        return it != m_offset_to_properties.end() ? it->second : nullptr;
+        return static_cast<const property_info_base<T>*>(m_struct_data.get_property_info(offset));
     }
 
     template <typename M, typename BaseT,
@@ -177,8 +141,8 @@ public:
      */
     mc::variant get_property(const T& obj, std::string_view key,
                              std::string_view base_class_name) const {
-        auto it = m_base_class_info_map.find(base_class_name);
-        if (it != m_base_class_info_map.end()) {
+        auto it = m_data.base_class_info_map.find(base_class_name);
+        if (it != m_data.base_class_info_map.end()) {
             return it->second->get_value(obj, key);
         }
 
@@ -193,7 +157,7 @@ public:
      */
     mc::dict get_all_properties(const T& obj) const {
         mc::mutable_dict result;
-        for (const auto& [name, property] : m_name_to_properties) {
+        for (const auto& [name, property] : m_data.name_to_properties) {
             result[name] = property->get_value(obj);
         }
         return result;
@@ -273,8 +237,8 @@ public:
      */
     bool set_property(T& obj, std::string_view key, std::string_view base_class_name,
                       const mc::variant& value) const {
-        auto it = m_base_class_info_map.find(base_class_name);
-        if (it != m_base_class_info_map.end()) {
+        auto it = m_data.base_class_info_map.find(base_class_name);
+        if (it != m_data.base_class_info_map.end()) {
             it->second->set_value(obj, key, value);
             return true;
         }
@@ -306,8 +270,8 @@ public:
      *
      * @return const property_map& 成员名称到成员信息的映射
      */
-    const property_map& get_properties() const {
-        return m_name_to_properties;
+    const auto& get_properties() const {
+        return m_data.name_to_properties;
     }
 
     /**
@@ -315,8 +279,8 @@ public:
      *
      * @return const method_map& 方法名称到方法信息的映射
      */
-    const method_map& get_methods() const {
-        return m_name_to_methods;
+    const auto& get_methods() const {
+        return m_data.name_to_methods;
     }
 
     reflected_object_ptr create_object() override {
@@ -328,7 +292,7 @@ public:
     }
 
     std::string_view get_type_name() const override {
-        return reflector<T>::name();
+        return reflector<T>::get_name();
     }
 
     type_id_type get_type_id() const override {
@@ -337,11 +301,9 @@ public:
 
     std::vector<type_id_type> get_base_type_ids() const override {
         std::vector<type_id_type> base_ids;
-        auto                      base_classes = reflector<T>::get_base_classes();
-        mc::traits::tuple_for_each(base_classes, [&](auto& base) {
-            using base_type = typename std::decay_t<decltype(base)>::base_type;
-            base_ids.push_back(reflector<base_type>::get_type_id());
-        });
+        for (const auto& [name, base_class_info] : m_data.base_class_info_map) {
+            base_ids.push_back(base_class_info->get_type_id());
+        }
         return base_ids;
     }
 
@@ -352,7 +314,7 @@ public:
 
     std::vector<std::string_view> get_property_names() const override {
         std::vector<std::string_view> names;
-        for (const auto& [name, _] : m_name_to_properties) {
+        for (const auto& [name, _] : m_data.name_to_properties) {
             names.push_back(name);
         }
         return names;
@@ -360,117 +322,78 @@ public:
 
     std::vector<std::string_view> get_method_names() const override {
         std::vector<std::string_view> names;
-        for (const auto& [name, _] : m_name_to_methods) {
+        for (const auto& [name, _] : m_data.name_to_methods) {
             names.push_back(name);
         }
         return names;
     }
 
-private:
-    reflection_metadata() {
-        initialize();
-    }
-
-    void initialize() {
-        init_properties();
-        init_methods();
-        init_base_class_info();
-    }
-
-    void init_properties() {
-        auto& props = reflector<T>::get_properties();
-        mc::traits::tuple_for_each(props, [&](auto& property) {
-            // 如果基类有多个同名的属性，默认第一个名字就是当前类的属性
-            if (property.is_override == 0 &&
-                m_name_to_properties.find(property.name) == m_name_to_properties.end()) {
-                m_name_to_properties[property.name]       = &property;
-                m_offset_to_properties[property.offset()] = &property;
-            }
-
-            using property_type = std::decay_t<decltype(property)>;
-            using base_type     = typename property_type::base_type;
-            using class_type    = typename property_type::class_type;
-            if constexpr (!std::is_same_v<base_type, class_type>) {
-                auto base_name                                  = mc::reflect::reflector<base_type>::name();
-                m_base_class_prop_map[base_name][property.name] = &property;
-            }
-        });
-    }
-
-    void init_methods() {
-        mc::traits::tuple_for_each(reflector<T>::get_methods(), [&](auto& method) {
-            // 如果基类有多个同名的方法，默认第一个名字就是当前类的方法
-            if (method.is_override == 0 &&
-                m_name_to_methods.find(method.name) == m_name_to_methods.end()) {
-                m_name_to_methods[method.name] = &method;
-            }
-
-            using method_type = std::decay_t<decltype(method)>;
-            using base_type   = typename method_type::base_type;
-            using class_type  = typename method_type::class_type;
-            if constexpr (!std::is_same_v<base_type, class_type> &&
-                          mc::reflect::is_reflectable<base_type>()) {
-                auto base_name                                  = mc::reflect::reflector<base_type>::name();
-                m_base_class_method_map[base_name][method.name] = &method;
-            }
-        });
-    }
-
-    void init_base_class_info() {
-        const auto& base_classes = reflector<T>::get_base_classes();
-        mc::traits::tuple_for_each(base_classes, [&](auto& base_class_info) {
-            m_base_class_info_map[base_class_info.name] = &base_class_info;
-        });
+    reflection_ptr shared_from_this() {
+        return reflection_ptr(this);
     }
 
 private:
-    property_map          m_name_to_properties;
-    property_offset_map   m_offset_to_properties;
-    method_map            m_name_to_methods;
-    base_class_prop_map   m_base_class_prop_map;
-    base_class_method_map m_base_class_method_map;
-    base_class_info_map   m_base_class_info_map;
+    template <typename, typename>
+    friend struct reflector; // 需要访问 instance
+
+    static reflection<T>& instance() {
+        return *instance_ptr();
+    }
+
+    static reflection_ptr& instance_ptr() {
+        return mc::singleton<reflection_ptr>::instance_with_creator([]() {
+            return new reflection_ptr(new reflection<T>());
+        });
+    }
+
+    reflection()
+        : m_data(reflector<T>::get_metadata()),
+          m_struct_data(reflector<T>::get_struct_metadata()) {
+    }
+
+    detail::metadata<T>&     m_data;
+    detail::struct_metadata& m_struct_data;
 };
 
 /**
  * @brief 获取类型的元数据
  *
  * @tparam T 类型
- * @return reflection_metadata<T>& 元数据引用
+ * @return reflection<T>& 元数据引用
  */
 template <typename T>
-reflection_metadata<std::remove_cv_t<std::remove_reference_t<T>>>& get_metadata() {
+auto& get_reflection() {
     using clean_type = std::remove_cv_t<std::remove_reference_t<T>>;
     static_assert(is_reflectable<clean_type>(), "类型必须支持反射才能使用");
-    return reflection_metadata<clean_type>::instance();
+    return reflector<clean_type>::get_reflection();
 }
 
 template <typename C, typename BaseT>
 mc::variant base_class_info<C, BaseT>::get_value(const C& obj, std::string_view name) const {
-    return reflection_metadata<BaseT>::instance().get_property(obj, name);
+    return get_reflection<BaseT>().get_property(obj, name);
 }
 
 template <typename C, typename BaseT>
 void base_class_info<C, BaseT>::set_value(C& obj, std::string_view name,
                                           const mc::variant& value) const {
-    reflection_metadata<BaseT>::instance().set_property(obj, name, value);
+    get_reflection<BaseT>().set_property(obj, name, value);
 }
 
 template <typename C, typename BaseT>
 mc::variant base_class_info<C, BaseT>::invoke(C& obj, std::string_view name,
                                               const mc::variants& args) const {
-    return reflection_metadata<BaseT>::instance().invoke_method(obj, name, args);
+    return get_reflection<BaseT>().invoke_method(obj, name, args);
 }
 
 template <typename C, typename BaseT>
 async_result base_class_info<C, BaseT>::async_invoke(C& obj, std::string_view name,
                                                      const mc::variants& args) const {
-    return reflection_metadata<BaseT>::instance().async_invoke_method(obj, name, args);
+    return get_reflection<BaseT>().async_invoke_method(obj, name, args);
 }
 
 template <typename T>
 reflected_object_impl<T>::reflected_object_impl(std::shared_ptr<T> obj)
-    : m_obj(obj) {
+    : m_obj(std::move(obj)) {
 }
 
 template <typename T>
@@ -480,7 +403,7 @@ type_id_type reflected_object_impl<T>::get_type_id() const {
 
 template <typename T>
 variant reflected_object_impl<T>::get_property(std::string_view name) const {
-    auto prop_info = reflection_metadata<T>::instance().get_property_info(name);
+    auto prop_info = get_reflection<T>().get_property_info(name);
     if (prop_info) {
         return prop_info->get_value(*m_obj);
     }
@@ -489,7 +412,7 @@ variant reflected_object_impl<T>::get_property(std::string_view name) const {
 
 template <typename T>
 void reflected_object_impl<T>::set_property(std::string_view name, const variant& value) {
-    auto prop_info = reflection_metadata<T>::instance().get_property_info(name);
+    auto prop_info = get_reflection<T>().get_property_info(name);
     if (prop_info) {
         prop_info->set_value(*m_obj, value);
         return;
@@ -499,7 +422,7 @@ void reflected_object_impl<T>::set_property(std::string_view name, const variant
 
 template <typename T>
 variant reflected_object_impl<T>::invoke_method(std::string_view name, const std::vector<variant>& args) {
-    auto method_info = reflection_metadata<T>::instance().get_method_info(name);
+    auto method_info = get_reflection<T>().get_method_info(name);
     if (method_info) {
         return method_info->invoke(*m_obj, args);
     }
@@ -508,7 +431,7 @@ variant reflected_object_impl<T>::invoke_method(std::string_view name, const std
 
 template <typename T>
 async_result reflected_object_impl<T>::async_invoke_method(std::string_view name, const std::vector<variant>& args) {
-    auto method_info = reflection_metadata<T>::instance().get_method_info(name);
+    auto method_info = get_reflection<T>().get_method_info(name);
     if (method_info) {
         return method_info->async_invoke(*m_obj, args);
     }
@@ -517,16 +440,16 @@ async_result reflected_object_impl<T>::async_invoke_method(std::string_view name
 
 template <typename T>
 std::vector<std::string_view> reflected_object_impl<T>::get_property_names() const {
-    return reflection_metadata<T>::instance().get_property_names();
+    return get_reflection<T>().get_property_names();
 }
 
 template <typename T>
 std::vector<std::string_view> reflected_object_impl<T>::get_method_names() const {
-    return reflection_metadata<T>::instance().get_method_names();
+    return get_reflection<T>().get_method_names();
 }
 
 template <typename T>
-std::shared_ptr<T> reflected_object_impl<T>::get_object() const {
+const std::shared_ptr<T>& reflected_object_impl<T>::get_object() const {
     return m_obj;
 }
 

@@ -3,8 +3,6 @@ engine_src_files = files(
   'call_stack.cpp',
   'context.cpp',
   'engine.cpp',
-  'error.cpp',
-  'error_engine.cpp',
   'interface.cpp',
   'object.cpp',
   'path.cpp',

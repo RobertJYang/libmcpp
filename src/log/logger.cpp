@@ -10,9 +10,10 @@
  * See the Mulan PSL v2 for more details.
  */
 
-#include <algorithm>
 #include <mc/log/log_manager.h>
 #include <mc/log/logger.h>
+
+#include <algorithm>
 #include <mutex>
 #include <unordered_map>
 
@@ -110,7 +111,7 @@ void logger::add_appender(const appender_ptr& a) {
 
 bool logger::remove_appender(const std::string& name) {
     auto& appenders = m_impl->m_appenders;
-    auto  it = std::find_if(appenders.begin(), appenders.end(), [&name](const appender_ptr& a) {
+    auto  it        = std::find_if(appenders.begin(), appenders.end(), [&name](const appender_ptr& a) {
         return a && a->get_name() == name;
     });
 
@@ -124,10 +125,10 @@ bool logger::remove_appender(const std::string& name) {
 
 appender_ptr logger::find_appender(const std::string& name) const {
     const auto& appenders = m_impl->m_appenders;
-    auto it = std::find_if(appenders.begin(), appenders.end(), [&name](const appender_ptr& a) {
+    auto        it        = std::find_if(appenders.begin(), appenders.end(), [&name](const appender_ptr& a) {
         return a && a->get_name() == name;
     });
-    
+
     return (it != appenders.end()) ? *it : nullptr;
 }
 
@@ -141,3 +142,5 @@ void logger::clear_appenders() {
 
 } // namespace log
 } // namespace mc
+
+MC_REFLECT_ENUM(mc::log::level, (all)(trace)(debug)(info)(notice)(warn)(error)(fatal)(off))

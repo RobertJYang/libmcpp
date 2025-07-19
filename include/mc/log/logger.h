@@ -17,7 +17,7 @@
 #include <mc/log/log_message.h>
 #include <mc/reflect.h>
 
-MC_REFLECT_ENUM(mc::log::level, (all)(trace)(debug)(info)(warn)(error)(fatal)(off))
+MC_REFLECTABLE(mc::log::level)
 
 namespace mc {
 namespace log {

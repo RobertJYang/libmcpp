@@ -85,11 +85,11 @@ subdir('include')
 subdir('src')
 subdir('tests/test_utilities')
 if build_tests
-  if meson_build
-    subdir('examples')
-    subdir('plugins')
-    subdir('programs/devmon')
-  endif
+  #   if meson_build
+  #     subdir('examples')
+  #     subdir('plugins')
+  #     subdir('programs/devmon')
+  #   endif
   gtest_dep = dependency('gtest', required: false)
   subdir('tests')
 endif

@@ -17,7 +17,7 @@
 #ifndef MC_REFLECT_METHOD_H
 #define MC_REFLECT_METHOD_H
 
-#include <mc/reflect/reflection_metadata.h>
+#include <mc/reflect/reflection.h>
 #include <mc/variant.h>
 
 namespace mc::reflect {
@@ -31,7 +31,7 @@ namespace mc::reflect {
 template <typename T>
 const method_info_base<T>* get_method_info(std::string_view method_name) {
     using clean_type = std::remove_cv_t<std::remove_reference_t<T>>;
-    return get_metadata<clean_type>().get_method_info(method_name);
+    return get_reflection<clean_type>().get_method_info(method_name);
 }
 
 /**
@@ -44,7 +44,7 @@ const method_info_base<T>* get_method_info(std::string_view method_name) {
 template <typename T, typename M>
 const method_info_base<T>* get_method_info(M T::* member_ptr) {
     using clean_type = std::remove_cv_t<std::remove_reference_t<T>>;
-    return get_metadata<clean_type>().get_method_info(member_ptr);
+    return get_reflection<clean_type>().get_method_info(member_ptr);
 }
 
 /**
@@ -68,13 +68,13 @@ const method_info_base<T>* get_method_info(M T::* member_ptr) {
 template <typename T>
 mc::variant invoke(T& obj, std::string_view method_name, const mc::variants& args = {}) {
     using clean_type = std::remove_cv_t<std::remove_reference_t<T>>;
-    return get_metadata<clean_type>().invoke_method(obj, method_name, args);
+    return get_reflection<clean_type>().invoke_method(obj, method_name, args);
 }
 
 template <typename T>
 mc::variant invoke(std::string_view method_name, const mc::variants& args = {}) {
     using clean_type = std::remove_cv_t<std::remove_reference_t<T>>;
-    return get_metadata<clean_type>().invoke_method(method_name, args);
+    return get_reflection<clean_type>().invoke_method(method_name, args);
 }
 
 /**
@@ -89,13 +89,13 @@ mc::variant invoke(std::string_view method_name, const mc::variants& args = {}) 
 template <typename T>
 async_result async_invoke(T& obj, std::string_view method_name, const mc::variants& args = {}) {
     using clean_type = std::remove_cv_t<std::remove_reference_t<T>>;
-    return get_metadata<clean_type>().async_invoke_method(obj, method_name, args);
+    return get_reflection<clean_type>().async_invoke_method(obj, method_name, args);
 }
 
 template <typename T>
 async_result async_invoke(std::string_view method_name, const mc::variants& args = {}) {
     using clean_type = std::remove_cv_t<std::remove_reference_t<T>>;
-    return get_metadata<clean_type>().async_invoke_method(method_name, args);
+    return get_reflection<clean_type>().async_invoke_method(method_name, args);
 }
 
 /**
@@ -108,7 +108,7 @@ async_result async_invoke(std::string_view method_name, const mc::variants& args
 template <typename T>
 bool has_method(std::string_view method_name) {
     using clean_type = std::remove_cv_t<std::remove_reference_t<T>>;
-    return get_metadata<clean_type>().get_method_info(method_name) != nullptr;
+    return get_reflection<clean_type>().get_method_info(method_name) != nullptr;
 }
 
 /**
@@ -121,7 +121,7 @@ bool has_method(std::string_view method_name) {
 template <typename T>
 size_t method_arg_count(std::string_view method_name) {
     using clean_type   = std::remove_cv_t<std::remove_reference_t<T>>;
-    const auto* method = get_metadata<clean_type>().get_method_info(method_name);
+    const auto* method = get_reflection<clean_type>().get_method_info(method_name);
     return method ? method->arg_count() : static_cast<size_t>(-1);
 }
 
@@ -135,7 +135,7 @@ size_t method_arg_count(std::string_view method_name) {
 template <typename T>
 std::string_view method_return_type(std::string_view method_name) {
     using clean_type   = std::remove_cv_t<std::remove_reference_t<T>>;
-    const auto* method = get_metadata<clean_type>().get_method_info(method_name);
+    const auto* method = get_reflection<clean_type>().get_method_info(method_name);
     return method ? method->get_result_signature() : std::string_view{};
 }
 

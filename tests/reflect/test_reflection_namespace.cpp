@@ -338,7 +338,7 @@ TEST_F(reflection_factory_advanced_test, EnumMetadataAutoUnregister) {
 
     // 销毁枚举元数据单例
     using meta_singleton_type = mc::singleton<
-        mc::reflect::reflection_enum_metadata<sensor_status>::metadata_ptr>;
+        mc::reflect::reflection_enum<sensor_status>::reflection_ptr>;
     auto* meta_ptr = meta_singleton_type::try_get();
     EXPECT_NE(meta_ptr, nullptr);
     mc::reflect::reflector<sensor_status>::unregister_type();

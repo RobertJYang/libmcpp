@@ -42,3 +42,5 @@ mc::shared_ptr<my_task_object> my_task_object::create_task(mc::engine::service* 
 }
 
 } // namespace test
+
+MC_REFLECT(test::my_task_object, ((m_task, "task")))

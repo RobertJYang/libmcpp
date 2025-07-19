@@ -38,6 +38,6 @@ private:
 using task_object_ptr = mc::shared_ptr<my_task_object>;
 } // namespace test
 
-MC_REFLECT(test::my_task_object, ((m_task, "task")))
+MC_REFLECTABLE(test::my_task_object)
 
 #endif // TASK_OBJECT_H

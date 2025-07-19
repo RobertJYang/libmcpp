@@ -542,8 +542,9 @@ constexpr bool is_first_identifier_char(char c) noexcept {
     return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_';
 }
 
-constexpr bool is_identifier(std::string_view s) noexcept {
-    if (s.empty()) {
+constexpr std::size_t max_identifier_length = 255;
+constexpr bool        is_identifier(std::string_view s) noexcept {
+    if (s.empty() || s.size() > max_identifier_length) {
         return false;
     }
 
@@ -558,6 +559,44 @@ constexpr bool is_identifier(std::string_view s) noexcept {
     }
 
     return true;
+}
+
+constexpr bool is_valid_interface_name(std::string_view name) {
+    // 必须至少有一个点分隔符
+    bool has_dot = false;
+
+    // 不能以点开头或结尾
+    if (name.empty() || name[0] == '.' || name[name.size() - 1] == '.' ||
+        name.size() > max_identifier_length) {
+        return false;
+    }
+
+    // 检查每个分段
+    bool segment_start = true;
+    for (size_t i = 0; i < name.size(); ++i) {
+        char c = name[i];
+
+        if (c == '.') {
+            // 找到点分隔符
+            has_dot = true;
+
+            // 不允许连续的点
+            if (i > 0 && name[i - 1] == '.') {
+                return false;
+            }
+
+            segment_start = true;
+        } else if (segment_start) {
+            if (!is_first_identifier_char(c)) {
+                return false;
+            }
+            segment_start = false;
+        } else if (!is_identifier_char(c)) {
+            return false;
+        }
+    }
+
+    return has_dot;
 }
 
 } // namespace mc

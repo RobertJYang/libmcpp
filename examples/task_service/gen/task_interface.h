@@ -47,11 +47,7 @@ struct task_interface : public mc::engine::interface<task_interface> {
 
 } // namespace test
 
-MC_REFLECT_ENUM(test::task_state, (PENDING)(RUNNING)(PAUSED)(COMPLETED)(FAILED))
-MC_REFLECT(test::task_interface,
-           ((m_id, "Id"))((m_name, "Name"))((m_startTime, "StartTime"))((m_endTime, "EndTime"))(
-               (m_progress, "Progress"))((m_state, "State"))((m_result, "Result"))(
-               (start, "Start"))((stop, "Stop"))((pause, "Pause"))((resume, "Resume"))(
-               (get_progress, "GetProgress"))((get_state, "GetState")))
+MC_REFLECTABLE(test::task_state)
+MC_REFLECTABLE(test::task_interface)
 
 #endif // GEN_TASK_INTERFACE_H

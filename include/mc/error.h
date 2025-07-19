@@ -10,26 +10,29 @@
  * See the Mulan PSL v2 for more details.
  */
 
-#ifndef MC_ENGINE_ERROR_H
-#define MC_ENGINE_ERROR_H
+#ifndef MC_ERROR_H
+#define MC_ERROR_H
 
 #include <mc/common.h>
 #include <mc/dict.h>
 #include <mc/exception.h>
 #include <mc/log/log_message.h>
 #include <mc/memory.h>
+#include <mc/reflect/base.h>
 #include <mc/singleton.h>
 #include <mc/string.h>
 
 #include <optional>
 
-namespace mc::engine {
+namespace mc {
 using error_level = mc::log::level;
 
 /**
  * @brief 错误信息
  */
 struct error_info {
+    MC_REFLECTABLE();
+
     error_info()                                       = default;
     error_info(const error_info& other)                = default;
     error_info& operator=(const error_info& other)     = default;
@@ -81,29 +84,31 @@ struct error_info {
  * 如果需要动态构造错误名或格式化字符串，请使用 error_with_owner 类
  */
 struct MC_API error : public mc::enable_shared_from_this<error>, public error_info {
-    MC_API error();
-    MC_API error(const error_info& info);
-    MC_API error(std::string_view name, std::string_view format,
-                 error_level level = error_level::error);
+    MC_REFLECTABLE();
 
-    MC_API        error(const error& other);
-    MC_API error& operator=(const error& other);
-    MC_API        error(error&& other) noexcept;
-    MC_API error& operator=(error&& other) noexcept;
+    error();
+    error(const error_info& info);
+    error(std::string_view name, std::string_view format,
+          error_level level = error_level::error);
 
-    MC_API std::string_view get_name() const;
-    MC_API std::string_view get_format() const;
-    MC_API const mc::dict& get_args() const;
-    MC_API std::string get_message() const;
+    error(const error& other);
+    error& operator=(const error& other);
+    error(error&& other) noexcept;
+    error& operator=(error&& other) noexcept;
 
-    MC_API error_level get_level() const;
-    MC_API void        set_level(error_level level);
+    std::string_view get_name() const;
+    std::string_view get_format() const;
+    const mc::dict&  get_args() const;
+    std::string      get_message() const;
 
-    MC_API void set_name(std::string_view name);
-    MC_API void set_format(std::string_view format);
-    MC_API void reset();
+    error_level get_level() const;
+    void        set_level(error_level level);
 
-    MC_API void set_prev_error(mc::shared_ptr<error> other);
+    void set_name(std::string_view name);
+    void set_format(std::string_view format);
+    void reset();
+
+    void set_prev_error(mc::shared_ptr<error> other);
 
     // 添加参数
     template <typename T>
@@ -123,22 +128,22 @@ struct MC_API error : public mc::enable_shared_from_this<error>, public error_in
         return *this;
     }
 
-    MC_API error& set_args(const mc::dict& args);
+    error& set_args(const mc::dict& args);
 
-    MC_API std::string to_string() const;
-    MC_API bool        is_set() const;
-    MC_API bool        has_error(std::string_view name) const;
+    std::string to_string() const;
+    bool        is_set() const;
+    bool        has_error(std::string_view name) const;
 
-    MC_API bool operator==(const error& other) const;
-    MC_API bool operator!=(const error& other) const;
+    bool operator==(const error& other) const;
+    bool operator!=(const error& other) const;
 
-    MC_API mc::log::message to_log_message() const;
+    mc::log::message to_log_message() const;
 
-    MC_API static mc::shared_ptr<error> from_exception(std::exception_ptr e);
-    MC_API static mc::shared_ptr<error> from_exception(const mc::exception& e);
-    MC_API static mc::shared_ptr<error> from_exception(const std::exception& e);
+    static mc::shared_ptr<error> from_exception(std::exception_ptr e);
+    static mc::shared_ptr<error> from_exception(const mc::exception& e);
+    static mc::shared_ptr<error> from_exception(const std::exception& e);
 
-    MC_API void to_exception(mc::exception& e) const;
+    void to_exception(mc::exception& e) const;
 
     // 错误参数
     mc::mutable_dict args;
@@ -153,10 +158,10 @@ using error_ptr = mc::shared_ptr<error>;
 
 // 由于 error 类的错误名字和format字符串是常量，这里提供一个继承类可以持有 name 和 format 的 owner,
 // 方便某些需要动态构造错误名或格式化字符串的场景使用
-class MC_API error_with_owner : public mc::engine::error {
+class MC_API error_with_owner : public error {
 public:
-    MC_API error_with_owner();
-    MC_API error_with_owner(std::string name, std::string format);
+    error_with_owner();
+    error_with_owner(std::string name, std::string format);
 
 private:
     std::string m_name_owner;
@@ -193,12 +198,6 @@ MC_API bool get_error_format_args(std::string_view format, mc::dict& arg_names);
 MC_API error_ptr make_error(std::string_view name, std::string_view format);
 MC_API error_ptr make_error(const error_info& info);
 
-} // namespace mc::engine
-
-namespace mc {
-using mc::engine::error;
-using mc::engine::error_ptr;
-using mc::engine::make_error;
 } // namespace mc
 
-#endif // MC_ENGINE_ERROR_H
+#endif // MC_ERROR_H

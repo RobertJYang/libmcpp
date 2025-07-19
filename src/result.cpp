@@ -10,14 +10,14 @@
  * See the Mulan PSL v2 for more details.
  */
 
-#include <mc/engine/error_engine.h>
-#include <mc/engine/errors/std_errors.h>
+#include <mc/error_engine.h>
 #include <mc/exception.h>
+#include <mc/result.h>
 
-namespace mc::engine {
+namespace mc {
 
 namespace detail {
-void throw_method_call_exception(const mc::engine::error_ptr& err) {
+void throw_method_call_exception(const mc::error_ptr& err) {
     mc::method_call_exception ex;
     if (err) {
         err->to_exception(ex);
@@ -34,10 +34,11 @@ mc::error_ptr get_default_error() {
         return last_error;
     }
 
-    return mc::make_error(mc::engine::errors::failed);
+    return mc::make_error("org.freedesktop.DBus.Error.Failed",
+                          "Failed to execute method");
 }
 
-mc::method_call_exception make_method_call_exception(const mc::engine::error_ptr& err) {
+mc::method_call_exception make_method_call_exception(const mc::error_ptr& err) {
     mc::method_call_exception ex;
     if (err) {
         err->to_exception(ex);
@@ -49,4 +50,4 @@ mc::method_call_exception make_method_call_exception(const mc::engine::error_ptr
 
 } // namespace detail
 
-} // namespace mc::engine
+} // namespace mc

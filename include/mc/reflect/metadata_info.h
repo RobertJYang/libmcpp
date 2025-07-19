@@ -24,22 +24,11 @@
 #include <typeinfo>
 #include <vector>
 
-#include <boost/preprocessor/comparison.hpp>
-#include <boost/preprocessor/control/if.hpp>
-#include <boost/preprocessor/control/iif.hpp>
-#include <boost/preprocessor/facilities/is_empty.hpp>
-#include <boost/preprocessor/logical/compl.hpp>
-#include <boost/preprocessor/punctuation/is_begin_parens.hpp>
-#include <boost/preprocessor/seq/for_each.hpp>
-#include <boost/preprocessor/stringize.hpp>
-#include <boost/preprocessor/tuple/elem.hpp>
-#include <boost/preprocessor/tuple/size.hpp>
-
-#include <mc/engine/error.h>
-#include <mc/engine/result.h>
+#include <mc/error.h>
 #include <mc/future.h>
 #include <mc/reflect/base.h>
 #include <mc/reflect/signature_helper.h>
+#include <mc/result.h>
 #include <mc/traits.h>
 #include <mc/variant.h>
 
@@ -105,6 +94,14 @@ inline constexpr bool is_property_v = is_property<T>::value;
     BOOST_PP_IIF(BOOST_PP_GREATER(BOOST_PP_VARIADIC_SIZE(__VA_ARGS__), 2), MC_COMPUTED_PROPERTY_3, \
                  MC_COMPUTED_PROPERTY_2)(__VA_ARGS__)
 
+enum member_info_type {
+    invalid,
+    property,
+    computed_property,
+    method,
+    base_class,
+};
+
 //------------------------------------------------------------------------------
 // 元数据结构基类
 //------------------------------------------------------------------------------
@@ -115,11 +112,13 @@ struct member_info_base {
     mutable uint32_t is_override : 1;  // 是否被派生类覆盖
     mutable uint32_t flags       : 31; // 扩展 flags，用于存储自定义其他信息
 
-    member_info_base(std::string_view n) : name(n), is_override(false), flags(0) {
+    constexpr member_info_base(std::string_view n)
+        : name(n), is_override(false), flags(0) {
     }
 
     virtual std::type_index  typeinfo() const  = 0;
     virtual std::string_view type_name() const = 0;
+    virtual member_info_type type() const      = 0;
 };
 
 //------------------------------------------------------------------------------
@@ -127,10 +126,11 @@ struct member_info_base {
 //------------------------------------------------------------------------------
 
 struct property_type_info : public member_info_base {
-    property_type_info(std::string_view n) : member_info_base(n) {
+    constexpr property_type_info(std::string_view n) : member_info_base(n) {
     }
 
     virtual std::string_view get_signature() const = 0;
+    virtual size_t           offset() const        = 0;
 };
 
 // 属性信息基类
@@ -138,14 +138,13 @@ template <typename C>
 struct property_info_base : public property_type_info {
     using class_type = C;
 
-    property_info_base(std::string_view n) : property_type_info(n) {
+    constexpr property_info_base(std::string_view n) : property_type_info(n) {
     }
 
     virtual mc::variant                                 get_value(const C& obj) const                     = 0;
     virtual void                                        set_value(C& obj, const mc::variant& value) const = 0;
     virtual std::function<mc::variant(const C&)>        getter() const                                    = 0;
     virtual std::function<void(C&, const mc::variant&)> setter() const                                    = 0;
-    virtual size_t                                      offset() const                                    = 0;
 };
 
 // 属性元数据具体实现
@@ -200,11 +199,8 @@ struct property_info : public property_info_base<C> {
         return mc::reflect::get_signature<member_type>();
     }
 
-    template <typename Derived>
-    constexpr auto to_derived() const {
-        static_assert(std::is_base_of_v<class_type, Derived>,
-                      "Derived must be derived from class_type");
-        return property_info<Derived, member_type, class_type>{this->name, member_ptr};
+    member_info_type type() const override {
+        return member_info_type::property;
     }
 };
 
@@ -269,12 +265,8 @@ struct computed_property_info : public property_info_base<C> {
         return mc::reflect::get_signature<member_type>();
     }
 
-    template <typename Derived>
-    constexpr auto to_derived() const {
-        static_assert(std::is_base_of_v<class_type, Derived>,
-                      "Derived must be derived from class_type");
-        return computed_property_info<Derived, member_type, class_type>{this->name, m_getter,
-                                                                        m_setter};
+    member_info_type type() const override {
+        return member_info_type::computed_property;
     }
 };
 
@@ -282,31 +274,32 @@ struct computed_property_info : public property_info_base<C> {
 // 方法元数据结构
 //------------------------------------------------------------------------------
 struct method_type_info : public member_info_base {
-    method_type_info(std::string_view n) : member_info_base(n) {
+    constexpr method_type_info(std::string_view n) : member_info_base(n) {
     }
 
     virtual std::string_view get_args_signature() const   = 0;
     virtual std::string_view get_result_signature() const = 0;
+    virtual std::uintptr_t   offset() const               = 0;
+    virtual size_t           arg_count() const            = 0;
+
+    // 静态方法相关接口
+    virtual bool         is_static() const                            = 0;
+    virtual mc::variant  invoke(const mc::variants& args) const       = 0;
+    virtual async_result async_invoke(const mc::variants& args) const = 0;
 };
 
 // 方法信息基类
 template <typename C>
 struct method_info_base : public method_type_info {
     using class_type = C;
+    using method_type_info::async_invoke;
+    using method_type_info::invoke;
 
-    method_info_base(std::string_view n) : method_type_info(n) {
+    constexpr method_info_base(std::string_view n) : method_type_info(n) {
     }
 
-    virtual bool is_static() const = 0;
-
-    virtual mc::variant invoke(C& obj, const mc::variants& args) const = 0;
-    virtual mc::variant invoke(const mc::variants& args) const         = 0;
-
+    virtual mc::variant  invoke(C& obj, const mc::variants& args) const       = 0;
     virtual async_result async_invoke(C& obj, const mc::variants& args) const = 0;
-    virtual async_result async_invoke(const mc::variants& args) const         = 0;
-
-    virtual size_t         arg_count() const = 0; // 返回方法所需的参数数量
-    virtual std::uintptr_t offset() const    = 0;
 };
 
 // 方法元数据具体实现 - 根据方法是否为const使用不同实现
@@ -335,7 +328,7 @@ public:
     static_assert(all_variant_constructible_v<mc::traits::remove_cvref_t<Args>...>,
                   "参数类型必须可转换为mc::variant");
 
-    method_info(std::string_view name, function_type func)
+    constexpr method_info(std::string_view name, function_type func)
         : method_info_base<Class>(name), m_function(func) {
     }
 
@@ -450,12 +443,8 @@ public:
         return get_function_offset(m_function);
     }
 
-    template <typename Derived>
-    constexpr auto to_derived() const {
-        static_assert(std::is_base_of_v<class_type, Derived>,
-                      "Derived must be derived from class_type");
-        return method_info<Derived, base_type, IsConst, IsStatic, RetType, Args...>{this->name,
-                                                                                    m_function};
+    member_info_type type() const override {
+        return member_info_type::method;
     }
 
     function_type m_function;
@@ -480,17 +469,23 @@ constexpr auto make_static_method_info(R (*method)(Args...), std::string_view na
 //------------------------------------------------------------------------------
 // 基类元数据结构
 //------------------------------------------------------------------------------
-
-template <typename C>
-struct base_class_info_base : public member_info_base {
-    base_class_info_base(std::string_view n = {}) : member_info_base(n) {
+struct base_class_type_info : public member_info_base {
+    base_class_type_info(std::string_view n) : member_info_base(n) {
     }
 
-    virtual std::string_view get_signature() const                                                       = 0;
-    virtual mc::variant      get_value(const C& obj, std::string_view name) const                        = 0;
-    virtual void             set_value(C& obj, std::string_view name, const mc::variant& value) const    = 0;
-    virtual mc::variant      invoke(C& obj, std::string_view name, const mc::variants& args) const       = 0;
-    virtual async_result     async_invoke(C& obj, std::string_view name, const mc::variants& args) const = 0;
+    virtual type_id_type     get_type_id() const   = 0;
+    virtual std::string_view get_signature() const = 0;
+};
+
+template <typename C>
+struct base_class_info_base : public base_class_type_info {
+    constexpr base_class_info_base(std::string_view n = {}) : base_class_type_info(n) {
+    }
+
+    virtual mc::variant  get_value(const C& obj, std::string_view name) const                        = 0;
+    virtual void         set_value(C& obj, std::string_view name, const mc::variant& value) const    = 0;
+    virtual mc::variant  invoke(C& obj, std::string_view name, const mc::variants& args) const       = 0;
+    virtual async_result async_invoke(C& obj, std::string_view name, const mc::variants& args) const = 0;
 };
 
 // 属性元数据具体实现
@@ -556,37 +551,17 @@ struct base_class_info : public base_class_info_base<C> {
         return mc::reflect::get_signature<base_type>();
     }
 
+    type_id_type get_type_id() const override {
+        return reflector<base_type>::get_type_id();
+    }
+
     mc::variant  get_value(const C& obj, std::string_view name) const override;
     void         set_value(C& obj, std::string_view name, const mc::variant& value) const override;
     mc::variant  invoke(C& obj, std::string_view name, const mc::variants& args) const override;
     async_result async_invoke(C& obj, std::string_view name, const mc::variants& args) const override;
 
-    template <typename Derived>
-    auto to_derived(std::string_view name) const {
-        static_assert(std::is_base_of_v<class_type, Derived>,
-                      "Derived must be derived from class_type");
-        if (name.empty()) {
-            return base_class_info<Derived, member_type>{this->name};
-        }
-
-        std::string new_name(name);
-        new_name += "::";
-        new_name += remove_common_namespace(this->name, name);
-        return base_class_info<Derived, member_type>{new_name};
-    }
-
-    static std::string_view remove_common_namespace(std::string_view s1, std::string_view s2) {
-        auto prefix = mc::string::longest_common_prefix(s1, s2);
-        if (prefix.empty()) {
-            return s1;
-        }
-
-        auto pos = prefix.find_last_of(':');
-        if (pos == std::string_view::npos) {
-            return s1;
-        }
-
-        return s1.substr(pos + 1);
+    member_info_type type() const override {
+        return member_info_type::base_class;
     }
 
     std::string m_class_name;
@@ -595,12 +570,22 @@ struct base_class_info : public base_class_info_base<C> {
 /**
  * @brief 枚举成员信息
  */
-template <typename EnumType>
+using enum_value_type = uint32_t;
 struct enum_member_info {
     std::string_view name;  // 枚举成员名称
-    EnumType         value; // 枚举值
+    enum_value_type  value; // 枚举值
 
-    enum_member_info(std::string_view n, EnumType v) : name(n), value(v) {
+    constexpr enum_member_info() : name(), value(0) {
+    }
+
+    template <typename EnumType>
+    constexpr enum_member_info(std::string_view n, EnumType v)
+        : name(n), value(static_cast<enum_value_type>(v)) {
+        static_assert(std::is_enum_v<EnumType>, "EnumType must be an enum type");
+    }
+
+    constexpr enum_member_info(const enum_member_info& other)
+        : name(other.name), value(other.value) {
     }
 };
 
@@ -690,41 +675,82 @@ struct base_class_info_creator {
             name = mc::reflect::reflector<Base>::name();
         }
         auto info = base_class_info<T, Base>{name};
-        return std::tuple_cat(
-            std::make_tuple(info),
-            append_base_classes(mc::reflect::reflector<Base>::get_base_classes(), info.name));
-    }
-
-    template <typename Tuple>
-    static constexpr auto append_base_classes(Tuple&& base_classes, std::string_view name) {
-        return mc::traits::tuple_map(base_classes, [&](auto& base_class) {
-            using member_type = typename std::decay_t<decltype(base_class)>::member_type;
-            auto info         = base_class.template to_derived<T>(name);
-            return std::tuple_cat(
-                std::make_tuple(info),
-                append_base_classes(mc::reflect::reflector<member_type>::get_base_classes(),
-                                    info.name));
-        });
+        return std::make_tuple(info);
     }
 };
 
 namespace detail {
-template <typename T, typename Derived, typename = void>
-struct has_to_derived : std::false_type {};
 
-template <typename T, typename Derived>
-struct has_to_derived<T, Derived,
-                      std::void_t<decltype(std::declval<T>().template to_derived<Derived>())>>
-    : std::true_type {};
-
-template <typename Derived, typename Member>
-constexpr auto apply_to_derived(const Member& member) {
-    if constexpr (has_to_derived<Member, Derived>::value) {
-        return member.template to_derived<Derived>();
+// 递归过滤元组元素，仅保留具有特定标签的元素
+template <typename T, typename Filter, size_t Index, typename Result,
+          typename... Tuples>
+auto filter_members_impl(const std::tuple<Tuples...>& all_members, Result result) {
+    if constexpr (Index >= sizeof...(Tuples)) {
+        return result;
     } else {
-        return member;
+        using element_type =
+            mc::traits::remove_cvref_t<std::tuple_element_t<Index, std::tuple<Tuples...>>>;
+        if constexpr (Filter::template check<element_type>) {
+            auto member_tuple = std::make_tuple(&std::get<Index>(all_members));
+            return filter_members_impl<T, Filter, Index + 1>(all_members, std::tuple_cat(result, member_tuple));
+        } else {
+            return filter_members_impl<T, Filter, Index + 1>(all_members, result);
+        }
     }
 }
+
+template <typename T, typename Filter, typename Tuple>
+auto filter_members(const Tuple& all_members) {
+    return filter_members_impl<T, Filter, 0>(all_members, std::tuple<>{});
+}
+
+template <typename Tag>
+struct filter_tag {
+    template <typename ElementType>
+    static constexpr bool check = has_tag_v<Tag, ElementType>;
+};
+
+template <typename T, typename Tag, typename Tuple>
+auto filter_members_by_tag(const Tuple& all_members) {
+    return filter_members<T, filter_tag<Tag>>(all_members);
+}
+
+// 编译时简单的冒泡排序算法
+template <typename T, size_t N>
+constexpr std::array<T, N> sort_enum_values(std::array<T, N> arr) {
+    bool swapped = false;
+    for (size_t i = 0; i < N - 1; ++i) {
+        swapped = false;
+        for (size_t j = 0; j < N - 1 - i; ++j) {
+            if (arr[j].value > arr[j + 1].value) {
+                auto tmp   = arr[j];
+                arr[j]     = arr[j + 1];
+                arr[j + 1] = tmp;
+                swapped    = true;
+            }
+        }
+
+        // 如果本轮未发生交换，说明数组已有序，提前结束
+        if (!swapped) {
+            break;
+        }
+    }
+
+    return arr;
+}
+
+template <typename Members>
+constexpr auto enum_tuple_to_array(const Members& members) {
+    std::array<enum_member_info, std::tuple_size_v<Members>> values;
+
+    std::size_t i = 0;
+    mc::traits::tuple_for_each(members, [&](const auto& member) {
+        values[i++] = member;
+    });
+
+    return sort_enum_values(values);
+}
+
 } // namespace detail
 
 } // namespace mc::reflect

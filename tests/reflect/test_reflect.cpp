@@ -21,6 +21,8 @@
 #include <mc/reflect.h>
 #include <mc/variant.h>
 
+#include <mc/log/log_manager.h>
+
 #include <functional>
 #include <string>
 #include <vector>
@@ -40,6 +42,8 @@ enum class test_normal_color { NORMAL_RED,
 // 测试类
 class test_person {
 public:
+    MC_REFLECTABLE();
+
     std::string m_name;
     int         m_age;
     bool        m_is_male;
@@ -69,12 +73,40 @@ public:
 };
 } // namespace test_reflect
 
+MC_REFLECTABLE(test_reflect::test_color);
+
 // 重命名类名和枚举名
 MC_REFLECT_ENUM((test_reflect::test_color, "test_color"),
-                (RED)(GREEN)(BLUE))
+                (BLUE)(RED)(GREEN))
 MC_REFLECT((test_reflect::test_person, "test_person"),
            (m_name)(m_age)(m_is_male)(MC_COMPUTED_PROPERTY("id", get_id, set_id))(
                MC_COMPUTED_PROPERTY("readonly_id", get_id)))
+
+template <typename C>
+struct property_info_base_test {
+    std::string_view name;
+    constexpr property_info_base_test(std::string_view n) : name(n) {
+    }
+
+    virtual std::type_index typeinfo() const = 0;
+};
+
+template <typename C, typename M, typename BaseT = C>
+struct property_info_test : public property_info_base_test<C> {
+    using class_type  = C;
+    using member_type = M;
+    using base_type   = BaseT;
+
+    M BaseT::* member_ptr;
+
+    constexpr property_info_test(std::string_view n, M BaseT::* ptr)
+        : property_info_base_test<C>(n), member_ptr(ptr) {
+    }
+
+    virtual std::type_index typeinfo() const override {
+        return typeid(member_type);
+    }
+};
 
 namespace test_reflect {
 
@@ -106,7 +138,7 @@ TEST(ReflectTest, ClassReflection) {
     EXPECT_FALSE(mc::reflect::is_enum<test_person>());
 
     // 获取类型名称，test_person 重命名，不需要命名空间
-    EXPECT_EQ(mc::reflect::reflector<test_person>::name(),
+    EXPECT_EQ(mc::reflect::reflector<test_person>::get_name(),
               "test_person");
 
     // 转换为变体
@@ -117,7 +149,7 @@ TEST(ReflectTest, ClassReflection) {
 
     // 检查字典内容
     const mc::dict& d = var.as<mc::dict>();
-    EXPECT_EQ(d.size(), 5);
+    ASSERT_EQ(d.size(), 5);
     EXPECT_EQ(d["m_name"], "张三");
     EXPECT_EQ(d["m_age"], 30);
     EXPECT_EQ(d["m_is_male"], true);
@@ -153,7 +185,7 @@ TEST(ReflectTest, EnumReflection) {
     EXPECT_FALSE(mc::reflect::is_normal_enum<test_color>());
 
     // 获取类型名称
-    EXPECT_EQ(mc::reflect::reflector<test_color>::name(), "test_color");
+    EXPECT_EQ(mc::reflect::reflector<test_color>::get_name(), "test_color");
 
     // 枚举转变体
     test_color  color = test_color::GREEN;
@@ -229,14 +261,14 @@ TEST(ReflectTest, MemberVisit) {
     mc::reflect::visit_properties<test_person>(visitor);
 
     // 检查成员名称
-    EXPECT_EQ(visitor.names.size(), 5);
+    ASSERT_EQ(visitor.names.size(), 5);
     EXPECT_EQ(visitor.names[0], "m_name");
     EXPECT_EQ(visitor.names[1], "m_age");
     EXPECT_EQ(visitor.names[2], "m_is_male");
     EXPECT_EQ(visitor.names[3], "id");
     EXPECT_EQ(visitor.names[4], "readonly_id");
     // 检查成员值
-    EXPECT_EQ(visitor.values.size(), 5);
+    ASSERT_EQ(visitor.values.size(), 5);
     EXPECT_EQ(visitor.values[0], "李四");
     EXPECT_EQ(visitor.values[1], 25);
     EXPECT_EQ(visitor.values[2], false);
@@ -355,10 +387,14 @@ TEST(ReflectTest, ComplexNestedStructure) {
     // 使用初始化列表构造复杂嵌套结构
     mc::dict root{{"name", "复杂结构"},
                   {"value", 42},
-                  {"level1", mc::dict{{"key1", "value1"},
-                                      {"level2", mc::dict{{"nested", true},
-                                                          {"color", test_color::BLUE},
-                                                          {"person", test_person("张三", 30, true)}}}}}};
+                  {"level1",
+                   mc::dict{
+                       {"key1", "value1"},
+                       {"level2",
+                        mc::dict{
+                            {"nested", true},
+                            {"color", test_color::BLUE},
+                            {"person", test_person("张三", 30, true)}}}}}};
 
     // 转换为变体
     mc::variant var = root;
