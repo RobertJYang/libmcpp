@@ -19,6 +19,13 @@ class AppConan(ConanBase):
             d.cpp_link_args.append("-lboost_program_options")
         else:
             self.settings.build_type = "Debug"
+            # 为 Debug 类型添加 -O2 优化参数
+            d.cpp_args.append("-O2")
+            # 添加内存优化参数，减少编译时的内存使用
+            d.cpp_args.append("-fno-var-tracking-assignments")
+            d.cpp_args.append("-fno-var-tracking")
+            d.c_args.append("-fno-var-tracking-assignments")
+            d.c_args.append("-fno-var-tracking")
 
         d.cpp_link_args.append("-lstdc++fs")
         d.cpp_args.append("-Wno-unused-variable")
@@ -62,6 +69,7 @@ class AppConan(ConanBase):
     def package(self):
         meson = Meson(self)
         meson.install()
+   
         if os.path.isfile("permissions.ini"):
             self.copy("permissions.ini")
         if os.path.isfile("mds/model.json"):
@@ -76,9 +84,73 @@ class AppConan(ConanBase):
             self.copy("*", src="docs", dst="usr/share/doc/openubmc/libmcpp/docs")
         self.copy("*.md", dst="usr/share/doc/openubmc/libmcpp/docs")
         self.copy("*.MD", dst="usr/share/doc/openubmc/libmcpp/docs")
+        
+        # 对Debug模式编译生成的文件进行strip处理
+        if self.settings.build_type == "Debug":
+            self._strip_debug_files()
+        
         if self.settings.build_type in ("Dt", ) and os.getenv('TRANSTOBIN') is None:
             return
         os.chdir(self.package_folder)
+
+    def _strip_debug_files(self):
+        """对Debug模式编译生成的文件进行strip处理"""
+        import subprocess
+        import stat
+        
+        # 根据架构确定strip工具
+        if self.settings.arch == "armv8":
+            strip_tool = "aarch64-target-linux-gnu-strip"
+        elif self.settings.arch == "x86_64":
+            strip_tool = "strip"
+        else:
+            strip_tool = "strip"
+        
+        # 查找需要strip的文件
+        lib_dirs = []
+        if self.settings.arch == "armv8" or self.settings.arch == "x86_64":
+            lib_dirs.append("usr/lib64")
+        else:
+            lib_dirs.append("usr/lib")
+        
+        # 添加可执行文件和驱动库目录
+        bin_dirs = ["opt/bmc/apps/libmcpp", "opt/bmc/drivers"]
+        
+        all_dirs = lib_dirs + bin_dirs
+        
+        for directory in all_dirs:
+            dir_path = os.path.join(self.package_folder, directory)
+            if not os.path.exists(dir_path):
+                continue
+                
+            for root, dirs, files in os.walk(dir_path):
+                for file in files:
+                    file_path = os.path.join(root, file)
+                    
+                    # 检查文件是否为可执行文件或共享库
+                    try:
+                        if os.path.isfile(file_path) and not os.path.islink(file_path):
+                            # 检查文件类型
+                            result = subprocess.run(["file", file_path], 
+                                                  capture_output=True, text=True, timeout=10)
+                            if result.returncode == 0:
+                                file_type = result.stdout.lower()
+                                if ("executable" in file_type or 
+                                    "shared object" in file_type or 
+                                    "dynamically linked" in file_type):
+                                    
+                                    # 执行strip操作
+                                    try:
+                                        subprocess.run([strip_tool, "-s", file_path], 
+                                                     check=True, timeout=30)
+                                        print(f"Stripped debug symbols from: {file_path}")
+                                    except subprocess.CalledProcessError as e:
+                                        print(f"Warning: Failed to strip {file_path}: {e}")
+                                    except subprocess.TimeoutExpired:
+                                        print(f"Warning: Strip timeout for {file_path}")
+                    except Exception as e:
+                        print(f"Warning: Error processing {file_path}: {e}")
+                        continue
 
     def package_info(self):
         if self.settings.arch == "armv8" or self.settings.arch == "x86_64":
