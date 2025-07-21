@@ -59,9 +59,6 @@ struct shm_obj_visitor : mc::engine::visitor {
     void handle_interface_begin(const mc::engine::abstract_object&    obj,
                                 const mc::engine::abstract_interface& iface) override {
         m_shm_intf = &m_shm_obj.register_interface(m_shm_ins, false, iface.get_interface_name());
-        if (iface.get_interface_name() == OBJECT_PROPERTIES_INTERFACE) {
-            m_shm_obj.add_named_object_view(m_shm_ins, OBJECT_PROPERTIES_INTERFACE);
-        }
     }
 
     void handle_interface_end(const mc::engine::abstract_object&    obj,
