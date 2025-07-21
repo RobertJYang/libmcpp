@@ -155,6 +155,15 @@ constexpr std::size_t MAX_NUM_ARRAY_ELEMENTS = 1024 * 1024;
 #define MC_DEPRECATED(msg) __attribute__((deprecated(msg)))
 #endif
 
+/**
+ * @brief 导出符号
+ */
+#if defined(MC_COMPILER_GCC) || defined(MC_COMPILER_CLANG)
+#define MC_API __attribute__((visibility("default")))
+#else
+#define MC_API
+#endif
+
 //------------------------------------------------------------------------------
 // 拷贝和移动控制类
 //------------------------------------------------------------------------------
