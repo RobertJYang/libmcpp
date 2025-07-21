@@ -239,3 +239,6 @@ mc::mutable_dict func::get_relate_properties(const std::string_view& position, m
 }
 
 } // namespace mc::expr
+
+MC_REFLECT(mc::expr::func, ((m_result, "result"))((m_args, "args")));
+MC_REFLECT(mc::expr::func_call, ((func, "func"))((params, "params")));

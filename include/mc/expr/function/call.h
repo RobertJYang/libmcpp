@@ -20,7 +20,9 @@
 
 namespace mc::expr {
 
-struct MC_API func_call {
+struct func_call {
+    MC_REFLECTABLE();
+
     std::string      func;
     mc::mutable_dict params;
 
@@ -37,6 +39,8 @@ MC_API bool is_relate_property(const mc::variant& value);
 
 class MC_API func {
 public:
+    MC_REFLECTABLE();
+
     MC_API func() = default;
 
     // 修改构造函数参数顺序，使其与测试用例匹配
@@ -64,8 +68,5 @@ private:
 };
 
 } // namespace mc::expr
-
-MC_REFLECT(mc::expr::func, ((m_result, "result"))((m_args, "args")));
-MC_REFLECT(mc::expr::func_call, ((func, "func"))((params, "params")));
 
 #endif // MC_EXPR_FUNCTION_CALL_H

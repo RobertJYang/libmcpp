@@ -22,6 +22,8 @@
 namespace mc::expr {
 
 struct relate_property {
+    MC_REFLECTABLE();
+
     std::string type;
     std::string object_name;
     std::string property_name;
@@ -31,6 +33,8 @@ struct relate_property {
 
 // 引用对象结构
 struct relate_object {
+    MC_REFLECTABLE();
+
     std::string type;
     std::string object_name;
     std::string full_name;
@@ -77,8 +81,5 @@ private:
 };
 
 } // namespace mc::expr
-
-MC_REFLECT(mc::expr::relate_property, ((type, "type"))((object_name, "object_name"))((property_name, "property_name"))((full_name, "full_name"))((interface, "interface")));
-MC_REFLECT(mc::expr::relate_object, ((type, "type"))((object_name, "object_name"))((full_name, "full_name")));
 
 #endif // MC_EXPR_FUNCTION_PARSER_H

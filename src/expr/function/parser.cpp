@@ -373,3 +373,6 @@ bool param_value_comparator::compare_dicts(const mc::dict& a, const mc::dict& b)
 }
 
 } // namespace mc::expr
+
+MC_REFLECT(mc::expr::relate_property, ((type, "type"))((object_name, "object_name"))((property_name, "property_name"))((full_name, "full_name"))((interface, "interface")));
+MC_REFLECT(mc::expr::relate_object, ((type, "type"))((object_name, "object_name"))((full_name, "full_name")));

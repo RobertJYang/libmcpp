@@ -599,6 +599,15 @@ constexpr bool is_valid_interface_name(std::string_view name) {
     return has_dot;
 }
 
+template <typename Derived, typename Base>
+std::uintptr_t get_base_offset() {
+    alignas(alignof(Derived)) char buffer[sizeof(Derived)];
+
+    Derived* derived_ptr = reinterpret_cast<Derived*>(buffer);
+    Base*    base_ptr    = static_cast<Base*>(derived_ptr);
+    return reinterpret_cast<std::uintptr_t>(base_ptr) -
+           reinterpret_cast<std::uintptr_t>(derived_ptr);
+}
 } // namespace mc
 
 #endif // MC_COMMON_H

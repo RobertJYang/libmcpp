@@ -344,3 +344,14 @@ invoke_result standard_interfaces::invoke(abstract_object* object, std::string_v
 }
 
 } // namespace mc::engine
+
+MC_REFLECT(mc::engine::properties_interface,
+           ((get, "Get"))((get_all, "GetAll"))((set, "Set"))((properties_changed,
+                                                              "PropertiesChanged")))
+MC_REFLECT(mc::engine::introspectable_interface, ((introspect, "Introspect")))
+MC_REFLECT(mc::engine::peer_interface, ((ping, "Ping"))((get_machine_id, "GetMachineId")))
+MC_REFLECT(mc::engine::object_manager_interface,
+           ((get_managed_objects, "GetManagedObjects"))((interfaces_added, "InterfacesAdded"))(
+               (interfaces_removed, "InterfacesRemoved")))
+MC_REFLECT(mc::engine::common_properties_interface,
+           ((m_parent_path, "ParentPath"))((m_object_name, "ObjectName"))((m_class_name, "ClassName"))((m_object_identifier, "ObjectIdentifier"))((get_with_context, "GetWithContext")))

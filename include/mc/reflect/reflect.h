@@ -69,7 +69,7 @@
 #define MC_REFLECT_BASE_CLASS_WITHOUT_NAME(r, TYPE, BASE) \
     BOOST_PP_IIF(                                         \
         BOOST_PP_IS_EMPTY(BASE), std::tuple{},            \
-        (mc::reflect::detail::create_base_class_info<TYPE, BASE>())),
+        (mc::reflect::detail::create_base_class_info<TYPE, BASE>(#BASE))),
 
 // 带别名的基类
 #define MC_REFLECT_BASE_CLSS_WITH_NAME(r, TYPE, BASE)                                \
@@ -100,8 +100,8 @@ constexpr auto create_member_info(R (*static_func)(Args...), std::string_view na
 }
 
 template <typename T, typename BaseT>
-constexpr auto create_base_class_info(std::string_view name = {}) {
-    return base_class_info_creator<T, BaseT>::create(name);
+constexpr auto create_base_class_info(std::string_view base_class_name) {
+    return base_class_info_creator<T, BaseT>::create(base_class_name);
 }
 
 template <typename EnumType>
@@ -384,9 +384,8 @@ struct MC_API reflector<
     static void to_variant(const T& obj, mc::mutable_dict& dict);
     static void from_variant(const mc::dict& d, T& obj);
 
-    static detail::metadata<T>&     get_metadata();
-    static detail::struct_metadata& get_struct_metadata();
-    static reflection<T>&           get_reflection();
+    static const detail::struct_metadata& get_metadata();
+    static reflection<T>&                 get_reflection();
 };
 
 template <typename T>
@@ -404,8 +403,8 @@ struct MC_API reflector<
 
     static mc::variant get_value(const T& obj);
 
-    static detail::enum_metadata& get_metadata();
-    static reflection<T>&         get_reflection();
+    static const detail::enum_metadata& get_metadata();
+    static reflection<T>&               get_reflection();
 };
 
 template <typename T, typename Members>
@@ -473,7 +472,7 @@ struct member_initial_filter {
         }                                                                                              \
     }                                                                                                  \
     template <>                                                                                        \
-    mc::reflect::detail::struct_metadata& reflector<TYPE>::get_struct_metadata() {                     \
+    const mc::reflect::detail::struct_metadata& reflector<TYPE>::get_metadata() {                      \
         static mc::reflect::detail::struct_metadata metadata(                                          \
             NAME, BOOST_PP_CAT(members, __LINE__), static_cast<TYPE*>(nullptr));                       \
         return metadata;                                                                               \
@@ -490,9 +489,10 @@ struct member_initial_filter {
     }                                                                                                  \
     template <>                                                                                        \
     void reflector<TYPE>::visit(const visitor_t& visitor) {                                            \
-        get_struct_metadata().visit_property([&](const property_type_info* property) {                 \
+        get_metadata().visit_property([&](const property_type_info* property) {                        \
             const auto* p = static_cast<const property_info_base<TYPE>*>(property);                    \
             visitor(property->name, p->getter(), p->setter());                                         \
+            return detail::visit_status::VS_CONTINUE;                                                  \
         });                                                                                            \
     }                                                                                                  \
     template <>                                                                                        \
@@ -518,11 +518,6 @@ struct member_initial_filter {
                 }                                                                                      \
             });                                                                                        \
         }                                                                                              \
-    }                                                                                                  \
-    template <>                                                                                        \
-    mc::reflect::detail::metadata<TYPE>& reflector<TYPE>::get_metadata() {                             \
-        using metadata_t = mc::reflect::detail::metadata<TYPE>;                                        \
-        return metadata_t::instance(BOOST_PP_CAT(members, __LINE__));                                  \
     }                                                                                                  \
     template <>                                                                                        \
     mc::reflect::reflection<TYPE>& reflector<TYPE>::get_reflection() {                                 \
@@ -622,7 +617,7 @@ struct member_initial_filter {
         return std::tuple_size_v<decltype(BOOST_PP_CAT(members, __LINE__))>;                           \
     }                                                                                                  \
     template <>                                                                                        \
-    mc::reflect::detail::enum_metadata& reflector<TYPE>::get_metadata() {                              \
+    const mc::reflect::detail::enum_metadata& reflector<TYPE>::get_metadata() {                        \
         static mc::reflect::detail::enum_metadata metadata(                                            \
             NAME, mc::reflect::detail::enum_values{BOOST_PP_CAT(members, __LINE__)});                  \
         return metadata;                                                                               \

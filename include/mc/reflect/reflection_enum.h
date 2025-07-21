@@ -106,6 +106,10 @@ public:
         return nullptr; // 枚举类型没有方法
     }
 
+    const base_class_type_info* get_base_class_info(std::string_view name) const override {
+        return nullptr; // 枚举类型没有基类
+    }
+
     std::vector<std::string_view> get_property_names() const override {
         return {}; // 枚举类型没有属性
     }
@@ -137,7 +141,7 @@ private:
     }
 
 private:
-    detail::enum_metadata& m_data;
+    const detail::enum_metadata& m_data;
 };
 
 } // namespace mc::reflect

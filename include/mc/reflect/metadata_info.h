@@ -39,6 +39,10 @@ struct property_tag {};
 struct method_tag {};
 struct base_class_tag {};
 
+namespace detail {
+class struct_metadata;
+}
+
 //------------------------------------------------------------------------------
 // 类型特征检测
 //------------------------------------------------------------------------------
@@ -111,14 +115,29 @@ struct member_info_base {
     std::string_view name;
     mutable uint32_t is_override : 1;  // 是否被派生类覆盖
     mutable uint32_t flags       : 31; // 扩展 flags，用于存储自定义其他信息
+    std::uintptr_t   base_offset = 0;  // 基类偏移量
 
     constexpr member_info_base(std::string_view n)
-        : name(n), is_override(false), flags(0) {
+        : name(n), is_override(false), flags(0), base_offset(0) {
     }
 
     virtual std::type_index  typeinfo() const  = 0;
     virtual std::string_view type_name() const = 0;
     virtual member_info_type type() const      = 0;
+    virtual std::uintptr_t   offset() const    = 0;
+
+    // 通用的克隆方法 - 返回裸指针，因为对象都是 constexpr 的，没有动态资源需要析构
+    virtual member_info_base* clone() const = 0;
+
+    template <typename T>
+    T* adjust_object_pointer(void* obj) const {
+        return reinterpret_cast<T*>(reinterpret_cast<char*>(obj) + base_offset);
+    }
+
+    template <typename T>
+    const T* adjust_object_pointer(const void* obj) const {
+        return reinterpret_cast<const T*>(reinterpret_cast<const char*>(obj) + base_offset);
+    }
 };
 
 //------------------------------------------------------------------------------
@@ -130,7 +149,6 @@ struct property_type_info : public member_info_base {
     }
 
     virtual std::string_view get_signature() const = 0;
-    virtual size_t           offset() const        = 0;
 };
 
 // 属性信息基类
@@ -163,12 +181,12 @@ struct property_info : public property_info_base<C> {
 
     // 获取属性值
     mc::variant get_value(const C& obj) const override {
-        return mc::variant(obj.*member_ptr);
+        return mc::variant(get_object(obj).*member_ptr);
     }
 
     // 设置属性值
     void set_value(C& obj, const mc::variant& value) const override {
-        value.as(obj.*member_ptr);
+        value.as(get_object(obj).*member_ptr);
     }
 
     std::function<mc::variant(const C&)> getter() const override {
@@ -183,7 +201,7 @@ struct property_info : public property_info_base<C> {
         };
     }
 
-    size_t offset() const override {
+    std::uintptr_t offset() const override {
         return MC_MEMBER_OFFSETOF(C, member_ptr);
     }
 
@@ -201,6 +219,18 @@ struct property_info : public property_info_base<C> {
 
     member_info_type type() const override {
         return member_info_type::property;
+    }
+
+    member_info_base* clone() const override {
+        return new property_info<C, M, BaseT>(this->name, member_ptr);
+    }
+
+    const BaseT& get_object(const C& obj) const {
+        return *this->template adjust_object_pointer<BaseT>(&obj);
+    }
+
+    BaseT& get_object(C& obj) const {
+        return *this->template adjust_object_pointer<BaseT>(&obj);
     }
 };
 
@@ -225,7 +255,7 @@ struct computed_property_info : public property_info_base<C> {
 
     // 获取属性值
     mc::variant get_value(const C& obj) const override {
-        return (obj.*m_getter)();
+        return (get_object(obj).*m_getter)();
     }
 
     // 设置属性值
@@ -233,7 +263,7 @@ struct computed_property_info : public property_info_base<C> {
         if constexpr (std::is_same_v<set_function_type, void*>) {
             MC_UNUSED(value);
         } else {
-            (obj.*m_setter)(value.as<member_type>());
+            (get_object(obj).*m_setter)(value.as<member_type>());
         }
     }
 
@@ -249,7 +279,7 @@ struct computed_property_info : public property_info_base<C> {
         };
     }
 
-    size_t offset() const override {
+    std::uintptr_t offset() const override {
         return 0;
     }
 
@@ -268,6 +298,18 @@ struct computed_property_info : public property_info_base<C> {
     member_info_type type() const override {
         return member_info_type::computed_property;
     }
+
+    member_info_base* clone() const override {
+        return new computed_property_info<C, Getter, Setter>(this->name, m_getter, m_setter);
+    }
+
+    const C& get_object(const C& obj) const {
+        return *this->template adjust_object_pointer<C>(&obj);
+    }
+
+    C& get_object(C& obj) const {
+        return *this->template adjust_object_pointer<C>(&obj);
+    }
 };
 
 //------------------------------------------------------------------------------
@@ -279,7 +321,6 @@ struct method_type_info : public member_info_base {
 
     virtual std::string_view get_args_signature() const   = 0;
     virtual std::string_view get_result_signature() const = 0;
-    virtual std::uintptr_t   offset() const               = 0;
     virtual size_t           arg_count() const            = 0;
 
     // 静态方法相关接口
@@ -340,7 +381,7 @@ public:
     RetType call_impl(C& obj, Args&&... args) const {
         if constexpr (!IsStatic) {
             if constexpr (std::is_same_v<C, Class>) {
-                return (obj.*m_function)(std::forward<Args>(args)...);
+                return (get_object(obj).*m_function)(std::forward<Args>(args)...);
             } else {
                 throw_method_not_exist(this->name);
             }
@@ -447,6 +488,18 @@ public:
         return member_info_type::method;
     }
 
+    member_info_base* clone() const override {
+        return new method_info<Class, BaseT, IsConst, IsStatic, RetType, Args...>(this->name, m_function);
+    }
+
+    const BaseT& get_object(const Class& obj) const {
+        return *this->template adjust_object_pointer<BaseT>(&obj);
+    }
+
+    BaseT& get_object(Class& obj) const {
+        return *this->template adjust_object_pointer<BaseT>(&obj);
+    }
+
     function_type m_function;
 };
 
@@ -470,16 +523,18 @@ constexpr auto make_static_method_info(R (*method)(Args...), std::string_view na
 // 基类元数据结构
 //------------------------------------------------------------------------------
 struct base_class_type_info : public member_info_base {
-    base_class_type_info(std::string_view n) : member_info_base(n) {
+    constexpr base_class_type_info(std::string_view n) : member_info_base(n) {
     }
 
-    virtual type_id_type     get_type_id() const   = 0;
-    virtual std::string_view get_signature() const = 0;
+    virtual type_id_type                   get_type_id() const   = 0;
+    virtual std::string_view               get_signature() const = 0;
+    virtual const detail::struct_metadata& get_metadata() const  = 0;
 };
 
 template <typename C>
 struct base_class_info_base : public base_class_type_info {
-    constexpr base_class_info_base(std::string_view n = {}) : base_class_type_info(n) {
+    constexpr base_class_info_base(std::string_view n = {})
+        : base_class_type_info(n) {
     }
 
     virtual mc::variant  get_value(const C& obj, std::string_view name) const                        = 0;
@@ -496,47 +551,8 @@ struct base_class_info : public base_class_info_base<C> {
     using base_type   = BaseT;
     using tag_type    = base_class_tag;
 
-    constexpr base_class_info(std::string_view n) : base_class_info_base<C>(n) {
-        this->name = remove_common_namespace(n, pretty_name<class_type>());
-    }
-
-    base_class_info(std::string n) : base_class_info_base<C>(), m_class_name(n) {
-        base_class_info_base<C>::name = m_class_name;
-    }
-
-    base_class_info(base_class_info&& other)
-        : base_class_info_base<C>(other.name), m_class_name(std::move(other.m_class_name)) {
-        set_class_name(m_class_name);
-    }
-
-    base_class_info& operator=(base_class_info&& other) {
-        if (this != &other) {
-            this->name = other.name;
-            set_class_name(std::move(other.m_class_name));
-        }
-
-        return *this;
-    }
-
-    base_class_info(const base_class_info& other)
-        : base_class_info_base<C>(other.name), m_class_name(other.m_class_name) {
-        set_class_name(other.m_class_name);
-    }
-
-    base_class_info& operator=(const base_class_info& other) {
-        if (this != &other) {
-            this->name = other.name;
-            set_class_name(other.m_class_name);
-        }
-
-        return *this;
-    }
-
-    void set_class_name(std::string n) {
-        m_class_name = std::move(n);
-        if (!m_class_name.empty()) {
-            base_class_info_base<C>::name = m_class_name;
-        }
+    constexpr base_class_info(std::string_view base_class_name)
+        : base_class_info_base<C>(base_class_name) {
     }
 
     std::type_index typeinfo() const override {
@@ -545,6 +561,14 @@ struct base_class_info : public base_class_info_base<C> {
 
     std::string_view type_name() const override {
         return pretty_name<base_type>();
+    }
+
+    std::uintptr_t offset() const override {
+        return mc::get_base_offset<class_type, base_type>();
+    }
+
+    const detail::struct_metadata& get_metadata() const override {
+        return reflector<base_type>::get_metadata();
     }
 
     std::string_view get_signature() const override {
@@ -564,7 +588,17 @@ struct base_class_info : public base_class_info_base<C> {
         return member_info_type::base_class;
     }
 
-    std::string m_class_name;
+    member_info_base* clone() const override {
+        return new base_class_info<C, BaseT>(this->name);
+    }
+
+    const BaseT& get_object(const C& obj) const {
+        return *this->template adjust_object_pointer<BaseT>(&obj);
+    }
+
+    BaseT& get_object(C& obj) const {
+        return *this->template adjust_object_pointer<BaseT>(&obj);
+    }
 };
 
 /**
@@ -670,12 +704,8 @@ struct base_class_info_creator {
     static_assert(std::is_base_of_v<Base, T>, "T must be derived from Base class");
     static_assert(is_reflectable<Base>(), "Base class must be reflectable");
 
-    static constexpr auto create(std::string_view name) {
-        if (name.empty()) {
-            name = mc::reflect::reflector<Base>::name();
-        }
-        auto info = base_class_info<T, Base>{name};
-        return std::make_tuple(info);
+    static constexpr auto create(std::string_view base_class_name) {
+        return std::make_tuple(base_class_info<T, Base>{base_class_name});
     }
 };
 

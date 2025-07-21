@@ -31,6 +31,7 @@ namespace mc::reflect {
 using async_result = mc::result<mc::variant>;
 struct property_type_info;
 struct method_type_info;
+struct base_class_type_info;
 
 // 异常抛出辅助函数
 [[noreturn]] MC_API void throw_method_arg_not_enough(std::string_view method_name, size_t expect_count,
@@ -172,8 +173,16 @@ constexpr inline bool is_valid_type_name(std::string_view name) {
     return true;
 }
 
+constexpr inline std::string_view longest_common_prefix(std::string_view s1, std::string_view s2) {
+    size_t i = 0;
+    while (i < s1.size() && i < s2.size() && s1[i] == s2[i]) {
+        ++i;
+    }
+    return s1.substr(0, i);
+}
+
 constexpr inline std::string_view remove_common_namespace(std::string_view s1, std::string_view s2) {
-    auto prefix = mc::string::longest_common_prefix(s1, s2);
+    auto prefix = longest_common_prefix(s1, s2);
     if (prefix.empty()) {
         return s1;
     }
@@ -361,6 +370,13 @@ public:
      * @return const method_type_info* 方法信息指针，需要转换为具体类型
      */
     virtual const method_type_info* get_method_info(std::string_view name) const = 0;
+
+    /**
+     * @brief 获取基类信息
+     * @param name 基类名
+     * @return const base_class_type_info* 基类信息指针，需要转换为具体类型
+     */
+    virtual const base_class_type_info* get_base_class_info(std::string_view name) const = 0;
 
     /**
      * @brief 获取所有属性名

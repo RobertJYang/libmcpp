@@ -45,6 +45,9 @@ struct enum_metadata::impl {
     void init_value_to_name_map(const data_t& data) const;
     void init_name_to_value_map(const data_t& data) const;
 
+    std::optional<std::string_view> get_name_from_cache(const data_t& data, enum_value_type value) const;
+    std::optional<enum_value_type>  get_value_from_cache(const data_t& data, std::string_view name) const;
+
     std::string_view        name;
     const enum_member_info* values;
     size_t                  count;
@@ -75,52 +78,75 @@ void enum_metadata::impl::init_name_to_value_map(const data_t& data) const {
     }
 }
 
+std::optional<std::string_view> enum_metadata::impl::get_name_from_cache(const data_t& data, enum_value_type value) const {
+    auto it = data.value_to_name->find(value);
+    if (it == data.value_to_name->end()) {
+        return std::nullopt;
+    }
+
+    return it->second;
+}
+
+std::optional<enum_value_type> enum_metadata::impl::get_value_from_cache(const data_t& data, std::string_view name) const {
+    auto it = data.name_to_value->find(name);
+    if (it == data.name_to_value->end()) {
+        return std::nullopt;
+    }
+
+    return it->second;
+}
+
 std::optional<std::string_view> enum_metadata::impl::get_name(enum_value_type value) const {
     if (count == 0) {
         return std::nullopt;
     }
 
-    // 连续枚举，直接查数组返回
     if (is_continuous) {
+        // 连续枚举，直接查数组返回
         if (value < values[0].value || value > values[count - 1].value) {
             return std::nullopt;
         }
-
-        auto idx = value - values[0].value;
-        return values[idx].name;
+        return values[value - values[0].value].name;
     }
 
-    // 非连续枚举，构造 value_to_name 映射表
-    return data.with_ulock_ptr([this, value](auto locked_ptr) -> std::optional<std::string_view> {
-        if (!locked_ptr->value_to_name) {                          // 第一次构造 value_to_name 映射表
-            auto wlock = std::move(locked_ptr).upgrade_to_wlock(); // 升级为写锁
-            init_value_to_name_map(*wlock);
-            locked_ptr = std::move(wlock).downgrade_to_ulock(); // 降级为读锁
+    // 非连续枚举，从缓存映射表中查找
+    return data.with_rlock_ptr([this, value](auto locked_ptr) -> std::optional<std::string_view> {
+        if (locked_ptr->value_to_name) {
+            return get_name_from_cache(*locked_ptr, value);
         }
 
-        auto it = locked_ptr->value_to_name->find(value);
-        if (it == locked_ptr->value_to_name->end()) {
-            return std::nullopt;
-        }
+        // 还没有构建缓存映射表，先解锁读锁再重新拿写锁构建缓存映射表
+        locked_ptr.unlock();
+        return data.with_lock([this, value](auto& data) -> std::optional<std::string_view> {
+            if (!data.value_to_name) {
+                // 第一次构造 value_to_name 映射表
+                init_value_to_name_map(data);
+            }
 
-        return it->second;
+            return get_name_from_cache(data, value);
+        });
     });
 }
 
 std::optional<enum_value_type> enum_metadata::impl::get_value(std::string_view enum_name) const {
-    return data.with_ulock_ptr([this, enum_name](auto locked_ptr) -> std::optional<enum_value_type> {
-        if (!locked_ptr->name_to_value) {                          // 第一次构造 name_to_value 映射表
-            auto wlock = std::move(locked_ptr).upgrade_to_wlock(); // 升级为写锁
-            init_name_to_value_map(*wlock);
-            locked_ptr = std::move(wlock).downgrade_to_ulock(); // 降级为读锁
+    // 由于采用了延迟初始化方案，所以需要加锁等待。
+    // 其实一个简单的原子指针操作就可以了，因为枚举缓存一旦构建就不会再变化，但目前还是加个读锁是考虑到动态模块中
+    // 实现的枚举，在动态模块卸载时枚举元数据也会跟着销毁，加读锁可以保证析构函数会等待所有正在访问的线程返回才销毁。
+    // TODO:: 理论上在动态模块卸载前要保证所有与动态模块有关的资源都应该提前销毁，到时候这里不用再加锁。
+    return data.with_rlock_ptr([this, enum_name](auto locked_ptr) -> std::optional<enum_value_type> {
+        if (locked_ptr->name_to_value) {
+            return get_value_from_cache(*locked_ptr, enum_name);
         }
 
-        auto it = locked_ptr->name_to_value->find(enum_name);
-        if (it == locked_ptr->name_to_value->end()) {
-            return std::nullopt;
-        }
+        // 还没有构建缓存映射表，先解锁读锁再重新拿写锁构建缓存映射表
+        locked_ptr.unlock();
+        return data.with_lock([this, enum_name](auto& data) -> std::optional<enum_value_type> {
+            if (!data.name_to_value) {
+                init_name_to_value_map(data);
+            }
 
-        return it->second;
+            return get_value_from_cache(data, enum_name);
+        });
     });
 }
 

@@ -53,130 +53,19 @@ auto get_base_classes(const Members& members) {
     return get_members_by_tag<T, mc::reflect::base_class_tag>(members);
 }
 
-template <typename T, typename = void>
-class metadata;
-
-template <typename T>
-class metadata<T, std::enable_if_t<is_reflectable<T>() && !std::is_enum<T>()>> {
-public:
-    using property_map_t          = std::unordered_map<std::string_view, const property_info_base<T>*>;
-    using property_offset_map_t   = std::unordered_map<size_t, const property_info_base<T>*>;
-    using method_map_t            = std::unordered_map<std::string_view, const method_info_base<T>*>;
-    using base_class_prop_map_t   = std::unordered_map<std::string_view, property_map_t>;
-    using base_class_method_map_t = std::unordered_map<std::string_view, method_map_t>;
-    using base_class_info_map_t   = std::unordered_map<std::string_view, const base_class_info_base<T>*>;
-
-    template <typename Members>
-    static metadata& instance(const Members& members) {
-        return mc::singleton<metadata>::instance_with_creator([&]() {
-            return new metadata(members);
-        });
-    }
-
-    static metadata& get() {
-        if (auto* instance = mc::singleton<metadata>::try_get()) {
-            return *instance;
-        }
-
-        MC_THROW(mc::not_implemented_exception, "metadata not initialized");
-    }
-
-    static metadata* try_get() {
-        return mc::singleton<metadata>::try_get();
-    }
-
-    ~metadata() {
-    }
-
-private:
-    template <typename, typename>
-    friend class mc::reflect::reflection;
-
-    template <typename Members>
-    metadata(const Members& members) {
-        init_properties(members);
-        init_methods(members);
-        init_base_class_info(members);
-    }
-
-    template <typename Members>
-    void init_properties(const Members& members) {
-        auto props = get_properties<T>(members);
-        mc::traits::tuple_for_each(props, [&](auto* property) {
-            // 如果基类有多个同名的属性，默认第一个名字就是当前类的属性
-            if (property->is_override == 0 &&
-                name_to_properties.find(property->name) == name_to_properties.end()) {
-                name_to_properties[property->name]       = property;
-                offset_to_properties[property->offset()] = property;
-            }
-
-            using property_type = std::decay_t<std::remove_pointer_t<decltype(property)>>;
-            using base_type     = typename property_type::base_type;
-            using class_type    = typename property_type::class_type;
-            if constexpr (!std::is_same_v<base_type, class_type> &&
-                          is_reflectable<base_type>()) {
-                auto base_name = reflector<base_type>::get_name();
-
-                base_class_prop_map[base_name][property->name] = property;
-            }
-        });
-    }
-
-    template <typename Members>
-    void init_methods(const Members& members) {
-        auto methods = get_methods<T>(members);
-        mc::traits::tuple_for_each(methods, [&](auto* method) {
-            // 如果基类有多个同名的方法，默认第一个名字就是当前类的方法
-            if (method->is_override == 0 &&
-                name_to_methods.find(method->name) == name_to_methods.end()) {
-                name_to_methods[method->name] = method;
-            }
-
-            using method_type = std::decay_t<std::remove_pointer_t<decltype(method)>>;
-            using base_type   = typename method_type::base_type;
-            using class_type  = typename method_type::class_type;
-            if constexpr (!std::is_same_v<base_type, class_type> &&
-                          is_reflectable<base_type>()) {
-                auto base_name = reflector<base_type>::get_name();
-
-                base_class_method_map[base_name][method->name] = method;
-            }
-        });
-    }
-
-    template <typename Members>
-    void init_base_class_info(const Members& members) {
-        auto base_classes = get_base_classes<T>(members);
-        mc::traits::tuple_for_each(base_classes, [&](auto* base_class_info) {
-            base_class_info_map[base_class_info->name] = base_class_info;
-        });
-    }
-
-    property_map_t          name_to_properties;
-    property_offset_map_t   offset_to_properties;
-    method_map_t            name_to_methods;
-    base_class_prop_map_t   base_class_prop_map;
-    base_class_method_map_t base_class_method_map;
-    base_class_info_map_t   base_class_info_map;
+enum class visit_status {
+    VS_CONTINUE,
+    VS_BREAK,
 };
 
 class MC_API struct_metadata {
 public:
-    struct_metadata(std::string_view name, size_t property_count = 0);
+    struct_metadata(std::string_view name);
 
     template <typename T, typename Members>
-    struct_metadata(std::string_view name, const Members& members, const T*)
-        : struct_metadata(name, std::tuple_size_v<decltype(get_properties<T>(members))>) {
-        mc::traits::tuple_for_each(members, [&](auto& member) {
-            using member_type = std::decay_t<decltype(member)>;
-            if constexpr (std::is_base_of_v<method_type_info, member_type>) {
-                add_method_info(&member);
-            } else if constexpr (std::is_base_of_v<property_type_info, member_type>) {
-                add_property_info(&member);
-            } else if constexpr (std::is_base_of_v<base_class_type_info, member_type>) {
-                add_base_class_info(&member);
-            }
-        });
+    struct_metadata(std::string_view name, const Members& members, const T* o)
+        : struct_metadata(name) {
+        add_members(members, o);
     }
 
     ~struct_metadata();
@@ -193,15 +82,34 @@ public:
     const method_type_info*     get_method_info(size_t offset) const;
     const base_class_type_info* get_base_class_info(std::string_view name) const;
 
-    using property_visitor_t   = std::function<void(const property_type_info*)>;
-    using method_visitor_t     = std::function<void(const method_type_info*)>;
-    using base_class_visitor_t = std::function<void(const base_class_type_info*)>;
+    using property_visitor_t   = std::function<visit_status(const property_type_info*)>;
+    using method_visitor_t     = std::function<visit_status(const method_type_info*)>;
+    using base_class_visitor_t = std::function<visit_status(const base_class_type_info*)>;
 
     void visit_property(const property_visitor_t& visitor) const;
     void visit_method(const method_visitor_t& visitor) const;
     void visit_base_class(const base_class_visitor_t& visitor) const;
 
 private:
+    template <typename T, typename Members>
+    void add_members(const Members& members, const T*) {
+        // 先添加子类成员再添加基类成员，子类成员会覆盖基类同名成员
+        mc::traits::tuple_for_each(members, [&](auto& member) {
+            using member_type = std::decay_t<decltype(member)>;
+            if constexpr (std::is_base_of_v<method_type_info, member_type>) {
+                add_method_info(&member);
+            } else if constexpr (std::is_base_of_v<property_type_info, member_type>) {
+                add_property_info(&member);
+            }
+        });
+        mc::traits::tuple_for_each(members, [&](auto& member) {
+            using member_type = std::decay_t<decltype(member)>;
+            if constexpr (std::is_base_of_v<base_class_type_info, member_type>) {
+                add_base_class_info(&member);
+            }
+        });
+    }
+
     struct impl;
     std::unique_ptr<impl> m_impl;
 };

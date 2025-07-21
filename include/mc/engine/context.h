@@ -16,7 +16,7 @@
 #include <mc/dbus/message.h>
 #include <mc/dict.h>
 #include <mc/engine/call_stack.h>
-#include <mc/engine/error_engine.h>
+#include <mc/error_engine.h>
 #include <mc/memory.h>
 #include <mc/variant.h>
 

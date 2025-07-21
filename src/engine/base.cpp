@@ -25,3 +25,11 @@ service* abstract_interface::get_service() const {
 }
 
 } // namespace mc::engine
+
+MC_REFLECT(mc::engine::abstract_object,                           // 配置计算属性（只读）
+           (MC_COMPUTED_PROPERTY("path", get_object_path))        // path
+           (MC_COMPUTED_PROPERTY("class_name", get_class_name))   // class_name
+           (MC_COMPUTED_PROPERTY("object_name", get_object_name)) // object_name
+           (MC_COMPUTED_PROPERTY("position", get_position))       // position
+           (MC_COMPUTED_PROPERTY("object_id", get_object_id))     // object_id
+)

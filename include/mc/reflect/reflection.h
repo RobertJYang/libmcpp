@@ -131,6 +131,10 @@ public:
         return mc::variant();
     }
 
+    const base_class_info_base<T>* get_base_class_info(std::string_view name) const override {
+        return static_cast<const base_class_info_base<T>*>(m_struct_data.get_base_class_info(name));
+    }
+
     /**
      * @brief 获取成员属性值
      *
@@ -141,9 +145,9 @@ public:
      */
     mc::variant get_property(const T& obj, std::string_view key,
                              std::string_view base_class_name) const {
-        auto it = m_data.base_class_info_map.find(base_class_name);
-        if (it != m_data.base_class_info_map.end()) {
-            return it->second->get_value(obj, key);
+        const auto* base_class_info = get_base_class_info(base_class_name);
+        if (base_class_info) {
+            return base_class_info->get_value(obj, key);
         }
 
         return mc::variant();
@@ -157,9 +161,11 @@ public:
      */
     mc::dict get_all_properties(const T& obj) const {
         mc::mutable_dict result;
-        for (const auto& [name, property] : m_data.name_to_properties) {
-            result[name] = property->get_value(obj);
-        }
+        m_struct_data.visit_property([&](const property_type_info* property) {
+            const auto* p   = static_cast<const property_info_base<T>*>(property);
+            result[p->name] = p->get_value(obj);
+            return detail::visit_status::VS_CONTINUE;
+        });
         return result;
     }
 
@@ -237,9 +243,9 @@ public:
      */
     bool set_property(T& obj, std::string_view key, std::string_view base_class_name,
                       const mc::variant& value) const {
-        auto it = m_data.base_class_info_map.find(base_class_name);
-        if (it != m_data.base_class_info_map.end()) {
-            it->second->set_value(obj, key, value);
+        const auto* base_class_info = get_base_class_info(base_class_name);
+        if (base_class_info) {
+            base_class_info->set_value(obj, key, value);
             return true;
         }
         return false;
@@ -265,24 +271,6 @@ public:
         return get_property_name(MC_MEMBER_OFFSETOF(T, member));
     }
 
-    /**
-     * @brief 获取所有成员信息
-     *
-     * @return const property_map& 成员名称到成员信息的映射
-     */
-    const auto& get_properties() const {
-        return m_data.name_to_properties;
-    }
-
-    /**
-     * @brief 获取所有方法信息
-     *
-     * @return const method_map& 方法名称到方法信息的映射
-     */
-    const auto& get_methods() const {
-        return m_data.name_to_methods;
-    }
-
     reflected_object_ptr create_object() override {
         if constexpr (std::is_abstract_v<T>) {
             MC_THROW(mc::bad_type_exception, "抽象类型不能创建对象: ${type}", ("type", get_type_name()));
@@ -301,30 +289,40 @@ public:
 
     std::vector<type_id_type> get_base_type_ids() const override {
         std::vector<type_id_type> base_ids;
-        for (const auto& [name, base_class_info] : m_data.base_class_info_map) {
+        m_struct_data.visit_base_class([&](const base_class_type_info* base_class_info) {
             base_ids.push_back(base_class_info->get_type_id());
-        }
+            return detail::visit_status::VS_CONTINUE;
+        });
         return base_ids;
     }
 
     bool is_derived_from(type_id_type base_type_id) const override {
-        auto base_ids = get_base_type_ids();
-        return std::find(base_ids.begin(), base_ids.end(), base_type_id) != base_ids.end();
+        bool found = false;
+        m_struct_data.visit_base_class([&](const base_class_type_info* base_class_info) {
+            if (base_class_info->get_type_id() == base_type_id) {
+                found = true;
+                return detail::visit_status::VS_BREAK;
+            }
+            return detail::visit_status::VS_CONTINUE;
+        });
+        return found;
     }
 
     std::vector<std::string_view> get_property_names() const override {
         std::vector<std::string_view> names;
-        for (const auto& [name, _] : m_data.name_to_properties) {
-            names.push_back(name);
-        }
+        m_struct_data.visit_property([&](const property_type_info* property) {
+            names.push_back(property->name);
+            return detail::visit_status::VS_CONTINUE;
+        });
         return names;
     }
 
     std::vector<std::string_view> get_method_names() const override {
         std::vector<std::string_view> names;
-        for (const auto& [name, _] : m_data.name_to_methods) {
-            names.push_back(name);
-        }
+        m_struct_data.visit_method([&](const method_type_info* method) {
+            names.push_back(method->name);
+            return detail::visit_status::VS_CONTINUE;
+        });
         return names;
     }
 
@@ -347,12 +345,10 @@ private:
     }
 
     reflection()
-        : m_data(reflector<T>::get_metadata()),
-          m_struct_data(reflector<T>::get_struct_metadata()) {
+        : m_struct_data(reflector<T>::get_metadata()) {
     }
 
-    detail::metadata<T>&     m_data;
-    detail::struct_metadata& m_struct_data;
+    const detail::struct_metadata& m_struct_data;
 };
 
 /**
@@ -370,25 +366,25 @@ auto& get_reflection() {
 
 template <typename C, typename BaseT>
 mc::variant base_class_info<C, BaseT>::get_value(const C& obj, std::string_view name) const {
-    return get_reflection<BaseT>().get_property(obj, name);
+    return get_reflection<BaseT>().get_property(get_object(obj), name);
 }
 
 template <typename C, typename BaseT>
 void base_class_info<C, BaseT>::set_value(C& obj, std::string_view name,
                                           const mc::variant& value) const {
-    get_reflection<BaseT>().set_property(obj, name, value);
+    get_reflection<BaseT>().set_property(get_object(obj), name, value);
 }
 
 template <typename C, typename BaseT>
 mc::variant base_class_info<C, BaseT>::invoke(C& obj, std::string_view name,
                                               const mc::variants& args) const {
-    return get_reflection<BaseT>().invoke_method(obj, name, args);
+    return get_reflection<BaseT>().invoke_method(get_object(obj), name, args);
 }
 
 template <typename C, typename BaseT>
 async_result base_class_info<C, BaseT>::async_invoke(C& obj, std::string_view name,
                                                      const mc::variants& args) const {
-    return get_reflection<BaseT>().async_invoke_method(obj, name, args);
+    return get_reflection<BaseT>().async_invoke_method(get_object(obj), name, args);
 }
 
 template <typename T>

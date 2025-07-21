@@ -19,12 +19,12 @@
 #include <mc/engine/call_stack.h>
 #include <mc/engine/context.h>
 #include <mc/engine/macro.h>
-#include <mc/engine/result.h>
 #include <mc/engine/service.h>
 #include <mc/engine/utils.h>
 #include <mc/memory.h>
 #include <mc/reflect.h>
 #include <mc/reflect/signature_helper.h>
+#include <mc/result.h>
 #include <mc/signal_slot.h>
 #include <mc/time.h>
 #include <mc/traits.h>
@@ -116,6 +116,8 @@ protected:
 
 class MC_API abstract_object : public mc::core::object {
 public:
+    MC_REFLECTABLE();
+
     using managed_objects = std::map<std::string_view, abstract_object*>;
     using mc::core::object::connect;
 
@@ -214,14 +216,6 @@ public:
 using object_ptr = mc::shared_ptr<abstract_object>;
 
 } // namespace mc::engine
-
-MC_REFLECT(mc::engine::abstract_object,                           // 配置计算属性（只读）
-           (MC_COMPUTED_PROPERTY("path", get_object_path))        // path
-           (MC_COMPUTED_PROPERTY("class_name", get_class_name))   // class_name
-           (MC_COMPUTED_PROPERTY("object_name", get_object_name)) // object_name
-           (MC_COMPUTED_PROPERTY("position", get_position))       // position
-           (MC_COMPUTED_PROPERTY("object_id", get_object_id))     // object_id
-)
 
 namespace mc::engine {
 MC_FIELD_INDEX_TAG(by_path, "path");
