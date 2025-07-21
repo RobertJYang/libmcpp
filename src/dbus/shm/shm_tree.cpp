@@ -34,6 +34,7 @@ void shm_tree::register_object(mc::engine::abstract_object& obj) {
     // 需要创建上下文，common_properties_interface才能获取到对象信息
     mc::engine::object_call_stack::context object_ctx{obj.get_service(), obj};
     mc::engine::common_properties_interface::get_instance().visit(visitor);
+    shm_obj.add_named_object_view(ins, mc::engine::common_properties_name);
     obj.property_changed().connect([this, &obj](const mc::variant& value, const auto& prop) {
         auto iface     = prop.get_interface()->get_interface_name();
         auto prop_name = prop.get_name();
