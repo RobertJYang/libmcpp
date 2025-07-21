@@ -42,7 +42,7 @@ enum class test_permission {
 // 测试用的地址类
 class test_address {
 public:
-    MC_REFLECTABLE();
+    MC_REFLECTABLE("test_nested_reflect.test_address");
 
     std::string m_city;
     std::string m_street;
@@ -62,7 +62,7 @@ public:
 // 测试用的联系信息类
 class test_contact {
 public:
-    MC_REFLECTABLE();
+    MC_REFLECTABLE("test_nested_reflect.test_contact");
 
     std::string  m_email;
     std::string  m_phone;
@@ -82,7 +82,7 @@ public:
 // 测试用的用户类（包含嵌套对象和枚举）
 class test_user {
 public:
-    MC_REFLECTABLE();
+    MC_REFLECTABLE("test_nested_reflect.test_user");
 
     std::string                         m_username;
     test_contact                        m_contact;     // 嵌套对象
@@ -108,8 +108,8 @@ public:
 
 } // namespace test_nested_reflect
 
-MC_REFLECTABLE(test_nested_reflect::test_status)
-MC_REFLECTABLE(test_nested_reflect::test_permission)
+MC_REFLECTABLE("test_nested_reflect.test_status", test_nested_reflect::test_status)
+MC_REFLECTABLE("test_nested_reflect.test_permission", test_nested_reflect::test_permission)
 
 MC_REFLECT_ENUM(test_nested_reflect::test_status,
                 (ACTIVE)(INACTIVE)(PENDING))
@@ -136,9 +136,9 @@ TEST(NestedReflectTest, NestedClassReflection) {
 
     // 获取类型名称
     EXPECT_EQ(mc::reflect::reflector<test_address>::get_name(),
-              "test_nested_reflect::test_address");
+              "test_nested_reflect.test_address");
     EXPECT_EQ(mc::reflect::reflector<test_contact>::get_name(),
-              "test_nested_reflect::test_contact");
+              "test_nested_reflect.test_contact");
 
     // 转换为变体
     mc::variant var(contact);

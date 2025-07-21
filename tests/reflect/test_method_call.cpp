@@ -26,7 +26,7 @@ using namespace mc;
 // 测试类
 class Calculator {
 public:
-    MC_REFLECTABLE();
+    MC_REFLECTABLE("mc.test.Calculator");
 
     int                      m_base_value;
     std::string              m_last_operation;

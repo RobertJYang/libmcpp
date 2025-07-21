@@ -17,7 +17,7 @@
 namespace test {
 class test_person_base {
 public:
-    MC_REFLECTABLE();
+    MC_REFLECTABLE("test.test_person_base");
 
     int         m_id;
     std::string m_name;
@@ -36,7 +36,7 @@ namespace test_reflect_base_class {
 
 class test_person : public ::test::test_person_base {
 public:
-    MC_REFLECTABLE();
+    MC_REFLECTABLE("test_reflect_base_class.test_person");
 
     int m_age;
 
@@ -51,7 +51,7 @@ public:
 
 class test_company {
 public:
-    MC_REFLECTABLE();
+    MC_REFLECTABLE("test_reflect_base_class.test_company");
 
     std::string m_name;
     std::string m_address;
@@ -60,7 +60,7 @@ public:
 
 class test_user : public test_person, public test_company {
 public:
-    MC_REFLECTABLE();
+    MC_REFLECTABLE("test_reflect_base_class.test_user");
 
     void set_score(double score) {
         m_score = score;
@@ -76,14 +76,13 @@ public:
 MC_REFLECT(::test::test_person_base,
            ((m_id, "Id"))((m_name, "Name"))((set_id, "SetId"))((get_id, "GetId")))
 
-// 在不同命名空间的基类，基类名称会保留完整名称，为了使用方便定义别名
+// 测试继承时重新指定基类的反射名称，为了使用方便定义别名
 MC_REFLECT(test_reflect_base_class::test_person,
            ((::test::test_person_base, "test_person_base")), ((m_age, "Age")))
 
 MC_REFLECT(test_reflect_base_class::test_company,
            ((m_name, "Name"))((m_address, "Address"))((m_employee_count, "EmployeeCount")))
 
-// 在同一个命名空间的基类，基类名称会去掉公共命名空间
 MC_REFLECT(test_reflect_base_class::test_user,
            (test_reflect_base_class::test_company)(test_reflect_base_class::test_person),
            ((m_score, "Score"))((set_score, "SetScore"))((get_score, "GetScore")))
@@ -114,7 +113,7 @@ TEST_F(reflect_base_class_test, TestGetProperties) {
     EXPECT_EQ(name, "Company");
 
     // 指定基类名称访问属性（实际是访问 test_person_base 的属性）
-    auto person_name = mc::reflect::get_property(user, "Name", "test_reflect_base_class::test_person");
+    auto person_name = mc::reflect::get_property(user, "Name", "test_reflect_base_class.test_person");
     EXPECT_EQ(person_name, "John");
 
     // 精确指定该属性属于哪个基类
@@ -125,7 +124,7 @@ TEST_F(reflect_base_class_test, TestGetProperties) {
     // 指定另一个具有同名属性的基类
     auto& pp             = static_cast<test_company&>(user);
     auto  company_name_1 = mc::reflect::get_property(pp, "Name");
-    auto  company_name   = mc::reflect::get_property(user, "Name", "test_reflect_base_class::test_company");
+    auto  company_name   = mc::reflect::get_property(user, "Name", "test_reflect_base_class.test_company");
     EXPECT_EQ(company_name, "Company");
 
     // 获取所有属性，对于同名属性，会返回反射类型的第一个该名称的属性
@@ -148,19 +147,19 @@ TEST_F(reflect_base_class_test, TestSetProperties) {
     EXPECT_EQ(mc::reflect::get_property(user, "Name"), "Company1");
 
     // 指定基类名称访问属性（实际是访问 test_person_base 的属性）
-    EXPECT_EQ(mc::reflect::get_property(user, "Name", "test_reflect_base_class::test_person"), "John");
-    mc::reflect::set_property(user, "Name", "test_reflect_base_class::test_person", "John1");
-    EXPECT_EQ(mc::reflect::get_property(user, "Name", "test_reflect_base_class::test_person"), "John1");
+    EXPECT_EQ(mc::reflect::get_property(user, "Name", "test_reflect_base_class.test_person"), "John");
+    mc::reflect::set_property(user, "Name", "test_reflect_base_class.test_person", "John1");
+    EXPECT_EQ(mc::reflect::get_property(user, "Name", "test_reflect_base_class.test_person"), "John1");
 
-    // 精确指定该属性属于哪个基类
+    // 精确指定该属性属于哪个基类，这个基类在当前继承体系中使用了别名
     EXPECT_EQ(mc::reflect::get_property(user, "Name", "test_person_base"), "John1");
     mc::reflect::set_property(user, "Name", "test_person_base", "John2");
     EXPECT_EQ(mc::reflect::get_property(user, "Name", "test_person_base"), "John2");
 
     // 指定另一个具有同名属性的基类
-    EXPECT_EQ(mc::reflect::get_property(user, "Name", "test_reflect_base_class::test_company"), "Company1");
-    mc::reflect::set_property(user, "Name", "test_reflect_base_class::test_company", "Company2");
-    EXPECT_EQ(mc::reflect::get_property(user, "Name", "test_reflect_base_class::test_company"), "Company2");
+    EXPECT_EQ(mc::reflect::get_property(user, "Name", "test_reflect_base_class.test_company"), "Company1");
+    mc::reflect::set_property(user, "Name", "test_reflect_base_class.test_company", "Company2");
+    EXPECT_EQ(mc::reflect::get_property(user, "Name", "test_reflect_base_class.test_company"), "Company2");
 
     mc::dict expected = {
         {"Id", 1},

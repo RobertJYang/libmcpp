@@ -22,7 +22,7 @@
 namespace mc::expr {
 
 struct relate_property {
-    MC_REFLECTABLE();
+    MC_REFLECTABLE("mc.expr.relate_property");
 
     std::string type;
     std::string object_name;
@@ -33,7 +33,7 @@ struct relate_property {
 
 // 引用对象结构
 struct relate_object {
-    MC_REFLECTABLE();
+    MC_REFLECTABLE("mc.expr.relate_object");
 
     std::string type;
     std::string object_name;

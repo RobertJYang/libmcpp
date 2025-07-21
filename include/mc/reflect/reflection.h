@@ -81,7 +81,7 @@ public:
      * @return const property_info_base<T>* 成员信息指针，如果不存在则返回nullptr
      */
     const property_info_base<T>* get_property_info(std::string_view name) const override {
-        return static_cast<const property_info_base<T>*>(m_struct_data.get_property_info(name));
+        return static_cast<const property_info_base<T>*>(m_data.get_property_info(name));
     }
 
     /**
@@ -91,13 +91,13 @@ public:
      * @return const method_info_base<T>* 方法信息指针，如果不存在则返回nullptr
      */
     const method_info_base<T>* get_method_info(std::string_view name) const override {
-        return static_cast<const method_info_base<T>*>(m_struct_data.get_method_info(name));
+        return static_cast<const method_info_base<T>*>(m_data.get_method_info(name));
     }
 
     template <typename M>
     const method_info_base<T>* get_method_info(M T::* member_ptr) const {
         auto offset = get_function_offset(member_ptr);
-        return static_cast<const method_info_base<T>*>(m_struct_data.get_method_info(offset));
+        return static_cast<const method_info_base<T>*>(m_data.get_method_info(offset));
     }
 
     /**
@@ -107,7 +107,7 @@ public:
      * @return const property_info_base<T>* 成员信息指针，如果不存在则返回nullptr
      */
     const property_info_base<T>* get_property_info(size_t offset) const {
-        return static_cast<const property_info_base<T>*>(m_struct_data.get_property_info(offset));
+        return static_cast<const property_info_base<T>*>(m_data.get_property_info(offset));
     }
 
     template <typename M, typename BaseT,
@@ -132,7 +132,7 @@ public:
     }
 
     const base_class_info_base<T>* get_base_class_info(std::string_view name) const override {
-        return static_cast<const base_class_info_base<T>*>(m_struct_data.get_base_class_info(name));
+        return static_cast<const base_class_info_base<T>*>(m_data.get_base_class_info(name));
     }
 
     /**
@@ -161,10 +161,10 @@ public:
      */
     mc::dict get_all_properties(const T& obj) const {
         mc::mutable_dict result;
-        m_struct_data.visit_property([&](const property_type_info* property) {
+        m_data.visit_property([&](const property_type_info* property) {
             const auto* p   = static_cast<const property_info_base<T>*>(property);
             result[p->name] = p->get_value(obj);
-            return detail::visit_status::VS_CONTINUE;
+            return visit_status::VS_CONTINUE;
         });
         return result;
     }
@@ -289,39 +289,39 @@ public:
 
     std::vector<type_id_type> get_base_type_ids() const override {
         std::vector<type_id_type> base_ids;
-        m_struct_data.visit_base_class([&](const base_class_type_info* base_class_info) {
+        m_data.visit_base_class([&](const base_class_type_info* base_class_info) {
             base_ids.push_back(base_class_info->get_type_id());
-            return detail::visit_status::VS_CONTINUE;
+            return visit_status::VS_CONTINUE;
         });
         return base_ids;
     }
 
     bool is_derived_from(type_id_type base_type_id) const override {
         bool found = false;
-        m_struct_data.visit_base_class([&](const base_class_type_info* base_class_info) {
+        m_data.visit_base_class([&](const base_class_type_info* base_class_info) {
             if (base_class_info->get_type_id() == base_type_id) {
                 found = true;
-                return detail::visit_status::VS_BREAK;
+                return visit_status::VS_BREAK;
             }
-            return detail::visit_status::VS_CONTINUE;
+            return visit_status::VS_CONTINUE;
         });
         return found;
     }
 
     std::vector<std::string_view> get_property_names() const override {
         std::vector<std::string_view> names;
-        m_struct_data.visit_property([&](const property_type_info* property) {
+        m_data.visit_property([&](const property_type_info* property) {
             names.push_back(property->name);
-            return detail::visit_status::VS_CONTINUE;
+            return visit_status::VS_CONTINUE;
         });
         return names;
     }
 
     std::vector<std::string_view> get_method_names() const override {
         std::vector<std::string_view> names;
-        m_struct_data.visit_method([&](const method_type_info* method) {
+        m_data.visit_method([&](const method_type_info* method) {
             names.push_back(method->name);
-            return detail::visit_status::VS_CONTINUE;
+            return visit_status::VS_CONTINUE;
         });
         return names;
     }
@@ -345,10 +345,10 @@ private:
     }
 
     reflection()
-        : m_struct_data(reflector<T>::get_metadata()) {
+        : m_data(reflector<T>::get_metadata()) {
     }
 
-    const detail::struct_metadata& m_struct_data;
+    const struct_metadata& m_data;
 };
 
 /**

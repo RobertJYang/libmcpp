@@ -31,7 +31,7 @@ using error_level = mc::log::level;
  * @brief 错误信息
  */
 struct error_info {
-    MC_REFLECTABLE();
+    MC_REFLECTABLE("mc.error_info");
 
     error_info()                                       = default;
     error_info(const error_info& other)                = default;
@@ -84,7 +84,7 @@ struct error_info {
  * 如果需要动态构造错误名或格式化字符串，请使用 error_with_owner 类
  */
 struct MC_API error : public mc::enable_shared_from_this<error>, public error_info {
-    MC_REFLECTABLE();
+    MC_REFLECTABLE("mc.error");
 
     error();
     error(const error_info& info);

@@ -17,7 +17,7 @@
 #include <mc/log/log_message.h>
 #include <mc/reflect.h>
 
-MC_REFLECTABLE(mc::log::level)
+MC_REFLECTABLE("mc.log.level", mc::log::level)
 
 namespace mc {
 namespace log {

@@ -141,7 +141,7 @@ private:
     }
 
 private:
-    const detail::enum_metadata& m_data;
+    const enum_metadata& m_data;
 };
 
 } // namespace mc::reflect

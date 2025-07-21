@@ -40,6 +40,6 @@ struct my_task_interface : public task_interface {
 
 } // namespace test
 
-MC_REFLECTABLE(test::my_task_interface)
+MC_REFLECTABLE("test.my_task_interface", test::my_task_interface)
 
 #endif // TASK_INTERFACE_H

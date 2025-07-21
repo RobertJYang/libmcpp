@@ -39,9 +39,8 @@ struct property_tag {};
 struct method_tag {};
 struct base_class_tag {};
 
-namespace detail {
+// 前向声明
 class struct_metadata;
-}
 
 //------------------------------------------------------------------------------
 // 类型特征检测
@@ -104,6 +103,8 @@ enum member_info_type {
     computed_property,
     method,
     base_class,
+
+    custom_start = 100
 };
 
 //------------------------------------------------------------------------------
@@ -113,8 +114,8 @@ enum member_info_type {
 // 成员信息基类
 struct member_info_base {
     std::string_view name;
-    mutable uint32_t is_override : 1;  // 是否被派生类覆盖
-    mutable uint32_t flags       : 31; // 扩展 flags，用于存储自定义其他信息
+    uint32_t         is_override : 1;  // 是否被派生类覆盖
+    uint32_t         flags       : 31; // 扩展 flags，用于存储自定义其他信息
     std::uintptr_t   base_offset = 0;  // 基类偏移量
 
     constexpr member_info_base(std::string_view n)
@@ -123,19 +124,19 @@ struct member_info_base {
 
     virtual std::type_index  typeinfo() const  = 0;
     virtual std::string_view type_name() const = 0;
-    virtual member_info_type type() const      = 0;
+    virtual int              type() const      = 0;
     virtual std::uintptr_t   offset() const    = 0;
 
     // 通用的克隆方法 - 返回裸指针，因为对象都是 constexpr 的，没有动态资源需要析构
     virtual member_info_base* clone() const = 0;
 
     template <typename T>
-    T* adjust_object_pointer(void* obj) const {
+    T* adjust_object_pointer(void* obj) const noexcept {
         return reinterpret_cast<T*>(reinterpret_cast<char*>(obj) + base_offset);
     }
 
     template <typename T>
-    const T* adjust_object_pointer(const void* obj) const {
+    const T* adjust_object_pointer(const void* obj) const noexcept {
         return reinterpret_cast<const T*>(reinterpret_cast<const char*>(obj) + base_offset);
     }
 };
@@ -166,6 +167,8 @@ struct property_info_base : public property_type_info {
 };
 
 // 属性元数据具体实现
+// TODO:: 目前为每个类的每个属性都实例化一个 property_info<C, M> 类型，后续可以给所有的
+// 属性类型打个包，只实例化一个 propertis_info 类型，减少模板展开的代码大小
 template <typename C, typename M, typename BaseT = C>
 struct property_info : public property_info_base<C> {
     using class_type  = C;
@@ -201,7 +204,7 @@ struct property_info : public property_info_base<C> {
         };
     }
 
-    std::uintptr_t offset() const override {
+    std::uintptr_t offset() const noexcept override {
         return MC_MEMBER_OFFSETOF(C, member_ptr);
     }
 
@@ -209,7 +212,7 @@ struct property_info : public property_info_base<C> {
         return typeid(member_type);
     }
 
-    std::string_view type_name() const override {
+    std::string_view type_name() const noexcept override {
         return pretty_name<member_type>();
     }
 
@@ -217,19 +220,19 @@ struct property_info : public property_info_base<C> {
         return mc::reflect::get_signature<member_type>();
     }
 
-    member_info_type type() const override {
-        return member_info_type::property;
+    int type() const noexcept override {
+        return static_cast<int>(member_info_type::property);
     }
 
     member_info_base* clone() const override {
         return new property_info<C, M, BaseT>(this->name, member_ptr);
     }
 
-    const BaseT& get_object(const C& obj) const {
+    const BaseT& get_object(const C& obj) const noexcept {
         return *this->template adjust_object_pointer<BaseT>(&obj);
     }
 
-    BaseT& get_object(C& obj) const {
+    BaseT& get_object(C& obj) const noexcept {
         return *this->template adjust_object_pointer<BaseT>(&obj);
     }
 };
@@ -279,7 +282,7 @@ struct computed_property_info : public property_info_base<C> {
         };
     }
 
-    std::uintptr_t offset() const override {
+    std::uintptr_t offset() const noexcept override {
         return 0;
     }
 
@@ -287,7 +290,7 @@ struct computed_property_info : public property_info_base<C> {
         return typeid(member_type);
     }
 
-    std::string_view type_name() const override {
+    std::string_view type_name() const noexcept override {
         return pretty_name<member_type>();
     }
 
@@ -295,19 +298,19 @@ struct computed_property_info : public property_info_base<C> {
         return mc::reflect::get_signature<member_type>();
     }
 
-    member_info_type type() const override {
-        return member_info_type::computed_property;
+    int type() const noexcept override {
+        return static_cast<int>(member_info_type::computed_property);
     }
 
     member_info_base* clone() const override {
         return new computed_property_info<C, Getter, Setter>(this->name, m_getter, m_setter);
     }
 
-    const C& get_object(const C& obj) const {
+    const C& get_object(const C& obj) const noexcept {
         return *this->template adjust_object_pointer<C>(&obj);
     }
 
-    C& get_object(C& obj) const {
+    C& get_object(C& obj) const noexcept {
         return *this->template adjust_object_pointer<C>(&obj);
     }
 };
@@ -464,7 +467,7 @@ public:
         return typeid(RetType);
     }
 
-    std::string_view type_name() const override {
+    std::string_view type_name() const noexcept override {
         return pretty_name<RetType>();
     }
 
@@ -480,23 +483,23 @@ public:
         return mc::reflect::get_signature<result_type>();
     }
 
-    std::uintptr_t offset() const override {
+    std::uintptr_t offset() const noexcept override {
         return get_function_offset(m_function);
     }
 
-    member_info_type type() const override {
-        return member_info_type::method;
+    int type() const noexcept override {
+        return static_cast<int>(member_info_type::method);
     }
 
     member_info_base* clone() const override {
         return new method_info<Class, BaseT, IsConst, IsStatic, RetType, Args...>(this->name, m_function);
     }
 
-    const BaseT& get_object(const Class& obj) const {
+    const BaseT& get_object(const Class& obj) const noexcept {
         return *this->template adjust_object_pointer<BaseT>(&obj);
     }
 
-    BaseT& get_object(Class& obj) const {
+    BaseT& get_object(Class& obj) const noexcept {
         return *this->template adjust_object_pointer<BaseT>(&obj);
     }
 
@@ -526,9 +529,9 @@ struct base_class_type_info : public member_info_base {
     constexpr base_class_type_info(std::string_view n) : member_info_base(n) {
     }
 
-    virtual type_id_type                   get_type_id() const   = 0;
-    virtual std::string_view               get_signature() const = 0;
-    virtual const detail::struct_metadata& get_metadata() const  = 0;
+    virtual type_id_type           get_type_id() const   = 0;
+    virtual std::string_view       get_signature() const = 0;
+    virtual const struct_metadata& get_metadata() const  = 0;
 };
 
 template <typename C>
@@ -559,15 +562,15 @@ struct base_class_info : public base_class_info_base<C> {
         return typeid(base_type);
     }
 
-    std::string_view type_name() const override {
+    std::string_view type_name() const noexcept override {
         return pretty_name<base_type>();
     }
 
-    std::uintptr_t offset() const override {
+    std::uintptr_t offset() const noexcept override {
         return mc::get_base_offset<class_type, base_type>();
     }
 
-    const detail::struct_metadata& get_metadata() const override {
+    const struct_metadata& get_metadata() const override {
         return reflector<base_type>::get_metadata();
     }
 
@@ -584,19 +587,19 @@ struct base_class_info : public base_class_info_base<C> {
     mc::variant  invoke(C& obj, std::string_view name, const mc::variants& args) const override;
     async_result async_invoke(C& obj, std::string_view name, const mc::variants& args) const override;
 
-    member_info_type type() const override {
-        return member_info_type::base_class;
+    int type() const noexcept override {
+        return static_cast<int>(member_info_type::base_class);
     }
 
     member_info_base* clone() const override {
         return new base_class_info<C, BaseT>(this->name);
     }
 
-    const BaseT& get_object(const C& obj) const {
+    const BaseT& get_object(const C& obj) const noexcept {
         return *this->template adjust_object_pointer<BaseT>(&obj);
     }
 
-    BaseT& get_object(C& obj) const {
+    BaseT& get_object(C& obj) const noexcept {
         return *this->template adjust_object_pointer<BaseT>(&obj);
     }
 };
@@ -644,7 +647,7 @@ struct enum_member_info {
  *         : member_info_base(n), signal_ptr(ptr) {}
  *
  *     std::type_index typeinfo() const override { return typeid(mc::signal<Signature>); }
- *     std::string_view type_name() const override { return "signal"; }
+ *     std::string_view type_name() const noexcept override { return "signal"; }
  * };
  *
  * // 最后特化 member_info_creator
@@ -705,6 +708,9 @@ struct base_class_info_creator {
     static_assert(is_reflectable<Base>(), "Base class must be reflectable");
 
     static constexpr auto create(std::string_view base_class_name) {
+        if (base_class_name.empty()) {
+            base_class_name = get_type_name<Base>();
+        }
         return std::make_tuple(base_class_info<T, Base>{base_class_name});
     }
 };

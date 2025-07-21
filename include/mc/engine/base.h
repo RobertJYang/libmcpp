@@ -116,7 +116,7 @@ protected:
 
 class MC_API abstract_object : public mc::core::object {
 public:
-    MC_REFLECTABLE();
+    MC_REFLECTABLE("mc.engine.abstract_object");
 
     using managed_objects = std::map<std::string_view, abstract_object*>;
     using mc::core::object::connect;

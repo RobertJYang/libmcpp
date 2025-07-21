@@ -16,7 +16,7 @@
 namespace mc::engine {
 
 #define MC_INTERFACE(name)                                   \
-    MC_REFLECTABLE();                                        \
+    MC_REFLECTABLE(name);                                    \
     static constexpr std::string_view interface_name = name; \
     static_assert(mc::is_valid_interface_name(name),         \
                   "接口名称必须符合规范: "                   \
@@ -30,7 +30,7 @@ namespace mc::engine {
     BOOST_PP_IIF(BOOST_PP_IS_EMPTY(__VA_ARGS__), BOOST_PP_EMPTY, MC_OBJECT_INTERFACE_I)(__VA_ARGS__)
 
 #define MC_OBJECT(OBJECT_TYPE, CLASS_NAME, PATH_PATTERN, ...)                \
-    MC_REFLECTABLE();                                                        \
+    MC_REFLECTABLE(#OBJECT_TYPE);                                            \
     using object_type = OBJECT_TYPE;                                         \
     friend struct mc::reflect::reflector<OBJECT_TYPE>;                       \
     static constexpr std::string_view path_pattern = PATH_PATTERN;           \

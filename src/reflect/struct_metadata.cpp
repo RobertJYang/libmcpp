@@ -14,7 +14,7 @@
 #include <mc/sync/mutex_box.h>
 #include <mc/sync/shared_mutex.h>
 
-namespace mc::reflect::detail {
+namespace mc::reflect {
 
 struct struct_metadata::impl {
     using ordered_property_t    = std::vector<const property_type_info*>;
@@ -24,6 +24,7 @@ struct struct_metadata::impl {
     using property_offset_map_t = std::unordered_map<size_t, const property_type_info*>;
     using method_offset_map_t   = std::unordered_map<size_t, const method_type_info*>;
     using base_class_members_t  = std::vector<member_info_base*>;
+    using custom_members_t      = std::vector<const member_info_base*>;
 
     struct data_t {
         ordered_property_t    ordered_properties; // visit_property 希望保持顺序
@@ -32,15 +33,26 @@ struct struct_metadata::impl {
         method_map_t          name_to_methods;
         method_offset_map_t   offset_to_methods;
         base_class_map_t      name_to_base_class;
-        base_class_members_t  owner_members;
+        custom_members_t      custom_members;
+
+        // 在原始反射元数据不满足要求需要调整的场景，因为传入的元数据是编译期常量，而编译期常量可能会放到只读数据段，
+        // 这里克隆一份后再调整更安全，我们用 owner_members 来持有这个克隆数据的所有权。
+        base_class_members_t owner_members;
     };
 
     static void add_property_info(data_t& data, const property_type_info* property);
     static void add_method_info(data_t& data, const method_type_info* method);
     static void add_base_class_info(data_t& data, const base_class_type_info* base_class);
+    static void add_custom_info(data_t& data, const member_info_base* custom);
+
     static void load_base_class_members(data_t& data, const base_class_type_info* base_class);
 
-    std::string_view                        name;
+    std::string_view name;
+
+    // TODO:: 理论上这里也是不需要锁的，元数据缓存在构建单例的时候一次性创建，之后不会再有变化。
+    // 其他读取接口也都不需要加锁，唯一的场景就是动态模块注册的反射元数据，在动态库卸载的时候会被释放，
+    // 但这也应该由模块管理器来管理，这里不需要关心。
+    // 暂时先加上锁吧，毕竟我们的读锁就一个原子操作，性能消耗几乎可以忽略不计。
     mc::mutex_box<data_t, mc::shared_mutex> m_data;
 };
 
@@ -82,6 +94,10 @@ void struct_metadata::impl::add_base_class_info(data_t& data, const base_class_t
     load_base_class_members(data, base_class);
 }
 
+void struct_metadata::impl::add_custom_info(data_t& data, const member_info_base* custom) {
+    data.custom_members.push_back(custom);
+}
+
 void struct_metadata::impl::load_base_class_members(data_t& data, const base_class_type_info* base_class) {
     const struct_metadata& base_class_metadata = base_class->get_metadata();
     std::uintptr_t         offset              = base_class->offset();
@@ -95,7 +111,7 @@ void struct_metadata::impl::load_base_class_members(data_t& data, const base_cla
         auto new_property = property->clone();
         new_property->base_offset += offset;
         add_property_info(data, static_cast<const property_type_info*>(new_property));
-        data.owner_members.push_back(new_property);
+        data.owner_members.push_back(new_property); // 保持所有权，析构时释放
         return visit_status::VS_CONTINUE;
     });
 
@@ -109,7 +125,7 @@ void struct_metadata::impl::load_base_class_members(data_t& data, const base_cla
         auto new_method = method->clone();
         new_method->base_offset += offset;
         add_method_info(data, static_cast<const method_type_info*>(new_method));
-        data.owner_members.push_back(new_method);
+        data.owner_members.push_back(new_method); // 保持所有权，析构时释放
         return visit_status::VS_CONTINUE;
     });
 
@@ -122,7 +138,7 @@ void struct_metadata::impl::load_base_class_members(data_t& data, const base_cla
         auto new_base_class = base_class->clone();
         new_base_class->base_offset += offset;
         data.name_to_base_class[base_class->name] = static_cast<const base_class_type_info*>(new_base_class);
-        data.owner_members.push_back(new_base_class);
+        data.owner_members.push_back(new_base_class); // 保持所有权，析构时释放
         return visit_status::VS_CONTINUE;
     });
 }
@@ -135,7 +151,8 @@ struct_metadata::struct_metadata(std::string_view name)
 struct_metadata::~struct_metadata() {
     m_impl->m_data.with_lock([&](auto& data) {
         for (auto* member : data.owner_members) {
-            // 成员信息的各个子类都满足编译期常量要求，可以直接释放内存不需要析构
+            // 成员信息的各个子类都满足编译期常量要求，可以直接释放内存不需要析构，
+            // 并且也做不到通过基类指针析构，因为 C++17 不允许编译期常量结构有虚析构函数
             operator delete(member);
         }
         data.owner_members.clear();
@@ -161,6 +178,12 @@ void struct_metadata::add_method_info(const method_type_info* method) {
 void struct_metadata::add_base_class_info(const base_class_type_info* base_class) {
     m_impl->m_data.with_lock([&](auto& data) {
         struct_metadata::impl::add_base_class_info(data, base_class);
+    });
+}
+
+void struct_metadata::add_custom_info(const member_info_base* custom) {
+    m_impl->m_data.with_lock([&](auto& data) {
+        struct_metadata::impl::add_custom_info(data, custom);
     });
 }
 
@@ -222,6 +245,45 @@ void struct_metadata::visit_base_class(const base_class_visitor_t& visitor) cons
             break;
         }
     }
+}
+
+void struct_metadata::visit_custom(const custom_visitor_t& visitor) const {
+    auto lock = m_impl->m_data.rlock();
+    for (auto& custom : lock->custom_members) {
+        auto unlock = lock.scoped_unlock();
+        if (visitor(custom) == visit_status::VS_BREAK) {
+            break;
+        }
+    }
+}
+
+std::vector<const property_type_info*> struct_metadata::get_properties() const {
+    auto lock = m_impl->m_data.rlock();
+    return lock->ordered_properties;
+}
+
+std::vector<const method_type_info*> struct_metadata::get_methods() const {
+    auto lock = m_impl->m_data.rlock();
+
+    std::vector<const method_type_info*> methods;
+    for (auto& [_, method] : lock->offset_to_methods) {
+        methods.push_back(method);
+    }
+    return methods;
+}
+
+std::vector<const base_class_type_info*> struct_metadata::get_base_classes() const {
+    auto                                     lock = m_impl->m_data.rlock();
+    std::vector<const base_class_type_info*> base_classes;
+    for (auto& [_, base_class] : lock->name_to_base_class) {
+        base_classes.push_back(base_class);
+    }
+    return base_classes;
+}
+
+std::vector<const member_info_base*> struct_metadata::get_custom_members() const {
+    auto lock = m_impl->m_data.rlock();
+    return lock->custom_members;
 }
 
 } // namespace mc::reflect::detail

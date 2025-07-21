@@ -42,7 +42,7 @@ enum class test_normal_color { NORMAL_RED,
 // 测试类
 class test_person {
 public:
-    MC_REFLECTABLE();
+    MC_REFLECTABLE("test_person");
 
     std::string m_name;
     int         m_age;
@@ -73,12 +73,12 @@ public:
 };
 } // namespace test_reflect
 
-MC_REFLECTABLE(test_reflect::test_color);
+MC_REFLECTABLE("test_reflect.test_color", test_reflect::test_color);
 
 // 重命名类名和枚举名
-MC_REFLECT_ENUM((test_reflect::test_color, "test_color"),
+MC_REFLECT_ENUM(test_reflect::test_color,
                 (BLUE)(RED)(GREEN))
-MC_REFLECT((test_reflect::test_person, "test_person"),
+MC_REFLECT(test_reflect::test_person,
            (m_name)(m_age)(m_is_male)(MC_COMPUTED_PROPERTY("id", get_id, set_id))(
                MC_COMPUTED_PROPERTY("readonly_id", get_id)))
 
@@ -185,7 +185,7 @@ TEST(ReflectTest, EnumReflection) {
     EXPECT_FALSE(mc::reflect::is_normal_enum<test_color>());
 
     // 获取类型名称
-    EXPECT_EQ(mc::reflect::reflector<test_color>::get_name(), "test_color");
+    EXPECT_EQ(mc::reflect::reflector<test_color>::get_name(), "test_reflect.test_color");
 
     // 枚举转变体
     test_color  color = test_color::GREEN;

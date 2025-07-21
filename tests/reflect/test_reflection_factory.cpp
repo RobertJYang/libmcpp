@@ -20,6 +20,8 @@ namespace test_reflection_factory {
 // 测试用的简单类
 class test_person {
 public:
+    MC_REFLECTABLE("FactoryPerson");
+
     test_person() = default;
     test_person(std::string name, int age) : m_name(std::move(name)), m_age(age) {
     }
@@ -56,6 +58,8 @@ enum class test_status {
 // 测试用的模块A中的类
 class module_a_person {
 public:
+    MC_REFLECTABLE("module.a.Person");
+
     std::string m_name;
     int         m_age;
 };
@@ -63,6 +67,8 @@ public:
 // 测试用的模块B中的类
 class module_b_person {
 public:
+    MC_REFLECTABLE("module.b.Person");
+
     std::string m_name;
     std::string m_address;
 };
@@ -75,6 +81,8 @@ struct devices_namespace {
 // 测试去重功能的类型
 class devices_sensor {
 public:
+    MC_REFLECTABLE("devices.sensor");
+
     std::string m_name;
     double      m_value;
 };
@@ -82,28 +90,30 @@ public:
 } // namespace test_reflection_factory
 
 // 注册反射信息
-MC_REFLECT((test_reflection_factory::test_person, "FactoryPerson"),
+MC_REFLECT(test_reflection_factory::test_person,
            ((m_name, "name"))                              // 名称 name
            (MC_COMPUTED_PROPERTY("age", get_age, set_age)) // 计算属性 age
            ((greet, "greet"))                              // 方法 greet
            ((greet_with, "greetWith"))                     // 方法 greetWith
 )
 
+MC_REFLECTABLE("test_reflection_factory.Status", test_reflection_factory::test_status)
+
 // 注册枚举类型
-MC_REFLECT_ENUM((test_reflection_factory::test_status, "Status"),
+MC_REFLECT_ENUM(test_reflection_factory::test_status,
                 (ACTIVE)(INACTIVE)(PENDING))
 
 // 注册模块A中的类
-MC_REFLECT((test_reflection_factory::module_a_person, "module.a.Person"),
+MC_REFLECT(test_reflection_factory::module_a_person,
            ((m_name, "name"))((m_age, "age")))
 
 // 注册模块B中的类
-MC_REFLECT((test_reflection_factory::module_b_person, "module.b.Person"),
+MC_REFLECT(test_reflection_factory::module_b_person,
            ((m_name, "name"))((m_address, "address")))
 
 // 注册用于测试去重的类，模拟使用工厂前缀的类型名
 MC_REFLECT_WITH_NAMESPACE(test_reflection_factory::devices_namespace,
-                          (test_reflection_factory::devices_sensor, "devices.sensor"),
+                          test_reflection_factory::devices_sensor,
                           ((m_name, "name"))((m_value, "value")))
 
 namespace test_reflection_factory {
@@ -148,10 +158,10 @@ protected:
 
 TEST_F(reflect_factory_test, TypeRegistration) {
     // 测试类型ID分配
-    EXPECT_NE(mc::reflect::reflector<test_person>::type_id, -1);
+    EXPECT_NE(mc::reflect::reflector<test_person>::get_type_id(), -1);
 
     // 测试类型名获取
-    auto type_name = mc::reflect::reflector<test_person>::name();
+    auto type_name = mc::reflect::reflector<test_person>::get_name();
     EXPECT_EQ(type_name, "FactoryPerson");
 }
 
@@ -161,7 +171,7 @@ TEST_F(reflect_factory_test, FactoryBasicOperations) {
     // 测试类型ID查询
     auto type_id = factory.get_type_id("FactoryPerson");
     EXPECT_NE(type_id, -1);
-    EXPECT_EQ(type_id, mc::reflect::reflector<test_person>::type_id);
+    EXPECT_EQ(type_id, mc::reflect::reflector<test_person>::get_type_id());
 
     // 测试获取已注册类型
     auto types = factory.get_registered_types();
@@ -179,7 +189,7 @@ TEST_F(reflect_factory_test, ObjectCreation) {
     // 通过类型名创建对象
     auto obj1 = mc::reflect::create_object("FactoryPerson");
     ASSERT_NE(obj1, nullptr);
-    EXPECT_EQ(obj1->get_type_id(), mc::reflect::reflector<test_person>::type_id);
+    EXPECT_EQ(obj1->get_type_id(), mc::reflect::reflector<test_person>::get_type_id());
 
     // 通过类型ID创建对象
     auto type_id = mc::reflect::get_type_id("FactoryPerson");
@@ -307,9 +317,9 @@ TEST_F(reflect_factory_test, EnumTypeRegistration) {
     auto& factory = mc::reflect::reflection_factory::global();
 
     // 测试枚举类型ID查询
-    auto type_id = factory.get_type_id("Status");
+    auto type_id = factory.get_type_id("test_reflection_factory.Status");
     EXPECT_NE(type_id, -1);
-    EXPECT_EQ(type_id, mc::reflect::reflector<test_status>::type_id);
+    EXPECT_EQ(type_id, mc::reflect::reflector<test_status>::get_type_id());
 
     // 测试获取枚举元数据
     auto metadata = factory.get_metadata(type_id);

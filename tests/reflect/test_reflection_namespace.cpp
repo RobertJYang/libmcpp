@@ -38,12 +38,16 @@ struct mc_duplicate_devices_namespace {
 // 测试类型
 class device_sensor {
 public:
+    MC_REFLECTABLE("mc.devices.Sensor");
+
     std::string m_name;
     double      m_value;
 };
 
 class temperature_sensor {
 public:
+    MC_REFLECTABLE("sensors::TemperatureSensor");
+
     std::string m_name;
     double      m_temperature;
     std::string m_unit;
@@ -51,6 +55,8 @@ public:
 
 class driver_base {
 public:
+    MC_REFLECTABLE("mc.drivers.DriverBase");
+
     std::string m_name;
     int         m_version;
 };
@@ -65,45 +71,49 @@ enum class sensor_status {
 // 没有指定命名空间的类型（应该注册失败）
 class invalid_type_for_devices {
 public:
+    MC_REFLECTABLE("mc.devices.InvalidType");
+
     std::string m_name;
 };
 
 // 错误命名空间前缀的类型
 class wrong_prefix_type {
 public:
+    MC_REFLECTABLE("wrong.prefix.Type");
+
     std::string m_name;
 };
 
 } // namespace test_reflection_namespace
 
+MC_REFLECTABLE("mc.devices.SensorStatus", test_reflection_namespace::sensor_status)
+
 // 正确的命名空间注册
 MC_REFLECT_WITH_NAMESPACE(
     test_reflection_namespace::mc_devices_namespace,
-    (test_reflection_namespace::device_sensor, "mc.devices.Sensor"),
+    test_reflection_namespace::device_sensor,
     ((m_name, "name"))((m_value, "value")))
 
 MC_REFLECT_WITH_NAMESPACE(
     test_reflection_namespace::mc_devices_sensors_namespace,
-    (test_reflection_namespace::temperature_sensor, "sensors::TemperatureSensor"),
+    test_reflection_namespace::temperature_sensor,
     ((m_name, "name"))((m_temperature, "temperature"))((m_unit, "unit")))
 
 MC_REFLECT_WITH_NAMESPACE(
     test_reflection_namespace::mc_drivers_namespace,
-    (test_reflection_namespace::driver_base, "mc.drivers.DriverBase"),
+    test_reflection_namespace::driver_base,
     ((m_name, "name"))((m_version, "version")))
 
 // 枚举注册到 mc.devices 命名空间下
 MC_REFLECT_ENUM_WITH_NAMESPACE(
     test_reflection_namespace::mc_devices_namespace,
-    (test_reflection_namespace::sensor_status, "mc.devices.SensorStatus"),
+    test_reflection_namespace::sensor_status,
     (ACTIVE)(INACTIVE)(ERROR))
 
 // 错误的命名空间注册（这些应该导致注册失败）
-MC_REFLECT((test_reflection_namespace::invalid_type_for_devices, "mc.devices.InvalidType"),
-           ((m_name, "name")))
+MC_REFLECT(test_reflection_namespace::invalid_type_for_devices, ((m_name, "name")))
 
-MC_REFLECT((test_reflection_namespace::wrong_prefix_type, "wrong.prefix.Type"),
-           ((m_name, "name")))
+MC_REFLECT(test_reflection_namespace::wrong_prefix_type, ((m_name, "name")))
 
 namespace test_reflection_namespace {
 
@@ -338,7 +348,7 @@ TEST_F(reflection_factory_advanced_test, EnumMetadataAutoUnregister) {
 
     // 销毁枚举元数据单例
     using meta_singleton_type = mc::singleton<
-        mc::reflect::reflection_enum<sensor_status>::reflection_ptr>;
+        mc::reflect::reflection<sensor_status>::reflection_ptr>;
     auto* meta_ptr = meta_singleton_type::try_get();
     EXPECT_NE(meta_ptr, nullptr);
     mc::reflect::reflector<sensor_status>::unregister_type();

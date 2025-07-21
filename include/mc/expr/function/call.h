@@ -21,7 +21,7 @@
 namespace mc::expr {
 
 struct func_call {
-    MC_REFLECTABLE();
+    MC_REFLECTABLE("mc.expr.function.call");
 
     std::string      func;
     mc::mutable_dict params;
@@ -39,7 +39,7 @@ MC_API bool is_relate_property(const mc::variant& value);
 
 class MC_API func {
 public:
-    MC_REFLECTABLE();
+    MC_REFLECTABLE("mc.expr.function.func");
 
     MC_API func() = default;
 

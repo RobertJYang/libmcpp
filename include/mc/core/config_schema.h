@@ -26,6 +26,8 @@ namespace mc::config {
  * @brief 元数据结构
  */
 struct metadata {
+    MC_REFLECTABLE("mc.config.metadata")
+
     std::string         name;        // 名称
     std::optional<dict> labels;      // 标签
     std::optional<dict> annotations; // 注解
@@ -35,6 +37,8 @@ struct metadata {
  * @brief 资源基类
  */
 struct resource_base {
+    MC_REFLECTABLE("mc.config.resource_base")
+
     std::string api_version;
     std::string kind; // 资源类型
     metadata    meta; // 元数据
@@ -44,6 +48,8 @@ struct resource_base {
  * @brief 应用程序配置
  */
 struct app_config : resource_base {
+    MC_REFLECTABLE("mc.config.app_config")
+
     std::string              plugin_dir;   // 插件目录
     std::vector<std::string> plugins;      // 插件列表
     std::size_t              threads;      // 线程数量
@@ -63,6 +69,8 @@ enum class supervisor_strategy {
  * @brief 监督器配置
  */
 struct supervisor_config : resource_base {
+    MC_REFLECTABLE("mc.config.supervisor_config")
+
     supervisor_strategy      strategy;     // 监督策略
     int                      max_restarts; // 最大重启次数
     std::vector<std::string> services;     // 服务列表
@@ -72,6 +80,8 @@ struct supervisor_config : resource_base {
  * @brief 服务配置
  */
 struct service_config : resource_base {
+    MC_REFLECTABLE("mc.config.service_config")
+
     std::string              type;         // 服务类型
     std::vector<std::string> dependencies; // 依赖的服务
     dict                     properties;   // 服务属性
@@ -81,6 +91,8 @@ struct service_config : resource_base {
  * @brief 插件配置
  */
 struct plugin_config : resource_base {
+    MC_REFLECTABLE("mc.config.plugin_config")
+
     std::string version;    // 插件版本
     dict        properties; // 插件属性
 };
@@ -129,12 +141,6 @@ struct meta_config {
 
 } // namespace mc::config
 
-MC_REFLECTABLE(mc::config::metadata)
-MC_REFLECTABLE(mc::config::resource_base)
-MC_REFLECTABLE(mc::config::app_config)
-MC_REFLECTABLE(mc::config::supervisor_config)
-MC_REFLECTABLE(mc::config::service_config)
-MC_REFLECTABLE(mc::config::plugin_config)
-MC_REFLECTABLE(mc::config::supervisor_strategy)
+MC_REFLECTABLE("mc.config.supervisor_strategy", mc::config::supervisor_strategy)
 
 #endif // MC_CONFIG_SCHEMA_H

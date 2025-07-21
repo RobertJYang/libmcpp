@@ -65,13 +65,13 @@
     BOOST_PP_IIF(MC_REFLECT_IS_TUPLE(MEMBER), MC_REFLECT_MEMBER_WITH_NAME, \
                  MC_REFLECT_MEMBER_WITHOUT_NAME)(r, TYPE, MEMBER)
 
-// 简单基类，没有别名
+// 简单基类，使用基类自身的反射名称
 #define MC_REFLECT_BASE_CLASS_WITHOUT_NAME(r, TYPE, BASE) \
     BOOST_PP_IIF(                                         \
         BOOST_PP_IS_EMPTY(BASE), std::tuple{},            \
-        (mc::reflect::detail::create_base_class_info<TYPE, BASE>(#BASE))),
+        (mc::reflect::detail::create_base_class_info<TYPE, BASE>())),
 
-// 带别名的基类
+// 带别名的基类，允许在继承时重新指定该基类在这里的反射名称
 #define MC_REFLECT_BASE_CLSS_WITH_NAME(r, TYPE, BASE)                                \
     mc::reflect::detail::create_base_class_info<TYPE, BOOST_PP_TUPLE_ELEM(0, BASE)>( \
         BOOST_PP_TUPLE_ELEM(1, BASE)),
@@ -100,7 +100,7 @@ constexpr auto create_member_info(R (*static_func)(Args...), std::string_view na
 }
 
 template <typename T, typename BaseT>
-constexpr auto create_base_class_info(std::string_view base_class_name) {
+constexpr auto create_base_class_info(std::string_view base_class_name = {}) {
     return base_class_info_creator<T, BaseT>::create(base_class_name);
 }
 
@@ -213,16 +213,6 @@ void custom_to_variant(const T& obj, mc::mutable_dict& dict) {
 } // namespace detail
 
 /**
- * 获取类型名称
- * @tparam T 要获取名称的类型
- * @return std::string_view 类型名称
- */
-template <typename T>
-std::string_view get_type_name() {
-    return reflector<T>::get_name();
-}
-
-/**
  * 将对象转换为变体
  * @tparam T 对象类型
  * @param obj 对象实例
@@ -270,14 +260,14 @@ void from_variant(const variant& var, T& obj) {
         // 支持从{key: value}字典转换为对象
         reflector<T>::from_variant(var.as_dict(), obj);
     } else if (var.is_array()) {
-        // 支持从[value1, value2, ...]数组转换为对象
+        // 支持从[value1, value2, ...]数组转换为对象,每个成员的顺序必须和反射时一致
         std::size_t index = 0;
-        // mc::traits::tuple_for_each(reflector<T>::get_properties(), [&](auto& v) {
-        //     if (index < var.size()) {
-        //         v.set_value(obj, var[index]);
-        //     }
-        //     ++index;
-        // });
+        reflector<T>::visit([&](std::string_view, auto, auto setter) {
+            if (index < var.size()) {
+                setter(obj, var[index]);
+            }
+            ++index;
+        });
     } else {
         throw_variant_cast(get_type_name<T>().data(), var.get_type_name());
     }
@@ -330,10 +320,7 @@ struct signature_helper<T, std::enable_if_t<mc::reflect::is_reflectable<T>()>> {
             sig += type_to_char(type_code::string_type);
         } else {
             sig += type_to_char(type_code::struct_start);
-            // mc::traits::tuple_for_each(mc::reflect::reflector<T>::get_properties(), [&](auto& p) {
-            //     using member_type = typename std::decay_t<decltype(p)>::member_type;
-            //     signature_helper<member_type>::apply(sig);
-            // });
+            mc::reflect::reflector<T>::get_signature(sig);
             sig += type_to_char(type_code::struct_end);
         }
     }
@@ -361,8 +348,6 @@ struct MC_API reflector<
 
     static std::string_view get_name();
     static type_id_type     get_type_id();
-    static size_t           get_member_count();
-    static void             visit_member(std::function<void(member_t)>);
 
     static type_id_type register_type();
     static void         unregister_type();
@@ -384,8 +369,9 @@ struct MC_API reflector<
     static void to_variant(const T& obj, mc::mutable_dict& dict);
     static void from_variant(const mc::dict& d, T& obj);
 
-    static const detail::struct_metadata& get_metadata();
-    static reflection<T>&                 get_reflection();
+    static const struct_metadata& get_metadata();
+    static reflection<T>&         get_reflection();
+    static void                   get_signature(std::string& sig);
 };
 
 template <typename T>
@@ -393,7 +379,6 @@ struct MC_API reflector<
     T, std::enable_if_t<mc::reflect::is_reflectable<T>() && mc::reflect::is_enum<T>(), void>> {
     static std::string_view get_name();
     static type_id_type     get_type_id();
-    static size_t           get_member_count();
 
     static type_id_type register_type();
     static void         unregister_type();
@@ -403,68 +388,58 @@ struct MC_API reflector<
 
     static mc::variant get_value(const T& obj);
 
-    static const detail::enum_metadata& get_metadata();
-    static reflection<T>&               get_reflection();
+    static const enum_metadata& get_metadata();
+    static reflection<T>&       get_reflection();
 };
 
 template <typename T, typename Members>
 struct reflector_data {
-    using members_type = Members;
-
-    static type_id_type     type_id;
-    static std::string_view name;
-    static Members*         members;
 };
 
 } // namespace mc::reflect
 
-struct member_initial_filter {
-    template <typename ElementType>
-    static constexpr bool check = !std::is_void_v<ElementType>;
-};
-#define MC_REFLECT_MEMBERS(TYPE, BASES, MEMBERS)                    \
-    mc::reflect::detail::initial_members<TYPE>(std::tuple_cat(      \
-        BOOST_PP_SEQ_FOR_EACH(MC_REFLECT_BASE_ELEMENT, TYPE, BASES) \
-            BOOST_PP_SEQ_FOR_EACH(MC_REFLECT_ELEMENT, TYPE, MEMBERS) std::tuple<>()))
+#define MC_REFLECT_STATIC_METADATA(TYPE, BASES, MEMBERS)                                           \
+    template <>                                                                                    \
+    struct static_metadata<TYPE> {                                                                 \
+        static type_id_type   type_id;                                                             \
+        static constexpr auto members = mc::reflect::detail::initial_members<TYPE>(std::tuple_cat( \
+            BOOST_PP_SEQ_FOR_EACH(MC_REFLECT_BASE_ELEMENT, TYPE, BASES)                            \
+                BOOST_PP_SEQ_FOR_EACH(MC_REFLECT_ELEMENT, TYPE, MEMBERS) std::tuple<>()));         \
+    };
+
+#define MC_REFLECT_STATIC_MEMBERS(TYPE) \
+    mc::reflect::static_metadata<TYPE>::members
 
 /**
  * @brief 定义类的反射信息
  */
-#define MC_REFLECT_IMPL(TYPE, NAME, BASES, MEMBERS)                                                    \
+#define MC_REFLECT_IMPL(TYPE, BASES, MEMBERS)                                                          \
     namespace mc::reflect {                                                                            \
     template struct MC_API mc::reflect::reflector<TYPE>;                                               \
     static_assert(mc::reflect::is_reflectable<TYPE>(), BOOST_PP_STRINGIZE(TYPE)" is not reflectable"); \
-    static constexpr auto BOOST_PP_CAT(members, __LINE__) = MC_REFLECT_MEMBERS(TYPE, BASES, MEMBERS);  \
-    static_assert(mc::reflect::detail::validate_members<TYPE>(BOOST_PP_CAT(members, __LINE__)),        \
+    MC_REFLECT_STATIC_METADATA(TYPE, BASES, MEMBERS)                                                   \
+    static_assert(mc::reflect::detail::validate_members<TYPE>(MC_REFLECT_STATIC_MEMBERS(TYPE)),        \
                   "members validate failed, please check members type");                               \
-    using BOOST_PP_CAT(data, __LINE__) =                                                               \
-        mc::reflect::reflector_data<TYPE, decltype(BOOST_PP_CAT(members, __LINE__))>;                  \
-    template <>                                                                                        \
-    type_id_type BOOST_PP_CAT(data, __LINE__)::type_id =                                               \
+    type_id_type mc::reflect::static_metadata<TYPE>::type_id =                                         \
         get_reflect_factory<TYPE>().template register_type<TYPE>();                                    \
     template <>                                                                                        \
-    std::string_view BOOST_PP_CAT(data, __LINE__)::name = NAME;                                        \
-    template <>                                                                                        \
-    typename BOOST_PP_CAT(data, __LINE__)::members_type* BOOST_PP_CAT(data, __LINE__)::members =       \
-        &BOOST_PP_CAT(members, __LINE__);                                                              \
-    template <>                                                                                        \
     std::string_view reflector<TYPE>::get_name() {                                                     \
-        return BOOST_PP_CAT(data, __LINE__)::name;                                                     \
+        return get_type_name<TYPE>();                                                                  \
     }                                                                                                  \
     template <>                                                                                        \
     type_id_type reflector<TYPE>::get_type_id() {                                                      \
-        return BOOST_PP_CAT(data, __LINE__)::type_id;                                                  \
+        return mc::reflect::static_metadata<TYPE>::type_id;                                            \
     }                                                                                                  \
     template <>                                                                                        \
     type_id_type reflector<TYPE>::register_type() {                                                    \
         return get_reflect_factory<TYPE>().template register_type<TYPE>(                               \
-            BOOST_PP_CAT(data, __LINE__)::type_id);                                                    \
+            mc::reflect::static_metadata<TYPE>::type_id);                                              \
     }                                                                                                  \
     template <>                                                                                        \
     void reflector<TYPE>::unregister_type() {                                                          \
         auto factory = try_get_reflect_factory<TYPE>();                                                \
         if (factory) {                                                                                 \
-            factory->unregister_type_impl(BOOST_PP_CAT(data, __LINE__)::name);                         \
+            factory->unregister_type_impl(get_name());                                                 \
         }                                                                                              \
         using reflection_ptr = reflection<TYPE>::reflection_ptr;                                       \
         if (mc::singleton<reflection_ptr>::try_get()) {                                                \
@@ -472,27 +447,17 @@ struct member_initial_filter {
         }                                                                                              \
     }                                                                                                  \
     template <>                                                                                        \
-    const mc::reflect::detail::struct_metadata& reflector<TYPE>::get_metadata() {                      \
-        static mc::reflect::detail::struct_metadata metadata(                                          \
-            NAME, BOOST_PP_CAT(members, __LINE__), static_cast<TYPE*>(nullptr));                       \
+    const mc::reflect::struct_metadata& reflector<TYPE>::get_metadata() {                              \
+        static mc::reflect::struct_metadata metadata(                                                  \
+            get_name(), MC_REFLECT_STATIC_MEMBERS(TYPE), static_cast<TYPE*>(nullptr));                 \
         return metadata;                                                                               \
-    }                                                                                                  \
-    template <>                                                                                        \
-    size_t reflector<TYPE>::get_member_count() {                                                       \
-        return std::tuple_size_v<decltype(BOOST_PP_CAT(members, __LINE__))>;                           \
-    }                                                                                                  \
-    template <>                                                                                        \
-    void reflector<TYPE>::visit_member(std::function<void(member_t)> visitor) {                        \
-        mc::traits::tuple_for_each(BOOST_PP_CAT(members, __LINE__), [&](auto& member) {                \
-            visitor(member_t{&member, sizeof(member)});                                                \
-        });                                                                                            \
     }                                                                                                  \
     template <>                                                                                        \
     void reflector<TYPE>::visit(const visitor_t& visitor) {                                            \
         get_metadata().visit_property([&](const property_type_info* property) {                        \
             const auto* p = static_cast<const property_info_base<TYPE>*>(property);                    \
             visitor(property->name, p->getter(), p->setter());                                         \
-            return detail::visit_status::VS_CONTINUE;                                                  \
+            return visit_status::VS_CONTINUE;                                                          \
         });                                                                                            \
     }                                                                                                  \
     template <>                                                                                        \
@@ -523,23 +488,23 @@ struct member_initial_filter {
     mc::reflect::reflection<TYPE>& reflector<TYPE>::get_reflection() {                                 \
         return mc::reflect::reflection<TYPE>::instance();                                              \
     }                                                                                                  \
+    template <>                                                                                        \
+    void reflector<TYPE>::get_signature(std::string& sig) {                                            \
+        get_metadata().visit_property([&](const property_type_info* property) {                        \
+            sig += property->get_signature();                                                          \
+            return visit_status::VS_CONTINUE;                                                          \
+        });                                                                                            \
+    }                                                                                                  \
     }
 
-#define MC_REFLECT_IMPL_WITH_NAME(r, TYPE, BASES, MEMBERS) \
-    MC_REFLECT_IMPL(BOOST_PP_TUPLE_ELEM(0, TYPE), BOOST_PP_TUPLE_ELEM(1, TYPE), BASES, MEMBERS)
-
-#define MC_REFLECT_IMPL_WITHOUT_NAME(r, TYPE, BASES, MEMBERS) \
-    MC_REFLECT_IMPL(TYPE, BOOST_PP_STRINGIZE(TYPE), BASES, MEMBERS)
-
-#define MC_REFLECT_IMPL_DISPATCH(TYPE, ...)                            \
-    BOOST_PP_IIF(MC_REFLECT_IS_TUPLE(TYPE), MC_REFLECT_IMPL_WITH_NAME, \
-                 MC_REFLECT_IMPL_WITHOUT_NAME)(r, TYPE, __VA_ARGS__)
+#define MC_REFLECT_IMPL_WITH_BASES(TYPE, BASES, MEMBERS) \
+    MC_REFLECT_IMPL(TYPE, BASES, MEMBERS)
 
 // 一个参数版本 - 只有类成员
-#define MC_REFLECT_1(TYPE, MEMBERS) MC_REFLECT_IMPL_DISPATCH(TYPE, BOOST_PP_EMPTY(), MEMBERS)
+#define MC_REFLECT_1(TYPE, MEMBERS) MC_REFLECT_IMPL_WITH_BASES(TYPE, BOOST_PP_EMPTY(), MEMBERS)
 
 // 二个参数版本 - 有基类和类成员
-#define MC_REFLECT_2(TYPE, BASES, MEMBERS) MC_REFLECT_IMPL_DISPATCH(TYPE, BASES, MEMBERS)
+#define MC_REFLECT_2(TYPE, BASES, MEMBERS) MC_REFLECT_IMPL_WITH_BASES(TYPE, BASES, MEMBERS)
 
 #define MC_REFLECT_DISPATCH(TYPE, ...) \
     BOOST_PP_CAT(MC_REFLECT_, MC_REFLECT_ARG_COUNT(__VA_ARGS__))(TYPE, __VA_ARGS__)
@@ -568,44 +533,44 @@ struct member_initial_filter {
     BOOST_PP_IIF(MC_REFLECT_IS_TUPLE(VALUE), MC_REFLECT_ENUM_MEMBER_WITH_NAME, \
                  MC_REFLECT_ENUM_MEMBER_WITHOUT_NAME)(r, ENUM_TYPE, VALUE)
 
+#define MC_REFLECT_ENUM_STATIC_METADATA(TYPE, VALUES)                                 \
+    template <>                                                                       \
+    struct static_metadata<TYPE> {                                                    \
+        static type_id_type     type_id;                                              \
+        static std::string_view name;                                                 \
+        static constexpr auto   members = detail::enum_tuple_to_array(std::tuple_cat( \
+            BOOST_PP_SEQ_FOR_EACH(MC_REFLECT_ENUM_ELEMENT, TYPE, VALUES)            \
+                std::tuple<>{}));                                                   \
+    }
+
 /**
  * @brief 实现枚举的反射信息
  */
-#define MC_REFLECT_ENUM_IMPL(TYPE, NAME, VALUES)                                                       \
+#define MC_REFLECT_ENUM_IMPL(TYPE, VALUES)                                                             \
     namespace mc::reflect {                                                                            \
     template struct MC_API mc::reflect::reflector<TYPE>;                                               \
     static_assert(mc::reflect::is_reflectable<TYPE>(), BOOST_PP_STRINGIZE(TYPE)" is not reflectable"); \
-    constexpr auto BOOST_PP_CAT(members, __LINE__) = detail::enum_tuple_to_array(std::tuple_cat(       \
-        BOOST_PP_SEQ_FOR_EACH(MC_REFLECT_ENUM_ELEMENT, TYPE, VALUES)                                   \
-            std::tuple<>{}));                                                                          \
-    using BOOST_PP_CAT(data, __LINE__) =                                                               \
-        mc::reflect::reflector_data<TYPE, decltype(BOOST_PP_CAT(members, __LINE__))>;                  \
-    template <>                                                                                        \
-    type_id_type BOOST_PP_CAT(data, __LINE__)::type_id =                                               \
+    MC_REFLECT_ENUM_STATIC_METADATA(TYPE, VALUES);                                                     \
+    type_id_type mc::reflect::static_metadata<TYPE>::type_id =                                         \
         get_reflect_factory<TYPE>().template register_type<TYPE>();                                    \
     template <>                                                                                        \
-    std::string_view BOOST_PP_CAT(data, __LINE__)::name = NAME;                                        \
-    template <>                                                                                        \
-    typename BOOST_PP_CAT(data, __LINE__)::members_type* BOOST_PP_CAT(data, __LINE__)::members =       \
-        &BOOST_PP_CAT(members, __LINE__);                                                              \
-    template <>                                                                                        \
     std::string_view reflector<TYPE>::get_name() {                                                     \
-        return BOOST_PP_CAT(data, __LINE__)::name;                                                     \
+        return get_type_name<TYPE>();                                                                  \
     }                                                                                                  \
     template <>                                                                                        \
     type_id_type reflector<TYPE>::get_type_id() {                                                      \
-        return BOOST_PP_CAT(data, __LINE__)::type_id;                                                  \
+        return mc::reflect::static_metadata<TYPE>::type_id;                                            \
     }                                                                                                  \
     template <>                                                                                        \
     type_id_type reflector<TYPE>::register_type() {                                                    \
         return get_reflect_factory<TYPE>().template register_type<TYPE>(                               \
-            BOOST_PP_CAT(data, __LINE__)::type_id);                                                    \
+            mc::reflect::static_metadata<TYPE>::type_id);                                              \
     }                                                                                                  \
     template <>                                                                                        \
     void reflector<TYPE>::unregister_type() {                                                          \
         auto factory = try_get_reflect_factory<TYPE>();                                                \
         if (factory) {                                                                                 \
-            factory->unregister_type_impl(BOOST_PP_CAT(data, __LINE__)::name);                         \
+            factory->unregister_type_impl(get_name());                                                 \
         }                                                                                              \
         using reflection_ptr = reflection<TYPE>::reflection_ptr;                                       \
         if (mc::singleton<reflection_ptr>::try_get()) {                                                \
@@ -613,20 +578,16 @@ struct member_initial_filter {
         }                                                                                              \
     }                                                                                                  \
     template <>                                                                                        \
-    size_t reflector<TYPE>::get_member_count() {                                                       \
-        return std::tuple_size_v<decltype(BOOST_PP_CAT(members, __LINE__))>;                           \
-    }                                                                                                  \
-    template <>                                                                                        \
-    const mc::reflect::detail::enum_metadata& reflector<TYPE>::get_metadata() {                        \
-        static mc::reflect::detail::enum_metadata metadata(                                            \
-            NAME, mc::reflect::detail::enum_values{BOOST_PP_CAT(members, __LINE__)});                  \
+    const mc::reflect::enum_metadata& reflector<TYPE>::get_metadata() {                                \
+        static mc::reflect::enum_metadata metadata(                                                    \
+            get_name(), mc::reflect::enum_values{MC_REFLECT_STATIC_MEMBERS(TYPE)});                    \
         return metadata;                                                                               \
     }                                                                                                  \
     template <>                                                                                        \
     void reflector<TYPE>::to_variant(const TYPE& e, mc::variant& var) {                                \
         auto value = get_metadata().try_get_name(static_cast<enum_value_type>(e));                     \
         if (!value) {                                                                                  \
-            mc::reflect::throw_bad_enum_cast(static_cast<int64_t>(e), NAME);                           \
+            mc::reflect::throw_bad_enum_cast(static_cast<int64_t>(e), #TYPE);                          \
         }                                                                                              \
         var = *value;                                                                                  \
     }                                                                                                  \
@@ -635,7 +596,7 @@ struct member_initial_filter {
         auto value = get_metadata().try_get_value_from_variant(var);                                   \
         if (!value) {                                                                                  \
             auto va = var.as_string();                                                                 \
-            mc::reflect::throw_bad_enum_cast(va.c_str(), NAME);                                        \
+            mc::reflect::throw_bad_enum_cast(va.c_str(), #TYPE);                                       \
         }                                                                                              \
         e = static_cast<TYPE>(*value);                                                                 \
     }                                                                                                  \
@@ -645,18 +606,8 @@ struct member_initial_filter {
     }                                                                                                  \
     }
 
-#define MC_REFLECT_ENUM_WITH_NAME(r, TYPE, VALUES) \
-    MC_REFLECT_ENUM_IMPL(BOOST_PP_TUPLE_ELEM(0, TYPE), BOOST_PP_TUPLE_ELEM(1, TYPE), VALUES)
-
-#define MC_REFLECT_ENUM_WITHOUT_NAME(r, TYPE, VALUES) \
-    MC_REFLECT_ENUM_IMPL(TYPE, BOOST_PP_STRINGIZE(TYPE), VALUES)
-
-#define MC_REFLECT_ENUM_DISPATCH(TYPE, ...)                            \
-    BOOST_PP_IIF(MC_REFLECT_IS_TUPLE(TYPE), MC_REFLECT_ENUM_WITH_NAME, \
-                 MC_REFLECT_ENUM_WITHOUT_NAME)(r, TYPE, __VA_ARGS__)
-
 #define MC_REFLECT_ENUM(TYPE, VALUES) \
-    MC_REFLECT_ENUM_DISPATCH(TYPE, VALUES)
+    MC_REFLECT_ENUM_IMPL(TYPE, VALUES)
 
 #define MC_DEFINE_NAMESPACE_1(TYPE, NAMESPACE) \
     namespace mc::reflect::detail {            \

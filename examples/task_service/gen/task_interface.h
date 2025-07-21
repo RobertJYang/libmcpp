@@ -47,7 +47,7 @@ struct task_interface : public mc::engine::interface<task_interface> {
 
 } // namespace test
 
-MC_REFLECTABLE(test::task_state)
-MC_REFLECTABLE(test::task_interface)
+MC_REFLECTABLE("test.task_state", test::task_state)
+MC_REFLECTABLE("test.task_interface", test::task_interface)
 
 #endif // GEN_TASK_INTERFACE_H

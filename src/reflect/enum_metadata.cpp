@@ -14,7 +14,7 @@
 #include <mc/sync/mutex_box.h>
 #include <mc/sync/shared_mutex.h>
 
-namespace mc::reflect::detail {
+namespace mc::reflect {
 
 static bool is_continuous_enum(const enum_member_info* values, size_t count) {
     if (count == 0) {
@@ -244,4 +244,4 @@ enum_values enum_metadata::get_values() const {
     return enum_values{m_impl->values, m_impl->count};
 }
 
-} // namespace mc::reflect::detail
+} // namespace mc::reflect
