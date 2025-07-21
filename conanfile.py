@@ -19,13 +19,8 @@ class AppConan(ConanBase):
             d.cpp_link_args.append("-lboost_program_options")
         else:
             self.settings.build_type = "Debug"
-            # 为 Debug 类型添加 -O2 优化参数
-            d.cpp_args.append("-O2")
-            # 添加内存优化参数，减少编译时的内存使用
-            d.cpp_args.append("-fno-var-tracking-assignments")
-            d.cpp_args.append("-fno-var-tracking")
-            d.c_args.append("-fno-var-tracking-assignments")
-            d.c_args.append("-fno-var-tracking")
+            # 为 Debug 类型添加 -Os 优化参数
+            d.cpp_args.append("-Os")
 
         d.cpp_link_args.append("-lstdc++fs")
         d.cpp_args.append("-Wno-unused-variable")
