@@ -262,6 +262,12 @@ void service_impl::unregister_object(std::string_view path) {
     }
 
     auto& obj = const_cast<abstract_object&>(*it);
+    for (auto& child : obj.get_children()) {
+        auto engine_child = mc::dynamic_pointer_cast<mc::engine::abstract_object>(child);
+        if (engine_child) {
+            unregister_object(engine_child->get_object_path());
+        }
+    }
     m_object_table->remove(mc::shared_ptr<abstract_object>(&obj));
 
     obj.set_owner(nullptr);
