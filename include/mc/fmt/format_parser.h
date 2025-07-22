@@ -243,6 +243,10 @@ constexpr bool parse_index_arg(Context& ctx, const char*& ptr, const char* end, 
     return true;
 }
 
+constexpr bool is_escaped(const char* ptr, const char* end, char c) {
+    return ptr + 1 < end && ptr[1] == c;
+}
+
 template <typename Context>
 constexpr void parse_format_string(string_view fmt_str, Context& ctx) {
     const char* ptr       = fmt_str.data();
@@ -260,22 +264,30 @@ constexpr void parse_format_string(string_view fmt_str, Context& ctx) {
 
         // 处理 '}' 转义
         if (c == '}') {
-            if (ptr + 1 < end && ptr[1] == '}') {
+            if (is_escaped(ptr, end, '}')) {
                 ctx.append('}');
                 ptr += 2;
                 continue;
             }
             ctx.invalid_single_brace_arg();
+            return;
         }
 
         // 处理 '{' 转义
-        if (c == '{' && ptr + 1 < end && ptr[1] == '{') {
+        if (c == '{' && is_escaped(ptr, end, '{')) {
             ctx.append('{');
             ptr += 2;
             continue;
         }
 
         if (c == '$') {
+            // 如果 $ 后面不是 {，则按普通字符处理
+            if (!is_escaped(ptr, end, '{')) {
+                ctx.append('$');
+                ptr += 1;
+                continue;
+            }
+
             if (!parse_named_arg(ctx, ptr, end, arg_index)) {
                 return;
             }

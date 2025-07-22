@@ -124,10 +124,18 @@ TEST_F(named_args_test, test_char_type) {
     EXPECT_EQ(result, "Character: A");
 }
 
-// 测试转义的大括号
+// 测试转义
 TEST_F(named_args_test, test_escaped_braces) {
     auto result = sformat("{{name}} is ${name}", ("name", "literal"));
     EXPECT_EQ(result, "{name} is literal");
+
+    // $ 后面不是 { 则按普通字符处理
+    auto result2 = sformat("$name {{name}} is ${name}", ("name", "literal"));
+    EXPECT_EQ(result2, "$name {name} is literal");
+
+    // ${{name}} 中 ${} 优先级更高，中间的 {name} 会被解析为命名参数，但是 { 和 } 是非法名称，编译检查会失败
+    bool not_ok = MC_FORMAT_COMPILE_CHECK("${{name}} is ${name}", ("name", "literal"));
+    EXPECT_FALSE(not_ok);
 }
 
 TEST_F(named_args_test, test_nocopyable) {
