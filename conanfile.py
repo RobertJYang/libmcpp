@@ -76,6 +76,16 @@ class AppConan(ConanBase):
         # 实现test/boost/lib相关库的拷贝、安装到conan目录，转测前临时措施，待2025.7.30 bmc_sdk发布正式包后删除
         import shutil
         import os
+        # 打印下当前目录、当前目录下文件
+        print(f"[DEBUG] 当前工作目录: {os.getcwd()}")
+        print(f"[DEBUG] __file__ 路径: {__file__}")
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        print(f"[DEBUG] conanfile.py 所在目录: {current_dir}")
+        print(f"[DEBUG] {current_dir} 下文件/文件夹: {os.listdir(current_dir)}")
+        current_dir2 = os.path.dirname((os.path.join(os.path.dirname(__file__), "test/boost/lib")))
+        print(f"[DEBUG] test/boost/lib 所在目录: {current_dir2}")
+        print(f"[DEBUG] {current_dir2} 下文件/文件夹: {os.listdir(current_dir2)}")
+        
         src_lib_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "test/boost/lib"))
         dst_boost_dir = os.path.expanduser("~/.conan/data/boost/1.82.0.B001/openUBMC.release/rc/package/295f5ceaff90a1afe2a22ca78ccdeb749ab95b30/")
         # 先在test/boost/lib目录下生成无版本号so/a文件
