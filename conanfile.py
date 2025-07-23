@@ -30,8 +30,6 @@ class AppConan(ConanBase):
         d.cpp_args.append("-Wno-pedantic")
         d.cpp_args.append("-fno-strict-aliasing")
         d.cpp_args.append("-Wno-deprecated-copy")
-        # 增加boost包lib路径到链接参数 待2025.7.30 bmc_sdk发布正式包后删除
-        d.cpp_link_args.append("-L/root/.conan/data/boost/1.82.0.B001/openUBMC.release/rc/package/295f5ceaff90a1afe2a22ca78ccdeb749ab95b30/lib")
         d.generate()
 
         os.environ["PKG_CONFIG"] = "/usr/bin/pkg-config"
@@ -58,80 +56,6 @@ class AppConan(ConanBase):
     def build(self):
         if self.language != "c++":
             return
-        # 检查 ninja 工具是否安装，若未安装则自动安装
-        import shutil
-        import sys
-        import subprocess
-        if sys.platform.startswith("linux"):
-            ninja_path = shutil.which("ninja")
-            if ninja_path is None:
-                print("[INFO] 未检测到 ninja 工具，正在自动安装...")
-                try:
-                    subprocess.run(["apt-get", "update"], check=True)
-                    subprocess.run(["apt-get", "install", "-y", "ninja-build"], check=True)
-                    print("[INFO] ninja 工具安装完成")
-                except Exception as e:
-                    print(f"[ERROR] 自动安装 ninja 失败: {e}")
-                    raise RuntimeError("ninja 工具未安装且自动安装失败，请手动安装 ninja-build")
-            else:
-                print(f"[INFO] 已检测到 ninja 工具: {ninja_path}")
-        # 实现test/boost/lib相关库的拷贝、安装到conan目录，转测前临时措施，待2025.7.30 bmc_sdk发布正式包后删除
-        import shutil
-        import os
-        # 打印下当前目录、当前目录下文件
-        print(f"[WARNING] 当前工作目录: {os.getcwd()}")
-        print(f"[WARNING] __file__ 路径: {__file__}")
-        current_dir = os.path.dirname(os.path.abspath(__file__))
-        print(f"[WARNING] conanfile.py 所在目录: {current_dir}")
-        print(f"[WARNING] {current_dir} 下文件/文件夹: {os.listdir(current_dir)}")
-        
-        src_lib_dir = os.path.expanduser("~/.conan/data/libmcpp/0.1.1/openUBMC.release/rc/source/test/boost/lib")
-        dst_boost_dir = os.path.expanduser("~/.conan/data/boost/1.82.0.B001/openUBMC.release/rc/package/295f5ceaff90a1afe2a22ca78ccdeb749ab95b30/lib")
-        print(f"[WARNING] src_lib_dir 目录: {src_lib_dir}")
-        print(f"[WARNING] dst_boost_dir 目录: {dst_boost_dir}")
-        # 先在test/boost/lib目录下生成无版本号so/a文件
-        so_src_local = os.path.join(src_lib_dir, "libboost_program_options.so.1.82.0")
-        so_dst_local = os.path.join(src_lib_dir, "libboost_program_options.so")
-        a_src_local = os.path.join(src_lib_dir, "libboost_program_options.a.1.82.0")
-        a_dst_local = os.path.join(src_lib_dir, "libboost_program_options.a")
-        try:
-            if os.path.isfile(so_src_local):
-                shutil.copy2(so_src_local, so_dst_local)
-                print(f"[INFO] 已在 test/boost/lib 生成 {so_dst_local}")
-            else:
-                print(f"[WARNING] 未找到 {so_src_local}，无法生成 {so_dst_local}")
-            if os.path.isfile(a_src_local):
-                shutil.copy2(a_src_local, a_dst_local)
-                print(f"[INFO] 已在 test/boost/lib 生成 {a_dst_local}")
-            else:
-                print(f"[WARNING] 未找到 {a_src_local}，无法生成 {a_dst_local}")
-        except Exception as e:
-            print(f"[ERROR] 在 test/boost/lib 生成无版本号 so/a 文件失败: {e}")
-
-        # 确保conan boost包目录下lib子目录存在
-        if not os.path.isdir(dst_boost_dir):
-            try:
-                os.makedirs(dst_boost_dir, exist_ok=True)
-                print(f"[INFO] 已创建目录: {dst_boost_dir}")
-            except Exception as e:
-                print(f"[ERROR] 创建目录 {dst_boost_dir} 失败: {e}")
-
-        # 再整体拷贝到 boost conan 包目录
-        if os.path.isdir(src_lib_dir):
-            try:
-                for filename in os.listdir(src_lib_dir):
-                    src_file = os.path.join(src_lib_dir, filename)
-                    dst_file = os.path.join(dst_boost_dir, filename)
-                    if os.path.exists(dst_file):
-                        print(f"[INFO] 目标文件已存在，跳过拷贝: {dst_file}")
-                        continue
-                    shutil.copy2(src_file, dst_file)
-                    print(f"[INFO] 已拷贝 {src_file} 到 {dst_file}")
-            except Exception as e:
-                print(f"[ERROR] 拷贝 test/boost/lib 到 boost conan 包目录失败: {e}")
-        else:
-            print(f"[WARNING] 未找到 test/boost/lib 目录: {src_lib_dir}")
-
         #self._codegen()
         meson = Meson(self)
         meson.configure()
@@ -139,7 +63,7 @@ class AppConan(ConanBase):
         optimal_jobs = self._calculate_optimal_jobs()
         print(f"[INFO] 使用 {optimal_jobs} 个并发任务进行编译")
         meson.build(f"-j {optimal_jobs}")
-
+    
     def _calculate_optimal_jobs(self):
         """智能计算最优编译并发数量，参考smart_build.sh的逻辑"""
         import subprocess
