@@ -126,8 +126,6 @@ bool format_context::get_arg(size_t index, detail::format_arg& arg) const {
         return true;
     }
 
-    MC_THROW(mc::invalid_arg_exception, "找不到位置参数: ${index}",
-             ("index", index));
     return false;
 }
 
@@ -136,8 +134,6 @@ bool format_context::get_named_arg(std::string_view name, detail::format_arg& ar
         return true;
     }
 
-    MC_THROW(mc::invalid_arg_exception, "找不到命名参数: ${name}",
-             ("name", name));
     return false;
 }
 
@@ -147,40 +143,6 @@ void format_context::set_used(size_t index) {
 
 bool format_context::resolve_dynamic_param(size_t index, std::string_view name, int& out) {
     return m_args.resolve_dynamic_param(index, name, out);
-}
-
-void format_context::dynamic_width_param_type_error() {
-    MC_THROW(mc::format_error, "动态宽度参数类型错误，必须为整数");
-}
-
-void format_context::dynamic_precision_param_type_error() {
-    MC_THROW(mc::format_error, "动态精度参数类型错误，必须为整数");
-}
-
-void format_context::invalid_brace_arg() {
-    MC_THROW(mc::format_error, "未找到对应的 '}'");
-}
-
-void format_context::invalid_named_arg_name() {
-    MC_THROW(mc::format_error, "命名参数名称不能为空");
-}
-
-void format_context::invalid_index_arg() {
-    MC_THROW(mc::format_error, "位置参数索引必须是数字");
-}
-
-void format_context::invalid_single_brace_arg() {
-    MC_THROW(mc::format_error, "单独的 '}' 在格式化字符串中");
-}
-
-void format_context::invalid_named_arg(std::string_view name) {
-    MC_THROW(mc::format_error, "找不到命名参数: ${name}",
-             ("name", name));
-}
-
-void format_context::invalid_index_arg(size_t index) {
-    MC_THROW(mc::format_error, "找不到位置参数: ${index}",
-             ("index", index));
 }
 
 void format_context::format_arg(const detail::format_arg& arg, detail::format_spec& spec) {
@@ -193,6 +155,55 @@ void format_context::append(char c) {
 
 void format_context::append(std::string_view s) {
     m_out.append(s);
+}
+
+bool format_context::process_result(const detail::parser_result& result) {
+    if (!result.has_error()) {
+        return true;
+    }
+
+    // 运行时吃掉所有错误，将原始文本输出
+    append(result.text);
+    return true;
+}
+
+void format_context::raise_error(const detail::parser_result& result) {
+    if (!result.has_error()) {
+        return;
+    }
+
+    switch (result.err) {
+    case detail::parser_error::invalid_brace_arg:
+        MC_THROW(mc::format_error, "未找到对应的 '}'");
+        break;
+    case detail::parser_error::invalid_named_arg_name:
+        MC_THROW(mc::format_error, "命名参数名称不能为空");
+        break;
+    case detail::parser_error::invalid_index_arg:
+        MC_THROW(mc::format_error, "位置参数索引必须是数字");
+        break;
+    case detail::parser_error::invalid_single_brace_arg:
+        MC_THROW(mc::format_error, "单独的 '}' 在格式化字符串中");
+        break;
+    case detail::parser_error::name_arg_not_found:
+        MC_THROW(mc::format_error, "找不到命名参数: ${name}",
+                 ("name", result.text));
+        break;
+    case detail::parser_error::index_arg_not_found:
+        MC_THROW(mc::format_error, "找不到位置参数: ${index}",
+                 ("index", result.text));
+        break;
+    case detail::parser_error::invalid_spec_arg:
+        MC_THROW(mc::format_error, "格式化字符串或参数错误: ${text}",
+                 ("text", result.text));
+        break;
+    case detail::parser_error::invalid_dynamic_param:
+        MC_THROW(mc::format_error, "动态参数类型错误: ${text}",
+                 ("text", result.text));
+        break;
+    default:
+        break;
+    }
 }
 
 } // namespace mc::fmt

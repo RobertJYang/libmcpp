@@ -337,6 +337,19 @@ TEST(format_test, index_args) {
               "first second third third");
 }
 
+TEST(format_test, runtim_error_handling) {
+    bool invalid_fmt = MC_FORMAT_COMPILE_CHECK("{} { {}", 42, 3.14, "hello");
+    EXPECT_FALSE(invalid_fmt);
+
+    // 错误的格式化字符串，sformat 编译期检查失败会让编译报错，用 sformat_unsafe 绕过检查
+    auto result = sformat_unsafe("{} { {}", 42, 3.14, "hello");
+    EXPECT_EQ(result, "42 { 3.14");
+
+    // 测试动态参数
+    auto result2 = sformat_unsafe("{0a}{}", 42, 3.14);
+    EXPECT_EQ(result2, "{0a}42");
+}
+
 // 编译期检查测试
 TEST(format_test, compile_check) {
     // 测试基本的编译期检查

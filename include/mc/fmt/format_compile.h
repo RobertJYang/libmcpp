@@ -276,7 +276,6 @@ public:
             return true;
         }
 
-        MC_COMPILE_TIME_ERROR("找不到位置参数");
         return false;
     }
 
@@ -285,7 +284,6 @@ public:
             return true;
         }
 
-        MC_COMPILE_TIME_ERROR("找不到命名参数");
         return false;
     }
 
@@ -293,46 +291,6 @@ public:
     }
 
     constexpr void append(char) {
-    }
-
-    constexpr void dynamic_width_param_type_error() {
-        MC_COMPILE_TIME_ERROR("动态宽度参数类型错误，必须为整数");
-        set_invalid();
-    }
-
-    constexpr void dynamic_precision_param_type_error() {
-        MC_COMPILE_TIME_ERROR("动态精度参数类型错误，必须为整数");
-        set_invalid();
-    }
-
-    constexpr void invalid_brace_arg() {
-        MC_COMPILE_TIME_ERROR("未找到对应的 '}'");
-        set_invalid();
-    }
-
-    constexpr void invalid_named_arg_name() {
-        MC_COMPILE_TIME_ERROR("命名参数名称不能为空");
-        set_invalid();
-    }
-
-    constexpr void invalid_index_arg() {
-        MC_COMPILE_TIME_ERROR("位置参数索引必须是数字");
-        set_invalid();
-    }
-
-    constexpr void invalid_single_brace_arg() {
-        MC_COMPILE_TIME_ERROR("单独的 '}' 在格式化字符串中");
-        set_invalid();
-    }
-
-    constexpr void invalid_named_arg(std::string_view) {
-        MC_COMPILE_TIME_ERROR("找不到命名参数");
-        set_invalid();
-    }
-
-    constexpr void invalid_index_arg(size_t index) {
-        MC_COMPILE_TIME_ERROR("位置参数索引必须是数字");
-        set_invalid();
     }
 
     constexpr void set_invalid() {
@@ -368,6 +326,46 @@ public:
 
         set_used(index);
         return true;
+    }
+
+    constexpr bool process_result(const detail::parser_result& result) {
+        return !result.has_error();
+    }
+
+    constexpr void raise_error(const detail::parser_result& result) {
+        if (!result.has_error()) {
+            return;
+        }
+
+        set_invalid();
+        switch (result.err) {
+        case detail::parser_error::invalid_brace_arg:
+            MC_COMPILE_TIME_ERROR("未找到对应的 '}'");
+            break;
+        case detail::parser_error::invalid_named_arg_name:
+            MC_COMPILE_TIME_ERROR("命名参数名称不能为空");
+            break;
+        case detail::parser_error::invalid_index_arg:
+            MC_COMPILE_TIME_ERROR("位置参数索引必须是数字");
+            break;
+        case detail::parser_error::invalid_single_brace_arg:
+            MC_COMPILE_TIME_ERROR("单独的 '}' 在格式化字符串中");
+            break;
+        case detail::parser_error::name_arg_not_found:
+            MC_COMPILE_TIME_ERROR("找不到命名参数");
+            break;
+        case detail::parser_error::index_arg_not_found:
+            MC_COMPILE_TIME_ERROR("找不到位置参数");
+            break;
+        case detail::parser_error::invalid_spec_arg:
+            MC_COMPILE_TIME_ERROR("格式化字符串或参数错误");
+            break;
+        case detail::parser_error::invalid_dynamic_param:
+            MC_COMPILE_TIME_ERROR("动态参数类型错误");
+            break;
+        default:
+            break;
+        }
     }
 
 private:

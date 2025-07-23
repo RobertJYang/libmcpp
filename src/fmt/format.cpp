@@ -125,40 +125,20 @@ public:
     void set_used(size_t index) {
     }
 
-    void dynamic_width_param_type_error() {
-        is_valid = false;
-    }
-
-    void dynamic_precision_param_type_error() {
-        is_valid = false;
-    }
-
-    void invalid_brace_arg() {
-        is_valid = false;
-    }
-
-    void invalid_named_arg_name() {
-        is_valid = false;
-    }
-
-    void invalid_index_arg() {
-        is_valid = false;
-    }
-
-    void invalid_single_brace_arg() {
-        is_valid = false;
-    }
-
-    void invalid_named_arg(std::string_view) {
-        is_valid = false;
-    }
-
-    void invalid_index_arg(size_t index) {
-        is_valid = false;
-    }
-
     bool resolve_dynamic_param(size_t index, std::string_view name, int& out) {
         return true;
+    }
+
+    bool process_result(const detail::parser_result& result) {
+        return !result.has_error();
+    }
+
+    void raise_error(const detail::parser_result& result) {
+        if (!result.has_error()) {
+            return;
+        }
+
+        is_valid = false;
     }
 
     mutable mc::mutable_dict arg_names;
