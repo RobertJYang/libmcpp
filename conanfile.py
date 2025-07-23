@@ -73,6 +73,20 @@ class AppConan(ConanBase):
                     raise RuntimeError("ninja 工具未安装且自动安装失败，请手动安装 ninja-build")
             else:
                 print(f"[INFO] 已检测到 ninja 工具: {ninja_path}")
+
+            # 检查 libboost-all-dev 是否安装，若未安装则自动安装
+            try:
+                result = subprocess.run(["dpkg", "-s", "libboost-all-dev"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                if result.returncode != 0:
+                    print("[INFO] 未检测到 libboost-all-dev，正在自动安装...")
+                    subprocess.run(["apt-get", "update"], check=True)
+                    subprocess.run(["apt-get", "install", "-y", "libboost-all-dev"], check=True)
+                    print("[INFO] libboost-all-dev 安装完成")
+                else:
+                    print("[INFO] 已检测到 libboost-all-dev")
+            except Exception as e:
+                print(f"[ERROR] 自动安装 libboost-all-dev 失败: {e}")
+                raise RuntimeError("libboost-all-dev 未安装且自动安装失败，请手动安装 libboost-all-dev")
         #self._codegen()
         meson = Meson(self)
         meson.configure()
