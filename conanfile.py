@@ -56,6 +56,23 @@ class AppConan(ConanBase):
     def build(self):
         if self.language != "c++":
             return
+        # 检查 ninja 工具是否安装，若未安装则自动安装
+        import shutil
+        import sys
+        import subprocess
+        if sys.platform.startswith("linux"):
+            ninja_path = shutil.which("ninja")
+            if ninja_path is None:
+                print("[INFO] 未检测到 ninja 工具，正在自动安装...")
+                try:
+                    subprocess.run(["apt-get", "update"], check=True)
+                    subprocess.run(["apt-get", "install", "-y", "ninja-build"], check=True)
+                    print("[INFO] ninja 工具安装完成")
+                except Exception as e:
+                    print(f"[ERROR] 自动安装 ninja 失败: {e}")
+                    raise RuntimeError("ninja 工具未安装且自动安装失败，请手动安装 ninja-build")
+            else:
+                print(f"[INFO] 已检测到 ninja 工具: {ninja_path}")
         #self._codegen()
         meson = Meson(self)
         meson.configure()
