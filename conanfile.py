@@ -87,6 +87,32 @@ class AppConan(ConanBase):
             except Exception as e:
                 print(f"[ERROR] 自动安装 libboost-all-dev 失败: {e}")
                 raise RuntimeError("libboost-all-dev 未安装且自动安装失败，请手动安装 libboost-all-dev")
+
+            # 检查 boost_program_options 相关库是否存在，若未安装则自动安装
+            try:
+                import glob
+                # 检查常见的动态库路径
+                found_boost_po=False
+                for lib_path in ["/usr/lib/x86_64-linux-gnu/libboost_program_options.so", "/usr/lib64/libboost_program_options.so", "/usr/lib/libboost_program_options.so"]:
+                    if os.path.exists(lib_path):
+                        found_boost_po=True
+                        break
+                if not found_boost_po:
+                    # 也检查 .a 静态库
+                    for lib_path in ["/usr/lib/x86_64-linux-gnu/libboost_program_options.a", "/usr/lib64/libboost_program_options.a", "/usr/lib/libboost_program_options.a"]:
+                        if os.path.exists(lib_path):
+                            found_boost_po=True
+                            break
+                if not found_boost_po:
+                    print("[INFO] 未检测到 boost_program_options 库，正在自动安装 libboost-program-options-dev ...")
+                    subprocess.run(["apt-get", "update"], check=True)
+                    subprocess.run(["apt-get", "install", "-y", "libboost-program-options-dev"], check=True)
+                    print("[INFO] libboost-program-options-dev 安装完成")
+                else:
+                    print("[INFO] 已检测到 boost_program_options 库")
+            except Exception as e:
+                print(f"[ERROR] 自动安装 libboost-program-options-dev 失败: {e}")
+                raise RuntimeError("boost_program_options 库未安装且自动安装失败，请手动安装 libboost-program-options-dev")
         #self._codegen()
         meson = Meson(self)
         meson.configure()
