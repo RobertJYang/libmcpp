@@ -61,10 +61,10 @@ TEST(format_dict_test, FormatWithDictTest) {
     ASSERT_TRUE(contains(result, "比率: 0.")) << "浮点值替换应该正确";
 
     // 测试不存在的键
-    ASSERT_THROW(mc::format_dict("${host}:${missing}", args), mc::invalid_arg_exception);
+    ASSERT_EQ(mc::format_dict("${host}:${missing}", args), "example.com:${missing}");
 
     // 测试格式错误
-    ASSERT_THROW(mc::format_dict("${host:${port}", args), mc::format_error);
+    ASSERT_EQ(mc::format_dict("${host:${port}", args), "${host:8080");
 
     // 测试空字符串
     result = mc::format_dict("", args);
@@ -119,6 +119,6 @@ TEST(format_dict_test, FormatIcaseTest) {
     result = mc::format_dict_icase("${HOST}:${PORT}", args);
     ASSERT_EQ(result, "example.com:8080") << "大小写不敏感格式化应该正确";
 
-    ASSERT_THROW(mc::format_dict("${HOST}:${PORT}", args), mc::invalid_arg_exception);
-    ASSERT_THROW(mc::format_dict("${HOST}:${port}", args), mc::invalid_arg_exception);
+    ASSERT_EQ(mc::format_dict("${HOST}:${PORT}", args), "${HOST}:${PORT}");
+    ASSERT_EQ(mc::format_dict("${HOST}:${port}", args), "${HOST}:8080");
 }

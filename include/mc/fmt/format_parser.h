@@ -28,10 +28,60 @@ struct arg_store;
 
 struct custom_t;
 
+enum class parser_error {
+    success,
+    invalid_brace_arg,
+    invalid_named_arg_name,
+    invalid_index_arg,
+    invalid_single_brace_arg,
+    invalid_dynamic_param,
+    invalid_spec_arg,
+    name_arg_not_found,
+    index_arg_not_found,
+};
+
+struct parser_result {
+    constexpr parser_result(const char* start) : start_ptr(start) {
+    }
+
+    static constexpr parser_result failed(const char*& ptr, parser_error err, size_t skip_chars = 1) {
+        parser_result result(ptr);
+        ptr += skip_chars;
+        result.error(err, ptr);
+        return result;
+    }
+
+    constexpr bool has_error() const {
+        return err != parser_error::success;
+    }
+
+    constexpr void success(const char* next) {
+        next_ptr = next;
+        err      = parser_error::success;
+    }
+
+    constexpr void error(parser_error e, const char* current = nullptr) {
+        if (current != nullptr) {
+            text     = string_view(start_ptr, current - start_ptr);
+            next_ptr = (current > start_ptr) ? current : (start_ptr + 1);
+        } else {
+            // 失败跳到下一个字符
+            next_ptr = start_ptr + 1;
+            text     = string_view(start_ptr, 1);
+        }
+        err = e;
+    }
+
+    const char*      start_ptr{nullptr};
+    const char*      next_ptr{nullptr};
+    std::string_view text;
+    parser_error     err{parser_error::success};
+};
+
 // 查找匹配的 '}' 位置，正确处理嵌套的 {}
 // 从当前位置开始查找，返回指向匹配 '}' 的下一个位置的指针
 template <typename Context>
-constexpr const char* to_next_brace(Context& ctx, const char* ptr, const char* end) {
+constexpr const char* to_next_brace(parser_result& result, Context& ctx, const char* ptr, const char* end) {
     int brace_count = 1; // 我们已经在一个 { 内部
 
     while (ptr < end && brace_count > 0) {
@@ -44,76 +94,96 @@ constexpr const char* to_next_brace(Context& ctx, const char* ptr, const char* e
     }
 
     if (brace_count > 0) {
-        ctx.invalid_brace_arg();
+        result.error(parser_error::invalid_brace_arg);
+        return ptr;
     }
 
     return ptr; // 指向最后一个 '}' 的下一个位置
 }
 
 // 解析 ${name} 或 ${name:format} 语法的占位符
+// 返回占位符后的第一个字符的指针和占位符的内容
 template <typename Context>
-constexpr const char* parse_named_placeholder(Context& ctx, const char* ptr, const char* end,
-                                              string_view& name, const char*& format_start) {
+constexpr parser_result parse_named_placeholder(
+    Context& ctx, const char* ptr, const char* end, string_view& name, const char*& format_start) {
+    parser_result result(ptr);
     if (ptr >= end || *ptr != '$') {
-        return nullptr;
+        result.error(parser_error::invalid_brace_arg);
+        return result;
     }
 
     ++ptr; // 跳过 '$'
     if (ptr >= end || *ptr != '{') {
-        return nullptr;
+        result.error(parser_error::invalid_brace_arg);
+        return result;
     }
 
     ++ptr; // 跳过 '{'
     const char* name_start = ptr;
 
     // 查找名称结束位置
+    int count = 0;
     while (ptr < end && *ptr != ':' && *ptr != '}') {
+        if (count == 0) {
+            if (!mc::is_first_identifier_char(*ptr)) {
+                result.error(parser_error::invalid_named_arg_name);
+                return result;
+            }
+        } else if (!mc::is_identifier_char(*ptr)) {
+            result.error(parser_error::invalid_named_arg_name);
+            return result;
+        }
+
+        ++count;
         ++ptr;
     }
 
     if (ptr >= end) {
-        ctx.invalid_brace_arg();
-        return nullptr;
+        result.error(parser_error::invalid_brace_arg);
+        return result;
     }
 
     name = string_view(name_start, ptr - name_start);
 
     // 命名参数的名称不能为空
     if (name.empty()) {
-        ctx.invalid_named_arg_name();
-        return nullptr;
+        result.error(parser_error::invalid_named_arg_name);
+        return result;
     }
 
     if (*ptr == ':') {
         format_start = ptr + 1;
         // 使用通用函数查找匹配的 '}'
-        ptr = to_next_brace(ctx, ptr + 1, end);
+        ptr = to_next_brace(result, ctx, ptr + 1, end);
     } else {
         format_start = nullptr;
-        ptr          = to_next_brace(ctx, ptr, end);
+        ptr          = to_next_brace(result, ctx, ptr, end);
     }
 
-    return ptr; // 已经指向 '}' 的下一个位置
+    if (result.has_error()) {
+        return result;
+    }
+
+    result.success(ptr);
+    return result;
 }
 
 template <typename Context>
 constexpr size_t parse_index(Context& ctx, string_view index_str) {
     size_t index = 0;
     for (char c : index_str) {
-        if (!mc::fmt::detail::isdigit(c)) {
-            ctx.invalid_index_arg();
-            break;
-        }
         index = index * 10 + (c - '0');
     }
     return index;
 }
 
 template <typename Context>
-constexpr const char* parse_index_placeholder(Context& ctx, const char* ptr, const char* end,
-                                              size_t& index, const char*& format_start) {
+constexpr parser_result parse_index_placeholder(Context& ctx, const char* ptr, const char* end,
+                                                size_t& index, const char*& format_start) {
+    parser_result result(ptr);
     if (ptr >= end || *ptr != '{') {
-        return nullptr;
+        result.error(parser_error::invalid_brace_arg);
+        return result;
     }
 
     ++ptr; // 跳过 '{'
@@ -121,12 +191,16 @@ constexpr const char* parse_index_placeholder(Context& ctx, const char* ptr, con
 
     // 查找索引结束位置
     while (ptr < end && *ptr != ':' && *ptr != '}') {
+        if (!mc::fmt::detail::isdigit(*ptr)) {
+            result.error(parser_error::invalid_index_arg);
+            return result;
+        }
         ++ptr;
     }
 
     if (ptr >= end) {
-        ctx.invalid_brace_arg();
-        return nullptr;
+        result.error(parser_error::invalid_brace_arg);
+        return result;
     }
 
     // 解析索引，空表示使用自动递增索引
@@ -138,13 +212,18 @@ constexpr const char* parse_index_placeholder(Context& ctx, const char* ptr, con
 
     if (*ptr == ':') {
         format_start = ptr + 1;
-        ptr          = to_next_brace(ctx, ptr + 1, end);
+        ptr          = to_next_brace(result, ctx, ptr + 1, end);
     } else {
         format_start = nullptr;
-        ptr          = to_next_brace(ctx, ptr, end);
+        ptr          = to_next_brace(result, ctx, ptr, end);
     }
 
-    return ptr; // 已经指向 '}' 的下一个位置
+    if (result.has_error()) {
+        return result;
+    }
+
+    result.success(ptr);
+    return result;
 }
 
 template <typename Context>
@@ -157,14 +236,18 @@ constexpr bool resolve_dynamic_param(Context& ctx, size_t index, std::string_vie
 }
 
 template <typename Context>
-constexpr void resolve_dynamic_spec(Context& ctx, format_spec& spec) {
+constexpr bool resolve_dynamic_spec(parser_result& result, Context& ctx, format_spec& spec) {
     if (!resolve_dynamic_param(ctx, spec.width_index, spec.width_name, spec.width)) {
-        ctx.dynamic_width_param_type_error();
+        result.error(parser_error::invalid_dynamic_param);
+        return false;
     }
 
     if (!resolve_dynamic_param(ctx, spec.precision_index, spec.precision_name, spec.precision)) {
-        ctx.dynamic_precision_param_type_error();
+        result.error(parser_error::invalid_dynamic_param);
+        return false;
     }
+
+    return true;
 }
 
 template <typename Arg>
@@ -178,43 +261,47 @@ constexpr const char* parse_format_spec(const char* start, const char* end, form
 }
 
 template <typename Context>
-constexpr bool parse_named_arg(Context& ctx, const char*& ptr, const char* end, size_t& arg_index) {
-    string_view name;
-    const char* format_start = nullptr;
-    const char* next_ptr     = parse_named_placeholder(ctx, ptr, end, name, format_start);
-    if (next_ptr == nullptr) {
-        return false;
+constexpr parser_result parse_named_arg(Context& ctx, const char*& ptr, const char* end, size_t& arg_index) {
+    string_view   name;
+    const char*   format_start = nullptr;
+    parser_result result       = parse_named_placeholder(ctx, ptr, end, name, format_start);
+    if (result.has_error()) {
+        return result;
     }
 
     format_spec                spec;
     typename Context::arg_type arg;
     size_t                     index = INVALID_INDEX;
     if (!ctx.get_named_arg(name, arg, index)) {
-        ctx.invalid_named_arg(name);
-        return false;
+        result.error(parser_error::name_arg_not_found, result.next_ptr);
+        return result;
     }
 
     if (format_start != nullptr) {
-        if (!parse_format_spec(format_start, next_ptr, spec, &arg)) {
-            return false;
+        if (!parse_format_spec(format_start, result.next_ptr, spec, &arg)) {
+            result.error(parser_error::invalid_spec_arg, result.next_ptr);
+            return result;
         }
     }
 
-    resolve_dynamic_spec(ctx, spec);
+    if (!resolve_dynamic_spec(result, ctx, spec)) {
+        return result;
+    }
+
     ctx.format_arg(arg, spec);
     ctx.set_used(index);
-    ptr = next_ptr;
+    ptr = result.next_ptr;
     ++arg_index;
-    return true;
+    return result;
 }
 
 template <typename Context>
-constexpr bool parse_index_arg(Context& ctx, const char*& ptr, const char* end, size_t& arg_index) {
-    size_t      index        = INVALID_INDEX;
-    const char* format_start = nullptr;
-    const char* next_ptr     = parse_index_placeholder(ctx, ptr, end, index, format_start);
-    if (next_ptr == nullptr) {
-        return false;
+constexpr parser_result parse_index_arg(Context& ctx, const char*& ptr, const char* end, size_t& arg_index) {
+    size_t        index        = INVALID_INDEX;
+    const char*   format_start = nullptr;
+    parser_result result       = parse_index_placeholder(ctx, ptr, end, index, format_start);
+    if (result.has_error()) {
+        return result;
     }
 
     if (index == INVALID_INDEX) {
@@ -226,21 +313,25 @@ constexpr bool parse_index_arg(Context& ctx, const char*& ptr, const char* end, 
     format_spec                spec;
     typename Context::arg_type arg;
     if (!ctx.get_arg(index, arg)) {
-        ctx.invalid_index_arg(index);
-        return false;
+        result.error(parser_error::index_arg_not_found, result.next_ptr);
+        return result;
     }
 
     if (format_start != nullptr) {
-        if (!parse_format_spec(format_start, next_ptr, spec, &arg)) {
-            return false;
+        if (!parse_format_spec(format_start, result.next_ptr, spec, &arg)) {
+            result.error(parser_error::invalid_spec_arg, result.next_ptr);
+            return result;
         }
     }
 
-    resolve_dynamic_spec(ctx, spec);
+    if (!resolve_dynamic_spec(result, ctx, spec)) {
+        return result;
+    }
+
     ctx.format_arg(arg, spec);
     ctx.set_used(index);
-    ptr = next_ptr;
-    return true;
+    ptr = result.next_ptr;
+    return result;
 }
 
 constexpr bool is_escaped(const char* ptr, const char* end, char c) {
@@ -269,7 +360,11 @@ constexpr void parse_format_string(string_view fmt_str, Context& ctx) {
                 ptr += 2;
                 continue;
             }
-            ctx.invalid_single_brace_arg();
+            auto result = parser_result::failed(ptr, parser_error::invalid_brace_arg, 1);
+            if (ctx.process_result(result)) {
+                continue; // 有错误发生，但是上下文处理好了继续
+            }
+            ctx.raise_error(result);
             return;
         }
 
@@ -288,13 +383,27 @@ constexpr void parse_format_string(string_view fmt_str, Context& ctx) {
                 continue;
             }
 
-            if (!parse_named_arg(ctx, ptr, end, arg_index)) {
-                return;
+            auto result = parse_named_arg(ctx, ptr, end, arg_index);
+            if (result.has_error()) {
+                if (!ctx.process_result(result)) {
+                    ctx.raise_error(result);
+                    return;
+                }
+                // 有错误发生，但是上下文处理好了继续
+                ptr = (result.next_ptr <= ptr) ? ptr + 1 : result.next_ptr; // 保证至少移动一个位置防止死循环
             }
             continue;
         } else if (c == '{') {
-            if (!parse_index_arg(ctx, ptr, end, arg_index)) {
-                return;
+            auto result = parse_index_arg(ctx, ptr, end, arg_index);
+            if (result.has_error()) {
+                if (!ctx.process_result(result)) {
+                    ctx.raise_error(result);
+                    return;
+                }
+
+                // 有错误发生，但是上下文处理好了继续
+                ptr = (result.next_ptr <= ptr) ? ptr + 1 : result.next_ptr; // 保证至少移动一个位置防止死循环
+                continue;
             }
             continue;
         }

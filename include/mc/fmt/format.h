@@ -141,38 +141,43 @@ std::string& format_to(std::string& out, std::string_view fmt, Args&&... args) {
         mc::fmt::detail::compile_check(fmt_str))
 
 // 无参数版本的实现
-#define MC_FORMAT_IMPL_NO_ARGS(fmt_str)                                            \
-    [&] {                                                                          \
-        static_assert(MC_FORMAT_COMPILE_CHECK(fmt_str), "格式化字符串或参数错误"); \
-        return fmt_str;                                                            \
+#define MC_FORMAT_IMPL_NO_ARGS(COMPILE_CHECK, fmt_str)                   \
+    [&] {                                                                \
+        static_assert(COMPILE_CHECK(fmt_str), "格式化字符串或参数错误"); \
+        return fmt_str;                                                  \
     }()
 
 // 有参数版本的实现 - 使用新的序列处理方法
-#define MC_FORMAT_IMPL_WITH_ARGS(fmt_str, ...)                                                  \
-    [&] {                                                                                       \
-        static_assert(MC_FORMAT_COMPILE_CHECK(fmt_str, __VA_ARGS__), "格式化字符串或参数错误"); \
-        std::string result;                                                                     \
-        mc::fmt::format_to(                                                                     \
-            result, fmt_str,                                                                    \
-            BOOST_PP_SEQ_FOR_EACH(MC_FORMAT_CHECK_ARG, MC_FORMAT_APPLY_ARG_NAMED,               \
-                                  BOOST_PP_VARIADIC_TO_SEQ(__VA_ARGS__)) std::monostate{});     \
-        return result;                                                                          \
+#define MC_FORMAT_IMPL_WITH_ARGS(COMPILE_CHECK, fmt_str, ...)                               \
+    [&] {                                                                                   \
+        static_assert(COMPILE_CHECK(fmt_str, __VA_ARGS__), "格式化字符串或参数错误");       \
+        std::string result;                                                                 \
+        mc::fmt::format_to(                                                                 \
+            result, fmt_str,                                                                \
+            BOOST_PP_SEQ_FOR_EACH(MC_FORMAT_CHECK_ARG, MC_FORMAT_APPLY_ARG_NAMED,           \
+                                  BOOST_PP_VARIADIC_TO_SEQ(__VA_ARGS__)) std::monostate{}); \
+        return result;                                                                      \
     }()
 
 // 一个参数版本 - 只有 fmt_str
-#define MC_FORMAT_1(fmt_str) MC_FORMAT_IMPL_NO_ARGS(fmt_str)
+#define MC_FORMAT_1(COMPILE_CHECK, fmt_str) MC_FORMAT_IMPL_NO_ARGS(COMPILE_CHECK, fmt_str)
 
 // 多个参数版本 - 有 fmt_str 和参数列表
-#define MC_FORMAT_N(fmt_str, ...) MC_FORMAT_IMPL_WITH_ARGS(fmt_str, __VA_ARGS__)
+#define MC_FORMAT_N(COMPILE_CHECK, fmt_str, ...) MC_FORMAT_IMPL_WITH_ARGS(COMPILE_CHECK, fmt_str, __VA_ARGS__)
 
 // 参数分发宏 - 修复版本
-#define MC_FORMAT_DISPATCH(fmt_str, ...)                                         \
+#define MC_FORMAT_DISPATCH(COMPILE_CHECK, fmt_str, ...)                          \
     BOOST_PP_IF(BOOST_PP_EQUAL(BOOST_PP_VARIADIC_SIZE(dummy, ##__VA_ARGS__), 1), \
-                MC_FORMAT_1(fmt_str),                                            \
-                MC_FORMAT_N(fmt_str, __VA_ARGS__))
+                MC_FORMAT_1(COMPILE_CHECK, fmt_str),                             \
+                MC_FORMAT_N(COMPILE_CHECK, fmt_str, __VA_ARGS__))
 
-// sformat 宏定义 - 根据参数个数分发
-#define sformat(...) MC_FORMAT_DISPATCH(__VA_ARGS__)
+// sformat 宏定义
+#define sformat(...) MC_FORMAT_DISPATCH(MC_FORMAT_COMPILE_CHECK, __VA_ARGS__)
+
+#define MC_FORMAT_EMPTY_CHECK(...) true
+
+// sformat_unsafe 宏定义 - 不进行编译期检查
+#define sformat_unsafe(...) MC_FORMAT_DISPATCH(MC_FORMAT_EMPTY_CHECK, __VA_ARGS__)
 
 #include <mc/fmt/format_compile.h>
 #include <mc/fmt/formatter_chrono.h>

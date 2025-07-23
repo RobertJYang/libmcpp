@@ -43,6 +43,8 @@ struct runtime_arg_store : public arg_store<format_arg> {
     const dict* named_args{nullptr};
     bool        icase{false};
 };
+
+struct parser_result;
 } // namespace detail
 
 // 格式化上下文
@@ -64,14 +66,8 @@ public:
     void append(char c);
     void append(std::string_view s);
 
-    void dynamic_width_param_type_error();
-    void dynamic_precision_param_type_error();
-    void invalid_brace_arg();
-    void invalid_named_arg_name();
-    void invalid_index_arg();
-    void invalid_single_brace_arg();
-    void invalid_named_arg(std::string_view name);
-    void invalid_index_arg(size_t index);
+    bool process_result(const detail::parser_result& result);
+    void raise_error(const detail::parser_result& result);
 
 private:
     std::string&               m_out;
