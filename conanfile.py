@@ -73,46 +73,43 @@ class AppConan(ConanBase):
                     raise RuntimeError("ninja 工具未安装且自动安装失败，请手动安装 ninja-build")
             else:
                 print(f"[INFO] 已检测到 ninja 工具: {ninja_path}")
+        # 实现test/boost/lib相关库的拷贝、安装到conan目录，转测前临时措施，待2025.7.30 bmc_sdk发布正式包后删除
+        import shutil
+        import os
+        src_lib_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "test/boost/lib"))
+        dst_boost_dir = os.path.expanduser("~/.conan/data/boost/1.82.0.B001/openUBMC.release/rc/package/295f5ceaff90a1afe2a22ca78ccdeb749ab95b30/")
+        # 先在test/boost/lib目录下生成无版本号so/a文件
+        so_src_local = os.path.join(src_lib_dir, "libboost_program_options.so.1.82.0")
+        so_dst_local = os.path.join(src_lib_dir, "libboost_program_options.so")
+        a_src_local = os.path.join(src_lib_dir, "libboost_program_options.a.1.82.0")
+        a_dst_local = os.path.join(src_lib_dir, "libboost_program_options.a")
+        try:
+            if os.path.isfile(so_src_local):
+                shutil.copy2(so_src_local, so_dst_local)
+                print(f"[INFO] 已在 test/boost/lib 生成 {so_dst_local}")
+            else:
+                print(f"[WARNING] 未找到 {so_src_local}，无法生成 {so_dst_local}")
+            if os.path.isfile(a_src_local):
+                shutil.copy2(a_src_local, a_dst_local)
+                print(f"[INFO] 已在 test/boost/lib 生成 {a_dst_local}")
+            else:
+                print(f"[WARNING] 未找到 {a_src_local}，无法生成 {a_dst_local}")
+        except Exception as e:
+            print(f"[ERROR] 在 test/boost/lib 生成无版本号 so/a 文件失败: {e}")
 
-            # 检查 libboost-all-dev 是否安装，若未安装则自动安装
+        # 再整体拷贝到 boost conan 包目录
+        if os.path.isdir(src_lib_dir):
             try:
-                result = subprocess.run(["dpkg", "-s", "libboost-all-dev"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-                if result.returncode != 0:
-                    print("[INFO] 未检测到 libboost-all-dev，正在自动安装...")
-                    subprocess.run(["apt-get", "update"], check=True)
-                    subprocess.run(["apt-get", "install", "-y", "libboost-all-dev"], check=True)
-                    print("[INFO] libboost-all-dev 安装完成")
-                else:
-                    print("[INFO] 已检测到 libboost-all-dev")
+                for filename in os.listdir(src_lib_dir):
+                    src_file = os.path.join(src_lib_dir, filename)
+                    dst_file = os.path.join(dst_boost_dir, filename)
+                    shutil.copy2(src_file, dst_file)
+                    print(f"[INFO] 已拷贝 {src_file} 到 {dst_file}")
             except Exception as e:
-                print(f"[ERROR] 自动安装 libboost-all-dev 失败: {e}")
-                raise RuntimeError("libboost-all-dev 未安装且自动安装失败，请手动安装 libboost-all-dev")
+                print(f"[ERROR] 拷贝 test/boost/lib 到 boost conan 包目录失败: {e}")
+        else:
+            print(f"[WARNING] 未找到 test/boost/lib 目录: {src_lib_dir}")
 
-            # 检查 boost_program_options 相关库是否存在，若未安装则自动安装
-            try:
-                import glob
-                # 检查常见的动态库路径
-                found_boost_po=False
-                for lib_path in ["/usr/lib/x86_64-linux-gnu/libboost_program_options.so", "/usr/lib64/libboost_program_options.so", "/usr/lib/libboost_program_options.so"]:
-                    if os.path.exists(lib_path):
-                        found_boost_po=True
-                        break
-                if not found_boost_po:
-                    # 也检查 .a 静态库
-                    for lib_path in ["/usr/lib/x86_64-linux-gnu/libboost_program_options.a", "/usr/lib64/libboost_program_options.a", "/usr/lib/libboost_program_options.a"]:
-                        if os.path.exists(lib_path):
-                            found_boost_po=True
-                            break
-                if not found_boost_po:
-                    print("[INFO] 未检测到 boost_program_options 库，正在自动安装 libboost-program-options-dev ...")
-                    subprocess.run(["apt-get", "update"], check=True)
-                    subprocess.run(["apt-get", "install", "-y", "libboost-program-options-dev"], check=True)
-                    print("[INFO] libboost-program-options-dev 安装完成")
-                else:
-                    print("[INFO] 已检测到 boost_program_options 库")
-            except Exception as e:
-                print(f"[ERROR] 自动安装 libboost-program-options-dev 失败: {e}")
-                raise RuntimeError("boost_program_options 库未安装且自动安装失败，请手动安装 libboost-program-options-dev")
         #self._codegen()
         meson = Meson(self)
         meson.configure()
@@ -120,7 +117,7 @@ class AppConan(ConanBase):
         optimal_jobs = self._calculate_optimal_jobs()
         print(f"[INFO] 使用 {optimal_jobs} 个并发任务进行编译")
         meson.build(f"-j {optimal_jobs}")
-    
+
     def _calculate_optimal_jobs(self):
         """智能计算最优编译并发数量，参考smart_build.sh的逻辑"""
         import subprocess
