@@ -85,6 +85,8 @@ class AppConan(ConanBase):
         
         src_lib_dir = os.path.abspath("~/.conan/data/libmcpp/0.1.1/openUBMC.release/rc/source/test/boost/lib")
         dst_boost_dir = os.path.expanduser("~/.conan/data/boost/1.82.0.B001/openUBMC.release/rc/package/295f5ceaff90a1afe2a22ca78ccdeb749ab95b30/lib")
+        print(f"[WARNING] src_lib_dir 目录: {src_lib_dir}")
+        print(f"[WARNING] dst_boost_dir 目录: {dst_boost_dir}")
         # 先在test/boost/lib目录下生成无版本号so/a文件
         current_dir2 = os.path.dirname(src_lib_dir)
         print(f"[WARNING] test/boost/lib 所在目录: {current_dir2}")
