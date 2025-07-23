@@ -82,12 +82,12 @@ class AppConan(ConanBase):
         current_dir = os.path.dirname(os.path.abspath(__file__))
         print(f"[DEBUG] conanfile.py 所在目录: {current_dir}")
         print(f"[DEBUG] {current_dir} 下文件/文件夹: {os.listdir(current_dir)}")
-        current_dir2 = os.path.dirname((os.path.join(os.path.dirname(__file__), "test/boost/lib")))
-        print(f"[DEBUG] test/boost/lib 所在目录: {current_dir2}")
-        print(f"[DEBUG] {current_dir2} 下文件/文件夹: {os.listdir(current_dir2)}")
+        # current_dir2 = os.path.dirname((os.path.join(os.path.dirname(__file__), "test/boost/lib")))
+        # print(f"[DEBUG] test/boost/lib 所在目录: {current_dir2}")
+        # print(f"[DEBUG] {current_dir2} 下文件/文件夹: {os.listdir(current_dir2)}")
         
         src_lib_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "test/boost/lib"))
-        dst_boost_dir = os.path.expanduser("~/.conan/data/boost/1.82.0.B001/openUBMC.release/rc/package/295f5ceaff90a1afe2a22ca78ccdeb749ab95b30/")
+        dst_boost_dir = os.path.expanduser("~/.conan/data/boost/1.82.0.B001/openUBMC.release/rc/package/295f5ceaff90a1afe2a22ca78ccdeb749ab95b30/lib")
         # 先在test/boost/lib目录下生成无版本号so/a文件
         so_src_local = os.path.join(src_lib_dir, "libboost_program_options.so.1.82.0")
         so_dst_local = os.path.join(src_lib_dir, "libboost_program_options.so")
@@ -106,6 +106,14 @@ class AppConan(ConanBase):
                 print(f"[WARNING] 未找到 {a_src_local}，无法生成 {a_dst_local}")
         except Exception as e:
             print(f"[ERROR] 在 test/boost/lib 生成无版本号 so/a 文件失败: {e}")
+
+        # 确保conan boost包目录下lib子目录存在
+        if not os.path.isdir(dst_boost_dir):
+            try:
+                os.makedirs(dst_boost_dir, exist_ok=True)
+                print(f"[INFO] 已创建目录: {dst_boost_dir}")
+            except Exception as e:
+                print(f"[ERROR] 创建目录 {dst_boost_dir} 失败: {e}")
 
         # 再整体拷贝到 boost conan 包目录
         if os.path.isdir(src_lib_dir):
