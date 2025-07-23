@@ -77,6 +77,25 @@ calculate_optimal_jobs() {
 main() {
     print_info "开始智能编译..."
 
+    # 自动检测并安装依赖工具
+    if command -v apt-get >/dev/null 2>&1; then
+        for pkg in libboost-all-dev libgtest-dev ninja-build; do
+            dpkg -s $pkg >/dev/null 2>&1
+            if [ $? -ne 0 ]; then
+                print_warning "$pkg 未安装，正在自动安装..."
+                apt-get update && apt-get install -y $pkg
+                if [ $? -eq 0 ]; then
+                    print_info "$pkg 安装完成"
+                else
+                    print_error "$pkg 安装失败，请手动安装后重试"
+                    exit 1
+                fi
+            else
+                print_info "$pkg 已安装"
+            fi
+        done
+    fi
+
     # 检查是否需要清理构建目录
     if [[ "$1" == "--clean" || "$1" == "clean" ]]; then
         print_warning "检测到 clean 参数，正在删除构建目录 builddir..."
