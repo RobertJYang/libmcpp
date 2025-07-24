@@ -21,6 +21,8 @@ namespace mc::test_module {
 
 class test_class {
 public:
+    MC_REFLECTABLE("mc.test.module.TestClass")
+
     test_class() = default;
 
     void set_value(int v) {
@@ -41,7 +43,7 @@ MC_BUILTIN_MODULE_IMPL(mc_test_module);
 // 导出测试类
 MC_MODULE_REFLECT(
     mc_test_module,
-    (mc::test_module::test_class, "TestClass"),
+    mc::test_module::test_class,
     ((set_value, "setValue"))((get_value, "getValue")))
 
 namespace {

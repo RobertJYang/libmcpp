@@ -13,11 +13,11 @@
 namespace mc::dbus {
 
 bool validator::is_valid_interface_name(std::string_view name) {
-    return mc::engine::detail::is_valid_interface_name(name);
+    return mc::is_valid_interface_name(name);
 }
 
 bool validator::is_valid_member_name(std::string_view name) {
-    return mc::engine::detail::is_valid_member_name(name);
+    return mc::is_identifier(name);
 }
 
 bool validator::is_valid_bus_name(std::string_view name) {
@@ -42,11 +42,11 @@ bool validator::is_valid_bus_name(std::string_view name) {
     int  num_elements  = 1;
     char previous_char = '\0';
     for (; pos < name.size(); pos++) {
-        if (name[pos] != '.' && !mc::engine::detail::is_allowable_char(name[pos])) {
+        if (name[pos] != '.' && !mc::is_identifier_char(name[pos])) {
             return false;
         }
 
-        if (previous_char == '.' && mc::engine::detail::is_allowable_char(name[pos])) {
+        if (previous_char == '.' && mc::is_identifier_char(name[pos])) {
             if (!is_unique_name && std::isdigit(name[pos])) {
                 return false;
             }

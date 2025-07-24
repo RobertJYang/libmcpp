@@ -42,7 +42,7 @@ base_src_files = [
 ]
 
 # 源文件列表
-libmcpp_src_files = []
+libmcpp_src_files = ['variant_c_api.cpp']
 
 dep_arr = [boost_dep, boost_program_options_dep, dbus_dep, glib_dep]
 mcpp_deps = []
@@ -83,25 +83,25 @@ libmcpp_base_dep = declare_dependency(
 )
 mcpp_deps += [libmcpp_base_dep]
 
-# subdir('core')
-# subdir('engine')
-# subdir('expr')
-# subdir('module')
+subdir('core')
+subdir('engine')
+subdir('expr')
+subdir('module')
 
 if get_option('default_library') == 'static'
   libmcpp_lib = shared_library(
     'mcpp',
     libmcpp_src_files,
-    include_directories: [incdir, srcdir, file_appender_inc],
+    include_directories: [incdir, srcdir],
     dependencies: dep_arr,
     install: true,
     install_dir: install_dir,
     link_whole: [
       libmcpp_base_lib,
-      # libmcpp_core_lib,
-      # libmcpp_engine_lib,
-      # libmcpp_expr_lib,
-      # libmcpp_module_lib,
+      libmcpp_core_lib,
+      libmcpp_engine_lib,
+      libmcpp_expr_lib,
+      libmcpp_module_lib,
     ],
   )
 else
@@ -109,7 +109,7 @@ else
   libmcpp_lib = shared_library(
     'mcpp',
     libmcpp_src_files,
-    include_directories: [incdir, srcdir, file_appender_inc],
+    include_directories: [incdir, srcdir],
     dependencies: dep_arr,
     install: true,
     install_dir: install_dir,

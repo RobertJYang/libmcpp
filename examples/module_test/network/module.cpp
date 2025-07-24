@@ -42,4 +42,27 @@ __attribute__((destructor)) void module_unload_detector() {
 
 } // namespace mc::network
 
+// 导出网络状态枚举到模块
+MC_MODULE_REFLECT_ENUM(mc_network,
+                       mc::network::connection_status,
+                       (DISCONNECTED)(CONNECTING)(CONNECTED)(ERROR))
+
+// 导出协议类型枚举到模块
+MC_MODULE_REFLECT_ENUM(mc_network,
+                       mc::network::protocol_type,
+                       (TCP)(UDP)(HTTP)(HTTPS))
+
+// 导出网络客户端类到模块
+MC_MODULE_REFLECT(mc_network,
+                  mc::network::network_client,
+                  ((connect, "connect"))           // 连接
+                  ((disconnect, "disconnect"))     // 断开连接
+                  ((send_data, "sendData"))        // 发送数据
+                  ((receive_data, "receiveData"))  // 接收数据
+                  ((get_status, "getStatus"))      // 获取状态
+                  ((get_host, "getHost"))          // 获取主机
+                  ((get_port, "getPort"))          // 获取端口
+                  ((set_protocol, "setProtocol"))  // 设置协议
+                  ((get_protocol, "getProtocol"))) // 获取协议
+
 MC_EXPORT_MODULE(mc_network)

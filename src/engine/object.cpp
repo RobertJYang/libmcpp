@@ -12,9 +12,64 @@
 
 #include <mc/engine/object.h>
 #include <mc/engine/path.h>
+#include <mc/engine/std_interface.h>
 #include <mc/engine/utils.h>
 
 namespace mc::engine {
+
+namespace detail {
+
+// 获取 property<T> 类型属性在接口中的地址
+static property_base* to_property_base(const object_impl* self, const interface_item<property_type_info>& info) {
+    return info.template to_item_ptr<property_base>(self);
+}
+
+// 获取接口属性在对象中的地址
+static interface_impl* get_interface(const object_impl* self, const property_type_info* iface) {
+    return static_cast<interface_impl*>(to_interface_ptr(self, iface));
+}
+
+template <typename ResultType>
+ResultType do_invoke_impl(object_impl* self, context& ctx, std::string_view method_name,
+                          const mc::variants& args, std::string_view interface_name) {
+    auto result = standard_interfaces::invoke(self, method_name, args, interface_name);
+    if (ctx.get_method() != nullptr) {
+        return result;
+    }
+
+    const auto& metadata = self->get_metadata();
+    auto        info     = metadata.get_method_info(method_name, interface_name);
+    if (info.item != nullptr) {
+        ctx.set_method(info.item);
+        auto* interface = get_interface(self, info.interface);
+        if constexpr (std::is_same_v<ResultType, invoke_result>) {
+            return info.item->invoke(interface, args);
+        } else {
+            return info.item->async_invoke(interface, args);
+        }
+    }
+
+    return {};
+}
+
+template <typename ResultType>
+ResultType invoke_impl(object_impl* self, std::string_view method_name, const mc::variants& args,
+                       std::string_view interface_name) {
+    // 跟踪对象调用
+    object_call_stack::context object_ctx{self->get_service(), *self};
+
+    auto* ctx = context_stack::top_value();
+    if (ctx && &ctx->get_object() == self && ctx->get_method_name() == method_name) {
+        return do_invoke_impl<ResultType>(self, *ctx, method_name, args, interface_name);
+    }
+
+    context tmp_ctx(*self->get_service(), *self);
+    tmp_ctx.set_call_info(detail::variants_call{args, interface_name, method_name});
+    context_stack::context call_ctx(self->get_service(), tmp_ctx);
+    return do_invoke_impl<ResultType>(self, tmp_ctx, method_name, args, interface_name);
+}
+
+} // namespace detail
 
 object_impl::object_impl(core_object* parent)
     : abstract_object(parent) {
@@ -25,6 +80,27 @@ object_impl::~object_impl() {
     m_position.clear();
     m_managed_objects.clear();
     m_property_changed_signal.reset();
+}
+
+bool object_impl::init(const mc::dict& args) {
+    try {
+        from_variant(args, *this);
+        return true;
+    } catch (const std::exception& e) {
+        elog("init object ${class} failed: ${error}",
+             ("class", get_class_name())("error", e.what()));
+        return false;
+    }
+}
+
+std::string_view object_impl::get_object_path() const {
+    if (!m_object_path.empty()) {
+        return m_object_path;
+    }
+
+    const_cast<object_impl*>(this)->set_object_path(
+        service::resolve_object_path(get_path_pattern(), *this));
+    return m_object_path;
 }
 
 const abstract_object::managed_objects& object_impl::get_managed_objects() const {
@@ -174,5 +250,237 @@ void object_impl::set_service(service* s) {
 service* object_impl::get_service() const {
     return m_service;
 }
+
+void object_impl::init_interface_object(const object_metadata& metadata) {
+    /* 初始化子类对象的属性（interface、property）
+     *
+     * 这个做法不符合 C++ 对象构造顺序，因为基类先于子类构造，这里强制转换成子类指针，
+     * 并直接调用子类属性的方法，当基类构造函数返回后，子类又会重新构造子类属性，所以
+     * 必须确保已经在这里设置的属性，不要在该属性的构造函数中覆盖掉。
+     *
+     * 基类构造函数 -> 设置子类属性的值 -> 子类构造函数 -> 子类属性构造
+     *                    |                             |
+     *                    v                             v
+     *              设置子类属性值                 需要保证子类属性构造
+     *                                          不要覆盖前面设置的值
+     */
+
+    metadata.visit_interfaces([&](const interface_metadata& iface) {
+        detail::get_interface(this, iface.interface)->set_owner(this);
+    });
+}
+
+mc::variant object_impl::get_property(std::string_view property_name,
+                                      std::string_view interface_name, int options) const {
+    const auto& metadata = get_metadata();
+    auto        info     = metadata.get_property_info(property_name, interface_name);
+    if (info.item != nullptr) {
+        if (info.item->has_flags(MC_REFLECT_FLAG_PROPERTY_TPL)) {
+            return detail::to_property_base(this, info)->get_value(options);
+        } else {
+            return info.item->get_value(detail::get_interface(this, info.interface));
+        }
+    }
+
+    return {};
+}
+
+bool object_impl::set_property(std::string_view property_name, const mc::variant& value,
+                               std::string_view interface_name) {
+    const auto& metadata = get_metadata();
+    auto        info     = metadata.get_property_info(property_name, interface_name);
+    if (info.item != nullptr) {
+        if (info.item->has_flags(MC_REFLECT_FLAG_PROPERTY_TPL)) {
+            detail::to_property_base(this, info)->set_value(value);
+            return true;
+        } else {
+            info.item->set_value(detail::get_interface(this, info.interface), value);
+            return true;
+        }
+    }
+
+    return false;
+}
+
+mc::dict object_impl::get_all_properties(std::string_view interface_name, int options) const {
+    const auto& metadata = get_metadata();
+    if (interface_name.empty()) {
+        mc::mutable_dict dict;
+        to_variant(*this, dict, options);
+        return dict;
+    }
+
+    auto* iface_info = metadata.get_interface_info(interface_name);
+    if (iface_info != nullptr) {
+        return detail::get_interface(this, iface_info)->get_all_properties(options);
+    }
+
+    return {};
+}
+
+abstract_interface* object_impl::get_interface(std::string_view interface_name) const noexcept {
+    const auto& metadata   = get_metadata();
+    auto*       iface_info = metadata.get_interface_info(interface_name);
+    if (iface_info == nullptr) {
+        return nullptr;
+    }
+
+    return detail::get_interface(this, iface_info);
+}
+
+void object_impl::from_variant(const mc::dict& d, object_impl& obj) {
+    const auto& metadata = obj.get_metadata();
+    metadata.visit_properties([&](interface_item<property_type_info> info) {
+        if (!d.contains(info.item->name)) {
+            return;
+        }
+
+        // 只处理对象级别的属性，接口属性在下面接口中处理
+        if (info.item->has_flags(MC_REFLECT_FLAG_PROPERTY_TPL)) {
+            // property<T> 类型属性
+            detail::to_property_base(&obj, info)->set_value(d[info.item->name]);
+        } else if (!info.item->has_flags(MC_REFLECT_FLAG_INTERFACE)) {
+            // 普通属性
+            auto* iface = detail::get_interface(&obj, info.interface);
+            info.item->set_value(iface, d[info.item->name]);
+        }
+    });
+
+    // 处理每个接口的属性
+    metadata.visit_interfaces([&](const interface_metadata& iface) {
+        // 先尝试从接口名称中查找
+        auto it = d.find(iface.metadata->get_class_name());
+        if (it != d.end()) {
+            interface_impl::from_variant(it->value.as_dict(), *detail::get_interface(&obj, iface.interface));
+            return;
+        }
+
+        // 再尝试从反射名字查找
+        it = d.find(iface.interface->name);
+        if (it != d.end()) {
+            interface_impl::from_variant(it->value.as_dict(), *detail::get_interface(&obj, iface.interface));
+            return;
+        }
+    });
+}
+
+void object_impl::to_variant(const object_impl& obj, mc::mutable_dict& dict, int options) {
+    const auto& metadata = obj.get_metadata();
+
+    if (options & property_options::with_object_property) {
+        // 先处理对象级别定义的属性
+        // TODO:: 如果该属性遮蔽了接口的属性，则应该写到到被遮蔽的接口中而不是作为独立属性存在在对象中，
+        // 因为对象实现这些属性的目的就是为了遮蔽接口属性，达到接口扩展的目的
+        metadata.get_object_metadata().visit_properties([&](const property_type_info* property) {
+            if (dict.contains(property->name)) {
+                return mc::reflect::visit_status::VS_CONTINUE;
+            }
+
+            // 只处理对象级别的属性，接口属性在下面接口中处理
+            if (property->has_flags(MC_REFLECT_FLAG_PROPERTY_TPL)) {
+                // property<T> 类型属性
+                dict[property->name] = detail::to_property_base(&obj, {nullptr, property})->get_value(options);
+            } else if (!property->has_flags(MC_REFLECT_FLAG_INTERFACE)) {
+                // 普通属性
+                dict[property->name] = property->get_value(&obj);
+            }
+
+            return mc::reflect::visit_status::VS_CONTINUE;
+        });
+    }
+
+    // 处理每个接口的属性
+    metadata.visit_interfaces([&](const interface_metadata& iface) {
+        mc::mutable_dict sub_dict;
+        interface_impl::to_variant(*detail::get_interface(&obj, iface.interface), sub_dict, options);
+        dict[iface.metadata->get_class_name()] = sub_dict;
+    });
+}
+
+bool object_impl::has_property(std::string_view property_name, std::string_view interface_name) const {
+    const auto& metadata = get_metadata();
+    auto        info     = metadata.get_property_info(property_name, interface_name);
+    if (info.item != nullptr) {
+        return true;
+    }
+
+    return false;
+}
+
+bool object_impl::has_interface(std::string_view interface_name) const {
+    return get_metadata().get_interface_info(interface_name) != nullptr;
+}
+
+mc::connection_type object_impl::connect(std::string_view signal_name,
+                                         slot_type slot, std::string_view interface_name) {
+    const auto& metadata = get_metadata();
+    auto        info     = metadata.get_signal_info(signal_name, interface_name);
+    if (info.item != nullptr) {
+        return info.item->connect(detail::get_interface(this, info.interface), slot);
+    }
+
+    return {};
+}
+
+mc::variant object_impl::emit(std::string_view    signal_name,
+                              const mc::variants& args, std::string_view interface_name) {
+    const auto& metadata = get_metadata();
+    auto        info     = metadata.get_signal_info(signal_name, interface_name);
+    if (info.item != nullptr) {
+        return info.item->emit(detail::get_interface(this, info.interface), args);
+    }
+
+    return {};
+}
+
+invoke_result object_impl::invoke(std::string_view method_name, const mc::variants& args,
+                                  std::string_view interface_name) {
+    return detail::invoke_impl<invoke_result>(this, method_name, args, interface_name);
+}
+
+result<mc::variant> object_impl::async_invoke(std::string_view method_name, const mc::variants& args,
+                                              std::string_view interface_name) {
+    return detail::invoke_impl<result<mc::variant>>(this, method_name, args, interface_name);
+}
+
+bool object_impl::has_method(std::string_view method_name,
+                             std::string_view interface_name) const {
+    const auto& metadata = get_metadata();
+    auto        info     = metadata.get_method_info(method_name, interface_name);
+    return info.item != nullptr;
+}
+
+// object_metadata object_impl::create_metadata(
+//     std::string_view class_name, const mc::reflect::struct_metadata& metadata) const {
+//     const auto& properties      = metadata.get_properties();
+//     size_t      interface_count = 0;
+//     for (auto info : properties) {
+//         if (info.member->has_flags(MC_REFLECT_FLAG_INTERFACE)) {
+//             interface_count++;
+//         }
+//     }
+//     if (interface_count == 0) {
+//         return object_metadata(class_name, metadata);
+//     }
+
+//     std::vector<interface_metadata> arr;
+//     arr.reserve(interface_count);
+
+//     // size_t index = 0;
+//     // arr.reserve(interface_count);
+//     // for (auto info : properties) {
+//     //     if (info.member->has_flags(MC_REFLECT_FLAG_INTERFACE)) {
+//     //         arr.emplace_back(info.member, info.member->get_type_name(), info.member->get_metadata());
+//     //     }
+//     // }
+
+//     // size_t index = 0;
+//     // mc::traits::tuple_for_each(interfaces, [&](auto* member) {
+//     //     using member_info_type = std::decay_t<decltype(*member)>;
+//     //     using member_type      = typename member_info_type::member_type;
+//     // });
+//     // return object_metadata(metadata, &arr[0], arr.size());
+//     return object_metadata();
+// }
 
 } // namespace mc::engine

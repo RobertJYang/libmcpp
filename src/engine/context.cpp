@@ -11,7 +11,7 @@
  */
 
 #include <mc/engine/context.h>
-#include <mc/engine/error_engine.h>
+#include <mc/error_engine.h>
 #include <mc/exception.h>
 
 namespace mc::engine {
@@ -22,7 +22,7 @@ context::context(service& s, abstract_object& object) : m_service(s), m_object(o
 context::~context() {
 }
 
-mc::engine::error_ptr context::get_error() {
+mc::error_ptr context::get_error() {
     return m_error;
 }
 

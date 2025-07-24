@@ -23,6 +23,8 @@ namespace mc::devices {
  */
 class sensor {
 public:
+    MC_REFLECTABLE("Sensor")
+
     sensor()  = default;
     ~sensor() = default;
 
@@ -85,16 +87,5 @@ public:
 };
 
 } // namespace mc::devices
-
-// 导出传感器类到模块
-MC_MODULE_REFLECT(mc_devices,
-                  (mc::devices::sensor, "Sensor"),
-                  ((set_name, "setName"))      // 设置名称
-                  ((get_name, "getName"))      // 获取名称
-                  ((initialize, "initialize")) // 初始化
-                  ((read, "read"))             // 读取
-                  ((get_value, "getValue"))    // 获取值
-                  ((get_status, "getStatus"))  // 获取状态
-                  ((self_test, "selfTest")))   // 自检
 
 #endif // MC_SENSOR_H

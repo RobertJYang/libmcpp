@@ -139,15 +139,15 @@ TEST(CustomMemberInfoTest, SignalMemberInfo) {
 
     // 获取运行时属性、方法、信号元信息
     auto& metadata   = mc::reflect::reflector<TestValue>::get_metadata();
-    auto  properties = metadata.get_properties();
-    auto  methods    = metadata.get_methods();
-    auto  signals    = metadata.get_custom_members();
+    auto& properties = metadata.get_properties();
+    auto& methods    = metadata.get_methods();
+    auto& signals    = metadata.get_custom_members();
 
     EXPECT_EQ(properties.size(), 2);
     EXPECT_EQ(methods.size(), 2);
     EXPECT_EQ(signals.size(), 2);
     for (auto& signal : signals) {
-        EXPECT_EQ(signal->type(), TEST_SIGNAL_TYPE);
+        EXPECT_EQ(signal.member->type(), TEST_SIGNAL_TYPE);
     }
 
     // 获取运行静态属性、方法、信号元信息
@@ -165,19 +165,4 @@ TEST(CustomMemberInfoTest, SignalMemberInfo) {
     mc::traits::tuple_for_each(static_signals, [](auto* member) {
         EXPECT_EQ(member->type(), TEST_SIGNAL_TYPE);
     });
-
-    {
-        std::cout << mc::pretty_name<decltype(mc::reflect::get_static_members<MyClass>())>()
-                  << std::endl;
-        auto properties = mc::reflect::get_static_properties<MyClass>();
-        mc::traits::tuple_for_each(properties, [](auto* member) {
-            using member_info_type = std::decay_t<decltype(*member)>;
-            using property_type    = typename member_info_type::member_type;
-            using class_type       = typename member_info_type::class_type;
-            if constexpr (std::is_same_v<property_type, int>) {
-                std::cout << mc::pretty_name<class_type>() << "::"
-                          << member->name << " is int type" << std::endl;
-            }
-        });
-    }
 }

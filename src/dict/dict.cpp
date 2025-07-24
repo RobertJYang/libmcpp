@@ -21,9 +21,9 @@ namespace mc {
 
 // 从键值对集合构造
 dict::dict(const std::vector<entry>& entries)
-    : m_data(mc::make_shared<data_t>(entries.empty() ? 1 : entries.size())) {
+    : m_data(mc::make_shared<data_t>()) {
     for (auto&& entry_val : entries) {
-        auto it = m_data->index.find(entry_val.key);
+        auto it = m_data->index.find(entry_val.key, m_data->index.hash_function(), m_data->index.key_eq());
         if (it != m_data->index.end()) {
             const_cast<entry&>(*it).value = entry_val.value;
         } else {
@@ -36,9 +36,9 @@ dict::dict(const std::vector<entry>& entries)
 
 // 从初始化列表构造
 dict::dict(std::initializer_list<std::pair<variant, variant>> init)
-    : m_data(mc::make_shared<data_t>(init.size())) {
+    : m_data(mc::make_shared<data_t>()) {
     for (const auto& pair : init) {
-        auto it = m_data->index.find(pair.first);
+        auto it = m_data->index.find(pair.first, m_data->index.hash_function(), m_data->index.key_eq());
         if (it != m_data->index.end()) {
             const_cast<entry&>(*it).value = pair.second;
         } else {
@@ -60,7 +60,7 @@ const dict::entry* dict::find_entry(std::string_view key) const {
         return nullptr;
     }
 
-    auto it = m_data->index.find(key);
+    auto it = m_data->index.find(key, m_data->index.hash_function(), m_data->index.key_eq());
     if (it != m_data->index.end()) {
         return &(*it);
     }
@@ -80,7 +80,7 @@ const dict::entry* dict::find_entry(const variant& key) const {
         return nullptr;
     }
 
-    auto it = m_data->index.find(key);
+    auto it = m_data->index.find(key, m_data->index.hash_function(), m_data->index.key_eq());
     if (it != m_data->index.end()) {
         return &(*it);
     }

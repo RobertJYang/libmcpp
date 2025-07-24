@@ -17,6 +17,7 @@
 #include <mc/dbus/signal.h>
 #include <mc/dbus/validator.h>
 #include <mc/engine.h>
+#include <mc/engine/errors/std_errors.h>
 #include <mc/engine/path_iterator.h>
 #include <mc/engine/utils.h>
 #include <mc/exception.h>
@@ -181,7 +182,10 @@ void service_impl::stop() {
 
     auto& engine   = mc::engine::engine::get_instance();
     auto  services = engine.get_table<service_table>("services");
-    services->remove(m_service_object);
+
+    if (m_service_object) {
+        services->remove(m_service_object);
+    }
 
     if (m_object_table) {
         m_object_table->clear();

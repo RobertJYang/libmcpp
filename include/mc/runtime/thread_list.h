@@ -14,9 +14,7 @@
 #define MC_RUNTIME_THREAD_LIST_H
 
 #include <mc/common.h>
-#include <mc/intrusive/hook.h>
 #include <mc/intrusive/list.h>
-#include <mc/intrusive/options.h>
 
 #include <functional>
 #include <memory>
@@ -27,7 +25,7 @@ namespace mc::runtime {
 /**
  * @brief 线程节点
  */
-class MC_API thread_node : public mc::intrusive::list_hook {
+class MC_API thread_node : public mc::intrusive::list_base_hook<> {
 public:
     /**
      * @brief 构造函数
@@ -77,7 +75,7 @@ private:
  */
 class MC_API thread_list {
 public:
-    using node_list_type = mc::intrusive::list<thread_node>;
+    using node_list_type = mc::intrusive::list<thread_node, mc::intrusive::constant_time_size<false>>;
 
     /**
      * @brief 默认构造函数

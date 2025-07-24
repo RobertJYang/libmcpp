@@ -23,6 +23,7 @@
 #include <tuple>
 #include <unordered_map>
 
+#include <mc/intrusive/list.h>
 #include <mc/reflect/metadata_info.h>
 #include <mc/singleton.h>
 
@@ -136,60 +137,73 @@ enum class visit_status {
     VS_BREAK,
 };
 
+template <typename T>
+struct member_node : boost::intrusive::slist_base_hook<> {
+    const T* member{nullptr};
+
+    member_node() = default;
+    member_node(const T* member) : member(member) {
+    }
+};
+
+using property_list   = mc::intrusive::slist<member_node<property_type_info>, mc::intrusive::constant_time_size<false>>;
+using method_list     = mc::intrusive::slist<member_node<method_type_info>, mc::intrusive::constant_time_size<false>>;
+using base_class_list = mc::intrusive::slist<member_node<base_class_type_info>, mc::intrusive::constant_time_size<false>>;
+using member_list     = mc::intrusive::slist<member_node<member_info_base>, mc::intrusive::constant_time_size<false>>;
+using custom_list     = member_list;
+
 class MC_API struct_metadata {
 public:
-    struct_metadata(std::string_view name);
+    struct_metadata(std::string_view name, type_id_type type_id);
 
     template <typename T, typename Members>
     struct_metadata(std::string_view name, const Members& members, const T* o)
-        : struct_metadata(name) {
+        : struct_metadata(name, mc::reflect::reflector<T>::get_type_id()) {
         add_members(members, o);
     }
 
     ~struct_metadata();
 
-    std::string_view get_name() const;
-
-    void add_property_info(const property_type_info* property);
-    void add_method_info(const method_type_info* method);
-    void add_base_class_info(const base_class_type_info* base_class);
-    void add_custom_info(const member_info_base* custom);
+    std::string_view get_name() const noexcept;
+    type_id_type     get_type_id() const noexcept;
 
     const property_type_info*   get_property_info(std::string_view name) const;
     const property_type_info*   get_property_info(size_t offset) const;
     const method_type_info*     get_method_info(std::string_view name) const;
     const method_type_info*     get_method_info(size_t offset) const;
     const base_class_type_info* get_base_class_info(std::string_view name) const;
+    const member_info_base*     get_custom_info(std::string_view name, size_t reflect_type) const;
 
     using property_visitor_t   = std::function<visit_status(const property_type_info*)>;
     using method_visitor_t     = std::function<visit_status(const method_type_info*)>;
     using base_class_visitor_t = std::function<visit_status(const base_class_type_info*)>;
     using custom_visitor_t     = std::function<visit_status(const member_info_base*)>;
 
-    void visit_property(const property_visitor_t& visitor) const;
-    void visit_method(const method_visitor_t& visitor) const;
-    void visit_base_class(const base_class_visitor_t& visitor) const;
-    void visit_custom(const custom_visitor_t& visitor) const;
+    void visit_properties(const property_visitor_t& visitor) const;
+    void visit_methods(const method_visitor_t& visitor) const;
+    void visit_base_classes(const base_class_visitor_t& visitor) const;
+    void visit_customs(const custom_visitor_t& visitor) const;
 
-    std::vector<const property_type_info*>   get_properties() const;
-    std::vector<const method_type_info*>     get_methods() const;
-    std::vector<const base_class_type_info*> get_base_classes() const;
-    std::vector<const member_info_base*>     get_custom_members() const;
+    const property_list&   get_properties() const;
+    const method_list&     get_methods() const;
+    const base_class_list& get_base_classes() const;
+    const member_list&     get_custom_members() const;
 
 private:
     template <typename T, typename Members>
     void add_members(const Members& members, const T*) {
         // 先添加子类成员再添加基类成员，子类成员会覆盖基类同名成员
         mc::traits::tuple_for_each(members, [&](auto& member) {
+            if (member.type() >= static_cast<int>(member_info_type::custom_start)) {
+                add_custom_info(&member);
+                return;
+            }
+
             using member_type = std::decay_t<decltype(member)>;
             if constexpr (std::is_base_of_v<method_type_info, member_type>) {
                 add_method_info(&member);
             } else if constexpr (std::is_base_of_v<property_type_info, member_type>) {
                 add_property_info(&member);
-            } else {
-                if (member.type() >= static_cast<int>(member_info_type::custom_start)) {
-                    add_custom_info(&member);
-                }
             }
         });
         mc::traits::tuple_for_each(members, [&](auto& member) {
@@ -198,7 +212,15 @@ private:
                 add_base_class_info(&member);
             }
         });
+
+        add_members_finish();
     }
+
+    void add_property_info(const property_type_info* property);
+    void add_method_info(const method_type_info* method);
+    void add_base_class_info(const base_class_type_info* base_class);
+    void add_custom_info(const member_info_base* custom);
+    void add_members_finish();
 
     struct impl;
     std::unique_ptr<impl> m_impl;

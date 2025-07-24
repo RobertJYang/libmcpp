@@ -39,14 +39,7 @@ enum class protocol_version {
 
 } // namespace mc::protocol
 
-// 导出消息类型枚举到模块
-MC_MODULE_REFLECT_ENUM(mc_protocol,
-                       (mc::protocol::message_type, "MessageType"),
-                       (REQUEST)(RESPONSE)(NOTIFICATION))
-
-// 导出协议版本枚举到模块
-MC_MODULE_REFLECT_ENUM(mc_protocol,
-                       (mc::protocol::protocol_version, "ProtocolVersion"),
-                       (V1_0)(V1_1)(V2_0))
+MC_REFLECTABLE("MessageType", mc::protocol::message_type)
+MC_REFLECTABLE("ProtocolVersion", mc::protocol::protocol_version)
 
 #endif // MC_PROTOCOL_BASE_H

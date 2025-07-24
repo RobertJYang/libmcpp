@@ -124,14 +124,14 @@ struct MC_API object_manager_interface : public mc::engine::interface<object_man
 
     ~object_manager_interface() override = default;
 
-    using interfaces_type = std::map<std::string, mc::dict>;
+    using interfaces_type = std::map<std::string_view, mc::dict>;
     using objects_type    = std::map<mc::dbus::path, interfaces_type>;
     objects_type get_managed_objects() const;
 
     using interfaces_added_signal = mc::signal<void(mc::dbus::path, interfaces_type)>;
     interfaces_added_signal interfaces_added;
 
-    using interfaces_removed_signal = mc::signal<void(mc::dbus::path, std::vector<std::string>)>;
+    using interfaces_removed_signal = mc::signal<void(mc::dbus::path, std::vector<std::string_view>)>;
     interfaces_removed_signal interfaces_removed;
 
     static object_manager_interface& get_instance();

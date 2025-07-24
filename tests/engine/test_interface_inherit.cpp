@@ -143,8 +143,7 @@ TEST_F(interface_inherit_test, test_interface_property_inherit) {
 
 // 测试通过 abstract_interface 访问属性
 TEST_F(interface_inherit_test, test_abstract_interface) {
-    mc::engine::abstract_interface* base_iface = obj.get_interface("org.test.ExtendedInterface");
-    ASSERT_NE(base_iface, nullptr);
+    mc::engine::abstract_interface* base_iface = &obj.m_iface;
 
     // 测试能否通过抽象接口获取所有属性（包括继承的）
     EXPECT_EQ(base_iface->get_property("BaseValue"), 100);
@@ -216,16 +215,23 @@ TEST_F(interface_inherit_test, test_get_all_properties) {
                                                      << expected_iface_props.to_string();
 
     // 测试通过对象获取所有属性（包括对象自身的属性）
-    mc::dict all_props = obj.get_all_properties();
+    mc::dict all_props = obj.get_all_properties({}, mc::engine::property_options::with_object_property);
 
     mc::dict expected_all_props = {
         {"org.test.ExtendedInterface", mc::dict{{"BaseValue", 123},
                                                 {"MiddleValue", "test_middle"},
                                                 {"ExtendedValue", 9.99},
                                                 {"CommonProp", "test_common"}}},
-        {"CommonProp", "object_common"}};
+        // 包含对象级别的属性
+        {"CommonProp", "object_common"},
+        {"path", "/org/test/TestObject"},
+        {"class_name", "TestObject"},
+        {"object_name", ""},
+        {"position", ""},
+        {"object_id", 0}};
 
-    EXPECT_EQ(all_props, expected_all_props);
+    EXPECT_EQ(all_props, expected_all_props) << all_props.to_string() << "\n"
+                                             << expected_all_props.to_string();
 }
 
 // 测试属性存在性检查

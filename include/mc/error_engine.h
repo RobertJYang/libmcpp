@@ -81,9 +81,9 @@ private:
 
 #define REGISTER_CONST_ERROR(NAME, ERROR, ...) \
     inline auto NAME =                         \
-        mc::engine::error_engine::get_instance().register_const_error(ERROR, ##__VA_ARGS__)
+        mc::error_engine::get_instance().register_const_error(ERROR, ##__VA_ARGS__)
 
 #define REGISTER_ERROR(NAME, ERROR, ...) \
-    inline auto NAME = mc::engine::error_engine::get_instance().register_error(ERROR, ##__VA_ARGS__)
+    inline auto NAME = mc::error_engine::get_instance().register_error(ERROR, ##__VA_ARGS__)
 
 #endif // MC_ENGINE_ERROR_ENGINE_H

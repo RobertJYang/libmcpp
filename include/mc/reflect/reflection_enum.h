@@ -110,6 +110,10 @@ public:
         return nullptr; // 枚举类型没有基类
     }
 
+    const member_info_base* get_custom_info(std::string_view name, size_t reflect_type) const override {
+        return nullptr; // 枚举类型没有自定义信息
+    }
+
     std::vector<std::string_view> get_property_names() const override {
         return {}; // 枚举类型没有属性
     }

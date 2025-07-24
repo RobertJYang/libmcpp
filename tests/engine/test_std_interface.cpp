@@ -242,6 +242,8 @@ protected:
     }
 
     static void SetUpTestSuite() {
+        mc::test::TestWithEngine::SetUpTestSuite();
+
         service_1 = new test_service_1();
         service_2 = new test_service_2();
         service_1->init();
@@ -255,6 +257,8 @@ protected:
         service_2->stop();
         delete service_1;
         delete service_2;
+
+        mc::test::TestWithEngine::TearDownTestSuite();
     }
 
     void SetUp() override {
@@ -468,7 +472,10 @@ TEST_F(std_interface_test, TestGetWithContext) {
     auto conn = mc::dbus::connection::open_session_bus(mc::get_io_context());
     conn.start();
     auto msg =
-        mc::dbus::message::new_method_call("org.openubmc.test_service_2", "/org/openubmc/test_object_b", "bmc.kepler.Object.Properties", "GetWithContext");
+        mc::dbus::message::new_method_call("org.openubmc.test_service_2",
+                                           "/org/openubmc/test_object_b",
+                                           "bmc.kepler.Object.Properties",
+                                           "GetWithContext");
     msg.set_sender("bmc.kepler.test_client");
     msg.set_serial(1);
     auto                               writer = msg.writer();
@@ -490,7 +497,9 @@ TEST_F(std_interface_test, TestSetWithContext) {
     auto conn = mc::dbus::connection::open_session_bus(mc::get_io_context());
     conn.start();
     auto msg =
-        mc::dbus::message::new_method_call("org.openubmc.test_service_2", "/org/openubmc/test_object_b", "bmc.kepler.Object.Properties", "SetWithContext");
+        mc::dbus::message::new_method_call(
+            "org.openubmc.test_service_2",
+            "/org/openubmc/test_object_b", "bmc.kepler.Object.Properties", "SetWithContext");
     msg.set_sender("bmc.kepler.test_client");
     msg.set_serial(1);
     auto                               writer = msg.writer();
@@ -503,7 +512,10 @@ TEST_F(std_interface_test, TestSetWithContext) {
     auto reply = conn.send_with_reply(std::move(msg), mc::milliseconds(1000));
     ASSERT_TRUE(reply.is_valid() && reply.is_method_return());
 
-    msg = mc::dbus::message::new_method_call("org.openubmc.test_service_2", "/org/openubmc/test_object_b", "bmc.kepler.Object.Properties", "GetWithContext");
+    msg = mc::dbus::message::new_method_call("org.openubmc.test_service_2",
+                                             "/org/openubmc/test_object_b",
+                                             "bmc.kepler.Object.Properties",
+                                             "GetWithContext");
     msg.set_sender("bmc.kepler.test_client");
     msg.set_serial(1);
     writer = msg.writer();

@@ -29,19 +29,19 @@ namespace mc::engine {
 #define MC_OBJECT_INTERFACE(...) \
     BOOST_PP_IIF(BOOST_PP_IS_EMPTY(__VA_ARGS__), BOOST_PP_EMPTY, MC_OBJECT_INTERFACE_I)(__VA_ARGS__)
 
-#define MC_OBJECT(OBJECT_TYPE, CLASS_NAME, PATH_PATTERN, ...)                \
-    MC_REFLECTABLE(#OBJECT_TYPE);                                            \
-    using object_type = OBJECT_TYPE;                                         \
-    friend struct mc::reflect::reflector<OBJECT_TYPE>;                       \
-    static constexpr std::string_view path_pattern = PATH_PATTERN;           \
-    static constexpr std::string_view class_name   = CLASS_NAME;             \
-    template <typename Members>                                              \
-    static constexpr bool check_members(const Members& members) {            \
-        constexpr auto interfaces =                                          \
-            std::tuple_cat(MC_OBJECT_INTERFACE(__VA_ARGS__) std::tuple<>()); \
-        return mc::engine::detail::check_members(interfaces, members);       \
+#define MC_OBJECT(OBJECT_TYPE, CLASS_NAME, PATH_PATTERN, ...)                      \
+    MC_REFLECTABLE(#OBJECT_TYPE);                                                  \
+    using object_type                              = OBJECT_TYPE;                  \
+    static constexpr std::string_view path_pattern = PATH_PATTERN;                 \
+    static constexpr std::string_view class_name   = CLASS_NAME;                   \
+    using DeclaredInterfaces =                                                     \
+        decltype(std::tuple_cat(MC_OBJECT_INTERFACE(__VA_ARGS__) std::tuple<>())); \
+    template <typename Members>                                                    \
+    static constexpr bool check_members(const Members& members) {                  \
+        constexpr auto interfaces =                                                \
+            std::tuple_cat(MC_OBJECT_INTERFACE(__VA_ARGS__) std::tuple<>());       \
+        return mc::engine::detail::check_members(interfaces, members);             \
     }
-
 } // namespace mc::engine
 
 #endif // MC_ENGINE_MACRO_H

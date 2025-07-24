@@ -33,21 +33,24 @@ public:
     /**
      * @brief 获取单例实例
      */
-    MC_API static builtin& get_instance();
+    static builtin& get_instance();
 
     /**
      * @brief 析构函数
      */
-    MC_API ~builtin();
+    ~builtin();
 
     /**
      * @brief 注册内建函数
      * @param func 函数对象
      */
-    MC_API int register_symbol(std::shared_ptr<function> func);
+    int register_symbol(std::shared_ptr<function> func);
 
-    template <typename F>
-    MC_API int register_symbol(std::string name, F&& func) {
+    template <typename F,
+              std::enable_if_t<
+                  std::is_function_v<std::remove_pointer_t<std::decay_t<F>>>,
+                  int> = 0>
+    int register_symbol(std::string name, F&& func) {
         return register_symbol(make_simple_function(std::move(name), std::forward<F>(func)));
     }
 
@@ -56,7 +59,7 @@ public:
      * @param name 变量名称
      * @param value 变量值
      */
-    MC_API int register_symbol(std::string name, mc::variant value);
+    int register_symbol(std::string name, mc::variant value);
 
     /**
      * @brief 注册模块的所有方法
@@ -67,9 +70,9 @@ public:
      */
     template <typename T, std::enable_if_t<mc::reflect::is_reflectable<T>(), int> = 0>
     int register_module() {
-        auto& methods = mc::reflect::reflector<T>::get_methods();
-        mc::traits::tuple_for_each(methods, [this](auto& method) {
-            this->register_symbol(std::string(method.name), method.m_function);
+        auto methods = mc::reflect::get_static_methods<T>();
+        mc::traits::tuple_for_each(methods, [this](auto* method) {
+            this->register_symbol(std::string(method->name), method->m_function);
         });
         return 0;
     }
@@ -78,7 +81,7 @@ public:
      * @brief 获取内建上下文
      * @return 内建上下文
      */
-    MC_API context& get_context();
+    context& get_context();
 
 private:
     builtin();

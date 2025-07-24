@@ -112,23 +112,24 @@ enum member_info_type {
 //------------------------------------------------------------------------------
 
 // 成员信息基类
+// @note 我们预留了 flags 用于存储自定义其他信息，比如 engine 模块的 MC_REFLECT_FLAG_PROPERTY_TPL 用于标记该属性是 property<T> 类型。
+// 这里不做过多约定由用户自己决定如何使用，为了保证定义的 flags 位不冲突，要求必须用宏定义 FLAG，并以 MC_REFLECT_FLAG_* 作为开头命名，这样
+// 通过简单的字符串查找就可以检查是否冲突
 struct member_info_base {
     std::string_view name;
-    uint32_t         is_override : 1;  // 是否被派生类覆盖
-    uint32_t         flags       : 31; // 扩展 flags，用于存储自定义其他信息
-    std::uintptr_t   base_offset = 0;  // 基类偏移量
+    uint32_t         flags;           // 扩展 flags，用于存储自定义其他信息
+    uint32_t         data;            // 扩展数据，用于存储自定义其他信息
+    std::uintptr_t   base_offset = 0; // 如果该反射信息表示的是其他类的基类，则该值为基类相对于子类基址的偏移量，否则为 0
 
     constexpr member_info_base(std::string_view n)
-        : name(n), is_override(false), flags(0), base_offset(0) {
+        : name(n), flags(0), data(0), base_offset(0) {
     }
 
-    virtual std::type_index  typeinfo() const  = 0;
-    virtual std::string_view type_name() const = 0;
-    virtual int              type() const      = 0;
-    virtual std::uintptr_t   offset() const    = 0;
-
-    // 通用的克隆方法 - 返回裸指针，因为对象都是 constexpr 的，没有动态资源需要析构
-    virtual member_info_base* clone() const = 0;
+    virtual std::type_index   typeinfo() const  = 0;
+    virtual std::string_view  type_name() const = 0;
+    virtual int               type() const      = 0;
+    virtual std::uintptr_t    offset() const    = 0;
+    virtual member_info_base* clone() const     = 0;
 
     template <typename T>
     T* adjust_object_pointer(void* obj) const noexcept {
@@ -138,6 +139,39 @@ struct member_info_base {
     template <typename T>
     const T* adjust_object_pointer(const void* obj) const noexcept {
         return reinterpret_cast<const T*>(reinterpret_cast<const char*>(obj) + base_offset);
+    }
+
+    bool is_property_type() const noexcept {
+        auto t = this->type();
+        return t == member_info_type::property || t == member_info_type::computed_property;
+    }
+
+    bool is_method_type() const noexcept {
+        return this->type() == member_info_type::method;
+    }
+
+    bool is_base_class_type() const noexcept {
+        return this->type() == member_info_type::base_class;
+    }
+
+    bool is_type(int type) const noexcept {
+        return static_cast<int>(this->type()) == type;
+    }
+
+    constexpr bool has_flags(uint32_t flags) const noexcept {
+        return (this->flags & flags) == flags;
+    }
+
+    constexpr void set_flags(uint32_t flags) noexcept {
+        this->flags |= flags;
+    }
+
+    constexpr void set_data(uint32_t data) noexcept {
+        this->data = data;
+    }
+
+    constexpr uint32_t get_data() const noexcept {
+        return this->data;
     }
 };
 
@@ -150,21 +184,46 @@ struct property_type_info : public member_info_base {
     }
 
     virtual std::string_view get_signature() const = 0;
+
+    // 使用反射信息基类直接调用对象属性，用于动态反射类型擦除后使用
+    mc::variant get_value(const void* obj) const;
+    void        set_value(void* obj, const mc::variant& value) const;
+    template <typename C, std::enable_if_t<std::is_class_v<C>, int> = 0>
+    mc::variant get_value(const C& obj) const {
+        return get_value(&obj);
+    }
+    template <typename C, std::enable_if_t<std::is_class_v<C>, int> = 0>
+    void set_value(C& obj, const mc::variant& value) const {
+        set_value(&obj, value);
+    }
 };
 
 // 属性信息基类
 template <typename C>
 struct property_info_base : public property_type_info {
-    using class_type = C;
+    using class_type  = C;
+    using getter_type = std::function<mc::variant(const C&)>;
+    using setter_type = std::function<void(C&, const mc::variant&)>;
 
     constexpr property_info_base(std::string_view n) : property_type_info(n) {
     }
 
-    virtual mc::variant                                 get_value(const C& obj) const                     = 0;
-    virtual void                                        set_value(C& obj, const mc::variant& value) const = 0;
-    virtual std::function<mc::variant(const C&)>        getter() const                                    = 0;
-    virtual std::function<void(C&, const mc::variant&)> setter() const                                    = 0;
+    virtual mc::variant get_value(const C& obj) const                     = 0;
+    virtual void        set_value(C& obj, const mc::variant& value) const = 0;
+    virtual getter_type getter() const                                    = 0;
+    virtual setter_type setter() const                                    = 0;
 };
+
+// 类型擦除后通过反射获取属性值，用 std::monostate 类型作为对象类型，因为我们并不会真正使用这个类型，
+// 只是为了计算指针偏移量到正确的对象地址
+inline mc::variant property_type_info::get_value(const void* obj) const {
+    return reinterpret_cast<const property_info_base<std::monostate>*>(this)->get_value(
+        *static_cast<const std::monostate*>(obj));
+}
+inline void property_type_info::set_value(void* obj, const mc::variant& value) const {
+    reinterpret_cast<const property_info_base<std::monostate>*>(this)->set_value(
+        *static_cast<std::monostate*>(obj), value);
+}
 
 // 属性元数据具体实现
 // TODO:: 目前为每个类的每个属性都实例化一个 property_info<C, M> 类型，后续可以给所有的
@@ -175,6 +234,8 @@ struct property_info : public property_info_base<C> {
     using member_type = M;
     using tag_type    = property_tag;
     using base_type   = BaseT;
+    using typename property_info_base<C>::getter_type;
+    using typename property_info_base<C>::setter_type;
 
     M BaseT::* member_ptr;
 
@@ -192,13 +253,13 @@ struct property_info : public property_info_base<C> {
         value.as(get_object(obj).*member_ptr);
     }
 
-    std::function<mc::variant(const C&)> getter() const override {
+    getter_type getter() const override {
         return [this](const C& obj) {
             return get_value(obj);
         };
     }
 
-    std::function<void(C&, const mc::variant&)> setter() const override {
+    setter_type setter() const override {
         return [this](C& obj, const mc::variant& value) {
             set_value(obj, value);
         };
@@ -244,6 +305,8 @@ struct computed_property_info : public property_info_base<C> {
     using member_type = typename mc::traits::function_traits<Getter>::return_type;
     using tag_type    = property_tag;
     using base_type   = C;
+    using typename property_info_base<C>::getter_type;
+    using typename property_info_base<C>::setter_type;
 
     using set_function_type = Setter;
     using get_function_type = Getter;
@@ -270,7 +333,7 @@ struct computed_property_info : public property_info_base<C> {
         }
     }
 
-    std::function<mc::variant(const C&)> getter() const override {
+    getter_type getter() const override {
         return [this](const C& obj) {
             return get_value(obj);
         };
@@ -318,6 +381,7 @@ struct computed_property_info : public property_info_base<C> {
 //------------------------------------------------------------------------------
 // 方法元数据结构
 //------------------------------------------------------------------------------
+
 struct method_type_info : public member_info_base {
     constexpr method_type_info(std::string_view n) : member_info_base(n) {
     }
@@ -330,6 +394,18 @@ struct method_type_info : public member_info_base {
     virtual bool         is_static() const                            = 0;
     virtual mc::variant  invoke(const mc::variants& args) const       = 0;
     virtual async_result async_invoke(const mc::variants& args) const = 0;
+
+    // 使用反射信息基类直接调用对象方法，用于动态反射类型擦除后使用
+    mc::variant  invoke(void* obj, const mc::variants& args) const;
+    async_result async_invoke(void* obj, const mc::variants& args) const;
+    template <typename C, std::enable_if_t<std::is_class_v<C>, int> = 0>
+    mc::variant invoke(C& obj, const mc::variants& args) const noexcept {
+        return invoke(&obj, args);
+    }
+    template <typename C, std::enable_if_t<std::is_class_v<C>, int> = 0>
+    async_result async_invoke(C& obj, const mc::variants& args) const noexcept {
+        return async_invoke(&obj, args);
+    }
 };
 
 // 方法信息基类
@@ -346,7 +422,7 @@ struct method_info_base : public method_type_info {
     virtual async_result async_invoke(C& obj, const mc::variants& args) const = 0;
 };
 
-// 方法元数据具体实现 - 根据方法是否为const使用不同实现
+// 方法元数据具体实现
 template <typename Class, typename BaseT, bool IsConst, bool IsStatic, typename RetType,
           typename... Args>
 class method_info : public method_info_base<Class> {
@@ -506,6 +582,18 @@ public:
     function_type m_function;
 };
 
+// 类型擦除后通过反射调用方法，用 std::monostate 类型作为对象类型，因为我们并不会真正使用这个类型，
+// 只是为了计算指针偏移量到正确的对象地址
+inline mc::variant method_type_info::invoke(void* obj, const mc::variants& args) const {
+    return reinterpret_cast<const method_info_base<std::monostate>*>(this)->invoke(
+        *static_cast<std::monostate*>(obj), args);
+}
+
+inline async_result method_type_info::async_invoke(void* obj, const mc::variants& args) const {
+    return reinterpret_cast<const method_info_base<std::monostate>*>(this)->async_invoke(
+        *static_cast<std::monostate*>(obj), args);
+}
+
 // 创建方法元数据的辅助函数
 template <typename C, typename BaseT, typename R, typename... Args>
 constexpr auto make_method_info(R (BaseT::*method)(Args...), std::string_view name) {
@@ -532,6 +620,28 @@ struct base_class_type_info : public member_info_base {
     virtual type_id_type           get_type_id() const   = 0;
     virtual std::string_view       get_signature() const = 0;
     virtual const struct_metadata& get_metadata() const  = 0;
+
+    // 使用反射信息基类直接获取基类属性值和调用基类方法，用于动态反射类型擦除后使用
+    mc::variant  get_value(void* obj, std::string_view name) const;
+    void         set_value(void* obj, std::string_view name, const mc::variant& value) const;
+    mc::variant  invoke(void* obj, std::string_view name, const mc::variants& args) const;
+    async_result async_invoke(void* obj, std::string_view name, const mc::variants& args) const;
+    template <typename C, std::enable_if_t<std::is_class_v<C>, int> = 0>
+    mc::variant get_value(const C& obj, std::string_view name) const {
+        return get_value(&obj, name);
+    }
+    template <typename C, std::enable_if_t<std::is_class_v<C>, int> = 0>
+    void set_value(C& obj, std::string_view name, const mc::variant& value) const {
+        set_value(&obj, name, value);
+    }
+    template <typename C, std::enable_if_t<std::is_class_v<C>, int> = 0>
+    mc::variant invoke(C& obj, std::string_view name, const mc::variants& args) const {
+        return invoke(&obj, name, args);
+    }
+    template <typename C, std::enable_if_t<std::is_class_v<C>, int> = 0>
+    async_result async_invoke(C& obj, std::string_view name, const mc::variants& args) const {
+        return async_invoke(&obj, name, args);
+    }
 };
 
 template <typename C>
@@ -603,6 +713,25 @@ struct base_class_info : public base_class_info_base<C> {
         return *this->template adjust_object_pointer<BaseT>(&obj);
     }
 };
+
+// 类型擦除后通过反射获取基类属性值和调用基类方法，用 std::monostate 类型作为对象类型，因为我们并不会真正使用这个类型，
+// 只是为了计算指针偏移量到正确的对象地址
+inline mc::variant base_class_type_info::get_value(void* obj, std::string_view name) const {
+    return reinterpret_cast<const base_class_info_base<std::monostate>*>(this)->get_value(
+        *static_cast<std::monostate*>(obj), name);
+}
+inline void base_class_type_info::set_value(void* obj, std::string_view name, const mc::variant& value) const {
+    reinterpret_cast<const base_class_info_base<std::monostate>*>(this)->set_value(
+        *static_cast<std::monostate*>(obj), name, value);
+}
+inline mc::variant base_class_type_info::invoke(void* obj, std::string_view name, const mc::variants& args) const {
+    return reinterpret_cast<const base_class_info_base<std::monostate>*>(this)->invoke(
+        *static_cast<std::monostate*>(obj), name, args);
+}
+inline async_result base_class_type_info::async_invoke(void* obj, std::string_view name, const mc::variants& args) const {
+    return reinterpret_cast<const base_class_info_base<std::monostate>*>(this)->async_invoke(
+        *static_cast<std::monostate*>(obj), name, args);
+}
 
 /**
  * @brief 枚举成员信息
@@ -720,15 +849,20 @@ namespace detail {
 // 递归过滤元组元素，仅保留具有特定标签的元素
 template <typename T, typename Filter, size_t Index, typename Result,
           typename... Tuples>
-auto filter_members_impl(const std::tuple<Tuples...>& all_members, Result result) {
+constexpr auto filter_members_impl(const std::tuple<Tuples...>& all_members, Result result) {
     if constexpr (Index >= sizeof...(Tuples)) {
         return result;
     } else {
         using element_type =
             mc::traits::remove_cvref_t<std::tuple_element_t<Index, std::tuple<Tuples...>>>;
-        if constexpr (Filter::template check<element_type>) {
-            auto member_tuple = std::make_tuple(&std::get<Index>(all_members));
-            return filter_members_impl<T, Filter, Index + 1>(all_members, std::tuple_cat(result, member_tuple));
+        if constexpr (Filter::template check<std::remove_pointer_t<element_type>>) {
+            if constexpr (std::is_pointer_v<element_type>) {
+                auto member_tuple = std::make_tuple(std::get<Index>(all_members));
+                return filter_members_impl<T, Filter, Index + 1>(all_members, std::tuple_cat(result, member_tuple));
+            } else {
+                auto member_tuple = std::make_tuple(&std::get<Index>(all_members));
+                return filter_members_impl<T, Filter, Index + 1>(all_members, std::tuple_cat(result, member_tuple));
+            }
         } else {
             return filter_members_impl<T, Filter, Index + 1>(all_members, result);
         }
@@ -736,7 +870,7 @@ auto filter_members_impl(const std::tuple<Tuples...>& all_members, Result result
 }
 
 template <typename T, typename Filter, typename Tuple>
-auto filter_members(const Tuple& all_members) {
+constexpr auto filter_members(const Tuple& all_members) {
     return filter_members_impl<T, Filter, 0>(all_members, std::tuple<>{});
 }
 
@@ -784,6 +918,7 @@ constexpr auto enum_tuple_to_array(const Members& members) {
         values[i++] = member;
     });
 
+    // 根据枚举值排个序，对于枚举值是连续的枚举类型可以提高查找效率
     return sort_enum_values(values);
 }
 

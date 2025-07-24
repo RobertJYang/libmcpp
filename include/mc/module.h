@@ -191,10 +191,10 @@ struct module_namespace {
  */
 #define MC_EXPORT_MODULE(module_name)                                                          \
     extern "C" {                                                                               \
-    void* mc_open_##module_name() {                                                            \
+    MC_API void* mc_open_##module_name() {                                                     \
         return mc::reflect::reflection_factory::instance_ptr<module_name##_namespace>().get(); \
     }                                                                                          \
-    void mc_close_##module_name() {                                                            \
+    MC_API void mc_close_##module_name() {                                                     \
         /* 空实现：模块的清理由 module_manager 通过引用计数管理 */                             \
     }                                                                                          \
     }

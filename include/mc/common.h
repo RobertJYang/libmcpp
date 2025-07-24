@@ -479,6 +479,17 @@ inline int64_t hton(int64_t value) {
     (static_cast<size_t>(reinterpret_cast<size_t>(&(reinterpret_cast<TYPE*>(0)->MEMBER))))
 
 /**
+ * @brief 计算成员指针对应的偏移量
+ *
+ * @param TYPE 结构体类型
+ * @param PTR 成员指针
+ * @param OFFSET 偏移量
+ * @return TYPE* 成员指针
+ */
+#define MC_MEMBER_PTR(TYPE, PTR, OFFSET) \
+    (reinterpret_cast<TYPE>(reinterpret_cast<std::uintptr_t>(PTR) + OFFSET))
+
+/**
  * @brief 计算两个指针之间的偏移量
  *
  * @param P1 指针1

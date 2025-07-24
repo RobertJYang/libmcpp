@@ -38,7 +38,8 @@ class transaction;
 /**
  * 数据库资源基类，所有需要事务管理的资源都需要继承此类
  */
-class MC_API db_resource : public mc::intrusive::unordered_set_hook {
+class MC_API db_resource
+    : public mc::intrusive::unordered_set_base_hook<mc::intrusive::link_mode<mc::intrusive::safe_link>> {
 public:
     MC_API db_resource();
 
@@ -140,12 +141,16 @@ private:
  */
 struct default_transaction_tag {};
 
+#ifndef MC_DB_BUCKET_COUNT
+#define MC_DB_BUCKET_COUNT 64
+#endif
+
 /**
  * 数据库事务类
  */
 class MC_API transaction {
 public:
-    MC_API ~transaction();
+    ~transaction();
 
     /**
      * 获取事务单例
@@ -167,74 +172,76 @@ public:
      * 分配一个新的保存点
      * @return 保存点引用
      */
-    MC_API savepoint& alloc_savepoint();
+    savepoint& alloc_savepoint();
 
     /**
      * 添加资源到事务中
      * @param resource 资源
      */
-    MC_API void add_resource(std::shared_ptr<db_resource> resource);
+    void add_resource(std::shared_ptr<db_resource> resource);
 
     /**
      * 提交事务
      */
-    MC_API void commit();
+    void commit();
 
     /**
      * 回滚事务
      */
-    MC_API void rollback();
+    void rollback();
 
     /**
      * 回滚到指定保存点
      * @param sp 保存点
      */
-    MC_API void rollback_to(const savepoint& sp);
+    void rollback_to(const savepoint& sp);
 
-    MC_API int32_t last_savepoint_id() const;
+    int32_t last_savepoint_id() const;
 
-    MC_API static uint32_t alloc_table_id();
+    static uint32_t alloc_table_id();
 
     /**
      * 获取当前事务中的资源数量
      * @return 资源数量
      */
-    MC_API size_t get_resource_count() const;
+    size_t get_resource_count() const;
 
     /**
      * 获取当前事务中的资源映射表大小
      * @return 资源映射表大小
      */
-    MC_API size_t get_resource_map_size() const;
+    size_t get_resource_map_size() const;
 
     /**
      * 检查指定资源ID是否在事务中存在
      * @param resource_id 资源ID
      * @return 存在返回true，否则返回false
      */
-    MC_API bool has_resource(uint64_t resource_id) const;
+    bool has_resource(uint64_t resource_id) const;
 
     /**
      * 获取指定资源ID对应的资源数量（链表长度）
      * @param resource_id 资源ID
      * @return 资源数量
      */
-    MC_API size_t get_resource_chain_length(uint64_t resource_id) const;
+    size_t get_resource_chain_length(uint64_t resource_id) const;
 
 private:
     transaction();
     bool merge_back(int sp_id, db_resource& resource, db_resource* head);
     void rollback_back(int sp_id, uint64_t resource_id, db_resource& resource);
-    void init_bucket_arrays();
 
 private:
     std::vector<std::shared_ptr<db_resource>> m_resources;
 
     // 按资源ID分组的资源链表
-    static constexpr size_t BUCKET_COUNT = 64; // 默认桶数
-    std::vector<void*>      m_buckets;
-    using resource_map = mc::intrusive::unordered_set<db_resource, resource_hash, resource_equal>;
-    resource_map m_resource_map;
+    using resource_map = mc::intrusive::unordered_set<
+        db_resource,
+        mc::intrusive::hash<resource_hash>,
+        mc::intrusive::equal<resource_equal>,
+        mc::intrusive::constant_time_size<true>>;
+    resource_map              m_resource_map;
+    resource_map::bucket_type m_buckets[MC_DB_BUCKET_COUNT];
 
     // 当前保存点ID计数
     int32_t m_current_savepoint_id = -1;

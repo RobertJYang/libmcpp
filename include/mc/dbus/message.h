@@ -412,13 +412,13 @@ const message_reader& operator>>(const message_reader& reader, T& v) {
 
     message_reader sub_reader;
     sub_reader.recurse(reader);
-    mc::traits::tuple_for_each(mc::reflect::reflector<T>::get_properties(), [&](auto&& item) {
+    mc::traits::tuple_for_each(mc::reflect::get_static_properties<T>(), [&](auto* item) {
         // 如果 sub_reader 已经遍历完则直接返回，我们允许只提供前面的部分属性初始化反射类型
         if (sub_reader.at_end()) {
             return;
         }
 
-        sub_reader >> v.*item.member_ptr;
+        sub_reader >> v.*item->member_ptr;
     });
 
     return reader.next();
@@ -626,14 +626,14 @@ template <typename T, std::enable_if_t<mc::reflect::is_reflectable<T>(), int> = 
 const message_writer& operator<<(const message_writer& writer, const T& v) {
     message_writer sub_writer(writer.m_iter, DBUS_TYPE_STRUCT);
 
-    mc::traits::tuple_for_each(mc::reflect::reflector<T>::get_properties(), [&](auto&& item) {
-        using item_type     = std::decay_t<decltype(item)>;
+    mc::traits::tuple_for_each(mc::reflect::get_static_properties<T>(), [&](auto* item) {
+        using item_type     = std::decay_t<decltype(*item)>;
         using property_type = typename item_type::member_type;
 
         static_assert(detail::has_operator_v<property_type>,
                       "属性类型T不支持通过 operator<< 写入到 dbus::message 中");
 
-        sub_writer << v.*item.member_ptr;
+        sub_writer << v.*item->member_ptr;
     });
 
     sub_writer.close_container();

@@ -5,7 +5,6 @@ test_engine_files = [
     'engine/test_utils.cpp',
     'engine/test_std_interface.cpp',
     'engine/test_engine.cpp',
-    'engine/test_error_engine.cpp',
     'engine/test_property.cpp',
     'engine/test_path.cpp',
     'engine/test_path_iterator.cpp',

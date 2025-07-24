@@ -27,19 +27,19 @@ protected:
 
 TEST_F(utils_test, test_is_valid_interface_name) {
     // 测试无效接口名
-    EXPECT_FALSE(mc::engine::detail::is_valid_interface_name(""));
-    EXPECT_FALSE(mc::engine::detail::is_valid_interface_name(".invalid"));
-    EXPECT_FALSE(mc::engine::detail::is_valid_interface_name("invalid."));
-    EXPECT_FALSE(mc::engine::detail::is_valid_interface_name("invalid..name"));
-    EXPECT_FALSE(mc::engine::detail::is_valid_interface_name("invalid.123"));
-    EXPECT_FALSE(mc::engine::detail::is_valid_interface_name("invalid.name$"));
-    EXPECT_FALSE(mc::engine::detail::is_valid_interface_name("Invalid Interface Name"));
-    EXPECT_FALSE(mc::engine::detail::is_valid_interface_name("no_dots"));
+    EXPECT_FALSE(mc::is_valid_interface_name(""));
+    EXPECT_FALSE(mc::is_valid_interface_name(".invalid"));
+    EXPECT_FALSE(mc::is_valid_interface_name("invalid."));
+    EXPECT_FALSE(mc::is_valid_interface_name("invalid..name"));
+    EXPECT_FALSE(mc::is_valid_interface_name("invalid.123"));
+    EXPECT_FALSE(mc::is_valid_interface_name("invalid.name$"));
+    EXPECT_FALSE(mc::is_valid_interface_name("Invalid Interface Name"));
+    EXPECT_FALSE(mc::is_valid_interface_name("no_dots"));
 
     // 测试有效接口名
-    EXPECT_TRUE(mc::engine::detail::is_valid_interface_name("org.test.TestInterface"));
-    EXPECT_TRUE(mc::engine::detail::is_valid_interface_name("com.example.MyInterface"));
-    EXPECT_TRUE(mc::engine::detail::is_valid_interface_name("a.b.c"));
-    EXPECT_TRUE(mc::engine::detail::is_valid_interface_name("x.y"));
-    EXPECT_TRUE(mc::engine::detail::is_valid_interface_name("interface.with_underscore.name123"));
+    EXPECT_TRUE(mc::is_valid_interface_name("org.test.TestInterface"));
+    EXPECT_TRUE(mc::is_valid_interface_name("com.example.MyInterface"));
+    EXPECT_TRUE(mc::is_valid_interface_name("a.b.c"));
+    EXPECT_TRUE(mc::is_valid_interface_name("x.y"));
+    EXPECT_TRUE(mc::is_valid_interface_name("interface.with_underscore.name123"));
 }

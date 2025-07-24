@@ -32,6 +32,7 @@ using async_result = mc::result<mc::variant>;
 struct property_type_info;
 struct method_type_info;
 struct base_class_type_info;
+struct member_info_base;
 
 // 异常抛出辅助函数
 [[noreturn]] MC_API void throw_method_arg_not_enough(std::string_view method_name, size_t expect_count,
@@ -389,6 +390,14 @@ public:
      * @return const base_class_type_info* 基类信息指针，需要转换为具体类型
      */
     virtual const base_class_type_info* get_base_class_info(std::string_view name) const = 0;
+
+    /**
+     * @brief 获取自定义信息
+     * @param name 自定义信息名
+     * @param reflect_type 反射类型
+     * @return const member_info_base* 自定义信息指针，需要转换为具体类型
+     */
+    virtual const member_info_base* get_custom_info(std::string_view name, size_t reflect_type) const = 0;
 
     /**
      * @brief 获取所有属性名

@@ -161,7 +161,7 @@ public:
      */
     mc::dict get_all_properties(const T& obj) const {
         mc::mutable_dict result;
-        m_data.visit_property([&](const property_type_info* property) {
+        m_data.visit_properties([&](const property_type_info* property) {
             const auto* p   = static_cast<const property_info_base<T>*>(property);
             result[p->name] = p->get_value(obj);
             return visit_status::VS_CONTINUE;
@@ -289,7 +289,7 @@ public:
 
     std::vector<type_id_type> get_base_type_ids() const override {
         std::vector<type_id_type> base_ids;
-        m_data.visit_base_class([&](const base_class_type_info* base_class_info) {
+        m_data.visit_base_classes([&](const base_class_type_info* base_class_info) {
             base_ids.push_back(base_class_info->get_type_id());
             return visit_status::VS_CONTINUE;
         });
@@ -298,7 +298,7 @@ public:
 
     bool is_derived_from(type_id_type base_type_id) const override {
         bool found = false;
-        m_data.visit_base_class([&](const base_class_type_info* base_class_info) {
+        m_data.visit_base_classes([&](const base_class_type_info* base_class_info) {
             if (base_class_info->get_type_id() == base_type_id) {
                 found = true;
                 return visit_status::VS_BREAK;
@@ -310,7 +310,7 @@ public:
 
     std::vector<std::string_view> get_property_names() const override {
         std::vector<std::string_view> names;
-        m_data.visit_property([&](const property_type_info* property) {
+        m_data.visit_properties([&](const property_type_info* property) {
             names.push_back(property->name);
             return visit_status::VS_CONTINUE;
         });
@@ -319,11 +319,15 @@ public:
 
     std::vector<std::string_view> get_method_names() const override {
         std::vector<std::string_view> names;
-        m_data.visit_method([&](const method_type_info* method) {
+        m_data.visit_methods([&](const method_type_info* method) {
             names.push_back(method->name);
             return visit_status::VS_CONTINUE;
         });
         return names;
+    }
+
+    const member_info_base* get_custom_info(std::string_view name, size_t reflect_type) const override {
+        return m_data.get_custom_info(name, reflect_type);
     }
 
     reflection_ptr shared_from_this() {

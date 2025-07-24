@@ -49,7 +49,7 @@ dict::entry* mutable_dict::find_entry(std::string_view key) {
         return nullptr;
     }
 
-    auto it = m_data->index.find(key);
+    auto it = m_data->index.find(key, m_data->index.hash_function(), m_data->index.key_eq());
     return it == m_data->index.end() ? nullptr : const_cast<entry*>(&*it);
 }
 
@@ -65,7 +65,7 @@ dict::entry* mutable_dict::find_entry(const variant& key) {
         return nullptr;
     }
 
-    auto it = m_data->index.find(key);
+    auto it = m_data->index.find(key, m_data->index.hash_function(), m_data->index.key_eq());
     return it == m_data->index.end() ? nullptr : const_cast<entry*>(&*it);
 }
 

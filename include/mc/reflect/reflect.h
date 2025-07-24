@@ -156,12 +156,12 @@ struct has_initial_members : std::false_type {};
 template <typename T, typename Members>
 struct has_initial_members<
     T, Members,
-    std::void_t<decltype(T::template initial_members<Members>(std::declval<Members>()))>>
+    std::void_t<decltype(T::template initial_members<Members>(std::declval<Members&>()))>>
     : std::true_type {};
 
 // 辅助函数：初始化某个成员
 template <typename T, typename Members>
-static constexpr auto initial_members(const Members& members) {
+static constexpr auto initial_members(Members members) {
     if constexpr (has_initial_members<T, Members>::value) {
         T::initial_members(members);
     }
@@ -256,9 +256,9 @@ template <typename T>
 void from_variant(const variant& var, T& obj) {
     if constexpr (reflectable<T>::is_enum::value) {
         reflector<T>::from_variant(var, obj);
-    } else if (var.is_dict()) {
+    } else if (var.is_object()) {
         // 支持从{key: value}字典转换为对象
-        reflector<T>::from_variant(var.as_dict(), obj);
+        reflector<T>::from_variant(var.get_object(), obj);
     } else if (var.is_array()) {
         // 支持从[value1, value2, ...]数组转换为对象,每个成员的顺序必须和反射时一致
         std::size_t index = 0;
@@ -338,6 +338,11 @@ struct signature_helper<T, std::enable_if_t<mc::reflect::is_normal_enum<T>()>> {
 
 namespace mc::reflect {
 
+struct metadata_extension {
+    void* data{nullptr};
+    void (*destroy)(void*){nullptr};
+};
+
 template <typename T>
 struct MC_API reflector<
     T, std::enable_if_t<mc::reflect::is_reflectable<T>() && !mc::reflect::is_enum<T>(), void>> {
@@ -346,8 +351,9 @@ struct MC_API reflector<
     using visitor_t = std::function<void(std::string_view, getter_t, setter_t)>;
     using member_t  = std::pair<const void*, size_t>;
 
-    static std::string_view get_name();
-    static type_id_type     get_type_id();
+    static std::string_view    get_name();
+    static type_id_type        get_type_id();
+    static metadata_extension& get_extension();
 
     static type_id_type register_type();
     static void         unregister_type();
@@ -392,17 +398,14 @@ struct MC_API reflector<
     static reflection<T>&       get_reflection();
 };
 
-template <typename T, typename Members>
-struct reflector_data {
-};
-
 } // namespace mc::reflect
 
-#define MC_REFLECT_STATIC_METADATA(TYPE, BASES, MEMBERS)                                           \
-    template <>                                                                                    \
-    struct static_metadata<TYPE> {                                                                 \
-        static type_id_type   type_id;                                                             \
-        static constexpr auto members = mc::reflect::detail::initial_members<TYPE>(std::tuple_cat( \
+#define MC_REFLECT_STATIC_METADATA(TYPE, BASES, MEMBERS)                                               \
+    template <>                                                                                        \
+    struct static_metadata<TYPE> {                                                                     \
+        static type_id_type       type_id;                                                             \
+        static metadata_extension extension;                                                           \
+        static constexpr auto     members = mc::reflect::detail::initial_members<TYPE>(std::tuple_cat( \
             BOOST_PP_SEQ_FOR_EACH(MC_REFLECT_BASE_ELEMENT, TYPE, BASES)                            \
                 BOOST_PP_SEQ_FOR_EACH(MC_REFLECT_ELEMENT, TYPE, MEMBERS) std::tuple<>()));         \
     };
@@ -422,6 +425,7 @@ struct reflector_data {
                   "members validate failed, please check members type");                               \
     type_id_type mc::reflect::static_metadata<TYPE>::type_id =                                         \
         get_reflect_factory<TYPE>().template register_type<TYPE>();                                    \
+    metadata_extension mc::reflect::static_metadata<TYPE>::extension = {nullptr, nullptr};             \
     template <>                                                                                        \
     std::string_view reflector<TYPE>::get_name() {                                                     \
         return get_type_name<TYPE>();                                                                  \
@@ -429,6 +433,10 @@ struct reflector_data {
     template <>                                                                                        \
     type_id_type reflector<TYPE>::get_type_id() {                                                      \
         return mc::reflect::static_metadata<TYPE>::type_id;                                            \
+    }                                                                                                  \
+    template <>                                                                                        \
+    metadata_extension& reflector<TYPE>::get_extension() {                                             \
+        return mc::reflect::static_metadata<TYPE>::extension;                                          \
     }                                                                                                  \
     template <>                                                                                        \
     type_id_type reflector<TYPE>::register_type() {                                                    \
@@ -454,7 +462,7 @@ struct reflector_data {
     }                                                                                                  \
     template <>                                                                                        \
     void reflector<TYPE>::visit(const visitor_t& visitor) {                                            \
-        get_metadata().visit_property([&](const property_type_info* property) {                        \
+        get_metadata().visit_properties([&](const property_type_info* property) {                      \
             const auto* p = static_cast<const property_info_base<TYPE>*>(property);                    \
             visitor(property->name, p->getter(), p->setter());                                         \
             return visit_status::VS_CONTINUE;                                                          \
@@ -490,7 +498,7 @@ struct reflector_data {
     }                                                                                                  \
     template <>                                                                                        \
     void reflector<TYPE>::get_signature(std::string& sig) {                                            \
-        get_metadata().visit_property([&](const property_type_info* property) {                        \
+        get_metadata().visit_properties([&](const property_type_info* property) {                      \
             sig += property->get_signature();                                                          \
             return visit_status::VS_CONTINUE;                                                          \
         });                                                                                            \
@@ -609,20 +617,13 @@ struct reflector_data {
 #define MC_REFLECT_ENUM(TYPE, VALUES) \
     MC_REFLECT_ENUM_IMPL(TYPE, VALUES)
 
-#define MC_DEFINE_NAMESPACE_1(TYPE, NAMESPACE) \
-    namespace mc::reflect::detail {            \
-    template <>                                \
-    struct reflect_namespace<TYPE> {           \
-        using type = NAMESPACE;                \
-    };                                         \
+#define MC_DEFINE_NAMESPACE(TYPE, NAMESPACE) \
+    namespace mc::reflect::detail {          \
+    template <>                              \
+    struct reflect_namespace<TYPE> {         \
+        using type = NAMESPACE;              \
+    };                                       \
     }
-
-#define MC_DEFINE_NAMESPACE_2(TYPE, NAMESPACE) \
-    MC_DEFINE_NAMESPACE_1(BOOST_PP_TUPLE_ELEM(0, TYPE), NAMESPACE)
-
-#define MC_DEFINE_NAMESPACE(TYPE, NAMESPACE)                       \
-    BOOST_PP_IIF(MC_REFLECT_IS_TUPLE(TYPE), MC_DEFINE_NAMESPACE_2, \
-                 MC_DEFINE_NAMESPACE_1)(TYPE, NAMESPACE)
 
 /**
  * @brief 定义带命名空间的类反射信息
@@ -646,7 +647,6 @@ struct reflector_data {
  *
  * 用法示例：
  * MC_REFLECT_ENUM_WITH_NAMESPACE(my_enum, my_namespace_type, (VALUE1)(VALUE2))
- * MC_REFLECT_ENUM_WITH_NAMESPACE((my_enum, "MyEnum"), my_namespace_type, (VALUE1)(VALUE2))
  */
 #define MC_REFLECT_ENUM_WITH_NAMESPACE(NAMESPACE, TYPE, VALUES) \
     MC_DEFINE_NAMESPACE(TYPE, NAMESPACE)                        \

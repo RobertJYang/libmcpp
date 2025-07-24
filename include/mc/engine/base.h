@@ -19,7 +19,9 @@
 #include <mc/engine/call_stack.h>
 #include <mc/engine/context.h>
 #include <mc/engine/macro.h>
+#include <mc/engine/metadata.h>
 #include <mc/engine/service.h>
+#include <mc/engine/signal_info.h>
 #include <mc/engine/utils.h>
 #include <mc/memory.h>
 #include <mc/reflect.h>
@@ -37,9 +39,10 @@
 #include <type_traits>
 
 namespace mc::engine {
-namespace mdb = mc::db;
+namespace mdb            = mc::db;
+using method_type_info   = mc::reflect::method_type_info;
+using property_type_info = mc::reflect::property_type_info;
 
-using slot_type          = std::function<mc::variant(const mc::variants&)>;
 using message            = mc::dbus::message;
 using core_object        = mc::core::object;
 using connection_id_type = mc::core::connection_id_type;
@@ -56,42 +59,8 @@ using invoke_result = mc::variant;
 
 using object_identifier_t = std::tuple<uint8_t, std::string, std::string, std::string>;
 
-struct MC_API visitor {
-    virtual void handle_interface_begin(const abstract_object&    obj,
-                                        const abstract_interface& iface) = 0;
-    virtual void handle_interface_end(const abstract_object&    obj,
-                                      const abstract_interface& iface)   = 0;
-
-    struct property_meta {
-        std::string_view name;
-        std::string_view signature;
-        int              read_privilege;
-        int              write_privilege;
-        int              flags;
-    };
-    virtual void handle(const abstract_object& obj, const abstract_interface& iface,
-                        const property_meta& info) = 0;
-
-    struct method_meta {
-        std::string_view name;
-        std::string_view args_signature;
-        std::string_view return_signature;
-        int              privilege;
-        int              flags;
-    };
-    virtual void handle(const abstract_object& obj, const abstract_interface& iface,
-                        const method_meta& info) = 0;
-
-    struct signal_meta {
-        std::string_view name;
-        std::string_view args_signature;
-        std::string_view return_signature;
-        int              flags;
-    };
-
-    virtual void handle(const abstract_object& obj, const abstract_interface& iface,
-                        const signal_meta& info) = 0;
-};
+#define MC_REFLECT_FLAG_PROPERTY_TPL 0x01 // 接口的属性是 property<T> 类型的反射标记
+#define MC_REFLECT_FLAG_INTERFACE    0x02 // 对象的属性是一个 interface 类型的反射标记
 
 class MC_API property_base {
 public:
@@ -100,11 +69,13 @@ public:
     virtual uint32_t         get_access() const    = 0;
     virtual uint64_t         get_flags() const     = 0;
 
-    virtual abstract_interface* get_interface() const = 0;
-    virtual abstract_object*    get_object() const    = 0;
+    virtual abstract_interface* get_interface() const                        = 0;
+    virtual void                set_interface(abstract_interface* interface) = 0;
+    virtual abstract_object*    get_object() const                           = 0;
 
     virtual mc::variant get_value(int options = 0) const = 0;
-    void                set_value(const mc::variant& value) {
+
+    void set_value(const mc::variant& value) {
         set_variant(value);
     }
 
@@ -145,23 +116,20 @@ public:
     virtual void                set_object_identifier(const object_identifier_t& identifier) = 0;
 
     virtual bool                has_interface(std::string_view interface_name) const = 0;
-    virtual abstract_interface* get_interface(std::string_view interface_name)       = 0;
+    virtual abstract_interface* get_interface(std::string_view interface_name) const = 0;
 
-    virtual mc::variant         get_property(std::string_view property_name,
-                                             std::string_view interface_name = {}, int options = 0)  = 0;
-    virtual property_base*      get_property_base(std::string_view property_name,
-                                                  std::string_view interface_name = {})              = 0;
-    virtual bool                has_property(std::string_view property_name,
-                                             std::string_view interface_name = {})                   = 0;
-    virtual mc::dict            get_all_properties(std::string_view interface_name, int options = 0) = 0;
-    virtual bool                set_property(std::string_view property_name, const mc::variant& value,
-                                             std::string_view interface_name = {})                   = 0;
+    virtual mc::variant get_property(std::string_view property_name,
+                                     std::string_view interface_name = {}, int options = 0) const       = 0;
+    virtual bool        has_property(std::string_view property_name,
+                                     std::string_view interface_name = {}) const                        = 0;
+    virtual mc::dict    get_all_properties(std::string_view interface_name = {}, int options = 0) const = 0;
+    virtual bool        set_property(std::string_view property_name, const mc::variant& value,
+                                     std::string_view interface_name = {})                              = 0;
+
     virtual mc::connection_type connect(std::string_view signal_name, slot_type slot,
-                                        std::string_view interface_name = {})                        = 0;
+                                        std::string_view interface_name = {}) = 0;
     virtual mc::variant         emit(std::string_view signal_name, const mc::variants& args,
-                                     std::string_view interface_name = {})                           = 0;
-
-    virtual void visit(visitor& v) const = 0;
+                                     std::string_view interface_name = {})    = 0;
 
     virtual bool                has_method(std::string_view method_name,
                                            std::string_view interface_name = {}) const = 0;
@@ -177,6 +145,8 @@ public:
         return mc::shared_ptr<abstract_object>(this);
     }
 
+    virtual const object_metadata& get_metadata() const = 0;
+
 protected:
     friend class object_impl;
     virtual void add_managed_object(abstract_object* obj)    = 0;
@@ -191,26 +161,42 @@ public:
 
     virtual abstract_object* get_owner() const = 0;
 
-    MC_API service* get_service() const;
+    service* get_service() const;
 
-    virtual std::string_view    get_interface_name() const                                             = 0;
-    virtual mc::connection_type connect(std::string_view signal_name, slot_type slot)                  = 0;
-    virtual mc::variant         emit(std::string_view signal_name, const mc::variants& args)           = 0;
-    virtual mc::variant         get_property(std::string_view property_name, int options = 0) const    = 0;
-    virtual std::string_view    get_property_name(const property_base* prop)                           = 0;
-    virtual property_base*      get_property_base(std::string_view property_name)                      = 0;
-    virtual bool                has_property(std::string_view property_name)                           = 0;
-    virtual mc::dict            get_all_properties(int options = 0)                                    = 0;
-    virtual bool                set_property(std::string_view property_name, const mc::variant& value) = 0;
+    virtual std::string_view get_interface_name() const = 0;
 
-    virtual bool                has_method(std::string_view method_name) const                            = 0;
+    // 属性相关接口
+    virtual mc::variant get_property(std::string_view property_name, int options = 0) const    = 0;
+    virtual mc::dict    get_all_properties(int options = 0) const                              = 0;
+    virtual bool        set_property(std::string_view property_name, const mc::variant& value) = 0;
+
+    // 方法相关接口
     virtual invoke_result       invoke(std::string_view method_name, const mc::variants& args = {})       = 0;
     virtual result<mc::variant> async_invoke(std::string_view method_name, const mc::variants& args = {}) = 0;
 
-    virtual void                     notify_property_changed(const mc::variant& value, const property_base& prop) = 0;
-    virtual property_changed_signal& property_changed()                                                           = 0;
+    // 信号相关接口
+    virtual mc::variant         emit(std::string_view signal_name, const mc::variants& args) = 0;
+    virtual mc::connection_type connect(std::string_view signal_name, slot_type slot)        = 0;
+    virtual void                notify_property_changed(
+                       const mc::variant& value, const property_base& prop) = 0;
+    virtual property_changed_signal& property_changed()                     = 0;
 
-    virtual void visit(visitor& v) const = 0;
+    // 类型反射相关接口
+    virtual const metadata_list&      get_metadata() const                                    = 0;
+    virtual const signal_type_info*   get_signal_info(std::string_view signal_name) const     = 0;
+    virtual const method_type_info*   get_method_info(std::string_view method_name) const     = 0;
+    virtual const property_type_info* get_property_info(std::string_view property_name) const = 0;
+    virtual const property_type_info* get_property_info(const void* prop_addr) const          = 0;
+
+    bool has_property(std::string_view property_name) const {
+        return get_property_info(property_name) != nullptr;
+    }
+    bool has_method(std::string_view method_name) const {
+        return get_method_info(method_name) != nullptr;
+    }
+    bool has_signal(std::string_view signal_name) const {
+        return get_signal_info(signal_name) != nullptr;
+    }
 };
 
 using object_ptr = mc::shared_ptr<abstract_object>;

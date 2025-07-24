@@ -40,8 +40,7 @@ uint64_t savepoint::resource_id() const {
 
 // 数据库事务实现
 transaction::transaction()
-    : m_buckets(BUCKET_COUNT, nullptr),
-      m_resource_map(m_buckets.data(), BUCKET_COUNT, resource_hash(), resource_equal()),
+    : m_resource_map(resource_map::bucket_traits(m_buckets, MC_DICT_BUCKET_COUNT), resource_hash(), resource_equal()),
       m_current_savepoint_id(-1) {
 }
 
@@ -49,10 +48,6 @@ transaction::~transaction() {
     if (!m_resources.empty()) {
         rollback();
     }
-}
-
-void transaction::init_bucket_arrays() {
-    m_buckets.resize(BUCKET_COUNT, nullptr);
 }
 
 savepoint& transaction::alloc_savepoint() {
@@ -105,7 +100,7 @@ void transaction::add_resource(std::shared_ptr<db_resource> resource) {
     }
 
     // 查找对应资源ID的头节点
-    auto it = m_resource_map.find(resource_id);
+    auto it = m_resource_map.find(resource_id, m_resource_map.hash_function(), m_resource_map.key_eq());
     if (it == m_resource_map.end()) {
         // 没有找到头节点，将当前资源设为头节点
         resource->m_is_head      = true;
@@ -196,7 +191,7 @@ void transaction::rollback_to(const savepoint& sp) {
 
 void transaction::rollback_back(int sp_id, uint64_t resource_id, db_resource& resource) {
     // 查找对应资源ID的头节点
-    auto it = m_resource_map.find(resource_id);
+    auto it = m_resource_map.find(resource_id, m_resource_map.hash_function(), m_resource_map.key_eq());
     if (it == m_resource_map.end()) {
         return;
     }
@@ -244,11 +239,11 @@ size_t transaction::get_resource_map_size() const {
 }
 
 bool transaction::has_resource(uint64_t resource_id) const {
-    return m_resource_map.find(resource_id) != m_resource_map.end();
+    return m_resource_map.find(resource_id, m_resource_map.hash_function(), m_resource_map.key_eq()) != m_resource_map.end();
 }
 
 size_t transaction::get_resource_chain_length(uint64_t resource_id) const {
-    auto it = m_resource_map.find(resource_id);
+    auto it = m_resource_map.find(resource_id, m_resource_map.hash_function(), m_resource_map.key_eq());
     if (it == m_resource_map.end()) {
         return 0;
     }

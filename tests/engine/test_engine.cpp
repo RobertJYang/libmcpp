@@ -256,7 +256,7 @@ TEST_F(engine_test, test_object_reflect) {
                                           << expected.to_string();
 
     auto obj2 = test_object::create();
-    mc::from_variant(var.get_object(), *obj2);
+    mc::from_variant(var, *obj2);
     EXPECT_EQ(obj2->m_iface_1.m_i32, 20);
     EXPECT_EQ(obj2->m_iface_1.m_str, "123");
     EXPECT_EQ(obj2->m_iface_1.m_vec, (std::vector<int>{1, 2, 3}));

@@ -40,8 +40,9 @@ enum class p_type : uint32_t {
 
 // 定义常量以便与 int 类型兼容
 namespace property_options {
-constexpr int memory   = 1;
-constexpr int from_mdb = 2;
+constexpr int memory               = 1; // 内存属性
+constexpr int from_mdb             = 2; // 从 mdb 获取属性
+constexpr int with_object_property = 4; // GetAll、to_variant 获取所有属性时输出对象扩展的私有属性
 } // namespace property_options
 
 namespace detail {
@@ -59,14 +60,14 @@ struct func_data {
 
 class MC_API interface_observer {
 public:
-    MC_API interface_observer();
-    MC_API ~interface_observer();
+    interface_observer();
+    ~interface_observer();
 
-    MC_API void set_interface(abstract_interface* interface);
+    void set_interface(abstract_interface* interface);
 
-    MC_API abstract_interface* get_interface() const;
+    abstract_interface* get_interface() const;
 
-    MC_API void notify(const mc::variant& value, const property_base& prop);
+    void notify(const mc::variant& value, const property_base& prop);
 
 protected:
     // 不要初始化这个值，由 interface 的基类填充
@@ -80,46 +81,46 @@ class MC_API ref_object : public variant_extension_base {
 public:
     using object_finder_type = std::function<abstract_object*(const std::string&)>;
 
-    MC_API ref_object(const std::string& object_name, object_finder_type finder = nullptr);
+    ref_object(const std::string& object_name, object_finder_type finder = nullptr);
 
     // 获取被引用对象的属性
-    MC_API mc::variant get_property(const std::string_view property_name) const;
+    mc::variant get_property(const std::string_view property_name) const;
 
     // 获取被引用对象的接口属性
-    MC_API mc::variant get_property(const std::string_view interface_name, const std::string_view property_name) const;
+    mc::variant get_property(const std::string_view interface_name, const std::string_view property_name) const;
 
     // 设置被引用对象的属性
-    MC_API void set_property(const std::string_view property_name, const mc::variant& value) const;
+    void set_property(const std::string_view property_name, const mc::variant& value) const;
 
     // 设置被引用对象的接口属性
-    MC_API void set_property(const std::string_view interface_name,
-                             const std::string_view property_name, const mc::variant& value) const;
+    void set_property(const std::string_view interface_name,
+                      const std::string_view property_name, const mc::variant& value) const;
 
-    MC_API invoke_result invoke(std::string_view method_name, const mc::variants& args);
-    MC_API invoke_result invoke(const std::string& interface_name,
-                                std::string_view method_name, const mc::variants& args);
-    MC_API async_result  async_invoke(std::string_view method_name, const mc::variants& args = {});
-    MC_API async_result  async_invoke(const std::string&  interface_name,
-                                      std::string_view    method_name,
-                                      const mc::variants& args = {});
+    invoke_result invoke(std::string_view method_name, const mc::variants& args);
+    invoke_result invoke(const std::string& interface_name,
+                         std::string_view method_name, const mc::variants& args);
+    async_result  async_invoke(std::string_view method_name, const mc::variants& args = {});
+    async_result  async_invoke(const std::string&  interface_name,
+                               std::string_view    method_name,
+                               const mc::variants& args = {});
 
     // 获取对象名称
-    MC_API const std::string& get_object_name() const;
+    const std::string& get_object_name() const;
 
     // 检查被引用的对象是否存在
-    MC_API bool is_valid() const;
+    bool is_valid() const;
 
     // 获取被引用的对象指针（可能为空）
-    MC_API abstract_object* get_object() const;
+    abstract_object* get_object() const;
 
-    MC_API std::string as_string() const override;
+    std::string as_string() const override;
 
-    MC_API bool equals(const variant_extension_base& other) const override;
+    bool equals(const variant_extension_base& other) const override;
 
     // 实现 variant_extension_base 的纯虚函数
-    MC_API mc::shared_ptr<variant_extension_base> clone() const override;
+    mc::shared_ptr<variant_extension_base> clone() const override;
 
-    MC_API std::string_view get_type_name() const override;
+    std::string_view get_type_name() const override;
 
 private:
     std::string        m_object_name;
@@ -130,7 +131,7 @@ private:
 };
 
 template <typename T, typename Observer = detail::interface_observer>
-class property : public property_base {
+class property : public property_base, public Observer {
     static_assert(std::is_same_v<std::decay_t<T>, T>, "T must be a non-reference type");
 
 public:
@@ -230,12 +231,12 @@ public:
         m_outsider_setter = std::move(outsider_setter);
     }
 
-    observer_type& observer() {
-        return m_observer;
+    observer_type& get_observer() {
+        return *this;
     }
 
-    const observer_type& observer() const {
-        return m_observer;
+    const observer_type& get_observer() const {
+        return *this;
     }
 
     template <typename U>
@@ -780,17 +781,12 @@ public:
         }
     }
 
-    observer_type& get_observer() {
-        return m_observer;
-    }
-
-    const observer_type& get_observer() const {
-        return m_observer;
-    }
-
     std::string_view get_name() const override {
         if constexpr (std::is_same_v<observer_type, detail::interface_observer>) {
-            return m_observer.get_interface()->get_property_name(this);
+            auto* info = get_observer().get_interface()->get_property_info(this);
+            if (info) {
+                return info->name;
+            }
         }
 
         return {};
@@ -818,15 +814,21 @@ public:
 
     abstract_interface* get_interface() const override {
         if constexpr (std::is_same_v<observer_type, detail::interface_observer>) {
-            return m_observer.get_interface();
+            return get_observer().get_interface();
         }
 
         return nullptr;
     }
 
+    void set_interface(abstract_interface* interface) override {
+        if constexpr (std::is_same_v<observer_type, detail::interface_observer>) {
+            get_observer().set_interface(interface);
+        }
+    }
+
     abstract_object* get_object() const override {
         if constexpr (std::is_same_v<observer_type, detail::interface_observer>) {
-            return m_observer.get_interface()->get_owner();
+            return get_observer().get_interface()->get_owner();
         }
 
         return nullptr;
@@ -862,7 +864,7 @@ protected:
             return;
         }
 
-        m_observer.notify(value, *this);
+        get_observer().notify(value, *this);
     }
 
     void set_value_impl(param_type new_value) {
@@ -902,7 +904,6 @@ protected:
     }
 
     T                                        m_value{};
-    observer_type                            m_observer;
     std::unique_ptr<property_changed_signal> m_signal;
 
     std::function<T()>                   m_getter;

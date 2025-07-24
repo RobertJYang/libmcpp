@@ -30,9 +30,6 @@ enum class sensor_status {
 
 } // namespace mc::devices
 
-// 导出传感器状态枚举到模块
-MC_MODULE_REFLECT_ENUM(mc_devices,
-                       (mc::devices::sensor_status, "SensorStatus"),
-                       (INACTIVE)(ACTIVE)(ERROR))
+MC_REFLECTABLE("SensorStatus", mc::devices::sensor_status)
 
 #endif // MC_DEVICES_BASE_H

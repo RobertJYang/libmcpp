@@ -12,7 +12,7 @@
 
 #include <gtest/gtest.h>
 #include <mc/dict.h>
-#include <mc/engine/error_engine.h>
+#include <mc/error_engine.h>
 #include <mc/exception.h>
 #include <mc/variant.h>
 
