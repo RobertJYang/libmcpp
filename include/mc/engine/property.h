@@ -283,7 +283,7 @@ public:
     }
     param_type value(bool realtime = false) const {
         // 如果设置了外部getter，优先调用外部getter
-        if (m_outsider_getter) {
+        if (m_outsider_getter && realtime) {
             const_cast<property_type*>(this)->update_value();
         }
 
@@ -300,28 +300,12 @@ public:
         return m_value;
     }
     void set_value(param_type new_value) {
-        // 如果设置了外部setter，先调用外部setter进行验证
-        if (m_outsider_setter) {
-            if (!m_outsider_setter(new_value)) {
-                // 外部setter返回false，不进行实际设置
-                return;
-            }
-        }
-
         if (m_setter) {
             m_setter(new_value);
         }
         set_value_impl(new_value);
     }
     void set_value(rvalue_type new_value) {
-        // 如果设置了外部setter，先调用外部setter进行验证
-        if (m_outsider_setter) {
-            if (!m_outsider_setter(new_value)) {
-                // 外部setter返回false，不进行实际设置
-                return;
-            }
-        }
-
         if (m_setter) {
             m_setter(new_value);
         }
@@ -1003,6 +987,12 @@ protected:
         if (is_equal(new_value)) {
             return;
         }
+        if (m_outsider_setter) {
+            if (!m_outsider_setter(new_value)) {
+                // 外部setter返回false，不进行实际设置
+                return;
+            }
+        }
         m_value = new_value;
         notify();
     }
@@ -1010,6 +1000,12 @@ protected:
     void set_value_impl(rvalue_type new_value) {
         if (is_equal(new_value)) {
             return;
+        }
+        if (m_outsider_setter) {
+            if (!m_outsider_setter(new_value)) {
+                // 外部setter返回false，不进行实际设置
+                return;
+            }
         }
         m_value = std::move(new_value);
         notify();
