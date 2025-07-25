@@ -78,13 +78,15 @@ MC_REFLECT(::test::test_person_base,
 
 // 测试继承时重新指定基类的反射名称，为了使用方便定义别名
 MC_REFLECT(test_reflect_base_class::test_person,
-           ((::test::test_person_base, "test_person_base")), ((m_age, "Age")))
+           MC_BASE_CLASS(::test::test_person_base, "test_person_base"),
+           ((m_age, "Age")))
 
 MC_REFLECT(test_reflect_base_class::test_company,
            ((m_name, "Name"))((m_address, "Address"))((m_employee_count, "EmployeeCount")))
 
 MC_REFLECT(test_reflect_base_class::test_user,
-           (test_reflect_base_class::test_company)(test_reflect_base_class::test_person),
+           MC_BASE_CLASS(test_reflect_base_class::test_company),
+           MC_BASE_CLASS(test_reflect_base_class::test_person),
            ((m_score, "Score"))((set_score, "SetScore"))((get_score, "GetScore")))
 
 namespace test_reflect_base_class {

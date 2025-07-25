@@ -116,7 +116,7 @@ struct service_impl {
 
 MC_REFLECT(mc::engine::service_interface, ((m_service_name, "name")))
 MC_REFLECT(mc::engine::service_object, ((m_interface, "interface")))
-MC_REFLECT(mc::engine::root_object, ())
+MC_REFLECT(mc::engine::root_object)
 
 using service_table =
     mdb::table<mc::engine::service_object,

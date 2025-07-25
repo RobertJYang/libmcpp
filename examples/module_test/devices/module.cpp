@@ -15,34 +15,6 @@
 #include <iostream>
 #include <mc/log.h>
 
-namespace mc::devices {
-
-// 模块加载计数器
-static int   s_load_count     = 0;
-static void* s_module_address = nullptr;
-
-/**
- * @brief 模块加载时调用的构造函数
- */
-__attribute__((constructor)) void module_load_detector() {
-    // 记录模块加载
-    ++s_load_count;
-    s_module_address = (void*)&s_load_count; // 使用一个静态变量的地址作为模块地址标识
-    std::cout << "[DEVICES MODULE] 模块加载 #" << s_load_count
-              << " (地址: " << s_module_address << ")" << std::endl;
-}
-
-/**
- * @brief 模块卸载时调用的析构函数
- */
-__attribute__((destructor)) void module_unload_detector() {
-    // 记录模块卸载
-    std::cout << "[DEVICES MODULE] 动态库真正卸载! 地址: "
-              << s_module_address << std::endl;
-}
-
-} // namespace mc::devices
-
 // 导出传感器状态枚举到模块
 MC_MODULE_REFLECT_ENUM(mc_devices,
                        mc::devices::sensor_status,

@@ -24,6 +24,7 @@
 #include <mc/engine/signal_info.h>
 #include <mc/engine/utils.h>
 #include <mc/memory.h>
+#include <mc/module.h>
 #include <mc/reflect.h>
 #include <mc/reflect/signature_helper.h>
 #include <mc/result.h>

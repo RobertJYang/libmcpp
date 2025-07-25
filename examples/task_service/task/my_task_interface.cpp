@@ -125,9 +125,9 @@ void my_task_interface::set_state(task_state state) {
 } // namespace test
 
 MC_REFLECT_ENUM(test::task_state, (PENDING)(RUNNING)(PAUSED)(COMPLETED)(FAILED))
-MC_REFLECT(test::task_interface,
-           ((m_id, "Id"))((m_name, "Name"))((m_startTime, "StartTime"))((m_endTime, "EndTime"))(
-               (m_progress, "Progress"))((m_state, "State"))((m_result, "Result"))(
-               (start, "Start"))((stop, "Stop"))((pause, "Pause"))((resume, "Resume"))(
-               (get_progress, "GetProgress"))((get_state, "GetState")))
-MC_REFLECT(test::my_task_interface, (test::task_interface), ())
+MC_MODULE_REFLECT(mc_task_service_gen, test::task_interface,
+                  ((m_id, "Id"))((m_name, "Name"))((m_startTime, "StartTime"))((m_endTime, "EndTime"))(
+                      (m_progress, "Progress"))((m_state, "State"))((m_result, "Result"))(
+                      (start, "Start"))((stop, "Stop"))((pause, "Pause"))((resume, "Resume"))(
+                      (get_progress, "GetProgress"))((get_state, "GetState")))
+MC_REFLECT(test::my_task_interface)

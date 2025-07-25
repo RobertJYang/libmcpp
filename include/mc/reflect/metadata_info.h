@@ -89,14 +89,6 @@ struct is_property<M T::*,
 template <typename T>
 inline constexpr bool is_property_v = is_property<T>::value;
 
-#define MC_COMPUTED_PROPERTY_2(name, getter)         (0, name, getter)
-#define MC_COMPUTED_PROPERTY_3(name, getter, setter) (0, name, getter, setter)
-
-// 声明计算属性的宏
-#define MC_COMPUTED_PROPERTY(...)                                                                  \
-    BOOST_PP_IIF(BOOST_PP_GREATER(BOOST_PP_VARIADIC_SIZE(__VA_ARGS__), 2), MC_COMPUTED_PROPERTY_3, \
-                 MC_COMPUTED_PROPERTY_2)(__VA_ARGS__)
-
 enum member_info_type {
     invalid,
     property,

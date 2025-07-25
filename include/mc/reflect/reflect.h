@@ -33,59 +33,54 @@
 #include <mc/traits.h>
 #include <mc/variant.h>
 
-// 检测是否为元组形式（双括号表达式）
+// ------------------------ 一些辅助宏用于解决宏参数中存在逗号被当作参数分隔符的问题 ------------------------
+
+#define MC_REFLECT_AUXILIARY_0(...) ((__VA_ARGS__)) MC_REFLECT_AUXILIARY_1
+#define MC_REFLECT_AUXILIARY_1(...) ((__VA_ARGS__)) MC_REFLECT_AUXILIARY_0
+#define MC_REFLECT_AUXILIARY_0_END
+#define MC_REFLECT_AUXILIARY_1_END
+
+// 检测是否为元组形式的参数，比如 (a)(b)("name", c) 这种形式
 #define MC_REFLECT_IS_TUPLE(x) BOOST_PP_IS_BEGIN_PARENS(x)
 
-#define MC_REFLECT_ARG_COUNT(...) BOOST_PP_VARIADIC_SIZE(__VA_ARGS__)
+// 将 (a)(b)("name", c) 形式转换为 ((a))((b))(("name", c)) 形式，确保 BOOST_PP_* 宏能正确处理中间带逗号的参数
+#define MC_REFLECT_CONVERT_TO_SEQ(seq) \
+    BOOST_PP_SEQ_POP_FRONT(BOOST_PP_CAT(MC_REFLECT_AUXILIARY_0(0) seq, _END))
 
-// 处理带名称的成员（双括号形式）
-#define MC_REFLECT_MEMBER_WITH_NAME_1(r, TYPE, MEMBER)                                   \
-    mc::reflect::detail::create_member_info<TYPE>(&TYPE::BOOST_PP_TUPLE_ELEM(0, MEMBER), \
-                                                  BOOST_PP_TUPLE_ELEM(1, MEMBER)),
+// 单括号参数，比如 (a)(b)("name", c) 这种形式，遍历每一个参数加上一对括号
+#define MC_REFLECT_SINGLE_PARENS_PARAM(param) MC_REFLECT_CONVERT_TO_SEQ(param)
 
-#define MC_REFLECT_MEMBER_WITH_NAME_2(r, TYPE, MEMBER)                                    \
-    mc::reflect::detail::create_member_info<TYPE>(                                        \
-        &TYPE::BOOST_PP_TUPLE_ELEM(2, MEMBER),                                            \
-        BOOST_PP_IIF(BOOST_PP_GREATER(BOOST_PP_TUPLE_SIZE(MEMBER), 3),                    \
-                     &TYPE::BOOST_PP_TUPLE_ELEM(3, MEMBER), static_cast<void*>(nullptr)), \
-        BOOST_PP_TUPLE_ELEM(1, MEMBER)),
+// 双括号参数，什么都不用做
+#define MC_REFLECT_DOUBLE_PARENS_PARAM(param) param
 
-#define MC_REFLECT_MEMBER_WITH_NAME(r, TYPE, MEMBER)                                              \
-    BOOST_PP_IIF(BOOST_PP_GREATER(BOOST_PP_TUPLE_SIZE(MEMBER), 2), MC_REFLECT_MEMBER_WITH_NAME_2, \
-                 MC_REFLECT_MEMBER_WITH_NAME_1)(r, TYPE, MEMBER)
+// 普通参数，比如 a, b, "name", c 这种形式，直接加上双括号
+#define MC_REFLECT_NO_PARENS_PARAM(param) ((param))
 
-// 处理不带名称的成员（单括号形式）
-#define MC_REFLECT_MEMBER_WITHOUT_NAME(r, TYPE, MEMBER)                        \
-    BOOST_PP_IIF(BOOST_PP_IS_EMPTY(MEMBER), std::tuple{},                      \
-                 (mc::reflect::detail::create_member_info<TYPE>(&TYPE::MEMBER, \
-                                                                BOOST_PP_STRINGIZE(MEMBER)))),
+#define MC_REMOVE_DOUBLE_PARENS(MEMBER) \
+    BOOST_PP_REMOVE_PARENS(BOOST_PP_REMOVE_PARENS(MEMBER))
 
-// 处理成员
-#define MC_REFLECT_ELEMENT(r, TYPE, MEMBER)                                \
-    BOOST_PP_IIF(MC_REFLECT_IS_TUPLE(MEMBER), MC_REFLECT_MEMBER_WITH_NAME, \
-                 MC_REFLECT_MEMBER_WITHOUT_NAME)(r, TYPE, MEMBER)
+#define MC_REMOVE_PARENS(MEMBER)                      \
+    BOOST_PP_IIF(MC_REFLECT_IS_DOUBLE_PARENS(MEMBER), \
+                 MC_REMOVE_DOUBLE_PARENS,             \
+                 BOOST_PP_REMOVE_PARENS)(MEMBER)
 
-// 简单基类，使用基类自身的反射名称
-#define MC_REFLECT_BASE_CLASS_WITHOUT_NAME(r, TYPE, BASE) \
-    BOOST_PP_IIF(                                         \
-        BOOST_PP_IS_EMPTY(BASE), std::tuple{},            \
-        (mc::reflect::detail::create_base_class_info<TYPE, BASE>())),
+#define MC_REFLECT_IS_DOUBLE_PARENS(param) \
+    MC_REFLECT_IS_TUPLE(BOOST_PP_REMOVE_PARENS(param))
 
-// 带别名的基类，允许在继承时重新指定该基类在这里的反射名称
-#define MC_REFLECT_BASE_CLSS_WITH_NAME(r, TYPE, BASE)                                \
-    mc::reflect::detail::create_base_class_info<TYPE, BOOST_PP_TUPLE_ELEM(0, BASE)>( \
-        BOOST_PP_TUPLE_ELEM(1, BASE)),
+// 将参数打包成 ((a))((b))((c)) 形式，确保 BOOST_PP_* 宏能正确处理中间带逗号的参数
+#define MC_REFLECT_PARAM_TO_SEQ(param)                           \
+    BOOST_PP_IF(MC_REFLECT_IS_TUPLE(param),                      \
+                BOOST_PP_IIF(MC_REFLECT_IS_DOUBLE_PARENS(param), \
+                             MC_REFLECT_DOUBLE_PARENS_PARAM,     \
+                             MC_REFLECT_SINGLE_PARENS_PARAM),    \
+                MC_REFLECT_NO_PARENS_PARAM)(param)
 
-// 处理基类
-#define MC_REFLECT_BASE_ELEMENT(r, TYPE, BASE)                              \
-    BOOST_PP_IIF(MC_REFLECT_IS_TUPLE(BASE), MC_REFLECT_BASE_CLSS_WITH_NAME, \
-                 MC_REFLECT_BASE_CLASS_WITHOUT_NAME)(r, TYPE, BASE)
+// ------------------------------------------------------------------------------------------------
 
-// 在命名空间中添加辅助函数
 namespace mc::reflect::detail {
 // 创建成员元数据（根据成员类型分发到属性、方法或用户自定义的成员信息）
 template <typename T, typename M, typename BaseT>
-constexpr auto create_member_info(M BaseT::* member_ptr, std::string_view name) {
+constexpr auto create_member_info(M BaseT::* member_ptr, std::string_view name = {}) {
     return member_info_creator<T, M, BaseT>::create(member_ptr, name);
 }
 
@@ -95,13 +90,18 @@ constexpr auto create_member_info(Getter getter, Setter setter, std::string_view
 }
 
 template <typename T, typename R, typename... Args>
-constexpr auto create_member_info(R (*static_func)(Args...), std::string_view name) {
+constexpr auto create_member_info(R (*static_func)(Args...), std::string_view name = {}) {
     return member_info_creator<T, R (*)(Args...), void>::create(static_func, name);
 }
 
 template <typename T, typename BaseT>
 constexpr auto create_base_class_info(std::string_view base_class_name = {}) {
     return base_class_info_creator<T, BaseT>::create(base_class_name);
+}
+
+template <typename T, typename... Args>
+constexpr auto create_type_info(Args... args) {
+    return 1;
 }
 
 template <typename EnumType>
@@ -400,14 +400,54 @@ struct MC_API reflector<
 
 } // namespace mc::reflect
 
-#define MC_REFLECT_STATIC_METADATA(TYPE, BASES, MEMBERS)                                               \
-    template <>                                                                                        \
-    struct static_metadata<TYPE> {                                                                     \
-        static type_id_type       type_id;                                                             \
-        static metadata_extension extension;                                                           \
-        static constexpr auto     members = mc::reflect::detail::initial_members<TYPE>(std::tuple_cat( \
-            BOOST_PP_SEQ_FOR_EACH(MC_REFLECT_BASE_ELEMENT, TYPE, BASES)                            \
-                BOOST_PP_SEQ_FOR_EACH(MC_REFLECT_ELEMENT, TYPE, MEMBERS) std::tuple<>()));         \
+// ------------------------------------------ 定义类型反射宏 MC_REFLECT ----------------------------------------
+
+// MC_REFLECT_EXPAND_PARAM_II：将反射参数最终展开成需要的代码
+// 对于类成员我们默认用 mc::reflect::detail::create_member_info 创建成员反射信息，
+// 对于扩展参数调用用户提供的扩展宏，比如 MC_BASE_CLASS, MC_COMPUTED_PROPERTY 等。
+//
+// TODO:: 目前类成员的展开是默认实现，后续如果想在反射时填充一些元信息，比如 member_info_base 基类的 flags 或者
+// data 字段，可以修改这里的默认实现或者自定义扩展宏，可以参考 MC_BASE_CLASS 和 MC_COMPUTED_PROPERTY 的实现
+#define MC_REFLECT_EXPAND_PARAM_II(TYPE, MEMBER, ...)                                                  \
+    BOOST_PP_IF(BOOST_PP_GREATER(BOOST_PP_VARIADIC_SIZE(dummy, ##__VA_ARGS__), 2),                     \
+                MEMBER(TYPE, __VA_ARGS__),                                                             \
+                BOOST_PP_IF(BOOST_PP_GREATER(BOOST_PP_VARIADIC_SIZE(dummy, ##__VA_ARGS__), 1),         \
+                            mc::reflect::detail::create_member_info<TYPE>(&TYPE::MEMBER, __VA_ARGS__), \
+                            mc::reflect::detail::create_member_info<TYPE>(&TYPE::MEMBER, #MEMBER)))
+
+// MC_REFLECT_EXPAND_PARAM_I：仅为了接收 MC_REFLECT_EXPAND_PARAM 构造的 (TYPE, 展开的 MEMBER 参数包) 再调用下一个宏
+// 我们中转一次而不是直接在 MC_REFLECT_EXPAND_PARAM 调用下一个宏的目的是避免编译器将 (TYPE, 展开的 MEMBER 参数包) 认为只有
+// 两个参数而不是完全展开
+#define MC_REFLECT_EXPAND_PARAM_I(TYPE, ...)     \
+    BOOST_PP_IIF(BOOST_PP_IS_EMPTY(__VA_ARGS__), \
+                 std::tuple<>{},                 \
+                 MC_REFLECT_EXPAND_PARAM_II(TYPE, __VA_ARGS__))
+
+// 展开反射参数
+// @param r: BOOST_PP_SEQ_TRANSFORM() 调用传递的占位符，忽略
+// @param TYPE: 从 MC_REFLECT 传递下来的反射类型
+// @param MEMBER: 单括号打包的 (params...) 反射参数
+// 这里我们将 MEMBER 展开，补充 TYPE 作为第一个参数调用 MC_REFLECT_EXPAND_PARAM_I(TYPE, param1, param2 ...)
+#define MC_REFLECT_EXPAND_PARAM(r, TYPE, MEMBER) \
+    MC_REFLECT_EXPAND_PARAM_I(TYPE, MC_REMOVE_PARENS(MEMBER))
+
+// 循环展开所有参数
+#define MC_REFLECT_EXPAND_PARAMS(r, TYPE, param) \
+    BOOST_PP_SEQ_ENUM(BOOST_PP_SEQ_TRANSFORM(MC_REFLECT_EXPAND_PARAM, TYPE, MC_REFLECT_PARAM_TO_SEQ(param))),
+
+#define MC_REFLECT_METADATA_MEMBERS(TYPE, ...)                                                                    \
+    BOOST_PP_IIF(BOOST_PP_IS_EMPTY(__VA_ARGS__),                                                                  \
+                 mc::reflect::detail::initial_members<TYPE>(std::tuple<>{}),                                      \
+                 mc::reflect::detail::initial_members<TYPE>(std::tuple_cat(                                       \
+                     BOOST_PP_SEQ_FOR_EACH(MC_REFLECT_EXPAND_PARAMS, TYPE, BOOST_PP_VARIADIC_TO_SEQ(__VA_ARGS__)) \
+                         std::tuple<>())))
+
+#define MC_REFLECT_STATIC_METADATA(TYPE, ...)                                               \
+    template <>                                                                             \
+    struct static_metadata<TYPE> {                                                          \
+        static type_id_type       type_id;                                                  \
+        static metadata_extension extension;                                                \
+        static constexpr auto     members = MC_REFLECT_METADATA_MEMBERS(TYPE, __VA_ARGS__); \
     };
 
 #define MC_REFLECT_STATIC_MEMBERS(TYPE) \
@@ -416,11 +456,11 @@ struct MC_API reflector<
 /**
  * @brief 定义类的反射信息
  */
-#define MC_REFLECT_IMPL(TYPE, BASES, MEMBERS)                                                          \
+#define MC_REFLECT_IMPL(TYPE, ...)                                                                     \
     namespace mc::reflect {                                                                            \
     template struct MC_API mc::reflect::reflector<TYPE>;                                               \
     static_assert(mc::reflect::is_reflectable<TYPE>(), BOOST_PP_STRINGIZE(TYPE)" is not reflectable"); \
-    MC_REFLECT_STATIC_METADATA(TYPE, BASES, MEMBERS)                                                   \
+    MC_REFLECT_STATIC_METADATA(TYPE, __VA_ARGS__)                                                      \
     static_assert(mc::reflect::detail::validate_members<TYPE>(MC_REFLECT_STATIC_MEMBERS(TYPE)),        \
                   "members validate failed, please check members type");                               \
     type_id_type mc::reflect::static_metadata<TYPE>::type_id =                                         \
@@ -505,19 +545,64 @@ struct MC_API reflector<
     }                                                                                                  \
     }
 
-#define MC_REFLECT_IMPL_WITH_BASES(TYPE, BASES, MEMBERS) \
-    MC_REFLECT_IMPL(TYPE, BASES, MEMBERS)
+#define MC_REFLECT(...) MC_REFLECT_IMPL(__VA_ARGS__)
 
-// 一个参数版本 - 只有类成员
-#define MC_REFLECT_1(TYPE, MEMBERS) MC_REFLECT_IMPL_WITH_BASES(TYPE, BOOST_PP_EMPTY(), MEMBERS)
+// ------------------------------------------ 类型反射宏参数扩展机制 ----------------------------------------
+// 类型反射宏参数扩展机制：
+//
+// 我们通过构造 (MACRO, param1, param2 ...) 形式的参数实现反射宏参数的扩展，MC_REFLECT 会自动识别扩展参数并调用给定的宏，
+// 调用形式为 MACRO(TYPE, param1, param2 ...)，其中第一个参数 TYPE 是从 MC_REFLECT 的第一个参数传递过来的。
+//
+// 实现反射宏参数扩展一般需要定义两个配套的扩展宏：一个用于生成扩展参数，一个用于展开扩展参数。
+// 例如：
+// MC_BASE_CLASS(test_struct) 用于生成扩展参数 (MC_REFLECT_BASE_CLASS_1, test_struct, ~)
+// MC_REFLECT_BASE_CLASS_1(TYPE, BASE) 用于展开扩展参数 mc::reflect::detail::create_base_class_info<TYPE, BASE>()
+//
+// 注意：为了与普通的 (member)(member, "name") 类成员参数做区分，扩展参数个数必须为 3 个以上，其中第一个是扩展参数展开宏，
+// 后面是扩展参数，参数不足 3 个的用 ~ 占位符填充，展开的时候自行忽略。
 
-// 二个参数版本 - 有基类和类成员
-#define MC_REFLECT_2(TYPE, BASES, MEMBERS) MC_REFLECT_IMPL_WITH_BASES(TYPE, BASES, MEMBERS)
+// 1、定义基类扩展参数的生成宏 MC_BASE_CLASS
+//
+// 使用方式：
+// MC_REFLECT(test_struct, MC_BASE_CLASS(base_struct))
+// MC_REFLECT(test_struct, MC_BASE_CLASS(base_struct, "base_name"))
+//
+// 单参数的基类展开宏：其中 r 是占位符，展开时候忽略
+#define MC_REFLECT_BASE_CLASS_1(TYPE, r, BASE) \
+    (mc::reflect::detail::create_base_class_info<TYPE, BASE>())
 
-#define MC_REFLECT_DISPATCH(TYPE, ...) \
-    BOOST_PP_CAT(MC_REFLECT_, MC_REFLECT_ARG_COUNT(__VA_ARGS__))(TYPE, __VA_ARGS__)
+// 双参数的基类展开宏：参数为基类 + 基类名
+#define MC_REFLECT_BASE_CLASS_2(TYPE, BASE, NAME) \
+    (mc::reflect::detail::create_base_class_info<TYPE, BASE>(NAME))
 
-#define MC_REFLECT(...) MC_REFLECT_DISPATCH(__VA_ARGS__)
+// 生成基类参数扩展宏：根据参数个数选择基类展开宏
+#define MC_BASE_CLASS(...)                                                 \
+    BOOST_PP_IIF(BOOST_PP_GREATER(BOOST_PP_VARIADIC_SIZE(__VA_ARGS__), 1), \
+                 (MC_REFLECT_BASE_CLASS_2, __VA_ARGS__),                   \
+                 (MC_REFLECT_BASE_CLASS_1, ~, __VA_ARGS__))
+
+// 2、定义计算属性扩展参数的生成宏 MC_COMPUTED_PROPERTY
+//
+// 使用方式：
+// MC_REFLECT(test_struct, MC_COMPUTED_PROPERTY("id", get_id))
+// MC_REFLECT(test_struct, MC_COMPUTED_PROPERTY("id", get_id, set_id))
+//
+// 单参数的计算属性展开宏：参数为计算属性名 + 计算属性 getter 函数
+#define MC_REFLECT_COMPUTE_PROPERTY_1(TYPE, NAME, GETTER) \
+    mc::reflect::detail::create_member_info<TYPE>(&TYPE::GETTER, static_cast<void*>(nullptr), NAME)
+
+// 双参数的计算属性展开宏：参数为计算属性名 + 计算属性 getter 函数 + 计算属性 setter 函数
+#define MC_REFLECT_COMPUTE_PROPERTY_2(TYPE, NAME, GETTER, SETTER) \
+    mc::reflect::detail::create_member_info<TYPE>(&TYPE::GETTER, &TYPE::SETTER, NAME)
+
+// 生成计算属性参数的扩展宏：根据参数个数选择计算属性展开宏
+// 由于计算属性最少需要 名称 + getter 函数，再加上第一个参数是展开宏，整体参数为 3 个，不需要填充占位参数
+#define MC_COMPUTED_PROPERTY(...)                                          \
+    BOOST_PP_IIF(BOOST_PP_GREATER(BOOST_PP_VARIADIC_SIZE(__VA_ARGS__), 2), \
+                 (MC_REFLECT_COMPUTE_PROPERTY_2, __VA_ARGS__),             \
+                 (MC_REFLECT_COMPUTE_PROPERTY_1, __VA_ARGS__))
+
+// ------------------------------------------ 定义枚举反射宏 MC_REFLECT_ENUM ----------------------------------------
 
 /**
  * @brief 定义枚举成员（不带别名）

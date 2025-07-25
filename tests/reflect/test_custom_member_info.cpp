@@ -114,14 +114,6 @@ MC_REFLECT(test_custom_member_info::TestValue,
            // 普通方法的反射
            (set_value)(set_name))
 
-struct MyClass {
-    MC_REFLECTABLE("test.MyClass");
-    int         a;
-    std::string b;
-};
-
-MC_REFLECT(MyClass, (a)(b));
-
 // 测试自定义成员信息提取
 TEST(CustomMemberInfoTest, SignalMemberInfo) {
     // 检查可反射性

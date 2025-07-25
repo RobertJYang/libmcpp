@@ -18,7 +18,7 @@
 
 namespace test {
 
-struct my_task_interface : public task_interface {
+struct my_task_interface : public mc::engine::interface<my_task_interface, task_interface> {
     my_task_interface();
     ~my_task_interface() override;
 

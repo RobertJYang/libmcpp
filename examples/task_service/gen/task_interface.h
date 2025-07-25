@@ -15,6 +15,8 @@
 
 #include <mc/engine/interface.h>
 
+MC_MODULE(mc_task_service_gen)
+
 namespace test {
 
 enum class task_state {
