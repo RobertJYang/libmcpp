@@ -69,10 +69,10 @@ struct shm_obj_visitor : mc::engine::metadata_visitor {
     }
 
     void handle(const mc::engine::property_type_info* info) override {
-        shm::property& shm_prop = m_shm_intf->add_p(m_shm_ins, info->name, info->get_signature());
-        shm_prop.set_read_privilege(0);
-        shm_prop.set_write_privilege(0);
-        shm_prop.set_flags(info->flags);
+        shm::shared_ptr<shm::property> shm_prop = m_shm_intf->add_p(m_shm_ins, info->name, info->get_signature());
+        shm_prop->set_read_privilege(0);
+        shm_prop->set_write_privilege(0);
+        shm_prop->set_flags(info->flags);
         if (m_iface_meta->metadata->get_class_name() == OBJECT_PROPERTIES_INTERFACE) {
             auto value = mc::engine::common_properties_interface::get_instance().get(info->name);
             shm_tree::set_property_inner(shm_prop, value);

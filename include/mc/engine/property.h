@@ -823,6 +823,8 @@ public:
     void set_interface(abstract_interface* interface) override {
         if constexpr (std::is_same_v<observer_type, detail::interface_observer>) {
             get_observer().set_interface(interface);
+        } else {
+            MC_UNUSED(interface);
         }
     }
 

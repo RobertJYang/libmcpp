@@ -10,6 +10,7 @@
  * See the Mulan PSL v2 for more details.
  */
 
+#include <mc/engine/errors/std_errors.h>
 #include <mc/engine/object.h>
 #include <mc/engine/path.h>
 #include <mc/engine/std_interface.h>
@@ -30,26 +31,52 @@ static interface_impl* get_interface(const object_impl* self, const property_typ
 }
 
 template <typename ResultType>
-ResultType do_invoke_impl(object_impl* self, context& ctx, std::string_view method_name,
-                          const mc::variants& args, std::string_view interface_name) {
+ResultType do_invoke(object_impl* self, context& ctx, std::string_view method_name,
+                     const mc::variants& args, std::string_view interface_name) {
+    // 方法查找顺序：标准接口方法 -> 对象方法 -> 接口方法
+
+    // TODO:: 后续这里需要增加消息钩子机制，支持在不修改已有实现的情况下实现消息的拦截和修改
+    // 消息钩子的优先级最高：消息钩子 -> 标准接口方法 -> 对象方法 -> 接口方法
+
+    // 先路由到标准接口方法
     auto result = standard_interfaces::invoke(self, method_name, args, interface_name);
     if (ctx.get_method() != nullptr) {
         return result;
     }
 
+    // 全局查找方法，如果找不到再尝试在指定的 interface 中查找
     const auto& metadata = self->get_metadata();
-    auto        info     = metadata.get_method_info(method_name, interface_name);
-    if (info.item != nullptr) {
-        ctx.set_method(info.item);
-        auto* interface = get_interface(self, info.interface);
-        if constexpr (std::is_same_v<ResultType, invoke_result>) {
-            return info.item->invoke(interface, args);
-        } else {
-            return info.item->async_invoke(interface, args);
-        }
+    auto        info     = metadata.get_method_info(method_name, {});
+    if (info.item == nullptr) {
+        // 全局查找找不到说明方法真的不存在，设置上下文方法为空，底层根据这个值返回合适的错误给调用方
+        ctx.set_method(nullptr);
+        return {};
     }
 
-    return {};
+    // 找到了方法，还得再检查一下是否需要精确指定接口调用
+    void* obj_ptr = self;
+    if (info.interface != nullptr) {
+        auto* interface = get_interface(self, info.interface);
+        if (!interface_name.empty() && interface->get_interface_name() != interface_name) {
+            // 需要精确调用指定接口的方法，但是全局找到的并不是这个接口，重新按指定接口查询
+            info = metadata.get_method_info(method_name, interface_name);
+            if (info.item == nullptr) {
+                ctx.set_method(nullptr); // 指定接口不存在该方法
+                return {};
+            }
+        }
+
+        obj_ptr = interface;
+    }
+
+    // 路由到对象的方法，这已经是最后一级路由了，再不行只能抛出错误
+    ctx.set_method(info.item);
+    ctx.accept();
+    if constexpr (std::is_same_v<ResultType, invoke_result>) {
+        return info.item->invoke(obj_ptr, args);
+    } else {
+        return info.item->async_invoke(obj_ptr, args);
+    }
 }
 
 template <typename ResultType>
@@ -60,13 +87,13 @@ ResultType invoke_impl(object_impl* self, std::string_view method_name, const mc
 
     auto* ctx = context_stack::top_value();
     if (ctx && &ctx->get_object() == self && ctx->get_method_name() == method_name) {
-        return do_invoke_impl<ResultType>(self, *ctx, method_name, args, interface_name);
+        return do_invoke<ResultType>(self, *ctx, method_name, args, interface_name);
     }
 
     context tmp_ctx(*self->get_service(), *self);
     tmp_ctx.set_call_info(detail::variants_call{args, interface_name, method_name});
     context_stack::context call_ctx(self->get_service(), tmp_ctx);
-    return do_invoke_impl<ResultType>(self, tmp_ctx, method_name, args, interface_name);
+    return do_invoke<ResultType>(self, tmp_ctx, method_name, args, interface_name);
 }
 
 } // namespace detail
@@ -272,6 +299,8 @@ void object_impl::init_interface_object(const object_metadata& metadata) {
 
 mc::variant object_impl::get_property(std::string_view property_name,
                                       std::string_view interface_name, int options) const {
+    // TODO:: 属性目前没有实现对象重载接口属性，后续需要实现
+
     const auto& metadata = get_metadata();
     auto        info     = metadata.get_property_info(property_name, interface_name);
     if (info.item != nullptr) {
@@ -449,38 +478,5 @@ bool object_impl::has_method(std::string_view method_name,
     auto        info     = metadata.get_method_info(method_name, interface_name);
     return info.item != nullptr;
 }
-
-// object_metadata object_impl::create_metadata(
-//     std::string_view class_name, const mc::reflect::struct_metadata& metadata) const {
-//     const auto& properties      = metadata.get_properties();
-//     size_t      interface_count = 0;
-//     for (auto info : properties) {
-//         if (info.member->has_flags(MC_REFLECT_FLAG_INTERFACE)) {
-//             interface_count++;
-//         }
-//     }
-//     if (interface_count == 0) {
-//         return object_metadata(class_name, metadata);
-//     }
-
-//     std::vector<interface_metadata> arr;
-//     arr.reserve(interface_count);
-
-//     // size_t index = 0;
-//     // arr.reserve(interface_count);
-//     // for (auto info : properties) {
-//     //     if (info.member->has_flags(MC_REFLECT_FLAG_INTERFACE)) {
-//     //         arr.emplace_back(info.member, info.member->get_type_name(), info.member->get_metadata());
-//     //     }
-//     // }
-
-//     // size_t index = 0;
-//     // mc::traits::tuple_for_each(interfaces, [&](auto* member) {
-//     //     using member_info_type = std::decay_t<decltype(*member)>;
-//     //     using member_type      = typename member_info_type::member_type;
-//     // });
-//     // return object_metadata(metadata, &arr[0], arr.size());
-//     return object_metadata();
-// }
 
 } // namespace mc::engine

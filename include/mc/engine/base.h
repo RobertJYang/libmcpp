@@ -148,6 +148,9 @@ public:
 
     virtual const object_metadata& get_metadata() const = 0;
 
+    // 获取当前调用的上下文对象
+    context& get_context();
+
 protected:
     friend class object_impl;
     virtual void add_managed_object(abstract_object* obj)    = 0;
@@ -198,6 +201,9 @@ public:
     bool has_signal(std::string_view signal_name) const {
         return get_signal_info(signal_name) != nullptr;
     }
+
+    // 获取当前调用的上下文对象
+    context& get_context();
 };
 
 using object_ptr = mc::shared_ptr<abstract_object>;

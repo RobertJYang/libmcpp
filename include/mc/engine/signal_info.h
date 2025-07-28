@@ -81,8 +81,8 @@ struct signal_info : public signal_info_base<Class> {
     int type() const noexcept override {
         return MC_REFLECT_SIGNAL_TYPE;
     }
-    std::uintptr_t offset() const noexcept override {
-        return MC_MEMBER_OFFSETOF(Class, signal_ptr);
+    uint32_t offset() const noexcept override {
+        return static_cast<uint32_t>(MC_MEMBER_OFFSETOF(Class, signal_ptr));
     }
     mc::reflect::member_info_base* clone() const override {
         return new signal_info<Class, RetType, Args...>(this->name, this->signal_ptr);

@@ -110,17 +110,17 @@ enum member_info_type {
 struct member_info_base {
     std::string_view name;
     uint32_t         flags;           // 扩展 flags，用于存储自定义其他信息
-    uint32_t         data;            // 扩展数据，用于存储自定义其他信息
-    std::uintptr_t   base_offset = 0; // 如果该反射信息表示的是其他类的基类，则该值为基类相对于子类基址的偏移量，否则为 0
+    uint32_t         base_offset = 0; // 如果该反射信息表示的是其他类的基类，则该值为基类相对于子类基址的偏移量，否则为 0
+    uint64_t         data;            // 扩展数据，用于存储自定义其他信息
 
     constexpr member_info_base(std::string_view n)
-        : name(n), flags(0), data(0), base_offset(0) {
+        : name(n), flags(0), base_offset(0), data(0) {
     }
 
     virtual std::type_index   typeinfo() const  = 0;
     virtual std::string_view  type_name() const = 0;
     virtual int               type() const      = 0;
-    virtual std::uintptr_t    offset() const    = 0;
+    virtual uint32_t          offset() const    = 0;
     virtual member_info_base* clone() const     = 0;
 
     template <typename T>
@@ -257,7 +257,7 @@ struct property_info : public property_info_base<C> {
         };
     }
 
-    std::uintptr_t offset() const noexcept override {
+    uint32_t offset() const noexcept override {
         return MC_MEMBER_OFFSETOF(C, member_ptr);
     }
 
@@ -337,7 +337,7 @@ struct computed_property_info : public property_info_base<C> {
         };
     }
 
-    std::uintptr_t offset() const noexcept override {
+    uint32_t offset() const noexcept override {
         return 0;
     }
 
@@ -551,7 +551,7 @@ public:
         return mc::reflect::get_signature<result_type>();
     }
 
-    std::uintptr_t offset() const noexcept override {
+    uint32_t offset() const noexcept override {
         return get_function_offset(m_function);
     }
 
@@ -668,8 +668,8 @@ struct base_class_info : public base_class_info_base<C> {
         return pretty_name<base_type>();
     }
 
-    std::uintptr_t offset() const noexcept override {
-        return mc::get_base_offset<class_type, base_type>();
+    uint32_t offset() const noexcept override {
+        return static_cast<uint32_t>(mc::get_base_offset<class_type, base_type>());
     }
 
     const struct_metadata& get_metadata() const override {

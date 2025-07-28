@@ -219,7 +219,7 @@ struct object_manager_vistor : metadata_visitor {
             m_current[info->name] = value;
         } else {
             // TODO:: 考虑到我们实现了在对象中遮蔽接口属性，这里后续需要先判断是否遮蔽
-            const auto* iface     = to_interface_ptr(m_object, info);
+            const auto* iface     = to_interface_ptr(m_object, m_interface_metadata->interface);
             mc::variant value     = iface->get_property(info->name, mc::engine::property_options::memory);
             m_current[info->name] = value;
         }

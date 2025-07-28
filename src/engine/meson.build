@@ -1,4 +1,5 @@
 engine_src_files = files(
+  'errors/std_errors.cpp',
   'base.cpp',
   'call_stack.cpp',
   'context.cpp',

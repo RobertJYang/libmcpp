@@ -178,11 +178,35 @@ struct MC_API message_writer {
     void write_variant_struct(signature_iterator it, const mc::variant& v, std::size_t depth) const;
     void write_variant_dict(signature_iterator it, const mc::dict& dict, std::size_t depth) const;
     void write_signature(const signature& sig) const;
-    void write_signature(std::string_view sig) const;
+    void write_signature(std::string_view sig, bool need_add_tail_zero = true) const;
+    void write_path(const path& p) const;
+    void write_path(std::string_view p, bool need_add_tail_zero = true) const;
 
     template <typename T>
     const message_writer& append(const T& v) const {
         *this << v;
+        return *this;
+    }
+
+    template <typename F>
+    const message_writer& write_container(signature_iterator it, F&& v) {
+        MC_ASSERT(it.is_container(), "not a container type: ${v}", ("v", it.str()));
+
+        auto container_type = it.current_type_char();
+        auto sub_iter       = it.get_content_iterator();
+
+        message_writer sub_writer(m_iter, container_type, sub_iter.str());
+        if (sub_iter.current_type_code() == mc::reflect::type_code::dict_entry_start) {
+            // 字典的 {key、value} 还是一个容器，需要单独处理
+            auto           elem_iter = sub_iter.get_content_iterator();
+            message_writer entry_writer(sub_writer.m_iter, DBUS_TYPE_DICT_ENTRY);
+            v(entry_writer, elem_iter);
+            entry_writer.close_container();
+        } else {
+            v(sub_writer, sub_iter);
+        }
+
+        sub_writer.close_container();
         return *this;
     }
 
@@ -476,7 +500,7 @@ const message_writer& write_array(const message_writer& writer, const Container&
     const std::string& sig = get_signature<T>();
 
     message_writer sub_writer(writer.m_iter, DBUS_TYPE_ARRAY, sig);
-    if constexpr (std::is_trivially_copyable_v<T> && IsContiguous) {
+    if constexpr (std::is_trivially_copyable_v<T> && IsContiguous && !std::is_pointer_v<T>) {
         // 对可平凡复制的类型，直接使用 fixed array 写入方式优化
         const T* data = v.data();
         dbus_message_iter_append_fixed_array(&sub_writer.m_iter, mc::reflect::first_type(sig),

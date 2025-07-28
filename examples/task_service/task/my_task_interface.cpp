@@ -31,6 +31,7 @@ void my_task_interface::start() {
         elog("task ${name} is not pending", ("name", *m_name));
         MC_REPLY_ERROR(test::errors::task_state_error,
                        ("expect", task_state::PENDING)("current", *m_state));
+        return;
     }
 
     set_state(task_state::RUNNING);
@@ -52,6 +53,7 @@ void my_task_interface::pause() {
         elog("task ${name} is not running", ("name", *m_name));
         MC_REPLY_ERROR(test::errors::task_state_error,
                        ("expect", task_state::RUNNING)("current", *m_state));
+        return;
     }
 
     set_state(task_state::PAUSED);
@@ -63,6 +65,7 @@ void my_task_interface::resume() {
         elog("task ${name} is not paused", ("name", *m_name));
         MC_REPLY_ERROR(test::errors::task_state_error,
                        ("expect", task_state::PAUSED)("current", *m_state));
+        return;
     }
 
     set_state(task_state::RUNNING);
@@ -124,10 +127,16 @@ void my_task_interface::set_state(task_state state) {
 
 } // namespace test
 
-MC_REFLECT_ENUM(test::task_state, (PENDING)(RUNNING)(PAUSED)(COMPLETED)(FAILED))
+// 自动生成代码的反射单独放到一个模块的命名空间中
+MC_MODULE_REFLECT_ENUM(mc_task_service_gen, test::task_state, (PENDING)(RUNNING)(PAUSED)(COMPLETED)(FAILED))
 MC_MODULE_REFLECT(mc_task_service_gen, test::task_interface,
-                  ((m_id, "Id"))((m_name, "Name"))((m_startTime, "StartTime"))((m_endTime, "EndTime"))(
-                      (m_progress, "Progress"))((m_state, "State"))((m_result, "Result"))(
-                      (start, "Start"))((stop, "Stop"))((pause, "Pause"))((resume, "Resume"))(
-                      (get_progress, "GetProgress"))((get_state, "GetState")))
+                  (m_id, "Id")(m_name, "Name")(m_startTime, "StartTime"),
+                  (m_endTime, "EndTime")(m_progress, "Progress"),
+                  (m_state, "State")(m_result, "Result")(start, "Start"),
+                  (stop, "Stop")(pause, "Pause")(resume, "Resume"),
+                  (get_progress, "GetProgress")(get_state, "GetState"))
+MC_MODULE_REFLECT(mc_task_service_gen, test::tasks_interface,
+                  (create_task, "CreateTask")(get_tasks, "GetTasks"))
+
+// 继承的接口的放在全局命名空间（这里是测试，实际使用时应该放在对应模块中，尽量不放到全局命名空间）
 MC_REFLECT(test::my_task_interface)

@@ -27,6 +27,19 @@ enum class task_state {
     FAILED,
 };
 
+struct tasks_interface : public mc::engine::interface<tasks_interface> {
+    MC_INTERFACE("bmc.kepler.TaskService.Tasks")
+
+    virtual ~tasks_interface() = default;
+
+    virtual std::string_view create_task(const std::string& name) {
+        return {}; // 空函数，在对象中重载
+    }
+    virtual std::vector<std::string_view> get_tasks() {
+        return {}; // 空函数，在对象中重载
+    }
+};
+
 struct task_interface : public mc::engine::interface<task_interface> {
     MC_INTERFACE("bmc.kepler.TaskService.Task")
 

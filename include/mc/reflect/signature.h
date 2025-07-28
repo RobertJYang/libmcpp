@@ -27,6 +27,7 @@ namespace reflect {
 
 constexpr char   empty_signature      = '\0';
 constexpr size_t max_signature_length = 255;
+constexpr size_t max_path_length      = 1023;
 
 inline char first_type(const std::string& sig) {
     if (sig.empty()) {

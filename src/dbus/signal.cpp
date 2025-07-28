@@ -59,25 +59,22 @@ static void send_properties_changed(connection& conn, message& signal) {
 
 void emit_properties_changed(connection& conn, engine::abstract_object& obj,
                              const engine::property_base& prop, const variant& value) {
-    auto               iface     = prop.get_interface()->get_interface_name();
-    auto               prop_name = prop.get_name();
-    auto               signal    = mc::dbus::message::new_signal(obj.get_object_path(), "org.freedesktop.DBus.Properties",
-                                                                 "PropertiesChanged");
-    signature_iterator it("sa{sv}as");
-    auto               writer = signal.writer();
-    mc::variant        v(iface);
-    writer.write_variant(it, v, 0);
-    it.next();
-    mc::mutable_dict props_with_value;
-    mc::variants     props_without_value;
-    if ((prop.get_flags() & SD_BUS_VTABLE_PROPERTY_EMITS_INVALIDATION) == 0) {
-        props_with_value[prop_name] = value;
-    } else {
-        props_without_value.push_back(prop_name);
-    }
-    writer.write_variant(it, props_with_value, 0);
-    it.next();
-    writer.write_variant(it, props_without_value, 0);
+    auto iface     = prop.get_interface()->get_interface_name();
+    auto prop_name = prop.get_name();
+    auto signal    = mc::dbus::message::new_signal(obj.get_object_path(), "org.freedesktop.DBus.Properties",
+                                                   "PropertiesChanged");
+    auto writer    = signal.writer();
+    writer << iface;
+    writer.write_container("a{sv}", [&](message_writer& writer, auto) {
+        if ((prop.get_flags() & SD_BUS_VTABLE_PROPERTY_EMITS_INVALIDATION) == 0) {
+            writer << prop_name << value;
+        }
+    });
+    writer.write_container("as", [&](message_writer& writer, auto) {
+        if ((prop.get_flags() & SD_BUS_VTABLE_PROPERTY_EMITS_INVALIDATION) != 0) {
+            writer << prop_name;
+        }
+    });
     send_properties_changed(conn, signal);
 }
 
@@ -85,8 +82,8 @@ void emit_interfaces_added(connection& conn, const engine::abstract_object& obj)
     auto signal = mc::dbus::message::new_signal(
         obj.get_object_path(), "org.freedesktop.DBus.ObjectManager", "InterfacesAdded");
     auto writer = signal.writer();
-    writer << obj.get_object_path();
-    writer.write_variant("oa{sa{sv}}", obj.get_all_properties({}, mc::engine::property_options::memory), 0);
+    writer.write_path(obj.get_object_path(), false);
+    writer.write_variant("a{sa{sv}}", obj.get_all_properties({}, mc::engine::property_options::memory), 0);
     conn.send(std::move(signal));
 }
 
@@ -94,13 +91,12 @@ void emit_interfaces_removed(connection& conn, const engine::abstract_object& ob
     auto signal = mc::dbus::message::new_signal(
         obj.get_object_path(), "org.freedesktop.DBus.ObjectManager", "InterfacesRemoved");
     auto writer = signal.writer();
-    writer << obj.get_object_path();
-
-    std::vector<std::string_view> interfaces;
-    obj.get_metadata().visit_interfaces([&](const mc::engine::interface_metadata& iface) {
-        interfaces.push_back(iface.metadata->get_class_name());
+    writer.write_path(obj.get_object_path(), false);
+    writer.write_container("as", [&](message_writer& writer, auto) {
+        obj.get_metadata().visit_interfaces([&](const mc::engine::interface_metadata& iface) {
+            writer << iface.metadata->get_class_name();
+        });
     });
-    writer.write_variant("oas", interfaces, 0);
     conn.send(std::move(signal));
 }
 

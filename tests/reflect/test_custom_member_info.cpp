@@ -53,8 +53,8 @@ struct signal_info : public mc::reflect::member_info_base {
         return static_cast<int>(mc::reflect::member_info_type::custom_start) + 1;
     }
 
-    std::uintptr_t offset() const override {
-        return MC_MEMBER_OFFSETOF(C, signal_ptr);
+    uint32_t offset() const override {
+        return static_cast<uint32_t>(MC_MEMBER_OFFSETOF(C, signal_ptr));
     }
 
     member_info_base* clone() const override {

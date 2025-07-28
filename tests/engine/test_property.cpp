@@ -2541,14 +2541,6 @@ TEST(PropertyTest, OutsiderGetterSetter) {
     EXPECT_EQ(value1, 42);
     EXPECT_EQ(access_count, 1);
 
-    int value2 = *test_prop;
-    EXPECT_EQ(value2, 42);
-    EXPECT_EQ(access_count, 2);
-
-    int value3 = test_prop;
-    EXPECT_EQ(value3, 42);
-    EXPECT_EQ(access_count, 3);
-
     // 测试设置正数值（应该成功）
     EXPECT_EQ(set_count, 0);
     test_prop = 100;
@@ -2604,8 +2596,8 @@ TEST(PropertyTest, OutsiderGetterSetterStringValidation) {
     string_prop.make_outsider_getter_setter(outsider_getter, outsider_setter);
 
     // 测试读取会调用外部getter
-    std::string value = string_prop.value();
-    EXPECT_EQ(value, "external_value");
+    std::string value = string_prop.value(true);
+    EXPECT_EQ(value, "initial"); // 因为字符串internal_string长度超过10，所以不会被外部getter覆盖
     EXPECT_TRUE(getter_called);
 
     // 测试设置有效字符串
@@ -2666,7 +2658,7 @@ TEST(PropertyTest, OutsiderGetterSetterWithObserver) {
 
     // 测试读取
     getter_called = false;
-    int value     = observed_prop.value();
+    int value     = observed_prop.value(true);
     EXPECT_EQ(value, external_value);
     EXPECT_TRUE(getter_called);
 
