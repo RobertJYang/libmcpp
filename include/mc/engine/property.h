@@ -32,17 +32,17 @@ namespace mc::engine {
 
 // 属性类型枚举
 enum class p_type : uint32_t {
-    normal = 0,     // 普通属性
-    sync = 1,       // 同步属性
-    reference = 2,  // 引用属性
+    normal     = 0, // 普通属性
+    sync       = 1, // 同步属性
+    reference  = 2, // 引用属性
     ref_object = 3  // 引用对象属性
 };
 
 // 定义常量以便与 int 类型兼容
 namespace property_options {
-    constexpr int memory = 1;
-    constexpr int from_mdb = 2;
-}
+constexpr int memory   = 1;
+constexpr int from_mdb = 2;
+} // namespace property_options
 
 namespace detail {
 
@@ -84,7 +84,7 @@ class ref_object : public variant_extension_base {
 public:
     using object_finder_type = std::function<abstract_object*(const std::string&)>;
 
-    ref_object(const std::string& object_name, object_finder_type finder = nullptr) 
+    ref_object(const std::string& object_name, object_finder_type finder = nullptr)
         : m_object_name(object_name), m_object_finder(finder) {
     }
 
@@ -132,7 +132,7 @@ public:
             MC_THROW(mc::invalid_op_exception, "引用对象不存在，无法设置属性: ${object_name}", ("object_name", m_object_name));
         }
 
-        if (!interface_name.empty()) { 
+        if (!interface_name.empty()) {
             auto interface_obj = target_object->get_interface(interface_name);
             if (interface_obj == nullptr) {
                 MC_THROW(mc::invalid_op_exception, "Interface not found: ${interface} in object: ${object_name}",
@@ -234,7 +234,7 @@ public:
     }
 
 private:
-    std::string m_object_name;
+    std::string        m_object_name;
     object_finder_type m_object_finder;
 
     // 查找被引用的对象（弱引用，可能返回 nullptr）
@@ -321,7 +321,7 @@ public:
                 // 返回缓存的引用对象
                 return ensure_ref_object_cache();
             }
-        }   
+        }
         return value(!(options & property_options::memory));
     }
 
@@ -428,7 +428,7 @@ private:
 
     // 处理引用对象的 from_variant 逻辑
     void process_ref_object_from_variant(const std::string& ref_object_str) {
-        auto ref_obj = func_parser::get_instance().parse_ref_object(ref_object_str);
+        auto ref_obj    = func_parser::get_instance().parse_ref_object(ref_object_str);
         m_property_type = p_type::ref_object;
 
         // 清理旧的缓存（如果有的话）
@@ -447,7 +447,6 @@ private:
     }
 
 public:
-
     // 获取引用对象的variant包装器（现在直接使用缓存）
     mc::variant get_ref_object_variant() const {
         return ensure_ref_object_cache();
@@ -465,9 +464,9 @@ public:
 
         std::string full_object_name = object_name + "_" + std::string(position);
 
-        auto&       object_table     = service->get_object_table();
-        auto&       idx              = object_table.template get<mc::engine::by_object_name>();
-        auto        obj_it           = idx.find(full_object_name);
+        auto& object_table = service->get_object_table();
+        auto& idx          = object_table.template get<mc::engine::by_object_name>();
+        auto  obj_it       = idx.find(full_object_name);
 
         if (obj_it == idx.end()) {
             elog("Object not found: ${object_name}, searched for: ${full_name}",
@@ -818,7 +817,7 @@ public:
         update_sync_value_from_function();
 
         // 同步属性不支持设置值
-        m_setter = [this](const T& value) {
+        m_setter = [](const T& value) {
             MC_THROW(mc::invalid_op_exception, "设置同步属性值不被允许");
         };
     }
@@ -834,7 +833,7 @@ public:
             return;
         }
 
-        auto func_params = func_info.params;
+        auto func_params       = func_info.params;
         auto relate_properties = call_func.template as<func>().get_relate_properties(
             get_object()->get_position(), func_params);
 
@@ -852,7 +851,7 @@ public:
 
         // 分配func_data，保存函数对象
         m_func_data = std::make_unique<detail::func_data>();
-        mc::from_variant(call_func, m_func_data->func_obj);  // 正确转换到func类型
+        mc::from_variant(call_func, m_func_data->func_obj); // 正确转换到func类型
         m_func_data->params = func_params;
 
         // 处理第一个关联属性的类型
@@ -1023,14 +1022,14 @@ protected:
     observer_type                            m_observer;
     std::unique_ptr<property_changed_signal> m_signal;
 
-    std::function<T()>                       m_getter;
-    std::function<void(const T&)>            m_setter;
-    std::function<value_type()>              m_outsider_getter; // 外部getter方法
-    std::function<bool(param_type)>          m_outsider_setter; // 外部setter方法，返回false表示不进行实际设置
-    std::unique_ptr<detail::func_data>       m_func_data; // 只有需要时才分配
-    std::vector<mc::connection_type>         m_connection_slots;
-    p_type                                   m_property_type{p_type::normal}; // 属性类型，默认为普通属性
-    mutable std::unique_ptr<mc::variant>     m_ref_object_cache; // 缓存引用对象的 variant
+    std::function<T()>                   m_getter;
+    std::function<void(const T&)>        m_setter;
+    std::function<value_type()>          m_outsider_getter; // 外部getter方法
+    std::function<bool(param_type)>      m_outsider_setter; // 外部setter方法，返回false表示不进行实际设置
+    std::unique_ptr<detail::func_data>   m_func_data;       // 只有需要时才分配
+    std::vector<mc::connection_type>     m_connection_slots;
+    p_type                               m_property_type{p_type::normal}; // 属性类型，默认为普通属性
+    mutable std::unique_ptr<mc::variant> m_ref_object_cache;              // 缓存引用对象的 variant
 };
 
 } // namespace mc::engine
@@ -1047,7 +1046,7 @@ struct signature_helper<mc::engine::property<T, Observer>> {
 
 // 为 ref_object* 指针类型添加 from_variant 特化，支持 obj_variant.as<ref_object*>() 语法
 namespace mc {
-template<typename Config>
+template <typename Config>
 void from_variant(const mc::variant_base<Config>& var, mc::engine::ref_object*& ptr) {
     if (var.is_extension()) {
         auto ext_ptr = var.as_extension();
