@@ -22,14 +22,14 @@ namespace mc::db {
 
 class MC_API table_base {
 public:
-    MC_API virtual ~table_base() = default;
+    virtual ~table_base() = default;
 
-    MC_API virtual uint32_t         get_table_id() const      = 0;
-    MC_API virtual void             set_table_id(uint32_t id) = 0;
-    MC_API virtual std::string_view get_table_name() const    = 0;
-    MC_API virtual bool             empty() const             = 0;
-    MC_API virtual size_t           size() const              = 0;
-    MC_API virtual void             clear()                   = 0;
+    virtual uint32_t         get_table_id() const      = 0;
+    virtual void             set_table_id(uint32_t id) = 0;
+    virtual std::string_view get_table_name() const    = 0;
+    virtual bool             empty() const             = 0;
+    virtual size_t           size() const              = 0;
+    virtual void             clear()                   = 0;
 
     object_ptr add_object(const mc::dict& var, transaction* txn = nullptr) {
         return do_add_object(var, txn);
@@ -62,7 +62,7 @@ public:
      * 生成新的对象ID
      * @return 新的对象ID
      */
-    MC_API object_id_type generate_id();
+    object_id_type generate_id();
 
     mc::signal<void(object_base&)>               on_object_added;
     mc::signal<void(object_base&)>               on_object_removed;

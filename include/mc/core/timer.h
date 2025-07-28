@@ -26,41 +26,41 @@ using timer_ptr = mc::shared_ptr<timer>;
  */
 class MC_API timer : public object {
 public:
-    MC_API timer(object* parent = nullptr);
-    MC_API ~timer() override;
+    timer(object* parent = nullptr);
+    ~timer() override;
 
-    MC_API        timer(timer&& other)     = delete;
-    MC_API timer& operator=(timer&& other) = delete;
+    timer(timer&& other)            = delete;
+    timer& operator=(timer&& other) = delete;
 
     /**
      * @brief 获取定时器间隔时间
      * @return 定时器间隔时间
      */
-    MC_API mc::milliseconds interval() const;
+    mc::milliseconds interval() const;
 
     /**
      * @brief 设置定时器间隔时间
      * @param msec 定时器间隔时间
      */
-    MC_API void set_interval(mc::milliseconds msec);
+    void set_interval(mc::milliseconds msec);
 
     /**
      * @brief 获取定时器是否只执行一次
      * @return 如果定时器只执行一次则返回true，否则返回false
      */
-    MC_API bool is_single_shot() const;
+    bool is_single_shot() const;
 
     /**
      * @brief 设置定时器是否只执行一次
      * @param single_shot 如果定时器只执行一次则设置为true，否则设置为false
      */
-    MC_API void set_single_shot(bool single_shot);
+    void set_single_shot(bool single_shot);
 
     /**
      * @brief 获取定时器是否正在运行
      * @return 如果定时器正在运行则返回true，否则返回false
      */
-    MC_API bool is_active() const;
+    bool is_active() const;
 
     /**
      * @brief 启动定时器
@@ -69,12 +69,12 @@ public:
      * 如果定时器已经启动，则重启定时器并设置定时器间隔为新的时间
      * 如果 single_shot 为 true，则定时器只执行一次
      */
-    MC_API void start(mc::milliseconds msec = mc::milliseconds(0));
+    void start(mc::milliseconds msec = mc::milliseconds(0));
 
     /**
      * @brief 停止定时器
      */
-    MC_API void stop();
+    void stop();
 
     mc::signal<void()> timeout;
 
@@ -102,15 +102,15 @@ public:
         auto ptr = mc::static_pointer_cast<Object>(receiver->shared_from_this());
         return single_shot(msec, std::move(ptr), method);
     }
-    MC_API static timer_ptr single_shot(mc::milliseconds msec, std::function<void()> functor);
+    static timer_ptr single_shot(mc::milliseconds msec, std::function<void()> functor);
 
     template <typename Object>
     static timer_ptr single_shot(mc::milliseconds msec, mc::shared_ptr<Object>& context,
                                  std::function<void()> functor) {
         return single_shot(msec, context.get(), std::move(functor));
     }
-    MC_API static timer_ptr single_shot(mc::milliseconds msec, object* context,
-                                        std::function<void()> functor);
+    static timer_ptr single_shot(mc::milliseconds msec, object* context,
+                                 std::function<void()> functor);
 
 private:
     bool check_active() const;

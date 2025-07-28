@@ -28,8 +28,8 @@
 namespace mc::crypto {
 class MC_API CRC8 {
 public:
-    MC_API         CRC8();
-    MC_API uint8_t calculate(const std::string& bytes);
+    CRC8();
+    uint8_t calculate(const std::string& bytes);
 
 private:
     void initializeTable();

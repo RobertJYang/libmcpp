@@ -49,38 +49,38 @@ struct service_node {
 class MC_API service_manager {
 public:
     // 构造函数
-    MC_API service_manager();
+    service_manager();
 
     // 析构函数
-    MC_API ~service_manager();
+    ~service_manager();
 
     // 从配置初始化服务
-    MC_API bool initialize_from_configs(config_manager& config_mgr, supervisor_manager& supervisor_mgr,
-                                        service_factory& factory);
+    bool initialize_from_configs(config_manager& config_mgr, supervisor_manager& supervisor_mgr,
+                                 service_factory& factory);
 
     // 获取服务
-    MC_API service_base_ptr get_service(const std::string& name) const;
+    service_base_ptr get_service(const std::string& name) const;
 
     // 清理服务
-    MC_API void cleanup_services();
+    void cleanup_services();
 
     // 添加服务
-    MC_API bool add_service(const std::string& name, service_base_ptr service_instance);
+    bool add_service(const std::string& name, service_base_ptr service_instance);
 
     // 移除服务
-    MC_API bool remove_service(const std::string& name);
+    bool remove_service(const std::string& name);
 
     // 获取所有服务名称
-    MC_API std::vector<std::string> get_service_names() const;
+    std::vector<std::string> get_service_names() const;
 
     // 启动所有服务
-    MC_API bool start_services();
+    bool start_services();
 
     // 停止所有服务
-    MC_API bool stop_services();
+    bool stop_services();
 
     // 检查服务是否存在
-    MC_API bool has_service(const std::string& name) const;
+    bool has_service(const std::string& name) const;
 
 private:
     std::unordered_map<std::string, service_base_ptr> m_services;

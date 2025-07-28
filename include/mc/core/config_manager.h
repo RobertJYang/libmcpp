@@ -34,20 +34,20 @@ namespace mc::core {
  */
 class MC_API config_loader {
 public:
-    MC_API virtual ~config_loader() = default;
+    virtual ~config_loader() = default;
 
     /**
      * @brief 加载配置文件
      * @param file_path 配置文件路径
      * @return 配置数据
      */
-    MC_API virtual variant load(const std::string& file_path) = 0;
+    virtual variant load(const std::string& file_path) = 0;
 
     /**
      * @brief 获取支持的文件扩展名
      * @return 支持的文件扩展名列表
      */
-    MC_API virtual std::vector<std::string> supported_extensions() const = 0;
+    virtual std::vector<std::string> supported_extensions() const = 0;
 };
 
 /**
@@ -55,8 +55,8 @@ public:
  */
 class MC_API json_config_loader : public config_loader {
 public:
-    MC_API variant load(const std::string& file_path) override;
-    MC_API std::vector<std::string> supported_extensions() const override {
+    variant                  load(const std::string& file_path) override;
+    std::vector<std::string> supported_extensions() const override {
         return {".json"};
     }
 };
@@ -66,8 +66,8 @@ public:
  */
 class MC_API toml_config_loader : public config_loader {
 public:
-    MC_API variant load(const std::string& file_path) override;
-    MC_API std::vector<std::string> supported_extensions() const override {
+    variant                  load(const std::string& file_path) override;
+    std::vector<std::string> supported_extensions() const override {
         return {".toml"};
     }
 };
@@ -77,8 +77,8 @@ public:
  */
 class MC_API config_manager {
 public:
-    MC_API config_manager();
-    MC_API ~config_manager() = default;
+    config_manager();
+    ~config_manager() = default;
 
     /**
      * @brief 从命令行解析配置相关参数
@@ -86,21 +86,21 @@ public:
      * @param argv 参数数组
      * @return 解析成功返回true，失败返回false
      */
-    MC_API bool parse_command_line(int argc, char** argv);
+    bool parse_command_line(int argc, char** argv);
 
     /**
      * @brief 加载配置文件
      * @param file_path 配置文件路径，为空则使用默认路径
      * @return 加载成功返回true，失败返回false
      */
-    MC_API bool load_config_file(const std::string& file_path = "");
+    bool load_config_file(const std::string& file_path = "");
 
     /**
      * @brief 添加配置
      * @param config 配置对象
      * @return 添加成功返回true，失败返回false
      */
-    MC_API bool add_config(const variant& config);
+    bool add_config(const variant& config);
 
     /**
      * @brief 获取配置对象
@@ -163,19 +163,19 @@ public:
      * @brief 获取插件列表
      * @return 插件名称列表
      */
-    MC_API std::vector<std::string> get_plugin_names() const;
+    std::vector<std::string> get_plugin_names() const;
 
     /**
      * @brief 获取插件目录
      * @return 插件目录路径
      */
-    MC_API std::string get_plugin_dir() const;
+    std::string get_plugin_dir() const;
 
     /**
      * @brief 获取线程数
      * @return 线程数
      */
-    MC_API unsigned int get_thread_count() const;
+    unsigned int get_thread_count() const;
 
 private:
     template <typename T>

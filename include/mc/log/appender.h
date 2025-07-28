@@ -28,7 +28,7 @@ public:
     /**
      * @brief 虚析构函数
      */
-    MC_API virtual ~appender();
+    virtual ~appender();
 
     /**
      * @brief 初始化追加器
@@ -36,28 +36,28 @@ public:
      * @param config 配置字符串，可以是JSON或其他格式
      * @return bool 初始化是否成功
      */
-    MC_API virtual bool init(const variant& args) = 0;
+    virtual bool init(const variant& args) = 0;
 
     /**
      * @brief 追加日志消息
      *
      * @param msg 日志消息
      */
-    MC_API virtual void append(const message& msg) = 0;
+    virtual void append(const message& msg) = 0;
 
     /**
      * @brief 获取追加器名称
      *
      * @return const std::string& 追加器名称
      */
-    MC_API const std::string& get_name() const;
+    const std::string& get_name() const;
 
     /**
      * @brief 设置追加器名称
      *
      * @param name 追加器名称
      */
-    MC_API void set_name(const std::string& name);
+    void set_name(const std::string& name);
 
 protected:
     std::string m_name; // 追加器名称

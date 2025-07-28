@@ -23,10 +23,10 @@ class module_manager_impl;
  */
 class MC_API module_manager {
 public:
-    static MC_API module_manager& instance();
-    static MC_API void            reset_for_test();
+    static module_manager& instance();
+    static void            reset_for_test();
 
-    MC_API ~module_manager();
+    ~module_manager();
 
     /**
      * @brief 加载模块 - 供脚本的 require() 使用
@@ -34,7 +34,7 @@ public:
      * @param module_name 模块名称，如 "mc.devices"
      * @return 模块实例，失败返回 nullptr
      */
-    MC_API module_ptr require(std::string_view module_name);
+    module_ptr require(std::string_view module_name);
 
     /**
      * @brief 卸载模块
@@ -43,22 +43,22 @@ public:
      * @note 如果模块是动态模块，卸载只是将内部模块引用计数减1，不会真正卸载动态库，动态库延迟到
      * 外部最后一个 module_ptr 被销毁时才会卸载
      */
-    MC_API void unload(std::string_view module_name);
+    void unload(std::string_view module_name);
 
     /**
      * @brief 添加模块搜索路径 - 用于动态模块加载
      */
-    MC_API void add_search_path(std::string_view path);
+    void add_search_path(std::string_view path);
 
     /**
      * @brief 获取已加载的模块列表 - 供脚本查询
      */
-    MC_API std::vector<std::string_view> loaded_modules() const;
+    std::vector<std::string_view> loaded_modules() const;
 
     /**
      * @brief 检查模块是否已加载
      */
-    MC_API bool is_loaded(std::string_view module_name) const;
+    bool is_loaded(std::string_view module_name) const;
 
 private:
     module_manager();

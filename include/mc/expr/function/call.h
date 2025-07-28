@@ -41,22 +41,22 @@ class MC_API func {
 public:
     MC_REFLECTABLE("mc.expr.function.func");
 
-    MC_API func() = default;
+    func() = default;
 
     // 修改构造函数参数顺序，使其与测试用例匹配
-    MC_API func(const std::string& result, const mc::dict& args) : m_result(result), m_args(args) {
+    func(const std::string& result, const mc::dict& args) : m_result(result), m_args(args) {
     }
 
-    MC_API void validate_result();
-    MC_API void validate_args();
-    MC_API mc::variant call(const std::string_view& position, mc::mutable_dict& params);
-    MC_API mc::mutable_dict get_relate_properties(const std::string_view& position, mc::mutable_dict& params);
+    void             validate_result();
+    void             validate_args();
+    mc::variant      call(const std::string_view& position, mc::mutable_dict& params);
+    mc::mutable_dict get_relate_properties(const std::string_view& position, mc::mutable_dict& params);
 
     // 添加访问 m_args 的方法
-    MC_API const mc::dict& get_args() const {
+    const mc::dict& get_args() const {
         return m_args;
     }
-    MC_API void set_args(const mc::dict& args) {
+    void set_args(const mc::dict& args) {
         m_args = args;
     }
 

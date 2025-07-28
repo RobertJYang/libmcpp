@@ -29,12 +29,12 @@ namespace mc::expr {
  */
 class MC_API lexer {
 public:
-    explicit MC_API lexer(std::string_view source);
+    explicit lexer(std::string_view source);
 
-    MC_API std::vector<token> scan_tokens();
-    MC_API std::vector<token> scan_template_string_tokens();
+    std::vector<token> scan_tokens();
+    std::vector<token> scan_template_string_tokens();
 
-    static MC_API bool is_template_string(std::string_view source);
+    static bool is_template_string(std::string_view source);
 
 private:
     bool is_at_end() const;

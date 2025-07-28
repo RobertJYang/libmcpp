@@ -78,11 +78,11 @@ struct MC_API properties_interface : public mc::engine::interface<properties_int
 struct MC_API introspectable_interface : public mc::engine::interface<introspectable_interface> {
     MC_INTERFACE(introspectable_interface_name)
 
-    MC_API ~introspectable_interface() override = default;
+    ~introspectable_interface() override = default;
 
-    MC_API std::string introspect() const;
+    std::string introspect() const;
 
-    static MC_API introspectable_interface& get_instance();
+    static introspectable_interface& get_instance();
 };
 
 /*
@@ -96,12 +96,12 @@ struct MC_API introspectable_interface : public mc::engine::interface<introspect
 struct MC_API peer_interface : public mc::engine::interface<peer_interface> {
     MC_INTERFACE(peer_interface_name)
 
-    MC_API ~peer_interface() override = default;
+    ~peer_interface() override = default;
 
     void        ping() const;
     std::string get_machine_id() const;
 
-    static MC_API peer_interface& get_instance();
+    static peer_interface& get_instance();
 };
 
 /*

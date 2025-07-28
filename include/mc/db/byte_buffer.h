@@ -29,105 +29,105 @@ namespace mc::db {
  */
 class MC_API byte_buffer {
 public:
-    MC_API byte_buffer();
+    byte_buffer();
 
     /**
      * 重置缓冲区
      */
-    MC_API void reset();
+    void reset();
 
     /**
      * 增加缓冲区大小
      * @param n 增加的字节数
      */
-    MC_API void grow(size_t n);
+    void grow(size_t n);
 
     /**
      * 尝试通过重新切片增加缓冲区大小
      * @param n 增加的字节数
      * @return 旧长度和是否成功
      */
-    MC_API std::pair<size_t, bool> try_grow_by_reslice(size_t n);
+    std::pair<size_t, bool> try_grow_by_reslice(size_t n);
 
     /**
      * 获取缓冲区长度
      * @return 缓冲区长度
      */
-    MC_API size_t len() const;
+    size_t len() const;
 
     /**
      * 获取缓冲区容量
      * @return 缓冲区容量
      */
-    MC_API size_t cap() const;
+    size_t cap() const;
 
     /**
      * 获取缓冲区数据
      * @return 缓冲区数据视图
      */
-    MC_API std::string_view bytes() const;
+    std::string_view bytes() const;
 
     /**
      * 获取缓冲区数据指针
      * @return 数据指针
      */
-    MC_API const uint8_t* data() const;
+    const uint8_t* data() const;
 
     /**
      * 增加缓冲区大小（内部实现）
      * @param n 增加的字节数
      * @return 旧长度
      */
-    MC_API size_t grow_internal(size_t n);
+    size_t grow_internal(size_t n);
 
     /**
      * 截断缓冲区
      * @param n 新的长度
      */
-    MC_API void truncate(size_t n);
+    void truncate(size_t n);
 
     /**
      * 写入字节数据
      * @param p 要写入的数据
      * @param size 数据大小
      */
-    MC_API void write(const uint8_t* p, size_t size);
+    void write(const uint8_t* p, size_t size);
 
     /**
      * 写入字节数据
      * @param p 要写入的数据
      */
-    MC_API void write(const std::vector<uint8_t>& p);
+    void write(const std::vector<uint8_t>& p);
 
     /**
      * 写入单个字节
      * @param c 要写入的字节
      */
-    MC_API void write_byte(uint8_t c);
+    void write_byte(uint8_t c);
 
     /**
      * 写入字符串
      * @param v 要写入的字符串
      */
-    MC_API void write_string(std::string_view v);
+    void write_string(std::string_view v);
 
     /**
      * 写入16位无符号整数
      * @param v 要写入的整数
      */
-    MC_API void write_uint16(uint16_t v);
+    void write_uint16(uint16_t v);
 
     /**
      * 写入32位无符号整数
      * @param v 要写入的整数
      */
-    MC_API void write_uint32(uint32_t v);
+    void write_uint32(uint32_t v);
 
     /**
      * 写入64位无符号整数
      * @param v 要写入的整数
      */
-    MC_API void write_uint64(uint64_t v);
+    void write_uint64(uint64_t v);
 
 private:
     /**

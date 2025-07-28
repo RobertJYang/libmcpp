@@ -33,21 +33,21 @@ class MC_API shard_buffer {
 public:
     using free_function = void (*)(void* buf, void* user_data);
 
-    MC_API               shard_buffer();
-    MC_API               shard_buffer(const shard_buffer& other);
-    MC_API shard_buffer& operator=(const shard_buffer& other);
-    MC_API               shard_buffer(shard_buffer&& other) noexcept;
-    MC_API shard_buffer& operator=(shard_buffer&& other) noexcept;
-    MC_API ~shard_buffer();
+    shard_buffer();
+    shard_buffer(const shard_buffer& other);
+    shard_buffer& operator=(const shard_buffer& other);
+    shard_buffer(shard_buffer&& other) noexcept;
+    shard_buffer& operator=(shard_buffer&& other) noexcept;
+    ~shard_buffer();
 
-    MC_API shard_buffer(void* buf, free_function fn, void* user_data);
+    shard_buffer(void* buf, free_function fn, void* user_data);
 
     uint8_t* data() const noexcept {
         return m_buffer;
     }
 
-    MC_API bool is_shared() const noexcept;
-    MC_API void unshare();
+    bool is_shared() const noexcept;
+    void unshare();
 
 private:
     void ensure_shared_info();
@@ -95,36 +95,36 @@ public:
     /**
      * @brief 默认构造函数，创建一个空的缓冲区
      */
-    MC_API io_buffer() noexcept;
+    io_buffer() noexcept;
 
     /**
      * @brief 移动构造函数
      */
-    MC_API io_buffer(io_buffer&& other) noexcept;
+    io_buffer(io_buffer&& other) noexcept;
 
     /**
      * @brief 移动赋值运算符
      */
-    MC_API io_buffer& operator=(io_buffer&& other) noexcept;
+    io_buffer& operator=(io_buffer&& other) noexcept;
 
     /**
      * @brief 复制构造函数
      *
      * 创建一个共享同一数据的新 io_buffer
      */
-    MC_API io_buffer(const io_buffer& other);
+    io_buffer(const io_buffer& other);
 
     /**
      * @brief 复制赋值运算符
      */
-    MC_API io_buffer& operator=(const io_buffer& other);
+    io_buffer& operator=(const io_buffer& other);
 
     /**
      * @brief 析构函数
      *
      * 释放所有资源并处理引用计数
      */
-    MC_API ~io_buffer();
+    ~io_buffer();
 
     /**
      * @brief 创建指定容量的缓冲区
@@ -132,7 +132,7 @@ public:
      * @param capacity 需要分配的容量大小
      * @return 创建的 io_buffer 对象指针
      */
-    static MC_API std::unique_ptr<io_buffer> create(std::size_t capacity);
+    static std::unique_ptr<io_buffer> create(std::size_t capacity);
 
     /**
      * @brief 接管外部缓冲区的所有权
@@ -144,10 +144,10 @@ public:
      * @param user_data 传递给释放函数的用户数据
      * @return 创建的 io_buffer 对象指针
      */
-    static MC_API std::unique_ptr<io_buffer> take_ownership(void* buf, std::size_t capacity,
-                                                            std::size_t   length    = 0,
-                                                            free_function free_fn   = nullptr,
-                                                            void*         user_data = nullptr);
+    static std::unique_ptr<io_buffer> take_ownership(void* buf, std::size_t capacity,
+                                                     std::size_t   length    = 0,
+                                                     free_function free_fn   = nullptr,
+                                                     void*         user_data = nullptr);
 
     /**
      * @brief 封装外部缓冲区但不获取所有权
@@ -156,7 +156,7 @@ public:
      * @param length 有效数据长度
      * @return 创建的 io_buffer 对象指针
      */
-    static MC_API std::unique_ptr<io_buffer> wrap(const void* buf, std::size_t length);
+    static std::unique_ptr<io_buffer> wrap(const void* buf, std::size_t length);
 
     /**
      * @brief 复制数据到新的缓冲区
@@ -167,9 +167,9 @@ public:
      * @param tailroom 预留的尾部空间
      * @return 创建的 io_buffer 对象指针
      */
-    static MC_API std::unique_ptr<io_buffer> copy_buffer(const void* data, std::size_t length,
-                                                         std::size_t headroom = 0,
-                                                         std::size_t tailroom = 0);
+    static std::unique_ptr<io_buffer> copy_buffer(const void* data, std::size_t length,
+                                                  std::size_t headroom = 0,
+                                                  std::size_t tailroom = 0);
 
     /**
      * @brief 获取当前有效数据指针
@@ -275,40 +275,40 @@ public:
      *
      * @return 如果缓冲区被共享则返回true
      */
-    MC_API bool is_shared() const noexcept;
+    bool is_shared() const noexcept;
 
     /**
      * @brief 在尾部追加空间
      *
      * @param amount 要追加的字节数
      */
-    MC_API void append(std::size_t amount) noexcept;
+    void append(std::size_t amount) noexcept;
 
     /**
      * @brief 在头部预留空间
      *
      * @param amount 要预留的字节数
      */
-    MC_API void prepend(std::size_t amount) noexcept;
+    void prepend(std::size_t amount) noexcept;
 
     /**
      * @brief 截断尾部数据
      *
      * @param amount 要截断的字节数
      */
-    MC_API void trim_end(std::size_t amount) noexcept;
+    void trim_end(std::size_t amount) noexcept;
 
     /**
      * @brief 截断头部数据
      *
      * @param amount 要截断的字节数
      */
-    MC_API void trim_start(std::size_t amount) noexcept;
+    void trim_start(std::size_t amount) noexcept;
 
     /**
      * @brief 清空数据
      */
-    MC_API void clear() noexcept;
+    void clear() noexcept;
 
     /**
      * @brief 确保缓冲区拥有足够的头部和尾部空间
@@ -316,7 +316,7 @@ public:
      * @param min_headroom 最小头部空间
      * @param min_tailroom 最小尾部空间
      */
-    MC_API void reserve(std::size_t min_headroom, std::size_t min_tailroom);
+    void reserve(std::size_t min_headroom, std::size_t min_tailroom);
 
     /**
      * @brief 数据对齐到指定边界
@@ -324,7 +324,7 @@ public:
      * @param alignment 对齐边界（通常是1,2,4或8）
      * @return 实际填充的字节数
      */
-    MC_API std::size_t align(std::size_t alignment);
+    std::size_t align(std::size_t alignment);
 
     /**
      * @brief 写入数据到缓冲区尾部
@@ -333,7 +333,7 @@ public:
      * @param length 数据长度
      * @return 实际写入的字节数
      */
-    MC_API std::size_t write(const void* data, std::size_t length);
+    std::size_t write(const void* data, std::size_t length);
 
     /**
      * @brief 在指定位置写入数据
@@ -343,7 +343,7 @@ public:
      * @param length 数据长度
      * @return 实际写入的字节数
      */
-    MC_API std::size_t write_at_offset(std::size_t offset, const void* data, std::size_t length);
+    std::size_t write_at_offset(std::size_t offset, const void* data, std::size_t length);
 
     /**
      * @brief 按照指定字节序写入基本数据类型
@@ -394,7 +394,7 @@ public:
      * @param length 数据长度
      * @return 读取的数据
      */
-    MC_API std::string_view read(std::size_t offset, std::size_t length) const;
+    std::string_view read(std::size_t offset, std::size_t length) const;
 
     /**
      * @brief 从指定位置读取数据，如果实际数据长度小于请求的长度，则抛出异常
@@ -404,7 +404,7 @@ public:
      * @param length 数据长度
      * @return 实际读取的数据
      */
-    MC_API std::size_t read(std::size_t offset, void* data, std::size_t length) const;
+    std::size_t read(std::size_t offset, void* data, std::size_t length) const;
 
     /**
      * @brief 从指定位置读取数据，如果实际数据长度小于请求的长度，则返回false
@@ -413,7 +413,7 @@ public:
      * @param length 数据长度
      * @return 是否读取成功
      */
-    MC_API bool try_read(std::size_t offset, void* data, std::size_t length) const noexcept;
+    bool try_read(std::size_t offset, void* data, std::size_t length) const noexcept;
 
     /**
      * @brief 从指定位置读取数据，如果实际数据长度小于请求的长度，则返回空
@@ -422,7 +422,7 @@ public:
      * @param length 数据长度
      * @return 读取的数据
      */
-    MC_API std::string_view try_read(std::size_t offset, std::size_t length) const noexcept;
+    std::string_view try_read(std::size_t offset, std::size_t length) const noexcept;
 
     /**
      * @brief 从指定位置读取一些数据，实际读取的字节数可能小于请求的长度
@@ -431,7 +431,7 @@ public:
      * @param length 数据长度
      * @return 实际读取的数据
      */
-    MC_API std::string_view read_some(std::size_t offset, std::size_t length) const;
+    std::string_view read_some(std::size_t offset, std::size_t length) const;
 
     /**
      * @brief 从指定位置读取一些数据，实际读取的字节数可能小于请求的长度
@@ -441,7 +441,7 @@ public:
      * @param length 数据长度
      * @return 实际读取的字节数
      */
-    MC_API std::size_t read_some(std::size_t offset, void* data, std::size_t length) const;
+    std::size_t read_some(std::size_t offset, void* data, std::size_t length) const;
 
     /**
      * @brief 从指定位置读取基本数据类型，如果实际数据长度小于请求的长度，则抛出异常
@@ -489,54 +489,54 @@ public:
      * @param amount 需要的空间大小
      * @return 是否成功确保空间
      */
-    MC_API bool ensure_tailroom(std::size_t amount);
+    bool ensure_tailroom(std::size_t amount);
 
     /**
      * @brief 克隆当前缓冲区
      *
      * @return 克隆的io_buffer对象
      */
-    MC_API std::unique_ptr<io_buffer> clone() const;
+    std::unique_ptr<io_buffer> clone() const;
 
     /**
      * @brief 确保缓冲区不被共享，必要时创建副本
      */
-    MC_API void unshare();
+    void unshare();
 
     /**
      * @brief 判断是否为链表
      *
      * @return 如果是链表则返回true
      */
-    MC_API bool is_chained() const noexcept;
+    bool is_chained() const noexcept;
 
     /**
      * @brief 计算链表中所有数据的总长度
      *
      * @return 链表总数据长度
      */
-    MC_API std::size_t compute_chain_length() const noexcept;
+    std::size_t compute_chain_length() const noexcept;
 
     /**
      * @brief 追加缓冲区到链表末尾
      *
      * @param buf 要追加的缓冲区
      */
-    MC_API void append_to_chain(std::unique_ptr<io_buffer>&& buf);
+    void append_to_chain(std::unique_ptr<io_buffer>&& buf);
 
     /**
      * @brief 在当前节点后插入缓冲区
      *
      * @param buf 要插入的缓冲区
      */
-    MC_API void insert_after(std::unique_ptr<io_buffer>&& buf);
+    void insert_after(std::unique_ptr<io_buffer>&& buf);
 
     /**
      * @brief 合并链表为单个缓冲区
      *
      * @return 合并后的数据视图
      */
-    MC_API std::string_view normalize();
+    std::string_view normalize();
 
 private:
     /**

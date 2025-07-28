@@ -24,19 +24,19 @@ namespace mc::expr {
 
 class MC_API func_collection {
 public:
-    MC_API func_collection();
+    func_collection();
 
-    MC_API static func_collection& get_instance();
+    static func_collection& get_instance();
 
-    MC_API void add(const std::string_view& position, std::shared_ptr<mc::engine::service> service, mc::mutable_dict& functions);
-    MC_API mc::variant get(const std::string_view& position, const std::string_view& func_name);
-    MC_API std::shared_ptr<mc::engine::service> get_service(const std::string_view& position);
-    MC_API mc::mutable_dict get(const std::string_view& position);
-    MC_API mc::mutable_dict remove(const std::string_view& position);
-    MC_API bool             contains(const std::string_view& position);
-    MC_API void             clear();
-    MC_API size_t           size() const;
-    MC_API bool             empty() const;
+    void                                 add(const std::string_view& position, std::shared_ptr<mc::engine::service> service, mc::mutable_dict& functions);
+    mc::variant                          get(const std::string_view& position, const std::string_view& func_name);
+    std::shared_ptr<mc::engine::service> get_service(const std::string_view& position);
+    mc::mutable_dict                     get(const std::string_view& position);
+    mc::mutable_dict                     remove(const std::string_view& position);
+    bool                                 contains(const std::string_view& position);
+    void                                 clear();
+    size_t                               size() const;
+    bool                                 empty() const;
 
 private:
     mutable std::mutex                                                    m_mutex;

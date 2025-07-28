@@ -54,20 +54,20 @@ public:
      * @param base_addr 共享内存基地址
      * @param size 共享内存总大小
      */
-    MC_API shared_memory_allocator(void* base_addr, size_t size);
+    shared_memory_allocator(void* base_addr, size_t size);
 
     /**
      * @brief 分配内存
      * @param size 要分配的内存大小
      * @return 分配的内存指针，如果分配失败返回nullptr
      */
-    MC_API void* allocate(size_t size);
+    void* allocate(size_t size);
 
     /**
      * @brief 释放内存
      * @param ptr 要释放的内存指针
      */
-    MC_API void deallocate(void* ptr);
+    void deallocate(void* ptr);
 
     /**
      * @brief 类型安全的内存分配
@@ -200,25 +200,25 @@ public:
      * @brief 获取已分配内存总大小
      * @return 已分配内存总大小
      */
-    MC_API size_t get_allocated_size() const;
+    size_t get_allocated_size() const;
 
     /**
      * @brief 获取剩余可用内存大小
      * @return 剩余可用内存大小
      */
-    MC_API size_t get_available_size() const;
+    size_t get_available_size() const;
 
     /**
      * @brief 获取共享内存基地址
      * @return 共享内存基地址
      */
-    MC_API void* get_base_address() const;
+    void* get_base_address() const;
 
     /**
      * @brief 获取共享内存总大小
      * @return 共享内存总大小
      */
-    MC_API size_t get_total_size() const;
+    size_t get_total_size() const;
 
 private:
     // 成员变量

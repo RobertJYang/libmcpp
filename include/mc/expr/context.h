@@ -35,48 +35,48 @@ class context_impl;
 
 class MC_API context_base {
 public:
-    MC_API virtual ~context_base() = default;
+    virtual ~context_base() = default;
 
     /**
      * @brief 带父级上下文的构造函数
      * @param parent 父级上下文
      */
-    MC_API explicit context_base(context_base* parent = nullptr);
+    explicit context_base(context_base* parent = nullptr);
 
-    MC_API               context_base(const context_base&);
-    MC_API context_base& operator=(const context_base&);
-    MC_API               context_base(context_base&&) noexcept;
-    MC_API context_base& operator=(context_base&&) noexcept;
+    context_base(const context_base&);
+    context_base& operator=(const context_base&);
+    context_base(context_base&&) noexcept;
+    context_base& operator=(context_base&&) noexcept;
 
     /**
      * @brief 设置父级上下文
      */
-    MC_API virtual void set_parent(context_base* parent);
+    virtual void set_parent(context_base* parent);
 
     /**
      * @brief 获取父级上下文
      */
-    MC_API context_base* get_parent() const;
+    context_base* get_parent() const;
 
     /**
      * @brief 判断变量是否存在
      * @note 会递归查找父级上下文
      */
-    MC_API virtual bool has_variable(std::string_view name, std::string_view iface = {}) const;
+    virtual bool has_variable(std::string_view name, std::string_view iface = {}) const;
 
     /**
      * @brief 判断函数是否存在
      * @note 会递归查找父级上下文
      */
-    MC_API virtual bool has_function(std::string_view name, std::string_view iface = {}) const;
+    virtual bool has_function(std::string_view name, std::string_view iface = {}) const;
 
     /**
      * @brief 获取变量值
      * @param name 变量名
      * @return 变量值
      */
-    MC_API virtual const mc::variant& get_variable(std::string_view name,
-                                                   std::string_view iface = {}) const;
+    virtual const mc::variant& get_variable(std::string_view name,
+                                            std::string_view iface = {}) const;
 
     /**
      * @brief 函数调用
@@ -84,8 +84,8 @@ public:
      * @param args 参数
      * @return 返回值
      */
-    MC_API virtual mc::variant invoke(std::string_view name, const mc::variants& args,
-                                      std::string_view iface = {}) const;
+    virtual mc::variant invoke(std::string_view name, const mc::variants& args,
+                               std::string_view iface = {}) const;
 
 protected:
     context_base* m_parent{nullptr};
@@ -99,65 +99,65 @@ public:
     /**
      * @brief 默认构造函数
      */
-    MC_API context();
+    context();
 
     /**
      * @brief 带父级上下文的构造函数
      * @param parent 父级上下文
      */
-    MC_API explicit context(context_base* parent);
+    explicit context(context_base* parent);
 
     /**
      * @brief 从dict构造上下文
      */
-    MC_API explicit context(const mc::dict& dict, context_base* parent = nullptr);
+    explicit context(const mc::dict& dict, context_base* parent = nullptr);
 
-    MC_API          context(const context& other);
-    MC_API context& operator=(const context& other);
-    MC_API          context(context&& other) noexcept;
-    MC_API context& operator=(context&& other) noexcept;
+    context(const context& other);
+    context& operator=(const context& other);
+    context(context&& other) noexcept;
+    context& operator=(context&& other) noexcept;
 
     /**
      * @brief 设置变量值
      * @return 变量 ID
      */
-    MC_API int register_variable(std::string name, const mc::variant& value);
+    int register_variable(std::string name, const mc::variant& value);
 
     /**
      * @brief 获取变量值
      * @note 如果当前上下文找不到变量，会尝试从父级上下文查找
      */
-    MC_API const mc::variant& get_variable(std::string_view name,
-                                           std::string_view iface = {}) const override;
+    const mc::variant& get_variable(std::string_view name,
+                                    std::string_view iface = {}) const override;
 
     /**
      * @brief 判断变量是否存在
      * @note 会递归查找父级上下文
      */
-    MC_API bool has_variable(std::string_view name, std::string_view iface = {}) const override;
+    bool has_variable(std::string_view name, std::string_view iface = {}) const override;
 
     /**
      * @brief 从dict导入变量
      */
-    MC_API void import_from_dict(const mc::dict& dict);
+    void import_from_dict(const mc::dict& dict);
 
     /**
      * @brief 注册函数
      * @return 函数 ID
      */
-    MC_API int register_function(std::shared_ptr<function> func);
+    int register_function(std::shared_ptr<function> func);
 
     /**
      * @brief 注册对象
      * @return 对象 ID
      */
-    MC_API int register_object(std::string name, mc::engine::abstract_object* obj);
+    int register_object(std::string name, mc::engine::abstract_object* obj);
 
     /**
      * @brief 判断函数是否存在
      * @note 会递归查找父级上下文
      */
-    MC_API bool has_function(std::string_view name, std::string_view iface = {}) const override;
+    bool has_function(std::string_view name, std::string_view iface = {}) const override;
 
     /**
      * @brief 调用函数
@@ -165,8 +165,8 @@ public:
      * @param args 参数
      * @return 返回值
      */
-    MC_API mc::variant invoke(std::string_view name, const mc::variants& args,
-                              std::string_view iface = {}) const override;
+    mc::variant invoke(std::string_view name, const mc::variants& args,
+                       std::string_view iface = {}) const override;
 
 private:
     std::shared_ptr<context_impl> m_impl;
@@ -174,15 +174,15 @@ private:
 
 class MC_API object_context : public context_base {
 public:
-    MC_API object_context(mc::engine::abstract_object* obj, context_base* parent = nullptr);
+    object_context(mc::engine::abstract_object* obj, context_base* parent = nullptr);
 
-    MC_API mc::engine::abstract_object* get_object() const;
+    mc::engine::abstract_object* get_object() const;
 
-    MC_API bool  has_variable(std::string_view name, std::string_view iface = {}) const override;
-    MC_API bool  has_function(std::string_view name, std::string_view iface = {}) const override;
-    MC_API const mc::variant& get_variable(std::string_view name,
-                                           std::string_view iface = {}) const override;
-    MC_API mc::variant invoke(std::string_view name, const mc::variants& args,
+    bool               has_variable(std::string_view name, std::string_view iface = {}) const override;
+    bool               has_function(std::string_view name, std::string_view iface = {}) const override;
+    const mc::variant& get_variable(std::string_view name,
+                                    std::string_view iface = {}) const override;
+    mc::variant        invoke(std::string_view name, const mc::variants& args,
                               std::string_view iface = {}) const override;
 
 private:

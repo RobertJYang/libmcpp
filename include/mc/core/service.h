@@ -75,17 +75,17 @@ public:
  */
 class MC_API service_base : public abstract_service {
 public:
-    MC_API explicit service_base(std::string name = "");
-    MC_API ~service_base() override;
+    explicit service_base(std::string name = "");
+    ~service_base() override;
 
-    MC_API void  set_name(std::string name);
-    MC_API const std::string& name() const override;
+    void               set_name(std::string name);
+    const std::string& name() const override;
 
-    MC_API service_state get_state() const override;
+    service_state get_state() const override;
 
-    MC_API const service_config& get_config() const override;
+    const service_config& get_config() const override;
 
-    MC_API const std::vector<std::string>& get_dependencies() const override;
+    const std::vector<std::string>& get_dependencies() const override;
 
     bool init(dict args) override {
         return true;

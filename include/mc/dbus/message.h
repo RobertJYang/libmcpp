@@ -58,98 +58,98 @@ using dbus_ptr = std::unique_ptr<T, auto_dbus_free<T>>;
 
 class MC_API message {
 public:
-    static MC_API message new_method_call(std::string_view destination, std::string_view path,
-                                          std::string_view interface, std::string_view member);
-    static MC_API message new_method_return(const message& msg);
-    static MC_API message new_error(const message& msg, std::string_view error_name,
-                                    std::string_view error_message = {});
-    static MC_API message new_signal(std::string_view path, std::string_view interface,
-                                     std::string_view member);
-    static MC_API message new_message(message_type msg_type = message_type::method_call);
-    static MC_API message new_error_message(std::string_view error_name,
-                                            std::string_view error_message = {});
+    static message new_method_call(std::string_view destination, std::string_view path,
+                                   std::string_view interface, std::string_view member);
+    static message new_method_return(const message& msg);
+    static message new_error(const message& msg, std::string_view error_name,
+                             std::string_view error_message = {});
+    static message new_signal(std::string_view path, std::string_view interface,
+                              std::string_view member);
+    static message new_message(message_type msg_type = message_type::method_call);
+    static message new_error_message(std::string_view error_name,
+                                     std::string_view error_message = {});
 
-    MC_API DBusMessage* get_dbus_message() const;
-    MC_API bool         is_valid() const;
+    DBusMessage* get_dbus_message() const;
+    bool         is_valid() const;
 
-    MC_API message();
-    MC_API message(DBusMessage* msg, bool add_ref = false);
-    MC_API ~message();
+    message();
+    message(DBusMessage* msg, bool add_ref = false);
+    ~message();
 
-    MC_API          message(const message&);
-    MC_API message& operator=(const message&);
+    message(const message&);
+    message& operator=(const message&);
 
-    MC_API          message(message&& other) noexcept;
-    MC_API message& operator=(message&& other) noexcept;
+    message(message&& other) noexcept;
+    message& operator=(message&& other) noexcept;
 
-    MC_API void release();
+    void release();
 
-    MC_API message_type get_type() const;
-    MC_API std::string_view get_path() const;
-    MC_API std::string_view get_interface() const;
-    MC_API std::string_view get_member() const;
-    MC_API std::string_view get_error_name() const;
-    MC_API std::string_view get_destination() const;
-    MC_API std::string_view get_sender() const;
-    MC_API std::string_view get_signature() const;
-    MC_API uint32_t         get_serial() const;
-    MC_API uint32_t         get_reply_serial() const;
+    message_type     get_type() const;
+    std::string_view get_path() const;
+    std::string_view get_interface() const;
+    std::string_view get_member() const;
+    std::string_view get_error_name() const;
+    std::string_view get_destination() const;
+    std::string_view get_sender() const;
+    std::string_view get_signature() const;
+    uint32_t         get_serial() const;
+    uint32_t         get_reply_serial() const;
 
-    MC_API void set_path(std::string_view path);
-    MC_API void set_interface(std::string_view interface);
-    MC_API void set_member(std::string_view member);
-    MC_API void set_error_name(std::string_view error_name);
-    MC_API void set_destination(std::string_view destination);
-    MC_API void set_sender(std::string_view sender);
-    MC_API void set_serial(uint32_t serial);
+    void set_path(std::string_view path);
+    void set_interface(std::string_view interface);
+    void set_member(std::string_view member);
+    void set_error_name(std::string_view error_name);
+    void set_destination(std::string_view destination);
+    void set_sender(std::string_view sender);
+    void set_serial(uint32_t serial);
 
-    MC_API bool is_error() const;
-    MC_API bool is_method_call() const;
-    MC_API bool is_method_return() const;
-    MC_API bool is_signal() const;
+    bool is_error() const;
+    bool is_method_call() const;
+    bool is_method_return() const;
+    bool is_signal() const;
 
-    MC_API void lock();
-    MC_API bool has_signature(std::string_view signature);
+    void lock();
+    bool has_signature(std::string_view signature);
 
-    MC_API struct message_reader reader() const;
-    MC_API struct message_writer writer();
+    struct message_reader reader() const;
+    struct message_writer writer();
 
     template <typename T>
     T as() const;
 
-    MC_API mc::variants read_args() const;
+    mc::variants read_args() const;
 
     template <typename T>
     void from(const T& v);
 
-    MC_API std::pair<dbus_ptr<char>, std::size_t> marshal();
+    std::pair<dbus_ptr<char>, std::size_t> marshal();
 
-    MC_API bool demarshal(const std::vector<uint8_t>& in, error& err);
-    MC_API bool demarshal(const char* in, std::size_t len, error& err);
+    bool demarshal(const std::vector<uint8_t>& in, error& err);
+    bool demarshal(const char* in, std::size_t len, error& err);
 
 protected:
     DBusMessage* m_dbus_message{nullptr};
 };
 
 struct MC_API message_reader {
-    MC_API message_reader();
-    MC_API message_reader(const message& msg);
+    message_reader();
+    message_reader(const message& msg);
 
-    MC_API void read_variant(mc::variant& v, std::size_t depth) const;
-    MC_API void read_variant_value(type_code type, mc::variant& v, std::size_t depth) const;
-    MC_API void read_variant_array_or_dict(mc::variant& v, std::size_t depth) const;
-    MC_API void read_variant_array(mc::variants& arr, std::size_t depth) const;
-    MC_API void read_variant_struct(mc::variant& v, std::size_t depth) const;
-    MC_API void read_variant_dict(mc::mutable_dict& dict, std::size_t depth) const;
-    MC_API void read_variant_raw_struct(mc::variant& v, std::size_t depth) const;
+    void read_variant(mc::variant& v, std::size_t depth) const;
+    void read_variant_value(type_code type, mc::variant& v, std::size_t depth) const;
+    void read_variant_array_or_dict(mc::variant& v, std::size_t depth) const;
+    void read_variant_array(mc::variants& arr, std::size_t depth) const;
+    void read_variant_struct(mc::variant& v, std::size_t depth) const;
+    void read_variant_dict(mc::mutable_dict& dict, std::size_t depth) const;
+    void read_variant_raw_struct(mc::variant& v, std::size_t depth) const;
 
-    MC_API void                  recurse(const message_reader& parent) const;
-    MC_API const message_reader& next() const;
-    MC_API bool                  at_end() const;
+    void                  recurse(const message_reader& parent) const;
+    const message_reader& next() const;
+    bool                  at_end() const;
 
-    MC_API void        ensure_type(int expected) const;
-    MC_API static void ensure_type(int expected, int actual);
-    MC_API type_code   current_type() const;
+    void        ensure_type(int expected) const;
+    static void ensure_type(int expected, int actual);
+    type_code   current_type() const;
 
     template <typename T>
     T as() const {
@@ -162,23 +162,23 @@ struct MC_API message_reader {
 };
 
 struct MC_API message_writer {
-    MC_API      message_writer() = default;
-    MC_API      message_writer(message& msg);
-    MC_API      message_writer(DBusMessageIter& parent_iter, int type,
-                               std::string_view signature = std::string_view());
-    MC_API void close_container();
+    message_writer() = default;
+    message_writer(message& msg);
+    message_writer(DBusMessageIter& parent_iter, int type,
+                   std::string_view signature = std::string_view());
+    void close_container();
 
-    MC_API void write_variant(const mc::variant& v, std::size_t depth) const;
-    MC_API void write_variant_value(const mc::variant& v) const;
-    MC_API void write_variant(signature_iterator it, const mc::variant& v, std::size_t depth) const;
-    MC_API void write_variant_array_or_dict(signature_iterator it, const mc::variant& v,
-                                            std::size_t depth) const;
-    MC_API void write_variant_array(signature_iterator it, const mc::variants& arr,
-                                    std::size_t depth) const;
-    MC_API void write_variant_struct(signature_iterator it, const mc::variant& v, std::size_t depth) const;
-    MC_API void write_variant_dict(signature_iterator it, const mc::dict& dict, std::size_t depth) const;
-    MC_API void write_signature(const signature& sig) const;
-    MC_API void write_signature(std::string_view sig) const;
+    void write_variant(const mc::variant& v, std::size_t depth) const;
+    void write_variant_value(const mc::variant& v) const;
+    void write_variant(signature_iterator it, const mc::variant& v, std::size_t depth) const;
+    void write_variant_array_or_dict(signature_iterator it, const mc::variant& v,
+                                     std::size_t depth) const;
+    void write_variant_array(signature_iterator it, const mc::variants& arr,
+                             std::size_t depth) const;
+    void write_variant_struct(signature_iterator it, const mc::variant& v, std::size_t depth) const;
+    void write_variant_dict(signature_iterator it, const mc::dict& dict, std::size_t depth) const;
+    void write_signature(const signature& sig) const;
+    void write_signature(std::string_view sig) const;
 
     template <typename T>
     const message_writer& append(const T& v) const {

@@ -22,11 +22,11 @@ namespace mc::runtime {
 class immediate_context;
 class MC_API immediate_executor {
 public:
-    MC_API immediate_executor();
-    MC_API ~immediate_executor();
+    immediate_executor();
+    ~immediate_executor();
 
-    MC_API                     immediate_executor(const immediate_executor&);
-    MC_API immediate_executor& operator=(const immediate_executor&);
+    immediate_executor(const immediate_executor&);
+    immediate_executor& operator=(const immediate_executor&);
 
     // 在当前线程立即执行工作
     template <typename F>
@@ -34,8 +34,8 @@ public:
         std::forward<F>(f)();
     }
 
-    MC_API bool operator==(const immediate_executor&) const noexcept;
-    MC_API bool operator!=(const immediate_executor&) const noexcept;
+    bool operator==(const immediate_executor&) const noexcept;
+    bool operator!=(const immediate_executor&) const noexcept;
 
     // 在当前线程立即派发工作
     template <typename F, typename Allocator>
@@ -55,14 +55,14 @@ public:
         std::forward<F>(f)();
     }
 
-    MC_API void on_work_started() const noexcept;
+    void on_work_started() const noexcept;
 
-    MC_API void on_work_finished() const noexcept;
+    void on_work_finished() const noexcept;
 
-    MC_API immediate_context& context() const noexcept;
+    immediate_context& context() const noexcept;
 
     // 支持 execution::blocking.never 属性
-    MC_API immediate_executor require(boost::asio::execution::blocking_t::never_t) const;
+    immediate_executor require(boost::asio::execution::blocking_t::never_t) const;
 
     // 查询执行器属性
     static constexpr boost::asio::execution::blocking_t query(boost::asio::execution::blocking_t) {
@@ -75,10 +75,10 @@ class MC_API immediate_context {
 public:
     using executor_type = immediate_executor;
 
-    MC_API immediate_context();
-    MC_API ~immediate_context();
+    immediate_context();
+    ~immediate_context();
 
-    MC_API executor_type get_executor() const noexcept;
+    executor_type get_executor() const noexcept;
 };
 
 } // namespace mc::runtime

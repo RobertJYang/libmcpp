@@ -107,28 +107,28 @@ public:
      * @param config 应用程序配置
      * @return 验证结果，true表示有效，false表示无效
      */
-    MC_API static bool validate_app_config(const app_config& config);
+    static bool validate_app_config(const app_config& config);
 
     /**
      * @brief 验证监督器配置
      * @param config 监督器配置
      * @return 验证结果，true表示有效，false表示无效
      */
-    MC_API static bool validate_supervisor_config(const supervisor_config& config);
+    static bool validate_supervisor_config(const supervisor_config& config);
 
     /**
      * @brief 验证服务配置
      * @param config 服务配置
      * @return 验证结果，true表示有效，false表示无效
      */
-    MC_API static bool validate_service_config(const service_config& config);
+    static bool validate_service_config(const service_config& config);
 
     /**
      * @brief 验证插件配置
      * @param config 插件配置
      * @return 验证结果，true表示有效，false表示无效
      */
-    MC_API static bool validate_plugin_config(const plugin_config& config);
+    static bool validate_plugin_config(const plugin_config& config);
 };
 
 // 元数据配置

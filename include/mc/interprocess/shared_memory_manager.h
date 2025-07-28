@@ -44,51 +44,51 @@ public:
      * @param size 共享内存大小，如果小于最小值会使用最小值
      * @param opts 选项组合，可使用位或运算组合多个选项
      */
-    MC_API shared_memory_manager(const std::string& base_name,
+    shared_memory_manager(const std::string& base_name,
                           size_t             size = 0,
                           uint32_t           opts = REMOVE_ON_EXIT);
 
     /**
      * @brief 析构函数，自动清理资源
      */
-    MC_API ~shared_memory_manager();
+    ~shared_memory_manager();
 
     /**
      * @brief 获取共享内存对象
      * @return 共享内存对象的智能指针
      */
-    MC_API std::shared_ptr<shared_memory> get_shared_memory() const;
+    std::shared_ptr<shared_memory> get_shared_memory() const;
 
     /**
      * @brief 获取共享内存名称
      * @return 共享内存名称
      */
-    MC_API std::string get_name() const;
+    std::string get_name() const;
 
     /**
      * @brief 手动清理共享内存资源
      */
-    MC_API void cleanup();
+    void cleanup();
 
     /**
      * @brief 设置退出时是否自动清理
      * @param remove_on_exit 是否自动清理
      */
-    MC_API void set_remove_on_exit(bool remove_on_exit);
+    void set_remove_on_exit(bool remove_on_exit);
 
     /**
      * @brief 尝试移除指定名称的共享内存
      * @param name 共享内存名称
      * @return 是否成功移除
      */
-    static MC_API bool remove_shared_memory(const std::string& name);
+    static bool remove_shared_memory(const std::string& name);
 
     /**
      * @brief 格式化共享内存名称，确保名称带有"/"前缀
      * @param name 原始共享内存名称
      * @return 格式化后的共享内存名称
      */
-    static MC_API std::string format_shm_name(const std::string& name);
+    static std::string format_shm_name(const std::string& name);
 
 private:
     std::string                    m_name;           // 共享内存名称

@@ -41,9 +41,9 @@ class transaction;
 class MC_API db_resource
     : public mc::intrusive::unordered_set_base_hook<mc::intrusive::link_mode<mc::intrusive::safe_link>> {
 public:
-    MC_API db_resource();
+    db_resource();
 
-    MC_API virtual ~db_resource() = default;
+    virtual ~db_resource() = default;
 
     /**
      * 提交资源
@@ -120,9 +120,9 @@ class MC_API savepoint : public db_resource {
     friend class transaction;
 
 public:
-    MC_API bool     commit() override;
-    MC_API bool     rollback() override;
-    MC_API uint64_t resource_id() const override;
+    bool     commit() override;
+    bool     rollback() override;
+    uint64_t resource_id() const override;
 
     savepoint(savepoint&&)                 = delete;
     savepoint& operator=(savepoint&&)      = delete;

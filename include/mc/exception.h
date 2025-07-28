@@ -86,9 +86,9 @@ public:
      * @param name_value 异常名称
      * @param what_value 异常描述
      */
-    MC_API exception(int64_t            code       = unknow_exception_code,
-                     const std::string& name_value = "unknow_exception",
-                     const std::string& what_value = "未指定异常");
+    exception(int64_t            code       = unknow_exception_code,
+              const std::string& name_value = "unknow_exception",
+              const std::string& what_value = "未指定异常");
 
     /**
      * @brief 带日志消息的构造函数
@@ -98,9 +98,9 @@ public:
      * @param name_value 异常名称
      * @param what_value 异常描述
      */
-    MC_API exception(mc::log::message&& msg, int64_t code = unknow_exception_code,
-                     const std::string& name_value = "unknow_exception",
-                     const std::string& what_value = "未指定异常");
+    exception(mc::log::message&& msg, int64_t code = unknow_exception_code,
+              const std::string& name_value = "unknow_exception",
+              const std::string& what_value = "未指定异常");
 
     /**
      * @brief 带多条日志消息的构造函数
@@ -110,9 +110,9 @@ public:
      * @param name_value 异常名称
      * @param what_value 异常描述
      */
-    MC_API exception(mc::log::messages&& msgs, int64_t code = unknow_exception_code,
-                     const std::string& name_value = "exception",
-                     const std::string& what_value = "未指定异常");
+    exception(mc::log::messages&& msgs, int64_t code = unknow_exception_code,
+              const std::string& name_value = "exception",
+              const std::string& what_value = "未指定异常");
 
     /**
      * @brief 带多条日志消息的构造函数（常量引用版本）
@@ -122,58 +122,58 @@ public:
      * @param name_value 异常名称
      * @param what_value 异常描述
      */
-    MC_API exception(const mc::log::messages& msgs, int64_t code = unknow_exception_code,
-                     const std::string& name_value = "exception",
-                     const std::string& what_value = "未指定异常");
+    exception(const mc::log::messages& msgs, int64_t code = unknow_exception_code,
+              const std::string& name_value = "exception",
+              const std::string& what_value = "未指定异常");
 
     // 复制构造函数
-    MC_API exception(const exception& e);
+    exception(const exception& e);
 
     // 移动构造函数
-    MC_API exception(exception&& e);
+    exception(exception&& e);
 
     // 析构函数
-    MC_API virtual ~exception();
+    virtual ~exception();
 
     // 获取异常代码
-    MC_API int64_t code() const noexcept;
+    int64_t code() const noexcept;
 
     // 设置异常代码
-    MC_API void set_code(int64_t code);
+    void set_code(int64_t code);
 
     // 获取异常名称
-    MC_API std::string_view name() const noexcept;
+    std::string_view name() const noexcept;
 
     // 设置异常名称
-    MC_API void set_name(std::string_view name);
+    void set_name(std::string_view name);
 
     // 获取异常描述
-    MC_API virtual const char* what() const noexcept override;
+    virtual const char* what() const noexcept override;
 
     // 添加日志消息
-    MC_API void append_log(mc::log::message msg) const;
+    void append_log(mc::log::message msg) const;
 
     // 添加日志消息
-    MC_API void append_log(mc::log::messages msgs) const;
+    void append_log(mc::log::messages msgs) const;
 
     // 获取详细异常信息
-    MC_API virtual std::string to_detail_string(mc::log::level ll = mc::log::level::all) const;
+    virtual std::string to_detail_string(mc::log::level ll = mc::log::level::all) const;
 
     // 获取简要异常信息
-    MC_API virtual std::string to_string(mc::log::level ll = mc::log::level::info) const;
+    virtual std::string to_string(mc::log::level ll = mc::log::level::info) const;
 
     // 获取顶层异常消息
-    MC_API const std::string& top_message() const;
+    const std::string& top_message() const;
 
     // 动态重新抛出异常
-    MC_API virtual void dynamic_rethrow_exception() const;
+    virtual void dynamic_rethrow_exception() const;
 
     // 动态复制异常
-    MC_API virtual std::shared_ptr<exception> dynamic_copy_exception() const;
+    virtual std::shared_ptr<exception> dynamic_copy_exception() const;
 
-    MC_API const mc::log::messages& messages() const;
+    const mc::log::messages& messages() const;
 
-    MC_API mc::log::messages take_messages() const;
+    mc::log::messages take_messages() const;
 
 protected:
     // 异常实现细节
@@ -248,18 +248,18 @@ public:
     };
 
     // 构造函数
-    MC_API unhandled_exception(mc::log::message&& msg, std::exception_ptr e = std::current_exception());
-    MC_API unhandled_exception(mc::log::messages msgs);
-    MC_API unhandled_exception(const exception& e);
+    unhandled_exception(mc::log::message&& msg, std::exception_ptr e = std::current_exception());
+    unhandled_exception(mc::log::messages msgs);
+    unhandled_exception(const exception& e);
 
     // 获取内部异常
-    MC_API std::exception_ptr get_inner_exception() const;
+    std::exception_ptr get_inner_exception() const;
 
     // 动态重新抛出异常
-    MC_API virtual void dynamic_rethrow_exception() const override;
+    virtual void dynamic_rethrow_exception() const override;
 
     // 动态复制异常
-    MC_API virtual std::shared_ptr<exception> dynamic_copy_exception() const override;
+    virtual std::shared_ptr<exception> dynamic_copy_exception() const override;
 
 private:
     std::exception_ptr m_inner;
@@ -277,25 +277,25 @@ public:
     };
 
     // 构造函数
-    MC_API explicit std_exception_wrapper(mc::log::message&& msg,
-                                          std::exception_ptr e          = std::current_exception(),
-                                          const std::string& name_value = "exception",
-                                          const std::string& what_value = "未指定异常");
+    explicit std_exception_wrapper(mc::log::message&& msg,
+                                   std::exception_ptr e          = std::current_exception(),
+                                   const std::string& name_value = "exception",
+                                   const std::string& what_value = "未指定异常");
 
     // 获取内部异常
-    MC_API std::exception_ptr get_inner_exception() const;
+    std::exception_ptr get_inner_exception() const;
 
     // 从当前异常创建包装器
-    MC_API static std_exception_wrapper from_current_exception(const std::exception& e);
+    static std_exception_wrapper from_current_exception(const std::exception& e);
 
     // 获取详细异常信息
-    MC_API std::string to_detail_string(mc::log::level ll = mc::log::level::all) const override;
+    std::string to_detail_string(mc::log::level ll = mc::log::level::all) const override;
 
     // 动态重新抛出异常
-    MC_API virtual void dynamic_rethrow_exception() const override;
+    virtual void dynamic_rethrow_exception() const override;
 
     // 动态复制异常
-    MC_API virtual std::shared_ptr<exception> dynamic_copy_exception() const override;
+    virtual std::shared_ptr<exception> dynamic_copy_exception() const override;
 
 private:
     std::exception_ptr m_inner;

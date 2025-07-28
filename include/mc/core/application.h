@@ -39,32 +39,32 @@ namespace mc::core {
  */
 class MC_API application {
 public:
-    static MC_API application& instance();
-    static MC_API void         reset_for_test();
+    static application& instance();
+    static void         reset_for_test();
 
     application(const application&)            = delete;
     application& operator=(const application&) = delete;
     application(application&&)                 = delete;
     application& operator=(application&&)      = delete;
 
-    MC_API ~application();
+    ~application();
 
-    MC_API void  set_version(const std::string& version);
-    MC_API const std::string& version() const;
+    void               set_version(const std::string& version);
+    const std::string& version() const;
 
-    MC_API plugin_manager&     get_plugin_manager();
-    MC_API service_factory&    get_service_factory();
-    MC_API service_manager&    get_service_manager();
-    MC_API config_manager&     get_config_manager();
-    MC_API supervisor_manager& get_supervisor_manager();
+    plugin_manager&     get_plugin_manager();
+    service_factory&    get_service_factory();
+    service_manager&    get_service_manager();
+    config_manager&     get_config_manager();
+    supervisor_manager& get_supervisor_manager();
 
-    MC_API bool initialize();
-    MC_API bool initialize(int argc, char** argv);
-    MC_API bool start();
-    MC_API bool stop();
-    MC_API bool is_stopped() const;
+    bool initialize();
+    bool initialize(int argc, char** argv);
+    bool start();
+    bool stop();
+    bool is_stopped() const;
 
-    MC_API void exec();
+    void exec();
 
 private:
     application();

@@ -76,12 +76,12 @@ public:
     /**
      * @brief 默认构造函数
      */
-    MC_API dict() = default;
+    dict() = default;
 
     /**
      * @brief 从键值对集合构造
      */
-    MC_API dict(const std::vector<entry>& entries);
+    dict(const std::vector<entry>& entries);
 
     /**
      * @brief 从初始化列表构造
@@ -91,111 +91,111 @@ public:
      * @note 此构造函数允许使用更简洁的语法创建字典：
      *       dict d = {{"key1", 123}, {"key2", "value"}, {"key3", true}};
      */
-    MC_API dict(std::initializer_list<std::pair<variant, variant>> init);
+    dict(std::initializer_list<std::pair<variant, variant>> init);
 
     /**
      * @brief 拷贝构造函数
      * @note 此操作会共享内部数据，不会复制数据
      */
-    MC_API dict(const dict& other) = default;
+    dict(const dict& other) = default;
 
     /**
      * @brief 移动构造函数
      */
-    MC_API dict(dict&& other) noexcept = default;
+    dict(dict&& other) noexcept = default;
 
     /**
      * @brief 析构函数
      */
-    MC_API ~dict() = default;
+    ~dict() = default;
 
     /**
      * @brief 赋值运算符
      * @note 此操作会共享内部数据，不会复制数据
      */
-    MC_API dict& operator=(const dict& other)     = default;
-    MC_API dict& operator=(dict&& other) noexcept = default;
+    dict& operator=(const dict& other)     = default;
+    dict& operator=(dict&& other) noexcept = default;
 
     /**
      * @brief 获取指定键的值
      * @throw std::out_of_range 如果键不存在
      */
-    MC_API const variant& operator[](const std::string& key) const;
-    MC_API const variant& operator[](std::string_view key) const;
-    MC_API const variant& operator[](const char* key) const;
-    MC_API const variant& operator[](const variant& key) const;
+    const variant& operator[](const std::string& key) const;
+    const variant& operator[](std::string_view key) const;
+    const variant& operator[](const char* key) const;
+    const variant& operator[](const variant& key) const;
     /**
      * @brief 获取指定键的值，如果不存在则返回默认值
      */
-    MC_API const variant& get(const std::string& key, const variant& default_value) const;
-    MC_API const variant& get(std::string_view key, const variant& default_value) const;
-    MC_API const variant& get(const char* key, const variant& default_value) const;
-    MC_API const variant& get(const variant& key, const variant& default_value) const;
+    const variant& get(const std::string& key, const variant& default_value) const;
+    const variant& get(std::string_view key, const variant& default_value) const;
+    const variant& get(const char* key, const variant& default_value) const;
+    const variant& get(const variant& key, const variant& default_value) const;
     /**
      * @brief 判断是否包含指定键
      */
-    MC_API bool contains(const std::string& key) const;
-    MC_API bool contains(std::string_view key) const;
-    MC_API bool contains(const char* key) const;
-    MC_API bool contains(const variant& key) const;
+    bool contains(const std::string& key) const;
+    bool contains(std::string_view key) const;
+    bool contains(const char* key) const;
+    bool contains(const variant& key) const;
     /**
      * @brief 获取键值对数量
      */
-    MC_API size_t size() const;
+    size_t size() const;
 
     /**
      * @brief 判断是否为空
      */
-    MC_API bool empty() const;
+    bool empty() const;
 
     /**
      * @brief 获取开始迭代器
      */
-    MC_API const_iterator begin() const;
+    const_iterator begin() const;
 
     /**
      * @brief 获取结束迭代器
      */
-    MC_API const_iterator end() const;
+    const_iterator end() const;
 
     /**
      * @brief 获取所有键
      */
-    MC_API std::vector<variant> keys() const;
+    std::vector<variant> keys() const;
 
     /**
      * @brief 获取所有值
      */
-    MC_API std::vector<variant> values() const;
+    std::vector<variant> values() const;
 
     /**
      * @brief 获取指定索引位置的键值对
      * @throw std::out_of_range 如果索引越界
      */
-    MC_API const entry& at_index(size_t index) const;
+    const entry& at_index(size_t index) const;
 
     /**
      * @brief 获取指定键的值
      * @throw std::out_of_range 如果键不存在
      */
-    MC_API const variant& at(const std::string& key) const;
-    MC_API const variant& at(std::string_view key) const;
-    MC_API const variant& at(const char* key) const;
-    MC_API const variant& at(const variant& key) const;
+    const variant& at(const std::string& key) const;
+    const variant& at(std::string_view key) const;
+    const variant& at(const char* key) const;
+    const variant& at(const variant& key) const;
     /**
      * @brief 查找键的索引位置
      * @return 键的索引位置，如果不存在则返回 -1
      */
-    MC_API int find_index(const std::string& key) const;
-    MC_API int find_index(std::string_view key) const;
-    MC_API int find_index(const char* key) const;
-    MC_API int find_index(const variant& key) const;
+    int find_index(const std::string& key) const;
+    int find_index(std::string_view key) const;
+    int find_index(const char* key) const;
+    int find_index(const variant& key) const;
     /**
      * @brief 比较两个 dict 对象是否相等
      * @param other 要比较的 dict 对象
      * @return 如果两个对象相等则返回 true，否则返回 false
      */
-    MC_API bool operator==(const dict& other) const;
+    bool operator==(const dict& other) const;
 
     /**
      * @brief 比较两个 dict 对象是否不相等
@@ -211,24 +211,24 @@ public:
      * @param other 要合并的字典
      * @return 合并后的字典
      */
-    MC_API dict operator+(const dict& other) const;
+    dict operator+(const dict& other) const;
 
     /**
      * @brief 计算字典的哈希值
      * @return 哈希值
      */
-    MC_API size_t hash() const;
+    size_t hash() const;
 
     /**
      * @brief 查找指定键的元素，返回迭代器
      * @param key 要查找的键
      * @return 指向找到元素的迭代器，如果不存在则返回 end()
      */
-    MC_API const_iterator find(const std::string& key) const;
-    MC_API const_iterator find(std::string_view key) const;
-    MC_API const_iterator find(const char* key) const;
-    MC_API const_iterator find(const variant& key) const;
-    MC_API std::string to_string() const;
+    const_iterator find(const std::string& key) const;
+    const_iterator find(std::string_view key) const;
+    const_iterator find(const char* key) const;
+    const_iterator find(const variant& key) const;
+    std::string    to_string() const;
 
     /**
      * @brief 获取数据指针
@@ -238,9 +238,9 @@ public:
         return m_data.get();
     }
 
-    MC_API mutable_dict as_mut() const;
+    mutable_dict as_mut() const;
 
-    MC_API void clear();
+    void clear();
 
 protected:
     /**

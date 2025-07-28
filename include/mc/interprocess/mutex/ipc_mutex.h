@@ -45,44 +45,44 @@ public:
     /**
      * @brief 构造函数
      */
-    MC_API ipc_mutex();
+    ipc_mutex();
 
     /**
      * @brief 析构函数
      *
      * 如果当前进程持有锁，会自动释放
      */
-    MC_API ~ipc_mutex();
+    ~ipc_mutex();
 
     /**
      * @brief 尝试获取锁
      * @return 如果成功获取锁返回true，否则返回false
      */
-    MC_API bool try_lock();
+    bool try_lock();
 
     /**
      * @brief 阻塞等待获取锁
      */
-    MC_API void lock();
+    void lock();
 
     /**
      * @brief 尝试获取锁，带超时
      * @param timeout_ms 超时时间（毫秒）
      * @return 如果成功获取锁返回true，否则返回false
      */
-    MC_API bool try_lock_for(std::chrono::milliseconds timeout_ms);
+    bool try_lock_for(std::chrono::milliseconds timeout_ms);
 
     /**
      * @brief 释放锁
      */
-    MC_API void unlock();
+    void unlock();
 
     /**
      * @brief 检查进程是否仍然活跃
      * @param pid 进程ID
      * @return 如果进程仍然活跃则返回true，否则返回false
      */
-    static MC_API bool is_process_alive(pid_t pid);
+    static bool is_process_alive(pid_t pid);
 
 private:
     // 抢占锁的条件

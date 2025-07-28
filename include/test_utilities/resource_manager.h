@@ -35,18 +35,18 @@ public:
      * @brief 构造函数
      * @param auto_cleanup 是否在析构时自动清理资源
      */
-    MC_API resource_manager(bool auto_cleanup = true);
+    resource_manager(bool auto_cleanup = true);
 
     /**
      * @brief 析构函数，根据设置自动清理资源
      */
-    MC_API ~resource_manager();
+    ~resource_manager();
 
     /**
      * @brief 添加临时文件路径，将在清理时删除
      * @param path 文件路径
      */
-    MC_API void add_temp_file(const std::string& path);
+    void add_temp_file(const std::string& path);
 
     /**
      * @brief 创建临时文件并添加到清理列表
@@ -54,24 +54,24 @@ public:
      * @param content 文件内容，默认为空
      * @return 是否创建成功
      */
-    MC_API bool create_temp_file(const std::string& path, const std::string& content = "");
+    bool create_temp_file(const std::string& path, const std::string& content = "");
 
     /**
      * @brief 添加自定义清理函数
      * @param cleanup_func 清理函数
      */
-    MC_API void add_cleanup_function(std::function<void()> cleanup_func);
+    void add_cleanup_function(std::function<void()> cleanup_func);
 
     /**
      * @brief 手动清理所有资源
      */
-    MC_API void cleanup();
+    void cleanup();
 
     /**
      * @brief 设置是否在析构时自动清理
      * @param auto_cleanup 是否自动清理
      */
-    MC_API void set_auto_cleanup(bool auto_cleanup);
+    void set_auto_cleanup(bool auto_cleanup);
 
 private:
     std::vector<std::string>           m_temp_files;    // 临时文件列表

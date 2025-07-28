@@ -51,11 +51,11 @@ protected:
 
 class MC_API TestWithRuntime : public TestBase {
 protected:
-    static MC_API mc::runtime::runtime_context& get_runtime() {
+    static mc::runtime::runtime_context& get_runtime() {
         return mc::runtime::get_runtime_context();
     }
 
-    static MC_API void reset_runtime() {
+    static void reset_runtime() {
         mc::runtime::reset_runtime_context();
     }
 

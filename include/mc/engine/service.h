@@ -26,22 +26,22 @@ class service_object_table;
 
 class MC_API service : public mc::core::service_base, public mc::noncopyable_nonmovable {
 public:
-    MC_API service(std::string_view name);
-    MC_API ~service() override;
+    service(std::string_view name);
+    ~service() override;
 
-    MC_API bool init(dict args = {}) override;
-    MC_API bool start() override;
-    MC_API bool stop() override;
-    MC_API void cleanup() override;
-    MC_API bool is_healthy() const override;
+    bool init(dict args = {}) override;
+    bool start() override;
+    bool stop() override;
+    void cleanup() override;
+    bool is_healthy() const override;
 
     template <typename ObjectType>
     void register_object(mc::shared_ptr<ObjectType> obj) {
         register_object(*obj);
     }
 
-    MC_API void register_object(abstract_object& obj);
-    void        register_object(abstract_object* obj) {
+    void register_object(abstract_object& obj);
+    void register_object(abstract_object* obj) {
         if (obj == nullptr) {
             return;
         }
@@ -53,27 +53,27 @@ public:
     void unregister_object(mc::shared_ptr<ObjectType> obj) {
         unregister_object(obj->get_object_path());
     }
-    MC_API void unregister_object(std::string_view path);
+    void unregister_object(std::string_view path);
 
-    MC_API service_object_table& get_object_table() const;
-    MC_API mc::dbus::connection get_connection() const;
+    service_object_table& get_object_table() const;
+    mc::dbus::connection  get_connection() const;
 
-    MC_API mc::variant timeout_call(mc::milliseconds timeout, std::string_view service_name,
-                                    std::string_view path, std::string_view interface,
-                                    std::string_view method, std::string_view signature,
-                                    const mc::variants& args);
+    mc::variant timeout_call(mc::milliseconds timeout, std::string_view service_name,
+                             std::string_view path, std::string_view interface,
+                             std::string_view method, std::string_view signature,
+                             const mc::variants& args);
 
-    MC_API std::optional<mc::variant> shm_timeout_call(mc::milliseconds timeout,
-                                                       std::string_view service_name,
-                                                       std::string_view path, std::string_view interface,
-                                                       std::string_view method, std::string_view signature,
-                                                       const mc::variants& args);
+    std::optional<mc::variant> shm_timeout_call(mc::milliseconds timeout,
+                                                std::string_view service_name,
+                                                std::string_view path, std::string_view interface,
+                                                std::string_view method, std::string_view signature,
+                                                const mc::variants& args);
 
-    MC_API static std::string resolve_object_path(std::string_view       path_pattern,
-                                                  const abstract_object& obj);
+    static std::string resolve_object_path(std::string_view       path_pattern,
+                                           const abstract_object& obj);
 
-    MC_API uint64_t add_match(mc::dbus::match_rule& rule, mc::dbus::match_cb_t&& cb);
-    MC_API void     remove_match(uint64_t id);
+    uint64_t add_match(mc::dbus::match_rule& rule, mc::dbus::match_cb_t&& cb);
+    void     remove_match(uint64_t id);
 
 protected:
     std::unique_ptr<service_impl> m_impl;

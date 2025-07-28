@@ -88,19 +88,19 @@ using match_cb_t = std::function<void(mc::dbus::message&)>;
 
 class MC_API match_rule {
 public:
-    MC_API                   match_rule(DBus::Match::MessageType type, const std::string_view& member,
-                                        const std::string_view& interface);
-    static MC_API match_rule new_signal(const std::string_view& member, const std::string_view& interface);
-    MC_API void              with_interface(const std::string_view& interface);
-    MC_API void              with_member(const std::string_view& member);
-    MC_API void              with_path(const std::string_view& path);
-    MC_API void              with_path_namespace(const std::string_view& path_namespace);
-    MC_API void              with_sender(const std::string_view& sender);
-    MC_API void              with_type(DBus::Match::MessageType type);
-    MC_API void              with_destination(const std::string_view& destination);
-    MC_API match_rule        clone() const;
-    MC_API std::string as_string() const;
-    MC_API DBus::Match::RulePtr& rule();
+    match_rule(DBus::Match::MessageType type, const std::string_view& member,
+               const std::string_view& interface);
+    static match_rule     new_signal(const std::string_view& member, const std::string_view& interface);
+    void                  with_interface(const std::string_view& interface);
+    void                  with_member(const std::string_view& member);
+    void                  with_path(const std::string_view& path);
+    void                  with_path_namespace(const std::string_view& path_namespace);
+    void                  with_sender(const std::string_view& sender);
+    void                  with_type(DBus::Match::MessageType type);
+    void                  with_destination(const std::string_view& destination);
+    match_rule            clone() const;
+    std::string           as_string() const;
+    DBus::Match::RulePtr& rule();
 
 private:
     DBus::Match::RulePtr m_rule;
@@ -108,11 +108,11 @@ private:
 
 class MC_API match {
 public:
-    MC_API      match();
-    MC_API void add_rule(match_rule& rule, match_cb_t&& cb, uint64_t id);
-    MC_API void remove_rule(uint64_t id);
-    MC_API bool run_msg(DBusMessage* msg);
-    MC_API bool test_match(DBusMessage* msg);
+    match();
+    void add_rule(match_rule& rule, match_cb_t&& cb, uint64_t id);
+    void remove_rule(uint64_t id);
+    bool run_msg(DBusMessage* msg);
+    bool test_match(DBusMessage* msg);
 
 private:
     DBus::Match::Matchs                                m_matchs;

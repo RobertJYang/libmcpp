@@ -52,34 +52,34 @@ class MC_API object_base : public enable_shared_from_this<object_base> {
 public:
     using executor_type = mc::any_executor;
 
-    MC_API object_base();
-    MC_API virtual ~object_base();
+    object_base();
+    virtual ~object_base();
 
-    MC_API object_base(const object_base& other);
+    object_base(const object_base& other);
 
-    MC_API object_base(object_base&& other);
+    object_base(object_base&& other);
 
-    MC_API object_base& operator=(object_base&& other);
+    object_base& operator=(object_base&& other);
 
-    MC_API object_base& operator=(const object_base& other);
+    object_base& operator=(const object_base& other);
 
     /**
      * 获取对象ID
      * @return 对象ID
      */
-    MC_API virtual object_id_type get_object_id() const;
+    virtual object_id_type get_object_id() const;
 
     /**
      * 设置对象ID
      * @param id 对象ID
      */
-    MC_API void set_object_id(object_id_type id);
+    void set_object_id(object_id_type id);
 
     /**
      * 检查对象ID是否有效
      * @return 如果ID不为0则返回true
      */
-    MC_API bool has_valid_id() const;
+    bool has_valid_id() const;
 
 protected:
     object_id_type m_object_id{0};
@@ -93,18 +93,18 @@ public:
     /**
      * @brief 默认构造函数
      */
-    MC_API object();
+    object();
 
     /**
      * @brief 构造函数
      * @param parent 父对象指针
      */
-    MC_API explicit object(object* parent);
+    explicit object(object* parent);
 
     /**
      * @brief 析构函数，会自动删除所有子对象
      */
-    MC_API virtual ~object() noexcept;
+    virtual ~object() noexcept;
 
     /**
      * @brief 移动构造函数
@@ -122,31 +122,31 @@ public:
      * @brief 拷贝构造函数
      * @param other 右值对象
      */
-    MC_API object(const object& other);
+    object(const object& other);
 
     /**
      * @brief 拷贝赋值运算符
      * @param other 右值对象
      */
-    MC_API object& operator=(const object& other);
+    object& operator=(const object& other);
 
     /**
      * @brief 获取对象名称
      * @return 对象名称的副本
      */
-    MC_API std::string get_name() const;
+    std::string get_name() const;
 
     /**
      * @brief 设置对象名称
      * @param name 新的对象名称
      */
-    MC_API void set_name(std::string_view name);
+    void set_name(std::string_view name);
 
     /**
      * @brief 获取父对象
      * @return 父对象指针
      */
-    MC_API object_ptr get_parent() const;
+    object_ptr get_parent() const;
 
     /**
      * @brief 设置父对象
@@ -154,7 +154,7 @@ public:
      *
      * 如果对象已经有父对象，则会先从原父对象的子对象列表中移除
      */
-    MC_API void set_parent(object* parent);
+    void set_parent(object* parent);
 
     /**
      * @brief 设置父对象
@@ -171,14 +171,14 @@ public:
      * @brief 获取子对象列表
      * @return 子对象指针列表的副本
      */
-    MC_API child_list get_children() const;
+    child_list get_children() const;
 
     /**
      * @brief 查找子对象
      * @param name 子对象名称
      * @return 子对象指针，如果未找到则返回nullptr
      */
-    MC_API object_ptr find_child(std::string_view name) const;
+    object_ptr find_child(std::string_view name) const;
 
     /**
      * @brief 连接信号和槽
@@ -231,7 +231,7 @@ public:
      * @param id 连接ID
      * @return 是否成功断开
      */
-    MC_API void disconnect(connection_id_type id) const;
+    void disconnect(connection_id_type id) const;
 
     /**
      * @brief 断开信号的所有连接
@@ -288,26 +288,26 @@ public:
         return boost::asio::bind_executor(get_executor(), std::forward<Handler>(handler));
     }
 
-    MC_API executor_type get_executor() const;
-    MC_API void          set_executor(mc::executor executor);
+    executor_type get_executor() const;
+    void          set_executor(mc::executor executor);
 
     /**
      * @brief 获取当前对象的ref_ptr
      * @return 指向当前对象的object_ptr
      */
-    MC_API object_ptr shared_from_this();
+    object_ptr shared_from_this();
 
     /**
      * @brief 获取当前对象的weak_ptr
      * @return 指向当前对象的mc::weak_ptr<object>
      */
-    MC_API mc::weak_ptr<object> weak_from_this();
+    mc::weak_ptr<object> weak_from_this();
 
     /**
      * @brief 获取当前对象的weak_ptr (const版本)
      * @return 指向当前对象的mc::weak_ptr<const object>
      */
-    MC_API mc::weak_ptr<const object> weak_from_this() const;
+    mc::weak_ptr<const object> weak_from_this() const;
 
 protected:
     /**

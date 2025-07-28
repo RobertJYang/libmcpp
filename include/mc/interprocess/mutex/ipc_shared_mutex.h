@@ -17,8 +17,6 @@
 #ifndef MC_INTERPROCESS_MUTEX_IPC_SHARED_MUTEX_H
 #define MC_INTERPROCESS_MUTEX_IPC_SHARED_MUTEX_H
 
-
-
 #include <mc/interprocess/mutex/ipc_mutex.h>
 
 namespace mc::interprocess {
@@ -49,53 +47,53 @@ public:
     /**
      * @brief 构造函数
      */
-    MC_API ipc_shared_mutex();
+    ipc_shared_mutex();
 
     /**
      * @brief 析构函数
      *
      * 如果当前进程持有锁，会自动释放
      */
-    MC_API ~ipc_shared_mutex();
+    ~ipc_shared_mutex();
 
     /**
      * @brief 尝试获取读锁
      * @return 如果成功获取锁返回true，否则返回false
      */
-    MC_API bool try_lock_shared();
+    bool try_lock_shared();
 
     /**
      * @brief 阻塞等待获取读锁
      */
-    MC_API void lock_shared();
+    void lock_shared();
 
     /**
      * @brief 释放读锁
      */
-    MC_API void unlock_shared();
+    void unlock_shared();
 
     /**
      * @brief 尝试获取写锁
      * @return 如果成功获取锁返回true，否则返回false
      */
-    MC_API bool try_lock();
+    bool try_lock();
 
     /**
      * @brief 阻塞等待获取写锁
      */
-    MC_API void lock();
+    void lock();
 
     /**
      * @brief 释放写锁
      */
-    MC_API void unlock();
+    void unlock();
 
     /**
      * @brief 清理死亡进程的锁
      *
      * 扫描所有持有锁的进程，清理已经死亡的进程的锁
      */
-    MC_API void cleanup_dead_locks();
+    void cleanup_dead_locks();
 
 private:
     ipc_mutex m_reader_mutex; ///< 保护读者操作的互斥锁

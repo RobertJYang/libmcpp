@@ -31,39 +31,39 @@ public:
      * @brief 构造函数
      * @param func 要执行的函数
      */
-    MC_API explicit thread_node(std::function<void()> func);
+    explicit thread_node(std::function<void()> func);
 
     /**
      * @brief 移动构造函数
      */
-    MC_API thread_node(thread_node&& other) noexcept;
+    thread_node(thread_node&& other) noexcept;
 
     /**
      * @brief 析构函数
      */
-    MC_API ~thread_node();
+    ~thread_node();
 
     /**
      * @brief 禁止拷贝
      */
-    MC_API              thread_node(const thread_node&) = delete;
-    MC_API thread_node& operator=(const thread_node&)   = delete;
-    MC_API thread_node& operator=(thread_node&&)        = delete;
+    thread_node(const thread_node&)            = delete;
+    thread_node& operator=(const thread_node&) = delete;
+    thread_node& operator=(thread_node&&)      = delete;
 
     /**
      * @brief 检查线程是否可以被 join
      */
-    MC_API bool joinable() const;
+    bool joinable() const;
 
     /**
      * @brief 等待线程完成
      */
-    MC_API void join();
+    void join();
 
     /**
      * @brief 获取线程ID
      */
-    MC_API std::thread::id get_id() const;
+    std::thread::id get_id() const;
 
 private:
     std::thread m_thread;
@@ -80,12 +80,12 @@ public:
     /**
      * @brief 默认构造函数
      */
-    MC_API thread_list() = default;
+    thread_list() = default;
 
     /**
      * @brief 析构函数，会等待所有线程完成
      */
-    MC_API ~thread_list();
+    ~thread_list();
 
     /**
      * @brief 禁止拷贝和移动
@@ -100,60 +100,60 @@ public:
      * @param thread_count 线程数量
      * @param func 要执行的函数
      */
-    MC_API void start_threads(std::size_t thread_count, std::function<void()> func);
+    void start_threads(std::size_t thread_count, std::function<void()> func);
 
     /**
      * @brief 创建并启动指定数量的线程执行相同任务（带线程索引）
      * @param thread_count 线程数量
      * @param func 要执行的函数，参数为线程索引（从0开始）
      */
-    MC_API void start_threads(std::size_t thread_count, std::function<void(std::size_t)> func);
+    void start_threads(std::size_t thread_count, std::function<void(std::size_t)> func);
 
     /**
      * @brief 添加单个线程
      * @param func 要执行的函数
      * @return 线程节点的原始指针（仅用于标识，不拥有所有权）
      */
-    MC_API thread_node* add_thread(std::function<void()> func);
+    thread_node* add_thread(std::function<void()> func);
 
     /**
      * @brief 移除指定的线程节点（会等待线程完成）
      * @param node 要移除的线程节点指针
      * @return 是否成功移除
      */
-    MC_API bool remove_thread(thread_node* node);
+    bool remove_thread(thread_node* node);
 
     /**
      * @brief 等待所有线程完成
      */
-    MC_API void join_all();
+    void join_all();
 
     /**
      * @brief 清理所有已完成的线程
      */
-    MC_API void clear();
+    void clear();
 
     /**
      * @brief 获取当前线程数量
      */
-    MC_API std::size_t get_thread_count() const;
+    std::size_t get_thread_count() const;
 
     /**
      * @brief 检查是否为空
      */
-    MC_API bool empty() const;
+    bool empty() const;
 
     /**
      * @brief 遍历所有线程节点
      * @param visitor 访问函数
      */
-    MC_API void visit_threads(const std::function<void(thread_node&)>& visitor);
+    void visit_threads(const std::function<void(thread_node&)>& visitor);
 
     /**
      * @brief 遍历所有线程节点（const版本）
      * @param visitor 访问函数
      */
-    MC_API void visit_threads(const std::function<void(const thread_node&)>& visitor) const;
+    void visit_threads(const std::function<void(const thread_node&)>& visitor) const;
 
 private:
     node_list_type m_threads;

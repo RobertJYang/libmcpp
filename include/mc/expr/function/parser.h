@@ -49,13 +49,13 @@ struct property_type_config {
 
 class MC_API func_parser {
 public:
-    static MC_API func_parser& get_instance();
+    static func_parser& get_instance();
 
-    MC_API func_call       parse_function_call(const std::string& input);
-    MC_API relate_property parse_property(const std::string& input);
-    MC_API relate_property parse_sync_property(const std::string& input);
-    MC_API relate_property parse_ref_property(const std::string& input);
-    MC_API relate_object   parse_ref_object(const std::string& input);
+    func_call       parse_function_call(const std::string& input);
+    relate_property parse_property(const std::string& input);
+    relate_property parse_sync_property(const std::string& input);
+    relate_property parse_ref_property(const std::string& input);
+    relate_object   parse_ref_object(const std::string& input);
 
 private:
     func_parser()                              = default;
@@ -74,7 +74,7 @@ private:
 
 class MC_API param_value_comparator {
 public:
-    MC_API bool operator()(const mc::variant& a, const mc::variant& b) const;
+    bool operator()(const mc::variant& a, const mc::variant& b) const;
 
 private:
     bool compare_dicts(const mc::dict& a, const mc::dict& b) const;

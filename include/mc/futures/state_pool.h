@@ -47,10 +47,10 @@ using state_ptr = mc::shared_ptr<StateType, state_deleter<StateType>, StateType*
 // State 缓存池类
 class MC_API state_pool {
 public:
-    MC_API static state_pool& instance();
+    static state_pool& instance();
 
-    MC_API void                     set_config(const state_pool_config& config);
-    MC_API const state_pool_config& get_config() const;
+    void                     set_config(const state_pool_config& config);
+    const state_pool_config& get_config() const;
 
     // 获取或创建一个 State 对象
     template <typename T, typename Executor, typename Allocator>
@@ -75,9 +75,9 @@ public:
         std::size_t total_pools         = 0; // State 池的总数量
     };
 
-    MC_API pool_stats get_stats() const;
+    pool_stats get_stats() const;
 
-    MC_API void clear_all_pools();
+    void clear_all_pools();
 
 private:
     class impl;
@@ -86,11 +86,11 @@ private:
     template <typename StateType>
     friend struct state_deleter;
 
-    MC_API state_pool();
-    MC_API ~state_pool();
+    state_pool();
+    ~state_pool();
 
-    MC_API void* try_acquire_state(std::size_t state_size);
-    MC_API bool  try_release_to_pool(void* ptr, std::size_t state_size);
+    void* try_acquire_state(std::size_t state_size);
+    bool  try_release_to_pool(void* ptr, std::size_t state_size);
 };
 
 // 从缓存池创建 State 对象

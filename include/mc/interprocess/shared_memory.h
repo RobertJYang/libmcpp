@@ -52,7 +52,7 @@ public:
      * @param name 原始共享内存名称
      * @return 格式化后的共享内存名称
      */
-    static MC_API std::string format_shm_name(const std::string& name);
+    static std::string format_shm_name(const std::string& name);
 
     /**
      * @brief 创建或打开共享内存
@@ -60,74 +60,74 @@ public:
      * @param size 共享内存大小，只在首次创建时生效
      * @return 共享内存管理对象，如果创建失败返回nullptr
      */
-    static MC_API std::shared_ptr<shared_memory> create(const std::string& name, size_t size);
+    static std::shared_ptr<shared_memory> create(const std::string& name, size_t size);
 
     /**
      * @brief 析构函数，释放共享内存资源
      */
-    MC_API ~shared_memory();
+    ~shared_memory();
 
     /**
      * @brief 获取共享内存分配器
      * @return 共享内存分配器引用
      */
-    MC_API shared_memory_allocator& get_allocator();
+    shared_memory_allocator& get_allocator();
 
     /**
      * @brief 获取共享内存名称
      * @return 共享内存名称
      */
-    MC_API std::string_view get_name() const;
+    std::string_view get_name() const;
 
     /**
      * @brief 获取共享内存大小
      * @return 共享内存大小
      */
-    MC_API size_t get_size() const;
+    size_t get_size() const;
 
     /**
      * @brief 获取共享内存ID
      * @return 共享内存ID
      */
-    MC_API int get_shmid() const;
+    int get_shmid() const;
 
     /**
      * @brief 获取共享内存基地址
      * @return 共享内存基地址
      */
-    MC_API void* get_address() const;
+    void* get_address() const;
 
     /**
      * @brief 检查共享内存是否有效
      * @return 共享内存是否有效
      */
-    MC_API bool is_valid() const;
+    bool is_valid() const;
 
     /**
      * @brief 计算指针相对于共享内存基地址的偏移量
      * @param ptr 指针
      * @return 偏移量，如果指针不在共享内存范围内则返回0
      */
-    MC_API size_t get_offset(const void* ptr) const;
+    size_t get_offset(const void* ptr) const;
 
     /**
      * @brief 从偏移量计算出指针
      * @param offset 偏移量
      * @return 指针，如果偏移量无效则返回nullptr
      */
-    MC_API void* get_ptr_from_offset(size_t offset) const;
+    void* get_ptr_from_offset(size_t offset) const;
 
     /**
      * @brief 获取数据区域的起始地址（跳过头部）
      * @return 数据区域的起始地址
      */
-    MC_API void* get_data_address() const;
+    void* get_data_address() const;
 
     /**
      * @brief 获取数据区域的大小
      * @return 数据区域的大小
      */
-    MC_API size_t get_data_size() const;
+    size_t get_data_size() const;
 
     /**
      * @brief 创建偏移指针

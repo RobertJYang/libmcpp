@@ -36,8 +36,8 @@ public:
         return sub_types != nullptr && *sub_types != '\0';
     }
 
-    static MC_API int get_sig_len(const char* types, bool allow_dict_entry, size_t array_depth,
-                                  size_t struct_depth);
+    static int get_sig_len(const char* types, bool allow_dict_entry, size_t array_depth,
+                           size_t struct_depth);
 
 private:
     static int get_dict_len(const char* types, bool allow_dict_entry, size_t array_depth,

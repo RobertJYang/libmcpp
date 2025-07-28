@@ -30,7 +30,7 @@ void safe_invoke(F&& callback) {
     }
 }
 
-struct  callback_node : public mc::noncopyable {
+struct callback_node : public mc::noncopyable {
     explicit callback_node(std::function<void()> callback) : m_callback(std::move(callback)) {
     }
 
@@ -42,22 +42,22 @@ using callback_node_ptr = std::unique_ptr<callback_node>;
 
 class MC_API callback_pool {
 public:
-    static MC_API callback_pool& instance();
+    static callback_pool& instance();
 
-    MC_API std::unique_ptr<callback_node> acquire_node(std::function<void()> callback);
+    std::unique_ptr<callback_node> acquire_node(std::function<void()> callback);
 
-    MC_API void release_node(std::unique_ptr<callback_node> node);
+    void release_node(std::unique_ptr<callback_node> node);
 
-    MC_API void set_max_pool_size(std::size_t max_size);
+    void set_max_pool_size(std::size_t max_size);
 
     struct pool_stats {
         std::size_t pool_size = 0; // 池中缓存的节点数量
         std::size_t max_size  = 0; // 池的最大容量
     };
 
-    MC_API pool_stats get_stats() const;
+    pool_stats get_stats() const;
 
-    MC_API void clear();
+    void clear();
 
 private:
     callback_pool()  = default;
@@ -71,20 +71,20 @@ private:
 
 class MC_API callback_list {
 public:
-    MC_API callback_list() = default;
+    callback_list() = default;
 
     callback_list(const callback_list&)            = delete;
     callback_list& operator=(const callback_list&) = delete;
 
-    MC_API                callback_list(callback_list&& other) noexcept = default;
-    MC_API callback_list& operator=(callback_list&& other) noexcept     = default;
+    callback_list(callback_list&& other) noexcept            = default;
+    callback_list& operator=(callback_list&& other) noexcept = default;
 
-    MC_API void push_back(std::function<void()> callback);
-    MC_API void swap(callback_list& other) noexcept;
-    MC_API void clear();
-    MC_API bool empty() const;
+    void push_back(std::function<void()> callback);
+    void swap(callback_list& other) noexcept;
+    void clear();
+    bool empty() const;
 
-    MC_API void execute_and_clear();
+    void execute_and_clear();
 
 private:
     callback_node_ptr m_head;

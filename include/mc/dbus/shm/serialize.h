@@ -59,13 +59,13 @@ struct data_block {
 
 class MC_API write_buffer {
 public:
-    MC_API write_buffer();
-    MC_API ~write_buffer();
-    MC_API void write_arg(const variant& arg, int depth = 0);
-    MC_API void write_arg_with_signature(signature_iterator it, const variant& arg, int depth = 0);
-    MC_API void write_array(signature_iterator it, const variants& args, int depth = 0);
-    MC_API void write_variant_elements(signature_iterator it, const variants& args, int depth = 0);
-    MC_API std::string to_string() const;
+    write_buffer();
+    ~write_buffer();
+    void        write_arg(const variant& arg, int depth = 0);
+    void        write_arg_with_signature(signature_iterator it, const variant& arg, int depth = 0);
+    void        write_array(signature_iterator it, const variants& args, int depth = 0);
+    void        write_variant_elements(signature_iterator it, const variants& args, int depth = 0);
+    std::string to_string() const;
 
 private:
     void write_array_or_dict(signature_iterator it, const variant& arg, int depth);
@@ -89,9 +89,9 @@ private:
 
 class MC_API read_buffer {
 public:
-    MC_API             read_buffer(std::string_view msg);
-    MC_API const char* read(size_t size);
-    MC_API variant     read_value(uint8_t type, uint8_t cookie);
+    read_buffer(std::string_view msg);
+    const char* read(size_t size);
+    variant     read_value(uint8_t type, uint8_t cookie);
 
 private:
     variant     read_inner();

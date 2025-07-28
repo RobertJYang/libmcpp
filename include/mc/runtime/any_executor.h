@@ -45,22 +45,22 @@ public:
     /**
      * @brief 默认构造函数
      */
-    MC_API any_executor() = default;
+    any_executor() = default;
 
     /**
      * @brief 从 IO 执行器构造
      */
-    MC_API any_executor(boost::asio::io_context::executor_type executor);
+    any_executor(boost::asio::io_context::executor_type executor);
 
     /**
      * @brief 从系统执行器构造
      */
-    MC_API any_executor(boost::asio::system_context::executor_type executor);
+    any_executor(boost::asio::system_context::executor_type executor);
 
     /**
      * @brief 从 mc::runtime::executor 构造
      */
-    MC_API any_executor(runtime::executor executor);
+    any_executor(runtime::executor executor);
 
     /**
      * @brief 从任意执行器构造（会被包装到 mc::runtime::executor 中）
@@ -76,27 +76,27 @@ public:
     /**
      * @brief 拷贝构造函数
      */
-    MC_API any_executor(const any_executor&) = default;
+    any_executor(const any_executor&) = default;
 
     /**
      * @brief 移动构造函数
      */
-    MC_API any_executor(any_executor&&) = default;
+    any_executor(any_executor&&) = default;
 
     /**
      * @brief 拷贝赋值运算符
      */
-    MC_API any_executor& operator=(const any_executor&) = default;
+    any_executor& operator=(const any_executor&) = default;
 
     /**
      * @brief 移动赋值运算符
      */
-    MC_API any_executor& operator=(any_executor&&) = default;
+    any_executor& operator=(any_executor&&) = default;
 
     /**
      * @brief 析构函数
      */
-    MC_API ~any_executor() = default;
+    ~any_executor() = default;
 
     /**
      * @brief 提交任务到队列末尾执行
@@ -119,21 +119,21 @@ public:
     /**
      * @brief 检查执行器是否有效
      */
-    MC_API bool valid() const noexcept;
+    bool valid() const noexcept;
 
     /**
      * @brief 比较两个执行器是否相等
      */
-    MC_API bool operator==(const any_executor& other) const noexcept;
+    bool operator==(const any_executor& other) const noexcept;
 
     /**
      * @brief 比较两个执行器是否不等
      */
-    MC_API bool operator!=(const any_executor& other) const noexcept;
+    bool operator!=(const any_executor& other) const noexcept;
 
-    MC_API void               on_work_started() const noexcept;
-    MC_API void               on_work_finished() const noexcept;
-    MC_API execution_context& context() const;
+    void               on_work_started() const noexcept;
+    void               on_work_finished() const noexcept;
+    execution_context& context() const;
 
 private:
     detail::executor_variant m_executor;

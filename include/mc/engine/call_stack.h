@@ -23,13 +23,13 @@ public:
 
     class MC_API context : private mc::noncopyable {
     public:
-        explicit MC_API context(Key* k);
+        explicit context(Key* k);
 
         // 将键值对推入调用栈
-        MC_API context(Key* k, Value& v);
+        context(Key* k, Value& v);
 
         // 从调用栈中弹出键值对
-        MC_API ~context();
+        ~context();
 
     private:
         friend class call_stack<Key, Value>;

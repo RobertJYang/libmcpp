@@ -51,12 +51,12 @@ public:
      *
      * @param config 文件追加器配置
      */
-    MC_API explicit file_appender();
+    explicit file_appender();
 
     /**
      * @brief 析构函数
      */
-    MC_API ~file_appender() override;
+    ~file_appender() override;
 
     /**
      * @brief 初始化追加器
@@ -64,47 +64,47 @@ public:
      * @param args 配置参数
      * @return bool 初始化是否成功
      */
-    MC_API bool init(const variant& args) override;
+    bool init(const variant& args) override;
 
     /**
      * @brief 追加日志消息
      *
      * @param msg 日志消息
      */
-    MC_API void append(const message& msg) override;
+    void append(const message& msg) override;
 
     /**
      * @brief 设置日志文件名
      *
      * @param filename 日志文件名
      */
-    MC_API void set_filename(const std::string& filename);
+    void set_filename(const std::string& filename);
 
     /**
      * @brief 获取日志文件名
      *
      * @return const std::string& 日志文件名
      */
-    MC_API const std::string& get_filename() const;
+    const std::string& get_filename() const;
 
     /**
      * @brief 设置是否在每次写入后刷新
      *
      * @param flush_on_write 是否在每次写入后刷新
      */
-    MC_API void set_flush_on_write(bool flush_on_write);
+    void set_flush_on_write(bool flush_on_write);
 
     /**
      * @brief 获取是否在每次写入后刷新
      *
      * @return bool 是否在每次写入后刷新
      */
-    MC_API bool get_flush_on_write() const;
+    bool get_flush_on_write() const;
 
     /**
      * @brief 刷新日志文件
      */
-    MC_API void flush();
+    void flush();
 
     // 添加debug_log_ptr的setter
     static void set_debug_log_ptr(void* func_ptr);

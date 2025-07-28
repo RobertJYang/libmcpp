@@ -43,85 +43,85 @@ public:
     /**
      * @brief 构造函数
      */
-    MC_API runtime_context();
+    runtime_context();
 
     /**
      * @brief 析构函数
      */
-    MC_API ~runtime_context();
+    ~runtime_context();
 
     /**
      * @brief 禁止拷贝构造
      */
-    MC_API runtime_context(const runtime_context&) = delete;
+    runtime_context(const runtime_context&) = delete;
 
     /**
      * @brief 禁止拷贝赋值
      */
-    MC_API runtime_context& operator=(const runtime_context&) = delete;
+    runtime_context& operator=(const runtime_context&) = delete;
 
     /**
      * @brief 初始化运行时上下文
      * @param io_threads IO线程数，默认为1，0 表示使用 std::thread::hardware_concurrency() 的值
      */
-    MC_API void initialize(const runtime_config& config = runtime_config{});
+    void initialize(const runtime_config& config = runtime_config{});
 
     /**
      * @brief 启动运行时上下文
      */
-    MC_API void start();
+    void start();
 
     /**
      * @brief 停止运行时上下文
      */
-    MC_API void stop();
+    void stop();
 
     /**
      * @brief 等待所有线程结束
      */
-    MC_API void join();
+    void join();
 
     /**
      * @brief 检查是否已停止
      * @return 如果已停止则返回true
      */
-    MC_API bool is_stopped() const noexcept;
+    bool is_stopped() const noexcept;
 
     /**
      * @brief 获取IO上下文
      * @return IO上下文引用
      */
-    MC_API io_context& get_io_context() noexcept;
+    io_context& get_io_context() noexcept;
 
     /**
      * @brief 获取工作上下文
      * @return 工作上下文引用
      */
-    MC_API work_context& get_work_context() noexcept;
+    work_context& get_work_context() noexcept;
 
     /**
      * @brief 获取IO执行器
      * @return IO执行器
      */
-    MC_API io_context::executor_type get_io_executor() noexcept;
+    io_context::executor_type get_io_executor() noexcept;
 
     /**
      * @brief 获取工作执行器
      * @return 工作执行器
      */
-    MC_API work_context::executor_type get_work_executor() noexcept;
+    work_context::executor_type get_work_executor() noexcept;
 
     /**
      * @brief 创建IO strand执行器
      * @return IO strand执行器
      */
-    MC_API io_strand make_io_strand() noexcept;
+    io_strand make_io_strand() noexcept;
 
     /**
      * @brief 创建工作strand执行器
      * @return 工作strand执行器
      */
-    MC_API work_strand make_work_strand() noexcept;
+    work_strand make_work_strand() noexcept;
 
 private:
     class impl;

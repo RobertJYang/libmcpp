@@ -38,20 +38,20 @@ struct plugin_info {
  */
 class MC_API plugin {
 public:
-    MC_API virtual ~plugin() = default;
+    virtual ~plugin() = default;
 
     /**
      * @brief 获取插件信息
      * @return 插件信息
      */
-    MC_API virtual const plugin_info& get_info() const = 0;
+    virtual const plugin_info& get_info() const = 0;
 
     /**
      * @brief 初始化插件
      * @param factory 服务工厂实例
      * @return 初始化是否成功
      */
-    MC_API virtual bool init(service_factory& factory) = 0;
+    virtual bool init(service_factory& factory) = 0;
 };
 
 // 插件创建函数类型

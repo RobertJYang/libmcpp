@@ -26,32 +26,32 @@ inline bool is_unique_name(std::string_view name) {
 
 class MC_API local_msg {
 public:
-    MC_API local_msg() = default;
+    local_msg() = default;
 
-    MC_API local_msg(std::string_view service_name, std::string_view path, std::string_view interface,
-                     std::string_view member);
+    local_msg(std::string_view service_name, std::string_view path, std::string_view interface,
+              std::string_view member);
 
-    MC_API local_msg(const variants& v);
+    local_msg(const variants& v);
 
-    MC_API std::tuple<std::string, std::string> get_error() const;
+    std::tuple<std::string, std::string> get_error() const;
 
-    MC_API void method_return();
+    void method_return();
 
-    MC_API void error(std::string_view error_name, std::string_view message);
+    void error(std::string_view error_name, std::string_view message);
 
-    MC_API void set_member(std::string_view member);
+    void set_member(std::string_view member);
 
-    MC_API uint32_t msg_type() const;
+    uint32_t msg_type() const;
 
-    MC_API std::string_view path() const;
+    std::string_view path() const;
 
-    MC_API std::string_view interface() const;
+    std::string_view interface() const;
 
-    MC_API std::string_view member() const;
+    std::string_view member() const;
 
-    MC_API std::string_view signature() const;
+    std::string_view signature() const;
 
-    MC_API void append_args(std::string_view signature, const variants& args);
+    void append_args(std::string_view signature, const variants& args);
 
     template <typename... Args>
     void append(std::string_view signature, Args&&... args) {
@@ -68,33 +68,33 @@ public:
         (func(std::forward<Args>(args)), ...);
     }
 
-    MC_API void append_return_args(std::string_view signature, const variant& arg);
+    void append_return_args(std::string_view signature, const variant& arg);
 
-    MC_API const variants& read() const;
+    const variants& read() const;
 
-    MC_API void set_sender(std::string_view sender);
+    void set_sender(std::string_view sender);
 
-    MC_API std::string_view sender() const;
+    std::string_view sender() const;
 
-    MC_API void set_serial(uint32_t serial);
+    void set_serial(uint32_t serial);
 
-    MC_API uint32_t get_serial() const;
+    uint32_t get_serial() const;
 
-    MC_API uint32_t get_reply_serial() const;
+    uint32_t get_reply_serial() const;
 
-    MC_API std::string_view destination() const;
+    std::string_view destination() const;
 
-    MC_API void set_local_call(bool v);
+    void set_local_call(bool v);
 
-    MC_API bool is_local_call() const;
+    bool is_local_call() const;
 
-    MC_API message new_dbus_msg() const;
+    message new_dbus_msg() const;
 
-    MC_API std::string pack() const;
+    std::string pack() const;
 
-    static MC_API variant parse_variant(signature_iterator it, const variant& v, size_t depth);
+    static variant parse_variant(signature_iterator it, const variant& v, size_t depth);
 
-    static MC_API variants parse_variant_elements(signature_iterator it, const variants& v, size_t depth);
+    static variants parse_variant_elements(signature_iterator it, const variants& v, size_t depth);
 
 private:
     std::string get_error_message() const;
@@ -119,9 +119,9 @@ using service_map_type = std::unordered_map<std::string, serial_map_type>;
 
 class MC_API shm_pending_msgs {
 public:
-    MC_API bool send(std::string_view source_unique_name, uint32_t serial, shm_msg_promise promise);
-    MC_API bool reply(std::string_view destination_unique_name, uint32_t serial, local_msg& msg);
-    MC_API void clear(std::string_view unique_name);
+    bool send(std::string_view source_unique_name, uint32_t serial, shm_msg_promise promise);
+    bool reply(std::string_view destination_unique_name, uint32_t serial, local_msg& msg);
+    void clear(std::string_view unique_name);
 
 private:
     std::mutex       m_mutex;

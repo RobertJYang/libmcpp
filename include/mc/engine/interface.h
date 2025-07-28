@@ -53,7 +53,7 @@ constexpr auto make_inherit_types() {
 
 template <typename InheritTypes>
 auto make_interface_metadata() {
-    std::array<const mc::reflect::struct_metadata*, std::tuple_size_v<InheritTypes>> metadatas;
+    std::array<const mc::reflect::struct_metadata*, std::tuple_size_v<InheritTypes>> metadatas{};
     mc::traits::tuple_element_for_each<InheritTypes>([&](auto type) {
         using type_t = std::remove_pointer_t<typename decltype(type)::type>;
 

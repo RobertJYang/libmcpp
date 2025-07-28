@@ -29,8 +29,8 @@ namespace mc::crypto {
 
 class MC_API CRC32 {
 public:
-    MC_API          CRC32();
-    MC_API uint32_t calculate(const std::string& bytes, uint32_t init = 0xFFFFFFFF, bool is_last = false);
+    CRC32();
+    uint32_t calculate(const std::string& bytes, uint32_t init = 0xFFFFFFFF, bool is_last = false);
 
 private:
     void initialize_table();

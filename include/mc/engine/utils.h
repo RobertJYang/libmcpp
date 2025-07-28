@@ -150,7 +150,7 @@ MC_API bool path_starts_with(std::string_view path, std::string_view prefix);
 
 template <typename DeclaredInterfaces>
 constexpr auto make_interface_metadatas() {
-    std::array<const metadata_list*, std::tuple_size_v<DeclaredInterfaces>> arr;
+    std::array<const metadata_list*, std::tuple_size_v<DeclaredInterfaces>> arr{};
 
     size_t index = 0;
     mc::traits::tuple_element_for_each<DeclaredInterfaces>([&](auto type) {

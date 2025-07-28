@@ -82,12 +82,12 @@ public:
     /**
      * @brief 默认构造函数
      */
-    MC_API console_appender();
+    console_appender();
 
     /**
      * @brief 析构函数
      */
-    MC_API ~console_appender() override;
+    ~console_appender() override;
 
     /**
      * @brief 初始化追加器
@@ -95,14 +95,14 @@ public:
      * @param args 配置参数
      * @return bool 初始化是否成功
      */
-    MC_API bool init(const variant& args) override;
+    bool init(const variant& args) override;
 
     /**
      * @brief 追加日志消息
      *
      * @param msg 日志消息
      */
-    MC_API void append(const message& msg) override;
+    void append(const message& msg) override;
 
 private:
     /**

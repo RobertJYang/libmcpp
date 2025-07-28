@@ -416,18 +416,18 @@ constexpr void parse_format_string(string_view fmt_str, Context& ctx) {
 
 class MC_API format_parser {
 public:
-    static MC_API void parse(std::string_view fmt_str, format_context& ctx);
-    static MC_API void format_arg(format_context& ctx, const format_arg& arg, format_spec& spec);
-    static MC_API void format_double(format_context& ctx, float value, const format_spec& spec);
-    static MC_API void format_double(format_context& ctx, double value, const format_spec& spec);
-    static MC_API void format_double(format_context& ctx, long double value, const format_spec& spec);
-    static MC_API void format_int(format_context& ctx, int64_t value, const format_spec& spec);
-    static MC_API void format_uint(format_context& ctx, uint64_t value, const format_spec& spec);
-    static MC_API void format_string(format_context& ctx, std::string_view str, const format_spec& spec);
-    static MC_API void format_pointer(format_context& ctx, const void* ptr, const format_spec& spec);
-    static MC_API void format_char(format_context& ctx, char c, const format_spec& spec);
-    static MC_API void format_bool(format_context& ctx, bool value, const format_spec& spec);
-    static MC_API void format_custom(format_context& ctx, const custom_t& custom, const format_spec& spec);
+    static void parse(std::string_view fmt_str, format_context& ctx);
+    static void format_arg(format_context& ctx, const format_arg& arg, format_spec& spec);
+    static void format_double(format_context& ctx, float value, const format_spec& spec);
+    static void format_double(format_context& ctx, double value, const format_spec& spec);
+    static void format_double(format_context& ctx, long double value, const format_spec& spec);
+    static void format_int(format_context& ctx, int64_t value, const format_spec& spec);
+    static void format_uint(format_context& ctx, uint64_t value, const format_spec& spec);
+    static void format_string(format_context& ctx, std::string_view str, const format_spec& spec);
+    static void format_pointer(format_context& ctx, const void* ptr, const format_spec& spec);
+    static void format_char(format_context& ctx, char c, const format_spec& spec);
+    static void format_bool(format_context& ctx, bool value, const format_spec& spec);
+    static void format_custom(format_context& ctx, const custom_t& custom, const format_spec& spec);
 
     template <typename T, std::enable_if_t<std::is_integral_v<T>, int> = 0>
     static void format_integer(format_context& ctx, T value, const format_spec& spec) {
