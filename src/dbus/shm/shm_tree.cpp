@@ -108,8 +108,8 @@ shm_tree::timeout_call(mc::milliseconds timeout, std::string_view service_name,
     return reply_msg.read();
 }
 
-static shm::property* find_shm_property(std::string_view service_name, std::string_view path,
-                                        std::string_view interface, std::string_view property) {
+static shm::shared_ptr<shm::property> find_shm_property(std::string_view service_name, std::string_view path,
+                                                        std::string_view interface, std::string_view property) {
     auto& ins  = shm::shared_memory::get_instance();
     auto  tree = ins.get_tree(service_name);
     if (tree == nullptr) {
@@ -165,17 +165,17 @@ variant shm_tree::get_property(std::string_view service_name, std::string_view p
     return res.value();
 }
 
-void shm_tree::set_property_inner(shm::property& prop, const variant& value) {
+void shm_tree::set_property_inner(shm::shared_ptr<shm::property> prop, const variant& value) {
     auto& ins = shm::shared_memory::get_instance();
     if (value.is_null()) {
-        prop.set_data(ins, std::string_view());
+        prop->set_data(ins, std::string_view());
         return;
     }
-    std::string_view signature = prop.get_signature();
+    std::string_view signature = prop->get_signature();
     GVariant*        v         = gvariant_convert::to_gvariant(value, signature.data());
     auto             data      = g_variant_get_data(v);
     auto             size      = g_variant_get_size(v);
-    prop.set_data(ins, std::string_view(static_cast<const char*>(data), size));
+    prop->set_data(ins, std::string_view(static_cast<const char*>(data), size));
 }
 
 void shm_tree::set_property(std::string_view service_name, std::string_view path,
@@ -183,7 +183,7 @@ void shm_tree::set_property(std::string_view service_name, std::string_view path
                             const variant& value) {
     shm_lock_call([&]() {
         auto prop = find_shm_property(service_name, path, interface, property);
-        set_property_inner(*prop, value);
+        set_property_inner(prop, value);
     });
 }
 
