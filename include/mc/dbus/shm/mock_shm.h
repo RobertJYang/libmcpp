@@ -126,7 +126,8 @@ public:
 } // namespace DBus
 
 namespace shm {
-using shared_ptr = std::shared_ptr;
+template <typename T>
+using shared_ptr = std::shared_ptr<T>;
 
 class shared_memory;
 class message_queue_t {
