@@ -129,6 +129,7 @@ libmcpp 支持完整的代码覆盖率统计，包括行覆盖率、函数覆盖
 ```bash
 # 方法1：一键编译和覆盖率统计
 ./scripts/smart_build.sh --coverage
+./scripts/smart_build.sh --clean --coverage
 
 # 方法2：专业覆盖率分析，一键编译和覆盖率统计
 ./scripts/coverage.sh --clean --open
@@ -166,9 +167,9 @@ libmcpp 支持完整的代码覆盖率统计，包括行覆盖率、函数覆盖
 ### 典型覆盖率结果
 
 ```
-行覆盖率:     74.9%
-函数覆盖率:   43.8%
-分支覆盖率:   30.2%
+行覆盖率:     86.9%
+函数覆盖率:   53.8%
+分支覆盖率:   70.2%
 ```
 
 ### 性能演示

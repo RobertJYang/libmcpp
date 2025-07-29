@@ -150,7 +150,7 @@ main() {
     print_info "开始智能编译..."
 
     # 解析参数
-    local enable_coverage=true
+    local enable_coverage=false
     local clean_build=false
     local coverage_output_dir="coverage"
     local fast_coverage=false
