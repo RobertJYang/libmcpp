@@ -32,3 +32,10 @@ option(
        value: false,
        description: '是否构建兼容性测试程序（mc::format vs std::format），默认为false',
 )
+
+option(
+       'enable_coverage',
+       type: 'boolean',
+       value: false,
+       description: '是否启用代码覆盖率统计，默认为false',
+)

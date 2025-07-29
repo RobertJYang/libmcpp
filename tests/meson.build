@@ -61,6 +61,13 @@ test_files = [
 dbus_dep = dependency('dbus-1', method: 'pkg-config', required: true)
 
 # 创建测试可执行文件 - 现在依赖test_utilities
+test_cpp_args = []
+test_link_args = []
+if enable_coverage
+  test_cpp_args += coverage_args
+  test_link_args += coverage_link_args
+endif
+
 test_exe = executable(
   'libmcpp_test',
   test_files,
@@ -74,7 +81,8 @@ test_exe = executable(
     boost_program_options_dep,
     test_utilities_dep,
   ],
-  cpp_args: [],
+  cpp_args: test_cpp_args,
+  link_args: test_link_args,
   install: true,
 )
 
