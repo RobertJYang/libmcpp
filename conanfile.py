@@ -126,11 +126,11 @@ class AppConan(ConanBase):
             mem_based_jobs = (available_mem_gb * 2 // 3) // 2  # 使用2/3可用内存，每个任务2GB
             
             # 基于CPU的并发数计算
-            cpu_based_jobs = cpu_cores // 2  # 使用一半CPU核数
+            cpu_based_jobs = cpu_cores // 4  # 使用一部分CPU核数
             
             # 如果没有swap，更保守一些
             if swap_total_gb == 0:
-                mem_based_jobs = (mem_based_jobs * 2) // 3
+                mem_based_jobs = (mem_based_jobs * 2) // 4
                 print("[WARNING] 系统没有配置swap分区，使用更保守的并发策略")
             
             # 取较小值，但至少为1
@@ -138,7 +138,7 @@ class AppConan(ConanBase):
             optimal_jobs = max(optimal_jobs, 1)
             
             # 最大并发数限制（避免过度并发）
-            max_jobs = 64
+            max_jobs = 24
             optimal_jobs = min(optimal_jobs, max_jobs)
             
             # 显示计算过程
