@@ -40,7 +40,7 @@ public:
     static void    set_property(std::string_view service_name, std::string_view path,
                                 std::string_view interface, std::string_view property,
                                 const variant& value);
-    static void    set_property_inner(shm::property& prop, const variant& value);
+    static void    set_property_inner(shm::shared_ptr<shm::property> prop, const variant& value);
     void           add_match(match_rule& rule, mc::dbus::match_cb_t&& cb, uint64_t id);
     void           remove_match(uint64_t id);
 
@@ -68,10 +68,10 @@ struct shm_obj_visitor : mc::engine::visitor {
     void handle(const mc::engine::abstract_object&        obj,
                 const mc::engine::abstract_interface&     iface,
                 const mc::engine::visitor::property_meta& info) override {
-        shm::property& shm_prop = m_shm_intf->add_p(m_shm_ins, info.name, info.signature);
-        shm_prop.set_read_privilege(info.read_privilege);
-        shm_prop.set_write_privilege(info.write_privilege);
-        shm_prop.set_flags(info.flags);
+        shm::shared_ptr<shm::property> shm_prop = m_shm_intf->add_p(m_shm_ins, info.name, info.signature);
+        shm_prop->set_read_privilege(info.read_privilege);
+        shm_prop->set_write_privilege(info.write_privilege);
+        shm_prop->set_flags(info.flags);
         if (iface.get_interface_name() == OBJECT_PROPERTIES_INTERFACE) {
             auto value = mc::engine::common_properties_interface::get_instance().get(info.name);
             shm_tree::set_property_inner(shm_prop, value);

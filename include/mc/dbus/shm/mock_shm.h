@@ -126,6 +126,8 @@ public:
 } // namespace DBus
 
 namespace shm {
+using shared_ptr = std::shared_ptr;
+
 class shared_memory;
 class message_queue_t {
 public:
@@ -189,10 +191,9 @@ public:
 
 class interface {
 public:
-    property& add_p(shared_memory& ins, const std::string_view& name,
+    shared_ptr<property> add_p(shared_memory& ins, const std::string_view& name,
                     const std::string_view& signature) {
-        auto p = new property(signature);
-        return *p;
+        return std::make_shared<property>(signature);
     }
 
     method& add_m(shared_memory& ins, const std::string_view& name,
@@ -205,11 +206,10 @@ public:
         return m_signal;
     }
 
-    property* find_p(const std::string_view& name) {
-        return &m_property;
+    shared_ptr<property> find_p(const std::string_view& name) {
+        return std::make_shared<property>();
     }
 
-    property m_property;
     method   m_method;
     signal   m_signal;
 };
