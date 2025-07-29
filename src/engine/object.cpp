@@ -123,39 +123,21 @@ void object_impl::set_owner(abstract_object* new_owner) {
 }
 
 /**
- * @brief 获取对象名称
- * 
- * @details 此函数返回对象的名称，通过对象级缓存提升性能。
- * 
- * **并发安全性修复说明：**
- * 
- * **原始问题：**
- * - 之前的实现可能使用了 static thread_local 共享变量来缓存字符串
- * - 在多线程环境下，不同线程可能会相互干扰缓存内容
- * - 导致 get_object_name() 返回错误的对象名称，引发 "Object not found" 错误
- * - 特别是在 ref_object 并发调用时，会出现概率性的测试失败
- * 
- * **修复方案：**
- * - 改为使用对象级的 mutable 成员变量 m_cached_name
- * - 每个对象实例都有自己独立的缓存，避免了线程间的数据竞争
- * - 保持了缓存的性能优势，同时确保了并发安全性
- * 
- * **并发场景注意事项：**
- * 1. 使用 mutable 关键字允许在 const 方法中修改缓存
- * 2. 每次调用都会更新对象级缓存，确保数据一致性
- * 3. 不同对象的 get_object_name() 调用完全独立，无并发冲突
- * 4. 返回的 string_view 指向对象成员变量，生命周期与对象绑定
- * 
- * @return std::string_view 对象名称的视图，指向内部缓存
- * @note 返回的字符串视图在对象生命周期内有效
- * @note 此方法是线程安全的，可以在多线程环境中并发调用
+ * - 直接调用基类的 get_name()，它现在返回 string_view，已经是高效的
+ * - 移除了对象级缓存，因为基类已经处理了缓存逻辑
+ * - 保持了线程安全性
  */
 std::string_view object_impl::get_object_name() const {
-    m_cached_name = this->get_name();  // 使用对象级缓存，确保并发安全
-    return m_cached_name;
+    return this->get_name();
 }
 
+/**
+ * **并发安全性：**
+ * - 使用基类的线程安全接口进行名称设置
+ * - 名称唯一性检查现在由基类 core::object::set_name() 统一处理
+ */
 void object_impl::set_object_name(std::string_view name) {
+    // 直接调用基类方法，检查逻辑已在基类中实现
     this->set_name(name);
 }
 

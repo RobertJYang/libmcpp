@@ -57,7 +57,6 @@ protected:
 protected:
     mutable std::string                      m_object_path;
     mutable std::string                      m_position;
-    mutable std::string                      m_cached_name;  // 用于缓存对象名称，避免 thread_local 问题
     abstract_object*                         m_owner{nullptr};
     service*                                 m_service{nullptr};
     managed_objects                          m_managed_objects;
