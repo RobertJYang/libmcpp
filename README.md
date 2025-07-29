@@ -116,7 +116,71 @@ rm -rf builddir; meson setup builddir; time meson compile -C builddir -j 48
 rm -rf builddir; meson setup builddir; time meson compile -C builddir -j 128  # 最大并发
 rm -rf builddir; meson setup builddir; time meson compile -C builddir -j 24   # 中等并发
 rm -rf builddir; meson setup builddir; time meson compile -C builddir -j 4    # 低并发
+
+
+
+
+## 代码覆盖率统计
+
+libmcpp 支持完整的代码覆盖率统计，包括行覆盖率、函数覆盖率和分支覆盖率。
+
+### 使用方法
+
+```bash
+# 方法1：一键编译和覆盖率统计
+./scripts/smart_build.sh --coverage
+
+# 方法2：专业覆盖率分析，一键编译和覆盖率统计
+./scripts/coverage.sh --clean --open
+
+# 方法3：重新生成覆盖率（基于现有编译）
+./scripts/coverage.sh
+
+# 方法4：快速模式（仅生成汇总文件）
+./scripts/coverage.sh --fast
+
+# 方法5：自定义输出目录
+./scripts/coverage.sh --output my_coverage --open
+
+# 方法6：一键编译 + 快速覆盖率统计
+./scripts/smart_build.sh --fast-coverage
 ```
+
+### 覆盖率报告
+
+#### 完整模式生成文件
+- `coverage/html/index.html` - 详细的 HTML 覆盖率报告
+- `coverage/coverage_stats.txt` - 覆盖率统计摘要
+- `coverage/coverage_summary.txt` - 完整的覆盖率数据
+
+#### 快速模式生成文件
+- `coverage/coverage_summary.txt` - 仅覆盖率汇总数据（10秒内完成）
+
+### 模式对比
+
+| 模式 | 执行时间 | 生成文件 | 适用场景 |
+|------|----------|----------|----------|
+| **完整模式** | 60-120秒 | HTML报告 + 汇总文件 | 详细分析、代码审查 |
+| **快速模式** | 5-10秒 | 仅汇总文件 | CI/CD、快速检查 |
+
+### 典型覆盖率结果
+
+```
+行覆盖率:     74.9%
+函数覆盖率:   43.8%
+分支覆盖率:   30.2%
+```
+
+### 性能演示
+
+可以运行演示脚本来对比两种模式的性能差异：
+
+```bash
+# 运行性能对比演示
+./scripts/demo_coverage_modes.sh
+```
+
+该脚本会自动测试快速模式和完整模式，并显示详细的性能对比结果。
 
 ### 并发任务机制说明
 1. **编译并发原理**

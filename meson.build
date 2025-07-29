@@ -24,6 +24,18 @@ endif
 
 meson_build = get_option('meson_build')
 build_tests = get_option('tests')
+enable_coverage = get_option('enable_coverage')
+
+# 代码覆盖率配置
+coverage_args = []
+coverage_link_args = []
+if enable_coverage
+  coverage_args = ['--coverage', '-fprofile-arcs', '-ftest-coverage', '-fprofile-update=atomic']
+  coverage_link_args = ['--coverage']
+  add_project_arguments(coverage_args, language: 'cpp')
+  add_project_link_arguments(coverage_link_args, language: 'cpp')
+  message('代码覆盖率统计已启用')
+endif
 
 # 依赖项
 if not meson.is_cross_build()
