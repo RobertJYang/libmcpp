@@ -25,6 +25,8 @@ using namespace mc;
 
 namespace mc::expr {
 
+func_collection::func_collection() = default;
+
 func_collection& func_collection::get_instance() {
     static func_collection instance;
     return instance;

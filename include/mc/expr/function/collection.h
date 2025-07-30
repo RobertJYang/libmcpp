@@ -24,7 +24,7 @@ namespace mc::expr {
 
 class MC_API func_collection {
 public:
-    func_collection() = default;
+    func_collection();
 
     static func_collection& get_instance();
 
