@@ -22,14 +22,11 @@
 
 namespace mc::expr {
 
-class func_collection {
+class MC_API func_collection {
 public:
     func_collection() = default;
 
-    static func_collection& get_instance() {
-        static func_collection instance;
-        return instance;
-    }
+    static func_collection& get_instance();
 
     void add(const std::string_view& position, std::shared_ptr<mc::engine::service> service, mc::mutable_dict& functions);
     mc::variant get(const std::string_view& position, const std::string_view& func_name);
