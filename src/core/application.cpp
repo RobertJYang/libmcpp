@@ -59,6 +59,16 @@ application::impl::impl()
       m_supervisor_manager(std::make_unique<supervisor_manager>()) {
 }
 
+application& application::instance() {
+    return singleton<application>::instance_with_creator([]() {
+        return new application();
+    });
+}
+
+void application::reset_for_test() {
+    mc::singleton<application>::reset_for_test();
+}
+
 application::application() : m_impl(std::make_unique<impl>()) {
 }
 

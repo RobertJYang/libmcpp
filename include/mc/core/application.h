@@ -37,13 +37,10 @@ namespace mc::core {
  *
  * 继承自 service_base 类，使其成为服务树的根节点
  */
-class application {
+class MC_API application {
 public:
-    static application& instance() {
-        return singleton<application>::instance_with_creator([]() {
-            return new application();
-        });
-    }
+    static application& instance();
+    static void         reset_for_test();
 
     application(const application&)            = delete;
     application& operator=(const application&) = delete;
