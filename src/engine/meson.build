@@ -1,5 +1,6 @@
 engine_src_files = [
   'engine/base.cpp',
+  'engine/call_stack.cpp',
   'engine/object.cpp',
   'engine/engine.cpp',
   'engine/service.cpp',
@@ -12,4 +13,4 @@ engine_src_files = [
   'engine/path.cpp',
   'engine/path_iterator.cpp',
   'engine/result.cpp',
-] 
+]
