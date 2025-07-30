@@ -27,6 +27,7 @@ namespace reflect {
 
 constexpr char   empty_signature      = '\0';
 constexpr size_t max_signature_length = 255;
+constexpr size_t max_path_length      = 1023;
 
 inline char first_type(const std::string& sig) {
     if (sig.empty()) {
@@ -39,7 +40,7 @@ inline char first_type(const std::string& sig) {
     return sig[0];
 }
 
-class signature {
+class MC_API signature {
 public:
     /**
      * 默认构造函数，创建空签名
@@ -143,9 +144,7 @@ public:
         return sig.m_sig != str;
     }
 
-    operator std::string_view() const {
-        return m_sig;
-    }
+    operator std::string_view() const;
 
     /**
      * 获取签名字符串
@@ -206,9 +205,7 @@ public:
      * @return 如果字符是完整类型返回true
      */
     static bool is_complete_type(char c);
-    static bool is_complete_type(type_code type) {
-        return is_complete_type(type_to_char(type));
-    }
+    static bool is_complete_type(type_code type);
 
     /**
      * 检查字符是否为基本类型
@@ -217,9 +214,7 @@ public:
      * @return 如果字符是基本类型返回true
      */
     static bool is_basic_type(char c);
-    static bool is_basic_type(type_code type) {
-        return is_basic_type(type_to_char(type));
-    }
+    static bool is_basic_type(type_code type);
 
     /**
      * 检查字符是否为容器类型
@@ -228,9 +223,7 @@ public:
      * @return 如果字符是容器类型返回true
      */
     static bool is_container_type(char c);
-    static bool is_container_type(type_code type) {
-        return is_container_type(type_to_char(type));
-    }
+    static bool is_container_type(type_code type);
 
     /**
      * 检查给定的签名是否表示一个单一的完整类型
@@ -269,12 +262,12 @@ private:
 /**
  * 输出流操作符重载
  */
-std::ostream& operator<<(std::ostream& os, const signature& sig);
+MC_API std::ostream& operator<<(std::ostream& os, const signature& sig);
 
 /**
  * 用于遍历DBus签名的迭代器
  */
-class signature_iterator {
+class MC_API signature_iterator {
 public:
     signature_iterator();
 
@@ -383,14 +376,8 @@ public:
      * @return 值类型的迭代器
      */
     signature_iterator get_dict_value_iterator() const;
-
-    std::string_view str() const {
-        return m_sig;
-    }
-
-    size_t pos() const {
-        return m_pos;
-    }
+    std::string_view   str() const;
+    size_t             pos() const;
 
 private:
     std::string_view m_sig{};

@@ -30,11 +30,11 @@ constexpr const char* ERROR_INVALID_FORMAT = "invalid format";
 constexpr uint8_t     TYPE_MASK            = 7;
 constexpr uint8_t     VALUE_SHIFT          = 3;
 
-std::string pack(const variants& args);
+MC_API std::string pack(const variants& args);
 
-variants unpack(std::string_view msg);
+MC_API variants unpack(std::string_view msg);
 
-variants deserialize(std::string_view msg);
+MC_API variants deserialize(std::string_view msg);
 
 enum class data_type : uint8_t {
     nil          = 0,
@@ -57,7 +57,7 @@ struct data_block {
     std::vector<uint8_t> buf;
 };
 
-class write_buffer {
+class MC_API write_buffer {
 public:
     write_buffer();
     ~write_buffer();
@@ -87,7 +87,7 @@ private:
     size_t      m_offset;
 };
 
-class read_buffer {
+class MC_API read_buffer {
 public:
     read_buffer(std::string_view msg);
     const char* read(size_t size);

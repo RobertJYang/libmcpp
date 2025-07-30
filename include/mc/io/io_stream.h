@@ -44,7 +44,7 @@ enum class seek_mode {
  * - 支持对齐写入位置
  * - 支持预留头部和尾部空间
  */
-class io_stream {
+class MC_API io_stream {
 public:
     /**
      * @brief 默认构造函数，创建一个空的流

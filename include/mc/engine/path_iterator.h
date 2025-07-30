@@ -19,6 +19,8 @@
 
 #include <string_view>
 
+#include <mc/common.h>
+
 namespace mc::engine {
 
 /**
@@ -31,7 +33,7 @@ constexpr char IMMUTABLE_PATH_SEP = '/';
  *
  * 用于高效遍历路径的各个段，支持前向和后向迭代
  */
-class path_iterator {
+class MC_API path_iterator {
 public:
     /**
      * @brief 构造函数

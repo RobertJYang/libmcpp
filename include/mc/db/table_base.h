@@ -20,7 +20,7 @@
 
 namespace mc::db {
 
-class table_base {
+class MC_API table_base {
 public:
     virtual ~table_base() = default;
 

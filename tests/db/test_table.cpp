@@ -30,6 +30,8 @@ MC_FIELD_INDEX_TAG(by_name_age, "name_age");
 
 class user : public mdb::object_base {
 public:
+    MC_REFLECTABLE("mc.test.db_table.TestUser")
+
     user() = default;
 
     user(std::string name, int age, double score = 0.0)

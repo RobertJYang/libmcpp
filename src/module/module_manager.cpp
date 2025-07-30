@@ -328,6 +328,10 @@ module_manager& module_manager::instance() {
     });
 }
 
+void module_manager::reset_for_test() {
+    mc::singleton<module_manager>::reset_for_test();
+}
+
 module_ptr module_manager::require(std::string_view module_name) {
     return m_impl->require(module_name);
 }

@@ -25,9 +25,16 @@ using namespace mc;
 
 namespace mc::expr {
 
+func_collection::func_collection() = default;
+
+func_collection& func_collection::get_instance() {
+    static func_collection instance;
+    return instance;
+}
+
 void func_collection::add(const std::string_view& position, std::shared_ptr<mc::engine::service> service, mc::mutable_dict& functions) {
     std::lock_guard lock(m_mutex);
-    std::string position_str(position);
+    std::string     position_str(position);
     m_services[position_str] = service;
     m_functions.insert(position, functions);
 }
@@ -47,8 +54,8 @@ mc::variant func_collection::get(const std::string_view& position, const std::st
 
 std::shared_ptr<mc::engine::service> func_collection::get_service(const std::string_view& position) {
     std::lock_guard lock(m_mutex);
-    std::string position_str(position);
-    auto it = m_services.find(position_str);
+    std::string     position_str(position);
+    auto            it = m_services.find(position_str);
     if (it == m_services.end()) {
         return nullptr;
     }
@@ -66,13 +73,13 @@ mc::mutable_dict func_collection::remove(const std::string_view& position) {
     if (m_functions.find(position) == m_functions.end()) {
         return mc::mutable_dict();
     }
-    std::lock_guard lock(m_mutex);
+    std::lock_guard  lock(m_mutex);
     mc::mutable_dict result = m_functions[position].as<mc::mutable_dict>();
     m_functions.erase(position);
-    
+
     std::string position_str(position);
     m_services.erase(position_str);
-    
+
     return result;
 }
 

@@ -28,16 +28,32 @@ public:
 
     my_task_object(mc::core::object* parent = nullptr);
 
-    static mc::shared_ptr<my_task_object> create_task(mc::engine::service* service, mc::milliseconds timeout);
+    static mc::shared_ptr<my_task_object> create_task(mc::core::object* parent, mc::milliseconds timeout);
 
-private:
     my_task_interface m_task;
     static uint32_t   m_next_task_id;
 };
-
 using task_object_ptr = mc::shared_ptr<my_task_object>;
-} // namespace test
 
-MC_REFLECT(test::my_task_object, ((m_task, "task")))
+class my_tasks_object : public mc::engine::object<my_tasks_object> {
+    using tasks_type = std::vector<mc::shared_ptr<my_task_object>>;
+
+public:
+    MC_OBJECT(my_tasks_object, "TasksObject", "/bmc/kepler/TaskService/Tasks",
+              (tasks_interface))
+
+    my_tasks_object(mc::core::object* parent = nullptr);
+
+    // 测试在对象中实现接口的方法
+    std::string_view              create_task(const std::string& name);
+    std::vector<std::string_view> get_tasks();
+
+private:
+    tasks_interface m_tasks_intf;
+    tasks_type      m_tasks;
+};
+using tasks_object_ptr = mc::shared_ptr<my_tasks_object>;
+
+} // namespace test
 
 #endif // TASK_OBJECT_H

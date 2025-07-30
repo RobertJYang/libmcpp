@@ -19,6 +19,8 @@
 namespace test_static_info {
 class test_user {
 public:
+    MC_REFLECTABLE("test_static_info.test_user");
+
     int         m_id;
     std::string m_name;
     double      m_score;
@@ -26,6 +28,8 @@ public:
 
 class test_person {
 public:
+    MC_REFLECTABLE("test_static_info.test_person");
+
     int         m_id;
     std::string m_name;
     int         m_age;

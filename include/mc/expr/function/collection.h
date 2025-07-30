@@ -22,28 +22,25 @@
 
 namespace mc::expr {
 
-class func_collection {
+class MC_API func_collection {
 public:
-    func_collection() = default;
+    func_collection();
 
-    static func_collection& get_instance() {
-        static func_collection instance;
-        return instance;
-    }
+    static func_collection& get_instance();
 
-    void add(const std::string_view& position, std::shared_ptr<mc::engine::service> service, mc::mutable_dict& functions);
-    mc::variant get(const std::string_view& position, const std::string_view& func_name);
+    void                                 add(const std::string_view& position, std::shared_ptr<mc::engine::service> service, mc::mutable_dict& functions);
+    mc::variant                          get(const std::string_view& position, const std::string_view& func_name);
     std::shared_ptr<mc::engine::service> get_service(const std::string_view& position);
-    mc::mutable_dict get(const std::string_view& position);
-    mc::mutable_dict remove(const std::string_view& position);
-    bool contains(const std::string_view& position);
-    void clear();
-    size_t size() const;
-    bool empty() const;
+    mc::mutable_dict                     get(const std::string_view& position);
+    mc::mutable_dict                     remove(const std::string_view& position);
+    bool                                 contains(const std::string_view& position);
+    void                                 clear();
+    size_t                               size() const;
+    bool                                 empty() const;
 
 private:
-    mutable std::mutex m_mutex;
-    mc::mutable_dict m_functions;
+    mutable std::mutex                                                    m_mutex;
+    mc::mutable_dict                                                      m_functions;
     std::unordered_map<std::string, std::shared_ptr<mc::engine::service>> m_services;
 };
 

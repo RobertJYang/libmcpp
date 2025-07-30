@@ -353,7 +353,7 @@ MulanPSL2的完整协议内容您可以访问如下网址获取：<https://licen
 - reflector模板特化：存储类型元数据
 - property_info：属性信息和访问方法
 - method_info：方法信息和调用机制
-- reflection_metadata：缓存反射信息的单例
+- reflection：缓存反射信息的单例
 - 序列化支持：对象与variant的相互转换
 
 ### 3.3.3 开发者测试

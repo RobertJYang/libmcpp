@@ -51,7 +51,7 @@ constexpr std::string_view common_properties_name        = "bmc.kepler.Object.Pr
 </signal>
 </interface>
 */
-struct properties_interface : public mc::engine::interface<properties_interface> {
+struct MC_API properties_interface : public mc::engine::interface<properties_interface> {
     MC_INTERFACE(properties_interface_name)
 
     ~properties_interface() override = default;
@@ -65,10 +65,7 @@ struct properties_interface : public mc::engine::interface<properties_interface>
         mc::signal<void(std::string_view, mc::dict, std::vector<std::string>)>;
     properties_changed_signal properties_changed;
 
-    static properties_interface& get_instance() {
-        static properties_interface instance;
-        return instance;
-    }
+    static properties_interface& get_instance();
 };
 
 /*
@@ -78,17 +75,14 @@ struct properties_interface : public mc::engine::interface<properties_interface>
     </method>
   </interface>
 */
-struct introspectable_interface : public mc::engine::interface<introspectable_interface> {
+struct MC_API introspectable_interface : public mc::engine::interface<introspectable_interface> {
     MC_INTERFACE(introspectable_interface_name)
 
     ~introspectable_interface() override = default;
 
     std::string introspect() const;
 
-    static introspectable_interface& get_instance() {
-        static introspectable_interface instance;
-        return instance;
-    }
+    static introspectable_interface& get_instance();
 };
 
 /*
@@ -99,7 +93,7 @@ struct introspectable_interface : public mc::engine::interface<introspectable_in
     </method>
   </interface>
 */
-struct peer_interface : public mc::engine::interface<peer_interface> {
+struct MC_API peer_interface : public mc::engine::interface<peer_interface> {
     MC_INTERFACE(peer_interface_name)
 
     ~peer_interface() override = default;
@@ -107,10 +101,7 @@ struct peer_interface : public mc::engine::interface<peer_interface> {
     void        ping() const;
     std::string get_machine_id() const;
 
-    static peer_interface& get_instance() {
-        static peer_interface instance;
-        return instance;
-    }
+    static peer_interface& get_instance();
 };
 
 /*
@@ -128,28 +119,25 @@ struct peer_interface : public mc::engine::interface<peer_interface> {
     </signal>
   </interface>
 */
-struct object_manager_interface : public mc::engine::interface<object_manager_interface> {
+struct MC_API object_manager_interface : public mc::engine::interface<object_manager_interface> {
     MC_INTERFACE(object_manager_interface_name)
 
     ~object_manager_interface() override = default;
 
-    using interfaces_type = std::map<std::string, mc::dict>;
+    using interfaces_type = std::map<std::string_view, mc::dict>;
     using objects_type    = std::map<mc::dbus::path, interfaces_type>;
     objects_type get_managed_objects() const;
 
     using interfaces_added_signal = mc::signal<void(mc::dbus::path, interfaces_type)>;
     interfaces_added_signal interfaces_added;
 
-    using interfaces_removed_signal = mc::signal<void(mc::dbus::path, std::vector<std::string>)>;
+    using interfaces_removed_signal = mc::signal<void(mc::dbus::path, std::vector<std::string_view>)>;
     interfaces_removed_signal interfaces_removed;
 
-    static object_manager_interface& get_instance() {
-        static object_manager_interface instance;
-        return instance;
-    }
+    static object_manager_interface& get_instance();
 };
 
-struct common_properties_interface : public mc::engine::interface<common_properties_interface> {
+struct MC_API common_properties_interface : public mc::engine::interface<common_properties_interface> {
     MC_INTERFACE(common_properties_name)
 
     ~common_properties_interface() override = default;
@@ -165,13 +153,10 @@ struct common_properties_interface : public mc::engine::interface<common_propert
     static void        set_with_context(std::map<std::string, std::string> context, std::string_view interface_name,
                                         std::string_view property_name, const mc::variant& value);
 
-    static common_properties_interface& get_instance() {
-        static common_properties_interface instance;
-        return instance;
-    }
+    static common_properties_interface& get_instance();
 };
 
-class standard_interfaces {
+class MC_API standard_interfaces {
 public:
     static constexpr std::string_view common_prefix          = "org.freedesktop.DBus.";
     static constexpr std::string_view properties_name        = "Properties";
@@ -184,16 +169,5 @@ public:
 };
 
 } // namespace mc::engine
-
-MC_REFLECT(mc::engine::properties_interface,
-           ((get, "Get"))((get_all, "GetAll"))((set, "Set"))((properties_changed,
-                                                              "PropertiesChanged")))
-MC_REFLECT(mc::engine::introspectable_interface, ((introspect, "Introspect")))
-MC_REFLECT(mc::engine::peer_interface, ((ping, "Ping"))((get_machine_id, "GetMachineId")))
-MC_REFLECT(mc::engine::object_manager_interface,
-           ((get_managed_objects, "GetManagedObjects"))((interfaces_added, "InterfacesAdded"))(
-               (interfaces_removed, "InterfacesRemoved")))
-MC_REFLECT(mc::engine::common_properties_interface,
-           ((m_parent_path, "ParentPath"))((m_object_name, "ObjectName"))((m_class_name, "ClassName"))((m_object_identifier, "ObjectIdentifier"))((get_with_context, "GetWithContext"))((set_with_context, "SetWithContext")))
 
 #endif // MC_ENGINE_STD_INTERFACE_H

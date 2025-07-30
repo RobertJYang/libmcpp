@@ -33,6 +33,8 @@ struct by_city : mdb::tag_base<by_city> {};
 
 class test_user : public mdb::object_base {
 public:
+    MC_REFLECTABLE("mc.test.db_query.TestUser")
+
     test_user() = default;
 
     test_user(uint32_t id, std::string name, int age, std::string city, double score = 0.0)

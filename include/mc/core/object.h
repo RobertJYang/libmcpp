@@ -48,62 +48,38 @@ enum class connection_type {
 
 using object_id_type = uint64_t;
 
-class object_base : public enable_shared_from_this<object_base> {
+class MC_API object_base : public enable_shared_from_this<object_base> {
 public:
     using executor_type = mc::any_executor;
 
-    object_base()          = default;
-    virtual ~object_base() = default;
+    object_base();
+    virtual ~object_base();
 
-    object_base(const object_base& other)
-        : enable_shared_from_this<object_base>(other), m_object_id(other.m_object_id) {
-    }
+    object_base(const object_base& other);
 
-    object_base(object_base&& other)
-        : enable_shared_from_this<object_base>(std::forward<object_base>(other)), m_object_id(other.m_object_id) {
-        other.m_object_id = 0;
-    }
+    object_base(object_base&& other);
 
-    object_base& operator=(object_base&& other) {
-        if (this != &other) {
-            enable_shared_from_this<object_base>::operator=(std::forward<object_base>(other));
-            m_object_id       = other.m_object_id;
-            other.m_object_id = 0;
-        }
-        return *this;
-    }
+    object_base& operator=(object_base&& other);
 
-    object_base& operator=(const object_base& other) {
-        if (this != &other) {
-            enable_shared_from_this<object_base>::operator=(other);
-            m_object_id = other.m_object_id;
-        }
-        return *this;
-    }
+    object_base& operator=(const object_base& other);
 
     /**
      * 获取对象ID
      * @return 对象ID
      */
-    virtual object_id_type get_object_id() const {
-        return m_object_id;
-    }
+    virtual object_id_type get_object_id() const;
 
     /**
      * 设置对象ID
      * @param id 对象ID
      */
-    void set_object_id(object_id_type id) {
-        m_object_id = id;
-    }
+    void set_object_id(object_id_type id);
 
     /**
      * 检查对象ID是否有效
      * @return 如果ID不为0则返回true
      */
-    bool has_valid_id() const {
-        return m_object_id != 0;
-    }
+    bool has_valid_id() const;
 
 protected:
     object_id_type m_object_id{0};
@@ -112,7 +88,7 @@ protected:
 /**
  * @brief 对象基类，提供对象层次结构和生命周期管理
  */
-class object : public object_base {
+class MC_API object : public object_base {
 public:
     /**
      * @brief 默认构造函数
@@ -319,25 +295,19 @@ public:
      * @brief 获取当前对象的ref_ptr
      * @return 指向当前对象的object_ptr
      */
-    object_ptr shared_from_this() {
-        return object_base::shared_from_this().template static_pointer_cast<object>();
-    }
+    object_ptr shared_from_this();
 
     /**
      * @brief 获取当前对象的weak_ptr
      * @return 指向当前对象的mc::weak_ptr<object>
      */
-    mc::weak_ptr<object> weak_from_this() {
-        return mc::weak_ptr<object>(this);
-    }
+    mc::weak_ptr<object> weak_from_this();
 
     /**
      * @brief 获取当前对象的weak_ptr (const版本)
      * @return 指向当前对象的mc::weak_ptr<const object>
      */
-    mc::weak_ptr<const object> weak_from_this() const {
-        return mc::weak_ptr<const object>(this);
-    }
+    mc::weak_ptr<const object> weak_from_this() const;
 
 protected:
     /**

@@ -17,6 +17,8 @@
 namespace mc::expr {
 
 struct conversion_funcs {
+    MC_REFLECTABLE("mc.expr.builtin.conversion");
+
     static int64_t to_integer(const mc::variant& arg) {
         try {
             return arg.as_int64();

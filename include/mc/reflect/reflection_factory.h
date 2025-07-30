@@ -25,8 +25,8 @@
 #include <unordered_map>
 
 #include <mc/reflect/base.h>
-#include <mc/reflect/reflection_enum_metadata.h>
-#include <mc/reflect/reflection_metadata.h>
+#include <mc/reflect/reflection.h>
+#include <mc/reflect/reflection_enum.h>
 #include <mc/signal_slot.h>
 
 namespace mc::reflect {
@@ -48,7 +48,7 @@ struct global_namespace {
  *
  * 管理类型注册和反射对象创建，支持模块系统
  */
-class reflection_factory : public mc::enable_shared_from_this<reflection_factory> {
+class MC_API reflection_factory : public mc::enable_shared_from_this<reflection_factory> {
 public:
     /**
      * @brief 获取全局反射工厂实例
@@ -57,6 +57,7 @@ public:
     static reflection_factory& global();
     static factory_ptr&        global_ptr();
     static factory_ptr         try_global_ptr();
+    static void                reset_global();
 
     /**
      * @brief 获取单例实例，指定工厂标签
@@ -231,23 +232,6 @@ public:
 
     factory_id_type get_factory_id() const;
 
-    mc::signal<void(type_id_type)>    on_type_unregister;
-    mc::signal<void(factory_id_type)> on_factory_unregister;
-
-private:
-    reflection_factory(std::string_view factory_name, std::string_view factory_type_name, bool is_global);
-
-    template <typename T>
-    friend struct reflector; // 反射器需要访问 register_type、 register_enum_type
-
-    template <typename T>
-    friend class reflection_metadata; // 反射元数据需要访问 unregister_type_impl
-
-    template <typename T>
-    friend class reflection_enum_metadata; // 反射枚举元数据需要访问 unregister_type_impl
-
-    friend struct module_node;
-
     /**
      * @brief 注册类型
      * @tparam T 要注册的类型
@@ -255,24 +239,24 @@ private:
      */
     template <typename T>
     type_id_type register_type(type_id_type type_id = INVALID_TYPE_ID) {
-        return register_type_impl(reflector<T>::name(), type_id, []() {
-            return reflection_metadata<T>::instance_ptr();
+        return register_type_impl(reflector<T>::get_name(), type_id, []() {
+            return reflector<T>::get_reflection().shared_from_this();
         });
     }
 
-    /**
-     * @brief 注册枚举类型（枚举类型不需要完整的反射元数据）
-     * @tparam T 要注册的枚举类型
-     * @return type_id_type 分配的类型ID
-     */
-    template <typename T>
-    type_id_type register_enum_type(type_id_type type_id = INVALID_TYPE_ID) {
-        static_assert(std::is_enum_v<T>, "T must be an enum type");
+    mc::signal<void(type_id_type)>    on_type_unregister;
+    mc::signal<void(factory_id_type)> on_factory_unregister;
 
-        return register_type_impl(reflector<T>::name(), type_id, []() {
-            return reflection_enum_metadata<T>::instance_ptr();
-        });
-    }
+private:
+    reflection_factory(std::string_view factory_name, std::string_view factory_type_name, bool is_global);
+
+    template <typename, typename>
+    friend struct reflector; // 反射器需要访问 unregister_type_impl
+
+    template <typename, typename>
+    friend class reflection; // 反射元数据需要访问 unregister_type_impl
+
+    friend struct module_node;
 
     type_id_type register_type_impl(std::string_view                           type_name,
                                     type_id_type                               type_id,
@@ -288,28 +272,28 @@ private:
  * @param type_id 类型ID
  * @return reflected_object_ptr 反射对象实例，失败时返回nullptr
  */
-reflected_object_ptr try_create_object(type_id_type type_id);
+MC_API reflected_object_ptr try_create_object(type_id_type type_id);
 
 /**
  * @brief 全局便利函数：尝试通过类型名创建反射对象，失败时返回nullptr
  * @param type_name 类型名
  * @return reflected_object_ptr 反射对象实例，失败时返回nullptr
  */
-reflected_object_ptr try_create_object(std::string_view type_name);
+MC_API reflected_object_ptr try_create_object(std::string_view type_name);
 
 /**
  * @brief 全局便利函数：通过类型ID创建反射对象
  * @param type_id 类型ID
  * @return reflected_object_ptr 反射对象实例
  */
-reflected_object_ptr create_object(type_id_type type_id);
+MC_API reflected_object_ptr create_object(type_id_type type_id);
 
 /**
  * @brief 全局便利函数：通过类型名创建反射对象
  * @param type_name 类型名
  * @return reflected_object_ptr 反射对象实例
  */
-reflected_object_ptr create_object(std::string_view type_name);
+MC_API reflected_object_ptr create_object(std::string_view type_name);
 
 /**
  * @brief 获取已注册的所有类型名
@@ -372,18 +356,18 @@ factory_ptr try_get_reflect_factory() {
 }
 
 template <typename T>
-reflection_metadata<T>::~reflection_metadata() {
+reflection<T, std::enable_if_t<is_reflectable<T>() && std::is_enum<T>()>>::~reflection() {
     auto factory = try_get_reflect_factory<T>();
     if (factory) {
-        factory->unregister_type_impl(reflector<T>::name());
+        factory->unregister_type_impl(reflector<T>::get_name());
     }
 }
 
 template <typename T>
-reflection_enum_metadata<T>::~reflection_enum_metadata() {
+reflection<T, std::enable_if_t<is_reflectable<T>() && !std::is_enum<T>()>>::~reflection() {
     auto factory = try_get_reflect_factory<T>();
     if (factory) {
-        factory->unregister_type_impl(reflector<T>::name());
+        factory->unregister_type_impl(reflector<T>::get_name());
     }
 }
 

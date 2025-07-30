@@ -39,6 +39,30 @@ const std::string& message::get_message() const {
     return m_message;
 }
 
+level message::get_level() const {
+    return m_level;
+}
+
+const std::string& message::get_format_template() const {
+    return m_format;
+}
+
+const dict& message::get_args() const {
+    return m_args;
+}
+
+const context& message::get_context() const {
+    return m_context;
+}
+
+mc::thread_id message::get_thread_id() const {
+    return m_thread_id;
+}
+
+const std::chrono::system_clock::time_point& message::get_timestamp() const {
+    return m_timestamp;
+}
+
 dict message::to_structured_data() const {
     mc::mutable_dict result;
 

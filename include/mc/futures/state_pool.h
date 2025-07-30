@@ -45,12 +45,9 @@ template <typename StateType>
 using state_ptr = mc::shared_ptr<StateType, state_deleter<StateType>, StateType*>;
 
 // State 缓存池类
-class state_pool {
+class MC_API state_pool {
 public:
-    static state_pool& instance() {
-        static state_pool pool;
-        return pool;
-    }
+    static state_pool& instance();
 
     void                     set_config(const state_pool_config& config);
     const state_pool_config& get_config() const;

@@ -17,10 +17,8 @@
 #ifndef MC_INTRUSIVE_INTRUSIVE_H
 #define MC_INTRUSIVE_INTRUSIVE_H
 
-#include <mc/intrusive/bucket_array.h>
 #include <mc/intrusive/hook.h>
 #include <mc/intrusive/list.h>
-#include <mc/intrusive/options.h>
 #include <mc/intrusive/set.h>
 #include <mc/intrusive/unordered_set.h>
 

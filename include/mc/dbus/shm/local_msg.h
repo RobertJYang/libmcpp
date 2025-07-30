@@ -24,7 +24,7 @@ inline bool is_unique_name(std::string_view name) {
     return !name.empty() && name.at(0) == ':';
 }
 
-class local_msg {
+class MC_API local_msg {
 public:
     local_msg() = default;
 
@@ -117,7 +117,7 @@ using shm_msg_promise  = mc::promise<local_msg>;
 using serial_map_type  = std::unordered_map<uint32_t, shm_msg_promise>;
 using service_map_type = std::unordered_map<std::string, serial_map_type>;
 
-class shm_pending_msgs {
+class MC_API shm_pending_msgs {
 public:
     bool send(std::string_view source_unique_name, uint32_t serial, shm_msg_promise promise);
     bool reply(std::string_view destination_unique_name, uint32_t serial, local_msg& msg);

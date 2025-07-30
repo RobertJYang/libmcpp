@@ -25,6 +25,8 @@ void ensure_numeric(std::string_view name, const mc::variant& value) {
 } // namespace
 
 struct math_funcs {
+    MC_REFLECTABLE("mc.expr.builtin.math");
+
     static mc::variant abs(const mc::variant& value) {
         ensure_numeric("abs", value);
         if (value.is_double()) {

@@ -14,23 +14,27 @@
 #define MC_EXPR_FUNCTION_PARSER_H
 
 #include <mc/dict.h>
-#include <mc/reflect.h>
 #include <mc/expr/function/call.h>
+#include <mc/reflect.h>
 #include <memory>
 #include <string>
 
 namespace mc::expr {
 
 struct relate_property {
+    MC_REFLECTABLE("mc.expr.relate_property");
+
     std::string type;
     std::string object_name;
     std::string property_name;
     std::string full_name;
-    std::string interface;  // 新增接口字段，支持 AAA[bmc.dev.xxx].DeviceName 语法
+    std::string interface; // 新增接口字段，支持 AAA[bmc.dev.xxx].DeviceName 语法
 };
 
 // 引用对象结构
 struct relate_object {
+    MC_REFLECTABLE("mc.expr.relate_object");
+
     std::string type;
     std::string object_name;
     std::string full_name;
@@ -43,79 +47,39 @@ struct property_type_config {
     std::string_view error_message_prefix;
 };
 
-class func_parser {
+class MC_API func_parser {
 public:
-    static func_parser& get_instance() {
-        static func_parser instance;
-        return instance;
-    }
+    static func_parser& get_instance();
 
-    func_call parse_function_call(const std::string& input);
+    func_call       parse_function_call(const std::string& input);
     relate_property parse_property(const std::string& input);
     relate_property parse_sync_property(const std::string& input);
     relate_property parse_ref_property(const std::string& input);
-    relate_object parse_ref_object(const std::string& input);
+    relate_object   parse_ref_object(const std::string& input);
 
 private:
-    func_parser()                         = default;
-    ~func_parser()                        = default;
+    func_parser()                              = default;
+    ~func_parser()                             = default;
     func_parser(const func_parser&)            = delete;
     func_parser& operator=(const func_parser&) = delete;
 
     std::pair<std::string, std::string> parse_dotted_property(const std::string& input);
-    std::string parse_function_name(const std::string& input);
-    std::string parse_params_string(const std::string& input);
-    
+    std::string                         parse_function_name(const std::string& input);
+    std::string                         parse_params_string(const std::string& input);
+
     // 通用属性解析函数
-    relate_property parse_property_with_type(const std::string& input, 
+    relate_property parse_property_with_type(const std::string&          input,
                                              const property_type_config& config);
 };
 
-class param_value_comparator {
+class MC_API param_value_comparator {
 public:
-    bool operator()(const mc::variant& a, const mc::variant& b) const {
-        if (a.get_type() != b.get_type()) {
-            return false;
-        }
-
-        switch (a.get_type()) {
-        case mc::type_id::string_type:
-            return a.as_string() == b.as_string();
-        case mc::type_id::int8_type:
-            return a.as_int8() == b.as_int8();
-        case mc::type_id::double_type:
-            return a.as_double() == b.as_double();
-        case mc::type_id::bool_type:
-            return a.as_bool() == b.as_bool();
-        case mc::type_id::object_type:
-            return compare_dicts(a.as_dict(), b.as_dict());
-        default:
-            return false;
-        }
-    }
+    bool operator()(const mc::variant& a, const mc::variant& b) const;
 
 private:
-    bool compare_dicts(const mc::dict& a, const mc::dict& b) const {
-        if (a.size() != b.size()) {
-            return false;
-        }
-
-        for (const auto& entry : a) {
-            auto it = b.find(entry.key);
-            if (it == b.end()) {
-                return false;
-            }
-            if (!(*this)(entry.value, it->value)) {
-                return false;
-            }
-        }
-        return true;
-    }
+    bool compare_dicts(const mc::dict& a, const mc::dict& b) const;
 };
 
 } // namespace mc::expr
-
-MC_REFLECT(mc::expr::relate_property, ((type, "type"))((object_name, "object_name"))((property_name, "property_name"))((full_name, "full_name"))((interface, "interface")));
-MC_REFLECT(mc::expr::relate_object, ((type, "type"))((object_name, "object_name"))((full_name, "full_name")));
 
 #endif // MC_EXPR_FUNCTION_PARSER_H

@@ -41,14 +41,7 @@ enum class protocol_type {
 
 } // namespace mc::network
 
-// 导出网络状态枚举到模块
-MC_MODULE_REFLECT_ENUM(mc_network,
-                       (mc::network::connection_status, "ConnectionStatus"),
-                       (DISCONNECTED)(CONNECTING)(CONNECTED)(ERROR))
-
-// 导出协议类型枚举到模块
-MC_MODULE_REFLECT_ENUM(mc_network,
-                       (mc::network::protocol_type, "ProtocolType"),
-                       (TCP)(UDP)(HTTP)(HTTPS))
+MC_REFLECTABLE("ConnectionStatus", mc::network::connection_status)
+MC_REFLECTABLE("ProtocolType", mc::network::protocol_type)
 
 #endif // MC_NETWORK_BASE_H

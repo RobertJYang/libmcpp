@@ -24,7 +24,7 @@ namespace mc::module {
 /**
  * @brief 模块接口
  */
-class module_base : public mc::shared_base {
+class MC_API module_base : public mc::shared_base {
 public:
     virtual ~module_base() = default;
 

@@ -38,7 +38,7 @@ struct runtime_config {
  * 1. IO执行器：基于 io_context，用于网络IO等事件驱动操作
  * 2. 工作执行器：基于 io_context，用于阻塞操作（如硬件IO）
  */
-class runtime_context {
+class MC_API runtime_context {
 public:
     /**
      * @brief 构造函数

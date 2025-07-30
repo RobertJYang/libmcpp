@@ -13,9 +13,8 @@
 #ifndef MC_RUNTIME_THREAD_LIST_H
 #define MC_RUNTIME_THREAD_LIST_H
 
-#include <mc/intrusive/hook.h>
+#include <mc/common.h>
 #include <mc/intrusive/list.h>
-#include <mc/intrusive/options.h>
 
 #include <functional>
 #include <memory>
@@ -26,7 +25,7 @@ namespace mc::runtime {
 /**
  * @brief 线程节点
  */
-class thread_node : public mc::intrusive::list_hook {
+class MC_API thread_node : public mc::intrusive::list_base_hook<> {
 public:
     /**
      * @brief 构造函数
@@ -74,9 +73,9 @@ private:
  * @brief 线程列表，管理一组线程的生命周期
  *
  */
-class thread_list {
+class MC_API thread_list {
 public:
-    using node_list_type = mc::intrusive::list<thread_node>;
+    using node_list_type = mc::intrusive::list<thread_node, mc::intrusive::constant_time_size<false>>;
 
     /**
      * @brief 默认构造函数
@@ -148,23 +147,13 @@ public:
      * @brief 遍历所有线程节点
      * @param visitor 访问函数
      */
-    template <typename Visitor>
-    void visit_threads(Visitor&& visitor) {
-        for (auto& node : m_threads) {
-            visitor(node);
-        }
-    }
+    void visit_threads(const std::function<void(thread_node&)>& visitor);
 
     /**
      * @brief 遍历所有线程节点（const版本）
      * @param visitor 访问函数
      */
-    template <typename Visitor>
-    void visit_threads(Visitor&& visitor) const {
-        for (const auto& node : m_threads) {
-            visitor(node);
-        }
-    }
+    void visit_threads(const std::function<void(const thread_node&)>& visitor) const;
 
 private:
     node_list_type m_threads;

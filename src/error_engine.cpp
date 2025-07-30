@@ -10,19 +10,21 @@
  * See the Mulan PSL v2 for more details.
  */
 
-#include <mc/engine/error_engine.h>
-#include <mc/engine/errors/std_errors.h>
-#include <mc/engine/utils.h>
+#include <mc/error_engine.h>
 #include <mc/log.h>
 #include <mc/string.h>
 
 #include <string_view>
 #include <unordered_map>
 
-namespace mc::engine {
+namespace mc {
 
 error_engine& error_engine::get_instance() {
     return mc::singleton<error_engine>::instance();
+}
+
+void error_engine::reset_for_test() {
+    mc::singleton<error_engine>::reset_for_test();
 }
 
 struct error_info_data {
@@ -166,7 +168,10 @@ error_ptr make_error(const error_info& info) {
 }
 
 bool is_valid_error_name(std::string_view name) {
-    return detail::is_valid_interface_name(name);
+    return mc::is_valid_interface_name(name);
 }
 
-} // namespace mc::engine
+} // namespace mc
+
+MC_REFLECT(mc::error_info, (name)(format))
+MC_REFLECT(mc::error, (name)(format)(args))

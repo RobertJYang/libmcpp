@@ -24,7 +24,7 @@ struct service_impl;
 class abstract_object;
 class service_object_table;
 
-class service : public mc::core::service_base, public mc::noncopyable_nonmovable {
+class MC_API service : public mc::core::service_base, public mc::noncopyable_nonmovable {
 public:
     service(std::string_view name);
     ~service() override;

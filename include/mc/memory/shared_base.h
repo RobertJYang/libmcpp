@@ -14,7 +14,9 @@
 #define MC_REF_BASE_H
 
 #include <atomic>
+
 #include <mc/atomic_ref.h>
+#include <mc/common.h>
 #include <mc/memory/allocator.h>
 
 /**
@@ -89,7 +91,7 @@ template <typename T, typename Deleter = mc::default_deleter<T>, typename Pointe
 class weak_ptr;
 
 namespace detail {
-[[noreturn]] void throw_invalid_op_exception(const char* msg);
+[[noreturn]] MC_API void throw_invalid_op_exception(const char* msg);
 } // namespace detail
 
 /**

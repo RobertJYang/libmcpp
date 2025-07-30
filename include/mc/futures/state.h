@@ -32,7 +32,7 @@ using result_variant_t =
                                 std::variant<std::monostate, std::exception_ptr>,
                                 std::variant<T, std::exception_ptr>>;
 
-struct state_base {
+struct MC_API state_base {
     std::mutex              m_mutex;
     std::condition_variable m_cv;
 
@@ -43,8 +43,8 @@ struct state_base {
     launch            policy{launch::async};
     callback_list     m_cancel_callbacks;
 
-    void reset();
-    void reuse();
+    MC_API void reset();
+    MC_API void reuse();
 };
 
 template <typename T, typename Executor, typename Allocator>

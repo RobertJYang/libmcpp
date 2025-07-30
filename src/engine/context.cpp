@@ -11,7 +11,7 @@
  */
 
 #include <mc/engine/context.h>
-#include <mc/engine/error_engine.h>
+#include <mc/error_engine.h>
 #include <mc/exception.h>
 
 namespace mc::engine {
@@ -22,7 +22,7 @@ context::context(service& s, abstract_object& object) : m_service(s), m_object(o
 context::~context() {
 }
 
-mc::engine::error_ptr context::get_error() {
+mc::error_ptr context::get_error() {
     return m_error;
 }
 
@@ -32,6 +32,10 @@ bool context::is_error() const {
 
 void context::report_error(std::string_view error_name, mc::dict args) {
     m_error = error_engine::get_instance().report_error(error_name, std::move(args));
+}
+
+void context::report_error(const error_info& error, mc::dict args) {
+    m_error = error_engine::get_instance().report_error(error, std::move(args));
 }
 
 void context::set_arg(std::string_view key, mc::variant value) {
@@ -115,18 +119,31 @@ std::string_view context::get_sender() const {
 }
 
 void context::throw_error(std::string_view error_name, mc::dict args) {
-    auto* ctx = context_stack::top_value();
-    if (!ctx) {
-        MC_THROW(mc::method_call_exception, "context not found");
-    }
-
-    ctx->report_error(error_name, std::move(args));
+    auto& ctx = get_current_context();
+    ctx.report_error(error_name, std::move(args));
     MC_THROW(mc::method_call_exception, "call method ${method} at ${path} failed: ${error}",
-             ("method", ctx->get_method_name())("path", ctx->get_path())("error", error_name));
+             ("method", ctx.get_method_name())("path", ctx.get_path())("error", error_name));
 }
 
 void context::throw_error(const error_info& error, mc::dict args) {
-    throw_error(error.name, std::move(args));
+    auto& ctx = get_current_context();
+    ctx.report_error(error, std::move(args));
+    MC_THROW(mc::method_call_exception, "call method ${method} at ${path} failed: ${error}",
+             ("method", ctx.get_method_name())("path", ctx.get_path())("error", error.name));
+}
+
+context& context::get_current_context() {
+    auto* ctx = context_stack::top_value();
+    if (!ctx) {
+        MC_THROW(mc::method_call_exception,
+                 "context not found, maybe you are not in a method call");
+    }
+
+    return *ctx;
+}
+
+context* context::get_current_context_ptr() {
+    return context_stack::top_value();
 }
 
 const method_type_info* context::get_method() const {
@@ -135,6 +152,18 @@ const method_type_info* context::get_method() const {
 
 void context::set_method(const method_type_info* method) {
     m_method = method;
+}
+
+void context::ignore() {
+    m_status = handler_status::ignored;
+}
+
+void context::accept() {
+    m_status = handler_status::accepted;
+}
+
+handler_status context::get_status() const {
+    return m_status;
 }
 
 } // namespace mc::engine

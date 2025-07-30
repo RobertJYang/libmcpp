@@ -414,7 +414,7 @@ constexpr void parse_format_string(string_view fmt_str, Context& ctx) {
     }
 }
 
-class format_parser {
+class MC_API format_parser {
 public:
     static void parse(std::string_view fmt_str, format_context& ctx);
     static void format_arg(format_context& ctx, const format_arg& arg, format_spec& spec);
