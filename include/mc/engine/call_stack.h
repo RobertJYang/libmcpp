@@ -14,30 +14,22 @@
 #define MC_ENGINE_CALL_STACK_H
 #include <mc/common.h>
 
-namespace mc::engine {
+namespace mc::engine::detail {
 
-namespace detail {
 template <typename Key, typename Value = unsigned char>
-class call_stack {
+class MC_API call_stack {
 public:
     using call_stack_type = call_stack<Key, Value>;
 
-    class context : private mc::noncopyable {
+    class MC_API context : private mc::noncopyable {
     public:
-        explicit context(Key* k) : m_key(k), m_next(call_stack_type::s_top) {
-            m_value                = reinterpret_cast<unsigned char*>(this);
-            call_stack_type::s_top = this;
-        }
+        explicit context(Key* k);
 
         // 将键值对推入调用栈
-        context(Key* k, Value& v) : m_key(k), m_value(&v), m_next(call_stack_type::s_top) {
-            call_stack_type::s_top = this;
-        }
+        context(Key* k, Value& v);
 
         // 从调用栈中弹出键值对
-        ~context() {
-            call_stack_type::s_top = m_next;
-        }
+        ~context();
 
     private:
         friend class call_stack<Key, Value>;
@@ -54,40 +46,61 @@ public:
 
     friend class context;
 
-    // 判断指定所有者是否在调用栈中。如果存在，返回地址，否则返回 0
-    static Value* contains(Key* k) {
-        context* elem = s_top;
-        while (elem) {
-            if (elem->m_key == k) {
-                return elem->m_value;
-            }
-            elem = elem->m_next;
-        }
-        return 0;
-    }
+    // 判断指定所有者是否在调用栈中。如果存在，返回地址，否则返回 nullptr
+    static MC_API Value* contains(Key* k);
 
     // 获取调用栈顶的值
-    static Value* top_value() {
-        context* elem = s_top;
-        return elem ? elem->m_value : nullptr;
-    }
+    static MC_API Value* top_value();
 
     // 获取调用栈顶的键
-    static Key* top_key() {
-        context* elem = s_top;
-        return elem ? elem->m_key : nullptr;
-    }
-
-private:
-    // 当前线程的调用栈顶
-    static thread_local context* s_top;
+    static MC_API Key* top_key();
 };
 
 template <typename Key, typename Value>
-thread_local typename call_stack<Key, Value>::context* call_stack<Key, Value>::s_top;
+struct call_stack_impl {
+    // 当前线程的调用栈顶
+    static inline thread_local typename call_stack<Key, Value>::context* s_top = nullptr;
+};
 
-} // namespace detail
+} // namespace mc::engine::detail
 
-} // namespace mc::engine
+// ======= 调用栈实例化宏 =======
+#define MC_ENGINE_CALL_STACK_IMPL(Key, Value)                                      \
+    template class mc::engine::detail::call_stack<Key, Value>;                     \
+    template <>                                                                    \
+    Value* mc::engine::detail::call_stack<Key, Value>::top_value() {               \
+        auto* elem = call_stack_impl<Key, Value>::s_top;                           \
+        return elem ? elem->m_value : nullptr;                                     \
+    }                                                                              \
+    template <>                                                                    \
+    Key* mc::engine::detail::call_stack<Key, Value>::top_key() {                   \
+        auto* elem = call_stack_impl<Key, Value>::s_top;                           \
+        return elem ? elem->m_key : nullptr;                                       \
+    }                                                                              \
+    template <>                                                                    \
+    Value* mc::engine::detail::call_stack<Key, Value>::contains(Key* k) {          \
+        auto* elem = call_stack_impl<Key, Value>::s_top;                           \
+        while (elem) {                                                             \
+            if (elem->m_key == k)                                                  \
+                return elem->m_value;                                              \
+            elem = elem->m_next;                                                   \
+        }                                                                          \
+        return nullptr;                                                            \
+    }                                                                              \
+    template <>                                                                    \
+    mc::engine::detail::call_stack<Key, Value>::context::context(Key* k)           \
+        : m_key(k), m_next(call_stack_impl<Key, Value>::s_top) {                   \
+        m_value                            = reinterpret_cast<Value*>(this);       \
+        call_stack_impl<Key, Value>::s_top = this;                                 \
+    }                                                                              \
+    template <>                                                                    \
+    mc::engine::detail::call_stack<Key, Value>::context::context(Key* k, Value& v) \
+        : m_key(k), m_value(&v), m_next(call_stack_impl<Key, Value>::s_top) {      \
+        call_stack_impl<Key, Value>::s_top = this;                                 \
+    }                                                                              \
+    template <>                                                                    \
+    mc::engine::detail::call_stack<Key, Value>::context::~context() {              \
+        call_stack_impl<Key, Value>::s_top = m_next;                               \
+    }
 
 #endif // MC_ENGINE_CALL_STACK_H
