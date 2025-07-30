@@ -56,13 +56,13 @@ protected:
     }
 
     static void SetUpTestSuite() {
-        mc::singleton<mc::runtime::runtime_context>::reset_for_test();
+        mc::runtime::reset_runtime_context();
     }
 
     static void TearDownTestSuite() {
         get_runtime().stop();
         get_runtime().join();
-        mc::singleton<mc::runtime::runtime_context>::reset_for_test();
+        mc::runtime::reset_runtime_context();
     }
 };
 
@@ -92,7 +92,7 @@ protected:
 
     static void TearDownTestSuite() {
         mc::core::app().stop();
-        mc::singleton<mc::core::application>::reset_for_test();
+        mc::core::application::reset_for_test();
         TestWithDbusDaemon::TearDownTestSuite();
     };
 };
