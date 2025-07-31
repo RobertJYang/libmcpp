@@ -69,12 +69,17 @@ local_msg::local_msg(const variants& v) {
     m_type = get_uint32_item(v, TYPE_INDEX, DBUS_MESSAGE_TYPE_METHOD_CALL);
     m_service_name =
         get_variants_item<std::string>(v, SERVICE_NAME_INDEX, type_id::string_type, "");
-    m_path         = get_variants_item<std::string>(v, PATH_INDEX, type_id::string_type, "");
-    m_interface    = get_variants_item<std::string>(v, INTERFACE_INDEX, type_id::string_type, "");
-    m_member       = get_variants_item<std::string>(v, MEMBER_INDEX, type_id::string_type, "");
-    m_error_name   = get_variants_item<std::string>(v, ERROR_NAME_INDEX, type_id::string_type, "");
-    m_signature    = get_variants_item<std::string>(v, SIGNATURE_INDEX, type_id::string_type, "");
-    m_args         = get_variants_item<variants>(v, ARGS_INDEX, type_id::array_type, variants());
+    m_path        = get_variants_item<std::string>(v, PATH_INDEX, type_id::string_type, "");
+    m_interface   = get_variants_item<std::string>(v, INTERFACE_INDEX, type_id::string_type, "");
+    m_member      = get_variants_item<std::string>(v, MEMBER_INDEX, type_id::string_type, "");
+    m_error_name  = get_variants_item<std::string>(v, ERROR_NAME_INDEX, type_id::string_type, "");
+    m_signature   = get_variants_item<std::string>(v, SIGNATURE_INDEX, type_id::string_type, "");
+    auto raw_args = get_variants_item<variants>(v, ARGS_INDEX, type_id::array_type, variants());
+    if (m_signature.empty()) {
+        m_args = raw_args;
+    } else {
+        m_args = parse_variant_elements(signature_iterator(m_signature), raw_args, 0);
+    }
     m_sender       = get_variants_item<std::string>(v, SENDER_INDEX, type_id::string_type, "");
     m_serial       = get_uint32_item(v, SERIAL_INDEX, 0);
     m_local_call   = get_variants_item<bool>(v, LOCAL_CALL_INDEX, type_id::bool_type, false);
