@@ -345,24 +345,32 @@ void harbor::start() {
         MC_THROW(mc::exception, "failed to init message queue");
     }
     m_is_running = true;
-    m_worker     = std::make_unique<std::thread>([this]() {
-        while (m_is_running) {
-            m_mq->dispatch(1000, 1000, [this](message_data& msg_data) {
-                process_message(msg_data);
-            });
-            std::this_thread::sleep_for(std::chrono::milliseconds(100));
-        }
-    });
+    // 创建3个worker线程来处理消息
+    for (int i = 0; i < 3; ++i) {
+        m_workers.emplace_back(std::make_unique<std::thread>([this]() {
+            while (m_is_running) {
+                m_mq->dispatch(1000, 1000, [this](message_data& msg_data) {
+                    boost::asio::post(mc::get_work_context(), [this, msg_data]() mutable {
+                        process_message(msg_data);
+                    });
+                });
+                std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            }
+        }));
+    }
 }
 
 void harbor::stop() {
     std::lock_guard<std::mutex> lock(m_mutex);
     m_is_running = false;
     m_connection.disconnect();
-    if (m_worker) {
-        m_worker->join();
-        m_worker.reset();
+    // 等待所有worker线程结束
+    for (auto& worker : m_workers) {
+        if (worker && worker->joinable()) {
+            worker->join();
+        }
     }
+    m_workers.clear();
 }
 
 void harbor::register_unique_name(std::string unique_name, std::string service_name) {

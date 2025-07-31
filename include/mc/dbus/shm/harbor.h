@@ -92,7 +92,7 @@ private:
     mc::dbus::shm_pending_msgs                   m_shm_pending_msgs;
     std::unordered_map<std::string, std::string> m_unique_name_map;
     std::mutex                                   m_unique_name_map_mutex;
-    std::unique_ptr<std::thread>                 m_worker;
+    std::vector<std::unique_ptr<std::thread>>    m_workers;
 };
 
 } // namespace mc::dbus
