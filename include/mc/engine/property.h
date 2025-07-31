@@ -754,11 +754,11 @@ public:
 
     friend inline void from_variant(const mc::variant& v, property_type& value) {
         if (!v.is_string()) {
-            from_variant(v, value.m_value);
+            value.set_value_impl(v.as<T>());
             return;
         }
 
-        auto str = v.as<std::string>();
+        const std::string& str = v.get_string();
 
         if (str.substr(0, 3) == "<=/") {
             auto sync_prop = func_parser::get_instance().parse_sync_property(str);
@@ -777,7 +777,7 @@ public:
         } else if (str.substr(0, 6) == "$Func_") {
             value.process_property_value(str);
         } else {
-            from_variant(v, value.m_value);
+            value.set_value_impl(v.as<T>());
         }
     }
 
@@ -846,7 +846,7 @@ public:
 
 protected:
     void set_variant(const mc::variant& value) override {
-        set_value_impl(value.as<T>());
+        value.as(*this);
     }
 
     template <typename U>
