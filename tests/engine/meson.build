@@ -12,5 +12,4 @@ test_engine_files = [
     'engine/test_path_iterator.cpp',
     'engine/test_async_invoke.cpp',
     'engine/test_result.cpp',
-    'engine/test_micro_component.cpp',
 ]

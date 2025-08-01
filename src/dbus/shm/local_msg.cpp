@@ -185,6 +185,10 @@ static variants parse_variant_array(signature_iterator it, const variants& v, si
 static variant parse_variant_array_or_dict(signature_iterator it, const variant& v, size_t depth) {
     ensure_message_depth(depth);
     if (it.current_type_code() == type_code::dict_entry_start) {
+        if (v.is_array() && v.as_array().empty()) {
+            // 兼容lua框架，空数组也允许作为空字典处理
+            return mc::dict();
+        }
         return parse_variant_dict(it, v.get_object(), depth + 1);
     }
     if (v.is_null()) {
