@@ -249,7 +249,14 @@ void harbor::invoke_method(local_msg* msg) {
     auto args      = msg->read();
     auto handler   = it->second;
     try {
-        auto result = handler(path, interface, member, args);
+        auto start_time = std::chrono::high_resolution_clock::now();
+        auto result     = handler(path, interface, member, args);
+        auto end_time   = std::chrono::high_resolution_clock::now();
+        auto duration   = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count();
+        if (duration >= 5000) {
+            wlog("method handle time cost: ${duration} ms, path: ${path}, interface: ${interface}, method: ${member}",
+                 ("duration", duration)("path", path)("interface", interface)("member", member));
+        }
         if (result.first) {
             msg->method_return();
             msg->append_return_args(result.first->get_result_signature(), result.second);
@@ -314,7 +321,9 @@ void harbor::process_local_message(const variants& unpacked) {
         return;
     }
     if (!is_reply) {
-        invoke_method(msg);
+        boost::asio::post(mc::get_work_context(), [this, msg]() mutable {
+            invoke_method(msg);
+        });
         return;
     }
     reply_shm_msg(msg->destination(), msg->get_reply_serial(), *msg);
@@ -350,11 +359,9 @@ void harbor::start() {
         m_workers.emplace_back(std::make_unique<std::thread>([this]() {
             while (m_is_running) {
                 m_mq->dispatch(1000, 1000, [this](message_data& msg_data) {
-                    boost::asio::post(mc::get_work_context(), [this, msg_data]() mutable {
-                        process_message(msg_data);
-                    });
+                    process_message(msg_data);
                 });
-                std::this_thread::sleep_for(std::chrono::milliseconds(100));
+                std::this_thread::sleep_for(std::chrono::milliseconds(10));
             }
         }));
     }
