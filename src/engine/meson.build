@@ -13,5 +13,4 @@ engine_src_files = [
   'engine/path.cpp',
   'engine/path_iterator.cpp',
   'engine/result.cpp',
-  'engine/micro_component.cpp',
 ]

@@ -174,8 +174,8 @@ TEST_F(LocalMsgTest, ConstructFromVariants) {
     v.push_back("bmc.kepler.test.intf1");
     v.push_back("TestMethod1");
     v.push_back("TestErrorName");
-    v.push_back("a{ss}");
-    v.push_back(variants({"test error msg", 1, "str2", 3.3}));
+    v.push_back("sisda{ss}");
+    v.push_back(variants({"test error msg", 1, "str2", 3.3, variants()}));
     v.push_back(":1.23");
     v.push_back(static_cast<uint32_t>(45));
     v.push_back(true);
@@ -190,13 +190,15 @@ TEST_F(LocalMsgTest, ConstructFromVariants) {
     auto [error_name, error_message] = msg->get_error();
     ASSERT_EQ(error_name, "TestErrorName");
     ASSERT_EQ(error_message, "test error msg");
-    ASSERT_EQ(msg->signature(), "a{ss}");
+    ASSERT_EQ(msg->signature(), "sisda{ss}");
     auto args = msg->read();
-    ASSERT_EQ(args.size(), 4);
+    ASSERT_EQ(args.size(), 5);
     ASSERT_EQ(args[0].as_string(), "test error msg");
     ASSERT_EQ(args[1].as_int32(), 1);
     ASSERT_EQ(args[2].as_string(), "str2");
     ASSERT_EQ(args[3].as_double(), 3.3);
+    ASSERT_TRUE(args[4].is_dict());
+    ASSERT_EQ(args[4].as_dict().size(), 0);
     ASSERT_EQ(msg->sender(), ":1.23");
     ASSERT_EQ(msg->get_serial(), 45);
     ASSERT_EQ(msg->is_local_call(), true);
