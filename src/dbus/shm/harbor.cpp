@@ -16,6 +16,7 @@
 #include <mc/dbus/shm/serialize.h>
 #include <mc/log.h>
 #include <mc/runtime.h>
+#include <memory>
 
 namespace mc::dbus {
 
@@ -295,8 +296,13 @@ void harbor::process_message(message_data& msg_data) {
 void harbor::process_dbus_message(DBusMessage* msg) {
     int msg_type = dbus_message_get_type(msg);
     if (msg_type == DBUS_MESSAGE_TYPE_SIGNAL) {
-        auto& match = m_connection.get_match();
-        match.run_msg(msg);
+        // 异步处理 signal 消息，避免阻塞 harbor 线程
+        dbus_message_ref(msg); // 增加引用计数，传递到异步任务
+        boost::asio::post(mc::get_work_context(), [this, msg]() mutable {
+            auto& match = m_connection.get_match();
+            match.run_msg(msg);
+            dbus_message_unref(msg); // 在异步任务中释放引用
+        });
     } else {
         elog("invalid message type ${type} for shared memory queue", ("type", msg_type));
     }
@@ -308,7 +314,7 @@ void harbor::process_local_message(const variants& unpacked) {
         // 格式错误的消息无法解析msg_type和destination
         return;
     }
-    auto msg      = new local_msg(unpacked);
+    auto msg      = std::make_unique<local_msg>(unpacked);
     auto msg_type = msg->msg_type();
     bool is_reply;
     if (msg_type == DBUS_MESSAGE_TYPE_METHOD_RETURN || msg_type == DBUS_MESSAGE_TYPE_ERROR) {
@@ -316,17 +322,19 @@ void harbor::process_local_message(const variants& unpacked) {
     } else if (msg_type == DBUS_MESSAGE_TYPE_METHOD_CALL) {
         is_reply = false;
     } else {
-        delete msg;
         elog("unknown message type: ${msg_type}", ("msg_type", msg_type));
         return;
     }
     if (!is_reply) {
-        boost::asio::post(mc::get_work_context(), [this, msg]() mutable {
-            invoke_method(msg);
+        boost::asio::post(mc::get_work_context(), [this, msg = std::move(msg)]() mutable {
+            invoke_method(msg.get());
         });
         return;
     }
-    reply_shm_msg(msg->destination(), msg->get_reply_serial(), *msg);
+    // 异步处理 method return/error 响应，避免阻塞 harbor 线程
+    boost::asio::post(mc::get_work_context(), [this, msg = std::move(msg)]() mutable {
+        reply_shm_msg(msg->destination(), msg->get_reply_serial(), *msg);
+    });
 }
 
 void harbor::start() {
