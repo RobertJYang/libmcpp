@@ -11,6 +11,7 @@
  */
 
 #include <mc/dbus/shm/local_msg.h>
+#include <mc/log.h>
 
 namespace mc::dbus {
 static constexpr size_t MAX_VARIANT_DEPTH  = 64;
@@ -78,7 +79,12 @@ local_msg::local_msg(const variants& v) {
     if (m_signature.empty()) {
         m_args = raw_args;
     } else {
-        m_args = parse_variant_elements(signature_iterator(m_signature), raw_args, 0);
+        try {
+            m_args = parse_variant_elements(signature_iterator(m_signature), raw_args, 0);
+        } catch (const std::exception& e) {
+            m_args = raw_args;
+            elog("failed to parse local msg args, error: ${error}", ("error", e.what()));
+        }
     }
     m_sender       = get_variants_item<std::string>(v, SENDER_INDEX, type_id::string_type, "");
     m_serial       = get_uint32_item(v, SERIAL_INDEX, 0);
@@ -193,6 +199,9 @@ static variant parse_variant_array_or_dict(signature_iterator it, const variant&
     }
     if (v.is_null()) {
         return variant();
+    }
+    if (it.current_type_code() == type_code::byte_type && v.is_string()) {
+        return parse_variant_basic<std::string_view>(v);
     }
     return parse_variant_array(it, v.get_array(), depth + 1);
 }
