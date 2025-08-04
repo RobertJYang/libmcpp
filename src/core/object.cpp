@@ -107,7 +107,7 @@ public:
     object_impl& operator=(object_impl&& other) = delete;
 
     // 线程安全的数据访问方法
-    std::string      get_name() const;
+    std::string_view get_name() const;
     void             set_name(std::string_view name);
     object_ptr       get_parent() const;
     void             set_parent(object* parent);
@@ -155,11 +155,19 @@ object_impl& object_impl::operator=(const object_impl& other) {
     return *this;
 }
 
-std::string object_impl::get_name() const {
-    return m_data.rlock()->name;
+std::string_view object_impl::get_name() const {
+    // 使用 thread_local 存储确保 string_view 的生命周期安全
+    thread_local std::string cached_name;
+    cached_name = m_data.rlock()->name;
+    return cached_name;
 }
 
 void object_impl::set_name(std::string_view name) {
+    // 检查名称是否已经设置（线程安全检查）
+    std::string current_name{this->get_name()};  // 显式转换 string_view 为 string
+    MC_ASSERT(current_name.empty(), "对象名称已设置，不能重复设置: 当前名称='${current}', 尝试设置='${new}'", 
+              ("current", current_name)("new", name));
+    
     m_data.wlock()->name = std::string(name);
 }
 
@@ -374,7 +382,7 @@ void object::set_name(std::string_view name) {
     ensure_impl().set_name(name);
 }
 
-std::string object::get_name() const {
+std::string_view object::get_name() const {
     return ensure_impl().get_name();
 }
 

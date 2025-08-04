@@ -6,6 +6,7 @@ test_engine_files = [
     'engine/test_std_interface.cpp',
     'engine/test_engine.cpp',
     'engine/test_property.cpp',
+    'engine/test_property_concurrent_fix.cpp',
     'engine/test_path.cpp',
     'engine/test_path_iterator.cpp',
     'engine/test_async_invoke.cpp',

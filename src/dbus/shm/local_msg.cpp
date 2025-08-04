@@ -69,12 +69,17 @@ local_msg::local_msg(const variants& v) {
     m_type = get_uint32_item(v, TYPE_INDEX, DBUS_MESSAGE_TYPE_METHOD_CALL);
     m_service_name =
         get_variants_item<std::string>(v, SERVICE_NAME_INDEX, type_id::string_type, "");
-    m_path         = get_variants_item<std::string>(v, PATH_INDEX, type_id::string_type, "");
-    m_interface    = get_variants_item<std::string>(v, INTERFACE_INDEX, type_id::string_type, "");
-    m_member       = get_variants_item<std::string>(v, MEMBER_INDEX, type_id::string_type, "");
-    m_error_name   = get_variants_item<std::string>(v, ERROR_NAME_INDEX, type_id::string_type, "");
-    m_signature    = get_variants_item<std::string>(v, SIGNATURE_INDEX, type_id::string_type, "");
-    m_args         = get_variants_item<variants>(v, ARGS_INDEX, type_id::array_type, variants());
+    m_path        = get_variants_item<std::string>(v, PATH_INDEX, type_id::string_type, "");
+    m_interface   = get_variants_item<std::string>(v, INTERFACE_INDEX, type_id::string_type, "");
+    m_member      = get_variants_item<std::string>(v, MEMBER_INDEX, type_id::string_type, "");
+    m_error_name  = get_variants_item<std::string>(v, ERROR_NAME_INDEX, type_id::string_type, "");
+    m_signature   = get_variants_item<std::string>(v, SIGNATURE_INDEX, type_id::string_type, "");
+    auto raw_args = get_variants_item<variants>(v, ARGS_INDEX, type_id::array_type, variants());
+    if (m_signature.empty()) {
+        m_args = raw_args;
+    } else {
+        m_args = parse_variant_elements(signature_iterator(m_signature), raw_args, 0);
+    }
     m_sender       = get_variants_item<std::string>(v, SENDER_INDEX, type_id::string_type, "");
     m_serial       = get_uint32_item(v, SERIAL_INDEX, 0);
     m_local_call   = get_variants_item<bool>(v, LOCAL_CALL_INDEX, type_id::bool_type, false);
@@ -180,6 +185,10 @@ static variants parse_variant_array(signature_iterator it, const variants& v, si
 static variant parse_variant_array_or_dict(signature_iterator it, const variant& v, size_t depth) {
     ensure_message_depth(depth);
     if (it.current_type_code() == type_code::dict_entry_start) {
+        if (v.is_array() && v.as_array().empty()) {
+            // 兼容lua框架，空数组也允许作为空字典处理
+            return mc::dict();
+        }
         return parse_variant_dict(it, v.get_object(), depth + 1);
     }
     if (v.is_null()) {

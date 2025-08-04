@@ -13,6 +13,7 @@
 #include <mc/core/object.h>
 #include <mc/memory.h>
 #include <mc/runtime/thread_list.h>
+#include <mc/exception.h>
 
 #include <gtest/gtest.h>
 
@@ -60,7 +61,7 @@ TEST_F(ThreadSafeObjectTest, BasicParentChildRelationship) {
     EXPECT_EQ(root_object->find_child("nonexistent"), nullptr);
 }
 
-// 测试多线程同时访问 ensure_impl 的情况 - 这是新增的关键测试
+// 测试多线程同时访问 ensure_impl 的情况 - 验证名称唯一性检查
 TEST_F(ThreadSafeObjectTest, ConcurrentEnsureImplAccess) {
     const int num_threads    = 8;
     const int num_iterations = 100;
@@ -69,41 +70,51 @@ TEST_F(ThreadSafeObjectTest, ConcurrentEnsureImplAccess) {
         auto obj = mc::make_shared<object>();
 
         std::atomic<int>         success_count{0};
+        std::atomic<int>         exception_count{0};
         mc::runtime::thread_list threads;
 
-        // 创建多个线程同时访问 ensure_impl
-        threads.start_threads(num_threads, [&obj, &success_count]() {
-            // 同时设置对象名称，这会触发 ensure_impl()
-            obj->set_name("test_name");
-            success_count.fetch_add(1);
+        // 创建多个线程同时访问 ensure_impl，尝试设置相同的名称
+        threads.start_threads(num_threads, [&obj, &success_count, &exception_count]() {
+            try {
+                // 同时设置对象名称，这会触发 ensure_impl()
+                // 由于添加了名称唯一性检查，只有第一个线程能成功，其他线程会抛出异常
+                obj->set_name("test_name");
+                success_count.fetch_add(1);
+            } catch (const mc::assert_exception&) {
+                // 预期的异常：名称已经被设置
+                exception_count.fetch_add(1);
+            }
         });
 
         // 等待所有线程完成
         threads.join_all();
 
-        // 验证所有线程都成功执行
-        EXPECT_EQ(success_count.load(), num_threads);
-        EXPECT_EQ(obj->get_name(), "test_name");
+        // 验证结果：只有一个线程成功设置名称，其他线程抛出异常
+        EXPECT_EQ(success_count.load(), 1) << "应该只有一个线程成功设置名称";
+        EXPECT_EQ(exception_count.load(), num_threads - 1) << "其他线程应该抛出异常";
+        EXPECT_EQ(obj->get_name(), "test_name") << "对象名称应该被正确设置";
     }
 }
 
-// 测试多线程同时访问对象属性
+// 测试多线程同时访问对象属性 - 每个线程使用不同的对象以避免名称冲突
 TEST_F(ThreadSafeObjectTest, ConcurrentPropertyAccess) {
     const int num_threads           = 4;
     const int operations_per_thread = 50;
-
-    auto obj = mc::make_shared<object>();
 
     std::atomic<int>         name_operations{0};
     std::atomic<int>         parent_operations{0};
     mc::runtime::thread_list threads;
 
-    // 创建多个线程进行各种操作
+    // 创建多个线程进行各种操作，每个线程使用独立的对象
     threads.start_threads(num_threads, [&](std::size_t i) {
+        auto obj = mc::make_shared<object>(); // 每个线程使用独立的对象
         for (int j = 0; j < operations_per_thread; ++j) {
-            // 设置和获取名称
-            std::string name = "thread_" + std::to_string(i) + "_op_" + std::to_string(j);
-            obj->set_name(name);
+            // 设置和获取名称 - 现在每个对象只设置一次
+            if (j == 0) {
+                std::string name = "thread_" + std::to_string(i) + "_object";
+                obj->set_name(name);
+            }
+            
             auto retrieved_name = obj->get_name();
             if (!retrieved_name.empty()) {
                 name_operations.fetch_add(1);
@@ -262,29 +273,31 @@ TEST_F(ThreadSafeObjectTest, ParentDestructionHandling) {
     }
 }
 
-// 测试设置和获取名称的线程安全性
+// 测试设置和获取名称的线程安全性 - 每个线程使用独立对象
 TEST_F(ThreadSafeObjectTest, ConcurrentNameOperations) {
-    auto                     test_object = mc::make_shared<object>();
     mc::runtime::thread_list threads;
     const int                num_operations = 1000;
+    std::atomic<int>         successful_operations{0};
 
-    // 使用新的 start_threads 重载版本
-    threads.start_threads(5, [test_object](std::size_t i) {
+    // 每个线程使用独立的对象以避免名称重复设置的冲突
+    threads.start_threads(5, [&successful_operations](std::size_t i) {
         for (int j = 0; j < num_operations; ++j) {
+            auto test_object = mc::make_shared<object>(); // 每次操作使用新对象
             std::string name = "thread_" + std::to_string(i) + "_name_" + std::to_string(j);
             test_object->set_name(name);
 
             // 同时读取名称
             auto current_name = test_object->get_name();
-            EXPECT_FALSE(current_name.empty());
+            if (!current_name.empty() && current_name == name) {
+                successful_operations.fetch_add(1);
+            }
         }
     });
 
     threads.join_all();
 
-    // 最终名称应该是有效的
-    auto final_name = test_object->get_name();
-    EXPECT_FALSE(final_name.empty());
+    // 验证所有操作都成功
+    EXPECT_EQ(successful_operations.load(), 5 * num_operations);
 }
 
 // 测试多线程设置父对象

@@ -225,14 +225,22 @@ void object_impl::set_owner(abstract_object* new_owner) {
     m_owner = new_owner;
 }
 
+/**
+ * - 直接调用基类的 get_name()，它现在返回 string_view，已经是高效的
+ * - 移除了对象级缓存，因为基类已经处理了缓存逻辑
+ * - 保持了线程安全性
+ */
 std::string_view object_impl::get_object_name() const {
-    // 由于 get_name() 现在返回 std::string，我们需要缓存结果
-    static thread_local std::string cached_name;
-    cached_name = this->get_name();
-    return cached_name;
+    return this->get_name();
 }
 
+/**
+ * **并发安全性：**
+ * - 使用基类的线程安全接口进行名称设置
+ * - 名称唯一性检查现在由基类 core::object::set_name() 统一处理
+ */
 void object_impl::set_object_name(std::string_view name) {
+    // 直接调用基类方法，检查逻辑已在基类中实现
     this->set_name(name);
 }
 

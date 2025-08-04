@@ -92,14 +92,15 @@ TEST_F(LocalMsgTest, Pack) {
     variant arg2 = variants{variants{257, false, 3, "abc"}, variants{88, true, 4, "def"}};
     variant arg3 = 33;
     variant arg4 = dict({{"a", dict({{"b", "str2"}, {"c", 33}})}});
-    variant arg5 = variants{7, 8, 9, 10};
-    msg->append("sa(ibys)ua{sa{sv}}ay", arg1, arg2, arg3, arg4, arg5);
+    variant arg5 = variants{97, 98, 99, 100}; // abcd
+    variant arg6 = 3.14;
+    msg->append("sa(ibys)ua{sa{sv}}ayd", arg1, arg2, arg3, arg4, arg5, arg6);
     packed   = msg->pack();
     unpacked = dbus::serialize::unpack(packed);
     ASSERT_EQ(unpacked.size(), 12);
     ASSERT_TRUE(unpacked[7].is_array());
     args = unpacked[7].as_array();
-    ASSERT_EQ(args.size(), 5);
+    ASSERT_EQ(args.size(), 6);
     ASSERT_EQ(args[0].as_string(), "str1");
     auto unpacked_arg2 = args[1].as_array();
     ASSERT_EQ(unpacked_arg2.size(), 2);
@@ -119,12 +120,12 @@ TEST_F(LocalMsgTest, Pack) {
     auto unpacked_arg4 = args[3].as_dict();
     ASSERT_EQ(unpacked_arg4["a"].as_dict()["b"].as_string(), "str2");
     ASSERT_EQ(unpacked_arg4["a"].as_dict()["c"].as_int32(), 33);
-    auto unpacked_arg5 = args[4].as_array();
-    ASSERT_EQ(unpacked_arg5.size(), 4);
-    ASSERT_EQ(unpacked_arg5[0].as_int32(), 7);
-    ASSERT_EQ(unpacked_arg5[1].as_int32(), 8);
-    ASSERT_EQ(unpacked_arg5[2].as_int32(), 9);
-    ASSERT_EQ(unpacked_arg5[3].as_int32(), 10);
+    ASSERT_TRUE(args[4].is_string());
+    auto unpacked_arg5 = args[4].as_string();
+    ASSERT_EQ(unpacked_arg5, "abcd");
+    ASSERT_TRUE(args[5].is_double());
+    auto unpacked_arg6 = args[5].as_double();
+    ASSERT_EQ(unpacked_arg6, 3.14);
 }
 
 // 测试 append_args 方法
@@ -173,8 +174,8 @@ TEST_F(LocalMsgTest, ConstructFromVariants) {
     v.push_back("bmc.kepler.test.intf1");
     v.push_back("TestMethod1");
     v.push_back("TestErrorName");
-    v.push_back("a{ss}");
-    v.push_back(variants({"test error msg", 1, "str2", 3.3}));
+    v.push_back("sisda{ss}");
+    v.push_back(variants({"test error msg", 1, "str2", 3.3, variants()}));
     v.push_back(":1.23");
     v.push_back(static_cast<uint32_t>(45));
     v.push_back(true);
@@ -189,13 +190,15 @@ TEST_F(LocalMsgTest, ConstructFromVariants) {
     auto [error_name, error_message] = msg->get_error();
     ASSERT_EQ(error_name, "TestErrorName");
     ASSERT_EQ(error_message, "test error msg");
-    ASSERT_EQ(msg->signature(), "a{ss}");
+    ASSERT_EQ(msg->signature(), "sisda{ss}");
     auto args = msg->read();
-    ASSERT_EQ(args.size(), 4);
+    ASSERT_EQ(args.size(), 5);
     ASSERT_EQ(args[0].as_string(), "test error msg");
     ASSERT_EQ(args[1].as_int32(), 1);
     ASSERT_EQ(args[2].as_string(), "str2");
     ASSERT_EQ(args[3].as_double(), 3.3);
+    ASSERT_TRUE(args[4].is_dict());
+    ASSERT_EQ(args[4].as_dict().size(), 0);
     ASSERT_EQ(msg->sender(), ":1.23");
     ASSERT_EQ(msg->get_serial(), 45);
     ASSERT_EQ(msg->is_local_call(), true);

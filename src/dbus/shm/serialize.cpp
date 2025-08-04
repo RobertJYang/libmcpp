@@ -114,6 +114,13 @@ void write_buffer::write_array_or_dict(signature_iterator it, const variant& arg
         write_nil();
         return;
     }
+    if (it.current_type_code() == type_code::byte_type) {
+        // ay类型当作字符串处理，与lua框架保持兼容
+        auto data = arg.as<std::vector<uint8_t>>();
+        std::string str(data.begin(), data.end());
+        write_string(str);
+        return;
+    }
     write_array(it, arg.as_array(), depth + 1);
 }
 

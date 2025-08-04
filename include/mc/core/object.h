@@ -132,9 +132,9 @@ public:
 
     /**
      * @brief 获取对象名称
-     * @return 对象名称的副本
+     * @return 对象名称的视图
      */
-    std::string get_name() const;
+    std::string_view get_name() const;
 
     /**
      * @brief 设置对象名称

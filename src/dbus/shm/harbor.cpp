@@ -16,6 +16,7 @@
 #include <mc/dbus/shm/serialize.h>
 #include <mc/log.h>
 #include <mc/runtime.h>
+#include <memory>
 
 namespace mc::dbus {
 
@@ -249,7 +250,14 @@ void harbor::invoke_method(local_msg* msg) {
     auto args      = msg->read();
     auto handler   = it->second;
     try {
-        auto result = handler(path, interface, member, args);
+        auto start_time = std::chrono::high_resolution_clock::now();
+        auto result     = handler(path, interface, member, args);
+        auto end_time   = std::chrono::high_resolution_clock::now();
+        auto duration   = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count();
+        if (duration >= 5000) {
+            wlog("method handle time cost: ${duration} ms, path: ${path}, interface: ${interface}, method: ${member}",
+                 ("duration", duration)("path", path)("interface", interface)("member", member));
+        }
         if (result.first) {
             msg->method_return();
             msg->append_return_args(result.first->get_result_signature(), result.second);
@@ -288,8 +296,13 @@ void harbor::process_message(message_data& msg_data) {
 void harbor::process_dbus_message(DBusMessage* msg) {
     int msg_type = dbus_message_get_type(msg);
     if (msg_type == DBUS_MESSAGE_TYPE_SIGNAL) {
-        auto& match = m_connection.get_match();
-        match.run_msg(msg);
+        // 异步处理 signal 消息，避免阻塞 harbor 线程
+        dbus_message_ref(msg); // 增加引用计数，传递到异步任务
+        boost::asio::post(mc::get_work_context(), [this, msg]() mutable {
+            auto& match = m_connection.get_match();
+            match.run_msg(msg);
+            dbus_message_unref(msg); // 在异步任务中释放引用
+        });
     } else {
         elog("invalid message type ${type} for shared memory queue", ("type", msg_type));
     }
@@ -301,7 +314,7 @@ void harbor::process_local_message(const variants& unpacked) {
         // 格式错误的消息无法解析msg_type和destination
         return;
     }
-    auto msg      = new local_msg(unpacked);
+    auto msg      = std::make_unique<local_msg>(unpacked);
     auto msg_type = msg->msg_type();
     bool is_reply;
     if (msg_type == DBUS_MESSAGE_TYPE_METHOD_RETURN || msg_type == DBUS_MESSAGE_TYPE_ERROR) {
@@ -309,15 +322,19 @@ void harbor::process_local_message(const variants& unpacked) {
     } else if (msg_type == DBUS_MESSAGE_TYPE_METHOD_CALL) {
         is_reply = false;
     } else {
-        delete msg;
         elog("unknown message type: ${msg_type}", ("msg_type", msg_type));
         return;
     }
     if (!is_reply) {
-        invoke_method(msg);
+        boost::asio::post(mc::get_work_context(), [this, msg = std::move(msg)]() mutable {
+            invoke_method(msg.get());
+        });
         return;
     }
-    reply_shm_msg(msg->destination(), msg->get_reply_serial(), *msg);
+    // 异步处理 method return/error 响应，避免阻塞 harbor 线程
+    boost::asio::post(mc::get_work_context(), [this, msg = std::move(msg)]() mutable {
+        reply_shm_msg(msg->destination(), msg->get_reply_serial(), *msg);
+    });
 }
 
 void harbor::start() {
@@ -345,24 +362,30 @@ void harbor::start() {
         MC_THROW(mc::exception, "failed to init message queue");
     }
     m_is_running = true;
-    m_worker     = std::make_unique<std::thread>([this]() {
-        while (m_is_running) {
-            m_mq->dispatch(1000, 1000, [this](message_data& msg_data) {
-                process_message(msg_data);
-            });
-            std::this_thread::sleep_for(std::chrono::milliseconds(100));
-        }
-    });
+    // 创建3个worker线程来处理消息
+    for (int i = 0; i < 3; ++i) {
+        m_workers.emplace_back(std::make_unique<std::thread>([this]() {
+            while (m_is_running) {
+                m_mq->dispatch(1000, 1000, [this](message_data& msg_data) {
+                    process_message(msg_data);
+                });
+                std::this_thread::sleep_for(std::chrono::milliseconds(10));
+            }
+        }));
+    }
 }
 
 void harbor::stop() {
     std::lock_guard<std::mutex> lock(m_mutex);
     m_is_running = false;
     m_connection.disconnect();
-    if (m_worker) {
-        m_worker->join();
-        m_worker.reset();
+    // 等待所有worker线程结束
+    for (auto& worker : m_workers) {
+        if (worker && worker->joinable()) {
+            worker->join();
+        }
     }
+    m_workers.clear();
 }
 
 void harbor::register_unique_name(std::string unique_name, std::string service_name) {
