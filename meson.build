@@ -83,12 +83,11 @@ srcdir = include_directories('src')
 # 子目录
 subdir('include')
 subdir('src')
+subdir('modules')
 subdir('tests/test_utilities')
 if build_tests
   if meson_build
     subdir('examples')
-    subdir('plugins')
-    subdir('programs/devmon')
   endif
   gtest_dep = dependency('gtest', required: false)
   subdir('tests')
