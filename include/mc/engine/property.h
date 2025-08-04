@@ -469,6 +469,10 @@ public:
         auto  obj_it       = idx.find(full_object_name);
 
         if (obj_it == idx.end()) {
+            obj_it = idx.find(full_object_name + "_dev");
+        }
+
+        if (obj_it == idx.end()) {
             elog("Object not found: ${object_name}, searched for: ${full_name}",
                  ("object_name", object_name)("full_name", full_object_name));
             return nullptr;
