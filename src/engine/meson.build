@@ -13,6 +13,13 @@ engine_src_files = files(
   'service.cpp',
   'std_interface.cpp',
   'utils.cpp',
+  'property/helper.cpp',
+  'property/processor.cpp',
+  'property/processor_registry.cpp',
+  'property/processors/ref_object_processor.cpp',
+  'property/processors/ref_property_processor.cpp',
+  'property/processors/sync_property_processor.cpp',
+  'property/processors/function_call_processor.cpp'
 )
 
 engine_src_files += dbus_src_files

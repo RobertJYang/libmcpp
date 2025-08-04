@@ -10,22 +10,25 @@
  * See the Mulan PSL v2 for more details.
  */
 
-#include <mc/engine/property.h>
+#pragma once
+
+#include <cstdint>
 
 namespace mc::engine {
 
-void detail::interface_observer::notify(const mc::variant& value, const property_base& prop) {
-    if (!m_interface) {
-        return;
-    }
+// 属性类型枚举
+enum class p_type : uint32_t {
+    normal     = 0, // 普通属性
+    sync       = 1, // 同步属性
+    reference  = 2, // 引用属性
+    ref_object = 3  // 引用对象属性
+};
 
-    m_interface->notify_property_changed(value, prop);
-    auto object = m_interface->get_owner();
-    if (!object) {
-        return;
-    }
-
-    object->notify_property_changed(value, prop);
-}
+// 定义常量以便与 int 类型兼容
+namespace property_options {
+constexpr int memory               = 1;
+constexpr int from_mdb             = 2;
+constexpr int with_object_property = 4;
+} // namespace property_options
 
 } // namespace mc::engine 
