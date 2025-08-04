@@ -42,7 +42,7 @@ namespace mc {
  *           // 处理 entry...
  *       }
  */
-class mutable_dict : public dict {
+class MC_API mutable_dict : public dict {
 public:
     // 使用基类的 entry 类型
     using entry = dict::entry;
@@ -51,9 +51,10 @@ public:
     using iterator       = dict_types::iterator;
     using const_iterator = dict_types::const_iterator;
 
-    mutable_dict()                                         = default;
-    mutable_dict(const mutable_dict& other)                = default;
-    mutable_dict(mutable_dict&& other) noexcept            = default;
+    mutable_dict()                              = default;
+    mutable_dict(const mutable_dict& other)     = default;
+    mutable_dict(mutable_dict&& other) noexcept = default;
+
     mutable_dict& operator=(const mutable_dict& other)     = default;
     mutable_dict& operator=(mutable_dict&& other) noexcept = default;
     ~mutable_dict()                                        = default;

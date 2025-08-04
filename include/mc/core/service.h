@@ -73,7 +73,7 @@ public:
 /**
  * @brief 基础服务类，提供通用功能实现
  */
-class service_base : public abstract_service {
+class MC_API service_base : public abstract_service {
 public:
     explicit service_base(std::string name = "");
     ~service_base() override;

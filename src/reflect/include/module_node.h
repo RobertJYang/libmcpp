@@ -14,8 +14,8 @@
 
 #include <mc/exception.h>
 #include <mc/log.h>
+#include <mc/reflect/reflection.h>
 #include <mc/reflect/reflection_factory.h>
-#include <mc/reflect/reflection_metadata.h>
 #include <mc/singleton.h>
 #include <mc/string.h>
 #include <mc/sync/mutex_box.h>
@@ -32,7 +32,7 @@ namespace mc::reflect {
 using split_iterator = mc::string::split_iterator;
 
 static constexpr std::string_view delims = ".:";
-static std::atomic<int>           s_factory_id{1};
+static std::atomic<int32_t>       s_factory_id{1};
 
 inline type_id_type encode_type_id(factory_id_type factory_id, local_type_id_type type_id) {
     return (static_cast<type_id_type>(factory_id) << 32) | type_id;

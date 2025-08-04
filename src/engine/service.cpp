@@ -17,6 +17,7 @@
 #include <mc/dbus/signal.h>
 #include <mc/dbus/validator.h>
 #include <mc/engine.h>
+#include <mc/engine/errors/std_errors.h>
 #include <mc/engine/path_iterator.h>
 #include <mc/engine/utils.h>
 #include <mc/exception.h>
@@ -115,7 +116,7 @@ struct service_impl {
 
 MC_REFLECT(mc::engine::service_interface, ((m_service_name, "name")))
 MC_REFLECT(mc::engine::service_object, ((m_interface, "interface")))
-MC_REFLECT(mc::engine::root_object, ())
+MC_REFLECT(mc::engine::root_object)
 
 using service_table =
     mdb::table<mc::engine::service_object,
@@ -181,7 +182,10 @@ void service_impl::stop() {
 
     auto& engine   = mc::engine::engine::get_instance();
     auto  services = engine.get_table<service_table>("services");
-    services->remove(m_service_object);
+
+    if (m_service_object) {
+        services->remove(m_service_object);
+    }
 
     if (m_object_table) {
         m_object_table->clear();
@@ -367,7 +371,11 @@ DBusHandlerResult service_impl::on_method_call(abstract_object& object, mc::dbus
         auto result = object.invoke(method_name, args, interface_name);
         if (!ctx.get_method()) {
             info.response =
-                mc::dbus::message::new_error(msg, errors::unknown_method.name, "method not found");
+                mc::dbus::message::new_error(msg, errors::unknown_method.name,
+                                             "method not found");
+        } else if (ctx.get_status() == handler_status::ignored) {
+            info.response = mc::dbus::message::new_error(msg, errors::not_supported.name,
+                                                         "method not supported");
         } else {
             info.response = mc::dbus::message::new_method_return(msg);
             mc::dbus::signature_iterator it(ctx.get_method()->get_result_signature());

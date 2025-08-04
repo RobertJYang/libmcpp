@@ -24,4 +24,34 @@ service* abstract_interface::get_service() const {
     return owner->get_service();
 }
 
+context& abstract_object::get_context() {
+    context* ctx = context_stack::top_value();
+    if (!ctx) {
+        MC_THROW(mc::runtime_exception,
+                 "调用对象 ${class_name}::${object_name} 失败，没有在调用上下文中",
+                 ("class_name", this->get_class_name())   // 类名
+                 ("object_name", this->get_object_name()) // 对象名
+        );
+    }
+    return *ctx;
+}
+
+context& abstract_interface::get_context() {
+    context* ctx = context_stack::top_value();
+    if (!ctx) {
+        MC_THROW(mc::runtime_exception,
+                 "调用接口 ${interface_name} 失败，没有在调用上下文中",
+                 ("interface_name", this->get_interface_name()));
+    }
+    return *ctx;
+}
+
 } // namespace mc::engine
+
+MC_REFLECT(mc::engine::abstract_object,                           // 配置计算属性（只读）
+           (MC_COMPUTED_PROPERTY("path", get_object_path))        // path
+           (MC_COMPUTED_PROPERTY("class_name", get_class_name))   // class_name
+           (MC_COMPUTED_PROPERTY("object_name", get_object_name)) // object_name
+           (MC_COMPUTED_PROPERTY("position", get_position))       // position
+           (MC_COMPUTED_PROPERTY("object_id", get_object_id))     // object_id
+)

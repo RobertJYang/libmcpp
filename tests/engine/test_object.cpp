@@ -98,15 +98,15 @@ TEST_F(object_test, test_object_metadata) {
 
     // 获取静态接口信息
     std::vector<std::string_view> interfaces;
-    mc::traits::tuple_for_each(TestObject::get_static_interface_infos(), [&](auto& info) {
-        interfaces.emplace_back(info.name);
+    mc::traits::tuple_for_each(TestObject::get_static_interface_infos(), [&](auto info) {
+        interfaces.emplace_back(info->name);
     });
     EXPECT_EQ(interfaces, expected);
 
     // 获取运行时接口信息
     std::vector<std::string_view> interfaces1;
-    for (auto& info : TestObject::get_interface_infos()) {
-        interfaces1.emplace_back(info.second->name);
+    for (auto& info : TestObject::metadata().get_interfaces()) {
+        interfaces1.emplace_back(info->name);
     }
     std::sort(interfaces1.begin(), interfaces1.end());
     EXPECT_EQ(interfaces1, expected);

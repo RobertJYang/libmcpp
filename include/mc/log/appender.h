@@ -23,12 +23,12 @@ namespace log {
  *
  * 日志追加器负责将日志消息输出到特定目标（控制台、文件等）
  */
-class appender {
+class MC_API appender {
 public:
     /**
      * @brief 虚析构函数
      */
-    virtual ~appender() = default;
+    virtual ~appender();
 
     /**
      * @brief 初始化追加器
@@ -44,24 +44,20 @@ public:
      * @param msg 日志消息
      */
     virtual void append(const message& msg) = 0;
-    
+
     /**
      * @brief 获取追加器名称
      *
      * @return const std::string& 追加器名称
      */
-    const std::string& get_name() const {
-        return m_name;
-    }
-    
+    const std::string& get_name() const;
+
     /**
      * @brief 设置追加器名称
      *
      * @param name 追加器名称
      */
-    void set_name(const std::string& name) {
-        m_name = name;
-    }
+    void set_name(const std::string& name);
 
 protected:
     std::string m_name; // 追加器名称
@@ -74,13 +70,13 @@ using appender_ptr = std::shared_ptr<appender>;
  *
  * 用于在动态库中注册追加器
  */
-#define MC_REGISTER_APPENDER(appender_class)                                                       \
-    extern "C" void* create_appender() {                                                           \
-        return new mc::log::appender_ptr(new appender_class);                                               \
-    }                                                                                              \
-                                                                                                   \
-    extern "C" void destroy_appender(void* ptr) {                                                  \
-        delete static_cast<mc::log::appender_ptr*>(ptr);                                                    \
+#define MC_REGISTER_APPENDER(appender_class)                  \
+    extern "C" MC_API void* create_appender() {               \
+        return new mc::log::appender_ptr(new appender_class); \
+    }                                                         \
+                                                              \
+    extern "C" MC_API void destroy_appender(void* ptr) {      \
+        delete static_cast<mc::log::appender_ptr*>(ptr);      \
     }
 
 } // namespace log

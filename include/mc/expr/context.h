@@ -33,7 +33,7 @@ namespace mc::expr {
 class function;
 class context_impl;
 
-class context_base {
+class MC_API context_base {
 public:
     virtual ~context_base() = default;
 
@@ -94,7 +94,7 @@ protected:
 /**
  * @brief 表达式上下文类，用于存储变量和函数
  */
-class context : public context_base {
+class MC_API context : public context_base {
 public:
     /**
      * @brief 默认构造函数
@@ -172,14 +172,14 @@ private:
     std::shared_ptr<context_impl> m_impl;
 };
 
-class object_context : public context_base {
+class MC_API object_context : public context_base {
 public:
     object_context(mc::engine::abstract_object* obj, context_base* parent = nullptr);
 
     mc::engine::abstract_object* get_object() const;
 
-    bool has_variable(std::string_view name, std::string_view iface = {}) const override;
-    bool has_function(std::string_view name, std::string_view iface = {}) const override;
+    bool               has_variable(std::string_view name, std::string_view iface = {}) const override;
+    bool               has_function(std::string_view name, std::string_view iface = {}) const override;
     const mc::variant& get_variable(std::string_view name,
                                     std::string_view iface = {}) const override;
     mc::variant        invoke(std::string_view name, const mc::variants& args,

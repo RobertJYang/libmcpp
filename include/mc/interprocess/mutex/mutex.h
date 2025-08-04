@@ -19,7 +19,8 @@
 
 #include <mutex>
 #include <chrono>
-#include "mc/interprocess/mutex/ipc_mutex.h"
+
+#include <mc/interprocess/mutex/ipc_mutex.h>
 
 namespace mc::interprocess {
 

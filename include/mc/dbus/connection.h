@@ -41,7 +41,7 @@ enum class connect_status {
 /**
  * @brief DBus连接对象
  */
-class connection {
+class MC_API connection {
 public:
     template <typename T>
     using future = mc::future<T, mc::io_context::executor_type>;

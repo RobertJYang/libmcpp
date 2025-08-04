@@ -33,6 +33,43 @@
 #endif
 
 namespace mc::runtime {
+
+immediate_executor::immediate_executor()  = default;
+immediate_executor::~immediate_executor() = default;
+
+immediate_executor::immediate_executor(const immediate_executor&)            = default;
+immediate_executor& immediate_executor::operator=(const immediate_executor&) = default;
+
+bool immediate_executor::operator==(const immediate_executor&) const noexcept {
+    return true;
+}
+
+bool immediate_executor::operator!=(const immediate_executor&) const noexcept {
+    return false;
+}
+
+void immediate_executor::on_work_started() const noexcept {
+}
+
+void immediate_executor::on_work_finished() const noexcept {
+}
+
+immediate_context& immediate_executor::context() const noexcept {
+    static immediate_context ctx;
+    return ctx;
+}
+
+immediate_executor immediate_executor::require(boost::asio::execution::blocking_t::never_t) const {
+    return *this;
+}
+
+immediate_context::immediate_context()  = default;
+immediate_context::~immediate_context() = default;
+
+immediate_context::executor_type immediate_context::get_executor() const noexcept {
+    return executor_type();
+}
+
 using io_work_guard = boost::asio::executor_work_guard<io_context::executor_type>;
 using work_guard    = boost::asio::executor_work_guard<work_context::executor_type>;
 
@@ -281,7 +318,12 @@ bool runtime_context::impl::is_stopped() const noexcept {
 runtime_context::runtime_context() : m_impl(std::make_unique<impl>()) {
 }
 
-runtime_context::~runtime_context() = default;
+runtime_context::~runtime_context() {
+    if (!is_stopped()) {
+        stop();
+        join();
+    }
+}
 
 void runtime_context::initialize(const runtime_config& config) {
     m_impl->initialize(config);

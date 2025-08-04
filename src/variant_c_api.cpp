@@ -14,11 +14,12 @@
  * @file variant_c_api.cpp
  * @brief 实现 variant C API 接口
  */
-#include <mc/variant_c_api.h>
 #include <mc/variant.h>
-#include <mc/expr/engine.h>
+#include <mc/variant_c_api.h>
+
 #include <mc/expr/context.h>
-#include <glib-2.0/glib.h>
+#include <mc/expr/engine.h>
+
 #include <string>
 
 extern "C" {
@@ -52,7 +53,9 @@ mc_variant_t* mc_variant_from_bool(bool value) {
 
 mc_variant_t* mc_variant_from_string(const char* value) {
     try {
-        if (!value) return nullptr;
+        if (!value) {
+            return nullptr;
+        }
         auto* variant = new mc::variant(std::string(value));
         return reinterpret_cast<mc_variant_t*>(variant);
     } catch (...) {
@@ -85,9 +88,11 @@ void mc_engine_delete(mc_engine_t* engine) {
 
 mc_context_t* mc_context_new(mc_engine_t* engine) {
     try {
-        if (!engine) return nullptr;
-        auto* e = reinterpret_cast<mc::expr::engine*>(engine);
-        auto context = e->make_context();
+        if (!engine) {
+            return nullptr;
+        }
+        auto* e           = reinterpret_cast<mc::expr::engine*>(engine);
+        auto  context     = e->make_context();
         auto* context_ptr = new mc::expr::context(std::move(context));
         return reinterpret_cast<mc_context_t*>(context_ptr);
     } catch (...) {
@@ -104,7 +109,9 @@ void mc_context_delete(mc_context_t* context) {
 
 int mc_context_register_variable(mc_context_t* context, const char* name, const mc_variant_t* variant) {
     try {
-        if (!context || !name || !variant) return -1;
+        if (!context || !name || !variant) {
+            return -1;
+        }
         auto* c = reinterpret_cast<mc::expr::context*>(context);
         auto* v = reinterpret_cast<const mc::variant*>(variant);
         c->register_variable(std::string(name), *v);
@@ -116,7 +123,9 @@ int mc_context_register_variable(mc_context_t* context, const char* name, const 
 
 void* mc_engine_evaluate_as_gvariant(mc_engine_t* engine, const char* expr, const mc_context_t* context) {
     try {
-        if (!engine || !expr || !context) return nullptr;
+        if (!engine || !expr || !context) {
+            return nullptr;
+        }
         auto* e = reinterpret_cast<mc::expr::engine*>(engine);
         auto* c = reinterpret_cast<const mc::expr::context*>(context);
         return e->evaluate_as_gvariant(std::string_view(expr), *c);
@@ -125,4 +134,4 @@ void* mc_engine_evaluate_as_gvariant(mc_engine_t* engine, const char* expr, cons
     }
 }
 
-} // extern "C" 
+} // extern "C"

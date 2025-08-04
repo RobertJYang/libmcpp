@@ -65,7 +65,7 @@ struct data_t;
  *           // 处理 entry...
  *       }
  */
-class dict {
+class MC_API dict {
 public:
     using key_type       = variant;
     using value_type     = variant;
@@ -267,7 +267,7 @@ protected:
 /**
  * @brief 将 dict 转换为 variant
  */
-variant to_variant(const dict& d);
+MC_API variant to_variant(const dict& d);
 
 } // namespace mc
 // 将 variant 实现相关的代码放到单独的文件中

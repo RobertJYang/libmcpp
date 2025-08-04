@@ -21,7 +21,7 @@ namespace db {
 
 using table_ptr = std::shared_ptr<table_base>;
 
-class database {
+class MC_API database {
     using table_name_map = std::unordered_map<std::string_view, table_ptr>;
     using table_id_map   = std::unordered_map<uint32_t, table_ptr>;
 

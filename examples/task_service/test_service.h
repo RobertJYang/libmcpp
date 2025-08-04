@@ -30,7 +30,7 @@ public:
 private:
     void create_task();
 
-    std::vector<task_object_ptr> m_tasks;
+    tasks_object_ptr m_tasks;
 };
 
 } // namespace test

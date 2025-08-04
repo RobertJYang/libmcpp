@@ -40,7 +40,7 @@ struct callback_node : public mc::noncopyable {
 
 using callback_node_ptr = std::unique_ptr<callback_node>;
 
-class callback_pool {
+class MC_API callback_pool {
 public:
     static callback_pool& instance();
 
@@ -69,11 +69,11 @@ private:
     std::size_t                    m_max_pool_size{1000}; // 默认最大池大小
 };
 
-class callback_list {
+class MC_API callback_list {
 public:
     callback_list() = default;
 
-    callback_list(const callback_list&) = delete;
+    callback_list(const callback_list&)            = delete;
     callback_list& operator=(const callback_list&) = delete;
 
     callback_list(callback_list&& other) noexcept            = default;

@@ -38,8 +38,7 @@ inline constexpr bool is_executor_tag = std::is_same_v<ExecutorTag, io_executor_
  * @return 全局运行时上下文的引用
  */
 MC_API runtime_context& get_runtime_context();
-
-MC_API void reset_runtime_context();
+MC_API void             reset_runtime_context();
 
 /**
  * @brief 获取IO上下文

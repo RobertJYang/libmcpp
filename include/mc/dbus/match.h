@@ -86,7 +86,7 @@ auto shm_lock_call(Fn&& callback, Args&&... args) {
 
 using match_cb_t = std::function<void(mc::dbus::message&)>;
 
-class match_rule {
+class MC_API match_rule {
 public:
     match_rule(DBus::Match::MessageType type, const std::string_view& member,
                const std::string_view& interface);
@@ -106,7 +106,7 @@ private:
     DBus::Match::RulePtr m_rule;
 };
 
-class match {
+class MC_API match {
 public:
     match();
     void add_rule(match_rule& rule, match_cb_t&& cb, uint64_t id);

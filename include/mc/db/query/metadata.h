@@ -23,7 +23,6 @@
 
 #include <mc/db/index.h>
 #include <mc/db/key_extractor.h>
-#include <mc/reflect/reflection_metadata.h>
 
 namespace mc::db::query {
 

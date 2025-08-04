@@ -381,21 +381,6 @@ TEST_F(interface_test, test_signal_chain) {
     EXPECT_EQ(value3.m_value, 15);
 }
 
-// 测试静态方法
-TEST_F(interface_test, test_static_methods) {
-    // 测试获取信号
-    EXPECT_TRUE(TestInterface::has_signal("value_changed"));
-    EXPECT_TRUE(TestInterface::has_signal("name_changed"));
-    EXPECT_TRUE(TestInterface::has_signal("reset_signal"));
-    EXPECT_FALSE(TestInterface::has_signal("non_existent_signal"));
-
-    const auto* signal_info = TestInterface::get_signal("value_changed");
-    EXPECT_NE(signal_info, nullptr);
-
-    const auto* non_existent = TestInterface::get_signal("non_existent_signal");
-    EXPECT_EQ(non_existent, nullptr);
-}
-
 // 测试参数异常情况
 TEST_F(interface_test, test_invalid_arguments) {
     TestInterface                   value(10);

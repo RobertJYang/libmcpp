@@ -44,7 +44,7 @@ struct file_appender_config {
  *
  * 将日志消息输出到文件
  */
-class file_appender : public appender {
+class MC_API file_appender : public appender {
 public:
     /**
      * @brief 构造函数

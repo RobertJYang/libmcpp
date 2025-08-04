@@ -287,4 +287,6 @@ std::string std_exception_wrapper::to_detail_string(mc::log::level ll) const {
     return result;
 }
 
+MC_STD_EXCEPTION_CLASS(MC_IMPLEMENT_EXCEPTION_CLASS)
+
 } // namespace mc

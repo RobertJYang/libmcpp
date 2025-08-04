@@ -16,6 +16,8 @@
 
 namespace mc::expr {
 struct string_module {
+    MC_REFLECTABLE("mc.expr.builtin.string");
+
     // 由于 mc::variant
     // 所有类型都可以自动转换成字符串类型，为了避免这种自动转换，我们需要显示判断类型，
     // 当前虽然是字符串库，但是为了方便还是尽量兼容其他类型吧

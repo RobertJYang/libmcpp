@@ -25,11 +25,11 @@ namespace {
 
 class RuntimeContextTest : public mc::test::TestWithRuntime {
     void SetUp() override {
-        mc::singleton<mc::runtime::runtime_context>::reset_for_test();
+        mc::test::TestWithRuntime::reset_runtime();
     }
 
     void TearDown() override {
-        mc::singleton<mc::runtime::runtime_context>::reset_for_test();
+        mc::test::TestWithRuntime::reset_runtime();
     }
 };
 
@@ -63,9 +63,6 @@ TEST_F(RuntimeContextTest, DuplicateStart) {
 
     // 重复启动应该被忽略（不会抛出异常）
     EXPECT_NO_THROW(runtime.start());
-
-    runtime.stop();
-    runtime.join();
 }
 
 // 测试IO执行器的基本功能
@@ -85,9 +82,6 @@ TEST_F(RuntimeContextTest, IoExecutorBasicPost) {
     std::this_thread::sleep_for(100ms);
 
     EXPECT_TRUE(task_executed.load());
-
-    runtime.stop();
-    runtime.join();
 }
 
 // 测试系统执行器的基本功能
@@ -106,9 +100,6 @@ TEST_F(RuntimeContextTest, SystemExecutorBasicPost) {
     std::this_thread::sleep_for(100ms);
 
     EXPECT_TRUE(task_executed.load());
-
-    runtime.stop();
-    runtime.join();
 }
 
 // 测试defer操作
@@ -136,9 +127,6 @@ TEST_F(RuntimeContextTest, DeferOperation) {
     // defer和post都应该执行
     EXPECT_TRUE(defer_executed.load());
     EXPECT_TRUE(post_executed.load());
-
-    runtime.stop();
-    runtime.join();
 }
 
 // 测试dispatch操作
@@ -157,9 +145,6 @@ TEST_F(RuntimeContextTest, DispatchOperation) {
     std::this_thread::sleep_for(10ms);
 
     EXPECT_TRUE(task_executed.load());
-
-    runtime.stop();
-    runtime.join();
 }
 
 // 测试多线程IO执行器
@@ -190,9 +175,6 @@ TEST_F(RuntimeContextTest, MultiThreadIoExecutor) {
     }
 
     EXPECT_EQ(completed_tasks.load(), task_count);
-
-    runtime.stop();
-    runtime.join();
 }
 
 // 测试混合使用IO执行器和系统执行器
@@ -232,9 +214,6 @@ TEST_F(RuntimeContextTest, MixedExecutorUsage) {
 
     EXPECT_EQ(io_tasks.load(), task_count);
     EXPECT_EQ(system_tasks.load(), task_count);
-
-    runtime.stop();
-    runtime.join();
 }
 
 // 测试执行器对象的生命周期
@@ -260,7 +239,4 @@ TEST_F(RuntimeContextTest, ExecutorLifetime) {
 
     // 任务应该仍然能执行
     EXPECT_TRUE(task_executed.load());
-
-    runtime.stop();
-    runtime.join();
 }

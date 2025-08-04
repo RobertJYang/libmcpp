@@ -119,4 +119,16 @@ bool thread_list::empty() const {
     return m_threads.empty();
 }
 
+void thread_list::visit_threads(const std::function<void(thread_node&)>& visitor) {
+    for (auto& node : m_threads) {
+        visitor(node);
+    }
+}
+
+void thread_list::visit_threads(const std::function<void(const thread_node&)>& visitor) const {
+    for (const auto& node : m_threads) {
+        visitor(node);
+    }
+}
+
 } // namespace mc::runtime

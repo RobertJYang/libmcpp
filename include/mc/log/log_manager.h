@@ -62,7 +62,7 @@ struct logging_config {
  *
  * 负责管理日志记录器和追加器
  */
-class log_manager {
+class MC_API log_manager {
 public:
     /**
      * @brief 获取单例实例
@@ -132,8 +132,8 @@ private:
 } // namespace log
 } // namespace mc
 
-MC_REFLECT(mc::log::appender_config, (name)(type)(lib_path))
-MC_REFLECT(mc::log::logger_config, (name)(level)(appenders))
-MC_REFLECT(mc::log::logging_config, (appenders)(loggers))
+MC_REFLECTABLE("mc.log.appender_config", mc::log::appender_config)
+MC_REFLECTABLE("mc.log.logger_config", mc::log::logger_config)
+MC_REFLECTABLE("mc.log.logging_config", mc::log::logging_config)
 
 #endif // MC_LOG_MANAGER_H

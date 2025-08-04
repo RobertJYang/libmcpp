@@ -30,6 +30,12 @@
 #include <mutex>
 #include <sstream>
 
+MC_REFLECT_ENUM(mc::log::console_appender::color_type,
+                (console_default)(red)(green)(brown)(blue)(magenta)(cyan)(white))
+MC_REFLECT_ENUM(mc::log::console_appender::stream_type, (std_out)(std_error))
+MC_REFLECT(mc::log::console_appender::config, (stream)(use_color)(flush)(level_colors))
+MC_REFLECT(mc::log::console_appender::level_color, (level)(color))
+
 namespace mc {
 namespace log {
 

@@ -20,6 +20,9 @@
 
 namespace mc::core {
 
+service_manager::service_manager() {
+}
+
 service_manager::~service_manager() {
     cleanup_services();
 }

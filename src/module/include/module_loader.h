@@ -77,10 +77,10 @@ struct load_lib_func_t {
  * 模块名称为 "mc.devices"，那导出函数名称为 "mc_open_mc_devices" 和 "mc_close_mc_devices"
  * 模块名称为 "mc.test.module"，那导出函数名称为 "mc_open_mc_test_module" 和 "mc_close_mc_test_module"
  */
-class module_loader {
+class MC_API module_loader {
 public:
     module_loader();
-    ~module_loader() = default;
+    ~module_loader();
 
     using load_callback = std::function<bool(library_info_ptr, bool& is_resuse)>;
     bool load_module(std::string_view module_name, load_callback callback) const;

@@ -15,6 +15,8 @@
 
 #include <mc/engine/interface.h>
 
+MC_MODULE(mc_task_service_gen)
+
 namespace test {
 
 enum class task_state {
@@ -23,6 +25,19 @@ enum class task_state {
     PAUSED,
     COMPLETED,
     FAILED,
+};
+
+struct tasks_interface : public mc::engine::interface<tasks_interface> {
+    MC_INTERFACE("bmc.kepler.TaskService.Tasks")
+
+    virtual ~tasks_interface() = default;
+
+    virtual std::string_view create_task(const std::string& name) {
+        return {}; // 空函数，在对象中重载
+    }
+    virtual std::vector<std::string_view> get_tasks() {
+        return {}; // 空函数，在对象中重载
+    }
 };
 
 struct task_interface : public mc::engine::interface<task_interface> {
@@ -47,11 +62,6 @@ struct task_interface : public mc::engine::interface<task_interface> {
 
 } // namespace test
 
-MC_REFLECT_ENUM(test::task_state, (PENDING)(RUNNING)(PAUSED)(COMPLETED)(FAILED))
-MC_REFLECT(test::task_interface,
-           ((m_id, "Id"))((m_name, "Name"))((m_startTime, "StartTime"))((m_endTime, "EndTime"))(
-               (m_progress, "Progress"))((m_state, "State"))((m_result, "Result"))(
-               (start, "Start"))((stop, "Stop"))((pause, "Pause"))((resume, "Resume"))(
-               (get_progress, "GetProgress"))((get_state, "GetState")))
+MC_REFLECTABLE("test.task_state", test::task_state)
 
 #endif // GEN_TASK_INTERFACE_H
