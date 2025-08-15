@@ -2407,6 +2407,27 @@ TEST_F(PropertyRelateTest, RefObjectConcurrentInvoke) {
     auto* ref_obj     = obj_variant.as<mc::engine::ref_object*>();
     ASSERT_NE(ref_obj, nullptr);
 
+    // 在启动并发线程前，先验证对象存在
+    // 这确保所有必要的对象都已正确注册，避免竞态条件
+    auto* cpu_object = ref_obj->get_object();
+    if (cpu_object == nullptr) {
+        // 带超时的轮询等待，避免偶发的注册时序抖动
+        using namespace std::chrono;
+        auto deadline = steady_clock::now() + milliseconds(200);
+        while (steady_clock::now() < deadline) {
+            std::this_thread::sleep_for(milliseconds(2));
+            std::this_thread::yield();
+            cpu_object = ref_obj->get_object();
+            if (cpu_object != nullptr) {
+                break;
+            }
+        }
+    }
+    ASSERT_NE(cpu_object, nullptr) << "CPU对象应该在测试开始前就已经注册完成";
+
+    // 验证对象确实是我们期望的CPU对象
+    EXPECT_EQ(cpu_object->get_object_name(), "CPU_04") << "CPU对象名称应该正确";
+
     // 并发调用多个方法（虽然方法不存在，但测试并发访问不会导致问题）
     std::vector<std::thread>        threads;
     std::vector<std::exception_ptr> exceptions(5);

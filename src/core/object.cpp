@@ -163,12 +163,12 @@ std::string_view object_impl::get_name() const {
 }
 
 void object_impl::set_name(std::string_view name) {
-    // 检查名称是否已经设置（线程安全检查）
-    std::string current_name{this->get_name()};  // 显式转换 string_view 为 string
-    MC_ASSERT(current_name.empty(), "对象名称已设置，不能重复设置: 当前名称='${current}', 尝试设置='${new}'", 
-              ("current", current_name)("new", name));
-    
-    m_data.wlock()->name = std::string(name);
+    // 在同一个锁保护下进行检查和设置，确保原子性
+    auto data = m_data.wlock();
+    MC_ASSERT(data->name.empty(), "对象名称已设置，不能重复设置: 当前名称='${current}', 尝试设置='${new}'",
+              ("current", data->name)("new", name));
+
+    data->name = std::string(name);
 }
 
 object_ptr object_impl::get_parent() const {

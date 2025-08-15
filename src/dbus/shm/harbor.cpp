@@ -331,10 +331,7 @@ void harbor::process_local_message(const variants& unpacked) {
         });
         return;
     }
-    // 异步处理 method return/error 响应，避免阻塞 harbor 线程
-    boost::asio::post(mc::get_work_context(), [this, msg = std::move(msg)]() mutable {
-        reply_shm_msg(msg->destination(), msg->get_reply_serial(), *msg);
-    });
+    reply_shm_msg(msg->destination(), msg->get_reply_serial(), *msg);
 }
 
 void harbor::start() {
