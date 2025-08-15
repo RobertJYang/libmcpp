@@ -22,6 +22,7 @@
 tlog("详细调试信息");
 dlog("调试信息: ${value}", ("value", 42));
 ilog("用户 ${user} 登录成功", ("user", "admin"));
+nlog("一般通知: ${event}", ("event", "周期性检查完成"));
 wlog("磁盘空间不足: ${available}GB", ("available", 1.2));
 elog("操作失败: ${code}, ${message}", ("code", 404)("message", "资源不存在"));
 flog("系统崩溃: ${reason}", ("reason", "内存访问错误"));
@@ -108,6 +109,7 @@ logger.add_appender(file);
 | `warn` | 警告信息 |
 | `error` | 错误信息 |
 | `fatal` | 致命错误 |
+| `notice` | 一般通知 |
 | `off` | 关闭日志 |
 | `all` | 所有级别 |
 
@@ -123,6 +125,7 @@ logger.add_appender(file);
 | `wlog(format, args...)` | 记录 warn 级别日志 |
 | `elog(format, args...)` | 记录 error 级别日志 |
 | `flog(format, args...)` | 记录 fatal 级别日志 |
+| `nlog(format, args...)` | 记录 notice 级别日志 |
 
 #### 指定日志记录器的宏
 
@@ -134,6 +137,7 @@ logger.add_appender(file);
 | `mc_wlog(logger, format, args...)` | 使用指定记录器记录 warn 级别日志 |
 | `mc_elog(logger, format, args...)` | 使用指定记录器记录 error 级别日志 |
 | `mc_flog(logger, format, args...)` | 使用指定记录器记录 fatal 级别日志 |
+| `mc_nlog(logger, format, args...)` | 使用指定记录器记录 notice 级别日志 |
 
 ### 核心类
 
@@ -193,9 +197,9 @@ logger.add_appender(file);
 | 追加器类型 | 描述 | 配置项 |
 |-----------|---------|---------|
 | `console` | 输出到控制台 | `color`: 是否启用彩色输出 |
-| `file` | 输出到文件 | `filename`: 文件名<br>`max_size`: 最大文件大小<br>`rotation`: 是否启用轮转 |
-| `rotating_file` | 按大小轮转文件 | `filename`: 文件名<br>`max_size`: 单个文件最大大小<br>`max_files`: 最大文件数 |
-| `daily_file` | 按日期轮转文件 | `filename`: 文件名<br>`hour`: 轮转小时<br>`minute`: 轮转分钟 |
+| `file` | 输出到文件 | `filename`: 文件名；`max_size`: 最大文件大小；`rotation`: 是否启用轮转 |
+| `rotating_file` | 按大小轮转文件 | `filename`: 文件名；`max_size`: 单个文件最大大小；`max_files`: 最大文件数 |
+| `daily_file` | 按日期轮转文件 | `filename`: 文件名；`hour`: 轮转小时；`minute`: 轮转分钟 |
 | `null` | 丢弃所有日志 | 无 |
 
 ## 最佳实践
@@ -216,4 +220,4 @@ logger.add_appender(file);
 
 4. **分类记录**：使用不同名称的日志记录器对日志进行分类，便于管理和过滤
 
-5. **状态跟踪**：在长时间操作的开始和结束都记录日志，便于跟踪操作状态和耗时 
+5. **状态跟踪**：在长时间操作的开始和结束都记录日志，便于跟踪操作状态和耗时
