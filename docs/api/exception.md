@@ -56,14 +56,20 @@ try {
 
 ### 自定义异常类
 
-可以使用 `MC_DEFINE_EXCEPTION_CLASS` 宏定义自定义异常类：
+可以使用声明/实现宏定义自定义异常类（头文件声明，源文件实现）：
 
 ```cpp
-// 定义自定义异常类
-MC_DEFINE_EXCEPTION_CLASS(database_connection_exception, 200, "数据库连接失败", "db_connection")
+// database_exception.h（头文件）
+#include <mc/exception.h>
 
-// 注册异常类型到异常工厂
-MC_REGISTER_EXCEPTION(database_connection_exception);
+// 声明异常类（仅声明，不产生实现）
+MC_DECLARE_EXCEPTION_CLASS(database_connection_exception, 200, "数据库连接失败", "db_connection");
+
+// database_exception.cpp（源文件）
+#include "database_exception.h"
+
+// 生成实现（放在一个源文件内）
+MC_IMPLEMENT_EXCEPTION_CLASS(database_connection_exception, 200, "数据库连接失败", "db_connection");
 
 // 使用自定义异常
 MC_THROW(database_connection_exception, "无法连接到数据库: ${server}", ("server", db_server));
@@ -92,9 +98,10 @@ MC_THROW(database_connection_exception, "无法连接到数据库: ${server}", (
 
 | 方法 | 描述 |
 |------|------|
-| `exception(mc::log::message&& msg, int64_t code, const std::string& name, const std::string& what)` | 构造函数 |
+| `exception(int64_t code, const std::string& name, const std::string& what)` | 构造函数 |
+| `exception(mc::log::message&& msg, int64_t code, const std::string& name, const std::string& what)` | 构造函数（带日志消息） |
 | `int64_t code() const noexcept` | 获取异常代码 |
-| `const char* name() const noexcept` | 获取异常名称 |
+| `std::string_view name() const noexcept` | 获取异常名称 |
 | `const char* what() const noexcept` | 获取异常描述（继承自 std::exception）|
 | `void append_log(mc::log::message msg)` | 添加日志消息 |
 | `std::string to_detail_string(mc::log::level ll = mc::log::level::all) const` | 获取详细异常信息 |
@@ -125,26 +132,20 @@ MC_THROW(database_connection_exception, "无法连接到数据库: ${server}", (
 | `unhandled_exception` | 包装未处理的第三方异常 |
 | `std_exception_wrapper` | 包装标准库异常 |
 
-### 异常工厂
+### 统一标准异常集合
 
-`mc::exception_factory` 用于注册和创建异常：
-
-| 方法 | 描述 |
-|------|------|
-| `static exception_factory& instance()` | 获取单例实例 |
-| `template<typename T> void register_exception()` | 注册异常类型 |
-| `void rethrow(const exception& e) const` | 重新抛出异常 |
+库通过宏 `MC_STD_EXCEPTION_CLASS` 统一声明了常见标准异常类型（如 `timeout_exception`、`parse_error_exception` 等），无需手动定义即可使用。
 
 ### 辅助宏
 
 | 宏 | 描述 |
 |------|------|
-| `MC_THROW(exception_class, message, ...)` | 抛出指定类型的异常 |
-| `MC_ASSERT(condition, message, ...)` | 条件断言，如果条件为假则抛出断言异常 |
-| `MC_DEFINE_EXCEPTION_CLASS(class_name, code_enum_value, default_msg, class_name_str)` | 定义自定义异常类 |
-| `MC_REGISTER_EXCEPTION(exception_class)` | 注册异常类到异常工厂 |
-| `MC_RETHROW_EXCEPTION(exception_class, message, ...)` | 捕获并重新抛出异常，添加上下文信息 |
-| `MC_CAPTURE_AND_WRAP_EXCEPTION(e, message, ...)` | 捕获并包装标准异常 |
+| `MC_THROW(exception_class, message, ...)` | 抛出指定类型异常（内部使用 `MC_MAKE_EXCEPTION` 构造消息） |
+| `MC_ASSERT(condition, message, ...)` | 条件断言失败时抛出 `assert_exception` |
+| `MC_ASSERT_THROW(condition, exception_class, message, ...)` | 条件断言失败时抛出指定异常 |
+| `MC_RETHROW_EXCEPTION(exception_obj, message, ...)` | 在已有异常对象上追加日志并重新抛出 |
+| `MC_CAPTURE_AND_WRAP_EXCEPTION(message, ...)` | 捕获 `std::exception` 并包装为 `std_exception_wrapper` |
+| `MC_DECLARE_EXCEPTION_CLASS/MC_IMPLEMENT_EXCEPTION_CLASS` | 声明/实现自定义异常类 |
 
 ## 最佳实践
 
@@ -152,10 +153,8 @@ MC_THROW(database_connection_exception, "无法连接到数据库: ${server}", (
 
 2. **提供详细错误信息**：抛出异常时提供充分的上下文信息，包括具体的错误原因和相关参数
 
-3. **使用异常工厂**：对于自定义异常类，使用异常工厂进行注册，以支持动态异常处理
+3. **异常粒度**：根据需要使用适当粒度的异常处理，既不要过于笼统，也不要过于细化
 
-4. **异常粒度**：根据需要使用适当粒度的异常处理，既不要过于笼统，也不要过于细化
+4. **异常传播**：适当使用重新抛出机制，在保留原始异常信息的同时添加上下文信息
 
-5. **异常传播**：适当使用重新抛出机制，在保留原始异常信息的同时添加上下文信息
-
-6. **资源安全**：确保在异常处理过程中正确释放资源，推荐使用 RAII 模式 
+5. **资源安全**：确保在异常处理过程中正确释放资源，推荐使用 RAII 模式
