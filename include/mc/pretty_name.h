@@ -22,6 +22,8 @@ namespace detail {
 struct pretty_tag_msvc {};
 struct pretty_tag_gcc {};
 
+#define PRETTY_NAME_MAX_LENGTH 128
+
 // 根据编译器选择合适的标签
 #if defined(_MSC_VER) && !defined(__clang__)
 using pretty_default_tag = pretty_tag_msvc;
@@ -31,7 +33,7 @@ using pretty_default_tag = pretty_tag_gcc;
 
 // MSVC版本实现
 template <typename T>
-inline const char* pretty_name_impl(pretty_tag_msvc) {
+constexpr inline const char* pretty_name_impl(pretty_tag_msvc, char (&result)[PRETTY_NAME_MAX_LENGTH]) {
 #if defined(_MSC_VER) && !defined(__clang__)
     const char* name = __FUNCSIG__;
     // 跳过前缀 "const char *__cdecl mc::detail::pretty_name_impl<"
@@ -52,9 +54,8 @@ inline const char* pretty_name_impl(pretty_tag_msvc) {
     }
 
     // 返回裁剪后的类型名称
-    static thread_local char result[128];
-    size_t                   len = end > begin ? end - begin : 0;
-    len                          = len < 127 ? len : 127;
+    size_t len = end > begin ? end - begin : 0;
+    len        = len < (PRETTY_NAME_MAX_LENGTH - 1) ? len : (PRETTY_NAME_MAX_LENGTH - 1);
     for (size_t i = 0; i < len; ++i) {
         result[i] = name[begin + i];
     }
@@ -67,7 +68,7 @@ inline const char* pretty_name_impl(pretty_tag_msvc) {
 
 // GCC/Clang版本实现
 template <typename T>
-inline const char* pretty_name_impl(pretty_tag_gcc) {
+constexpr inline const char* pretty_name_impl(pretty_tag_gcc, char (&result)[PRETTY_NAME_MAX_LENGTH]) {
 #if defined(__GNUC__) || defined(__clang__)
     const char* name = __PRETTY_FUNCTION__;
     // 跳过前缀，寻找等号
@@ -88,9 +89,8 @@ inline const char* pretty_name_impl(pretty_tag_gcc) {
     }
 
     // 返回裁剪后的类型名称
-    static thread_local char result[128];
-    size_t                   len = end > begin ? end - begin : 0;
-    len                          = len < 127 ? len : 127;
+    size_t len = end > begin ? end - begin : 0;
+    len        = len < (PRETTY_NAME_MAX_LENGTH - 1) ? len : (PRETTY_NAME_MAX_LENGTH - 1);
     for (size_t i = 0; i < len; ++i) {
         result[i] = name[begin + i];
     }
@@ -102,8 +102,8 @@ inline const char* pretty_name_impl(pretty_tag_gcc) {
 }
 
 template <typename T>
-inline const char* pretty_name_impl() {
-    return pretty_name_impl<T>(pretty_default_tag{});
+constexpr inline const char* pretty_name_impl(char (&result)[PRETTY_NAME_MAX_LENGTH]) {
+    return pretty_name_impl<T>(pretty_default_tag{}, result);
 }
 
 } // namespace detail
@@ -115,7 +115,8 @@ inline const char* pretty_name_impl() {
  */
 template <typename T>
 inline const char* pretty_name() {
-    return detail::pretty_name_impl<T>();
+    static thread_local char result[PRETTY_NAME_MAX_LENGTH];
+    return detail::pretty_name_impl<T>(result);
 }
 
 } // namespace mc

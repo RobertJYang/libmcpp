@@ -40,14 +40,7 @@ enum class db_type {
 
 } // namespace mc::test::database
 
-// 导出数据库状态枚举到模块
-MC_MODULE_REFLECT_ENUM(mc_test_database,
-                       (mc::test::database::db_status, "DbStatus"),
-                       (DISCONNECTED)(CONNECTING)(CONNECTED)(ERROR))
-
-// 导出数据库类型枚举到模块
-MC_MODULE_REFLECT_ENUM(mc_test_database,
-                       (mc::test::database::db_type, "DbType"),
-                       (SQLITE)(MYSQL)(POSTGRESQL))
+MC_REFLECTABLE("DbStatus", mc::test::database::db_status)
+MC_REFLECTABLE("DbType", mc::test::database::db_type)
 
 #endif // MC_TEST_DATABASE_BASE_H

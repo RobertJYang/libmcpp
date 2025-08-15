@@ -46,9 +46,9 @@ template <typename... Args>
 inline constexpr bool all_variant_constructible_v = all_variant_constructible<Args...>::value;
 
 namespace detail {
-[[noreturn]] void throw_method_arg_not_match(std::string_view method_name,
-                                             std::string_view expect_type,
-                                             std::string_view actual_type);
+[[noreturn]] MC_API void throw_method_arg_not_match(std::string_view method_name,
+                                                    std::string_view expect_type,
+                                                    std::string_view actual_type);
 
 template <typename Arg>
 static auto convert_arg(std::string_view name, const mc::variant& var)

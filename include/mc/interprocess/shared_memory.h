@@ -28,24 +28,24 @@
 #include <unistd.h>
 #include <vector>
 
-#include "mc/interprocess/shared_memory_allocator.h"
+#include <mc/interprocess/shared_memory_allocator.h>
 
 namespace mc {
 namespace interprocess {
 
-template<typename T>
+template <typename T>
 class offset_ptr;
 /**
  * @brief 共享内存管理类，负责创建、打开和管理共享内存
  */
-class shared_memory {
+class MC_API shared_memory {
 public:
     /**
      * @brief 常量定义
      */
-    static constexpr uint32_t HEADER_MAGIC = 0x4D434442;  // "MCDB"
-    static constexpr uint32_t HEADER_VERSION = 1;
-    static constexpr size_t MIN_MEMORY_SIZE = 1 * 1024; // 1KB
+    static constexpr uint32_t HEADER_MAGIC    = 0x4D434442; // "MCDB"
+    static constexpr uint32_t HEADER_VERSION  = 1;
+    static constexpr size_t   MIN_MEMORY_SIZE = 1 * 1024; // 1KB
 
     /**
      * @brief 格式化共享内存名称，确保名称带有"/"前缀
@@ -102,40 +102,40 @@ public:
      * @return 共享内存是否有效
      */
     bool is_valid() const;
-    
+
     /**
      * @brief 计算指针相对于共享内存基地址的偏移量
      * @param ptr 指针
      * @return 偏移量，如果指针不在共享内存范围内则返回0
      */
     size_t get_offset(const void* ptr) const;
-    
+
     /**
      * @brief 从偏移量计算出指针
      * @param offset 偏移量
      * @return 指针，如果偏移量无效则返回nullptr
      */
     void* get_ptr_from_offset(size_t offset) const;
-    
+
     /**
      * @brief 获取数据区域的起始地址（跳过头部）
      * @return 数据区域的起始地址
      */
     void* get_data_address() const;
-    
+
     /**
      * @brief 获取数据区域的大小
      * @return 数据区域的大小
      */
     size_t get_data_size() const;
-    
+
     /**
      * @brief 创建偏移指针
      * @tparam T 指针类型
      * @param ptr 真实指针
      * @return 偏移指针
      */
-    template<typename T>
+    template <typename T>
     offset_ptr<T> make_offset_ptr(T* ptr) const {
         return offset_ptr<T>(this, ptr);
     }
@@ -146,7 +146,7 @@ public:
      * @param offset 偏移量
      * @return 偏移指针
      */
-    template<typename T>
+    template <typename T>
     offset_ptr<T> make_offset_ptr(size_t offset) const {
         return offset_ptr<T>(this, offset);
     }
@@ -158,7 +158,7 @@ public:
      * @param other 偏移指针
      * @return 偏移指针
      */
-    template<typename T>
+    template <typename T>
     offset_ptr<T> make_offset_ptr(offset_ptr<T> other) const {
         return offset_ptr<T>(this, other.get_offset());
     }
@@ -174,36 +174,37 @@ private:
     shared_memory(std::string name, int fd, void* addr, size_t size);
 
     // 禁止拷贝构造和赋值
-    shared_memory(const shared_memory&) = delete;
+    shared_memory(const shared_memory&)            = delete;
     shared_memory& operator=(const shared_memory&) = delete;
-    
+
     // 内部方法
     bool init_memory();
     bool register_process();
     void unregister_process();
-    
+
     // 共享内存头部结构，存储在共享内存的开始位置
     struct shared_memory_header {
-        std::atomic<uint32_t> magic;               // 魔数，用于检查完整性
-        std::atomic<uint32_t> version;             // 版本号
-        std::atomic<size_t> total_size;          // 共享内存总大小
-        std::atomic<size_t> used_size;           // 已使用大小
-        std::atomic<pid_t> creator_pid;          // 创建者进程ID
-        std::atomic<size_t> process_count;       // 使用进程数量
-        std::atomic<size_t> active_processes[64]; // 活跃进程列表，存储pid
+        std::atomic<uint32_t> magic;                // 魔数，用于检查完整性
+        std::atomic<uint32_t> version;              // 版本号
+        std::atomic<size_t>   total_size;           // 共享内存总大小
+        std::atomic<size_t>   used_size;            // 已使用大小
+        std::atomic<pid_t>    creator_pid;          // 创建者进程ID
+        std::atomic<size_t>   process_count;        // 使用进程数量
+        std::atomic<size_t>   active_processes[64]; // 活跃进程列表，存储pid
     };
 
     // 成员变量
-    std::string m_name;                 // 共享内存名称
-    int m_fd;                           // 文件描述符
-    void* m_addr;                       // 共享内存基地址
-    size_t m_size;                      // 共享内存大小
-    shared_memory_header* m_header;     // 共享内存头部
-    shared_memory_allocator m_allocator; // 共享内存分配器
-    size_t m_process_slot;              // 当前进程在活跃进程列表中的位置
-    
+    std::string             m_name;         // 共享内存名称
+    int                     m_fd;           // 文件描述符
+    void*                   m_addr;         // 共享内存基地址
+    size_t                  m_size;         // 共享内存大小
+    shared_memory_header*   m_header;       // 共享内存头部
+    shared_memory_allocator m_allocator;    // 共享内存分配器
+    size_t                  m_process_slot; // 当前进程在活跃进程列表中的位置
+
     // 声明友元类，使offset_ptr可以访问shared_memory的私有成员
-    template<typename T> friend class offset_ptr;
+    template <typename T>
+    friend class offset_ptr;
 };
 
 /**
@@ -270,15 +271,15 @@ private:
 
     // 引用计数器结构
     struct ref_count {
-        std::atomic<size_t> count;                 // 总引用计数
-        std::atomic<size_t> process_count[64];     // 每个进程的引用计数
-        std::atomic<pid_t> process_pids[64];       // 进程ID列表
+        std::atomic<size_t> count;             // 总引用计数
+        std::atomic<size_t> process_count[64]; // 每个进程的引用计数
+        std::atomic<pid_t>  process_pids[64];  // 进程ID列表
     };
 
     // 成员变量
-    shared_memory_allocator& m_allocator;  // 共享内存分配器
-    ref_count* m_counter;                  // 引用计数器地址
-    size_t m_process_slot;                 // 当前进程在进程列表中的位置
+    shared_memory_allocator& m_allocator;    // 共享内存分配器
+    ref_count*               m_counter;      // 引用计数器地址
+    size_t                   m_process_slot; // 当前进程在进程列表中的位置
 };
 
 /**
@@ -291,7 +292,8 @@ public:
     /**
      * @brief 默认构造函数，创建空指针
      */
-    shared_ptr() : m_ptr(nullptr), m_counter(nullptr) {}
+    shared_ptr() : m_ptr(nullptr), m_counter(nullptr) {
+    }
 
     /**
      * @brief 构造函数，从普通指针创建共享指针
@@ -339,7 +341,7 @@ public:
     shared_ptr& operator=(const shared_ptr& other) {
         if (this != &other) {
             reset();
-            m_ptr = other.m_ptr;
+            m_ptr     = other.m_ptr;
             m_counter = other.m_counter;
             if (m_ptr && m_counter) {
                 m_counter->add_ref();
@@ -356,8 +358,8 @@ public:
     shared_ptr& operator=(shared_ptr&& other) noexcept {
         if (this != &other) {
             reset();
-            m_ptr = other.m_ptr;
-            m_counter = std::move(other.m_counter);
+            m_ptr       = other.m_ptr;
+            m_counter   = std::move(other.m_counter);
             other.m_ptr = nullptr;
         }
         return *this;
@@ -372,7 +374,7 @@ public:
                 m_ptr->~T();
                 // 内存释放由引用计数器处理
             }
-            m_ptr = nullptr;
+            m_ptr     = nullptr;
             m_counter = nullptr;
         }
     }
@@ -418,8 +420,8 @@ public:
     }
 
 private:
-    T* m_ptr;                                   // 对象指针
-    std::shared_ptr<shared_ref_counter> m_counter;  // 引用计数器
+    T*                                  m_ptr;     // 对象指针
+    std::shared_ptr<shared_ref_counter> m_counter; // 引用计数器
 };
 
 /**
@@ -447,7 +449,7 @@ shared_ptr<T> make_shared(shared_memory_allocator& allocator, Args&&... args) {
 
     // 在分配的内存上构造对象
     T* ptr = new (mem) T(std::forward<Args>(args)...);
-    
+
     // 创建并返回共享指针
     return shared_ptr<T>(ptr, counter);
 }
@@ -457,4 +459,4 @@ shared_ptr<T> make_shared(shared_memory_allocator& allocator, Args&&... args) {
 
 #include "mc/interprocess/offset_ptr.h"
 
-#endif // MC_INTERPROCESS_SHARED_MEMORY_H 
+#endif // MC_INTERPROCESS_SHARED_MEMORY_H

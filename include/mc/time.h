@@ -203,7 +203,7 @@ inline constexpr milliseconds days(int64_t d) {
 /**
  * @brief 时间点类
  */
-class time_point {
+class MC_API time_point {
 public:
     /**
      * @brief 构造函数
@@ -381,7 +381,7 @@ private:
 /**
  * @brief 精确到秒的时间点类
  */
-class time_point_sec {
+class MC_API time_point_sec {
 public:
     /**
      * @brief 默认构造函数
@@ -620,12 +620,12 @@ private:
 typedef std::optional<time_point> opt_time_point;
 
 // variant转换函数声明
-void to_variant(const milliseconds& ms, variant& v);
-void from_variant(const variant& v, milliseconds& ms);
-void to_variant(const time_point& tp, variant& v);
-void from_variant(const variant& v, time_point& tp);
-void to_variant(const time_point_sec& tps, variant& v);
-void from_variant(const variant& v, time_point_sec& tps);
+MC_API void to_variant(const milliseconds& ms, variant& v);
+MC_API void from_variant(const variant& v, milliseconds& ms);
+MC_API void to_variant(const time_point& tp, variant& v);
+MC_API void from_variant(const variant& v, time_point& tp);
+MC_API void to_variant(const time_point_sec& tps, variant& v);
+MC_API void from_variant(const variant& v, time_point_sec& tps);
 
 } // namespace mc
 

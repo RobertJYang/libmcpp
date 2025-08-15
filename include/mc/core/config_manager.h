@@ -32,7 +32,7 @@ namespace mc::core {
 /**
  * @brief 配置加载器接口
  */
-class config_loader {
+class MC_API config_loader {
 public:
     virtual ~config_loader() = default;
 
@@ -53,7 +53,7 @@ public:
 /**
  * @brief JSON配置加载器
  */
-class json_config_loader : public config_loader {
+class MC_API json_config_loader : public config_loader {
 public:
     variant                  load(const std::string& file_path) override;
     std::vector<std::string> supported_extensions() const override {
@@ -64,7 +64,7 @@ public:
 /**
  * @brief TOML配置加载器（预留接口）
  */
-class toml_config_loader : public config_loader {
+class MC_API toml_config_loader : public config_loader {
 public:
     variant                  load(const std::string& file_path) override;
     std::vector<std::string> supported_extensions() const override {
@@ -75,7 +75,7 @@ public:
 /**
  * @brief 配置管理器
  */
-class config_manager {
+class MC_API config_manager {
 public:
     config_manager();
     ~config_manager() = default;

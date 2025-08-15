@@ -51,55 +51,55 @@ private:
     std::unordered_map<uint64_t, std::function<void()>> m_shm_slots;
 };
 
-struct shm_obj_visitor : mc::engine::visitor {
-    shm_obj_visitor(shm::object& shm_obj)
-        : m_shm_ins(shm::shared_memory::get_instance()), m_shm_obj(shm_obj) {
+struct shm_obj_visitor : mc::engine::metadata_visitor {
+    shm_obj_visitor(shm::object& shm_obj, const mc::engine::abstract_object& obj)
+        : m_obj(obj), m_shm_ins(shm::shared_memory::get_instance()), m_shm_obj(shm_obj) {
     }
 
-    void handle_interface_begin(const mc::engine::abstract_object&    obj,
-                                const mc::engine::abstract_interface& iface) override {
-        m_shm_intf = &m_shm_obj.register_interface(m_shm_ins, false, iface.get_interface_name());
+    void handle_interface_begin(const mc::engine::interface_metadata& iface) override {
+        m_shm_intf = &m_shm_obj.register_interface(m_shm_ins, false, iface.metadata->get_class_name());
+        if (iface.metadata->get_class_name() == OBJECT_PROPERTIES_INTERFACE) {
+            m_shm_obj.add_named_object_view(m_shm_ins, OBJECT_PROPERTIES_INTERFACE);
+        }
+        m_iface_meta = &iface;
+        m_iface      = mc::engine::to_interface_ptr(&m_obj, iface.interface);
     }
 
-    void handle_interface_end(const mc::engine::abstract_object&    obj,
-                              const mc::engine::abstract_interface& iface) override {
+    void handle_interface_end(const mc::engine::interface_metadata& iface) override {
     }
 
-    void handle(const mc::engine::abstract_object&        obj,
-                const mc::engine::abstract_interface&     iface,
-                const mc::engine::visitor::property_meta& info) override {
-        shm::shared_ptr<shm::property> shm_prop = m_shm_intf->add_p(m_shm_ins, info.name, info.signature);
-        shm_prop->set_read_privilege(info.read_privilege);
-        shm_prop->set_write_privilege(info.write_privilege);
-        shm_prop->set_flags(info.flags);
-        if (iface.get_interface_name() == OBJECT_PROPERTIES_INTERFACE) {
-            auto value = mc::engine::common_properties_interface::get_instance().get(info.name);
+    void handle(const mc::engine::property_type_info* info) override {
+        shm::shared_ptr<shm::property> shm_prop = m_shm_intf->add_p(m_shm_ins, info->name, info->get_signature());
+        shm_prop->set_read_privilege(0);
+        shm_prop->set_write_privilege(0);
+        shm_prop->set_flags(info->flags);
+        if (m_iface_meta->metadata->get_class_name() == OBJECT_PROPERTIES_INTERFACE) {
+            auto value = mc::engine::common_properties_interface::get_instance().get(info->name);
             shm_tree::set_property_inner(shm_prop, value);
         } else {
-            auto value = iface.get_property(info.name, mc::engine::property_options::memory);
+            auto value = m_iface->get_property(info->name, mc::engine::property_options::memory);
             shm_tree::set_property_inner(shm_prop, value);
         }
     }
 
-    void handle(const mc::engine::abstract_object&      obj,
-                const mc::engine::abstract_interface&   iface,
-                const mc::engine::visitor::method_meta& info) override {
+    void handle(const mc::engine::method_type_info* info) override {
         shm::method& shm_method =
-            m_shm_intf->add_m(m_shm_ins, info.name, info.args_signature, info.return_signature);
-        shm_method.set_privilege(info.privilege);
-        shm_method.set_flags(info.flags);
+            m_shm_intf->add_m(m_shm_ins, info->name, info->get_args_signature(), info->get_result_signature());
+        shm_method.set_privilege(0);
+        shm_method.set_flags(info->flags);
     }
 
-    void handle(const mc::engine::abstract_object&      obj,
-                const mc::engine::abstract_interface&   iface,
-                const mc::engine::visitor::signal_meta& info) override {
-        shm::signal& shm_signal = m_shm_intf->add_s(m_shm_ins, info.name, info.args_signature);
-        shm_signal.set_flags(info.flags);
+    void handle(const mc::engine::signal_type_info* info) override {
+        shm::signal& shm_signal = m_shm_intf->add_s(m_shm_ins, info->name, info->get_args_signature());
+        shm_signal.set_flags(info->flags);
     }
 
-    shm::shared_memory& m_shm_ins;
-    shm::object&        m_shm_obj;
-    shm::interface*     m_shm_intf;
+    const mc::engine::abstract_object&    m_obj;
+    const mc::engine::abstract_interface* m_iface{nullptr};
+    const mc::engine::interface_metadata* m_iface_meta{nullptr};
+    shm::shared_memory&                   m_shm_ins;
+    shm::object&                          m_shm_obj;
+    shm::interface*                       m_shm_intf;
 };
 } // namespace mc::dbus
 

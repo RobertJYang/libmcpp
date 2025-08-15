@@ -21,6 +21,8 @@ namespace mc::test_module {
 
 class test_class {
 public:
+    MC_REFLECTABLE("mc.test.module.TestClass")
+
     test_class() = default;
 
     void set_value(int v) {
@@ -41,7 +43,7 @@ MC_BUILTIN_MODULE_IMPL(mc_test_module);
 // 导出测试类
 MC_MODULE_REFLECT(
     mc_test_module,
-    (mc::test_module::test_class, "TestClass"),
+    mc::test_module::test_class,
     ((set_value, "setValue"))((get_value, "getValue")))
 
 namespace {
@@ -53,8 +55,8 @@ class builtin_module_test : public mc::test::TestBase {
 protected:
     void SetUp() override {
         mc::log::default_logger().set_level(mc::log::level::error);
-        mc::singleton<mc::module::module_manager>::reset_for_test();
-        mc::singleton<mc::reflect::factory_ptr, mc::reflect::global_namespace>::reset_for_test();
+        mc::module::module_manager::reset_for_test();
+        mc::reflect::reflection_factory::reset_global();
         MC_REGISTER_BUILTIN_MODULE(mc_test_module);
     }
 
@@ -64,8 +66,7 @@ protected:
 
     static void SetUpTestSuite() {
         // 销毁全局反射工厂，避免其他测试污染当前测试
-        mc::singleton<mc::reflect::factory_ptr, mc::reflect::global_namespace>::reset_for_test();
-
+        mc::reflect::reflection_factory::reset_global();
         mc::test::TestBase::TearDownTestSuite();
     }
 
@@ -77,11 +78,8 @@ protected:
         using test_module_ns = mc_test_module_namespace;
         mc::singleton<mc::reflect::factory_ptr, test_module_ns>::reset_for_test();
 
-        // 销毁全局反射工厂，避免污染其他测试
-        mc::singleton<mc::reflect::reflection_factory>::reset_for_test();
-
         // 销毁模块管理器，避免污染其他测试
-        mc::singleton<mc::reflect::factory_ptr, mc::reflect::global_namespace>::reset_for_test();
+        mc::reflect::reflection_factory::reset_global();
 
         // 调用基类清理方法
         mc::test::TestBase::TearDownTestSuite();

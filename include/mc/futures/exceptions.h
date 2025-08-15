@@ -23,8 +23,10 @@ enum future_exception_codes {
     promise_already_set_code      = 5002, // Promise 值已被设置异常
 };
 
-MC_DEFINE_EXCEPTION_CLASS(future_already_retrieved, future_already_retrieved_code, "Future 已被获取", "future_already_retrieved")
-MC_DEFINE_EXCEPTION_CLASS(promise_already_satisfied, promise_already_set_code, "Promise 值已被设置", "promise_already_satisfied")
+MC_DECLARE_EXCEPTION_CLASS(future_already_retrieved, future_already_retrieved_code,
+                           "Future 已被获取", "future_already_retrieved")
+MC_DECLARE_EXCEPTION_CLASS(promise_already_satisfied, promise_already_set_code,
+                           "Promise 值已被设置", "promise_already_satisfied")
 
 } // namespace mc::futures
 

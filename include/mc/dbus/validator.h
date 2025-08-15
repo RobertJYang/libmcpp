@@ -11,9 +11,11 @@
  */
 #include <string_view>
 
+#include <mc/common.h>
+
 namespace mc::dbus {
 
-class validator {
+class MC_API validator {
 public:
     static bool is_valid_interface_name(std::string_view name);
     static bool is_valid_member_name(std::string_view name);

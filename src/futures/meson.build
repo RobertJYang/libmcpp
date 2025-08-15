@@ -1,4 +1,5 @@
-futures_src_files = [
-  'futures/state_pool.cpp',
-  'futures/callback_list.cpp',
-] 
+futures_src_files = files(
+  'callback_list.cpp',
+  'exceptions.cpp',
+  'state_pool.cpp',
+)

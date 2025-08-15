@@ -13,6 +13,7 @@
 #ifndef MC_ENGINE_UTILS_H
 #define MC_ENGINE_UTILS_H
 
+#include <mc/engine/metadata.h>
 #include <mc/reflect/metadata_info.h>
 #include <mc/traits.h>
 #include <string_view>
@@ -32,79 +33,20 @@ constexpr bool is_interface_v = is_interface<T>::value;
 
 struct filter_interface {
     template <typename ElementType>
-    static constexpr bool check = is_interface_v<typename ElementType::member_type>;
+    static constexpr bool is_interface() {
+        if constexpr (mc::reflect::has_tag_v<mc::reflect::property_tag, ElementType> ||
+                      mc::reflect::has_tag_v<mc::reflect::base_class_tag, ElementType>) {
+            return is_interface_v<typename ElementType::member_type>;
+        }
+        return false;
+    }
+    template <typename ElementType>
+    static constexpr bool check = is_interface<ElementType>();
 };
 
-constexpr std::size_t max_name_length = 255;
-
-constexpr bool is_allowable_char(char c) {
-    return is_identifier_char(c);
-}
-
-constexpr bool is_allowable_first_char(char c) {
-    return is_first_identifier_char(c);
-}
-
-constexpr bool is_valid_interface_name(std::string_view name) {
-    // 必须至少有一个点分隔符
-    bool has_dot = false;
-
-    // 不能以点开头或结尾
-    if (name.empty() || name[0] == '.' || name[name.size() - 1] == '.' ||
-        name.size() > max_name_length) {
-        return false;
-    }
-
-    // 检查每个分段
-    bool segment_start = true;
-    for (size_t i = 0; i < name.size(); ++i) {
-        char c = name[i];
-
-        if (c == '.') {
-            // 找到点分隔符
-            has_dot = true;
-
-            // 不允许连续的点
-            if (i > 0 && name[i - 1] == '.') {
-                return false;
-            }
-
-            segment_start = true;
-        } else if (segment_start) {
-            // 检查分段的第一个字符必须是字母
-            if (!is_allowable_first_char(c)) {
-                return false;
-            }
-            segment_start = false;
-        } else if (!is_allowable_char(c)) {
-            return false;
-        }
-    }
-
-    return has_dot;
-}
-
-constexpr bool is_valid_member_name(std::string_view name) {
-    if (name.empty() || name.size() > max_name_length) {
-        return false;
-    }
-
-    if (!is_allowable_first_char(name[0])) {
-        return false;
-    }
-
-    for (size_t i = 1; i < name.size(); ++i) {
-        if (!is_allowable_char(name[i])) {
-            return false;
-        }
-    }
-
-    return true;
-}
-
 // InterfaceTypes： std::tuple<Interface1*, Interface2, ...>
-template <typename MemberType, typename InterfaceTypes>
-constexpr bool is_interface_declared(const InterfaceTypes& interfaces) {
+template <typename MemberType, typename DeclaredInterfaces>
+constexpr bool is_interface_declared(const DeclaredInterfaces& interfaces) {
     bool is_declared = false;
     mc::traits::tuple_for_each(interfaces, [&](auto interface) {
         using declared_type = std::remove_pointer_t<decltype(interface)>;
@@ -117,9 +59,9 @@ constexpr bool is_interface_declared(const InterfaceTypes& interfaces) {
 }
 
 // 检查对象实现的 interface 成员是否都声明了
-template <typename InterfaceTypes, typename Members>
-constexpr bool check_members_is_declared(const InterfaceTypes& declared_interfaces,
-                                         const Members&        members) {
+template <typename DeclaredInterfaces, typename Members>
+constexpr bool check_members_is_declared(const DeclaredInterfaces& declared_interfaces,
+                                         const Members&            members) {
     bool all_valid = true;
     mc::traits::tuple_for_each(members, [&](auto& element) {
         using element_type = mc::traits::remove_cvref_t<decltype(element)>;
@@ -138,8 +80,8 @@ constexpr bool check_members_is_declared(const InterfaceTypes& declared_interfac
 }
 
 // 检查声明的所有 interfaces 都是满足要求的接口类型
-template <typename InterfaceTypes>
-constexpr bool check_declared_interfaces(const InterfaceTypes& declared_interfaces) {
+template <typename DeclaredInterfaces>
+constexpr bool check_declared_interfaces(const DeclaredInterfaces& declared_interfaces) {
     bool all_valid = true;
     mc::traits::tuple_for_each(declared_interfaces, [&](auto& interface) {
         using interface_type =
@@ -171,9 +113,9 @@ constexpr int get_members_count(const Members& members) {
 }
 
 // 检查对象声明的 interface 成员是否都实现了，并且仅且实现了一次
-template <typename InterfaceTypes, typename Members>
-constexpr bool check_interface_implement(const InterfaceTypes& declared_interfaces,
-                                         const Members&        members) {
+template <typename DeclaredInterfaces, typename Members>
+constexpr bool check_interface_implement(const DeclaredInterfaces& declared_interfaces,
+                                         const Members&            members) {
     bool all_valid = true;
     mc::traits::tuple_for_each(declared_interfaces, [&](auto& interface) {
         using interface_type =
@@ -187,8 +129,8 @@ constexpr bool check_interface_implement(const InterfaceTypes& declared_interfac
     return all_valid;
 }
 
-template <typename InterfaceTypes, typename Members>
-constexpr bool check_members(const InterfaceTypes& declared_interfaces, const Members& members) {
+template <typename DeclaredInterfaces, typename Members>
+constexpr bool check_members(const DeclaredInterfaces& declared_interfaces, const Members& members) {
     if (!check_declared_interfaces(declared_interfaces)) {
         return false;
     }
@@ -204,7 +146,33 @@ constexpr bool check_members(const InterfaceTypes& declared_interfaces, const Me
     return true;
 }
 
-bool path_starts_with(std::string_view path, std::string_view prefix);
+MC_API bool path_starts_with(std::string_view path, std::string_view prefix);
+
+template <typename DeclaredInterfaces>
+constexpr auto make_interface_metadatas() {
+    std::array<const metadata_list*, std::tuple_size_v<DeclaredInterfaces>> arr{};
+
+    size_t index = 0;
+    mc::traits::tuple_element_for_each<DeclaredInterfaces>([&](auto type) {
+        using element_type = std::remove_pointer_t<typename decltype(type)::type>;
+        arr[index++]       = &element_type::metadata();
+    });
+    return arr;
+}
+
+template <typename Member, typename DeclaredInterfaces>
+constexpr int get_interface_index() {
+    int index = -1;
+    int count = 0;
+    mc::traits::tuple_element_for_each<DeclaredInterfaces>([&](auto type) {
+        using element_type = std::remove_pointer_t<typename decltype(type)::type>;
+        if constexpr (std::is_same_v<Member, element_type>) {
+            index = count;
+        }
+        count++;
+    });
+    return index;
+}
 
 } // namespace detail
 } // namespace mc::engine

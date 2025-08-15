@@ -17,7 +17,7 @@
 #include <mc/log/log_message.h>
 #include <mc/reflect.h>
 
-MC_REFLECT_ENUM(mc::log::level, (all)(trace)(debug)(info)(warn)(error)(fatal)(off))
+MC_REFLECTABLE("mc.log.level", mc::log::level)
 
 namespace mc {
 namespace log {
@@ -32,7 +32,7 @@ namespace log {
  *
  * 日志记录器负责收集日志消息并将其分发到各个追加器
  */
-class logger {
+class MC_API logger {
 public:
     /**
      * @brief 获取指定名称的日志记录器

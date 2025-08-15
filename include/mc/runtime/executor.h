@@ -29,7 +29,7 @@ using execution_context = boost::asio::execution_context;
 /**
  * @brief 执行器包装器，支持包装任意 boost::asio 执行器
  */
-class executor {
+class MC_API executor {
 public:
     /**
      * @brief 默认构造函数

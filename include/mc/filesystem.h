@@ -19,6 +19,8 @@
 #include <optional>
 #include <vector>
 
+#include <mc/common.h>
+
 // 检测文件系统库的可用性
 #if defined(__cpp_lib_filesystem)
 #define MC_HAS_STD_FILESYSTEM 1
@@ -70,7 +72,7 @@ using filesystem_error             = fs::filesystem_error;
  * @param path 文件路径
  * @return std::string 文件名部分
  */
-std::string basename(const fs::path& path);
+MC_API std::string basename(const fs::path& path);
 
 /**
  * @brief 从路径中提取目录部分
@@ -78,7 +80,7 @@ std::string basename(const fs::path& path);
  * @param path 文件路径
  * @return std::string 目录部分
  */
-std::string dirname(const fs::path& path);
+MC_API std::string dirname(const fs::path& path);
 
 /**
  * @brief 获取文件扩展名
@@ -86,7 +88,7 @@ std::string dirname(const fs::path& path);
  * @param path 文件路径
  * @return std::string 扩展名（不含点）
  */
-std::string extension(const fs::path& path);
+MC_API std::string extension(const fs::path& path);
 
 /**
  * @brief 获取不带扩展名的文件名
@@ -94,7 +96,7 @@ std::string extension(const fs::path& path);
  * @param path 文件路径
  * @return std::string 不带扩展名的文件名
  */
-std::string stem(const fs::path& path);
+MC_API std::string stem(const fs::path& path);
 
 /**
  * @brief 检查路径是否存在
@@ -102,7 +104,7 @@ std::string stem(const fs::path& path);
  * @param path 要检查的路径
  * @return bool 如果路径存在返回true，否则返回false
  */
-bool exists(const path& p);
+MC_API bool exists(const path& p);
 
 /**
  * @brief 检查路径是否是文件
@@ -110,7 +112,7 @@ bool exists(const path& p);
  * @param path 要检查的路径
  * @return bool 如果路径是文件返回true，否则返回false
  */
-bool is_regular_file(const path& p);
+MC_API bool is_regular_file(const path& p);
 
 /**
  * @brief 检查路径是否是目录
@@ -118,7 +120,7 @@ bool is_regular_file(const path& p);
  * @param path 要检查的路径
  * @return bool 如果路径是目录返回true，否则返回false
  */
-bool is_directory(const path& p);
+MC_API bool is_directory(const path& p);
 
 /**
  * @brief 获取文件大小
@@ -126,7 +128,7 @@ bool is_directory(const path& p);
  * @param path 文件路径
  * @return std::optional<uint64_t> 文件大小（字节），如果文件不存在或无法访问返回空
  */
-std::optional<uint64_t> file_size(const path& p);
+MC_API std::optional<uint64_t> file_size(const path& p);
 
 /**
  * @brief 列出目录中的所有文件和子目录
@@ -134,7 +136,7 @@ std::optional<uint64_t> file_size(const path& p);
  * @param path 目录路径
  * @return std::vector<fs::path> 文件和子目录的路径列表
  */
-std::vector<fs::path> list_directory(const fs::path& path);
+MC_API std::vector<fs::path> list_directory(const fs::path& path);
 
 /**
  * @brief 列出目录中的所有文件（不包括子目录）
@@ -142,7 +144,7 @@ std::vector<fs::path> list_directory(const fs::path& path);
  * @param path 目录路径
  * @return std::vector<fs::path> 文件路径列表
  */
-std::vector<fs::path> list_files(const fs::path& path);
+MC_API std::vector<fs::path> list_files(const fs::path& path);
 
 /**
  * @brief 列出目录中的所有子目录（不包括文件）
@@ -150,7 +152,7 @@ std::vector<fs::path> list_files(const fs::path& path);
  * @param path 目录路径
  * @return std::vector<fs::path> 子目录路径列表
  */
-std::vector<fs::path> list_directories(const fs::path& path);
+MC_API std::vector<fs::path> list_directories(const fs::path& path);
 
 /**
  * @brief 创建目录
@@ -158,7 +160,7 @@ std::vector<fs::path> list_directories(const fs::path& path);
  * @param path 要创建的目录路径
  * @return bool 成功返回true，失败返回false
  */
-bool create_directory(const path& p);
+MC_API bool create_directory(const path& p);
 
 /**
  * @brief 递归创建目录
@@ -166,7 +168,7 @@ bool create_directory(const path& p);
  * @param path 要创建的目录路径
  * @return bool 成功返回true，失败返回false
  */
-bool create_directories(const path& p);
+MC_API bool create_directories(const path& p);
 
 /**
  * @brief 删除文件或空目录
@@ -174,7 +176,7 @@ bool create_directories(const path& p);
  * @param path 要删除的路径
  * @return bool 成功返回true，失败返回false
  */
-bool remove(const path& p);
+MC_API bool remove(const path& p);
 
 /**
  * @brief 递归删除目录及其内容
@@ -182,7 +184,7 @@ bool remove(const path& p);
  * @param path 要删除的目录路径
  * @return std::optional<uint64_t> 删除的文件数量，失败返回空
  */
-std::optional<uint64_t> remove_all(const path& p);
+MC_API std::optional<uint64_t> remove_all(const path& p);
 
 /**
  * @brief 复制文件
@@ -192,7 +194,7 @@ std::optional<uint64_t> remove_all(const path& p);
  * @param overwrite 如果目标文件已存在是否覆盖
  * @return bool 成功返回true，失败返回false
  */
-bool copy_file(const path& from, const path& to, bool overwrite = false);
+MC_API bool copy_file(const path& from, const path& to, bool overwrite = false);
 
 /**
  * @brief 移动文件或目录
@@ -201,7 +203,7 @@ bool copy_file(const path& from, const path& to, bool overwrite = false);
  * @param dst 目标路径
  * @return bool 成功返回true，失败返回false
  */
-void rename(const path& from, const path& to);
+MC_API void rename(const path& from, const path& to);
 
 /**
  * @brief 创建符号链接
@@ -210,7 +212,7 @@ void rename(const path& from, const path& to);
  * @param link 链接路径
  * @return bool 成功返回true，失败返回false
  */
-bool create_symlink(const path& target, const path& link);
+MC_API bool create_symlink(const path& target, const path& link);
 
 /**
  * @brief 读取符号链接的目标
@@ -218,14 +220,14 @@ bool create_symlink(const path& target, const path& link);
  * @param path 符号链接路径
  * @return std::optional<fs::path> 链接目标，如果失败返回空
  */
-std::optional<fs::path> read_symlink(const path& path);
+MC_API std::optional<fs::path> read_symlink(const path& path);
 
 /**
  * @brief 获取当前工作目录
  *
  * @return fs::path 当前工作目录的绝对路径
  */
-fs::path current_path();
+MC_API fs::path current_path();
 
 /**
  * @brief 设置当前工作目录
@@ -233,7 +235,7 @@ fs::path current_path();
  * @param path 要设置的目录路径
  * @return bool 成功返回true，失败返回false
  */
-void current_path(const path& p);
+MC_API void current_path(const path& p);
 
 /**
  * @brief 获取绝对路径
@@ -241,7 +243,7 @@ void current_path(const path& p);
  * @param path 相对或绝对路径
  * @return fs::path 绝对路径，如果失败返回空
  */
-fs::path absolute(const path& p);
+MC_API fs::path absolute(const path& p);
 
 /**
  * @brief 规范化路径，解析"."和".."
@@ -249,7 +251,7 @@ fs::path absolute(const path& p);
  * @param path 要规范化的路径
  * @return fs::path 规范化后的路径
  */
-fs::path normalize(const fs::path& path);
+MC_API fs::path normalize(const fs::path& path);
 
 /**
  * @brief 拼接路径
@@ -258,7 +260,7 @@ fs::path normalize(const fs::path& path);
  * @param path 要添加的路径
  * @return fs::path 拼接后的路径
  */
-fs::path join(const path& base, const path& path);
+MC_API fs::path join(const path& base, const path& path);
 
 /**
  * @brief 拼接多个路径段
@@ -266,7 +268,7 @@ fs::path join(const path& base, const path& path);
  * @param paths 要拼接的路径段
  * @return fs::path 拼接后的路径
  */
-fs::path join(const std::vector<path>& paths);
+MC_API fs::path join(const std::vector<path>& paths);
 
 /**
  * @brief 读取整个文件内容到字符串
@@ -274,7 +276,7 @@ fs::path join(const std::vector<path>& paths);
  * @param path 文件路径
  * @return std::optional<std::string> 文件内容，如果失败返回空
  */
-std::optional<std::string> read_file(const path& p);
+MC_API std::optional<std::string> read_file(const path& p);
 
 /**
  * @brief 将内容写入文件（覆盖已有内容）
@@ -283,7 +285,7 @@ std::optional<std::string> read_file(const path& p);
  * @param content 要写入的内容
  * @return bool 成功返回true，失败返回false
  */
-bool write_file(const path& p, const std::string& content);
+MC_API bool write_file(const path& p, const std::string& content);
 
 /**
  * @brief 将内容追加到文件
@@ -292,7 +294,7 @@ bool write_file(const path& p, const std::string& content);
  * @param content 要追加的内容
  * @return bool 成功返回true，失败返回false
  */
-bool append_file(const path& p, const std::string& content);
+MC_API bool append_file(const path& p, const std::string& content);
 
 /**
  * @brief 获取文件最后修改时间（Unix时间戳）
@@ -300,7 +302,7 @@ bool append_file(const path& p, const std::string& content);
  * @param path 文件路径
  * @return std::optional<int64_t> 最后修改时间，如果失败返回空
  */
-std::optional<int64_t> last_modified_time(const path& p);
+MC_API std::optional<int64_t> last_modified_time(const path& p);
 
 /**
  * @brief 获取文件系统空间信息
@@ -308,14 +310,14 @@ std::optional<int64_t> last_modified_time(const path& p);
  * @param path 文件路径
  * @return space_info 文件系统空间信息
  */
-space_info space(const path& p);
+MC_API space_info space(const path& p);
 
 /**
  * @brief 获取临时目录路径
  *
  * @return fs::path 临时目录路径
  */
-fs::path temp_directory_path();
+MC_API fs::path temp_directory_path();
 
 } // namespace filesystem
 } // namespace mc

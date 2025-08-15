@@ -52,12 +52,17 @@ template <typename T>
 static void marshal_variant_basic(const message_writer& writer, const mc::variant& v) {
     if constexpr (std::is_arithmetic_v<T>) {
         writer << v.as<T>();
-    } else if constexpr (std::is_same_v<T, std::string_view> || std::is_same_v<T, std::string> ||
-                         std::is_same_v<T, mc::dbus::path>) {
+    } else if constexpr (std::is_same_v<T, std::string_view> || std::is_same_v<T, std::string>) {
         if (v.is_string()) {
             writer << v.get_string();
         } else {
             writer << v.as<std::string>();
+        }
+    } else if constexpr (std::is_same_v<T, mc::dbus::path>) {
+        if (v.is_string()) {
+            writer.write_path(v.get_string());
+        } else {
+            writer.write_path(v.as<std::string>());
         }
     } else if constexpr (std::is_same_v<T, mc::dbus::signature>) {
         if (v.is_string()) {
@@ -190,6 +195,8 @@ void variant_to_dbus_signature(signature& sig, const mc::variant& v) {
     }
 }
 } // namespace detail
+
+message::message() = default;
 
 message message::new_method_call(std::string_view destination, std::string_view path,
                                  std::string_view interface, std::string_view member) {
@@ -871,18 +878,12 @@ const message_writer& operator<<(const message_writer& writer, const std::string
 }
 
 const message_writer& operator<<(const message_writer& writer, const mc::dbus::path& v) {
-    MC_ASSERT(v.is_valid(), "invalid path: ${v}", ("v", v.str()));
-
-    const char* str = v.str().c_str();
-    dbus_message_iter_append_basic(&writer.m_iter, DBUS_TYPE_OBJECT_PATH, &str);
+    writer.write_path(v.str(), false);
     return writer;
 }
 
 const message_writer& operator<<(const message_writer& writer, const mc::dbus::signature& v) {
-    MC_ASSERT(v.is_valid(), "invalid signature: ${v}", ("v", v.str()));
-
-    const char* str = v.str().c_str();
-    dbus_message_iter_append_basic(&writer.m_iter, DBUS_TYPE_SIGNATURE, &str);
+    writer.write_signature(v);
     return writer;
 }
 
@@ -1043,11 +1044,46 @@ void message_writer::write_variant_dict(signature_iterator it, const mc::dict& d
 }
 
 void message_writer::write_signature(const signature& sig) const {
-    write_signature(sig.str());
+    write_signature(sig.str(), false);
 }
 
-void message_writer::write_signature(std::string_view sig) const {
-    dbus_message_iter_append_basic(&m_iter, DBUS_TYPE_SIGNATURE, sig.data());
+void message_writer::write_signature(std::string_view sig, bool need_add_tail_zeros) const {
+    MC_ASSERT(signature::is_valid(sig), "invalid signature: ${v}", ("v", sig));
+    MC_ASSERT(sig.size() <= mc::reflect::max_signature_length,
+              "signature too long: ${sig}", ("sig", sig));
+
+    const char* sig_str = nullptr;
+    char        sig_buf[mc::reflect::max_signature_length + 1];
+    if (need_add_tail_zeros) {
+        std::strncpy(sig_buf, sig.data(), sig.size());
+        sig_buf[sig.size()] = '\0';
+        sig_str             = sig_buf;
+    } else {
+        sig_str = sig.data();
+    }
+
+    dbus_message_iter_append_basic(&m_iter, DBUS_TYPE_SIGNATURE, &sig_str);
+}
+
+void message_writer::write_path(const path& p) const {
+    write_path(p.str(), false);
+}
+
+void message_writer::write_path(std::string_view p, bool need_add_tail_zero) const {
+    MC_ASSERT(mc::dbus::path::is_valid(p), "invalid path: ${v}", ("v", p));
+    MC_ASSERT(p.size() <= mc::reflect::max_path_length, "path too long: ${p}", ("p", p));
+
+    const char* p_str = nullptr;
+    char        p_buf[mc::reflect::max_path_length + 1];
+    if (need_add_tail_zero) {
+        std::strncpy(p_buf, p.data(), p.size());
+        p_buf[p.size()] = '\0';
+        p_str           = p_buf;
+    } else {
+        p_str = p.data();
+    }
+
+    dbus_message_iter_append_basic(&m_iter, DBUS_TYPE_OBJECT_PATH, &p_str);
 }
 
 } // namespace mc::dbus

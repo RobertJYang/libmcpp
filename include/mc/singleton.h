@@ -54,7 +54,7 @@ struct singleton_options {
 /**
  * @brief 单例管理器类，管理所有单例的创建和销毁
  */
-class singleton_manager {
+class MC_API singleton_manager {
 public:
     using destroy_fn_t = std::function<void()>;
     using type_key_t   = std::pair<std::type_index, std::size_t>;

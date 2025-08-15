@@ -19,28 +19,32 @@
 #include <string_view>
 #include <vector>
 
-namespace mc::engine {
+#include <boost/preprocessor.hpp>
+
+namespace mc {
 template <typename T>
 class result;
 }
 
 namespace mc::reflect {
 
-using async_result = mc::engine::result<mc::variant>;
+using async_result = mc::result<mc::variant>;
 struct property_type_info;
 struct method_type_info;
+struct base_class_type_info;
+struct member_info_base;
 
 // 异常抛出辅助函数
-[[noreturn]] void throw_method_arg_not_enough(std::string_view method_name, size_t expect_count,
-                                              size_t actual_count);
-[[noreturn]] void throw_method_not_exist(std::string_view method_name);
-[[noreturn]] void throw_not_enum_type(std::string_view type_name);
-[[noreturn]] void throw_enum_value_not_found(std::string_view type_name, std::string_view value_name);
-[[noreturn]] void throw_enum_value_not_found(std::string_view type_name, uint64_t value);
-[[noreturn]] void throw_bad_enum_cast(int64_t i, const char* e);
-[[noreturn]] void throw_bad_enum_cast(const char* k, const char* e);
-[[noreturn]] void throw_variant_cast(const char* k, const char* e);
-[[noreturn]] void throw_enum_not_support_create_object(std::string_view type_name);
+[[noreturn]] MC_API void throw_method_arg_not_enough(std::string_view method_name, size_t expect_count,
+                                                     size_t actual_count);
+[[noreturn]] MC_API void throw_method_not_exist(std::string_view method_name);
+[[noreturn]] MC_API void throw_not_enum_type(std::string_view type_name);
+[[noreturn]] MC_API void throw_enum_value_not_found(std::string_view type_name, std::string_view value_name);
+[[noreturn]] MC_API void throw_enum_value_not_found(std::string_view type_name, uint64_t value);
+[[noreturn]] MC_API void throw_bad_enum_cast(int64_t i, const char* e);
+[[noreturn]] MC_API void throw_bad_enum_cast(const char* k, const char* e);
+[[noreturn]] MC_API void throw_variant_cast(const char* k, const char* e);
+[[noreturn]] MC_API void throw_enum_not_support_create_object(std::string_view type_name);
 
 using type_id_type       = int64_t;
 using local_type_id_type = int32_t;
@@ -56,10 +60,27 @@ constexpr factory_id_type INVALID_FACTORY_ID = -1;
  * @tparam T 要反射的类型
  */
 template <typename T>
-struct reflector {
+struct reflectable {
     using is_defined = std::false_type;
     using is_enum    = std::false_type;
 };
+
+template <typename T, typename = void>
+struct reflector;
+
+template <typename T>
+struct static_metadata;
+
+namespace detail {
+template <typename T, typename = void>
+struct has_reflectable : std::false_type {};
+
+template <typename T>
+struct has_reflectable<
+    T, std::enable_if_t<std::is_same_v<typename T::is_reflectable, std::true_type>, void>>
+    : std::true_type {};
+
+} // namespace detail
 
 /**
  * 检查类型是否可反射
@@ -68,7 +89,8 @@ struct reflector {
  */
 template <typename T>
 constexpr bool is_reflectable() {
-    return reflector<std::decay_t<T>>::is_defined::value;
+    return reflectable<std::decay_t<T>>::is_defined::value ||
+           detail::has_reflectable<T>::value;
 }
 
 /**
@@ -78,7 +100,7 @@ constexpr bool is_reflectable() {
  */
 template <typename T>
 constexpr bool is_enum() {
-    return reflector<T>::is_enum::value;
+    return reflectable<T>::is_enum::value;
 }
 
 /**
@@ -89,6 +111,15 @@ constexpr bool is_enum() {
 template <typename T>
 constexpr bool is_normal_enum() {
     return std::is_enum_v<T> && !is_reflectable<T>();
+}
+
+template <typename T>
+constexpr std::string_view get_type_name() {
+    if constexpr (detail::has_reflectable<T>::value) {
+        return T::reflect_name;
+    } else {
+        return reflectable<T>::reflect_name;
+    }
 }
 
 /*
@@ -153,6 +184,28 @@ constexpr inline bool is_valid_type_name(std::string_view name) {
     }
 
     return true;
+}
+
+constexpr inline std::string_view longest_common_prefix(std::string_view s1, std::string_view s2) {
+    size_t i = 0;
+    while (i < s1.size() && i < s2.size() && s1[i] == s2[i]) {
+        ++i;
+    }
+    return s1.substr(0, i);
+}
+
+constexpr inline std::string_view remove_common_namespace(std::string_view s1, std::string_view s2) {
+    auto prefix = longest_common_prefix(s1, s2);
+    if (prefix.empty()) {
+        return s1;
+    }
+
+    auto pos = prefix.find_last_of(':');
+    if (pos == std::string_view::npos) {
+        return s1;
+    }
+
+    return s1.substr(pos + 1);
 }
 
 namespace detail {
@@ -282,9 +335,9 @@ public:
  *
  * 提供类型信息和对象创建功能
  */
-class reflection_metadata_base : public mc::shared_base {
+class reflection_base : public mc::shared_base {
 public:
-    virtual ~reflection_metadata_base() = default;
+    virtual ~reflection_base() = default;
 
     /**
      * @brief 创建反射对象
@@ -332,6 +385,21 @@ public:
     virtual const method_type_info* get_method_info(std::string_view name) const = 0;
 
     /**
+     * @brief 获取基类信息
+     * @param name 基类名
+     * @return const base_class_type_info* 基类信息指针，需要转换为具体类型
+     */
+    virtual const base_class_type_info* get_base_class_info(std::string_view name) const = 0;
+
+    /**
+     * @brief 获取自定义信息
+     * @param name 自定义信息名
+     * @param reflect_type 反射类型
+     * @return const member_info_base* 自定义信息指针，需要转换为具体类型
+     */
+    virtual const member_info_base* get_custom_info(std::string_view name, size_t reflect_type) const = 0;
+
+    /**
      * @brief 获取所有属性名
      * @return std::vector<std::string_view> 属性名列表
      */
@@ -363,6 +431,9 @@ public:
     virtual bool has_enum_value(std::string_view name) const {
         throw_not_enum_type(get_type_name());
     }
+    virtual bool has_enum_value(uint64_t value) const {
+        throw_not_enum_type(get_type_name());
+    }
 
 protected:
     bool m_is_enum = false;
@@ -370,8 +441,51 @@ protected:
 
 using reflected_object_ptr = std::shared_ptr<reflected_object>;
 
-using reflection_metadata_ptr  = mc::shared_ptr<reflection_metadata_base>;
-using reflection_metadata_wptr = mc::weak_ptr<reflection_metadata_base>;
+using reflection_metadata_ptr  = mc::shared_ptr<reflection_base>;
+using reflection_metadata_wptr = mc::weak_ptr<reflection_base>;
+
+/**
+ * @brief 定义类的反射信息
+ */
+#define MC_GLOBAL_REFLECTABLE(name, TYPE)                              \
+    template <>                                                        \
+    struct mc::reflect::reflectable<TYPE> {                            \
+        using is_defined = std::true_type;                             \
+        using is_enum    = std::conditional_t<                         \
+               std::is_enum_v<TYPE>, std::true_type, std::false_type>; \
+        constexpr static std::string_view reflect_name = name;         \
+    };
+
+#define MC_CLASS_REFLECTABLE(name)              \
+    using is_reflectable = std::true_type;      \
+    template <typename, typename>               \
+    friend struct mc::reflect::reflector;       \
+    template <typename>                         \
+    friend struct mc::reflect::static_metadata; \
+    constexpr static std::string_view reflect_name = name;
+
+// 声明类型或者枚举是可反射的
+// @param name 反射名称，用于在反射系统中标识类型或者枚举，支持多级命名空间，以 . 或 :: 分隔，例如：mc.devices.TemperatureSensor
+// @param ... 枚举类型
+// @note 为了使用方便，我们支持在类内部添加 MC_REFLECTABLE 或在全局命名空间 MC_REFLECTABLE 来标记该类支持反射。
+// 例如：
+// namespace mc::devices {
+// struct TemperatureSensor {
+//     MC_REFLECTABLE("mc.devices.TemperatureSensor"); // 在类声明内部声明反射
+// };
+// } // namespace mc::devices
+// 或者
+// namespace {
+//     MC_REFLECTABLE("mc.devices.TemperatureSensor", mc::devices::TemperatureSensor); // 在全局命名空间声明反射
+// }
+// 优先建议使用内部声明的方式声明反射，但如过想对一些第三方类声明反射，则必须使用全局声明的方式。
+// 另外对于枚举类型，也只能使用全局的方式声明反射。
+// 我们通过识别 MC_REFLECTABLE 的参数个数来决定是全局反射还是类内反射，这样可以避免再增加一个宏名称，
+// 如果 ... 可变参数大于一个参数，则表示是全局反射，否则表示是类内反射。
+// 建议在反射系统中的名称保持与C++中的命名空间一致，避免混淆，为此反射系统中也支持 :: 分隔的命名空间。
+#define MC_REFLECTABLE(...)                                                \
+    BOOST_PP_IIF(BOOST_PP_GREATER(BOOST_PP_VARIADIC_SIZE(__VA_ARGS__), 1), \
+                 MC_GLOBAL_REFLECTABLE, MC_CLASS_REFLECTABLE)(__VA_ARGS__)
 
 } // namespace mc::reflect
 

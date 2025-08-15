@@ -19,126 +19,29 @@
 
 #include <boost/intrusive/link_mode.hpp>
 #include <boost/intrusive/list_hook.hpp>
-#include <boost/intrusive/options.hpp>
 #include <boost/intrusive/set_hook.hpp>
+#include <boost/intrusive/slist_hook.hpp>
 #include <boost/intrusive/unordered_set_hook.hpp>
 
-namespace mc {
-namespace intrusive {
+namespace mc::intrusive {
 
-/**
- * @brief 链接模式枚举
- */
-enum class link_mode {
-    normal,     ///< 普通模式，不检查钩子状态
-    safe,       ///< 安全模式，检查钩子状态
-    auto_unlink ///< 自动解链模式，当对象被销毁时自动从容器中移除
-};
+using boost::intrusive::auto_unlink;
+using boost::intrusive::constant_time_size;
+using boost::intrusive::link_mode;
+using boost::intrusive::safe_link;
 
-/**
- * @brief 将内部链接模式映射到 Boost 的链接模式
- */
-template <link_mode Mode>
-struct boost_link_mode;
+using boost::intrusive::list_base_hook;
+using boost::intrusive::list_member_hook;
 
-template <>
-struct boost_link_mode<link_mode::normal> {
-    using type = boost::intrusive::link_mode<boost::intrusive::normal_link>;
-};
+using boost::intrusive::slist_base_hook;
+using boost::intrusive::slist_member_hook;
 
-template <>
-struct boost_link_mode<link_mode::safe> {
-    using type = boost::intrusive::link_mode<boost::intrusive::safe_link>;
-};
+using boost::intrusive::set_base_hook;
+using boost::intrusive::set_member_hook;
 
-template <>
-struct boost_link_mode<link_mode::auto_unlink> {
-    using type = boost::intrusive::link_mode<boost::intrusive::auto_unlink>;
-};
+using boost::intrusive::unordered_set_base_hook;
+using boost::intrusive::unordered_set_member_hook;
 
-/**
- * @brief 链表钩子基类
- *
- * 该类封装了 Boost 的链表钩子，提供了更加易用的接口
- */
-class list_hook
-    : public boost::intrusive::list_base_hook<typename boost_link_mode<link_mode::safe>::type> {
-public:
-    // 默认构造函数
-    list_hook() = default;
-
-    // 拷贝构造函数 - 不复制钩子状态
-    list_hook(const list_hook&)
-        : boost::intrusive::list_base_hook<typename boost_link_mode<link_mode::safe>::type>() {
-    }
-
-    // 移动构造函数 - 不移动钩子状态
-    list_hook(list_hook&&) noexcept
-        : boost::intrusive::list_base_hook<typename boost_link_mode<link_mode::safe>::type>() {
-    }
-
-    // 禁止赋值操作，因为钩子不支持赋值
-    list_hook& operator=(const list_hook&) = delete;
-    list_hook& operator=(list_hook&&)      = delete;
-};
-
-/**
- * @brief 哈希表钩子基类
- *
- * 该类封装了 Boost 的哈希表钩子，提供了更加易用的接口
- */
-class unordered_set_hook : public boost::intrusive::unordered_set_base_hook<
-                               typename boost_link_mode<link_mode::safe>::type> {
-public:
-    // 默认构造函数
-    unordered_set_hook() = default;
-
-    // 拷贝构造函数 - 不复制钩子状态
-    unordered_set_hook(const unordered_set_hook&)
-        : boost::intrusive::unordered_set_base_hook<
-              typename boost_link_mode<link_mode::safe>::type>() {
-    }
-
-    // 移动构造函数 - 不移动钩子状态
-    unordered_set_hook(unordered_set_hook&&) noexcept
-        : boost::intrusive::unordered_set_base_hook<
-              typename boost_link_mode<link_mode::safe>::type>() {
-    }
-
-    // 禁止赋值操作，因为钩子不支持赋值
-    unordered_set_hook& operator=(const unordered_set_hook&) = delete;
-    unordered_set_hook& operator=(unordered_set_hook&&)      = delete;
-};
-
-/**
- * @brief 有序集合钩子基类
- * 
- * 该类封装了 Boost 的有序集合钩子，提供了更加易用的接口
- */
-class set_hook : public boost::intrusive::set_base_hook<
-                     typename boost_link_mode<link_mode::safe>::type> {
-public:
-    // 默认构造函数
-    set_hook() = default;
-
-    // 拷贝构造函数 - 不复制钩子状态
-    set_hook(const set_hook&)
-        : boost::intrusive::set_base_hook<
-              typename boost_link_mode<link_mode::safe>::type>() {
-    }
-
-    // 移动构造函数 - 不移动钩子状态
-    set_hook(set_hook&&) noexcept
-        : boost::intrusive::set_base_hook<
-              typename boost_link_mode<link_mode::safe>::type>() {
-    }
-
-    // 禁止赋值操作，因为钩子不支持赋值
-    set_hook& operator=(const set_hook&) = delete;
-    set_hook& operator=(set_hook&&)      = delete;
-};
-
-} // namespace intrusive
-} // namespace mc
+} // namespace mc::intrusive
 
 #endif // MC_INTRUSIVE_HOOK_H

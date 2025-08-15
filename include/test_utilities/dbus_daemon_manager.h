@@ -18,6 +18,7 @@
 #include <vector>
 
 #include <dbus/dbus.h>
+#include <mc/common.h>
 #include <mc/filesystem.h>
 
 namespace mc::test {
@@ -27,7 +28,7 @@ namespace mc::test {
  *
  * 这个类负责启动和关闭 DBus 守护进程，创建和清理相关的临时文件和目录
  */
-class dbus_daemon_manager {
+class MC_API dbus_daemon_manager {
 public:
     /**
      * @brief 构造函数

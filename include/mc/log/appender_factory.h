@@ -39,7 +39,7 @@ using appender_destroyer_c = void (*)(void*);
  *
  * 负责创建和管理追加器实例，包括从动态库加载追加器
  */
-class appender_factory {
+class MC_API appender_factory {
 public:
     /**
      * @brief 获取单例实例
@@ -62,11 +62,11 @@ public:
      * @param type 追加器类型
      * @return 追加器实例
      */
-    template<typename T>
+    template <typename T>
     std::shared_ptr<T> create_by_type(const std::string& type) {
         return std::dynamic_pointer_cast<T>(create_impl(type));
     }
-    
+
     /**
      * @brief 创建追加器实例并设置名称
      *

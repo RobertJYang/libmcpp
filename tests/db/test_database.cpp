@@ -27,6 +27,8 @@ struct by_id : tag_base<by_id> {};
 // 测试用的对象类
 class test_object : public object_base {
 public:
+    MC_REFLECTABLE("mc.test.db.TestObject")
+
     test_object() = default;
 
     test_object(uint32_t id, std::string name, int value)

@@ -19,12 +19,12 @@
 
 namespace mc::dbus {
 
-void emit_interfaces_added(connection& conn, const engine::abstract_object& obj);
+MC_API void emit_interfaces_added(connection& conn, const engine::abstract_object& obj);
 
-void emit_interfaces_removed(connection& conn, const engine::abstract_object& obj);
+MC_API void emit_interfaces_removed(connection& conn, const engine::abstract_object& obj);
 
-void emit_properties_changed(connection& conn, engine::abstract_object& obj,
-                             const engine::property_base& prop, const variant& value);
+MC_API void emit_properties_changed(connection& conn, engine::abstract_object& obj,
+                                    const engine::property_base& prop, const variant& value);
 
 } // namespace mc::dbus
 

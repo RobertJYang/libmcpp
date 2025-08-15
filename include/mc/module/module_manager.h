@@ -21,9 +21,11 @@ class module_manager_impl;
 /**
  * @brief 模块管理器
  */
-class module_manager {
+class MC_API module_manager {
 public:
     static module_manager& instance();
+    static void            reset_for_test();
+
     ~module_manager();
 
     /**

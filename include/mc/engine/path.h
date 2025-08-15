@@ -33,7 +33,7 @@ namespace engine {
  * - 元素不能为空（不允许连续斜杠）
  * - 可以是单个斜杠（表示根路径）
  */
-class path {
+class MC_API path {
 public:
     /**
      * 默认构造函数，创建根路径
@@ -174,7 +174,7 @@ private:
 /**
  * 输出流操作符重载
  */
-std::ostream& operator<<(std::ostream& os, const path& p);
+MC_API std::ostream& operator<<(std::ostream& os, const path& p);
 
 } // namespace engine
 

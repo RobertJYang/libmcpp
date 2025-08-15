@@ -29,7 +29,7 @@ namespace mc {
 namespace io {
 namespace detail {
 
-class shard_buffer {
+class MC_API shard_buffer {
 public:
     using free_function = void (*)(void* buf, void* user_data);
 
@@ -85,7 +85,7 @@ private:
  * ^            ^                    ^           ^
  * buffer()   data()               tail()      buffer_end()
  */
-class io_buffer {
+class MC_API io_buffer {
 public:
     using free_function = detail::shard_buffer::free_function;
     static void default_free(void* buf, void*) {

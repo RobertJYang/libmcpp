@@ -46,10 +46,10 @@ struct service_node {
 /**
  * @brief 服务管理器类
  */
-class service_manager {
+class MC_API service_manager {
 public:
     // 构造函数
-    service_manager() = default;
+    service_manager();
 
     // 析构函数
     ~service_manager();

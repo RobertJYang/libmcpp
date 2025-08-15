@@ -1,7 +1,9 @@
-reflect_src_files = [
-  'reflect/signature.cpp',
-  'reflect/reflect.cpp',
-  'reflect/reflection_factory.cpp',
-  'reflect/module_node.cpp',
-  'reflect/reflection_factory_impl.cpp',
-]
+reflect_src_files = files(
+  'enum_metadata.cpp',
+  'module_node.cpp',
+  'reflect.cpp',
+  'reflection_factory.cpp',
+  'reflection_factory_impl.cpp',
+  'signature.cpp',
+  'struct_metadata.cpp',
+)

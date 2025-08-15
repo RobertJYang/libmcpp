@@ -28,6 +28,9 @@ namespace mc::reflect {
 struct signal_tag {};
 } // namespace mc::reflect
 
+#define TEST_SIGNAL_TYPE (static_cast<int>(mc::reflect::member_info_type::custom_start) + 1)
+
+namespace test_custom_member_info {
 // 2. 然后定义信号信息类
 template <typename C, typename Signature>
 struct signal_info : public mc::reflect::member_info_base {
@@ -45,10 +48,24 @@ struct signal_info : public mc::reflect::member_info_base {
     std::string_view type_name() const override {
         return "signal";
     }
+
+    int type() const override {
+        return static_cast<int>(mc::reflect::member_info_type::custom_start) + 1;
+    }
+
+    uint32_t offset() const override {
+        return static_cast<uint32_t>(MC_MEMBER_OFFSETOF(C, signal_ptr));
+    }
+
+    member_info_base* clone() const override {
+        return new signal_info<C, Signature>(this->name, this->signal_ptr);
+    }
 };
 
 class TestValue {
 public:
+    MC_REFLECTABLE("test_custom_member_info.TestValue");
+
     std::string m_name;
     int         m_value;
 
@@ -71,20 +88,25 @@ public:
         }
     }
 };
+} // namespace test_custom_member_info
+
+using TestValue = test_custom_member_info::TestValue;
+template <typename C, typename Signature>
+using signal_info = test_custom_member_info::signal_info<C, Signature>;
 
 // 3. 现在我们可以为具体类型特化 member_info_creator
 namespace mc::reflect {
+
 template <typename Signature>
 struct member_info_creator<TestValue, mc::signal<Signature>> {
-    static auto create(mc::signal<Signature> TestValue::* member_ptr, std::string_view name) {
-        return std::tuple<signal_info<TestValue, Signature>>{
-            signal_info<TestValue, Signature>{name, member_ptr}};
+    static constexpr auto create(mc::signal<Signature> TestValue::* member_ptr, std::string_view name) {
+        return std::make_tuple(signal_info<TestValue, Signature>{name, member_ptr});
     }
 };
 } // namespace mc::reflect
 
 // 反射TestValue类
-MC_REFLECT(TestValue,
+MC_REFLECT(test_custom_member_info::TestValue,
            // 普通的属性反射
            ((m_name, "name"))((m_value, "value"))
            // 信号的反射，通过特化 member_info_creator<TestValue, mc::signal<Signature>> 支持
@@ -107,35 +129,32 @@ TEST(CustomMemberInfoTest, SignalMemberInfo) {
     EXPECT_FALSE(is_property_name_changed);
     EXPECT_TRUE(is_property_value);
 
-    // 获取所有成员
-    auto& all_members = mc::reflect::reflector<TestValue>::get_members();
+    // 获取运行时属性、方法、信号元信息
+    auto& metadata   = mc::reflect::reflector<TestValue>::get_metadata();
+    auto& properties = metadata.get_properties();
+    auto& methods    = metadata.get_methods();
+    auto& signals    = metadata.get_custom_members();
 
-    // 获取属性
-    auto& properties = mc::reflect::reflector<TestValue>::get_properties();
+    EXPECT_EQ(properties.size(), 2);
+    EXPECT_EQ(methods.size(), 2);
+    EXPECT_EQ(signals.size(), 2);
+    for (auto& signal : signals) {
+        EXPECT_EQ(signal.member->type(), TEST_SIGNAL_TYPE);
+    }
 
-    // 获取方法
-    auto& methods = mc::reflect::reflector<TestValue>::get_methods();
+    // 获取运行静态属性、方法、信号元信息
+    auto static_members    = mc::reflect::get_static_members<TestValue>();
+    auto static_properties = mc::reflect::get_static_properties<TestValue>();
+    auto static_methods    = mc::reflect::get_static_methods<TestValue>();
+    auto static_signals    = mc::reflect::get_static_members_by_tag<TestValue, mc::reflect::signal_tag>();
 
-    // 获取信号（使用自定义tag）
-    auto& signals =
-        mc::reflect::reflector<TestValue>::get_members_by_tag<mc::reflect::signal_tag>();
+    EXPECT_EQ(std::tuple_size_v<decltype(static_members)>, 6);
+    EXPECT_EQ(std::tuple_size_v<decltype(static_properties)>, 2);
+    EXPECT_EQ(std::tuple_size_v<decltype(static_methods)>, 2);
+    EXPECT_EQ(std::tuple_size_v<decltype(static_signals)>, 2);
 
-    // 检查成员数量
-    EXPECT_EQ(std::tuple_size_v<std::remove_reference_t<decltype(all_members)>>, 6);
-    EXPECT_EQ(std::tuple_size_v<std::remove_reference_t<decltype(properties)>>, 2);
-    EXPECT_EQ(std::tuple_size_v<std::remove_reference_t<decltype(methods)>>, 2);
-    EXPECT_EQ(std::tuple_size_v<std::remove_reference_t<decltype(signals)>>,
-              2); // 应该有2个信号
-
-    // 测试信号成员信息
-    auto signal_visitor = [](const auto& member) {
-        EXPECT_TRUE((std::is_same_v<typename std::remove_reference_t<decltype(member)>::tag_type,
-                                    mc::reflect::signal_tag>));
-    };
-
-    std::apply(
-        [&signal_visitor](const auto&... members) {
-            (signal_visitor(members), ...);
-        },
-        signals);
+    // 使用 tuple_for_each 遍历静态反射元数据
+    mc::traits::tuple_for_each(static_signals, [](auto* member) {
+        EXPECT_EQ(member->type(), TEST_SIGNAL_TYPE);
+    });
 }

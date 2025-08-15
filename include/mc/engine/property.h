@@ -40,8 +40,9 @@ enum class p_type : uint32_t {
 
 // 定义常量以便与 int 类型兼容
 namespace property_options {
-constexpr int memory   = 1;
-constexpr int from_mdb = 2;
+constexpr int memory               = 1; // 内存属性
+constexpr int from_mdb             = 2; // 从 mdb 获取属性
+constexpr int with_object_property = 4; // GetAll、to_variant 获取所有属性时输出对象扩展的私有属性
 } // namespace property_options
 
 namespace detail {
@@ -57,18 +58,14 @@ struct func_data {
     mc::mutable_dict params;
 };
 
-class interface_observer {
+class MC_API interface_observer {
 public:
-    interface_observer() {
-    }
+    interface_observer();
+    ~interface_observer();
 
-    void set_interface(abstract_interface* interface) {
-        m_interface = interface;
-    }
+    void set_interface(abstract_interface* interface);
 
-    abstract_interface* get_interface() const {
-        return m_interface;
-    }
+    abstract_interface* get_interface() const;
 
     void notify(const mc::variant& value, const property_base& prop);
 
@@ -80,174 +77,61 @@ protected:
 } // namespace detail
 
 // 引用对象类，实现弱引用语义
-class ref_object : public variant_extension_base {
+class MC_API ref_object : public variant_extension_base {
 public:
     using object_finder_type = std::function<abstract_object*(const std::string&)>;
 
-    ref_object(const std::string& object_name, object_finder_type finder = nullptr)
-        : m_object_name(object_name), m_object_finder(finder) {
-    }
+    ref_object(const std::string& object_name, object_finder_type finder = nullptr);
 
     // 获取被引用对象的属性
-    mc::variant get_property(const std::string_view property_name) const {
-        auto* target_object = find_related_object();
-        if (target_object == nullptr) {
-            MC_THROW(mc::invalid_op_exception, "引用对象不存在: ${object_name}", ("object_name", m_object_name));
-        }
-        return target_object->get_property(property_name);
-    }
+    mc::variant get_property(const std::string_view property_name) const;
 
     // 获取被引用对象的接口属性
-    mc::variant get_property(const std::string_view interface_name, const std::string_view property_name) const {
-        auto* target_object = find_related_object();
-        if (target_object == nullptr) {
-            MC_THROW(mc::invalid_op_exception, "引用对象不存在: ${object_name}", ("object_name", m_object_name));
-        }
-
-        if (!interface_name.empty()) {
-            auto interface_obj = target_object->get_interface(interface_name);
-            if (interface_obj == nullptr) {
-                MC_THROW(mc::invalid_op_exception, "Interface not found: ${interface} in object: ${object_name}",
-                         ("interface", interface_name)("object_name", m_object_name));
-            }
-            return interface_obj->get_property(property_name);
-        }
-
-        return target_object->get_property(property_name);
-    }
+    mc::variant get_property(const std::string_view interface_name, const std::string_view property_name) const;
 
     // 设置被引用对象的属性
-    void set_property(const std::string_view property_name, const mc::variant& value) const {
-        auto* target_object = find_related_object();
-        if (target_object == nullptr) {
-            MC_THROW(mc::invalid_op_exception, "引用对象不存在，无法设置属性: ${object_name}", ("object_name", m_object_name));
-        }
-        target_object->set_property(property_name, value);
-    }
+    void set_property(const std::string_view property_name, const mc::variant& value) const;
 
     // 设置被引用对象的接口属性
-    void set_property(const std::string_view interface_name, const std::string_view property_name, const mc::variant& value) const {
-        auto* target_object = find_related_object();
-        if (target_object == nullptr) {
-            MC_THROW(mc::invalid_op_exception, "引用对象不存在，无法设置属性: ${object_name}", ("object_name", m_object_name));
-        }
+    void set_property(const std::string_view interface_name,
+                      const std::string_view property_name, const mc::variant& value) const;
 
-        if (!interface_name.empty()) {
-            auto interface_obj = target_object->get_interface(interface_name);
-            if (interface_obj == nullptr) {
-                MC_THROW(mc::invalid_op_exception, "Interface not found: ${interface} in object: ${object_name}",
-                         ("interface", interface_name)("object_name", m_object_name));
-            }
-            interface_obj->set_property(property_name, value);
-        } else {
-            target_object->set_property(property_name, value);
-        }
-    }
-
-    invoke_result invoke(std::string_view method_name, const mc::variants& args) {
-        auto* target_object = find_related_object();
-        if (target_object == nullptr) {
-            MC_THROW(mc::invalid_op_exception, "引用对象不存在: ${object_name}", ("object_name", m_object_name));
-        }
-
-        return target_object->invoke(method_name, args);
-    }
-
-    invoke_result invoke(const std::string& interface_name, std::string_view method_name, const mc::variants& args) {
-        auto* target_object = find_related_object();
-        if (target_object == nullptr) {
-            MC_THROW(mc::invalid_op_exception, "引用对象不存在: ${object_name}", ("object_name", m_object_name));
-        }
-
-        if (!interface_name.empty()) {
-            auto interface_obj = target_object->get_interface(interface_name);
-            if (interface_obj == nullptr) {
-                MC_THROW(mc::invalid_op_exception, "Interface not found: ${interface} in object: ${object_name}",
-                         ("interface", interface_name)("object_name", m_object_name));
-            }
-            return interface_obj->invoke(method_name, args);
-        }
-
-        return target_object->invoke(method_name, args);
-    }
-
-    async_result async_invoke(std::string_view method_name, const mc::variants& args = {}) {
-        auto* target_object = find_related_object();
-        if (target_object == nullptr) {
-            MC_THROW(mc::invalid_op_exception, "引用对象不存在: ${object_name}", ("object_name", m_object_name));
-        }
-
-        return target_object->async_invoke(method_name, args);
-    }
-
-    async_result async_invoke(const std::string& interface_name, std::string_view method_name, const mc::variants& args = {}) {
-        auto* target_object = find_related_object();
-        if (target_object == nullptr) {
-            MC_THROW(mc::invalid_op_exception, "引用对象不存在: ${object_name}", ("object_name", m_object_name));
-        }
-
-        if (!interface_name.empty()) {
-            auto interface_obj = target_object->get_interface(interface_name);
-            if (interface_obj == nullptr) {
-                MC_THROW(mc::invalid_op_exception, "Interface not found: ${interface} in object: ${object_name}",
-                         ("interface", interface_name)("object_name", m_object_name));
-            }
-            return interface_obj->async_invoke(method_name, args);
-        }
-
-        return target_object->async_invoke(method_name, args);
-    }
+    invoke_result invoke(std::string_view method_name, const mc::variants& args);
+    invoke_result invoke(const std::string& interface_name,
+                         std::string_view method_name, const mc::variants& args);
+    async_result  async_invoke(std::string_view method_name, const mc::variants& args = {});
+    async_result  async_invoke(const std::string&  interface_name,
+                               std::string_view    method_name,
+                               const mc::variants& args = {});
 
     // 获取对象名称
-    const std::string& get_object_name() const {
-        return m_object_name;
-    }
+    const std::string& get_object_name() const;
 
     // 检查被引用的对象是否存在
-    bool is_valid() const {
-        return find_related_object() != nullptr;
-    }
+    bool is_valid() const;
 
     // 获取被引用的对象指针（可能为空）
-    abstract_object* get_object() const {
-        return find_related_object();
-    }
+    abstract_object* get_object() const;
 
-    std::string as_string() const override {
-        return m_object_name;
-    }
+    std::string as_string() const override;
 
-    bool equals(const variant_extension_base& other) const override {
-        if (auto* other_ref = dynamic_cast<const ref_object*>(&other)) {
-            return m_object_name == other_ref->m_object_name;
-        }
-        return false;
-    }
+    bool equals(const variant_extension_base& other) const override;
 
     // 实现 variant_extension_base 的纯虚函数
-    mc::shared_ptr<variant_extension_base> clone() const override {
-        return mc::make_shared<ref_object>(m_object_name, m_object_finder);
-    }
+    mc::shared_ptr<variant_extension_base> clone() const override;
 
-    std::string_view get_type_name() const override {
-        return "ref_object";
-    }
+    std::string_view get_type_name() const override;
 
 private:
     std::string        m_object_name;
     object_finder_type m_object_finder;
 
     // 查找被引用的对象（弱引用，可能返回 nullptr）
-    abstract_object* find_related_object() const {
-        if (m_object_finder) {
-            return m_object_finder(m_object_name);
-        }
-        return nullptr;
-    }
+    abstract_object* find_related_object() const;
 };
 
 template <typename T, typename Observer = detail::interface_observer>
-class property : public property_base {
+class property : public property_base, public Observer {
     static_assert(std::is_same_v<std::decay_t<T>, T>, "T must be a non-reference type");
 
 public:
@@ -347,12 +231,12 @@ public:
         m_outsider_setter = std::move(outsider_setter);
     }
 
-    observer_type& observer() {
-        return m_observer;
+    observer_type& get_observer() {
+        return *this;
     }
 
-    const observer_type& observer() const {
-        return m_observer;
+    const observer_type& get_observer() const {
+        return *this;
     }
 
     template <typename U>
@@ -874,11 +758,11 @@ public:
 
     friend inline void from_variant(const mc::variant& v, property_type& value) {
         if (!v.is_string()) {
-            from_variant(v, value.m_value);
+            value.set_value_impl(v.as<T>());
             return;
         }
 
-        auto str = v.as<std::string>();
+        const std::string& str = v.get_string();
 
         if (str.substr(0, 3) == "<=/") {
             auto sync_prop = func_parser::get_instance().parse_sync_property(str);
@@ -897,21 +781,16 @@ public:
         } else if (str.substr(0, 6) == "$Func_") {
             value.process_property_value(str);
         } else {
-            from_variant(v, value.m_value);
+            value.set_value_impl(v.as<T>());
         }
-    }
-
-    observer_type& get_observer() {
-        return m_observer;
-    }
-
-    const observer_type& get_observer() const {
-        return m_observer;
     }
 
     std::string_view get_name() const override {
         if constexpr (std::is_same_v<observer_type, detail::interface_observer>) {
-            return m_observer.get_interface()->get_property_name(this);
+            auto* info = get_observer().get_interface()->get_property_info(this);
+            if (info) {
+                return info->name;
+            }
         }
 
         return {};
@@ -939,15 +818,23 @@ public:
 
     abstract_interface* get_interface() const override {
         if constexpr (std::is_same_v<observer_type, detail::interface_observer>) {
-            return m_observer.get_interface();
+            return get_observer().get_interface();
         }
 
         return nullptr;
     }
 
+    void set_interface(abstract_interface* interface) override {
+        if constexpr (std::is_same_v<observer_type, detail::interface_observer>) {
+            get_observer().set_interface(interface);
+        } else {
+            MC_UNUSED(interface);
+        }
+    }
+
     abstract_object* get_object() const override {
         if constexpr (std::is_same_v<observer_type, detail::interface_observer>) {
-            return m_observer.get_interface()->get_owner();
+            return get_observer().get_interface()->get_owner();
         }
 
         return nullptr;
@@ -963,7 +850,7 @@ public:
 
 protected:
     void set_variant(const mc::variant& value) override {
-        set_value_impl(value.as<T>());
+        value.as(*this);
     }
 
     template <typename U>
@@ -983,7 +870,7 @@ protected:
             return;
         }
 
-        m_observer.notify(value, *this);
+        get_observer().notify(value, *this);
     }
 
     void set_value_impl(param_type new_value) {
@@ -1023,7 +910,6 @@ protected:
     }
 
     T                                        m_value{};
-    observer_type                            m_observer;
     std::unique_ptr<property_changed_signal> m_signal;
 
     std::function<T()>                   m_getter;

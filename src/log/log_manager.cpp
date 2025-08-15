@@ -12,6 +12,7 @@
 
 #include <algorithm>
 #include <fstream>
+
 #include <mc/filesystem.h>
 #include <mc/json.h>
 #include <mc/log.h>
@@ -22,7 +23,6 @@
 #include <mc/reflect.h>
 #include <mc/variant.h>
 #include <unordered_set>
-
 namespace mc {
 namespace log {
 
@@ -208,3 +208,7 @@ bool log_manager::apply_config(const logging_config& config) {
 
 } // namespace log
 } // namespace mc
+
+MC_REFLECT(mc::log::appender_config, (name)(type)(lib_path))
+MC_REFLECT(mc::log::logger_config, (name)(level)(appenders))
+MC_REFLECT(mc::log::logging_config, (appenders)(loggers))

@@ -25,7 +25,7 @@ using supervisor_ptr = std::shared_ptr<supervisor>;
 /**
  * @brief 监督器接口类
  */
-class supervisor {
+class MC_API supervisor {
 public:
     virtual ~supervisor() = default;
 
@@ -60,7 +60,7 @@ public:
 /**
  * @brief 基础监督器类，提供通用功能实现
  */
-class supervisor_base : public supervisor {
+class MC_API supervisor_base : public supervisor {
 public:
     supervisor_base()           = default;
     ~supervisor_base() override = default;

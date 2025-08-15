@@ -24,7 +24,7 @@ namespace mc::core {
 /**
  * @brief 监督器管理器类
  */
-class supervisor_manager {
+class MC_API supervisor_manager {
 public:
     // 构造和析构
     supervisor_manager();

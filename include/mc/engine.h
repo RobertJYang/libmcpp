@@ -13,6 +13,7 @@
 #define MC_ENGINE_H
 
 #include <mc/engine/engine.h>
+#include <mc/engine/errors/std_errors.h>
 #include <mc/engine/interface.h>
 #include <mc/engine/macro.h>
 #include <mc/engine/object.h>

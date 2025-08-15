@@ -24,7 +24,7 @@ using timer_ptr = mc::shared_ptr<timer>;
 /*
  * 定时器
  */
-class timer : public object {
+class MC_API timer : public object {
 public:
     timer(object* parent = nullptr);
     ~timer() override;

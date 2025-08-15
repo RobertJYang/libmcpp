@@ -23,6 +23,8 @@ namespace mc::network {
  */
 class network_client {
 public:
+    MC_REFLECTABLE("NetworkClient")
+
     network_client()  = default;
     ~network_client() = default;
 
@@ -119,18 +121,5 @@ private:
 };
 
 } // namespace mc::network
-
-// 导出网络客户端类到模块
-MC_MODULE_REFLECT(mc_network,
-                  (mc::network::network_client, "NetworkClient"),
-                  ((connect, "connect"))           // 连接
-                  ((disconnect, "disconnect"))     // 断开连接
-                  ((send_data, "sendData"))        // 发送数据
-                  ((receive_data, "receiveData"))  // 接收数据
-                  ((get_status, "getStatus"))      // 获取状态
-                  ((get_host, "getHost"))          // 获取主机
-                  ((get_port, "getPort"))          // 获取端口
-                  ((set_protocol, "setProtocol"))  // 设置协议
-                  ((get_protocol, "getProtocol"))) // 获取协议
 
 #endif // MC_NETWORK_CLIENT_H

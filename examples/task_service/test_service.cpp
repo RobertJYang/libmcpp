@@ -29,7 +29,8 @@ bool test_service::start() {
         return false;
     }
 
-    create_task();
+    m_tasks = mc::make_shared<my_tasks_object>(this);
+    register_object(m_tasks);
     return true;
 }
 
@@ -38,15 +39,10 @@ bool test_service::stop() {
         return false;
     }
 
-    for (auto& task : m_tasks) {
-        // task->stop();
-    }
+    // for (auto& task : m_tasks) {
+    //     // task->stop();
+    // }
     return true;
-}
-
-void test_service::create_task() {
-    auto task = my_task_object::create_task(this, mc::milliseconds(1000));
-    m_tasks.push_back(task);
 }
 
 } // namespace test

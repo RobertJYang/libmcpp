@@ -78,6 +78,10 @@ signature& signature::operator=(std::string str) {
     return *this;
 }
 
+signature::operator std::string_view() const {
+    return m_sig;
+}
+
 bool signature::is_empty() const {
     return m_sig.empty();
 }
@@ -118,6 +122,10 @@ bool signature::is_complete_type(char c) {
     return is_basic_type(c) || is_container_type(c);
 }
 
+bool signature::is_complete_type(type_code type) {
+    return is_complete_type(type_to_char(type));
+}
+
 bool signature::is_basic_type(char c) {
     switch (char_to_type(c)) {
     case type_code::byte_type:        // 字节（byte）
@@ -139,6 +147,10 @@ bool signature::is_basic_type(char c) {
     }
 }
 
+bool signature::is_basic_type(type_code type) {
+    return is_basic_type(type_to_char(type));
+}
+
 bool signature::is_container_type(char c) {
     switch (char_to_type(c)) {
     case type_code::array_type:       // 数组
@@ -151,6 +163,10 @@ bool signature::is_container_type(char c) {
     default:
         return false;
     }
+}
+
+bool signature::is_container_type(type_code type) {
+    return is_container_type(type_to_char(type));
 }
 
 bool signature::is_single_complete_type(std::string_view sig) {
@@ -386,6 +402,14 @@ signature_iterator signature_iterator::get_dict_value_iterator() const {
     size_t key_len = signature::get_complete_type_length(m_sig, key_pos);
 
     return signature_iterator(m_sig, key_pos + key_len);
+}
+
+std::string_view signature_iterator::str() const {
+    return m_sig;
+}
+
+size_t signature_iterator::pos() const {
+    return m_pos;
 }
 
 } // namespace reflect
