@@ -63,25 +63,47 @@ inline logger& default_logger() {
 } // namespace mc
 
 // ======================================================================
-// 日志宏定义 - 这些是推荐的日志接口
+// 日志宏定义
 // ======================================================================
 
 // 使用指定日志记录器的日志宏
-#define mc_tlog(LOGGER, FORMAT, ...) MC_LOG_TRACE(LOGGER, FORMAT, __VA_ARGS__)
-#define mc_dlog(LOGGER, FORMAT, ...) MC_LOG_DEBUG(LOGGER, FORMAT, __VA_ARGS__)
-#define mc_ilog(LOGGER, FORMAT, ...) MC_LOG_INFO(LOGGER, FORMAT, __VA_ARGS__)
-#define mc_nlog(LOGGER, FORMAT, ...) MC_LOG_NOTICE(LOGGER, FORMAT, __VA_ARGS__)
-#define mc_wlog(LOGGER, FORMAT, ...) MC_LOG_WARN(LOGGER, FORMAT, __VA_ARGS__)
-#define mc_elog(LOGGER, FORMAT, ...) MC_LOG_ERROR(LOGGER, FORMAT, __VA_ARGS__)
-#define mc_flog(LOGGER, FORMAT, ...) MC_LOG_FATAL(LOGGER, FORMAT, __VA_ARGS__)
+#define mc_tlog(LOGGER, ...) MC_LOG_BASE(LOGGER, trace, __VA_ARGS__)
+#define mc_dlog(LOGGER, ...) MC_LOG_BASE(LOGGER, debug, __VA_ARGS__)
+#define mc_ilog(LOGGER, ...) MC_LOG_BASE(LOGGER, info, __VA_ARGS__)
+#define mc_nlog(LOGGER, ...) MC_LOG_BASE(LOGGER, notice, __VA_ARGS__)
+#define mc_wlog(LOGGER, ...) MC_LOG_BASE(LOGGER, warn, __VA_ARGS__)
+#define mc_elog(LOGGER, ...) MC_LOG_BASE(LOGGER, error, __VA_ARGS__)
+#define mc_flog(LOGGER, ...) MC_LOG_BASE(LOGGER, fatal, __VA_ARGS__)
 
 // 使用默认日志记录器的全局日志宏
-#define tlog(FORMAT, ...) MC_LOG_TRACE(mc::log::default_logger(), FORMAT, __VA_ARGS__)
-#define dlog(FORMAT, ...) MC_LOG_DEBUG(mc::log::default_logger(), FORMAT, __VA_ARGS__)
-#define ilog(FORMAT, ...) MC_LOG_INFO(mc::log::default_logger(), FORMAT, __VA_ARGS__)
-#define nlog(FORMAT, ...) MC_LOG_NOTICE(mc::log::default_logger(), FORMAT, __VA_ARGS__)
-#define wlog(FORMAT, ...) MC_LOG_WARN(mc::log::default_logger(), FORMAT, __VA_ARGS__)
-#define elog(FORMAT, ...) MC_LOG_ERROR(mc::log::default_logger(), FORMAT, __VA_ARGS__)
-#define flog(FORMAT, ...) MC_LOG_FATAL(mc::log::default_logger(), FORMAT, __VA_ARGS__)
+#define tlog(...) mc_tlog(mc::log::default_logger(), __VA_ARGS__)
+#define dlog(...) mc_dlog(mc::log::default_logger(), __VA_ARGS__)
+#define ilog(...) mc_ilog(mc::log::default_logger(), __VA_ARGS__)
+#define nlog(...) mc_nlog(mc::log::default_logger(), __VA_ARGS__)
+#define wlog(...) mc_wlog(mc::log::default_logger(), __VA_ARGS__)
+#define elog(...) mc_elog(mc::log::default_logger(), __VA_ARGS__)
+#define flog(...) mc_flog(mc::log::default_logger(), __VA_ARGS__)
+
+// ======================================================================
+// 不安全的日志宏定义（编译期不检查格式化字符串和格式化参数）
+// ======================================================================
+
+// 使用指定日志记录器的日志宏
+#define mc_tlog_unsafe(LOGGER, ...) MC_LOG_BASE_UNSAFE(LOGGER, trace, __VA_ARGS__)
+#define mc_dlog_unsafe(LOGGER, ...) MC_LOG_BASE_UNSAFE(LOGGER, debug, __VA_ARGS__)
+#define mc_ilog_unsafe(LOGGER, ...) MC_LOG_BASE_UNSAFE(LOGGER, info, __VA_ARGS__)
+#define mc_nlog_unsafe(LOGGER, ...) MC_LOG_BASE_UNSAFE(LOGGER, info, __VA_ARGS__)
+#define mc_wlog_unsafe(LOGGER, ...) MC_LOG_BASE_UNSAFE(LOGGER, warn, __VA_ARGS__)
+#define mc_elog_unsafe(LOGGER, ...) MC_LOG_BASE_UNSAFE(LOGGER, error, __VA_ARGS__)
+#define mc_flog_unsafe(LOGGER, ...) MC_LOG_BASE_UNSAFE(LOGGER, fatal, __VA_ARGS__)
+
+// 使用默认日志记录器的全局日志宏
+#define tlog_unsafe(...) mc_tlog_unsafe(mc::log::default_logger(), __VA_ARGS__)
+#define dlog_unsafe(...) mc_dlog_unsafe(mc::log::default_logger(), __VA_ARGS__)
+#define ilog_unsafe(...) mc_ilog_unsafe(mc::log::default_logger(), __VA_ARGS__)
+#define nlog_unsafe(...) mc_nlog_unsafe(mc::log::default_logger(), __VA_ARGS__)
+#define wlog_unsafe(...) mc_wlog_unsafe(mc::log::default_logger(), __VA_ARGS__)
+#define elog_unsafe(...) mc_elog_unsafe(mc::log::default_logger(), __VA_ARGS__)
+#define flog_unsafe(...) mc_flog_unsafe(mc::log::default_logger(), __VA_ARGS__)
 
 #endif // MC_LOG_H

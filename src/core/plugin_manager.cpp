@@ -162,7 +162,9 @@ void plugin_manager::unload_all_plugins() {
 bool plugin_manager::init_plugins(service_factory& factory) {
     bool all_success = true;
 
-    for (auto& [name, plugin] : m_plugins) {
+    for (auto& pair : m_plugins) {
+        const auto& name   = pair.first;
+        auto&       plugin = pair.second;
         if (!plugin->init(factory)) {
             elog("init plugin failed: ${name}", ("name", name));
             all_success = false;
@@ -236,4 +238,4 @@ bool plugin_manager::load_dynamic_library(const std::string& plugin_name, void*&
     return true;
 }
 
-} // namespace mc
+} // namespace mc::core

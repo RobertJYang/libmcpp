@@ -74,20 +74,20 @@ protected:
         return std::regex_search(msg.get_message(), regex);
     }
 
-    mc::log::message get_last_message() {
+    std::string get_last_message() {
         const auto& messages = m_memory_appender->get_messages();
-        return messages.empty() ? mc::log::message() : messages.back();
+        return messages.empty() ? std::string{} : messages.back().get_message();
     }
 
     std::shared_ptr<memory_appender> m_memory_appender;
-    mc::log::logger m_test_logger;
+    mc::log::logger                  m_test_logger;
 };
 
 // 测试基本日志功能
 TEST_F(LogTest, BasicLogging) {
     // 确保日志级别设置为允许所有级别的日志
     m_test_logger.set_level(mc::log::level::trace);
-    
+
     // 使用结构化日志宏
     mc_ilog(m_test_logger, "这是一条信息日志");
 
@@ -100,7 +100,7 @@ TEST_F(LogTest, BasicLogging) {
 
     // 清除之前的消息
     m_memory_appender->clear();
-    
+
     // 使用不同级别的日志宏
     mc_tlog(m_test_logger, "跟踪日志");
     mc_dlog(m_test_logger, "调试日志");
@@ -109,7 +109,7 @@ TEST_F(LogTest, BasicLogging) {
 
     // 重新获取消息列表
     const auto& new_messages = m_memory_appender->get_messages();
-    
+
     // 检查日志消息数量
     ASSERT_EQ(4, new_messages.size()) << "应该有4条日志消息被添加";
 
@@ -123,7 +123,7 @@ TEST_F(LogTest, BasicLogging) {
 TEST_F(LogTest, StructuredLogging) {
     // 确保日志级别设置为允许所有级别的日志
     m_test_logger.set_level(mc::log::level::trace);
-    
+
     // 使用结构化日志宏
     mc_ilog(m_test_logger, "用户 ${user} 登录成功，IP: ${ip}",
             ("user", "admin")("ip", "192.168.1.1"));
@@ -144,7 +144,7 @@ TEST_F(LogTest, StructuredLogging) {
 
     // 清除之前的消息
     m_memory_appender->clear();
-    
+
     // 使用多个参数
     mc_dlog(m_test_logger, "请求 ${method} ${url} 返回 ${status}",
             ("method", "GET")("url", "/api/users")("status", 200));
@@ -197,16 +197,16 @@ TEST_F(LogTest, LevelFiltering) {
 TEST_F(LogTest, ContextInfo) {
     // 确保日志级别设置正确
     m_test_logger.set_level(mc::log::level::info);
-    
+
     // 使用带上下文的日志宏
     mc_ilog(m_test_logger, "带有上下文的日志消息");
 
     // 检查日志消息
     auto& messages = m_memory_appender->get_messages();
-    
+
     // 确保至少有一条消息被记录
     ASSERT_FALSE(messages.empty()) << "未捕获到日志消息，请检查日志级别设置";
-    
+
     auto& msg = messages.back();
 
     // 检查上下文信息是否正确捕获
@@ -271,4 +271,111 @@ TEST_F(LogTest, ComplexDataLogging) {
     // 检查参数字典
     const auto& args = msg.get_args();
     EXPECT_TRUE(args.contains("info"));
+}
+
+/*
+早期日志只支持 ${} 命名参数，为了使用简单我们将日志格式化与 sformat 保持一致，
+即支持 {} 占位也支持 ${} 命名占位符，其中 {} 既可以索引占位也可以命名占位，${} 占位
+只是兼容旧的写法，建议的日志写法全部是 {} 占位符
+*/
+TEST_F(LogTest, basic_smart_log) {
+    // 测试自增索引 {}
+    mc_ilog(m_test_logger, "{} {}", "Hello", "World");
+    EXPECT_EQ(get_last_message(), "Hello World");
+
+    // 测试显式索引 {0}, {1}
+    mc_ilog(m_test_logger, "{1} {0}", "World", "Hello");
+    EXPECT_EQ(get_last_message(), "Hello World");
+
+    // 测试命名参数 {name}
+    mc_ilog(m_test_logger, "{name} {value}", ("name", "Answer"), ("value", 42));
+    EXPECT_EQ(get_last_message(), "Answer 42");
+}
+
+// 测试混合使用不同类型的占位符
+TEST_F(LogTest, mixed_placeholder_types) {
+    // 混合自增索引和命名参数
+    mc_ilog(m_test_logger, "{} is {age} years old", "Alice", ("age", 25));
+    EXPECT_EQ(get_last_message(), "Alice is 25 years old");
+
+    // 混合显式索引和命名参数
+    mc_ilog(m_test_logger, "{0} has {balance:.2f} dollars", "Bob", ("balance", 123.456));
+    EXPECT_EQ(get_last_message(), "Bob has 123.46 dollars");
+
+    // 混合所有类型
+    mc_ilog(m_test_logger, "{} {name} {2}", "Hello", ("name", "Test"), "World"); // 命名参数也会增加索引
+    EXPECT_EQ(get_last_message(), "Hello Test World");
+}
+
+// 测试带格式说明符的智能占位符
+TEST_F(LogTest, format_specifications) {
+    // 自增索引带格式
+    mc_ilog(m_test_logger, "{:.2f} {}", 3.14159, "pi");
+    EXPECT_EQ(get_last_message(), "3.14 pi");
+
+    // 显式索引带格式
+    mc_ilog(m_test_logger, "{0:.2f} {1:>10}", 3.14159, "right");
+    EXPECT_EQ(get_last_message(), "3.14      right");
+
+    // 命名参数带格式
+    mc_ilog(m_test_logger, "{name:<10} {value:04d}", ("name", "Number"), ("value", 42));
+    EXPECT_EQ(get_last_message(), "Number     0042");
+}
+
+// 测试动态格式参数
+TEST_F(LogTest, dynamic_format_parameters) {
+    // 使用命名参数作为动态宽度和精度
+    mc_ilog(m_test_logger, "{value:{width}.{precision}f}",
+            ("value", 3.14159),
+            ("width", 10),
+            ("precision", 3));
+    EXPECT_EQ(get_last_message(), "     3.142");
+
+    // 混合索引和命名参数的动态格式
+    mc_ilog(m_test_logger, "{0:{width}.2f}", 3.14159, ("width", 8));
+    EXPECT_EQ(get_last_message(), "    3.14");
+}
+
+// 测试边界情况
+TEST_F(LogTest, edge_cases) {
+    // 单个字符的命名参数
+    mc_ilog(m_test_logger, "{x} {y}", ("x", 10), ("y", 20));
+    EXPECT_EQ(get_last_message(), "10 20");
+
+    // 长命名参数
+    mc_ilog(m_test_logger, "{very_long_parameter_name}", ("very_long_parameter_name", "value"));
+    EXPECT_EQ(get_last_message(), "value");
+
+    // 提供了3个参数但格式化字符串只用了一部分，正常编译期报错，这里使用不安全版本
+    mc_ilog_unsafe(m_test_logger, "{2}", "first", "second", "target_value");
+    EXPECT_EQ(get_last_message(), "target_value");
+
+    // 格式化字符串不是字面值常量而是变量，只能使用不安全版本
+    const char* fmt = "{x} {y}";
+    mc_ilog_unsafe(m_test_logger, fmt, ("x", 10), ("y", 20));
+    EXPECT_EQ(get_last_message(), "10 20");
+}
+
+// 测试嵌套大括号
+TEST_F(LogTest, nested_braces) {
+    // 命名参数中的嵌套大括号格式
+    mc_ilog(m_test_logger, "{value:{width}.{precision}f}",
+            ("value", 123.456),
+            ("width", 12),
+            ("precision", 2));
+    EXPECT_EQ(get_last_message(), "      123.46");
+
+    // 索引参数中的嵌套大括号格式
+    mc_ilog(m_test_logger, "{0:{1}.{2}f}", 123.456, 12, 2);
+    EXPECT_EQ(get_last_message(), "      123.46");
+}
+
+// 测试转义字符
+TEST_F(LogTest, escaped_braces) {
+    // 转义的大括号与智能占位符混合
+    mc_ilog(m_test_logger, "{{}} {name} {{}}", ("name", "test"));
+    EXPECT_EQ(get_last_message(), "{} test {}");
+
+    mc_ilog(m_test_logger, "{{0}} {0} {{name}}", "value");
+    EXPECT_EQ(get_last_message(), "{0} value {name}");
 }

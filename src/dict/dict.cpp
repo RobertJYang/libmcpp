@@ -272,6 +272,15 @@ const variant& dict::at(const variant& key) const {
     return e->value;
 }
 
+const variant& dict::at(std::size_t index) const {
+    const auto* e = find_entry(index);
+    if (e) {
+        return e->value;
+    }
+
+    return this->at_index(index).value;
+}
+
 // 计算指定元素在列表中的索引位置
 int dict::find_entry_index(const entry* e) const {
     if (!e || !m_data) {
@@ -404,6 +413,21 @@ dict::const_iterator dict::find(const variant& key) const {
         return end();
     }
     return m_data->entries.iterator_to(*const_cast<entry*>(e));
+}
+
+dict::const_iterator dict::find(std::size_t index) const {
+    const auto* e = find_entry(index);
+    if (e) {
+        return m_data->entries.iterator_to(*const_cast<entry*>(e));
+    }
+
+    if (index >= size()) {
+        return end();
+    }
+
+    auto it = m_data->entries.begin();
+    std::advance(it, index);
+    return it;
 }
 
 // 将 dict 转换为 variant

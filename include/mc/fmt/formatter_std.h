@@ -12,7 +12,6 @@
 #ifndef MC_FMT_FORMATTER_STD_H
 #define MC_FMT_FORMATTER_STD_H
 
-#include <mc/exception.h>
 #include <mc/fmt/format_parser.h>
 #include <mc/fmt/formatter.h>
 

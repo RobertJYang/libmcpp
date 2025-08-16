@@ -138,7 +138,9 @@ bool service_manager::stop_services() {
 void service_manager::cleanup_services() {
     stop_services();
 
-    for (auto& [name, service] : m_services) {
+    for (auto& pair : m_services) {
+        const auto& name    = pair.first;
+        auto&       service = pair.second;
         try {
             service->cleanup();
             ilog("service '${name}' cleaned up", ("name", name));
@@ -197,7 +199,9 @@ service_manager::build_dependency_graph(const std::vector<config::service_config
 
     // 转换为 service_node 格式
     std::unordered_map<std::string, service_node> graph;
-    for (const auto& [name, dep_node] : dependency_graph) {
+    for (const auto& pair : dependency_graph) {
+        const auto&  name     = pair.first;
+        const auto&  dep_node = pair.second;
         service_node node;
         const auto&  config = config_map[name];
         node.name           = name;
@@ -312,4 +316,4 @@ bool service_manager::initialize_from_configs(config_manager&     config_mgr,
     return success;
 }
 
-} // namespace mc
+} // namespace mc::core

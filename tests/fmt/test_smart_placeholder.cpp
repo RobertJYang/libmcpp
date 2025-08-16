@@ -106,9 +106,14 @@ TEST(smart_placeholder_test, edge_cases) {
     auto result2 = sformat("{very_long_parameter_name}", ("very_long_parameter_name", "value"));
     EXPECT_EQ(result2, "value");
 
-    // 大索引值测试
+    // 提供了3个参数但格式化字符串只用了一部分，正常编译期报错，这里使用不安全版本
     auto result3 = sformat_unsafe("{2}", "first", "second", "target_value");
     EXPECT_EQ(result3, "target_value");
+
+    // 格式化字符串不是字面值常量而是变量，只能使用不安全版本
+    const char* fmt     = "{x} {y}";
+    auto        result4 = sformat_unsafe(fmt, ("x", 10), ("y", 20));
+    EXPECT_EQ(result4, "10 20");
 }
 
 // 测试嵌套大括号

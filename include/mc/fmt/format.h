@@ -13,7 +13,6 @@
 #ifndef MC_FMT_FORMAT_H
 #define MC_FMT_FORMAT_H
 
-#include <mc/exception.h>
 #include <mc/fmt/format_compile.h>
 #include <mc/fmt/format_context.h>
 #include <mc/fmt/format_parser.h>
@@ -119,11 +118,6 @@ std::string& format_to(std::string& out, std::string_view fmt, Args&&... args) {
 #define MC_FORMAT_CHECK_ARG(r, macro, param) \
     MC_FORMAT_CHECK_ARG_SEQ_DIRECT(macro, MC_FORMAT_PARAM_TO_SEQ(param)),
 
-#define MC_FORMAT_APPLY_ARG(r, data, param)      \
-    BOOST_PP_IF(BOOST_PP_IS_BEGIN_PARENS(param), \
-                mc::fmt::detail::arg param,      \
-                mc::fmt::detail::arg(param))
-
 #define MC_FORMAT_APPLY_ARG_NAMED(name, ...)                                       \
     BOOST_PP_IF(BOOST_PP_GREATER(BOOST_PP_VARIADIC_SIZE(dummy, ##__VA_ARGS__), 1), \
                 mc::fmt::detail::arg(name, __VA_ARGS__),                           \
@@ -165,7 +159,7 @@ std::string& format_to(std::string& out, std::string_view fmt, Args&&... args) {
 // 多个参数版本 - 有 fmt_str 和参数列表
 #define MC_FORMAT_N(COMPILE_CHECK, fmt_str, ...) MC_FORMAT_IMPL_WITH_ARGS(COMPILE_CHECK, fmt_str, __VA_ARGS__)
 
-// 参数分发宏 - 修复版本
+// 参数分发宏
 #define MC_FORMAT_DISPATCH(COMPILE_CHECK, fmt_str, ...)                          \
     BOOST_PP_IF(BOOST_PP_EQUAL(BOOST_PP_VARIADIC_SIZE(dummy, ##__VA_ARGS__), 1), \
                 MC_FORMAT_1(COMPILE_CHECK, fmt_str),                             \

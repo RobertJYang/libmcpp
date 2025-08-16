@@ -627,7 +627,7 @@ std::string json_encode(const variant& value, const json_encode_options& options
         throw;
     } catch (const std::exception& e) {
         // 将其他异常转换为parse_error_exception
-        MC_THROW(mc::parse_error_exception, std::string("JSON编码失败: ") + e.what());
+        MC_THROW(mc::parse_error_exception, "JSON编码失败: ${error}", ("error", e.what()));
     }
 }
 
@@ -639,7 +639,7 @@ std::string json_encode(const dict& obj, const json_encode_options& options) {
     } catch (const mc::parse_error_exception&) {
         throw;
     } catch (const std::exception& e) {
-        MC_THROW(mc::parse_error_exception, std::string("JSON编码失败: ") + e.what());
+        MC_THROW(mc::parse_error_exception, "JSON编码失败: ${error}", ("error", e.what()));
     }
 }
 
@@ -651,7 +651,7 @@ std::string json_encode(const std::vector<variant>& arr, const json_encode_optio
     } catch (const mc::parse_error_exception&) {
         throw;
     } catch (const std::exception& e) {
-        MC_THROW(mc::parse_error_exception, std::string("JSON编码失败: ") + e.what());
+        MC_THROW(mc::parse_error_exception, "JSON编码失败: ${error}", ("error", e.what()));
     }
 }
 
@@ -663,7 +663,7 @@ mc::variant json_decode(std::string_view json, const json_decode_options& option
     } catch (const mc::parse_error_exception&) {
         throw;
     } catch (const std::exception& e) {
-        MC_THROW(mc::parse_error_exception, std::string("JSON解码失败: ") + e.what());
+        MC_THROW(mc::parse_error_exception, "JSON解码失败: ${error}", ("error", e.what()));
     }
 }
 

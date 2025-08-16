@@ -98,12 +98,12 @@ shm_tree::timeout_call(mc::milliseconds timeout, std::string_view service_name,
     }
     auto reply_msg = future.get();
     if (reply_msg.msg_type() == DBUS_MESSAGE_TYPE_ERROR) {
-        auto [error_name, error_message] = reply_msg.get_error();
+        auto err = reply_msg.get_error();
         MC_THROW(mc::exception,
                  "shm method call failed, service name: ${service_name}, method: ${method}, error "
                  "name: ${error_name}, error message: ${error_message}",
-                 ("service_name", service_name)("method", method)("error_name", error_name)(
-                     "error_message", error_message));
+                 ("service_name", service_name)("method", method)("error_name", std::get<0>(err))(
+                     "error_message", std::get<1>(err)));
     }
     return reply_msg.read();
 }

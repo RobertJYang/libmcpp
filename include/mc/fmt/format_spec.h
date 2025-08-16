@@ -17,7 +17,12 @@
 
 #include <string_view>
 
+namespace mc {
+class dict;
+}
+
 namespace mc::fmt::detail {
+[[noreturn]] MC_API void throw_format_error(std::string_view fmt_str, const mc::dict& args);
 
 // 格式说明符
 struct format_spec {

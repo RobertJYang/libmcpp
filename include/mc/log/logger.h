@@ -166,49 +166,24 @@ private:
 };
 
 /**
- * @brief 基础日志宏 - 所有级别共用
+ * @brief 记录日志
  */
-#define MC_LOG_BASE(LOGGER, LEVEL, FORMAT, ...)                     \
-    do {                                                            \
-        if (LOGGER.is_enabled(mc::log::level::LEVEL)) {             \
-            LOGGER.log(MC_LOG_MESSAGE(LEVEL, FORMAT, __VA_ARGS__)); \
-        }                                                           \
+#define MC_LOG_BASE(LOGGER, LEVEL, ...)                     \
+    do {                                                    \
+        if (LOGGER.is_enabled(mc::log::level::LEVEL)) {     \
+            LOGGER.log(MC_LOG_MESSAGE(LEVEL, __VA_ARGS__)); \
+        }                                                   \
     } while (0)
 
 /**
- * @brief 日志宏 - 跟踪级别
+ * @brief 不安全的记录日志（编译期不检查格式化字符串和格式化参数）
  */
-#define MC_LOG_TRACE(LOGGER, FORMAT, ...) MC_LOG_BASE(LOGGER, trace, FORMAT, __VA_ARGS__)
-
-/**
- * @brief 日志宏 - 调试级别
- */
-#define MC_LOG_DEBUG(LOGGER, FORMAT, ...) MC_LOG_BASE(LOGGER, debug, FORMAT, __VA_ARGS__)
-
-/**
- * @brief 日志宏 - 信息级别
- */
-#define MC_LOG_INFO(LOGGER, FORMAT, ...) MC_LOG_BASE(LOGGER, info, FORMAT, __VA_ARGS__)
-
-/**
- * @brief 日志宏 - 通知级别
- */
-#define MC_LOG_NOTICE(LOGGER, FORMAT, ...) MC_LOG_BASE(LOGGER, notice, FORMAT, __VA_ARGS__)
-
-/**
- * @brief 日志宏 - 警告级别
- */
-#define MC_LOG_WARN(LOGGER, FORMAT, ...) MC_LOG_BASE(LOGGER, warn, FORMAT, __VA_ARGS__)
-
-/**
- * @brief 日志宏 - 错误级别
- */
-#define MC_LOG_ERROR(LOGGER, FORMAT, ...) MC_LOG_BASE(LOGGER, error, FORMAT, __VA_ARGS__)
-
-/**
- * @brief 日志宏 - 致命错误级别
- */
-#define MC_LOG_FATAL(LOGGER, FORMAT, ...) MC_LOG_BASE(LOGGER, fatal, FORMAT, __VA_ARGS__)
+#define MC_LOG_BASE_UNSAFE(LOGGER, LEVEL, ...)                     \
+    do {                                                           \
+        if (LOGGER.is_enabled(mc::log::level::LEVEL)) {            \
+            LOGGER.log(MC_LOG_MESSAGE_UNSAFE(LEVEL, __VA_ARGS__)); \
+        }                                                          \
+    } while (0)
 
 } // namespace log
 } // namespace mc

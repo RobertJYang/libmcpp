@@ -15,6 +15,7 @@
 
 #include <chrono>
 #include <mc/dict.h>
+#include <mc/fmt/format.h>
 #include <mc/log/log_level.h>
 #include <mc/string.h>
 #include <mc/variant.h>
@@ -144,13 +145,60 @@ private:
  */
 using messages = std::vector<message>;
 
+namespace detail {
+
+// 添加位置参数
+template <typename T, std::enable_if_t<!mc::fmt::detail::is_named_arg_v<T>, int> = 0>
+constexpr void add_arg(mc::mutable_dict& out, const T& value) {
+    out.emplace(out.size(), value);
+}
+
+// 添加命名参数的特化
+template <typename T>
+void add_arg(mc::mutable_dict& out, const mc::fmt::detail::named_arg<T>& arg) {
+    out.emplace(arg.name(), arg.value());
+}
+
+inline void add_arg(mc::mutable_dict&, const std::monostate&) {
+}
+
+template <typename... Args>
+mc::mutable_dict make_args(Args&&... args) {
+    mc::mutable_dict out;
+    (add_arg(out, std::forward<Args>(args)), ...);
+    return out;
+}
+} // namespace detail
+
 } // namespace mc::log
 
 /**
  * @brief 基础日志宏 - 所有级别共用
  */
-#define MC_LOG_MESSAGE(LEVEL, FORMAT, ...)                                                      \
-    mc::log::message(mc::log::level::LEVEL, mc::log::context(__FILE__, __FUNCTION__, __LINE__), \
-                     FORMAT, mc::mutable_dict() __VA_ARGS__)
+#define MC_LOG_MESSAGE_N(LEVEL, COMPILE_CHECK, FORMAT, ...)                                                             \
+    [&] {                                                                                                               \
+        static_assert(COMPILE_CHECK(FORMAT, __VA_ARGS__), "格式化字符串或参数错误");                                    \
+        return mc::log::message(                                                                                        \
+            mc::log::level::LEVEL,                                                                                      \
+            mc::log::context(__FILE__, __FUNCTION__, __LINE__),                                                         \
+            FORMAT,                                                                                                     \
+            mc::log::detail::make_args(BOOST_PP_SEQ_FOR_EACH(MC_FORMAT_CHECK_ARG, MC_FORMAT_APPLY_ARG_NAMED,            \
+                                                             BOOST_PP_VARIADIC_TO_SEQ(__VA_ARGS__)) std::monostate{})); \
+    }()
+
+#define MC_LOG_MESSAGE_0(LEVEL, COMPILE_CHECK, FORMAT)                                                              \
+    [&] {                                                                                                           \
+        static_assert(COMPILE_CHECK(FORMAT), "格式化字符串或参数错误");                                             \
+        return mc::log::message(mc::log::level::LEVEL, mc::log::context(__FILE__, __FUNCTION__, __LINE__), FORMAT); \
+    }()
+
+#define MC_LOG_DISPATCH(LEVEL, COMPILE_CHECK, FORMAT, ...)                       \
+    BOOST_PP_IF(BOOST_PP_EQUAL(BOOST_PP_VARIADIC_SIZE(dummy, ##__VA_ARGS__), 1), \
+                MC_LOG_MESSAGE_0(LEVEL, COMPILE_CHECK, FORMAT),                  \
+                MC_LOG_MESSAGE_N(LEVEL, COMPILE_CHECK, FORMAT, __VA_ARGS__))
+
+#define MC_LOG_MESSAGE(LEVEL, ...) MC_LOG_DISPATCH(LEVEL, MC_FORMAT_COMPILE_CHECK, __VA_ARGS__)
+
+#define MC_LOG_MESSAGE_UNSAFE(LEVEL, ...) MC_LOG_DISPATCH(LEVEL, MC_FORMAT_EMPTY_CHECK, __VA_ARGS__)
 
 #endif // MC_LOG_MESSAGE_H

@@ -21,7 +21,6 @@
 #include <string_view>
 #include <type_traits>
 
-#include <mc/exception.h>
 #include <mc/fmt/format_parser.h>
 #include <mc/fmt/format_spec.h>
 #include <mc/fmt/formatter.h>
@@ -553,8 +552,8 @@ public:
             detail::parse_chrono_format(custom.format_str, checker);
             if (!checker.is_valid()) {
                 if constexpr (!IsCompileTime) {
-                    MC_THROW(format_error, "duration格式说明符无效: ${format}",
-                             ("format", custom.format_str));
+                    detail::throw_format_error("duration格式说明符无效: ${format}",
+                                               mc::dict{{"format", custom.format_str}});
                 } else {
                     return false;
                 }
@@ -599,8 +598,8 @@ public:
         detail::parse_chrono_format(custom.format_str, checker);
         if (!checker.is_valid()) {
             if constexpr (!IsCompileTime) {
-                MC_THROW(format_error, "time_point格式说明符无效: ${format}",
-                         ("format", custom.format_str));
+                detail::throw_format_error("time_point格式说明符无效: ${format}",
+                                           mc::dict{{"format", custom.format_str}});
             } else {
                 return false;
             }

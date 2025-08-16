@@ -12,6 +12,7 @@
 #ifndef MC_FMT_FORMAT_PARSER_H
 #define MC_FMT_FORMAT_PARSER_H
 
+#include <mc/common.h>
 #include <mc/fmt/format_arg.h>
 #include <mc/fmt/format_spec.h>
 

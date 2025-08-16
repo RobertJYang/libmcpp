@@ -16,7 +16,6 @@
 #include <mc/dict.h>
 #include <mc/fmt/format_arg.h>
 #include <mc/fmt/format_spec.h>
-#include <mc/fmt/formatter_mc.h>
 
 namespace mc::fmt {
 

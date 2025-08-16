@@ -10,11 +10,11 @@
  * See the Mulan PSL v2 for more details.
  */
 
-#include <mc/log/appenders/file_appender.h>
-#include <mc/filesystem.h>
 #include <dlfcn.h>
-#include <stdio.h>
+#include <mc/filesystem.h>
+#include <mc/log/appenders/file_appender.h>
 #include <stdarg.h>
+#include <stdio.h>
 
 typedef enum {
     DLOG_DEBUG,
@@ -39,7 +39,9 @@ bool file_appender::init(const variant& args) {
     }
     void* handle = dlopen(LOGGING_PATH, RTLD_NOW);
     if (!handle) {
-        fprintf(stderr, "dlopen failed: %s\n", dlerror());
+        // TODO:: 不打印错误了，干扰单元测试，后续 file_appender 也不应该是默认加载的
+        // 应该在程序启动的时候配置
+        // fprintf(stderr, "dlopen failed: %s\n", dlerror());
     } else {
         debug_log_ptr = (debug_log_func_t)dlsym(handle, "debug_log");
         if (!debug_log_ptr) {
@@ -82,24 +84,24 @@ void file_appender::append(const message& msg) {
 
     DLOG_LEVEL_E level;
     switch (msg.get_level()) {
-        case level::debug:
-            level = DLOG_DEBUG;
-            break;
-        case level::info:
-            level = DLOG_INFO;
-            break;
-        case level::warn:
-            level = DLOG_WARN;
-            break;
-        case level::error:
-            level = DLOG_ERROR;
-            break;
-        case level::notice:
-            level = DLOG_NOTICE;
-            break;
-        default:
-            level = DLOG_DEBUG;
-            break;
+    case level::debug:
+        level = DLOG_DEBUG;
+        break;
+    case level::info:
+        level = DLOG_INFO;
+        break;
+    case level::warn:
+        level = DLOG_WARN;
+        break;
+    case level::error:
+        level = DLOG_ERROR;
+        break;
+    case level::notice:
+        level = DLOG_NOTICE;
+        break;
+    default:
+        level = DLOG_DEBUG;
+        break;
     }
 
     std::string file_str;
