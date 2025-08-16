@@ -114,7 +114,7 @@ void property_helper::connect_property_listener(abstract_object&      target_obj
                                                const std::string&    property_name,
                                                std::function<void()> callback) {
     target_object.property_changed().connect(
-        [this, property_name, callback](const mc::variant& value, const property_base& prop) {
+        [property_name, callback](const mc::variant& value, const property_base& prop) {
         if (prop.get_name() == property_name) {
             callback();
         }

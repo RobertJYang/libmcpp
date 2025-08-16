@@ -8,4 +8,4 @@ log_src_files = [
 ]
 
 # file_appender.cpp需要特殊的包含路径
-file_appender_src = 'log/appenders/file_appender.cpp' 
+file_appender_src = 'log/appenders/file_appender.cpp'

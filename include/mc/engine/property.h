@@ -14,12 +14,12 @@
 
 #include <functional>
 #include <mc/engine/base.h>
-#include <mc/engine/property/types.h>
 #include <mc/engine/property/detail.h>
 #include <mc/engine/property/helper.h>
-#include <mc/engine/property/ref_object.h>
 #include <mc/engine/property/processor.h>
 #include <mc/engine/property/processors.h>
+#include <mc/engine/property/ref_object.h>
+#include <mc/engine/property/types.h>
 #include <mc/expr/function/call.h>
 #include <mc/expr/function/collection.h>
 #include <mc/expr/function/parser.h>
@@ -241,12 +241,12 @@ public:
         }
 
         auto str = v.as<std::string>();
-        
+
         // 尝试使用处理器工厂处理特殊属性格式
         if (property_processor_factory::get_instance().process_property_value(&value, str)) {
             return;
         }
-        
+
         // 如果没有匹配的处理器，按普通值处理
         from_variant(v, value.m_value);
     }
@@ -467,12 +467,12 @@ protected:
         if (has_extension_data()) {
             if (m_extension_data->getter) {
                 auto result = m_extension_data->getter();
-                T value;
+                T    value;
                 from_variant(result, value);
                 set_value_impl(value);
             } else if (m_extension_data->outsider_getter) {
                 auto result = m_extension_data->outsider_getter();
-                T value;
+                T    value;
                 from_variant(result, value);
                 set_value_impl(value);
             }
@@ -482,7 +482,7 @@ protected:
     T                                        m_value{};
     std::unique_ptr<property_changed_signal> m_signal;
     p_type                                   m_property_type{p_type::normal}; // 属性类型，默认为普通属性
-    
+
     // 将可选的功能数据延迟分配，大大减少内存占用
     mutable std::unique_ptr<detail::property_extension_data> m_extension_data;
 

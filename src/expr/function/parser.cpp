@@ -261,7 +261,7 @@ func_call func_parser::parse_function_call(const std::string& input) {
                 ++pos;
             }
             if (pos == params_str.length()) {
-                MC_THROW(mc::invalid_arg_exception, "Invalid function call format: missing {");
+                MC_THROW(mc::invalid_arg_exception, "Invalid function call format: missing brace");
             }
             ++pos;
             int brace_count = 1;

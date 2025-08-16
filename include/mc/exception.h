@@ -340,19 +340,33 @@ MC_STD_EXCEPTION_CLASS(MC_DECLARE_EXCEPTION_CLASS)
  *
  * 构造指定类型的异常
  */
-#define MC_MAKE_EXCEPTION(EXCEPTION, FORMAT, ...) \
-    EXCEPTION(MC_LOG_MESSAGE(error, FORMAT, __VA_ARGS__))
+#define MC_MAKE_EXCEPTION(EXCEPTION, ...) \
+    EXCEPTION(MC_LOG_MESSAGE(error, __VA_ARGS__))
+
+/**
+ * @brief 构造异常宏
+ *
+ * 构造指定类型的异常
+ */
+#define MC_MAKE_EXCEPTION_UNSAFE(EXCEPTION, ...) \
+    EXCEPTION(MC_LOG_MESSAGE_UNSAFE(error, __VA_ARGS__))
 
 /**
  * @brief 断言宏
  *
  * 如果条件为假，则抛出断言异常
  */
-#define MC_ASSERT(CONDITION, FORMAT, ...)                                       \
-    do {                                                                        \
-        if (!(CONDITION)) {                                                     \
-            throw MC_MAKE_EXCEPTION(mc::assert_exception, FORMAT, __VA_ARGS__); \
-        }                                                                       \
+#define MC_ASSERT(CONDITION, ...)                                       \
+    do {                                                                \
+        if (!(CONDITION)) {                                             \
+            throw MC_MAKE_EXCEPTION(mc::assert_exception, __VA_ARGS__); \
+        }                                                               \
+    } while (0)
+#define MC_ASSERT_UNSAFE(CONDITION, ...)                                       \
+    do {                                                                       \
+        if (!(CONDITION)) {                                                    \
+            throw MC_MAKE_EXCEPTION_UNSAFE(mc::assert_exception, __VA_ARGS__); \
+        }                                                                      \
     } while (0)
 
 /**
@@ -360,11 +374,18 @@ MC_STD_EXCEPTION_CLASS(MC_DECLARE_EXCEPTION_CLASS)
  *
  * 如果条件为假，则抛出指定异常
  */
-#define MC_ASSERT_THROW(CONDITION, EXCEPTION, FORMAT, ...)           \
-    do {                                                             \
-        if (!(CONDITION)) {                                          \
-            throw MC_MAKE_EXCEPTION(EXCEPTION, FORMAT, __VA_ARGS__); \
-        }                                                            \
+#define MC_ASSERT_THROW(CONDITION, EXCEPTION, ...)           \
+    do {                                                     \
+        if (!(CONDITION)) {                                  \
+            throw MC_MAKE_EXCEPTION(EXCEPTION, __VA_ARGS__); \
+        }                                                    \
+    } while (0)
+
+#define MC_ASSERT_THROW_UNSAFE(CONDITION, EXCEPTION, ...)           \
+    do {                                                            \
+        if (!(CONDITION)) {                                         \
+            throw MC_MAKE_EXCEPTION_UNSAFE(EXCEPTION, __VA_ARGS__); \
+        }                                                           \
     } while (0)
 
 /**
@@ -372,18 +393,27 @@ MC_STD_EXCEPTION_CLASS(MC_DECLARE_EXCEPTION_CLASS)
  *
  * 抛出指定类型的异常
  */
-#define MC_THROW(EXCEPTION_TYPE, FORMAT, ...) \
-    throw MC_MAKE_EXCEPTION(EXCEPTION_TYPE, FORMAT, __VA_ARGS__)
+#define MC_THROW(EXCEPTION_TYPE, ...) \
+    throw MC_MAKE_EXCEPTION(EXCEPTION_TYPE, __VA_ARGS__)
+
+#define MC_THROW_UNSAFE(EXCEPTION_TYPE, ...) \
+    throw MC_MAKE_EXCEPTION_UNSAFE(EXCEPTION_TYPE, __VA_ARGS__)
 
 /**
  * @brief 捕获并重新抛出异常宏
  *
  * 捕获异常并添加上下文信息后重新抛出
  */
-#define MC_RETHROW_EXCEPTION(EXCEPTION, FORMAT, ...)                      \
-    do {                                                                  \
-        EXCEPTION.append_log(MC_LOG_MESSAGE(error, FORMAT, __VA_ARGS__)); \
-        throw EXCEPTION;                                                  \
+#define MC_RETHROW_EXCEPTION(EXCEPTION, ...)                      \
+    do {                                                          \
+        EXCEPTION.append_log(MC_LOG_MESSAGE(error, __VA_ARGS__)); \
+        throw EXCEPTION;                                          \
+    } while (0)
+
+#define MC_RETHROW_EXCEPTION_UNSAFE(EXCEPTION, ...)                      \
+    do {                                                                 \
+        EXCEPTION.append_log(MC_LOG_MESSAGE_UNSAFE(error, __VA_ARGS__)); \
+        throw EXCEPTION;                                                 \
     } while (0)
 
 /**
@@ -391,9 +421,13 @@ MC_STD_EXCEPTION_CLASS(MC_DECLARE_EXCEPTION_CLASS)
  *
  * 捕获标准异常并包装为MC异常
  */
-#define MC_CAPTURE_AND_WRAP_EXCEPTION(FORMAT, ...)                                   \
-    catch (const std::exception& e) {                                                \
-        throw mc::std_exception_wrapper(MC_LOG_MESSAGE(error, FORMAT, __VA_ARGS__)); \
+#define MC_CAPTURE_AND_WRAP_EXCEPTION(...)                                   \
+    catch (const std::exception& e) {                                        \
+        throw mc::std_exception_wrapper(MC_LOG_MESSAGE(error, __VA_ARGS__)); \
+    }
+#define MC_CAPTURE_AND_WRAP_EXCEPTION_UNSAFE(...)                                   \
+    catch (const std::exception& e) {                                               \
+        throw mc::std_exception_wrapper(MC_LOG_MESSAGE_UNSAFE(error, __VA_ARGS__)); \
     }
 
 } // namespace mc

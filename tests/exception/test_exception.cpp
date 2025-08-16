@@ -346,3 +346,165 @@ TEST(ExceptionTest, FormattedOutputTest) {
     EXPECT_TRUE(detail.find("-") != std::string::npos); // 日期分隔符
     EXPECT_TRUE(detail.find(":") != std::string::npos); // 时间分隔符
 }
+
+/*
+早期异常只支持 ${} 命名参数，为了使用简单我们将日志格式化与 sformat 保持一致，
+即支持 {} 占位也支持 ${} 命名占位符，其中 {} 既可以索引占位也可以命名占位，${} 占位
+只是兼容旧的写法，建议的异常法全部是 {} 占位符
+*/
+TEST(ExceptionTest, basic_smart_exception) {
+    // 测试自增索引 {}
+    try {
+        MC_THROW(mc::runtime_exception, "{} {}", "Hello", "World");
+    } catch (const mc::exception& e) {
+        EXPECT_EQ(e.top_message(), "Hello World");
+    }
+
+    try {
+        MC_THROW(mc::runtime_exception, "{1} {0}", "World", "Hello");
+    } catch (const mc::exception& e) {
+        EXPECT_EQ(e.top_message(), "Hello World");
+    }
+
+    try {
+        MC_THROW(mc::runtime_exception, "{name} {value}", ("name", "Answer"), ("value", 42));
+    } catch (const mc::exception& e) {
+        EXPECT_EQ(e.top_message(), "Answer 42");
+    }
+}
+
+// 测试混合使用不同类型的占位符
+TEST(ExceptionTest, mixed_placeholder_types) {
+    // 混合自增索引和命名参数
+    try {
+        MC_THROW(mc::runtime_exception, "{} is {age} years old", "Alice", ("age", 25));
+    } catch (const mc::exception& e) {
+        EXPECT_EQ(e.top_message(), "Alice is 25 years old");
+    }
+
+    // 混合显式索引和命名参数
+    try {
+        MC_THROW(mc::runtime_exception, "{0} has {balance:.2f} dollars", "Bob", ("balance", 123.456));
+    } catch (const mc::exception& e) {
+        EXPECT_EQ(e.top_message(), "Bob has 123.46 dollars");
+    }
+
+    // 混合所有类型
+    try {
+        MC_THROW(mc::runtime_exception, "{} {name} {2}", "Hello", ("name", "Test"), "World"); // 命名参数也会增加索引
+    } catch (const mc::exception& e) {
+        EXPECT_EQ(e.top_message(), "Hello Test World");
+    }
+}
+
+// 测试带格式说明符的智能占位符
+TEST(ExceptionTest, format_specifications) {
+    // 自增索引带格式
+    try {
+        MC_THROW(mc::runtime_exception, "{:.2f} {}", 3.14159, "pi");
+    } catch (const mc::exception& e) {
+        EXPECT_EQ(e.top_message(), "3.14 pi");
+    }
+
+    // 显式索引带格式
+    try {
+        MC_THROW(mc::runtime_exception, "{0:.2f} {1:>10}", 3.14159, "right");
+    } catch (const mc::exception& e) {
+        EXPECT_EQ(e.top_message(), "3.14      right");
+    }
+
+    // 命名参数带格式
+    try {
+        MC_THROW(mc::runtime_exception, "{name:<10} {value:04d}", ("name", "Number"), ("value", 42));
+    } catch (const mc::exception& e) {
+        EXPECT_EQ(e.top_message(), "Number     0042");
+    }
+}
+
+// 测试动态格式参数
+TEST(ExceptionTest, dynamic_format_parameters) {
+    // 使用命名参数作为动态宽度和精度
+    try {
+        MC_THROW(mc::runtime_exception, "{value:{width}.{precision}f}",
+                 ("value", 3.14159),
+                 ("width", 10),
+                 ("precision", 3));
+    } catch (const mc::exception& e) {
+        EXPECT_EQ(e.top_message(), "     3.142");
+    }
+
+    // 混合索引和命名参数的动态格式
+    try {
+        MC_THROW(mc::runtime_exception, "{0:{width}.2f}", 3.14159, ("width", 8));
+    } catch (const mc::exception& e) {
+        EXPECT_EQ(e.top_message(), "    3.14");
+    }
+}
+
+// 测试边界情况
+TEST(ExceptionTest, edge_cases) {
+    // 单个字符的命名参数
+    try {
+        MC_THROW(mc::runtime_exception, "{x} {y}", ("x", 10), ("y", 20));
+    } catch (const mc::exception& e) {
+        EXPECT_EQ(e.top_message(), "10 20");
+    }
+
+    // 长命名参数
+    try {
+        MC_THROW(mc::runtime_exception, "{very_long_parameter_name}", ("very_long_parameter_name", "value"));
+    } catch (const mc::exception& e) {
+        EXPECT_EQ(e.top_message(), "value");
+    }
+
+    // 提供了3个参数但格式化字符串只用了一部分
+    try {
+        MC_THROW_UNSAFE(mc::runtime_exception, "{2}", "first", "second", "target_value");
+    } catch (const mc::exception& e) {
+        EXPECT_EQ(e.top_message(), "target_value");
+    }
+
+    // 格式化字符串不是字面值常量而是变量
+    const char* fmt = "{x} {y}";
+    try {
+        MC_THROW_UNSAFE(mc::runtime_exception, fmt, ("x", 10), ("y", 20));
+    } catch (const mc::exception& e) {
+        EXPECT_EQ(e.top_message(), "10 20");
+    }
+}
+
+// 测试嵌套大括号
+TEST(ExceptionTest, nested_braces) {
+    // 命名参数中的嵌套大括号格式
+    try {
+        MC_THROW(mc::runtime_exception, "{value:{width}.{precision}f}",
+                 ("value", 123.456),
+                 ("width", 12),
+                 ("precision", 2));
+    } catch (const mc::exception& e) {
+        EXPECT_EQ(e.top_message(), "      123.46");
+    }
+
+    // 索引参数中的嵌套大括号格式
+    try {
+        MC_THROW(mc::runtime_exception, "{0:{1}.{2}f}", 123.456, 12, 2);
+    } catch (const mc::exception& e) {
+        EXPECT_EQ(e.top_message(), "      123.46");
+    }
+}
+
+// 测试转义字符
+TEST(ExceptionTest, escaped_braces) {
+    // 转义的大括号与智能占位符混合
+    try {
+        MC_THROW(mc::runtime_exception, "{{}} {name} {{}}", ("name", "test"));
+    } catch (const mc::exception& e) {
+        EXPECT_EQ(e.top_message(), "{} test {}");
+    }
+
+    try {
+        MC_THROW(mc::runtime_exception, "{{0}} {0} {{name}}", "value");
+    } catch (const mc::exception& e) {
+        EXPECT_EQ(e.top_message(), "{0} value {name}");
+    }
+}

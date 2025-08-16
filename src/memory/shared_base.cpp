@@ -16,7 +16,7 @@
 namespace mc::memory::detail {
 
 void throw_invalid_op_exception(const char* msg) {
-    MC_THROW(mc::invalid_op_exception, msg);
+    MC_THROW(mc::invalid_op_exception, "invalid operation: {msg}", ("msg", msg));
 }
 
 } // namespace mc::memory::detail

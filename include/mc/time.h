@@ -17,8 +17,9 @@
 #ifndef MC_TIME_H
 #define MC_TIME_H
 
-#include "mc/string.h"
-#include "mc/variant.h"
+#include <mc/string.h>
+#include <mc/variant.h>
+
 #include <chrono>
 #include <cstdint>
 #include <optional>

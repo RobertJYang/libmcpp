@@ -97,7 +97,9 @@ bool supervisor_manager::add_supervisor(const std::string& name, supervisor_ptr 
 bool supervisor_manager::start_supervisors() {
     bool success = true;
 
-    for (auto& [name, supervisor] : m_supervisors) {
+    for (auto& pair : m_supervisors) {
+        const auto& name       = pair.first;
+        auto&       supervisor = pair.second;
         try {
             if (!supervisor->start()) {
                 elog("error: start supervisor '${name}' failed", ("name", name));
@@ -116,7 +118,9 @@ bool supervisor_manager::start_supervisors() {
 bool supervisor_manager::stop_supervisors() {
     bool success = true;
 
-    for (auto& [name, supervisor] : m_supervisors) {
+    for (auto& pair : m_supervisors) {
+        const auto& name       = pair.first;
+        auto&       supervisor = pair.second;
         try {
             if (!supervisor->stop()) {
                 elog("error: stop supervisor '${name}' failed", ("name", name));
@@ -149,4 +153,4 @@ bool supervisor_manager::initialize_from_configs(
     return true;
 }
 
-} // namespace mc
+} // namespace mc::core

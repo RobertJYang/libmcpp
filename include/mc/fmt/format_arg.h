@@ -13,7 +13,6 @@
 #ifndef MC_FMT_FORMAT_ARG_H
 #define MC_FMT_FORMAT_ARG_H
 
-#include <mc/exception.h>
 #include <mc/fmt/formatter.h>
 
 #include <array>
@@ -106,6 +105,11 @@ struct format_arg {
                                                std::is_unsigned_v<T>,
                                            int> = 0>
     explicit format_arg(T v) : value(static_cast<uint64_t>(v)) {
+    }
+
+    // 支持枚举类型，将其转换为整数
+    template <typename T, std::enable_if_t<std::is_enum_v<T>, int> = 0>
+    explicit format_arg(T v) : value(static_cast<int64_t>(v)) {
     }
 
     explicit format_arg(double v) : value(v) {

@@ -13,6 +13,7 @@
 #include <gtest/gtest.h>
 #include <iostream>
 #include <limits>
+#include <mc/exception.h>
 #include <mc/fmt/format.h>
 
 using namespace mc::fmt;

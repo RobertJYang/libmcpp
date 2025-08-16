@@ -12,6 +12,7 @@
 #ifndef MC_FMT_FORMAT_PARSER_H
 #define MC_FMT_FORMAT_PARSER_H
 
+#include <mc/common.h>
 #include <mc/fmt/format_arg.h>
 #include <mc/fmt/format_spec.h>
 
@@ -101,40 +102,22 @@ constexpr const char* to_next_brace(parser_result& result, Context& ctx, const c
     return ptr; // 指向最后一个 '}' 的下一个位置
 }
 
-// 解析 ${name} 或 ${name:format} 语法的占位符
-// 返回占位符后的第一个字符的指针和占位符的内容
+// 通用的占位符内容解析函数
+// 解析 { 和 } 之间的内容，提取参数名/索引和格式说明符
 template <typename Context>
-constexpr parser_result parse_named_placeholder(
-    Context& ctx, const char* ptr, const char* end, string_view& name, const char*& format_start) {
+constexpr parser_result parse_placeholder_content(Context& ctx, const char* ptr, const char* end,
+                                                  std::string_view& content, const char*& format_start) {
     parser_result result(ptr);
-    if (ptr >= end || *ptr != '$') {
-        result.error(parser_error::invalid_brace_arg);
-        return result;
-    }
-
-    ++ptr; // 跳过 '$'
     if (ptr >= end || *ptr != '{') {
         result.error(parser_error::invalid_brace_arg);
         return result;
     }
 
     ++ptr; // 跳过 '{'
-    const char* name_start = ptr;
+    const char* content_start = ptr;
 
-    // 查找名称结束位置
-    int count = 0;
+    // 查找内容结束位置（遇到 ':' 或 '}'）
     while (ptr < end && *ptr != ':' && *ptr != '}') {
-        if (count == 0) {
-            if (!mc::is_first_identifier_char(*ptr)) {
-                result.error(parser_error::invalid_named_arg_name);
-                return result;
-            }
-        } else if (!mc::is_identifier_char(*ptr)) {
-            result.error(parser_error::invalid_named_arg_name);
-            return result;
-        }
-
-        ++count;
         ++ptr;
     }
 
@@ -143,73 +126,9 @@ constexpr parser_result parse_named_placeholder(
         return result;
     }
 
-    name = string_view(name_start, ptr - name_start);
+    content = std::string_view(content_start, ptr - content_start);
 
-    // 命名参数的名称不能为空
-    if (name.empty()) {
-        result.error(parser_error::invalid_named_arg_name);
-        return result;
-    }
-
-    if (*ptr == ':') {
-        format_start = ptr + 1;
-        // 使用通用函数查找匹配的 '}'
-        ptr = to_next_brace(result, ctx, ptr + 1, end);
-    } else {
-        format_start = nullptr;
-        ptr          = to_next_brace(result, ctx, ptr, end);
-    }
-
-    if (result.has_error()) {
-        return result;
-    }
-
-    result.success(ptr);
-    return result;
-}
-
-template <typename Context>
-constexpr size_t parse_index(Context& ctx, string_view index_str) {
-    size_t index = 0;
-    for (char c : index_str) {
-        index = index * 10 + (c - '0');
-    }
-    return index;
-}
-
-template <typename Context>
-constexpr parser_result parse_index_placeholder(Context& ctx, const char* ptr, const char* end,
-                                                size_t& index, const char*& format_start) {
-    parser_result result(ptr);
-    if (ptr >= end || *ptr != '{') {
-        result.error(parser_error::invalid_brace_arg);
-        return result;
-    }
-
-    ++ptr; // 跳过 '{'
-    const char* index_start = ptr;
-
-    // 查找索引结束位置
-    while (ptr < end && *ptr != ':' && *ptr != '}') {
-        if (!mc::fmt::detail::isdigit(*ptr)) {
-            result.error(parser_error::invalid_index_arg);
-            return result;
-        }
-        ++ptr;
-    }
-
-    if (ptr >= end) {
-        result.error(parser_error::invalid_brace_arg);
-        return result;
-    }
-
-    // 解析索引，空表示使用自动递增索引
-    if (ptr != index_start) {
-        index = parse_index(ctx, string_view(index_start, ptr - index_start));
-    } else {
-        index = INVALID_INDEX;
-    }
-
+    // 处理格式说明符
     if (*ptr == ':') {
         format_start = ptr + 1;
         ptr          = to_next_brace(result, ctx, ptr + 1, end);
@@ -224,6 +143,107 @@ constexpr parser_result parse_index_placeholder(Context& ctx, const char* ptr, c
 
     result.success(ptr);
     return result;
+}
+
+// 解析 ${name} 或 ${name:format} 语法的占位符
+// 返回占位符后的第一个字符的指针和占位符的内容
+template <typename Context>
+constexpr parser_result parse_named_placeholder(
+    Context& ctx, const char* ptr, const char* end, string_view& name, const char*& format_start) {
+    const char*   original_ptr = ptr; // 保存原始指针，包含 $
+    parser_result result(ptr);
+    if (ptr >= end || *ptr != '$') {
+        result.error(parser_error::invalid_brace_arg);
+        return result;
+    }
+
+    ++ptr; // 跳过 '$'
+
+    // 使用通用函数解析 {name:format} 部分
+    std::string_view content;
+    result = parse_placeholder_content(ctx, ptr, end, content, format_start);
+    if (result.has_error()) {
+        // 修正错误文本，包含完整的占位符（从$开始）
+        if (result.next_ptr > original_ptr) {
+            result.text = string_view(original_ptr, result.next_ptr - original_ptr);
+        }
+        return result;
+    }
+
+    // 验证名称是否为有效标识符
+    if (!mc::is_identifier(content)) {
+        result.error(parser_error::invalid_named_arg_name);
+        return result;
+    }
+
+    name = content;
+    return result;
+}
+
+// 检查字符串是否为纯数字
+constexpr bool is_numeric_string(std::string_view str) {
+    if (str.empty()) {
+        return true; // 空字符串算作数字（自增索引）
+    }
+
+    for (char c : str) {
+        if (!mc::fmt::detail::isdigit(c)) {
+            return false;
+        }
+    }
+    return true;
+}
+
+template <typename Context>
+constexpr size_t parse_index(Context& ctx, string_view index_str) {
+    size_t index = 0;
+    for (char c : index_str) {
+        index = index * 10 + (c - '0');
+    }
+    return index;
+}
+
+// 智能解析占位符，支持索引参数和命名参数
+// {}, {123}, {name} 等格式
+template <typename Context>
+constexpr parser_result parse_smart_placeholder(Context& ctx, const char* ptr, const char* end,
+                                                size_t& index, std::string_view& name, const char*& format_start) {
+    std::string_view content;
+    parser_result    result = parse_placeholder_content(ctx, ptr, end, content, format_start);
+    if (result.has_error()) {
+        return result;
+    }
+
+    // 初始化输出参数
+    index = INVALID_INDEX;
+    name  = std::string_view();
+
+    // 智能判断内容类型
+    if (content.empty()) {
+        // 空内容 {} - 自增索引
+        index = INVALID_INDEX;
+    } else if (is_numeric_string(content)) {
+        // 纯数字 {123} - 索引参数
+        index = parse_index(ctx, content);
+    } else if (mc::is_identifier(content)) {
+        // 有效标识符 {name} - 命名参数
+        name  = content;
+        index = INVALID_INDEX;
+    } else {
+        // 无效格式
+        result.error(parser_error::invalid_index_arg);
+        return result;
+    }
+
+    return result;
+}
+
+// 保持向后兼容的 parse_index_placeholder 函数
+template <typename Context>
+constexpr parser_result parse_index_placeholder(Context& ctx, const char* ptr, const char* end,
+                                                size_t& index, const char*& format_start) {
+    std::string_view name;
+    return parse_smart_placeholder(ctx, ptr, end, index, name, format_start);
 }
 
 template <typename Context>
@@ -262,6 +282,7 @@ constexpr const char* parse_format_spec(const char* start, const char* end, form
 
 template <typename Context>
 constexpr parser_result parse_named_arg(Context& ctx, const char*& ptr, const char* end, size_t& arg_index) {
+    const char*   original_ptr = ptr; // 保存原始指针，用于错误时重构完整文本
     string_view   name;
     const char*   format_start = nullptr;
     parser_result result       = parse_named_placeholder(ctx, ptr, end, name, format_start);
@@ -273,7 +294,9 @@ constexpr parser_result parse_named_arg(Context& ctx, const char*& ptr, const ch
     typename Context::arg_type arg;
     size_t                     index = INVALID_INDEX;
     if (!ctx.get_named_arg(name, arg, index)) {
-        result.error(parser_error::name_arg_not_found, result.next_ptr);
+        // 设置正确的错误文本，包含完整的占位符
+        result.text = string_view(original_ptr, result.next_ptr - original_ptr);
+        result.err  = parser_error::name_arg_not_found;
         return result;
     }
 
@@ -297,24 +320,44 @@ constexpr parser_result parse_named_arg(Context& ctx, const char*& ptr, const ch
 
 template <typename Context>
 constexpr parser_result parse_index_arg(Context& ctx, const char*& ptr, const char* end, size_t& arg_index) {
-    size_t        index        = INVALID_INDEX;
-    const char*   format_start = nullptr;
-    parser_result result       = parse_index_placeholder(ctx, ptr, end, index, format_start);
+    const char*      original_ptr = ptr; // 保存原始指针，用于错误时重构完整文本
+    size_t           index        = INVALID_INDEX;
+    std::string_view name;
+    const char*      format_start = nullptr;
+    parser_result    result       = parse_smart_placeholder(ctx, ptr, end, index, name, format_start);
     if (result.has_error()) {
         return result;
     }
 
-    if (index == INVALID_INDEX) {
-        index = arg_index++;
-    } else {
-        arg_index = index + 1;
-    }
-
     format_spec                spec;
     typename Context::arg_type arg;
-    if (!ctx.get_arg(index, arg)) {
-        result.error(parser_error::index_arg_not_found, result.next_ptr);
-        return result;
+    size_t                     actual_index = INVALID_INDEX;
+
+    // 根据解析结果获取参数
+    if (!name.empty()) {
+        // 命名参数
+        if (!ctx.get_named_arg(name, arg, actual_index)) {
+            // 设置正确的错误文本，包含完整的占位符
+            result.text = string_view(original_ptr, result.next_ptr - original_ptr);
+            result.err  = parser_error::name_arg_not_found;
+            return result;
+        }
+        ++arg_index; // 命名参数也占用参数计数
+    } else {
+        // 索引参数
+        if (index == INVALID_INDEX) {
+            actual_index = arg_index++;
+        } else {
+            actual_index = index;
+            arg_index    = index + 1;
+        }
+
+        if (!ctx.get_arg(actual_index, arg)) {
+            // 设置正确的错误文本，包含完整的占位符
+            result.text = string_view(original_ptr, result.next_ptr - original_ptr);
+            result.err  = parser_error::index_arg_not_found;
+            return result;
+        }
     }
 
     if (format_start != nullptr) {
@@ -329,7 +372,7 @@ constexpr parser_result parse_index_arg(Context& ctx, const char*& ptr, const ch
     }
 
     ctx.format_arg(arg, spec);
-    ctx.set_used(index);
+    ctx.set_used(actual_index);
     ptr = result.next_ptr;
     return result;
 }
