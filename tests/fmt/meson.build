@@ -5,6 +5,7 @@ test_fmt_files = files(
     'test_format_std.cpp',
     'test_mc_formatter.cpp',
     'test_named_args.cpp',
+    'test_smart_placeholder.cpp',
 )
 
 # 兼容性测试程序（可选构建）
