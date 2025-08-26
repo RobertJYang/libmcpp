@@ -290,6 +290,14 @@ TEST_F(engine_test, test_managed_object) {
               (mc::variants{"/org/test/o2/middle/a", "/org/test/o2/middle/b"}));
     EXPECT_EQ(get_managed_objects(*obj2),
               (mc::variants{"/org/test/o2/middle", "/org/test/o2/middles"}));
+
+    auto test_obj_new = create_object("/bmc/dev");
+    auto obj1_new     = create_object("/bmc/dev/Accessor/Accessor_1v8_0101010301");
+    auto obj2_new     = create_object("/bmc/dev/Accessor/Accessor_0v8_0101010301");
+    auto obj3_new     = create_object("/bmc/dev/Accessor/Accessor_1v2_0101010301");
+    auto managed_objects = get_managed_objects(*test_obj_new);
+    EXPECT_EQ(get_managed_objects(*test_obj_new),
+            objects({"/bmc/dev/Accessor/Accessor_1v8_0101010301", "/bmc/dev/Accessor/Accessor_0v8_0101010301", "/bmc/dev/Accessor/Accessor_1v2_0101010301"}));
 }
 
 TEST_F(engine_test, test_managed_object_comprehensive) {

@@ -233,8 +233,22 @@ abstract_object* service_impl::find_owner(abstract_object& obj, std::string_view
     // 在子对象中递归查找更接近的 owner
     auto child_objects = obj.get_managed_objects();
     auto it            = child_objects.lower_bound(path);
-    if (it != child_objects.end() && it->first.size() == path.size()) {
-        return it->second; // 如果精确匹配直接返回
+    // lower_bound 返回第一个大于等于 path 的迭代器
+    if (it != child_objects.end() && it->first.size() < path.size() && path[it->first.size()] == '/') {
+        // 如果精确匹配上级对象，直接返回
+        if (detail::path_starts_with(path, it->first)) {
+            return it->second;
+        }
+
+        // 否则向前查找一次可能的前缀
+        if (it != child_objects.begin()) {
+            --it;
+            if (it->first.size() < path.size() && path[it->first.size()] == '/' &&
+                detail::path_starts_with(path, it->first)) {
+                return find_owner(*(it->second), path);
+            }
+        }
+        return &obj;
     }
 
     // 如果没有精确匹配且已经到达 map 末尾或者找到的键不是 path 的前缀
@@ -332,8 +346,8 @@ mc::variant service_impl::timeout_call(mc::milliseconds timeout, std::string_vie
     if (result != std::nullopt) {
         return result.value();
     }
-    auto msg   = mc::dbus::message::new_method_call(service_name, path, interface, method);
-    auto writer = msg.writer();
+    auto                         msg    = mc::dbus::message::new_method_call(service_name, path, interface, method);
+    auto                         writer = msg.writer();
     mc::dbus::signature_iterator it(signature);
     for (auto& arg : args) {
         if (it.at_end()) {
@@ -427,7 +441,8 @@ void service_impl::remove_match(uint64_t id) {
     m_connection.remove_match(id);
 }
 
-service::service(std::string_view name) : mc::core::service_base(std::string(name)) {
+service::service(std::string_view name)
+    : mc::core::service_base(std::string(name)) {
     m_impl = std::make_unique<service_impl>();
 }
 
