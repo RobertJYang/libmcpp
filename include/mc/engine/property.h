@@ -986,11 +986,11 @@ protected:
         m_observer.notify(value, *this);
     }
 
-    void set_value_impl(param_type new_value) {
+    void set_value_impl(param_type new_value, bool direct_set = false) {
         if (is_equal(new_value)) {
             return;
         }
-        if (m_outsider_setter) {
+        if (m_outsider_setter && !direct_set) {
             if (!m_outsider_setter(new_value)) {
                 // 外部setter返回false，不进行实际设置
                 return;
@@ -1000,11 +1000,11 @@ protected:
         notify();
     }
 
-    void set_value_impl(rvalue_type new_value) {
+    void set_value_impl(rvalue_type new_value, bool direct_set = false) {
         if (is_equal(new_value)) {
             return;
         }
-        if (m_outsider_setter) {
+        if (m_outsider_setter && !direct_set) {
             if (!m_outsider_setter(new_value)) {
                 // 外部setter返回false，不进行实际设置
                 return;
@@ -1016,9 +1016,9 @@ protected:
 
     void update_value() {
         if (m_getter) {
-            set_value_impl(m_getter());
+            set_value_impl(m_getter(), true);
         } else if (m_outsider_getter) {
-            set_value_impl(m_outsider_getter());
+            set_value_impl(m_outsider_getter(), true);
         }
     }
 

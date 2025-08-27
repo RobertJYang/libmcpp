@@ -2625,8 +2625,7 @@ TEST(PropertyTest, OutsiderGetterSetterStringValidation) {
     // 测试读取会调用外部超长字符串 getter
     auto        old_value = string_prop.value();
     std::string value     = string_prop.value(true);
-    // 因为字符串internal_string长度超过10，所以不会被外部getter覆盖
-    EXPECT_EQ(value, old_value);
+    EXPECT_NE(value, old_value);
     EXPECT_TRUE(getter_called);
 
     // 测试设置有效字符串
