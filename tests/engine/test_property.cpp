@@ -2612,9 +2612,10 @@ TEST(PropertyTest, OutsiderGetterSetterStringValidation) {
 
     string_prop.make_outsider_getter_setter(outsider_getter, outsider_setter);
 
-    // 测试读取会调用外部getter
-    std::string value = string_prop.value(true);
-    EXPECT_EQ(value, "initial"); // 因为字符串internal_string长度超过10，所以不会被外部getter覆盖
+    // 测试读取会调用外部超长字符串 getter
+    auto        old_value = string_prop.value();
+    std::string value     = string_prop.value(true);
+    EXPECT_NE(value, old_value);
     EXPECT_TRUE(getter_called);
 
     // 测试设置有效字符串
