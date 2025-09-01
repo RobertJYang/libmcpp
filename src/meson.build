@@ -2,6 +2,7 @@
 subdir('crypto')
 subdir('db')
 subdir('dbus')
+subdir('debounce')
 subdir('dict')
 subdir('fmt')
 subdir('futures')
@@ -26,6 +27,7 @@ base_src_files = [
   'error_engine.cpp',
   'result.cpp',
 
+  debounce_src_files,
   dict_src_files,
   fmt_src_files,
   log_src_files,
