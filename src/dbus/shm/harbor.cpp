@@ -50,7 +50,7 @@ shm::object_tree* create_shm_tree(std::string_view harbor_name, std::string_view
         }
         fclose(fp);
     }
-    return shm_lock_call([harbor_name, service_name, unique_name]() {
+    return shm_global_lock_exec([harbor_name, service_name, unique_name]() {
         auto& ins = shm::shared_memory::get_instance();
         ins.set_harbor_name(unique_name, harbor_name);
         auto tree = ins.get_tree(service_name);
@@ -206,7 +206,7 @@ shm::message_queue_t* harbor::get_destination_msg_queue(std::string_view destina
     MC_ASSERT(!destination.empty(), "destination is empty");
     std::string_view harbor_name;
     if (is_unique_name(destination)) {
-        harbor_name = shm_lock_call([destination]() {
+        harbor_name = shm_global_lock_shared_exec([destination]() {
             auto& ins = shm::shared_memory::get_instance();
             return ins.get_harbor_name(destination);
         });
@@ -216,7 +216,7 @@ shm::message_queue_t* harbor::get_destination_msg_queue(std::string_view destina
     } else {
         harbor_name = destination;
     }
-    auto tree = shm_lock_call(find_harbor_tree, harbor_name);
+    auto tree = shm_global_lock_shared_exec(find_harbor_tree, harbor_name);
     if (tree == nullptr) {
         return nullptr;
     }
@@ -366,7 +366,7 @@ void harbor::start() {
     m_unique_name = connection.get_unique_name();
     m_connection  = connection;
     create_shm_tree(m_harbor_name, m_harbor_name, m_unique_name);
-    shm_lock_call([this]() {
+    shm_global_lock_exec([this]() {
         init_message_queue();
     });
     if (m_mq == nullptr) {

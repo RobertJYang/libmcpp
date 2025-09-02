@@ -20,6 +20,7 @@
 
 #if (defined(BUILD_TYPE) && defined(BUILD_TYPE_DT) && BUILD_TYPE != BUILD_TYPE_DT) || \
     (defined(ENABLE_CONAN_COMPILE) && ENABLE_CONAN_COMPILE == 1)
+#include "shmlock/shmlock_manager.h"
 #include <dbus/match/matchs.h>
 #include <dbus/shm_tree/object.h>
 #include <dbus/shm_tree/shared_memory.h>
@@ -36,6 +37,10 @@ constexpr std::string_view PROPERTIES_CHANGED_MEMBER     = "PropertiesChanged";
 constexpr std::string_view DBUS_OBJECT_MANAGER_INTERFACE = "org.freedesktop.DBus.ObjectManager";
 constexpr std::string_view INTERFACES_ADDED_MEMBER       = "InterfacesAdded";
 constexpr std::string_view INTERFACES_REMOVED_MEMBER     = "InterfacesRemoved";
+
+static constexpr int      SHM_LOCK_TIMEOUT_DEFAULT_MS = 60000;
+static constexpr uint64_t GLOBAL_OBJECT_ID            = 1;
+static uint16_t           g_lock_service_id           = 0;
 
 class shm_lock {
 public:
@@ -71,9 +76,124 @@ private:
     bool                m_locked;
 };
 
+class Lock {
+public:
+    Lock(uint64_t object_id) : m_object_id(object_id), m_lock_mgr(shmlock::ShmLockManager::get_instance()), m_locked(false) {
+        if (g_lock_service_id == 0) {
+            g_lock_service_id = shmlock::ShmLockManager::allocate_service_id();
+        }
+        lock();
+    }
+
+    ~Lock() {
+        try {
+            unlock();
+        } catch (...) {
+            // 析构函数中避免抛异常
+        }
+    }
+
+    void lock() {
+        if (!m_locked) {
+            m_lock_handle = m_lock_mgr.acquire_write_lock(m_object_id, g_lock_service_id, SHM_LOCK_TIMEOUT_DEFAULT_MS);
+            m_locked      = true;
+        }
+    }
+
+    void unlock() {
+        if (m_locked) {
+            m_locked = false;
+            m_lock_handle.release();
+        }
+    }
+
+private:
+    uint64_t                 m_object_id;
+    shmlock::ShmLockManager& m_lock_mgr;
+    shmlock::LockHandle      m_lock_handle;
+    bool                     m_locked;
+};
+
+class SharedLock {
+public:
+    SharedLock(uint64_t object_id) : m_object_id(object_id), m_lock_mgr(shmlock::ShmLockManager::get_instance()), m_locked(false) {
+        if (g_lock_service_id == 0) {
+            g_lock_service_id = shmlock::ShmLockManager::allocate_service_id();
+        }
+        lock();
+    }
+
+    ~SharedLock() {
+        try {
+            unlock();
+        } catch (...) {
+            // 析构函数中避免抛异常
+        }
+    }
+
+    void lock() {
+        if (!m_locked) {
+            m_lock_handle = m_lock_mgr.acquire_read_lock(m_object_id, g_lock_service_id, SHM_LOCK_TIMEOUT_DEFAULT_MS);
+            m_locked      = true;
+        }
+    }
+
+    void unlock() {
+        if (m_locked) {
+            m_locked = false;
+            m_lock_handle.release();
+        }
+    }
+
+private:
+    uint64_t                 m_object_id;
+    shmlock::ShmLockManager& m_lock_mgr;
+    shmlock::LockHandle      m_lock_handle;
+    bool                     m_locked;
+};
+
 template <typename Fn, typename... Args>
-auto shm_lock_call(Fn&& callback, Args&&... args) {
-    shm_lock lock;
+auto shm_global_lock_exec(Fn&& callback, Args&&... args) {
+    Lock lock(GLOBAL_OBJECT_ID);
+    if constexpr (std::is_void_v<std::invoke_result_t<Fn, Args...>>) {
+        std::invoke(std::forward<Fn>(callback), std::forward<Args>(args)...);
+        lock.unlock();
+    } else {
+        auto result = std::invoke(std::forward<Fn>(callback), std::forward<Args>(args)...);
+        lock.unlock();
+        return result;
+    }
+}
+
+template <typename Fn, typename... Args>
+auto shm_global_lock_shared_exec(Fn&& callback, Args&&... args) {
+    SharedLock lock(GLOBAL_OBJECT_ID);
+    if constexpr (std::is_void_v<std::invoke_result_t<Fn, Args...>>) {
+        std::invoke(std::forward<Fn>(callback), std::forward<Args>(args)...);
+        lock.unlock();
+    } else {
+        auto result = std::invoke(std::forward<Fn>(callback), std::forward<Args>(args)...);
+        lock.unlock();
+        return result;
+    }
+}
+
+template <typename Fn, typename... Args>
+auto shm_object_lock_exec(uint64_t object_id, Fn&& callback, Args&&... args) {
+    Lock lock(object_id);
+    if constexpr (std::is_void_v<std::invoke_result_t<Fn, Args...>>) {
+        std::invoke(std::forward<Fn>(callback), std::forward<Args>(args)...);
+        lock.unlock();
+    } else {
+        auto result = std::invoke(std::forward<Fn>(callback), std::forward<Args>(args)...);
+        lock.unlock();
+        return result;
+    }
+}
+
+template <typename Fn, typename... Args>
+auto shm_object_lock_shared_exec(uint64_t object_id, Fn&& callback, Args&&... args) {
+    SharedLock lock(object_id);
     if constexpr (std::is_void_v<std::invoke_result_t<Fn, Args...>>) {
         std::invoke(std::forward<Fn>(callback), std::forward<Args>(args)...);
         lock.unlock();

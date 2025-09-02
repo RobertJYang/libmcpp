@@ -17,8 +17,58 @@
 #include <functional>
 #include <memory>
 #include <string>
+#include <mutex>
 #include <string_view>
 #include <unordered_map>
+
+static constexpr int      SHM_LOCK_TIMEOUT_DEFAULT_MS = 60000;
+
+namespace shmlock {
+
+class LockHandle {
+public:
+    LockHandle() {
+
+    }
+
+    void release() {
+
+    }
+};
+
+class ShmLockManager;
+static std::mutex _shm_instance_mutex;
+static std::unique_ptr<ShmLockManager> _shm_instance;
+
+class ShmLockManager {
+public:
+    ShmLockManager() {
+
+    }
+
+    static ShmLockManager &get_instance() {
+        std::lock_guard lock(_shm_instance_mutex);
+
+        if (!_shm_instance) {
+            _shm_instance = std::move(std::make_unique<ShmLockManager>());
+        }
+
+        return *_shm_instance;
+    }
+
+    static uint16_t allocate_service_id() {
+        return 1;
+    }
+
+    LockHandle acquire_read_lock(uint64_t object_id, uint16_t service_id, uint32_t timeout_ms = SHM_LOCK_TIMEOUT_DEFAULT_MS) {
+        return LockHandle();
+    }
+
+    LockHandle acquire_write_lock(uint64_t object_id, uint16_t service_id, uint32_t timeout_ms = SHM_LOCK_TIMEOUT_DEFAULT_MS) {
+        return LockHandle();
+    }
+};
+}
 
 namespace DBus {
 namespace Match {
