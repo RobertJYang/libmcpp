@@ -248,7 +248,7 @@ public:
         }
 
         // 如果没有匹配的处理器，按普通值处理
-        from_variant(v, value.m_value);
+        value.set_value_impl(v.as<T>());
     }
 
     std::string_view get_name() const override {

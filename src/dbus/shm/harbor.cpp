@@ -17,6 +17,7 @@
 #include <mc/log.h>
 #include <mc/runtime.h>
 #include <memory>
+#include <sys/file.h>
 
 namespace mc::dbus {
 
@@ -36,6 +37,20 @@ shm::object_tree* create_shm_tree(std::string_view harbor_name, std::string_view
         std::this_thread::sleep_for(std::chrono::milliseconds(500));
     }
 #endif
+    // 首次打开共享内存需要使用文件锁
+    FILE *fp = fopen("/dev/shm/init_shm.lock", "r+");
+    if (fp == nullptr) {
+        elog("failed to open init_shm.lock file, ${error}", ("error", strerror(errno)));
+    } else {
+        if (flock(fileno(fp), LOCK_EX) < 0) {
+            elog("failed to lock init_shm.lock file, ${error}", ("error", strerror(errno)));
+        } else {
+            (void)shm::shared_memory::get_instance();
+        }
+        shm_lock lock;
+        lock.unlock();
+        fclose(fp);
+    }
     return shm_lock_call([harbor_name, service_name, unique_name]() {
         auto& ins = shm::shared_memory::get_instance();
         ins.set_harbor_name(unique_name, harbor_name);
