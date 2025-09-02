@@ -45,10 +45,9 @@ shm::object_tree* create_shm_tree(std::string_view harbor_name, std::string_view
         if (flock(fileno(fp), LOCK_EX) < 0) {
             elog("failed to lock init_shm.lock file, ${error}", ("error", strerror(errno)));
         } else {
-            (void)shm::shared_memory::get_instance();
+            shm_lock lock;
+            lock.unlock();
         }
-        shm_lock lock;
-        lock.unlock();
         fclose(fp);
     }
     return shm_lock_call([harbor_name, service_name, unique_name]() {
