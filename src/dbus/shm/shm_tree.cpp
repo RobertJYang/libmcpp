@@ -9,6 +9,7 @@
  * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
  * See the Mulan PSL v2 for more details.
  */
+#include <glib-2.0/glib.h>
 #include <mc/dbus/shm/serialize.h>
 #include <mc/dbus/shm/shm_tree.h>
 #include <mc/dict.h>
@@ -142,26 +143,28 @@ static std::optional<variant> get_property_inner(std::string_view service_name,
                                                  std::string_view path, std::string_view interface,
                                                  std::string_view property) {
     auto prop = find_shm_property(service_name, path, interface, property);
-    auto data = prop->get_data();
-    if (data == std::nullopt) {
-        return std::nullopt;
-    }
-    std::string_view prop_value = data.value();
-    size_t           p_data_len = prop_value.size();
-    void*            p_data     = g_malloc0(p_data_len);
-    if (p_data == nullptr) {
-        MC_THROW(mc::exception, "g_malloc0 failed, len: ${len}", ("len", p_data_len));
-    }
-    std::memcpy(p_data, prop_value.data(), p_data_len);
-    std::string_view signature = prop->get_signature();
-    GVariant*        v         = g_variant_new_from_data(G_VARIANT_TYPE(signature.data()), p_data, p_data_len,
-                                                         false, g_free, p_data);
-    return gvariant_convert::to_mc_variant(v);
+    return shm_object_lock_shared_exec(g_str_hash(path.data()), [&]() {
+        auto data = prop->get_data();
+        if (data == std::nullopt) {
+            return std::optional<variant>{};
+        }
+        std::string_view prop_value = data.value();
+        size_t           p_data_len = prop_value.size();
+        void*            p_data     = g_malloc0(p_data_len);
+        if (p_data == nullptr) {
+            MC_THROW(mc::exception, "g_malloc0 failed, len: ${len}", ("len", p_data_len));
+        }
+        std::memcpy(p_data, prop_value.data(), p_data_len);
+        std::string_view signature = prop->get_signature();
+        GVariant*        v         = g_variant_new_from_data(G_VARIANT_TYPE(signature.data()), p_data, p_data_len,
+                                                            false, g_free, p_data);
+        return std::make_optional(gvariant_convert::to_mc_variant(v));
+    });
 }
 
 variant shm_tree::get_property(std::string_view service_name, std::string_view path,
                                std::string_view interface, std::string_view property) {
-    auto res = shm_lock_call([&]() {
+    auto res = shm_global_lock_shared_exec([&]() {
         return get_property_inner(service_name, path, interface, property);
     });
     if (res == std::nullopt) {
@@ -187,9 +190,11 @@ void shm_tree::set_property_inner(shm::shared_ptr<shm::property> prop, const var
 void shm_tree::set_property(std::string_view service_name, std::string_view path,
                             std::string_view interface, std::string_view property,
                             const variant& value) {
-    shm_lock_call([&]() {
+    shm_global_lock_shared_exec([&]() {
         auto prop = find_shm_property(service_name, path, interface, property);
-        set_property_inner(prop, value);
+        shm_object_lock_shared_exec(g_str_hash(path.data()), [&]() {
+            set_property_inner(prop, value);
+        });
     });
 }
 
@@ -197,7 +202,7 @@ void shm_tree::add_match(match_rule& rule, mc::dbus::match_cb_t&& cb, uint64_t i
     auto& harbor      = harbor::get_instance();
     auto  harbor_name = harbor.get_harbor_name();
     harbor.add_rule(rule, std::forward<mc::dbus::match_cb_t>(cb), id);
-    shm_lock_call([this, &rule, harbor_name, id]() {
+    shm_global_lock_exec([this, &rule, harbor_name, id]() {
         auto& ins      = shm::shared_memory::get_instance();
         auto& tree_map = ins.get_object_tree_map(harbor_name);
         auto  it       = tree_map.find(harbor_name);
@@ -216,7 +221,7 @@ void shm_tree::remove_match(uint64_t id) {
     }
     auto slot = it->second;
     m_shm_slots.erase(it);
-    shm_lock_call([slot]() {
+    shm_global_lock_exec([slot]() {
         slot();
     });
 }

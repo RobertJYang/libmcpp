@@ -219,7 +219,7 @@ void service_impl::register_object(abstract_object& obj) {
         obj.set_owner(owner);
     }
 
-    mc::dbus::shm_lock_call([this, &obj]() {
+    mc::dbus::shm_global_lock_exec([this, &obj]() {
         m_shm_tree->register_object(obj);
     });
     mc::dbus::emit_interfaces_added(m_connection, obj);
@@ -296,7 +296,7 @@ void service_impl::unregister_object(std::string_view path) {
     obj.set_owner(nullptr);
     obj.set_service(nullptr);
 
-    mc::dbus::shm_lock_call([this, path]() {
+    mc::dbus::shm_global_lock_exec([this, path]() {
         m_shm_tree->unregister_object(path);
     });
     mc::dbus::emit_interfaces_removed(m_connection, obj);

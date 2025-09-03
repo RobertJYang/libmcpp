@@ -22,7 +22,7 @@ static DBus::Match::Context s_ctx;
 
 static void send_properties_changed(connection& conn, message& signal) {
     std::unordered_map<std::string, std::string> destinations;
-    shm_lock_call([&]() {
+    shm_global_lock_shared_exec([&]() {
         auto& shm = shm::shared_memory::get_instance().get_base();
         s_ctx.set_req(signal.get_dbus_message());
         shm._matchs.run(s_ctx, [&](DBus::Match::Context& _, shm::object_tree* tree) {
