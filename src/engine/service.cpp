@@ -18,6 +18,7 @@
 #include <mc/dbus/validator.h>
 #include <mc/engine.h>
 #include <mc/engine/errors/std_errors.h>
+#include <mc/engine/micro_component.h>
 #include <mc/engine/path_iterator.h>
 #include <mc/engine/utils.h>
 #include <mc/exception.h>
@@ -104,13 +105,14 @@ struct service_impl {
     uint64_t                   add_match(mc::dbus::match_rule& rule, mc::dbus::match_cb_t&& cb);
     void                       remove_match(uint64_t id);
 
-    std::mutex                     m_mutex;
-    service*                       m_service;
-    dbus::connection               m_connection;
-    object_table_ptr               m_object_table;
-    mc::shared_ptr<service_object> m_service_object;
-    root_object                    m_root;
-    mc::dbus::shm_tree*            m_shm_tree;
+    std::mutex                             m_mutex;
+    service*                               m_service;
+    dbus::connection                       m_connection;
+    object_table_ptr                       m_object_table;
+    mc::shared_ptr<service_object>         m_service_object;
+    mc::shared_ptr<micro_component_object> m_micro_component_object;
+    root_object                            m_root;
+    mc::dbus::shm_tree*                    m_shm_tree;
 };
 } // namespace mc::engine
 
@@ -131,6 +133,8 @@ bool service_impl::init(service* s) {
     m_service        = s;
     m_service_object = mc::make_shared<service_object>();
     m_service_object->init(s);
+    m_micro_component_object = mc::make_shared<micro_component_object>();
+    m_micro_component_object->init(s->name());
     return true;
 }
 
@@ -171,6 +175,7 @@ bool service_impl::start() {
     harbor.start();
 
     register_object(*m_service_object);
+    register_object(*m_micro_component_object);
 
     return true;
 }

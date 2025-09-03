@@ -12,6 +12,7 @@ engine_src_files = files(
   'property.cpp',
   'service.cpp',
   'std_interface.cpp',
+  'micro_component.cpp',
   'utils.cpp',
   'property/helper.cpp',
   'property/processor.cpp',
