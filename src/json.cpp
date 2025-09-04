@@ -50,7 +50,7 @@ public:
     // 检查嵌套深度
     void check_depth() {
         if (m_current_depth >= m_options.max_depth) {
-            MC_THROW(mc::parse_error_exception, "JSON嵌套深度超过限制");
+            MC_THROW(mc::parse_error_exception, "JSON nesting depth exceeds limit");
         }
     }
 
@@ -133,7 +133,7 @@ public:
                 m_stream << std::defaultfloat << num;
             }
         } else {
-            MC_THROW(mc::parse_error_exception, "无效的数值");
+            MC_THROW(mc::parse_error_exception, "Invalid number");
         }
     }
 
@@ -223,7 +223,7 @@ public:
             } else if constexpr (std::is_same_v<T, typename variant::extension_type>) {
                 encode_string(v.as_string());
             } else {
-                MC_THROW(mc::parse_error_exception, "不支持的 JSON 值类型 ${type}",
+                MC_THROW(mc::parse_error_exception, "Unsupported JSON value type ${type}",
                          ("type", mc::pretty_name<T>()));
             }
         });
@@ -249,7 +249,7 @@ public:
 
         // 检查输入JSON字符串的总长度
         if (m_input.length() > m_options.max_input_length) {
-            MC_THROW(mc::parse_error_exception, "输入JSON字符串长度超过限制");
+            MC_THROW(mc::parse_error_exception, "Input JSON string length exceeds limit");
         }
     }
 
@@ -259,7 +259,7 @@ public:
         variant result = parse_value();
         skip_whitespace();
         if (m_pos < m_input.length()) {
-            MC_THROW(mc::parse_error_exception, "JSON字符串后有多余字符");
+            MC_THROW(mc::parse_error_exception, "Extra characters after JSON string");
         }
         return result;
     }
@@ -291,7 +291,7 @@ public:
     // 检查嵌套深度
     void check_depth() {
         if (m_current_depth >= m_options.max_depth) {
-            MC_THROW(mc::parse_error_exception, "JSON嵌套深度超过限制");
+            MC_THROW(mc::parse_error_exception, "JSON nesting depth exceeds limit");
         }
     }
 
@@ -327,7 +327,7 @@ public:
             if (c == '-' || std::isdigit(c)) {
                 return parse_number();
             }
-            MC_THROW(mc::parse_error_exception, "无效的JSON值");
+            MC_THROW(mc::parse_error_exception, "Invalid JSON value");
         }
     }
 
@@ -337,7 +337,7 @@ public:
             m_pos += 4;
             return variant();
         }
-        MC_THROW(mc::parse_error_exception, "无效的null值");
+        MC_THROW(mc::parse_error_exception, "Invalid null value");
     }
 
     // 解析true
@@ -346,7 +346,7 @@ public:
             m_pos += 4;
             return variant(true);
         }
-        MC_THROW(mc::parse_error_exception, "无效的true值");
+        MC_THROW(mc::parse_error_exception, "Invalid true value");
     }
 
     // 解析false
@@ -355,19 +355,19 @@ public:
             m_pos += 5;
             return variant(false);
         }
-        MC_THROW(mc::parse_error_exception, "无效的false值");
+        MC_THROW(mc::parse_error_exception, "Invalid false value");
     }
 
     // 解析字符串
     void handle_unicode_escape(std::string& result) {
         if (m_pos + 4 >= m_input.length()) {
-            MC_THROW(mc::parse_error_exception, "无效的Unicode转义序列");
+            MC_THROW(mc::parse_error_exception, "Invalid Unicode escape sequence");
         }
         std::string hex = std::string(m_input.substr(m_pos + 1, 4));
 
         for (char c : hex) {
             if (!std::isxdigit(c)) {
-                MC_THROW(mc::parse_error_exception, "无效的Unicode转义序列");
+                MC_THROW(mc::parse_error_exception, "Invalid Unicode escape sequence");
             }
         }
 
@@ -383,24 +383,24 @@ public:
                 result += static_cast<char>(0x80 | ((code_point >> 6) & 0x3F));
                 result += static_cast<char>(0x80 | (code_point & 0x3F));
             } else {
-                MC_THROW(mc::parse_error_exception, "不支持的Unicode字符");
+                MC_THROW(mc::parse_error_exception, "Unsupported Unicode character");
             }
             m_pos += 4;
         } catch (const std::exception&) {
-            MC_THROW(mc::parse_error_exception, "无效的Unicode转义序列");
+            MC_THROW(mc::parse_error_exception, "Invalid Unicode escape sequence");
         }
     }
 
     void handle_normal_char(char c, std::string& result) {
         if (static_cast<unsigned char>(c) < 0x20) {
-            MC_THROW(mc::parse_error_exception, "字符串包含无效字符");
+            MC_THROW(mc::parse_error_exception, "String contains invalid character");
         }
         result += c;
     }
 
     void handle_escape_sequence(std::string& result) {
         if (is_eof()) {
-            MC_THROW(mc::parse_error_exception, "字符串未正确终止");
+            MC_THROW(mc::parse_error_exception, "String not properly terminated");
         }
         char c = current();
         switch (c) {
@@ -432,7 +432,7 @@ public:
             handle_unicode_escape(result);
             break;
         default:
-            MC_THROW(mc::parse_error_exception, "无效的转义序列");
+            MC_THROW(mc::parse_error_exception, "Invalid escape sequence");
         }
     }
 
@@ -444,7 +444,7 @@ public:
             if (c == '"') {
                 advance(); // 跳过结束的双引号
                 if (result.length() > m_options.max_string_length) {
-                    MC_THROW(mc::parse_error_exception, "字符串长度超过限制");
+                    MC_THROW(mc::parse_error_exception, "String length exceeds limit");
                 }
                 return variant(result);
             }
@@ -456,7 +456,7 @@ public:
             }
             advance();
         }
-        MC_THROW(mc::parse_error_exception, "字符串未正确终止");
+        MC_THROW(mc::parse_error_exception, "String not properly terminated");
     }
 
     // 解析数字
@@ -479,7 +479,7 @@ public:
                 advance();
             }
         } else {
-            MC_THROW(mc::parse_error_exception, "无效的数字格式");
+            MC_THROW(mc::parse_error_exception, "Invalid number format");
         }
 
         // 处理小数部分
@@ -487,7 +487,7 @@ public:
             is_float = true;
             advance();
             if (!std::isdigit(current())) {
-                MC_THROW(mc::parse_error_exception, "小数点后必须跟随数字");
+                MC_THROW(mc::parse_error_exception, "Decimal point must be followed by digits");
             }
             while (!is_eof() && std::isdigit(current())) {
                 advance();
@@ -502,7 +502,7 @@ public:
                 advance();
             }
             if (!std::isdigit(current())) {
-                MC_THROW(mc::parse_error_exception, "指数部分必须包含数字");
+                MC_THROW(mc::parse_error_exception, "Exponent part must contain digits");
             }
             while (!is_eof() && std::isdigit(current())) {
                 advance();
@@ -521,7 +521,7 @@ public:
                 return variant(std::stoull(number_str));
             }
         } catch (const std::exception&) {
-            MC_THROW(mc::parse_error_exception, "数字转换失败");
+            MC_THROW(mc::parse_error_exception, "Number conversion failed");
         }
     }
 
@@ -540,7 +540,7 @@ public:
 
         while (true) {
             if (result.size() >= m_options.max_array_size) {
-                MC_THROW(mc::parse_error_exception, "数组元素数量超过限制");
+                MC_THROW(mc::parse_error_exception, "Array element count exceeds limit");
             }
 
             result.push_back(parse_value());
@@ -553,7 +553,7 @@ public:
             }
 
             if (current() != ',') {
-                MC_THROW(mc::parse_error_exception, "数组元素必须用逗号分隔");
+                MC_THROW(mc::parse_error_exception, "Array elements must be separated by commas");
             }
             advance();
             skip_whitespace();
@@ -576,19 +576,19 @@ public:
         size_t count = 0;
         while (true) {
             if (count >= m_options.max_object_size) {
-                MC_THROW(mc::parse_error_exception, "对象键值对数量超过限制");
+                MC_THROW(mc::parse_error_exception, "Object key-value pair count exceeds limit");
             }
             count++;
 
             if (current() != '"') {
-                MC_THROW(mc::parse_error_exception, "对象键必须是字符串");
+                MC_THROW(mc::parse_error_exception, "Object key must be a string");
             }
 
             std::string key = parse_string().as<std::string>();
             skip_whitespace();
 
             if (current() != ':') {
-                MC_THROW(mc::parse_error_exception, "对象键值对必须用冒号分隔");
+                MC_THROW(mc::parse_error_exception, "Object key-value pairs must be separated by colons");
             }
             advance();
 
@@ -603,7 +603,7 @@ public:
             }
 
             if (current() != ',') {
-                MC_THROW(mc::parse_error_exception, "对象键值对必须用逗号分隔");
+                MC_THROW(mc::parse_error_exception, "Object key-value pairs must be separated by commas");
             }
             advance();
             skip_whitespace();
@@ -627,7 +627,7 @@ std::string json_encode(const variant& value, const json_encode_options& options
         throw;
     } catch (const std::exception& e) {
         // 将其他异常转换为parse_error_exception
-        MC_THROW(mc::parse_error_exception, "JSON编码失败: ${error}", ("error", e.what()));
+        MC_THROW(mc::parse_error_exception, "JSON encoding failed: ${error}", ("error", e.what()));
     }
 }
 
@@ -639,7 +639,7 @@ std::string json_encode(const dict& obj, const json_encode_options& options) {
     } catch (const mc::parse_error_exception&) {
         throw;
     } catch (const std::exception& e) {
-        MC_THROW(mc::parse_error_exception, "JSON编码失败: ${error}", ("error", e.what()));
+        MC_THROW(mc::parse_error_exception, "JSON encoding failed: ${error}", ("error", e.what()));
     }
 }
 
@@ -651,7 +651,7 @@ std::string json_encode(const std::vector<variant>& arr, const json_encode_optio
     } catch (const mc::parse_error_exception&) {
         throw;
     } catch (const std::exception& e) {
-        MC_THROW(mc::parse_error_exception, "JSON编码失败: ${error}", ("error", e.what()));
+        MC_THROW(mc::parse_error_exception, "JSON encoding failed: ${error}", ("error", e.what()));
     }
 }
 
@@ -663,7 +663,7 @@ mc::variant json_decode(std::string_view json, const json_decode_options& option
     } catch (const mc::parse_error_exception&) {
         throw;
     } catch (const std::exception& e) {
-        MC_THROW(mc::parse_error_exception, "JSON解码失败: ${error}", ("error", e.what()));
+        MC_THROW(mc::parse_error_exception, "JSON decoding failed: ${error}", ("error", e.what()));
     }
 }
 

@@ -10,13 +10,13 @@
  * See the Mulan PSL v2 for more details.
  */
 
-#include <mc/engine/property/processors/sync_property_processor.h>
-#include <mc/engine/property/helper.h>
-#include <mc/engine/base.h>
-#include <mc/expr/function/collection.h>
 #include <mc/core/service.h>
-#include <mc/log.h>
+#include <mc/engine/base.h>
+#include <mc/engine/property/helper.h>
+#include <mc/engine/property/processors/sync_property_processor.h>
 #include <mc/exception.h>
+#include <mc/expr/function/collection.h>
+#include <mc/log.h>
 
 namespace mc::engine {
 
@@ -45,13 +45,13 @@ void sync_property_processor::hook_sync_property(property_helper* property, cons
     // 同步属性不支持设置值
     property->ensure_extension_data();
     property->set_setter_function([property](const mc::variant& value) {
-        MC_THROW(mc::invalid_op_exception, "设置同步属性值不被允许: ${name}", ("name", property->get_name()));
+        MC_THROW(mc::invalid_op_exception, "Setting sync property value is not allowed: ${name}", ("name", property->get_name()));
     });
 }
 
-void sync_property_processor::setup_sync_property_connection(property_helper* property, 
-                                                           const mc::expr::relate_property& relate_property,
-                                                           abstract_object& target_object) {
+void sync_property_processor::setup_sync_property_connection(property_helper*                 property,
+                                                             const mc::expr::relate_property& relate_property,
+                                                             abstract_object&                 target_object) {
     // 断开旧连接
     property->clear_connection_slots();
 
@@ -76,16 +76,16 @@ void sync_property_processor::setup_sync_property_connection(property_helper* pr
     }
 }
 
-void sync_property_processor::setup_deferred_sync_connection(property_helper* property, 
-                                                           const mc::expr::relate_property& relate_property) {
+void sync_property_processor::setup_deferred_sync_connection(property_helper*                 property,
+                                                             const mc::expr::relate_property& relate_property) {
     auto position = property->get_object()->get_position();
-    auto service = mc::expr::func_collection::get_instance().get_service(position);
+    auto service  = mc::expr::func_collection::get_instance().get_service(position);
     if (service == nullptr) {
         return;
     }
 
     std::string full_object_name = relate_property.object_name + "_" + std::string(position);
-    auto& object_table = service->get_object_table();
+    auto&       object_table     = service->get_object_table();
 
     auto slot = object_table.on_object_added.connect(
         [this, property, full_object_name, relate_property](mc::core::object_base& base_object) {
@@ -106,7 +106,7 @@ void sync_property_processor::hook_sync_properties(property_helper* property, mc
     auto grouped_properties = property->group_properties_by_object(relate_properties);
 
     for (const auto& entry : grouped_properties) {
-        auto object_name = entry.key.template as<std::string>();
+        auto object_name       = entry.key.template as<std::string>();
         auto object_properties = entry.value.template as<mc::mutable_dict>();
         process_sync_properties_for_object(property, object_name, object_properties);
     }
@@ -117,13 +117,13 @@ void sync_property_processor::hook_sync_properties(property_helper* property, mc
     // 同步属性不支持设置值
     property->ensure_extension_data();
     property->set_setter_function([](const mc::variant& value) {
-        MC_THROW(mc::invalid_op_exception, "设置同步属性值不被允许");
+        MC_THROW(mc::invalid_op_exception, "Setting sync property value is not allowed");
     });
 }
 
-void sync_property_processor::process_sync_properties_for_object(property_helper* property,
-                                                                const std::string& object_name,
-                                                                const mc::mutable_dict& object_properties) {
+void sync_property_processor::process_sync_properties_for_object(property_helper*        property,
+                                                                 const std::string&      object_name,
+                                                                 const mc::mutable_dict& object_properties) {
     auto* target_object = property->find_related_object(object_name);
     if (target_object == nullptr) {
         setup_deferred_multi_sync_connection(property, object_name, object_properties);
@@ -133,9 +133,9 @@ void sync_property_processor::process_sync_properties_for_object(property_helper
     setup_multi_sync_connection(property, *target_object, object_properties);
 }
 
-void sync_property_processor::setup_multi_sync_connection(property_helper* property,
-                                                         abstract_object& target_object,
-                                                         const mc::mutable_dict& object_properties) {
+void sync_property_processor::setup_multi_sync_connection(property_helper*        property,
+                                                          abstract_object&        target_object,
+                                                          const mc::mutable_dict& object_properties) {
     auto slot = target_object.property_changed().connect(
         [property, object_properties_copy = object_properties](const mc::variant& value, const property_base& prop) {
         if (object_properties_copy.contains(prop.get_name())) {
@@ -150,17 +150,17 @@ void sync_property_processor::setup_multi_sync_connection(property_helper* prope
     property->add_connection_slot(slot);
 }
 
-void sync_property_processor::setup_deferred_multi_sync_connection(property_helper* property,
-                                                                  const std::string& object_name,
-                                                                  const mc::mutable_dict& object_properties) {
+void sync_property_processor::setup_deferred_multi_sync_connection(property_helper*        property,
+                                                                   const std::string&      object_name,
+                                                                   const mc::mutable_dict& object_properties) {
     auto position = property->get_object()->get_position();
-    auto service = mc::expr::func_collection::get_instance().get_service(position);
+    auto service  = mc::expr::func_collection::get_instance().get_service(position);
     if (service == nullptr) {
         return;
     }
 
     std::string full_object_name = object_name + "_" + std::string(position);
-    auto& object_table = service->get_object_table();
+    auto&       object_table     = service->get_object_table();
 
     auto slot = object_table.on_object_added.connect(
         [this, property, full_object_name, object_properties_copy = object_properties](mc::core::object_base& base_object) {
@@ -184,4 +184,4 @@ void sync_property_processor::update_sync_value_from_function(property_helper* p
     property->set_variant_value(result);
 }
 
-} // namespace mc::engine 
+} // namespace mc::engine

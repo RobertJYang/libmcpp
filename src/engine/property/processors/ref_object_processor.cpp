@@ -10,11 +10,11 @@
  * See the Mulan PSL v2 for more details.
  */
 
-#include <mc/engine/property/processors/ref_object_processor.h>
 #include <mc/engine/property/helper.h>
+#include <mc/engine/property/processors/ref_object_processor.h>
+#include <mc/exception.h>
 #include <mc/expr/function/parser.h>
 #include <mc/log.h>
-#include <mc/exception.h>
 
 namespace mc::engine {
 
@@ -44,7 +44,7 @@ void ref_object_processor::process_ref_object_from_variant(property_helper* prop
 
     property->ensure_extension_data();
     property->set_setter_function([property](const mc::variant& value) {
-        MC_THROW(mc::invalid_op_exception, "设置引用对象属性值不被允许: ${name}", ("name", property->get_name()));
+        MC_THROW(mc::invalid_op_exception, "Setting reference object property value is not allowed: ${name}", ("name", property->get_name()));
     });
 
     // 初始化引用对象缓存
@@ -69,4 +69,4 @@ void ref_object_processor::initialize_ref_object_cache(property_helper* property
     property->set_internal_value(mc::variant(ref_obj));
 }
 
-} // namespace mc::engine 
+} // namespace mc::engine

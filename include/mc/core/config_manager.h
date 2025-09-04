@@ -19,6 +19,7 @@
 
 #include <mc/core/config_schema.h>
 #include <mc/log.h>
+#include <mc/log/log_manager.h>
 
 #include <boost/program_options.hpp>
 
@@ -177,6 +178,7 @@ public:
      */
     unsigned int get_thread_count() const;
 
+
 private:
     template <typename T>
     static std::string_view get_kind() {
@@ -197,6 +199,7 @@ private:
     void process_config(const variant& config);
     bool validate_config(const std::string& kind, const variant& config);
     void process_app_config(const variant& config);
+    void process_logging_config(const variant& config);
 
     std::unique_ptr<config_loader> create_loader(const std::string& file_path) const;
 
