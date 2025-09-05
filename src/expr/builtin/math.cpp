@@ -38,7 +38,7 @@ struct math_funcs {
 
     static mc::variant min(const mc::variants& args) {
         if (args.empty()) {
-            MC_THROW(mc::invalid_arg_exception, "min 函数至少需要一个参数");
+            MC_THROW(mc::invalid_arg_exception, "min function requires at least one parameter");
         }
 
         mc::variant result = args[0];
@@ -54,7 +54,7 @@ struct math_funcs {
 
     static mc::variant max(const mc::variants& args) {
         if (args.empty()) {
-            MC_THROW(mc::invalid_arg_exception, "max 函数至少需要一个参数");
+            MC_THROW(mc::invalid_arg_exception, "max function requires at least one parameter");
         }
 
         mc::variant result = args[0];
@@ -82,21 +82,21 @@ struct math_funcs {
 
     static double sqrt(double value) {
         if (value < 0) {
-            MC_THROW(mc::invalid_arg_exception, "sqrt 函数参数必须大于等于0");
+            MC_THROW(mc::invalid_arg_exception, "sqrt function parameter must be greater than or equal to 0");
         }
         return std::sqrt(value);
     }
 
     static double pow(double base, double exponent) {
         if (base < 0) {
-            MC_THROW(mc::invalid_arg_exception, "pow 函数底数必须大于等于0");
+            MC_THROW(mc::invalid_arg_exception, "pow function base must be greater than or equal to 0");
         }
         return std::pow(base, exponent);
     }
 
     static double log(double value) {
         if (value <= 0) {
-            MC_THROW(mc::invalid_arg_exception, "log 函数参数必须大于0");
+            MC_THROW(mc::invalid_arg_exception, "log function parameter must be greater than 0");
         }
         return std::log(value);
     }

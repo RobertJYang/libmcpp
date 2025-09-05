@@ -23,7 +23,7 @@ struct conversion_funcs {
         try {
             return arg.as_int64();
         } catch (const std::exception&) {
-            MC_THROW(mc::invalid_arg_exception, "表达式求值错误: 无法将值转换为数值类型");
+            MC_THROW(mc::invalid_arg_exception, "Expression evaluation error: unable to convert value to numeric type");
         }
     }
 
@@ -31,7 +31,7 @@ struct conversion_funcs {
         try {
             return arg.as_double();
         } catch (const std::exception&) {
-            MC_THROW(mc::invalid_arg_exception, "表达式求值错误: 无法将值转换为浮点数类型");
+            MC_THROW(mc::invalid_arg_exception, "Expression evaluation error: unable to convert value to floating point type");
         }
     }
 
@@ -43,7 +43,7 @@ struct conversion_funcs {
         try {
             return arg.as_bool(true);
         } catch (const std::exception&) {
-            MC_THROW(mc::invalid_arg_exception, "表达式求值错误: 无法将值转换为布尔类型");
+            MC_THROW(mc::invalid_arg_exception, "Expression evaluation error: unable to convert value to boolean type");
         }
     }
 };

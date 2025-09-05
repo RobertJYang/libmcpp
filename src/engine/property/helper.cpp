@@ -10,11 +10,11 @@
  * See the Mulan PSL v2 for more details.
  */
 
-#include <mc/engine/property/helper.h>
 #include <mc/engine/property/detail.h>
-#include <mc/expr/function/parser.h>
-#include <mc/expr/function/collection.h>
+#include <mc/engine/property/helper.h>
 #include <mc/exception.h>
+#include <mc/expr/function/collection.h>
+#include <mc/expr/function/parser.h>
 
 namespace mc::engine {
 
@@ -62,7 +62,7 @@ mc::variant property_helper::call_function_with_result(const detail::func_data* 
         }
         return result;
     } catch (const std::exception& e) {
-        elog("Function call exception for property: ${name}, 错误: ${error}",
+        elog("Function call exception for property: ${name}, error: ${error}",
              ("name", get_name())("error", e.what()));
         return mc::variant();
     }
@@ -111,8 +111,8 @@ void property_helper::set_relate_property(const mc::expr::relate_property& relat
 }
 
 void property_helper::connect_property_listener(abstract_object&      target_object,
-                                               const std::string&    property_name,
-                                               std::function<void()> callback) {
+                                                const std::string&    property_name,
+                                                std::function<void()> callback) {
     target_object.property_changed().connect(
         [property_name, callback](const mc::variant& value, const property_base& prop) {
         if (prop.get_name() == property_name) {
@@ -148,4 +148,4 @@ mc::mutable_dict property_helper::group_properties_by_object(const mc::mutable_d
     return object_properties;
 }
 
-} // namespace mc::engine 
+} // namespace mc::engine

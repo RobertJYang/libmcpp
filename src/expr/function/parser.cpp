@@ -86,7 +86,7 @@ relate_property func_parser::parse_property_with_type(const std::string&        
     // 验证前缀格式
     if (input.length() < config.prefix.length() ||
         input.substr(0, config.prefix.length()) != config.prefix) {
-        MC_THROW(mc::invalid_arg_exception, "${error_prefix}属性格式无效: ${input}",
+        MC_THROW(mc::invalid_arg_exception, "${error_prefix}Property format invalid: ${input}",
                  ("error_prefix", config.error_message_prefix)("input", input));
     }
 
@@ -168,7 +168,7 @@ relate_property func_parser::parse_ref_property(const std::string& input) {
 relate_object func_parser::parse_ref_object(const std::string& input) {
     // 验证格式 #/ObjectName
     if (input.length() < 3 || input.substr(0, 2) != "#/") {
-        MC_THROW(mc::invalid_arg_exception, "引用对象格式无效: ${input}", ("input", input));
+        MC_THROW(mc::invalid_arg_exception, "Reference object format invalid: ${input}", ("input", input));
     }
 
     // 提取对象名，去除前缀 #/
@@ -176,7 +176,7 @@ relate_object func_parser::parse_ref_object(const std::string& input) {
 
     // 验证对象名不为空且只包含字母、数字和下划线
     if (object_name.empty() || !std::regex_match(object_name, std::regex(R"([A-Za-z_][A-Za-z0-9_]*)"))) {
-        MC_THROW(mc::invalid_arg_exception, "引用对象名称格式无效: ${object_name}", ("object_name", object_name));
+        MC_THROW(mc::invalid_arg_exception, "Reference object name format invalid: ${object_name}", ("object_name", object_name));
     }
 
     // 构造结果

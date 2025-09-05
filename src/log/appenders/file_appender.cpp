@@ -17,15 +17,17 @@
 #include <stdio.h>
 
 typedef enum {
-    DLOG_DEBUG,
-    DLOG_INFO,
-    DLOG_WARN,
     DLOG_ERROR,
-    DLOG_NOTICE
+    DLOG_WARN,
+    DLOG_NOTICE,
+    DLOG_INFO,
+    DLOG_DEBUG
 } DLOG_LEVEL_E;
 
 typedef void (*debug_log_func_t)(DLOG_LEVEL_E, const char*, int, const char*, ...);
+typedef void (*set_log_module_name_func_t)(const char*);
 static debug_log_func_t debug_log_ptr = nullptr;
+static set_log_module_name_func_t set_log_module_name_ptr = nullptr;
 
 namespace mc {
 namespace log {
@@ -46,6 +48,19 @@ bool file_appender::init(const variant& args) {
         debug_log_ptr = (debug_log_func_t)dlsym(handle, "debug_log");
         if (!debug_log_ptr) {
             fprintf(stderr, "dlsym debug_log failed: %s\n", dlerror());
+        }
+        set_log_module_name_ptr = (set_log_module_name_func_t)dlsym(handle, "set_log_module_name");
+        if (!set_log_module_name_ptr) {
+            fprintf(stderr, "dlsym set_log_module_name failed: %s\n", dlerror());
+        }
+    }
+
+    // 从配置中获取模块名称并设置
+    auto dict = args.as<mc::dict>();
+    if (dict.contains("module_name")) {
+        std::string module_name = dict["module_name"].as<std::string>();
+        if (set_log_module_name_ptr) {
+            set_log_module_name_ptr(module_name.c_str());
         }
     }
 
@@ -118,6 +133,8 @@ void file_appender::append(const message& msg) {
         debug_log_ptr(level, file_str.c_str(), ctx.m_line, "%s", message_str.c_str());
     }
 }
+
+
 
 void file_appender::set_filename(const std::string& filename) {
     std::lock_guard<std::mutex> lock(m_mutex);

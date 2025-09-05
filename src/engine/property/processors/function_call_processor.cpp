@@ -10,20 +10,20 @@
  * See the Mulan PSL v2 for more details.
  */
 
-#include <mc/engine/property/processors/function_call_processor.h>
-#include <mc/engine/property/processors/sync_property_processor.h>
-#include <mc/engine/property/processors/ref_property_processor.h>
-#include <mc/engine/property/helper.h>
 #include <mc/engine/property/detail.h>
-#include <mc/expr/function/parser.h>
-#include <mc/expr/function/collection.h>
-#include <mc/log.h>
+#include <mc/engine/property/helper.h>
+#include <mc/engine/property/processors/function_call_processor.h>
+#include <mc/engine/property/processors/ref_property_processor.h>
+#include <mc/engine/property/processors/sync_property_processor.h>
 #include <mc/exception.h>
+#include <mc/expr/function/collection.h>
+#include <mc/expr/function/parser.h>
+#include <mc/log.h>
 #include <mc/variant.h>
 
 namespace mc::engine {
 
-function_call_processor::function_call_processor() 
+function_call_processor::function_call_processor()
     : m_sync_processor(std::make_unique<sync_property_processor>()),
       m_ref_processor(std::make_unique<ref_property_processor>()) {
 }
@@ -42,16 +42,16 @@ p_type function_call_processor::get_property_type() const {
 
 void function_call_processor::process_property_value(property_helper* property, const std::string& value_str) {
     auto func_info = mc::expr::func_parser::get_instance().parse_function_call(value_str);
-    auto position = property->get_object()->get_position();
+    auto position  = property->get_object()->get_position();
     auto call_func = mc::expr::func_collection::get_instance().get(position, func_info.func);
 
     if (call_func.is_null()) {
-        elog("函数未找到: ${name}", ("name", func_info.func));
+        elog("Function not found: ${name}", ("name", func_info.func));
         // 函数未找到时，不修改属性值，保持原有值
         return;
     }
 
-    auto func_params = func_info.params;
+    auto func_params       = func_info.params;
     auto relate_properties = call_func.template as<mc::expr::func>().get_relate_properties(
         property->get_object()->get_position(), func_params);
 
@@ -88,4 +88,4 @@ void function_call_processor::process_property_value(property_helper* property, 
     }
 }
 
-} // namespace mc::engine 
+} // namespace mc::engine
