@@ -260,9 +260,6 @@ TEST(CustomAllocatorTest, SavePointAllocation) {
     auto tree = tx.commit();
     EXPECT_EQ(tree.size(), 2);
 
-    // 需要清空free_list，不然这些节点会被缓存，不会被释放
-    tx.free_list().clear();
-
     // 验证回滚后内存分配情况
     EXPECT_GE(tracking_allocator<int>::get_deallocation_count(),
               pre_rollback_alloc_count - initial_alloc_count);
