@@ -10,6 +10,7 @@
  * See the Mulan PSL v2 for more details.
  */
 #include <glib-2.0/glib.h>
+#include <type_traits>
 #include <mc/dbus/shm/serialize.h>
 #include <mc/dbus/shm/shm_tree.h>
 #include <mc/dict.h>
@@ -139,11 +140,27 @@ static shm::shared_ptr<shm::property> find_shm_property(std::string_view service
     return prop;
 }
 
+template<typename T, typename = void>
+struct has_static_allocate_object_id : std::false_type {};
+
+template<typename T>
+struct has_static_allocate_object_id<T, std::void_t<decltype(T::allocate_object_id(std::declval<std::string_view>()))>> : std::true_type {};
+
+template<typename LibraryType>
+static uint32_t get_object_id(std::string_view path)
+{
+    if constexpr (has_static_allocate_object_id<LibraryType>::value) {
+        return LibraryType::allocate_object_id(path);
+    }
+    
+    return g_str_hash(path.data());
+}
+
 static std::optional<variant> get_property_inner(std::string_view service_name,
                                                  std::string_view path, std::string_view interface,
                                                  std::string_view property) {
     auto prop = find_shm_property(service_name, path, interface, property);
-    return shm_object_lock_shared_exec(g_str_hash(path.data()), [&]() {
+    return shm_object_lock_shared_exec(get_object_id<shmlock::ShmLockManager>(path), [&]() {
         auto data = prop->get_data();
         if (data == std::nullopt) {
             return std::optional<variant>{};
@@ -192,7 +209,7 @@ void shm_tree::set_property(std::string_view service_name, std::string_view path
                             const variant& value) {
     shm_global_lock_shared_exec([&]() {
         auto prop = find_shm_property(service_name, path, interface, property);
-        shm_object_lock_shared_exec(g_str_hash(path.data()), [&]() {
+        shm_object_lock_exec(get_object_id<shmlock::ShmLockManager>(path), [&]() {
             set_property_inner(prop, value);
         });
     });
