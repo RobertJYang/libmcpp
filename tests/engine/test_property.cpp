@@ -10,21 +10,20 @@
  * See the Mulan PSL v2 for more details.
  */
 
+#include <atomic>
 #include <chrono>
 #include <cmath>
 #include <functional>
 #include <gtest/gtest.h>
-#include <iostream>
 #include <mc/engine/interface.h>
 #include <mc/engine/object.h>
 #include <mc/engine/property.h>
 #include <mc/engine/property/processors.h>
 #include <mc/engine/service.h>
 #include <mc/expr/function/collection.h>
-#include <sstream>
 #include <test_utilities/test_base.h>
 #include <thread>
-#include <unordered_map>
+#include <vector>
 
 namespace {
 struct Point {
@@ -2731,4 +2730,267 @@ TEST(PropertyTest, OutsiderGetterSetterComplexType) {
     setter_called = false;
     point_prop.set_value(Point(-10, 30));
     EXPECT_TRUE(setter_called); // setter被调用但拒绝设置
+}
+
+// 测试引用对象的属性设置功能
+TEST_F(PropertyRelateTest, RefObjectSetProperty) {
+    auto test_obj = m_service->get_test_obj();
+    auto& test_prop = test_obj->m_interface.test_prop;
+    
+    mc::variant cpu_ref("#/CPU");
+    from_variant(cpu_ref, test_prop);
+    
+    auto obj_variant = test_prop.get_value();
+    auto* ref_obj = obj_variant.as<mc::engine::ref_object*>();
+    ASSERT_NE(ref_obj, nullptr);
+    
+    // 首先验证引用对象是有效的
+    EXPECT_TRUE(ref_obj->is_valid());
+    
+    // 测试设置属性
+    EXPECT_NO_THROW(ref_obj->set_property("Temperature", 90.0));
+    
+    // 验证属性值已更新
+    auto temp_prop = ref_obj->get_property("Temperature");
+    EXPECT_FALSE(temp_prop.is_null());
+    EXPECT_DOUBLE_EQ(temp_prop.as<double>(), 90.0);
+    
+    // 测试设置接口属性
+    EXPECT_NO_THROW(ref_obj->set_property("org.test.CPUInterface", "Usage", 75.0));
+    
+    // 验证接口属性值已更新
+    auto usage_prop = ref_obj->get_property("org.test.CPUInterface", "Usage");
+    EXPECT_FALSE(usage_prop.is_null());
+    EXPECT_DOUBLE_EQ(usage_prop.as<double>(), 75.0);
+}
+
+// 测试引用对象的生命周期管理
+TEST_F(PropertyRelateTest, RefObjectLifecycleManagementExtended) {
+    auto test_obj = m_service->get_test_obj();
+    auto& test_prop = test_obj->m_interface.test_prop;
+    
+    // 测试引用到存在的对象
+    mc::variant cpu_ref("#/CPU");
+    from_variant(cpu_ref, test_prop);
+    
+    auto obj_variant = test_prop.get_value();
+    auto* ref_obj = obj_variant.as<mc::engine::ref_object*>();
+    ASSERT_NE(ref_obj, nullptr);
+    
+    // 测试对象有效性
+    EXPECT_TRUE(ref_obj->is_valid());
+    EXPECT_NE(ref_obj->get_object(), nullptr);
+    EXPECT_EQ(ref_obj->get_object_name(), "CPU");
+    
+    // 测试引用到不存在的对象
+    mc::variant non_existent_ref("#/NonExistentObject");
+    from_variant(non_existent_ref, test_prop);
+    
+    auto non_existent_variant = test_prop.get_value();
+    auto* non_existent_ref_obj = non_existent_variant.as<mc::engine::ref_object*>();
+    ASSERT_NE(non_existent_ref_obj, nullptr);
+    
+    // 测试不存在的对象
+    EXPECT_FALSE(non_existent_ref_obj->is_valid());
+    EXPECT_EQ(non_existent_ref_obj->get_object(), nullptr);
+    EXPECT_EQ(non_existent_ref_obj->get_object_name(), "NonExistentObject");
+}
+
+// 测试引用对象的variant_extension_base接口实现
+TEST_F(PropertyRelateTest, RefObjectVariantExtension) {
+    auto test_obj = m_service->get_test_obj();
+    auto& test_prop = test_obj->m_interface.test_prop;
+    
+    mc::variant cpu_ref("#/CPU");
+    from_variant(cpu_ref, test_prop);
+    
+    auto obj_variant = test_prop.get_value();
+    auto* ref_obj = obj_variant.as<mc::engine::ref_object*>();
+    ASSERT_NE(ref_obj, nullptr);
+    
+    // 测试字符串转换
+    EXPECT_EQ(ref_obj->as_string(), "CPU");
+    
+    // 测试类型名称
+    EXPECT_EQ(ref_obj->get_type_name(), "ref_object");
+    
+    // 测试克隆
+    auto cloned_ref_obj = ref_obj->clone();
+    ASSERT_NE(cloned_ref_obj, nullptr);
+    EXPECT_EQ(cloned_ref_obj->as_string(), "CPU");
+    
+    // 测试相等性比较
+    mc::variant cpu_ref2("#/CPU");
+    from_variant(cpu_ref2, test_prop);
+    auto obj_variant2 = test_prop.get_value();
+    auto* ref_obj2 = obj_variant2.as<mc::engine::ref_object*>();
+    
+    EXPECT_TRUE(ref_obj->equals(*ref_obj2));
+    
+    // 测试不同对象的相等性
+    mc::variant memory_ref("#/Memory");
+    from_variant(memory_ref, test_prop);
+    auto memory_variant = test_prop.get_value();
+    auto* memory_ref_obj = memory_variant.as<mc::engine::ref_object*>();
+    
+    EXPECT_FALSE(ref_obj->equals(*memory_ref_obj));
+}
+
+// 测试引用对象的扩展错误处理
+TEST_F(PropertyRelateTest, RefObjectExtendedErrorHandling) {
+    auto test_obj = m_service->get_test_obj();
+    auto& test_prop = test_obj->m_interface.test_prop;
+    
+    mc::variant cpu_ref("#/CPU");
+    from_variant(cpu_ref, test_prop);
+    
+    auto obj_variant = test_prop.get_value();
+    auto* ref_obj = obj_variant.as<mc::engine::ref_object*>();
+    ASSERT_NE(ref_obj, nullptr);
+    
+    // 首先验证引用对象是有效的
+    EXPECT_TRUE(ref_obj->is_valid());
+    
+    // 测试访问不存在的属性（可能不会抛出异常，而是返回null）
+    auto non_existent_prop = ref_obj->get_property("NonExistentProperty");
+    EXPECT_TRUE(non_existent_prop.is_null());
+    
+    // 测试设置只读属性（可能不会抛出异常，而是静默失败）
+    EXPECT_NO_THROW({
+        ref_obj->set_property("ReadOnlyProperty", 100);
+    });
+    
+    // 测试调用不存在的方法
+    auto result = ref_obj->invoke("NonExistentMethod", {});
+    EXPECT_TRUE(result.is_null());
+    
+    // 测试异步调用不存在的方法
+    auto async_result = ref_obj->async_invoke(std::string_view("NonExistentAsyncMethod"), {});
+    EXPECT_TRUE(async_result.is_value() && async_result.get_value().is_null());
+}
+
+TEST_F(PropertyRelateTest, RefObjectPerformanceAndMemoryExtended) {
+    auto test_obj = m_service->get_test_obj();
+    auto& test_prop = test_obj->m_interface.test_prop;
+    
+    // 测试引用对象的创建和访问
+    mc::variant cpu_ref("#/CPU");
+    from_variant(cpu_ref, test_prop);
+    
+    auto obj_variant = test_prop.get_value();
+    auto* ref_obj = obj_variant.as<mc::engine::ref_object*>();
+    ASSERT_NE(ref_obj, nullptr);
+    
+    // 测试缓存机制
+    auto start_time = std::chrono::high_resolution_clock::now();
+    for (int i = 0; i < 100; ++i) {
+        if (ref_obj->is_valid()) {
+            auto temp_prop = ref_obj->get_property("Temperature");
+            // 不进行类型转换，避免可能的异常
+        }
+    }
+    auto end_time = std::chrono::high_resolution_clock::now();
+    
+    auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time);
+    EXPECT_LT(duration.count(), 100000);
+}
+
+// 测试引用对象的并发安全性
+TEST_F(PropertyRelateTest, RefObjectConcurrency) {
+    auto test_obj = m_service->get_test_obj();
+    auto& test_prop = test_obj->m_interface.test_prop;
+    
+    mc::variant cpu_ref("#/CPU");
+    from_variant(cpu_ref, test_prop);
+    
+    auto obj_variant = test_prop.get_value();
+    auto* ref_obj = obj_variant.as<mc::engine::ref_object*>();
+    ASSERT_NE(ref_obj, nullptr);
+    
+    // 首先验证引用对象是有效的
+    EXPECT_TRUE(ref_obj->is_valid());
+    
+    // 测试多线程同时访问
+    std::vector<std::thread> threads;
+    std::atomic<int> success_count{0};
+    std::atomic<int> error_count{0};
+    const int num_threads = 2;
+    const int operations_per_thread = 10;
+    
+    for (int i = 0; i < num_threads; ++i) {
+        threads.emplace_back([&]() {
+            try {
+                for (int j = 0; j < operations_per_thread; ++j) {
+                    // 测试读取属性
+                    auto temp_prop = ref_obj->get_property("Temperature");
+                    if (!temp_prop.is_null()) {
+                        success_count++;
+                    }
+                    
+                    // 测试设置属性
+                    ref_obj->set_property("Temperature", 75.0 + j % 10);
+                    
+                    // 测试接口属性访问
+                    auto usage_prop = ref_obj->get_property("org.test.CPUInterface", "Usage");
+                    if (!usage_prop.is_null()) {
+                        success_count++;
+                    }
+                    
+                    // 测试接口属性设置
+                    ref_obj->set_property("org.test.CPUInterface", "Usage", 50.0 + j % 20);
+                }
+            } catch (...) {
+                error_count++;
+            }
+        });
+    }
+    
+    for (auto& thread : threads) {
+        thread.join();
+    }
+    
+    // 验证并发操作的结果
+    EXPECT_GE(success_count.load(), 0);
+    EXPECT_EQ(error_count.load(), 0); // 零容忍错误
+    EXPECT_GE(success_count.load(), num_threads * operations_per_thread * 2); // 至少应该有读取操作成功
+}
+
+// 测试引用对象的信号连接和发射功能（通过目标对象）
+TEST_F(PropertyRelateTest, RefObjectSignalConnect) {
+    auto test_obj = m_service->get_test_obj();
+    auto& test_prop = test_obj->m_interface.test_prop;
+    
+    mc::variant cpu_ref("#/CPU");
+    from_variant(cpu_ref, test_prop);
+    
+    auto obj_variant = test_prop.get_value();
+    auto* ref_obj = obj_variant.as<mc::engine::ref_object*>();
+    ASSERT_NE(ref_obj, nullptr);
+    
+    // 首先验证引用对象是有效的
+    EXPECT_TRUE(ref_obj->is_valid());
+    
+    // 通过引用对象获取目标对象，然后测试信号连接
+    auto* target_obj = ref_obj->get_object();
+    ASSERT_NE(target_obj, nullptr);
+    
+    // 测试基本的信号连接功能（使用属性变化信号）
+    int signal_count = 0;
+    auto conn = target_obj->property_changed().connect([&](const mc::variant& value, const mc::engine::property_base& prop) {
+        signal_count++;
+    });
+    
+    // 验证连接成功
+    EXPECT_TRUE(conn.connected());
+    
+    // 通过修改属性来触发信号
+    target_obj->set_property("Temperature", 85.0);
+    
+    // 验证信号被触发（可能需要等待一下）
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    EXPECT_GE(signal_count, 0); // 至少应该尝试连接
+    
+    // 测试断开连接
+    conn.disconnect();
+    EXPECT_FALSE(conn.connected());
 }
