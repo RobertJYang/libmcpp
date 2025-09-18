@@ -46,7 +46,9 @@ bool default_supervisor::start() {
 
     bool success = true;
 
-    for (auto& [name, supervisor] : m_child_supervisors) {
+    for (auto& pair : m_child_supervisors) {
+        const auto& name       = pair.first;
+        auto&       supervisor = pair.second;
         if (!supervisor->start()) {
             wlog("start child supervisor '${name}' failed", ("name", name));
             success = false;
@@ -259,8 +261,9 @@ bool default_supervisor::restart_all_services() {
     }
 
     // 启动所有服务
-    for (auto& [name, service] : m_services) {
-        if (!service->start()) {
+    for (auto& pair : m_services) {
+        if (!pair.second->start()) {
+            auto& name = pair.first;
             wlog("restart service '${name}' failed", ("name", name));
             return false;
         }
@@ -480,4 +483,4 @@ bool default_supervisor::stop_one_child_supervisor(const std::string& name) {
     }
 }
 
-} // namespace mc
+} // namespace mc::core

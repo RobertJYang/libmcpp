@@ -87,10 +87,10 @@ public:
     /**
      * 构造函数 - 接受元数据共享指针
      *
-     * @param metadata_ptr 表元数据共享指针
+     * @param reflection_ptr 表元数据共享指针
      */
-    explicit query_planner(const std::shared_ptr<table_index_metadata<ObjectType>>& metadata_ptr)
-        : m_metadata(*metadata_ptr) {
+    explicit query_planner(const std::shared_ptr<table_index_metadata<ObjectType>>& reflection_ptr)
+        : m_metadata(*reflection_ptr) {
     }
 
     /**

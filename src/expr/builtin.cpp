@@ -21,6 +21,12 @@ struct builtin::impl {
     context builtin_context;
 };
 
+builtin& builtin::get_instance() {
+    // 不使用 mc::singleton 管理，在程序启动时各个模块会注册自己的内建函数，单例销毁后无法重建
+    static builtin instance;
+    return instance;
+}
+
 builtin::builtin() : m_impl(std::make_unique<impl>()) {
 }
 

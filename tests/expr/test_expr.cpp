@@ -14,6 +14,7 @@
 #include <iostream>
 #include <mc/dict.h>
 #include <mc/exception.h>
+#include <mc/expr/builtin.h>
 #include <mc/expr/engine.h>
 
 namespace {

@@ -15,7 +15,7 @@
 
 #include <mc/core/object.h>
 #include <mc/engine/interface.h>
-#include <mc/engine/object_metadata.h>
+#include <mc/engine/metadata.h>
 #include <mc/exception.h>
 #include <mc/expr.h>
 #include <mc/log.h>
@@ -23,10 +23,53 @@
 namespace mc::engine {
 using mc::string::starts_with;
 
-class object_impl : public abstract_object {
+namespace detail {
+
+template <typename ObjectType>
+auto get_object_static_interfaces() {
+    const auto& members = mc::reflect::get_static_members<ObjectType>();
+    return mc::reflect::detail::filter_members<ObjectType, filter_interface>(members);
+}
+
+template <typename DeclaredInterfaces, typename Members>
+constexpr void set_object_member_flags(Members& members) {
+    mc::traits::tuple_for_each(members, [&](auto& member) {
+        using member_info_type = std::decay_t<decltype(member)>;
+        if constexpr (mc::reflect::has_tag_v<mc::reflect::property_tag, member_info_type>) {
+            using member_type = typename member_info_type::member_type;
+            if constexpr (filter_interface::template check<member_info_type>) {
+                // 标记对象的属性是 interface 类型的反射元数据
+                member.set_flags(MC_REFLECT_FLAG_INTERFACE);
+                // 设置接口属性在声明接口列表中的索引
+                member.set_data(get_interface_index<member_type, DeclaredInterfaces>());
+            } else if constexpr (mc::traits::is_specialization_of_v<member_type, property>) {
+                // 标记对象的属性是 property<T> 类型的反射元数据
+                member.set_flags(MC_REFLECT_FLAG_PROPERTY_TPL);
+            }
+        }
+    });
+}
+
+template <typename ObjectType>
+object_metadata make_object_interfaces_metadata() {
+    auto arr = make_interface_metadatas<typename ObjectType::DeclaredInterfaces>();
+    if (arr.size() == 0) {
+        return object_metadata(ObjectType::class_name, mc::reflect::reflector<ObjectType>::get_metadata());
+    }
+    return object_metadata(ObjectType::class_name,
+                           mc::reflect::reflector<ObjectType>::get_metadata(),
+                           &arr[0], arr.size());
+}
+} // namespace detail
+
+class MC_API object_impl : public abstract_object {
 public:
     object_impl(core_object* parent);
     ~object_impl() override;
+
+    bool init(const mc::dict& args);
+
+    std::string_view get_object_path() const override;
 
     const managed_objects& get_managed_objects() const override;
 
@@ -50,9 +93,37 @@ public:
     void     set_service(service* s) override;
     service* get_service() const override;
 
+    mc::variant get_property(
+        std::string_view property_name, std::string_view interface_name, int options) const override;
+    bool     set_property(std::string_view property_name, const mc::variant& value,
+                          std::string_view interface_name) override;
+    mc::dict get_all_properties(std::string_view interface_name = {}, int options = 0) const override;
+    bool     has_property(std::string_view property_name, std::string_view interface_name) const override;
+
+    abstract_interface* get_interface(std::string_view interface_name) const noexcept override;
+    bool                has_interface(std::string_view interface_name) const override;
+
+    mc::connection_type connect(std::string_view signal_name, slot_type slot,
+                                std::string_view interface_name = {}) override;
+    mc::variant         emit(std::string_view signal_name, const mc::variants& args,
+                             std::string_view interface_name = {}) override;
+
+    bool                has_method(std::string_view method_name,
+                                   std::string_view interface_name = {}) const override;
+    invoke_result       invoke(std::string_view method_name, const mc::variants& args = {},
+                               std::string_view interface_name = {}) override;
+    result<mc::variant> async_invoke(std::string_view method_name, const mc::variants& args = {},
+                                     std::string_view interface_name = {}) override;
+
+    static void from_variant(const mc::dict& d, object_impl& obj);
+    static void to_variant(const object_impl& obj, mc::mutable_dict& dict, int options = 0);
+
+    virtual std::string_view get_path_pattern() const = 0;
+
 protected:
     void add_managed_object(abstract_object* obj) override;
     void remove_managed_object(abstract_object* obj) override;
+    void init_interface_object(const object_metadata& metadata);
 
 protected:
     mutable std::string                      m_object_path;
@@ -67,373 +138,59 @@ protected:
 template <typename ObjectType>
 class object : public object_impl {
 public:
-    using object_type   = ObjectType;
-    using metadata_type = object_metadata<ObjectType>;
-    using property_info = typename metadata_type::property_info;
+    using object_type = ObjectType;
 
-    object(core_object* parent = nullptr)
-        : object_impl(parent) {
-        /* 初始化子类对象的属性（interface、property）
-         *
-         * 这个做法不符合 C++ 对象构造顺序，因为基类先于子类构造，这里强制转换成子类指针，
-         * 并直接调用子类属性的方法，当基类构造函数返回后，子类又会重新构造子类属性，所以
-         * 必须确保已经在这里设置的属性，不要在该属性的构造函数中覆盖掉。
-         *
-         * 基类构造函数 -> 设置子类属性的值 -> 子类构造函数 -> 子类属性构造
-         *                    |                             |
-         *                    v                             v
-         *              设置子类属性值                 需要保证子类属性构造
-         *                                          不要覆盖前面设置的值
-         */
-        ObjectType* obj = static_cast<ObjectType*>(this);
-        mc::traits::tuple_for_each(get_static_interface_infos(), [obj](auto& member) {
-            (obj->*member.member_ptr).set_owner(obj);
-        });
+    template <typename Members>
+    static constexpr void initial_members(Members& members) {
+        detail::set_object_member_flags<typename object_type::DeclaredInterfaces>(members);
+    }
+
+    object(core_object* parent = nullptr) : object_impl(parent) {
+        init_interface_object(metadata());
     }
 
     virtual ~object() = default;
 
-    bool init(const mc::dict& args = {}) {
-        try {
-            from_variant(args, *static_cast<ObjectType*>(this));
-            return true;
-        } catch (const std::exception& e) {
-            elog("init object ${class} failed: ${error}",
-                 ("class", mc::pretty_name<ObjectType>())("error", e.what()));
-            return false;
-        }
-    }
-
-    static metadata_type& get_metadata() {
-        return metadata_type::get_instance();
-    }
-
-    static const auto& get_static_interface_infos() {
-        return metadata_type::get_static_interface_infos();
-    }
-
-    static const auto& get_interface_infos() {
-        return metadata_type::get_instance().get_interface_infos();
-    }
-
-    static const auto* get_interface_info(std::string_view name) {
-        return metadata_type::get_instance().get_interface_info(name);
-    }
-
-    std::string_view get_object_path() const override {
-        if (!m_object_path.empty()) {
-            return m_object_path;
-        }
-
-        const_cast<object<ObjectType>*>(this)->set_object_path(
-            mc::engine::service::resolve_object_path(object_type::path_pattern, *this));
-        return m_object_path;
-    }
-
-    std::string_view get_class_name() const override {
+    std::string_view get_class_name() const noexcept override {
         return object_type::class_name;
     }
 
-    bool has_interface(std::string_view interface_name) const override {
-        return get_interface_info(interface_name) != nullptr;
-    }
-
-    inline abstract_interface* property_info_to_interface(property_info& info) const {
-        intptr_t p_obj = reinterpret_cast<intptr_t>(static_cast<const ObjectType*>(this));
-        return reinterpret_cast<abstract_interface*>(p_obj + info.offset());
-    }
-
-    abstract_interface* get_interface(std::string_view interface_name) override {
-        if (interface_name.empty()) {
-            return nullptr;
-        }
-
-        auto info = metadata_type::get_instance().get_interface_info(interface_name);
-        if (info == nullptr) {
-            return nullptr;
-        }
-
-        return property_info_to_interface(*info);
-    }
-
-    mc::variant get_property(std::string_view property_name,
-                             std::string_view interface_name = {}, int options = 0) override {
-        // 先检查对象是否存在该属性
-        auto object_prop_info = get_object_property_info(property_name, interface_name);
-        if (object_prop_info != nullptr) {
-            return object_prop_info->get_value(static_cast<object_type&>(*this));
-        }
-
-        // 再检查对象实现的接口是否存在该属性
-        auto info =
-            metadata_type::get_instance().get_property_interface(property_name, interface_name);
-        if (info == nullptr) {
-            return mc::reflect::get_property<abstract_object>(*this, property_name);
-        }
-
-        return property_info_to_interface(*info)->get_property(property_name, options);
-    }
-
-    property_base* get_property_base(std::string_view property_name,
-                                     std::string_view interface_name) override {
-        // 先检查对象是否存在该属性
-        auto object_prop_info = get_object_property_info(property_name, interface_name);
-        if (object_prop_info != nullptr &&
-            (object_prop_info->flags & MC_ENGINE_PROPERTY_TYPE) != 0) {
-            return reinterpret_cast<property_base*>(reinterpret_cast<std::uintptr_t>(this) +
-                                                    object_prop_info->offset());
-        }
-
-        // 再检查对象实现的接口是否存在该属性
-        auto info =
-            metadata_type::get_instance().get_property_interface(property_name, interface_name);
-        if (info == nullptr) {
-            return nullptr;
-        }
-
-        return property_info_to_interface(*info)->get_property_base(property_name);
-    }
-
-    bool has_property(std::string_view property_name, std::string_view interface_name) override {
-        // 先检查对象是否存在该属性
-        auto object_prop_info = get_object_property_info(property_name, interface_name);
-        if (object_prop_info != nullptr) {
-            return true;
-        }
-
-        // 再检查对象实现的接口是否存在该属性
-        auto info =
-            metadata_type::get_instance().get_property_interface(property_name, interface_name);
-        if (info == nullptr) {
-            return mc::reflect::get_property_info<abstract_object>(property_name) != nullptr;
-        }
-
-        return interface_name.empty()
-                   ? true
-                   : property_info_to_interface(*info)->has_property(property_name);
-    }
-
-    mc::dict get_all_properties(std::string_view interface_name = {}, int options = 0) override {
-        if (interface_name.empty()) {
-            mc::mutable_dict dict;
-            to_variant(static_cast<const object_type&>(*this), dict, options);
-            return dict;
-        }
-
-        auto info = metadata_type::get_instance().get_interface_info(interface_name);
-        if (info == nullptr) {
-            return {};
-        }
-
-        return property_info_to_interface(*info)->get_all_properties(options);
-    }
-
-    bool set_property(std::string_view property_name, const mc::variant& value,
-                      std::string_view interface_name = {}) override {
-        // 先检查对象是否存在该属性
-        auto object_prop_info = get_object_property_info(property_name, interface_name);
-        if (object_prop_info != nullptr) {
-            object_prop_info->set_value(static_cast<object_type&>(*this), value);
-            return true;
-        }
-
-        // 再检查对象实现的接口是否存在该属性
-        auto info =
-            metadata_type::get_instance().get_property_interface(property_name, interface_name);
-        if (info == nullptr) {
-            return false;
-        }
-
-        return property_info_to_interface(*info)->set_property(property_name, value);
-    }
-
-    invoke_result invoke(std::string_view method_name, const mc::variants& args = {},
-                         std::string_view interface_name = {}) override {
-        return invoke_impl<invoke_result>(method_name, args, interface_name);
-    }
-
-    result<mc::variant> async_invoke(std::string_view method_name, const mc::variants& args = {},
-                                     std::string_view interface_name = {}) override {
-        return invoke_impl<result<mc::variant>>(method_name, args, interface_name);
-    }
-
-    bool has_method(std::string_view method_name,
-                    std::string_view interface_name = {}) const override {
-        if (get_object_method_info(method_name, interface_name) != nullptr) {
-            return true;
-        }
-
-        auto info = metadata_type::get_instance().get_method_interface(method_name, interface_name);
-        if (info == nullptr) {
-            return false;
-        }
-
-        return interface_name.empty() ? true
-                                      : property_info_to_interface(*info)->has_method(method_name);
-    }
-
-    mc::connection_type connect(std::string_view signal_name, slot_type slot,
-                                std::string_view interface_name = {}) override {
-        auto obj_info = get_object_sig_info(signal_name, interface_name);
-        if (obj_info) {
-            return obj_info->connect(static_cast<object_type&>(*this), slot);
-        }
-
-        auto info = metadata_type::get_instance().get_signal_interface(signal_name, interface_name);
-        if (info == nullptr) {
-            return mc::connection_type();
-        }
-
-        return property_info_to_interface(*info)->connect(signal_name, slot);
-    }
-
-    mc::variant emit(std::string_view signal_name, const mc::variants& args,
-                     std::string_view interface_name = {}) override {
-        auto obj_info = get_object_sig_info(signal_name, interface_name);
-        if (obj_info) {
-            return obj_info->emit(static_cast<object_type&>(*this), args);
-        }
-
-        auto info = metadata_type::get_instance().get_signal_interface(signal_name, interface_name);
-        if (info == nullptr) {
-            return mc::variant();
-        }
-
-        return property_info_to_interface(*info)->emit(signal_name, args);
-    }
-
-    void visit(visitor& v) const override {
-        get_metadata().visit(static_cast<const ObjectType&>(*this), v);
+    std::string_view get_path_pattern() const noexcept override {
+        return object_type::path_pattern;
     }
 
     static mc::shared_ptr<object_type> create() {
         return mc::make_shared<object_type>();
     }
 
-    static void from_variant(const mc::dict& d, object_type& obj) {
-        mc::traits::tuple_for_each(get_static_interface_infos(), [&](auto& member) {
-            using prop_type      = std::decay_t<decltype(member)>;
-            using interface_type = typename prop_type::member_type;
-            if (d.contains(interface_type::interface_name)) {
-                const auto& sub_dict = d[interface_type::interface_name];
-                mc::reflect::from_variant(sub_dict, obj.*member.member_ptr);
-            }
-        });
-
-        auto& prop_infos = mc::reflect::reflector<object_type>::get_properties();
-        mc::traits::tuple_for_each(prop_infos, [&](auto& prop) {
-            if (d.contains(prop.name)) {
-                prop.set_value(obj, d[prop.name]);
-            }
-        });
+    // 获取静态接口属性信息，仅在 MC_REFLECT 可见范围可用
+    static auto get_static_interface_infos() noexcept {
+        return detail::get_object_static_interfaces<object_type>();
     }
 
-    static void to_variant(const object_type& obj, mc::mutable_dict& dict, int options = 0) {
-        mc::traits::tuple_for_each(get_static_interface_infos(), [&](auto& member) {
-            using prop_type      = std::decay_t<decltype(member)>;
-            using interface_type = typename prop_type::member_type;
-            mc::mutable_dict sub_dict;
-            interface_type::to_variant(obj.*member.member_ptr, sub_dict, options);
-            dict[interface_type::interface_name] = sub_dict;
-        });
+    static const object_metadata& metadata() noexcept {
+        auto& extension = mc::reflect::reflector<object_type>::get_extension();
 
-        auto& prop_infos = mc::reflect::reflector<object_type>::get_properties();
-        mc::traits::tuple_for_each(prop_infos, [&](auto& prop) {
-            using prop_type   = std::decay_t<decltype(prop)>;
-            using member_type = typename prop_type::member_type;
-            if constexpr (detail::is_interface_v<member_type>) {
-                // 是 interface 类型，但并不是在对象中声明过实现的 interface，当作普通属性看
-                if (dict.contains(member_type::interface_name)) {
-                    return;
-                }
-            }
+        mc::atomic_ref<void*> extension_ref(extension.data);
+        if (extension_ref.load() != nullptr) {
+            return *reinterpret_cast<object_metadata*>(extension_ref.load());
+        }
 
-            dict[prop.name] = prop.get_value(obj);
-        });
+        // 将接口的元数据缓存到 mc::reflect::static_metadata<object_type>::extension 中，这块内存没有多少
+        // 就泄漏掉吧，跟随进程结束释放
+        auto* md       = new object_metadata(detail::make_object_interfaces_metadata<object_type>());
+        void* expected = nullptr;
+        if (extension_ref.compare_exchange_strong(expected, md)) {
+            return *md;
+        }
+
+        // 其他线程已经创建了元数据，这里释放掉用已有的数据
+        delete md;
+        return *reinterpret_cast<object_metadata*>(expected);
     }
 
-    const mc::reflect::property_info_base<object_type>*
-    get_object_property_info(std::string_view property_name, std::string_view interface_name) {
-        // 如果精确的指定 interface_name 则不读取对象的属性
-        if (!interface_name.empty()) {
-            return nullptr;
-        }
-
-        return mc::reflect::get_property_info<object_type>(property_name);
-    }
-
-    const mc::reflect::method_info_base<object_type>*
-    get_object_method_info(std::string_view method_name, std::string_view interface_name) const {
-        // 如果精确的指定 interface_name 则不判断对象的方法
-        if (!interface_name.empty()) {
-            return nullptr;
-        }
-
-        return mc::reflect::get_method_info<object_type>(method_name);
-    }
-
-    const signal_info_base<object_type>* get_object_sig_info(std::string_view method_name,
-                                                             std::string_view interface_name) {
-        // 如果精确的指定 interface_name 则不判断对象的信号
-        if (!interface_name.empty()) {
-            return nullptr;
-        }
-
-        auto& sigs = detail::get_signals<object_type>();
-        auto  it   = sigs.find(method_name);
-        if (it != sigs.end()) {
-            return it->second;
-        }
-
-        return nullptr;
-    }
-
-private:
-    template <typename ResultType>
-    ResultType invoke_impl(std::string_view method_name, const mc::variants& args,
-                           std::string_view interface_name) {
-        // 跟踪对象调用
-        object_call_stack::context object_ctx{get_service(), *this};
-
-        auto* ctx = context_stack::top_value();
-        if (ctx && &ctx->get_object() == this && ctx->get_method_name() == method_name) {
-            return do_invoke_impl<ResultType>(*ctx, method_name, args, interface_name);
-        }
-
-        context tmp_ctx(*get_service(), *this);
-        tmp_ctx.set_call_info(detail::variants_call{args, interface_name, method_name});
-        context_stack::context call_ctx(get_service(), tmp_ctx);
-        return do_invoke_impl<ResultType>(tmp_ctx, method_name, args, interface_name);
-    }
-
-    template <typename ResultType>
-    ResultType do_invoke_impl(context& ctx, std::string_view method_name, const mc::variants& args,
-                              std::string_view interface_name) {
-        auto result = standard_interfaces::invoke(this, method_name, args, interface_name);
-        if (ctx.get_method() != nullptr) {
-            return result;
-        }
-
-        auto method_info = get_object_method_info(method_name, interface_name);
-        if (method_info != nullptr) {
-            ctx.set_method(method_info);
-            if constexpr (std::is_same_v<ResultType, invoke_result>) {
-                return method_info->invoke(static_cast<object_type&>(*this), args);
-            } else {
-                return method_info->async_invoke(static_cast<object_type&>(*this), args);
-            }
-        }
-
-        auto info = metadata_type::get_instance().get_method_interface(method_name, interface_name);
-        if (info == nullptr) {
-            return {};
-        }
-
-        if constexpr (std::is_same_v<ResultType, invoke_result>) {
-            return property_info_to_interface(*info)->invoke(method_name, args);
-        } else {
-            return property_info_to_interface(*info)->async_invoke(method_name, args);
-        }
+    const object_metadata& get_metadata() const noexcept override {
+        return metadata();
     }
 };
 

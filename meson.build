@@ -7,11 +7,16 @@ project(
     'cpp_std=c++17',
     'libdir=lib',
     'cpp_args=-fPIC -Wall -Wno-unused-parameter -Wno-unused-variable -Wno-sign-compare -Wno-pedantic -Wno-deprecated-copy',
+    'default_library=static',
   ],
 )
 
 # 添加编译器选项
-add_project_arguments('-Wall', '-Wextra', '-Wno-#warnings', language: 'cpp')
+add_project_arguments('-Wall', '-Wextra', '-fvisibility=hidden', language: 'cpp')
+
+if meson.get_compiler('cpp').get_id() == 'clang'
+  add_project_arguments('-Wno-#warnings', language: 'cpp')
+endif
 
 # 配置选项
 shared_mutex_max_readers = get_option('shared_mutex_max_readers')
@@ -78,12 +83,11 @@ srcdir = include_directories('src')
 # 子目录
 subdir('include')
 subdir('src')
+subdir('modules')
 subdir('tests/test_utilities')
 if build_tests
   if meson_build
     subdir('examples')
-    subdir('plugins')
-    subdir('programs/devmon')
   endif
   gtest_dep = dependency('gtest', required: false)
   subdir('tests')

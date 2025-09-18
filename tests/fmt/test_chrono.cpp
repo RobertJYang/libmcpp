@@ -12,6 +12,7 @@
 
 #include <chrono>
 #include <gtest/gtest.h>
+#include <mc/exception.h>
 #include <mc/fmt/format.h>
 #include <mc/fmt/formatter_chrono.h>
 #include <string>

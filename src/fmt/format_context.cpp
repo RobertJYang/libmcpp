@@ -10,6 +10,7 @@
  * See the Mulan PSL v2 for more details.
  */
 
+#include <mc/exception.h>
 #include <mc/fmt/format_context.h>
 #include <mc/fmt/format_parser.h>
 
@@ -73,8 +74,12 @@ const mc::variant* runtime_arg_store::get_variant(size_t index) const {
         return nullptr;
     }
 
-    auto& entry = named_args->at_index(index);
-    return &entry.value;
+    auto it = named_args->find(index);
+    if (it != named_args->end()) {
+        return &it->value;
+    }
+
+    return nullptr;
 }
 
 static bool iequals(const mc::variant& key, std::string_view name) {
@@ -174,31 +179,31 @@ void format_context::raise_error(const detail::parser_result& result) {
 
     switch (result.err) {
     case detail::parser_error::invalid_brace_arg:
-        MC_THROW(mc::format_error, "未找到对应的 '}'");
+        MC_THROW(mc::format_error, "Corresponding '}}' not found");
         break;
     case detail::parser_error::invalid_named_arg_name:
-        MC_THROW(mc::format_error, "命名参数名称不能为空");
+        MC_THROW(mc::format_error, "Named parameter name cannot be empty");
         break;
     case detail::parser_error::invalid_index_arg:
-        MC_THROW(mc::format_error, "位置参数索引必须是数字");
+        MC_THROW(mc::format_error, "Positional parameter index must be a number");
         break;
     case detail::parser_error::invalid_single_brace_arg:
-        MC_THROW(mc::format_error, "单独的 '}' 在格式化字符串中");
+        MC_THROW(mc::format_error, "Standalone '}}' in format string");
         break;
     case detail::parser_error::name_arg_not_found:
-        MC_THROW(mc::format_error, "找不到命名参数: ${name}",
+        MC_THROW(mc::format_error, "Named parameter not found: ${name}",
                  ("name", result.text));
         break;
     case detail::parser_error::index_arg_not_found:
-        MC_THROW(mc::format_error, "找不到位置参数: ${index}",
+        MC_THROW(mc::format_error, "Positional parameter not found: ${index}",
                  ("index", result.text));
         break;
     case detail::parser_error::invalid_spec_arg:
-        MC_THROW(mc::format_error, "格式化字符串或参数错误: ${text}",
+        MC_THROW(mc::format_error, "Format string or parameter error: ${text}",
                  ("text", result.text));
         break;
     case detail::parser_error::invalid_dynamic_param:
-        MC_THROW(mc::format_error, "动态参数类型错误: ${text}",
+        MC_THROW(mc::format_error, "Dynamic parameter type error: ${text}",
                  ("text", result.text));
         break;
     default:

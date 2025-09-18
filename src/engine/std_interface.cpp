@@ -6,10 +6,17 @@
  *         http://license.coscl.org.cn/MulanPSL2
  */
 
-#include "mc/engine/std_interface.h"
+#include <mc/engine/metadata.h>
 #include <mc/engine/property.h>
+#include <mc/engine/std_interface.h>
 
 namespace mc::engine {
+
+properties_interface& properties_interface::get_instance() {
+    static properties_interface instance;
+    return instance;
+}
+
 mc::variant properties_interface::get(std::string_view interface_name,
                                       std::string_view property_name) const {
     auto* object = object_call_stack::top_value();
@@ -47,28 +54,25 @@ void properties_interface::set(std::string_view interface_name, std::string_view
     object->set_property(property_name, value, interface_name);
 }
 
-struct inintrospect_vistor : visitor {
-    void handle_interface_begin(const abstract_object&    obj,
-                                const abstract_interface& iface) override {
+struct inintrospect_vistor : metadata_visitor {
+    void handle_interface_begin(const interface_metadata& iface) override {
         xml_data += "<interface name=\"";
-        xml_data += iface.get_interface_name();
+        xml_data += iface.metadata->get_class_name();
         xml_data += "\">";
     }
 
-    void handle_interface_end(const abstract_object&    obj,
-                              const abstract_interface& iface) override {
+    void handle_interface_end(const interface_metadata& iface) override {
         xml_data += "</interface>";
     }
 
     /*
         <property name="Property" type="i" access="readwrite" />
     */
-    void handle(const abstract_object& obj, const abstract_interface& iface,
-                const property_meta& info) override {
+    void handle(const property_type_info* info) override {
         xml_data += "<property name=\"";
-        xml_data += info.name;
+        xml_data += info->name;
         xml_data += "\" type=\"";
-        xml_data += info.signature;
+        xml_data += info->get_signature();
         xml_data += "\" access=\"readwrite\" />";
     }
 
@@ -79,13 +83,12 @@ struct inintrospect_vistor : visitor {
           <arg type="s" direction="out"/>
         </method>
     */
-    void handle(const abstract_object& obj, const abstract_interface& iface,
-                const method_meta& info) override {
+    void handle(const method_type_info* info) override {
         xml_data += "<method name=\"";
-        xml_data += info.name;
+        xml_data += info->name;
         xml_data += "\">";
 
-        auto it      = mc::dbus::signature_iterator(info.args_signature);
+        auto it      = mc::dbus::signature_iterator(info->get_args_signature());
         auto args_it = it.get_content_iterator();
         for (size_t index = 0; !args_it.at_end(); args_it.next(), ++index) {
             xml_data += "<arg type=\"";
@@ -93,9 +96,10 @@ struct inintrospect_vistor : visitor {
             xml_data += "\" direction=\"in\" />";
         }
 
-        if (!info.return_signature.empty()) {
+        auto return_signature = info->get_result_signature();
+        if (!return_signature.empty()) {
             xml_data += "<arg type=\"";
-            xml_data += info.return_signature;
+            xml_data += return_signature;
             xml_data += "\" direction=\"out\" />";
         }
 
@@ -108,13 +112,12 @@ struct inintrospect_vistor : visitor {
             <arg type="i" />
         </signal>
     */
-    void handle(const abstract_object& obj, const abstract_interface& iface,
-                const signal_meta& info) override {
+    void handle(const signal_type_info* info) override {
         xml_data += "<signal name=\"";
-        xml_data += info.name;
+        xml_data += info->name;
         xml_data += "\">";
 
-        auto it      = mc::dbus::signature_iterator(info.args_signature);
+        auto it      = mc::dbus::signature_iterator(info->get_args_signature());
         auto args_it = it.get_content_iterator();
         for (size_t index = 0; !args_it.at_end(); args_it.next(), ++index) {
             xml_data += "<arg type=\"";
@@ -143,8 +146,21 @@ struct inintrospect_vistor : visitor {
         }
     }
 
+    template <typename Interface>
+    void add_standard_interfaces(const Interface& ins) {
+        const auto& mt = ins.get_metadata();
+        handle_interface_begin({nullptr, &mt});
+        mt.visit(*this);
+        handle_interface_end({nullptr, &mt});
+    }
+
     std::string xml_data;
 };
+
+introspectable_interface& introspectable_interface::get_instance() {
+    static introspectable_interface instance;
+    return instance;
+}
 
 std::string introspectable_interface::introspect() const {
     auto* object = object_call_stack::top_value();
@@ -156,18 +172,21 @@ std::string introspectable_interface::introspect() const {
     v.xml_data = "<!DOCTYPE node PUBLIC \"-//freedesktop//DTD D-BUS Object Introspection 1.0//EN\" "
                  "\"http://www.freedesktop.org/standards/dbus/1.0/introspect.dtd\"><node>";
     // 添加通用接口在最前面
-    object->visit(v);
-
-    // 添加标准接口
-    this->visit(v);
-    properties_interface::get_instance().visit(v);
-    peer_interface::get_instance().visit(v);
-    object_manager_interface::get_instance().visit(v);
-    common_properties_interface::get_instance().visit(v);
+    object->get_metadata().visit(v);
+    v.add_standard_interfaces(*this);
+    v.add_standard_interfaces(properties_interface::get_instance());
+    v.add_standard_interfaces(peer_interface::get_instance());
+    v.add_standard_interfaces(object_manager_interface::get_instance());
+    v.add_standard_interfaces(common_properties_interface::get_instance());
 
     v.handle_children(*object);
     v.xml_data += "</node>";
     return v.xml_data;
+}
+
+peer_interface& peer_interface::get_instance() {
+    static peer_interface instance;
+    return instance;
 }
 
 void peer_interface::ping() const {
@@ -177,40 +196,39 @@ std::string peer_interface::get_machine_id() const {
     return {};
 }
 
-struct object_manager_vistor : visitor {
-    void handle_interface_begin(const abstract_object&    obj,
-                                const abstract_interface& iface) override {
-        m_interfaces[std::string(iface.get_interface_name())] = {};
+object_manager_interface& object_manager_interface::get_instance() {
+    static object_manager_interface instance;
+    return instance;
+}
+struct object_manager_vistor : metadata_visitor {
+    object_manager_vistor(abstract_object* object) : m_object(object) {
     }
 
-    void handle(const abstract_object& obj, const abstract_interface& iface,
-                const property_meta& info) override {
-        auto  interface_name = std::string(iface.get_interface_name());
-        auto& interface      = m_interfaces[interface_name];
-        if (interface_name == common_properties_name) {
-            mc::variant value                 = common_properties_interface::get(info.name);
-            interface[std::string(info.name)] = value;
+    void handle_interface_begin(const interface_metadata& iface) override {
+        m_current            = {};
+        m_interface_metadata = &iface;
+    }
+
+    void handle_interface_end(const interface_metadata& iface) override {
+        m_interfaces[iface.metadata->get_class_name()] = m_current;
+    }
+
+    void handle(const property_type_info* info) override {
+        if (m_interface_metadata->metadata->get_class_name() == common_properties_name) {
+            mc::variant value     = common_properties_interface::get(info->name);
+            m_current[info->name] = value;
         } else {
-            mc::variant value                 = iface.get_property(info.name, mc::engine::property_options::memory);
-            interface[std::string(info.name)] = value;
+            // TODO:: 考虑到我们实现了在对象中遮蔽接口属性，这里后续需要先判断是否遮蔽
+            const auto* iface     = to_interface_ptr(m_object, m_interface_metadata->interface);
+            mc::variant value     = iface->get_property(info->name, mc::engine::property_options::memory);
+            m_current[info->name] = value;
         }
     }
 
-    void handle(const mc::engine::abstract_object&      obj,
-                const mc::engine::abstract_interface&   iface,
-                const mc::engine::visitor::method_meta& info) override {
-    }
-
-    void handle(const mc::engine::abstract_object&      obj,
-                const mc::engine::abstract_interface&   iface,
-                const mc::engine::visitor::signal_meta& info) override {
-    }
-
-    void handle_interface_end(const abstract_object&    obj,
-                              const abstract_interface& iface) override {
-    }
-
-    std::map<std::string, mc::mutable_dict> m_interfaces;
+    const abstract_object*                       m_object;
+    const interface_metadata*                    m_interface_metadata;
+    mc::mutable_dict                             m_current;
+    std::map<std::string_view, mc::mutable_dict> m_interfaces;
 };
 
 object_manager_interface::objects_type
@@ -219,13 +237,15 @@ object_manager_interface::get_managed_objects() const {
     if (object == nullptr) {
         return {};
     }
+
+    // TODO:: 这里遍历管理的子对象需要加锁
     auto&        objs = object->get_managed_objects();
     objects_type objects;
     for (auto& [obj_path, obj] : objs) {
-        object_manager_vistor v;
-        obj->visit(v);
+        object_manager_vistor v(obj);
+        obj->get_metadata().visit(v);
         object_call_stack::context object_ctx{obj->get_service(), *obj};
-        common_properties_interface::get_instance().visit(v);
+        common_properties_interface::get_instance().get_metadata().visit(v);
         interfaces_type interfaces;
         for (auto& [name, value] : v.m_interfaces) {
             interfaces[name] = value;
@@ -234,6 +254,11 @@ object_manager_interface::get_managed_objects() const {
         objects[key] = interfaces;
     }
     return objects;
+}
+
+common_properties_interface& common_properties_interface::get_instance() {
+    static common_properties_interface instance;
+    return instance;
 }
 
 mc::variant common_properties_interface::get(std::string_view property_name) {
@@ -318,4 +343,18 @@ invoke_result standard_interfaces::invoke(abstract_object* object, std::string_v
 
     return {};
 }
+
 } // namespace mc::engine
+
+MC_REFLECT(mc::engine::properties_interface,
+           ((get, "Get"))((get_all, "GetAll"))((set, "Set"))((properties_changed,
+                                                              "PropertiesChanged")))
+MC_REFLECT(mc::engine::introspectable_interface, ((introspect, "Introspect")))
+MC_REFLECT(mc::engine::peer_interface, ((ping, "Ping"))((get_machine_id, "GetMachineId")))
+MC_REFLECT(mc::engine::object_manager_interface,
+           ((get_managed_objects, "GetManagedObjects"))((interfaces_added, "InterfacesAdded"))(
+               (interfaces_removed, "InterfacesRemoved")))
+MC_REFLECT(mc::engine::common_properties_interface,
+           ((m_parent_path, "ParentPath"))((m_object_name, "ObjectName"))           //
+           ((m_class_name, "ClassName"))((m_object_identifier, "ObjectIdentifier")) //
+           ((get_with_context, "GetWithContext"))((set_with_context, "SetWithContext")))

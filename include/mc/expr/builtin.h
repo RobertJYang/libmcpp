@@ -28,16 +28,12 @@ class context;
 /**
  * @brief 内建注册表类，管理所有内建函数和内建常量
  */
-class builtin {
+class MC_API builtin {
 public:
     /**
      * @brief 获取单例实例
      */
-    static builtin& get_instance() {
-        // 不使用 mc::singleton 管理，在程序启动时各个模块会注册自己的内建函数，单例销毁后无法重建
-        static builtin instance;
-        return instance;
-    }
+    static builtin& get_instance();
 
     /**
      * @brief 析构函数
@@ -50,7 +46,10 @@ public:
      */
     int register_symbol(std::shared_ptr<function> func);
 
-    template <typename F>
+    template <typename F,
+              std::enable_if_t<
+                  std::is_function_v<std::remove_pointer_t<std::decay_t<F>>>,
+                  int> = 0>
     int register_symbol(std::string name, F&& func) {
         return register_symbol(make_simple_function(std::move(name), std::forward<F>(func)));
     }
@@ -71,9 +70,9 @@ public:
      */
     template <typename T, std::enable_if_t<mc::reflect::is_reflectable<T>(), int> = 0>
     int register_module() {
-        auto& methods = mc::reflect::reflector<T>::get_methods();
-        mc::traits::tuple_for_each(methods, [this](auto& method) {
-            this->register_symbol(std::string(method.name), method.m_function);
+        auto methods = mc::reflect::get_static_methods<T>();
+        mc::traits::tuple_for_each(methods, [this](auto* method) {
+            this->register_symbol(std::string(method->name), method->m_function);
         });
         return 0;
     }

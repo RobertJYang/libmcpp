@@ -19,13 +19,15 @@
 #include <string_view>
 #include <vector>
 
+#include <mc/common.h>
+
 namespace mc::db {
 
 /**
  * 字节缓冲区，用于高效处理字节数据
  * 当数据长度小于 64 字节时使用内部的静态缓冲区，避免动态内存分配
  */
-class byte_buffer {
+class MC_API byte_buffer {
 public:
     byte_buffer();
 

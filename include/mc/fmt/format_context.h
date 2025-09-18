@@ -16,12 +16,11 @@
 #include <mc/dict.h>
 #include <mc/fmt/format_arg.h>
 #include <mc/fmt/format_spec.h>
-#include <mc/fmt/formatter_mc.h>
 
 namespace mc::fmt {
 
 namespace detail {
-struct runtime_arg_store : public arg_store<format_arg> {
+struct MC_API runtime_arg_store : public arg_store<format_arg> {
     using arg_store<format_arg>::add_arg;
 
     runtime_arg_store() = default;
@@ -48,7 +47,7 @@ struct parser_result;
 } // namespace detail
 
 // 格式化上下文
-class format_context {
+class MC_API format_context {
 public:
     using arg_type = detail::format_arg;
 

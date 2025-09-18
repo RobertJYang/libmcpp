@@ -32,6 +32,10 @@ class test_interface_1 : public mc::engine::interface<test_interface_1> {
 public:
     MC_INTERFACE("org.test.test_interface_1")
 
+    std::string rewite_method(const std::string& value) {
+        MC_REPLY_ERROR_AND_THROW(mc::engine::errors::not_supported);
+    }
+
     property<int32_t>          m_i32;
     property<std::string>      m_str;
     property<std::vector<int>> m_vec;
@@ -49,6 +53,10 @@ class test_object : public mc::engine::object<test_object> {
 public:
     MC_OBJECT(test_object, "TestObject", "/org/test/object_${object_id}_${i32 + 100}",
               (test_interface_1)(test_interface_2))
+
+    std::string rewite_method(const std::string& value) {
+        return sformat("test_object:rewite_method: {}", value);
+    }
 
     test_interface_1 m_iface_1;
     test_interface_2 m_iface_2;
@@ -104,9 +112,12 @@ protected:
 } // namespace test_engine
 
 MC_REFLECT(test_engine::test_interface_1,
-           ((m_i32, "i32"))((m_str, "str"))((m_vec, "vec"))((m_normal_v, "normal_v")))
-MC_REFLECT(test_engine::test_interface_2, ((m_variant, "variant")))
-MC_REFLECT(test_engine::test_object, ((m_iface_1, "iface_1"))((m_iface_2, "iface_2")))
+           (m_i32, "i32")(m_str, "str")(m_vec, "vec")(m_normal_v, "normal_v"),
+           (rewite_method)(rewite_method, "not_rewite_method"))
+MC_REFLECT(test_engine::test_interface_2, (m_variant, "variant"))
+MC_REFLECT(test_engine::test_object,
+           (m_iface_1, "iface_1")(m_iface_2, "iface_2"),
+           (rewite_method))
 
 using namespace test_engine;
 
@@ -256,7 +267,7 @@ TEST_F(engine_test, test_object_reflect) {
                                           << expected.to_string();
 
     auto obj2 = test_object::create();
-    mc::from_variant(var.get_object(), *obj2);
+    mc::from_variant(var, *obj2);
     EXPECT_EQ(obj2->m_iface_1.m_i32, 20);
     EXPECT_EQ(obj2->m_iface_1.m_str, "123");
     EXPECT_EQ(obj2->m_iface_1.m_vec, (std::vector<int>{1, 2, 3}));
@@ -417,4 +428,18 @@ TEST_F(engine_test, test_managed_object_comprehensive) {
     EXPECT_EQ(get_managed_objects(*rebuild_a),
               objects({"/org/rebuild/a/1", "/org/rebuild/a/2", "/org/rebuild/a/mid"}));
     EXPECT_EQ(get_managed_objects(*insert_mid), objects({"/org/rebuild/a/mid/1"}));
+}
+
+TEST_F(engine_test, test_object_rewite_method) {
+    auto obj = create_object("/org/test");
+
+    mc::engine::abstract_object* obj_ptr = obj.get();
+
+    // 对象重载了该方法
+    EXPECT_EQ(obj_ptr->invoke("rewite_method", {"111"}, "org.test.test_interface_1"),
+              "test_object:rewite_method: 111");
+
+    // 调用 not_rewite_method 方法
+    EXPECT_THROW(obj_ptr->invoke("not_rewite_method", {"222"}, "org.test.test_interface_1"),
+                 mc::method_call_exception);
 }

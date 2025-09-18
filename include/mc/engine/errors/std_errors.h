@@ -13,33 +13,34 @@
 #ifndef MC_ENGINE_ERRORS_H
 #define MC_ENGINE_ERRORS_H
 #include <mc/dbus/error.h>
+#include <mc/error_engine.h>
 
 namespace mc::engine::errors {
 
-REGISTER_CONST_ERROR(failed, mc::dbus::error_names::failed);
-REGISTER_CONST_ERROR(no_memory, mc::dbus::error_names::no_memory);
-REGISTER_CONST_ERROR(service_unknown, mc::dbus::error_names::service_unknown);
-REGISTER_CONST_ERROR(name_has_no_owner, mc::dbus::error_names::name_has_no_owner);
-REGISTER_CONST_ERROR(no_reply, mc::dbus::error_names::no_reply);
-REGISTER_CONST_ERROR(io_error, mc::dbus::error_names::io_error);
-REGISTER_CONST_ERROR(bad_address, mc::dbus::error_names::bad_address);
-REGISTER_CONST_ERROR(not_supported, mc::dbus::error_names::not_supported);
-REGISTER_CONST_ERROR(limits_exceeded, mc::dbus::error_names::limits_exceeded);
-REGISTER_CONST_ERROR(access_denied, mc::dbus::error_names::access_denied);
-REGISTER_CONST_ERROR(auth_failed, mc::dbus::error_names::auth_failed);
-REGISTER_CONST_ERROR(no_server, mc::dbus::error_names::no_server);
-REGISTER_CONST_ERROR(timeout, mc::dbus::error_names::timeout);
-REGISTER_CONST_ERROR(no_network, mc::dbus::error_names::no_network);
-REGISTER_CONST_ERROR(address_in_use, mc::dbus::error_names::address_in_use);
-REGISTER_CONST_ERROR(disconnected, mc::dbus::error_names::disconnected);
-REGISTER_CONST_ERROR(invalid_args, mc::dbus::error_names::invalid_args);
-REGISTER_CONST_ERROR(file_not_found, mc::dbus::error_names::file_not_found);
-REGISTER_CONST_ERROR(file_exists, mc::dbus::error_names::file_exists);
-REGISTER_CONST_ERROR(unknown_method, mc::dbus::error_names::unknown_method);
-REGISTER_CONST_ERROR(unknown_object, mc::dbus::error_names::unknown_object);
-REGISTER_CONST_ERROR(unknown_interface, mc::dbus::error_names::unknown_interface);
-REGISTER_CONST_ERROR(unknown_property, mc::dbus::error_names::unknown_property);
-REGISTER_CONST_ERROR(property_read_only, mc::dbus::error_names::property_read_only);
+DECLARE_ERROR(failed);
+DECLARE_ERROR(no_memory);
+DECLARE_ERROR(service_unknown);
+DECLARE_ERROR(name_has_no_owner);
+DECLARE_ERROR(no_reply);
+DECLARE_ERROR(io_error);
+DECLARE_ERROR(bad_address);
+DECLARE_ERROR(not_supported);
+DECLARE_ERROR(limits_exceeded);
+DECLARE_ERROR(access_denied);
+DECLARE_ERROR(auth_failed);
+DECLARE_ERROR(no_server);
+DECLARE_ERROR(timeout);
+DECLARE_ERROR(no_network);
+DECLARE_ERROR(address_in_use);
+DECLARE_ERROR(disconnected);
+DECLARE_ERROR(invalid_args);
+DECLARE_ERROR(file_not_found);
+DECLARE_ERROR(file_exists);
+DECLARE_ERROR(unknown_method);
+DECLARE_ERROR(unknown_object);
+DECLARE_ERROR(unknown_interface);
+DECLARE_ERROR(unknown_property);
+DECLARE_ERROR(property_read_only);
 
 } // namespace mc::engine::errors
 

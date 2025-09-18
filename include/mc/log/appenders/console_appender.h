@@ -29,7 +29,7 @@ namespace log {
  *
  * 将日志消息输出到标准输出或标准错误，支持颜色输出
  */
-class console_appender : public appender {
+class MC_API console_appender : public appender {
 public:
     /**
      * @brief 输出流类型
@@ -57,6 +57,8 @@ public:
      * @brief 日志级别颜色配置
      */
     struct level_color {
+        MC_REFLECTABLE("mc.log.console_appender.level_color");
+
         log::level level; // 日志级别
         color_type color; // 对应颜色
 
@@ -69,6 +71,8 @@ public:
      * @brief 控制台追加器配置
      */
     struct config {
+        MC_REFLECTABLE("mc.log.console_appender.config");
+
         stream_type              stream{stream_type::std_out}; // 输出流
         bool                     use_color{true};              // 是否使用颜色
         bool                     flush{true};                  // 是否每次输出后刷新
@@ -123,17 +127,7 @@ private:
 } // namespace log
 } // namespace mc
 
-// 反射颜色类型
-MC_REFLECT_ENUM(mc::log::console_appender::color_type,
-                (console_default)(red)(green)(brown)(blue)(magenta)(cyan)(white))
-
-// 反射输出流类型
-MC_REFLECT_ENUM(mc::log::console_appender::stream_type, (std_out)(std_error))
-
-// 反射控制台追加器配置
-MC_REFLECT(mc::log::console_appender::config, (stream)(use_color)(flush)(level_colors))
-
-// 反射日志级别颜色配置
-MC_REFLECT(mc::log::console_appender::level_color, (level)(color))
+MC_REFLECTABLE("mc.log.console_appender.color_type", mc::log::console_appender::color_type)
+MC_REFLECTABLE("mc.log.console_appender.stream_type", mc::log::console_appender::stream_type)
 
 #endif // MC_LOG_CONSOLE_APPENDER_H

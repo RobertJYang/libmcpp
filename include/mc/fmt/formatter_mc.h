@@ -15,6 +15,8 @@
 
 #include <mc/dict.h>
 #include <mc/fmt/formatter.h>
+#include <mc/fmt/formatter_chrono.h>
+#include <mc/time.h>
 #include <mc/variant.h>
 
 namespace mc::fmt {
@@ -22,10 +24,10 @@ class format_context;
 namespace detail {
 struct format_spec;
 
-void format_variant(const mc::variant& v, format_context& ctx, const format_spec& spec);
-void format_dict(const mc::dict& dict, format_context& ctx, const format_spec& spec);
-void format_blob(const mc::blob& blob, format_context& ctx, const format_spec& spec);
-void format_extension(const mc::variant_extension_base& ext, format_context& ctx, const format_spec& spec);
+MC_API void format_variant(const mc::variant& v, format_context& ctx, const format_spec& spec);
+MC_API void format_dict(const mc::dict& dict, format_context& ctx, const format_spec& spec);
+MC_API void format_blob(const mc::blob& blob, format_context& ctx, const format_spec& spec);
+MC_API void format_extension(const mc::variant_extension_base& ext, format_context& ctx, const format_spec& spec);
 
 } // namespace detail
 
@@ -69,6 +71,39 @@ struct formatter<mc::variant_extension_base> {
     template <typename Context>
     void format(const mc::variant_extension_base& ext, Context& ctx, const format_spec& spec) const {
         detail::format_extension(ext, ctx, spec);
+    }
+};
+
+template <>
+struct formatter<mc::time_point>
+    : public formatter<std::chrono::time_point<std::chrono::system_clock, std::chrono::milliseconds>> {
+    template <typename Context>
+    void format(const mc::time_point& tp, Context& ctx, const format_spec& spec) const {
+        formatter<std::chrono::time_point<std::chrono::system_clock, std::chrono::milliseconds>>::format(
+            static_cast<std::chrono::time_point<std::chrono::system_clock, std::chrono::milliseconds>>(tp),
+            ctx, spec);
+    }
+};
+
+template <>
+struct formatter<mc::time_point_sec>
+    : public formatter<std::chrono::time_point<std::chrono::system_clock, std::chrono::seconds>> {
+    template <typename Context>
+    void format(const mc::time_point_sec& tp, Context& ctx, const format_spec& spec) const {
+        formatter<std::chrono::time_point<std::chrono::system_clock, std::chrono::seconds>>::format(
+            static_cast<std::chrono::time_point<std::chrono::system_clock, std::chrono::seconds>>(tp),
+            ctx, spec);
+    }
+};
+
+template <>
+struct formatter<mc::milliseconds>
+    : public formatter<std::chrono::milliseconds> {
+    template <typename Context>
+    void format(const mc::milliseconds& ms, Context& ctx, const format_spec& spec) const {
+        formatter<std::chrono::milliseconds>::format(
+            static_cast<std::chrono::milliseconds>(ms),
+            ctx, spec);
     }
 };
 

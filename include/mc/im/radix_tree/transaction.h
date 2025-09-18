@@ -15,7 +15,6 @@
 
 #include <mc/exception.h>
 #include <mc/im/radix_tree/node.h>
-#include <mc/im/radix_tree/node_pool.h>
 #include <optional>
 #include <vector>
 
@@ -28,44 +27,42 @@ namespace detail {
 template <typename Config>
 class save_point {
 public:
-    using allocator_type = typename Config::allocator_type;
-    using node_type      = node<Config>;
-    using node_ptr       = typename node_type::ref_ptr_type;
-    using node_list      = typename node_type::list_type;
-    using pool_type      = node_pool<Config>;
+    using node_type = node<Config>;
+    using node_ptr  = typename node_type::ref_ptr_type;
 
-    save_point(const allocator_type& alloc = allocator_type())
-        : m_node_pool(alloc), m_size(0), m_version(0) {
+    save_point()
+        : m_size(0), m_version(0) {
     }
 
-    save_point(node_ptr root, size_t size, const allocator_type& alloc)
-        : m_node_pool(alloc), m_root(std::move(root)), m_size(size), m_version(0) {
+    save_point(node_ptr root, size_t size)
+        : m_root(std::move(root)), m_size(size), m_version(0) {
     }
 
     save_point(const save_point& other)            = delete;
     save_point& operator=(const save_point& other) = delete;
 
     save_point(save_point&& other) noexcept
-        : m_node_pool(std::move(other.m_node_pool)), m_root(std::move(other.m_root)),
+        : m_root(std::move(other.m_root)),
           m_size(other.m_size), m_version(other.m_version) {
     }
 
     save_point& operator=(save_point&& other) noexcept {
         if (this != &other) {
-            m_node_pool = std::move(other.m_node_pool);
-            m_root      = std::move(other.m_root);
-            m_size      = other.m_size;
-            m_version   = other.m_version;
+            m_root    = std::move(other.m_root);
+            m_size    = other.m_size;
+            m_version = other.m_version;
         }
         return *this;
+    }
+
+    ~save_point() {
     }
 
     /**
      * 初始化保存点
      * @param free_list 空闲列表
      */
-    void init(node_list* free_list) {
-        m_node_pool.init_node_pool(free_list);
+    void init() {
     }
 
     /**
@@ -74,7 +71,6 @@ public:
      * @param version 当前版本
      */
     void set_version(int pre_version, int version) {
-        m_node_pool.set_version(pre_version, version);
         m_version = version;
     }
 
@@ -82,20 +78,19 @@ public:
      * 提交保存点
      */
     void commit() {
-        m_node_pool.commit();
+        m_root.reset();
     }
 
     /**
      * 回滚保存点
      */
-    void rollback() {
-        m_node_pool.rollback();
+    std::pair<node_ptr, size_t> rollback() {
+        return {std::move(m_root), m_size};
     }
 
-    pool_type m_node_pool;
-    node_ptr  m_root;
-    size_t    m_size;
-    size_t    m_version;
+    node_ptr m_root;
+    size_t   m_size;
+    size_t   m_version;
 };
 } // namespace detail
 
@@ -117,26 +112,24 @@ public:
     using edges_type      = typename node_type::edges_type;
     using edge_type       = typename node_type::edge_type;
     using tree_type       = radix_tree<Config>;
-    using pool_type       = node_pool<Config>;
     using save_point_type = detail::save_point<Config>;
 
     /**
      * 默认构造函数
      */
     transaction(const allocator_type& alloc = allocator_type())
-        : m_tree(alloc), m_def_save_point(alloc) {
+        : m_tree(alloc) {
     }
 
     /**
      * 为给定 tree 创建新的事务
      * @param tree 给定的树
      */
-    transaction(tree_type tree) : m_tree(tree), m_def_save_point(tree.get_allocator()) {
+    transaction(tree_type tree) : m_tree(tree) {
     }
 
     ~transaction() {
         rollback();
-        m_free_list.clear();
     }
 
     transaction(const transaction&)            = delete;
@@ -144,17 +137,9 @@ public:
     transaction(transaction&&)                 = delete;
     transaction& operator=(transaction&&)      = delete;
 
-    /**
-     * 获取空闲列表长度
-     * @return 空闲列表长度
-     */
-    node_list& free_list() {
-        return m_free_list;
-    }
-
     int save_point() {
         if (!m_current_sp) {
-            m_def_save_point.init(&m_free_list);
+            m_def_save_point.init();
             m_def_save_point.m_root = m_tree.m_root;
             m_def_save_point.m_size = m_tree.m_size;
             m_def_save_point.set_version(m_version, m_version + 1);
@@ -162,9 +147,9 @@ public:
             m_lock_db    = 0;
         } else {
             auto tmp_root = m_tree.m_root;
-            m_save_points.emplace_back(tmp_root, m_tree.m_size, m_tree.get_allocator());
+            m_save_points.emplace_back(tmp_root, m_tree.m_size);
             auto& sp = m_save_points.back();
-            sp.init(&m_free_list);
+            sp.init();
             sp.set_version(m_version, m_version + m_save_points.size() + 1);
             m_current_sp = &sp;
         }
@@ -310,12 +295,12 @@ public:
             return;
         }
 
-        m_lock_db          = 0;
-        save_point_type* s = nullptr;
-        int              i = m_save_points.size();
+        m_lock_db                     = 0;
+        save_point_type*            s = nullptr;
+        std::pair<node_ptr, size_t> rollback_result;
+        int                         i = m_save_points.size();
         for (i--; i >= 0; i--) {
-            s = &m_save_points[i];
-            s->rollback();
+            rollback_result = m_save_points[i].rollback();
             if (i == save_point_id) {
                 break;
             }
@@ -328,8 +313,8 @@ public:
             m_save_points.clear();
             return;
         }
-        m_tree.m_root = s->m_root;
-        m_tree.m_size = s->m_size;
+        m_tree.m_root = rollback_result.first;
+        m_tree.m_size = rollback_result.second;
         if (i == 0) {
             m_current_sp = &m_def_save_point;
             m_save_points.clear();
@@ -344,7 +329,6 @@ private:
     size_t                       m_version    = 0;
     int                          m_lock_db    = 0;
     save_point_type*             m_current_sp = nullptr;
-    node_list                    m_free_list;
     save_point_type              m_def_save_point;
     std::vector<save_point_type> m_save_points;
 
@@ -358,14 +342,14 @@ private:
             save_point();
         }
 
-        return m_current_sp->m_node_pool.write_node(n, m_lock_db);
+        return new_node(n->m_leaf, n->m_prefix, n->m_edges);
     }
 
     /**
      * 创建新节点
      */
     node_ptr new_node(leaf_type leaf, key_view prefix, const edges_type& edges = {}) {
-        return m_current_sp->m_node_pool.new_node(leaf, prefix, edges);
+        return mc::allocate_shared<node_type>(m_tree.get_allocator(), leaf, prefix, std::move(edges));
     }
 
     /**

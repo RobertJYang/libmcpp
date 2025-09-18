@@ -32,7 +32,7 @@ namespace mc::expr {
 /**
  * @brief 表达式引擎类
  */
-class engine {
+class MC_API engine {
 public:
     /**
      * @brief 默认构造函数

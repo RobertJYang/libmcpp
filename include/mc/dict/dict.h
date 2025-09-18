@@ -65,7 +65,7 @@ struct data_t;
  *           // 处理 entry...
  *       }
  */
-class dict {
+class MC_API dict {
 public:
     using key_type       = variant;
     using value_type     = variant;
@@ -182,6 +182,8 @@ public:
     const variant& at(std::string_view key) const;
     const variant& at(const char* key) const;
     const variant& at(const variant& key) const;
+    const variant& at(std::size_t index) const;
+
     /**
      * @brief 查找键的索引位置
      * @return 键的索引位置，如果不存在则返回 -1
@@ -228,6 +230,7 @@ public:
     const_iterator find(std::string_view key) const;
     const_iterator find(const char* key) const;
     const_iterator find(const variant& key) const;
+    const_iterator find(std::size_t index) const;
     std::string    to_string() const;
 
     /**
@@ -267,7 +270,7 @@ protected:
 /**
  * @brief 将 dict 转换为 variant
  */
-variant to_variant(const dict& d);
+MC_API variant to_variant(const dict& d);
 
 } // namespace mc
 // 将 variant 实现相关的代码放到单独的文件中

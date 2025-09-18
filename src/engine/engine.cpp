@@ -102,6 +102,10 @@ engine& engine::get_instance() {
     });
 }
 
+void engine::reset_for_test() {
+    mc::singleton<engine>::reset_for_test();
+}
+
 mc::db::database& engine::get_database() {
     return m_impl->m_database;
 }

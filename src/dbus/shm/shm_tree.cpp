@@ -9,6 +9,8 @@
  * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
  * See the Mulan PSL v2 for more details.
  */
+#include <glib-2.0/glib.h>
+#include <type_traits>
 #include <mc/dbus/shm/serialize.h>
 #include <mc/dbus/shm/shm_tree.h>
 #include <mc/dict.h>
@@ -29,11 +31,17 @@ void shm_tree::register_object(mc::engine::abstract_object& obj) {
     auto&           ins     = shm::shared_memory::get_instance();
     auto            path    = obj.get_object_path();
     shm::object&    shm_obj = m_tree->register_object(ins, path);
-    shm_obj_visitor visitor(shm_obj);
-    obj.visit(visitor);
+    shm_obj_visitor visitor(shm_obj, obj);
+    obj.get_metadata().visit(visitor);
     // 需要创建上下文，common_properties_interface才能获取到对象信息
     mc::engine::object_call_stack::context object_ctx{obj.get_service(), obj};
-    mc::engine::common_properties_interface::get_instance().visit(visitor);
+    
+    const auto& metadata = mc::engine::common_properties_interface::get_instance().get_metadata();
+    mc::engine::interface_metadata iface_metadata{nullptr, &metadata};
+    visitor.handle_interface_begin(iface_metadata);
+    metadata.visit(visitor);
+    visitor.handle_interface_end(iface_metadata);
+
     shm_obj.add_named_object_view(ins, mc::engine::common_properties_name);
     obj.property_changed().connect([this, &obj](const mc::variant& value, const auto& prop) {
         auto iface     = prop.get_interface()->get_interface_name();
@@ -98,12 +106,12 @@ shm_tree::timeout_call(mc::milliseconds timeout, std::string_view service_name,
     }
     auto reply_msg = future.get();
     if (reply_msg.msg_type() == DBUS_MESSAGE_TYPE_ERROR) {
-        auto [error_name, error_message] = reply_msg.get_error();
+        auto err = reply_msg.get_error();
         MC_THROW(mc::exception,
                  "shm method call failed, service name: ${service_name}, method: ${method}, error "
                  "name: ${error_name}, error message: ${error_message}",
-                 ("service_name", service_name)("method", method)("error_name", error_name)(
-                     "error_message", error_message));
+                 ("service_name", service_name)("method", method)("error_name", std::get<0>(err))(
+                     "error_message", std::get<1>(err)));
     }
     return reply_msg.read();
 }
@@ -132,30 +140,48 @@ static shm::shared_ptr<shm::property> find_shm_property(std::string_view service
     return prop;
 }
 
+template<typename T, typename = void>
+struct has_static_allocate_object_id : std::false_type {};
+
+template<typename T>
+struct has_static_allocate_object_id<T, std::void_t<decltype(T::allocate_object_id(std::declval<std::string_view>()))>> : std::true_type {};
+
+template<typename LibraryType>
+static uint32_t get_object_id(std::string_view path)
+{
+    if constexpr (has_static_allocate_object_id<LibraryType>::value) {
+        return LibraryType::allocate_object_id(path);
+    }
+    
+    return g_str_hash(path.data());
+}
+
 static std::optional<variant> get_property_inner(std::string_view service_name,
                                                  std::string_view path, std::string_view interface,
                                                  std::string_view property) {
     auto prop = find_shm_property(service_name, path, interface, property);
-    auto data = prop->get_data();
-    if (data == std::nullopt) {
-        return std::nullopt;
-    }
-    std::string_view prop_value = data.value();
-    size_t           p_data_len = prop_value.size();
-    void*            p_data     = g_malloc0(p_data_len);
-    if (p_data == nullptr) {
-        MC_THROW(mc::exception, "g_malloc0 failed, len: ${len}", ("len", p_data_len));
-    }
-    std::memcpy(p_data, prop_value.data(), p_data_len);
-    std::string_view signature = prop->get_signature();
-    GVariant*        v         = g_variant_new_from_data(G_VARIANT_TYPE(signature.data()), p_data, p_data_len,
-                                                         false, g_free, p_data);
-    return gvariant_convert::to_mc_variant(v);
+    return shm_object_lock_shared_exec(get_object_id<shmlock::ShmLockManager>(path), [&]() {
+        auto data = prop->get_data();
+        if (data == std::nullopt) {
+            return std::optional<variant>{};
+        }
+        std::string_view prop_value = data.value();
+        size_t           p_data_len = prop_value.size();
+        void*            p_data     = g_malloc0(p_data_len);
+        if (p_data == nullptr) {
+            MC_THROW(mc::exception, "g_malloc0 failed, len: ${len}", ("len", p_data_len));
+        }
+        std::memcpy(p_data, prop_value.data(), p_data_len);
+        std::string_view signature = prop->get_signature();
+        GVariant*        v         = g_variant_new_from_data(G_VARIANT_TYPE(signature.data()), p_data, p_data_len,
+                                                            false, g_free, p_data);
+        return std::make_optional(gvariant_convert::to_mc_variant(v));
+    });
 }
 
 variant shm_tree::get_property(std::string_view service_name, std::string_view path,
                                std::string_view interface, std::string_view property) {
-    auto res = shm_lock_call([&]() {
+    auto res = shm_global_lock_shared_exec([&]() {
         return get_property_inner(service_name, path, interface, property);
     });
     if (res == std::nullopt) {
@@ -181,9 +207,11 @@ void shm_tree::set_property_inner(shm::shared_ptr<shm::property> prop, const var
 void shm_tree::set_property(std::string_view service_name, std::string_view path,
                             std::string_view interface, std::string_view property,
                             const variant& value) {
-    shm_lock_call([&]() {
+    shm_global_lock_shared_exec([&]() {
         auto prop = find_shm_property(service_name, path, interface, property);
-        set_property_inner(prop, value);
+        shm_object_lock_exec(get_object_id<shmlock::ShmLockManager>(path), [&]() {
+            set_property_inner(prop, value);
+        });
     });
 }
 
@@ -191,7 +219,7 @@ void shm_tree::add_match(match_rule& rule, mc::dbus::match_cb_t&& cb, uint64_t i
     auto& harbor      = harbor::get_instance();
     auto  harbor_name = harbor.get_harbor_name();
     harbor.add_rule(rule, std::forward<mc::dbus::match_cb_t>(cb), id);
-    shm_lock_call([this, &rule, harbor_name, id]() {
+    shm_global_lock_exec([this, &rule, harbor_name, id]() {
         auto& ins      = shm::shared_memory::get_instance();
         auto& tree_map = ins.get_object_tree_map(harbor_name);
         auto  it       = tree_map.find(harbor_name);
@@ -210,7 +238,7 @@ void shm_tree::remove_match(uint64_t id) {
     }
     auto slot = it->second;
     m_shm_slots.erase(it);
-    shm_lock_call([slot]() {
+    shm_global_lock_exec([slot]() {
         slot();
     });
 }

@@ -48,7 +48,7 @@ TEST(format_std_test, list_basic) {
 
 TEST(format_std_test, set_basic) {
     std::set<int> s{3, 1, 2};
-    EXPECT_EQ(sformat("{}", s), "[1,2,3]");
+    EXPECT_EQ(sformat("{}", s), "{1,2,3}");
 }
 
 TEST(format_std_test, map_basic) {
@@ -87,14 +87,14 @@ TEST(format_std_test, deque_double) {
 // set
 TEST(format_std_test, set_int) {
     std::set<int> s{2, 1};
-    EXPECT_EQ(sformat("{}", s), "[1,2]");
+    EXPECT_EQ(sformat("{}", s), "{1,2}");
 }
 
 // unordered_set
 TEST(format_std_test, unordered_set_int) {
     std::unordered_set<int> us{3, 2};
     auto                    str = sformat("{}", us);
-    EXPECT_TRUE(str == "[2,3]" || str == "[3,2]"); // 顺序不保证
+    EXPECT_TRUE(str == "{2,3}" || str == "{3,2}"); // 顺序不保证
 }
 
 // map
@@ -203,7 +203,7 @@ TEST(format_std_test, vector_string) {
 
 TEST(format_std_test, set_string) {
     std::set<std::string> s{"foo", "bar"};
-    EXPECT_EQ(sformat("{}", s), "[\"bar\",\"foo\"]"); // 容器中的字符串不加引号
+    EXPECT_EQ(sformat("{}", s), "{\"bar\",\"foo\"}"); // 容器中的字符串不加引号
 }
 
 TEST(format_std_test, optional_string) {

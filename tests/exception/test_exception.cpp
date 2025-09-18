@@ -47,59 +47,59 @@ TEST(ExceptionTest, AllGeneralExceptionCodesTest) {
     // 定义测试用例数组
     std::vector<TestCase> test_cases = {
         // 未指定异常
-        {mc::unknow_exception_code, "unknow_exception", "未指定异常",
-         MC_MAKE_EXCEPTION(mc::exception, "未指定异常")},
+        {mc::unknow_exception_code, "unknow_exception", "Unspecified exception",
+         MC_MAKE_EXCEPTION(mc::exception, "Unspecified exception")},
         // 未处理异常
-        {mc::unhandled_exception_code, "unhandled", "未处理异常",
-         MC_MAKE_EXCEPTION(mc::unhandled_exception, "未处理异常")},
+        {mc::unhandled_exception_code, "unhandled", "Unhandled exception",
+         MC_MAKE_EXCEPTION(mc::unhandled_exception, "Unhandled exception")},
         // 超时异常
-        {mc::timeout_exception_code, "timeout", "操作超时",
-         MC_MAKE_EXCEPTION(mc::timeout_exception, "操作超时")},
+        {mc::timeout_exception_code, "timeout", "Operation timeout",
+         MC_MAKE_EXCEPTION(mc::timeout_exception, "Operation timeout")},
         // 文件未找到异常
-        {mc::file_not_found_exception_code, "file_not_found", "找不到配置文件",
-         MC_MAKE_EXCEPTION(mc::file_not_found_exception, "找不到配置文件")},
+        {mc::file_not_found_exception_code, "file_not_found", "Configuration file not found",
+         MC_MAKE_EXCEPTION(mc::file_not_found_exception, "Configuration file not found")},
         // 解析错误异常
-        {mc::parse_error_exception_code, "parse_error", "JSON解析失败",
-         MC_MAKE_EXCEPTION(mc::parse_error_exception, "JSON解析失败")},
+        {mc::parse_error_exception_code, "parse_error", "JSON parsing failed",
+         MC_MAKE_EXCEPTION(mc::parse_error_exception, "JSON parsing failed")},
         // 无效参数异常
-        {mc::invalid_arg_exception_code, "invalid_arg", "参数不能为空",
-         MC_MAKE_EXCEPTION(mc::invalid_arg_exception, "参数不能为空")},
+        {mc::invalid_arg_exception_code, "invalid_arg", "Parameter cannot be empty",
+         MC_MAKE_EXCEPTION(mc::invalid_arg_exception, "Parameter cannot be empty")},
         // 键未找到异常
-        {mc::key_not_found_exception_code, "key_not_found", "键'config'不存在",
-         MC_MAKE_EXCEPTION(mc::key_not_found_exception, "键'config'不存在")},
+        {mc::key_not_found_exception_code, "key_not_found", "Key 'config' does not exist",
+         MC_MAKE_EXCEPTION(mc::key_not_found_exception, "Key 'config' does not exist")},
         // 类型转换异常
-        {mc::bad_cast_exception_code, "bad_cast", "无法将字符串转换为整数",
-         MC_MAKE_EXCEPTION(mc::bad_cast_exception, "无法将字符串转换为整数")},
+        {mc::bad_cast_exception_code, "bad_cast", "Unable to convert string to integer",
+         MC_MAKE_EXCEPTION(mc::bad_cast_exception, "Unable to convert string to integer")},
         // 越界异常
-        {mc::out_of_range_exception_code, "out_of_range", "数组索引越界",
-         MC_MAKE_EXCEPTION(mc::out_of_range_exception, "数组索引越界")},
+        {mc::out_of_range_exception_code, "out_of_range", "Array index out of bounds",
+         MC_MAKE_EXCEPTION(mc::out_of_range_exception, "Array index out of bounds")},
         // 取消操作异常
-        {mc::canceled_exception_code, "canceled", "操作被用户取消",
-         MC_MAKE_EXCEPTION(mc::canceled_exception, "操作被用户取消")},
+        {mc::canceled_exception_code, "canceled", "Operation canceled by user",
+         MC_MAKE_EXCEPTION(mc::canceled_exception, "Operation canceled by user")},
         // 断言异常
-        {mc::assert_exception_code, "assert", "断言条件不满足",
-         MC_MAKE_EXCEPTION(mc::assert_exception, "断言条件不满足")},
+        {mc::assert_exception_code, "assert", "Assertion condition not met",
+         MC_MAKE_EXCEPTION(mc::assert_exception, "Assertion condition not met")},
         // 文件结束异常
-        {mc::eof_exception_code, "eof", "已到达文件末尾",
-         MC_MAKE_EXCEPTION(mc::eof_exception, "已到达文件末尾")},
+        {mc::eof_exception_code, "eof", "End of file reached",
+         MC_MAKE_EXCEPTION(mc::eof_exception, "End of file reached")},
         // 系统错误异常
-        {mc::system_error_code, "system", "系统调用失败",
-         MC_MAKE_EXCEPTION(mc::system_exception, "系统调用失败")},
+        {mc::system_error_code, "system", "System call failed",
+         MC_MAKE_EXCEPTION(mc::system_exception, "System call failed")},
         // 无效操作异常
-        {mc::invalid_op_exception_code, "invalid_operation", "不支持的操作",
-         MC_MAKE_EXCEPTION(mc::invalid_op_exception, "不支持的操作")},
+        {mc::invalid_op_exception_code, "invalid_operation", "Unsupported operation",
+         MC_MAKE_EXCEPTION(mc::invalid_op_exception, "Unsupported operation")},
         // 空可选值异常
-        {mc::null_optional_code, "null_optional", "访问了空的可选值",
-         MC_MAKE_EXCEPTION(mc::null_optional_exception, "访问了空的可选值")},
+        {mc::null_optional_code, "null_optional", "Accessed null optional value",
+         MC_MAKE_EXCEPTION(mc::null_optional_exception, "Accessed null optional value")},
         // 溢出异常
-        {mc::overflow_code, "overflow", "数值溢出",
-         MC_MAKE_EXCEPTION(mc::overflow_exception, "数值溢出")},
+        {mc::overflow_code, "overflow", "Numeric overflow",
+         MC_MAKE_EXCEPTION(mc::overflow_exception, "Numeric overflow")},
         // 下溢异常
-        {mc::underflow_code, "underflow", "数值下溢",
-         MC_MAKE_EXCEPTION(mc::underflow_exception, "数值下溢")},
+        {mc::underflow_code, "underflow", "Numeric underflow",
+         MC_MAKE_EXCEPTION(mc::underflow_exception, "Numeric underflow")},
         // 除零异常
-        {mc::divide_by_zero_code, "divide_by_zero", "除数不能为零",
-         MC_MAKE_EXCEPTION(mc::divide_by_zero_exception, "除数不能为零")}};
+        {mc::divide_by_zero_code, "divide_by_zero", "Division by zero not allowed",
+         MC_MAKE_EXCEPTION(mc::divide_by_zero_exception, "Division by zero not allowed")}};
 
     // 遍历测试用例数组执行测试
     for (const auto& test_case : test_cases) {
@@ -114,7 +114,7 @@ TEST(ExceptionTest, AllGeneralExceptionCodesTest) {
 
 TEST(ExceptionTest, ThrowExceptionTest) {
     try {
-        MC_THROW(mc::bad_cast_exception, "类型转换异常: 期望类型 ${expected}, 实际类型 ${actual}",
+        MC_THROW(mc::bad_cast_exception, "Type conversion exception: expected type ${expected}, actual type ${actual}",
                  ("expected", "int")("actual", "bool"));
     } catch (const mc::exception& e) {
         EXPECT_EQ(e.code(), mc::bad_cast_exception_code);
@@ -127,7 +127,7 @@ TEST(ExceptionTest, ThrowExceptionTest) {
 TEST(ExceptionTest, FormattedMessageTest) {
     // 测试基本的格式化消息
     try {
-        MC_THROW(mc::bad_cast_exception, "类型转换异常: 期望类型 ${expected}, 实际类型 ${actual}",
+        MC_THROW(mc::bad_cast_exception, "Type conversion exception: expected type ${expected}, actual type ${actual}",
                  ("expected", "int")("actual", "bool"));
         FAIL() << "应该抛出异常";
     } catch (const mc::bad_cast_exception& e) {
@@ -159,23 +159,23 @@ TEST(ExceptionTest, NestingAndRethrowTest) {
         try {
             try {
                 // 最内层抛出异常
-                MC_THROW(mc::file_not_found_exception, "配置文件 ${file} 不存在",
+                MC_THROW(mc::file_not_found_exception, "Configuration file ${file} does not exist",
                          ("file", "config.json"));
             } catch (const mc::file_not_found_exception& e) {
                 // 中层捕获并添加上下文后重抛
-                MC_RETHROW_EXCEPTION(e, "加载配置文件失败: ${reason}", ("reason", e.what()));
+                MC_RETHROW_EXCEPTION(e, "Failed to load configuration file: ${reason}", ("reason", e.what()));
             }
         } catch (const mc::exception& e) {
             // 外层捕获并添加更多上下文后重抛
-            MC_RETHROW_EXCEPTION(e, "系统初始化失败: ${reason}", ("reason", e.what()));
+            MC_RETHROW_EXCEPTION(e, "System initialization failed: ${reason}", ("reason", e.what()));
         }
         FAIL() << "应该抛出异常";
     } catch (const mc::exception& e) {
         std::string detail = e.to_detail_string();
         // 验证所有层级的消息都被保留
         EXPECT_TRUE(detail.find("config.json") != std::string::npos);
-        EXPECT_TRUE(detail.find("加载配置文件失败") != std::string::npos);
-        EXPECT_TRUE(detail.find("系统初始化失败") != std::string::npos);
+        EXPECT_TRUE(detail.find("Failed to load configuration file") != std::string::npos);
+        EXPECT_TRUE(detail.find("System initialization failed") != std::string::npos);
     }
 }
 
@@ -205,8 +205,8 @@ TEST(ExceptionTest, LogLevelFilterTest) {
 TEST(ExceptionTest, DynamicCopyAndRethrowTest) {
     try {
         // 创建一个超时异常
-        auto original = MC_MAKE_EXCEPTION(mc::timeout_exception, "操作超时: ${operation}",
-                                          ("operation", "数据库查询"));
+        auto original = MC_MAKE_EXCEPTION(mc::timeout_exception, "Operation timeout: ${operation}",
+                                          ("operation", "database query"));
 
         // 动态复制异常
         std::shared_ptr<mc::exception> copy = original.dynamic_copy_exception();
@@ -214,7 +214,7 @@ TEST(ExceptionTest, DynamicCopyAndRethrowTest) {
         // 验证复制的异常
         EXPECT_EQ(copy->code(), mc::exception_code::timeout_exception_code);
         EXPECT_EQ(copy->name(), "timeout");
-        EXPECT_TRUE(copy->to_string().find("数据库查询") != std::string::npos);
+        EXPECT_TRUE(copy->to_string().find("database query") != std::string::npos);
 
         // 动态重抛异常
         copy->dynamic_rethrow_exception();
@@ -223,7 +223,7 @@ TEST(ExceptionTest, DynamicCopyAndRethrowTest) {
         // 验证重抛的异常保持了正确的类型和信息
         EXPECT_EQ(e.code(), mc::exception_code::timeout_exception_code);
         EXPECT_EQ(e.name(), "timeout");
-        EXPECT_TRUE(e.to_string().find("数据库查询") != std::string::npos);
+        EXPECT_TRUE(e.to_string().find("database query") != std::string::npos);
     }
 }
 
@@ -273,7 +273,7 @@ TEST(ExceptionTest, DISABLED_PerformanceTest) {
     {
         auto start = std::chrono::high_resolution_clock::now();
         for (int i = 0; i < iterations; ++i) {
-            auto e = MC_MAKE_EXCEPTION(mc::timeout_exception, "测试消息 ${index}",
+            auto e = MC_MAKE_EXCEPTION(mc::timeout_exception, "Test message ${index}",
                                        ("index", std::to_string(i)));
             EXPECT_EQ(e.code(), mc::exception_code::timeout_exception_code);
         }
@@ -287,7 +287,7 @@ TEST(ExceptionTest, DISABLED_PerformanceTest) {
         auto start = std::chrono::high_resolution_clock::now();
         for (int i = 0; i < iterations; ++i) {
             try {
-                MC_THROW(mc::timeout_exception, "测试消息 ${index}", ("index", std::to_string(i)));
+                MC_THROW(mc::timeout_exception, "Test message ${index}", ("index", std::to_string(i)));
             } catch (const mc::exception& e) {
                 EXPECT_EQ(e.code(), mc::exception_code::timeout_exception_code);
             }
@@ -303,39 +303,39 @@ TEST(ExceptionTest, DISABLED_PerformanceTest) {
 TEST(ExceptionTest, StdExceptionWrapperTest) {
     try {
         try {
-            throw std::runtime_error("标准库运行时错误");
+            throw std::runtime_error("Standard library runtime error");
         } catch (const std::exception& e) {
-            MC_THROW(mc::system_exception, "系统错误: ${error}", ("error", e.what()));
+            MC_THROW(mc::system_exception, "System error: ${error}", ("error", e.what()));
         }
         FAIL() << "应该抛出异常";
     } catch (const mc::system_exception& e) {
         EXPECT_EQ(e.code(), mc::exception_code::system_error_code);
         EXPECT_EQ(e.name(), "system");
-        EXPECT_TRUE(e.to_string().find("标准库运行时错误") != std::string::npos);
+        EXPECT_TRUE(e.to_string().find("Standard library runtime error") != std::string::npos);
     }
 }
 
 // 测试异常的格式化输出
 TEST(ExceptionTest, FormattedOutputTest) {
     // 创建一个带有完整上下文信息的异常
-    auto e = MC_MAKE_EXCEPTION(mc::invalid_arg_exception, "参数验证失败: ${param} = ${value}",
+    auto e = MC_MAKE_EXCEPTION(mc::invalid_arg_exception, "Parameter validation failed: ${param} = ${value}",
                                ("param", "count")("value", "-1"));
 
-    e.append_log(MC_LOG_MESSAGE(debug, "参数详情: ${detail}", ("detail", "必须大于0")));
-    e.append_log(MC_LOG_MESSAGE(info, "处理函数: ${func}", ("func", "process_data")));
-    e.append_log(MC_LOG_MESSAGE(warn, "可能影响: ${impact}", ("impact", "数据不完整")));
-    e.append_log(MC_LOG_MESSAGE(error, "错误代码: ${code}", ("code", "E001")));
+    e.append_log(MC_LOG_MESSAGE(debug, "Parameter details: ${detail}", ("detail", "must be greater than 0")));
+    e.append_log(MC_LOG_MESSAGE(info, "Processing function: ${func}", ("func", "process_data")));
+    e.append_log(MC_LOG_MESSAGE(warn, "Possible impact: ${impact}", ("impact", "incomplete data")));
+    e.append_log(MC_LOG_MESSAGE(error, "Error code: ${code}", ("code", "E001")));
 
     // 测试简单格式输出
     std::string simple = e.to_string();
-    EXPECT_TRUE(simple.find("错误代码") != std::string::npos);
+    EXPECT_TRUE(simple.find("Error code") != std::string::npos);
     EXPECT_TRUE(simple.find("E001") != std::string::npos);
 
     // 测试详细格式输出
     std::string detail = e.to_detail_string();
-    EXPECT_TRUE(detail.find("必须大于0") != std::string::npos);
+    EXPECT_TRUE(detail.find("must be greater than 0") != std::string::npos);
     EXPECT_TRUE(detail.find("process_data") != std::string::npos);
-    EXPECT_TRUE(detail.find("数据不完整") != std::string::npos);
+    EXPECT_TRUE(detail.find("incomplete data") != std::string::npos);
     EXPECT_TRUE(detail.find("E001") != std::string::npos);
 
     // 验证日志级别和时间戳格式
@@ -345,4 +345,166 @@ TEST(ExceptionTest, FormattedOutputTest) {
     EXPECT_TRUE(detail.find("ERROR") != std::string::npos);
     EXPECT_TRUE(detail.find("-") != std::string::npos); // 日期分隔符
     EXPECT_TRUE(detail.find(":") != std::string::npos); // 时间分隔符
+}
+
+/*
+早期异常只支持 ${} 命名参数，为了使用简单我们将日志格式化与 sformat 保持一致，
+即支持 {} 占位也支持 ${} 命名占位符，其中 {} 既可以索引占位也可以命名占位，${} 占位
+只是兼容旧的写法，建议的异常法全部是 {} 占位符
+*/
+TEST(ExceptionTest, basic_smart_exception) {
+    // 测试自增索引 {}
+    try {
+        MC_THROW(mc::runtime_exception, "{} {}", "Hello", "World");
+    } catch (const mc::exception& e) {
+        EXPECT_EQ(e.top_message(), "Hello World");
+    }
+
+    try {
+        MC_THROW(mc::runtime_exception, "{1} {0}", "World", "Hello");
+    } catch (const mc::exception& e) {
+        EXPECT_EQ(e.top_message(), "Hello World");
+    }
+
+    try {
+        MC_THROW(mc::runtime_exception, "{name} {value}", ("name", "Answer"), ("value", 42));
+    } catch (const mc::exception& e) {
+        EXPECT_EQ(e.top_message(), "Answer 42");
+    }
+}
+
+// 测试混合使用不同类型的占位符
+TEST(ExceptionTest, mixed_placeholder_types) {
+    // 混合自增索引和命名参数
+    try {
+        MC_THROW(mc::runtime_exception, "{} is {age} years old", "Alice", ("age", 25));
+    } catch (const mc::exception& e) {
+        EXPECT_EQ(e.top_message(), "Alice is 25 years old");
+    }
+
+    // 混合显式索引和命名参数
+    try {
+        MC_THROW(mc::runtime_exception, "{0} has {balance:.2f} dollars", "Bob", ("balance", 123.456));
+    } catch (const mc::exception& e) {
+        EXPECT_EQ(e.top_message(), "Bob has 123.46 dollars");
+    }
+
+    // 混合所有类型
+    try {
+        MC_THROW(mc::runtime_exception, "{} {name} {2}", "Hello", ("name", "Test"), "World"); // 命名参数也会增加索引
+    } catch (const mc::exception& e) {
+        EXPECT_EQ(e.top_message(), "Hello Test World");
+    }
+}
+
+// 测试带格式说明符的智能占位符
+TEST(ExceptionTest, format_specifications) {
+    // 自增索引带格式
+    try {
+        MC_THROW(mc::runtime_exception, "{:.2f} {}", 3.14159, "pi");
+    } catch (const mc::exception& e) {
+        EXPECT_EQ(e.top_message(), "3.14 pi");
+    }
+
+    // 显式索引带格式
+    try {
+        MC_THROW(mc::runtime_exception, "{0:.2f} {1:>10}", 3.14159, "right");
+    } catch (const mc::exception& e) {
+        EXPECT_EQ(e.top_message(), "3.14      right");
+    }
+
+    // 命名参数带格式
+    try {
+        MC_THROW(mc::runtime_exception, "{name:<10} {value:04d}", ("name", "Number"), ("value", 42));
+    } catch (const mc::exception& e) {
+        EXPECT_EQ(e.top_message(), "Number     0042");
+    }
+}
+
+// 测试动态格式参数
+TEST(ExceptionTest, dynamic_format_parameters) {
+    // 使用命名参数作为动态宽度和精度
+    try {
+        MC_THROW(mc::runtime_exception, "{value:{width}.{precision}f}",
+                 ("value", 3.14159),
+                 ("width", 10),
+                 ("precision", 3));
+    } catch (const mc::exception& e) {
+        EXPECT_EQ(e.top_message(), "     3.142");
+    }
+
+    // 混合索引和命名参数的动态格式
+    try {
+        MC_THROW(mc::runtime_exception, "{0:{width}.2f}", 3.14159, ("width", 8));
+    } catch (const mc::exception& e) {
+        EXPECT_EQ(e.top_message(), "    3.14");
+    }
+}
+
+// 测试边界情况
+TEST(ExceptionTest, edge_cases) {
+    // 单个字符的命名参数
+    try {
+        MC_THROW(mc::runtime_exception, "{x} {y}", ("x", 10), ("y", 20));
+    } catch (const mc::exception& e) {
+        EXPECT_EQ(e.top_message(), "10 20");
+    }
+
+    // 长命名参数
+    try {
+        MC_THROW(mc::runtime_exception, "{very_long_parameter_name}", ("very_long_parameter_name", "value"));
+    } catch (const mc::exception& e) {
+        EXPECT_EQ(e.top_message(), "value");
+    }
+
+    // 提供了3个参数但格式化字符串只用了一部分
+    try {
+        MC_THROW_UNSAFE(mc::runtime_exception, "{2}", "first", "second", "target_value");
+    } catch (const mc::exception& e) {
+        EXPECT_EQ(e.top_message(), "target_value");
+    }
+
+    // 格式化字符串不是字面值常量而是变量
+    const char* fmt = "{x} {y}";
+    try {
+        MC_THROW_UNSAFE(mc::runtime_exception, fmt, ("x", 10), ("y", 20));
+    } catch (const mc::exception& e) {
+        EXPECT_EQ(e.top_message(), "10 20");
+    }
+}
+
+// 测试嵌套大括号
+TEST(ExceptionTest, nested_braces) {
+    // 命名参数中的嵌套大括号格式
+    try {
+        MC_THROW(mc::runtime_exception, "{value:{width}.{precision}f}",
+                 ("value", 123.456),
+                 ("width", 12),
+                 ("precision", 2));
+    } catch (const mc::exception& e) {
+        EXPECT_EQ(e.top_message(), "      123.46");
+    }
+
+    // 索引参数中的嵌套大括号格式
+    try {
+        MC_THROW(mc::runtime_exception, "{0:{1}.{2}f}", 123.456, 12, 2);
+    } catch (const mc::exception& e) {
+        EXPECT_EQ(e.top_message(), "      123.46");
+    }
+}
+
+// 测试转义字符
+TEST(ExceptionTest, escaped_braces) {
+    // 转义的大括号与智能占位符混合
+    try {
+        MC_THROW(mc::runtime_exception, "{{}} {name} {{}}", ("name", "test"));
+    } catch (const mc::exception& e) {
+        EXPECT_EQ(e.top_message(), "{} test {}");
+    }
+
+    try {
+        MC_THROW(mc::runtime_exception, "{{0}} {0} {{name}}", "value");
+    } catch (const mc::exception& e) {
+        EXPECT_EQ(e.top_message(), "{0} value {name}");
+    }
 }

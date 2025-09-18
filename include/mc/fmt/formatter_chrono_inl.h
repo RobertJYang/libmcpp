@@ -21,9 +21,9 @@
 
 namespace mc::fmt {
 namespace detail {
-void format_float(std::string& out, double value, int precision, bool has_precision);
+MC_API void format_float(std::string& out, double value, int precision, bool has_precision);
 
-class duration_format_handler_base {
+class MC_API duration_format_handler_base {
 public:
     duration_format_handler_base(std::string& output, int precision, bool has_precision);
     virtual ~duration_format_handler_base() = default;
@@ -67,7 +67,7 @@ protected:
     virtual void        output_duration_value() = 0;
 };
 
-class time_point_format_handler_base {
+class MC_API time_point_format_handler_base {
 public:
     time_point_format_handler_base(std::string& output);
     ~time_point_format_handler_base() = default;

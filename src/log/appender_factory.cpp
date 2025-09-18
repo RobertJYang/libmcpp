@@ -23,6 +23,17 @@
 namespace mc {
 namespace log {
 
+appender::~appender() {
+}
+
+const std::string& appender::get_name() const {
+    return m_name;
+}
+
+void appender::set_name(const std::string& name) {
+    m_name = name;
+}
+
 class appender_factory::impl {
     struct library_info {
         void*                handle;    // 动态库句柄
@@ -57,14 +68,14 @@ public:
         auto it = m_appenders.find(name);
         if (it != m_appenders.end()) {
             // 已存在同名appender，返回错误
-            elog("已存在同名appender: ${name}", ("name", name));
+            elog("Appender with same name already exists: ${name}", ("name", name));
             return nullptr;
         }
 
         // 创建新的appender
         appender_ptr appender = create_by_type(type);
         if (!appender) {
-            elog("创建appender失败，未知类型: ${type}", ("type", type));
+            elog("Failed to create appender, unknown type: ${type}", ("type", type));
             return nullptr;
         }
 
@@ -73,7 +84,7 @@ public:
 
         // 初始化
         if (!appender->init(config)) {
-            elog("初始化appender失败: ${name}", ("name", name));
+            elog("Failed to initialize appender: ${name}", ("name", name));
             return nullptr;
         }
 
@@ -91,14 +102,14 @@ public:
 
         void* handle = dlopen(library_path.c_str(), RTLD_LAZY);
         if (!handle) {
-            elog("无法加载动态库: ${path}, 错误: ${error}",
+            elog("Failed to load dynamic library: ${path}, error: ${error}",
                  ("path", library_path)("error", dlerror()));
             return false;
         }
 
         auto creator = reinterpret_cast<appender_creator_c>(dlsym(handle, "create_appender_c"));
         if (!creator) {
-            elog("无法找到创建函数: ${path}, 错误: ${error}",
+            elog("Failed to find creator function: ${path}, error: ${error}",
                  ("path", library_path)("error", dlerror()));
             dlclose(handle);
             return false;
@@ -107,7 +118,7 @@ public:
         auto destroyer =
             reinterpret_cast<appender_destroyer_c>(dlsym(handle, "destroy_appender_c"));
         if (!destroyer) {
-            elog("无法找到销毁函数: ${path}, 错误: ${error}",
+            elog("Failed to find destroyer function: ${path}, error: ${error}",
                  ("path", library_path)("error", dlerror()));
             dlclose(handle);
             return false;
@@ -135,7 +146,7 @@ public:
                 }
             }
         } catch (const std::exception& e) {
-            elog("加载追加器失败: ${path}, 错误: ${error}", ("path", dir_path)("error", e.what()));
+            elog("Failed to load appenders: ${path}, error: ${error}", ("path", dir_path)("error", e.what()));
         }
     }
 
@@ -214,7 +225,8 @@ appender_factory& appender_factory::instance() {
     return instance;
 }
 
-appender_factory::appender_factory() : m_impl(std::make_unique<impl>()) {
+appender_factory::appender_factory()
+    : m_impl(std::make_unique<impl>()) {
 }
 appender_factory::~appender_factory() = default;
 

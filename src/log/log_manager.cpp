@@ -12,6 +12,7 @@
 
 #include <algorithm>
 #include <fstream>
+
 #include <mc/filesystem.h>
 #include <mc/json.h>
 #include <mc/log.h>
@@ -22,7 +23,6 @@
 #include <mc/reflect.h>
 #include <mc/variant.h>
 #include <unordered_set>
-
 namespace mc {
 namespace log {
 
@@ -85,7 +85,7 @@ void log_manager::load_appenders(const std::string& dir_path) {
 bool log_manager::load_single_appender(const appender_config& app_config) {
     if (!app_config.lib_path.empty()) {
         if (!appender_factory::instance().load(app_config.lib_path, app_config.type)) {
-            elog("加载appender[${name}]动态库失败: ${lib_path}",
+            elog("Failed to load appender[${name}] dynamic library: ${lib_path}",
                  ("name", app_config.name)("lib_path", app_config.lib_path));
             return false;
         }
@@ -95,7 +95,7 @@ bool log_manager::load_single_appender(const appender_config& app_config) {
         app_config.name, app_config.type, app_config.properties);
 
     if (!appender) {
-        elog("创建或配置appender[${name}]失败", ("name", app_config.name));
+        elog("Failed to create or configure appender[${name}]", ("name", app_config.name));
         return false;
     }
 
@@ -143,7 +143,7 @@ void log_manager::update_existing_logger(logger& log, const logger_config& log_c
     // 删除需要删除的appender
     for (const auto& name : to_remove) {
         if (log.remove_appender(name)) {
-            ilog("从logger[${logger}]中移除appender[${name}]",
+            ilog("Removed appender[${name}] from logger[${logger}]",
                  ("logger", log.get_name())("name", name));
         }
     }
@@ -153,10 +153,10 @@ void log_manager::update_existing_logger(logger& log, const logger_config& log_c
         appender_ptr appender = appender_factory::instance().get_appender(name);
         if (appender) {
             log.add_appender(appender);
-            ilog("为logger[${logger}]添加appender[${name}]",
+            ilog("Added appender[${name}] to logger[${logger}]",
                  ("logger", log.get_name())("name", name));
         } else {
-            wlog("为logger[${logger}]添加appender失败: 找不到appender[${name}]",
+            wlog("Failed to add appender to logger[${logger}]: appender[${name}] not found",
                  ("logger", log.get_name())("name", name));
         }
     }
@@ -170,10 +170,10 @@ logger log_manager::create_new_logger(const logger_config& log_config) {
         appender_ptr appender = appender_factory::instance().get_appender(app_name);
         if (appender) {
             new_logger.add_appender(appender);
-            ilog("为新logger[${logger}]添加appender[${name}]",
+            ilog("Added appender[${name}] to new logger[${logger}]",
                  ("logger", new_logger.get_name())("name", app_name));
         } else {
-            wlog("为新logger[${logger}]添加appender失败: 找不到appender[${name}]",
+            wlog("Failed to add appender to new logger[${logger}]: appender[${name}] not found",
                  ("logger", new_logger.get_name())("name", app_name));
         }
     }
@@ -184,7 +184,7 @@ logger log_manager::create_new_logger(const logger_config& log_config) {
 bool log_manager::apply_config(const logging_config& config) {
     // 加载appender配置
     if (!load_appenders_from_config(config.appenders)) {
-        wlog("部分appender加载失败，继续处理其他配置");
+        wlog("Some appenders failed to load, continuing with other configurations");
     }
 
     // 更新现有logger
@@ -197,7 +197,7 @@ bool log_manager::apply_config(const logging_config& config) {
                 m_loggers[log_config.name] = create_new_logger(log_config);
             }
         } catch (const std::exception& e) {
-            elog("更新logger[${name}]配置失败: ${error}",
+            elog("Failed to update logger[${name}] configuration: ${error}",
                  ("name", log_config.name)("error", e.what()));
             continue;
         }
@@ -208,3 +208,7 @@ bool log_manager::apply_config(const logging_config& config) {
 
 } // namespace log
 } // namespace mc
+
+MC_REFLECT(mc::log::appender_config, (name)(type)(lib_path)(properties))
+MC_REFLECT(mc::log::logger_config, (name)(level)(appenders))
+MC_REFLECT(mc::log::logging_config, (appenders)(loggers))

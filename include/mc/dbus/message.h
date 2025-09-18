@@ -33,8 +33,8 @@ using type_code          = mc::reflect::type_code;
 using path               = mc::engine::path;
 namespace container      = mc::reflect::container;
 
-void ensure_container_max_length(const char* type_name, std::size_t size);
-void ensure_message_depth(std::size_t depth);
+MC_API void ensure_container_max_length(const char* type_name, std::size_t size);
+MC_API void ensure_message_depth(std::size_t depth);
 
 template <typename T>
 void ensure_container_max_length(T& container) {
@@ -56,7 +56,7 @@ struct auto_dbus_free {
 template <typename T>
 using dbus_ptr = std::unique_ptr<T, auto_dbus_free<T>>;
 
-class message {
+class MC_API message {
 public:
     static message new_method_call(std::string_view destination, std::string_view path,
                                    std::string_view interface, std::string_view member);
@@ -72,7 +72,7 @@ public:
     DBusMessage* get_dbus_message() const;
     bool         is_valid() const;
 
-    message() = default;
+    message();
     message(DBusMessage* msg, bool add_ref = false);
     ~message();
 
@@ -131,7 +131,7 @@ protected:
     DBusMessage* m_dbus_message{nullptr};
 };
 
-struct message_reader {
+struct MC_API message_reader {
     message_reader();
     message_reader(const message& msg);
 
@@ -161,7 +161,7 @@ struct message_reader {
     mutable DBusMessageIter m_iter;
 };
 
-struct message_writer {
+struct MC_API message_writer {
     message_writer() = default;
     message_writer(message& msg);
     message_writer(DBusMessageIter& parent_iter, int type,
@@ -178,11 +178,35 @@ struct message_writer {
     void write_variant_struct(signature_iterator it, const mc::variant& v, std::size_t depth) const;
     void write_variant_dict(signature_iterator it, const mc::dict& dict, std::size_t depth) const;
     void write_signature(const signature& sig) const;
-    void write_signature(std::string_view sig) const;
+    void write_signature(std::string_view sig, bool need_add_tail_zero = true) const;
+    void write_path(const path& p) const;
+    void write_path(std::string_view p, bool need_add_tail_zero = true) const;
 
     template <typename T>
     const message_writer& append(const T& v) const {
         *this << v;
+        return *this;
+    }
+
+    template <typename F>
+    const message_writer& write_container(signature_iterator it, F&& v) {
+        MC_ASSERT(it.is_container(), "not a container type: ${v}", ("v", it.str()));
+
+        auto container_type = it.current_type_char();
+        auto sub_iter       = it.get_content_iterator();
+
+        message_writer sub_writer(m_iter, container_type, sub_iter.str());
+        if (sub_iter.current_type_code() == mc::reflect::type_code::dict_entry_start) {
+            // 字典的 {key、value} 还是一个容器，需要单独处理
+            auto           elem_iter = sub_iter.get_content_iterator();
+            message_writer entry_writer(sub_writer.m_iter, DBUS_TYPE_DICT_ENTRY);
+            v(entry_writer, elem_iter);
+            entry_writer.close_container();
+        } else {
+            v(sub_writer, sub_iter);
+        }
+
+        sub_writer.close_container();
         return *this;
     }
 
@@ -210,15 +234,15 @@ const message_reader& operator>>(const message_reader& reader, T& v) {
     return reader.next();
 }
 
-const message_reader& operator>>(const message_reader& reader, std::string& v);
-const message_reader& operator>>(const message_reader& reader, std::string_view& v);
-const message_reader& operator>>(const message_reader& reader, mc::dbus::path& v);
-const message_reader& operator>>(const message_reader& reader, mc::dbus::signature& v);
-const message_reader& operator>>(const message_reader& reader, mc::blob& v);
-const message_reader& operator>>(const message_reader& reader, mc::variant& v);
-const message_reader& operator>>(const message_reader& reader, mc::variants& v);
-const message_reader& operator>>(const message_reader& reader, mc::dict& v);
-const message_reader& operator>>(const message_reader& reader, mc::mutable_dict& v);
+MC_API const message_reader& operator>>(const message_reader& reader, std::string& v);
+MC_API const message_reader& operator>>(const message_reader& reader, std::string_view& v);
+MC_API const message_reader& operator>>(const message_reader& reader, mc::dbus::path& v);
+MC_API const message_reader& operator>>(const message_reader& reader, mc::dbus::signature& v);
+MC_API const message_reader& operator>>(const message_reader& reader, mc::blob& v);
+MC_API const message_reader& operator>>(const message_reader& reader, mc::variant& v);
+MC_API const message_reader& operator>>(const message_reader& reader, mc::variants& v);
+MC_API const message_reader& operator>>(const message_reader& reader, mc::dict& v);
+MC_API const message_reader& operator>>(const message_reader& reader, mc::mutable_dict& v);
 
 // 读取标准库类型
 
@@ -412,13 +436,13 @@ const message_reader& operator>>(const message_reader& reader, T& v) {
 
     message_reader sub_reader;
     sub_reader.recurse(reader);
-    mc::traits::tuple_for_each(mc::reflect::reflector<T>::get_properties(), [&](auto&& item) {
+    mc::traits::tuple_for_each(mc::reflect::get_static_properties<T>(), [&](auto* item) {
         // 如果 sub_reader 已经遍历完则直接返回，我们允许只提供前面的部分属性初始化反射类型
         if (sub_reader.at_end()) {
             return;
         }
 
-        sub_reader >> v.*item.member_ptr;
+        sub_reader >> v.*item->member_ptr;
     });
 
     return reader.next();
@@ -458,16 +482,16 @@ const message_writer& operator<<(const message_writer& writer, T v) {
     return writer;
 }
 
-const message_writer& operator<<(const message_writer& writer, const mc::dbus::path& v);
-const message_writer& operator<<(const message_writer& writer, const mc::dbus::signature& v);
-const message_writer& operator<<(const message_writer& writer, const mc::blob& v);
-const message_writer& operator<<(const message_writer& writer, const mc::variant& v);
-const message_writer& operator<<(const message_writer& writer, const mc::variants& v);
-const message_writer& operator<<(const message_writer& writer, const mc::dict& v);
-const message_writer& operator<<(const message_writer& writer, const mc::mutable_dict& v);
-const message_writer& operator<<(const message_writer& writer, const std::string& v);
-const message_writer& operator<<(const message_writer& writer, const char* str);
-const message_writer& operator<<(const message_writer& writer, const std::string_view& v);
+MC_API const message_writer& operator<<(const message_writer& writer, const mc::dbus::path& v);
+MC_API const message_writer& operator<<(const message_writer& writer, const mc::dbus::signature& v);
+MC_API const message_writer& operator<<(const message_writer& writer, const mc::blob& v);
+MC_API const message_writer& operator<<(const message_writer& writer, const mc::variant& v);
+MC_API const message_writer& operator<<(const message_writer& writer, const mc::variants& v);
+MC_API const message_writer& operator<<(const message_writer& writer, const mc::dict& v);
+MC_API const message_writer& operator<<(const message_writer& writer, const mc::mutable_dict& v);
+MC_API const message_writer& operator<<(const message_writer& writer, const std::string& v);
+MC_API const message_writer& operator<<(const message_writer& writer, const char* str);
+MC_API const message_writer& operator<<(const message_writer& writer, const std::string_view& v);
 
 // 写入标准库类型
 
@@ -476,7 +500,7 @@ const message_writer& write_array(const message_writer& writer, const Container&
     const std::string& sig = get_signature<T>();
 
     message_writer sub_writer(writer.m_iter, DBUS_TYPE_ARRAY, sig);
-    if constexpr (std::is_trivially_copyable_v<T> && IsContiguous) {
+    if constexpr (std::is_trivially_copyable_v<T> && IsContiguous && !std::is_pointer_v<T>) {
         // 对可平凡复制的类型，直接使用 fixed array 写入方式优化
         const T* data = v.data();
         dbus_message_iter_append_fixed_array(&sub_writer.m_iter, mc::reflect::first_type(sig),
@@ -626,14 +650,14 @@ template <typename T, std::enable_if_t<mc::reflect::is_reflectable<T>(), int> = 
 const message_writer& operator<<(const message_writer& writer, const T& v) {
     message_writer sub_writer(writer.m_iter, DBUS_TYPE_STRUCT);
 
-    mc::traits::tuple_for_each(mc::reflect::reflector<T>::get_properties(), [&](auto&& item) {
-        using item_type     = std::decay_t<decltype(item)>;
+    mc::traits::tuple_for_each(mc::reflect::get_static_properties<T>(), [&](auto* item) {
+        using item_type     = std::decay_t<decltype(*item)>;
         using property_type = typename item_type::member_type;
 
         static_assert(detail::has_operator_v<property_type>,
                       "属性类型T不支持通过 operator<< 写入到 dbus::message 中");
 
-        sub_writer << v.*item.member_ptr;
+        sub_writer << v.*item->member_ptr;
     });
 
     sub_writer.close_container();

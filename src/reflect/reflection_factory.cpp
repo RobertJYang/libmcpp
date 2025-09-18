@@ -68,6 +68,10 @@ factory_ptr reflection_factory::try_global_ptr() {
     return p ? *p : factory_ptr();
 }
 
+void reflection_factory::reset_global() {
+    mc::singleton<factory_ptr, global_namespace>::reset_for_test();
+}
+
 reflection_factory::reflection_factory(
     std::string_view factory_name, std::string_view factory_type_name, bool is_global)
     : m_impl(std::make_unique<impl>(factory_name, factory_type_name, is_global)) {
@@ -122,7 +126,7 @@ reflected_object_ptr reflection_factory::try_create_object(std::string_view type
 reflected_object_ptr reflection_factory::create_object(type_id_type type_id) {
     auto obj = try_create_object(type_id);
     if (!obj) {
-        MC_THROW(mc::bad_type_exception, "类型不存在: ${type_id}", ("type_id", type_id));
+        MC_THROW(mc::bad_type_exception, "Type does not exist: ${type_id}", ("type_id", type_id));
     }
     return obj;
 }
@@ -130,7 +134,7 @@ reflected_object_ptr reflection_factory::create_object(type_id_type type_id) {
 reflected_object_ptr reflection_factory::create_object(std::string_view type_name) {
     auto obj = try_create_object(type_name);
     if (!obj) {
-        MC_THROW(mc::bad_type_exception, "类型不存在: ${type_name}", ("type_name", type_name));
+        MC_THROW(mc::bad_type_exception, "Type does not exist: ${type_name}", ("type_name", type_name));
     }
     return obj;
 }
@@ -212,7 +216,7 @@ factory_id_type reflection_factory::register_factory(factory_ptr factory) {
 
     auto sub_name = factory->get_factory_name();
     if (sub_name.empty()) {
-        wlog("注册反射模块失败：子模块名不能为空");
+        wlog("Failed to register reflection module: sub-module name cannot be empty");
         return INVALID_FACTORY_ID;
     }
 
@@ -220,11 +224,11 @@ factory_id_type reflection_factory::register_factory(factory_ptr factory) {
 
     auto result = remove_prefix_if_matches(sub_name, get_factory_name());
     if (!result) {
-        wlog("注册反射模块失败：子模块 ${sub_name} 必须以当前模块 ${prefix} 作为前缀",
+        wlog("Failed to register reflection module: sub-module ${sub_name} must have current module ${prefix} as prefix",
              ("sub_name", sub_name)("prefix", get_factory_name()));
         return INVALID_FACTORY_ID;
     } else if (result->empty()) {
-        wlog("注册反射模块失败：子模块名不能和当前模块名相同, 子模块名=${sub_name}",
+        wlog("Failed to register reflection module: sub-module name cannot be same as current module name, sub-module name=${sub_name}",
              ("sub_name", sub_name));
         return INVALID_FACTORY_ID;
     }
@@ -247,16 +251,16 @@ factory_id_type reflection_factory::register_factory(factory_ptr factory) {
         auto ret = m_impl->register_factory(*result, lock_ptr->m_factory_id, factory);
         if (ret.first == INVALID_FACTORY_ID) {
             if (ret.second) {
-                wlog("注册反射模块失败：子模块名=${sub_name} 已存在, 已存在模块命名空间类型=${namespace_type_name}",
+                wlog("Failed to register reflection module: sub-module name=${sub_name} already exists, existing module namespace type=${namespace_type_name}",
                      ("sub_name", sub_name)("namespace_type_name", ret.second->get_namespace_type_name()));
             } else {
-                wlog("注册反射模块失败：子模块名=${sub_name} 已存在", ("sub_name", sub_name));
+                wlog("Failed to register reflection module: sub-module name=${sub_name} already exists", ("sub_name", sub_name));
             }
             return INVALID_FACTORY_ID;
         }
 
         lock_ptr->m_parent = shared_from_this();
-        dlog("注册反射模块成功：当前模块名=${factory_name}, 子模块名=${sub_name}, 模块ID=${factory_id}",
+        dlog("Successfully registered reflection module: current module name=${factory_name}, sub-module name=${sub_name}, module ID=${factory_id}",
              ("factory_name", m_impl->get_pretty_name()) // 当前模块名
              ("sub_name", sub_name)                      // 子模块名
              ("factory_id", ret.first));                 // 模块ID
@@ -272,7 +276,7 @@ void reflection_factory::unregister_factory(std::string_view factory_name) {
 
     auto factory_id = m_impl->unregister_factory(*result);
     if (factory_id != INVALID_FACTORY_ID) {
-        dlog("注销反射模块: 当前模块名=${factory_name}, 子模块名=${sub_name}",
+        dlog("Unregistered reflection module: current module name=${factory_name}, sub-module name=${sub_name}",
              ("factory_name", m_impl->get_pretty_name()) // 当前模块名
              ("sub_name", factory_name));                // 子模块名
 
@@ -328,17 +332,17 @@ type_id_type reflection_factory::register_type_impl(
     type_id_type                               old_type_id,
     std::function<reflection_metadata_ptr()>&& creator) {
     if (type_name.empty()) {
-        wlog("注册类型失败：类型名不能为空");
+        wlog("Failed to register type: type name cannot be empty");
         return INVALID_TYPE_ID;
     }
 
     auto result = remove_prefix_if_matches(type_name, get_factory_name());
     if (!result) {
-        wlog("注册类型失败：类型名=${type_name} 不匹配模块名=${factory_name}",
+        wlog("Failed to register type: type name=${type_name} does not match module name=${factory_name}",
              ("type_name", type_name)("factory_name", get_factory_name()));
         return INVALID_TYPE_ID;
     } else if (result->empty()) {
-        wlog("注册类型失败：类型名不能和模块名相同, 类型名=${type_name}",
+        wlog("Failed to register type: type name cannot be same as module name, type name=${type_name}",
              ("type_name", type_name));
         return INVALID_TYPE_ID;
     }
@@ -346,11 +350,11 @@ type_id_type reflection_factory::register_type_impl(
     // 去掉模块名前缀后，注册到当前模块命名空间中
     auto type_id = m_impl->register_type(*result, old_type_id, std::move(creator));
     if (type_id == INVALID_TYPE_ID) {
-        wlog("注册类型失败：类型名=${type_name} 已存在", ("type_name", type_name));
+        wlog("Failed to register type: type name=${type_name} already exists", ("type_name", type_name));
         return INVALID_TYPE_ID;
     }
 
-    dlog("注册类型成功：模块名=${factory_name}, 类型名=${type_name}, 类型ID=${type_id}",
+    dlog("Successfully registered type: module name=${factory_name}, type name=${type_name}, type ID=${type_id}",
          ("factory_name", get_factory_name())("type_name", *result)("type_id", type_id));
     return type_id;
 }
@@ -367,7 +371,7 @@ void reflection_factory::unregister_type_impl(std::string_view type_name) {
 
     auto type_id = m_impl->unregister_type(*result);
     if (type_id != INVALID_TYPE_ID) {
-        dlog("注销类型: 当前模块名=${factory_name}, 类型名=${type_name}",
+        dlog("Unregistered type: current module name=${factory_name}, type name=${type_name}",
              ("factory_name", m_impl->get_pretty_name()) // 当前模块名
              ("type_name", type_name));                  // 类型名
 

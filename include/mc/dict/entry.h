@@ -28,7 +28,8 @@ namespace mc::dict_types {
 /**
  * @brief 表示键值对的结构体，包含侵入式链表和哈希表的钩子
  */
-struct entry : public mc::intrusive::list_hook, public mc::intrusive::unordered_set_hook {
+struct entry : public mc::intrusive::list_base_hook<>,
+               public mc::intrusive::unordered_set_base_hook<mc::intrusive::link_mode<mc::intrusive::safe_link>> {
     variant key;
     variant value;
 
@@ -41,14 +42,13 @@ struct entry : public mc::intrusive::list_hook, public mc::intrusive::unordered_
 
     // 拷贝构造函数 - 不拷贝钩子状态
     entry(const entry& other)
-        : mc::intrusive::list_hook(), mc::intrusive::unordered_set_hook(), key(other.key),
+        : key(other.key),
           value(other.value) {
     }
 
     // 移动构造函数 - 不移动钩子状态
     entry(entry&& other) noexcept
-        : mc::intrusive::list_hook(), mc::intrusive::unordered_set_hook(),
-          key(std::move(other.key)), value(std::move(other.value)) {
+        : key(std::move(other.key)), value(std::move(other.value)) {
     }
 
     // 禁止赋值操作，因为钩子不支持赋值
@@ -116,7 +116,11 @@ struct key_equal {
 
 // 定义侵入式容器类型
 using entry_list = mc::intrusive::list<entry>;
-using entry_set  = mc::intrusive::unordered_set<entry, key_hash, key_equal, mc::intrusive::constant_time_size>;
+using entry_set  = mc::intrusive::unordered_set<
+     entry,
+     mc::intrusive::hash<key_hash>,
+     mc::intrusive::equal<key_equal>,
+     mc::intrusive::constant_time_size<true>>;
 
 using iterator = entry_list::iterator;
 
@@ -160,19 +164,21 @@ struct const_iterator : public entry_list::const_iterator {
     // operator*, operator->, operator++, operator==, operator!= 等都会自动继承
 };
 
+#ifndef MC_DICT_BUCKET_COUNT
+#define MC_DICT_BUCKET_COUNT 8
+#endif
+
 // 完整的 data_t 定义
 struct data_t : public mc::enable_shared_from_this<data_t> {
     // 哈希表桶数组
-    mc::intrusive::bucket_array buckets;
+    entry_set::bucket_type buckets[MC_DICT_BUCKET_COUNT];
     // 有序链表
     entry_list entries;
     // 哈希表
     entry_set index;
 
     // 构造函数
-    data_t(size_t bucket_count = 16)
-        : buckets(std::max<size_t>(bucket_count, 1)), entries(),
-          index(buckets.data(), buckets.size()) {
+    data_t() : index(entry_set::bucket_traits(buckets, MC_DICT_BUCKET_COUNT)) {
     }
 
     // 析构函数，清理资源

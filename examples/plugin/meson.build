@@ -1,6 +1,6 @@
 # 插件示例构建配置
 
-dep_arr = [boost_dep, boost_program_options_dep, dbus_dep, glib_dep]
+dep_arr = [boost_dep, boost_program_options_dep, dbus_dep, glib_dep, libmcpp_dep]
 
 # 创建插件示例可执行文件
 executable(
@@ -8,7 +8,6 @@ executable(
     'main.cpp',
     include_directories: incdir,
     dependencies: dep_arr,
-    link_with: [libmcpp_lib],
     install: true,
     install_dir: get_option('bindir'),
 )
@@ -23,7 +22,6 @@ example_plugin = shared_library(
     'example_plugin.cpp',
     include_directories: incdir,
     dependencies: dep_arr,
-    link_with: [libmcpp_lib],
     install: true,
     install_dir: get_option('libdir') / 'libmcpp/plugins',
     name_prefix: 'lib', # 强制使用lib前缀

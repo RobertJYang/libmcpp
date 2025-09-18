@@ -19,26 +19,28 @@
 
 #include <atomic>
 #include <chrono>
-#include <unistd.h>
 #include <sys/time.h>
+#include <unistd.h>
+
+#include <mc/common.h>
 
 namespace mc::interprocess {
 
 // 锁超时时间（微秒），可通过编译参数覆盖
 #ifndef MC_SHARED_MUTEX_TIMEOUT_US
-#define MC_SHARED_MUTEX_TIMEOUT_US 10000000  // 默认10秒
+#define MC_SHARED_MUTEX_TIMEOUT_US 10000000 // 默认10秒
 #endif
 
 /**
  * @brief 跨进程互斥锁类
- * 
+ *
  * 该锁使用共享内存中的原子变量实现，支持进程崩溃时自动解锁。
  * 锁使用一个进程ID和时间戳的组合来标识当前持有锁的进程。
  * 如果持有锁的进程崩溃，其他进程可以检测到并自动接管锁。
- * 
+ *
  * 注意：该类的实例必须放置在共享内存中才能正常工作
  */
-class ipc_mutex {
+class MC_API ipc_mutex {
 public:
     /**
      * @brief 构造函数
@@ -47,7 +49,7 @@ public:
 
     /**
      * @brief 析构函数
-     * 
+     *
      * 如果当前进程持有锁，会自动释放
      */
     ~ipc_mutex();
@@ -85,20 +87,20 @@ public:
 private:
     // 抢占锁的条件
     enum class preempt_condition {
-        none,            // 不能抢占
-        not_owned,       // 没有进程持有锁
-        owner_dead,      // 拥有者进程已死亡
-        timeout          // 锁超时
+        none,       // 不能抢占
+        not_owned,  // 没有进程持有锁
+        owner_dead, // 拥有者进程已死亡
+        timeout     // 锁超时
     };
 
     // 数据成员，直接存储在共享内存中
-    std::atomic<pid_t> m_owner_pid;     // 当前持有锁的进程ID
-    std::atomic<uint64_t> m_lock_time;  // 锁定的时间戳（微秒）
-    
+    std::atomic<pid_t>    m_owner_pid; // 当前持有锁的进程ID
+    std::atomic<uint64_t> m_lock_time; // 锁定的时间戳（微秒）
+
     // 检查锁是否可以被抢占
     preempt_condition can_preempt() const;
 };
 
 } // namespace mc::interprocess
 
-#endif // MC_INTERPROCESS_MUTEX_IPC_MUTEX_H 
+#endif // MC_INTERPROCESS_MUTEX_IPC_MUTEX_H

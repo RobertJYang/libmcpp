@@ -25,6 +25,8 @@ namespace mc::devices {
  */
 class device_manager {
 public:
+    MC_REFLECTABLE("DeviceManager")
+
     device_manager()  = default;
     ~device_manager() = default;
 
@@ -85,14 +87,5 @@ private:
 };
 
 } // namespace mc::devices
-
-// 导出设备管理器类到模块
-MC_MODULE_REFLECT(mc_devices,
-                  (mc::devices::device_manager, "DeviceManager"),
-                  ((create_sensor, "createSensor"))        // 创建传感器
-                  ((sensor_count, "sensorCount"))          // 获取传感器数量
-                  ((read_all_sensors, "readAllSensors"))   // 读取所有传感器数据
-                  ((get_average_value, "getAverageValue")) // 获取平均值
-                  ((list_sensors, "listSensors")))         // 获取传感器列表
 
 #endif // MC_DEVICE_MANAGER_H

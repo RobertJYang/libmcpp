@@ -12,7 +12,6 @@
 #ifndef MC_FMT_FORMATTER_STD_H
 #define MC_FMT_FORMATTER_STD_H
 
-#include <mc/exception.h>
 #include <mc/fmt/format_parser.h>
 #include <mc/fmt/formatter.h>
 
@@ -44,6 +43,7 @@ class mutable_dict;
 
 namespace mc::fmt {
 
+namespace detail {
 // 判断是否为容器类型（排除 string）
 template <typename T, typename = void>
 struct is_container : std::false_type {};
@@ -66,8 +66,14 @@ struct is_map : std::false_type {};
 template <typename T>
 struct is_map<T, std::void_t<typename T::mapped_type>> : std::true_type {};
 
-// 判断类型是否为字符串
-namespace detail {
+// 判断类型是否为 set 类型容器（set, unordered_set, multiset, unordered_multiset）
+template <typename T, typename = void>
+struct is_set : std::false_type {};
+
+template <typename T>
+struct is_set<T,
+              std::void_t<typename T::key_type, typename T::value_type>>
+    : std::true_type {};
 
 // 递归格式化元素，string 类型加双引号，char 类型加单引号，其他类型直接递归
 template <typename Context, typename T>
@@ -85,6 +91,8 @@ void format_elem(Context& ctx, const T& value, const format_spec& spec) {
     }
 }
 } // namespace detail
+
+using format_spec = detail::format_spec;
 
 template <typename T>
 struct formatter<T, std::enable_if_t<detail::is_integer_v<T>>> {
@@ -138,11 +146,15 @@ struct formatter<T, std::enable_if_t<std::is_floating_point_v<T>>> {
 
 // 通用容器 formatter（排除 string/map）
 template <typename T>
-struct formatter<T, std::enable_if_t<is_container<T>::value && !is_map<T>::value>> {
-    // 格式化输出 [elem1, elem2, ...]
+struct formatter<T, std::enable_if_t<detail::is_container<T>::value && !detail::is_map<T>::value>> {
+    // 格式化输出 [elem1, elem2, ...] 或 {elem1, elem2, ...}
     template <typename Context>
     void format(const T& container, Context& ctx, const format_spec& spec) const {
-        ctx.append('[');
+        if constexpr (detail::is_set<T>::value) {
+            ctx.append('{');
+        } else {
+            ctx.append('[');
+        }
         bool first = true;
         for (const auto& elem : container) {
             if (!first) {
@@ -151,13 +163,17 @@ struct formatter<T, std::enable_if_t<is_container<T>::value && !is_map<T>::value
             first = false;
             detail::format_elem(ctx, elem, spec);
         }
-        ctx.append(']');
+        if constexpr (detail::is_set<T>::value) {
+            ctx.append('}');
+        } else {
+            ctx.append(']');
+        }
     }
 };
 
 // map formatter，输出 {key1:value1,key2:value2,...}
 template <typename T>
-struct formatter<T, std::enable_if_t<is_map<T>::value>> {
+struct formatter<T, std::enable_if_t<detail::is_map<T>::value>> {
     template <typename Context>
     void format(const T& map, Context& ctx, const format_spec& spec) const {
         ctx.append('{');

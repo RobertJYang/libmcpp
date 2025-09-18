@@ -10,10 +10,6 @@
  * See the Mulan PSL v2 for more details.
  */
 
-/**
- * @file dict.cpp
- * @brief 实现 dict.h 中声明的方法
- */
 #include <mc/dict.h>
 #include <mc/dict/entry.h>
 #include <mc/json.h>
@@ -25,9 +21,9 @@ namespace mc {
 
 // 从键值对集合构造
 dict::dict(const std::vector<entry>& entries)
-    : m_data(mc::make_shared<data_t>(entries.empty() ? 1 : entries.size())) {
+    : m_data(mc::make_shared<data_t>()) {
     for (auto&& entry_val : entries) {
-        auto it = m_data->index.find(entry_val.key);
+        auto it = m_data->index.find(entry_val.key, m_data->index.hash_function(), m_data->index.key_eq());
         if (it != m_data->index.end()) {
             const_cast<entry&>(*it).value = entry_val.value;
         } else {
@@ -40,9 +36,9 @@ dict::dict(const std::vector<entry>& entries)
 
 // 从初始化列表构造
 dict::dict(std::initializer_list<std::pair<variant, variant>> init)
-    : m_data(mc::make_shared<data_t>(init.size())) {
+    : m_data(mc::make_shared<data_t>()) {
     for (const auto& pair : init) {
-        auto it = m_data->index.find(pair.first);
+        auto it = m_data->index.find(pair.first, m_data->index.hash_function(), m_data->index.key_eq());
         if (it != m_data->index.end()) {
             const_cast<entry&>(*it).value = pair.second;
         } else {
@@ -64,7 +60,7 @@ const dict::entry* dict::find_entry(std::string_view key) const {
         return nullptr;
     }
 
-    auto it = m_data->index.find(key);
+    auto it = m_data->index.find(key, m_data->index.hash_function(), m_data->index.key_eq());
     if (it != m_data->index.end()) {
         return &(*it);
     }
@@ -84,7 +80,7 @@ const dict::entry* dict::find_entry(const variant& key) const {
         return nullptr;
     }
 
-    auto it = m_data->index.find(key);
+    auto it = m_data->index.find(key, m_data->index.hash_function(), m_data->index.key_eq());
     if (it != m_data->index.end()) {
         return &(*it);
     }
@@ -276,6 +272,15 @@ const variant& dict::at(const variant& key) const {
     return e->value;
 }
 
+const variant& dict::at(std::size_t index) const {
+    const auto* e = find_entry(index);
+    if (e) {
+        return e->value;
+    }
+
+    return this->at_index(index).value;
+}
+
 // 计算指定元素在列表中的索引位置
 int dict::find_entry_index(const entry* e) const {
     if (!e || !m_data) {
@@ -408,6 +413,21 @@ dict::const_iterator dict::find(const variant& key) const {
         return end();
     }
     return m_data->entries.iterator_to(*const_cast<entry*>(e));
+}
+
+dict::const_iterator dict::find(std::size_t index) const {
+    const auto* e = find_entry(index);
+    if (e) {
+        return m_data->entries.iterator_to(*const_cast<entry*>(e));
+    }
+
+    if (index >= size()) {
+        return end();
+    }
+
+    auto it = m_data->entries.begin();
+    std::advance(it, index);
+    return it;
 }
 
 // 将 dict 转换为 variant

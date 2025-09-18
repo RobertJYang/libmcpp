@@ -94,7 +94,7 @@ TEST_F(PropertyConcurrentFixTest, GetObjectNameConcurrentSafety) {
     sync_barrier sync_point(num_threads);
     
     for (int t = 0; t < num_threads; ++t) {
-        threads.emplace_back([this, t, iterations_per_thread, &error_count, &sync_point]() {
+        threads.emplace_back([this, t, &error_count, &sync_point]() {
             auto& obj = test_objects_[t];
             std::string expected_name = "TestObject_" + std::to_string(t);
             
@@ -145,7 +145,7 @@ TEST_F(PropertyConcurrentFixTest, HighConcurrencyStressTest) {
     std::vector<std::thread> threads;
     
     for (int t = 0; t < num_threads; ++t) {
-        threads.emplace_back([this, t, iterations, &success_count, &error_count]() {
+        threads.emplace_back([this, t, &success_count, &error_count]() {
             for (int i = 0; i < iterations; ++i) {
                 try {
                     // 随机选择一个对象进行操作

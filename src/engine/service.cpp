@@ -17,6 +17,8 @@
 #include <mc/dbus/signal.h>
 #include <mc/dbus/validator.h>
 #include <mc/engine.h>
+#include <mc/engine/errors/std_errors.h>
+#include <mc/engine/micro_component.h>
 #include <mc/engine/path_iterator.h>
 #include <mc/engine/utils.h>
 #include <mc/exception.h>
@@ -103,19 +105,20 @@ struct service_impl {
     uint64_t                   add_match(mc::dbus::match_rule& rule, mc::dbus::match_cb_t&& cb);
     void                       remove_match(uint64_t id);
 
-    std::mutex                     m_mutex;
-    service*                       m_service;
-    dbus::connection               m_connection;
-    object_table_ptr               m_object_table;
-    mc::shared_ptr<service_object> m_service_object;
-    root_object                    m_root;
-    mc::dbus::shm_tree*            m_shm_tree;
+    std::mutex                             m_mutex;
+    service*                               m_service;
+    dbus::connection                       m_connection;
+    object_table_ptr                       m_object_table;
+    mc::shared_ptr<service_object>         m_service_object;
+    mc::shared_ptr<micro_component_object> m_micro_component_object;
+    root_object                            m_root;
+    mc::dbus::shm_tree*                    m_shm_tree;
 };
 } // namespace mc::engine
 
 MC_REFLECT(mc::engine::service_interface, ((m_service_name, "name")))
 MC_REFLECT(mc::engine::service_object, ((m_interface, "interface")))
-MC_REFLECT(mc::engine::root_object, ())
+MC_REFLECT(mc::engine::root_object)
 
 using service_table =
     mdb::table<mc::engine::service_object,
@@ -130,6 +133,8 @@ bool service_impl::init(service* s) {
     m_service        = s;
     m_service_object = mc::make_shared<service_object>();
     m_service_object->init(s);
+    m_micro_component_object = mc::make_shared<micro_component_object>();
+    m_micro_component_object->init(s->name());
     return true;
 }
 
@@ -170,6 +175,7 @@ bool service_impl::start() {
     harbor.start();
 
     register_object(*m_service_object);
+    register_object(*m_micro_component_object);
 
     return true;
 }
@@ -181,7 +187,10 @@ void service_impl::stop() {
 
     auto& engine   = mc::engine::engine::get_instance();
     auto  services = engine.get_table<service_table>("services");
-    services->remove(m_service_object);
+
+    if (m_service_object) {
+        services->remove(m_service_object);
+    }
 
     if (m_object_table) {
         m_object_table->clear();
@@ -210,7 +219,7 @@ void service_impl::register_object(abstract_object& obj) {
         obj.set_owner(owner);
     }
 
-    mc::dbus::shm_lock_call([this, &obj]() {
+    mc::dbus::shm_global_lock_exec([this, &obj]() {
         m_shm_tree->register_object(obj);
     });
     mc::dbus::emit_interfaces_added(m_connection, obj);
@@ -287,7 +296,7 @@ void service_impl::unregister_object(std::string_view path) {
     obj.set_owner(nullptr);
     obj.set_service(nullptr);
 
-    mc::dbus::shm_lock_call([this, path]() {
+    mc::dbus::shm_global_lock_exec([this, path]() {
         m_shm_tree->unregister_object(path);
     });
     mc::dbus::emit_interfaces_removed(m_connection, obj);
@@ -390,7 +399,11 @@ DBusHandlerResult service_impl::on_method_call(abstract_object& object, mc::dbus
         auto result = object.invoke(method_name, args, interface_name);
         if (!ctx.get_method()) {
             info.response =
-                mc::dbus::message::new_error(msg, errors::unknown_method.name, "method not found");
+                mc::dbus::message::new_error(msg, errors::unknown_method.name,
+                                             "method not found");
+        } else if (ctx.get_status() == handler_status::ignored) {
+            info.response = mc::dbus::message::new_error(msg, errors::not_supported.name,
+                                                         "method not supported");
         } else {
             info.response = mc::dbus::message::new_method_return(msg);
             mc::dbus::signature_iterator it(ctx.get_method()->get_result_signature());

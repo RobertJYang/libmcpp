@@ -25,11 +25,12 @@ class object_table;
 class abstract_object;
 using path_resolver = std::function<bool(std::string_view, const abstract_object&, std::string& path)>;
 
-class engine {
+class MC_API engine {
 public:
     ~engine();
 
     static engine& get_instance();
+    static void    reset_for_test();
 
     mc::db::database& get_database();
 

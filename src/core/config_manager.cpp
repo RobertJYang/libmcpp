@@ -155,6 +155,8 @@ void config_manager::process_config(const variant& config) {
 
     if (kind == "Application") {
         process_app_config(config);
+    } else if (kind == "Logging") {
+        process_logging_config(config);
     }
 }
 
@@ -176,6 +178,19 @@ void config_manager::process_app_config(const variant& config) {
     }
 }
 
+void config_manager::process_logging_config(const variant& config) {
+    try {
+        mc::log::logging_config log_config;
+        from_variant(config, log_config);
+
+        // 直接应用日志配置
+        mc::log::log_manager::instance().apply_config(log_config);
+        ilog("Logging configuration loaded and applied from config file");
+    } catch (const std::exception& e) {
+        elog("failed to parse logging config: ${error}", ("error", e.what()));
+    }
+}
+
 bool config_manager::validate_config(const std::string& kind, const variant& config) {
     try {
         if (kind == "Application") {
@@ -194,6 +209,9 @@ bool config_manager::validate_config(const std::string& kind, const variant& con
             config::plugin_config plugin;
             from_variant(config, plugin);
             return config::config_validator::validate_plugin_config(plugin);
+        } else if (kind == "Logging") {
+            // Logging配置不需要特殊验证，直接返回true
+            return true;
         } else {
             MC_THROW(mc::parse_error_exception, "unknown type: ${kind}", ("kind", kind));
         }
@@ -233,4 +251,17 @@ bool config_manager::add_config(const variant& config) {
     }
 }
 
-} // namespace mc
+} // namespace mc::core
+
+// 反射元数据定义
+MC_REFLECT(mc::config::metadata, (name)(labels)(annotations))
+MC_REFLECT(mc::config::resource_base, (api_version)(kind)(meta))
+MC_REFLECT(mc::config::app_config, MC_BASE_CLASS(mc::config::resource_base),
+           (plugin_dir)(plugins)(threads)(work_threads))
+MC_REFLECT_ENUM(mc::config::supervisor_strategy, (one_for_one)(one_for_all)(rest_for_one))
+MC_REFLECT(mc::config::supervisor_config, MC_BASE_CLASS(mc::config::resource_base),
+           (strategy)(max_restarts)(services))
+MC_REFLECT(mc::config::service_config, MC_BASE_CLASS(mc::config::resource_base),
+           (type)(dependencies)(properties))
+MC_REFLECT(mc::config::plugin_config, MC_BASE_CLASS(mc::config::resource_base),
+           (version)(properties))

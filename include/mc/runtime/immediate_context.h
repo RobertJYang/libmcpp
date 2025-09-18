@@ -20,13 +20,13 @@
 namespace mc::runtime {
 
 class immediate_context;
-class immediate_executor {
+class MC_API immediate_executor {
 public:
-    immediate_executor()  = default;
-    ~immediate_executor() = default;
+    immediate_executor();
+    ~immediate_executor();
 
-    immediate_executor(const immediate_executor&)            = default;
-    immediate_executor& operator=(const immediate_executor&) = default;
+    immediate_executor(const immediate_executor&);
+    immediate_executor& operator=(const immediate_executor&);
 
     // 在当前线程立即执行工作
     template <typename F>
@@ -34,13 +34,8 @@ public:
         std::forward<F>(f)();
     }
 
-    bool operator==(const immediate_executor&) const noexcept {
-        return true;
-    }
-
-    bool operator!=(const immediate_executor&) const noexcept {
-        return false;
-    }
+    bool operator==(const immediate_executor&) const noexcept;
+    bool operator!=(const immediate_executor&) const noexcept;
 
     // 在当前线程立即派发工作
     template <typename F, typename Allocator>
@@ -60,18 +55,14 @@ public:
         std::forward<F>(f)();
     }
 
-    void on_work_started() const noexcept {
-    }
+    void on_work_started() const noexcept;
 
-    void on_work_finished() const noexcept {
-    }
+    void on_work_finished() const noexcept;
 
     immediate_context& context() const noexcept;
 
     // 支持 execution::blocking.never 属性
-    immediate_executor require(boost::asio::execution::blocking_t::never_t) const {
-        return *this;
-    }
+    immediate_executor require(boost::asio::execution::blocking_t::never_t) const;
 
     // 查询执行器属性
     static constexpr boost::asio::execution::blocking_t query(boost::asio::execution::blocking_t) {
@@ -80,21 +71,15 @@ public:
 };
 
 // immediate_context 用于立即执行回调的上下文
-class immediate_context {
+class MC_API immediate_context {
 public:
     using executor_type = immediate_executor;
 
-    immediate_context() = default;
+    immediate_context();
+    ~immediate_context();
 
-    executor_type get_executor() const noexcept {
-        return executor_type();
-    }
+    executor_type get_executor() const noexcept;
 };
-
-inline immediate_context& immediate_executor::context() const noexcept {
-    static immediate_context ctx;
-    return ctx;
-}
 
 } // namespace mc::runtime
 

@@ -98,7 +98,7 @@ object_context engine::make_context(mc::engine::abstract_object* object,
     return object_context(object, parent ? parent : &get_global_context());
 }
 
-static bool _install_path_resolver = []() {
+[[maybe_unused]] static bool _install_path_resolver = []() {
     mc::engine::engine::set_path_resolver(
         [](std::string_view path_pattern, const abstract_object& obj, std::string& path) {
         return resolve_object_path(engine::get_instance(), path_pattern, obj, path);

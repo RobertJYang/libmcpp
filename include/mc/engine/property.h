@@ -14,6 +14,12 @@
 
 #include <functional>
 #include <mc/engine/base.h>
+#include <mc/engine/property/detail.h>
+#include <mc/engine/property/helper.h>
+#include <mc/engine/property/processor.h>
+#include <mc/engine/property/processors.h>
+#include <mc/engine/property/ref_object.h>
+#include <mc/engine/property/types.h>
 #include <mc/expr/function/call.h>
 #include <mc/expr/function/collection.h>
 #include <mc/expr/function/parser.h>
@@ -30,224 +36,8 @@ using namespace mc::expr;
 
 namespace mc::engine {
 
-// 属性类型枚举
-enum class p_type : uint32_t {
-    normal     = 0, // 普通属性
-    sync       = 1, // 同步属性
-    reference  = 2, // 引用属性
-    ref_object = 3  // 引用对象属性
-};
-
-// 定义常量以便与 int 类型兼容
-namespace property_options {
-constexpr int memory   = 1;
-constexpr int from_mdb = 2;
-} // namespace property_options
-
-namespace detail {
-
-struct empty_observer {
-    void notify(const mc::variant& value, const property_base& prop) {
-    }
-};
-
-// 用于存储函数调用相关的数据
-struct func_data {
-    mc::expr::func   func_obj;
-    mc::mutable_dict params;
-};
-
-class interface_observer {
-public:
-    interface_observer() {
-    }
-
-    void set_interface(abstract_interface* interface) {
-        m_interface = interface;
-    }
-
-    abstract_interface* get_interface() const {
-        return m_interface;
-    }
-
-    void notify(const mc::variant& value, const property_base& prop);
-
-protected:
-    // 不要初始化这个值，由 interface 的基类填充
-    abstract_interface* m_interface;
-};
-
-} // namespace detail
-
-// 引用对象类，实现弱引用语义
-class ref_object : public variant_extension_base {
-public:
-    using object_finder_type = std::function<abstract_object*(const std::string&)>;
-
-    ref_object(const std::string& object_name, object_finder_type finder = nullptr)
-        : m_object_name(object_name), m_object_finder(finder) {
-    }
-
-    // 获取被引用对象的属性
-    mc::variant get_property(const std::string_view property_name) const {
-        auto* target_object = find_related_object();
-        if (target_object == nullptr) {
-            MC_THROW(mc::invalid_op_exception, "引用对象不存在: ${object_name}", ("object_name", m_object_name));
-        }
-        return target_object->get_property(property_name);
-    }
-
-    // 获取被引用对象的接口属性
-    mc::variant get_property(const std::string_view interface_name, const std::string_view property_name) const {
-        auto* target_object = find_related_object();
-        if (target_object == nullptr) {
-            MC_THROW(mc::invalid_op_exception, "引用对象不存在: ${object_name}", ("object_name", m_object_name));
-        }
-
-        if (!interface_name.empty()) {
-            auto interface_obj = target_object->get_interface(interface_name);
-            if (interface_obj == nullptr) {
-                MC_THROW(mc::invalid_op_exception, "Interface not found: ${interface} in object: ${object_name}",
-                         ("interface", interface_name)("object_name", m_object_name));
-            }
-            return interface_obj->get_property(property_name);
-        }
-
-        return target_object->get_property(property_name);
-    }
-
-    // 设置被引用对象的属性
-    void set_property(const std::string_view property_name, const mc::variant& value) const {
-        auto* target_object = find_related_object();
-        if (target_object == nullptr) {
-            MC_THROW(mc::invalid_op_exception, "引用对象不存在，无法设置属性: ${object_name}", ("object_name", m_object_name));
-        }
-        target_object->set_property(property_name, value);
-    }
-
-    // 设置被引用对象的接口属性
-    void set_property(const std::string_view interface_name, const std::string_view property_name, const mc::variant& value) const {
-        auto* target_object = find_related_object();
-        if (target_object == nullptr) {
-            MC_THROW(mc::invalid_op_exception, "引用对象不存在，无法设置属性: ${object_name}", ("object_name", m_object_name));
-        }
-
-        if (!interface_name.empty()) {
-            auto interface_obj = target_object->get_interface(interface_name);
-            if (interface_obj == nullptr) {
-                MC_THROW(mc::invalid_op_exception, "Interface not found: ${interface} in object: ${object_name}",
-                         ("interface", interface_name)("object_name", m_object_name));
-            }
-            interface_obj->set_property(property_name, value);
-        } else {
-            target_object->set_property(property_name, value);
-        }
-    }
-
-    invoke_result invoke(std::string_view method_name, const mc::variants& args) {
-        auto* target_object = find_related_object();
-        if (target_object == nullptr) {
-            MC_THROW(mc::invalid_op_exception, "引用对象不存在: ${object_name}", ("object_name", m_object_name));
-        }
-
-        return target_object->invoke(method_name, args);
-    }
-
-    invoke_result invoke(const std::string& interface_name, std::string_view method_name, const mc::variants& args) {
-        auto* target_object = find_related_object();
-        if (target_object == nullptr) {
-            MC_THROW(mc::invalid_op_exception, "引用对象不存在: ${object_name}", ("object_name", m_object_name));
-        }
-
-        if (!interface_name.empty()) {
-            auto interface_obj = target_object->get_interface(interface_name);
-            if (interface_obj == nullptr) {
-                MC_THROW(mc::invalid_op_exception, "Interface not found: ${interface} in object: ${object_name}",
-                         ("interface", interface_name)("object_name", m_object_name));
-            }
-            return interface_obj->invoke(method_name, args);
-        }
-
-        return target_object->invoke(method_name, args);
-    }
-
-    async_result async_invoke(std::string_view method_name, const mc::variants& args = {}) {
-        auto* target_object = find_related_object();
-        if (target_object == nullptr) {
-            MC_THROW(mc::invalid_op_exception, "引用对象不存在: ${object_name}", ("object_name", m_object_name));
-        }
-
-        return target_object->async_invoke(method_name, args);
-    }
-
-    async_result async_invoke(const std::string& interface_name, std::string_view method_name, const mc::variants& args = {}) {
-        auto* target_object = find_related_object();
-        if (target_object == nullptr) {
-            MC_THROW(mc::invalid_op_exception, "引用对象不存在: ${object_name}", ("object_name", m_object_name));
-        }
-
-        if (!interface_name.empty()) {
-            auto interface_obj = target_object->get_interface(interface_name);
-            if (interface_obj == nullptr) {
-                MC_THROW(mc::invalid_op_exception, "Interface not found: ${interface} in object: ${object_name}",
-                         ("interface", interface_name)("object_name", m_object_name));
-            }
-            return interface_obj->async_invoke(method_name, args);
-        }
-
-        return target_object->async_invoke(method_name, args);
-    }
-
-    // 获取对象名称
-    const std::string& get_object_name() const {
-        return m_object_name;
-    }
-
-    // 检查被引用的对象是否存在
-    bool is_valid() const {
-        return find_related_object() != nullptr;
-    }
-
-    // 获取被引用的对象指针（可能为空）
-    abstract_object* get_object() const {
-        return find_related_object();
-    }
-
-    std::string as_string() const override {
-        return m_object_name;
-    }
-
-    bool equals(const variant_extension_base& other) const override {
-        if (auto* other_ref = dynamic_cast<const ref_object*>(&other)) {
-            return m_object_name == other_ref->m_object_name;
-        }
-        return false;
-    }
-
-    // 实现 variant_extension_base 的纯虚函数
-    mc::shared_ptr<variant_extension_base> clone() const override {
-        return mc::make_shared<ref_object>(m_object_name, m_object_finder);
-    }
-
-    std::string_view get_type_name() const override {
-        return "ref_object";
-    }
-
-private:
-    std::string        m_object_name;
-    object_finder_type m_object_finder;
-
-    // 查找被引用的对象（弱引用，可能返回 nullptr）
-    abstract_object* find_related_object() const {
-        if (m_object_finder) {
-            return m_object_finder(m_object_name);
-        }
-        return nullptr;
-    }
-};
-
 template <typename T, typename Observer = detail::interface_observer>
-class property : public property_base {
+class property : public property_helper, public Observer {
     static_assert(std::is_same_v<std::decay_t<T>, T>, "T must be a non-reference type");
 
 public:
@@ -283,7 +73,7 @@ public:
     }
     param_type value(bool realtime = false) const {
         // 如果设置了外部getter，优先调用外部getter
-        if (m_outsider_getter && realtime) {
+        if (has_extension_data() && m_extension_data->outsider_getter && realtime) {
             const_cast<property_type*>(this)->update_value();
         }
 
@@ -294,20 +84,22 @@ public:
             return m_value;
         }
 
-        if (m_getter && realtime) {
+        if (has_extension_data() && m_extension_data->getter && realtime) {
             const_cast<property_type*>(this)->update_value();
         }
         return m_value;
     }
     void set_value(param_type new_value) {
-        if (m_setter) {
-            m_setter(new_value);
+        if (has_extension_data() && m_extension_data->setter) {
+            mc::variant variant_value(new_value);
+            m_extension_data->setter(variant_value);
         }
         set_value_impl(new_value);
     }
     void set_value(rvalue_type new_value) {
-        if (m_setter) {
-            m_setter(new_value);
+        if (has_extension_data() && m_extension_data->setter) {
+            mc::variant variant_value(new_value);
+            m_extension_data->setter(variant_value);
         }
         set_value_impl(std::move(new_value));
     }
@@ -343,16 +135,29 @@ public:
     // 设置外部getter和setter方法
     void make_outsider_getter_setter(std::function<value_type()>     outsider_getter,
                                      std::function<bool(param_type)> outsider_setter) {
-        m_outsider_getter = std::move(outsider_getter);
-        m_outsider_setter = std::move(outsider_setter);
+        ensure_extension_data();
+        // 包装getter函数，将返回值转换为variant
+        if (outsider_getter) {
+            m_extension_data->outsider_getter = [outsider_getter]() -> mc::variant {
+                return mc::variant(outsider_getter());
+            };
+        }
+        // 包装setter函数，将variant参数转换为具体类型
+        if (outsider_setter) {
+            m_extension_data->outsider_setter = [outsider_setter](const mc::variant& value) -> bool {
+                T concrete_value;
+                from_variant(value, concrete_value);
+                return outsider_setter(concrete_value);
+            };
+        }
     }
 
-    observer_type& observer() {
-        return m_observer;
+    observer_type& get_observer() {
+        return *this;
     }
 
-    const observer_type& observer() const {
-        return m_observer;
+    const observer_type& get_observer() const {
+        return *this;
     }
 
     template <typename U>
@@ -396,10 +201,10 @@ public:
 private:
     // 获取引用对象名称的统一方法
     std::string get_ref_object_name() const {
-        if (m_property_type == p_type::ref_object && m_ref_object_cache) {
+        if (m_property_type == p_type::ref_object && has_extension_data() && m_extension_data->ref_object_cache) {
             // 从缓存的 ref_object 获取对象名称
-            if (m_ref_object_cache->is_extension()) {
-                auto ref_obj_ptr = m_ref_object_cache->as<ref_object*>();
+            if (m_extension_data->ref_object_cache->is_extension()) {
+                auto ref_obj_ptr = m_extension_data->ref_object_cache->template as<ref_object*>();
                 if (ref_obj_ptr) {
                     return ref_obj_ptr->get_object_name();
                 }
@@ -420,498 +225,38 @@ private:
 
     // 确保引用对象缓存已初始化，返回引用对象的 variant
     mc::variant& ensure_ref_object_cache() const {
-        if (!m_ref_object_cache) {
-            const_cast<property_type*>(this)->initialize_ref_object_cache();
+        auto& ext_data = ensure_extension_data();
+        if (!ext_data.ref_object_cache) {
+            // 如果没有缓存，返回空的variant（处理器负责初始化）
+            ext_data.ref_object_cache = std::make_unique<mc::variant>();
         }
-        return *m_ref_object_cache;
-    }
-
-    // 处理引用对象的 from_variant 逻辑
-    void process_ref_object_from_variant(const std::string& ref_object_str) {
-        auto ref_obj    = func_parser::get_instance().parse_ref_object(ref_object_str);
-        m_property_type = p_type::ref_object;
-
-        // 清理旧的缓存（如果有的话）
-        m_ref_object_cache.reset();
-
-        // 暂时存储对象名称到属性值中（懒加载，等到需要时再转换）
-        if constexpr (std::is_convertible_v<T, std::string>) {
-            m_value = static_cast<T>(ref_obj.object_name);
-        } else {
-            from_variant(mc::variant(ref_obj.object_name), m_value);
-        }
-
-        m_setter = [this](const T& value) {
-            MC_THROW(mc::invalid_op_exception, "设置引用对象属性值不被允许: ${name}", ("name", get_name()));
-        };
+        return *ext_data.ref_object_cache;
     }
 
 public:
-    // 获取引用对象的variant包装器（现在直接使用缓存）
-    mc::variant get_ref_object_variant() const {
-        return ensure_ref_object_cache();
-    }
-
-    // 查找对象的辅助方法
-    abstract_object* find_related_object(const std::string& object_name) {
-        auto position = get_object()->get_position();
-        auto service  = func_collection::get_instance().get_service(position);
-        if (service == nullptr) {
-            elog("Service not found for position: ${position}",
-                 ("position", std::string(position)));
-            return nullptr;
-        }
-
-        std::string full_object_name = object_name + "_" + std::string(position);
-
-        auto& object_table = service->get_object_table();
-        auto& idx          = object_table.template get<mc::engine::by_object_name>();
-        auto  obj_it       = idx.find(full_object_name);
-
-        if (obj_it == idx.end()) {
-            obj_it = idx.find(full_object_name + "_dev");
-        }
-
-        if (obj_it == idx.end()) {
-            elog("Object not found: ${object_name}, searched for: ${full_name}",
-                 ("object_name", object_name)("full_name", full_object_name));
-            return nullptr;
-        }
-
-        return const_cast<mc::engine::abstract_object*>(&(*obj_it));
-    }
-
-    // 初始化引用对象缓存（只在属性设置时调用一次）
-    void initialize_ref_object_cache() {
-        if (m_property_type != p_type::ref_object) {
-            return;
-        }
-
-        // 分配缓存内存
-        if (!m_ref_object_cache) {
-            m_ref_object_cache = std::make_unique<mc::variant>();
-
-            // 获取对象名称（从当前 m_value 中获取，因为这时候还未改变 m_value）
-            std::string object_name;
-            if constexpr (std::is_convertible_v<T, std::string>) {
-                object_name = static_cast<std::string>(m_value);
-            } else {
-                mc::variant temp_variant(m_value);
-                if (temp_variant.is_string()) {
-                    object_name = temp_variant.as_string();
-                } else {
-                    MC_THROW(mc::invalid_op_exception, "引用对象属性值不是字符串类型: ${name}", ("name", get_name()));
-                }
-            }
-
-            // 创建弱引用对象包装器
-            auto object_finder = [this](const std::string& name) -> abstract_object* {
-                return const_cast<property_type*>(this)->find_related_object(name);
-            };
-            auto ref_obj = std::make_shared<ref_object>(object_name, object_finder);
-
-            // 在缓存中存储 ref_object
-            *m_ref_object_cache = mc::variant(ref_obj);
-
-            // 将转换后的结果存储到 m_value
-            if constexpr (std::is_same_v<T, mc::variant>) {
-                const_cast<property_type*>(this)->m_value = mc::variant(ref_obj);
-            } else {
-                // 对于非 variant 类型，尝试转换并存储
-                try {
-                    from_variant(mc::variant(ref_obj), const_cast<property_type*>(this)->m_value);
-                } catch (const std::exception&) {
-                    // 转换失败时使用默认值
-                    const_cast<property_type*>(this)->m_value = T{};
-                }
-            }
-        }
-    }
-
-    // 执行函数调用的辅助方法
-    mc::variant call_function_with_result() {
-        if (!m_func_data) {
-            elog("Function data is null for property: ${name}", ("name", get_name()));
-            return mc::variant();
-        }
-
-        try {
-            auto position = get_object()->get_position();
-            auto result   = m_func_data->func_obj.call(position, m_func_data->params);
-            if (result.is_null()) {
-                elog("Function call failed for property: ${name}", ("name", get_name()));
-            }
-            return result;
-        } catch (const std::exception& e) {
-            elog("Function call exception for property: ${name}, 错误: ${error}",
-                 ("name", get_name())("error", e.what()));
-            return mc::variant();
-        }
-    }
-
-    // 设置函数getter的辅助方法
-    void setup_function_getter() {
-        m_getter = [this]() -> T {
-            auto result = call_function_with_result();
-            if (result.is_null()) {
-                return T{};
-            }
-
-            T value;
-            from_variant(result, value);
-            return value;
-        };
-    }
-
-    void hook_ref_properties(mc::mutable_dict& relate_properties) {
-        setup_function_getter();
-
-        // 引用属性不支持设置值
-        m_setter = [this](const T& value) {
-            MC_THROW(mc::invalid_op_exception, "设置引用属性值不被允许: ${name}", ("name", get_name()));
-        };
-    }
-
-    mc::variant get_relate_property(const relate_property& relate_property) {
-        auto* target_object = find_related_object(relate_property.object_name);
-        if (target_object == nullptr) {
-            return mc::variant();
-        }
-
-        // 如果指定了接口，先获取接口再获取属性
-        if (!relate_property.interface.empty()) {
-            auto interface_obj = target_object->get_interface(relate_property.interface);
-            if (interface_obj == nullptr) {
-                elog("Interface not found: ${interface} in object: ${object_name}",
-                     ("interface", relate_property.interface)("object_name", relate_property.object_name));
-                return mc::variant();
-            }
-            return interface_obj->get_property(relate_property.property_name);
-        } else {
-            // 传统方式：直接从对象获取属性
-            return target_object->get_property(relate_property.property_name);
-        }
-    }
-
-    void set_relate_property(const relate_property& relate_property, const mc::variant& value) {
-        auto* target_object = find_related_object(relate_property.object_name);
-        if (target_object == nullptr) {
-            MC_THROW(mc::invalid_op_exception, "set_relate_property ${name} failed: Object not found: ${object_name}",
-                     ("name", get_name())("object_name", relate_property.object_name));
-        }
-
-        // 如果指定了接口，先获取接口再设置属性
-        if (!relate_property.interface.empty()) {
-            auto interface_obj = target_object->get_interface(relate_property.interface);
-            if (interface_obj == nullptr) {
-                MC_THROW(mc::invalid_op_exception, "set_relate_property ${name} failed: Interface not found: ${interface} in object: ${object_name}",
-                         ("name", get_name())("interface", relate_property.interface)("object_name", relate_property.object_name));
-            }
-            interface_obj->set_property(relate_property.property_name, value);
-        } else {
-            // 传统方式：直接在对象上设置属性
-            target_object->set_property(relate_property.property_name, value);
-        }
-    }
-
-    void hook_ref_property(const relate_property& relate_property) {
-        m_getter = [this, relate_property]() -> T {
-            auto result = get_relate_property(relate_property);
-            if (result.is_null()) {
-                MC_THROW(mc::invalid_op_exception, "获取引用属性${name}失败: ${object_name}.${property_name}",
-                         ("name", get_name())("object_name", relate_property.object_name)("property_name", relate_property.property_name));
-            }
-
-            T value;
-            from_variant(result, value);
-            return value;
-        };
-
-        m_setter = [this, relate_property](const T& value) {
-            mc::variant variant_value(value);
-            set_relate_property(relate_property, variant_value);
-        };
-    }
-
-    // 连接属性变化监听器的辅助方法
-    void connect_property_listener(abstract_object&      target_object,
-                                   const std::string&    property_name,
-                                   std::function<void()> callback) {
-        target_object.property_changed().connect(
-            [this, property_name, callback](const mc::variant& value, const property_base& prop) {
-            if (prop.get_name() == property_name) {
-                callback();
-            }
-        });
-    }
-
-    // 断开所有已有的连接
-    void disconnect_all_connections() {
-        // 主动断开所有连接
-        for (auto& slot : m_connection_slots) {
-            slot.disconnect();
-        }
-        // 清理现有的连接状态
-        m_connection_slots.clear();
-    }
-
-    // 设置同步属性连接的辅助方法
-    void setup_sync_property_connection(const relate_property& relate_property,
-                                        abstract_object&       target_object) {
-        // 断开旧连接
-        disconnect_all_connections();
-
-        // 创建新的连接
-        auto slot = target_object.property_changed().connect(
-            [this, relate_property](const mc::variant& value, const property_base& prop) {
-            if (prop.get_name() == relate_property.property_name) {
-                auto result = get_relate_property(relate_property);
-                if (!result.is_null()) {
-                    T new_value;
-                    from_variant(result, new_value);
-                    set_value_impl(std::move(new_value));
-                }
-            }
-        });
-
-        // 存储连接以便后续管理
-        m_connection_slots.push_back(slot);
-
-        // 设置初始值
-        auto initial_value = target_object.get_property(relate_property.property_name);
-        if (!initial_value.is_null()) {
-            T value;
-            from_variant(initial_value, value);
-            set_value_impl(std::move(value));
-        }
-    }
-
-    // 设置延迟同步连接的辅助方法
-    void setup_deferred_sync_connection(const relate_property& relate_property) {
-        auto position = get_object()->get_position();
-        auto service  = func_collection::get_instance().get_service(position);
-        if (service == nullptr) {
-            return;
-        }
-
-        std::string full_object_name = relate_property.object_name + "_" + std::string(position);
-        auto&       object_table     = service->get_object_table();
-
-        auto slot = object_table.on_object_added.connect(
-            [this, full_object_name, relate_property](mc::core::object_base& base_object) {
-            auto& object = static_cast<mc::engine::abstract_object&>(base_object);
-            if (object.get_name() == full_object_name) {
-                setup_sync_property_connection(relate_property, object);
-            }
-        });
-
-        // 存储延迟连接
-        m_connection_slots.push_back(slot);
-    }
-
-    void hook_sync_property(const relate_property& relate_property) {
-        auto* target_object = find_related_object(relate_property.object_name);
-        if (target_object == nullptr) {
-            setup_deferred_sync_connection(relate_property);
-        } else {
-            setup_sync_property_connection(relate_property, *target_object);
-        }
-
-        // 同步属性不支持设置值
-        m_setter = [this](const T& value) {
-            MC_THROW(mc::invalid_op_exception, "设置同步属性值不被允许: ${name}", ("name", get_name()));
-        };
-    }
-
-    // 更新同步属性值的辅助方法
-    void update_sync_value_from_function() {
-        auto result = call_function_with_result();
-        if (result.is_null()) {
-            return;
-        }
-
-        T value;
-        from_variant(result, value);
-        set_value_impl(std::move(value));
-    }
-
-    // 按对象分组属性的辅助方法
-    mc::mutable_dict group_properties_by_object(const mc::mutable_dict& relate_properties) {
-        mc::mutable_dict object_properties;
-
-        for (const auto& entry : relate_properties) {
-            auto relate_property = entry.value.template as<mc::expr::relate_property>();
-
-            if (!object_properties.contains(relate_property.object_name)) {
-                object_properties[relate_property.object_name] = mc::mutable_dict{};
-            }
-
-            auto object_property = object_properties[relate_property.object_name].as<mc::mutable_dict>();
-            object_property.insert(relate_property.property_name, true);
-            object_properties[relate_property.object_name] = object_property;
-        }
-
-        return object_properties;
-    }
-
-    // 处理单个对象的同步属性
-    void process_sync_properties_for_object(const std::string&      object_name,
-                                            const mc::mutable_dict& object_properties) {
-        auto* target_object = find_related_object(object_name);
-        if (target_object == nullptr) {
-            setup_deferred_multi_sync_connection(object_name, object_properties);
-            return;
-        }
-
-        setup_multi_sync_connection(*target_object, object_properties);
-    }
-
-    // 设置多属性同步连接
-    void setup_multi_sync_connection(abstract_object&        target_object,
-                                     const mc::mutable_dict& object_properties) {
-        auto slot = target_object.property_changed().connect(
-            [this, object_properties](const mc::variant& value, const property_base& prop) {
-            if (object_properties.contains(prop.get_name())) {
-                update_sync_value_from_function();
-            }
-        });
-
-        // 存储连接
-        m_connection_slots.push_back(slot);
-    }
-
-    // 设置延迟多属性同步连接
-    void setup_deferred_multi_sync_connection(const std::string&      object_name,
-                                              const mc::mutable_dict& object_properties) {
-        auto position = get_object()->get_position();
-        auto service  = func_collection::get_instance().get_service(position);
-        if (service == nullptr) {
-            return;
-        }
-
-        std::string full_object_name = object_name + "_" + std::string(position);
-        auto&       object_table     = service->get_object_table();
-
-        auto slot = object_table.on_object_added.connect(
-            [this, full_object_name, object_properties](mc::core::object_base& base_object) {
-            auto& object = static_cast<mc::engine::abstract_object&>(base_object);
-            if (object.get_name() == full_object_name) {
-                setup_multi_sync_connection(object, object_properties);
-                update_sync_value_from_function();
-            }
-        });
-
-        // 存储延迟连接
-        m_connection_slots.push_back(slot);
-    }
-
-    void hook_sync_properties(mc::mutable_dict& relate_properties) {
-        // 断开旧连接
-        disconnect_all_connections();
-
-        auto grouped_properties = group_properties_by_object(relate_properties);
-
-        for (const auto& entry : grouped_properties) {
-            auto object_name       = entry.key.template as<std::string>();
-            auto object_properties = entry.value.template as<mc::mutable_dict>();
-            process_sync_properties_for_object(object_name, object_properties);
-        }
-
-        // 所有监听器设置完毕后，统一进行一次初始化
-        update_sync_value_from_function();
-
-        // 同步属性不支持设置值
-        m_setter = [](const T& value) {
-            MC_THROW(mc::invalid_op_exception, "设置同步属性值不被允许");
-        };
-    }
-
-    void process_property_value(const std::string& value_str) {
-        auto func_info = func_parser::get_instance().parse_function_call(value_str);
-        auto position  = get_object()->get_position();
-        auto call_func = func_collection::get_instance().get(position, func_info.func);
-
-        if (call_func.is_null()) {
-            elog("函数未找到: ${name}", ("name", func_info.func));
-            // 函数未找到时，不修改属性值，保持原有值
-            return;
-        }
-
-        auto func_params       = func_info.params;
-        auto relate_properties = call_func.template as<func>().get_relate_properties(
-            get_object()->get_position(), func_params);
-
-        if (relate_properties.empty()) {
-            // 没有关联属性，只计算一次，不需要保存函数对象
-            auto result = call_func.template as<func>().call(position, func_params);
-            if (result.is_null()) {
-                return;
-            }
-            T value;
-            from_variant(result, value);
-            set_value_impl(std::move(value));
-            return;
-        }
-
-        // 分配func_data，保存函数对象
-        m_func_data = std::make_unique<detail::func_data>();
-        mc::from_variant(call_func, m_func_data->func_obj); // 正确转换到func类型
-        m_func_data->params = func_params;
-
-        // 处理第一个关联属性的类型
-        for (const auto& entry : relate_properties) {
-            auto value = entry.value.template as<mc::expr::relate_property>();
-            if (value.type == "ref") {
-                hook_ref_properties(relate_properties);
-                m_property_type = p_type::reference;
-            } else if (value.type == "sync") {
-                hook_sync_properties(relate_properties);
-                m_property_type = p_type::sync;
-            }
-            break;
-        }
-    }
-
     friend inline void from_variant(const mc::variant& v, property_type& value) {
         if (!v.is_string()) {
-            from_variant(v, value.m_value);
+            value.set_value_impl(v.as<T>());
             return;
         }
 
         auto str = v.as<std::string>();
 
-        if (str.substr(0, 3) == "<=/") {
-            auto sync_prop = func_parser::get_instance().parse_sync_property(str);
-            value.hook_sync_property(sync_prop);
-            value.m_property_type = p_type::sync;
-        } else if (str.substr(0, 2) == "#/") {
-            // 根据是否包含点号来区分引用对象和引用属性
-            if (str.find('.') != std::string::npos) {
-                auto ref_prop = func_parser::get_instance().parse_ref_property(str);
-                value.hook_ref_property(ref_prop);
-                value.m_property_type = p_type::reference;
-            } else {
-                // 处理引用对象
-                value.process_ref_object_from_variant(str);
-            }
-        } else if (str.substr(0, 6) == "$Func_") {
-            value.process_property_value(str);
-        } else {
-            from_variant(v, value.m_value);
+        // 尝试使用处理器工厂处理特殊属性格式
+        if (property_processor_factory::get_instance().process_property_value(&value, str)) {
+            return;
         }
-    }
 
-    observer_type& get_observer() {
-        return m_observer;
-    }
-
-    const observer_type& get_observer() const {
-        return m_observer;
+        // 如果没有匹配的处理器，按普通值处理
+        value.set_value_impl(v.as<T>());
     }
 
     std::string_view get_name() const override {
         if constexpr (std::is_same_v<observer_type, detail::interface_observer>) {
-            return m_observer.get_interface()->get_property_name(this);
+            auto* info = get_observer().get_interface()->get_property_info(this);
+            if (info) {
+                return info->name;
+            }
         }
 
         return {};
@@ -937,17 +282,119 @@ public:
         return static_cast<uint32_t>(m_property_type);
     }
 
+    // property_helper的虚拟方法实现
+    void set_property_type(p_type type) override {
+        m_property_type = type;
+    }
+
+    p_type get_property_type_enum() const override {
+        return m_property_type;
+    }
+
+    void set_variant_value(const mc::variant& value) override {
+        T temp_value;
+        from_variant(value, temp_value);
+        set_value_impl(std::move(temp_value));
+    }
+
+    // 内部设置值的方法，绕过from_variant，供processor使用
+    void set_internal_value(const mc::variant& value) override {
+        // 直接设置m_value，完全绕过set_value_impl的通知机制，供processor初始化使用
+        if constexpr (std::is_same_v<T, mc::variant>) {
+            m_value = value;
+        } else {
+            try {
+                m_value = value.as<T>();
+            } catch (...) {
+                // 如果转换失败，存储默认值，但不抛出异常
+                m_value = T{};
+            }
+        }
+    }
+
+    mc::variant get_variant_value() const override {
+        return mc::variant(m_value);
+    }
+
+    bool has_extension_data() const override {
+        return m_extension_data != nullptr;
+    }
+
+    void ensure_extension_data() override {
+        if (!m_extension_data) {
+            m_extension_data = std::make_unique<detail::property_extension_data>();
+        }
+    }
+
+    void set_ref_object_cache(std::unique_ptr<mc::variant> cache) override {
+        ensure_extension_data();
+        m_extension_data->ref_object_cache = std::move(cache);
+    }
+
+    mc::variant* get_ref_object_cache() const override {
+        if (has_extension_data() && m_extension_data->ref_object_cache) {
+            return m_extension_data->ref_object_cache.get();
+        }
+        return nullptr;
+    }
+
+    void set_getter_function(std::function<mc::variant()> getter) override {
+        ensure_extension_data();
+        m_extension_data->getter = getter;
+    }
+
+    void set_setter_function(std::function<void(const mc::variant&)> setter) override {
+        ensure_extension_data();
+        m_extension_data->setter = setter;
+    }
+
+    void add_connection_slot(mc::connection_type slot) override {
+        ensure_extension_data();
+        m_extension_data->connection_slots.push_back(slot);
+    }
+
+    void clear_connection_slots() override {
+        if (has_extension_data()) {
+            // 先断开所有连接
+            for (auto& connection : m_extension_data->connection_slots) {
+                connection.disconnect();
+            }
+            // 然后清空向量
+            m_extension_data->connection_slots.clear();
+        }
+    }
+
+    void set_function_data(std::unique_ptr<detail::func_data> data) override {
+        ensure_extension_data();
+        m_extension_data->function_data = std::move(data);
+    }
+
+    detail::func_data* get_function_data() const override {
+        if (has_extension_data() && m_extension_data->function_data) {
+            return m_extension_data->function_data.get();
+        }
+        return nullptr;
+    }
+
     abstract_interface* get_interface() const override {
         if constexpr (std::is_same_v<observer_type, detail::interface_observer>) {
-            return m_observer.get_interface();
+            return get_observer().get_interface();
         }
 
         return nullptr;
     }
 
+    void set_interface(abstract_interface* interface) override {
+        if constexpr (std::is_same_v<observer_type, detail::interface_observer>) {
+            get_observer().set_interface(interface);
+        } else {
+            MC_UNUSED(interface);
+        }
+    }
+
     abstract_object* get_object() const override {
         if constexpr (std::is_same_v<observer_type, detail::interface_observer>) {
-            return m_observer.get_interface()->get_owner();
+            return get_observer().get_interface()->get_owner();
         }
 
         return nullptr;
@@ -963,7 +410,7 @@ public:
 
 protected:
     void set_variant(const mc::variant& value) override {
-        set_value_impl(value.as<T>());
+        value.as(*this);
     }
 
     template <typename U>
@@ -983,57 +430,70 @@ protected:
             return;
         }
 
-        m_observer.notify(value, *this);
+        get_observer().notify(value, *this);
     }
 
-    void set_value_impl(param_type new_value, bool direct_set = false) {
-        if (is_equal(new_value)) {
-            return;
-        }
-        if (m_outsider_setter && !direct_set) {
-            if (!m_outsider_setter(new_value)) {
-                // 外部setter返回false，不进行实际设置
-                return;
+   void set_value_impl(param_type new_value, bool direct_set = false) {	
+        if (is_equal(new_value)) {	
+            return;	
+        }	
+        if (has_extension_data() && m_extension_data->outsider_setter && !direct_set) {	
+            mc::variant variant_value(new_value);	
+            if (!m_extension_data->outsider_setter(variant_value)) {
+                // 外部setter返回false，不进行实际设置	
+                return;	
+            }	
+        }	
+        m_value = new_value;	
+        notify();	
+    }	
+
+    void set_value_impl(rvalue_type new_value, bool direct_set = false) {	
+        if (is_equal(new_value)) {	
+            return;	
+        }	
+        if (has_extension_data() && m_extension_data->outsider_setter && !direct_set) {	
+            mc::variant variant_value(new_value);	
+            if (!m_extension_data->outsider_setter(variant_value)) {
+                // 外部setter返回false，不进行实际设置	
+                return;	
+            }	
+        }	
+        m_value = std::move(new_value);	
+        notify();	
+    }	
+
+    void update_value() {	
+        if (has_extension_data()) {	
+            if (m_extension_data->getter) {	
+                auto result = m_extension_data->getter();	
+                T    value;	
+                from_variant(result, value);
+                set_value_impl(value, true);
+            } else if (m_extension_data->outsider_getter) {
+                auto result = m_extension_data->outsider_getter();
+                T    value;
+                from_variant(result, value);
+                set_value_impl(value, true);
             }
-        }
-        m_value = new_value;
-        notify();
-    }
-
-    void set_value_impl(rvalue_type new_value, bool direct_set = false) {
-        if (is_equal(new_value)) {
-            return;
-        }
-        if (m_outsider_setter && !direct_set) {
-            if (!m_outsider_setter(new_value)) {
-                // 外部setter返回false，不进行实际设置
-                return;
-            }
-        }
-        m_value = std::move(new_value);
-        notify();
-    }
-
-    void update_value() {
-        if (m_getter) {
-            set_value_impl(m_getter(), true);
-        } else if (m_outsider_getter) {
-            set_value_impl(m_outsider_getter(), true);
-        }
+        }	
     }
 
     T                                        m_value{};
-    observer_type                            m_observer;
     std::unique_ptr<property_changed_signal> m_signal;
+    p_type                                   m_property_type{p_type::normal}; // 属性类型，默认为普通属性
 
-    std::function<T()>                   m_getter;
-    std::function<void(const T&)>        m_setter;
-    std::function<value_type()>          m_outsider_getter; // 外部getter方法
-    std::function<bool(param_type)>      m_outsider_setter; // 外部setter方法，返回false表示不进行实际设置
-    std::unique_ptr<detail::func_data>   m_func_data;       // 只有需要时才分配
-    std::vector<mc::connection_type>     m_connection_slots;
-    p_type                               m_property_type{p_type::normal}; // 属性类型，默认为普通属性
-    mutable std::unique_ptr<mc::variant> m_ref_object_cache;              // 缓存引用对象的 variant
+    // 将可选的功能数据延迟分配，大大减少内存占用
+    mutable std::unique_ptr<detail::property_extension_data> m_extension_data;
+
+private:
+    // 确保扩展数据已分配的辅助方法
+    detail::property_extension_data& ensure_extension_data() const {
+        if (!m_extension_data) {
+            m_extension_data = std::make_unique<detail::property_extension_data>();
+        }
+        return *m_extension_data;
+    }
 };
 
 } // namespace mc::engine

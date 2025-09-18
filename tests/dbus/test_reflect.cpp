@@ -16,6 +16,8 @@
 using namespace mc::dbus;
 
 struct test_struct {
+    MC_REFLECTABLE("mc.test.dbus.TestStruct")
+
     int8_t      i8;
     uint8_t     u8;
     int16_t     i16;

@@ -29,7 +29,7 @@ namespace mc::fmt::detail {
 
 template <typename T>
 struct compile_arg_type {
-    using type = T;
+    using type = std::conditional_t<std::is_enum_v<T>, int64_t, T>;
 };
 
 template <>
@@ -92,6 +92,13 @@ struct compile_format_arg {
                                            int> = 0>
     constexpr explicit compile_format_arg(T v)
         : type(compile_arg_enum::unsigned_type),
+          custom_value() {
+    }
+
+    // 支持枚举类型，将其转换为有符号整数
+    template <typename T, std::enable_if_t<std::is_enum_v<T>, int> = 0>
+    constexpr explicit compile_format_arg(T v)
+        : type(compile_arg_enum::signed_type),
           custom_value() {
     }
 
@@ -480,7 +487,9 @@ using extract_value_type_t = typename extract_value_type<T>::type;
 template <typename T>
 struct compile_type_checker {
     using actual_type                    = extract_value_type_t<std::decay_t<T>>;
-    static constexpr bool is_formattable = std::is_void_v<actual_type> || has_formatter_v<actual_type>;
+    static constexpr bool is_formattable = std::is_void_v<actual_type> ||
+                                           has_formatter_v<actual_type> ||
+                                           std::is_enum_v<actual_type>;
 };
 
 template <typename... Args>

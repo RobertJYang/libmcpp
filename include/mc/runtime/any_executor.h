@@ -40,7 +40,7 @@ using executor_variant = std::variant<
  * - 对于轻量级的 boost::asio 执行器（如 io_context::executor_type），直接存储
  * - 对于重量级执行器（如 strand、thread_pool），使用 mc::runtime::executor 包装
  */
-class any_executor {
+class MC_API any_executor {
 public:
     /**
      * @brief 默认构造函数
@@ -131,31 +131,9 @@ public:
      */
     bool operator!=(const any_executor& other) const noexcept;
 
-    void on_work_started() const noexcept {
-        std::visit([&](const auto& exec) {
-            if constexpr (!std::is_same_v<std::decay_t<decltype(exec)>, std::monostate>) {
-                exec.on_work_started();
-            }
-        }, m_executor);
-    }
-
-    void on_work_finished() const noexcept {
-        std::visit([&](const auto& exec) {
-            if constexpr (!std::is_same_v<std::decay_t<decltype(exec)>, std::monostate>) {
-                exec.on_work_finished();
-            }
-        }, m_executor);
-    }
-
-    execution_context& context() const {
-        return std::visit([&](const auto& exec) -> execution_context& {
-            if constexpr (std::is_same_v<std::decay_t<decltype(exec)>, std::monostate>) {
-                MC_THROW(mc::invalid_op_exception, "Cannot get context from invalid executor");
-            } else {
-                return exec.context();
-            }
-        }, m_executor);
-    }
+    void               on_work_started() const noexcept;
+    void               on_work_finished() const noexcept;
+    execution_context& context() const;
 
 private:
     detail::executor_variant m_executor;

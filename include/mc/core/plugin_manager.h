@@ -30,7 +30,7 @@ namespace mc::core {
 /**
  * @brief 插件管理器类
  */
-class plugin_manager {
+class MC_API plugin_manager {
 public:
     // 构造和析构
     plugin_manager();

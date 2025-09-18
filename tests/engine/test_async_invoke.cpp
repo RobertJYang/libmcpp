@@ -55,7 +55,7 @@ public:
             if (use_throw) {
                 MC_THROW(mc::invalid_arg_exception, "immediate error");
             } else {
-                return mc::make_shared<mc::engine::error>("TestError", "immediate error");
+                return mc::make_shared<mc::error>("TestError", "immediate error");
             }
         }
 
@@ -63,7 +63,7 @@ public:
             if (use_throw) {
                 MC_THROW(mc::invalid_arg_exception, "delayed error");
             } else {
-                return mc::make_shared<mc::engine::error>("TestError", "delayed error");
+                return mc::make_shared<mc::error>("TestError", "delayed error");
             }
         });
     }
@@ -190,7 +190,7 @@ TEST_F(async_invoke_test, test_error_handling) {
     EXPECT_EQ(err && err->is_set(), true);
     EXPECT_EQ(err->get_message(), "delayed error");
 
-    // 验证延迟错误，通过 mc::future<mc::engine::error_ptr> 返回错误（验证通过 get_error() 获取错误信息）
+    // 验证延迟错误，通过 mc::future<mc::error_ptr> 返回错误（验证通过 get_error() 获取错误信息）
     delayed_error = obj_base.async_invoke("ErrorMethod", {false, false});
     EXPECT_TRUE(delayed_error.is_error());
     auto err1 = delayed_error.get_error();
