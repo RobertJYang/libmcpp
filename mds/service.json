@@ -2,7 +2,7 @@
     "name": "libmcpp",
     "type": "library",
     "deployConfig": "",
-    "version": "0.2.14",
+    "version": "1.1.1",
     "license": "",
     "description": "",
     "dependencies": {
@@ -19,7 +19,7 @@
                 "conan": "boost/1.82.0.B001"
             },
             {
-                "conan": "libsomp/[>=1.80.9]"
+                "conan": "libsomp/1.90.6@openUBMC.dev/dev"
             },
             {
                 "conan": "liblogger/1.90.0@openUBMC.dev/dev"
