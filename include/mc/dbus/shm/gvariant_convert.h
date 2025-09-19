@@ -46,6 +46,28 @@ private:
                               size_t struct_depth);
 };
 
+struct MC_API gvariant_auto_free {
+    gvariant_auto_free() = default;
+    explicit gvariant_auto_free(GVariant* v, bool add_ref = false);
+    ~gvariant_auto_free();
+    gvariant_auto_free(const gvariant_auto_free& other);
+    gvariant_auto_free& operator=(const gvariant_auto_free& other);
+    gvariant_auto_free(gvariant_auto_free&& other) noexcept;
+    gvariant_auto_free& operator=(gvariant_auto_free&& other) noexcept;
+    void release();
+
+    GVariant *ptr{nullptr};
+};
+
+class MC_API gvariant_builder : public GVariantBuilder {
+public:
+    explicit gvariant_builder(const GVariantType *type);
+    ~gvariant_builder();
+
+    void add(GVariant *value);
+    GVariant *end();
+};
+
 class MC_API gvariant_convert {
 public:
     static variant   to_mc_variant(GVariant* value);
