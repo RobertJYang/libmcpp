@@ -39,23 +39,6 @@ static bool gvariant_is_basic_type(int8_t type) {
     }
 }
 
-static bool gvariant_is_fixed_type(int8_t type) {
-    switch (type) {
-    case DBUS_TYPE_BOOLEAN:
-    case DBUS_TYPE_BYTE:
-    case DBUS_TYPE_INT16:
-    case DBUS_TYPE_UINT16:
-    case DBUS_TYPE_INT32:
-    case DBUS_TYPE_UINT32:
-    case DBUS_TYPE_INT64:
-    case DBUS_TYPE_UINT64:
-    case DBUS_TYPE_DOUBLE:
-        return true;
-    default:
-        return false;
-    }
-}
-
 static GVariant* new_basic_gvariant(const variant& v, const char* types) {
     switch (*types) {
     case DBUS_TYPE_BOOLEAN:
@@ -162,20 +145,81 @@ static void parse_signature(const char* types, sig_unit& sig) {
     sig.sub_types = sig.buf + 1;
 }
 
+gvariant_auto_free::gvariant_auto_free(GVariant *v, bool add_ref) : ptr(v) {
+    if (add_ref && ptr) {
+        g_variant_ref(ptr);
+    }
+}
+
+void gvariant_auto_free::release() {
+    if (ptr) {
+        g_variant_unref(ptr);
+        ptr = nullptr;
+    }
+}
+
+gvariant_auto_free::~gvariant_auto_free() {
+    release();
+}
+
+gvariant_auto_free::gvariant_auto_free(const gvariant_auto_free& other) : ptr(other.ptr) {
+    if (ptr) {
+        g_variant_ref(ptr);
+    }
+}
+
+gvariant_auto_free& gvariant_auto_free::operator=(const gvariant_auto_free& other) {
+    if (this != &other) {
+        release();
+        if (other.ptr) {
+            g_variant_ref(other.ptr);
+            ptr = other.ptr;
+        }
+    }
+    return *this;
+}
+
+gvariant_auto_free::gvariant_auto_free(gvariant_auto_free&& other) noexcept : ptr(other.ptr) {
+    other.ptr = nullptr;
+}
+
+gvariant_auto_free& gvariant_auto_free::operator=(gvariant_auto_free&& other) noexcept {
+    if (this != &other) {
+        release();
+        ptr = other.ptr;
+        other.ptr = nullptr;
+    }
+    return *this;
+}
+
+gvariant_builder::gvariant_builder(const GVariantType *type) {
+    g_variant_builder_init(this, type);
+}
+
+gvariant_builder::~gvariant_builder() {
+    g_variant_builder_clear(this);
+}
+
+void gvariant_builder::add(GVariant* value) {
+    g_variant_builder_add_value(this, value);
+}
+
+GVariant* gvariant_builder::end() {
+    return g_variant_builder_end(this);
+}
+
 GVariant* gvariant_convert::new_gvariant_dict(const variant& v, sig_unit& sig) {
     auto            d         = v.as_dict();
     const char*     key_sig   = sig.sub_types + 1;
     const char*     value_sig = key_sig + 1;
-    GVariantBuilder builder;
-    g_variant_builder_init(&builder, G_VARIANT_TYPE(sig.buf));
+    gvariant_builder builder(G_VARIANT_TYPE(sig.buf));
     for (const auto& entry : d) {
-        auto key_gvariant   = to_gvariant(entry.key, key_sig);
-        auto value_gvariant = to_gvariant(entry.value, value_sig);
-        auto dict_entry =
-            g_variant_new_dict_entry(g_variant_ref(key_gvariant), g_variant_ref(value_gvariant));
-        g_variant_builder_add_value(&builder, g_variant_ref(dict_entry));
+        gvariant_auto_free key(to_gvariant(entry.key, key_sig), true);
+        gvariant_auto_free value(to_gvariant(entry.value, value_sig), true);
+        auto               dict_entry = g_variant_new_dict_entry(key.ptr, value.ptr);
+        builder.add(dict_entry);
     }
-    return g_variant_builder_end(&builder);
+    return builder.end();
 }
 
 GVariant* gvariant_convert::new_gvariant_struct(const variant& v, sig_unit& sig) {
@@ -188,104 +232,19 @@ GVariant* gvariant_convert::new_gvariant_struct(const variant& v, sig_unit& sig)
     if (len > MAX_CONTAINER_SIZE) {
         MC_THROW(mc::invalid_arg_exception, "struct size too large");
     }
-    std::vector<GVariant*> buf;
-    buf.resize(len);
-
+    gvariant_builder builder(G_VARIANT_TYPE_TUPLE);
     size_t i = 0;
     for (; i < len && *types != '\0'; i++) {
         auto pair = to_gvariant_inner(arr[i], types);
-        buf[i]    = g_variant_ref(std::get<0>(pair));
-        types     = std::get<1>(pair);
+        builder.add(std::get<0>(pair));
+        types = std::get<1>(pair);
     }
     if (*types != '\0' && i < len) {
         MC_THROW(mc::invalid_arg_exception,
                  "invalid number of elements ${len} for struct: ${types}",
                  ("len", len)("types", std::string(types)));
     }
-    return g_variant_new_tuple(reinterpret_cast<GVariant* const*>(&buf[0]), i);
-}
-
-static size_t get_element_size(int type) {
-    switch (type) {
-    case DBUS_TYPE_BOOLEAN:
-    case DBUS_TYPE_BYTE:
-        return sizeof(DBusBasicValue::byt);
-    case DBUS_TYPE_INT16:
-        return sizeof(DBusBasicValue::i16);
-    case DBUS_TYPE_UINT16:
-        return sizeof(DBusBasicValue::u16);
-    case DBUS_TYPE_INT32:
-        return sizeof(DBusBasicValue::i32);
-    case DBUS_TYPE_UINT32:
-        return sizeof(DBusBasicValue::u32);
-    case DBUS_TYPE_INT64:
-        return sizeof(DBusBasicValue::i64);
-    case DBUS_TYPE_UINT64:
-        return sizeof(DBusBasicValue::u64);
-    case DBUS_TYPE_DOUBLE:
-        return sizeof(DBusBasicValue::dbl);
-    default:
-        MC_THROW(mc::exception, "unsupported element type: ${type}", ("type", type));
-    }
-}
-
-static void set_basic_value(DBusBasicValue& value, int type, const variant& v) {
-    switch (type) {
-    case DBUS_TYPE_BOOLEAN:
-        value.bool_val = v.as_bool();
-        break;
-    case DBUS_TYPE_BYTE:
-        value.byt = v.as_uint8();
-        break;
-    case DBUS_TYPE_INT16:
-        value.i16 = v.as_int16();
-        break;
-    case DBUS_TYPE_UINT16:
-        value.u16 = v.as_uint16();
-        break;
-    case DBUS_TYPE_INT32:
-        value.i32 = v.as_int32();
-        break;
-    case DBUS_TYPE_UINT32:
-        value.u32 = v.as_uint32();
-        break;
-    case DBUS_TYPE_INT64:
-        value.i64 = v.as_int64();
-        break;
-    case DBUS_TYPE_UINT64:
-        value.u64 = v.as_uint64();
-        break;
-    case DBUS_TYPE_DOUBLE:
-        value.dbl = v.as_double();
-        break;
-    default:
-        MC_THROW(mc::invalid_arg_exception, "unsupported element type: ${type}", ("type", type));
-    }
-}
-
-static GVariant* new_gvariant_fixed_array(const variant& v, const char* types) {
-    auto   arr          = v.as_array();
-    size_t len          = arr.size();
-    size_t element_size = get_element_size(types[0]);
-    if (len == 0) {
-        return g_variant_new_fixed_array(reinterpret_cast<const GVariantType*>(types), nullptr, 0,
-                                         element_size);
-    }
-    void* data = g_malloc0(len * element_size);
-    if (data == nullptr) {
-        MC_THROW(mc::exception, "g_malloc0 failed, len: ${len}, element_size: ${element_size}",
-                 ("len", len)("element_size", element_size));
-    }
-    uint8_t* p = reinterpret_cast<uint8_t*>(data);
-    for (auto& item : arr) {
-        DBusBasicValue value;
-        std::memset(&value, 0, sizeof(value));
-        set_basic_value(value, types[0], item);
-        std::memcpy(p, &value, element_size);
-        p += element_size;
-    }
-    return g_variant_new_fixed_array(reinterpret_cast<const GVariantType*>(types), data, len,
-                                     element_size);
+    return builder.end();
 }
 
 GVariant* gvariant_convert::new_gvariant_array(const variant& v, sig_unit& sig) {
@@ -293,23 +252,17 @@ GVariant* gvariant_convert::new_gvariant_array(const variant& v, sig_unit& sig) 
     if (types == nullptr) {
         MC_THROW(mc::exception, "types is nullptr");
     }
-    if (gvariant_is_fixed_type(*types)) {
-        if (*types == DBUS_TYPE_BYTE && v.is_string()) {
-            auto str         = v.as_string();
-            auto fixed_array = g_variant_new_fixed_array(G_VARIANT_TYPE_BYTE, str.data(),
-                                                         str.size(), sizeof(char));
-            return fixed_array;
-        }
-        return new_gvariant_fixed_array(v, types);
+    if (*types == DBUS_TYPE_BYTE && v.is_string()) {
+        auto str = v.as_string();
+        return g_variant_new_fixed_array(G_VARIANT_TYPE_BYTE, str.data(), str.size(), sizeof(char));
     }
-    auto            arr = v.as_array();
-    GVariantBuilder builder;
-    g_variant_builder_init(&builder, G_VARIANT_TYPE(sig.buf));
+    auto             arr = v.as_array();
+    gvariant_builder builder(G_VARIANT_TYPE(sig.buf));
     for (auto& item : arr) {
         auto child = to_gvariant(item, types);
-        g_variant_builder_add_value(&builder, g_variant_ref(child));
+        builder.add(child);
     }
-    return g_variant_builder_end(&builder);
+    return builder.end();
 }
 
 GVariant* gvariant_convert::to_gvariant(const variant& v, const char* types) {
@@ -353,10 +306,12 @@ std::tuple<GVariant*, const char*> gvariant_convert::to_gvariant_inner(const var
 dict gvariant_convert::dict_to_mc_variant(GVariant* value, int n) {
     mutable_dict d;
     for (int i = 0; i < n; i++) {
-        auto entry = g_variant_get_child_value(value, i);
-        auto key   = to_mc_variant(g_variant_get_child_value(entry, 0));
-        auto value = to_mc_variant(g_variant_get_child_value(entry, 1));
-        d[key]     = value;
+        gvariant_auto_free entry(g_variant_get_child_value(value, i));
+        gvariant_auto_free entry_key(g_variant_get_child_value(entry.ptr, 0));
+        gvariant_auto_free entry_value(g_variant_get_child_value(entry.ptr, 1));
+        auto               key   = to_mc_variant(entry_key.ptr);
+        auto               value = to_mc_variant(entry_value.ptr);
+        d[key]                   = value;
     }
     return d;
 }
@@ -364,8 +319,8 @@ dict gvariant_convert::dict_to_mc_variant(GVariant* value, int n) {
 variants gvariant_convert::array_to_mc_variant(GVariant* value, int n) {
     variants res;
     for (int i = 0; i < n; i++) {
-        auto child = g_variant_get_child_value(value, i);
-        auto v     = to_mc_variant(child);
+        gvariant_auto_free child(g_variant_get_child_value(value, i));
+        auto               v = to_mc_variant(child.ptr);
         res.push_back(v);
     }
     return res;
@@ -383,8 +338,8 @@ variant gvariant_convert::container_to_mc_variant(GVariant* value) {
     if (n == 0) {
         return res;
     }
-    auto        child = g_variant_get_child_value(value, 0);
-    const char* type  = g_variant_get_type_string(child);
+    gvariant_auto_free child(g_variant_get_child_value(value, 0));
+    const char*        type = g_variant_get_type_string(child.ptr);
     if (type[0] == DBUS_DICT_ENTRY_BEGIN_CHAR) {
         return dict_to_mc_variant(value, n);
     }
@@ -414,8 +369,10 @@ variant gvariant_convert::to_mc_variant(GVariant* value) {
         return variant(static_cast<double>(g_variant_get_double(value)));
     case DBUS_TYPE_STRING:
         return variant(std::string(g_variant_get_string(value, nullptr)));
-    case DBUS_TYPE_VARIANT:
-        return to_mc_variant(g_variant_get_child_value(value, 0));
+    case DBUS_TYPE_VARIANT: {
+        gvariant_auto_free child(g_variant_get_child_value(value, 0));
+        return to_mc_variant(child.ptr);
+    }
     default:
         if (g_variant_is_container(value)) {
             return container_to_mc_variant(value);

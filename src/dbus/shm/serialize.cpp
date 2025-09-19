@@ -323,18 +323,17 @@ void write_buffer::write_gvariant(const variant& arg) {
         write_nil();
         return;
     }
-    GVariant*   gvar = gvariant_convert::to_gvariant(arg);
-    const char* t    = g_variant_get_type_string(gvar);
-    size_t      len  = strlen(t);
+    gvariant_auto_free gvar(gvariant_convert::to_gvariant(arg));
+    const char*        t   = g_variant_get_type_string(gvar.ptr);
+    size_t             len = strlen(t);
     MC_ASSERT(len < MAX_COOKIE, "invalid gvariant type: ${type}", ("type", t));
     uint8_t n = pack_value(data_type::gvariant, len);
     write_inner(&n, 1);
     write_inner(reinterpret_cast<const uint8_t*>(t), len + 1);
-    int         size = g_variant_get_size(gvar);
-    const void* data = g_variant_get_data(gvar);
+    int         size = g_variant_get_size(gvar.ptr);
+    const void* data = g_variant_get_data(gvar.ptr);
     write_inner(reinterpret_cast<const uint8_t*>(&size), sizeof(int));
     write_inner(reinterpret_cast<const uint8_t*>(data), size);
-    g_variant_unref(gvar);
 }
 
 std::string write_buffer::to_string() const {
@@ -352,7 +351,9 @@ std::string write_buffer::to_string() const {
         remaining_size -= BLOCK_SIZE;
         node = node->next;
     }
-    return std::string(reinterpret_cast<char*>(buffer), m_len);
+    std::string result(reinterpret_cast<char*>(buffer), m_len);
+    free(buffer);
+    return result;
 }
 
 read_buffer::read_buffer(std::string_view msg)
@@ -490,21 +491,21 @@ variant read_buffer::read_gvariant(size_t len) {
     const char* data   = read(size);
     void*       p_data = nullptr;
     if (size > 0) {
-        p_data = malloc(size);
+        p_data = g_malloc0(size);
         if (!p_data) {
             MC_THROW(mc::exception, "failed to allocate memory for p_data");
         }
         memcpy(p_data, data, size);
     }
-    GVariant* gvar = g_variant_new_from_data(G_VARIANT_TYPE(t),
-                                             p_data, size, true, g_free, p_data);
-    if (!gvar) {
+    gvariant_auto_free gvar(g_variant_new_from_data(G_VARIANT_TYPE(t), p_data, size,
+                                                    true, g_free, p_data));
+    if (!gvar.ptr) {
         if (p_data) {
-            free(p_data);
+            g_free(p_data);
         }
         MC_THROW(mc::exception, "failed to create gvariant");
     }
-    return gvariant_convert::to_mc_variant(gvar);
+    return gvariant_convert::to_mc_variant(gvar.ptr);
 }
 
 variant read_buffer::read_table(int64_t array_size) {

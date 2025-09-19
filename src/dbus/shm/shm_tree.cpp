@@ -172,10 +172,10 @@ static std::optional<variant> get_property_inner(std::string_view service_name,
             MC_THROW(mc::exception, "g_malloc0 failed, len: ${len}", ("len", p_data_len));
         }
         std::memcpy(p_data, prop_value.data(), p_data_len);
-        std::string_view signature = prop->get_signature();
-        GVariant*        v         = g_variant_new_from_data(G_VARIANT_TYPE(signature.data()), p_data, p_data_len,
-                                                            false, g_free, p_data);
-        return std::make_optional(gvariant_convert::to_mc_variant(v));
+        std::string_view   signature = prop->get_signature();
+        gvariant_auto_free v(g_variant_new_from_data(G_VARIANT_TYPE(signature.data()), p_data, p_data_len,
+                                                     false, g_free, p_data));
+        return std::make_optional(gvariant_convert::to_mc_variant(v.ptr));
     });
 }
 
@@ -197,10 +197,10 @@ void shm_tree::set_property_inner(shm::shared_ptr<shm::property> prop, const var
         prop->set_data(ins, std::string_view());
         return;
     }
-    std::string_view signature = prop->get_signature();
-    GVariant*        v         = gvariant_convert::to_gvariant(value, signature.data());
-    auto             data      = g_variant_get_data(v);
-    auto             size      = g_variant_get_size(v);
+    std::string_view   signature = prop->get_signature();
+    gvariant_auto_free v(gvariant_convert::to_gvariant(value, signature.data()));
+    auto               data = g_variant_get_data(v.ptr);
+    auto               size = g_variant_get_size(v.ptr);
     prop->set_data(ins, std::string_view(static_cast<const char*>(data), size));
 }
 
