@@ -13,7 +13,13 @@ executable(
 )
 
 # 创建插件目录
-plugins_dir = meson.current_build_dir() / 'plugins'
+if meson_build
+    plugins_dir = meson.current_build_dir() / 'plugins'
+    run_command('mkdir', '-p', install_dir, check: false)
+else
+    plugins_dir = 'plugins'
+endif
+
 run_command('mkdir', '-p', plugins_dir, check: false)
 
 # 构建示例插件

@@ -43,18 +43,13 @@ if enable_coverage
 endif
 
 # 依赖项
-if not meson.is_cross_build()
-  boost_dep = dependency('boost', method: 'pkg-config', required: true)
-  boost_program_options_dep = dependency(
-    'boost',
-    modules: ['program_options'],
-    method: 'pkg-config',
-    required: true,
-  )
-else
-  boost_dep = dependency('', required: false)
-  boost_program_options_dep = dependency('', required: false)
-endif
+boost_dep = dependency('boost', method: 'pkg-config', required: true)
+boost_program_options_dep = dependency(
+  'boost',
+  modules: ['program_options'],
+  method: 'pkg-config',
+  required: true,
+)
 
 # 设置编译宏
 if meson.is_cross_build()
