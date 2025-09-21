@@ -1,10 +1,15 @@
 import os
 from conanbase import ConanBase
-from conan.tools.meson import Meson, MesonToolchain, MesonDeps
-from conan.tools.gnu import PkgConfigDeps
+from conan.tools.meson import Meson, MesonToolchain
+from conan.tools.env import VirtualBuildEnv
+from conan.tools.files import copy
+
+required_conan_version = ">=2.13.0"
+
 
 class AppConan(ConanBase):
     language = "c++"
+    generators = "CMakeDeps", "VirtualBuildEnv", "PkgConfigDeps"
 
 # 基于meson构建的基类，适用于libmcpp项目
     def layout(self):
@@ -12,68 +17,40 @@ class AppConan(ConanBase):
         self.folders.build = "builddir"
 
     def generate(self):
-        d = MesonDeps(self)
-        is_dt = self.settings.build_type == "Dt"
-        if not is_dt:
-            d.cpp_link_args.append("-Bstatic")
-            d.cpp_link_args.append("-lboost_program_options")
-        else:
-            self.settings.build_type = "Debug"
-            # 为 Debug 类型添加 -Os 优化参数
-            d.cpp_args.append("-Os")
-
-        d.cpp_link_args.append("-lstdc++fs")
-        d.cpp_args.append("-Wno-unused-variable")
-        d.cpp_args.append("-Wno-unused-parameter")
-        d.cpp_args.append("-Wno-sign-compare")
-        d.cpp_args.append("-fpermissive")
-        d.cpp_args.append("-Wno-pedantic")
-        d.cpp_args.append("-fno-strict-aliasing")
-        d.cpp_args.append("-Wno-deprecated-copy")
-        d.generate()
-
         os.environ["PKG_CONFIG"] = "/usr/bin/pkg-config"
-        
         tc = MesonToolchain(self, "ninja")
         if self.settings.arch == "armv8" or self.settings.arch == "x86_64":
             tc.project_options["libdir"] = 'usr/lib64'
         else:
             tc.project_options["libdir"] = 'usr/lib'
-        tc.project_options["enable_conan_compile"] = "true"
-        if is_dt:
-            tc.project_options["tests"] = "true"
+        tc.project_options["enable_conan_compile"] = True
+        if self.options.test:
+            tc.project_options["tests"] = True
         else:
-            tc.project_options["tests"] = "false"
-        tc.project_options["meson_build"] = "false"
+            tc.project_options["tests"] = False
+        tc.project_options["meson_build"] = False
 
+        ms = VirtualBuildEnv(self)
         if self.settings.arch in ["armv8"]:
-            tc.properties["pkg_config_libdir"] = self.env["PKG_CONFIG_PATH"].split(":")
+            tc.properties["pkg_config_libdir"] = ms.vars().get("PKG_CONFIG_PATH").split(":")
+        
+        if self.options.test:
+            # 为 Debug 类型添加 -Os 优化参数
+            tc.extra_cxxflags.append("-Os")
+        else:
+            tc.extra_cxxflags.append("-Bstatic")
+            tc.extra_cxxflags.append("-lboost_program_options")
+        tc.extra_ldflags.append("-lstdc++fs")
+        tc.extra_cxxflags.append("-Wno-unused-variable")
+        tc.extra_cxxflags.append("-Wno-unused-parameter")
+        tc.extra_cxxflags.append("-Wno-sign-compare")
+        tc.extra_cxxflags.append("-fpermissive")
+        tc.extra_cxxflags.append("-Wno-pedantic")
+        tc.extra_cxxflags.append("-fno-strict-aliasing")
+        tc.extra_cxxflags.append("-Wno-deprecated-copy")
         tc.generate()
-        pc = PkgConfigDeps(self)
-        pc.generate()
-    
       
     def build(self):
-        if self.language != "c++":
-            return
-        # 检查 ninja 工具是否安装，若未安装则自动安装
-        import shutil
-        import sys
-        import subprocess
-        if sys.platform.startswith("linux"):
-            ninja_path = shutil.which("ninja")
-            if ninja_path is None:
-                print("[INFO] 未检测到 ninja 工具，正在自动安装...")
-                try:
-                    subprocess.run(["apt-get", "update"], check=True)
-                    subprocess.run(["apt-get", "install", "-y", "ninja-build"], check=True)
-                    print("[INFO] ninja 工具安装完成")
-                except Exception as e:
-                    print(f"[ERROR] 自动安装 ninja 失败: {e}")
-                    raise RuntimeError("ninja 工具未安装且自动安装失败，请手动安装 ninja-build")
-            else:
-                print(f"[INFO] 已检测到 ninja 工具: {ninja_path}")
-        #self._codegen()
         meson = Meson(self)
         meson.configure()
         # 智能计算最优并发数量
@@ -155,27 +132,20 @@ class AppConan(ConanBase):
         meson.install()
    
         if os.path.isfile("permissions.ini"):
-            self.copy("permissions.ini")
-        if os.path.isfile("mds/model.json"):
-           self.copy("model.json", src="mds", dst="include/mds")
-        if os.path.isfile("mds/service.json"):
-           self.copy("service.json", src="mds", dst="include/mds")
+            copy(self, "permissions.ini")
+        copy(self, "*", src=os.path.join(self.source_folder, "mds"), dst=os.path.join(self.package_folder, "include/mds"))
         if os.path.isdir("include"):
-            self.copy("*", src="include", dst="include")
+            copy(self, "*", src=os.path.join(self.source_folder, "include"), dst=os.path.join(self.package_folder, "include"))
         if os.path.isdir("mds"):
-            self.copy("*", src="mds", dst="usr/share/doc/openubmc/libmcpp/mds")
+            copy(self, "*", src=os.path.join(self.source_folder, "mds"), dst=os.path.join(self.package_folder, "usr/share/doc/openubmc/libmcpp/mds"))
         if os.path.isdir("docs"):
-            self.copy("*", src="docs", dst="usr/share/doc/openubmc/libmcpp/docs")
-        self.copy("*.md", dst="usr/share/doc/openubmc/libmcpp/docs")
-        self.copy("*.MD", dst="usr/share/doc/openubmc/libmcpp/docs")
+            copy(self, "*", src=os.path.join(self.source_folder, "docs"), dst=os.path.join(self.package_folder, "usr/share/doc/openubmc/libmcpp/docs"))
+        copy(self, "*.md", src=self.source_folder, dst=os.path.join(self.package_folder, "usr/share/doc/openubmc/libmcpp/docs"))
+        copy(self, "*.MD", src=self.source_folder, dst=os.path.join(self.package_folder, "usr/share/doc/openubmc/libmcpp/docs"))
         
         # 对Debug模式编译生成的文件进行strip处理
         if self.settings.build_type == "Debug":
             self._strip_debug_files()
-        
-        if self.settings.build_type in ("Dt", ) and os.getenv('TRANSTOBIN') is None:
-            return
-        os.chdir(self.package_folder)
 
     def _strip_debug_files(self):
         """对Debug模式编译生成的文件进行strip处理"""
@@ -219,19 +189,11 @@ class AppConan(ConanBase):
                                                   capture_output=True, text=True, timeout=10)
                             if result.returncode == 0:
                                 file_type = result.stdout.lower()
-                                if ("executable" in file_type or 
+                                if ("executable" in file_type or "current ar archive" in file_type or
                                     "shared object" in file_type or 
                                     "dynamically linked" in file_type):
-                                    
                                     # 执行strip操作
-                                    try:
-                                        subprocess.run([strip_tool, "-s", file_path], 
-                                                     check=True, timeout=30)
-                                        print(f"Stripped debug symbols from: {file_path}")
-                                    except subprocess.CalledProcessError as e:
-                                        print(f"Warning: Failed to strip {file_path}: {e}")
-                                    except subprocess.TimeoutExpired:
-                                        print(f"Warning: Strip timeout for {file_path}")
+                                    self.run(f"{strip_tool} -s {file_path}")
                     except Exception as e:
                         print(f"Warning: Error processing {file_path}: {e}")
                         continue
@@ -247,12 +209,16 @@ class AppConan(ConanBase):
             libdir = "usr/lib"
             
         self.env_info.PATH.append(os.path.join(self.package_folder, "opt/bmc/apps/libmcpp"))
+
+        include_dirs = ["include"]
+        self.cpp_info.includedirs = include_dirs
         
         # 配置libmcpp的pkg-config
         self.cpp_info.components["libmcpp"].libs = ["libmcpp"]
         self.cpp_info.components["libmcpp"].libdirs = ["usr/lib64"]
-        self.cpp_info.components["libmcpp"].system_libs = ["dbus-1", "glib-2.0", "boost_program_options", "somp", "logging"]
+        self.cpp_info.components["libmcpp"].includedirs = include_dirs
         self.cpp_info.components["libmcpp"].set_property("pkg_config_name", "libmcpp")
+        self.cpp_info.components["libmcpp"].requires = ["libsomp::libsomp", "liblogger::liblogger", "boost::boost"]
         self.cpp_info.components["libmcpp"].set_property("pkg_config_custom_content", 
            f"libdir=${{prefix}}/{libdir}\n"
            "Requires: dbus-1 glib-2.0\n")
@@ -260,7 +226,7 @@ class AppConan(ConanBase):
         # 配置test_utilities的pkg-config
         self.cpp_info.components["test_utilities"].libs = ["mc_test_utilities"]
         self.cpp_info.components["test_utilities"].libdirs = ["usr/lib64"]
-        self.cpp_info.components["test_utilities"].system_libs = ["dbus-1", "boost_program_options", "somp", "logging"]
+        self.cpp_info.components["test_utilities"].includedirs = include_dirs
         self.cpp_info.components["test_utilities"].set_property("pkg_config_name", "test_utilities")
         self.cpp_info.components["test_utilities"].set_property("pkg_config_custom_content",
            f"libdir=${{prefix}}/{libdir}\n"

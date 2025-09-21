@@ -8,21 +8,18 @@
     "dependencies": {
         "test": [
             {
-                "conan": "skynet/1.7.0.B016"
-            },
-            {
-                "conan": "libsomp/[>=1.80.9]"
+                "conan": "skynet/[>=1.8.0.b001_006]@openubmc/stable"
             }
         ],
         "build": [
             {
-                "conan": "boost/1.82.0.B001"
+                "conan": "boost/[>=1.87.0.b003]@openubmc/stable"
             },
             {
-                "conan": "libsomp/1.90.6@openUBMC.dev/dev"
+                "conan": "libsomp/[>=1.80.9]@openubmc/stable"
             },
             {
-                "conan": "liblogger/1.90.0@openUBMC.dev/dev"
+                "conan": "liblogger/[>=1.90.0]@openubmc/stable"
             }
         ]
     },
