@@ -456,10 +456,4 @@ mc::log::Logger::getInstance().setFormatter<MyCustomFormatter>();
 
 ## 许可证
 
-Apache 2.0 许可证，详见 [LICENSE](LICENSE) 文件
-
-## 联系方式
-
-- 项目主页：https://gitcode.com/zjp99/libmcpp
-- 问题报告：https://gitcode.com/zjp99/libmcpp/issues
-- 邮件列表：3977743558@qq.com
+Mulan PSL v2 许可证，详见 [LICENSE](LICENSE) 文件
