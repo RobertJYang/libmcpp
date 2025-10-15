@@ -818,6 +818,24 @@ public:
 
     /**
      * @brief 获取数组中指定位置的元素
+     * @note 支持链式修改
+     */
+    variant_base& operator[](std::size_t pos) {
+        if (m_type != type_id::array_type) {
+            throw_type_error("array", m_type);
+        }
+
+        auto& arr = *m_array_ptr;
+        if (pos >= arr.size()) {
+            throw std::out_of_range("数组索引越界: 索引 " + std::to_string(pos) + " 超出范围 [0, " +
+                                    std::to_string(arr.size() - 1) + "]");
+        }
+
+        return arr[pos];
+    }
+
+    /**
+     * @brief 获取数组中指定位置的元素
      */
     const variant_base& operator[](std::size_t pos) const {
         if (m_type != type_id::array_type) {
@@ -835,6 +853,15 @@ public:
 
     /**
      * @brief 获取对象中指定键的值（当variant包含dict对象时）
+     * @param key 要查找的键
+     * @return 指定键对应的值的可修改引用
+     * @throw std::runtime_error 如果variant不是对象类型
+     * @note 此方法通过强制类型转换成为 mc::mutable_dict，支持链式修改
+     */
+    variant_base& operator[](std::string_view key);
+
+    /**
+     * @brief 获取对象中指定键的值（当variant包含dict对象时）- 只读版本
      * @param key 要查找的键
      * @return 指定键对应的值的引用
      * @throw std::runtime_error 如果variant不是对象类型
