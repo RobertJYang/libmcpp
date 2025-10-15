@@ -179,6 +179,17 @@ size_t variant_base<Config>::size() const {
 }
 
 template <typename Config>
+variant_base<Config>& variant_base<Config>::operator[](std::string_view key) {
+    if (m_type != type_id::object_type) {
+        throw_type_error("object", m_type);
+    }
+
+    // 强制类型转换成为 mc::mutable_dict
+    // mc::dict 和 mc::mutable_dict 内存布局完全一致，只是 mutable_dict 是可变版本
+    return static_cast<mc::mutable_dict&>(m_object)[key];
+}
+
+template <typename Config>
 const variant_base<Config>& variant_base<Config>::operator[](std::string_view key) const {
     if (m_type != type_id::object_type) {
         throw_type_error("object", m_type);
