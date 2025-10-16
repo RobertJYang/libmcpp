@@ -205,6 +205,24 @@ dict::const_iterator dict::end() const {
     return m_data->entries.end();
 }
 
+// 获取反向开始迭代器
+dict::const_reverse_iterator dict::rbegin() const {
+    if (!m_data) {
+        return {};
+    }
+
+    return dict::const_reverse_iterator(m_data->entries.rbegin());
+}
+
+// 获取反向结束迭代器
+dict::const_reverse_iterator dict::rend() const {
+    if (!m_data) {
+        return {};
+    }
+
+    return dict::const_reverse_iterator(m_data->entries.rend());
+}
+
 // 获取所有键
 std::vector<variant> dict::keys() const {
     if (!m_data) {
@@ -456,6 +474,21 @@ size_t dict::hash() const {
 
 std::string dict::to_string() const {
     return json::json_encode(*this);
+}
+
+dict dict::deep_copy() const {
+    dict result;
+    result.m_data = mc::make_shared<data_t>();
+
+    for (const auto& entry : *this) {
+        mc::variant        copied_key   = entry.key.deep_copy();
+        mc::variant        copied_value = entry.value.deep_copy();
+        dict_types::entry* new_entry    = new dict_types::entry(std::move(copied_key), std::move(copied_value));
+        result.m_data->entries.push_back(*new_entry);
+        result.m_data->index.insert(*new_entry);
+    }
+
+    return result;
 }
 
 } // namespace mc

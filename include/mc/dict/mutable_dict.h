@@ -48,8 +48,10 @@ public:
     using entry = dict::entry;
 
     // 使用基类的迭代器类型 - 具体定义在 dict.cpp 中
-    using iterator       = dict_types::iterator;
-    using const_iterator = dict_types::const_iterator;
+    using iterator               = dict_types::iterator;
+    using const_iterator         = dict_types::const_iterator;
+    using reverse_iterator       = dict_types::reverse_iterator;
+    using const_reverse_iterator = dict_types::const_reverse_iterator;
 
     mutable_dict()                              = default;
     mutable_dict(const mutable_dict& other)     = default;
