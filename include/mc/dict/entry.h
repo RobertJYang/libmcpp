@@ -122,7 +122,8 @@ using entry_set  = mc::intrusive::unordered_set<
      mc::intrusive::equal<key_equal>,
      mc::intrusive::constant_time_size<true>>;
 
-using iterator = entry_list::iterator;
+using iterator         = entry_list::iterator;
+using reverse_iterator = entry_list::reverse_iterator;
 
 // 定义迭代器结构体，继承自底层迭代器，方便 dict 中定义前向声明
 struct const_iterator : public entry_list::const_iterator {
@@ -147,18 +148,43 @@ struct const_iterator : public entry_list::const_iterator {
     const_iterator(const const_iterator& other) = default;
     const_iterator(const_iterator&& other)      = default;
 
+    // 赋值运算符
+    const_iterator& operator=(const const_iterator& other) = default;
+    const_iterator& operator=(const_iterator&& other)      = default;
+
     // 从 iterator 构造
     const_iterator(const iterator& iter) : base_type(iter) {
     }
     const_iterator(iterator&& iter) : base_type(std::move(iter)) {
     }
+};
+
+// 定义反向迭代器结构体
+struct const_reverse_iterator : public entry_list::const_reverse_iterator {
+    using base_type         = entry_list::const_reverse_iterator;
+    using iterator_category = typename base_type::iterator_category;
+    using value_type        = typename base_type::value_type;
+    using difference_type   = typename base_type::difference_type;
+    using pointer           = typename base_type::pointer;
+    using reference         = typename base_type::reference;
+
+    // 默认构造函数
+    const_reverse_iterator() = default;
+
+    // 从基类构造
+    const_reverse_iterator(const base_type& iter) : base_type(iter) {
+    }
+
+    // 拷贝和移动构造函数
+    const_reverse_iterator(const const_reverse_iterator& other) = default;
+    const_reverse_iterator(const_reverse_iterator&& other)      = default;
 
     // 赋值运算符
-    const_iterator& operator=(const const_iterator& other) = default;
-    const_iterator& operator=(const_iterator&& other)      = default;
+    const_reverse_iterator& operator=(const const_reverse_iterator& other) = default;
+    const_reverse_iterator& operator=(const_reverse_iterator&& other)      = default;
 
     // 析构函数
-    ~const_iterator() = default;
+    ~const_reverse_iterator() = default;
 
     // 继承所有操作符，无需重新定义
     // operator*, operator->, operator++, operator==, operator!= 等都会自动继承

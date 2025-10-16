@@ -1085,6 +1085,46 @@ public:
     void set_value(variant_base<OtherConfig>&& other);
 
     /**
+     * @brief 深拷贝 variant
+     * @return 深度拷贝后的 variant
+     */
+    variant_base deep_copy() const {
+        return visit_with([this](const auto& value) -> variant_base {
+            using T = std::decay_t<decltype(value)>;
+
+            if constexpr (std::is_same_v<T, std::nullptr_t>) {
+                return variant_base();
+            } else if constexpr (std::is_arithmetic_v<T>) {
+                return variant_base(value);
+            } else if constexpr (std::is_same_v<T, string_type>) {
+                return variant_base(value, this->m_alloc);
+            } else if constexpr (std::is_same_v<T, array_type>) {
+                variant_base result(type_id::array_type);
+                result.m_alloc     = this->m_alloc;
+                result.m_array_ptr = mc::allocate_ptr<array_type>(this->m_alloc, this->m_alloc);
+                for (const auto& item : value) {
+                    result.m_array_ptr->emplace_back(item.deep_copy(), this->m_alloc);
+                }
+                return result;
+            } else if constexpr (std::is_same_v<T, object_type>) {
+                return variant_base(value.deep_copy());
+            } else if constexpr (std::is_same_v<T, blob_type>) {
+                variant_base result(type_id::blob_type);
+                result.m_alloc    = this->m_alloc;
+                result.m_blob_ptr = mc::allocate_ptr<blob_type>(this->m_alloc, value.data.data(), value.data.size(), this->m_alloc);
+                return result;
+            } else if constexpr (std::is_same_v<T, extension_type>) {
+                variant_base result(type_id::extension_type);
+                result.m_alloc     = this->m_alloc;
+                result.m_extension = value.clone();
+                return result;
+            } else {
+                return variant_base();
+            }
+        });
+    }
+
+    /**
      * @brief 清空 variant_base
      */
     void clear();

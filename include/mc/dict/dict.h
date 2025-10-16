@@ -39,6 +39,7 @@ class mutable_dict;
 namespace dict_types {
 struct entry;
 struct const_iterator;
+struct const_reverse_iterator;
 struct data_t;
 } // namespace dict_types
 
@@ -67,11 +68,12 @@ struct data_t;
  */
 class MC_API dict {
 public:
-    using key_type       = variant;
-    using value_type     = variant;
-    using entry          = dict_types::entry;
-    using const_iterator = dict_types::const_iterator;
-    using data_t         = dict_types::data_t;
+    using key_type               = variant;
+    using value_type             = variant;
+    using entry                  = dict_types::entry;
+    using const_iterator         = dict_types::const_iterator;
+    using const_reverse_iterator = dict_types::const_reverse_iterator;
+    using data_t                 = dict_types::data_t;
 
     /**
      * @brief 默认构造函数
@@ -159,6 +161,16 @@ public:
     const_iterator end() const;
 
     /**
+     * @brief 获取反向开始迭代器
+     */
+    const_reverse_iterator rbegin() const;
+
+    /**
+     * @brief 获取反向结束迭代器
+     */
+    const_reverse_iterator rend() const;
+
+    /**
      * @brief 获取所有键
      */
     std::vector<variant> keys() const;
@@ -242,6 +254,12 @@ public:
     }
 
     mutable_dict as_mut() const;
+
+    /**
+     * @brief 深拷贝字典
+     * @return 深度拷贝后的字典
+     */
+    dict deep_copy() const;
 
     void clear();
 
