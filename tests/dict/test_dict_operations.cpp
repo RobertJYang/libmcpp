@@ -12,7 +12,7 @@
 
 /**
  * @file test_dict_operations.cpp
- * @brief 测试 dict 和 mutable_dict 类的各种操作方法
+ * @brief 测试 dict 和 dict 类的各种操作方法
  */
 #include <algorithm>
 #include <gtest/gtest.h>
@@ -26,11 +26,17 @@ using namespace mc;
 TEST(DictOperationsTest, DictBasicAccess) {
     dict d({{"key1", 123}, {"key2", "value"}, {"key3", true}});
 
-    // 测试 operator[]
+    // 测试 operator[] - 非 const 版本可以自动创建键（类似 std::map）
     EXPECT_EQ(d["key1"], 123);
     EXPECT_EQ(d["key2"], "value");
     EXPECT_EQ(d["key3"], true);
-    EXPECT_THROW(d["key4"], std::out_of_range);
+
+    // 测试 const operator[] - 访问不存在的键会抛出异常
+    const dict& const_d = d;
+    EXPECT_THROW(const_d["key4"], std::out_of_range);
+
+    // 或者使用 at() 方法，无论 const 还是非 const 都会抛出异常
+    EXPECT_THROW(d.at("key4"), std::out_of_range);
 
     // 测试 get 方法
     EXPECT_EQ(d.get("key1", 0), 123);
@@ -176,9 +182,9 @@ TEST(DictOperationsTest, DictComparison) {
     EXPECT_TRUE(d1 != d5);
 }
 
-// 测试 mutable_dict 的基本修改操作
+// 测试 dict 的基本修改操作
 TEST(DictOperationsTest, MutableDictBasicModification) {
-    mutable_dict md({{"key1", 123}, {"key2", "value"}, {"key3", true}});
+    dict md({{"key1", 123}, {"key2", "value"}, {"key3", true}});
 
     // 测试 operator[] 修改现有键值对
     md["key1"] = 456;
@@ -206,9 +212,9 @@ TEST(DictOperationsTest, MutableDictBasicModification) {
     EXPECT_EQ(md["key8"], true);
 }
 
-// 测试 mutable_dict 的 erase 和 clear 方法
+// 测试 dict 的 erase 和 clear 方法
 TEST(DictOperationsTest, MutableDictEraseAndClear) {
-    mutable_dict md({{"key1", 123}, {"key2", "value"}, {"key3", true}});
+    dict md({{"key1", 123}, {"key2", "value"}, {"key3", true}});
 
     // 测试 erase 方法
     EXPECT_TRUE(md.erase("key1"));
@@ -225,9 +231,9 @@ TEST(DictOperationsTest, MutableDictEraseAndClear) {
     EXPECT_TRUE(md.empty());
 }
 
-// 测试 mutable_dict 的迭代器操作
+// 测试 dict 的迭代器操作
 TEST(DictOperationsTest, MutableDictIterators) {
-    mutable_dict md({{"key1", 123}, {"key2", "value"}, {"key3", true}});
+    dict md({{"key1", 123}, {"key2", "value"}, {"key3", true}});
 
     // 测试迭代器遍历并修改值
     for (auto& entry : md) {
@@ -259,9 +265,9 @@ TEST(DictOperationsTest, MutableDictIterators) {
     EXPECT_EQ(it, md.end());
 }
 
-// 测试 mutable_dict 的 at 方法
+// 测试 dict 的 at 方法
 TEST(DictOperationsTest, MutableDictAt) {
-    mutable_dict md({{"key1", 123}, {"key2", "value"}, {"key3", true}});
+    dict md({{"key1", 123}, {"key2", "value"}, {"key3", true}});
 
     // 测试 at 方法读取
     EXPECT_EQ(md.at_index(0).key, "key1");
@@ -280,17 +286,17 @@ TEST(DictOperationsTest, MutableDictAt) {
     EXPECT_EQ(md["key2"], "modified");
 }
 
-// 测试 dict 和 mutable_dict 之间的数据共享
+// 测试 dict 和 dict 之间的数据共享
 TEST(DictOperationsTest, DataSharing) {
     dict d({{"key1", 123}, {"key2", "value"}, {"key3", true}});
 
-    mutable_dict md1({{"key1", 123}, {"key2", "value"}, {"key3", true}});
+    dict md1({{"key1", 123}, {"key2", "value"}, {"key3", true}});
 
-    // 从 mutable_dict 创建 dict
+    // 从 dict 创建 dict
     dict d2 = md1;
 
-    // 从 dict 创建另一个 mutable_dict
-    mutable_dict md2 = d2;
+    // 从 dict 创建另一个 dict
+    dict md2 = d2;
 
     // 修改 md1，验证 d 和 md2 也被修改
     md1["key1"] = 456;
@@ -317,9 +323,9 @@ TEST(DictOperationsTest, DataSharing) {
     EXPECT_FALSE(md1.contains("key3"));
 }
 
-// 测试 mutable_dict 的 find 方法
+// 测试 dict 的 find 方法
 TEST(DictOperationsTest, MutableDictFind) {
-    mutable_dict md({{"key1", 123}, {"key2", "value"}, {"key3", true}});
+    dict md({{"key1", 123}, {"key2", "value"}, {"key3", true}});
 
     // 测试 find 方法 (std::string 版本)
     auto it1 = md.find(std::string("key1"));
@@ -356,7 +362,7 @@ TEST(DictOperationsTest, MutableDictFind) {
     EXPECT_EQ(it4, md.end());
 
     // 测试 const 版本的 find 方法
-    const mutable_dict& cmd = md;
+    const dict& cmd = md;
 
     auto it5 = cmd.find("key1");
     EXPECT_NE(it5, cmd.end());
@@ -367,11 +373,11 @@ TEST(DictOperationsTest, MutableDictFind) {
     EXPECT_EQ(it6, cmd.end());
 }
 
-// 测试 mutable_dict 的 insert 方法
+// 测试 dict 的 insert 方法
 TEST(DictOperationsTest, MutableDictInsert) {
     // 测试基本的insert方法
     {
-        mutable_dict md;
+        dict md;
 
         // 测试insert返回值类型
         auto result = md.insert("key1", 123);
@@ -397,7 +403,7 @@ TEST(DictOperationsTest, MutableDictInsert) {
 
     // 测试带hint的insert方法
     {
-        mutable_dict md;
+        dict md;
         md.insert("key1", 100);
         md.insert("key3", 300);
 
@@ -418,8 +424,8 @@ TEST(DictOperationsTest, MutableDictInsert) {
 
     // 测试插入entry
     {
-        mutable_dict md;
-        dict::entry  e("key1", 123);
+        dict        md;
+        dict::entry e("key1", 123);
 
         md.insert(std::move(e));
         EXPECT_EQ(md.size(), 1);
@@ -432,7 +438,7 @@ TEST(DictOperationsTest, MutableDictInsert) {
         entries.push_back(dict::entry("key1", 100));
         entries.push_back(dict::entry("key2", 200));
 
-        mutable_dict md;
+        dict md;
         md.insert(entries.begin(), entries.end());
 
         EXPECT_EQ(md.size(), 2);
@@ -442,7 +448,7 @@ TEST(DictOperationsTest, MutableDictInsert) {
 
     // 测试初始化列表插入
     {
-        mutable_dict md;
+        dict md;
         md.insert({{"key1", 100}, {"key2", 200}});
 
         EXPECT_EQ(md.size(), 2);
@@ -452,7 +458,7 @@ TEST(DictOperationsTest, MutableDictInsert) {
 
     // 测试emplace方法
     {
-        mutable_dict md;
+        dict md;
 
         // 使用emplace插入元素
         auto result = md.emplace("key1", 123);
@@ -471,7 +477,7 @@ TEST(DictOperationsTest, MutableDictInsert) {
 
     // 测试try_emplace方法
     {
-        mutable_dict md;
+        dict md;
 
         // 使用try_emplace插入新元素
         auto result = md.try_emplace("key1", 123);
@@ -490,7 +496,7 @@ TEST(DictOperationsTest, MutableDictInsert) {
 
     // 测试模板方法
     {
-        mutable_dict md;
+        dict md;
 
         // 使用非variant类型调用insert
         std::string key   = "key1";
@@ -502,11 +508,11 @@ TEST(DictOperationsTest, MutableDictInsert) {
     }
 }
 
-// 测试 mutable_dict 的 insert 方法与其他操作的交互
+// 测试 dict 的 insert 方法与其他操作的交互
 TEST(DictOperationsTest, MutableDictInsertInteraction) {
     // 测试insert与operator[]的交互
     {
-        mutable_dict md;
+        dict md;
 
         // 先使用insert插入元素
         md.insert("key1", 100);
@@ -523,7 +529,7 @@ TEST(DictOperationsTest, MutableDictInsertInteraction) {
 
     // 测试insert与erase的交互
     {
-        mutable_dict md;
+        dict md;
 
         // 先插入元素
         md.insert("key1", 100);
@@ -546,7 +552,7 @@ TEST(DictOperationsTest, MutableDictInsertInteraction) {
 
     // 测试insert与clear的交互
     {
-        mutable_dict md;
+        dict md;
 
         // 先插入元素
         md.insert("key1", 100);
@@ -566,11 +572,11 @@ TEST(DictOperationsTest, MutableDictInsertInteraction) {
 
     // 测试数据共享
     {
-        mutable_dict md1;
+        dict md1;
         md1.insert("key1", 100);
 
         // 拷贝构造共享数据
-        mutable_dict md2(md1);
+        dict md2(md1);
 
         // 在md2中插入新元素
         md2.insert("key2", 200);
@@ -591,7 +597,7 @@ TEST(DictOperationsTest, MutableDictInsertInteraction) {
     // 测试通过 std::map 的迭代器插入
     {
         std::map<std::string, int> map = {{"key1", 100}, {"key2", 200}};
-        mutable_dict               md;
+        dict                       md;
         md.insert(map.begin(), map.end());
 
         EXPECT_EQ(md.size(), 2);

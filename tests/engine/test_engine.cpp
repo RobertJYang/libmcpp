@@ -146,7 +146,7 @@ TEST_F(engine_test, test_object_property_changed_sig) {
     EXPECT_EQ(path, sformat("/org/test/object_{}_{}",
                             obj->get_object_id(), obj->m_iface_1.m_i32.get_value() + 100));
 
-    mc::mutable_dict values;
+    mc::dict values;
     obj->property_changed().connect([&](const mc::variant& value, const auto& prop) {
         values[prop.get_name()] = value;
     });
@@ -182,7 +182,7 @@ TEST_F(engine_test, test_interface_property_changed_sig) {
     auto obj = test_object::create();
     service.register_object(obj);
 
-    mc::mutable_dict values;
+    mc::dict values;
     obj->m_iface_1.property_changed().connect([&](const mc::variant& value, const auto& prop) {
         values[prop.get_name()] = value;
     });
@@ -202,7 +202,7 @@ TEST_F(engine_test, test_property_changed_sig) {
     service.register_object(obj);
 
     // 指定订阅接口1的i32属性
-    mc::mutable_dict values;
+    mc::dict values;
     obj->m_iface_1.m_i32.property_changed().connect(
         [&](const mc::variant& value, const auto& prop) {
         values[prop.get_name()] = value;
@@ -233,7 +233,7 @@ TEST_F(engine_test, test_property_changed_sig_use_abstract_object) {
     EXPECT_EQ(result, obj.get());
     auto* res_obj = static_cast<mc::engine::abstract_object*>(result.get());
 
-    mc::mutable_dict values;
+    mc::dict values;
     res_obj->property_changed().connect([&](const mc::variant& value, const auto& prop) {
         values[prop.get_name()] = value;
     });
@@ -302,13 +302,13 @@ TEST_F(engine_test, test_managed_object) {
     EXPECT_EQ(get_managed_objects(*obj2),
               (mc::variants{"/org/test/o2/middle", "/org/test/o2/middles"}));
 
-    auto test_obj_new = create_object("/bmc/dev");
-    auto obj1_new     = create_object("/bmc/dev/Accessor/Accessor_1v8_0101010301");
-    auto obj2_new     = create_object("/bmc/dev/Accessor/Accessor_0v8_0101010301");
-    auto obj3_new     = create_object("/bmc/dev/Accessor/Accessor_1v2_0101010301");
+    auto test_obj_new    = create_object("/bmc/dev");
+    auto obj1_new        = create_object("/bmc/dev/Accessor/Accessor_1v8_0101010301");
+    auto obj2_new        = create_object("/bmc/dev/Accessor/Accessor_0v8_0101010301");
+    auto obj3_new        = create_object("/bmc/dev/Accessor/Accessor_1v2_0101010301");
     auto managed_objects = get_managed_objects(*test_obj_new);
     EXPECT_EQ(get_managed_objects(*test_obj_new),
-            objects({"/bmc/dev/Accessor/Accessor_1v8_0101010301", "/bmc/dev/Accessor/Accessor_0v8_0101010301", "/bmc/dev/Accessor/Accessor_1v2_0101010301"}));
+              objects({"/bmc/dev/Accessor/Accessor_1v8_0101010301", "/bmc/dev/Accessor/Accessor_0v8_0101010301", "/bmc/dev/Accessor/Accessor_1v2_0101010301"}));
 }
 
 TEST_F(engine_test, test_managed_object_comprehensive) {

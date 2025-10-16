@@ -38,7 +38,6 @@
 // 前向声明
 namespace mc {
 class dict;
-class mutable_dict;
 } // namespace mc
 
 namespace mc::fmt {

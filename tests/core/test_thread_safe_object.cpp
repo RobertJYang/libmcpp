@@ -11,9 +11,9 @@
  */
 
 #include <mc/core/object.h>
+#include <mc/exception.h>
 #include <mc/memory.h>
 #include <mc/runtime/thread_list.h>
-#include <mc/exception.h>
 
 #include <gtest/gtest.h>
 
@@ -114,7 +114,7 @@ TEST_F(ThreadSafeObjectTest, ConcurrentPropertyAccess) {
                 std::string name = "thread_" + std::to_string(i) + "_object";
                 obj->set_name(name);
             }
-            
+
             auto retrieved_name = obj->get_name();
             if (!retrieved_name.empty()) {
                 name_operations.fetch_add(1);
@@ -282,8 +282,8 @@ TEST_F(ThreadSafeObjectTest, ConcurrentNameOperations) {
     // 每个线程使用独立的对象以避免名称重复设置的冲突
     threads.start_threads(5, [&successful_operations](std::size_t i) {
         for (int j = 0; j < num_operations; ++j) {
-            auto test_object = mc::make_shared<object>(); // 每次操作使用新对象
-            std::string name = "thread_" + std::to_string(i) + "_name_" + std::to_string(j);
+            auto        test_object = mc::make_shared<object>(); // 每次操作使用新对象
+            std::string name        = "thread_" + std::to_string(i) + "_name_" + std::to_string(j);
             test_object->set_name(name);
 
             // 同时读取名称

@@ -146,7 +146,7 @@ mc::variant interface_impl::get_property(std::string_view property_name, int opt
 }
 
 mc::dict interface_impl::get_all_properties(int options) const {
-    mc::mutable_dict dict;
+    mc::dict dict;
     get_metadata().visit_properties([&](const property_type_info* property) {
         if (dict.contains(property->name)) {
             return visit_status::VS_CONTINUE;
@@ -180,7 +180,7 @@ void interface_impl::from_variant(const mc::dict& d, interface_impl& obj) {
     });
 }
 
-void interface_impl::to_variant(const interface_impl& obj, mc::mutable_dict& dict, int options) {
+void interface_impl::to_variant(const interface_impl& obj, mc::dict& dict, int options) {
     obj.get_metadata().visit_properties([&](const property_type_info* property) {
         if (dict.contains(property->name)) {
             return visit_status::VS_CONTINUE;

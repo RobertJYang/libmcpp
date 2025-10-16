@@ -12,7 +12,7 @@
 
 /**
  * @file test_dict_conversion.cpp
- * @brief 测试 dict 和 mutable_dict 类与其他类型之间的转换
+ * @brief 测试 dict 和 dict 类与其他类型之间的转换
  */
 #include <gtest/gtest.h>
 #include <map>
@@ -40,11 +40,11 @@ TEST(DictConversionTest, DictToVariant) {
     EXPECT_EQ(d2["key3"].as<bool>(), true);
 }
 
-// 测试 mutable_dict 转换为 variant
+// 测试 dict 转换为 variant
 TEST(DictConversionTest, MutableDictToVariant) {
-    mutable_dict md({{"key1", 123}, {"key2", "value"}, {"key3", true}});
+    dict md({{"key1", 123}, {"key2", "value"}, {"key3", true}});
 
-    // 将 mutable_dict 转换为 variant
+    // 将 dict 转换为 variant
     variant v = to_variant(md);
 
     // 验证 variant 类型
@@ -74,17 +74,17 @@ TEST(DictConversionTest, VariantToDict) {
     EXPECT_EQ(d2["key3"].as<bool>(), true);
 }
 
-// 测试 variant 转换为 mutable_dict
+// 测试 variant 转换为 dict
 TEST(DictConversionTest, VariantToMutableDict) {
-    mutable_dict md1({{"key1", 123}, {"key2", "value"}, {"key3", true}});
+    dict md1({{"key1", 123}, {"key2", "value"}, {"key3", true}});
 
-    // 将 mutable_dict 转换为 variant
+    // 将 dict 转换为 variant
     variant v = to_variant(md1);
 
-    // 将 variant 转换为 mutable_dict
-    mutable_dict md2 = v.as<mutable_dict>();
+    // 将 variant 转换为 dict
+    dict md2 = v.as<dict>();
 
-    // 验证 mutable_dict 内容
+    // 验证 dict 内容
     EXPECT_EQ(md2.size(), 3);
     EXPECT_EQ(md2["key1"].as<int>(), 123);
     EXPECT_EQ(md2["key2"].as<std::string>(), "value");
@@ -102,7 +102,7 @@ TEST(DictConversionTest, StdMapToDict) {
     // 将 std::map 转换为 dict
     dict d;
     for (const auto& pair : m) {
-        mutable_dict md(d);
+        dict md(d);
         md(pair.first, pair.second);
         d = md;
     }
@@ -125,7 +125,7 @@ TEST(DictConversionTest, StdUnorderedMapToDict) {
     // 将 std::unordered_map 转换为 dict
     dict d;
     for (const auto& pair : m) {
-        mutable_dict md(d);
+        dict md(d);
         md(pair.first, pair.second);
         d = md;
     }
@@ -176,13 +176,13 @@ TEST(DictConversionTest, DictToStdUnorderedMap) {
 // 测试嵌套 dict 转换
 TEST(DictConversionTest, NestedDictConversion) {
     // 创建嵌套的 dict
-    mutable_dict inner_md({{"inner1", 123}, {"inner2", "inner_value"}});
+    dict inner_md({{"inner1", 123}, {"inner2", "inner_value"}});
 
     dict inner_d({{"inner3", true}, {"inner4", 456.789}});
 
-    mutable_dict outer_md({{"key1", inner_md}, {"key2", 123}, {"key3", inner_d}});
+    dict outer_md({{"key1", inner_md}, {"key2", 123}, {"key3", inner_d}});
 
-    // 将嵌套的 mutable_dict 转换为 variant
+    // 将嵌套的 dict 转换为 variant
     variant v = to_variant(outer_md);
 
     // 验证 variant 内容

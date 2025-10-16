@@ -31,4 +31,4 @@ constexpr int from_mdb             = 2;
 constexpr int with_object_property = 4;
 } // namespace property_options
 
-} // namespace mc::engine 
+} // namespace mc::engine

@@ -225,10 +225,10 @@ struct object_manager_vistor : metadata_visitor {
         }
     }
 
-    const abstract_object*                       m_object;
-    const interface_metadata*                    m_interface_metadata;
-    mc::mutable_dict                             m_current;
-    std::map<std::string_view, mc::mutable_dict> m_interfaces;
+    const abstract_object*               m_object;
+    const interface_metadata*            m_interface_metadata;
+    mc::dict                             m_current;
+    std::map<std::string_view, mc::dict> m_interfaces;
 };
 
 object_manager_interface::objects_type
@@ -298,7 +298,7 @@ mc::dict common_properties_interface::get_all() {
     if (object == nullptr) {
         return {};
     }
-    mc::mutable_dict dict;
+    mc::dict dict;
     dict["ParentPath"]       = object->get_owner()->get_object_path();
     dict["ObjectName"]       = object->get_object_name();
     dict["ClassName"]        = object->get_class_name();

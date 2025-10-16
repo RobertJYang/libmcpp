@@ -13,12 +13,12 @@
 #pragma once
 
 #include <functional>
-#include <memory>
-#include <vector>
 #include <mc/dict.h>
 #include <mc/expr/function/call.h>
 #include <mc/signal_slot.h>
 #include <mc/variant.h>
+#include <memory>
+#include <vector>
 
 namespace mc::engine {
 
@@ -35,20 +35,20 @@ struct empty_observer {
 
 // 用于存储函数调用相关的数据
 struct func_data {
-    mc::expr::func   func_obj;
-    mc::mutable_dict params;
+    mc::expr::func func_obj;
+    mc::dict       params;
 };
 
 // 将可选的属性数据打包到一个结构体中，避免每个property都分配这些内存
 // 使用mc::variant替代模板参数，减少模板实例化并优化内存使用
 struct property_extension_data {
-    std::function<mc::variant()>         getter;
+    std::function<mc::variant()>            getter;
     std::function<void(const mc::variant&)> setter;
-    std::function<mc::variant()>         outsider_getter;    // 外部getter方法
-    std::function<bool(const mc::variant&)> outsider_setter;    // 外部setter方法，返回false表示不进行实际设置
-    std::unique_ptr<func_data>           function_data;      // 只有需要时才分配
-    std::vector<mc::connection_type>     connection_slots;
-    mutable std::unique_ptr<mc::variant> ref_object_cache;   // 缓存引用对象的 variant
+    std::function<mc::variant()>            outsider_getter; // 外部getter方法
+    std::function<bool(const mc::variant&)> outsider_setter; // 外部setter方法，返回false表示不进行实际设置
+    std::unique_ptr<func_data>              function_data;   // 只有需要时才分配
+    std::vector<mc::connection_type>        connection_slots;
+    mutable std::unique_ptr<mc::variant>    ref_object_cache; // 缓存引用对象的 variant
 };
 
 class interface_observer {
@@ -73,4 +73,4 @@ protected:
 
 } // namespace detail
 
-} // namespace mc::engine 
+} // namespace mc::engine

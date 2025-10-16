@@ -160,7 +160,7 @@ public:
      * @return mc::dict 所有属性值
      */
     mc::dict get_all_properties(const T& obj) const {
-        mc::mutable_dict result;
+        mc::dict result;
         m_data.visit_properties([&](const property_type_info* property) {
             const auto* p   = static_cast<const property_info_base<T>*>(property);
             result[p->name] = p->get_value(obj);

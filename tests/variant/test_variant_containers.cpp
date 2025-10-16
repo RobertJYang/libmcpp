@@ -37,7 +37,7 @@ protected:
     }
 
     dict create_sample_dict() {
-        mutable_dict m_dict;
+        dict m_dict;
         m_dict["int_value"]    = 42;
         m_dict["double_value"] = 3.14;
         m_dict["string_value"] = "test string";
@@ -125,23 +125,23 @@ TEST_F(VariantContainersTest, DictAccess) {
 }
 
 /**
- * @brief 测试 mutable_dict 转换
+ * @brief 测试 dict 转换
  */
 TEST_F(VariantContainersTest, MutableDictConversion) {
-    mutable_dict m_dict;
+    dict m_dict;
     m_dict["key1"] = 1;
     m_dict["key2"] = "value2";
 
     variant v(m_dict);
     ASSERT_TRUE(v.is_object()) << "variant 应该是对象类型";
 
-    // 转换回 mutable_dict
-    mutable_dict result = v.as<mutable_dict>();
-    ASSERT_EQ(result.size(), m_dict.size()) << "mutable_dict 大小不匹配";
+    // 转换回 dict
+    dict result = v.as<dict>();
+    ASSERT_EQ(result.size(), m_dict.size()) << "dict 大小不匹配";
     ASSERT_EQ(result["key1"].as<int>(), 1) << "值不匹配";
     ASSERT_EQ(result["key2"].as_string(), "value2") << "值不匹配";
 
-    // 修改 mutable_dict 并测试
+    // 修改 dict 并测试
     result["key3"] = true;
     ASSERT_EQ(result.size(), 3) << "添加键后大小不正确";
     ASSERT_TRUE(result["key3"].as_bool()) << "新添加的值不匹配";
@@ -229,7 +229,7 @@ TEST_F(VariantContainersTest, BlobType) {
  */
 TEST_F(VariantContainersTest, NestedContainers) {
     // 创建嵌套字典
-    mutable_dict nested_dict;
+    dict nested_dict;
     nested_dict["nested_array"] = sample_array;
     nested_dict["nested_value"] = 123;
 
@@ -239,7 +239,7 @@ TEST_F(VariantContainersTest, NestedContainers) {
     nested_array.push_back(42);
 
     // 添加到主字典
-    mutable_dict main_dict;
+    dict main_dict;
     main_dict["dict"]  = nested_dict;
     main_dict["array"] = nested_array;
 
@@ -287,8 +287,8 @@ TEST_F(VariantContainersTest, EmptyAndFullContainers) {
     ASSERT_TRUE(v_empty_array.is_array()) << "空数组 variant 应该是数组类型";
     ASSERT_EQ(v_empty_array.get_array().size(), 0) << "空数组的大小应该是 0";
 
-    // 测试大型字典的限制 (使用 mutable_dict 更容易构建)
-    mutable_dict large_dict;
+    // 测试大型字典的限制 (使用 dict 更容易构建)
+    dict large_dict;
     for (int i = 0; i < 1000; ++i) {
         large_dict["key" + std::to_string(i)] = i;
     }

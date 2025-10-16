@@ -167,9 +167,9 @@ static auto parse_variant_basic(const variant& v) {
 static dict parse_variant_dict(signature_iterator it, const dict& v, size_t depth) {
     ensure_message_depth(depth);
     ensure_container_max_length(v);
-    mutable_dict output;
-    auto         key_it = it.get_dict_key_iterator();
-    auto         val_it = it.get_dict_value_iterator();
+    dict output;
+    auto key_it = it.get_dict_key_iterator();
+    auto val_it = it.get_dict_value_iterator();
     for (const auto& entry : v) {
         auto key    = local_msg::parse_variant(key_it, entry.key, depth + 1);
         auto val    = local_msg::parse_variant(val_it, entry.value, depth + 1);

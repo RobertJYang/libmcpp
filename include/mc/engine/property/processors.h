@@ -15,23 +15,23 @@
 /**
  * @file property_processors.h
  * @brief 所有属性处理器的统一头文件
- * 
+ *
  * 包含所有属性处理器的头文件，方便使用者一次性导入所有处理器
  */
 
 #include <mc/engine/property/processor.h>
+#include <mc/engine/property/processors/function_call_processor.h>
 #include <mc/engine/property/processors/ref_object_processor.h>
 #include <mc/engine/property/processors/ref_property_processor.h>
 #include <mc/engine/property/processors/sync_property_processor.h>
-#include <mc/engine/property/processors/function_call_processor.h>
 
 namespace mc::engine {
 
 /**
  * @brief 注册所有属性处理器
- * 
+ *
  * 确保所有属性处理器都已注册到工厂中
  */
 MC_API void register_property_processors();
 
-} // namespace mc::engine 
+} // namespace mc::engine

@@ -140,7 +140,7 @@ struct MC_API message_reader {
     void read_variant_array_or_dict(mc::variant& v, std::size_t depth) const;
     void read_variant_array(mc::variants& arr, std::size_t depth) const;
     void read_variant_struct(mc::variant& v, std::size_t depth) const;
-    void read_variant_dict(mc::mutable_dict& dict, std::size_t depth) const;
+    void read_variant_dict(mc::dict& dict, std::size_t depth) const;
     void read_variant_raw_struct(mc::variant& v, std::size_t depth) const;
 
     void                  recurse(const message_reader& parent) const;
@@ -242,7 +242,6 @@ MC_API const message_reader& operator>>(const message_reader& reader, mc::blob& 
 MC_API const message_reader& operator>>(const message_reader& reader, mc::variant& v);
 MC_API const message_reader& operator>>(const message_reader& reader, mc::variants& v);
 MC_API const message_reader& operator>>(const message_reader& reader, mc::dict& v);
-MC_API const message_reader& operator>>(const message_reader& reader, mc::mutable_dict& v);
 
 // 读取标准库类型
 
@@ -488,7 +487,6 @@ MC_API const message_writer& operator<<(const message_writer& writer, const mc::
 MC_API const message_writer& operator<<(const message_writer& writer, const mc::variant& v);
 MC_API const message_writer& operator<<(const message_writer& writer, const mc::variants& v);
 MC_API const message_writer& operator<<(const message_writer& writer, const mc::dict& v);
-MC_API const message_writer& operator<<(const message_writer& writer, const mc::mutable_dict& v);
 MC_API const message_writer& operator<<(const message_writer& writer, const std::string& v);
 MC_API const message_writer& operator<<(const message_writer& writer, const char* str);
 MC_API const message_writer& operator<<(const message_writer& writer, const std::string_view& v);

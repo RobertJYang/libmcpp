@@ -105,7 +105,7 @@ TEST_F(expr_test, Variables) {
     EXPECT_EQ(engine.evaluate("'Hello, ' + name", ctx), "Hello, Alice");
 
     // 从dict导入变量
-    mc::mutable_dict data;
+    mc::dict data;
     data["z"]  = 30;
     data["pi"] = 3.14159;
 

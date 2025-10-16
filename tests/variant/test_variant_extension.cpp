@@ -246,7 +246,7 @@ TEST_F(VariantExtensionTest, ExtensionTypeInArray) {
 
 TEST_F(VariantExtensionTest, ExtensionTypeInObject) {
     // 测试扩展类型在对象中的使用
-    mutable_dict obj;
+    dict obj;
 
     auto ext1 = mc::make_shared<test_extension>(1200);
     auto ext2 = mc::make_shared<complex_extension>("object_test", 25);

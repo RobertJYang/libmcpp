@@ -28,10 +28,9 @@ protected:
     }
 };
 
-TEST_F(median_test, EvenWindowSize)
-{
+TEST_F(median_test, EvenWindowSize) {
     mc::debounce::Median median(5, false);
-    std::optional<int> value;
+    std::optional<int>   value;
     value = median.get_debounce_val(1);
     ASSERT_EQ(value, std::nullopt);
     value = median.get_debounce_val(1);
@@ -44,10 +43,9 @@ TEST_F(median_test, EvenWindowSize)
     ASSERT_EQ(value, 2);
 }
 
-TEST_F(median_test, OddWindowSize)
-{
+TEST_F(median_test, OddWindowSize) {
     mc::debounce::Median median(4, false);
-    std::optional<int> value;
+    std::optional<int>   value;
     value = median.get_debounce_val(1);
     ASSERT_EQ(value, std::nullopt);
     value = median.get_debounce_val(1);
@@ -62,17 +60,16 @@ TEST_F(median_test, OddWindowSize)
     ASSERT_EQ(value, 5);
 }
 
-TEST_F(median_test, SignedTrue)
-{
+TEST_F(median_test, SignedTrue) {
     mc::debounce::Median median(5, true);
-    std::optional<int> value;
-    value = median.get_debounce_val(255);   // 255: -1
+    std::optional<int>   value;
+    value = median.get_debounce_val(255); // 255: -1
     ASSERT_EQ(value, std::nullopt);
-    value = median.get_debounce_val(254);   // 254: -2
+    value = median.get_debounce_val(254); // 254: -2
     ASSERT_EQ(value, std::nullopt);
-    value = median.get_debounce_val(253);   // 253：-3
+    value = median.get_debounce_val(253); // 253：-3
     ASSERT_EQ(value, std::nullopt);
-    value = median.get_debounce_val(252);   // 252：-4
+    value = median.get_debounce_val(252); // 252：-4
     ASSERT_EQ(value, std::nullopt);
     value = median.get_debounce_val(1); // -4 -3 -2 -1 1
     ASSERT_EQ(value, 254);

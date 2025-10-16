@@ -12,7 +12,7 @@
 
 /**
  * @file test_dict_construction.cpp
- * @brief 测试 dict 和 mutable_dict 类的各种构造方法
+ * @brief 测试 dict 和 dict 类的各种构造方法
  */
 #include <gtest/gtest.h>
 #include <mc/dict.h>
@@ -67,7 +67,7 @@ TEST(DictConstructionTest, CopyConstructor) {
     EXPECT_EQ(d2["key3"].as<bool>(), true);
 
     // 验证 d1 和 d2 共享数据
-    mutable_dict md(d1);
+    dict md(d1);
     md["key1"] = 456;
 
     EXPECT_EQ(d1["key1"].as<int>(), 456);
@@ -101,7 +101,7 @@ TEST(DictConstructionTest, AssignmentOperator) {
     EXPECT_EQ(d2["key3"].as<bool>(), true);
 
     // 验证 d1 和 d2 共享数据
-    mutable_dict md(d1);
+    dict md(d1);
     md["key1"] = 456;
 
     EXPECT_EQ(d1["key1"].as<int>(), 456);
@@ -122,21 +122,21 @@ TEST(DictConstructionTest, MoveAssignmentOperator) {
     EXPECT_EQ(d2["key3"].as<bool>(), true);
 }
 
-// 测试 mutable_dict 默认构造函数
+// 测试 dict 默认构造函数
 TEST(DictConstructionTest, MutableDictDefaultConstructor) {
-    mutable_dict md;
+    dict md;
     EXPECT_TRUE(md.empty());
     EXPECT_EQ(md.size(), 0);
 }
 
-// 测试 mutable_dict 从 vector<entry> 构造
+// 测试 dict 从 vector<entry> 构造
 TEST(DictConstructionTest, MutableDictVectorEntryConstructor) {
     std::vector<dict::entry> entries;
     entries.emplace_back("key1", 123);
     entries.emplace_back("key2", "value");
     entries.emplace_back("key3", true);
 
-    mutable_dict md(entries);
+    dict md(entries);
 
     EXPECT_EQ(md.size(), 3);
     EXPECT_EQ(md["key1"].as<int>(), 123);
@@ -144,9 +144,9 @@ TEST(DictConstructionTest, MutableDictVectorEntryConstructor) {
     EXPECT_EQ(md["key3"].as<bool>(), true);
 }
 
-// 测试 mutable_dict 从 initializer_list 构造
+// 测试 dict 从 initializer_list 构造
 TEST(DictConstructionTest, MutableDictInitializerListConstructor) {
-    mutable_dict md({{"key1", 123}, {"key2", "value"}, {"key3", true}});
+    dict md({{"key1", 123}, {"key2", "value"}, {"key3", true}});
 
     EXPECT_EQ(md.size(), 3);
     EXPECT_EQ(md["key1"].as<int>(), 123);
@@ -154,11 +154,11 @@ TEST(DictConstructionTest, MutableDictInitializerListConstructor) {
     EXPECT_EQ(md["key3"].as<bool>(), true);
 }
 
-// 测试 mutable_dict 从 dict 构造
+// 测试 dict 从 dict 构造
 TEST(DictConstructionTest, MutableDictFromDictConstructor) {
     dict d({{"key1", 123}, {"key2", "value"}, {"key3", true}});
 
-    mutable_dict md(d);
+    dict md(d);
 
     // 验证 md 包含与 d 相同的数据
     EXPECT_EQ(md.size(), 3);
@@ -171,11 +171,11 @@ TEST(DictConstructionTest, MutableDictFromDictConstructor) {
     EXPECT_EQ(d["key1"].as<int>(), 456);
 }
 
-// 测试 mutable_dict 拷贝构造函数
+// 测试 dict 拷贝构造函数
 TEST(DictConstructionTest, MutableDictCopyConstructor) {
-    mutable_dict md1({{"key1", 123}, {"key2", "value"}, {"key3", true}});
+    dict md1({{"key1", 123}, {"key2", "value"}, {"key3", true}});
 
-    mutable_dict md2(md1);
+    dict md2(md1);
 
     // 验证 md2 是 md1 的副本
     EXPECT_EQ(md2.size(), 3);
@@ -188,11 +188,11 @@ TEST(DictConstructionTest, MutableDictCopyConstructor) {
     EXPECT_EQ(md2["key1"].as<int>(), 456);
 }
 
-// 测试 mutable_dict 移动构造函数
+// 测试 dict 移动构造函数
 TEST(DictConstructionTest, MutableDictMoveConstructor) {
-    mutable_dict md1({{"key1", 123}, {"key2", "value"}, {"key3", true}});
+    dict md1({{"key1", 123}, {"key2", "value"}, {"key3", true}});
 
-    mutable_dict md2(std::move(md1));
+    dict md2(std::move(md1));
 
     // 验证 md2 包含正确的数据
     EXPECT_EQ(md2.size(), 3);
@@ -201,11 +201,11 @@ TEST(DictConstructionTest, MutableDictMoveConstructor) {
     EXPECT_EQ(md2["key3"].as<bool>(), true);
 }
 
-// 测试 mutable_dict 赋值运算符
+// 测试 dict 赋值运算符
 TEST(DictConstructionTest, MutableDictAssignmentOperator) {
-    mutable_dict md1({{"key1", 123}, {"key2", "value"}, {"key3", true}});
+    dict md1({{"key1", 123}, {"key2", "value"}, {"key3", true}});
 
-    mutable_dict md2;
+    dict md2;
     md2 = md1;
 
     // 验证 md2 是 md1 的副本
@@ -219,11 +219,11 @@ TEST(DictConstructionTest, MutableDictAssignmentOperator) {
     EXPECT_EQ(md2["key1"].as<int>(), 456);
 }
 
-// 测试 mutable_dict 移动赋值运算符
+// 测试 dict 移动赋值运算符
 TEST(DictConstructionTest, MutableDictMoveAssignmentOperator) {
-    mutable_dict md1({{"key1", 123}, {"key2", "value"}, {"key3", true}});
+    dict md1({{"key1", 123}, {"key2", "value"}, {"key3", true}});
 
-    mutable_dict md2;
+    dict md2;
     md2 = std::move(md1);
 
     // 验证 md2 包含正确的数据
@@ -233,11 +233,11 @@ TEST(DictConstructionTest, MutableDictMoveAssignmentOperator) {
     EXPECT_EQ(md2["key3"].as<bool>(), true);
 }
 
-// 测试 mutable_dict 从 dict 赋值
+// 测试 dict 从 dict 赋值
 TEST(DictConstructionTest, MutableDictAssignmentFromDict) {
     dict d({{"key1", 123}, {"key2", "value"}, {"key3", true}});
 
-    mutable_dict md;
+    dict md;
     md = d;
 
     // 验证 md 包含与 d 相同的数据
@@ -251,15 +251,15 @@ TEST(DictConstructionTest, MutableDictAssignmentFromDict) {
     EXPECT_EQ(d["key1"].as<int>(), 456);
 }
 
-// 测试 mutable_dict 链式调用构造函数
+// 测试 dict 链式调用构造函数
 TEST(DictConstructionTest, MutableDictChainedConstruction) {
     // 使用单键值对构造函数
-    mutable_dict md1("key1", 123);
+    dict md1("key1", 123);
     EXPECT_EQ(md1.size(), 1);
     EXPECT_EQ(md1["key1"].as<int>(), 123);
 
     // 使用链式调用添加更多键值对
-    mutable_dict md2("key1", 123);
+    dict md2("key1", 123);
     md2("key2", "value")("key3", true);
     EXPECT_EQ(md2.size(), 3);
     EXPECT_EQ(md2["key1"].as<int>(), 123);
@@ -271,7 +271,7 @@ TEST(DictConstructionTest, MutableDictChainedConstruction) {
     std::string_view key2 = "key2";
     const char*      key3 = "key3";
 
-    mutable_dict md3(key1, 123);
+    dict md3(key1, 123);
     md3(key2, "value")(key3, true);
     EXPECT_EQ(md3.size(), 3);
     EXPECT_EQ(md3["key1"].as<int>(), 123);
@@ -279,7 +279,7 @@ TEST(DictConstructionTest, MutableDictChainedConstruction) {
     EXPECT_EQ(md3["key3"].as<bool>(), true);
 
     // 测试混合使用链式调用和其他方法
-    mutable_dict md4("key1", 123);
+    dict md4("key1", 123);
     md4["key2"] = "value";
     md4("key3", true);
     EXPECT_EQ(md4.size(), 3);

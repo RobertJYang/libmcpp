@@ -14,12 +14,12 @@
  * @file time_test.cpp
  * @brief 时间模块的单元测试
  */
-#include <gtest/gtest.h>
 #include "mc/time.h"
 #include "mc/variant.h"
 #include <chrono>
-#include <thread>
 #include <cmath>
+#include <gtest/gtest.h>
+#include <thread>
 
 using namespace mc;
 
@@ -86,7 +86,7 @@ TEST(TimeTest, TimePointTest) {
 
     // 运算符测试
     time_point tp2(milliseconds(2000));
-    
+
     // 比较运算符
     EXPECT_GT(tp2, tp1);
     EXPECT_GE(tp2, tp1);
@@ -122,7 +122,7 @@ TEST(TimeTest, TimePointSecTest) {
     EXPECT_EQ(tps1.sec_since_epoch(), 1000);
 
     // 从time_point构造
-    time_point tp(milliseconds(2000));
+    time_point     tp(milliseconds(2000));
     time_point_sec tps2(tp);
     EXPECT_EQ(tps2.sec_since_epoch(), 2);
 
@@ -148,7 +148,7 @@ TEST(TimeTest, TimePointSecTest) {
 
     // 时间点与秒级时间点互操作
     auto diff1 = tp2 - tps1;
-    EXPECT_EQ(diff1.count(), 0);  // 应该是0，因为tp2是从tps1转换而来
+    EXPECT_EQ(diff1.count(), 0); // 应该是0，因为tp2是从tps1转换而来
 
     auto diff2 = tps3 - tps1;
     EXPECT_EQ(diff2.count(), 1000 * 1000);
@@ -170,7 +170,7 @@ TEST(TimeTest, TimePointSecTest) {
 // 测试ISO字符串转换
 TEST(TimeTest, IsoStringTest) {
     // 时间点与字符串转换 (注意：这个值是1970年开始往后的特定时间戳)
-    time_point tp1(milliseconds(1577836800000)); // 2020-01-01T00:00:00
+    time_point  tp1(milliseconds(1577836800000)); // 2020-01-01T00:00:00
     std::string iso_str = std::string(tp1);
     EXPECT_EQ(iso_str, "2020-01-01T00:00:00.000");
 
@@ -179,7 +179,7 @@ TEST(TimeTest, IsoStringTest) {
     EXPECT_EQ(tp2.time_since_epoch().count(), 1577836800000);
 
     // 带毫秒的转换测试
-    time_point tp3(milliseconds(1577836800123)); // 2020-01-01T00:00:00.123
+    time_point  tp3(milliseconds(1577836800123)); // 2020-01-01T00:00:00.123
     std::string iso_str_ms = std::string(tp3);
     EXPECT_EQ(iso_str_ms, "2020-01-01T00:00:00.123");
 
@@ -188,7 +188,7 @@ TEST(TimeTest, IsoStringTest) {
 
     // 秒级时间点的ISO字符串转换
     time_point_sec tps1(1577836800); // 2020-01-01T00:00:00
-    std::string tps_iso(tps1.to_iso_string());
+    std::string    tps_iso(tps1.to_iso_string());
     EXPECT_EQ(tps_iso, "2020-01-01T00:00:00");
 
     time_point_sec tps2 = time_point_sec::from_iso_string("2020-01-01T00:00:00");
@@ -199,32 +199,32 @@ TEST(TimeTest, IsoStringTest) {
 TEST(TimeTest, VariantConversionTest) {
     // 毫秒转variant
     milliseconds ms(1000);
-    variant v1;
+    variant      v1;
     to_variant(ms, v1);
     EXPECT_EQ(v1.as<int64_t>(), 1000);
-    
+
     // variant转毫秒
     milliseconds ms2;
     from_variant(v1, ms2);
     EXPECT_EQ(ms2.count(), 1000);
-    
+
     // 时间点转variant
     time_point tp(milliseconds(1577836800000)); // 2020-01-01T00:00:00
-    variant v2;
+    variant    v2;
     to_variant(tp, v2);
     EXPECT_EQ(v2.as<std::string>(), "2020-01-01T00:00:00.000");
-    
+
     // variant转时间点
     time_point tp2;
     from_variant(v2, tp2);
     EXPECT_EQ(tp2.time_since_epoch().count(), 1577836800000);
-    
+
     // 秒级时间点转variant
     time_point_sec tps(1577836800); // 2020-01-01T00:00:00
-    variant v3;
+    variant        v3;
     to_variant(tps, v3);
     EXPECT_EQ(v3.as<std::string>(), "2020-01-01T00:00:00");
-    
+
     // variant转秒级时间点
     time_point_sec tps2;
     from_variant(v3, tps2);
@@ -235,23 +235,23 @@ TEST(TimeTest, VariantConversionTest) {
 TEST(TimeTest, SystemTimeTest) {
     // 获取当前时间
     time_point start = time_point::now();
-    
+
     // 休眠一段时间
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
-    
+
     // 再次获取时间
     time_point end = time_point::now();
-    
+
     // 确认时间差
     auto diff = end - start;
     EXPECT_GE(diff.count(), 100); // 至少过了100毫秒
-    
+
     // 测试ISO字符串解析和格式化的一致性
-    time_point now = time_point::from_iso_string("2020-01-01T12:00:00");
+    time_point  now     = time_point::from_iso_string("2020-01-01T12:00:00");
     std::string iso_str = std::string(now);
-    time_point parsed = time_point::from_iso_string(iso_str);
-    
+    time_point  parsed  = time_point::from_iso_string(iso_str);
+
     // 检查两个时间点是否相同
     auto time_diff = now - parsed;
     EXPECT_LT(std::abs(time_diff.count()), 2); // 允许最多1毫秒的误差
-} 
+}

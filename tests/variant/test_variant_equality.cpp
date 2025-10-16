@@ -12,7 +12,7 @@
 
 /**
  * @file test_variant_equality.cpp
- * @brief 测试 variant、typed_variant、dict 和 mutable_dict 类的相等运算符
+ * @brief 测试 variant、typed_variant、dict 和 dict 类的相等运算符
  */
 #include "test_variant_helpers.h"
 #include <gtest/gtest.h>
@@ -101,7 +101,7 @@ TEST_F(VariantEqualityTest, TypedVariantEquality) {
  */
 TEST_F(VariantEqualityTest, DictEquality) {
     // 创建两个相同的字典
-    mutable_dict md1, md2;
+    dict md1, md2;
     md1["int"]    = 42;
     md1["string"] = "test";
     md1["bool"]   = true;
@@ -114,7 +114,7 @@ TEST_F(VariantEqualityTest, DictEquality) {
     ASSERT_EQ(d1, d2) << "相同内容的字典应该相等";
 
     // 测试不同顺序的键值对
-    mutable_dict md3;
+    dict md3;
     md3["bool"]   = true;
     md3["string"] = "test";
     md3["int"]    = 42;
@@ -123,7 +123,7 @@ TEST_F(VariantEqualityTest, DictEquality) {
     ASSERT_EQ(d1, d3) << "键值对顺序不同的字典应该相等";
 
     // 测试嵌套字典
-    mutable_dict md4, md5;
+    dict md4, md5;
     md4["nested"] = md1;
     md5["nested"] = md2;
 
@@ -136,11 +136,11 @@ TEST_F(VariantEqualityTest, DictEquality) {
 }
 
 /**
- * @brief 测试 mutable_dict 类型之间的相等比较
+ * @brief 测试 dict 类型之间的相等比较
  */
 TEST_F(VariantEqualityTest, MutableDictEquality) {
     // 创建两个相同的可变字典
-    mutable_dict md1, md2;
+    dict md1, md2;
     md1["int"]    = 42;
     md1["string"] = "test";
 
@@ -158,9 +158,9 @@ TEST_F(VariantEqualityTest, MutableDictEquality) {
     ASSERT_NE(md1, md2) << "内容不同的可变字典不应该相等";
 
     // 测试复杂数据结构
-    mutable_dict md3, md4;
-    variants     arr1{1, 2, 3};
-    variants     arr2{1, 2, 3};
+    dict     md3, md4;
+    variants arr1{1, 2, 3};
+    variants arr2{1, 2, 3};
 
     md3["array"] = arr1;
     md3["dict"]  = md1;
@@ -176,7 +176,7 @@ TEST_F(VariantEqualityTest, MutableDictEquality) {
  */
 TEST_F(VariantEqualityTest, MixedTypeEquality) {
     // 测试 variant 中的 dict 比较
-    mutable_dict md1, md2;
+    dict md1, md2;
     md1["key"] = "value";
     md2["key"] = "value";
 
@@ -191,12 +191,12 @@ TEST_F(VariantEqualityTest, MixedTypeEquality) {
     ASSERT_EQ(v3, v4) << "包含相同数组的 variant 应该相等";
 
     // 测试复杂嵌套结构
-    mutable_dict md3;
+    dict md3;
     md3["array"] = arr1;
     md3["dict"]  = md1;
     md3["value"] = 42;
 
-    mutable_dict md4;
+    dict md4;
     md4["array"] = arr2;
     md4["dict"]  = md2;
     md4["value"] = 42;

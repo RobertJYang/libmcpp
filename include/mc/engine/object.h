@@ -116,7 +116,7 @@ public:
                                      std::string_view interface_name = {}) override;
 
     static void from_variant(const mc::dict& d, object_impl& obj);
-    static void to_variant(const object_impl& obj, mc::mutable_dict& dict, int options = 0);
+    static void to_variant(const object_impl& obj, mc::dict& dict, int options = 0);
 
     virtual std::string_view get_path_pattern() const = 0;
 

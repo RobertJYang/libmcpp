@@ -193,7 +193,7 @@ dict::const_iterator dict::begin() const {
         return {};
     }
 
-    return m_data->entries.begin();
+    return m_data->entries.cbegin();
 }
 
 // 获取结束迭代器
@@ -202,7 +202,7 @@ dict::const_iterator dict::end() const {
         return {};
     }
 
-    return m_data->entries.end();
+    return m_data->entries.cend();
 }
 
 // 获取反向开始迭代器
@@ -372,7 +372,7 @@ bool dict::operator==(const dict& other) const {
 }
 
 dict dict::operator+(const dict& other) const {
-    mutable_dict result;
+    dict result;
 
     for (const auto& item : m_data->entries) {
         result[item.key] = item.value;
@@ -382,11 +382,7 @@ dict dict::operator+(const dict& other) const {
         result[item.key] = item.value;
     }
 
-    return dict(result);
-}
-
-mutable_dict dict::as_mut() const {
-    return mutable_dict(*this);
+    return result;
 }
 
 void dict::clear() {
@@ -414,7 +410,8 @@ dict::const_iterator dict::find(std::string_view key) const {
         return end();
     }
 
-    return m_data->entries.iterator_to(*const_cast<entry*>(e));
+    auto base_it = m_data->entries.iterator_to(*const_cast<entry*>(e));
+    return const_iterator(iterator(base_it));
 }
 
 // 查找指定键的元素，返回迭代器 (const char* 版本)
@@ -430,22 +427,24 @@ dict::const_iterator dict::find(const variant& key) const {
     if (!e) {
         return end();
     }
-    return m_data->entries.iterator_to(*const_cast<entry*>(e));
+    auto base_it = m_data->entries.iterator_to(*const_cast<entry*>(e));
+    return const_iterator(iterator(base_it));
 }
 
 dict::const_iterator dict::find(std::size_t index) const {
     const auto* e = find_entry(index);
     if (e) {
-        return m_data->entries.iterator_to(*const_cast<entry*>(e));
+        auto base_it = m_data->entries.iterator_to(*const_cast<entry*>(e));
+        return const_iterator(iterator(base_it));
     }
 
     if (index >= size()) {
         return end();
     }
 
-    auto it = m_data->entries.begin();
-    std::advance(it, index);
-    return it;
+    auto base_it = m_data->entries.begin();
+    std::advance(base_it, index);
+    return const_iterator(iterator(base_it));
 }
 
 // 将 dict 转换为 variant

@@ -162,7 +162,7 @@ TEST_F(VariantComparisonTest, VariantToOtherTypesComparison) {
     ASSERT_EQ(v2, dict1);
     ASSERT_EQ(dict1, v2);
 
-    mutable_dict dict2 = {{"key", 42.0}};
+    dict dict2 = {{"key", 42.0}};
     ASSERT_EQ(v2, dict2);
     ASSERT_EQ(dict2, v2);
 
@@ -426,7 +426,7 @@ TEST_F(VariantComparisonTest, IncompatibleTypesThrowException) {
     EXPECT_THROW({ bool result = v1 >= 10; }, mc::invalid_op_exception);
 
     // 对象类型与数值比较应抛出异常
-    mutable_dict dict;
+    dict dict;
     dict["key"] = 42;
     variant v2(dict);
     EXPECT_THROW({ bool result = v2 < 10; }, mc::invalid_op_exception);
@@ -621,14 +621,14 @@ TEST_F(VariantComparisonTest, StringViewComparison) {
  */
 TEST_F(VariantComparisonTest, ComplexNestedStructureComparison) {
     // 创建深度嵌套的结构
-    mutable_dict level3_1 = {{"name", "inner"}, {"value", 42}};
-    mutable_dict level3_2 = {{"name", "inner"}, {"value", 43}};
+    dict level3_1 = {{"name", "inner"}, {"value", 42}};
+    dict level3_2 = {{"name", "inner"}, {"value", 43}};
 
-    mutable_dict level2_1 = {{"data", level3_1}, {"index", 1}};
-    mutable_dict level2_2 = {{"data", level3_2}, {"index", 1}};
+    dict level2_1 = {{"data", level3_1}, {"index", 1}};
+    dict level2_2 = {{"data", level3_2}, {"index", 1}};
 
-    mutable_dict level1_1 = {{"nested", level2_1}, {"top", true}};
-    mutable_dict level1_2 = {{"nested", level2_2}, {"top", true}};
+    dict level1_1 = {{"nested", level2_1}, {"top", true}};
+    dict level1_2 = {{"nested", level2_2}, {"top", true}};
 
     variant v1(level1_1);
     variant v2(level1_2);
@@ -723,22 +723,22 @@ TEST_F(VariantComparisonTest, CharacterUpgradeInComparison) {
 }
 
 /**
- * @brief 扩展dict和mutable_dict比较测试
+ * @brief 扩展dict和dict比较测试
  */
 TEST_F(VariantComparisonTest, DictComparisonExtended) {
-    // 创建具有相同键值的dict和mutable_dict
-    dict         dict1  = {{"key1", 1}, {"key2", "value"}, {"key3", true}};
-    mutable_dict mdict1 = {{"key1", 1}, {"key2", "value"}, {"key3", true}};
+    // 创建具有相同键值的dict和dict
+    dict dict1  = {{"key1", 1}, {"key2", "value"}, {"key3", true}};
+    dict mdict1 = {{"key1", 1}, {"key2", "value"}, {"key3", true}};
 
     variant v_dict(dict1);
 
-    // 测试dict和mutable_dict之间的相等性
+    // 测试dict和dict之间的相等性
     EXPECT_TRUE(v_dict == dict1);
     EXPECT_TRUE(v_dict == mdict1);
     EXPECT_TRUE(dict1 == v_dict);
     EXPECT_TRUE(mdict1 == v_dict);
 
-    // 修改mutable_dict并测试
+    // 修改dict并测试
     mdict1["key1"] = 2;
     EXPECT_FALSE(v_dict == mdict1);
 

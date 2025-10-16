@@ -149,7 +149,7 @@ struct test_service_1 : public mc::engine::service {
     }
 
     bool init(mc::dict args = {}) override {
-        mc::mutable_dict args_mut(args);
+        mc::dict args_mut(args);
         args_mut["service_path"] = "/org/openubmc/test_service_1";
         args_mut["service_name"] = "org.openubmc.test_service_1";
         return mc::engine::service::init(args_mut);
@@ -187,7 +187,7 @@ struct test_service_2 : public mc::engine::service {
     }
 
     bool init(mc::dict args = {}) override {
-        mc::mutable_dict args_mut(args);
+        mc::dict args_mut(args);
         args_mut["service_path"] = "/org/openubmc/test_service_2";
         args_mut["service_name"] = "org.openubmc.test_service_2";
         return mc::engine::service::init(args_mut);
@@ -292,10 +292,10 @@ protected:
 
         EXPECT_NO_THROW(bp::read_xml(ss, pt));
 
-        mc::mutable_dict object;
+        mc::dict object;
         for (const auto& child : pt.get_child("node")) {
             if (child.first == "interface") {
-                mc::mutable_dict interface;
+                mc::dict interface;
                 get_interface(child.second, interface);
 
                 auto name    = child.second.get<std::string>("<xmlattr>.name");
@@ -306,7 +306,7 @@ protected:
         return object;
     }
 
-    static void get_interface(const bp::ptree& pt, mc::mutable_dict& object) {
+    static void get_interface(const bp::ptree& pt, mc::dict& object) {
         auto name = pt.get<std::string>("<xmlattr>.name");
 
         mc::variants props;
@@ -346,9 +346,9 @@ protected:
     }
 
     static void get_arg(const bp::ptree& pt, mc::variants& method) {
-        auto             type      = pt.get<std::string>("<xmlattr>.type");
-        auto             direction = pt.get<std::string>("<xmlattr>.direction", "");
-        mc::mutable_dict arg       = {{"type", type}};
+        auto     type      = pt.get<std::string>("<xmlattr>.type");
+        auto     direction = pt.get<std::string>("<xmlattr>.direction", "");
+        mc::dict arg       = {{"type", type}};
         if (!direction.empty()) {
             arg["direction"] = direction;
         }
@@ -421,7 +421,7 @@ TEST_F(std_interface_test, test_introspect) {
     <node name="Id"/>
     </node>
     */
-    mc::mutable_dict object = decode_introspect(xml.get_string());
+    mc::dict object = decode_introspect(xml.get_string());
     EXPECT_TRUE(object.contains(mc::engine::properties_interface_name));
     EXPECT_TRUE(object.contains(mc::engine::introspectable_interface_name));
     EXPECT_TRUE(object.contains(mc::engine::peer_interface_name));

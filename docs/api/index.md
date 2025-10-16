@@ -7,7 +7,7 @@
 ### 数据类型与容器
 
 - [variant](variant.md) - 通用变量类型系统
-- [dict/mutable_dict](dict.md) - 键值对集合
+- [dict](dict.md) - 键值对集合
 - [string](string.md) - 字符串处理工具
 - [time](time.md) - 时间处理
 

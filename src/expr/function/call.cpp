@@ -27,7 +27,7 @@
 namespace mc::expr {
 
 void to_variant(const func_call& fc, mc::variant& v) {
-    mc::mutable_dict d;
+    mc::dict d;
     d.insert("func", mc::variant(fc.func));
     d.insert("params", mc::variant(fc.params));
     v = mc::variant(d);
@@ -127,8 +127,8 @@ mc::variant handle_function_call(const mc::variant& call_value, const std::strin
     auto functions = func_collection::get_instance().get(position);
 
     // 创建一个可变的字典来存储参数
-    mc::mutable_dict func_params = call_value["params"].as_mutable_dict();
-    auto             func_obj    = functions[call_value["func"]];
+    mc::dict func_params = call_value["params"].as_dict();
+    auto     func_obj    = functions[call_value["func"]];
 
     if (func_obj.is_null()) {
         elog("Function not found: ${func_name}", ("func_name", call_value["func"].as<std::string>()));
@@ -181,7 +181,7 @@ void handle_parameter_registration(mc::expr::context& ctx, const std::string& ke
     }
 }
 
-mc::variant func::call(const std::string_view& position, mc::mutable_dict& params) {
+mc::variant func::call(const std::string_view& position, mc::dict& params) {
     mc::expr::engine engine;
     auto&            ctx = engine.get_global_context();
 
@@ -202,8 +202,8 @@ mc::variant func::call(const std::string_view& position, mc::mutable_dict& param
     return engine.evaluate(m_result, ctx);
 }
 
-mc::mutable_dict func::get_relate_properties(const std::string_view& position, mc::mutable_dict& params) {
-    mc::mutable_dict relate_properties;
+mc::dict func::get_relate_properties(const std::string_view& position, mc::dict& params) {
+    mc::dict relate_properties;
     // 处理所有参数
     for (auto& item : m_args) {
         std::string key = item.key.as<std::string>();
@@ -218,7 +218,7 @@ mc::mutable_dict func::get_relate_properties(const std::string_view& position, m
             // 处理传入的参数
             if (is_function_call(it->value)) {
                 // 处理函数调用
-                auto child_params = it->value["params"].as_mutable_dict();
+                auto child_params = it->value["params"].as_dict();
                 auto func_name    = it->value["func"].as<std::string>();
                 auto func_obj     = func_collection::get_instance().get(position, func_name);
                 if (func_obj.is_null()) {

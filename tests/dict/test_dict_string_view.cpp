@@ -12,7 +12,7 @@
 
 /**
  * @file test_dict_string_view.cpp
- * @brief 测试 dict 和 mutable_dict 类对 std::string_view 和 const char* 的支持
+ * @brief 测试 dict 和 dict 类对 std::string_view 和 const char* 的支持
  */
 #include <gtest/gtest.h>
 #include <mc/dict.h>
@@ -41,7 +41,9 @@ TEST(DictStringViewTest, DictStringViewSupport) {
     EXPECT_EQ(d[key1_view].as<int>(), 123);
     EXPECT_EQ(d[key2_view].as<std::string>(), "value");
     EXPECT_EQ(d[key3_view].as<bool>(), true);
-    EXPECT_THROW(d[key4_view], std::out_of_range);
+    // const 版本的 operator[] 访问不存在的键会抛出异常
+    const dict& const_d = d;
+    EXPECT_THROW(const_d[key4_view], std::out_of_range);
 
     // 测试 get 方法
     EXPECT_EQ(d.get(key1_view, 0).as<int>(), 123);
@@ -74,7 +76,9 @@ TEST(DictStringViewTest, DictConstCharSupport) {
     EXPECT_EQ(d[key1_cstr].as<int>(), 123);
     EXPECT_EQ(d[key2_cstr].as<std::string>(), "value");
     EXPECT_EQ(d[key3_cstr].as<bool>(), true);
-    EXPECT_THROW(d[key4_cstr], std::out_of_range);
+    // const 版本的 operator[] 访问不存在的键会抛出异常
+    const dict& const_d = d;
+    EXPECT_THROW(const_d[key4_cstr], std::out_of_range);
 
     // 测试 get 方法
     EXPECT_EQ(d.get(key1_cstr, 0).as<int>(), 123);
@@ -87,9 +91,9 @@ TEST(DictStringViewTest, DictConstCharSupport) {
     EXPECT_EQ(d.find_index(key4_cstr), -1);
 }
 
-// 测试 mutable_dict 对 string_view 的支持
+// 测试 dict 对 string_view 的支持
 TEST(DictStringViewTest, MutableDictStringViewSupport) {
-    mutable_dict md({{"key1", 123}, {"key2", "value"}, {"key3", true}});
+    dict md({{"key1", 123}, {"key2", "value"}, {"key3", true}});
 
     // 测试 std::string_view 接口
     std::string_view key1_view = "key1";
@@ -112,9 +116,9 @@ TEST(DictStringViewTest, MutableDictStringViewSupport) {
     EXPECT_FALSE(md.erase(key4_view));
 }
 
-// 测试 mutable_dict 对 const char* 的支持
+// 测试 dict 对 const char* 的支持
 TEST(DictStringViewTest, MutableDictConstCharSupport) {
-    mutable_dict md({{"key1", 123}, {"key2", "value"}, {"key3", true}});
+    dict md({{"key1", 123}, {"key2", "value"}, {"key3", true}});
 
     // 测试 const char* 接口
     const char* key1_cstr = "key1";
@@ -144,7 +148,7 @@ TEST(DictStringViewTest, MixedStringTypes) {
     std::string key2_view = "key2";
     const char* key3_cstr = "key3";
 
-    mutable_dict md({{key1_str, 123}, {key2_view, "value"}, {key3_cstr, true}});
+    dict md({{key1_str, 123}, {key2_view, "value"}, {key3_cstr, true}});
 
     // 使用不同类型的字符串访问键值对
     std::string      key1_str_copy  = "key1";

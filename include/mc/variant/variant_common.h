@@ -29,7 +29,6 @@
 
 namespace mc {
 class dict;
-class mutable_dict;
 
 // 前置声明
 template <typename Config>

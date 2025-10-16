@@ -141,8 +141,8 @@ public:
         is_valid = false;
     }
 
-    mutable mc::mutable_dict arg_names;
-    bool                     is_valid{true};
+    mutable mc::dict arg_names;
+    bool             is_valid{true};
 };
 
 bool get_format_args(std::string_view format, mc::dict& arg_names) {

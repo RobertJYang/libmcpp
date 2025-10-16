@@ -145,7 +145,7 @@ static void parse_signature(const char* types, sig_unit& sig) {
     sig.sub_types = sig.buf + 1;
 }
 
-gvariant_auto_free::gvariant_auto_free(GVariant *v, bool add_ref) : ptr(v) {
+gvariant_auto_free::gvariant_auto_free(GVariant* v, bool add_ref) : ptr(v) {
     if (add_ref && ptr) {
         g_variant_ref(ptr);
     }
@@ -186,13 +186,13 @@ gvariant_auto_free::gvariant_auto_free(gvariant_auto_free&& other) noexcept : pt
 gvariant_auto_free& gvariant_auto_free::operator=(gvariant_auto_free&& other) noexcept {
     if (this != &other) {
         release();
-        ptr = other.ptr;
+        ptr       = other.ptr;
         other.ptr = nullptr;
     }
     return *this;
 }
 
-gvariant_builder::gvariant_builder(const GVariantType *type) {
+gvariant_builder::gvariant_builder(const GVariantType* type) {
     g_variant_builder_init(this, type);
 }
 
@@ -209,9 +209,9 @@ GVariant* gvariant_builder::end() {
 }
 
 GVariant* gvariant_convert::new_gvariant_dict(const variant& v, sig_unit& sig) {
-    auto            d         = v.as_dict();
-    const char*     key_sig   = sig.sub_types + 1;
-    const char*     value_sig = key_sig + 1;
+    auto             d         = v.as_dict();
+    const char*      key_sig   = sig.sub_types + 1;
+    const char*      value_sig = key_sig + 1;
     gvariant_builder builder(G_VARIANT_TYPE(sig.buf));
     for (const auto& entry : d) {
         gvariant_auto_free key(to_gvariant(entry.key, key_sig), true);
@@ -233,7 +233,7 @@ GVariant* gvariant_convert::new_gvariant_struct(const variant& v, sig_unit& sig)
         MC_THROW(mc::invalid_arg_exception, "struct size too large");
     }
     gvariant_builder builder(G_VARIANT_TYPE_TUPLE);
-    size_t i = 0;
+    size_t           i = 0;
     for (; i < len && *types != '\0'; i++) {
         auto pair = to_gvariant_inner(arr[i], types);
         builder.add(std::get<0>(pair));
@@ -303,8 +303,8 @@ std::tuple<GVariant*, const char*> gvariant_convert::to_gvariant_inner(const var
     return std::make_tuple(res, sig.next_types);
 }
 
-dict gvariant_convert::dict_to_mc_variant(GVariant* value, int n) {
-    mutable_dict d;
+mc::dict gvariant_convert::dict_to_mc_variant(GVariant* value, int n) {
+    mc::dict d;
     for (int i = 0; i < n; i++) {
         gvariant_auto_free entry(g_variant_get_child_value(value, i));
         gvariant_auto_free entry_key(g_variant_get_child_value(entry.ptr, 0));

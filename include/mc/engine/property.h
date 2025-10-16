@@ -433,41 +433,41 @@ protected:
         get_observer().notify(value, *this);
     }
 
-   void set_value_impl(param_type new_value, bool direct_set = false) {	
-        if (is_equal(new_value)) {	
-            return;	
-        }	
-        if (has_extension_data() && m_extension_data->outsider_setter && !direct_set) {	
-            mc::variant variant_value(new_value);	
+    void set_value_impl(param_type new_value, bool direct_set = false) {
+        if (is_equal(new_value)) {
+            return;
+        }
+        if (has_extension_data() && m_extension_data->outsider_setter && !direct_set) {
+            mc::variant variant_value(new_value);
             if (!m_extension_data->outsider_setter(variant_value)) {
-                // 外部setter返回false，不进行实际设置	
-                return;	
-            }	
-        }	
-        m_value = new_value;	
-        notify();	
-    }	
+                // 外部setter返回false，不进行实际设置
+                return;
+            }
+        }
+        m_value = new_value;
+        notify();
+    }
 
-    void set_value_impl(rvalue_type new_value, bool direct_set = false) {	
-        if (is_equal(new_value)) {	
-            return;	
-        }	
-        if (has_extension_data() && m_extension_data->outsider_setter && !direct_set) {	
-            mc::variant variant_value(new_value);	
+    void set_value_impl(rvalue_type new_value, bool direct_set = false) {
+        if (is_equal(new_value)) {
+            return;
+        }
+        if (has_extension_data() && m_extension_data->outsider_setter && !direct_set) {
+            mc::variant variant_value(new_value);
             if (!m_extension_data->outsider_setter(variant_value)) {
-                // 外部setter返回false，不进行实际设置	
-                return;	
-            }	
-        }	
-        m_value = std::move(new_value);	
-        notify();	
-    }	
+                // 外部setter返回false，不进行实际设置
+                return;
+            }
+        }
+        m_value = std::move(new_value);
+        notify();
+    }
 
-    void update_value() {	
-        if (has_extension_data()) {	
-            if (m_extension_data->getter) {	
-                auto result = m_extension_data->getter();	
-                T    value;	
+    void update_value() {
+        if (has_extension_data()) {
+            if (m_extension_data->getter) {
+                auto result = m_extension_data->getter();
+                T    value;
                 from_variant(result, value);
                 set_value_impl(value, true);
             } else if (m_extension_data->outsider_getter) {
@@ -476,7 +476,7 @@ protected:
                 from_variant(result, value);
                 set_value_impl(value, true);
             }
-        }	
+        }
     }
 
     T                                        m_value{};

@@ -564,7 +564,7 @@ public:
     variant parse_object() {
         enter_scope(); // 进入对象作用域
         advance();     // 跳过开始的大括号
-        mutable_dict result;
+        mc::dict result;
         skip_whitespace();
 
         if (current() == '}') {

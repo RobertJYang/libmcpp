@@ -12,7 +12,7 @@
 
 /**
  * @file test_dict_performance.cpp
- * @brief 测试 dict 和 mutable_dict 类的性能
+ * @brief 测试 dict 和 dict 类的性能
  */
 #include <chrono>
 #include <gtest/gtest.h>
@@ -85,10 +85,10 @@ TEST(DictPerformanceTest, DISABLED_InsertionPerformance) {
     const size_t count = 10000;
     auto         pairs = generate_random_pairs(count);
 
-    // 测试 mutable_dict 插入性能
+    // 测试 dict 插入性能
     auto start = std::chrono::high_resolution_clock::now();
 
-    mutable_dict md;
+    dict md;
     for (const auto& pair : pairs) {
         md[pair.first] = pair.second;
     }
@@ -120,7 +120,7 @@ TEST(DictPerformanceTest, DISABLED_InsertionPerformance) {
 
     // 输出性能结果
     std::cout << "Insertion performance for " << count << " elements:" << std::endl;
-    std::cout << "mutable_dict: " << md_duration << " ms" << std::endl;
+    std::cout << "dict: " << md_duration << " ms" << std::endl;
     std::cout << "std::map: " << map_duration << " ms" << std::endl;
     std::cout << "std::unordered_map: " << umap_duration << " ms" << std::endl;
 
@@ -136,7 +136,7 @@ TEST(DictPerformanceTest, DISABLED_LookupPerformance) {
     auto         pairs = generate_random_pairs(count);
 
     // 准备测试数据
-    mutable_dict                             md;
+    dict                                     md;
     std::map<std::string, variant>           m;
     std::unordered_map<std::string, variant> um;
 
@@ -210,7 +210,7 @@ TEST(DictPerformanceTest, DISABLED_IterationPerformance) {
     auto         pairs = generate_random_pairs(count);
 
     // 准备测试数据
-    mutable_dict                             md;
+    dict                                     md;
     std::map<std::string, variant>           m;
     std::unordered_map<std::string, variant> um;
 
@@ -269,7 +269,7 @@ TEST(DictPerformanceTest, DISABLED_ErasurePerformance) {
     auto         pairs = generate_random_pairs(count);
 
     // 准备测试数据
-    mutable_dict                             md;
+    dict                                     md;
     std::map<std::string, variant>           m;
     std::unordered_map<std::string, variant> um;
 
@@ -292,7 +292,7 @@ TEST(DictPerformanceTest, DISABLED_ErasurePerformance) {
         erase_keys.push_back("key_" + std::to_string(dis(gen)));
     }
 
-    // 测试 mutable_dict 删除性能
+    // 测试 dict 删除性能
     auto start = std::chrono::high_resolution_clock::now();
 
     for (const auto& key : erase_keys) {
@@ -324,7 +324,7 @@ TEST(DictPerformanceTest, DISABLED_ErasurePerformance) {
 
     // 输出性能结果
     std::cout << "Erasure performance for " << erase_count << " operations:" << std::endl;
-    std::cout << "mutable_dict: " << md_duration << " us" << std::endl;
+    std::cout << "dict: " << md_duration << " us" << std::endl;
     std::cout << "std::map: " << map_duration << " us" << std::endl;
     std::cout << "std::unordered_map: " << umap_duration << " us" << std::endl;
 }
@@ -334,7 +334,7 @@ TEST(DictPerformanceTest, DISABLED_IteratorVsIndexPerformance) {
     const size_t count = 10000;
 
     // 创建一个包含大量元素的字典
-    mutable_dict md;
+    dict md;
     for (size_t i = 0; i < count; ++i) {
         md["key_" + std::to_string(i)] = static_cast<int>(i);
     }

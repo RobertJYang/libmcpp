@@ -16,41 +16,38 @@
 #include <dbus/dbus.h>
 #include <functional>
 #include <memory>
-#include <string>
 #include <mutex>
+#include <string>
 #include <string_view>
 #include <unordered_map>
 
-static constexpr int      SHM_LOCK_TIMEOUT_DEFAULT_MS = 60000;
+static constexpr int SHM_LOCK_TIMEOUT_DEFAULT_MS = 60000;
 
 namespace shmlock {
 
 class LockHandle {
 public:
     LockHandle() {
-
     }
 
     void release() {
-
     }
 };
 
 class ShmLockManager;
-static std::mutex _shm_instance_mutex;
+static std::mutex                      _shm_instance_mutex;
 static std::unique_ptr<ShmLockManager> _shm_instance;
 
 class ShmLockManager {
 public:
     ShmLockManager() {
-
     }
 
-    static ShmLockManager &get_instance() {
+    static ShmLockManager& get_instance() {
         std::lock_guard lock(_shm_instance_mutex);
 
         if (!_shm_instance) {
-            _shm_instance = std::move(std::make_unique<ShmLockManager>());
+            _shm_instance = std::make_unique<ShmLockManager>();
         }
 
         return *_shm_instance;
@@ -68,7 +65,7 @@ public:
         return LockHandle();
     }
 };
-}
+} // namespace shmlock
 
 namespace DBus {
 namespace Match {
@@ -243,7 +240,7 @@ public:
 class interface {
 public:
     shared_ptr<property> add_p(shared_memory& ins, const std::string_view& name,
-                    const std::string_view& signature) {
+                               const std::string_view& signature) {
         return std::make_shared<property>(signature);
     }
 
@@ -261,8 +258,8 @@ public:
         return std::make_shared<property>();
     }
 
-    method   m_method;
-    signal   m_signal;
+    method m_method;
+    signal m_signal;
 };
 
 class object {

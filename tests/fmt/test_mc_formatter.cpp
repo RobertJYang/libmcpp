@@ -111,7 +111,7 @@ TEST_F(mc_formatter_test, VariantsFormatting) {
  * @brief 测试 mc::dict 的格式化
  */
 TEST_F(mc_formatter_test, DictFormatting) {
-    mc::mutable_dict dict;
+    mc::dict dict;
     dict["name"]       = "张三";
     dict["age"]        = 30;
     dict["is_student"] = false;
@@ -121,10 +121,10 @@ TEST_F(mc_formatter_test, DictFormatting) {
 }
 
 /**
- * @brief 测试 mc::mutable_dict 的格式化
+ * @brief 测试 mc::dict 的格式化
  */
 TEST_F(mc_formatter_test, MutableDictFormatting) {
-    mc::mutable_dict dict;
+    mc::dict dict;
     dict["city"]       = "北京";
     dict["population"] = 21540000;
     dict["is_capital"] = true;
@@ -138,7 +138,7 @@ TEST_F(mc_formatter_test, MutableDictFormatting) {
  */
 TEST_F(mc_formatter_test, NestedStructureFormatting) {
     // 创建嵌套的 dict
-    mc::mutable_dict inner_dict;
+    mc::dict inner_dict;
     inner_dict["x"] = 10;
     inner_dict["y"] = 20;
 
@@ -147,7 +147,7 @@ TEST_F(mc_formatter_test, NestedStructureFormatting) {
     arr.push_back(2);
     arr.push_back(3);
 
-    mc::mutable_dict outer_dict;
+    mc::dict outer_dict;
     outer_dict["point"]   = inner_dict;
     outer_dict["numbers"] = arr;
     outer_dict["name"]    = "test";
@@ -174,7 +174,7 @@ TEST_F(mc_formatter_test, VariantWithArrayFormatting) {
  * @brief 测试 mc::variant 包含 dict 的格式化
  */
 TEST_F(mc_formatter_test, VariantWithDictFormatting) {
-    mc::mutable_dict dict;
+    mc::dict dict;
     dict["key1"] = "value1";
     dict["key2"] = 42;
 
@@ -192,7 +192,7 @@ TEST_F(mc_formatter_test, ComplexNestedFormatting) {
     inner_arr.push_back("nested1");
     inner_arr.push_back("nested2");
 
-    mc::mutable_dict inner_dict;
+    mc::dict inner_dict;
     inner_dict["nested_key"] = inner_arr;
 
     mc::variants outer_arr;

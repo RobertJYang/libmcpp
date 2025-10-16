@@ -93,7 +93,7 @@ public:
     property_changed_signal& property_changed() override;
 
     static void from_variant(const mc::dict& d, interface_impl& obj);
-    static void to_variant(const interface_impl& obj, mc::mutable_dict& dict, int options = 0);
+    static void to_variant(const interface_impl& obj, mc::dict& dict, int options = 0);
 
 protected:
     void init_property_base(const mc::reflect::struct_metadata& metadata);

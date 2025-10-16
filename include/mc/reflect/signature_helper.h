@@ -226,14 +226,6 @@ struct signature_helper<mc::dict> {
     }
 };
 
-// 对 mutable_dict 的特化
-template <>
-struct signature_helper<mc::mutable_dict> {
-    static void apply(std::string& sig) {
-        sig += container::dict_string_var;
-    }
-};
-
 // 对 variants 的特化
 template <>
 struct signature_helper<mc::variants> {

@@ -681,22 +681,10 @@ const message_reader& operator>>(const message_reader& reader, mc::dict& v) {
     sub_reader.recurse(reader);
     sub_reader.ensure_type(DBUS_TYPE_DICT_ENTRY);
 
-    mc::mutable_dict tmp;
+    mc::dict tmp;
     sub_reader.read_variant_dict(tmp, 0);
 
     v = std::move(tmp);
-    return reader.next();
-}
-
-const message_reader& operator>>(const message_reader& reader, mc::mutable_dict& v) {
-    reader.ensure_type(DBUS_TYPE_ARRAY);
-
-    message_reader sub_reader;
-    sub_reader.recurse(reader);
-    sub_reader.ensure_type(DBUS_TYPE_DICT_ENTRY);
-
-    sub_reader.read_variant_dict(v, 0);
-
     return reader.next();
 }
 
@@ -709,7 +697,7 @@ void message_reader::read_variant_array_or_dict(mc::variant& v, std::size_t dept
 
     auto type = dbus_message_iter_get_element_type(&m_iter);
     if (type == DBUS_TYPE_DICT_ENTRY) {
-        mc::mutable_dict dict;
+        mc::dict dict;
         sub_reader.read_variant_dict(dict, depth);
         v = std::move(dict);
     } else {
@@ -754,7 +742,7 @@ void message_reader::read_variant_struct(mc::variant& v, std::size_t depth) cons
     v = std::move(arr);
 }
 
-void message_reader::read_variant_dict(mc::mutable_dict& dict, std::size_t depth) const {
+void message_reader::read_variant_dict(mc::dict& dict, std::size_t depth) const {
     ensure_message_depth(depth);
 
     while (!at_end()) {
@@ -904,11 +892,6 @@ const message_writer& operator<<(const message_writer& writer, const mc::variant
 }
 
 const message_writer& operator<<(const message_writer& writer, const mc::dict& v) {
-    writer.write_variant_dict(container::dict_string_var.substr(1), v, 0);
-    return writer;
-}
-
-const message_writer& operator<<(const message_writer& writer, const mc::mutable_dict& v) {
     writer.write_variant_dict(container::dict_string_var.substr(1), v, 0);
     return writer;
 }

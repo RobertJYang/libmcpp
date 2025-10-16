@@ -312,7 +312,7 @@ TEST_F(typed_variant_test, ArrayTypeLocking) {
  */
 TEST_F(typed_variant_test, ObjectTypeLocking) {
     // 创建一个对象
-    mutable_dict obj;
+    dict obj;
     obj["name"] = "John";
     obj["age"]  = 30;
 
@@ -337,7 +337,7 @@ TEST_F(typed_variant_test, ObjectTypeLocking) {
     ASSERT_EQ(tv_object.get_object().size(), prev_size);
 
     // 创建一个新的对象
-    mutable_dict obj2;
+    dict obj2;
     obj2["city"]    = "New York";
     obj2["country"] = "USA";
 
@@ -633,7 +633,7 @@ TEST_F(typed_variant_test, VariantConversionFunctions) {
     ASSERT_DOUBLE_EQ(tv_double.as_double(), 3.14);
 
     // 测试复杂类型的转换
-    mutable_dict dict;
+    dict dict;
     dict["name"] = "John";
     dict["age"]  = 30;
 

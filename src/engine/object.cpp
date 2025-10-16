@@ -342,7 +342,7 @@ bool object_impl::set_property(std::string_view property_name, const mc::variant
 mc::dict object_impl::get_all_properties(std::string_view interface_name, int options) const {
     const auto& metadata = get_metadata();
     if (interface_name.empty()) {
-        mc::mutable_dict dict;
+        mc::dict dict;
         to_variant(*this, dict, options);
         return dict;
     }
@@ -401,7 +401,7 @@ void object_impl::from_variant(const mc::dict& d, object_impl& obj) {
     });
 }
 
-void object_impl::to_variant(const object_impl& obj, mc::mutable_dict& dict, int options) {
+void object_impl::to_variant(const object_impl& obj, mc::dict& dict, int options) {
     const auto& metadata = obj.get_metadata();
 
     if (options & property_options::with_object_property) {
@@ -428,7 +428,7 @@ void object_impl::to_variant(const object_impl& obj, mc::mutable_dict& dict, int
 
     // 处理每个接口的属性
     metadata.visit_interfaces([&](const interface_metadata& iface) {
-        mc::mutable_dict sub_dict;
+        mc::dict sub_dict;
         interface_impl::to_variant(*detail::get_interface(&obj, iface.interface), sub_dict, options);
         dict[iface.metadata->get_class_name()] = sub_dict;
     });

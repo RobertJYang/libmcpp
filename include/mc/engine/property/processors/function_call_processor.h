@@ -12,9 +12,9 @@
 
 #pragma once
 
+#include <mc/dict.h>
 #include <mc/engine/property/processor.h>
 #include <mc/expr/function/call.h>
-#include <mc/dict.h>
 
 namespace mc::engine {
 
@@ -23,15 +23,15 @@ class ref_property_processor;
 
 /**
  * @brief 函数调用处理器
- * 
+ *
  * 处理格式为 "$Func_..." 的函数调用属性
  */
 class MC_API function_call_processor : public property_processor_interface {
 public:
     function_call_processor();
-    
-    bool matches(const std::string& value_str) const override;
-    void process(property_helper* property, const std::string& value_str) override;
+
+    bool   matches(const std::string& value_str) const override;
+    void   process(property_helper* property, const std::string& value_str) override;
     p_type get_property_type() const override;
 
 private:
@@ -39,9 +39,9 @@ private:
      * @brief 处理属性值的函数调用逻辑
      */
     void process_property_value(property_helper* property, const std::string& value_str);
-    
+
     std::unique_ptr<sync_property_processor> m_sync_processor;
-    std::unique_ptr<ref_property_processor> m_ref_processor;
+    std::unique_ptr<ref_property_processor>  m_ref_processor;
 };
 
-} // namespace mc::engine 
+} // namespace mc::engine
