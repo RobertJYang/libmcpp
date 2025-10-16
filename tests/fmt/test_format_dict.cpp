@@ -82,21 +82,21 @@ TEST(format_dict_test, FormatWithDictTest) {
     // 测试新format重载函数，将结果追加到现有字符串
     std::string append_result = "前缀：";
     mc::format_dict(append_result, "连接到 ${host}:${port}",
-                    mc::mutable_dict()("host", "example.com")("port", "8080"));
+                    mc::dict()("host", "example.com")("port", "8080"));
     ASSERT_EQ(append_result, "前缀：连接到 example.com:8080") << "追加格式化结果应该正确";
 
     // 测试新format重载函数，使用空字符串
     std::string empty_result;
-    mc::format_dict(empty_result, "协议: ${protocol}", mc::mutable_dict()("protocol", "https"));
+    mc::format_dict(empty_result, "协议: ${protocol}", mc::dict()("protocol", "https"));
     ASSERT_EQ(empty_result, "协议: https") << "从空字符串开始格式化应该正确";
 
     // 测试宏的其他功能
     // 测试无参数情况
-    result = mc::format_dict("无参数字符串", mc::mutable_dict());
+    result = mc::format_dict("无参数字符串", mc::dict());
     ASSERT_EQ(result, "无参数字符串") << "无参数调用应该返回原始字符串";
 
     // 测试多个参数
-    result = mc::format_dict("${a}-${b}-${c}", mc::mutable_dict()("a", 1)("b", 2.5)("c", "文本"));
+    result = mc::format_dict("${a}-${b}-${c}", mc::dict()("a", 1)("b", 2.5)("c", "文本"));
     ASSERT_EQ(result, "1-2.5-文本") << "多参数调用应该正确格式化";
 }
 

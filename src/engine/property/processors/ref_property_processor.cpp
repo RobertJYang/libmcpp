@@ -10,11 +10,11 @@
  * See the Mulan PSL v2 for more details.
  */
 
-#include <mc/engine/property/processors/ref_property_processor.h>
 #include <mc/engine/property/helper.h>
+#include <mc/engine/property/processors/ref_property_processor.h>
+#include <mc/exception.h>
 #include <mc/expr/function/parser.h>
 #include <mc/log.h>
-#include <mc/exception.h>
 
 namespace mc::engine {
 
@@ -34,7 +34,7 @@ p_type ref_property_processor::get_property_type() const {
 
 void ref_property_processor::hook_ref_property(property_helper* property, const mc::expr::relate_property& relate_property) {
     property->ensure_extension_data();
-    
+
     property->set_getter_function([property, relate_property]() -> mc::variant {
         auto result = property->get_relate_property(relate_property);
         if (result.is_null()) {
@@ -49,9 +49,9 @@ void ref_property_processor::hook_ref_property(property_helper* property, const 
     });
 }
 
-void ref_property_processor::hook_ref_properties(property_helper* property, mc::mutable_dict& relate_properties) {
+void ref_property_processor::hook_ref_properties(property_helper* property, mc::dict& relate_properties) {
     property->ensure_extension_data();
-    
+
     // 设置获取函数，调用函数并获取结果
     property->set_getter_function([property]() -> mc::variant {
         auto result = property->call_function_with_result(property->get_function_data());
@@ -67,4 +67,4 @@ void ref_property_processor::hook_ref_properties(property_helper* property, mc::
     });
 }
 
-} // namespace mc::engine 
+} // namespace mc::engine

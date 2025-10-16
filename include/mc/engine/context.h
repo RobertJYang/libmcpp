@@ -106,7 +106,7 @@ private:
     service&                m_service;
     abstract_object&        m_object;
     error_ptr               m_error;
-    mc::mutable_dict        m_args;
+    mc::dict                m_args;
     detail::call_info       m_call_info;
     const method_type_info* m_method{nullptr};
     handler_status          m_status{handler_status::accepted};
@@ -147,7 +147,7 @@ using context_stack = detail::call_stack<service, context>;
 #define MC_REPLY_ERROR_AND_THROW_1(err) \
     mc::engine::context::throw_error(err)
 #define MC_REPLY_ERROR_AND_THROW_2(err, ...) \
-    mc::engine::context::throw_error(err, mc::mutable_dict() __VA_ARGS__)
+    mc::engine::context::throw_error(err, mc::dict() __VA_ARGS__)
 #define MC_REPLY_ERROR_AND_THROW(...)                                                                  \
     BOOST_PP_IIF(BOOST_PP_GREATER(BOOST_PP_VARIADIC_SIZE(__VA_ARGS__), 1), MC_REPLY_ERROR_AND_THROW_2, \
                  MC_REPLY_ERROR_AND_THROW_1)(__VA_ARGS__)

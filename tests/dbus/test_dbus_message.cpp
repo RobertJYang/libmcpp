@@ -505,7 +505,7 @@ TEST_F(dbus_message_test, test_mc_dbus_message_write_libdbus_read) {
     dbus_message_iter_next(&iter);
 
     // 读取字典
-    mc::mutable_dict dict;
+    mc::dict dict;
     ASSERT_EQ(dbus_message_iter_get_arg_type(&iter), DBUS_TYPE_ARRAY);
     DBusMessageIter dict_iter;
     dbus_message_iter_recurse(&iter, &dict_iter);

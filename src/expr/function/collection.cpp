@@ -32,7 +32,7 @@ func_collection& func_collection::get_instance() {
     return instance;
 }
 
-void func_collection::add(const std::string_view& position, std::shared_ptr<mc::engine::service> service, mc::mutable_dict& functions) {
+void func_collection::add(const std::string_view& position, std::shared_ptr<mc::engine::service> service, mc::dict& functions) {
     std::lock_guard lock(m_mutex);
     std::string     position_str(position);
     m_services[position_str] = service;
@@ -44,7 +44,7 @@ mc::variant func_collection::get(const std::string_view& position, const std::st
         return mc::variant();
     }
 
-    auto functions = m_functions[position].as<mc::mutable_dict>();
+    auto functions = m_functions[position].as<mc::dict>();
     if (functions.find(func_name) == functions.end()) {
         return mc::variant();
     }
@@ -62,19 +62,19 @@ std::shared_ptr<mc::engine::service> func_collection::get_service(const std::str
     return it->second;
 }
 
-mc::mutable_dict func_collection::get(const std::string_view& position) {
+mc::dict func_collection::get(const std::string_view& position) {
     if (m_functions.find(position) == m_functions.end()) {
-        return mc::mutable_dict();
+        return mc::dict();
     }
-    return m_functions[position].as<mc::mutable_dict>();
+    return m_functions[position].as<mc::dict>();
 }
 
-mc::mutable_dict func_collection::remove(const std::string_view& position) {
+mc::dict func_collection::remove(const std::string_view& position) {
     if (m_functions.find(position) == m_functions.end()) {
-        return mc::mutable_dict();
+        return mc::dict();
     }
-    std::lock_guard  lock(m_mutex);
-    mc::mutable_dict result = m_functions[position].as<mc::mutable_dict>();
+    std::lock_guard lock(m_mutex);
+    mc::dict        result = m_functions[position].as<mc::dict>();
     m_functions.erase(position);
 
     std::string position_str(position);

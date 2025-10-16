@@ -126,7 +126,7 @@ TEST_F(VariantVisitorTest, VisitString) {
 }
 
 TEST_F(VariantVisitorTest, VisitDict) {
-    mutable_dict md;
+    dict md;
     md["key"]     = "value";
     dict        d = md;
     variant     v(d); // dict
@@ -236,7 +236,7 @@ TEST_F(VariantVisitorTest, VisitWithString) {
 }
 
 TEST_F(VariantVisitorTest, VisitWithDict) {
-    mutable_dict md;
+    dict md;
     md["key"] = "value";
     dict    d = md;
     variant v(d); // dict

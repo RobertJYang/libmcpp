@@ -104,8 +104,8 @@ TEST_F(VariantBoolOperatorTest, BoolOperator) {
     ASSERT_TRUE(static_cast<bool>(v_arr)) << "非空数组variant应该转换为true";
 
     // 测试对象类型
-    mutable_dict empty_dict;
-    mutable_dict dict;
+    dict empty_dict;
+    dict dict;
     dict["key"] = 42;
     variant v_empty_dict(empty_dict);
     variant v_dict(dict);

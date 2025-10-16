@@ -130,17 +130,17 @@ void property_helper::disconnect_all_connections(std::vector<mc::connection_type
     connection_slots.clear();
 }
 
-mc::mutable_dict property_helper::group_properties_by_object(const mc::mutable_dict& relate_properties) {
-    mc::mutable_dict object_properties;
+mc::dict property_helper::group_properties_by_object(const mc::dict& relate_properties) {
+    mc::dict object_properties;
 
     for (const auto& entry : relate_properties) {
         auto relate_property = entry.value.template as<mc::expr::relate_property>();
 
         if (!object_properties.contains(relate_property.object_name)) {
-            object_properties[relate_property.object_name] = mc::mutable_dict{};
+            object_properties[relate_property.object_name] = mc::dict{};
         }
 
-        auto object_property = object_properties[relate_property.object_name].as<mc::mutable_dict>();
+        auto object_property = object_properties[relate_property.object_name].as<mc::dict>();
         object_property.insert(relate_property.property_name, true);
         object_properties[relate_property.object_name] = object_property;
     }

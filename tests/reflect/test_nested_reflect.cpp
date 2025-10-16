@@ -289,10 +289,10 @@ TEST(NestedReflectTest, DynamicNestedModification) {
     mc::variant var(contact);
 
     // 获取可变字典
-    mc::mutable_dict md(var.as<mc::dict>());
+    mc::dict md(var.as<mc::dict>());
 
     // 修改嵌套对象
-    mc::mutable_dict addr_md(md["m_address"].as<mc::dict>());
+    mc::dict addr_md(md["m_address"].as<mc::dict>());
     addr_md["m_city"]   = "广州";
     addr_md["m_number"] = 789;
     md["m_address"]     = addr_md;

@@ -530,7 +530,7 @@ variant read_buffer::read_table(int64_t array_size) {
     if (key.is_null()) {
         return arr;
     }
-    mutable_dict d;
+    mc::dict d;
     for (int64_t i = 1; i <= array_size; i++) {
         variant index(i);
         d[index] = arr[i - 1];

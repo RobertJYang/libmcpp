@@ -227,20 +227,20 @@ TEST(SerializeTest, SerializeNestedArrays) {
 TEST(SerializeTest, SerializeDicts) {
     variants msg_arr;
     // 测试包含基本类型的字典
-    mutable_dict basic_dict;
+    dict basic_dict;
     basic_dict["int"]    = 1;
     basic_dict["str"]    = "string";
     basic_dict["double"] = 3.14;
     basic_dict["bool"]   = true;
     msg_arr.push_back(basic_dict);
     // 测试包含嵌套数组的字典
-    mutable_dict nested_dict;
+    dict nested_dict;
     nested_dict["arr"]        = variants({1, 2, 3});
     nested_dict["nested_arr"] = variants({variants({1, 2}), variants({3, 4})});
     msg_arr.push_back(nested_dict);
     // 测试包含嵌套字典的字典
-    mutable_dict deep_dict;
-    mutable_dict inner_dict;
+    dict deep_dict;
+    dict inner_dict;
     inner_dict["a"]    = 1;
     inner_dict["b"]    = 2;
     deep_dict["inner"] = inner_dict;
@@ -277,7 +277,7 @@ TEST(SerializeTest, SerializeMixedTypes) {
     mixed_arr.push_back(dict({{"a", 1}, {"b", 2}}));
     msg_arr.push_back(mixed_arr);
     // 测试混合类型的字典
-    mutable_dict mixed_dict;
+    dict mixed_dict;
     mixed_dict["int"]  = 1;
     mixed_dict["str"]  = "string";
     mixed_dict["arr"]  = variants({1, 2, 3});

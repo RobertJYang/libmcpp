@@ -28,10 +28,9 @@ protected:
     }
 };
 
-TEST_F(continue_test, GetValue)
-{
+TEST_F(continue_test, GetValue) {
     mc::debounce::Continue cont(3);
-    std::optional<int> value;
+    std::optional<int>     value;
     value = cont.get_debounce_val(1);
     ASSERT_EQ(value, std::nullopt);
     value = cont.get_debounce_val(1);

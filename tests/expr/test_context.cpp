@@ -140,7 +140,7 @@ TEST_F(expr_context_test, EngineWithScope) {
 
 // 测试使用dict创建上下文
 TEST_F(expr_context_test, CreateContextWithDict) {
-    mc::mutable_dict variables;
+    mc::dict variables;
     variables.insert("x", 10);
     variables.insert("y", 20);
 

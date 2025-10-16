@@ -146,7 +146,7 @@ struct MC_API error : public mc::enable_shared_from_this<error>, public error_in
     void to_exception(mc::exception& e) const;
 
     // 错误参数
-    mc::mutable_dict args;
+    mc::dict args;
 
     /**
      * @brief 前一个错误

@@ -10,9 +10,9 @@
  * See the Mulan PSL v2 for more details.
  */
 
+#include <mc/engine/base.h>
 #include <mc/exception.h>
 #include <mc/expr/context.h>
-#include <mc/engine/base.h>
 #include <mc/log.h>
 
 #include <unordered_map>

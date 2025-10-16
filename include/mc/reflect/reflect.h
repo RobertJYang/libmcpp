@@ -179,7 +179,7 @@ struct has_custom_to_variant : std::false_type {};
 
 template <typename T>
 struct has_custom_to_variant<T, std::void_t<decltype(T::to_variant(
-                                    std::declval<const T&>(), std::declval<mc::mutable_dict&>()))>>
+                                    std::declval<const T&>(), std::declval<mc::dict&>()))>>
     : std::true_type {};
 
 template <typename T>
@@ -204,7 +204,7 @@ void custom_from_variant(const mc::dict& d, T& obj) {
 }
 
 template <typename T>
-void custom_to_variant(const T& obj, mc::mutable_dict& dict) {
+void custom_to_variant(const T& obj, mc::dict& dict) {
     if constexpr (has_custom_to_variant_v<T>) {
         T::to_variant(obj, dict);
     }
@@ -223,7 +223,7 @@ void to_variant(const T& obj, variant& var) {
     if constexpr (reflectable<T>::is_enum::value) {
         reflector<T>::to_variant(obj, var);
     } else {
-        mutable_dict dict;
+        mc::dict dict;
         reflector<T>::to_variant(obj, dict);
         var = dict;
     }
@@ -236,7 +236,7 @@ void to_variant(const T& obj, variant& var) {
  * @param dict 转换后的可变字典
  */
 template <typename T>
-void to_variant(const T& obj, mutable_dict& dict) {
+void to_variant(const T& obj, mc::dict& dict) {
     if constexpr (reflectable<T>::is_enum::value) {
         variant var;
         reflector<T>::to_variant(obj, var);
@@ -372,7 +372,7 @@ struct MC_API reflector<
         }));
     }
 
-    static void to_variant(const T& obj, mc::mutable_dict& dict);
+    static void to_variant(const T& obj, mc::dict& dict);
     static void from_variant(const mc::dict& d, T& obj);
 
     static const struct_metadata& get_metadata();
@@ -509,7 +509,7 @@ struct MC_API reflector<
         });                                                                                            \
     }                                                                                                  \
     template <>                                                                                        \
-    [[maybe_unused]] void reflector<TYPE>::to_variant(const TYPE& obj, mc::mutable_dict& dict) {       \
+    [[maybe_unused]] void reflector<TYPE>::to_variant(const TYPE& obj, mc::dict& dict) {               \
         if constexpr (mc::reflect::detail::has_custom_to_variant_v<TYPE>) {                            \
             mc::reflect::detail::custom_to_variant(obj, dict);                                         \
         } else {                                                                                       \

@@ -327,8 +327,8 @@ TEST(ReflectTest, VariantInteroperability) {
     const mc::dict& d = var.as<mc::dict>();
 
     // 使用初始化列表构造修改后的字典
-    mc::dict         modified_dict = d;
-    mc::mutable_dict md(modified_dict);
+    mc::dict modified_dict = d;
+    mc::dict md(modified_dict);
     md["m_name"] = "赵六";
     md["m_age"]  = 45;
 

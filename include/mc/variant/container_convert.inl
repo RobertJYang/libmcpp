@@ -206,7 +206,7 @@ void map_to_variant(const MapType<K, T, Args...>& map, variant& vo) {
         throw std::range_error("容器元素过多");
     }
 
-    mutable_dict result;
+    mc::dict result;
     for (const auto& pair : map) {
         result(pair.first, pair.second);
     }
@@ -497,8 +497,8 @@ template <typename... T>
 void to_variant(const std::variant<T...>& var, mc::variant& vo) {
     std::visit(
         [&vo](const auto& value) {
-            to_variant(value, vo);
-        },
+        to_variant(value, vo);
+    },
         var);
 }
 

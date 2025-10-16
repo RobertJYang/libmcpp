@@ -28,4 +28,4 @@ void detail::interface_observer::notify(const mc::variant& value, const property
     object->notify_property_changed(value, prop);
 }
 
-} // namespace mc::engine 
+} // namespace mc::engine

@@ -19,13 +19,13 @@ namespace mc::engine {
 
 /**
  * @brief 引用对象处理器
- * 
+ *
  * 处理格式为 "#/object_name" 的引用对象属性
  */
 class MC_API ref_object_processor : public property_processor_interface {
 public:
-    bool matches(const std::string& value_str) const override;
-    void process(property_helper* property, const std::string& value_str) override;
+    bool   matches(const std::string& value_str) const override;
+    void   process(property_helper* property, const std::string& value_str) override;
     p_type get_property_type() const override;
 
 private:
@@ -33,11 +33,11 @@ private:
      * @brief 处理引用对象的from_variant逻辑
      */
     void process_ref_object_from_variant(property_helper* property, const std::string& ref_object_str);
-    
+
     /**
      * @brief 初始化引用对象缓存
      */
     void initialize_ref_object_cache(property_helper* property, const std::string& object_name);
 };
 
-} // namespace mc::engine 
+} // namespace mc::engine

@@ -26,7 +26,7 @@ typedef enum {
 
 typedef void (*debug_log_func_t)(DLOG_LEVEL_E, const char*, int, const char*, ...);
 typedef void (*set_log_module_name_func_t)(const char*);
-static debug_log_func_t debug_log_ptr = nullptr;
+static debug_log_func_t           debug_log_ptr           = nullptr;
 static set_log_module_name_func_t set_log_module_name_ptr = nullptr;
 
 namespace mc {
@@ -133,8 +133,6 @@ void file_appender::append(const message& msg) {
         debug_log_ptr(level, file_str.c_str(), ctx.m_line, "%s", message_str.c_str());
     }
 }
-
-
 
 void file_appender::set_filename(const std::string& filename) {
     std::lock_guard<std::mutex> lock(m_mutex);

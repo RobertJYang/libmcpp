@@ -112,7 +112,7 @@ struct test_service_1 : public mc::engine::service {
     }
 
     bool init(mc::dict args = {}) override {
-        mc::mutable_dict args_mut(args);
+        mc::dict args_mut(args);
         args_mut["service_path"] = "/org/openubmc/test_service_1";
         args_mut["service_name"] = "org.openubmc.test_service_1";
         return mc::engine::service::init(args_mut);
@@ -150,7 +150,7 @@ struct test_service_2 : public mc::engine::service {
     }
 
     bool init(mc::dict args = {}) override {
-        mc::mutable_dict args_mut(args);
+        mc::dict args_mut(args);
         args_mut["service_path"] = "/org/openubmc/test_service_2";
         args_mut["service_name"] = "org.openubmc.test_service_2";
         return mc::engine::service::init(args_mut);

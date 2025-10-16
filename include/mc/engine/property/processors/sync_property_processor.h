@@ -12,9 +12,9 @@
 
 #pragma once
 
+#include <mc/dict.h>
 #include <mc/engine/property/processor.h>
 #include <mc/expr/function/parser.h>
-#include <mc/dict.h>
 
 namespace mc::engine {
 
@@ -22,62 +22,62 @@ class abstract_object;
 
 /**
  * @brief 同步属性处理器
- * 
+ *
  * 处理格式为 "<=/object_name.property_name" 的同步属性
  */
 class MC_API sync_property_processor : public property_processor_interface {
 public:
-    bool matches(const std::string& value_str) const override;
-    void process(property_helper* property, const std::string& value_str) override;
+    bool   matches(const std::string& value_str) const override;
+    void   process(property_helper* property, const std::string& value_str) override;
     p_type get_property_type() const override;
-    
+
     // 公开方法供其他处理器使用
-    void hook_sync_properties(property_helper* property, mc::mutable_dict& relate_properties);
+    void hook_sync_properties(property_helper* property, mc::dict& relate_properties);
 
 private:
     /**
      * @brief 处理单个同步属性
      */
     void hook_sync_property(property_helper* property, const mc::expr::relate_property& relate_property);
-    
+
     /**
      * @brief 设置同步属性连接
      */
-    void setup_sync_property_connection(property_helper* property, 
-                                       const mc::expr::relate_property& relate_property,
-                                       abstract_object& target_object);
-    
+    void setup_sync_property_connection(property_helper*                 property,
+                                        const mc::expr::relate_property& relate_property,
+                                        abstract_object&                 target_object);
+
     /**
      * @brief 设置延迟同步连接
      */
-    void setup_deferred_sync_connection(property_helper* property, 
-                                       const mc::expr::relate_property& relate_property);
-    
+    void setup_deferred_sync_connection(property_helper*                 property,
+                                        const mc::expr::relate_property& relate_property);
+
     /**
      * @brief 处理单个对象的同步属性
      */
-    void process_sync_properties_for_object(property_helper* property,
-                                           const std::string& object_name,
-                                           const mc::mutable_dict& object_properties);
-    
+    void process_sync_properties_for_object(property_helper*   property,
+                                            const std::string& object_name,
+                                            const mc::dict&    object_properties);
+
     /**
      * @brief 设置多属性同步连接
      */
     void setup_multi_sync_connection(property_helper* property,
-                                    abstract_object& target_object,
-                                    const mc::mutable_dict& object_properties);
-    
+                                     abstract_object& target_object,
+                                     const mc::dict&  object_properties);
+
     /**
      * @brief 设置延迟多属性同步连接
      */
-    void setup_deferred_multi_sync_connection(property_helper* property,
-                                             const std::string& object_name,
-                                             const mc::mutable_dict& object_properties);
-    
+    void setup_deferred_multi_sync_connection(property_helper*   property,
+                                              const std::string& object_name,
+                                              const mc::dict&    object_properties);
+
     /**
      * @brief 更新同步属性值
      */
     void update_sync_value_from_function(property_helper* property);
 };
 
-} // namespace mc::engine 
+} // namespace mc::engine

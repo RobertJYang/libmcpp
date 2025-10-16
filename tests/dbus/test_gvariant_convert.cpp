@@ -194,7 +194,7 @@ TEST(GvariantConvertTest, BasicTypesToGVariant) {
 
 TEST(GvariantConvertTest, DictToGVariant) {
     // 测试包含基本类型的字典
-    mutable_dict basic_dict;
+    dict basic_dict;
     basic_dict["int1"] = 1;
     basic_dict["int2"] = 2;
     basic_dict["int3"] = 3;
@@ -210,7 +210,7 @@ TEST(GvariantConvertTest, DictToGVariant) {
     g_variant_unref(gvariant);
 
     // 测试包含数组的字典
-    mutable_dict nested_dict;
+    dict nested_dict;
     nested_dict["arr1"] = variants({1.1, 2.2, 3.3});
     nested_dict["arr2"] = variants({9.9, 8.8, 7.7, 6.6});
     gvariant            = dbus::gvariant_convert::to_gvariant(nested_dict, "a{sad}");
@@ -232,8 +232,8 @@ TEST(GvariantConvertTest, DictToGVariant) {
     g_variant_unref(gvariant);
 
     // 测试包含嵌套字典的字典
-    mutable_dict deep_dict;
-    mutable_dict inner_dict;
+    dict deep_dict;
+    dict inner_dict;
     inner_dict["a"]    = 1;
     inner_dict["b"]    = 2;
     deep_dict["inner"] = inner_dict;

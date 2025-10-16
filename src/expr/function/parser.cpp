@@ -301,10 +301,10 @@ func_call func_parser::parse_function_call(const std::string& input) {
         } else if (std::regex_match(param_value, std::regex(R"(-?\d+)"))) {
             result.params[param_name] = mc::variant(static_cast<int32_t>(std::stoi(param_value)));
         } else if (param_value[0] == '$') {
-            auto             nested_call = parse_function_call(param_value);
-            mc::mutable_dict nested_dict;
+            auto     nested_call = parse_function_call(param_value);
+            mc::dict nested_dict;
             nested_dict.insert("func", mc::variant(nested_call.func));
-            mc::mutable_dict params_dict;
+            mc::dict params_dict;
             for (const auto& param : nested_call.params) {
                 params_dict.insert(param.key, param.value);
             }

@@ -13,13 +13,13 @@
 #pragma once
 
 #include <functional>
-#include <string>
-#include <string_view>
 #include <mc/engine/base.h>
 #include <mc/exception.h>
 #include <mc/memory.h>
 #include <mc/variant.h>
 #include <mc/variant/variant_extension.h>
+#include <string>
+#include <string_view>
 
 namespace mc::engine {
 
@@ -194,4 +194,4 @@ private:
     }
 };
 
-} // namespace mc::engine 
+} // namespace mc::engine

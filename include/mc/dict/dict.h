@@ -12,7 +12,7 @@
 
 /**
  * @file dict.h
- * @brief 定义了字典类，包括不可变的 dict 和可变的 mutable_dict，用于表示键值对集合，保持插入顺序
+ * @brief 定义了字典类 dict ，用于表示键值对集合，保持插入顺序
  */
 #ifndef MC_DICT_DICT_H
 #define MC_DICT_DICT_H
@@ -35,20 +35,21 @@
 namespace mc {
 
 // 前向声明
-class mutable_dict;
 namespace dict_types {
 struct entry;
+struct iterator;
 struct const_iterator;
+struct reverse_iterator;
 struct const_reverse_iterator;
 struct data_t;
 } // namespace dict_types
 
 /**
- * @brief 不可变的字典类，保持键值对的插入顺序
+ * @brief 字典类，保持键值对的插入顺序
  *
  * @note 此类使用共享数据模型，拷贝操作会共享内部数据。
  *       多个 dict 对象可能共享相同的内部数据，
- *       通过 mutable_dict 修改数据会影响所有共享该数据的对象。
+ *       修改共享数据会影响所有共享该数据的对象。
  *
  * @note
  * 此类使用侵入式容器实现，有序索引部分用的是list，通过键查找元素的性能较好，但随机索引访问（如
@@ -71,7 +72,9 @@ public:
     using key_type               = variant;
     using value_type             = variant;
     using entry                  = dict_types::entry;
+    using iterator               = dict_types::iterator;
     using const_iterator         = dict_types::const_iterator;
+    using reverse_iterator       = dict_types::reverse_iterator;
     using const_reverse_iterator = dict_types::const_reverse_iterator;
     using data_t                 = dict_types::data_t;
 
@@ -79,6 +82,17 @@ public:
      * @brief 默认构造函数
      */
     dict() = default;
+
+    /**
+     * @brief 单键值对构造函数
+     *
+     * @param key 键
+     * @param value 值
+     *
+     * @note 此构造函数允许使用链式调用创建字典：
+     *       dict(key1, value1)(key2, value2)(key3, value3);
+     */
+    dict(variant key, variant value);
 
     /**
      * @brief 从键值对集合构造
@@ -94,6 +108,39 @@ public:
      *       dict d = {{"key1", 123}, {"key2", "value"}, {"key3", true}};
      */
     dict(std::initializer_list<std::pair<variant, variant>> init);
+
+    /**
+     * @brief 从初始化列表构造（模板版本）
+     *
+     * @param init 键值对初始化列表
+     *
+     * @note 此构造函数允许使用更简洁的语法创建字典，无需显式创建 variant：
+     *       dict md = {{"key1", 123}, {"key2", "value"}, {"key3", true}};
+     */
+    template <typename T>
+    dict(std::initializer_list<std::pair<variant, T>> init) : dict(init.begin(), init.end()) {
+    }
+
+    /**
+     * @brief 从初始化列表构造（模板版本，支持不同类型的键）
+     *
+     * @param init 键值对初始化列表
+     *
+     * @note 此构造函数允许使用更简洁的语法创建字典，无需显式创建 variant：
+     *       dict md = {{key1_str, 123}, {key2_view, "value"}, {key3_cstr, true}};
+     */
+    template <typename K, typename T>
+    dict(std::initializer_list<std::pair<K, T>> init) : dict(init.begin(), init.end()) {
+    }
+
+    /**
+     * @brief 从迭代器范围构造
+     * @tparam InputIt 输入迭代器类型
+     * @param first 起始迭代器
+     * @param last 结束迭代器
+     */
+    template <typename InputIt>
+    dict(InputIt first, InputIt last);
 
     /**
      * @brief 拷贝构造函数
@@ -119,7 +166,65 @@ public:
     dict& operator=(dict&& other) noexcept = default;
 
     /**
-     * @brief 获取指定键的值
+     * @brief 从初始化列表赋值
+     * @param init 键值对初始化列表
+     * @return 返回自身引用
+     * @note 此操作会替换当前的内容
+     */
+    dict& operator=(std::initializer_list<std::pair<variant, variant>> init);
+
+    /**
+     * @brief 从初始化列表赋值（模板版本）
+     * @param init 键值对初始化列表
+     * @return 返回自身引用
+     * @note 此操作会替换当前的内容
+     */
+    template <typename T>
+    dict& operator=(std::initializer_list<std::pair<variant, T>> init) {
+        dict new_dict(init);
+        *this = std::move(new_dict);
+        return *this;
+    }
+
+    /**
+     * @brief 从初始化列表赋值（模板版本，支持不同类型的键）
+     * @param init 键值对初始化列表
+     * @return 返回自身引用
+     * @note 此操作会替换当前的内容
+     */
+    template <typename K, typename T>
+    dict& operator=(std::initializer_list<std::pair<K, T>> init) {
+        dict new_dict(init);
+        *this = std::move(new_dict);
+        return *this;
+    }
+
+    /**
+     * @brief 添加或更新键值对的模板版本，自动将值转换为 variant
+     *
+     * @tparam T 值的类型，必须能够被 variant 构造
+     * @param key 键
+     * @param var 值
+     * @return dict& 返回自身引用，支持链式调用
+     *
+     * @note 此方法允许使用更简洁的语法创建和填充字典：
+     *       dict md;
+     *       md("key1", 123)("key2", "value")("key3", true);
+     */
+    dict& operator()(variant key, variant value);
+
+    /**
+     * @brief 获取或设置指定键的值
+     * @note 如果键不存在，会自动创建
+     * @note 此操作可能会修改共享数据，影响所有共享该数据的对象
+     */
+    variant& operator[](const std::string& key);
+    variant& operator[](std::string_view key);
+    variant& operator[](const char* key);
+    variant& operator[](const variant& key);
+
+    /**
+     * @brief 获取指定键的值（const 版本）
      * @throw std::out_of_range 如果键不存在
      */
     const variant& operator[](const std::string& key) const;
@@ -151,13 +256,32 @@ public:
     bool empty() const;
 
     /**
-     * @brief 获取开始迭代器
+     * @brief 移除指定键的键值对
+     * @return 如果键存在并被移除则返回 true，否则返回 false
+     * @note 此操作会修改共享数据，影响所有共享该数据的对象
      */
+    bool erase(const std::string& key);
+    bool erase(std::string_view key);
+    bool erase(const char* key);
+    bool erase(const variant& key);
+
+    /**
+     * @brief 清空所有键值对
+     * @note 此操作会修改共享数据，影响所有共享该数据的对象
+     */
+    void clear();
+
+    /**
+     * @brief 获取开始迭代器
+     * @note 通过迭代器修改数据会影响所有共享该数据的对象
+     */
+    iterator       begin();
     const_iterator begin() const;
 
     /**
      * @brief 获取结束迭代器
      */
+    iterator       end();
     const_iterator end() const;
 
     /**
@@ -183,11 +307,22 @@ public:
     /**
      * @brief 获取指定索引位置的键值对
      * @throw std::out_of_range 如果索引越界
+     * @note 修改返回的引用会影响所有共享该数据的对象
      */
+    entry&       at_index(size_t index);
     const entry& at_index(size_t index) const;
 
     /**
-     * @brief 获取指定键的值
+     * @brief 获取指定键的值（可变）
+     * @throw std::out_of_range 如果键不存在
+     */
+    variant& at(const std::string& key);
+    variant& at(std::string_view key);
+    variant& at(const char* key);
+    variant& at(const variant& key);
+
+    /**
+     * @brief 获取指定键的值（const 版本）
      * @throw std::out_of_range 如果键不存在
      */
     const variant& at(const std::string& key) const;
@@ -238,6 +373,10 @@ public:
      * @param key 要查找的键
      * @return 指向找到元素的迭代器，如果不存在则返回 end()
      */
+    iterator       find(const std::string& key);
+    iterator       find(std::string_view key);
+    iterator       find(const char* key);
+    iterator       find(const variant& key);
     const_iterator find(const std::string& key) const;
     const_iterator find(std::string_view key) const;
     const_iterator find(const char* key) const;
@@ -253,15 +392,119 @@ public:
         return m_data.get();
     }
 
-    mutable_dict as_mut() const;
+    /**
+     * @brief 合并两个字典
+     * @param other 要合并的字典
+     * @return 返回自身引用
+     */
+    dict& operator+=(const dict& other);
+
+    /**
+     * @brief 插入键值对
+     * @param e 键值对
+     * @return 返回自身引用
+     */
+    dict& insert(entry e);
+
+    /**
+     * @brief 插入键值对
+     * @param key 键
+     * @param value 值
+     * @return 返回包含插入结果的std::pair，first为指向插入位置的迭代器，second为是否成功插入
+     */
+    std::pair<iterator, bool> insert(variant key, variant value);
+
+    /**
+     * @brief 带提示位置的插入键值对
+     * @param hint 提示位置的迭代器，如果提示正确可以提高插入性能
+     * @param key 键
+     * @param value 值
+     * @return 指向插入位置的迭代器
+     */
+    iterator insert(const_iterator hint, variant key, variant value);
+
+    /**
+     * @brief 插入迭代器范围，仅适用于dict::entry迭代器
+     * @tparam InputIt 输入迭代器类型，必须能够解引用为dict::entry类型
+     * @param first 起始迭代器
+     * @param last 结束迭代器
+     */
+    template <typename InputIt>
+    auto insert(InputIt first, InputIt last) -> std::enable_if_t<
+        std::is_convertible_v<typename std::iterator_traits<InputIt>::value_type, entry>>;
+
+    /**
+     * @brief 插入键值对迭代器范围
+     * @tparam InputIt 输入迭代器类型，必须能够解引用为std::pair<K,V>类型
+     * @param first 起始迭代器
+     * @param last 结束迭代器
+     */
+    template <typename InputIt>
+    auto insert(InputIt first, InputIt last)
+        -> std::enable_if_t<is_variant_constructible_v<
+                                typename std::iterator_traits<InputIt>::value_type::first_type> &&
+                            is_variant_constructible_v<
+                                typename std::iterator_traits<InputIt>::value_type::second_type>>;
+
+    /**
+     * @brief 插入初始化列表
+     * @param ilist 包含键值对的初始化列表
+     */
+    void insert(std::initializer_list<entry> ilist);
+
+    /**
+     * @brief 插入初始化列表模板版本，支持自动转换其他类型为variant
+     * @tparam K 键的类型
+     * @tparam V 值的类型
+     * @param ilist 包含键值对的初始化列表
+     */
+    template <typename K, typename V>
+    void insert(std::initializer_list<std::pair<K, V>> ilist);
+
+    /**
+     * @brief 尝试原地创建并插入元素
+     * @tparam Arg 构造值的参数类型
+     * @param key 键
+     * @param arg 构造值的参数
+     * @return 返回包含插入结果的std::pair，first为指向插入位置的迭代器，second为是否成功插入
+     */
+    template <typename Arg>
+    std::pair<iterator, bool> emplace(variant key, Arg&& arg);
+
+    /**
+     * @brief 如果键不存在，则尝试原地创建并插入元素
+     * @tparam K 键的类型
+     * @tparam Arg 构造值的参数类型
+     * @param key 键
+     * @param arg 构造值的参数
+     * @return 返回包含插入结果的std::pair，first为指向插入位置的迭代器，second为是否成功插入
+     */
+    template <typename K, typename Arg>
+    std::pair<iterator, bool> try_emplace(const K& key, Arg&& arg);
+
+    /**
+     * @brief 获取可变引用（为了向后兼容保留）
+     * @return 返回自身引用
+     * @note dict 本身就是可变的，此方法仅为向后兼容而保留
+     */
+    dict& as_mut() {
+        return *this;
+    }
+
+    /**
+     * @brief 获取可变引用（const 版本，为了向后兼容保留）
+     * @return 返回自身的可变副本
+     * @note dict 本身就是可变的，此方法仅为向后兼容而保留
+     */
+    dict as_mut() const {
+        return *this;
+    }
 
     /**
      * @brief 深拷贝字典
      * @return 深度拷贝后的字典
      */
     dict deep_copy() const;
-
-    void clear();
 
 protected:
     /**
@@ -273,6 +516,10 @@ protected:
      * @brief 查找指定键的元素
      * @return 指向找到的元素的指针，如果不存在则返回 nullptr
      */
+    entry*       find_entry(const std::string& key);
+    entry*       find_entry(std::string_view key);
+    entry*       find_entry(const char* key);
+    entry*       find_entry(const variant& key);
     const entry* find_entry(const std::string& key) const;
     const entry* find_entry(std::string_view key) const;
     const entry* find_entry(const char* key) const;
@@ -283,6 +530,12 @@ protected:
      * @return 元素的索引位置，如果元素不存在则返回 -1
      */
     int find_entry_index(const entry* e) const;
+
+    /**
+     * @brief 确保数据已初始化
+     * @return 数据引用
+     */
+    data_t& ensure_data() const;
 };
 
 /**
@@ -294,6 +547,9 @@ MC_API variant to_variant(const dict& d);
 // 将 variant 实现相关的代码放到单独的文件中
 // 实现细节移到 dict.cpp 中，避免循环依赖
 
+// 包含完整的类型定义以支持模板实现
+#include <mc/dict/entry.h>
+
 // 定义在std命名空间中特化hash以支持dict和mutable_dict
 namespace std {
 template <>
@@ -304,5 +560,55 @@ struct hash<mc::dict> {
 };
 
 } // namespace std
+
+namespace mc {
+template <typename InputIt>
+dict::dict(InputIt first, InputIt last) {
+    m_data = mc::make_shared<data_t>();
+    for (; first != last; ++first) {
+        insert(first->first, first->second);
+    }
+}
+
+template <typename InputIt>
+auto dict::insert(InputIt first, InputIt last) -> std::enable_if_t<
+    std::is_convertible_v<typename std::iterator_traits<InputIt>::value_type, entry>> {
+    for (; first != last; ++first) {
+        insert(*first);
+    }
+}
+
+template <typename InputIt>
+auto dict::insert(InputIt first, InputIt last)
+    -> std::enable_if_t<is_variant_constructible_v<
+                            typename std::iterator_traits<InputIt>::value_type::first_type> &&
+                        is_variant_constructible_v<
+                            typename std::iterator_traits<InputIt>::value_type::second_type>> {
+    for (; first != last; ++first) {
+        insert(first->first, first->second);
+    }
+}
+
+template <typename K, typename V>
+void dict::insert(std::initializer_list<std::pair<K, V>> ilist) {
+    for (const auto& pair : ilist) {
+        insert(pair.first, pair.second);
+    }
+}
+
+template <typename Arg>
+std::pair<dict::iterator, bool> dict::emplace(variant key, Arg&& arg) {
+    return insert(std::move(key), variant(std::forward<Arg>(arg)));
+}
+
+template <typename K, typename Arg>
+std::pair<dict::iterator, bool> dict::try_emplace(const K& key, Arg&& arg) {
+    variant vkey(key);
+    if (!contains(vkey)) {
+        return emplace(vkey, std::forward<Arg>(arg));
+    }
+    return {find(vkey), false};
+}
+} // namespace mc
 
 #endif // MC_DICT_H

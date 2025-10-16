@@ -10,9 +10,9 @@
  * See the Mulan PSL v2 for more details.
  */
 
-#include <mc/engine/property/processor.h>
-#include <mc/engine/property/helper.h>
 #include <algorithm>
+#include <mc/engine/property/helper.h>
+#include <mc/engine/property/processor.h>
 
 namespace mc::engine {
 
@@ -35,4 +35,4 @@ bool property_processor_factory::process_property_value(property_helper* propert
     return false;
 }
 
-} // namespace mc::engine 
+} // namespace mc::engine

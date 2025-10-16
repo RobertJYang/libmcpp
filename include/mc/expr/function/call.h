@@ -23,8 +23,8 @@ namespace mc::expr {
 struct func_call {
     MC_REFLECTABLE("mc.expr.function.call");
 
-    std::string      func;
-    mc::mutable_dict params;
+    std::string func;
+    mc::dict    params;
 
 private:
     friend struct mc::reflect::reflector<func_call>;
@@ -47,10 +47,10 @@ public:
     func(const std::string& result, const mc::dict& args) : m_result(result), m_args(args) {
     }
 
-    void             validate_result();
-    void             validate_args();
-    mc::variant      call(const std::string_view& position, mc::mutable_dict& params);
-    mc::mutable_dict get_relate_properties(const std::string_view& position, mc::mutable_dict& params);
+    void        validate_result();
+    void        validate_args();
+    mc::variant call(const std::string_view& position, mc::dict& params);
+    mc::dict    get_relate_properties(const std::string_view& position, mc::dict& params);
 
     // 添加访问 m_args 的方法
     const mc::dict& get_args() const {

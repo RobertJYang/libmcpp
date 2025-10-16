@@ -17,13 +17,13 @@
 #include <mc/variant.h>
 #include <test_utilities/test_base.h>
 
+#include <cstdarg>
+#include <filesystem>
+#include <fstream>
 #include <memory>
 #include <string>
-#include <filesystem>
 #include <thread>
 #include <vector>
-#include <fstream>
-#include <cstdarg>
 
 using namespace mc::log;
 
@@ -49,16 +49,16 @@ typedef void (*debug_log_func_t)(int, const char*, int, const char*, ...);
 class file_appender_test : public mc::test::TestBase {
 protected:
     static std::shared_ptr<file_appender> m_appender;
-    static std::filesystem::path m_test_log_file;
-    static void SetUpTestSuite() {
-        m_appender = std::make_shared<file_appender>();
+    static std::filesystem::path          m_test_log_file;
+    static void                           SetUpTestSuite() {
+        m_appender      = std::make_shared<file_appender>();
         m_test_log_file = std::string(TEST_LOG_DIR) + "/test_file_appender_mock.log";
         // 初始化日志文件（直接清空文件）
         std::ofstream ofs(m_test_log_file, std::ios::trunc);
         ofs.close();
-        mc::mutable_dict dict;
-        dict["filename"] = m_test_log_file.string();
-        dict["truncate"] = true;
+        mc::dict dict;
+        dict["filename"]       = m_test_log_file.string();
+        dict["truncate"]       = true;
         dict["flush_on_write"] = true;
         m_appender->init(dict);
         file_appender::set_debug_log_ptr(reinterpret_cast<void*>(static_cast<debug_log_func_t>(debug_log)));
@@ -90,7 +90,7 @@ protected:
     }
 
     // 创建一个格式化测试消息
-    message create_format_message(level lvl, const std::string& fmt, const mc::mutable_dict& args) {
+    message create_format_message(level lvl, const std::string& fmt, const mc::dict& args) {
         mc::log::context ctx("test_file.cpp", "test_function", 123);
         return message(lvl, ctx, fmt, args);
     }
@@ -107,18 +107,18 @@ protected:
         file.seekg(0, std::ios::end);
         return file.tellg() > 0;
     }
-    
+
     // 检查指定日志文件是否存在且不为空
     bool check_log_file_exists_and_not_empty(const std::string& filename) {
         if (!std::filesystem::exists(filename)) {
             return false;
         }
-        
+
         std::ifstream file(filename);
         if (!file.is_open()) {
             return false;
         }
-        
+
         // 检查文件是否为空
         file.seekg(0, std::ios::end);
         return file.tellg() > 0;
@@ -127,7 +127,7 @@ protected:
 
 // 静态成员定义
 std::shared_ptr<file_appender> file_appender_test::m_appender;
-std::filesystem::path file_appender_test::m_test_log_file;
+std::filesystem::path          file_appender_test::m_test_log_file;
 
 // 测试默认构造函数
 TEST_F(file_appender_test, DefaultConstructor) {
@@ -145,7 +145,7 @@ TEST_F(file_appender_test, SetAndGetFilename) {
 TEST_F(file_appender_test, SetAndGetFlushOnWrite) {
     m_appender->set_flush_on_write(true);
     EXPECT_TRUE(m_appender->get_flush_on_write());
-    
+
     m_appender->set_flush_on_write(false);
     EXPECT_FALSE(m_appender->get_flush_on_write());
 }
@@ -154,16 +154,16 @@ TEST_F(file_appender_test, SetAndGetFlushOnWrite) {
 TEST_F(file_appender_test, AppendSimpleTextMessage) {
     // 设置文件名
     m_appender->set_filename(m_test_log_file.string());
-    
+
     // 创建简单文本测试消息
     auto msg = create_test_message(level::info, "这是一条测试消息");
-    
+
     // 追加消息
     ASSERT_NO_THROW(m_appender->append(msg));
-    
+
     // 刷新文件
     m_appender->flush();
-    
+
     // 验证文件是否被创建且不为空
     EXPECT_TRUE(check_log_file_exists_and_not_empty());
 }
@@ -172,16 +172,16 @@ TEST_F(file_appender_test, AppendSimpleTextMessage) {
 TEST_F(file_appender_test, AppendMessageWithFormatPlaceholders) {
     // 设置文件名
     m_appender->set_filename(m_test_log_file.string());
-    
+
     // 创建包含格式化占位符的测试消息
     auto msg = create_test_message(level::info, "这是一条%s测试消息%d, %p");
-    
+
     // 追加消息
     ASSERT_NO_THROW(m_appender->append(msg));
-    
+
     // 刷新文件
     m_appender->flush();
-    
+
     // 验证文件是否被创建且不为空
     EXPECT_TRUE(check_log_file_exists_and_not_empty());
 }
@@ -190,20 +190,20 @@ TEST_F(file_appender_test, AppendMessageWithFormatPlaceholders) {
 TEST_F(file_appender_test, AppendDictFormattedMessage) {
     // 设置文件名
     m_appender->set_filename(m_test_log_file.string());
-    
+
     // 创建字典参数格式化消息
-    mc::mutable_dict args;
+    mc::dict args;
     args["name"]  = "测试";
     args["value"] = 42;
 
     auto msg = create_format_message(level::info, "名称: ${name}, 值: ${value}", args);
-    
+
     // 追加消息
     ASSERT_NO_THROW(m_appender->append(msg));
-    
+
     // 刷新文件
     m_appender->flush();
-    
+
     // 验证文件是否被创建且不为空
     EXPECT_TRUE(check_log_file_exists_and_not_empty());
 }
@@ -212,23 +212,23 @@ TEST_F(file_appender_test, AppendDictFormattedMessage) {
 TEST_F(file_appender_test, AppendMultiParamDictFormattedMessage) {
     // 设置文件名
     m_appender->set_filename(m_test_log_file.string());
-    
+
     // 创建多参数字典格式化消息
-    mc::mutable_dict args;
-    args["user"] = "张三";
-    args["age"] = 25;
-    args["city"] = "北京";
+    mc::dict args;
+    args["user"]  = "张三";
+    args["age"]   = 25;
+    args["city"]  = "北京";
     args["score"] = 95.5;
 
-    auto msg = create_format_message(level::info, 
-        "用户: ${user}, 年龄: ${age}, 城市: ${city}, 分数: ${score}", args);
-    
+    auto msg = create_format_message(level::info,
+                                     "用户: ${user}, 年龄: ${age}, 城市: ${city}, 分数: ${score}", args);
+
     // 追加消息
     ASSERT_NO_THROW(m_appender->append(msg));
-    
+
     // 刷新文件
     m_appender->flush();
-    
+
     // 验证文件是否被创建且不为空
     EXPECT_TRUE(check_log_file_exists_and_not_empty());
 }
@@ -237,12 +237,12 @@ TEST_F(file_appender_test, AppendMultiParamDictFormattedMessage) {
 TEST_F(file_appender_test, AppendDifferentLogLevels) {
     // 设置文件名
     m_appender->set_filename(m_test_log_file.string());
-    
+
     // 创建不同级别的消息
-    auto debug_msg = create_test_message(level::debug, "调试消息");
-    auto info_msg  = create_test_message(level::info, "信息消息");
-    auto warn_msg  = create_test_message(level::warn, "警告消息");
-    auto error_msg = create_test_message(level::error, "错误消息");
+    auto debug_msg  = create_test_message(level::debug, "调试消息");
+    auto info_msg   = create_test_message(level::info, "信息消息");
+    auto warn_msg   = create_test_message(level::warn, "警告消息");
+    auto error_msg  = create_test_message(level::error, "错误消息");
     auto notice_msg = create_test_message(level::notice, "通知消息");
 
     // 追加所有消息
@@ -251,10 +251,10 @@ TEST_F(file_appender_test, AppendDifferentLogLevels) {
     ASSERT_NO_THROW(m_appender->append(warn_msg));
     ASSERT_NO_THROW(m_appender->append(error_msg));
     ASSERT_NO_THROW(m_appender->append(notice_msg));
-    
+
     // 刷新文件
     m_appender->flush();
-    
+
     // 验证文件是否被创建且不为空
     EXPECT_TRUE(check_log_file_exists_and_not_empty());
 }
@@ -262,27 +262,27 @@ TEST_F(file_appender_test, AppendDifferentLogLevels) {
 // 测试多线程并发追加消息
 TEST_F(file_appender_test, AppendMessagesConcurrently) {
     m_appender->set_filename(m_test_log_file.string());
-    
+
     // 创建多个线程同时写入日志
     std::vector<std::thread> threads;
     for (int i = 0; i < 5; ++i) {
         threads.emplace_back([this, i]() {
             for (int j = 0; j < 10; ++j) {
-                auto msg = create_test_message(level::info, 
-                    "线程 " + std::to_string(i) + " 消息 " + std::to_string(j));
+                auto msg = create_test_message(level::info,
+                                               "线程 " + std::to_string(i) + " 消息 " + std::to_string(j));
                 m_appender->append(msg);
             }
         });
     }
-    
+
     // 等待所有线程完成
     for (auto& thread : threads) {
         thread.join();
     }
-    
+
     // 刷新文件
     m_appender->flush();
-    
+
     // 验证文件是否被创建且不为空
     EXPECT_TRUE(check_log_file_exists_and_not_empty());
-} 
+}

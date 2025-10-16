@@ -15,12 +15,12 @@
 
 // ANSI 控制台颜色定义
 #define CONSOLE_DEFAULT "\033[0m"
-#define CONSOLE_RED "\033[31;1m"
-#define CONSOLE_GREEN "\033[32;1m"
-#define CONSOLE_BROWN "\033[33m"
-#define CONSOLE_BLUE "\033[34;1m"
+#define CONSOLE_RED     "\033[31;1m"
+#define CONSOLE_GREEN   "\033[32;1m"
+#define CONSOLE_BROWN   "\033[33m"
+#define CONSOLE_BLUE    "\033[34;1m"
 #define CONSOLE_MAGENTA "\033[35;1m"
-#define CONSOLE_CYAN "\033[36;1m"
-#define CONSOLE_WHITE "\033[37;1m"
+#define CONSOLE_CYAN    "\033[36;1m"
+#define CONSOLE_WHITE   "\033[37;1m"
 
-#endif // MC_LOG_CONSOLE_DEFINES_H 
+#endif // MC_LOG_CONSOLE_DEFINES_H

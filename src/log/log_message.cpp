@@ -16,14 +16,14 @@
 
 namespace mc::log {
 
-message::message(level lvl, std::string msg, context ctx, mc::mutable_dict args)
+message::message(level lvl, std::string msg, context ctx, mc::dict args)
     : m_level(lvl), m_message(std::move(msg)), m_context(std::move(ctx)),
       m_timestamp(std::chrono::system_clock::now()), m_args(std::move(args)),
       m_thread_id(mc::get_thread_id()), m_formatted(true) {
 }
 
 message::message(level lvl, context ctx, std::string fmt_template,
-                 mc::mutable_dict args)
+                 mc::dict args)
     : m_level(lvl), m_message(""), // 初始为空，将在需要时格式化
       m_context(std::move(ctx)), m_timestamp(std::chrono::system_clock::now()),
       m_args(std::move(args)), m_format(std::move(fmt_template)),
@@ -63,14 +63,14 @@ const std::chrono::system_clock::time_point& message::get_timestamp() const {
     return m_timestamp;
 }
 
-dict message::to_structured_data() const {
-    mc::mutable_dict result;
+mc::dict message::to_structured_data() const {
+    mc::dict result;
 
     // 基本元数据
     result["level"] = static_cast<int>(m_level);
 
     // 上下文信息
-    mc::mutable_dict context_dict;
+    mc::dict context_dict;
     context_dict["file"]     = m_context.m_file;
     context_dict["function"] = m_context.m_function;
     context_dict["line"]     = m_context.m_line;

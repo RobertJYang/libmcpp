@@ -448,7 +448,7 @@ TEST(RadixTreeIteratorTest, ComplexLowerBound) {
         ASSERT_NE(it, tree.end());
 
         // 验证后续元素
-        std::vector<std::string> expected_keys   = {"abcde",  "abcde1",  "abcde2",
+        std::vector<std::string> expected_keys   = {"abcde", "abcde1", "abcde2",
                                                     "abcdef", "abcdefg", "abcdefgh"};
         std::vector<int>         expected_values = {9, 10, 11, 6, 7, 8};
 

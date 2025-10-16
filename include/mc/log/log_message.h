@@ -54,7 +54,7 @@ public:
      * @param args 参数字典
      */
     message(level lvl = level::info, std::string msg = "", context ctx = context(),
-            mc::mutable_dict args = mc::mutable_dict());
+            mc::dict args = mc::dict());
 
     /**
      * @brief 格式化构造函数
@@ -65,7 +65,7 @@ public:
      * @param args 参数字典
      */
     message(level lvl, context ctx, std::string fmt_template,
-            mc::mutable_dict args = mc::mutable_dict());
+            mc::dict args = mc::dict());
 
     message(const message& other)            = default;
     message& operator=(const message& other) = default;
@@ -149,22 +149,22 @@ namespace detail {
 
 // 添加位置参数
 template <typename T, std::enable_if_t<!mc::fmt::detail::is_named_arg_v<T>, int> = 0>
-constexpr void add_arg(mc::mutable_dict& out, const T& value) {
+constexpr void add_arg(mc::dict& out, const T& value) {
     out.emplace(out.size(), value);
 }
 
 // 添加命名参数的特化
 template <typename T>
-void add_arg(mc::mutable_dict& out, const mc::fmt::detail::named_arg<T>& arg) {
+void add_arg(mc::dict& out, const mc::fmt::detail::named_arg<T>& arg) {
     out.emplace(arg.name(), arg.value());
 }
 
-inline void add_arg(mc::mutable_dict&, const std::monostate&) {
+inline void add_arg(mc::dict&, const std::monostate&) {
 }
 
 template <typename... Args>
-mc::mutable_dict make_args(Args&&... args) {
-    mc::mutable_dict out;
+mc::dict make_args(Args&&... args) {
+    mc::dict out;
     (add_arg(out, std::forward<Args>(args)), ...);
     return out;
 }

@@ -21,17 +21,12 @@
 namespace mc {
 
 template <typename Config>
-dict variant_base<Config>::as_dict() const {
+mc::dict variant_base<Config>::as_dict() const {
     return as_object();
 }
 
 template <typename Config>
-mutable_dict variant_base<Config>::as_mutable_dict() const {
-    return as_object();
-}
-
-template <typename Config>
-dict variant_base<Config>::as_object() const {
+mc::dict variant_base<Config>::as_object() const {
     if (!is_object()) {
         throw_type_error("object", m_type);
     }
@@ -184,9 +179,7 @@ variant_base<Config>& variant_base<Config>::operator[](std::string_view key) {
         throw_type_error("object", m_type);
     }
 
-    // 强制类型转换成为 mc::mutable_dict
-    // mc::dict 和 mc::mutable_dict 内存布局完全一致，只是 mutable_dict 是可变版本
-    return static_cast<mc::mutable_dict&>(m_object)[key];
+    return m_object[key];
 }
 
 template <typename Config>
@@ -347,16 +340,6 @@ void to_variant(const dict& var, variant_base<Config>& vo) {
 template <typename Config>
 void from_variant(const variant_base<Config>& var, dict& vo) {
     vo = var.as_dict();
-}
-
-template <typename Config>
-void to_variant(const mutable_dict& var, variant_base<Config>& vo) {
-    variant_base<Config>(static_cast<const dict&>(var)).swap(vo);
-}
-
-template <typename Config>
-void from_variant(const variant_base<Config>& var, mutable_dict& vo) {
-    vo = var.as_mutable_dict();
 }
 
 } // namespace mc

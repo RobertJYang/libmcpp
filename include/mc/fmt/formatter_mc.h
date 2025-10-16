@@ -51,14 +51,6 @@ struct formatter<mc::dict> {
 };
 
 template <>
-struct formatter<mc::mutable_dict> {
-    template <typename Context>
-    void format(const mc::mutable_dict& dict, Context& ctx, const format_spec& spec) const {
-        detail::format_dict(dict, ctx, spec);
-    }
-};
-
-template <>
 struct formatter<mc::blob> {
     template <typename Context>
     void format(const mc::blob& blob, Context& ctx, const format_spec& spec) const {

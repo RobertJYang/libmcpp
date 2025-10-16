@@ -28,10 +28,9 @@ protected:
     }
 };
 
-TEST_F(binary_continue_test, GetValue)
-{
+TEST_F(binary_continue_test, GetValue) {
     mc::debounce::BinaryContinue binary_continue(3, 3);
-    std::optional<int> value;
+    std::optional<int>           value;
     value = binary_continue.get_debounce_val(1);
     ASSERT_EQ(value, std::nullopt);
     value = binary_continue.get_debounce_val(1);

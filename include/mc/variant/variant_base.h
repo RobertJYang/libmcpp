@@ -157,9 +157,6 @@ public:
     variant_base(const dict& obj) : variant_base(type_id::object_type) {
         new (&m_object) object_type(obj);
     }
-    variant_base(mutable_dict& obj) : variant_base(type_id::object_type) {
-        new (&m_object) object_type(obj);
-    }
 
     // 从 array_type 构造 variant_base
     variant_base(const array_type& arr, const allocator_type& alloc = allocator_type())
@@ -804,9 +801,17 @@ public:
     /**
      * @brief 将 variant_base 转换为 dict
      */
-    dict         as_dict() const;
-    mutable_dict as_mutable_dict() const;
-    dict         as_object() const;
+    dict as_dict() const;
+
+    /**
+     * @brief 将 variant_base 转换为 mutable_dict（为了向后兼容，实际返回 dict）
+     * @note mutable_dict 现在是 dict 的别名
+     */
+    dict as_mutable_dict() const {
+        return as_dict();
+    }
+
+    dict as_object() const;
 
     array_type as_array() const {
         if (m_type != type_id::array_type) {
@@ -856,7 +861,6 @@ public:
      * @param key 要查找的键
      * @return 指定键对应的值的可修改引用
      * @throw std::runtime_error 如果variant不是对象类型
-     * @note 此方法通过强制类型转换成为 mc::mutable_dict，支持链式修改
      */
     variant_base& operator[](std::string_view key);
 
@@ -1827,6 +1831,7 @@ void from_variant(const variant_base<Config>& var, T& vo) {
 
 #include <mc/variant/variant_base_cmp_op.inl>
 #include <mc/variant/variant_base_op.inl>
+#include <mc/variant/variant_dict.inl>
 
 namespace std {
 template <typename Config>

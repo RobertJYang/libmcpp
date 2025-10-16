@@ -16,20 +16,20 @@
  */
 
 #include <gtest/gtest.h>
-#include <mc/crypto/crc8.h>
 #include <mc/crypto/crc32.h>
+#include <mc/crypto/crc8.h>
 
 namespace mc::crypto {
 
 class CRC8Test : public ::testing::Test {
 public:
-    CRC8 crc8;
+    CRC8  crc8;
     CRC32 crc32;
 };
 
 TEST_F(CRC8Test, TestCRC_case1) {
     std::string data = "123456789";
-    uint8_t crc8 = this->crc8.calculate(data);
+    uint8_t     crc8 = this->crc8.calculate(data);
     EXPECT_EQ(crc8, 0xF4);
 
     uint32_t crc32 = this->crc32.calculate(data, 0, true);
@@ -38,7 +38,7 @@ TEST_F(CRC8Test, TestCRC_case1) {
 
 TEST_F(CRC8Test, TestCRC_case2) {
     std::string data = "test";
-    uint8_t crc8 = this->crc8.calculate(data);
+    uint8_t     crc8 = this->crc8.calculate(data);
     EXPECT_EQ(crc8, 0xB9);
 
     uint32_t crc32 = this->crc32.calculate(data, 0, true);
@@ -47,11 +47,11 @@ TEST_F(CRC8Test, TestCRC_case2) {
 
 TEST_F(CRC8Test, TestCRC_case3) {
     std::string data = "";
-    uint8_t crc8 = this->crc8.calculate(data);
+    uint8_t     crc8 = this->crc8.calculate(data);
     EXPECT_EQ(crc8, 0x00);
 
     uint32_t crc32 = this->crc32.calculate(data, 0, true);
     EXPECT_EQ(crc32, 0xFFFFFFFF);
 }
 
-}
+} // namespace mc::crypto

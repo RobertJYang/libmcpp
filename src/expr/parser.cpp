@@ -228,17 +228,17 @@ node_ptr parser::comparison() {
 //    a
 node_ptr parser::term() {
     // 1. 声明并初始化变量
-    auto expr = factor();  // auto是C++的类型推导关键字，编译器会自动推导expr的类型
+    auto expr = factor(); // auto是C++的类型推导关键字，编译器会自动推导expr的类型
 
     // 2. while循环处理连续的加减运算
     while (match({token_type::plus, token_type::minus})) {
         // 3. 三元运算符：condition ? value_if_true : value_if_false
         operator_type op =
             previous().type == token_type::plus ? operator_type::add : operator_type::sub;
-        
+
         // 4. 解析右操作数
         auto right = factor();
-        
+
         // 5. 创建二元运算符节点
         expr = make_binary_op(op, expr, right);
     }
@@ -256,13 +256,13 @@ node_ptr parser::factor() {
         // 3. 根据运算符类型确定操作类型
         operator_type op;
         switch (previous().type) {
-        case token_type::asterisk:  // *
+        case token_type::asterisk: // *
             op = operator_type::mul;
             break;
-        case token_type::slash:     // /
+        case token_type::slash: // /
             op = operator_type::div;
             break;
-        case token_type::percent:   // %
+        case token_type::percent: // %
             op = operator_type::mod;
             break;
         default:
@@ -272,7 +272,7 @@ node_ptr parser::factor() {
 
         // 4. 解析右操作数并创建二元运算节点
         auto right = unary();
-        expr = make_binary_op(op, expr, right);
+        expr       = make_binary_op(op, expr, right);
     }
 
     return expr;
@@ -286,17 +286,17 @@ node_ptr parser::unary() {
         // 2. 根据运算符类型确定操作类型
         operator_type op;
         switch (previous().type) {
-        case token_type::minus:         // -
+        case token_type::minus: // -
             op = operator_type::neg;
             break;
-        case token_type::logical_not:   // !
+        case token_type::logical_not: // !
             op = operator_type::not_op;
             break;
-        case token_type::bit_not:       // ~
+        case token_type::bit_not: // ~
             op = operator_type::bit_not;
             break;
         default:
-            op = operator_type::neg;    // 不应该到达这里
+            op = operator_type::neg; // 不应该到达这里
             break;
         }
         // 3. 解析操作数并创建一元运算节点
@@ -345,9 +345,9 @@ node_ptr parser::parse_property_access(node_ptr object) {
 
         // 根据是否有左括号区分方法调用和属性访问
         if (check(token_type::left_paren)) {
-            expr = parse_method_call(expr, property);     // obj.method(...)
+            expr = parse_method_call(expr, property); // obj.method(...)
         } else {
-            expr = make_property_access(expr, property);  // obj.property
+            expr = make_property_access(expr, property); // obj.property
         }
 
         // 检查是否继续链式访问
@@ -370,10 +370,10 @@ node_ptr parser::parse_method_call(node_ptr object, const std::string& method_na
     node_ptrs arguments;
 
     // 3. 解析参数列表：method(expr1, expr2, ...)
-    if (!check(token_type::right_paren)) {  // 不是空参数列表
+    if (!check(token_type::right_paren)) { // 不是空参数列表
         do {
-            arguments.push_back(expression());  // 解析每个参数表达式
-        } while (match({token_type::comma}));  // 如果遇到逗号，继续解析下一个参数
+            arguments.push_back(expression()); // 解析每个参数表达式
+        } while (match({token_type::comma})); // 如果遇到逗号，继续解析下一个参数
     }
 
     // 4. 检查右括号 ')'
@@ -390,8 +390,8 @@ node_ptr parser::parse_method_call(node_ptr object, const std::string& method_na
 // 示例：`Hello ${name}! Your age is ${age + 1}`
 node_ptr parser::parse_template_string() {
     // 1. 存储模板字符串的文本部分和表达式部分
-    std::vector<std::string> text_parts;   // 存储普通文本
-    node_ptrs expressions;                 // 存储表达式节点
+    std::vector<std::string> text_parts;  // 存储普通文本
+    node_ptrs                expressions; // 存储表达式节点
 
     // 2. 获取起始文本部分
     std::string start_text = previous().literal.as_string();
@@ -407,8 +407,8 @@ node_ptr parser::parse_template_string() {
         std::string expr_text = previous().lexeme;
         // 为表达式创建新的解析器
         mc::expr::lexer expr_lexer(expr_text);
-        auto tokens = expr_lexer.scan_tokens();
-        parser expr_parser(tokens);
+        auto            tokens = expr_lexer.scan_tokens();
+        parser          expr_parser(tokens);
         expressions.push_back(expr_parser.parse());
 
         // 5. 解析表达式后的文本部分
@@ -420,8 +420,8 @@ node_ptr parser::parse_template_string() {
             text_parts.push_back(previous().literal.as_string());
             break;
         } else {
-            MC_THROW(parse_error_exception, 
-                "表达式解析错误: 期望模板字符串中间部分或结束部分");
+            MC_THROW(parse_error_exception,
+                     "表达式解析错误: 期望模板字符串中间部分或结束部分");
         }
     }
 
@@ -433,27 +433,27 @@ node_ptr parser::parse_template_string() {
 node_ptr parser::primary() {
     // 1. 解析数字字面值
     if (match({token_type::number})) {
-        return make_literal(previous().literal);  // 如：123, 3.14
+        return make_literal(previous().literal); // 如：123, 3.14
     }
 
     // 2. 解析字符串字面值
     if (match({token_type::string})) {
-        return make_literal(previous().literal);  // 如："hello", 'world'
+        return make_literal(previous().literal); // 如："hello", 'world'
     }
 
     // 3. 解析模板字符串
     if (match({token_type::template_start})) {
-        return parse_template_string();  // 如：`Hello ${name}`
+        return parse_template_string(); // 如：`Hello ${name}`
     }
 
     // 4. 解析标识符
     if (match({token_type::identifier})) {
-        return parse_identifier();  // 变量、函数调用或属性访问
+        return parse_identifier(); // 变量、函数调用或属性访问
     }
 
     // 5. 解析括号表达式：(1 + 2)
     if (match({token_type::left_paren})) {
-        auto expr = expression();  // 解析括号内的表达式
+        auto expr = expression(); // 解析括号内的表达式
 
         if (!match({token_type::right_paren})) {
             MC_THROW(parse_error_exception, "表达式解析错误: 期望右括号");

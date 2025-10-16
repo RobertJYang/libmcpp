@@ -57,8 +57,8 @@ TEST_F(MicroComponentTest, TestMicroComponentInterface) {
     reply >> result;
     ASSERT_EQ(result, 0);
 
-    msg = mc::dbus::message::new_method_call("org.openubmc.test_service_1", "/bmc/kepler/test_service_1/MicroComponent",
-                                             "bmc.kepler.Object.Properties", "GetWithContext");
+    msg    = mc::dbus::message::new_method_call("org.openubmc.test_service_1", "/bmc/kepler/test_service_1/MicroComponent",
+                                                "bmc.kepler.Object.Properties", "GetWithContext");
     writer = msg.writer();
     writer << empty_ctx << "bmc.kepler.MicroComponent" << "Name";
     reply = test_conn.send_with_reply(std::move(msg), call_timeout);
@@ -68,8 +68,8 @@ TEST_F(MicroComponentTest, TestMicroComponentInterface) {
     ASSERT_TRUE(prop_value.is_string());
     ASSERT_EQ(prop_value.as_string(), "test_service_1");
 
-    msg = mc::dbus::message::new_method_call("org.openubmc.test_service_1", "/bmc/kepler/test_service_1/MicroComponent",
-                                             "bmc.kepler.Object.Properties", "GetWithContext");
+    msg    = mc::dbus::message::new_method_call("org.openubmc.test_service_1", "/bmc/kepler/test_service_1/MicroComponent",
+                                                "bmc.kepler.Object.Properties", "GetWithContext");
     writer = msg.writer();
     writer << empty_ctx << "bmc.kepler.MicroComponent" << "Status";
     reply = test_conn.send_with_reply(std::move(msg), call_timeout);
@@ -91,8 +91,8 @@ TEST_F(MicroComponentTest, TestMicroComponentConfigManageInterface) {
     EXPECT_EQ(output.size(), 1);
     EXPECT_TRUE(output[0].is_array());
 
-    msg = mc::dbus::message::new_method_call("org.openubmc.test_service_1", "/bmc/kepler/test_service_1/MicroComponent",
-                                             "bmc.kepler.MicroComponent.ConfigManage", "Export");
+    msg    = mc::dbus::message::new_method_call("org.openubmc.test_service_1", "/bmc/kepler/test_service_1/MicroComponent",
+                                                "bmc.kepler.MicroComponent.ConfigManage", "Export");
     writer = msg.writer();
     writer << empty_ctx << "";
     reply = test_conn.send_with_reply(std::move(msg), call_timeout);
@@ -101,8 +101,8 @@ TEST_F(MicroComponentTest, TestMicroComponentConfigManageInterface) {
     EXPECT_EQ(output.size(), 1);
     EXPECT_TRUE(output[0].is_string());
 
-    msg = mc::dbus::message::new_method_call("org.openubmc.test_service_1", "/bmc/kepler/test_service_1/MicroComponent",
-                                             "bmc.kepler.MicroComponent.ConfigManage", "Import");
+    msg    = mc::dbus::message::new_method_call("org.openubmc.test_service_1", "/bmc/kepler/test_service_1/MicroComponent",
+                                                "bmc.kepler.MicroComponent.ConfigManage", "Import");
     writer = msg.writer();
     writer << empty_ctx << "" << "";
     reply = test_conn.send_with_reply(std::move(msg), call_timeout);
@@ -110,8 +110,8 @@ TEST_F(MicroComponentTest, TestMicroComponentConfigManageInterface) {
     output = reply.read_args();
     EXPECT_EQ(output.size(), 0);
 
-    msg = mc::dbus::message::new_method_call("org.openubmc.test_service_1", "/bmc/kepler/test_service_1/MicroComponent",
-                                             "bmc.kepler.MicroComponent.ConfigManage", "Recover");
+    msg    = mc::dbus::message::new_method_call("org.openubmc.test_service_1", "/bmc/kepler/test_service_1/MicroComponent",
+                                                "bmc.kepler.MicroComponent.ConfigManage", "Recover");
     writer = msg.writer();
     writer << empty_ctx << empty_ctx;
     reply = test_conn.send_with_reply(std::move(msg), call_timeout);
@@ -119,8 +119,8 @@ TEST_F(MicroComponentTest, TestMicroComponentConfigManageInterface) {
     output = reply.read_args();
     EXPECT_EQ(output.size(), 0);
 
-    msg = mc::dbus::message::new_method_call("org.openubmc.test_service_1", "/bmc/kepler/test_service_1/MicroComponent",
-                                             "bmc.kepler.MicroComponent.ConfigManage", "Verify");
+    msg    = mc::dbus::message::new_method_call("org.openubmc.test_service_1", "/bmc/kepler/test_service_1/MicroComponent",
+                                                "bmc.kepler.MicroComponent.ConfigManage", "Verify");
     writer = msg.writer();
     writer << empty_ctx << "";
     reply = test_conn.send_with_reply(std::move(msg), call_timeout);
@@ -129,8 +129,8 @@ TEST_F(MicroComponentTest, TestMicroComponentConfigManageInterface) {
     EXPECT_EQ(output.size(), 1);
     EXPECT_TRUE(output[0].is_string());
 
-    msg = mc::dbus::message::new_method_call("org.openubmc.test_service_1", "/bmc/kepler/test_service_1/MicroComponent",
-                                             "bmc.kepler.MicroComponent.ConfigManage", "GetPreservedConfig");
+    msg    = mc::dbus::message::new_method_call("org.openubmc.test_service_1", "/bmc/kepler/test_service_1/MicroComponent",
+                                                "bmc.kepler.MicroComponent.ConfigManage", "GetPreservedConfig");
     writer = msg.writer();
     writer << empty_ctx << empty_ctx;
     reply = test_conn.send_with_reply(std::move(msg), call_timeout);
@@ -139,8 +139,8 @@ TEST_F(MicroComponentTest, TestMicroComponentConfigManageInterface) {
     EXPECT_EQ(output.size(), 1);
     EXPECT_TRUE(output[0].is_string());
 
-    msg = mc::dbus::message::new_method_call("org.openubmc.test_service_1", "/bmc/kepler/test_service_1/MicroComponent",
-                                             "bmc.kepler.MicroComponent.ConfigManage", "GetTrustedConfig");
+    msg    = mc::dbus::message::new_method_call("org.openubmc.test_service_1", "/bmc/kepler/test_service_1/MicroComponent",
+                                                "bmc.kepler.MicroComponent.ConfigManage", "GetTrustedConfig");
     writer = msg.writer();
     writer << empty_ctx << empty_ctx;
     reply = test_conn.send_with_reply(std::move(msg), call_timeout);
@@ -161,8 +161,8 @@ TEST_F(MicroComponentTest, TestMicroComponentDebugInterface) {
     auto output = reply.read_args();
     EXPECT_EQ(output.size(), 0);
 
-    msg = mc::dbus::message::new_method_call("org.openubmc.test_service_1", "/bmc/kepler/test_service_1/MicroComponent",
-                                             "bmc.kepler.MicroComponent.Debug", "DetachDebugConsole");
+    msg    = mc::dbus::message::new_method_call("org.openubmc.test_service_1", "/bmc/kepler/test_service_1/MicroComponent",
+                                                "bmc.kepler.MicroComponent.Debug", "DetachDebugConsole");
     writer = msg.writer();
     writer << empty_ctx;
     reply = test_conn.send_with_reply(std::move(msg), call_timeout);
@@ -170,8 +170,8 @@ TEST_F(MicroComponentTest, TestMicroComponentDebugInterface) {
     output = reply.read_args();
     EXPECT_EQ(output.size(), 0);
 
-    msg = mc::dbus::message::new_method_call("org.openubmc.test_service_1", "/bmc/kepler/test_service_1/MicroComponent",
-                                             "bmc.kepler.MicroComponent.Debug", "Dump");
+    msg    = mc::dbus::message::new_method_call("org.openubmc.test_service_1", "/bmc/kepler/test_service_1/MicroComponent",
+                                                "bmc.kepler.MicroComponent.Debug", "Dump");
     writer = msg.writer();
     writer << empty_ctx << "";
     reply = test_conn.send_with_reply(std::move(msg), call_timeout);
@@ -179,8 +179,8 @@ TEST_F(MicroComponentTest, TestMicroComponentDebugInterface) {
     output = reply.read_args();
     EXPECT_EQ(output.size(), 0);
 
-    msg = mc::dbus::message::new_method_call("org.openubmc.test_service_1", "/bmc/kepler/test_service_1/MicroComponent",
-                                             "bmc.kepler.MicroComponent.Debug", "SetDlogLevel");
+    msg    = mc::dbus::message::new_method_call("org.openubmc.test_service_1", "/bmc/kepler/test_service_1/MicroComponent",
+                                                "bmc.kepler.MicroComponent.Debug", "SetDlogLevel");
     writer = msg.writer();
     writer << empty_ctx << "debug" << 2;
     reply = test_conn.send_with_reply(std::move(msg), call_timeout);
@@ -201,8 +201,8 @@ TEST_F(MicroComponentTest, TestMicroComponentRebootInterface) {
     reply >> ret_code;
     ASSERT_EQ(ret_code, 0);
 
-    msg = mc::dbus::message::new_method_call("org.openubmc.test_service_1", "/bmc/kepler/test_service_1/MicroComponent",
-                                             "bmc.kepler.MicroComponent.Reboot", "Action");
+    msg    = mc::dbus::message::new_method_call("org.openubmc.test_service_1", "/bmc/kepler/test_service_1/MicroComponent",
+                                                "bmc.kepler.MicroComponent.Reboot", "Action");
     writer = msg.writer();
     writer << empty_ctx;
     reply = test_conn.send_with_reply(std::move(msg), call_timeout);
@@ -210,8 +210,8 @@ TEST_F(MicroComponentTest, TestMicroComponentRebootInterface) {
     reply >> ret_code;
     ASSERT_EQ(ret_code, 0);
 
-    msg = mc::dbus::message::new_method_call("org.openubmc.test_service_1", "/bmc/kepler/test_service_1/MicroComponent",
-                                             "bmc.kepler.MicroComponent.Reboot", "Cancel");
+    msg    = mc::dbus::message::new_method_call("org.openubmc.test_service_1", "/bmc/kepler/test_service_1/MicroComponent",
+                                                "bmc.kepler.MicroComponent.Reboot", "Cancel");
     writer = msg.writer();
     writer << empty_ctx;
     reply = test_conn.send_with_reply(std::move(msg), call_timeout);
@@ -232,8 +232,8 @@ TEST_F(MicroComponentTest, TestMicroComponentResetInterface) {
     reply >> ret_code;
     ASSERT_EQ(ret_code, 0);
 
-    msg = mc::dbus::message::new_method_call("org.openubmc.test_service_1", "/bmc/kepler/test_service_1/MicroComponent",
-                                             "bmc.kepler.MicroComponent.Reset", "Action");
+    msg    = mc::dbus::message::new_method_call("org.openubmc.test_service_1", "/bmc/kepler/test_service_1/MicroComponent",
+                                                "bmc.kepler.MicroComponent.Reset", "Action");
     writer = msg.writer();
     writer << empty_ctx << "";
     reply = test_conn.send_with_reply(std::move(msg), call_timeout);
@@ -241,8 +241,8 @@ TEST_F(MicroComponentTest, TestMicroComponentResetInterface) {
     reply >> ret_code;
     ASSERT_EQ(ret_code, 0);
 
-    msg = mc::dbus::message::new_method_call("org.openubmc.test_service_1", "/bmc/kepler/test_service_1/MicroComponent",
-                                             "bmc.kepler.MicroComponent.Reset", "Cancel");
+    msg    = mc::dbus::message::new_method_call("org.openubmc.test_service_1", "/bmc/kepler/test_service_1/MicroComponent",
+                                                "bmc.kepler.MicroComponent.Reset", "Cancel");
     writer = msg.writer();
     writer << empty_ctx << "";
     reply = test_conn.send_with_reply(std::move(msg), call_timeout);

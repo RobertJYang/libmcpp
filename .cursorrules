@@ -41,7 +41,7 @@
 - 尽可能用std::variant代替std::any
 - 尽可能用std::variant_object代替std::any
 - 尽可能用std::variant_object代替std::any
-- 遍历 dict 和 mutable_dict 时，优先使用迭代器，而不是索引
+- 遍历 dict 时，优先使用迭代器，而不是索引
 
 7. 代码安全
 - 使用安全函数，避免缓冲区溢出
@@ -100,13 +100,11 @@
 其中 {year} 为当前年份
 - 不要将 variant 注释成为变体，保持 variant 为关键字
 - 不要将 dict 注释成为字典，保持 dict 为关键字
-- 不要将 mutable_dict 注释成为可变字典，保持 mutable_dict 为关键字
 - 不要将 reflector 注释成为反射器，保持 reflector 为关键字
 - variant 的构造优先使用初始化列表构造
-- dict 和 mutable_dict 的构造优先使用初始化列表构造
+- dict 的构造优先使用初始化列表构造
 - variant 与基础类型的比较，优先使用 operator== 而不是 as<T>()
 - variant 与 dict 的比较，优先使用 operator== 而不是 as<dict>()
-- variant 与 mutable_dict 的比较，优先使用 operator== 而不是 as<mutable_dict>()
 
 13. 头文件保护
 - 头文件保护使用 #ifndef/#define/#endif 形式，严禁使用 #pragma once

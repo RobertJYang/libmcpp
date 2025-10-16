@@ -103,7 +103,6 @@ namespace mc {
 - `variant(const std::string& str)`
 - `variant(std::string_view str)`
 - `variant(const dict& obj)`
-- `variant(mutable_dict& obj)`
 - `variant(const array_type& arr)`
 - `variant(const blob& b)`
 - `variant(const std::optional<T>& v)`
@@ -542,7 +541,7 @@ struct Point { int x, y; };
 // 为Point类型定义到variant的转换
 namespace mc {
     void to_variant(const Point& p, variant& vo) {
-        mutable_dict dict;
+        mc::dict dict;
         dict("x", p.x)("y", p.y);
         vo = dict;
     }
@@ -918,7 +917,7 @@ struct Person {
 // 为Person类型定义转换函数
 namespace mc {
     void to_variant(const Person& p, variant& vo) {
-        mutable_dict dict;
+        mc::dict dict;
         dict("name", p.name)
             ("age", p.age);
         
@@ -983,8 +982,7 @@ assert(people == people_back);
 
 ## 相关类型
 
-- `mc::dict` - 不可变的键值对集合
-- `mc::mutable_dict` - 可变的键值对集合
+- `mc::dict` - 键值对集合
 - `mc::variants` - variant数组
 - `mc::blob` - 二进制数据容器
 
@@ -1177,8 +1175,7 @@ if (v == 42) {
 
 ## 相关类型
 
-- `mc::dict` - 不可变的键值对集合
-- `mc::mutable_dict` - 可变的键值对集合
+- `mc::dict` - 键值对集合
 - `mc::variants` - variant数组
 - `mc::blob` - 二进制数据容器
 

@@ -45,7 +45,7 @@ protected:
     }
 
     // 创建一个格式化测试消息
-    message create_format_message(level lvl, const std::string& fmt, const mc::mutable_dict& args) {
+    message create_format_message(level lvl, const std::string& fmt, const mc::dict& args) {
         mc::log::context ctx("test_file.cpp", "test_function", 123);
         return message(lvl, ctx, fmt, args);
     }
@@ -70,7 +70,7 @@ TEST_F(console_appender_test, ConfigConstructor) {
 
 // 测试variant构造函数
 TEST_F(console_appender_test, VariantConstructor) {
-    mc::mutable_dict dict;
+    mc::dict dict;
     dict["stream"]    = "std_error";
     dict["use_color"] = true;
 
@@ -80,7 +80,7 @@ TEST_F(console_appender_test, VariantConstructor) {
 
 // 测试初始化函数
 TEST_F(console_appender_test, Init) {
-    mc::mutable_dict dict;
+    mc::dict dict;
     dict["stream"]    = "std_error";
     dict["use_color"] = true;
 
@@ -98,7 +98,7 @@ TEST_F(console_appender_test, AppendBasicMessage) {
 // 测试追加函数 - 格式化消息
 TEST_F(console_appender_test, AppendFormattedMessage) {
     // 这个测试只是确保append不会崩溃
-    mc::mutable_dict args;
+    mc::dict args;
     args["name"]  = "测试";
     args["value"] = 42;
 
