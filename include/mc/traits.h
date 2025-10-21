@@ -320,6 +320,16 @@ struct has_operator_equal<T, U, std::void_t<decltype(std::declval<T>() == std::d
 template <typename T, typename U = T>
 inline constexpr bool has_operator_equal_v = has_operator_equal<T, U>::value;
 
+// 检测类型是否支持 deep_copy 方法
+template <typename T, typename = void>
+struct has_deep_copy : std::false_type {};
+
+template <typename T>
+struct has_deep_copy<T, std::void_t<decltype(std::declval<T>().deep_copy())>> : std::true_type {};
+
+template <typename T>
+inline constexpr bool has_deep_copy_v = has_deep_copy<T>::value;
+
 // 移除多级指针类型
 template <typename T>
 struct remove_pointers {

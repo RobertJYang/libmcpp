@@ -57,9 +57,9 @@ variant_base<Config> variant_base<Config>::operator+(const variant_base<OtherCon
 
     // 如果两个都是数组则使用数组拼接，否则将另一个元素添加到数组末尾
     if (is_array()) {
-        auto result = *m_array_ptr;
+        auto result = m_array.copy(); // 浅拷贝
         if (other.is_array()) {
-            result.insert(result.end(), other.m_array_ptr->begin(), other.m_array_ptr->end());
+            result.insert(result.end(), other.m_array.begin(), other.m_array.end());
         } else {
             result.push_back(other);
         }
@@ -530,7 +530,7 @@ variant_base<Config>& variant_base<Config>::operator+=(const variant_base<OtherC
     }
 
     if (is_array()) {
-        auto& array = *m_array_ptr;
+        auto& array = m_array;
         if (other.is_array()) {
             array.insert(array.end(), other.get_array().begin(), other.get_array().end());
         } else {
@@ -910,7 +910,7 @@ void variant_base<Config>::set_value(const variant_base<OtherConfig>& other) {
         break;
     }
     case type_id::array_type: {
-        *m_array_ptr = other.as_array();
+        new (&m_array) array_type(other.as_array());
         break;
     }
     case type_id::object_type: {

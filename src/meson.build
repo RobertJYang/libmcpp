@@ -26,6 +26,7 @@ base_src_files = [
   'error.cpp',
   'error_engine.cpp',
   'result.cpp',
+  'array.cpp',
 
   debounce_src_files,
   dict_src_files,
