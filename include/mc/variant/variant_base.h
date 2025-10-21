@@ -40,6 +40,10 @@
 
 namespace mc {
 
+// 前向声明
+template <typename Config>
+class variant_reference;
+
 /**
  * @brief variant_base 类，用于表示任意类型的数据
  */
@@ -823,55 +827,77 @@ public:
 
     /**
      * @brief 获取数组中指定位置的元素
-     * @note 支持链式修改
+     * @note 支持链式修改，返回代理对象
      */
-    variant_base& operator[](std::size_t pos) {
-        if (m_type != type_id::array_type) {
+    variant_reference<Config> operator[](std::size_t pos) {
+        if (m_type == type_id::array_type) {
+            auto& arr = *m_array_ptr;
+            if (pos >= arr.size()) {
+                throw std::out_of_range("数组索引越界: 索引 " + std::to_string(pos) + " 超出范围 [0, " +
+                                        std::to_string(arr.size() - 1) + "]");
+            }
+            return variant_reference<Config>(arr[pos]);
+        } else if (m_type == type_id::extension_type) {
+            if (!m_extension) {
+                throw std::runtime_error("扩展对象为空");
+            }
+            // 优化：如果 extension 支持零开销引用访问，直接返回指针
+            if (m_extension->supports_reference_access()) {
+                if (auto* ptr = m_extension->get_ptr(pos)) {
+                    return variant_reference<Config>(*ptr);
+                }
+            }
+            // 否则使用值访问模式（有拷贝开销）
+            return variant_reference<Config>(m_extension, pos);
+        } else {
             throw_type_error("array", m_type);
         }
-
-        auto& arr = *m_array_ptr;
-        if (pos >= arr.size()) {
-            throw std::out_of_range("数组索引越界: 索引 " + std::to_string(pos) + " 超出范围 [0, " +
-                                    std::to_string(arr.size() - 1) + "]");
-        }
-
-        return arr[pos];
     }
 
     /**
-     * @brief 获取数组中指定位置的元素
+     * @brief 获取数组中指定位置的元素（只读）
      */
-    const variant_base& operator[](std::size_t pos) const {
-        if (m_type != type_id::array_type) {
+    variant_reference<Config> operator[](std::size_t pos) const {
+        if (m_type == type_id::array_type) {
+            const auto& arr = *m_array_ptr;
+            if (pos >= arr.size()) {
+                throw std::out_of_range("数组索引越界: 索引 " + std::to_string(pos) + " 超出范围 [0, " +
+                                        std::to_string(arr.size() - 1) + "]");
+            }
+            return variant_reference<Config>(const_cast<variant_base&>(arr[pos]));
+        } else if (m_type == type_id::extension_type) {
+            if (!m_extension) {
+                throw std::runtime_error("扩展对象为空");
+            }
+            // 优化：如果 extension 支持零开销引用访问，直接返回指针
+            if (m_extension->supports_reference_access()) {
+                if (auto* ptr = m_extension->get_ptr(pos)) {
+                    return variant_reference<Config>(const_cast<variant_base<Config>&>(*ptr));
+                }
+            }
+            // 否则使用值访问模式（有拷贝开销）
+            return variant_reference<Config>(m_extension, pos);
+        } else {
             throw_type_error("array", m_type);
         }
-
-        const auto& arr = *m_array_ptr;
-        if (pos >= arr.size()) {
-            throw std::out_of_range("数组索引越界: 索引 " + std::to_string(pos) + " 超出范围 [0, " +
-                                    std::to_string(arr.size() - 1) + "]");
-        }
-
-        return arr[pos];
     }
 
     /**
      * @brief 获取对象中指定键的值（当variant包含dict对象时）
      * @param key 要查找的键
-     * @return 指定键对应的值的可修改引用
+     * @return 返回代理对象
      * @throw std::runtime_error 如果variant不是对象类型
      */
-    variant_base& operator[](std::string_view key);
+    variant_reference<Config> operator[](std::string_view key);
 
     /**
      * @brief 获取对象中指定键的值（当variant包含dict对象时）- 只读版本
      * @param key 要查找的键
-     * @return 指定键对应的值的引用
+     * @return 返回代理对象
      * @throw std::runtime_error 如果variant不是对象类型
      * @throw std::out_of_range 如果键不存在
      */
-    const variant_base& operator[](std::string_view key) const;
+    variant_reference<Config> operator[](std::string_view key) const;
 
     /**
      * @brief 获取对象中指定键的值，如果不存在或不是对象类型则返回默认值
