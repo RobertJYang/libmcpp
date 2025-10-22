@@ -25,7 +25,9 @@
 
 #include <mc/common.h>
 #include <mc/memory.h>
+#include <mc/pretty_name.h>
 #include <mc/traits.h>
+#include <mc/variant/variant_extension.h>
 
 namespace mc {
 
@@ -38,13 +40,13 @@ namespace detail {
 [[noreturn]] MC_API void throw_array_out_of_range(const char* msg);
 
 /**
- * @brief array 的内部实现类，继承自 enable_shared_from_this 和 std::vector
+ * @brief array 的内部实现类
  *
  * @tparam T 元素类型
  * @tparam Allocator 分配器类型
  */
 template <typename T, typename Allocator = std::allocator<T>>
-class array_impl : public mc::enable_shared_from_this<array_impl<T, Allocator>>, public std::vector<T, Allocator> {
+class array_impl : public mc::variant_extension<array_impl<T, Allocator>>, public std::vector<T, Allocator> {
 public:
     using base_type = std::vector<T, Allocator>;
 
@@ -75,6 +77,9 @@ public:
     array_impl(array_impl&& other) noexcept : base_type(std::move(static_cast<base_type&&>(other))) {
     }
 
+    ~array_impl() {
+    }
+
     // 赋值运算符
     array_impl& operator=(const array_impl& other) {
         base_type::operator=(static_cast<const base_type&>(other));
@@ -85,6 +90,56 @@ public:
         base_type::operator=(std::move(static_cast<base_type&&>(other)));
         return *this;
     }
+
+    /**
+     * @brief 克隆
+     */
+    mc::shared_ptr<variant_extension_base> clone() const override {
+        return mc::make_shared<array_impl>(*this);
+    }
+
+    /**
+     * @brief 计算哈希值
+     */
+    std::size_t hash() const override {
+        if (this->empty()) {
+            return 0;
+        }
+
+        // 使用黄金比例作为种子
+        const auto  arr_size = this->size();
+        std::size_t h        = 0x9e3779b9 ^ arr_size;
+
+        // 对大数组使用采样算法
+        const std::size_t step = (arr_size >> 5) + 1; // 每 32 个元素采样一次
+
+        if constexpr (mc::traits::is_std_hashable_v<T>) {
+            // 类型支持 std::hash，使用元素的 hash
+            for (std::size_t i = arr_size; i >= step; i -= step) {
+                h = h ^ ((h << 5) + (h >> 2) + std::hash<T>()(this->at(i - 1)));
+            }
+        } else {
+            // 类型不支持 std::hash，使用内部指针作为 hash
+            h = h ^ reinterpret_cast<std::size_t>(this);
+        }
+
+        return h;
+    }
+
+    /**
+     * @brief 转换为字符串
+     */
+    std::string as_string() const override {
+        const auto arr_size = this->size();
+        return "array<" + std::string(mc::pretty_name<T>()) + ">[" + std::to_string(arr_size) + "]";
+    }
+
+    void               visit(std::function<void(const mc::variant&)>&& visitor) const override;
+    bool               supports_reference_access() const override;
+    mc::variant*       get_ptr(std::size_t index) override;
+    const mc::variant* get_ptr(std::size_t index) const override;
+    mc::variant        get(std::size_t index) const override;
+    void               set(std::size_t index, const mc::variant& value) override;
 };
 } // namespace detail
 
@@ -714,6 +769,17 @@ public:
      */
     mc::shared_ptr<impl_type> get_data() const {
         return m_data;
+    }
+
+    /**
+     * @brief 从内部实现指针构造 array（仅供内部使用）
+     * @param impl 内部实现指针
+     * @return array 对象
+     */
+    static array from_impl(mc::shared_ptr<impl_type> impl) {
+        array result;
+        result.m_data = std::move(impl);
+        return result;
     }
 
     /**

@@ -40,6 +40,23 @@
 #include <mc/variant/variant_extension.h>
 
 namespace mc {
+namespace detail {
+template <typename F, typename Arg>
+static auto invoke_visitor(F&& func, Arg&& v) {
+    if constexpr (std::is_invocable_v<F>) {
+        MC_UNUSED(v);
+        return func();
+    } else if constexpr (std::is_invocable_v<F, Arg>) {
+        return func(std::forward<Arg>(v));
+    } else {
+        using function_traits = mc::traits::function_traits<F>;
+        using return_type     = mc::traits::remove_cvref_t<typename function_traits::return_type>;
+        if constexpr (!std::is_same_v<return_type, void>) {
+            return return_type{};
+        }
+    }
+}
+} // namespace detail
 
 // 前向声明
 template <typename Config>
@@ -335,44 +352,46 @@ public:
 
     /**
      * @brief 使用访问者模式访问 variant_base 中的数据，并返回访问者的结果
+     *
+     * 支持精确类型分发：visitor 只需要能够处理当前类型，类型不匹配时静默跳过
+     *
+     * @note 如果 visitor 不能处理当前类型，函数会静默返回（不抛出异常）
      */
     template <typename Visitor>
     auto visit_with(Visitor&& visitor) const {
         switch (m_type) {
         case type_id::null_type:
-            return visitor(nullptr);
+            return detail::invoke_visitor<Visitor>(std::forward<Visitor>(visitor), nullptr);
         case type_id::int8_type:
         case type_id::int16_type:
         case type_id::int32_type:
         case type_id::int64_type:
-            return visitor(m_int64);
+            return detail::invoke_visitor<Visitor>(std::forward<Visitor>(visitor), m_int64);
         case type_id::uint8_type:
         case type_id::uint16_type:
         case type_id::uint32_type:
         case type_id::uint64_type:
-            return visitor(m_uint64);
+            return detail::invoke_visitor<Visitor>(std::forward<Visitor>(visitor), m_uint64);
         case type_id::double_type:
-            return visitor(m_double);
+            return detail::invoke_visitor<Visitor>(std::forward<Visitor>(visitor), m_double);
         case type_id::bool_type:
-            return visitor(m_bool);
+            return detail::invoke_visitor<Visitor>(std::forward<Visitor>(visitor), m_bool);
         case type_id::string_type:
-            return visitor(*m_string_ptr);
+            return detail::invoke_visitor<Visitor>(std::forward<Visitor>(visitor), *m_string_ptr);
         case type_id::object_type:
-            return visitor(m_object);
+            return detail::invoke_visitor<Visitor>(std::forward<Visitor>(visitor), m_object);
         case type_id::array_type:
-            return visitor(m_array);
+            return detail::invoke_visitor<Visitor>(std::forward<Visitor>(visitor), m_array);
         case type_id::blob_type:
-            return visitor(*m_blob_ptr);
-        case type_id::extension_type: {
+            return detail::invoke_visitor<Visitor>(std::forward<Visitor>(visitor), *m_blob_ptr);
+        case type_id::extension_type:
             if (m_extension) {
-                return visitor(*m_extension);
+                return detail::invoke_visitor<Visitor>(std::forward<Visitor>(visitor), *m_extension);
             }
-            throw_unknow_type_error(m_type);
+        default:
             break;
         }
-        default:
-            throw_unknow_type_error(m_type);
-        }
+        throw_unknow_type_error(m_type);
     }
 
     /**
@@ -818,13 +837,7 @@ public:
 
     dict as_object() const;
 
-    array_type as_array() const {
-        if (m_type != type_id::array_type) {
-            throw_type_error("array", m_type);
-        }
-
-        return m_array;
-    }
+    array_type as_array() const;
 
     /**
      * @brief 获取数组中指定位置的元素
@@ -834,13 +847,12 @@ public:
         if (m_type == type_id::array_type) {
             auto& arr = m_array;
             if (pos >= arr.size()) {
-                throw std::out_of_range("数组索引越界: 索引 " + std::to_string(pos) + " 超出范围 [0, " +
-                                        std::to_string(arr.size() - 1) + "]");
+                throw_out_of_range_error(pos, arr.size());
             }
             return variant_reference<Config>(arr[pos]);
         } else if (m_type == type_id::extension_type) {
             if (!m_extension) {
-                throw std::runtime_error("扩展对象为空");
+                throw_extension_null_error();
             }
             // 优化：如果 extension 支持零开销引用访问，直接返回指针
             if (m_extension->supports_reference_access()) {
@@ -862,13 +874,12 @@ public:
         if (m_type == type_id::array_type) {
             const auto& arr = m_array;
             if (pos >= arr.size()) {
-                throw std::out_of_range("数组索引越界: 索引 " + std::to_string(pos) + " 超出范围 [0, " +
-                                        std::to_string(arr.size() - 1) + "]");
+                throw_out_of_range_error(pos, arr.size());
             }
             return variant_reference<Config>(const_cast<variant_base&>(arr[pos]));
         } else if (m_type == type_id::extension_type) {
             if (!m_extension) {
-                throw std::runtime_error("扩展对象为空");
+                throw_extension_null_error();
             }
             // 优化：如果 extension 支持零开销引用访问，直接返回指针
             if (m_extension->supports_reference_access()) {
@@ -887,7 +898,7 @@ public:
      * @brief 获取对象中指定键的值（当variant包含dict对象时）
      * @param key 要查找的键
      * @return 返回代理对象
-     * @throw std::runtime_error 如果variant不是对象类型
+     * @throw mc::invalid_arg_exception 如果variant不是对象类型
      */
     variant_reference<Config> operator[](std::string_view key);
 
@@ -895,8 +906,8 @@ public:
      * @brief 获取对象中指定键的值（当variant包含dict对象时）- 只读版本
      * @param key 要查找的键
      * @return 返回代理对象
-     * @throw std::runtime_error 如果variant不是对象类型
-     * @throw std::out_of_range 如果键不存在
+     * @throw mc::invalid_arg_exception 如果variant不是对象类型
+     * @throw mc::out_of_range_exception 如果键不存在
      */
     variant_reference<Config> operator[](std::string_view key) const;
 
@@ -1166,7 +1177,7 @@ public:
     /**
      * @brief 获取字符串类型
      * @return 字符串引用
-     * @throw std::bad_cast 如果类型不匹配
+     * @throw mc::invalid_arg_exception 如果类型不匹配
      */
     const std::string& get_string() const {
         if (m_type != type_id::string_type) {
@@ -1178,7 +1189,7 @@ public:
     /**
      * @brief 获取blob类型
      * @return blob引用
-     * @throw std::bad_cast 如果类型不匹配
+     * @throw mc::invalid_arg_exception 如果类型不匹配
      */
     const blob_type& get_blob() const {
         if (m_type != type_id::blob_type) {
@@ -1190,7 +1201,7 @@ public:
     /**
      * @brief 获取数组类型
      * @return 数组引用
-     * @throw std::bad_cast 如果类型不匹配
+     * @throw mc::invalid_arg_exception 如果类型不匹配
      */
     const array_type& get_array() const {
         if (m_type != type_id::array_type) {
@@ -1202,7 +1213,7 @@ public:
     /**
      * @brief 获取对象类型
      * @return 对象引用
-     * @throw std::bad_cast 如果类型不匹配
+     * @throw mc::invalid_arg_exception 如果类型不匹配
      */
     const dict& get_object() const {
         if (m_type != type_id::object_type) {
@@ -1870,7 +1881,26 @@ void to_variant(const variants_base<Config1>& var, variant_base<Config2>& vo) {
 }
 template <typename Config1, typename Config2>
 void from_variant(const variant_base<Config1>& var, variants_base<Config2>& vo) {
-    vo = var.get_array();
+    if (var.is_array()) {
+        vo = var.get_array();
+        return;
+    }
+
+    // 处理 extension 类型：可能是强类型数组（mc::array<int> 等）
+    if (var.is_extension()) {
+        auto ext = var.as_extension();
+        if (ext) {
+            // 使用 extension 的 visit 方法遍历并转换元素
+            variants_base<Config2> result;
+            ext->visit([&](const mc::variant& item) {
+                result.push_back(item);
+            });
+            vo = result;
+            return;
+        }
+    }
+
+    throw_bad_cast_error("类型转换异常: 无法从 variant 转换为 array");
 }
 
 // 从其他 variant_base 转换为 variant_base

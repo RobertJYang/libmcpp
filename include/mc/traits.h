@@ -330,6 +330,17 @@ struct has_deep_copy<T, std::void_t<decltype(std::declval<T>().deep_copy())>> : 
 template <typename T>
 inline constexpr bool has_deep_copy_v = has_deep_copy<T>::value;
 
+// is_std_hashable - 检测类型是否支持 std::hash
+template <typename T, typename = void>
+struct is_std_hashable : std::false_type {};
+
+template <typename T>
+struct is_std_hashable<T, std::void_t<decltype(std::declval<std::hash<T>>()(std::declval<const T&>()))>>
+    : std::true_type {};
+
+template <typename T>
+inline constexpr bool is_std_hashable_v = is_std_hashable<T>::value;
+
 // 移除多级指针类型
 template <typename T>
 struct remove_pointers {
