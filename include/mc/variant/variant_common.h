@@ -23,6 +23,12 @@
 #include <mc/common.h>
 #include <mc/memory.h>
 
+// 前向声明 array
+namespace mc {
+template <typename T, typename Allocator>
+class array;
+}
+
 #ifndef VARIANT_FLOAT_EPSILON
 #define VARIANT_FLOAT_EPSILON MC_FLOAT_EPSILON
 #endif
@@ -122,7 +128,7 @@ struct blob_base {
 };
 
 template <typename Config>
-using variants_base = std::vector<variant_base<Config>, typename Config::variant_alloc_type>;
+using variants_base = mc::array<variant_base<Config>, typename Config::variant_alloc_type>;
 
 template <typename Allocator = std::allocator<char>, bool FixedType = false>
 struct variant_config {
@@ -137,7 +143,7 @@ struct variant_config {
     static constexpr bool is_fixed_type = FixedType;
     using string_type                   = std::basic_string<char, std::char_traits<char>, char_alloc_type>;
     using object_type                   = dict;
-    using array_type                    = std::vector<variant_base<self_type>, variant_alloc_type>;
+    using array_type                    = mc::array<variant_base<self_type>, variant_alloc_type>;
     using blob_type                     = blob_base<char_alloc_type>;
     using extension_type                = variant_extension_base;
 
@@ -146,7 +152,7 @@ struct variant_config {
     using blob_alloc_type   = typename alloc_traits::template rebind_alloc<blob_type>;
 
     using string_ptr_type    = typename string_alloc_type::pointer;
-    using array_ptr_type     = typename array_alloc_type::pointer;
+    using array_ptr_type     = array_type; // array 本身就是引用语义，不需要指针包装
     using blob_ptr_type      = typename blob_alloc_type::pointer;
     using extension_ptr_type = typename mc::shared_ptr<extension_type>;
 };
@@ -236,7 +242,7 @@ static auto fixed_integer(T val) {
 } // namespace detail
 
 using variant  = variant_base<variant_config<>>;
-using variants = std::vector<variant>;
+using variants = mc::array<variant, std::allocator<variant>>;
 
 template <typename Config>
 std::string to_string(const variant_base<Config>& v) {

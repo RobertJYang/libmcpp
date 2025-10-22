@@ -1,0 +1,620 @@
+/*
+ * Copyright (c) 2025 Huawei Technologies Co., Ltd.
+ * openUBMC is licensed under Mulan PSL v2.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *         http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
+ */
+
+#include <gtest/gtest.h>
+#include <mc/array.h>
+#include <mc/exception.h>
+#include <mc/variant.h>
+#include <string>
+
+// 测试默认构造
+TEST(array_test, default_constructor) {
+    mc::array<int> arr;
+    EXPECT_TRUE(arr.empty());
+    EXPECT_EQ(arr.size(), 0);
+}
+
+// 测试指定大小构造
+TEST(array_test, size_constructor) {
+    mc::array<int> arr(5);
+    EXPECT_EQ(arr.size(), 5);
+    EXPECT_FALSE(arr.empty());
+    for (size_t i = 0; i < arr.size(); ++i) {
+        EXPECT_EQ(arr[i], 0);
+    }
+}
+
+// 测试指定大小和值构造
+TEST(array_test, size_value_constructor) {
+    mc::array<int> arr(5, 42);
+    EXPECT_EQ(arr.size(), 5);
+    for (size_t i = 0; i < arr.size(); ++i) {
+        EXPECT_EQ(arr[i], 42);
+    }
+}
+
+// 测试初始化列表构造
+TEST(array_test, initializer_list_constructor) {
+    mc::array<int> arr = {1, 2, 3, 4, 5};
+    EXPECT_EQ(arr.size(), 5);
+    EXPECT_EQ(arr[0], 1);
+    EXPECT_EQ(arr[1], 2);
+    EXPECT_EQ(arr[2], 3);
+    EXPECT_EQ(arr[3], 4);
+    EXPECT_EQ(arr[4], 5);
+}
+
+// 测试迭代器范围构造
+TEST(array_test, iterator_constructor) {
+    std::vector<int> vec = {10, 20, 30};
+    mc::array<int>   arr(vec.begin(), vec.end());
+    EXPECT_EQ(arr.size(), 3);
+    EXPECT_EQ(arr[0], 10);
+    EXPECT_EQ(arr[1], 20);
+    EXPECT_EQ(arr[2], 30);
+}
+
+// 测试从 std::vector 构造
+TEST(array_test, vector_constructor) {
+    std::vector<int> vec = {7, 8, 9};
+    mc::array<int>   arr(vec);
+    EXPECT_EQ(arr.size(), 3);
+    EXPECT_EQ(arr[0], 7);
+    EXPECT_EQ(arr[1], 8);
+    EXPECT_EQ(arr[2], 9);
+}
+
+// 测试拷贝构造（引用语义）
+TEST(array_test, copy_constructor_shared_semantics) {
+    mc::array<int> arr1 = {1, 2, 3};
+    mc::array<int> arr2 = arr1;
+
+    // 拷贝后应该共享数据
+    EXPECT_EQ(arr1.size(), 3);
+    EXPECT_EQ(arr2.size(), 3);
+
+    // 修改 arr1 应该影响 arr2
+    arr1[0] = 100;
+    EXPECT_EQ(arr2[0], 100);
+
+    // 修改 arr2 应该影响 arr1
+    arr2[1] = 200;
+    EXPECT_EQ(arr1[1], 200);
+}
+
+// 测试移动构造
+TEST(array_test, move_constructor) {
+    mc::array<int> arr1 = {1, 2, 3};
+    mc::array<int> arr2 = std::move(arr1);
+
+    EXPECT_EQ(arr2.size(), 3);
+    EXPECT_EQ(arr2[0], 1);
+    EXPECT_EQ(arr2[1], 2);
+    EXPECT_EQ(arr2[2], 3);
+}
+
+// 测试赋值运算符（引用语义）
+TEST(array_test, copy_assignment_shared_semantics) {
+    mc::array<int> arr1 = {1, 2, 3};
+    mc::array<int> arr2;
+    arr2 = arr1;
+
+    // 赋值后应该共享数据
+    arr1[0] = 99;
+    EXPECT_EQ(arr2[0], 99);
+}
+
+// 测试元素访问
+TEST(array_test, element_access) {
+    mc::array<int> arr = {10, 20, 30, 40, 50};
+
+    // operator[]
+    EXPECT_EQ(arr[0], 10);
+    EXPECT_EQ(arr[4], 50);
+
+    // at()
+    EXPECT_EQ(arr.at(0), 10);
+    EXPECT_EQ(arr.at(4), 50);
+    EXPECT_THROW(arr.at(5), mc::out_of_range_exception);
+
+    // front() 和 back()
+    EXPECT_EQ(arr.front(), 10);
+    EXPECT_EQ(arr.back(), 50);
+}
+
+// 测试 const 元素访问
+TEST(array_test, const_element_access) {
+    const mc::array<int> arr = {1, 2, 3};
+
+    EXPECT_EQ(arr[0], 1);
+    EXPECT_EQ(arr.at(1), 2);
+    EXPECT_EQ(arr.front(), 1);
+    EXPECT_EQ(arr.back(), 3);
+}
+
+// 测试迭代器
+TEST(array_test, iterators) {
+    mc::array<int> arr = {1, 2, 3, 4, 5};
+
+    // 正向迭代器
+    int sum = 0;
+    for (auto it = arr.begin(); it != arr.end(); ++it) {
+        sum += *it;
+    }
+    EXPECT_EQ(sum, 15);
+
+    // 范围 for 循环
+    sum = 0;
+    for (int val : arr) {
+        sum += val;
+    }
+    EXPECT_EQ(sum, 15);
+
+    // 反向迭代器
+    std::vector<int> reversed;
+    for (auto it = arr.rbegin(); it != arr.rend(); ++it) {
+        reversed.push_back(*it);
+    }
+    EXPECT_EQ(reversed, std::vector<int>({5, 4, 3, 2, 1}));
+}
+
+// 测试容量
+TEST(array_test, capacity) {
+    mc::array<int> arr;
+
+    EXPECT_TRUE(arr.empty());
+    EXPECT_EQ(arr.size(), 0);
+
+    arr.push_back(1);
+    EXPECT_FALSE(arr.empty());
+    EXPECT_EQ(arr.size(), 1);
+
+    arr.reserve(100);
+    EXPECT_GE(arr.capacity(), 100);
+    EXPECT_EQ(arr.size(), 1);
+}
+
+// 测试 push_back
+TEST(array_test, push_back) {
+    mc::array<int> arr;
+
+    arr.push_back(1);
+    arr.push_back(2);
+    arr.push_back(3);
+
+    EXPECT_EQ(arr.size(), 3);
+    EXPECT_EQ(arr[0], 1);
+    EXPECT_EQ(arr[1], 2);
+    EXPECT_EQ(arr[2], 3);
+
+    // 测试移动语义
+    int value = 42;
+    arr.push_back(std::move(value));
+    EXPECT_EQ(arr[3], 42);
+}
+
+// 测试 emplace_back
+TEST(array_test, emplace_back) {
+    mc::array<std::string> arr;
+
+    arr.emplace_back("hello");
+    arr.emplace_back(5, 'x'); // 构造 "xxxxx"
+
+    EXPECT_EQ(arr.size(), 2);
+    EXPECT_EQ(arr[0], "hello");
+    EXPECT_EQ(arr[1], "xxxxx");
+}
+
+// 测试 pop_back
+TEST(array_test, pop_back) {
+    mc::array<int> arr = {1, 2, 3, 4, 5};
+
+    arr.pop_back();
+    EXPECT_EQ(arr.size(), 4);
+    EXPECT_EQ(arr.back(), 4);
+
+    arr.pop_back();
+    EXPECT_EQ(arr.size(), 3);
+    EXPECT_EQ(arr.back(), 3);
+}
+
+// 测试 insert
+TEST(array_test, insert) {
+    mc::array<int> arr = {1, 2, 5};
+
+    // 插入单个元素
+    auto it = arr.insert(arr.begin() + 2, 3);
+    EXPECT_EQ(*it, 3);
+    EXPECT_EQ(arr.size(), 4);
+    EXPECT_EQ(arr[2], 3);
+
+    // 插入多个相同元素
+    arr.insert(arr.begin() + 3, 2, 4);
+    EXPECT_EQ(arr.size(), 6);
+    EXPECT_EQ(arr[3], 4);
+    EXPECT_EQ(arr[4], 4);
+
+    // 插入初始化列表
+    arr.insert(arr.end(), {6, 7, 8});
+    EXPECT_EQ(arr.size(), 9);
+    EXPECT_EQ(arr[6], 6);
+    EXPECT_EQ(arr[7], 7);
+    EXPECT_EQ(arr[8], 8);
+}
+
+// 测试 emplace
+TEST(array_test, emplace) {
+    mc::array<std::string> arr = {"a", "c"};
+
+    auto it = arr.emplace(arr.begin() + 1, 3, 'b'); // 插入 "bbb"
+    EXPECT_EQ(*it, "bbb");
+    EXPECT_EQ(arr.size(), 3);
+    EXPECT_EQ(arr[0], "a");
+    EXPECT_EQ(arr[1], "bbb");
+    EXPECT_EQ(arr[2], "c");
+}
+
+// 测试 erase
+TEST(array_test, erase) {
+    mc::array<int> arr = {1, 2, 3, 4, 5};
+
+    // 删除单个元素
+    auto it = arr.erase(arr.begin() + 1);
+    EXPECT_EQ(*it, 3);
+    EXPECT_EQ(arr.size(), 4);
+    EXPECT_EQ(arr[1], 3);
+
+    // 删除范围
+    arr.erase(arr.begin() + 1, arr.begin() + 3);
+    EXPECT_EQ(arr.size(), 2);
+    EXPECT_EQ(arr[0], 1);
+    EXPECT_EQ(arr[1], 5);
+}
+
+// 测试 resize
+TEST(array_test, resize) {
+    mc::array<int> arr = {1, 2, 3};
+
+    // 扩大
+    arr.resize(5);
+    EXPECT_EQ(arr.size(), 5);
+    EXPECT_EQ(arr[0], 1);
+    EXPECT_EQ(arr[4], 0);
+
+    // 扩大并填充值
+    arr.resize(7, 99);
+    EXPECT_EQ(arr.size(), 7);
+    EXPECT_EQ(arr[5], 99);
+    EXPECT_EQ(arr[6], 99);
+
+    // 缩小
+    arr.resize(3);
+    EXPECT_EQ(arr.size(), 3);
+}
+
+// 测试 clear
+TEST(array_test, clear) {
+    mc::array<int> arr = {1, 2, 3, 4, 5};
+
+    arr.clear();
+    EXPECT_TRUE(arr.empty());
+    EXPECT_EQ(arr.size(), 0);
+}
+
+// 测试 swap
+TEST(array_test, swap) {
+    mc::array<int> arr1 = {1, 2, 3};
+    mc::array<int> arr2 = {4, 5, 6, 7};
+
+    arr1.swap(arr2);
+
+    EXPECT_EQ(arr1.size(), 4);
+    EXPECT_EQ(arr1[0], 4);
+
+    EXPECT_EQ(arr2.size(), 3);
+    EXPECT_EQ(arr2[0], 1);
+}
+
+// 测试比较运算符
+TEST(array_test, comparison_operators) {
+    mc::array<int> arr1 = {1, 2, 3};
+    mc::array<int> arr2 = {1, 2, 3};
+    mc::array<int> arr3 = {1, 2, 4};
+    mc::array<int> arr4 = {1, 2};
+
+    // ==
+    EXPECT_TRUE(arr1 == arr2);
+    EXPECT_FALSE(arr1 == arr3);
+
+    // !=
+    EXPECT_TRUE(arr1 != arr3);
+    EXPECT_FALSE(arr1 != arr2);
+
+    // <
+    EXPECT_TRUE(arr1 < arr3);
+    EXPECT_TRUE(arr4 < arr1);
+    EXPECT_FALSE(arr3 < arr1);
+
+    // <=
+    EXPECT_TRUE(arr1 <= arr2);
+    EXPECT_TRUE(arr1 <= arr3);
+
+    // >
+    EXPECT_TRUE(arr3 > arr1);
+    EXPECT_FALSE(arr1 > arr2);
+
+    // >=
+    EXPECT_TRUE(arr1 >= arr2);
+    EXPECT_TRUE(arr3 >= arr1);
+}
+
+// 测试深拷贝（基本类型）
+TEST(array_test, deep_copy_basic_type) {
+    mc::array<int> arr1 = {1, 2, 3};
+    mc::array<int> arr2 = arr1.deep_copy();
+
+    // 深拷贝后应该是独立的数据
+    arr1[0] = 100;
+    EXPECT_EQ(arr1[0], 100);
+    EXPECT_EQ(arr2[0], 1); // arr2 不受影响
+}
+
+// 测试深拷贝（支持 deep_copy 的类型）
+TEST(array_test, deep_copy_with_variant) {
+    mc::array<mc::variant> arr1;
+    arr1.push_back(mc::variant(mc::variants{1, 2, 3}));
+    arr1.push_back(mc::variant(42));
+
+    mc::array<mc::variant> arr2 = arr1.deep_copy();
+
+    // 修改 arr1 中的嵌套数组
+    arr1[0][0] = 999;
+
+    // arr2 不应该受影响（因为 variant 支持 deep_copy）
+    EXPECT_EQ(arr2[0][0], 1);
+}
+
+// 测试 copy（浅拷贝）
+TEST(array_test, copy_shallow) {
+    mc::array<mc::variant> arr1;
+    arr1.push_back(mc::variant(mc::variants{1, 2, 3}));
+    arr1.push_back(mc::variant(42));
+
+    mc::array<mc::variant> arr2 = arr1.copy();
+
+    // 直接修改 arr1 的值 arr2 不受影响，因为是浅拷贝
+    arr1[1] = 43;
+    EXPECT_EQ(arr2[1], 42);
+
+    // 修改 arr1 中的嵌套数组 arr2 受影响，因为浅拷贝不会嵌套拷贝值
+    arr1[0][0] = 999;
+    EXPECT_EQ(arr2[0][0], 999);
+}
+
+// 测试 as_mut
+TEST(array_test, as_mut) {
+    mc::array<int> arr     = {1, 2, 3};
+    auto&          mut_arr = arr.as_mut();
+
+    // 应该是同一个对象
+    mut_arr[0] = 99;
+    EXPECT_EQ(arr[0], 99);
+
+    // const 版本
+    const mc::array<int> const_arr = {4, 5, 6};
+    auto                 mut_copy  = const_arr.as_mut();
+    EXPECT_EQ(mut_copy[0], 4);
+}
+
+// 测试 to_vector
+TEST(array_test, to_vector) {
+    mc::array<int>   arr = {1, 2, 3, 4, 5};
+    std::vector<int> vec = arr.to_vector();
+
+    EXPECT_EQ(vec.size(), 5);
+    EXPECT_EQ(vec[0], 1);
+    EXPECT_EQ(vec[4], 5);
+
+    // 修改 vector 不应该影响 array
+    vec[0] = 999;
+    EXPECT_EQ(arr[0], 1);
+}
+
+// 测试使用 mc::variant
+TEST(array_test, with_variant) {
+    mc::array<mc::variant> arr;
+
+    arr.push_back(mc::variant(42));
+    arr.push_back(mc::variant("hello"));
+    arr.push_back(mc::variant(3.14));
+    arr.push_back(mc::variant(true));
+
+    EXPECT_EQ(arr.size(), 4);
+    EXPECT_EQ(arr[0], 42);
+    EXPECT_EQ(arr[1], "hello");
+    EXPECT_EQ(arr[2], 3.14);
+    EXPECT_EQ(arr[3], true);
+}
+
+// 测试与 mc::variants 的兼容性
+TEST(array_test, compatibility_with_variants) {
+    // mc::array<mc::variant> 应该可以替代 mc::variants
+    mc::array<mc::variant> arr = {
+        mc::variant(1),
+        mc::variant("test"),
+        mc::variant(2.5),
+    };
+
+    EXPECT_EQ(arr.size(), 3);
+    EXPECT_EQ(arr[0], 1);
+    EXPECT_EQ(arr[1], "test");
+    EXPECT_EQ(arr[2], 2.5);
+}
+
+// 测试字符串类型
+TEST(array_test, with_string) {
+    mc::array<std::string> arr = {"hello", "world", "test"};
+
+    EXPECT_EQ(arr.size(), 3);
+    EXPECT_EQ(arr[0], "hello");
+    EXPECT_EQ(arr[1], "world");
+    EXPECT_EQ(arr[2], "test");
+
+    arr.push_back("new");
+    EXPECT_EQ(arr.size(), 4);
+    EXPECT_EQ(arr.back(), "new");
+}
+
+// 测试自定义类型
+struct custom_type {
+    int value;
+
+    custom_type() : value(0) {
+    }
+
+    explicit custom_type(int v) : value(v) {
+    }
+
+    bool operator==(const custom_type& other) const {
+        return value == other.value;
+    }
+};
+
+TEST(array_test, with_custom_type) {
+    mc::array<custom_type> arr;
+
+    arr.emplace_back(10);
+    arr.emplace_back(20);
+    arr.emplace_back(30);
+
+    EXPECT_EQ(arr.size(), 3);
+    EXPECT_EQ(arr[0].value, 10);
+    EXPECT_EQ(arr[1].value, 20);
+    EXPECT_EQ(arr[2].value, 30);
+}
+
+// 测试空数组的边界情况
+TEST(array_test, empty_array_edge_cases) {
+    mc::array<int> arr;
+
+    EXPECT_TRUE(arr.empty());
+    EXPECT_EQ(arr.size(), 0);
+    EXPECT_EQ(arr.data(), nullptr);
+
+    // 空数组的 const 访问应该抛出异常
+    const mc::array<int> const_arr;
+    EXPECT_THROW(const_arr.at(0), mc::out_of_range_exception);
+}
+
+// 测试数据共享
+TEST(array_test, data_sharing) {
+    mc::array<int> arr1 = {1, 2, 3};
+    mc::array<int> arr2 = arr1;
+    mc::array<int> arr3 = arr1;
+
+    // 三个对象共享同一份数据
+    arr1[0] = 100;
+    EXPECT_EQ(arr2[0], 100);
+    EXPECT_EQ(arr3[0], 100);
+
+    arr2[1] = 200;
+    EXPECT_EQ(arr1[1], 200);
+    EXPECT_EQ(arr3[1], 200);
+
+    arr3[2] = 300;
+    EXPECT_EQ(arr1[2], 300);
+    EXPECT_EQ(arr2[2], 300);
+}
+
+// 测试嵌套数组
+TEST(array_test, nested_array) {
+    mc::array<mc::array<int>> nested;
+
+    nested.push_back(mc::array<int>{1, 2, 3});
+    nested.push_back(mc::array<int>{4, 5, 6});
+    nested.push_back(mc::array<int>{7, 8, 9});
+
+    EXPECT_EQ(nested.size(), 3);
+    EXPECT_EQ(nested[0].size(), 3);
+    EXPECT_EQ(nested[0][0], 1);
+    EXPECT_EQ(nested[1][1], 5);
+    EXPECT_EQ(nested[2][2], 9);
+}
+
+// 测试与 std::vector 的比较运算符
+TEST(array_test, comparison_with_vector) {
+    mc::array<int>   arr  = {1, 2, 3, 4, 5};
+    std::vector<int> vec1 = {1, 2, 3, 4, 5};
+    std::vector<int> vec2 = {1, 2, 3, 4, 6};
+    std::vector<int> vec3 = {1, 2, 3};
+
+    // ==
+    EXPECT_TRUE(arr == vec1);
+    EXPECT_TRUE(vec1 == arr);
+    EXPECT_FALSE(arr == vec2);
+    EXPECT_FALSE(vec2 == arr);
+
+    // !=
+    EXPECT_FALSE(arr != vec1);
+    EXPECT_FALSE(vec1 != arr);
+    EXPECT_TRUE(arr != vec2);
+    EXPECT_TRUE(vec2 != arr);
+
+    // <
+    EXPECT_TRUE(arr < vec2);
+    EXPECT_FALSE(vec2 < arr);
+    EXPECT_FALSE(arr < vec3);
+    EXPECT_TRUE(vec3 < arr);
+
+    // <=
+    EXPECT_TRUE(arr <= vec1);
+    EXPECT_TRUE(vec1 <= arr);
+    EXPECT_TRUE(arr <= vec2);
+    EXPECT_TRUE(vec3 <= arr);
+
+    // >
+    EXPECT_FALSE(arr > vec1);
+    EXPECT_FALSE(vec1 > arr);
+    EXPECT_TRUE(arr > vec3);
+    EXPECT_FALSE(vec3 > arr);
+
+    // >=
+    EXPECT_TRUE(arr >= vec1);
+    EXPECT_TRUE(vec1 >= arr);
+    EXPECT_TRUE(arr >= vec3);
+    EXPECT_FALSE(vec3 >= arr);
+}
+
+// 测试空 array 与空 vector 的比较
+TEST(array_test, empty_comparison_with_vector) {
+    mc::array<int>   arr;
+    std::vector<int> vec;
+
+    EXPECT_TRUE(arr == vec);
+    EXPECT_TRUE(vec == arr);
+    EXPECT_FALSE(arr != vec);
+    EXPECT_FALSE(vec != arr);
+}
+
+// 测试与 std::vector<mc::variant> 的兼容性
+TEST(array_test, compatibility_with_std_vector_variant) {
+    mc::array<mc::variant>   arr = {mc::variant(1), mc::variant(2), mc::variant(3)};
+    std::vector<mc::variant> vec = {mc::variant(1), mc::variant(2), mc::variant(3)};
+
+    // 应该可以相互比较
+    EXPECT_TRUE(arr == vec);
+    EXPECT_TRUE(vec == arr);
+
+    vec.push_back(mc::variant(4));
+    EXPECT_FALSE(arr == vec);
+    EXPECT_TRUE(arr != vec);
+}

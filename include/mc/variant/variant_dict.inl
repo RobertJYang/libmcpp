@@ -64,7 +64,7 @@ variant_base<Config>::variant_base(const variant_base& other)
                                                      other.m_string_ptr->size(), m_alloc);
         break;
     case type_id::array_type:
-        m_array_ptr = mc::allocate_ptr<array_type>(m_alloc, *other.m_array_ptr, m_alloc);
+        new (&m_array) array_type(other.m_array, m_alloc);
         break;
     case type_id::object_type:
         new (&m_object) object_type(other.m_object);
@@ -113,9 +113,9 @@ variant_base<Config>::variant_base(const variant_base<OtherConfig>& other,
                                                      other.m_string_ptr->size(), m_alloc);
         break;
     case type_id::array_type: {
-        m_array_ptr = mc::allocate_ptr<array_type>(m_alloc, m_alloc);
-        for (auto& item : *other.m_array_ptr) {
-            m_array_ptr->emplace_back(item, m_alloc);
+        new (&m_array) array_type(m_alloc);
+        for (const auto& item : other.m_array) {
+            m_array.push_back(item);
         }
         break;
     }
@@ -141,7 +141,7 @@ void variant_base<Config>::clear() {
         mc::destroy_ptr(m_alloc, m_string_ptr);
         break;
     case type_id::array_type:
-        mc::destroy_ptr(m_alloc, m_array_ptr);
+        m_array.~array_type();
         break;
     case type_id::object_type:
         m_object.~object_type();
@@ -163,7 +163,7 @@ template <typename Config>
 size_t variant_base<Config>::size() const {
     switch (m_type) {
     case type_id::array_type:
-        return m_array_ptr->size();
+        return m_array.size();
     case type_id::object_type:
         return m_object.size();
     case type_id::string_type:
@@ -260,10 +260,10 @@ bool variant_base<Config>::same_type_equal(const variant_base<OtherConfig>& othe
     case type_id::string_type:
         return *m_string_ptr == *other.m_string_ptr;
     case type_id::array_type:
-        if (m_array_ptr->size() != other.m_array_ptr->size()) {
+        if (m_array.size() != other.m_array.size()) {
             return false;
         }
-        return std::equal(m_array_ptr->begin(), m_array_ptr->end(), other.m_array_ptr->begin());
+        return std::equal(m_array.begin(), m_array.end(), other.m_array.begin());
     case type_id::object_type:
         return m_object == other.m_object;
     case type_id::blob_type:

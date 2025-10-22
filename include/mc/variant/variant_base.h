@@ -28,6 +28,7 @@
 #include <utility>
 #include <vector>
 
+#include <mc/array.h>
 #include <mc/common.h>
 #include <mc/dict/dict.h>
 #include <mc/json.h>
@@ -79,7 +80,7 @@ public:
             m_string_ptr = mc::allocate_ptr<string_type>(m_alloc);
             break;
         case type_id::array_type:
-            m_array_ptr = mc::allocate_ptr<array_type>(m_alloc);
+            new (&m_array) array_type();
             break;
         case type_id::object_type:
             new (&m_object) object_type();
@@ -165,15 +166,15 @@ public:
     // 从 array_type 构造 variant_base
     variant_base(const array_type& arr, const allocator_type& alloc = allocator_type())
         : m_type(type_id::array_type), m_alloc(alloc) {
-        m_array_ptr = mc::allocate_ptr<array_type>(m_alloc, arr, alloc);
+        new (&m_array) array_type(arr, alloc);
     }
     template <typename OtherConfig>
     variant_base(const variants_base<OtherConfig>& arr,
                  const allocator_type&             alloc = allocator_type())
         : m_type(type_id::array_type), m_alloc(alloc) {
-        m_array_ptr = mc::allocate_ptr<array_type>(m_alloc, alloc);
+        new (&m_array) array_type(alloc);
         for (const auto& item : arr) {
-            m_array_ptr->emplace_back(item, alloc);
+            m_array.emplace_back(item, alloc);
         }
     }
 
@@ -233,7 +234,7 @@ public:
             m_string_ptr = other.m_string_ptr;
             break;
         case type_id::array_type:
-            m_array_ptr = other.m_array_ptr;
+            new (&m_array) array_type(other.m_array);
             break;
         case type_id::object_type:
             new (&m_object) object_type(std::move(other.m_object));
@@ -317,7 +318,7 @@ public:
             v.handle(m_object);
             break;
         case type_id::array_type:
-            v.handle(*m_array_ptr);
+            v.handle(m_array);
             break;
         case type_id::blob_type:
             v.handle(*m_blob_ptr);
@@ -359,7 +360,7 @@ public:
         case type_id::object_type:
             return visitor(m_object);
         case type_id::array_type:
-            return visitor(*m_array_ptr);
+            return visitor(m_array);
         case type_id::blob_type:
             return visitor(*m_blob_ptr);
         case type_id::extension_type: {
@@ -690,7 +691,7 @@ public:
         case type_id::null_type:
             return false;
         case type_id::array_type:
-            return !m_array_ptr->empty();
+            return !m_array.empty();
         case type_id::object_type:
             return !m_object.empty();
         default:
@@ -822,7 +823,7 @@ public:
             throw_type_error("array", m_type);
         }
 
-        return *m_array_ptr;
+        return m_array;
     }
 
     /**
@@ -831,7 +832,7 @@ public:
      */
     variant_reference<Config> operator[](std::size_t pos) {
         if (m_type == type_id::array_type) {
-            auto& arr = *m_array_ptr;
+            auto& arr = m_array;
             if (pos >= arr.size()) {
                 throw std::out_of_range("数组索引越界: 索引 " + std::to_string(pos) + " 超出范围 [0, " +
                                         std::to_string(arr.size() - 1) + "]");
@@ -859,7 +860,7 @@ public:
      */
     variant_reference<Config> operator[](std::size_t pos) const {
         if (m_type == type_id::array_type) {
-            const auto& arr = *m_array_ptr;
+            const auto& arr = m_array;
             if (pos >= arr.size()) {
                 throw std::out_of_range("数组索引越界: 索引 " + std::to_string(pos) + " 超出范围 [0, " +
                                         std::to_string(arr.size() - 1) + "]");
@@ -1129,13 +1130,7 @@ public:
             } else if constexpr (std::is_same_v<T, string_type>) {
                 return variant_base(value, this->m_alloc);
             } else if constexpr (std::is_same_v<T, array_type>) {
-                variant_base result(type_id::array_type);
-                result.m_alloc     = this->m_alloc;
-                result.m_array_ptr = mc::allocate_ptr<array_type>(this->m_alloc, this->m_alloc);
-                for (const auto& item : value) {
-                    result.m_array_ptr->emplace_back(item.deep_copy(), this->m_alloc);
-                }
-                return result;
+                return variant_base(value.deep_copy());
             } else if constexpr (std::is_same_v<T, object_type>) {
                 return variant_base(value.deep_copy());
             } else if constexpr (std::is_same_v<T, blob_type>) {
@@ -1201,7 +1196,7 @@ public:
         if (m_type != type_id::array_type) {
             throw_type_error("array", m_type);
         }
-        return *m_array_ptr;
+        return m_array;
     }
 
     /**
@@ -1263,7 +1258,7 @@ public:
             return calculate_str_hash(blob_data.as_string_view());
         }
         case type_id::array_type: {
-            return calculate_array_hash(*m_array_ptr);
+            return calculate_array_hash(m_array);
         }
         case type_id::object_type: {
             // 使用dict的hash方法计算哈希值
@@ -1618,41 +1613,87 @@ public:
     }
 
     /*
-     * @brief 添加用于与 mc::variants 的比较
+     * @brief 添加用于与 mc::variants 的比较（支持 std::vector）
      */
     template <typename OtherConfig>
     bool operator==(const std::vector<variant_base<OtherConfig>>& other) const {
         if (m_type != type_id::array_type) {
             return false;
         }
-        return std::equal(m_array_ptr->begin(), m_array_ptr->end(), other.begin(), other.end());
+        return std::equal(m_array.begin(), m_array.end(), other.begin(), other.end());
     }
+
+    /*
+     * @brief 添加用于与 mc::array 的比较
+     */
+    template <typename OtherConfig, typename OtherAllocator>
+    bool operator==(const mc::array<variant_base<OtherConfig>, OtherAllocator>& other) const {
+        if (m_type != type_id::array_type) {
+            return false;
+        }
+        return m_array == other;
+    }
+
     template <typename OtherConfig>
     bool operator!=(const std::vector<variant_base<OtherConfig>>& other) const {
         return !(*this == other);
     }
+
+    template <typename OtherConfig, typename OtherAllocator>
+    bool operator!=(const mc::array<variant_base<OtherConfig>, OtherAllocator>& other) const {
+        return !(*this == other);
+    }
+
     template <typename OtherConfig>
     bool operator<(const std::vector<variant_base<OtherConfig>>& other) const {
         if (m_type != type_id::array_type) {
             throw_type_error("array", m_type);
         }
-        return std::lexicographical_compare(m_array_ptr->begin(), m_array_ptr->end(), other.begin(),
+        return std::lexicographical_compare(m_array.begin(), m_array.end(), other.begin(),
                                             other.end());
     }
+    template <typename OtherConfig, typename OtherAllocator>
+    bool operator<(const mc::array<variant_base<OtherConfig>, OtherAllocator>& other) const {
+        if (m_type != type_id::array_type) {
+            throw_type_error("array", m_type);
+        }
+        return m_array < other;
+    }
+
     template <typename OtherConfig>
     bool operator>(const std::vector<variant_base<OtherConfig>>& other) const {
         if (m_type != type_id::array_type) {
             throw_type_error("array", m_type);
         }
-        return std::lexicographical_compare(m_array_ptr->begin(), m_array_ptr->end(), other.begin(),
+        return std::lexicographical_compare(m_array.begin(), m_array.end(), other.begin(),
                                             other.end(), std::greater<variant_base<OtherConfig>>());
     }
+
+    template <typename OtherConfig, typename OtherAllocator>
+    bool operator>(const mc::array<variant_base<OtherConfig>, OtherAllocator>& other) const {
+        if (m_type != type_id::array_type) {
+            throw_type_error("array", m_type);
+        }
+        return m_array > other;
+    }
+
     template <typename OtherConfig>
     bool operator<=(const std::vector<variant_base<OtherConfig>>& other) const {
         return !(*this > other);
     }
+
+    template <typename OtherConfig, typename OtherAllocator>
+    bool operator<=(const mc::array<variant_base<OtherConfig>, OtherAllocator>& other) const {
+        return !(*this > other);
+    }
+
     template <typename OtherConfig>
     bool operator>=(const std::vector<variant_base<OtherConfig>>& other) const {
+        return !(*this < other);
+    }
+
+    template <typename OtherConfig, typename OtherAllocator>
+    bool operator>=(const mc::array<variant_base<OtherConfig>, OtherAllocator>& other) const {
         return !(*this < other);
     }
     template <typename OtherConfig>
@@ -1680,9 +1721,22 @@ public:
                            const variant_base&                           var) {
         return var.operator>=(val);
     }
+
+    template <typename OtherConfig, typename OtherAllocator>
+    friend bool operator<=(const mc::array<variant_base<OtherConfig>, OtherAllocator>& val,
+                           const variant_base&                                         var) {
+        return var.operator>=(val);
+    }
+
     template <typename OtherConfig>
     friend bool operator>=(const std::vector<variant_base<OtherConfig>>& val,
                            const variant_base&                           var) {
+        return var.operator<=(val);
+    }
+
+    template <typename OtherConfig, typename OtherAllocator>
+    friend bool operator>=(const mc::array<variant_base<OtherConfig>, OtherAllocator>& val,
+                           const variant_base&                                         var) {
         return var.operator<=(val);
     }
 
@@ -1727,7 +1781,7 @@ protected:
         bool               m_bool;
         string_ptr_type    m_string_ptr;
         blob_ptr_type      m_blob_ptr;
-        array_ptr_type     m_array_ptr;
+        array_type         m_array; // array 本身就是引用语义，不需要指针
         object_type        m_object;
         extension_ptr_type m_extension;
     };

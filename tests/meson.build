@@ -1,4 +1,5 @@
 # 包含子目录的 meson.build 文件
+subdir('array')
 subdir('core')
 subdir('crypto')
 subdir('db')
@@ -35,6 +36,7 @@ test_files = [
   'test_time.cpp',
 
   # 各子目录的测试文件
+  test_array_files,
   test_core_files,
   test_crypto_files,
   test_db_files,
