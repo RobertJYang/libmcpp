@@ -21,9 +21,29 @@
 #include <mc/string.h>
 #include <mc/variant.h>
 #include <mc/variant/variant_base.h>
+#include <mc/variant/variant_extension.h>
 #include <stdexcept>
 
 namespace mc {
+
+// variant_extension_base 的实现
+variant_extension_base::~variant_extension_base() = default;
+
+mc::variant variant_extension_base::get(std::size_t index) const {
+    throw std::runtime_error("扩展类型不支持索引访问");
+}
+
+void variant_extension_base::set(std::size_t index, const mc::variant& value) {
+    throw std::runtime_error("扩展类型不支持索引访问");
+}
+
+mc::variant variant_extension_base::get(std::string_view key) const {
+    throw std::runtime_error("扩展类型不支持键访问");
+}
+
+void variant_extension_base::set(std::string_view key, const mc::variant& value) {
+    throw std::runtime_error("扩展类型不支持键访问");
+}
 
 namespace detail {
 

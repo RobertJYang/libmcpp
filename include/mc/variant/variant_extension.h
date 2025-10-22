@@ -32,8 +32,13 @@ namespace mc {
  * 所有需要在 variant 中管理的复杂类型都应该继承此类，
  * 提供统一的接口用于复制、克隆、类型信息等操作
  */
-class variant_extension_base : public mc::enable_shared_from_this<variant_extension_base> {
+class MC_API variant_extension_base : public mc::enable_shared_from_this<variant_extension_base> {
 public:
+    /**
+     * @brief 虚析构函数
+     */
+    virtual ~variant_extension_base();
+
     /**
      * @brief 创建当前对象的深拷贝
      * @return 返回当前对象的深拷贝
@@ -76,6 +81,85 @@ public:
     virtual std::string as_string() const {
         return std::string(get_type_name());
     }
+    virtual void visit(std::function<void(const mc::variant&)>&& visitor) const {
+    }
+
+    /**
+     * @brief 查询是否支持零开销的引用访问
+     * @return true 表示 extension 内部存储就是 variant，支持返回引用；false 需要值拷贝
+     *
+     * 如果返回 true，operator[] 将调用 get_ptr/get_ref 获取引用，零开销
+     * 如果返回 false，operator[] 将调用 get 获取值，有拷贝开销
+     */
+    virtual bool supports_reference_access() const {
+        return false; // 默认不支持，保持向后兼容
+    }
+
+    /**
+     * @brief 通过索引获取元素指针（零开销访问）
+     * @param index 索引位置
+     * @return 返回指向内部 variant 的指针，如果不支持则返回 nullptr
+     * @note 只有 supports_reference_access() 返回 true 时才会被调用
+     */
+    virtual mc::variant* get_ptr(std::size_t index) {
+        return nullptr; // 默认不支持
+    }
+
+    /**
+     * @brief 通过索引获取元素指针（const 版本）
+     */
+    virtual const mc::variant* get_ptr(std::size_t index) const {
+        return nullptr; // 默认不支持
+    }
+
+    /**
+     * @brief 通过键获取元素指针（零开销访问）
+     * @param key 键名
+     * @return 返回指向内部 variant 的指针，如果不支持则返回 nullptr
+     * @note 只有 supports_reference_access() 返回 true 时才会被调用
+     */
+    virtual mc::variant* get_ptr(std::string_view key) {
+        return nullptr; // 默认不支持
+    }
+
+    /**
+     * @brief 通过键获取元素指针（const 版本）
+     */
+    virtual const mc::variant* get_ptr(std::string_view key) const {
+        return nullptr; // 默认不支持
+    }
+
+    /**
+     * @brief 通过索引获取元素（用于支持 operator[](size_t)）
+     * @param index 索引位置
+     * @return 返回指定位置的元素（值类型）
+     * @throw std::runtime_error 如果不支持索引访问
+     */
+    virtual mc::variant get(std::size_t index) const;
+
+    /**
+     * @brief 通过索引设置元素（用于支持 operator[](size_t) 赋值）
+     * @param index 索引位置
+     * @param value 要设置的值
+     * @throw std::runtime_error 如果不支持索引访问
+     */
+    virtual void set(std::size_t index, const mc::variant& value);
+
+    /**
+     * @brief 通过键获取元素（用于支持 operator[](string_view)）
+     * @param key 键名
+     * @return 返回指定键对应的元素（值类型）
+     * @throw std::runtime_error 如果不支持键访问
+     */
+    virtual mc::variant get(std::string_view key) const;
+
+    /**
+     * @brief 通过键设置元素（用于支持 operator[](string_view) 赋值）
+     * @param key 键名
+     * @param value 要设置的值
+     * @throw std::runtime_error 如果不支持键访问
+     */
+    virtual void set(std::string_view key, const mc::variant& value);
 };
 
 template <typename T>

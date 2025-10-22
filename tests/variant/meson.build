@@ -11,4 +11,5 @@ test_variant_files = [
   'variant/test_variant_io.cpp',
   'variant/test_variant_operations.cpp',
   'variant/test_variant_extension.cpp',
+  'variant/test_variant_reference.cpp',
 ]
