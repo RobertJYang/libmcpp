@@ -35,6 +35,10 @@
 namespace mc {
 
 // 前向声明
+namespace detail {
+class copy_context;
+}
+
 namespace dict_types {
 struct entry;
 struct iterator;
@@ -501,10 +505,21 @@ public:
     }
 
     /**
-     * @brief 深拷贝字典
-     * @return 深度拷贝后的字典
+     * @brief 浅拷贝字典
+     * @return 浅拷贝后的字典
      */
-    dict deep_copy() const;
+    dict copy() const;
+
+    /**
+     * @brief 深拷贝字典
+     * @param ctx 可选的深拷贝上下文，用于检测循环引用并记录已拷贝对象
+     * @return 深度拷贝后的字典
+     *
+     * @note 如果传入 ctx 参数，则使用该上下文进行循环引用检测
+     * @note 如果不传入 ctx，则创建局部上下文（用于顶层调用）
+     * @note 遇到循环引用时，返回已拷贝的对象，保持引用关系
+     */
+    dict deep_copy(mc::detail::copy_context* ctx = nullptr) const;
 
 protected:
     /**

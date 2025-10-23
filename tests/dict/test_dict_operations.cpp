@@ -323,6 +323,504 @@ TEST(DictOperationsTest, DataSharing) {
     EXPECT_FALSE(md1.contains("key3"));
 }
 
+// 测试 dict 的浅拷贝 copy() 方法
+TEST(DictOperationsTest, ShallowCopy) {
+    // 测试基本的浅拷贝 - 字典数据结构本身不共享
+    {
+        dict d1({{"key1", 123}, {"key2", "value"}, {"key3", true}});
+
+        // 使用 copy() 创建浅拷贝
+        dict d2 = d1.copy();
+
+        // 验证拷贝后的对象包含相同的数据
+        EXPECT_EQ(d2.size(), 3);
+        EXPECT_EQ(d2["key1"], 123);
+        EXPECT_EQ(d2["key2"], "value");
+        EXPECT_EQ(d2["key3"], true);
+
+        // 验证 d1 和 d2 不共享字典数据结构（浅拷贝）
+        d2["key1"] = 456;
+        EXPECT_EQ(d1["key1"], 123); // d1 不应该被修改
+        EXPECT_EQ(d2["key1"], 456);
+
+        // 添加新键值对到 d2，不影响 d1
+        d2["key4"] = 789;
+        EXPECT_EQ(d1.size(), 3); // d1 大小不变
+        EXPECT_EQ(d2.size(), 4);
+        EXPECT_FALSE(d1.contains("key4"));
+        EXPECT_TRUE(d2.contains("key4"));
+
+        // 删除 d2 的键值对，不影响 d1
+        d2.erase("key3");
+        EXPECT_EQ(d1.size(), 3);
+        EXPECT_EQ(d2.size(), 3);
+        EXPECT_TRUE(d1.contains("key3"));  // d1 仍然包含 key3
+        EXPECT_FALSE(d2.contains("key3")); // d2 不包含 key3
+    }
+
+    // 测试 const dict 的浅拷贝
+    {
+        const dict d1({{"key1", 123}, {"key2", "value"}, {"key3", true}});
+
+        // const 版本的 copy() 也应该工作
+        dict d2 = d1.copy();
+
+        EXPECT_EQ(d2.size(), 3);
+        EXPECT_EQ(d2["key1"], 123);
+        EXPECT_EQ(d2["key2"], "value");
+        EXPECT_EQ(d2["key3"], true);
+
+        // 修改 d2，验证 d1 不受影响
+        d2["key1"] = 456;
+        EXPECT_EQ(d1["key1"], 123); // d1 保持不变
+        EXPECT_EQ(d2["key1"], 456);
+    }
+
+    // 测试链式拷贝 - 每次都是独立的拷贝
+    {
+        dict d1({{"key1", 123}, {"key2", "value"}});
+        dict d2 = d1.copy();
+        dict d3 = d2.copy();
+
+        // 三个对象不共享字典数据结构
+        d3["key1"] = 999;
+        EXPECT_EQ(d1["key1"], 123); // d1 不变
+        EXPECT_EQ(d2["key1"], 123); // d2 不变
+        EXPECT_EQ(d3["key1"], 999); // 仅 d3 改变
+
+        d1["key3"] = true;
+        EXPECT_EQ(d1.size(), 3);
+        EXPECT_EQ(d2.size(), 2); // d2 大小不变
+        EXPECT_EQ(d3.size(), 2); // d3 大小不变
+        EXPECT_TRUE(d1.contains("key3"));
+        EXPECT_FALSE(d2.contains("key3"));
+        EXPECT_FALSE(d3.contains("key3"));
+    }
+
+    // 测试空 dict 的浅拷贝
+    {
+        dict d1;
+        dict d2 = d1.copy();
+
+        EXPECT_TRUE(d2.empty());
+        EXPECT_EQ(d2.size(), 0);
+
+        // 向拷贝添加元素，不影响原始 dict
+        d2["key1"] = 123;
+        EXPECT_EQ(d1.size(), 0); // d1 仍然为空
+        EXPECT_EQ(d2.size(), 1);
+        EXPECT_FALSE(d1.contains("key1"));
+        EXPECT_TRUE(d2.contains("key1"));
+    }
+
+    // 测试嵌套 dict 的浅拷贝 - 外层字典独立，但内层 variant 值可能共享
+    {
+        dict inner({{"inner_key", 123}});
+        dict outer({{"outer_key", inner}});
+
+        dict outer_copy = outer.copy();
+
+        // 验证外层字典数据结构独立
+        outer_copy["new_key"] = "new_value";
+        EXPECT_EQ(outer.size(), 1);      // outer 大小不变
+        EXPECT_EQ(outer_copy.size(), 2); // outer_copy 增加了元素
+        EXPECT_FALSE(outer.contains("new_key"));
+        EXPECT_TRUE(outer_copy.contains("new_key"));
+
+        // 浅拷贝：内层的 dict 对象（作为 variant 值）仍然共享
+        dict inner_dict1         = outer["outer_key"].as<dict>();
+        dict inner_dict2         = outer_copy["outer_key"].as<dict>();
+        inner_dict1["inner_key"] = 456;
+
+        // 因为 inner_dict1 和 inner_dict2 引用同一个内层 dict，修改会相互影响
+        EXPECT_EQ(inner_dict2["inner_key"], 456);
+        EXPECT_EQ(outer["outer_key"].as<dict>()["inner_key"], 456);
+        EXPECT_EQ(outer_copy["outer_key"].as<dict>()["inner_key"], 456);
+    }
+
+    // 对比测试：引用行为（默认拷贝构造）vs 浅拷贝
+    {
+        dict d1({{"key1", 123}, {"key2", "value"}});
+
+        // 默认拷贝构造 - 引用行为，共享数据
+        dict d2_ref = d1;
+
+        // 浅拷贝 - 不共享字典数据结构
+        dict d2_copy = d1.copy();
+
+        // 修改 d1
+        d1["key1"] = 456;
+        d1["key3"] = true;
+
+        // 引用行为：d2_ref 受影响
+        EXPECT_EQ(d2_ref["key1"], 456);
+        EXPECT_EQ(d2_ref.size(), 3);
+        EXPECT_TRUE(d2_ref.contains("key3"));
+
+        // 浅拷贝：d2_copy 不受影响
+        EXPECT_EQ(d2_copy["key1"], 123);
+        EXPECT_EQ(d2_copy.size(), 2);
+        EXPECT_FALSE(d2_copy.contains("key3"));
+    }
+}
+
+// 测试 dict 的深拷贝 deep_copy() 方法
+TEST(DictOperationsTest, DeepCopy) {
+    // 测试基本的深拷贝 - 字典数据结构和值都不共享
+    {
+        dict d1({{"key1", 123}, {"key2", "value"}, {"key3", true}});
+
+        // 使用 deep_copy() 创建深拷贝
+        dict d2 = d1.deep_copy();
+
+        // 验证拷贝后的对象包含相同的数据
+        EXPECT_EQ(d2.size(), 3);
+        EXPECT_EQ(d2["key1"], 123);
+        EXPECT_EQ(d2["key2"], "value");
+        EXPECT_EQ(d2["key3"], true);
+
+        // 验证 d1 和 d2 完全独立（深拷贝）
+        d2["key1"] = 456;
+        EXPECT_EQ(d1["key1"], 123); // d1 不应该被修改
+        EXPECT_EQ(d2["key1"], 456);
+
+        // 添加新键值对到 d2，不影响 d1
+        d2["key4"] = 789;
+        EXPECT_EQ(d1.size(), 3); // d1 大小不变
+        EXPECT_EQ(d2.size(), 4);
+        EXPECT_FALSE(d1.contains("key4"));
+        EXPECT_TRUE(d2.contains("key4"));
+
+        // 删除 d2 的键值对，不影响 d1
+        d2.erase("key3");
+        EXPECT_EQ(d1.size(), 3);
+        EXPECT_EQ(d2.size(), 3);
+        EXPECT_TRUE(d1.contains("key3"));  // d1 仍然包含 key3
+        EXPECT_FALSE(d2.contains("key3")); // d2 不包含 key3
+    }
+
+    // 测试嵌套 dict 的深拷贝 - 外层和内层都完全独立
+    {
+        dict inner({{"inner_key", 123}});
+        dict outer({{"outer_key", inner}});
+
+        dict outer_deep = outer.deep_copy();
+
+        // 验证外层字典数据结构独立
+        outer_deep["new_key"] = "new_value";
+        EXPECT_EQ(outer.size(), 1);      // outer 大小不变
+        EXPECT_EQ(outer_deep.size(), 2); // outer_deep 增加了元素
+        EXPECT_FALSE(outer.contains("new_key"));
+        EXPECT_TRUE(outer_deep.contains("new_key"));
+
+        // 深拷贝：内层的 dict 对象也应该独立
+        dict inner_dict1         = outer["outer_key"].as<dict>();
+        dict inner_dict2         = outer_deep["outer_key"].as<dict>();
+        inner_dict1["inner_key"] = 456;
+
+        // 深拷贝后，修改原始字典的内层不影响拷贝
+        EXPECT_EQ(inner_dict1["inner_key"], 456);
+        EXPECT_EQ(outer["outer_key"].as<dict>()["inner_key"], 456);
+        EXPECT_EQ(inner_dict2["inner_key"], 123);                        // inner_dict2 保持原值
+        EXPECT_EQ(outer_deep["outer_key"].as<dict>()["inner_key"], 123); // outer_deep 保持原值
+
+        // 修改拷贝的内层 dict
+        inner_dict2["inner_key"] = 999;
+        EXPECT_EQ(outer["outer_key"].as<dict>()["inner_key"], 456); // outer 不受影响
+        EXPECT_EQ(outer_deep["outer_key"].as<dict>()["inner_key"], 999);
+    }
+
+    // 测试多层嵌套的深拷贝
+    {
+        dict level3({{"level3_key", "deep"}});
+        dict level2({{"level2_key", level3}});
+        dict level1({{"level1_key", level2}});
+
+        dict level1_deep = level1.deep_copy();
+
+        // 修改最深层的值
+        dict l3_orig          = level1["level1_key"].as<dict>()["level2_key"].as<dict>();
+        l3_orig["level3_key"] = "modified";
+
+        // 验证深拷贝的对象不受影响
+        EXPECT_EQ(level1["level1_key"].as<dict>()["level2_key"].as<dict>()["level3_key"], "modified");
+        EXPECT_EQ(level1_deep["level1_key"].as<dict>()["level2_key"].as<dict>()["level3_key"], "deep");
+    }
+
+    // 测试包含数组的深拷贝
+    {
+        variants arr = {1, 2, 3};
+        dict     d1({{"array", arr}, {"value", 100}});
+
+        dict d2 = d1.deep_copy();
+
+        // 修改原始字典中的数组
+        variants arr1 = d1["array"].as<variants>();
+        arr1[0]       = 999;
+        d1["array"]   = arr1;
+
+        // 验证深拷贝的数组不受影响
+        EXPECT_EQ(d1["array"].as<variants>()[0], 999);
+        EXPECT_EQ(d2["array"].as<variants>()[0], 1); // 深拷贝的数组保持原值
+    }
+
+    // 测试空 dict 的深拷贝
+    {
+        dict d1;
+        dict d2 = d1.deep_copy();
+
+        EXPECT_TRUE(d2.empty());
+        EXPECT_EQ(d2.size(), 0);
+
+        // 向拷贝添加元素，不影响原始 dict
+        d2["key1"] = 123;
+        EXPECT_EQ(d1.size(), 0); // d1 仍然为空
+        EXPECT_EQ(d2.size(), 1);
+        EXPECT_FALSE(d1.contains("key1"));
+        EXPECT_TRUE(d2.contains("key1"));
+    }
+
+    // 对比测试：引用、浅拷贝、深拷贝三种行为
+    {
+        dict inner({{"inner", 100}});
+        dict d1({{"nested", inner}, {"value", 200}});
+
+        // 引用（默认拷贝）
+        dict d2_ref = d1;
+
+        // 浅拷贝
+        dict d2_shallow = d1.copy();
+
+        // 深拷贝
+        dict d2_deep = d1.deep_copy();
+
+        // 修改原始字典的外层
+        d1["value"] = 999;
+        d1["new"]   = "added";
+
+        // 修改原始字典的内层
+        dict inner_dict     = d1["nested"].as<dict>();
+        inner_dict["inner"] = 888;
+
+        // 引用行为：完全共享
+        EXPECT_EQ(d2_ref["value"], 999);
+        EXPECT_TRUE(d2_ref.contains("new"));
+        EXPECT_EQ(d2_ref["nested"].as<dict>()["inner"], 888);
+
+        // 浅拷贝：外层独立，内层共享
+        EXPECT_EQ(d2_shallow["value"], 200); // 外层独立
+        EXPECT_FALSE(d2_shallow.contains("new"));
+        EXPECT_EQ(d2_shallow["nested"].as<dict>()["inner"], 888); // 内层共享
+
+        // 深拷贝：完全独立
+        EXPECT_EQ(d2_deep["value"], 200); // 外层独立
+        EXPECT_FALSE(d2_deep.contains("new"));
+        EXPECT_EQ(d2_deep["nested"].as<dict>()["inner"], 100); // 内层也独立
+    }
+
+    // 测试多个 dict 相互引用的深拷贝（非循环引用）
+    // 注意：这里是共享引用，不是真正的循环引用
+    {
+        dict d1({{"key1", 123}});
+        dict d2({{"ref_to_d1", d1}, {"key2", 456}});
+        dict d3({{"ref_to_d2", d2}, {"ref_to_d1", d1}});
+
+        dict d3_deep = d3.deep_copy();
+
+        // 修改 d1
+        d1["key1"] = 999;
+
+        // 验证深拷贝完全独立
+        EXPECT_EQ(d1["key1"], 999);
+        EXPECT_EQ(d3["ref_to_d2"].as<dict>()["ref_to_d1"].as<dict>()["key1"], 999);
+        EXPECT_EQ(d3_deep["ref_to_d2"].as<dict>()["ref_to_d1"].as<dict>()["key1"], 123);
+        EXPECT_EQ(d3_deep["ref_to_d1"].as<dict>()["key1"], 123);
+    }
+}
+
+// 测试 dict 深拷贝的循环引用处理
+TEST(DictOperationsTest, DeepCopyCycleHandling) {
+    // 测试自引用 - 深拷贝应该保持引用关系
+    {
+        dict d1({{"key1", 123}});
+        d1["self"] = d1; // 创建自引用
+
+        // 深拷贝应该保持自引用关系
+        dict d2 = d1.deep_copy();
+
+        // 验证拷贝成功
+        EXPECT_EQ(d2["key1"], 123);
+        EXPECT_TRUE(d2.contains("self"));
+
+        // 验证 d2["self"] 指向 d2 自己（保持自引用）
+        dict self_ref = d2["self"].as<dict>();
+        EXPECT_EQ(self_ref["key1"], 123);
+
+        // 关键验证：使用 data() 指针直接验证 d2["self"] 就是 d2 本身
+        dict self_dict = d2["self"].as<dict>();
+        EXPECT_EQ(self_dict.data(), d2.data()); // ✅ 指针相同，确认是同一对象
+
+        // 通过修改验证引用关系
+        d2["key1"] = 456;
+        EXPECT_EQ(d2["self"].as<dict>()["key1"], 456); // self 引用应该看到修改
+
+        // 验证 d2 和 d1 是独立的
+        EXPECT_NE(d2.data(), d1.data()); // ✅ 指针不同，确认是不同对象
+        EXPECT_EQ(d1["key1"], 123);      // d1 不受影响
+
+        // 再次验证自引用的完整性
+        d2["self"].as<dict>()["key2"] = "new_value";
+        EXPECT_EQ(d2["key2"], "new_value"); // 通过 self 引用修改应该反映到 d2
+    }
+
+    // 测试相互引用 - 应该保持引用关系
+    {
+        dict d1({{"key1", 123}});
+        dict d2({{"key2", 456}});
+
+        // 创建相互引用
+        d1["ref"] = d2;
+        d2["ref"] = d1;
+
+        // 深拷贝 d1
+        dict d1_copy = d1.deep_copy();
+
+        // 验证拷贝成功
+        EXPECT_EQ(d1_copy["key1"], 123);
+        EXPECT_TRUE(d1_copy.contains("ref"));
+
+        // 获取 d1_copy 引用的对象
+        dict d2_copy = d1_copy["ref"].as<dict>();
+        EXPECT_EQ(d2_copy["key2"], 456);
+
+        // 验证 d2_copy 也引用回 d1_copy（保持循环引用）
+        dict d1_copy_back = d2_copy["ref"].as<dict>();
+        EXPECT_EQ(d1_copy_back["key1"], 123);
+
+        // 关键验证：使用 data() 指针直接验证循环引用的身份
+        EXPECT_EQ(d1_copy_back.data(), d1_copy.data());              // ✅ d1_copy_back 就是 d1_copy
+        EXPECT_EQ(d2_copy.data(), d1_copy["ref"].as<dict>().data()); // ✅ d2_copy 就是 d1_copy["ref"]
+
+        // 验证拷贝与原始对象独立
+        EXPECT_NE(d1_copy.data(), d1.data()); // ✅ d1_copy 和 d1 是不同对象
+        EXPECT_NE(d2_copy.data(), d2.data()); // ✅ d2_copy 和 d2 是不同对象
+
+        // 通过修改验证引用关系
+        d1_copy["key1"] = 999;
+        EXPECT_EQ(d2_copy["ref"].as<dict>()["key1"], 999); // 通过 d2_copy 的引用应该看到修改
+        EXPECT_EQ(d1_copy_back["key1"], 999);              // d1_copy_back 也应该看到修改
+
+        // 验证原始对象不受影响
+        EXPECT_EQ(d1["key1"], 123); // 原始不变
+        EXPECT_EQ(d2["key2"], 456); // 原始不变
+
+        // 通过循环引用修改 d2_copy，应该能从 d1_copy 访问到
+        d2_copy["key2"] = 789;
+        EXPECT_EQ(d1_copy["ref"].as<dict>()["key2"], 789); // 循环引用保持
+    }
+
+    // 测试间接循环引用（环形）
+    {
+        dict d1({{"key1", 123}});
+        dict d2({{"key2", 456}});
+        dict d3({{"key3", 789}});
+
+        // 创建环形引用: d1 -> d2 -> d3 -> d1
+        d1["next"] = d2;
+        d2["next"] = d3;
+        d3["next"] = d1;
+
+        // 深拷贝应该保持环形引用结构
+        dict d1_copy = d1.deep_copy();
+
+        // 验证环形结构
+        dict d2_copy = d1_copy["next"].as<dict>();
+        dict d3_copy = d2_copy["next"].as<dict>();
+        dict d1_back = d3_copy["next"].as<dict>();
+
+        EXPECT_EQ(d1_copy["key1"], 123);
+        EXPECT_EQ(d2_copy["key2"], 456);
+        EXPECT_EQ(d3_copy["key3"], 789);
+        EXPECT_EQ(d1_back["key1"], 123); // 应该回到 d1_copy
+
+        // 关键验证：使用 data() 指针直接验证环形引用的身份
+        EXPECT_EQ(d1_back.data(), d1_copy.data());                    // ✅ d1_back 就是 d1_copy
+        EXPECT_EQ(d2_copy.data(), d1_copy["next"].as<dict>().data()); // ✅ d2_copy 就是 d1_copy["next"]
+        EXPECT_EQ(d3_copy.data(), d2_copy["next"].as<dict>().data()); // ✅ d3_copy 就是 d2_copy["next"]
+        EXPECT_EQ(d1_copy.data(), d3_copy["next"].as<dict>().data()); // ✅ 环回到 d1_copy
+
+        // 验证完整的环形结构（使用临时变量避免链式调用问题）
+        dict temp1 = d2_copy["next"].as<dict>(); // d3_copy
+        dict temp2 = temp1["next"].as<dict>();   // 应该回到 d1_copy
+        dict temp3 = temp2["next"].as<dict>();   // 应该是 d2_copy
+        EXPECT_EQ(temp1.data(), d3_copy.data()); // ✅ temp1 是 d3_copy
+        EXPECT_EQ(temp2.data(), d1_copy.data()); // ✅ temp2 是 d1_copy
+        EXPECT_EQ(temp3.data(), d2_copy.data()); // ✅ temp3 是 d2_copy
+
+        // 验证拷贝与原始对象独立
+        EXPECT_NE(d1_copy.data(), d1.data()); // ✅ 不同对象
+        EXPECT_NE(d2_copy.data(), d2.data()); // ✅ 不同对象
+        EXPECT_NE(d3_copy.data(), d3.data()); // ✅ 不同对象
+
+        // 通过修改验证引用关系
+        d1_copy["key1"] = 999;
+        EXPECT_EQ(d1_back["key1"], 999);                    // d1_back 应该看到修改
+        EXPECT_EQ(d3_copy["next"].as<dict>()["key1"], 999); // 通过环形引用应该看到修改
+        EXPECT_EQ(temp2["key1"], 999);                      // 验证确实是 d1_copy
+
+        // 验证原始对象不受影响
+        EXPECT_EQ(d1["key1"], 123); // 原始不变
+
+        // 通过环中任意节点修改，都应该能从其他节点访问到
+        d2_copy["key2"] = 111;
+        EXPECT_EQ(d1_copy["next"].as<dict>()["key2"], 111); // 从 d1_copy 访问 d2_copy
+        d3_copy["key3"] = 222;
+        EXPECT_EQ(d2_copy["next"].as<dict>()["key3"], 222); // 从 d2_copy 访问 d3_copy
+    }
+
+    // 测试复杂嵌套结构中的循环引用
+    {
+        dict inner({{"inner_key", 100}});
+        dict outer({{"outer_key", inner}, {"value", 200}});
+
+        // 在内层dict中创建对外层dict的引用，形成循环
+        inner["back_ref"] = outer;
+
+        // 深拷贝应该保持循环引用结构
+        dict outer_copy = outer.deep_copy();
+
+        // 验证拷贝成功
+        EXPECT_EQ(outer_copy["value"], 200);
+        dict inner_copy = outer_copy["outer_key"].as<dict>();
+        EXPECT_EQ(inner_copy["inner_key"], 100);
+
+        // 验证循环引用保持
+        dict outer_back = inner_copy["back_ref"].as<dict>();
+        EXPECT_EQ(outer_back["value"], 200);
+
+        // 关键验证：使用 data() 指针直接验证循环引用的身份
+        EXPECT_EQ(outer_back.data(), outer_copy.data());                         // ✅ outer_back 就是 outer_copy
+        EXPECT_EQ(inner_copy.data(), outer_copy["outer_key"].as<dict>().data()); // ✅ inner_copy 就是 outer_copy["outer_key"]
+
+        // 验证拷贝与原始对象独立
+        EXPECT_NE(outer_copy.data(), outer.data()); // ✅ 不同对象
+        EXPECT_NE(inner_copy.data(), inner.data()); // ✅ 不同对象
+
+        // 通过修改验证引用关系
+        outer_copy["value"] = 999;
+        EXPECT_EQ(inner_copy["back_ref"].as<dict>()["value"], 999); // 通过循环引用应该看到修改
+        EXPECT_EQ(outer_back["value"], 999);                        // outer_back 也应该看到修改
+
+        // 验证原始对象不受影响
+        EXPECT_EQ(outer["value"], 200);     // 原始不变
+        EXPECT_EQ(inner["inner_key"], 100); // 原始不变
+
+        // 通过内层修改，外层应该能访问到
+        inner_copy["inner_key"] = 555;
+        EXPECT_EQ(outer_copy["outer_key"].as<dict>()["inner_key"], 555); // 循环引用保持
+    }
+}
+
 // 测试 dict 的 find 方法
 TEST(DictOperationsTest, MutableDictFind) {
     dict md({{"key1", 123}, {"key2", "value"}, {"key3", true}});

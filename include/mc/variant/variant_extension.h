@@ -23,6 +23,9 @@
 
 #include <mc/memory.h>
 #include <mc/traits.h>
+#include <mc/variant/copy_context.h>
+#include <mc/variant/extension_type_id.h>
+#include <mc/variant/variant_common.h>
 
 namespace mc {
 
@@ -40,16 +43,58 @@ public:
     virtual ~variant_extension_base();
 
     /**
-     * @brief 创建当前对象的深拷贝
-     * @return 返回当前对象的深拷贝
+     * @brief 创建当前对象的浅拷贝
+     * @return 返回当前对象的浅拷贝
      */
-    virtual mc::shared_ptr<variant_extension_base> clone() const = 0;
+    virtual mc::shared_ptr<variant_extension_base> copy() const = 0;
+
+    /**
+     * @brief 创建当前对象的深拷贝
+     * @param ctx 可选的深拷贝上下文，用于检测循环引用并记录已拷贝对象
+     * @return 返回当前对象的深拷贝
+     * @note 默认实现委托给 copy()，子类可以重写提供真正的深拷贝
+     */
+    virtual mc::shared_ptr<variant_extension_base> deep_copy(detail::copy_context* ctx = nullptr) const {
+        (void)ctx;
+        // 深拷贝默认实现为浅拷贝
+        return copy();
+    }
+
+    /**
+     * @brief 克隆对象（向后兼容的非虚函数）
+     * @return 返回当前对象的拷贝
+     * @note 内部调用 copy()，保持向后兼容
+     */
+    mc::shared_ptr<variant_extension_base> clone() const {
+        return copy();
+    }
+
+    /**
+     * @brief 获取 extension 类型信息
+     * @return 返回类型信息（包含类型ID、名称、特征等）
+     *
+     * 默认实现：返回未知类型
+     * 子类应该重写此方法以提供正确的类型信息
+     */
+    virtual extension_type_info get_type_info() const {
+        return extension_type_info(); // 返回默认的未知类型
+    }
+
+    /**
+     * @brief 获取 extension 类型ID
+     * @return 返回类型ID
+     */
+    extension_type_id_t get_type_id() const {
+        return get_type_info().id;
+    }
 
     /**
      * @brief 获取类型名称
      * @return 返回类型名称字符串
      */
-    virtual std::string_view get_type_name() const = 0;
+    virtual std::string_view get_type_name() const {
+        return get_type_info().name;
+    }
 
     /**
      * @brief 比较两个扩展对象是否相等
@@ -133,7 +178,7 @@ public:
      * @brief 通过索引获取元素（用于支持 operator[](size_t)）
      * @param index 索引位置
      * @return 返回指定位置的元素（值类型）
-     * @throw std::runtime_error 如果不支持索引访问
+     * @throw mc::invalid_op_exception 如果不支持索引访问
      */
     virtual mc::variant get(std::size_t index) const;
 
@@ -141,7 +186,7 @@ public:
      * @brief 通过索引设置元素（用于支持 operator[](size_t) 赋值）
      * @param index 索引位置
      * @param value 要设置的值
-     * @throw std::runtime_error 如果不支持索引访问
+     * @throw mc::invalid_op_exception 如果不支持索引访问
      */
     virtual void set(std::size_t index, const mc::variant& value);
 
@@ -149,7 +194,7 @@ public:
      * @brief 通过键获取元素（用于支持 operator[](string_view)）
      * @param key 键名
      * @return 返回指定键对应的元素（值类型）
-     * @throw std::runtime_error 如果不支持键访问
+     * @throw mc::invalid_op_exception 如果不支持键访问
      */
     virtual mc::variant get(std::string_view key) const;
 
@@ -157,7 +202,7 @@ public:
      * @brief 通过键设置元素（用于支持 operator[](string_view) 赋值）
      * @param key 键名
      * @param value 要设置的值
-     * @throw std::runtime_error 如果不支持键访问
+     * @throw mc::invalid_op_exception 如果不支持键访问
      */
     virtual void set(std::string_view key, const mc::variant& value);
 };
@@ -167,19 +212,24 @@ class variant_extension : public variant_extension_base {
 public:
     using value_type = T;
 
-    virtual mc::shared_ptr<variant_extension_base> clone() const override {
+    virtual mc::shared_ptr<variant_extension_base> copy() const override {
         return mc::make_shared<T>(static_cast<const T&>(*this));
     }
 
-    virtual std::string_view get_type_name() const override {
-        return mc::pretty_name<T>();
+    virtual extension_type_info get_type_info() const override {
+        return extension_type_info_traits<T>::get();
     }
 
     virtual bool equals(const variant_extension_base& other) const override {
-        if (auto other_extension = dynamic_cast<const variant_extension<T>*>(&other)) {
-            if constexpr (mc::traits::has_operator_equal_v<T, T>) {
-                return static_cast<const T&>(*this) == static_cast<const T&>(*other_extension);
-            }
+        // 快速类型检查：先比较类型ID
+        if (get_type_id() != other.get_type_id()) {
+            return false;
+        }
+
+        // 类型相同，进行值比较
+        if constexpr (mc::traits::has_operator_equal_v<T, T>) {
+            // 类型ID相同，可以安全地 static_cast
+            return static_cast<const T&>(*this) == static_cast<const T&>(other);
         }
         return false;
     }

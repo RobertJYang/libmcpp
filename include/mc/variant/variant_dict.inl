@@ -181,7 +181,7 @@ variant_reference<Config> variant_base<Config>::operator[](std::string_view key)
         return variant_reference<Config>(m_object[key]);
     } else if (m_type == type_id::extension_type) {
         if (!m_extension) {
-            throw std::runtime_error("扩展对象为空");
+            throw_extension_null_error();
         }
         // 优化：如果 extension 支持零开销引用访问，直接返回指针
         if (m_extension->supports_reference_access()) {
@@ -202,7 +202,7 @@ variant_reference<Config> variant_base<Config>::operator[](std::string_view key)
         return variant_reference<Config>(const_cast<variant_base<Config>&>((m_object)[key]));
     } else if (m_type == type_id::extension_type) {
         if (!m_extension) {
-            throw std::runtime_error("扩展对象为空");
+            throw_extension_null_error();
         }
         // 优化：如果 extension 支持零开销引用访问，直接返回指针
         if (m_extension->supports_reference_access()) {

@@ -25,11 +25,15 @@
 
 #include <mc/common.h>
 #include <mc/memory.h>
+#include <mc/pretty_name.h>
 #include <mc/traits.h>
+#include <mc/variant/copy_context.h>
+#include <mc/variant/variant_extension.h>
 
 namespace mc {
 
 namespace detail {
+
 /**
  * @brief 抛出索引越界异常
  *
@@ -38,13 +42,13 @@ namespace detail {
 [[noreturn]] MC_API void throw_array_out_of_range(const char* msg);
 
 /**
- * @brief array 的内部实现类，继承自 enable_shared_from_this 和 std::vector
+ * @brief array 的内部实现类
  *
  * @tparam T 元素类型
  * @tparam Allocator 分配器类型
  */
 template <typename T, typename Allocator = std::allocator<T>>
-class array_impl : public mc::enable_shared_from_this<array_impl<T, Allocator>>, public std::vector<T, Allocator> {
+class array_impl : public mc::variant_extension<array_impl<T, Allocator>>, public std::vector<T, Allocator> {
 public:
     using base_type = std::vector<T, Allocator>;
 
@@ -75,6 +79,9 @@ public:
     array_impl(array_impl&& other) noexcept : base_type(std::move(static_cast<base_type&&>(other))) {
     }
 
+    ~array_impl() {
+    }
+
     // 赋值运算符
     array_impl& operator=(const array_impl& other) {
         base_type::operator=(static_cast<const base_type&>(other));
@@ -85,6 +92,97 @@ public:
         base_type::operator=(std::move(static_cast<base_type&&>(other)));
         return *this;
     }
+
+    /**
+     * @brief 浅拷贝
+     */
+    mc::shared_ptr<variant_extension_base> copy() const override {
+        return mc::make_shared<array_impl>(*this);
+    }
+
+    /**
+     * @brief 深拷贝
+     * @param ctx 深拷贝上下文，用于循环引用检测
+     * @return 新的 array_impl 指针（递归深拷贝所有元素）
+     */
+    mc::shared_ptr<variant_extension_base> deep_copy(mc::detail::copy_context* ctx = nullptr) const override {
+        if (!ctx) {
+            mc::detail::copy_context local_ctx;
+            return deep_copy(&local_ctx);
+        }
+
+        // 检测循环引用：如果 this 已经被拷贝过，直接返回已拷贝的版本
+        if (ctx->has_copied(this)) {
+            return ctx->get_copied<array_impl>(this);
+        }
+
+        // 创建新的 array_impl 并记录到上下文
+        auto result = mc::make_shared<array_impl>();
+        result->reserve(this->size());
+        ctx->record_copied(this, result);
+
+        // 递归深拷贝元素，deep_copy > copy > 直接拷贝
+        if constexpr (mc::traits::has_deep_copy_v<T>) {
+            // 优先使用深拷贝
+            for (const auto& item : *this) {
+                result->push_back(item.deep_copy(ctx));
+            }
+        } else if constexpr (mc::traits::has_copy_v<T>) {
+            // 其次使用浅拷贝
+            for (const auto& item : *this) {
+                result->push_back(item.copy());
+            }
+        } else {
+            // 最后直接拷贝
+            for (const auto& item : *this) {
+                result->push_back(item);
+            }
+        }
+        return result;
+    }
+
+    /**
+     * @brief 计算哈希值
+     */
+    std::size_t hash() const override {
+        if (this->empty()) {
+            return 0;
+        }
+
+        // 使用黄金比例作为种子
+        const auto  arr_size = this->size();
+        std::size_t h        = 0x9e3779b9 ^ arr_size;
+
+        // 对大数组使用采样算法
+        const std::size_t step = (arr_size >> 5) + 1; // 每 32 个元素采样一次
+
+        if constexpr (mc::traits::is_std_hashable_v<T>) {
+            // 类型支持 std::hash，使用元素的 hash
+            for (std::size_t i = arr_size; i >= step; i -= step) {
+                h = h ^ ((h << 5) + (h >> 2) + std::hash<T>()(this->at(i - 1)));
+            }
+        } else {
+            // 类型不支持 std::hash，使用内部指针作为 hash
+            h = h ^ reinterpret_cast<std::size_t>(this);
+        }
+
+        return h;
+    }
+
+    /**
+     * @brief 转换为字符串
+     */
+    std::string as_string() const override {
+        const auto arr_size = this->size();
+        return "array<" + std::string(mc::pretty_name<T>()) + ">[" + std::to_string(arr_size) + "]";
+    }
+
+    void               visit(std::function<void(const mc::variant&)>&& visitor) const override;
+    bool               supports_reference_access() const override;
+    mc::variant*       get_ptr(std::size_t index) override;
+    const mc::variant* get_ptr(std::size_t index) const override;
+    mc::variant        get(std::size_t index) const override;
+    void               set(std::size_t index, const mc::variant& value) override;
 };
 } // namespace detail
 
@@ -674,38 +772,29 @@ public:
     /**
      * @brief 拷贝数组（浅拷贝，创建新容器但元素共享）
      * @return 拷贝后的数组
+     * @note 委托给 array_impl::copy() 实现
      */
     array copy() const {
         if (!m_data) {
             return array();
         }
-        return array(*m_data);
+        auto copied_base = m_data->copy();
+        auto copied_impl = mc::static_pointer_cast<impl_type>(copied_base);
+        return array::from_impl(std::move(copied_impl));
     }
 
     /**
-     * @brief 深拷贝数组（如果元素支持 deep_copy 则调用，否则直接拷贝）
+     * @brief 深拷贝数组
+     * @param ctx 可选的深拷贝上下文，用于检测循环引用并记录已拷贝对象
      * @return 深度拷贝后的数组
      */
-    array deep_copy() const {
+    array deep_copy(mc::detail::copy_context* ctx = nullptr) const {
         if (!m_data) {
             return array();
         }
-        array result;
-        result.ensure_data();
-        result.m_data->reserve(m_data->size());
-
-        if constexpr (mc::traits::has_deep_copy_v<T>) {
-            // 如果元素支持 deep_copy，对每个元素调用 deep_copy
-            for (const auto& item : *m_data) {
-                result.m_data->push_back(item.deep_copy());
-            }
-        } else {
-            // 否则直接拷贝元素
-            for (const auto& item : *m_data) {
-                result.m_data->push_back(item);
-            }
-        }
-        return result;
+        auto copied_base = m_data->deep_copy(ctx);
+        auto copied_impl = mc::static_pointer_cast<impl_type>(copied_base);
+        return array::from_impl(std::move(copied_impl));
     }
 
     /**
@@ -714,6 +803,17 @@ public:
      */
     mc::shared_ptr<impl_type> get_data() const {
         return m_data;
+    }
+
+    /**
+     * @brief 从内部实现指针构造 array（仅供内部使用）
+     * @param impl 内部实现指针
+     * @return array 对象
+     */
+    static array from_impl(mc::shared_ptr<impl_type> impl) {
+        array result;
+        result.m_data = std::move(impl);
+        return result;
     }
 
     /**

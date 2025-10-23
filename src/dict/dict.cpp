@@ -14,6 +14,7 @@
 #include <mc/dict/entry.h>
 #include <mc/json.h>
 #include <mc/variant.h>
+#include <mc/variant/copy_context.h>
 #include <stdexcept>
 #include <unordered_map>
 
@@ -475,13 +476,42 @@ std::string dict::to_string() const {
     return json::json_encode(*this);
 }
 
-dict dict::deep_copy() const {
+dict dict::copy() const {
     dict result;
     result.m_data = mc::make_shared<data_t>();
 
     for (const auto& entry : *this) {
-        mc::variant        copied_key   = entry.key.deep_copy();
-        mc::variant        copied_value = entry.value.deep_copy();
+        dict_types::entry* new_entry = new dict_types::entry(entry.key, entry.value);
+        result.m_data->entries.push_back(*new_entry);
+        result.m_data->index.insert(*new_entry);
+    }
+
+    return result;
+}
+
+dict dict::deep_copy(mc::detail::copy_context* ctx) const {
+    if (!m_data) {
+        return dict();
+    } else if (!ctx) {
+        mc::detail::copy_context local_ctx;
+        return deep_copy(&local_ctx);
+    }
+
+    if (ctx->has_copied(m_data.get())) {
+        // 检测到循环引用，返回已拷贝的对象保持引用关系
+        dict result;
+        result.m_data = ctx->get_copied(m_data.get());
+        return result;
+    }
+
+    // 深拷贝：递归拷贝所有键值对
+    dict result;
+    result.m_data = mc::make_shared<data_t>();
+
+    ctx->record_copied(m_data.get(), result.m_data);
+    for (const auto& entry : *this) {
+        mc::variant        copied_key   = entry.key.deep_copy(ctx);
+        mc::variant        copied_value = entry.value.deep_copy(ctx);
         dict_types::entry* new_entry    = new dict_types::entry(std::move(copied_key), std::move(copied_value));
         result.m_data->entries.push_back(*new_entry);
         result.m_data->index.insert(*new_entry);

@@ -159,39 +159,24 @@ TEST_F(VariantVisitorTest, VisitBlob) {
  */
 TEST_F(VariantVisitorTest, VisitWithNull) {
     variant v; // null
-    auto    result = v.visit_with([](auto&& value) -> std::string {
-        using T = std::decay_t<decltype(value)>;
-        if constexpr (std::is_same_v<T, std::nullptr_t>) {
-            return "null";
-        } else {
-            return "not null";
-        }
+    auto    result = v.visit_with([](std::nullptr_t) {
+        return "null";
     });
     EXPECT_EQ(result, "null");
 }
 
 TEST_F(VariantVisitorTest, VisitWithInt32) {
     variant v(42); // int32
-    auto    result = v.visit_with([](auto&& value) -> std::string {
-        using T = std::decay_t<decltype(value)>;
-        if constexpr (std::is_same_v<T, int64_t>) {
-            return "int64: " + std::to_string(value);
-        } else {
-            return "not int64";
-        }
+    auto    result = v.visit_with([](int64_t value) -> std::string {
+        return "int64: " + std::to_string(value);
     });
     EXPECT_EQ(result, "int64: 42");
 }
 
 TEST_F(VariantVisitorTest, VisitWithUInt32) {
     variant v(42u); // uint32
-    auto    result = v.visit_with([](auto&& value) -> std::string {
-        using T = std::decay_t<decltype(value)>;
-        if constexpr (std::is_same_v<T, uint64_t>) {
-            return "uint64: " + std::to_string(value);
-        } else {
-            return "not uint64";
-        }
+    auto    result = v.visit_with([](uint64_t value) -> std::string {
+        return "uint64: " + std::to_string(value);
     });
     EXPECT_EQ(result, "uint64: 42");
 }
@@ -211,26 +196,16 @@ TEST_F(VariantVisitorTest, VisitWithDouble) {
 
 TEST_F(VariantVisitorTest, VisitWithBool) {
     variant v(true); // bool
-    auto    result = v.visit_with([](auto&& value) -> std::string {
-        using T = std::decay_t<decltype(value)>;
-        if constexpr (std::is_same_v<T, bool>) {
-            return value ? "bool: true" : "bool: false";
-        } else {
-            return "not bool";
-        }
+    auto    result = v.visit_with([](bool value) -> std::string {
+        return value ? "bool: true" : "bool: false";
     });
     EXPECT_EQ(result, "bool: true");
 }
 
 TEST_F(VariantVisitorTest, VisitWithString) {
     variant v("hello"); // string
-    auto    result = v.visit_with([](auto&& value) -> std::string {
-        using T = std::decay_t<decltype(value)>;
-        if constexpr (std::is_same_v<T, std::string>) {
-            return "string: " + value;
-        } else {
-            return "not string";
-        }
+    auto    result = v.visit_with([](const std::string& value) -> std::string {
+        return "string: " + value;
     });
     EXPECT_EQ(result, "string: hello");
 }
@@ -240,13 +215,8 @@ TEST_F(VariantVisitorTest, VisitWithDict) {
     md["key"] = "value";
     dict    d = md;
     variant v(d); // dict
-    auto    result = v.visit_with([](auto&& value) -> std::string {
-        using T = std::decay_t<decltype(value)>;
-        if constexpr (std::is_same_v<T, dict>) {
-            return "dict: " + std::to_string(value.size()) + " items";
-        } else {
-            return "not dict";
-        }
+    auto    result = v.visit_with([](const dict& value) -> std::string {
+        return "dict: " + std::to_string(value.size()) + " items";
     });
     EXPECT_EQ(result, "dict: 1 items");
 }
@@ -256,13 +226,8 @@ TEST_F(VariantVisitorTest, VisitWithArray) {
     arr.push_back(1);
     arr.push_back(2);
     variant v(arr); // array
-    auto    result = v.visit_with([](auto&& value) -> std::string {
-        using T = std::decay_t<decltype(value)>;
-        if constexpr (std::is_same_v<T, variants>) {
-            return "array: " + std::to_string(value.size()) + " items";
-        } else {
-            return "not array";
-        }
+    auto    result = v.visit_with([](const variants& value) -> std::string {
+        return "array: " + std::to_string(value.size()) + " items";
     });
     EXPECT_EQ(result, "array: 2 items");
 }
@@ -271,13 +236,8 @@ TEST_F(VariantVisitorTest, VisitWithBlob) {
     blob b;
     b.data = {'a', 'b', 'c'};
     variant v(b); // blob
-    auto    result = v.visit_with([](auto&& value) -> std::string {
-        using T = std::decay_t<decltype(value)>;
-        if constexpr (std::is_same_v<T, blob>) {
-            return "blob: " + std::to_string(value.data.size()) + " bytes";
-        } else {
-            return "not blob";
-        }
+    auto    result = v.visit_with([](const blob& value) -> std::string {
+        return "blob: " + std::to_string(value.data.size()) + " bytes";
     });
     EXPECT_EQ(result, "blob: 3 bytes");
 }
@@ -289,26 +249,16 @@ TEST_F(VariantVisitorTest, GlobalVisit) {
     // 测试不同类型的 variant
     {
         variant v; // null
-        auto    result = v.visit_with([](auto&& value) -> std::string {
-            using T = std::decay_t<decltype(value)>;
-            if constexpr (std::is_same_v<T, std::nullptr_t>) {
-                return "null";
-            } else {
-                return "not null";
-            }
+        auto    result = v.visit_with([](std::nullptr_t) -> std::string {
+            return "null";
         });
         EXPECT_EQ(result, "null");
     }
 
     {
         variant v(42); // int32
-        auto    result = v.visit_with([](auto&& value) -> std::string {
-            using T = std::decay_t<decltype(value)>;
-            if constexpr (std::is_same_v<T, int64_t>) {
-                return "int64: " + std::to_string(value);
-            } else {
-                return "not int64";
-            }
+        auto    result = v.visit_with([](int64_t value) -> std::string {
+            return "int64: " + std::to_string(value);
         });
         EXPECT_EQ(result, "int64: 42");
     }
@@ -359,33 +309,18 @@ TEST_F(VariantVisitorTest, VisitWithReturnType) {
     // 测试返回不同类型的值
     {
         variant v(42); // int32
-        auto    result1 = v.visit_with([](auto&& value) -> int {
-            using T = std::decay_t<decltype(value)>;
-            if constexpr (std::is_same_v<T, int64_t>) {
-                return static_cast<int>(value);
-            } else {
-                return 0;
-            }
+        auto    result1 = v.visit_with([](int64_t value) -> int {
+            return static_cast<int>(value);
         });
         EXPECT_EQ(result1, 42);
 
-        auto result2 = v.visit_with([](auto&& value) -> double {
-            using T = std::decay_t<decltype(value)>;
-            if constexpr (std::is_same_v<T, int64_t>) {
-                return static_cast<double>(value);
-            } else {
-                return 0.0;
-            }
+        auto result2 = v.visit_with([](int64_t value) -> double {
+            return static_cast<double>(value);
         });
         EXPECT_DOUBLE_EQ(result2, 42.0);
 
-        auto result3 = v.visit_with([](auto&& value) -> std::string {
-            using T = std::decay_t<decltype(value)>;
-            if constexpr (std::is_same_v<T, int64_t>) {
-                return std::to_string(value);
-            } else {
-                return "";
-            }
+        auto result3 = v.visit_with([](int64_t value) -> std::string {
+            return std::to_string(value);
         });
         EXPECT_EQ(result3, "42");
     }

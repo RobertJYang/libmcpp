@@ -69,7 +69,7 @@ namespace mc {
 template <typename Container>
 void sequence_to_variant(const Container& container, variant& vo) {
     if (container.size() > MAX_NUM_ARRAY_ELEMENTS) {
-        throw std::range_error("容器元素过多");
+        throw_container_overflow_error("sequence");
     }
 
     variants vars;
@@ -92,7 +92,7 @@ template <typename Container>
 void sequence_from_variant(const variant& var, Container& vo) {
     const variants& vars = var.get_array();
     if (vars.size() > MAX_NUM_ARRAY_ELEMENTS) {
-        throw std::range_error("容器元素过多");
+        throw_container_overflow_error("sequence");
     }
     vo.clear();
 
@@ -117,7 +117,7 @@ void sequence_from_variant(const variant& var, Container& vo) {
 template <typename Container>
 void associative_to_variant(const Container& container, variant& vo) {
     if (container.size() > MAX_NUM_ARRAY_ELEMENTS) {
-        throw std::range_error("容器元素过多");
+        throw_container_overflow_error("associative");
     }
 
     variants vars;
@@ -140,7 +140,7 @@ template <typename Container>
 void associative_from_variant(const variant& var, Container& vo) {
     const variants& vars = var.get_array();
     if (vars.size() > MAX_NUM_ARRAY_ELEMENTS) {
-        throw std::range_error("容器元素过多");
+        throw_container_overflow_error("associative");
     }
     vo.clear();
 
@@ -185,7 +185,7 @@ template <typename T, std::size_t S>
 void array_from_variant(const variant& var, std::array<T, S>& vo) {
     const variants& vars = var.get_array();
     if (vars.size() != S) {
-        throw std::runtime_error("数组大小不匹配");
+        throw_bad_cast_error("数组大小不匹配");
     }
     for (std::size_t i = 0; i < S; ++i) {
         from_variant(vars[i], vo[i]);
@@ -203,7 +203,7 @@ void array_from_variant(const variant& var, std::array<T, S>& vo) {
 template <template <typename...> class MapType, typename K, typename T, typename... Args>
 void map_to_variant(const MapType<K, T, Args...>& map, variant& vo) {
     if (map.size() > MAX_NUM_ARRAY_ELEMENTS) {
-        throw std::range_error("容器元素过多");
+        throw_container_overflow_error("map");
     }
 
     mc::dict result;
@@ -226,7 +226,7 @@ template <template <typename...> class MapType, typename K, typename T, typename
 void map_from_variant(const variant& var, MapType<K, T, Args...>& vo) {
     const dict& d = var.get_object();
     if (d.size() > MAX_NUM_ARRAY_ELEMENTS) {
-        throw std::range_error("容器元素过多");
+        throw_container_overflow_error("map");
     }
     vo.clear();
 
@@ -382,7 +382,7 @@ template <typename K, typename T>
 void from_variant(const variant& var, std::pair<K, T>& vo) {
     const variants& vars = var.get_array();
     if (vars.size() != 2) {
-        throw std::runtime_error("pair 大小不匹配");
+        throw_bad_cast_error("pair 大小不匹配");
     }
     from_variant(vars[0], vo.first);
     from_variant(vars[1], vo.second);
@@ -402,7 +402,7 @@ template <typename... T>
 void from_variant(const variant& var, std::tuple<T...>& vo) {
     const variants& vars = var.get_array();
     if (vars.size() != sizeof...(T)) {
-        throw std::runtime_error("tuple 大小不匹配");
+        throw_bad_cast_error("tuple 大小不匹配");
     }
 
     std::size_t index = 0;
@@ -530,7 +530,7 @@ void from_variant(const mc::variant& var, std::variant<T...>& vo) {
     (try_convert_variant<T>(var, vo, converted) || ...);
 
     if (!converted) {
-        throw std::bad_cast();
+        throw_bad_cast_error("类型转换失败");
     }
 }
 

@@ -22,6 +22,9 @@
 #include <mc/variant/io.h>
 #include <mc/variant/variant_base.h>
 
+// 必须在 variant_base.h 之后
+#include <mc/variant/variant_array.inl>
+
 namespace mc {
 
 using variant       = variant_base<>;

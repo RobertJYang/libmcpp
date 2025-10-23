@@ -321,6 +321,18 @@ template <typename T, typename U = T>
 inline constexpr bool has_operator_equal_v = has_operator_equal<T, U>::value;
 
 // 检测类型是否支持 deep_copy 方法
+// 检测 copy() 方法
+template <typename T, typename = void>
+struct has_copy : std::false_type {};
+
+template <typename T>
+struct has_copy<T, std::void_t<decltype(std::declval<T>().copy())>> : std::true_type {};
+
+template <typename T>
+inline constexpr bool has_copy_v = has_copy<T>::value;
+
+// 注意：检测无参数调用，因为我们的 deep_copy 有默认参数
+// 这样可以避免对 copy_context 的依赖，使检测更可靠
 template <typename T, typename = void>
 struct has_deep_copy : std::false_type {};
 
@@ -329,6 +341,17 @@ struct has_deep_copy<T, std::void_t<decltype(std::declval<T>().deep_copy())>> : 
 
 template <typename T>
 inline constexpr bool has_deep_copy_v = has_deep_copy<T>::value;
+
+// is_std_hashable - 检测类型是否支持 std::hash
+template <typename T, typename = void>
+struct is_std_hashable : std::false_type {};
+
+template <typename T>
+struct is_std_hashable<T, std::void_t<decltype(std::declval<std::hash<T>>()(std::declval<const T&>()))>>
+    : std::true_type {};
+
+template <typename T>
+inline constexpr bool is_std_hashable_v = is_std_hashable<T>::value;
 
 // 移除多级指针类型
 template <typename T>

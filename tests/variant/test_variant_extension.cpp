@@ -76,7 +76,7 @@ public:
         return "test_extension(" + std::to_string(m_value) + ")";
     }
 
-    mc::shared_ptr<variant_extension_base> clone() const override {
+    mc::shared_ptr<variant_extension_base> copy() const override {
         return mc::make_shared<test_extension>(*this);
     }
 
@@ -780,6 +780,410 @@ TEST_F(VariantExtensionTest, ExtensionOperatorAllTypes) {
     EXPECT_EQ(v[4].as_string(), "text");
     EXPECT_TRUE(v[4] == "text");
     EXPECT_TRUE("text" == v[4]);
+}
+
+// ========== mc::array extension 测试 ==========
+
+TEST_F(VariantExtensionTest, ArrayIntExtension) {
+    // 测试 mc::array<int> 的 extension 支持
+    mc::array<int> arr = {1, 2, 3, 4, 5};
+    mc::variant    v   = arr; // 隐式转换
+
+    // 验证是 extension 类型
+    EXPECT_TRUE(v.is_extension());
+
+    // ✅ 测试索引读取（带类型转换）
+    EXPECT_EQ(v[0].as_int32(), 1);
+    EXPECT_EQ(v[1].as_int32(), 2);
+    EXPECT_EQ(v[4].as_int32(), 5);
+
+    // ✅ 测试索引写入（带类型转换）
+    v[0] = 100;
+    v[1] = 200;
+    EXPECT_EQ(v[0].as_int32(), 100);
+    EXPECT_EQ(v[1].as_int32(), 200);
+
+    // ✅ 测试取回原始类型
+    mc::array<int> arr2 = v.as<mc::array<int>>();
+    EXPECT_EQ(arr2.size(), 5);
+    EXPECT_EQ(arr2[0], 100);
+    EXPECT_EQ(arr2[1], 200);
+    EXPECT_EQ(arr2[2], 3);
+}
+
+TEST_F(VariantExtensionTest, ArrayStringExtension) {
+    // 测试 mc::array<std::string> 的 extension 支持
+    mc::array<std::string> arr = {"hello", "world", "test"};
+    mc::variant            v   = arr;
+
+    EXPECT_TRUE(v.is_extension());
+
+    // 读取字符串
+    EXPECT_EQ(v[0].as_string(), "hello");
+    EXPECT_EQ(v[1].as_string(), "world");
+
+    // 修改字符串
+    v[0] = "HELLO";
+    EXPECT_EQ(v[0].as_string(), "HELLO");
+
+    // 取回原始类型
+    mc::array<std::string> arr2 = v.as<mc::array<std::string>>();
+    EXPECT_EQ(arr2[0], "HELLO");
+    EXPECT_EQ(arr2[1], "world");
+}
+
+TEST_F(VariantExtensionTest, ArrayExtensionSharedSemantics) {
+    // 验证共享语义
+    mc::array<int> arr1 = {10, 20, 30};
+    mc::variant    v1   = arr1;
+
+    // 拷贝 variant
+    mc::variant v2 = v1;
+
+    // 修改 v1
+    v1[0] = 100;
+
+    // v2 应该受影响（因为共享内部数据）
+    EXPECT_EQ(v2[0].as_int32(), 100);
+
+    // 取回的 array 也共享数据
+    mc::array<int> arr2 = v1.as<mc::array<int>>();
+    EXPECT_EQ(arr2[0], 100);
+
+    // 修改 arr2
+    arr2[1] = 200;
+
+    // v1 应该受影响
+    EXPECT_EQ(v1[1].as_int32(), 200);
+}
+
+TEST_F(VariantExtensionTest, ArrayExtensionInDict) {
+    // 测试 array extension 在 dict 中的使用
+    mc::array<int>         arr1 = {1, 2, 3};
+    mc::array<std::string> arr2 = {"a", "b", "c"};
+
+    mc::dict obj;
+    obj["numbers"] = arr1;
+    obj["strings"] = arr2;
+
+    EXPECT_TRUE(obj["numbers"].is_extension());
+    EXPECT_TRUE(obj["strings"].is_extension());
+
+    // 访问嵌套元素
+    EXPECT_EQ(obj["numbers"][0].as_int32(), 1);
+    EXPECT_EQ(obj["strings"][1].as_string(), "b");
+
+    // 修改嵌套元素
+    obj["numbers"][0] = 100;
+    EXPECT_EQ(obj["numbers"][0].as_int32(), 100);
+}
+
+TEST_F(VariantExtensionTest, ArrayExtensionMixedWithVariants) {
+    // 测试 extension 与普通 variants 混合
+    mc::array<int> int_arr = {1, 2, 3};
+    mc::variants   var_arr = {10, 20, 30};
+
+    mc::variant  v1 = int_arr;       // extension
+    mc::variant  v2 = var_arr;       // 普通 array
+    mc::variants v3 = v1.as_array(); // extension 数组可以转换成 mc::variants
+
+    EXPECT_TRUE(v1.is_extension());
+    EXPECT_TRUE(v2.is_array());
+    EXPECT_FALSE(v2.is_extension());
+
+    // 两种方式都可以访问
+    EXPECT_EQ(v1[0].as_int32(), 1);
+    EXPECT_EQ(v2[0].as_int32(), 10);
+    EXPECT_EQ(v3[0].as_int32(), int_arr[0]);
+
+    // 放入同一个 dict
+    mc::dict obj;
+    obj["ext_arr"] = v1;
+    obj["var_arr"] = v2;
+
+    EXPECT_EQ(obj["ext_arr"][0].as_int32(), 1);
+    EXPECT_EQ(obj["var_arr"][0].as_int32(), 10);
+}
+
+TEST_F(VariantExtensionTest, ArrayExtensionVisitInt) {
+    // 测试 mc::array<int> 通过 extension.visit() 遍历
+    mc::array<int> arr = {10, 20, 30, 40, 50};
+    mc::variant    v   = arr;
+
+    EXPECT_TRUE(v.is_extension());
+    std::vector<int> collected;
+    v.visit_with([&collected](const mc::variant_extension_base& ext) {
+        ext.visit([&collected](const mc::variant& item) {
+            collected.push_back(item.as_int32());
+        });
+    });
+
+    // 验证收集到的元素
+    ASSERT_EQ(collected.size(), 5);
+    EXPECT_EQ(collected[0], 10);
+    EXPECT_EQ(collected[1], 20);
+    EXPECT_EQ(collected[2], 30);
+    EXPECT_EQ(collected[3], 40);
+    EXPECT_EQ(collected[4], 50);
+
+    // 使用 visit_with + visit 计算总和
+    int sum = 0;
+    v.visit_with([&sum](const mc::variant_extension_base& ext) {
+        ext.visit([&sum](const mc::variant& item) {
+            sum += item.as_int32();
+        });
+    });
+    EXPECT_EQ(sum, 150); // 10 + 20 + 30 + 40 + 50 = 150
+}
+
+TEST_F(VariantExtensionTest, ArrayExtensionVisitString) {
+    // 测试 mc::array<std::string> 通过 extension.visit() 遍历
+    mc::array<std::string> arr = {"Hello", "World", "Test", "Visit"};
+    mc::variant            v   = arr;
+
+    EXPECT_TRUE(v.is_extension());
+
+    std::string concatenated;
+    v.visit_with([&concatenated](const mc::variant_extension_base& ext) {
+        ext.visit([&concatenated](const mc::variant& item) {
+            if (!concatenated.empty()) {
+                concatenated += " ";
+            }
+            concatenated += item.as_string();
+        });
+    });
+
+    EXPECT_EQ(concatenated, "Hello World Test Visit");
+
+    // 使用 visit_with + visit 统计字符串总长度
+    size_t total_length = 0;
+    v.visit_with([&total_length](const mc::variant_extension_base& ext) {
+        ext.visit([&total_length](const mc::variant& item) {
+            total_length += item.as_string().length();
+        });
+    });
+    EXPECT_EQ(total_length, 19); // 5 + 5 + 4 + 5 = 19
+}
+
+TEST_F(VariantExtensionTest, VariantsVisit) {
+    // 测试 mc::variants (mc::array<variant>) 的遍历
+    mc::variants arr = {1, "hello", 3.14, true, mc::variants{10, 20}};
+    mc::variant  v   = arr;
+
+    EXPECT_TRUE(v.is_array());
+    EXPECT_FALSE(v.is_extension()); // mc::variants 是内置类型，不是 extension
+
+    std::vector<std::string> type_names;
+    v.visit_with([&type_names](const mc::variants& array) {
+        for (const auto& item : array) {
+            type_names.push_back(item.get_type_name());
+        }
+    });
+
+    ASSERT_EQ(type_names.size(), 5);
+    EXPECT_EQ(type_names[0], arr[0].get_type_name());
+    EXPECT_EQ(type_names[1], arr[1].get_type_name());
+    EXPECT_EQ(type_names[2], arr[2].get_type_name());
+    EXPECT_EQ(type_names[3], arr[3].get_type_name());
+    EXPECT_EQ(type_names[4], arr[4].get_type_name());
+
+    // 验证可以访问嵌套数组
+    int nested_count = 0;
+    v.visit_with([&nested_count](const mc::variants& array) {
+        for (const auto& item : array) {
+            item.visit_with([&nested_count](const mc::variants& nested_array) {
+                nested_count += nested_array.size();
+            });
+        }
+    });
+    EXPECT_EQ(nested_count, 2); // 嵌套数组有 2 个元素
+}
+
+TEST_F(VariantExtensionTest, ArrayExtensionVisitDouble) {
+    // 测试 mc::array<double> 通过 extension.visit() 遍历
+    mc::array<double> arr = {1.5, 2.5, 3.5, 4.5, 5.5};
+    mc::variant       v   = arr;
+
+    EXPECT_TRUE(v.is_extension());
+
+    // 使用 visit_with + visit 计算平均值
+    double sum   = 0.0;
+    int    count = 0;
+    v.visit_with([&sum, &count](const mc::variant_extension_base& ext) {
+        ext.visit([&sum, &count](const mc::variant& item) {
+            sum += item.as_double();
+            count++;
+        });
+    });
+
+    EXPECT_EQ(count, 5);
+    EXPECT_DOUBLE_EQ(sum / count, 3.5); // (1.5 + 2.5 + 3.5 + 4.5 + 5.5) / 5 = 3.5
+
+    // 使用 visit_with + visit 查找最大值
+    double max_val = std::numeric_limits<double>::lowest();
+    v.visit_with([&max_val](const mc::variant_extension_base& ext) {
+        ext.visit([&max_val](const mc::variant& item) {
+            double val = item.as_double();
+            if (val > max_val) {
+                max_val = val;
+            }
+        });
+    });
+    EXPECT_DOUBLE_EQ(max_val, 5.5);
+}
+
+TEST_F(VariantExtensionTest, ArrayExtensionVisitModification) {
+    // 测试通过 extension.visit() 遍历并修改元素
+    mc::array<int> arr = {1, 2, 3, 4, 5};
+    mc::variant    v   = arr;
+
+    // 先验证原始值
+    std::vector<int> original;
+    v.visit_with([&original](const mc::variant_extension_base& ext) {
+        ext.visit([&original](const mc::variant& item) {
+            original.push_back(item.as_int32());
+        });
+    });
+    EXPECT_EQ(original, std::vector<int>({1, 2, 3, 4, 5}));
+
+    // 通过索引修改（不在 visit 中）
+    for (size_t i = 0; i < arr.size(); i++) {
+        v[i] = arr[i] * 2;
+    }
+
+    std::vector<int> modified;
+    v.visit_with([&modified](const mc::variant_extension_base& ext) {
+        ext.visit([&modified](const mc::variant& item) {
+            modified.push_back(item.as_int32());
+        });
+    });
+    EXPECT_EQ(modified, std::vector<int>({2, 4, 6, 8, 10}));
+}
+
+TEST_F(VariantExtensionTest, VariantsVisitNested) {
+    // 测试嵌套 variants 的递归遍历
+    mc::variants arr = {
+        1,
+        mc::variants{10, 20, 30},
+        "test",
+        mc::dict{{"x", 100}, {"y", 200}},
+    };
+    mc::variant v = arr;
+
+    int                                     total_count     = 0;
+    std::function<void(const mc::variant&)> recursive_visit = [&](const mc::variant& item) {
+        total_count++;
+        if (item.is_array()) {
+            item.visit_with([&](const mc::variants& nested_array) {
+                for (const auto& nested_item : nested_array) {
+                    recursive_visit(nested_item);
+                }
+            });
+        }
+    };
+
+    v.visit_with([&](const mc::variants& array) {
+        for (const auto& item : array) {
+            recursive_visit(item);
+        }
+    });
+
+    // 顶层 4 个元素 + 嵌套数组 3 个元素 = 7
+    EXPECT_EQ(total_count, 7);
+}
+
+// 测试非数组的 extension 不应该被转换为数组
+TEST_F(VariantExtensionTest, NonArrayExtensionCannotConvertToArray) {
+    // 创建一个非数组的 extension
+    auto ext = mc::make_shared<test_extension>(42);
+
+    // 检查类型信息
+    auto type_info = ext->get_type_info();
+    EXPECT_NE(type_info.id, mc::extension_type_ids::typed_array) << "test_extension should not be typed_array";
+
+    mc::variant v(mc::static_pointer_cast<mc::variant_extension_base>(ext));
+
+    EXPECT_TRUE(v.is_extension());
+    EXPECT_FALSE(v.is_array());
+
+    // 尝试转换为 mc::variants 应该失败（抛出异常）
+    EXPECT_THROW({ mc::variants arr = v.as_array(); }, mc::bad_cast_exception);
+
+    // 同样，complex_extension 也不应该被转换为数组
+    auto complex_ext       = mc::make_shared<complex_extension>("test", 100);
+    auto complex_type_info = complex_ext->get_type_info();
+    EXPECT_NE(complex_type_info.id, mc::extension_type_ids::typed_array) << "complex_extension should not be typed_array";
+
+    mc::variant v2(mc::static_pointer_cast<mc::variant_extension_base>(complex_ext));
+
+    EXPECT_TRUE(v2.is_extension());
+    EXPECT_FALSE(v2.is_array());
+
+    EXPECT_THROW({ mc::variants arr = v2.as_array(); }, mc::bad_cast_exception);
+}
+
+// 测试内置数组转换到强类型数组
+TEST_F(VariantExtensionTest, BuiltinArrayToTypedArray) {
+    // mc::variants -> mc::array<int>
+    mc::variants var_arr = {1, 2, 3, 4, 5};
+    mc::variant  v       = var_arr;
+
+    mc::array<int> int_arr;
+    EXPECT_NO_THROW({ from_variant(v, int_arr); });
+    EXPECT_EQ(int_arr.size(), 5);
+    EXPECT_EQ(int_arr[0], 1);
+    EXPECT_EQ(int_arr[4], 5);
+
+    // mc::variants -> mc::array<std::string>
+    mc::variants str_var_arr = {"hello", "world", "test"};
+    mc::variant  v2          = str_var_arr;
+
+    mc::array<std::string> str_arr;
+    EXPECT_NO_THROW({ from_variant(v2, str_arr); });
+    EXPECT_EQ(str_arr.size(), 3);
+    EXPECT_EQ(str_arr[0], "hello");
+    EXPECT_EQ(str_arr[2], "test");
+
+    // mc::variants -> mc::array<double>
+    mc::variants double_var_arr = {1.1, 2.2, 3.3};
+    mc::variant  v3             = double_var_arr;
+
+    mc::array<double> double_arr;
+    EXPECT_NO_THROW({ from_variant(v3, double_arr); });
+    EXPECT_EQ(double_arr.size(), 3);
+    EXPECT_DOUBLE_EQ(double_arr[0], 1.1);
+    EXPECT_DOUBLE_EQ(double_arr[2], 3.3);
+}
+
+// 测试空数组的 extension 可以正确转换
+TEST_F(VariantExtensionTest, EmptyArrayExtensionConversion) {
+    // 创建空的 mc::array<int>
+    mc::array<int> empty_int_arr;
+    mc::variant    v1 = empty_int_arr;
+
+    EXPECT_TRUE(v1.is_extension());
+    EXPECT_EQ(v1.size(), 0);
+
+    // 应该能够转换为 mc::variants（空数组）
+    mc::variants result;
+    EXPECT_NO_THROW({
+        result = v1.as_array();
+    });
+    EXPECT_EQ(result.size(), 0);
+
+    // 创建空的 mc::array<std::string>
+    mc::array<std::string> empty_string_arr;
+    mc::variant            v2 = empty_string_arr;
+
+    EXPECT_TRUE(v2.is_extension());
+    EXPECT_EQ(v2.size(), 0);
+
+    // 应该能够转换为 mc::variants（空数组）
+    mc::variants result2;
+    EXPECT_NO_THROW({
+        result2 = v2.as_array();
+    });
+    EXPECT_EQ(result2.size(), 0);
 }
 
 } // namespace test

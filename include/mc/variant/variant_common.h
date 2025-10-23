@@ -188,6 +188,13 @@ MC_API const char*       get_type_name_internal(type_id type);
 [[noreturn]] MC_API void throw_invalid_type_operation_error(const char* type1, const char* type2,
                                                             const char* op);
 [[noreturn]] MC_API void throw_divide_by_zero_exception(const char* msg);
+[[noreturn]] MC_API void throw_out_of_range_error(const char* msg);
+[[noreturn]] MC_API void throw_out_of_range_error(size_t index, size_t size);
+[[noreturn]] MC_API void throw_bad_cast_error(const char* msg);
+[[noreturn]] MC_API void throw_runtime_error(const char* msg);
+[[noreturn]] MC_API void throw_not_supported_error(const char* operation);
+[[noreturn]] MC_API void throw_extension_null_error();
+[[noreturn]] MC_API void throw_container_overflow_error(const char* container_type);
 MC_API size_t            calculate_str_hash(std::string_view data);
 template <typename Config>
 size_t calculate_array_hash(const variants_base<Config>& array_data);

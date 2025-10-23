@@ -30,19 +30,19 @@ namespace mc {
 variant_extension_base::~variant_extension_base() = default;
 
 mc::variant variant_extension_base::get(std::size_t index) const {
-    throw std::runtime_error("扩展类型不支持索引访问");
+    throw_not_supported_error("扩展类型索引访问");
 }
 
 void variant_extension_base::set(std::size_t index, const mc::variant& value) {
-    throw std::runtime_error("扩展类型不支持索引访问");
+    throw_not_supported_error("扩展类型索引访问");
 }
 
 mc::variant variant_extension_base::get(std::string_view key) const {
-    throw std::runtime_error("扩展类型不支持键访问");
+    throw_not_supported_error("扩展类型键访问");
 }
 
 void variant_extension_base::set(std::string_view key, const mc::variant& value) {
-    throw std::runtime_error("扩展类型不支持键访问");
+    throw_not_supported_error("扩展类型键访问");
 }
 
 namespace detail {
@@ -120,6 +120,36 @@ void throw_invalid_type_operation_error(const char* type1, const char* type2, co
 
 void throw_divide_by_zero_exception(const char* msg) {
     MC_THROW(mc::divide_by_zero_exception, "${msg}", ("msg", msg));
+}
+
+// 通用异常封装函数实现
+void throw_out_of_range_error(const char* msg) {
+    MC_THROW(mc::out_of_range_exception, "${msg}", ("msg", msg));
+}
+
+void throw_out_of_range_error(size_t index, size_t size) {
+    MC_THROW(mc::out_of_range_exception, "索引越界: 索引${index}超出范围[0, ${size})",
+             ("index", index)("size", size));
+}
+
+void throw_bad_cast_error(const char* msg) {
+    MC_THROW(mc::bad_cast_exception, "${msg}", ("msg", msg));
+}
+
+void throw_runtime_error(const char* msg) {
+    MC_THROW(mc::runtime_exception, "${msg}", ("msg", msg));
+}
+
+void throw_not_supported_error(const char* operation) {
+    MC_THROW(mc::invalid_op_exception, "不支持的操作: ${operation}", ("operation", operation));
+}
+
+void throw_extension_null_error() {
+    MC_THROW(mc::runtime_exception, "扩展对象为空");
+}
+
+void throw_container_overflow_error(const char* container_type) {
+    MC_THROW(mc::overflow_exception, "容器${type}元素过多", ("type", container_type));
 }
 
 // 计算字符串的哈希值
