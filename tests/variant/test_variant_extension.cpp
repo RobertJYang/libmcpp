@@ -76,7 +76,7 @@ public:
         return "test_extension(" + std::to_string(m_value) + ")";
     }
 
-    mc::shared_ptr<variant_extension_base> clone() const override {
+    mc::shared_ptr<variant_extension_base> copy() const override {
         return mc::make_shared<test_extension>(*this);
     }
 

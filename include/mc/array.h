@@ -27,11 +27,13 @@
 #include <mc/memory.h>
 #include <mc/pretty_name.h>
 #include <mc/traits.h>
+#include <mc/variant/copy_context.h>
 #include <mc/variant/variant_extension.h>
 
 namespace mc {
 
 namespace detail {
+
 /**
  * @brief 抛出索引越界异常
  *
@@ -92,10 +94,51 @@ public:
     }
 
     /**
-     * @brief 克隆
+     * @brief 浅拷贝
      */
-    mc::shared_ptr<variant_extension_base> clone() const override {
+    mc::shared_ptr<variant_extension_base> copy() const override {
         return mc::make_shared<array_impl>(*this);
+    }
+
+    /**
+     * @brief 深拷贝
+     * @param ctx 深拷贝上下文，用于循环引用检测
+     * @return 新的 array_impl 指针（递归深拷贝所有元素）
+     */
+    mc::shared_ptr<variant_extension_base> deep_copy(mc::detail::copy_context* ctx = nullptr) const override {
+        if (!ctx) {
+            mc::detail::copy_context local_ctx;
+            return deep_copy(&local_ctx);
+        }
+
+        // 检测循环引用：如果 this 已经被拷贝过，直接返回已拷贝的版本
+        if (ctx->has_copied(this)) {
+            return ctx->get_copied<array_impl>(this);
+        }
+
+        // 创建新的 array_impl 并记录到上下文
+        auto result = mc::make_shared<array_impl>();
+        result->reserve(this->size());
+        ctx->record_copied(this, result);
+
+        // 递归深拷贝元素，deep_copy > copy > 直接拷贝
+        if constexpr (mc::traits::has_deep_copy_v<T>) {
+            // 优先使用深拷贝
+            for (const auto& item : *this) {
+                result->push_back(item.deep_copy(ctx));
+            }
+        } else if constexpr (mc::traits::has_copy_v<T>) {
+            // 其次使用浅拷贝
+            for (const auto& item : *this) {
+                result->push_back(item.copy());
+            }
+        } else {
+            // 最后直接拷贝
+            for (const auto& item : *this) {
+                result->push_back(item);
+            }
+        }
+        return result;
     }
 
     /**
@@ -729,38 +772,29 @@ public:
     /**
      * @brief 拷贝数组（浅拷贝，创建新容器但元素共享）
      * @return 拷贝后的数组
+     * @note 委托给 array_impl::copy() 实现
      */
     array copy() const {
         if (!m_data) {
             return array();
         }
-        return array(*m_data);
+        auto copied_base = m_data->copy();
+        auto copied_impl = mc::static_pointer_cast<impl_type>(copied_base);
+        return array::from_impl(std::move(copied_impl));
     }
 
     /**
-     * @brief 深拷贝数组（如果元素支持 deep_copy 则调用，否则直接拷贝）
+     * @brief 深拷贝数组
+     * @param ctx 可选的深拷贝上下文，用于检测循环引用并记录已拷贝对象
      * @return 深度拷贝后的数组
      */
-    array deep_copy() const {
+    array deep_copy(mc::detail::copy_context* ctx = nullptr) const {
         if (!m_data) {
             return array();
         }
-        array result;
-        result.ensure_data();
-        result.m_data->reserve(m_data->size());
-
-        if constexpr (mc::traits::has_deep_copy_v<T>) {
-            // 如果元素支持 deep_copy，对每个元素调用 deep_copy
-            for (const auto& item : *m_data) {
-                result.m_data->push_back(item.deep_copy());
-            }
-        } else {
-            // 否则直接拷贝元素
-            for (const auto& item : *m_data) {
-                result.m_data->push_back(item);
-            }
-        }
-        return result;
+        auto copied_base = m_data->deep_copy(ctx);
+        auto copied_impl = mc::static_pointer_cast<impl_type>(copied_base);
+        return array::from_impl(std::move(copied_impl));
     }
 
     /**

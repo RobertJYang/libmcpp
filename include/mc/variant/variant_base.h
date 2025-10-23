@@ -36,11 +36,13 @@
 #include <mc/pretty_name.h>
 #include <mc/string.h>
 #include <mc/traits.h>
+#include <mc/variant/copy_context.h>
 #include <mc/variant/variant_common.h>
 #include <mc/variant/variant_extension.h>
 
 namespace mc {
 namespace detail {
+
 template <typename F, typename Arg>
 static auto invoke_visitor(F&& func, Arg&& v) {
     if constexpr (std::is_invocable_v<F>) {
@@ -1127,10 +1129,14 @@ public:
     void set_value(variant_base<OtherConfig>&& other);
 
     /**
-     * @brief 深拷贝 variant
-     * @return 深度拷贝后的 variant
+     * @brief 浅拷贝 variant
+     * @return 浅拷贝后的 variant
+     * @note 对于基础类型、字符串直接拷贝值
+     * @note 对于 array、dict 使用浅拷贝（共享内部元素）
+     * @note 对于 blob 拷贝数据
+     * @note 对于 extension 调用其 copy() 方法
      */
-    variant_base deep_copy() const {
+    variant_base copy() const {
         return visit_with([this](const auto& value) -> variant_base {
             using T = std::decay_t<decltype(value)>;
 
@@ -1141,9 +1147,9 @@ public:
             } else if constexpr (std::is_same_v<T, string_type>) {
                 return variant_base(value, this->m_alloc);
             } else if constexpr (std::is_same_v<T, array_type>) {
-                return variant_base(value.deep_copy());
+                return variant_base(value.copy());
             } else if constexpr (std::is_same_v<T, object_type>) {
-                return variant_base(value.deep_copy());
+                return variant_base(value.copy());
             } else if constexpr (std::is_same_v<T, blob_type>) {
                 variant_base result(type_id::blob_type);
                 result.m_alloc    = this->m_alloc;
@@ -1152,7 +1158,51 @@ public:
             } else if constexpr (std::is_same_v<T, extension_type>) {
                 variant_base result(type_id::extension_type);
                 result.m_alloc     = this->m_alloc;
-                result.m_extension = value.clone();
+                result.m_extension = value.copy();
+                return result;
+            } else {
+                return variant_base();
+            }
+        });
+    }
+
+    /**
+     * @brief 深拷贝 variant
+     * @param ctx 可选的深拷贝上下文，用于检测循环引用并记录已拷贝对象
+     * @return 深度拷贝后的 variant
+     *
+     * @note 如果传入 ctx 参数，则使用该上下文进行循环引用检测
+     * @note 如果不传入 ctx，则创建局部上下文（用于顶层调用）
+     * @note 遇到循环引用时，返回已拷贝的对象，保持引用关系
+     */
+    variant_base deep_copy(mc::detail::copy_context* ctx = nullptr) const {
+        if (!ctx) {
+            mc::detail::copy_context local_ctx;
+            return deep_copy(&local_ctx);
+        }
+
+        return visit_with([this, ctx](const auto& value) -> variant_base {
+            using T = std::decay_t<decltype(value)>;
+
+            if constexpr (std::is_same_v<T, std::nullptr_t>) {
+                return variant_base();
+            } else if constexpr (std::is_arithmetic_v<T>) {
+                return variant_base(value);
+            } else if constexpr (std::is_same_v<T, string_type>) {
+                return variant_base(value, this->m_alloc);
+            } else if constexpr (std::is_same_v<T, array_type>) {
+                return variant_base(value.deep_copy(ctx));
+            } else if constexpr (std::is_same_v<T, object_type>) {
+                return variant_base(value.deep_copy(ctx));
+            } else if constexpr (std::is_same_v<T, blob_type>) {
+                variant_base result(type_id::blob_type);
+                result.m_alloc    = this->m_alloc;
+                result.m_blob_ptr = mc::allocate_ptr<blob_type>(this->m_alloc, value.data.data(), value.data.size(), this->m_alloc);
+                return result;
+            } else if constexpr (std::is_same_v<T, extension_type>) {
+                variant_base result(type_id::extension_type);
+                result.m_alloc     = this->m_alloc;
+                result.m_extension = value.deep_copy(ctx); // 调用 extension 的 deep_copy
                 return result;
             } else {
                 return variant_base();

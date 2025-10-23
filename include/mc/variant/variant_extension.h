@@ -23,6 +23,7 @@
 
 #include <mc/memory.h>
 #include <mc/traits.h>
+#include <mc/variant/copy_context.h>
 #include <mc/variant/extension_type_id.h>
 #include <mc/variant/variant_common.h>
 
@@ -42,10 +43,31 @@ public:
     virtual ~variant_extension_base();
 
     /**
-     * @brief 创建当前对象的深拷贝
-     * @return 返回当前对象的深拷贝
+     * @brief 创建当前对象的浅拷贝
+     * @return 返回当前对象的浅拷贝
      */
-    virtual mc::shared_ptr<variant_extension_base> clone() const = 0;
+    virtual mc::shared_ptr<variant_extension_base> copy() const = 0;
+
+    /**
+     * @brief 创建当前对象的深拷贝
+     * @param ctx 可选的深拷贝上下文，用于检测循环引用并记录已拷贝对象
+     * @return 返回当前对象的深拷贝
+     * @note 默认实现委托给 copy()，子类可以重写提供真正的深拷贝
+     */
+    virtual mc::shared_ptr<variant_extension_base> deep_copy(detail::copy_context* ctx = nullptr) const {
+        (void)ctx;
+        // 深拷贝默认实现为浅拷贝
+        return copy();
+    }
+
+    /**
+     * @brief 克隆对象（向后兼容的非虚函数）
+     * @return 返回当前对象的拷贝
+     * @note 内部调用 copy()，保持向后兼容
+     */
+    mc::shared_ptr<variant_extension_base> clone() const {
+        return copy();
+    }
 
     /**
      * @brief 获取 extension 类型信息
@@ -190,7 +212,7 @@ class variant_extension : public variant_extension_base {
 public:
     using value_type = T;
 
-    virtual mc::shared_ptr<variant_extension_base> clone() const override {
+    virtual mc::shared_ptr<variant_extension_base> copy() const override {
         return mc::make_shared<T>(static_cast<const T&>(*this));
     }
 

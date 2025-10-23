@@ -173,7 +173,7 @@ public:
     }
 
     // 实现 variant_extension_base 的纯虚函数
-    mc::shared_ptr<variant_extension_base> clone() const override {
+    mc::shared_ptr<variant_extension_base> copy() const override {
         return mc::make_shared<ref_object>(m_object_name, m_object_finder);
     }
 
