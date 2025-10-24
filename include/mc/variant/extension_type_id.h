@@ -53,17 +53,17 @@ enum class extension_type_trait : uint32_t {
     comparable     = 1 << 5, // 支持比较运算
 };
 
-inline extension_type_trait operator|(extension_type_trait a, extension_type_trait b) {
+constexpr extension_type_trait operator|(extension_type_trait a, extension_type_trait b) {
     return static_cast<extension_type_trait>(
         static_cast<uint32_t>(a) | static_cast<uint32_t>(b));
 }
 
-inline extension_type_trait operator&(extension_type_trait a, extension_type_trait b) {
+constexpr extension_type_trait operator&(extension_type_trait a, extension_type_trait b) {
     return static_cast<extension_type_trait>(
         static_cast<uint32_t>(a) & static_cast<uint32_t>(b));
 }
 
-inline bool has_trait(extension_type_trait traits, extension_type_trait trait) {
+constexpr bool has_trait(extension_type_trait traits, extension_type_trait trait) {
     return (static_cast<uint32_t>(traits) & static_cast<uint32_t>(trait)) != 0;
 }
 

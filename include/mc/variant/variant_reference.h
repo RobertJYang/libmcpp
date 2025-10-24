@@ -28,6 +28,16 @@ class variant_base;
 
 class variant_extension_base;
 
+// variant_reference 类型特征（仅在此文件中使用）
+template <typename T>
+struct is_variant_reference : std::false_type {};
+
+template <typename Config>
+struct is_variant_reference<variant_reference<Config>> : std::true_type {};
+
+template <typename T>
+constexpr bool is_variant_reference_v = is_variant_reference<T>::value;
+
 /**
  * @brief variant 的代理引用类型
  *
@@ -158,7 +168,8 @@ public:
     }
 
     // 支持从其他类型赋值（会转换为 variant）
-    template <typename T>
+    // 使用 SFINAE 排除 T 为 variant_reference 的情况，避免歧义
+    template <typename T, typename = std::enable_if_t<!is_variant_reference_v<std::decay_t<T>>>>
     variant_reference& operator=(const T& value) {
         return *this = variant_type(value);
     }
@@ -857,32 +868,33 @@ public:
     }
 
     // 与基础类型比较
-    template <typename T>
+    // 使用 SFINAE 排除 T 为 variant_reference 的情况，避免与全局操作符版本产生歧义
+    template <typename T, typename = std::enable_if_t<!is_variant_reference_v<std::decay_t<T>>>>
     bool operator==(const T& other) const {
         return get() == other;
     }
 
-    template <typename T>
+    template <typename T, typename = std::enable_if_t<!is_variant_reference_v<std::decay_t<T>>>>
     bool operator!=(const T& other) const {
         return get() != other;
     }
 
-    template <typename T>
+    template <typename T, typename = std::enable_if_t<!is_variant_reference_v<std::decay_t<T>>>>
     bool operator<(const T& other) const {
         return get() < other;
     }
 
-    template <typename T>
+    template <typename T, typename = std::enable_if_t<!is_variant_reference_v<std::decay_t<T>>>>
     bool operator>(const T& other) const {
         return get() > other;
     }
 
-    template <typename T>
+    template <typename T, typename = std::enable_if_t<!is_variant_reference_v<std::decay_t<T>>>>
     bool operator<=(const T& other) const {
         return get() <= other;
     }
 
-    template <typename T>
+    template <typename T, typename = std::enable_if_t<!is_variant_reference_v<std::decay_t<T>>>>
     bool operator>=(const T& other) const {
         return get() >= other;
     }
@@ -1102,32 +1114,33 @@ inline variant_base<Config> operator>>(const variant_base<Config>& lhs, const va
 }
 
 // 比较操作符：基础类型 op variant_reference
-template <typename Config, typename T>
+// 使用 SFINAE 排除 T 为 variant_reference 的情况，避免与成员函数版本产生歧义
+template <typename Config, typename T, typename = std::enable_if_t<!is_variant_reference_v<std::decay_t<T>>>>
 inline bool operator==(const T& lhs, const variant_reference<Config>& rhs) {
     return lhs == rhs.get();
 }
 
-template <typename Config, typename T>
+template <typename Config, typename T, typename = std::enable_if_t<!is_variant_reference_v<std::decay_t<T>>>>
 inline bool operator!=(const T& lhs, const variant_reference<Config>& rhs) {
     return lhs != rhs.get();
 }
 
-template <typename Config, typename T>
+template <typename Config, typename T, typename = std::enable_if_t<!is_variant_reference_v<std::decay_t<T>>>>
 inline bool operator<(const T& lhs, const variant_reference<Config>& rhs) {
     return lhs < rhs.get();
 }
 
-template <typename Config, typename T>
+template <typename Config, typename T, typename = std::enable_if_t<!is_variant_reference_v<std::decay_t<T>>>>
 inline bool operator>(const T& lhs, const variant_reference<Config>& rhs) {
     return lhs > rhs.get();
 }
 
-template <typename Config, typename T>
+template <typename Config, typename T, typename = std::enable_if_t<!is_variant_reference_v<std::decay_t<T>>>>
 inline bool operator<=(const T& lhs, const variant_reference<Config>& rhs) {
     return lhs <= rhs.get();
 }
 
-template <typename Config, typename T>
+template <typename Config, typename T, typename = std::enable_if_t<!is_variant_reference_v<std::decay_t<T>>>>
 inline bool operator>=(const T& lhs, const variant_reference<Config>& rhs) {
     return lhs >= rhs.get();
 }
