@@ -79,6 +79,7 @@ mc::variant* array_impl<T, Allocator>::get_ptr(std::size_t index) {
         }
         return reinterpret_cast<mc::variant*>(&(*this)[index]);
     } else {
+        MC_UNUSED(index);
         return nullptr;
     }
 }
@@ -91,6 +92,7 @@ const mc::variant* array_impl<T, Allocator>::get_ptr(std::size_t index) const {
         }
         return reinterpret_cast<const mc::variant*>(&(*this)[index]);
     } else {
+        MC_UNUSED(index);
         return nullptr;
     }
 }
@@ -132,6 +134,7 @@ void array_impl<T, Allocator>::set(std::size_t index, const mc::variant& value) 
         from_variant(value, (*this)[index]);
     } else {
         // T 无法从 variant 转换：不支持
+        MC_UNUSED(value);
         throw_runtime_error("array_impl: 元素类型无法从 variant 转换");
     }
 }
