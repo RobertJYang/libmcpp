@@ -717,3 +717,32 @@ TEST_F(VariantReferenceTest, FromVariantConversion) {
     from_variant(arr2[1], val3);
     EXPECT_EQ(val3, "hello");
 }
+
+// ========== std::vector 构造函数测试 ==========
+
+TEST_F(VariantReferenceTest, VectorConstructorWeakType) {
+    // 测试从 std::vector 构造为弱类型数组
+    std::vector<int> vec        = {1, 2, 3};
+    variants         weak_array = vec;
+
+    EXPECT_EQ(weak_array.size(), 3);
+    EXPECT_EQ(weak_array[0], 1);
+    EXPECT_EQ(weak_array[1], 2);
+    EXPECT_EQ(weak_array[2], 3);
+
+    // 测试可以修改为不同类型（弱类型特性）
+    weak_array[0] = "text";
+    weak_array[1] = 3.14;
+    weak_array[2] = true;
+
+    EXPECT_EQ(weak_array[0], "text");
+    EXPECT_DOUBLE_EQ(weak_array[1].as_double(), 3.14);
+    EXPECT_EQ(weak_array[2], true);
+
+    std::vector<mc::variant> vec_1       = {1, 2, 3};
+    variants                 weak_array1 = std::move(vec_1);
+    EXPECT_EQ(weak_array1.size(), 3);
+    EXPECT_EQ(weak_array1[0], 1);
+    EXPECT_EQ(weak_array1[1], 2);
+    EXPECT_EQ(weak_array1[2], 3);
+}

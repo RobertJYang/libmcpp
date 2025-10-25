@@ -324,7 +324,7 @@ message local_msg::new_dbus_msg() const {
     if (m_type == DBUS_MESSAGE_TYPE_METHOD_RETURN) {
         message rsp = message::new_method_return(msg);
         if (!m_signature.empty()) {
-            for (auto& arg : m_args) {
+            for (auto arg : m_args) {
                 rsp.writer().write_variant_value(arg);
             }
         }

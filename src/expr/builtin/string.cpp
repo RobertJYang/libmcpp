@@ -32,7 +32,7 @@ struct string_module {
     static mc::variant concat(const mc::variants& args) {
         mc::variant result(mc::type_id::string_type);
         for (const auto& arg : args) {
-            result += arg;
+            result += variant(arg);
         }
         return result;
     }

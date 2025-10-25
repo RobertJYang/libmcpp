@@ -35,6 +35,8 @@
 #include <variant>
 #include <vector>
 
+#include <mc/variant/variants.inl>
+
 // 前向声明
 namespace mc {
 // 检查容器是否具有 reserve 方法的辅助类
@@ -363,6 +365,38 @@ void to_variant(const std::array<T, S>& var, variant& vo) {
 template <typename T, std::size_t S>
 void from_variant(const variant& var, std::array<T, S>& vo) {
     array_from_variant(var, vo);
+}
+
+template <typename T, typename Allocator>
+void to_variant(const mc::array<T, Allocator>& var, variant& vo,
+                std::enable_if_t<is_variant_constructible_v<T>>* = nullptr) {
+    vo = variants(var);
+}
+
+template <typename T, typename Allocator>
+void from_variant(const variant& var, mc::array<T, Allocator>& vo,
+                  std::enable_if_t<is_variant_constructible_v<T>>* = nullptr) {
+    const variants& vars = var.get_array();
+    if (vars.empty()) {
+        vo.clear();
+        return;
+    }
+
+    using impl_type = typename mc::array<T, Allocator>::impl_type;
+    impl_type* data = vars.as<impl_type>();
+    if (data) {
+        vo = mc::array<T, Allocator>::from_impl(mc::shared_ptr<impl_type>(data));
+        return;
+    }
+
+    // 回退到逐个元素转换
+    vo.clear();
+    vo.reserve(vars.size());
+    for (const auto& item : vars) {
+        T t;
+        from_variant(item, t);
+        vo.push_back(std::move(t));
+    }
 }
 
 // std::pair 特化

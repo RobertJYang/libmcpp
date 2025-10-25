@@ -27,8 +27,7 @@
 #include <mc/memory.h>
 #include <mc/pretty_name.h>
 #include <mc/traits.h>
-#include <mc/variant/copy_context.h>
-#include <mc/variant/variant_extension.h>
+#include <mc/variant/variants.h>
 
 namespace mc {
 
@@ -48,7 +47,7 @@ namespace detail {
  * @tparam Allocator 分配器类型
  */
 template <typename T, typename Allocator = std::allocator<T>>
-class array_impl : public mc::variant_extension<array_impl<T, Allocator>>, public std::vector<T, Allocator> {
+class array_impl : public mc::i_variants, public std::vector<T, Allocator> {
 public:
     using base_type = std::vector<T, Allocator>;
 
@@ -93,96 +92,49 @@ public:
         return *this;
     }
 
-    /**
-     * @brief 浅拷贝
-     */
-    mc::shared_ptr<variant_extension_base> copy() const override {
-        return mc::make_shared<array_impl>(*this);
+    // 实现 mc::i_variants 接口
+    size_t do_size() const override {
+        return base_type::size();
     }
 
-    /**
-     * @brief 深拷贝
-     * @param ctx 深拷贝上下文，用于循环引用检测
-     * @return 新的 array_impl 指针（递归深拷贝所有元素）
-     */
-    mc::shared_ptr<variant_extension_base> deep_copy(mc::detail::copy_context* ctx = nullptr) const override {
-        if (!ctx) {
-            mc::detail::copy_context local_ctx;
-            return deep_copy(&local_ctx);
-        }
-
-        // 检测循环引用：如果 this 已经被拷贝过，直接返回已拷贝的版本
-        if (ctx->has_copied(this)) {
-            return ctx->get_copied<array_impl>(this);
-        }
-
-        // 创建新的 array_impl 并记录到上下文
-        auto result = mc::make_shared<array_impl>();
-        result->reserve(this->size());
-        ctx->record_copied(this, result);
-
-        // 递归深拷贝元素，deep_copy > copy > 直接拷贝
-        if constexpr (mc::traits::has_deep_copy_v<T>) {
-            // 优先使用深拷贝
-            for (const auto& item : *this) {
-                result->push_back(item.deep_copy(ctx));
-            }
-        } else if constexpr (mc::traits::has_copy_v<T>) {
-            // 其次使用浅拷贝
-            for (const auto& item : *this) {
-                result->push_back(item.copy());
-            }
-        } else {
-            // 最后直接拷贝
-            for (const auto& item : *this) {
-                result->push_back(item);
-            }
-        }
-        return result;
+    bool do_empty() const override {
+        return base_type::empty();
     }
 
-    /**
-     * @brief 计算哈希值
-     */
-    std::size_t hash() const override {
-        if (this->empty()) {
-            return 0;
-        }
-
-        // 使用黄金比例作为种子
-        const auto  arr_size = this->size();
-        std::size_t h        = 0x9e3779b9 ^ arr_size;
-
-        // 对大数组使用采样算法
-        const std::size_t step = (arr_size >> 5) + 1; // 每 32 个元素采样一次
-
-        if constexpr (mc::traits::is_std_hashable_v<T>) {
-            // 类型支持 std::hash，使用元素的 hash
-            for (std::size_t i = arr_size; i >= step; i -= step) {
-                h = h ^ ((h << 5) + (h >> 2) + std::hash<T>()(this->at(i - 1)));
-            }
-        } else {
-            // 类型不支持 std::hash，使用内部指针作为 hash
-            h = h ^ reinterpret_cast<std::size_t>(this);
-        }
-
-        return h;
+    void do_clear() override {
+        base_type::clear();
     }
 
-    /**
-     * @brief 转换为字符串
-     */
-    std::string as_string() const override {
-        const auto arr_size = this->size();
-        return "array<" + std::string(mc::pretty_name<T>()) + ">[" + std::to_string(arr_size) + "]";
+    void do_reserve(size_t new_cap) override {
+        base_type::reserve(new_cap);
     }
 
-    void               visit(std::function<void(const mc::variant&)>&& visitor) const override;
-    bool               supports_reference_access() const override;
-    mc::variant*       get_ptr(std::size_t index) override;
-    const mc::variant* get_ptr(std::size_t index) const override;
-    mc::variant        get(std::size_t index) const override;
-    void               set(std::size_t index, const mc::variant& value) override;
+    void do_resize(size_t count) override {
+        base_type::resize(count);
+    }
+
+    std::type_index element_type() const override {
+        return typeid(T);
+    }
+
+    std::string element_type_name() const override {
+        return mc::pretty_name<T>();
+    }
+
+    variant        do_at(size_t index) const override;
+    void           do_set(size_t index, const variant& value) override;
+    void           do_push_back(const variant& value) override;
+    void           do_pop_back() override;
+    void           do_insert(size_t pos, const variant& value) override;
+    void           do_resize(size_t count, const variant& value) override;
+    void           do_for_each(std::function<void(const variant&)> visitor) const override;
+    bool           supports_reference_access() const override;
+    variant*       get_ptr(size_t index) override;
+    const variant* get_ptr(size_t index) const override;
+
+    // 拷贝操作
+    mc::shared_ptr<i_variants> copy() const override;
+    mc::shared_ptr<i_variants> deep_copy(mc::detail::copy_context* ctx = nullptr) const override;
 };
 } // namespace detail
 
@@ -213,6 +165,9 @@ public:
     using const_iterator         = typename vector_type::const_iterator;
     using reverse_iterator       = typename vector_type::reverse_iterator;
     using const_reverse_iterator = typename vector_type::const_reverse_iterator;
+
+    // 不支持 variant_reference 数组，因为 variant_reference 是用于访问 variant 的元素的
+    static_assert(!is_variant_reference_v<T>, "T must not be a variant_reference type");
 
     /**
      * @brief 默认构造函数
@@ -305,6 +260,40 @@ public:
     }
 
     /**
+     * @brief 特殊构造函数：当 T 是 variant_reference 时，创建 array<variant>
+     * @param init variant_reference 初始化列表
+     * @param alloc 分配器
+     */
+    template <typename Config>
+    array(const std::initializer_list<variant_reference<Config>>& init,
+          const Allocator&                                        alloc = Allocator())
+        : m_data(mc::make_shared<detail::array_impl<variant>>()) {
+        // 将 variant_reference 转换为 variant 并存储
+        for (const auto& ref : init) {
+            static_cast<std::vector<variant>*>(m_data.get())->push_back(ref.get());
+        }
+    }
+
+    /**
+     * @brief 特殊构造函数：从 variant_reference 迭代器范围构造
+     * @tparam Config variant_reference 的配置类型
+     * @tparam InputIt 输入迭代器类型
+     * @param first 起始迭代器
+     * @param last 结束迭代器
+     * @param alloc 分配器
+     */
+    template <typename Config, typename InputIt>
+    array(InputIt first, InputIt last,
+          std::enable_if_t<is_variant_reference_v<typename std::iterator_traits<InputIt>::value_type>>* = nullptr,
+          const Allocator& alloc                                                                        = Allocator())
+        : m_data(mc::make_shared<detail::array_impl<variant>>()) {
+        // 将 variant_reference 转换为 variant 并存储
+        for (auto it = first; it != last; ++it) {
+            static_cast<std::vector<variant>*>(m_data.get())->push_back(it->get());
+        }
+    }
+
+    /**
      * @brief 析构函数
      */
     ~array() = default;
@@ -342,7 +331,8 @@ public:
     reference at(size_type pos) {
         ensure_data();
         try {
-            return m_data->at(pos);
+            auto* impl = static_cast<detail::array_impl<T>*>(m_data.get());
+            return static_cast<std::vector<T, Allocator>&>(*impl).at(pos);
         } catch (const std::out_of_range&) {
             detail::throw_array_out_of_range("array::at: index out of range");
         }
@@ -353,7 +343,8 @@ public:
             detail::throw_array_out_of_range("array::at: index out of range");
         }
         try {
-            return m_data->at(pos);
+            const auto* impl = static_cast<const detail::array_impl<T>*>(m_data.get());
+            return static_cast<const std::vector<T, Allocator>&>(*impl).at(pos);
         } catch (const std::out_of_range&) {
             detail::throw_array_out_of_range("array::at: index out of range");
         }
@@ -555,12 +546,16 @@ public:
      */
     iterator insert(const_iterator pos, const T& value) {
         ensure_data();
-        return m_data->insert(pos, value);
+        auto* impl = static_cast<detail::array_impl<T>*>(m_data.get());
+        auto  it   = static_cast<std::vector<T, Allocator>&>(*impl).insert(pos, value);
+        return it;
     }
 
     iterator insert(const_iterator pos, T&& value) {
         ensure_data();
-        return m_data->insert(pos, std::move(value));
+        auto* impl = static_cast<detail::array_impl<T>*>(m_data.get());
+        auto  it   = static_cast<std::vector<T, Allocator>&>(*impl).insert(pos, std::move(value));
+        return it;
     }
 
     /**
@@ -572,7 +567,9 @@ public:
      */
     iterator insert(const_iterator pos, size_type count, const T& value) {
         ensure_data();
-        return m_data->insert(pos, count, value);
+        auto* impl = static_cast<detail::array_impl<T>*>(m_data.get());
+        auto  it   = static_cast<std::vector<T, Allocator>&>(*impl).insert(pos, count, value);
+        return it;
     }
 
     /**
@@ -586,7 +583,9 @@ public:
     template <typename InputIt>
     iterator insert(const_iterator pos, InputIt first, InputIt last) {
         ensure_data();
-        return m_data->insert(pos, first, last);
+        auto* impl = static_cast<detail::array_impl<T>*>(m_data.get());
+        auto  it   = static_cast<std::vector<T, Allocator>&>(*impl).insert(pos, first, last);
+        return it;
     }
 
     /**
@@ -597,7 +596,10 @@ public:
      */
     iterator insert(const_iterator pos, std::initializer_list<T> ilist) {
         ensure_data();
-        return m_data->insert(pos, ilist);
+        // 直接访问 array_impl<T> 的底层 vector
+        auto* impl = static_cast<detail::array_impl<T>*>(m_data.get());
+        auto  it   = static_cast<std::vector<T, Allocator>&>(*impl).insert(pos, ilist);
+        return it;
     }
 
     /**
@@ -801,7 +803,7 @@ public:
      * @brief 获取内部实现指针
      * @return 内部实现指针
      */
-    mc::shared_ptr<impl_type> get_data() const {
+    mc::shared_ptr<impl_type> get_impl() const {
         return m_data;
     }
 

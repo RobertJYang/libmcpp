@@ -358,11 +358,11 @@ mc::variant service_impl::timeout_call(mc::milliseconds timeout, std::string_vie
     auto                         msg    = mc::dbus::message::new_method_call(service_name, path, interface, method);
     auto                         writer = msg.writer();
     mc::dbus::signature_iterator it(signature);
-    for (auto& arg : args) {
+    for (auto arg : args) {
         if (it.at_end()) {
             break;
         }
-        writer.write_variant(it, result, 0);
+        writer.write_variant(it, arg, 0);
         it.next();
     }
     auto reply = m_connection.send_with_reply(std::move(msg), timeout);

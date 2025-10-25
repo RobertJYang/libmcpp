@@ -21,15 +21,12 @@
 #include <mc/traits.h>
 #include <mc/variant/io.h>
 #include <mc/variant/variant_base.h>
-
-// 必须在 variant_base.h 之后
-#include <mc/variant/variant_array.inl>
+#include <mc/variant/variant_reference.h>
 
 namespace mc {
 
 using variant       = variant_base<>;
 using blob          = blob_base<>;
-using variants      = typename variant::array_type;
 using typed_variant = variant_base<variant_config<std::allocator<char>, true>>;
 
 // 检查所有类型是否都可以转换为variant
