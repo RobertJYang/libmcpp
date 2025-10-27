@@ -374,7 +374,7 @@ TEST_F(ShmCallTest, TestSubscribePropertiesChanged) {
 
 TEST_F(ShmCallTest, TestDBusCall) {
     // 测试共享内存消息队列不存在时，使用备用的DBus进行调用
-    mc::dbus::shm_lock_call([]() {
+    mc::dbus::shm_global_lock_exec([]() {
         auto& ins             = shm::shared_memory::get_instance();
         auto& harbor_tree_map = ins.get_object_tree_map("harbor.org.openubmc.test_service_1");
         auto  harbor_it       = harbor_tree_map.find("harbor.org.openubmc.test_service_1");
@@ -412,7 +412,7 @@ TEST_F(ShmCallTest, TestDBusCall) {
     ASSERT_EQ(arr[0].as_uint8(), 56);
     ASSERT_EQ(arr[1].as_string(), "test_dbus_call");
 
-    mc::dbus::shm_lock_call([]() {
+    mc::dbus::shm_global_lock_exec([]() {
         auto& ins             = shm::shared_memory::get_instance();
         auto& harbor_tree_map = ins.get_object_tree_map("harbor.org.openubmc.test_service_1");
         auto  harbor_it       = harbor_tree_map.find("harbor.org.openubmc.test_service_1");
