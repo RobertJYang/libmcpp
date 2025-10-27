@@ -19,9 +19,11 @@
 
 #include <cstdint>
 #include <string>
+#include <variant>
 
 #include <mc/common.h>
 #include <mc/memory.h>
+#include <mc/pretty_name.h>
 
 // 前向声明
 namespace mc {
@@ -142,22 +144,21 @@ struct blob_base {
     }
 };
 
-template <typename Allocator = std::allocator<char>, bool FixedType = false>
+template <typename Allocator = std::allocator<char>>
 struct variant_config {
-    using self_type = variant_config<Allocator, FixedType>;
+    using self_type = variant_config<Allocator>;
 
     using alloc_traits    = std::allocator_traits<Allocator>;
     using char_alloc_type = typename alloc_traits::template rebind_alloc<char>;
     using variant_alloc_type =
         typename alloc_traits::template rebind_alloc<variant_base<self_type>>;
 
-    using allocator_type                = Allocator;
-    static constexpr bool is_fixed_type = FixedType;
-    using string_type                   = std::basic_string<char, std::char_traits<char>, char_alloc_type>;
-    using object_type                   = dict;
-    using array_type                    = variants;
-    using blob_type                     = blob_base<char_alloc_type>;
-    using extension_type                = variant_extension_base;
+    using allocator_type = Allocator;
+    using string_type    = std::basic_string<char, std::char_traits<char>, char_alloc_type>;
+    using object_type    = dict;
+    using array_type     = variants;
+    using blob_type      = blob_base<char_alloc_type>;
+    using extension_type = variant_extension_base;
 
     using string_alloc_type = typename alloc_traits::template rebind_alloc<string_type>;
     using array_alloc_type  = typename alloc_traits::template rebind_alloc<array_type>;
@@ -211,6 +212,7 @@ MC_API size_t            calculate_str_hash(std::string_view data);
 MC_API size_t            calculate_array_hash(const variants& array_data);
 
 namespace detail {
+
 // 普通整数类型转 variant_base 的整数类型
 template <typename T, std::enable_if_t<std::is_integral_v<T>, int> = 0>
 static type_id fixed_integer_type() {
@@ -244,8 +246,9 @@ static auto fixed_integer(T val) {
             return static_cast<int16_t>(val);
         } else if constexpr (sizeof(T) == 4) {
             return static_cast<int32_t>(val);
+        } else {
+            return static_cast<int64_t>(val);
         }
-        return static_cast<int64_t>(val);
     } else {
         if constexpr (sizeof(T) == 1) {
             return static_cast<uint8_t>(val);
@@ -253,9 +256,56 @@ static auto fixed_integer(T val) {
             return static_cast<uint16_t>(val);
         } else if constexpr (sizeof(T) == 4) {
             return static_cast<uint32_t>(val);
+        } else {
+            return static_cast<uint64_t>(val);
         }
-        return static_cast<uint64_t>(val);
     }
+}
+
+using numeric_value_t = std::variant<
+    bool,
+    int8_t, uint8_t,
+    int16_t, uint16_t,
+    int32_t, uint32_t,
+    int64_t, uint64_t,
+    float, double>;
+
+template <typename T, std::enable_if_t<std::is_arithmetic_v<T>, int> = 0>
+numeric_value_t make_numeric_value(T val) {
+    if constexpr (std::is_same_v<T, bool>) {
+        return numeric_value_t(val);
+    } else if constexpr (std::is_integral_v<T>) {
+        return numeric_value_t(fixed_integer(val));
+    } else if constexpr (std::is_floating_point_v<T>) {
+        return numeric_value_t(static_cast<double>(val));
+    }
+    throw_invalid_type_operation_error(mc::pretty_name<T>(), "numeric_t", "make_numeric");
+}
+
+struct numeric_t {
+    numeric_t() = default;
+
+    // explicit构造函数，防止隐式转换
+    template <typename T, std::enable_if_t<std::is_arithmetic_v<T>, int> = 0>
+    explicit numeric_t(T value) : data(make_numeric_value(value)) {
+    }
+
+    explicit numeric_t(numeric_value_t value) : data(std::move(value)) {
+    }
+
+    numeric_value_t data;
+};
+
+template <typename T, std::enable_if_t<std::is_arithmetic_v<T>, int> = 0>
+numeric_t make_numeric(T val) {
+    return numeric_t(make_numeric_value(val));
+}
+
+template <typename T>
+T get_numeric(const numeric_t& val) {
+    return std::visit([](auto&& v) -> T {
+        return static_cast<T>(v);
+    }, val.data);
 }
 } // namespace detail
 

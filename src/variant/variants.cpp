@@ -14,7 +14,9 @@
 #include <mc/dict.h>
 #include <mc/variant/variant_base.h>
 #include <mc/variant/variant_common.h>
+#include <mc/variant/variant_reference.h>
 #include <mc/variant/variants.h>
+#include <mc/variant/variants.inl>
 
 namespace mc {
 
@@ -463,8 +465,12 @@ void variants::insert(size_t pos, InputIt first, InputIt last) {
 }
 
 // 显式实例化常用的模板版本
-template void variants::insert<variants_const_iterator>(size_t pos, variants_const_iterator first, variants_const_iterator last);
-template void variants::insert<variants_iterator>(size_t pos, variants_iterator first, variants_iterator last);
+template void MC_API variants::insert<variants_const_iterator>(size_t pos, variants_const_iterator first, variants_const_iterator last);
+template void MC_API variants::insert<variants_iterator>(size_t pos, variants_iterator first, variants_iterator last);
+
+// 迭代器版本的 insert 显式实例化
+template variants_iterator MC_API variants::insert<variants_const_iterator>(variants_iterator pos, variants_const_iterator first, variants_const_iterator last);
+template variants_iterator MC_API variants::insert<variants_iterator>(variants_iterator pos, variants_iterator first, variants_iterator last);
 
 // variants 迭代器方法实现
 variants_const_iterator variants::begin() const {

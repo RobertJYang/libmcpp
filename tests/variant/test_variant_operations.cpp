@@ -611,10 +611,9 @@ TEST_F(VariantOperationsTest, OverflowAndEdgeCases) {
  */
 TEST_F(VariantOperationsTest, FixedTypeOperations) {
     // 测试固定类型模式下的复合赋值运算符
-    using fixed_variant = variant_base<variant_config<std::allocator<char>, true>>;
 
     // 整数类型 - 使用明确的类型
-    fixed_variant v_int(int32_t(42));
+    typed_variant v_int(int32_t(42));
     ASSERT_TRUE(v_int.is_int32());
 
     // 加法不改变类型
@@ -628,7 +627,7 @@ TEST_F(VariantOperationsTest, FixedTypeOperations) {
     ASSERT_EQ(v_int, 55); // 3.14被截断为3
 
     // 浮点数类型
-    fixed_variant v_double(3.14);
+    typed_variant v_double(3.14);
     ASSERT_TRUE(v_double.is_double());
 
     // 加法不改变类型
@@ -637,7 +636,7 @@ TEST_F(VariantOperationsTest, FixedTypeOperations) {
     ASSERT_DOUBLE_EQ(v_double.as_double(), 13.14);
 
     // 字符串类型
-    fixed_variant v_str("Hello");
+    typed_variant v_str("Hello");
     ASSERT_TRUE(v_str.is_string());
 
     // 字符串连接不改变类型
@@ -646,7 +645,7 @@ TEST_F(VariantOperationsTest, FixedTypeOperations) {
     ASSERT_EQ(v_str, "Hello, World");
 
     // 布尔类型
-    fixed_variant v_bool(true);
+    typed_variant v_bool(true);
     ASSERT_TRUE(v_bool.is_bool());
 
     // 与整数相加，保持布尔类型
