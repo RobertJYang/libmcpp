@@ -51,7 +51,7 @@ struct property_extension_data {
     mutable std::unique_ptr<mc::variant>    ref_object_cache; // 缓存引用对象的 variant
 };
 
-class interface_observer {
+class MC_API interface_observer {
 public:
     interface_observer() {
     }
@@ -64,7 +64,7 @@ public:
         return m_interface;
     }
 
-    MC_API void notify(const mc::variant& value, const property_base& prop);
+    void notify(const mc::variant& value, const property_base& prop);
 
 protected:
     // 不要初始化这个值，由 interface 的基类填充

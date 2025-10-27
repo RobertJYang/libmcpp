@@ -510,19 +510,7 @@ struct signature_helper<mc::engine::property<T, Observer>> {
 
 // 为 ref_object* 指针类型添加 from_variant 特化，支持 obj_variant.as<ref_object*>() 语法
 namespace mc {
-template <typename Config>
-void from_variant(const mc::variant_base<Config>& var, mc::engine::ref_object*& ptr) {
-    if (var.is_extension()) {
-        auto ext_ptr = var.as_extension();
-        if (ext_ptr) {
-            ptr = dynamic_cast<mc::engine::ref_object*>(ext_ptr.get());
-            if (ptr) {
-                return;
-            }
-        }
-    }
-    ptr = nullptr;
-}
+MC_API void from_variant(const mc::variant& var, mc::engine::ref_object*& ptr);
 } // namespace mc
 
 #endif // MC_ENGINE_PROPERTY_H

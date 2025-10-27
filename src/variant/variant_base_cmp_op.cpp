@@ -20,11 +20,9 @@
 
 namespace mc {
 
-// ======== 与 variant_base<OtherConfig> 的复杂比较操作符 ========
+// ======== 与 variant_base 的复杂比较操作符 ========
 
-template <typename Config>
-template <typename OtherConfig>
-bool variant_base<Config>::operator<=(const variant_base<OtherConfig>& other) const {
+bool variant_base::operator<=(const variant_base& other) const {
     if (is_double()) {
         if (std::isnan(m_double)) {
             return false;
@@ -37,9 +35,7 @@ bool variant_base<Config>::operator<=(const variant_base<OtherConfig>& other) co
     return !(*this > other);
 }
 
-template <typename Config>
-template <typename OtherConfig>
-bool variant_base<Config>::operator>=(const variant_base<OtherConfig>& other) const {
+bool variant_base::operator>=(const variant_base& other) const {
     if (is_double()) {
         if (std::isnan(m_double)) {
             return false;
@@ -54,9 +50,7 @@ bool variant_base<Config>::operator>=(const variant_base<OtherConfig>& other) co
 
 // ======== 私有辅助函数 ========
 
-template <typename Config>
-template <typename OtherConfig>
-bool variant_base<Config>::same_type_equal(const variant_base<OtherConfig>& other) const {
+bool variant_base::same_type_equal(const variant_base& other) const {
     switch (m_type) {
     case type_id::null_type:
         return true;
@@ -102,9 +96,7 @@ bool variant_base<Config>::same_type_equal(const variant_base<OtherConfig>& othe
     return false;
 }
 
-template <typename Config>
-template <typename OtherConfig>
-bool variant_base<Config>::other_type_equal(const variant_base<OtherConfig>& other) const {
+bool variant_base::other_type_equal(const variant_base& other) const {
     // 任何一个是数字，优先转换为数字比较
     // 任何一个是double，优先转换为double比较
     if (is_numeric() && (other.is_numeric() || other.is_string() || other.is_blob())) {
@@ -158,9 +150,7 @@ bool variant_base<Config>::other_type_equal(const variant_base<OtherConfig>& oth
     return false;
 }
 
-template <typename Config>
-template <typename OtherConfig>
-bool variant_base<Config>::same_type_less(const variant_base<OtherConfig>& other) const {
+bool variant_base::same_type_less(const variant_base& other) const {
     switch (m_type) {
     case type_id::null_type:
         return false; // null等于null
@@ -189,9 +179,7 @@ bool variant_base<Config>::same_type_less(const variant_base<OtherConfig>& other
     throw_invalid_type_comparison_error(get_type_name(), other.get_type_name(), "<");
 }
 
-template <typename Config>
-template <typename OtherConfig>
-bool variant_base<Config>::other_type_less(const variant_base<OtherConfig>& other) const {
+bool variant_base::other_type_less(const variant_base& other) const {
     // 任何一个是数字，优先转换为数字比较
     // 任何一个是double，优先转换为double比较
     if (is_numeric() && (other.is_numeric() || other.is_string() || other.is_blob())) {
@@ -257,8 +245,7 @@ bool variant_base<Config>::other_type_less(const variant_base<OtherConfig>& othe
 
 // ======== 与 std::string_view 的比较操作符 ========
 
-template <typename Config>
-bool variant_base<Config>::operator==(std::string_view other) const {
+bool variant_base::operator==(std::string_view other) const {
     if (is_string()) {
         return *m_string_ptr == other;
     } else if (is_blob()) {
@@ -288,8 +275,7 @@ bool variant_base<Config>::operator==(std::string_view other) const {
     return false;
 }
 
-template <typename Config>
-bool variant_base<Config>::operator<(std::string_view other) const {
+bool variant_base::operator<(std::string_view other) const {
     if (is_string()) {
         return *m_string_ptr < other;
     } else if (is_blob()) {
@@ -318,8 +304,7 @@ bool variant_base<Config>::operator<(std::string_view other) const {
     throw_invalid_type_comparison_error(get_type_name(get_type()), "string_view", "<");
 }
 
-template <typename Config>
-bool variant_base<Config>::operator>(std::string_view other) const {
+bool variant_base::operator>(std::string_view other) const {
     if (is_string()) {
         return *m_string_ptr > other;
     } else if (is_blob()) {
@@ -347,23 +332,5 @@ bool variant_base<Config>::operator>(std::string_view other) const {
     }
     throw_invalid_type_comparison_error(get_type_name(get_type()), "string_view", ">");
 }
-
-} // namespace mc
-
-// ======== 显式实例化 ========
-
-namespace mc {
-
-template MC_API bool variant::operator<= <variant_config<>>(const variant& other) const;
-template MC_API bool variant::operator>= <variant_config<>>(const variant& other) const;
-
-template MC_API bool variant::same_type_equal<variant_config<>>(const variant& other) const;
-template MC_API bool variant::other_type_equal<variant_config<>>(const variant& other) const;
-template MC_API bool variant::same_type_less<variant_config<>>(const variant& other) const;
-template MC_API bool variant::other_type_less<variant_config<>>(const variant& other) const;
-
-template MC_API bool variant::operator==(std::string_view other) const;
-template MC_API bool variant::operator<(std::string_view other) const;
-template MC_API bool variant::operator>(std::string_view other) const;
 
 } // namespace mc

@@ -17,6 +17,7 @@ engine_src_files = files(
   'property/helper.cpp',
   'property/processor.cpp',
   'property/processor_registry.cpp',
+  'property/ref_object.cpp',
   'property/processors/ref_object_processor.cpp',
   'property/processors/ref_property_processor.cpp',
   'property/processors/sync_property_processor.cpp',

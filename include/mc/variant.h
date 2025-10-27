@@ -17,23 +17,19 @@
 #ifndef MC_VARIANT_H
 #define MC_VARIANT_H
 
-#include <mc/dict.h>
+#include <mc/dict/dict.h>
 #include <mc/traits.h>
-#include <mc/variant/io.h>
 #include <mc/variant/variant_base.h>
 #include <mc/variant/variant_reference.h>
 
 namespace mc {
 
-using variant = variant_base<>;
-using blob    = blob_base<>;
-
 /**
  * @brief 固定类型的variant，构造时自动设置为固定类型模式
  */
-class typed_variant : public variant_base<variant_config<>> {
+class typed_variant : public variant_base {
 public:
-    using base_type = variant_base<variant_config<>>;
+    using base_type = variant_base;
 
     // 默认构造函数
     typed_variant() : base_type() {
@@ -100,7 +96,8 @@ struct all_variant_constructible<> : std::true_type {};
 template <typename T, typename... Rest>
 struct all_variant_constructible<T, Rest...> {
     static constexpr bool value =
-        is_variant_constructible_v<T> && all_variant_constructible<Rest...>::value;
+        (is_variant_constructible_v<T> || is_variant_v<T>) &&
+        all_variant_constructible<Rest...>::value;
 };
 
 template <typename... Args>

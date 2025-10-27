@@ -29,11 +29,11 @@
 namespace mc {
 template <typename T, typename Allocator>
 class array;
-
 class variants;
-
-template <typename Config>
 class variant_reference;
+class dict;
+class variant_base;
+class variant_extension_base;
 } // namespace mc
 
 #ifndef VARIANT_FLOAT_EPSILON
@@ -41,25 +41,26 @@ class variant_reference;
 #endif
 
 namespace mc {
-class dict;
-
-// 前置声明
-template <typename Config>
-class variant_base;
-class variant_extension_base;
 
 /**
  * @brief 类型特征，用于识别固定长度的整数类型
  */
 template <typename T>
 inline constexpr bool is_variant_integer_v =
-    std::is_same_v<T, bool> || std::is_same_v<T, int8_t> || std::is_same_v<T, uint8_t> ||
-    std::is_same_v<T, int16_t> || std::is_same_v<T, uint16_t> || std::is_same_v<T, int32_t> ||
-    std::is_same_v<T, uint32_t> || std::is_same_v<T, int64_t> || std::is_same_v<T, uint64_t>;
+    std::is_same_v<std::decay_t<T>, bool> ||
+    std::is_integral_v<std::decay_t<T>>;
+
+template <typename T>
+inline constexpr bool is_variant_string_v =
+    std::is_same_v<T, std::string_view> ||
+    std::is_same_v<T, std::string> ||
+    std::is_same_v<T, char*> || std::is_same_v<T, const char*>;
 
 template <typename T>
 inline constexpr bool is_variant_fundamental_v =
-    is_variant_integer_v<T> || std::is_floating_point_v<T>;
+    is_variant_integer_v<std::decay_t<T>> ||
+    std::is_floating_point_v<std::decay_t<T>> ||
+    is_variant_string_v<std::decay_t<T>>;
 
 namespace detail {
 template <typename, typename T>
@@ -77,8 +78,8 @@ inline constexpr bool is_variant_v = detail::check_is_variant_v<void, T>;
 template <typename T>
 struct is_variant_reference : std::false_type {};
 
-template <typename Config>
-struct is_variant_reference<variant_reference<Config>> : std::true_type {};
+template <>
+struct is_variant_reference<variant_reference> : std::true_type {};
 
 template <typename T>
 constexpr bool is_variant_reference_v = is_variant_reference<T>::value;
@@ -143,15 +144,14 @@ struct blob_base {
         return std::string_view(data.data(), data.size());
     }
 };
+using blob = blob_base<>;
 
 template <typename Allocator = std::allocator<char>>
 struct variant_config {
-    using self_type = variant_config<Allocator>;
-
     using alloc_traits    = std::allocator_traits<Allocator>;
     using char_alloc_type = typename alloc_traits::template rebind_alloc<char>;
     using variant_alloc_type =
-        typename alloc_traits::template rebind_alloc<variant_base<self_type>>;
+        typename alloc_traits::template rebind_alloc<variant_base>;
 
     using allocator_type = Allocator;
     using string_type    = std::basic_string<char, std::char_traits<char>, char_alloc_type>;
@@ -309,12 +309,9 @@ T get_numeric(const numeric_t& val) {
 }
 } // namespace detail
 
-using variant = variant_base<variant_config<>>;
+using variant = variant_base;
 
-template <typename Config>
-std::string to_string(const variant_base<Config>& v) {
-    return v.to_string();
-}
+MC_API std::string to_string(const variant_base& v);
 
 namespace detail {
 // 检测是否存在 to_variant 函数
@@ -332,16 +329,19 @@ inline constexpr bool has_to_variant_function_v = decltype(has_to_variant_functi
 template <typename T>
 struct is_variant_constructible {
     // 第一步：检查是否可以构造
-    static constexpr bool is_constructible = std::is_constructible_v<mc::variant, T>;
+    static constexpr bool is_constructible = mc::is_variant_fundamental_v<T> ||
+                                             std::is_same_v<std::decay_t<T>, mc::dict> ||
+                                             std::is_same_v<std::decay_t<T>, mc::blob> ||
+                                             std::is_same_v<std::decay_t<T>, mc::variants>;
 
-    // 第二步：仅当可构造时，才检查是否有 to_variant 函数
+    // 第二步：仅当不可构造时，才检查是否有 to_variant 函数
     template <typename U, bool IsConstructible>
     struct check_to_variant {
-        static constexpr bool value = false;
+        static constexpr bool value = true;
     };
 
     template <typename U>
-    struct check_to_variant<U, true> {
+    struct check_to_variant<U, false> {
         static constexpr bool value = detail::has_to_variant_function_v<U>;
     };
 
@@ -353,6 +353,13 @@ struct is_variant_constructible {
 template <typename T>
 inline constexpr bool is_variant_constructible_v = detail::is_variant_constructible<T>::value;
 
+inline std::ostream& operator<<(std::ostream& os, const type_id& type) {
+    return os << static_cast<int>(type);
+}
+template <typename Allocator>
+inline std::ostream& operator<<(std::ostream& os, const blob_base<Allocator>& blob) {
+    return os << "blob[" << blob.data.size() << "]";
+}
 } // namespace mc
 
 #endif // MC_VARIANT_COMMON_H

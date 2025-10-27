@@ -81,7 +81,8 @@ struct is_property : std::false_type {};
 template <typename T, typename M>
 struct is_property<M T::*,
                    std::enable_if_t<!is_method_v<M T::*> &&
-                                    is_variant_constructible_v<mc::traits::remove_cvref_t<M>>>>
+                                    (is_variant_v<mc::traits::remove_cvref_t<M>> ||
+                                     is_variant_constructible_v<mc::traits::remove_cvref_t<M>>)>>
     : std::true_type {};
 
 // 检测是否为属性
@@ -433,7 +434,9 @@ public:
     using base_type     = BaseT;
 
     // 静态断言确保返回类型可以转换为variant
-    static_assert(std::is_void_v<RetType> || is_variant_constructible_v<RetType>,
+    static_assert(std::is_void_v<RetType> ||
+                      is_variant_constructible_v<RetType> ||
+                      is_variant_v<RetType>,
                   "方法返回类型必须是void或者可以转换为mc::variant");
 
     // 静态断言确保所有参数类型都可以从variant转换

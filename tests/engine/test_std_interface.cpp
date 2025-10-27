@@ -25,7 +25,7 @@
 namespace tests::engine::std_interface {
 class TestInterface1 : public mc::engine::interface<TestInterface1> {
 public:
-    MC_INTERFACE("org.test.TestInterface1")
+    MC_INTERFACE("org.test.std.TestInterface1")
 
     void set_value(int32_t value) {
         m_value = value;
@@ -43,7 +43,7 @@ public:
 
 class TestInterface2 : public mc::engine::interface<TestInterface2> {
 public:
-    MC_INTERFACE("org.test.TestInterface2")
+    MC_INTERFACE("org.test.std.TestInterface2")
 
     std::string                     m_id;
     std::map<std::string, uint32_t> m_map;
@@ -376,19 +376,19 @@ protected:
 };
 
 TEST_F(std_interface_test, test_properties) {
-    auto value = root->invoke("Get", mc::variants{"org.test.TestInterface1", "Value"},
+    auto value = root->invoke("Get", mc::variants{"org.test.std.TestInterface1", "Value"},
                               properties_interface_name);
     EXPECT_EQ(value, 100);
 
     auto i1values =
-        root->invoke("GetAll", mc::variants{"org.test.TestInterface1"}, properties_interface_name);
+        root->invoke("GetAll", mc::variants{"org.test.std.TestInterface1"}, properties_interface_name);
     EXPECT_EQ(i1values, (mc::dict{{"Value", 100}, {"Name", "Name"}}));
 
-    auto i2values = child_obj2->invoke("GetAll", mc::variants{"org.test.TestInterface2"},
+    auto i2values = child_obj2->invoke("GetAll", mc::variants{"org.test.std.TestInterface2"},
                                        properties_interface_name);
     EXPECT_EQ(i2values, (mc::dict{{"Id", "00101"}, {"Map", mc::dict{{"Key1", 1}, {"Key2", 2}}}}));
 
-    root->invoke("Set", mc::variants{"org.test.TestInterface1", "Value", 200},
+    root->invoke("Set", mc::variants{"org.test.std.TestInterface1", "Value", 200},
                  properties_interface_name);
     EXPECT_EQ(root->m_iface1.m_value, 200);
 
@@ -433,7 +433,7 @@ TEST_F(std_interface_test, test_introspect) {
     object.erase(mc::engine::common_properties_name);
 
     auto expected = mc::dict{{
-        "org.test.TestInterface1",
+        "org.test.std.TestInterface1",
         mc::dict{
             {
                 "properties",
@@ -443,18 +443,18 @@ TEST_F(std_interface_test, test_introspect) {
             {
                 "methods",
                 mc::variants{mc::dict{{"name", "SetValue"},
-                                      {"args", mc::variants{{mc::dict{{"type", "i"},
-                                                                      {"direction", "in"}}}}}},
+                                      {"args", mc::variants{mc::dict{{"type", "i"},
+                                                                     {"direction", "in"}}}}},
                              mc::dict{{"name", "GetValue"},
-                                      {"args", mc::variants{{mc::dict{
-                                                   {{"type", "i"}, {"direction", "out"}}}}}}}},
+                                      {"args", mc::variants{mc::dict{{"type", "i"},
+                                                                     {"direction", "out"}}}}}},
             },
             {
                 "signals",
                 mc::variants{
                     mc::dict{{"name", "ValueChanged"},
                              {"args",
-                              mc::variants{{mc::dict{{"type", "i"}}}, {mc::dict{{"type", "i"}}}}}},
+                              mc::variants{mc::dict{{"type", "i"}}, mc::dict{{"type", "i"}}}}},
                 },
             },
         },

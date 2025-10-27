@@ -65,7 +65,9 @@ public:
     using args_type     = std::tuple<mc::traits::remove_cvref_t<Args>...>;
 
     // 静态断言确保返回类型可以转换为 mc::variant
-    static_assert(std::is_void_v<RetType> || mc::is_variant_constructible_v<RetType>,
+    static_assert(std::is_void_v<RetType> ||
+                      mc::is_variant_constructible_v<RetType> ||
+                      mc::is_variant_v<RetType>,
                   "函数返回类型必须是 void 或者可以转换为 mc::variant");
 
     // 静态断言确保所有参数类型都可以从 mc::variant 转换

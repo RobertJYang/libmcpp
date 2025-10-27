@@ -22,20 +22,16 @@ namespace mc {
 
 // ======== 比较操作符 ========
 
-template <typename Config>
-template <typename OtherConfig>
-bool variant_base<Config>::operator<(const variant_base<OtherConfig>& other) const {
-    if (m_type == other.get_type()) {
+bool variant_base::operator<(const variant_base& other) const {
+    if (m_type == other.m_type) {
         return same_type_less(other);
     } else {
         return other_type_less(other);
     }
 }
 
-template <typename Config>
-template <typename OtherConfig>
-bool variant_base<Config>::operator==(const variant_base<OtherConfig>& other) const {
-    if (m_type == other.get_type()) {
+bool variant_base::operator==(const variant_base& other) const {
+    if (m_type == other.m_type) {
         return same_type_equal(other);
     } else {
         return other_type_equal(other);
@@ -44,9 +40,7 @@ bool variant_base<Config>::operator==(const variant_base<OtherConfig>& other) co
 
 // ======== 算术运算操作符 ========
 
-template <typename Config>
-template <typename OtherConfig>
-variant_base<Config> variant_base<Config>::operator+(const variant_base<OtherConfig>& other) const {
+variant_base variant_base::operator+(const variant_base& other) const {
     // 任意一个是字符串，使用字符串拼接
     if (is_string()) {
         if (other.is_string()) {
@@ -112,9 +106,7 @@ variant_base<Config> variant_base<Config>::operator+(const variant_base<OtherCon
     }
 }
 
-template <typename Config>
-template <typename OtherConfig>
-variant_base<Config> variant_base<Config>::operator-(const variant_base<OtherConfig>& other) const {
+variant_base variant_base::operator-(const variant_base& other) const {
     try {
         if (is_double() || other.is_double()) {
             return {as_double() - other.as_double()};
@@ -135,9 +127,7 @@ variant_base<Config> variant_base<Config>::operator-(const variant_base<OtherCon
     }
 }
 
-template <typename Config>
-template <typename OtherConfig>
-variant_base<Config> variant_base<Config>::operator*(const variant_base<OtherConfig>& other) const {
+variant_base variant_base::operator*(const variant_base& other) const {
     try {
         if (is_double() || other.is_double()) {
             return {as_double() * other.as_double()};
@@ -172,9 +162,7 @@ Variant1 variant_divide(const Variant1& self, const Variant2& other) {
     return {*s_value / *o_value};
 }
 
-template <typename Config>
-template <typename OtherConfig>
-variant_base<Config> variant_base<Config>::operator/(const variant_base<OtherConfig>& other) const {
+variant_base variant_base::operator/(const variant_base& other) const {
     if (is_double() || other.is_double() || is_bool()) {
         return variant_divide<double>(*this, other);
     }
@@ -209,9 +197,7 @@ Variant1 variant_mod(const Variant1& self, const Variant2& other) {
     }
 }
 
-template <typename Config>
-template <typename OtherConfig>
-variant_base<Config> variant_base<Config>::operator%(const variant_base<OtherConfig>& other) const {
+variant_base variant_base::operator%(const variant_base& other) const {
     if (is_double() || other.is_double()) {
         return variant_mod<double>(*this, other);
     }
@@ -225,9 +211,7 @@ variant_base<Config> variant_base<Config>::operator%(const variant_base<OtherCon
 
 // ======== 位运算操作符 ========
 
-template <typename Config>
-template <typename OtherConfig>
-variant_base<Config> variant_base<Config>::operator&(const variant_base<OtherConfig>& other) const {
+variant_base variant_base::operator&(const variant_base& other) const {
     try {
         if (is_unsigned_integer() && other.is_unsigned_integer()) {
             return {as_uint64() & other.as_uint64()};
@@ -239,9 +223,7 @@ variant_base<Config> variant_base<Config>::operator&(const variant_base<OtherCon
     }
 }
 
-template <typename Config>
-template <typename OtherConfig>
-variant_base<Config> variant_base<Config>::operator|(const variant_base<OtherConfig>& other) const {
+variant_base variant_base::operator|(const variant_base& other) const {
     try {
         if (is_unsigned_integer() && other.is_unsigned_integer()) {
             return {as_uint64() | other.as_uint64()};
@@ -253,9 +235,7 @@ variant_base<Config> variant_base<Config>::operator|(const variant_base<OtherCon
     }
 }
 
-template <typename Config>
-template <typename OtherConfig>
-variant_base<Config> variant_base<Config>::operator^(const variant_base<OtherConfig>& other) const {
+variant_base variant_base::operator^(const variant_base& other) const {
     try {
         if (is_unsigned_integer() && other.is_unsigned_integer()) {
             return {as_uint64() ^ other.as_uint64()};
@@ -267,10 +247,8 @@ variant_base<Config> variant_base<Config>::operator^(const variant_base<OtherCon
     }
 }
 
-template <typename Config>
-template <typename OtherConfig>
-variant_base<Config>
-variant_base<Config>::operator<<(const variant_base<OtherConfig>& other) const {
+variant_base
+variant_base::operator<<(const variant_base& other) const {
     try {
         uint64_t shift_amount = other.as_uint64();
         if (shift_amount >= sizeof(uint64_t) * 8) {
@@ -285,10 +263,8 @@ variant_base<Config>::operator<<(const variant_base<OtherConfig>& other) const {
     }
 }
 
-template <typename Config>
-template <typename OtherConfig>
-variant_base<Config>
-variant_base<Config>::operator>>(const variant_base<OtherConfig>& other) const {
+variant_base
+variant_base::operator>>(const variant_base& other) const {
     try {
         uint64_t shift_amount = other.as_uint64();
         if (shift_amount >= sizeof(uint64_t) * 8) {
@@ -308,9 +284,7 @@ variant_base<Config>::operator>>(const variant_base<OtherConfig>& other) const {
 
 // ======== 复合赋值操作符 ========
 
-template <typename Config>
-template <typename OtherConfig>
-variant_base<Config>& variant_base<Config>::operator+=(const variant_base<OtherConfig>& other) {
+variant_base& variant_base::operator+=(const variant_base& other) {
     if (is_string()) {
         if (other.is_string()) {
             m_string_ptr->append(*other.m_string_ptr);
@@ -356,91 +330,71 @@ variant_base<Config>& variant_base<Config>::operator+=(const variant_base<OtherC
     return *this;
 }
 
-template <typename Config>
-template <typename OtherConfig>
-variant_base<Config>& variant_base<Config>::operator-=(const variant_base<OtherConfig>& other) {
+variant_base& variant_base::operator-=(const variant_base& other) {
     set_value(*this - other);
     return *this;
 }
 
-template <typename Config>
-template <typename OtherConfig>
-variant_base<Config>& variant_base<Config>::operator*=(const variant_base<OtherConfig>& other) {
+variant_base& variant_base::operator*=(const variant_base& other) {
     set_value(*this * other);
     return *this;
 }
 
-template <typename Config>
-template <typename OtherConfig>
-variant_base<Config>& variant_base<Config>::operator/=(const variant_base<OtherConfig>& other) {
+variant_base& variant_base::operator/=(const variant_base& other) {
     set_value(*this / other);
     return *this;
 }
 
-template <typename Config>
-template <typename OtherConfig>
-variant_base<Config>& variant_base<Config>::operator%=(const variant_base<OtherConfig>& other) {
+variant_base& variant_base::operator%=(const variant_base& other) {
     set_value(*this % other);
     return *this;
 }
 
-template <typename Config>
-template <typename OtherConfig>
-variant_base<Config>& variant_base<Config>::operator&=(const variant_base<OtherConfig>& other) {
+variant_base& variant_base::operator&=(const variant_base& other) {
     set_value(*this & other);
     return *this;
 }
 
-template <typename Config>
-template <typename OtherConfig>
-variant_base<Config>& variant_base<Config>::operator|=(const variant_base<OtherConfig>& other) {
+variant_base& variant_base::operator|=(const variant_base& other) {
     set_value(*this | other);
     return *this;
 }
 
-template <typename Config>
-template <typename OtherConfig>
-variant_base<Config>& variant_base<Config>::operator^=(const variant_base<OtherConfig>& other) {
+variant_base& variant_base::operator^=(const variant_base& other) {
     set_value(*this ^ other);
     return *this;
 }
 
-template <typename Config>
-template <typename OtherConfig>
-variant_base<Config>& variant_base<Config>::operator<<=(const variant_base<OtherConfig>& other) {
+variant_base& variant_base::operator<<=(const variant_base& other) {
     set_value(*this << other);
     return *this;
 }
 
-template <typename Config>
-template <typename OtherConfig>
-variant_base<Config>& variant_base<Config>::operator>>=(const variant_base<OtherConfig>& other) {
+variant_base& variant_base::operator>>=(const variant_base& other) {
     set_value(*this >> other);
     return *this;
 }
 
-template <typename Config>
-variant_base<Config> variant_base<Config>::operator+(std::string_view other) const {
+variant_base variant_base::operator+(std::string_view other) const {
     if (is_string()) {
         std::string tmp;
         tmp.reserve(size() + other.size());
         tmp += get_string();
         tmp += other;
-        return variant_base<Config>(std::move(tmp));
+        return variant_base(std::move(tmp));
     } else if (is_blob()) {
         blob_type tmp;
         tmp.data.reserve(size() + other.size());
         auto blob = get_blob().as_string_view();
         tmp.data.insert(tmp.data.end(), blob.begin(), blob.end());
         tmp.data.insert(tmp.data.end(), other.begin(), other.end());
-        return variant_base<Config>(std::move(tmp));
+        return variant_base(std::move(tmp));
     } else {
         return *this + variant(other);
     }
 }
 
-template <typename Config>
-variant_base<Config> operator+(std::string_view lhs, const variant_base<Config>& rhs) {
+MC_API variant_base operator+(std::string_view lhs, const variant_base& rhs) {
     std::string tmp;
     if (rhs.is_string()) {
         tmp.reserve(lhs.size() + rhs.get_string().size());
@@ -456,13 +410,12 @@ variant_base<Config> operator+(std::string_view lhs, const variant_base<Config>&
         tmp += lhs;
         tmp += s;
     }
-    return variant_base<Config>(std::move(tmp));
+    return variant_base(std::move(tmp));
 }
 
 // ======== 一元操作符 ========
 
-template <typename Config>
-variant_base<Config> variant_base<Config>::operator~() const {
+variant_base variant_base::operator~() const {
     try {
         if (is_unsigned_integer()) {
             return {~as_uint64()};
@@ -474,8 +427,7 @@ variant_base<Config> variant_base<Config>::operator~() const {
     }
 }
 
-template <typename Config>
-variant_base<Config> variant_base<Config>::operator-() const {
+variant_base variant_base::operator-() const {
     try {
         if (is_double()) {
             return {-m_double};
@@ -494,15 +446,13 @@ variant_base<Config> variant_base<Config>::operator-() const {
     }
 }
 
-template <typename Config>
-variant_base<Config> variant_base<Config>::operator!() const {
+variant_base variant_base::operator!() const {
     return {!as_bool()};
 }
 
 // ======== 递增/递减操作符 ========
 
-template <typename Config>
-variant_base<Config>& variant_base<Config>::operator++() {
+variant_base& variant_base::operator++() {
     if (is_double()) {
         m_double += 1.0;
     } else if (is_unsigned_integer()) {
@@ -517,8 +467,7 @@ variant_base<Config>& variant_base<Config>::operator++() {
     return *this;
 }
 
-template <typename Config>
-variant_base<Config>& variant_base<Config>::operator--() {
+variant_base& variant_base::operator--() {
     if (is_double()) {
         m_double -= 1.0;
     } else if (is_unsigned_integer()) {
@@ -533,56 +482,16 @@ variant_base<Config>& variant_base<Config>::operator--() {
     return *this;
 }
 
-template <typename Config>
-variant_base<Config> variant_base<Config>::operator++(int) {
-    variant_base<Config> temp(*this);
+variant_base variant_base::operator++(int) {
+    variant_base temp(*this);
     ++(*this);
     return temp;
 }
 
-template <typename Config>
-variant_base<Config> variant_base<Config>::operator--(int) {
-    variant_base<Config> temp(*this);
+variant_base variant_base::operator--(int) {
+    variant_base temp(*this);
     --(*this);
     return temp;
 }
-
-// ======== 显式模板实例化 ========
-
-template MC_API bool variant::operator< <variant_config<>>(const variant& other) const;
-template MC_API bool variant::operator== <variant_config<>>(const variant& other) const;
-
-template MC_API variant variant::operator+ <variant_config<>>(const variant& other) const;
-template MC_API variant variant::operator- <variant_config<>>(const variant& other) const;
-template MC_API variant variant::operator* <variant_config<>>(const variant& other) const;
-template MC_API variant variant::operator/ <variant_config<>>(const variant& other) const;
-template MC_API variant variant::operator% <variant_config<>>(const variant& other) const;
-template MC_API variant variant::operator& <variant_config<>>(const variant& other) const;
-template MC_API variant variant::operator| <variant_config<>>(const variant& other) const;
-template MC_API variant variant::operator^ <variant_config<>>(const variant& other) const;
-template MC_API variant variant::operator<< <variant_config<>>(const variant& other) const;
-template MC_API variant variant::operator>> <variant_config<>>(const variant& other) const;
-
-template MC_API variant& variant::operator+= <variant_config<>>(const variant& other);
-template MC_API variant& variant::operator-= <variant_config<>>(const variant& other);
-template MC_API variant& variant::operator*= <variant_config<>>(const variant& other);
-template MC_API variant& variant::operator/= <variant_config<>>(const variant& other);
-template MC_API variant& variant::operator%= <variant_config<>>(const variant& other);
-template MC_API variant& variant::operator&= <variant_config<>>(const variant& other);
-template MC_API variant& variant::operator|= <variant_config<>>(const variant& other);
-template MC_API variant& variant::operator^= <variant_config<>>(const variant& other);
-template MC_API variant& variant::operator<<= <variant_config<>>(const variant& other);
-template MC_API variant& variant::operator>>= <variant_config<>>(const variant& other);
-
-template MC_API variant variant::operator+(std::string_view other) const;
-template MC_API variant operator+ <variant_config<>>(std::string_view lhs, const variant& rhs);
-
-template MC_API variant  variant::operator~() const;
-template MC_API variant  variant::operator-() const;
-template MC_API variant  variant::operator!() const;
-template MC_API variant& variant::operator++();
-template MC_API variant& variant::operator--();
-template MC_API variant  variant::operator++(int);
-template MC_API variant  variant::operator--(int);
 
 } // namespace mc

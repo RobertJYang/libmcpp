@@ -626,9 +626,9 @@ TEST(array_test, variant_reference_initializer_list_constructor) {
     mc::array<mc::variant> source_array = {mc::variant(42), mc::variant("hello"), mc::variant(true)};
 
     // 直接创建 variant_reference 对象
-    mc::variant_reference<mc::variant_config<>> ref1(source_array[0]);
-    mc::variant_reference<mc::variant_config<>> ref2(source_array[1]);
-    mc::variant_reference<mc::variant_config<>> ref3(source_array[2]);
+    mc::variant_reference ref1(source_array[0]);
+    mc::variant_reference ref2(source_array[1]);
+    mc::variant_reference ref3(source_array[2]);
 
     // 使用 variant_reference 初始化列表构造新的 array
     // 应该创建 mc::array<variant> 而不是 mc::array<variant_reference>
@@ -652,7 +652,7 @@ TEST(array_test, variant_reference_iterator_range_constructor) {
     mc::array<mc::variant> source_array = {mc::variant(100), mc::variant(200), mc::variant(300)};
 
     // 获取 variant_reference 迭代器
-    std::vector<mc::variant_reference<mc::variant_config<>>> refs;
+    std::vector<mc::variant_reference> refs;
     refs.emplace_back(source_array[0]);
     refs.emplace_back(source_array[1]);
     refs.emplace_back(source_array[2]);

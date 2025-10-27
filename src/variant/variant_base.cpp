@@ -22,9 +22,30 @@
 
 namespace mc {
 
-template <typename Config>
-variant_base<Config>::variant_base(const variant_base& other)
-    : m_type(other.m_type), m_is_fixed(other.m_is_fixed), m_alloc(other.m_alloc) {
+variant_base::variant_base(type_id type) : m_uint64(0), m_type(type), m_is_fixed(false) {
+    switch (type) {
+    case type_id::string_type:
+        m_string_ptr = mc::allocate_ptr<string_type>(allocator_type());
+        break;
+    case type_id::array_type:
+        new (&m_array) array_type();
+        break;
+    case type_id::object_type:
+        new (&m_object) object_type();
+        break;
+    case type_id::blob_type:
+        m_blob_ptr = mc::allocate_ptr<blob_type>(allocator_type());
+        break;
+    case type_id::extension_type:
+        new (&m_extension) extension_ptr_type();
+        break;
+    default:
+        break;
+    }
+}
+
+variant_base::variant_base(const variant_base& other)
+    : m_type(other.m_type), m_is_fixed(other.m_is_fixed) {
     switch (other.m_type) {
     case type_id::null_type:
         break;
@@ -47,18 +68,18 @@ variant_base<Config>::variant_base(const variant_base& other)
         m_bool = other.m_bool;
         break;
     case type_id::string_type:
-        m_string_ptr = mc::allocate_ptr<string_type>(m_alloc, other.m_string_ptr->data(),
-                                                     other.m_string_ptr->size(), m_alloc);
+        m_string_ptr = mc::allocate_ptr<string_type>(allocator_type(), other.m_string_ptr->data(),
+                                                     other.m_string_ptr->size());
         break;
     case type_id::array_type:
-        new (&m_array) array_type(other.m_array, m_alloc);
+        new (&m_array) array_type(other.m_array);
         break;
     case type_id::object_type:
         new (&m_object) object_type(other.m_object);
         break;
     case type_id::blob_type:
-        m_blob_ptr = mc::allocate_ptr<blob_type>(m_alloc, other.m_blob_ptr->data.data(),
-                                                 other.m_blob_ptr->data.size(), m_alloc);
+        m_blob_ptr = mc::allocate_ptr<blob_type>(allocator_type(), other.m_blob_ptr->data.data(),
+                                                 other.m_blob_ptr->data.size());
         break;
     case type_id::extension_type:
         new (&m_extension) extension_ptr_type(other.m_extension);
@@ -68,24 +89,69 @@ variant_base<Config>::variant_base(const variant_base& other)
     }
 }
 
-template <typename Config>
-mc::dict variant_base<Config>::as_dict() const {
+variant_base::variant_base(variant_base&& other) noexcept {
+    m_type     = other.m_type;
+    m_is_fixed = other.m_is_fixed;
+    switch (m_type) {
+    case type_id::null_type:
+        break;
+    case type_id::int8_type:
+    case type_id::int16_type:
+    case type_id::int32_type:
+    case type_id::int64_type:
+        m_int64 = other.m_int64;
+        break;
+    case type_id::uint8_type:
+    case type_id::uint16_type:
+    case type_id::uint32_type:
+    case type_id::uint64_type:
+        m_uint64 = other.m_uint64;
+        break;
+    case type_id::double_type:
+        m_double = other.m_double;
+        break;
+    case type_id::bool_type:
+        m_bool = other.m_bool;
+        break;
+    case type_id::string_type:
+        m_string_ptr = other.m_string_ptr;
+        break;
+    case type_id::array_type:
+        new (&m_array) array_type(other.m_array);
+        break;
+    case type_id::object_type:
+        new (&m_object) object_type(std::move(other.m_object));
+        break;
+    case type_id::blob_type:
+        m_blob_ptr = other.m_blob_ptr;
+        break;
+    case type_id::extension_type:
+        new (&m_extension) extension_ptr_type(std::move(other.m_extension));
+        break;
+    default:
+        break;
+    }
+
+    other.m_type     = type_id::null_type;
+    other.m_is_fixed = false;
+    other.m_uint64   = 0;
+}
+
+mc::dict variant_base::as_dict() const {
     return as_object();
 }
 
-template <typename Config>
-mc::dict variant_base<Config>::as_object() const {
+mc::dict variant_base::as_object() const {
     if (!is_object()) {
         throw_type_error("object", m_type);
     }
     return m_object;
 }
 
-template <typename Config>
-void variant_base<Config>::clear() {
+void variant_base::clear() {
     switch (m_type) {
     case type_id::string_type:
-        mc::destroy_ptr(m_alloc, m_string_ptr);
+        mc::destroy_ptr(allocator_type(), m_string_ptr);
         break;
     case type_id::array_type:
         m_array.~array_type();
@@ -94,7 +160,7 @@ void variant_base<Config>::clear() {
         m_object.~object_type();
         break;
     case type_id::blob_type:
-        mc::destroy_ptr(m_alloc, m_blob_ptr);
+        mc::destroy_ptr(allocator_type(), m_blob_ptr);
         break;
     case type_id::extension_type:
         m_extension.~extension_ptr_type();
@@ -106,8 +172,7 @@ void variant_base<Config>::clear() {
     m_uint64 = 0;
 }
 
-template <typename Config>
-size_t variant_base<Config>::size() const {
+size_t variant_base::size() const {
     switch (m_type) {
     case type_id::array_type:
         return m_array.size();
@@ -122,80 +187,71 @@ size_t variant_base<Config>::size() const {
     }
 }
 
-template <typename Config>
-variant_reference<Config> variant_base<Config>::operator[](std::string_view key) {
-    if (m_type == type_id::object_type) {
-        return variant_reference<Config>(m_object[key]);
-    } else if (m_type == type_id::extension_type) {
+variant_reference variant_base::operator[](std::string_view key) {
+    if (is_object()) {
+        return variant_reference(m_object[key]);
+    } else if (is_extension()) {
         if (!m_extension) {
             throw_extension_null_error();
         }
         // 优化：如果 extension 支持零开销引用访问，直接返回指针
         if (m_extension->supports_reference_access()) {
             if (auto* ptr = m_extension->get_ptr(key)) {
-                return variant_reference<Config>(*ptr);
+                return variant_reference(*ptr);
             }
         }
         // 否则使用值访问模式（有拷贝开销）
-        return variant_reference<Config>(m_extension, std::string(key));
+        return variant_reference(m_extension, std::string(key));
     } else {
-        throw_type_error("object", m_type);
+        throw_type_error("object", get_type());
     }
 }
 
-template <typename Config>
-variant_reference<Config> variant_base<Config>::operator[](std::string_view key) const {
-    if (m_type == type_id::object_type) {
-        return variant_reference<Config>(const_cast<variant_base<Config>&>((m_object)[key]));
-    } else if (m_type == type_id::extension_type) {
+variant_reference variant_base::operator[](std::string_view key) const {
+    if (is_object()) {
+        return variant_reference(const_cast<variant_base&>((m_object)[key]));
+    } else if (is_extension()) {
         if (!m_extension) {
             throw_extension_null_error();
         }
         // 优化：如果 extension 支持零开销引用访问，直接返回指针
         if (m_extension->supports_reference_access()) {
             if (auto* ptr = m_extension->get_ptr(key)) {
-                return variant_reference<Config>(const_cast<variant_base<Config>&>(*ptr));
+                return variant_reference(const_cast<variant_base&>(*ptr));
             }
         }
         // 否则使用值访问模式（有拷贝开销）
-        return variant_reference<Config>(m_extension, std::string(key));
+        return variant_reference(m_extension, std::string(key));
     } else {
-        throw_type_error("object", m_type);
+        throw_type_error("object", get_type());
     }
 }
 
-template <typename Config>
-const variant_base<Config>&
-variant_base<Config>::get(std::string_view key, const variant_base<Config>& default_value) const {
-    if (m_type != type_id::object_type) {
+const variant_base&
+variant_base::get(std::string_view key, const variant_base& default_value) const {
+    if (!is_object()) {
         return default_value;
     }
 
     return m_object.get(key, default_value);
 }
 
-template <typename Config>
-bool variant_base<Config>::contains(std::string_view key) const {
-    if (m_type != type_id::object_type) {
+bool variant_base::contains(std::string_view key) const {
+    if (!is_object()) {
         return false;
     }
 
     return m_object.contains(key);
 }
 
-template <typename Config>
-bool variant_base<Config>::operator==(const dict& other) const {
+bool variant_base::operator==(const dict& other) const {
     if (!is_object()) {
         return false;
     }
     return m_object == other;
 }
 
-// ======== 第四批：赋值和设置函数 ========
-
-template <typename Config>
-template <typename OtherConfig>
-variant_base<OtherConfig>& variant_base<Config>::set_value(const variant_base<OtherConfig>& other) {
+variant_base& variant_base::set_value(const variant_base& other) {
     switch (m_type) {
     case type_id::int8_type: {
         m_int64 = other.as_int8();
@@ -258,16 +314,14 @@ variant_base<OtherConfig>& variant_base<Config>::set_value(const variant_base<Ot
         break;
     }
     default:
-        throw_unknow_type_error(m_type);
+        throw_unknow_type_error(get_type());
         break;
     }
 
     return *this;
 }
 
-template <typename Config>
-template <typename OtherConfig>
-variant_base<OtherConfig>& variant_base<Config>::set_value(variant_base<OtherConfig>&& other) {
+variant_base& variant_base::set_value(variant_base&& other) {
     if (m_type == other.m_type) {
         // 如果类型相同，直接移动内容
         swap(other);
@@ -278,139 +332,7 @@ variant_base<OtherConfig>& variant_base<Config>::set_value(variant_base<OtherCon
     }
 }
 
-template <typename Config>
-template <typename OtherConfig>
-variant_base<Config>::variant_base(const variant_base<OtherConfig>& other,
-                                   const allocator_type&            alloc) {
-    m_type  = other.m_type;
-    m_alloc = alloc;
-    switch (other.m_type) {
-    case type_id::null_type:
-        break;
-    case type_id::int8_type:
-    case type_id::int16_type:
-    case type_id::int32_type:
-    case type_id::int64_type:
-        m_int64 = other.m_int64;
-        break;
-    case type_id::uint8_type:
-    case type_id::uint16_type:
-    case type_id::uint32_type:
-    case type_id::uint64_type:
-        m_uint64 = other.m_uint64;
-        break;
-    case type_id::double_type:
-        m_double = other.m_double;
-        break;
-    case type_id::bool_type:
-        m_bool = other.m_bool;
-        break;
-    case type_id::string_type:
-        m_string_ptr = mc::allocate_ptr<string_type>(m_alloc, other.m_string_ptr->data(),
-                                                     other.m_string_ptr->size(), m_alloc);
-        break;
-    case type_id::array_type: {
-        new (&m_array) array_type(m_alloc);
-        for (const auto& item : other.m_array) {
-            m_array.push_back(item);
-        }
-        break;
-    }
-    case type_id::object_type:
-        new (&m_object) object_type(other.m_object);
-        break;
-    case type_id::blob_type:
-        m_blob_ptr = mc::allocate_ptr<blob_type>(m_alloc, other.m_blob_ptr->data.data(),
-                                                 other.m_blob_ptr->data.size(), m_alloc);
-        break;
-    case type_id::extension_type:
-        new (&m_extension) extension_ptr_type(other.m_extension);
-        break;
-    default:
-        break;
-    }
-}
-
-// ======== 成员函数实现 ========
-
-// 构造函数
-template <typename Config>
-variant_base<Config>::variant_base(type_id type) : m_uint64(0), m_type(type), m_is_fixed(false) {
-    switch (type) {
-    case type_id::string_type:
-        m_string_ptr = mc::allocate_ptr<string_type>(m_alloc);
-        break;
-    case type_id::array_type:
-        new (&m_array) array_type();
-        break;
-    case type_id::object_type:
-        new (&m_object) object_type();
-        break;
-    case type_id::blob_type:
-        m_blob_ptr = mc::allocate_ptr<blob_type>(m_alloc);
-        break;
-    case type_id::extension_type:
-        new (&m_extension) extension_ptr_type();
-        break;
-    default:
-        break;
-    }
-}
-
-// 移动构造函数
-template <typename Config>
-variant_base<Config>::variant_base(variant_base&& other) noexcept {
-    m_type     = other.m_type;
-    m_is_fixed = other.m_is_fixed;
-    m_alloc    = std::move(other.m_alloc);
-    switch (m_type) {
-    case type_id::null_type:
-        break;
-    case type_id::int8_type:
-    case type_id::int16_type:
-    case type_id::int32_type:
-    case type_id::int64_type:
-        m_int64 = other.m_int64;
-        break;
-    case type_id::uint8_type:
-    case type_id::uint16_type:
-    case type_id::uint32_type:
-    case type_id::uint64_type:
-        m_uint64 = other.m_uint64;
-        break;
-    case type_id::double_type:
-        m_double = other.m_double;
-        break;
-    case type_id::bool_type:
-        m_bool = other.m_bool;
-        break;
-    case type_id::string_type:
-        m_string_ptr = other.m_string_ptr;
-        break;
-    case type_id::array_type:
-        new (&m_array) array_type(other.m_array);
-        break;
-    case type_id::object_type:
-        new (&m_object) object_type(std::move(other.m_object));
-        break;
-    case type_id::blob_type:
-        m_blob_ptr = other.m_blob_ptr;
-        break;
-    case type_id::extension_type:
-        new (&m_extension) extension_ptr_type(std::move(other.m_extension));
-        break;
-    default:
-        break;
-    }
-
-    other.m_type     = type_id::null_type;
-    other.m_is_fixed = false;
-    other.m_uint64   = 0;
-}
-
-// 访问器函数
-template <typename Config>
-void variant_base<Config>::visit(const visitor& v) const {
+void variant_base::visit(const visitor& v) const {
     switch (m_type) {
     case type_id::null_type:
         v.handle();
@@ -451,13 +373,11 @@ void variant_base<Config>::visit(const visitor& v) const {
         }
         break;
     default:
-        throw_unknow_type_error(m_type);
+        throw_unknow_type_error(get_type());
     }
 }
 
-// 类型检查函数
-template <typename Config>
-bool variant_base<Config>::is_numeric() const {
+bool variant_base::is_numeric() const {
     switch (m_type) {
     case type_id::bool_type: // 与 std::is_arithmetic_v 一样，bool 类型也属于数值类型
     case type_id::int8_type:
@@ -475,8 +395,7 @@ bool variant_base<Config>::is_numeric() const {
     }
 }
 
-template <typename Config>
-bool variant_base<Config>::is_integer() const {
+bool variant_base::is_integer() const {
     switch (m_type) {
     case type_id::bool_type: // 与 std::is_integer_v 一样，bool 类型也属于整数类型
     case type_id::int8_type:
@@ -493,21 +412,19 @@ bool variant_base<Config>::is_integer() const {
     }
 }
 
-template <typename Config>
-bool variant_base<Config>::is_signed_integer() const {
-    return m_type == type_id::int8_type || m_type == type_id::int16_type ||
-           m_type == type_id::int32_type || m_type == type_id::int64_type;
+bool variant_base::is_signed_integer() const {
+    type_id t = get_type();
+    return t == type_id::int8_type || t == type_id::int16_type ||
+           t == type_id::int32_type || t == type_id::int64_type;
 }
 
-template <typename Config>
-bool variant_base<Config>::is_unsigned_integer() const {
-    return m_type == type_id::uint8_type || m_type == type_id::uint16_type ||
-           m_type == type_id::uint32_type || m_type == type_id::uint64_type;
+bool variant_base::is_unsigned_integer() const {
+    type_id t = get_type();
+    return t == type_id::uint8_type || t == type_id::uint16_type ||
+           t == type_id::uint32_type || t == type_id::uint64_type;
 }
 
-// 类型转换函数
-template <typename Config>
-int64_t variant_base<Config>::as_int64() const {
+int64_t variant_base::as_int64() const {
     switch (m_type) {
     case type_id::int8_type:
     case type_id::int16_type:
@@ -530,12 +447,11 @@ int64_t variant_base<Config>::as_int64() const {
     case type_id::extension_type:
         return m_extension ? m_extension->as_int64() : 0;
     default:
-        throw_type_error("int64", m_type);
+        throw_type_error("int64", get_type());
     }
 }
 
-template <typename Config>
-uint64_t variant_base<Config>::as_uint64() const {
+uint64_t variant_base::as_uint64() const {
     switch (m_type) {
     case type_id::uint8_type:
     case type_id::uint16_type:
@@ -558,13 +474,12 @@ uint64_t variant_base<Config>::as_uint64() const {
     case type_id::extension_type:
         return m_extension ? m_extension->as_uint64() : 0;
     default:
-        throw_type_error("uint64", m_type);
+        throw_type_error("uint64", get_type());
         return 0;
     }
 }
 
-template <typename Config>
-bool variant_base<Config>::as_bool(bool strict) const {
+bool variant_base::as_bool(bool strict) const {
     switch (m_type) {
     case type_id::bool_type:
         return m_bool;
@@ -599,8 +514,7 @@ bool variant_base<Config>::as_bool(bool strict) const {
     }
 }
 
-template <typename Config>
-double variant_base<Config>::as_double() const {
+double variant_base::as_double() const {
     switch (m_type) {
     case type_id::double_type:
         return m_double;
@@ -625,18 +539,17 @@ double variant_base<Config>::as_double() const {
     case type_id::extension_type:
         return m_extension ? m_extension->as_double() : 0.0;
     default:
-        throw_type_error("double", m_type);
+        throw_type_error("double", get_type());
         return 0.0;
     }
 }
 
-template <typename Config>
-blob_base<> variant_base<Config>::as_blob() const {
+variant_base::blob_type variant_base::as_blob() const {
     switch (m_type) {
     case type_id::blob_type:
         return *m_blob_ptr;
     case type_id::string_type: {
-        blob_base<> b;
+        blob_type b;
         b.data.assign(m_string_ptr->begin(), m_string_ptr->end());
         return b;
     }
@@ -645,18 +558,17 @@ blob_base<> variant_base<Config>::as_blob() const {
             return {};
         }
 
-        blob_base<> b;
-        auto        s = m_extension->as_string();
+        blob_type b;
+        auto      s = m_extension->as_string();
         b.data.assign(s.begin(), s.end());
         return b;
     }
     default:
-        throw_type_error("blob_base", m_type);
+        throw_type_error("blob_base", get_type());
     }
 }
 
-template <typename Config>
-std::string variant_base<Config>::as_string() const {
+std::string variant_base::as_string() const {
     switch (m_type) {
     case type_id::string_type:
         return *m_string_ptr;
@@ -687,60 +599,55 @@ std::string variant_base<Config>::as_string() const {
     }
 }
 
-// 数组访问操作符
-template <typename Config>
-variant_reference<Config> variant_base<Config>::operator[](std::size_t pos) {
-    if (m_type == type_id::array_type) {
+variant_reference variant_base::operator[](std::size_t pos) {
+    if (is_array()) {
         auto& arr = m_array;
         if (pos >= arr.size()) {
             throw_out_of_range_error(pos, arr.size());
         }
         return arr[pos];
-    } else if (m_type == type_id::extension_type) {
+    } else if (is_extension()) {
         if (!m_extension) {
             throw_extension_null_error();
         }
         // 优化：如果 extension 支持零开销引用访问，直接返回指针
         if (m_extension->supports_reference_access()) {
             if (auto* ptr = m_extension->get_ptr(pos)) {
-                return variant_reference<Config>(*ptr);
+                return variant_reference(*ptr);
             }
         }
         // 否则使用值访问模式（有拷贝开销）
-        return variant_reference<Config>(m_extension, pos);
+        return variant_reference(m_extension, pos);
     } else {
-        throw_type_error("array", m_type);
+        throw_type_error("array", get_type());
     }
 }
 
-template <typename Config>
-variant_reference<Config> variant_base<Config>::operator[](std::size_t pos) const {
-    if (m_type == type_id::array_type) {
+variant_reference variant_base::operator[](std::size_t pos) const {
+    if (is_array()) {
         const auto& arr = m_array;
         if (pos >= arr.size()) {
             throw_out_of_range_error(pos, arr.size());
         }
-        return variant_reference<Config>(arr[pos]);
-    } else if (m_type == type_id::extension_type) {
+        return variant_reference(arr[pos]);
+    } else if (is_extension()) {
         if (!m_extension) {
             throw_extension_null_error();
         }
         // 优化：如果 extension 支持零开销引用访问，直接返回指针
         if (m_extension->supports_reference_access()) {
             if (auto* ptr = m_extension->get_ptr(pos)) {
-                return variant_reference<Config>(const_cast<variant_base<Config>&>(*ptr));
+                return variant_reference(const_cast<variant_base&>(*ptr));
             }
         }
         // 否则使用值访问模式（有拷贝开销）
-        return variant_reference<Config>(m_extension, pos);
+        return variant_reference(m_extension, pos);
     } else {
-        throw_type_error("array", m_type);
+        throw_type_error("array", get_type());
     }
 }
 
-// 赋值操作符
-template <typename Config>
-variant_base<Config>& variant_base<Config>::operator=(const variant_base& other) {
+variant_base& variant_base::operator=(const variant_base& other) {
     if (this == &other) {
         return *this;
     }
@@ -748,7 +655,7 @@ variant_base<Config>& variant_base<Config>::operator=(const variant_base& other)
     if (!is_fixed_type()) {
         variant_base(other).swap(*this);
     } else {
-        if (other.m_type == m_type || m_type == type_id::null_type) {
+        if (other.m_type == m_type || is_null()) {
             variant_base(other).swap(*this);
         } else {
             set_value(other);
@@ -757,8 +664,7 @@ variant_base<Config>& variant_base<Config>::operator=(const variant_base& other)
     return *this;
 }
 
-template <typename Config>
-variant_base<Config>& variant_base<Config>::operator=(variant_base&& other) {
+variant_base& variant_base::operator=(variant_base&& other) {
     if (this == &other) {
         return *this;
     }
@@ -766,7 +672,7 @@ variant_base<Config>& variant_base<Config>::operator=(variant_base&& other) {
     if (!is_fixed_type()) {
         variant_base(std::move(other)).swap(*this);
     } else {
-        if (other.m_type == m_type || m_type == type_id::null_type) {
+        if (other.m_type == m_type || is_null()) {
             variant_base(std::move(other)).swap(*this);
         } else {
             // 类型不一样那就一定存在转换，相比move会有一定开销
@@ -777,8 +683,7 @@ variant_base<Config>& variant_base<Config>::operator=(variant_base&& other) {
     return *this;
 }
 
-template <typename Config>
-variant_base<Config>& variant_base<Config>::operator=(const char* s) {
+variant_base& variant_base::operator=(const char* s) {
     if (s) {
         return operator=(std::string_view(s));
     }
@@ -812,7 +717,7 @@ variant_base<Config>& variant_base<Config>::operator=(const char* s) {
     default: {
         if (!is_fixed_type()) {
             variant_base().swap(*this);
-        } else if (m_type == type_id::string_type) {
+        } else if (is_string()) {
             // 对于固定类型来说，给字符串赋值 0(nullptr) 会清空字符串
             m_string_ptr->clear();
         } else {
@@ -824,11 +729,10 @@ variant_base<Config>& variant_base<Config>::operator=(const char* s) {
     return *this;
 }
 
-template <typename Config>
-variant_base<Config>& variant_base<Config>::operator=(std::string_view s) {
-    if (m_type == type_id::string_type) {
+variant_base& variant_base::operator=(std::string_view s) {
+    if (is_string()) {
         m_string_ptr->assign(s.begin(), s.end());
-    } else if (m_type == type_id::blob_type) {
+    } else if (is_blob()) {
         // 字符串可以赋值给二进制类型
         m_blob_ptr->data.assign(s.begin(), s.end());
     } else {
@@ -837,16 +741,8 @@ variant_base<Config>& variant_base<Config>::operator=(std::string_view s) {
     return *this;
 }
 
-template <typename Config>
-template <typename Allocator>
-variant_base<Config>& variant_base<Config>::operator=(const std::basic_string<char, std::char_traits<char>, Allocator>& s) {
-    return operator=(std::string_view(s));
-}
-
-template <typename Config>
-template <typename Allocator>
-variant_base<Config>& variant_base<Config>::operator=(const blob_base<Allocator>& b) {
-    if (m_type == type_id::blob_type) {
+variant_base& variant_base::operator=(const blob& b) {
+    if (is_blob()) {
         m_blob_ptr->data.assign(b.data.begin(), b.data.end());
     } else {
         *this = variant_base(b);
@@ -854,10 +750,8 @@ variant_base<Config>& variant_base<Config>::operator=(const blob_base<Allocator>
     return *this;
 }
 
-// 拷贝函数
-template <typename Config>
-variant_base<Config> variant_base<Config>::copy() const {
-    return visit_with([this](const auto& value) -> variant_base {
+variant_base variant_base::copy() const {
+    return visit_with([](const auto& value) -> variant_base {
         using T = std::decay_t<decltype(value)>;
 
         if constexpr (std::is_same_v<T, std::nullptr_t>) {
@@ -865,19 +759,17 @@ variant_base<Config> variant_base<Config>::copy() const {
         } else if constexpr (std::is_arithmetic_v<T>) {
             return variant_base(value);
         } else if constexpr (std::is_same_v<T, string_type>) {
-            return variant_base(value, this->m_alloc);
+            return variant_base(value);
         } else if constexpr (std::is_same_v<T, array_type>) {
             return variant_base(value.copy());
         } else if constexpr (std::is_same_v<T, object_type>) {
             return variant_base(value.copy());
         } else if constexpr (std::is_same_v<T, blob_type>) {
             variant_base result(type_id::blob_type);
-            result.m_alloc    = this->m_alloc;
-            result.m_blob_ptr = mc::allocate_ptr<blob_type>(this->m_alloc, value.data.data(), value.data.size(), this->m_alloc);
+            result.m_blob_ptr = mc::allocate_ptr<blob_type>(allocator_type(), value.data.data(), value.data.size());
             return result;
         } else if constexpr (std::is_same_v<T, extension_type>) {
             variant_base result(type_id::extension_type);
-            result.m_alloc     = this->m_alloc;
             result.m_extension = value.copy();
             return result;
         } else {
@@ -886,15 +778,13 @@ variant_base<Config> variant_base<Config>::copy() const {
     });
 }
 
-// 深拷贝函数
-template <typename Config>
-variant_base<Config> variant_base<Config>::deep_copy(mc::detail::copy_context* ctx) const {
+variant_base variant_base::deep_copy(mc::detail::copy_context* ctx) const {
     if (!ctx) {
         mc::detail::copy_context local_ctx;
         return deep_copy(&local_ctx);
     }
 
-    return visit_with([this, ctx](const auto& value) -> variant_base {
+    return visit_with([ctx](const auto& value) -> variant_base {
         using T = std::decay_t<decltype(value)>;
 
         if constexpr (std::is_same_v<T, std::nullptr_t>) {
@@ -902,19 +792,17 @@ variant_base<Config> variant_base<Config>::deep_copy(mc::detail::copy_context* c
         } else if constexpr (std::is_arithmetic_v<T>) {
             return variant_base(value);
         } else if constexpr (std::is_same_v<T, string_type>) {
-            return variant_base(value, this->m_alloc);
+            return variant_base(value);
         } else if constexpr (std::is_same_v<T, array_type>) {
             return variant_base(value.deep_copy(ctx));
         } else if constexpr (std::is_same_v<T, object_type>) {
             return variant_base(value.deep_copy(ctx));
         } else if constexpr (std::is_same_v<T, blob_type>) {
             variant_base result(type_id::blob_type);
-            result.m_alloc    = this->m_alloc;
-            result.m_blob_ptr = mc::allocate_ptr<blob_type>(this->m_alloc, value.data.data(), value.data.size(), this->m_alloc);
+            result.m_blob_ptr = mc::allocate_ptr<blob_type>(allocator_type(), value.data.data(), value.data.size());
             return result;
         } else if constexpr (std::is_same_v<T, extension_type>) {
             variant_base result(type_id::extension_type);
-            result.m_alloc     = this->m_alloc;
             result.m_extension = value.deep_copy(ctx); // 调用 extension 的 deep_copy
             return result;
         } else {
@@ -923,29 +811,24 @@ variant_base<Config> variant_base<Config>::deep_copy(mc::detail::copy_context* c
     });
 }
 
-// 交换函数
-template <typename Config>
-void variant_base<Config>::swap(variant_base& other) noexcept {
+void variant_base::swap(variant_base& other) noexcept {
     type_id temp_type = m_type;
     m_type            = other.m_type;
     other.m_type      = temp_type;
 
     std::swap(m_uint64, other.m_uint64);
-    std::swap(m_alloc, other.m_alloc);
 }
 
 // 类型名获取函数
-template <typename Config>
-const char* variant_base<Config>::get_type_name() const {
-    if (m_type == type_id::extension_type && m_extension) {
+
+const char* variant_base::get_type_name() const {
+    if (is_extension() && m_extension) {
         return m_extension->get_type_name().data();
     }
-    return get_type_name_internal(m_type);
+    return get_type_name_internal(get_type());
 }
 
-// 哈希函数
-template <typename Config>
-size_t variant_base<Config>::hash() const {
+size_t variant_base::hash() const {
     switch (m_type) {
     case type_id::null_type:
         return 0;
@@ -985,57 +868,51 @@ size_t variant_base<Config>::hash() const {
     }
 }
 
-template <typename Config>
-typename variant_base<Config>::extension_ptr_type variant_base<Config>::as_extension() const {
-    if (m_type != type_id::extension_type) {
-        throw_type_error("extension", m_type);
+typename variant_base::extension_ptr_type variant_base::as_extension() const {
+    if (!is_extension()) {
+        throw_type_error("extension", get_type());
     }
     return m_extension;
 }
 
-template <typename Config>
-typename variant_base<Config>::array_type variant_base<Config>::as_array() const {
-    if (m_type == type_id::array_type) {
+typename variant_base::array_type variant_base::as_array() const {
+    if (is_array()) {
         return m_array;
     }
 
-    throw_type_error("array", m_type);
+    throw_type_error("array", get_type());
 }
 
-template <typename Config>
-const std::string& variant_base<Config>::get_string() const {
-    if (m_type != type_id::string_type) {
-        throw_type_error("string", m_type);
+const std::string& variant_base::get_string() const {
+    if (!is_string()) {
+        throw_type_error("string", get_type());
     }
     return *m_string_ptr;
 }
 
-template <typename Config>
-const typename variant_base<Config>::blob_type& variant_base<Config>::get_blob() const {
-    if (m_type != type_id::blob_type) {
-        throw_type_error("blob", m_type);
+const typename variant_base::blob_type& variant_base::get_blob() const {
+    if (!is_blob()) {
+        throw_type_error("blob_type", get_type());
     }
     return *m_blob_ptr;
 }
 
-template <typename Config>
-const typename variant_base<Config>::array_type& variant_base<Config>::get_array() const {
-    if (m_type != type_id::array_type) {
-        throw_type_error("array", m_type);
+const typename variant_base::array_type& variant_base::get_array() const {
+    if (!is_array()) {
+        throw_type_error("array", get_type());
     }
     return m_array;
 }
 
-template <typename Config>
-const dict& variant_base<Config>::get_object() const {
-    if (m_type != type_id::object_type) {
-        throw_type_error("object", m_type);
+const dict& variant_base::get_object() const {
+    if (!is_object()) {
+        throw_type_error("object", get_type());
     }
     return m_object;
 }
 
-template <typename Config, typename Op>
-auto numeric_op(const variant_base<Config>& self, Op&& op, detail::numeric_t rhs, const char* op_name) {
+template <typename Op>
+auto numeric_op(const variant_base& self, Op&& op, detail::numeric_t rhs, const char* op_name) {
     try {
         using return_type = std::invoke_result_t<Op, int>;
         if constexpr (std::is_same_v<return_type, std::optional<bool>>) {
@@ -1052,8 +929,7 @@ auto numeric_op(const variant_base<Config>& self, Op&& op, detail::numeric_t rhs
     throw_invalid_type_comparison_error(self.get_type_name(), "numeric", op_name);
 }
 
-template <typename Config>
-bool variant_base<Config>::operator<(detail::numeric_t rhs) const {
+bool variant_base::operator<(detail::numeric_t rhs) const {
     return numeric_op(*this, [&](auto&& other) -> std::optional<bool> {
         using T = std::decay_t<decltype(other)>;
         if (is_double()) {
@@ -1074,8 +950,7 @@ bool variant_base<Config>::operator<(detail::numeric_t rhs) const {
     }, rhs, "<");
 }
 
-template <typename Config>
-bool variant_base<Config>::operator>(detail::numeric_t rhs) const {
+bool variant_base::operator>(detail::numeric_t rhs) const {
     return numeric_op(*this, [&](auto&& other) -> std::optional<bool> {
         using T = std::decay_t<decltype(other)>;
         if (is_double()) {
@@ -1096,24 +971,21 @@ bool variant_base<Config>::operator>(detail::numeric_t rhs) const {
     }, rhs, ">");
 }
 
-template <typename Config>
-bool variant_base<Config>::operator<=(detail::numeric_t rhs) const {
+bool variant_base::operator<=(detail::numeric_t rhs) const {
     if (is_double() && std::isnan(m_double)) {
         return false;
     }
     return !(*this > rhs);
 }
 
-template <typename Config>
-bool variant_base<Config>::operator>=(detail::numeric_t rhs) const {
+bool variant_base::operator>=(detail::numeric_t rhs) const {
     if (is_double() && std::isnan(m_double)) {
         return false;
     }
     return !(*this < rhs);
 }
 
-template <typename Config>
-bool variant_base<Config>::operator==(detail::numeric_t rhs) const {
+bool variant_base::operator==(detail::numeric_t rhs) const {
     return numeric_op(*this, [&](auto&& other) -> bool {
         using T = std::decay_t<decltype(other)>;
         if (is_double()) {
@@ -1134,63 +1006,81 @@ bool variant_base<Config>::operator==(detail::numeric_t rhs) const {
     }, rhs, "==");
 }
 
+bool variant_base::operator==(const variants& other) const {
+    if (!is_array()) {
+        return false;
+    }
+    return m_array == other;
+}
+
+bool variant_base::operator<(const variants& other) const {
+    if (!is_array()) {
+        throw_type_error("array", get_type());
+    }
+    return m_array < other;
+}
+bool variant_base::operator>(const variants& other) const {
+    if (!is_array()) {
+        throw_type_error("array", get_type());
+    }
+    return m_array > other;
+}
+
 template <typename T>
 inline bool is_unsigned(T value) {
     if constexpr (std::is_unsigned_v<T> || std::is_same_v<T, bool>) {
+        MC_UNUSED(value);
         return true;
     } else {
         return value >= 0;
     }
 }
 
-template <typename Config>
-variant_base<Config> variant_base<Config>::operator+(detail::numeric_t rhs) const {
-    return numeric_op(*this, [&](auto&& other) -> variant_base<Config> {
+variant_base variant_base::operator+(detail::numeric_t rhs) const {
+    return numeric_op(*this, [&](auto&& other) -> variant_base {
         using T = std::decay_t<decltype(other)>;
         if (is_string()) {
-            return variant_base<Config>(get_string() + std::to_string(other));
+            return variant_base(get_string() + std::to_string(other));
         } else if (is_array()) {
             return *this + variant(other);
         } else if (is_object()) {
             throw_invalid_type_operation_error(get_type_name(), pretty_name<T>(), "+");
         } else if (is_double() || std::is_floating_point_v<T>) {
-            return variant_base<Config>(as_double() + static_cast<double>(other));
+            return variant_base(as_double() + static_cast<double>(other));
         } else if (is_unsigned_integer() && is_unsigned(other)) {
-            return variant_base<Config>(as_uint64() + static_cast<uint64_t>(other));
+            return variant_base(as_uint64() + static_cast<uint64_t>(other));
         } else {
-            return variant_base<Config>(as_int64() + static_cast<int64_t>(other));
+            return variant_base(as_int64() + static_cast<int64_t>(other));
         }
     }, rhs, "+");
 }
 
-template <typename Config>
-variant_base<Config> variant_base<Config>::operator-(detail::numeric_t rhs) const {
-    return numeric_op(*this, [&](auto&& other) -> variant_base<Config> {
+variant_base variant_base::operator-(detail::numeric_t rhs) const {
+    return numeric_op(*this, [&](auto&& other) -> variant_base {
         using T = std::decay_t<decltype(other)>;
         if (is_double() || std::is_floating_point_v<T>) {
-            return variant_base<Config>(as_double() - static_cast<double>(other));
+            return variant_base(as_double() - static_cast<double>(other));
         } else if (is_unsigned_integer() && is_unsigned(other)) {
             if (as_uint64() < static_cast<uint64_t>(other)) {
-                return variant_base<Config>(static_cast<int64_t>(as_uint64()) -
-                                            static_cast<int64_t>(other));
+                return variant_base(static_cast<int64_t>(as_uint64()) -
+                                    static_cast<int64_t>(other));
             }
-            return variant_base<Config>(as_uint64() - static_cast<uint64_t>(other));
+            return variant_base(as_uint64() - static_cast<uint64_t>(other));
         }
 
-        return variant_base<Config>(as_int64() - static_cast<int64_t>(other));
+        return variant_base(as_int64() - static_cast<int64_t>(other));
     }, rhs, "-");
 }
 
-template <typename Config>
-variant_base<Config> variant_base<Config>::operator*(detail::numeric_t rhs) const {
-    return numeric_op(*this, [&](auto&& other) -> variant_base<Config> {
+variant_base variant_base::operator*(detail::numeric_t rhs) const {
+    return numeric_op(*this, [&](auto&& other) -> variant_base {
         using T = std::decay_t<decltype(other)>;
         if (is_double() || std::is_floating_point_v<T>) {
-            return variant_base<Config>(as_double() * static_cast<double>(other));
+            return variant_base(as_double() * static_cast<double>(other));
         } else if (is_unsigned_integer() && is_unsigned(other)) {
-            return variant_base<Config>(as_uint64() * static_cast<uint64_t>(other));
+            return variant_base(as_uint64() * static_cast<uint64_t>(other));
         } else {
-            return variant_base<Config>(as_int64() * static_cast<int64_t>(other));
+            return variant_base(as_int64() * static_cast<int64_t>(other));
         }
     }, rhs, "*");
 }
@@ -1206,43 +1096,40 @@ static bool is_zero(detail::numeric_t value) {
     }, value.data);
 }
 
-template <typename Config>
-variant_base<Config> variant_base<Config>::operator/(detail::numeric_t rhs) const {
+variant_base variant_base::operator/(detail::numeric_t rhs) const {
     if (is_zero(rhs)) {
         throw_divide_by_zero_exception("除零错误");
     }
 
-    return numeric_op(*this, [&](auto&& other) -> variant_base<Config> {
+    return numeric_op(*this, [&](auto&& other) -> variant_base {
         using T = std::decay_t<decltype(other)>;
 
         if (is_double() || std::is_floating_point_v<T> || is_bool() || std::is_same_v<T, bool>) {
-            return variant_base<Config>(as_double() / static_cast<double>(other));
+            return variant_base(as_double() / static_cast<double>(other));
         } else if (is_unsigned_integer() && is_unsigned(other)) {
-            return variant_base<Config>(as_uint64() / static_cast<uint64_t>(other));
+            return variant_base(as_uint64() / static_cast<uint64_t>(other));
         }
 
-        return variant_base<Config>(as_int64() / static_cast<int64_t>(other));
+        return variant_base(as_int64() / static_cast<int64_t>(other));
     }, rhs, "/");
 }
 
-template <typename Config>
-variant_base<Config> variant_base<Config>::operator%(detail::numeric_t rhs) const {
+variant_base variant_base::operator%(detail::numeric_t rhs) const {
     if (is_zero(rhs)) {
         throw_divide_by_zero_exception("取模运算除零错误");
     }
 
-    return numeric_op(*this, [&](auto&& other) -> variant_base<Config> {
+    return numeric_op(*this, [&](auto&& other) -> variant_base {
         if (is_unsigned_integer() && is_unsigned(other)) {
-            return variant_base<Config>(as_uint64() % static_cast<uint64_t>(other));
+            return variant_base(as_uint64() % static_cast<uint64_t>(other));
         } else {
-            return variant_base<Config>(as_int64() % static_cast<int64_t>(other));
+            return variant_base(as_int64() % static_cast<int64_t>(other));
         }
     }, rhs, "%");
 }
 
-template <typename Config>
-variant_base<Config> variant_base<Config>::operator<<(detail::numeric_t rhs) const {
-    return numeric_op(*this, [&](auto&& other) -> variant_base<Config> {
+variant_base variant_base::operator<<(detail::numeric_t rhs) const {
+    return numeric_op(*this, [&](auto&& other) -> variant_base {
         uint64_t shift_amount = static_cast<uint64_t>(other);
         if (shift_amount >= sizeof(uint64_t) * 8) {
             return {0};
@@ -1254,9 +1141,8 @@ variant_base<Config> variant_base<Config>::operator<<(detail::numeric_t rhs) con
     }, rhs, "<<");
 }
 
-template <typename Config>
-variant_base<Config> variant_base<Config>::operator>>(detail::numeric_t rhs) const {
-    return numeric_op(*this, [&](auto&& other) -> variant_base<Config> {
+variant_base variant_base::operator>>(detail::numeric_t rhs) const {
+    return numeric_op(*this, [&](auto&& other) -> variant_base {
         uint64_t shift_amount = static_cast<uint64_t>(other);
         if (shift_amount >= sizeof(uint64_t) * 8) {
             if (is_signed_integer() && as_int64() < 0) {
@@ -1272,58 +1158,125 @@ variant_base<Config> variant_base<Config>::operator>>(detail::numeric_t rhs) con
     }, rhs, ">>");
 }
 
-template <typename Config>
-variant_base<Config> variant_base<Config>::operator&(detail::numeric_t rhs) const {
-    return numeric_op(*this, [&](auto&& other) -> variant_base<Config> {
+variant_base variant_base::operator&(detail::numeric_t rhs) const {
+    return numeric_op(*this, [&](auto&& other) -> variant_base {
         if (is_unsigned_integer() && is_unsigned(other)) {
-            return variant_base<Config>(as_uint64() & static_cast<uint64_t>(other));
+            return variant_base(as_uint64() & static_cast<uint64_t>(other));
         }
-        return variant_base<Config>(as_int64() & static_cast<int64_t>(other));
+        return variant_base(as_int64() & static_cast<int64_t>(other));
     }, rhs, "&");
 }
 
-template <typename Config>
-variant_base<Config> variant_base<Config>::operator|(detail::numeric_t rhs) const {
-    return numeric_op(*this, [&](auto&& other) -> variant_base<Config> {
+variant_base variant_base::operator|(detail::numeric_t rhs) const {
+    return numeric_op(*this, [&](auto&& other) -> variant_base {
         if (is_unsigned_integer() && is_unsigned(other)) {
-            return variant_base<Config>(as_uint64() | static_cast<uint64_t>(other));
+            return variant_base(as_uint64() | static_cast<uint64_t>(other));
         }
-        return variant_base<Config>(as_int64() | static_cast<int64_t>(other));
+        return variant_base(as_int64() | static_cast<int64_t>(other));
     }, rhs, "|");
 }
 
-template <typename Config>
-variant_base<Config> variant_base<Config>::operator^(detail::numeric_t rhs) const {
-    return numeric_op(*this, [&](auto&& other) -> variant_base<Config> {
+variant_base variant_base::operator^(detail::numeric_t rhs) const {
+    return numeric_op(*this, [&](auto&& other) -> variant_base {
         if (is_unsigned_integer() && is_unsigned(other)) {
-            return variant_base<Config>(as_uint64() ^ static_cast<uint64_t>(other));
+            return variant_base(as_uint64() ^ static_cast<uint64_t>(other));
         }
-        return variant_base<Config>(as_int64() ^ static_cast<int64_t>(other));
+        return variant_base(as_int64() ^ static_cast<int64_t>(other));
     }, rhs, "^");
 }
 
-template <typename Config>
-void to_variant(const dict& var, variant_base<Config>& vo) {
-    variant_base<Config>(var).swap(vo);
+// dict
+void to_variant(const dict& var, variant_base& vo) {
+    variant_base(var).swap(vo);
 }
-
-template <typename Config>
-void from_variant(const variant_base<Config>& var, dict& vo) {
+void from_variant(const variant_base& var, dict& vo) {
     vo = var.as_dict();
 }
 
-// ======== 显式实例化 ========
-template class MC_API variant_base<variant_config<>>;
+// array_type
+void to_variant(const variants& var, variant_base& vo) {
+    variant_base(var).swap(vo);
+}
+void from_variant(const variant_base& var, variants& vo) {
+    vo = var.get_array();
+}
 
-template MC_API variant& variant::set_value<variant_config<>>(const variant& other);
-template MC_API variant& variant::set_value<variant_config<>>(variant&& other);
-template MC_API          variant::variant_base(const variant& other, const allocator_type& alloc);
+// const char*
+void to_variant(const char* var, variant_base& vo) {
+    variant_base(var ? std::string_view(var) : std::string_view()).swap(vo);
+}
+void from_variant(const variant_base& var, const char*& vo) {
+    vo = var.get_string().c_str();
+}
 
-template MC_API variant& variant::operator= <std::allocator<char>>(const std::basic_string<char, std::char_traits<char>, std::allocator<char>>& s);
-template MC_API variant& variant::operator= <std::allocator<char>>(const blob_base<std::allocator<char>>& b);
+// char *
+void to_variant(char* var, variant_base& vo) {
+    variant_base(var ? std::string_view(var) : std::string_view()).swap(vo);
+}
+void from_variant(const variant_base& var, char*& vo) {
+    vo = const_cast<char*>(var.get_string().c_str());
+}
 
-template MC_API void to_variant(const dict& var, variant& vo);
-template MC_API void from_variant(const variant& var, dict& vo);
+// bool
+void to_variant(bool var, variant_base& vo) {
+    variant_base(var).swap(vo);
+}
+void from_variant(const variant_base& var, bool& vo) {
+    vo = var.as_bool();
+}
+
+std::string to_string(const variant_base& v) {
+    return v.to_string();
+}
+
+std::ostream& operator<<(std::ostream& os, const variant_base& v) {
+    switch (v.get_type()) {
+    case type_id::null_type:
+        // 空值类型直接输出字符串 "null"
+        return os << "null";
+    case type_id::bool_type:
+        // 布尔类型根据值输出 "true" 或 "false"
+        return os << (v.as_bool() ? "true" : "false");
+    case type_id::int8_type:
+    case type_id::int16_type:
+    case type_id::int32_type:
+    case type_id::int64_type:
+        // 所有有符号整数类型统一转换为 int64_t 后输出
+        return os << v.as_int64();
+    case type_id::uint8_type:
+    case type_id::uint16_type:
+    case type_id::uint32_type:
+    case type_id::uint64_type:
+        // 所有无符号整数类型统一转换为 uint64_t 后输出
+        return os << v.as_uint64();
+    case type_id::double_type:
+        // 浮点类型直接输出 double 值
+        return os << v.as_double();
+    case type_id::string_type:
+        // 字符串类型直接输出内容(不带引号)
+        return os << v.get_string();
+    case type_id::array_type:
+        // 数组类型通过 mc::to_string 转换为字符串后输出
+        return os << mc::to_string(v);
+    case type_id::object_type:
+        // 对象类型通过 mc::to_string 转换为字符串后输出
+        return os << mc::to_string(v);
+    case type_id::blob_type:
+        // 二进制数据输出为 "blob[大小]" 格式
+        os << "blob[" << v.get_blob().data.size() << "]";
+        return os;
+    case type_id::extension_type: {
+        if (auto extension = v.as_extension()) {
+            return os << extension->get_type_name();
+        }
+        return os;
+    }
+    default:
+        // 未知类型或未处理的类型输出为 "unknown_type"
+        return os << "unknown_type";
+    }
+}
+
 } // namespace mc
 
 #include "./variant_base_cmp_op.cpp"

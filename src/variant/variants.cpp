@@ -211,11 +211,11 @@ const variant* variants::get_ptr(size_t index) const {
 }
 
 // operator[] 实现
-variant_reference<variant_config<>> variants::operator[](size_t index) {
+variant_reference variants::operator[](size_t index) {
     if (!m_data) {
         throw_runtime_error("variants is empty");
     }
-    return variant_reference<variant_config<>>(*this, index);
+    return variant_reference(*this, index);
 }
 
 variant variants::operator[](size_t index) const {
@@ -226,11 +226,11 @@ variant variants::operator[](size_t index) const {
 }
 
 // 获取可修改的引用
-variant_reference<variant_config<>> variants::at_ref(size_t index) {
+variant_reference variants::at_ref(size_t index) {
     if (!m_data) {
         throw_runtime_error("variants is empty");
     }
-    return variant_reference<variant_config<>>(*this, index);
+    return variant_reference(*this, index);
 }
 
 // variants_iterator 实现
@@ -296,7 +296,7 @@ variants_iterator::reference variants_iterator::operator*() const {
     if (m_index >= m_data->do_size()) {
         throw_out_of_range_error("variants_iterator: index out of range");
     }
-    return variant_reference<variant_config<>>(variants(m_data), m_index);
+    return variant_reference(variants(m_data), m_index);
 }
 
 variants_iterator::reference variants_iterator::operator[](difference_type n) const {
@@ -394,7 +394,7 @@ variants_const_iterator::reference variants_const_iterator::operator*() const {
     if (m_index >= m_data->do_size()) {
         throw_out_of_range_error("variants_const_iterator: index out of range");
     }
-    return variant_reference<variant_config<>>(variants(m_data), m_index);
+    return variant_reference(variants(m_data), m_index);
 }
 
 variants_const_iterator::reference variants_const_iterator::operator[](difference_type n) const {
@@ -451,6 +451,14 @@ variants::variants(const std::initializer_list<variant>& list) {
         static_cast<std::vector<variant>*>(data.get())->push_back(item);
     }
 
+    m_data = data;
+}
+
+variants::variants(const std::initializer_list<variant_reference>& list) {
+    auto data = mc::make_shared<detail::array_impl<variant>>();
+    for (const auto& ref : list) {
+        static_cast<std::vector<variant>*>(data.get())->push_back(ref.get());
+    }
     m_data = data;
 }
 

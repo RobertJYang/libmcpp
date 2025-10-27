@@ -27,11 +27,7 @@
 #include <mc/variant/variant_common.h>
 
 namespace mc {
-
 // 前向声明
-template <typename Config>
-class variant_reference;
-
 class i_variants;
 
 /**
@@ -43,7 +39,7 @@ public:
     using value_type        = variant;
     using difference_type   = std::ptrdiff_t;
     using pointer           = variant*;
-    using reference         = variant_reference<variant_config<>>;
+    using reference         = variant_reference;
 
     // 构造函数
     variants_iterator();
@@ -104,7 +100,7 @@ public:
     using value_type        = variant;
     using difference_type   = std::ptrdiff_t;
     using pointer           = const variant*;
-    using reference         = const variant_reference<variant_config<>>;
+    using reference         = const variant_reference;
 
     // 构造函数
     variants_const_iterator();
@@ -216,7 +212,7 @@ public:
     // 强类型数组构造
     template <typename T, typename Allocator>
     variants(mc::array<T, Allocator> arr,
-             std::enable_if_t<is_variant_constructible_v<T>>* = nullptr);
+             std::enable_if_t<is_variant_constructible_v<T> || is_variant_v<T>>* = nullptr);
 
     // 初始化列表构造（默认构造为弱类型）
     variants(const std::initializer_list<variant>& list);
@@ -227,17 +223,17 @@ public:
                               !std::is_same_v<T, variant>>* = nullptr);
     template <typename T, typename Allocator>
     variants(const std::vector<T, Allocator>& vec,
-             std::enable_if_t<is_variant_constructible_v<T>>* = nullptr);
+             std::enable_if_t<is_variant_constructible_v<T> || is_variant_v<T>>* = nullptr);
     template <typename T, typename Allocator>
     variants(std::vector<T, Allocator>&& vec,
-             std::enable_if_t<is_variant_constructible_v<T>>* = nullptr);
+             std::enable_if_t<is_variant_constructible_v<T> || is_variant_v<T>>* = nullptr);
 
     /**
      * @brief 特殊构造函数：当 T 是 variant_reference 时，创建 variants
      * @param list variant_reference 初始化列表
      */
-    template <typename Config>
-    variants(const std::initializer_list<variant_reference<Config>>& list);
+
+    variants(const std::initializer_list<variant_reference>& list);
 
     /**
      * @brief 特殊构造函数：从 variant_reference 迭代器范围构造
@@ -259,11 +255,11 @@ public:
     variant at(size_t index) const;
     void    set(size_t index, const variant& value);
 
-    variant_reference<variant_config<>> operator[](size_t index);
-    variant                             operator[](size_t index) const;
+    variant_reference operator[](size_t index);
+    variant           operator[](size_t index) const;
 
     // 获取可修改的引用
-    variant_reference<variant_config<>> at_ref(size_t index);
+    variant_reference at_ref(size_t index);
 
     // 修改操作
     void push_back(const variant& value);
