@@ -88,6 +88,10 @@ meson compile -C builddir
 # 运行测试
 meson test -C builddir
 
+# 清空重新全量编译、测试
+rm -rf builddir; meson setup builddir; ((n=`nproc`/4)); time meson compile -C builddir -j $n; meson test -C builddir
+rm -rf builddir; meson setup builddir; time meson compile -C builddir; meson test -C builddir
+
 # 安装到系统
 meson configure builddir --prefix=/usr/local
 meson install -C builddir
