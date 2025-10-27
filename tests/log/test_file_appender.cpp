@@ -27,8 +27,17 @@
 
 using namespace mc::log;
 
+// 函数指针类型声明，需与file_appender.cpp一致
+typedef enum {
+    DLOG_ERROR,
+    DLOG_WARN,
+    DLOG_NOTICE,
+    DLOG_INFO,
+    DLOG_DEBUG
+} DLOG_LEVEL_E;
+
 // mock debug_log实现
-extern "C" void debug_log(int level, const char* file, int line, const char* fmt, ...) {
+extern "C" void debug_log(DLOG_LEVEL_E level, const char* file, int line, const char* fmt, ...) {
     static const std::string log_path = std::string(TEST_LOG_DIR) + "/test_file_appender_mock.log";
     std::filesystem::create_directories(TEST_LOG_DIR);
     std::ofstream ofs(log_path, std::ios::app);
@@ -43,8 +52,8 @@ extern "C" void debug_log(int level, const char* file, int line, const char* fmt
     va_end(args);
     ofs << buf << std::endl;
 }
-// 函数指针类型声明，需与file_appender.cpp一致
-typedef void (*debug_log_func_t)(int, const char*, int, const char*, ...);
+
+typedef void (*debug_log_func_t)(DLOG_LEVEL_E, const char*, int, const char*, ...);
 
 class file_appender_test : public mc::test::TestBase {
 protected:
