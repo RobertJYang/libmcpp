@@ -23,11 +23,16 @@
 #include <mc/common.h>
 #include <mc/memory.h>
 
-// 前向声明 array
+// 前向声明
 namespace mc {
 template <typename T, typename Allocator>
 class array;
-}
+
+class variants;
+
+template <typename Config>
+class variant_reference;
+} // namespace mc
 
 #ifndef VARIANT_FLOAT_EPSILON
 #define VARIANT_FLOAT_EPSILON MC_FLOAT_EPSILON
@@ -65,6 +70,16 @@ inline constexpr bool check_is_variant_v<std::enable_if_t<std::decay_t<T>::is_va
 
 template <typename T>
 inline constexpr bool is_variant_v = detail::check_is_variant_v<void, T>;
+
+// variant_reference 类型特征
+template <typename T>
+struct is_variant_reference : std::false_type {};
+
+template <typename Config>
+struct is_variant_reference<variant_reference<Config>> : std::true_type {};
+
+template <typename T>
+constexpr bool is_variant_reference_v = is_variant_reference<T>::value;
 
 // 定义 blob_base 类型，用于存储二进制数据
 template <typename Allocator = std::allocator<char>>
@@ -127,9 +142,6 @@ struct blob_base {
     }
 };
 
-template <typename Config>
-using variants_base = mc::array<variant_base<Config>, typename Config::variant_alloc_type>;
-
 template <typename Allocator = std::allocator<char>, bool FixedType = false>
 struct variant_config {
     using self_type = variant_config<Allocator, FixedType>;
@@ -143,7 +155,7 @@ struct variant_config {
     static constexpr bool is_fixed_type = FixedType;
     using string_type                   = std::basic_string<char, std::char_traits<char>, char_alloc_type>;
     using object_type                   = dict;
-    using array_type                    = mc::array<variant_base<self_type>, variant_alloc_type>;
+    using array_type                    = variants;
     using blob_type                     = blob_base<char_alloc_type>;
     using extension_type                = variant_extension_base;
 
@@ -152,7 +164,7 @@ struct variant_config {
     using blob_alloc_type   = typename alloc_traits::template rebind_alloc<blob_type>;
 
     using string_ptr_type    = typename string_alloc_type::pointer;
-    using array_ptr_type     = array_type; // array 本身就是引用语义，不需要指针包装
+    using array_ptr_type     = array_type;
     using blob_ptr_type      = typename blob_alloc_type::pointer;
     using extension_ptr_type = typename mc::shared_ptr<extension_type>;
 };
@@ -196,8 +208,7 @@ MC_API const char*       get_type_name_internal(type_id type);
 [[noreturn]] MC_API void throw_extension_null_error();
 [[noreturn]] MC_API void throw_container_overflow_error(const char* container_type);
 MC_API size_t            calculate_str_hash(std::string_view data);
-template <typename Config>
-size_t calculate_array_hash(const variants_base<Config>& array_data);
+MC_API size_t            calculate_array_hash(const variants& array_data);
 
 namespace detail {
 // 普通整数类型转 variant_base 的整数类型
@@ -248,8 +259,7 @@ static auto fixed_integer(T val) {
 }
 } // namespace detail
 
-using variant  = variant_base<variant_config<>>;
-using variants = mc::array<variant, std::allocator<variant>>;
+using variant = variant_base<variant_config<>>;
 
 template <typename Config>
 std::string to_string(const variant_base<Config>& v) {

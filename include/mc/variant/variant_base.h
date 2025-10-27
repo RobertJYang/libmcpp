@@ -187,15 +187,6 @@ public:
         : m_type(type_id::array_type), m_alloc(alloc) {
         new (&m_array) array_type(arr, alloc);
     }
-    template <typename OtherConfig>
-    variant_base(const variants_base<OtherConfig>& arr,
-                 const allocator_type&             alloc = allocator_type())
-        : m_type(type_id::array_type), m_alloc(alloc) {
-        new (&m_array) array_type(alloc);
-        for (const auto& item : arr) {
-            m_array.emplace_back(item, alloc);
-        }
-    }
 
     /**
      * @brief 从 std::optional 构造 variant_base
@@ -839,7 +830,16 @@ public:
 
     dict as_object() const;
 
-    array_type as_array() const;
+    /**
+     * @brief 将 variant_base 转换为 array
+     */
+    array_type as_array() const {
+        if (m_type == type_id::array_type) {
+            return m_array;
+        }
+
+        throw_type_error("array", m_type);
+    }
 
     /**
      * @brief 获取数组中指定位置的元素
@@ -851,7 +851,7 @@ public:
             if (pos >= arr.size()) {
                 throw_out_of_range_error(pos, arr.size());
             }
-            return variant_reference<Config>(arr[pos]);
+            return arr[pos];
         } else if (m_type == type_id::extension_type) {
             if (!m_extension) {
                 throw_extension_null_error();
@@ -878,7 +878,7 @@ public:
             if (pos >= arr.size()) {
                 throw_out_of_range_error(pos, arr.size());
             }
-            return variant_reference<Config>(const_cast<variant_base&>(arr[pos]));
+            return variant_reference<Config>(arr[pos]);
         } else if (m_type == type_id::extension_type) {
             if (!m_extension) {
                 throw_extension_null_error();
@@ -1695,6 +1695,16 @@ public:
         return m_array == other;
     }
 
+    /*
+     * @brief 添加用于与 mc::variants 的比较
+     */
+    bool operator==(const variants& other) const {
+        if (m_type != type_id::array_type) {
+            return false;
+        }
+        return m_array == other;
+    }
+
     template <typename OtherConfig>
     bool operator!=(const std::vector<variant_base<OtherConfig>>& other) const {
         return !(*this == other);
@@ -1702,6 +1712,10 @@ public:
 
     template <typename OtherConfig, typename OtherAllocator>
     bool operator!=(const mc::array<variant_base<OtherConfig>, OtherAllocator>& other) const {
+        return !(*this == other);
+    }
+
+    bool operator!=(const variants& other) const {
         return !(*this == other);
     }
 
@@ -1715,6 +1729,13 @@ public:
     }
     template <typename OtherConfig, typename OtherAllocator>
     bool operator<(const mc::array<variant_base<OtherConfig>, OtherAllocator>& other) const {
+        if (m_type != type_id::array_type) {
+            throw_type_error("array", m_type);
+        }
+        return m_array < other;
+    }
+
+    bool operator<(const variants& other) const {
         if (m_type != type_id::array_type) {
             throw_type_error("array", m_type);
         }
@@ -1738,6 +1759,13 @@ public:
         return m_array > other;
     }
 
+    bool operator>(const variants& other) const {
+        if (m_type != type_id::array_type) {
+            throw_type_error("array", m_type);
+        }
+        return m_array > other;
+    }
+
     template <typename OtherConfig>
     bool operator<=(const std::vector<variant_base<OtherConfig>>& other) const {
         return !(*this > other);
@@ -1748,6 +1776,10 @@ public:
         return !(*this > other);
     }
 
+    bool operator<=(const variants& other) const {
+        return !(*this > other);
+    }
+
     template <typename OtherConfig>
     bool operator>=(const std::vector<variant_base<OtherConfig>>& other) const {
         return !(*this < other);
@@ -1755,6 +1787,10 @@ public:
 
     template <typename OtherConfig, typename OtherAllocator>
     bool operator>=(const mc::array<variant_base<OtherConfig>, OtherAllocator>& other) const {
+        return !(*this < other);
+    }
+
+    bool operator>=(const variants& other) const {
         return !(*this < other);
     }
     template <typename OtherConfig>
@@ -1850,22 +1886,6 @@ protected:
     allocator_type m_alloc = allocator_type();
 };
 
-template <typename Config>
-inline size_t calculate_array_hash(const variants_base<Config>& array_data) {
-    if (array_data.empty()) {
-        return 0;
-    }
-
-    // 使用黄金比例作为种子
-    size_t       h    = 0x9e3779b9 ^ array_data.size();
-    const size_t step = (array_data.size() >> 5) + 1;
-    for (size_t l1 = array_data.size(); l1 >= step; l1 -= step) {
-        h = h ^ ((h << 5) + (h >> 2) + array_data[l1 - 1].hash());
-    }
-
-    return h;
-};
-
 // 浮点数
 template <typename Config, typename T, std::enable_if_t<std::is_floating_point_v<T>, int> = 0>
 void to_variant(const T& var, variant_base<Config>& vo) {
@@ -1914,6 +1934,36 @@ void from_variant(const variant_base<Config>& var, std::basic_string<char, Trait
     vo = var.as_string();
 }
 
+// const char*
+template <typename Config>
+void to_variant(const char* var, variant_base<Config>& vo) {
+    variant_base<Config>(var ? std::string_view(var) : std::string_view()).swap(vo);
+}
+template <typename Config>
+void from_variant(const variant_base<Config>& var, const char*& vo) {
+    vo = var.get_string().c_str();
+}
+
+// char *
+template <typename Config>
+void to_variant(char* var, variant_base<Config>& vo) {
+    variant_base<Config>(var ? std::string_view(var) : std::string_view()).swap(vo);
+}
+template <typename Config>
+void from_variant(const variant_base<Config>& var, char*& vo) {
+    vo = const_cast<char*>(var.get_string().c_str());
+}
+
+// variant_reference
+template <typename Config1, typename Config2>
+void to_variant(const variant_reference<Config1>& var, variant_base<Config2>& vo) {
+    variant_base<Config2>(var.get()).swap(vo);
+}
+template <typename Config1, typename Config2>
+void from_variant(const variant_base<Config1>& var, variant_reference<Config2>& vo) {
+    vo = var;
+}
+
 // blob_base
 template <typename Config, typename Alloc>
 void to_variant(const blob_base<Alloc>& var, variant_base<Config>& vo) {
@@ -1925,32 +1975,14 @@ void from_variant(const variant_base<Config>& var, blob_base<Alloc>& vo) {
 }
 
 // array_type
-template <typename Config1, typename Config2>
-void to_variant(const variants_base<Config1>& var, variant_base<Config2>& vo) {
-    variant_base<Config2>(var).swap(vo);
+template <typename Config1>
+void to_variant(const variants& var, variant_base<Config1>& vo) {
+    variant_base<Config1>(var).swap(vo);
 }
-template <typename Config1, typename Config2>
-void from_variant(const variant_base<Config1>& var, variants_base<Config2>& vo) {
-    if (var.is_array()) {
-        vo = var.get_array();
-        return;
-    }
 
-    // 处理 extension 类型：可能是强类型数组（mc::array<int> 等）
-    if (var.is_extension()) {
-        auto ext = var.as_extension();
-        if (ext) {
-            // 使用 extension 的 visit 方法遍历并转换元素
-            variants_base<Config2> result;
-            ext->visit([&](const mc::variant& item) {
-                result.push_back(item);
-            });
-            vo = result;
-            return;
-        }
-    }
-
-    throw_bad_cast_error("类型转换异常: 无法从 variant 转换为 array");
+template <typename Config1>
+void from_variant(const variant_base<Config1>& var, variants& vo) {
+    vo = var.get_array();
 }
 
 // 从其他 variant_base 转换为 variant_base

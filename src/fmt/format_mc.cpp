@@ -117,4 +117,22 @@ void format_extension(const mc::variant_extension_base& ext, format_context& ctx
     out.append(")");
 }
 
+void format_variants(const mc::variants& value, format_context& ctx, const format_spec& spec) {
+    ctx.append('[');
+    bool first = true;
+    bool b_ref = value.supports_reference_access();
+    for (size_t i = 0; i < value.size(); ++i) {
+        if (!first) {
+            ctx.append(',');
+        }
+        first = false;
+        if (b_ref) {
+            detail::format_elem(ctx, *value.get_ptr(i), spec);
+        } else {
+            detail::format_elem(ctx, value.at(i), spec);
+        }
+    }
+    ctx.append(']');
+}
+
 } // namespace mc::fmt::detail

@@ -258,7 +258,7 @@ GVariant* gvariant_convert::new_gvariant_array(const variant& v, sig_unit& sig) 
     }
     auto             arr = v.as_array();
     gvariant_builder builder(G_VARIANT_TYPE(sig.buf));
-    for (auto& item : arr) {
+    for (auto item : arr) {
         auto child = to_gvariant(item, types);
         builder.add(child);
     }

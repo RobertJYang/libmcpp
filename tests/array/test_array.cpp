@@ -14,6 +14,7 @@
 #include <mc/array.h>
 #include <mc/exception.h>
 #include <mc/variant.h>
+#include <mc/variant/variant_reference.h>
 #include <string>
 
 // 测试默认构造
@@ -617,4 +618,85 @@ TEST(array_test, compatibility_with_std_vector_variant) {
     vec.push_back(mc::variant(4));
     EXPECT_FALSE(arr == vec);
     EXPECT_TRUE(arr != vec);
+}
+
+// 测试 mc::array 的 variant_reference 特殊构造函数
+TEST(array_test, variant_reference_initializer_list_constructor) {
+    // 创建一个包含 variant 的数组
+    mc::array<mc::variant> source_array = {mc::variant(42), mc::variant("hello"), mc::variant(true)};
+
+    // 直接创建 variant_reference 对象
+    mc::variant_reference<mc::variant_config<>> ref1(source_array[0]);
+    mc::variant_reference<mc::variant_config<>> ref2(source_array[1]);
+    mc::variant_reference<mc::variant_config<>> ref3(source_array[2]);
+
+    // 使用 variant_reference 初始化列表构造新的 array
+    // 应该创建 mc::array<variant> 而不是 mc::array<variant_reference>
+    mc::array<mc::variant> new_array = {ref1, ref2, ref3};
+
+    // 验证结果
+    EXPECT_EQ(new_array.size(), 3);
+    EXPECT_EQ(new_array[0].as_int32(), 42);
+    EXPECT_EQ(new_array[1].as_string(), "hello");
+    EXPECT_EQ(new_array[2].as_bool(), true);
+
+    // 验证类型：应该是 variant 类型，不是 variant_reference 类型
+    EXPECT_TRUE(new_array[0].is_int32());
+    EXPECT_TRUE(new_array[1].is_string());
+    EXPECT_TRUE(new_array[2].is_bool());
+}
+
+// 测试 mc::array 的 variant_reference 迭代器构造函数
+TEST(array_test, variant_reference_iterator_range_constructor) {
+    // 创建一个包含 variant 的数组
+    mc::array<mc::variant> source_array = {mc::variant(100), mc::variant(200), mc::variant(300)};
+
+    // 获取 variant_reference 迭代器
+    std::vector<mc::variant_reference<mc::variant_config<>>> refs;
+    refs.emplace_back(source_array[0]);
+    refs.emplace_back(source_array[1]);
+    refs.emplace_back(source_array[2]);
+
+    // 使用 variant_reference 迭代器范围构造新的 array
+    mc::array<mc::variant> new_array(refs.begin(), refs.end());
+
+    // 验证结果
+    EXPECT_EQ(new_array.size(), 3);
+    EXPECT_EQ(new_array[0].as_int32(), 100);
+    EXPECT_EQ(new_array[1].as_int32(), 200);
+    EXPECT_EQ(new_array[2].as_int32(), 300);
+}
+
+// 测试链式访问后的构造函数
+TEST(array_test, variant_reference_chained_access_constructor) {
+    // 创建一个嵌套的 variant 结构
+    mc::dict nested_dict;
+    nested_dict["value"] = mc::variant(42);
+
+    mc::array<mc::variant> source_array = {mc::variant(nested_dict)};
+
+    // 链式访问获取 variant_reference
+    auto ref = source_array[0]["value"];
+
+    // 使用链式访问的 variant_reference 构造新的 array
+    mc::array<mc::variant> new_array = {ref};
+
+    // 验证结果
+    EXPECT_EQ(new_array.size(), 1);
+    EXPECT_EQ(new_array[0].as_int32(), 42);
+    EXPECT_TRUE(new_array[0].is_int32());
+}
+
+// 测试类型安全性：确保不会创建 variant_reference 类型的数组
+TEST(array_test, variant_reference_type_safety_check) {
+    mc::array<mc::variant> source_array = {mc::variant(123)};
+    auto                   ref          = source_array[0];
+
+    // 构造新数组
+    mc::array<mc::variant> new_array = {ref};
+
+    // 验证新数组的元素类型是 variant，不是 variant_reference
+    // 这通过编译时类型检查来确保
+    static_assert(std::is_same_v<decltype(new_array[0]), mc::variant&>,
+                  "Array element should be variant, not variant_reference");
 }
