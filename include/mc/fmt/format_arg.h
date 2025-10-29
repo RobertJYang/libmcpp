@@ -23,6 +23,7 @@
 #include <type_traits>
 #include <utility>
 #include <variant>
+#include <limits>
 
 namespace mc::fmt {
 class format_context;
