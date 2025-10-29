@@ -459,7 +459,7 @@ TEST_F(VariantComparisonTest, ExceptionMessageUsesPrettyName) {
         EXPECT_TRUE(error_msg.find("<") != std::string::npos);
         // 检查异常信息中是否包含类型名称
         EXPECT_TRUE(error_msg.find("null") != std::string::npos);
-        EXPECT_TRUE(error_msg.find("int") != std::string::npos);
+        EXPECT_TRUE(error_msg.find("numeric") != std::string::npos);
     }
 
     // 测试另一种操作符

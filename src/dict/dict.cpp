@@ -15,6 +15,7 @@
 #include <mc/json.h>
 #include <mc/variant.h>
 #include <mc/variant/copy_context.h>
+#include <mc/variant/variant_reference.h>
 #include <stdexcept>
 #include <unordered_map>
 

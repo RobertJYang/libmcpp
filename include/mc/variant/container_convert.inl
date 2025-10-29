@@ -35,6 +35,7 @@
 #include <variant>
 #include <vector>
 
+#include <mc/dict/entry.h>
 #include <mc/variant/variants.inl>
 
 // 前向声明
@@ -575,10 +576,6 @@ inline void from_variant(const mc::variant& var, std::string_view& vo) {
     } else {
         vo = var.get_string();
     }
-}
-
-inline void to_variant(std::string_view var, mc::variant& vo) {
-    vo = var;
 }
 
 } // namespace mc

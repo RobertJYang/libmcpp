@@ -211,8 +211,8 @@ struct signature_helper<std::unordered_set<T, Hash, KeyEqual, Alloc>> {
 };
 
 // 对 variant 的特化
-template <typename Config>
-struct signature_helper<mc::variant_base<Config>> {
+template <>
+struct signature_helper<mc::variant> {
     static void apply(std::string& sig) {
         sig += type_to_char(type_code::variant_type);
     }

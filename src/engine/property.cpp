@@ -29,3 +29,18 @@ void detail::interface_observer::notify(const mc::variant& value, const property
 }
 
 } // namespace mc::engine
+
+namespace mc {
+void from_variant(const mc::variant& var, mc::engine::ref_object*& ptr) {
+    if (var.is_extension()) {
+        auto ext_ptr = var.as_extension();
+        if (ext_ptr) {
+            ptr = dynamic_cast<mc::engine::ref_object*>(ext_ptr.get());
+            if (ptr) {
+                return;
+            }
+        }
+    }
+    ptr = nullptr;
+}
+}

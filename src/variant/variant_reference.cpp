@@ -17,48 +17,40 @@
 
 namespace mc {
 
-template <typename Config>
-variant_reference<Config>::variant_reference(variant_type& var)
+variant_reference::variant_reference(variant_type& var)
     : m_holder(&var) {
 }
 
-template <typename Config>
-variant_reference<Config>::variant_reference(variant_type&& var)
+variant_reference::variant_reference(variant_type&& var)
     : m_holder(value_holder(std::move(var))) {
 }
 
-template <typename Config>
-variant_reference<Config>::variant_reference(mc::shared_ptr<variant_extension_base> ext, std::size_t index)
+variant_reference::variant_reference(mc::shared_ptr<variant_extension_base> ext, std::size_t index)
     : m_holder(extension_accessor(std::move(ext), index)) {
 }
 
-template <typename Config>
-variant_reference<Config>::variant_reference(mc::shared_ptr<variant_extension_base> ext, std::string key)
+variant_reference::variant_reference(mc::shared_ptr<variant_extension_base> ext, std::string key)
     : m_holder(extension_accessor(std::move(ext), std::move(key))) {
 }
 
-template <typename Config>
-variant_reference<Config>::variant_reference(variants cont, std::size_t index)
+variant_reference::variant_reference(variants cont, std::size_t index)
     : m_holder(variants_accessor(std::move(cont), index)) {
 }
 
-template <typename Config>
-variant_reference<Config>& variant_reference<Config>::operator=(variant_reference&& other) noexcept {
+variant_reference& variant_reference::operator=(variant_reference&& other) noexcept {
     if (this != &other) {
         *this = other.get();
     }
     return *this;
 }
 
-template <typename Config>
-void variant_reference<Config>::swap(variant_reference& other) noexcept {
+void variant_reference::swap(variant_reference& other) noexcept {
     auto temp = this->get();
     *this     = other.get();
     other     = temp;
 }
 
-template <typename Config>
-typename variant_reference<Config>::variant_type& variant_reference<Config>::get() {
+typename variant_reference::variant_type& variant_reference::get() {
     return std::visit([](auto&& holder) -> variant_type& {
         using T = std::decay_t<decltype(holder)>;
         if constexpr (std::is_same_v<T, variant_type*>) {
@@ -95,8 +87,7 @@ typename variant_reference<Config>::variant_type& variant_reference<Config>::get
     }, m_holder);
 }
 
-template <typename Config>
-const typename variant_reference<Config>::variant_type& variant_reference<Config>::get() const {
+const typename variant_reference::variant_type& variant_reference::get() const {
     return std::visit([](auto&& holder) -> const variant_type& {
         using T = std::decay_t<decltype(holder)>;
         if constexpr (std::is_same_v<T, variant_type*>) {
@@ -131,18 +122,15 @@ const typename variant_reference<Config>::variant_type& variant_reference<Config
     }, m_holder);
 }
 
-template <typename Config>
-variant_reference<Config>::operator const variant_type&() const {
+variant_reference::operator const variant_type&() const {
     return get();
 }
 
-template <typename Config>
-variant_reference<Config>::operator variant_type&() {
+variant_reference::operator variant_type&() {
     return get();
 }
 
-template <typename Config>
-variant_reference<Config>& variant_reference<Config>::operator=(const variant_type& value) {
+variant_reference& variant_reference::operator=(const variant_type& value) {
     std::visit([&value](auto&& holder) {
         using T = std::decay_t<decltype(holder)>;
         if constexpr (std::is_same_v<T, variant_type*>) {
@@ -170,55 +158,42 @@ variant_reference<Config>& variant_reference<Config>::operator=(const variant_ty
     return *this;
 }
 
-template <typename Config>
-variant_reference<Config> variant_reference<Config>::operator[](std::size_t pos) {
+variant_reference variant_reference::operator[](std::size_t pos) {
     return get()[pos];
 }
 
-template <typename Config>
-variant_reference<Config> variant_reference<Config>::operator[](std::size_t pos) const {
+variant_reference variant_reference::operator[](std::size_t pos) const {
     return get()[pos];
 }
 
-template <typename Config>
-variant_reference<Config> variant_reference<Config>::operator[](std::string_view key) {
+variant_reference variant_reference::operator[](std::string_view key) {
     return get()[key];
 }
 
-template <typename Config>
-variant_reference<Config> variant_reference<Config>::operator[](std::string_view key) const {
+variant_reference variant_reference::operator[](std::string_view key) const {
     return get()[key];
 }
 
-template <typename Config>
-typename variant_reference<Config>::variant_type& variant_reference<Config>::operator*() {
+typename variant_reference::variant_type& variant_reference::operator*() {
     return get();
 }
 
-template <typename Config>
-const typename variant_reference<Config>::variant_type& variant_reference<Config>::operator*() const {
+const typename variant_reference::variant_type& variant_reference::operator*() const {
     return get();
 }
 
-template <typename Config>
-typename variant_reference<Config>::variant_type* variant_reference<Config>::operator->() {
+typename variant_reference::variant_type* variant_reference::operator->() {
     return &get();
 }
 
-template <typename Config>
-const typename variant_reference<Config>::variant_type* variant_reference<Config>::operator->() const {
+const typename variant_reference::variant_type* variant_reference::operator->() const {
     return &get();
 }
 
-template <typename Config>
-void swap(variant_reference<Config> lhs, variant_reference<Config> rhs) noexcept {
+void swap(variant_reference lhs, variant_reference rhs) noexcept {
     auto temp = lhs.get();
     lhs       = rhs.get();
     rhs       = temp;
 }
-
-// 显式实例化
-template class MC_API variant_reference<variant_config<>>;
-template void MC_API  swap(variant_reference<variant_config<>> lhs, variant_reference<variant_config<>> rhs) noexcept;
 
 } // namespace mc

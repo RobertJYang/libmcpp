@@ -208,7 +208,8 @@ public:
      * @param alloc 分配器
      */
     template <typename InputIt>
-    array(InputIt first, InputIt last, const Allocator& alloc = Allocator())
+    array(InputIt first, InputIt last, const Allocator& alloc = Allocator(),
+          std::enable_if_t<!is_variant_reference_v<typename std::iterator_traits<InputIt>::value_type>>* = nullptr)
         : m_data(mc::make_shared<impl_type>(first, last, alloc)) {
     }
 
@@ -264,34 +265,20 @@ public:
      * @param init variant_reference 初始化列表
      * @param alloc 分配器
      */
-    template <typename Config>
-    array(const std::initializer_list<variant_reference<Config>>& init,
-          const Allocator&                                        alloc = Allocator())
-        : m_data(mc::make_shared<detail::array_impl<variant>>()) {
-        // 将 variant_reference 转换为 variant 并存储
-        for (const auto& ref : init) {
-            static_cast<std::vector<variant>*>(m_data.get())->push_back(ref.get());
-        }
-    }
+    array(const std::initializer_list<variant_reference>& init,
+          const Allocator&                                alloc = Allocator());
 
     /**
      * @brief 特殊构造函数：从 variant_reference 迭代器范围构造
-     * @tparam Config variant_reference 的配置类型
      * @tparam InputIt 输入迭代器类型
      * @param first 起始迭代器
      * @param last 结束迭代器
      * @param alloc 分配器
      */
-    template <typename Config, typename InputIt>
+    template <typename InputIt>
     array(InputIt first, InputIt last,
-          std::enable_if_t<is_variant_reference_v<typename std::iterator_traits<InputIt>::value_type>>* = nullptr,
-          const Allocator& alloc                                                                        = Allocator())
-        : m_data(mc::make_shared<detail::array_impl<variant>>()) {
-        // 将 variant_reference 转换为 variant 并存储
-        for (auto it = first; it != last; ++it) {
-            static_cast<std::vector<variant>*>(m_data.get())->push_back(it->get());
-        }
-    }
+          const Allocator& alloc                                                                        = Allocator(),
+          std::enable_if_t<is_variant_reference_v<typename std::iterator_traits<InputIt>::value_type>>* = nullptr);
 
     /**
      * @brief 析构函数

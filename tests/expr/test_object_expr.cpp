@@ -20,7 +20,7 @@ namespace test_object_expr {
 // 测试接口1：包含整数属性和加减操作
 class TestInterface1 : public mc::engine::interface<TestInterface1> {
 public:
-    MC_INTERFACE("org.test.TestInterface1")
+    MC_INTERFACE("org.test.obj.TestInterface1")
 
     int32_t m_value = 0;
 
@@ -44,7 +44,7 @@ public:
 // 测试接口2：包含字符串属性和设置/获取操作
 class TestInterface2 : public mc::engine::interface<TestInterface2> {
 public:
-    MC_INTERFACE("org.test.TestInterface2")
+    MC_INTERFACE("org.test.expr.TestInterface2")
 
     std::string m_value = "默认值";
 

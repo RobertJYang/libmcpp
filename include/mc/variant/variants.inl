@@ -24,6 +24,28 @@
 namespace mc {
 
 template <typename T, typename Allocator>
+array<T, Allocator>::array(const std::initializer_list<variant_reference>& init,
+                           const Allocator&                                alloc)
+    : m_data(mc::make_shared<detail::array_impl<mc::variant, Allocator>>(alloc)) {
+    m_data->reserve(init.size());
+    for (const auto& ref : init) {
+        m_data->push_back(ref.get());
+    }
+}
+
+template <typename T, typename Allocator>
+template <typename InputIt>
+array<T, Allocator>::array(
+    InputIt first, InputIt last,
+    const Allocator& alloc,
+    std::enable_if_t<is_variant_reference_v<typename std::iterator_traits<InputIt>::value_type>>*)
+    : m_data(mc::make_shared<detail::array_impl<mc::variant, Allocator>>(alloc)) {
+    for (auto it = first; it != last; ++it) {
+        m_data->push_back(it->get());
+    }
+}
+
+template <typename T, typename Allocator>
 variant detail::array_impl<T, Allocator>::do_at(size_t index) const {
     if (index >= base_type::size()) {
         throw_out_of_range_error("array_impl::at: index out of range");
@@ -138,7 +160,7 @@ const variant* detail::array_impl<T, Allocator>::get_ptr(size_t index) const {
 
 template <typename T, typename Allocator>
 variants::variants(mc::array<T, Allocator> arr,
-                   std::enable_if_t<is_variant_constructible_v<T>>*) {
+                   std::enable_if_t<is_variant_constructible_v<T> || is_variant_v<T>>*) {
     auto impl_ptr = arr.get_impl();
     if (impl_ptr) {
         m_data = mc::shared_ptr<i_variants>(impl_ptr.get());
@@ -149,7 +171,7 @@ variants::variants(mc::array<T, Allocator> arr,
 
 template <typename T, typename Allocator>
 variants::variants(const std::vector<T, Allocator>& vec,
-                   std::enable_if_t<is_variant_constructible_v<T>>*) {
+                   std::enable_if_t<is_variant_constructible_v<T> || is_variant_v<T>>*) {
     auto data = mc::make_shared<detail::array_impl<variant>>();
     for (const auto& item : vec) {
         static_cast<std::vector<variant>*>(data.get())->push_back(variant(item));
@@ -159,7 +181,7 @@ variants::variants(const std::vector<T, Allocator>& vec,
 
 template <typename T, typename Allocator>
 variants::variants(std::vector<T, Allocator>&& vec,
-                   std::enable_if_t<is_variant_constructible_v<T>>*) {
+                   std::enable_if_t<is_variant_constructible_v<T> || is_variant_v<T>>*) {
     if constexpr (std::is_same_v<T, variant>) {
         m_data = mc::make_shared<detail::array_impl<variant>>(vec);
     } else {
@@ -184,15 +206,6 @@ variants::variants(const std::initializer_list<T>& list,
 }
 
 // ========== 特殊构造函数实现：处理 variant_reference 类型 ==========
-
-template <typename Config>
-variants::variants(const std::initializer_list<variant_reference<Config>>& list) {
-    auto data = mc::make_shared<detail::array_impl<variant>>();
-    for (const auto& ref : list) {
-        static_cast<std::vector<variant>*>(data.get())->push_back(ref.get());
-    }
-    m_data = data;
-}
 
 template <typename InputIt>
 variants::variants(InputIt first, InputIt last,

@@ -64,13 +64,6 @@ public:
     const std::string& str() const;
 
     /**
-     * 转换为字符串
-     *
-     * @return 路径字符串
-     */
-    operator std::string() const;
-
-    /**
      * 等于比较运算符
      *
      * @param other 要比较的路径

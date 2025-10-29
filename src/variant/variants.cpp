@@ -14,7 +14,9 @@
 #include <mc/dict.h>
 #include <mc/variant/variant_base.h>
 #include <mc/variant/variant_common.h>
+#include <mc/variant/variant_reference.h>
 #include <mc/variant/variants.h>
+#include <mc/variant/variants.inl>
 
 namespace mc {
 
@@ -209,11 +211,11 @@ const variant* variants::get_ptr(size_t index) const {
 }
 
 // operator[] 实现
-variant_reference<variant_config<>> variants::operator[](size_t index) {
+variant_reference variants::operator[](size_t index) {
     if (!m_data) {
         throw_runtime_error("variants is empty");
     }
-    return variant_reference<variant_config<>>(*this, index);
+    return variant_reference(*this, index);
 }
 
 variant variants::operator[](size_t index) const {
@@ -224,11 +226,11 @@ variant variants::operator[](size_t index) const {
 }
 
 // 获取可修改的引用
-variant_reference<variant_config<>> variants::at_ref(size_t index) {
+variant_reference variants::at_ref(size_t index) {
     if (!m_data) {
         throw_runtime_error("variants is empty");
     }
-    return variant_reference<variant_config<>>(*this, index);
+    return variant_reference(*this, index);
 }
 
 // variants_iterator 实现
@@ -294,7 +296,7 @@ variants_iterator::reference variants_iterator::operator*() const {
     if (m_index >= m_data->do_size()) {
         throw_out_of_range_error("variants_iterator: index out of range");
     }
-    return variant_reference<variant_config<>>(variants(m_data), m_index);
+    return variant_reference(variants(m_data), m_index);
 }
 
 variants_iterator::reference variants_iterator::operator[](difference_type n) const {
@@ -392,7 +394,7 @@ variants_const_iterator::reference variants_const_iterator::operator*() const {
     if (m_index >= m_data->do_size()) {
         throw_out_of_range_error("variants_const_iterator: index out of range");
     }
-    return variant_reference<variant_config<>>(variants(m_data), m_index);
+    return variant_reference(variants(m_data), m_index);
 }
 
 variants_const_iterator::reference variants_const_iterator::operator[](difference_type n) const {
@@ -452,6 +454,14 @@ variants::variants(const std::initializer_list<variant>& list) {
     m_data = data;
 }
 
+variants::variants(const std::initializer_list<variant_reference>& list) {
+    auto data = mc::make_shared<detail::array_impl<variant>>();
+    for (const auto& ref : list) {
+        static_cast<std::vector<variant>*>(data.get())->push_back(ref.get());
+    }
+    m_data = data;
+}
+
 // 模板版本的 insert 实现
 template <typename InputIt>
 void variants::insert(size_t pos, InputIt first, InputIt last) {
@@ -463,8 +473,12 @@ void variants::insert(size_t pos, InputIt first, InputIt last) {
 }
 
 // 显式实例化常用的模板版本
-template void variants::insert<variants_const_iterator>(size_t pos, variants_const_iterator first, variants_const_iterator last);
-template void variants::insert<variants_iterator>(size_t pos, variants_iterator first, variants_iterator last);
+template void MC_API variants::insert<variants_const_iterator>(size_t pos, variants_const_iterator first, variants_const_iterator last);
+template void MC_API variants::insert<variants_iterator>(size_t pos, variants_iterator first, variants_iterator last);
+
+// 迭代器版本的 insert 显式实例化
+template variants_iterator MC_API variants::insert<variants_const_iterator>(variants_iterator pos, variants_const_iterator first, variants_const_iterator last);
+template variants_iterator MC_API variants::insert<variants_iterator>(variants_iterator pos, variants_iterator first, variants_iterator last);
 
 // variants 迭代器方法实现
 variants_const_iterator variants::begin() const {

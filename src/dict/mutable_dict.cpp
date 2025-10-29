@@ -10,7 +10,7 @@
  * See the Mulan PSL v2 for more details.
  */
 
-#include <mc/dict/dict.h>
+#include <mc/dict.h>
 #include <mc/variant.h>
 #include <stdexcept>
 

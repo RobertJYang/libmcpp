@@ -118,7 +118,7 @@ public:
 // 测试接口，包含字符串属性
 class test_interface : public mc::engine::interface<test_interface> {
 public:
-    MC_INTERFACE("org.test.TestInterface")
+    MC_INTERFACE("org.test.property.TestInterface")
 
     mc::engine::property<std::string> test_prop;
 

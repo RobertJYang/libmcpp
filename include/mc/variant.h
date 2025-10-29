@@ -17,17 +17,74 @@
 #ifndef MC_VARIANT_H
 #define MC_VARIANT_H
 
-#include <mc/dict.h>
+#include <mc/dict/dict.h>
 #include <mc/traits.h>
-#include <mc/variant/io.h>
 #include <mc/variant/variant_base.h>
 #include <mc/variant/variant_reference.h>
 
 namespace mc {
 
-using variant       = variant_base<>;
-using blob          = blob_base<>;
-using typed_variant = variant_base<variant_config<std::allocator<char>, true>>;
+/**
+ * @brief 固定类型的variant，构造时自动设置为固定类型模式
+ */
+class typed_variant : public variant_base {
+public:
+    using base_type = variant_base;
+
+    // 默认构造函数
+    typed_variant() : base_type() {
+        set_fixed_type(true);
+    }
+
+    // 从type_id构造，初始化为该类型的默认值
+    explicit typed_variant(type_id type) : base_type(type) {
+        set_fixed_type(true);
+    }
+
+    // 从值构造
+    template <typename T, typename = std::enable_if_t<
+                              !std::is_same_v<std::decay_t<T>, typed_variant> &&
+                              !std::is_same_v<std::decay_t<T>, type_id>>>
+    typed_variant(T&& value) : base_type(std::forward<T>(value)) {
+        set_fixed_type(true);
+    }
+
+    // 拷贝构造函数
+    typed_variant(const typed_variant& other) : base_type(other) {
+        set_fixed_type(true);
+    }
+
+    // 移动构造函数
+    typed_variant(typed_variant&& other) noexcept : base_type(std::move(other)) {
+        set_fixed_type(true);
+    }
+
+    // 从base_type构造
+    typed_variant(const base_type& other) : base_type(other) {
+        set_fixed_type(true);
+    }
+
+    typed_variant(base_type&& other) : base_type(std::move(other)) {
+        set_fixed_type(true);
+    }
+
+    // 赋值操作符
+    typed_variant& operator=(const typed_variant& other) {
+        base_type::operator=(other);
+        return *this;
+    }
+
+    typed_variant& operator=(typed_variant&& other) {
+        base_type::operator=(std::move(other));
+        return *this;
+    }
+
+    template <typename T>
+    typed_variant& operator=(T&& value) {
+        base_type::operator=(std::forward<T>(value));
+        return *this;
+    }
+};
 
 // 检查所有类型是否都可以转换为variant
 template <typename... Args>
@@ -39,7 +96,8 @@ struct all_variant_constructible<> : std::true_type {};
 template <typename T, typename... Rest>
 struct all_variant_constructible<T, Rest...> {
     static constexpr bool value =
-        is_variant_constructible_v<T> && all_variant_constructible<Rest...>::value;
+        (is_variant_constructible_v<T> || is_variant_v<T>) &&
+        all_variant_constructible<Rest...>::value;
 };
 
 template <typename... Args>

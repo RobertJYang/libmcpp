@@ -426,12 +426,12 @@ TEST(variants_test, variant_reference_initializer_list_constructor) {
     mc::array<mc::variant> source_array = {mc::variant(1.5), mc::variant("world"), mc::variant(false)};
 
     // 直接创建 variant_reference 对象
-    mc::variant_reference<mc::variant_config<>> ref1(source_array[0]);
-    mc::variant_reference<mc::variant_config<>> ref2(source_array[1]);
-    mc::variant_reference<mc::variant_config<>> ref3(source_array[2]);
+    mc::variant_reference ref1(source_array[0]);
+    mc::variant_reference ref2(source_array[1]);
+    mc::variant_reference ref3(source_array[2]);
 
     // 使用 variant_reference 初始化列表构造 variants
-    mc::variants new_variants = {mc::variant_reference<mc::variant_config<>>{ref1}, mc::variant_reference<mc::variant_config<>>{ref2}, mc::variant_reference<mc::variant_config<>>{ref3}};
+    mc::variants new_variants = {mc::variant_reference{ref1}, mc::variant_reference{ref2}, mc::variant_reference{ref3}};
 
     // 验证结果
     EXPECT_EQ(new_variants.size(), 3);
@@ -451,7 +451,7 @@ TEST(variants_test, variant_reference_iterator_range_constructor) {
     mc::array<mc::variant> source_array = {mc::variant("test"), mc::variant(3.14), mc::variant(999)};
 
     // 获取 variant_reference 迭代器
-    std::vector<mc::variant_reference<mc::variant_config<>>> refs;
+    std::vector<mc::variant_reference> refs;
     refs.emplace_back(source_array[0]);
     refs.emplace_back(source_array[1]);
     refs.emplace_back(source_array[2]);

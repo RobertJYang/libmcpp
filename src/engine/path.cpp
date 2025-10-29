@@ -35,10 +35,6 @@ const std::string& path::str() const {
     return m_path;
 }
 
-path::operator std::string() const {
-    return m_path;
-}
-
 bool path::operator==(const path& other) const {
     return m_path == other.m_path;
 }

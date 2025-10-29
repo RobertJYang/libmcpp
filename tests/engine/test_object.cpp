@@ -59,11 +59,11 @@ public:
     mc::signal<void(std::string_view, std::string_view)> value_changed;
 };
 
-class TestObject : public mc::engine::object<TestObject> {
+class TTestObject : public mc::engine::object<TTestObject> {
 public:
-    MC_OBJECT(TestObject, "TestObject", "/org/test/TestObject", (TestInterface1)(TestInterface2))
+    MC_OBJECT(TTestObject, "TTestObject", "/org/test/TTestObject", (TestInterface1)(TestInterface2))
 
-    TestObject(mc::engine::core_object* parent = nullptr) : mc::engine::object<TestObject>(parent) {
+    TTestObject(mc::engine::core_object* parent = nullptr) : mc::engine::object<TTestObject>(parent) {
     }
 
     int32_t m_prev_value = 0;
@@ -79,7 +79,7 @@ MC_REFLECT(TestInterface1,
                                                                        "value_changed")))
 MC_REFLECT(TestInterface2, ((m_value, "value"))((set_value, "SetValue"))((get_value, "GetValue"))(
                                (value_changed, "value_changed")))
-MC_REFLECT(TestObject, ((m_iface1, "iface1"))((m_iface2, "iface2")))
+MC_REFLECT(TTestObject, ((m_iface1, "iface1"))((m_iface2, "iface2")))
 
 class object_test : public mc::test::TestBase {
 protected:
@@ -89,7 +89,7 @@ protected:
     void TearDown() override {
     }
 
-    TestObject                   obj;
+    TTestObject                  obj;
     mc::engine::abstract_object& obj_base = obj;
 };
 
@@ -98,14 +98,14 @@ TEST_F(object_test, test_object_metadata) {
 
     // 获取静态接口信息
     std::vector<std::string_view> interfaces;
-    mc::traits::tuple_for_each(TestObject::get_static_interface_infos(), [&](auto info) {
+    mc::traits::tuple_for_each(TTestObject::get_static_interface_infos(), [&](auto info) {
         interfaces.emplace_back(info->name);
     });
     EXPECT_EQ(interfaces, expected);
 
     // 获取运行时接口信息
     std::vector<std::string_view> interfaces1;
-    for (auto& info : TestObject::metadata().get_interfaces()) {
+    for (auto& info : TTestObject::metadata().get_interfaces()) {
         interfaces1.emplace_back(info->name);
     }
     std::sort(interfaces1.begin(), interfaces1.end());

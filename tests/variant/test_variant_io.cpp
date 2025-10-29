@@ -272,14 +272,14 @@ TEST(VariantIOTest, BlobDirectOutput) {
 
     // 创建不同大小的blob对象进行测试
     // 测试空blob
-    blob_base<> empty_blob;
+    blob empty_blob;
     ss << empty_blob;
     EXPECT_EQ(ss.str(), "blob[0]");
     ss.str("");
 
     // 测试带有数据的blob
     std::vector<uint8_t> binary_data{0x01, 0x02, 0x03, 0xFF};
-    blob_base<>          data_blob;
+    blob                 data_blob;
     auto*                char_data = reinterpret_cast<const char*>(binary_data.data());
     data_blob.data.assign(char_data, char_data + binary_data.size());
     ss << data_blob;

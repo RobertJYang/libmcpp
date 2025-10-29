@@ -346,12 +346,6 @@ invoke_result standard_interfaces::invoke(abstract_object* object, std::string_v
 
 } // namespace mc::engine
 
-class BB {};
-
-constexpr bool a = mc::is_variant_constructible_v<mc::signal<void()>>;
-constexpr bool b = mc::is_variant_constructible_v<BB>;
-constexpr bool c = mc::is_variant_constructible_v<BB>;
-
 MC_REFLECT(mc::engine::properties_interface,
            ((get, "Get"))((get_all, "GetAll"))((set, "Set"))((properties_changed,
                                                               "PropertiesChanged")))

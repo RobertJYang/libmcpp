@@ -105,7 +105,9 @@ using result_variant = std::variant<
 template <typename T = mc::variant>
 class result {
     static_assert(!mc::futures::detail::is_future_v<T> &&
-                      (mc::is_variant_constructible_v<T> || std::is_same_v<T, void>),
+                      (mc::is_variant_constructible_v<T> ||
+                       mc::is_variant_v<T> ||
+                       std::is_same_v<T, void>),
                   "T must be constructible to variant or void");
     using property_traits = mc::traits::property_traits<T>;
 
@@ -178,13 +180,13 @@ public:
 
     // 处理类型到 result<mc::variant> 的转换
     template <typename U>
-    result(U value, std::enable_if_t<
-                        std::is_same_v<T, mc::variant> &&
-                            mc::is_variant_constructible_v<U> &&
-                            !std::is_same_v<std::decay_t<U>, mc::exception> &&
-                            !std::is_same_v<std::decay_t<U>, mc::error_ptr> &&
-                            !mc::futures::detail::is_future_v<std::decay_t<U>>,
-                        int> = 0)
+    explicit result(U value, std::enable_if_t<
+                                 std::is_same_v<T, mc::variant> &&
+                                     mc::is_variant_constructible_v<U> &&
+                                     !std::is_same_v<std::decay_t<U>, mc::exception> &&
+                                     !std::is_same_v<std::decay_t<U>, mc::error_ptr> &&
+                                     !mc::futures::detail::is_future_v<std::decay_t<U>>,
+                                 int> = 0)
         : m_value(mc::variant(value)) {
     }
 
@@ -578,6 +580,14 @@ inline void to_variant(const result<T>& obj, mc::variant& v) {
 template <typename T, std::enable_if_t<mc::is_variant_constructible_v<T>, int> = 0>
 inline void from_variant(const mc::variant& v, result<T>& obj) {
     obj = std::move(result<T>(v));
+}
+
+inline void to_variant(const result<mc::variant>& obj, mc::variant& v) {
+    v = obj.get(); // 阻塞等待直到 future 就绪
+}
+
+inline void from_variant(const mc::variant& v, result<mc::variant>& obj) {
+    obj = result<mc::variant>(v);
 }
 
 inline void to_variant(const result<void>& obj, mc::variant& v) {
