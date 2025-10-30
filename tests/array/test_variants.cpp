@@ -10,6 +10,7 @@
  * See the Mulan PSL v2 for more details.
  */
 
+#include <algorithm>
 #include <gtest/gtest.h>
 #include <mc/array.h>
 #include <mc/exception.h>
@@ -463,4 +464,457 @@ TEST(variants_test, variant_reference_iterator_range_constructor) {
     EXPECT_EQ(new_variants[0].as_string(), "test");
     EXPECT_EQ(new_variants[1].as_double(), 3.14);
     EXPECT_EQ(new_variants[2].as_int32(), 999);
+}
+
+// ========== variants erase 方法测试 ==========
+
+TEST(variants_test, EraseByIndex) {
+    // 测试通过索引删除元素
+    mc::variants arr{1, 2, 3, 4, 5};
+
+    // 删除中间元素
+    arr.erase(2); // 删除值为 3 的元素
+    EXPECT_EQ(arr.size(), 4);
+    EXPECT_EQ(arr[0].as_int32(), 1);
+    EXPECT_EQ(arr[1].as_int32(), 2);
+    EXPECT_EQ(arr[2].as_int32(), 4);
+    EXPECT_EQ(arr[3].as_int32(), 5);
+
+    // 删除第一个元素
+    arr.erase(0);
+    EXPECT_EQ(arr.size(), 3);
+    EXPECT_EQ(arr[0].as_int32(), 2);
+    EXPECT_EQ(arr[1].as_int32(), 4);
+    EXPECT_EQ(arr[2].as_int32(), 5);
+
+    // 删除最后一个元素
+    arr.erase(arr.size() - 1);
+    EXPECT_EQ(arr.size(), 2);
+    EXPECT_EQ(arr[0].as_int32(), 2);
+    EXPECT_EQ(arr[1].as_int32(), 4);
+}
+
+TEST(variants_test, EraseByIndexRange) {
+    // 测试通过索引范围删除元素
+    mc::variants arr{1, 2, 3, 4, 5, 6, 7};
+
+    // 删除中间范围的元素 [2, 5)
+    arr.erase(2, 5); // 删除索引 2, 3, 4 的元素（值为 3, 4, 5）
+    EXPECT_EQ(arr.size(), 4);
+    EXPECT_EQ(arr[0].as_int32(), 1);
+    EXPECT_EQ(arr[1].as_int32(), 2);
+    EXPECT_EQ(arr[2].as_int32(), 6);
+    EXPECT_EQ(arr[3].as_int32(), 7);
+
+    // 删除开头的元素 [0, 2)
+    arr.erase(0, 2);
+    EXPECT_EQ(arr.size(), 2);
+    EXPECT_EQ(arr[0].as_int32(), 6);
+    EXPECT_EQ(arr[1].as_int32(), 7);
+}
+
+TEST(variants_test, EraseByIterator) {
+    // 测试通过迭代器删除元素
+    mc::variants arr{10, 20, 30, 40, 50};
+
+    // 删除第三个元素（值为 30）
+    auto it        = arr.begin() + 2;
+    auto result_it = arr.erase(it);
+
+    EXPECT_EQ(arr.size(), 4);
+    EXPECT_EQ(arr[0].as_int32(), 10);
+    EXPECT_EQ(arr[1].as_int32(), 20);
+    EXPECT_EQ(arr[2].as_int32(), 40);
+    EXPECT_EQ(arr[3].as_int32(), 50);
+
+    // 验证返回的迭代器指向正确位置
+    EXPECT_EQ((*result_it).as_int32(), 40);
+    EXPECT_EQ(result_it - arr.begin(), 2);
+}
+
+TEST(variants_test, EraseByIteratorRange) {
+    // 测试通过迭代器范围删除元素
+    mc::variants arr{"a", "b", "c", "d", "e", "f"};
+
+    // 删除中间范围的元素 [begin+1, begin+4)
+    auto first     = arr.begin() + 1;
+    auto last      = arr.begin() + 4;
+    auto result_it = arr.erase(first, last);
+
+    EXPECT_EQ(arr.size(), 3);
+    EXPECT_EQ(arr[0].as_string(), "a");
+    EXPECT_EQ(arr[1].as_string(), "e");
+    EXPECT_EQ(arr[2].as_string(), "f");
+
+    // 验证返回的迭代器指向正确位置
+    EXPECT_EQ((*result_it).as_string(), "e");
+    EXPECT_EQ(result_it - arr.begin(), 1);
+}
+
+TEST(variants_test, EraseWithStdFind) {
+    // 测试与 std::find 算法的兼容性
+    mc::variants arr{1, 2, 3, 4, 5, 3, 6};
+
+    // 使用 std::find 查找值为 3 的元素
+    auto it = std::find(arr.begin(), arr.end(), mc::variant(3));
+    EXPECT_NE(it, arr.end());
+    EXPECT_EQ((*it).as_int32(), 3);
+
+    // 删除找到的元素
+    auto result_it = arr.erase(it);
+    EXPECT_EQ(arr.size(), 6);
+    EXPECT_EQ(arr[0].as_int32(), 1);
+    EXPECT_EQ(arr[1].as_int32(), 2);
+    EXPECT_EQ(arr[2].as_int32(), 4); // 原来的第4个元素现在在索引2
+    EXPECT_EQ(arr[3].as_int32(), 5);
+    EXPECT_EQ(arr[4].as_int32(), 3); // 第二个3还在
+    EXPECT_EQ(arr[5].as_int32(), 6);
+
+    // 验证返回的迭代器
+    EXPECT_EQ((*result_it).as_int32(), 4);
+}
+
+TEST(variants_test, EraseWithStdFindIf) {
+    // 测试与 std::find_if 算法的兼容性
+    mc::variants arr{1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
+
+    // 使用 std::find_if 查找第一个偶数
+    auto it = std::find_if(arr.begin(), arr.end(), [](const mc::variant& v) {
+        return v.as_int32() % 2 == 0;
+    });
+
+    EXPECT_NE(it, arr.end());
+    EXPECT_EQ((*it).as_int32(), 2);
+
+    // 删除找到的元素
+    arr.erase(it);
+    EXPECT_EQ(arr.size(), 9);
+    EXPECT_EQ(arr[0].as_int32(), 1);
+    EXPECT_EQ(arr[1].as_int32(), 3); // 原来的3现在在索引1
+    EXPECT_EQ(arr[2].as_int32(), 4);
+}
+
+TEST(variants_test, EraseEmptyArray) {
+    // 测试在空数组上调用 erase 的错误处理
+    mc::variants arr;
+
+    // 应该抛出异常
+    EXPECT_THROW(arr.erase(0), mc::runtime_exception);
+    EXPECT_THROW(arr.erase(0, 1), mc::runtime_exception);
+    EXPECT_THROW(arr.erase(arr.begin()), mc::runtime_exception);
+    EXPECT_THROW(arr.erase(arr.begin(), arr.end()), mc::runtime_exception);
+}
+
+TEST(variants_test, EraseOutOfBounds) {
+    // 测试越界访问的错误处理
+    mc::variants arr{1, 2, 3};
+
+    // 应该抛出越界异常
+    EXPECT_THROW(arr.erase(3), mc::out_of_range_exception);
+    EXPECT_THROW(arr.erase(10), mc::out_of_range_exception);
+    EXPECT_THROW(arr.erase(1, 5), mc::out_of_range_exception);
+}
+
+TEST(variants_test, CapacityManagement) {
+    mc::variants arr;
+
+    // 测试空数组的容量
+    EXPECT_EQ(arr.capacity(), 0);
+    EXPECT_GT(arr.max_size(), 0); // max_size 应该大于 0
+
+    // 添加元素后测试容量
+    arr.push_back(1);
+    arr.push_back(2);
+    arr.push_back(3);
+
+    EXPECT_GE(arr.capacity(), arr.size()); // 容量应该大于等于大小
+
+    // 预留容量
+    arr.reserve(100);
+    EXPECT_GE(arr.capacity(), 100);
+
+    // 测试 shrink_to_fit
+    arr.shrink_to_fit();
+    EXPECT_GE(arr.capacity(), arr.size()); // 容量应该大于等于大小
+}
+
+TEST(variants_test, ElementAccess) {
+    mc::variants arr = {10, 20, 30, 40, 50};
+
+    // 测试 front 和 back
+    EXPECT_EQ(arr.front(), 10);
+    EXPECT_EQ(arr.back(), 50);
+
+    // 测试修改 front 和 back
+    arr.front() = 100;
+    arr.back()  = 500;
+
+    EXPECT_EQ(arr.front(), 100);
+    EXPECT_EQ(arr.back(), 500);
+    EXPECT_EQ(arr[0], 100);
+    EXPECT_EQ(arr[4], 500);
+
+    // 测试空数组的 front 和 back 抛出异常
+    mc::variants empty_arr;
+    EXPECT_THROW(empty_arr.front(), mc::runtime_exception);
+    EXPECT_THROW(empty_arr.back(), mc::runtime_exception);
+}
+
+TEST(variants_test, AssignMethod) {
+    mc::variants arr;
+
+    // 测试 assign(count, value)
+    arr.assign(5, 42);
+    EXPECT_EQ(arr.size(), 5);
+    for (size_t i = 0; i < arr.size(); ++i) {
+        EXPECT_EQ(arr[i], 42);
+    }
+
+    // 测试 assign(initializer_list)
+    arr.assign({1, 2, 3, 4});
+    EXPECT_EQ(arr.size(), 4);
+    EXPECT_EQ(arr[0], 1);
+    EXPECT_EQ(arr[1], 2);
+    EXPECT_EQ(arr[2], 3);
+    EXPECT_EQ(arr[3], 4);
+
+    // 测试 assign 到空数组
+    mc::variants empty_arr;
+    empty_arr.assign(3, "hello");
+    EXPECT_EQ(empty_arr.size(), 3);
+    for (size_t i = 0; i < empty_arr.size(); ++i) {
+        EXPECT_EQ(empty_arr[i], "hello");
+    }
+}
+
+TEST(variants_test, SwapMethod) {
+    mc::variants arr1 = {1, 2, 3};
+    mc::variants arr2 = {"a", "b", "c", "d"};
+
+    // 记录原始状态
+    size_t size1 = arr1.size();
+    size_t size2 = arr2.size();
+
+    // 执行 swap
+    arr1.swap(arr2);
+
+    // 验证交换结果
+    EXPECT_EQ(arr1.size(), size2);
+    EXPECT_EQ(arr2.size(), size1);
+
+    EXPECT_EQ(arr1[0], "a");
+    EXPECT_EQ(arr1[1], "b");
+    EXPECT_EQ(arr1[2], "c");
+    EXPECT_EQ(arr1[3], "d");
+
+    EXPECT_EQ(arr2[0], 1);
+    EXPECT_EQ(arr2[1], 2);
+    EXPECT_EQ(arr2[2], 3);
+
+    // 测试与空数组交换
+    mc::variants empty_arr;
+    arr1.swap(empty_arr);
+
+    EXPECT_TRUE(arr1.empty());
+    EXPECT_EQ(empty_arr.size(), 4);
+    EXPECT_EQ(empty_arr[0], "a");
+}
+
+TEST(variants_test, ReverseIterators) {
+    mc::variants arr = {1, 2, 3, 4, 5};
+
+    // 测试反向迭代器
+    std::vector<mc::variant> reversed;
+    for (auto it = arr.rbegin(); it != arr.rend(); ++it) {
+        reversed.push_back(*it);
+    }
+
+    EXPECT_EQ(reversed.size(), 5);
+    EXPECT_EQ(reversed[0], 5);
+    EXPECT_EQ(reversed[1], 4);
+    EXPECT_EQ(reversed[2], 3);
+    EXPECT_EQ(reversed[3], 2);
+    EXPECT_EQ(reversed[4], 1);
+
+    // 测试常量反向迭代器
+    const mc::variants&      const_arr = arr;
+    std::vector<mc::variant> const_reversed;
+    for (auto it = const_arr.crbegin(); it != const_arr.crend(); ++it) {
+        const_reversed.push_back(*it);
+    }
+
+    EXPECT_EQ(const_reversed.size(), 5);
+    EXPECT_EQ(const_reversed[0], 5);
+    EXPECT_EQ(const_reversed[4], 1);
+
+    // 测试空数组的反向迭代器
+    mc::variants empty_arr;
+    EXPECT_EQ(empty_arr.rbegin(), empty_arr.rend());
+    EXPECT_EQ(empty_arr.crbegin(), empty_arr.crend());
+}
+
+// 测试 mc::variants 的 std::sort 基本排序功能
+TEST(variants_test, std_sort_basic) {
+    mc::variants arr{5, 2, 8, 1, 9, 3};
+
+    // 使用 std::sort 排序
+    std::sort(arr.begin(), arr.end());
+
+    
+    // 验证排序结果
+    EXPECT_EQ(arr.size(), 6);
+    EXPECT_EQ(arr[0], 1);
+    EXPECT_EQ(arr[1], 2);
+    EXPECT_EQ(arr[2], 3);
+    EXPECT_EQ(arr[3], 5);
+    EXPECT_EQ(arr[4], 8);
+    EXPECT_EQ(arr[5], 9);
+}
+
+// 测试 mc::variants 的字符串排序
+TEST(variants_test, std_sort_string) {
+    mc::variants arr{"banana", "apple", "cherry", "date"};
+
+    std::sort(arr.begin(), arr.end());
+
+    EXPECT_EQ(arr.size(), 4);
+    EXPECT_EQ(arr[0], "apple");
+    EXPECT_EQ(arr[1], "banana");
+    EXPECT_EQ(arr[2], "cherry");
+    EXPECT_EQ(arr[3], "date");
+}
+
+// 测试 mc::variants 的自定义比较器排序（降序）
+TEST(variants_test, std_sort_custom_comparator) {
+    mc::variants arr{5, 2, 8, 1, 9, 3};
+
+    // 使用 std::greater 进行降序排序
+    std::sort(arr.begin(), arr.end(), std::greater<mc::variant>());
+
+    EXPECT_EQ(arr.size(), 6);
+    EXPECT_EQ(arr[0], 9);
+    EXPECT_EQ(arr[1], 8);
+    EXPECT_EQ(arr[2], 5);
+    EXPECT_EQ(arr[3], 3);
+    EXPECT_EQ(arr[4], 2);
+    EXPECT_EQ(arr[5], 1);
+}
+
+// 测试 mc::variants 的 lambda 比较器排序
+TEST(variants_test, std_sort_lambda_comparator) {
+    mc::variants arr{"apple", "banana", "cherry", "date"};
+
+    // 按字符串长度排序
+    std::sort(arr.begin(), arr.end(), [](const mc::variant& a, const mc::variant& b) {
+        return a.as<std::string>().length() < b.as<std::string>().length();
+    });
+
+    EXPECT_EQ(arr.size(), 4);
+    EXPECT_EQ(arr[0], "date");   // 长度 4
+    EXPECT_EQ(arr[1], "apple");  // 长度 5
+    EXPECT_EQ(arr[2], "banana"); // 长度 6
+    EXPECT_EQ(arr[3], "cherry"); // 长度 6
+}
+
+// 测试 mc::variants 的稳定排序
+TEST(variants_test, std_stable_sort) {
+    // 创建包含相同值的数组来测试稳定性
+    mc::variants arr;
+    arr.push_back(mc::variant(1));
+    arr.push_back(mc::variant(3));
+    arr.push_back(mc::variant(2));
+    arr.push_back(mc::variant(3));
+    arr.push_back(mc::variant(1));
+
+    // 使用稳定排序
+    std::stable_sort(arr.begin(), arr.end());
+
+    EXPECT_EQ(arr.size(), 5);
+    EXPECT_EQ(arr[0], 1);
+    EXPECT_EQ(arr[1], 1);
+    EXPECT_EQ(arr[2], 2);
+    EXPECT_EQ(arr[3], 3);
+    EXPECT_EQ(arr[4], 3);
+}
+
+// 测试 mc::variants 的部分排序
+TEST(variants_test, std_partial_sort) {
+    mc::variants arr{9, 5, 2, 8, 1, 7, 3, 6, 4};
+
+    // 只排序前 4 个最小的元素
+    std::partial_sort(arr.begin(), arr.begin() + 4, arr.end());
+
+    EXPECT_EQ(arr.size(), 9);
+    // 前 4 个元素应该是最小的且已排序
+    EXPECT_EQ(arr[0], 1);
+    EXPECT_EQ(arr[1], 2);
+    EXPECT_EQ(arr[2], 3);
+    EXPECT_EQ(arr[3], 4);
+    // 后面的元素顺序不确定，但应该都大于等于 4
+}
+
+// 测试 mc::variants 的 nth_element
+TEST(variants_test, std_nth_element) {
+    mc::variants arr{9, 5, 2, 8, 1, 7, 3, 6, 4};
+
+    // 找到第 4 小的元素（索引 3）
+    std::nth_element(arr.begin(), arr.begin() + 3, arr.end());
+
+    EXPECT_EQ(arr.size(), 9);
+    // 第 4 个位置应该是第 4 小的元素
+    EXPECT_EQ(arr[3], 4);
+
+    // 验证分区性质：前面的元素都小于等于 arr[3]，后面的都大于等于 arr[3]
+    for (size_t i = 0; i < 3; ++i) {
+        EXPECT_LE(arr[i].as<int>(), 4);
+    }
+    for (size_t i = 4; i < arr.size(); ++i) {
+        EXPECT_GE(arr[i].as<int>(), 4);
+    }
+}
+
+// 测试空 mc::variants 的排序
+TEST(variants_test, std_sort_empty_array) {
+    mc::variants arr;
+
+    // 空数组排序应该不会崩溃
+    std::sort(arr.begin(), arr.end());
+
+    EXPECT_EQ(arr.size(), 0);
+    EXPECT_TRUE(arr.empty());
+}
+
+// 测试单元素 mc::variants 的排序
+TEST(variants_test, std_sort_single_element) {
+    mc::variants arr{42};
+
+    std::sort(arr.begin(), arr.end());
+
+    EXPECT_EQ(arr.size(), 1);
+    EXPECT_EQ(arr[0], 42);
+}
+
+// 测试 mc::variants 共享语义下的排序
+TEST(variants_test, std_sort_shared_semantics) {
+    mc::variants arr1{5, 2, 8, 1, 9, 3};
+    mc::variants arr2 = arr1; // 共享数据
+
+    // 对 arr1 排序
+    std::sort(arr1.begin(), arr1.end());
+
+    // 验证 arr1 已排序
+    EXPECT_EQ(arr1[0], 1);
+    EXPECT_EQ(arr1[1], 2);
+    EXPECT_EQ(arr1[2], 3);
+    EXPECT_EQ(arr1[3], 5);
+    EXPECT_EQ(arr1[4], 8);
+    EXPECT_EQ(arr1[5], 9);
+
+    // 验证 arr2 也被影响（共享语义）
+    EXPECT_EQ(arr2[0], 1);
+    EXPECT_EQ(arr2[1], 2);
+    EXPECT_EQ(arr2[2], 3);
+    EXPECT_EQ(arr2[3], 5);
+    EXPECT_EQ(arr2[4], 8);
+    EXPECT_EQ(arr2[5], 9);
 }

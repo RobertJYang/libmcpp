@@ -10,6 +10,8 @@
  * See the Mulan PSL v2 for more details.
  */
 
+#include <limits>
+
 #include <mc/array.h>
 #include <mc/dict.h>
 #include <mc/variant/variant_base.h>
@@ -21,6 +23,14 @@
 namespace mc {
 
 variants::variants() {
+}
+
+variants::variants(const mc::variant& other) {
+    if (other.is_array()) {
+        *this = other.get_array();
+    } else {
+        throw_type_error("array", other.get_type());
+    }
 }
 
 variants::variants(const std::allocator<char>& alloc) {
@@ -107,6 +117,38 @@ void variants::resize(size_t count) {
 void variants::resize(size_t count, const variant& value) {
     ensure_data();
     m_data->do_resize(count, value);
+}
+
+size_t variants::capacity() const {
+    return m_data ? m_data->do_capacity() : 0;
+}
+
+size_t variants::max_size() const {
+    return m_data ? m_data->do_max_size() : std::numeric_limits<size_t>::max();
+}
+
+void variants::shrink_to_fit() {
+    if (m_data) {
+        m_data->do_shrink_to_fit();
+    }
+}
+
+// assign 方法实现
+void variants::assign(size_t count, const variant& value) {
+    ensure_data();
+    m_data->do_assign(count, value);
+}
+
+void variants::assign(std::initializer_list<variant> ilist) {
+    clear();
+    for (const auto& item : ilist) {
+        push_back(item);
+    }
+}
+
+// swap 方法实现
+void variants::swap(variants& other) noexcept {
+    std::swap(m_data, other.m_data);
 }
 
 // 迭代器支持实现
@@ -231,6 +273,35 @@ variant_reference variants::at_ref(size_t index) {
         throw_runtime_error("variants is empty");
     }
     return variant_reference(*this, index);
+}
+
+// 访问首尾元素
+variant_reference variants::front() {
+    if (!m_data || m_data->do_empty()) {
+        throw_runtime_error("variants is empty");
+    }
+    return variant_reference(*this, 0);
+}
+
+variant variants::front() const {
+    if (!m_data) {
+        throw_runtime_error("variants is empty");
+    }
+    return m_data->do_front();
+}
+
+variant_reference variants::back() {
+    if (!m_data || m_data->do_empty()) {
+        throw_runtime_error("variants is empty");
+    }
+    return variant_reference(*this, m_data->do_size() - 1);
+}
+
+variant variants::back() const {
+    if (!m_data) {
+        throw_runtime_error("variants is empty");
+    }
+    return m_data->do_back();
 }
 
 // variants_iterator 实现
@@ -438,6 +509,40 @@ void variants::insert(size_t pos, size_t count, const variant& value) {
     }
 }
 
+// 删除操作实现
+void variants::erase(size_t pos) {
+    if (!m_data) {
+        throw_runtime_error("variants is empty");
+    }
+    m_data->do_erase(pos);
+}
+
+void variants::erase(size_t first, size_t last) {
+    if (!m_data) {
+        throw_runtime_error("variants is empty");
+    }
+    m_data->do_erase(first, last);
+}
+
+variants_iterator variants::erase(variants_const_iterator pos) {
+    if (!m_data) {
+        throw_runtime_error("variants is empty");
+    }
+    size_t index = pos - begin();
+    m_data->do_erase(index);
+    return begin() + index;
+}
+
+variants_iterator variants::erase(variants_const_iterator first, variants_const_iterator last) {
+    if (!m_data) {
+        throw_runtime_error("variants is empty");
+    }
+    size_t first_index = first - begin();
+    size_t last_index  = last - begin();
+    m_data->do_erase(first_index, last_index);
+    return begin() + first_index;
+}
+
 // 拷贝操作实现
 variants variants::copy() const {
     return variants(m_data->copy());
@@ -495,6 +600,39 @@ variants_iterator variants::begin() {
 
 variants_iterator variants::end() {
     return variants_iterator(m_data, m_data ? m_data->do_size() : 0);
+}
+
+variants_const_iterator variants::cbegin() const {
+    return begin();
+}
+
+variants_const_iterator variants::cend() const {
+    return end();
+}
+
+// 反向迭代器实现
+variants::reverse_iterator variants::rbegin() {
+    return reverse_iterator(end());
+}
+
+variants::const_reverse_iterator variants::rbegin() const {
+    return const_reverse_iterator(end());
+}
+
+variants::const_reverse_iterator variants::crbegin() const {
+    return const_reverse_iterator(cend());
+}
+
+variants::reverse_iterator variants::rend() {
+    return reverse_iterator(begin());
+}
+
+variants::const_reverse_iterator variants::rend() const {
+    return const_reverse_iterator(begin());
+}
+
+variants::const_reverse_iterator variants::crend() const {
+    return const_reverse_iterator(cbegin());
 }
 
 size_t calculate_array_hash(const variants& array_data) {
