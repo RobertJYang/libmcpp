@@ -10,6 +10,7 @@
  * See the Mulan PSL v2 for more details.
  */
 
+#include <algorithm>
 #include <gtest/gtest.h>
 #include <mc/array.h>
 #include <mc/exception.h>
@@ -699,4 +700,273 @@ TEST(array_test, variant_reference_type_safety_check) {
     // 这通过编译时类型检查来确保
     static_assert(std::is_same_v<decltype(new_array[0]), mc::variant&>,
                   "Array element should be variant, not variant_reference");
+}
+
+TEST(array_test, assign_count_value) {
+    mc::array<int> arr;
+
+    // 测试 assign(count, value)
+    arr.assign(5, 42);
+    EXPECT_EQ(arr.size(), 5);
+    for (size_t i = 0; i < arr.size(); ++i) {
+        EXPECT_EQ(arr[i], 42);
+    }
+
+    // 测试重新 assign
+    arr.assign(3, 100);
+    EXPECT_EQ(arr.size(), 3);
+    for (size_t i = 0; i < arr.size(); ++i) {
+        EXPECT_EQ(arr[i], 100);
+    }
+
+    // 测试 assign 到 0 个元素
+    arr.assign(0, 999);
+    EXPECT_TRUE(arr.empty());
+    EXPECT_EQ(arr.size(), 0);
+}
+
+TEST(array_test, assign_iterator_range) {
+    mc::array<int> arr;
+
+    // 准备源数据
+    std::vector<int> source = {10, 20, 30, 40, 50};
+
+    // 测试 assign(first, last)
+    arr.assign(source.begin(), source.end());
+    EXPECT_EQ(arr.size(), 5);
+    for (size_t i = 0; i < arr.size(); ++i) {
+        EXPECT_EQ(arr[i], source[i]);
+    }
+
+    // 测试部分范围 assign
+    arr.assign(source.begin() + 1, source.begin() + 4);
+    EXPECT_EQ(arr.size(), 3);
+    EXPECT_EQ(arr[0], 20);
+    EXPECT_EQ(arr[1], 30);
+    EXPECT_EQ(arr[2], 40);
+
+    // 测试空范围 assign
+    arr.assign(source.end(), source.end());
+    EXPECT_TRUE(arr.empty());
+    EXPECT_EQ(arr.size(), 0);
+}
+
+TEST(array_test, assign_initializer_list) {
+    mc::array<std::string> arr;
+
+    // 测试 assign(initializer_list)
+    arr.assign({"hello", "world", "test"});
+    EXPECT_EQ(arr.size(), 3);
+    EXPECT_EQ(arr[0], "hello");
+    EXPECT_EQ(arr[1], "world");
+    EXPECT_EQ(arr[2], "test");
+
+    // 测试重新 assign
+    arr.assign({"foo", "bar"});
+    EXPECT_EQ(arr.size(), 2);
+    EXPECT_EQ(arr[0], "foo");
+    EXPECT_EQ(arr[1], "bar");
+
+    // 测试空初始化列表 assign
+    arr.assign({});
+    EXPECT_TRUE(arr.empty());
+    EXPECT_EQ(arr.size(), 0);
+}
+
+TEST(array_test, assign_shared_semantics) {
+    mc::array<int> arr1 = {1, 2, 3};
+    mc::array<int> arr2 = arr1; // 共享数据
+
+    // 对 arr1 进行 assign 操作
+    arr1.assign(2, 999);
+
+    // arr2 应该受到影响（因为共享数据）
+    EXPECT_EQ(arr2.size(), 2);
+    EXPECT_EQ(arr2[0], 999);
+    EXPECT_EQ(arr2[1], 999);
+
+    // 验证它们仍然共享数据
+    arr1[0] = 888;
+    EXPECT_EQ(arr2[0], 888);
+}
+
+// ========== 排序算法兼容性测试 ==========
+
+TEST(array_test, std_sort_basic) {
+    // 测试基本的 std::sort 排序
+    mc::array<int> arr = {5, 2, 8, 1, 9, 3};
+
+    std::sort(arr.begin(), arr.end());
+
+    EXPECT_EQ(arr.size(), 6);
+    EXPECT_EQ(arr[0], 1);
+    EXPECT_EQ(arr[1], 2);
+    EXPECT_EQ(arr[2], 3);
+    EXPECT_EQ(arr[3], 5);
+    EXPECT_EQ(arr[4], 8);
+    EXPECT_EQ(arr[5], 9);
+}
+
+TEST(array_test, std_sort_string) {
+    // 测试字符串排序
+    mc::array<std::string> arr = {"zebra", "apple", "banana", "cherry"};
+
+    std::sort(arr.begin(), arr.end());
+
+    EXPECT_EQ(arr.size(), 4);
+    EXPECT_EQ(arr[0], "apple");
+    EXPECT_EQ(arr[1], "banana");
+    EXPECT_EQ(arr[2], "cherry");
+    EXPECT_EQ(arr[3], "zebra");
+}
+
+TEST(array_test, std_sort_custom_comparator) {
+    // 测试自定义比较函数的排序
+    mc::array<int> arr = {5, 2, 8, 1, 9, 3};
+
+    // 降序排序
+    std::sort(arr.begin(), arr.end(), std::greater<int>());
+
+    EXPECT_EQ(arr.size(), 6);
+    EXPECT_EQ(arr[0], 9);
+    EXPECT_EQ(arr[1], 8);
+    EXPECT_EQ(arr[2], 5);
+    EXPECT_EQ(arr[3], 3);
+    EXPECT_EQ(arr[4], 2);
+    EXPECT_EQ(arr[5], 1);
+}
+
+TEST(array_test, std_sort_lambda_comparator) {
+    // 测试 lambda 比较函数的排序
+    mc::array<std::string> arr = {"apple", "pie", "a", "banana"};
+
+    // 按字符串长度排序
+    std::sort(arr.begin(), arr.end(), [](const std::string& a, const std::string& b) {
+        return a.length() < b.length();
+    });
+
+    EXPECT_EQ(arr.size(), 4);
+    EXPECT_EQ(arr[0], "a");      // 长度 1
+    EXPECT_EQ(arr[1], "pie");    // 长度 3
+    EXPECT_EQ(arr[2], "apple");  // 长度 5
+    EXPECT_EQ(arr[3], "banana"); // 长度 6
+}
+
+TEST(array_test, std_stable_sort) {
+    // 测试稳定排序
+    struct item {
+        int value;
+        int order;
+
+        item() : value(0), order(0) {
+        }
+        item(int v, int o) : value(v), order(o) {
+        }
+
+        bool operator<(const item& other) const {
+            return value < other.value;
+        }
+
+        bool operator==(const item& other) const {
+            return value == other.value && order == other.order;
+        }
+    };
+
+    mc::array<item> arr;
+    arr.emplace_back(3, 1);
+    arr.emplace_back(1, 2);
+    arr.emplace_back(3, 3);
+    arr.emplace_back(2, 4);
+    arr.emplace_back(3, 5);
+
+    std::stable_sort(arr.begin(), arr.end());
+
+    EXPECT_EQ(arr.size(), 5);
+    EXPECT_EQ(arr[0].value, 1);
+    EXPECT_EQ(arr[0].order, 2);
+    EXPECT_EQ(arr[1].value, 2);
+    EXPECT_EQ(arr[1].order, 4);
+    // 稳定排序保持相同值的相对顺序
+    EXPECT_EQ(arr[2].value, 3);
+    EXPECT_EQ(arr[2].order, 1);
+    EXPECT_EQ(arr[3].value, 3);
+    EXPECT_EQ(arr[3].order, 3);
+    EXPECT_EQ(arr[4].value, 3);
+    EXPECT_EQ(arr[4].order, 5);
+}
+
+TEST(array_test, std_partial_sort) {
+    // 测试部分排序
+    mc::array<int> arr = {9, 8, 7, 6, 5, 4, 3, 2, 1, 0};
+
+    // 只排序前 3 个最小的元素
+    std::partial_sort(arr.begin(), arr.begin() + 3, arr.end());
+
+    EXPECT_EQ(arr.size(), 10);
+    // 前 3 个元素应该是最小的且已排序
+    EXPECT_EQ(arr[0], 0);
+    EXPECT_EQ(arr[1], 1);
+    EXPECT_EQ(arr[2], 2);
+    // 后面的元素顺序不确定，但应该都大于等于 arr[2]
+    for (size_t i = 3; i < arr.size(); ++i) {
+        EXPECT_GE(arr[i], arr[2]);
+    }
+}
+
+TEST(array_test, std_nth_element) {
+    // 测试 nth_element 算法
+    mc::array<int> arr = {9, 8, 7, 6, 5, 4, 3, 2, 1, 0};
+
+    // 找到第 5 小的元素（索引 4）
+    std::nth_element(arr.begin(), arr.begin() + 4, arr.end());
+
+    EXPECT_EQ(arr.size(), 10);
+    EXPECT_EQ(arr[4], 4); // 第 5 小的元素应该是 4
+
+    // 验证分区性质：前面的元素都小于等于 arr[4]，后面的都大于等于 arr[4]
+    for (size_t i = 0; i < 4; ++i) {
+        EXPECT_LE(arr[i], arr[4]);
+    }
+    for (size_t i = 5; i < arr.size(); ++i) {
+        EXPECT_GE(arr[i], arr[4]);
+    }
+}
+
+TEST(array_test, std_sort_empty_array) {
+    // 测试空数组的排序
+    mc::array<int> arr;
+
+    // 空数组排序不应该崩溃
+    std::sort(arr.begin(), arr.end());
+
+    EXPECT_TRUE(arr.empty());
+    EXPECT_EQ(arr.size(), 0);
+}
+
+TEST(array_test, std_sort_single_element) {
+    // 测试单元素数组的排序
+    mc::array<int> arr = {42};
+
+    std::sort(arr.begin(), arr.end());
+
+    EXPECT_EQ(arr.size(), 1);
+    EXPECT_EQ(arr[0], 42);
+}
+
+TEST(array_test, std_sort_shared_semantics) {
+    // 测试共享语义下的排序
+    mc::array<int> arr1 = {5, 2, 8, 1, 9, 3};
+    mc::array<int> arr2 = arr1; // 共享数据
+
+    // 对 arr1 进行排序
+    std::sort(arr1.begin(), arr1.end());
+
+    // arr2 应该也被排序（因为共享数据）
+    EXPECT_EQ(arr2.size(), 6);
+    EXPECT_EQ(arr2[0], 1);
+    EXPECT_EQ(arr2[1], 2);
+    EXPECT_EQ(arr2[2], 3);
+    EXPECT_EQ(arr2[3], 5);
+    EXPECT_EQ(arr2[4], 8);
+    EXPECT_EQ(arr2[5], 9);
 }

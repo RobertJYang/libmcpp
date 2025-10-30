@@ -20,6 +20,7 @@
 #include <memory>
 #include <typeindex>
 #include <typeinfo>
+#include <type_traits>
 
 #include <mc/memory.h>
 #include <mc/traits.h>
@@ -163,17 +164,25 @@ public:
     // 元素访问
     virtual variant do_at(size_t index) const                  = 0;
     virtual void    do_set(size_t index, const variant& value) = 0;
+    virtual variant do_front() const                           = 0;
+    virtual variant do_back() const                            = 0;
 
     // 修改操作
-    virtual void do_push_back(const variant& value)          = 0;
-    virtual void do_pop_back()                               = 0;
-    virtual void do_clear()                                  = 0;
-    virtual void do_insert(size_t pos, const variant& value) = 0;
+    virtual void do_push_back(const variant& value)            = 0;
+    virtual void do_pop_back()                                 = 0;
+    virtual void do_clear()                                    = 0;
+    virtual void do_insert(size_t pos, const variant& value)   = 0;
+    virtual void do_erase(size_t pos)                          = 0;
+    virtual void do_erase(size_t first, size_t last)           = 0;
+    virtual void do_assign(size_t count, const variant& value) = 0;
 
     // 容量管理
-    virtual void do_reserve(size_t new_cap)                    = 0;
-    virtual void do_resize(size_t count)                       = 0;
-    virtual void do_resize(size_t count, const variant& value) = 0;
+    virtual void   do_reserve(size_t new_cap)                    = 0;
+    virtual void   do_resize(size_t count)                       = 0;
+    virtual void   do_resize(size_t count, const variant& value) = 0;
+    virtual size_t do_capacity() const                           = 0;
+    virtual size_t do_max_size() const                           = 0;
+    virtual void   do_shrink_to_fit()                            = 0;
 
     // 迭代器支持
     virtual void do_for_each(std::function<void(const variant&)> visitor) const = 0;
@@ -194,7 +203,19 @@ public:
 
 class MC_API variants {
 public:
-    using value_type = variant;
+    // 类型定义
+    using value_type      = variant;
+    using size_type       = size_t;
+    using difference_type = ptrdiff_t;
+    using reference       = variant&;
+    using const_reference = const variant&;
+    using pointer         = variant*;
+    using const_pointer   = const variant*;
+
+    using iterator               = variants_iterator;
+    using const_iterator         = variants_const_iterator;
+    using reverse_iterator       = std::reverse_iterator<iterator>;
+    using const_reverse_iterator = std::reverse_iterator<const_iterator>;
 
     variants();
 
@@ -204,6 +225,9 @@ public:
 
     variants& operator=(const variants& other)     = default;
     variants& operator=(variants&& other) noexcept = default;
+
+    // 从其他 variant 构造
+    variants(const mc::variant& other);
 
     // 带分配器的构造函数
     variants(const variants& other, const std::allocator<char>& alloc);
@@ -261,15 +285,40 @@ public:
     // 获取可修改的引用
     variant_reference at_ref(size_t index);
 
+    // 访问首尾元素
+    variant_reference front();
+    variant           front() const;
+    variant_reference back();
+    variant           back() const;
+
     // 修改操作
     void push_back(const variant& value);
     void pop_back();
     void clear();
 
+    // assign 方法
+    void assign(size_t count, const variant& value);
+    template <typename InputIt>
+    typename std::enable_if<!std::is_integral<InputIt>::value, void>::type
+    assign(InputIt first, InputIt last) {
+        ensure_data();
+        clear();
+        for (auto it = first; it != last; ++it) {
+            push_back(*it);
+        }
+    }
+    void assign(std::initializer_list<variant> ilist);
+
+    // swap 方法
+    void swap(variants& other) noexcept;
+
     // 容量管理
-    void reserve(size_t new_cap);
-    void resize(size_t count);
-    void resize(size_t count, const variant& value);
+    void   reserve(size_t new_cap);
+    void   resize(size_t count);
+    void   resize(size_t count, const variant& value);
+    size_t capacity() const;
+    size_t max_size() const;
+    void   shrink_to_fit();
 
     // 迭代器支持
     void for_each(std::function<void(const variant&)> visitor) const;
@@ -288,6 +337,17 @@ public:
     variants_const_iterator end() const;
     variants_iterator       begin();
     variants_iterator       end();
+    variants_const_iterator cbegin() const;
+    variants_const_iterator cend() const;
+
+    // 反向迭代器支持
+    reverse_iterator       rbegin();
+    const_reverse_iterator rbegin() const;
+    const_reverse_iterator crbegin() const;
+
+    reverse_iterator       rend();
+    const_reverse_iterator rend() const;
+    const_reverse_iterator crend() const;
 
     // 容器操作支持
     void emplace_back(variant&& value);
@@ -304,6 +364,12 @@ public:
     variants_iterator insert(variants_iterator pos, size_t count, const variant& value);
     template <typename InputIt>
     variants_iterator insert(variants_iterator pos, InputIt first, InputIt last);
+
+    // 删除操作
+    void              erase(size_t pos);
+    void              erase(size_t first, size_t last);
+    variants_iterator erase(variants_const_iterator pos);
+    variants_iterator erase(variants_const_iterator first, variants_const_iterator last);
 
     // 拷贝操作
     variants copy() const;

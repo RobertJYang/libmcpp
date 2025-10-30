@@ -123,10 +123,18 @@ public:
 
     variant        do_at(size_t index) const override;
     void           do_set(size_t index, const variant& value) override;
+    variant        do_front() const override;
+    variant        do_back() const override;
     void           do_push_back(const variant& value) override;
     void           do_pop_back() override;
     void           do_insert(size_t pos, const variant& value) override;
+    void           do_erase(size_t pos) override;
+    void           do_erase(size_t first, size_t last) override;
+    void           do_assign(size_t count, const variant& value) override;
     void           do_resize(size_t count, const variant& value) override;
+    size_t         do_capacity() const override;
+    size_t         do_max_size() const override;
+    void           do_shrink_to_fit() override;
     void           do_for_each(std::function<void(const variant&)> visitor) const override;
     bool           supports_reference_access() const override;
     variant*       get_ptr(size_t index) override;
@@ -305,6 +313,40 @@ public:
         ensure_data();
         *m_data = ilist;
         return *this;
+    }
+
+    /**
+     * @brief 用指定数量的元素替换容器内容
+     *
+     * @param count 新的大小
+     * @param value 用来初始化新元素的值
+     */
+    void assign(size_type count, const T& value) {
+        ensure_data();
+        m_data->assign(count, value);
+    }
+
+    /**
+     * @brief 用迭代器范围内的元素替换容器内容
+     *
+     * @tparam InputIt 输入迭代器类型
+     * @param first 范围的开始
+     * @param last 范围的结束
+     */
+    template <typename InputIt>
+    void assign(InputIt first, InputIt last) {
+        ensure_data();
+        m_data->assign(first, last);
+    }
+
+    /**
+     * @brief 用初始化列表的元素替换容器内容
+     *
+     * @param ilist 初始化列表
+     */
+    void assign(std::initializer_list<T> ilist) {
+        ensure_data();
+        m_data->assign(ilist);
     }
 
     // 元素访问

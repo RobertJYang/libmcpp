@@ -65,6 +65,8 @@ void detail::array_impl<T, Allocator>::do_set(size_t index, const variant& value
     if constexpr (mc::is_variant_constructible_v<T>) {
         if constexpr (std::is_same_v<T, variant>) {
             (*this)[index] = value;
+        } else if constexpr (std::is_same_v<T, bool>) {
+            (*this)[index] = value.as_bool();
         } else {
             try {
                 from_variant(value, (*this)[index]);
@@ -105,6 +107,22 @@ void detail::array_impl<T, Allocator>::do_insert(size_t pos, const variant& valu
         MC_UNUSED(value);
         throw_bad_cast_error("Cannot insert: type T is not convertible to variant");
     }
+}
+
+template <typename T, typename Allocator>
+void detail::array_impl<T, Allocator>::do_erase(size_t pos) {
+    if (pos >= base_type::size()) {
+        throw_out_of_range_error("array_impl::erase: position out of range");
+    }
+    base_type::erase(base_type::begin() + pos);
+}
+
+template <typename T, typename Allocator>
+void detail::array_impl<T, Allocator>::do_erase(size_t first, size_t last) {
+    if (first > last || last > base_type::size()) {
+        throw_out_of_range_error("array_impl::erase: invalid range");
+    }
+    base_type::erase(base_type::begin() + first, base_type::begin() + last);
 }
 
 template <typename T, typename Allocator>
@@ -265,6 +283,59 @@ mc::shared_ptr<mc::i_variants> detail::array_impl<T, Allocator>::deep_copy(mc::d
         }
     }
     return result;
+}
+
+// 容量管理接口实现
+template <typename T, typename Allocator>
+size_t detail::array_impl<T, Allocator>::do_capacity() const {
+    return base_type::capacity();
+}
+
+template <typename T, typename Allocator>
+size_t detail::array_impl<T, Allocator>::do_max_size() const {
+    return base_type::max_size();
+}
+
+template <typename T, typename Allocator>
+void detail::array_impl<T, Allocator>::do_shrink_to_fit() {
+    base_type::shrink_to_fit();
+}
+
+// 元素访问接口实现
+template <typename T, typename Allocator>
+variant detail::array_impl<T, Allocator>::do_front() const {
+    if (base_type::empty()) {
+        throw_runtime_error("array_impl::front: container is empty");
+    }
+    if constexpr (mc::is_variant_constructible_v<T>) {
+        return variant(base_type::front());
+    } else {
+        return variant();
+    }
+}
+
+template <typename T, typename Allocator>
+variant detail::array_impl<T, Allocator>::do_back() const {
+    if (base_type::empty()) {
+        throw_runtime_error("array_impl::back: container is empty");
+    }
+    if constexpr (mc::is_variant_constructible_v<T>) {
+        return variant(base_type::back());
+    } else {
+        return variant();
+    }
+}
+
+// assign 方法实现
+template <typename T, typename Allocator>
+void detail::array_impl<T, Allocator>::do_assign(size_t count, const variant& value) {
+    if constexpr (mc::is_variant_constructible_v<T>) {
+        base_type::assign(count, value.as<T>());
+    } else {
+        MC_UNUSED(count);
+        MC_UNUSED(value);
+        throw_bad_cast_error("Cannot assign: type T is not convertible to variant");
+    }
 }
 
 // ========== variants 与 mc::array<T> 的比较运算符 ==========
