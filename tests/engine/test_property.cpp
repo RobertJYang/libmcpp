@@ -33,7 +33,8 @@ struct Point {
     int y{0};
 
     Point() = default;
-    Point(int x, int y) : x(x), y(y) {
+    Point(int x, int y)
+        : x(x), y(y) {
     }
 
     bool operator==(const Point& other) const {
@@ -138,7 +139,8 @@ public:
 // 真实的测试服务
 class real_test_service : public mc::engine::service {
 public:
-    real_test_service() : mc::engine::service(generate_unique_service_name()) {
+    real_test_service()
+        : mc::engine::service(generate_unique_service_name()) {
     }
 
     bool init_for_test() {
@@ -2906,6 +2908,24 @@ TEST_F(PropertyRelateTest, RefObjectConcurrency) {
     auto  obj_variant = test_prop.get_value();
     auto* ref_obj     = obj_variant.as<mc::engine::ref_object*>();
     ASSERT_NE(ref_obj, nullptr);
+
+    // 在启动并发线程前，先验证对象存在
+    // 这确保所有必要的对象都已正确注册，避免竞态条件
+    auto* cpu_object = ref_obj->get_object();
+    if (cpu_object == nullptr) {
+        // 带超时的轮询等待，避免偶发的注册时序抖动
+        using namespace std::chrono;
+        auto deadline = steady_clock::now() + milliseconds(200);
+        while (steady_clock::now() < deadline) {
+            std::this_thread::sleep_for(milliseconds(2));
+            std::this_thread::yield();
+            cpu_object = ref_obj->get_object();
+            if (cpu_object != nullptr) {
+                break;
+            }
+        }
+    }
+    ASSERT_NE(cpu_object, nullptr) << "CPU对象应该在测试开始前就已经注册完成";
 
     // 首先验证引用对象是有效的
     EXPECT_TRUE(ref_obj->is_valid());
