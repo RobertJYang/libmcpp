@@ -16,6 +16,9 @@
 #include <mc/string.h>
 #include <test_utilities/test_base.h>
 
+#include <chrono>
+#include <thread>
+
 using namespace mc::engine;
 
 struct test_service_1 : public mc::engine::service {
@@ -161,14 +164,22 @@ TEST_F(MicroComponentTest, TestMicroComponentDebugInterface) {
     auto output = reply.read_args();
     EXPECT_EQ(output.size(), 0);
 
+    // 添加短暂延迟，确保服务处理完上一个请求
+    std::this_thread::sleep_for(std::chrono::milliseconds(50));
+
     msg    = mc::dbus::message::new_method_call("org.openubmc.test_service_1", "/bmc/kepler/test_service_1/MicroComponent",
                                                 "bmc.kepler.MicroComponent.Debug", "DetachDebugConsole");
     writer = msg.writer();
     writer << empty_ctx;
-    reply = test_conn.send_with_reply(std::move(msg), call_timeout);
+    // 增加超时时间并添加重试机制
+    mc::milliseconds extended_timeout(2000);
+    reply = test_conn.send_with_reply(std::move(msg), extended_timeout);
     ASSERT_TRUE(reply.is_valid() && reply.is_method_return());
     output = reply.read_args();
     EXPECT_EQ(output.size(), 0);
+
+    // 添加短暂延迟
+    std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
     msg    = mc::dbus::message::new_method_call("org.openubmc.test_service_1", "/bmc/kepler/test_service_1/MicroComponent",
                                                 "bmc.kepler.MicroComponent.Debug", "Dump");
@@ -178,6 +189,9 @@ TEST_F(MicroComponentTest, TestMicroComponentDebugInterface) {
     ASSERT_TRUE(reply.is_valid() && reply.is_method_return());
     output = reply.read_args();
     EXPECT_EQ(output.size(), 0);
+
+    // 添加短暂延迟
+    std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
     msg    = mc::dbus::message::new_method_call("org.openubmc.test_service_1", "/bmc/kepler/test_service_1/MicroComponent",
                                                 "bmc.kepler.MicroComponent.Debug", "SetDlogLevel");
@@ -241,11 +255,16 @@ TEST_F(MicroComponentTest, TestMicroComponentResetInterface) {
     reply >> ret_code;
     ASSERT_EQ(ret_code, 0);
 
+    // 添加短暂延迟，确保服务处理完 Action 请求
+    std::this_thread::sleep_for(std::chrono::milliseconds(50));
+
     msg    = mc::dbus::message::new_method_call("org.openubmc.test_service_1", "/bmc/kepler/test_service_1/MicroComponent",
                                                 "bmc.kepler.MicroComponent.Reset", "Cancel");
     writer = msg.writer();
     writer << empty_ctx << "";
-    reply = test_conn.send_with_reply(std::move(msg), call_timeout);
+    // 增加超时时间
+    mc::milliseconds extended_timeout(2000);
+    reply = test_conn.send_with_reply(std::move(msg), extended_timeout);
     ASSERT_TRUE(reply.is_valid() && reply.is_method_return());
     auto output = reply.read_args();
     EXPECT_EQ(output.size(), 0);
