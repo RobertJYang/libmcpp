@@ -47,7 +47,20 @@ class AppConan(ConanBase):
         tc.extra_cxxflags.append("-fpermissive")
         tc.extra_cxxflags.append("-Wno-pedantic")
         tc.extra_cxxflags.append("-fno-strict-aliasing")
-        tc.extra_cxxflags.append("-Wno-deprecated-copy")
+        # -Wno-deprecated-copy 选项只在 GCC 9+ 或 Clang 中支持
+        compiler = str(self.settings.compiler)
+        compiler_version = str(self.settings.compiler.version) if self.settings.compiler.version else None
+        if compiler == "gcc" and compiler_version:
+            # GCC 9.0+ 支持该选项
+            try:
+                major_version = int(compiler_version.split('.')[0])
+                if major_version >= 9:
+                    tc.extra_cxxflags.append("-Wno-deprecated-copy")
+            except (ValueError, AttributeError):
+                pass  # 如果版本解析失败，跳过该选项
+        elif compiler == "clang":
+            # Clang 支持该选项
+            tc.extra_cxxflags.append("-Wno-deprecated-copy")
         tc.generate()
       
     def build(self):

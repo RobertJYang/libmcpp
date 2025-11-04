@@ -28,16 +28,18 @@
 using namespace mc::log;
 
 // 函数指针类型声明，需与file_appender.cpp一致
-typedef enum {
-    DLOG_ERROR,
-    DLOG_WARN,
-    DLOG_NOTICE,
-    DLOG_INFO,
-    DLOG_DEBUG
-} DLOG_LEVEL_E;
+// 注意：依赖库logging.h中已定义DLOG_LEVEL_E，我们直接使用它
+// file_appender.cpp中的DLOG_LEVEL_E与依赖库中的DLOG_LEVEL_E在数值上是兼容的
+// 因为两者都使用相同的枚举值：0=DLOG_ERROR, 1=DLOG_WARN, 2=DLOG_NOTICE, 3=DLOG_INFO, 4=DLOG_DEBUG
+
+// 定义函数指针类型，使用依赖库中已定义的DLOG_LEVEL_E
+// 由于file_appender.cpp通过dlsym获取函数指针，这里使用int类型以确保兼容性
+typedef void (*debug_log_func_t)(int, const char*, int, const char*, ...);
 
 // mock debug_log实现
-extern "C" void debug_log(DLOG_LEVEL_E level, const char* file, int line, const char* fmt, ...) {
+// 使用不同的函数名避免与依赖库中的debug_log宏冲突
+// 使用int类型作为第一个参数，因为枚举值在C/C++中可以隐式转换为int
+extern "C" void test_debug_log(int level, const char* file, int line, const char* fmt, ...) {
     static const std::string log_path = std::string(TEST_LOG_DIR) + "/test_file_appender_mock.log";
     std::filesystem::create_directories(TEST_LOG_DIR);
     std::ofstream ofs(log_path, std::ios::app);
@@ -52,8 +54,6 @@ extern "C" void debug_log(DLOG_LEVEL_E level, const char* file, int line, const 
     va_end(args);
     ofs << buf << std::endl;
 }
-
-typedef void (*debug_log_func_t)(DLOG_LEVEL_E, const char*, int, const char*, ...);
 
 class file_appender_test : public mc::test::TestBase {
 protected:
@@ -70,7 +70,7 @@ protected:
         dict["truncate"]       = true;
         dict["flush_on_write"] = true;
         m_appender->init(dict);
-        file_appender::set_debug_log_ptr(reinterpret_cast<void*>(static_cast<debug_log_func_t>(debug_log)));
+        file_appender::set_debug_log_ptr(reinterpret_cast<void*>(static_cast<debug_log_func_t>(test_debug_log)));
     }
     static void TearDownTestSuite() {
         m_appender.reset();

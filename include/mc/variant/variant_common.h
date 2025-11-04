@@ -172,8 +172,12 @@ struct variant_config {
 
 /**
  * @brief 数据类型枚举
+ * 
+ * 底层类型指定为 uint8_t，确保：
+ * 1. 枚举类型大小仅为1字节，节省内存
+ * 2. 可以使用5位位域存储（5位可表示0-31，足够容纳当前17个枚举值）
  */
-enum class type_id {
+enum class type_id : uint8_t {
     null_type = 0,  ///< 空类型
     int8_type,      ///< 有符号8位整数
     uint8_type,     ///< 无符号8位整数
