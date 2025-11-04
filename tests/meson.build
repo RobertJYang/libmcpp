@@ -41,6 +41,7 @@ test_files = [
   test_crypto_files,
   test_db_files,
   test_dbus_files,
+  test_debounce_files,
   test_dict_files,
   test_engine_files,
   test_exception_files,
