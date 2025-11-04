@@ -77,6 +77,7 @@ test_exe = executable(
   include_directories: [incdir, srcdir],
   dependencies: [
     libmcpp_dep,
+    libmcpp_core_dep,
     gtest_dep,
     dbus_dep,
     glib_dep,
