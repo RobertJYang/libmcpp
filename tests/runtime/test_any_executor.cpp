@@ -229,3 +229,214 @@ TEST_F(AnyExecutorTest, StrandWrapping) {
         EXPECT_EQ(execution_order[i], i) << "Strand 执行顺序不正确";
     }
 }
+
+// 测试 any_executor 的 valid() 方法 - runtime::executor 无效情况
+TEST_F(AnyExecutorTest, ValidWithInvalidRuntimeExecutor) {
+    // 创建无效的 runtime::executor
+    mc::runtime::executor invalid_exec;
+
+    // 包装到 any_executor 中
+    mc::any_executor any_exec(invalid_exec);
+
+    // 无效的 executor 应该返回 false
+    EXPECT_FALSE(any_exec.valid());
+}
+
+// 测试 any_executor 的 operator== - 相同类型相同值
+TEST_F(AnyExecutorTest, EqualitySameTypeSameValue) {
+    auto& runtime = mc::get_runtime_context();
+
+    auto io_executor = mc::get_io_executor();
+
+    // 创建两个相同值的 any_executor
+    mc::any_executor any1(io_executor);
+    mc::any_executor any2(io_executor);
+
+    // 相同类型的执行器应该相等
+    EXPECT_EQ(any1, any2);
+}
+
+// 测试 any_executor 的 operator!= 函数
+TEST_F(AnyExecutorTest, InequalityOperator) {
+    auto& runtime = mc::get_runtime_context();
+
+    auto io_executor   = mc::get_io_executor();
+    auto work_executor = mc::get_work_executor();
+
+    mc::any_executor any_io(io_executor);
+    mc::any_executor any_work(work_executor);
+    mc::any_executor invalid;
+
+    // 使用 operator!= 直接测试
+    EXPECT_NE(any_io, any_work);
+    EXPECT_NE(any_io, invalid);
+    EXPECT_NE(any_work, invalid);
+
+    // 相同执行器应该相等
+    EXPECT_FALSE(any_io != any_io);
+}
+
+// 测试 any_executor 的 on_work_started 和 on_work_finished - monostate 分支
+TEST_F(AnyExecutorTest, WorkLifecycleWithMonostate) {
+    // 默认构造的 any_executor 是 monostate
+    mc::any_executor invalid_exec;
+
+    // 对 monostate 调用应该不抛出异常（因为使用了 if constexpr）
+    EXPECT_NO_THROW(invalid_exec.on_work_started());
+    EXPECT_NO_THROW(invalid_exec.on_work_finished());
+}
+
+// 测试 any_executor 的 context() - monostate 异常分支
+TEST_F(AnyExecutorTest, ContextWithMonostateThrows) {
+    // 默认构造的 any_executor 是 monostate
+    mc::any_executor invalid_exec;
+
+    // 对 monostate 调用 context() 应该抛出异常
+    EXPECT_THROW(invalid_exec.context(), mc::invalid_op_exception);
+}
+
+// 测试 any_executor 的 post/defer/dispatch - monostate 异常分支
+TEST_F(AnyExecutorTest, OperationsWithMonostateThrows) {
+    // 默认构造的 any_executor 是 monostate
+    mc::any_executor invalid_exec;
+
+    // 对 monostate 调用这些操作应该抛出异常
+    EXPECT_THROW(invalid_exec.post([]() {}), mc::invalid_op_exception);
+    EXPECT_THROW(invalid_exec.defer([]() {}), mc::invalid_op_exception);
+    EXPECT_THROW(invalid_exec.dispatch([]() {}), mc::invalid_op_exception);
+}
+
+// 测试 any_executor 从 system_context::executor_type 构造
+TEST_F(AnyExecutorTest, ConstructionFromSystemExecutor) {
+    boost::asio::system_context system_ctx;
+    auto                        system_exec = system_ctx.get_executor();
+
+    mc::any_executor any_exec(system_exec);
+
+    EXPECT_TRUE(any_exec.valid());
+}
+
+// 测试 any_executor 从 runtime::executor 构造（有效情况）
+TEST_F(AnyExecutorTest, ConstructionFromRuntimeExecutor) {
+    auto& runtime = mc::get_runtime_context();
+
+    auto                    io_strand   = mc::make_io_strand();
+    mc::runtime::executor runtime_exec(io_strand);
+
+    mc::any_executor any_exec(runtime_exec);
+
+    EXPECT_TRUE(any_exec.valid());
+}
+
+// 测试 any_executor::operator== 中相同类型但不同值的比较
+TEST_F(AnyExecutorTest, EqualitySameTypeDifferentValue) {
+    auto& runtime = mc::get_runtime_context();
+
+    // 创建两个不同的 io_context 执行器
+    boost::asio::io_context ctx1;
+    boost::asio::io_context ctx2;
+
+    mc::any_executor any1(ctx1.get_executor());
+    mc::any_executor any2(ctx2.get_executor());
+
+    // 相同类型但不同值，应该不相等
+    EXPECT_NE(any1, any2);
+}
+
+// 测试 any_executor::operator== 中 monostate 的比较（已测试过，但确保覆盖）
+TEST_F(AnyExecutorTest, EqualityMonostateBoth) {
+    mc::any_executor invalid1;
+    mc::any_executor invalid2;
+
+    // 两个 monostate 应该相等
+    EXPECT_EQ(invalid1, invalid2);
+}
+
+// 测试 any_executor::operator== 中相同类型相同执行器的比较
+TEST_F(AnyExecutorTest, EqualitySameExecutor) {
+    auto& runtime = mc::get_runtime_context();
+
+    auto io_executor = mc::get_io_executor();
+
+    mc::any_executor any1(io_executor);
+    mc::any_executor any2(io_executor);
+
+    // 包装相同执行器的 any_executor 应该相等
+    EXPECT_EQ(any1, any2);
+}
+
+// 测试 any_executor valid() 中 boost::asio 执行器分支
+TEST_F(AnyExecutorTest, ValidBoostAsioExecutor) {
+    boost::asio::io_context ctx;
+    auto                     exec = ctx.get_executor();
+
+    mc::any_executor any_exec(exec);
+
+    // boost::asio 执行器应该总是有效
+    EXPECT_TRUE(any_exec.valid());
+}
+
+// 测试 any_executor 从任意执行器类型构造（通过模板构造函数）
+TEST_F(AnyExecutorTest, ConstructionFromArbitraryExecutor) {
+    auto& runtime = mc::get_runtime_context();
+
+    // 通过 strand 构造，应该使用模板构造函数包装到 runtime::executor
+    auto io_strand = mc::make_io_strand();
+
+    mc::any_executor any_exec(io_strand);
+
+    EXPECT_TRUE(any_exec.valid());
+}
+
+// 测试 any_executor::valid() 中 runtime::executor valid() 返回 false 的分支
+TEST_F(AnyExecutorTest, ValidRuntimeExecutorReturnsFalse) {
+    // 创建无效的 runtime::executor
+    mc::runtime::executor invalid_exec;
+
+    // 包装到 any_executor 中
+    mc::any_executor any_exec(invalid_exec);
+
+    // 应该返回 false
+    EXPECT_FALSE(any_exec.valid());
+}
+
+// 测试 any_executor::valid() 中 runtime::executor valid() 返回 true 的分支
+TEST_F(AnyExecutorTest, ValidRuntimeExecutorReturnsTrue) {
+    auto& runtime = mc::get_runtime_context();
+    runtime.start();
+
+    auto                    io_strand   = mc::make_io_strand();
+    mc::runtime::executor valid_exec(io_strand);
+
+    mc::any_executor any_exec(valid_exec);
+
+    // 应该返回 true
+    EXPECT_TRUE(any_exec.valid());
+}
+
+// 测试 any_executor::operator== 中 index 相同但 exec != other_exec 的分支
+TEST_F(AnyExecutorTest, EqualitySameIndexDifferentExec) {
+    // 创建两个不同的 boost::asio 执行器
+    boost::asio::io_context ctx1;
+    boost::asio::io_context ctx2;
+
+    mc::any_executor any1(ctx1.get_executor());
+    mc::any_executor any2(ctx2.get_executor());
+
+    // 相同类型（相同 index），但不同执行器，应该不相等
+    EXPECT_NE(any1, any2);
+}
+
+// 测试 any_executor::operator== 中 index 相同且 exec == other_exec 的分支
+TEST_F(AnyExecutorTest, EqualitySameIndexSameExec) {
+    auto& runtime = mc::get_runtime_context();
+    runtime.start();
+
+    auto io_executor = mc::get_io_executor();
+
+    mc::any_executor any1(io_executor);
+    mc::any_executor any2(io_executor);
+
+    // 相同类型且相同执行器，应该相等
+    EXPECT_EQ(any1, any2);
+}
