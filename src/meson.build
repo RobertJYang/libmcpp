@@ -121,8 +121,25 @@ else
 endif
 
 # 导出库依赖
-libmcpp_dep = declare_dependency(
-  include_directories: incdir,
-  link_with: libmcpp_lib,
-  dependencies: dep_arr,
-)
+# 在静态库模式下，虽然使用link_whole包含了所有子库，但为了确保依赖关系正确传递，
+# 需要在dependencies中显式包含所有子库的依赖
+if get_option('default_library') == 'static'
+  libmcpp_dep = declare_dependency(
+    include_directories: incdir,
+    link_with: libmcpp_lib,
+    dependencies: [
+      dep_arr,
+      libmcpp_base_dep,
+      libmcpp_core_dep,
+      libmcpp_engine_dep,
+      libmcpp_expr_dep,
+      libmcpp_module_dep,
+    ],
+  )
+else
+  libmcpp_dep = declare_dependency(
+    include_directories: incdir,
+    link_with: libmcpp_lib,
+    dependencies: dep_arr,
+  )
+endif

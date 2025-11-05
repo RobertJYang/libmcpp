@@ -6,7 +6,7 @@ project(
     'warning_level=3',
     'cpp_std=c++17',
     'libdir=lib',
-    'cpp_args=-fPIC -Wall -Wno-unused-parameter -Wno-unused-variable -Wno-sign-compare -Wno-pedantic -Wno-deprecated-copy',
+    'cpp_args=-fPIC -Wall -Wno-unused-parameter -Wno-unused-variable -Wno-sign-compare -Wno-pedantic',
     'default_library=static',
   ],
 )
@@ -14,8 +14,20 @@ project(
 # 添加编译器选项
 add_project_arguments('-Wall', '-Wextra', '-fvisibility=hidden', language: 'cpp')
 
-if meson.get_compiler('cpp').get_id() == 'clang'
+cpp_compiler = meson.get_compiler('cpp')
+if cpp_compiler.get_id() == 'clang'
   add_project_arguments('-Wno-#warnings', language: 'cpp')
+endif
+
+# -Wno-deprecated-copy 选项只在 GCC 9+ 或 Clang 中支持
+if cpp_compiler.get_id() == 'gcc'
+  # 检查 GCC 版本是否 >= 9
+  if cpp_compiler.version().version_compare('>=9.0')
+    add_project_arguments('-Wno-deprecated-copy', language: 'cpp')
+  endif
+elif cpp_compiler.get_id() == 'clang'
+  # Clang 支持该选项
+  add_project_arguments('-Wno-deprecated-copy', language: 'cpp')
 endif
 
 # 配置选项
