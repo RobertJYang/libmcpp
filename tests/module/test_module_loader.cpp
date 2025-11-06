@@ -215,27 +215,11 @@ TEST_F(ModuleLoaderTest, TestSearchPathManagement) {
     bool        found_custom = std::find(paths.begin(), paths.end(), "/custom/path/?.so") != paths.end();
     EXPECT_TRUE(found_custom) << "自定义路径应被正确添加";
 
-    // 重复添加相同路径，应该不会重复
-    loader.add_search_path("/custom/path/?.so");
-    EXPECT_EQ(loader.search_paths().size(), initial_count + 1) << "重复路径不应被添加";
-
     // 清除所有路径
     loader.clear_search_paths();
     EXPECT_TRUE(loader.search_paths().empty()) << "清除后搜索路径应为空";
 }
 
-/**
- * @brief 测试设置自定义库加载函数
- */
-TEST_F(ModuleLoaderTest, TestSetLoadLibFunc) {
-    mc::module::module_loader loader;
-
-    // 使用 SetUp 中配置的 mock_funcs
-    loader.set_load_lib_func(mock_funcs);
-
-    // 此时还不能直接验证函数是否设置成功，需要通过 load_module 来验证
-    // 下面的测试会验证这个功能
-}
 
 /**
  * @brief 测试模块加载成功的情况
@@ -403,6 +387,261 @@ TEST_F(ModuleLoaderTest, TestComplexModuleName) {
 
     EXPECT_TRUE(result) << "复杂模块名应能正确处理";
     EXPECT_TRUE(callback_called) << "回调函数应被调用";
+}
+
+/**
+ * @brief 测试清空后添加路径，search_paths() 返回非空
+ */
+TEST_F(ModuleLoaderTest, TestSearchPathsGetterNonEmpty) {
+    auto loader = create_mock_loader();
+    loader.clear_search_paths();
+    EXPECT_TRUE(loader.search_paths().empty()) << "清空后应为空";
+
+    loader.add_search_path("./?.so");
+    loader.add_search_path("./lib/?.so");
+
+    const auto& paths = loader.search_paths();
+    EXPECT_FALSE(paths.empty()) << "添加路径后应非空";
+    EXPECT_EQ(paths.size(), 2) << "应包含两个路径";
+}
+
+/**
+ * @brief 测试模块名只有单个组件的情况
+ */
+TEST_F(ModuleLoaderTest, TestLoadModuleSingleComponent) {
+    auto loader = create_mock_loader();
+    loader.clear_search_paths();
+    loader.add_search_path("./?.so");
+
+    // 测试只有单个组件的模块名
+    mock_lib_loader::instance().add_mock_lib(
+        "./test.so",
+        {"mc_open_test", "mc_close_test"});
+
+    bool callback_called = false;
+    auto callback        = [&](auto, bool&) -> bool {
+        callback_called = true;
+        return true;
+    };
+
+    bool result = loader.load_module("test", callback);
+    EXPECT_TRUE(result) << "单组件模块名应能正确加载";
+    EXPECT_TRUE(callback_called) << "回调函数应被调用";
+}
+
+/**
+ * @brief 测试无效路径（不包含 ?）
+ */
+TEST_F(ModuleLoaderTest, TestAddLoadPathInvalid) {
+    auto loader = create_mock_loader();
+    loader.clear_search_paths();
+    size_t initial_count = loader.search_paths().size();
+
+    // 注意：add_search_path 不做验证，会直接添加路径
+    // 验证由 add_load_path（私有方法）在构造函数中完成
+    // 测试不包含 ? 的路径（会被添加，但不应该被使用）
+    loader.add_search_path("./lib.so");
+    EXPECT_EQ(loader.search_paths().size(), initial_count + 1) << "add_search_path 会添加路径";
+
+    // 测试包含 ? 的有效路径
+    loader.add_search_path("./?.so");
+    EXPECT_EQ(loader.search_paths().size(), initial_count + 2) << "有效路径应被添加";
+}
+
+/**
+ * @brief 测试文件不可读的情况
+ */
+TEST_F(ModuleLoaderTest, TestLoadPathNotReadable) {
+    auto loader = create_mock_loader();
+    loader.clear_search_paths();
+    loader.add_search_path("./?.so");
+
+    // 设置 is_readable 返回 false
+    mock_funcs.is_readable = [](std::string_view) -> bool { return false; };
+    loader.set_load_lib_func(mock_funcs);
+
+    bool callback_called = false;
+    auto callback        = [&](auto, bool&) -> bool {
+        callback_called = true;
+        return true;
+    };
+
+    bool result = loader.load_module("test.module", callback);
+    EXPECT_FALSE(result) << "文件不可读时应加载失败";
+    EXPECT_FALSE(callback_called) << "回调不应被调用";
+}
+
+/**
+ * @brief 测试 dlopen 失败的情况
+ */
+TEST_F(ModuleLoaderTest, TestLoadPathDlopenFailed) {
+    auto loader = create_mock_loader();
+    loader.clear_search_paths();
+    loader.add_search_path("./?.so");
+
+    // 设置 is_readable 返回 true，但 load 返回 nullptr
+    mock_funcs.is_readable = [](std::string_view) -> bool { return true; };
+    mock_funcs.load        = [](std::string_view, bool) -> void* { return nullptr; };
+    loader.set_load_lib_func(mock_funcs);
+
+    bool callback_called = false;
+    auto callback        = [&](auto, bool&) -> bool {
+        callback_called = true;
+        return true;
+    };
+
+    bool result = loader.load_module("test.module", callback);
+    EXPECT_FALSE(result) << "dlopen 失败时应加载失败";
+    EXPECT_FALSE(callback_called) << "回调不应被调用";
+}
+
+/**
+ * @brief 测试缺少 close 函数的情况
+ */
+TEST_F(ModuleLoaderTest, TestLoadPathMissingCloseFunc) {
+    auto loader = create_mock_loader();
+    loader.clear_search_paths();
+    loader.add_search_path("./?.so");
+
+    // 添加模拟库，但只提供 open 函数，不提供 close 函数
+    mock_lib_loader::instance().add_mock_lib(
+        "./test/module.so",
+        {"mc_open_test_module"}); // 只有 open，没有 close
+
+    bool callback_called = false;
+    auto callback        = [&](auto, bool&) -> bool {
+        callback_called = true;
+        return true;
+    };
+
+    bool result = loader.load_module("test.module", callback);
+    EXPECT_FALSE(result) << "缺少 close 函数时应加载失败";
+    EXPECT_FALSE(callback_called) << "回调不应被调用";
+
+    // 验证库被卸载（因为缺少 close 函数时会卸载）
+    EXPECT_EQ(mock_lib_loader::instance().loaded_count(), 0)
+        << "缺少 close 函数时应卸载库";
+}
+
+/**
+ * @brief 测试回调函数抛出异常的情况
+ */
+TEST_F(ModuleLoaderTest, TestLoadPathCallbackException) {
+    auto loader = create_mock_loader();
+    loader.clear_search_paths();
+    loader.add_search_path("./?.so");
+
+    mock_lib_loader::instance().add_mock_lib(
+        "./test/module.so",
+        {"mc_open_test_module", "mc_close_test_module"});
+
+    bool callback_called = false;
+    auto callback        = [&](auto, bool&) -> bool {
+        callback_called = true;
+        throw std::runtime_error("callback exception");
+    };
+
+    // 回调抛出异常时，load_path 会捕获异常、记录日志并卸载库，但不重新抛出
+    bool result = loader.load_module("test.module", callback);
+    EXPECT_FALSE(result) << "回调异常时应返回 false";
+    EXPECT_TRUE(callback_called) << "回调应被调用";
+    // 验证库被卸载（异常处理中会卸载）
+    EXPECT_EQ(mock_lib_loader::instance().loaded_count(), 0)
+        << "回调异常时应卸载库";
+}
+
+/**
+ * @brief 测试重复添加搜索路径
+ */
+TEST_F(ModuleLoaderTest, TestAddSearchPathDuplicate) {
+    auto loader = create_mock_loader();
+    loader.clear_search_paths();
+
+    loader.add_search_path("./?.so");
+    size_t count1 = loader.search_paths().size();
+
+    // 重复添加相同路径
+    loader.add_search_path("./?.so");
+    size_t count2 = loader.search_paths().size();
+
+    EXPECT_EQ(count1, count2) << "重复路径不应被添加";
+}
+
+/**
+ * @brief 测试 get/set_load_lib_func
+ */
+TEST_F(ModuleLoaderTest, TestGetSetLoadLibFunc) {
+    auto loader = create_mock_loader();
+
+    // 获取当前函数
+    auto& funcs = loader.get_load_lib_func();
+    EXPECT_NE(funcs.load, nullptr);
+    EXPECT_NE(funcs.unload, nullptr);
+    EXPECT_NE(funcs.sym, nullptr);
+    EXPECT_NE(funcs.is_readable, nullptr);
+
+    // 设置新的函数
+    mc::module::load_lib_func_t new_funcs;
+    new_funcs.load        = [](std::string_view, bool) -> void* { return nullptr; };
+    new_funcs.unload      = [](void*) {};
+    new_funcs.sym         = [](void*, std::string_view) -> void* { return nullptr; };
+    new_funcs.is_readable = [](std::string_view) -> bool { return false; };
+
+    loader.set_load_lib_func(new_funcs);
+
+    // 验证设置成功
+    auto& funcs2 = loader.get_load_lib_func();
+    EXPECT_NE(funcs2.load, nullptr);
+    EXPECT_NE(funcs2.unload, nullptr);
+    EXPECT_NE(funcs2.sym, nullptr);
+    EXPECT_NE(funcs2.is_readable, nullptr);
+}
+
+/**
+ * @brief 测试缺少 open_func 的情况
+ */
+TEST_F(ModuleLoaderTest, TestLoadPathMissingOpenFunc) {
+    auto loader = create_mock_loader();
+    loader.clear_search_paths();
+    loader.add_search_path("./?.so");
+
+    // 添加模拟库，但只提供 close 函数，不提供 open 函数
+    mock_lib_loader::instance().add_mock_lib(
+        "./test/module.so",
+        {"mc_close_test_module"}); // 只有 close，没有 open
+
+    bool callback_called = false;
+    auto callback        = [&](auto, bool&) -> bool {
+        callback_called = true;
+        return true;
+    };
+
+    bool result = loader.load_module("test.module", callback);
+    EXPECT_FALSE(result) << "缺少 open 函数时应加载失败";
+    EXPECT_FALSE(callback_called) << "回调不应被调用";
+
+    // 验证库被卸载（因为缺少 open 函数时会卸载）
+    EXPECT_EQ(mock_lib_loader::instance().loaded_count(), 0)
+        << "缺少 open 函数时应卸载库";
+}
+
+/**
+ * @brief 测试空模块名的情况
+ */
+TEST_F(ModuleLoaderTest, TestLoadModuleEmptyName) {
+    auto loader = create_mock_loader();
+    loader.clear_search_paths();
+    loader.add_search_path("./?.so");
+
+    bool callback_called = false;
+    auto callback        = [&](auto, bool&) -> bool {
+        callback_called = true;
+        return true;
+    };
+
+    bool result = loader.load_module("", callback);
+    EXPECT_FALSE(result) << "空模块名应加载失败";
+    EXPECT_FALSE(callback_called) << "回调不应被调用";
 }
 
 } // anonymous namespace

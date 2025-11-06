@@ -12,4 +12,6 @@ test_variant_files = [
   'variant/test_variant_extension.cpp',
   'variant/test_variant_reference.cpp',
   'variant/test_variant_deep_copy.cpp',
+  'variant/test_variant_conversion.cpp',
+  'variant/test_variant_exceptions.cpp',
 ]

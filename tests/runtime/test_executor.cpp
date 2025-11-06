@@ -348,3 +348,358 @@ TEST_F(ExecutorTest, SharedSemantics) {
         EXPECT_EQ(original, exec);
     }
 }
+
+// 测试 nullptr 拷贝构造
+TEST_F(ExecutorTest, CopyConstructionWithNullptr) {
+    mc::executor invalid_executor;
+
+    // 从无效执行器拷贝构造
+    mc::executor copied(invalid_executor);
+    EXPECT_FALSE(copied.valid());
+    EXPECT_EQ(invalid_executor, copied);
+}
+
+// 测试自赋值拷贝
+TEST_F(ExecutorTest, CopyAssignmentSelfAssignment) {
+    auto& runtime = mc::get_runtime_context();
+    runtime.start();
+
+    mc::executor exec(mc::make_io_strand());
+    auto backup = exec;
+
+    // 自赋值应该安全
+    exec = exec;
+
+    EXPECT_TRUE(exec.valid());
+    EXPECT_EQ(exec, backup);
+}
+
+// 测试 nullptr 拷贝赋值
+TEST_F(ExecutorTest, CopyAssignmentWithNullptr) {
+    auto& runtime = mc::get_runtime_context();
+    runtime.start();
+
+    mc::executor valid_exec(mc::make_io_strand());
+    mc::executor invalid_exec;
+
+    // 从无效执行器赋值
+    valid_exec = invalid_exec;
+    EXPECT_FALSE(valid_exec.valid());
+}
+
+// 测试自赋值移动
+TEST_F(ExecutorTest, MoveAssignmentSelfAssignment) {
+    auto& runtime = mc::get_runtime_context();
+    runtime.start();
+
+    mc::executor exec(mc::make_io_strand());
+    auto backup = exec;
+
+    // 自移动赋值应该安全
+    exec = std::move(exec);
+
+    EXPECT_TRUE(exec.valid());
+    EXPECT_EQ(exec, backup);
+}
+
+// 测试相同 impl 指针的相等性
+TEST_F(ExecutorTest, EqualitySameImplPointer) {
+    auto& runtime = mc::get_runtime_context();
+    runtime.start();
+
+    auto strand = mc::make_io_strand();
+    mc::executor exec1(strand);
+    mc::executor exec2(strand);
+
+    // 相同 strand 应该相等
+    EXPECT_EQ(exec1, exec2);
+}
+
+// 测试与 nullptr 的相等性
+TEST_F(ExecutorTest, EqualityWithNullptr) {
+    auto& runtime = mc::get_runtime_context();
+    runtime.start();
+
+    mc::executor valid_exec(mc::make_io_strand());
+    mc::executor invalid_exec1;
+    mc::executor invalid_exec2;
+
+    // 无效执行器之间应该相等
+    EXPECT_EQ(invalid_exec1, invalid_exec2);
+
+    // 有效和无效执行器应该不等
+    EXPECT_NE(valid_exec, invalid_exec1);
+    EXPECT_NE(invalid_exec1, valid_exec);
+}
+
+// 测试不等操作符
+TEST_F(ExecutorTest, InequalityOperator) {
+    auto& runtime = mc::get_runtime_context();
+    runtime.start();
+
+    auto strand1  = mc::make_io_strand();
+    auto strand2  = mc::make_io_strand();
+    mc::executor exec1(strand1);
+    mc::executor exec2(strand2);
+    mc::executor invalid;
+
+    // 使用 operator!= 直接测试
+    EXPECT_NE(exec1, exec2);
+    EXPECT_NE(exec1, invalid);
+    EXPECT_NE(invalid, exec1);
+
+    // 相同执行器应该相等
+    EXPECT_FALSE(exec1 != exec1);
+}
+
+// 测试 nullptr 的工作生命周期
+TEST_F(ExecutorTest, WorkLifecycleWithNullptr) {
+    mc::executor invalid_exec;
+
+    // 对无效执行器调用工作生命周期方法应该不抛出异常
+    EXPECT_NO_THROW(invalid_exec.on_work_started());
+    EXPECT_NO_THROW(invalid_exec.on_work_finished());
+}
+
+// 测试 nullptr 的 context 抛出异常
+TEST_F(ExecutorTest, ContextWithNullptrThrows) {
+    mc::executor invalid_exec;
+
+    // 对无效执行器调用 context 应该抛出异常
+    EXPECT_THROW(invalid_exec.context(), mc::invalid_op_exception);
+}
+
+// 测试多引用的析构函数
+TEST_F(ExecutorTest, DestructorWithMultipleReferences) {
+    auto& runtime = mc::get_runtime_context();
+    runtime.start();
+
+    // 创建多个引用
+    {
+        mc::executor original(mc::make_io_strand());
+        std::vector<mc::executor> copies;
+        for (int i = 0; i < 10; ++i) {
+            copies.push_back(original);
+        }
+        // 所有副本超出作用域，引用计数应该正确管理
+    }
+
+    // 原始执行器也应该仍然有效（如果还在作用域内）
+}
+
+// 测试单引用的析构函数
+TEST_F(ExecutorTest, DestructorWithSingleReference) {
+    auto& runtime = mc::get_runtime_context();
+    runtime.start();
+
+    // 创建单个执行器
+    {
+        mc::executor exec(mc::make_io_strand());
+        EXPECT_TRUE(exec.valid());
+        // 执行器超出作用域，应该正确清理
+    }
+}
+
+// 测试两个 nullptr 的拷贝赋值
+TEST_F(ExecutorTest, CopyAssignmentBothNullptr) {
+    mc::executor invalid1;
+    mc::executor invalid2;
+
+    // 两个无效执行器之间的赋值应该安全
+    invalid1 = invalid2;
+    EXPECT_FALSE(invalid1.valid());
+    EXPECT_EQ(invalid1, invalid2);
+}
+
+// 测试 release 返回 false 的拷贝赋值
+TEST_F(ExecutorTest, CopyAssignmentReleaseReturnsFalse) {
+    auto& runtime = mc::get_runtime_context();
+    runtime.start();
+
+    auto strand = mc::make_io_strand();
+    mc::executor exec1(strand);
+    mc::executor exec2(strand);
+
+    // exec1 和 exec2 共享同一个 impl，release 应该返回 false
+    // （因为还有 exec2 持有引用）
+    exec1 = exec2;
+    EXPECT_TRUE(exec1.valid());
+    EXPECT_TRUE(exec2.valid());
+    EXPECT_EQ(exec1, exec2);
+}
+
+// 测试 equal 返回 false 的相等性
+TEST_F(ExecutorTest, EqualityEqualReturnsFalse) {
+    auto& runtime = mc::get_runtime_context();
+    runtime.start();
+
+    auto strand1  = mc::make_io_strand();
+    auto strand2  = mc::make_io_strand();
+    mc::executor exec1(strand1);
+    mc::executor exec2(strand2);
+
+    // 不同 strand 应该不相等
+    EXPECT_NE(exec1, exec2);
+}
+
+// 测试 context 抛出异常
+TEST_F(ExecutorTest, ContextThrowsException) {
+    mc::executor invalid_exec;
+
+    // 对无效执行器调用 context 应该抛出异常
+    EXPECT_THROW(invalid_exec.context(), mc::invalid_op_exception);
+}
+
+// 测试包装不同执行器类型
+TEST_F(ExecutorTest, WrapDifferentExecutorTypes) {
+    auto& runtime = mc::get_runtime_context();
+    runtime.start();
+
+    // 包装 IO strand
+    auto io_strand = mc::make_io_strand();
+    mc::executor exec_io(io_strand);
+    EXPECT_TRUE(exec_io.valid());
+
+    // 包装 work strand
+    auto work_strand = mc::make_work_strand();
+    mc::executor exec_work(work_strand);
+    EXPECT_TRUE(exec_work.valid());
+
+    // 包装普通执行器
+    auto io_executor = mc::get_io_executor();
+    mc::executor exec_io_plain(io_executor);
+    EXPECT_TRUE(exec_io_plain.valid());
+}
+
+// 测试一个 nullptr 的相等性
+TEST_F(ExecutorTest, EqualityOneNullptr) {
+    auto& runtime = mc::get_runtime_context();
+    runtime.start();
+
+    mc::executor valid_exec(mc::make_io_strand());
+    mc::executor invalid_exec;
+
+    // 一个有效一个无效应该不相等
+    EXPECT_NE(valid_exec, invalid_exec);
+    EXPECT_NE(invalid_exec, valid_exec);
+}
+
+// 测试两个非 nullptr 但不同的相等性
+TEST_F(ExecutorTest, EqualityBothNonNullptrDifferent) {
+    auto& runtime = mc::get_runtime_context();
+    runtime.start();
+
+    auto strand1  = mc::make_io_strand();
+    auto strand2  = mc::make_io_strand();
+    mc::executor exec1(strand1);
+    mc::executor exec2(strand2);
+
+    // 两个不同的有效执行器应该不相等
+    EXPECT_NE(exec1, exec2);
+}
+
+// 测试自赋值拷贝
+TEST_F(ExecutorTest, CopyAssignmentSelf) {
+    auto& runtime = mc::get_runtime_context();
+    runtime.start();
+
+    mc::executor exec(mc::make_io_strand());
+    auto backup = exec;
+
+    // 自赋值
+    exec = exec;
+
+    EXPECT_TRUE(exec.valid());
+    EXPECT_EQ(exec, backup);
+}
+
+// 测试 this 为 nullptr 的拷贝赋值
+TEST_F(ExecutorTest, CopyAssignmentThisNullptr) {
+    auto& runtime = mc::get_runtime_context();
+    runtime.start();
+
+    mc::executor invalid_exec;
+    mc::executor valid_exec(mc::make_io_strand());
+
+    // 从有效执行器赋值给无效执行器
+    invalid_exec = valid_exec;
+    EXPECT_TRUE(invalid_exec.valid());
+    EXPECT_EQ(invalid_exec, valid_exec);
+}
+
+// 测试 release 返回 true 的拷贝赋值
+TEST_F(ExecutorTest, CopyAssignmentReleaseReturnsTrue) {
+    auto& runtime = mc::get_runtime_context();
+    runtime.start();
+
+    auto strand1 = mc::make_io_strand();
+    auto strand2 = mc::make_io_strand();
+
+    mc::executor exec1(strand1);
+    {
+        mc::executor exec2(strand2);
+        // exec1 持有唯一的 strand1 引用，exec2 持有唯一的 strand2 引用
+        exec1 = exec2;
+        // exec2 超出作用域，但 exec1 现在持有 strand2 的引用
+    }
+
+    EXPECT_TRUE(exec1.valid());
+}
+
+// 测试 other 为 nullptr 的拷贝赋值
+TEST_F(ExecutorTest, CopyAssignmentOtherNullptr) {
+    auto& runtime = mc::get_runtime_context();
+    runtime.start();
+
+    mc::executor valid_exec(mc::make_io_strand());
+    mc::executor invalid_exec;
+
+    // 从无效执行器赋值给有效执行器
+    valid_exec = invalid_exec;
+    EXPECT_FALSE(valid_exec.valid());
+}
+
+// 测试 other 非 nullptr 的拷贝赋值
+TEST_F(ExecutorTest, CopyAssignmentOtherNonNullptr) {
+    auto& runtime = mc::get_runtime_context();
+    runtime.start();
+
+    auto strand1 = mc::make_io_strand();
+    auto strand2 = mc::make_io_strand();
+
+    mc::executor exec1(strand1);
+    mc::executor exec2(strand2);
+
+    // 从有效执行器赋值给另一个有效执行器
+    exec1 = exec2;
+    EXPECT_TRUE(exec1.valid());
+    EXPECT_EQ(exec1, exec2);
+}
+
+// 测试自赋值移动
+TEST_F(ExecutorTest, MoveAssignmentSelf) {
+    auto& runtime = mc::get_runtime_context();
+    runtime.start();
+
+    mc::executor exec(mc::make_io_strand());
+    auto backup = exec;
+
+    // 自移动赋值应该安全
+    exec = std::move(exec);
+
+    EXPECT_TRUE(exec.valid());
+    EXPECT_EQ(exec, backup);
+}
+
+// 测试 other 为 nullptr 的移动赋值
+TEST_F(ExecutorTest, MoveAssignmentOtherNullptr) {
+    auto& runtime = mc::get_runtime_context();
+    runtime.start();
+
+    mc::executor valid_exec(mc::make_io_strand());
+    mc::executor invalid_exec;
+
+    // 从无效执行器移动赋值给有效执行器
+    valid_exec = std::move(invalid_exec);
+    EXPECT_FALSE(valid_exec.valid());
+}

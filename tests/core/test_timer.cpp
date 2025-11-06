@@ -98,13 +98,14 @@ TEST_F(timer_test, test_multiple_timers) {
     std::promise<bool> timer2_called;
     std::promise<bool> timer3_called;
 
-    mc::core::timer::single_shot(mc::milliseconds(100), service, [&]() {
+    // 保存 timer 指针，确保在测试结束前它们不会被销毁
+    auto timer1 = mc::core::timer::single_shot(mc::milliseconds(100), service, [&]() {
         timer1_called.set_value(true);
     });
-    mc::core::timer::single_shot(mc::milliseconds(200), service, [&]() {
+    auto timer2 = mc::core::timer::single_shot(mc::milliseconds(200), service, [&]() {
         timer2_called.set_value(true);
     });
-    mc::core::timer::single_shot(mc::milliseconds(300), service, [&]() {
+    auto timer3 = mc::core::timer::single_shot(mc::milliseconds(300), service, [&]() {
         timer3_called.set_value(true);
     });
 
@@ -115,6 +116,17 @@ TEST_F(timer_test, test_multiple_timers) {
     EXPECT_EQ(s1, std::future_status::ready);
     EXPECT_EQ(s2, std::future_status::ready);
     EXPECT_EQ(s3, std::future_status::ready);
+
+    // 确保所有定时器都已停止（single_shot 会自动停止，但显式停止更安全）
+    if (timer1) {
+        timer1->stop();
+    }
+    if (timer2) {
+        timer2->stop();
+    }
+    if (timer3) {
+        timer3->stop();
+    }
 }
 
 // 测试嵌套定时器
@@ -122,18 +134,27 @@ TEST_F(timer_test, test_nested_timers) {
     int                count = 0;
     std::promise<void> wait;
 
-    mc::core::timer::single_shot(mc::milliseconds(100), [&]() {
+    // 保存第一个 timer 指针，确保在测试结束前它不会被销毁
+    auto timer1 = mc::core::timer::single_shot(mc::milliseconds(100), service, [&]() {
         count++;
 
-        mc::core::timer::single_shot(mc::milliseconds(100), [&]() {
+        // 第二个 timer 在第一个 timer 的回调中创建，会在回调完成后自动停止
+        auto timer2 = mc::core::timer::single_shot(mc::milliseconds(100), service, [&]() {
             count++;
             wait.set_value();
         });
+        // 保存 timer2 的引用，防止在回调执行前被销毁
+        MC_UNUSED(timer2);
     });
 
     auto status = wait.get_future().wait_for(std::chrono::milliseconds(300));
     EXPECT_EQ(status, std::future_status::ready);
     EXPECT_EQ(count, 2);
+
+    // 确保第一个定时器已停止
+    if (timer1) {
+        timer1->stop();
+    }
 }
 
 // 测试定时器间隔设置
@@ -175,34 +196,48 @@ TEST_F(timer_test, test_timer_status) {
 TEST_F(timer_test, test_timer_restart) {
     auto timer = mc::make_shared<mc::core::timer>(service.get());
 
-    int count = 0;
+    int                count = 0;
+    std::promise<void> first_trigger;
+    bool               first_triggered = false;
+
     timer->timeout.connect([&]() {
         count++;
+        if (!first_triggered) {
+            first_triggered = true;
+            first_trigger.set_value();
+        }
     });
 
     // 第一次启动
     timer->start(mc::milliseconds(50));
-    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    // 等待第一次触发
+    auto status1 = first_trigger.get_future().wait_for(std::chrono::milliseconds(100));
+    EXPECT_EQ(status1, std::future_status::ready);
 
     // 第二次启动（应该重置定时器）
     timer->start(mc::milliseconds(50));
+    // 等待一段时间，观察是否再次触发
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
-    timer->stop();
-
-    // 应该只触发一次（因为第二次启动重置了定时器）
+    // 应该至少触发一次
     EXPECT_GE(count, 1);
+
+    // 停止定时器，确保测试结束时没有未完成的异步操作
+    timer->stop();
 }
 
 // 测试定时器间隔变更
 TEST_F(timer_test, test_timer_interval_change) {
     auto timer = mc::make_shared<mc::core::timer>(service.get());
 
-    int count = 0;
+    int                count = 0;
+    int                expected_count = 2;
+    std::promise<void> done;
     timer->timeout.connect([&]() {
         count++;
-        if (count >= 2) {
+        if (count >= expected_count) {
             timer->stop();
+            done.set_value();
         }
     });
 
@@ -213,9 +248,10 @@ TEST_F(timer_test, test_timer_interval_change) {
     std::this_thread::sleep_for(std::chrono::milliseconds(50));
     timer->set_interval(mc::milliseconds(200));
 
-    std::this_thread::sleep_for(std::chrono::milliseconds(300));
-
-    EXPECT_GE(count, 1);
+    // 等待回调完成，而不是使用固定的 sleep
+    auto status = done.get_future().wait_for(std::chrono::milliseconds(1000));
+    EXPECT_EQ(status, std::future_status::ready);
+    EXPECT_EQ(count, expected_count);
 }
 
 // 测试空回调函数
@@ -233,11 +269,15 @@ TEST_F(timer_test, test_null_callback) {
 TEST_F(timer_test, test_zero_interval_timer) {
     auto timer = mc::make_shared<mc::core::timer>(service.get());
 
-    int count = 0;
+    int                count = 0;
+    int                expected_count = 5;
+    std::promise<void> wait;
+
     timer->timeout.connect([&]() {
         count++;
-        if (count >= 5) {
+        if (count >= expected_count) {
             timer->stop();
+            wait.set_value();
         }
     });
 
@@ -245,10 +285,10 @@ TEST_F(timer_test, test_zero_interval_timer) {
     timer->set_interval(mc::milliseconds(0));
     timer->start(mc::milliseconds(0));
 
-    std::this_thread::sleep_for(std::chrono::milliseconds(50));
-    timer->stop();
-
-    EXPECT_GT(count, 0);
+    // 等待回调完成，而不是使用 sleep
+    auto status = wait.get_future().wait_for(std::chrono::milliseconds(100));
+    EXPECT_EQ(status, std::future_status::ready);
+    EXPECT_EQ(count, expected_count);
 }
 
 // 测试定时器析构
