@@ -468,12 +468,13 @@ public:
     ResultType call_with_exact_args(C& obj, const mc::variants& args, std::index_sequence<I...>) const {
         if constexpr (std::is_void_v<RetType>) {
             call_impl(
-                obj, mc::detail::convert_arg<mc::traits::remove_cvref_t<Args>>(this->name, args[I])...);
+                obj, mc::detail::convert_arg<mc::traits::remove_cvref_t<Args>>(
+                         this->name.data(), args[I])...);
             return {};
         } else {
             return ResultType(call_impl(
                 obj, mc::detail::convert_arg<mc::traits::remove_cvref_t<Args>>(
-                         this->name, args[I])...));
+                         this->name.data(), args[I])...));
         }
     }
 
