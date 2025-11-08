@@ -24,6 +24,37 @@ using namespace mc::engine;
 struct test_service_1 : public mc::engine::service {
     test_service_1() : mc::engine::service("org.openubmc.test_service_1") {
     }
+
+    void on_dump(std::map<std::string, std::string> context, std::string filepath) override {
+        m_ctx_value = context["Test"];
+        m_dump_filepath = filepath;
+    }
+
+    void on_detach_debug_console(std::map<std::string, std::string> context) override {
+        m_ctx_value = context["Test"];
+    }
+
+    int32_t on_reboot_prepare(std::map<std::string, std::string> context) override {
+        m_ctx_value = context["Test"];
+        return 0;
+    }
+
+    int32_t on_reboot_process(std::map<std::string, std::string> context) override {
+        m_ctx_value = context["Test"];
+        return 0;
+    }
+
+    int32_t on_reboot_action(std::map<std::string, std::string> context) override {
+        m_ctx_value = context["Test"];
+        return 0;
+    }
+
+    void on_reboot_cancel(std::map<std::string, std::string> context) override {
+        m_ctx_value = context["Test"];
+    }
+
+    std::string m_ctx_value;
+    std::string m_dump_filepath;
 };
 
 static mc::milliseconds                   call_timeout(1000);
@@ -170,13 +201,16 @@ TEST_F(MicroComponentTest, TestMicroComponentDebugInterface) {
     msg    = mc::dbus::message::new_method_call("org.openubmc.test_service_1", "/bmc/kepler/test_service_1/MicroComponent",
                                                 "bmc.kepler.MicroComponent.Debug", "DetachDebugConsole");
     writer = msg.writer();
-    writer << empty_ctx;
+    std::map<std::string, std::string> detach_ctx;
+    detach_ctx["Test"] = "TestDetachDebugConsole";
+    writer << detach_ctx;
     // 增加超时时间并添加重试机制
     mc::milliseconds extended_timeout(2000);
     reply = test_conn.send_with_reply(std::move(msg), extended_timeout);
     ASSERT_TRUE(reply.is_valid() && reply.is_method_return());
     output = reply.read_args();
     EXPECT_EQ(output.size(), 0);
+    EXPECT_EQ(service_1->m_ctx_value, "TestDetachDebugConsole");
 
     // 添加短暂延迟
     std::this_thread::sleep_for(std::chrono::milliseconds(50));
@@ -184,11 +218,15 @@ TEST_F(MicroComponentTest, TestMicroComponentDebugInterface) {
     msg    = mc::dbus::message::new_method_call("org.openubmc.test_service_1", "/bmc/kepler/test_service_1/MicroComponent",
                                                 "bmc.kepler.MicroComponent.Debug", "Dump");
     writer = msg.writer();
-    writer << empty_ctx << "";
+    std::map<std::string, std::string> dump_ctx;
+    dump_ctx["Test"] = "TestDump";
+    writer << dump_ctx << "test_file.log";
     reply = test_conn.send_with_reply(std::move(msg), call_timeout);
     ASSERT_TRUE(reply.is_valid() && reply.is_method_return());
     output = reply.read_args();
     EXPECT_EQ(output.size(), 0);
+    EXPECT_EQ(service_1->m_ctx_value, "TestDump");
+    EXPECT_EQ(service_1->m_dump_filepath, "test_file.log");
 
     // 添加短暂延迟
     std::this_thread::sleep_for(std::chrono::milliseconds(50));
@@ -208,30 +246,51 @@ TEST_F(MicroComponentTest, TestMicroComponentRebootInterface) {
         mc::dbus::message::new_method_call("org.openubmc.test_service_1", "/bmc/kepler/test_service_1/MicroComponent",
                                            "bmc.kepler.MicroComponent.Reboot", "Prepare");
     auto writer = msg.writer();
-    writer << empty_ctx;
+    std::map<std::string, std::string> reboot_prepare_ctx;
+    reboot_prepare_ctx["Test"] = "TestRebootPrepare";
+    writer << reboot_prepare_ctx;
     auto reply = test_conn.send_with_reply(std::move(msg), call_timeout);
     ASSERT_TRUE(reply.is_valid() && reply.is_method_return());
     int32_t ret_code;
     reply >> ret_code;
     ASSERT_EQ(ret_code, 0);
+    EXPECT_EQ(service_1->m_ctx_value, "TestRebootPrepare");
 
     msg    = mc::dbus::message::new_method_call("org.openubmc.test_service_1", "/bmc/kepler/test_service_1/MicroComponent",
-                                                "bmc.kepler.MicroComponent.Reboot", "Action");
+                                                "bmc.kepler.MicroComponent.Reboot", "Process");
     writer = msg.writer();
-    writer << empty_ctx;
+    std::map<std::string, std::string> reboot_process_ctx;
+    reboot_process_ctx["Test"] = "TestRebootProcess";
+    writer << reboot_process_ctx;
     reply = test_conn.send_with_reply(std::move(msg), call_timeout);
     ASSERT_TRUE(reply.is_valid() && reply.is_method_return());
     reply >> ret_code;
     ASSERT_EQ(ret_code, 0);
+    EXPECT_EQ(service_1->m_ctx_value, "TestRebootProcess");
+
+    msg    = mc::dbus::message::new_method_call("org.openubmc.test_service_1", "/bmc/kepler/test_service_1/MicroComponent",
+                                                "bmc.kepler.MicroComponent.Reboot", "Action");
+    writer = msg.writer();
+    std::map<std::string, std::string> reboot_action_ctx;
+    reboot_action_ctx["Test"] = "TestRebootAction";
+    writer << reboot_action_ctx;
+    reply = test_conn.send_with_reply(std::move(msg), call_timeout);
+    ASSERT_TRUE(reply.is_valid() && reply.is_method_return());
+    reply >> ret_code;
+    ASSERT_EQ(ret_code, 0);
+    EXPECT_EQ(service_1->m_ctx_value, "TestRebootAction");
 
     msg    = mc::dbus::message::new_method_call("org.openubmc.test_service_1", "/bmc/kepler/test_service_1/MicroComponent",
                                                 "bmc.kepler.MicroComponent.Reboot", "Cancel");
     writer = msg.writer();
-    writer << empty_ctx;
+    std::map<std::string, std::string> reboot_cancel_ctx;
+    reboot_cancel_ctx["Test"] = "TestRebootCancel";
+    writer << reboot_cancel_ctx;
     reply = test_conn.send_with_reply(std::move(msg), call_timeout);
     ASSERT_TRUE(reply.is_valid() && reply.is_method_return());
     auto output = reply.read_args();
     EXPECT_EQ(output.size(), 0);
+    EXPECT_EQ(service_1->m_ctx_value, "TestRebootCancel");
 }
 
 TEST_F(MicroComponentTest, TestMicroComponentResetInterface) {

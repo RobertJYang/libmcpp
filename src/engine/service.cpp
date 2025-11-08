@@ -507,6 +507,27 @@ bool service::is_healthy() const {
     return true;
 }
 
+void service::on_dump(std::map<std::string, std::string> context, std::string filepath) {
+}
+
+void service::on_detach_debug_console(std::map<std::string, std::string> context) {
+}
+
+int32_t service::on_reboot_prepare(std::map<std::string, std::string> context) {
+    return 0;
+}
+
+int32_t service::on_reboot_process(std::map<std::string, std::string> context) {
+    return 0;
+}
+
+int32_t service::on_reboot_action(std::map<std::string, std::string> context) {
+    return 0;
+}
+
+void service::on_reboot_cancel(std::map<std::string, std::string> context) {
+}
+
 void service::register_object(abstract_object& obj) {
     // 如果对象没有ID则生成一个，避免构造对象路径时使用了对象ID
     if (!obj.has_valid_id()) {
