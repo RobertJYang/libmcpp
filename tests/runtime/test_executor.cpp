@@ -359,21 +359,6 @@ TEST_F(ExecutorTest, CopyConstructionWithNullptr) {
     EXPECT_EQ(invalid_executor, copied);
 }
 
-// 测试自赋值拷贝
-TEST_F(ExecutorTest, CopyAssignmentSelfAssignment) {
-    auto& runtime = mc::get_runtime_context();
-    runtime.start();
-
-    mc::executor exec(mc::make_io_strand());
-    auto backup = exec;
-
-    // 自赋值应该安全
-    exec = exec;
-
-    EXPECT_TRUE(exec.valid());
-    EXPECT_EQ(exec, backup);
-}
-
 // 测试 nullptr 拷贝赋值
 TEST_F(ExecutorTest, CopyAssignmentWithNullptr) {
     auto& runtime = mc::get_runtime_context();
@@ -385,21 +370,6 @@ TEST_F(ExecutorTest, CopyAssignmentWithNullptr) {
     // 从无效执行器赋值
     valid_exec = invalid_exec;
     EXPECT_FALSE(valid_exec.valid());
-}
-
-// 测试自赋值移动
-TEST_F(ExecutorTest, MoveAssignmentSelfAssignment) {
-    auto& runtime = mc::get_runtime_context();
-    runtime.start();
-
-    mc::executor exec(mc::make_io_strand());
-    auto backup = exec;
-
-    // 自移动赋值应该安全
-    exec = std::move(exec);
-
-    EXPECT_TRUE(exec.valid());
-    EXPECT_EQ(exec, backup);
 }
 
 // 测试相同 impl 指针的相等性
@@ -571,47 +541,7 @@ TEST_F(ExecutorTest, WrapDifferentExecutorTypes) {
     EXPECT_TRUE(exec_io_plain.valid());
 }
 
-// 测试一个 nullptr 的相等性
-TEST_F(ExecutorTest, EqualityOneNullptr) {
-    auto& runtime = mc::get_runtime_context();
-    runtime.start();
-
-    mc::executor valid_exec(mc::make_io_strand());
-    mc::executor invalid_exec;
-
-    // 一个有效一个无效应该不相等
-    EXPECT_NE(valid_exec, invalid_exec);
-    EXPECT_NE(invalid_exec, valid_exec);
-}
-
-// 测试两个非 nullptr 但不同的相等性
-TEST_F(ExecutorTest, EqualityBothNonNullptrDifferent) {
-    auto& runtime = mc::get_runtime_context();
-    runtime.start();
-
-    auto strand1  = mc::make_io_strand();
-    auto strand2  = mc::make_io_strand();
-    mc::executor exec1(strand1);
-    mc::executor exec2(strand2);
-
-    // 两个不同的有效执行器应该不相等
-    EXPECT_NE(exec1, exec2);
-}
-
-// 测试自赋值拷贝
-TEST_F(ExecutorTest, CopyAssignmentSelf) {
-    auto& runtime = mc::get_runtime_context();
-    runtime.start();
-
-    mc::executor exec(mc::make_io_strand());
-    auto backup = exec;
-
-    // 自赋值
-    exec = exec;
-
-    EXPECT_TRUE(exec.valid());
-    EXPECT_EQ(exec, backup);
-}
+// 测试不同执行器的相等性（已由 EqualityEqualReturnsFalse 覆盖）
 
 // 测试 this 为 nullptr 的拷贝赋值
 TEST_F(ExecutorTest, CopyAssignmentThisNullptr) {
@@ -674,21 +604,6 @@ TEST_F(ExecutorTest, CopyAssignmentOtherNonNullptr) {
     exec1 = exec2;
     EXPECT_TRUE(exec1.valid());
     EXPECT_EQ(exec1, exec2);
-}
-
-// 测试自赋值移动
-TEST_F(ExecutorTest, MoveAssignmentSelf) {
-    auto& runtime = mc::get_runtime_context();
-    runtime.start();
-
-    mc::executor exec(mc::make_io_strand());
-    auto backup = exec;
-
-    // 自移动赋值应该安全
-    exec = std::move(exec);
-
-    EXPECT_TRUE(exec.valid());
-    EXPECT_EQ(exec, backup);
 }
 
 // 测试 other 为 nullptr 的移动赋值

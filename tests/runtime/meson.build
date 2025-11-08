@@ -4,4 +4,5 @@ test_runtime_files = [
     'runtime/test_any_executor.cpp',
     'runtime/test_executor.cpp',
     'runtime/test_thread_list.cpp',
+    'runtime/test_executor_scenarios.cpp',
 ]

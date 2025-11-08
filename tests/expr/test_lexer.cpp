@@ -179,3 +179,195 @@ TEST(LexerTest, TemplateString) {
         },
         mc::parse_error_exception);
 }
+
+// 测试更多数字格式
+TEST(LexerTest, MoreNumberFormats) {
+    // 测试前导零的十进制数字
+    verify_number_token("007", 7, mc::type_id::int64_type);
+    verify_number_token("000", 0, mc::type_id::int64_type);
+
+    // 测试浮点数格式
+    verify_number_token("0.0", 0.0, mc::type_id::double_type);
+    verify_number_token("0.5", 0.5, mc::type_id::double_type);
+    verify_number_token("5.0", 5.0, mc::type_id::double_type);
+    verify_number_token("123.456", 123.456, mc::type_id::double_type);
+
+    // 测试科学计数法（如果支持）
+    // verify_number_token("1e2", 100.0, mc::type_id::double_type);
+    // verify_number_token("1.5e-2", 0.015, mc::type_id::double_type);
+}
+
+// 测试标识符
+TEST(LexerTest, Identifiers) {
+    mc::expr::lexer lexer("hello world _test var123");
+    auto            tokens = lexer.scan_tokens();
+
+    ASSERT_GE(tokens.size(), 5);
+    ASSERT_EQ(tokens[0].type, mc::expr::token_type::identifier);
+    ASSERT_EQ(tokens[0].lexeme, "hello");
+    ASSERT_EQ(tokens[1].type, mc::expr::token_type::identifier);
+    ASSERT_EQ(tokens[1].lexeme, "world");
+    ASSERT_EQ(tokens[2].type, mc::expr::token_type::identifier);
+    ASSERT_EQ(tokens[2].lexeme, "_test");
+    ASSERT_EQ(tokens[3].type, mc::expr::token_type::identifier);
+    ASSERT_EQ(tokens[3].lexeme, "var123");
+}
+
+// 测试布尔字面值
+TEST(LexerTest, BooleanLiterals) {
+    mc::expr::lexer lexer("true false");
+    auto            tokens = lexer.scan_tokens();
+
+    ASSERT_GE(tokens.size(), 3);
+    ASSERT_EQ(tokens[0].type, mc::expr::token_type::number);
+    ASSERT_TRUE(tokens[0].literal.is_bool());
+    EXPECT_TRUE(tokens[0].literal.as_bool());
+
+    ASSERT_EQ(tokens[1].type, mc::expr::token_type::number);
+    ASSERT_TRUE(tokens[1].literal.is_bool());
+    EXPECT_FALSE(tokens[1].literal.as_bool());
+}
+
+// 测试字符串字面值
+TEST(LexerTest, StringLiterals) {
+    // 单引号字符串
+    {
+        mc::expr::lexer lexer("'hello'");
+        auto            tokens = lexer.scan_tokens();
+
+        ASSERT_GE(tokens.size(), 2);
+        ASSERT_EQ(tokens[0].type, mc::expr::token_type::string);
+        EXPECT_EQ(tokens[0].literal.as_string(), "hello");
+    }
+
+    // 双引号字符串
+    {
+        mc::expr::lexer lexer("\"world\"");
+        auto            tokens = lexer.scan_tokens();
+
+        ASSERT_GE(tokens.size(), 2);
+        ASSERT_EQ(tokens[0].type, mc::expr::token_type::string);
+        EXPECT_EQ(tokens[0].literal.as_string(), "world");
+    }
+
+    // 空字符串
+    {
+        mc::expr::lexer lexer("''");
+        auto            tokens = lexer.scan_tokens();
+
+        ASSERT_GE(tokens.size(), 2);
+        ASSERT_EQ(tokens[0].type, mc::expr::token_type::string);
+        EXPECT_EQ(tokens[0].literal.as_string(), "");
+    }
+}
+
+// 测试运算符
+TEST(LexerTest, Operators) {
+    mc::expr::lexer lexer("+ - * / % == != < <= > >= && || ! & | ^ ~ << >>");
+    auto            tokens = lexer.scan_tokens();
+
+    ASSERT_GE(tokens.size(), 18);
+    EXPECT_EQ(tokens[0].type, mc::expr::token_type::plus);
+    EXPECT_EQ(tokens[1].type, mc::expr::token_type::minus);
+    EXPECT_EQ(tokens[2].type, mc::expr::token_type::asterisk);
+    EXPECT_EQ(tokens[3].type, mc::expr::token_type::slash);
+    EXPECT_EQ(tokens[4].type, mc::expr::token_type::percent);
+    EXPECT_EQ(tokens[5].type, mc::expr::token_type::equals);
+    EXPECT_EQ(tokens[6].type, mc::expr::token_type::not_equals);
+    EXPECT_EQ(tokens[7].type, mc::expr::token_type::less);
+    EXPECT_EQ(tokens[8].type, mc::expr::token_type::less_equals);
+    EXPECT_EQ(tokens[9].type, mc::expr::token_type::greater);
+    EXPECT_EQ(tokens[10].type, mc::expr::token_type::greater_equals);
+    EXPECT_EQ(tokens[11].type, mc::expr::token_type::logical_and);
+    EXPECT_EQ(tokens[12].type, mc::expr::token_type::logical_or);
+    EXPECT_EQ(tokens[13].type, mc::expr::token_type::logical_not);
+    EXPECT_EQ(tokens[14].type, mc::expr::token_type::bit_and);
+    EXPECT_EQ(tokens[15].type, mc::expr::token_type::bit_or);
+    EXPECT_EQ(tokens[16].type, mc::expr::token_type::bit_xor);
+    EXPECT_EQ(tokens[17].type, mc::expr::token_type::bit_not);
+    EXPECT_EQ(tokens[18].type, mc::expr::token_type::lshift);
+    EXPECT_EQ(tokens[19].type, mc::expr::token_type::rshift);
+}
+
+// 测试分隔符
+TEST(LexerTest, Delimiters) {
+    mc::expr::lexer lexer("( ) , . ; ? :");
+    auto            tokens = lexer.scan_tokens();
+
+    ASSERT_GE(tokens.size(), 8);
+    EXPECT_EQ(tokens[0].type, mc::expr::token_type::left_paren);
+    EXPECT_EQ(tokens[1].type, mc::expr::token_type::right_paren);
+    EXPECT_EQ(tokens[2].type, mc::expr::token_type::comma);
+    EXPECT_EQ(tokens[3].type, mc::expr::token_type::dot);
+    EXPECT_EQ(tokens[4].type, mc::expr::token_type::semicolon);
+    EXPECT_EQ(tokens[5].type, mc::expr::token_type::question);
+    EXPECT_EQ(tokens[6].type, mc::expr::token_type::colon);
+}
+
+// 测试空白字符
+TEST(LexerTest, Whitespace) {
+    mc::expr::lexer lexer("1  2\t3\n4");
+    auto            tokens = lexer.scan_tokens();
+
+    // 应该只有数字token和EOF
+    ASSERT_EQ(tokens.size(), 5);
+    EXPECT_EQ(tokens[0].type, mc::expr::token_type::number);
+    EXPECT_EQ(tokens[1].type, mc::expr::token_type::number);
+    EXPECT_EQ(tokens[2].type, mc::expr::token_type::number);
+    EXPECT_EQ(tokens[3].type, mc::expr::token_type::number);
+    EXPECT_EQ(tokens[4].type, mc::expr::token_type::end_of_file);
+}
+
+// 测试更多错误情况
+TEST(LexerTest, MoreErrorCases) {
+    // 非法的二进制数字
+    EXPECT_THROW(
+        {
+            mc::expr::lexer lexer("0b2");
+            lexer.scan_tokens();
+        },
+        mc::parse_error_exception);
+
+    // 未闭合的字符串
+    EXPECT_THROW(
+        {
+            mc::expr::lexer lexer("'unclosed string");
+            lexer.scan_tokens();
+        },
+        mc::parse_error_exception);
+
+    // 数字后跟非法字符
+    EXPECT_THROW(
+        {
+            mc::expr::lexer lexer("123abc");
+            lexer.scan_tokens();
+        },
+        mc::parse_error_exception);
+}
+
+// 测试模板字符串的更多场景
+TEST(LexerTest, MoreTemplateStringScenarios) {
+    // 只有文本的模板字符串（没有表达式）
+    {
+        mc::expr::lexer lexer("\"Hello, World!\"");
+        auto            tokens = lexer.scan_tokens();
+
+        ASSERT_GE(tokens.size(), 2);
+        ASSERT_EQ(tokens[0].type, mc::expr::token_type::string);
+        EXPECT_EQ(tokens[0].literal.as_string(), "Hello, World!");
+    }
+
+    // 只有表达式的模板字符串
+    {
+        mc::expr::lexer lexer("\"${name}\"");
+        auto            tokens = lexer.scan_tokens();
+
+        ASSERT_GE(tokens.size(), 4);
+        ASSERT_EQ(tokens[0].type, mc::expr::token_type::template_start);
+        ASSERT_EQ(tokens[0].literal.as_string(), "");
+        ASSERT_EQ(tokens[1].type, mc::expr::token_type::template_expr);
+        ASSERT_EQ(tokens[1].lexeme, "name");
+        ASSERT_EQ(tokens[2].type, mc::expr::token_type::template_end);
+        ASSERT_EQ(tokens[2].literal.as_string(), "");
+    }
+}

@@ -4,6 +4,7 @@ test_variant_files = [
   'variant/test_variant_bool_operator.cpp',
   'variant/test_variant_comparison.cpp',
   'variant/test_variant_containers.cpp',
+  'variant/test_variant_c_api.cpp',
   'variant/test_variant_equality.cpp',
   'variant/test_variant_operations.cpp',
   'variant/test_variant_standard_containers.cpp',

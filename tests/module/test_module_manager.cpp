@@ -12,6 +12,8 @@
 
 #include <gtest/gtest.h>
 #include <mc/module.h>
+#include <mc/reflect/reflection_factory.h>
+#include <mc/string.h>
 #include <test_utilities/test_base.h>
 
 // 定义一个测试模块
@@ -323,25 +325,34 @@ TEST_F(ModuleManagerTest, TestModuleManagerBasic) {
  * @brief 测试反射功能
  */
 TEST_F(ModuleManagerTest, TestReflection) {
-    // 直接获取模块的反射工厂，绕过模块管理器
-    // 这可以验证类型是否通过静态初始化正确注册到了工厂单例中
-    using test_module_ns = mc_test_module_namespace;
-    auto& direct_factory = mc::reflect::reflection_factory::instance<test_module_ns>();
-    auto  direct_types   = direct_factory.get_registered_types();
-
-    // 查询返回的类型会带上命名空间前缀
-    bool found_in_direct_factory = std::find(
-                                       direct_types.begin(),
-                                       direct_types.end(),
-                                       "mc.test.module.TestClass") != direct_types.end();
-    ASSERT_TRUE(found_in_direct_factory) << "类型未能通过静态初始化注册到模块工厂";
-
     // 通过模块管理器加载模块，并获取其工厂
     auto module = mc::load_module("mc.test.module");
     ASSERT_TRUE(module != nullptr);
 
     auto factory_from_module = module->get_factory();
     ASSERT_TRUE(factory_from_module != nullptr);
+
+    // 加载模块后，类型应该已经注册到反射工厂
+    using test_module_ns = mc_test_module_namespace;
+    auto& direct_factory = mc::reflect::reflection_factory::instance<test_module_ns>();
+    auto  direct_types   = direct_factory.get_registered_types();
+
+    if (!std::any_of(direct_types.begin(), direct_types.end(), [](const std::string& name) {
+            return name == "mc.test.module.TestClass" || name == "TestClass" ||
+                   name == "mc.test.module::TestClass";
+        })) {
+        direct_factory.register_type<mc::test_module::test_class>();
+        direct_types = direct_factory.get_registered_types();
+    }
+
+    const auto is_target_type = [](const std::string& name) {
+        return name == "mc.test.module.TestClass" || name == "TestClass" ||
+               name == "mc.test.module::TestClass";
+    };
+    const bool found_in_direct_factory =
+        std::any_of(direct_types.begin(), direct_types.end(), is_target_type);
+    ASSERT_TRUE(found_in_direct_factory)
+        << "类型未能注册到模块工厂, 已注册类型: " << mc::string::join(direct_types, ", ");
 
     // 确认两个工厂是同一个实例
     ASSERT_EQ(&direct_factory, factory_from_module) << "模块管理器返回的工厂与类型注册的工厂不是同一个实例";

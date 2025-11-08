@@ -10,5 +10,7 @@ test_expr_files = [
     'expr/test_expr.cpp',
     'expr/test_gvariant_evaluate.cpp',
     'expr/test_lexer.cpp',
+    'expr/test_node.cpp',
     'expr/test_object_expr.cpp',
+    'expr/test_parser.cpp',
 ]

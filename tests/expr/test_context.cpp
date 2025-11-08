@@ -180,3 +180,116 @@ TEST_F(expr_context_test, SetParent) {
     // ctx1仍然不能访问ctx2的变量
     EXPECT_FALSE(ctx1.has_variable("var2"));
 }
+
+// 注意：object_context 的测试已经在 test_object_expr.cpp 中完成
+// 这里不再重复测试，因为需要实现完整的 abstract_object 接口
+
+// 测试上下文中的函数注册和调用
+TEST_F(expr_context_test, function_registration) {
+    mc::expr::context ctx;
+
+    // 注册函数
+    auto func1 = mc::expr::make_simple_function("add", [](double a, double b) {
+        return a + b;
+    });
+    auto id1 = ctx.register_function(func1);
+    EXPECT_GE(id1, 0);
+
+    // 注册同名函数（应该覆盖）
+    auto func2 = mc::expr::make_simple_function("add", [](double a, double b, double c) {
+        return a + b + c;
+    });
+    auto id2 = ctx.register_function(func2);
+    EXPECT_GE(id2, 0);
+
+    // 测试函数调用
+    EXPECT_TRUE(ctx.has_function("add"));
+    auto result = ctx.invoke("add", {1.0, 2.0, 3.0}, "");
+    EXPECT_EQ(result, 6.0);
+}
+
+// 测试变量注册和获取
+TEST_F(expr_context_test, variable_registration) {
+    mc::expr::context ctx;
+
+    // 注册变量
+    auto id1 = ctx.register_variable("x", 10);
+    EXPECT_GE(id1, 0);
+
+    auto id2 = ctx.register_variable("y", "hello");
+    EXPECT_GE(id2, 0);
+
+    // 测试变量获取
+    EXPECT_TRUE(ctx.has_variable("x"));
+    EXPECT_EQ(ctx.get_variable("x"), 10);
+    EXPECT_TRUE(ctx.has_variable("y"));
+    EXPECT_EQ(ctx.get_variable("y"), "hello");
+
+    // 测试未定义的变量
+    EXPECT_FALSE(ctx.has_variable("z"));
+    EXPECT_TRUE(ctx.get_variable("z").is_null());
+}
+
+// 测试从 dict 导入变量
+TEST_F(expr_context_test, import_from_dict) {
+    mc::expr::context ctx;
+
+    mc::dict data;
+    data["a"] = 1;
+    data["b"] = 2.5;
+    data["c"] = "test";
+
+    ctx.import_from_dict(data);
+
+    EXPECT_TRUE(ctx.has_variable("a"));
+    EXPECT_EQ(ctx.get_variable("a"), 1);
+    EXPECT_TRUE(ctx.has_variable("b"));
+    EXPECT_EQ(ctx.get_variable("b"), 2.5);
+    EXPECT_TRUE(ctx.has_variable("c"));
+    EXPECT_EQ(ctx.get_variable("c"), "test");
+}
+
+// 测试上下文复制和移动
+TEST_F(expr_context_test, context_copy_and_move) {
+    mc::expr::context ctx1;
+    ctx1.register_variable("x", 10);
+
+    // 测试复制构造
+    mc::expr::context ctx2(ctx1);
+    EXPECT_TRUE(ctx2.has_variable("x"));
+    EXPECT_EQ(ctx2.get_variable("x"), 10);
+
+    // 测试移动构造
+    mc::expr::context ctx3(std::move(ctx2));
+    EXPECT_TRUE(ctx3.has_variable("x"));
+    EXPECT_EQ(ctx3.get_variable("x"), 10);
+
+    // 测试复制赋值
+    mc::expr::context ctx4;
+    ctx4 = ctx3;
+    EXPECT_TRUE(ctx4.has_variable("x"));
+    EXPECT_EQ(ctx4.get_variable("x"), 10);
+
+    // 测试移动赋值
+    mc::expr::context ctx5;
+    ctx5 = std::move(ctx4);
+    EXPECT_TRUE(ctx5.has_variable("x"));
+    EXPECT_EQ(ctx5.get_variable("x"), 10);
+}
+
+// 测试上下文基类的默认行为
+TEST_F(expr_context_test, context_base_default_behavior) {
+    mc::expr::context_base base_ctx(nullptr);
+
+    // 测试默认行为
+    EXPECT_FALSE(base_ctx.has_variable("x"));
+    EXPECT_FALSE(base_ctx.has_function("func"));
+    EXPECT_TRUE(base_ctx.get_variable("x").is_null());
+
+    // 测试调用不存在的函数
+    EXPECT_THROW(base_ctx.invoke("func", {}, ""), mc::invalid_arg_exception);
+    EXPECT_THROW(base_ctx.invoke("func", {}, "iface"), mc::invalid_arg_exception);
+}
+
+// 注意：object_context 的接口参数测试已经在 test_object_expr.cpp 中完成
+// 这里不再重复测试，因为需要实现完整的 abstract_object 接口
