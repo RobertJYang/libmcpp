@@ -13,6 +13,7 @@
 #include <glib-2.0/glib.h>
 #include <gtest/gtest.h>
 #include <mc/dbus/shm/gvariant_convert.h>
+#include <mc/exception.h>
 #include <mc/dict.h>
 #include <mc/variant.h>
 
@@ -246,4 +247,40 @@ TEST(GvariantConvertTest, DictToGVariant) {
     ASSERT_EQ(inner_dict_unpacked["a"].as_int32(), 1);
     ASSERT_EQ(inner_dict_unpacked["b"].as_int32(), 2);
     g_variant_unref(gvariant);
+}
+
+TEST(GvariantConvertTest, SigUnitLengthAndErrors) {
+    using mc::dbus::sig_unit;
+
+    EXPECT_EQ(sig_unit::get_sig_len("a{si}", true, 0, 0), 5);
+    EXPECT_EQ(sig_unit::get_sig_len("(is)", true, 0, 0), 4);
+
+    EXPECT_THROW(sig_unit::get_sig_len("a{ai}", true, 0, 0), mc::invalid_arg_exception);
+    EXPECT_THROW(sig_unit::get_sig_len("()", true, 0, 0), mc::invalid_arg_exception);
+}
+
+TEST(GvariantConvertTest, GvariantAutoFreeCopyMove) {
+    GVariant* raw_hello = g_variant_new_string("hello");
+    mc::dbus::gvariant_auto_free original(raw_hello, false);
+
+    {
+        mc::dbus::gvariant_auto_free copy(original);
+        ASSERT_NE(copy.ptr, nullptr);
+        size_t len = 0;
+        auto   str = g_variant_get_string(copy.ptr, &len);
+        ASSERT_EQ(std::string(str, len), "hello");
+    }
+
+    mc::dbus::gvariant_auto_free assigned;
+    assigned = original;
+    ASSERT_NE(assigned.ptr, nullptr);
+    ASSERT_NE(original.ptr, nullptr);
+
+    mc::dbus::gvariant_auto_free moved(std::move(original));
+    ASSERT_EQ(original.ptr, nullptr);
+    ASSERT_NE(moved.ptr, nullptr);
+
+    mc::dbus::gvariant_auto_free move_assigned;
+    move_assigned = mc::dbus::gvariant_auto_free(g_variant_new_string("world"), false);
+    ASSERT_NE(move_assigned.ptr, nullptr);
 }

@@ -780,6 +780,46 @@ TEST_F(dbus_message_test, test_mc_dbus_message_write_libdbus_read) {
     dbus_error_free(&dbus_err);
 }
 
+TEST_F(dbus_message_test, test_message_setters_and_flags) {
+    auto method_call = message::new_method_call("org.example.Test", "/org/example/Test",
+                                               "org.example.Test", "TestMethod");
+    EXPECT_TRUE(method_call.is_method_call());
+    EXPECT_FALSE(method_call.is_signal());
+    EXPECT_FALSE(method_call.is_error());
+
+    method_call.set_path("/org/example/NewPath");
+    method_call.set_interface("org.example.NewInterface");
+    method_call.set_member("NewMethod");
+    method_call.set_destination("org.example.Destination");
+    method_call.set_sender("org.example.Sender");
+    method_call.set_serial(123);
+
+    EXPECT_EQ(method_call.get_path(), "/org/example/NewPath");
+    EXPECT_EQ(method_call.get_interface(), "org.example.NewInterface");
+    EXPECT_EQ(method_call.get_member(), "NewMethod");
+    EXPECT_EQ(method_call.get_destination(), "org.example.Destination");
+    EXPECT_EQ(method_call.get_sender(), "org.example.Sender");
+    EXPECT_EQ(method_call.get_serial(), 123u);
+
+    auto method_return = message::new_method_return(method_call);
+    EXPECT_TRUE(method_return.is_method_return());
+    EXPECT_EQ(method_return.get_reply_serial(), method_call.get_serial());
+
+    auto error_msg = message::new_error(method_call, "org.example.Error", "failed");
+    EXPECT_TRUE(error_msg.is_error());
+    EXPECT_EQ(error_msg.get_error_name(), "org.example.Error");
+    EXPECT_EQ(error_msg.get_reply_serial(), method_call.get_serial());
+
+    auto signal_msg = message::new_signal("/org/example/Test", "org.example.Test",
+                                          "TestSignal");
+    EXPECT_TRUE(signal_msg.is_signal());
+    signal_msg.set_destination("org.example.Listener");
+    signal_msg.set_sender("org.example.Sender");
+
+    EXPECT_EQ(signal_msg.get_destination(), "org.example.Listener");
+    EXPECT_EQ(signal_msg.get_sender(), "org.example.Sender");
+}
+
 TEST_F(dbus_message_test, test_empty_dict) {
     mc::dbus::message msg = message::new_method_call("org.example.Test", "/org/example/Test",
                                                      "org.example.Test", "TestVariantNesting");
