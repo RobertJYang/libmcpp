@@ -50,9 +50,13 @@ void mc_debug_interface::attach_debug_console(std::map<std::string, std::string>
 }
 
 void mc_debug_interface::detach_debug_console(std::map<std::string, std::string> context) {
+    auto service = get_service();
+    service->on_detach_debug_console(context);
 }
 
 void mc_debug_interface::dump(std::map<std::string, std::string> context, std::string filepath) {
+    auto service = get_service();
+    service->on_dump(context, filepath);
 }
 
 void mc_debug_interface::set_dlog_level(std::map<std::string, std::string> context, std::string level,
@@ -60,14 +64,23 @@ void mc_debug_interface::set_dlog_level(std::map<std::string, std::string> conte
 }
 
 int32_t mc_reboot_interface::prepare(std::map<std::string, std::string> context) {
-    return 0;
+    auto service = get_service();
+    return service->on_reboot_prepare(context);
+}
+
+int32_t mc_reboot_interface::process(std::map<std::string, std::string> context) {
+    auto service = get_service();
+    return service->on_reboot_process(context);
 }
 
 int32_t mc_reboot_interface::action(std::map<std::string, std::string> context) {
-    return 0;
+    auto service = get_service();
+    return service->on_reboot_action(context);
 }
 
 void mc_reboot_interface::cancel(std::map<std::string, std::string> context) {
+    auto service = get_service();
+    service->on_reboot_cancel(context);
 }
 
 int32_t mc_reset_interface::prepare(std::map<std::string, std::string> context, std::string reset_type) {
@@ -107,7 +120,8 @@ MC_REFLECT(mc::engine::mc_config_manage_interface,
 MC_REFLECT(mc::engine::mc_debug_interface,
            ((m_dlog_level, "DlogLevel"))((m_dlog_type, "DlogType"))((attach_debug_console, "AttachDebugConsole"))(
                (detach_debug_console, "DetachDebugConsole"))((dump, "Dump"))((set_dlog_level, "SetDlogLevel")))
-MC_REFLECT(mc::engine::mc_reboot_interface, ((prepare, "Prepare"))((action, "Action"))((cancel, "Cancel")))
+MC_REFLECT(mc::engine::mc_reboot_interface, ((prepare, "Prepare"))((process, "Process"))((action, "Action"))
+                                            ((cancel, "Cancel")))
 MC_REFLECT(mc::engine::mc_reset_interface, ((prepare, "Prepare"))((action, "Action"))((cancel, "Cancel")))
 MC_REFLECT(mc::engine::mc_maintenance_interface, ((dlog_limit, "DlogLimit")))
 MC_REFLECT(

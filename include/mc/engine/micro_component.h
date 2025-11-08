@@ -72,6 +72,7 @@ struct MC_API mc_reboot_interface : public mc::engine::interface<mc_reboot_inter
     ~mc_reboot_interface() override = default;
 
     int32_t prepare(std::map<std::string, std::string> context);
+    int32_t process(std::map<std::string, std::string> context);
     int32_t action(std::map<std::string, std::string> context);
     void    cancel(std::map<std::string, std::string> context);
 };

@@ -68,6 +68,19 @@ public:
 
     virtual const service_config&           get_config() const       = 0;
     virtual const std::vector<std::string>& get_dependencies() const = 0;
+
+    // 实现一键收集日志的组件处理逻辑
+    virtual void on_dump(std::map<std::string, std::string> context, std::string filepath) = 0;
+    // 实现与在线调试工具断开连接的组件处理逻辑
+    virtual void on_detach_debug_console(std::map<std::string, std::string> context) = 0;
+    // 实现平滑重启Prepare阶段的组件处理逻辑
+    virtual int32_t on_reboot_prepare(std::map<std::string, std::string> context) = 0;
+    // 实现平滑重启Process阶段的组件处理逻辑
+    virtual int32_t on_reboot_process(std::map<std::string, std::string> context) = 0;
+    // 实现平滑重启Action阶段的组件处理逻辑
+    virtual int32_t on_reboot_action(std::map<std::string, std::string> context) = 0;
+    // 实现平滑重启Cancel阶段的组件处理逻辑
+    virtual void on_reboot_cancel(std::map<std::string, std::string> context) = 0;
 };
 
 /**
@@ -104,6 +117,27 @@ public:
 
     bool is_healthy() const override {
         return true;
+    }
+
+    void on_dump(std::map<std::string, std::string> context, std::string filepath) {
+    }
+
+    void on_detach_debug_console(std::map<std::string, std::string> context) {
+    }
+
+    int32_t on_reboot_prepare(std::map<std::string, std::string> context) {
+        return 0;
+    }
+
+    int32_t on_reboot_process(std::map<std::string, std::string> context) {
+        return 0;
+    }
+
+    int32_t on_reboot_action(std::map<std::string, std::string> context) {
+        return 0;
+    }
+
+    void on_reboot_cancel(std::map<std::string, std::string> context) {
     }
 
 protected:
