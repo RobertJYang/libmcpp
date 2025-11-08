@@ -109,7 +109,7 @@ namespace detail {
                                                     std::string_view actual_type);
 
 template <typename Arg>
-static auto convert_arg(std::string_view name, const mc::variant& var)
+static auto convert_arg(const char* name, const mc::variant& var)
     -> std::enable_if_t<!is_variant_v<std::decay_t<Arg>>, Arg> {
     using arg_type = mc::traits::remove_cvref_t<std::decay_t<Arg>>;
     if constexpr (std::is_same_v<arg_type, std::string> ||
@@ -139,7 +139,7 @@ static auto convert_arg(std::string_view name, const mc::variant& var)
 }
 
 template <typename Arg>
-static auto convert_arg(std::string_view name, const mc::variant& var)
+static auto convert_arg(const char* name, const mc::variant& var)
     -> std::enable_if_t<is_variant_v<std::decay_t<Arg>>, const mc::variant&> {
     return var;
 }

@@ -235,6 +235,18 @@ variants::variants(InputIt first, InputIt last,
     m_data = data;
 }
 
+inline variants_iterator variants::insert(variants_iterator pos, const variant& value) {
+    size_t index = pos - begin();
+    insert(index, value);
+    return begin() + index;
+}
+
+inline variants_iterator variants::insert(variants_iterator pos, size_t count, const variant& value) {
+    size_t index = pos - begin();
+    insert(index, count, value);
+    return begin() + index;
+}
+
 template <typename InputIt>
 variants_iterator variants::insert(variants_iterator pos, InputIt first, InputIt last) {
     size_t index = pos - begin();

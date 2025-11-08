@@ -104,7 +104,7 @@ TEST_F(mc_formatter_test, VariantsFormatting) {
     arr.push_back(true);
 
     std::string result = sformat("{}", arr);
-    EXPECT_EQ(result, "[1,2.5,test,true]");
+    EXPECT_EQ(result, "[1,2.5,\"test\",true]");
 }
 
 /**
@@ -167,7 +167,7 @@ TEST_F(mc_formatter_test, VariantWithArrayFormatting) {
 
     mc::variant v      = arr;
     std::string result = sformat("{}", v);
-    EXPECT_EQ(result, "[a,b,c]");
+    EXPECT_EQ(result, "[\"a\",\"b\",\"c\"]");
 }
 
 /**
@@ -202,7 +202,7 @@ TEST_F(mc_formatter_test, ComplexNestedFormatting) {
 
     mc::variant v      = outer_arr;
     std::string result = sformat("{}", v);
-    EXPECT_EQ(result, "[1,{\"nested_key\":[nested1,nested2]},end]");
+    EXPECT_EQ(result, "[1,{\"nested_key\":[\"nested1\",\"nested2\"]},\"end\"]");
 }
 
 } // namespace mc::test

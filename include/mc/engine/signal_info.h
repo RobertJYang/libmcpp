@@ -96,11 +96,11 @@ struct signal_info : public signal_info_base<Class> {
                                      std::index_sequence<I...>) const {
         if constexpr (std::is_void_v<RetType>) {
             (obj.*signal_ptr)(mc::detail::convert_arg<mc::traits::remove_cvref_t<Args>>(
-                this->name, args[I])...);
+                this->name.data(), args[I])...);
             return mc::variant();
         } else {
             auto ret = (obj.*signal_ptr)(
-                mc::detail::convert_arg<mc::traits::remove_cvref_t<Args>>(this->name,
+                mc::detail::convert_arg<mc::traits::remove_cvref_t<Args>>(this->name.data(),
                                                                           args[I])...);
             return ret ? mc::variant(*ret) : mc::variant();
         }

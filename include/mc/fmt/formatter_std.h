@@ -85,6 +85,14 @@ void format_elem(Context& ctx, const T& value, const format_spec& spec) {
         ctx.out().push_back('\'');
         detail::format_to(ctx, spec, value);
         ctx.out().push_back('\'');
+    } else if constexpr (mc::is_variant_v<T>) {
+        if (value.is_string()) {
+            ctx.out().push_back('"');
+            detail::format_to(ctx, spec, value.as_string());
+            ctx.out().push_back('"');
+        } else {
+            detail::format_to(ctx, spec, value);
+        }
     } else {
         detail::format_to(ctx, spec, value);
     }
