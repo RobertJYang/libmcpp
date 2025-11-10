@@ -57,6 +57,23 @@ TEST_F(variant_c_api_test, basic_creation_and_cleanup) {
     ASSERT_NE(bl, nullptr);
     ASSERT_NE(str, nullptr);
 
+    const auto* i64_variant = reinterpret_cast<const mc::variant*>(i64);
+    const auto* dbl_variant = reinterpret_cast<const mc::variant*>(dbl);
+    const auto* bl_variant  = reinterpret_cast<const mc::variant*>(bl);
+    const auto* str_variant = reinterpret_cast<const mc::variant*>(str);
+
+    ASSERT_TRUE(i64_variant->is_int64());
+    EXPECT_EQ(i64_variant->as_int64(), 123);
+
+    ASSERT_TRUE(dbl_variant->is_double());
+    EXPECT_DOUBLE_EQ(dbl_variant->as_double(), 3.14);
+
+    ASSERT_TRUE(bl_variant->is_bool());
+    EXPECT_TRUE(bl_variant->as_bool());
+
+    ASSERT_TRUE(str_variant->is_string());
+    EXPECT_EQ(str_variant->get_string(), "hello");
+
     mc_variant_delete(nullptr);
     mc_variant_delete(i64);
     mc_variant_delete(dbl);
