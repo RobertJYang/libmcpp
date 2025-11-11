@@ -209,17 +209,15 @@ Core 模块包含以下测试文件：
 - `complex_dependency_graph` - 测试复杂依赖图
 
 ### test_singleton.cpp
-单例模式测试（10 个用例）：
-- `BasicFunctionality` - 测试基础功能
-- `CustomCreator` - 测试自定义创建器
-- `MultipleTaggedSingletons` - 测试多个标签单例
-- `NonLeakySingleton` - 测试非泄露单例
-- `LeakySingleton` - 测试泄露单例
-- `ConcurrentAccess` - 测试并发访问
-- `RecreateAfterReset` - 测试重置后重新创建
-- `TryGetMethod` - 测试 TryGet 方法
-- `MultipleTaggedInstances` - 测试多个标签实例
-- `CustomCreatorWithOptions` - 测试带选项的自定义创建器
+单例模式测试（8 个用例）：
+- `LifecycleAndTryGet` - 覆盖基础生命周期、try_get、reset 与重建
+- `TaggedSingletonIsolation` - 验证不同标签的单例隔离与重置行为
+- `CustomCreatorScenarios` - 覆盖复杂初始化与普通自定义创建器
+- `NonLeakySingleton` - 测试非泄露单例销毁
+- `LeakySingleton` - 测试泄露单例释放路径
+- `ComplexConcurrentSingletonAccess` - 测试并发访问与增量一致性
+- `DestroyInstancesRunsDestructors` - 验证 singleton_manager::destroy_instances 行为
+- `LeakySingletonNotDestroyedByManager` - 验证泄露单例不受 destroy_instances 影响
 
 ### test_thread_safe_object.cpp
 线程安全对象测试（10 个用例）：

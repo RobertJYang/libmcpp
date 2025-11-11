@@ -78,15 +78,17 @@ connection::future<message> connection_impl::async_send_with_reply(message&&    
     auto promise = mc::make_promise<message>(m_executor.get_executor());
     auto future  = promise.get_future();
 
-    if (!is_connected()) {
-        promise.set_value(message::new_error(msg, error_names::disconnected, "连接已断开"));
-        return future;
-    }
-
     auto serial = msg.get_serial();
     if (serial == 0) {
         serial = get_next_serial();
         msg.set_serial(serial);
+    }
+
+    // message::new_error 会调用 dbus_message_new_error，D-Bus 要求 reply_serial != 0，
+    // 否则会触发断言。
+    if (!is_connected()) {
+        promise.set_value(message::new_error(msg, error_names::disconnected, "连接已断开"));
+        return future;
     }
 
     DBusPendingCall* dbus_pending_call = nullptr;

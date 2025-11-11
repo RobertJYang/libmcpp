@@ -118,15 +118,9 @@ TEST_F(timer_test, test_multiple_timers) {
     EXPECT_EQ(s3, std::future_status::ready);
 
     // 确保所有定时器都已停止（single_shot 会自动停止，但显式停止更安全）
-    if (timer1) {
-        timer1->stop();
-    }
-    if (timer2) {
-        timer2->stop();
-    }
-    if (timer3) {
-        timer3->stop();
-    }
+    timer1->stop();
+    timer2->stop();
+    timer3->stop();
 }
 
 // 测试嵌套定时器
@@ -152,9 +146,7 @@ TEST_F(timer_test, test_nested_timers) {
     EXPECT_EQ(count, 2);
 
     // 确保第一个定时器已停止
-    if (timer1) {
-        timer1->stop();
-    }
+    timer1->stop();
 }
 
 // 测试定时器间隔设置

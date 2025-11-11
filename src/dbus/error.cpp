@@ -42,10 +42,17 @@ error::~error() {
 }
 
 error::error(error&& other) noexcept {
+    // dbus_move_error 要求目标对象必须是未设置错误的
+    // 先初始化 this 为未设置状态
+    dbus_error_init(this);
     dbus_move_error(&other, this);
 }
 
 error& error::operator=(error&& other) noexcept {
+    // dbus_move_error 要求目标对象必须是未设置错误的
+    // 先清理并初始化 this 为未设置状态
+    dbus_error_free(this);
+    dbus_error_init(this);
     dbus_move_error(&other, this);
     return *this;
 }
