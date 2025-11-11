@@ -24,6 +24,10 @@ error_engine& error_engine::get_instance() {
 }
 
 void error_engine::reset_for_test() {
+    // 在销毁实例之前，先清除 thread_local 的 last_error
+    if (auto* instance = mc::singleton<error_engine>::try_get()) {
+        instance->reset_error();
+    }
     mc::singleton<error_engine>::reset_for_test();
 }
 

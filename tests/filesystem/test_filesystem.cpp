@@ -294,3 +294,153 @@ TEST_F(FilesystemTest, FileOperations) {
     temp_files.erase(std::remove(temp_files.begin(), temp_files.end(), moved_file),
                      temp_files.end());
 }
+
+// 复杂场景：完整的文件操作流程
+TEST_F(FilesystemTest, ComplexFileOperationWorkflow) {
+    // 创建复杂的目录结构
+    std::string base_dir = create_temp_dir();
+    ASSERT_FALSE(base_dir.empty());
+    temp_dirs.push_back(base_dir);
+
+    std::string sub_dir1 = mc::filesystem::join(base_dir, "sub1");
+    std::string sub_dir2 = mc::filesystem::join(base_dir, "sub2");
+    std::string nested_dir = mc::filesystem::join(sub_dir1, "nested");
+
+    ASSERT_TRUE(mc::filesystem::create_directories(nested_dir));
+    ASSERT_TRUE(mc::filesystem::create_directory(sub_dir2));
+
+    // 创建多个文件
+    std::vector<std::string> files;
+    for (int i = 0; i < 5; ++i) {
+        std::string file = mc::filesystem::join(base_dir, "file" + std::to_string(i) + ".txt");
+        ASSERT_TRUE(mc::filesystem::write_file(file, "content " + std::to_string(i)));
+        files.push_back(file);
+        temp_files.push_back(file);
+    }
+
+    // 在子目录中创建文件
+    std::string sub_file = mc::filesystem::join(sub_dir1, "sub_file.txt");
+    ASSERT_TRUE(mc::filesystem::write_file(sub_file, "sub content"));
+    temp_files.push_back(sub_file);
+
+    // 验证目录结构
+    auto dirs = mc::filesystem::list_directories(base_dir);
+    EXPECT_GE(dirs.size(), 2); // 至少包含 sub1 和 sub2
+
+    auto all_files = mc::filesystem::list_files(base_dir);
+    EXPECT_GE(all_files.size(), 5); // 至少包含创建的5个文件
+
+    // 复制文件到子目录
+    std::string copied_file = mc::filesystem::join(sub_dir2, "copied.txt");
+    ASSERT_TRUE(mc::filesystem::copy_file(files[0], copied_file, false));
+    temp_files.push_back(copied_file);
+
+    // 验证复制成功
+    EXPECT_TRUE(mc::filesystem::exists(copied_file));
+    auto copied_content = mc::filesystem::read_file(copied_file);
+    ASSERT_TRUE(copied_content);
+    EXPECT_EQ(*copied_content, "content 0");
+
+    // 移动文件
+    std::string moved_file = mc::filesystem::join(sub_dir2, "moved.txt");
+    mc::filesystem::rename(copied_file, moved_file);
+    EXPECT_FALSE(mc::filesystem::exists(copied_file));
+    EXPECT_TRUE(mc::filesystem::exists(moved_file));
+    temp_files.push_back(moved_file);
+
+    // 验证路径规范化
+    std::string complex_path = base_dir + "/./sub1/../sub2/./moved.txt";
+    auto normalized = mc::filesystem::normalize(complex_path);
+    EXPECT_TRUE(mc::filesystem::exists(normalized));
+}
+
+// 复杂场景：路径操作和规范化
+TEST_F(FilesystemTest, ComplexPathNormalization) {
+    std::string base_dir = create_temp_dir();
+    ASSERT_FALSE(base_dir.empty());
+    temp_dirs.push_back(base_dir);
+
+    // 创建嵌套目录结构
+    std::string dir1 = mc::filesystem::join(base_dir, "dir1");
+    std::string dir2 = mc::filesystem::join(dir1, "dir2");
+    std::string dir3 = mc::filesystem::join(dir2, "dir3");
+    ASSERT_TRUE(mc::filesystem::create_directories(dir3));
+
+    // 测试各种路径规范化场景
+    std::string path1 = base_dir + "/./dir1/./dir2/../dir2/dir3";
+    auto norm1 = mc::filesystem::normalize(path1);
+    EXPECT_TRUE(mc::filesystem::exists(norm1));
+
+    std::string path2 = base_dir + "/dir1/../dir1/dir2/dir3";
+    auto norm2 = mc::filesystem::normalize(path2);
+    EXPECT_TRUE(mc::filesystem::exists(norm2));
+
+    // 测试绝对路径
+    auto abs_path = mc::filesystem::absolute(dir3);
+    EXPECT_TRUE(mc::filesystem::exists(abs_path));
+    EXPECT_TRUE(abs_path.is_absolute());
+
+    // 测试路径拼接
+    std::vector<mc::filesystem::path> paths = {base_dir, "dir1", "dir2", "dir3"};
+    auto joined = mc::filesystem::join(paths);
+    EXPECT_TRUE(mc::filesystem::exists(joined));
+}
+
+// 复杂场景：文件操作的错误处理
+TEST_F(FilesystemTest, ComplexFileOperationErrorHandling) {
+    // 测试不存在的文件操作
+    std::string non_existent = "/tmp/non_existent_file_12345.txt";
+    EXPECT_FALSE(mc::filesystem::exists(non_existent));
+    EXPECT_FALSE(mc::filesystem::is_regular_file(non_existent));
+    EXPECT_FALSE(mc::filesystem::is_directory(non_existent));
+
+    auto content = mc::filesystem::read_file(non_existent);
+    EXPECT_FALSE(content.has_value());
+
+    auto size = mc::filesystem::file_size(non_existent);
+    EXPECT_FALSE(size.has_value());
+
+    // 测试目录操作
+    std::string non_existent_dir = "/tmp/non_existent_dir_12345";
+    auto files = mc::filesystem::list_files(non_existent_dir);
+    EXPECT_TRUE(files.empty());
+
+    auto dirs = mc::filesystem::list_directories(non_existent_dir);
+    EXPECT_TRUE(dirs.empty());
+
+    // 测试符号链接（如果支持）
+    std::string target_file = create_temp_file("target content");
+    if (!target_file.empty()) {
+        temp_files.push_back(target_file);
+        std::string link_file = target_file + ".link";
+
+        if (mc::filesystem::create_symlink(target_file, link_file)) {
+            temp_files.push_back(link_file);
+
+            // 读取符号链接
+            auto link_target = mc::filesystem::read_symlink(link_file);
+            if (link_target) {
+                EXPECT_TRUE(mc::filesystem::exists(*link_target));
+            }
+        }
+    }
+}
+
+// 空间信息与当前路径测试
+TEST_F(FilesystemTest, SpaceAndCurrentPath) {
+    auto original = mc::filesystem::current_path();
+
+    auto space_info = mc::filesystem::space(original);
+    EXPECT_GT(space_info.capacity, 0);
+    EXPECT_GE(space_info.free, 0);
+    EXPECT_GE(space_info.available, 0);
+
+    auto temp_dir = mc::filesystem::temp_directory_path();
+    if (!temp_dir.empty()) {
+        mc::filesystem::current_path(temp_dir);
+        auto now = mc::filesystem::current_path();
+        EXPECT_EQ(now, mc::filesystem::absolute(temp_dir));
+    }
+
+    mc::filesystem::current_path(original);
+}

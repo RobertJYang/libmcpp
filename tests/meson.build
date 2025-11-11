@@ -31,6 +31,7 @@ test_files = [
 
   # 根目录测试文件
   'test_json.cpp',
+  'test_error.cpp',
   'test_pretty_name.cpp',
   'test_signal_slot.cpp',
   'test_time.cpp',

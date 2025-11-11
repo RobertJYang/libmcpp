@@ -201,6 +201,104 @@ TEST(ExceptionTest, LogLevelFilterTest) {
     EXPECT_TRUE(e.to_detail_string(mc::log::level::warn).find("错误信息") != std::string::npos);
 }
 
+// 测试异常的 setter 与消息转移
+TEST(ExceptionTest, SettersAndTakeMessages) {
+    mc::exception ex(mc::exception_code::unknow_exception_code, "original", "原始异常");
+
+    ex.set_code(1234);
+    ex.set_name("custom.exception");
+
+    ex.append_log(MC_LOG_MESSAGE(info, "第一条日志: ${value}", ("value", 1)));
+
+    mc::log::messages extra_logs;
+    extra_logs.emplace_back(MC_LOG_MESSAGE(warn, "第二条日志: ${value}", ("value", 2)));
+    ex.append_log(std::move(extra_logs));
+
+    EXPECT_EQ(ex.code(), 1234);
+    EXPECT_EQ(ex.name(), "custom.exception");
+    EXPECT_EQ(ex.messages().size(), 2);
+
+    auto moved_logs = ex.take_messages();
+    EXPECT_EQ(moved_logs.size(), 2);
+    EXPECT_TRUE(ex.messages().empty());
+
+    // 再次设置名称，确认 setter 工作正常
+    ex.set_name("custom.exception.updated");
+    EXPECT_EQ(ex.name(), "custom.exception.updated");
+}
+
+// 测试使用消息向量构造异常（右值引用）
+TEST(ExceptionTest, ConstructWithMessageVectorRvalue) {
+    mc::log::messages logs;
+    logs.emplace_back(MC_LOG_MESSAGE(info, "日志1", ("index", 1)));
+    logs.emplace_back(MC_LOG_MESSAGE(warn, "日志2", ("index", 2)));
+
+    mc::exception ex(std::move(logs), 2001, "vector.exception", "通过消息向量构造");
+
+    EXPECT_EQ(ex.code(), 2001);
+    EXPECT_EQ(ex.name(), "vector.exception");
+    EXPECT_EQ(ex.messages().size(), 2);
+    EXPECT_TRUE(logs.empty()); // 构造函数应接管消息所有权
+}
+
+// 测试使用消息向量构造异常（常量引用）
+TEST(ExceptionTest, ConstructWithMessageVectorConstRef) {
+    mc::log::messages logs;
+    logs.emplace_back(MC_LOG_MESSAGE(info, "常量日志", ("flag", true)));
+
+    const auto backup_size = logs.size();
+    mc::exception   ex(logs, 2002, "vector.const.exception", "常量引用构造");
+
+    EXPECT_EQ(ex.messages().size(), backup_size);
+    EXPECT_EQ(ex.top_message(), logs.back().get_message());
+    EXPECT_EQ(logs.size(), backup_size); // 原始向量不应被修改
+}
+
+// 测试基础异常的动态接口
+TEST(ExceptionTest, BaseClassDynamicOperations) {
+    mc::exception ex(mc::exception_code::unknow_exception_code, "base.exception", "基础异常");
+
+    auto copied = ex.dynamic_copy_exception();
+    ASSERT_TRUE(copied);
+    EXPECT_NE(copied.get(), &ex);
+    EXPECT_EQ(copied->name(), ex.name());
+
+    EXPECT_THROW(ex.dynamic_rethrow_exception(), mc::exception);
+}
+
+// 测试未处理异常的消息向量构造函数
+TEST(ExceptionTest, UnhandledExceptionFromMessages) {
+    mc::log::messages logs;
+    logs.emplace_back(MC_LOG_MESSAGE(error, "未处理异常: ${code}", ("code", 500)));
+    logs.emplace_back(MC_LOG_MESSAGE(error, "详细原因: ${msg}", ("msg", "unknown")));
+
+    mc::unhandled_exception unhandled(logs);
+
+    EXPECT_EQ(unhandled.code(), mc::unhandled_exception::code_value);
+    EXPECT_EQ(unhandled.top_message(), logs.back().get_message());
+    EXPECT_EQ(unhandled.messages().size(), logs.size());
+}
+
+// 测试标准异常包装器的内部异常访问
+TEST(ExceptionTest, StdExceptionWrapperInnerAccess) {
+    try {
+        throw std::runtime_error("std runtime");
+    } catch (const std::exception& std_ex) {
+        auto wrapper = mc::std_exception_wrapper::from_current_exception(std_ex);
+        auto inner   = wrapper.get_inner_exception();
+        ASSERT_TRUE(inner);
+
+        bool caught = false;
+        try {
+            wrapper.dynamic_rethrow_exception();
+        } catch (const std::exception& rethrown) {
+            caught = true;
+            EXPECT_STREQ(rethrown.what(), "std runtime");
+        }
+        EXPECT_TRUE(caught);
+    }
+}
+
 // 测试异常的动态复制和重抛
 TEST(ExceptionTest, DynamicCopyAndRethrowTest) {
     try {
@@ -506,5 +604,61 @@ TEST(ExceptionTest, escaped_braces) {
         MC_THROW(mc::runtime_exception, "{{0}} {0} {{name}}", "value");
     } catch (const mc::exception& e) {
         EXPECT_EQ(e.top_message(), "{0} value {name}");
+    }
+}
+
+// 复杂场景：异常消息的复杂格式化
+TEST(ExceptionTest, ComplexExceptionMessageFormatting) {
+    // 多层嵌套的格式化参数
+    try {
+        MC_THROW(mc::runtime_exception,
+                 "操作失败: 用户${user}在${time}尝试${action}, "
+                 "参数: ${param1}=${value1}, ${param2}=${value2}",
+                 ("user", "admin")("time", "2024-01-01 12:00:00")("action", "update")(
+                     "param1", "id")("value1", 123)("param2", "status")("value2", "active"));
+    } catch (const mc::exception& e) {
+        std::string msg = e.top_message();
+        EXPECT_NE(msg.find("admin"), std::string::npos);
+        EXPECT_NE(msg.find("2024-01-01"), std::string::npos);
+        EXPECT_NE(msg.find("update"), std::string::npos);
+        EXPECT_NE(msg.find("123"), std::string::npos);
+        EXPECT_NE(msg.find("active"), std::string::npos);
+    }
+
+    // 混合索引和命名参数
+    try {
+        MC_THROW(mc::runtime_exception, "{0} {name} {1} {value}", "prefix", "suffix",
+                 ("name", "middle")("value", 42));
+    } catch (const mc::exception& e) {
+        std::string msg = e.top_message();
+        EXPECT_NE(msg.find("prefix"), std::string::npos);
+        EXPECT_NE(msg.find("middle"), std::string::npos);
+        EXPECT_NE(msg.find("suffix"), std::string::npos);
+        EXPECT_NE(msg.find("42"), std::string::npos);
+    }
+}
+
+// 复杂场景：未处理异常的包装
+TEST(ExceptionTest, ComplexUnhandledExceptionWrapper) {
+    // 包装标准异常
+    try {
+        throw std::logic_error("逻辑错误");
+    } catch (const std::exception& std_ex) {
+        mc::unhandled_exception unhandled(
+            MC_LOG_MESSAGE(error, "未处理的异常: ${error}", ("error", std_ex.what())),
+            std::current_exception());
+
+        EXPECT_EQ(unhandled.name(), "unhandled");
+        EXPECT_EQ(unhandled.code(), mc::unhandled_exception_code);
+        EXPECT_NE(std::string(unhandled.to_string()).find("逻辑错误"), std::string::npos);
+
+        // 验证可以获取内部异常
+        auto inner = unhandled.get_inner_exception();
+        ASSERT_TRUE(inner);
+        try {
+            std::rethrow_exception(inner);
+        } catch (const std::logic_error& e) {
+            EXPECT_STREQ(e.what(), "逻辑错误");
+        }
     }
 }
