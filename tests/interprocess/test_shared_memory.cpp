@@ -1,21 +1,21 @@
 /*
-* Copyright (c) 2025 Huawei Technologies Co., Ltd.
-* openUBMC is licensed under Mulan PSL v2.
-* You can use this software according to the terms and conditions of the Mulan PSL v2.
-* You may obtain a copy of Mulan PSL v2 at:
-*         http://license.coscl.org.cn/MulanPSL2
-* THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
-* EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
-* MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE.
-* See the Mulan PSL v2 for more details.
-*/
+ * Copyright (c) 2025 Huawei Technologies Co., Ltd.
+ * openUBMC is licensed under Mulan PSL v2.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *         http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
+ */
 
+#include <cstring>
 #include <gtest/gtest.h>
 #include <mc/interprocess/shared_memory.h>
 #include <mc/interprocess/shared_memory_manager.h>
-#include <test_utilities/test_base.h>
 #include <string>
-#include <cstring>
+#include <test_utilities/test_base.h>
 #include <unistd.h>
 
 using namespace mc::interprocess;
@@ -24,20 +24,23 @@ class shared_memory_test : public mc::test::TestBase {
 protected:
     void SetUp() override {
         TestBase::SetUp();
-        // 清理可能存在的共享内存
-        std::string test_name = "test_shared_memory_" + std::to_string(getpid());
-        shared_memory_manager::remove_shared_memory(test_name);
+        shared_memory_manager::remove_shared_memory(get_test_shm_name());
     }
 
     void TearDown() override {
         TestBase::TearDown();
+        shared_memory_manager::remove_shared_memory(get_test_shm_name());
+    }
+
+    std::string get_test_shm_name() const {
+        return "test_shm_" + std::to_string(getpid());
     }
 };
 
 // 测试创建共享内存
 TEST_F(shared_memory_test, create_shared_memory) {
-    std::string test_name = "test_shared_memory_create_" + std::to_string(getpid());
-    size_t size = 1024 * 1024; // 1MB
+    std::string test_name = get_test_shm_name();
+    size_t      size      = 1024 * 1024; // 1MB
 
     auto shm = shared_memory::create(test_name, size);
     ASSERT_NE(shm, nullptr);
@@ -50,25 +53,25 @@ TEST_F(shared_memory_test, create_shared_memory) {
 // 测试共享内存名称格式化
 TEST_F(shared_memory_test, format_shm_name) {
     // 测试不带前缀的名称
-    std::string name1 = "test_name";
+    std::string name1      = "test_name";
     std::string formatted1 = shared_memory::format_shm_name(name1);
     EXPECT_EQ(formatted1, "/test_name");
 
     // 测试带前缀的名称
-    std::string name2 = "/test_name";
+    std::string name2      = "/test_name";
     std::string formatted2 = shared_memory::format_shm_name(name2);
     EXPECT_EQ(formatted2, "/test_name");
 
     // 测试空名称
-    std::string name3 = "";
+    std::string name3      = "";
     std::string formatted3 = shared_memory::format_shm_name(name3);
     EXPECT_EQ(formatted3, "");
 }
 
 // 测试获取共享内存属性
 TEST_F(shared_memory_test, get_properties) {
-    std::string test_name = "test_shared_memory_props_" + std::to_string(getpid());
-    size_t size = 64 * 1024; // 64KB
+    std::string test_name = get_test_shm_name();
+    size_t      size      = 64 * 1024; // 64KB
 
     auto shm = shared_memory::create(test_name, size);
     ASSERT_NE(shm, nullptr);
@@ -84,8 +87,8 @@ TEST_F(shared_memory_test, get_properties) {
 
 // 测试偏移量计算
 TEST_F(shared_memory_test, offset_calculation) {
-    std::string test_name = "test_shared_memory_offset_" + std::to_string(getpid());
-    size_t size = 64 * 1024;
+    std::string test_name = get_test_shm_name();
+    size_t      size      = 64 * 1024;
 
     auto shm = shared_memory::create(test_name, size);
     ASSERT_NE(shm, nullptr);
@@ -116,8 +119,8 @@ TEST_F(shared_memory_test, offset_calculation) {
 
 // 测试分配器获取
 TEST_F(shared_memory_test, get_allocator) {
-    std::string test_name = "test_shared_memory_allocator_" + std::to_string(getpid());
-    size_t size = 64 * 1024;
+    std::string test_name = get_test_shm_name();
+    size_t      size      = 64 * 1024;
 
     auto shm = shared_memory::create(test_name, size);
     ASSERT_NE(shm, nullptr);
@@ -129,8 +132,8 @@ TEST_F(shared_memory_test, get_allocator) {
 
 // 测试最小内存大小
 TEST_F(shared_memory_test, minimum_size) {
-    std::string test_name = "test_shared_memory_min_" + std::to_string(getpid());
-    size_t small_size = 100; // 小于最小值
+    std::string test_name  = get_test_shm_name();
+    size_t      small_size = 100; // 小于最小值
 
     auto shm = shared_memory::create(test_name, small_size);
     ASSERT_NE(shm, nullptr);
@@ -140,8 +143,8 @@ TEST_F(shared_memory_test, minimum_size) {
 
 // 测试打开已存在的共享内存
 TEST_F(shared_memory_test, open_existing) {
-    std::string test_name = "test_shared_memory_existing_" + std::to_string(getpid());
-    size_t size = 64 * 1024;
+    std::string test_name = get_test_shm_name();
+    size_t      size      = 64 * 1024;
 
     // 创建第一个共享内存
     auto shm1 = shared_memory::create(test_name, size);
@@ -158,8 +161,8 @@ TEST_F(shared_memory_test, open_existing) {
 
 // 测试共享内存有效性检查
 TEST_F(shared_memory_test, is_valid) {
-    std::string test_name = "test_shared_memory_valid_" + std::to_string(getpid());
-    size_t size = 64 * 1024;
+    std::string test_name = get_test_shm_name();
+    size_t      size      = 64 * 1024;
 
     auto shm = shared_memory::create(test_name, size);
     ASSERT_NE(shm, nullptr);
@@ -169,7 +172,7 @@ TEST_F(shared_memory_test, is_valid) {
 // 测试无效名称创建失败
 TEST_F(shared_memory_test, create_with_empty_name) {
     std::string empty_name = "";
-    size_t size = 64 * 1024;
+    size_t      size       = 64 * 1024;
 
     auto shm = shared_memory::create(empty_name, size);
     EXPECT_EQ(shm, nullptr);
@@ -177,15 +180,15 @@ TEST_F(shared_memory_test, create_with_empty_name) {
 
 // 测试偏移量边界情况
 TEST_F(shared_memory_test, offset_boundary_cases) {
-    std::string test_name = "test_shared_memory_offset_boundary_" + std::to_string(getpid());
-    size_t size = 64 * 1024;
+    std::string test_name = get_test_shm_name();
+    size_t      size      = 64 * 1024;
 
     auto shm = shared_memory::create(test_name, size);
     ASSERT_NE(shm, nullptr);
 
     // 测试边界偏移量
-    void* base = shm->get_address();
-    void* end = static_cast<char*>(base) + size - 1;
+    void* base         = shm->get_address();
+    void* end          = static_cast<char*>(base) + size - 1;
     void* out_of_bound = static_cast<char*>(base) + size;
 
     size_t end_offset = shm->get_offset(end);
@@ -207,13 +210,13 @@ TEST_F(shared_memory_test, offset_boundary_cases) {
 
 // 测试数据地址和大小
 TEST_F(shared_memory_test, data_address_and_size) {
-    std::string test_name = "test_shared_memory_data_" + std::to_string(getpid());
-    size_t size = 64 * 1024;
+    std::string test_name = get_test_shm_name();
+    size_t      size      = 64 * 1024;
 
     auto shm = shared_memory::create(test_name, size);
     ASSERT_NE(shm, nullptr);
 
-    void* data_addr = shm->get_data_address();
+    void*  data_addr = shm->get_data_address();
     size_t data_size = shm->get_data_size();
 
     EXPECT_NE(data_addr, nullptr);
@@ -228,4 +231,3 @@ TEST_F(shared_memory_test, data_address_and_size) {
     // data_addr + data_size 应该等于 base + size（数据区域正好填满到共享内存末尾）
     EXPECT_LE(static_cast<char*>(data_addr) + data_size, static_cast<char*>(base) + size);
 }
-

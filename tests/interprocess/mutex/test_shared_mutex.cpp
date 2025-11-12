@@ -17,11 +17,11 @@
 #include <mc/runtime/thread_list.h>
 #include <test_utilities/test_base.h>
 
-#include <unistd.h>
-#include <thread>
-#include <chrono>
 #include <atomic>
+#include <chrono>
 #include <system_error>
+#include <thread>
+#include <unistd.h>
 #include <vector>
 
 using namespace mc::interprocess;
@@ -283,12 +283,12 @@ TEST_F(SharedMutexTestFixture, IpcSharedMutexCleanupDeadLocks) {
 TEST_F(SharedMutexTestFixture, IpcSharedMutexDeadWriter) {
     // 获取写锁
     EXPECT_TRUE(m_ipc_shared_mutex->try_lock());
-    
+
     // 模拟写锁持有者死亡（通过直接修改 writer_pid）
     // 注意：这需要访问私有成员，实际测试中可以通过 fork 子进程来实现
     // 这里我们测试 cleanup 功能
     m_ipc_shared_mutex->cleanup_dead_locks();
-    
+
     m_ipc_shared_mutex->unlock();
 }
 
@@ -329,7 +329,7 @@ TEST_F(SharedMutexTestFixture, SharedMutexTryLockSharedWithWriter) {
     // 同一线程尝试获取读锁（应该失败，因为已有写锁）
     // 注意：根据实现，可能需要先释放写锁
     m_shared_mutex->unlock();
-    
+
     // 获取读锁
     EXPECT_TRUE(m_shared_mutex->try_lock_shared());
     m_shared_mutex->unlock_shared();
@@ -338,7 +338,7 @@ TEST_F(SharedMutexTestFixture, SharedMutexTryLockSharedWithWriter) {
 // 测试 shared_mutex 包装类的多读者计数
 TEST_F(SharedMutexTestFixture, SharedMutexMultipleReaders) {
     std::atomic<int> reader_count(0);
-    
+
     // 多个线程同时获取读锁
     auto reader = [this, &reader_count]() {
         m_shared_mutex->lock_shared();
@@ -347,11 +347,11 @@ TEST_F(SharedMutexTestFixture, SharedMutexMultipleReaders) {
         reader_count--;
         m_shared_mutex->unlock_shared();
     };
-    
+
     mc::runtime::thread_list threads;
     threads.start_threads(5, reader);
     threads.join_all();
-    
+
     // 所有读者都应该成功完成
     EXPECT_EQ(reader_count.load(), 0);
 }
@@ -359,30 +359,30 @@ TEST_F(SharedMutexTestFixture, SharedMutexMultipleReaders) {
 // 测试 shared_mutex 包装类的写锁阻塞读锁
 TEST_F(SharedMutexTestFixture, SharedMutexWriterBlocksReaders) {
     std::atomic<bool> writer_done(false);
-    std::atomic<int> readers_blocked(0);
-    
+    std::atomic<int>  readers_blocked(0);
+
     // 获取写锁
     m_shared_mutex->lock();
-    
+
     // 启动读者线程，应该被阻塞
-    auto reader = [this, &readers_blocked, &writer_done]() {
+    auto reader = [this, &readers_blocked]() {
         readers_blocked++;
         m_shared_mutex->lock_shared();
         readers_blocked--;
         m_shared_mutex->unlock_shared();
     };
-    
+
     std::thread reader_thread(reader);
-    
+
     // 等待读者线程尝试获取锁
     std::this_thread::sleep_for(std::chrono::milliseconds(50));
-    
+
     // 释放写锁
     m_shared_mutex->unlock();
-    
+
     // 读者应该能够获取锁
     reader_thread.join();
-    
+
     EXPECT_EQ(readers_blocked.load(), 0);
 }
 
@@ -529,7 +529,7 @@ TEST_F(SharedMutexTestFixture, IpcSharedMutexRegisterReaderFullSlots) {
         bool got_lock = m_ipc_shared_mutex->try_lock_shared();
         locks.push_back(got_lock);
     }
-    
+
     // 释放所有读锁
     for (bool got_lock : locks) {
         if (got_lock) {
@@ -758,30 +758,30 @@ TEST_F(SharedMutexTestFixture, IpcSharedMutexRegisterReaderStillNoSlotAfterClean
 TEST_F(SharedMutexTestFixture, IpcSharedMutexLockSharedRetry) {
     // 获取写锁，阻塞读锁
     m_shared_mutex->lock();
-    
+
     // 在另一个线程中尝试获取读锁（应该等待并重试）
     std::atomic<bool> reader_started(false);
     std::atomic<bool> reader_got_lock(false);
-    std::thread reader_thread([this, &reader_started, &reader_got_lock]() {
+    std::thread       reader_thread([this, &reader_started, &reader_got_lock]() {
         reader_started = true;
         m_shared_mutex->lock_shared();
         reader_got_lock = true;
         m_shared_mutex->unlock_shared();
     });
-    
+
     // 等待读者线程启动
     while (!reader_started.load()) {
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
     }
-    
+
     // 短暂保持写锁，确保读者线程进入重试循环
     std::this_thread::sleep_for(std::chrono::milliseconds(50));
-    
+
     // 释放写锁，读者应该能够获取读锁
     m_shared_mutex->unlock();
-    
+
     reader_thread.join();
-    
+
     // 读者应该成功获取读锁
     EXPECT_TRUE(reader_got_lock.load());
 }
@@ -790,30 +790,30 @@ TEST_F(SharedMutexTestFixture, IpcSharedMutexLockSharedRetry) {
 TEST_F(SharedMutexTestFixture, IpcSharedMutexLockRetry) {
     // 获取读锁，阻塞写锁
     m_shared_mutex->lock_shared();
-    
+
     // 在另一个线程中尝试获取写锁（应该等待并重试）
     std::atomic<bool> writer_started(false);
     std::atomic<bool> writer_got_lock(false);
-    std::thread writer_thread([this, &writer_started, &writer_got_lock]() {
+    std::thread       writer_thread([this, &writer_started, &writer_got_lock]() {
         writer_started = true;
         m_shared_mutex->lock();
         writer_got_lock = true;
         m_shared_mutex->unlock();
     });
-    
+
     // 等待写者线程启动
     while (!writer_started.load()) {
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
     }
-    
+
     // 短暂保持读锁，确保写者线程进入重试循环
     std::this_thread::sleep_for(std::chrono::milliseconds(50));
-    
+
     // 释放读锁，写者应该能够获取写锁
     m_shared_mutex->unlock_shared();
-    
+
     writer_thread.join();
-    
+
     // 写者应该成功获取写锁
     EXPECT_TRUE(writer_got_lock.load());
 }
@@ -831,30 +831,30 @@ TEST_F(SharedMutexTestFixture, IpcSharedMutexRegisterReaderWithWriter) {
 TEST_F(SharedMutexTestFixture, IpcMutexLockRetry) {
     // 获取锁
     m_mutex->lock();
-    
+
     // 在另一个线程中尝试获取锁（应该等待并重试）
     std::atomic<bool> thread_started(false);
     std::atomic<bool> thread_got_lock(false);
-    std::thread t([this, &thread_started, &thread_got_lock]() {
+    std::thread       t([this, &thread_started, &thread_got_lock]() {
         thread_started = true;
         m_mutex->lock();
         thread_got_lock = true;
         m_mutex->unlock();
     });
-    
+
     // 等待线程启动
     while (!thread_started.load()) {
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
     }
-    
+
     // 短暂保持锁，确保另一个线程进入重试循环
     std::this_thread::sleep_for(std::chrono::milliseconds(50));
-    
+
     // 释放锁，另一个线程应该能够获取锁
     m_mutex->unlock();
-    
+
     t.join();
-    
+
     // 另一个线程应该成功获取锁
     EXPECT_TRUE(thread_got_lock.load());
 }
@@ -863,33 +863,33 @@ TEST_F(SharedMutexTestFixture, IpcMutexLockRetry) {
 TEST_F(SharedMutexTestFixture, IpcMutexTryLockForRetry) {
     // 获取锁
     m_mutex->lock();
-    
+
     // 在另一个线程中尝试获取锁（应该等待并重试，直到超时）
     std::atomic<bool> thread_started(false);
     std::atomic<bool> timeout_occurred(false);
-    std::thread t([this, &thread_started, &timeout_occurred]() {
+    std::thread       t([this, &thread_started, &timeout_occurred]() {
         thread_started = true;
-        auto start = std::chrono::steady_clock::now();
-        bool result = m_mutex->try_lock_for(std::chrono::milliseconds(100));
-        auto end = std::chrono::steady_clock::now();
-        auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-        
+        auto start     = std::chrono::steady_clock::now();
+        bool result    = m_mutex->try_lock_for(std::chrono::milliseconds(100));
+        auto end       = std::chrono::steady_clock::now();
+        auto duration  = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+
         if (!result && duration.count() >= 90) {
             timeout_occurred = true;
         }
     });
-    
+
     // 等待线程启动
     while (!thread_started.load()) {
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
     }
-    
+
     // 保持锁超过超时时间
     std::this_thread::sleep_for(std::chrono::milliseconds(120));
     m_mutex->unlock();
-    
+
     t.join();
-    
+
     // 应该超时
     EXPECT_TRUE(timeout_occurred.load());
 }
@@ -936,9 +936,9 @@ TEST_F(SharedMutexTestFixture, IpcSharedMutexTryLockDeadWriterCleared) {
 // 测试 ipc_shared_mutex 的 try_lock 中清理后仍有读者的分支（通过多线程）
 TEST_F(SharedMutexTestFixture, IpcSharedMutexTryLockWithMultipleReaders) {
     // 多个线程获取读锁
-    std::atomic<int> reader_count(0);
+    std::atomic<int>         reader_count(0);
     std::vector<std::thread> readers;
-    
+
     for (int i = 0; i < 5; ++i) {
         readers.emplace_back([this, &reader_count]() {
             m_shared_mutex->lock_shared();
@@ -948,18 +948,18 @@ TEST_F(SharedMutexTestFixture, IpcSharedMutexTryLockWithMultipleReaders) {
             m_shared_mutex->unlock_shared();
         });
     }
-    
+
     // 等待所有读者获取读锁
     std::this_thread::sleep_for(std::chrono::milliseconds(10));
-    
+
     // 尝试获取写锁（应该失败，因为有活跃读者）
     EXPECT_FALSE(m_ipc_shared_mutex->try_lock());
-    
+
     // 等待所有读者释放读锁
     for (auto& t : readers) {
         t.join();
     }
-    
+
     // 现在应该可以获取写锁
     EXPECT_TRUE(m_ipc_shared_mutex->try_lock());
     m_ipc_shared_mutex->unlock();
@@ -969,33 +969,33 @@ TEST_F(SharedMutexTestFixture, IpcSharedMutexTryLockWithMultipleReaders) {
 TEST_F(SharedMutexTestFixture, IpcSharedMutexTryLockSharedWithAliveWriterBlocked) {
     // 获取写锁
     m_shared_mutex->lock();
-    
+
     // 在另一个线程中尝试获取读锁（应该失败，因为写者存活）
     std::atomic<bool> reader_started(false);
     std::atomic<bool> reader_failed(false);
-    std::thread reader_thread([this, &reader_started, &reader_failed]() {
+    std::thread       reader_thread([this, &reader_started, &reader_failed]() {
         reader_started = true;
-        bool result = m_ipc_shared_mutex->try_lock_shared();
+        bool result    = m_ipc_shared_mutex->try_lock_shared();
         if (!result) {
             reader_failed = true;
         } else {
             m_ipc_shared_mutex->unlock_shared();
         }
     });
-    
+
     // 等待读者线程启动
     while (!reader_started.load()) {
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
     }
-    
+
     // 短暂保持写锁
     std::this_thread::sleep_for(std::chrono::milliseconds(50));
-    
+
     // 释放写锁
     m_shared_mutex->unlock();
-    
+
     reader_thread.join();
-    
+
     // 读者应该失败（因为写者存活）
     EXPECT_TRUE(reader_failed.load());
 }

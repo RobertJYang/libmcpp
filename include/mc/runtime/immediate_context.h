@@ -71,7 +71,7 @@ public:
 };
 
 // immediate_context 用于立即执行回调的上下文
-class MC_API immediate_context {
+class MC_API immediate_context : public boost::asio::execution_context {
 public:
     using executor_type = immediate_executor;
 

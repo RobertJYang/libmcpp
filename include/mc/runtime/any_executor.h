@@ -16,6 +16,7 @@
 #include <mc/common.h>
 #include <mc/exception.h>
 #include <mc/runtime/executor.h>
+#include <mc/runtime/immediate_context.h>
 
 #include <boost/asio.hpp>
 
@@ -27,7 +28,7 @@ namespace mc::runtime {
 
 namespace detail {
 using executor_variant = std::variant<
-    std::monostate,
+    ::mc::runtime::immediate_executor,
     boost::asio::io_context::executor_type,
     boost::asio::system_context::executor_type,
     ::mc::runtime::executor>;
@@ -45,7 +46,7 @@ public:
     /**
      * @brief 默认构造函数
      */
-    any_executor() = default;
+    any_executor();
 
     /**
      * @brief 从 IO 执行器构造
@@ -135,6 +136,13 @@ public:
     void               on_work_finished() const noexcept;
     execution_context& context() const;
 
+    detail::executor_variant& get_executor() noexcept {
+        return m_executor;
+    }
+    const detail::executor_variant& get_executor() const noexcept {
+        return m_executor;
+    }
+
 private:
     detail::executor_variant m_executor;
 };
@@ -148,36 +156,21 @@ any_executor::any_executor(Executor&& executor)
 template <typename Function, typename Allocator>
 auto any_executor::post(Function&& f, const Allocator& a) const {
     return std::visit([&f, a = std::move(a)](const auto& exec) {
-        using T = std::decay_t<decltype(exec)>;
-        if constexpr (std::is_same_v<T, std::monostate>) {
-            MC_THROW(mc::invalid_op_exception, "Cannot post to invalid executor");
-        } else {
-            return exec.post(std::forward<Function>(f), std::move(a));
-        }
+        return exec.post(std::forward<Function>(f), std::move(a));
     }, m_executor);
 }
 
 template <typename Function, typename Allocator>
 auto any_executor::defer(Function&& f, const Allocator& a) const {
     return std::visit([&f, a = std::move(a)](const auto& exec) {
-        using T = std::decay_t<decltype(exec)>;
-        if constexpr (std::is_same_v<T, std::monostate>) {
-            MC_THROW(mc::invalid_op_exception, "Cannot defer to invalid executor");
-        } else {
-            return exec.defer(std::forward<Function>(f), std::move(a));
-        }
+        return exec.defer(std::forward<Function>(f), std::move(a));
     }, m_executor);
 }
 
 template <typename Function, typename Allocator>
 void any_executor::dispatch(Function&& f, const Allocator& a) const {
     std::visit([&f, a = std::move(a)](const auto& exec) {
-        using T = std::decay_t<decltype(exec)>;
-        if constexpr (std::is_same_v<T, std::monostate>) {
-            MC_THROW(mc::invalid_op_exception, "Cannot dispatch to invalid executor");
-        } else {
-            exec.dispatch(std::forward<Function>(f), std::move(a));
-        }
+        exec.dispatch(std::forward<Function>(f), std::move(a));
     }, m_executor);
 }
 
