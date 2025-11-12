@@ -2,6 +2,8 @@ test_fmt_files = files(
     'test_chrono.cpp',
     'test_format.cpp',
     'test_format_dict.cpp',
+    'test_format_errors.cpp',
+    'test_format_v.cpp',
     'test_format_std.cpp',
     'test_mc_formatter.cpp',
     'test_named_args.cpp',

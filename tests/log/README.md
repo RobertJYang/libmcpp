@@ -137,12 +137,12 @@ TEST_F(file_appender_test, AppendMessagesConcurrently)
 
 ### 测试用例总数
 
-**当前状态：43 个测试用例**（包含 1 个已禁用测试）
+**当前状态：52 个测试用例**（包含 1 个已禁用测试）
 
 | 测试文件 | 测试用例数 | 主要覆盖 |
 |---------|-----------|----------|
-| `test_log.cpp` | 13 | 核心日志功能、智能占位符、格式说明 |
-| `test_log_manager.cpp` | 10 | 管理器、配置、工厂模式 |
+| `test_log.cpp` | 17 | 核心日志功能、追加器管理、智能占位符、结构化数据 |
+| `test_log_manager.cpp` | 15 | 管理器、配置、工厂模式、动态加载容错 |
 | `test_console_appender.cpp` | 11 (1 disabled) | 控制台输出、工厂创建 |
 | `test_file_appender.cpp` | 9 | 文件写入、并发写入 |
 
@@ -150,10 +150,10 @@ TEST_F(file_appender_test, AppendMessagesConcurrently)
 
 | 模块 | 覆盖率 | 已测试用例 | 状态 |
 |------|--------|-----------|------|
-| `log_message` | 66.7% | ContextInfo, StructuredLogging, ComplexDataLogging | ⚠️ 需提升 |
-| `logger` | 60.0% | BasicLogging, LevelFiltering, GlobalLogMacros | ⚠️ 需提升 |
+| `log_message` | 88.9% | ContextInfo, StructuredLogging, LazyFormatting, PlainMessage | ✅ 显著提升 |
+| `logger` | 85.0% | 基础日志、级别过滤、追加器生命周期 | ✅ 良好 |
 | `log_manager` | 81.8% | Singleton, Config, FactoryCreate | ✅ 良好 |
-| `appender_factory` | 62.5% | FactoryCreate, GetOrCreateAppender | ⚠️ 需提升 |
+| `appender_factory` | 81.3% | FactoryCreate, GetOrCreateAppender, 重复名处理 | ✅ 良好 |
 | `console_appender` | 100% | Constructor, Init, Append, Factory | ✅ 完整 |
 | `file_appender` | 100% | File ops, Concurrency, Formatting | ✅ 完整 |
 
@@ -201,19 +201,15 @@ TEST_F(file_appender_test, AppendMessagesConcurrently)
 #### 高优先级（核心功能，直接影响稳定性）
 
 1. **Logger 模块**
-   - ❌ `set_name()` 方法测试
-   - ❌ `remove_appender()` 删除不存在的 appender
-   - ❌ `find_appender()` 查找不存在的 appender
-   - ❌ `clear_appenders()` 清空所有 appender
-   - ❌ `is_enabled()` 边界条件测试
-   - ❌ 移动语义完整测试
-   - ❌ 空 appender 列表的日志记录
+   - ✅ `set_name()` / `is_enabled()` 边界场景
+   - ✅ `remove_appender()` / `find_appender()` / `clear_appenders()` 生命周期管理
+   - ⚠️ 移动语义完整测试（待补充）
+   - ⚠️ 空 appender 列表的大批量日志压测（待补充）
 
 2. **Message 模块**
-   - ❌ `to_structured_data()` 方法测试
-   - ❌ 时间戳一致性测试
-   - ❌ 线程 ID 验证测试
-   - ❌ 延迟格式化机制测试（未调用 get_message() 时的行为）
+   - ✅ `to_structured_data()` 多场景（带模板/纯文本）
+   - ✅ 时间戳与线程 ID 验证
+   - ✅ 延迟格式化机制测试
 
 3. **Log Manager 模块**
    - ❌ 动态库加载成功场景
@@ -273,9 +269,8 @@ TEST_F(file_appender_test, AppendMessagesConcurrently)
 ### 中期优化（提高健壮性）
 
 4. **动态库加载完整测试**（预计工作量：2-3 小时）
-   - 成功加载动态库的测试
-   - load_all() 目录遍历各种场景
-   - 多 .so 文件的加载测试
+   - ⚠️ 成功加载真实动态库（当前覆盖了失败分支）
+   - ⚠️ load_all() 目录多 .so 文件场景（当前覆盖了异常容错）
 
 5. **错误处理场景完善**（预计工作量：2-3 小时）
    - Appender 创建失败的场景
@@ -285,14 +280,14 @@ TEST_F(file_appender_test, AppendMessagesConcurrently)
 ### 长期优化（提升性能）
 
 6. **性能测试**（预计工作量：4-5 小时）
-   - 大量日志消息的性能测试
-   - 高并发场景的性能测试
-   - 内存使用情况分析
+   - ⚠️ 大量日志消息的性能测试
+   - ⚠️ 高并发场景的性能测试
+   - ⚠️ 内存使用情况分析
 
 7. **日志文件管理**（预计工作量：3-4 小时）
-   - 日志文件回滚机制测试
-   - 大文件处理性能测试
-   - 文件路径的各种场景测试
+   - ⚠️ 日志文件回滚机制测试
+   - ⚠️ 大文件处理性能测试
+   - ⚠️ 文件路径的各种场景测试
 
 ## 测试策略
 

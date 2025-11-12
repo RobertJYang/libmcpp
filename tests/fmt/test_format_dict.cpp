@@ -17,6 +17,7 @@
 
 #include <mc/fmt/format.h>
 #include <mc/fmt/format_dict.h>
+#include <mc/exception.h>
 
 using namespace mc::fmt;
 
@@ -121,4 +122,22 @@ TEST(format_dict_test, FormatIcaseTest) {
 
     ASSERT_EQ(mc::format_dict("${HOST}:${PORT}", args), "${HOST}:${PORT}");
     ASSERT_EQ(mc::format_dict("${HOST}:${port}", args), "${HOST}:8080");
+}
+
+// 测试动态宽度和精度参数（包含大小写不敏感匹配）
+TEST(format_dict_test, DynamicWidthAndPrecisionFromDict) {
+    mc::dict args{{"value", 3.14159},
+                  {"WIDTH", 10},
+                  {"precision", 4}};
+
+    std::string result = mc::format_dict_icase("${value:{WIDTH}.{precision}f}", args);
+    EXPECT_EQ(result, "    3.1416");
+}
+
+// 测试动态参数类型错误时的处理行为
+TEST(format_dict_test, DynamicParameterTypeError) {
+    mc::dict args{{"value", 1.23}, {"width", "not_number"}};
+
+    // 当前实现会保留转换失败的动态参数文本，并把占位符中的内容直接拼接。
+    EXPECT_EQ(mc::format_dict("${value:{width}f}", args), "{value:not_numberf}");
 }

@@ -98,9 +98,9 @@ TEST(format_std_test, unordered_set_int) {
 }
 
 // map
-TEST(format_std_test, map_str_int) {
-    std::map<std::string, int> m{{"a", 1}, {"b", 2}};
-    EXPECT_EQ(sformat("{}", m), "{\"a\":1,\"b\":2}");
+TEST(format_std_test, map_nested_container) {
+    std::map<int, std::vector<int>> m{{1, {2, 3}}, {4, {5}}};
+    EXPECT_EQ(sformat("{}", m), "{1:[2,3],4:[5]}");
 }
 
 // unordered_map

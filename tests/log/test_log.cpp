@@ -10,6 +10,7 @@
  * See the Mulan PSL v2 for more details.
  */
 
+#include <chrono>
 #include <fstream>
 #include <gtest/gtest.h>
 #include <mc/dict.h>
@@ -53,6 +54,7 @@ protected:
     void SetUp() override {
         // 创建内存日志追加器
         m_memory_appender = std::make_shared<memory_appender>();
+        m_memory_appender->set_name("memory_appender");
 
         // 创建测试日志器
         m_test_logger = mc::log::logger("test_logger");
@@ -378,4 +380,76 @@ TEST_F(LogTest, escaped_braces) {
 
     mc_ilog(m_test_logger, "{{0}} {0} {{name}}", "value");
     EXPECT_EQ(get_last_message(), "{0} value {name}");
+}
+
+// 测试 logger 的追加器管理功能
+TEST_F(LogTest, manage_appenders_lifecycle) {
+    auto secondary = std::make_shared<memory_appender>();
+    secondary->set_name("second_appender");
+    m_test_logger.add_appender(secondary);
+
+    EXPECT_NE(m_test_logger.find_appender("memory_appender"), nullptr);
+    EXPECT_NE(m_test_logger.find_appender("second_appender"), nullptr);
+
+    EXPECT_TRUE(m_test_logger.remove_appender("second_appender"));
+    EXPECT_EQ(m_test_logger.find_appender("second_appender"), nullptr);
+    EXPECT_FALSE(m_test_logger.remove_appender("second_appender"));
+
+    m_test_logger.clear_appenders();
+    EXPECT_TRUE(m_test_logger.get_appenders().empty());
+}
+
+// 测试 logger 的命名与级别判定行为
+TEST_F(LogTest, set_name_and_enabled_boundary) {
+    m_test_logger.set_name("custom_logger");
+    m_test_logger.set_level(mc::log::level::info);
+
+    EXPECT_EQ(m_test_logger.get_name(), "custom_logger");
+    EXPECT_FALSE(m_test_logger.is_enabled(mc::log::level::debug));
+    EXPECT_TRUE(m_test_logger.is_enabled(mc::log::level::info));
+    EXPECT_TRUE(m_test_logger.is_enabled(mc::log::level::error));
+}
+
+// 测试 message 的结构化数据与惰性格式化
+TEST(LogMessageTest, structured_data_and_lazy_formatting) {
+    mc::log::context ctx{"file.cpp", "Func", 123};
+    mc::dict        args{{"user", "alice"}, {"value", 42}};
+    mc::log::message msg(mc::log::level::warn, ctx, "用户 ${user} 值 ${value}", args);
+
+    const auto start = std::chrono::system_clock::now();
+    auto       data  = msg.to_structured_data();
+    const auto end   = std::chrono::system_clock::now();
+
+    EXPECT_TRUE(end >= msg.get_timestamp());
+    EXPECT_TRUE(msg.get_timestamp() >= start - std::chrono::seconds(1));
+
+    EXPECT_EQ(data["level"].as_int32(), static_cast<int>(mc::log::level::warn));
+
+    const auto& ctx_dict = data["context"].as_dict();
+    EXPECT_EQ(ctx_dict["file"].as_string(), "file.cpp");
+    EXPECT_EQ(ctx_dict["function"].as_string(), "Func");
+    EXPECT_EQ(ctx_dict["line"].as_uint32(), 123U);
+    std::ostringstream thread_stream;
+    thread_stream << msg.get_thread_id();
+    EXPECT_EQ(ctx_dict["thread_id"].as_string(), thread_stream.str());
+
+    EXPECT_EQ(data["message_template"].as_string(), "用户 ${user} 值 ${value}");
+    EXPECT_EQ(data["message"].as_string(), "用户 alice 值 42");
+
+    const auto& args_dict = data["args"].as_dict();
+    EXPECT_EQ(args_dict.at("user").as_string(), "alice");
+    EXPECT_EQ(args_dict.at("value").as_int32(), 42);
+
+    // 再次获取消息应返回相同的格式化结果
+    EXPECT_EQ(msg.get_message(), "用户 alice 值 42");
+}
+
+TEST(LogMessageTest, structured_data_without_format_template) {
+    mc::log::context ctx{"simple.cpp", "Func", 9};
+    mc::log::message msg(mc::log::level::info, "纯文本消息", ctx, {});
+
+    auto data = msg.to_structured_data();
+    EXPECT_FALSE(data.contains("message_template"));
+    EXPECT_FALSE(data.contains("args"));
+    EXPECT_EQ(data["message"].as_string(), "纯文本消息");
 }
