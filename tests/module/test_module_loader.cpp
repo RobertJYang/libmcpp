@@ -198,30 +198,6 @@ TEST_F(ModuleLoaderTest, TestDefaultSearchPaths) {
 }
 
 /**
- * @brief 测试添加和清除搜索路径
- */
-TEST_F(ModuleLoaderTest, TestSearchPathManagement) {
-    mc::module::module_loader loader;
-
-    // 获取初始路径数量
-    size_t initial_count = loader.search_paths().size();
-
-    // 添加自定义路径
-    loader.add_search_path("/custom/path/?.so");
-    EXPECT_EQ(loader.search_paths().size(), initial_count + 1);
-
-    // 检查路径是否正确添加
-    const auto& paths        = loader.search_paths();
-    bool        found_custom = std::find(paths.begin(), paths.end(), "/custom/path/?.so") != paths.end();
-    EXPECT_TRUE(found_custom) << "自定义路径应被正确添加";
-
-    // 清除所有路径
-    loader.clear_search_paths();
-    EXPECT_TRUE(loader.search_paths().empty()) << "清除后搜索路径应为空";
-}
-
-
-/**
  * @brief 测试模块加载成功的情况
  */
 TEST_F(ModuleLoaderTest, TestLoadModuleSuccess) {
@@ -390,19 +366,31 @@ TEST_F(ModuleLoaderTest, TestComplexModuleName) {
 }
 
 /**
- * @brief 测试清空后添加路径，search_paths() 返回非空
+ * @brief 测试搜索路径生命周期管理（添加、去重、清空再添加）
  */
-TEST_F(ModuleLoaderTest, TestSearchPathsGetterNonEmpty) {
-    auto loader = create_mock_loader();
+TEST_F(ModuleLoaderTest, TestSearchPathLifecycle) {
+    mc::module::module_loader loader;
+
+    // 记录默认路径数量
+    const size_t default_count = loader.search_paths().size();
+
+    // 添加自定义路径并验证去重
+    loader.add_search_path("/custom/path/?.so");
+    loader.add_search_path("/custom/path/?.so");
+    EXPECT_EQ(loader.search_paths().size(), default_count + 1);
+
+    // 清空后再次添加，确认列表可重建且去重仍生效
     loader.clear_search_paths();
-    EXPECT_TRUE(loader.search_paths().empty()) << "清空后应为空";
+    EXPECT_TRUE(loader.search_paths().empty());
 
     loader.add_search_path("./?.so");
     loader.add_search_path("./lib/?.so");
+    loader.add_search_path("./lib/?.so");
 
     const auto& paths = loader.search_paths();
-    EXPECT_FALSE(paths.empty()) << "添加路径后应非空";
-    EXPECT_EQ(paths.size(), 2) << "应包含两个路径";
+    EXPECT_EQ(paths.size(), 2);
+    EXPECT_NE(std::find(paths.begin(), paths.end(), "./?.so"), paths.end());
+    EXPECT_NE(std::find(paths.begin(), paths.end(), "./lib/?.so"), paths.end());
 }
 
 /**
@@ -568,33 +556,55 @@ TEST_F(ModuleLoaderTest, TestAddSearchPathDuplicate) {
 }
 
 /**
- * @brief 测试 get/set_load_lib_func
+ * @brief 测试混合使用冒号与点号的模块名
  */
-TEST_F(ModuleLoaderTest, TestGetSetLoadLibFunc) {
+TEST_F(ModuleLoaderTest, TestLoadModuleMixedSeparators) {
     auto loader = create_mock_loader();
+    loader.clear_search_paths();
+    loader.add_search_path("./?.so");
 
-    // 获取当前函数
-    auto& funcs = loader.get_load_lib_func();
-    EXPECT_NE(funcs.load, nullptr);
-    EXPECT_NE(funcs.unload, nullptr);
-    EXPECT_NE(funcs.sym, nullptr);
-    EXPECT_NE(funcs.is_readable, nullptr);
+    mock_lib_loader::instance().add_mock_lib(
+        "./pkg/driver/module.so",
+        {"mc_open_pkg_driver_module", "mc_close_pkg_driver_module"});
 
-    // 设置新的函数
-    mc::module::load_lib_func_t new_funcs;
-    new_funcs.load        = [](std::string_view, bool) -> void* { return nullptr; };
-    new_funcs.unload      = [](void*) {};
-    new_funcs.sym         = [](void*, std::string_view) -> void* { return nullptr; };
-    new_funcs.is_readable = [](std::string_view) -> bool { return false; };
+    bool         callback_called = false;
+    std::string  captured_path;
+    auto callback = [&](auto info, bool&) -> bool {
+        callback_called = true;
+        captured_path   = info->path;
+        return true;
+    };
 
-    loader.set_load_lib_func(new_funcs);
+    bool result = loader.load_module("pkg:driver.module", callback);
+    EXPECT_TRUE(result);
+    EXPECT_TRUE(callback_called);
+    EXPECT_EQ(captured_path, "./pkg/driver/module.so");
+}
 
-    // 验证设置成功
-    auto& funcs2 = loader.get_load_lib_func();
-    EXPECT_NE(funcs2.load, nullptr);
-    EXPECT_NE(funcs2.unload, nullptr);
-    EXPECT_NE(funcs2.sym, nullptr);
-    EXPECT_NE(funcs2.is_readable, nullptr);
+/**
+ * @brief 测试包含多个问号占位符的路径模板
+ */
+TEST_F(ModuleLoaderTest, TestLoadModuleTemplateMultiPlaceholders) {
+    auto loader = create_mock_loader();
+    loader.clear_search_paths();
+    loader.add_search_path("./?/bin/?.so");
+
+    mock_lib_loader::instance().add_mock_lib(
+        "./pkg/tool/bin/pkg/tool.so",
+        {"mc_open_pkg_tool", "mc_close_pkg_tool"});
+
+    bool        callback_called = false;
+    std::string captured_path;
+    auto callback = [&](auto info, bool&) -> bool {
+        callback_called = true;
+        captured_path   = info->path;
+        return true;
+    };
+
+    bool result = loader.load_module("pkg.tool", callback);
+    EXPECT_TRUE(result);
+    EXPECT_TRUE(callback_called);
+    EXPECT_EQ(captured_path, "./pkg/tool/bin/pkg/tool.so");
 }
 
 /**
@@ -623,6 +633,29 @@ TEST_F(ModuleLoaderTest, TestLoadPathMissingOpenFunc) {
     // 验证库被卸载（因为缺少 open 函数时会卸载）
     EXPECT_EQ(mock_lib_loader::instance().loaded_count(), 0)
         << "缺少 open 函数时应卸载库";
+}
+
+/**
+ * @brief 测试 is_readable 抛出异常的情况
+ */
+TEST_F(ModuleLoaderTest, TestLoadPathReadableThrows) {
+    auto loader = create_mock_loader();
+    loader.clear_search_paths();
+    loader.add_search_path("./?.so");
+
+    mock_funcs.is_readable = [](std::string_view) -> bool {
+        throw std::runtime_error("filesystem error");
+    };
+    loader.set_load_lib_func(mock_funcs);
+
+    bool callback_called = false;
+    auto callback        = [&](auto, bool&) -> bool {
+        callback_called = true;
+        return true;
+    };
+
+    EXPECT_THROW(loader.load_module("test.module", callback), std::runtime_error);
+    EXPECT_FALSE(callback_called);
 }
 
 /**

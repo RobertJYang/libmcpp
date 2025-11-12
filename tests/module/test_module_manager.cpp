@@ -11,10 +11,20 @@
  */
 
 #include <gtest/gtest.h>
+#include <atomic>
+#include <chrono>
+#include <cstdlib>
+#include <stdexcept>
+#include <mc/filesystem.h>
 #include <mc/module.h>
 #include <mc/reflect/reflection_factory.h>
 #include <mc/string.h>
 #include <test_utilities/test_base.h>
+#include <thread>
+#include <vector>
+
+extern "C" MC_API void set_log_module_name(const char*) {
+}
 
 // 定义一个测试模块
 MC_MODULE(mc_test_module)
@@ -86,6 +96,31 @@ protected:
         // 调用基类清理方法
         mc::test::TestBase::TearDownTestSuite();
     }
+};
+
+class scoped_env_var {
+public:
+    scoped_env_var(const char* name, const char* value) : m_name(name) {
+        const char* original = std::getenv(name);
+        if (original != nullptr) {
+            m_old_value  = original;
+            m_has_backup = true;
+        }
+        setenv(m_name.c_str(), value, 1);
+    }
+
+    ~scoped_env_var() {
+        if (m_has_backup) {
+            setenv(m_name.c_str(), m_old_value.c_str(), 1);
+        } else {
+            unsetenv(m_name.c_str());
+        }
+    }
+
+private:
+    std::string m_name;
+    std::string m_old_value;
+    bool        m_has_backup{false};
 };
 
 /**
@@ -403,6 +438,131 @@ TEST_F(ModuleManagerTest, TestUnRegisterBuiltinModule) {
 
     is_loaded = manager.is_loaded("mc.test.module");
     EXPECT_FALSE(is_loaded);
+}
+
+/**
+ * @brief 并发 require 同一模块应返回同一实例
+ */
+TEST_F(ModuleManagerTest, TestConcurrentRequireSameModule) {
+    auto& manager      = mc::get_module_manager();
+    const int thread_count = 8;
+
+    std::vector<mc::module::module_ptr> modules(thread_count);
+    std::vector<std::thread>            threads;
+    std::atomic<int>                    ready{0};
+    std::atomic<bool>                   start_flag{false};
+
+    for (int i = 0; i < thread_count; ++i) {
+        threads.emplace_back([&, i]() {
+            ready.fetch_add(1, std::memory_order_release);
+            while (!start_flag.load(std::memory_order_acquire)) {
+                std::this_thread::yield();
+            }
+            modules[i] = manager.require("mc.test.module");
+        });
+    }
+
+    while (ready.load(std::memory_order_acquire) != thread_count) {
+        std::this_thread::yield();
+    }
+    start_flag.store(true, std::memory_order_release);
+
+    for (auto& t : threads) {
+        t.join();
+    }
+
+    for (const auto& mod : modules) {
+        ASSERT_TRUE(mod != nullptr);
+    }
+
+    auto* first_ptr = modules.front().get();
+    for (const auto& mod : modules) {
+        EXPECT_EQ(mod.get(), first_ptr);
+    }
+
+    for (auto& mod : modules) {
+        mod.reset();
+    }
+    manager.unload("mc.test.module");
+}
+
+/**
+ * @brief 并发执行 require/unload 场景不应崩溃
+ */
+TEST_F(ModuleManagerTest, TestConcurrentRequireAndUnload) {
+    auto& manager = mc::get_module_manager();
+    std::atomic<bool> stop{false};
+
+    auto worker = [&]() {
+        while (!stop.load(std::memory_order_acquire)) {
+            auto module = manager.require("mc.test.module");
+            if (module) {
+                (void)module->get_factory();
+            }
+            manager.unload("mc.test.module");
+        }
+    };
+
+    std::thread t1(worker);
+    std::thread t2(worker);
+
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    stop.store(true, std::memory_order_release);
+    t1.join();
+    t2.join();
+
+    auto module = manager.require("mc.test.module");
+    EXPECT_TRUE(module != nullptr);
+    manager.unload("mc.test.module");
+}
+
+TEST_F(ModuleManagerTest, TestDynamicModuleOpenFailure) {
+    auto build_root = mc::filesystem::current_path();
+    auto source     = build_root / "tests/libmc_test_dynamic_module.so";
+    ASSERT_TRUE(mc::filesystem::exists(source));
+
+    // 创建必要的目录结构并复制模块文件
+    auto modules_dir = build_root / "modules" / "mc" / "test";
+    mc::filesystem::create_directories(modules_dir);
+    auto target = modules_dir / "dynamic.so";
+    if (!mc::filesystem::exists(target)) {
+        mc::filesystem::copy_file(source, target, true);
+    }
+
+    scoped_env_var env("MC_TEST_DYNAMIC_RETURN_NULL", "1");
+    auto&                     manager = mc::get_module_manager();
+    manager.add_search_path("./modules/?.so");
+
+    auto module = manager.require("mc.test.dynamic");
+    EXPECT_TRUE(module == nullptr);
+}
+
+TEST_F(ModuleManagerTest, TestDynamicModuleCloseThrows) {
+    auto build_root = mc::filesystem::current_path();
+    auto source     = build_root / "tests/libmc_test_dynamic_module.so";
+    ASSERT_TRUE(mc::filesystem::exists(source));
+
+    // 创建必要的目录结构并复制模块文件
+    auto modules_dir = build_root / "modules" / "mc" / "test";
+    mc::filesystem::create_directories(modules_dir);
+    auto target = modules_dir / "dynamic.so";
+    if (!mc::filesystem::exists(target)) {
+        mc::filesystem::copy_file(source, target, true);
+    }
+
+    auto&                     manager = mc::get_module_manager();
+    manager.add_search_path("./modules/?.so");
+
+    auto module = manager.require("mc.test.dynamic");
+    ASSERT_TRUE(module != nullptr);
+
+    {
+        scoped_env_var close_env("MC_TEST_DYNAMIC_CLOSE_THROW", "1");
+        manager.unload("mc.test.dynamic");
+        EXPECT_NO_THROW(module.reset());
+    }
+
+    manager.unload("mc.test.dynamic");
 }
 
 } // anonymous namespace

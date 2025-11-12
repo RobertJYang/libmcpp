@@ -17,6 +17,9 @@
 #include <mc/runtime/thread_list.h>
 #include <test_utilities/test_base.h>
 
+#ifdef __unix__
+#include <sys/wait.h>
+#endif
 #include <atomic>
 #include <chrono>
 #include <system_error>
@@ -1011,3 +1014,62 @@ TEST_F(SharedMutexTestFixture, IpcSharedMutexAggressiveCleanupReaderCountDecreas
     // 清理后 reader_count 应该是 0
     m_ipc_shared_mutex->cleanup_dead_locks();
 }
+
+#ifdef __unix__
+TEST_F(SharedMutexTestFixture, CleanupDeadReaderRemovesSlot) {
+    int pipefd[2];
+    ASSERT_EQ(pipe(pipefd), 0);
+
+    pid_t child = fork();
+    ASSERT_NE(child, -1);
+
+    if (child == 0) {
+        close(pipefd[0]);
+        m_shared_mutex->lock_shared();
+        char ready = '1';
+        (void)write(pipefd[1], &ready, 1);
+        _exit(0);
+    }
+
+    close(pipefd[1]);
+    char ready = '0';
+    ASSERT_EQ(read(pipefd[0], &ready, 1), 1);
+    close(pipefd[0]);
+    ASSERT_EQ(ready, '1');
+
+    int status = 0;
+    waitpid(child, &status, 0);
+
+    m_ipc_shared_mutex->cleanup_dead_locks();
+    EXPECT_TRUE(m_shared_mutex->try_lock());
+    m_shared_mutex->unlock();
+}
+
+TEST_F(SharedMutexTestFixture, CleanupDeadWriterAllowsProgress) {
+    int pipefd[2];
+    ASSERT_EQ(pipe(pipefd), 0);
+
+    pid_t child = fork();
+    ASSERT_NE(child, -1);
+
+    if (child == 0) {
+        close(pipefd[0]);
+        m_shared_mutex->lock();
+        char ready = '1';
+        (void)write(pipefd[1], &ready, 1);
+        _exit(0);
+    }
+
+    close(pipefd[1]);
+    char ready = '0';
+    ASSERT_EQ(read(pipefd[0], &ready, 1), 1);
+    close(pipefd[0]);
+    ASSERT_EQ(ready, '1');
+
+    int status = 0;
+    waitpid(child, &status, 0);
+
+    EXPECT_TRUE(m_shared_mutex->try_lock());
+    m_shared_mutex->unlock();
+}
+#endif

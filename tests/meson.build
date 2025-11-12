@@ -63,6 +63,14 @@ test_files = [
   test_variant_files,
 ]
 
+mock_dynamic_module = shared_library(
+  'mc_test_dynamic_module',
+  'module/mock_dynamic_module.cpp',
+  include_directories: [incdir, srcdir],
+  dependencies: [libmcpp_dep],
+  install: false,
+)
+
 dbus_dep = dependency('dbus-1', method: 'pkg-config', required: true)
 
 # 创建测试可执行文件 - 现在依赖test_utilities
@@ -93,4 +101,8 @@ test_exe = executable(
 )
 
 # 注册测试
-test('libmcpp unit tests', test_exe)
+test(
+  'libmcpp unit tests',
+  test_exe,
+  depends: mock_dynamic_module,
+)

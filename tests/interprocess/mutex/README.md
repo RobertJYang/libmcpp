@@ -15,12 +15,12 @@ See the Mulan PSL v2 for more details.
 
 ## 测试文件
 
-- `test_ipc_mutex.cpp` - IPC 互斥锁测试（22 个用例）
-- `test_shared_mutex.cpp` - IPC 读写锁和包装类测试（66 个用例）
+- `test_ipc_mutex.cpp` - IPC 互斥锁测试（18 个用例）
+- `test_shared_mutex.cpp` - IPC 读写锁和包装类测试（68 个用例）
 
 ## 详细测试用例
 
-### test_ipc_mutex.cpp - IPC 互斥锁测试（22 个用例）
+### test_ipc_mutex.cpp - IPC 互斥锁测试（18 个用例）
 
 #### IpcMutexReentrantTryLock
 测试重复获取锁（同一进程）应该返回 `false`，不允许重入。
@@ -36,36 +36,6 @@ See the Mulan PSL v2 for more details.
 
 #### MutexTryLockForSuccess
 测试 `mutex` 包装类的 `try_lock_for` 成功场景。
-
-#### IpcMutexCanPreemptOwnerDead
-测试 `owner_dead` 路径，验证进程死亡时的锁抢占。
-
-#### IpcMutexCanPreemptTimeout
-测试 `timeout` 路径。
-
-#### IpcMutexTryLockCompareExchangeFailure
-测试 `compare_exchange_strong` 失败场景。
-
-#### IpcMutexIsProcessAliveErrnoBranch
-测试 `is_process_alive` 中 `errno != ESRCH` 分支。
-
-#### IpcMutexCanPreemptNowLessEqualLockTime
-测试 `can_preempt` 中 `now <= lock_time` 分支。
-
-#### IpcMutexCanPreemptTimeoutNotMet
-测试超时不满足的分支。
-
-#### IpcMutexTryLockOwnerDeadPath
-测试 `owner_dead` 路径。
-
-#### IpcMutexTryLockTimeoutPath
-测试 `timeout` 路径。
-
-#### IpcMutexTryLockCompareExchangeNotOwnedFailure
-测试 `compare_exchange` 在 `not_owned` 路径失败。
-
-#### IpcMutexTryLockCompareExchangePreemptFailure
-测试 `compare_exchange` 在抢占路径失败。
 
 #### IpcMutexTryLockForTimeout
 测试 `try_lock_for` 超时分支，验证超时行为。
@@ -88,7 +58,10 @@ See the Mulan PSL v2 for more details.
 #### IpcMutexTryLockNotOwnedHighContention
 测试 `try_lock` 在高竞争场景下的行为。
 
-### test_shared_mutex.cpp - IPC 读写锁和包装类测试（66 个用例）
+#### IpcMutexMultiProcessContention
+测试两个子进程串行竞争互斥锁，父进程通过管道和退出码协同，验证跨进程抢占、超时重试以及释放路径，覆盖 `try_lock_for` 等待与成功分支。
+
+### test_shared_mutex.cpp - IPC 读写锁和包装类测试（68 个用例）
 
 ### 基础功能测试（4 个用例）
 
