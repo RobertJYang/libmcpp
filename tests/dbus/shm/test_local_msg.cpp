@@ -1,19 +1,19 @@
 /*
-* Copyright (c) 2025 Huawei Technologies Co., Ltd.
-* openUBMC is licensed under Mulan PSL v2.
-* You can use this software according to the terms and conditions of the Mulan
-* PSL v2. You may obtain a copy of Mulan PSL v2 at:
-*         http://license.coscl.org.cn/MulanPSL2
-* THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY
-* KIND, EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
-* NON-INFRINGEMENT, MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE. See the
-* Mulan PSL v2 for more details.
-*/
+ * Copyright (c) 2025 Huawei Technologies Co., Ltd.
+ * openUBMC is licensed under Mulan PSL v2.
+ * You can use this software according to the terms and conditions of the Mulan
+ * PSL v2. You may obtain a copy of Mulan PSL v2 at:
+ *         http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY
+ * KIND, EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+ * NON-INFRINGEMENT, MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE. See the
+ * Mulan PSL v2 for more details.
+ */
 
 /**
-* @file test_local_msg.cpp
-* @brief 测试 local_msg 类
-*/
+ * @file test_local_msg.cpp
+ * @brief 测试 local_msg 类
+ */
 #include <dbus/dbus.h>
 #include <mc/dbus/shm/local_msg.h>
 #include <mc/dbus/shm/serialize.h>
@@ -31,19 +31,16 @@
 using namespace mc;
 using namespace mc::dbus;
 
-class LocalMsgTest : public ::testing::Test
-{
+class LocalMsgTest : public ::testing::Test {
 protected:
-    void SetUp() override
-    {
+    void SetUp() override {
         // 在每个测试前执行
         sample_msg =
             new dbus::local_msg("bmc.kepler.test", "/bmc/kepler/test/obj",
                                 "bmc.kepler.test.intf", "TestMethod");
     }
 
-    void TearDown() override
-    {
+    void TearDown() override {
         // 在每个测试后执行
     }
 
@@ -51,8 +48,7 @@ protected:
 };
 
 // 测试 local_call 标记
-TEST_F(LocalMsgTest, LocalCallFlag)
-{
+TEST_F(LocalMsgTest, LocalCallFlag) {
     EXPECT_FALSE(sample_msg->is_local_call());
     sample_msg->set_local_call(true);
     EXPECT_TRUE(sample_msg->is_local_call());
@@ -61,8 +57,7 @@ TEST_F(LocalMsgTest, LocalCallFlag)
 }
 
 // 测试错误信息
-TEST_F(LocalMsgTest, ErrorInfo)
-{
+TEST_F(LocalMsgTest, ErrorInfo) {
     sample_msg->error("InternalError", "this is an error message");
     auto [error_name, error_message] = sample_msg->get_error();
     ASSERT_EQ(error_name, "InternalError");
@@ -70,14 +65,13 @@ TEST_F(LocalMsgTest, ErrorInfo)
 }
 
 // 测试 append 方法
-TEST_F(LocalMsgTest, Append)
-{
-    auto msg = new dbus::local_msg("bmc.kepler.test", "/bmc/kepler/test/obj",
-                                "bmc.kepler.test.intf", "TestMethod");
+TEST_F(LocalMsgTest, Append) {
+    auto     msg = new dbus::local_msg("bmc.kepler.test", "/bmc/kepler/test/obj",
+                                       "bmc.kepler.test.intf", "TestMethod");
     variants arg1;
     arg1.push_back(1);
     arg1.push_back(-2);
-    dict arg2({{"a", 3}, {"b", 4}});
+    dict    arg2({{"a", 3}, {"b", 4}});
     variant arg3 = 5;
     msg->append("aia{si}u", arg1, arg2, arg3);
     auto args = msg->read();
@@ -90,12 +84,11 @@ TEST_F(LocalMsgTest, Append)
 }
 
 // 测试 pack 方法
-TEST_F(LocalMsgTest, Pack)
-{
+TEST_F(LocalMsgTest, Pack) {
     auto msg = new dbus::local_msg("bmc.kepler.test", "/bmc/kepler/test/obj",
-                                "bmc.kepler.test.intf", "TestMethod");
+                                   "bmc.kepler.test.intf", "TestMethod");
     msg->append("a{ss}s", dict({{"a", "str1"}, {"b", "str2"}}), "test");
-    auto packed = msg->pack();
+    auto packed   = msg->pack();
     auto unpacked = dbus::serialize::unpack(packed);
     ASSERT_EQ(unpacked.size(), 12);
     ASSERT_TRUE(unpacked[7].is_array());
@@ -113,7 +106,7 @@ TEST_F(LocalMsgTest, Pack)
     variant arg5 = variants{97, 98, 99, 100}; // abcd
     variant arg6 = 3.14;
     msg->append("sa(ibys)ua{sa{sv}}ayd", arg1, arg2, arg3, arg4, arg5, arg6);
-    packed = msg->pack();
+    packed   = msg->pack();
     unpacked = dbus::serialize::unpack(packed);
     ASSERT_EQ(unpacked.size(), 12);
     ASSERT_TRUE(unpacked[7].is_array());
@@ -147,11 +140,10 @@ TEST_F(LocalMsgTest, Pack)
 }
 
 // 测试 append_args 方法
-TEST_F(LocalMsgTest, AppendArgs)
-{
-    auto msg = new dbus::local_msg("bmc.kepler.test", "/bmc/kepler/test/obj",
-                                "bmc.kepler.test.intf", "TestMethod");
-    dict arg1({{"a", "str1"}, {"b", "str2"}});
+TEST_F(LocalMsgTest, AppendArgs) {
+    auto     msg = new dbus::local_msg("bmc.kepler.test", "/bmc/kepler/test/obj",
+                                       "bmc.kepler.test.intf", "TestMethod");
+    dict     arg1({{"a", "str1"}, {"b", "str2"}});
     variants arg2;
     arg2.push_back(12);
     arg2.push_back(34);
@@ -168,8 +160,7 @@ TEST_F(LocalMsgTest, AppendArgs)
 }
 
 // 测试 new_dbus_msg 方法
-TEST_F(LocalMsgTest, NewDBusMsg)
-{
+TEST_F(LocalMsgTest, NewDBusMsg) {
     auto reply_msg =
         new dbus::local_msg("bmc.kepler.test", "/bmc/kepler/test/obj",
                             "bmc.kepler.test.intf", "TestMethod");
@@ -187,8 +178,7 @@ TEST_F(LocalMsgTest, NewDBusMsg)
 }
 
 // 测试从 variants 构造 local_msg
-TEST_F(LocalMsgTest, ConstructFromVariants)
-{
+TEST_F(LocalMsgTest, ConstructFromVariants) {
     variants v;
     v.push_back(static_cast<uint32_t>(DBUS_MESSAGE_TYPE_METHOD_RETURN));
     v.push_back("bmc.kepler.test1");
@@ -227,9 +217,8 @@ TEST_F(LocalMsgTest, ConstructFromVariants)
     ASSERT_EQ(msg->get_reply_serial(), 67);
 }
 
-TEST_F(LocalMsgTest, ConstructFromVariantsEdgeCases)
-{
-    variants empty_v;
+TEST_F(LocalMsgTest, ConstructFromVariantsEdgeCases) {
+    variants        empty_v;
     dbus::local_msg msg1(empty_v);
     EXPECT_EQ(msg1.msg_type(), DBUS_MESSAGE_TYPE_METHOD_CALL);
     EXPECT_TRUE(msg1.destination().empty());
@@ -260,8 +249,7 @@ TEST_F(LocalMsgTest, ConstructFromVariantsEdgeCases)
     EXPECT_FALSE(msg2.is_local_call());
 }
 
-TEST_F(LocalMsgTest, AppendReturnArgsCases)
-{
+TEST_F(LocalMsgTest, AppendReturnArgsCases) {
     auto msg1 = std::make_unique<dbus::local_msg>("org.test", "/org/test", "org.test", "Method");
     msg1->append_return_args("i", variant(42));
     EXPECT_EQ(msg1->signature(), "i");
@@ -284,8 +272,7 @@ TEST_F(LocalMsgTest, AppendReturnArgsCases)
     EXPECT_TRUE(msg3->read().empty());
 }
 
-TEST_F(LocalMsgTest, ParseVariantVariousTypes)
-{
+TEST_F(LocalMsgTest, ParseVariantVariousTypes) {
     // 验证基础整数类型
     const auto byte_result = dbus::local_msg::parse_variant(
         signature_iterator("y"), variant(static_cast<uint8_t>(65)), 0);
@@ -344,8 +331,7 @@ TEST_F(LocalMsgTest, ParseVariantVariousTypes)
     EXPECT_NEAR(double_result.as_double(), 3.14159, 1e-9);
 }
 
-TEST_F(LocalMsgTest, AppendArgsSignatureParseError)
-{
+TEST_F(LocalMsgTest, AppendArgsSignatureParseError) {
     auto msg =
         new dbus::local_msg("org.test", "/org/test", "org.test", "Method");
     variants args;
@@ -356,8 +342,7 @@ TEST_F(LocalMsgTest, AppendArgsSignatureParseError)
 
 // ========== 安全性测试 ==========
 
-TEST_F(LocalMsgTest, AppendArgsSizeMismatch)
-{
+TEST_F(LocalMsgTest, AppendArgsSizeMismatch) {
     auto msg =
         new dbus::local_msg("org.test", "/org/test", "org.test", "Method");
     variants args;
@@ -366,8 +351,7 @@ TEST_F(LocalMsgTest, AppendArgsSizeMismatch)
     delete msg;
 }
 
-TEST_F(LocalMsgTest, NewDBusMsgInvalidType)
-{
+TEST_F(LocalMsgTest, NewDBusMsgInvalidType) {
     auto msg =
         new dbus::local_msg("org.test", "/org/test", "org.test", "Method");
     variants v;
@@ -388,8 +372,7 @@ TEST_F(LocalMsgTest, NewDBusMsgInvalidType)
     delete msg;
 }
 
-TEST_F(LocalMsgTest, AppendReturnArgsMultipleNonArray)
-{
+TEST_F(LocalMsgTest, AppendReturnArgsMultipleNonArray) {
     auto msg =
         new dbus::local_msg("org.test", "/org/test", "org.test", "Method");
     variant v_single = 42;
@@ -397,8 +380,7 @@ TEST_F(LocalMsgTest, AppendReturnArgsMultipleNonArray)
     delete msg;
 }
 
-TEST_F(LocalMsgTest, SetterAndVariantParsingHelpers)
-{
+TEST_F(LocalMsgTest, SetterAndVariantParsingHelpers) {
     sample_msg->set_member("NewMethod");
     EXPECT_EQ(sample_msg->member(), "NewMethod");
 
@@ -412,8 +394,7 @@ TEST_F(LocalMsgTest, SetterAndVariantParsingHelpers)
     EXPECT_EQ(signature_variant.as_string(), "a{ss}");
 }
 
-TEST_F(LocalMsgTest, ConstructFromVariantsParseFallback)
-{
+TEST_F(LocalMsgTest, ConstructFromVariantsParseFallback) {
     variants v;
     v.push_back(static_cast<uint32_t>(DBUS_MESSAGE_TYPE_METHOD_CALL));
     v.push_back("org.test");
@@ -436,20 +417,17 @@ TEST_F(LocalMsgTest, ConstructFromVariantsParseFallback)
     ASSERT_EQ(args[0].as_string(), "not-int");
 }
 
-TEST_F(LocalMsgTest, ScenarioConcurrentPackUnpack)
-{
-    const int num_threads = 10;
-    const int iterations = 100;
-    std::atomic<int> success_count{0};
+TEST_F(LocalMsgTest, ScenarioConcurrentPackUnpack) {
+    const int                num_threads = 10;
+    const int                iterations  = 100;
+    std::atomic<int>         success_count{0};
     std::vector<std::thread> threads;
 
-    for (int i = 0; i < num_threads; ++i)
-    {
-        threads.emplace_back([i, iterations, &success_count]() {
-            for (int j = 0; j < iterations; ++j)
-            {
+    for (int i = 0; i < num_threads; ++i) {
+        threads.emplace_back([i, &success_count]() {
+            for (int j = 0; j < iterations; ++j) {
                 auto msg = new dbus::local_msg("org.test", "/org/test",
-                                            "org.test", "Method");
+                                               "org.test", "Method");
                 msg->set_serial(i * iterations + j);
                 msg->set_sender(":1.100");
 
@@ -458,16 +436,15 @@ TEST_F(LocalMsgTest, ScenarioConcurrentPackUnpack)
                 args.push_back(j);
                 msg->append_args("ii", args);
 
-                auto packed = msg->pack();
-                auto unpacked = dbus::serialize::unpack(packed);
+                auto            packed   = msg->pack();
+                auto            unpacked = dbus::serialize::unpack(packed);
                 dbus::local_msg restored_msg(unpacked);
 
                 auto read_args = restored_msg.read();
                 if (read_args.size() == 2 && read_args[0].as_int32() == i &&
                     read_args[1].as_int32() == j &&
                     restored_msg.get_serial() == i * iterations + j &&
-                    restored_msg.sender() == ":1.100")
-                {
+                    restored_msg.sender() == ":1.100") {
                     success_count.fetch_add(1);
                 }
                 delete msg;
@@ -475,26 +452,22 @@ TEST_F(LocalMsgTest, ScenarioConcurrentPackUnpack)
         });
     }
 
-    for (auto& t : threads)
-    {
+    for (auto& t : threads) {
         t.join();
     }
 
     EXPECT_EQ(success_count.load(), num_threads * iterations);
 }
 
-TEST_F(LocalMsgTest, ScenarioConcurrentConstructFromVariants)
-{
-    const int num_threads = 5;
-    const int iterations = 50;
-    std::atomic<int> success_count{0};
+TEST_F(LocalMsgTest, ScenarioConcurrentConstructFromVariants) {
+    const int                num_threads = 5;
+    const int                iterations  = 50;
+    std::atomic<int>         success_count{0};
     std::vector<std::thread> threads;
 
-    for (int i = 0; i < num_threads; ++i)
-    {
-        threads.emplace_back([i, iterations, &success_count]() {
-            for (int j = 0; j < iterations; ++j)
-            {
+    for (int i = 0; i < num_threads; ++i) {
+        threads.emplace_back([i, &success_count]() {
+            for (int j = 0; j < iterations; ++j) {
                 variants v;
                 v.push_back(
                     static_cast<uint32_t>(DBUS_MESSAGE_TYPE_METHOD_CALL));
@@ -511,44 +484,40 @@ TEST_F(LocalMsgTest, ScenarioConcurrentConstructFromVariants)
                 v.push_back(static_cast<uint32_t>(0));
 
                 dbus::local_msg msg(v);
-                auto packed = msg.pack();
-                auto unpacked = dbus::serialize::unpack(packed);
+                auto            packed   = msg.pack();
+                auto            unpacked = dbus::serialize::unpack(packed);
                 dbus::local_msg restored_msg(unpacked);
 
                 auto args = restored_msg.read();
                 if (args.size() == 2 && args[0].as_int32() == i &&
-                    args[1].as_int32() == j)
-                {
+                    args[1].as_int32() == j) {
                     success_count.fetch_add(1);
                 }
             }
         });
     }
 
-    for (auto& t : threads)
-    {
+    for (auto& t : threads) {
         t.join();
     }
 
     EXPECT_EQ(success_count.load(), num_threads * iterations);
 }
 
-TEST_F(LocalMsgTest, ScenarioLargeMessagePackUnpack)
-{
+TEST_F(LocalMsgTest, ScenarioLargeMessagePackUnpack) {
     auto msg =
         new dbus::local_msg("org.test", "/org/test", "org.test", "Method");
 
     variants large_args;
-    for (int i = 0; i < 1000; ++i)
-    {
+    for (int i = 0; i < 1000; ++i) {
         large_args.push_back(i);
     }
-    msg->append_args("ai", variants{large_args});
+    msg->append("ai", large_args);
 
     auto packed = msg->pack();
     EXPECT_FALSE(packed.empty());
 
-    auto unpacked = dbus::serialize::unpack(packed);
+    auto            unpacked = dbus::serialize::unpack(packed);
     dbus::local_msg restored_msg(unpacked);
 
     auto read_args = restored_msg.read();
@@ -629,16 +598,16 @@ TEST_F(LocalMsgTest, ShmPendingMsgsMultipleDestinations) {
 }
 
 TEST_F(LocalMsgTest, ShmPendingMsgsConcurrentSend) {
-    shm_pending_msgs pending;
-    const int num_threads = 10;
-    const int iterations = 20;
-    std::atomic<int> success_count{0};
+    shm_pending_msgs         pending;
+    const int                num_threads = 10;
+    const int                iterations  = 20;
+    std::atomic<int>         success_count{0};
     std::vector<std::thread> threads;
 
     for (int i = 0; i < num_threads; ++i) {
-        threads.emplace_back([i, iterations, &pending, &success_count]() {
+        threads.emplace_back([i, &pending, &success_count]() {
             for (int j = 0; j < iterations; ++j) {
-                auto p = mc::make_promise<local_msg>();
+                auto     p      = mc::make_promise<local_msg>();
                 uint32_t serial = i * iterations + j + 1;
                 if (pending.send(":1.100", serial, std::move(p))) {
                     success_count.fetch_add(1);

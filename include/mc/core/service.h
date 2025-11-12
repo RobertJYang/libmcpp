@@ -119,25 +119,25 @@ public:
         return true;
     }
 
-    void on_dump(std::map<std::string, std::string> context, std::string filepath) {
+    void on_dump(std::map<std::string, std::string> context, std::string filepath) override {
     }
 
-    void on_detach_debug_console(std::map<std::string, std::string> context) {
+    void on_detach_debug_console(std::map<std::string, std::string> context) override {
     }
 
-    int32_t on_reboot_prepare(std::map<std::string, std::string> context) {
+    int32_t on_reboot_prepare(std::map<std::string, std::string> context) override {
         return 0;
     }
 
-    int32_t on_reboot_process(std::map<std::string, std::string> context) {
+    int32_t on_reboot_process(std::map<std::string, std::string> context) override {
         return 0;
     }
 
-    int32_t on_reboot_action(std::map<std::string, std::string> context) {
+    int32_t on_reboot_action(std::map<std::string, std::string> context) override {
         return 0;
     }
 
-    void on_reboot_cancel(std::map<std::string, std::string> context) {
+    void on_reboot_cancel(std::map<std::string, std::string> context) override {
     }
 
 protected:

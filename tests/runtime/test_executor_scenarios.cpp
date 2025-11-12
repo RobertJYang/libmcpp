@@ -10,12 +10,12 @@
  * See the Mulan PSL v2 for more details.
  */
 
+#include <atomic>
+#include <chrono>
 #include <gtest/gtest.h>
 #include <mc/runtime.h>
 #include <mc/runtime/executor.h>
 #include <test_utilities/test_base.h>
-#include <atomic>
-#include <chrono>
 #include <thread>
 #include <vector>
 
@@ -29,16 +29,16 @@ TEST_F(executor_scenario_test, scenario_concurrent_execution) {
     auto& runtime = mc::get_runtime_context();
     runtime.start();
 
-    auto io_executor = mc::get_io_executor();
+    auto         io_executor = mc::get_io_executor();
     mc::executor exec(io_executor);
 
-    const int num_tasks = 20;
-    std::atomic<int> completed{0};
+    const int          num_tasks = 20;
+    std::atomic<int>   completed{0};
     std::promise<void> all_done;
-    auto future = all_done.get_future();
+    auto               future = all_done.get_future();
 
     for (int i = 0; i < num_tasks; ++i) {
-        exec.post([&completed, &all_done, num_tasks]() {
+        exec.post([&completed, &all_done]() {
             std::this_thread::sleep_for(10ms);
             if (completed.fetch_add(1) + 1 == num_tasks) {
                 all_done.set_value();
@@ -56,17 +56,17 @@ TEST_F(executor_scenario_test, scenario_task_scheduling_priority) {
     auto& runtime = mc::get_runtime_context();
     runtime.start();
 
-    auto io_strand = mc::make_io_strand();
+    auto         io_strand = mc::make_io_strand();
     mc::executor exec(io_strand);
 
-    std::vector<int> execution_order;
-    std::mutex order_mutex;
+    std::vector<int>   execution_order;
+    std::mutex         order_mutex;
     std::promise<void> done;
-    auto future = done.get_future();
+    auto               future = done.get_future();
 
     const int num_tasks = 10;
     for (int i = 0; i < num_tasks; ++i) {
-        exec.post([&execution_order, &order_mutex, &done, i, num_tasks]() {
+        exec.post([&execution_order, &order_mutex, &done, i]() {
             std::lock_guard<std::mutex> lock(order_mutex);
             execution_order.push_back(i);
             if (execution_order.size() == num_tasks) {
@@ -90,12 +90,12 @@ TEST_F(executor_scenario_test, scenario_executor_lifecycle) {
     auto& runtime = mc::get_runtime_context();
     runtime.start();
 
-    std::atomic<bool> task_executed{false};
+    std::atomic<bool>  task_executed{false};
     std::promise<void> done;
-    auto future = done.get_future();
+    auto               future = done.get_future();
 
     {
-        auto io_strand = mc::make_io_strand();
+        auto         io_strand = mc::make_io_strand();
         mc::executor exec(io_strand);
 
         exec.post([&task_executed, &done]() {
@@ -116,21 +116,21 @@ TEST_F(executor_scenario_test, scenario_mixed_executor_usage) {
     auto& runtime = mc::get_runtime_context();
     runtime.start();
 
-    auto io_executor = mc::get_io_executor();
-    auto work_executor = mc::get_work_executor();
+    auto         io_executor   = mc::get_io_executor();
+    auto         work_executor = mc::get_work_executor();
     mc::executor exec_io(io_executor);
     mc::executor exec_work(work_executor);
 
-    std::atomic<int> io_count{0};
-    std::atomic<int> work_count{0};
+    std::atomic<int>   io_count{0};
+    std::atomic<int>   work_count{0};
     std::promise<void> done;
-    auto future = done.get_future();
+    auto               future = done.get_future();
 
-    const int num_io_tasks = 5;
+    const int num_io_tasks   = 5;
     const int num_work_tasks = 5;
 
     for (int i = 0; i < num_io_tasks; ++i) {
-        exec_io.post([&io_count, &work_count, &done, num_io_tasks, num_work_tasks]() {
+        exec_io.post([&io_count, &work_count, &done]() {
             io_count.fetch_add(1);
             if (io_count.load() == num_io_tasks && work_count.load() == num_work_tasks) {
                 done.set_value();
@@ -139,7 +139,7 @@ TEST_F(executor_scenario_test, scenario_mixed_executor_usage) {
     }
 
     for (int i = 0; i < num_work_tasks; ++i) {
-        exec_work.post([&io_count, &work_count, &done, num_io_tasks, num_work_tasks]() {
+        exec_work.post([&io_count, &work_count, &done]() {
             work_count.fetch_add(1);
             if (io_count.load() == num_io_tasks && work_count.load() == num_work_tasks) {
                 done.set_value();
@@ -158,7 +158,7 @@ TEST_F(executor_scenario_test, scenario_executor_sharing) {
     auto& runtime = mc::get_runtime_context();
     runtime.start();
 
-    auto io_strand = mc::make_io_strand();
+    auto         io_strand = mc::make_io_strand();
     mc::executor original(io_strand);
 
     // 创建多个副本
@@ -173,9 +173,9 @@ TEST_F(executor_scenario_test, scenario_executor_sharing) {
     }
 
     // 使用不同副本投递任务
-    std::atomic<int> count{0};
+    std::atomic<int>   count{0};
     std::promise<void> done;
-    auto future = done.get_future();
+    auto               future = done.get_future();
 
     for (auto& copy : copies) {
         copy.post([&count, &done]() {
@@ -195,7 +195,7 @@ TEST_F(executor_scenario_test, scenario_task_cancellation) {
     auto& runtime = mc::get_runtime_context();
     runtime.start();
 
-    auto io_executor = mc::get_io_executor();
+    auto         io_executor = mc::get_io_executor();
     mc::executor exec(io_executor);
 
     std::atomic<bool> task1_done{false};
@@ -217,7 +217,7 @@ TEST_F(executor_scenario_test, scenario_task_cancellation) {
     std::this_thread::sleep_for(50ms);
     EXPECT_TRUE(task1_done.load());
 
-    // 慢速任务可能未完成，但这是正常的
-    // 这里主要验证任务投递和基本执行
+    // 停止 runtime，确保所有任务都已完成
+    runtime.stop();
+    runtime.join();
 }
-
