@@ -13,6 +13,8 @@
 #include <gtest/gtest.h>
 #include <mc/exception.h>
 #include <mc/io/io_stream.h>
+#include <cstring>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -219,6 +221,21 @@ TEST(io_stream_test, buffer_sharing) {
     EXPECT_STREQ(buffer_data, test_str);
 }
 
+// 测试负向 seek_write 时扩展前置空间
+TEST(io_stream_test, seek_write_negative_expands_headroom) {
+    mc::io::io_stream stream(8);
+
+    stream.seek_write(-5, mc::io::seek_mode::current);
+    EXPECT_EQ(stream.get_write_pos(), 0U);
+    EXPECT_GE(stream.length(), 5U);
+
+    // 写入验证前置预留后仍可写入
+    uint8_t value = 0x1A;
+    stream.write_value(value);
+    stream.seek_read(0);
+    EXPECT_EQ(stream.read_value<uint8_t>(), value);
+}
+
 // 测试随机访问
 TEST(io_stream_test, random_access) {
     mc::io::io_stream stream(100);
@@ -244,6 +261,64 @@ TEST(io_stream_test, random_access) {
 
     stream.seek_read(5 * sizeof(uint32_t));
     EXPECT_EQ(stream.read_value<uint32_t>(), 50);
+}
+
+TEST(io_stream_test, read_some_string_view_behavior) {
+    mc::io::io_stream stream(32);
+    stream.write("abcdef");
+
+    stream.seek_read(0);
+    auto part1 = stream.read_some(3);
+    EXPECT_EQ(part1, "abc");
+    EXPECT_EQ(stream.get_read_pos(), 3U);
+
+    auto part2 = stream.read_some(5);
+    EXPECT_EQ(part2, "def");
+    EXPECT_EQ(stream.get_read_pos(), 8U); // 根据实现，位置按照请求长度增加
+}
+
+TEST(io_stream_test, try_read_failure_keeps_position) {
+    mc::io::io_stream stream(16);
+    stream.write("hello");
+
+    stream.seek_read(stream.length());
+    uint8_t buffer[4] = {0};
+    auto     position = stream.get_read_pos();
+    EXPECT_FALSE(stream.try_read(buffer, sizeof(buffer)));
+    EXPECT_EQ(stream.get_read_pos(), position);
+}
+
+TEST(io_stream_test, align_read_throws_on_insufficient_bytes) {
+    mc::io::io_stream stream(16);
+    stream.write("abc");
+
+    stream.seek_read(1);
+    EXPECT_THROW(stream.align_read(4), mc::eof_exception);
+}
+
+TEST(io_stream_test, reserve_adjusts_head_and_tailroom) {
+    mc::io::io_stream stream(4);
+    stream.reserve(8, 12);
+    EXPECT_GE(stream.get_headroom(), 8U);
+    EXPECT_GE(stream.get_tailroom(), 12U);
+    stream.write("test");
+    EXPECT_GE(stream.get_tailroom(), 12U - 4U);
+}
+
+TEST(io_stream_test, get_data_and_align_readAlreadyAligned) {
+    mc::io::io_stream stream(32);
+    stream.write("payload");
+
+    auto data_view = stream.get_data();
+    EXPECT_EQ(data_view.size(), stream.length());
+    EXPECT_EQ(data_view.substr(0, 7), "payload");
+
+    stream.seek_read(4);
+    EXPECT_NO_THROW({
+        auto padding = stream.align_read(2);
+        EXPECT_EQ(padding, 0U);
+        EXPECT_EQ(stream.get_read_pos(), 4U);
+    });
 }
 
 // 测试扩展写入位置超出当前长度
@@ -390,6 +465,23 @@ TEST(io_stream_test, alignment_need_expand) {
     }
 }
 
+// 测试 try_align_read 行为
+TEST(io_stream_test, try_align_read_behavior) {
+    mc::io::io_stream stream(32);
+    std::string       payload = "ABCDEFGHIJ"; // 10 字节
+    stream.write(payload);
+
+    stream.seek_read(1);
+    auto padding = stream.try_align_read(4);
+    ASSERT_TRUE(padding.has_value());
+    EXPECT_EQ(padding.value(), 3U);
+    EXPECT_EQ(stream.get_read_pos(), 4U);
+
+    stream.seek_read(stream.length());
+    auto fail_padding = stream.try_align_read(4);
+    EXPECT_FALSE(fail_padding.has_value());
+}
+
 // 测试头部预留空间功能
 TEST(io_stream_test, front_space_operations) {
     mc::io::io_stream stream(100);
@@ -425,4 +517,145 @@ TEST(io_stream_test, front_space_operations) {
     EXPECT_EQ(stream.read(header.length()), header);
     EXPECT_EQ(stream.read_value<uint32_t>(), version);
     EXPECT_EQ(stream.read(payload.length()), payload);
+}
+
+// 测试 peek 与 get_writeable_data 行为
+TEST(io_stream_test, peek_and_get_writeable_data) {
+    mc::io::io_stream stream(16);
+    stream.write("hello");
+
+    stream.seek_read(0);
+    auto view = stream.peek(3);
+    EXPECT_EQ(view, "hel");
+    EXPECT_EQ(stream.get_read_pos(), 0U);
+
+    auto initial_tail = stream.get_tailroom();
+    auto writable_span = stream.get_writeable_data(initial_tail + 10);
+    EXPECT_GE(stream.get_tailroom(), initial_tail + 10);
+    EXPECT_EQ(writable_span.size(), initial_tail);
+
+    auto mutable_ptr = const_cast<char*>(writable_span.data());
+    std::memcpy(mutable_ptr, "world", 5);
+    stream.write(std::string_view(mutable_ptr, 5));
+
+    stream.seek_read(0);
+    EXPECT_EQ(stream.read(stream.length()), "helloworld");
+}
+
+// 测试不可写流抛出异常
+TEST(io_stream_test, ensure_writable_throws_when_disabled) {
+    auto buffer = mc::io::io_buffer::create(16);
+    mc::io::io_stream stream(buffer->clone(), false);
+
+    EXPECT_THROW(stream.write("x"), mc::eof_exception);
+    EXPECT_THROW(stream.align(4), mc::eof_exception);
+}
+
+TEST(io_stream_test, constructor_and_move_semantics) {
+    mc::io::io_stream original(32);
+    original.write("move-test");
+
+    mc::io::io_stream moved(std::move(original));
+    EXPECT_EQ(moved.length(), 9U);
+    EXPECT_EQ(moved.get_read_pos(), 0U);
+    EXPECT_EQ(moved.get_write_pos(), 9U);
+    EXPECT_EQ(original.length(), 0U);
+    EXPECT_EQ(original.get_read_pos(), 0U);
+    EXPECT_EQ(original.get_write_pos(), 0U);
+
+    mc::io::io_stream assigned;
+    assigned = std::move(moved);
+    EXPECT_EQ(assigned.length(), 9U);
+    EXPECT_EQ(assigned.get_write_pos(), 9U);
+    EXPECT_EQ(moved.length(), 0U);
+    EXPECT_EQ(moved.get_write_pos(), 0U);
+    assigned.seek_read(0);
+    EXPECT_EQ(assigned.read(assigned.length()), "move-test");
+}
+
+TEST(io_stream_test, reset_with_null_buffer_reinitialises_stream) {
+    mc::io::io_stream stream(16);
+    stream.write("data");
+    stream.reset(nullptr, false);
+    EXPECT_EQ(stream.length(), 0U);
+    EXPECT_EQ(stream.get_read_pos(), 0U);
+    EXPECT_EQ(stream.get_write_pos(), 0U);
+    EXPECT_THROW(stream.write("x"), mc::eof_exception);
+
+    // 切换回可写并验证可以重新写入
+    stream.reset(nullptr, true);
+    EXPECT_NO_THROW(stream.write("ok"));
+    EXPECT_EQ(stream.length(), 2U);
+}
+
+TEST(io_stream_test, skip_and_readable_bytes_behavior) {
+    mc::io::io_stream stream(32);
+    stream.write("123456");
+    stream.seek_read(0);
+    EXPECT_EQ(stream.skip(3), 3U);
+    EXPECT_EQ(stream.get_read_pos(), 3U);
+    EXPECT_EQ(stream.skip(100), 3U);
+    EXPECT_EQ(stream.get_read_pos(), stream.length());
+    EXPECT_EQ(stream.skip(1), 0U);
+}
+
+TEST(io_stream_test, try_align_read_already_aligned) {
+    mc::io::io_stream stream(16);
+    stream.write("ABCDEFG");
+    stream.seek_read(0);
+    auto padding = stream.try_align_read(4);
+    ASSERT_TRUE(padding.has_value());
+    EXPECT_EQ(padding.value(), 0U);
+    EXPECT_EQ(stream.get_read_pos(), 0U);
+}
+
+TEST(io_stream_test, peek_empty_returns_empty_view) {
+    mc::io::io_stream stream(8);
+    stream.write("12");
+    stream.seek_read(2);
+    EXPECT_TRUE(stream.peek(4).empty());
+    EXPECT_EQ(stream.get_read_pos(), 2U);
+}
+
+TEST(io_stream_test, get_writeable_data_recycles_positions_when_consumed) {
+    mc::io::io_stream stream(16);
+    stream.write("payload");
+    stream.seek_read(stream.length());
+    auto before_read = stream.get_read_pos();
+    EXPECT_EQ(before_read, stream.get_write_pos());
+
+    auto span = stream.get_writeable_data(4);
+    EXPECT_EQ(stream.get_read_pos(), 0U);
+    EXPECT_EQ(stream.get_write_pos(), 0U);
+    EXPECT_TRUE(span.data() != nullptr);
+    std::memcpy(const_cast<char*>(span.data()), "ping", 4);
+    stream.write("pong");
+    EXPECT_EQ(stream.get_write_pos(), 4U);
+    EXPECT_GE(stream.length(), 4U);
+    stream.seek_read(0);
+    EXPECT_EQ(stream.read(4), "pong");
+    auto remaining = stream.read(stream.length() - stream.get_read_pos());
+    EXPECT_EQ(remaining, "oad");
+}
+
+TEST(io_stream_test, align_requires_reserve_when_in_middle) {
+    mc::io::io_stream stream(8);
+    stream.write("ABCDEFGH");
+    stream.seek_write(1);
+    auto required_padding = 3U;
+    auto padding          = stream.align(4);
+    EXPECT_EQ(padding, required_padding);
+    EXPECT_EQ(stream.get_write_pos(), 4U);
+    stream.write("Z");
+    stream.seek_read(4);
+    EXPECT_EQ(stream.read(1), "Z");
+}
+
+TEST(io_stream_test, try_read_string_view_failure_returns_empty) {
+    mc::io::io_stream stream(8);
+    stream.write("test");
+    stream.seek_read(stream.length());
+    auto view = stream.try_read(2);
+    EXPECT_TRUE(view.empty());
+    EXPECT_EQ(stream.get_read_pos(), stream.length());
 }

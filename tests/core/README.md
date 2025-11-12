@@ -24,10 +24,12 @@ Core 模块包含以下测试文件：
 5. `test_default_supervisor.cpp` - 默认监督器测试
 6. `test_dependency_sorter.cpp` - 依赖排序器测试
 7. `test_plugin_manager.cpp` - 插件管理器测试
-8. `test_service_manager.cpp` - 服务管理器测试
-9. `test_singleton.cpp` - 单例模式测试
-10. `test_thread_safe_object.cpp` - 线程安全对象测试
-11. `test_timer.cpp` - 定时器测试
+8. `test_service.cpp` - 基础服务基类测试
+9. `test_service_factory.cpp` - 服务工厂测试
+10. `test_service_manager.cpp` - 服务管理器测试
+11. `test_singleton.cpp` - 单例模式测试
+12. `test_thread_safe_object.cpp` - 线程安全对象测试
+13. `test_timer.cpp` - 定时器测试
 
 ## 详细测试用例
 
@@ -169,6 +171,18 @@ Core 模块包含以下测试文件：
 - `sort_for_shutdown_simple_chain` - 测试简单链式依赖停止排序
 - `has_circular_dependency` - 测试循环依赖检测
 - `has_no_circular_dependency` - 测试无循环依赖检测
+
+### test_service.cpp
+服务基类测试（3 个用例）：
+- `default_initialization` - 验证默认构造名称、状态、依赖和配置引用
+- `constructor_and_mutators` - 覆盖 `set_name`、`set_state`、`set_dependencies`
+- `default_behavior_methods` - 调用基础实现的生命周期钩子与回调
+
+### test_service_factory.cpp
+服务工厂测试（3 个用例）：
+- `register_and_create_service_success` - 注册成功的服务类型，验证 `create_service`、`has_service` 与 `get_service_types`
+- `register_service_registers_options_when_available` - 覆盖检测 `register_options` 的分支，验证 CLI/配置选项注册
+- `create_service_handles_missing_or_failed_services` - 触发未注册及初始化失败时的空指针返回路径
 
 ### test_plugin_manager.cpp
 插件管理器测试（13 个用例）：
@@ -330,7 +344,7 @@ meson test -C builddir --test-args="--gtest_filter=config_manager_test.parse_com
 
 ## 测试统计
 
-- **测试文件总数**: 11 个
+- **测试文件总数**: 12 个
 - **测试用例总数**: 约 182 个
 - **测试覆盖的功能模块**:
   - Application（应用程序）
@@ -371,7 +385,7 @@ meson test -C builddir --verbose --test-args="--gtest_filter=application_test.*"
 2. **直接运行可执行文件**: 推荐直接运行 `./builddir/tests/libmcpp_test`，这样更简单直接，不需要通过 meson。
 3. **并发测试**: `test_thread_safe_object.cpp` 包含并发安全性测试，需要多线程环境支持。
 4. **配置文件测试**: `test_config_manager.cpp` 需要创建临时配置文件，测试会自动清理。
-5. **服务依赖测试**: `test_service_manager.cpp` 和 `test_dependency_sorter.cpp` 测试服务依赖关系，包括循环依赖检测。
+5. **服务基础能力与依赖测试**: `test_service.cpp` 验证服务基类默认实现，`test_service_factory.cpp` 覆盖服务注册与创建，`test_service_manager.cpp` 与 `test_dependency_sorter.cpp` 覆盖服务依赖与管理逻辑。
 6. **监督器策略测试**: `test_default_supervisor.cpp` 测试多种故障恢复策略。
 7. **单例测试**: `test_singleton.cpp` 使用 `reset_for_test()` 方法在测试之间重置单例状态。
 8. **测试隔离**: `test_application.cpp` 采用条件清理策略，只在测试确实启动了应用时才清理，避免影响其他模块（如 engine 模块、dbus 模块）的测试。这确保了测试之间的独立性。

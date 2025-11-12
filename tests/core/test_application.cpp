@@ -163,12 +163,8 @@ TEST_F(application_test, initialize_success) {
 // 注意：这个测试可能难以模拟，因为我们需要 mock supervisor_manager
 // 但至少测试基本流程
 TEST_F(application_test, initialize_basic) {
-    bool result = app->initialize();
-    // initialize() 在正常情况下应该成功
-    // 即使 supervisor_manager->init() 失败，如果 plugin_manager->init_plugins 不失败，仍返回 true
-    // 如果 supervisor_manager->init() 失败，应该返回 false
-    // 这里主要验证函数能被调用
-    (void)result;
+    EXPECT_TRUE(app->initialize());
+    EXPECT_NE(nullptr, &app->get_service_manager());
 }
 
 // 测试 application::initialize(int argc, char** argv) - 成功路径
@@ -193,12 +189,8 @@ TEST_F(application_test, initialize_with_args_success) {
     char* argv[] = {arg0, arg1, arg2, nullptr};
     int   argc   = 3;
     
-    // 注意：即使插件目录不存在或插件加载失败，initialize 仍可能成功
-    // 因为代码逻辑允许这种情况，这里主要验证函数调用流程
-    bool result = app->initialize(argc, argv);
-    // 根据实际行为调整期望：如果插件加载失败但其他步骤成功，initialize 可能返回 false
-    // 但至少验证了函数能正常执行
-    (void)result;
+    EXPECT_TRUE(app->initialize(argc, argv));
+    EXPECT_EQ(app->get_config_manager().get_plugin_dir(), std::string("/tmp"));
 }
 
 // 测试 application::initialize(int argc, char** argv) - parse_command_line 失败
@@ -209,9 +201,7 @@ TEST_F(application_test, initialize_parse_command_line_fails) {
     char* argv[] = {arg0, nullptr};
     int   argc   = 1;
     
-    bool result = app->initialize(argc, argv);
-    // parse_command_line 通常不会失败，除非有异常
-    (void)result;
+    EXPECT_FALSE(app->initialize(argc, argv));
 }
 
 // 测试 application::initialize(int argc, char** argv) - load_config_file 失败（config_loaded = false）
@@ -223,11 +213,7 @@ TEST_F(application_test, initialize_load_config_fails) {
     char* argv[] = {arg0, arg1, arg2, nullptr};
     int   argc   = 3;
     
-    // load_config_file 失败时，config_loaded = false，但不应导致 initialize 失败
-    // 因为代码中有: if (!config_loaded) { wlog(...); } 然后继续
-    bool result = app->initialize(argc, argv);
-    // initialize 应该继续执行，可能成功也可能失败，取决于后续步骤
-    (void)result;
+    EXPECT_FALSE(app->initialize(argc, argv));
 }
 
 // 测试 application::start() - 基本测试
@@ -322,11 +308,7 @@ TEST_F(application_test, initialize_both_versions) {
     char* argv[] = {arg0, nullptr};
     int   argc   = 1;
     
-    // 注意：无配置文件时，插件加载可能失败，导致 initialize 返回 false
-    // 这里主要验证两种 initialize 方法都能正常调用
-    bool result = app->initialize(argc, argv);
-    // 根据实际行为，initialize 可能在插件加载失败时返回 false
-    // 但至少验证了函数能正常执行
-    (void)result;
+    // 无配置文件，plugin_dir 为空，初始化会失败
+    EXPECT_FALSE(app->initialize(argc, argv));
 }
 

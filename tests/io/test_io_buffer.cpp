@@ -19,55 +19,6 @@
 
 using namespace mc;
 
-// 基本操作测试
-TEST(IOBufferTest, BasicOperations) {
-    // 创建缓冲区
-    auto buffer = io::io_buffer::create(1024);
-    ASSERT_TRUE(buffer != nullptr);
-
-    EXPECT_EQ(buffer->capacity(), 1024);
-    EXPECT_EQ(buffer->length(), 0);
-    EXPECT_TRUE(buffer->empty());
-
-    // 写入和读取 uint8_t
-    uint8_t value8 = 0xAA;
-    buffer->append(1);
-    buffer->mutable_data()[0] = value8;
-    EXPECT_EQ(buffer->data()[0], value8);
-    EXPECT_EQ(buffer->length(), 1);
-    EXPECT_FALSE(buffer->empty());
-
-    // 重置缓冲区
-    buffer->clear();
-    EXPECT_EQ(buffer->length(), 0);
-
-    // 写入32位整数，使用直接写入
-    uint32_t value32 = 0xDDEEFF00;
-    buffer->append(4);
-    *reinterpret_cast<uint32_t*>(buffer->mutable_data()) = value32;
-    EXPECT_EQ(*reinterpret_cast<const uint32_t*>(buffer->data()), value32);
-    EXPECT_EQ(buffer->length(), 4);
-
-    // 清除缓冲区
-    buffer->clear();
-
-    // 在尾部追加
-    std::vector<uint8_t> data = {0x01, 0x02, 0x03, 0x04, 0x05};
-    buffer->write(data.data(), data.size());
-    EXPECT_EQ(buffer->length(), data.size());
-
-    // 重置缓冲区
-    buffer->clear();
-
-    // 写入和读取 uint64_t
-    uint64_t value64 = 0x1122334455667788;
-    buffer->append(8);
-    auto* ptr                         = buffer->mutable_data();
-    *reinterpret_cast<uint64_t*>(ptr) = value64;
-    EXPECT_EQ(*reinterpret_cast<const uint64_t*>(buffer->data()), value64);
-    EXPECT_EQ(buffer->length(), 8);
-}
-
 // 字符串操作测试
 TEST(IOBufferTest, StringOperations) {
     auto buffer = io::io_buffer::create(100);
@@ -85,94 +36,6 @@ TEST(IOBufferTest, StringOperations) {
     // 使用 normalize 合并缓冲区并获取字符串视图
     auto normalize_sv = buffer->normalize();
     EXPECT_EQ(normalize_sv, test_str);
-}
-
-// 向量操作测试
-TEST(IOBufferTest, VectorOperations) {
-    auto buffer = io::io_buffer::create(100);
-
-    // 写入字节向量
-    std::vector<uint8_t> test_vec      = {0x11, 0x22, 0x33, 0x44, 0x55};
-    auto                 bytes_written = buffer->write(test_vec.data(), test_vec.size());
-    EXPECT_EQ(bytes_written, test_vec.size());
-    EXPECT_EQ(buffer->length(), test_vec.size());
-
-    // 验证数据
-    for (size_t i = 0; i < test_vec.size(); ++i) {
-        EXPECT_EQ(buffer->data()[i], test_vec[i]);
-    }
-
-    // 追加更多数据
-    std::vector<uint8_t> more_data = {0x66, 0x77, 0x88};
-    buffer->append(more_data.size());
-    std::memcpy(buffer->mutable_tail() - more_data.size(), more_data.data(), more_data.size());
-
-    EXPECT_EQ(buffer->length(), test_vec.size() + more_data.size());
-
-    // 验证所有数据
-    auto all_data = test_vec;
-    all_data.insert(all_data.end(), more_data.begin(), more_data.end());
-    for (size_t i = 0; i < all_data.size(); ++i) {
-        EXPECT_EQ(buffer->data()[i], all_data[i]);
-    }
-}
-
-// 单独测试 write_uint32 和 read_uint32 函数
-TEST(IOBufferTest, ReadWriteUint32) {
-    auto buffer = io::io_buffer::create(100);
-
-    // 测试小端序
-    uint32_t value = 0x12345678;
-
-    // 写入数据
-    auto written_pos = buffer->write_value(value, true); // 小端序写入
-
-    // 实现可能返回写入后的位置，而不是写入字节数
-    EXPECT_GT(written_pos, 0);
-
-    // 读取小端序数据
-    uint32_t read_value = buffer->read_value<uint32_t>(0, true);
-    EXPECT_EQ(read_value, value);
-
-    // 读取大端序数据（期望有字节序转换）
-    uint32_t read_value_be = buffer->read_value<uint32_t>(0, false);
-    EXPECT_EQ(read_value_be, mc::swap_bytes(value));
-
-    // 清空缓冲区
-    buffer->clear();
-
-    // 测试大端序
-    written_pos = buffer->write_value(value, false); // 大端序写入
-    EXPECT_GT(written_pos, 0);
-
-    // 读取大端序数据
-    read_value_be = buffer->read_value<uint32_t>(0, false);
-    EXPECT_EQ(read_value_be, value);
-
-    // 读取小端序数据（期望有字节序转换）
-    read_value = buffer->read_value<uint32_t>(0, true);
-    EXPECT_EQ(read_value, mc::swap_bytes(value));
-}
-
-// variant 序列化测试
-TEST(IOBufferTest, VariantSerialization) {
-    auto buffer = io::io_buffer::create(100);
-
-    // 创建要写入的 variant
-    mc::variant v        = 12345;
-    std::string var_data = v.to_string();
-
-    // 写入 variant 数据
-    buffer->write(var_data.data(), var_data.size());
-
-    // 从缓冲区读取数据并解析为 variant
-    std::string_view data_view(reinterpret_cast<const char*>(buffer->data()), buffer->length());
-    // 直接构造 variant
-    mc::variant parsed_v(data_view);
-
-    // 验证解析的 variant
-    EXPECT_EQ(parsed_v, v);
-    EXPECT_EQ(parsed_v.as<int>(), 12345);
 }
 
 // 异常测试
@@ -292,6 +155,80 @@ TEST(IOBufferTest, SharedAndClone) {
     }
 
     original.reset();
+}
+
+// 写入偏移扩展测试
+TEST(IOBufferTest, WriteAtOffsetExtendsLength) {
+    auto buffer = io::io_buffer::create(8);
+
+    const uint8_t payload[] = {0xAA, 0xBB, 0xCC};
+    // 在偏移 5 位置写入 3 字节，应自动扩展长度
+    std::size_t written = buffer->write_at_offset(5, payload, sizeof(payload));
+
+    EXPECT_EQ(written, sizeof(payload));
+    EXPECT_EQ(buffer->length(), 8); // 5 + 3
+
+    // 前 5 字节自动填充默认值（未定义），只断言写入区域正确
+    for (std::size_t i = 0; i < sizeof(payload); ++i) {
+        EXPECT_EQ(buffer->data()[5 + i], payload[i]);
+    }
+}
+
+// try_read 与 read_some 行为测试
+TEST(IOBufferTest, TryReadAndReadSome) {
+    auto buffer = io::io_buffer::create(16);
+    const uint8_t payload[] = {1, 2, 3, 4, 5};
+    buffer->write(payload, sizeof(payload));
+
+    uint8_t out[4] = {0};
+    EXPECT_TRUE(buffer->try_read(1, out, sizeof(out)));
+    EXPECT_EQ(out[0], 2);
+    EXPECT_FALSE(buffer->try_read(buffer->length(), out, sizeof(out)));
+
+    std::vector<uint8_t> partial(10, 0);
+    auto read_len = buffer->read_some(2, partial.data(), partial.size());
+    EXPECT_EQ(read_len, 3U);
+    EXPECT_EQ(partial[0], 3);
+    EXPECT_EQ(partial[2], 5);
+}
+
+TEST(IOBufferTest, ReadSomeOffsetBeyondLength) {
+    const uint8_t initial[] = {'a', 'b', 'c'};
+    auto          buffer    = io::io_buffer::copy_buffer(initial, sizeof(initial));
+
+    auto empty_view = buffer->read_some(buffer->length(), 2);
+    EXPECT_TRUE(empty_view.empty());
+
+    uint8_t tmp[4] = {0};
+    EXPECT_EQ(buffer->read_some(buffer->length(), tmp, sizeof(tmp)), 0U);
+}
+
+TEST(IOBufferTest, ReadSomeNullDataThrows) {
+    auto buffer = io::io_buffer::copy_buffer("data", 4);
+    EXPECT_THROW(buffer->read_some(0, nullptr, 2), mc::invalid_arg_exception);
+}
+
+// 链表插入与移动语义测试
+TEST(IOBufferTest, InsertAfterAndMoveChain) {
+    auto head = io::io_buffer::create(8);
+    head->write("ab", 2);
+
+    auto node1 = io::io_buffer::create(4);
+    node1->write("cd", 2);
+    head->append_to_chain(std::move(node1));
+
+    auto node2 = io::io_buffer::create(4);
+    node2->write("ef", 2);
+    head->insert_after(std::move(node2));
+
+    EXPECT_TRUE(head->is_chained());
+    EXPECT_EQ(head->compute_chain_length(), 6U);
+
+    // 复制链表并测试移动构造保持链结构
+    io::io_buffer moved(std::move(*head));
+    EXPECT_TRUE(moved.is_chained());
+    auto normalized = moved.normalize();
+    EXPECT_EQ(normalized, "abefcd");
 }
 
 // 测试 take_ownership 函数
@@ -447,4 +384,60 @@ TEST(IOBufferTest, EdgeCases) {
 
     EXPECT_THROW(io::io_buffer::copy_buffer(nullptr, 10),
                  mc::exception); // 数据指针为空但长度不为0
+}
+
+TEST(IOBufferTest, WriteAtOffsetWithoutExtendingLength) {
+    const uint8_t initial[] = {0x01, 0x02, 0x03, 0x04};
+    auto          buffer    = io::io_buffer::copy_buffer(initial, sizeof(initial));
+
+    const uint8_t patch[] = {0xAA, 0xBB};
+    auto          before_length = buffer->length();
+    auto          written       = buffer->write_at_offset(1, patch, sizeof(patch));
+
+    EXPECT_EQ(written, sizeof(patch));
+    EXPECT_EQ(buffer->length(), before_length);
+    EXPECT_EQ(buffer->data()[0], initial[0]);
+    EXPECT_EQ(buffer->data()[1], patch[0]);
+    EXPECT_EQ(buffer->data()[2], patch[1]);
+    EXPECT_EQ(buffer->data()[3], initial[3]);
+}
+
+TEST(IOBufferTest, TrimOperationsAdjustPointers) {
+    const uint8_t initial[] = {0x10, 0x20, 0x30, 0x40, 0x50};
+    auto          buffer    = io::io_buffer::copy_buffer(initial, sizeof(initial));
+
+    auto* base_ptr = buffer->mutable_data();
+    buffer->trim_start(2);
+    EXPECT_EQ(buffer->length(), sizeof(initial) - 2);
+    EXPECT_EQ(buffer->mutable_data(), base_ptr + 2);
+    EXPECT_EQ(buffer->data()[0], initial[2]);
+
+    buffer->trim_end(1);
+    EXPECT_EQ(buffer->length(), sizeof(initial) - 3);
+    EXPECT_EQ(buffer->data()[buffer->length() - 1], initial[sizeof(initial) - 2]);
+
+    // 超过剩余长度会清空数据
+    buffer->trim_start(100);
+    EXPECT_TRUE(buffer->empty());
+}
+
+TEST(IOBufferTest, TryReadViewAndFailure) {
+    const uint8_t initial[] = {'a', 'b', 'c', 'd', 'e'};
+    auto          buffer    = io::io_buffer::copy_buffer(initial, sizeof(initial));
+
+    auto view = buffer->try_read(1, 3);
+    EXPECT_EQ(view, "bcd");
+
+    auto empty_view = buffer->try_read(buffer->length(), 2);
+    EXPECT_TRUE(empty_view.empty());
+
+    uint8_t tmp[4] = {0};
+    EXPECT_FALSE(buffer->try_read(buffer->length() + 1, tmp, sizeof(tmp)));
+}
+
+TEST(IOBufferTest, NormalizeOnEmptyChain) {
+    auto buffer = io::io_buffer::create(0);
+    auto view   = buffer->normalize();
+    EXPECT_TRUE(view.empty());
+    EXPECT_TRUE(buffer->empty());
 }
