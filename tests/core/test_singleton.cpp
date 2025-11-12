@@ -151,7 +151,7 @@ TEST_F(singleton_test, TaggedSingletonIsolation) {
 }
 
 TEST_F(singleton_test, CustomCreatorScenarios) {
-    int init_value = 0;
+    int  init_value      = 0;
     auto complex_creator = [&]() {
         auto* inst = new test_class(++init_value * 10);
         inst->set_value(inst->get_value() * 2);
@@ -213,15 +213,15 @@ TEST_F(singleton_test, LeakySingleton) {
 
 // 复杂场景：并发环境下的单例创建和访问
 TEST_F(singleton_test, ComplexConcurrentSingletonAccess) {
-    const int num_threads = 10;
+    const int num_threads           = 10;
     const int operations_per_thread = 100;
 
     std::vector<std::thread> threads;
-    std::atomic<int> total_increments{0};
+    std::atomic<int>         total_increments{0};
 
     // 多个线程同时创建和访问单例
     for (int i = 0; i < num_threads; ++i) {
-        threads.emplace_back([&total_increments, operations_per_thread]() {
+        threads.emplace_back([&total_increments]() {
             // 所有线程共享同一个单例实例
             auto& instance = singleton<test_class>::instance(0);
             for (int j = 0; j < operations_per_thread; ++j) {
