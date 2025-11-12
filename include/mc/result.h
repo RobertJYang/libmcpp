@@ -79,7 +79,7 @@ struct result_traits<
 
     static constexpr bool is_future = mc::futures::detail::is_future_v<call_result_type>;
     using return_type               = typename future_value_type<call_result_type>::type;
-    using future_type               = mc::future<return_type, mc::immediate_executor>;
+    using future_type               = mc::future<return_type, mc::any_executor>;
 };
 
 } // namespace detail
@@ -440,7 +440,7 @@ public:
 private:
     template <typename ResultType, bool IsFuture, typename F, typename FutureType>
     static auto then_impl(F&& func, FutureType&& v) {
-        auto promise = mc::make_promise<ResultType>(mc::immediate_executor());
+        auto promise = mc::make_promise<ResultType>(mc::any_executor());
         auto future  = promise.get_future();
 
         v.then([f = std::forward<F>(func), promise](auto&& val) mutable {
@@ -482,7 +482,7 @@ private:
 
     template <typename ResultType, bool IsFuture, typename F, typename FutureType>
     static auto catch_error_impl(F&& func, FutureType&& v) {
-        auto promise = mc::make_promise<ResultType>(mc::immediate_executor());
+        auto promise = mc::make_promise<ResultType>(mc::any_executor());
         auto future  = promise.get_future();
 
         v.catch_error([f = std::forward<F>(func), promise](auto&& vv) mutable {

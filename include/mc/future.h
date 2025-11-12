@@ -456,9 +456,9 @@ using promise = mc::futures::Promise<T, Executor, Allocator>;
 namespace futures {
 
 // 创建已完成的 future
-template <typename T, typename Executor = runtime::immediate_executor,
+template <typename T, typename Executor = runtime::any_executor,
           typename Allocator = std::allocator<void>>
-auto resolve(T&& value, Executor executor = runtime::immediate_executor(),
+auto resolve(T&& value, Executor executor = runtime::any_executor(),
              Allocator alloc = Allocator())
     -> std::enable_if_t<detail::is_executor_v<Executor>,
                         mc::futures::Future<mc::traits::remove_cvref_t<T>, Executor, Allocator>> {
@@ -478,9 +478,9 @@ auto resolve(T&& value, Execution& execution,
 }
 
 // 创建已完成的 future (void 版本)
-template <typename Executor  = runtime::immediate_executor,
+template <typename Executor  = runtime::any_executor,
           typename Allocator = std::allocator<void>>
-auto resolve(Executor  executor = runtime::immediate_executor(),
+auto resolve(Executor  executor = runtime::any_executor(),
              Allocator alloc    = Allocator())
     -> std::enable_if_t<detail::is_executor_v<Executor>,
                         mc::futures::Future<void, Executor, Allocator>> {
@@ -500,10 +500,10 @@ auto resolve(Execution& execution,
 }
 
 // 创建已失败的 future
-template <typename T, typename Executor = runtime::immediate_executor,
+template <typename T, typename Executor = runtime::any_executor,
           typename Allocator = std::allocator<void>>
 auto reject(std::exception_ptr eptr,
-            Executor           executor = runtime::immediate_executor(),
+            Executor           executor = runtime::any_executor(),
             Allocator          alloc    = Allocator())
     -> std::enable_if_t<detail::is_executor_v<Executor>,
                         mc::futures::Future<T, Executor, Allocator>> {
@@ -533,9 +533,9 @@ auto reject(Exception&& ex, Execution& execution,
 }
 
 template <typename T, typename Exception,
-          typename Executor  = mc::immediate_executor,
+          typename Executor  = mc::any_executor,
           typename Allocator = std::allocator<void>>
-auto reject(Exception&& ex, Executor executor = mc::immediate_executor(),
+auto reject(Exception&& ex, Executor executor = mc::any_executor(),
             Allocator alloc = Allocator())
     -> std::enable_if_t<detail::is_executor_v<Executor>,
                         mc::futures::Future<T, Executor, Allocator>> {

@@ -49,8 +49,9 @@ TEST_F(AnyExecutorTest, BasicConstruction) {
 TEST_F(AnyExecutorTest, DefaultConstruction) {
     mc::any_executor default_executor;
 
-    // 默认构造的执行器应该是无效的
-    EXPECT_FALSE(default_executor.valid());
+    // 默认构造的执行器是 immediate_executor
+    EXPECT_TRUE(default_executor.valid());
+    EXPECT_TRUE(std::holds_alternative<mc::immediate_executor>(default_executor.get_executor()));
 }
 
 // 测试 any_executor 的拷贝语义
@@ -276,34 +277,35 @@ TEST_F(AnyExecutorTest, InequalityOperator) {
     EXPECT_FALSE(any_io != any_io);
 }
 
-// 测试 any_executor 的 on_work_started 和 on_work_finished - monostate 分支
-TEST_F(AnyExecutorTest, WorkLifecycleWithMonostate) {
-    // 默认构造的 any_executor 是 monostate
-    mc::any_executor invalid_exec;
+// 测试 any_executor 的 on_work_started 和 on_work_finished - immediate_executor 分支
+TEST_F(AnyExecutorTest, WorkLifecycleWithImmediateExecutor) {
+    // 默认构造的 any_executor 是 immediate_executor
+    mc::any_executor immediate_exec;
 
-    // 对 monostate 调用应该不抛出异常（因为使用了 if constexpr）
-    EXPECT_NO_THROW(invalid_exec.on_work_started());
-    EXPECT_NO_THROW(invalid_exec.on_work_finished());
+    // 对 immediate_executor 调用应该不抛出异常
+    EXPECT_NO_THROW(immediate_exec.on_work_started());
+    EXPECT_NO_THROW(immediate_exec.on_work_finished());
 }
 
-// 测试 any_executor 的 context() - monostate 异常分支
-TEST_F(AnyExecutorTest, ContextWithMonostateThrows) {
-    // 默认构造的 any_executor 是 monostate
-    mc::any_executor invalid_exec;
+// 测试 any_executor 的 context() - immediate_executor 异常分支
+TEST_F(AnyExecutorTest, ContextWithImmediateExecutor) {
+    // 默认构造的 any_executor 是 immediate_executor
+    mc::any_executor immediate_exec;
 
-    // 对 monostate 调用 context() 应该抛出异常
-    EXPECT_THROW(invalid_exec.context(), mc::invalid_op_exception);
+    EXPECT_NO_THROW(immediate_exec.context());
 }
 
-// 测试 any_executor 的 post/defer/dispatch - monostate 异常分支
-TEST_F(AnyExecutorTest, OperationsWithMonostateThrows) {
-    // 默认构造的 any_executor 是 monostate
-    mc::any_executor invalid_exec;
+// 测试 any_executor 的 post/defer/dispatch - immediate_executor 异常分支
+TEST_F(AnyExecutorTest, OperationsWithImmediateExecutor) {
+    // 默认构造的 any_executor 是 immediate_executor
+    mc::any_executor immediate_exec;
 
-    // 对 monostate 调用这些操作应该抛出异常
-    EXPECT_THROW(invalid_exec.post([]() {}), mc::invalid_op_exception);
-    EXPECT_THROW(invalid_exec.defer([]() {}), mc::invalid_op_exception);
-    EXPECT_THROW(invalid_exec.dispatch([]() {}), mc::invalid_op_exception);
+    EXPECT_NO_THROW(immediate_exec.post([]() {
+    }));
+    EXPECT_NO_THROW(immediate_exec.defer([]() {
+    }));
+    EXPECT_NO_THROW(immediate_exec.dispatch([]() {
+    }));
 }
 
 // 测试 any_executor 从 system_context::executor_type 构造
@@ -320,7 +322,7 @@ TEST_F(AnyExecutorTest, ConstructionFromSystemExecutor) {
 TEST_F(AnyExecutorTest, ConstructionFromRuntimeExecutor) {
     auto& runtime = mc::get_runtime_context();
 
-    auto                    io_strand   = mc::make_io_strand();
+    auto                  io_strand = mc::make_io_strand();
     mc::runtime::executor runtime_exec(io_strand);
 
     mc::any_executor any_exec(runtime_exec);
@@ -343,13 +345,13 @@ TEST_F(AnyExecutorTest, EqualitySameTypeDifferentValue) {
     EXPECT_NE(any1, any2);
 }
 
-// 测试 any_executor::operator== 中 monostate 的比较（已测试过，但确保覆盖）
-TEST_F(AnyExecutorTest, EqualityMonostateBoth) {
-    mc::any_executor invalid1;
-    mc::any_executor invalid2;
+// 测试 any_executor::operator== 中 immediate_executor 的比较（已测试过，但确保覆盖）
+TEST_F(AnyExecutorTest, EqualityImmediateExecutorBoth) {
+    mc::any_executor immediate1;
+    mc::any_executor immediate2;
 
-    // 两个 monostate 应该相等
-    EXPECT_EQ(invalid1, invalid2);
+    // 两个 immediate_executor 应该相等
+    EXPECT_EQ(immediate1, immediate2);
 }
 
 // 测试 any_executor::operator== 中相同类型相同执行器的比较
@@ -368,7 +370,7 @@ TEST_F(AnyExecutorTest, EqualitySameExecutor) {
 // 测试 any_executor valid() 中 boost::asio 执行器分支
 TEST_F(AnyExecutorTest, ValidBoostAsioExecutor) {
     boost::asio::io_context ctx;
-    auto                     exec = ctx.get_executor();
+    auto                    exec = ctx.get_executor();
 
     mc::any_executor any_exec(exec);
 
@@ -405,7 +407,7 @@ TEST_F(AnyExecutorTest, ValidRuntimeExecutorReturnsTrue) {
     auto& runtime = mc::get_runtime_context();
     runtime.start();
 
-    auto                    io_strand   = mc::make_io_strand();
+    auto                  io_strand = mc::make_io_strand();
     mc::runtime::executor valid_exec(io_strand);
 
     mc::any_executor any_exec(valid_exec);

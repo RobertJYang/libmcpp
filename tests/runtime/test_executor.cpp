@@ -377,7 +377,7 @@ TEST_F(ExecutorTest, EqualitySameImplPointer) {
     auto& runtime = mc::get_runtime_context();
     runtime.start();
 
-    auto strand = mc::make_io_strand();
+    auto         strand = mc::make_io_strand();
     mc::executor exec1(strand);
     mc::executor exec2(strand);
 
@@ -407,8 +407,8 @@ TEST_F(ExecutorTest, InequalityOperator) {
     auto& runtime = mc::get_runtime_context();
     runtime.start();
 
-    auto strand1  = mc::make_io_strand();
-    auto strand2  = mc::make_io_strand();
+    auto         strand1 = mc::make_io_strand();
+    auto         strand2 = mc::make_io_strand();
     mc::executor exec1(strand1);
     mc::executor exec2(strand2);
     mc::executor invalid;
@@ -446,7 +446,7 @@ TEST_F(ExecutorTest, DestructorWithMultipleReferences) {
 
     // 创建多个引用
     {
-        mc::executor original(mc::make_io_strand());
+        mc::executor              original(mc::make_io_strand());
         std::vector<mc::executor> copies;
         for (int i = 0; i < 10; ++i) {
             copies.push_back(original);
@@ -486,7 +486,7 @@ TEST_F(ExecutorTest, CopyAssignmentReleaseReturnsFalse) {
     auto& runtime = mc::get_runtime_context();
     runtime.start();
 
-    auto strand = mc::make_io_strand();
+    auto         strand = mc::make_io_strand();
     mc::executor exec1(strand);
     mc::executor exec2(strand);
 
@@ -503,8 +503,8 @@ TEST_F(ExecutorTest, EqualityEqualReturnsFalse) {
     auto& runtime = mc::get_runtime_context();
     runtime.start();
 
-    auto strand1  = mc::make_io_strand();
-    auto strand2  = mc::make_io_strand();
+    auto         strand1 = mc::make_io_strand();
+    auto         strand2 = mc::make_io_strand();
     mc::executor exec1(strand1);
     mc::executor exec2(strand2);
 
@@ -526,17 +526,17 @@ TEST_F(ExecutorTest, WrapDifferentExecutorTypes) {
     runtime.start();
 
     // 包装 IO strand
-    auto io_strand = mc::make_io_strand();
+    auto         io_strand = mc::make_io_strand();
     mc::executor exec_io(io_strand);
     EXPECT_TRUE(exec_io.valid());
 
     // 包装 work strand
-    auto work_strand = mc::make_work_strand();
+    auto         work_strand = mc::make_work_strand();
     mc::executor exec_work(work_strand);
     EXPECT_TRUE(exec_work.valid());
 
     // 包装普通执行器
-    auto io_executor = mc::get_io_executor();
+    auto         io_executor = mc::get_io_executor();
     mc::executor exec_io_plain(io_executor);
     EXPECT_TRUE(exec_io_plain.valid());
 }
