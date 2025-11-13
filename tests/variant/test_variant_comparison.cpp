@@ -25,6 +25,7 @@
 #include <mc/exception.h>
 #include <mc/variant.h>
 #include <stdexcept>
+#include <string_view>
 #include <test_utilities/test_base.h>
 
 namespace mc {
@@ -175,6 +176,123 @@ TEST_F(VariantComparisonTest, VariantToOtherTypesComparison) {
     blob b2{{1, 2, 4}};
     ASSERT_NE(v3, b2);
     ASSERT_NE(b2, v3);
+}
+
+/**
+ * @brief 测试 double 与 NaN 的综合比较场景
+ */
+TEST_F(VariantComparisonTest, VariantLessEqualWithOtherDoubleNaN) {
+    variant int_value(42);
+    variant nan_value(std::numeric_limits<double>::quiet_NaN());
+
+    // other 为 double NaN，覆盖 other.is_double() 分支
+    EXPECT_FALSE(int_value <= nan_value);
+    EXPECT_FALSE(int_value >= nan_value);
+
+    // 自身为 double NaN，覆盖 is_double() 分支
+    EXPECT_FALSE(nan_value <= int_value);
+    EXPECT_FALSE(nan_value >= int_value);
+}
+
+/**
+ * @brief 测试跨类型数值比较与字符串转换
+ */
+TEST_F(VariantComparisonTest, VariantNumericCrossTypeConversionEquality) {
+    variant double_value(12.0);
+    variant int_value(12);
+    variant bool_true(true);
+    variant bool_false(false);
+
+    // 整数与浮点互等
+    EXPECT_TRUE(double_value == int_value);
+    EXPECT_TRUE(int_value == double_value);
+    EXPECT_FALSE(variant(12.5) == int_value);
+
+    // 浮点数与字符串比较，触发 try_as<double>()
+    variant double_string("12");
+    EXPECT_TRUE(double_value == double_string);
+    EXPECT_TRUE(double_string == double_value);
+
+    // 布尔值与数字、字符串比较
+    EXPECT_TRUE(bool_true == variant(1));
+    EXPECT_TRUE(bool_false == variant(0));
+    EXPECT_TRUE(bool_true == variant("true"));
+    EXPECT_TRUE(bool_false == variant("false"));
+}
+
+/**
+ * @brief 测试无符号整数 variant 的排序关系
+ */
+TEST_F(VariantComparisonTest, UnsignedVariantOrdering) {
+    variant lhs(uint64_t(1));
+    variant rhs(uint64_t(3));
+
+    EXPECT_TRUE(lhs < rhs);
+    EXPECT_FALSE(rhs < lhs);
+    EXPECT_TRUE(lhs <= rhs);
+    EXPECT_TRUE(rhs >= lhs);
+}
+
+/**
+ * @brief 测试字符串与 double 之间的比较转换逻辑
+ */
+TEST_F(VariantComparisonTest, StringNumericComparisonsWithDouble) {
+    variant string_value("12.5");
+    variant double_value(12.5);
+    variant bigger_double(13.0);
+
+    EXPECT_TRUE(string_value == double_value);
+    EXPECT_TRUE(string_value < bigger_double);
+    EXPECT_TRUE(bigger_double > string_value);
+}
+
+/**
+ * @brief 测试字符串与布尔值的跨类型比较
+ */
+TEST_F(VariantComparisonTest, StringToBoolComparison) {
+    variant string_true("true");
+    variant string_false("false");
+    variant bool_true(true);
+    variant bool_false(false);
+
+    EXPECT_TRUE(string_true == bool_true);
+    EXPECT_TRUE(string_false == bool_false);
+    EXPECT_TRUE(string_false < bool_true);
+}
+
+/**
+ * @brief 测试 string_view 与数值/布尔/blob 的比较
+ */
+TEST_F(VariantComparisonTest, VariantStringViewNumericComparisons) {
+    using namespace std::string_view_literals;
+
+    variant double_value(1.25);
+    variant bool_value(false);
+
+    EXPECT_TRUE(double_value < "2.50"sv);
+    EXPECT_TRUE(double_value > "1.00"sv);
+
+    EXPECT_TRUE(bool_value < "true"sv);
+    EXPECT_FALSE(bool_value == "true"sv);
+
+    mc::blob blob_data;
+    blob_data.data = {'b', 'c'};
+    variant blob_value(blob_data);
+    EXPECT_TRUE(blob_value < "zz"sv);
+    EXPECT_TRUE(blob_value > "aa"sv);
+}
+
+/**
+ * @brief 测试字符串与 blob 的大小比较
+ */
+TEST_F(VariantComparisonTest, VariantStringBlobCrossLessComparison) {
+    mc::blob blob_data;
+    blob_data.data = {'x', 'y'};
+    variant string_value("ab");
+    variant blob_value(blob_data);
+
+    EXPECT_TRUE(string_value < blob_value);
+    EXPECT_TRUE(blob_value > string_value);
 }
 
 /**
@@ -916,6 +1034,48 @@ TEST_F(VariantComparisonTest, BlobFriendComparisonOperators) {
     EXPECT_THROW({ bool result = b1 >= v_int; }, mc::invalid_op_exception);
     EXPECT_FALSE(b1 == v_int);
     EXPECT_TRUE(b1 != v_int);
+}
+
+TEST_F(VariantComparisonTest, NumericStringAndBlobConversions) {
+    variant v_number(123);
+    variant v_string("123");
+    variant v_blob(mc::blob{'1', '2', '3'});
+
+    EXPECT_TRUE(v_number == v_string);
+    EXPECT_TRUE(v_string == v_number);
+    EXPECT_TRUE(v_number == v_blob);
+    EXPECT_TRUE(v_blob == v_number);
+
+    variant v_signed_negative(-5);
+    variant v_signed_str("-5");
+    EXPECT_TRUE(v_signed_negative == v_signed_str);
+
+    variant v_unsigned_value(uint64_t(6));
+    variant v_unsigned_str("6");
+    EXPECT_TRUE(v_unsigned_value == v_unsigned_str);
+
+    variant v_bool(true);
+    variant v_bool_str("true");
+    EXPECT_TRUE(v_bool == v_bool_str);
+    EXPECT_TRUE(v_bool_str == v_bool);
+}
+
+TEST_F(VariantComparisonTest, VariantStringViewConversions) {
+    variant v_numeric(5);
+    EXPECT_TRUE(v_numeric < std::string_view("6"));
+    EXPECT_TRUE(v_numeric > std::string_view("4"));
+
+    variant v_blob(mc::blob{'1', '0'});
+    EXPECT_TRUE(v_blob == std::string_view("10"));
+    EXPECT_TRUE(v_blob < std::string_view("11"));
+
+    variant v_string("abc");
+    variant v_blob_compare(mc::blob{'a', 'b', 'd'});
+    EXPECT_TRUE(v_string < v_blob_compare);
+    EXPECT_TRUE(v_blob_compare > v_string);
+
+    variant v_bool(true);
+    EXPECT_THROW(v_bool < std::string_view("maybe"), mc::invalid_op_exception);
 }
 
 } // namespace test

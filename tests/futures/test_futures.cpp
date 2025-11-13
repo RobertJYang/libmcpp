@@ -13,12 +13,17 @@
 #include <gtest/gtest.h>
 
 #include <boost/asio.hpp>
+#include <atomic>
 #include <chrono>
+#include <future>
+#include <utility>
 #include <iostream>
 #include <stdexcept>
 #include <thread>
 
 #include <mc/future.h>
+#include <mc/futures/callback_list.h>
+#include <mc/futures/exceptions.h>
 #include <test_utilities/test_base.h>
 
 using namespace std::chrono_literals;
@@ -219,6 +224,225 @@ TEST_F(FuturesTest, ErrorRecoveryChain) {
 
     promise.set_value(5);
     EXPECT_EQ(future.get(), 10); // 5 * 2，没有触发异常
+}
+
+// 测试 promise::set_value 处理 Future 参数（成功和失败）
+TEST_F(FuturesTest, PromiseSetValueFromFuture) {
+    auto outer_promise = mc::make_promise<int>(get_io_context());
+    auto outer_future  = outer_promise.get_future();
+
+    auto inner_promise = mc::make_promise<int>(get_io_context());
+    auto inner_future  = inner_promise.get_future();
+
+    // 传递 Future 给 set_value，验证成功场景
+    outer_promise.template set_value<decltype(inner_future)>(std::move(inner_future));
+    EXPECT_FALSE(outer_future.is_ready());
+
+    inner_promise.set_value(123);
+    EXPECT_EQ(outer_future.get(), 123);
+
+    auto failing_promise = mc::make_promise<int>(get_io_context());
+    auto failing_future  = failing_promise.get_future();
+
+    auto inner_fail_promise = mc::make_promise<int>(get_io_context());
+    auto inner_fail_future  = inner_fail_promise.get_future();
+
+    // 传递 Future 给 set_value，验证异常传播
+    failing_promise.template set_value<decltype(inner_fail_future)>(std::move(inner_fail_future));
+    inner_fail_promise.set_exception(std::make_exception_ptr(std::runtime_error("inner failure")));
+    EXPECT_THROW(failing_future.get(), std::runtime_error);
+}
+
+// 测试 promise::set_value 重复设置触发异常
+TEST_F(FuturesTest, PromiseSetValueAlreadySatisfiedThrows) {
+    auto promise = mc::make_promise<int>(get_io_context());
+    auto future  = promise.get_future();
+
+    promise.set_value(42);
+    EXPECT_THROW(promise.set_value(43), mc::futures::promise_already_satisfied);
+    EXPECT_EQ(future.get(), 42);
+}
+
+// 测试 promise::set_exception 重复设置触发异常
+TEST_F(FuturesTest, PromiseSetExceptionAlreadySatisfiedThrows) {
+    auto promise = mc::make_promise<int>(get_io_context());
+    auto future  = promise.get_future();
+
+    promise.set_exception(std::make_exception_ptr(std::runtime_error("first")));
+    EXPECT_THROW(promise.set_exception(std::make_exception_ptr(std::runtime_error("second"))),
+                 mc::futures::promise_already_satisfied);
+    EXPECT_THROW(future.get(), std::runtime_error);
+}
+
+// 测试 promise 在取消后忽略 set_exception
+TEST_F(FuturesTest, PromiseSetExceptionIgnoredAfterCancel) {
+    auto promise = mc::make_promise<int>(get_io_context());
+    auto future  = promise.get_future();
+
+    promise.cancel();
+    // 取消后调用 set_exception 应直接返回，不影响取消结果
+    promise.set_exception(std::make_exception_ptr(std::runtime_error("ignored")));
+    EXPECT_THROW(future.get(), mc::canceled_exception);
+}
+
+// 测试 promise::get_future 重复获取触发异常
+TEST_F(FuturesTest, PromiseGetFutureTwiceThrows) {
+    auto promise = mc::make_promise<int>(get_io_context());
+    auto future  = promise.get_future();
+    EXPECT_THROW(promise.get_future(), mc::futures::future_already_retrieved);
+    promise.set_value(7);
+    EXPECT_EQ(future.get(), 7);
+}
+
+// 测试 Future::get_for 在结果已就绪时返回正常值
+TEST_F(FuturesTest, FutureGetForReady) {
+    auto promise = mc::make_promise<int>(get_io_context());
+    auto future  = promise.get_future();
+
+    promise.set_value(11);
+    EXPECT_EQ(future.get_for(50ms), 11);
+}
+
+// 测试 Future::wait_for 返回 ready 分支
+TEST_F(FuturesTest, FutureWaitForReadyStatus) {
+    auto promise = mc::make_promise<int>(get_io_context());
+    auto future  = promise.get_future();
+
+    promise.set_value(22);
+    EXPECT_EQ(future.wait_for(50ms), mc::futures::future_status::ready);
+    EXPECT_EQ(future.get(), 22);
+}
+
+// 测试 catch_error 在 Future 已完成时直接返回原值
+TEST_F(FuturesTest, FutureCatchErrorOnReadyValue) {
+    auto promise = mc::make_promise<int>(get_io_context());
+    auto future  = promise.get_future();
+    promise.set_value(33);
+
+    std::atomic<int> handler_called{0};
+    auto recovered = future.catch_error([&handler_called](const mc::exception&) {
+        handler_called.fetch_add(1);
+        return -1;
+    });
+
+    EXPECT_EQ(recovered.get(), 33);
+    EXPECT_EQ(handler_called.load(), 0);
+}
+
+namespace {
+struct non_std_error {
+};
+} // namespace
+
+// 测试 catch_error 处理未知异常分支
+TEST_F(FuturesTest, FutureCatchErrorHandlesUnknownException) {
+    auto promise = mc::make_promise<int>(get_io_context());
+    auto future  = promise.get_future();
+
+    promise.set_exception(std::make_exception_ptr(non_std_error{}));
+
+    std::atomic<bool> handler_called{false};
+    auto recovered = future.catch_error([&handler_called](const mc::exception& ex) {
+        // 确认异常被包装为 mc::exception，并且 handler 被调用
+        handler_called.store(true);
+        // 未知异常被包装后，至少应该有一个非零代码或有效的异常消息
+        // 如果代码为 0，至少验证异常消息不为空
+        if (ex.code() == 0) {
+            // 验证异常消息不为空（未知异常应该被包装）
+            EXPECT_FALSE(ex.what() == nullptr || std::string(ex.what()).empty());
+            return 1; // 返回非零值表示异常被正确处理
+        }
+        return static_cast<int>(ex.code());
+    });
+    // 等待 future 完成，确保 handler 被执行
+    // catch_error 是异步的，需要调用 get() 来等待 handler 执行
+    auto result = recovered.get();
+    // 验证 handler 被调用（异常被正确捕获）
+    EXPECT_TRUE(handler_called.load());
+    // 验证返回值非零（表示异常被正确处理）
+    EXPECT_NE(result, 0);
+}
+
+// 测试 then 在已就绪 Future 上使用 dispatch 策略
+TEST_F(FuturesTest, FutureThenDispatchOnReadyState) {
+    auto promise = mc::make_promise<int>(get_io_context());
+    auto future  = promise.get_future();
+    promise.set_value(5);
+
+    std::atomic<bool> executed{false};
+    auto chained = future.then(
+        [&executed](int value) {
+            executed.store(true);
+            return value + 1;
+        },
+        mc::launch::dispatch);
+
+    EXPECT_EQ(chained.get(), 6);
+    EXPECT_TRUE(executed.load());
+}
+
+// 测试 then 在已就绪 Future 上使用 deferred 策略
+TEST_F(FuturesTest, FutureThenDeferredOnReadyState) {
+    auto promise = mc::make_promise<int>(get_io_context());
+    auto future  = promise.get_future();
+    promise.set_value(8);
+
+    auto deferred_future = future.then([](int value) {
+        return value + 2;
+    }, mc::launch::deferred);
+
+    // deferred 策略下 wait_for 返回 deferred
+    EXPECT_EQ(deferred_future.wait_for(1ms), mc::futures::future_status::deferred);
+
+    // 取消后验证抛出取消异常，避免悬挂回调
+    deferred_future.cancel();
+    EXPECT_THROW(deferred_future.get(), mc::canceled_exception);
+}
+
+// 测试 async_get 在已就绪 Future 上使用 dispatch 策略
+TEST_F(FuturesTest, FutureAsyncGetDispatchOnReadyState) {
+    auto promise = mc::make_promise<int>(get_io_context());
+    auto future  = promise.get_future();
+    promise.set_value(12);
+
+    std::promise<int> result_promise;
+    auto              result_future = result_promise.get_future();
+
+    future.async_get([&result_promise](int value) {
+        result_promise.set_value(value + 3);
+    }, mc::launch::dispatch);
+
+    EXPECT_EQ(result_future.get(), 15);
+}
+
+// 测试 finally 在已就绪 Future 上执行清理回调
+TEST_F(FuturesTest, FutureFinallyOnReadyState) {
+    auto promise = mc::make_promise<int>(get_io_context());
+    auto future  = promise.get_future();
+    promise.set_value(20);
+
+    std::atomic<bool> cleanup_called{false};
+    auto chained = future.finally([&cleanup_called]() {
+        cleanup_called.store(true);
+    });
+
+    EXPECT_EQ(chained.get(), 20);
+    EXPECT_TRUE(cleanup_called.load());
+}
+
+// 测试 tap 在已就绪 Future 上检查结果
+TEST_F(FuturesTest, FutureTapOnReadyState) {
+    auto promise = mc::make_promise<int>(get_io_context());
+    auto future  = promise.get_future();
+    promise.set_value(30);
+
+    std::atomic<int> observed{0};
+    auto tapped = future.tap([&observed](int value) {
+        observed.store(value);
+    });
+
+    EXPECT_EQ(tapped.get(), 30);
+    EXPECT_EQ(observed.load(), 30);
 }
 
 // 测试 finally，在 future 完成时，调用 finally 函数
@@ -1164,4 +1388,279 @@ TEST_F(FuturesTest, CancelInnerFuture) {
     EXPECT_THROW(future.get(), mc::canceled_exception);
     EXPECT_TRUE(inner_canceled1);
     EXPECT_TRUE(inner_canceled2);
+}
+
+// 测试 callback_list 和 callback_pool 的功能
+TEST_F(FuturesTest, CallbackListBasicOperations) {
+    mc::futures::callback_list list;
+
+    // 测试 empty() 方法
+    EXPECT_TRUE(list.empty());
+
+    // 测试 push_back
+    int counter = 0;
+    list.push_back([&counter]() {
+        counter++;
+    });
+    EXPECT_FALSE(list.empty());
+
+    list.push_back([&counter]() {
+        counter += 2;
+    });
+
+    // 测试 execute_and_clear
+    list.execute_and_clear();
+    EXPECT_EQ(counter, 3);
+    EXPECT_TRUE(list.empty());
+}
+
+// 测试 callback_list 的 clear 方法
+TEST_F(FuturesTest, CallbackListClear) {
+    mc::futures::callback_list list;
+
+    int counter = 0;
+    list.push_back([&counter]() {
+        counter++;
+    });
+    list.push_back([&counter]() {
+        counter++;
+    });
+
+    EXPECT_FALSE(list.empty());
+
+    // 测试 clear 方法（不执行回调）
+    list.clear();
+    EXPECT_TRUE(list.empty());
+    EXPECT_EQ(counter, 0); // 回调不应该被执行
+}
+
+// 测试 callback_list 的 swap 方法
+TEST_F(FuturesTest, CallbackListSwap) {
+    mc::futures::callback_list list1;
+    mc::futures::callback_list list2;
+
+    int counter1 = 0;
+    int counter2 = 0;
+
+    list1.push_back([&counter1]() {
+        counter1 = 1;
+    });
+    list2.push_back([&counter2]() {
+        counter2 = 2;
+    });
+
+    // 交换两个列表
+    list1.swap(list2);
+
+    // 执行并验证
+    list1.execute_and_clear();
+    EXPECT_EQ(counter1, 0);
+    EXPECT_EQ(counter2, 2);
+
+    list2.execute_and_clear();
+    EXPECT_EQ(counter1, 1);
+    EXPECT_EQ(counter2, 2);
+}
+
+// 测试 callback_pool 的 get_stats 方法
+TEST_F(FuturesTest, CallbackPoolGetStats) {
+    auto& pool = mc::futures::callback_pool::instance();
+
+    // 获取初始统计信息
+    auto stats = pool.get_stats();
+    EXPECT_GE(stats.pool_size, 0U);
+    EXPECT_GT(stats.max_size, 0U);
+
+    // 使用一些节点后再次获取统计信息
+    mc::futures::callback_list list;
+    list.push_back([]() {});
+    list.push_back([]() {});
+    list.execute_and_clear();
+
+    auto stats_after = pool.get_stats();
+    EXPECT_GE(stats_after.pool_size, stats.pool_size);
+}
+
+// 测试 callback_pool 的 set_max_pool_size 方法
+TEST_F(FuturesTest, CallbackPoolSetMaxPoolSize) {
+    auto& pool = mc::futures::callback_pool::instance();
+
+    // 设置较小的最大池大小
+    pool.set_max_pool_size(5);
+
+    // 创建多个节点并释放，使池达到最大大小
+    mc::futures::callback_list list;
+    for (int i = 0; i < 10; ++i) {
+        list.push_back([]() {});
+    }
+    list.execute_and_clear();
+
+    // 验证池大小不超过最大值
+    auto stats = pool.get_stats();
+    EXPECT_LE(stats.pool_size, 5U);
+    EXPECT_EQ(stats.max_size, 5U);
+
+    // 测试设置更大的最大池大小，并验证池会保留现有节点
+    pool.set_max_pool_size(20);
+    stats = pool.get_stats();
+    EXPECT_LE(stats.pool_size, 20U);
+    EXPECT_EQ(stats.max_size, 20U);
+
+    // 测试设置更小的最大池大小，验证多余的节点会被释放
+    pool.set_max_pool_size(3);
+    stats = pool.get_stats();
+    EXPECT_LE(stats.pool_size, 3U);
+    EXPECT_EQ(stats.max_size, 3U);
+}
+
+// 测试 callback_pool 的 clear 方法
+TEST_F(FuturesTest, CallbackPoolClear) {
+    auto& pool = mc::futures::callback_pool::instance();
+
+    // 创建一些节点并释放到池中
+    mc::futures::callback_list list;
+    for (int i = 0; i < 5; ++i) {
+        list.push_back([]() {});
+    }
+    list.execute_and_clear();
+
+    // 验证池中有节点
+    auto stats_before = pool.get_stats();
+    EXPECT_GT(stats_before.pool_size, 0U);
+
+    // 清空池
+    pool.clear();
+
+    // 验证池已清空
+    auto stats_after = pool.get_stats();
+    EXPECT_EQ(stats_after.pool_size, 0U);
+}
+
+// 测试 callback_pool::release_node 中 node 为 nullptr 的分支
+TEST_F(FuturesTest, CallbackPoolReleaseNullptr) {
+    auto& pool = mc::futures::callback_pool::instance();
+
+    // 释放 nullptr 节点应该安全返回
+    std::unique_ptr<mc::futures::callback_node> null_node(nullptr);
+    pool.release_node(std::move(null_node));
+
+    // 验证没有崩溃
+    auto stats = pool.get_stats();
+    EXPECT_GE(stats.pool_size, 0U);
+}
+
+// 测试 callback_pool::release_node 中池大小达到最大值的分支
+TEST_F(FuturesTest, CallbackPoolReleaseNodeMaxSize) {
+    auto& pool = mc::futures::callback_pool::instance();
+
+    // 设置较小的最大池大小
+    pool.set_max_pool_size(2);
+    pool.clear(); // 先清空池
+
+    // 创建并释放节点，使池达到最大值
+    mc::futures::callback_list list;
+    for (int i = 0; i < 3; ++i) {
+        list.push_back([]() {});
+    }
+    list.execute_and_clear();
+
+    // 验证池大小不超过最大值
+    auto stats = pool.get_stats();
+    EXPECT_LE(stats.pool_size, 2U);
+
+    // 再次释放节点，应该因为池已满而不被接受
+    mc::futures::callback_list list2;
+    list2.push_back([]() {});
+    list2.execute_and_clear();
+
+    // 池大小应该仍然不超过最大值
+    stats = pool.get_stats();
+    EXPECT_LE(stats.pool_size, 2U);
+}
+
+// 测试 callback_pool::acquire_node 复用池中节点的分支
+TEST_F(FuturesTest, CallbackPoolAcquireReuseNode) {
+    auto& pool = mc::futures::callback_pool::instance();
+
+    // 重置池状态并设置较小的最大容量，便于观察变化
+    pool.clear();
+    pool.set_max_pool_size(10);
+
+    // 首次 push_back 会创建新的节点
+    mc::futures::callback_list list;
+    list.push_back([]() {});
+    list.execute_and_clear();
+
+    // 节点释放后应被缓存到池中
+    auto stats_after_release = pool.get_stats();
+    EXPECT_EQ(stats_after_release.pool_size, 1U);
+    EXPECT_EQ(stats_after_release.max_size, 10U);
+
+    // 再次 push_back 应从池中复用节点，池大小减为 0
+    list.push_back([]() {});
+    auto stats_after_acquire = pool.get_stats();
+    EXPECT_EQ(stats_after_acquire.pool_size, 0U);
+    EXPECT_EQ(stats_after_acquire.max_size, 10U);
+
+    // 再次执行并释放，节点应回到池中
+    list.execute_and_clear();
+    auto stats_after_reuse = pool.get_stats();
+    EXPECT_EQ(stats_after_reuse.pool_size, 1U);
+    EXPECT_EQ(stats_after_reuse.max_size, 10U);
+
+    // 恢复默认设置，避免影响其他测试
+    pool.set_max_pool_size(1000);
+    pool.clear();
+}
+
+// 测试 safe_invoke 的异常处理分支
+TEST_F(FuturesTest, SafeInvokeExceptionHandling) {
+    bool exception_thrown = false;
+
+    // 测试抛出异常的 callback
+    mc::futures::safe_invoke([&exception_thrown]() {
+        exception_thrown = true;
+        throw std::runtime_error("测试异常");
+    });
+
+    // 异常应该被捕获，不会传播
+    EXPECT_TRUE(exception_thrown);
+
+    // 测试正常执行的 callback
+    int counter = 0;
+    mc::futures::safe_invoke([&counter]() {
+        counter = 42;
+    });
+    EXPECT_EQ(counter, 42);
+}
+
+// 测试 callback_list 的移动语义
+TEST_F(FuturesTest, CallbackListMoveSemantics) {
+    mc::futures::callback_list list1;
+
+    int counter = 0;
+    list1.push_back([&counter]() {
+        counter = 1;
+    });
+
+    // 测试移动构造
+    mc::futures::callback_list list2(std::move(list1));
+    EXPECT_TRUE(list1.empty());
+    EXPECT_FALSE(list2.empty());
+
+    list2.execute_and_clear();
+    EXPECT_EQ(counter, 1);
+
+    // 测试移动赋值
+    mc::futures::callback_list list3;
+    list3.push_back([&counter]() {
+        counter = 2;
+    });
+
+    list1 = std::move(list3);
+    EXPECT_TRUE(list3.empty());
+    EXPECT_FALSE(list1.empty());
+
+    list1.execute_and_clear();
+    EXPECT_EQ(counter, 2);
 }

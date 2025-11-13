@@ -22,6 +22,7 @@ SHM 模块包含以下测试文件：
 3. `test_gvariant_convert.cpp` - GVariant 转换测试
 4. `test_harbor.cpp` - Harbor 测试
 5. `test_shm_call.cpp` - 共享内存调用测试（条件编译）
+6. `test_shm_tree.cpp` - 共享内存对象树测试
 
 ## 详细测试用例
 
@@ -48,7 +49,7 @@ SHM 模块包含以下测试文件：
 - `ReadLongStringInvalidCookie` - 测试读取长字符串无效 cookie
 - `ReadTableAsDict` - 测试读取表作为字典
 
-**读取值测试（5 个）**：
+**读取值测试（6 个）**：
 - `ReadValueBooleanFalse` - 测试读取布尔值 false
 - `ReadValueBooleanTrue` - 测试读取布尔值 true
 - `ReadValueNumberReal` - 测试读取实数
@@ -62,7 +63,7 @@ SHM 模块包含以下测试文件：
 ### test_local_msg.cpp
 本地消息测试（23 个用例）：
 
-**基础功能测试（11 个）**：
+**基础功能测试（13 个）**：
 - `LocalCallFlag` - 测试本地调用标志
 - `ErrorInfo` - 测试错误信息
 - `Append` - 测试追加参数
@@ -100,6 +101,27 @@ GVariant 转换测试（7 个用例）：
 - `DictToGVariant` - 测试字典转 GVariant
 - `SigUnitLengthAndErrors` - 测试签名长度计算及异常处理
 - `GvariantAutoFreeCopyMove` - 测试 gvariant_auto_free 的拷贝/移动语义
+
+### test_harbor.cpp
+Harbor 测试（6 个用例）：
+- `HarborLifecycleAndNaming` - 覆盖单例、名称设置与启停流程
+- `DestinationQueueOnline` - 验证 `get_destination_msg_queue` 在线路径
+- `SendAndReplyShmMessage` - 覆盖 `send_shm_msg` / `reply_shm_msg` 的成功路径
+- `GetUniqueNameThrowsWhenMissing` - 验证 `get_unique_name` 的异常分支
+- `MessageQueueDispatchHandlesEmpty` - 覆盖 `message_queue::dispatch` 的空队列路径
+- `UnregisterServiceClearsPendingPromises` - 验证 `unregister_service` 清理待处理 promise
+
+### test_shm_tree.cpp
+共享内存对象树测试（9 个用例）：
+- `register_and_unregister_object` - 验证对象注册和反注册调用
+- `get_property_missing_tree_throws` - 测试在树结构缺失时抛出异常
+- `timeout_call_missing_queue_returns_nullopt` - 测试目标队列缺失的超时调用
+- `add_and_remove_match` - 覆盖匹配规则的注册与清理
+- `remove_match_unknown_id_safe` - 验证删除不存在匹配项的安全性
+- `timeout_call_success_returns_value` - 模拟 shm 往返并校验返回数据
+- `timeout_call_wait_timeout_throws` - 模拟超时场景触发异常分支
+- `set_property_inner_handles_string_value` - 覆盖属性写入字符串数据的序列化
+- `set_property_inner_handles_null` - 覆盖属性写入空 variant 的清理逻辑
 
 ### test_shm_call.cpp
 共享内存调用测试（6 个用例）：
@@ -147,6 +169,14 @@ meson test -C builddir --test-args="--gtest_filter=GvariantConvertTest.*"
 # 测试共享内存调用（所有用例）
 ./builddir/tests/libmcpp_test --gtest_filter="ShmCallTest.*"
 meson test -C builddir --test-args="--gtest_filter=ShmCallTest.*"
+
+# 测试共享内存对象树（所有用例）
+./builddir/tests/libmcpp_test --gtest_filter="shm_tree_test.*"
+meson test -C builddir --test-args="--gtest_filter=shm_tree_test.*"
+
+# 测试 Harbor（所有用例）
+./builddir/tests/libmcpp_test --gtest_filter="HarborTest.*"
+meson test -C builddir --test-args="--gtest_filter=HarborTest.*"
 ```
 
 ### 运行特定测试用例
@@ -165,12 +195,13 @@ meson test -C builddir --test-args="--gtest_filter=SerializeTest.Serialize*"
 
 ## 测试统计
 
-- **测试文件总数**: 5 个
-- **测试用例总数**: 55 个
-  - `test_serialize.cpp`: 23 个
-  - `test_local_msg.cpp`: 23 个（包含 local_msg 19 个 + shm_pending_msgs 4 个）
+- **测试文件总数**: 6 个
+- **测试用例总数**: 74 个
+  - `test_serialize.cpp`: 23 个（基础 7 + 边界 9 + 读取 6 + 安全 1）
+  - `test_local_msg.cpp`: 23 个（基础功能 13 + 安全性 6 + shm_pending_msgs 4）
   - `test_gvariant_convert.cpp`: 7 个
-  - `test_harbor.cpp`: 4 个
+  - `test_harbor.cpp`: 6 个
+  - `test_shm_tree.cpp`: 9 个
   - `test_shm_call.cpp`: 6 个（条件编译）
 - **测试覆盖的功能模块**:
   - Serialize（序列化）
@@ -178,14 +209,21 @@ meson test -C builddir --test-args="--gtest_filter=SerializeTest.Serialize*"
   - Shm Pending Messages（共享内存待处理消息）
   - GVariant Convert（GVariant 转换）
   - Harbor（共享内存管理）
+  - Shared Memory Tree（共享内存对象树）
   - Shared Memory Call（共享内存调用）
 
 ## 代码覆盖率
 
 当前测试覆盖率：
-- **Line Coverage**: 约 62.8%
-- **Branch Coverage**: 约 21.8%
-- **Function Coverage**: 约 45.6%
+- **Line Coverage**: 约 70.6%
+- **Branch Coverage**: 约 27.1%
+- **Function Coverage**: 约 56.4%
+
+### 未覆盖逻辑说明
+
+- `mc::dbus::message_queue::dispatch` 中依赖真实 D-Bus 数据帧判断的分支（`is_dbus_message`）需要底层队列回调，该回调在 `mock_shm` 环境中不会触发，暂通过集成测试覆盖。
+- `harbor::get_destination_msg_queue` 离线分支依赖真实共享内存状态更新，mock 环境无法准确模拟，尚未覆盖。
+- `harbor::start` 内部线程分支（worker 循环、`dispatch_status_changed`）需要真实的 shm 消息驱动，否则无法覆盖；现有测试已验证启动/停止的异常路径，其余逻辑在 README 记录。
 
 ### 调试测试
 

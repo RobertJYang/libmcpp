@@ -12,11 +12,14 @@
 
 #include <gtest/gtest.h>
 #include <mc/dbus/connection.h>
+#include <mc/dbus/match.h>
 #include <mc/engine.h>
 #include <mc/format.h>
 #include <mc/singleton.h>
 #include <mc/string.h>
 #include <test_utilities/test_base.h>
+
+#include <map>
 
 namespace test_engine {
 
@@ -34,6 +37,10 @@ public:
 
     std::string rewite_method(const std::string& value) {
         MC_REPLY_ERROR_AND_THROW(mc::engine::errors::not_supported);
+    }
+
+    int32_t add_values(int32_t a, int32_t b) {
+        return a + b;
     }
 
     property<int32_t>          m_i32;
@@ -113,7 +120,7 @@ protected:
 
 MC_REFLECT(test_engine::test_interface_1,
            (m_i32, "i32")(m_str, "str")(m_vec, "vec")(m_normal_v, "normal_v"),
-           (rewite_method)(rewite_method, "not_rewite_method"))
+           (rewite_method)(rewite_method, "not_rewite_method")(add_values))
 MC_REFLECT(test_engine::test_interface_2, (m_variant, "variant"))
 MC_REFLECT(test_engine::test_object,
            (m_iface_1, "iface_1")(m_iface_2, "iface_2"),
@@ -428,6 +435,62 @@ TEST_F(engine_test, test_managed_object_comprehensive) {
     EXPECT_EQ(get_managed_objects(*rebuild_a),
               objects({"/org/rebuild/a/1", "/org/rebuild/a/2", "/org/rebuild/a/mid"}));
     EXPECT_EQ(get_managed_objects(*insert_mid), objects({"/org/rebuild/a/mid/1"}));
+}
+
+TEST(ServiceApiValidation, InitInvalidBusName) {
+    ::mc::engine::service invalid_service("invalid bus name");
+    EXPECT_FALSE(invalid_service.init());
+}
+
+TEST_F(engine_test, ServiceLifecycleHooks) {
+    std::map<std::string, std::string> dump_context{{"phase", "collect"}};
+    auto tmp_dir = mc::filesystem::temp_directory_path();
+    auto nonexistent = (tmp_dir / "nonexistent").string();
+    service.on_dump(dump_context, nonexistent);
+    service.on_detach_debug_console({});
+    EXPECT_EQ(service.on_reboot_prepare({}), 0);
+    EXPECT_EQ(service.on_reboot_process({}), 0);
+    EXPECT_EQ(service.on_reboot_action({}), 0);
+    service.on_reboot_cancel({});
+
+    service.cleanup();
+    EXPECT_TRUE(service.is_healthy());
+}
+
+TEST_F(engine_test, ServiceTimeoutCalls) {
+    auto obj = create_object("/org/openubmc/service_api/object");
+
+    ::mc::variants args;
+    args.emplace_back(4);
+    args.emplace_back(6);
+
+    auto result = service.timeout_call(
+        ::mc::milliseconds(100), service.name(), obj->get_object_path(),
+        obj->m_iface_1.get_interface_name(), "add_values", "ii", args);
+    EXPECT_EQ(result.as_int32(), 10);
+
+    // shm_timeout_call 在超时或服务不存在时会抛出异常，需要捕获
+    try {
+        auto opt = service.shm_timeout_call(::mc::milliseconds(10), "org.openubmc.undefined",
+                                            obj->get_object_path(), obj->m_iface_1.get_interface_name(),
+                                            "add_values", "ii", args);
+        EXPECT_FALSE(opt.has_value());
+    } catch (const std::exception& e) {
+        // 超时异常是预期的，测试通过
+        EXPECT_NE(std::string(e.what()).find("timeout"), std::string::npos);
+    }
+}
+
+TEST_F(engine_test, ServiceMatchManagement) {
+    // 使用 std::string 确保字符串生命周期安全
+    std::string member_name = "PropertiesChanged";
+    std::string interface_name = "org.freedesktop.DBus.Properties";
+    // 直接传递 std::string，它们会自动转换为 string_view
+    ::mc::dbus::match_rule rule = ::mc::dbus::match_rule::new_signal(member_name, interface_name);
+    auto id = service.add_match(rule, [](auto&) {});
+    // get_rule_id() 从 0 开始，所以 id 可能为 0，这是有效的
+    EXPECT_GE(id, 0U);
+    service.remove_match(id);
 }
 
 TEST_F(engine_test, test_object_rewite_method) {

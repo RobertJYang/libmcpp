@@ -34,7 +34,7 @@ Core 模块包含以下测试文件：
 ## 详细测试用例
 
 ### test_application.cpp
-应用程序生命周期管理测试（18 个用例）：
+应用程序生命周期管理测试（20 个用例）：
 - `instance` - 测试单例获取
 - `version` - 测试版本设置和获取
 - `get_config_manager` - 测试配置管理器获取
@@ -57,7 +57,7 @@ Core 模块包含以下测试文件：
 - `initialize_both_versions` - 测试两种初始化方式
 
 ### test_config_manager.cpp
-配置管理器测试（30 个用例）：
+配置管理器测试（33 个用例）：
 - `constructor` - 测试构造函数
 - `parse_command_line_basic` - 测试基础命令行解析
 - `parse_command_line_config_file` - 测试配置文件参数解析
@@ -130,7 +130,7 @@ Core 模块包含以下测试文件：
 - `multiple_signals` - 测试多个信号管理
 
 ### test_default_supervisor.cpp
-默认监督器测试（35 个用例）：
+默认监督器测试（35 个用例，包含 31 个 default_supervisor_test 和 4 个 SupervisorManagerTest）：
 - `constructor` - 测试构造函数
 - `init` - 测试初始化
 - `add_service` - 测试添加服务
@@ -163,6 +163,12 @@ Core 模块包含以下测试文件：
 - `handle_service_crash_one_for_all_strategy` - 测试 one_for_all 策略崩溃处理
 - `handle_service_crash_rest_for_one_strategy` - 测试 rest_for_one 策略崩溃处理
 
+**SupervisorManagerTest（4 个）**：
+- `ManageSupervisorsLifecycle` - 测试监督器管理器的生命周期管理（创建、添加、启动、停止）
+- `StartFailureIsHandled` - 测试启动失败处理
+- `StopFailureIsHandled` - 测试停止失败处理
+- `InitializeFromConfigsAddsSupervisors` - 测试从配置初始化并添加监督器
+
 ### test_dependency_sorter.cpp
 依赖排序器测试（6 个用例）：
 - `build_dependency_graph_simple` - 测试构建简单依赖图
@@ -185,7 +191,7 @@ Core 模块包含以下测试文件：
 - `create_service_handles_missing_or_failed_services` - 触发未注册及初始化失败时的空指针返回路径
 
 ### test_plugin_manager.cpp
-插件管理器测试（13 个用例）：
+插件管理器测试（17 个用例）：
 - `constructor_destructor` - 测试构造和析构
 - `set_get_plugin_dir` - 测试设置和获取插件目录
 - `register_plugin` - 测试注册插件
@@ -200,9 +206,12 @@ Core 模块包含以下测试文件：
 - `init_plugins` - 测试初始化插件
 - `load_plugins_empty_list` - 测试加载空插件列表
 - `multiple_plugins` - 测试多个插件管理
+- `load_plugin_missing_library` - 测试加载不存在的库
+- `load_plugin_stub_shared_object` - 测试加载存根共享对象
+- `load_plugin_without_factory_symbols` - 测试加载没有工厂符号的库
 
 ### test_service_manager.cpp
-服务管理器测试（17 个用例）：
+服务管理器测试（18 个用例）：
 - `add_and_get_service` - 测试添加和获取服务
 - `remove_service_stops_and_cleans_up` - 测试移除服务并清理
 - `initialize_from_configs_builds_services` - 测试从配置构建服务
@@ -223,7 +232,7 @@ Core 模块包含以下测试文件：
 - `complex_dependency_graph` - 测试复杂依赖图
 
 ### test_singleton.cpp
-单例模式测试（8 个用例）：
+单例模式测试（14 个用例）：
 - `LifecycleAndTryGet` - 覆盖基础生命周期、try_get、reset 与重建
 - `TaggedSingletonIsolation` - 验证不同标签的单例隔离与重置行为
 - `CustomCreatorScenarios` - 覆盖复杂初始化与普通自定义创建器
@@ -232,12 +241,20 @@ Core 模块包含以下测试文件：
 - `ComplexConcurrentSingletonAccess` - 测试并发访问与增量一致性
 - `DestroyInstancesRunsDestructors` - 验证 singleton_manager::destroy_instances 行为
 - `LeakySingletonNotDestroyedByManager` - 验证泄露单例不受 destroy_instances 影响
+- `DestroyInstancesInReverseOrder` - 测试按相反顺序销毁实例
+- `ManagerResetClearsAllStates` - 测试管理器重置清除所有状态
+- `CreatedFlagReflectsLifecycle` - 测试创建标志反映生命周期
+- `InstanceIgnoresSubsequentArguments` - 测试实例忽略后续参数
+- `LeakySingletonSurvivesDestroyInstances` - 测试泄露单例在销毁实例后仍然存活
+- `DestroyInstancesIsIdempotent` - 测试销毁实例是幂等的
 
 ### test_thread_safe_object.cpp
-线程安全对象测试（10 个用例）：
+线程安全对象测试（12 个用例）：
 - `BasicParentChildRelationship` - 测试基础父子关系
 - `ConcurrentEnsureImplAccess` - 测试并发确保实现访问
 - `ConcurrentPropertyAccess` - 测试并发属性访问
+- `ExecutorAssignment` - 测试执行器分配
+- `ConnectionManagementHelpers` - 测试连接管理辅助功能（连接、断开、信号断开）
 - `ConcurrentAddChildren` - 测试并发添加子对象
 - `ConcurrentParentChildOperations` - 测试并发父子操作
 - `ConcurrentDestruction` - 测试并发销毁
@@ -300,8 +317,8 @@ meson test -C builddir --test-args="--gtest_filter=config_validator_test.*"
 meson test -C builddir --test-args="--gtest_filter=connection_manager_test.*"
 
 # 测试默认监督器（所有用例）
-./builddir/tests/libmcpp_test --gtest_filter="default_supervisor_test.*"
-meson test -C builddir --test-args="--gtest_filter=default_supervisor_test.*"
+./builddir/tests/libmcpp_test --gtest_filter="default_supervisor_test.*:SupervisorManagerTest.*"
+meson test -C builddir --test-args="--gtest_filter=default_supervisor_test.*:SupervisorManagerTest.*"
 
 # 测试依赖排序器（所有用例）
 ./builddir/tests/libmcpp_test --gtest_filter="dependency_sorter_test.*"
@@ -344,8 +361,21 @@ meson test -C builddir --test-args="--gtest_filter=config_manager_test.parse_com
 
 ## 测试统计
 
-- **测试文件总数**: 12 个
-- **测试用例总数**: 约 182 个
+- **测试文件总数**: 13 个
+- **测试用例总数**: 204 个
+  - `test_application.cpp`: 20 个
+  - `test_config_manager.cpp`: 33 个
+  - `test_config_validator.cpp`: 20 个
+  - `test_connection_manager.cpp`: 11 个
+  - `test_default_supervisor.cpp`: 35 个（31 个 default_supervisor_test + 4 个 SupervisorManagerTest）
+  - `test_dependency_sorter.cpp`: 6 个
+  - `test_plugin_manager.cpp`: 17 个
+  - `test_service.cpp`: 3 个
+  - `test_service_factory.cpp`: 3 个
+  - `test_service_manager.cpp`: 18 个
+  - `test_singleton.cpp`: 14 个
+  - `test_thread_safe_object.cpp`: 12 个
+  - `test_timer.cpp`: 12 个
 - **测试覆盖的功能模块**:
   - Application（应用程序）
   - Config Manager（配置管理）
@@ -389,5 +419,8 @@ meson test -C builddir --verbose --test-args="--gtest_filter=application_test.*"
 6. **监督器策略测试**: `test_default_supervisor.cpp` 测试多种故障恢复策略。
 7. **单例测试**: `test_singleton.cpp` 使用 `reset_for_test()` 方法在测试之间重置单例状态。
 8. **测试隔离**: `test_application.cpp` 采用条件清理策略，只在测试确实启动了应用时才清理，避免影响其他模块（如 engine 模块、dbus 模块）的测试。这确保了测试之间的独立性。
-9. **DBus 环境**: core 模块的测试不会直接操作 DBus，但会确保共享内存锁文件（`/dev/shm/init_shm.lock`）存在，以支持需要 DBus 的其他测试正常运行。
+9. **DBus 环境**: core 模块的测试不会直接操作 DBus，但会确保共享内存锁文件（`/dev/shm/init_shm.lock`）存在，以支持需要 DBus 的其他测试正常运行。注意：`/dev/shm` 路径仅在 Linux 系统上使用（通过 `#ifdef __linux__` 条件编译）。
+10. **跨平台路径**: 所有测试用例使用 `mc::filesystem::temp_directory_path()` 获取临时目录，避免硬编码 `/tmp` 等路径，确保测试在不同操作系统上都能正常运行。
+11. **连接管理**: `test_thread_safe_object.cpp` 中的 `ConnectionManagementHelpers` 测试验证了信号连接和断开功能，包括显式断开连接和信号断开所有连接。
+12. **监督器管理**: `test_default_supervisor.cpp` 中的 `SupervisorManagerTest` 测试覆盖了监督器管理器的完整生命周期，包括创建、启动、停止和失败处理。
 

@@ -14,7 +14,10 @@
 #include <mc/core/plugin_manager.h>
 #include <mc/core/plugin.h>
 #include <mc/core/service_factory.h>
+#include <mc/filesystem.h>
 #include <test_utilities/test_base.h>
+
+#include <fstream>
 
 using namespace mc;
 using namespace mc::core;
@@ -76,11 +79,15 @@ TEST_F(plugin_manager_test, constructor_destructor) {
 TEST_F(plugin_manager_test, set_get_plugin_dir) {
     EXPECT_TRUE(manager->plugin_dir().empty());
 
-    manager->set_plugin_dir("/tmp/plugins");
-    EXPECT_EQ(manager->plugin_dir(), "/tmp/plugins");
+    auto tmp_dir = mc::filesystem::temp_directory_path();
+    auto plugin_dir = (tmp_dir / "plugins").string();
+    manager->set_plugin_dir(plugin_dir);
+    EXPECT_EQ(manager->plugin_dir(), plugin_dir);
 
-    manager->set_plugin_dir("/another/path");
-    EXPECT_EQ(manager->plugin_dir(), "/another/path");
+    auto another_tmp_dir = mc::filesystem::temp_directory_path();
+    auto another_path = (another_tmp_dir / "another_plugins").string();
+    manager->set_plugin_dir(another_path);
+    EXPECT_EQ(manager->plugin_dir(), another_path);
 }
 
 // 测试注册插件
@@ -179,7 +186,9 @@ TEST_F(plugin_manager_test, init_plugins) {
 // 测试加载插件列表（空列表）
 TEST_F(plugin_manager_test, load_plugins_empty_list) {
     // 设置插件目录
-    manager->set_plugin_dir("/tmp/plugins");
+    auto tmp_dir = mc::filesystem::temp_directory_path();
+    auto plugin_dir = (tmp_dir / "plugins").string();
+    manager->set_plugin_dir(plugin_dir);
 
     // 空列表应该返回false（因为目录可能不存在）
     EXPECT_FALSE(manager->load_plugins({}));
@@ -205,4 +214,58 @@ TEST_F(plugin_manager_test, multiple_plugins) {
     EXPECT_NE(manager->find_plugin("plugin1"), nullptr);
     EXPECT_EQ(manager->find_plugin("plugin2"), nullptr);
     EXPECT_NE(manager->find_plugin("plugin3"), nullptr);
+}
+
+TEST_F(plugin_manager_test, load_plugin_missing_library) {
+    auto tmp_dir = mc::filesystem::temp_directory_path();
+    auto plugin_dir = (tmp_dir / "libmcpp_missing_plugins").string();
+    manager->set_plugin_dir(plugin_dir);
+    EXPECT_FALSE(manager->load_plugin("missing_plugin"));
+}
+
+TEST_F(plugin_manager_test, load_plugin_stub_shared_object) {
+    auto temp_dir = mc::filesystem::temp_directory_path() / "plugin_manager_stub";
+    mc::filesystem::create_directories(temp_dir);
+    auto fake_path = temp_dir / "libfake_plugin.so";
+    {
+        std::ofstream ofs(fake_path.string(), std::ios::binary);
+        ofs << "stub";
+    }
+
+    manager->set_plugin_dir(temp_dir.string());
+    EXPECT_FALSE(manager->load_plugin("fake_plugin"));
+
+    mc::filesystem::remove(fake_path);
+    mc::filesystem::remove_all(temp_dir);
+}
+
+TEST_F(plugin_manager_test, load_plugin_without_factory_symbols) {
+    // 测试加载一个不包含插件工厂符号的库
+    // 由于 load_dynamic_library 是私有方法，我们通过 load_plugin 间接测试
+    // 尝试加载系统库（如 libdl.so）应该失败，因为它不包含插件工厂函数
+#ifdef __linux__
+    const std::vector<std::string> candidates = {
+        "/usr/lib/x86_64-linux-gnu", "/lib/x86_64-linux-gnu", "/usr/lib64", "/lib64",
+        "/usr/lib", "/lib"};
+#elif defined(__APPLE__)
+    const std::vector<std::string> candidates = {"/usr/lib", "/lib"};
+#else
+    const std::vector<std::string> candidates = {mc::filesystem::temp_directory_path().string()};
+#endif
+
+    std::string library_dir;
+    for (const auto& candidate : candidates) {
+        if (mc::filesystem::exists(candidate)) {
+            library_dir = candidate;
+            break;
+        }
+    }
+
+    if (library_dir.empty()) {
+        GTEST_SKIP() << "shared library directory not found";
+    }
+
+    manager->set_plugin_dir(library_dir);
+    // 尝试加载系统库应该失败，因为它不包含 create_plugin 和 destroy_plugin 符号
+    EXPECT_FALSE(manager->load_plugin("dl"));
 }

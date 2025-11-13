@@ -32,6 +32,7 @@ namespace {
 
 // 辅助函数：确保共享内存锁文件存在
 void ensure_shm_lock_file() {
+#ifdef __linux__
     constexpr const char* lock_path = "/dev/shm/init_shm.lock";
     std::ofstream         file(lock_path, std::ios::app);
     if (!file.is_open()) {
@@ -39,11 +40,14 @@ void ensure_shm_lock_file() {
     }
     file.close();
     chmod(lock_path, 0666);
+#endif
 }
 
 // 辅助函数：创建临时JSON文件
 std::string create_temp_json_file(const std::string& content) {
-    std::string pattern = "/tmp/mc_app_test_XXXXXX.json";
+    auto tmp_dir = mc::filesystem::temp_directory_path();
+    auto tmp_file = tmp_dir / "mc_app_test_XXXXXX.json";
+    std::string pattern = tmp_file.string();
     std::vector<char> buffer(pattern.begin(), pattern.end());
     buffer.push_back('\0');
 
@@ -171,11 +175,13 @@ TEST_F(application_test, initialize_basic) {
 TEST_F(application_test, initialize_with_args_success) {
     char arg0[] = "test_app";
     char arg1[] = "--config";
+    auto tmp_dir = mc::filesystem::temp_directory_path();
+    std::string plugin_dir = tmp_dir.string();
     std::string config_content = R"({
         "api_version": "v1",
         "kind": "Application",
         "meta": {"name": "test_app"},
-        "plugin_dir": "/tmp",
+        "plugin_dir": ")" + plugin_dir + R"(",
         "plugins": [],
         "threads": 2
     })";
@@ -190,7 +196,7 @@ TEST_F(application_test, initialize_with_args_success) {
     int   argc   = 3;
     
     EXPECT_TRUE(app->initialize(argc, argv));
-    EXPECT_EQ(app->get_config_manager().get_plugin_dir(), std::string("/tmp"));
+    EXPECT_EQ(app->get_config_manager().get_plugin_dir(), plugin_dir);
 }
 
 // 测试 application::initialize(int argc, char** argv) - parse_command_line 失败

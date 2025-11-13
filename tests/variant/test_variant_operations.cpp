@@ -714,6 +714,20 @@ TEST_F(VariantOperationsTest, DictionaryAddition) {
     ASSERT_EQ(dict1["c"], 4);
 }
 
+TEST_F(VariantOperationsTest, DictionaryAdditionInvalidOperand) {
+    variant dict_value = dict{{"key", 1}};
+    variant scalar(5);
+
+    EXPECT_THROW({ auto result = dict_value + scalar; (void)result; }, mc::invalid_op_exception);
+}
+
+TEST_F(VariantOperationsTest, AdditionInvalidNumericConversionThrows) {
+    variant bool_value(true);
+    variant object_value = dict{{"nested", 1}};
+
+    EXPECT_THROW({ auto result = bool_value + object_value; (void)result; }, mc::invalid_op_exception);
+}
+
 /**
  * @brief 测试字符串转数值参与运算
  */
@@ -1126,6 +1140,119 @@ TEST_F(VariantOperationsTest, BlobOperations) {
     EXPECT_THROW(0xFF ^ v_non_numeric_blob, mc::invalid_op_exception);
     EXPECT_THROW(2 << v_non_numeric_blob, mc::invalid_op_exception);
     EXPECT_THROW(10 >> v_non_numeric_blob, mc::invalid_op_exception);
+}
+
+/**
+ * @brief 测试字符串 variant 与 blob 的拼接分支
+ */
+TEST_F(VariantOperationsTest, StringVariantBlobCombination) {
+    variant    string_value("head");
+    mc::blob   blob_data   = {'t', 'a', 'i', 'l'};
+    variant    blob_value(blob_data);
+
+    variant combined = string_value + blob_value;
+    EXPECT_TRUE(combined.is_string());
+    EXPECT_EQ(combined.as_string(), "headtail");
+
+    variant assign_string("core");
+    assign_string += blob_value;
+    EXPECT_EQ(assign_string.as_string(), "coretail");
+}
+
+/**
+ * @brief 测试数组与对象在加法运算中的边界分支
+ */
+TEST_F(VariantOperationsTest, ArrayAndObjectEdgeCases) {
+    variants array_items{variant(1)};
+    variant  array_value(array_items);
+    variant  appended = array_value + variant(2);
+    EXPECT_TRUE(appended.is_array());
+    EXPECT_EQ(appended[1].get().as_int32(), 2);
+
+    array_value += variant(3);
+    EXPECT_EQ(array_value.size(), 2U);
+    EXPECT_EQ(array_value[1].get().as_int32(), 3);
+
+    dict    dict_left{{"a", 1}};
+    dict    dict_right{{"b", 2}};
+    variant object_value(dict_left);
+    variant merged = object_value + variant(dict_right);
+    EXPECT_EQ(merged["b"].get().as_int32(), 2);
+
+    EXPECT_THROW(object_value + variant(7), mc::exception);
+    EXPECT_THROW(object_value += variant(8), mc::exception);
+}
+
+/**
+ * @brief 测试无符号整数的运算路径
+ */
+TEST_F(VariantOperationsTest, UnsignedSpecificOperations) {
+    variant diff = variant(uint64_t(2)) - variant(uint64_t(5));
+    EXPECT_TRUE(diff.is_integer());
+    EXPECT_EQ(diff.as_int64(), -3);
+
+    variant product = variant(uint64_t(4)) * variant(uint64_t(3));
+    EXPECT_TRUE(product.is_unsigned_integer());
+    EXPECT_EQ(product.as_uint64(), 12U);
+
+    variant quotient = variant(uint64_t(10)) / variant(uint64_t(2));
+    EXPECT_TRUE(quotient.is_unsigned_integer());
+    EXPECT_EQ(quotient.as_uint64(), 5U);
+
+    variant modulo = variant(uint64_t(10)) % variant(uint64_t(3));
+    EXPECT_TRUE(modulo.is_unsigned_integer());
+    EXPECT_EQ(modulo.as_uint64(), 1U);
+
+    EXPECT_EQ((variant(uint64_t(6)) & variant(uint64_t(3))).as_uint64(), 2U);
+    EXPECT_EQ((variant(uint64_t(5)) | variant(uint64_t(2))).as_uint64(), 7U);
+    EXPECT_EQ((variant(uint64_t(5)) ^ variant(uint64_t(1))).as_uint64(), 4U);
+
+    EXPECT_EQ((variant(uint64_t(3)) << variant(uint64_t(2))).as_uint64(), 12U);
+    EXPECT_EQ((variant(uint64_t(8)) >> variant(uint64_t(1))).as_uint64(), 4U);
+
+    variant bit_not = ~variant(uint64_t(0x0F));
+    EXPECT_EQ(bit_not.as_uint64(), static_cast<uint64_t>(~uint64_t(0x0F)));
+}
+
+/**
+ * @brief 测试自增自减与一元运算符
+ */
+TEST_F(VariantOperationsTest, IncrementDecrementSpecialCases) {
+    variant bool_value(true);
+    variant negated_bool = -bool_value;
+    EXPECT_EQ(negated_bool.as_int64(), -1);
+
+    variant numeric(5);
+    variant pre_inc = ++numeric;
+    EXPECT_EQ(pre_inc.as_int64(), 6);
+    variant post_inc = numeric++;
+    EXPECT_EQ(post_inc.as_int64(), 6);
+    EXPECT_EQ(numeric.as_int64(), 7);
+
+    variant double_value(1.5);
+    ++double_value;
+    EXPECT_DOUBLE_EQ(double_value.as_double(), 2.5);
+
+    variant unsigned_value(uint64_t(0));
+    ++unsigned_value;
+    EXPECT_EQ(unsigned_value.as_uint64(), 1U);
+
+    variant bool_zero(false);
+    ++bool_zero;
+    EXPECT_TRUE(bool_zero.as_bool());
+
+    variant decrement_target(10);
+    variant pre_dec = --decrement_target;
+    EXPECT_EQ(pre_dec.as_int64(), 9);
+    variant post_dec = decrement_target--;
+    EXPECT_EQ(post_dec.as_int64(), 9);
+    EXPECT_EQ(decrement_target.as_int64(), 8);
+
+    variant non_numeric("text");
+    EXPECT_THROW(++non_numeric, mc::exception);
+    EXPECT_THROW(non_numeric++, mc::exception);
+    EXPECT_THROW(--non_numeric, mc::exception);
+    EXPECT_THROW(non_numeric--, mc::exception);
 }
 
 } // namespace test

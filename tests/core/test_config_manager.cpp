@@ -33,6 +33,7 @@ namespace {
 
 // 辅助函数：确保共享内存锁文件存在，避免依赖engine测试环境
 void ensure_shm_lock_file() {
+#ifdef __linux__
     constexpr const char* lock_path = "/dev/shm/init_shm.lock";
     std::ofstream         file(lock_path, std::ios::app);
     if (!file.is_open()) {
@@ -40,11 +41,14 @@ void ensure_shm_lock_file() {
     }
     file.close();
     chmod(lock_path, 0666);
+#endif
 }
 
 // 辅助函数：创建带后缀的临时文件
 std::string create_temp_file_with_suffix(const std::string& content, std::string_view suffix) {
-    std::string pattern = "/tmp/mc_config_test_XXXXXX";
+    auto tmp_dir = mc::filesystem::temp_directory_path();
+    auto tmp_file = tmp_dir / "mc_config_test_XXXXXX";
+    std::string pattern = tmp_file.string();
     pattern += suffix;
 
     std::vector<char> buffer(pattern.begin(), pattern.end());
@@ -132,7 +136,9 @@ TEST_F(config_manager_test, parse_command_line_config_file) {
 
 // 测试解析命令行 - 插件目录
 TEST_F(config_manager_test, parse_command_line_plugin_dir) {
-    std::vector<std::string> args = {"test", "--plugin-dir", "/tmp/plugins"};
+    auto tmp_dir = mc::filesystem::temp_directory_path();
+    auto plugin_dir = (tmp_dir / "plugins").string();
+    std::vector<std::string> args = {"test", "--plugin-dir", plugin_dir};
     std::vector<char*>        argv;
     for (auto& arg : args) {
         argv.push_back(const_cast<char*>(arg.c_str()));
@@ -188,10 +194,13 @@ TEST_F(config_manager_test, parse_command_line_plugins) {
 // 测试添加配置 - Application配置
 TEST_F(config_manager_test, add_config_application) {
     config::app_config app;
+    auto tmp_dir = mc::filesystem::temp_directory_path();
+    auto plugin_dir = (tmp_dir / "plugins").string();
+
     app.api_version = "v1";
     app.kind        = "Application";
     app.meta.name   = "test_app";
-    app.plugin_dir  = "/tmp/plugins";
+    app.plugin_dir  = plugin_dir;
     app.plugins     = {"plugin1", "plugin2"};
     app.threads     = 4;
 
@@ -202,7 +211,7 @@ TEST_F(config_manager_test, add_config_application) {
     auto result = manager->get_config<config::app_config>("test_app");
     ASSERT_TRUE(result.has_value());
     EXPECT_EQ(result->meta.name, "test_app");
-    EXPECT_EQ(result->plugin_dir, "/tmp/plugins");
+    EXPECT_EQ(result->plugin_dir, plugin_dir);
 }
 
 // 测试添加配置 - Service配置
@@ -293,13 +302,15 @@ TEST_F(config_manager_test, get_configs) {
 
 // 测试加载配置文件 - JSON格式
 TEST_F(config_manager_test, load_config_file_json) {
+    auto tmp_dir = mc::filesystem::temp_directory_path();
+    auto plugin_dir = (tmp_dir / "plugins").string();
     std::string json_content = R"({
         "api_version": "v1",
         "kind": "Application",
         "meta": {
             "name": "test_app"
         },
-        "plugin_dir": "/tmp/plugins",
+        "plugin_dir": ")" + plugin_dir + R"(",
         "plugins": ["plugin1"],
         "threads": 4
     })";
@@ -438,9 +449,10 @@ TEST_F(config_manager_test, add_config_non_object_variant) {
 
 // 测试添加配置 - 未知类型
 TEST_F(config_manager_test, add_config_unknown_kind) {
-    variant config_variant = dict{{"api_version", "v1"}, {"kind", "Unknown"},
-                                  {"meta", dict{{"name", "mystery"}}}};
-    bool    result         = manager->add_config(config_variant);
+    variant config_variant = dict{{"api_version", "v1"},
+                                   {"kind", "Unknown"},
+                                   {"meta", dict{{"name", "mystery"}}}};
+    bool result = manager->add_config(config_variant);
     EXPECT_TRUE(result);
     auto configs = manager->get_configs<config::service_config>();
     EXPECT_TRUE(configs.empty());
@@ -478,7 +490,9 @@ TEST_F(config_manager_test, toml_config_loader) {
     EXPECT_EQ(extensions[0], ".toml");
 
     // TOML加载器应该抛出not_implemented异常
-    EXPECT_THROW(loader.load("/tmp/test.toml"), mc::not_implemented_exception);
+    auto tmp_dir = mc::filesystem::temp_directory_path();
+    auto test_file = (tmp_dir / "test.toml").string();
+    EXPECT_THROW(loader.load(test_file), mc::not_implemented_exception);
 }
 
 // 注意：validate_config 是私有方法，不能直接测试。
@@ -488,14 +502,14 @@ TEST_F(config_manager_test, toml_config_loader) {
 // 测试 json_config_loader - 文件不存在
 TEST_F(config_manager_test, json_config_loader_file_not_found) {
     json_config_loader loader;
-    
+
     EXPECT_THROW(loader.load("/nonexistent/file.json"), mc::file_not_found_exception);
 }
 
 // 测试 json_config_loader - 文件打开失败
 TEST_F(config_manager_test, json_config_loader_file_open_fails) {
     json_config_loader loader;
-    
+
     // 尝试加载一个权限不足的文件（如果可能）
     // 或者创建一个无法打开的文件路径
     // 由于难以模拟文件打开失败，我们至少测试文件不存在的情况
@@ -505,28 +519,28 @@ TEST_F(config_manager_test, json_config_loader_file_open_fails) {
 // 测试 json_config_loader - JSON 解析错误
 TEST_F(config_manager_test, json_config_loader_parse_error) {
     json_config_loader loader;
-    
+
     // 创建一个包含无效 JSON 的文件
     std::string invalid_json = "{ invalid json syntax }";
     std::string file_path    = create_temp_json_file(invalid_json);
     ASSERT_FALSE(file_path.empty());
     temp_files.push_back(file_path);
-    
+
     EXPECT_THROW(loader.load(file_path), mc::parse_error_exception);
 }
 
 // 测试 json_config_loader - 有效的 JSON
 TEST_F(config_manager_test, json_config_loader_valid_json) {
     json_config_loader loader;
-    
+
     std::string valid_json = R"({"key": "value", "number": 123})";
     std::string file_path  = create_temp_json_file(valid_json);
     ASSERT_FALSE(file_path.empty());
     temp_files.push_back(file_path);
-    
+
     variant result = loader.load(file_path);
     EXPECT_TRUE(result.is_dict());
-    
+
     dict d = result.as<dict>();
     EXPECT_EQ(d["key"].as<std::string>(), "value");
     EXPECT_EQ(d["number"].as<int>(), 123);

@@ -618,3 +618,115 @@ TEST_F(ExecutorTest, MoveAssignmentOtherNullptr) {
     valid_exec = std::move(invalid_exec);
     EXPECT_FALSE(valid_exec.valid());
 }
+
+// 测试 executor 的自赋值（拷贝赋值）
+TEST_F(ExecutorTest, CopyAssignmentSelf) {
+    auto& runtime = mc::get_runtime_context();
+    runtime.start();
+
+    mc::executor exec(mc::make_io_strand());
+
+    // 自赋值应该安全
+    exec = exec;
+    EXPECT_TRUE(exec.valid());
+}
+
+// 测试 executor 的自赋值（移动赋值）
+TEST_F(ExecutorTest, MoveAssignmentSelf) {
+    auto& runtime = mc::get_runtime_context();
+    runtime.start();
+
+    mc::executor exec(mc::make_io_strand());
+
+    // 自移动赋值应该安全
+    exec = std::move(exec);
+    EXPECT_TRUE(exec.valid());
+}
+
+// 测试 executor 的 on_work_started() 方法（有效执行器）
+TEST_F(ExecutorTest, OnWorkStartedWithValidExecutor) {
+    auto& runtime = mc::get_runtime_context();
+    runtime.start();
+
+    mc::executor exec(mc::make_io_strand());
+
+    // 对有效执行器调用 on_work_started() 应该不抛出异常
+    EXPECT_NO_THROW(exec.on_work_started());
+}
+
+// 测试 executor 的 on_work_finished() 方法（有效执行器）
+TEST_F(ExecutorTest, OnWorkFinishedWithValidExecutor) {
+    auto& runtime = mc::get_runtime_context();
+    runtime.start();
+
+    mc::executor exec(mc::make_io_strand());
+
+    // 对有效执行器调用 on_work_finished() 应该不抛出异常
+    EXPECT_NO_THROW(exec.on_work_finished());
+}
+
+// 测试 executor 的 context() 方法（有效执行器）
+TEST_F(ExecutorTest, ContextWithValidExecutor) {
+    auto& runtime = mc::get_runtime_context();
+    runtime.start();
+
+    mc::executor exec(mc::make_io_strand());
+
+    // 对有效执行器调用 context() 应该返回有效的 execution_context
+    auto& ctx = exec.context();
+    EXPECT_NE(&ctx, nullptr);
+}
+
+// 注意：use_count() 和 get_executor() 是 executor::impl_base 和 executor::impl 的内部方法
+// 无法直接测试，但可以通过拷贝/移动语义间接验证引用计数行为
+
+// 测试 executor 的 equal() 方法 - 不同类型执行器比较
+TEST_F(ExecutorTest, EqualDifferentTypes) {
+    auto& runtime = mc::get_runtime_context();
+    runtime.start();
+
+    auto          io_strand = mc::make_io_strand();
+    auto          work_strand = mc::make_work_strand();
+    mc::executor exec1(io_strand);
+    mc::executor exec2(work_strand);
+
+    // 不同类型的执行器应该不相等
+    EXPECT_NE(exec1, exec2);
+}
+
+// 测试 executor 的 post/defer/dispatch - 无效执行器异常分支
+TEST_F(ExecutorTest, PostDeferDispatchInvalidExecutor) {
+    mc::executor invalid_executor;
+
+    // 对无效执行器调用 post 应该抛出异常
+    EXPECT_THROW(invalid_executor.post([]() {}), mc::invalid_op_exception);
+
+    // 对无效执行器调用 defer 应该抛出异常
+    EXPECT_THROW(invalid_executor.defer([]() {}), mc::invalid_op_exception);
+
+    // 对无效执行器调用 dispatch 应该抛出异常
+    EXPECT_THROW(invalid_executor.dispatch([]() {}), mc::invalid_op_exception);
+}
+
+// 测试 executor 的 post/defer/dispatch 使用自定义分配器
+TEST_F(ExecutorTest, PostDeferDispatchWithCustomAllocator) {
+    auto& runtime = mc::get_runtime_context();
+    runtime.start();
+
+    std::atomic<int> task_count{0};
+    std::allocator<void> custom_allocator;
+
+    mc::executor exec(mc::make_io_strand());
+
+    // 使用自定义分配器调用 post
+    exec.post([&task_count]() { task_count++; }, custom_allocator);
+
+    // 使用自定义分配器调用 defer
+    exec.defer([&task_count]() { task_count++; }, custom_allocator);
+
+    // 使用自定义分配器调用 dispatch
+    exec.dispatch([&task_count]() { task_count++; }, custom_allocator);
+
+    runtime.get_io_context().run_for(100ms);
+    EXPECT_EQ(task_count.load(), 3);
+}

@@ -32,9 +32,11 @@ protected:
 TEST_F(config_validator_test, validate_app_config_success) {
     app_config config;
     config.kind = "Application";
+    auto tmp_dir = mc::filesystem::temp_directory_path();
+    auto plugin_dir = (tmp_dir / "plugins").string();
     config.api_version = "v1";
     config.meta.name = "test_app";
-    config.plugin_dir = "/tmp/plugins";
+    config.plugin_dir = plugin_dir;
     config.plugins = {"plugin1", "plugin2"};
     config.threads = 4;
     config.work_threads = 8;

@@ -11,11 +11,14 @@
  */
 
 #include <gtest/gtest.h>
+#include <mc/error_engine.h>
 #include <mc/exception.h>
 #include <mc/future.h>
 #include <mc/log/log_message.h>
 #include <mc/result.h>
 #include <test_utilities/test_base.h>
+
+#include <string>
 
 using namespace std::chrono_literals;
 
@@ -298,6 +301,63 @@ TEST_F(result_test, test_make_result) {
         MC_THROW(mc::invalid_arg_exception, "test exception");
     }));
     EXPECT_THROW(r7.get(), mc::invalid_arg_exception);
+}
+
+TEST_F(result_test, test_default_error_selection) {
+    mc::error_engine::reset_for_test();
+
+    auto default_error = mc::detail::get_default_error();
+    ASSERT_TRUE(default_error);
+    EXPECT_EQ(default_error->get_name(), "org.freedesktop.DBus.Error.Failed");
+    EXPECT_EQ(default_error->get_message(), "Failed to execute method");
+
+    auto& engine      = mc::error_engine::get_instance();
+    auto  custom_err  = mc::make_error("test.custom.error", "custom message");
+    auto  previous    = engine.set_last_error(custom_err);
+    EXPECT_FALSE(previous);
+
+    auto reused = mc::detail::get_default_error();
+    EXPECT_EQ(reused, custom_err);
+}
+
+TEST_F(result_test, test_throw_and_make_method_call_exception) {
+    mc::error_engine::reset_for_test();
+
+    auto err = mc::make_error("test.throw.error", "throw message");
+    ASSERT_THROW(
+        {
+            try {
+                mc::detail::throw_method_call_exception(err);
+            } catch (const mc::method_call_exception& ex) {
+                EXPECT_EQ(ex.name(), "test.throw.error");
+                EXPECT_TRUE(std::string(ex.to_string()).find("throw message") != std::string::npos);
+                throw;
+            }
+        },
+        mc::method_call_exception);
+
+    mc::error_engine::reset_for_test();
+    try {
+        mc::detail::throw_method_call_exception(nullptr);
+        FAIL() << "expected default error";
+    } catch (const mc::method_call_exception& ex) {
+        EXPECT_EQ(ex.name(), "org.freedesktop.DBus.Error.Failed");
+    }
+
+    auto made = mc::detail::make_method_call_exception(err);
+    EXPECT_EQ(made.name(), "test.throw.error");
+    EXPECT_TRUE(std::string(made.to_string()).find("throw message") != std::string::npos);
+}
+
+TEST_F(result_test, test_make_method_call_exception_uses_last_error) {
+    mc::error_engine::reset_for_test();
+    auto& engine    = mc::error_engine::get_instance();
+    auto  last_err  = mc::make_error("test.last.error", "last error");
+    engine.set_last_error(last_err);
+
+    auto ex = mc::detail::make_method_call_exception(nullptr);
+    EXPECT_EQ(ex.name(), "test.last.error");
+    EXPECT_TRUE(std::string(ex.to_string()).find("last error") != std::string::npos);
 }
 
 } // namespace

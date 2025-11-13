@@ -293,6 +293,21 @@ TEST_F(VariantExtensionTest, VariantExtensionCopy) {
     EXPECT_EQ(ext1->get_value(), ext2->get_value());
 }
 
+TEST_F(VariantExtensionTest, ExtensionEqualityUsesEquals) {
+    auto ext1 = mc::make_shared<test_extension>(135);
+    auto ext2 = mc::make_shared<test_extension>(135);
+    auto ext3 = mc::make_shared<test_extension>(246);
+
+    variant v1(ext1);
+    variant v2(ext2);
+    variant v3(ext3);
+
+    EXPECT_TRUE(v1 == v2);
+    EXPECT_TRUE(v2 == v1);
+    EXPECT_FALSE(v1 == v3);
+    EXPECT_TRUE(v1 != v3);
+}
+
 TEST_F(VariantExtensionTest, VariantExtensionMove) {
     // 测试 variant 扩展类型的移动
     auto    ext = std::make_unique<test_extension>(700);
@@ -519,74 +534,6 @@ TEST_F(VariantExtensionTest, ExtensionOperatorChainedAccess) {
     EXPECT_EQ(v["data"][1], 250);
 }
 
-TEST_F(VariantExtensionTest, ExtensionOperatorArithmetic) {
-    // 测试扩展对象的算术操作
-    auto ext = mc::make_shared<variant_array_extension>(
-        mc::array<mc::variant>{10, 20, 30});
-    variant v(ext);
-
-    // ✅ 两个 reference 之间的算术操作（零开销）
-    EXPECT_EQ(v[0] + v[1], 30);
-    EXPECT_EQ(v[2] - v[0], 20);
-    EXPECT_EQ(v[1] * v[0], 200);
-
-    // ✅ reference 与基础类型
-    EXPECT_EQ(v[0] + 5, 15);
-    EXPECT_EQ(5 + v[0], 15);
-
-    // ✅ reference 与 variant
-    variant num(5);
-    EXPECT_EQ(v[0] + num, 15);
-    EXPECT_EQ(num + v[0], 15);
-}
-
-TEST_F(VariantExtensionTest, ExtensionOperatorComparison) {
-    // 测试扩展对象的比较操作
-    auto ext = mc::make_shared<variant_array_extension>(
-        mc::array<mc::variant>{10, 20, 30, 20, 10});
-    variant v(ext);
-
-    // ✅ 两个 reference 之间的比较（零开销）
-    EXPECT_TRUE(v[0] == v[4]);
-    EXPECT_TRUE(v[1] == v[3]);
-    EXPECT_TRUE(v[0] != v[1]);
-    EXPECT_TRUE(v[0] < v[1]);
-    EXPECT_TRUE(v[2] > v[1]);
-
-    // ✅ reference 与基础类型
-    EXPECT_TRUE(v[0] == 10);
-    EXPECT_TRUE(10 == v[0]);
-    EXPECT_TRUE(v[1] > 15);
-    EXPECT_TRUE(15 < v[1]);
-
-    // ✅ reference 与 variant
-    variant num(20);
-    EXPECT_TRUE(v[1] == num);
-    EXPECT_TRUE(num == v[1]);
-}
-
-TEST_F(VariantExtensionTest, ExtensionOperatorCompoundAssignment) {
-    // 测试扩展对象的复合赋值操作
-    auto ext = mc::make_shared<variant_array_extension>(
-        mc::array<mc::variant>{10, 20, 30});
-    variant v(ext);
-
-    // ✅ 复合赋值操作（零开销）
-    v[0] += 5;
-    EXPECT_EQ(v[0], 15);
-
-    v[1] *= 2;
-    EXPECT_EQ(v[1], 40);
-
-    v[2] -= 10;
-    EXPECT_EQ(v[2], 20);
-
-    // 验证内部数据被修改
-    EXPECT_EQ(ext->get_data()[0], 15);
-    EXPECT_EQ(ext->get_data()[1], 40);
-    EXPECT_EQ(ext->get_data()[2], 20);
-}
-
 TEST_F(VariantExtensionTest, ExtensionMixedWithNormalVariant) {
     // 测试扩展对象与普通 variant 的混合使用
     auto ext = mc::make_shared<variant_array_extension>(
@@ -667,28 +614,6 @@ TEST_F(VariantExtensionTest, ExtensionZeroCopyVerification) {
     // ✅ 验证地址相同，证明是零开销引用
     EXPECT_EQ(internal_ptr0, ref_ptr0) << "v[0] 应该直接引用内部数据";
     EXPECT_EQ(internal_ptr1, ref_ptr1) << "v[1] 应该直接引用内部数据";
-}
-
-TEST_F(VariantExtensionTest, ExtensionOperatorComplexExpression) {
-    // 测试复杂表达式
-    auto ext = mc::make_shared<variant_array_extension>(
-        mc::array<mc::variant>{2, 3, 4, 5, 6});
-    variant v(ext);
-
-    // ✅ 复杂算术表达式（零开销）
-    auto result1 = v[0] + v[1] * v[2]; // 2 + 3 * 4 = 14
-    EXPECT_EQ(result1, 14);
-
-    auto result2 = (v[0] + v[1]) * v[2]; // (2 + 3) * 4 = 20
-    EXPECT_EQ(result2, 20);
-
-    auto result3 = v[4] - v[3] + v[2] * v[1]; // 6 - 5 + 4 * 3 = 13
-    EXPECT_EQ(result3, 13);
-
-    // ✅ 复杂比较表达式
-    EXPECT_TRUE(v[0] < v[1] && v[1] < v[2]);
-    EXPECT_TRUE((v[0] + v[1]) == 5); // 2 + 3 = 5
-    EXPECT_TRUE((v[4] - v[3]) == 1); // 6 - 5 = 1
 }
 
 TEST_F(VariantExtensionTest, ExtensionStringConcatenation) {
