@@ -12,6 +12,7 @@
 
 #include <gtest/gtest.h>
 #include <mc/exception.h>
+#include <mc/filesystem.h>
 #include <test_utilities/test_base.h>
 
 #include "module/include/module_loader.h"
@@ -203,7 +204,7 @@ TEST_F(ModuleLoaderExtraBranchTest, TestLoadPathIsReusedBranch) {
  */
 TEST_F(ModuleLoaderExtraBranchTest, TestConstructorEnvVar) {
     // 设置环境变量
-    const char* test_path = "/custom/path/?.so;/another/path/?.so";
+    const char* test_path = "  ;/invalid/path;/custom/path/?.so; /another/path/?.so  ";
     setenv("MC_MODULE_PATH", test_path, 1);
 
     // 创建新的 loader，它会读取环境变量
@@ -211,13 +212,16 @@ TEST_F(ModuleLoaderExtraBranchTest, TestConstructorEnvVar) {
 
     // 检查环境变量路径是否被添加
     const auto& paths = loader.search_paths();
-    bool found_custom = false;
+    bool found_custom  = false;
     bool found_another = false;
+    bool found_invalid  = false;
     for (const auto& path : paths) {
         if (path == "/custom/path/?.so") {
             found_custom = true;
         } else if (path == "/another/path/?.so") {
             found_another = true;
+        } else if (path == "/invalid/path") {
+            found_invalid = true;
         }
     }
 
@@ -226,6 +230,7 @@ TEST_F(ModuleLoaderExtraBranchTest, TestConstructorEnvVar) {
 
     EXPECT_TRUE(found_custom) << "环境变量中的路径应被添加";
     EXPECT_TRUE(found_another) << "环境变量中的路径应被添加";
+    EXPECT_FALSE(found_invalid) << "非法模板不应被保留";
 }
 
 /**

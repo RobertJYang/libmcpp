@@ -26,9 +26,9 @@ See the Mulan PSL v2 for more details.
 ## 重点测试用例简介
 
 ### test_module_loader.cpp
-模块加载器核心功能测试（18 个用例）：
+模块加载器核心功能测试（19 个用例）：
 - `TestDefaultSearchPaths`：测试默认搜索路径。
-- `TestSearchPathManagement`：测试搜索路径管理功能。
+- `TestSearchPathLifecycle`：测试搜索路径添加、去重与清空再添加的完整流程。
 - `TestSetLoadLibFunc`：测试设置加载库函数。
 - `TestLoadModuleSuccess`：测试成功加载模块。
 - `TestLoadModuleLibraryNotFound`：测试库文件未找到的情况。
@@ -36,7 +36,6 @@ See the Mulan PSL v2 for more details.
 - `TestLoadModuleCallbackReturnsFalse`：测试回调返回 false 的情况。
 - `TestMultipleSearchPathPatterns`：测试多种搜索路径模式。
 - `TestComplexModuleName`：测试复杂模块名的处理。
-- `TestSearchPathsGetterNonEmpty`：清空后添加路径，`search_paths()` 返回非空。
 - `TestAddLoadPathsEmptyAndWhitespace`：空与仅空白路径被正确跳过。
 - `TestAddLoadPathInvalid`：不包含 `?` 的模板路径被拒绝并记录告警。
 - `TestLoadPathNotReadable`：`is_readable` 返回 `false` 时不尝试加载。
@@ -45,21 +44,25 @@ See the Mulan PSL v2 for more details.
 - `TestLoadPathCallbackException`：回调抛异常时记录错误并卸载句柄。
 - `TestAddSearchPathDuplicate`：重复路径不重复添加。
 - `TestGetSetLoadLibFunc`：校验 `set/get_load_lib_func` 的一致性。
+- `TestLoadPathMissingOpenFunc`：缺少 `mc_open_*` 导出符号时失败并卸载。
+- `TestLoadModuleEmptyName`：空模块名直接返回失败。
+- `TestLoadModuleMixedSeparators`：混合冒号与点号的模块名仍能正确解析路径。
+- `TestLoadModuleTemplateMultiPlaceholders`：包含多个问号占位符的模板可完整替换。
 
 ### test_module_loader_branches.cpp
 模块加载器分支覆盖测试（3 个用例）：
 - `TestLoadPathIsReusedBranch`：测试 `load_path` 中 `is_reused=true` 的分支，验证当回调设置 `is_reused=true` 时会调用 `unload` 减少引用计数。
-- `TestConstructorEnvVar`：测试 `module_loader` 构造函数中从环境变量 `MC_MODULE_PATH` 读取搜索路径的分支。
+- `TestConstructorEnvVar`：测试 `module_loader` 构造函数中从环境变量 `MC_MODULE_PATH` 读取搜索路径的分支，并确认非法模板被忽略。
 - `TestIsReadableExceptionBranch`：测试 `is_readable` 抛出异常时的处理分支，验证异常正确传播。
 
 ### test_module_manager.cpp
-模块管理器完整功能测试（17 个用例）：
+模块管理器完整功能测试（18 个用例）：
 - **基础功能**：
   - `TestModuleLoad`：测试模块加载功能，验证模块名称和版本信息。
-  - `TestModuleManagerBasic`：测试模块管理器功能，包括加载状态查询和已加载模块列表。
-  - `TestReflection`：测试反射功能，验证类型注册、对象创建和方法调用。
-  - `TestUtilityFunctions`：测试便利函数，验证模块加载的缓存机制。
-  - `TestUnRegisterBuiltinModule`：测试注销内置模块功能。
+  - `TestModuleManagerBasic`：综合检查 require/is_loaded/loaded_modules 等接口。
+  - `TestReflection`：验证模块工厂与反射能力，确保对象创建与方法调用正常。
+  - `TestUtilityFunctions`：验证 `load_module` 与 `get_module_manager` 便捷接口。
+  - `TestUnRegisterBuiltinModule`：校验注销内建模块后的行为。
 - **扩展功能**：
   - `TestModuleUnload`：卸载已加载模块。
   - `TestUnloadNonExistentModule`：卸载不存在的模块。
@@ -73,6 +76,11 @@ See the Mulan PSL v2 for more details.
   - `TestUnloadByFactoryId`：通过 factory_id 卸载模块。
   - `TestMultipleUnloadSameModule`：多次卸载同一模块。
   - `TestModuleNameEdgeCases`：测试模块名称边界情况。
+  - `TestConcurrentRequireSameModule`：并发 require 同一模块时返回同一实例。
+  - `TestConcurrentRequireAndUnload`：并发执行 require/unload 不产生竞态。
+  - 动态模块相关测试依赖 Meson 生成的 `mc_test_dynamic_module`，通过环境变量控制 `mc_open_*` 与 `mc_close_*` 分支，仅保留失败场景校验，减少重复用例。
+  - `TestDynamicModuleOpenFailure`：模拟 `mc_open_*` 返回 `nullptr`，验证 `add_library` 失败后 `require` 返回空。
+  - `TestDynamicModuleCloseThrows`：模拟 `mc_close_*` 抛出异常，覆盖 `close_handle` 捕获分支。
 
 ## 运行测试
 
@@ -111,10 +119,10 @@ ninja -C builddir test
 ## 测试统计
 
 - **测试文件总数**: 3 个
-- **测试用例总数**: 38 个
-  - `test_module_loader.cpp`: 18 个用例
+- **测试用例总数**: 40 个
+  - `test_module_loader.cpp`: 19 个用例
   - `test_module_loader_branches.cpp`: 3 个用例
-  - `test_module_manager.cpp`: 17 个用例
+  - `test_module_manager.cpp`: 18 个用例
 - **测试覆盖的功能模块**:
   - Module Loader（模块加载器）
   - Module Manager（模块管理器）
