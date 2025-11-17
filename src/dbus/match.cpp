@@ -72,10 +72,16 @@ static void validate_dbus_str(const char* value) {
 match_rule::match_rule(DBus::Match::MessageType type, const std::string_view& member, const std::string_view& interface)
     : m_rule(std::make_shared<DBus::Match::Rule>()) {
     m_rule->type(type);
-    validate_dbus_str<dbus_validate_member>(member.data());
-    m_rule->member(member);
-    validate_dbus_str<dbus_validate_interface>(interface.data());
-    m_rule->interface(interface);
+    // 只有当 member 非空时才验证和设置
+    if (!member.empty()) {
+        validate_dbus_str<dbus_validate_member>(member.data());
+        m_rule->member(member);
+    }
+    // 只有当 interface 非空时才验证和设置
+    if (!interface.empty()) {
+        validate_dbus_str<dbus_validate_interface>(interface.data());
+        m_rule->interface(interface);
+    }
 }
 
 match_rule match_rule::new_signal(const std::string_view& member,

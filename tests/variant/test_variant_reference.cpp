@@ -18,8 +18,74 @@
 #include <gtest/gtest.h>
 
 #include <mc/variant.h>
+#include <mc/variant/variant_extension.h>
 
 using namespace mc;
+
+namespace {
+class reference_extension : public variant_extension<reference_extension> {
+public:
+    explicit reference_extension(bool allow_ref = false)
+        : m_items({mc::variant(1), mc::variant("value"), mc::variant(true)}),
+          m_attrs({{"flag", false}, {"token", "id"}}),
+          m_allow_ref(allow_ref) {
+    }
+
+    reference_extension(const reference_extension&) = default;
+    reference_extension& operator=(const reference_extension&) = default;
+
+    mc::shared_ptr<variant_extension_base> copy() const override {
+        return mc::make_shared<reference_extension>(*this);
+    }
+
+    bool equals(const variant_extension_base& other) const override {
+        auto* ext = dynamic_cast<const reference_extension*>(&other);
+        if (ext == nullptr) {
+            return false;
+        }
+        return m_items == ext->m_items && m_attrs == ext->m_attrs && m_allow_ref == ext->m_allow_ref;
+    }
+
+    bool supports_reference_access() const override {
+        return m_allow_ref;
+    }
+
+    variant* get_ptr(std::size_t index) override {
+        if (!m_allow_ref) {
+            return nullptr;
+        }
+        return m_items.get_ptr(index);
+    }
+
+    const variant* get_ptr(std::size_t index) const override {
+        if (!m_allow_ref) {
+            return nullptr;
+        }
+        return m_items.get_ptr(index);
+    }
+
+    variant get(std::size_t index) const override {
+        return m_items.at(index);
+    }
+
+    void set(std::size_t index, const variant& value) override {
+        m_items.set(index, value);
+    }
+
+    variant get(std::string_view key) const override {
+        return m_attrs.at(key);
+    }
+
+    void set(std::string_view key, const variant& value) override {
+        m_attrs[std::string(key)] = value;
+    }
+
+private:
+    variants m_items;
+    dict     m_attrs;
+    bool     m_allow_ref;
+};
+} // namespace
 
 class VariantReferenceTest : public ::testing::Test {
 protected:
@@ -745,4 +811,37 @@ TEST_F(VariantReferenceTest, VectorConstructorWeakType) {
     EXPECT_EQ(weak_array1[0], 1);
     EXPECT_EQ(weak_array1[1], 2);
     EXPECT_EQ(weak_array1[2], 3);
+}
+
+TEST_F(VariantReferenceTest, ExtensionAccessWithoutDirectReference) {
+    auto ext = mc::make_shared<reference_extension>(false);
+    variant v(ext);
+
+    variant_reference index_ref = v[1];
+    EXPECT_EQ(index_ref.get().as_string(), "value");
+    index_ref = variant("patched");
+    EXPECT_EQ(v[1].as_string(), "patched");
+
+    variant_reference key_ref = v["flag"];
+    EXPECT_FALSE(key_ref.get().as_bool());
+    key_ref = variant(true);
+    EXPECT_TRUE(v["flag"].as_bool());
+}
+
+TEST_F(VariantReferenceTest, ExtensionAccessWithDirectReference) {
+    auto ext = mc::make_shared<reference_extension>(true);
+    variant v(ext);
+
+    variant_reference first_ref = v[0];
+    first_ref.get()             = variant(9);
+    EXPECT_EQ(v[0].as_int32(), 9);
+
+    variant_reference bool_ref = v[2];
+    bool_ref = variant(false);
+    EXPECT_FALSE(v[2].as_bool());
+
+    variant_reference target_ref = v[0];
+    target_ref = std::move(bool_ref);
+    EXPECT_FALSE(target_ref.get().as_bool());
+    EXPECT_FALSE(v[0].as_bool());
 }

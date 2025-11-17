@@ -13,9 +13,13 @@
 #include <mc/core/object.h>
 #include <mc/exception.h>
 #include <mc/memory.h>
+#include <mc/runtime/executor.h>
 #include <mc/runtime/thread_list.h>
+#include <mc/signal_slot.h>
 
 #include <gtest/gtest.h>
+
+#include <boost/asio/io_context.hpp>
 
 #include <atomic>
 #include <chrono>
@@ -134,6 +138,54 @@ TEST_F(ThreadSafeObjectTest, ConcurrentPropertyAccess) {
     // 验证操作计数
     EXPECT_EQ(name_operations.load(), num_threads * operations_per_thread);
     EXPECT_EQ(parent_operations.load(), num_threads * operations_per_thread);
+}
+
+TEST_F(ThreadSafeObjectTest, ExecutorAssignment) {
+    boost::asio::io_context io;
+    mc::runtime::executor   exec(io.get_executor());
+    root_object->set_executor(exec);
+
+    auto stored = root_object->get_executor();
+    EXPECT_TRUE(stored.valid());
+}
+
+TEST_F(ThreadSafeObjectTest, ConnectionManagementHelpers) {
+    mc::signal<void()> sig;
+    int                counter = 0;
+
+    // 使用 Direct 连接类型，确保同步执行
+    // 不传递ID，让系统自动生成
+    auto id = root_object->connect(sig, [&]() {
+        ++counter;
+    }, mc::core::connection_type::Direct);
+    sig();
+    EXPECT_EQ(counter, 1);
+
+    // disconnect 返回 void，通过检查信号是否仍然触发来验证断开成功
+    root_object->disconnect(id);
+    sig();
+    EXPECT_EQ(counter, 1); // 计数器不应该增加，因为连接已断开
+
+    // 再次断开应该不会崩溃（幂等操作）
+    root_object->disconnect(id);
+    sig();
+    EXPECT_EQ(counter, 1); // 计数器仍然不应该增加
+
+    // 测试通过信号对象断开所有连接
+    // 使用 Direct 连接类型，确保同步执行
+    // 不传递ID，让系统自动生成
+    auto id2 = root_object->connect(sig, [&]() {
+        ++counter;
+    }, mc::core::connection_type::Direct);
+    auto id3 = root_object->connect(sig, [&]() {
+        ++counter;
+    }, mc::core::connection_type::Direct);
+    sig();
+    EXPECT_EQ(counter, 3); // 两个连接都触发，计数器增加2 (1 + 2 = 3)
+
+    sig.disconnect_all();
+    sig();
+    EXPECT_EQ(counter, 3); // 计数器不应该增加，因为所有连接已断开
 }
 
 // 测试多线程并发添加子对象

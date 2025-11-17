@@ -16,6 +16,8 @@
 #include <mc/exception.h>
 #include <mc/variant.h>
 
+#include <string>
+
 using namespace mc;
 using namespace mc::engine;
 
@@ -49,6 +51,65 @@ TEST_F(ErrorEngineTest, RegisterAndGetError) {
     // 测试未注册的错误
     EXPECT_FALSE(engine.is_registered("not.registered.error"));
     EXPECT_TRUE(engine.get_error_info("not.registered.error").format.empty());
+}
+
+TEST_F(ErrorEngineTest, RegisterConstErrorWithErrorInfo) {
+    auto& engine = error_engine::get_instance();
+
+    error_info info("test.error.info", "信息错误：${value}");
+
+    auto stored = engine.register_const_error(info);
+    EXPECT_EQ(stored.name, info.name);
+    EXPECT_EQ(stored.format, info.format);
+
+    auto fetched = engine.get_error_info(info.name);
+    EXPECT_EQ(fetched.name, info.name);
+    EXPECT_EQ(fetched.format, info.format);
+}
+
+TEST_F(ErrorEngineTest, RegisterConstErrorDuplicate) {
+    auto& engine = error_engine::get_instance();
+
+    error_info info("test.error.duplicate", "重复注册：${value}");
+
+    auto first  = engine.register_const_error(info);
+    auto second = engine.register_const_error(info);
+
+    EXPECT_EQ(first.name, info.name);
+    EXPECT_EQ(first.format, info.format);
+
+    EXPECT_TRUE(second.name.empty());
+    EXPECT_TRUE(second.format.empty());
+
+    auto stored = engine.get_error_info(info.name);
+    EXPECT_EQ(stored.name, info.name);
+    EXPECT_EQ(stored.format, info.format);
+}
+
+TEST_F(ErrorEngineTest, RegisterErrorSuccess) {
+    auto& engine = error_engine::get_instance();
+
+    auto dynamic = engine.register_error("test.error.dynamic.success", "动态错误：${value}");
+    EXPECT_EQ(dynamic.name, "test.error.dynamic.success");
+    EXPECT_EQ(dynamic.format, "动态错误：${value}");
+
+    EXPECT_TRUE(engine.is_registered(dynamic.name));
+    auto retrieved = engine.get_error_info(dynamic.name);
+    EXPECT_EQ(retrieved.name, dynamic.name);
+    EXPECT_EQ(retrieved.format, dynamic.format);
+}
+
+TEST_F(ErrorEngineTest, RegisterErrorDuplicate) {
+    auto& engine = error_engine::get_instance();
+
+    auto first  = engine.register_error("test.error.dynamic", "动态错误：${value}");
+    auto second = engine.register_error("test.error.dynamic", "动态错误重复：${value}");
+
+    EXPECT_EQ(first.name, "test.error.dynamic");
+    EXPECT_EQ(first.format, "动态错误：${value}");
+
+    EXPECT_TRUE(second.name.empty());
+    EXPECT_TRUE(second.format.empty());
 }
 
 // 测试格式参数提取
@@ -170,6 +231,52 @@ TEST_F(ErrorEngineTest, ReportError) {
     EXPECT_THROW(engine.report_error("not.registered.error"), mc::assert_exception);
 }
 
+TEST_F(ErrorEngineTest, ReportErrorReusesUnsetLastError) {
+    auto& engine = error_engine::get_instance();
+    engine.reset_error();
+
+    auto empty_last = mc::make_shared<mc::error>();
+    engine.set_last_error(empty_last);
+
+    error_info info("test.reuse.error", "重用错误：${value}");
+    engine.register_const_error(info);
+
+    auto reused = engine.report_error(info, {{"value", "first"}});
+    EXPECT_EQ(reused, empty_last);
+    EXPECT_TRUE(reused->is_set());
+    EXPECT_EQ(reused->get_message(), "重用错误：first");
+
+    auto chained = engine.report_error(info, {{"value", "second"}});
+    EXPECT_NE(chained, empty_last);
+    EXPECT_TRUE(chained->has_error("test.reuse.error"));
+    EXPECT_EQ(chained->get_message(), "重用错误：second");
+}
+
+TEST_F(ErrorEngineTest, ReportErrorByName) {
+    auto& engine = error_engine::get_instance();
+    engine.register_error("test.error.by_name", "名称报告：${value}", mc::error_level::warn);
+
+    auto reported = engine.report_error("test.error.by_name", {{"value", "content"}});
+    ASSERT_TRUE(reported);
+    EXPECT_EQ(reported->get_message(), "名称报告：content");
+    EXPECT_EQ(reported->get_level(), mc::error_level::warn);
+}
+
+TEST_F(ErrorEngineTest, SetLastErrorReturnsPrevious) {
+    auto& engine = error_engine::get_instance();
+
+    auto first  = mc::make_error("test.error.first", "first");
+    auto second = mc::make_error("test.error.second", "second");
+
+    auto prev = engine.set_last_error(first);
+    EXPECT_FALSE(prev);
+    EXPECT_EQ(engine.last_error(), first);
+
+    prev = engine.set_last_error(second);
+    EXPECT_EQ(prev, first);
+    EXPECT_EQ(engine.last_error(), second);
+}
+
 // 测试last_error和error设置/重置功能
 TEST_F(ErrorEngineTest, LastError) {
     auto& engine = error_engine::get_instance();
@@ -215,4 +322,107 @@ TEST_F(ErrorEngineTest, ValidateErrorName) {
     EXPECT_FALSE(mc::engine::is_valid_error_name("invalid."));
     EXPECT_FALSE(mc::engine::is_valid_error_name(".invalid"));
     EXPECT_FALSE(mc::engine::is_valid_error_name("invalid..name"));
+}
+
+// 复杂场景：错误链的完整生命周期测试
+TEST_F(ErrorEngineTest, ComplexErrorChainLifecycle) {
+    auto& engine = error_engine::get_instance();
+
+    // 注册多个相关错误
+    engine.register_error("test.chain.level1", "第一层错误: ${msg1}");
+    engine.register_error("test.chain.level2", "第二层错误: ${msg2}");
+    engine.register_error("test.chain.level3", "第三层错误: ${msg3}");
+    engine.register_error("test.chain.level4", "第四层错误: ${msg4}");
+
+    // 创建多层错误链
+    auto err1 = engine.report_error("test.chain.level1", {{"msg1", "level1 message"}});
+    EXPECT_TRUE(err1->is_set());
+    EXPECT_EQ(err1->get_name(), "test.chain.level1");
+
+    // 继续报告错误，形成错误链
+    auto err2 = engine.report_error("test.chain.level2", {{"msg2", "level2 message"}});
+    EXPECT_TRUE(err2->is_set());
+    EXPECT_EQ(err2->get_name(), "test.chain.level2");
+    EXPECT_TRUE(err2->has_error("test.chain.level1")); // 应该包含前一个错误
+
+    auto err3 = engine.report_error("test.chain.level3", {{"msg3", "level3 message"}});
+    EXPECT_TRUE(err3->is_set());
+    EXPECT_TRUE(err3->has_error("test.chain.level2"));
+    EXPECT_TRUE(err3->has_error("test.chain.level1"));
+
+    auto err4 = engine.report_error("test.chain.level4", {{"msg4", "level4 message"}});
+    EXPECT_TRUE(err4->is_set());
+    EXPECT_TRUE(err4->has_error("test.chain.level3"));
+    EXPECT_TRUE(err4->has_error("test.chain.level2"));
+    EXPECT_TRUE(err4->has_error("test.chain.level1"));
+
+    // 验证错误链的完整性
+    auto last = engine.last_error();
+    EXPECT_EQ(last, err4);
+    EXPECT_EQ(last->get_message(), "第四层错误: level4 message");
+
+    // 重置错误，验证错误链被清除
+    engine.reset_error();
+    EXPECT_FALSE(engine.last_error());
+
+    // 重新报告错误，验证错误链重新开始
+    auto new_err = engine.report_error("test.chain.level1", {{"msg1", "new level1"}});
+    EXPECT_TRUE(new_err->is_set());
+    EXPECT_FALSE(new_err->has_error("test.chain.level2")); // 新错误链不包含旧错误
+}
+
+// 复杂场景：错误报告与错误设置的交互
+TEST_F(ErrorEngineTest, ComplexErrorReportAndSetInteraction) {
+    auto& engine = error_engine::get_instance();
+
+    engine.register_error("test.interaction.report", "报告错误: ${code}");
+    engine.register_error("test.interaction.set", "设置错误: ${info}");
+
+    // 先报告一个错误
+    auto reported = engine.report_error("test.interaction.report", {{"code", 500}});
+    EXPECT_EQ(engine.last_error(), reported);
+
+    // 手动设置一个新错误
+    auto manual = mc::make_error("test.interaction.set", "设置错误: ${info}");
+    manual->append_arg("info", "manual error");
+    auto prev = engine.set_last_error(manual);
+
+    // 验证设置返回了之前的报告错误
+    EXPECT_EQ(prev, reported);
+    EXPECT_EQ(engine.last_error(), manual);
+
+    // 再次报告错误，应该形成新的错误链
+    auto reported2 = engine.report_error("test.interaction.report", {{"code", 404}});
+    EXPECT_EQ(reported2->get_name(), "test.interaction.report");
+    EXPECT_TRUE(reported2->has_error("test.interaction.set")); // 应该包含手动设置的错误
+}
+
+// 复杂场景：错误级别和格式化
+TEST_F(ErrorEngineTest, ComplexErrorLevelAndFormatting) {
+    auto& engine = error_engine::get_instance();
+
+    // 注册不同级别的错误
+    engine.register_error("test.level.debug", "调试: ${info}", mc::error_level::debug);
+    engine.register_error("test.level.info", "信息: ${info}", mc::error_level::info);
+    engine.register_error("test.level.warn", "警告: ${info}", mc::error_level::warn);
+    engine.register_error("test.level.error", "错误: ${info}", mc::error_level::error);
+
+    // 报告不同级别的错误
+    auto debug_err = engine.report_error("test.level.debug", {{"info", "debug message"}});
+    EXPECT_EQ(debug_err->get_level(), mc::error_level::debug);
+
+    auto info_err = engine.report_error("test.level.info", {{"info", "info message"}});
+    EXPECT_EQ(info_err->get_level(), mc::error_level::info);
+    EXPECT_TRUE(info_err->has_error("test.level.debug"));
+
+    auto warn_err = engine.report_error("test.level.warn", {{"info", "warn message"}});
+    EXPECT_EQ(warn_err->get_level(), mc::error_level::warn);
+
+    auto error_err = engine.report_error("test.level.error", {{"info", "error message"}});
+    EXPECT_EQ(error_err->get_level(), mc::error_level::error);
+
+    // 验证错误链包含所有级别的错误
+    EXPECT_TRUE(error_err->has_error("test.level.warn"));
+    EXPECT_TRUE(error_err->has_error("test.level.info"));
+    EXPECT_TRUE(error_err->has_error("test.level.debug"));
 }

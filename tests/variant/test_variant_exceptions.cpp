@@ -20,6 +20,7 @@
 #include <limits>
 #include <mc/exception.h>
 #include <mc/variant.h>
+#include <mc/variant/variant_common.h>
 #include <mc/variant/variant_extension.h>
 #include <test_utilities/test_base.h>
 
@@ -95,6 +96,33 @@ public:
 
 private:
     int m_value;
+};
+
+class unsupported_extension : public variant_extension<unsupported_extension> {
+public:
+    unsupported_extension() = default;
+    explicit unsupported_extension(int v) : m_value(v) {
+    }
+
+    bool operator==(const unsupported_extension& other) const {
+        return m_value == other.m_value;
+    }
+
+    std::size_t hash() const override {
+        return std::hash<int>()(m_value);
+    }
+
+    mc::shared_ptr<variant_extension_base> copy() const override {
+        return mc::make_shared<unsupported_extension>(*this);
+    }
+
+    bool equals(const variant_extension_base& other) const override {
+        auto* ptr = dynamic_cast<const unsupported_extension*>(&other);
+        return ptr != nullptr && ptr->m_value == m_value;
+    }
+
+private:
+    int m_value{0};
 };
 
 class VariantEdgeCasesTest : public mc::test::TestBase {
@@ -770,6 +798,57 @@ TEST_F(VariantEdgeCasesTest, OperatorGreaterVariantsException) {
     variant v("string");
     variants arr = {1, 2, 3};
     EXPECT_THROW({ bool result = v > arr; MC_UNUSED(result); }, mc::exception);
+}
+
+TEST_F(VariantEdgeCasesTest, ExtensionNullVariant) {
+    auto ext_ptr = mc::make_shared<unsupported_extension>(42);
+    variant v(ext_ptr);
+
+    auto base = v.as_extension();
+    ASSERT_TRUE(base != nullptr);
+
+    EXPECT_THROW(base->get(0), mc::invalid_op_exception);
+    EXPECT_THROW(base->set(0, variant(1)), mc::invalid_op_exception);
+    EXPECT_THROW(base->get("key"), mc::invalid_op_exception);
+    EXPECT_THROW(base->set("key", variant(1)), mc::invalid_op_exception);
+}
+
+TEST_F(VariantEdgeCasesTest, ExtensionBaseAccessThrows) {
+    auto ext_ptr = mc::make_shared<unsupported_extension>(42);
+    variant v(ext_ptr);
+
+    auto base = v.as_extension();
+    ASSERT_TRUE(base != nullptr);
+
+    EXPECT_THROW(base->get(0), mc::invalid_op_exception);
+    EXPECT_THROW(base->set(0, variant(1)), mc::invalid_op_exception);
+    EXPECT_THROW(base->get("key"), mc::invalid_op_exception);
+    EXPECT_THROW(base->set("key", variant(1)), mc::invalid_op_exception);
+}
+
+TEST_F(VariantEdgeCasesTest, VariantThrowHelperFunctions) {
+    EXPECT_STREQ(mc::get_type_name_internal(mc::type_id::int32_type), "int32");
+    EXPECT_STREQ(mc::get_type_name_internal(static_cast<mc::type_id>(999)), "unknown");
+
+    EXPECT_THROW(mc::throw_type_error("array", mc::type_id::bool_type), mc::invalid_arg_exception);
+    EXPECT_THROW(mc::throw_type_error("custom", static_cast<mc::type_id>(999)), mc::invalid_arg_exception);
+    EXPECT_THROW(mc::throw_unknow_type_error(static_cast<mc::type_id>(999)), mc::invalid_arg_exception);
+    EXPECT_THROW(mc::detail::throw_method_arg_not_match("compute", "int", "string"), mc::invalid_arg_exception);
+
+    EXPECT_THROW(mc::throw_invalid_type_comparison_error("int", "dict", ">"), mc::invalid_op_exception);
+    EXPECT_THROW(mc::throw_invalid_type_operation_error("dict", "string", "+"), mc::invalid_op_exception);
+    EXPECT_THROW(mc::throw_divide_by_zero_exception("divide"), mc::divide_by_zero_exception);
+
+    EXPECT_THROW(mc::throw_out_of_range_error("index out"), mc::out_of_range_exception);
+    EXPECT_THROW(mc::throw_out_of_range_error(5, 3), mc::out_of_range_exception);
+    EXPECT_THROW(mc::throw_bad_cast_error("bad cast"), mc::bad_cast_exception);
+    EXPECT_THROW(mc::throw_runtime_error("runtime"), mc::runtime_exception);
+    EXPECT_THROW(mc::throw_not_supported_error("operation"), mc::invalid_op_exception);
+    EXPECT_THROW(mc::throw_extension_null_error(), mc::runtime_exception);
+    EXPECT_THROW(mc::throw_container_overflow_error("array"), mc::overflow_exception);
+
+    EXPECT_EQ(mc::calculate_str_hash(""), 0U);
+    EXPECT_NE(mc::calculate_str_hash("hash"), 0U);
 }
 
 } // namespace test

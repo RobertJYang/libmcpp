@@ -31,6 +31,7 @@ DBus 模块的测试文件按 `src/dbus` 的目录结构组织：
 3. `shm/test_gvariant_convert.cpp` - GVariant 转换测试
 4. `shm/test_harbor.cpp` - Harbor 测试
 5. `shm/test_shm_call.cpp` - 共享内存调用测试（条件编译）
+6. `shm/test_shm_tree.cpp` - 共享内存对象树测试
 
 ### dispatch 子目录测试文件
 1. `dispatch/test_dispatch.cpp` - 分发机制测试（包含 pending_call、timeout 和 match_rules 测试）
@@ -105,12 +106,14 @@ D-Bus 消息读写测试（7 个用例）：
 - `test_message_setters_and_flags` - 覆盖消息的 setter/getter 与类型判断
 
 ### test_error.cpp
-D-Bus 错误处理测试（10 个用例）：
+D-Bus 错误处理测试（12 个用例）：
 - `DefaultConstructor` - 测试默认构造
 - `CopyConstructor` - 测试复制构造
+- `CopyConstructorUnset` - 测试复制构造（未设置错误状态）
 - `CopyAssignment` - 测试复制赋值
+- `CopyAssignmentUnset` - 测试复制赋值（未设置错误状态）
 - `MoveAssignment` - 测试移动赋值
-- `SelfAssignment` - 测试自赋值
+- `MoveConstructor` - 测试移动构造
 - `SetErrorStringView` - 测试设置错误（字符串视图版本）
 - `SetErrorWithDict` - 测试设置错误（带格式化参数版本）
 - `SetErrorWithEmptyDict` - 测试设置错误（空字典）
@@ -151,7 +154,7 @@ D-Bus 错误处理测试（10 个用例）：
 - `test_reflect_struct` - 测试结构体反射
 
 ### shm 子目录测试
-SHM 模块的测试用例请参考 `shm/README.md`。`shm/test_local_msg.cpp` 新增了对 `parse_variant` 的断言校验，覆盖了数字签名到布尔类型（非零视为 `true`、零视为 `false`）以及各整数/浮点类型的解析结果。
+SHM 模块的测试用例请参考 `shm/README.md`。`shm/test_local_msg.cpp` 新增了对 `parse_variant` 的断言校验，覆盖了数字签名到布尔类型（非零视为 `true`、零视为 `false`）以及各整数/浮点类型的解析结果。`shm/test_shm_tree.cpp` 测试共享内存对象树功能，包括对象注册/注销、属性获取/设置、匹配规则管理、超时调用等。
 
 ### dispatch 子目录测试
 Dispatch 模块的测试用例请参考 `dispatch/README.md`。
@@ -201,8 +204,8 @@ meson test -C builddir --test-args="--gtest_filter=dbus_message_test.*"
 meson test -C builddir --test-args="--gtest_filter=ErrorTest.*"
 
 # 测试 SHM 模块（所有用例）
-./builddir/tests/libmcpp_test --gtest_filter="SerializeTest.*:LocalMsgTest.*:GvariantConvertTest.*:ShmCallTest.*"
-meson test -C builddir --test-args="--gtest_filter=SerializeTest.*:LocalMsgTest.*:GvariantConvertTest.*:ShmCallTest.*"
+./builddir/tests/libmcpp_test --gtest_filter="SerializeTest.*:LocalMsgTest.*:GvariantConvertTest.*:ShmCallTest.*:shm_tree_test.*"
+meson test -C builddir --test-args="--gtest_filter=SerializeTest.*:LocalMsgTest.*:GvariantConvertTest.*:ShmCallTest.*:shm_tree_test.*"
 
 # 测试 Dispatch 模块（所有用例）
 ./builddir/tests/libmcpp_test --gtest_filter="dispatch_test.*"
@@ -245,19 +248,19 @@ meson test -C builddir --test-args="--gtest_filter=ErrorTest.SetError*"
 
 ## 测试统计
 
-- **测试文件总数**: 12 个
+- **测试文件总数**: 13 个
   - 根目录: 6 个
-  - shm 子目录: 5 个
+  - shm 子目录: 6 个
   - dispatch 子目录: 1 个
-- **测试用例总数**: 170 个（根据 `grep -c "TEST_F\|TEST(` tests/dbus/**/*.cpp` 统计）
-  - 根目录测试: 94 个
+- **测试用例总数**: 178 个（根据 `grep -c "TEST_F\|TEST(` tests/dbus/**/*.cpp` 统计）
+  - 根目录测试: 93 个
     - `test_connection.cpp`: 40 个（基础 5 + 场景 6 + 安全 4 + 实现 25）
     - `test_dbus_message.cpp`: 7 个
-    - `test_error.cpp`: 13 个
+    - `test_error.cpp`: 12 个
     - `test_match.cpp`: 26 个
     - `test_reflect.cpp`: 1 个
     - `test_validator.cpp`: 7 个
-  - shm 子目录测试: 63 个（参考 `shm/README.md`）
+  - shm 子目录测试: 72 个（参考 `shm/README.md`，包含 `test_shm_tree.cpp` 的 9 个测试用例）
   - dispatch 子目录测试: 13 个（参考 `dispatch/README.md`）
 - **测试覆盖的功能模块**:
   - Connection（连接管理）

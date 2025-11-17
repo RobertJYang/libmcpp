@@ -12,6 +12,7 @@
 
 #include <gtest/gtest.h>
 #include <mc/core/config_schema.h>
+#include <mc/core/supervisor_manager.h>
 #include <mc/core/service.h>
 #include <mc/dict.h>
 #include <test_utilities/test_base.h>
@@ -66,6 +67,40 @@ public:
     bool m_started     = false;
     bool m_cleaned_up  = false;
     bool m_healthy     = true;
+};
+
+class failing_service : public service_base {
+public:
+    failing_service(const std::string& name, bool start_ok, bool stop_ok)
+        : service_base(name), m_start_ok(start_ok), m_stop_ok(stop_ok) {
+    }
+
+    bool init(dict) override {
+        return true;
+    }
+
+    bool start() override {
+        return m_start_ok;
+    }
+
+    bool stop() override {
+        return m_stop_ok;
+    }
+
+    void cleanup() override {
+    }
+
+    service_state get_state() const override {
+        return m_start_ok ? service_state::running : service_state::stopped;
+    }
+
+    bool is_healthy() const override {
+        return m_start_ok;
+    }
+
+private:
+    bool m_start_ok;
+    bool m_stop_ok;
 };
 
 // 辅助函数：创建监督器配置
@@ -516,4 +551,83 @@ TEST_F(default_supervisor_test, handle_service_crash_rest_for_one_strategy) {
     // 验证服务仍然存在
     EXPECT_NE(testable->get_service("service1"), nullptr);
     EXPECT_NE(testable->get_service("service2"), nullptr);
+}
+
+TEST(SupervisorManagerTest, ManageSupervisorsLifecycle) {
+    supervisor_manager manager;
+    ASSERT_TRUE(manager.init());
+    EXPECT_NE(manager.get_root_supervisor(), nullptr);
+
+    auto cfg = make_supervisor_config("child_supervisor",
+                                      config::supervisor_strategy::one_for_all, 5);
+    auto sup = manager.create_supervisor(cfg);
+    ASSERT_NE(sup, nullptr);
+    // create_supervisor 已经将 supervisor 添加到 m_supervisors 中，所以不需要再调用 add_supervisor
+    EXPECT_EQ(manager.get_supervisor(cfg.meta.name), sup);
+
+    // 测试重复添加应该失败
+    EXPECT_FALSE(manager.add_supervisor(cfg.meta.name, sup));
+    EXPECT_FALSE(manager.add_supervisor("null_supervisor", nullptr));
+
+    // 测试创建重复名称的 supervisor 应该返回 nullptr
+    auto duplicate = manager.create_supervisor(make_supervisor_config(
+        cfg.meta.name, config::supervisor_strategy::one_for_one, 2));
+    EXPECT_EQ(duplicate, nullptr);
+
+    EXPECT_TRUE(manager.start_supervisors());
+    EXPECT_TRUE(manager.stop_supervisors());
+}
+
+TEST(SupervisorManagerTest, StartFailureIsHandled) {
+    supervisor_manager manager;
+    ASSERT_TRUE(manager.init());
+
+    auto cfg = make_supervisor_config("failing_start",
+                                      config::supervisor_strategy::one_for_one, 1);
+    auto sup = manager.create_supervisor(cfg);
+    ASSERT_NE(sup, nullptr);
+    // create_supervisor 已经将 supervisor 添加到 m_supervisors 中
+
+    auto service = mc::make_shared<failing_service>("failing_service", false, true);
+    ASSERT_TRUE(sup->add_service(service));
+
+    EXPECT_FALSE(manager.start_supervisors());
+    EXPECT_TRUE(manager.stop_supervisors());
+}
+
+TEST(SupervisorManagerTest, StopFailureIsHandled) {
+    supervisor_manager manager;
+    ASSERT_TRUE(manager.init());
+
+    auto cfg = make_supervisor_config("failing_stop",
+                                      config::supervisor_strategy::rest_for_one, 1);
+    auto sup = manager.create_supervisor(cfg);
+    ASSERT_NE(sup, nullptr);
+    // create_supervisor 已经将 supervisor 添加到 m_supervisors 中
+
+    auto service =
+        mc::make_shared<failing_service>("failing_stop_service", true, false);
+    ASSERT_TRUE(sup->add_service(service));
+
+    EXPECT_TRUE(manager.start_supervisors());
+    EXPECT_FALSE(manager.stop_supervisors());
+}
+
+TEST(SupervisorManagerTest, InitializeFromConfigsAddsSupervisors) {
+    supervisor_manager manager;
+    ASSERT_TRUE(manager.init());
+
+    std::vector<config::supervisor_config> configs;
+    configs.push_back(make_supervisor_config("cfg_one",
+                                             config::supervisor_strategy::one_for_one, 3));
+    configs.push_back(make_supervisor_config("cfg_two",
+                                             config::supervisor_strategy::rest_for_one, 2));
+
+    EXPECT_TRUE(manager.initialize_from_configs(configs));
+    EXPECT_NE(manager.get_supervisor("cfg_one"), nullptr);
+    EXPECT_NE(manager.get_supervisor("cfg_two"), nullptr);
+
+    configs.push_back(make_supervisor_config("cfg_one",
+                                             config::supervisor_strategy::one_for_all, 1));
+    EXPECT_TRUE(manager.initialize_from_configs(configs));
 }

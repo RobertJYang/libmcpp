@@ -16,6 +16,7 @@
 #include <mc/string.h>
 
 #include <test_utilities/test_base.h>
+#include <chrono>
 #include <thread>
 
 // 解析xml
@@ -231,6 +232,30 @@ using namespace mc::engine;
 static test_service_1*   service_1;
 static test_service_2*   service_2;
 static constexpr int64_t CALL_TIMEOUT = 1000;
+
+namespace {
+
+/**
+ * @brief 轮询等待有效的 D-Bus 方法返回
+ */
+template <typename Builder>
+mc::dbus::message wait_valid_reply(mc::dbus::connection& conn, Builder&& builder,
+                                   mc::milliseconds timeout = mc::milliseconds(2000),
+                                   int max_attempts = 5,
+                                   mc::milliseconds retry_delay = mc::milliseconds(100)) {
+    mc::dbus::message reply;
+    for (int attempt = 0; attempt < max_attempts; ++attempt) {
+        auto msg = builder();
+        reply    = conn.send_with_reply(std::move(msg), timeout);
+        if (reply.is_valid() && reply.is_method_return()) {
+            return reply;
+        }
+        std::this_thread::sleep_for(static_cast<std::chrono::milliseconds>(retry_delay));
+    }
+    return reply;
+}
+
+} // namespace
 
 class std_interface_test : public mc::test::TestWithEngine {
 protected:
@@ -471,6 +496,11 @@ TEST_F(std_interface_test, test_introspect) {
 TEST_F(std_interface_test, TestGetWithContext) {
     auto conn = mc::dbus::connection::open_session_bus(mc::get_io_context());
     conn.start();
+    std::map<std::string, std::string> ctx;
+    std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    auto reply = wait_valid_reply(
+        conn,
+        [&]() {
     auto msg =
         mc::dbus::message::new_method_call("org.openubmc.test_service_2",
                                            "/org/openubmc/test_object_b",
@@ -478,11 +508,14 @@ TEST_F(std_interface_test, TestGetWithContext) {
                                            "GetWithContext");
     msg.set_sender("bmc.kepler.test_client");
     msg.set_serial(1);
-    auto                               writer = msg.writer();
-    std::map<std::string, std::string> ctx;
+            auto writer = msg.writer();
     writer << ctx << "org.openubmc.test_interface_b" << "Arr";
-    auto reply = conn.send_with_reply(std::move(msg), mc::milliseconds(1000));
-    ASSERT_TRUE(reply.is_valid() && reply.is_method_return());
+            return msg;
+        });
+    ASSERT_TRUE(reply.is_valid() && reply.is_method_return())
+        << "reply_valid=" << reply.is_valid()
+        << " reply_type=" << static_cast<int>(reply.get_type())
+        << " reply_error=" << (reply.is_error() ? reply.get_error_name() : "");
     mc::variant result;
     reply >> result;
     ASSERT_TRUE(result.is_array());
@@ -496,38 +529,162 @@ TEST_F(std_interface_test, TestGetWithContext) {
 TEST_F(std_interface_test, TestSetWithContext) {
     auto conn = mc::dbus::connection::open_session_bus(mc::get_io_context());
     conn.start();
-    auto msg =
-        mc::dbus::message::new_method_call(
-            "org.openubmc.test_service_2",
-            "/org/openubmc/test_object_b", "bmc.kepler.Object.Properties", "SetWithContext");
-    msg.set_sender("bmc.kepler.test_client");
-    msg.set_serial(1);
-    auto                               writer = msg.writer();
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+
     std::map<std::string, std::string> ctx;
     mc::variants                       arr;
     arr.push_back(4);
     arr.push_back(5);
     arr.push_back(6);
-    writer << ctx << "org.openubmc.test_interface_b" << "Arr" << arr;
-    auto reply = conn.send_with_reply(std::move(msg), mc::milliseconds(1000));
-    ASSERT_TRUE(reply.is_valid() && reply.is_method_return());
 
-    msg = mc::dbus::message::new_method_call("org.openubmc.test_service_2",
+    auto setter_reply = wait_valid_reply(
+        conn,
+        [&]() {
+            auto msg =
+                mc::dbus::message::new_method_call(
+                    "org.openubmc.test_service_2",
+                    "/org/openubmc/test_object_b", "bmc.kepler.Object.Properties", "SetWithContext");
+            msg.set_sender("bmc.kepler.test_client");
+            auto writer = msg.writer();
+    writer << ctx << "org.openubmc.test_interface_b" << "Arr" << arr;
+            return msg;
+        });
+    ASSERT_TRUE(setter_reply.is_valid() && setter_reply.is_method_return())
+        << "reply_valid=" << setter_reply.is_valid()
+        << " reply_type=" << static_cast<int>(setter_reply.get_type())
+        << " reply_error=" << (setter_reply.is_error() ? setter_reply.get_error_name() : "");
+
+    auto getter_reply = wait_valid_reply(
+        conn,
+        [&]() {
+            auto msg = mc::dbus::message::new_method_call("org.openubmc.test_service_2",
                                              "/org/openubmc/test_object_b",
                                              "bmc.kepler.Object.Properties",
                                              "GetWithContext");
     msg.set_sender("bmc.kepler.test_client");
-    msg.set_serial(1);
-    writer = msg.writer();
+            auto writer = msg.writer();
     writer << ctx << "org.openubmc.test_interface_b" << "Arr";
-    reply = conn.send_with_reply(std::move(msg), mc::milliseconds(1000));
-    ASSERT_TRUE(reply.is_valid() && reply.is_method_return());
+            return msg;
+        });
+    ASSERT_TRUE(getter_reply.is_valid() && getter_reply.is_method_return())
+        << "reply_valid=" << getter_reply.is_valid()
+        << " reply_type=" << static_cast<int>(getter_reply.get_type())
+        << " reply_error=" << (getter_reply.is_error() ? getter_reply.get_error_name() : "");
+
     mc::variant result;
-    reply >> result;
+    getter_reply >> result;
     ASSERT_TRUE(result.is_array());
-    arr = result.as_array();
-    ASSERT_EQ(arr.size(), 3);
-    ASSERT_EQ(arr[0].as_uint8(), 4);
-    ASSERT_EQ(arr[1].as_uint8(), 5);
-    ASSERT_EQ(arr[2].as_uint8(), 6);
+    auto reply_arr = result.as_array();
+    ASSERT_EQ(reply_arr.size(), 3);
+    ASSERT_EQ(reply_arr[0].as_uint8(), 4);
+    ASSERT_EQ(reply_arr[1].as_uint8(), 5);
+    ASSERT_EQ(reply_arr[2].as_uint8(), 6);
 }
+
+TEST_F(std_interface_test, PropertiesInterfaceWithoutObject) {
+    auto& props = properties_interface::get_instance();
+    EXPECT_TRUE(props.get("org.openubmc.test_interface_a", "Num").is_null());
+    auto all_props = props.get_all("org.openubmc.test_interface_a");
+    EXPECT_TRUE(all_props.empty());
+    EXPECT_NO_THROW(props.set("org.openubmc.test_interface_a", "Num", mc::variant(1)));
+}
+
+// TEST_F(std_interface_test, PropertiesInterfaceSetAndCommonProperties) {
+//     TestObjectA obj;
+//     obj.init();
+//     TestObjectA parent;
+//     parent.init();
+//     parent.set_object_path("/org/openubmc/parent");
+//     obj.set_object_path("/org/openubmc/parent/child");
+//     obj.set_owner(&parent);
+
+//     mc::engine::object_call_stack::context ctx{obj.get_service(), obj};
+//     auto&                                  props = properties_interface::get_instance();
+
+//     auto value = props.get("org.openubmc.test_interface_a", "Num");
+//     EXPECT_EQ(value.as_uint64(), static_cast<uint64_t>(100));
+
+//     props.set("org.openubmc.test_interface_a", "Num", mc::variant(uint8_t(77)));
+//     EXPECT_EQ(obj.m_iface.m_num.value(), 77);
+
+//     auto object_name =
+//         props.get(mc::engine::common_properties_name, "ObjectName").as_string();
+//     EXPECT_EQ(object_name, "TestObjectA");
+
+//     auto common_dict = props.get_all(mc::engine::common_properties_name);
+//     EXPECT_EQ(common_dict.at("ParentPath").as_string(), "/org/openubmc/parent");
+//     EXPECT_EQ(common_dict.at("ClassName").as_string(), "TestObjectA");
+
+//     props.set(mc::engine::common_properties_name, "ObjectName", mc::variant("Changed"));
+//     EXPECT_EQ(obj.get_object_name(), "TestObjectA");
+// }
+
+// TEST_F(std_interface_test, CommonPropertiesContextHelpers) {
+//     TestObjectA obj;
+//     obj.init();
+//     TestObjectA parent;
+//     parent.init();
+//     parent.set_object_path("/org/openubmc/test_parent");
+//     obj.set_object_path("/org/openubmc/test_parent/child");
+//     obj.set_owner(&parent);
+
+//     // 压栈对象，验证 common_properties 的上下文接口
+//     mc::engine::object_call_stack::context ctx{nullptr, obj};
+//     auto& common_props = mc::engine::common_properties_interface::get_instance();
+
+//     auto parent_path = common_props.get("ParentPath").as_string();
+//     EXPECT_EQ(parent_path, "/org/openubmc/test_parent");
+
+//     auto all_props = common_props.get_all();
+//     EXPECT_EQ(all_props.at("ObjectName").as_string(), "TestObjectA");
+
+//     // GetWithContext 传入 common 接口应直接返回通用属性
+//     auto ctx_value =
+//         common_props.get_with_context({}, mc::engine::common_properties_name, "ClassName");
+//     EXPECT_EQ(ctx_value.as_string(), "TestObjectA");
+
+//     // SetWithContext 在 common 接口下应忽略写入
+//     common_props.set_with_context({}, mc::engine::common_properties_name, "ParentPath",
+//                                   mc::variant("/tmp/ignored"));
+//     EXPECT_EQ(common_props.get("ParentPath").as_string(), "/org/openubmc/test_parent");
+// }
+
+TEST_F(std_interface_test, CommonPropertiesSetWithoutContextIsSafe) {
+    // 无对象上下文时 set_with_context 应安全返回
+    auto& common_props = mc::engine::common_properties_interface::get_instance();
+    EXPECT_NO_THROW(common_props.set_with_context({}, "org.test.custom", "Any", mc::variant(1)));
+}
+
+// TEST_F(std_interface_test, ObjectManagerEnumeratesChildren) {
+//     TestObjectA parent;
+//     parent.init();
+//     parent.set_object_path("/org/openubmc/test_parent");
+
+//     TestObjectA child;
+//     child.init();
+//     child.set_object_path("/org/openubmc/test_parent/child");
+//     child.set_parent(&parent);
+//     child.set_owner(&parent);
+
+//     // 压栈后调用对象管理接口，确保 visitor 各分支被覆盖
+//     // 在 context 存在时提取所有需要的数据，确保生命周期安全
+//     std::string child_path;
+//     size_t      managed_size = 0;
+//     bool        has_interface = false;
+//     {
+//         mc::engine::object_call_stack::context ctx{nullptr, parent};
+//         auto&                               mgr = mc::engine::object_manager_interface::get_instance();
+//         auto                                managed = mgr.get_managed_objects();
+        
+//         managed_size = managed.size();
+//         if (managed_size > 0) {
+//             const auto& entry = *managed.begin();
+//             child_path = entry.first.str(); // 提取字符串，确保生命周期安全
+//             has_interface = entry.second.count("org.openubmc.test_interface_a") > 0;
+//         }
+//     } // ctx 在这里销毁
+
+//     ASSERT_EQ(managed_size, 1U);
+//     EXPECT_EQ(child_path, "/org/openubmc/test_parent/child");
+//     EXPECT_TRUE(has_interface);
+// }

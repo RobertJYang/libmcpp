@@ -16,8 +16,10 @@
  */
 #include <gtest/gtest.h>
 #include <mc/dict.h>
+#include <mc/memory.h>
 #include <mc/variant.h>
 #include <mc/variant/variant_extension.h>
+#include <mc/variant/copy_context.h>
 #include <test_utilities/test_base.h>
 
 namespace mc {
@@ -32,6 +34,19 @@ protected:
     void TearDown() override {
         TestBase::TearDown();
     }
+};
+
+class copy_context_stub : public mc::enable_shared_from_this<copy_context_stub> {
+public:
+    explicit copy_context_stub(int value) : m_value(value) {
+    }
+
+    int value() const {
+        return m_value;
+    }
+
+private:
+    int m_value;
 };
 
 /**
@@ -408,6 +423,33 @@ TEST_F(VariantDeepCopyTest, EmptyContainersDeepCopy) {
     EXPECT_EQ(v4.get_array().size(), 0);
     EXPECT_EQ(v3.get_array().data(), nullptr);
     EXPECT_EQ(v4.get_array().data(), nullptr);
+}
+
+TEST_F(VariantDeepCopyTest, CopyContextTracksCopiedObjects) {
+    detail::copy_context ctx;
+    EXPECT_TRUE(ctx.empty());
+    EXPECT_EQ(ctx.size(), 0U);
+
+    auto original = mc::make_shared<copy_context_stub>(42);
+    ctx.record_copied(original.get(), original);
+
+    EXPECT_FALSE(ctx.empty());
+    EXPECT_EQ(ctx.size(), 1U);
+    EXPECT_TRUE(ctx.has_copied(original.get()));
+
+    auto retrieved = ctx.get_copied(original.get());
+    ASSERT_TRUE(retrieved != nullptr);
+    EXPECT_EQ(retrieved.get(), original.get());
+    EXPECT_EQ(retrieved->value(), 42);
+
+    ctx.clear();
+    EXPECT_TRUE(ctx.empty());
+    EXPECT_EQ(ctx.size(), 0U);
+    EXPECT_FALSE(ctx.has_copied(original.get()));
+    EXPECT_EQ(ctx.get_copied(original.get()), nullptr);
+
+    ctx.record_copied(static_cast<copy_context_stub*>(nullptr), original);
+    EXPECT_TRUE(ctx.empty());
 }
 
 } // namespace test

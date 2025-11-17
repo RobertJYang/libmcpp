@@ -17,6 +17,7 @@
 
 #include <atomic>
 #include <chrono>
+#include <future>
 #include <thread>
 
 using namespace std::chrono_literals;
@@ -29,7 +30,7 @@ class AnyExecutorTest : public mc::test::TestWithRuntime {
 
 } // namespace
 
-// 测试 any_executor 的基本构造和使用
+// 测试 any_executor 的基本构造和使用（融合多种构造方式）
 TEST_F(AnyExecutorTest, BasicConstruction) {
     auto& runtime = mc::get_runtime_context();
 
@@ -43,6 +44,24 @@ TEST_F(AnyExecutorTest, BasicConstruction) {
     // 验证执行器有效性
     EXPECT_TRUE(any_io.valid());
     EXPECT_TRUE(any_work.valid());
+
+    // 测试 system_context::executor_type 构造
+    boost::asio::system_context system_ctx;
+    auto                        system_exec = system_ctx.get_executor();
+    mc::any_executor            any_system(system_exec);
+    EXPECT_TRUE(any_system.valid());
+
+    // 测试 runtime::executor 构造
+    auto                  io_strand = mc::make_io_strand();
+    mc::runtime::executor runtime_exec(io_strand);
+    mc::any_executor       any_runtime(runtime_exec);
+    EXPECT_TRUE(any_runtime.valid());
+
+    // 测试模板构造函数（从 strand 构造，会被包装到 runtime::executor）
+    auto             strand = mc::make_io_strand();
+    mc::any_executor any_strand(strand);
+    EXPECT_TRUE(any_strand.valid());
+    EXPECT_TRUE(std::holds_alternative<mc::runtime::executor>(any_strand.get_executor()));
 }
 
 // 测试 any_executor 的默认构造
@@ -164,7 +183,7 @@ TEST_F(AnyExecutorTest, DispatchOperation) {
     EXPECT_TRUE(task_executed);
 }
 
-// 测试 any_executor 的比较操作
+// 测试 any_executor 的比较操作（融合所有比较场景）
 TEST_F(AnyExecutorTest, ComparisonOperations) {
     auto& runtime = mc::get_runtime_context();
 
@@ -188,6 +207,42 @@ TEST_F(AnyExecutorTest, ComparisonOperations) {
     mc::any_executor invalid2;
     EXPECT_EQ(invalid1, invalid2);
     EXPECT_NE(invalid1, any_io1);
+
+    // 测试 immediate_executor 比较
+    mc::any_executor immediate1;
+    mc::any_executor immediate2;
+    EXPECT_EQ(immediate1, immediate2);
+
+    // 测试 system_executor 比较
+    boost::asio::system_context system_ctx1;
+    boost::asio::system_context system_ctx2;
+    auto                        system_exec1 = system_ctx1.get_executor();
+    auto                        system_exec2 = system_ctx2.get_executor();
+    mc::any_executor            any_system1(system_exec1);
+    mc::any_executor            any_system2(system_exec1);
+    mc::any_executor            any_system3(system_exec2);
+    EXPECT_EQ(any_system1, any_system2);
+    // system_executor 在 Boost.Asio 中都被认为是相等的
+    EXPECT_EQ(any_system1.get_executor().index(), any_system3.get_executor().index());
+
+    // 测试 runtime::executor 比较
+    auto                  io_strand1 = mc::make_io_strand();
+    auto                  io_strand2 = mc::make_io_strand();
+    mc::runtime::executor runtime_exec1(io_strand1);
+    mc::runtime::executor runtime_exec2(io_strand1);
+    mc::runtime::executor runtime_exec3(io_strand2);
+    mc::any_executor      any_runtime1(runtime_exec1);
+    mc::any_executor      any_runtime2(runtime_exec2);
+    mc::any_executor      any_runtime3(runtime_exec3);
+    EXPECT_EQ(any_runtime1, any_runtime2);
+    EXPECT_NE(any_runtime1, any_runtime3);
+
+    // 测试相同类型但不同值的比较
+    boost::asio::io_context ctx1;
+    boost::asio::io_context ctx2;
+    mc::any_executor         any_ctx1(ctx1.get_executor());
+    mc::any_executor         any_ctx2(ctx2.get_executor());
+    EXPECT_NE(any_ctx1, any_ctx2);
 }
 
 // 测试 any_executor 包装 strand
@@ -231,214 +286,250 @@ TEST_F(AnyExecutorTest, StrandWrapping) {
     }
 }
 
-// 测试 any_executor 的 valid() 方法 - runtime::executor 无效情况
-TEST_F(AnyExecutorTest, ValidWithInvalidRuntimeExecutor) {
-    // 创建无效的 runtime::executor
-    mc::runtime::executor invalid_exec;
-
-    // 包装到 any_executor 中
-    mc::any_executor any_exec(invalid_exec);
-
-    // 无效的 executor 应该返回 false
-    EXPECT_FALSE(any_exec.valid());
-}
-
-// 测试 any_executor 的 operator== - 相同类型相同值
-TEST_F(AnyExecutorTest, EqualitySameTypeSameValue) {
+// 测试 any_executor 的 valid() 方法（融合所有场景）
+TEST_F(AnyExecutorTest, ValidAllScenarios) {
     auto& runtime = mc::get_runtime_context();
+    runtime.start();
 
-    auto io_executor = mc::get_io_executor();
-
-    // 创建两个相同值的 any_executor
-    mc::any_executor any1(io_executor);
-    mc::any_executor any2(io_executor);
-
-    // 相同类型的执行器应该相等
-    EXPECT_EQ(any1, any2);
-}
-
-// 测试 any_executor 的 operator!= 函数
-TEST_F(AnyExecutorTest, InequalityOperator) {
-    auto& runtime = mc::get_runtime_context();
-
-    auto io_executor   = mc::get_io_executor();
-    auto work_executor = mc::get_work_executor();
-
-    mc::any_executor any_io(io_executor);
-    mc::any_executor any_work(work_executor);
-    mc::any_executor invalid;
-
-    // 使用 operator!= 直接测试
-    EXPECT_NE(any_io, any_work);
-    EXPECT_NE(any_io, invalid);
-    EXPECT_NE(any_work, invalid);
-
-    // 相同执行器应该相等
-    EXPECT_FALSE(any_io != any_io);
-}
-
-// 测试 any_executor 的 on_work_started 和 on_work_finished - immediate_executor 分支
-TEST_F(AnyExecutorTest, WorkLifecycleWithImmediateExecutor) {
-    // 默认构造的 any_executor 是 immediate_executor
-    mc::any_executor immediate_exec;
-
-    // 对 immediate_executor 调用应该不抛出异常
-    EXPECT_NO_THROW(immediate_exec.on_work_started());
-    EXPECT_NO_THROW(immediate_exec.on_work_finished());
-}
-
-// 测试 any_executor 的 context() - immediate_executor 异常分支
-TEST_F(AnyExecutorTest, ContextWithImmediateExecutor) {
-    // 默认构造的 any_executor 是 immediate_executor
-    mc::any_executor immediate_exec;
-
-    EXPECT_NO_THROW(immediate_exec.context());
-}
-
-// 测试 any_executor 的 post/defer/dispatch - immediate_executor 异常分支
-TEST_F(AnyExecutorTest, OperationsWithImmediateExecutor) {
-    // 默认构造的 any_executor 是 immediate_executor
-    mc::any_executor immediate_exec;
-
-    EXPECT_NO_THROW(immediate_exec.post([]() {
-    }));
-    EXPECT_NO_THROW(immediate_exec.defer([]() {
-    }));
-    EXPECT_NO_THROW(immediate_exec.dispatch([]() {
-    }));
-}
-
-// 测试 any_executor 从 system_context::executor_type 构造
-TEST_F(AnyExecutorTest, ConstructionFromSystemExecutor) {
-    boost::asio::system_context system_ctx;
-    auto                        system_exec = system_ctx.get_executor();
-
-    mc::any_executor any_exec(system_exec);
-
-    EXPECT_TRUE(any_exec.valid());
-}
-
-// 测试 any_executor 从 runtime::executor 构造（有效情况）
-TEST_F(AnyExecutorTest, ConstructionFromRuntimeExecutor) {
-    auto& runtime = mc::get_runtime_context();
-
-    auto                  io_strand = mc::make_io_strand();
-    mc::runtime::executor runtime_exec(io_strand);
-
-    mc::any_executor any_exec(runtime_exec);
-
-    EXPECT_TRUE(any_exec.valid());
-}
-
-// 测试 any_executor::operator== 中相同类型但不同值的比较
-TEST_F(AnyExecutorTest, EqualitySameTypeDifferentValue) {
-    auto& runtime = mc::get_runtime_context();
-
-    // 创建两个不同的 io_context 执行器
-    boost::asio::io_context ctx1;
-    boost::asio::io_context ctx2;
-
-    mc::any_executor any1(ctx1.get_executor());
-    mc::any_executor any2(ctx2.get_executor());
-
-    // 相同类型但不同值，应该不相等
-    EXPECT_NE(any1, any2);
-}
-
-// 测试 any_executor::operator== 中 immediate_executor 的比较（已测试过，但确保覆盖）
-TEST_F(AnyExecutorTest, EqualityImmediateExecutorBoth) {
-    mc::any_executor immediate1;
-    mc::any_executor immediate2;
-
-    // 两个 immediate_executor 应该相等
-    EXPECT_EQ(immediate1, immediate2);
-}
-
-// 测试 any_executor::operator== 中相同类型相同执行器的比较
-TEST_F(AnyExecutorTest, EqualitySameExecutor) {
-    auto& runtime = mc::get_runtime_context();
-
-    auto io_executor = mc::get_io_executor();
-
-    mc::any_executor any1(io_executor);
-    mc::any_executor any2(io_executor);
-
-    // 包装相同执行器的 any_executor 应该相等
-    EXPECT_EQ(any1, any2);
-}
-
-// 测试 any_executor valid() 中 boost::asio 执行器分支
-TEST_F(AnyExecutorTest, ValidBoostAsioExecutor) {
+    // 测试 boost::asio 执行器（应该总是有效）
     boost::asio::io_context ctx;
     auto                    exec = ctx.get_executor();
+    mc::any_executor        any_boost(exec);
+    EXPECT_TRUE(any_boost.valid());
 
-    mc::any_executor any_exec(exec);
+    // 测试 system_executor（应该总是有效）
+    boost::asio::system_context system_ctx;
+    auto                        system_exec = system_ctx.get_executor();
+    mc::any_executor            any_system(system_exec);
+    EXPECT_TRUE(any_system.valid());
 
-    // boost::asio 执行器应该总是有效
-    EXPECT_TRUE(any_exec.valid());
-}
-
-// 测试 any_executor 从任意执行器类型构造（通过模板构造函数）
-TEST_F(AnyExecutorTest, ConstructionFromArbitraryExecutor) {
-    auto& runtime = mc::get_runtime_context();
-
-    // 通过 strand 构造，应该使用模板构造函数包装到 runtime::executor
-    auto io_strand = mc::make_io_strand();
-
-    mc::any_executor any_exec(io_strand);
-
-    EXPECT_TRUE(any_exec.valid());
-}
-
-// 测试 any_executor::valid() 中 runtime::executor valid() 返回 false 的分支
-TEST_F(AnyExecutorTest, ValidRuntimeExecutorReturnsFalse) {
-    // 创建无效的 runtime::executor
-    mc::runtime::executor invalid_exec;
-
-    // 包装到 any_executor 中
-    mc::any_executor any_exec(invalid_exec);
-
-    // 应该返回 false
-    EXPECT_FALSE(any_exec.valid());
-}
-
-// 测试 any_executor::valid() 中 runtime::executor valid() 返回 true 的分支
-TEST_F(AnyExecutorTest, ValidRuntimeExecutorReturnsTrue) {
-    auto& runtime = mc::get_runtime_context();
-    runtime.start();
-
+    // 测试 runtime::executor 有效情况
     auto                  io_strand = mc::make_io_strand();
     mc::runtime::executor valid_exec(io_strand);
+    mc::any_executor      any_valid(valid_exec);
+    EXPECT_TRUE(any_valid.valid());
 
-    mc::any_executor any_exec(valid_exec);
+    // 测试 runtime::executor 无效情况
+    mc::runtime::executor invalid_exec;
+    mc::any_executor       any_invalid(invalid_exec);
+    EXPECT_FALSE(any_invalid.valid());
 
-    // 应该返回 true
-    EXPECT_TRUE(any_exec.valid());
+    // 测试 immediate_executor（应该总是有效）
+    mc::any_executor immediate_exec;
+    EXPECT_TRUE(immediate_exec.valid());
 }
 
-// 测试 any_executor::operator== 中 index 相同但 exec != other_exec 的分支
-TEST_F(AnyExecutorTest, EqualitySameIndexDifferentExec) {
-    // 创建两个不同的 boost::asio 执行器
-    boost::asio::io_context ctx1;
-    boost::asio::io_context ctx2;
-
-    mc::any_executor any1(ctx1.get_executor());
-    mc::any_executor any2(ctx2.get_executor());
-
-    // 相同类型（相同 index），但不同执行器，应该不相等
-    EXPECT_NE(any1, any2);
-}
-
-// 测试 any_executor::operator== 中 index 相同且 exec == other_exec 的分支
-TEST_F(AnyExecutorTest, EqualitySameIndexSameExec) {
+// 测试 any_executor 的 context() 方法（融合所有执行器类型）
+TEST_F(AnyExecutorTest, ContextAllExecutorTypes) {
     auto& runtime = mc::get_runtime_context();
     runtime.start();
 
-    auto io_executor = mc::get_io_executor();
+    // 测试 immediate_executor
+    mc::any_executor immediate_exec;
+    EXPECT_NO_THROW(immediate_exec.context());
 
-    mc::any_executor any1(io_executor);
-    mc::any_executor any2(io_executor);
+    // 测试 system_executor
+    boost::asio::system_context system_ctx;
+    auto                        system_exec = system_ctx.get_executor();
+    mc::any_executor            any_system(system_exec);
+    auto&                       system_ctx_ref = any_system.context();
+    EXPECT_NE(&system_ctx_ref, nullptr);
+    auto& exec_ctx = system_exec.context();
+    EXPECT_EQ(&system_ctx_ref, &exec_ctx);
 
-    // 相同类型且相同执行器，应该相等
-    EXPECT_EQ(any1, any2);
+    // 测试 runtime::executor
+    auto                  io_strand = mc::make_io_strand();
+    mc::runtime::executor runtime_exec(io_strand);
+    mc::any_executor      any_runtime(runtime_exec);
+    auto&                 runtime_ctx = any_runtime.context();
+    EXPECT_NE(&runtime_ctx, nullptr);
+
+    // 测试 io_context::executor_type
+    auto             io_exec = mc::get_io_executor();
+    mc::any_executor any_io(io_exec);
+    auto&            io_ctx = any_io.context();
+    EXPECT_NE(&io_ctx, nullptr);
+}
+
+// 测试 any_executor 的 on_work_started/on_work_finished（融合所有执行器类型）
+TEST_F(AnyExecutorTest, WorkLifecycleAllExecutorTypes) {
+    auto& runtime = mc::get_runtime_context();
+    runtime.start();
+
+    // 测试 immediate_executor
+    mc::any_executor immediate_exec;
+    EXPECT_NO_THROW(immediate_exec.on_work_started());
+    EXPECT_NO_THROW(immediate_exec.on_work_finished());
+
+    // 测试 system_executor
+    boost::asio::system_context system_ctx;
+    auto                        system_exec = system_ctx.get_executor();
+    mc::any_executor            any_system(system_exec);
+    EXPECT_NO_THROW(any_system.on_work_started());
+    EXPECT_NO_THROW(any_system.on_work_finished());
+
+    // 测试 runtime::executor
+    auto                  io_strand = mc::make_io_strand();
+    mc::runtime::executor runtime_exec(io_strand);
+    mc::any_executor      any_runtime(runtime_exec);
+    EXPECT_NO_THROW(any_runtime.on_work_started());
+    EXPECT_NO_THROW(any_runtime.on_work_finished());
+
+    // 测试 io_context::executor_type
+    auto             io_exec = mc::get_io_executor();
+    mc::any_executor any_io(io_exec);
+    EXPECT_NO_THROW(any_io.on_work_started());
+    EXPECT_NO_THROW(any_io.on_work_finished());
+}
+
+// 测试 any_executor 的 get_executor() 方法（融合 const 和非 const 版本）
+TEST_F(AnyExecutorTest, GetExecutor) {
+    auto& runtime = mc::get_runtime_context();
+    runtime.start();
+
+    auto             io_executor = mc::get_io_executor();
+    mc::any_executor any_exec(io_executor);
+
+    // 测试非 const 版本的 get_executor
+    auto& executor_variant = any_exec.get_executor();
+    EXPECT_TRUE(std::holds_alternative<boost::asio::io_context::executor_type>(executor_variant));
+
+    // 测试 const 版本的 get_executor
+    const mc::any_executor& const_any_exec = any_exec;
+    const auto&             const_executor_variant = const_any_exec.get_executor();
+    EXPECT_TRUE(std::holds_alternative<boost::asio::io_context::executor_type>(const_executor_variant));
+
+    // 测试模板构造函数（从 strand 构造，会被包装到 runtime::executor）
+    auto             strand = mc::make_io_strand();
+    mc::any_executor any_strand(strand);
+    EXPECT_TRUE(any_strand.valid());
+    const auto& strand_variant = any_strand.get_executor();
+    EXPECT_TRUE(std::holds_alternative<mc::runtime::executor>(strand_variant));
+}
+
+// 测试 any_executor 的 post/defer/dispatch 覆盖所有执行器类型（融合复杂场景）
+TEST_F(AnyExecutorTest, PostDeferDispatchAllExecutorTypes) {
+    auto& runtime = mc::get_runtime_context();
+    runtime.start();
+
+    std::atomic<int> immediate_count{0};
+    std::atomic<int> io_count{0};
+    std::atomic<int> system_count{0};
+    std::atomic<int> runtime_count{0};
+
+    // 测试 immediate_executor - 确保所有操作都覆盖
+    mc::any_executor immediate_exec;
+    immediate_exec.post([&immediate_count]() { immediate_count++; });
+    immediate_exec.defer([&immediate_count]() { immediate_count++; });
+    immediate_exec.dispatch([&immediate_count]() { immediate_count++; });
+    EXPECT_EQ(immediate_count.load(), 3);
+
+    // 测试 io_context::executor_type - 确保所有操作都覆盖
+    auto             io_exec = mc::get_io_executor();
+    mc::any_executor io_any_exec(io_exec);
+    io_any_exec.post([&io_count]() { io_count++; });
+    io_any_exec.defer([&io_count]() { io_count++; });
+    io_any_exec.dispatch([&io_count]() { io_count++; });
+    runtime.get_io_context().run_for(100ms);
+    EXPECT_EQ(io_count.load(), 3);
+
+    // 测试 system_context::executor_type - 确保所有操作都覆盖，特别是 defer 分支
+    // system_context 是全局上下文，任务会在系统线程池中执行
+    boost::asio::system_context system_ctx;
+    auto                        system_exec = system_ctx.get_executor();
+    mc::any_executor            system_any_exec(system_exec);
+    
+    // 使用 promise/future 来同步等待任务完成，确保 defer 分支被覆盖
+    std::promise<void> post_promise, defer_promise, dispatch_promise;
+    auto              post_future = post_promise.get_future();
+    auto              defer_future = defer_promise.get_future();
+    auto              dispatch_future = dispatch_promise.get_future();
+    
+    system_any_exec.post([&system_count, &post_promise]() {
+        system_count++;
+        post_promise.set_value();
+    });
+    // 确保 defer 分支被覆盖
+    system_any_exec.defer([&system_count, &defer_promise]() {
+        system_count++;
+        defer_promise.set_value();
+    });
+    system_any_exec.dispatch([&system_count, &dispatch_promise]() {
+        system_count++;
+        dispatch_promise.set_value();
+    });
+    
+    // 等待所有任务完成（最多等待 1 秒）
+    auto post_status = post_future.wait_for(1s);
+    auto defer_status = defer_future.wait_for(1s);
+    auto dispatch_status = dispatch_future.wait_for(1s);
+    
+    // 验证任务已执行
+    EXPECT_EQ(post_status, std::future_status::ready);
+    EXPECT_EQ(defer_status, std::future_status::ready);
+    EXPECT_EQ(dispatch_status, std::future_status::ready);
+    EXPECT_EQ(system_count.load(), 3);
+
+    // 测试 runtime::executor - 确保所有操作都覆盖
+    auto                  strand = mc::make_io_strand();
+    mc::runtime::executor runtime_exec(strand);
+    mc::any_executor      runtime_any_exec(runtime_exec);
+    runtime_any_exec.post([&runtime_count]() { runtime_count++; });
+    runtime_any_exec.defer([&runtime_count]() { runtime_count++; });
+    runtime_any_exec.dispatch([&runtime_count]() { runtime_count++; });
+    runtime.get_io_context().run_for(100ms);
+    EXPECT_EQ(runtime_count.load(), 3);
+}
+
+// 测试 any_executor 的 post/defer/dispatch 使用自定义分配器（融合所有执行器类型）
+TEST_F(AnyExecutorTest, PostDeferDispatchWithCustomAllocator) {
+    auto& runtime = mc::get_runtime_context();
+    runtime.start();
+
+    std::atomic<int> immediate_count{0};
+    std::atomic<int> io_count{0};
+    std::atomic<int> system_count{0};
+    std::atomic<int> runtime_count{0};
+    std::allocator<void> custom_allocator;
+
+    // 测试 immediate_executor 使用自定义分配器
+    mc::any_executor immediate_exec;
+    immediate_exec.post([&immediate_count]() { immediate_count++; }, custom_allocator);
+    immediate_exec.defer([&immediate_count]() { immediate_count++; }, custom_allocator);
+    immediate_exec.dispatch([&immediate_count]() { immediate_count++; }, custom_allocator);
+    EXPECT_EQ(immediate_count.load(), 3);
+
+    // 测试 io_context::executor_type 使用自定义分配器
+    auto             io_exec = mc::get_io_executor();
+    mc::any_executor io_any_exec(io_exec);
+    io_any_exec.post([&io_count]() { io_count++; }, custom_allocator);
+    io_any_exec.defer([&io_count]() { io_count++; }, custom_allocator);
+    io_any_exec.dispatch([&io_count]() { io_count++; }, custom_allocator);
+    runtime.get_io_context().run_for(100ms);
+    EXPECT_EQ(io_count.load(), 3);
+
+    // 测试 system_context::executor_type 使用自定义分配器
+    boost::asio::system_context system_ctx;
+    auto                        system_exec = system_ctx.get_executor();
+    mc::any_executor            system_any_exec(system_exec);
+    std::promise<void>          system_promise;
+    auto                        system_future = system_promise.get_future();
+    system_any_exec.post([&system_count, &system_promise]() {
+        system_count++;
+        system_promise.set_value();
+    }, custom_allocator);
+    system_any_exec.defer([&system_count]() { system_count++; }, custom_allocator);
+    system_any_exec.dispatch([&system_count]() { system_count++; }, custom_allocator);
+    system_future.wait_for(1s);
+    EXPECT_GE(system_count.load(), 1);
+
+    // 测试 runtime::executor 使用自定义分配器
+    auto                  strand = mc::make_io_strand();
+    mc::runtime::executor runtime_exec(strand);
+    mc::any_executor      runtime_any_exec(runtime_exec);
+    runtime_any_exec.post([&runtime_count]() { runtime_count++; }, custom_allocator);
+    runtime_any_exec.defer([&runtime_count]() { runtime_count++; }, custom_allocator);
+    runtime_any_exec.dispatch([&runtime_count]() { runtime_count++; }, custom_allocator);
+    runtime.get_io_context().run_for(100ms);
+    EXPECT_EQ(runtime_count.load(), 3);
 }

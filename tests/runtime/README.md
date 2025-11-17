@@ -70,7 +70,7 @@ Runtime 模块包含以下测试文件：
 - `ThreadExceptionHandling` - 测试线程异常处理
 
 ### test_executor.cpp
-执行器包装器测试（37 个用例）：
+执行器包装器测试（40 个用例）：
 - `BasicConstruction` - 测试基础构造
 - `DefaultConstruction` - 测试默认构造
 - `CopySemantics` - 测试拷贝语义
@@ -109,9 +109,15 @@ Runtime 模块包含以下测试文件：
 - `CopyAssignmentOtherNonNullptr` - 测试 other 非 nullptr 的拷贝赋值
 - `MoveAssignmentSelf` - 测试自赋值移动
 - `MoveAssignmentOtherNullptr` - 测试 other 为 nullptr 的移动赋值
+- `OnWorkStartedWithValidExecutor` - 测试有效执行器的 on_work_started
+- `OnWorkFinishedWithValidExecutor` - 测试有效执行器的 on_work_finished
+- `ContextWithValidExecutor` - 测试有效执行器的 context
+- `EqualDifferentTypes` - 测试不同类型执行器的 equal
+- `PostDeferDispatchInvalidExecutor` - 测试无效执行器的 post/defer/dispatch
+- `PostDeferDispatchWithCustomAllocator` - 测试自定义分配器的 post/defer/dispatch
 
 ### test_any_executor.cpp
-轻量级执行器包装器测试（26 个用例）：
+轻量级执行器包装器测试（39 个用例）：
 - `BasicConstruction` - 测试基础构造
 - `DefaultConstruction` - 测试默认构造
 - `CopySemantics` - 测试拷贝语义
@@ -138,9 +144,22 @@ Runtime 模块包含以下测试文件：
 - `ValidRuntimeExecutorReturnsTrue` - 测试 runtime executor valid 返回 true
 - `EqualitySameIndexDifferentExec` - 测试相同 index 不同执行器的相等性
 - `EqualitySameIndexSameExec` - 测试相同 index 相同执行器的相等性
+- `SystemExecutorContext` - 测试 system executor 的 context
+- `RuntimeExecutorContext` - 测试 runtime executor 的 context
+- `SystemExecutorValid` - 测试 system executor 的 valid
+- `SystemExecutorEquality` - 测试 system executor 的相等性
+- `RuntimeExecutorEquality` - 测试 runtime executor 的相等性
+- `SystemExecutorOnWorkStarted` - 测试 system executor 的 on_work_started
+- `RuntimeExecutorOnWorkStarted` - 测试 runtime executor 的 on_work_started
+- `SystemExecutorOnWorkFinished` - 测试 system executor 的 on_work_finished
+- `RuntimeExecutorOnWorkFinished` - 测试 runtime executor 的 on_work_finished
+- `ConstGetExecutor` - 测试 const 版本的 get_executor
+- `TemplateConstructor` - 测试模板构造函数
+- `PostDeferDispatchAllExecutorTypes` - 测试所有执行器类型的 post/defer/dispatch
+- `PostDeferDispatchWithCustomAllocator` - 测试自定义分配器的 post/defer/dispatch
 
 ### test_thread_list.cpp
-线程列表管理测试（35 个用例）：
+线程列表管理测试（34 个用例）：
 - `ThreadNodeBasic` - 测试线程节点基础功能
 - `ThreadNodeMove` - 测试线程节点移动
 - `ThreadNodeJoinable` - 测试线程节点可 join 性
@@ -175,7 +194,6 @@ Runtime 模块包含以下测试文件：
 - `ThreadNodeJoinWhenJoinable` - 测试可 join 时 join
 - `RemoveThreadFoundInLoop` - 测试在循环中找到并移除线程
 - `RemoveThreadNotFoundAfterLoop` - 测试循环后未找到线程
-- `RemoveThreadNotFoundReturnsFalse` - 测试移除未找到返回 false
 
 ## 运行测试
 
@@ -237,7 +255,7 @@ meson test -C builddir --test-args="--gtest_filter=ExecutorTest.Copy*"
 ## 测试统计
 
 - **测试文件总数**: 5 个
-- **测试用例总数**: 约 136 个
+- **测试用例总数**: 151 个
 - **测试覆盖的功能模块**:
   - Runtime Context（运行时上下文）
   - Executor（执行器包装器）

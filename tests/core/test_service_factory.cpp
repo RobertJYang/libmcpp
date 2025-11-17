@@ -14,6 +14,7 @@
 
 #include <algorithm>
 #include <mc/core/service_factory.h>
+#include <mc/filesystem.h>
 #include <mc/memory.h>
 #include <mc/variant.h>
 
@@ -47,7 +48,9 @@ public:
                         boost::program_options::options_description& cfg) const {
             cli.add_options()("sample", boost::program_options::value<int>()->default_value(42),
                               "sample option");
-            cfg.add_options()("path", boost::program_options::value<std::string>()->default_value("/tmp"),
+            auto tmp_dir = mc::filesystem::temp_directory_path();
+            cfg.add_options()("path",
+                              boost::program_options::value<std::string>()->default_value(tmp_dir.string()),
                               "config option");
         }
     };

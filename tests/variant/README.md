@@ -32,6 +32,7 @@ Variant 模块包含以下测试文件：
 13. `test_variant_visitor.cpp` - 访问者模式测试
 14. `test_typed_variant.cpp` - 固定类型 variant 测试
 15. `test_variant_conversion.cpp` - 转换与复制相关测试
+16. `test_variant_base.cpp` - variant_base 核心 API 覆盖测试
 
 ## 详细测试用例
 
@@ -59,11 +60,11 @@ Variant 模块包含以下测试文件：
 - 边界值比较
 
 ### test_variant_containers.cpp
-容器类型测试（10 个用例），包括：
-- 数组（variants）操作
+容器类型测试（涵盖 dict 与 variants 的 13 个用例），包括：
+- 数组（variants）操作与容量管理
 - 对象（dict）操作
 - 嵌套容器
-- 容器迭代和访问
+- 容器迭代、插入/删除与哈希计算
 
 ### test_variant_deep_copy.cpp
 深拷贝测试（14 个用例），包括：
@@ -141,11 +142,12 @@ Variant 模块包含以下测试文件：
 - 数组和对象相等性
 
 ### test_variant_extension.cpp
-扩展类型测试（27 个用例），包括：
-- 扩展类型构造和操作
-- 扩展类型访问
+扩展类型测试（23 个用例），包括：
+- 扩展类型构造与基本操作
+- 零开销引用访问验证
 - 扩展类型拷贝和移动
-- 扩展类型比较和哈希
+- 扩展类型哈希与链式访问
+- 扩展类型相等性验证（覆盖 equals 覆写路径）
 
 ### test_variant_io.cpp
 输入输出测试（6 个用例），包括：
@@ -168,7 +170,7 @@ Variant 模块包含以下测试文件：
 - 一元运算（正负号、逻辑非）
 
 ### test_variant_reference.cpp
-引用类型测试（42 个用例），包括：
+引用类型测试（44 个用例），包括：
 - variant_reference 构造和访问
 - 引用赋值
 - 引用比较
@@ -177,6 +179,7 @@ Variant 模块包含以下测试文件：
 - 自增自减操作符
 - 一元操作符
 - 类型转换
+- extension 访问（缓存与零开销场景）
 
 ### test_variant_standard_containers.cpp
 标准容器适配测试（11 个用例），包括：
@@ -223,6 +226,18 @@ ninja -C builddir test
 - `ToVariantOverloads` - to_variant 重载：bool、const char*、char*、variants、nullptr
 - `FromVariantOverloads` - from_variant 重载：const char*&、char*&、bool&、variants&、dict&
 - `StreamOutputFormatting` - operator<< 针对各种类型的流输出格式化
+
+### test_variant_base.cpp
+variant_base 核心 API 场景测试（精简重复后保留关键覆盖），包括：
+- 对象、array 与 extension 的引用访问、get/contains、clear 等组合验证
+- set_value（含移动分支）、set_fixed_type、swap 与 visit/visit_with 的状态管理行为
+- 数值/字符串/布尔/blob 的转换路径以及 detail::numeric_t 运算、比较
+- copy/deep_copy/move、hash 计算和 get_type_name 等基础能力
+- to_variant/from_variant 辅助函数及 variants/dict 互操作场景
+- 补充覆盖 extension 空指针、array 越界、dict 等场景的异常路径
+
+> 未覆盖说明：`variant_base::set_value` 内部的 `throw_unknow_type_error` 分支依赖非法类型编号，
+> 正常 API 无法触发，故仅在 README 备注，未通过测试构造覆盖。
 
 ### 运行特定测试文件
 
@@ -271,7 +286,7 @@ meson test -C builddir --test-args="--gtest_filter=VariantEdgeCasesTest.Operator
 ## 测试统计
 
 - **测试文件总数**: 15 个
-- **测试用例总数**: 约 280 个
+- **测试用例总数**: 约 276 个
 - **测试覆盖的功能模块**:
   - Variant Base（基础类型系统）
   - Variant Operations（算术和位运算）

@@ -6,7 +6,7 @@
 
 ## 测试统计
 
-- **总测试用例数**: 约 197 个
+- **总测试用例数**: 206 个
 - **测试文件数**: 12 个
 - **测试覆盖范围**: 词法分析、语法分析、AST 节点、上下文管理、内置函数、函数调用、对象表达式、GVariant 求值
 
@@ -18,7 +18,7 @@ tests/expr/
 ├── test_lexer.cpp             # 词法分析器测试 (15个测试用例)
 ├── test_parser.cpp            # 语法分析器测试 (14个测试用例)
 ├── test_node.cpp              # AST 节点测试 (63个测试用例)
-├── test_context.cpp           # 上下文管理测试 (11个测试用例)
+├── test_context.cpp           # 上下文管理测试 (20个测试用例)
 ├── test_object_expr.cpp       # 对象表达式测试 (5个测试用例)
 ├── test_gvariant_evaluate.cpp # GVariant 求值测试 (3个测试用例)
 ├── builtin/                   # 内置函数测试
@@ -198,6 +198,15 @@ tests/expr/
 - **从 dict 导入** (`import_from_dict`): 从 dict 批量导入变量
 - **上下文拷贝和移动** (`context_copy_and_move`): 上下文的拷贝和移动语义
 - **上下文基类默认行为** (`context_base_default_behavior`): context_base 的默认实现
+- **上下文基类拷贝和移动** (`context_base_copy_and_move`): context_base 的拷贝和移动构造函数/赋值运算符
+- **注册对象** (`register_object`): 注册引擎对象到上下文，支持空对象检查
+- **从对象获取变量** (`get_variable_from_object`): 通过对象符号访问对象属性
+- **从对象检查变量存在** (`has_variable_from_object`): 通过对象符号检查属性是否存在
+- **从对象检查函数存在** (`has_function_from_object`): 通过对象符号检查方法是否存在，包括对象不存在的情况
+- **从对象调用函数** (`invoke_from_object`): 通过对象符号调用方法，包括对象不存在的情况
+- **对象上下文获取对象** (`object_context_get_object`): object_context::get_object() 方法
+- **从变量符号获取变量** (`get_variable_from_variable_symbol`): 通过变量符号（dict 类型）访问属性
+- **从变量符号检查变量存在** (`has_variable_from_variable_symbol`): 通过变量符号（dict 类型）检查属性是否存在
 
 ### 6. test_object_expr.cpp - 对象表达式测试
 

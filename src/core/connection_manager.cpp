@@ -38,6 +38,9 @@ void connection_manager::remove_connection(connection_id_type id) {
         return;
     }
 
+    // 显式断开连接，确保信号不再触发
+    it->second.conn.disconnect();
+
     auto& sig    = it->second.sig;
     auto  it_sig = m_signal_connections.find(sig);
     if (it_sig != m_signal_connections.end()) {
@@ -59,14 +62,23 @@ size_t connection_manager::remove_connections(signal_type sig) {
     }
 
     size_t count = it->second.size();
+    // 显式断开所有连接，确保信号不再触发
     for (auto id : it->second) {
-        m_connections.erase(id);
+        auto conn_it = m_connections.find(id);
+        if (conn_it != m_connections.end()) {
+            conn_it->second.conn.disconnect();
+            m_connections.erase(conn_it);
+        }
     }
     m_signal_connections.erase(it);
     return count;
 }
 
 void connection_manager::clear() {
+    // 显式断开所有连接，确保信号不再触发
+    for (auto& [id, info] : m_connections) {
+        info.conn.disconnect();
+    }
     m_connections.clear();
     m_signal_connections.clear();
     m_next_id = 1;

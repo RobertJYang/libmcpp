@@ -389,7 +389,8 @@ TEST_F(FilesystemTest, ComplexPathNormalization) {
 // 复杂场景：文件操作的错误处理
 TEST_F(FilesystemTest, ComplexFileOperationErrorHandling) {
     // 测试不存在的文件操作
-    std::string non_existent = "/tmp/non_existent_file_12345.txt";
+    auto tmp_dir = mc::filesystem::temp_directory_path();
+    std::string non_existent = (tmp_dir / "non_existent_file_12345.txt").string();
     EXPECT_FALSE(mc::filesystem::exists(non_existent));
     EXPECT_FALSE(mc::filesystem::is_regular_file(non_existent));
     EXPECT_FALSE(mc::filesystem::is_directory(non_existent));
@@ -401,7 +402,8 @@ TEST_F(FilesystemTest, ComplexFileOperationErrorHandling) {
     EXPECT_FALSE(size.has_value());
 
     // 测试目录操作
-    std::string non_existent_dir = "/tmp/non_existent_dir_12345";
+    auto tmp_dir_for_dir = mc::filesystem::temp_directory_path();
+    std::string non_existent_dir = (tmp_dir_for_dir / "non_existent_dir_12345").string();
     auto        files            = mc::filesystem::list_files(non_existent_dir);
     EXPECT_TRUE(files.empty());
 

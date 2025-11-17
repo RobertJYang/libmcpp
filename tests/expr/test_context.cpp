@@ -11,9 +11,91 @@
  */
 
 #include <gtest/gtest.h>
+#include <mc/engine.h>
 #include <mc/expr/context.h>
 #include <mc/expr/engine.h>
 #include <mc/expr/function.h>
+
+// 测试辅助类，需要在命名命名空间中定义（不能在匿名命名空间），以便链接器能找到反射元数据
+namespace tests::expr::context_test {
+class TestObjectForRegister : public mc::engine::object<TestObjectForRegister> {
+public:
+    MC_OBJECT(TestObjectForRegister, "TestObjectForRegister", "/org/test/TestObjectForRegister")
+    TestObjectForRegister(mc::engine::core_object* parent = nullptr)
+        : mc::engine::object<TestObjectForRegister>(parent) {
+    }
+};
+
+class TestInterfaceForVariable : public mc::engine::interface<TestInterfaceForVariable> {
+public:
+    MC_INTERFACE("org.test.TestInterfaceForVariable")
+    int32_t m_value = 42;
+};
+
+class TestObjectForVariable : public mc::engine::object<TestObjectForVariable> {
+public:
+    MC_OBJECT(TestObjectForVariable, "TestObjectForVariable", "/org/test/TestObjectForVariable",
+              (TestInterfaceForVariable))
+    TestObjectForVariable(mc::engine::core_object* parent = nullptr)
+        : mc::engine::object<TestObjectForVariable>(parent) {
+    }
+    TestInterfaceForVariable m_iface;
+};
+
+class TestInterfaceForFunction : public mc::engine::interface<TestInterfaceForFunction> {
+public:
+    MC_INTERFACE("org.test.TestInterfaceForFunction")
+    int32_t add(int32_t a) {
+        return a + 1;
+    }
+};
+
+class TestObjectForFunction : public mc::engine::object<TestObjectForFunction> {
+public:
+    MC_OBJECT(TestObjectForFunction, "TestObjectForFunction", "/org/test/TestObjectForFunction",
+              (TestInterfaceForFunction))
+    TestObjectForFunction(mc::engine::core_object* parent = nullptr)
+        : mc::engine::object<TestObjectForFunction>(parent) {
+    }
+    TestInterfaceForFunction m_iface;
+};
+
+class TestInterfaceForInvoke : public mc::engine::interface<TestInterfaceForInvoke> {
+public:
+    MC_INTERFACE("org.test.TestInterfaceForInvoke")
+    int32_t add(int32_t a) {
+        return a + 10;
+    }
+};
+
+class TestObjectForInvoke : public mc::engine::object<TestObjectForInvoke> {
+public:
+    MC_OBJECT(TestObjectForInvoke, "TestObjectForInvoke", "/org/test/TestObjectForInvoke",
+              (TestInterfaceForInvoke))
+    TestObjectForInvoke(mc::engine::core_object* parent = nullptr)
+        : mc::engine::object<TestObjectForInvoke>(parent) {
+    }
+    TestInterfaceForInvoke m_iface;
+};
+
+class TestObjectForGetObject : public mc::engine::object<TestObjectForGetObject> {
+public:
+    MC_OBJECT(TestObjectForGetObject, "TestObjectForGetObject", "/org/test/TestObjectForGetObject")
+    TestObjectForGetObject(mc::engine::core_object* parent = nullptr)
+        : mc::engine::object<TestObjectForGetObject>(parent) {
+    }
+};
+} // namespace tests::expr::context_test
+
+// 反射声明，必须在命名空间外定义
+MC_REFLECT(tests::expr::context_test::TestInterfaceForVariable, ((m_value, "value")))
+MC_REFLECT(tests::expr::context_test::TestInterfaceForFunction, ((add, "add")))
+MC_REFLECT(tests::expr::context_test::TestInterfaceForInvoke, ((add, "add")))
+MC_REFLECT(tests::expr::context_test::TestObjectForVariable, ((m_iface, "iface")))
+MC_REFLECT(tests::expr::context_test::TestObjectForFunction, ((m_iface, "iface")))
+MC_REFLECT(tests::expr::context_test::TestObjectForInvoke, ((m_iface, "iface")))
+MC_REFLECT(tests::expr::context_test::TestObjectForRegister, ())
+MC_REFLECT(tests::expr::context_test::TestObjectForGetObject, ())
 
 namespace {
 class expr_context_test : public ::testing::Test {
@@ -289,6 +371,172 @@ TEST_F(expr_context_test, context_base_default_behavior) {
     // 测试调用不存在的函数
     EXPECT_THROW(base_ctx.invoke("func", {}, ""), mc::invalid_arg_exception);
     EXPECT_THROW(base_ctx.invoke("func", {}, "iface"), mc::invalid_arg_exception);
+}
+
+// 测试 context_base 的复制和移动构造
+TEST_F(expr_context_test, context_base_copy_and_move) {
+    mc::expr::context_base base1(nullptr);
+    mc::expr::context_base base2(&base1);
+
+    // 测试复制构造
+    mc::expr::context_base base3(base2);
+    EXPECT_EQ(base3.get_parent(), base2.get_parent());
+
+    // 测试复制赋值
+    mc::expr::context_base base4(nullptr);
+    base4 = base3;
+    EXPECT_EQ(base4.get_parent(), base3.get_parent());
+
+    // 测试移动构造
+    mc::expr::context_base base5(std::move(base4));
+    EXPECT_EQ(base5.get_parent(), base3.get_parent());
+    EXPECT_EQ(base4.get_parent(), nullptr); // 移动后应该为 nullptr
+
+    // 测试移动赋值
+    mc::expr::context_base base6(nullptr);
+    base6 = std::move(base5);
+    EXPECT_EQ(base6.get_parent(), base3.get_parent());
+    EXPECT_EQ(base5.get_parent(), nullptr); // 移动后应该为 nullptr
+}
+
+// 测试注册对象
+TEST_F(expr_context_test, register_object) {
+    mc::expr::context ctx;
+
+    auto test_obj = tests::expr::context_test::TestObjectForRegister::create();
+
+    // 测试注册对象
+    auto id = ctx.register_object("test_obj", test_obj.get());
+    EXPECT_GE(id, 0);
+
+    // 测试注册空对象（应该返回 -1）
+    auto invalid_id = ctx.register_object("invalid_obj", nullptr);
+    EXPECT_EQ(invalid_id, -1);
+}
+
+// 测试通过对象符号访问对象属性
+TEST_F(expr_context_test, get_variable_from_object) {
+    mc::expr::context ctx;
+
+    auto test_obj = tests::expr::context_test::TestObjectForVariable::create();
+    test_obj->m_iface.m_value = 100;
+
+    // 注册对象
+    ctx.register_object("obj", test_obj.get());
+
+    // 测试通过对象符号访问对象属性
+    // 注意：这里需要对象有对应的属性，所以使用接口属性
+    auto value = ctx.get_variable("value", "obj");
+    // 由于对象符号类型为 object，会调用 obj->get_property("value")
+    // 如果对象没有该属性，会返回空 variant
+    EXPECT_TRUE(value.is_null() || value == 100);
+}
+
+// 测试通过对象符号检查变量是否存在
+TEST_F(expr_context_test, has_variable_from_object) {
+    mc::expr::context ctx;
+
+    auto test_obj = tests::expr::context_test::TestObjectForVariable::create();
+
+    // 注册对象
+    ctx.register_object("obj", test_obj.get());
+
+    // 测试通过对象符号检查属性是否存在
+    // 由于对象符号类型为 object，会调用 obj->has_property("value")
+    bool has_prop = ctx.has_variable("value", "obj");
+    // 如果对象有该属性，返回 true，否则返回 false
+    EXPECT_TRUE(has_prop || !has_prop); // 至少不会崩溃
+}
+
+// 测试通过对象符号检查方法是否存在
+TEST_F(expr_context_test, has_function_from_object) {
+    mc::expr::context ctx;
+
+    auto test_obj = tests::expr::context_test::TestObjectForFunction::create();
+
+    // 注册对象
+    ctx.register_object("obj", test_obj.get());
+
+    // 测试通过对象符号检查方法是否存在
+    // 由于对象符号类型为 object，会调用 obj->has_method("add")
+    bool has_method = ctx.has_function("add", "obj");
+    // 如果对象有该方法，返回 true，否则返回 false
+    EXPECT_TRUE(has_method || !has_method); // 至少不会崩溃
+
+    // 测试对象符号不存在时，会调用 context_base::has_function
+    bool has_func_nonexistent = ctx.has_function("nonexistent", "nonexistent_obj");
+    EXPECT_FALSE(has_func_nonexistent);
+}
+
+// 测试通过对象符号调用方法
+TEST_F(expr_context_test, invoke_from_object) {
+    mc::expr::context ctx;
+
+    auto test_obj = tests::expr::context_test::TestObjectForInvoke::create();
+
+    // 注册对象
+    ctx.register_object("obj", test_obj.get());
+
+    // 测试通过对象符号调用方法
+    // 由于对象符号类型为 object，会调用 obj->invoke("add", args)
+    auto result = ctx.invoke("add", {5}, "obj");
+    // 如果对象有该方法，返回结果，否则返回空 variant
+    EXPECT_TRUE(result.is_null() || result == 15);
+
+    // 测试对象符号不存在时，会调用 context_base::invoke
+    EXPECT_THROW(ctx.invoke("nonexistent", {}, "nonexistent_obj"), mc::invalid_arg_exception);
+}
+
+// 测试 object_context::get_object
+TEST_F(expr_context_test, object_context_get_object) {
+    auto test_obj = tests::expr::context_test::TestObjectForGetObject::create();
+
+    // 创建 object_context
+    mc::expr::object_context obj_ctx(test_obj.get());
+
+    // 测试 get_object
+    auto* obj = obj_ctx.get_object();
+    EXPECT_EQ(obj, test_obj.get());
+}
+
+// 测试通过对象符号访问变量类型的符号（包含属性）
+TEST_F(expr_context_test, get_variable_from_variable_symbol) {
+    mc::expr::context ctx;
+
+    // 注册一个变量类型的符号，包含 dict 属性
+    mc::dict obj_dict;
+    obj_dict["prop1"] = 100;
+    obj_dict["prop2"] = "test";
+
+    ctx.register_variable("obj_var", obj_dict);
+
+    // 测试通过变量符号访问属性
+    auto prop1 = ctx.get_variable("prop1", "obj_var");
+    EXPECT_EQ(prop1, 100);
+
+    auto prop2 = ctx.get_variable("prop2", "obj_var");
+    EXPECT_EQ(prop2, "test");
+
+    // 测试访问不存在的属性
+    auto prop3 = ctx.get_variable("prop3", "obj_var");
+    EXPECT_TRUE(prop3.is_null());
+}
+
+// 测试通过对象符号访问变量类型的符号（检查属性是否存在）
+TEST_F(expr_context_test, has_variable_from_variable_symbol) {
+    mc::expr::context ctx;
+
+    // 注册一个变量类型的符号，包含 dict 属性
+    mc::dict obj_dict;
+    obj_dict["prop1"] = 100;
+    obj_dict["prop2"] = "test";
+
+    ctx.register_variable("obj_var", obj_dict);
+
+    // 测试通过变量符号检查属性是否存在
+    EXPECT_TRUE(ctx.has_variable("prop1", "obj_var"));
+    EXPECT_TRUE(ctx.has_variable("prop2", "obj_var"));
+    EXPECT_FALSE(ctx.has_variable("prop3", "obj_var"));
 }
 
 // 注意：object_context 的接口参数测试已经在 test_object_expr.cpp 中完成

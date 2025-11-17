@@ -18,7 +18,9 @@
 #include <gtest/gtest.h>
 #include <mc/dict.h>
 #include <mc/variant.h>
+#include <mc/variant/variant_common.h>
 #include <stdexcept>
+#include <typeindex>
 #include <test_utilities/test_base.h>
 
 namespace mc {
@@ -193,6 +195,205 @@ TEST_F(VariantContainersTest, ArrayAccess) {
     const variants& arr = v.get_array();
     ASSERT_EQ(arr.size(), sample_array.size()) << "通过 get_array() 获取的数组大小不匹配";
     ASSERT_EQ(arr[2].as_string(), "array item") << "通过 get_array() 访问的元素不匹配";
+}
+
+TEST_F(VariantContainersTest, VariantsCapacityManagement) {
+    variants values;
+    EXPECT_TRUE(values.empty());
+
+    values.reserve(4);
+    values.assign(2, variant(1));
+    EXPECT_EQ(values.size(), 2);
+
+    values.emplace_back(variant("tail"));
+    EXPECT_EQ(values[2].as_string(), "tail");
+
+    values.resize(5, variant(false));
+    EXPECT_EQ(values.size(), 5);
+    EXPECT_FALSE(values[3].as_bool());
+
+    values.shrink_to_fit();
+    values.clear();
+    EXPECT_TRUE(values.empty());
+}
+
+TEST_F(VariantContainersTest, VariantsInsertEraseAndIterators) {
+    variants values{variant(1), variant("x"), variant(3)};
+    values.insert(1, variant("y"));
+    EXPECT_EQ(values[1].as_string(), "y");
+
+    values.insert(2, static_cast<size_t>(2), variant(9));
+    EXPECT_EQ(values[2].as_int32(), 9);
+    EXPECT_EQ(values[3].as_int32(), 9);
+
+    variants extra{variant("p"), variant("q")};
+    values.insert(values.begin(), extra.begin(), extra.end());
+    EXPECT_EQ(values[0].as_string(), "p");
+
+    values.erase(0);
+    EXPECT_EQ(values[0].as_string(), "q");
+
+    auto first = values.begin();
+    auto last  = values.begin() + 2;
+    values.erase(first, last);
+    EXPECT_EQ(values[0].as_string(), "y");
+
+    auto it  = values.begin();
+    auto ref = *it;
+    EXPECT_TRUE(ref.get().is_string());
+    EXPECT_EQ(ref.get().as_string(), "y");
+    EXPECT_GT(values.end() - values.begin(), 0);
+}
+
+TEST_F(VariantContainersTest, VariantsComparisonAndHash) {
+    variants lhs{variant(1), variant(2)};
+    variants rhs{variant(1), variant(3)};
+
+    EXPECT_TRUE(lhs < rhs);
+    EXPECT_TRUE(rhs > lhs);
+
+    auto hash_value = mc::calculate_array_hash(rhs);
+    EXPECT_GT(hash_value, 0U);
+
+    variants copy = lhs.deep_copy(nullptr);
+    EXPECT_TRUE(copy == lhs);
+    EXPECT_NE(copy.data(), lhs.data());
+
+    lhs.swap(rhs);
+    EXPECT_EQ(lhs[1].as_int32(), 3);
+
+    auto* ptr = lhs.get_ptr(0);
+    ASSERT_NE(ptr, nullptr);
+    EXPECT_EQ(ptr->as_int32(), 1);
+}
+
+TEST_F(VariantContainersTest, VariantsAllocatorConstruction) {
+    // 测试带 allocator 的构造函数
+    std::allocator<char> alloc;
+    variants             empty_with_alloc(alloc);
+    EXPECT_TRUE(empty_with_alloc.empty());
+
+    // 从 variant 构造
+    variants source{variant(1), variant(2)};
+    variant  array_variant(source);
+    variants from_variant(array_variant);
+    EXPECT_EQ(from_variant.size(), 2);
+    EXPECT_EQ(from_variant[0].as_int32(), 1);
+
+    // allocator 拷贝构造
+    variants copy_with_alloc(from_variant, alloc);
+    EXPECT_EQ(copy_with_alloc.size(), 2);
+
+    // element_type 信息
+    mc::array<int> typed_array{1, 2, 3};
+    variants       strong_array(typed_array);
+    EXPECT_FALSE(strong_array.empty());
+    EXPECT_EQ(strong_array.element_type(), std::type_index(typeid(int)));
+    EXPECT_FALSE(strong_array.element_type_name().empty());
+}
+
+TEST_F(VariantContainersTest, VariantsResizePopAndForEach) {
+    variants values{variant(1), variant(2), variant(3)};
+
+    values.resize(5);
+    EXPECT_EQ(values.size(), 5);
+
+    values.resize(7, variant(9));
+    EXPECT_EQ(values.size(), 7);
+    EXPECT_EQ(values[6].as_int32(), 9);
+
+    values.assign(3, variant(4));
+    EXPECT_EQ(values.size(), 3);
+    EXPECT_EQ(values[1].as_int32(), 4);
+
+    values.assign({variant(5), variant(6)});
+    EXPECT_EQ(values.size(), 2);
+    EXPECT_EQ(values[0].as_int32(), 5);
+
+    values.reserve(8);
+    EXPECT_GE(values.capacity(), 2U);
+    EXPECT_GE(values.max_size(), values.size());
+
+    values.shrink_to_fit();
+    values.clear();
+    EXPECT_TRUE(values.empty());
+
+    variants sum_values{variant(1), variant(2), variant(3)};
+    int      sum = 0;
+    sum_values.for_each([&sum](const variant& item) {
+        sum += item.as_int32();
+    });
+    EXPECT_EQ(sum, 6);
+
+    sum_values.pop_back();
+    EXPECT_EQ(sum_values.size(), 2);
+}
+
+TEST_F(VariantContainersTest, VariantsIteratorAdvancedOperations) {
+    variants values{variant(10), variant(20), variant(30), variant(40)};
+
+    auto ref = values.at_ref(1);
+    ref      = variant(200);
+    EXPECT_EQ(values[1].as_int32(), 200);
+
+    auto front_ref = values.front();
+    front_ref      = variant(5);
+    EXPECT_EQ(values[0].as_int32(), 5);
+
+    auto back_ref = values.back();
+    back_ref      = variant(500);
+    EXPECT_EQ(values[3].as_int32(), 500);
+
+    const variants const_values = values;
+    EXPECT_EQ(const_values.front().as_int32(), 5);
+    EXPECT_EQ(const_values.back().as_int32(), 500);
+
+    auto it      = values.begin();
+    auto post_it = it++;
+    EXPECT_EQ((*post_it).get().as_int32(), 5);
+    EXPECT_EQ((*it).get().as_int32(), 200);
+
+    auto pre_it = ++it;
+    EXPECT_EQ((*pre_it).get().as_int32(), 30);
+
+    auto diff = values.end() - values.begin();
+    EXPECT_EQ(diff, static_cast<ptrdiff_t>(values.size()));
+
+    auto backward = values.end();
+    --backward;
+    EXPECT_EQ((*backward).get().as_int32(), 500);
+
+    backward -= 2;
+    EXPECT_EQ((*backward).get().as_int32(), 200);
+
+    auto forward = values.begin();
+    forward += 3;
+    EXPECT_EQ((*forward).get().as_int32(), 500);
+
+    auto const_begin = const_values.cbegin();
+    auto const_end   = const_values.cend();
+    EXPECT_EQ(const_end - const_begin, static_cast<ptrdiff_t>(const_values.size()));
+
+    auto const_post = const_begin++;
+    EXPECT_EQ((*const_post).get().as_int32(), 5);
+    EXPECT_EQ((*const_begin).get().as_int32(), 200);
+
+    auto const_pre = ++const_begin;
+    EXPECT_EQ((*const_pre).get().as_int32(), 30);
+
+    auto const_back = const_values.cend();
+    --const_back;
+    EXPECT_EQ((*const_back).get().as_int32(), 500);
+
+    auto rev_begin = const_values.crbegin();
+    EXPECT_EQ((*rev_begin).get().as_int32(), 500);
+    auto rev_post = rev_begin++;
+    EXPECT_EQ((*rev_post).get().as_int32(), 500);
+    EXPECT_EQ((*rev_begin).get().as_int32(), 30);
+
+    auto rev_next = rev_begin + 1;
+    EXPECT_EQ((*rev_next).get().as_int32(), 200);
+    EXPECT_NE(rev_begin, const_values.crend());
 }
 
 /**

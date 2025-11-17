@@ -37,11 +37,27 @@ protected:
     }
 };
 
+class shared_memory_guard {
+public:
+    explicit shared_memory_guard(std::string name) : m_name(std::move(name)) {
+    }
+
+    ~shared_memory_guard() {
+        if (!m_name.empty()) {
+            shared_memory_manager::remove_shared_memory(m_name);
+        }
+    }
+
+private:
+    std::string m_name;
+};
+
 // 测试创建共享内存
 TEST_F(shared_memory_test, create_shared_memory) {
     std::string test_name = get_test_shm_name();
     size_t      size      = 1024 * 1024; // 1MB
 
+    shared_memory_guard guard(test_name);
     auto shm = shared_memory::create(test_name, size);
     ASSERT_NE(shm, nullptr);
     EXPECT_TRUE(shm->is_valid());
@@ -73,6 +89,7 @@ TEST_F(shared_memory_test, get_properties) {
     std::string test_name = get_test_shm_name();
     size_t      size      = 64 * 1024; // 64KB
 
+    shared_memory_guard guard(test_name);
     auto shm = shared_memory::create(test_name, size);
     ASSERT_NE(shm, nullptr);
 
@@ -90,6 +107,7 @@ TEST_F(shared_memory_test, offset_calculation) {
     std::string test_name = get_test_shm_name();
     size_t      size      = 64 * 1024;
 
+    shared_memory_guard guard(test_name);
     auto shm = shared_memory::create(test_name, size);
     ASSERT_NE(shm, nullptr);
 
@@ -122,6 +140,7 @@ TEST_F(shared_memory_test, get_allocator) {
     std::string test_name = get_test_shm_name();
     size_t      size      = 64 * 1024;
 
+    shared_memory_guard guard(test_name);
     auto shm = shared_memory::create(test_name, size);
     ASSERT_NE(shm, nullptr);
 
@@ -135,6 +154,7 @@ TEST_F(shared_memory_test, minimum_size) {
     std::string test_name  = get_test_shm_name();
     size_t      small_size = 100; // 小于最小值
 
+    shared_memory_guard guard(test_name);
     auto shm = shared_memory::create(test_name, small_size);
     ASSERT_NE(shm, nullptr);
     // 实际大小应该被调整为最小值
@@ -147,6 +167,7 @@ TEST_F(shared_memory_test, open_existing) {
     size_t      size      = 64 * 1024;
 
     // 创建第一个共享内存
+    shared_memory_guard guard(test_name);
     auto shm1 = shared_memory::create(test_name, size);
     ASSERT_NE(shm1, nullptr);
 
@@ -164,6 +185,7 @@ TEST_F(shared_memory_test, is_valid) {
     std::string test_name = get_test_shm_name();
     size_t      size      = 64 * 1024;
 
+    shared_memory_guard guard(test_name);
     auto shm = shared_memory::create(test_name, size);
     ASSERT_NE(shm, nullptr);
     EXPECT_TRUE(shm->is_valid());
@@ -183,6 +205,7 @@ TEST_F(shared_memory_test, offset_boundary_cases) {
     std::string test_name = get_test_shm_name();
     size_t      size      = 64 * 1024;
 
+    shared_memory_guard guard(test_name);
     auto shm = shared_memory::create(test_name, size);
     ASSERT_NE(shm, nullptr);
 
@@ -213,6 +236,7 @@ TEST_F(shared_memory_test, data_address_and_size) {
     std::string test_name = get_test_shm_name();
     size_t      size      = 64 * 1024;
 
+    shared_memory_guard guard(test_name);
     auto shm = shared_memory::create(test_name, size);
     ASSERT_NE(shm, nullptr);
 
