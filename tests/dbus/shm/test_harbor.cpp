@@ -171,3 +171,99 @@ TEST_F(HarborTest, UnregisterServiceClearsPendingPromises)
 
     harbor_instance.stop();
 }
+
+// 测试 Rule::path_namespace() 方法
+TEST_F(HarborTest, MockRulePathNamespace) {
+    DBus::Match::Rule rule;
+    EXPECT_FALSE(rule.path_namespace());
+}
+
+// 测试 Rule::disconnect() 方法
+TEST_F(HarborTest, MockRuleDisconnect) {
+    DBus::Match::Rule rule;
+    rule.disconnect();
+    // 验证不会崩溃
+}
+
+// 测试 property 默认构造函数
+TEST_F(HarborTest, MockPropertyDefaultConstructor) {
+    shm::property prop;
+    auto data = prop.get_data();
+    EXPECT_TRUE(data.has_value());
+    EXPECT_TRUE(data->empty());
+    EXPECT_TRUE(prop.get_signature().empty());
+}
+
+// 测试 property::set_data() 方法
+TEST_F(HarborTest, MockPropertySetData) {
+    shm::property prop("s");
+    auto& ins = shm::shared_memory::get_instance();
+    prop.set_data(ins, "test_value");
+    auto data = prop.get_data();
+    EXPECT_TRUE(data.has_value());
+    EXPECT_EQ(std::string(data->data()), "test_value");
+}
+
+// 测试 property::get_data() 方法
+TEST_F(HarborTest, MockPropertyGetData) {
+    shm::property prop("s");
+    auto& ins = shm::shared_memory::get_instance();
+    prop.set_data(ins, "test_data");
+    auto data = prop.get_data();
+    EXPECT_TRUE(data.has_value());
+    EXPECT_EQ(std::string(data->data()), "test_data");
+}
+
+// 测试 property::get_signature() 方法
+TEST_F(HarborTest, MockPropertyGetSignature) {
+    shm::property prop("i");
+    EXPECT_EQ(prop.get_signature(), "i");
+}
+
+// 测试 interface::find_p() 方法
+TEST_F(HarborTest, MockInterfaceFindProperty) {
+    shm::interface intf;
+    auto& ins = shm::shared_memory::get_instance();
+    auto prop = intf.find_p("test_property");
+    EXPECT_NE(prop, nullptr);
+}
+
+// 测试 object::interfaces() 方法
+TEST_F(HarborTest, MockObjectInterfaces) {
+    shm::object obj;
+    auto& interfaces = obj.interfaces();
+    EXPECT_TRUE(interfaces.empty());
+}
+
+// 测试 object_tree::wellknow_name() 方法
+TEST_F(HarborTest, MockObjectTreeWellknowName) {
+    shm::object_tree tree;
+    auto name = tree.wellknow_name();
+    EXPECT_TRUE(name.empty());
+}
+
+// 测试 object_tree::create_message_queue() 方法
+TEST_F(HarborTest, MockObjectTreeCreateMessageQueue) {
+    shm::object_tree tree;
+    auto& ins = shm::shared_memory::get_instance();
+    auto& queue = tree.create_message_queue(ins, 1024);
+    EXPECT_NE(&queue, nullptr);
+}
+
+// 测试 shared_memory::get_harbor_name() 从 tree_map 获取
+TEST_F(HarborTest, MockSharedMemoryGetHarborNameFromTreeMap) {
+    auto& ins = shm::shared_memory::get_instance();
+    auto tree = ins.get_tree("test_service");
+    tree->set_unique_name(":1.100");
+    ins.set_harbor_name(":1.100", "test_harbor");
+    auto harbor_name = ins.get_harbor_name("test_service");
+    EXPECT_EQ(harbor_name, "test_harbor");
+}
+
+// 测试 shared_memory::get_harbor_name() harbor_name 为空时的默认值
+TEST_F(HarborTest, MockSharedMemoryGetHarborNameEmpty) {
+    auto& ins = shm::shared_memory::get_instance();
+    // 传入一个不在 unique_name_map 中的名称
+    auto harbor_name = ins.get_harbor_name("unknown_service");
+    EXPECT_EQ(harbor_name, "harbor.bmc.kepler.mock");
+}

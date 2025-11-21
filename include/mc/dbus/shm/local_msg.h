@@ -66,6 +66,8 @@ public:
             it.next();
         };
         (func(std::forward<Args>(args)), ...);
+        // 检查签名是否还有剩余（参数数量少于签名要求）
+        MC_ASSERT(it.at_end(), "invalid args size for signature: ${signature}, expected more args", ("signature", signature));
     }
 
     void append_return_args(std::string_view signature, const variant& arg);

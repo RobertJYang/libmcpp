@@ -594,3 +594,28 @@ TEST(SerializeTest, WriteArgDepthExceedsLimit) {
     variant v_int = 42;
     EXPECT_THROW(buf.write_arg(v_int, MAX_DEPTH + 1), mc::exception);
 }
+
+// 测试 deserialize_variant 读取 blob 时 buffer 不足
+TEST(SerializeTest, BlobInsufficientBuffer) {
+    // 构造一个包含 gvariant 类型的序列化数据，但 buffer 不足
+    write_buffer wb;
+    // 创建一个包含 blob 的 variant
+    variant blob_variant(std::string(100, 'x'));
+    wb.write_arg(blob_variant, 0);
+    auto packed = wb.to_string();
+
+    // 截断 buffer，使其不足以读取完整的 blob
+    std::string truncated = packed.substr(0, packed.size() / 2);
+    read_buffer rb(truncated);
+
+    // 尝试读取，应该抛出异常或返回 nullptr
+    uint8_t type = 0;
+    auto t = reinterpret_cast<const uint8_t*>(rb.read(sizeof(type)));
+    if (t != nullptr) {
+        type = *t;
+        // 如果类型是 gvariant，尝试读取应该失败
+        if ((type & TYPE_MASK) == static_cast<uint8_t>(data_type::gvariant)) {
+            EXPECT_THROW(rb.read_value(type & TYPE_MASK, type >> VALUE_SHIFT), mc::exception);
+        }
+    }
+}

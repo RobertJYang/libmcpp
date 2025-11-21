@@ -622,3 +622,52 @@ TEST_F(LocalMsgTest, ShmPendingMsgsConcurrentSend) {
 
     EXPECT_EQ(success_count.load(), num_threads * iterations);
 }
+
+// 测试 is_unique_name() 空字符串情况
+TEST_F(LocalMsgTest, IsUniqueNameEmptyString) {
+    EXPECT_FALSE(is_unique_name(""));
+    EXPECT_FALSE(is_unique_name("not_unique"));
+    EXPECT_TRUE(is_unique_name(":1.23"));
+}
+
+// 测试 local_msg::append() 所有类型
+TEST_F(LocalMsgTest, LocalMsgAppendAllTypes) {
+    auto msg = new dbus::local_msg("bmc.kepler.test", "/bmc/kepler/test/obj",
+                                   "bmc.kepler.test.intf", "TestMethod");
+
+    // 测试所有支持的类型
+    int8_t   i8  = -10;
+    int16_t  i16 = -1000;
+    int32_t  i32 = -100000;
+    int64_t  i64 = -10000000000LL;
+    uint8_t  u8  = 10;
+    uint16_t u16 = 1000;
+    uint32_t u32 = 100000;
+    uint64_t u64 = 10000000000ULL;
+    float    f   = 3.14f;
+    double   d   = 3.14159;
+
+    msg->append("ynqiuxtdgs", i8, u8, i16, u16, i32, u32, i64, u64, f, d);
+    auto args = msg->read();
+    ASSERT_EQ(args.size(), 10);
+    EXPECT_EQ(args[0].as_int8(), i8);
+    EXPECT_EQ(args[1].as_uint8(), u8);
+    EXPECT_EQ(args[2].as_int16(), i16);
+    EXPECT_EQ(args[3].as_uint16(), u16);
+    EXPECT_EQ(args[4].as_int32(), i32);
+    EXPECT_EQ(args[5].as_uint32(), u32);
+    EXPECT_EQ(args[6].as_int64(), i64);
+    EXPECT_EQ(args[7].as_uint64(), u64);
+    EXPECT_FLOAT_EQ(static_cast<float>(args[8].as_double()), f);
+    EXPECT_DOUBLE_EQ(args[9].as_double(), d);
+}
+
+// 测试 local_msg::append() 签名不匹配
+TEST_F(LocalMsgTest, LocalMsgAppendInvalidSignature) {
+    auto msg = new dbus::local_msg("bmc.kepler.test", "/bmc/kepler/test/obj",
+                                   "bmc.kepler.test.intf", "TestMethod");
+
+    // 传入签名与参数数量不匹配的参数，应该抛出异常
+    EXPECT_THROW(msg->append("ii", 1, 2, 3), mc::exception);  // 签名只有2个参数，但传入了3个
+    EXPECT_THROW(msg->append("iii", 1, 2), mc::exception);   // 签名有3个参数，但只传入了2个
+}

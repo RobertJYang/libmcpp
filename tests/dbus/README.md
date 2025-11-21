@@ -43,7 +43,7 @@ DBus 模块的测试文件按 `src/dbus` 的目录结构组织：
 ## 详细测试用例
 
 ### test_connection.cpp
-D-Bus 连接管理测试（40 个用例）：
+D-Bus 连接管理测试（39 个用例）：
 
 **基础功能测试（5 个）**：
 - `test_list_names` - 测试列出总线名称（包含重试逻辑以适应 D-Bus 名称传播的时序差异）
@@ -68,7 +68,7 @@ D-Bus 连接管理测试（40 个用例）：
 - `test_request_name_retry_failure` - 测试请求名称重试失败
 - `test_concurrent_disconnect` - 测试并发断开连接
 
-**实现细节测试（25 个）**：
+**实现细节测试（24 个）**：
 - `test_send_when_disconnected` - 测试断开连接时发送
 - `test_send_with_existing_serial` - 测试使用已有序列号发送
 - `test_async_send_when_disconnected` - 测试断开连接时异步发送
@@ -81,7 +81,6 @@ D-Bus 连接管理测试（40 个用例）：
 - `test_add_match_when_disconnected` - 测试断开连接时添加匹配规则
 - `test_remove_match_not_found` - 测试移除不存在的匹配规则
 - `test_remove_match_when_disconnected` - 测试断开连接时移除匹配规则
-- `test_get_next_serial_overflow` - 测试序列号溢出
 - `test_dispatch_after_disconnect` - 测试断开连接后分发
 - `test_filter_message` - 测试消息过滤功能
 - `test_get_match` - 测试获取匹配对象
@@ -92,7 +91,7 @@ D-Bus 连接管理测试（40 个用例）：
 - `test_release_with_null_connection` - 测试 release() 中 m_connection == nullptr 的分支
 - `test_process_message_method_return_no_reply_serial` - 测试 process_message 中 reply_serial == 0 的分支
 - `test_dispatch_status_changed_other_status` - 测试 dispatch_status_changed 中非 DBUS_DISPATCH_DATA_REMAINS 的分支
-- `test_get_next_serial_overflow_to_one` - 测试 get_next_serial 的序列号溢出处理
+- `test_get_next_serial_overflow_to_one` - 测试 get_next_serial 的序列号溢出处理（已合并 test_get_next_serial_overflow）
 - `test_get_impl_access` - 测试 get_impl 返回实现引用
 
 ### test_dbus_message.cpp
@@ -252,9 +251,9 @@ meson test -C builddir --test-args="--gtest_filter=ErrorTest.SetError*"
   - 根目录: 6 个
   - shm 子目录: 6 个
   - dispatch 子目录: 1 个
-- **测试用例总数**: 178 个（根据 `grep -c "TEST_F\|TEST(` tests/dbus/**/*.cpp` 统计）
-  - 根目录测试: 93 个
-    - `test_connection.cpp`: 40 个（基础 5 + 场景 6 + 安全 4 + 实现 25）
+- **测试用例总数**: 177 个（根据 `grep -c "TEST_F\|TEST(` tests/dbus/**/*.cpp` 统计）
+  - 根目录测试: 92 个
+    - `test_connection.cpp`: 39 个（基础 5 + 场景 6 + 安全 4 + 实现 24，已删除重复的 `test_get_next_serial_overflow`）
     - `test_dbus_message.cpp`: 7 个
     - `test_error.cpp`: 12 个
     - `test_match.cpp`: 26 个
@@ -297,6 +296,7 @@ meson test -C builddir --test-args="--gtest_filter=ErrorTest.SetError*"
 
 3. **测试优化**：
    - 删除了重复的测试用例 `test_call_method_error`，其功能已合并到 `scenario_error_handling_retry`
+   - 删除了重复的测试用例 `test_get_next_serial_overflow`，其功能已合并到 `test_get_next_serial_overflow_to_one`（后者测试更全面）
    - 添加了新的测试用例以覆盖更多边界情况
    - 场景测试（scenario_*）保留，因为它们测试的是真实使用场景的组合
 
