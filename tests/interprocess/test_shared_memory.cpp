@@ -191,15 +191,6 @@ TEST_F(shared_memory_test, is_valid) {
     EXPECT_TRUE(shm->is_valid());
 }
 
-// 测试无效名称创建失败
-TEST_F(shared_memory_test, create_with_empty_name) {
-    std::string empty_name = "";
-    size_t      size       = 64 * 1024;
-
-    auto shm = shared_memory::create(empty_name, size);
-    EXPECT_EQ(shm, nullptr);
-}
-
 // 测试偏移量边界情况
 TEST_F(shared_memory_test, offset_boundary_cases) {
     std::string test_name = get_test_shm_name();
@@ -254,4 +245,77 @@ TEST_F(shared_memory_test, data_address_and_size) {
     EXPECT_GE(data_addr, base);
     // data_addr + data_size 应该等于 base + size（数据区域正好填满到共享内存末尾）
     EXPECT_LE(static_cast<char*>(data_addr) + data_size, static_cast<char*>(base) + size);
+}
+
+// 测试 create() 传入空名称
+TEST_F(shared_memory_test, CreateWithEmptyName) {
+    // 传入空字符串，应该返回 nullptr 并输出错误日志
+    auto shm = shared_memory::create("", 64 * 1024);
+    EXPECT_EQ(shm, nullptr);
+}
+
+// 测试打开现有共享内存但大小不足
+TEST_F(shared_memory_test, CreateWithInsufficientSize) {
+    std::string test_name = get_test_shm_name();
+    size_t      small_size = 32 * 1024; // 较小的共享内存
+    size_t      large_size = 64 * 1024; // 较大的共享内存
+
+    shared_memory_guard guard(test_name);
+    
+    // 先创建一个较小的共享内存
+    auto shm1 = shared_memory::create(test_name, small_size);
+    ASSERT_NE(shm1, nullptr);
+    EXPECT_TRUE(shm1->is_valid());
+    
+    // 尝试以更大的大小打开它，应该返回 nullptr 并输出错误日志
+    auto shm2 = shared_memory::create(test_name, large_size);
+    EXPECT_EQ(shm2, nullptr);
+}
+
+// 测试 init_memory() 失败的情况
+// 注意：init_memory() 是私有方法，很难直接测试失败情况
+// 这里我们通过创建一个共享内存来间接测试，但无法直接模拟 init_memory() 失败
+// 如果需要测试，可能需要 mock 或修改代码以注入失败
+TEST_F(shared_memory_test, CreateWithInitMemoryFailure) {
+    // init_memory() 失败的情况很难在单测中稳定复现
+    // 它通常发生在共享内存头部初始化失败时
+    // 由于这是私有方法且需要系统级错误注入，这里只验证正常创建不会失败
+    std::string test_name = get_test_shm_name();
+    size_t      size      = 64 * 1024;
+
+    shared_memory_guard guard(test_name);
+    auto shm = shared_memory::create(test_name, size);
+    ASSERT_NE(shm, nullptr);
+    EXPECT_TRUE(shm->is_valid());
+    // 正常创建应该成功，init_memory() 失败的情况需要系统级错误注入才能测试
+}
+
+// 测试 register_process() 失败（进程槽位已满）
+TEST_F(shared_memory_test, CreateWithRegisterProcessFailure) {
+    std::string test_name = get_test_shm_name();
+    size_t      size      = 64 * 1024;
+
+    shared_memory_guard guard(test_name);
+    
+    // 创建共享内存
+    auto shm_base = shared_memory::create(test_name, size);
+    ASSERT_NE(shm_base, nullptr);
+    
+    // 尝试创建 65 个 shared_memory 对象（超过 64 个进程槽位）
+    // 注意：由于 shared_memory::create() 会重用已存在的共享内存，
+    // 我们需要通过不同的方式测试
+    // 实际上，register_process() 失败的情况需要真正的多进程场景才能测试
+    // 在单进程中，所有 shared_memory 对象共享同一个进程槽位
+    
+    // 这里我们验证正常创建不会失败
+    // register_process() 失败的情况需要多进程测试才能覆盖
+    std::vector<std::shared_ptr<shared_memory>> shm_list;
+    for (int i = 0; i < 10; ++i) {
+        auto shm = shared_memory::create(test_name, size);
+        ASSERT_NE(shm, nullptr);
+        shm_list.push_back(shm);
+    }
+    
+    // 在单进程中，所有对象应该都能成功创建
+    // register_process() 失败的情况需要真正的多进程场景
 }

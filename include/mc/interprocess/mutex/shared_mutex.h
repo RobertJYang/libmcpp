@@ -57,11 +57,19 @@ public:
         // 如果有读锁，释放它
         if (m_reader_count > 0) {
             m_ipc_mutex.unlock_shared();
+            // 读锁使用共享锁，需要释放所有共享锁
+            for (unsigned int i = 0; i < m_reader_count; ++i) {
+                m_thread_mutex.unlock_shared();
+            }
+            m_reader_count = 0;
         }
 
-        // 如果当前线程持有写锁，释放它
-        if (m_writer_thread_id == detail::thread_id_to_int(std::this_thread::get_id())) {
+        // 如果持有写锁，释放它（不检查线程 ID，因为析构函数由持有锁的线程调用）
+        if (m_writer_thread_id != 0) {
+            m_writer_thread_id = 0;
             m_ipc_mutex.unlock();
+            // 释放线程写锁（根据 RAII 原则，析构函数由持有锁的线程调用）
+            m_thread_mutex.unlock();
         }
     }
 

@@ -79,28 +79,6 @@ TEST_F(shared_memory_manager_test, remove_on_exit) {
     // 实际行为取决于系统实现
 }
 
-// 测试 REMOVE_IF_EXISTS 选项
-TEST_F(shared_memory_manager_test, remove_if_exists) {
-    std::string test_name = get_test_shm_name();
-    size_t      size      = 64 * 1024;
-
-    // 先创建一个共享内存
-    {
-        shared_memory_manager manager1(test_name, size,
-                                       shared_memory_manager::REMOVE_ON_EXIT);
-        auto                  shm1 = manager1.get_shared_memory();
-        ASSERT_NE(shm1, nullptr);
-    }
-
-    // 使用 REMOVE_IF_EXISTS 选项创建
-    shared_memory_manager manager2(test_name, size,
-                                   shared_memory_manager::REMOVE_ON_EXIT |
-                                       shared_memory_manager::REMOVE_IF_EXISTS);
-    auto                  shm2 = manager2.get_shared_memory();
-    ASSERT_NE(shm2, nullptr);
-    EXPECT_TRUE(shm2->is_valid());
-}
-
 // 测试手动清理
 TEST_F(shared_memory_manager_test, manual_cleanup) {
     std::string test_name = get_test_shm_name();
@@ -172,4 +150,39 @@ TEST_F(shared_memory_manager_test, default_size) {
     auto                  shm = manager.get_shared_memory();
     ASSERT_NE(shm, nullptr);
     EXPECT_TRUE(shm->is_valid());
+}
+
+// 测试 REMOVE_IF_EXISTS 选项在共享内存存在时删除并输出日志
+TEST_F(shared_memory_manager_test, RemoveIfExistsWithExistingShm) {
+    std::string test_name = get_test_shm_name();
+    size_t      size      = 64 * 1024;
+
+    // 先创建一个共享内存并保持打开
+    std::shared_ptr<shared_memory> existing_shm;
+    {
+        shared_memory_manager manager1(test_name, size, 0); // 不自动删除
+        existing_shm = manager1.get_shared_memory();
+        ASSERT_NE(existing_shm, nullptr);
+        EXPECT_TRUE(existing_shm->is_valid());
+    }
+    // manager1 析构，但 existing_shm 仍然持有引用，共享内存不会被删除
+
+    // 使用 REMOVE_IF_EXISTS 选项创建管理器
+    // 这应该会删除已存在的共享内存并输出日志
+    shared_memory_manager manager2(test_name, size,
+                                    shared_memory_manager::REMOVE_ON_EXIT |
+                                        shared_memory_manager::REMOVE_IF_EXISTS);
+    auto                  shm2 = manager2.get_shared_memory();
+    ASSERT_NE(shm2, nullptr);
+    EXPECT_TRUE(shm2->is_valid());
+
+    // 清理
+    existing_shm.reset();
+}
+
+// 测试 remove_shared_memory() 传入空名称
+TEST_F(shared_memory_manager_test, RemoveSharedMemoryEmptyName) {
+    // 传入空字符串，应该返回 false
+    bool result = shared_memory_manager::remove_shared_memory("");
+    EXPECT_FALSE(result);
 }

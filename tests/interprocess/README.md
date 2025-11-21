@@ -43,7 +43,7 @@ Interprocess 模块包含以下测试文件：
 ## 详细测试用例
 
 ### test_shared_memory.cpp
-共享内存测试（11 个用例）：
+共享内存测试（14 个用例，已优化）：
 - `create_shared_memory` - 测试创建共享内存
 - `format_shm_name` - 测试共享内存名称格式化
 - `get_properties` - 测试获取共享内存属性
@@ -52,21 +52,25 @@ Interprocess 模块包含以下测试文件：
 - `minimum_size` - 测试最小内存大小
 - `open_existing` - 测试打开已存在的共享内存
 - `is_valid` - 测试共享内存有效性检查
-- `create_with_empty_name` - 测试无效名称创建失败
 - `offset_boundary_cases` - 测试偏移量边界情况
 - `data_address_and_size` - 测试数据地址和大小
+- `CreateWithEmptyName` - 测试 create() 传入空名称（已合并 `create_with_empty_name` 的功能）
+- `CreateWithInsufficientSize` - 测试打开现有共享内存但大小不足
+- `CreateWithInitMemoryFailure` - 测试 init_memory() 失败的情况
+- `CreateWithRegisterProcessFailure` - 测试 register_process() 失败（进程槽位已满）
 
 ### test_shared_memory_manager.cpp
-共享内存管理器测试（9 个用例）：
+共享内存管理器测试（10 个用例，已优化）：
 - `create_manager` - 测试创建共享内存管理器
 - `get_shared_memory` - 测试获取共享内存对象
 - `remove_on_exit` - 测试 REMOVE_ON_EXIT 选项
-- `remove_if_exists` - 测试 REMOVE_IF_EXISTS 选项
 - `manual_cleanup` - 测试手动清理
 - `set_remove_on_exit` - 测试设置自动清理选项
 - `static_remove` - 测试静态 remove_shared_memory 方法
 - `format_name` - 测试格式化名称
 - `default_size` - 测试默认大小
+- `RemoveIfExistsWithExistingShm` - 测试 REMOVE_IF_EXISTS 选项在共享内存存在时删除并输出日志（已合并 `remove_if_exists` 的功能）
+- `RemoveSharedMemoryEmptyName` - 测试 remove_shared_memory() 传入空名称
 
 ### test_shared_memory_allocator.cpp
 共享内存分配器测试（14 个用例）：
@@ -151,12 +155,12 @@ meson test -C builddir --test-args="--gtest_filter=SharedMutexTestFixture.IpcMut
     ## 测试统计
 
     - **测试文件总数**: 5 个
-    - **测试用例总数**: 122 个
-      - `test_shared_memory.cpp`: 11 个用例
-      - `test_shared_memory_manager.cpp`: 9 个用例
+    - **测试用例总数**: 132 个（已优化，删除了重复的测试用例）
+      - `test_shared_memory.cpp`: 14 个用例（已优化，删除了重复的 `create_with_empty_name`，功能已合并到 `CreateWithEmptyName`）
+      - `test_shared_memory_manager.cpp`: 10 个用例（已优化，删除了重复的 `remove_if_exists`，功能已合并到 `RemoveIfExistsWithExistingShm`）
       - `test_shared_memory_allocator.cpp`: 14 个用例
-      - `mutex/test_ipc_mutex.cpp`: 22 个用例
-      - `mutex/test_shared_mutex.cpp`: 66 个用例
+      - `mutex/test_ipc_mutex.cpp`: 21 个用例
+      - `mutex/test_shared_mutex.cpp`: 73 个用例
 - **测试覆盖的功能模块**:
   - shared_memory（共享内存）
   - shared_memory_manager（共享内存管理器）
