@@ -420,9 +420,39 @@ void lexer::process_string_literal(char delimiter) {
 
     std::string result;
     for (size_t i = 0; i < value.size(); ++i) {
-        if (value[i] == '\\' && i + 1 < value.size() && value[i + 1] == delimiter) {
-            result.push_back(delimiter);
-            ++i; // 跳过下一个字符
+        if (value[i] == '\\' && i + 1 < value.size()) {
+            if (value[i + 1] == delimiter) {
+                result.push_back(delimiter);
+                ++i; // 跳过下一个字符
+            } else if (value[i + 1] == 'u' && i + 5 < value.size()) {
+                // 处理 Unicode 转义序列 \uXXXX
+                std::string hex_str = std::string(value.substr(i + 2, 4));
+                try {
+                    unsigned int code_point = std::stoul(hex_str, nullptr, 16);
+                    // 将 Unicode 码点转换为 UTF-8
+                    if (code_point <= 0x7F) {
+                        result.push_back(static_cast<char>(code_point));
+                    } else if (code_point <= 0x7FF) {
+                        result.push_back(static_cast<char>(0xC0 | (code_point >> 6)));
+                        result.push_back(static_cast<char>(0x80 | (code_point & 0x3F)));
+                    } else if (code_point <= 0xFFFF) {
+                        result.push_back(static_cast<char>(0xE0 | (code_point >> 12)));
+                        result.push_back(static_cast<char>(0x80 | ((code_point >> 6) & 0x3F)));
+                        result.push_back(static_cast<char>(0x80 | (code_point & 0x3F)));
+                    } else {
+                        result.push_back(static_cast<char>(0xF0 | (code_point >> 18)));
+                        result.push_back(static_cast<char>(0x80 | ((code_point >> 12) & 0x3F)));
+                        result.push_back(static_cast<char>(0x80 | ((code_point >> 6) & 0x3F)));
+                        result.push_back(static_cast<char>(0x80 | (code_point & 0x3F)));
+                    }
+                    i += 5; // 跳过 \uXXXX
+                } catch (...) {
+                    // 如果解析失败，保留原始字符
+                    result.push_back(value[i]);
+                }
+            } else {
+                result.push_back(value[i]);
+            }
         } else {
             result.push_back(value[i]);
         }

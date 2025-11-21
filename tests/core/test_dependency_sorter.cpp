@@ -188,3 +188,33 @@ TEST_F(dependency_sorter_test, has_no_circular_dependency) {
 
     EXPECT_FALSE(dependency_sorter::has_circular_dependency(graph));
 }
+
+// 测试构建依赖图时依赖项不在映射中的场景（外部依赖）
+TEST_F(dependency_sorter_test, build_dependency_graph_with_external_dependency) {
+    struct test_item {
+        std::string name;
+        std::vector<std::string> dependencies;
+    };
+
+    // 创建项目映射，其中项目 "B" 依赖 "A"，但 "A" 不在 items 中（外部依赖）
+    std::unordered_map<std::string, test_item> items{
+        {"B", {"B", {"A"}}},  // B 依赖 A，但 A 不在 items 中
+        {"C", {"C", {"B"}}},  // C 依赖 B
+    };
+
+    auto graph = dependency_sorter::build_dependency_graph<test_item>(
+        items, [](const test_item& item) { return item.dependencies; });
+
+    // 验证图的大小（只包含 items 中的项目）
+    EXPECT_EQ(graph.size(), 2);
+    EXPECT_EQ(graph["B"].dependencies.size(), 1);
+    EXPECT_EQ(graph["C"].dependencies.size(), 1);
+
+    // 验证外部依赖 "A" 不在图中，所以 "A" 的 dependents 中不应该有 "B"
+    // 由于 "A" 不在 graph 中，所以不会添加到 dependents
+    EXPECT_EQ(graph["B"].dependents.size(), 1);  // C 依赖 B
+    EXPECT_EQ(graph["C"].dependents.size(), 0);
+
+    // 验证 B 的依赖关系包含 A（即使 A 不在图中）
+    EXPECT_TRUE(graph["B"].dependencies.find("A") != graph["B"].dependencies.end());
+}

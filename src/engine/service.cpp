@@ -513,6 +513,17 @@ void service::on_dump(std::map<std::string, std::string> context, std::string fi
 void service::on_detach_debug_console(std::map<std::string, std::string> context) {
 }
 
+void service::on_attach_debug_console(std::map<std::string, std::string> context, uint32_t port) {
+}
+
+void service::on_set_dlog_level(std::map<std::string, std::string> context, std::string level,
+                                uint8_t effective_hours) {
+}
+
+void service::on_dlog_limit(std::map<std::string, std::string> context, bool enabled,
+                            uint8_t duration_mins) {
+}
+
 int32_t service::on_reboot_prepare(std::map<std::string, std::string> context) {
     return 0;
 }

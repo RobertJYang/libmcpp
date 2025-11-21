@@ -34,26 +34,58 @@ using namespace mc::fmt;
 TEST(format_std_test, vector_basic) {
     std::vector<int> v{1, 2, 3};
     EXPECT_EQ(sformat("{}", v), "[1,2,3]");
-}
-
-TEST(format_std_test, vector_empty) {
-    std::vector<int> v;
-    EXPECT_EQ(sformat("{}", v), "[]");
+    
+    // 测试空 vector
+    std::vector<int> empty;
+    EXPECT_EQ(sformat("{}", empty), "[]");
+    
+    // 测试 vector<int>（合并了 vector_int）
+    std::vector<int> v_int{4, 5, 6};
+    EXPECT_EQ(sformat("{}", v_int), "[4,5,6]");
+    
+    // 测试 vector<char>（合并了 vector_char）
+    std::vector<char> v_char{'a', 'b', 'c'};
+    EXPECT_EQ(sformat("{}", v_char), "[\'a\',\'b\',\'c\']");
+    
+    // 测试 vector<string>（合并了 vector_string）
+    std::vector<std::string> v_str{"hello", "world"};
+    EXPECT_EQ(sformat("{}", v_str), "[\"hello\",\"world\"]");
 }
 
 TEST(format_std_test, list_basic) {
     std::list<std::string> l{"a", "b", "c"};
     EXPECT_EQ(sformat("{}", l), "[\"a\",\"b\",\"c\"]");
+    
+    // 测试 list<string>（合并了 list_string）
+    std::list<std::string> l_str{"x", "y"};
+    EXPECT_EQ(sformat("{}", l_str), "[\"x\",\"y\"]");
 }
 
 TEST(format_std_test, set_basic) {
     std::set<int> s{3, 1, 2};
     EXPECT_EQ(sformat("{}", s), "{1,2,3}");
+    
+    // 测试 set<int>（合并了 set_int）
+    std::set<int> s_int{2, 1};
+    EXPECT_EQ(sformat("{}", s_int), "{1,2}");
+    
+    // 测试 set<string>（合并了 set_string）
+    std::set<std::string> s_str{"foo", "bar"};
+    EXPECT_EQ(sformat("{}", s_str), "{\"bar\",\"foo\"}");
 }
 
 TEST(format_std_test, map_basic) {
     std::map<std::string, int> m{{"a", 1}, {"b", 2}};
     EXPECT_EQ(sformat("{}", m), "{\"a\":1,\"b\":2}");
+    
+    // 测试 map 嵌套容器（合并了 map_nested_container）
+    std::map<int, std::vector<int>> m_nested{{1, {2, 3}}, {4, {5}}};
+    EXPECT_EQ(sformat("{}", m_nested), "{1:[2,3],4:[5]}");
+    
+    // 测试 unordered_map（合并了 unordered_map_str_int）
+    std::unordered_map<std::string, int> um{{"x", 7}, {"y", 8}};
+    auto                                 str = sformat("{}", um);
+    EXPECT_TRUE(str == "{\"x\":7,\"y\":8}" || str == "{\"y\":8,\"x\":7}");
 }
 
 TEST(format_std_test, nested_vector) {
@@ -246,3 +278,4 @@ TEST(format_std_test, signed_char_test) {
     std::tuple<signed char, int8_t, std::string> t{sc, sb, "signed"};
     EXPECT_EQ(sformat("{}", t), "('A','B',\"signed\")"); // signed char 和 int8_t 不加引号，当作整数
 }
+    

@@ -7,9 +7,9 @@
 ## 测试文件
 
 - `test_call.cpp`: 函数调用测试 (12个测试用例)
-- `test_parser.cpp`: 函数解析测试 (40个测试用例)
+- `test_parser.cpp`: 函数解析测试 (38个测试用例，已优化，删除了重复的测试用例)
 
-**总测试用例数**: 52 个
+**总测试用例数**: 50 个（已优化，删除了重复的测试用例）
 
 ## 测试文件说明
 
@@ -88,8 +88,6 @@
 - **InvalidPropertyFormat**: 无效属性格式的错误处理
 
 #### FunctionParserTest - 函数调用解析测试
-- **ParseSimpleFunctionCall**: 解析简单函数调用
-- **ParseFunctionCallWithNoParams**: 解析无参数函数调用
 - **ParseFunctionCallWithStringParam**: 解析字符串参数
 - **ParseFunctionCallWithIntParam**: 解析整数参数
 - **ParseFunctionCallWithDoubleParam**: 解析浮点数参数

@@ -24,74 +24,7 @@
 #include <mc/engine/property/types.h>
 #include <mc/result.h>
 
-class PropertyProcessorTest : public ::testing::Test {
-protected:
-    void SetUp() override {
-        // 注册所有处理器
-        mc::engine::register_property_processors();
-        factory = &mc::engine::property_processor_factory::get_instance();
-    }
-
-    mc::engine::property_processor_factory* factory;
-};
-
-// 测试同步属性处理器
-TEST_F(PropertyProcessorTest, SyncPropertyProcessor) {
-    mc::engine::sync_property_processor processor;
-
-    // 测试匹配功能
-    EXPECT_TRUE(processor.matches("<=/CPU.Temperature"));
-    EXPECT_TRUE(processor.matches("<=/GPU.Load"));
-    EXPECT_FALSE(processor.matches("=/CPU.Temperature"));
-    EXPECT_FALSE(processor.matches("normal_value"));
-
-    // 测试属性类型
-    EXPECT_EQ(processor.get_property_type(), mc::engine::p_type::sync);
-}
-
-// 测试引用属性处理器
-TEST_F(PropertyProcessorTest, RefPropertyProcessor) {
-    mc::engine::ref_property_processor processor;
-
-    // 测试匹配功能
-    EXPECT_TRUE(processor.matches("#/CPU.Temperature"));
-    EXPECT_TRUE(processor.matches("#/GPU.Load"));
-    EXPECT_FALSE(processor.matches("<=/CPU.Temperature"));
-    EXPECT_FALSE(processor.matches("normal_value"));
-
-    // 测试属性类型
-    EXPECT_EQ(processor.get_property_type(), mc::engine::p_type::reference);
-}
-
-// 测试引用对象处理器
-TEST_F(PropertyProcessorTest, RefObjectProcessor) {
-    mc::engine::ref_object_processor processor;
-
-    // 测试匹配功能
-    EXPECT_TRUE(processor.matches("#/CPU"));
-    EXPECT_TRUE(processor.matches("#/GPU"));
-    EXPECT_FALSE(processor.matches("#/CPU.Temperature"));
-    EXPECT_FALSE(processor.matches("normal_value"));
-
-    // 测试属性类型
-    EXPECT_EQ(processor.get_property_type(), mc::engine::p_type::ref_object);
-}
-
-// 测试函数调用处理器
-TEST_F(PropertyProcessorTest, FunctionCallProcessor) {
-    mc::engine::function_call_processor processor;
-
-    // 测试匹配功能
-    EXPECT_TRUE(processor.matches("$Func_compute_average({})"));
-    EXPECT_TRUE(processor.matches("$Func_get_temperature({})"));
-    EXPECT_FALSE(processor.matches("#/CPU.Temperature"));
-    EXPECT_FALSE(processor.matches("normal_value"));
-
-    // 测试属性类型
-    EXPECT_EQ(processor.get_property_type(), mc::engine::p_type::normal);
-}
-
-// 简单的Mock对象，提供基本功能避免空指针访问
+// 简单的Mock对象，提供基本功能避免空指针访问（必须在测试用例之前定义）
 class MockObject : public mc::engine::abstract_object {
 public:
     MockObject() {
@@ -206,7 +139,7 @@ public:
     }
 };
 
-// 创建一个模拟的property_helper用于测试
+// 创建一个模拟的property_helper用于测试（必须在测试用例之前定义）
 class MockPropertyHelper : public mc::engine::property_helper {
 public:
     MockPropertyHelper() = default;
@@ -335,6 +268,138 @@ private:
     std::unique_ptr<mc::engine::detail::func_data> m_func_data;
 };
 
+// 扩展的MockPropertyHelper用于更详细的测试（必须在MockPropertyHelper之后，测试用例之前定义）
+class DetailedMockPropertyHelper : public MockPropertyHelper {
+public:
+    void ensure_extension_data() override {
+        has_extension = true;
+    }
+    bool has_extension_data() const override {
+        return has_extension;
+    }
+    void set_getter_function(std::function<mc::variant()> getter) override {
+        m_getter = getter;
+    }
+    void set_setter_function(std::function<void(const mc::variant&)> setter) override {
+        m_setter = setter;
+    }
+    void add_connection_slot(mc::connection_type slot) override {
+        connection_count++;
+    }
+    void clear_connection_slots() override {
+        connection_count = 0;
+    }
+
+    bool                                    has_extension    = false;
+    int                                     connection_count = 0;
+    std::function<mc::variant()>            m_getter;
+    std::function<void(const mc::variant&)> m_setter;
+};
+
+class PropertyProcessorTest : public ::testing::Test {
+protected:
+    void SetUp() override {
+        // 注册所有处理器
+        mc::engine::register_property_processors();
+        factory = &mc::engine::property_processor_factory::get_instance();
+    }
+
+    mc::engine::property_processor_factory* factory;
+};
+
+// 测试同步属性处理器
+TEST_F(PropertyProcessorTest, SyncPropertyProcessor) {
+    mc::engine::sync_property_processor processor;
+    DetailedMockPropertyHelper          helper;
+
+    // 测试匹配功能
+    EXPECT_TRUE(processor.matches("<=/CPU.Temperature"));
+    EXPECT_TRUE(processor.matches("<=/GPU.Load"));
+    EXPECT_FALSE(processor.matches("=/CPU.Temperature"));
+    EXPECT_FALSE(processor.matches("normal_value"));
+
+    // 测试属性类型
+    EXPECT_EQ(processor.get_property_type(), mc::engine::p_type::sync);
+
+    // 测试处理功能（合并了 SyncPropertyProcessorDetails）
+    EXPECT_NO_THROW({
+        processor.process(&helper, "<=/CPU.Temperature");
+    });
+    EXPECT_EQ(helper.m_type, mc::engine::p_type::sync);
+    EXPECT_TRUE(helper.has_extension);
+    EXPECT_TRUE(helper.m_setter);
+}
+
+// 测试引用属性处理器
+TEST_F(PropertyProcessorTest, RefPropertyProcessor) {
+    mc::engine::ref_property_processor processor;
+    DetailedMockPropertyHelper         helper;
+
+    // 测试匹配功能
+    EXPECT_TRUE(processor.matches("#/CPU.Temperature"));
+    EXPECT_TRUE(processor.matches("#/GPU.Load"));
+    EXPECT_FALSE(processor.matches("<=/CPU.Temperature"));
+    EXPECT_FALSE(processor.matches("normal_value"));
+
+    // 测试属性类型
+    EXPECT_EQ(processor.get_property_type(), mc::engine::p_type::reference);
+
+    // 测试处理功能（合并了 RefPropertyProcessorDetails）
+    EXPECT_NO_THROW({
+        processor.process(&helper, "#/CPU.Temperature");
+    });
+    EXPECT_EQ(helper.m_type, mc::engine::p_type::reference);
+    EXPECT_TRUE(helper.has_extension);
+    EXPECT_TRUE(helper.m_getter);
+    EXPECT_TRUE(helper.m_setter);
+}
+
+// 测试引用对象处理器
+TEST_F(PropertyProcessorTest, RefObjectProcessor) {
+    mc::engine::ref_object_processor processor;
+    DetailedMockPropertyHelper       helper;
+
+    // 测试匹配功能
+    EXPECT_TRUE(processor.matches("#/CPU"));
+    EXPECT_TRUE(processor.matches("#/GPU"));
+    EXPECT_FALSE(processor.matches("#/CPU.Temperature"));
+    EXPECT_FALSE(processor.matches("normal_value"));
+
+    // 测试属性类型
+    EXPECT_EQ(processor.get_property_type(), mc::engine::p_type::ref_object);
+
+    // 测试处理功能（合并了 RefObjectProcessorDetails）
+    EXPECT_NO_THROW({
+        processor.process(&helper, "#/CPU");
+    });
+    EXPECT_EQ(helper.m_type, mc::engine::p_type::ref_object);
+    EXPECT_TRUE(helper.has_extension);
+}
+
+// 测试函数调用处理器
+TEST_F(PropertyProcessorTest, FunctionCallProcessor) {
+    mc::engine::function_call_processor processor;
+    DetailedMockPropertyHelper          helper;
+
+    // 测试匹配功能
+    EXPECT_TRUE(processor.matches("$Func_compute_average({})"));
+    EXPECT_TRUE(processor.matches("$Func_get_temperature({})"));
+    EXPECT_FALSE(processor.matches("#/CPU.Temperature"));
+    EXPECT_FALSE(processor.matches("normal_value"));
+
+    // 测试属性类型
+    EXPECT_EQ(processor.get_property_type(), mc::engine::p_type::normal);
+
+    // 测试处理功能（合并了 FunctionCallProcessorDetails）
+    EXPECT_NO_THROW({
+        processor.process(&helper, "$Func_compute_average({})");
+    });
+    EXPECT_EQ(helper.m_type, mc::engine::p_type::normal);
+    // 当函数不存在时，不应该设置扩展数据和getter
+    EXPECT_FALSE(helper.has_extension);
+    EXPECT_FALSE(helper.m_getter);
+}
+
 // 测试处理器工厂
 TEST_F(PropertyProcessorTest, ProcessorFactory) {
     // 验证工厂已正确注册所有处理器
@@ -400,112 +465,6 @@ TEST_F(PropertyProcessorTest, ProcessorRegistration) {
     }
 }
 
-// 扩展的MockPropertyHelper用于更详细的测试
-class DetailedMockPropertyHelper : public MockPropertyHelper {
-public:
-    void ensure_extension_data() override {
-        has_extension = true;
-    }
-    bool has_extension_data() const override {
-        return has_extension;
-    }
-    void set_getter_function(std::function<mc::variant()> getter) override {
-        m_getter = getter;
-    }
-    void set_setter_function(std::function<void(const mc::variant&)> setter) override {
-        m_setter = setter;
-    }
-    void add_connection_slot(mc::connection_type slot) override {
-        connection_count++;
-    }
-    void clear_connection_slots() override {
-        connection_count = 0;
-    }
-
-    bool                                    has_extension    = false;
-    int                                     connection_count = 0;
-    std::function<mc::variant()>            m_getter;
-    std::function<void(const mc::variant&)> m_setter;
-};
-
-// 测试同步属性处理器的完整功能
-TEST_F(PropertyProcessorTest, SyncPropertyProcessorDetails) {
-    mc::engine::sync_property_processor processor;
-    DetailedMockPropertyHelper          helper;
-
-    // 测试处理同步属性字符串
-    EXPECT_NO_THROW({
-        processor.process(&helper, "<=/CPU.Temperature");
-    });
-
-    // 验证属性类型被正确设置
-    EXPECT_EQ(helper.m_type, mc::engine::p_type::sync);
-
-    // 验证扩展数据被创建
-    EXPECT_TRUE(helper.has_extension);
-
-    // 验证setter被设置（同步属性应该是只读的）
-    EXPECT_TRUE(helper.m_setter);
-}
-
-// 测试引用属性处理器的完整功能
-TEST_F(PropertyProcessorTest, RefPropertyProcessorDetails) {
-    mc::engine::ref_property_processor processor;
-    DetailedMockPropertyHelper         helper;
-
-    // 测试处理引用属性字符串
-    EXPECT_NO_THROW({
-        processor.process(&helper, "#/CPU.Temperature");
-    });
-
-    // 验证属性类型被正确设置
-    EXPECT_EQ(helper.m_type, mc::engine::p_type::reference);
-
-    // 验证扩展数据被创建
-    EXPECT_TRUE(helper.has_extension);
-
-    // 验证getter和setter被设置
-    EXPECT_TRUE(helper.m_getter);
-    EXPECT_TRUE(helper.m_setter);
-}
-
-// 测试引用对象处理器的完整功能
-TEST_F(PropertyProcessorTest, RefObjectProcessorDetails) {
-    mc::engine::ref_object_processor processor;
-    DetailedMockPropertyHelper       helper;
-
-    // 测试处理引用对象字符串
-    EXPECT_NO_THROW({
-        processor.process(&helper, "#/CPU");
-    });
-
-    // 验证属性类型被正确设置
-    EXPECT_EQ(helper.m_type, mc::engine::p_type::ref_object);
-
-    // 验证扩展数据被创建
-    EXPECT_TRUE(helper.has_extension);
-}
-
-// 测试函数调用处理器的完整功能
-TEST_F(PropertyProcessorTest, FunctionCallProcessorDetails) {
-    mc::engine::function_call_processor processor;
-    DetailedMockPropertyHelper          helper;
-
-    // 测试处理函数调用字符串（函数不存在的情况）
-    EXPECT_NO_THROW({
-        processor.process(&helper, "$Func_compute_average({})");
-    });
-
-    // 验证属性类型保持normal（函数调用处理器不改变类型）
-    EXPECT_EQ(helper.m_type, mc::engine::p_type::normal);
-
-    // 当函数不存在时，不应该设置扩展数据（这是正确的行为）
-    EXPECT_FALSE(helper.has_extension);
-
-    // 当函数不存在时，不应该设置getter（这是正确的行为）
-    EXPECT_FALSE(helper.m_getter);
-}
-
 // 测试错误情况处理
 TEST_F(PropertyProcessorTest, ErrorHandling) {
     DetailedMockPropertyHelper helper;
@@ -557,4 +516,89 @@ TEST_F(PropertyProcessorTest, EdgeCases) {
 
     // 测试工厂对于不匹配的字符串返回false（应该安全不抛异常）
     EXPECT_FALSE(factory->process_property_value(&helper, "invalid_format"));
+}
+
+// 扩展的 MockPropertyHelper，用于记录 set_variant_value 调用
+class TrackingMockPropertyHelper : public DetailedMockPropertyHelper {
+public:
+    void set_variant_value(const mc::variant& value) override {
+        set_variant_value_called = true;
+        last_value               = value;
+    }
+
+    void set_setter_function(std::function<void(const mc::variant&)> setter) override {
+        DetailedMockPropertyHelper::set_setter_function(
+            [this, setter = std::move(setter)](const mc::variant& value) {
+                set_relate_property_called = true;
+                set_relate_property_value  = value;
+                setter(value);
+            });
+    }
+
+    void set_getter_function(std::function<mc::variant()> getter) override {
+        DetailedMockPropertyHelper::set_getter_function(
+            [this, getter = std::move(getter)]() -> mc::variant {
+                get_relate_property_called = true;
+                return getter();
+            });
+    }
+
+    bool        set_variant_value_called   = false;
+    mc::variant last_value;
+
+    bool get_relate_property_called = false;
+
+    bool        set_relate_property_called = false;
+    mc::variant set_relate_property_value;
+};
+
+// 测试 ref_object_processor 的 setter 抛出异常
+TEST_F(PropertyProcessorTest, RefObjectProcessorSetterThrows) {
+    mc::engine::ref_object_processor processor;
+    TrackingMockPropertyHelper       helper;
+
+    // 处理引用对象字符串
+    processor.process(&helper, "#/CPU");
+
+    // 验证 setter 被设置
+    EXPECT_TRUE(helper.m_setter);
+
+    // 尝试调用 setter，应该抛出异常
+    EXPECT_THROW(helper.m_setter(mc::variant(123)), mc::invalid_op_exception);
+}
+
+// 测试 ref_property_processor 的 setter 委托
+TEST_F(PropertyProcessorTest, RefPropertyProcessorSetterDelegates) {
+    mc::engine::ref_property_processor processor;
+    TrackingMockPropertyHelper         helper;
+
+    // 处理引用属性字符串
+    processor.process(&helper, "#/CPU.Temperature");
+
+    // 验证 setter 被设置
+    EXPECT_TRUE(helper.m_setter);
+
+    // 调用 setter 并捕获异常（processor 会委托到 set_relate_property，缺失对象时会抛异常）
+    mc::variant test_value(456);
+    EXPECT_THROW(helper.m_setter(test_value), mc::invalid_op_exception);
+
+    // 验证 setter 确实被调用，并记录了写入值
+    EXPECT_TRUE(helper.set_relate_property_called);
+    EXPECT_EQ(helper.set_relate_property_value, test_value);
+}
+
+// 测试 ref_property_processor 的 getter 在 get_relate_property 返回空值时抛出异常
+TEST_F(PropertyProcessorTest, RefPropertyProcessorGetterFailsWhenNull) {
+    mc::engine::ref_property_processor processor;
+    TrackingMockPropertyHelper         helper;
+
+    // 处理引用属性字符串
+    processor.process(&helper, "#/CPU.Temperature");
+
+    // 验证 getter 被设置
+    EXPECT_TRUE(helper.m_getter);
+
+    // 调用 getter，应该抛出异常，并且记录调用
+    EXPECT_THROW(helper.m_getter(), mc::invalid_op_exception);
+    EXPECT_TRUE(helper.get_relate_property_called);
 }

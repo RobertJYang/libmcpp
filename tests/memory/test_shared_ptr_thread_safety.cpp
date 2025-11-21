@@ -15,6 +15,7 @@
 #include <mc/exception.h>
 #include <mc/memory.h>
 #include <mc/runtime/thread_list.h>
+#include "../runtime/test_future_helpers.h"
 
 class thread_safe_object : public mc::enable_shared_from_this<thread_safe_object> {
 public:
@@ -55,11 +56,18 @@ TEST_F(SharedPtrThreadSafetyTest, TryAddRefReleaseRefRaceCondition) {
         std::atomic<bool> released{false};
 
         mc::runtime::thread_list threads;
+        mc::test::runtime::countdown_future upgrade_ready(num_threads - 1);
+        mc::test::runtime::future_flag release_started;
 
         // 创建多个线程尝试从弱引用升级到强引用
         threads.start_threads(num_threads - 1, [&]() {
-            // 等待一小段时间，让释放操作有机会发生
-            std::this_thread::sleep_for(std::chrono::microseconds(10));
+            // 通知已准备好
+            upgrade_ready.arrive();
+
+            // 等待释放线程开始执行
+            if (!release_started.wait_for(std::chrono::milliseconds(2000))) {
+                return; // 超时，测试失败
+            }
 
             if (auto strong = weak.lock()) {
                 successful_upgrades.fetch_add(1);
@@ -70,7 +78,14 @@ TEST_F(SharedPtrThreadSafetyTest, TryAddRefReleaseRefRaceCondition) {
 
         // 一个线程负责释放最后的强引用
         threads.add_thread([&]() {
-            std::this_thread::sleep_for(std::chrono::microseconds(5));
+            // 等待所有升级线程都准备好
+            if (!upgrade_ready.wait_for(std::chrono::milliseconds(2000))) {
+                return; // 超时，测试失败
+            }
+
+            // 通知释放开始
+            release_started.set();
+
             obj.reset(); // 释放强引用
             released.store(true);
         });
@@ -100,13 +115,31 @@ TEST_F(SharedPtrThreadSafetyTest, DestroyedMarkerAtomicity) {
         std::atomic<int>  successful_upgrades{0};
 
         mc::runtime::thread_list threads;
+        mc::test::runtime::countdown_future upgrade_ready(4);
+        mc::test::runtime::future_flag destroy_started;
+
         threads.add_thread([&]() {
-            std::this_thread::sleep_for(std::chrono::microseconds(1));
+            // 等待所有升级线程都准备好
+            if (!upgrade_ready.wait_for(std::chrono::milliseconds(2000))) {
+                return; // 超时，测试失败
+            }
+
+            // 通知销毁开始
+            destroy_started.set();
+
             obj.reset();
             destroy_completed.store(true);
         });
 
         threads.start_threads(4, [&]() {
+            // 通知已准备好
+            upgrade_ready.arrive();
+
+            // 等待销毁线程开始
+            if (!destroy_started.wait_for(std::chrono::milliseconds(2000))) {
+                return; // 超时，测试失败
+            }
+
             while (!destroy_completed.load()) {
                 upgrade_attempts.fetch_add(1);
                 if (auto strong = weak.lock()) {

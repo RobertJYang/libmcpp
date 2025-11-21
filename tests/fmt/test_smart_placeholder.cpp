@@ -96,7 +96,15 @@ TEST(smart_placeholder_test, error_handling) {
     EXPECT_FALSE(MC_FORMAT_COMPILE_CHECK("{5}", "only_one"));
 }
 
-// 测试边界情况
+// 测试空字符串索引
+TEST(smart_placeholder_test, SmartPlaceholderEmptyIndexString) {
+    // 测试 is_numeric_string("") 返回 true 的情况
+    // 空字符串应该被视为有效的自增索引
+    auto result = sformat("{} {}", "first", "second");
+    EXPECT_EQ(result, "first second");
+}
+
+    // 测试边界情况
 TEST(smart_placeholder_test, edge_cases) {
     // 单个字符的命名参数
     auto result1 = sformat("{x} {y}", ("x", 10), ("y", 20));

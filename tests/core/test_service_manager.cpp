@@ -636,6 +636,13 @@ TEST_F(service_manager_test, service_manager_cleanup) {
     EXPECT_TRUE(names.empty());
 }
 
+// 测试 add_service - service 为 nullptr 时直接返回
+TEST_F(service_manager_test, start_null_service_ignored) {
+    // add_service 在 service 为 nullptr 时应该返回 false
+    // 这个测试已经在 add_and_get_service 中覆盖了
+    EXPECT_FALSE(manager.add_service("null_service", nullptr));
+}
+
 // 测试复杂依赖关系
 TEST_F(service_manager_test, complex_dependency_graph) {
     std::vector<config::service_config> configs = {

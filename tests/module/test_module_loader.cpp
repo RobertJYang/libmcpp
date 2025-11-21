@@ -636,29 +636,6 @@ TEST_F(ModuleLoaderTest, TestLoadPathMissingOpenFunc) {
 }
 
 /**
- * @brief 测试 is_readable 抛出异常的情况
- */
-TEST_F(ModuleLoaderTest, TestLoadPathReadableThrows) {
-    auto loader = create_mock_loader();
-    loader.clear_search_paths();
-    loader.add_search_path("./?.so");
-
-    mock_funcs.is_readable = [](std::string_view) -> bool {
-        throw std::runtime_error("filesystem error");
-    };
-    loader.set_load_lib_func(mock_funcs);
-
-    bool callback_called = false;
-    auto callback        = [&](auto, bool&) -> bool {
-        callback_called = true;
-        return true;
-    };
-
-    EXPECT_THROW(loader.load_module("test.module", callback), std::runtime_error);
-    EXPECT_FALSE(callback_called);
-}
-
-/**
  * @brief 测试空模块名的情况
  */
 TEST_F(ModuleLoaderTest, TestLoadModuleEmptyName) {

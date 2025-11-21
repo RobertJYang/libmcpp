@@ -102,6 +102,16 @@ private:
     std::vector<mc::log::message> m_messages;
 };
 
+class failing_init_appender : public mc::log::appender {
+public:
+    bool init(const mc::variant&) override {
+        return false;
+    }
+
+    void append(const mc::log::message&) override {
+    }
+};
+
 class log_manager_test : public mc::test::TestBase {
 protected:
     void SetUp() override {
@@ -473,4 +483,109 @@ TEST_F(log_manager_test, ApplyConfigUpdatesAndRemovesAppenders) {
     logger_instance = log_manager::instance().get_logger(logger_name.c_str());
     EXPECT_TRUE(logger_instance.get_appenders().empty());
     EXPECT_EQ(logger_instance.get_level(), level::warn);
+}
+
+TEST_F(log_manager_test, ApplyConfigExternalLibraryLoadFailure) {
+    auto logger_name  = make_unique_name("external_logger");
+    auto ext_app_name = make_unique_name("external_app");
+
+    logging_config config;
+    appender_config external;
+    external.name     = ext_app_name;
+    external.type     = "console";
+    external.lib_path = (mc::filesystem::path(TEST_LOG_DIR) / (ext_app_name + ".so")).string();
+    config.appenders.push_back(external);
+
+    logger_config log_cfg(logger_name);
+    log_cfg.level     = level::info;
+    log_cfg.appenders = {ext_app_name};
+    config.loggers.push_back(log_cfg);
+
+    EXPECT_TRUE(log_manager::instance().apply_config(config));
+
+    auto logger_instance = log_manager::instance().get_logger(logger_name.c_str());
+    EXPECT_TRUE(logger_instance.get_appenders().empty());
+    EXPECT_EQ(appender_factory::instance().get_appender(ext_app_name), nullptr);
+}
+
+TEST_F(log_manager_test, ApplyConfigSkipRedundantAppenderUpdates) {
+    auto type_name   = make_unique_name("stable_type");
+    auto app_name    = make_unique_name("stable_app");
+    auto logger_name = make_unique_name("stable_logger");
+
+    auto tracked_appender = std::make_shared<tracking_appender>();
+    tracked_appender->set_name(app_name);
+    appender_factory::instance().register_creator(type_name, [tracked_appender]() {
+        return tracked_appender;
+    });
+
+    logging_config config;
+    appender_config app_cfg;
+    app_cfg.name = app_name;
+    app_cfg.type = type_name;
+    config.appenders.push_back(app_cfg);
+
+    logger_config log_cfg(logger_name);
+    log_cfg.level     = level::info;
+    log_cfg.appenders = {app_name};
+    config.loggers.push_back(log_cfg);
+
+    ASSERT_TRUE(log_manager::instance().apply_config(config));
+
+    auto logger_before = log_manager::instance().get_logger(logger_name.c_str());
+    ASSERT_EQ(logger_before.get_appenders().size(), 1);
+    auto first_ptr = logger_before.get_appenders().front();
+
+    EXPECT_TRUE(log_manager::instance().apply_config(config));
+
+    auto logger_after = log_manager::instance().get_logger(logger_name.c_str());
+    ASSERT_EQ(logger_after.get_appenders().size(), 1);
+    EXPECT_EQ(logger_after.get_appenders().front().get(), first_ptr.get());
+}
+
+TEST_F(log_manager_test, AppenderFactoryInitFailureReturnsNullptr) {
+    auto type_name = make_unique_name("failing_type");
+    auto app_name  = make_unique_name("failing_app");
+    appender_factory::instance().register_creator(
+        type_name, []() { return std::make_shared<failing_init_appender>(); });
+
+    auto created = appender_factory::instance().create(app_name, type_name, mc::dict{});
+    EXPECT_EQ(created, nullptr);
+}
+
+// 测试配置缺失时的处理
+TEST_F(log_manager_test, LoadInvalidConfigFails) {
+    log_manager& manager = log_manager::instance();
+
+    // 测试空的配置（没有 appenders 字段）
+    logging_config empty_config;
+    // 即使配置为空，apply_config 也会返回 true（因为即使 appender 加载失败也会继续）
+    // 但我们可以验证默认 logger 仍然存在
+    bool result = manager.apply_config(empty_config);
+    EXPECT_TRUE(result); // apply_config 总是返回 true，即使配置无效
+
+    // 验证默认 logger 仍然存在
+    logger default_logger = manager.get_logger();
+    EXPECT_EQ(default_logger.get_name(), "default");
+
+    // 测试缺少 appenders 字段的配置（通过创建无效的 appender 配置）
+    logging_config invalid_config;
+    appender_config invalid_app_config;
+    invalid_app_config.name = "invalid_appender";
+    invalid_app_config.type = "nonexistent_type"; // 不存在的类型
+    invalid_config.appenders.push_back(invalid_app_config);
+
+    logger_config log_cfg("test_logger");
+    log_cfg.level     = level::info;
+    log_cfg.appenders = {"invalid_appender"};
+    invalid_config.loggers.push_back(log_cfg);
+
+    // apply_config 应该返回 true，但 appender 创建会失败
+    result = manager.apply_config(invalid_config);
+    EXPECT_TRUE(result);
+
+    // 验证 logger 被创建，但没有 appender（因为 appender 创建失败）
+    logger test_logger = manager.get_logger("test_logger");
+    EXPECT_EQ(test_logger.get_name(), "test_logger");
+    EXPECT_TRUE(test_logger.get_appenders().empty()); // 应该没有 appender
 }

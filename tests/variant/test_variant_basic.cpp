@@ -288,5 +288,244 @@ TEST_F(VariantBasicTest, AsWithDefaultValue) {
         << "边界值转换应进行截断而非返回默认值";
 }
 
+/**
+ * @brief 测试所有类型检查函数，确保每个函数都能正确识别和排除类型
+ */
+TEST_F(VariantBasicTest, ComprehensiveTypeChecking) {
+    // 测试 null 类型
+    variant v_null;
+    ASSERT_TRUE(v_null.is_null());
+    ASSERT_FALSE(v_null.is_bool());
+    ASSERT_FALSE(v_null.is_numeric());
+    ASSERT_FALSE(v_null.is_integer());
+    ASSERT_FALSE(v_null.is_double());
+    ASSERT_FALSE(v_null.is_string());
+    ASSERT_FALSE(v_null.is_array());
+    ASSERT_FALSE(v_null.is_object());
+    ASSERT_FALSE(v_null.is_blob());
+
+    // 测试布尔类型
+    variant v_bool_true(true);
+    variant v_bool_false(false);
+    ASSERT_TRUE(v_bool_true.is_bool());
+    ASSERT_TRUE(v_bool_false.is_bool());
+    ASSERT_TRUE(v_bool_true.is_integer()); // bool 也是整数类型
+    ASSERT_TRUE(v_bool_false.is_integer());
+    ASSERT_TRUE(v_bool_true.is_numeric());
+    ASSERT_FALSE(v_bool_true.is_double());
+    ASSERT_FALSE(v_bool_true.is_string());
+    ASSERT_FALSE(v_bool_true.is_array());
+    ASSERT_FALSE(v_bool_true.is_object());
+    ASSERT_FALSE(v_bool_true.is_blob());
+    ASSERT_FALSE(v_bool_true.is_null());
+
+    // 测试整数类型（int32）
+    variant v_int32(42);
+    ASSERT_TRUE(v_int32.is_int32());
+    ASSERT_TRUE(v_int32.is_integer());
+    ASSERT_TRUE(v_int32.is_numeric());
+    ASSERT_FALSE(v_int32.is_double());
+    ASSERT_FALSE(v_int32.is_bool());
+    ASSERT_FALSE(v_int32.is_string());
+    ASSERT_FALSE(v_int32.is_array());
+    ASSERT_FALSE(v_int32.is_object());
+    ASSERT_FALSE(v_int32.is_blob());
+    ASSERT_FALSE(v_int32.is_null());
+
+    // 测试整数类型（int64）
+    variant v_int64(int64_t(9876543210LL));
+    ASSERT_TRUE(v_int64.is_int64());
+    ASSERT_TRUE(v_int64.is_integer());
+    ASSERT_TRUE(v_int64.is_numeric());
+    ASSERT_FALSE(v_int64.is_double());
+    ASSERT_FALSE(v_int64.is_int32());
+    ASSERT_FALSE(v_int64.is_bool());
+    ASSERT_FALSE(v_int64.is_string());
+    ASSERT_FALSE(v_int64.is_array());
+    ASSERT_FALSE(v_int64.is_object());
+    ASSERT_FALSE(v_int64.is_blob());
+    ASSERT_FALSE(v_int64.is_null());
+
+    // 测试无符号整数类型
+    variant v_uint32(uint32_t(4294967295U));
+    ASSERT_TRUE(v_uint32.is_uint32());
+    ASSERT_TRUE(v_uint32.is_integer());
+    ASSERT_TRUE(v_uint32.is_numeric());
+    ASSERT_FALSE(v_uint32.is_double());
+    ASSERT_FALSE(v_uint32.is_int32());
+    ASSERT_FALSE(v_uint32.is_int64());
+    ASSERT_FALSE(v_uint32.is_bool());
+    ASSERT_FALSE(v_uint32.is_string());
+    ASSERT_FALSE(v_uint32.is_array());
+    ASSERT_FALSE(v_uint32.is_object());
+    ASSERT_FALSE(v_uint32.is_blob());
+    ASSERT_FALSE(v_uint32.is_null());
+
+    variant v_uint64(uint64_t(1844674407370955161ULL));
+    ASSERT_TRUE(v_uint64.is_uint64());
+    ASSERT_TRUE(v_uint64.is_integer());
+    ASSERT_TRUE(v_uint64.is_numeric());
+    ASSERT_FALSE(v_uint64.is_double());
+    ASSERT_FALSE(v_uint64.is_int32());
+    ASSERT_FALSE(v_uint64.is_int64());
+    ASSERT_FALSE(v_uint64.is_bool());
+    ASSERT_FALSE(v_uint64.is_string());
+    ASSERT_FALSE(v_uint64.is_array());
+    ASSERT_FALSE(v_uint64.is_object());
+    ASSERT_FALSE(v_uint64.is_blob());
+    ASSERT_FALSE(v_uint64.is_null());
+
+    // 测试小整数类型
+    variant v_int8(int8_t(-128));
+    ASSERT_TRUE(v_int8.is_int8());
+    ASSERT_TRUE(v_int8.is_integer());
+    ASSERT_TRUE(v_int8.is_numeric());
+    ASSERT_FALSE(v_int8.is_double());
+    ASSERT_FALSE(v_int8.is_string());
+    ASSERT_FALSE(v_int8.is_array());
+    ASSERT_FALSE(v_int8.is_object());
+    ASSERT_FALSE(v_int8.is_blob());
+    ASSERT_FALSE(v_int8.is_null());
+
+    variant v_uint8(uint8_t(255));
+    ASSERT_TRUE(v_uint8.is_uint8());
+    ASSERT_TRUE(v_uint8.is_integer());
+    ASSERT_TRUE(v_uint8.is_numeric());
+    ASSERT_FALSE(v_uint8.is_double());
+    ASSERT_FALSE(v_uint8.is_string());
+    ASSERT_FALSE(v_uint8.is_array());
+    ASSERT_FALSE(v_uint8.is_object());
+    ASSERT_FALSE(v_uint8.is_blob());
+    ASSERT_FALSE(v_uint8.is_null());
+
+    variant v_int16(int16_t(-32768));
+    ASSERT_TRUE(v_int16.is_int16());
+    ASSERT_TRUE(v_int16.is_integer());
+    ASSERT_TRUE(v_int16.is_numeric());
+    ASSERT_FALSE(v_int16.is_double());
+    ASSERT_FALSE(v_int16.is_string());
+    ASSERT_FALSE(v_int16.is_array());
+    ASSERT_FALSE(v_int16.is_object());
+    ASSERT_FALSE(v_int16.is_blob());
+    ASSERT_FALSE(v_int16.is_null());
+
+    variant v_uint16(uint16_t(65535));
+    ASSERT_TRUE(v_uint16.is_uint16());
+    ASSERT_TRUE(v_uint16.is_integer());
+    ASSERT_TRUE(v_uint16.is_numeric());
+    ASSERT_FALSE(v_uint16.is_double());
+    ASSERT_FALSE(v_uint16.is_string());
+    ASSERT_FALSE(v_uint16.is_array());
+    ASSERT_FALSE(v_uint16.is_object());
+    ASSERT_FALSE(v_uint16.is_blob());
+    ASSERT_FALSE(v_uint16.is_null());
+
+    // 测试浮点类型
+    variant v_double(3.14159265359);
+    ASSERT_TRUE(v_double.is_double());
+    ASSERT_TRUE(v_double.is_numeric());
+    ASSERT_FALSE(v_double.is_integer());
+    ASSERT_FALSE(v_double.is_bool());
+    ASSERT_FALSE(v_double.is_string());
+    ASSERT_FALSE(v_double.is_array());
+    ASSERT_FALSE(v_double.is_object());
+    ASSERT_FALSE(v_double.is_blob());
+    ASSERT_FALSE(v_double.is_null());
+
+    variant v_float(2.71828f);
+    ASSERT_TRUE(v_float.is_double()); // float 自动转为 double
+    ASSERT_TRUE(v_float.is_numeric());
+    ASSERT_FALSE(v_float.is_integer());
+    ASSERT_FALSE(v_float.is_bool());
+    ASSERT_FALSE(v_float.is_string());
+    ASSERT_FALSE(v_float.is_array());
+    ASSERT_FALSE(v_float.is_object());
+    ASSERT_FALSE(v_float.is_blob());
+    ASSERT_FALSE(v_float.is_null());
+
+    // 测试字符串类型
+    variant v_str("Hello, World!");
+    ASSERT_TRUE(v_str.is_string());
+    ASSERT_FALSE(v_str.is_numeric());
+    ASSERT_FALSE(v_str.is_integer());
+    ASSERT_FALSE(v_str.is_double());
+    ASSERT_FALSE(v_str.is_bool());
+    ASSERT_FALSE(v_str.is_array());
+    ASSERT_FALSE(v_str.is_object());
+    ASSERT_FALSE(v_str.is_blob());
+    ASSERT_FALSE(v_str.is_null());
+
+    const char* c_str_test = "C-style string";
+    variant     v_cstr(c_str_test);
+    ASSERT_TRUE(v_cstr.is_string());
+    ASSERT_FALSE(v_cstr.is_numeric());
+    ASSERT_FALSE(v_cstr.is_integer());
+    ASSERT_FALSE(v_cstr.is_double());
+    ASSERT_FALSE(v_cstr.is_bool());
+    ASSERT_FALSE(v_cstr.is_array());
+    ASSERT_FALSE(v_cstr.is_object());
+    ASSERT_FALSE(v_cstr.is_blob());
+    ASSERT_FALSE(v_cstr.is_null());
+
+    // 测试数组类型
+    variant v_array = variants{1, 2, 3};
+    ASSERT_TRUE(v_array.is_array());
+    ASSERT_FALSE(v_array.is_numeric());
+    ASSERT_FALSE(v_array.is_integer());
+    ASSERT_FALSE(v_array.is_double());
+    ASSERT_FALSE(v_array.is_bool());
+    ASSERT_FALSE(v_array.is_string());
+    ASSERT_FALSE(v_array.is_object());
+    ASSERT_FALSE(v_array.is_blob());
+    ASSERT_FALSE(v_array.is_null());
+
+    // 测试对象类型
+    variant v_object = dict{{"key1", 1}, {"key2", "value2"}};
+    ASSERT_TRUE(v_object.is_object());
+    ASSERT_FALSE(v_object.is_numeric());
+    ASSERT_FALSE(v_object.is_integer());
+    ASSERT_FALSE(v_object.is_double());
+    ASSERT_FALSE(v_object.is_bool());
+    ASSERT_FALSE(v_object.is_string());
+    ASSERT_FALSE(v_object.is_array());
+    ASSERT_FALSE(v_object.is_blob());
+    ASSERT_FALSE(v_object.is_null());
+
+    // 测试 blob 类型
+    mc::blob blob_data;
+    blob_data.data = {'a', 'b', 'c'};
+    variant v_blob(blob_data);
+    ASSERT_TRUE(v_blob.is_blob());
+    ASSERT_FALSE(v_blob.is_numeric());
+    ASSERT_FALSE(v_blob.is_integer());
+    ASSERT_FALSE(v_blob.is_double());
+    ASSERT_FALSE(v_blob.is_bool());
+    ASSERT_FALSE(v_blob.is_string());
+    ASSERT_FALSE(v_blob.is_array());
+    ASSERT_FALSE(v_blob.is_object());
+    ASSERT_FALSE(v_blob.is_null());
+}
+
+// 测试 set_value 覆盖数值类型目标
+TEST_F(VariantBasicTest, SetValueCoversNumericTargets) {
+    // 测试 uint64_type
+    variant_base v_uint64(mc::type_id::uint64_type);
+    variant_base source_uint64(uint64_t(100));
+    v_uint64.set_value(source_uint64);
+    EXPECT_EQ(v_uint64.as_uint64(), 100);
+    
+    // 测试 double_type
+    variant_base v_double(mc::type_id::double_type);
+    variant_base source_double(3.14);
+    v_double.set_value(source_double);
+    EXPECT_DOUBLE_EQ(v_double.as_double(), 3.14);
+    
+    // 测试 bool_type
+    variant_base v_bool(mc::type_id::bool_type);
+    variant_base source_bool(true);
+    v_bool.set_value(source_bool);
+    EXPECT_EQ(v_bool.as_bool(), true);
+}
+
 } // namespace test
 } // namespace mc

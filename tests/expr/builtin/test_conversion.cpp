@@ -15,6 +15,7 @@
 #include <mc/exception.h>
 #include <mc/expr/builtin.h>
 #include <mc/expr/engine.h>
+#include <mc/variant.h>
 
 namespace {
 class conversion_builtin_test : public ::testing::Test {

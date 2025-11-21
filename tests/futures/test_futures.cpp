@@ -274,12 +274,25 @@ TEST_F(FuturesTest, PromiseSetExceptionAlreadySatisfiedThrows) {
     EXPECT_THROW(future.get(), std::runtime_error);
 }
 
+// 测试 promise 在取消后忽略 set_value
+TEST_F(FuturesTest, PromiseSetValueIgnoredAfterCancel) {
+    auto promise = mc::make_promise<int>(get_io_context());
+    auto future  = promise.get_future();
+
+    // 先取消 future
+    future.cancel();
+    // 取消后调用 set_value 应直接返回，不影响取消结果
+    promise.set_value(42);
+    EXPECT_THROW(future.get(), mc::canceled_exception);
+}
+
 // 测试 promise 在取消后忽略 set_exception
 TEST_F(FuturesTest, PromiseSetExceptionIgnoredAfterCancel) {
     auto promise = mc::make_promise<int>(get_io_context());
     auto future  = promise.get_future();
 
-    promise.cancel();
+    // 先取消 future
+    future.cancel();
     // 取消后调用 set_exception 应直接返回，不影响取消结果
     promise.set_exception(std::make_exception_ptr(std::runtime_error("ignored")));
     EXPECT_THROW(future.get(), mc::canceled_exception);
@@ -1663,4 +1676,106 @@ TEST_F(FuturesTest, CallbackListMoveSemantics) {
 
     list1.execute_and_clear();
     EXPECT_EQ(counter, 2);
+}
+
+// 测试 catch_error 从嵌套 future 中捕获异常
+TEST_F(FuturesTest, CatchErrorFromNestedFuture) {
+    auto promise = mc::make_promise<int>(get_io_context());
+    auto future  = promise.get_future();
+
+    // then 返回一个会立即抛异常的 future
+    auto nested_future = future.then([this](int) {
+        // 返回一个会立即抛异常的 future
+        auto inner_promise = mc::make_promise<int>(get_io_context());
+        auto inner_future  = inner_promise.get_future();
+        inner_promise.set_exception(std::make_exception_ptr(std::runtime_error("nested error")));
+        return inner_future;
+    });
+
+    // 后续 catch_error 确认捕获异常并恢复默认值
+    auto recovered = nested_future.catch_error([](const mc::exception&) {
+        return 100; // 恢复默认值
+    });
+
+    promise.set_value(42);
+
+    // 验证 catch_error 捕获了嵌套 future 的异常并返回了默认值
+    EXPECT_EQ(recovered.get(), 100);
+}
+
+// 测试异常类的拷贝/移动/动态方法
+TEST_F(FuturesTest, FuturesExceptionCopyAndRethrow) {
+    // 手动构造 future_already_retrieved 异常
+    {
+        // 使用 MC_MAKE_EXCEPTION 构造异常
+        auto ex1 = MC_MAKE_EXCEPTION(mc::futures::future_already_retrieved, "test message");
+        
+        // 测试拷贝构造
+        mc::futures::future_already_retrieved ex2(ex1);
+        EXPECT_STREQ(ex1.what(), ex2.what());
+        
+        // 测试移动构造
+        mc::futures::future_already_retrieved ex3(std::move(ex2));
+        EXPECT_STREQ(ex1.what(), ex3.what());
+        
+        // 注意：由于异常类声明了移动构造函数，拷贝赋值运算符被隐式删除
+        // 我们通过拷贝构造来测试拷贝语义
+        mc::futures::future_already_retrieved ex4(ex1);
+        EXPECT_STREQ(ex1.what(), ex4.what());
+        
+        // 注意：移动赋值运算符也被隐式删除
+        // 我们通过移动构造来测试移动语义
+        mc::futures::future_already_retrieved ex5(std::move(ex1));
+        EXPECT_STREQ(ex3.what(), ex5.what());
+        
+        // 测试 dynamic_copy_exception
+        auto copied = ex5.dynamic_copy_exception();
+        ASSERT_NE(copied, nullptr);
+        EXPECT_STREQ(ex5.what(), copied->what());
+        
+        // 测试 dynamic_rethrow_exception
+        try {
+            ex5.dynamic_rethrow_exception();
+            FAIL() << "应该抛出异常";
+        } catch (const mc::futures::future_already_retrieved& e) {
+            EXPECT_STREQ(ex5.what(), e.what());
+        }
+    }
+    
+    // 手动构造 promise_already_satisfied 异常
+    {
+        // 使用 MC_MAKE_EXCEPTION 构造异常
+        auto ex1 = MC_MAKE_EXCEPTION(mc::futures::promise_already_satisfied, "test message");
+        
+        // 测试拷贝构造
+        mc::futures::promise_already_satisfied ex2(ex1);
+        EXPECT_STREQ(ex1.what(), ex2.what());
+        
+        // 测试移动构造
+        mc::futures::promise_already_satisfied ex3(std::move(ex2));
+        EXPECT_STREQ(ex1.what(), ex3.what());
+        
+        // 注意：由于异常类声明了移动构造函数，拷贝赋值运算符被隐式删除
+        // 我们通过拷贝构造来测试拷贝语义
+        mc::futures::promise_already_satisfied ex4(ex1);
+        EXPECT_STREQ(ex1.what(), ex4.what());
+        
+        // 注意：移动赋值运算符也被隐式删除
+        // 我们通过移动构造来测试移动语义
+        mc::futures::promise_already_satisfied ex5(std::move(ex1));
+        EXPECT_STREQ(ex3.what(), ex5.what());
+        
+        // 测试 dynamic_copy_exception
+        auto copied = ex5.dynamic_copy_exception();
+        ASSERT_NE(copied, nullptr);
+        EXPECT_STREQ(ex5.what(), copied->what());
+        
+        // 测试 dynamic_rethrow_exception
+        try {
+            ex5.dynamic_rethrow_exception();
+            FAIL() << "应该抛出异常";
+        } catch (const mc::futures::promise_already_satisfied& e) {
+            EXPECT_STREQ(ex5.what(), e.what());
+        }
+    }
 }

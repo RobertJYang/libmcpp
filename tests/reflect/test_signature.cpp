@@ -12,8 +12,10 @@
 
 #include <gtest/gtest.h>
 
+#include <mc/dict.h>
 #include <mc/exception.h>
 #include <mc/reflect/signature.h>
+#include <mc/variant.h>
 
 using mc::reflect::signature;
 using mc::reflect::signature_iterator;
@@ -70,4 +72,31 @@ TEST(signature_test, static_checks) {
     EXPECT_EQ(signature::get_complete_type_length("(is)", 0), 4U);
     EXPECT_TRUE(signature::is_valid("(is)"));
     EXPECT_FALSE(signature::is_valid("(i"));
+}
+
+TEST(signature_test, first_type_empty_string) {
+    std::string empty_sig;
+    char        first = mc::reflect::first_type(empty_sig);
+    EXPECT_EQ(first, '\0');
+}
+
+TEST(signature_test, assign_string_view) {
+    signature sig("(is)");
+    std::string_view sv("(isd)");
+    sig = sv;
+    EXPECT_EQ(sig.str(), "(isd)");
+}
+
+TEST(signature_test, assign_string) {
+    signature sig("(is)");
+    std::string str("(isb)");
+    sig = str;
+    EXPECT_EQ(sig.str(), "(isb)");
+}
+
+TEST(signature_test, from_variant) {
+    mc::variant var("(isb)");
+    signature   sig;
+    mc::from_variant(var, sig);
+    EXPECT_EQ(sig.str(), "(isb)");
 }

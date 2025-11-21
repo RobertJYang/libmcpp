@@ -73,7 +73,7 @@ TEST(io_stream_test, basic_data_types) {
     stream.write_value(f_value);
     stream.write_value(d_value);
 
-    // 重置读取位置
+    // 将读取位置移动到 0，准备从头读取
     stream.seek_read(0);
 
     // 读取并验证
@@ -93,7 +93,7 @@ TEST(io_stream_test, string_operations) {
     std::string_view test_str = "这是一个测试字符串";
     EXPECT_EQ(stream.write(test_str), test_str.size());
 
-    // 重置读取位置
+    // 将读取位置移动到 0，准备从头读取
     stream.seek_read(0);
 
     // 读取普通字符串
@@ -658,4 +658,154 @@ TEST(io_stream_test, try_read_string_view_failure_returns_empty) {
     auto view = stream.try_read(2);
     EXPECT_TRUE(view.empty());
     EXPECT_EQ(stream.get_read_pos(), stream.length());
+}
+
+// 测试构造函数传入空 buffer 的情况
+TEST(io_stream_test, IOStreamConstructorWithNullBuffer) {
+    // 调用 io_stream(std::unique_ptr<io_buffer>(nullptr), true)
+    mc::io::io_stream stream(std::unique_ptr<mc::io::io_buffer>(nullptr), true);
+    
+    // 验证 stream.get_buffer() 不为 nullptr
+    EXPECT_NE(stream.get_buffer(), nullptr);
+}
+
+// 测试 get_buffer 函数
+TEST(io_stream_test, IOStreamGetBuffer) {
+    // 创建一个 io_stream
+    mc::io::io_stream stream(10);
+    stream.write("test", 4);
+    
+    // 调用 get_buffer()
+    auto buffer = stream.get_buffer();
+    
+    // 验证返回的指针不为 nullptr
+    EXPECT_NE(buffer, nullptr);
+}
+
+// 测试 written_bytes 函数
+TEST(io_stream_test, IOStreamWrittenBytes) {
+    // 创建一个 io_stream 并写入一些数据
+    mc::io::io_stream stream(10);
+    const char* test_data = "test";
+    std::size_t data_len = strlen(test_data);
+    stream.write(test_data, data_len);
+    
+    // 调用 written_bytes()
+    std::size_t written = stream.written_bytes();
+    
+    // 验证返回值等于写入的字节数
+    EXPECT_EQ(written, data_len);
+}
+
+// 测试 seek_read 负位置的情况
+TEST(io_stream_test, IOStreamSeekReadNegativePosition) {
+    // 创建一个 io_stream 并写入一些数据
+    mc::io::io_stream stream(10);
+    stream.write("test", 4);
+    
+    // 调用 seek_read(-100, seek_mode::current)（使 new_pos < 0）
+    stream.seek_read(0); // 先设置到开始位置
+    stream.seek_read(-100, mc::io::seek_mode::current);
+    
+    // 验证 read_pos 为 0
+    EXPECT_EQ(stream.get_read_pos(), 0U);
+}
+
+// 测试 seek_read 超出长度的情况
+TEST(io_stream_test, IOStreamSeekReadExceedsLength) {
+    // 创建一个 io_stream 并写入 10 字节数据
+    mc::io::io_stream stream(20);
+    stream.write("0123456789", 10);
+    
+    // 调用 seek_read(100, seek_mode::begin)（使 new_pos > length()）
+    stream.seek_read(100, mc::io::seek_mode::begin);
+    
+    // 验证 read_pos 为 10
+    EXPECT_EQ(stream.get_read_pos(), 10U);
+}
+
+// 测试 read_some(void* data, std::size_t length) 函数
+TEST(io_stream_test, IOStreamReadSomeToBuffer) {
+    // 创建一个 io_stream 并写入一些数据
+    mc::io::io_stream stream(10);
+    const char* test_data = "test";
+    std::size_t data_len = strlen(test_data);
+    stream.write(test_data, data_len);
+    
+    // 将读取位置移动到 0，准备从头读取
+    stream.seek_read(0);
+    
+    // 调用 read_some(buffer, length)
+    char buffer[10] = {0};
+    std::size_t read_len = stream.read_some(buffer, data_len);
+    
+    // 验证返回的字节数正确
+    EXPECT_EQ(read_len, data_len);
+    EXPECT_STREQ(buffer, test_data);
+}
+
+// 测试 try_read 成功的情况
+TEST(io_stream_test, IOStreamTryReadSuccess) {
+    // 创建一个 io_stream 并写入一些数据
+    mc::io::io_stream stream(10);
+    const char* test_data = "test";
+    std::size_t data_len = strlen(test_data);
+    stream.write(test_data, data_len);
+    
+    // 重置读取位置，准备从头读取
+    stream.seek_read(0);
+    
+    // 调用 try_read(buffer, length)
+    char buffer[10] = {0};
+    bool success = stream.try_read(buffer, data_len);
+    
+    // 验证返回 true 且 read_pos 已更新
+    EXPECT_TRUE(success);
+    EXPECT_EQ(stream.get_read_pos(), data_len);
+    EXPECT_STREQ(buffer, test_data);
+}
+
+// 测试 try_read(std::size_t length) 成功的情况
+TEST(io_stream_test, IOStreamTryReadStringViewSuccess) {
+    // 创建一个 io_stream 并写入一些数据
+    mc::io::io_stream stream(10);
+    const char* test_data = "test";
+    std::size_t data_len = strlen(test_data);
+    stream.write(test_data, data_len);
+    
+    // 重置读取位置
+    stream.seek_read(0);
+    
+    // 调用 try_read(length)
+    auto view = stream.try_read(data_len);
+    
+    // 验证返回非空 string_view 且 read_pos 已更新
+    EXPECT_FALSE(view.empty());
+    EXPECT_EQ(view.size(), data_len);
+    EXPECT_EQ(view, test_data);
+    EXPECT_EQ(stream.get_read_pos(), data_len);
+}
+
+// 测试 align_read 失败的情况
+TEST(io_stream_test, IOStreamAlignReadFailure) {
+    // 创建一个 io_stream 并写入少量数据（如 1 字节）
+    mc::io::io_stream stream(10);
+    stream.write("a", 1);
+    
+    // 为了触发异常，强制将读取位置设置为 1（非对齐且剩余字节不足）
+    stream.seek_read(1);
+    
+    // 调用 align_read(8)（需要 7 字节填充，但只有 1 字节可读）
+    EXPECT_THROW(stream.align_read(8), mc::eof_exception);
+}
+
+// 测试 write_value 在不可写流上抛出异常的场景
+TEST(io_stream_test, IOStreamWriteValueOnNonWritableStream) {
+    // 创建一个不可写的流（使用 io_stream(buffer->clone(), false)）
+    auto buffer = mc::io::io_buffer::create(10);
+    buffer->write("test", 4);
+    mc::io::io_stream stream(buffer->clone(), false);
+    
+    // 调用 stream.write_value<uint32_t>(42)
+    EXPECT_THROW(stream.write_value<uint32_t>(42), mc::eof_exception);
 }

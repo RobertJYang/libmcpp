@@ -287,3 +287,21 @@ TEST(DictConstructionTest, MutableDictChainedConstruction) {
     EXPECT_EQ(md4["key2"].as<std::string>(), "value");
     EXPECT_EQ(md4["key3"].as<bool>(), true);
 }
+
+// 测试从 std::vector<entry> 构造时重复键的处理
+TEST(DictConstructionTest, DictConstructorFromVectorWithDuplicateKeys) {
+    std::vector<dict::entry> entries;
+    entries.emplace_back("key1", 100);  // 第一个值
+    entries.emplace_back("key2", "value1");
+    entries.emplace_back("key1", 200);  // 重复键，应该覆盖第一个值
+    entries.emplace_back("key3", true);
+    entries.emplace_back("key2", "value2");  // 重复键，应该覆盖第一个值
+
+    dict d(entries);
+
+    // 验证重复键的值被覆盖（后一个值覆盖前一个值）
+    EXPECT_EQ(d.size(), 3);  // 只有3个唯一的键
+    EXPECT_EQ(d["key1"].as<int>(), 200);  // 应该是后一个值
+    EXPECT_EQ(d["key2"].as<std::string>(), "value2");  // 应该是后一个值
+    EXPECT_EQ(d["key3"].as<bool>(), true);
+}

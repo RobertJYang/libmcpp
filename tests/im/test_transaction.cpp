@@ -602,4 +602,153 @@ TEST_F(TransactionTest, MultipleSavePoints) {
     EXPECT_FALSE(val_b1.has_value());
 }
 
+// 测试保存点 commit() 方法
+TEST_F(TransactionTest, TransactionSavePointCommit) {
+    // 插入数据
+    txn->insert("a", leaves[0]);
+    txn->insert("b", leaves[1]);
+
+    // 创建保存点
+    int save_point_id = txn->save_point();
+
+    // 继续修改
+    txn->insert("c", leaves[2]);
+
+    // 提交事务，这会调用所有保存点的 commit() 方法
+    tree_type tree = txn->commit();
+
+    // 验证所有数据都被提交
+    EXPECT_EQ(3, tree.size());
+    auto val_a = tree.get("a");
+    EXPECT_TRUE(val_a.has_value());
+    EXPECT_EQ(leaves[0], val_a.value());
+
+    auto val_b = tree.get("b");
+    EXPECT_TRUE(val_b.has_value());
+    EXPECT_EQ(leaves[1], val_b.value());
+
+    auto val_c = tree.get("c");
+    EXPECT_TRUE(val_c.has_value());
+    EXPECT_EQ(leaves[2], val_c.value());
+}
+
+// 测试回滚到指定保存点
+TEST_F(TransactionTest, TransactionRollbackToSavePoint) {
+    // 插入初始数据
+    txn->insert("a", leaves[0]);
+
+    // 创建第一个保存点
+    int save_point_id1 = txn->save_point();
+
+    // 添加更多数据
+    txn->insert("b", leaves[1]);
+
+    // 创建第二个保存点
+    int save_point_id2 = txn->save_point();
+
+    // 添加更多数据
+    txn->insert("c", leaves[2]);
+
+    // 验证当前状态
+    EXPECT_EQ(3, txn->root().size());
+
+    // 回滚到第二个保存点
+    txn->rollback(save_point_id2);
+
+    // 验证状态
+    EXPECT_EQ(2, txn->root().size());
+    auto val_a = txn->get("a");
+    EXPECT_TRUE(val_a.has_value());
+    EXPECT_EQ(leaves[0], val_a.value());
+
+    auto val_b = txn->get("b");
+    EXPECT_TRUE(val_b.has_value());
+    EXPECT_EQ(leaves[1], val_b.value());
+
+    auto val_c = txn->get("c");
+    EXPECT_FALSE(val_c.has_value());
+
+    // 回滚到第一个保存点
+    txn->rollback(save_point_id1);
+
+    // 验证状态
+    EXPECT_EQ(1, txn->root().size());
+    val_a = txn->get("a");
+    EXPECT_TRUE(val_a.has_value());
+    EXPECT_EQ(leaves[0], val_a.value());
+
+    val_b = txn->get("b");
+    EXPECT_FALSE(val_b.has_value());
+}
+
+// 测试删除后插入导致节点合并
+TEST_F(TransactionTest, TransactionInsertAfterDeleteCausesMerge) {
+    // 插入 "abc" 和 "abd"
+    txn->insert("abc", leaves[0]);
+    txn->insert("abd", leaves[1]);
+
+    // 验证插入成功
+    EXPECT_EQ(2, txn->root().size());
+
+    // 删除 "abc"
+    auto deleted = txn->remove("abc");
+    EXPECT_TRUE(deleted.has_value());
+    EXPECT_EQ(leaves[0], deleted.value());
+
+    // 验证删除后状态
+    EXPECT_EQ(1, txn->root().size());
+
+    // 插入 "ab"，这应该导致节点合并
+    txn->insert("ab", leaves[2]);
+
+    // 验证插入成功
+    EXPECT_EQ(2, txn->root().size());
+
+    auto val_ab = txn->get("ab");
+    EXPECT_TRUE(val_ab.has_value());
+    EXPECT_EQ(leaves[2], val_ab.value());
+
+    auto val_abd = txn->get("abd");
+    EXPECT_TRUE(val_abd.has_value());
+    EXPECT_EQ(leaves[1], val_abd.value());
+
+    // 提交事务
+    tree_type tree = txn->commit();
+    EXPECT_EQ(2, tree.size());
+}
+
+// 测试更新后删除导致节点合并
+TEST_F(TransactionTest, TransactionUpdateCausesMerge) {
+    // 插入 "abc" 和 "abd"
+    txn->insert("abc", leaves[0]);
+    txn->insert("abd", leaves[1]);
+
+    // 验证插入成功
+    EXPECT_EQ(2, txn->root().size());
+
+    // 更新 "abc" 的值
+    auto [old_val, updated] = txn->insert("abc", leaves[2]);
+    EXPECT_TRUE(updated);
+    EXPECT_EQ(leaves[0], old_val.value());
+
+    // 验证更新后状态
+    EXPECT_EQ(2, txn->root().size());
+
+    // 删除 "abd"，这应该导致节点合并
+    auto deleted = txn->remove("abd");
+    EXPECT_TRUE(deleted.has_value());
+    EXPECT_EQ(leaves[1], deleted.value());
+
+    // 验证删除后状态
+    EXPECT_EQ(1, txn->root().size());
+
+    auto val_abc = txn->get("abc");
+    EXPECT_TRUE(val_abc.has_value());
+    EXPECT_EQ(leaves[2], val_abc.value());
+
+    // 提交事务
+    tree_type tree = txn->commit();
+    EXPECT_EQ(1, tree.size());
+}
+
 } // namespace mc::im::tests

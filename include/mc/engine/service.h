@@ -37,6 +37,11 @@ public:
 
     void on_dump(std::map<std::string, std::string> context, std::string filepath) override;
     void on_detach_debug_console(std::map<std::string, std::string> context) override;
+    void on_attach_debug_console(std::map<std::string, std::string> context, uint32_t port) override;
+    void on_set_dlog_level(std::map<std::string, std::string> context, std::string level,
+                           uint8_t effective_hours) override;
+    void on_dlog_limit(std::map<std::string, std::string> context, bool enabled,
+                       uint8_t duration_mins) override;
     int32_t on_reboot_prepare(std::map<std::string, std::string> context) override;
     int32_t on_reboot_process(std::map<std::string, std::string> context) override;
     int32_t on_reboot_action(std::map<std::string, std::string> context) override;

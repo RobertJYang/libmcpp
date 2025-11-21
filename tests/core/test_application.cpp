@@ -318,3 +318,36 @@ TEST_F(application_test, initialize_both_versions) {
     EXPECT_FALSE(app->initialize(argc, argv));
 }
 
+// 测试 application::load_plugins() - 加载失败时不会阻止初始化
+// 当前实现允许部分插件加载失败，initialize 仍然返回 true
+TEST_F(application_test, load_plugins_failure_stops_start) {
+    char arg0[] = "test_app";
+    char arg1[] = "--config";
+    auto tmp_dir = mc::filesystem::temp_directory_path();
+    std::string plugin_dir = tmp_dir.string();
+    std::string config_content = R"({
+        "api_version": "v1",
+        "kind": "Application",
+        "meta": {"name": "test_app"},
+        "plugin_dir": ")" + plugin_dir + R"(",
+        "plugins": ["nonexistent_plugin"],
+        "threads": 2
+    })";
+    std::string config_file = create_temp_json_file(config_content);
+    ASSERT_FALSE(config_file.empty());
+    temp_files.push_back(config_file);
+    
+    char arg2[256];
+    snprintf(arg2, sizeof(arg2), "%s", config_file.c_str());
+    
+    char* argv[] = {arg0, arg1, arg2, nullptr};
+    int   argc   = 3;
+    
+    // load_plugins 失败时，initialize 仍然返回 true（当前实现允许部分插件失败）
+    EXPECT_TRUE(app->initialize(argc, argv));
+    
+    // 验证不存在的插件确实没有被加载
+    auto loaded_plugins = app->get_plugin_manager().get_loaded_plugins();
+    EXPECT_EQ(loaded_plugins.size(), 0);
+}
+

@@ -14,12 +14,31 @@
 #include "mc/expr/function/collection.h"
 #include "mc/expr/function/parser.h"
 #include <gtest/gtest.h>
+#include <mc/exception.h>
 #include <memory>
 #include <string>
 
 using namespace mc::expr;
 
 namespace {
+
+class FunctionCallFixture : public ::testing::Test {
+protected:
+    void SetUp() override {
+        func_collection::get_instance().clear();
+    }
+
+    void TearDown() override {
+        func_collection::get_instance().clear();
+    }
+};
+
+mc::variant make_function_call_variant(const std::string& name, const mc::dict& params) {
+    mc::dict call_desc;
+    call_desc.insert("func", mc::variant(name));
+    call_desc.insert("params", mc::variant(params));
+    return mc::variant(call_desc);
+}
 
 TEST(FunctionCallTest, BasicUsage) {
     func_collection::get_instance().clear();
@@ -488,6 +507,96 @@ TEST(FunctionCallTest, ErrorHandlingAndEdgeCases) {
 
     auto invalid_result = normal_func.get_relate_properties("02", invalid_params);
     EXPECT_TRUE(invalid_result.empty());
+}
+
+TEST(FunctionCallValidationTest, ValidateResultThrowsWhenEmptyResult) {
+    mc::dict default_args = {{"value", mc::variant(1)}};
+    func     invalid_func("", default_args);
+    EXPECT_THROW(invalid_func.validate_result(), mc::parse_error_exception);
+}
+
+TEST(FunctionCallValidationTest, ValidateArgsThrowsWhenNoArguments) {
+    mc::dict empty_args;
+    func     invalid_func("42", empty_args);
+    EXPECT_THROW(invalid_func.validate_args(), mc::parse_error_exception);
+}
+
+TEST_F(FunctionCallFixture, NestedFunctionParameterTriggersHandleFunctionCall) {
+    mc::dict inner_args = {
+        {"value", mc::variant("default")}};
+    func inner_func("'inner:' + value", inner_args);
+
+    mc::dict registered_functions;
+    registered_functions.insert("$Func_Inner", mc::variant(inner_func));
+    func_collection::get_instance().add("slotA", nullptr, registered_functions);
+
+    mc::dict outer_args = {
+        {"nested_result", mc::variant("fallback")}};
+    func outer_func("'outer:' + nested_result", outer_args);
+
+    mc::dict nested_params;
+    nested_params.insert("value", mc::variant("42"));
+    mc::dict call_params;
+    call_params.insert("nested_result", make_function_call_variant("$Func_Inner", nested_params));
+
+    auto result = outer_func.call("slotA", call_params);
+    EXPECT_EQ(result.as_string(), "outer:inner:42");
+}
+
+TEST_F(FunctionCallFixture, MissingNestedFunctionFallsBackSilently) {
+    mc::dict outer_args = {
+        {"missing_nested", mc::variant(0)}};
+    func outer_func("'static'", outer_args);
+
+    mc::dict nested_params;
+    mc::dict call_params;
+    call_params.insert("missing_nested", make_function_call_variant("$Func_NotRegistered", nested_params));
+
+    auto result = outer_func.call("slot_missing", call_params);
+    EXPECT_EQ(result.as_string(), "static");
+}
+
+// 测试 to_variant(const func_call& fc, mc::variant& v) 函数
+TEST_F(FunctionCallFixture, FuncCallToVariant) {
+    func_call fc;
+    fc.func = "test_function";
+    fc.params.insert("param1", mc::variant(42));
+    fc.params.insert("param2", mc::variant("hello"));
+
+    mc::variant v;
+    to_variant(fc, v);
+
+    // 验证转换结果
+    EXPECT_TRUE(v.is_dict());
+    const auto& d = v.as_dict();
+    EXPECT_TRUE(d.contains("func"));
+    EXPECT_TRUE(d.contains("params"));
+    EXPECT_EQ(d.at("func").as_string(), "test_function");
+    EXPECT_TRUE(d.at("params").is_dict());
+    const auto& params = d.at("params").as_dict();
+    EXPECT_EQ(params.at("param1").as<int>(), 42);
+    EXPECT_EQ(params.at("param2").as<std::string>(), "hello");
+}
+
+// 测试 from_variant(const mc::variant& v, func_call& fc) 函数
+TEST_F(FunctionCallFixture, FuncCallFromVariant) {
+    // 创建一个包含 func_call 信息的 variant
+    mc::dict call_dict;
+    call_dict.insert("func", mc::variant("test_function"));
+    mc::dict params;
+    params.insert("param1", mc::variant(42));
+    params.insert("param2", mc::variant("hello"));
+    call_dict.insert("params", mc::variant(params));
+    mc::variant v(call_dict);
+
+    func_call fc;
+    from_variant(v, fc);
+
+    // 验证转换结果
+    EXPECT_EQ(fc.func, "test_function");
+    EXPECT_EQ(fc.params.size(), 2);
+    EXPECT_EQ(fc.params.at("param1").as<int>(), 42);
+    EXPECT_EQ(fc.params.at("param2").as<std::string>(), "hello");
 }
 
 } // namespace

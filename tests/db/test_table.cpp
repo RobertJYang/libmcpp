@@ -522,3 +522,72 @@ TEST_F(table_test, index_name_composite) {
     users.add(u1);
     EXPECT_THROW(users.add(u1), mc::invalid_arg_exception);
 }
+
+// 测试 table::update 触发 on_object_updated 和 update_index 分支
+TEST_F(table_test, update_existing_record) {
+    user_table users;
+
+    // 添加一些测试数据
+    user u1("Alice", 25, 85.5);
+    user u2("Bob", 30, 90.0);
+    users.add(u1);
+    users.add(u2);
+
+    // 验证初始状态
+    auto it1 = users.get<1>().find("Alice");
+    ASSERT_FALSE(it1.is_end());
+    EXPECT_EQ(it1->get_age(), 25);
+    EXPECT_DOUBLE_EQ(it1->score(), 85.5);
+
+    // 记录 on_object_updated 是否被调用
+    bool update_called = false;
+    user* old_obj_ptr  = nullptr;
+    user* new_obj_ptr  = nullptr;
+
+    // 连接 on_object_updated 信号
+    users.on_object_updated.connect([&](mc::db::object_base& old_obj, mc::db::object_base& new_obj) {
+        update_called = true;
+        old_obj_ptr   = static_cast<user*>(&old_obj);
+        new_obj_ptr   = static_cast<user*>(&new_obj);
+    });
+
+    // 获取原始对象指针
+    auto old_obj_it = users.get<1>().find("Alice");
+    ASSERT_FALSE(old_obj_it.is_end());
+
+    // 获取对象指针（需要从迭代器获取对象指针）
+    // 由于迭代器返回的是 const reference，我们需要通过 find 获取对象指针
+    auto old_obj_shared_ptr = users.find(field_name == "Alice");
+    ASSERT_TRUE(old_obj_shared_ptr != nullptr);
+
+    // 更新记录（修改非主键字段，触发索引更新）
+    user u1_updated("Alice", 26, 88.0); // 修改年龄和分数
+    auto new_obj = users.update(old_obj_shared_ptr, u1_updated);
+    ASSERT_TRUE(new_obj != nullptr);
+
+    // 验证 on_object_updated 被调用
+    EXPECT_TRUE(update_called);
+    // 注意：old_obj_ptr 和 new_obj_ptr 在信号回调中获取，验证它们的值
+    EXPECT_EQ(old_obj_ptr->get_age(), 25); // 旧对象的年龄（在回调中保存）
+    EXPECT_EQ(new_obj_ptr->get_age(), 26); // 新对象的年龄（在回调中保存）
+
+    // 验证索引已更新（通过年龄索引查找）
+    auto it2 = users.get<2>().find(26); // 通过年龄索引查找
+    ASSERT_FALSE(it2.is_end());
+    EXPECT_EQ(it2->name(), "Alice");
+    EXPECT_EQ(it2->get_age(), 26);
+    EXPECT_DOUBLE_EQ(it2->score(), 88.0);
+
+    // 验证旧年龄索引中不再有该记录
+    auto it3 = users.get<2>().find(25);
+    if (!it3.is_end()) {
+        // 如果找到，应该不是 Alice
+        EXPECT_NE(it3->name(), "Alice");
+    }
+
+    // 验证主键索引仍然可以找到
+    auto it4 = users.get<1>().find("Alice");
+    ASSERT_FALSE(it4.is_end());
+    EXPECT_EQ(it4->get_age(), 26);
+    EXPECT_DOUBLE_EQ(it4->score(), 88.0);
+}

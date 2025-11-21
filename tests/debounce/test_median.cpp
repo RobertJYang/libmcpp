@@ -59,31 +59,6 @@ TEST(debounce_median, odd_window_size_and_sliding)
     ASSERT_EQ(value, 5);
 }
 
-// 有符号输入（>127 按补码视为负数）与输出调整
-TEST(debounce_median, signed_input_and_adjust_output)
-{
-    Median median(5, true);
-    std::optional<int> value;
-
-    value = median.get_debounce_val(255); // 255: -1
-    ASSERT_EQ(value, std::nullopt);
-    value = median.get_debounce_val(254); // 254: -2
-    ASSERT_EQ(value, std::nullopt);
-    value = median.get_debounce_val(253); // 253: -3
-    ASSERT_EQ(value, std::nullopt);
-    value = median.get_debounce_val(252); // 252: -4
-    ASSERT_EQ(value, std::nullopt);
-    value = median.get_debounce_val(1); // 输入: [-4,-3,-2,-1,1]
-    // 排序后为 [-4,-3,-2,-1,1]，去掉最小-4和最大1，剩余 [-3,-2,-1]，中位数为 -2
-    // 输出调整：-2 + 256 = 254
-    ASSERT_EQ(value, 254);
-
-    value = median.get_debounce_val(1); // 窗口滑动后为 [-4,-3,-2,1,1]
-    // 排序后为 [-4,-3,-2,1,1]，去掉最小-4和最大1，剩余 [-3,-2,1]，中位数为 -2
-    // 输出调整：-2 + 256 = 254
-    ASSERT_EQ(value, 254);
-}
-
 // 清除状态测试，合并到基础测试中避免单独触发清理问题
 TEST(debounce_median, clear_state)
 {
@@ -105,6 +80,48 @@ TEST(debounce_median, invalid_size_throw)
 {
     EXPECT_THROW(Median(0, false), std::runtime_error);
     EXPECT_THROW(Median(-2, true), std::runtime_error);
+}
+
+// 测试有符号输入（>127 按补码视为负数）与输出调整，包括窗口滑动和多种负数场景
+TEST(debounce_median, signed_input_and_adjust_output)
+{
+    Median median(5, true); // is_signed = true
+    std::optional<int> value;
+
+    // 输入一系列值，使得计算出的中位数为负数
+    // 输入: 255(-1), 254(-2), 253(-3), 252(-4), 251(-5)
+    // 排序后为 [-5,-4,-3,-2,-1]，去掉最小-5和最大-1，剩余 [-4,-3,-2]，中位数为 -3
+    // 输出调整：-3 + 256 = 253
+    value = median.get_debounce_val(255); // -1
+    ASSERT_EQ(value, std::nullopt);
+    value = median.get_debounce_val(254); // -2
+    ASSERT_EQ(value, std::nullopt);
+    value = median.get_debounce_val(253); // -3
+    ASSERT_EQ(value, std::nullopt);
+    value = median.get_debounce_val(252); // -4
+    ASSERT_EQ(value, std::nullopt);
+    value = median.get_debounce_val(251); // -5
+    // 排序后为 [-5,-4,-3,-2,-1]，去掉最小-5和最大-1，剩余 [-4,-3,-2]，中位数为 -3
+    // adjust_signed(-3) = -3 + 256 = 253
+    ASSERT_EQ(value, 253);
+
+    // 再测试一个场景：输入混合值，使得中位数为负数
+    median.clear_debounce_val();
+    // 输入: 255(-1), 254(-2), 253(-3), 0, 1
+    // 排序后为 [-3,-2,-1,0,1]，去掉最小-3和最大1，剩余 [-2,-1,0]，中位数为 -1
+    // 输出调整：-1 + 256 = 255
+    value = median.get_debounce_val(255); // -1
+    ASSERT_EQ(value, std::nullopt);
+    value = median.get_debounce_val(254); // -2
+    ASSERT_EQ(value, std::nullopt);
+    value = median.get_debounce_val(253); // -3
+    ASSERT_EQ(value, std::nullopt);
+    value = median.get_debounce_val(0);
+    ASSERT_EQ(value, std::nullopt);
+    value = median.get_debounce_val(1);
+    // 排序后为 [-3,-2,-1,0,1]，去掉最小-3和最大1，剩余 [-2,-1,0]，中位数为 -1
+    // adjust_signed(-1) = -1 + 256 = 255
+    ASSERT_EQ(value, 255);
 }
 
 

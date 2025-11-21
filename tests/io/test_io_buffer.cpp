@@ -441,3 +441,354 @@ TEST(IOBufferTest, NormalizeOnEmptyChain) {
     EXPECT_TRUE(view.empty());
     EXPECT_TRUE(buffer->empty());
 }
+
+// 测试移动赋值时包含链表节点的情况
+TEST(IOBufferTest, IOBufferMoveAssignmentWithChain) {
+    // 创建一个带链表的 io_buffer
+    auto buf1 = io::io_buffer::create(10);
+    buf1->write("abc", 3);
+    
+    auto buf2 = io::io_buffer::create(10);
+    buf2->write("def", 3);
+    buf1->append_to_chain(std::move(buf2));
+    
+    EXPECT_TRUE(buf1->is_chained());
+    EXPECT_EQ(buf1->compute_chain_length(), 6U);
+    
+    // 创建另一个 io_buffer
+    auto buf3 = io::io_buffer::create(10);
+    buf3->write("xyz", 3);
+    
+    // 执行移动赋值
+    *buf3 = std::move(*buf1);
+    
+    // 验证 buf3 包含所有链表节点
+    EXPECT_TRUE(buf3->is_chained());
+    EXPECT_EQ(buf3->compute_chain_length(), 6U);
+    
+    auto normalized = buf3->normalize();
+    EXPECT_EQ(normalized, "abcdef");
+}
+
+// 测试拷贝构造时包含链表节点的情况
+TEST(IOBufferTest, IOBufferCopyConstructorWithChain) {
+    // 创建一个带链表的 io_buffer
+    auto buf1 = io::io_buffer::create(10);
+    buf1->write("abc", 3);
+    
+    auto buf2 = io::io_buffer::create(10);
+    buf2->write("def", 3);
+    buf1->append_to_chain(std::move(buf2));
+    
+    EXPECT_TRUE(buf1->is_chained());
+    EXPECT_EQ(buf1->compute_chain_length(), 6U);
+    
+    // 使用拷贝构造函数创建新对象
+    io::io_buffer buf3(*buf1);
+    
+    // 验证新对象包含所有链表节点的拷贝
+    EXPECT_TRUE(buf3.is_chained());
+    EXPECT_EQ(buf3.compute_chain_length(), 6U);
+    
+    auto normalized = buf3.normalize();
+    EXPECT_EQ(normalized, "abcdef");
+}
+
+// 测试拷贝赋值运算符
+TEST(IOBufferTest, IOBufferCopyAssignment) {
+    // 创建两个 io_buffer 对象
+    auto buf1 = io::io_buffer::create(10);
+    buf1->write("test", 4);
+    
+    auto buf2 = io::io_buffer::create(10);
+    buf2->write("xyz", 3);
+    
+    // 执行拷贝赋值
+    *buf2 = *buf1;
+    
+    // 验证 buf2 的内容与 buf1 相同
+    EXPECT_EQ(buf2->length(), buf1->length());
+    EXPECT_EQ(buf2->compute_chain_length(), buf1->compute_chain_length());
+    
+    auto view1 = buf1->normalize();
+    auto view2 = buf2->normalize();
+    EXPECT_EQ(view2, view1);
+}
+
+// 测试 append 的边界情况
+TEST(IOBufferTest, IOBufferAppendZeroOrInsufficientRoom) {
+    auto buffer = io::io_buffer::create(10);
+    buffer->write("test", 4);
+    
+    size_t initial_length = buffer->length();
+    
+    // 调用 append(0)，验证 length 不变
+    buffer->append(0);
+    EXPECT_EQ(buffer->length(), initial_length);
+    
+    // 调用 append(very_large_amount)，验证 length 不变（因为 tailroom() < amount）
+    size_t very_large_amount = buffer->tailroom() + 1000;
+    buffer->append(very_large_amount);
+    EXPECT_EQ(buffer->length(), initial_length);
+}
+
+// 测试 prepend 的边界情况
+TEST(IOBufferTest, IOBufferPrependZeroOrInsufficientRoom) {
+    auto buffer = io::io_buffer::create(10);
+    buffer->write("test", 4);
+    
+    size_t initial_length = buffer->length();
+    
+    // 调用 prepend(0)，验证 length 不变
+    buffer->prepend(0);
+    EXPECT_EQ(buffer->length(), initial_length);
+    
+    // 调用 prepend(very_large_amount)，验证 length 不变（因为 headroom() < amount）
+    size_t very_large_amount = buffer->headroom() + 1000;
+    buffer->prepend(very_large_amount);
+    EXPECT_EQ(buffer->length(), initial_length);
+}
+
+// 测试 trim_end 超出长度的情况
+TEST(IOBufferTest, IOBufferTrimEndExceedsLength) {
+    auto buffer = io::io_buffer::create(10);
+    buffer->write("test", 4); // 写入 4 字节数据
+    
+    // 调用 trim_end(20)（超过长度）
+    buffer->trim_end(20);
+    
+    // 验证 length 为 0
+    EXPECT_EQ(buffer->length(), 0U);
+}
+
+// 测试 reserve 已有足够空间的情况
+TEST(IOBufferTest, IOBufferReserveAlreadySufficient) {
+    // 创建一个足够大的 buffer
+    auto buffer = io::io_buffer::create(100);
+    buffer->write("test", 4);
+    
+    // 获取当前的 headroom 和 tailroom
+    size_t current_headroom = buffer->headroom();
+    size_t current_tailroom = buffer->tailroom();
+    
+    // 调用 reserve 请求小于当前 headroom 和 tailroom 的值
+    size_t min_headroom = current_headroom / 2;
+    size_t min_tailroom = current_tailroom / 2;
+    buffer->reserve(min_headroom, min_tailroom);
+    
+    // 验证 headroom 和 tailroom 不变（或至少满足要求）
+    EXPECT_GE(buffer->headroom(), min_headroom);
+    EXPECT_GE(buffer->tailroom(), min_tailroom);
+}
+
+// 测试 align 无效对齐值的情况
+TEST(IOBufferTest, IOBufferAlignInvalidAlignment) {
+    auto buffer = io::io_buffer::create(10);
+    buffer->write("test", 4);
+    
+    size_t initial_length = buffer->length();
+    
+    // 调用 align(0) 和 align(1)
+    size_t result0 = buffer->align(0);
+    EXPECT_EQ(result0, 0U);
+    EXPECT_EQ(buffer->length(), initial_length);
+    
+    size_t result1 = buffer->align(1);
+    EXPECT_EQ(result1, 0U);
+    EXPECT_EQ(buffer->length(), initial_length);
+}
+
+// 测试 write_at_offset 零长度的情况
+TEST(IOBufferTest, IOBufferWriteAtOffsetZeroLength) {
+    auto buffer = io::io_buffer::create(10);
+    buffer->write("test", 4);
+    
+    // 调用 write_at_offset(0, nullptr, 0)
+    size_t written = buffer->write_at_offset(0, nullptr, 0);
+    EXPECT_EQ(written, 0U);
+}
+
+// 测试 write_at_offset 共享缓冲区的情况
+TEST(IOBufferTest, IOBufferWriteAtOffsetSharedBuffer) {
+    // 创建一个 buffer 并写入数据
+    auto buf1 = io::io_buffer::create(10);
+    buf1->write("test", 4);
+    
+    // 使用拷贝构造函数创建共享的 buffer
+    io::io_buffer buf2(*buf1);
+    EXPECT_TRUE(buf2.is_shared());
+    
+    // 在共享的 buffer 上调用 write_at_offset
+    uint8_t patch[] = {0xAA, 0xBB};
+    buf2.write_at_offset(1, patch, sizeof(patch));
+    
+    // 验证 unshare() 被调用（通过检查 is_shared() 变为 false）
+    EXPECT_FALSE(buf2.is_shared());
+}
+
+// 测试 write 零长度的情况
+TEST(IOBufferTest, IOBufferWriteZeroLength) {
+    auto buffer = io::io_buffer::create(10);
+    buffer->write("test", 4);
+    
+    // 调用 write(nullptr, 0)
+    size_t written = buffer->write(nullptr, 0);
+    EXPECT_EQ(written, 0U);
+}
+
+// 测试 write 共享缓冲区的情况
+TEST(IOBufferTest, IOBufferWriteSharedBuffer) {
+    // 创建一个 buffer 并写入数据
+    auto buf1 = io::io_buffer::create(10);
+    buf1->write("test", 4);
+    
+    // 使用拷贝构造函数创建共享的 buffer
+    io::io_buffer buf2(*buf1);
+    EXPECT_TRUE(buf2.is_shared());
+    
+    // 在共享的 buffer 上调用 write
+    uint8_t patch[] = {0xAA, 0xBB};
+    buf2.write(patch, sizeof(patch));
+    
+    // 验证 unshare() 被调用（通过检查 is_shared() 变为 false）
+    EXPECT_FALSE(buf2.is_shared());
+}
+
+// 测试 read 空指针的情况
+TEST(IOBufferTest, IOBufferReadNullPointer) {
+    auto buffer = io::io_buffer::create(10);
+    buffer->write("test", 4);
+    
+    // 调用 read(0, nullptr, 10)
+    EXPECT_THROW(buffer->read(0, nullptr, 10), mc::invalid_arg_exception);
+}
+
+// 测试 clone 包含链表节点的情况
+TEST(IOBufferTest, IOBufferCloneWithChain) {
+    // 创建一个带链表的 io_buffer
+    auto buf1 = io::io_buffer::create(10);
+    buf1->write("abc", 3);
+    
+    auto buf2 = io::io_buffer::create(10);
+    buf2->write("def", 3);
+    buf1->append_to_chain(std::move(buf2));
+    
+    EXPECT_TRUE(buf1->is_chained());
+    EXPECT_EQ(buf1->compute_chain_length(), 6U);
+    
+    // 调用 clone()
+    auto cloned = buf1->clone();
+    
+    // 验证克隆的对象包含所有链表节点的拷贝
+    EXPECT_TRUE(cloned->is_chained());
+    EXPECT_EQ(cloned->compute_chain_length(), 6U);
+    
+    auto normalized = cloned->normalize();
+    EXPECT_EQ(normalized, "abcdef");
+}
+
+// 测试 unshare 未共享缓冲区的情况
+TEST(IOBufferTest, IOBufferUnshareNotShared) {
+    // 创建一个独立的 buffer（未共享）
+    auto buffer = io::io_buffer::create(10);
+    buffer->write("test", 4);
+    
+    EXPECT_FALSE(buffer->is_shared());
+    
+    // 调用 unshare()
+    buffer->unshare();
+    
+    // 验证方法直接返回且 buffer 状态不变
+    EXPECT_FALSE(buffer->is_shared());
+    EXPECT_EQ(buffer->length(), 4U);
+}
+
+// 测试 compute_chain_length 单节点的情况
+TEST(IOBufferTest, IOBufferComputeChainLengthSingleNode) {
+    // 创建一个独立的 buffer（无链表节点）
+    auto buffer = io::io_buffer::create(10);
+    buffer->write("test", 4);
+    
+    EXPECT_FALSE(buffer->is_chained());
+    
+    // 调用 compute_chain_length()
+    size_t chain_length = buffer->compute_chain_length();
+    
+    // 验证返回值等于 length()
+    EXPECT_EQ(chain_length, buffer->length());
+}
+
+// 测试 append_to_chain 空指针的情况
+TEST(IOBufferTest, IOBufferAppendToChainNullPointer) {
+    auto buffer = io::io_buffer::create(10);
+    buffer->write("test", 4);
+    
+    size_t initial_length = buffer->length();
+    
+    // 调用 append_to_chain(std::unique_ptr<io_buffer>(nullptr))
+    buffer->append_to_chain(std::unique_ptr<io::io_buffer>(nullptr));
+    
+    // 验证方法直接返回且 buffer 状态不变
+    EXPECT_EQ(buffer->length(), initial_length);
+    EXPECT_FALSE(buffer->is_chained());
+}
+
+// 测试 insert_after 空指针的情况
+TEST(IOBufferTest, IOBufferInsertAfterNullPointer) {
+    auto buffer = io::io_buffer::create(10);
+    buffer->write("test", 4);
+    
+    size_t initial_length = buffer->length();
+    
+    // 调用 insert_after(std::unique_ptr<io_buffer>(nullptr))
+    buffer->insert_after(std::unique_ptr<io::io_buffer>(nullptr));
+    
+    // 验证方法直接返回且 buffer 状态不变
+    EXPECT_EQ(buffer->length(), initial_length);
+    EXPECT_FALSE(buffer->is_chained());
+}
+
+// 测试 shard_buffer 拷贝赋值运算符
+TEST(IOBufferTest, ShardBufferCopyAssignment) {
+    // 创建两个 io_buffer 对象（它们内部使用 shard_buffer）
+    auto buf1 = io::io_buffer::create(10);
+    buf1->write("test", 4);
+    
+    auto buf2 = io::io_buffer::create(10);
+    buf2->write("xyz", 3);
+    
+    // 执行拷贝赋值 buf2 = buf1
+    *buf2 = *buf1;
+    
+    // 验证 buf2 的内容与 buf1 相同，且 buf2.is_shared() 为 true
+    EXPECT_EQ(buf2->length(), buf1->length());
+    EXPECT_TRUE(buf2->is_shared());
+    EXPECT_TRUE(buf1->is_shared());
+    
+    auto view1 = buf1->normalize();
+    auto view2 = buf2->normalize();
+    EXPECT_EQ(view2, view1);
+}
+
+// 测试 read_value 带 offset 参数且字节序不匹配的场景
+TEST(IOBufferTest, IOBufferReadValueWithOffsetAndEndianness) {
+    // 创建一个 buffer 并写入大端字节序的 uint32_t 值
+    auto buffer = io::io_buffer::create(10);
+    uint32_t value = 0x12345678;
+    
+    // 以大端字节序写入
+    uint8_t big_endian_bytes[] = {0x12, 0x34, 0x56, 0x78};
+    buffer->write(big_endian_bytes, sizeof(big_endian_bytes));
+    
+    // 在小端系统上使用 read_value<uint32_t>(offset, true) 读取（指定小端，但数据是大端）
+    // 这会触发字节交换分支
+    uint32_t read_value = buffer->read_value<uint32_t>(0, true);
+    
+    // 验证读取的值正确（在小端系统上，大端数据 0x12345678 读取为小端应该是 0x78563412）
+    if (mc::is_little_endian()) {
+        EXPECT_EQ(read_value, 0x78563412U);
+    } else {
+        // 在大端系统上，大端数据读取为小端应该是 0x12345678（不需要交换）
+        EXPECT_EQ(read_value, 0x12345678U);
+    }
+}

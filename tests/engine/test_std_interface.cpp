@@ -589,65 +589,65 @@ TEST_F(std_interface_test, PropertiesInterfaceWithoutObject) {
     EXPECT_NO_THROW(props.set("org.openubmc.test_interface_a", "Num", mc::variant(1)));
 }
 
-// TEST_F(std_interface_test, PropertiesInterfaceSetAndCommonProperties) {
-//     TestObjectA obj;
-//     obj.init();
-//     TestObjectA parent;
-//     parent.init();
-//     parent.set_object_path("/org/openubmc/parent");
-//     obj.set_object_path("/org/openubmc/parent/child");
-//     obj.set_owner(&parent);
+TEST_F(std_interface_test, PropertiesInterfaceSetAndCommonProperties) {
+    TestObjectA obj;
+    obj.init();
+    TestObjectA parent;
+    parent.init();
+    parent.set_object_path("/org/openubmc/parent");
+    obj.set_object_path("/org/openubmc/parent/child");
+    obj.set_owner(&parent);
 
-//     mc::engine::object_call_stack::context ctx{obj.get_service(), obj};
-//     auto&                                  props = properties_interface::get_instance();
+    mc::engine::object_call_stack::context ctx{obj.get_service(), obj};
+    auto&                                  props = properties_interface::get_instance();
 
-//     auto value = props.get("org.openubmc.test_interface_a", "Num");
-//     EXPECT_EQ(value.as_uint64(), static_cast<uint64_t>(100));
+    auto value = props.get("org.openubmc.test_interface_a", "Num");
+    EXPECT_EQ(value.as_uint64(), static_cast<uint64_t>(100));
 
-//     props.set("org.openubmc.test_interface_a", "Num", mc::variant(uint8_t(77)));
-//     EXPECT_EQ(obj.m_iface.m_num.value(), 77);
+    props.set("org.openubmc.test_interface_a", "Num", mc::variant(uint8_t(77)));
+    EXPECT_EQ(obj.m_iface.m_num.value(), 77);
 
-//     auto object_name =
-//         props.get(mc::engine::common_properties_name, "ObjectName").as_string();
-//     EXPECT_EQ(object_name, "TestObjectA");
+    auto object_name =
+        props.get(mc::engine::common_properties_name, "ObjectName").as_string();
+    EXPECT_EQ(object_name, "TestObjectA");
 
-//     auto common_dict = props.get_all(mc::engine::common_properties_name);
-//     EXPECT_EQ(common_dict.at("ParentPath").as_string(), "/org/openubmc/parent");
-//     EXPECT_EQ(common_dict.at("ClassName").as_string(), "TestObjectA");
+    auto common_dict = props.get_all(mc::engine::common_properties_name);
+    EXPECT_EQ(common_dict.at("ParentPath").as_string(), "/org/openubmc/parent");
+    EXPECT_EQ(common_dict.at("ClassName").as_string(), "TestObjectA");
 
-//     props.set(mc::engine::common_properties_name, "ObjectName", mc::variant("Changed"));
-//     EXPECT_EQ(obj.get_object_name(), "TestObjectA");
-// }
+    props.set(mc::engine::common_properties_name, "ObjectName", mc::variant("Changed"));
+    EXPECT_EQ(obj.get_object_name(), "TestObjectA");
+}
 
-// TEST_F(std_interface_test, CommonPropertiesContextHelpers) {
-//     TestObjectA obj;
-//     obj.init();
-//     TestObjectA parent;
-//     parent.init();
-//     parent.set_object_path("/org/openubmc/test_parent");
-//     obj.set_object_path("/org/openubmc/test_parent/child");
-//     obj.set_owner(&parent);
+TEST_F(std_interface_test, CommonPropertiesContextHelpers) {
+    TestObjectA obj;
+    obj.init();
+    TestObjectA parent;
+    parent.init();
+    parent.set_object_path("/org/openubmc/test_parent");
+    obj.set_object_path("/org/openubmc/test_parent/child");
+    obj.set_owner(&parent);
 
-//     // 压栈对象，验证 common_properties 的上下文接口
-//     mc::engine::object_call_stack::context ctx{nullptr, obj};
-//     auto& common_props = mc::engine::common_properties_interface::get_instance();
+    // 压栈对象，验证 common_properties 的上下文接口
+    mc::engine::object_call_stack::context ctx{nullptr, obj};
+    auto& common_props = mc::engine::common_properties_interface::get_instance();
 
-//     auto parent_path = common_props.get("ParentPath").as_string();
-//     EXPECT_EQ(parent_path, "/org/openubmc/test_parent");
+    auto parent_path = common_props.get("ParentPath").as_string();
+    EXPECT_EQ(parent_path, "/org/openubmc/test_parent");
 
-//     auto all_props = common_props.get_all();
-//     EXPECT_EQ(all_props.at("ObjectName").as_string(), "TestObjectA");
+    auto all_props = common_props.get_all();
+    EXPECT_EQ(all_props.at("ObjectName").as_string(), "TestObjectA");
 
-//     // GetWithContext 传入 common 接口应直接返回通用属性
-//     auto ctx_value =
-//         common_props.get_with_context({}, mc::engine::common_properties_name, "ClassName");
-//     EXPECT_EQ(ctx_value.as_string(), "TestObjectA");
+    // GetWithContext 传入 common 接口应直接返回通用属性
+    auto ctx_value =
+        common_props.get_with_context({}, mc::engine::common_properties_name, "ClassName");
+    EXPECT_EQ(ctx_value.as_string(), "TestObjectA");
 
-//     // SetWithContext 在 common 接口下应忽略写入
-//     common_props.set_with_context({}, mc::engine::common_properties_name, "ParentPath",
-//                                   mc::variant("/tmp/ignored"));
-//     EXPECT_EQ(common_props.get("ParentPath").as_string(), "/org/openubmc/test_parent");
-// }
+    // SetWithContext 在 common 接口下应忽略写入
+    common_props.set_with_context({}, mc::engine::common_properties_name, "ParentPath",
+                                  mc::variant("/tmp/ignored"));
+    EXPECT_EQ(common_props.get("ParentPath").as_string(), "/org/openubmc/test_parent");
+}
 
 TEST_F(std_interface_test, CommonPropertiesSetWithoutContextIsSafe) {
     // 无对象上下文时 set_with_context 应安全返回
@@ -655,36 +655,3 @@ TEST_F(std_interface_test, CommonPropertiesSetWithoutContextIsSafe) {
     EXPECT_NO_THROW(common_props.set_with_context({}, "org.test.custom", "Any", mc::variant(1)));
 }
 
-// TEST_F(std_interface_test, ObjectManagerEnumeratesChildren) {
-//     TestObjectA parent;
-//     parent.init();
-//     parent.set_object_path("/org/openubmc/test_parent");
-
-//     TestObjectA child;
-//     child.init();
-//     child.set_object_path("/org/openubmc/test_parent/child");
-//     child.set_parent(&parent);
-//     child.set_owner(&parent);
-
-//     // 压栈后调用对象管理接口，确保 visitor 各分支被覆盖
-//     // 在 context 存在时提取所有需要的数据，确保生命周期安全
-//     std::string child_path;
-//     size_t      managed_size = 0;
-//     bool        has_interface = false;
-//     {
-//         mc::engine::object_call_stack::context ctx{nullptr, parent};
-//         auto&                               mgr = mc::engine::object_manager_interface::get_instance();
-//         auto                                managed = mgr.get_managed_objects();
-        
-//         managed_size = managed.size();
-//         if (managed_size > 0) {
-//             const auto& entry = *managed.begin();
-//             child_path = entry.first.str(); // 提取字符串，确保生命周期安全
-//             has_interface = entry.second.count("org.openubmc.test_interface_a") > 0;
-//         }
-//     } // ctx 在这里销毁
-
-//     ASSERT_EQ(managed_size, 1U);
-//     EXPECT_EQ(child_path, "/org/openubmc/test_parent/child");
-//     EXPECT_TRUE(has_interface);
-// }

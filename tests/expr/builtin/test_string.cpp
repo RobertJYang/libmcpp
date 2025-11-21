@@ -15,6 +15,7 @@
 #include <mc/exception.h>
 #include <mc/expr/builtin.h>
 #include <mc/expr/engine.h>
+#include <mc/variant.h>
 
 namespace {
 class string_builtin_test : public ::testing::Test {
@@ -100,6 +101,9 @@ TEST_F(string_builtin_test, SubstringFunction) {
     EXPECT_THROW(engine.evaluate("substring('hello')", m_context), mc::invalid_arg_exception);
     EXPECT_THROW(engine.evaluate("substring('hello', 0)", m_context), mc::invalid_arg_exception);
     EXPECT_THROW(engine.evaluate("substring(123, 0, 5)", m_context), mc::invalid_arg_exception);
+
+    // 测试 start + length 超出范围（但 start 在范围内），应该自动截断
+    EXPECT_EQ(engine.evaluate("substring('hello', 3, 10)", m_context), "lo");
 }
 
 // 测试 to_upper 函数

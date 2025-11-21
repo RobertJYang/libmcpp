@@ -139,19 +139,6 @@ TEST_F(VariantReferenceTest, BasicKeyAccess) {
     EXPECT_EQ(obj["age"].as<int>(), 25);
 }
 
-TEST_F(VariantReferenceTest, TypeCheckMethods) {
-    variant arr = variants{1, 2.5, "text", true, nullptr};
-
-    // 测试类型判断方法
-    // EXPECT_TRUE(arr[0].is_int()); // is_int() 不存在，使用 is<int>() 替代
-    EXPECT_TRUE(arr[1].is_double());
-    EXPECT_TRUE(arr[2].is_string());
-    EXPECT_TRUE(arr[3].is_bool());
-    EXPECT_TRUE(arr[4].is_null());
-
-    EXPECT_FALSE(arr[0].is_string());
-    EXPECT_FALSE(arr[1].is_int64()); // 默认整数类型是 int64
-}
 
 TEST_F(VariantReferenceTest, TypeConversionMethods) {
     variant arr = variants{
@@ -845,3 +832,56 @@ TEST_F(VariantReferenceTest, ExtensionAccessWithDirectReference) {
     EXPECT_FALSE(target_ref.get().as_bool());
     EXPECT_FALSE(v[0].as_bool());
 }
+
+// 测试 variant_reference 的 swap 和 operator*/operator->
+TEST_F(VariantReferenceTest, ReferenceSwapAndDereference) {
+    dict d;
+    d["key1"] = 100;
+    d["key2"] = 200;
+    variant v(d);
+    
+    // 获取字典元素的引用
+    variant_reference ref1 = v["key1"];
+    variant_reference ref2 = v["key2"];
+    
+    // 测试 operator*
+    EXPECT_EQ((*ref1).as_int32(), 100);
+    EXPECT_EQ((*ref2).as_int32(), 200);
+    
+    // 测试 operator->
+    EXPECT_EQ(ref1->as_int32(), 100);
+    EXPECT_EQ(ref2->as_int32(), 200);
+    
+    // 测试 swap
+    ref1.swap(ref2);
+    EXPECT_EQ((*ref1).as_int32(), 200);
+    EXPECT_EQ((*ref2).as_int32(), 100);
+    
+    // 验证原始字典也被交换
+    EXPECT_EQ(v["key1"].as_int32(), 200);
+    EXPECT_EQ(v["key2"].as_int32(), 100);
+    
+    // 测试 array 的 variant_reference 触发 cached_value
+    variants arr{10, 20, 30};
+    variant v_arr(arr);
+    variant_reference arr_ref = v_arr[1];
+    
+    // 访问引用应该触发 cached_value 的惰性加载
+    EXPECT_EQ((*arr_ref).as_int32(), 20);
+    EXPECT_EQ(arr_ref->as_int32(), 20);
+}
+
+TEST_F(VariantReferenceTest, TypeCheckMethods) {
+    variant arr = variants{1, 2.5, "text", true, nullptr};
+
+    // 测试类型判断方法
+    // EXPECT_TRUE(arr[0].is_int()); // is_int() 不存在，使用 is<int>() 替代
+    EXPECT_TRUE(arr[1].is_double());
+    EXPECT_TRUE(arr[2].is_string());
+    EXPECT_TRUE(arr[3].is_bool());
+    EXPECT_TRUE(arr[4].is_null());
+
+    EXPECT_FALSE(arr[0].is_string());
+    EXPECT_FALSE(arr[1].is_int64()); // 默认整数类型是 int64
+}
+    

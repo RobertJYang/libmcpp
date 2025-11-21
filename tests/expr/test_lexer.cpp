@@ -371,3 +371,102 @@ TEST(LexerTest, MoreTemplateStringScenarios) {
         ASSERT_EQ(tokens[2].literal.as_string(), "");
     }
 }
+
+// 测试 Unicode 转义序列
+TEST(LexerTest, UnicodeEscapeTokenized) {
+    mc::expr::lexer lexer("\"\\u4F60\\u597D\"");
+    auto            tokens = lexer.scan_tokens();
+
+    ASSERT_GE(tokens.size(), 2);
+    ASSERT_EQ(tokens[0].type, mc::expr::token_type::string);
+    // 验证 Unicode 转义序列被正确解析为 "你好"
+    std::string result = tokens[0].literal.as_string();
+    EXPECT_EQ(result, "你好");
+}
+
+// 测试 lexer::peek() 在字符串末尾的情况
+// 注意：peek() 是私有方法，我们通过 scan_tokens() 的行为来间接验证
+// peek() 在 is_at_end() 时返回 '\0'，这会影响 scan_tokens() 的行为
+TEST(LexerTest, LexerPeekAtEnd) {
+    // 测试空字符串：peek() 应该返回 '\0'，导致立即结束扫描
+    mc::expr::lexer lexer("");
+    auto tokens = lexer.scan_tokens();
+    // 应该只有一个 EOF token
+    ASSERT_EQ(tokens.size(), 1);
+    EXPECT_EQ(tokens[0].type, mc::expr::token_type::end_of_file);
+    
+    // 测试单字符字符串：扫描完所有 token 后，peek() 应该返回 '\0'
+    mc::expr::lexer lexer2("a");
+    auto tokens2 = lexer2.scan_tokens();
+    // 应该有两个 token：标识符 'a' 和 EOF
+    ASSERT_EQ(tokens2.size(), 2);
+    EXPECT_EQ(tokens2[0].type, mc::expr::token_type::identifier);
+    EXPECT_EQ(tokens2[1].type, mc::expr::token_type::end_of_file);
+}
+
+// 测试 lexer::peek_next() 在字符串倒数第二个字符的情况
+// 注意：peek_next() 是私有方法，我们通过 scan_tokens() 的行为来间接验证
+// peek_next() 在 m_current + 1 >= m_source.size() 时返回 '\0'
+TEST(LexerTest, LexerPeekNextAtEnd) {
+    // 测试单字符字符串：peek_next() 应该返回 '\0'
+    mc::expr::lexer lexer("a");
+    auto tokens = lexer.scan_tokens();
+    // 应该有两个 token：标识符 'a' 和 EOF
+    ASSERT_EQ(tokens.size(), 2);
+    EXPECT_EQ(tokens[0].type, mc::expr::token_type::identifier);
+    EXPECT_EQ(tokens[1].type, mc::expr::token_type::end_of_file);
+    
+    // 测试两个字符的字符串：在扫描第一个字符时，peek_next() 应该返回第二个字符
+    // 在扫描第二个字符时，peek_next() 应该返回 '\0'
+    mc::expr::lexer lexer2("ab");
+    auto tokens2 = lexer2.scan_tokens();
+    // 应该有两个 token：标识符 'ab' 和 EOF
+    ASSERT_EQ(tokens2.size(), 2);
+    EXPECT_EQ(tokens2[0].type, mc::expr::token_type::identifier);
+    EXPECT_EQ(tokens2[1].type, mc::expr::token_type::end_of_file);
+}
+
+// 测试 lexer::lexeme(std::size_t end) 函数
+TEST(LexerTest, LexerLexemeWithEnd) {
+    mc::expr::lexer lexer("hello world");
+    // 手动设置 m_start 和 m_current 来测试 lexeme(end)
+    // 注意：由于 lexer 的私有成员，我们无法直接访问
+    // 但可以通过扫描 token 来间接测试
+    auto tokens = lexer.scan_tokens();
+    // lexeme(end) 主要用于内部实现，这里主要验证它不会崩溃
+    EXPECT_GE(tokens.size(), 1);
+}
+
+// 测试简单模板字符串（没有表达式）
+TEST(LexerTest, LexerSimpleTemplateString) {
+    mc::expr::lexer lexer("\"text\"");
+    auto            tokens = lexer.scan_tokens();
+
+    ASSERT_GE(tokens.size(), 2);
+    ASSERT_EQ(tokens[0].type, mc::expr::token_type::string);
+    EXPECT_EQ(tokens[0].literal.as_string(), "text");
+}
+
+// 测试模板字符串中的嵌套大括号
+TEST(LexerTest, LexerTemplateStringNestedBraces) {
+    mc::expr::lexer lexer("\"${a{b}}\"");
+    auto            tokens = lexer.scan_tokens();
+
+    ASSERT_GE(tokens.size(), 4);
+    ASSERT_EQ(tokens[0].type, mc::expr::token_type::template_start);
+    ASSERT_EQ(tokens[1].type, mc::expr::token_type::template_expr);
+    // 验证嵌套大括号被正确处理
+    EXPECT_EQ(tokens[1].lexeme, "a{b}");
+}
+
+// 测试模板字符串中的转义字符
+TEST(LexerTest, LexerTemplateStringEscape) {
+    mc::expr::lexer lexer("\"text\\n${expr}\"");
+    auto            tokens = lexer.scan_tokens();
+
+    ASSERT_GE(tokens.size(), 4);
+    ASSERT_EQ(tokens[0].type, mc::expr::token_type::template_start);
+    // 验证转义字符被正确处理
+    std::string text = tokens[0].literal.as_string();
+    EXPECT_TRUE(text.find("\\n") != std::string::npos || text.find("\n") != std::string::npos);
+}

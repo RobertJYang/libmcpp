@@ -4,6 +4,7 @@ test_expr_files = [
     'expr/builtin/test_string.cpp',
 
     'expr/function/test_call.cpp',
+    'expr/function/test_collection.cpp',
     'expr/function/test_parser.cpp',
 
     'expr/test_context.cpp',

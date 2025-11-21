@@ -26,7 +26,7 @@ See the Mulan PSL v2 for more details.
 ## 重点测试用例简介
 
 ### test_module_loader.cpp
-模块加载器核心功能测试（19 个用例）：
+模块加载器核心功能测试（18 个用例，已优化）：
 - `TestDefaultSearchPaths`：测试默认搜索路径。
 - `TestSearchPathLifecycle`：测试搜索路径添加、去重与清空再添加的完整流程。
 - `TestSetLoadLibFunc`：测试设置加载库函数。
@@ -119,10 +119,10 @@ ninja -C builddir test
 ## 测试统计
 
 - **测试文件总数**: 3 个
-- **测试用例总数**: 40 个
-  - `test_module_loader.cpp`: 19 个用例
+- **测试用例总数**: 47 个（已优化，删除了重复的测试用例）
+  - `test_module_loader.cpp`: 18 个用例（已优化，删除了重复的 `TestLoadPathReadableThrows`，功能已合并到 `test_module_loader_branches.cpp` 的 `TestIsReadableExceptionBranch`）
   - `test_module_loader_branches.cpp`: 3 个用例
-  - `test_module_manager.cpp`: 18 个用例
+  - `test_module_manager.cpp`: 25 个用例
 - **测试覆盖的功能模块**:
   - Module Loader（模块加载器）
   - Module Manager（模块管理器）

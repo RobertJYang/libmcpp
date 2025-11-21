@@ -81,6 +81,50 @@ TEST_F(mc_formatter_test, VariantFormatWithSpec) {
     EXPECT_EQ(sformat("{:c}", v4), "A"); // 整数转字符
 }
 
+// 测试 variant 中的 int8_t 作为 char
+TEST_F(mc_formatter_test, FormatCharFromVariant) {
+    // variant 中存放 int8_t('A')
+    mc::variant v = static_cast<int8_t>('A');
+    std::string result = sformat("{}", v);
+    // 默认行为：按整数输出
+    EXPECT_EQ(result, "65");
+}
+
+// 测试 blob 格式化
+TEST_F(mc_formatter_test, BlobFormatterOutputsSize) {
+    // 创建 mc::blob
+    mc::blob blob;
+    blob.data = std::vector<char>{static_cast<char>(1), static_cast<char>(2), static_cast<char>(3)};
+    std::string result = sformat("{}", blob);
+    // 期望输出 "blob(3 bytes)"
+    EXPECT_EQ(result, "blob(3 bytes)");
+}
+
+// 测试 extension 格式化
+TEST_F(mc_formatter_test, ExtensionFormatterUsesTypeName) {
+    // 定义一个继承 variant_extension_base 的伪 extension
+    class custom_ext : public mc::variant_extension_base {
+    public:
+        std::string_view get_type_name() const override {
+            return "custom_ext";
+        }
+
+        mc::shared_ptr<variant_extension_base> copy() const override {
+            return mc::make_shared<custom_ext>(*this);
+        }
+
+        bool equals(const variant_extension_base& other) const override {
+            return get_type_name() == other.get_type_name();
+        }
+    };
+
+    auto ext = mc::make_shared<custom_ext>();
+    mc::variant v(ext);
+    std::string result = sformat("{}", v);
+    // 期望输出 "extension(custom_ext)"
+    EXPECT_EQ(result, "extension(custom_ext)");
+}
+
 /**
  * @brief 测试 mc::variant 格式化参数失败回退
  */

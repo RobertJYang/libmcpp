@@ -32,6 +32,7 @@ protected:
     }
 
     void TearDown() override {
+        // 清理测试中创建的资源
         TestBase::TearDown();
     }
 };
@@ -1212,6 +1213,70 @@ TEST_F(VariantOperationsTest, UnsignedSpecificOperations) {
 
     variant bit_not = ~variant(uint64_t(0x0F));
     EXPECT_EQ(bit_not.as_uint64(), static_cast<uint64_t>(~uint64_t(0x0F)));
+}
+
+// 测试 blob + string 拼接
+TEST_F(VariantOperationsTest, BlobPlusStringKeepsBinary) {
+    // 构造 blob variant
+    blob blob_data;
+    blob_data.data = {'h', 'e', 'l', 'l', 'o'};
+    variant v_blob(blob_data);
+    
+    // blob + string_view
+    variant result1 = v_blob + std::string_view(", world");
+    EXPECT_TRUE(result1.is_blob());
+    EXPECT_EQ(result1.get_blob().as_string_view(), "hello, world");
+    
+    // string_view + blob
+    variant result2 = std::string_view("prefix: ") + v_blob;
+    EXPECT_TRUE(result2.is_string());
+    EXPECT_EQ(result2.as_string(), "prefix: hello");
+    
+    // blob + blob
+    blob blob_data2;
+    blob_data2.data = {',', ' ', 'w', 'o', 'r', 'l', 'd'};
+    variant v_blob2(blob_data2);
+    variant result3 = v_blob + v_blob2;
+    EXPECT_TRUE(result3.is_blob());
+    EXPECT_EQ(result3.get_blob().as_string_view(), "hello, world");
+}
+
+// 测试无符号减法（无下溢）
+TEST_F(VariantOperationsTest, UnsignedSubtractionWithoutUnderflow) {
+    variant v1(uint64_t(100));
+    variant v2(uint64_t(30));
+    
+    // 无符号减法，第一个 >= 第二个
+    variant result = v1 - v2;
+    EXPECT_TRUE(result.is_unsigned_integer());
+    EXPECT_EQ(result.as_uint64(), 70);
+}
+
+// 测试一元负号处理无符号数和回退路径
+TEST_F(VariantOperationsTest, UnaryMinusCoversUnsignedAndFallback) {
+    // 测试 uint64 的一元负号
+    variant v_uint64(uint64_t(100));
+    variant result1 = -v_uint64;
+    EXPECT_TRUE(result1.is_signed_integer());
+    EXPECT_EQ(result1.as_int64(), -100);
+    
+    // 测试 string 的一元负号（回退到 as_int64）
+    variant v_string("123");
+    variant result2 = -v_string;
+    EXPECT_TRUE(result2.is_signed_integer());
+    EXPECT_EQ(result2.as_int64(), -123);
+}
+
+// 测试 operator+(string_view) 的 fallback 路径
+TEST_F(VariantOperationsTest, StringViewPlusVariantFallback) {
+    // 使用 bool 与 string_view 相加，触发 fallback
+    variant v_bool(true);
+    std::string_view sv = "test";
+    
+    // bool + string_view 应该触发 fallback: return *this + variant(other)
+    variant result = v_bool + sv;
+    EXPECT_TRUE(result.is_string());
+    EXPECT_EQ(result.as_string(), "truetest");
 }
 
 /**

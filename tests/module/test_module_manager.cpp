@@ -20,6 +20,7 @@
 #include <mc/reflect/reflection_factory.h>
 #include <mc/string.h>
 #include <test_utilities/test_base.h>
+#include "../runtime/test_future_helpers.h"
 #include <thread>
 #include <vector>
 
@@ -492,25 +493,69 @@ TEST_F(ModuleManagerTest, TestConcurrentRequireSameModule) {
 TEST_F(ModuleManagerTest, TestConcurrentRequireAndUnload) {
     auto& manager = mc::get_module_manager();
     std::atomic<bool> stop{false};
+    std::atomic<int>  iterations{0};
+    const int        min_iterations = 10; // 确保至少执行一定次数
+
+    mc::test::runtime::countdown_future workers_ready(2);
+    mc::test::runtime::future_flag      start_flag;
 
     auto worker = [&]() {
+        // 通知已准备好
+        workers_ready.arrive();
+
+        // 等待开始信号
+        if (!start_flag.wait_for(std::chrono::milliseconds(3000))) {
+            return; // 超时，测试失败
+        }
+
         while (!stop.load(std::memory_order_acquire)) {
             auto module = manager.require("mc.test.module");
             if (module) {
                 (void)module->get_factory();
             }
             manager.unload("mc.test.module");
+            iterations.fetch_add(1, std::memory_order_relaxed);
+            std::this_thread::yield(); // 让出 CPU，避免过度占用
         }
     };
 
     std::thread t1(worker);
     std::thread t2(worker);
 
-    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    // 等待所有工作线程都准备好
+    if (!workers_ready.wait_for(std::chrono::milliseconds(3000))) {
+        stop.store(true, std::memory_order_release);
+        t1.join();
+        t2.join();
+        FAIL() << "工作线程未能及时准备好";
+        return;
+    }
+
+    // 通知开始执行
+    start_flag.set();
+
+    // 等待至少执行最小迭代次数
+    auto start_time = std::chrono::steady_clock::now();
+    while (iterations.load(std::memory_order_acquire) < min_iterations) {
+        auto elapsed = std::chrono::steady_clock::now() - start_time;
+        if (elapsed > std::chrono::milliseconds(3000)) {
+            break; // 超时，停止等待
+        }
+        std::this_thread::yield();
+    }
+
+    // 停止工作线程
     stop.store(true, std::memory_order_release);
+
+    // 等待线程安全退出
     t1.join();
     t2.join();
 
+    // 验证至少执行了一些迭代
+    EXPECT_GT(iterations.load(std::memory_order_acquire), 0)
+        << "工作线程应该至少执行一些迭代";
+
+    // 验证最终状态
     auto module = manager.require("mc.test.module");
     EXPECT_TRUE(module != nullptr);
     manager.unload("mc.test.module");
@@ -562,6 +607,151 @@ TEST_F(ModuleManagerTest, TestDynamicModuleCloseThrows) {
         EXPECT_NO_THROW(module.reset());
     }
 
+    manager.unload("mc.test.dynamic");
+}
+
+// 测试动态模块卸载时的 dlog 日志
+TEST_F(ModuleManagerTest, ModuleManagerDynamicUnloadLogs) {
+    auto build_root = mc::filesystem::current_path();
+    auto source     = build_root / "tests/libmc_test_dynamic_module.so";
+    ASSERT_TRUE(mc::filesystem::exists(source));
+
+    // 创建必要的目录结构并复制模块文件
+    auto modules_dir = build_root / "modules" / "mc" / "test";
+    mc::filesystem::create_directories(modules_dir);
+    auto target = modules_dir / "dynamic.so";
+    if (!mc::filesystem::exists(target)) {
+        mc::filesystem::copy_file(source, target, true);
+    }
+
+    auto& manager = mc::get_module_manager();
+    manager.add_search_path("./modules/?.so");
+
+    // 临时将日志级别设置为 debug，以便 dlog 能够输出
+    auto original_level = mc::log::default_logger().get_level();
+    mc::log::default_logger().set_level(mc::log::level::debug);
+
+    // 加载动态模块
+    auto module = manager.require("mc.test.dynamic");
+    ASSERT_TRUE(module != nullptr);
+
+    // 卸载模块，这会触发 dlog("unload dynamic module...")
+    manager.unload("mc.test.dynamic");
+
+    // 恢复原始日志级别
+    mc::log::default_logger().set_level(original_level);
+
+    // 验证模块已卸载
+    EXPECT_FALSE(manager.is_loaded("mc.test.dynamic"));
+}
+
+// 测试释放所有引用后卸载，命中 need_unload 分支
+TEST_F(ModuleManagerTest, ModuleManagerReleaseHandleOnUnload) {
+    auto build_root = mc::filesystem::current_path();
+    auto source     = build_root / "tests/libmc_test_dynamic_module.so";
+    ASSERT_TRUE(mc::filesystem::exists(source));
+
+    // 创建必要的目录结构并复制模块文件
+    auto modules_dir = build_root / "modules" / "mc" / "test";
+    mc::filesystem::create_directories(modules_dir);
+    auto target = modules_dir / "dynamic.so";
+    if (!mc::filesystem::exists(target)) {
+        mc::filesystem::copy_file(source, target, true);
+    }
+
+    auto& manager = mc::get_module_manager();
+    manager.add_search_path("./modules/?.so");
+
+    // 加载动态模块
+    auto module = manager.require("mc.test.dynamic");
+    ASSERT_TRUE(module != nullptr);
+    EXPECT_TRUE(manager.is_loaded("mc.test.dynamic"));
+
+    // 先调用 manager.unload，这会从 loaded_modules 中移除模块
+    // 但此时 module_ptr 仍然存在，所以 library_module 不会被析构
+    manager.unload("mc.test.dynamic");
+    EXPECT_FALSE(manager.is_loaded("mc.test.dynamic"));
+
+    // 现在释放 module_ptr，这会触发 library_module 的析构
+    // 析构函数会调用 remove_library，进而调用 close_handle(*info_ptr, true)
+    // 这会命中 need_unload=true 分支，并调用 m_loader.get_load_lib_func().unload
+    module.reset();
+
+    // 验证模块已完全卸载
+    EXPECT_FALSE(manager.is_loaded("mc.test.dynamic"));
+}
+
+// 测试 reset_for_test() 覆盖 clear() 中 handle 回收
+TEST_F(ModuleManagerTest, ModuleManagerResetClearsHandles) {
+    auto build_root = mc::filesystem::current_path();
+    auto source     = build_root / "tests/libmc_test_dynamic_module.so";
+    ASSERT_TRUE(mc::filesystem::exists(source));
+
+    // 创建必要的目录结构并复制模块文件
+    auto modules_dir = build_root / "modules" / "mc" / "test";
+    mc::filesystem::create_directories(modules_dir);
+    auto target = modules_dir / "dynamic.so";
+    if (!mc::filesystem::exists(target)) {
+        mc::filesystem::copy_file(source, target, true);
+    }
+
+    auto& manager = mc::get_module_manager();
+    manager.add_search_path("./modules/?.so");
+
+    // 加载动态模块，但不卸载
+    auto module = manager.require("mc.test.dynamic");
+    ASSERT_TRUE(module != nullptr);
+    EXPECT_TRUE(manager.is_loaded("mc.test.dynamic"));
+
+    // 不调用 manager.unload，直接调用 reset_for_test()
+    // 这会触发 module_manager_impl 的析构，进而调用 clear()
+    // clear() 会遍历所有 handles 并调用 close_handle(*handle, true)
+    module.reset(); // 先释放引用，避免析构时的潜在问题
+    mc::module::module_manager::reset_for_test();
+
+    // 验证模块管理器已重置
+    auto& new_manager = mc::get_module_manager();
+    EXPECT_FALSE(new_manager.is_loaded("mc.test.dynamic"));
+}
+
+// 测试 handle 复用场景
+TEST_F(ModuleManagerTest, ModuleManagerReuseLibraryHandle) {
+    auto build_root = mc::filesystem::current_path();
+    auto source     = build_root / "tests/libmc_test_dynamic_module.so";
+    ASSERT_TRUE(mc::filesystem::exists(source));
+
+    // 创建必要的目录结构并复制模块文件
+    auto modules_dir = build_root / "modules" / "mc" / "test";
+    mc::filesystem::create_directories(modules_dir);
+    auto target = modules_dir / "dynamic.so";
+    if (!mc::filesystem::exists(target)) {
+        mc::filesystem::copy_file(source, target, true);
+    }
+
+    auto& manager = mc::get_module_manager();
+    manager.add_search_path("./modules/?.so");
+
+    // 第一次加载动态模块
+    auto module1 = manager.require("mc.test.dynamic");
+    ASSERT_TRUE(module1 != nullptr);
+    EXPECT_TRUE(manager.is_loaded("mc.test.dynamic"));
+
+    // 卸载模块，但保留 module_ptr（此时 handle 仍在 handles 中）
+    manager.unload("mc.test.dynamic");
+    EXPECT_FALSE(manager.is_loaded("mc.test.dynamic"));
+
+    // 在旧 module_ptr 未 reset 前再次 require
+    // 这应该复用之前加载的 handle，而不是重新 dlopen
+    auto module2 = manager.require("mc.test.dynamic");
+    ASSERT_TRUE(module2 != nullptr);
+    EXPECT_TRUE(manager.is_loaded("mc.test.dynamic"));
+
+    // 验证两个 module_ptr 指向不同的对象（因为第一个已从 loaded_modules 中移除）
+    EXPECT_NE(module1.get(), module2.get());
+
+    // 清理
+    module1.reset();
+    module2.reset();
     manager.unload("mc.test.dynamic");
 }
 

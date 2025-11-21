@@ -541,3 +541,71 @@ TEST_F(expr_context_test, has_variable_from_variable_symbol) {
 
 // 注意：object_context 的接口参数测试已经在 test_object_expr.cpp 中完成
 // 这里不再重复测试，因为需要实现完整的 abstract_object 接口
+
+// 测试 context_base 的自赋值
+TEST_F(expr_context_test, ContextBaseSelfAssignment) {
+    mc::expr::context_base base1;
+    mc::expr::context_base base2;
+
+    // 测试自赋值
+    base1 = base1;
+    EXPECT_EQ(base1.get_parent(), nullptr);
+
+    // 测试正常赋值
+    base2.set_parent(&base1);
+    base1 = base2;
+    EXPECT_EQ(base1.get_parent(), &base1);
+}
+
+// 测试 context_base 的自移动赋值
+TEST_F(expr_context_test, ContextBaseSelfMoveAssignment) {
+    mc::expr::context_base base1;
+    mc::expr::context_base base2;
+
+    // 测试自移动赋值
+    base1 = std::move(base1);
+    EXPECT_EQ(base1.get_parent(), nullptr);
+
+    // 测试正常移动赋值
+    base2.set_parent(&base1);
+    base1 = std::move(base2);
+    EXPECT_EQ(base1.get_parent(), &base1);
+}
+
+// 测试 context 的自赋值
+TEST_F(expr_context_test, ContextSelfAssignment) {
+    mc::expr::context ctx1;
+    mc::expr::context ctx2;
+
+    // 注册变量
+    ctx1.register_variable("x", 10);
+    ctx2.register_variable("y", 20);
+
+    // 测试自赋值
+    ctx1 = ctx1;
+    EXPECT_EQ(ctx1.get_variable("x"), 10);
+
+    // 测试正常赋值
+    ctx1 = ctx2;
+    EXPECT_EQ(ctx1.get_variable("y"), 20);
+    EXPECT_FALSE(ctx1.has_variable("x"));
+}
+
+// 测试 context 的自移动赋值
+TEST_F(expr_context_test, ContextSelfMoveAssignment) {
+    mc::expr::context ctx1;
+    mc::expr::context ctx2;
+
+    // 注册变量
+    ctx1.register_variable("x", 10);
+    ctx2.register_variable("y", 20);
+
+    // 测试自移动赋值
+    ctx1 = std::move(ctx1);
+    EXPECT_EQ(ctx1.get_variable("x"), 10);
+
+    // 测试正常移动赋值
+    ctx1 = std::move(ctx2);
+    EXPECT_EQ(ctx1.get_variable("y"), 20);
+    EXPECT_FALSE(ctx1.has_variable("x"));
+}

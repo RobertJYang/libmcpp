@@ -90,6 +90,10 @@ public:
     void cleanup() override {
     }
 
+    void set_dependencies_public(const std::vector<std::string>& deps) {
+        set_dependencies(deps);
+    }
+
     service_state get_state() const override {
         return m_start_ok ? service_state::running : service_state::stopped;
     }
@@ -630,4 +634,423 @@ TEST(SupervisorManagerTest, InitializeFromConfigsAddsSupervisors) {
     configs.push_back(make_supervisor_config("cfg_one",
                                              config::supervisor_strategy::one_for_all, 1));
     EXPECT_TRUE(manager.initialize_from_configs(configs));
+}
+
+// 测试 start_one_service - 覆盖 start_one_service 的所有分支
+TEST_F(default_supervisor_test, StartOneService) {
+    auto service = mc::make_shared<test_service>("service1");
+    supervisor->add_service(service);
+    service->init(dict{});
+    
+    // 测试启动服务
+    EXPECT_TRUE(supervisor->start());
+    
+    // 测试启动不存在的服务（通过 testable_supervisor）
+    auto testable = std::make_shared<testable_supervisor>();
+    config::supervisor_config cfg = make_supervisor_config(
+        "test", config::supervisor_strategy::one_for_one, 3);
+    testable->init(cfg);
+    
+    // 启动不存在的服务应该返回 false
+    EXPECT_FALSE(testable->expose_restart_one_service("nonexistent"));
+}
+
+// 测试 start_one_service - 异常处理分支（覆盖 catch 分支）
+TEST_F(default_supervisor_test, StartOneServiceException) {
+    // 创建一个会在 start 时抛出异常的服务
+    class exception_service : public test_service {
+    public:
+        using test_service::test_service;
+        bool start() override {
+            throw std::runtime_error("start failed");
+        }
+    };
+    
+    auto service = mc::make_shared<exception_service>("exception_service");
+    supervisor->add_service(service);
+    service->init(dict{});
+    
+    // 启动应该失败，但不会抛出异常（被 catch 捕获）
+    EXPECT_FALSE(supervisor->start());
+}
+
+// 测试 stop_one_service - 覆盖所有分支
+TEST_F(default_supervisor_test, StopOneService) {
+    auto service = mc::make_shared<test_service>("service1");
+    supervisor->add_service(service);
+    service->init(dict{});
+    supervisor->start();
+    
+    // 停止服务（通过 stop() 间接测试）
+    EXPECT_TRUE(supervisor->stop());
+    
+    // 测试停止不存在的服务（应该返回 true，因为服务不存在视为成功）
+    // 这需要通过 testable_supervisor 来测试
+}
+
+// 测试 stop_one_service - 异常处理分支
+TEST_F(default_supervisor_test, StopOneServiceException) {
+    // 创建一个会在 stop 时抛出异常的服务
+    class exception_service : public test_service {
+    public:
+        using test_service::test_service;
+        bool stop() override {
+            throw std::runtime_error("stop failed");
+        }
+    };
+    
+    auto service = mc::make_shared<exception_service>("exception_service");
+    supervisor->add_service(service);
+    service->init(dict{});
+    supervisor->start();
+    
+    // 停止应该失败，但不会抛出异常（被 catch 捕获）
+    EXPECT_FALSE(supervisor->stop());
+}
+
+// 测试 stop_one_service - stop 失败的情况
+TEST_F(default_supervisor_test, StopOneServiceFailure) {
+    auto service = mc::make_shared<failing_service>("failing_service", true, false);
+    supervisor->add_service(service);
+    service->init(dict{});
+    supervisor->start();
+    
+    // 停止应该失败
+    EXPECT_FALSE(supervisor->stop());
+}
+
+// 测试 restart_one_service - 覆盖所有分支
+TEST_F(default_supervisor_test, RestartOneService) {
+    auto service = mc::make_shared<test_service>("service1");
+    supervisor->add_service(service);
+    service->init(dict{});
+    supervisor->start();
+    
+    // 重启服务
+    auto testable = std::make_shared<testable_supervisor>();
+    config::supervisor_config cfg = make_supervisor_config(
+        "test", config::supervisor_strategy::one_for_one, 3);
+    testable->init(cfg);
+    testable->add_service(service);
+    service->init(dict{});
+    testable->start();
+    
+    EXPECT_TRUE(testable->expose_restart_one_service("service1"));
+}
+
+// 测试 restart_one_service - stop 失败的情况
+TEST_F(default_supervisor_test, RestartOneServiceStopFailure) {
+    auto service = mc::make_shared<failing_service>("failing_service", true, false);
+    auto testable = std::make_shared<testable_supervisor>();
+    config::supervisor_config cfg = make_supervisor_config(
+        "test", config::supervisor_strategy::one_for_one, 3);
+    testable->init(cfg);
+    testable->add_service(service);
+    service->init(dict{});
+    testable->start();
+    
+    // 重启应该失败（因为 stop 失败）
+    EXPECT_FALSE(testable->expose_restart_one_service("failing_service"));
+}
+
+// 测试 restart_one_service - start 失败的情况
+TEST_F(default_supervisor_test, RestartOneServiceStartFailure) {
+    auto service = mc::make_shared<failing_service>("failing_service", false, true);
+    auto testable = std::make_shared<testable_supervisor>();
+    config::supervisor_config cfg = make_supervisor_config(
+        "test", config::supervisor_strategy::one_for_one, 3);
+    testable->init(cfg);
+    testable->add_service(service);
+    service->init(dict{});
+    
+    // 重启应该失败（因为 start 失败）
+    EXPECT_FALSE(testable->expose_restart_one_service("failing_service"));
+}
+
+// 测试 restart_all_services - 覆盖所有分支（包括重启计数重置）
+TEST_F(default_supervisor_test, RestartAllServicesWithCountReset) {
+    auto service1 = mc::make_shared<test_service>("service1");
+    auto service2 = mc::make_shared<test_service>("service2");
+    
+    supervisor->add_service(service1);
+    supervisor->add_service(service2);
+    service1->init(dict{});
+    service2->init(dict{});
+    supervisor->start();
+    
+    // 等待超过 5 秒，触发重启计数重置
+    std::this_thread::sleep_for(std::chrono::seconds(6));
+    
+    // 重启所有服务（通过 handle_service_crash 间接测试）
+    auto testable = std::make_shared<testable_supervisor>();
+    config::supervisor_config cfg = make_supervisor_config(
+        "test", config::supervisor_strategy::one_for_all, 3);
+    testable->init(cfg);
+    testable->add_service(service1);
+    testable->add_service(service2);
+    service1->init(dict{});
+    service2->init(dict{});
+    testable->start();
+    
+    // 触发崩溃，应该重启所有服务
+    testable->expose_handle_service_crash("service1");
+}
+
+// 测试 restart_all_services - 超过最大重启次数
+TEST_F(default_supervisor_test, RestartAllServicesExceedsMaxRestarts) {
+    auto service1 = mc::make_shared<test_service>("service1");
+    auto service2 = mc::make_shared<test_service>("service2");
+    
+    auto testable = std::make_shared<testable_supervisor>();
+    config::supervisor_config cfg = make_supervisor_config(
+        "test", config::supervisor_strategy::one_for_all, 2);
+    testable->init(cfg);
+    testable->add_service(service1);
+    testable->add_service(service2);
+    service1->init(dict{});
+    service2->init(dict{});
+    testable->start();
+    
+    // 触发崩溃多次，超过最大重启次数
+    testable->expose_handle_service_crash("service1");
+    testable->expose_handle_service_crash("service1");
+    testable->expose_handle_service_crash("service1"); // 第3次，应该超过限制
+    
+    // 再次触发应该不重启（超过限制）
+    testable->expose_handle_service_crash("service1");
+}
+
+// 测试 restart_all_services - 启动失败的情况
+TEST_F(default_supervisor_test, RestartAllServicesStartFailure) {
+    auto service1 = mc::make_shared<test_service>("service1");
+    auto service2 = mc::make_shared<failing_service>("failing_service", false, true);
+    
+    auto testable = std::make_shared<testable_supervisor>();
+    config::supervisor_config cfg = make_supervisor_config(
+        "test", config::supervisor_strategy::one_for_all, 3);
+    testable->init(cfg);
+    testable->add_service(service1);
+    testable->add_service(service2);
+    service1->init(dict{});
+    service2->init(dict{});
+    testable->start();
+    
+    // 触发崩溃，重启应该失败（因为 service2 启动失败）
+    testable->expose_handle_service_crash("service1");
+}
+
+// 测试 restart_dependent_services - 覆盖所有分支
+TEST_F(default_supervisor_test, RestartDependentServices) {
+    auto service1 = mc::make_shared<test_service>("service1");
+    auto service2 = mc::make_shared<test_service>("service2");
+    service2->set_dependencies_public({"service1"});
+    
+    supervisor->add_service(service1);
+    supervisor->add_service(service2);
+    service1->init(dict{});
+    service2->init(dict{});
+    supervisor->start();
+    
+    // 通过 handle_service_crash 的 rest_for_one 策略间接测试
+    auto testable = std::make_shared<testable_supervisor>();
+    config::supervisor_config cfg = make_supervisor_config(
+        "test", config::supervisor_strategy::rest_for_one, 3);
+    testable->init(cfg);
+    testable->add_service(service1);
+    testable->add_service(service2);
+    service1->init(dict{});
+    service2->init(dict{});
+    testable->start();
+    
+    // 触发 service1 崩溃，应该重启依赖它的服务（service2）
+    testable->expose_handle_service_crash("service1");
+}
+
+// 测试 restart_dependent_services - 重启失败的情况
+TEST_F(default_supervisor_test, RestartDependentServicesFailure) {
+    auto service1 = mc::make_shared<test_service>("service1");
+    auto service2 = mc::make_shared<failing_service>("failing_service", false, true);
+    service2->set_dependencies_public({"service1"});
+    
+    auto testable = std::make_shared<testable_supervisor>();
+    config::supervisor_config cfg = make_supervisor_config(
+        "test", config::supervisor_strategy::rest_for_one, 3);
+    testable->init(cfg);
+    testable->add_service(service1);
+    testable->add_service(service2);
+    service1->init(dict{});
+    service2->init(dict{});
+    testable->start();
+    
+    // 触发 service1 崩溃，应该尝试重启 service2，但会失败
+    testable->expose_handle_service_crash("service1");
+}
+
+// 测试 stop_one_child_supervisor - 覆盖所有分支
+TEST_F(default_supervisor_test, StopOneChildSupervisor) {
+    auto child_supervisor = std::make_shared<default_supervisor>();
+    config::supervisor_config child_cfg = make_supervisor_config(
+        "child", config::supervisor_strategy::one_for_one, 3);
+    child_supervisor->init(child_cfg);
+    
+    supervisor->add_child(child_supervisor);
+    supervisor->start();
+    
+    // 停止子监督器（通过 stop() 间接测试）
+    EXPECT_TRUE(supervisor->stop());
+}
+
+// 测试 stop_one_child_supervisor - 停止失败的情况
+TEST_F(default_supervisor_test, StopOneChildSupervisorFailure) {
+    // 创建一个会在 stop 时返回 false 的子监督器
+    class failing_supervisor : public default_supervisor {
+    public:
+        bool stop() override {
+            return false; // 总是失败
+        }
+    };
+    
+    auto child_supervisor = std::make_shared<failing_supervisor>();
+    config::supervisor_config child_cfg = make_supervisor_config(
+        "child", config::supervisor_strategy::one_for_one, 3);
+    child_supervisor->init(child_cfg);
+    
+    supervisor->add_child(child_supervisor);
+    supervisor->start();
+    
+    // 停止应该失败
+    EXPECT_FALSE(supervisor->stop());
+}
+
+// 测试 stop_one_child_supervisor - 异常处理分支
+TEST_F(default_supervisor_test, StopOneChildSupervisorException) {
+    // 创建一个会在 stop 时抛出异常的子监督器
+    class exception_supervisor : public default_supervisor {
+    public:
+        bool stop() override {
+            throw std::runtime_error("stop failed");
+        }
+    };
+    
+    auto child_supervisor = std::make_shared<exception_supervisor>();
+    config::supervisor_config child_cfg = make_supervisor_config(
+        "child", config::supervisor_strategy::one_for_one, 3);
+    child_supervisor->init(child_cfg);
+    
+    supervisor->add_child(child_supervisor);
+    supervisor->start();
+    
+    // 停止应该失败，但不会抛出异常（被 catch 捕获）
+    EXPECT_FALSE(supervisor->stop());
+}
+
+// 测试 start() - 子监督器启动失败的分支（覆盖 line 49-56）
+TEST_F(default_supervisor_test, StartChildSupervisorFailure) {
+    // 创建一个会在 start 时返回 false 的子监督器
+    class failing_supervisor : public default_supervisor {
+    public:
+        bool start() override {
+            return false; // 总是失败
+        }
+    };
+    
+    auto child_supervisor = std::make_shared<failing_supervisor>();
+    config::supervisor_config child_cfg = make_supervisor_config(
+        "child", config::supervisor_strategy::one_for_one, 3);
+    child_supervisor->init(child_cfg);
+    
+    supervisor->add_child(child_supervisor);
+    
+    // 启动应该失败（因为子监督器启动失败）
+    EXPECT_FALSE(supervisor->start());
+}
+
+// 测试 add_child - 重复添加子监督器（覆盖 line 189-190 的分支）
+TEST_F(default_supervisor_test, AddChildDuplicate) {
+    auto child_supervisor1 = std::make_shared<default_supervisor>();
+    config::supervisor_config child_cfg = make_supervisor_config(
+        "child", config::supervisor_strategy::one_for_one, 3);
+    child_supervisor1->init(child_cfg);
+    
+    EXPECT_TRUE(supervisor->add_child(child_supervisor1));
+    
+    // 尝试添加同名的子监督器应该失败
+    auto child_supervisor2 = std::make_shared<default_supervisor>();
+    child_supervisor2->init(child_cfg);
+    EXPECT_FALSE(supervisor->add_child(child_supervisor2));
+}
+
+// 测试复杂场景 - 融合所有未覆盖的功能
+TEST_F(default_supervisor_test, ComplexScenarioAllUncoveredFeatures) {
+    // 创建多个服务和子监督器
+    auto service1 = mc::make_shared<test_service>("service1");
+    auto service2 = mc::make_shared<test_service>("service2");
+    service2->set_dependencies_public({"service1"});
+    
+    auto child_supervisor = std::make_shared<default_supervisor>();
+    config::supervisor_config child_cfg = make_supervisor_config(
+        "child", config::supervisor_strategy::one_for_one, 3);
+    child_supervisor->init(child_cfg);
+    
+    supervisor->add_service(service1);
+    supervisor->add_service(service2);
+    supervisor->add_child(child_supervisor);
+    
+    service1->init(dict{});
+    service2->init(dict{});
+    
+    // 启动（覆盖子监督器启动分支）
+    EXPECT_TRUE(supervisor->start());
+    
+    // 等待超过 5 秒，触发重启计数重置
+    std::this_thread::sleep_for(std::chrono::seconds(6));
+    
+    // 触发崩溃，测试重启机制
+    auto testable = std::make_shared<testable_supervisor>();
+    config::supervisor_config cfg = make_supervisor_config(
+        "test", config::supervisor_strategy::rest_for_one, 3);
+    testable->init(cfg);
+    testable->add_service(service1);
+    testable->add_service(service2);
+    service1->init(dict{});
+    service2->init(dict{});
+    testable->start();
+    
+    testable->expose_handle_service_crash("service1");
+    
+    // 停止（覆盖子监督器停止分支）
+    EXPECT_TRUE(supervisor->stop());
+}
+
+// 测试 restart_one_service - 找不到服务
+TEST_F(default_supervisor_test, restart_unknown_service_fails) {
+    auto testable = std::make_shared<testable_supervisor>();
+    config::supervisor_config cfg = make_supervisor_config(
+        "test", config::supervisor_strategy::one_for_one, 3);
+    testable->init(cfg);
+    
+    // 重启不存在的服务应该返回 false
+    EXPECT_FALSE(testable->expose_restart_one_service("nonexistent_service"));
+}
+
+// 测试 stop_one_child_supervisor - 子服务 stop 抛异常
+TEST_F(default_supervisor_test, stop_child_exception_propagates) {
+    // 创建一个会在 stop 时抛出异常的子监督器
+    class exception_supervisor : public default_supervisor {
+    public:
+        bool stop() override {
+            throw std::runtime_error("stop failed");
+        }
+    };
+    
+    auto child_supervisor = std::make_shared<exception_supervisor>();
+    config::supervisor_config child_cfg = make_supervisor_config(
+        "child", config::supervisor_strategy::one_for_one, 3);
+    child_supervisor->init(child_cfg);
+    
+    supervisor->add_child(child_supervisor);
+    supervisor->start();
+    
+    // 停止应该失败，但不会抛出异常（被 catch 捕获）
+    EXPECT_FALSE(supervisor->stop());
 }

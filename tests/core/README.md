@@ -116,13 +116,13 @@ Core 模块包含以下测试文件：
 - `validate_plugin_config_missing_version` - 测试缺少 version 字段
 
 ### test_connection_manager.cpp
-连接管理器测试（11 个用例）：
+连接管理器测试（10 个用例）：
 - `add_connection` - 测试添加连接
 - `add_multiple_connections` - 测试添加多个连接
 - `add_connection_with_id` - 测试使用指定 ID 添加连接
 - `add_connection_duplicate_id` - 测试重复 ID 处理
 - `remove_connection` - 测试移除连接
-- `remove_nonexistent_connection` - 测试移除不存在的连接
+- `remove_nonexistent_connection` - 测试移除不存在的连接（合并了原 remove_nonexistent_connection_id）
 - `remove_connections` - 测试批量移除连接
 - `remove_nonexistent_signal_connections` - 测试移除不存在的信号连接
 - `clear` - 测试清空所有连接
@@ -130,7 +130,7 @@ Core 模块包含以下测试文件：
 - `multiple_signals` - 测试多个信号管理
 
 ### test_default_supervisor.cpp
-默认监督器测试（35 个用例，包含 31 个 default_supervisor_test 和 4 个 SupervisorManagerTest）：
+默认监督器测试（约 54 个用例，包含约 50 个 default_supervisor_test 和 4 个 SupervisorManagerTest）：
 - `constructor` - 测试构造函数
 - `init` - 测试初始化
 - `add_service` - 测试添加服务
@@ -162,6 +162,25 @@ Core 模块包含以下测试文件：
 - `handle_service_crash_unlimited_restarts` - 测试无限制重启
 - `handle_service_crash_one_for_all_strategy` - 测试 one_for_all 策略崩溃处理
 - `handle_service_crash_rest_for_one_strategy` - 测试 rest_for_one 策略崩溃处理
+- `StartOneService` - 测试启动单个服务（覆盖所有分支）
+- `StartOneServiceException` - 测试启动服务时的异常处理
+- `StopOneService` - 测试停止单个服务（覆盖所有分支）
+- `StopOneServiceException` - 测试停止服务时的异常处理
+- `StopOneServiceFailure` - 测试停止服务失败的情况
+- `RestartOneService` - 测试重启单个服务（覆盖所有分支）
+- `RestartOneServiceStopFailure` - 测试重启服务时 stop 失败的情况（已删除重复的 restart_service_stop_fails_rolls_back）
+- `RestartOneServiceStartFailure` - 测试重启服务时 start 失败的情况
+- `RestartAllServicesWithCountReset` - 测试重启所有服务（包括重启计数重置）
+- `RestartAllServicesExceedsMaxRestarts` - 测试超过最大重启次数
+- `RestartAllServicesStartFailure` - 测试重启所有服务时启动失败的情况
+- `RestartDependentServices` - 测试重启依赖服务（覆盖所有分支）
+- `RestartDependentServicesFailure` - 测试重启依赖服务失败的情况
+- `StopOneChildSupervisor` - 测试停止单个子监督器（覆盖所有分支）
+- `StopOneChildSupervisorFailure` - 测试停止子监督器失败的情况
+- `StopOneChildSupervisorException` - 测试停止子监督器时的异常处理
+- `StartChildSupervisorFailure` - 测试启动时子监督器失败的分支
+- `AddChildDuplicate` - 测试重复添加子监督器
+- `ComplexScenarioAllUncoveredFeatures` - 测试复杂场景，融合所有未覆盖的功能
 
 **SupervisorManagerTest（4 个）**：
 - `ManageSupervisorsLifecycle` - 测试监督器管理器的生命周期管理（创建、添加、启动、停止）
@@ -191,7 +210,7 @@ Core 模块包含以下测试文件：
 - `create_service_handles_missing_or_failed_services` - 触发未注册及初始化失败时的空指针返回路径
 
 ### test_plugin_manager.cpp
-插件管理器测试（17 个用例）：
+插件管理器测试（22 个用例）：
 - `constructor_destructor` - 测试构造和析构
 - `set_get_plugin_dir` - 测试设置和获取插件目录
 - `register_plugin` - 测试注册插件
@@ -209,6 +228,11 @@ Core 模块包含以下测试文件：
 - `load_plugin_missing_library` - 测试加载不存在的库
 - `load_plugin_stub_shared_object` - 测试加载存根共享对象
 - `load_plugin_without_factory_symbols` - 测试加载没有工厂符号的库
+- `load_plugin_already_loaded` - 测试加载已加载的插件（覆盖 "already loaded" 分支）
+- `load_plugins_with_names` - 测试指定插件名称列表（覆盖 plugin_names 非空分支）
+- `load_plugins_from_directory` - 测试从目录加载所有插件（覆盖目录遍历分支）
+- `load_plugins_directory_error` - 测试目录遍历异常处理（覆盖 filesystem_error 分支）
+- `load_plugins_register_failure` - 测试插件注册失败的情况
 
 ### test_service_manager.cpp
 服务管理器测试（18 个用例）：
@@ -249,7 +273,7 @@ Core 模块包含以下测试文件：
 - `DestroyInstancesIsIdempotent` - 测试销毁实例是幂等的
 
 ### test_thread_safe_object.cpp
-线程安全对象测试（12 个用例）：
+线程安全对象测试（21 个用例）：
 - `BasicParentChildRelationship` - 测试基础父子关系
 - `ConcurrentEnsureImplAccess` - 测试并发确保实现访问
 - `ConcurrentPropertyAccess` - 测试并发属性访问
@@ -262,6 +286,15 @@ Core 模块包含以下测试文件：
 - `ConcurrentNameOperations` - 测试并发名称操作
 - `ConcurrentSetParent` - 测试并发设置父对象
 - `ConcurrentDestructionAccess` - 测试并发销毁访问
+- `ObjectCopyConstructor` - 测试 object 的复制构造函数
+- `ObjectCopyAssignment` - 测试 object 的复制赋值运算符
+- `ObjectBaseMoveOperations` - 测试 object_base 的移动操作
+- `DisconnectAll` - 测试 disconnect_all 方法
+- `WeakFromThis` - 测试 weak_from_this 方法
+- `WeakFromThisConst` - 测试 const 版本的 weak_from_this
+- `ObjectImplCopyOperations` - 测试 object_impl 的复制操作
+- `ClearConnections` - 测试 clear_connections 方法
+- `ComplexScenarioAllUncoveredFeatures` - 测试复杂场景，融合所有未覆盖的功能
 
 ### test_timer.cpp
 定时器测试（12 个用例）：
@@ -362,19 +395,19 @@ meson test -C builddir --test-args="--gtest_filter=config_manager_test.parse_com
 ## 测试统计
 
 - **测试文件总数**: 13 个
-- **测试用例总数**: 204 个
+- **测试用例总数**: 约 248+ 个
   - `test_application.cpp`: 20 个
   - `test_config_manager.cpp`: 33 个
   - `test_config_validator.cpp`: 20 个
-  - `test_connection_manager.cpp`: 11 个
-  - `test_default_supervisor.cpp`: 35 个（31 个 default_supervisor_test + 4 个 SupervisorManagerTest）
+  - `test_connection_manager.cpp`: 10 个（已删除重复的 remove_nonexistent_connection_id）
+  - `test_default_supervisor.cpp`: 约 54 个（约 50 个 default_supervisor_test + 4 个 SupervisorManagerTest，已删除重复的 restart_service_stop_fails_rolls_back）
   - `test_dependency_sorter.cpp`: 6 个
-  - `test_plugin_manager.cpp`: 17 个
+  - `test_plugin_manager.cpp`: 22 个
   - `test_service.cpp`: 3 个
   - `test_service_factory.cpp`: 3 个
   - `test_service_manager.cpp`: 18 个
   - `test_singleton.cpp`: 14 个
-  - `test_thread_safe_object.cpp`: 12 个
+  - `test_thread_safe_object.cpp`: 21 个
   - `test_timer.cpp`: 12 个
 - **测试覆盖的功能模块**:
   - Application（应用程序）
