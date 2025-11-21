@@ -88,17 +88,7 @@ template <typename T>
 using result_variant = std::variant<
     // 同步返回值类型
     std::conditional_t<std::is_same_v<T, void>, std::monostate, T>,
-    // 异步返回值类型，暂时值支持这几种 Executor 类型，有需要再扩展
-    mc::future<T, io_context::executor_type>,
-    mc::future<T, system_context::executor_type>,
-    mc::future<T, thread_pool::executor_type>,
-    mc::future<T, strand_t<io_context::executor_type>>,
-    mc::future<T, strand_t<system_context::executor_type>>,
-    mc::future<T, strand_t<thread_pool::executor_type>>,
-    mc::future<T, mc::immediate_executor>,
-    mc::future<T, mc::executor>,
     mc::future<T, mc::any_executor>,
-    mc::future<T, boost::asio::any_io_executor>,
     // 返回错误
     mc::error_ptr>;
 
@@ -141,7 +131,7 @@ public:
                       !std::is_same_v<typename std::decay_t<FutureType>::value_type, mc::error_ptr>,
                   int> = 0>
     result(FutureType&& v)
-        : m_value(std::forward<FutureType>(v).template as_future<value_type>()) {
+        : m_value(std::forward<FutureType>(v).template as_future<value_type>(mc::any_executor())) {
     }
 
     // 构造通过 mc::future<mc::error_ptr> 类型返回的结果
@@ -152,8 +142,9 @@ public:
                   int> = 0>
     result(FutureType&& v)
         : m_value(std::forward<FutureType>(v).then([](auto&& v) -> value_type {
-              detail::throw_method_call_exception(v);
-          })) {
+                                                 detail::throw_method_call_exception(v);
+                                             })
+                      .template as_future<value_type>(mc::any_executor())) {
     }
 
     // 从其他 result<OtherT> 类型构造
