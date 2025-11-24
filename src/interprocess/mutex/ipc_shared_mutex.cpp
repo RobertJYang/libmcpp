@@ -105,9 +105,10 @@ bool ipc_shared_mutex::try_lock() {
     // 使用互斥锁保护整个操作
     std::lock_guard<ipc_mutex> guard(m_reader_mutex);
 
-    // 如果已经持有写锁，直接返回成功
+    // 如果已经持有写锁，不允许重入，返回失败（与ipc_mutex语义一致）
     if (m_writer_pid == pid) {
-        return true;
+        wlog("进程${pid}尝试重复获取写锁，不允许重入，返回失败", ("pid", pid));
+        return false;
     }
 
     // 检查是否有其他写锁拥有者

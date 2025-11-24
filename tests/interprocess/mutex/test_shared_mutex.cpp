@@ -16,12 +16,14 @@
 #include <mc/interprocess/shared_memory_manager.h>
 #include <mc/runtime/thread_list.h>
 #include <test_utilities/test_base.h>
+#include "../runtime/test_future_helpers.h"
 
 #ifdef __unix__
 #include <sys/wait.h>
 #endif
 #include <atomic>
 #include <chrono>
+#include <future>
 #include <system_error>
 #include <thread>
 #include <unistd.h>
@@ -146,24 +148,27 @@ TEST_F(SharedMutexTestFixture, TryLock) {
 
 // 测试 mutex 的 try_lock_for
 TEST_F(SharedMutexTestFixture, TryLockFor) {
-    // 首先获取锁
-    m_mutex->lock();
+    std::promise<void> lock_ready;
+    std::promise<void> release_lock;
+    auto               release_future = release_lock.get_future();
 
-    // 启动一个线程尝试获取锁，应该超时
-    std::thread t([this]() {
-        auto start = std::chrono::steady_clock::now();
-        EXPECT_FALSE(m_mutex->try_lock_for(std::chrono::milliseconds(100)));
-        auto end = std::chrono::steady_clock::now();
-
-        // 确保时间至少接近超时时间，但原始测试太严格了
-        // 我们放宽标准，只要有实际的等待（超过10毫秒）就可以
-        auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
-        std::cout << "实际等待时间: " << duration << "ms" << std::endl;
-        EXPECT_GE(duration, 10); // 放宽标准
+    std::thread holder([this, &lock_ready, release_future = std::move(release_future)]() mutable {
+        m_mutex->lock();
+        lock_ready.set_value();
+        release_future.wait();
+        m_mutex->unlock();
     });
 
-    t.join();
-    m_mutex->unlock();
+    lock_ready.get_future().wait();
+
+    auto start = std::chrono::steady_clock::now();
+    EXPECT_FALSE(m_mutex->try_lock_for(std::chrono::milliseconds(100)));
+    auto   end      = std::chrono::steady_clock::now();
+    auto   duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+    EXPECT_GE(duration, 90);
+
+    release_lock.set_value();
+    holder.join();
 }
 
 // 测试 shared_mutex 在单进程多线程环境下的基本功能
@@ -250,8 +255,8 @@ TEST_F(SharedMutexTestFixture, IpcSharedMutexReentrantTryLockShared) {
 TEST_F(SharedMutexTestFixture, IpcSharedMutexReentrantTryLock) {
     // 获取写锁
     EXPECT_TRUE(m_ipc_shared_mutex->try_lock());
-    // 重复获取应该返回 true（已持有写锁）
-    EXPECT_TRUE(m_ipc_shared_mutex->try_lock());
+    // 重复获取应该返回 false（不允许重入，与ipc_mutex语义一致）
+    EXPECT_FALSE(m_ipc_shared_mutex->try_lock());
     m_ipc_shared_mutex->unlock();
 }
 
@@ -1073,3 +1078,154 @@ TEST_F(SharedMutexTestFixture, CleanupDeadWriterAllowsProgress) {
     m_shared_mutex->unlock();
 }
 #endif
+
+// 测试 shared_mutex 析构时持有读锁的情况
+TEST_F(SharedMutexTestFixture, SharedMutexDestructorWithReadLock) {
+    // 创建一个 shared_mutex 对象
+    auto local_shared_mutex = std::make_unique<shared_mutex>(*m_ipc_shared_mutex);
+    
+    // 获取读锁但不释放
+    EXPECT_TRUE(local_shared_mutex->try_lock_shared());
+    
+    // 让对象析构，验证析构函数正确释放 IPC 读锁
+    local_shared_mutex.reset();
+    
+    // 验证 IPC 读锁已被释放（可以通过尝试获取写锁来验证）
+    EXPECT_TRUE(m_ipc_shared_mutex->try_lock());
+    m_ipc_shared_mutex->unlock();
+}
+
+// 测试 shared_mutex 析构时持有写锁的情况
+TEST_F(SharedMutexTestFixture, SharedMutexDestructorWithWriteLock) {
+    // 创建一个 shared_mutex 对象
+    auto local_shared_mutex = std::make_unique<shared_mutex>(*m_ipc_shared_mutex);
+    
+    // 获取写锁但不释放
+    EXPECT_TRUE(local_shared_mutex->try_lock());
+    
+    // 让对象析构，验证析构函数正确释放 IPC 写锁
+    local_shared_mutex.reset();
+    
+    // 验证 IPC 写锁已被释放（可以通过尝试获取写锁来验证）
+    EXPECT_TRUE(m_ipc_shared_mutex->try_lock());
+    m_ipc_shared_mutex->unlock();
+}
+
+// 测试 shared_mutex::try_lock() 中线程锁获取失败的情况
+TEST_F(SharedMutexTestFixture, SharedMutexTryLockThreadMutexFailure) {
+    // 在一个线程中先获取线程锁（通过另一个 shared_mutex 实例）
+    // 注意：由于 std::shared_mutex 允许多个读锁，我们需要通过写锁来测试
+    std::thread holder([this]() {
+        // 获取写锁，这会持有线程写锁
+        m_shared_mutex->lock();
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        m_shared_mutex->unlock();
+    });
+    
+    // 等待 holder 获取锁
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    
+    // 在另一个线程中调用 try_lock()，应该返回 false（因为线程写锁被持有）
+    std::atomic<bool> try_lock_result(false);
+    std::thread contender([this, &try_lock_result]() {
+        try_lock_result = m_shared_mutex->try_lock();
+        if (try_lock_result) {
+            m_shared_mutex->unlock();
+        }
+    });
+    
+    contender.join();
+    holder.join();
+    
+    // 验证 try_lock 返回 false（因为线程写锁被 holder 持有）
+    EXPECT_FALSE(try_lock_result);
+}
+
+// 测试 shared_mutex::try_lock() 中 IPC 锁获取失败的情况
+TEST_F(SharedMutexTestFixture, SharedMutexTryLockIpcFailure) {
+    // 在一个线程中先获取 IPC 写锁（通过 ipc_shared_mutex 直接获取）
+    mc::test::runtime::future_flag lock_ready;
+    std::thread holder([this, &lock_ready]() {
+        EXPECT_TRUE(m_ipc_shared_mutex->try_lock());
+        lock_ready.set();
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        m_ipc_shared_mutex->unlock();
+    });
+    
+    // 等待 holder 获取锁
+    ASSERT_TRUE(lock_ready.wait_for(std::chrono::milliseconds(3000)));
+    
+    // 在另一个线程中调用 shared_mutex::try_lock()，应该返回 false
+    std::atomic<bool> try_lock_result(false);
+    std::thread contender([this, &try_lock_result]() {
+        try_lock_result = m_shared_mutex->try_lock();
+        if (try_lock_result) {
+            m_shared_mutex->unlock();
+        }
+    });
+    
+    contender.join();
+    holder.join();
+    
+    // 验证 try_lock 返回 false（因为 IPC 写锁被 holder 持有）
+    EXPECT_FALSE(try_lock_result);
+}
+
+// 测试 shared_mutex::try_lock_shared() 中线程读锁获取失败的情况
+// 注意：由于 std::shared_mutex 允许多个读锁，这个场景需要特殊处理
+TEST_F(SharedMutexTestFixture, SharedMutexTryLockSharedThreadMutexFailure) {
+    // 由于 std::shared_mutex 允许多个读锁，我们需要通过写锁来阻止读锁
+    // 在一个线程中先获取写锁（这会阻止读锁）
+    std::thread holder([this]() {
+        m_shared_mutex->lock();
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        m_shared_mutex->unlock();
+    });
+    
+    // 等待 holder 获取写锁
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    
+    // 在另一个线程中调用 try_lock_shared()，应该返回 false（因为写锁被持有）
+    std::atomic<bool> try_lock_result(false);
+    std::thread contender([this, &try_lock_result]() {
+        try_lock_result = m_shared_mutex->try_lock_shared();
+        if (try_lock_result) {
+            m_shared_mutex->unlock_shared();
+        }
+    });
+    
+    contender.join();
+    holder.join();
+    
+    // 验证 try_lock_shared 返回 false（因为写锁被 holder 持有）
+    EXPECT_FALSE(try_lock_result);
+}
+
+// 测试 shared_mutex::try_lock_shared() 中 IPC 读锁获取失败的情况
+TEST_F(SharedMutexTestFixture, SharedMutexTryLockSharedIpcFailure) {
+    // 在一个线程中先获取 IPC 写锁（通过 ipc_shared_mutex 直接获取）
+    std::thread holder([this]() {
+        EXPECT_TRUE(m_ipc_shared_mutex->try_lock());
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        m_ipc_shared_mutex->unlock();
+    });
+    
+    // 等待 holder 获取写锁
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    
+    // 在另一个线程中调用 shared_mutex::try_lock_shared()（作为第一个读者）
+    // 应该返回 false 并正确释放线程读锁
+    std::atomic<bool> try_lock_result(false);
+    std::thread contender([this, &try_lock_result]() {
+        try_lock_result = m_shared_mutex->try_lock_shared();
+        if (try_lock_result) {
+            m_shared_mutex->unlock_shared();
+        }
+    });
+    
+    contender.join();
+    holder.join();
+    
+    // 验证 try_lock_shared 返回 false（因为 IPC 写锁被 holder 持有）
+    EXPECT_FALSE(try_lock_result);
+}
