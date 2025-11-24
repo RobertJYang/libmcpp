@@ -22,7 +22,6 @@
 #include <mc/core/object.h>
 #include <mc/dict.h>
 
-#include <cstdint>
 #include <memory>
 #include <string>
 #include <vector>
@@ -74,11 +73,6 @@ public:
     virtual void on_dump(std::map<std::string, std::string> context, std::string filepath) = 0;
     // 实现与在线调试工具断开连接的组件处理逻辑
     virtual void on_detach_debug_console(std::map<std::string, std::string> context) = 0;
-    virtual void on_attach_debug_console(std::map<std::string, std::string> context, uint32_t port) = 0;
-    virtual void on_set_dlog_level(std::map<std::string, std::string> context, std::string level,
-                                   uint8_t effective_hours)                                            = 0;
-    virtual void on_dlog_limit(std::map<std::string, std::string> context, bool enabled,
-                               uint8_t duration_mins)                                                   = 0;
     // 实现平滑重启Prepare阶段的组件处理逻辑
     virtual int32_t on_reboot_prepare(std::map<std::string, std::string> context) = 0;
     // 实现平滑重启Process阶段的组件处理逻辑
@@ -129,14 +123,6 @@ public:
     }
 
     void on_detach_debug_console(std::map<std::string, std::string> context) override {
-    }
-    void on_attach_debug_console(std::map<std::string, std::string> context, uint32_t port) override {
-    }
-    void on_set_dlog_level(std::map<std::string, std::string> context, std::string level,
-                           uint8_t effective_hours) override {
-    }
-    void on_dlog_limit(std::map<std::string, std::string> context, bool enabled,
-                       uint8_t duration_mins) override {
     }
 
     int32_t on_reboot_prepare(std::map<std::string, std::string> context) override {

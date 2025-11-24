@@ -28,6 +28,36 @@ using namespace mc::engine;
 struct test_service_1 : public mc::engine::service {
     test_service_1() : mc::engine::service("org.openubmc.test_service_1") {
     }
+    void on_dump(std::map<std::string, std::string> context, std::string filepath) override {
+        m_ctx_value = context["Test"];
+        m_dump_filepath = filepath;
+    }
+
+    void on_detach_debug_console(std::map<std::string, std::string> context) override {
+        m_ctx_value = context["Test"];
+    }
+
+    int32_t on_reboot_prepare(std::map<std::string, std::string> context) override {
+        m_ctx_value = context["Test"];
+        return 0;
+    }
+
+    int32_t on_reboot_process(std::map<std::string, std::string> context) override {
+        m_ctx_value = context["Test"];
+        return 0;
+    }
+
+    int32_t on_reboot_action(std::map<std::string, std::string> context) override {
+        m_ctx_value = context["Test"];
+        return 0;
+    }
+
+    void on_reboot_cancel(std::map<std::string, std::string> context) override {
+        m_ctx_value = context["Test"];
+    }
+
+    std::string m_ctx_value;
+    std::string m_dump_filepath;
 };
 
 static mc::milliseconds                   call_timeout(1000);
@@ -324,7 +354,9 @@ TEST_F(MicroComponentTest, TestMicroComponentDebugInterface) {
                                                            "/bmc/kepler/test_service_1/MicroComponent",
                                                            "bmc.kepler.MicroComponent.Debug", "DetachDebugConsole");
             auto writer = msg.writer();
-            writer << empty_ctx;
+            std::map<std::string, std::string> detach_ctx;
+            detach_ctx["Test"] = "TestDetachDebugConsole";
+            writer << detach_ctx;
             return msg;
         },
         extended_timeout);
@@ -334,6 +366,10 @@ TEST_F(MicroComponentTest, TestMicroComponentDebugInterface) {
         << " reply_error=" << (detach_reply.is_error() ? detach_reply.get_error_name() : "");
     output = detach_reply.read_args();
     EXPECT_EQ(output.size(), 0);
+    EXPECT_EQ(service_1->m_ctx_value, "TestDetachDebugConsole");
+
+    // 添加短暂延迟，确保上下文已更新
+    std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
     auto dump_reply = wait_valid_reply(
         test_conn,
@@ -342,7 +378,9 @@ TEST_F(MicroComponentTest, TestMicroComponentDebugInterface) {
                                                            "/bmc/kepler/test_service_1/MicroComponent",
                                                            "bmc.kepler.MicroComponent.Debug", "Dump");
             auto writer = msg.writer();
-            writer << empty_ctx << "";
+            std::map<std::string, std::string> dump_ctx;
+            dump_ctx["Test"] = "TestDump";
+            writer << dump_ctx << "test_file.log";
             return msg;
         },
         extended_timeout);
@@ -352,6 +390,11 @@ TEST_F(MicroComponentTest, TestMicroComponentDebugInterface) {
         << " reply_error=" << (dump_reply.is_error() ? dump_reply.get_error_name() : "");
     output = dump_reply.read_args();
     EXPECT_EQ(output.size(), 0);
+    EXPECT_EQ(service_1->m_ctx_value, "TestDump");
+    EXPECT_EQ(service_1->m_dump_filepath, "test_file.log");
+
+    // 添加短暂延迟，避免后续调用过快
+    std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
     auto set_dlog_reply = wait_valid_reply(
         test_conn,

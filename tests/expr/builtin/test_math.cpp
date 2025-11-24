@@ -112,6 +112,10 @@ TEST_F(math_builtin_test, PowFunction) {
     // 测试零次方
     EXPECT_EQ(engine.evaluate("pow(42, 0)", context), 1.0);
 
+    // 测试负底数（应该抛出异常）
+    EXPECT_THROW(engine.evaluate("pow(-1, 2)", context), mc::invalid_arg_exception);
+    EXPECT_THROW(engine.evaluate("pow(-2.5, 3)", context), mc::invalid_arg_exception);
+
     // 测试参数错误
     EXPECT_THROW(engine.evaluate("pow(2)", context), mc::invalid_arg_exception);
     EXPECT_THROW(engine.evaluate("pow('string', 2)", context), mc::invalid_arg_exception);
@@ -162,4 +166,89 @@ TEST_F(math_builtin_test, FloorFunction) {
 
     // 实参个数比形参个数多，允许
     EXPECT_NO_THROW(engine.evaluate("floor(1, 2)", context));
+}
+
+// 测试 ceil 函数
+TEST_F(math_builtin_test, CeilFunction) {
+    // 测试整数
+    EXPECT_EQ(engine.evaluate("ceil(42)", context), 42.0);
+
+    // 测试浮点数
+    EXPECT_EQ(engine.evaluate("ceil(3.14)", context), 4.0);
+    EXPECT_EQ(engine.evaluate("ceil(2.01)", context), 3.0);
+
+    // 测试负浮点数
+    EXPECT_EQ(engine.evaluate("ceil(-3.14)", context), -3.0);
+    EXPECT_EQ(engine.evaluate("ceil(-2.0)", context), -2.0);
+
+    // 测试参数错误
+    EXPECT_THROW(engine.evaluate("ceil()", context), mc::invalid_arg_exception);
+    EXPECT_THROW(engine.evaluate("ceil('string')", context), mc::invalid_arg_exception);
+
+    // 实参个数比形参个数多，允许
+    EXPECT_NO_THROW(engine.evaluate("ceil(1, 2)", context));
+}
+
+// 测试 round 函数
+TEST_F(math_builtin_test, RoundFunction) {
+    // 测试整数
+    EXPECT_EQ(engine.evaluate("round(42)", context), 42.0);
+
+    // 测试浮点数
+    EXPECT_EQ(engine.evaluate("round(3.14)", context), 3.0);
+    EXPECT_EQ(engine.evaluate("round(3.5)", context), 4.0);
+    EXPECT_EQ(engine.evaluate("round(2.49)", context), 2.0);
+
+    // 测试负浮点数
+    EXPECT_EQ(engine.evaluate("round(-3.14)", context), -3.0);
+    EXPECT_EQ(engine.evaluate("round(-3.5)", context), -4.0);
+
+    // 测试参数错误
+    EXPECT_THROW(engine.evaluate("round()", context), mc::invalid_arg_exception);
+    EXPECT_THROW(engine.evaluate("round('string')", context), mc::invalid_arg_exception);
+
+    // 实参个数比形参个数多，允许
+    EXPECT_NO_THROW(engine.evaluate("round(1, 2)", context));
+}
+
+// 测试 log 函数
+TEST_F(math_builtin_test, LogFunction) {
+    // 测试正数
+    EXPECT_NEAR(engine.evaluate("log(1)", context).as_double(), 0.0, 1e-10);
+    EXPECT_NEAR(engine.evaluate("log(2.718281828)", context).as_double(), 1.0, 1e-6);
+    EXPECT_NEAR(engine.evaluate("log(10)", context).as_double(), 2.302585093, 1e-6);
+
+    // 测试零（应该抛出异常）
+    EXPECT_THROW(engine.evaluate("log(0)", context), mc::invalid_arg_exception);
+
+    // 测试负数（应该抛出异常）
+    EXPECT_THROW(engine.evaluate("log(-1)", context), mc::invalid_arg_exception);
+    EXPECT_THROW(engine.evaluate("log(-10.5)", context), mc::invalid_arg_exception);
+
+    // 测试参数错误
+    EXPECT_THROW(engine.evaluate("log()", context), mc::invalid_arg_exception);
+    EXPECT_THROW(engine.evaluate("log('string')", context), mc::invalid_arg_exception);
+
+    // 实参个数比形参个数多，允许
+    EXPECT_NO_THROW(engine.evaluate("log(2, 3)", context));
+}
+
+// 测试 exp 函数
+TEST_F(math_builtin_test, ExpFunction) {
+    // 测试零
+    EXPECT_EQ(engine.evaluate("exp(0)", context), 1.0);
+
+    // 测试正数
+    EXPECT_NEAR(engine.evaluate("exp(1)", context).as_double(), 2.718281828, 1e-6);
+    EXPECT_NEAR(engine.evaluate("exp(2)", context).as_double(), 7.389056099, 1e-6);
+
+    // 测试负数
+    EXPECT_NEAR(engine.evaluate("exp(-1)", context).as_double(), 0.367879441, 1e-6);
+
+    // 测试参数错误
+    EXPECT_THROW(engine.evaluate("exp()", context), mc::invalid_arg_exception);
+    EXPECT_THROW(engine.evaluate("exp('string')", context), mc::invalid_arg_exception);
+
+    // 实参个数比形参个数多，允许
+    EXPECT_NO_THROW(engine.evaluate("exp(1, 2)", context));
 }

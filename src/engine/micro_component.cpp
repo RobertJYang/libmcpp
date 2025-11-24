@@ -47,8 +47,6 @@ std::string mc_config_manage_interface::get_trusted_config(std::map<std::string,
 }
 
 void mc_debug_interface::attach_debug_console(std::map<std::string, std::string> context, uint32_t port) {
-    auto service = get_service();
-    service->on_attach_debug_console(context, port);
 }
 
 void mc_debug_interface::detach_debug_console(std::map<std::string, std::string> context) {
@@ -63,8 +61,6 @@ void mc_debug_interface::dump(std::map<std::string, std::string> context, std::s
 
 void mc_debug_interface::set_dlog_level(std::map<std::string, std::string> context, std::string level,
                                         uint8_t effective_hours) {
-    auto service = get_service();
-    service->on_set_dlog_level(context, level, effective_hours);
 }
 
 int32_t mc_reboot_interface::prepare(std::map<std::string, std::string> context) {
@@ -100,8 +96,6 @@ void mc_reset_interface::cancel(std::map<std::string, std::string> context, std:
 
 void mc_maintenance_interface::dlog_limit(std::map<std::string, std::string> context, bool enabled,
                                           uint8_t duration_mins) {
-    auto service = get_service();
-    service->on_dlog_limit(context, enabled, duration_mins);
 }
 
 void micro_component_object::init(std::string_view service_name) {

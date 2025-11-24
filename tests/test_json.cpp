@@ -667,6 +667,151 @@ TEST(JsonRoundTripTest, EncodeDecode) {
     EXPECT_EQ(result["object_value"].get_object()["key"].as<std::string>(), "value");
 }
 
+// 测试字符串转义序列编码
+TEST(JsonEncodeTest, StringEscapeSequences) {
+    std::string test_str = "test\"string\\with\nnewline\tand\bbackspace\fformfeed\rreturn";
+    variant     v(test_str);
+    std::string encoded = json_encode(v);
+
+    EXPECT_NE(encoded.find("\\\""), std::string::npos);
+    EXPECT_NE(encoded.find("\\\\"), std::string::npos);
+    EXPECT_NE(encoded.find("\\n"), std::string::npos);
+    EXPECT_NE(encoded.find("\\t"), std::string::npos);
+    EXPECT_NE(encoded.find("\\b"), std::string::npos);
+    EXPECT_NE(encoded.find("\\f"), std::string::npos);
+    EXPECT_NE(encoded.find("\\r"), std::string::npos);
+}
+
+// 测试控制字符的 Unicode 转义
+TEST(JsonEncodeTest, ControlCharacterUnicodeEscape) {
+    std::string test_str;
+    test_str += static_cast<char>(0x01); // 控制字符
+    variant     v(test_str);
+    std::string encoded = json_encode(v);
+    EXPECT_NE(encoded.find("\\u"), std::string::npos);
+}
+
+// 测试深度限制错误
+TEST(JsonDecodeTest, MaxDepthExceeded) {
+    std::string deep_json = "{\"level1\":{\"level2\":{\"level3\":{\"level4\":{\"level5\":1}}}}}";
+    json_decode_options options;
+    options.max_depth = 3;
+    EXPECT_THROW(json_decode(deep_json, options), parse_error_exception);
+}
+
+// 测试输入长度限制错误
+TEST(JsonDecodeTest, MaxInputLengthExceeded) {
+    std::string long_json = "\"" + std::string(1000, 'a') + "\"";
+    json_decode_options options;
+    options.max_input_length = 100;
+    EXPECT_THROW(json_decode(long_json, options), parse_error_exception);
+}
+
+// 测试字符串长度限制错误
+TEST(JsonDecodeTest, MaxStringLengthExceeded) {
+    std::string long_str(1000, 'a');
+    std::string json = "\"" + long_str + "\"";
+    json_decode_options options;
+    options.max_string_length = 100;
+    EXPECT_THROW(json_decode(json, options), parse_error_exception);
+}
+
+// 测试数组大小限制错误
+TEST(JsonDecodeTest, MaxArraySizeExceeded) {
+    std::string array_json = "[";
+    for (int i = 0; i < 1000; ++i) {
+        if (i > 0) {
+            array_json += ",";
+        }
+        array_json += "1";
+    }
+    array_json += "]";
+    json_decode_options options;
+    options.max_array_size = 100;
+    EXPECT_THROW(json_decode(array_json, options), parse_error_exception);
+}
+
+// 测试对象大小限制错误
+TEST(JsonDecodeTest, MaxObjectSizeExceeded) {
+    std::string object_json = "{";
+    for (int i = 0; i < 1000; ++i) {
+        if (i > 0) {
+            object_json += ",";
+        }
+        object_json += "\"key" + std::to_string(i) + "\":1";
+    }
+    object_json += "}";
+    json_decode_options options;
+    options.max_object_size = 100;
+    EXPECT_THROW(json_decode(object_json, options), parse_error_exception);
+}
+
+// 测试无效的 Unicode 转义序列
+TEST(JsonDecodeTest, InvalidUnicodeEscape) {
+    EXPECT_THROW(json_decode("\"\\u123\""), parse_error_exception);      // 不完整的 Unicode
+    EXPECT_THROW(json_decode("\"\\u123x\""), parse_error_exception);     // 无效的十六进制字符
+    EXPECT_THROW(json_decode("\"\\u\""), parse_error_exception);          // 缺少数字
+}
+
+// 测试无效的转义序列
+TEST(JsonDecodeTest, InvalidEscapeSequence) {
+    EXPECT_THROW(json_decode("\"\\x\""), parse_error_exception);         // 无效的转义
+}
+
+// 测试无效的数字格式
+TEST(JsonDecodeTest, InvalidNumberFormat) {
+    EXPECT_THROW(json_decode("12.34.56"), parse_error_exception);        // 多个小数点
+    EXPECT_THROW(json_decode("1e"), parse_error_exception);               // 指数缺少数字
+    EXPECT_THROW(json_decode("."), parse_error_exception);                // 只有小数点
+}
+
+// 测试无效的 null/true/false 值
+TEST(JsonDecodeTest, InvalidBooleanAndNull) {
+    EXPECT_THROW(json_decode("nul"), parse_error_exception);              // 不完整的 null
+    EXPECT_THROW(json_decode("tru"), parse_error_exception);               // 不完整的 true
+    EXPECT_THROW(json_decode("fals"), parse_error_exception);             // 不完整的 false
+}
+
+// 测试数组元素分隔符错误
+TEST(JsonDecodeTest, ArrayElementSeparatorError) {
+    EXPECT_THROW(json_decode("[1 2]"), parse_error_exception);           // 缺少逗号
+    EXPECT_THROW(json_decode("[1,]"), parse_error_exception);             // 尾随逗号
+}
+
+// 测试对象键值对分隔符错误
+TEST(JsonDecodeTest, ObjectKeyValueSeparatorError) {
+    EXPECT_THROW(json_decode("{\"key\"}"), parse_error_exception);       // 缺少冒号
+    EXPECT_THROW(json_decode("{\"key\":}"), parse_error_exception);       // 缺少值
+    EXPECT_THROW(json_decode("{key:1}"), parse_error_exception);          // 键不是字符串
+}
+
+// 测试无效的浮点数（非有限值）
+TEST(JsonEncodeTest, InvalidFloatNumber) {
+    variant inf_v(std::numeric_limits<double>::infinity());
+    json_encode_options options;
+    options.float_precision = 2;
+    EXPECT_THROW(json_encode(inf_v, options), parse_error_exception);
+}
+
+// 测试 json_encode(const dict&, const json_encode_options&) 重载
+TEST(JsonEncodeTest, EncodeDictOverload) {
+    dict obj{{"key", "value"}};
+    json_encode_options options;
+    options.pretty_print = true;
+    std::string result = json_encode(obj, options);
+    EXPECT_NE(result.find("\"key\""), std::string::npos);
+    EXPECT_NE(result.find("\"value\""), std::string::npos);
+}
+
+// 测试 json_encode(const std::vector<variant>&, const json_encode_options&) 重载
+TEST(JsonEncodeTest, EncodeVectorOverload) {
+    std::vector<variant> arr{variant(1), variant("test")};
+    json_encode_options options;
+    std::string result = json_encode(arr, options);
+    EXPECT_NE(result.find("1"), std::string::npos);
+    EXPECT_NE(result.find("\"test\""), std::string::npos);
+}
+
 } // namespace test
 } // namespace json
 } // namespace mc

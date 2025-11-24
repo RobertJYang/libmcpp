@@ -589,3 +589,162 @@ TEST_F(log_manager_test, LoadInvalidConfigFails) {
     EXPECT_EQ(test_logger.get_name(), "test_logger");
     EXPECT_TRUE(test_logger.get_appenders().empty()); // 应该没有 appender
 }
+
+// 测试 appender_factory 创建重复名称的 appender（覆盖重复名称错误路径）
+TEST_F(log_manager_test, AppenderFactoryDuplicateName) {
+    auto type_name = make_unique_name("dup_type");
+    auto app_name  = make_unique_name("dup_app");
+    
+    appender_factory::instance().register_creator(
+        type_name, []() { return std::make_shared<tracking_appender>(); });
+    
+    // 第一次创建应该成功
+    auto first = appender_factory::instance().create(app_name, type_name, mc::dict{});
+    ASSERT_NE(first, nullptr);
+    
+    // 第二次使用相同名称创建应该返回 nullptr（覆盖行 69-72）
+    auto duplicate = appender_factory::instance().create(app_name, type_name, mc::dict{});
+    EXPECT_EQ(duplicate, nullptr);
+}
+
+// 测试 appender_factory 创建未知类型的 appender（覆盖行 77-79）
+TEST_F(log_manager_test, AppenderFactoryUnknownType) {
+    auto app_name = make_unique_name("unknown_app");
+    
+    // 尝试创建未知类型的 appender 应该返回 nullptr
+    auto unknown = appender_factory::instance().create(app_name, "unknown_type", mc::dict{});
+    EXPECT_EQ(unknown, nullptr);
+}
+
+// 测试 appender_factory 的 create_by_type 返回 nullptr 的情况（覆盖行 63）
+TEST_F(log_manager_test, AppenderFactoryCreateByTypeUnknown) {
+    // 尝试创建未知类型的 appender
+    auto unknown = appender_factory::instance().create_by_type<mc::log::appender>("unknown_type_12345");
+    EXPECT_EQ(unknown, nullptr);
+}
+
+// 测试 appender_factory 加载已存在的库（覆盖行 99-100）
+TEST_F(log_manager_test, AppenderFactoryLoadExistingLibrary) {
+    // 由于动态库加载需要真实的库文件，这里只测试逻辑
+    // 实际测试中，如果库已加载，应该直接返回 true
+    // 这个测试主要验证代码路径存在
+    auto lib_path = "/nonexistent/path/lib.so";
+    auto type     = "test_type";
+    
+    // 第一次加载应该失败（因为路径不存在）
+    bool first_load = log_manager::instance().load_appender(lib_path, type);
+    EXPECT_FALSE(first_load);
+    
+    // 注意：由于第一次加载失败，库不会被注册，所以第二次也会失败
+    // 要测试已存在库的路径，需要真实的库文件，这在单元测试中较难实现
+}
+
+// 测试 appender_factory 的 get_appender 返回 nullptr（覆盖行 158）
+TEST_F(log_manager_test, AppenderFactoryGetNonExistentAppender) {
+    // 获取不存在的 appender 应该返回 nullptr
+    auto non_existent = appender_factory::instance().get_appender("non_existent_appender_12345");
+    EXPECT_EQ(non_existent, nullptr);
+}
+
+// 测试 log_manager 的 get_logger 创建新 logger 的路径（覆盖行 72-74）
+TEST_F(log_manager_test, GetLoggerCreatesNewLogger) {
+    log_manager& manager = log_manager::instance();
+    
+    // 获取一个不存在的 logger，应该创建新的
+    auto new_logger = manager.get_logger("newly_created_logger_12345");
+    EXPECT_EQ(new_logger.get_name(), "newly_created_logger_12345");
+    
+    // 再次获取应该返回同一个（虽然对象不同，但名称相同）
+    auto same_logger = manager.get_logger("newly_created_logger_12345");
+    EXPECT_EQ(same_logger.get_name(), "newly_created_logger_12345");
+}
+
+// 测试 log_manager 的 apply_config 中 appender 添加失败的路径（覆盖行 159）
+TEST_F(log_manager_test, ApplyConfigAppenderNotFound) {
+    log_manager& manager = log_manager::instance();
+    
+    logging_config config;
+    logger_config  log_cfg("appender_not_found_logger");
+    log_cfg.level     = level::info;
+    log_cfg.appenders = {"non_existent_appender_12345"}; // 不存在的 appender
+    
+    config.loggers.push_back(log_cfg);
+    
+    // 应用配置应该成功，但 logger 不会有 appender
+    EXPECT_TRUE(manager.apply_config(config));
+    
+    auto logger_instance = manager.get_logger("appender_not_found_logger");
+    EXPECT_TRUE(logger_instance.get_appenders().empty());
+}
+
+// 测试 log_manager 的 update_existing_logger 中添加 appender 的路径（覆盖行 152-162）
+TEST_F(log_manager_test, UpdateExistingLoggerAddAppender) {
+    log_manager& manager = log_manager::instance();
+    
+    // 创建一个 appender
+    auto type_name = make_unique_name("update_type");
+    auto app_name  = make_unique_name("update_app");
+    appender_factory::instance().register_creator(
+        type_name, []() { return std::make_shared<tracking_appender>(); });
+    
+    logging_config app_config;
+    appender_config app_cfg;
+    app_cfg.name = app_name;
+    app_cfg.type = type_name;
+    app_config.appenders.push_back(app_cfg);
+    
+    // 先创建一个 logger
+    auto logger_name = make_unique_name("update_logger");
+    auto logger      = manager.get_logger(logger_name.c_str());
+    
+    // 然后通过配置添加 appender
+    logging_config config;
+    config.appenders.push_back(app_cfg);
+    logger_config log_cfg(logger_name);
+    log_cfg.level     = level::info;
+    log_cfg.appenders = {app_name};
+    config.loggers.push_back(log_cfg);
+    
+    EXPECT_TRUE(manager.apply_config(config));
+    
+    auto updated_logger = manager.get_logger(logger_name.c_str());
+    EXPECT_FALSE(updated_logger.get_appenders().empty());
+}
+
+// 测试 log_manager 的 update_existing_logger 中移除 appender 的路径（覆盖行 144-149）
+TEST_F(log_manager_test, UpdateExistingLoggerRemoveAppender) {
+    log_manager& manager = log_manager::instance();
+    
+    // 创建一个 appender 并添加到 logger
+    auto type_name = make_unique_name("remove_type");
+    auto app_name  = make_unique_name("remove_app");
+    appender_factory::instance().register_creator(
+        type_name, []() { return std::make_shared<tracking_appender>(); });
+    
+    logging_config first_config;
+    appender_config app_cfg;
+    app_cfg.name = app_name;
+    app_cfg.type = type_name;
+    first_config.appenders.push_back(app_cfg);
+    
+    auto logger_name = make_unique_name("remove_logger");
+    logger_config log_cfg(logger_name);
+    log_cfg.level     = level::info;
+    log_cfg.appenders = {app_name};
+    first_config.loggers.push_back(log_cfg);
+    
+    EXPECT_TRUE(manager.apply_config(first_config));
+    
+    // 然后通过配置移除 appender
+    logging_config second_config;
+    logger_config remove_cfg(logger_name);
+    remove_cfg.level     = level::warn;
+    remove_cfg.appenders = {}; // 空列表，移除所有 appender
+    second_config.loggers.push_back(remove_cfg);
+    
+    EXPECT_TRUE(manager.apply_config(second_config));
+    
+    auto updated_logger = manager.get_logger(logger_name.c_str());
+    EXPECT_TRUE(updated_logger.get_appenders().empty());
+    EXPECT_EQ(updated_logger.get_level(), level::warn);
+}

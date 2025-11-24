@@ -16,12 +16,49 @@
  */
 #include "mc/time.h"
 #include "mc/variant.h"
+#include "mc/exception.h"
 #include <chrono>
 #include <cmath>
+#include <cstdlib>
 #include <gtest/gtest.h>
+#include <optional>
 #include <thread>
+#include <string>
 
 using namespace mc;
+
+namespace {
+
+class scoped_env {
+public:
+    scoped_env(const char* key, const char* value) : m_key(key) {
+        const char* current = std::getenv(key);
+        if (current != nullptr) {
+            m_original.emplace(current);
+        }
+        if (value) {
+            setenv(m_key.c_str(), value, 1);
+        } else {
+            unsetenv(m_key.c_str());
+        }
+        tzset();
+    }
+
+    ~scoped_env() {
+        if (m_original.has_value()) {
+            setenv(m_key.c_str(), m_original->c_str(), 1);
+        } else {
+            unsetenv(m_key.c_str());
+        }
+        tzset();
+    }
+
+private:
+    std::string                m_key;
+    std::optional<std::string> m_original;
+};
+
+} // namespace
 
 // 测试毫秒类
 TEST(TimeTest, MillisecondsTest) {
@@ -254,4 +291,33 @@ TEST(TimeTest, SystemTimeTest) {
     // 检查两个时间点是否相同
     auto time_diff = now - parsed;
     EXPECT_LT(std::abs(time_diff.count()), 2); // 允许最多1毫秒的误差
+}
+
+TEST(TimeTest, FromIsoStringEmptyAndInvalid) {
+    EXPECT_THROW(time_point::from_iso_string(""), mc::exception);
+    EXPECT_THROW(time_point::from_iso_string("invalid-format"), mc::exception);
+}
+
+TEST(TimeTest, FromIsoStringStdExceptionPath) {
+    try {
+        time_point::from_iso_string("9999999999-01-01T00:00:00");
+        FAIL() << "期望抛出异常";
+    } catch (const mc::exception& e) {
+        EXPECT_EQ(e.code(), mc::parse_error_exception_code);
+    }
+}
+
+TEST(TimeTest, TimePointNegativeToStringThrows) {
+    time_point negative(milliseconds(-100));
+    EXPECT_THROW(static_cast<std::string>(negative), mc::bad_cast_exception);
+}
+
+TEST(TimeTest, PortableTimegmWithExistingTimezone) {
+    scoped_env env("TZ", "UTC");
+    EXPECT_NO_THROW(time_point::from_iso_string("2024-01-01T00:00:00"));
+}
+
+TEST(TimeTest, PortableTimegmWithoutTimezone) {
+    scoped_env env("TZ", nullptr);
+    EXPECT_NO_THROW(time_point::from_iso_string("2024-02-01T00:00:00"));
 }

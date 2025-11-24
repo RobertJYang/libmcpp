@@ -662,3 +662,201 @@ TEST(ExceptionTest, ComplexUnhandledExceptionWrapper) {
         }
     }
 }
+
+// 测试 exception(int64_t, const std::string&, const std::string&) 构造函数
+TEST(ExceptionTest, ExceptionCodeNameWhatConstructor) {
+    mc::exception ex(1234, "test_exception", "测试异常消息");
+    EXPECT_EQ(ex.code(), 1234);
+    EXPECT_EQ(ex.name(), "test_exception");
+    EXPECT_TRUE(ex.to_string().find("测试异常消息") != std::string::npos);
+}
+
+// 测试 exception(mc::log::message&&, ...) 构造函数
+TEST(ExceptionTest, ExceptionMessageRvalueConstructor) {
+    auto msg = MC_LOG_MESSAGE(info, "测试日志消息", ("key", "value"));
+    mc::exception ex(std::move(msg), 2001, "test", "测试");
+    EXPECT_EQ(ex.code(), 2001);
+    EXPECT_EQ(ex.name(), "test");
+    EXPECT_EQ(ex.messages().size(), 1);
+}
+
+// 测试 exception(const mc::log::messages&, ...) 构造函数
+TEST(ExceptionTest, ExceptionMessagesConstRefConstructor) {
+    mc::log::messages msgs;
+    msgs.emplace_back(MC_LOG_MESSAGE(info, "日志1", ("index", 1)));
+    msgs.emplace_back(MC_LOG_MESSAGE(warn, "日志2", ("index", 2)));
+
+    const auto backup_size = msgs.size();
+    mc::exception ex(msgs, 2002, "test", "测试");
+    EXPECT_EQ(ex.code(), 2002);
+    EXPECT_EQ(ex.name(), "test");
+    EXPECT_EQ(ex.messages().size(), backup_size);
+    EXPECT_EQ(msgs.size(), backup_size); // 原始向量不应被修改
+}
+
+// 测试 exception(const exception&) 复制构造函数
+TEST(ExceptionTest, ExceptionCopyConstructor) {
+    mc::exception original(1001, "original", "原始异常");
+    original.append_log(MC_LOG_MESSAGE(info, "原始日志", ("id", 1)));
+
+    mc::exception copy(original);
+    EXPECT_EQ(copy.code(), original.code());
+    EXPECT_EQ(copy.name(), original.name());
+    EXPECT_EQ(copy.messages().size(), original.messages().size());
+    EXPECT_NE(copy.messages().data(), original.messages().data()); // 应该是深拷贝
+}
+
+// 测试 append_log 中 msgs.empty() 的路径
+TEST(ExceptionTest, AppendLogEmptyMessages) {
+    mc::exception ex(1002, "test", "测试");
+    mc::log::messages empty_msgs;
+    ex.append_log(empty_msgs);
+    EXPECT_EQ(ex.messages().size(), 0);
+}
+
+// 测试 to_detail_string 的详细实现
+TEST(ExceptionTest, ToDetailStringDetailed) {
+    mc::exception ex(1003, "detail_test", "详细测试");
+    ex.append_log(MC_LOG_MESSAGE(debug, "调试信息", ("level", "debug")));
+    ex.append_log(MC_LOG_MESSAGE(info, "普通信息", ("level", "info")));
+    ex.append_log(MC_LOG_MESSAGE(warn, "警告信息", ("level", "warn")));
+    ex.append_log(MC_LOG_MESSAGE(error, "错误信息", ("level", "error")));
+    ex.append_log(MC_LOG_MESSAGE(notice, "通知信息", ("level", "notice")));
+
+    std::string detail = ex.to_detail_string(mc::log::level::debug);
+    EXPECT_NE(detail.find("1003"), std::string::npos);
+    EXPECT_NE(detail.find("detail_test"), std::string::npos);
+    EXPECT_NE(detail.find("详细测试"), std::string::npos);
+    EXPECT_NE(detail.find("DEBUG"), std::string::npos);
+    EXPECT_NE(detail.find("INFO"), std::string::npos);
+    EXPECT_NE(detail.find("WARN"), std::string::npos);
+    EXPECT_NE(detail.find("ERROR"), std::string::npos);
+    EXPECT_NE(detail.find("NOTICE"), std::string::npos);
+}
+
+// 测试 to_string 方法
+TEST(ExceptionTest, ToStringMethod) {
+    mc::exception ex(1004, "to_string_test", "to_string 测试");
+    ex.append_log(MC_LOG_MESSAGE(info, "日志消息", ("key", "value")));
+
+    std::string str = ex.to_string();
+    EXPECT_NE(str.find("to_string_test"), std::string::npos);
+    EXPECT_NE(str.find("to_string 测试"), std::string::npos);
+}
+
+// 测试 to_string 方法带日志级别过滤
+TEST(ExceptionTest, ToStringWithLogLevel) {
+    mc::exception ex(1005, "level_test", "级别测试");
+    ex.append_log(MC_LOG_MESSAGE(debug, "调试", ("id", 1)));
+    ex.append_log(MC_LOG_MESSAGE(info, "信息", ("id", 2)));
+    ex.append_log(MC_LOG_MESSAGE(warn, "警告", ("id", 3)));
+
+    std::string str_warn = ex.to_string(mc::log::level::warn);
+    EXPECT_NE(str_warn.find("警告"), std::string::npos);
+    EXPECT_EQ(str_warn.find("调试"), std::string::npos);
+    EXPECT_EQ(str_warn.find("信息"), std::string::npos);
+}
+
+// 测试 dynamic_rethrow_exception
+TEST(ExceptionTest, DynamicRethrowException) {
+    mc::exception ex(1006, "rethrow_test", "重抛测试");
+    try {
+        ex.dynamic_rethrow_exception();
+        FAIL() << "应该抛出异常";
+    } catch (const mc::exception& e) {
+        EXPECT_EQ(e.code(), 1006);
+        EXPECT_EQ(e.name(), "rethrow_test");
+    }
+}
+
+// 注意：UnhandledExceptionMessageRvalueConstructor 的功能已在 ComplexUnhandledExceptionWrapper
+// 测试中覆盖，因此不再重复添加
+
+// 测试 unhandled_exception(const exception&) 构造函数
+TEST(ExceptionTest, UnhandledExceptionFromException) {
+    mc::exception original(2001, "original", "原始异常");
+    mc::unhandled_exception unhandled(original);
+    EXPECT_EQ(unhandled.code(), mc::unhandled_exception_code);
+    EXPECT_EQ(unhandled.name(), "unhandled");
+}
+
+// 测试 unhandled_exception::dynamic_rethrow_exception 有内部异常的情况
+TEST(ExceptionTest, UnhandledExceptionDynamicRethrowWithInner) {
+    try {
+        throw std::logic_error("逻辑错误");
+    } catch (const std::exception&) {
+        auto msg = MC_LOG_MESSAGE(error, "未处理", ("type", "logic_error"));
+        mc::unhandled_exception unhandled(std::move(msg), std::current_exception());
+        try {
+            unhandled.dynamic_rethrow_exception();
+            FAIL() << "应该重新抛出内部异常";
+        } catch (const std::logic_error& e) {
+            EXPECT_STREQ(e.what(), "逻辑错误");
+        }
+    }
+}
+
+// 测试 unhandled_exception::dynamic_rethrow_exception 无内部异常的情况
+TEST(ExceptionTest, UnhandledExceptionDynamicRethrowWithoutInner) {
+    mc::exception original(2002, "original", "原始");
+    mc::unhandled_exception unhandled(original);
+    try {
+        unhandled.dynamic_rethrow_exception();
+        FAIL() << "应该抛出异常";
+    } catch (const mc::unhandled_exception& e) {
+        EXPECT_EQ(e.code(), mc::unhandled_exception_code);
+    }
+}
+
+// 测试 unhandled_exception::dynamic_copy_exception
+TEST(ExceptionTest, UnhandledExceptionDynamicCopy) {
+    try {
+        throw std::runtime_error("运行时错误");
+    } catch (const std::exception&) {
+        auto msg = MC_LOG_MESSAGE(error, "未处理", ("type", "runtime_error"));
+        mc::unhandled_exception original(std::move(msg), std::current_exception());
+        auto copy = original.dynamic_copy_exception();
+        ASSERT_TRUE(copy);
+        EXPECT_EQ(copy->code(), mc::unhandled_exception_code);
+        EXPECT_EQ(copy->name(), "unhandled");
+    }
+}
+
+// 注意：StdExceptionWrapperFromCurrentException 和 StdExceptionWrapperDynamicRethrowWithInner
+// 的功能已在 StdExceptionWrapperInnerAccess 测试中覆盖，因此不再重复添加
+
+// 测试 std_exception_wrapper::dynamic_rethrow_exception 无内部异常的情况
+TEST(ExceptionTest, StdExceptionWrapperDynamicRethrowWithoutInner) {
+    mc::log::message msg(mc::log::level::error, "测试");
+    mc::std_exception_wrapper wrapper(std::move(msg), nullptr, "test", "测试");
+    try {
+        wrapper.dynamic_rethrow_exception();
+        FAIL() << "应该抛出异常";
+    } catch (const mc::std_exception_wrapper& e) {
+        EXPECT_EQ(e.name(), "test");
+    }
+}
+
+// 测试 std_exception_wrapper::to_detail_string
+TEST(ExceptionTest, StdExceptionWrapperToDetailString) {
+    try {
+        throw std::bad_alloc();
+    } catch (const std::exception& e) {
+        auto wrapper = mc::std_exception_wrapper::from_current_exception(e);
+        std::string detail = wrapper.to_detail_string(mc::log::level::error);
+        EXPECT_NE(detail.find("std_exception"), std::string::npos);
+        EXPECT_NE(detail.find("内部异常"), std::string::npos);
+    }
+}
+
+// 测试 std_exception_wrapper::to_detail_string 捕获未知异常
+TEST(ExceptionTest, StdExceptionWrapperToDetailStringUnknownException) {
+    try {
+        throw 42; // 抛出非标准异常
+    } catch (...) {
+        mc::log::message msg(mc::log::level::error, "未知异常");
+        mc::std_exception_wrapper wrapper(std::move(msg), std::current_exception(), "test", "测试");
+        std::string detail = wrapper.to_detail_string(mc::log::level::error);
+        EXPECT_NE(detail.find("内部异常: 未知类型"), std::string::npos);
+    }
+}

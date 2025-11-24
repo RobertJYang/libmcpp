@@ -473,3 +473,87 @@ TEST(LoggerStaticGetTest, static_get_returns_named_logger) {
     auto retrieved = mc::log::logger::get("static_logger_entry");
     EXPECT_EQ(retrieved.get_name(), "static_logger_entry");
 }
+
+// 测试 logger 的拷贝构造函数和赋值运算符
+TEST(LoggerTest, CopyConstructorAndAssignment) {
+    mc::log::logger logger1("test_logger");
+    logger1.set_level(mc::log::level::info);
+    
+    // 测试拷贝构造函数
+    mc::log::logger logger2(logger1);
+    EXPECT_EQ(logger2.get_name(), "test_logger");
+    EXPECT_EQ(logger2.get_level(), mc::log::level::info);
+    
+    // 测试赋值运算符
+    mc::log::logger logger3("another_logger");
+    logger3 = logger1;
+    EXPECT_EQ(logger3.get_name(), "test_logger");
+    EXPECT_EQ(logger3.get_level(), mc::log::level::info);
+    
+    // 测试自赋值（覆盖 this == &other 分支）
+    logger3 = logger3;
+    EXPECT_EQ(logger3.get_name(), "test_logger");
+}
+
+// 测试 logger 的移动构造函数和移动赋值运算符
+TEST(LoggerTest, MoveConstructorAndAssignment) {
+    mc::log::logger logger1("move_test");
+    logger1.set_level(mc::log::level::warn);
+    
+    // 测试移动构造函数
+    mc::log::logger logger2(std::move(logger1));
+    EXPECT_EQ(logger2.get_name(), "move_test");
+    EXPECT_EQ(logger2.get_level(), mc::log::level::warn);
+    
+    // 测试移动赋值运算符
+    mc::log::logger logger3("temp");
+    logger3 = std::move(logger2);
+    EXPECT_EQ(logger3.get_name(), "move_test");
+    EXPECT_EQ(logger3.get_level(), mc::log::level::warn);
+    
+    // 测试自移动赋值（覆盖 this == &other 分支）
+    logger3 = std::move(logger3);
+    EXPECT_EQ(logger3.get_name(), "move_test");
+}
+
+// 测试添加 null appender（覆盖 add_appender 中 a 为空的分支）
+TEST(LoggerTest, AddNullAppender) {
+    mc::log::logger logger("null_test");
+    mc::log::appender_ptr null_appender = nullptr;
+    
+    // 添加 null appender 应该不会崩溃，也不会添加
+    logger.add_appender(null_appender);
+    EXPECT_TRUE(logger.get_appenders().empty());
+}
+
+// 测试 remove_appender 找不到的情况（覆盖返回 false 的分支）
+TEST(LoggerTest, RemoveNonExistentAppender) {
+    mc::log::logger logger("remove_test");
+    auto appender = std::make_shared<memory_appender>();
+    appender->set_name("test_appender");
+    logger.add_appender(appender);
+    
+    // 移除存在的 appender
+    EXPECT_TRUE(logger.remove_appender("test_appender"));
+    
+    // 再次移除应该返回 false
+    EXPECT_FALSE(logger.remove_appender("test_appender"));
+    EXPECT_FALSE(logger.remove_appender("non_existent"));
+}
+
+// 测试 find_appender 找不到的情况（覆盖返回 nullptr 的分支）
+TEST(LoggerTest, FindNonExistentAppender) {
+    mc::log::logger logger("find_test");
+    
+    // 查找不存在的 appender 应该返回 nullptr
+    EXPECT_EQ(logger.find_appender("non_existent"), nullptr);
+    
+    // 添加 appender 后再查找
+    auto appender = std::make_shared<memory_appender>();
+    appender->set_name("found_appender");
+    logger.add_appender(appender);
+    
+    auto found = logger.find_appender("found_appender");
+    EXPECT_NE(found, nullptr);
+    EXPECT_EQ(found->get_name(), "found_appender");
+}

@@ -90,6 +90,19 @@ TEST_F(conversion_builtin_test, ToBoolFunction) {
     EXPECT_TRUE(engine.evaluate("to_bool(true)", m_context));
     EXPECT_FALSE(engine.evaluate("to_bool(false)", m_context));
 
+    // 测试数组和对象类型转换为 bool
+    // 根据 variant::as_bool 的实现，数组和对象类型会返回 !empty()
+    m_context.register_variable("arr", mc::variants{mc::variant(1), mc::variant(2), mc::variant(3)});
+    m_context.register_variable("empty_arr", mc::variants{});
+    m_context.register_variable("obj", mc::dict{{"key", "value"}});
+    m_context.register_variable("empty_obj", mc::dict{});
+    // 非空数组和对象返回 true
+    EXPECT_TRUE(engine.evaluate("to_bool(arr)", m_context));
+    EXPECT_TRUE(engine.evaluate("to_bool(obj)", m_context));
+    // 空数组和对象返回 false
+    EXPECT_FALSE(engine.evaluate("to_bool(empty_arr)", m_context));
+    EXPECT_FALSE(engine.evaluate("to_bool(empty_obj)", m_context));
+
     // 测试参数错误
     EXPECT_THROW(engine.evaluate("to_bool()", m_context), mc::invalid_arg_exception);
 
