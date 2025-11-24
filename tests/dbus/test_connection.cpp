@@ -382,13 +382,14 @@ TEST_F(connection_test, scenario_mixed_sync_async_calls) {
     EXPECT_TRUE(conn.start());
     ASSERT_TRUE(conn.is_connected());
     EXPECT_TRUE(conn.request_name("org.test.Connection"));
-    auto msg1   = message::new_method_call("org.freedesktop.DBus", "/org/freedesktop/DBus",
-                                           "org.freedesktop.DBus", "ListNames");
-    auto reply1 = conn.send_with_reply(std::move(msg1), mc::milliseconds(2000));
-    // 如果回复无效或不是方法返回，可能是 D-Bus 服务暂时不可用，允许这种情况
-    if (reply1.is_valid() && reply1.is_method_return()) {
-        // 验证回复内容（可选）
-    }
+    auto build_list_names_call = []() {
+        return message::new_method_call(
+            "org.freedesktop.DBus", "/org/freedesktop/DBus", "org.freedesktop.DBus", "ListNames");
+    };
+    auto reply1 = wait_method_return(conn, build_list_names_call, mc::milliseconds(2000), 5);
+    ASSERT_TRUE(reply1.is_valid() && reply1.is_method_return())
+        << "ListNames 同步调用失败，reply_valid=" << reply1.is_valid()
+        << " reply_type=" << (reply1.is_valid() ? static_cast<int>(reply1.get_type()) : -1);
     auto              msg2 = message::new_method_call("org.freedesktop.DBus", "/org/freedesktop/DBus",
                                                       "org.freedesktop.DBus", "ListNames");
     std::atomic<bool> async_done{false};
