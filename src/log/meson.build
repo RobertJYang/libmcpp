@@ -5,6 +5,8 @@ log_src_files = [
   'log/appender_factory.cpp',
   'log/appenders/console_appender.cpp',
   'log/appenders/file_appender.cpp',
+  'log/appenders/socket_appender.cpp',
+  'log/appenders/socket_client.cpp',
 ]
 
 # file_appender.cpp需要特殊的包含路径

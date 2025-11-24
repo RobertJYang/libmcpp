@@ -61,6 +61,7 @@ struct MC_API mc_debug_interface : public mc::engine::interface<mc_debug_interfa
     void detach_debug_console(std::map<std::string, std::string> context);
     void dump(std::map<std::string, std::string> context, std::string filepath);
     void set_dlog_level(std::map<std::string, std::string> context, std::string level, uint8_t effective_hours);
+    void set_dlog_type(std::string type);
 
     property<std::string> m_dlog_level;
     property<std::string> m_dlog_type;

@@ -13,10 +13,21 @@
 #ifndef MC_LOG_LEVEL_H
 #define MC_LOG_LEVEL_H
 
+#include <cctype>
+#include <optional>
+#include <string>
 #include <string_view>
 
 namespace mc {
 namespace log {
+
+/**
+ * @brief 日志类别枚举
+ */
+enum class log_category : uint8_t {
+    debug,    // 调试类别
+    operation // 操作类别
+};
 
 /**
  * @brief 日志级别枚举
@@ -62,6 +73,54 @@ inline std::string_view to_string(level lvl) {
     default:
         return "UNKNOWN";
     }
+}
+
+/**
+ * @brief 将字符串转换为日志级别（大小写不敏感）
+ *
+ * @param name 日志级别名称
+ * @return std::optional<level> 转换成功返回对应级别，失败返回std::nullopt
+ */
+inline std::optional<level> to_level(std::string_view name) {
+    if (name.empty()) {
+        return std::nullopt;
+    }
+
+    std::string normalized;
+    normalized.reserve(name.size());
+    for (char ch : name) {
+        normalized.push_back(static_cast<char>(std::toupper(static_cast<unsigned char>(ch))));
+    }
+
+    if (normalized == "ALL") {
+        return level::all;
+    }
+    if (normalized == "TRACE") {
+        return level::trace;
+    }
+    if (normalized == "DEBUG") {
+        return level::debug;
+    }
+    if (normalized == "INFO") {
+        return level::info;
+    }
+    if (normalized == "NOTICE") {
+        return level::notice;
+    }
+    if (normalized == "WARN" || normalized == "WARNING") {
+        return level::warn;
+    }
+    if (normalized == "ERROR") {
+        return level::error;
+    }
+    if (normalized == "FATAL") {
+        return level::fatal;
+    }
+    if (normalized == "OFF") {
+        return level::off;
+    }
+
+    return std::nullopt;
 }
 
 } // namespace log

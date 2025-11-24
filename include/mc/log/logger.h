@@ -119,6 +119,14 @@ public:
     bool is_enabled(level lvl) const;
 
     /**
+     * @brief 检查指定日志类别是否为调试日志
+     *
+     * @param category 日志类别
+     * @return bool 是否为调试日志
+     */
+    bool is_debug_log(log_category category) const;
+
+    /**
      * @brief 记录日志消息
      *
      * @param msg 日志消息
@@ -172,6 +180,16 @@ private:
     do {                                                    \
         if (LOGGER.is_enabled(mc::log::level::LEVEL)) {     \
             LOGGER.log(MC_LOG_MESSAGE(LEVEL, __VA_ARGS__)); \
+        }                                                   \
+    } while (0)
+
+/**
+ * @brief 记录日志
+ */
+#define MC_LOG_BASE_WITH_CATEGORY(LOGGER, CATEGORY, ...)                     \
+    do {                                                    \
+        if (!LOGGER.is_debug_log(mc::log::log_category::CATEGORY)) {                \
+            LOGGER.log(MC_LOG_MESSAGE_WITH_CATEGORY(CATEGORY, __VA_ARGS__)); \
         }                                                   \
     } while (0)
 
