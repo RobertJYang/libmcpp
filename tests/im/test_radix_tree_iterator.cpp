@@ -670,6 +670,94 @@ TEST(RadixTreeIteratorTest, ComplexUpperBound) {
     }
 }
 
-// 未来增加的测试可以放在这里
+// 测试空树迭代器构造
+TEST(RadixTreeIteratorTest, IteratorConstructFromEmptyTree) {
+    using tree_type = radix_tree<tree_config<test_value>>;
+
+    // 创建空树
+    tree_type empty_tree;
+
+    // 调用 begin()，应该返回 end()
+    auto it = empty_tree.begin();
+    EXPECT_EQ(it, empty_tree.end());
+    EXPECT_TRUE(it.is_end());
+}
+
+// 测试单叶子根节点迭代器构造
+TEST(RadixTreeIteratorTest, IteratorConstructFromSingleLeafRoot) {
+    // 创建事务并插入单个键
+    transaction<tree_config<test_value>> tx;
+    tx.insert("a", test_value("值a", 1));
+
+    // 提交事务
+    auto tree = tx.commit();
+
+    // 调用 begin()，应该正确指向该键
+    auto it = tree.begin();
+    ASSERT_NE(it, tree.end());
+    EXPECT_EQ(it->first, "a");
+    EXPECT_EQ(it->second.text, "值a");
+    EXPECT_EQ(it->second.number, 1);
+}
+
+// 测试在 end() 状态递增迭代器
+TEST(RadixTreeIteratorTest, IteratorIncrementAtEnd) {
+    // 创建事务并插入数据
+    transaction<tree_config<test_value>> tx;
+    tx.insert("key1", test_value("值1", 1));
+
+    // 提交事务
+    auto tree = tx.commit();
+
+    // 创建迭代器并递增到 end()
+    auto it = tree.begin();
+    ++it;
+    EXPECT_EQ(it, tree.end());
+
+    // 再次递增，迭代器仍应为 end()
+    ++it;
+    EXPECT_EQ(it, tree.end());
+    EXPECT_TRUE(it.is_end());
+}
+
+// 测试对 end() 迭代器解引用抛出异常
+TEST(RadixTreeIteratorTest, IteratorDereferenceAtEndThrows) {
+    // 创建事务并插入数据
+    transaction<tree_config<test_value>> tx;
+    tx.insert("key1", test_value("值1", 1));
+
+    // 提交事务
+    auto tree = tx.commit();
+
+    // 创建迭代器并递增到 end()
+    auto it = tree.begin();
+    ++it;
+    EXPECT_EQ(it, tree.end());
+
+    // 对 end() 迭代器解引用应该抛出异常
+    EXPECT_THROW(*it, std::out_of_range);
+}
+
+// 测试对 end() 迭代器使用 -> 抛出异常
+TEST(RadixTreeIteratorTest, IteratorArrowAtEndThrows) {
+    // 创建事务并插入数据
+    transaction<tree_config<test_value>> tx;
+    tx.insert("key1", test_value("值1", 1));
+
+    // 提交事务
+    auto tree = tx.commit();
+
+    // 创建迭代器并递增到 end()
+    auto it = tree.begin();
+    ++it;
+    EXPECT_EQ(it, tree.end());
+
+    // 对 end() 迭代器使用 -> 应该抛出异常
+    EXPECT_THROW(it->first, std::out_of_range);
+}
+
+// 注意：iterator 没有 seek() 方法，所以 IteratorSeekAtEnd 和 IteratorSeekNonMatchingPrefix 无法实现
+// 这些测试用例在 COVERAGE_STATUS_RADIX_TREE.md 中标记为需要实现，但实际上 iterator 类没有这个方法
+// 可能是覆盖率报告中的误报，或者是指其他方法
 
 } // namespace mc::im::tests

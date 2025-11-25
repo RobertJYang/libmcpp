@@ -18,21 +18,23 @@ See the Mulan PSL v2 for more details.
 Variant 模块包含以下测试文件：
 
 1. `test_variant_basic.cpp` - 基本功能测试
-2. `test_variant_bool_operator.cpp` - 布尔操作符测试
-3. `test_variant_comparison.cpp` - 比较操作符测试
-4. `test_variant_containers.cpp` - 容器类型测试
-5. `test_variant_deep_copy.cpp` - 深拷贝测试
-6. `test_variant_exceptions.cpp` - 边缘情况、边界条件和异常处理测试
-7. `test_variant_equality.cpp` - 相等性测试
-8. `test_variant_extension.cpp` - 扩展类型测试
-9. `test_variant_io.cpp` - 输入输出测试
-10. `test_variant_operations.cpp` - 算术和位运算操作符测试
-11. `test_variant_reference.cpp` - 引用类型测试
-12. `test_variant_standard_containers.cpp` - 标准容器适配测试
-13. `test_variant_visitor.cpp` - 访问者模式测试
-14. `test_typed_variant.cpp` - 固定类型 variant 测试
-15. `test_variant_conversion.cpp` - 转换与复制相关测试
-16. `test_variant_base.cpp` - variant_base 核心 API 覆盖测试
+2. `test_variant_comparison.cpp` - 比较操作符测试
+3. `test_variant_containers.cpp` - 容器类型测试
+4. `test_variant_deep_copy.cpp` - 深拷贝测试
+5. `test_variant_exceptions.cpp` - 边缘情况、边界条件和异常处理测试
+6. `test_variant_extension.cpp` - 扩展类型测试
+7. `test_variant_io.cpp` - 输入输出测试
+8. `test_variant_operations.cpp` - 算术和位运算测试
+9. `test_variant_reference.cpp` - 引用类型测试
+10. `test_variant_visitor.cpp` - 访问者模式测试
+11. `test_variant_conversion.cpp` - 转换与复制相关测试
+12. `test_typed_variant.cpp` - 固定类型 variant 测试
+13. `test_variant_c_api.cpp` - C API 行为与 ABI 兼容性测试
+14. `test_variant_base.cpp` - variant_base 核心 API 覆盖测试
+
+> 说明：原 `test_variant_bool_operator.cpp`、`test_variant_equality.cpp`、`test_variant_standard_containers.cpp`
+> 的场景分别合并进 `test_variant_base.cpp`、`test_variant_comparison.cpp`、`test_variant_containers.cpp`，
+> 复用统一的断言工具并避免重复覆盖。
 
 ## 详细测试用例
 
@@ -45,14 +47,8 @@ Variant 模块包含以下测试文件：
 - 清除操作
 - 带默认值的 as 方法
 
-### test_variant_bool_operator.cpp
-布尔操作符测试，包括：
-- 各种类型的布尔转换
-- 严格模式和宽松模式
-- null、空容器、零值的布尔转换
-
 ### test_variant_comparison.cpp
-比较操作符测试（27 个用例），包括：
+比较操作符测试（26 个用例，已优化），包括：
 - 基本类型比较（整数、浮点数、字符串等）
 - 跨类型比较
 - NaN 处理
@@ -134,13 +130,6 @@ Variant 模块包含以下测试文件：
 - `OperatorLessVariantsException` - operator<(const variants&) 异常情况
 - `OperatorGreaterVariantsException` - operator>(const variants&) 异常情况
 
-### test_variant_equality.cpp
-相等性测试（5 个用例），包括：
-- 相同类型相等性
-- 跨类型相等性
-- 浮点数相等性（考虑精度）
-- 数组和对象相等性
-
 ### test_variant_extension.cpp
 扩展类型测试（23 个用例），包括：
 - 扩展类型构造与基本操作
@@ -180,13 +169,6 @@ Variant 模块包含以下测试文件：
 - 一元操作符
 - 类型转换
 - extension 访问（缓存与零开销场景）
-
-### test_variant_standard_containers.cpp
-标准容器适配测试（11 个用例），包括：
-- std::vector 适配
-- std::map 适配
-- std::unordered_map 适配
-- 容器序列化和反序列化
 
 ### test_variant_visitor.cpp
 访问者模式测试（20 个用例），包括：
@@ -285,8 +267,22 @@ meson test -C builddir --test-args="--gtest_filter=VariantEdgeCasesTest.Operator
 
 ## 测试统计
 
-- **测试文件总数**: 15 个
-- **测试用例总数**: 约 276 个
+- **测试文件总数**: 14 个
+- **测试用例总数**: 321 个（已优化，删除了重复的测试用例）
+  - `test_variant_basic.cpp`: 15 个用例
+  - `test_variant_comparison.cpp`: 38 个用例（已优化，从 39 个减少到 38 个）
+  - `test_variant_containers.cpp`: 19 个用例
+  - `test_variant_deep_copy.cpp`: 15 个用例
+  - `test_variant_exceptions.cpp`: 60 个用例
+  - `test_variant_extension.cpp`: 28 个用例
+  - `test_variant_io.cpp`: 6 个用例
+  - `test_variant_operations.cpp`: 37 个用例
+  - `test_variant_reference.cpp`: 44 个用例
+  - `test_variant_visitor.cpp`: 20 个用例
+  - `test_variant_conversion.cpp`: 6 个用例
+  - `test_typed_variant.cpp`: 13 个用例
+  - `test_variant_c_api.cpp`: 2 个用例
+  - `test_variant_base.cpp`: 18 个用例
 - **测试覆盖的功能模块**:
   - Variant Base（基础类型系统）
   - Variant Operations（算术和位运算）

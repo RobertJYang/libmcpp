@@ -33,7 +33,7 @@ Runtime 模块包含以下测试文件：
 - `EmbeddedSystemScenario` - 测试嵌入式系统场景下的使用
 
 ### test_runtime_context.cpp
-运行时上下文测试（34 个用例）：
+运行时上下文测试（35 个用例，已优化）：
 - `BasicInitializeAndStart` - 测试基础初始化和启动
 - `DuplicateStart` - 测试重复启动
 - `IoExecutorBasicPost` - 测试 IO 执行器基础 post 操作
@@ -47,7 +47,6 @@ Runtime 模块包含以下测试文件：
 - `EnsureStartFromUninitialized` - 测试从未初始化状态确保启动
 - `EnsureStartFromInitialized` - 测试从已初始化状态确保启动
 - `EnsureStartFromStopped` - 测试从已停止状态确保启动（会抛出异常）
-- `DuplicateStartImpl` - 测试重复启动实现
 - `StopWhenNotRunning` - 测试未运行时停止
 - `JoinWhenEmpty` - 测试空线程列表时 join
 - `GetThreadCount` - 测试获取线程数
@@ -70,7 +69,7 @@ Runtime 模块包含以下测试文件：
 - `ThreadExceptionHandling` - 测试线程异常处理
 
 ### test_executor.cpp
-执行器包装器测试（40 个用例）：
+执行器包装器测试（43 个用例，已优化）：
 - `BasicConstruction` - 测试基础构造
 - `DefaultConstruction` - 测试默认构造
 - `CopySemantics` - 测试拷贝语义
@@ -97,9 +96,8 @@ Runtime 模块包含以下测试文件：
 - `DestructorWithSingleReference` - 测试单引用的析构函数
 - `CopyAssignmentBothNullptr` - 测试两个 nullptr 的拷贝赋值
 - `CopyAssignmentReleaseReturnsFalse` - 测试 release 返回 false 的拷贝赋值
-- `EqualityEqualReturnsFalse` - 测试 equal 返回 false 的相等性
+- `EqualityEqualReturnsFalse` - 测试 equal 返回 false 的相等性（已合并 `EqualDifferentTypes` 的功能）
 - `ContextThrowsException` - 测试 context 抛出异常
-- `WrapDifferentExecutorTypes` - 测试包装不同执行器类型
 - `EqualityOneNullptr` - 测试一个 nullptr 的相等性
 - `EqualityBothNonNullptrDifferent` - 测试两个非 nullptr 但不同的相等性
 - `CopyAssignmentSelf` - 测试自赋值拷贝
@@ -112,7 +110,6 @@ Runtime 模块包含以下测试文件：
 - `OnWorkStartedWithValidExecutor` - 测试有效执行器的 on_work_started
 - `OnWorkFinishedWithValidExecutor` - 测试有效执行器的 on_work_finished
 - `ContextWithValidExecutor` - 测试有效执行器的 context
-- `EqualDifferentTypes` - 测试不同类型执行器的 equal
 - `PostDeferDispatchInvalidExecutor` - 测试无效执行器的 post/defer/dispatch
 - `PostDeferDispatchWithCustomAllocator` - 测试自定义分配器的 post/defer/dispatch
 
@@ -159,7 +156,7 @@ Runtime 模块包含以下测试文件：
 - `PostDeferDispatchWithCustomAllocator` - 测试自定义分配器的 post/defer/dispatch
 
 ### test_thread_list.cpp
-线程列表管理测试（34 个用例）：
+线程列表管理测试（32 个用例，已优化）：
 - `ThreadNodeBasic` - 测试线程节点基础功能
 - `ThreadNodeMove` - 测试线程节点移动
 - `ThreadNodeJoinable` - 测试线程节点可 join 性
@@ -169,9 +166,9 @@ Runtime 模块包含以下测试文件：
 - `StartThreadsWithoutIndex` - 测试不带索引启动线程
 - `StartThreadsWithIndex` - 测试带索引启动线程
 - `AddThread` - 测试添加线程
-- `RemoveThreadSuccess` - 测试成功移除线程
+- `RemoveThreadSuccess` - 测试成功移除线程（已合并 `RemoveThreadFound` 的功能）
 - `RemoveThreadWithNullptr` - 测试移除 nullptr 线程
-- `RemoveThreadNotInList` - 测试移除不在列表中的线程
+- `RemoveThreadNotInList` - 测试移除不在列表中的线程（已合并 `RemoveThreadNotFound` 的功能）
 - `JoinAll` - 测试等待所有线程
 - `Clear` - 测试清空线程列表
 - `GetThreadCount` - 测试获取线程数
@@ -188,8 +185,6 @@ Runtime 模块包含以下测试文件：
 - `ClearThenReuse` - 测试清空后重用
 - `VisitThreadsEmpty` - 测试访问空线程列表
 - `VisitThreadsConstEmpty` - 测试常量访问空线程列表
-- `RemoveThreadNotFound` - 测试移除未找到的线程
-- `RemoveThreadFound` - 测试移除找到的线程
 - `ThreadNodeDestructorJoinable` - 测试可 join 的线程节点析构
 - `ThreadNodeJoinWhenJoinable` - 测试可 join 时 join
 - `RemoveThreadFoundInLoop` - 测试在循环中找到并移除线程
@@ -255,7 +250,7 @@ meson test -C builddir --test-args="--gtest_filter=ExecutorTest.Copy*"
 ## 测试统计
 
 - **测试文件总数**: 5 个
-- **测试用例总数**: 151 个
+- **测试用例总数**: 129 个（已优化，删除了重复的测试用例）
 - **测试覆盖的功能模块**:
   - Runtime Context（运行时上下文）
   - Executor（执行器包装器）

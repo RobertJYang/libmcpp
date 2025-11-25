@@ -11,6 +11,9 @@
  */
 
 #include <chrono>
+#include <ratio>
+#include <cstdlib>
+#include <ctime>
 #include <gtest/gtest.h>
 #include <mc/exception.h>
 #include <mc/fmt/format.h>
@@ -429,4 +432,77 @@ TEST(chrono_format_test, timezone_name_formatting) {
         EXPECT_TRUE(std::isalpha(c) || std::isspace(c))
             << "时区名称应该只包含字母和空格，但包含: " << c;
     }
+}
+
+// Duration 中使用年份/时区格式会被校验拒绝，应在运行期抛出异常
+TEST(chrono_format_test, duration_uncommon_fields) {
+    using namespace std::chrono;
+
+    auto duration = hours(49) + minutes(5);
+    EXPECT_THROW(sformat_unsafe("{:%Y-%y-%m-%d}", duration), mc::format_error);
+    EXPECT_THROW(sformat_unsafe("{:%z %Z}", duration), mc::format_error);
+}
+
+// 测试 12 小时制格式
+TEST(chrono_format_test, Duration12HourFormat) {
+    using namespace std::chrono;
+
+    // 构造包含小时/分钟/秒的 duration
+    auto duration = hours(14) + minutes(30) + seconds(45);
+
+    // 测试 12 小时制格式
+    std::string result = sformat("{:%I:%M:%S %p}", duration);
+    // 14:30:45 应该转换为 02:30:45 PM
+    EXPECT_EQ(result, "02:30:45 PM");
+
+    // 测试上午时间
+    auto morning = hours(9) + minutes(15) + seconds(30);
+    std::string morning_result = sformat("{:%I:%M:%S %p}", morning);
+    EXPECT_EQ(morning_result, "09:15:30 AM");
+}
+
+// 测试 time_point 的时区 tokens
+TEST(chrono_format_test, TimePointTimezoneTokens) {
+    using namespace std::chrono;
+
+    // 设置时区为 UTC
+    setenv("TZ", "UTC", 1);
+    tzset();
+
+    // 创建一个固定的 time_point（1970-01-01 00:00:00 UTC）
+    auto tp = system_clock::time_point{} + seconds(0);
+
+    // 测试时区偏移量
+    std::string offset_result = sformat("{:%z}", tp);
+    EXPECT_EQ(offset_result, "+0000");
+
+    // 测试时区名称
+    std::string name_result = sformat("{:%Z}", tp);
+    EXPECT_EQ(name_result, "UTC");
+
+    // 测试组合格式
+    std::string combined = sformat("{:%z %Z}", tp);
+    EXPECT_EQ(combined, "+0000 UTC");
+}
+
+// 测试 time_point 的 12 小时制格式
+TEST(chrono_format_test, TimePoint12HourFormat) {
+    using namespace std::chrono;
+
+    // 设置时区为 UTC
+    setenv("TZ", "UTC", 1);
+    tzset();
+
+    // 创建一个下午的 time_point（1970-01-01 14:30:45 UTC）
+    auto tp = system_clock::time_point{} + hours(14) + minutes(30) + seconds(45);
+
+    // 测试 12 小时制格式
+    std::string result = sformat("{:%I:%M:%S %p}", tp);
+    // 14:30:45 应该转换为 02:30:45 PM
+    EXPECT_EQ(result, "02:30:45 PM");
+
+    // 测试午夜（hour == 0）
+    auto midnight = system_clock::time_point{} + hours(0) + minutes(0) + seconds(0);
+    std::string midnight_result = sformat("{:%I:%M:%S %p}", midnight);
+    EXPECT_EQ(midnight_result, "12:00:00 AM");
 }

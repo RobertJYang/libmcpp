@@ -1,4 +1,5 @@
 test_engine_files = [
+    'engine/test_error_engine.cpp',
     'engine/test_interface.cpp',
     'engine/test_interface_inherit.cpp',
     'engine/test_object.cpp',

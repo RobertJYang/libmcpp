@@ -490,4 +490,98 @@ TEST(ReflectTest, TypeNameValidation) {
     EXPECT_FALSE(mc::reflect::is_valid_type_name(long_name));
 }
 
+// 测试 to_variant 直接转换为 variant（会创建 dict）
+TEST(ReflectTest, ToVariantCreatesDict) {
+    test_person p("test", 42, true);
+
+    // 测试 to_variant 转换为 variant（会创建 dict）
+    mc::variant var;
+    mc::reflect::to_variant(p, var);
+
+    EXPECT_TRUE(var.is_object());
+    const mc::dict& d = var.get_object();
+    EXPECT_EQ(d["m_name"], "test");
+    EXPECT_EQ(d["m_age"], 42);
+    EXPECT_EQ(d["m_is_male"], true);
+}
+
+// 测试 to_variant 直接转换为 dict
+TEST(ReflectTest, ToVariantDirectToDict) {
+    test_person p("direct_dict", 100, false);
+
+    // 测试 to_variant 直接转换为 dict
+    mc::dict dict;
+    mc::reflect::to_variant(p, dict);
+
+    EXPECT_EQ(dict["m_name"], "direct_dict");
+    EXPECT_EQ(dict["m_age"], 100);
+    EXPECT_EQ(dict["m_is_male"], false);
+}
+
+// 测试 from_variant 从数组转换为对象
+TEST(ReflectTest, FromVariantFromArray) {
+    // 创建数组 variant，按照反射顺序：[m_name, m_age, m_is_male, id, readonly_id]
+    // 注意：test_person 有 5 个属性，但 id 和 readonly_id 是计算属性，可能不需要
+    // 实际上只有 m_name, m_age, m_is_male 是成员变量
+    mc::variants arr = {"array_name", 200, true};
+    mc::variant  var(arr);
+
+    // 从数组转换为对象
+    test_person p;
+    mc::reflect::from_variant(var, p);
+
+    EXPECT_EQ(p.m_name, "array_name");
+    EXPECT_EQ(p.m_age, 200);
+    EXPECT_EQ(p.m_is_male, true);
+}
+
+// 测试 from_variant 从数组转换为对象（数组长度不足）
+TEST(ReflectTest, FromVariantFromArrayIncomplete) {
+    // 创建不完整的数组 variant
+    mc::variants arr = {"partial_name", 300};
+    mc::variant  var(arr);
+
+    // 从数组转换为对象（缺少 m_is_male）
+    test_person p("original", 0, true);
+    mc::reflect::from_variant(var, p);
+
+    EXPECT_EQ(p.m_name, "partial_name");
+    EXPECT_EQ(p.m_age, 300);
+    // m_is_male 应该保持原值，因为数组中没有提供
+    EXPECT_EQ(p.m_is_male, true);
+}
+
+// 测试 from_variant 从数组转换为对象（数组长度超出）
+TEST(ReflectTest, FromVariantFromArrayExcess) {
+    // 创建超出长度的数组 variant
+    mc::variants arr = {"excess_name", 400, true, "extra1", 999};
+    mc::variant  var(arr);
+
+    // 从数组转换为对象，第 4 个元素 "extra1" 无法转换为 int (id 的类型)，应该抛出异常
+    test_person p;
+    EXPECT_THROW(mc::reflect::from_variant(var, p), mc::invalid_arg_exception);
+}
+
+// 测试 from_variant 从无效类型转换
+TEST(ReflectTest, FromVariantInvalidType) {
+    test_person p;
+
+    // 尝试从字符串 variant 转换为对象（应该抛出异常）
+    mc::variant var("invalid_string");
+    EXPECT_THROW(mc::reflect::from_variant(var, p), mc::bad_cast_exception);
+
+    // 尝试从整数 variant 转换为对象（应该抛出异常）
+    mc::variant var_int(123);
+    EXPECT_THROW(mc::reflect::from_variant(var_int, p), mc::bad_cast_exception);
+}
+
+// 测试枚举类型的 to_variant 转换为 dict
+TEST(ReflectTest, EnumToVariantToDict) {
+    test_color c = test_color::GREEN;
+    mc::dict    dict;
+    mc::reflect::to_variant(c, dict);
+    EXPECT_TRUE(dict.contains("value"));
+    EXPECT_EQ(dict["value"], "GREEN");
+}
+
 } // namespace test_reflect

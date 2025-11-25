@@ -14,9 +14,10 @@
 #include <mc/runtime/thread_list.h>
 #include <mc/sync/mutex_box.h>
 
+#include "test_future_helpers.h"
+
 #include <atomic>
 #include <chrono>
-#include <thread>
 
 using namespace std::chrono_literals;
 
@@ -39,7 +40,6 @@ TEST_F(ThreadListTest, ThreadNodeBasic) {
 
     {
         mc::runtime::thread_node node([&task_executed]() {
-            std::this_thread::sleep_for(10ms);
             task_executed.store(true);
         });
 
@@ -56,7 +56,6 @@ TEST_F(ThreadListTest, ThreadNodeMove) {
     std::atomic<bool> task_executed{false};
 
     mc::runtime::thread_node node1([&task_executed]() {
-        std::this_thread::sleep_for(10ms);
         task_executed.store(true);
     });
 
@@ -74,21 +73,17 @@ TEST_F(ThreadListTest, ThreadNodeMove) {
 
 // 测试 thread_node 的 joinable
 TEST_F(ThreadListTest, ThreadNodeJoinable) {
-    std::atomic<bool> task_running{true};
+    auto stop_signal = std::make_shared<std::promise<void>>();
+    auto stop_future = stop_signal->get_future().share();
 
-    mc::runtime::thread_node node([&task_running]() {
-        while (task_running.load()) {
-            std::this_thread::sleep_for(1ms);
-        }
+    mc::runtime::thread_node node([stop_future]() mutable {
+        stop_future.wait();
     });
 
-    // 线程运行时应该可join
     EXPECT_TRUE(node.joinable());
 
-    task_running.store(false);
+    stop_signal->set_value();
     node.join();
-
-    // 线程完成后应该不可join
     EXPECT_FALSE(node.joinable());
 }
 
@@ -97,7 +92,6 @@ TEST_F(ThreadListTest, ThreadNodeGetId) {
     std::atomic<bool> task_done{false};
 
     mc::runtime::thread_node node([&task_done]() {
-        std::this_thread::sleep_for(10ms);
         task_done.store(true);
     });
 
@@ -113,7 +107,6 @@ TEST_F(ThreadListTest, ThreadNodeJoinWhenNotJoinable) {
     std::atomic<bool> task_done{false};
 
     mc::runtime::thread_node node([&task_done]() {
-        std::this_thread::sleep_for(10ms);
         task_done.store(true);
     });
 
@@ -136,7 +129,6 @@ TEST_F(ThreadListTest, ThreadListBasic) {
 
         // 添加一个线程
         list.add_thread([&task_count]() {
-            std::this_thread::sleep_for(10ms);
             task_count.fetch_add(1);
         });
 
@@ -155,7 +147,6 @@ TEST_F(ThreadListTest, StartThreadsWithoutIndex) {
 
     // 启动3个线程
     list.start_threads(3, [&task_count]() {
-        std::this_thread::sleep_for(10ms);
         task_count.fetch_add(1);
     });
 
@@ -176,7 +167,6 @@ TEST_F(ThreadListTest, StartThreadsWithIndex) {
 
     // 启动5个线程，每个线程记录自己的索引
     list.start_threads(5, [&thread_indices](std::size_t index) {
-        std::this_thread::sleep_for(10ms);
         thread_indices.with_wlock([index](std::vector<std::size_t>& indices) {
             indices.push_back(index);
         });
@@ -203,12 +193,10 @@ TEST_F(ThreadListTest, AddThread) {
 
     // 添加多个线程
     auto* node1 = list.add_thread([&task_count]() {
-        std::this_thread::sleep_for(10ms);
         task_count.fetch_add(1);
     });
 
     auto* node2 = list.add_thread([&task_count]() {
-        std::this_thread::sleep_for(10ms);
         task_count.fetch_add(1);
     });
 
@@ -227,7 +215,6 @@ TEST_F(ThreadListTest, RemoveThreadSuccess) {
 
     // 添加一个线程
     auto* node = list.add_thread([&task_count]() {
-        std::this_thread::sleep_for(10ms);
         task_count.fetch_add(1);
     });
 
@@ -260,7 +247,6 @@ TEST_F(ThreadListTest, RemoveThreadNotInList) {
 
     // 在 list1 中添加线程
     auto* node = list1.add_thread([&task_done]() {
-        std::this_thread::sleep_for(10ms);
         task_done.store(true);
     });
 
@@ -279,7 +265,6 @@ TEST_F(ThreadListTest, JoinAll) {
 
     // 添加多个线程
     list.start_threads(5, [&task_count]() {
-        std::this_thread::sleep_for(20ms);
         task_count.fetch_add(1);
     });
 
@@ -301,7 +286,6 @@ TEST_F(ThreadListTest, Clear) {
 
         // 添加多个线程
         list.start_threads(3, [&task_count]() {
-            std::this_thread::sleep_for(10ms);
             task_count.fetch_add(1);
         });
 
@@ -324,7 +308,6 @@ TEST_F(ThreadListTest, GetThreadCount) {
     EXPECT_EQ(list.get_thread_count(), 0);
 
     list.start_threads(3, []() {
-        std::this_thread::sleep_for(10ms);
     });
 
     EXPECT_EQ(list.get_thread_count(), 3);
@@ -340,7 +323,6 @@ TEST_F(ThreadListTest, Empty) {
     EXPECT_TRUE(list.empty());
 
     list.add_thread([]() {
-        std::this_thread::sleep_for(10ms);
     });
 
     EXPECT_FALSE(list.empty());
@@ -356,7 +338,6 @@ TEST_F(ThreadListTest, VisitThreads) {
     mc::runtime::thread_list list;
 
     list.start_threads(3, []() {
-        std::this_thread::sleep_for(10ms);
     });
 
     // 访问所有线程
@@ -377,7 +358,6 @@ TEST_F(ThreadListTest, VisitThreadsConst) {
     mc::runtime::thread_list list;
 
     list.start_threads(3, []() {
-        std::this_thread::sleep_for(10ms);
     });
 
     // 访问所有线程（const版本）
@@ -417,17 +397,14 @@ TEST_F(ThreadListTest, MixedAddRemove) {
 
     // 添加3个线程
     auto* node1 = list.add_thread([&task_count]() {
-        std::this_thread::sleep_for(20ms);
         task_count.fetch_add(1);
     });
 
     auto* node2 = list.add_thread([&task_count]() {
-        std::this_thread::sleep_for(20ms);
         task_count.fetch_add(1);
     });
 
     auto* node3 = list.add_thread([&task_count]() {
-        std::this_thread::sleep_for(20ms);
         task_count.fetch_add(1);
     });
 
@@ -461,7 +438,6 @@ TEST_F(ThreadListTest, DestructorWaitsForThreads) {
 
         // 添加多个线程
         list.start_threads(5, [&task_count, &all_tasks_done]() {
-            std::this_thread::sleep_for(30ms);
             int count = task_count.fetch_add(1) + 1;
             if (count == 5) {
                 all_tasks_done.store(true);
@@ -482,7 +458,6 @@ TEST_F(ThreadListTest, ThreadNodeDestructorNotJoinable) {
 
     {
         mc::runtime::thread_node node([&task_done]() {
-            std::this_thread::sleep_for(10ms);
             task_done.store(true);
         });
 
@@ -525,7 +500,6 @@ TEST_F(ThreadListTest, ClearThenReuse) {
 
     // 添加线程
     list.start_threads(2, [&task_count]() {
-        std::this_thread::sleep_for(10ms);
         task_count.fetch_add(1);
     });
 
@@ -575,66 +549,21 @@ TEST_F(ThreadListTest, VisitThreadsConstEmpty) {
     EXPECT_EQ(visit_count, 0);
 }
 
-// 测试 thread_list remove_thread 中 found 为 false 的分支（节点不在列表中）
-TEST_F(ThreadListTest, RemoveThreadNotFound) {
-    mc::runtime::thread_list list1;
-    mc::runtime::thread_list list2;
-
-    std::atomic<bool> task_done{false};
-
-    // 在 list1 中添加线程
-    auto* node = list1.add_thread([&task_done]() {
-        std::this_thread::sleep_for(10ms);
-        task_done.store(true);
-    });
-
-    // 尝试从 list2 中移除 list1 的节点，应该返回 false
-    bool removed = list2.remove_thread(node);
-    EXPECT_FALSE(removed);
-
-    list1.join_all();
-    EXPECT_TRUE(task_done.load());
-}
-
-// 测试 thread_list remove_thread 中 found 为 true 的分支
-TEST_F(ThreadListTest, RemoveThreadFound) {
-    std::atomic<int> task_count{0};
-
-    mc::runtime::thread_list list;
-
-    // 添加一个线程
-    auto* node = list.add_thread([&task_count]() {
-        std::this_thread::sleep_for(10ms);
-        task_count.fetch_add(1);
-    });
-
-    EXPECT_EQ(list.get_thread_count(), 1);
-
-    // 移除线程（应该成功）
-    bool removed = list.remove_thread(node);
-    EXPECT_TRUE(removed);
-    EXPECT_EQ(list.get_thread_count(), 0);
-
-    EXPECT_EQ(task_count.load(), 1);
-}
-
 // 测试 thread_node 析构时 joinable 为 true 的分支
 TEST_F(ThreadListTest, ThreadNodeDestructorJoinable) {
-    std::atomic<bool> task_done{false};
+    std::atomic<bool>              task_done{false};
+    mc::test::runtime::future_flag task_ready;
 
     {
-        // 创建线程节点，不等待完成就析构
-        mc::runtime::thread_node node([&task_done]() {
-            std::this_thread::sleep_for(20ms);
+        mc::runtime::thread_node node([&task_done, task_ready]() mutable {
             task_done.store(true);
+            task_ready.set();
         });
 
-        // 节点析构时应该等待线程完成
         EXPECT_TRUE(node.joinable());
     }
 
-    // 等待一下确保线程完成
-    std::this_thread::sleep_for(30ms);
+    EXPECT_TRUE(task_ready.wait_for(3s));
     EXPECT_TRUE(task_done.load());
 }
 
@@ -643,7 +572,6 @@ TEST_F(ThreadListTest, ThreadNodeJoinWhenJoinable) {
     std::atomic<bool> task_done{false};
 
     mc::runtime::thread_node node([&task_done]() {
-        std::this_thread::sleep_for(10ms);
         task_done.store(true);
     });
 
@@ -662,17 +590,14 @@ TEST_F(ThreadListTest, RemoveThreadFoundInLoop) {
 
     // 添加多个线程
     auto* node1 = list.add_thread([&task_count]() {
-        std::this_thread::sleep_for(10ms);
         task_count.fetch_add(1);
     });
 
     auto* node2 = list.add_thread([&task_count]() {
-        std::this_thread::sleep_for(10ms);
         task_count.fetch_add(1);
     });
 
     auto* node3 = list.add_thread([&task_count]() {
-        std::this_thread::sleep_for(10ms);
         task_count.fetch_add(1);
     });
 
@@ -695,7 +620,6 @@ TEST_F(ThreadListTest, RemoveThreadNotFoundAfterLoop) {
     // 实际上我们应该创建一个真实的节点但不在列表中
     mc::runtime::thread_list list2;
     auto*                     node = list2.add_thread([]() {
-        std::this_thread::sleep_for(10ms);
     });
 
     // 尝试从 list 中移除 list2 的节点

@@ -150,6 +150,9 @@ private:
             singleton_leaky<leaky_test_class>::reset_for_test();
             singleton<order_test_class, order_tag1>::reset_for_test();
             singleton<order_test_class, order_tag2>::reset_for_test();
+            // 注意：exception_test_class 不在这里清理
+            // 因为它的析构函数会抛出异常，可能导致 double free
+            // 如果对象在 destroy_instances 后仍然存在（因为异常），我们不应该再次尝试删除
         }
     };
 
@@ -430,6 +433,70 @@ TEST_F(singleton_test, DestroyInstancesIsIdempotent) {
     ASSERT_FALSE(tag2_after_destroy);
 }
 
+// 用于测试异常处理的类
+class exception_test_class {
+public:
+    explicit exception_test_class(bool throw_std_exception, bool throw_unknown)
+        : m_throw_std_exception(throw_std_exception), m_throw_unknown(throw_unknown) {
+    }
+
+    ~exception_test_class() noexcept(false) {
+        if (m_throw_std_exception) {
+            throw std::runtime_error("测试标准异常");
+        }
+        if (m_throw_unknown) {
+            throw 42; // 抛出非标准异常
+        }
+    }
+
+private:
+    bool m_throw_std_exception;
+    bool m_throw_unknown;
+};
+
+// 测试 destroy_instances 的异常处理路径（std::exception）
+TEST_F(singleton_test, DestroyInstancesHandlesStdException) {
+    auto creator = []() { return new exception_test_class(true, false); };
+    singleton<exception_test_class>::instance_with_creator(creator);
+
+    // destroy_instances 应该捕获异常并继续执行
+    EXPECT_NO_THROW(mc::singleton_manager::instance().destroy_instances());
+    
+    // 由于析构函数抛出异常，delete 操作会传播异常
+    // destroy_instances 会捕获这个异常，但对象可能已经被部分删除
+    // 我们不应该再次尝试删除，避免 double free
+    // 注意：在 C++ 中，从析构函数抛出异常会导致 undefined behavior
+    // 但我们的测试目的是验证 destroy_instances 能够捕获异常并继续执行
+}
+
+// 测试 destroy_instances 的异常处理路径（未知异常）
+TEST_F(singleton_test, DestroyInstancesHandlesUnknownException) {
+    auto creator = []() { return new exception_test_class(false, true); };
+    singleton<exception_test_class>::instance_with_creator(creator);
+
+    // destroy_instances 应该捕获未知异常并继续执行
+    EXPECT_NO_THROW(mc::singleton_manager::instance().destroy_instances());
+    
+    // 由于析构函数抛出异常，对象可能没有被完全删除
+    // 我们不应该再次尝试删除，避免 double free
+}
+
+// 测试 destroy_instances 在多个单例中一个抛出异常的情况
+TEST_F(singleton_test, DestroyInstancesHandlesPartialExceptions) {
+    bool normal_destroyed = false;
+    auto normal_creator   = [&]() { return new test_class(1, &normal_destroyed); };
+    auto exception_creator = []() { return new exception_test_class(true, false); };
+
+    singleton<test_class>::instance_with_creator(normal_creator);
+    singleton<exception_test_class>::instance_with_creator(exception_creator);
+
+    // 即使一个单例抛出异常，其他单例仍应正常销毁
+    EXPECT_NO_THROW(mc::singleton_manager::instance().destroy_instances());
+    EXPECT_TRUE(normal_destroyed);
+
+    singleton<test_class>::reset_for_test();
+    // 不调用 exception_test_class 的 reset_for_test，因为对象可能已经被部分删除
+}
 
 } // namespace test
 } // namespace mc

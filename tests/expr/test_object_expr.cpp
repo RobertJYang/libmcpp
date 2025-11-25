@@ -255,3 +255,13 @@ TEST_F(object_expr_test, test_error_handling) {
     // 实参个数比形参个数多，允许
     EXPECT_NO_THROW(expr_engine.evaluate("iface1.Add(1, 2)", *obj_ctx));
 }
+
+// 测试 object_method_call_node::get_type() 方法
+TEST_F(object_expr_test, ObjectMethodCallNodeGetType) {
+    mc::expr::engine expr_engine;
+    auto            obj_ctx = expr_engine.make_context(obj.get());
+
+    // 解析一个对象方法调用表达式
+    auto node = expr_engine.compile("iface1.Add(1)");
+    EXPECT_EQ(node->get_type(), mc::expr::node_type::object_method_call);
+}

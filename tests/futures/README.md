@@ -144,12 +144,23 @@ Future/Promise 核心功能测试（85 个用例），包括：
 - `pool_count_limit` - 池数量限制测试
 - `concurrent_access` - 并发访问测试
 
+> ⚠️ 说明：`state_pool::try_release_to_pool(nullptr, …)` 早退分支会在 `state_deleter::deallocate` 中继续对空指针执行 `state_base` 析构，属于未定义行为，真实业务也不会传入空指针。为保证测试稳定性，我们仅验证公开 API，可安全触达的分支通过上述用例覆盖，空指针路径以文档方式记录而不在单测中强制触发。
+
 ## 测试统计
 
 - **测试文件总数**: 2
-- **测试用例总数**: 95
-  - `test_futures.cpp`: 85 个用例
+- **测试用例总数**: 94（已优化，删除了重复的测试用例）
+  - `test_futures.cpp`: 84 个用例（已优化，删除了重复的 `CancelChainedFuture`，功能已合并到 `CancelChainedNested`）
   - `test_state_pool.cpp`: 10 个用例
+
+## 测试优化说明
+
+### 已优化的测试文件
+
+1. **test_futures.cpp**
+   - **删除的重复测试用例**：
+     - `CancelChainedFuture` - 功能已合并到 `CancelChainedNested` 中
+   - **优化结果**：从 85 个测试用例减少到 84 个测试用例
 
 ## 运行测试
 

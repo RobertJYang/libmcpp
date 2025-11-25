@@ -39,19 +39,22 @@ bool file_appender::init(const variant& args) {
     if (!args.is_object()) {
         return false;
     }
-    void* handle = dlopen(LOGGING_PATH, RTLD_NOW);
-    if (!handle) {
-        // TODO:: 不打印错误了，干扰单元测试，后续 file_appender 也不应该是默认加载的
-        // 应该在程序启动的时候配置
-        // fprintf(stderr, "dlopen failed: %s\n", dlerror());
-    } else {
-        debug_log_ptr = (debug_log_func_t)dlsym(handle, "debug_log");
-        if (!debug_log_ptr) {
-            fprintf(stderr, "dlsym debug_log failed: %s\n", dlerror());
-        }
-        set_log_module_name_ptr = (set_log_module_name_func_t)dlsym(handle, "set_log_module_name");
-        if (!set_log_module_name_ptr) {
-            fprintf(stderr, "dlsym set_log_module_name failed: %s\n", dlerror());
+    // 只在 LOGGING_PATH 非空且符号指针未初始化时尝试加载
+    if (LOGGING_PATH[0] != '\0' && debug_log_ptr == nullptr) {
+        void* handle = dlopen(LOGGING_PATH, RTLD_NOW);
+        if (!handle) {
+            // TODO:: 不打印错误了，干扰单元测试，后续 file_appender 也不应该是默认加载的
+            // 应该在程序启动的时候配置
+            // fprintf(stderr, "dlopen failed: %s\n", dlerror());
+        } else {
+            debug_log_ptr = (debug_log_func_t)dlsym(handle, "debug_log");
+            if (!debug_log_ptr) {
+                fprintf(stderr, "dlsym debug_log failed: %s\n", dlerror());
+            }
+            set_log_module_name_ptr = (set_log_module_name_func_t)dlsym(handle, "set_log_module_name");
+            if (!set_log_module_name_ptr) {
+                fprintf(stderr, "dlsym set_log_module_name failed: %s\n", dlerror());
+            }
         }
     }
 

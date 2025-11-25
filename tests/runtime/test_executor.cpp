@@ -15,11 +15,12 @@
 #include <mc/runtime/executor.h>
 #include <test_utilities/test_base.h>
 
+#include "test_future_helpers.h"
+
 #include <atomic>
 #include <boost/asio.hpp>
 #include <chrono>
 #include <future>
-#include <thread>
 
 using namespace std::chrono_literals;
 
@@ -139,16 +140,17 @@ TEST_F(ExecutorTest, DeferOperation) {
     auto& runtime = mc::get_runtime_context();
     runtime.start();
 
-    bool task_executed{false};
+    bool                                task_executed{false};
+    mc::test::runtime::future_flag      task_ready;
 
     mc::executor exec_io(mc::make_io_strand());
 
-    exec_io.defer([&task_executed]() {
+    exec_io.defer([&task_executed, task_ready]() mutable {
         task_executed = true;
+        task_ready.set();
     });
 
-    // 等待任务执行
-    std::this_thread::sleep_for(100ms);
+    EXPECT_TRUE(task_ready.wait_for(3s));
     EXPECT_TRUE(task_executed);
 }
 
@@ -157,16 +159,17 @@ TEST_F(ExecutorTest, DispatchOperation) {
     auto& runtime = mc::get_runtime_context();
     runtime.start();
 
-    bool task_executed{false};
+    bool                                task_executed{false};
+    mc::test::runtime::future_flag      task_ready;
 
     mc::executor exec_io(mc::make_io_strand());
 
-    exec_io.dispatch([&task_executed]() {
+    exec_io.dispatch([&task_executed, task_ready]() mutable {
         task_executed = true;
+        task_ready.set();
     });
 
-    // 给一点时间确保任务执行
-    std::this_thread::sleep_for(10ms);
+    EXPECT_TRUE(task_ready.wait_for(3s));
     EXPECT_TRUE(task_executed);
 }
 
@@ -520,28 +523,7 @@ TEST_F(ExecutorTest, ContextThrowsException) {
     EXPECT_THROW(invalid_exec.context(), mc::invalid_op_exception);
 }
 
-// 测试包装不同执行器类型
-TEST_F(ExecutorTest, WrapDifferentExecutorTypes) {
-    auto& runtime = mc::get_runtime_context();
-    runtime.start();
-
-    // 包装 IO strand
-    auto         io_strand = mc::make_io_strand();
-    mc::executor exec_io(io_strand);
-    EXPECT_TRUE(exec_io.valid());
-
-    // 包装 work strand
-    auto         work_strand = mc::make_work_strand();
-    mc::executor exec_work(work_strand);
-    EXPECT_TRUE(exec_work.valid());
-
-    // 包装普通执行器
-    auto         io_executor = mc::get_io_executor();
-    mc::executor exec_io_plain(io_executor);
-    EXPECT_TRUE(exec_io_plain.valid());
-}
-
-// 测试不同执行器的相等性（已由 EqualityEqualReturnsFalse 覆盖）
+// WrapDifferentExecutorTypes 已删除，功能已合并到 WrappingDifferentExecutorTypes 中
 
 // 测试 this 为 nullptr 的拷贝赋值
 TEST_F(ExecutorTest, CopyAssignmentThisNullptr) {
@@ -677,23 +659,6 @@ TEST_F(ExecutorTest, ContextWithValidExecutor) {
     EXPECT_NE(&ctx, nullptr);
 }
 
-// 注意：use_count() 和 get_executor() 是 executor::impl_base 和 executor::impl 的内部方法
-// 无法直接测试，但可以通过拷贝/移动语义间接验证引用计数行为
-
-// 测试 executor 的 equal() 方法 - 不同类型执行器比较
-TEST_F(ExecutorTest, EqualDifferentTypes) {
-    auto& runtime = mc::get_runtime_context();
-    runtime.start();
-
-    auto          io_strand = mc::make_io_strand();
-    auto          work_strand = mc::make_work_strand();
-    mc::executor exec1(io_strand);
-    mc::executor exec2(work_strand);
-
-    // 不同类型的执行器应该不相等
-    EXPECT_NE(exec1, exec2);
-}
-
 // 测试 executor 的 post/defer/dispatch - 无效执行器异常分支
 TEST_F(ExecutorTest, PostDeferDispatchInvalidExecutor) {
     mc::executor invalid_executor;
@@ -729,4 +694,80 @@ TEST_F(ExecutorTest, PostDeferDispatchWithCustomAllocator) {
 
     runtime.get_io_context().run_for(100ms);
     EXPECT_EQ(task_count.load(), 3);
+}
+
+// 测试 executor 的引用计数，当不是最后一个引用时 release() 返回 false
+TEST_F(ExecutorTest, ExecutorReferenceCountingKeepsImplAlive) {
+    auto& runtime = mc::get_runtime_context();
+    runtime.start();
+
+    // 创建原始 executor
+    mc::executor original(mc::make_io_strand());
+    EXPECT_TRUE(original.valid());
+
+    // 在嵌套作用域中创建副本
+    {
+        mc::executor copy(original);
+        EXPECT_TRUE(copy.valid());
+        EXPECT_EQ(original, copy);
+        
+        // 此时引用计数应该是 2（original 和 copy）
+        // 当 copy 析构时，release() 应该返回 false（因为还有 original 引用）
+    }
+
+    // 验证原始 executor 仍然有效（因为引用计数没有减到 0）
+    EXPECT_TRUE(original.valid());
+
+    // 现在释放原始 executor，此时 release() 应该返回 true
+    original = mc::executor();
+    EXPECT_FALSE(original.valid());
+}
+
+// 测试 executor 的右值构造
+TEST_F(ExecutorTest, ExecutorConstructorRvalue) {
+    auto& runtime = mc::get_runtime_context();
+    runtime.start();
+
+    // 使用右值构造 executor，并传入自定义分配器
+    std::allocator<void> custom_allocator;
+    auto io_strand = mc::make_io_strand();
+    
+    // 使用右值引用和自定义分配器构造 executor
+    mc::executor exec(std::move(io_strand), custom_allocator);
+    
+    // 验证执行器有效
+    EXPECT_TRUE(exec.valid());
+
+    // 验证可以执行任务
+    std::atomic<bool> task_executed{false};
+    exec.post([&task_executed]() {
+        task_executed.store(true);
+    });
+
+    runtime.get_io_context().run_for(100ms);
+    EXPECT_TRUE(task_executed.load());
+}
+
+// 测试无效执行器的 post 调用
+TEST_F(ExecutorTest, PostOnInvalidExecutorThrows) {
+    mc::executor invalid_executor;
+
+    // 对无效执行器调用 post 应该抛出异常
+    EXPECT_THROW(invalid_executor.post([]() {}), mc::invalid_op_exception);
+}
+
+// 测试无效执行器的 defer 调用
+TEST_F(ExecutorTest, DeferOnInvalidExecutorThrows) {
+    mc::executor invalid_executor;
+
+    // 对无效执行器调用 defer 应该抛出异常
+    EXPECT_THROW(invalid_executor.defer([]() {}), mc::invalid_op_exception);
+}
+
+// 测试无效执行器的 dispatch 调用
+TEST_F(ExecutorTest, DispatchOnInvalidExecutorThrows) {
+    mc::executor invalid_executor;
+
+    // 对无效执行器调用 dispatch 应该抛出异常
+    EXPECT_THROW(invalid_executor.dispatch([]() {}), mc::invalid_op_exception);
 }

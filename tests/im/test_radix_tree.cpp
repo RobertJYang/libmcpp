@@ -279,23 +279,6 @@ TEST(RadixTreeTest, PrefixMatching) {
     EXPECT_EQ(it, tree.end());
 }
 
-// 测试空树的迭代器
-TEST(RadixTreeTest, EmptyTreeIterator) {
-    // 创建空树
-    using TestConfig = mc::im::tree_config<TestValue>;
-    mc::im::radix_tree<TestConfig> empty_tree;
-
-    // 验证空树的起始和结束迭代器相等
-    EXPECT_EQ(empty_tree.begin(), empty_tree.end());
-
-    // 测试遍历不会进入循环
-    int count = 0;
-    for (auto& item : empty_tree) {
-        ++count;
-    }
-    EXPECT_EQ(count, 0);
-}
-
 // 测试后序递增操作
 TEST(RadixTreeTest, PostIncrementIterator) {
     // 使用自定义配置创建 radix_tree
@@ -357,4 +340,63 @@ TEST(RadixTreeTest, ForRangeLoop) {
 
     // 验证所有元素都被遍历（1+2+3+4+5=15）
     EXPECT_EQ(sum, 15);
+}
+
+// 测试空树 get() 方法
+TEST(RadixTreeTest, RadixTreeGetOnEmptyTree) {
+    using TestConfig = mc::im::tree_config<TestValue>;
+    mc::im::radix_tree<TestConfig> empty_tree;
+
+    // 在空树上调用 get()
+    auto result = empty_tree.get("key");
+    EXPECT_FALSE(result.has_value());
+}
+
+// 测试空树 find() 方法
+TEST(RadixTreeTest, RadixTreeFindOnEmptyTree) {
+    using TestConfig = mc::im::tree_config<TestValue>;
+    mc::im::radix_tree<TestConfig> empty_tree;
+
+    // 在空树上调用 find()
+    auto it = empty_tree.find("key");
+    EXPECT_EQ(it, empty_tree.end());
+}
+
+// 测试空键 find() 方法
+TEST(RadixTreeTest, RadixTreeFindWithEmptyKey) {
+    using TestConfig = mc::im::tree_config<TestValue>;
+    mc::im::transaction<TestConfig> tx;
+
+    // 插入数据
+    TestValue value1("test1", 1);
+    tx.insert("key1", value1);
+
+    // 提交事务
+    auto tree = tx.commit();
+
+    // 调用 find("")，应该返回 begin()
+    auto it = tree.find("");
+    EXPECT_EQ(it, tree.begin());
+}
+
+// 测试 find() 匹配非叶子节点场景
+TEST(RadixTreeTest, RadixTreeFindNonLeafMatch) {
+    using TestConfig = mc::im::tree_config<TestValue>;
+    mc::im::transaction<TestConfig> tx;
+
+    // 插入 "abc" 和 "abcd"
+    TestValue value1("abc", 1);
+    TestValue value2("abcd", 2);
+    tx.insert("abc", value1);
+    tx.insert("abcd", value2);
+
+    // 提交事务
+    auto tree = tx.commit();
+
+    // 调用 find("abc")，应该能找到 "abc" 的叶子节点（而不是匹配到 "abcd" 的中间节点）
+    auto it = tree.find("abc");
+    ASSERT_NE(it, tree.end());
+    EXPECT_EQ(it->first, "abc");
+    EXPECT_EQ(it->second.text, "abc");
+    EXPECT_EQ(it->second.number, 1);
 }

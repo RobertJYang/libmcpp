@@ -559,6 +559,11 @@ private:
               void* user_data);
 
     /**
+     * @brief 内部辅助构造函数，用于控制是否复制链表
+     */
+    io_buffer(const io_buffer& other, bool copy_chain);
+
+    /**
      * @brief 分配内存
      */
     void allocate(std::size_t capacity);

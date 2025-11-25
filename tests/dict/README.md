@@ -53,7 +53,7 @@ Dict 模块包含以下测试文件：
 
 ### test_dict_operations.cpp
 
-字典操作测试（16 个用例），包括：
+字典操作测试（14 个用例），包括：
 
 #### dict 基本操作
 - `DictBasicAccess` - dict 基本访问操作
@@ -67,8 +67,8 @@ Dict 模块包含以下测试文件：
   - 反向迭代器
   - 迭代器遍历
 
-- `DictFind` - dict 查找操作
-  - find() 方法
+- `DictFind` - dict 查找操作（已合并 `DictFindEntryWithStringKey` 和 `DictFindWithStringKey`）
+  - find() 方法（支持 std::string、std::string_view、const char* 多种键类型）
   - 查找存在的键
   - 查找不存在的键
 
@@ -121,9 +121,10 @@ Dict 模块包含以下测试文件：
   - 相互引用处理
 
 #### mutable_dict 高级操作
-- `MutableDictFind` - mutable_dict 查找操作
-  - find() 方法
+- `MutableDictFind` - mutable_dict 查找操作（已合并 `MutableDictFindEntryWithStringKey`）
+  - find() 方法（支持 std::string、std::string_view、const char* 多种键类型）
   - 查找和修改
+  - const 和 non-const 版本
 
 - `MutableDictInsert` - mutable_dict 插入操作
   - insert() 方法
@@ -134,9 +135,34 @@ Dict 模块包含以下测试文件：
   - 插入操作与迭代器交互
   - 插入操作与查找交互
 
+#### 边界情况和异常处理测试
+- `DictFindEntryWithNullPointerKey` - 测试 find_entry(nullptr) 异常
+- `DictOperatorBracketWithNullPointerKey` - 测试 operator[](nullptr) 异常
+- `DictOperatorBracketWithVariantKeyNotFound` - 测试 operator[](variant) 键不存在异常
+- `DictGetWithStringKey` - 测试 get(const std::string&, const variant&)
+- `DictGetWithNullPointerKey` - 测试 get(nullptr, default_value) 异常
+- `DictGetWithVariantKey` - 测试 get(const variant&, const variant&)
+- `DictAtIndexOutOfRangeWithEmptyDict` - 测试空字典的 at_index 异常
+- `DictAtWithStringKey` - 测试 at(const std::string&)
+- `DictAtWithNonExistentKey` - 测试 at 键不存在异常
+- `DictAtWithNullPointerKey` - 测试 at(nullptr) 异常
+- `DictAtWithVariantKey` - 测试 at(const variant&)
+- `DictFindIndexWithNullPointerKey` - 测试 find_index(nullptr) 异常
+- `DictFindIndexWithVariantKey` - 测试 find_index(const variant&)
+- `DictContainsWithNullPointerKey` - 测试 contains(nullptr) 异常
+- `DictHash` - 测试 hash() 方法
+- `MutableDictFindEntryWithNullPointerKey` - 测试非 const find_entry(nullptr) 异常
+- `MutableDictOperatorBracketWithNullPointerKey` - 测试非 const operator[](nullptr) 异常
+- `MutableDictOperatorBracketWithNullVariantKey` - 测试非 const operator[](null variant) 异常
+- `MutableDictEraseWithVariantKey` - 测试 erase(const variant&)
+- `MutableDictAtWithStringKey` - 测试非 const at(const std::string&)
+- `MutableDictAtWithNullPointerKey` - 测试非 const at(nullptr) 异常
+- `MutableDictAtWithVariantKey` - 测试非 const at(const variant&)
+- `MutableDictInsertWithHint` - 测试 insert(const_iterator hint, variant key, variant value)
+
 ### test_dict_iteration.cpp
 
-字典迭代测试（8 个用例），包括：
+字典迭代测试（6 个用例），包括：
 
 - `CorrectIteration` - 正确迭代测试
   - 使用迭代器遍历
@@ -169,6 +195,12 @@ Dict 模块包含以下测试文件：
 - `IterationWithLookup` - 迭代与查找结合测试
   - 迭代过程中查找
   - 查找与迭代交互
+
+- `DictFindWithNullPointerKey` - 测试 find(nullptr) 异常
+- `DictFindWithVariantKey` - 测试 find(const variant&)
+- `MutableDictFindWithNullPointerKey` - 测试非 const find(nullptr) 异常
+- `MutableDictFindWithVariantKey` - 测试非 const find(const variant&)
+- `MutableDictFindWithNonExistentKey` - 测试非 const find 键不存在返回 end()
 
 ### test_dict_conversion.cpp
 
@@ -223,10 +255,10 @@ string_view 支持测试（5 个用例），包括：
 ## 测试统计
 
 - **测试文件总数**: 6
-- **测试用例总数**: 60
+- **测试用例总数**: 56
   - `test_dict_construction.cpp`: 17 个用例
-  - `test_dict_operations.cpp`: 16 个用例
-  - `test_dict_iteration.cpp`: 8 个用例
+  - `test_dict_operations.cpp`: 14 个用例（已删除重复的 `DictFindEntryWithStringKey` 和 `MutableDictFindEntryWithStringKey`，功能已合并到 `DictFind` 和 `MutableDictFind`）
+  - `test_dict_iteration.cpp`: 6 个用例（已删除重复的 `DictFindWithStringKey` 和 `MutableDictFindWithStringKey`，功能已合并到 `DictOperationsTest.DictFind` 和 `DictOperationsTest.MutableDictFind`）
   - `test_dict_conversion.cpp`: 9 个用例
   - `test_dict_string_view.cpp`: 5 个用例
   - `test_dict_performance.cpp`: 5 个用例（DISABLED）

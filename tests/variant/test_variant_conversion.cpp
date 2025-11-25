@@ -12,6 +12,7 @@
 
 #include <gtest/gtest.h>
 
+#include <mc/exception.h>
 #include <mc/variant.h>
 #include <sstream>
 
@@ -153,6 +154,20 @@ TEST_F(VariantConversionTest, CopyBlobShouldBeEqual) {
     mc::variant vb = b;
     auto        c   = vb.copy();
     EXPECT_TRUE(c == vb);
+}
+
+// 测试 std::vector 转换时元素类型不匹配抛异常
+TEST_F(VariantConversionTest, StdVectorConversionTypeMismatch) {
+    // 输入字符串数组
+    mc::variants str_array;
+    str_array.push_back("hello");
+    str_array.push_back("world");
+    str_array.push_back("test");
+    mc::variant v(str_array);
+    
+    // 尝试转换为 std::vector<int>，应该抛出异常
+    std::vector<int> int_vec;
+    EXPECT_THROW(mc::from_variant(v, int_vec), mc::exception);
 }
 
 } // namespace

@@ -175,6 +175,98 @@ TEST(ErrorClassTest, ComplexErrorAssignmentAndMove) {
     EXPECT_EQ(err2->get_name(), "test.assign.modified");
 }
 
+// 测试 from_exception(const std::exception&)
+TEST(ErrorClassTest, FromExceptionStdException) {
+    try {
+        throw std::runtime_error("标准异常测试");
+    } catch (const std::exception& e) {
+        auto converted = mc::error::from_exception(e);
+        ASSERT_TRUE(converted);
+        EXPECT_TRUE(converted->is_set());
+    }
+}
+
+// 测试 from_exception(std::exception_ptr) 的 catch (std::exception&) 路径
+TEST(ErrorClassTest, FromExceptionPtrStdException) {
+    std::exception_ptr eptr;
+    try {
+        throw std::runtime_error("标准异常指针测试");
+    } catch (...) {
+        eptr = std::current_exception();
+    }
+    
+    auto converted = mc::error::from_exception(eptr);
+    ASSERT_TRUE(converted);
+    EXPECT_TRUE(converted->is_set());
+}
+
+// 测试 from_exception(std::exception_ptr) 的 catch (...) 路径
+TEST(ErrorClassTest, FromExceptionPtrUnknown) {
+    std::exception_ptr eptr;
+    try {
+        throw 42; // 抛出非异常类型
+    } catch (...) {
+        eptr = std::current_exception();
+    }
+    
+    auto converted = mc::error::from_exception(eptr);
+    ASSERT_TRUE(converted);
+    EXPECT_TRUE(converted->is_set());
+}
+
+// 测试 get_format, get_args, get_level
+TEST(ErrorClassTest, GetFormatArgsLevel) {
+    auto err = mc::make_error("test.getters", "格式: ${msg}");
+    err->append_arg("msg", "消息");
+    err->set_level(mc::error_level::warn);
+    
+    EXPECT_EQ(err->get_format(), "格式: ${msg}");
+    EXPECT_EQ(err->get_args().size(), 1);
+    EXPECT_EQ(err->get_level(), mc::error_level::warn);
+}
+
+// 测试 to_string
+TEST(ErrorClassTest, ToString) {
+    auto err = mc::make_error("test.tostring", "测试: ${value}");
+    err->append_arg("value", "值");
+    
+    std::string str = err->to_string();
+    EXPECT_FALSE(str.empty());
+    EXPECT_NE(str.find("test.tostring"), std::string::npos);
+}
+
+// 测试 is_set 中 prev_error->is_set() 的路径
+TEST(ErrorClassTest, IsSetWithPrevError) {
+    auto empty_error = mc::make_shared<mc::error>();
+    auto primary = mc::make_error("test.primary", "主要错误");
+    primary->set_prev_error(empty_error);
+    
+    // primary 有名称，应该返回 true
+    EXPECT_TRUE(primary->is_set());
+    
+    // 重置 primary，这会清空 prev_error
+    primary->reset();
+    // 此时 primary 没有名称，prev_error 也被清空，应该返回 false
+    EXPECT_FALSE(primary->is_set());
+    
+    // 重新设置 prev_error，并给它一个名称
+    auto prev_error = mc::make_error("test.prev", "前一个错误");
+    primary->set_prev_error(prev_error);
+    // 现在 primary 没有名称，但 prev_error 有名称，应该返回 true
+    EXPECT_TRUE(primary->is_set());
+}
+
+// 测试 error_with_owner
+TEST(ErrorClassTest, ErrorWithOwner) {
+    mc::error_with_owner owner1;
+    EXPECT_FALSE(owner1.is_set());
+    
+    mc::error_with_owner owner2("test.owner", "所有者错误: ${msg}");
+    EXPECT_TRUE(owner2.is_set());
+    EXPECT_EQ(owner2.get_name(), "test.owner");
+    EXPECT_EQ(owner2.get_format(), "所有者错误: ${msg}");
+}
+
 } // namespace
 
 

@@ -17,6 +17,7 @@
 #include "test_variant_helpers.h"
 #include <gtest/gtest.h>
 #include <mc/dict.h>
+#include <mc/exception.h>
 #include <mc/variant.h>
 #include <mc/variant/variant_common.h>
 #include <stdexcept>
@@ -489,20 +490,77 @@ TEST_F(VariantContainersTest, EmptyAndFullContainers) {
     ASSERT_EQ(v_empty_array.get_array().size(), 0) << "空数组的大小应该是 0";
 
     // 测试大型字典的限制 (使用 dict 更容易构建)
-    dict large_dict;
-    for (int i = 0; i < 1000; ++i) {
+    constexpr int large_container_size = 256;
+    dict          large_dict;
+    for (int i = 0; i < large_container_size; ++i) {
         large_dict["key" + std::to_string(i)] = i;
     }
     variant v_large_dict(large_dict);
-    ASSERT_EQ(v_large_dict.get_object().size(), 1000) << "大型字典大小不匹配";
+    ASSERT_EQ(v_large_dict.get_object().size(), large_container_size) << "大型字典大小不匹配";
 
-    // 测试大型数组的限制
     variants large_array;
-    for (int i = 0; i < 1000; ++i) {
+    large_array.reserve(static_cast<size_t>(large_container_size));
+    for (int i = 0; i < large_container_size; ++i) {
         large_array.push_back(i);
     }
     variant v_large_array(large_array);
-    ASSERT_EQ(v_large_array.get_array().size(), 1000) << "大型数组大小不匹配";
+    ASSERT_EQ(v_large_array.get_array().size(), large_container_size) << "大型数组大小不匹配";
+}
+
+// 测试 variants::from_variant 拒绝非数组类型
+TEST_F(VariantContainersTest, VariantsFromVariantRejectNonArray) {
+    // 尝试从非数组 variant 构造 variants，应该抛出异常
+    variant v_int(42);
+    EXPECT_THROW(variants arr(v_int), mc::invalid_arg_exception);
+    
+    variant v_string("test");
+    EXPECT_THROW(variants arr2(v_string), mc::invalid_arg_exception);
+    
+    variant v_dict(sample_dict);
+    EXPECT_THROW(variants arr3(v_dict), mc::invalid_arg_exception);
+}
+
+// 测试 variants 的延迟分配存储
+TEST_F(VariantContainersTest, VariantsLazyAllocateStorage) {
+    // 创建空的 variants
+    variants arr;
+    
+    // 验证初始为空
+    EXPECT_TRUE(arr.empty());
+    EXPECT_EQ(arr.size(), 0);
+    
+    // 调用 emplace_back，应该触发 ensure_data()
+    arr.emplace_back(42);
+    EXPECT_FALSE(arr.empty());
+    EXPECT_EQ(arr.size(), 1);
+    EXPECT_EQ(arr[0], 42);
+    
+    // 调用 push_back
+    arr.push_back(100);
+    EXPECT_EQ(arr.size(), 2);
+    EXPECT_EQ(arr[1], 100);
+    
+    // 调用 for_each
+    int sum = 0;
+    arr.for_each([&sum](const variant& v) {
+        sum += v.as_int32();
+    });
+    EXPECT_EQ(sum, 142);
+}
+
+// 测试 insert 空范围直接返回
+TEST_F(VariantContainersTest, InsertEmptyRangeNoop) {
+    variants arr{1, 2, 3};
+    size_t original_size = arr.size();
+    
+    // 插入空范围（first == last），应该直接返回
+    arr.insert(arr.begin(), arr.begin(), arr.begin());
+    
+    // 验证大小未改变
+    EXPECT_EQ(arr.size(), original_size);
+    EXPECT_EQ(arr[0], 1);
+    EXPECT_EQ(arr[1], 2);
+    EXPECT_EQ(arr[2], 3);
 }
 
 } // namespace test

@@ -549,6 +549,7 @@ TEST_F(StringTest, TestStringToNumberSafety) {
         std::string str    = "999999999999999999999"; // 超过 int64_t 范围
         int64_t     result = 0;
         ASSERT_FALSE(mc::try_to_number(str, result));
+        // 当数值溢出时，std::strtoll 会设置 errno = ERANGE
         ASSERT_EQ(errno, ERANGE);
 
         // 验证 to_number 抛出异常
@@ -577,6 +578,234 @@ TEST_F(StringTest, TestStringToNumberWithDefault) {
 
     // 测试溢出返回默认值
     ASSERT_EQ(mc::to_number_with_default<int>("999999999999999999999", -1), -1);
+}
+
+// 测试 prepare_number_string 缓冲区大小不足的情况
+TEST_F(StringTest, PrepareNumberStringBufferTooSmall) {
+    char buffer[1]; // 非常小的缓冲区
+    auto result = mc::string::detail::prepare_number_string("123", 10, buffer, 1);
+    // 当缓冲区太小时，应该返回空 string_view
+    EXPECT_TRUE(result.empty());
+}
+
+// 测试 try_to_bool 空字符串情况
+TEST_F(StringTest, TryToBoolEmptyString) {
+    bool result = true;
+    EXPECT_TRUE(mc::string::try_to_bool("", result));
+    EXPECT_FALSE(result);
+}
+
+// 测试 to_bool 函数
+TEST_F(StringTest, ToBoolTest) {
+    // 测试 "true" 返回 true
+    EXPECT_TRUE(mc::string::to_bool("true"));
+    EXPECT_TRUE(mc::string::to_bool("TRUE"));
+    EXPECT_TRUE(mc::string::to_bool("True"));
+    EXPECT_TRUE(mc::string::to_bool("1"));
+
+    // 测试 "false" 返回 false
+    EXPECT_FALSE(mc::string::to_bool("false"));
+    EXPECT_FALSE(mc::string::to_bool("FALSE"));
+    EXPECT_FALSE(mc::string::to_bool("False"));
+    EXPECT_FALSE(mc::string::to_bool("0"));
+
+    // 测试空字符串返回 false
+    EXPECT_FALSE(mc::string::to_bool(""));
+
+    // 测试无效字符串抛出异常
+    EXPECT_THROW(mc::string::to_bool("invalid"), mc::invalid_arg_exception);
+}
+
+// 测试 iequals 的空指针处理
+TEST_F(StringTest, IEqualsNullPointer) {
+    // 测试两个 nullptr 返回 true
+    EXPECT_TRUE(mc::string::iequals(nullptr, nullptr));
+
+    // 测试 nullptr 与非空字符串返回 false
+    EXPECT_FALSE(mc::string::iequals(nullptr, "test"));
+    EXPECT_FALSE(mc::string::iequals("test", nullptr));
+}
+
+// 测试空分隔符的 split
+TEST_F(StringTest, SplitEmptyDelimiter) {
+    auto result = split("abc", "");
+    // 当分隔符为空时，应该返回包含整个字符串的向量
+    ASSERT_EQ(result.size(), 1);
+    EXPECT_EQ(result[0], "abc");
+}
+
+// 测试空前缀的 starts_with
+TEST_F(StringTest, StartsWithEmptyPrefix) {
+    // 当前缀为空时，应该返回 true
+    EXPECT_TRUE(starts_with("test", ""));
+}
+
+// 测试 longest_common_prefix 函数
+TEST_F(StringTest, LongestCommonPrefixTest) {
+    // 测试有公共前缀的情况
+    EXPECT_EQ(longest_common_prefix("abc", "ab"), "ab");
+
+    // 测试没有公共前缀的情况
+    EXPECT_EQ(longest_common_prefix("abc", "def"), "");
+
+    // 测试空字符串的情况
+    EXPECT_EQ(longest_common_prefix("", "abc"), "");
+    EXPECT_EQ(longest_common_prefix("abc", ""), "");
+}
+
+// 测试空 from 的 replace_all
+TEST_F(StringTest, ReplaceAllEmptyFrom) {
+    // 当 from 为空时，应该返回原字符串的副本
+    EXPECT_EQ(replace_all("test", "", "x"), "test");
+}
+
+// 测试空 from 的 replace_all_inplace
+TEST_F(StringTest, ReplaceAllInplaceEmptyFrom) {
+    std::string s = "test";
+    // 当 from 为空时，应该直接返回，不修改字符串
+    replace_all_inplace(s, "", "x");
+    EXPECT_EQ(s, "test");
+}
+
+// 测试 icontains 的边界情况
+TEST_F(StringTest, IContainsEdgeCases) {
+    // 测试空字符串
+    EXPECT_FALSE(icontains("", "test"));
+
+    // 测试空子字符串
+    EXPECT_TRUE(icontains("test", ""));
+
+    // 测试 s.size() < substring.size()
+    EXPECT_FALSE(icontains("ab", "abc"));
+}
+
+// 测试 icontains 的大字符串处理
+TEST_F(StringTest, IContainsLargeString) {
+    // 创建一个长度超过 1024 的字符串
+    std::string large_string(2000, 'a');
+    large_string += "TEST";
+    large_string += std::string(2000, 'b');
+
+    // 测试在大字符串中查找
+    EXPECT_TRUE(icontains(large_string, "test"));
+    EXPECT_FALSE(icontains(large_string, "xyz"));
+}
+
+// 测试 substr 的结束位置超出长度
+TEST_F(StringTest, SubstrEndExceedsLength) {
+    // 当结束位置超出长度时，应该调整到字符串末尾
+    EXPECT_EQ(substr("test", 0, 100), "test");
+}
+
+// 测试 fixed_width_append 的右对齐
+TEST_F(StringTest, FixedWidthAppendRightAlign) {
+    std::string result;
+    fixed_width_append(result, 10, "test", false); // left_align = false 表示右对齐
+    // 右对齐时，应该先添加空格，再添加字符串
+    EXPECT_EQ(result, "      test");
+    EXPECT_EQ(result.size(), 10);
+}
+
+// 测试无效的双字节 UTF-8 字符
+TEST_F(StringTest, IsValidUtf8InvalidTwoByte) {
+    // 测试不完整的双字节字符（只有 1 个字节）
+    std::string invalid1 = "\xC2"; // 只有起始字节，缺少后续字节
+    EXPECT_FALSE(is_valid_utf8(invalid1));
+
+    // 测试第二个字节不符合格式的双字节字符
+    std::string invalid2 = "\xC2\x20"; // 第二个字节应该是 0x80-0xBF，但这里是 0x20
+    EXPECT_FALSE(is_valid_utf8(invalid2));
+
+    // 测试过长编码的双字节字符（实际上双字节字符最多 2 字节，这里测试边界情况）
+    // 双字节字符范围是 U+0080 到 U+07FF
+    std::string invalid3 = "\xC2\xC0"; // 第二个字节不符合格式
+    EXPECT_FALSE(is_valid_utf8(invalid3));
+}
+
+// 测试无效的三字节 UTF-8 字符
+TEST_F(StringTest, IsValidUtf8InvalidThreeByte) {
+    // 测试不完整的三字节字符（只有 2 个字节）
+    std::string invalid1 = "\xE0\xA0"; // 只有前两个字节，缺少第三个字节
+    EXPECT_FALSE(is_valid_utf8(invalid1));
+
+    // 测试第二、三个字节不符合格式的三字节字符
+    std::string invalid2 = "\xE0\x20\xA0"; // 第二个字节应该是 0xA0-0xBF，但这里是 0x20
+    EXPECT_FALSE(is_valid_utf8(invalid2));
+
+    std::string invalid3 = "\xE0\xA0\x20"; // 第三个字节应该是 0x80-0xBF，但这里是 0x20
+    EXPECT_FALSE(is_valid_utf8(invalid3));
+
+    // 测试代理区间的三字节字符（U+D800 到 U+DFFF 是代理区间，不应该出现在 UTF-8 中）
+    std::string invalid4 = "\xED\xA0\x80"; // U+D800，代理区间
+    EXPECT_FALSE(is_valid_utf8(invalid4));
+}
+
+// 测试四字节 UTF-8 字符
+TEST_F(StringTest, IsValidUtf8FourByte) {
+    // 测试有效的四字节字符
+    std::string valid = "\xF0\x90\x80\x80"; // U+10000
+    EXPECT_TRUE(is_valid_utf8(valid));
+
+    // 测试不完整的四字节字符（只有 3 个字节）
+    std::string invalid1 = "\xF0\x90\x80"; // 缺少第四个字节
+    EXPECT_FALSE(is_valid_utf8(invalid1));
+
+    // 测试第二、三、四个字节不符合格式的四字节字符
+    std::string invalid2 = "\xF0\x20\x80\x80"; // 第二个字节应该是 0x90-0xBF，但这里是 0x20
+    EXPECT_FALSE(is_valid_utf8(invalid2));
+
+    std::string invalid3 = "\xF0\x90\x20\x80"; // 第三个字节应该是 0x80-0xBF，但这里是 0x20
+    EXPECT_FALSE(is_valid_utf8(invalid3));
+
+    std::string invalid4 = "\xF0\x90\x80\x20"; // 第四个字节应该是 0x80-0xBF，但这里是 0x20
+    EXPECT_FALSE(is_valid_utf8(invalid4));
+
+    // 测试超出 Unicode 范围的四字节字符（U+10FFFF 是最大值）
+    std::string invalid5 = "\xF4\x90\x80\x80"; // U+110000，超出范围
+    EXPECT_FALSE(is_valid_utf8(invalid5));
+}
+
+// 测试无效的 UTF-8 起始字节
+TEST_F(StringTest, IsValidUtf8InvalidStartByte) {
+    // 测试包含无效起始字节的字符串
+    std::string invalid1 = "\xFF"; // 0xFF 不是有效的 UTF-8 起始字节
+    EXPECT_FALSE(is_valid_utf8(invalid1));
+
+    std::string invalid2 = "\xFE"; // 0xFE 不是有效的 UTF-8 起始字节
+    EXPECT_FALSE(is_valid_utf8(invalid2));
+
+    std::string invalid3 = "test\xFFtest"; // 中间包含无效字节
+    EXPECT_FALSE(is_valid_utf8(invalid3));
+}
+
+// 测试 to_string(double) 移除末尾小数点
+TEST_F(StringTest, ToStringDoubleRemoveTrailingDot) {
+    // 当浮点数的小数部分全为 0 时，应该移除末尾的小数点
+    std::string result = to_string(123.0);
+    EXPECT_EQ(result, "123"); // 不包含小数点
+}
+
+// 测试 to_string(bool) 函数
+TEST_F(StringTest, ToStringBoolTest) {
+    // 测试 true 返回 "true"
+    EXPECT_EQ(to_string(true), "true");
+
+    // 测试 false 返回 "false"
+    EXPECT_EQ(to_string(false), "false");
+}
+
+// 测试 to_string(std::string&, bool) 函数
+TEST_F(StringTest, ToStringBoolAppendTest) {
+    std::string result;
+
+    // 测试 to_string(result, true) 将 "true" 追加到 result
+    to_string(result, true);
+    EXPECT_EQ(result, "true");
+
+    // 测试 to_string(result, false) 将 "false" 追加到 result
+    result.clear();
+    to_string(result, false);
+    EXPECT_EQ(result, "false");
 }
 
 } // namespace test

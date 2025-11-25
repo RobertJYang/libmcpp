@@ -19,7 +19,6 @@
 #include <string>
 
 using namespace mc;
-using namespace mc::engine;
 
 class ErrorEngineTest : public ::testing::Test {
 protected:
@@ -119,7 +118,7 @@ TEST_F(ErrorEngineTest, GetFormatArgs) {
     mc::dict         args;
 
     // 提取参数
-    bool result = mc::engine::get_error_format_args(format, args);
+    bool result = mc::get_error_format_args(format, args);
 
     // 验证结果
     EXPECT_TRUE(result);
@@ -129,13 +128,13 @@ TEST_F(ErrorEngineTest, GetFormatArgs) {
 
     // 测试无参数的格式
     mc::dict args2;
-    result = mc::engine::get_error_format_args("没有参数的格式", args2);
+    result = mc::get_error_format_args("没有参数的格式", args2);
     EXPECT_TRUE(result);
     EXPECT_TRUE(args2.empty());
 
     // 测试格式错误的情况
     mc::dict args3;
-    result = mc::engine::get_error_format_args("错误的格式：${name", args3);
+    result = mc::get_error_format_args("错误的格式：${name", args3);
     EXPECT_FALSE(result);
 }
 
@@ -146,7 +145,7 @@ TEST_F(ErrorEngineTest, MakeError) {
     std::string_view format = "错误代码：${code}，详细信息：${message}";
 
     // 创建错误
-    auto error = mc::engine::make_error(name, format);
+    auto error = mc::make_error(name, format);
     error->append_arg("code", 404);
     error->append_arg("message", "资源不存在");
 
@@ -192,7 +191,7 @@ TEST_F(ErrorEngineTest, ComplexFormat) {
         {"actual_permission", "user:read"},
     };
 
-    auto error = mc::engine::make_error(name, format);
+    auto error = mc::make_error(name, format);
     error->set_args(md);
 
     std::string expected = "用户admin在2024-05-20 15:30:45尝试访问/api/sensitive-data，但权限不足。"
@@ -292,7 +291,7 @@ TEST_F(ErrorEngineTest, LastError) {
     std::string format = "最后错误：${info}";
     engine.register_error(name, format);
 
-    auto err = mc::engine::make_error(name, format);
+    auto err = mc::make_error(name, format);
     err->append_arg("info", "这是最后的错误");
 
     // 设置为最后错误
@@ -312,16 +311,16 @@ TEST_F(ErrorEngineTest, LastError) {
 // 测试错误名称验证功能
 TEST_F(ErrorEngineTest, ValidateErrorName) {
     // 测试有效的错误名称
-    EXPECT_TRUE(mc::engine::is_valid_error_name("org.valid.error"));
-    EXPECT_TRUE(mc::engine::is_valid_error_name("com.example.error"));
-    EXPECT_TRUE(mc::engine::is_valid_error_name("x.y.z"));
+    EXPECT_TRUE(mc::is_valid_error_name("org.valid.error"));
+    EXPECT_TRUE(mc::is_valid_error_name("com.example.error"));
+    EXPECT_TRUE(mc::is_valid_error_name("x.y.z"));
 
     // 测试无效的错误名称
-    EXPECT_FALSE(mc::engine::is_valid_error_name(""));
-    EXPECT_FALSE(mc::engine::is_valid_error_name("invalid"));
-    EXPECT_FALSE(mc::engine::is_valid_error_name("invalid."));
-    EXPECT_FALSE(mc::engine::is_valid_error_name(".invalid"));
-    EXPECT_FALSE(mc::engine::is_valid_error_name("invalid..name"));
+    EXPECT_FALSE(mc::is_valid_error_name(""));
+    EXPECT_FALSE(mc::is_valid_error_name("invalid"));
+    EXPECT_FALSE(mc::is_valid_error_name("invalid."));
+    EXPECT_FALSE(mc::is_valid_error_name(".invalid"));
+    EXPECT_FALSE(mc::is_valid_error_name("invalid..name"));
 }
 
 // 复杂场景：错误链的完整生命周期测试
@@ -425,4 +424,95 @@ TEST_F(ErrorEngineTest, ComplexErrorLevelAndFormatting) {
     EXPECT_TRUE(error_err->has_error("test.level.warn"));
     EXPECT_TRUE(error_err->has_error("test.level.info"));
     EXPECT_TRUE(error_err->has_error("test.level.debug"));
+}
+
+// 测试 register_const_error(const error_info&) 重载版本
+TEST_F(ErrorEngineTest, RegisterConstErrorWithErrorInfoOverload) {
+    auto& engine = error_engine::get_instance();
+    
+    error_info info("test.error.info.overload", "重载版本错误: ${value}");
+    auto stored = engine.register_const_error(info);
+    EXPECT_EQ(stored.name, info.name);
+    EXPECT_EQ(stored.format, info.format);
+    
+    // 验证可以获取
+    auto fetched = engine.get_error_info(info.name);
+    EXPECT_EQ(fetched.name, info.name);
+    EXPECT_EQ(fetched.format, info.format);
+}
+
+// 测试 register_const_error 重复注册的错误路径
+TEST_F(ErrorEngineTest, RegisterConstErrorDuplicatePath) {
+    auto& engine = error_engine::get_instance();
+    
+    std::string_view name = "test.error.duplicate.const";
+    std::string_view format = "重复注册常量错误: ${value}";
+    
+    // 第一次注册应该成功
+    auto first = engine.register_const_error(name, format);
+    EXPECT_EQ(first.name, name);
+    EXPECT_EQ(first.format, format);
+    
+    // 第二次注册应该失败，返回空的 error_info
+    auto second = engine.register_const_error(name, format);
+    EXPECT_TRUE(second.name.empty());
+    EXPECT_TRUE(second.format.empty());
+}
+
+// 测试 register_error 重复注册的错误路径
+TEST_F(ErrorEngineTest, RegisterErrorDuplicatePath) {
+    auto& engine = error_engine::get_instance();
+    
+    std::string name = "test.error.duplicate.dynamic";
+    std::string format = "重复注册动态错误: ${value}";
+    
+    // 第一次注册应该成功
+    auto first = engine.register_error(name, format);
+    EXPECT_EQ(first.name, name);
+    EXPECT_EQ(first.format, format);
+    
+    // 第二次注册应该失败，返回空的 error_info
+    auto second = engine.register_error(name, format);
+    EXPECT_TRUE(second.name.empty());
+    EXPECT_TRUE(second.format.empty());
+}
+
+// 测试 get_error_info 未找到的情况
+TEST_F(ErrorEngineTest, GetErrorInfoNotFound) {
+    auto& engine = error_engine::get_instance();
+    
+    // 获取未注册的错误信息
+    auto info = engine.get_error_info("not.registered.error.name");
+    EXPECT_TRUE(info.name.empty());
+    EXPECT_TRUE(info.format.empty());
+}
+
+// 测试 report_error 中 last_error->is_set() 为 false 的路径
+TEST_F(ErrorEngineTest, ReportErrorWithUnsetLastError) {
+    auto& engine = error_engine::get_instance();
+    engine.reset_error();
+    
+    // 创建一个未设置的 error
+    auto empty_error = mc::make_shared<mc::error>();
+    engine.set_last_error(empty_error);
+    
+    // 注册错误
+    error_info info("test.unset.error", "未设置错误: ${value}");
+    engine.register_const_error(info);
+    
+    // 报告错误，应该重用未设置的 last_error
+    auto reported = engine.report_error(info, {{"value", "test"}});
+    EXPECT_EQ(reported, empty_error);
+    EXPECT_TRUE(reported->is_set());
+    EXPECT_EQ(reported->get_name(), "test.unset.error");
+    EXPECT_EQ(reported->get_message(), "未设置错误: test");
+}
+
+// 测试 make_error(const error_info&) 重载版本
+TEST_F(ErrorEngineTest, MakeErrorWithErrorInfo) {
+    error_info info("test.make.error.info", "创建错误: ${msg}");
+    auto error = mc::make_error(info);
+    
+    EXPECT_EQ(error->get_name(), info.name);
+    EXPECT_EQ(error->get_format(), info.format);
 }

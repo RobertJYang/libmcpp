@@ -14,9 +14,10 @@
 #include <mc/runtime.h>
 #include <test_utilities/test_base.h>
 
+#include "test_future_helpers.h"
+
 #include <atomic>
 #include <chrono>
-#include <thread>
 
 using namespace std::chrono_literals;
 
@@ -34,31 +35,23 @@ TEST_F(RuntimeBasicTest, BasicUsageExample) {
 
     std::atomic<bool> network_task_done{false};
     std::atomic<bool> hardware_task_done{false};
+    mc::test::runtime::future_flag network_ready;
+    mc::test::runtime::future_flag hardware_ready;
 
     // 网络相关任务 - 使用默认IO执行器
-    mc::post([&network_task_done]() {
-        // 模拟网络IO操作
-        std::this_thread::sleep_for(50ms);
+    mc::post([&network_task_done, network_ready]() mutable {
         network_task_done.store(true);
+        network_ready.set();
     });
 
     // 硬件相关任务 - 使用系统执行器
-    mc::post([&hardware_task_done]() {
-        // 模拟阻塞的硬件IO操作（如i2c读写）
-        std::this_thread::sleep_for(100ms);
+    mc::post([&hardware_task_done, hardware_ready]() mutable {
         hardware_task_done.store(true);
+        hardware_ready.set();
     }, mc::work_executor);
 
-    // 等待任务完成
-    auto start_time = std::chrono::steady_clock::now();
-    while (!network_task_done.load() || !hardware_task_done.load()) {
-        std::this_thread::sleep_for(10ms);
-
-        // 防止无限等待
-        auto elapsed = std::chrono::steady_clock::now() - start_time;
-        ASSERT_LT(elapsed, 5s) << "任务执行超时";
-    }
-
+    EXPECT_TRUE(network_ready.wait_for(3s));
+    EXPECT_TRUE(hardware_ready.wait_for(3s));
     EXPECT_TRUE(network_task_done.load());
     EXPECT_TRUE(hardware_task_done.load());
 }
@@ -69,33 +62,27 @@ TEST_F(RuntimeBasicTest, ExecutorObjectUsage) {
 
     std::atomic<int> task_count{0};
 
-    // 获取不同类型的执行器
+    mc::test::runtime::countdown_future tasks_done(3);
     auto io_executor      = mc::get_io_executor();
     auto system_executor  = mc::get_work_executor();
     auto default_executor = mc::get_default_executor();
 
-    // 使用执行器对象投递任务
-    boost::asio::post(io_executor, [&task_count]() {
+    boost::asio::post(io_executor, [&, tasks_done]() mutable {
         task_count.fetch_add(1);
+        tasks_done.arrive();
     });
 
-    boost::asio::post(system_executor, [&task_count]() {
+    boost::asio::post(system_executor, [&, tasks_done]() mutable {
         task_count.fetch_add(1);
+        tasks_done.arrive();
     });
 
-    boost::asio::post(default_executor, [&task_count]() {
+    boost::asio::post(default_executor, [&, tasks_done]() mutable {
         task_count.fetch_add(1);
+        tasks_done.arrive();
     });
 
-    // 等待任务完成
-    auto start_time = std::chrono::steady_clock::now();
-    while (task_count.load() < 3) {
-        std::this_thread::sleep_for(10ms);
-
-        auto elapsed = std::chrono::steady_clock::now() - start_time;
-        ASSERT_LT(elapsed, 2s) << "任务执行超时";
-    }
-
+    EXPECT_TRUE(tasks_done.wait_for(3s));
     EXPECT_EQ(task_count.load(), 3);
 }
 
@@ -105,29 +92,37 @@ TEST_F(RuntimeBasicTest, ExecutorTagUsage) {
 
     std::atomic<int> io_task_count{0};
     std::atomic<int> system_task_count{0};
+    mc::test::runtime::future_flag io_done;
+    mc::test::runtime::future_flag system_done;
 
-    // 使用标签投递任务
-    mc::post([&io_task_count]() {
-        io_task_count.fetch_add(1);
+    auto notify_io = [&io_task_count, io_done]() mutable {
+        auto current = io_task_count.fetch_add(1) + 1;
+        if (current >= 2) {
+            io_done.set();
+        }
+    };
+
+    auto notify_system = [&system_task_count, system_done]() mutable {
+        auto current = system_task_count.fetch_add(1) + 1;
+        if (current >= 1) {
+            system_done.set();
+        }
+    };
+
+    mc::post([notify_io]() mutable {
+        notify_io();
     }, mc::io_executor);
 
-    mc::defer([&system_task_count]() {
-        system_task_count.fetch_add(1);
+    mc::dispatch([notify_io]() mutable {
+        notify_io();
+    });
+
+    mc::defer([notify_system]() mutable {
+        notify_system();
     }, mc::work_executor);
 
-    mc::dispatch([&io_task_count]() {
-        io_task_count.fetch_add(1);
-    }); // 默认使用IO执行器
-
-    // 等待任务完成
-    auto start_time = std::chrono::steady_clock::now();
-    while (io_task_count.load() < 2 || system_task_count.load() < 1) {
-        std::this_thread::sleep_for(10ms);
-
-        auto elapsed = std::chrono::steady_clock::now() - start_time;
-        ASSERT_LT(elapsed, 2s) << "任务执行超时";
-    }
-
+    EXPECT_TRUE(io_done.wait_for(3s));
+    EXPECT_TRUE(system_done.wait_for(3s));
     EXPECT_EQ(io_task_count.load(), 2);
     EXPECT_EQ(system_task_count.load(), 1);
 }
@@ -139,33 +134,29 @@ TEST_F(RuntimeBasicTest, EmbeddedSystemScenario) {
     std::atomic<int> sensor_readings{0};
     std::atomic<int> network_responses{0};
 
-    // 模拟传感器读取（阻塞硬件操作）
+    mc::test::runtime::future_flag sensors_done;
+    mc::test::runtime::future_flag network_done;
+
     for (int i = 0; i < 3; ++i) {
-        mc::post([&sensor_readings]() {
-            // 模拟i2c读取传感器数据
-            std::this_thread::sleep_for(10ms);
+        mc::post([&sensor_readings, sensors_done]() mutable {
             sensor_readings.fetch_add(1);
+            if (sensor_readings.load() >= 3) {
+                sensors_done.set();
+            }
         }, mc::work_executor);
     }
 
-    // 模拟网络请求处理（事件驱动）
     for (int i = 0; i < 5; ++i) {
-        mc::post([&network_responses]() {
-            // 模拟HTTP响应处理
-            std::this_thread::sleep_for(5ms);
+        mc::post([&network_responses, network_done]() mutable {
             network_responses.fetch_add(1);
+            if (network_responses.load() >= 5) {
+                network_done.set();
+            }
         }); // 默认使用IO执行器
     }
 
-    // 等待所有任务完成
-    auto start_time = std::chrono::steady_clock::now();
-    while (sensor_readings.load() < 3 || network_responses.load() < 5) {
-        std::this_thread::sleep_for(20ms);
-
-        auto elapsed = std::chrono::steady_clock::now() - start_time;
-        ASSERT_LT(elapsed, 5s) << "任务执行超时";
-    }
-
+    EXPECT_TRUE(sensors_done.wait_for(3s));
+    EXPECT_TRUE(network_done.wait_for(3s));
     EXPECT_EQ(sensor_readings.load(), 3);
     EXPECT_EQ(network_responses.load(), 5);
 }

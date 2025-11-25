@@ -96,10 +96,11 @@ TEST_F(connection_manager_test, remove_connection) {
     manager.remove_connection(id); // 应该不会抛出异常
 }
 
-// 测试移除不存在的连接
+// 测试移除不存在的连接（合并了 remove_nonexistent_connection 和 remove_nonexistent_connection_id）
 TEST_F(connection_manager_test, remove_nonexistent_connection) {
     // 移除不存在的连接不应该抛出异常
-    manager.remove_connection(9999);
+    EXPECT_NO_THROW(manager.remove_connection(9999));
+    EXPECT_NO_THROW(manager.remove_connection(INVALID_CONNECTION_ID));
 }
 
 // 测试移除信号的所有连接

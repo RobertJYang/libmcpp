@@ -228,6 +228,36 @@ TEST_F(database_test, update_operations) {
     EXPECT_EQ(obj3->value(), 888);
 }
 
+// 测试 unregister_table - 遇到不存在的表
+TEST_F(database_test, RemoveTableIgnoresMissing) {
+    // 建立数据库但不注册表
+    mc::db::database empty_db;
+
+    // 调用 unregister_table 针对不存在的表，应该不会崩溃
+    EXPECT_NO_THROW(empty_db.unregister_table("unknown_table"));
+
+    // 验证 list_tables() 为空（如果存在该方法）
+    // 注意：database 类可能没有 list_tables 方法，这里只验证不会崩溃
+}
+
+// 测试 is_table_registered/get_table/empty - 表不存在时的早退分支
+TEST_F(database_test, QueryMissingTableReturnsNull) {
+    mc::db::database empty_db;
+
+    // 测试 get_table 在表不存在时返回 nullptr
+    auto table = empty_db.get_table("non_existent_table");
+    EXPECT_EQ(table, nullptr);
+
+    // 测试 is_table_registered 在表不存在时返回 false
+    EXPECT_FALSE(empty_db.is_table_registered("non_existent_table"));
+
+    // 测试 empty 在表不存在时返回 false（根据代码，应该是 false）
+    EXPECT_FALSE(empty_db.empty("non_existent_table"));
+
+    // 测试 size 在表不存在时返回 0
+    EXPECT_EQ(empty_db.size("non_existent_table"), 0);
+}
+
 // 测试表操作功能
 TEST_F(database_test, table_operations) {
     // 测试表注册状态
@@ -675,10 +705,4 @@ TEST_F(database_test, multi_table_transaction) {
     db.unregister_table("second_table");
 }
 
-TEST_F(database_test, index_name) {
-    auto name_id = table->get<by_id>().index_name();
-    EXPECT_EQ(name_id, "id");
-
-    auto name2 = table->get<2>().index_name();
-    EXPECT_EQ(name2, "name");
-}
+// index_name 测试已移至 test_table.cpp，此处删除重复测试

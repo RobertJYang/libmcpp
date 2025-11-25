@@ -23,6 +23,8 @@
 #include <thread>
 #include <vector>
 
+#include "../runtime/test_future_helpers.h"
+
 using namespace mc::sync;
 
 class mutex_box_test : public ::testing::Test {
@@ -257,7 +259,7 @@ TEST_F(mutex_box_test, multithreaded_access) {
             auto         locked = sync_counter.rlock();
             volatile int value  = *locked; // 读取值
             (void)value;                   // 避免未使用变量警告
-            std::this_thread::sleep_for(std::chrono::microseconds(1));
+            std::this_thread::yield();
         }
     });
 
@@ -620,22 +622,32 @@ TEST_F(mutex_box_test, timeout_lock_functions) {
     {
         std::atomic<bool> reader_acquired{false};
         std::atomic<bool> writer_timeout{false};
+        mc::test::runtime::future_flag reader_ready;
+        mc::test::runtime::future_flag release_flag;
 
         std::thread reader_thread([&]() {
             auto locked     = sync_data.rlock();
             reader_acquired = true;
-            std::this_thread::sleep_for(std::chrono::milliseconds(200));
-            // 读锁持有200ms
+            reader_ready.set();
+            // 等待释放信号，最多等待2秒
+            if (!release_flag.wait_for(std::chrono::milliseconds(2000))) {
+                return; // 超时退出
+            }
         });
 
         std::thread writer_thread([&]() {
-            std::this_thread::sleep_for(std::chrono::milliseconds(50)); // 确保读锁先获取
+            // 确保读锁先获取
+            if (!reader_ready.wait_for(std::chrono::milliseconds(2000))) {
+                return; // 超时退出
+            }
             auto locked    = sync_data.try_wlock_for(mc::milliseconds(50));
             writer_timeout = !static_cast<bool>(locked);
         });
 
-        reader_thread.join();
+        // 等待写线程完成
         writer_thread.join();
+        release_flag.set();
+        reader_thread.join();
 
         EXPECT_TRUE(reader_acquired);
         EXPECT_TRUE(writer_timeout); // 写锁应该超时
@@ -786,21 +798,25 @@ TEST_F(mutex_box_test, upgrade_lock_concurrency) {
     std::atomic<bool> reader_finished{false};
     std::atomic<bool> upgrade_acquired{false};
 
+    mc::test::runtime::future_flag reader_ready;
+    mc::test::runtime::future_flag release_flag;
+
     std::thread reader([&]() {
         reader_started   = true;
         auto read_locked = sync_data.rlock();
         EXPECT_TRUE(read_locked);
         EXPECT_EQ(*read_locked, 42);
+        reader_ready.set();
 
-        // 持有读锁一段时间
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        // 等待释放信号，最多等待2秒
+        if (!release_flag.wait_for(std::chrono::milliseconds(2000))) {
+            return; // 超时退出
+        }
         reader_finished = true;
     });
 
-    // 等待读线程启动
-    while (!reader_started) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(1));
-    }
+    // 等待读线程启动并获取锁
+    ASSERT_TRUE(reader_ready.wait_for(std::chrono::milliseconds(2000)));
 
     // 获取升级锁（应该与读锁共存）
     auto upgrade_locked = sync_data.ulock();
@@ -808,6 +824,7 @@ TEST_F(mutex_box_test, upgrade_lock_concurrency) {
     EXPECT_EQ(*upgrade_locked, 42);
     upgrade_acquired = true;
 
+    release_flag.set();
     reader.join();
     EXPECT_TRUE(reader_finished);
     EXPECT_TRUE(upgrade_acquired);

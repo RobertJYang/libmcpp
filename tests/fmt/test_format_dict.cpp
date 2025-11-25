@@ -16,6 +16,7 @@
 #include <limits>
 
 #include <mc/fmt/format.h>
+#include <mc/fmt/format_context.h>
 #include <mc/fmt/format_dict.h>
 #include <mc/exception.h>
 
@@ -140,4 +141,52 @@ TEST(format_dict_test, DynamicParameterTypeError) {
 
     // 当前实现会保留转换失败的动态参数文本，并把占位符中的内容直接拼接。
     EXPECT_EQ(mc::format_dict("${value:{width}f}", args), "{value:not_numberf}");
+}
+
+// 验证 format_dict_icase 追加重载覆盖率，并确保大小写忽略逻辑生效
+TEST(format_dict_test, AppendIcaseOverload) {
+    mc::dict args{{"path", "/tmp/FILE"}};
+    std::string buffer = "prefix:";
+    mc::format_dict_icase(buffer, "${PATH}", args);
+    EXPECT_EQ(buffer, "prefix:/tmp/FILE");
+    mc::format_dict_icase(buffer, " ${path}", args);
+    EXPECT_EQ(buffer, "prefix:/tmp/FILE /tmp/FILE");
+}
+
+// dict 中的动态宽度参数由浮点数提供，覆盖 try_as<int>() 分支
+TEST(format_dict_test, DynamicWidthFromFloatingEntry) {
+    mc::dict args{{"value", 3.14159}, {"width", 6.0}, {"precision", 2}};
+    EXPECT_EQ(mc::format_dict("${value:{width}.{precision}f}", args), "  3.14");
+}
+
+// 直接验证 runtime_arg_store 在 dict 模式下的大小写匹配与缺失参数分支
+TEST(format_dict_test, RuntimeStoreFallbacks) {
+    mc::dict args;
+    args.insert(mc::variant(42), "answer");
+
+    mc::fmt::detail::runtime_arg_store store;
+    store.icase = true;
+    store.set_dict_args(&args);
+
+    const auto* matched = store.get_variant("42");
+    ASSERT_NE(matched, nullptr);
+    EXPECT_EQ(matched->as_string(), "answer");
+
+    int    dynamic_value  = 0;
+    size_t invalid_index  = std::numeric_limits<size_t>::max();
+    EXPECT_FALSE(store.resolve_dynamic_param(invalid_index, "missing", dynamic_value));
+}
+
+// 测试 dict 的 key 非字符串时的 fallback
+TEST(format_dict_test, DictNonStringKeyFallback) {
+    // 构造一个 dict，键为 int64_t
+    mc::dict dict;
+    dict.insert(mc::variant(static_cast<int64_t>(123)), "value1");
+    dict.insert(mc::variant(static_cast<int64_t>(456)), "value2");
+
+    // 格式化 dict，应该使用 fallback 格式化非字符串键
+    std::string result = sformat("{}", dict);
+    // 验证输出包含十进制键
+    EXPECT_TRUE(result.find("123") != std::string::npos || result.find("value1") != std::string::npos);
+    EXPECT_TRUE(result.find("456") != std::string::npos || result.find("value2") != std::string::npos);
 }

@@ -41,18 +41,19 @@ mc::variant parse_value(const std::string& value) {
         return variant(false);
     }
 
-    // 尝试转换为整数
-    try {
-        return variant(static_cast<int32_t>(std::stoi(value)));
-    } catch (...) {
-        // 转换失败，继续尝试其他类型
+    int64_t int_result;
+    if (mc::string::try_to_number(value, int_result)) {
+        if (int_result >= std::numeric_limits<int32_t>::min() &&
+            int_result <= std::numeric_limits<int32_t>::max()) {
+            return variant(static_cast<int32_t>(int_result));
+        }
+        return variant(int_result);
     }
 
     // 尝试转换为浮点数
-    try {
-        return variant(std::stod(value));
-    } catch (...) {
-        // 转换失败，作为字符串处理
+    double double_result;
+    if (mc::string::try_to_number(value, double_result)) {
+        return variant(double_result);
     }
 
     // 如果都不是，则作为字符串处理
@@ -296,10 +297,6 @@ func_call func_parser::parse_function_call(const std::string& input) {
                 mc::variant(param_value.substr(1, param_value.length() - 2));
         } else if (param_value == "true" || param_value == "false") {
             result.params[param_name] = mc::variant(param_value == "true");
-        } else if (std::regex_match(param_value, std::regex(R"(-?\d+\.\d+)"))) {
-            result.params[param_name] = mc::variant(std::stod(param_value));
-        } else if (std::regex_match(param_value, std::regex(R"(-?\d+)"))) {
-            result.params[param_name] = mc::variant(static_cast<int32_t>(std::stoi(param_value)));
         } else if (param_value[0] == '$') {
             auto     nested_call = parse_function_call(param_value);
             mc::dict nested_dict;
@@ -324,7 +321,15 @@ func_call func_parser::parse_function_call(const std::string& input) {
                        std::regex(R"([A-Za-z_][A-Za-z0-9_]*\.[A-Za-z_][A-Za-z0-9_]*)"))) {
             result.params[param_name] = mc::variant(parse_property(param_value));
         } else {
-            MC_THROW(mc::invalid_arg_exception, "Invalid parameter value: ${param_value}", ("param_value", param_value));
+            // 尝试使用 parse_value 解析参数值（支持科学计数法、以点开头的浮点数等）
+            auto parsed_value = parse_value(param_value);
+            // 如果 parse_value 返回的是数字类型（整数或浮点数），说明解析成功
+            if (parsed_value.is_numeric()) {
+                result.params[param_name] = parsed_value;
+            } else {
+                // 如果返回的是字符串，说明无法解析为数字，继续尝试其他格式或抛出异常
+                MC_THROW(mc::invalid_arg_exception, "Invalid parameter value: ${param_value}", ("param_value", param_value));
+            }
         }
         while (pos < params_str.length() && (std::isspace(params_str[pos]) ||
                                              params_str[pos] == ',' || params_str[pos] == ')')) {

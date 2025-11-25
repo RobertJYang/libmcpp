@@ -68,29 +68,33 @@ io_buffer& io_buffer::operator=(io_buffer&& other) noexcept {
     return *this;
 }
 
-io_buffer::io_buffer(const io_buffer& other)
+io_buffer::io_buffer(const io_buffer& other) : io_buffer(other, true) {
+}
+
+io_buffer::io_buffer(const io_buffer& other, bool copy_chain)
     : m_buffer(other.m_buffer), m_data(other.m_data), m_length(other.m_length),
       m_capacity(other.m_capacity), m_next(this), m_prev(this) {
-    if (other.m_next != &other) {
-        const io_buffer* current = &other;
-        io_buffer*       tail    = this;
-
-        do {
-            current = current->m_next;
-            if (current == &other) {
-                break;
-            }
-
-            auto new_node    = std::make_unique<io_buffer>(*current);
-            tail->m_next     = new_node.get();
-            new_node->m_prev = tail;
-            tail             = new_node.release();
-
-        } while (true);
-
-        tail->m_next = this;
-        m_prev       = tail;
+    if (!copy_chain || other.m_next == &other) {
+        return;
     }
+
+    const io_buffer* current = &other;
+    io_buffer*       tail    = this;
+
+    while (true) {
+        current = current->m_next;
+        if (current == &other) {
+            break;
+        }
+
+        auto* new_node = new io_buffer(*current, false);
+        tail->m_next   = new_node;
+        new_node->m_prev = tail;
+        tail             = new_node;
+    }
+
+    tail->m_next = this;
+    m_prev       = tail;
 }
 
 io_buffer& io_buffer::operator=(const io_buffer& other) {

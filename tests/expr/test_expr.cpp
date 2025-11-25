@@ -10,12 +10,15 @@
  * See the Mulan PSL v2 for more details.
  */
 
+#include <algorithm>
+#include <cmath>
 #include <gtest/gtest.h>
 #include <iostream>
 #include <mc/dict.h>
 #include <mc/exception.h>
 #include <mc/expr/builtin.h>
 #include <mc/expr/engine.h>
+#include <mc/expr/function.h>
 
 namespace {
 class expr_test : public ::testing::Test {
@@ -31,6 +34,7 @@ protected:
 
     mc::expr::engine engine;
 };
+
 } // namespace
 
 TEST_F(expr_test, BasicArithmetic) {
@@ -461,4 +465,54 @@ TEST_F(expr_test, conditional_expression) {
     // EXPECT_EQ(engine.evaluate("1 ? 2 ? 3 : 4 : 5", ctx), 3);
     // EXPECT_EQ(engine.evaluate("1 ? 0 ? 3 : 4 : 5", ctx), 4);
     // EXPECT_EQ(engine.evaluate("0 ? 2 ? 3 : 4 : 5", ctx), 5);
+}
+
+// 覆盖数学模块中未执行的函数
+TEST_F(expr_test, math_module_advanced_functions) {
+    auto ctx = engine.make_context();
+
+    EXPECT_DOUBLE_EQ(engine.evaluate("round(1.4)", ctx).as_double(), 1.0);
+    EXPECT_DOUBLE_EQ(engine.evaluate("ceil(1.2)", ctx).as_double(), 2.0);
+    EXPECT_DOUBLE_EQ(engine.evaluate("floor(1.8)", ctx).as_double(), 1.0);
+    EXPECT_DOUBLE_EQ(engine.evaluate("sqrt(9)", ctx).as_double(), 3.0);
+    EXPECT_NEAR(engine.evaluate("exp(1)", ctx).as_double(), std::exp(1.0), 1e-9);
+    EXPECT_NEAR(engine.evaluate("log(1)", ctx).as_double(), 0.0, 1e-12);
+    EXPECT_NEAR(engine.evaluate("pow(4, 0.5)", ctx).as_double(), 2.0, 1e-9);
+}
+
+// 覆盖数学模块中的异常分支
+TEST_F(expr_test, math_module_invalid_inputs) {
+    auto ctx = engine.make_context();
+    EXPECT_THROW(engine.evaluate("log(0)", ctx), mc::invalid_arg_exception);
+    EXPECT_THROW(engine.evaluate("sqrt(-1)", ctx), mc::invalid_arg_exception);
+    EXPECT_THROW(engine.evaluate("pow(-1, 2)", ctx), mc::invalid_arg_exception);
+}
+
+// 测试 engine::evaluate 保持自定义函数抛出的异常
+TEST_F(expr_test, HandleUnknownException) {
+    auto ctx = engine.make_context();
+
+    // 注册一个函数，在执行时抛出 std::logic_error
+    auto throwing_func = mc::expr::make_simple_function("throw_logic_error", []() {
+        throw std::logic_error("test logic error");
+    });
+
+    ctx.register_function(throwing_func);
+
+    // 调用这个函数，应抛出 std::logic_error
+    EXPECT_THROW(engine.evaluate("throw_logic_error()", ctx), std::logic_error);
+}
+
+// 测试 builtin::register_symbol(std::string name, mc::variant value)
+TEST_F(expr_test, BuiltinRegisterVariable) {
+    auto& builtin = mc::expr::builtin::get_instance();
+    auto& ctx     = engine.get_global_context();
+
+    // 注册一个变量
+    builtin.register_symbol("test_var", mc::variant(42));
+    EXPECT_EQ(engine.evaluate("test_var", ctx), 42);
+
+    // 注册另一个变量
+    builtin.register_symbol("test_str", mc::variant("hello"));
+    EXPECT_EQ(engine.evaluate("test_str", ctx), "hello");
 }

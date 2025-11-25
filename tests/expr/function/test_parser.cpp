@@ -830,4 +830,108 @@ TEST(RelateObjectTest, InvalidVariantConversion) {
     EXPECT_THROW(from_variant(v, obj), mc::bad_cast_exception);
 }
 
+// 测试 parse_value 函数 - 覆盖浮点数解析避免截断为整数
+// 注意：parse_value 是内部函数，我们通过测试 parse_function_call 来间接测试
+// 但为了直接测试 parse_value 的逻辑，我们需要通过其他方式触发它
+// 实际上，parse_function_call 使用正则表达式解析，不直接调用 parse_value
+// 所以这个改动目前还没有被测试覆盖
+
+// 测试浮点数参数解析
+TEST(FunctionParserTest, ParseFloatParamNotTruncated) {
+    auto& parser = func_parser::get_instance();
+    
+    // 测试 "3.25" 应该被解析为 double 类型，而不是 int 类型
+    auto result = parser.parse_function_call("$Func_test({param: 3.25})");
+    
+    EXPECT_EQ(result.func, "Func_test");
+    ASSERT_EQ(result.params.size(), 1);
+    
+    // 验证参数是 double 类型，而不是 int 类型
+    EXPECT_TRUE(result.params["param"].is_double());
+    EXPECT_FALSE(result.params["param"].is_int32());
+    EXPECT_DOUBLE_EQ(result.params["param"].as_double(), 3.25);
+}
+
+// 测试浮点数参数解析 - 确保 "3.14" 不会被截断为整数 3
+TEST(FunctionParserTest, ParseFloatParam3_14NotTruncated) {
+    auto& parser = func_parser::get_instance();
+    
+    // 测试 "3.14" 应该被解析为 double 类型
+    auto result = parser.parse_function_call("$Func_test({param: 3.14})");
+    
+    EXPECT_EQ(result.func, "Func_test");
+    ASSERT_EQ(result.params.size(), 1);
+    
+    // 验证参数是 double 类型
+    EXPECT_TRUE(result.params["param"].is_double());
+    EXPECT_DOUBLE_EQ(result.params["param"].as_double(), 3.14);
+}
+
+// 测试科学计数法浮点数解析 - 覆盖大小写 E 与正负指数
+TEST(FunctionParserTest, ParseScientificNotationNotTruncated) {
+    auto& parser = func_parser::get_instance();
+    const std::vector<std::pair<std::string, double>> expressions = {
+        {"$Func_test({param: 3.25e2})", 325.0},
+        {"$Func_test({param: 3.25E2})", 325.0},
+        {"$Func_test({param: -1.2e-3})", -0.0012},
+        {"$Func_test({param: 6E+3})", 6000.0},
+    };
+
+    for (const auto& [expr, expected] : expressions) {
+        auto result = parser.parse_function_call(expr);
+        EXPECT_EQ(result.func, "Func_test");
+        ASSERT_EQ(result.params.size(), 1);
+        EXPECT_TRUE(result.params["param"].is_double());
+        EXPECT_DOUBLE_EQ(result.params["param"].as_double(), expected);
+    }
+}
+
+// 测试整数参数解析 - 确保 "42" 被解析为 int 类型（没有小数点）
+TEST(FunctionParserTest, ParseIntParamWithoutFraction) {
+    auto& parser = func_parser::get_instance();
+    
+    // 测试 "42" 应该被解析为 int 类型（因为没有小数点）
+    auto result = parser.parse_function_call("$Func_test({param: 42})");
+    
+    EXPECT_EQ(result.func, "Func_test");
+    ASSERT_EQ(result.params.size(), 1);
+    
+    // 验证参数是 int 类型
+    EXPECT_TRUE(result.params["param"].is_int32());
+    EXPECT_FALSE(result.params["param"].is_double());
+    EXPECT_EQ(result.params["param"].as_int32(), 42);
+}
+
+// 测试负数浮点数解析
+TEST(FunctionParserTest, ParseNegativeFloatParam) {
+    auto& parser = func_parser::get_instance();
+    
+    // 测试 "-3.25" 应该被解析为 double 类型
+    auto result = parser.parse_function_call("$Func_test({param: -3.25})");
+    
+    EXPECT_EQ(result.func, "Func_test");
+    ASSERT_EQ(result.params.size(), 1);
+    
+    // 验证参数是 double 类型
+    EXPECT_TRUE(result.params["param"].is_double());
+    EXPECT_DOUBLE_EQ(result.params["param"].as_double(), -3.25);
+}
+
+// 测试边界情况 - 小数点开头的浮点数（含负值）
+TEST(FunctionParserTest, ParseFloatStartingWithDot) {
+    auto& parser = func_parser::get_instance();
+
+    auto positive = parser.parse_function_call("$Func_test({param: .25})");
+    EXPECT_EQ(positive.func, "Func_test");
+    ASSERT_EQ(positive.params.size(), 1);
+    EXPECT_TRUE(positive.params["param"].is_double());
+    EXPECT_DOUBLE_EQ(positive.params["param"].as_double(), 0.25);
+
+    auto negative = parser.parse_function_call("$Func_test({param: -.75})");
+    EXPECT_EQ(negative.func, "Func_test");
+    ASSERT_EQ(negative.params.size(), 1);
+    EXPECT_TRUE(negative.params["param"].is_double());
+    EXPECT_DOUBLE_EQ(negative.params["param"].as_double(), -0.75);
+}
+
 } // namespace

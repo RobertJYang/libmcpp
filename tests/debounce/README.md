@@ -38,7 +38,7 @@ Debounce 模块包含以下测试文件：
 中位数防抖测试（5 个用例）：
 - `even_window_size` - 测试偶数窗口大小（窗口=5）
 - `odd_window_size_and_sliding` - 测试奇数窗口大小（窗口=4）和窗口滑动行为
-- `signed_input_and_adjust_output` - 测试有符号输入（>127 按补码视为负数）与输出调整（窗口=5）
+- `signed_input_and_adjust_output` - 测试有符号输入（>127 按补码视为负数）与输出调整，包括窗口滑动和多种负数场景（已合并 MedianAdjustSignedNegativeValue）
 - `clear_state` - 测试清除状态功能
 - `invalid_size_throw` - 测试构造参数校验
 
@@ -49,10 +49,11 @@ Debounce 模块包含以下测试文件：
 - `invalid_count_throw` - 测试构造参数校验
 
 ### test_binary_continue.cpp
-二进制连续计数防抖测试（3 个用例）：
+二进制连续计数防抖测试（4 个用例）：
 - `become_stable_high_low` - 测试针对二值输入，分别对 0/1 达到计数后稳定（1 需要 2 次，0 需要 3 次）
 - `clear_state` - 测试清除状态功能
 - `invalid_count_throw` - 测试构造参数校验
+- `BinaryContinueStableValueResetsUnstableCount` - 测试稳定值重置不稳定计数
 
 ## 运行测试
 
@@ -110,11 +111,11 @@ meson test -C builddir --test-args="--gtest_filter=debounce_*.clear_state"
 ## 测试统计
 
 - **测试文件总数**: 4 个
-- **测试用例总数**: 18 个
+- **测试用例总数**: 17 个
   - test_average.cpp: 7 个用例
-  - test_median.cpp: 5 个用例
+  - test_median.cpp: 5 个用例（已删除重复的 `MedianAdjustSignedNegativeValue`，功能已合并到 `signed_input_and_adjust_output`）
   - test_continue.cpp: 3 个用例
-  - test_binary_continue.cpp: 3 个用例
+  - test_binary_continue.cpp: 4 个用例（包含 `BinaryContinueStableValueResetsUnstableCount`）
 - **测试覆盖的功能模块**:
   - Average（平均值防抖）
   - Median（中位数防抖）

@@ -15,9 +15,10 @@
 #include <mc/runtime.h>
 #include <test_utilities/test_base.h>
 
+#include "test_future_helpers.h"
+
 #include <atomic>
 #include <chrono>
-#include <thread>
 
 using namespace std::chrono_literals;
 
@@ -72,15 +73,15 @@ TEST_F(RuntimeContextTest, IoExecutorBasicPost) {
     runtime.start();
 
     std::atomic<bool> task_executed{false};
+    mc::test::runtime::future_flag task_ready;
 
     // 投递任务到IO执行器
-    mc::post([&task_executed]() {
+    mc::post([&task_executed, task_ready]() mutable {
         task_executed.store(true);
+        task_ready.set();
     });
 
-    // 等待任务执行
-    std::this_thread::sleep_for(100ms);
-
+    EXPECT_TRUE(task_ready.wait_for(3s));
     EXPECT_TRUE(task_executed.load());
 }
 
@@ -90,15 +91,15 @@ TEST_F(RuntimeContextTest, SystemExecutorBasicPost) {
     runtime.start();
 
     std::atomic<bool> task_executed{false};
+    mc::test::runtime::future_flag task_ready;
 
     // 投递任务到系统执行器
-    mc::post([&task_executed]() {
+    mc::post([&task_executed, task_ready]() mutable {
         task_executed.store(true);
+        task_ready.set();
     }, mc::work_executor);
 
-    // 等待任务执行
-    std::this_thread::sleep_for(100ms);
-
+    EXPECT_TRUE(task_ready.wait_for(3s));
     EXPECT_TRUE(task_executed.load());
 }
 
@@ -108,23 +109,23 @@ TEST_F(RuntimeContextTest, DeferOperation) {
     runtime.initialize(mc::runtime_config{.io_threads = 1});
     runtime.start();
 
-    std::atomic<bool> defer_executed{false};
-    std::atomic<bool> post_executed{false};
+    std::atomic<bool>                  defer_executed{false};
+    std::atomic<bool>                  post_executed{false};
+    mc::test::runtime::future_flag     defer_ready;
+    mc::test::runtime::future_flag     post_ready;
 
-    // 投递一个defer任务
     mc::defer([&]() {
         defer_executed.store(true);
+        defer_ready.set();
     });
 
-    // 投递一个post任务
     mc::post([&]() {
         post_executed.store(true);
+        post_ready.set();
     });
 
-    // 等待任务执行
-    std::this_thread::sleep_for(100ms);
-
-    // defer和post都应该执行
+    EXPECT_TRUE(defer_ready.wait_for(3s));
+    EXPECT_TRUE(post_ready.wait_for(3s));
     EXPECT_TRUE(defer_executed.load());
     EXPECT_TRUE(post_executed.load());
 }
@@ -134,16 +135,15 @@ TEST_F(RuntimeContextTest, DispatchOperation) {
     auto& runtime = mc::get_runtime_context();
     runtime.start();
 
-    std::atomic<bool> task_executed{false};
+    std::atomic<bool>              task_executed{false};
+    mc::test::runtime::future_flag task_ready;
 
-    // 分派任务（dispatch可能会在当前线程立即执行）
-    mc::dispatch([&task_executed]() {
+    mc::dispatch([&task_executed, task_ready]() mutable {
         task_executed.store(true);
+        task_ready.set();
     });
 
-    // 给一点时间确保任务执行
-    std::this_thread::sleep_for(10ms);
-
+    EXPECT_TRUE(task_ready.wait_for(3s));
     EXPECT_TRUE(task_executed.load());
 }
 
@@ -153,27 +153,18 @@ TEST_F(RuntimeContextTest, MultiThreadIoExecutor) {
     runtime.initialize(mc::runtime_config{.io_threads = 4}); // 4个IO线程
     runtime.start();
 
-    constexpr int    task_count = 100;
-    std::atomic<int> completed_tasks{0};
+    constexpr int                              task_count = 100;
+    std::atomic<int>                           completed_tasks{0};
+    mc::test::runtime::countdown_future        tasks_ready(task_count);
 
-    // 投递多个任务
     for (int i = 0; i < task_count; ++i) {
-        mc::post([&completed_tasks]() {
-            std::this_thread::sleep_for(1ms); // 模拟一些工作
+        mc::post([&completed_tasks, tasks_ready]() mutable {
             completed_tasks.fetch_add(1);
+            tasks_ready.arrive();
         });
     }
 
-    // 等待所有任务完成
-    auto start_time = std::chrono::steady_clock::now();
-    while (completed_tasks.load() < task_count) {
-        std::this_thread::sleep_for(10ms);
-
-        // 防止无限等待
-        auto elapsed = std::chrono::steady_clock::now() - start_time;
-        ASSERT_LT(elapsed, 5s) << "任务执行超时";
-    }
-
+    EXPECT_TRUE(tasks_ready.wait_for(3s));
     EXPECT_EQ(completed_tasks.load(), task_count);
 }
 
@@ -187,31 +178,31 @@ TEST_F(RuntimeContextTest, MixedExecutorUsage) {
     std::atomic<int> system_tasks{0};
 
     constexpr int task_count = 50;
+    mc::test::runtime::future_flag io_done;
+    mc::test::runtime::future_flag system_done;
 
     // 投递IO任务
     for (int i = 0; i < task_count; ++i) {
-        mc::post([&io_tasks]() {
-            io_tasks.fetch_add(1);
+        mc::post([&io_tasks, io_done]() mutable {
+            auto current = io_tasks.fetch_add(1) + 1;
+            if (current >= task_count) {
+                io_done.set();
+            }
         }, mc::io_executor);
     }
 
     // 投递系统任务
     for (int i = 0; i < task_count; ++i) {
-        mc::post([&system_tasks]() {
-            system_tasks.fetch_add(1);
+        mc::post([&system_tasks, system_done]() mutable {
+            auto current = system_tasks.fetch_add(1) + 1;
+            if (current >= task_count) {
+                system_done.set();
+            }
         }, mc::work_executor);
     }
 
-    // 等待所有任务完成
-    auto start_time = std::chrono::steady_clock::now();
-    while (io_tasks.load() < task_count || system_tasks.load() < task_count) {
-        std::this_thread::sleep_for(10ms);
-
-        // 防止无限等待
-        auto elapsed = std::chrono::steady_clock::now() - start_time;
-        ASSERT_LT(elapsed, 5s) << "任务执行超时";
-    }
-
+    EXPECT_TRUE(io_done.wait_for(3s));
+    EXPECT_TRUE(system_done.wait_for(3s));
     EXPECT_EQ(io_tasks.load(), task_count);
     EXPECT_EQ(system_tasks.load(), task_count);
 }
@@ -222,22 +213,21 @@ TEST_F(RuntimeContextTest, ExecutorLifetime) {
     runtime.initialize(mc::runtime_config{.io_threads = 1});
     runtime.start();
 
-    std::atomic<bool> task_executed{false};
+    std::atomic<bool>              task_executed{false};
+    mc::test::runtime::future_flag task_ready;
 
     {
         // 在作用域内创建执行器
         auto executor = mc::get_io_executor();
 
         // 投递任务
-        boost::asio::post(executor, [&task_executed]() {
+        boost::asio::post(executor, [&task_executed, task_ready]() mutable {
             task_executed.store(true);
+            task_ready.set();
         });
     } // 执行器对象超出作用域
 
-    // 等待任务执行
-    std::this_thread::sleep_for(100ms);
-
-    // 任务应该仍然能执行
+    EXPECT_TRUE(task_ready.wait_for(3s));
     EXPECT_TRUE(task_executed.load());
 }
 
@@ -291,20 +281,6 @@ TEST_F(RuntimeContextTest, EnsureStartFromStopped) {
 
     // 已停止状态调用 start 应该抛出异常
     EXPECT_THROW(runtime.start(), mc::invalid_op_exception);
-}
-
-// 测试重复启动实现
-TEST_F(RuntimeContextTest, DuplicateStartImpl) {
-    auto& runtime = mc::get_runtime_context();
-
-    runtime.initialize(mc::runtime_config{.io_threads = 1});
-    runtime.start();
-
-    // 重复启动应该被忽略
-    EXPECT_NO_THROW(runtime.start());
-
-    runtime.stop();
-    runtime.join();
 }
 
 // 测试未运行时停止
@@ -405,19 +381,21 @@ TEST_F(RuntimeContextTest, PostToContexts) {
     std::atomic<int> io_count{0};
     std::atomic<int> work_count{0};
 
-    // 投递到 IO 上下文
-    boost::asio::post(runtime.get_io_context(), [&io_count]() {
+    mc::test::runtime::future_flag io_ready;
+    mc::test::runtime::future_flag work_ready;
+
+    boost::asio::post(runtime.get_io_context(), [&io_count, io_ready]() mutable {
         io_count.fetch_add(1);
+        io_ready.set();
     });
 
-    // 投递到 work 上下文
-    boost::asio::post(runtime.get_work_context(), [&work_count]() {
+    boost::asio::post(runtime.get_work_context(), [&work_count, work_ready]() mutable {
         work_count.fetch_add(1);
+        work_ready.set();
     });
 
-    // 等待任务执行
-    std::this_thread::sleep_for(100ms);
-
+    EXPECT_TRUE(io_ready.wait_for(3s));
+    EXPECT_TRUE(work_ready.wait_for(3s));
     EXPECT_EQ(io_count.load(), 1);
     EXPECT_EQ(work_count.load(), 1);
 }
@@ -430,19 +408,21 @@ TEST_F(RuntimeContextTest, DeferToContexts) {
     std::atomic<int> io_count{0};
     std::atomic<int> work_count{0};
 
-    // 延迟投递到 IO 上下文
-    boost::asio::defer(runtime.get_io_context(), [&io_count]() {
+    mc::test::runtime::future_flag io_ready;
+    mc::test::runtime::future_flag work_ready;
+
+    boost::asio::defer(runtime.get_io_context(), [&io_count, io_ready]() mutable {
         io_count.fetch_add(1);
+        io_ready.set();
     });
 
-    // 延迟投递到 work 上下文
-    boost::asio::defer(runtime.get_work_context(), [&work_count]() {
+    boost::asio::defer(runtime.get_work_context(), [&work_count, work_ready]() mutable {
         work_count.fetch_add(1);
+        work_ready.set();
     });
 
-    // 等待任务执行
-    std::this_thread::sleep_for(100ms);
-
+    EXPECT_TRUE(io_ready.wait_for(3s));
+    EXPECT_TRUE(work_ready.wait_for(3s));
     EXPECT_EQ(io_count.load(), 1);
     EXPECT_EQ(work_count.load(), 1);
 }
@@ -455,19 +435,21 @@ TEST_F(RuntimeContextTest, DispatchToContexts) {
     std::atomic<int> io_count{0};
     std::atomic<int> work_count{0};
 
-    // 分发到 IO 上下文
-    boost::asio::dispatch(runtime.get_io_context(), [&io_count]() {
+    mc::test::runtime::future_flag io_ready;
+    mc::test::runtime::future_flag work_ready;
+
+    boost::asio::dispatch(runtime.get_io_context(), [&io_count, io_ready]() mutable {
         io_count.fetch_add(1);
+        io_ready.set();
     });
 
-    // 分发到 work 上下文
-    boost::asio::dispatch(runtime.get_work_context(), [&work_count]() {
+    boost::asio::dispatch(runtime.get_work_context(), [&work_count, work_ready]() mutable {
         work_count.fetch_add(1);
+        work_ready.set();
     });
 
-    // 等待任务执行
-    std::this_thread::sleep_for(100ms);
-
+    EXPECT_TRUE(io_ready.wait_for(3s));
+    EXPECT_TRUE(work_ready.wait_for(3s));
     EXPECT_EQ(io_count.load(), 1);
     EXPECT_EQ(work_count.load(), 1);
 }
@@ -519,12 +501,14 @@ TEST_F(RuntimeContextTest, ContextRestartAfterStop) {
     runtime2.initialize(mc::runtime_config{.io_threads = 1});
     runtime2.start();
 
-    std::atomic<bool> task_executed{false};
-    mc::post([&task_executed]() {
+    std::atomic<bool>              task_executed{false};
+    mc::test::runtime::future_flag task_ready;
+    mc::post([&task_executed, task_ready]() mutable {
         task_executed.store(true);
+        task_ready.set();
     });
 
-    std::this_thread::sleep_for(100ms);
+    EXPECT_TRUE(task_ready.wait_for(3s));
     EXPECT_TRUE(task_executed.load());
 
     runtime2.stop();
@@ -547,12 +531,14 @@ TEST_F(RuntimeContextTest, DestructorWithoutStop) {
     auto& runtime = mc::get_runtime_context();
     runtime.start();
 
-    std::atomic<bool> task_executed{false};
-    mc::post([&task_executed]() {
+    std::atomic<bool>              task_executed{false};
+    mc::test::runtime::future_flag task_ready;
+    mc::post([&task_executed, task_ready]() mutable {
         task_executed.store(true);
+        task_ready.set();
     });
 
-    std::this_thread::sleep_for(100ms);
+    EXPECT_TRUE(task_ready.wait_for(3s));
     EXPECT_TRUE(task_executed.load());
 
     // 不调用 stop 和 join，让析构函数在测试结束时处理
@@ -645,21 +631,66 @@ TEST_F(RuntimeContextTest, ThreadExceptionHandling) {
     runtime.start();
 
     // 投递一个会抛出异常的任务
-    std::atomic<bool> exception_caught{false};
-    mc::post([&exception_caught]() {
+    std::atomic<bool>              exception_caught{false};
+    mc::test::runtime::future_flag exception_ready;
+    mc::post([&exception_caught, exception_ready]() mutable {
         try {
             throw std::runtime_error("test exception");
         } catch (const std::exception&) {
             exception_caught.store(true);
+            exception_ready.set();
         }
     });
 
-    // 等待任务执行
-    std::this_thread::sleep_for(100ms);
-
-    // 异常应该被捕获，不会导致程序崩溃
+    EXPECT_TRUE(exception_ready.wait_for(3s));
     EXPECT_TRUE(exception_caught.load());
 
     runtime.stop();
     runtime.join();
+}
+
+// 测试 immediate_executor 的 operator!= 和 require
+TEST_F(RuntimeContextTest, ImmediateExecutorCompareAndRequire) {
+    mc::immediate_executor exec1;
+    mc::immediate_executor exec2;
+
+    // 测试 operator!=，应该返回 false（因为所有 immediate_executor 都相等）
+    EXPECT_FALSE(exec1 != exec2);
+
+    // 测试 require(blocking.never)
+    auto required = exec1.require(boost::asio::execution::blocking.never);
+    
+    // 验证返回的对象仍然可以执行
+    std::atomic<bool> task_executed{false};
+    required.execute([&task_executed]() {
+        task_executed.store(true);
+    });
+    EXPECT_TRUE(task_executed.load());
+}
+
+// 测试工作线程异常捕获
+TEST_F(RuntimeContextTest, WorkThreadExceptionLogged) {
+    auto& runtime = mc::get_runtime_context();
+    
+    // 配置为只有 1 个工作线程，以便更容易触发异常
+    runtime.initialize(mc::runtime_config{.io_threads = 1, .work_threads = 1});
+    runtime.start();
+
+    mc::test::runtime::future_flag execution_done;
+
+    mc::post([&runtime, execution_done]() mutable {
+        try {
+            throw std::runtime_error("test work thread exception");
+        } catch (...) {
+            execution_done.set();
+            throw;
+        }
+    }, mc::work_executor);
+
+    EXPECT_TRUE(execution_done.wait_for(3s));
+    runtime.stop();
+    runtime.join();
+
+    // 验证运行时已停止
+    EXPECT_TRUE(runtime.is_stopped());
 }

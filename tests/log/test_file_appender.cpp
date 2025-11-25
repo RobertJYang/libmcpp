@@ -59,7 +59,11 @@ class file_appender_test : public mc::test::TestBase {
 protected:
     static std::shared_ptr<file_appender> m_appender;
     static std::filesystem::path          m_test_log_file;
-    static void                           SetUpTestSuite() {
+    static void SetUpTestSuite() {
+        // 在测试用例中，先设置 debug_log_ptr，确保后续 init() 调用时不会执行 dlopen
+        // 这样可以避免在测试环境中重复加载动态库或打印错误信息
+        file_appender::set_debug_log_ptr(reinterpret_cast<void*>(static_cast<debug_log_func_t>(test_debug_log)));
+        
         m_appender      = std::make_shared<file_appender>();
         m_test_log_file = std::string(TEST_LOG_DIR) + "/test_file_appender_mock.log";
         // 初始化日志文件（直接清空文件）
@@ -70,7 +74,6 @@ protected:
         dict["truncate"]       = true;
         dict["flush_on_write"] = true;
         m_appender->init(dict);
-        file_appender::set_debug_log_ptr(reinterpret_cast<void*>(static_cast<debug_log_func_t>(test_debug_log)));
     }
     static void TearDownTestSuite() {
         m_appender.reset();
@@ -294,4 +297,67 @@ TEST_F(file_appender_test, AppendMessagesConcurrently) {
 
     // 验证文件是否被创建且不为空
     EXPECT_TRUE(check_log_file_exists_and_not_empty());
+}
+
+// 测试 init 函数 - 非对象参数
+TEST_F(file_appender_test, InitWithNonObjectArgs) {
+    auto appender = std::make_shared<file_appender>();
+    mc::variant non_object = 42; // 非对象类型
+    EXPECT_FALSE(appender->init(non_object));
+}
+
+// 测试 init 函数 - 包含 module_name 配置
+TEST_F(file_appender_test, InitWithModuleName) {
+    auto appender = std::make_shared<file_appender>();
+    mc::dict dict;
+    dict["filename"]    = m_test_log_file.string();
+    dict["module_name"] = "test_module";
+    EXPECT_TRUE(appender->init(dict));
+}
+
+// 测试追加函数 - 空文件名上下文
+TEST_F(file_appender_test, AppendWithEmptyFileContext) {
+    m_appender->set_filename(m_test_log_file.string());
+
+    // 确保 debug_log_ptr 已设置（SetUpTestSuite 中已设置，但这里再次确认）
+    file_appender::set_debug_log_ptr(reinterpret_cast<void*>(static_cast<debug_log_func_t>(test_debug_log)));
+
+    // 清空 mock 日志文件
+    std::string mock_log_file = std::string(TEST_LOG_DIR) + "/test_file_appender_mock.log";
+    std::ofstream(mock_log_file, std::ios::trunc).close();
+
+    // 创建空文件名的上下文
+    mc::log::context ctx("", "test_function", 123);
+    auto msg = message(level::info, "测试消息", ctx);
+
+    ASSERT_NO_THROW(m_appender->append(msg));
+    m_appender->flush();
+    // file_appender 通过 debug_log_ptr 输出，mock 函数写入到 test_file_appender_mock.log
+    // 检查 mock 函数写入的文件
+    std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    EXPECT_TRUE(check_log_file_exists_and_not_empty(mock_log_file));
+}
+
+// 测试追加函数 - trace 和 fatal 级别（覆盖 default case）
+TEST_F(file_appender_test, AppendTraceAndFatalLevels) {
+    m_appender->set_filename(m_test_log_file.string());
+
+    // 确保 debug_log_ptr 已设置（SetUpTestSuite 中已设置，但这里再次确认）
+    file_appender::set_debug_log_ptr(reinterpret_cast<void*>(static_cast<debug_log_func_t>(test_debug_log)));
+
+    // 清空 mock 日志文件
+    std::string mock_log_file = std::string(TEST_LOG_DIR) + "/test_file_appender_mock.log";
+    std::ofstream(mock_log_file, std::ios::trunc).close();
+
+    auto trace_msg = create_test_message(level::trace, "跟踪消息");
+    auto fatal_msg = create_test_message(level::fatal, "致命错误消息");
+
+    ASSERT_NO_THROW(m_appender->append(trace_msg));
+    ASSERT_NO_THROW(m_appender->append(fatal_msg));
+
+    m_appender->flush();
+    // file_appender 通过 debug_log_ptr 输出，mock 函数写入到 test_file_appender_mock.log
+    // 检查 mock 函数写入的文件
+    std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    EXPECT_TRUE(check_log_file_exists_and_not_empty(mock_log_file));
 }

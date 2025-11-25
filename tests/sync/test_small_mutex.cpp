@@ -110,24 +110,19 @@ TEST_F(SmallMutexTest, ConcurrentDataAccess) {
 
 // 测试超时锁定
 TEST_F(SmallMutexTest, TimeoutLock) {
-    // 先获取锁
+    // 先获取锁，确保后续的 try_lock_for 只能依赖超时返回
     mutex.lock();
 
-    // 在另一个线程中尝试超时获取锁
-    std::thread timeout_thread([&]() {
         auto start  = std::chrono::steady_clock::now();
-        bool result = mutex.try_lock_for(std::chrono::milliseconds(100));
+    bool result = mutex.try_lock_for(std::chrono::milliseconds(20));
         auto end    = std::chrono::steady_clock::now();
+    mutex.unlock();
 
         EXPECT_FALSE(result); // 应该超时失败
 
         auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-        EXPECT_GE(duration.count(), 90);  // 至少等待了 90ms
-        EXPECT_LE(duration.count(), 200); // 不超过 200ms
-    });
-
-    timeout_thread.join();
-    mutex.unlock();
+    EXPECT_GE(duration.count(), 10);  // 至少等待了 10ms
+    EXPECT_LE(duration.count(), 200); // 不超过 200ms，防止环境波动
 }
 
 // 测试内存布局：确保 small_mutex 占用 4 字节

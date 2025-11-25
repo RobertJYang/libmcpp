@@ -15,10 +15,11 @@
 #include <mc/runtime.h>
 #include <test_utilities/test_base.h>
 
+#include "test_future_helpers.h"
+
 #include <atomic>
 #include <chrono>
 #include <future>
-#include <thread>
 
 using namespace std::chrono_literals;
 
@@ -152,17 +153,18 @@ TEST_F(AnyExecutorTest, PostOperation) {
 TEST_F(AnyExecutorTest, DeferOperation) {
     auto& runtime = mc::get_runtime_context();
 
-    bool task_executed{false};
+    bool                                task_executed{false};
+    mc::test::runtime::future_flag      task_ready;
 
     auto             io_executor = mc::get_io_executor();
     mc::any_executor any_io(io_executor);
 
-    any_io.defer([&task_executed]() {
+    any_io.defer([&task_executed, task_ready]() mutable {
         task_executed = true;
+        task_ready.set();
     });
 
-    // 等待任务执行
-    std::this_thread::sleep_for(100ms);
+    EXPECT_TRUE(task_ready.wait_for(3s));
     EXPECT_TRUE(task_executed);
 }
 
@@ -170,16 +172,17 @@ TEST_F(AnyExecutorTest, DeferOperation) {
 TEST_F(AnyExecutorTest, DispatchOperation) {
     auto& runtime = mc::get_runtime_context();
 
-    bool task_executed{false};
+    bool                                task_executed{false};
+    mc::test::runtime::future_flag      task_ready;
 
     mc::any_executor any_io(mc::get_io_executor());
 
-    any_io.dispatch([&task_executed]() {
+    any_io.dispatch([&task_executed, task_ready]() mutable {
         task_executed = true;
+        task_ready.set();
     });
 
-    // 给一点时间确保任务执行
-    std::this_thread::sleep_for(10ms);
+    EXPECT_TRUE(task_ready.wait_for(3s));
     EXPECT_TRUE(task_executed);
 }
 
@@ -269,7 +272,6 @@ TEST_F(AnyExecutorTest, StrandWrapping) {
     for (int i = 0; i < task_count; ++i) {
         any_io_strand.post([&counter, &execution_order, &promise]() {
             int current = counter.fetch_add(1);
-            std::this_thread::sleep_for(1ms);
 
             execution_order.push_back(current);
             if (current == task_count) {

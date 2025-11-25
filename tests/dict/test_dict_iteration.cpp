@@ -10,9 +10,11 @@
  * See the Mulan PSL v2 for more details.
  */
 
+#include <algorithm>
 #include <gtest/gtest.h>
 #include <mc/dict.h>
 #include <mc/variant.h>
+#include <vector>
 
 namespace {
 
@@ -183,6 +185,107 @@ TEST(DictIterationTest, IterationWithLookup) {
         // 验证contains方法
         EXPECT_TRUE(dict.contains(entry.key));
     }
+}
+
+// 测试 const dict 的反向迭代器（rbegin() 和 rend()）
+TEST(DictIterationTest, DictConstReverseIterator) {
+    const dict d({{"key1", 1}, {"key2", 2}, {"key3", 3}});
+
+    // 使用反向迭代器遍历
+    std::vector<std::string> reverse_keys;
+    for (auto it = d.rbegin(); it != d.rend(); ++it) {
+        reverse_keys.push_back(it->key.as_string());
+    }
+
+    // 验证反向顺序
+    EXPECT_EQ(reverse_keys.size(), 3);
+    // 注意：反向迭代器的顺序应该与正向相反
+    // 正向顺序可能是 key1, key2, key3，反向应该是 key3, key2, key1
+    // 但实际顺序取决于插入顺序，这里主要验证反向迭代器能正常工作
+    EXPECT_TRUE(std::find(reverse_keys.begin(), reverse_keys.end(), "key1") != reverse_keys.end());
+    EXPECT_TRUE(std::find(reverse_keys.begin(), reverse_keys.end(), "key2") != reverse_keys.end());
+    EXPECT_TRUE(std::find(reverse_keys.begin(), reverse_keys.end(), "key3") != reverse_keys.end());
+
+    // 验证反向迭代器与正向迭代器的顺序相反
+    std::vector<std::string> forward_keys;
+    for (const auto& entry : d) {
+        forward_keys.push_back(entry.key.as_string());
+    }
+
+    std::reverse(reverse_keys.begin(), reverse_keys.end());
+    EXPECT_EQ(forward_keys, reverse_keys);
+}
+
+// 测试 find(nullptr) 异常
+TEST(DictIterationTest, DictFindWithNullPointerKey) {
+    const dict d({{"key1", 123}});
+    EXPECT_THROW(d.find(nullptr), std::invalid_argument);
+}
+
+// 测试 find(const variant&)
+TEST(DictIterationTest, DictFindWithVariantKey) {
+    dict d({{"key1", 123}, {"key2", "value"}});
+    const dict& const_d = d;
+
+    variant key1("key1");
+    variant key2("key2");
+    variant key3("key3");
+
+    auto it1 = const_d.find(key1);
+    ASSERT_NE(it1, const_d.end());
+    EXPECT_EQ(it1->value.as<int>(), 123);
+
+    auto it2 = const_d.find(key2);
+    ASSERT_NE(it2, const_d.end());
+    EXPECT_EQ(it2->value.as<std::string>(), "value");
+
+    auto it3 = const_d.find(key3);
+    EXPECT_EQ(it3, const_d.end());
+}
+
+// 测试非 const find(nullptr) 异常
+TEST(DictIterationTest, MutableDictFindWithNullPointerKey) {
+    dict md;
+    md["key1"] = 123;
+    EXPECT_THROW(md.find(nullptr), std::invalid_argument);
+}
+
+// 测试非 const find(const variant&)
+TEST(DictIterationTest, MutableDictFindWithVariantKey) {
+    dict md;
+    md["key1"] = 123;
+    md["key2"] = "value";
+
+    variant key1("key1");
+    variant key2("key2");
+    variant key3("key3");
+
+    auto it1 = md.find(key1);
+    ASSERT_NE(it1, md.end());
+    EXPECT_EQ(it1->value.as<int>(), 123);
+    it1->value = 456;  // 可以修改
+    EXPECT_EQ(md["key1"].as<int>(), 456);
+
+    auto it2 = md.find(key2);
+    ASSERT_NE(it2, md.end());
+    EXPECT_EQ(it2->value.as<std::string>(), "value");
+
+    auto it3 = md.find(key3);
+    EXPECT_EQ(it3, md.end());
+}
+
+// 测试非 const find 键不存在返回 end()
+TEST(DictIterationTest, MutableDictFindWithNonExistentKey) {
+    dict md;
+    md["key1"] = 123;
+    md["key2"] = "value";
+
+    auto it = md.find("key3");
+    EXPECT_EQ(it, md.end());
+
+    // 验证 end() 迭代器不能解引用
+    // 注意：解引用 end() 迭代器是未定义行为，这里只验证它等于 end()
+    EXPECT_TRUE(it == md.end());
 }
 
 } // namespace

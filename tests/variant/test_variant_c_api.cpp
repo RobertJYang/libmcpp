@@ -116,6 +116,12 @@ TEST_F(variant_c_api_test, context_and_evaluate_expression) {
     EXPECT_EQ(invalid, nullptr);
 }
 
+// 测试 mc_variant_from_string 的 null 检查路径
+TEST_F(variant_c_api_test, VariantFromStringNull) {
+    auto* variant = mc_variant_from_string(nullptr);
+    EXPECT_EQ(variant, nullptr);
+}
+
 } // namespace
 
 

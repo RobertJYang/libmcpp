@@ -386,6 +386,15 @@ TEST_F(node_test, object_method_call_node_to_string) {
     EXPECT_EQ(method_with_args->to_string(), "obj.method(10, 20)");
 }
 
+TEST_F(node_test, object_method_call_node_accessors_through_usage) {
+    ctx.register_variable("obj", mc::dict{});
+    auto obj_node = mc::expr::make_variable("obj");
+    auto node = mc::expr::make_object_method_call(obj_node, "method", {});
+    
+    EXPECT_EQ(node->get_type(), mc::expr::node_type::object_method_call);
+    EXPECT_EQ(node->to_string(), "obj.method()");
+}
+
 
 // 测试 template_string_node
 TEST_F(node_test, template_string_node_simple) {
@@ -416,6 +425,27 @@ TEST_F(node_test, template_string_node_multiple_expressions) {
     auto template_node = mc::expr::make_template_string(text_parts, expressions);
     
     EXPECT_EQ(template_node->evaluate(ctx), "Value: 10 + 20 = ");
+}
+
+TEST_F(node_test, template_string_node_invalid_structure) {
+    // 测试结构不正确的模板字符串节点
+    // text_parts.size() 应该等于 expressions.size() + 1
+    // 这里构造一个不满足条件的节点
+    std::vector<std::string> text_parts = {"Hello ", " World"};
+    auto expr1 = mc::expr::make_literal(std::string("test"));
+    auto expr2 = mc::expr::make_literal(std::string("test2"));
+    mc::expr::node_ptrs expressions = {expr1, expr2};
+    // text_parts.size() == 2, expressions.size() == 2, 不满足 text_parts.size() == expressions.size() + 1
+    auto template_node = mc::expr::make_template_string(text_parts, expressions);
+    
+    EXPECT_THROW(template_node->evaluate(ctx), mc::invalid_arg_exception);
+    
+    // 测试另一种不满足条件的情况：text_parts.size() < expressions.size() + 1
+    std::vector<std::string> text_parts2 = {"Hello"};
+    mc::expr::node_ptrs expressions2 = {expr1, expr2};
+    auto template_node2 = mc::expr::make_template_string(text_parts2, expressions2);
+    
+    EXPECT_THROW(template_node2->evaluate(ctx), mc::invalid_arg_exception);
 }
 
 // template_string_node_to_string 测试已合并到 template_string_node_accessors_through_usage 中
@@ -629,12 +659,11 @@ TEST_F(node_test, template_string_node_accessors_through_usage) {
     EXPECT_EQ(node->to_string(), "\"Hello ${\"test\"}, world\"");
 }
 
-
 // 测试 context - 移动构造和移动赋值
 TEST_F(node_test, context_move_constructor) {
     mc::expr::context ctx1;
     ctx1.register_variable("x", 10);
-    
+
     mc::expr::context ctx2(std::move(ctx1));
     EXPECT_EQ(ctx2.get_variable("x"), 10);
 }
@@ -642,7 +671,7 @@ TEST_F(node_test, context_move_constructor) {
 TEST_F(node_test, context_move_assignment) {
     mc::expr::context ctx1;
     ctx1.register_variable("x", 10);
-    
+
     mc::expr::context ctx2;
     ctx2 = std::move(ctx1);
     EXPECT_EQ(ctx2.get_variable("x"), 10);
