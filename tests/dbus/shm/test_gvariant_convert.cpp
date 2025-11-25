@@ -284,3 +284,14 @@ TEST(GvariantConvertTest, GvariantAutoFreeCopyMove) {
     move_assigned = mc::dbus::gvariant_auto_free(g_variant_new_string("world"), false);
     ASSERT_NE(move_assigned.ptr, nullptr);
 }
+
+// 测试 sig_unit::sub_types_is_valid() 无效情况
+TEST(GvariantConvertTest, SigUnitSubTypesInvalid) {
+    using mc::dbus::sig_unit;
+    sig_unit sig;
+    sig.sub_types = nullptr;
+    EXPECT_FALSE(sig.sub_types_is_valid());
+
+    sig.sub_types = "";
+    EXPECT_FALSE(sig.sub_types_is_valid());
+}
