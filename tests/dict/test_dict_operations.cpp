@@ -210,6 +210,34 @@ TEST(DictOperationsTest, MutableDictBasicModification) {
     EXPECT_EQ(md["key6"], 789);
     EXPECT_EQ(md["key7"], "chain");
     EXPECT_EQ(md["key8"], true);
+
+    // 测试特殊值：0 应该被识别为整数而不是 null
+    md["zero_int"] = 0;
+    EXPECT_FALSE(md["zero_int"].is_null()) << "0 应该被识别为整数，而不是 null";
+    EXPECT_TRUE(md["zero_int"].is_integer()) << "0 应该是整数类型";
+    EXPECT_EQ(md["zero_int"].as<int>(), 0) << "0 的值应该是 0";
+
+    // 测试其他整数类型的 0
+    md["zero_uint"] = static_cast<uint32_t>(0);
+    EXPECT_FALSE(md["zero_uint"].is_null());
+    EXPECT_TRUE(md["zero_uint"].is_integer());
+    EXPECT_EQ(md["zero_uint"].as<uint32_t>(), 0U);
+
+    // 测试浮点数 0.0
+    md["zero_double"] = 0.0;
+    EXPECT_FALSE(md["zero_double"].is_null());
+    EXPECT_TRUE(md["zero_double"].is_double());
+    EXPECT_EQ(md["zero_double"].as<double>(), 0.0);
+
+    // 测试 bool 类型
+    md["bool_true"] = true;
+    EXPECT_FALSE(md["bool_true"].is_null());
+    EXPECT_TRUE(md["bool_true"].is_bool());
+    EXPECT_EQ(md["bool_true"].as<bool>(), true);
+
+    // 测试 nullptr 应该被识别为 null
+    md["null_key"] = nullptr;
+    EXPECT_TRUE(md["null_key"].is_null());
 }
 
 // 测试 dict 的 erase 和 clear 方法
