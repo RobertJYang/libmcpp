@@ -16,6 +16,11 @@ class AppConan(ConanBase):
         self.folders.source = '.'
         self.folders.build = "builddir"
 
+    def requirements(self):
+        super().requirements()
+        if self.options.test:
+            self.requires("gtest/[>=1.14.0]@openubmc/stable")
+
     def generate(self):
         os.environ["PKG_CONFIG"] = "/usr/bin/pkg-config"
         tc = MesonToolchain(self, "ninja")
@@ -173,4 +178,5 @@ class AppConan(ConanBase):
            f"libdir=${{prefix}}/{libdir}\n"
            "Requires: dbus-1\n")
         
-        
+        if self.options.test:
+            self.cpp_info.components["libmcpp_test"].requires.append("gtest::gtest")
