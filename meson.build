@@ -96,6 +96,6 @@ if build_tests
   if meson_build
     subdir('examples')
   endif
-  gtest_dep = dependency('gtest', required: false)
+  gtest_dep = dependency('gtest', method: 'pkg-config', required: true)
   subdir('tests')
 endif

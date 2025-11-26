@@ -11,7 +11,6 @@
 */
 
 #include <mc/dbus/shm/harbor.h>
-#include <mc/dbus/shm/mock_shm.h>
 #include <mc/dbus/shm/shm_tree.h>
 #include <mc/dbus/shm/serialize.h>
 #include <mc/future.h>
@@ -172,6 +171,8 @@ TEST_F(HarborTest, UnregisterServiceClearsPendingPromises)
     harbor_instance.stop();
 }
 
+#if defined(ENABLE_CONAN_COMPILE) && ENABLE_CONAN_COMPILE == 1
+#else
 // 测试 Rule::path_namespace() 方法
 TEST_F(HarborTest, MockRulePathNamespace) {
     DBus::Match::Rule rule;
@@ -267,3 +268,4 @@ TEST_F(HarborTest, MockSharedMemoryGetHarborNameEmpty) {
     auto harbor_name = ins.get_harbor_name("unknown_service");
     EXPECT_EQ(harbor_name, "harbor.bmc.kepler.mock");
 }
+#endif
