@@ -71,7 +71,7 @@ Variant 模块包含以下测试文件：
 - 混合类型深拷贝
 
 ### test_variant_exceptions.cpp
-边缘情况、边界条件和异常处理测试（57 个用例），包括：
+边缘情况、边界条件和异常处理测试（60 个用例），包括：
 - `SizeBlobType` - blob 类型的 size() 方法
 - `OperatorIndexExtensionNoRefAccess` - extension 类型不支持引用访问时的 operator[]
 - `OperatorIndexTypeError` - operator[] 类型错误
@@ -159,7 +159,7 @@ Variant 模块包含以下测试文件：
 - 一元运算（正负号、逻辑非）
 
 ### test_variant_reference.cpp
-引用类型测试（44 个用例），包括：
+引用类型测试（45 个用例），包括：
 - variant_reference 构造和访问
 - 引用赋值
 - 引用比较
@@ -268,7 +268,7 @@ meson test -C builddir --test-args="--gtest_filter=VariantEdgeCasesTest.Operator
 ## 测试统计
 
 - **测试文件总数**: 14 个
-- **测试用例总数**: 321 个（已优化，删除了重复的测试用例）
+- **测试用例总数**: 323 个（已优化，删除了重复的测试用例）
   - `test_variant_basic.cpp`: 15 个用例
   - `test_variant_comparison.cpp`: 38 个用例（已优化，从 39 个减少到 38 个）
   - `test_variant_containers.cpp`: 19 个用例
@@ -277,11 +277,11 @@ meson test -C builddir --test-args="--gtest_filter=VariantEdgeCasesTest.Operator
   - `test_variant_extension.cpp`: 28 个用例
   - `test_variant_io.cpp`: 6 个用例
   - `test_variant_operations.cpp`: 37 个用例
-  - `test_variant_reference.cpp`: 44 个用例
+  - `test_variant_reference.cpp`: 45 个用例
   - `test_variant_visitor.cpp`: 20 个用例
   - `test_variant_conversion.cpp`: 6 个用例
   - `test_typed_variant.cpp`: 13 个用例
-  - `test_variant_c_api.cpp`: 2 个用例
+  - `test_variant_c_api.cpp`: 3 个用例
   - `test_variant_base.cpp`: 18 个用例
 - **测试覆盖的功能模块**:
   - Variant Base（基础类型系统）

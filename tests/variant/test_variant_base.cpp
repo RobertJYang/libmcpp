@@ -367,6 +367,25 @@ TEST(VariantBaseTest, ExtensionIndexAccess) {
     const variant_base& const_extension = extension_value;
     auto               const_idx_ref    = const_extension[0];
     EXPECT_EQ(const_idx_ref.get().as_int64(), 99);
+    
+    // 测试 extension 支持 reference access 但 get_ptr 返回 nullptr 的情况（值访问模式回退）
+    // 使用不存在的 key，get_ptr 应该返回 nullptr，回退到值访问模式
+    variant_reference null_ptr_ref = extension_value["nonexistent_key"];
+    EXPECT_TRUE(null_ptr_ref.get().is_null());
+    
+    // 测试使用越界的索引，get_ptr 应该返回 nullptr，回退到值访问模式
+    variant_reference out_of_range_ref = extension_value[999];
+    EXPECT_THROW(static_cast<void>(out_of_range_ref.get()), std::out_of_range);
+    
+    // 测试 extension 不支持 reference access 的情况（const 版本）
+    auto ext_no_ref = mc::make_shared<simple_extension>(200, false);
+    const variant_base const_ext_no_ref(ext_no_ref);
+    variant_reference no_ref_key_ref = const_ext_no_ref["value"];
+    EXPECT_EQ(no_ref_key_ref.get().as_int64(), 200);
+    
+    // 测试 extension 数组索引访问中不支持 reference access 的情况（const 版本）
+    variant_reference no_ref_idx_ref = const_ext_no_ref[0];
+    EXPECT_EQ(no_ref_idx_ref.get().as_int64(), 200);
 }
 
 TEST(VariantBaseTest, ExtensionNullHandling) {
@@ -413,9 +432,30 @@ TEST(VariantBaseTest, SetValueForDifferentTypes) {
     extension_holder.set_value(other_extension);
     EXPECT_EQ(extension_holder.as_extension()->as_int64(), 20);
 
+    // 测试 operator=(const char*) 的 default 分支（nullptr 赋值给非基本类型）
     variant_base nullable_string("abc");
     nullable_string = static_cast<const char*>(nullptr);
     EXPECT_TRUE(nullable_string.is_null());
+    
+    // 测试给 array 类型赋值 nullptr
+    variant_base array_v(array_one);
+    array_v = static_cast<const char*>(nullptr);
+    EXPECT_TRUE(array_v.is_null());
+    
+    // 测试给 object 类型赋值 nullptr
+    variant_base object_v(object_one);
+    object_v = static_cast<const char*>(nullptr);
+    EXPECT_TRUE(object_v.is_null());
+    
+    // 测试给 blob 类型赋值 nullptr
+    variant_base blob_v(blob_one);
+    blob_v = static_cast<const char*>(nullptr);
+    EXPECT_TRUE(blob_v.is_null());
+    
+    // 测试给 extension 类型赋值 nullptr
+    variant_base extension_v(extension_first);
+    extension_v = static_cast<const char*>(nullptr);
+    EXPECT_TRUE(extension_v.is_null());
 
     variant_base text("base");
     text = std::string_view("updated");
@@ -470,6 +510,13 @@ TEST(VariantBaseTest, VisitorDispatch) {
     variant_base extension_value(extension_ptr);
     extension_value.visit(visitor);
     EXPECT_EQ(visitor.get_last_type(), "extension");
+    
+    // 测试 visit 方法中 extension_type 的 null 分支（extension 为 null 时不调用 handle）
+    variant_base empty_ext(type_id::extension_type);
+    type_record_visitor empty_visitor;
+    empty_ext.visit(empty_visitor);
+    // extension 为 null 时，visit 不会调用 handle，所以 result 应该保持初始值
+    EXPECT_EQ(empty_visitor.get_last_type(), "none");
 }
 
 TEST(VariantBaseTest, OperatorIndexOnArray) {
@@ -540,6 +587,16 @@ TEST(VariantBaseTest, AsArrayAndExtension) {
     EXPECT_EQ(extension_value.as_string(), "1");
 
     EXPECT_THROW(int_value.as_extension(), mc::exception);
+    
+    // 测试 as_string 中 extension_type 的 null 分支
+    variant_base empty_ext(type_id::extension_type);
+    std::string result = empty_ext.as_string();
+    EXPECT_TRUE(result.empty());
+    
+    // 测试 operator<< 中 extension_type 的 null 分支
+    std::stringstream ss;
+    ss << empty_ext;
+    EXPECT_TRUE(ss.str().empty());
 }
 
 TEST(VariantBaseTest, VariantsComparisonOperators) {
@@ -655,19 +712,25 @@ TEST(VariantBaseTest, IndexNonObjectThrows) {
 TEST(VariantBaseTest, ConstructWithInvalidTypeThrows) {
     // type_id 是枚举类型，最大值为 max_type
     // 尝试使用超出范围的值（需要强制转换）
-    // 注意：由于 type_id 是枚举，我们无法直接构造非法值
-    // 但可以通过 static_cast 强制转换来测试
     auto invalid_type = static_cast<mc::type_id>(static_cast<uint8_t>(mc::type_id::max_type) + 1);
-    
-    // 构造 variant_base 时应该抛出异常或处理非法类型
-    // 由于 variant_base(type_id) 构造函数中没有检查，我们需要查看实际行为
-    // 如果构造函数没有检查，则不会抛出异常，但后续操作可能会失败
     variant_base v(invalid_type);
     
     // 验证类型确实是无效的
     EXPECT_NE(v.get_type(), mc::type_id::null_type);
     EXPECT_NE(v.get_type(), mc::type_id::int64_type);
-    // 由于无法直接测试 throw_unknown_type_error，我们通过其他方式验证
+    
+    // 测试 visit 方法的 default 分支（非法 type_id 抛出异常）
+    type_record_visitor visitor;
+    EXPECT_THROW(v.visit(visitor), mc::exception);
+    
+    // 测试 operator<< 的 default 分支（非法 type_id 输出 unknown_type）
+    std::stringstream ss;
+    ss << v;
+    EXPECT_EQ(ss.str(), "unknown_type");
+    
+    // 测试 as_string 的 default 分支（调用 to_string，而 to_string 会调用 json_encode）
+    // json_encode 对于非法类型会抛出异常，所以这里应该捕获异常
+    EXPECT_THROW(static_cast<void>(v.as_string()), mc::exception);
 }
 
 } // namespace test

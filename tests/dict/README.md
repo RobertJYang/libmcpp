@@ -53,7 +53,7 @@ Dict 模块包含以下测试文件：
 
 ### test_dict_operations.cpp
 
-字典操作测试（14 个用例），包括：
+字典操作测试（13 个用例），包括：
 
 #### dict 基本操作
 - `DictBasicAccess` - dict 基本访问操作
@@ -83,9 +83,13 @@ Dict 模块包含以下测试文件：
 
 #### mutable_dict 基本操作
 - `MutableDictBasicModification` - mutable_dict 基本修改操作
-  - operator[] 修改
-  - insert() 方法
-  - 修改现有键值
+  - operator[] 修改和添加
+  - operator() 修改和添加
+  - 链式调用 operator()
+  - 特殊值识别测试（0 被识别为整数而不是 null，nullptr 被识别为 null）
+  - 整数类型 0 的正确识别
+  - 浮点数 0.0 的正确识别
+  - bool 类型的正确识别
 
 - `MutableDictEraseAndClear` - mutable_dict 删除和清空
   - erase() 方法
@@ -255,9 +259,9 @@ string_view 支持测试（5 个用例），包括：
 ## 测试统计
 
 - **测试文件总数**: 6
-- **测试用例总数**: 56
+- **测试用例总数**: 55
   - `test_dict_construction.cpp`: 17 个用例
-  - `test_dict_operations.cpp`: 14 个用例（已删除重复的 `DictFindEntryWithStringKey` 和 `MutableDictFindEntryWithStringKey`，功能已合并到 `DictFind` 和 `MutableDictFind`）
+  - `test_dict_operations.cpp`: 13 个用例（已删除重复的 `DictFindEntryWithStringKey` 和 `MutableDictFindEntryWithStringKey`，功能已合并到 `DictFind` 和 `MutableDictFind`；已删除 `MutableDictTestNullValue`，功能已融合到 `MutableDictBasicModification`）
   - `test_dict_iteration.cpp`: 6 个用例（已删除重复的 `DictFindWithStringKey` 和 `MutableDictFindWithStringKey`，功能已合并到 `DictOperationsTest.DictFind` 和 `DictOperationsTest.MutableDictFind`）
   - `test_dict_conversion.cpp`: 9 个用例
   - `test_dict_string_view.cpp`: 5 个用例

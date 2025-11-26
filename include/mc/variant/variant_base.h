@@ -657,6 +657,10 @@ public:
      */
     variant_base& operator=(const variant_base& other);
     variant_base& operator=(variant_base&& other);
+    // nullptr 赋值优化，行为与 operator=(const char*) 在 nullptr 时一致
+    variant_base& operator=(std::nullptr_t) {
+        return operator=(static_cast<const char*>(nullptr));
+    }
     // 字符串赋值优化
     variant_base& operator=(const char* s);
     variant_base& operator=(const std::string& s) {
@@ -665,6 +669,18 @@ public:
     variant_base& operator=(std::string_view s);
     // 二进制赋值优化
     variant_base& operator=(const blob& b);
+
+    // 整数类型赋值优化，确保 0 被识别为整数而不是 nullptr
+    template <typename T, std::enable_if_t<std::is_integral_v<T> && !std::is_same_v<std::decay_t<T>, bool>, int> = 0>
+    variant_base& operator=(T val) {
+        return *this = variant_base(mc::detail::fixed_integer_type<T>(), val);
+    }
+
+    // 浮点数类型赋值优化
+    template <typename T, std::enable_if_t<std::is_floating_point_v<T>, int> = 0>
+    variant_base& operator=(T val) {
+        return *this = variant_base(type_id::double_type, val);
+    }
 
     variant_base& set_value(const variant_base& other);
 

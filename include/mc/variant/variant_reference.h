@@ -138,6 +138,12 @@ public:
      */
     variant_reference& operator=(const variant_type& value);
 
+    // nullptr 赋值优化，行为与 variant_base::operator=(std::nullptr_t) 一致
+    variant_reference& operator=(std::nullptr_t) {
+        get() = nullptr;
+        return *this;
+    }
+
     // 支持从其他类型赋值（会转换为 variant）
     // 使用 SFINAE 排除 T 为 variant_reference 的情况，避免歧义
     template <typename T, typename = std::enable_if_t<!is_variant_reference_v<std::decay_t<T>>>>
