@@ -17,17 +17,28 @@
 namespace mc::log {
 
 message::message(level lvl, std::string msg, context ctx, mc::dict args)
-    : m_level(lvl), m_message(std::move(msg)), m_context(std::move(ctx)),
-      m_timestamp(std::chrono::system_clock::now()), m_args(std::move(args)),
-      m_thread_id(mc::get_thread_id()), m_formatted(true), m_category(log_category::debug) {
+    : m_level(lvl),
+      m_category(log_category::debug),
+      m_message(std::move(msg)),
+      m_context(std::move(ctx)),
+      m_timestamp(std::chrono::system_clock::now()),
+      m_args(std::move(args)),
+      m_format(),
+      m_thread_id(mc::get_thread_id()),
+      m_formatted(true) {
 }
 
 message::message(level lvl, context ctx, std::string fmt_template,
                  mc::dict args)
-    : m_level(lvl), m_message(""), // 初始为空，将在需要时格式化
-      m_context(std::move(ctx)), m_timestamp(std::chrono::system_clock::now()),
-      m_args(std::move(args)), m_format(std::move(fmt_template)),
-      m_thread_id(mc::get_thread_id()), m_formatted(false), m_category(log_category::debug) {
+    : m_level(lvl),
+      m_category(log_category::debug),
+      m_message(""), // 初始为空，将在需要时格式化
+      m_context(std::move(ctx)),
+      m_timestamp(std::chrono::system_clock::now()),
+      m_args(std::move(args)),
+      m_format(std::move(fmt_template)),
+      m_thread_id(mc::get_thread_id()),
+      m_formatted(false) {
 }
 
 const std::string& message::get_message() const {

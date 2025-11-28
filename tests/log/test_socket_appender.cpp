@@ -33,7 +33,7 @@ using namespace mc::log;
 
 // mock get_log_time_str_c 函数
 extern "C" {
-static const char* get_log_time_str_c(int flags) {
+[[maybe_unused]] static const char* get_log_time_str_c(int flags) {
     static thread_local char time_buf[64];
     snprintf(time_buf, sizeof(time_buf), "1970-01-01 00:00:00");
     return time_buf;

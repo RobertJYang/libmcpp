@@ -275,6 +275,8 @@ bool socket_client::heartbeat() {
 
         return m_hb_socket.recv_all(response, HEARTBEAT_MESSAGE.size());
     }
+
+    return false;
 }
 
 bool socket_client::is_connected() const {

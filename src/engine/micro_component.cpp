@@ -66,6 +66,8 @@ std::string mc_config_manage_interface::get_trusted_config(std::map<std::string,
 }
 
 void mc_debug_interface::dump(std::map<std::string, std::string> context, std::string filepath) {
+    auto service = get_service();
+    service->on_dump(context, filepath);
 }
 
 int32_t mc_reboot_interface::prepare(std::map<std::string, std::string> context) {
@@ -205,6 +207,8 @@ void mc_debug_interface::detach_debug_console(std::map<std::string, std::string>
         socket_appender_ptr->disconnect();
         default_log.remove_appender(socket_appender_ptr->get_name());
     }
+    auto service = get_service();
+    service->on_detach_debug_console(context);
 }
 
 static void set_log_level(mc::log::level lvl, std::string log_info) {
