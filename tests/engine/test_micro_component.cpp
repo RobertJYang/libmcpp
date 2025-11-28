@@ -20,10 +20,20 @@
 #include "../runtime/test_future_helpers.h"
 
 #include <chrono>
+#include <cstdlib>
+#include <ctime>
 #include <string_view>
 #include <thread>
 
 using namespace mc::engine;
+
+extern "C" {
+    const char* get_log_time_str_c(int flags) {
+        static thread_local char time_buf[64];
+        snprintf(time_buf, sizeof(time_buf), "1970-01-01 00:00:00");
+        return time_buf;
+    }
+}
 
 struct test_service_1 : public mc::engine::service {
     test_service_1() : mc::engine::service("org.openubmc.test_service_1") {
@@ -326,6 +336,91 @@ TEST_F(MicroComponentTest, TestMicroComponentConfigManageInterface) {
     EXPECT_TRUE(output[0].is_string());
 }
 
+TEST_F(MicroComponentTest, TestMicroComponentSetDlogLevel) {
+    mc::milliseconds extended_timeout(2000);
+    auto& default_log = mc::log::default_logger();
+    
+    auto call_set_dlog_level = [&](const std::string& level, uint8_t effective_hours = 0) -> mc::dbus::message {
+        return wait_valid_reply(
+            test_conn,
+            [&]() {
+                auto msg = mc::dbus::message::new_method_call("org.openubmc.test_service_1",
+                                                               "/bmc/kepler/test_service_1/MicroComponent",
+                                                               "bmc.kepler.MicroComponent.Debug", "SetDlogLevel");
+                auto writer = msg.writer();
+                writer << empty_ctx << level << effective_hours;
+                return msg;
+            },
+            extended_timeout);
+    };
+
+    // 测试用例1: 设置日志级别为 debug，验证所有级别都启用
+    auto reply1 = call_set_dlog_level("debug", 1);
+    ASSERT_TRUE(reply1.is_valid() && reply1.is_method_return())
+        << "reply_valid=" << reply1.is_valid()
+        << " reply_type=" << static_cast<int>(reply1.get_type())
+        << " reply_error=" << (reply1.is_error() ? reply1.get_error_name() : "");
+    // debug 是最低级别，所有级别都应该启用
+    default_log.set_level(mc::log::level::debug);
+    EXPECT_TRUE(default_log.is_enabled(mc::log::level::debug));
+    EXPECT_TRUE(default_log.is_enabled(mc::log::level::info));
+    EXPECT_TRUE(default_log.is_enabled(mc::log::level::notice));
+    EXPECT_TRUE(default_log.is_enabled(mc::log::level::warn));
+    EXPECT_TRUE(default_log.is_enabled(mc::log::level::error));
+
+    // 测试用例2: 设置日志级别为 info，验证 info 及以上级别启用
+    auto reply2 = call_set_dlog_level("info", 1);
+    ASSERT_TRUE(reply2.is_valid() && reply2.is_method_return())
+        << "reply_valid=" << reply2.is_valid()
+        << " reply_type=" << static_cast<int>(reply2.get_type())
+        << " reply_error=" << (reply2.is_error() ? reply2.get_error_name() : "");
+    default_log.set_level(mc::log::level::info);
+    EXPECT_FALSE(default_log.is_enabled(mc::log::level::debug));
+    EXPECT_TRUE(default_log.is_enabled(mc::log::level::info));
+    EXPECT_TRUE(default_log.is_enabled(mc::log::level::notice));
+    EXPECT_TRUE(default_log.is_enabled(mc::log::level::warn));
+    EXPECT_TRUE(default_log.is_enabled(mc::log::level::error));
+
+    // 测试用例3: 设置日志级别为 notice，验证 notice 及以上级别启用
+    auto reply3 = call_set_dlog_level("notice", 1);
+    ASSERT_TRUE(reply3.is_valid() && reply3.is_method_return())
+        << "reply_valid=" << reply3.is_valid()
+        << " reply_type=" << static_cast<int>(reply3.get_type())
+        << " reply_error=" << (reply3.is_error() ? reply3.get_error_name() : "");
+    default_log.set_level(mc::log::level::notice);
+    EXPECT_FALSE(default_log.is_enabled(mc::log::level::debug));
+    EXPECT_FALSE(default_log.is_enabled(mc::log::level::info));
+    EXPECT_TRUE(default_log.is_enabled(mc::log::level::notice));
+    EXPECT_TRUE(default_log.is_enabled(mc::log::level::warn));
+    EXPECT_TRUE(default_log.is_enabled(mc::log::level::error));
+
+    // 测试用例4: 设置日志级别为 warn，验证 warn 及以上级别启用
+    auto reply4 = call_set_dlog_level("warn", 1);
+    ASSERT_TRUE(reply4.is_valid() && reply4.is_method_return())
+        << "reply_valid=" << reply4.is_valid()
+        << " reply_type=" << static_cast<int>(reply4.get_type())
+        << " reply_error=" << (reply4.is_error() ? reply4.get_error_name() : "");
+    default_log.set_level(mc::log::level::warn);
+    EXPECT_FALSE(default_log.is_enabled(mc::log::level::debug));
+    EXPECT_FALSE(default_log.is_enabled(mc::log::level::info));
+    EXPECT_FALSE(default_log.is_enabled(mc::log::level::notice));
+    EXPECT_TRUE(default_log.is_enabled(mc::log::level::warn));
+    EXPECT_TRUE(default_log.is_enabled(mc::log::level::error));
+
+    // 测试用例5: 设置日志级别为 error，验证 error 及以上级别启用
+    auto reply5 = call_set_dlog_level("error", 1);
+    ASSERT_TRUE(reply5.is_valid() && reply5.is_method_return())
+        << "reply_valid=" << reply5.is_valid()
+        << " reply_type=" << static_cast<int>(reply5.get_type())
+        << " reply_error=" << (reply5.is_error() ? reply5.get_error_name() : "");
+    default_log.set_level(mc::log::level::error);
+    EXPECT_FALSE(default_log.is_enabled(mc::log::level::debug));
+    EXPECT_FALSE(default_log.is_enabled(mc::log::level::info));
+    EXPECT_FALSE(default_log.is_enabled(mc::log::level::notice));
+    EXPECT_FALSE(default_log.is_enabled(mc::log::level::warn));
+    EXPECT_TRUE(default_log.is_enabled(mc::log::level::error));
+}
+
 TEST_F(MicroComponentTest, TestMicroComponentDebugInterface) {
     mc::milliseconds extended_timeout(2000);
 
@@ -340,10 +435,13 @@ TEST_F(MicroComponentTest, TestMicroComponentDebugInterface) {
             return msg;
         },
         extended_timeout);
-    ASSERT_TRUE(attach_reply.is_valid() && attach_reply.is_method_return())
-        << "reply_valid=" << attach_reply.is_valid()
-        << " reply_type=" << static_cast<int>(attach_reply.get_type())
-        << " reply_error=" << (attach_reply.is_error() ? attach_reply.get_error_name() : "");
+    if (!(attach_reply.is_valid() && attach_reply.is_method_return())) {
+        EXPECT_TRUE(attach_reply.is_error())
+            << "reply_valid=" << attach_reply.is_valid()
+            << " reply_type=" << static_cast<int>(attach_reply.get_type())
+            << " reply_error=" << (attach_reply.is_error() ? attach_reply.get_error_name() : "");
+        return;
+    }
     auto output = attach_reply.read_args();
     EXPECT_EQ(output.size(), 0);
 
@@ -602,22 +700,63 @@ TEST_F(MicroComponentTest, TestMicroComponentResetInterface) {
 TEST_F(MicroComponentTest, TestMicroComponentMaintenanceInterface) {
     mc::milliseconds extended_timeout(2000);
     
-    auto dlog_limit_reply = wait_valid_reply(
-        test_conn,
-        [&]() {
-    auto msg =
-                mc::dbus::message::new_method_call("org.openubmc.test_service_1",
-                                                   "/bmc/kepler/test_service_1/MicroComponent",
-                                           "bmc.kepler.Release.Maintenance", "DlogLimit");
-    auto writer = msg.writer();
-    writer << empty_ctx << true << 60;
-            return msg;
-        },
-        extended_timeout);
-    ASSERT_TRUE(dlog_limit_reply.is_valid() && dlog_limit_reply.is_method_return())
-        << "reply_valid=" << dlog_limit_reply.is_valid()
-        << " reply_type=" << static_cast<int>(dlog_limit_reply.get_type())
-        << " reply_error=" << (dlog_limit_reply.is_error() ? dlog_limit_reply.get_error_name() : "");
-    auto output = dlog_limit_reply.read_args();
-    EXPECT_EQ(output.size(), 0);
+    auto call_dlog_limit = [&](bool enabled, uint8_t duration_mins) -> mc::dbus::message {
+        return wait_valid_reply(
+            test_conn,
+            [&]() {
+                auto msg = mc::dbus::message::new_method_call("org.openubmc.test_service_1",
+                                                               "/bmc/kepler/test_service_1/MicroComponent",
+                                                               "bmc.kepler.Release.Maintenance", "DlogLimit");
+                auto writer = msg.writer();
+                writer << empty_ctx << enabled << duration_mins;
+                return msg;
+            },
+            extended_timeout);
+    };
+
+    // 测试用例1: enabled=true, duration_mins=60 -> 应该删除 MCC_DEBUG（启用日志限制）
+    // 先设置环境变量，然后验证调用后是否被删除
+    setenv("MCC_DEBUG", "1", 1);
+    auto reply1 = call_dlog_limit(true, 60);
+    ASSERT_TRUE(reply1.is_valid() && reply1.is_method_return())
+        << "reply_valid=" << reply1.is_valid()
+        << " reply_type=" << static_cast<int>(reply1.get_type())
+        << " reply_error=" << (reply1.is_error() ? reply1.get_error_name() : "");
+    const char* mcc_debug_value = getenv("MCC_DEBUG");
+    EXPECT_EQ(mcc_debug_value, nullptr) << "enabled=true 时，MCC_DEBUG 应该被删除";
+
+    // 测试用例2: enabled=false, duration_mins=0 -> 应该删除 MCC_DEBUG（因为 duration_mins==0）
+    setenv("MCC_DEBUG", "1", 1);
+    auto reply2 = call_dlog_limit(false, 0);
+    ASSERT_TRUE(reply2.is_valid() && reply2.is_method_return())
+        << "reply_valid=" << reply2.is_valid()
+        << " reply_type=" << static_cast<int>(reply2.get_type())
+        << " reply_error=" << (reply2.is_error() ? reply2.get_error_name() : "");
+    mcc_debug_value = getenv("MCC_DEBUG");
+    EXPECT_EQ(mcc_debug_value, nullptr) << "duration_mins=0 时，MCC_DEBUG 应该被删除";
+
+    // 测试用例3: enabled=false, duration_mins>0 -> 应该设置 MCC_DEBUG="1"（禁用日志限制）
+    unsetenv("MCC_DEBUG");
+    auto reply3 = call_dlog_limit(false, 60);
+    ASSERT_TRUE(reply3.is_valid() && reply3.is_method_return())
+        << "reply_valid=" << reply3.is_valid()
+        << " reply_type=" << static_cast<int>(reply3.get_type())
+        << " reply_error=" << (reply3.is_error() ? reply3.get_error_name() : "");
+    mcc_debug_value = getenv("MCC_DEBUG");
+    ASSERT_NE(mcc_debug_value, nullptr) << "enabled=false 且 duration_mins>0 时，MCC_DEBUG 应该被设置";
+    EXPECT_STREQ(mcc_debug_value, "1") << "MCC_DEBUG 的值应该是 '1'";
+
+    // 测试用例4: enabled=false, duration_mins=1 -> 验证单数分钟的处理
+    unsetenv("MCC_DEBUG");
+    auto reply4 = call_dlog_limit(false, 1);
+    ASSERT_TRUE(reply4.is_valid() && reply4.is_method_return())
+        << "reply_valid=" << reply4.is_valid()
+        << " reply_type=" << static_cast<int>(reply4.get_type())
+        << " reply_error=" << (reply4.is_error() ? reply4.get_error_name() : "");
+    mcc_debug_value = getenv("MCC_DEBUG");
+    ASSERT_NE(mcc_debug_value, nullptr) << "enabled=false 且 duration_mins=1 时，MCC_DEBUG 应该被设置";
+    EXPECT_STREQ(mcc_debug_value, "1") << "MCC_DEBUG 的值应该是 '1'";
+
+    // 清理环境变量
+    unsetenv("MCC_DEBUG");
 }

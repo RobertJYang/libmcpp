@@ -13,9 +13,17 @@
 #include <dlfcn.h>
 #include <mc/filesystem.h>
 #include <mc/log/appenders/file_appender.h>
+#include <mc/log/log_level.h>
+#include <mc/engine/context.h>
+#include <mc/engine/service.h>
 #include <stdarg.h>
 #include <stdio.h>
+#include <string>
+#include <syslog.h>
 
+#if __has_include(<logging.h>)
+#include <logging.h>
+#else
 typedef enum {
     DLOG_ERROR,
     DLOG_WARN,
@@ -23,11 +31,38 @@ typedef enum {
     DLOG_INFO,
     DLOG_DEBUG
 } DLOG_LEVEL_E;
+#endif
 
 typedef void (*debug_log_func_t)(DLOG_LEVEL_E, const char*, int, const char*, ...);
 typedef void (*set_log_module_name_func_t)(const char*);
+typedef const char* (*get_log_time_str_func_t)(int);
+typedef DLOG_LEVEL_E (*set_log_level_func_t)(DLOG_LEVEL_E);
 static debug_log_func_t           debug_log_ptr           = nullptr;
 static set_log_module_name_func_t set_log_module_name_ptr = nullptr;
+static get_log_time_str_func_t get_log_time_str_ptr = nullptr;
+static set_log_level_func_t set_log_level_ptr = nullptr;
+static std::string                g_module_name{"Unknown"}; // 全局模块名称，所有 file_appender 实例共享
+constexpr uint32_t LOG_US_TIME = 0x01;
+
+// 将 mc::log::level 映射到 DLOG_LEVEL_E
+// 对于没有对应级别的（all, trace, fatal, off），返回 DLOG_DEBUG 作为默认值
+static DLOG_LEVEL_E log_level_to_dlog_level(mc::log::level lvl) {
+    switch (lvl) {
+    case mc::log::level::error:
+        return DLOG_ERROR;
+    case mc::log::level::warn:
+        return DLOG_WARN;
+    case mc::log::level::notice:
+        return DLOG_NOTICE;
+    case mc::log::level::info:
+        return DLOG_INFO;
+    case mc::log::level::debug:
+        return DLOG_DEBUG;
+    default:
+        // all, trace, fatal, off 没有对应级别，返回默认值
+        return DLOG_DEBUG;
+    }
+}
 
 namespace mc {
 namespace log {
@@ -55,6 +90,14 @@ bool file_appender::init(const variant& args) {
             if (!set_log_module_name_ptr) {
                 fprintf(stderr, "dlsym set_log_module_name failed: %s\n", dlerror());
             }
+            get_log_time_str_ptr = (get_log_time_str_func_t)dlsym(handle, "get_log_time_str_c");
+            if (!get_log_time_str_ptr) {
+                fprintf(stderr, "dlsym get_log_time_str failed: %s\n", dlerror());
+            }
+            set_log_level_ptr = (set_log_level_func_t)dlsym(handle, "set_debug_log_level");
+            if (!set_log_level_ptr) {
+                fprintf(stderr, "dlsym set_debug_log_level failed: %s\n", dlerror());
+            }
         }
     }
 
@@ -62,6 +105,7 @@ bool file_appender::init(const variant& args) {
     auto dict = args.as<mc::dict>();
     if (dict.contains("module_name")) {
         std::string module_name = dict["module_name"].as<std::string>();
+        g_module_name           = module_name; // 存储到全局变量
         if (set_log_module_name_ptr) {
             set_log_module_name_ptr(module_name.c_str());
         }
@@ -94,33 +138,12 @@ file_appender::~file_appender() {
     close_file();
 }
 
-void file_appender::append(const message& msg) {
-    std::lock_guard<std::mutex> lock(m_mutex);
 
+void append_debug(const message& msg) {
     // 获取上下文信息
     const context& ctx = msg.get_context();
 
-    DLOG_LEVEL_E level;
-    switch (msg.get_level()) {
-    case level::debug:
-        level = DLOG_DEBUG;
-        break;
-    case level::info:
-        level = DLOG_INFO;
-        break;
-    case level::warn:
-        level = DLOG_WARN;
-        break;
-    case level::error:
-        level = DLOG_ERROR;
-        break;
-    case level::notice:
-        level = DLOG_NOTICE;
-        break;
-    default:
-        level = DLOG_DEBUG;
-        break;
-    }
+    DLOG_LEVEL_E level = log_level_to_dlog_level(msg.get_level());
 
     std::string file_str;
     file_str.reserve(64); // 预分配足够空间
@@ -137,12 +160,73 @@ void file_appender::append(const message& msg) {
     }
 }
 
+void get_initiator(std::string& interface, std::string& username, std::string& client_addr) {
+    if (!mc::engine::context::get_current_context_ptr()) {
+        return;
+    }
+    auto &ctx = mc::engine::context::get_current_context();
+
+    if (ctx.get_arg("interface_name")) {
+        interface = ctx.get_arg("interface_name").as<std::string_view>();
+    }
+    if (ctx.get_arg("username")) {
+        username = ctx.get_arg("username").as<std::string_view>();
+    }
+    if (ctx.get_arg("client_addr")) {
+        client_addr = ctx.get_arg("client_addr").as<std::string_view>();
+    }
+}
+
+void append_operation(const message& msg) {
+    // 获取上下文信息
+    const context& ctx = msg.get_context();
+
+    std::string message_str = msg.get_message();
+    std::string interface_name = "N/A";
+    std::string username       = "N/A";
+    std::string client_addr    = "localhost";
+    get_initiator(interface_name, username, client_addr);
+
+
+    if (get_log_time_str_ptr) {
+        const char* time_str = get_log_time_str_ptr(LOG_US_TIME);
+        if (time_str) {
+            syslog(LOG_LOCAL5 | LOG_INFO, "%s %s,%s@%s,%s,%s", time_str, 
+                interface_name.c_str(), username.c_str(), client_addr.c_str(), g_module_name.c_str(), message_str.c_str());
+        }
+    }
+}
+
+void file_appender::append(const message& msg) {
+    std::lock_guard<std::mutex> lock(m_mutex);
+
+    log_category category = msg.get_category();
+    switch (category) {
+    case log_category::debug:
+        append_debug(msg);
+        break;
+    case log_category::operation:
+        // 使用全局变量中的模块名，所有 file_appender 实例共享
+        append_operation(msg);
+        break;
+    default:
+        append_debug(msg);
+        break;
+    }
+}
+
 void file_appender::set_filename(const std::string& filename) {
     std::lock_guard<std::mutex> lock(m_mutex);
     if (m_file_config.filename != filename) {
         close_file();
         m_file_config.filename = filename;
         open_file();
+    }
+}
+
+void file_appender::set_debug_log_level(level lvl) {
+    if (set_log_level_ptr) {
+        set_log_level_ptr(log_level_to_dlog_level(lvl));
     }
 }
 

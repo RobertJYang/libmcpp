@@ -109,6 +109,13 @@ public:
     // 添加debug_log_ptr的setter
     static void set_debug_log_ptr(void* func_ptr);
 
+    /**
+     * @brief 设置debug_log_level
+     *
+     * @param lvl 日志级别
+     */
+    void set_debug_log_level(level lvl);
+
 private:
     /**
      * @brief 打开日志文件
@@ -123,6 +130,7 @@ private:
     file_appender_config m_file_config; // 文件追加器配置
     std::ofstream        m_file;        // 文件流
     std::mutex           m_mutex;       // 互斥锁，保证线程安全
+    std::string          m_module_name{"N/A"}; // 模块名称
 };
 
 } // namespace log

@@ -102,6 +102,20 @@ public:
     const dict& get_args() const;
 
     /**
+     * @brief 获取日志类别
+     *
+     * @return log_category 日志类别
+     */
+    log_category get_category() const noexcept;
+
+    /**
+     * @brief 设置日志类别
+     *
+     * @param category 日志类别
+     */
+    void set_category(log_category category) noexcept;
+
+    /**
      * @brief 获取格式模板
      *
      * @return const std::string& 格式模板
@@ -131,6 +145,7 @@ public:
 
 private:
     level                                 m_level;     // 日志级别
+    log_category                          m_category{log_category::debug}; // 日志类别
     mutable std::string                   m_message;   // 消息内容
     context                               m_context;   // 上下文信息
     std::chrono::system_clock::time_point m_timestamp; // 时间戳
@@ -175,31 +190,38 @@ mc::dict make_args(Args&&... args) {
 /**
  * @brief 基础日志宏 - 所有级别共用
  */
-#define MC_LOG_MESSAGE_N(LEVEL, COMPILE_CHECK, FORMAT, ...)                                                             \
-    [&] {                                                                                                               \
+#define MC_LOG_MESSAGE_N(LEVEL, CATEGORY, COMPILE_CHECK, FORMAT, ...)                                                             \
+    [&]() -> mc::log::message {                                                                                                               \
         static_assert(COMPILE_CHECK(FORMAT, __VA_ARGS__), "格式化字符串或参数错误");                                    \
-        return mc::log::message(                                                                                        \
+        auto log_msg = mc::log::message(                                                                                        \
             mc::log::level::LEVEL,                                                                                      \
             mc::log::context(__FILE__, __FUNCTION__, __LINE__),                                                         \
             FORMAT,                                                                                                     \
             mc::log::detail::make_args(BOOST_PP_SEQ_FOR_EACH(MC_FORMAT_CHECK_ARG, MC_FORMAT_APPLY_ARG_NAMED,            \
                                                              BOOST_PP_VARIADIC_TO_SEQ(__VA_ARGS__)) std::monostate{})); \
+        log_msg.set_category(mc::log::log_category::CATEGORY);                                                                                     \
+        return log_msg;                                                                                                     \
     }()
 
-#define MC_LOG_MESSAGE_0(LEVEL, COMPILE_CHECK, FORMAT)                                                              \
-    [&] {                                                                                                           \
+#define MC_LOG_MESSAGE_0(LEVEL, CATEGORY, COMPILE_CHECK, FORMAT)                                                              \
+    [&]() -> mc::log::message {                                                                                                           \
         static_assert(COMPILE_CHECK(FORMAT), "格式化字符串或参数错误");                                             \
-        return mc::log::message(mc::log::level::LEVEL, mc::log::context(__FILE__, __FUNCTION__, __LINE__), FORMAT); \
+        auto log_msg = mc::log::message(mc::log::level::LEVEL, mc::log::context(__FILE__, __FUNCTION__, __LINE__), FORMAT); \
+        log_msg.set_category(mc::log::log_category::CATEGORY);                                                                                     \
+        return log_msg;                                                                                                     \
     }()
 
-#define MC_LOG_DISPATCH(LEVEL, COMPILE_CHECK, FORMAT, ...)                       \
+#define MC_LOG_DISPATCH(LEVEL, CATEGORY, COMPILE_CHECK, FORMAT, ...)                       \
     BOOST_PP_IF(BOOST_PP_EQUAL(BOOST_PP_VARIADIC_SIZE(dummy, ##__VA_ARGS__), 1), \
-                MC_LOG_MESSAGE_0(LEVEL, COMPILE_CHECK, FORMAT),                  \
-                MC_LOG_MESSAGE_N(LEVEL, COMPILE_CHECK, FORMAT, __VA_ARGS__))
+                MC_LOG_MESSAGE_0(LEVEL, CATEGORY, COMPILE_CHECK, FORMAT),                  \
+                MC_LOG_MESSAGE_N(LEVEL, CATEGORY, COMPILE_CHECK, FORMAT, __VA_ARGS__))
 
-// 暂不做检查，等后续优化
-#define MC_LOG_MESSAGE(LEVEL, ...) MC_LOG_DISPATCH(LEVEL, MC_FORMAT_EMPTY_CHECK, __VA_ARGS__)
+// 暂不做检查，等后续优化，使用默认调试日志类别，指定日志级别
+#define MC_LOG_MESSAGE(LEVEL, ...) MC_LOG_DISPATCH(LEVEL, debug, MC_FORMAT_EMPTY_CHECK, __VA_ARGS__)
 
-#define MC_LOG_MESSAGE_UNSAFE(LEVEL, ...) MC_LOG_DISPATCH(LEVEL, MC_FORMAT_EMPTY_CHECK, __VA_ARGS__)
+// 暂不做检查，等后续优化，使用默认所有日志级别，指定日志类别
+#define MC_LOG_MESSAGE_WITH_CATEGORY(CATEGORY, ...) MC_LOG_DISPATCH(all, CATEGORY, MC_FORMAT_EMPTY_CHECK, __VA_ARGS__)
+
+#define MC_LOG_MESSAGE_UNSAFE(LEVEL, ...) MC_LOG_DISPATCH(LEVEL, debug, MC_FORMAT_EMPTY_CHECK, __VA_ARGS__)
 
 #endif // MC_LOG_MESSAGE_H

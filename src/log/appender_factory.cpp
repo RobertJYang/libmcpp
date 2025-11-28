@@ -17,6 +17,7 @@
 #include <mc/log/appender_factory.h>
 #include <mc/log/appenders/console_appender.h>
 #include <mc/log/appenders/file_appender.h>
+#include <mc/log/appenders/socket_appender.h>
 #include <mc/variant.h>
 #include <unordered_map>
 
@@ -185,6 +186,10 @@ private:
 
         register_creator("file", []() {
             return std::make_shared<file_appender>();
+        });
+
+        register_creator("socket", []() {
+            return std::make_shared<socket_appender>();
         });
     }
 

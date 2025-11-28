@@ -19,7 +19,7 @@ namespace mc::log {
 message::message(level lvl, std::string msg, context ctx, mc::dict args)
     : m_level(lvl), m_message(std::move(msg)), m_context(std::move(ctx)),
       m_timestamp(std::chrono::system_clock::now()), m_args(std::move(args)),
-      m_thread_id(mc::get_thread_id()), m_formatted(true) {
+      m_thread_id(mc::get_thread_id()), m_formatted(true), m_category(log_category::debug) {
 }
 
 message::message(level lvl, context ctx, std::string fmt_template,
@@ -27,7 +27,7 @@ message::message(level lvl, context ctx, std::string fmt_template,
     : m_level(lvl), m_message(""), // 初始为空，将在需要时格式化
       m_context(std::move(ctx)), m_timestamp(std::chrono::system_clock::now()),
       m_args(std::move(args)), m_format(std::move(fmt_template)),
-      m_thread_id(mc::get_thread_id()), m_formatted(false) {
+      m_thread_id(mc::get_thread_id()), m_formatted(false), m_category(log_category::debug) {
 }
 
 const std::string& message::get_message() const {
@@ -51,6 +51,14 @@ const dict& message::get_args() const {
     return m_args;
 }
 
+log_category message::get_category() const noexcept {
+    return m_category;
+}
+
+void message::set_category(log_category category) noexcept {
+    m_category = category;
+}
+
 const context& message::get_context() const {
     return m_context;
 }
@@ -68,6 +76,7 @@ mc::dict message::to_structured_data() const {
 
     // 基本元数据
     result["level"] = static_cast<int>(m_level);
+    result["category"] = static_cast<int>(m_category);
 
     // 上下文信息
     mc::dict context_dict;

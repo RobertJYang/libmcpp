@@ -12,10 +12,12 @@
 
 #include <algorithm>
 #include <fstream>
+#include <memory>
 
 #include <mc/filesystem.h>
 #include <mc/json.h>
 #include <mc/log.h>
+#include <mc/log/appenders/file_appender.h>
 #include <mc/log/log_level.h>
 #include <mc/log/log_manager.h>
 #include <mc/log/log_message.h>
@@ -204,6 +206,28 @@ bool log_manager::apply_config(const logging_config& config) {
     }
 
     return true;
+}
+
+void log_manager::set_dlog_level(level lvl) {
+    std::lock_guard<std::mutex> lock(m_mutex);
+
+    for (auto& logger_entry : m_loggers) {
+        logger_entry.second.set_level(lvl);
+        ilog("Set logger ${name} log level to ${level}",
+             ("name", logger_entry.first)("level", mc::log::to_string(lvl)));
+        // 查找所有 file_appender 类型的 appender 并设置日志级别
+        for (const auto& appender : logger_entry.second.get_appenders()) {
+            if (auto file_appender_ptr = std::dynamic_pointer_cast<file_appender>(appender)) {
+                file_appender_ptr->set_debug_log_level(lvl);
+            }
+        }
+    }
+    default_logger().set_level(lvl);
+    for (const auto& appender : default_logger().get_appenders()) {
+        if (auto file_appender_ptr = std::dynamic_pointer_cast<file_appender>(appender)) {
+            file_appender_ptr->set_debug_log_level(lvl);
+        }
+    }
 }
 
 } // namespace log

@@ -93,8 +93,12 @@ bool logger::is_enabled(level lvl) const {
     return static_cast<int>(lvl) >= static_cast<int>(m_impl->m_config.level);
 }
 
+bool logger::is_debug_log(log_category category) const {
+    return category == log_category::debug;
+}
+
 void logger::log(message msg) {
-    if (!is_enabled(msg.get_level())) {
+    if (is_debug_log(msg.get_category()) && !is_enabled(msg.get_level())) {
         return;
     }
 
