@@ -316,6 +316,9 @@ public:
     template <typename OtherT>
     auto as_future() -> Future<OtherT, Executor, Allocator>;
 
+    template <typename OtherT, typename OtherExecutor>
+    auto as_future(OtherExecutor&& executor) -> Future<OtherT, OtherExecutor, Allocator>;
+
     // 获取 State 状态
     auto get_state() const {
         return state_;

@@ -320,12 +320,54 @@ auto Future<T, Executor, Allocator>::as_future() -> Future<OtherT, Executor, All
         return std::move(*this);
     } else if constexpr (std::is_void_v<T>) {
         return then([]() -> OtherT {
-            return OtherT();
+            if constexpr (std::is_same_v<OtherT, void>) {
+                return;
+            } else {
+                return OtherT();
+            }
         });
     } else {
         return then([](auto&& value) -> OtherT {
-            return std::forward<decltype(value)>(value);
+            if constexpr (std::is_same_v<OtherT, void>) {
+                return;
+            } else {
+                return std::forward<decltype(value)>(value);
+            }
         });
+    }
+}
+
+template <typename T, typename Executor, typename Allocator>
+template <typename OtherT, typename OtherExecutor>
+auto Future<T, Executor, Allocator>::as_future(OtherExecutor&& executor) -> Future<OtherT, OtherExecutor, Allocator> {
+    if constexpr (std::is_same_v<OtherExecutor, Executor>) {
+        return this->as_future<OtherT>();
+    } else if constexpr (std::is_void_v<T>) {
+        auto promise = mc::make_promise<OtherT>(std::forward<OtherExecutor>(executor), state_->allocator);
+        auto future  = promise.get_future().on_cancel(*this);
+        this->then([promise]() mutable {
+            if constexpr (std::is_same_v<OtherT, void>) {
+                promise.set_value();
+            } else {
+                promise.set_value(OtherT());
+            }
+        }).catch_error([promise](const mc::exception&) mutable {
+            promise.set_exception(std::current_exception());
+        });
+        return future;
+    } else {
+        auto promise = mc::make_promise<OtherT>(std::forward<OtherExecutor>(executor), state_->allocator);
+        auto future  = promise.get_future().on_cancel(*this);
+        this->then([promise](auto&& value) mutable {
+            if constexpr (std::is_same_v<OtherT, void>) {
+                promise.set_value();
+            } else {
+                promise.set_value(std::forward<decltype(value)>(value));
+            }
+        }).catch_error([promise](const mc::exception&) mutable {
+            promise.set_exception(std::current_exception());
+        });
+        return future;
     }
 }
 
