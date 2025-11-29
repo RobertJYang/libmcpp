@@ -15,6 +15,12 @@
 #include <mc/log/appenders/socket_appender.h>
 #include <mc/time.h>
 #include <mc/engine/base.h>
+#include <mc/filesystem.h>
+#include <algorithm>
+#include <sstream>
+#include <string>
+#include <string_view>
+#include <vector>
 
 #include <cstdlib>
 #include <mutex>
@@ -31,6 +37,156 @@ std::string MODULE_NAME = "Unknown";
 }
 
 namespace mc::engine {
+
+namespace {
+
+// 获取 DBus 路径下的排序子节点列表
+std::vector<std::string> get_sorted_dbus_children(DBusConnection* conn, const std::string& path) {
+    std::vector<std::string> children;
+    char**                   child_entries = nullptr;
+
+    if (!dbus_connection_list_registered(conn, path.c_str(), &child_entries)) {
+        return children;
+    }
+
+    for (int i = 0; child_entries[i] != nullptr; ++i) {
+        children.emplace_back(child_entries[i]);
+    }
+    dbus_free_string_array(child_entries);
+
+    std::sort(children.begin(), children.end());
+    return children;
+}
+
+// 递归输出 DBus 对象树拓扑结构
+void dump_dbus_object_tree(std::ostream& os, DBusConnection* conn, const std::string& path,
+                           bool is_last, const std::string& prefix) {
+    // 输出当前节点路径
+    os << prefix << (is_last ? "└─" : "├─") << path << "\n";
+
+    // 计算子节点的前缀
+    std::string child_prefix = prefix + (is_last ? "  " : "│ ");
+
+    // 获取并排序子节点
+    auto children = get_sorted_dbus_children(conn, path);
+
+    // 递归遍历子节点
+    for (size_t i = 0; i < children.size(); ++i) {
+        bool        child_is_last = (i == children.size() - 1);
+        std::string child_path    = (path == "/") ? ("/" + children[i]) : (path + "/" + children[i]);
+        dump_dbus_object_tree(os, conn, child_path, child_is_last, child_prefix);
+    }
+}
+
+// 输出资源树拓扑结构入口
+void dump_object_tree(std::ostream& os, DBusConnection* conn, std::string_view service_name) {
+    // 输出service名称作为根节点
+    os << service_name << "\n";
+
+    // 获取根路径下的子节点
+    auto children = get_sorted_dbus_children(conn, "/");
+
+    // 遍历根路径下的子节点
+    for (size_t i = 0; i < children.size(); ++i) {
+        bool        is_last    = (i == children.size() - 1);
+        std::string child_path = "/" + children[i];
+        dump_dbus_object_tree(os, conn, child_path, is_last, "");
+    }
+}
+
+// 输出单个接口的属性信息
+void dump_interface_properties(std::ostream& os, abstract_object* node, abstract_interface* iface,
+                               const interface_metadata& iface_meta) {
+    // 收集属性信息
+    std::vector<std::tuple<std::string, std::string_view, std::string>> props;
+    iface_meta.metadata->visit_properties([&](const property_type_info* prop_info) {
+        auto value = iface->get_property(prop_info->name, property_options::memory);
+        props.emplace_back(std::string(prop_info->name), prop_info->get_signature(), value.to_string());
+    });
+
+    std::sort(props.begin(), props.end(),
+              [](const auto& a, const auto& b) { return std::get<0>(a) < std::get<0>(b); });
+
+    os << node->get_object_path() << "  " << iface->get_interface_name() << "\n";
+
+    for (const auto& [name, signature, value] : props) {
+        os << "." << name << "\n";
+        os << "  signature:  " << signature << "\n";
+        os << "  value:      " << value << "\n";
+        os << "  flags:      emits-change\n";
+        os << "  readonly:   false\n";
+    }
+
+    os << "\n";
+}
+
+// 输出单个对象的所有接口属性
+void dump_single_object_properties(std::ostream& os, abstract_object* node) {
+    const auto& metadata = node->get_metadata();
+    metadata.visit_interfaces([&](const interface_metadata& iface_meta) {
+        auto* iface = to_interface_ptr(node, iface_meta.interface);
+        if (iface != nullptr) {
+            dump_interface_properties(os, node, iface, iface_meta);
+        }
+    });
+}
+
+// 递归输出对象属性（使用 DBus 遍历）
+void dump_object_properties(std::ostream& os, DBusConnection* conn, service* svc,
+                            const std::string& path) {
+    // 尝试从对象表中查找对象并输出属性
+    auto& table  = svc->get_object_table();
+    auto  obj_it = table.find_object(by_path::field == path);
+
+    if (obj_it) {
+        auto* node = static_cast<abstract_object*>(obj_it.get());
+        dump_single_object_properties(os, node);
+    }
+
+    // 获取子节点并递归遍历
+    auto children = get_sorted_dbus_children(conn, path);
+    for (const auto& child_name : children) {
+        std::string child_path = (path == "/") ? ("/" + child_name) : (path + "/" + child_name);
+        dump_object_properties(os, conn, svc, child_path);
+    }
+}
+
+void dump_service_tree(service* svc, std::string_view filepath) {
+    if (svc == nullptr) {
+        elog("dump service tree failed: service is nullptr");
+        return;
+    }
+
+    // 验证目录路径是否存在且是合法目录
+    if (!mc::filesystem::is_directory(filepath)) {
+        elog("dump service tree failed: invalid directory path ${path}", ("path", filepath));
+        return;
+    }
+
+    // 获取 DBus 连接
+    auto conn = svc->get_connection().get_connection();
+    if (conn == nullptr) {
+        elog("dump service tree failed: cannot get dbus connection");
+        return;
+    }
+
+    std::string        log_path = std::string(filepath) + "/mdb_info.log";
+    std::ostringstream oss;
+
+    // 输出资源树拓扑结构
+    dump_object_tree(oss, conn, svc->name());
+    oss << "\n";
+
+    // 输出各个接口的属性
+    dump_object_properties(oss, conn, svc, "/");
+
+    if (!mc::filesystem::write_file(log_path, oss.str())) {
+        elog("dump service tree failed: cannot write mdb_info.log");
+        return;
+    }
+}
+
+} // namespace
 int32_t micro_component_interface::health_check(std::map<std::string, std::string> context) const {
     return 0;
 }
@@ -67,6 +223,7 @@ std::string mc_config_manage_interface::get_trusted_config(std::map<std::string,
 
 void mc_debug_interface::dump(std::map<std::string, std::string> context, std::string filepath) {
     auto service = get_service();
+    dump_service_tree(service, filepath);
     service->on_dump(context, filepath);
 }
 
@@ -335,8 +492,7 @@ MC_REFLECT(mc::engine::mc_config_manage_interface,
 MC_REFLECT(mc::engine::mc_debug_interface,
            ((m_dlog_level, "DlogLevel"))((m_dlog_type, "DlogType"))((attach_debug_console, "AttachDebugConsole"))(
                (detach_debug_console, "DetachDebugConsole"))((dump, "Dump"))((set_dlog_level, "SetDlogLevel")))
-MC_REFLECT(mc::engine::mc_reboot_interface, ((prepare, "Prepare"))((process, "Process"))((action, "Action"))
-                                            ((cancel, "Cancel")))
+MC_REFLECT(mc::engine::mc_reboot_interface, ((prepare, "Prepare"))((process, "Process"))((action, "Action"))((cancel, "Cancel")))
 MC_REFLECT(mc::engine::mc_reset_interface, ((prepare, "Prepare"))((action, "Action"))((cancel, "Cancel")))
 MC_REFLECT(mc::engine::mc_maintenance_interface, ((dlog_limit, "DlogLimit")))
 MC_REFLECT(

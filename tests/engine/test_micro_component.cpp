@@ -14,6 +14,7 @@
 #include <mc/engine.h>
 #include <mc/engine/micro_component.h>
 #include <mc/exception.h>
+#include <mc/filesystem.h>
 #include <mc/future.h>
 #include <mc/string.h>
 #include <test_utilities/test_base.h>
@@ -774,16 +775,68 @@ TEST_F(MicroComponentTest, TestMicroComponentMaintenanceInterface) {
 }
 
 TEST_F(MicroComponentTest, TestMethodCallContextStack) {
-    auto msg    = mc::dbus::message::new_method_call("org.openubmc.test_service_1", "/bmc/kepler/test_service_1/MicroComponent",
-                                                     "bmc.kepler.MicroComponent.Debug", "DetachDebugConsole");
-    auto writer = msg.writer();
-    std::map<std::string, std::string> detach_ctx;
-    detach_ctx["Test"] = "TestDetachDebugConsole";
-    detach_ctx["Requestor"] = "org.openubmc.test_service_1";
-    writer << detach_ctx;
-    auto reply = test_conn.send_with_reply(std::move(msg), call_timeout);
-    ASSERT_TRUE(reply.is_valid() && reply.is_method_return());
+    auto reply = wait_valid_reply(test_conn, [&]() {
+        auto                               msg    = mc::dbus::message::new_method_call("org.openubmc.test_service_1", "/bmc/kepler/test_service_1/MicroComponent",
+                                                                                       "bmc.kepler.MicroComponent.Debug", "DetachDebugConsole");
+        auto                               writer = msg.writer();
+        std::map<std::string, std::string> detach_ctx;
+        detach_ctx["Test"]      = "TestDetachDebugConsole";
+        detach_ctx["Requestor"] = "org.openubmc.test_service_1";
+        writer << detach_ctx;
+        return msg;
+    });
     EXPECT_EQ(service_1->m_last_requestor, "org.openubmc.test_service_1");
     service_1->update_last_requestor();
     EXPECT_EQ(service_1->m_last_requestor, "");
+}
+
+TEST_F(MicroComponentTest, test_dump_tree_success) {
+    // 创建测试目录
+    std::string dest_path = "./testdir";
+    mc::filesystem::create_directories(dest_path);
+
+    auto conn = mc::dbus::connection::open_session_bus(mc::get_io_context());
+    conn.start();
+    auto msg = mc::dbus::message::new_method_call("org.openubmc.test_service_1",
+                                                           "/bmc/kepler/test_service_1/MicroComponent",
+                                                           "bmc.kepler.MicroComponent.Debug", "Dump");
+    auto writer = msg.writer();
+    std::map<std::string, std::string> dump_ctx;
+    dump_ctx["Test"] = "TestDump";
+    writer << dump_ctx << dest_path;
+    auto reply = conn.send_with_reply(std::move(msg), mc::milliseconds(1000));
+
+    // 验证文件已生成
+    std::string log_path = dest_path + "/mdb_info.log";
+    ASSERT_TRUE(mc::filesystem::exists(log_path));
+
+    // 验证文件内容
+    auto content = mc::filesystem::read_file(log_path);
+    ASSERT_TRUE(content.has_value());
+
+    // 清理测试目录
+    mc::filesystem::remove_all(dest_path);
+}
+
+TEST_F(MicroComponentTest, test_dump_tree_invalid_path) {
+    // 使用不存在的目录路径
+    std::string invalid_path = "/nonexistent/invalid/path";
+
+    auto conn = mc::dbus::connection::open_session_bus(mc::get_io_context());
+    conn.start();
+    auto msg = mc::dbus::message::new_method_call("org.openubmc.test_service_1",
+                                                           "/bmc/kepler/test_service_1/MicroComponent",
+                                                           "bmc.kepler.MicroComponent.Debug", "Dump");
+    auto writer = msg.writer();
+    std::map<std::string, std::string> dump_ctx;
+    dump_ctx["Test"] = "TestDumpInvalidPath";
+    writer << dump_ctx << invalid_path;
+    auto reply = conn.send_with_reply(std::move(msg), mc::milliseconds(1000));
+
+    // 验证方法调用成功（即使路径无效，方法本身不会抛异常）
+    ASSERT_TRUE(reply.is_valid() && reply.is_method_return());
+
+    // 验证文件未生成
+    std::string log_path = invalid_path + "/mdb_info.log";
+    EXPECT_FALSE(mc::filesystem::exists(log_path));
 }
