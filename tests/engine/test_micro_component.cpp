@@ -45,6 +45,7 @@ struct test_service_1 : public mc::engine::service {
 
     void on_detach_debug_console(std::map<std::string, std::string> context) override {
         m_ctx_value = context["Test"];
+        update_last_requestor();
     }
 
     int32_t on_reboot_prepare(std::map<std::string, std::string> context) override {
@@ -66,8 +67,19 @@ struct test_service_1 : public mc::engine::service {
         m_ctx_value = context["Test"];
     }
 
+    void update_last_requestor() {
+        auto* ctx = mc::engine::context::get_current_context_ptr();
+        if (!ctx) {
+            m_last_requestor = "";
+            return;
+        }
+        mc::variant requestor = ctx->get_arg("Requestor");
+        m_last_requestor      = requestor.as_string();
+    }
+
     std::string m_ctx_value;
     std::string m_dump_filepath;
+    std::string m_last_requestor;
 };
 
 static mc::milliseconds                   call_timeout(1000);
@@ -759,4 +771,19 @@ TEST_F(MicroComponentTest, TestMicroComponentMaintenanceInterface) {
 
     // 清理环境变量
     unsetenv("MCC_DEBUG");
+}
+
+TEST_F(MicroComponentTest, TestMethodCallContextStack) {
+    auto msg    = mc::dbus::message::new_method_call("org.openubmc.test_service_1", "/bmc/kepler/test_service_1/MicroComponent",
+                                                     "bmc.kepler.MicroComponent.Debug", "DetachDebugConsole");
+    auto writer = msg.writer();
+    std::map<std::string, std::string> detach_ctx;
+    detach_ctx["Test"] = "TestDetachDebugConsole";
+    detach_ctx["Requestor"] = "org.openubmc.test_service_1";
+    writer << detach_ctx;
+    auto reply = test_conn.send_with_reply(std::move(msg), call_timeout);
+    ASSERT_TRUE(reply.is_valid() && reply.is_method_return());
+    EXPECT_EQ(service_1->m_last_requestor, "org.openubmc.test_service_1");
+    service_1->update_last_requestor();
+    EXPECT_EQ(service_1->m_last_requestor, "");
 }

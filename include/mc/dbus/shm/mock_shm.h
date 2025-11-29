@@ -285,7 +285,7 @@ public:
 
 class object_tree {
 public:
-    object_tree() : m_unique_name("1.23"), m_harbor_name("harbor.bmc.kepler.mock") {
+    object_tree() : m_unique_name("1.23"), m_harbor_name("") {
     }
 
     std::string_view unique_name() const {
@@ -305,6 +305,7 @@ public:
     }
 
     void set_harbor_name(const std::string_view& name) {
+        m_harbor_name = std::string(name);
     }
 
     object& register_object(shared_memory& ins, const std::string_view& napathme) {

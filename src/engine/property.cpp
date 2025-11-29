@@ -28,6 +28,16 @@ void detail::interface_observer::notify(const mc::variant& value, const property
     object->notify_property_changed(value, prop);
 }
 
+void detail::interface_observer::notify_update_shm(const mc::variant& value, const property_base& prop) {
+    if (!m_interface) {
+        return;
+    }
+    auto object = m_interface->get_owner();
+    if (object) {
+        object->notify_property_update_shm(value, prop);
+    }
+}
+
 } // namespace mc::engine
 
 namespace mc {

@@ -9,8 +9,13 @@
 #include <mc/engine/metadata.h>
 #include <mc/engine/property.h>
 #include <mc/engine/std_interface.h>
+#include <mc/format.h>
+
+#define BUILD_TYPE_RELEASE (0x0c)
 
 namespace mc::engine {
+
+static constexpr int64_t GET_PROPERTY_CALL_TIMEOUT = 60 * 1000;
 
 properties_interface& properties_interface::get_instance() {
     static properties_interface instance;
@@ -142,7 +147,7 @@ struct inintrospect_vistor : metadata_visitor {
 
             xml_data += "<node name=\"";
             xml_data += obj_name;
-            xml_data += "\"/>";
+            xml_data += "\"></node>";
         }
     }
 
@@ -319,6 +324,81 @@ void common_properties_interface::set_with_context(std::map<std::string, std::st
     object->set_property(property_name, value, interface_name);
 }
 
+mc::dict common_properties_interface::get_all_with_context(std::map<std::string, std::string> context,
+    std::string_view interface_name) {
+    auto* object = object_call_stack::top_value();
+    if (object == nullptr) {
+        elog("failed to get object from call stack");
+        return {};
+    }
+    if (interface_name == common_properties_name) {
+        return get_all();
+    }
+    return object->get_all_properties(interface_name, mc::engine::property_options::from_mdb);
+}
+
+std::string common_properties_interface::get_private_properties(std::map<std::string, std::string> context) {
+#if defined(BUILD_TYPE) && defined(BUILD_TYPE_RELEASE) && BUILD_TYPE == BUILD_TYPE_RELEASE
+    return "";
+#else
+    auto* object = object_call_stack::top_value();
+    if (object == nullptr) {
+        elog("failed to get object from call stack");
+        return "[]";
+    }
+    const auto& metadata = object->get_metadata();
+    mc::dict    properties;
+    metadata.get_object_metadata().visit_properties([&properties, object](const property_type_info* property) {
+        if (property->has_flags(MC_REFLECT_FLAG_PROPERTY_TPL)) {
+            std::string_view prop_name = property->name;
+            properties[prop_name]      = property->get_value(object);
+        }
+    });
+    if (properties.empty()) {
+        return "[]";
+    }
+    return json::json_encode(properties);
+#endif
+}
+
+static mc::variant get_target_property_value(service* srv, std::string_view service_name, std::string_view path,
+                                             std::string_view interface, std::string_view property) {
+    mc::variants args{mc::dict{}, interface, property};
+    return srv->timeout_call(mc::milliseconds(GET_PROPERTY_CALL_TIMEOUT), service_name, path,
+                             common_properties_name, "GetWithContext", "a{ss}ss", args);
+}
+
+std::string common_properties_interface::get_property_detail(std::map<std::string, std::string> context,
+                                                             std::string_view                   interface_name,
+                                                             std::string_view                   property_name) {
+#if defined(BUILD_TYPE) && defined(BUILD_TYPE_RELEASE) && BUILD_TYPE == BUILD_TYPE_RELEASE
+    return "";
+#else
+    auto* object = object_call_stack::top_value();
+    if (object == nullptr) {
+        elog("failed to get object from call stack");
+        return "[]";
+    }
+    std::string ref_info = object->get_property_ref_info(property_name, interface_name);
+    if (!ref_info.empty()) {
+        return ref_info;
+    }
+    auto sync_info = object->get_property_sync_info(property_name, interface_name);
+    if (!sync_info || sync_info->source.empty()) {
+        return "[]";
+    }
+    mc::variants values;
+    auto         srv = object->get_service();
+    for (auto& [target_service, target_path, target_interface, target_property] : sync_info->properties) {
+        auto value = get_target_property_value(srv, target_service, target_path, target_interface, target_property);
+        values.push_back(value);
+    }
+    std::string sync_values = json::json_encode(values);
+    return mc::format_dict(R"({{"source":${sync_source},"type":"synchronization","value":${sync_values}}})",
+                           mc::mutable_dict()("sync_source", sync_info->source)("sync_values", sync_values));
+#endif
+}
+
 invoke_result standard_interfaces::invoke(abstract_object* object, std::string_view method_name,
                                           const mc::variants& args,
                                           std::string_view    interface_name) {
@@ -355,6 +435,8 @@ MC_REFLECT(mc::engine::object_manager_interface,
            ((get_managed_objects, "GetManagedObjects"))((interfaces_added, "InterfacesAdded"))(
                (interfaces_removed, "InterfacesRemoved")))
 MC_REFLECT(mc::engine::common_properties_interface,
-           ((m_parent_path, "ParentPath"))((m_object_name, "ObjectName"))           //
-           ((m_class_name, "ClassName"))((m_object_identifier, "ObjectIdentifier")) //
-           ((get_with_context, "GetWithContext"))((set_with_context, "SetWithContext")))
+           ((m_parent_path, "ParentPath"))((m_object_name, "ObjectName"))                            //
+           ((m_class_name, "ClassName"))((m_object_identifier, "ObjectIdentifier"))                  //
+           ((get_with_context, "GetWithContext"))((set_with_context, "SetWithContext"))              //
+           ((get_all_with_context, "GetAllWithContext"))((get_property_detail, "GetPropertyDetail")) //
+           ((get_private_properties, "GetPrivateProperties")))

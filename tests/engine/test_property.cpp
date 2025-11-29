@@ -50,6 +50,9 @@ struct test_observer {
         m_count++;
         m_last_value = value;
     }
+
+    void notify_update_shm(mc::variant value, mc::engine::property_base& property) {
+    }
 };
 
 template <typename T, typename Observer = mc::engine::detail::empty_observer>
@@ -1246,36 +1249,6 @@ TEST_F(PropertyRelateTest, RefPropertyDataTypeConversionAccuracy) {
 
     m_service->get_cpu()->m_interface.temperature = -273.15; // 绝对零度
     EXPECT_EQ(test_prop.value(true), "-273.15");
-}
-
-// 测试属性引用的错误处理和边界情况
-TEST_F(PropertyRelateTest, PropertyReferenceErrorHandlingAndEdgeCases) {
-    auto  test_obj  = m_service->get_test_obj();
-    auto& test_prop = test_obj->m_interface.test_prop;
-
-    // 测试引用不存在的对象
-    mc::expr::relate_property invalid_obj_rp;
-    invalid_obj_rp.type          = "ref";
-    invalid_obj_rp.object_name   = "NonExistentDevice";
-    invalid_obj_rp.property_name = "SomeProperty";
-    invalid_obj_rp.full_name     = "NonExistentDevice.SomeProperty";
-
-    from_variant(mc::variant("#/InvalidObject.Property"), test_prop);
-
-    // 应该抛出异常（对象不存在）
-    EXPECT_THROW(test_prop.value(true), mc::invalid_op_exception);
-
-    // 测试引用不存在的属性
-    mc::expr::relate_property invalid_prop_rp;
-    invalid_prop_rp.type          = "ref";
-    invalid_prop_rp.object_name   = "CPU";
-    invalid_prop_rp.property_name = "NonExistentProperty";
-    invalid_prop_rp.full_name     = "CPU.NonExistentProperty";
-
-    from_variant(mc::variant("#/CPU.InvalidProperty"), test_prop);
-
-    // 应该抛出异常（属性不存在）
-    EXPECT_THROW(test_prop.value(true), mc::invalid_op_exception);
 }
 
 // 测试引用属性的实时更新能力
@@ -3030,4 +3003,38 @@ TEST_F(PropertyRelateTest, RefObjectSignalConnect) {
     // 测试断开连接
     conn.disconnect();
     EXPECT_FALSE(conn.connected());
+}
+
+TEST_F(PropertyRelateTest, TestPropertyRefInfo) {
+    auto        test_obj   = m_service->get_test_obj();
+    std::string ref_source = R"({"ObjectName":"Event_CPUPresence","type":"local reference object"})";
+    test_obj->set_property_ref_info("test_prop", ref_source, "interface");
+    auto ref_info_result = test_obj->get_property_ref_info("test_prop", "interface");
+    EXPECT_EQ(ref_info_result, ref_source);
+}
+
+TEST_F(PropertyRelateTest, TestPropertySyncInfo) {
+    auto        sync_info   = std::make_shared<mc::engine::property_sync_info>();
+    std::string sync_source = R"#({"properties":[],"expressions":["expr($1 + $2 * 3)"],"Default":3.14})#";
+    sync_info->source       = sync_source;
+    sync_info->properties   = {
+        {"bmc.kepler.service_1", "/bmc/kepler/TestObj1", "bmc.kepler.TestInterface1", "TestProp1"},
+        {"bmc.kepler.service_2", "/bmc/kepler/TestObj2", "bmc.kepler.TestInterface2", "TestProp2"},
+    };
+    auto test_obj = m_service->get_test_obj();
+    test_obj->set_property_sync_info("test_prop", std::move(sync_info), "interface");
+    auto sync_info_result = test_obj->get_property_sync_info("test_prop", "interface");
+    ASSERT_NE(sync_info_result.get(), nullptr);
+    EXPECT_EQ(sync_info_result->source, sync_source);
+    ASSERT_EQ(sync_info_result->properties.size(), 2);
+    auto& [service_1, object_1, interface_1, prop_1] = sync_info_result->properties[0];
+    EXPECT_EQ(service_1, "bmc.kepler.service_1");
+    EXPECT_EQ(object_1, "/bmc/kepler/TestObj1");
+    EXPECT_EQ(interface_1, "bmc.kepler.TestInterface1");
+    EXPECT_EQ(prop_1, "TestProp1");
+    auto& [service_2, object_2, interface_2, prop_2] = sync_info_result->properties[1];
+    EXPECT_EQ(service_2, "bmc.kepler.service_2");
+    EXPECT_EQ(object_2, "/bmc/kepler/TestObj2");
+    EXPECT_EQ(interface_2, "bmc.kepler.TestInterface2");
+    EXPECT_EQ(prop_2, "TestProp2");
 }

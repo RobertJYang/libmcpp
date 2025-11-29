@@ -127,6 +127,14 @@ public:
         return signal;
     }
 
+    void notify_property_update_shm(const mc::variant& value, const mc::engine::property_base& prop) override {
+    }
+
+    mc::engine::property_changed_signal& property_update_shm() {
+        static mc::engine::property_changed_signal signal;
+        return signal;
+    }
+
     const mc::engine::object_metadata& get_metadata() const override {
         static mc::reflect::struct_metadata mock_struct_metadata = {"MockObject", {}};
         static mc::engine::object_metadata  metadata("MockObject", mock_struct_metadata);
@@ -136,6 +144,37 @@ public:
     void add_managed_object(mc::engine::abstract_object* obj) override {
     }
     void remove_managed_object(mc::engine::abstract_object* obj) override {
+    }
+
+    void set_property_ref_info(std::string_view property_name, const std::string& info,
+                                            std::string_view interface_name) override {
+    }
+
+    std::string get_property_ref_info(std::string_view property_name,
+                                      std::string_view interface_name) const override {
+        return "";
+    }
+
+    void set_property_sync_info(std::string_view property_name, mc::engine::property_sync_info_ptr info,
+                                std::string_view interface_name) override {
+    }
+
+    mc::engine::property_sync_info_ptr get_property_sync_info(std::string_view property_name,
+                                                              std::string_view interface_name) const override {
+        return {};
+    }
+
+    void set_override_value(std::string_view property_name, const mc::variant& value,
+                            std::string_view interface_name) override {
+    }
+
+    void unset_override_value(std::string_view property_name,
+                              std::string_view interface_name) override {
+    }
+
+    mc::variant get_override_value(std::string_view property_name,
+                                   std::string_view interface_name) const override {
+        return {};
     }
 };
 

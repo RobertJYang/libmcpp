@@ -62,6 +62,69 @@ object_metadata make_object_interfaces_metadata() {
 }
 } // namespace detail
 
+template <typename ValueType>
+class object_optional_data {
+public:
+    object_optional_data() {
+    }
+
+    // 禁止拷贝和移动
+    object_optional_data(const object_optional_data&)            = delete;
+    object_optional_data& operator=(const object_optional_data&) = delete;
+    object_optional_data(object_optional_data&&)                 = delete;
+    object_optional_data& operator=(object_optional_data&&)      = delete;
+
+    void set(std::string_view interface, std::string_view property, const ValueType& value) {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        m_map[std::string(interface)][std::string(property)] = value;
+    }
+
+    void unset(std::string_view interface, std::string_view property) {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        auto                        interface_it = m_map.find(std::string(interface));
+        if (interface_it == m_map.end()) {
+            return;
+        }
+        auto& properties  = interface_it->second;
+        auto  property_it = properties.find(std::string(property));
+        if (property_it == properties.end()) {
+            return;
+        }
+        properties.erase(property_it);
+        if (properties.empty()) {
+            m_map.erase(interface_it);
+        }
+    }
+
+    ValueType get(std::string_view interface, std::string_view property) {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        auto                        interface_it = m_map.find(std::string(interface));
+        if (interface_it == m_map.end()) {
+            return {};
+        }
+        auto property_it = interface_it->second.find(std::string(property));
+        if (property_it == interface_it->second.end()) {
+            return {};
+        }
+        return property_it->second;
+    }
+
+    void visit_interface(std::string_view interface, const std::function<void(std::string_view, const ValueType&)> &cb) {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        auto                        interface_it = m_map.find(std::string(interface));
+        if (interface_it == m_map.end()) {
+            return;
+        }
+        for (const auto &[name, value] : interface_it->second) {
+            cb(name, value);
+        }
+    }
+
+private:
+    std::unordered_map<std::string, std::unordered_map<std::string, ValueType>> m_map;
+    std::mutex                                                                  m_mutex;
+};
+
 class MC_API object_impl : public abstract_object {
 public:
     object_impl(core_object* parent);
@@ -73,8 +136,12 @@ public:
 
     const managed_objects& get_managed_objects() const override;
 
-    void                     notify_property_changed(const mc::variant& value, const property_base& prop) override;
-    property_changed_signal& property_changed() override;
+    void                           notify_property_changed(const mc::variant&   value,
+                                                           const property_base& prop) override;
+    property_changed_signal&       property_changed() override;
+    void                           notify_property_update_shm(const mc::variant&   value,
+                                                              const property_base& prop) override;
+    property_changed_signal&       property_update_shm() override;
 
     abstract_object* get_owner() const override;
     void             set_owner(abstract_object* owner) override;
@@ -100,6 +167,21 @@ public:
     mc::dict get_all_properties(std::string_view interface_name = {}, int options = 0) const override;
     bool     has_property(std::string_view property_name, std::string_view interface_name) const override;
 
+    void                   set_property_ref_info(std::string_view property_name, const std::string& info,
+                                                 std::string_view interface_name = {}) override;
+    std::string            get_property_ref_info(std::string_view property_name,
+                                                 std::string_view interface_name = {}) const override;
+    void                   set_property_sync_info(std::string_view property_name, property_sync_info_ptr info,
+                                                  std::string_view interface_name = {}) override;
+    property_sync_info_ptr get_property_sync_info(std::string_view property_name,
+                                                  std::string_view interface_name = {}) const override;
+    void                   set_override_value(std::string_view property_name, const mc::variant& value,
+                                              std::string_view interface_name = {}) override;
+    void                   unset_override_value(std::string_view property_name,
+                                                std::string_view interface_name = {}) override;
+    mc::variant            get_override_value(std::string_view property_name,
+                                              std::string_view interface_name = {}) const override;
+
     abstract_interface* get_interface(std::string_view interface_name) const noexcept override;
     bool                has_interface(std::string_view interface_name) const override;
 
@@ -124,15 +206,21 @@ protected:
     void add_managed_object(abstract_object* obj) override;
     void remove_managed_object(abstract_object* obj) override;
     void init_interface_object(const object_metadata& metadata);
+    bool handle_override(property_base* prop, std::string_view property_name, const mc::variant& value,
+                         std::string_view interface_name);
 
 protected:
-    mutable std::string                      m_object_path;
-    mutable std::string                      m_position;
-    abstract_object*                         m_owner{nullptr};
-    service*                                 m_service{nullptr};
-    managed_objects                          m_managed_objects;
-    std::unique_ptr<property_changed_signal> m_property_changed_signal;
-    object_identifier_t                      m_object_identifier;
+    mutable std::string                                           m_object_path;
+    mutable std::string                                           m_position;
+    abstract_object*                                              m_owner{nullptr};
+    service*                                                      m_service{nullptr};
+    managed_objects                                               m_managed_objects;
+    std::unique_ptr<property_changed_signal>                      m_property_changed_signal;
+    std::unique_ptr<property_changed_signal>                      m_property_update_shm_signal;
+    object_identifier_t                                           m_object_identifier;
+    std::unique_ptr<object_optional_data<std::string>>            m_properties_ref_info;
+    std::unique_ptr<object_optional_data<property_sync_info_ptr>> m_properties_sync_info;
+    std::unique_ptr<object_optional_data<mc::variant>>            m_override_values;
 };
 
 template <typename ObjectType>
