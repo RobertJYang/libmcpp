@@ -429,7 +429,12 @@ protected:
             (*m_signal)(value, *this);
             return;
         }
-
+        get_observer().notify_update_shm(value, *this);
+        auto *ctx = context::get_current_context_ptr();
+        if (ctx && ctx->get_arg("OverrideMode") == "set") {
+            // 已有Override值的情况下，原始属性值修改不发对象属性变更信号
+            return;
+        }
         get_observer().notify(value, *this);
     }
 
@@ -464,17 +469,28 @@ protected:
     }
 
     void update_value() {
-        if (has_extension_data()) {
-            if (m_extension_data->getter) {
+        if (!has_extension_data()) {
+            return;
+        }
+        if (m_extension_data->getter) {
+            try {
                 auto result = m_extension_data->getter();
                 T    value;
                 from_variant(result, value);
                 set_value_impl(value, true);
-            } else if (m_extension_data->outsider_getter) {
+            } catch (const std::exception& e) {
+                dlog("property ${name} getter call failed, error: ${error}",
+                    ("name", get_name())("error", e.what()));
+            }
+        } else if (m_extension_data->outsider_getter) {
+            try {
                 auto result = m_extension_data->outsider_getter();
                 T    value;
                 from_variant(result, value);
                 set_value_impl(value, true);
+            } catch (const std::exception& e) {
+                dlog("property ${name} outsider_getter call failed, error: ${error}",
+                    ("name", get_name())("error", e.what()));
             }
         }
     }

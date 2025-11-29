@@ -63,6 +63,14 @@ using object_identifier_t = std::tuple<uint8_t, std::string, std::string, std::s
 #define MC_REFLECT_FLAG_PROPERTY_TPL 0x01 // 接口的属性是 property<T> 类型的反射标记
 #define MC_REFLECT_FLAG_INTERFACE    0x02 // 对象的属性是一个 interface 类型的反射标记
 
+// 属性同步来源信息
+struct property_sync_info {
+    std::string                                                                 source;
+    std::vector<std::tuple<std::string, std::string, std::string, std::string>> properties;
+};
+
+using property_sync_info_ptr = std::shared_ptr<property_sync_info>;
+
 class MC_API property_base {
 public:
     virtual std::string_view get_name() const      = 0;
@@ -127,6 +135,21 @@ public:
     virtual bool        set_property(std::string_view property_name, const mc::variant& value,
                                      std::string_view interface_name = {})                              = 0;
 
+    virtual void                   set_property_ref_info(std::string_view property_name, const std::string& info,
+                                                         std::string_view interface_name = {})        = 0;
+    virtual std::string            get_property_ref_info(std::string_view property_name,
+                                                         std::string_view interface_name = {}) const  = 0;
+    virtual void                   set_property_sync_info(std::string_view property_name, property_sync_info_ptr info,
+                                                          std::string_view interface_name = {})       = 0;
+    virtual property_sync_info_ptr get_property_sync_info(std::string_view property_name,
+                                                          std::string_view interface_name = {}) const = 0;
+    virtual void                   set_override_value(std::string_view property_name, const mc::variant& value,
+                                                      std::string_view interface_name = {})           = 0;
+    virtual void                   unset_override_value(std::string_view property_name,
+                                                        std::string_view interface_name = {})         = 0;
+    virtual mc::variant            get_override_value(std::string_view property_name,
+                                                      std::string_view interface_name = {}) const     = 0;
+
     virtual mc::connection_type connect(std::string_view signal_name, slot_type slot,
                                         std::string_view interface_name = {}) = 0;
     virtual mc::variant         emit(std::string_view signal_name, const mc::variants& args,
@@ -139,8 +162,12 @@ public:
     virtual result<mc::variant> async_invoke(std::string_view method_name, const mc::variants& args = {},
                                              std::string_view interface_name = {})     = 0;
 
-    virtual void                     notify_property_changed(const mc::variant& value, const property_base& prop) = 0;
-    virtual property_changed_signal& property_changed()                                                           = 0;
+    virtual void                           notify_property_changed(const mc::variant&   value,
+                                                                   const property_base& prop)       = 0;
+    virtual property_changed_signal&       property_changed()                                       = 0;
+    virtual void                           notify_property_update_shm(const mc::variant&   value,
+                                                                      const property_base& prop)    = 0;
+    virtual property_changed_signal&       property_update_shm()                                    = 0;
 
     mc::shared_ptr<abstract_object> shared_from_this() {
         return mc::shared_ptr<abstract_object>(this);

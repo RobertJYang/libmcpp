@@ -14,6 +14,7 @@
 
 #include <functional>
 #include <mc/dict.h>
+#include <mc/engine/base.h>
 #include <mc/expr/function/call.h>
 #include <mc/signal_slot.h>
 #include <mc/variant.h>
@@ -30,6 +31,8 @@ namespace detail {
 
 struct empty_observer {
     void notify(const mc::variant& value, const property_base& prop) {
+    }
+    void notify_update_shm(const mc::variant& value, const property_base& prop) {
     }
 };
 
@@ -65,6 +68,7 @@ public:
     }
 
     void notify(const mc::variant& value, const property_base& prop);
+    void notify_update_shm(const mc::variant& value, const property_base& prop);
 
 protected:
     // 不要初始化这个值，由 interface 的基类填充

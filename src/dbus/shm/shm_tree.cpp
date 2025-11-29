@@ -43,7 +43,7 @@ void shm_tree::register_object(mc::engine::abstract_object& obj) {
     visitor.handle_interface_end(iface_metadata);
 
     shm_obj.add_named_object_view(ins, mc::engine::common_properties_name);
-    obj.property_changed().connect([this, &obj](const mc::variant& value, const auto& prop) {
+    obj.property_update_shm().connect([this, &obj](const mc::variant& value, const auto& prop) {
         auto iface     = prop.get_interface()->get_interface_name();
         auto prop_name = prop.get_name();
         set_property(m_service_name, obj.get_object_path(), iface, prop_name, value);

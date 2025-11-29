@@ -63,8 +63,12 @@ TEST_F(HarborTest, HarborLifecycleAndNaming)
     }
 }
 
+#if defined(ENABLE_CONAN_COMPILE) && ENABLE_CONAN_COMPILE == 1
+#else
 TEST_F(HarborTest, DestinationQueueOnline)
 {
+    auto& ins = shm::shared_memory::get_instance();
+    ins.get_tree("harbor.coverage.queue")->set_harbor_name("harbor.coverage.queue");
     auto& harbor_instance = harbor::get_instance();
     harbor_instance.set_harbor_name("harbor.coverage.queue");
 
@@ -171,8 +175,6 @@ TEST_F(HarborTest, UnregisterServiceClearsPendingPromises)
     harbor_instance.stop();
 }
 
-#if defined(ENABLE_CONAN_COMPILE) && ENABLE_CONAN_COMPILE == 1
-#else
 // 测试 Rule::path_namespace() 方法
 TEST_F(HarborTest, MockRulePathNamespace) {
     DBus::Match::Rule rule;

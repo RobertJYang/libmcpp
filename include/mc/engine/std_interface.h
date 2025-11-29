@@ -152,6 +152,10 @@ struct MC_API common_properties_interface : public mc::engine::interface<common_
                                         std::string_view property_name);
     static void        set_with_context(std::map<std::string, std::string> context, std::string_view interface_name,
                                         std::string_view property_name, const mc::variant& value);
+    static mc::dict    get_all_with_context(std::map<std::string, std::string> context, std::string_view interface_name);
+    static std::string get_property_detail(std::map<std::string, std::string> context, std::string_view interface_name,
+                                           std::string_view property_name);
+    static std::string get_private_properties(std::map<std::string, std::string> context);
 
     static common_properties_interface& get_instance();
 };

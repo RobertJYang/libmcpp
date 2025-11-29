@@ -312,6 +312,20 @@ static mc::variant convert_method_result(const mc::variants& arr) {
     return arr;
 }
 
+static void parse_context_arg(context &ctx, const variants& args) {
+    if (args.empty() || !args[0].is_dict()) {
+        return;
+    }
+    mc::dict first_arg = args[0].as_dict();
+    // 检查首个参数是否a{ss}类型，非a{ss}类型则不视为上下文
+    for (auto& entry : first_arg) {
+        if (!entry.key.is_string() || !entry.value.is_string()) {
+            return;
+        }
+    }
+    ctx.set_args(first_arg);
+}
+
 invoke_method_result service_impl::invoke_method(std::string_view path, std::string_view interface,
                                                  std::string_view method, const variants& args) {
     auto& idx = m_object_table->get<by_path>();
@@ -325,7 +339,7 @@ invoke_method_result service_impl::invoke_method(std::string_view path, std::str
     ctx.set_call_info(detail::variants_call{args, interface, method});
 
     context_stack::context call_ctx(m_service, ctx);
-
+    parse_context_arg(ctx, args);
     auto result = obj.invoke(method, args, interface);
     return {ctx.get_method(), result};
 }
@@ -395,7 +409,8 @@ DBusHandlerResult service_impl::on_method_call(abstract_object& object, mc::dbus
         auto interface_name = msg.get_interface();
         auto method_name    = msg.get_member();
         auto args           = msg.read_args();
-
+        parse_context_arg(ctx, args);
+        
         auto result = object.invoke(method_name, args, interface_name);
         if (!ctx.get_method()) {
             info.response =
@@ -427,7 +442,6 @@ DBusHandlerResult service_impl::on_method_call(abstract_object& object, mc::dbus
         // TODO:: 目前为了调试方便将 e.what() 作为错误内容访问，后续应该隐藏程序内部信息避免安全隐患
         info.response = mc::dbus::message::new_error(msg, errors::failed.name, e.what());
     }
-
     m_connection.send(std::move(info.response));
     return DBUS_HANDLER_RESULT_HANDLED;
 }
