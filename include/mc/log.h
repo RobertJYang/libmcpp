@@ -76,7 +76,7 @@ inline logger& default_logger() {
 #define mc_flog(LOGGER, ...) MC_LOG_BASE(LOGGER, fatal, __VA_ARGS__)
 
 // 使用指定日志记录器的非调试日志宏
-#define mc_operation_log(LOGGER, ...) MC_LOG_BASE_WITH_CATEGORY(LOGGER, operation, __VA_ARGS__)
+#define mc_operation_log(LOGGER, ...) MC_LOG_BASE_WITH_CATEGORY(LOGGER, mc::log::log_category::operation, __VA_ARGS__)
 
 // 使用默认日志记录器的全局日志宏
 #define tlog(...) mc_tlog(mc::log::default_logger(), __VA_ARGS__)

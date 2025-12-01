@@ -188,7 +188,7 @@ private:
  */
 #define MC_LOG_BASE_WITH_CATEGORY(LOGGER, CATEGORY, ...)                     \
     do {                                                    \
-        if (!LOGGER.is_debug_log(mc::log::log_category::CATEGORY)) {                \
+        if (!LOGGER.is_debug_log(CATEGORY)) {                \
             LOGGER.log(MC_LOG_MESSAGE_WITH_CATEGORY(CATEGORY, __VA_ARGS__)); \
         }                                                   \
     } while (0)
