@@ -14,6 +14,7 @@
 #define MC_LOG_LEVEL_H
 
 #include <cctype>
+#include <cstdint>
 #include <optional>
 #include <string>
 #include <string_view>
