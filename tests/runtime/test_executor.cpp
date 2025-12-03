@@ -608,8 +608,15 @@ TEST_F(ExecutorTest, CopyAssignmentSelf) {
 
     mc::executor exec(mc::make_io_strand());
 
-    // 自赋值应该安全
+    // 自赋值应该安全（抑制编译器自赋值告警）
+#ifdef __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wself-assign-overloaded"
+#endif
     exec = exec;
+#ifdef __clang__
+#pragma clang diagnostic pop
+#endif
     EXPECT_TRUE(exec.valid());
 }
 
@@ -620,8 +627,15 @@ TEST_F(ExecutorTest, MoveAssignmentSelf) {
 
     mc::executor exec(mc::make_io_strand());
 
-    // 自移动赋值应该安全
+    // 自移动赋值应该安全（抑制编译器自移动告警）
+#if defined(__clang__)
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wself-move"
+#endif
     exec = std::move(exec);
+#if defined(__clang__)
+#pragma clang diagnostic pop
+#endif
     EXPECT_TRUE(exec.valid());
 }
 

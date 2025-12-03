@@ -18,10 +18,11 @@
 #include <mc/time.h>
 #include <mc/traits.h>
 
-#include "mc/time.h"
+#include <cstddef>
 #include <mutex>
 #include <optional>
 #include <shared_mutex>
+#include <type_traits>
 
 /**
  * @file mutex_box.h
@@ -1042,11 +1043,6 @@ public:
         return m_mutex;
     }
 
-    static mutex_box* to_box_ptr(void* mutex) {
-        auto offset = MC_OFFSETOF(mutex_box, m_mutex);
-        return reinterpret_cast<mutex_box*>(reinterpret_cast<char*>(mutex) - offset);
-    }
-
 private:
     template <typename BoxType, detail::lock_type LockType>
     friend class ::mc::sync::locked_ptr;
@@ -1062,9 +1058,25 @@ private:
           m_mutex{std::get<IndicesTwo>(std::move(mutex_args))...} {
     }
 
+    // 模拟成员布局用于标准布局的 offsetof 计算
+    struct simul_t {
+        using data_storage_t  = std::aligned_storage_t<sizeof(T), alignof(T)>;
+        using mutex_storage_t = std::aligned_storage_t<sizeof(Mutex), alignof(Mutex)>;
+        data_storage_t  m_data;
+        mutex_storage_t m_mutex;
+    };
+
     // 数据成员
     T             m_data{};
     mutable Mutex m_mutex;
+
+    static mutex_box* to_box_ptr(void* mutex) {
+        static_assert(
+            sizeof(simul_t) == sizeof(mutex_box) && alignof(simul_t) == alignof(mutex_box), "mismatch");
+        auto       off = offsetof(simul_t, m_mutex);
+        const auto raw = reinterpret_cast<char*>(mutex);
+        return reinterpret_cast<mutex_box*>(raw - (raw ? off : 0));
+    }
 };
 
 /**

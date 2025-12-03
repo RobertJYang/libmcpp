@@ -29,8 +29,9 @@ namespace mc {
 namespace log {
 
 log_manager& log_manager::instance() {
-    static log_manager manager;
-    return manager;
+    return mc::singleton_leaky<log_manager>::instance_with_creator([]() {
+        return new log_manager();
+    });
 }
 
 log_manager::log_manager() {
@@ -215,7 +216,6 @@ void log_manager::set_dlog_level(level lvl) {
         logger_entry.second.set_level(lvl);
         ilog("Set logger ${name} log level to ${level}",
              ("name", logger_entry.first)("level", mc::log::to_string(lvl)));
-        // 查找所有 file_appender 类型的 appender 并设置日志级别
         for (const auto& appender : logger_entry.second.get_appenders()) {
             if (auto file_appender_ptr = std::dynamic_pointer_cast<file_appender>(appender)) {
                 file_appender_ptr->set_debug_log_level(lvl);

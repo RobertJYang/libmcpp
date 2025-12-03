@@ -97,14 +97,34 @@ struct query_grammar : proto::or_<
 // 前向声明转换上下文
 struct condition_context;
 
-using filed_expr = query_expr<proto::terminal<field_ref>::type>;
+class filed_expr {
+public:
+    explicit filed_expr(std::string_view name) : m_field(name) {
+    }
+    const field_ref& ref() const {
+        return m_field;
+    }
+    const std::string& name() const {
+        return m_field.name();
+    }
+
+private:
+    field_ref m_field;
+};
 
 /**
  * 创建字段引用表达式
  */
 inline filed_expr field(std::string_view name) {
-    proto::terminal<field_ref>::type term = {{field_ref(name)}};
-    return filed_expr(term);
+    return filed_expr(name);
+}
+
+// 常量终结符，按值持有，避免对临时对象的引用
+template <typename T>
+inline query_expr<typename proto::terminal<std::decay_t<T>>::type> lit(T&& v) {
+    using value_t                                = std::decay_t<T>;
+    typename proto::terminal<value_t>::type term = {{value_t(std::forward<T>(v))}};
+    return query_expr<typename proto::terminal<value_t>::type>(term);
 }
 
 /**
@@ -112,9 +132,8 @@ inline filed_expr field(std::string_view name) {
  */
 template <typename T>
 inline condition between(const filed_expr& field_expr, const T& lower, const T& upper) {
-    const field_ref& field = proto::value(field_expr);
-    mc::variants     range = {mc::variant(lower), mc::variant(upper)};
-    return condition(compare_op::between, std::string(field.name()), mc::variant(range));
+    mc::variants range = {mc::variant(lower), mc::variant(upper)};
+    return condition(compare_op::between, std::string(field_expr.name()), mc::variant(range));
 }
 
 /**
@@ -122,28 +141,25 @@ inline condition between(const filed_expr& field_expr, const T& lower, const T& 
  */
 template <typename T>
 inline condition in(const filed_expr& field_expr, const std::initializer_list<T>& values) {
-    const field_ref& field = proto::value(field_expr);
-    mc::variants     variants;
+    mc::variants variants;
     for (const auto& value : values) {
         variants.push_back(mc::variant(value));
     }
-    return condition(compare_op::in, std::string(field.name()), mc::variant(variants));
+    return condition(compare_op::in, std::string(field_expr.name()), mc::variant(variants));
 }
 
 /**
  * 特殊操作：LIKE
  */
 inline condition like(const filed_expr& field_expr, const std::string& pattern) {
-    const field_ref& field = proto::value(field_expr);
-    return condition(compare_op::like, std::string(field.name()), mc::variant(pattern));
+    return condition(compare_op::like, std::string(field_expr.name()), mc::variant(pattern));
 }
 
 /**
  * 特殊操作：CONTAINS
  */
 inline condition contains(const filed_expr& field_expr, const std::string& substring) {
-    const field_ref& field = proto::value(field_expr);
-    return condition(compare_op::contains, std::string(field.name()), mc::variant(substring));
+    return condition(compare_op::contains, std::string(field_expr.name()), mc::variant(substring));
 }
 
 /**
@@ -167,7 +183,76 @@ struct convert_value : proto::callable {
     mc::variant operator()(const char* value) const {
         return mc::variant(std::string(value));
     }
+
+    // 字符串视图特化，复制为 std::string
+    mc::variant operator()(std::string_view value) const {
+        return mc::variant(std::string(value));
+    }
 };
+
+// 字段比较操作符重载，直接生成条件，避免临时表达式生命周期问题
+template <typename T>
+inline condition operator==(const filed_expr& field_expr, const T& value) {
+    auto val = convert_value{}(value);
+    return conditions::eq(std::string(field_expr.name()), std::move(val));
+}
+
+inline condition operator==(const filed_expr& field_expr, int value) {
+    return conditions::eq(std::string(field_expr.name()), mc::variant(value));
+}
+
+inline condition operator==(const filed_expr& field_expr, double value) {
+    return conditions::eq(std::string(field_expr.name()), mc::variant(value));
+}
+
+inline condition operator==(const filed_expr& field_expr, const char* value) {
+    return conditions::eq(std::string(field_expr.name()), mc::variant(std::string(value)));
+}
+
+inline condition operator==(const filed_expr& field_expr, std::string_view value) {
+    return conditions::eq(std::string(field_expr.name()), mc::variant(std::string(value)));
+}
+
+template <typename T>
+inline condition operator!=(const filed_expr& field_expr, const T& value) {
+    auto val = convert_value{}(value);
+    return conditions::ne(std::string(field_expr.name()), std::move(val));
+}
+
+template <typename T>
+inline condition operator>(const filed_expr& field_expr, const T& value) {
+    auto val = convert_value{}(value);
+    return conditions::gt(std::string(field_expr.name()), std::move(val));
+}
+
+template <typename T>
+inline condition operator>=(const filed_expr& field_expr, const T& value) {
+    auto val = convert_value{}(value);
+    return conditions::ge(std::string(field_expr.name()), std::move(val));
+}
+
+template <typename T>
+inline condition operator<(const filed_expr& field_expr, const T& value) {
+    auto val = convert_value{}(value);
+    return conditions::lt(std::string(field_expr.name()), std::move(val));
+}
+
+template <typename T>
+inline condition operator<=(const filed_expr& field_expr, const T& value) {
+    auto val = convert_value{}(value);
+    return conditions::le(std::string(field_expr.name()), std::move(val));
+}
+
+// 为两侧均为 query_expr 的逻辑操作提供重载，避免生成 Proto 逻辑表达式
+template <typename LExpr, typename RExpr>
+inline condition operator&&(const query_expr<LExpr>& left, const query_expr<RExpr>& right) {
+    return conditions::and_cond(std::vector<condition>{left.as_condition(), right.as_condition()});
+}
+
+template <typename LExpr, typename RExpr>
+inline condition operator||(const query_expr<LExpr>& left, const query_expr<RExpr>& right) {
+    return conditions::or_cond(std::vector<condition>{left.as_condition(), right.as_condition()});
+}
 
 /**
  * 条件上下文 - 用于Proto表达式求值
@@ -204,17 +289,11 @@ struct condition_context : boost::proto::callable_context<condition_context> {
                          const query_expr<boost::proto::exprns_::basic_expr<
                              boost::proto::tagns_::tag::equal_to,
                              boost::proto::argsns_::list2<LeftExpr, RightExpr>, 2>>& expr) const {
-        const auto& left  = boost::proto::left(expr);
-        const auto& right = boost::proto::right(expr);
-
-        if constexpr (std::is_same_v<
-                          typename std::decay<LeftExpr>::type,
-                          query_expr<typename boost::proto::terminal<field_ref>::type>>) {
-            const field_ref& field = boost::proto::value(left);
-            return conditions::eq(field.name(), boost::proto::value(right));
-        } else {
-            throw std::runtime_error("不支持的等于操作");
-        }
+        const auto&      left  = boost::proto::left(expr);
+        const field_ref& fld   = boost::proto::value(left);
+        const auto&      right = boost::proto::right(expr);
+        auto             val   = convert_value{}(boost::proto::value(right));
+        return conditions::eq(std::string(fld.name()), std::move(val));
     }
 
     // 不等于操作符
@@ -226,14 +305,9 @@ struct condition_context : boost::proto::callable_context<condition_context> {
         const auto& left  = boost::proto::left(expr);
         const auto& right = boost::proto::right(expr);
 
-        if constexpr (std::is_same_v<
-                          typename std::decay<LeftExpr>::type,
-                          query_expr<typename boost::proto::terminal<field_ref>::type>>) {
-            const field_ref& field = boost::proto::value(left);
-            return conditions::ne(field.name(), boost::proto::value(right));
-        } else {
-            throw std::runtime_error("不支持的不等于操作");
-        }
+        const field_ref& field = boost::proto::value(left);
+        auto             val   = convert_value{}(boost::proto::value(right));
+        return conditions::ne(std::string(field.name()), std::move(val));
     }
 
     // 大于操作符
@@ -245,14 +319,9 @@ struct condition_context : boost::proto::callable_context<condition_context> {
         const auto& left  = boost::proto::left(expr);
         const auto& right = boost::proto::right(expr);
 
-        if constexpr (std::is_same_v<
-                          typename std::decay<LeftExpr>::type,
-                          query_expr<typename boost::proto::terminal<field_ref>::type>>) {
-            const field_ref& field = boost::proto::value(left);
-            return conditions::gt(field.name(), boost::proto::value(right));
-        } else {
-            throw std::runtime_error("不支持的大于操作");
-        }
+        const field_ref& field = boost::proto::value(left);
+        auto             val   = convert_value{}(boost::proto::value(right));
+        return conditions::gt(std::string(field.name()), std::move(val));
     }
 
     // 大于等于操作符
@@ -264,14 +333,9 @@ struct condition_context : boost::proto::callable_context<condition_context> {
         const auto& left  = boost::proto::left(expr);
         const auto& right = boost::proto::right(expr);
 
-        if constexpr (std::is_same_v<
-                          typename std::decay<LeftExpr>::type,
-                          query_expr<typename boost::proto::terminal<field_ref>::type>>) {
-            const field_ref& field = boost::proto::value(left);
-            return conditions::ge(field.name(), boost::proto::value(right));
-        } else {
-            throw std::runtime_error("不支持的大于等于操作");
-        }
+        const field_ref& field = boost::proto::value(left);
+        auto             val   = convert_value{}(boost::proto::value(right));
+        return conditions::ge(std::string(field.name()), std::move(val));
     }
 
     // 小于操作符
@@ -284,14 +348,9 @@ struct condition_context : boost::proto::callable_context<condition_context> {
         const auto& left  = boost::proto::left(expr);
         const auto& right = boost::proto::right(expr);
 
-        if constexpr (std::is_same_v<
-                          typename std::decay<LeftExpr>::type,
-                          query_expr<typename boost::proto::terminal<field_ref>::type>>) {
-            const field_ref& field = boost::proto::value(left);
-            return conditions::lt(field.name(), boost::proto::value(right));
-        } else {
-            throw std::runtime_error("不支持的小于操作");
-        }
+        const field_ref& field = boost::proto::value(left);
+        auto             val   = convert_value{}(boost::proto::value(right));
+        return conditions::lt(std::string(field.name()), std::move(val));
     }
 
     // 小于等于操作符
@@ -303,14 +362,9 @@ struct condition_context : boost::proto::callable_context<condition_context> {
         const auto& left  = boost::proto::left(expr);
         const auto& right = boost::proto::right(expr);
 
-        if constexpr (std::is_same_v<
-                          typename std::decay<LeftExpr>::type,
-                          query_expr<typename boost::proto::terminal<field_ref>::type>>) {
-            const field_ref& field = boost::proto::value(left);
-            return conditions::le(field.name(), boost::proto::value(right));
-        } else {
-            throw std::runtime_error("不支持的小于等于操作");
-        }
+        const field_ref& field = boost::proto::value(left);
+        auto             val   = convert_value{}(boost::proto::value(right));
+        return conditions::le(std::string(field.name()), std::move(val));
     }
 
     // 逻辑与操作符
@@ -344,6 +398,80 @@ condition query_expr<Expr>::as_condition() const {
 }
 
 } // namespace dsl
+
+// 将DSL操作符提升到 mc::db::query 命名空间，参与ADL
+template <typename T>
+inline condition operator==(const dsl::filed_expr& field_expr, const T& value) {
+    return dsl::operator==(field_expr, value);
+}
+
+template <typename T>
+inline condition operator!=(const dsl::filed_expr& field_expr, const T& value) {
+    return dsl::operator!=(field_expr, value);
+}
+
+template <typename T>
+inline condition operator>(const dsl::filed_expr& field_expr, const T& value) {
+    return dsl::operator>(field_expr, value);
+}
+
+template <typename T>
+inline condition operator>=(const dsl::filed_expr& field_expr, const T& value) {
+    return dsl::operator>=(field_expr, value);
+}
+
+template <typename T>
+inline condition operator<(const dsl::filed_expr& field_expr, const T& value) {
+    return dsl::operator<(field_expr, value);
+}
+
+template <typename T>
+inline condition operator<=(const dsl::filed_expr& field_expr, const T& value) {
+    return dsl::operator<=(field_expr, value);
+}
+
+// 逻辑操作符不提升以避免与DSL内定义产生二义性
+
+inline condition operator&&(const condition& left, const condition& right) {
+    return conditions::and_cond(std::vector<condition>{left, right});
+}
+
+inline condition operator||(const condition& left, const condition& right) {
+    return conditions::or_cond(std::vector<condition>{left, right});
+}
+
+// 为 query_expr 与 condition 的混合场景提供逻辑重载，自动执行 to_condition
+template <typename LExpr, typename RExpr>
+inline condition operator&&(const dsl::query_expr<LExpr>& left,
+                            const dsl::query_expr<RExpr>& right) {
+    return dsl::operator&&(to_condition(left), to_condition(right));
+}
+
+template <typename LExpr>
+inline condition operator&&(const condition& left, const dsl::query_expr<LExpr>& right) {
+    return dsl::operator&&(left, to_condition(right));
+}
+
+template <typename RExpr>
+inline condition operator&&(const dsl::query_expr<RExpr>& left, const condition& right) {
+    return dsl::operator&&(to_condition(left), right);
+}
+
+template <typename LExpr, typename RExpr>
+inline condition operator||(const dsl::query_expr<LExpr>& left,
+                            const dsl::query_expr<RExpr>& right) {
+    return dsl::operator||(to_condition(left), to_condition(right));
+}
+
+template <typename LExpr>
+inline condition operator||(const condition& left, const dsl::query_expr<LExpr>& right) {
+    return dsl::operator||(left, to_condition(right));
+}
+
+template <typename RExpr>
+inline condition operator||(const dsl::query_expr<RExpr>& left, const condition& right) {
+    return dsl::operator||(to_condition(left), right);
+}
 
 /**
  * 将条件表达式转换为condition对象

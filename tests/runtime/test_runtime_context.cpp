@@ -72,7 +72,7 @@ TEST_F(RuntimeContextTest, IoExecutorBasicPost) {
     runtime.initialize(mc::runtime_config{.io_threads = 1});
     runtime.start();
 
-    std::atomic<bool> task_executed{false};
+    std::atomic<bool>              task_executed{false};
     mc::test::runtime::future_flag task_ready;
 
     // 投递任务到IO执行器
@@ -90,7 +90,7 @@ TEST_F(RuntimeContextTest, SystemExecutorBasicPost) {
     auto& runtime = mc::get_runtime_context();
     runtime.start();
 
-    std::atomic<bool> task_executed{false};
+    std::atomic<bool>              task_executed{false};
     mc::test::runtime::future_flag task_ready;
 
     // 投递任务到系统执行器
@@ -109,10 +109,10 @@ TEST_F(RuntimeContextTest, DeferOperation) {
     runtime.initialize(mc::runtime_config{.io_threads = 1});
     runtime.start();
 
-    std::atomic<bool>                  defer_executed{false};
-    std::atomic<bool>                  post_executed{false};
-    mc::test::runtime::future_flag     defer_ready;
-    mc::test::runtime::future_flag     post_ready;
+    std::atomic<bool>              defer_executed{false};
+    std::atomic<bool>              post_executed{false};
+    mc::test::runtime::future_flag defer_ready;
+    mc::test::runtime::future_flag post_ready;
 
     mc::defer([&]() {
         defer_executed.store(true);
@@ -153,9 +153,9 @@ TEST_F(RuntimeContextTest, MultiThreadIoExecutor) {
     runtime.initialize(mc::runtime_config{.io_threads = 4}); // 4个IO线程
     runtime.start();
 
-    constexpr int                              task_count = 100;
-    std::atomic<int>                           completed_tasks{0};
-    mc::test::runtime::countdown_future        tasks_ready(task_count);
+    constexpr int                       task_count = 100;
+    std::atomic<int>                    completed_tasks{0};
+    mc::test::runtime::countdown_future tasks_ready(task_count);
 
     for (int i = 0; i < task_count; ++i) {
         mc::post([&completed_tasks, tasks_ready]() mutable {
@@ -177,7 +177,7 @@ TEST_F(RuntimeContextTest, MixedExecutorUsage) {
     std::atomic<int> io_tasks{0};
     std::atomic<int> system_tasks{0};
 
-    constexpr int task_count = 50;
+    constexpr int                  task_count = 50;
     mc::test::runtime::future_flag io_done;
     mc::test::runtime::future_flag system_done;
 
@@ -361,7 +361,7 @@ TEST_F(RuntimeContextTest, ImmediateExecutorBasic) {
 // 测试立即上下文基础功能
 TEST_F(RuntimeContextTest, ImmediateContextBasic) {
     mc::immediate_context context;
-    auto executor = context.get_executor();
+    auto                  executor = context.get_executor();
 
     std::atomic<bool> task_executed{false};
 
@@ -462,7 +462,7 @@ TEST_F(RuntimeContextTest, MakeStrands) {
     auto io_strand   = mc::make_io_strand();
     auto work_strand = mc::make_work_strand();
 
-    std::atomic<int> count{0};
+    std::atomic<int>   count{0};
     std::promise<void> promise;
 
     // 使用 strand 投递任务，确保串行执行
@@ -659,7 +659,7 @@ TEST_F(RuntimeContextTest, ImmediateExecutorCompareAndRequire) {
 
     // 测试 require(blocking.never)
     auto required = exec1.require(boost::asio::execution::blocking.never);
-    
+
     // 验证返回的对象仍然可以执行
     std::atomic<bool> task_executed{false};
     required.execute([&task_executed]() {
@@ -671,14 +671,14 @@ TEST_F(RuntimeContextTest, ImmediateExecutorCompareAndRequire) {
 // 测试工作线程异常捕获
 TEST_F(RuntimeContextTest, WorkThreadExceptionLogged) {
     auto& runtime = mc::get_runtime_context();
-    
+
     // 配置为只有 1 个工作线程，以便更容易触发异常
     runtime.initialize(mc::runtime_config{.io_threads = 1, .work_threads = 1});
     runtime.start();
 
     mc::test::runtime::future_flag execution_done;
 
-    mc::post([&runtime, execution_done]() mutable {
+    mc::post([execution_done]() mutable {
         try {
             throw std::runtime_error("test work thread exception");
         } catch (...) {

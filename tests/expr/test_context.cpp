@@ -547,8 +547,15 @@ TEST_F(expr_context_test, ContextBaseSelfAssignment) {
     mc::expr::context_base base1;
     mc::expr::context_base base2;
 
-    // 测试自赋值
+    // 测试自赋值（抑制编译器自赋值告警）
+#ifdef __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wself-assign-overloaded"
+#endif
     base1 = base1;
+#ifdef __clang__
+#pragma clang diagnostic pop
+#endif
     EXPECT_EQ(base1.get_parent(), nullptr);
 
     // 测试正常赋值
@@ -562,8 +569,15 @@ TEST_F(expr_context_test, ContextBaseSelfMoveAssignment) {
     mc::expr::context_base base1;
     mc::expr::context_base base2;
 
-    // 测试自移动赋值
+    // 测试自移动赋值（抑制编译器自移动告警）
+#if defined(__clang__)
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wself-move"
+#endif
     base1 = std::move(base1);
+#if defined(__clang__)
+#pragma clang diagnostic pop
+#endif
     EXPECT_EQ(base1.get_parent(), nullptr);
 
     // 测试正常移动赋值
@@ -581,8 +595,15 @@ TEST_F(expr_context_test, ContextSelfAssignment) {
     ctx1.register_variable("x", 10);
     ctx2.register_variable("y", 20);
 
-    // 测试自赋值
+    // 测试自赋值（抑制编译器自赋值告警）
+#ifdef __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wself-assign-overloaded"
+#endif
     ctx1 = ctx1;
+#ifdef __clang__
+#pragma clang diagnostic pop
+#endif
     EXPECT_EQ(ctx1.get_variable("x"), 10);
 
     // 测试正常赋值
@@ -600,8 +621,15 @@ TEST_F(expr_context_test, ContextSelfMoveAssignment) {
     ctx1.register_variable("x", 10);
     ctx2.register_variable("y", 20);
 
-    // 测试自移动赋值
+    // 测试自移动赋值（抑制编译器自移动告警）
+#if defined(__clang__)
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wself-move"
+#endif
     ctx1 = std::move(ctx1);
+#if defined(__clang__)
+#pragma clang diagnostic pop
+#endif
     EXPECT_EQ(ctx1.get_variable("x"), 10);
 
     // 测试正常移动赋值

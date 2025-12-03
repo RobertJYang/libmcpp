@@ -10,6 +10,9 @@
  * See the Mulan PSL v2 for more details.
  */
 
+#include <cstring>
+#include <new>
+
 #include <mc/engine/base.h>
 #include <mc/engine/metadata.h>
 
@@ -18,7 +21,8 @@ using namespace mc::reflect;
 namespace mc::engine {
 
 metadata_list::metadata_list(
-    std::string_view name, const struct_metadata** obj_metadata, size_t count) : class_name(name) {
+    std::string_view name, const struct_metadata** obj_metadata, size_t count)
+    : class_name(name) {
     array.reserve(count);
     for (size_t i = 0; i < count; ++i) {
         array.push_back(obj_metadata[i]);
@@ -126,6 +130,25 @@ auto make_interface_item(const property_type_info* interface, const ReflectItem*
     return interface_item<ReflectItem>{interface, item};
 }
 
+// 安全的 interface_item 类型转换辅助函数
+template <typename To, typename From>
+inline interface_item<To>& interface_item_cast(interface_item<From>& src) noexcept {
+    static_assert(sizeof(interface_item<To>) == sizeof(interface_item<From>),
+                  "interface_item types must have the same size");
+    static_assert(alignof(interface_item<To>) == alignof(interface_item<From>),
+                  "interface_item types must have the same alignment");
+    return *std::launder(reinterpret_cast<interface_item<To>*>(&src));
+}
+
+template <typename To, typename From>
+inline const interface_item<To>& interface_item_cast(const interface_item<From>& src) noexcept {
+    static_assert(sizeof(interface_item<To>) == sizeof(interface_item<From>),
+                  "interface_item types must have the same size");
+    static_assert(alignof(interface_item<To>) == alignof(interface_item<From>),
+                  "interface_item types must have the same alignment");
+    return *std::launder(reinterpret_cast<const interface_item<To>*>(&src));
+}
+
 using interface_map_type = std::unordered_map<std::string_view, interface_metadata>;
 using members_map_type   = std::unordered_map<std::string_view, interface_item<member_info_base>>;
 
@@ -152,12 +175,12 @@ struct object_metadata::impl {
 
         auto it = m_members.emplace(member->name, make_interface_item<member_info_base>(interface, member));
         if constexpr (std::is_same_v<Member, property_type_info>) {
-            m_ordered_properties.push_front(reinterpret_cast<interface_item<property_type_info>&>(it.first->second));
+            m_ordered_properties.push_front(interface_item_cast<property_type_info>(it.first->second));
         } else if constexpr (std::is_same_v<Member, method_type_info>) {
-            m_ordered_methods.push_front(reinterpret_cast<interface_item<method_type_info>&>(it.first->second));
+            m_ordered_methods.push_front(interface_item_cast<method_type_info>(it.first->second));
         } else if constexpr (std::is_same_v<Member, member_info_base>) {
             if (member->type() == MC_REFLECT_SIGNAL_TYPE) {
-                m_ordered_signals.push_front(reinterpret_cast<interface_item<signal_type_info>&>(it.first->second));
+                m_ordered_signals.push_front(interface_item_cast<signal_type_info>(it.first->second));
             }
         }
     }
@@ -279,7 +302,7 @@ const interface_item<property_type_info> object_metadata::get_property_info(
             return {};
         }
 
-        return reinterpret_cast<const interface_item<property_type_info>&>(it->second);
+        return interface_item_cast<property_type_info>(it->second);
     }
 
     auto it = m_impl->m_interface.find(interface_name);
@@ -303,7 +326,7 @@ const interface_item<method_type_info> object_metadata::get_method_info(
             return {};
         }
 
-        return reinterpret_cast<const interface_item<method_type_info>&>(it->second);
+        return interface_item_cast<method_type_info>(it->second);
     }
 
     auto it = m_impl->m_interface.find(interface_name);
@@ -327,7 +350,7 @@ const interface_item<signal_type_info> object_metadata::get_signal_info(
             return {};
         }
 
-        return reinterpret_cast<const interface_item<signal_type_info>&>(it->second);
+        return interface_item_cast<signal_type_info>(it->second);
     }
 
     auto it = m_impl->m_interface.find(interface_name);

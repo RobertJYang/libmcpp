@@ -54,9 +54,8 @@ namespace log {
  *
  * @return logger& 默认日志记录器引用
  */
-inline logger& default_logger() {
-    static logger default_log = log_manager::instance().get_logger();
-    return default_log;
+inline logger default_logger() {
+    return log_manager::instance().get_logger();
 }
 
 } // namespace log
@@ -66,7 +65,7 @@ inline logger& default_logger() {
 // 日志宏定义
 // ======================================================================
 
-// 使用指定日志记录器的调试日志宏
+// 使用指定日志记录器的日志宏
 #define mc_tlog(LOGGER, ...) MC_LOG_BASE(LOGGER, trace, __VA_ARGS__)
 #define mc_dlog(LOGGER, ...) MC_LOG_BASE(LOGGER, debug, __VA_ARGS__)
 #define mc_ilog(LOGGER, ...) MC_LOG_BASE(LOGGER, info, __VA_ARGS__)
@@ -75,7 +74,7 @@ inline logger& default_logger() {
 #define mc_elog(LOGGER, ...) MC_LOG_BASE(LOGGER, error, __VA_ARGS__)
 #define mc_flog(LOGGER, ...) MC_LOG_BASE(LOGGER, fatal, __VA_ARGS__)
 
-// 使用指定日志记录器的非调试日志宏
+// 非调试日志分类宏
 #define mc_operation_log(LOGGER, ...) MC_LOG_BASE_WITH_CATEGORY(LOGGER, mc::log::log_category::operation, __VA_ARGS__)
 
 // 使用默认日志记录器的全局日志宏
@@ -87,8 +86,9 @@ inline logger& default_logger() {
 #define elog(...) mc_elog(mc::log::default_logger(), __VA_ARGS__)
 #define flog(...) mc_flog(mc::log::default_logger(), __VA_ARGS__)
 
-// 使用默认日志记录器的全局非调试日志宏
+// 全局非调试日志分类宏
 #define operation_log(...) mc_operation_log(mc::log::default_logger(), __VA_ARGS__)
+
 // ======================================================================
 // 不安全的日志宏定义（编译期不检查格式化字符串和格式化参数）
 // ======================================================================

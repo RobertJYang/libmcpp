@@ -114,11 +114,6 @@ public:
      */
     bool apply_config(const logging_config& config);
 
-    /**
-     * @brief 设置日志级别
-     *
-     * @param level 日志级别
-     */
     void set_dlog_level(level level);
 
 private:
