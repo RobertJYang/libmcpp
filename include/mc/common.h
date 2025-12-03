@@ -19,6 +19,7 @@
 
 #include <algorithm>
 #include <chrono>
+#include <cstddef>
 #include <cstdint>
 #include <cstring>
 #include <functional>
@@ -390,19 +391,28 @@ typename std::enable_if_t<std::is_signed_v<T>, T> swap_bytes(T value) {
 }
 
 /**
+ * @brief 位转换辅助函数
+ */
+template <typename To, typename From>
+inline To bit_cast(const From& src) noexcept {
+    static_assert(sizeof(To) == sizeof(From), "bit_cast requires same size types");
+    To dst;
+    std::memcpy(&dst, &src, sizeof(To));
+    return dst;
+}
+
+/**
  * @brief 浮点数字节序转换
  */
 inline float swap_bytes(float value) {
-    uint32_t temp = swap_bytes(*reinterpret_cast<uint32_t*>(&value));
-    return *reinterpret_cast<float*>(&temp);
+    return bit_cast<float>(swap_bytes(bit_cast<uint32_t>(value)));
 }
 
 /**
  * @brief 双精度浮点数字节序转换
  */
 inline double swap_bytes(double value) {
-    uint64_t temp = swap_bytes(*reinterpret_cast<uint64_t*>(&value));
-    return *reinterpret_cast<double*>(&temp);
+    return bit_cast<double>(swap_bytes(bit_cast<uint64_t>(value)));
 }
 
 /**
@@ -478,8 +488,7 @@ inline int64_t hton(int64_t value) {
  * @param MEMBER 成员名称
  * @return size_t 成员偏移量（字节数）
  */
-#define MC_OFFSETOF(TYPE, MEMBER) \
-    (static_cast<size_t>(reinterpret_cast<size_t>(&(reinterpret_cast<TYPE*>(0)->MEMBER))))
+#define MC_OFFSETOF(TYPE, MEMBER) (static_cast<size_t>(offsetof(TYPE, MEMBER)))
 
 /**
  * @brief 计算成员指针对应的偏移量

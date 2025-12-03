@@ -490,8 +490,15 @@ TEST(LoggerTest, CopyConstructorAndAssignment) {
     EXPECT_EQ(logger3.get_name(), "test_logger");
     EXPECT_EQ(logger3.get_level(), mc::log::level::info);
     
-    // 测试自赋值（覆盖 this == &other 分支）
+    // 测试自赋值（覆盖 this == &other 分支，抑制编译器自赋值告警）
+#ifdef __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wself-assign-overloaded"
+#endif
     logger3 = logger3;
+#ifdef __clang__
+#pragma clang diagnostic pop
+#endif
     EXPECT_EQ(logger3.get_name(), "test_logger");
 }
 
@@ -511,8 +518,15 @@ TEST(LoggerTest, MoveConstructorAndAssignment) {
     EXPECT_EQ(logger3.get_name(), "move_test");
     EXPECT_EQ(logger3.get_level(), mc::log::level::warn);
     
-    // 测试自移动赋值（覆盖 this == &other 分支）
+    // 测试自移动赋值（覆盖 this == &other 分支，抑制编译器自移动告警）
+#if defined(__clang__)
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wself-move"
+#endif
     logger3 = std::move(logger3);
+#if defined(__clang__)
+#pragma clang diagnostic pop
+#endif
     EXPECT_EQ(logger3.get_name(), "move_test");
 }
 

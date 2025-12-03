@@ -130,7 +130,7 @@ public:
     void notify_property_update_shm(const mc::variant& value, const mc::engine::property_base& prop) override {
     }
 
-    mc::engine::property_changed_signal& property_update_shm() {
+    mc::engine::property_changed_signal& property_update_shm() override {
         static mc::engine::property_changed_signal signal;
         return signal;
     }
@@ -147,7 +147,7 @@ public:
     }
 
     void set_property_ref_info(std::string_view property_name, const std::string& info,
-                                            std::string_view interface_name) override {
+                               std::string_view interface_name) override {
     }
 
     std::string get_property_ref_info(std::string_view property_name,
@@ -568,21 +568,21 @@ public:
     void set_setter_function(std::function<void(const mc::variant&)> setter) override {
         DetailedMockPropertyHelper::set_setter_function(
             [this, setter = std::move(setter)](const mc::variant& value) {
-                set_relate_property_called = true;
-                set_relate_property_value  = value;
-                setter(value);
-            });
+            set_relate_property_called = true;
+            set_relate_property_value  = value;
+            setter(value);
+        });
     }
 
     void set_getter_function(std::function<mc::variant()> getter) override {
         DetailedMockPropertyHelper::set_getter_function(
             [this, getter = std::move(getter)]() -> mc::variant {
-                get_relate_property_called = true;
-                return getter();
-            });
+            get_relate_property_called = true;
+            return getter();
+        });
     }
 
-    bool        set_variant_value_called   = false;
+    bool        set_variant_value_called = false;
     mc::variant last_value;
 
     bool get_relate_property_called = false;

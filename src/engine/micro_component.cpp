@@ -9,14 +9,14 @@
  * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
  * See the Mulan PSL v2 for more details.
  */
-#include <mc/engine/micro_component.h>
+#include <algorithm>
 #include <mc/core/timer.h>
+#include <mc/engine/base.h>
+#include <mc/engine/micro_component.h>
+#include <mc/filesystem.h>
 #include <mc/log.h>
 #include <mc/log/appenders/socket_appender.h>
 #include <mc/time.h>
-#include <mc/engine/base.h>
-#include <mc/filesystem.h>
-#include <algorithm>
 #include <sstream>
 #include <string>
 #include <string_view>
@@ -25,16 +25,16 @@
 #include <cstdlib>
 #include <mutex>
 
-using mc::log::socket_appender;
-using mc::log::logger;
 using mc::log::appender_factory;
+using mc::log::logger;
+using mc::log::socket_appender;
 
 namespace {
-const std::string DEFAULT_DLOG_LEVEL = "notice";
-const std::string DEFAULT_DLOG_TYPE  = "file";
-const std::string DEFAULT_SOCKET_APPENDER_NAME  = "mdbctl";
-std::string MODULE_NAME = "Unknown";
-}
+const std::string DEFAULT_DLOG_LEVEL           = "notice";
+const std::string DEFAULT_DLOG_TYPE            = "file";
+const std::string DEFAULT_SOCKET_APPENDER_NAME = "mdbctl";
+std::string       MODULE_NAME                  = "Unknown";
+} // namespace
 
 namespace mc::engine {
 
@@ -105,7 +105,9 @@ void dump_interface_properties(std::ostream& os, abstract_object* node, abstract
     });
 
     std::sort(props.begin(), props.end(),
-              [](const auto& a, const auto& b) { return std::get<0>(a) < std::get<0>(b); });
+              [](const auto& a, const auto& b) {
+        return std::get<0>(a) < std::get<0>(b);
+    });
 
     os << node->get_object_path() << "  " << iface->get_interface_name() << "\n";
 
@@ -259,13 +261,13 @@ void mc_reset_interface::cancel(std::map<std::string, std::string> context, std:
 }
 
 namespace {
-std::mutex                      g_dlog_level_timer_mutex;
-mc::core::timer_ptr             g_dlog_level_timer;
-std::mutex                      g_dlog_limit_timer_mutex;
-mc::core::timer_ptr             g_dlog_limit_timer;
-std::mutex                      g_debug_console_mutex;
-mc::core::timer_ptr             g_debug_console_timer;
-std::weak_ptr<socket_appender>  g_debug_console_appender;
+std::mutex                     g_dlog_level_timer_mutex;
+mc::core::timer_ptr            g_dlog_level_timer;
+std::mutex                     g_dlog_limit_timer_mutex;
+mc::core::timer_ptr            g_dlog_limit_timer;
+std::mutex                     g_debug_console_mutex;
+mc::core::timer_ptr            g_debug_console_timer;
+std::weak_ptr<socket_appender> g_debug_console_appender;
 
 void stop_debug_console_heartbeat() {
     std::lock_guard<std::mutex> lock(g_debug_console_mutex);
@@ -315,9 +317,9 @@ void start_debug_console_heartbeat(mc_debug_interface* iface, const std::shared_
 } // namespace
 
 void mc_debug_interface::attach_debug_console(std::map<std::string, std::string> context, uint32_t port) {
-    auto& default_log = mc::log::default_logger();
-    auto          socket_path    = mc::string::concat("/dev/shm/", std::to_string(port), ".sock");
-    auto          hb_socket_path = mc::string::concat("/dev/shm/", std::to_string(port), ".hbsock");
+    auto default_log    = mc::log::default_logger();
+    auto socket_path    = mc::string::concat("/dev/shm/", std::to_string(port), ".sock");
+    auto hb_socket_path = mc::string::concat("/dev/shm/", std::to_string(port), ".hbsock");
 
     auto appender = default_log.find_appender(DEFAULT_SOCKET_APPENDER_NAME);
     if (!appender) {
@@ -347,14 +349,14 @@ void mc_debug_interface::attach_debug_console(std::map<std::string, std::string>
         MC_THROW(mc::busy_exception, "Resource is busy, module has already been attached or connection error occured.");
     }
     ilog("attached debug console ${port}", ("port", port));
-    
+
     socket_appender_ptr->set_type(this->m_dlog_type);
     start_debug_console_heartbeat(this, socket_appender_ptr);
     ilog("start heartbeat check of debug console ${port}", ("port", port));
 }
 
 void mc_debug_interface::detach_debug_console(std::map<std::string, std::string> context) {
-    auto& default_log = mc::log::default_logger();
+    auto default_log  = mc::log::default_logger();
     this->m_dlog_type = DEFAULT_DLOG_TYPE;
     ilog("set debug log type to ${type}", ("type", DEFAULT_DLOG_TYPE));
     stop_debug_console_heartbeat();
@@ -375,13 +377,13 @@ static void set_log_level(mc::log::level lvl, std::string log_info) {
 }
 
 void mc_debug_interface::set_dlog_level(std::map<std::string, std::string> context, std::string level,
-    uint8_t effective_hours) {
+                                        uint8_t effective_hours) {
     auto lvl_opt = mc::log::to_level(level);
     if (lvl_opt == std::nullopt) {
         MC_THROW(mc::invalid_argument_exception, "Invalid log level: ${level}", ("level", level));
     }
-    mc::log::level lvl = *lvl_opt;
-    std::string log_info = mc::string::concat("Set debug log level to ", level, " successfully");
+    mc::log::level lvl      = *lvl_opt;
+    std::string    log_info = mc::string::concat("Set debug log level to ", level, " successfully");
 
     {
         std::lock_guard<std::mutex> lock(g_dlog_level_timer_mutex);
@@ -393,7 +395,7 @@ void mc_debug_interface::set_dlog_level(std::map<std::string, std::string> conte
 
     if (lvl < mc::log::level::notice) {
         std::string_view hour_str = (effective_hours == 1) ? "hour" : "hours";
-        log_info = mc::string::concat(log_info, ", will set back to default level (notice) in ", std::to_string(effective_hours), " ", hour_str);
+        log_info                  = mc::string::concat(log_info, ", will set back to default level (notice) in ", std::to_string(effective_hours), " ", hour_str);
         set_log_level(lvl, log_info);
         this->m_dlog_level = level;
         {
@@ -437,11 +439,10 @@ void mc_maintenance_interface::dlog_limit(std::map<std::string, std::string> con
     log_info = mc::string::concat(
         "Disable log limit successfully, will resume in ",
         std::to_string(duration_mins),
-        duration_mins > 1 ? " mins" : " min"
-    );
+        duration_mins > 1 ? " mins" : " min");
 
     set_log_limit_env(false, log_info);
-    auto duration = mc::minutes(static_cast<int64_t>(duration_mins));
+    auto duration      = mc::minutes(static_cast<int64_t>(duration_mins));
     g_dlog_limit_timer = mc::core::timer::single_shot(duration, []() {
         set_log_limit_env(true, std::string("Resume log limit successfully"));
         // 清理定时器引用，避免持有已完成的定时器对象
@@ -451,8 +452,8 @@ void mc_maintenance_interface::dlog_limit(std::map<std::string, std::string> con
 }
 
 void mc_debug_interface::set_dlog_type(std::string type) {
-    auto& default_log = mc::log::default_logger();
-    auto appender = default_log.find_appender(DEFAULT_SOCKET_APPENDER_NAME);
+    auto default_log = mc::log::default_logger();
+    auto appender    = default_log.find_appender(DEFAULT_SOCKET_APPENDER_NAME);
     if (auto socket_appender_ptr = std::dynamic_pointer_cast<socket_appender>(appender)) {
         socket_appender_ptr->set_type(type);
         operation_log("set debug log output type to ${type} successfully", ("type", type));
@@ -462,14 +463,14 @@ void mc_debug_interface::set_dlog_type(std::string type) {
 }
 
 void micro_component_object::init(std::string_view service_name) {
-    size_t pos      = service_name.find_last_of('.');
-    auto   app_name = service_name.substr(pos + 1);
+    size_t pos         = service_name.find_last_of('.');
+    auto   app_name    = service_name.substr(pos + 1);
     auto   object_name = mc::string::concat("MicroComponent_", app_name);
     auto   object_path = mc::string::concat("/bmc/kepler/", std::string(app_name), "/MicroComponent");
     set_object_name(object_name);
     set_object_path(object_path);
-    m_mc_iface.m_name = std::string(app_name);
-    MODULE_NAME = std::string(app_name);
+    m_mc_iface.m_name             = std::string(app_name);
+    MODULE_NAME                   = std::string(app_name);
     m_mc_iface.m_pid              = getpid();
     m_mc_iface.m_status           = "InitCompleted";
     m_mc_debug_iface.m_dlog_level = DEFAULT_DLOG_LEVEL;

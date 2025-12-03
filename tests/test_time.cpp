@@ -14,16 +14,16 @@
  * @file time_test.cpp
  * @brief 时间模块的单元测试
  */
+#include "mc/exception.h"
 #include "mc/time.h"
 #include "mc/variant.h"
-#include "mc/exception.h"
 #include <chrono>
 #include <cmath>
 #include <cstdlib>
 #include <gtest/gtest.h>
 #include <optional>
-#include <thread>
 #include <string>
+#include <thread>
 
 using namespace mc;
 
@@ -309,7 +309,9 @@ TEST(TimeTest, FromIsoStringStdExceptionPath) {
 
 TEST(TimeTest, TimePointNegativeToStringThrows) {
     time_point negative(milliseconds(-100));
-    EXPECT_THROW(static_cast<std::string>(negative), mc::bad_cast_exception);
+    EXPECT_THROW([&negative]() {
+        return static_cast<std::string>(negative);
+    }(), mc::bad_cast_exception);
 }
 
 TEST(TimeTest, PortableTimegmWithExistingTimezone) {

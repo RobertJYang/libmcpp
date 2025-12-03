@@ -1075,17 +1075,19 @@ TEST_F(VariantComparisonTest, VariantStringViewConversions) {
     EXPECT_TRUE(v_blob_compare > v_string);
 
     variant v_bool(true);
-    EXPECT_THROW(v_bool < std::string_view("maybe"), mc::invalid_op_exception);
+    EXPECT_THROW([&v_bool]() {
+        return v_bool < std::string_view("maybe");
+    }(), mc::invalid_op_exception);
 }
 
 // 测试数组比较时大小不匹配提前返回
 TEST_F(VariantComparisonTest, ArraySizeMismatchReturnsFalse) {
     variants arr1{1, 2, 3};
     variants arr2{1, 2, 3, 4}; // 大小不同
-    
+
     variant v1(arr1);
     variant v2(arr2);
-    
+
     // 大小不同的数组应该不相等
     EXPECT_FALSE(v1 == v2);
 }
@@ -1095,16 +1097,16 @@ TEST_F(VariantComparisonTest, VariantsRelOps) {
     variants arr1{1, 2, 3};
     variants arr2{1, 2, 4};
     variants arr3{1, 2, 3, 4};
-    
+
     // 测试 operator!=
     EXPECT_TRUE(arr1 != arr2);
     EXPECT_FALSE(arr1 != arr1);
-    
+
     // 测试 operator<=
     EXPECT_TRUE(arr1 <= arr2); // [1,2,3] < [1,2,4]
     EXPECT_TRUE(arr1 <= arr1); // 相等
     EXPECT_TRUE(arr1 <= arr3); // [1,2,3] < [1,2,3,4]
-    
+
     // 测试 operator>=
     EXPECT_FALSE(arr1 >= arr2); // [1,2,3] < [1,2,4]
     EXPECT_TRUE(arr1 >= arr1);  // 相等

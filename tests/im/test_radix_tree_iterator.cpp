@@ -753,7 +753,9 @@ TEST(RadixTreeIteratorTest, IteratorArrowAtEndThrows) {
     EXPECT_EQ(it, tree.end());
 
     // 对 end() 迭代器使用 -> 应该抛出异常
-    EXPECT_THROW(it->first, std::out_of_range);
+    EXPECT_THROW([&it]() {
+        return it->first;
+    }(), std::out_of_range);
 }
 
 // 注意：iterator 没有 seek() 方法，所以 IteratorSeekAtEnd 和 IteratorSeekNonMatchingPrefix 无法实现
