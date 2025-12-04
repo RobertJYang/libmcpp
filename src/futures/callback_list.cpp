@@ -17,8 +17,7 @@
 namespace mc::futures {
 
 callback_pool& callback_pool::instance() {
-    static callback_pool pool;
-    return pool;
+    return mc::singleton<callback_pool>::instance();
 }
 
 std::unique_ptr<callback_node> callback_pool::acquire_node(std::function<void()> callback) {

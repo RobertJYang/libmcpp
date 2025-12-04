@@ -534,7 +534,7 @@ struct comp_object : public mc::memory::enable_shared_from_this<comp_object> {
 };
 
 // 并发竞争测试：大量 weak_ptr 与强引用交替释放，不应出现竞态或崩溃
-TEST(weak_ptr_test, weak_ptr_competition_no_uaf) {
+TEST_F(weak_ptr_test, weak_ptr_competition_no_uaf) {
     auto sp = mc::memory::make_shared<comp_object>();
 
     std::vector<mc::memory::weak_ptr<comp_object>> ws;
