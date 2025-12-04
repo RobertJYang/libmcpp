@@ -112,7 +112,7 @@ TEST_F(shared_base_test, InitialState) {
     EXPECT_FALSE(obj->is_managed());
     EXPECT_FALSE(obj->is_destroyed());
     EXPECT_EQ(obj->ref_count(), std::numeric_limits<uint32_t>::max());
-    EXPECT_EQ(obj->weak_count(), 0);
+    EXPECT_EQ(obj->weak_count(), 1); // 有一个保底弱引用
     EXPECT_EQ(obj->get_value(), 42);
 
     delete obj;
@@ -151,10 +151,7 @@ TEST_F(shared_base_test, ManualReferenceCountManagement) {
 TEST_F(shared_base_test, WeakReferenceCountManagement) {
     auto obj = new base_test_object(200);
 
-    // 添加弱引用
-    obj->add_weak_ref();
-    EXPECT_EQ(obj->weak_count(), 1);
-
+    // 添加弱引用（基础弱计数为1）
     obj->add_weak_ref();
     EXPECT_EQ(obj->weak_count(), 2);
 
@@ -431,8 +428,7 @@ TEST_F(shared_base_test, ReferenceCountBoundaries) {
 TEST_F(shared_base_test, MixedStrongWeakReferences) {
     auto obj = new base_test_object(1300);
 
-    // 添加弱引用
-    obj->add_weak_ref();
+    // 添加弱引用（基础弱计数为1）
     obj->add_weak_ref();
     EXPECT_EQ(obj->weak_count(), 2);
 
@@ -458,11 +454,11 @@ TEST_F(shared_base_test, MixedStrongWeakReferences) {
 
     // 释放弱引用
     bool should_delete = obj->release_weak_ref();
-    EXPECT_FALSE(should_delete); // 还有一个弱引用
+    EXPECT_FALSE(should_delete); // 还有一个弱引用（基础弱计数）
     EXPECT_EQ(obj->weak_count(), 1);
 
     should_delete = obj->release_weak_ref();
-    EXPECT_TRUE(should_delete); // 最后一个弱引用
+    EXPECT_TRUE(should_delete); // 最后一个弱引用（基础弱计数归还）
     EXPECT_EQ(obj->weak_count(), 0);
 
     delete obj;
