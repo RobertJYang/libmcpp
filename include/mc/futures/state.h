@@ -92,12 +92,13 @@ struct State : public mc::enable_shared_from_this<State<T, Executor, Allocator>>
     }
 
     void mark_ready() {
-        ready = true;
-        m_cv.notify_all();
-
-        // 移动到临时变量执行，避免回调过程中修改链表
         callback_list callbacks;
-        m_continuations.swap(callbacks);
+        {
+            std::lock_guard<std::mutex> lock(m_mutex);
+            ready = true;
+            m_continuations.swap(callbacks);
+        }
+        m_cv.notify_all();
         callbacks.execute_and_clear();
     }
 
@@ -122,9 +123,15 @@ struct State : public mc::enable_shared_from_this<State<T, Executor, Allocator>>
         callbacks.execute_and_clear();
 
         // 设置取消异常（再次检查 ready 状态以防竞态条件）
-        std::lock_guard<std::mutex> lock(m_mutex);
-        if (!ready.load()) {
-            this->result = std::make_exception_ptr(canceled_exception());
+        bool need_ready = false;
+        {
+            std::lock_guard<std::mutex> lock(m_mutex);
+            if (!ready.load()) {
+                this->result = std::make_exception_ptr(canceled_exception());
+                need_ready   = true;
+            }
+        }
+        if (need_ready) {
             this->mark_ready();
         }
     }

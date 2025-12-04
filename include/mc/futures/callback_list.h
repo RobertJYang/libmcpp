@@ -14,6 +14,7 @@
 #define MC_FUTURES_CALLBACK_POOL_H
 
 #include <mc/common.h>
+#include <mc/singleton.h>
 
 #include <functional>
 #include <memory>
@@ -42,6 +43,11 @@ using callback_node_ptr = std::unique_ptr<callback_node>;
 
 class MC_API callback_pool {
 public:
+    template <typename Tag>
+    static callback_pool& instance(Tag) {
+        return mc::singleton<callback_pool, Tag>::instance();
+    }
+
     static callback_pool& instance();
 
     std::unique_ptr<callback_node> acquire_node(std::function<void()> callback);
@@ -62,6 +68,12 @@ public:
 private:
     callback_pool()  = default;
     ~callback_pool() = default;
+
+    template <typename Class, typename Tag>
+    friend class mc::detail::singleton_impl;
+
+    template <typename Class, typename Tag>
+    friend class mc::singleton;
 
     mutable std::mutex             m_mutex;               // 保护池的互斥锁
     std::unique_ptr<callback_node> m_pool_head;           // 池的头节点

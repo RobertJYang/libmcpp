@@ -47,7 +47,12 @@ enable_coverage = get_option('enable_coverage')
 if enable_coverage
   coverage_args = []
   coverage_link_args = []
-  coverage_args = ['--coverage', '-fprofile-arcs', '-ftest-coverage', '-fprofile-update=atomic']
+  coverage_args = [
+    '--coverage',
+    '-fprofile-arcs',
+    '-ftest-coverage',
+    '-fprofile-update=atomic',
+  ]
   coverage_link_args = ['--coverage']
   add_project_arguments(coverage_args, language: 'cpp')
   add_project_link_arguments(coverage_link_args, language: 'cpp')

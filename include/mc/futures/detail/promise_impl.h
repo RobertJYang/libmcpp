@@ -28,29 +28,30 @@ void Promise<T, Executor, Allocator>::set_value(Args&&... args) {
     if (state_->cancelled.load()) {
         return;
     }
+    {
+        std::lock_guard<std::mutex> lock(state_->m_mutex);
+        if (state_->cancelled.load()) {
+            return;
+        }
 
-    std::lock_guard<std::mutex> lock(state_->m_mutex);
-    if (state_->cancelled.load()) {
-        return;
-    }
+        if (state_->ready) {
+            MC_THROW(promise_already_satisfied, "Promise 值已被设置");
+        }
 
-    if (state_->ready) {
-        MC_THROW(promise_already_satisfied, "Promise 值已被设置");
-    }
-
-    if constexpr (std::is_same_v<U, void>) {
-        state_->result = std::monostate{};
-    } else if constexpr (detail::is_future_v<std::decay_t<U>>) {
-        // 如果参数是 Future 类型，我们需要等待它完成并获取其值
-        auto future = std::get<0>(std::forward_as_tuple(std::forward<Args>(args)...));
-        future.then([this](auto&& value) {
-            this->set_value(std::forward<decltype(value)>(value));
-        }).catch_error([this](const mc::exception& ec) {
-            this->set_exception(std::current_exception());
-        });
-        return;
-    } else {
-        state_->result = std::get<0>(std::forward_as_tuple(std::forward<Args>(args)...));
+        if constexpr (std::is_same_v<U, void>) {
+            state_->result = std::monostate{};
+        } else if constexpr (detail::is_future_v<std::decay_t<U>>) {
+            // 如果参数是 Future 类型，我们需要等待它完成并获取其值
+            auto future = std::get<0>(std::forward_as_tuple(std::forward<Args>(args)...));
+            future.then([this](auto&& value) {
+                this->set_value(std::forward<decltype(value)>(value));
+            }).catch_error([this](const mc::exception& ec) {
+                this->set_exception(std::current_exception());
+            });
+            return;
+        } else {
+            state_->result = std::get<0>(std::forward_as_tuple(std::forward<Args>(args)...));
+        }
     }
     state_->mark_ready();
 }
@@ -60,16 +61,17 @@ void Promise<T, Executor, Allocator>::set_exception(std::exception_ptr e) {
     if (state_->cancelled.load()) {
         return;
     }
+    {
+        std::lock_guard<std::mutex> lock(state_->m_mutex);
+        if (state_->cancelled.load()) {
+            return;
+        }
 
-    std::lock_guard<std::mutex> lock(state_->m_mutex);
-    if (state_->cancelled.load()) {
-        return;
+        if (state_->ready) {
+            MC_THROW(promise_already_satisfied, "Promise 值已被设置");
+        }
+        state_->result = e;
     }
-
-    if (state_->ready) {
-        MC_THROW(promise_already_satisfied, "Promise 值已被设置");
-    }
-    state_->result = e;
     state_->mark_ready();
 }
 

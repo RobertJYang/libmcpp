@@ -12,14 +12,14 @@
 
 #include <gtest/gtest.h>
 
-#include <boost/asio.hpp>
 #include <atomic>
+#include <boost/asio.hpp>
 #include <chrono>
 #include <future>
-#include <utility>
 #include <iostream>
 #include <stdexcept>
 #include <thread>
+#include <utility>
 
 #include <mc/future.h>
 #include <mc/futures/callback_list.h>
@@ -333,7 +333,7 @@ TEST_F(FuturesTest, FutureCatchErrorOnReadyValue) {
     promise.set_value(33);
 
     std::atomic<int> handler_called{0};
-    auto recovered = future.catch_error([&handler_called](const mc::exception&) {
+    auto             recovered = future.catch_error([&handler_called](const mc::exception&) {
         handler_called.fetch_add(1);
         return -1;
     });
@@ -355,7 +355,7 @@ TEST_F(FuturesTest, FutureCatchErrorHandlesUnknownException) {
     promise.set_exception(std::make_exception_ptr(non_std_error{}));
 
     std::atomic<bool> handler_called{false};
-    auto recovered = future.catch_error([&handler_called](const mc::exception& ex) {
+    auto              recovered = future.catch_error([&handler_called](const mc::exception& ex) {
         // 确认异常被包装为 mc::exception，并且 handler 被调用
         handler_called.store(true);
         // 未知异常被包装后，至少应该有一个非零代码或有效的异常消息
@@ -383,11 +383,11 @@ TEST_F(FuturesTest, FutureThenDispatchOnReadyState) {
     promise.set_value(5);
 
     std::atomic<bool> executed{false};
-    auto chained = future.then(
+    auto              chained = future.then(
         [&executed](int value) {
-            executed.store(true);
-            return value + 1;
-        },
+        executed.store(true);
+        return value + 1;
+    },
         mc::launch::dispatch);
 
     EXPECT_EQ(chained.get(), 6);
@@ -435,7 +435,7 @@ TEST_F(FuturesTest, FutureFinallyOnReadyState) {
     promise.set_value(20);
 
     std::atomic<bool> cleanup_called{false};
-    auto chained = future.finally([&cleanup_called]() {
+    auto              chained = future.finally([&cleanup_called]() {
         cleanup_called.store(true);
     });
 
@@ -450,7 +450,7 @@ TEST_F(FuturesTest, FutureTapOnReadyState) {
     promise.set_value(30);
 
     std::atomic<int> observed{0};
-    auto tapped = future.tap([&observed](int value) {
+    auto             tapped = future.tap([&observed](int value) {
         observed.store(value);
     });
 
@@ -1379,7 +1379,7 @@ TEST_F(FuturesTest, CancelInnerFuture) {
 
     auto promise = mc::make_promise<int>(get_io_context());
     auto future  = promise.get_future().then([&](auto&&) {
-        auto outer_future = mc::delay(100ms);
+        auto outer_future = mc::delay(1000ms);
 
         // 创建一个内部定时器，在 10ms 后取消外部定时器
         // 故意用 runtime 的 work 上下文而不是 io 上下文，测试 future 可以跨上下文运行
@@ -1475,9 +1475,37 @@ TEST_F(FuturesTest, CallbackListSwap) {
     EXPECT_EQ(counter2, 2);
 }
 
+// 使用独立的 callback_pool 单例进行测试，避免其他测试用例影响
+struct callback_pool_tag {};
+auto& get_test_callback_pool() {
+    return mc::futures::callback_pool::instance(callback_pool_tag{});
+}
+
+class test_callback_list {
+public:
+    void push_back(std::function<void()> callback) {
+        auto node = get_test_callback_pool().acquire_node(std::move(callback));
+        m_callbacks.emplace_back(std::move(node));
+    }
+
+    void execute_and_clear() {
+        while (!m_callbacks.empty()) {
+            auto node = std::move(m_callbacks.front());
+            m_callbacks.pop_front();
+
+            mc::futures::safe_invoke(std::move(node->m_callback));
+            get_test_callback_pool().release_node(std::move(node));
+        }
+    }
+
+private:
+    std::list<mc::futures::callback_node_ptr> m_callbacks;
+};
+
 // 测试 callback_pool 的 get_stats 方法
 TEST_F(FuturesTest, CallbackPoolGetStats) {
-    auto& pool = mc::futures::callback_pool::instance();
+    auto& pool = get_test_callback_pool();
+    pool.clear();
 
     // 获取初始统计信息
     auto stats = pool.get_stats();
@@ -1485,9 +1513,11 @@ TEST_F(FuturesTest, CallbackPoolGetStats) {
     EXPECT_GT(stats.max_size, 0U);
 
     // 使用一些节点后再次获取统计信息
-    mc::futures::callback_list list;
-    list.push_back([]() {});
-    list.push_back([]() {});
+    test_callback_list list;
+    list.push_back([]() {
+    });
+    list.push_back([]() {
+    });
     list.execute_and_clear();
 
     auto stats_after = pool.get_stats();
@@ -1496,15 +1526,16 @@ TEST_F(FuturesTest, CallbackPoolGetStats) {
 
 // 测试 callback_pool 的 set_max_pool_size 方法
 TEST_F(FuturesTest, CallbackPoolSetMaxPoolSize) {
-    auto& pool = mc::futures::callback_pool::instance();
+    auto& pool = get_test_callback_pool();
 
     // 设置较小的最大池大小
     pool.set_max_pool_size(5);
 
     // 创建多个节点并释放，使池达到最大大小
-    mc::futures::callback_list list;
+    test_callback_list list;
     for (int i = 0; i < 10; ++i) {
-        list.push_back([]() {});
+        list.push_back([]() {
+        });
     }
     list.execute_and_clear();
 
@@ -1528,12 +1559,13 @@ TEST_F(FuturesTest, CallbackPoolSetMaxPoolSize) {
 
 // 测试 callback_pool 的 clear 方法
 TEST_F(FuturesTest, CallbackPoolClear) {
-    auto& pool = mc::futures::callback_pool::instance();
+    auto& pool = get_test_callback_pool();
 
     // 创建一些节点并释放到池中
-    mc::futures::callback_list list;
+    test_callback_list list;
     for (int i = 0; i < 5; ++i) {
-        list.push_back([]() {});
+        list.push_back([]() {
+        });
     }
     list.execute_and_clear();
 
@@ -1551,7 +1583,7 @@ TEST_F(FuturesTest, CallbackPoolClear) {
 
 // 测试 callback_pool::release_node 中 node 为 nullptr 的分支
 TEST_F(FuturesTest, CallbackPoolReleaseNullptr) {
-    auto& pool = mc::futures::callback_pool::instance();
+    auto& pool = get_test_callback_pool();
 
     // 释放 nullptr 节点应该安全返回
     std::unique_ptr<mc::futures::callback_node> null_node(nullptr);
@@ -1564,16 +1596,17 @@ TEST_F(FuturesTest, CallbackPoolReleaseNullptr) {
 
 // 测试 callback_pool::release_node 中池大小达到最大值的分支
 TEST_F(FuturesTest, CallbackPoolReleaseNodeMaxSize) {
-    auto& pool = mc::futures::callback_pool::instance();
+    auto& pool = get_test_callback_pool();
 
     // 设置较小的最大池大小
     pool.set_max_pool_size(2);
     pool.clear(); // 先清空池
 
     // 创建并释放节点，使池达到最大值
-    mc::futures::callback_list list;
+    test_callback_list list;
     for (int i = 0; i < 3; ++i) {
-        list.push_back([]() {});
+        list.push_back([]() {
+        });
     }
     list.execute_and_clear();
 
@@ -1582,8 +1615,9 @@ TEST_F(FuturesTest, CallbackPoolReleaseNodeMaxSize) {
     EXPECT_LE(stats.pool_size, 2U);
 
     // 再次释放节点，应该因为池已满而不被接受
-    mc::futures::callback_list list2;
-    list2.push_back([]() {});
+    test_callback_list list2;
+    list2.push_back([]() {
+    });
     list2.execute_and_clear();
 
     // 池大小应该仍然不超过最大值
@@ -1593,15 +1627,16 @@ TEST_F(FuturesTest, CallbackPoolReleaseNodeMaxSize) {
 
 // 测试 callback_pool::acquire_node 复用池中节点的分支
 TEST_F(FuturesTest, CallbackPoolAcquireReuseNode) {
-    auto& pool = mc::futures::callback_pool::instance();
+    auto& pool = get_test_callback_pool();
 
     // 重置池状态并设置较小的最大容量，便于观察变化
     pool.clear();
     pool.set_max_pool_size(10);
 
     // 首次 push_back 会创建新的节点
-    mc::futures::callback_list list;
-    list.push_back([]() {});
+    test_callback_list list;
+    list.push_back([]() {
+    });
     list.execute_and_clear();
 
     // 节点释放后应被缓存到池中
@@ -1610,7 +1645,8 @@ TEST_F(FuturesTest, CallbackPoolAcquireReuseNode) {
     EXPECT_EQ(stats_after_release.max_size, 10U);
 
     // 再次 push_back 应从池中复用节点，池大小减为 0
-    list.push_back([]() {});
+    list.push_back([]() {
+    });
     auto stats_after_acquire = pool.get_stats();
     EXPECT_EQ(stats_after_acquire.pool_size, 0U);
     EXPECT_EQ(stats_after_acquire.max_size, 10U);
@@ -1709,30 +1745,30 @@ TEST_F(FuturesTest, FuturesExceptionCopyAndRethrow) {
     {
         // 使用 MC_MAKE_EXCEPTION 构造异常
         auto ex1 = MC_MAKE_EXCEPTION(mc::futures::future_already_retrieved, "test message");
-        
+
         // 测试拷贝构造
         mc::futures::future_already_retrieved ex2(ex1);
         EXPECT_STREQ(ex1.what(), ex2.what());
-        
+
         // 测试移动构造
         mc::futures::future_already_retrieved ex3(std::move(ex2));
         EXPECT_STREQ(ex1.what(), ex3.what());
-        
+
         // 注意：由于异常类声明了移动构造函数，拷贝赋值运算符被隐式删除
         // 我们通过拷贝构造来测试拷贝语义
         mc::futures::future_already_retrieved ex4(ex1);
         EXPECT_STREQ(ex1.what(), ex4.what());
-        
+
         // 注意：移动赋值运算符也被隐式删除
         // 我们通过移动构造来测试移动语义
         mc::futures::future_already_retrieved ex5(std::move(ex1));
         EXPECT_STREQ(ex3.what(), ex5.what());
-        
+
         // 测试 dynamic_copy_exception
         auto copied = ex5.dynamic_copy_exception();
         ASSERT_NE(copied, nullptr);
         EXPECT_STREQ(ex5.what(), copied->what());
-        
+
         // 测试 dynamic_rethrow_exception
         try {
             ex5.dynamic_rethrow_exception();
@@ -1741,35 +1777,35 @@ TEST_F(FuturesTest, FuturesExceptionCopyAndRethrow) {
             EXPECT_STREQ(ex5.what(), e.what());
         }
     }
-    
+
     // 手动构造 promise_already_satisfied 异常
     {
         // 使用 MC_MAKE_EXCEPTION 构造异常
         auto ex1 = MC_MAKE_EXCEPTION(mc::futures::promise_already_satisfied, "test message");
-        
+
         // 测试拷贝构造
         mc::futures::promise_already_satisfied ex2(ex1);
         EXPECT_STREQ(ex1.what(), ex2.what());
-        
+
         // 测试移动构造
         mc::futures::promise_already_satisfied ex3(std::move(ex2));
         EXPECT_STREQ(ex1.what(), ex3.what());
-        
+
         // 注意：由于异常类声明了移动构造函数，拷贝赋值运算符被隐式删除
         // 我们通过拷贝构造来测试拷贝语义
         mc::futures::promise_already_satisfied ex4(ex1);
         EXPECT_STREQ(ex1.what(), ex4.what());
-        
+
         // 注意：移动赋值运算符也被隐式删除
         // 我们通过移动构造来测试移动语义
         mc::futures::promise_already_satisfied ex5(std::move(ex1));
         EXPECT_STREQ(ex3.what(), ex5.what());
-        
+
         // 测试 dynamic_copy_exception
         auto copied = ex5.dynamic_copy_exception();
         ASSERT_NE(copied, nullptr);
         EXPECT_STREQ(ex5.what(), copied->what());
-        
+
         // 测试 dynamic_rethrow_exception
         try {
             ex5.dynamic_rethrow_exception();
@@ -1777,5 +1813,81 @@ TEST_F(FuturesTest, FuturesExceptionCopyAndRethrow) {
         } catch (const mc::futures::promise_already_satisfied& e) {
             EXPECT_STREQ(ex5.what(), e.what());
         }
+    }
+}
+
+// 压力测试：临时 future 链在高频创建/销毁下 future 链生命周期是否正确
+TEST_F(FuturesTest, stress_temporary_then_chain) {
+    for (int i = 0; i < 500; ++i) {
+        auto p = mc::make_promise<int>(get_io_context());
+
+        // 创建一条包含临时 future 的链：外层 then 返回内层 future，随后在 catch_error 中收敛为值
+        auto result_future = p.get_future().then([this](int v) {
+            // 返回一个临时 future，立即就绪
+            auto inner_p = mc::make_promise<int>(get_io_context());
+            auto inner_f = inner_p.get_future();
+            inner_p.set_value(v + 1);
+            return inner_f; // 中间层 future 为临时对象
+        }).catch_error([](const mc::exception&) {
+            return -1; // 异常时返回默认值
+        }).then([](int v) {
+            return v * 2;
+        }, mc::launch::dispatch);
+
+        // 触发链条执行，并在 result_future 上同步获取结果
+        p.set_value(1);
+        EXPECT_EQ(result_future.get(), 4);
+    }
+}
+
+// 压力测试：all 结合内联临时 then，不持有外层 future 的情况下 future 链生命周期是否正确
+TEST_F(FuturesTest, stress_all_with_inline_temporaries) {
+    for (int i = 0; i < 300; ++i) {
+        auto p1 = mc::make_promise<int>(get_io_context());
+        auto p2 = mc::make_promise<double>(get_io_context());
+        auto p3 = mc::make_promise<std::string>(get_io_context());
+
+        auto f = mc::all(
+            p1.get_future().then([](int v) {
+            return v + 1;
+        }),
+            p2.get_future().then([](double v) {
+            return v + 1.0;
+        }),
+            p3.get_future().then([](std::string v) {
+            return v + "!";
+        }));
+
+        p1.set_value(1);
+        p2.set_value(2.0);
+        p3.set_value("ok");
+
+        auto r = f.get();
+        EXPECT_EQ(std::get<0>(r), 2);
+        EXPECT_DOUBLE_EQ(std::get<1>(r), 3.0);
+        EXPECT_EQ(std::get<2>(r), "ok!");
+    }
+}
+
+// 压力测试：any 结合内联临时 then，不持有外层 future 的情况下 future 链生命周期是否正确
+TEST_F(FuturesTest, stress_any_with_inline_temporaries) {
+    for (int i = 0; i < 300; ++i) {
+        auto p1 = mc::make_promise<int>(get_io_context());
+        auto p2 = mc::make_promise<double>(get_io_context());
+
+        // 第二个先完成，验证其他临时 future 取消路径
+        auto f = mc::any(
+            p1.get_future().then([](int v) {
+            return v + 1;
+        }),
+            p2.get_future().then([](double v) {
+            return v + 1.0;
+        }));
+
+        p2.set_value(1.0);
+
+        auto r = f.get();
+        EXPECT_EQ(r.first, 1);
+        EXPECT_DOUBLE_EQ(std::get<double>(r.second), 2.0);
     }
 }
