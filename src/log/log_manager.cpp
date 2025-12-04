@@ -210,23 +210,34 @@ bool log_manager::apply_config(const logging_config& config) {
 }
 
 void log_manager::set_dlog_level(level lvl) {
-    std::lock_guard<std::mutex> lock(m_mutex);
+    std::vector<std::string> logger_names;
+    {
+        std::lock_guard<std::mutex> lock(m_mutex);
 
-    for (auto& logger_entry : m_loggers) {
-        logger_entry.second.set_level(lvl);
-        ilog("Set logger ${name} log level to ${level}",
-             ("name", logger_entry.first)("level", mc::log::to_string(lvl)));
-        for (const auto& appender : logger_entry.second.get_appenders()) {
-            if (auto file_appender_ptr = std::dynamic_pointer_cast<file_appender>(appender)) {
-                file_appender_ptr->set_debug_log_level(lvl);
+        for (auto& logger_entry : m_loggers) {
+            logger_entry.second.set_level(lvl);
+            logger_names.push_back(logger_entry.first);
+            for (const auto& appender : logger_entry.second.get_appenders()) {
+                if (auto file_appender_ptr = std::dynamic_pointer_cast<file_appender>(appender)) {
+                    file_appender_ptr->set_debug_log_level(lvl);
+                }
+            }
+        }
+
+        auto default_logger_it = m_loggers.find(DEFAULT_LOGGER);
+        if (default_logger_it != m_loggers.end()) {
+            default_logger_it->second.set_level(lvl);
+            for (const auto& appender : default_logger_it->second.get_appenders()) {
+                if (auto file_appender_ptr = std::dynamic_pointer_cast<file_appender>(appender)) {
+                    file_appender_ptr->set_debug_log_level(lvl);
+                }
             }
         }
     }
-    default_logger().set_level(lvl);
-    for (const auto& appender : default_logger().get_appenders()) {
-        if (auto file_appender_ptr = std::dynamic_pointer_cast<file_appender>(appender)) {
-            file_appender_ptr->set_debug_log_level(lvl);
-        }
+
+    for (const auto& logger_name : logger_names) {
+        ilog("Set logger ${name} log level to ${level}",
+             ("name", logger_name)("level", mc::log::to_string(lvl)));
     }
 }
 
