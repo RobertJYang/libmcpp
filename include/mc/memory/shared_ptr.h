@@ -109,17 +109,12 @@ public:
         if (!m_ptr || !m_ptr->release_ref()) {
             return;
         }
-
-        // 强引用计数为 0 时，对象开始进入销毁阶段，这里临时增加弱引用计数，
-        // 避免析构过程中因为持有该对象的弱指针被销毁而导致计数为 0 提前释放内存。
-        m_ptr->add_weak_ref();
-
         using deleter_traits = mc::deleter_traits<Deleter, element_type>;
 
         // 第一阶段：调用 Deleter 的 destroy 方法处理对象析构
         deleter_traits::destroy(static_cast<element_type*>(m_ptr));
 
-        // 第二阶段：减少临时弱引用计数，如果弱引用计数为 0 则释放内存
+        // 第二阶段：归还保底弱引用，如果弱引用计数为 0 则释放内存
         if (m_ptr->release_weak_ref()) {
             deleter_traits::deallocate(m_ptr);
         }

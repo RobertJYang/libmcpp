@@ -528,3 +528,41 @@ TEST_F(weak_ptr_test, SharedFromThisAndWeakFromThis) {
     EXPECT_EQ(locked.get(), shared.get());
     EXPECT_EQ(shared.use_count(), 3); // shared + shared2 + locked
 }
+
+struct comp_object : public mc::memory::enable_shared_from_this<comp_object> {
+    int v{0};
+};
+
+// 并发竞争测试：大量 weak_ptr 与强引用交替释放，不应出现竞态或崩溃
+TEST(weak_ptr_test, weak_ptr_competition_no_uaf) {
+    auto sp = mc::memory::make_shared<comp_object>();
+
+    std::vector<mc::memory::weak_ptr<comp_object>> ws;
+    ws.reserve(64);
+    for (int i = 0; i < 64; ++i) {
+        ws.emplace_back(sp->weak_from_this());
+    }
+
+    std::atomic<bool>        start{false};
+    std::vector<std::thread> threads;
+    for (auto& w : ws) {
+        threads.emplace_back([&start, &w] {
+            while (!start.load()) {
+            }
+            for (int k = 0; k < 100; ++k) {
+                auto s = w.lock();
+                if (s) {
+                    s->v += 1;
+                }
+            }
+            w.reset();
+        });
+    }
+
+    start.store(true);
+    sp.reset();
+    for (auto& t : threads) {
+        t.join();
+    }
+    SUCCEED();
+}

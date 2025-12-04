@@ -12,10 +12,10 @@
 
 #include <gtest/gtest.h>
 
+#include "../runtime/test_future_helpers.h"
 #include <mc/exception.h>
 #include <mc/memory.h>
 #include <mc/runtime/thread_list.h>
-#include "../runtime/test_future_helpers.h"
 
 class thread_safe_object : public mc::enable_shared_from_this<thread_safe_object> {
 public:
@@ -55,9 +55,9 @@ TEST_F(SharedPtrThreadSafetyTest, TryAddRefReleaseRefRaceCondition) {
         std::atomic<int>  failed_upgrades{0};
         std::atomic<bool> released{false};
 
-        mc::runtime::thread_list threads;
+        mc::runtime::thread_list            threads;
         mc::test::runtime::countdown_future upgrade_ready(num_threads - 1);
-        mc::test::runtime::future_flag release_started;
+        mc::test::runtime::future_flag      release_started;
 
         // 创建多个线程尝试从弱引用升级到强引用
         threads.start_threads(num_threads - 1, [&]() {
@@ -114,9 +114,9 @@ TEST_F(SharedPtrThreadSafetyTest, DestroyedMarkerAtomicity) {
         std::atomic<int>  upgrade_attempts{0};
         std::atomic<int>  successful_upgrades{0};
 
-        mc::runtime::thread_list threads;
+        mc::runtime::thread_list            threads;
         mc::test::runtime::countdown_future upgrade_ready(4);
-        mc::test::runtime::future_flag destroy_started;
+        mc::test::runtime::future_flag      destroy_started;
 
         threads.add_thread([&]() {
             // 等待所有升级线程都准备好

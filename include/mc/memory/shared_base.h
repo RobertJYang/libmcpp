@@ -108,13 +108,17 @@ public:
     static constexpr counter_type INVALID   = std::numeric_limits<counter_type>::max();
     static constexpr counter_type DESTROYED = 0;
 
-    shared_counter() : m_ref_count(INVALID), m_weak_count(0) {
+    shared_counter() : m_ref_count(INVALID), m_weak_count(1) {
     }
 
     virtual ~shared_counter() {
     }
 
-    shared_counter(const shared_counter&) : m_ref_count(INVALID), m_weak_count(0) {
+    // 弱引用计数保底设置为 1，这是因为 shared_ptr 需要两阶段销毁对象：
+    // 第一阶段：调用 Deleter 的 destroy 方法处理对象析构
+    // 第二阶段：归还保底弱引用，如果弱引用计数为 0 则释放内存
+    // 保底弱引用策略可以保证第一阶段析构对象时不会因为其他 weak_ptr 销毁而导致内存提前被释放
+    shared_counter(const shared_counter&) : m_ref_count(INVALID), m_weak_count(1) {
     }
 
     shared_counter& operator=(const shared_counter&) {
@@ -122,7 +126,7 @@ public:
         return *this;
     }
 
-    shared_counter(shared_counter&&) noexcept : m_ref_count(INVALID), m_weak_count(0) {
+    shared_counter(shared_counter&&) noexcept : m_ref_count(INVALID), m_weak_count(1) {
     }
 
     shared_counter& operator=(shared_counter&&) noexcept {
@@ -145,6 +149,7 @@ public:
             }
         }
 
+        // 不可能运行到这里，抛出异常是为了检测是否有 bug，比如发生了内存踩踏导致引用计数被修改
         detail::throw_invalid_op_exception("attempt to add reference to a destroyed object");
     }
 
@@ -161,8 +166,8 @@ public:
             }
         }
 
-        detail::throw_invalid_op_exception(
-            "attempt to release reference to a destroyed or not managed object");
+        // 不可能运行到这里，抛出异常是为了检测是否有 bug，比如发生了内存踩踏导致引用计数被修改
+        detail::throw_invalid_op_exception("attempt to release reference to a destroyed or not managed object");
     }
 
     // 增加弱引用计数

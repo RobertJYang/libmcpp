@@ -363,7 +363,8 @@ TEST_F(dbus_message_test, test_libdbus_write_mc_dbus_message_read) {
         dbus_message_iter_open_container(&std_vec_tuple_iter, DBUS_TYPE_STRUCT, nullptr,
                                          &tuple_iter);
         dbus_message_iter_append_basic(&tuple_iter, DBUS_TYPE_INT32, &std::get<0>(val));
-        dbus_message_iter_append_basic(&tuple_iter, DBUS_TYPE_BOOLEAN, &std::get<1>(val));
+        dbus_bool_t b = std::get<1>(val) ? TRUE : FALSE;
+        dbus_message_iter_append_basic(&tuple_iter, DBUS_TYPE_BOOLEAN, &b);
         dbus_message_iter_close_container(&std_vec_tuple_iter, &tuple_iter);
     }
     dbus_message_iter_close_container(&iter, &std_vec_tuple_iter);
@@ -782,7 +783,7 @@ TEST_F(dbus_message_test, test_mc_dbus_message_write_libdbus_read) {
 
 TEST_F(dbus_message_test, test_message_setters_and_flags) {
     auto method_call = message::new_method_call("org.example.Test", "/org/example/Test",
-                                               "org.example.Test", "TestMethod");
+                                                "org.example.Test", "TestMethod");
     EXPECT_TRUE(method_call.is_method_call());
     EXPECT_FALSE(method_call.is_signal());
     EXPECT_FALSE(method_call.is_error());
