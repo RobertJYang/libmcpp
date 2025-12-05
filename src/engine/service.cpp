@@ -432,7 +432,7 @@ DBusHandlerResult service_impl::on_method_call(abstract_object& object, mc::dbus
 
         auto err = ctx.get_error();
         if (err) {
-            info.response = mc::dbus::message::new_error(msg, err->name, err->to_string());
+            info.response = mc::dbus::message::new_error(msg, err->name, err->to_string_format_inplace());
         } else {
             info.response = mc::dbus::message::new_error(msg, errors::failed.name, e.what());
         }

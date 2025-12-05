@@ -11,6 +11,7 @@
  */
 
 #include <mc/error_engine.h>
+#include <mc/fmt/format_dict.h>
 #include <mc/log.h>
 #include <mc/string.h>
 
