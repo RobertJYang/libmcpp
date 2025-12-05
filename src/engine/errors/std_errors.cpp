@@ -36,8 +36,8 @@ REGISTER_CONST_ERROR(file_not_found, mc::dbus::error_names::file_not_found);
 REGISTER_CONST_ERROR(file_exists, mc::dbus::error_names::file_exists);
 REGISTER_CONST_ERROR(unknown_method, mc::dbus::error_names::unknown_method);
 REGISTER_CONST_ERROR(unknown_object, mc::dbus::error_names::unknown_object);
-REGISTER_CONST_ERROR(unknown_interface, mc::dbus::error_names::unknown_interface);
-REGISTER_CONST_ERROR(unknown_property, mc::dbus::error_names::unknown_property);
+REGISTER_CONST_ERROR(unknown_interface, mc::dbus::error_names::unknown_interface, "Unknown interface ${interface}");
+REGISTER_CONST_ERROR(unknown_property, mc::dbus::error_names::unknown_property, "Unknown property ${property}");
 REGISTER_CONST_ERROR(property_read_only, mc::dbus::error_names::property_read_only);
 
 } // namespace mc::engine::errors

@@ -131,6 +131,7 @@ struct MC_API error : public mc::enable_shared_from_this<error>, public error_in
     error& set_args(const mc::dict& args);
 
     std::string to_string() const;
+    std::string to_string_format_inplace() const;
     bool        is_set() const;
     bool        has_error(std::string_view name) const;
 

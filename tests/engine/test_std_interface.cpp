@@ -821,3 +821,87 @@ TEST_F(std_interface_test, TestOverrideSetProperty) {
     ASSERT_TRUE(get_with_context_result.is_string());
     EXPECT_EQ(get_with_context_result.as_string(), "value2");
 }
+
+TEST_F(std_interface_test, TestNonExistentProperty) {
+    auto msg    = mc::dbus::message::new_method_call("org.openubmc.test_service_1", "/org/openubmc/test_object_a",
+                                                     "bmc.kepler.Object.Properties", "GetWithContext");
+    auto writer = msg.writer();
+    writer << empty_ctx << "org.openubmc.test_interface_a" << "NonExistentProperty";
+    auto reply = test_conn.send_with_reply(std::move(msg), call_timeout);
+    ASSERT_TRUE(reply.is_error());
+    EXPECT_EQ(reply.get_error_name(), "org.freedesktop.DBus.Error.UnknownProperty");
+    EXPECT_EQ(reply.get_error_message(),
+              R"({"name":"org.freedesktop.DBus.Error.UnknownProperty","format":"Unknown property NonExistentProperty"})");
+
+    msg    = mc::dbus::message::new_method_call("org.openubmc.test_service_1", "/org/openubmc/test_object_a",
+                                                "bmc.kepler.Object.Properties", "SetWithContext");
+    writer = msg.writer();
+    writer << empty_ctx << "org.openubmc.test_interface_a" << "NonExistentProperty" << "";
+    reply = test_conn.send_with_reply(std::move(msg), call_timeout);
+    ASSERT_TRUE(reply.is_error());
+    EXPECT_EQ(reply.get_error_name(), "org.freedesktop.DBus.Error.UnknownProperty");
+    EXPECT_EQ(reply.get_error_message(),
+              R"({"name":"org.freedesktop.DBus.Error.UnknownProperty","format":"Unknown property NonExistentProperty"})");
+
+    msg    = mc::dbus::message::new_method_call("org.openubmc.test_service_1", "/org/openubmc/test_object_a",
+                                                "org.freedesktop.DBus.Properties", "Get");
+    writer = msg.writer();
+    writer << "org.freedesktop.DBus.Introspectable" << "NonExistentProperty";
+    reply = test_conn.send_with_reply(std::move(msg), call_timeout);
+    ASSERT_TRUE(reply.is_error());
+    EXPECT_EQ(reply.get_error_name(), "org.freedesktop.DBus.Error.UnknownProperty");
+    EXPECT_EQ(reply.get_error_message(),
+              R"({"name":"org.freedesktop.DBus.Error.UnknownProperty","format":"Unknown property NonExistentProperty"})");
+
+    msg    = mc::dbus::message::new_method_call("org.openubmc.test_service_1", "/org/openubmc/test_object_a",
+                                                "org.freedesktop.DBus.Properties", "Set");
+    writer = msg.writer();
+    writer << "org.freedesktop.DBus.ObjectManager" << "NonExistentProperty" << "";
+    reply = test_conn.send_with_reply(std::move(msg), call_timeout);
+    ASSERT_TRUE(reply.is_error());
+    EXPECT_EQ(reply.get_error_name(), "org.freedesktop.DBus.Error.UnknownProperty");
+    EXPECT_EQ(reply.get_error_message(),
+              R"({"name":"org.freedesktop.DBus.Error.UnknownProperty","format":"Unknown property NonExistentProperty"})");
+}
+
+TEST_F(std_interface_test, TestNonExistentInterface) {
+    auto msg    = mc::dbus::message::new_method_call("org.openubmc.test_service_1", "/org/openubmc/test_object_a",
+                                                     "bmc.kepler.Object.Properties", "GetWithContext");
+    auto writer = msg.writer();
+    writer << empty_ctx << "org.openubmc.NonExistentInterface" << "NonExistentProperty";
+    auto reply = test_conn.send_with_reply(std::move(msg), call_timeout);
+    ASSERT_TRUE(reply.is_error());
+    EXPECT_EQ(reply.get_error_name(), "org.freedesktop.DBus.Error.UnknownInterface");
+    EXPECT_EQ(reply.get_error_message(),
+              R"({"name":"org.freedesktop.DBus.Error.UnknownInterface","format":"Unknown interface org.openubmc.NonExistentInterface"})");
+
+    msg    = mc::dbus::message::new_method_call("org.openubmc.test_service_1", "/org/openubmc/test_object_a",
+                                                "bmc.kepler.Object.Properties", "SetWithContext");
+    writer = msg.writer();
+    writer << empty_ctx << "org.openubmc.NonExistentInterface" << "NonExistentProperty" << "";
+    reply = test_conn.send_with_reply(std::move(msg), call_timeout);
+    ASSERT_TRUE(reply.is_error());
+    EXPECT_EQ(reply.get_error_name(), "org.freedesktop.DBus.Error.UnknownInterface");
+    EXPECT_EQ(reply.get_error_message(),
+              R"({"name":"org.freedesktop.DBus.Error.UnknownInterface","format":"Unknown interface org.openubmc.NonExistentInterface"})");
+
+    msg    = mc::dbus::message::new_method_call("org.openubmc.test_service_1", "/org/openubmc/test_object_a",
+                                                "org.freedesktop.DBus.Properties", "Get");
+    writer = msg.writer();
+    writer << "org.openubmc.NonExistentInterface" << "NonExistentProperty";
+    reply = test_conn.send_with_reply(std::move(msg), call_timeout);
+    ASSERT_TRUE(reply.is_error());
+    EXPECT_EQ(reply.get_error_name(), "org.freedesktop.DBus.Error.UnknownInterface");
+    EXPECT_EQ(reply.get_error_message(),
+              R"({"name":"org.freedesktop.DBus.Error.UnknownInterface","format":"Unknown interface org.openubmc.NonExistentInterface"})");
+
+    msg    = mc::dbus::message::new_method_call("org.openubmc.test_service_1", "/org/openubmc/test_object_a",
+                                                "org.freedesktop.DBus.Properties", "Set");
+    writer = msg.writer();
+    writer << "org.openubmc.NonExistentInterface" << "NonExistentProperty" << "";
+    reply = test_conn.send_with_reply(std::move(msg), call_timeout);
+    ASSERT_TRUE(reply.is_error());
+    EXPECT_EQ(reply.get_error_name(), "org.freedesktop.DBus.Error.UnknownInterface");
+    EXPECT_EQ(reply.get_error_message(),
+              R"({"name":"org.freedesktop.DBus.Error.UnknownInterface","format":"Unknown interface org.openubmc.NonExistentInterface"})");
+}

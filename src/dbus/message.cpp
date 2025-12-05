@@ -422,6 +422,17 @@ std::string_view message::get_error_name() const {
     return dbus_message_get_error_name(m_dbus_message);
 }
 
+std::string message::get_error_message() const {
+    if (m_dbus_message == nullptr) {
+        return {};
+    }
+    error err;
+    if (dbus_set_error_from_message(&err, m_dbus_message)) {
+        return std::string(err.message);
+    }
+    return {};
+}
+
 std::string_view message::get_destination() const {
     if (m_dbus_message == nullptr) {
         return {};

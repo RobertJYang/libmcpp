@@ -154,6 +154,13 @@ std::string error::to_string() const {
     return mc::to_string(*this);
 }
 
+std::string error::to_string_format_inplace() const {
+    mc::dict error_data;
+    error_data["name"] = this->name;
+    error_data["format"] = get_message();
+    return error_data.to_string();
+}
+
 bool error::is_set() const {
     if (!this->name.empty()) {
         return true;

@@ -92,6 +92,7 @@ public:
     std::string_view get_destination() const;
     std::string_view get_sender() const;
     std::string_view get_signature() const;
+    std::string      get_error_message() const;
     uint32_t         get_serial() const;
     uint32_t         get_reply_serial() const;
 

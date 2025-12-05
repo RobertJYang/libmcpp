@@ -6,6 +6,7 @@
  *         http://license.coscl.org.cn/MulanPSL2
  */
 
+#include <mc/engine/errors/std_errors.h>
 #include <mc/engine/metadata.h>
 #include <mc/engine/property.h>
 #include <mc/engine/std_interface.h>
@@ -22,6 +23,13 @@ properties_interface& properties_interface::get_instance() {
     return instance;
 }
 
+static bool object_has_interface(abstract_object* object, std::string_view interface_name) {
+    if (interface_name == properties_interface_name || interface_name == introspectable_interface_name || interface_name == peer_interface_name || interface_name == object_manager_interface_name) {
+        return true;
+    }
+    return object->has_interface(interface_name);
+}
+
 mc::variant properties_interface::get(std::string_view interface_name,
                                       std::string_view property_name) const {
     auto* object = object_call_stack::top_value();
@@ -30,6 +38,12 @@ mc::variant properties_interface::get(std::string_view interface_name,
     }
     if (interface_name == common_properties_name) {
         return common_properties_interface::get(property_name);
+    }
+    if (!object_has_interface(object, interface_name)) {
+        MC_REPLY_ERROR_AND_THROW(errors::unknown_interface, ("interface", interface_name));
+    }
+    if (!object->has_property(property_name, interface_name)) {
+        MC_REPLY_ERROR_AND_THROW(errors::unknown_property, ("property", property_name));
     }
     return object->get_property(property_name, interface_name, mc::engine::property_options::from_mdb);
 }
@@ -55,6 +69,12 @@ void properties_interface::set(std::string_view interface_name, std::string_view
     // 通用属性接口不支持修改属性
     if (interface_name == common_properties_name) {
         return;
+    }
+    if (!object_has_interface(object, interface_name)) {
+        MC_REPLY_ERROR_AND_THROW(errors::unknown_interface, ("interface", interface_name));
+    }
+    if (!object->has_property(property_name, interface_name)) {
+        MC_REPLY_ERROR_AND_THROW(errors::unknown_property, ("property", property_name));
     }
     object->set_property(property_name, value, interface_name);
 }
@@ -283,6 +303,7 @@ mc::variant common_properties_interface::get(std::string_view property_name) {
     if (property_name == "ObjectIdentifier") {
         return object->get_object_identifier();
     }
+    MC_REPLY_ERROR_AND_THROW(errors::unknown_property, ("property", property_name));
     return {};
 }
 
@@ -294,6 +315,12 @@ mc::variant common_properties_interface::get_with_context(std::map<std::string, 
     auto* object = object_call_stack::top_value();
     if (object == nullptr) {
         return {};
+    }
+    if (!object_has_interface(object, interface_name)) {
+        MC_REPLY_ERROR_AND_THROW(errors::unknown_interface, ("interface", interface_name));
+    }
+    if (!object->has_property(property_name, interface_name)) {
+        MC_REPLY_ERROR_AND_THROW(errors::unknown_property, ("property", property_name));
     }
     return object->get_property(property_name, interface_name);
 }
@@ -320,6 +347,12 @@ void common_properties_interface::set_with_context(std::map<std::string, std::st
     if (object == nullptr) {
         elog("failed to get object from call stack");
         return;
+    }
+    if (!object_has_interface(object, interface_name)) {
+        MC_REPLY_ERROR_AND_THROW(errors::unknown_interface, ("interface", interface_name));
+    }
+    if (!object->has_property(property_name, interface_name)) {
+        MC_REPLY_ERROR_AND_THROW(errors::unknown_property, ("property", property_name));
     }
     object->set_property(property_name, value, interface_name);
 }
