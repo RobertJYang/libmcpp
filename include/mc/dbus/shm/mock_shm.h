@@ -20,6 +20,7 @@
 #include <string>
 #include <string_view>
 #include <unordered_map>
+#include <vector>
 
 static constexpr int SHM_LOCK_TIMEOUT_DEFAULT_MS = 60000;
 
@@ -82,49 +83,56 @@ class shared_memory;
 
 class Rule {
 public:
-    Rule() {
+    Rule() : m_type(MessageType::signal), m_path_namespace(false) {
     }
 
     void member(const std::string_view& member) {
+        m_member = std::string(member);
     }
 
     std::string_view member() const {
-        return "";
+        return m_member;
     }
 
     void interface(const std::string_view& interface) {
+        m_interface = std::string(interface);
     }
 
     std::string_view interface() const {
-        return "";
+        return m_interface;
     }
 
     void path(const std::string_view& path) {
+        m_path = std::string(path);
     }
 
     std::string_view path() const {
-        return "";
+        return m_path;
     }
 
     void path_namespace(const std::string_view& path_namespace) {
+        m_path = std::string(path_namespace);
+        m_path_namespace = true;
     }
 
     bool path_namespace() const {
-        return false;
+        return m_path_namespace;
     }
 
     void sender(const std::string_view& sender) {
+        m_sender = std::string(sender);
     }
 
     std::string_view sender() const {
-        return "";
+        return m_sender;
     }
 
     void type(MessageType type) {
+        m_type = type;
     }
 
     MessageType type() const {
-        return MessageType::signal;
+        return m_type;
     }
 
     bool is_connected() {
@@ -135,21 +143,90 @@ public:
     }
 
     void destination(const std::string_view& destination) {
+        m_destination = std::string(destination);
     }
 
     std::string_view destination() const {
-        return "";
+        return m_destination;
     }
 
     std::string as_string() const {
-        return "";
+        std::string result;
+        result.reserve(200);
+        
+        // type 字段
+        if (m_type == MessageType::signal) {
+            result += "type='signal'";
+        } else if (m_type == MessageType::method_call) {
+            result += "type='method_call'";
+        } else if (m_type == MessageType::method_return) {
+            result += "type='method_return'";
+        } else if (m_type == MessageType::error) {
+            result += "type='error'";
+        }
+        
+        // interface 字段
+        if (!m_interface.empty()) {
+            if (!result.empty()) result += ",";
+            result += "interface='";
+            result += m_interface;
+            result += "'";
+        }
+        
+        // member 字段
+        if (!m_member.empty()) {
+            if (!result.empty()) result += ",";
+            result += "member='";
+            result += m_member;
+            result += "'";
+        }
+        
+        // path 或 path_namespace 字段
+        if (!m_path.empty()) {
+            if (!result.empty()) result += ",";
+            if (m_path_namespace) {
+                result += "path_namespace='";
+            } else {
+                result += "path='";
+            }
+            result += m_path;
+            result += "'";
+        }
+        
+        // sender 字段
+        if (!m_sender.empty()) {
+            if (!result.empty()) result += ",";
+            result += "sender='";
+            result += m_sender;
+            result += "'";
+        }
+        
+        // destination 字段
+        if (!m_destination.empty()) {
+            if (!result.empty()) result += ",";
+            result += "destination='";
+            result += m_destination;
+            result += "'";
+        }
+        
+        return result;
     }
+
+private:
+    MessageType m_type;
+    std::string m_member;
+    std::string m_interface;
+    std::string m_path;
+    bool m_path_namespace;
+    std::string m_sender;
+    std::string m_destination;
 };
 
 using RulePtr = std::shared_ptr<Rule>;
 
 struct Context {
     void set_req(DBusMessage* msg) {
+        req = msg;
     }
 
     DBusMessage* req;
@@ -158,15 +235,116 @@ struct Context {
 class Matchs {
 public:
     void add_rule(RulePtr& rule, std::function<void(Context&)> cb) {
+        m_rules.push_back({rule, cb});
     }
 
     bool run(Context& ctx) {
-        return true;
+        if (!ctx.req) {
+            return false;
+        }
+        
+        bool matched = false;
+        for (auto& [rule, cb] : m_rules) {
+            if (test_rule_match(rule.get(), ctx.req)) {
+                matched = true;
+                cb(ctx);
+            }
+        }
+        return matched;
     }
 
     bool test_match(Context& ctx) {
+        if (!ctx.req) {
+            return false;
+        }
+        
+        for (auto& [rule, cb] : m_rules) {
+            if (test_rule_match(rule.get(), ctx.req)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+private:
+    bool test_rule_match(const Rule* rule, DBusMessage* msg) {
+        // 检查消息类型
+        int msg_type = dbus_message_get_type(msg);
+        if (rule->type() == MessageType::signal && msg_type != DBUS_MESSAGE_TYPE_SIGNAL) {
+            return false;
+        }
+        if (rule->type() == MessageType::method_call && msg_type != DBUS_MESSAGE_TYPE_METHOD_CALL) {
+            return false;
+        }
+        if (rule->type() == MessageType::method_return && msg_type != DBUS_MESSAGE_TYPE_METHOD_RETURN) {
+            return false;
+        }
+        if (rule->type() == MessageType::error && msg_type != DBUS_MESSAGE_TYPE_ERROR) {
+            return false;
+        }
+        
+        // 检查 interface
+        const char* msg_interface = dbus_message_get_interface(msg);
+        std::string_view rule_interface = rule->interface();
+        if (!rule_interface.empty()) {
+            if (!msg_interface || rule_interface != msg_interface) {
+                return false;
+            }
+        }
+        
+        // 检查 member
+        const char* msg_member = dbus_message_get_member(msg);
+        std::string_view rule_member = rule->member();
+        if (!rule_member.empty()) {
+            if (!msg_member || rule_member != msg_member) {
+                return false;
+            }
+        }
+        
+        // 检查 path
+        const char* msg_path = dbus_message_get_path(msg);
+        std::string_view rule_path = rule->path();
+        if (!rule_path.empty()) {
+            if (!msg_path) {
+                return false;
+            }
+            if (rule->path_namespace()) {
+                // path_namespace 匹配：消息路径必须以规则路径开头
+                std::string_view msg_path_sv(msg_path);
+                if (msg_path_sv.size() < rule_path.size() || 
+                    msg_path_sv.substr(0, rule_path.size()) != rule_path) {
+                    return false;
+                }
+            } else {
+                // 精确 path 匹配
+                if (rule_path != msg_path) {
+                    return false;
+                }
+            }
+        }
+        
+        // 检查 sender
+        const char* msg_sender = dbus_message_get_sender(msg);
+        std::string_view rule_sender = rule->sender();
+        if (!rule_sender.empty()) {
+            if (!msg_sender || rule_sender != msg_sender) {
+                return false;
+            }
+        }
+        
+        // 检查 destination
+        const char* msg_destination = dbus_message_get_destination(msg);
+        std::string_view rule_destination = rule->destination();
+        if (!rule_destination.empty()) {
+            if (!msg_destination || rule_destination != msg_destination) {
+                return false;
+            }
+        }
+        
         return true;
     }
+
+    std::vector<std::pair<RulePtr, std::function<void(Context&)>>> m_rules;
 };
 
 } // namespace Match
