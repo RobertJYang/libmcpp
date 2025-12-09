@@ -45,7 +45,7 @@ struct logger_config {
     log::level               level;     // 日志级别
     std::vector<std::string> appenders; // 关联的appender名称列表
 
-    logger_config(const std::string& name = DEFAULT_LOGGER) : name(name) {
+    logger_config(const std::string& name = MC_LOG_DEFAULT_LOGGER) : name(name) {
     }
 };
 
@@ -77,7 +77,7 @@ public:
      * @param name 日志记录器名称
      * @return logger 日志记录器
      */
-    logger get_logger(const char* name = DEFAULT_LOGGER);
+    logger get_logger(const char* name = MC_LOG_DEFAULT_LOGGER);
 
     /**
      * @brief 加载追加器

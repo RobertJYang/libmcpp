@@ -23,6 +23,7 @@
 #include <mc/futures/exceptions.h>
 #include <mc/futures/status.h>
 #include <mc/memory.h>
+#include <mc/runtime/condition_variable.h>
 
 namespace mc::futures {
 
@@ -33,8 +34,8 @@ using result_variant_t =
                                 std::variant<T, std::exception_ptr>>;
 
 struct MC_API state_base {
-    std::mutex              m_mutex;
-    std::condition_variable m_cv;
+    std::mutex                      m_mutex;
+    mc::runtime::condition_variable m_cv;
 
     callback_list     m_continuations;
     std::atomic<bool> ready{false};

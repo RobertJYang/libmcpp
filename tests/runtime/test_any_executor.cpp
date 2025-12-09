@@ -55,7 +55,7 @@ TEST_F(AnyExecutorTest, BasicConstruction) {
     // 测试 runtime::executor 构造
     auto                  io_strand = mc::make_io_strand();
     mc::runtime::executor runtime_exec(io_strand);
-    mc::any_executor       any_runtime(runtime_exec);
+    mc::any_executor      any_runtime(runtime_exec);
     EXPECT_TRUE(any_runtime.valid());
 
     // 测试模板构造函数（从 strand 构造，会被包装到 runtime::executor）
@@ -153,8 +153,8 @@ TEST_F(AnyExecutorTest, PostOperation) {
 TEST_F(AnyExecutorTest, DeferOperation) {
     auto& runtime = mc::get_runtime_context();
 
-    bool                                task_executed{false};
-    mc::test::runtime::future_flag      task_ready;
+    bool                           task_executed{false};
+    mc::test::runtime::future_flag task_ready;
 
     auto             io_executor = mc::get_io_executor();
     mc::any_executor any_io(io_executor);
@@ -172,8 +172,8 @@ TEST_F(AnyExecutorTest, DeferOperation) {
 TEST_F(AnyExecutorTest, DispatchOperation) {
     auto& runtime = mc::get_runtime_context();
 
-    bool                                task_executed{false};
-    mc::test::runtime::future_flag      task_ready;
+    bool                           task_executed{false};
+    mc::test::runtime::future_flag task_ready;
 
     mc::any_executor any_io(mc::get_io_executor());
 
@@ -243,8 +243,8 @@ TEST_F(AnyExecutorTest, ComparisonOperations) {
     // 测试相同类型但不同值的比较
     boost::asio::io_context ctx1;
     boost::asio::io_context ctx2;
-    mc::any_executor         any_ctx1(ctx1.get_executor());
-    mc::any_executor         any_ctx2(ctx2.get_executor());
+    mc::any_executor        any_ctx1(ctx1.get_executor());
+    mc::any_executor        any_ctx2(ctx2.get_executor());
     EXPECT_NE(any_ctx1, any_ctx2);
 }
 
@@ -313,7 +313,7 @@ TEST_F(AnyExecutorTest, ValidAllScenarios) {
 
     // 测试 runtime::executor 无效情况
     mc::runtime::executor invalid_exec;
-    mc::any_executor       any_invalid(invalid_exec);
+    mc::any_executor      any_invalid(invalid_exec);
     EXPECT_FALSE(any_invalid.valid());
 
     // 测试 immediate_executor（应该总是有效）
@@ -394,12 +394,12 @@ TEST_F(AnyExecutorTest, GetExecutor) {
 
     // 测试非 const 版本的 get_executor
     auto& executor_variant = any_exec.get_executor();
-    EXPECT_TRUE(std::holds_alternative<boost::asio::io_context::executor_type>(executor_variant));
+    EXPECT_TRUE(std::holds_alternative<mc::runtime::thread_pool::executor_type>(executor_variant));
 
     // 测试 const 版本的 get_executor
-    const mc::any_executor& const_any_exec = any_exec;
+    const mc::any_executor& const_any_exec         = any_exec;
     const auto&             const_executor_variant = const_any_exec.get_executor();
-    EXPECT_TRUE(std::holds_alternative<boost::asio::io_context::executor_type>(const_executor_variant));
+    EXPECT_TRUE(std::holds_alternative<mc::runtime::thread_pool::executor_type>(const_executor_variant));
 
     // 测试模板构造函数（从 strand 构造，会被包装到 runtime::executor）
     auto             strand = mc::make_io_strand();
@@ -421,18 +421,30 @@ TEST_F(AnyExecutorTest, PostDeferDispatchAllExecutorTypes) {
 
     // 测试 immediate_executor - 确保所有操作都覆盖
     mc::any_executor immediate_exec;
-    immediate_exec.post([&immediate_count]() { immediate_count++; });
-    immediate_exec.defer([&immediate_count]() { immediate_count++; });
-    immediate_exec.dispatch([&immediate_count]() { immediate_count++; });
+    immediate_exec.post([&immediate_count]() {
+        immediate_count++;
+    });
+    immediate_exec.defer([&immediate_count]() {
+        immediate_count++;
+    });
+    immediate_exec.dispatch([&immediate_count]() {
+        immediate_count++;
+    });
     EXPECT_EQ(immediate_count.load(), 3);
 
     // 测试 io_context::executor_type - 确保所有操作都覆盖
     auto             io_exec = mc::get_io_executor();
     mc::any_executor io_any_exec(io_exec);
-    io_any_exec.post([&io_count]() { io_count++; });
-    io_any_exec.defer([&io_count]() { io_count++; });
-    io_any_exec.dispatch([&io_count]() { io_count++; });
-    runtime.get_io_context().run_for(100ms);
+    io_any_exec.post([&io_count]() {
+        io_count++;
+    });
+    io_any_exec.defer([&io_count]() {
+        io_count++;
+    });
+    io_any_exec.dispatch([&io_count]() {
+        io_count++;
+    });
+    std::this_thread::sleep_for(100ms);
     EXPECT_EQ(io_count.load(), 3);
 
     // 测试 system_context::executor_type - 确保所有操作都覆盖，特别是 defer 分支
@@ -440,13 +452,13 @@ TEST_F(AnyExecutorTest, PostDeferDispatchAllExecutorTypes) {
     boost::asio::system_context system_ctx;
     auto                        system_exec = system_ctx.get_executor();
     mc::any_executor            system_any_exec(system_exec);
-    
+
     // 使用 promise/future 来同步等待任务完成，确保 defer 分支被覆盖
     std::promise<void> post_promise, defer_promise, dispatch_promise;
-    auto              post_future = post_promise.get_future();
-    auto              defer_future = defer_promise.get_future();
-    auto              dispatch_future = dispatch_promise.get_future();
-    
+    auto               post_future     = post_promise.get_future();
+    auto               defer_future    = defer_promise.get_future();
+    auto               dispatch_future = dispatch_promise.get_future();
+
     system_any_exec.post([&system_count, &post_promise]() {
         system_count++;
         post_promise.set_value();
@@ -460,12 +472,12 @@ TEST_F(AnyExecutorTest, PostDeferDispatchAllExecutorTypes) {
         system_count++;
         dispatch_promise.set_value();
     });
-    
+
     // 等待所有任务完成（最多等待 1 秒）
-    auto post_status = post_future.wait_for(1s);
-    auto defer_status = defer_future.wait_for(1s);
+    auto post_status     = post_future.wait_for(1s);
+    auto defer_status    = defer_future.wait_for(1s);
     auto dispatch_status = dispatch_future.wait_for(1s);
-    
+
     // 验证任务已执行
     EXPECT_EQ(post_status, std::future_status::ready);
     EXPECT_EQ(defer_status, std::future_status::ready);
@@ -476,10 +488,16 @@ TEST_F(AnyExecutorTest, PostDeferDispatchAllExecutorTypes) {
     auto                  strand = mc::make_io_strand();
     mc::runtime::executor runtime_exec(strand);
     mc::any_executor      runtime_any_exec(runtime_exec);
-    runtime_any_exec.post([&runtime_count]() { runtime_count++; });
-    runtime_any_exec.defer([&runtime_count]() { runtime_count++; });
-    runtime_any_exec.dispatch([&runtime_count]() { runtime_count++; });
-    runtime.get_io_context().run_for(100ms);
+    runtime_any_exec.post([&runtime_count]() {
+        runtime_count++;
+    });
+    runtime_any_exec.defer([&runtime_count]() {
+        runtime_count++;
+    });
+    runtime_any_exec.dispatch([&runtime_count]() {
+        runtime_count++;
+    });
+    std::this_thread::sleep_for(100ms);
     EXPECT_EQ(runtime_count.load(), 3);
 }
 
@@ -488,26 +506,38 @@ TEST_F(AnyExecutorTest, PostDeferDispatchWithCustomAllocator) {
     auto& runtime = mc::get_runtime_context();
     runtime.start();
 
-    std::atomic<int> immediate_count{0};
-    std::atomic<int> io_count{0};
-    std::atomic<int> system_count{0};
-    std::atomic<int> runtime_count{0};
+    std::atomic<int>     immediate_count{0};
+    std::atomic<int>     io_count{0};
+    std::atomic<int>     system_count{0};
+    std::atomic<int>     runtime_count{0};
     std::allocator<void> custom_allocator;
 
     // 测试 immediate_executor 使用自定义分配器
     mc::any_executor immediate_exec;
-    immediate_exec.post([&immediate_count]() { immediate_count++; }, custom_allocator);
-    immediate_exec.defer([&immediate_count]() { immediate_count++; }, custom_allocator);
-    immediate_exec.dispatch([&immediate_count]() { immediate_count++; }, custom_allocator);
+    immediate_exec.post([&immediate_count]() {
+        immediate_count++;
+    }, custom_allocator);
+    immediate_exec.defer([&immediate_count]() {
+        immediate_count++;
+    }, custom_allocator);
+    immediate_exec.dispatch([&immediate_count]() {
+        immediate_count++;
+    }, custom_allocator);
     EXPECT_EQ(immediate_count.load(), 3);
 
     // 测试 io_context::executor_type 使用自定义分配器
     auto             io_exec = mc::get_io_executor();
     mc::any_executor io_any_exec(io_exec);
-    io_any_exec.post([&io_count]() { io_count++; }, custom_allocator);
-    io_any_exec.defer([&io_count]() { io_count++; }, custom_allocator);
-    io_any_exec.dispatch([&io_count]() { io_count++; }, custom_allocator);
-    runtime.get_io_context().run_for(100ms);
+    io_any_exec.post([&io_count]() {
+        io_count++;
+    }, custom_allocator);
+    io_any_exec.defer([&io_count]() {
+        io_count++;
+    }, custom_allocator);
+    io_any_exec.dispatch([&io_count]() {
+        io_count++;
+    }, custom_allocator);
+    std::this_thread::sleep_for(100ms);
     EXPECT_EQ(io_count.load(), 3);
 
     // 测试 system_context::executor_type 使用自定义分配器
@@ -520,8 +550,12 @@ TEST_F(AnyExecutorTest, PostDeferDispatchWithCustomAllocator) {
         system_count++;
         system_promise.set_value();
     }, custom_allocator);
-    system_any_exec.defer([&system_count]() { system_count++; }, custom_allocator);
-    system_any_exec.dispatch([&system_count]() { system_count++; }, custom_allocator);
+    system_any_exec.defer([&system_count]() {
+        system_count++;
+    }, custom_allocator);
+    system_any_exec.dispatch([&system_count]() {
+        system_count++;
+    }, custom_allocator);
     system_future.wait_for(1s);
     EXPECT_GE(system_count.load(), 1);
 
@@ -529,9 +563,15 @@ TEST_F(AnyExecutorTest, PostDeferDispatchWithCustomAllocator) {
     auto                  strand = mc::make_io_strand();
     mc::runtime::executor runtime_exec(strand);
     mc::any_executor      runtime_any_exec(runtime_exec);
-    runtime_any_exec.post([&runtime_count]() { runtime_count++; }, custom_allocator);
-    runtime_any_exec.defer([&runtime_count]() { runtime_count++; }, custom_allocator);
-    runtime_any_exec.dispatch([&runtime_count]() { runtime_count++; }, custom_allocator);
-    runtime.get_io_context().run_for(100ms);
+    runtime_any_exec.post([&runtime_count]() {
+        runtime_count++;
+    }, custom_allocator);
+    runtime_any_exec.defer([&runtime_count]() {
+        runtime_count++;
+    }, custom_allocator);
+    runtime_any_exec.dispatch([&runtime_count]() {
+        runtime_count++;
+    }, custom_allocator);
+    std::this_thread::sleep_for(100ms);
     EXPECT_EQ(runtime_count.load(), 3);
 }

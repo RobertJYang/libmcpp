@@ -16,6 +16,7 @@
 #include <mc/dbus/connection.h>
 #include <mc/dbus/match.h>
 #include <mc/dbus/message.h>
+#include <mc/runtime/thread_pool.h>
 
 #include "dbus/connection_impl.h"
 
@@ -31,8 +32,8 @@
 #include <sstream>
 #include <string>
 #include <thread>
-#include <utility>
 #include <unistd.h>
+#include <utility>
 #include <vector>
 
 #include <test_utilities/test_base.h>
@@ -73,30 +74,25 @@ protected:
 
         TestWithDbusDaemon::SetUpTestSuite();
 
-        s_io_context = std::make_shared<boost::asio::io_context>();
-        s_thread     = std::make_unique<std::thread>([io_context = s_io_context]() {
-            auto work = boost::asio::make_work_guard(*io_context);
-            io_context->run();
-        });
+        s_io_context = std::make_shared<mc::runtime::thread_pool>(1);
+        s_io_context->start();
     }
 
     static void TearDownTestSuite() {
         TestWithDbusDaemon::TearDownTestSuite();
 
         s_io_context->stop();
-        s_thread->join();
-        s_thread.reset();
+        s_io_context->join();
         s_io_context.reset();
     }
 
     void SetUp() override {
-        s_io_context->restart();
     }
 
     void TearDown() override {
     }
 
-    std::shared_ptr<boost::asio::io_context> get_io_context() {
+    std::shared_ptr<mc::runtime::thread_pool> get_io_context() {
         return s_io_context;
     }
 
@@ -108,12 +104,10 @@ protected:
         return get_dbus_daemon().get_socket_path();
     }
 
-    static std::shared_ptr<boost::asio::io_context> s_io_context;
-    static std::unique_ptr<std::thread>             s_thread;
+    static std::shared_ptr<mc::runtime::thread_pool> s_io_context;
 };
 
-std::shared_ptr<boost::asio::io_context> connection_test::s_io_context;
-std::unique_ptr<std::thread>             connection_test::s_thread;
+std::shared_ptr<mc::runtime::thread_pool> connection_test::s_io_context;
 
 TEST_F(connection_test, test_list_names) {
     auto conn = mc::dbus::connection::open_session_bus(*s_io_context);
@@ -223,44 +217,44 @@ TEST_F(connection_test, scenario_full_dbus_flow) {
     EXPECT_FALSE(conn.get_unique_name().empty());
     EXPECT_GT(conn.get_next_serial(), 0u);
 
-    const std::string path       = "/org/test/fullscenario/" + suffix;
-    const std::string interface  = service_name + ".Iface";
-    const std::string method     = "Ping";
-    const std::string signal_kw  = "FullScenarioSignal";
+    const std::string path      = "/org/test/fullscenario/" + suffix;
+    const std::string interface = service_name + ".Iface";
+    const std::string method    = "Ping";
+    const std::string signal_kw = "FullScenarioSignal";
 
     std::atomic<int> handler_calls{0};
     conn.register_path(
         path,
         [local_conn = conn, &handler_calls](message& msg) mutable -> DBusHandlerResult {
-            handler_calls.fetch_add(1);
-            if (msg.is_method_call()) {
-                std::string payload;
-                auto        reader = msg.reader();
-                if (!reader.at_end()) {
-                    reader >> payload;
-                }
-                auto reply = message::new_method_return(msg);
-                {
-                    auto writer = reply.writer();
-                    writer << (payload.empty() ? std::string("ack") : payload);
-                }
-                local_conn.send(std::move(reply));
+        handler_calls.fetch_add(1);
+        if (msg.is_method_call()) {
+            std::string payload;
+            auto        reader = msg.reader();
+            if (!reader.at_end()) {
+                reader >> payload;
             }
-            return DBUS_HANDLER_RESULT_HANDLED;
-        });
+            auto reply = message::new_method_return(msg);
+            {
+                auto writer = reply.writer();
+                writer << (payload.empty() ? std::string("ack") : payload);
+            }
+            local_conn.send(std::move(reply));
+        }
+        return DBUS_HANDLER_RESULT_HANDLED;
+    });
 
     std::atomic<int> match_hits{0};
-    auto             rule_conn = match_rule::new_signal(signal_kw, interface);
+    auto             rule_conn     = match_rule::new_signal(signal_kw, interface);
     match_cb_t       match_handler = [&match_hits](message&) {
         match_hits.fetch_add(1);
     };
     conn.add_match(rule_conn, match_cb_t(match_handler), 42);
 
     auto& match_iface = conn.get_match();
-    auto  rule_match = match_rule::new_signal(signal_kw, interface);
+    auto  rule_match  = match_rule::new_signal(signal_kw, interface);
     match_iface.add_rule(rule_match,
                          [](message&) {
-                         },
+    },
                          43);
 
     std::atomic<int> filter_hits{0};
@@ -284,7 +278,7 @@ TEST_F(connection_test, scenario_full_dbus_flow) {
     // 异步调用自身服务，验证 register_path + async_send_with_reply
     auto async_call = message::new_method_call(service_name, path, interface, method);
     async_call.writer() << std::string("async");
-    auto future = conn.async_send_with_reply(std::move(async_call), mc::milliseconds(1000));
+    auto                    future = conn.async_send_with_reply(std::move(async_call), mc::milliseconds(1000));
     std::mutex              mutex;
     std::condition_variable cv;
     bool                    async_done = false;
@@ -311,8 +305,8 @@ TEST_F(connection_test, scenario_full_dbus_flow) {
         conn.dispatch();
         std::unique_lock lock(mutex);
         if (cv.wait_for(lock, std::chrono::milliseconds(10), [&async_done]() {
-                return async_done;
-            })) {
+            return async_done;
+        })) {
             break;
         }
         if (std::chrono::steady_clock::now() >= deadline) {

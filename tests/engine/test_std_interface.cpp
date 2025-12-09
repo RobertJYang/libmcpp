@@ -15,8 +15,8 @@
 #include <mc/exception.h>
 #include <mc/string.h>
 
-#include <test_utilities/test_base.h>
 #include <chrono>
+#include <test_utilities/test_base.h>
 #include <thread>
 
 // 解析xml
@@ -252,9 +252,9 @@ namespace {
  */
 template <typename Builder>
 mc::dbus::message wait_valid_reply(mc::dbus::connection& conn, Builder&& builder,
-                                   mc::milliseconds timeout = mc::milliseconds(2000),
-                                   int max_attempts = 5,
-                                   mc::milliseconds retry_delay = mc::milliseconds(100)) {
+                                   mc::milliseconds timeout      = mc::milliseconds(2000),
+                                   int              max_attempts = 5,
+                                   mc::milliseconds retry_delay  = mc::milliseconds(100)) {
     mc::dbus::message reply;
     for (int attempt = 0; attempt < max_attempts; ++attempt) {
         auto msg = builder();
@@ -513,17 +513,17 @@ TEST_F(std_interface_test, TestGetWithContext) {
     auto reply = wait_valid_reply(
         test_conn,
         [&]() {
-    auto msg =
-        mc::dbus::message::new_method_call("org.openubmc.test_service_2",
-                                           "/org/openubmc/test_object_b",
-                                           "bmc.kepler.Object.Properties",
-                                           "GetWithContext");
-    msg.set_sender("bmc.kepler.test_client");
-    msg.set_serial(1);
-            auto writer = msg.writer();
-    writer << ctx << "org.openubmc.test_interface_b" << "Arr";
-            return msg;
-        });
+        auto msg =
+            mc::dbus::message::new_method_call("org.openubmc.test_service_2",
+                                               "/org/openubmc/test_object_b",
+                                               "bmc.kepler.Object.Properties",
+                                               "GetWithContext");
+        msg.set_sender("bmc.kepler.test_client");
+        msg.set_serial(1);
+        auto writer = msg.writer();
+        writer << ctx << "org.openubmc.test_interface_b" << "Arr";
+        return msg;
+    });
     ASSERT_TRUE(reply.is_valid() && reply.is_method_return())
         << "reply_valid=" << reply.is_valid()
         << " reply_type=" << static_cast<int>(reply.get_type())
@@ -548,15 +548,15 @@ TEST_F(std_interface_test, TestSetWithContext) {
     auto setter_reply = wait_valid_reply(
         test_conn,
         [&]() {
-            auto msg =
-                mc::dbus::message::new_method_call(
-                    "org.openubmc.test_service_2",
-                    "/org/openubmc/test_object_b", "bmc.kepler.Object.Properties", "SetWithContext");
-            msg.set_sender("bmc.kepler.test_client");
-            auto writer = msg.writer();
-    writer << ctx << "org.openubmc.test_interface_b" << "Arr" << arr;
-            return msg;
-        });
+        auto msg =
+            mc::dbus::message::new_method_call(
+                "org.openubmc.test_service_2",
+                "/org/openubmc/test_object_b", "bmc.kepler.Object.Properties", "SetWithContext");
+        msg.set_sender("bmc.kepler.test_client");
+        auto writer = msg.writer();
+        writer << ctx << "org.openubmc.test_interface_b" << "Arr" << arr;
+        return msg;
+    });
     ASSERT_TRUE(setter_reply.is_valid() && setter_reply.is_method_return())
         << "reply_valid=" << setter_reply.is_valid()
         << " reply_type=" << static_cast<int>(setter_reply.get_type())
@@ -565,15 +565,15 @@ TEST_F(std_interface_test, TestSetWithContext) {
     auto getter_reply = wait_valid_reply(
         test_conn,
         [&]() {
-            auto msg = mc::dbus::message::new_method_call("org.openubmc.test_service_2",
-                                             "/org/openubmc/test_object_b",
-                                             "bmc.kepler.Object.Properties",
-                                             "GetWithContext");
-    msg.set_sender("bmc.kepler.test_client");
-            auto writer = msg.writer();
-    writer << ctx << "org.openubmc.test_interface_b" << "Arr";
-            return msg;
-        });
+        auto msg = mc::dbus::message::new_method_call("org.openubmc.test_service_2",
+                                                      "/org/openubmc/test_object_b",
+                                                      "bmc.kepler.Object.Properties",
+                                                      "GetWithContext");
+        msg.set_sender("bmc.kepler.test_client");
+        auto writer = msg.writer();
+        writer << ctx << "org.openubmc.test_interface_b" << "Arr";
+        return msg;
+    });
     ASSERT_TRUE(getter_reply.is_valid() && getter_reply.is_method_return())
         << "reply_valid=" << getter_reply.is_valid()
         << " reply_type=" << static_cast<int>(getter_reply.get_type())
@@ -638,7 +638,7 @@ TEST_F(std_interface_test, CommonPropertiesContextHelpers) {
 
     // 压栈对象，验证 common_properties 的上下文接口
     mc::engine::object_call_stack::context ctx{nullptr, obj};
-    auto& common_props = mc::engine::common_properties_interface::get_instance();
+    auto&                                  common_props = mc::engine::common_properties_interface::get_instance();
 
     auto parent_path = common_props.get("ParentPath").as_string();
     EXPECT_EQ(parent_path, "/org/openubmc/test_parent");

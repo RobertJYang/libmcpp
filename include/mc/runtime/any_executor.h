@@ -17,6 +17,7 @@
 #include <mc/exception.h>
 #include <mc/runtime/executor.h>
 #include <mc/runtime/immediate_context.h>
+#include <mc/runtime/thread_pool.h>
 
 #include <boost/asio.hpp>
 
@@ -29,8 +30,7 @@ namespace mc::runtime {
 namespace detail {
 using executor_variant = std::variant<
     ::mc::runtime::immediate_executor,
-    boost::asio::io_context::executor_type,
-    boost::asio::system_context::executor_type,
+    ::mc::runtime::thread_pool::executor_type,
     ::mc::runtime::executor>;
 }
 
@@ -49,14 +49,9 @@ public:
     any_executor();
 
     /**
-     * @brief 从 IO 执行器构造
+     * @brief 从 thread_pool 执行器构造
      */
-    any_executor(boost::asio::io_context::executor_type executor);
-
-    /**
-     * @brief 从系统执行器构造
-     */
-    any_executor(boost::asio::system_context::executor_type executor);
+    any_executor(thread_pool::executor_type executor);
 
     /**
      * @brief 从 mc::runtime::executor 构造
@@ -69,8 +64,7 @@ public:
     template <typename Executor,
               typename = std::enable_if_t<
                   !std::is_same_v<std::decay_t<Executor>, any_executor> &&
-                  !std::is_same_v<std::decay_t<Executor>, boost::asio::io_context::executor_type> &&
-                  !std::is_same_v<std::decay_t<Executor>, boost::asio::system_context::executor_type> &&
+                  !std::is_same_v<std::decay_t<Executor>, thread_pool::executor_type> &&
                   !std::is_same_v<std::decay_t<Executor>, runtime::executor>>>
     any_executor(Executor&& executor);
 

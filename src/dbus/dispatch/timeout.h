@@ -20,7 +20,7 @@ namespace mc::dbus {
 class timeout : public mc::enable_shared_from_this<timeout> {
 public:
     template <typename Executor>
-    timeout(Executor& executor, DBusTimeout* timeout) : m_timeout(timeout), m_timer(executor) {
+    timeout(const Executor& executor, DBusTimeout* timeout) : m_timeout(timeout), m_timer(executor) {
     }
 
     ~timeout();
@@ -30,7 +30,7 @@ public:
 
 private:
     DBusTimeout*              m_timeout{nullptr};
-    boost::asio::steady_timer m_timer;
+    mc::runtime::steady_timer m_timer;
 };
 
 } // namespace mc::dbus

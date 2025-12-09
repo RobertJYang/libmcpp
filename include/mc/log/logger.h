@@ -23,8 +23,8 @@ namespace mc {
 namespace log {
 
 // 默认日志记录器名称
-#ifndef DEFAULT_LOGGER
-#define DEFAULT_LOGGER "default"
+#ifndef MC_LOG_DEFAULT_LOGGER
+#define MC_LOG_DEFAULT_LOGGER "default"
 #endif
 
 /**
@@ -40,7 +40,7 @@ public:
      * @param name 日志记录器名称
      * @return logger 日志记录器
      */
-    static logger get(const char* name = DEFAULT_LOGGER);
+    static logger get(const char* name = MC_LOG_DEFAULT_LOGGER);
 
     logger();
 
@@ -187,10 +187,10 @@ private:
  * @brief 记录日志
  */
 #define MC_LOG_BASE_WITH_CATEGORY(LOGGER, CATEGORY, ...)                     \
-    do {                                                    \
-        if (!LOGGER.is_debug_log(CATEGORY)) {                \
+    do {                                                                     \
+        if (!LOGGER.is_debug_log(CATEGORY)) {                                \
             LOGGER.log(MC_LOG_MESSAGE_WITH_CATEGORY(CATEGORY, __VA_ARGS__)); \
-        }                                                   \
+        }                                                                    \
     } while (0)
 
 /**

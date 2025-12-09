@@ -24,9 +24,6 @@
 #include <mc/variant.h>
 
 namespace mc {
-using io_context     = boost::asio::io_context;
-using system_context = boost::asio::system_context;
-using thread_pool    = boost::asio::thread_pool;
 template <typename Executor>
 using strand_t = boost::asio::strand<Executor>;
 

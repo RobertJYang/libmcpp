@@ -15,6 +15,7 @@
 #include <mc/dbus/connection.h>
 #include <mc/dbus/match.h>
 #include <mc/dbus/message.h>
+#include <mc/runtime/thread_pool.h>
 
 #include "dbus/dispatch/pending_call.h"
 
@@ -28,31 +29,24 @@ class dispatch_test : public mc::test::TestWithDbusDaemon {
 protected:
     static void SetUpTestSuite() {
         TestWithDbusDaemon::SetUpTestSuite();
-        s_io_context = std::make_shared<boost::asio::io_context>();
-        s_thread     = std::make_unique<std::thread>([io_context = s_io_context]() {
-            auto work = boost::asio::make_work_guard(*io_context);
-            io_context->run();
-        });
+        s_io_context = std::make_shared<mc::runtime::thread_pool>(1);
+        s_io_context->start();
     }
 
     static void TearDownTestSuite() {
         s_io_context->stop();
-        s_thread->join();
-        s_thread.reset();
+        s_io_context->join();
         s_io_context.reset();
         TestWithDbusDaemon::TearDownTestSuite();
     }
 
     void SetUp() override {
-        s_io_context->restart();
     }
 
-    static std::shared_ptr<boost::asio::io_context> s_io_context;
-    static std::unique_ptr<std::thread>             s_thread;
+    static std::shared_ptr<mc::runtime::thread_pool> s_io_context;
 };
 
-std::shared_ptr<boost::asio::io_context> dispatch_test::s_io_context;
-std::unique_ptr<std::thread>             dispatch_test::s_thread;
+std::shared_ptr<mc::runtime::thread_pool> dispatch_test::s_io_context;
 
 TEST_F(dispatch_test, test_connection_dispatch) {
     auto conn = connection::open_session_bus(*s_io_context);
@@ -96,22 +90,11 @@ TEST_F(dispatch_test, test_async_send_with_reply) {
     EXPECT_TRUE(conn.start());
     ASSERT_TRUE(conn.is_connected());
     EXPECT_TRUE(conn.request_name("org.test.Dispatch"));
-    auto                    msg    = message::new_method_call("org.freedesktop.DBus", "/org/freedesktop/DBus",
-                                                              "org.freedesktop.DBus", "GetId");
-    auto                    future = conn.async_send_with_reply(std::move(msg), mc::milliseconds(1000));
-    std::mutex              mutex;
-    std::condition_variable cv;
-    bool                    done = false;
-    message                 reply_msg;
-    future.then([&cv, &done, &reply_msg](const message& reply) {
-        reply_msg = reply;
-        done      = true;
-        cv.notify_one();
-    });
-    std::unique_lock lock(mutex);
-    cv.wait_for(lock, std::chrono::milliseconds(2000));
-    EXPECT_TRUE(done);
-    EXPECT_TRUE(reply_msg.is_valid());
+    auto msg    = message::new_method_call("org.freedesktop.DBus", "/org/freedesktop/DBus",
+                                           "org.freedesktop.DBus", "GetId");
+    auto future = conn.async_send_with_reply(std::move(msg), mc::seconds(1));
+    EXPECT_NE(future.wait_for(mc::seconds(2)), mc::future_status::timeout);
+    EXPECT_TRUE(future.get().is_valid());
     conn.disconnect();
 }
 
@@ -126,30 +109,12 @@ TEST_F(dispatch_test, test_multiple_concurrent_calls) {
     for (int i = 0; i < num_calls; ++i) {
         auto msg = message::new_method_call("org.freedesktop.DBus", "/org/freedesktop/DBus",
                                             "org.freedesktop.DBus", "GetId");
-        futures.push_back(conn.async_send_with_reply(std::move(msg), mc::milliseconds(1000)));
+        futures.push_back(conn.async_send_with_reply(std::move(msg), mc::seconds(1)));
     }
 
-    std::mutex              mutex;
-    std::condition_variable cv;
-    int                     completed = 0;
-    std::vector<message>    replies(num_calls);
-
-    for (size_t i = 0; i < futures.size(); ++i) {
-        futures[i].then([&mutex, &cv, &completed, &replies, i](const message& reply) {
-            std::lock_guard<std::mutex> lock(mutex);
-            replies[i] = reply;
-            completed++;
-            cv.notify_one();
-        });
-    }
-
-    std::unique_lock lock(mutex);
-    cv.wait_for(lock, std::chrono::milliseconds(3000), [&completed]() {
-        return completed == num_calls;
-    });
-
-    EXPECT_EQ(completed, num_calls);
-    for (const auto& reply : replies) {
+    auto all_futures = mc::all(futures.begin(), futures.end());
+    EXPECT_EQ(all_futures.wait_for(mc::seconds(3)), mc::future_status::ready);
+    for (const auto& reply : all_futures.get()) {
         EXPECT_TRUE(reply.is_valid());
     }
     conn.disconnect();
@@ -172,22 +137,9 @@ TEST_F(dispatch_test, test_dispatch_while_receiving) {
         }
     });
 
-    std::mutex              mutex;
-    std::condition_variable cv;
-    bool                    done = false;
-    message                 reply_msg;
-    future.then([&cv, &done, &reply_msg](const message& reply) {
-        reply_msg = reply;
-        done      = true;
-        cv.notify_one();
-    });
-
-    std::unique_lock lock(mutex);
-    cv.wait_for(lock, std::chrono::milliseconds(2000));
-
+    EXPECT_EQ(future.wait_for(mc::milliseconds(2000)), mc::future_status::ready);
     dispatch_thread.join();
-    EXPECT_TRUE(done);
-    EXPECT_TRUE(reply_msg.is_valid());
+    EXPECT_TRUE(future.get().is_valid());
     conn.disconnect();
 }
 
@@ -219,28 +171,9 @@ TEST_F(dispatch_test, test_pending_call_move_operations) {
                                             "org.freedesktop.DBus", "GetId");
     auto future2 = conn.async_send_with_reply(std::move(msg2), mc::milliseconds(1000));
 
-    std::mutex              mutex;
-    std::condition_variable cv;
-    int                     completed = 0;
-
-    future1.then([&mutex, &cv, &completed](const message&) {
-        std::lock_guard<std::mutex> lock(mutex);
-        completed++;
-        cv.notify_one();
-    });
-
-    future2.then([&mutex, &cv, &completed](const message&) {
-        std::lock_guard<std::mutex> lock(mutex);
-        completed++;
-        cv.notify_one();
-    });
-
-    std::unique_lock lock(mutex);
-    cv.wait_for(lock, std::chrono::milliseconds(2000), [&completed]() {
-        return completed == 2;
-    });
-
-    EXPECT_EQ(completed, 2);
+    ASSERT_EQ(mc::all(future1, future2).wait_for(mc::milliseconds(2000)), mc::future_status::ready);
+    EXPECT_TRUE(future1.is_ready());
+    EXPECT_TRUE(future2.is_ready());
     conn.disconnect();
 }
 
@@ -257,22 +190,8 @@ TEST_F(dispatch_test, test_pending_call_stop_before_reply) {
     std::this_thread::sleep_for(std::chrono::milliseconds(10));
     conn.disconnect();
 
-    std::mutex              mutex;
-    std::condition_variable cv;
-    bool                    done = false;
-    message                 reply_msg;
-
-    future.then([&mutex, &cv, &done, &reply_msg](const message& reply) {
-        std::lock_guard<std::mutex> lock(mutex);
-        reply_msg = reply;
-        done      = true;
-        cv.notify_one();
-    });
-
-    std::unique_lock lock(mutex);
-    cv.wait_for(lock, std::chrono::milliseconds(1000), [&done]() {
-        return done;
-    });
+    future.wait_for(mc::milliseconds(1000));
+    EXPECT_TRUE(future.is_ready());
 }
 
 TEST_F(dispatch_test, test_timeout_handling) {

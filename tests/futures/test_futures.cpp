@@ -31,8 +31,8 @@ using namespace std::chrono_literals;
 namespace {
 class FuturesTest : public mc::test::TestWithRuntime {
 public:
-    boost::asio::io_context& get_io_context() {
-        return get_runtime().get_io_context();
+    mc::runtime::thread_pool& get_io_context() {
+        return get_runtime().io();
     }
 };
 } // namespace
@@ -44,6 +44,40 @@ TEST_F(FuturesTest, BasicPromiseFuture) {
 
     promise.set_value(42);
     EXPECT_EQ(future.get(), 42);
+}
+
+// 验证阻塞 worker 线程能继续处理 IO 事件
+TEST_F(FuturesTest, WaitOnWorker) {
+    auto& pool = get_io_context();
+
+    auto promise = std::make_shared<mc::promise<int>>(pool.get_executor(), std::allocator<void>());
+    auto future  = promise->get_future();
+
+    auto done_promise = std::make_shared<std::promise<void>>();
+    auto done_future  = done_promise->get_future();
+
+    boost::asio::post(pool.get_executor(), [promise, future = std::move(future), done_promise]() mutable {
+        // 1. 获取当前 shard
+        auto* shard = mc::runtime::thread_pool::get_current_shard();
+        ASSERT_NE(shard, nullptr) << "Must be running on a thread pool worker";
+
+        // 2. 在同一个 shard 上启动一个定时器
+        auto timer = std::make_shared<mc::runtime::steady_timer>(shard->ctx->get_executor());
+        timer->expires_after(std::chrono::milliseconds(50));
+        timer->async_wait([promise, timer](const boost::system::error_code& ec) {
+            if (!ec) {
+                promise->set_value(42); // 定时器触发，设置 promise 值
+            }
+        });
+
+        // 3. 调用 wait()，wait() 会处理了 IO 循环，所以能够继续驱动定时器执行
+        future.wait();
+
+        done_promise->set_value();
+    });
+
+    auto status = done_future.wait_for(std::chrono::seconds(2));
+    ASSERT_EQ(status, std::future_status::ready);
 }
 
 // 测试 catch_error 捕获异常
@@ -880,7 +914,7 @@ TEST_F(FuturesTest, TimeoutFunctionWithAlreadyCancelledFuture) {
     EXPECT_THROW(timeout_future.get(), mc::canceled_exception);
 }
 
-// 测试使用 boost::asio::steady_timer 延时执行
+// 测试使用 mc::runtime::steady_timer 延时执行
 TEST_F(FuturesTest, DelayedExecution) {
     auto start_time = std::chrono::steady_clock::now();
 
@@ -888,7 +922,7 @@ TEST_F(FuturesTest, DelayedExecution) {
     auto future  = promise.get_future();
 
     // 在 100ms 后设置值
-    boost::asio::steady_timer timer(get_io_context(), 100ms);
+    mc::runtime::steady_timer timer(get_io_context().get_executor(), 100ms);
     timer.async_wait([&promise](const boost::system::error_code&) {
         // 延时设置 promise 值
         promise.set_value(42);
@@ -1383,7 +1417,7 @@ TEST_F(FuturesTest, CancelInnerFuture) {
 
         // 创建一个内部定时器，在 10ms 后取消外部定时器
         // 故意用 runtime 的 work 上下文而不是 io 上下文，测试 future 可以跨上下文运行
-        mc::delay(10ms, get_runtime().get_work_context()).then([outer_future]() mutable {
+        mc::delay(10ms, get_runtime().work()).then([outer_future]() mutable {
             outer_future.cancel();
         });
 

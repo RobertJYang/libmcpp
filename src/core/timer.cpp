@@ -17,13 +17,10 @@
 namespace mc::core {
 
 struct timer::timer_impl {
-    using timer_type = boost::asio::basic_waitable_timer<
-        std::chrono::steady_clock,
-        boost::asio::wait_traits<std::chrono::steady_clock>,
-        mc::any_executor>;
+    using timer_type = mc::runtime::steady_timer;
 
-    template <typename Executor>
-    timer_impl(Executor&& executor) : m_timer(std::forward<Executor>(executor)) {
+    timer_impl(mc::runtime::thread_pool::executor_type executor)
+        : m_timer(executor) {
     }
 
     ~timer_impl() {
@@ -98,7 +95,9 @@ bool timer::check_active() const {
 void timer::start(mc::milliseconds msec) {
     m_interval = msec;
     if (!m_impl) {
-        m_impl = std::make_unique<timer_impl>(get_executor());
+        m_impl = std::make_unique<timer_impl>(
+            std::get<mc::runtime::thread_pool::executor_type>(
+                get_executor().get_executor()));
     }
 
     m_impl->start(mc::static_pointer_cast<timer>(this->shared_from_this()));

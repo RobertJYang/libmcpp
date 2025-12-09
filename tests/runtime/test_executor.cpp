@@ -706,7 +706,7 @@ TEST_F(ExecutorTest, PostDeferDispatchWithCustomAllocator) {
     // 使用自定义分配器调用 dispatch
     exec.dispatch([&task_count]() { task_count++; }, custom_allocator);
 
-    runtime.get_io_context().run_for(100ms);
+    std::this_thread::sleep_for(100ms);
     EXPECT_EQ(task_count.load(), 3);
 }
 
@@ -758,7 +758,7 @@ TEST_F(ExecutorTest, ExecutorConstructorRvalue) {
         task_executed.store(true);
     });
 
-    runtime.get_io_context().run_for(100ms);
+    std::this_thread::sleep_for(100ms);
     EXPECT_TRUE(task_executed.load());
 }
 

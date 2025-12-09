@@ -45,4 +45,14 @@ thread_id get_thread_id() {
 #endif
 }
 
+void set_current_thread_name(const std::string& name) {
+#if defined(__linux__)
+    pthread_setname_np(pthread_self(), name.c_str());
+#elif defined(__APPLE__)
+    pthread_setname_np(name.c_str());
+#else
+    MC_UNUSED(name);
+#endif
+}
+
 } // namespace mc

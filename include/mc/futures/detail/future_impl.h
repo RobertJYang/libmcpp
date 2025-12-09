@@ -175,7 +175,7 @@ void Future<T, Executor, Allocator>::wait() const {
         return;
     }
     state_->m_cv.wait(lock, [&] {
-        return state_->ready.load();
+        return state_->ready.load(std::memory_order_acquire);
     });
 }
 
