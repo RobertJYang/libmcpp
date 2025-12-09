@@ -20,7 +20,7 @@ namespace mc::dbus {
 class watch : public mc::enable_shared_from_this<watch> {
 public:
     template <typename Executor>
-    watch(Executor& executor, DBusWatch* watch)
+    watch(const Executor& executor, DBusWatch* watch)
         : m_watch(watch), m_socket(executor, dbus_watch_get_unix_fd(watch)) {
     }
 

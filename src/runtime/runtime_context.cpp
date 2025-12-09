@@ -14,7 +14,7 @@
 #include <mc/exception.h>
 #include <mc/log.h>
 #include <mc/runtime/runtime_context.h>
-#include <mc/runtime/thread_list.h>
+#include <mc/runtime/thread_pool.h>
 #include <mc/singleton.h>
 #include <mc/sync/mutex_box.h>
 
@@ -70,9 +70,6 @@ immediate_context::executor_type immediate_context::get_executor() const noexcep
     return executor_type();
 }
 
-using io_work_guard = boost::asio::executor_work_guard<io_context::executor_type>;
-using work_guard    = boost::asio::executor_work_guard<work_context::executor_type>;
-
 static inline std::size_t get_thread_count(std::size_t threads) {
     if (threads == 0) {
         return std::max(std::size_t{1}, std::size_t(std::thread::hardware_concurrency()));
@@ -98,55 +95,19 @@ public:
     void ensure_start();
     void start_impl();
 
-    io_context& get_io_context() noexcept {
+    thread_pool& io() noexcept {
         ensure_start();
-        return m_io_context;
+        return *m_io_pool;
     }
 
-    work_context& get_work_context() noexcept {
+    thread_pool& work() noexcept {
         ensure_start();
-        return m_work_context;
-    }
-
-    // 任务分发方法
-    void post_to_io_context(std::function<void()> task) {
-        ensure_start();
-        boost::asio::post(m_io_context, std::move(task));
-    }
-
-    void post_to_work_context(std::function<void()> task) {
-        ensure_start();
-        boost::asio::post(m_work_context, std::move(task));
-    }
-
-    void defer_to_io_context(std::function<void()> task) {
-        ensure_start();
-        boost::asio::defer(m_io_context, std::move(task));
-    }
-
-    void defer_to_work_context(std::function<void()> task) {
-        ensure_start();
-        boost::asio::defer(m_work_context, std::move(task));
-    }
-
-    void dispatch_to_io_context(std::function<void()> task) {
-        ensure_start();
-        boost::asio::dispatch(m_io_context, std::move(task));
-    }
-
-    void dispatch_to_work_context(std::function<void()> task) {
-        ensure_start();
-        boost::asio::dispatch(m_work_context, std::move(task));
+        return *m_work_pool;
     }
 
 private:
-    io_context                     m_io_context;
-    thread_list                    m_io_threads;
-    std::unique_ptr<io_work_guard> m_io_guard;
-
-    work_context                m_work_context;
-    thread_list                 m_work_threads;
-    std::unique_ptr<work_guard> m_work_guard;
+    std::unique_ptr<thread_pool> m_io_pool;
+    std::unique_ptr<thread_pool> m_work_pool;
 
     enum class state_t : std::uint8_t {
         uninitialized = 0, // 未初始化
@@ -177,9 +138,7 @@ void runtime_context::impl::set_config(const runtime_config& new_config) {
     config.io_threads   = std::min(io_threads, std::size_t{MC_MAX_IO_THREADS});
     config.work_threads = std::min(work_threads, std::size_t{MC_MAX_WORK_THREADS});
 
-    dlog("runtime_context set config, "
-         "IO threads: ${count}, "
-         "work threads: ${work_count}",
+    dlog("runtime_context set config, IO threads: ${count}, work threads: ${work_count}",
          ("count", io_threads)("work_count", work_threads));
 }
 
@@ -226,50 +185,20 @@ void runtime_context::impl::start() {
 
 void runtime_context::impl::start_impl() {
     auto& data = m_data.unsafe_get_data();
-    if (!m_io_threads.empty() || !m_work_threads.empty()) {
+    if ((m_io_pool && !m_io_pool->stopped()) || (m_work_pool && !m_work_pool->stopped())) {
         wlog("runtime_context already started, ignoring duplicate start");
         return;
     }
 
     data.state = state_t::running;
 
-    // 确保上下文已启动
-    if (m_io_context.stopped()) {
-        m_io_context.restart();
-    }
-    if (m_work_context.stopped()) {
-        m_work_context.restart();
-    }
+    m_io_pool   = std::make_unique<thread_pool>(data.config.io_threads, "io");
+    m_work_pool = std::make_unique<thread_pool>(data.config.work_threads, "work");
 
-    // 创建工作守护，防止线程立即退出
-    m_io_guard   = std::make_unique<io_work_guard>(boost::asio::make_work_guard(m_io_context));
-    m_work_guard = std::make_unique<work_guard>(boost::asio::make_work_guard(m_work_context));
+    m_io_pool->start();
+    m_work_pool->start();
 
-    // 启动IO线程池
-    m_io_threads.start_threads(data.config.io_threads, [this]() {
-        dlog("IO thread started");
-        try {
-            m_io_context.run();
-        } catch (const std::exception& e) {
-            elog("IO thread exception: ${error}", ("error", e.what()));
-        }
-        dlog("IO thread ended");
-    });
-
-    // 启动系统线程池
-    m_work_threads.start_threads(data.config.work_threads, [this]() {
-        dlog("work thread started");
-        try {
-            m_work_context.run();
-        } catch (const std::exception& e) {
-            elog("work thread exception: ${error}", ("error", e.what()));
-        }
-        dlog("work thread ended");
-    });
-
-    dlog("runtime_context started successfully, "
-         "IO threads: ${count}, "
-         "work threads: ${work_count}",
+    dlog("runtime_context started successfully, IO threads: ${count}, work threads: ${work_count}",
          ("count", data.config.io_threads)("work_count", data.config.work_threads));
 }
 
@@ -280,31 +209,30 @@ void runtime_context::impl::stop() {
         }
 
         dlog("stopping runtime_context...");
-
         data.state = state_t::stopped;
 
-        m_io_guard.reset();
-        m_work_guard.reset();
-
-        m_io_context.stop();
-        m_work_context.stop();
+        if (m_io_pool) {
+            m_io_pool->stop();
+        }
+        if (m_work_pool) {
+            m_work_pool->stop();
+        }
 
         dlog("runtime_context stop signal sent");
     });
 }
 
 void runtime_context::impl::join() {
-    if (m_io_threads.empty()) {
-        return;
+    dlog("waiting for threads to finish...");
+    if (m_io_pool) {
+        m_io_pool->join();
+    }
+    if (m_work_pool) {
+        m_work_pool->join();
     }
 
-    dlog("waiting for IO threads to finish...");
-
-    m_io_threads.join_all();
-    m_work_threads.join_all();
-
-    m_io_threads.clear();
-    m_work_threads.clear();
+    m_io_pool.reset();
+    m_work_pool.reset();
 
     dlog("runtime_context stopped completely");
 }
@@ -314,7 +242,6 @@ bool runtime_context::impl::is_stopped() const noexcept {
     return state == state_t::stopped || state == state_t::uninitialized;
 }
 
-// runtime_context 实现
 runtime_context::runtime_context() : m_impl(std::make_unique<impl>()) {
 }
 
@@ -345,28 +272,23 @@ bool runtime_context::is_stopped() const noexcept {
     return m_impl->is_stopped();
 }
 
-io_context::executor_type runtime_context::get_io_executor() noexcept {
-    return get_io_context().get_executor();
+thread_pool& runtime_context::io() noexcept {
+    return m_impl->io();
 }
 
-work_context::executor_type runtime_context::get_work_executor() noexcept {
-    return get_work_context().get_executor();
+thread_pool& runtime_context::work() noexcept {
+    return m_impl->work();
 }
 
-io_context& runtime_context::get_io_context() noexcept {
-    return m_impl->get_io_context();
+thread_pool::executor_type runtime_context::get_executor() noexcept {
+    // Return IO executor as default? Or Work?
+    // Previous implementation returned Work executor.
+    return m_impl->work().get_executor();
 }
 
-work_context& runtime_context::get_work_context() noexcept {
-    return m_impl->get_work_context();
-}
-
-io_strand runtime_context::make_io_strand() noexcept {
-    return io_strand(get_io_context().get_executor());
-}
-
-work_strand runtime_context::make_work_strand() noexcept {
-    return work_strand(get_work_context().get_executor());
+strand runtime_context::create_strand() {
+    // Default strand on work context
+    return strand(mc::singleton<runtime_context>::instance().get_executor());
 }
 
 } // namespace mc::runtime

@@ -18,8 +18,12 @@
 #include <mc/runtime/immediate_context.h>
 #include <mc/runtime/runtime_context.h>
 #include <mc/runtime/thread_list.h>
+#include <mc/runtime/thread_pool.h>
 
 namespace mc::runtime {
+
+using io_context   = thread_pool;
+using work_context = thread_pool;
 
 struct io_executor_tag {};
 struct work_executor_tag {};
@@ -45,7 +49,7 @@ MC_API void             reset_runtime_context();
  * @return IO上下文
  */
 inline io_context& get_io_context() {
-    return get_runtime_context().get_io_context();
+    return get_runtime_context().io();
 }
 
 /**
@@ -53,7 +57,7 @@ inline io_context& get_io_context() {
  * @return 工作上下文
  */
 inline work_context& get_work_context() {
-    return get_runtime_context().get_work_context();
+    return get_runtime_context().work();
 }
 
 /**
@@ -61,7 +65,7 @@ inline work_context& get_work_context() {
  * @return 默认执行器（IO执行器）
  */
 inline auto get_default_executor() {
-    return get_runtime_context().get_io_executor();
+    return get_io_context().get_executor();
 }
 
 /**
@@ -69,7 +73,7 @@ inline auto get_default_executor() {
  * @return IO执行器
  */
 inline auto get_io_executor() {
-    return get_runtime_context().get_io_executor();
+    return get_io_context().get_executor();
 }
 
 /**
@@ -77,7 +81,7 @@ inline auto get_io_executor() {
  * @return 系统执行器
  */
 inline auto get_work_executor() {
-    return get_runtime_context().get_work_executor();
+    return get_work_context().get_executor();
 }
 
 /**
@@ -175,13 +179,22 @@ auto dispatch(CompletionToken&& token, ExecutorTag) {
  * @return strand执行器
  */
 inline auto make_io_strand() {
-    return get_runtime_context().make_io_strand();
+    return boost::asio::make_strand(get_io_executor());
 }
 
 inline auto make_work_strand() {
-    return get_runtime_context().make_work_strand();
+    return boost::asio::make_strand(get_work_executor());
 }
 
+template <typename Executor>
+using basic_timer = boost::asio::basic_waitable_timer<
+    std::chrono::steady_clock,
+    boost::asio::wait_traits<std::chrono::steady_clock>,
+    std::conditional_t<
+        std::is_convertible_v<Executor, boost::asio::io_context::executor_type>,
+        boost::asio::io_context::executor_type,
+        boost::asio::any_io_executor>>;
+using steady_timer = basic_timer<boost::asio::io_context::executor_type>;
 } // namespace mc::runtime
 
 namespace mc {

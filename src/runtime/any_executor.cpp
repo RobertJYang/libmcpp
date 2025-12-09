@@ -19,11 +19,7 @@ any_executor::any_executor()
     : m_executor(immediate_executor()) {
 }
 
-any_executor::any_executor(boost::asio::io_context::executor_type executor)
-    : m_executor(std::move(executor)) {
-}
-
-any_executor::any_executor(boost::asio::system_context::executor_type executor)
+any_executor::any_executor(thread_pool::executor_type executor)
     : m_executor(std::move(executor)) {
 }
 

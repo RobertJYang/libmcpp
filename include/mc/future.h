@@ -178,18 +178,19 @@ struct result_test<T, F, std::tuple<Arg, Args...>,
 template <typename T, typename F, typename... Args>
 using result_t = typename result_test<T, F, std::tuple<Args...>>::type;
 
+template <typename T>
+constexpr bool is_executor_v = boost::asio::is_executor<T>::value ||
+                               std::is_same_v<T, boost::asio::any_io_executor>;
+
 template <typename T, typename = void>
 struct is_execution_context : std::false_type {};
 
 template <typename T>
-struct is_execution_context<T, std::void_t<typename T::executor_type>> : std::true_type {};
+struct is_execution_context<T, std::void_t<typename T::executor_type>>
+    : std::bool_constant<!std::is_same_v<T, typename T::executor_type>> {};
 
 template <typename T>
 constexpr bool is_execution_context_v = is_execution_context<T>::value;
-
-template <typename T>
-constexpr bool is_executor_v = boost::asio::is_executor<T>::value ||
-                               std::is_same_v<T, boost::asio::any_io_executor>;
 
 // 快速构造已完成的 future，直接设置结果和状态避免加锁
 template <typename T, typename Executor, typename Allocator>
@@ -575,10 +576,7 @@ auto timeout(FutureType future, Duration timeout_duration,
     auto result_future = promise.get_future().on_cancel(future);
 
     struct timer_data {
-        using timer_type = boost::asio::basic_waitable_timer<
-            std::chrono::steady_clock,
-            boost::asio::wait_traits<std::chrono::steady_clock>,
-            Executor>;
+        using timer_type = mc::runtime::basic_timer<Executor>;
 
         timer_data(Executor executor, Duration duration)
             : timer(executor, static_cast<duration_type>(duration)),
@@ -644,10 +642,7 @@ auto delay(Duration  delay_duration,
     auto promise = mc::make_promise<void>(executor, alloc);
     auto future  = promise.get_future();
 
-    using timer_type = boost::asio::basic_waitable_timer<
-        std::chrono::steady_clock,
-        boost::asio::wait_traits<std::chrono::steady_clock>,
-        Executor>;
+    using timer_type = mc::runtime::basic_timer<Executor>;
 
     auto timer = std::make_shared<timer_type>(
         executor,
@@ -690,6 +685,7 @@ auto delay(Duration   delay_duration,
 using futures::all;
 using futures::any;
 using futures::delay;
+using futures::future_status;
 using futures::launch;
 using futures::reject;
 using futures::resolve;

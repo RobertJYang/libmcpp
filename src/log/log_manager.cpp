@@ -35,7 +35,7 @@ log_manager& log_manager::instance() {
 }
 
 log_manager::log_manager() {
-    logger default_logger(DEFAULT_LOGGER);
+    logger default_logger(MC_LOG_DEFAULT_LOGGER);
 
     mc::dict default_config{
         {"stream", "std_out"},
@@ -61,7 +61,7 @@ log_manager::log_manager() {
     }
 
     default_logger.set_level(mc::log::level::info);
-    m_loggers[DEFAULT_LOGGER] = default_logger;
+    m_loggers[MC_LOG_DEFAULT_LOGGER] = default_logger;
 }
 
 logger log_manager::get_logger(const char* name) {
@@ -224,7 +224,7 @@ void log_manager::set_dlog_level(level lvl) {
             }
         }
 
-        auto default_logger_it = m_loggers.find(DEFAULT_LOGGER);
+        auto default_logger_it = m_loggers.find(MC_LOG_DEFAULT_LOGGER);
         if (default_logger_it != m_loggers.end()) {
             default_logger_it->second.set_level(lvl);
             for (const auto& appender : default_logger_it->second.get_appenders()) {

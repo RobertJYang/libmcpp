@@ -631,6 +631,8 @@ std::uintptr_t get_base_offset() {
     return reinterpret_cast<std::uintptr_t>(base_ptr) -
            reinterpret_cast<std::uintptr_t>(derived_ptr);
 }
+
+MC_API void set_current_thread_name(const std::string& name);
 } // namespace mc
 
 #endif // MC_COMMON_H

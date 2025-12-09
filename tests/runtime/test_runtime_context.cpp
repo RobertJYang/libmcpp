@@ -384,12 +384,12 @@ TEST_F(RuntimeContextTest, PostToContexts) {
     mc::test::runtime::future_flag io_ready;
     mc::test::runtime::future_flag work_ready;
 
-    boost::asio::post(runtime.get_io_context(), [&io_count, io_ready]() mutable {
+    boost::asio::post(runtime.io(), [&io_count, io_ready]() mutable {
         io_count.fetch_add(1);
         io_ready.set();
     });
 
-    boost::asio::post(runtime.get_work_context(), [&work_count, work_ready]() mutable {
+    boost::asio::post(runtime.work(), [&work_count, work_ready]() mutable {
         work_count.fetch_add(1);
         work_ready.set();
     });
@@ -411,12 +411,12 @@ TEST_F(RuntimeContextTest, DeferToContexts) {
     mc::test::runtime::future_flag io_ready;
     mc::test::runtime::future_flag work_ready;
 
-    boost::asio::defer(runtime.get_io_context(), [&io_count, io_ready]() mutable {
+    boost::asio::defer(runtime.io(), [&io_count, io_ready]() mutable {
         io_count.fetch_add(1);
         io_ready.set();
     });
 
-    boost::asio::defer(runtime.get_work_context(), [&work_count, work_ready]() mutable {
+    boost::asio::defer(runtime.work(), [&work_count, work_ready]() mutable {
         work_count.fetch_add(1);
         work_ready.set();
     });
@@ -438,12 +438,12 @@ TEST_F(RuntimeContextTest, DispatchToContexts) {
     mc::test::runtime::future_flag io_ready;
     mc::test::runtime::future_flag work_ready;
 
-    boost::asio::dispatch(runtime.get_io_context(), [&io_count, io_ready]() mutable {
+    boost::asio::dispatch(runtime.io(), [&io_count, io_ready]() mutable {
         io_count.fetch_add(1);
         io_ready.set();
     });
 
-    boost::asio::dispatch(runtime.get_work_context(), [&work_count, work_ready]() mutable {
+    boost::asio::dispatch(runtime.work(), [&work_count, work_ready]() mutable {
         work_count.fetch_add(1);
         work_ready.set();
     });

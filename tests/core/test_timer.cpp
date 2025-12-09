@@ -190,13 +190,14 @@ TEST_F(timer_test, test_timer_restart) {
 
     int                count = 0;
     std::promise<void> first_trigger;
-    bool               first_triggered = false;
+    std::promise<void> second_trigger;
 
     timer->timeout.connect([&]() {
         count++;
-        if (!first_triggered) {
-            first_triggered = true;
+        if (count == 1) {
             first_trigger.set_value();
+        } else if (count == 2) {
+            second_trigger.set_value();
         }
     });
 
@@ -208,11 +209,12 @@ TEST_F(timer_test, test_timer_restart) {
 
     // 第二次启动（应该重置定时器）
     timer->start(mc::milliseconds(50));
-    // 等待一段时间，观察是否再次触发
-    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    // 等待第二次触发
+    auto status2 = second_trigger.get_future().wait_for(std::chrono::milliseconds(100));
+    EXPECT_EQ(status2, std::future_status::ready);
 
-    // 应该至少触发一次
-    EXPECT_GE(count, 1);
+    // 应该至少触发两次
+    EXPECT_GE(count, 2);
 
     // 停止定时器，确保测试结束时没有未完成的异步操作
     timer->stop();
@@ -222,7 +224,7 @@ TEST_F(timer_test, test_timer_restart) {
 TEST_F(timer_test, test_timer_interval_change) {
     auto timer = mc::make_shared<mc::core::timer>(service.get());
 
-    int                count = 0;
+    int                count          = 0;
     int                expected_count = 2;
     std::promise<void> done;
     timer->timeout.connect([&]() {
@@ -261,7 +263,7 @@ TEST_F(timer_test, test_null_callback) {
 TEST_F(timer_test, test_zero_interval_timer) {
     auto timer = mc::make_shared<mc::core::timer>(service.get());
 
-    int                count = 0;
+    int                count          = 0;
     int                expected_count = 5;
     std::promise<void> wait;
 

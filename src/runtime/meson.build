@@ -4,4 +4,6 @@ runtime_src_files = [
   'runtime/any_executor.cpp',
   'runtime/executor.cpp',
   'runtime/thread_list.cpp',
+  'runtime/thread_pool.cpp',
+  'runtime/condition_variable.cpp',
 ] 

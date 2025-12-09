@@ -26,7 +26,7 @@ public:
     logger_config             m_config;    // 日志记录器配置
     std::vector<appender_ptr> m_appenders; // 日志追加器映射
 
-    impl(const std::string& name = DEFAULT_LOGGER) : m_config(name) {
+    impl(const std::string& name = MC_LOG_DEFAULT_LOGGER) : m_config(name) {
     }
 
     impl(const impl& other) : m_config(other.m_config), m_appenders(other.m_appenders) {
