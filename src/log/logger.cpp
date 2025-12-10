@@ -50,7 +50,7 @@ logger::logger(const std::string& name) : m_impl(std::make_shared<impl>(name)) {
 }
 
 logger::logger(const logger& other)
-    : m_impl(other.m_impl ? std::make_shared<impl>(*other.m_impl) : nullptr) {
+    : m_impl(other.m_impl) {
 }
 
 logger::logger(logger&& other) noexcept : m_impl(std::move(other.m_impl)) {
@@ -59,7 +59,7 @@ logger::logger(logger&& other) noexcept : m_impl(std::move(other.m_impl)) {
 // 赋值运算符实现
 logger& logger::operator=(const logger& other) {
     if (this != &other) {
-        m_impl = other.m_impl ? std::make_shared<impl>(*other.m_impl) : nullptr;
+        m_impl = other.m_impl;
     }
     return *this;
 }
