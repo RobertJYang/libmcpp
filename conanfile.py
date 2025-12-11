@@ -42,9 +42,6 @@ class AppConan(ConanBase):
         if self.options.test:
             # 为 Debug 类型添加 -Os 优化参数
             tc.extra_cxxflags.append("-Os")
-        else:
-            tc.extra_cxxflags.append("-Bstatic")
-            tc.extra_cxxflags.append("-lboost_program_options")
         tc.extra_ldflags.append("-lstdc++fs")
         tc.extra_cxxflags.append("-Wno-unused-variable")
         tc.extra_cxxflags.append("-Wno-unused-parameter")
