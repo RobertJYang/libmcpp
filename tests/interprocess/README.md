@@ -22,6 +22,7 @@ tests/interprocess/
 ├── README.md                          # 本文档
 ├── meson.build                        # 构建配置
 ├── test_shared_memory.cpp             # 共享内存测试
+├── test_message_queue.cpp             # 消息队列测试
 ├── test_shared_memory_manager.cpp     # 共享内存管理器测试
 ├── test_shared_memory_allocator.cpp   # 共享内存分配器测试
 └── mutex/                             # 互斥锁测试目录
@@ -39,8 +40,26 @@ Interprocess 模块包含以下测试文件：
 3. `test_shared_memory_allocator.cpp` - 共享内存分配器测试
 4. `mutex/test_ipc_mutex.cpp` - IPC 互斥锁测试（详见 `mutex/README.md`）
 5. `mutex/test_shared_mutex.cpp` - IPC 读写锁和包装类测试（详见 `mutex/README.md`）
+6. `test_message_queue.cpp` - POSIX 消息队列测试
 
 ## 详细测试用例
+
+### test_message_queue.cpp
+- `constructor_and_destructor`  - 测试构造函数和析构函数
+- `move_semantics`  - 测试消息队列的移动
+- `basic_send_recv`  - 测试消息的基础发送和接收
+- `message_with_priority`  - 测试消息队列中消息的优先级
+- `recv_with_timeout`  - 测试消息队列接收超市
+- `queue_attributes`  - 测试消息队列基础属性
+- `large_message_handling`  - 测试大容量消息在消息队列的处理
+- `thread_safety`  - 测试消息队列的线程安全
+- `edge_conditions`  - 测试消息队列的边界条件处理
+- `exception_handling`  - 测试消息队列的异常处理
+- `performance_testing`  - 测试消息队列的性能
+- `cross_process_communication`  - 测试消息队列的跨进程通信（实际采用的是多线程）
+- `permission_testing`  - 测试消息队列的权限
+- `clear_testing`  - 测试消息队列的清空
+- `resource_cleanup`  - 测试消息队列的销毁清理
 
 ### test_shared_memory.cpp
 共享内存测试（14 个用例，已优化）：
