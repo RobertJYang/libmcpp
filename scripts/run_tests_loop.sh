@@ -69,6 +69,19 @@ NC='\033[0m' # No Color
 # 解析命令行参数
 SKIP_BUILD=false
 SHOW_HELP=false
+STOP_REQUESTED=false
+test_child_pid=""
+
+handle_sigint() {
+    echo ""
+    echo "收到中断信号，准备退出..."
+    STOP_REQUESTED=true
+    if [ -n "${test_child_pid}" ] && kill -0 "${test_child_pid}" 2>/dev/null; then
+        kill -INT "${test_child_pid}" 2>/dev/null || true
+    fi
+}
+
+trap handle_sigint INT TERM
 
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -164,6 +177,10 @@ echo "=========================================="
 echo ""
 
 for iteration in $(seq 1 ${MAX_ITERATIONS}); do
+    if [ "${STOP_REQUESTED}" = true ]; then
+        echo "检测到中断请求，停止循环。"
+        break
+    fi
     echo "[${iteration}/${MAX_ITERATIONS}] 开始第 ${iteration} 次测试..."
 
     # 根据参数决定是否构建
@@ -282,8 +299,12 @@ GDBEOF
         echo ""
         
         # 使用 timeout 运行 GDB，超时后会发送 SIGTERM
-        timeout "${TEST_TIMEOUT}" gdb -batch -x "${gdb_script}" "${TEST_EXE}" > "${gdb_log}" 2>&1
+        test_child_pid=""
+        timeout "${TEST_TIMEOUT}" gdb -batch -x "${gdb_script}" "${TEST_EXE}" > "${gdb_log}" 2>&1 &
+        test_child_pid=$!
+        wait "${test_child_pid}"
         test_exit_code=$?
+        test_child_pid=""
         
         # 检查是否超时（timeout 命令在超时时返回 124）
         if [ ${test_exit_code} -eq 124 ]; then
@@ -435,6 +456,21 @@ GDBEOF
             fi
         fi
         
+        # 如果此前被标记失败，但没有 FAILED/信号/超时且退出码为 0，则视为成功（避免纯 SKIP 情况残留日志）
+        if [ "${test_failed}" = true ] && [ "${test_timeout}" = false ]; then
+            has_failed_marker=false
+            has_failed_summary=false
+            if grep -q "\[  FAILED  \]" "${test_log}" "${gdb_log}" 2>/dev/null; then
+                has_failed_marker=true
+            fi
+            if grep -q "Fail:[[:space:]]*[1-9]" "${test_full_log:-/dev/null}" "${test_log}" "${gdb_log}" 2>/dev/null; then
+                has_failed_summary=true
+            fi
+            if [ "${has_failed_marker}" = false ] && [ "${has_failed_summary}" = false ]; then
+                test_failed=false
+            fi
+        fi
+
         # 如果测试失败且还没有提取 backtrace，尝试获取 backtrace
         if [ "${test_failed}" = true ] && [ ! -s "${bt_log}" ]; then
             echo ""
