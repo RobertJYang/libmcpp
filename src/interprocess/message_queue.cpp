@@ -115,9 +115,8 @@ bool message_queue::send(const std::vector<uint8_t>& data,
         return false;
     }
     
-    if (data.empty()) {
-        return true;  // 空消息可以发送
-    }
+    // 允许发送空消息（某些场景需要空消息作为信号）
+    // POSIX mq_send 允许发送长度为0的消息
     
     if (data.size() > config_.max_message_size) {
         throw std::runtime_error("Message size exceeds maximum allowed");
@@ -132,14 +131,13 @@ bool message_queue::send(const std::vector<uint8_t>& data,
     timespec timeout = calculate_timeout(timeout_ms);
     
     int result;
+    // 对于空消息，传递 nullptr 和 size=0
+    const char* msg_ptr = data.empty() ? nullptr : reinterpret_cast<const char*>(data.data());
+    
     if (timeout_ms >= 0) {
-        result = mq_timedsend(mqd_, 
-                             reinterpret_cast<const char*>(data.data()),
-                             data.size(), priority, &timeout);
+        result = mq_timedsend(mqd_, msg_ptr, data.size(), priority, &timeout);
     } else {
-        result = mq_send(mqd_, 
-                        reinterpret_cast<const char*>(data.data()),
-                        data.size(), priority);
+        result = mq_send(mqd_, msg_ptr, data.size(), priority);
     }
     
     if (result == -1) {
@@ -222,23 +220,28 @@ void message_queue::clear() {
         return;
     }
     
-    // 非阻塞接收所有消息
+    // 非阻塞接收所有消息 - 使用立即超时
     unsigned int priority;
     std::vector<uint8_t> buffer(config_.max_message_size);
     
+    // 设置立即超时（非阻塞）
+    timespec timeout;
+    clock_gettime(CLOCK_REALTIME, &timeout);
+    // timeout 设置为当前时间，表示不等待，立即超时
+    
     while (true) {
-        ssize_t bytes = mq_receive(mqd_,
-                                  reinterpret_cast<char*>(buffer.data()),
-                                  buffer.size(),
-                                  &priority);
-        
-        if (bytes == -1 && errno == EAGAIN) {
-            break;  // 队列已空
-        }
+        ssize_t bytes = mq_timedreceive(mqd_,
+                                       reinterpret_cast<char*>(buffer.data()),
+                                       buffer.size(),
+                                       &priority,
+                                       &timeout);
         
         if (bytes == -1) {
-            break;  // 其他错误
+            break;
         }
+        
+        // 每次循环更新超时时间为当前时间，确保非阻塞
+        clock_gettime(CLOCK_REALTIME, &timeout);
     }
 }
 
@@ -246,21 +249,22 @@ timespec message_queue::calculate_timeout(int timeout_ms) const {
     timespec timeout;
     
     if (timeout_ms == 0) {
-        // 非阻塞
-        timeout.tv_sec = 0;
-        timeout.tv_nsec = 0;
+        // 非阻塞 - 立即超时
+        clock_gettime(CLOCK_REALTIME, &timeout);
     } else if (timeout_ms > 0) {
-        // 绝对超时时间
-        auto now = std::chrono::steady_clock::now();
-        auto timeout_time = now + std::chrono::milliseconds(timeout_ms);
+        // 必须使用 CLOCK_REALTIME 的绝对时间
+        // mq_timedreceive/mq_timedsend 要求使用 CLOCK_REALTIME
+        clock_gettime(CLOCK_REALTIME, &timeout);
         
-        auto duration = timeout_time.time_since_epoch();
-        auto seconds = std::chrono::duration_cast<std::chrono::seconds>(duration);
-        auto nanoseconds = std::chrono::duration_cast<std::chrono::nanoseconds>(
-            duration - seconds);
+        // 加上超时偏移量
+        timeout.tv_sec += timeout_ms / 1000;
+        timeout.tv_nsec += (timeout_ms % 1000) * 1000000;
         
-        timeout.tv_sec = seconds.count();
-        timeout.tv_nsec = nanoseconds.count();
+        // 处理纳秒溢出
+        if (timeout.tv_nsec >= 1000000000) {
+            timeout.tv_sec += timeout.tv_nsec / 1000000000;
+            timeout.tv_nsec = timeout.tv_nsec % 1000000000;
+        }
     } else {
         // 阻塞模式，返回当前时间（会被忽略）
         clock_gettime(CLOCK_REALTIME, &timeout);
