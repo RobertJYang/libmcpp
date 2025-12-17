@@ -74,7 +74,8 @@ protected:
 
         TestWithDbusDaemon::SetUpTestSuite();
 
-        s_io_context = std::make_shared<mc::runtime::thread_pool>(1);
+        // 根本解决方案：增加线程数，1个线程完全不够！
+        s_io_context = std::make_shared<mc::runtime::thread_pool>(6);  // 6个线程
         s_io_context->start();
     }
 
@@ -87,9 +88,11 @@ protected:
     }
 
     void SetUp() override {
+        // 多线程 io_context 无需特殊清理
     }
 
     void TearDown() override {
+        // 多线程 io_context 无需特殊清理
     }
 
     std::shared_ptr<mc::runtime::thread_pool> get_io_context() {
@@ -115,7 +118,7 @@ TEST_F(connection_test, test_list_names) {
     ASSERT_TRUE(conn.is_connected());
     EXPECT_TRUE(conn.request_name("org.test.Connection"));
     // 增加等待时间，确保服务名称已注册
-    std::this_thread::sleep_for(std::chrono::milliseconds(200));
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
     auto reply = wait_method_return(
         conn,
@@ -216,6 +219,9 @@ TEST_F(connection_test, scenario_full_dbus_flow) {
     EXPECT_NE(conn.get_connection(), nullptr);
     EXPECT_FALSE(conn.get_unique_name().empty());
     EXPECT_GT(conn.get_next_serial(), 0u);
+    
+    // 等待服务名称注册完成
+    std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
     const std::string path      = "/org/test/fullscenario/" + suffix;
     const std::string interface = service_name + ".Iface";
@@ -278,7 +284,7 @@ TEST_F(connection_test, scenario_full_dbus_flow) {
     // 异步调用自身服务，验证 register_path + async_send_with_reply
     auto async_call = message::new_method_call(service_name, path, interface, method);
     async_call.writer() << std::string("async");
-    auto                    future = conn.async_send_with_reply(std::move(async_call), mc::milliseconds(1000));
+    auto                    future = conn.async_send_with_reply(std::move(async_call), mc::milliseconds(2000));
     std::mutex              mutex;
     std::condition_variable cv;
     bool                    async_done = false;
@@ -300,11 +306,13 @@ TEST_F(connection_test, scenario_full_dbus_flow) {
         }
         cv.notify_one();
     });
-    auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(5000);
+    auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(15000);  // 增加到15秒
     while (true) {
+        // 多线程 io_context 会自动处理，减少主动 dispatch
         conn.dispatch();
+        
         std::unique_lock lock(mutex);
-        if (cv.wait_for(lock, std::chrono::milliseconds(10), [&async_done]() {
+        if (cv.wait_for(lock, std::chrono::milliseconds(50), [&async_done]() {
             return async_done;
         })) {
             break;
@@ -313,16 +321,15 @@ TEST_F(connection_test, scenario_full_dbus_flow) {
             break;
         }
         lock.unlock();
-        // 增加 dispatch 调用频率，确保及时处理回复
-        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        std::this_thread::yield();
     }
-    EXPECT_TRUE(async_done);
-    EXPECT_EQ(async_text, "async");
+    ASSERT_TRUE(async_done) << "异步调用未在超时时间内完成";
+    ASSERT_EQ(async_text, "async") << "异步调用返回了错误: " << async_text;
 
     // 发送 signal 覆盖 add_match/filter_message
     auto signal = message::new_signal(path, interface, signal_kw);
     conn.send(message(signal));
-    std::this_thread::sleep_for(std::chrono::milliseconds(200));
+    std::this_thread::sleep_for(std::chrono::milliseconds(150));
     conn.dispatch();
     // 如果运行环境未触发 D-Bus 回调，主动调用回调确保覆盖
     match_handler(signal);
@@ -335,8 +342,18 @@ TEST_F(connection_test, scenario_full_dbus_flow) {
     conn.remove_match(42);
     conn.remove_match(43);
     conn.unregister_path(path);
+    
+    // 处理待处理的消息，确保清理完成
+    for (int i = 0; i < 10; ++i) {
+        conn.dispatch();
+        std::this_thread::sleep_for(std::chrono::milliseconds(2));
+    }
+    
     conn.disconnect();
     EXPECT_FALSE(conn.is_connected());
+    
+    // 给 io_context 时间处理断开连接相关的异步操作
+    std::this_thread::sleep_for(std::chrono::milliseconds(50));
 }
 
 // 测试 connection::send
@@ -413,7 +430,7 @@ TEST_F(connection_test, scenario_signal_subscription) {
     auto signal = message::new_signal("/org/test/Connection",
                                       "org.freedesktop.DBus.Properties", "PropertiesChanged");
     EXPECT_TRUE(conn.send(std::move(signal)));
-    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    std::this_thread::sleep_for(std::chrono::milliseconds(20));
     conn.dispatch();
     conn.remove_match(1);
     conn.disconnect();

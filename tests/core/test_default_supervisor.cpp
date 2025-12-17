@@ -110,13 +110,15 @@ private:
 // 辅助函数：创建监督器配置
 config::supervisor_config make_supervisor_config(const std::string& name,
                                                  config::supervisor_strategy strategy,
-                                                 int max_restarts) {
+                                                 int max_restarts,
+                                                 int restart_window_seconds = 1) {
     config::supervisor_config cfg;
-    cfg.api_version  = "v1";
-    cfg.kind         = "Supervisor";
-    cfg.meta.name    = name;
-    cfg.strategy     = strategy;
-    cfg.max_restarts = max_restarts;
+    cfg.api_version           = "v1";
+    cfg.kind                  = "Supervisor";
+    cfg.meta.name             = name;
+    cfg.strategy              = strategy;
+    cfg.max_restarts          = max_restarts;
+    cfg.restart_window_seconds = restart_window_seconds; // 测试环境使用1秒
     return cfg;
 }
 
@@ -778,8 +780,8 @@ TEST_F(default_supervisor_test, RestartAllServicesWithCountReset) {
     service2->init(dict{});
     supervisor->start();
     
-    // 等待超过 5 秒，触发重启计数重置
-    std::this_thread::sleep_for(std::chrono::seconds(6));
+    // 等待超过 1 秒，触发重启计数重置
+    std::this_thread::sleep_for(std::chrono::milliseconds(1100));
     
     // 重启所有服务（通过 handle_service_crash 间接测试）
     auto testable = std::make_shared<testable_supervisor>();
@@ -1002,8 +1004,8 @@ TEST_F(default_supervisor_test, ComplexScenarioAllUncoveredFeatures) {
     // 启动（覆盖子监督器启动分支）
     EXPECT_TRUE(supervisor->start());
     
-    // 等待超过 5 秒，触发重启计数重置
-    std::this_thread::sleep_for(std::chrono::seconds(6));
+    // 等待超过 1 秒，触发重启计数重置
+    std::this_thread::sleep_for(std::chrono::milliseconds(1100));
     
     // 触发崩溃，测试重启机制
     auto testable = std::make_shared<testable_supervisor>();

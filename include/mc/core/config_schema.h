@@ -71,9 +71,10 @@ enum class supervisor_strategy {
 struct supervisor_config : resource_base {
     MC_REFLECTABLE("mc.config.supervisor_config")
 
-    supervisor_strategy      strategy;     // 监督策略
-    int                      max_restarts; // 最大重启次数
-    std::vector<std::string> services;     // 服务列表
+    supervisor_strategy      strategy;                  // 监督策略
+    int                      max_restarts;              // 最大重启次数
+    std::vector<std::string> services;                  // 服务列表
+    int                      restart_window_seconds{5}; // 重启计数重置的时间窗口（秒），默认5秒
 };
 
 /**

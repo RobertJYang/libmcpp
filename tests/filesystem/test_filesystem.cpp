@@ -441,7 +441,6 @@ TEST_F(FilesystemTest, SpaceAndCurrentPath) {
     if (!temp_dir.empty()) {
         mc::filesystem::current_path(temp_dir);
         auto now = mc::filesystem::current_path();
-        // 修复：使用 canonical 解析符号链接，然后比较规范化路径
         // 在 macOS 上 /var 是到 /private/var 的符号链接
         try {
             auto now_canonical      = mc::filesystem::fs::canonical(now);

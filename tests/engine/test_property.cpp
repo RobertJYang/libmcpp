@@ -1405,7 +1405,7 @@ TEST_F(PropertyRelateTest, FromVariantSyncProperty) {
     m_service->get_gpu()->m_interface.load = 85.5;
 
     // 同步属性应该自动更新为新的值
-    std::this_thread::sleep_for(std::chrono::milliseconds(100)); // 给同步一点时间
+    std::this_thread::sleep_for(std::chrono::milliseconds(20)); // 给同步一点时间
     EXPECT_EQ(test_prop.value(), "85.5");                        // 应该反映新的GPU负载值
 }
 
@@ -1439,7 +1439,7 @@ TEST_F(PropertyRelateTest, SyncPropertyBasics) {
     m_service->get_cpu()->m_interface.temperature = 88.8;
 
     // 同步属性应该自动更新为新的值
-    std::this_thread::sleep_for(std::chrono::milliseconds(100)); // 给同步一点时间
+    std::this_thread::sleep_for(std::chrono::milliseconds(20)); // 给同步一点时间
     EXPECT_EQ(test_prop.value(), "88.8");                        // 应该反映新的温度值
 }
 
@@ -1487,7 +1487,7 @@ TEST_F(PropertyRelateTest, SyncPropertyDeferredConnection) {
     delayed_service->register_object(cpu_obj);
 
     // 等待延迟连接建立
-    std::this_thread::sleep_for(std::chrono::milliseconds(200));
+    std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
     // 现在同步属性应该能够获取到目标对象的值
     EXPECT_EQ(test_prop.value(), "65");

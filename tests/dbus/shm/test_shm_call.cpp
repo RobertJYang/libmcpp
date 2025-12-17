@@ -348,7 +348,7 @@ TEST_F(ShmCallTest, TestSubscribePropertiesChanged) {
         msg = mc::dbus::message(signal_msg);
     });
     service_1->m_obj_a->m_iface.m_str.set_value("test_property_changed");
-    std::this_thread::sleep_for(std::chrono::milliseconds(500));
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
     ASSERT_TRUE(msg.is_valid());
     ASSERT_EQ(msg.get_type(), mc::dbus::message_type::signal);
     ASSERT_EQ(msg.get_path(), "/org/openubmc/test_object_a");

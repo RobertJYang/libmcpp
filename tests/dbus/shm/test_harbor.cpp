@@ -30,10 +30,20 @@ class HarborTest : public ::testing::Test
 {
 protected:
     void SetUp() override
-    {}
+    {
+        // 确保每个测试开始时 harbor 处于停止状态
+        auto& harbor_instance = harbor::get_instance();
+        harbor_instance.stop();
+    }
 
     void TearDown() override
-    {}
+    {
+        // 确保每个测试结束后清理 harbor 状态
+        auto& harbor_instance = harbor::get_instance();
+        harbor_instance.stop();
+        // 给一点时间让 worker 线程完全退出
+        std::this_thread::sleep_for(std::chrono::milliseconds(20));
+    }
 };
 
 TEST_F(HarborTest, HarborLifecycleAndNaming)

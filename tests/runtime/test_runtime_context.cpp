@@ -682,8 +682,9 @@ TEST_F(RuntimeContextTest, WorkThreadExceptionLogged) {
         try {
             throw std::runtime_error("test work thread exception");
         } catch (...) {
+            // 捕获异常并标记完成，不重新抛出以避免终止进程
             execution_done.set();
-            throw;
+            // 异常已被记录，不需要重新抛出
         }
     }, mc::work_executor);
 

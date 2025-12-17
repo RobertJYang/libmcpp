@@ -69,10 +69,11 @@ protected:
     std::string get_strategy_name(config::supervisor_strategy strategy);
 
 private:
-    config::supervisor_config   m_config;       // 监督器配置
-    std::string                 m_name;         // 监督器名称
-    config::supervisor_strategy m_strategy;     // 监督策略
-    int                         m_max_restarts; // 最大重启次数
+    config::supervisor_config   m_config;                 // 监督器配置
+    std::string                 m_name;                   // 监督器名称
+    config::supervisor_strategy m_strategy;               // 监督策略
+    int                         m_max_restarts;           // 最大重启次数
+    int                         m_restart_window_seconds; // 重启计数重置时间窗口（秒）
 
     mutable std::mutex m_mutex;
     std::atomic<bool>  m_started;
