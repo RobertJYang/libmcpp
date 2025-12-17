@@ -26,597 +26,418 @@ using namespace mc::interprocess;
 class message_queue_test : public mc::test::TestBase {
 protected:
     void SetUp() override {
-        // 清理可能存在的测试队列
-        mq_unlink("/test_queue_1");
-        mq_unlink("/test_queue_2");
-        mq_unlink("/test_queue_large");
-        mq_unlink("/test_performance");
+        // 公共测试配置
+        default_config.name = "/test_queue";
+        default_config.mode = queue_mode::CREATE_OR_OPEN;
+        default_config.max_messages = 10;
+        default_config.max_message_size = 1024;
     }
-    
+
     void TearDown() override {
-        // 清理所有测试队列
-        mq_unlink("/test_queue_1");
-        mq_unlink("/test_queue_2");
-        mq_unlink("/test_queue_large");
-        mq_unlink("/test_queue_thread");
-        mq_unlink("/test_queue_move");
-        mq_unlink("/test_performance");
+        // 清理测试队列
+        mq_unlink("/test_queue");
+        mq_unlink("/test_queue2");
+        mq_unlink("/test_queue3");
+    }
+
+    queue_configuration default_config;
+    
+    // 辅助函数：发送测试消息
+    bool send_test_message(message_queue& mq, 
+                          const std::string& msg, 
+                          unsigned int priority = 0) {
+        std::vector<uint8_t> data(msg.begin(), msg.end());
+        return mq.send(data, priority);
     }
     
-    // 辅助函数：生成测试数据
-    std::vector<uint8_t> generate_test_data(size_t size) {
-        std::vector<uint8_t> data(size);
-        for (size_t i = 0; i < size; ++i) {
-            data[i] = static_cast<uint8_t>(i % 256);
-        }
-        return data;
-    }
-    
-    // 辅助函数：验证数据
-    bool verify_test_data(const std::vector<uint8_t>& data) {
-        for (size_t i = 0; i < data.size(); ++i) {
-            if (data[i] != static_cast<uint8_t>(i % 256)) {
-                return false;
-            }
-        }
-        return true;
+    // 辅助函数：接收并验证消息
+    std::string receive_and_convert(message_queue& mq) {
+        auto data = mq.receive();
+        return std::string(data.begin(), data.end());
     }
 };
 
-
-// 测试 1: 构造函数和析构函数
-TEST_F(message_queue_test, constructor_and_destructor) {
-    // 测试 CREATE_ONLY 模式 - 第一次创建
-    queue_configuration config("/test_queue_1");
-    config.mode = queue_mode::CREATE_ONLY;
-    
-    message_queue mq1(config);
-    EXPECT_TRUE(mq1.is_valid());
-    EXPECT_EQ(mq1.name(), "/test_queue_1");
-    EXPECT_NE(mq1.descriptor(), -1);
-    
-    // 测试重复创建（应该失败）- mq1 还存活
-    config.mode = queue_mode::CREATE_ONLY;
-    EXPECT_THROW({
-        message_queue mq2(config);
-    }, std::system_error);
-    
-    // 测试 OPEN_ONLY 模式（队列不存在应该失败）
-    {
-        queue_configuration config("/test_queue_nonexistent");
-        config.mode = queue_mode::OPEN_ONLY;
-        
-        EXPECT_THROW({
-            message_queue mq(config);
-        }, std::system_error);
-    }
-    
-    // 测试 CREATE_OR_OPEN 模式
-    {
-        queue_configuration config("/test_queue_1");
-        config.mode = queue_mode::CREATE_OR_OPEN;
-        
-        EXPECT_NO_THROW([&]() {
-            message_queue mq(config);
-            EXPECT_TRUE(mq.is_valid());
-        }());
-    }
+TEST_F(message_queue_test, DefaultConstructor) {
+    message_queue mq;
+    EXPECT_FALSE(mq.is_open());
+    // 默认构造的对象应该可以后续使用 open() 方法
+    EXPECT_NO_THROW(mq.open("/test_queue", queue_mode::CREATE_OR_OPEN));
+    EXPECT_TRUE(mq.is_open());
+    mq.close();
 }
 
-// 测试 2: 移动语义
-TEST_F(message_queue_test, move_semantics) {
-    queue_configuration config("/test_queue_move");
-    
-    // 测试移动构造函数
-    {
-        message_queue mq1(config);
-        int original_descriptor = mq1.descriptor();
-        
-        message_queue mq2(std::move(mq1));
-        
-        EXPECT_FALSE(mq1.is_valid());
-        EXPECT_EQ(mq1.descriptor(), -1);
-        EXPECT_TRUE(mq2.is_valid());
-        EXPECT_EQ(mq2.descriptor(), original_descriptor);
-        EXPECT_EQ(mq2.name(), "/test_queue_move");
-    }
-    
-    // 测试移动赋值运算符
-    {
-        message_queue mq1(config);
-        message_queue mq2(queue_configuration("/test_queue_2"));
-        
-        int mq1_descriptor = mq1.descriptor();
-        int mq2_descriptor = mq2.descriptor();
-        
-        mq2 = std::move(mq1);
-        
-        EXPECT_FALSE(mq1.is_valid());
-        EXPECT_TRUE(mq2.is_valid());
-        EXPECT_EQ(mq2.descriptor(), mq1_descriptor);
-        
-        // 原来的 mq2 应该被正确关闭
-        EXPECT_NE(mq2_descriptor, -1);
-    }
+TEST_F(message_queue_test, ParameterizedConstructor) {
+    EXPECT_NO_THROW({
+        message_queue mq(default_config);
+        // 构造时应该自动打开队列
+        EXPECT_TRUE(mq.is_open());
+    });
 }
 
-// 测试 3: 基本消息发送和接收
-TEST_F(message_queue_test, basic_send_recv) {
-    queue_configuration config("/test_queue_1");
-    message_queue mq(config);
+TEST_F(message_queue_test, MoveConstructor) {
+    message_queue mq1(default_config);
+    EXPECT_TRUE(mq1.is_open());
     
-    // 测试发送和接收空消息
+    // 移动构造
+    message_queue mq2(std::move(mq1));
+    EXPECT_TRUE(mq2.is_open());
+    EXPECT_FALSE(mq1.is_open());  // mq1 应该被移动到无效状态
+    
+    // 测试移动后仍然可以使用
+    EXPECT_TRUE(send_test_message(mq2, "test after move"));
+    auto received = receive_and_convert(mq2);
+    EXPECT_EQ("test after move", received);
+}
+
+TEST_F(message_queue_test, DestructorClosesQueue) {
+    bool was_open = false;
+    
     {
-        std::vector<uint8_t> empty_data;
-        EXPECT_TRUE(mq.send(empty_data));
-        
-        auto received = mq.receive();
-        EXPECT_TRUE(received.empty());
+        message_queue mq(default_config);
+        was_open = mq.is_open();
+        // 退出作用域，mq 应该自动关闭
     }
     
-    // 测试发送和接收小消息
+    EXPECT_TRUE(was_open);
+    
+    // 队列应该已经被关闭和删除（如果是创建者）
+    message_queue mq2;
+    EXPECT_THROW(mq2.open("/test_queue", queue_mode::OPEN_ONLY), 
+                 std::runtime_error);
+}
+
+TEST_F(message_queue_test, OwnerFlag) {
+    // 测试 owner_ 标志是否正确工作
+    // 创建者应该删除队列，非创建者不应该
     {
-        std::string message = "Hello, Message Queue!";
-        std::vector<uint8_t> data(message.begin(), message.end());
+        message_queue creator;
+        creator.open("/test_queue", queue_mode::CREATE_ONLY);
+        // creator 应该是 owner
         
-        EXPECT_TRUE(mq.send(data));
+        {
+            message_queue opener;
+            opener.open("/test_queue", queue_mode::OPEN_ONLY);
+            // opener 应该不是 owner
+        }
+        // opener 析构不应该删除队列
         
-        auto received = mq.receive();
-        std::string received_str(received.begin(), received.end());
-        
-        EXPECT_EQ(received_str, message);
-    }
-    
-    // 测试发送和接收二进制数据
-    {
-        auto test_data = generate_test_data(100);
-        EXPECT_TRUE(mq.send(test_data));
-        
-        auto received = mq.receive();
-        EXPECT_EQ(received.size(), 100);
-        EXPECT_TRUE(verify_test_data(received));
-    }
-}
-
-// 测试 4: 消息优先级
-TEST_F(message_queue_test, message_with_priority) {
-    queue_configuration config("/test_queue_1");
-    config.max_messages = 10;
-    message_queue mq(config);
-    
-    // 清空队列
-    mq.clear();
-    
-    // 发送不同优先级的消息
-    std::vector<std::pair<unsigned int, std::string>> messages = {
-        {1, "Low priority message"},
-        {5, "Medium priority message"},
-        {10, "High priority message"},
-        {3, "Another medium priority"},
-        {8, "Higher priority"}
-    };
-    
-    // 以随机顺序发送
-    for (const auto& [priority, message] : messages) {
-        std::vector<uint8_t> data(message.begin(), message.end());
-        EXPECT_TRUE(mq.send(data, priority));
-    }
-    
-    // 接收并验证按优先级顺序
-    std::vector<std::string> received_messages;
-    while (true) {
-        unsigned int priority;
-        auto data = mq.receive_with_priority(priority, 100);
-        if (data.empty()) break;
-        
-        std::string msg(data.begin(), data.end());
-        received_messages.push_back(msg);
-    }
-    
-    // 验证接收顺序（高优先级先收到）
-    EXPECT_EQ(received_messages.size(), messages.size());
-    EXPECT_EQ(received_messages[0], "High priority message");  // 优先级 10
-    EXPECT_EQ(received_messages[1], "Higher priority");        // 优先级 8
-}
-
-// 测试 5: 超时功能
-TEST_F(message_queue_test, recv_with_timeout) {
-    queue_configuration config("/test_queue_1");
-    message_queue mq(config);
-    
-    // 清空队列
-    mq.clear();
-    
-    // 测试非阻塞接收（应该立即返回空）
-    auto start = std::chrono::steady_clock::now();
-    auto result = mq.receive(0);  // 非阻塞
-    auto end = std::chrono::steady_clock::now();
-    
-    EXPECT_TRUE(result.empty());
-    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-    EXPECT_LT(duration.count(), 10);  // 应该很快返回
-    
-    // 测试带超时的接收（应该超时返回）
-    start = std::chrono::steady_clock::now();
-    result = mq.receive(100);  // 100ms 超时
-    end = std::chrono::steady_clock::now();
-    
-    EXPECT_TRUE(result.empty());
-    duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-    EXPECT_GE(duration.count(), 100);  // 应该至少等待100ms
-    EXPECT_LT(duration.count(), 150);  // 但不会超过太多
-    
-    // 测试带超时的发送（队列满时）
-    {
-        queue_configuration small_config("/test_queue_small");
-        small_config.max_messages = 1;
-        small_config.max_message_size = 10;
-        message_queue small_mq(small_config);
-        
-        // 填满队列
-        std::vector<uint8_t> data1 = {1, 2, 3};
-        EXPECT_TRUE(small_mq.send(data1));
-        
-        // 尝试发送第二个消息（应该超时）
-        std::vector<uint8_t> data2 = {4, 5, 6};
-        start = std::chrono::steady_clock::now();
-        bool sent = small_mq.send(data2, 0, 50);  // 50ms 超时
-        end = std::chrono::steady_clock::now();
-        
-        EXPECT_FALSE(sent);  // 应该发送失败
-        duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-        EXPECT_GE(duration.count(), 50);
-    }
-}
-
-// 测试 6: 队列属性
-TEST_F(message_queue_test, queue_attributes) {
-    queue_configuration config("/test_queue_1");
-    config.max_messages = 5;
-    config.max_message_size = 1024;
-    message_queue mq(config);
-    
-    // 获取属性
-    auto attr = mq.get_attributes();
-    EXPECT_EQ(attr.max_messages, 5);
-    EXPECT_EQ(attr.max_message_size, 1024);
-    EXPECT_EQ(attr.current_messages, 0);
-    
-    // 发送一些消息
-    for (int i = 0; i < 3; ++i) {
-        std::vector<uint8_t> data = {static_cast<uint8_t>(i)};
-        mq.send(data);
-    }
-    
-    // 验证当前消息数
-    attr = mq.get_attributes();
-    EXPECT_EQ(attr.current_messages, 3);
-    
-    // 接收一个消息
-    mq.receive();
-    attr = mq.get_attributes();
-    EXPECT_EQ(attr.current_messages, 2);
-    
-    // 清空队列
-    mq.clear();
-    attr = mq.get_attributes();
-    EXPECT_EQ(attr.current_messages, 0);
-}
-
-// 测试 7: 大消息处理
-TEST_F(message_queue_test, large_message_handling) {
-    queue_configuration config("/test_queue_large");
-    config.max_message_size = 8192;  // 8KB
-    message_queue mq(config);
-    
-    // 测试发送最大大小的消息
-    auto large_data = generate_test_data(8192);
-    EXPECT_NO_THROW([&]() {
-        bool sent = mq.send(large_data);
-        EXPECT_TRUE(sent);
-    }());
-    
-    // 测试接收大消息
-    auto received = mq.receive();
-    EXPECT_EQ(received.size(), 8192);
-    EXPECT_TRUE(verify_test_data(received));
-    
-    // 测试发送超过最大大小的消息（应该抛出异常）
-    auto too_large_data = generate_test_data(8193);
-    EXPECT_THROW({
-        mq.send(too_large_data);
-    }, std::runtime_error);
-}
-
-// 测试 8: 多线程安全
-TEST_F(message_queue_test, thread_safety) {
-    queue_configuration config("/test_queue_thread");
-    config.max_messages = 10;  // 不超过系统限制 /proc/sys/fs/mqueue/msg_max
-    message_queue mq(config);
-    
-    const int NUM_MESSAGES = 1000;
-    const int NUM_THREADS = 4;
-    
-    std::atomic<int> messages_sent{0};
-    std::atomic<int> messages_received{0};
-    std::vector<std::thread> threads;
-    
-    // 创建发送线程
-    for (int t = 0; t < NUM_THREADS; ++t) {
-        threads.emplace_back([&mq, &messages_sent, t]() {
-            for (int i = 0; i < NUM_MESSAGES / NUM_THREADS; ++i) {
-                std::string message = 
-                    "Thread " + std::to_string(t) + 
-                    " Message " + std::to_string(i);
-                std::vector<uint8_t> data(message.begin(), message.end());
-                
-                if (mq.send(data, t % 3)) {
-                    ++messages_sent;
-                }
-            }
+        EXPECT_NO_THROW({
+            message_queue another_opener;
+            another_opener.open("/test_queue", queue_mode::OPEN_ONLY);
         });
     }
+    // creator 析构应该删除队列
     
-    // 创建接收线程
-    threads.emplace_back([&mq, &messages_received]() {
-        while (messages_received < NUM_MESSAGES) {
-            auto data = mq.receive(10);  // 10ms 超时
+    // 队列应该不存在了
+    message_queue mq;
+    EXPECT_THROW(mq.open("/test_queue", queue_mode::OPEN_ONLY), 
+                 std::runtime_error);
+}
+
+TEST_F(message_queue_test, MoveAssignment) {
+    message_queue mq1(default_config);
+    message_queue mq2;
+    
+    mq2 = std::move(mq1);
+    EXPECT_TRUE(mq2.is_open());
+    EXPECT_FALSE(mq1.is_open());
+}
+
+TEST_F(message_queue_test, CopyConstructorDeleted) {
+    message_queue mq1(default_config);
+    // 应该无法拷贝构造
+    // message_queue mq2(mq1);  // 这行应该编译失败
+    // 验证编译时检查，我们使用 SFINAE 或静态断言
+    EXPECT_TRUE(std::is_move_constructible<message_queue>::value);
+    EXPECT_FALSE(std::is_copy_constructible<message_queue>::value);
+}
+
+TEST_F(message_queue_test, OpenClose) {
+    message_queue mq;
+    EXPECT_FALSE(mq.is_open());
+    
+    // 正常打开
+    EXPECT_NO_THROW(mq.open("/test_queue", queue_mode::CREATE_ONLY));
+    EXPECT_TRUE(mq.is_open());
+    
+    // 重复打开应该失败或抛出异常
+    EXPECT_THROW(mq.open("/another_queue", queue_mode::CREATE_ONLY), 
+                 std::runtime_error);
+    
+    // 正常关闭
+    EXPECT_NO_THROW(mq.close());
+    EXPECT_FALSE(mq.is_open());
+    
+    // 重复关闭应该没问题
+    EXPECT_NO_THROW(mq.close());
+}
+
+TEST_F(message_queue_test, OpenWithDifferentModes) {
+    // CREATE 模式
+    {
+        message_queue mq;
+        mq.open("/test_queue", queue_mode::CREATE_ONLY);
+        EXPECT_TRUE(mq.is_open());
+    }
+    
+    // OPEN_ONLY 模式
+    {
+        message_queue mq;
+        // 队列不存在时应该失败
+        EXPECT_THROW(mq.open("/nonexistent", queue_mode::OPEN_ONLY), 
+                     std::runtime_error);
+        
+        // 先创建队列
+        message_queue creator;
+        creator.open("/test_queue2", queue_mode::CREATE_ONLY);
+        creator.close();
+        
+        // 再以 OPEN_ONLY 模式打开
+        EXPECT_NO_THROW(mq.open("/test_queue2", queue_mode::OPEN_ONLY));
+        EXPECT_TRUE(mq.is_open());
+    }
+    
+    // CREATE_OR_OPEN 模式
+    {
+        message_queue mq;
+        EXPECT_NO_THROW(mq.open("/test_queue3", queue_mode::CREATE_OR_OPEN));
+        EXPECT_TRUE(mq.is_open());
+    }
+}
+
+TEST_F(message_queue_test, SendAndReceive) {
+    message_queue mq(default_config);
+    
+    // 发送简单消息
+    std::string test_msg = "Hello, Message Queue!";
+    EXPECT_TRUE(send_test_message(mq, test_msg));
+    
+    // 接收消息
+    auto received = receive_and_convert(mq);
+    EXPECT_EQ(test_msg, received);
+}
+
+TEST_F(message_queue_test, SendReceiveMultipleMessages) {
+    message_queue mq(default_config);
+    
+    const int num_messages = 5;
+    std::vector<std::string> messages = {
+        "Message 1",
+        "Message 2", 
+        "Message 3",
+        "Message 4",
+        "Message 5"
+    };
+    
+    // 发送所有消息
+    for (const auto& msg : messages) {
+        EXPECT_TRUE(send_test_message(mq, msg));
+    }
+    
+    // 接收所有消息（应该按优先级和发送顺序）
+    for (int i = 0; i < num_messages; ++i) {
+        auto received = receive_and_convert(mq);
+        EXPECT_EQ(messages[i], received);
+    }
+}
+
+TEST_F(message_queue_test, PriorityQueue) {
+    message_queue mq(default_config);
+    
+    // 发送不同优先级的消息（优先级数字越大，优先级越高）
+    EXPECT_TRUE(send_test_message(mq, "Low priority", 1));
+    EXPECT_TRUE(send_test_message(mq, "Medium priority", 5));
+    EXPECT_TRUE(send_test_message(mq, "High priority", 10));
+    
+    // 应该按优先级接收（高优先级先出）
+    auto msg1 = receive_and_convert(mq);
+    EXPECT_EQ("High priority", msg1);
+    
+    auto msg2 = receive_and_convert(mq);
+    EXPECT_EQ("Medium priority", msg2);
+    
+    auto msg3 = receive_and_convert(mq);
+    EXPECT_EQ("Low priority", msg3);
+}
+
+TEST_F(message_queue_test, ReceiveWithPriority) {
+    message_queue mq(default_config);
+    
+    unsigned int test_priority = 7;
+    EXPECT_TRUE(send_test_message(mq, "Priority test", test_priority));
+    
+    unsigned int received_priority = 0;
+    auto data = mq.receive_with_priority(received_priority);
+    
+    std::string received_msg(data.begin(), data.end());
+    EXPECT_EQ("Priority test", received_msg);
+    EXPECT_EQ(test_priority, received_priority);
+}
+
+TEST_F(message_queue_test, SendToClosedQueue) {
+    message_queue mq;
+    std::vector<uint8_t> data = {1, 2, 3, 4};
+    
+    EXPECT_THROW(mq.send(data), std::runtime_error);
+}
+
+TEST_F(message_queue_test, ReceiveFromEmptyQueueNonBlocking) {
+    message_queue mq(default_config);
+    
+    // 非阻塞接收空队列应该立即返回
+    auto data = mq.receive(0);  // 0 表示非阻塞
+    EXPECT_TRUE(data.empty());
+}
+
+TEST_F(message_queue_test, MessageSizeLimits) {
+    message_queue mq;
+    mq.open("/test_queue", queue_mode::CREATE_ONLY, 10, 100);  // 最大消息大小100字节
+    
+    // 发送恰好100字节的消息
+    std::vector<uint8_t> max_size_msg(100, 'A');
+    EXPECT_TRUE(mq.send(max_size_msg));
+    
+    // 发送超过限制的消息应该失败
+    std::vector<uint8_t> oversized_msg(101, 'B');
+    EXPECT_FALSE(mq.send(oversized_msg));
+}
+
+TEST_F(message_queue_test, QueueCapacityLimits) {
+    int max_msgs = 3;
+    message_queue mq;
+    mq.open("/test_queue", queue_mode::CREATE_ONLY, max_msgs, 10);
+    
+    // 填充队列
+    for (int i = 0; i < max_msgs; ++i) {
+        std::vector<uint8_t> data = {static_cast<uint8_t>(i)};
+        EXPECT_TRUE(mq.send(data));
+    }
+    
+    // 队列已满，非阻塞发送应该失败
+    std::vector<uint8_t> extra_data = {99};
+    EXPECT_FALSE(mq.send(extra_data, 0, 0));  // 非阻塞模式
+}
+
+TEST_F(message_queue_test, SendTimeout) {
+    message_queue mq;
+    mq.open("/test_queue", queue_mode::CREATE_ONLY, 1, 10);  // 容量只有1
+    
+    // 填充队列
+    std::vector<uint8_t> data1 = {1};
+    EXPECT_TRUE(mq.send(data1));
+    
+    // 再次发送应该阻塞，但设置超时
+    std::vector<uint8_t> data2 = {2};
+    
+    auto start = std::chrono::steady_clock::now();
+    bool result = mq.send(data2, 0, 100);  // 100ms 超时
+    auto end = std::chrono::steady_clock::now();
+    
+    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+    
+    EXPECT_FALSE(result);  // 应该超时失败
+    EXPECT_GE(duration.count(), 100);  // 至少等待了100ms
+    EXPECT_LT(duration.count(), 150);  // 但不超过150ms（考虑误差）
+}
+
+TEST_F(message_queue_test, ReceiveTimeout) {
+    message_queue mq(default_config);
+    
+    auto start = std::chrono::steady_clock::now();
+    auto data = mq.receive(50);  // 50ms 超时
+    auto end = std::chrono::steady_clock::now();
+    
+    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+    
+    EXPECT_TRUE(data.empty());
+    EXPECT_GE(duration.count(), 50);
+    EXPECT_LT(duration.count(), 100);
+}
+
+TEST_F(message_queue_test, ProducerConsumer) {
+    message_queue mq(default_config);
+    const int num_messages = 100;
+    std::atomic<int> received_count{0};
+    
+    // 消费者线程
+    std::thread consumer([&mq, &received_count, num_messages]() {
+        for (int i = 0; i < num_messages; ++i) {
+            auto data = mq.receive();
             if (!data.empty()) {
-                ++messages_received;
+                ++received_count;
             }
         }
     });
     
-    // 等待所有线程完成
-    for (auto& thread : threads) {
-        thread.join();
-    }
-    
-    // 验证所有消息都被处理
-    EXPECT_EQ(messages_sent, NUM_MESSAGES);
-    EXPECT_EQ(messages_received, NUM_MESSAGES);
-    
-    // 验证队列为空
-    auto attr = mq.get_attributes();
-    EXPECT_EQ(attr.current_messages, 0);
-}
-
-// 测试 9: 边界条件
-TEST_F(message_queue_test, edge_conditions) {
-    // 测试无效队列名
-    {
-        EXPECT_THROW({
-            queue_configuration config("invalid_name");  // 没有以 '/' 开头
-        }, std::invalid_argument);
-    }
-    
-    // 测试零大小配置
-    {
-        queue_configuration config("/test_edge");
-        config.max_messages = 0;
-        config.max_message_size = 0;
-        
-        EXPECT_THROW({
-            message_queue mq(config);
-        }, std::invalid_argument);
-    }
-    
-    // 测试已经关闭的队列
-    {
-        queue_configuration config("/test_edge");
-        message_queue* mq = new message_queue(config);
-        int descriptor = mq->descriptor();
-        delete mq;  // 析构函数会关闭并删除队列（因为是 owner）
-        
-        // 尝试打开已被删除的队列应该失败
-        queue_configuration open_config("/test_edge");
-        open_config.mode = queue_mode::OPEN_ONLY;
-        EXPECT_THROW({
-            message_queue mq2(open_config);
-        }, std::system_error);
-    }
-}
-
-// 测试 10: 异常处理
-TEST_F(message_queue_test, exception_handling) {
-    // 测试打开不存在的队列（OPEN_ONLY模式）
-    {
-        queue_configuration config("/test_nonexistent");
-        config.mode = queue_mode::OPEN_ONLY;
-        
-        EXPECT_THROW({
-            message_queue mq(config);
-        }, std::system_error);
-    }
-    
-    // 测试发送超过最大大小的消息
-    {
-        queue_configuration config("/test_exception");
-        config.max_message_size = 100;
-        message_queue mq(config);
-        
-        std::vector<uint8_t> data(101);  // 超过最大大小
-        EXPECT_THROW({
+    // 生产者线程
+    std::thread producer([&mq, num_messages]() {
+        for (int i = 0; i < num_messages; ++i) {
+            std::vector<uint8_t> data = {static_cast<uint8_t>(i)};
             mq.send(data);
-        }, std::runtime_error);
-    }
-}
-
-// 测试 11: 性能测试
-TEST_F(message_queue_test, performance_testing) {
-    queue_configuration config("/test_performance");
-    // 使用系统允许的最大值，避免超过 /proc/sys/fs/mqueue/msg_max
-    config.max_messages = 10;
-    config.max_message_size = 8192;  // 使用系统允许的最大值
-    message_queue mq(config);
-    
-    const int NUM_ITERATIONS = 100;  // 减少迭代次数，使用流水线模式测试
-    const size_t MESSAGE_SIZE = 1024;  // 1KB
-    
-    // 清空队列
-    mq.clear();
-    
-    // 生成测试数据
-    auto test_data = generate_test_data(MESSAGE_SIZE);
-    
-    // 使用流水线模式：边发送边接收，避免队列满
-    // 先填充队列到一半
-    const int WARMUP = config.max_messages / 2;
-    for (int i = 0; i < WARMUP; ++i) {
-        EXPECT_TRUE(mq.send(test_data));
-    }
-    
-    // 测试发送和接收性能（流水线模式）
-    long long send_time = 0;
-    long long recv_time = 0;
-    
-    for (int i = 0; i < NUM_ITERATIONS; ++i) {
-        // 发送一条
-        auto t1 = std::chrono::high_resolution_clock::now();
-        EXPECT_TRUE(mq.send(test_data));
-        auto t2 = std::chrono::high_resolution_clock::now();
-        send_time += std::chrono::duration_cast<std::chrono::nanoseconds>(t2 - t1).count();
-        
-        // 接收一条
-        t1 = std::chrono::high_resolution_clock::now();
-        auto received = mq.receive();
-        t2 = std::chrono::high_resolution_clock::now();
-        recv_time += std::chrono::duration_cast<std::chrono::nanoseconds>(t2 - t1).count();
-        
-        EXPECT_EQ(received.size(), MESSAGE_SIZE);
-    }
-    
-    // 接收剩余的预热消息
-    for (int i = 0; i < WARMUP; ++i) {
-        auto received = mq.receive();
-        EXPECT_EQ(received.size(), MESSAGE_SIZE);
-    }
-    
-    double send_time_per_msg = static_cast<double>(send_time) / NUM_ITERATIONS / 1000.0;  // 转换为微秒
-    double recv_time_per_msg = static_cast<double>(recv_time) / NUM_ITERATIONS / 1000.0;  // 转换为微秒
-    
-    std::cout << "Average send time: " << send_time_per_msg << " microseconds" << std::endl;
-    std::cout << "Average receive time: " << recv_time_per_msg << " microseconds" << std::endl;
-    
-    // 验证队列为空
-    auto attr = mq.get_attributes();
-    EXPECT_EQ(attr.current_messages, 0);
-}
-
-// 测试 12: 跨进程通信模拟（使用线程模拟）
-TEST_F(message_queue_test, cross_process_communication) {
-    queue_configuration config("/test_cross_process");
-    message_queue mq(config);
-    
-    // 模拟进程A
-    auto process_a = [&mq]() {
-        for (int i = 0; i < 10; ++i) {
-            std::string message = "Process A: " + std::to_string(i);
-            std::vector<uint8_t> data(message.begin(), message.end());
-            mq.send(data);
-            std::this_thread::sleep_for(std::chrono::milliseconds(10));
+            std::this_thread::sleep_for(std::chrono::milliseconds(1));
         }
-        
-        // 发送结束信号
-        std::vector<uint8_t> end_data = {'E', 'N', 'D'};
-        mq.send(end_data);
-    };
+    });
     
-    // 模拟进程B
-    auto process_b = [&mq]() -> int {
-        int count = 0;
-        while (true) {
-            auto data = mq.receive(100);  // 100ms 超时
+    producer.join();
+    consumer.join();
+    
+    EXPECT_EQ(num_messages, received_count);
+}
+
+TEST_F(message_queue_test, MultipleProducers) {
+    message_queue mq(default_config);
+    const int messages_per_producer = 50;
+    const int num_producers = 4;
+    
+    std::atomic<int> total_received{0};
+    
+    // 消费者
+    std::thread consumer([&mq, &total_received]() {
+        while (total_received < messages_per_producer * num_producers) {
+            auto data = mq.receive(10);  // 10ms 超时
             if (!data.empty()) {
-                if (data.size() == 3 && 
-                    data[0] == 'E' && 
-                    data[1] == 'N' && 
-                    data[2] == 'D') {
-                    break;  // 收到结束信号
-                }
-                ++count;
+                ++total_received;
             }
         }
-        return count;
-    };
+    });
     
-    // 启动"进程B"作为异步任务
-    auto future = std::async(std::launch::async, process_b);
-    
-    // 运行"进程A"
-    std::thread thread_a(process_a);
-    thread_a.join();
-    
-    // 获取结果
-    int received_count = future.get();
-    
-    EXPECT_EQ(received_count, 10);
-}
-
-// 测试 13: 权限测试
-TEST_F(message_queue_test, permission_testing) {
-    queue_configuration config("/test_permission");
-    config.permissions.owner_read = 1;
-    config.permissions.owner_write = 1;
-    config.permissions.group_read = 1;
-    config.permissions.group_write = 0;
-    config.permissions.others_read = 0;
-    config.permissions.others_write = 0;
-    
-    // 创建带权限的队列
-    EXPECT_NO_THROW([&]() {
-        message_queue mq(config);
-    }());
-}
-
-// 测试 14: 清空功能
-TEST_F(message_queue_test, clear_testing) {
-    queue_configuration config("/test_clear");
-    message_queue mq(config);
-    
-    // 填充队列
-    for (int i = 0; i < 10; ++i) {
-        std::vector<uint8_t> data = {static_cast<uint8_t>(i)};
-        mq.send(data);
-    }
-    
-    // 验证队列非空
-    auto attr = mq.get_attributes();
-    EXPECT_EQ(attr.current_messages, 10);
-    
-    // 清空队列
-    mq.clear();
-    
-    // 验证队列为空
-    attr = mq.get_attributes();
-    EXPECT_EQ(attr.current_messages, 0);
-    
-    // 测试非阻塞接收应该立即返回空
-    auto result = mq.receive(0);
-    EXPECT_TRUE(result.empty());
-}
-
-// 测试 15: 资源清理
-TEST_F(message_queue_test, resource_cleanup) {
-    // 测试析构函数自动清理
-    {
-        queue_configuration config("/test_auto_cleanup");
-        {
-            message_queue mq(config);
-            // 发送一些消息
-            for (int i = 0; i < 5; ++i) {
-                std::vector<uint8_t> data = {static_cast<uint8_t>(i)};
+    // 多个生产者
+    std::vector<std::thread> producers;
+    for (int p = 0; p < num_producers; ++p) {
+        producers.emplace_back([&mq, p, messages_per_producer]() {
+            for (int i = 0; i < messages_per_producer; ++i) {
+                std::vector<uint8_t> data = {
+                    static_cast<uint8_t>(p),
+                    static_cast<uint8_t>(i)
+                };
                 mq.send(data);
             }
-        }  // mq 析构，应该自动清理
-        
-        // 尝试重新创建（应该成功，因为已清理）
-        queue_configuration new_config("/test_auto_cleanup");
-        new_config.mode = queue_mode::CREATE_ONLY;
-        
-        EXPECT_NO_THROW([&]() {
-            message_queue mq(new_config);
-            EXPECT_TRUE(mq.is_valid());
-        }());
+        });
     }
+    
+    for (auto& t : producers) t.join();
+    consumer.join();
+    
+    EXPECT_EQ(messages_per_producer * num_producers, total_received);
+}
+
+TEST_F(message_queue_test, GetAttributes) {
+    message_queue mq;
+    const int max_msgs = 20;
+    const int max_msg_size = 2048;
+    
+    mq.open("/test_queue", queue_mode::CREATE_ONLY, max_msgs, max_msg_size);
+    
+    auto attrs = mq.get_attributes();
+    
+    EXPECT_EQ("/test_queue", attrs.name);
+    EXPECT_GT(attrs.queue_id, 0);  // 应该有一个有效的队列ID
+    EXPECT_EQ(max_msgs, attrs.max_messages);
+    EXPECT_EQ(max_msg_size, attrs.max_message_size);
+    EXPECT_EQ(0, attrs.current_messages);  // 初始时队列为空
+    
+    // 发送消息后再次检查
+    send_test_message(mq, "test");
+    attrs = mq.get_attributes();
+    EXPECT_EQ(1, attrs.current_messages);
 }
