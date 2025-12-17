@@ -74,6 +74,11 @@ protected:
         object.init();
     }
 
+    void TearDown() override {
+        // 确保在测试结束时清理 error_engine，避免全局清理时访问已销毁的对象
+        ::mc::error_engine::reset_for_test();
+    }
+
     context_test_service service;
     context_test_object  object;
 };
@@ -86,6 +91,14 @@ TEST_F(ContextTest, ArgsAndStatusManagement) {
     ctx.set_arg("key", ::mc::variant(42));
     EXPECT_EQ(ctx.get_arg("key").as_int64(), 42);
     EXPECT_EQ(ctx.get_args().at("key").as_int64(), 42);
+
+    // 测试 const 版本的 get_args()
+    const auto& const_args = ctx.get_args();
+    EXPECT_EQ(const_args.at("key").as_int64(), 42);
+
+    // 测试 const 版本的 get_service()
+    const auto& const_service_ref = ctx.get_service();
+    EXPECT_EQ(&const_service_ref, &service);
 
     ctx.ignore();
     EXPECT_EQ(ctx.get_status(), ::mc::engine::handler_status::ignored);
@@ -165,6 +178,23 @@ TEST_F(ContextTest, AbstractInterfaceContextAccess) {
     }
 
     EXPECT_THROW(static_cast<void>(interface_ref.get_context()), ::mc::runtime_exception);
+}
+
+TEST_F(ContextTest, ContextSetArgs) {
+    ::mc::engine::context ctx(service, object);
+    
+    // 使用 set_args 批量设置参数
+    ::mc::dict args_dict;
+    args_dict["key1"] = 42;
+    args_dict["key2"] = "value";
+    args_dict["key3"] = true;
+    
+    ctx.set_args(args_dict);
+    
+    // 验证参数已设置
+    EXPECT_EQ(ctx.get_arg("key1").as_int64(), 42);
+    EXPECT_EQ(ctx.get_arg("key2").as_string(), "value");
+    EXPECT_EQ(ctx.get_arg("key3").as_bool(), true);
 }
 
 } // namespace

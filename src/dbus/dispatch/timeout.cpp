@@ -27,7 +27,14 @@ void timeout::start(connection_weak_ptr conn) {
         return;
     }
 
+    int interval = dbus_timeout_get_interval(m_timeout);
+    // 1. 先设置定时器的过期时间：将定时器的过期时间设置为当前时间加上指定的时间间隔
+    //    注意：必须先调用 expires_after 设置过期时间，然后才能调用 async_wait
+    m_timer.expires_after(std::chrono::milliseconds(interval));
+
     auto self = this->shared_from_this();
+    // 2. 然后开始异步等待定时器到期：当定时器到期时，回调函数会被调用
+    //    回调函数参数 ec 表示错误码，如果定时器被取消则为 operation_aborted
     m_timer.async_wait([s = std::move(self), c = std::move(conn)](const auto& ec) {
         if (ec) {
             if (ec == boost::asio::error::operation_aborted) {
@@ -49,9 +56,6 @@ void timeout::start(connection_weak_ptr conn) {
             dbus_timeout_handle(t->m_timeout);
         }
     });
-
-    int interval = dbus_timeout_get_interval(m_timeout);
-    m_timer.expires_after(std::chrono::milliseconds(interval));
 }
 
 void timeout::stop() {
