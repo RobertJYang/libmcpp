@@ -159,7 +159,7 @@ protected:
         });
 
         // 等待服务器启动
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        std::this_thread::sleep_for(std::chrono::milliseconds(20));
     }
 
     // 同时启动主 socket 和心跳 socket 服务器
@@ -317,7 +317,7 @@ protected:
         });
 
         // 等待两个服务器都启动
-        std::this_thread::sleep_for(std::chrono::milliseconds(150));
+        std::this_thread::sleep_for(std::chrono::milliseconds(30));
     }
 
     void stop_both_socket_servers() {
@@ -326,7 +326,7 @@ protected:
         m_hb_server_running = false;
 
         // 等待一小段时间让线程检测到退出标志
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        std::this_thread::sleep_for(std::chrono::milliseconds(20));
 
         // 直接 join，如果线程已经退出，join 会立即返回
         if (m_server_thread.joinable()) {
@@ -464,13 +464,13 @@ TEST_F(socket_appender_test, Disconnect) {
     EXPECT_TRUE(m_appender->is_connected());
 
     // 等待一小段时间确保连接稳定
-    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
 
     m_appender->disconnect();
     EXPECT_FALSE(m_appender->is_connected());
 
     // 等待一小段时间确保服务器检测到断开
-    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
 
     stop_both_socket_servers();
 }
@@ -523,7 +523,7 @@ TEST_F(socket_appender_test, AppendWithLocalTypeAndDebugCategory) {
     ASSERT_NO_THROW(m_appender->append(msg));
 
     // 等待消息发送完成
-    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    std::this_thread::sleep_for(std::chrono::milliseconds(20));
 
     stop_both_socket_servers();
 }
@@ -551,7 +551,7 @@ TEST_F(socket_appender_test, AppendWithReconnect) {
     auto msg2 = create_test_message(level::debug, "第二条消息", log_category::debug);
     ASSERT_NO_THROW(m_appender->append(msg2));
 
-    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    std::this_thread::sleep_for(std::chrono::milliseconds(20));
 
     stop_both_socket_servers();
 }
@@ -573,7 +573,7 @@ TEST_F(socket_appender_test, AppendFormattedMessage) {
 
     ASSERT_NO_THROW(m_appender->append(msg));
 
-    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    std::this_thread::sleep_for(std::chrono::milliseconds(20));
 
     stop_both_socket_servers();
 }
@@ -591,7 +591,7 @@ TEST_F(socket_appender_test, AppendEmptyMessage) {
 
     ASSERT_NO_THROW(m_appender->append(msg));
 
-    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    std::this_thread::sleep_for(std::chrono::milliseconds(20));
 
     stop_both_socket_servers();
 }
@@ -615,7 +615,7 @@ TEST_F(socket_appender_test, AppendDifferentLogLevels) {
     ASSERT_NO_THROW(m_appender->append(warn_msg));
     ASSERT_NO_THROW(m_appender->append(error_msg));
 
-    std::this_thread::sleep_for(std::chrono::milliseconds(200));
+    std::this_thread::sleep_for(std::chrono::milliseconds(30));
 
     stop_both_socket_servers();
 }
@@ -634,9 +634,19 @@ TEST_F(socket_appender_test, MultipleConnectDisconnect) {
     for (int i = 0; i < 3; ++i) {
         // 确保前一次的服务器线程已经完全退出
         stop_both_socket_servers();
-        std::this_thread::sleep_for(std::chrono::milliseconds(50));
+        std::this_thread::sleep_for(std::chrono::milliseconds(30));
+        
+        // 确保socket文件被删除
+        if (std::filesystem::exists(m_socket_path)) {
+            std::filesystem::remove(m_socket_path);
+        }
+        if (std::filesystem::exists(m_hb_socket_path)) {
+            std::filesystem::remove(m_hb_socket_path);
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
 
         start_both_socket_servers();
+        std::this_thread::sleep_for(std::chrono::milliseconds(20));
 
         EXPECT_TRUE(m_appender->connect());
         EXPECT_TRUE(m_appender->is_connected());
@@ -645,11 +655,12 @@ TEST_F(socket_appender_test, MultipleConnectDisconnect) {
         EXPECT_FALSE(m_appender->is_connected());
 
         // 等待一小段时间确保服务器处理完连接
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        std::this_thread::sleep_for(std::chrono::milliseconds(30));
     }
     
     // 最后清理
     stop_both_socket_servers();
+    std::this_thread::sleep_for(std::chrono::milliseconds(20));
 }
 
 // 测试 init 后设置路径并连接

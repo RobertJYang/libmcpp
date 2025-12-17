@@ -260,63 +260,44 @@ int32_t mc_reset_interface::action(std::map<std::string, std::string> context, s
 void mc_reset_interface::cancel(std::map<std::string, std::string> context, std::string reset_type) {
 }
 
-namespace {
-std::mutex                     g_dlog_level_timer_mutex;
-mc::core::timer_ptr            g_dlog_level_timer;
-std::mutex                     g_dlog_limit_timer_mutex;
-mc::core::timer_ptr            g_dlog_limit_timer;
-std::mutex                     g_debug_console_mutex;
-mc::core::timer_ptr            g_debug_console_timer;
-std::weak_ptr<socket_appender> g_debug_console_appender;
-
-void stop_debug_console_heartbeat() {
-    std::lock_guard<std::mutex> lock(g_debug_console_mutex);
-
-    if (g_debug_console_timer) {
-        g_debug_console_timer->stop();
-        g_debug_console_timer.reset();
+// mc_debug_interface 析构函数实现
+mc_debug_interface::~mc_debug_interface() {
+    // 停止所有 timer，确保在对象析构前清理
+    {
+        std::lock_guard<std::mutex> lock(m_dlog_level_mutex);
+        if (m_dlog_level_timer) {
+            m_dlog_level_timer->stop();
+            m_dlog_level_timer.reset();
+        }
     }
-
-    if (auto appender = g_debug_console_appender.lock()) {
-        appender->disconnect();
+    
+    {
+        std::lock_guard<std::mutex> lock(m_debug_console_mutex);
+        if (m_debug_console_timer) {
+            m_debug_console_timer->stop();
+            m_debug_console_timer.reset();
+        }
+        
+        if (auto appender = m_debug_console_appender.lock()) {
+            appender->disconnect();
+        }
+        m_debug_console_appender.reset();
     }
-
-    g_debug_console_appender.reset();
 }
 
-void start_debug_console_heartbeat(mc_debug_interface* iface, const std::shared_ptr<socket_appender>& appender) {
-    if (!iface || !appender) {
-        return;
+// mc_maintenance_interface 析构函数实现
+mc_maintenance_interface::~mc_maintenance_interface() {
+    // 停止 timer，确保在对象析构前清理
+    std::lock_guard<std::mutex> lock(m_dlog_limit_mutex);
+    if (m_dlog_limit_timer) {
+        m_dlog_limit_timer->stop();
+        m_dlog_limit_timer.reset();
     }
-
-    std::lock_guard<std::mutex> lock(g_debug_console_mutex);
-    g_debug_console_appender = appender;
-
-    if (!g_debug_console_timer) {
-        g_debug_console_timer = mc::core::timer_ptr(new mc::core::timer());
-        g_debug_console_timer->set_interval(mc::seconds(1));
-        g_debug_console_timer->timeout.connect([iface]() {
-            std::shared_ptr<socket_appender> locked_appender;
-            {
-                std::lock_guard<std::mutex> timer_lock(g_debug_console_mutex);
-                locked_appender = g_debug_console_appender.lock();
-            }
-
-            if (!locked_appender) {
-                return;
-            }
-
-            if (!locked_appender->heartbeat()) {
-                iface->detach_debug_console({});
-            }
-        });
-    }
-
-    g_debug_console_timer->start(mc::seconds(1));
 }
-} // namespace
 
 void mc_debug_interface::attach_debug_console(std::map<std::string, std::string> context, uint32_t port) {
+    std::lock_guard<std::mutex> lock(m_debug_console_mutex);
+    
     auto default_log    = mc::log::default_logger();
     auto socket_path    = mc::string::concat("/dev/shm/", std::to_string(port), ".sock");
     auto hb_socket_path = mc::string::concat("/dev/shm/", std::to_string(port), ".hbsock");
@@ -351,15 +332,47 @@ void mc_debug_interface::attach_debug_console(std::map<std::string, std::string>
     ilog("attached debug console ${port}", ("port", port));
 
     socket_appender_ptr->set_type(this->m_dlog_type);
-    start_debug_console_heartbeat(this, socket_appender_ptr);
+    
+    // 使用成员变量而非全局变量
+    m_debug_console_appender = socket_appender_ptr;
+    
+    if (!m_debug_console_timer) {
+        m_debug_console_timer = mc::make_shared<mc::core::timer>();
+        m_debug_console_timer->set_interval(mc::seconds(1));
+        m_debug_console_timer->timeout.connect([this]() {
+            auto locked_appender = m_debug_console_appender.lock();
+            if (!locked_appender) {
+                return;
+            }
+
+            if (!locked_appender->heartbeat()) {
+                this->detach_debug_console({});
+            }
+        });
+    }
+    
+    m_debug_console_timer->start(mc::seconds(1));
     ilog("start heartbeat check of debug console ${port}", ("port", port));
 }
 
 void mc_debug_interface::detach_debug_console(std::map<std::string, std::string> context) {
+    std::lock_guard<std::mutex> lock(m_debug_console_mutex);
+    
     auto default_log  = mc::log::default_logger();
     this->m_dlog_type = DEFAULT_DLOG_TYPE;
     ilog("set debug log type to ${type}", ("type", DEFAULT_DLOG_TYPE));
-    stop_debug_console_heartbeat();
+    
+    // 停止心跳定时器
+    if (m_debug_console_timer) {
+        m_debug_console_timer->stop();
+        m_debug_console_timer.reset();
+    }
+
+    if (auto appender = m_debug_console_appender.lock()) {
+        appender->disconnect();
+    }
+    m_debug_console_appender.reset();
+    
     auto appender = default_log.find_appender(DEFAULT_SOCKET_APPENDER_NAME);
     if (auto socket_appender_ptr = std::dynamic_pointer_cast<socket_appender>(appender)) {
         socket_appender_ptr->set_type(DEFAULT_DLOG_TYPE);
@@ -378,6 +391,8 @@ static void set_log_level(mc::log::level lvl, std::string log_info) {
 
 void mc_debug_interface::set_dlog_level(std::map<std::string, std::string> context, std::string level,
                                         uint8_t effective_hours) {
+    std::lock_guard<std::mutex> lock(m_dlog_level_mutex);
+    
     auto lvl_opt = mc::log::to_level(level);
     if (lvl_opt == std::nullopt) {
         MC_THROW(mc::invalid_argument_exception, "Invalid log level: ${level}", ("level", level));
@@ -385,12 +400,10 @@ void mc_debug_interface::set_dlog_level(std::map<std::string, std::string> conte
     mc::log::level lvl      = *lvl_opt;
     std::string    log_info = mc::string::concat("Set debug log level to ", level, " successfully");
 
-    {
-        std::lock_guard<std::mutex> lock(g_dlog_level_timer_mutex);
-        if (g_dlog_level_timer) {
-            g_dlog_level_timer->stop();
-            g_dlog_level_timer.reset();
-        }
+    // 停止之前的定时器
+    if (m_dlog_level_timer) {
+        m_dlog_level_timer->stop();
+        m_dlog_level_timer.reset();
     }
 
     if (lvl < mc::log::level::notice) {
@@ -398,16 +411,15 @@ void mc_debug_interface::set_dlog_level(std::map<std::string, std::string> conte
         log_info                  = mc::string::concat(log_info, ", will set back to default level (notice) in ", std::to_string(effective_hours), " ", hour_str);
         set_log_level(lvl, log_info);
         this->m_dlog_level = level;
-        {
-            std::lock_guard<std::mutex> lock(g_dlog_level_timer_mutex);
-            g_dlog_level_timer = mc::core::timer::single_shot(mc::hours(effective_hours), [this]() {
-                set_log_level(mc::log::level::notice, std::string("Set debug log level back to default level (notice) successfully"));
-                this->m_dlog_level = DEFAULT_DLOG_LEVEL;
-                // 清理定时器引用，避免持有已完成的定时器对象
-                std::lock_guard<std::mutex> lock(g_dlog_level_timer_mutex);
-                g_dlog_level_timer.reset();
-            });
-        }
+        
+        // 使用成员变量
+        m_dlog_level_timer = mc::core::timer::single_shot(mc::hours(effective_hours), [this]() {
+            std::lock_guard<std::mutex> timer_lock(m_dlog_level_mutex);
+            set_log_level(mc::log::level::notice, std::string("Set debug log level back to default level (notice) successfully"));
+            this->m_dlog_level = DEFAULT_DLOG_LEVEL;
+            // 清理定时器引用，避免持有已完成的定时器对象
+            m_dlog_level_timer.reset();
+        });
     } else {
         set_log_level(lvl, log_info);
         this->m_dlog_level = level;
@@ -425,10 +437,12 @@ static void set_log_limit_env(bool enabled, std::string log_info) {
 
 void mc_maintenance_interface::dlog_limit(std::map<std::string, std::string> context, bool enabled,
                                           uint8_t duration_mins) {
-    std::lock_guard<std::mutex> lock(g_dlog_limit_timer_mutex);
-    if (g_dlog_limit_timer) {
-        g_dlog_limit_timer->stop();
-        g_dlog_limit_timer.reset();
+    std::lock_guard<std::mutex> lock(m_dlog_limit_mutex);
+    
+    // 停止之前的定时器
+    if (m_dlog_limit_timer) {
+        m_dlog_limit_timer->stop();
+        m_dlog_limit_timer.reset();
     }
 
     std::string log_info = "Enable log limit successfully";
@@ -443,11 +457,13 @@ void mc_maintenance_interface::dlog_limit(std::map<std::string, std::string> con
 
     set_log_limit_env(false, log_info);
     auto duration      = mc::minutes(static_cast<int64_t>(duration_mins));
-    g_dlog_limit_timer = mc::core::timer::single_shot(duration, []() {
+    
+    // 使用成员变量
+    m_dlog_limit_timer = mc::core::timer::single_shot(duration, [this]() {
+        std::lock_guard<std::mutex> timer_lock(m_dlog_limit_mutex);
         set_log_limit_env(true, std::string("Resume log limit successfully"));
         // 清理定时器引用，避免持有已完成的定时器对象
-        std::lock_guard<std::mutex> lock(g_dlog_limit_timer_mutex);
-        g_dlog_limit_timer.reset();
+        m_dlog_limit_timer.reset();
     });
 }
 

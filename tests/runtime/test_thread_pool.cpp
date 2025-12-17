@@ -62,7 +62,7 @@ TEST_F(ThreadPoolTest, LoadBalancing) {
     ctx.start();
 
     // 等待 Worker 启动
-    std::this_thread::sleep_for(100ms);
+    std::this_thread::sleep_for(50ms);  // 从 100ms 减少到 50ms
 
     auto                                executor = ctx.get_executor();
     std::set<std::thread::id>           thread_ids;
@@ -77,12 +77,12 @@ TEST_F(ThreadPoolTest, LoadBalancing) {
                 thread_ids.insert(std::this_thread::get_id());
             }
             // 简单睡眠模拟负载，促使调度器使用更多线程
-            std::this_thread::sleep_for(10ms);
+            std::this_thread::sleep_for(5ms);  // 从 10ms 减少到 5ms
             tasks_done.arrive();
         }, std::allocator<void>());
     }
 
-    EXPECT_TRUE(tasks_done.wait_for(5s));
+    EXPECT_TRUE(tasks_done.wait_for(3s));  // 从 5s 减少到 3s
     EXPECT_GE(thread_ids.size(), thread_count);
 }
 

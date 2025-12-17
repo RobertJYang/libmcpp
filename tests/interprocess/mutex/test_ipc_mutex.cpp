@@ -482,7 +482,7 @@ TEST_F(IpcMutexTestFixture, MutexTryLockIpcFailure) {
     // 在一个线程中先获取 IPC 锁（通过 ipc_mutex 直接获取）
     std::thread holder([this]() {
         EXPECT_TRUE(m_ipc_mutex->try_lock());
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        std::this_thread::sleep_for(std::chrono::milliseconds(30));
         m_ipc_mutex->unlock();
     });
     
@@ -538,7 +538,7 @@ TEST_F(IpcMutexTestFixture, MutexTryLockForIpcTimeout) {
     // 在一个线程中先获取 IPC 锁并保持
     std::thread holder([this]() {
         EXPECT_TRUE(m_ipc_mutex->try_lock());
-        std::this_thread::sleep_for(std::chrono::milliseconds(200));
+        std::this_thread::sleep_for(std::chrono::milliseconds(60));
         m_ipc_mutex->unlock();
     });
     
@@ -548,8 +548,8 @@ TEST_F(IpcMutexTestFixture, MutexTryLockForIpcTimeout) {
     // 在另一个线程中调用 mutex::try_lock_for() 并设置较短的超时时间
     std::atomic<bool> try_lock_result(false);
     std::thread contender([this, &try_lock_result]() {
-        // 使用较短的超时时间（50ms），但 IPC 锁会被持有 200ms
-        try_lock_result = m_mutex->try_lock_for(std::chrono::milliseconds(50));
+        // 使用较短的超时时间（30ms），但 IPC 锁会被持有 60ms
+        try_lock_result = m_mutex->try_lock_for(std::chrono::milliseconds(30));
         if (try_lock_result) {
             m_mutex->unlock();
         }

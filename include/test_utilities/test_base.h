@@ -24,8 +24,8 @@ namespace mc {
 namespace test {
 
 /**
- * @brief 测试基类，提供通用的测试功能
- */
+* @brief 测试基类，提供通用的测试功能
+*/
 class MC_API TestBase : public ::testing::Test {
 protected:
     static void SetUpTestSuite() {

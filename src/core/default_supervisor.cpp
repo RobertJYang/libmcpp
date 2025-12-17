@@ -24,16 +24,17 @@ default_supervisor::default_supervisor() : m_started(false) {
 bool default_supervisor::init(const config::supervisor_config& config) {
     std::lock_guard<std::mutex> lock(m_mutex);
 
-    m_config            = config;
-    m_restart_count     = 0;
-    m_last_restart_time = std::chrono::steady_clock::now();
-    m_name              = config.meta.name;
-    m_strategy          = config.strategy;
-    m_max_restarts      = config.max_restarts;
+    m_config                 = config;
+    m_restart_count          = 0;
+    m_last_restart_time      = std::chrono::steady_clock::now();
+    m_name                   = config.meta.name;
+    m_strategy               = config.strategy;
+    m_max_restarts           = config.max_restarts;
+    m_restart_window_seconds = config.restart_window_seconds;
 
-    ilog("init supervisor: ${name}, strategy: ${strategy}, max_restarts: ${max_restarts}",
+    ilog("init supervisor: ${name}, strategy: ${strategy}, max_restarts: ${max_restarts}, restart_window: ${window}s",
          ("name", m_name)("strategy", get_strategy_name(m_strategy))("max_restarts",
-                                                                     m_max_restarts));
+                                                                    m_max_restarts)("window", m_restart_window_seconds));
 
     return true;
 }
@@ -244,7 +245,7 @@ bool default_supervisor::restart_all_services() {
     auto now     = std::chrono::steady_clock::now();
     auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(now - m_last_restart_time);
 
-    if (elapsed > std::chrono::seconds(5)) {
+    if (elapsed > std::chrono::seconds(m_restart_window_seconds)) {
         // 重置重启计数
         m_restart_count     = 0;
         m_last_restart_time = now;

@@ -55,13 +55,12 @@ namespace mc::test {
 class concurrent_string_test {
 private:
     std::string         m_base_name;
-    mutable std::string m_cached_name; // 模拟修复后的实现（对象级缓存）
+    mutable std::string m_cached_name;
 
 public:
     explicit concurrent_string_test(const std::string& name) : m_base_name(name) {
     }
 
-    // 模拟修复后的 get_object_name 方法
     std::string get_object_name() const {
         m_cached_name = m_base_name; // 使用对象级缓存，避免 thread_local 问题
         return m_cached_name;
@@ -86,7 +85,6 @@ protected:
     std::vector<concurrent_string_test> test_objects_;
 };
 
-// 测试修复后的实现：每个对象使用自己的缓存
 TEST_F(PropertyConcurrentFixTest, GetObjectNameConcurrentSafety) {
     const int num_threads           = 10;
     const int iterations_per_thread = 1000;
@@ -139,7 +137,6 @@ TEST_F(PropertyConcurrentFixTest, GetObjectNameConcurrentSafety) {
     EXPECT_EQ(error_count.load(), 0) << "发现 " << error_count.load() << " 个并发错误";
 }
 
-// 验证修复确实解决了问题的压力测试
 TEST_F(PropertyConcurrentFixTest, HighConcurrencyStressTest) {
     const int num_threads = 20;
     const int iterations  = 500;

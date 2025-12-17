@@ -892,8 +892,8 @@ TEST_F(SharedMutexTestFixture, IpcMutexTryLockForRetry) {
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
     }
 
-    // 保持锁超过超时时间
-    std::this_thread::sleep_for(std::chrono::milliseconds(120));
+    // 保持锁超过超时时间（超过100ms，确保线程超时）
+    std::this_thread::sleep_for(std::chrono::milliseconds(110));
     m_mutex->unlock();
 
     t.join();
@@ -1118,7 +1118,7 @@ TEST_F(SharedMutexTestFixture, SharedMutexTryLockThreadMutexFailure) {
     std::thread holder([this]() {
         // 获取写锁，这会持有线程写锁
         m_shared_mutex->lock();
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        std::this_thread::sleep_for(std::chrono::milliseconds(30));
         m_shared_mutex->unlock();
     });
     
@@ -1148,7 +1148,7 @@ TEST_F(SharedMutexTestFixture, SharedMutexTryLockIpcFailure) {
     std::thread holder([this, &lock_ready]() {
         EXPECT_TRUE(m_ipc_shared_mutex->try_lock());
         lock_ready.set();
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        std::this_thread::sleep_for(std::chrono::milliseconds(30));
         m_ipc_shared_mutex->unlock();
     });
     
@@ -1178,7 +1178,7 @@ TEST_F(SharedMutexTestFixture, SharedMutexTryLockSharedThreadMutexFailure) {
     // 在一个线程中先获取写锁（这会阻止读锁）
     std::thread holder([this]() {
         m_shared_mutex->lock();
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        std::this_thread::sleep_for(std::chrono::milliseconds(30));
         m_shared_mutex->unlock();
     });
     
@@ -1206,7 +1206,7 @@ TEST_F(SharedMutexTestFixture, SharedMutexTryLockSharedIpcFailure) {
     // 在一个线程中先获取 IPC 写锁（通过 ipc_shared_mutex 直接获取）
     std::thread holder([this]() {
         EXPECT_TRUE(m_ipc_shared_mutex->try_lock());
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        std::this_thread::sleep_for(std::chrono::milliseconds(30));
         m_ipc_shared_mutex->unlock();
     });
     

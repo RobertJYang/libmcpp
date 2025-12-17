@@ -89,7 +89,7 @@ TEST_F(signal_send_receive_test, test_two_services_bidirectional_signal) {
     ilog("服务B唯一名称: ${name}", ("name", conn_b.get_unique_name()));
 
     // 等待服务名称注册完成
-    std::this_thread::sleep_for(std::chrono::milliseconds(200));
+    std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
     // 定义信号参数
     const std::string signal_path      = "/org/test/Signal";
@@ -167,7 +167,7 @@ TEST_F(signal_send_receive_test, test_two_services_bidirectional_signal) {
     conn_b.add_match(rule_b, std::move(callback_b), 2);
 
     // 等待订阅完成
-    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    std::this_thread::sleep_for(std::chrono::milliseconds(20));
 
     // 服务A发送信号给服务B
     auto signal_a = message::new_signal(signal_path, signal_interface, signal_member_a);
@@ -199,7 +199,7 @@ TEST_F(signal_send_receive_test, test_two_services_bidirectional_signal) {
             }
         }
 
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        std::this_thread::sleep_for(std::chrono::milliseconds(20));
     }
 
     // 验证信号接收
@@ -242,7 +242,7 @@ TEST_F(signal_send_receive_test, test_multiple_signals_bidirectional) {
     ilog("多信号测试 - 服务B: ${name}", ("name", conn_b.get_unique_name()));
 
     // 等待服务名称注册完成
-    std::this_thread::sleep_for(std::chrono::milliseconds(200));
+    std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
     // 定义信号参数
     const std::string signal_path      = "/org/test/MultipleSignal";
@@ -298,7 +298,7 @@ TEST_F(signal_send_receive_test, test_multiple_signals_bidirectional) {
     conn_b.add_match(rule_b, std::move(callback_b), 2);
 
     // 等待订阅完成
-    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    std::this_thread::sleep_for(std::chrono::milliseconds(20));
 
     // 发送多个信号
     const int num_signals = 5;
@@ -331,7 +331,7 @@ TEST_F(signal_send_receive_test, test_multiple_signals_bidirectional) {
             break;
         }
 
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        std::this_thread::sleep_for(std::chrono::milliseconds(20));
     }
 
     // 验证信号接收
@@ -385,7 +385,7 @@ TEST_F(signal_send_receive_test, test_signal_subscribe_unsubscribe) {
     ilog("取消订阅测试 - 服务B: ${name}", ("name", conn_b.get_unique_name()));
 
     // 等待服务名称注册完成
-    std::this_thread::sleep_for(std::chrono::milliseconds(200));
+    std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
     // 定义信号参数
     const std::string signal_path      = "/org/test/UnsubscribeSignal";
@@ -406,14 +406,14 @@ TEST_F(signal_send_receive_test, test_signal_subscribe_unsubscribe) {
     conn_a.add_match(rule, std::move(callback), 1);
 
     // 等待订阅完成
-    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    std::this_thread::sleep_for(std::chrono::milliseconds(20));
 
     // 服务B发送第一个信号（应该被接收）
     auto signal1 = message::new_signal(signal_path, signal_interface, signal_member);
     ASSERT_TRUE(conn_b.send(std::move(signal1)));
 
     // 等待 io_context 线程异步处理信号
-    std::this_thread::sleep_for(std::chrono::milliseconds(500));
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
     // 验证第一个信号被接收
     EXPECT_EQ(signal_received_count.load(), 1)
@@ -432,7 +432,7 @@ TEST_F(signal_send_receive_test, test_signal_subscribe_unsubscribe) {
     ASSERT_TRUE(conn_b.send(std::move(signal2)));
 
     // 等待 io_context 线程处理（如果有的话）
-    std::this_thread::sleep_for(std::chrono::milliseconds(500));
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
     // 验证第二个信号没有被接收（计数应该保持不变）
     int count_after_unsubscribe = signal_received_count.load();

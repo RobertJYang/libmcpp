@@ -16,6 +16,12 @@
 #include <mc/dict.h>
 #include <mc/engine.h>
 #include <mc/variant.h>
+#include <mc/core/timer.h>
+
+// Forward declarations
+namespace mc::log {
+class socket_appender;
+}
 
 namespace mc::engine {
 
@@ -55,7 +61,7 @@ struct MC_API mc_config_manage_interface : public mc::engine::interface<mc_confi
 struct MC_API mc_debug_interface : public mc::engine::interface<mc_debug_interface> {
     MC_INTERFACE("bmc.kepler.MicroComponent.Debug")
 
-    ~mc_debug_interface() override = default;
+    ~mc_debug_interface() override;
 
     void attach_debug_console(std::map<std::string, std::string> context, uint32_t port);
     void detach_debug_console(std::map<std::string, std::string> context);
@@ -65,6 +71,15 @@ struct MC_API mc_debug_interface : public mc::engine::interface<mc_debug_interfa
 
     property<std::string> m_dlog_level;
     property<std::string> m_dlog_type;
+    
+    // Timer 成员变量，绑定到对象生命周期
+    mc::core::timer_ptr m_dlog_level_timer;
+    mc::core::timer_ptr m_debug_console_timer;
+    std::weak_ptr<mc::log::socket_appender> m_debug_console_appender;
+    
+    // 互斥锁保护成员变量的并发访问
+    mutable std::mutex m_dlog_level_mutex;
+    mutable std::mutex m_debug_console_mutex;
 };
 
 struct MC_API mc_reboot_interface : public mc::engine::interface<mc_reboot_interface> {
@@ -91,9 +106,15 @@ struct MC_API mc_reset_interface : public mc::engine::interface<mc_reset_interfa
 struct MC_API mc_maintenance_interface : public mc::engine::interface<mc_maintenance_interface> {
     MC_INTERFACE("bmc.kepler.Release.Maintenance")
 
-    ~mc_maintenance_interface() override = default;
+    ~mc_maintenance_interface() override;
 
     void dlog_limit(std::map<std::string, std::string> context, bool enabled, uint8_t duration_mins);
+    
+    // Timer 成员变量，绑定到对象生命周期
+    mc::core::timer_ptr m_dlog_limit_timer;
+    
+    // 互斥锁保护成员变量的并发访问
+    mutable std::mutex m_dlog_limit_mutex;
 };
 
 class MC_API micro_component_object : public mc::engine::object<micro_component_object> {

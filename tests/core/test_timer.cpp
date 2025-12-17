@@ -72,9 +72,9 @@ TEST_F(timer_test, test_periodic_timer) {
         }
     });
     timer->set_single_shot(false);
-    timer->start(mc::milliseconds(100));
+    timer->start(mc::milliseconds(50));  // 从 100ms 减少到 50ms
 
-    auto status = wait.get_future().wait_for(std::chrono::milliseconds(500));
+    auto status = wait.get_future().wait_for(std::chrono::milliseconds(250));  // 从 500ms 减少到 250ms
     EXPECT_EQ(status, std::future_status::ready);
     EXPECT_EQ(count, expected_count);
 
@@ -88,7 +88,7 @@ TEST_F(timer_test, test_cancel_timer) {
     timer->stop();
 
     auto future = service->m_is_called.get_future();
-    auto status = future.wait_for(std::chrono::milliseconds(300));
+    auto status = future.wait_for(std::chrono::milliseconds(150));  // 从 300ms 减少到 150ms
     EXPECT_EQ(status, std::future_status::timeout);
 }
 
@@ -99,19 +99,19 @@ TEST_F(timer_test, test_multiple_timers) {
     std::promise<bool> timer3_called;
 
     // 保存 timer 指针，确保在测试结束前它们不会被销毁
-    auto timer1 = mc::core::timer::single_shot(mc::milliseconds(100), service, [&]() {
+    auto timer1 = mc::core::timer::single_shot(mc::milliseconds(30), service, [&]() {  // 从 100ms 减少到 30ms
         timer1_called.set_value(true);
     });
-    auto timer2 = mc::core::timer::single_shot(mc::milliseconds(200), service, [&]() {
+    auto timer2 = mc::core::timer::single_shot(mc::milliseconds(60), service, [&]() {  // 从 200ms 减少到 60ms
         timer2_called.set_value(true);
     });
-    auto timer3 = mc::core::timer::single_shot(mc::milliseconds(300), service, [&]() {
+    auto timer3 = mc::core::timer::single_shot(mc::milliseconds(90), service, [&]() {  // 从 300ms 减少到 90ms
         timer3_called.set_value(true);
     });
 
-    auto s1 = timer1_called.get_future().wait_for(std::chrono::milliseconds(500));
-    auto s2 = timer2_called.get_future().wait_for(std::chrono::milliseconds(500));
-    auto s3 = timer3_called.get_future().wait_for(std::chrono::milliseconds(500));
+    auto s1 = timer1_called.get_future().wait_for(std::chrono::milliseconds(200));  // 从 500ms 减少到 200ms
+    auto s2 = timer2_called.get_future().wait_for(std::chrono::milliseconds(200));
+    auto s3 = timer3_called.get_future().wait_for(std::chrono::milliseconds(200));
 
     EXPECT_EQ(s1, std::future_status::ready);
     EXPECT_EQ(s2, std::future_status::ready);
@@ -129,11 +129,11 @@ TEST_F(timer_test, test_nested_timers) {
     std::promise<void> wait;
 
     // 保存第一个 timer 指针，确保在测试结束前它不会被销毁
-    auto timer1 = mc::core::timer::single_shot(mc::milliseconds(100), service, [&]() {
+    auto timer1 = mc::core::timer::single_shot(mc::milliseconds(50), service, [&]() {  // 从 100ms 减少到 50ms
         count++;
 
         // 第二个 timer 在第一个 timer 的回调中创建，会在回调完成后自动停止
-        auto timer2 = mc::core::timer::single_shot(mc::milliseconds(100), service, [&]() {
+        auto timer2 = mc::core::timer::single_shot(mc::milliseconds(50), service, [&]() {  // 从 100ms 减少到 50ms
             count++;
             wait.set_value();
         });
@@ -141,7 +141,7 @@ TEST_F(timer_test, test_nested_timers) {
         MC_UNUSED(timer2);
     });
 
-    auto status = wait.get_future().wait_for(std::chrono::milliseconds(300));
+    auto status = wait.get_future().wait_for(std::chrono::milliseconds(150));  // 从 300ms 减少到 150ms
     EXPECT_EQ(status, std::future_status::ready);
     EXPECT_EQ(count, 2);
 
@@ -236,14 +236,14 @@ TEST_F(timer_test, test_timer_interval_change) {
     });
 
     // 启动定时器
-    timer->start(mc::milliseconds(100));
+    timer->start(mc::milliseconds(50));  // 从 100ms 减少到 50ms
 
     // 在定时器运行期间改变间隔
-    std::this_thread::sleep_for(std::chrono::milliseconds(50));
-    timer->set_interval(mc::milliseconds(200));
+    std::this_thread::sleep_for(std::chrono::milliseconds(25));  // 从 50ms 减少到 25ms
+    timer->set_interval(mc::milliseconds(100));  // 从 200ms 减少到 100ms
 
     // 等待回调完成，而不是使用固定的 sleep
-    auto status = done.get_future().wait_for(std::chrono::milliseconds(1000));
+    auto status = done.get_future().wait_for(std::chrono::milliseconds(500));  // 从 1000ms 减少到 500ms
     EXPECT_EQ(status, std::future_status::ready);
     EXPECT_EQ(count, expected_count);
 }
