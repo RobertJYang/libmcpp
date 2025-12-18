@@ -24,6 +24,8 @@
 #include <system_error>
 #include <vector>
 
+#include <mc/common.h>
+
 namespace mc {
 namespace interprocess {
 
@@ -87,7 +89,7 @@ struct queue_configuration {
     queue_mode        mode             = queue_mode::CREATE_OR_OPEN;
     queue_permissions permissions;
 
-    queue_configuration(): name("/default_queue") {
+    queue_configuration() : name("/default_queue") {
         // 默认构造函数不需要做啥
     }
 
@@ -101,7 +103,7 @@ struct queue_configuration {
 /**
  * @brief IPC 消息队列类
  */
-class message_queue {
+class MC_API message_queue {
 public:
     /**
      * @brief 默认的构造函数
@@ -180,9 +182,9 @@ public:
     queue_attribute get_attributes() const;
 
 private:
-    void open_queue();
-    void close_queue();
-    void throw_if_closed() const;
+    void     open_queue();
+    void     close_queue();
+    void     throw_if_closed() const;
     timespec calculate_timeout(int timeout_ms) const;
 
 private:

@@ -97,15 +97,15 @@ void message_queue::open(const std::string& name, queue_mode mode, int max_msgs,
     }
 
     // 根据入参重新初始化 config 配置
-    config_.name = name;
-    config_.mode = mode;
-    config_.max_messages = max_msgs;
-    config_.max_message_size = max_msg_size;
-    config_.permissions.owner_read = 1;
-    config_.permissions.owner_write = 1;
-    config_.permissions.group_read = 1;
-    config_.permissions.group_write = 0;
-    config_.permissions.others_read = 1;
+    config_.name                     = name;
+    config_.mode                     = mode;
+    config_.max_messages             = max_msgs;
+    config_.max_message_size         = max_msg_size;
+    config_.permissions.owner_read   = 1;
+    config_.permissions.owner_write  = 1;
+    config_.permissions.group_read   = 1;
+    config_.permissions.group_write  = 0;
+    config_.permissions.others_read  = 1;
     config_.permissions.others_write = 0;
 
     open_queue();
@@ -184,8 +184,8 @@ std::vector<uint8_t> message_queue::receive_with_priority(unsigned int& received
     throw_if_closed();
 
     // 设置超时
-    timespec timeout = calculate_timeout(timeout_ms);
-    ssize_t bytes_received;
+    timespec             timeout = calculate_timeout(timeout_ms);
+    ssize_t              bytes_received;
     std::vector<uint8_t> buffer(config_.max_message_size);
     if (timeout_ms >= 0) {
         bytes_received = mq_timedreceive(mqd_,
@@ -221,8 +221,8 @@ message_queue::queue_attribute message_queue::get_attributes() const {
     }
 
     queue_attribute attr;
-    attr.name = config_.name;
-    attr.queue_id = mqd_;
+    attr.name             = config_.name;
+    attr.queue_id         = mqd_;
     attr.max_messages     = static_cast<size_t>(mq_attr.mq_maxmsg);
     attr.max_message_size = static_cast<size_t>(mq_attr.mq_msgsize);
     attr.current_messages = static_cast<size_t>(mq_attr.mq_curmsgs);
