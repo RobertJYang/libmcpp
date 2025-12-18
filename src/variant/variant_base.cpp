@@ -23,6 +23,7 @@
 namespace mc {
 
 variant_base::variant_base(type_id type) : m_uint64(0), m_type(type), m_is_fixed(false) {
+    static_assert(sizeof(variant_base) <= 16, "variant_base size is too large");
     switch (type) {
     case type_id::string_type:
         m_string_ptr = mc::allocate_ptr<string_type>(allocator_type());
