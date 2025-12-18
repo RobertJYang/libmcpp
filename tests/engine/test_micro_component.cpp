@@ -20,6 +20,8 @@
 #include <mc/future.h>
 #include <mc/string.h>
 #include <test_utilities/test_base.h>
+#include <mc/log/appenders/socket_appender.h>
+#include <mc/log/appender_factory.h>
 
 #include <chrono>
 #include <cstdlib>
@@ -483,6 +485,31 @@ TEST_F(MicroComponentTest, TestMicroComponentSetDlogLevel) {
     EXPECT_TRUE(default_log.is_enabled(mc::log::level::error));
 }
 
+TEST_F(MicroComponentTest, TestMicroComponentSetDlogType) {
+    mc::milliseconds extended_timeout(5000);
+
+    auto         default_log = mc::log::default_logger();
+    mc::dict properties{{"path", "/dev/shm/40010.sock"}, {"hb_path", "/dev/shm/40010.hbsock"}, {"module_name", "test_service_1"}};
+    auto mdbctl_appender_ptr = mc::log::appender_factory::instance().get_or_create_appender("mdbctl", "socket", properties);
+    if (mdbctl_appender_ptr) {
+        default_log.add_appender(mdbctl_appender_ptr);
+    }
+    auto set_dlog_type_reply = wait_valid_reply(test_conn, [&]() {
+        auto msg    = mc::dbus::message::new_method_call("org.openubmc.test_service_1", "/bmc/kepler/test_service_1/MicroComponent",
+                                                            "bmc.kepler.Object.Properties", "SetWithContext");
+        auto writer = msg.writer();
+        writer << empty_ctx << "bmc.kepler.MicroComponent.Debug" << "DlogType" << "local";
+        return msg;
+    }, extended_timeout);
+    auto socket_appender_ptr = dynamic_cast<mc::log::socket_appender*>(mdbctl_appender_ptr.get());
+    ASSERT_TRUE(set_dlog_type_reply.is_valid() && set_dlog_type_reply.is_method_return() && socket_appender_ptr->get_type() == "local")
+        << "reply_valid=" << set_dlog_type_reply.is_valid()
+        << " reply_type=" << static_cast<int>(set_dlog_type_reply.get_type())
+        << " reply_error=" << (set_dlog_type_reply.is_error() ? set_dlog_type_reply.get_error_name() : "");
+    auto output = set_dlog_type_reply.read_args();
+    EXPECT_EQ(output.size(), 0);
+}
+
 TEST_F(MicroComponentTest, TestMicroComponentDebugInterface) {
     mc::milliseconds extended_timeout(5000);
 
@@ -550,7 +577,6 @@ TEST_F(MicroComponentTest, TestMicroComponentDebugInterface) {
 
     // 添加短暂延迟，避免后续调用过快
     std::this_thread::sleep_for(std::chrono::milliseconds(50));
-
     auto set_dlog_reply = wait_valid_reply(
         test_conn,
         [&]() {
