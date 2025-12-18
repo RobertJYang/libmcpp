@@ -1399,11 +1399,8 @@ protected:
         object_type        m_object;
         extension_ptr_type m_extension;
     };
-    struct {
-        type_id m_type     : 5; // 5 bits for type_id (0-31, supports up to 32 enum values, enum underlying type is uint8_t)
-        bool    m_is_fixed : 1; // 1 bit for is_fixed_type flag
-        uint8_t m_reserved : 2; // 2 bits reserved for future use
-    };
+    type_id m_type;
+    bool    m_is_fixed;
 };
 
 // 浮点数
