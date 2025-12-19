@@ -246,8 +246,9 @@ state_pool::state_pool() : m_pimpl(std::make_unique<impl>()) {
 state_pool::~state_pool() = default;
 
 state_pool& state_pool::instance() {
-    static state_pool instance;
-    return instance;
+    return mc::singleton<state_pool>::instance_with_creator([]() {
+        return new state_pool();
+    });
 }
 
 void state_pool::set_config(const state_pool_config& config) {

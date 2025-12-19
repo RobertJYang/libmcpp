@@ -246,8 +246,10 @@ void Future<T, Executor, Allocator>::async_get(CompletionToken&& token, launch p
         }
     } else {
         state_->m_continuations.push_back(
-            [state = state_, handler = std::move(handle_result)]() mutable {
-            handler(state);
+            [e = state_->executor, a = state_->allocator, s = state_, h = std::move(handle_result)]() mutable {
+            boost::asio::post(e, boost::asio::bind_allocator(a, [s, h = std::move(h)]() mutable {
+                h(s);
+            }));
         });
     }
 }
@@ -277,7 +279,9 @@ auto Future<T, Executor, Allocator>::then(F&& func, launch policy)
             boost::asio::post(state_->executor, boost::asio::bind_allocator(state_->allocator, continuation));
         }
     } else {
-        state_->m_continuations.push_back(continuation);
+        state_->m_continuations.push_back([e = state_->executor, a = state_->allocator, c = std::move(continuation)]() mutable {
+            boost::asio::post(e, boost::asio::bind_allocator(a, std::move(c)));
+        });
     }
 
     return future;
@@ -307,7 +311,9 @@ auto Future<T, Executor, Allocator>::then(F&& func, launch policy)
             boost::asio::post(state_->executor, boost::asio::bind_allocator(state_->allocator, continuation));
         }
     } else {
-        state_->m_continuations.push_back(continuation);
+        state_->m_continuations.push_back([e = state_->executor, a = state_->allocator, c = std::move(continuation)]() mutable {
+            boost::asio::post(e, boost::asio::bind_allocator(a, std::move(c)));
+        });
     }
 
     return future;
@@ -439,7 +445,9 @@ auto Future<T, Executor, Allocator>::catch_error(F&& handler)
     if (state_->ready) {
         boost::asio::post(state_->executor, boost::asio::bind_allocator(state_->allocator, handle_result));
     } else {
-        state_->m_continuations.push_back(handle_result);
+        state_->m_continuations.push_back([e = state_->executor, a = state_->allocator, h = std::move(handle_result)]() mutable {
+            boost::asio::post(e, boost::asio::bind_allocator(a, std::move(h)));
+        });
     }
 
     return future;
@@ -467,7 +475,9 @@ auto Future<T, Executor, Allocator>::finally(F&& cleanup) -> future_type {
     if (state_->ready) {
         boost::asio::post(state_->executor, boost::asio::bind_allocator(state_->allocator, handle_result));
     } else {
-        state_->m_continuations.push_back(handle_result);
+        state_->m_continuations.push_back([e = state_->executor, a = state_->allocator, h = std::move(handle_result)]() mutable {
+            boost::asio::post(e, boost::asio::bind_allocator(a, std::move(h)));
+        });
     }
 
     return future;
@@ -491,7 +501,9 @@ auto Future<T, Executor, Allocator>::tap(F&& inspector) -> future_type {
     if (state_->ready) {
         boost::asio::post(state_->executor, boost::asio::bind_allocator(state_->allocator, handle_result));
     } else {
-        state_->m_continuations.push_back(handle_result);
+        state_->m_continuations.push_back([e = state_->executor, a = state_->allocator, h = std::move(handle_result)]() mutable {
+            boost::asio::post(e, boost::asio::bind_allocator(a, std::move(h)));
+        });
     }
 
     return future;
