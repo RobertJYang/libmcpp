@@ -48,6 +48,7 @@ using state_ptr = mc::shared_ptr<StateType, state_deleter<StateType>, StateType*
 class MC_API state_pool {
 public:
     static state_pool& instance();
+    ~state_pool();
 
     void                     set_config(const state_pool_config& config);
     const state_pool_config& get_config() const;
@@ -87,7 +88,6 @@ private:
     friend struct state_deleter;
 
     state_pool();
-    ~state_pool();
 
     void* try_acquire_state(std::size_t state_size);
     bool  try_release_to_pool(void* ptr, std::size_t state_size);

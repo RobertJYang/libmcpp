@@ -57,8 +57,8 @@ TEST_F(result_test, test_basic_construction) {
     EXPECT_FALSE(future_result.is_completed());
 
     promise.set_value(42);
-    EXPECT_TRUE(future_result.is_completed());
     EXPECT_EQ(future_result.get(), 42);
+    EXPECT_TRUE(future_result.is_completed());
 }
 
 // 测试错误构造
@@ -189,11 +189,11 @@ TEST_F(result_test, test_cancellation_result_then) {
     });
 
     result.cancel();
-    ASSERT_TRUE(result.is_error());
     EXPECT_THROW(result.get(), mc::canceled_exception);
+    ASSERT_TRUE(result.is_error());
 
-    ASSERT_TRUE(chain_result.is_rejected());
     EXPECT_THROW(chain_result.get(), mc::canceled_exception);
+    ASSERT_TRUE(chain_result.is_rejected());
 }
 
 // 测试取消操作
@@ -205,11 +205,11 @@ TEST_F(result_test, test_cancellation_result_catch_error) {
     });
 
     result.cancel();
-    ASSERT_TRUE(result.is_error());
     EXPECT_THROW(result.get(), mc::canceled_exception);
+    ASSERT_TRUE(result.is_error());
 
-    ASSERT_TRUE(chain_result.is_rejected());
     EXPECT_THROW(chain_result.get(), mc::canceled_exception);
+    ASSERT_TRUE(chain_result.is_rejected());
 }
 
 // 测试组合操作
@@ -311,9 +311,9 @@ TEST_F(result_test, test_default_error_selection) {
     EXPECT_EQ(default_error->get_name(), "org.freedesktop.DBus.Error.Failed");
     EXPECT_EQ(default_error->get_message(), "Failed to execute method");
 
-    auto& engine      = mc::error_engine::get_instance();
-    auto  custom_err  = mc::make_error("test.custom.error", "custom message");
-    auto  previous    = engine.set_last_error(custom_err);
+    auto& engine     = mc::error_engine::get_instance();
+    auto  custom_err = mc::make_error("test.custom.error", "custom message");
+    auto  previous   = engine.set_last_error(custom_err);
     EXPECT_FALSE(previous);
 
     auto reused = mc::detail::get_default_error();
@@ -351,8 +351,8 @@ TEST_F(result_test, test_throw_and_make_method_call_exception) {
 
 TEST_F(result_test, test_make_method_call_exception_uses_last_error) {
     mc::error_engine::reset_for_test();
-    auto& engine    = mc::error_engine::get_instance();
-    auto  last_err  = mc::make_error("test.last.error", "last error");
+    auto& engine   = mc::error_engine::get_instance();
+    auto  last_err = mc::make_error("test.last.error", "last error");
     engine.set_last_error(last_err);
 
     auto ex = mc::detail::make_method_call_exception(nullptr);
