@@ -30,23 +30,26 @@ using strand_t = boost::asio::strand<Executor>;
 namespace detail {
 template <typename T, typename F, typename Arg>
 static auto call_impl(F&& func, Arg v) {
+    // 移除 const 以支持 mutable lambda
+    auto& mutable_func = const_cast<std::remove_const_t<std::remove_reference_t<F>>&>(func);
+
     if constexpr (std::is_invocable_v<F>) {
         MC_UNUSED(v);
-        return func();
+        return mutable_func();
     } else if constexpr (mc::is_variant_v<T>) {
         // 针对 lamda: [](auto &&) {} 这种场景可以直接调用，没有必要做参数转换。
         // 另外，lamda 中 auto 参数的场景 mc::traits::function_traits 无法推导参数类型，
         // 这里也必须通过 std::is_invocable_v 先行跳过。
         if constexpr (std::is_invocable_v<F, Arg>) {
-            return func(v);
+            return mutable_func(v);
         } else {
             using function_traits = mc::traits::function_traits<F>;
             using args_type       = typename function_traits::args_type;
             using arg_type        = mc::traits::remove_cvref_t<std::tuple_element_t<0, args_type>>;
-            return func(mc::detail::convert_arg<arg_type>("result", v));
+            return mutable_func(mc::detail::convert_arg<arg_type>("result", v));
         }
     } else {
-        return func(v);
+        return mutable_func(v);
     }
 }
 
@@ -91,10 +94,7 @@ using result_variant = std::variant<
 
 template <typename T = mc::variant>
 class result {
-    static_assert(!mc::futures::detail::is_future_v<T> &&
-                      (mc::is_variant_constructible_v<T> ||
-                       mc::is_variant_v<T> ||
-                       std::is_same_v<T, void>),
+    static_assert(!mc::futures::detail::is_future_v<T>,
                   "T must be constructible to variant or void");
     using property_traits = mc::traits::property_traits<T>;
 
