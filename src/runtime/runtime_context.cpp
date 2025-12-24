@@ -70,6 +70,13 @@ immediate_context::executor_type immediate_context::get_executor() const noexcep
     return executor_type();
 }
 
+static inline std::size_t get_thread_count(std::size_t threads) {
+    if (threads == 0) {
+        return std::max(std::size_t{1}, std::size_t(std::thread::hardware_concurrency()));
+    }
+    return threads;
+}
+
 class runtime_context::impl {
 public:
     impl() = default;
@@ -95,13 +102,12 @@ public:
 
     thread_pool& work() noexcept {
         ensure_start();
-        // work_threads=0 时共享 io 线程池
-        return m_work_pool ? *m_work_pool : *m_io_pool;
+        return *m_work_pool;
     }
 
 private:
     std::unique_ptr<thread_pool> m_io_pool;
-    std::unique_ptr<thread_pool> m_work_pool; // 可能为 null（work_threads=0 时）
+    std::unique_ptr<thread_pool> m_work_pool;
 
     enum class state_t : std::uint8_t {
         uninitialized = 0, // 未初始化
@@ -125,17 +131,15 @@ runtime_context::impl::~impl() {
 }
 
 void runtime_context::impl::set_config(const runtime_config& new_config) {
-    // io_threads 可以为 0（外部线程通过 run() 加入）
-    // work_threads 可以为 0（共享 io 池）
-    auto io_threads   = new_config.io_threads;
-    auto work_threads = new_config.work_threads;
+    auto io_threads   = get_thread_count(new_config.io_threads);
+    auto work_threads = get_thread_count(new_config.work_threads);
 
     auto& config        = m_data.unsafe_get_data().config;
     config.io_threads   = std::min(io_threads, std::size_t{MC_MAX_IO_THREADS});
     config.work_threads = std::min(work_threads, std::size_t{MC_MAX_WORK_THREADS});
 
     dlog("runtime_context set config, IO threads: ${count}, work threads: ${work_count}",
-         ("count", config.io_threads)("work_count", config.work_threads));
+         ("count", io_threads)("work_count", work_threads));
 }
 
 void runtime_context::impl::ensure_start() {
@@ -188,21 +192,14 @@ void runtime_context::impl::start_impl() {
 
     data.state = state_t::running;
 
-    // 创建主线程池（io）
-    m_io_pool = std::make_unique<thread_pool>(data.config.io_threads, "io");
-    m_io_pool->start();
+    m_io_pool   = std::make_unique<thread_pool>(data.config.io_threads, "io");
+    m_work_pool = std::make_unique<thread_pool>(data.config.work_threads, "work");
 
-    // work_threads > 0 时创建独立的 work 线程池，否则共享 io 池
-    if (data.config.work_threads > 0) {
-        m_work_pool = std::make_unique<thread_pool>(data.config.work_threads, "work");
-        m_work_pool->start();
-        dlog("runtime_context started, IO threads: ${io}, work threads: ${work}",
-             ("io", data.config.io_threads)("work", data.config.work_threads));
-    } else {
-        m_work_pool = nullptr; // work() 方法会返回 io 池
-        dlog("runtime_context started, IO threads: ${io}, work shares IO pool",
-             ("io", data.config.io_threads));
-    }
+    m_io_pool->start();
+    m_work_pool->start();
+
+    dlog("runtime_context started successfully, IO threads: ${count}, work threads: ${work_count}",
+         ("count", data.config.io_threads)("work_count", data.config.work_threads));
 }
 
 void runtime_context::impl::stop() {
@@ -284,10 +281,13 @@ thread_pool& runtime_context::work() noexcept {
 }
 
 thread_pool::executor_type runtime_context::get_executor() noexcept {
-    return m_impl->io().get_executor();
+    // Return IO executor as default? Or Work?
+    // Previous implementation returned Work executor.
+    return m_impl->work().get_executor();
 }
 
 strand runtime_context::create_strand() {
+    // Default strand on work context
     return strand(mc::singleton<runtime_context>::instance().get_executor());
 }
 
