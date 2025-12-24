@@ -406,6 +406,11 @@ public:
         }, m_value);
     }
 
+    template <typename F>
+    auto finally(F&& func) {
+        return as_future().finally(std::forward<F>(func));
+    }
+
     auto as_future() {
         if constexpr (std::is_void_v<value_type>) {
             return then([]() {

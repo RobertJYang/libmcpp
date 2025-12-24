@@ -13,23 +13,25 @@
 #ifndef MC_RUNTIME_THREAD_POOL_H
 #define MC_RUNTIME_THREAD_POOL_H
 
-#include <boost/asio/detail/scheduler.hpp>
-#include <boost/asio/execution.hpp>
-#include <boost/asio/execution_context.hpp>
-#include <mc/common.h>
-#include <mc/sync/mutex_box.h>
-#include <mc/sync/small_mutex.h>
-
 #include <atomic>
-#include <boost/asio/bind_allocator.hpp>
-#include <boost/asio/defer.hpp>
-#include <boost/asio/detail/executor_op.hpp>
-#include <boost/asio/dispatch.hpp>
-#include <boost/asio/post.hpp>
 #include <cstdint>
 #include <memory>
 #include <thread>
 #include <vector>
+
+#include <boost/asio/bind_allocator.hpp>
+#include <boost/asio/defer.hpp>
+#include <boost/asio/detail/executor_op.hpp>
+#include <boost/asio/detail/scheduler.hpp>
+#include <boost/asio/dispatch.hpp>
+#include <boost/asio/execution.hpp>
+#include <boost/asio/execution_context.hpp>
+#include <boost/asio/post.hpp>
+#include <boost/asio/strand.hpp>
+
+#include <mc/common.h>
+#include <mc/sync/mutex_box.h>
+#include <mc/sync/small_mutex.h>
 
 namespace mc::runtime {
 constexpr uint16_t NULL_INDEX    = 0xFFFF;
@@ -39,6 +41,10 @@ constexpr uint64_t TAG_INCREMENT = 1ULL << 16;
 class MC_API thread_pool : public boost::asio::execution_context {
 public:
     using io_context = boost::asio::io_context;
+
+    class executor_type;
+
+    using strand = boost::asio::strand<executor_type>;
 
     // 最大递归深度，用于重新进入调度
     static constexpr uint16_t MAX_RECURSION_DEPTH = 32;
@@ -87,17 +93,20 @@ public:
         template <typename Function, typename Allocator>
         void dispatch(Function&& f, const Allocator& a) const {
             // 1: 优先在当前线程执行
-            if (auto* current_shard = thread_pool::get_current_shard()) {
-                boost::asio::dispatch(current_shard->ctx->get_executor(),
-                                      boost::asio::bind_allocator(a, std::forward<Function>(f)));
+            auto* current_shard = thread_pool::get_current_shard();
+            if (current_shard && current_shard->pool == m_context) {
+                boost::asio::dispatch(
+                    current_shard->ctx->get_executor(),
+                    boost::asio::bind_allocator(a, std::forward<Function>(f)));
                 return;
             }
 
             // 2: 尝试直接将任务提交给空闲 Worker
             if (m_context->m_pending_tasks.load(std::memory_order_relaxed) == 0) {
                 if (auto* shard = m_context->acquire_idle_worker()) {
-                    boost::asio::post(shard->ctx->get_executor(),
-                                      boost::asio::bind_allocator(a, std::forward<Function>(f)));
+                    boost::asio::dispatch(
+                        shard->ctx->get_executor(),
+                        boost::asio::bind_allocator(a, std::forward<Function>(f)));
                     return;
                 }
             }
@@ -119,12 +128,12 @@ public:
                 }
 
                 // 2: 没有空闲 Worker，但如果当前线程在某个 shard 上，投递到当前 shard
-                if (auto* current_shard = thread_pool::get_current_shard()) {
-                    if (current_shard->pool == m_context) {
-                        boost::asio::post(current_shard->ctx->get_executor(),
-                                          boost::asio::bind_allocator(a, std::forward<Function>(f)));
-                        return;
-                    }
+                auto* current_shard = thread_pool::get_current_shard();
+                if (current_shard && current_shard->pool == m_context) {
+                    boost::asio::post(
+                        current_shard->ctx->get_executor(),
+                        boost::asio::bind_allocator(a, std::forward<Function>(f)));
+                    return;
                 }
             }
 
@@ -135,17 +144,20 @@ public:
         template <typename Function, typename Allocator>
         void defer(Function&& f, const Allocator& a) const {
             // 1: 优先在当前线程执行
-            if (auto* current_shard = thread_pool::get_current_shard()) {
-                boost::asio::defer(current_shard->ctx->get_executor(),
-                                   boost::asio::bind_allocator(a, std::forward<Function>(f)));
+            auto* current_shard = thread_pool::get_current_shard();
+            if (current_shard && current_shard->pool == m_context) {
+                boost::asio::defer(
+                    current_shard->ctx->get_executor(),
+                    boost::asio::bind_allocator(a, std::forward<Function>(f)));
                 return;
             }
 
             // 2: 尝试直接将任务提交给空闲 Worker
             if (m_context->m_pending_tasks.load(std::memory_order_relaxed) == 0) {
                 if (auto* shard = m_context->acquire_idle_worker()) {
-                    boost::asio::post(shard->ctx->get_executor(),
-                                      boost::asio::bind_allocator(a, std::forward<Function>(f)));
+                    boost::asio::post(
+                        shard->ctx->get_executor(),
+                        boost::asio::bind_allocator(a, std::forward<Function>(f)));
                     return;
                 }
             }
@@ -160,6 +172,14 @@ public:
 
         bool operator!=(const executor_type& other) const noexcept {
             return !(*this == other);
+        }
+
+        /**
+         * @brief 检查当前线程是否在此 executor 上执行
+         */
+        bool running_in_this_thread() const noexcept {
+            auto* current_shard = thread_pool::get_current_shard();
+            return current_shard && current_shard->pool == m_context;
         }
 
         operator boost::asio::any_io_executor() const {

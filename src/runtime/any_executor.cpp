@@ -73,4 +73,28 @@ execution_context& any_executor::context() const {
     }, m_executor);
 }
 
+namespace detail {
+// SFINAE helper: 检测是否有 running_in_this_thread() 方法
+template <typename T, typename = void>
+struct has_running_in_this_thread : std::false_type {};
+
+template <typename T>
+struct has_running_in_this_thread<T, std::void_t<decltype(std::declval<T>().running_in_this_thread())>>
+    : std::true_type {};
+
+template <typename T>
+inline constexpr bool has_running_in_this_thread_v = has_running_in_this_thread<T>::value;
+} // namespace detail
+
+bool any_executor::running_in_this_thread() const noexcept {
+    return std::visit([](const auto& exec) -> bool {
+        using T = std::decay_t<decltype(exec)>;
+        if constexpr (detail::has_running_in_this_thread_v<T>) {
+            return exec.running_in_this_thread();
+        } else {
+            return false; // 保守返回 false，走异步路径
+        }
+    }, m_executor);
+}
+
 } // namespace mc::runtime

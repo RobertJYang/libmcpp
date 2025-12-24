@@ -130,6 +130,11 @@ public:
     void               on_work_finished() const noexcept;
     execution_context& context() const;
 
+    /**
+     * @brief 检查当前线程是否在此 executor 上执行
+     */
+    bool running_in_this_thread() const noexcept;
+
     detail::executor_variant& get_executor() noexcept {
         return m_executor;
     }

@@ -94,4 +94,11 @@ execution_context& executor::context() const {
     MC_ASSERT_THROW(m_impl, mc::invalid_op_exception, "Cannot get context from invalid executor");
     return m_impl->context();
 }
+
+bool executor::running_in_this_thread() const noexcept {
+    if (!m_impl) {
+        return false;
+    }
+    return m_impl->running_in_this_thread();
+}
 } // namespace mc::runtime

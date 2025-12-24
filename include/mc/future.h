@@ -232,6 +232,7 @@ public:
     using state_type     = futures::State<T, Executor, Allocator>;
     using future_type    = Future<T, Executor, Allocator>;
 
+    Future() = default;
     explicit Future(state_ptr<state_type> state) : state_(state) {
     }
     ~Future() = default;
@@ -351,7 +352,8 @@ public:
     using state_type     = typename future_type::state_type;
     using is_promise     = std::true_type;
 
-    explicit Promise(Executor executor, const Allocator& alloc);
+    Promise() = default;
+    Promise(Executor executor, const Allocator& alloc);
 
     ~Promise();
 

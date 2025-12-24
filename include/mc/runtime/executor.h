@@ -106,6 +106,11 @@ public:
     void               on_work_finished() const noexcept;
     execution_context& context() const;
 
+    /**
+     * @brief 检查当前线程是否在此 executor 上执行
+     */
+    bool running_in_this_thread() const noexcept;
+
 private:
     using function = boost::asio::detail::executor_function;
     class impl_base {
@@ -115,14 +120,15 @@ private:
 
         virtual ~impl_base() = default;
 
-        virtual void                  post(function&&) const              = 0;
-        virtual void                  defer(function&&) const             = 0;
-        virtual void                  dispatch(function&&) const          = 0;
-        virtual bool                  equal(const impl_base& other) const = 0;
-        virtual std::type_info const& target_type() const                 = 0;
-        virtual void                  on_work_started() const noexcept    = 0;
-        virtual void                  on_work_finished() const noexcept   = 0;
-        virtual execution_context&    context() const                     = 0;
+        virtual void                  post(function&&) const                    = 0;
+        virtual void                  defer(function&&) const                   = 0;
+        virtual void                  dispatch(function&&) const                = 0;
+        virtual bool                  equal(const impl_base& other) const       = 0;
+        virtual std::type_info const& target_type() const                       = 0;
+        virtual void                  on_work_started() const noexcept          = 0;
+        virtual void                  on_work_finished() const noexcept         = 0;
+        virtual execution_context&    context() const                           = 0;
+        virtual bool                  running_in_this_thread() const noexcept   = 0;
 
         // 引用计数管理
         void add_ref() const noexcept {
@@ -188,7 +194,23 @@ private:
             return m_executor.context();
         }
 
+        bool running_in_this_thread() const noexcept override {
+            return running_in_this_thread_impl(m_executor);
+        }
+
     private:
+        // SFINAE: 检测 Executor 是否有 running_in_this_thread() 方法
+        template <typename E>
+        static auto running_in_this_thread_impl(const E& exec) noexcept
+            -> decltype(exec.running_in_this_thread()) {
+            return exec.running_in_this_thread();
+        }
+
+        // 默认实现：保守返回 false
+        static bool running_in_this_thread_impl(...) noexcept {
+            return false;
+        }
+
         Executor  m_executor;
         Allocator m_allocator;
     };

@@ -16,6 +16,7 @@
 #include <mc/common.h>
 
 #include <boost/asio.hpp>
+#include <mc/runtime/runtime_executor.h>
 #include <mc/runtime/thread_pool.h>
 
 #include <functional>
@@ -25,7 +26,7 @@ namespace mc::runtime {
 
 class runtime_context;
 
-using strand = boost::asio::strand<thread_pool::executor_type>;
+using strand = boost::asio::strand<runtime_executor>;
 
 struct runtime_config {
     std::size_t io_threads   = 2;
@@ -50,13 +51,16 @@ public:
     void join();
     bool is_stopped() const noexcept;
 
-    // New Clean Accessors
     thread_pool& io() noexcept;
     thread_pool& work() noexcept;
 
-    thread_pool::executor_type get_executor() noexcept;
+    runtime_executor           get_executor() noexcept;
+    thread_pool::executor_type get_io_executor() noexcept;
+    thread_pool::executor_type get_work_executor() noexcept;
 
-    static strand create_strand();
+    static strand       create_strand();
+    thread_pool::strand create_io_strand();
+    thread_pool::strand create_work_strand();
 
 private:
     class impl;
