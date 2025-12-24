@@ -18,7 +18,6 @@
 #include <boost/asio/execution_context.hpp>
 #include <mc/common.h>
 #include <mc/sync/mutex_box.h>
-#include <mc/sync/small_mutex.h>
 
 #include <atomic>
 #include <boost/asio/bind_allocator.hpp>
@@ -49,11 +48,9 @@ public:
         Notified // Worker 已被唤醒者选中
     };
 
-    using executor_work_guard = boost::asio::executor_work_guard<io_context::executor_type>;
     struct shard_t {
-        thread_pool*                         pool{nullptr}; // 所属线程池
-        std::unique_ptr<io_context>          ctx;
-        std::unique_ptr<executor_work_guard> work;
+        std::unique_ptr<io_context>                                                  ctx;
+        std::unique_ptr<boost::asio::executor_work_guard<io_context::executor_type>> work;
 
         std::atomic<uint16_t> next{NULL_INDEX};
         std::atomic<State>    state{State::Running};
@@ -108,27 +105,16 @@ public:
 
         template <typename Function, typename Allocator>
         void post(Function&& f, const Allocator& a) const {
-            // 仅当全局队列没有待处理任务时，才尝试直接投递到 shard
-            // 这保证了全局队列任务的优先级和公平调度
+            // 1: 尝试直接将任务提交给空闲 Worker
             if (m_context->m_pending_tasks.load(std::memory_order_relaxed) == 0) {
-                // 1: 优先尝试获取空闲 Worker
                 if (auto* shard = m_context->acquire_idle_worker()) {
                     boost::asio::post(shard->ctx->get_executor(),
                                       boost::asio::bind_allocator(a, std::forward<Function>(f)));
                     return;
                 }
-
-                // 2: 没有空闲 Worker，但如果当前线程在某个 shard 上，投递到当前 shard
-                if (auto* current_shard = thread_pool::get_current_shard()) {
-                    if (current_shard->pool == m_context) {
-                        boost::asio::post(current_shard->ctx->get_executor(),
-                                          boost::asio::bind_allocator(a, std::forward<Function>(f)));
-                        return;
-                    }
-                }
             }
 
-            // 3: 最后放到全局 Scheduler
+            // 2: 最后放到全局 Scheduler
             schedule_global(std::forward<Function>(f), a, false);
         }
 
@@ -223,11 +209,6 @@ public:
 
     static shard_t* get_current_shard();
 
-    /// @brief 将当前线程附加到线程池并运行工作循环
-    /// @note 进入时自动 attach，退出时自动 detach
-    /// @note 阻塞直到线程池停止
-    void run();
-
     class scoped_recursion_guard {
     public:
         explicit scoped_recursion_guard(shard_t* shard) : m_shard(shard) {
@@ -256,43 +237,22 @@ public:
 
     void wake_up_workers();
 
-    /// @brief 运行调度循环直到谓词返回 true 或线程池停止
-    /// @param shard 当前 shard
-    /// @param pred 谓词，返回 true 时退出循环
-    /// @note 复用 worker_loop 的调度逻辑，同时消费本地和全局任务
-    template <typename Predicate>
-    void poll_until(shard_t* shard, Predicate pred);
-
 private:
     boost::asio::detail::scheduler& m_scheduler;
-    std::size_t                     m_num_threads; // 由 thread_pool 创建的线程数
+    std::size_t                     m_num_threads;
     std::string                     m_name;
 
-    void     worker_loop(shard_t* shard);
+    void     worker_loop(std::size_t idx);
     void     push_idle(shard_t* shard);
     shard_t* acquire_idle_worker();
+    void     try_sleep(shard_t* shard);
     bool     has_work(shard_t* shard);
 
-    // 执行本地和全局任务，返回是否执行了任务
-    bool poll_tasks(shard_t* shard);
-
-    // 尝试进入睡眠
-    template <typename Predicate>
-    void try_sleep_until(shard_t* shard, Predicate pred);
-
-    // 无条件睡眠
-    void try_sleep(shard_t* shard) {
-        try_sleep_until(shard, []() {
-            return false;
-        });
-    }
-
-    std::vector<std::unique_ptr<shard_t>> m_shards;  // 所有 shard（包括外部线程的）
-    std::vector<std::thread>              m_threads; // 由 thread_pool 创建的线程
+    std::vector<std::unique_ptr<shard_t>> m_shards;
+    std::vector<std::thread>              m_threads;
     std::atomic<std::size_t>              m_wake_idx{0};
     std::atomic<uint64_t>                 m_idle_head;
     std::atomic<int64_t>                  m_pending_tasks{0};
-    mc::sync::small_mutex                 m_attach_mutex; // 用于保护 attach/detach 操作
 };
 
 } // namespace mc::runtime
@@ -301,64 +261,5 @@ namespace boost::asio {
 template <>
 struct is_executor<mc::runtime::thread_pool::executor_type> : std::true_type {};
 } // namespace boost::asio
-
-namespace mc::runtime {
-
-template <typename Predicate>
-void thread_pool::poll_until(shard_t* shard, Predicate pred) {
-    auto& ctx = *shard->ctx;
-
-    while (!pred()) {
-        if (m_scheduler.stopped()) {
-            break;
-        }
-
-        bool ran_tasks = poll_tasks(shard);
-
-        // 重启停止的上下文
-        if (ctx.stopped()) {
-            ctx.restart();
-        }
-
-        // 如果没有任务，尝试睡眠
-        if (!ran_tasks) {
-            try_sleep_until(shard, pred);
-        }
-    }
-}
-
-template <typename Predicate>
-void thread_pool::try_sleep_until(shard_t* shard, Predicate pred) {
-    // 如果谓词已满足，直接返回
-    if (pred()) {
-        return;
-    }
-
-    // 1. 设置状态为 Idle
-    shard->state.store(State::Idle, std::memory_order_release);
-
-    // 2. 如果不在栈中，入栈
-    if (!shard->in_stack.exchange(true, std::memory_order_acq_rel)) {
-        push_idle(shard);
-    }
-
-    // 3. 双重检查：是否有工作或谓词已满足？
-    if (pred() || has_work(shard) || shard->state.load(std::memory_order_acquire) == State::Notified) {
-        // 将状态从 Idle 恢复为 Running
-        shard->state.store(State::Running, std::memory_order_relaxed);
-        return;
-    }
-
-    try {
-        // 阻塞直到有任务（通过 post 唤醒）或停止
-        shard->ctx->run_one();
-    } catch (...) {
-    }
-
-    // 恢复状态为 Running
-    shard->state.store(State::Running, std::memory_order_relaxed);
-}
-
-} // namespace mc::runtime
 
 #endif // MC_RUNTIME_THREAD_POOL_H
