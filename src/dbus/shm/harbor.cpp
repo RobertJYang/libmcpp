@@ -430,6 +430,13 @@ bool harbor::reply_shm_msg(std::string_view destination_name, uint32_t serial,
     return m_shm_pending_msgs.reply(destination_name, serial, msg);
 }
 
+void harbor::remove_shm_msg(std::string_view source_name, uint32_t serial) {
+    if (!mc::dbus::is_unique_name(source_name)) {
+        source_name = get_unique_name(source_name);
+    }
+    m_shm_pending_msgs.remove(source_name, serial);
+}
+
 void harbor::unregister_service(std::string service_name) {
     std::lock_guard lock(m_unique_name_map_mutex);
     auto            it = m_unique_name_map.find(std::string(service_name));

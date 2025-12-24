@@ -100,6 +100,7 @@ shm_tree::timeout_call(mc::milliseconds timeout, std::string_view service_name,
     }
     if (future.wait_for(std::chrono::milliseconds(timeout)) ==
         mc::futures::future_status::timeout) {
+        harbor.remove_shm_msg(m_unique_name, serial);
         MC_THROW(mc::exception,
                  "shm method call timeout, service name: ${service_name}, method: ${method}",
                  ("service_name", service_name)("method", method));

@@ -390,6 +390,18 @@ bool shm_pending_msgs::reply(std::string_view destination_unique_name, uint32_t 
     return true;
 }
 
+void shm_pending_msgs::remove(std::string_view unique_name, uint32_t serial) {
+    std::lock_guard lock(m_mutex);
+    auto            it = m_pending_msgs.find(std::string(unique_name));
+    if (it == m_pending_msgs.end()) {
+        return;
+    }
+    auto serial_it = it->second.find(serial);
+    if (serial_it != it->second.end()) {
+        it->second.erase(serial_it);
+    }
+}
+
 void shm_pending_msgs::clear(std::string_view unique_name) {
     std::lock_guard lock(m_mutex);
     auto            it = m_pending_msgs.find(std::string(unique_name));
