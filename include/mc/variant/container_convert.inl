@@ -254,7 +254,21 @@ void to_variant(const std::vector<T, Allocator>& var, variant& vo) {
 
 template <typename T, typename Allocator = std::allocator<T>>
 void from_variant(const variant& var, std::vector<T, Allocator>& vo) {
-    sequence_from_variant(var, vo);
+    if constexpr (std::is_same_v<T, uint8_t> || std::is_same_v<T, int8_t>) {
+        // 兼容string和blob类型转为ay类型
+        if (var.is_string()) {
+            auto str = var.as_string();
+            vo.assign(str.c_str(), str.c_str() + str.length());
+        } else if (var.is_blob()) {
+            auto blob = var.as_blob();
+            vo.clear();
+            vo.insert(vo.end(), blob.data.begin(), blob.data.end());
+        } else {
+            sequence_from_variant(var, vo);
+        }
+    } else {
+        sequence_from_variant(var, vo);
+    }
 }
 
 // std::list 特化

@@ -170,6 +170,28 @@ TEST_F(VariantConversionTest, StdVectorConversionTypeMismatch) {
     EXPECT_THROW(mc::from_variant(v, int_vec), mc::exception);
 }
 
+// 测试 from_variant 从字符串转换为ay数组
+TEST_F(VariantConversionTest, VectorByteFromString) {
+    const char*         raw_str1 = "abcd";
+    mc::variant         var1     = std::string(raw_str1, 4);
+    std::vector<int8_t> arr1;
+    mc::from_variant(var1, arr1);
+    EXPECT_EQ(arr1.size(), 4);
+    EXPECT_EQ(arr1[0], 97);
+    EXPECT_EQ(arr1[1], 98);
+    EXPECT_EQ(arr1[2], 99);
+    EXPECT_EQ(arr1[3], 100);
+
+    const char*          raw_str2 = "\x01\x02\x03\x00\x04";
+    mc::variant          var3     = std::string(raw_str2, 5);
+    std::vector<uint8_t> arr_unsigned;
+    mc::from_variant(var3, arr_unsigned);
+    EXPECT_EQ(arr_unsigned.size(), 5);
+    EXPECT_EQ(arr_unsigned[0], 1);
+    EXPECT_EQ(arr_unsigned[1], 2);
+    EXPECT_EQ(arr_unsigned[2], 3);
+    EXPECT_EQ(arr_unsigned[3], 0);
+    EXPECT_EQ(arr_unsigned[4], 4);
+}
+
 } // namespace
-
-
