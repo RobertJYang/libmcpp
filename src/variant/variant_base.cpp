@@ -118,7 +118,7 @@ variant_base::variant_base(variant_base&& other) noexcept {
         m_string_ptr = other.m_string_ptr;
         break;
     case type_id::array_type:
-        new (&m_array) array_type(other.m_array);
+        new (&m_array) array_type(std::move(other.m_array));
         break;
     case type_id::object_type:
         new (&m_object) object_type(std::move(other.m_object));
@@ -299,10 +299,12 @@ variant_base& variant_base::set_value(const variant_base& other) {
         break;
     }
     case type_id::array_type: {
+        m_array.~array_type();
         new (&m_array) array_type(other.as_array());
         break;
     }
     case type_id::object_type: {
+        m_object.~object_type();
         new (&m_object) object_type(other.as_object());
         break;
     }
@@ -311,6 +313,7 @@ variant_base& variant_base::set_value(const variant_base& other) {
         break;
     }
     case type_id::extension_type: {
+        m_extension.~extension_ptr_type();
         new (&m_extension) extension_ptr_type(other.as_extension());
         break;
     }

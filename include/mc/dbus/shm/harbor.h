@@ -67,6 +67,7 @@ public:
                                               mc::dbus::shm_msg_promise promise);
     bool                         reply_shm_msg(std::string_view destination_name, uint32_t serial,
                                                mc::dbus::local_msg& msg);
+    void                         remove_shm_msg(std::string_view source_name, uint32_t serial);
     void                         register_unique_name(std::string unique_name, std::string service_name);
     std::string                  get_unique_name(std::string_view service_name);
     void                         unregister_service(std::string service_name);

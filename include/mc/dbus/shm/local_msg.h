@@ -123,6 +123,7 @@ class MC_API shm_pending_msgs {
 public:
     bool send(std::string_view source_unique_name, uint32_t serial, shm_msg_promise promise);
     bool reply(std::string_view destination_unique_name, uint32_t serial, local_msg& msg);
+    void remove(std::string_view unique_name, uint32_t serial);
     void clear(std::string_view unique_name);
 
 private:
