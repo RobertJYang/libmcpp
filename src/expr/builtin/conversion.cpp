@@ -46,10 +46,22 @@ struct conversion_funcs {
             MC_THROW(mc::invalid_arg_exception, "Expression evaluation error: unable to convert value to boolean type");
         }
     }
+
+    static std::string to_char(const mc::variant& arg) {
+        try {
+            int32_t value = arg.as_int32();
+            if (value < 0 || value > 255) {
+                MC_THROW(mc::invalid_arg_exception, "Expression evaluation error: to_char value must be in range [0, 255]");
+            }
+            return std::string(1, static_cast<char>(value));
+        } catch (const std::exception&) {
+            MC_THROW(mc::invalid_arg_exception, "Expression evaluation error: unable to convert value to character type");
+        }
+    }
 };
 
 } // namespace mc::expr
 
-MC_REFLECT(mc::expr::conversion_funcs, (to_integer)(to_double)(to_string)(to_bool));
+MC_REFLECT(mc::expr::conversion_funcs, (to_integer)(to_double)(to_string)(to_bool)(to_char));
 
 MC_REGISTER_BUILTIN_MODULE(conversion, mc::expr::conversion_funcs);

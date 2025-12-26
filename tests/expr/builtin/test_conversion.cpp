@@ -169,3 +169,45 @@ TEST_F(conversion_builtin_test, ToDoubleFunction) {
     // 实参个数比形参个数多，允许
     EXPECT_NO_THROW(engine.evaluate("to_double(3.14, 2.71)", m_context));
 }
+
+// 测试 to_char 函数
+TEST_F(conversion_builtin_test, ToCharFunction) {
+    // 测试正常 ASCII 字符
+    EXPECT_EQ(engine.evaluate("to_char(65)", m_context), "A");
+    EXPECT_EQ(engine.evaluate("to_char(97)", m_context), "a");
+    EXPECT_EQ(engine.evaluate("to_char(48)", m_context), "0");
+    EXPECT_EQ(engine.evaluate("to_char(49)", m_context), "1");
+    EXPECT_EQ(engine.evaluate("to_char(90)", m_context), "Z");
+    EXPECT_EQ(engine.evaluate("to_char(122)", m_context), "z");
+
+    // 测试边界值
+    EXPECT_EQ(engine.evaluate("to_char(0)", m_context), std::string(1, '\0'));
+    EXPECT_EQ(engine.evaluate("to_char(255)", m_context), std::string(1, static_cast<char>(255)));
+
+    // 测试从字符串转换
+    EXPECT_EQ(engine.evaluate("to_char('65')", m_context), "A");
+    EXPECT_EQ(engine.evaluate("to_char('97')", m_context), "a");
+
+    // 测试从浮点数转换（截断）
+    EXPECT_EQ(engine.evaluate("to_char(65.7)", m_context), "A");
+    EXPECT_EQ(engine.evaluate("to_char(97.9)", m_context), "a");
+
+    // 测试无效范围（负数）
+    EXPECT_THROW(engine.evaluate("to_char(-1)", m_context), mc::invalid_arg_exception);
+    EXPECT_THROW(engine.evaluate("to_char(-100)", m_context), mc::invalid_arg_exception);
+
+    // 测试无效范围（>255）
+    EXPECT_THROW(engine.evaluate("to_char(256)", m_context), mc::invalid_arg_exception);
+    EXPECT_THROW(engine.evaluate("to_char(1000)", m_context), mc::invalid_arg_exception);
+
+    // 测试无效类型转换
+    EXPECT_THROW(engine.evaluate("to_char('not a number')", m_context), mc::invalid_arg_exception);
+    EXPECT_THROW(engine.evaluate("to_char('abc')", m_context), mc::invalid_arg_exception);
+
+    // 测试参数错误
+    EXPECT_THROW(engine.evaluate("to_char()", m_context), mc::invalid_arg_exception);
+
+    // 实参个数比形参个数多，允许（只使用第一个参数）
+    EXPECT_EQ(engine.evaluate("to_char(65, 66)", m_context), "A");
+    EXPECT_EQ(engine.evaluate("to_char(97, 98)", m_context), "a");
+}
