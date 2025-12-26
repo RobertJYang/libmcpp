@@ -7,4 +7,5 @@ runtime_src_files = [
   'runtime/thread_list.cpp',
   'runtime/thread_pool.cpp',
   'runtime/condition_variable.cpp',
+  'runtime/runtime_strand.cpp',
 ] 

@@ -16,23 +16,6 @@
 
 namespace mc::runtime {
 
-// TLS 变量：用于绑定目标 thread_pool
-thread_local thread_pool* g_bound_pool = nullptr;
-
-// scoped_pool_binding 实现
-scoped_pool_binding::scoped_pool_binding(thread_pool* pool)
-    : m_old_pool(g_bound_pool) {
-    g_bound_pool = pool;
-}
-
-scoped_pool_binding::~scoped_pool_binding() {
-    g_bound_pool = m_old_pool;
-}
-
-thread_pool* scoped_pool_binding::current_bound_pool() {
-    return g_bound_pool;
-}
-
 runtime_executor::runtime_executor()
     : m_context(&mc::singleton<runtime_context>::instance()) {
 }
@@ -42,11 +25,15 @@ runtime_executor::runtime_executor(runtime_context& ctx)
 }
 
 bool runtime_executor::operator==(const runtime_executor& other) const noexcept {
-    return m_context == other.m_context;
+    if (m_context != other.m_context || m_bound_pool != other.m_bound_pool) {
+        return false;
+    }
+
+    return true;
 }
 
 bool runtime_executor::operator!=(const runtime_executor& other) const noexcept {
-    return m_context != other.m_context;
+    return !(*this == other);
 }
 
 boost::asio::execution_context& runtime_executor::context() const noexcept {
@@ -67,30 +54,26 @@ runtime_context& runtime_executor::get_runtime_context() const noexcept {
 
 bool runtime_executor::running_in_this_thread() const noexcept {
     if (auto* shard = thread_pool::get_current_shard()) {
-        if (shard->pool != nullptr) {
-            // 指定了绑定 pool 则必须精确匹配
-            if (g_bound_pool != nullptr) {
-                return g_bound_pool == shard->pool;
-            }
-
-            // 否则任何一个 pool 都行
-            return shard->pool == &m_context->io() || shard->pool == &m_context->work();
+        // 指定了绑定 pool 则必须精确匹配
+        if (m_bound_pool != nullptr) {
+            return m_bound_pool == &shard->pool;
         }
+
+        // 否则任何一个 pool 都行
+        return &shard->pool == &m_context->io() || &shard->pool == &m_context->work();
     }
     return false;
 }
 
 thread_pool& runtime_executor::select_pool() const {
-    // 优先级1：使用 scoped_pool_binding 绑定的 pool
-    if (g_bound_pool != nullptr) {
-        return *g_bound_pool;
+    // 优先级1：使用绑定的 pool
+    if (m_bound_pool != nullptr) {
+        return *m_bound_pool;
     }
 
     // 优先级2：使用当前线程所在的 pool
     if (auto* shard = thread_pool::get_current_shard()) {
-        if (shard->pool != nullptr) {
-            return *shard->pool;
-        }
+        return shard->pool;
     }
 
     // 优先级3：默认使用 io pool
@@ -98,11 +81,11 @@ thread_pool& runtime_executor::select_pool() const {
 }
 
 boost::asio::io_context::executor_type runtime_executor::select_io_executor() const {
-    // 优先级1：使用 scoped_pool_binding 绑定的 pool
-    if (g_bound_pool != nullptr) {
+    // 优先级1：使用绑定的 pool
+    if (m_bound_pool != nullptr) {
         static std::atomic<std::size_t> bound_round_robin{0};
-        auto                            idx = bound_round_robin.fetch_add(1, std::memory_order_relaxed) % g_bound_pool->shard_count();
-        return g_bound_pool->get_shard(idx).get_executor();
+        auto                            idx = bound_round_robin.fetch_add(1, std::memory_order_relaxed) % m_bound_pool->shard_count();
+        return m_bound_pool->get_shard(idx).get_executor();
     }
 
     // 优先级2：使用当前线程所在的 shard

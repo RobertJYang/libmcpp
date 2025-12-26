@@ -57,7 +57,10 @@ public:
 
     using executor_work_guard = boost::asio::executor_work_guard<io_context::executor_type>;
     struct shard_t {
-        thread_pool*                         pool{nullptr}; // 所属线程池
+        explicit shard_t(thread_pool& pool_) noexcept : pool(pool_) {
+        }
+
+        thread_pool&                         pool; // 所属线程池
         std::unique_ptr<io_context>          ctx;
         std::unique_ptr<executor_work_guard> work;
 
@@ -94,7 +97,7 @@ public:
         void dispatch(Function&& f, const Allocator& a) const {
             // 1: 优先在当前线程执行
             auto* current_shard = thread_pool::get_current_shard();
-            if (current_shard && current_shard->pool == m_context) {
+            if (current_shard && &current_shard->pool == m_context) {
                 boost::asio::dispatch(
                     current_shard->ctx->get_executor(),
                     boost::asio::bind_allocator(a, std::forward<Function>(f)));
@@ -129,7 +132,7 @@ public:
 
                 // 2: 没有空闲 Worker，但如果当前线程在某个 shard 上，投递到当前 shard
                 auto* current_shard = thread_pool::get_current_shard();
-                if (current_shard && current_shard->pool == m_context) {
+                if (current_shard && &current_shard->pool == m_context) {
                     boost::asio::post(
                         current_shard->ctx->get_executor(),
                         boost::asio::bind_allocator(a, std::forward<Function>(f)));
@@ -145,7 +148,7 @@ public:
         void defer(Function&& f, const Allocator& a) const {
             // 1: 优先在当前线程执行
             auto* current_shard = thread_pool::get_current_shard();
-            if (current_shard && current_shard->pool == m_context) {
+            if (current_shard && &current_shard->pool == m_context) {
                 boost::asio::defer(
                     current_shard->ctx->get_executor(),
                     boost::asio::bind_allocator(a, std::forward<Function>(f)));
@@ -179,7 +182,7 @@ public:
          */
         bool running_in_this_thread() const noexcept {
             auto* current_shard = thread_pool::get_current_shard();
-            return current_shard && current_shard->pool == m_context;
+            return current_shard && &current_shard->pool == m_context;
         }
 
         operator boost::asio::any_io_executor() const {
@@ -282,6 +285,10 @@ public:
     /// @note 复用 worker_loop 的调度逻辑，同时消费本地和全局任务
     template <typename Predicate>
     void poll_until(shard_t* shard, Predicate pred);
+
+    const std::string& get_name() const noexcept {
+        return m_name;
+    }
 
 private:
     boost::asio::detail::scheduler& m_scheduler;

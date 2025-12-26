@@ -23,45 +23,7 @@ namespace mc::runtime {
 class runtime_context;
 
 /**
- * @brief 工具类用于绑定目标 thread_pool
- *
- * 在作用域内设置 TLS 变量，使 runtime_executor::select_pool() 返回绑定的 pool。
- *
- * 使用方式：
- * @code
- * {
- *     scoped_pool_binding binding(&ctx.work());
- *     boost::asio::post(executor, [...] { ... });
- * }
- * @endcode
- */
-class MC_API scoped_pool_binding {
-public:
-    explicit scoped_pool_binding(thread_pool* pool);
-    ~scoped_pool_binding();
-
-    // 禁用拷贝和移动
-    scoped_pool_binding(const scoped_pool_binding&)            = delete;
-    scoped_pool_binding& operator=(const scoped_pool_binding&) = delete;
-    scoped_pool_binding(scoped_pool_binding&&)                 = delete;
-    scoped_pool_binding& operator=(scoped_pool_binding&&)      = delete;
-
-    /**
-     * @brief 获取当前绑定的 pool（可能为 nullptr）
-     */
-    static thread_pool* current_bound_pool();
-
-private:
-    thread_pool* m_old_pool;
-};
-
-/**
  * @brief runtime_context 级别的 executor
- *
- * 任务执行策略（优先级从高到低）：
- * 1. 如果有 scoped_pool_binding 绑定的 pool，则使用该 pool
- * 2. 如果当前线程在某个 thread_pool 上，则在该 pool 上执行
- * 3. 否则，在默认的 io pool 上执行
  */
 class MC_API runtime_executor {
 public:
@@ -98,68 +60,34 @@ public:
     template <typename Function, typename Allocator = std::allocator<void>>
     void defer(Function&& f, const Allocator& a = Allocator()) const;
 
-    /**
-     * @brief 比较两个 executor 是否相等
-     */
     bool operator==(const runtime_executor& other) const noexcept;
-
-    /**
-     * @brief 比较两个 executor 是否不等
-     */
     bool operator!=(const runtime_executor& other) const noexcept;
 
-    /**
-     * @brief 获取关联的 execution_context
-     */
     boost::asio::execution_context& context() const noexcept;
 
-    /**
-     * @brief 通知开始工作
-     */
-    void on_work_started() const noexcept;
-
-    /**
-     * @brief 通知完成工作
-     */
-    void on_work_finished() const noexcept;
-
-    /**
-     * @brief 获取关联的 runtime_context
-     */
+    void             on_work_started() const noexcept;
+    void             on_work_finished() const noexcept;
     runtime_context& get_runtime_context() const noexcept;
+    bool             running_in_this_thread() const noexcept;
 
-    /**
-     * @brief 检查当前线程是否在此 executor 上执行
-     */
-    bool running_in_this_thread() const noexcept;
-
-    /**
-     * @brief 隐式转换为 any_io_executor
-     *
-     * 立即选定一个 thread_pool 切片并返回其 executor。
-     * 用于需要真正 io_context 的异步操作。
-     */
     operator boost::asio::any_io_executor() const;
-
-    /**
-     * @brief 隐式转换为 io_context::executor_type
-     *
-     * 立即选定一个 thread_pool 切片并返回其 executor。
-     * 用于需要真正 io_context 的异步操作。
-     */
     operator boost::asio::io_context::executor_type() const;
 
-private:
-    thread_pool& select_pool() const;
+    runtime_executor& bound_pool(thread_pool* pool) noexcept {
+        m_bound_pool = pool;
+        return *this;
+    }
 
-    /**
-     * @brief 选择一个 io_context 并返回其 executor
-     *
-     * 用于类型转换操作，立即绑定到一个具体的 io_context。
-     */
+    thread_pool* get_bound_pool() const noexcept {
+        return m_bound_pool;
+    }
+
+private:
+    thread_pool&                           select_pool() const;
     boost::asio::io_context::executor_type select_io_executor() const;
 
     runtime_context* m_context;
+    thread_pool*     m_bound_pool = nullptr;
 };
 
 // 模板实现

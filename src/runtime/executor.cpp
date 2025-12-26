@@ -101,4 +101,20 @@ bool executor::running_in_this_thread() const noexcept {
     }
     return m_impl->running_in_this_thread();
 }
+
+executor& executor::bound_pool(thread_pool* pool) noexcept {
+    if (!m_impl) {
+        return *this;
+    }
+    m_impl->bound_pool(pool);
+    return *this;
+}
+
+thread_pool* executor::get_bound_pool() const noexcept {
+    if (!m_impl) {
+        return nullptr;
+    }
+    return m_impl->get_bound_pool();
+}
+
 } // namespace mc::runtime

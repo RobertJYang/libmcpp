@@ -71,8 +71,7 @@ thread_pool::thread_pool(std::size_t num_threads, const std::string& name)
     if (m_num_threads > 0) {
         m_shards.reserve(m_num_threads);
         for (std::size_t i = 0; i < m_num_threads; ++i) {
-            auto shard  = std::make_unique<shard_t>();
-            shard->pool = this; // 设置所属线程池指针
+            auto shard  = std::make_unique<shard_t>(*this);
             shard->ctx  = std::make_unique<io_context>();
             shard->work = std::make_unique<boost::asio::executor_work_guard<io_context::executor_type>>(
                 boost::asio::make_work_guard(shard->ctx->get_executor()));
@@ -284,14 +283,13 @@ void thread_pool::run() {
     shard_t* shard = nullptr;
     {
         std::lock_guard<mc::sync::small_mutex> lock(m_attach_mutex);
-        if (t_current_shard != nullptr && t_current_shard->pool == this) {
+        if (t_current_shard != nullptr && &t_current_shard->pool == this) {
             shard = t_current_shard;
         } else {
             MC_ASSERT_THROW(m_shards.size() < NULL_INDEX, mc::runtime_exception,
                             "线程数不能超过 ${max}", ("max", NULL_INDEX - 1));
 
-            auto new_shard  = std::make_unique<shard_t>();
-            new_shard->pool = this;
+            auto new_shard  = std::make_unique<shard_t>(*this);
             new_shard->ctx  = std::make_unique<io_context>();
             new_shard->work = std::make_unique<boost::asio::executor_work_guard<io_context::executor_type>>(
                 boost::asio::make_work_guard(new_shard->ctx->get_executor()));

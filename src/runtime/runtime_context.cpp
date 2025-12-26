@@ -15,6 +15,7 @@
 #include <mc/log.h>
 #include <mc/runtime/runtime_context.h>
 #include <mc/runtime/runtime_executor.h>
+#include <mc/runtime/runtime_strand.h>
 #include <mc/runtime/thread_pool.h>
 #include <mc/singleton.h>
 #include <mc/sync/mutex_box.h>
@@ -296,8 +297,8 @@ runtime_executor runtime_context::get_executor() noexcept {
     return runtime_executor(*this);
 }
 
-strand runtime_context::create_strand() {
-    return strand(mc::singleton<runtime_context>::instance().get_executor());
+any_executor runtime_context::create_strand() {
+    return executor(runtime_strand());
 }
 
 thread_pool::strand runtime_context::create_io_strand() {
@@ -306,6 +307,10 @@ thread_pool::strand runtime_context::create_io_strand() {
 
 thread_pool::strand runtime_context::create_work_strand() {
     return thread_pool::strand(work().get_executor());
+}
+
+thread_pool::executor_type get_default_executor() {
+    return get_io_executor();
 }
 
 } // namespace mc::runtime

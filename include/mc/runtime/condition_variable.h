@@ -217,7 +217,7 @@ std::cv_status condition_variable::wait_until_on_worker(Lock&                   
         }
     });
 
-    shard->pool->poll_until(shard, [&]() {
+    shard->pool.poll_until(shard, [&]() {
         return node.notified.load(std::memory_order_acquire) || timed_out || Clock::now() >= abs_time;
     });
 
@@ -254,7 +254,7 @@ void condition_variable::wait_on_worker(Lock& lock, thread_pool::shard_t* shard)
 
     lock.unlock();
 
-    shard->pool->poll_until(shard, [&node]() {
+    shard->pool.poll_until(shard, [&node]() {
         return node.notified.load(std::memory_order_acquire);
     });
 
