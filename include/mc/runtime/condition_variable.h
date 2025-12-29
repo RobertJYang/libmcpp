@@ -16,6 +16,7 @@
 #include <atomic>
 #include <chrono>
 #include <condition_variable>
+#include <memory>
 #include <mutex>
 #include <utility>
 
@@ -113,10 +114,36 @@ private:
     void remove_waiter(WaiterNode* node);
     void report_recursion_depth_exceeded();
 
+    class waiter_cleanup {
+    public:
+        waiter_cleanup(condition_variable* cv, WaiterNode* node) noexcept : m_cv(cv), m_node(node) {
+        }
+        waiter_cleanup(const waiter_cleanup&)            = delete;
+        waiter_cleanup& operator=(const waiter_cleanup&) = delete;
+
+        ~waiter_cleanup() noexcept {
+            remove();
+        }
+
+        void remove() noexcept {
+            if (!m_active) {
+                return;
+            }
+            m_active = false;
+            m_cv->remove_waiter(m_node);
+        }
+
+    private:
+        condition_variable* m_cv;
+        WaiterNode*         m_node;
+        bool                m_active{true};
+    };
+
     template <typename Lock>
     void wait_on_worker(Lock& lock, thread_pool::shard_t* shard) {
         WaiterNode node{shard, false};
         add_waiter(&node);
+        waiter_cleanup cleanup(this, &node);
 
         // 检查递归深度
         thread_pool::scoped_recursion_guard recursion_guard(shard);
@@ -129,7 +156,7 @@ private:
                 return node.notified.load(std::memory_order_acquire);
             });
 
-            remove_waiter(&node);
+            cleanup.remove();
             return;
         }
 
@@ -146,7 +173,7 @@ private:
         }
 
         lock.lock();
-        remove_waiter(&node);
+        cleanup.remove();
     }
 
     template <typename Lock, typename Clock, typename Duration>
@@ -155,6 +182,7 @@ private:
                                         const std::chrono::time_point<Clock, Duration>& abs_time) {
         WaiterNode node{shard, false};
         add_waiter(&node);
+        waiter_cleanup cleanup(this, &node);
 
         // 检查递归深度
         thread_pool::scoped_recursion_guard recursion_guard(shard);
@@ -171,7 +199,7 @@ private:
                 timed_out = true;
             }
 
-            remove_waiter(&node);
+            cleanup.remove();
             return timed_out ? std::cv_status::timeout : std::cv_status::no_timeout;
         }
 
@@ -212,7 +240,7 @@ private:
 
         timer.cancel();
         lock.lock();
-        remove_waiter(&node);
+        cleanup.remove();
         return timed_out ? std::cv_status::timeout : std::cv_status::no_timeout;
     }
 };

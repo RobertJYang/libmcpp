@@ -71,11 +71,16 @@ void condition_variable::notify_one() noexcept {
 void condition_variable::notify_all() noexcept {
     auto  lock = m_waiter_list.lock();
     auto* node = lock->head;
+    lock->head = nullptr;
+    lock->tail = nullptr;
     while (node) {
+        auto* next = node->next;
+        node->next = nullptr;
+        node->prev = nullptr;
         node->notified.store(true, std::memory_order_release);
         boost::asio::post(node->shard->ctx->get_executor(), [] {
         });
-        node = node->next;
+        node = next;
     }
     m_cv.notify_all();
 }
