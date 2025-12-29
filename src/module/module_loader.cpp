@@ -29,14 +29,28 @@ using split_iterator = mc::string::split_iterator;
 #endif
 
 #ifndef MC_MODULE_PATH
+#if defined(__APPLE__)
+#define MC_MODULE_PATH   \
+    "./?.dylib;"         \
+    "./?/init.dylib;"    \
+    "./modules/?.dylib;" \
+    "./modules/?/init.dylib;"
+#else
 #define MC_MODULE_PATH \
     "./?.so;"          \
     "./?/init.so;"     \
     "./modules/?.so;"  \
     "./modules/?/init.so;"
 #endif
+#endif
 
 namespace mc::module {
+
+#if defined(__APPLE__)
+static constexpr std::string_view k_module_ext = ".dylib";
+#else
+static constexpr std::string_view k_module_ext = ".so";
+#endif
 
 static std::string get_executable_path() {
     char path[PATH_MAX];
@@ -104,10 +118,11 @@ module_loader::module_loader() {
         auto exe_dir  = exe_path.parent_path();
 
         // 可执行文件目录下的模块路径
-        add_load_paths((exe_dir / "?.so").string());
-        add_load_paths((exe_dir / "?/init.so").string());
-        add_load_paths((exe_dir / "modules/?.so").string());
-        add_load_paths((exe_dir / "modules/?/init.so").string());
+        const std::string ext(k_module_ext);
+        add_load_paths((exe_dir / (std::string("?") + ext)).string());
+        add_load_paths((exe_dir / (std::string("?/init") + ext)).string());
+        add_load_paths((exe_dir / (std::string("modules/?") + ext)).string());
+        add_load_paths((exe_dir / (std::string("modules/?/init") + ext)).string());
     } catch (const std::exception& e) {
         wlog("get executable path failed: ${error}", ("error", e.what()));
     }

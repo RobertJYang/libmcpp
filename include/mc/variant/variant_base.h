@@ -133,17 +133,15 @@ public:
         : variant_base(type_id::double_type, val) {
     }
     variant_base(const blob_type& val)
-        : variant_base(type_id::blob_type) {
+        : m_type(type_id::blob_type), m_is_fixed(false) {
         m_blob_ptr =
             mc::allocate_ptr<blob_type>(allocator_type(), val.data.data(), val.data.size());
-        m_is_fixed = false;
     }
 
     // 从字典构造 variant_base
     variant_base(const dict& obj)
-        : variant_base(type_id::object_type) {
+        : m_type(type_id::object_type), m_is_fixed(false) {
         new (&m_object) object_type(obj);
-        m_is_fixed = false;
     }
 
     // 从 array_type 构造 variant_base

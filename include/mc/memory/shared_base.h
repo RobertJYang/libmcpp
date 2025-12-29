@@ -286,6 +286,10 @@ public:
         if (add_ref) {
             return shared_ptr_type{p_element};
         } else {
+            if (!p_element->is_managed() || p_element->is_destroyed()) {
+                detail::throw_invalid_op_exception(
+                    "from_raw(add_ref=false) requires a managed and not destroyed object");
+            }
             // 不需要增加引用计数，使用内部构造函数
             return shared_ptr_type{p_element, typename shared_ptr_type::already_referenced_tag{}};
         }

@@ -10,17 +10,17 @@
  * See the Mulan PSL v2 for more details.
  */
 
-#include <gtest/gtest.h>
+#include "../runtime/test_future_helpers.h"
 #include <atomic>
 #include <chrono>
 #include <cstdlib>
-#include <stdexcept>
+#include <gtest/gtest.h>
 #include <mc/filesystem.h>
 #include <mc/module.h>
 #include <mc/reflect/reflection_factory.h>
 #include <mc/string.h>
+#include <stdexcept>
 #include <test_utilities/test_base.h>
-#include "../runtime/test_future_helpers.h"
 #include <thread>
 #include <vector>
 
@@ -124,6 +124,38 @@ private:
     bool        m_has_backup{false};
 };
 
+std::string_view shared_lib_ext() {
+#if defined(__APPLE__)
+    return ".dylib";
+#else
+    return ".so";
+#endif
+}
+
+mc::filesystem::path dynamic_module_source_path(const mc::filesystem::path& build_root) {
+    return build_root / "tests" / (std::string("libmc_test_dynamic_module") + std::string(shared_lib_ext()));
+}
+
+mc::filesystem::path dynamic_module_target_path(const mc::filesystem::path& build_root) {
+    auto modules_dir = build_root / "modules" / "mc" / "test";
+    return modules_dir / (std::string("dynamic") + std::string(shared_lib_ext()));
+}
+
+std::string dynamic_module_search_path() {
+    return std::string("./modules/?") + std::string(shared_lib_ext());
+}
+
+void copy_dynamic_module_if_needed(const mc::filesystem::path& build_root) {
+    auto target = dynamic_module_target_path(build_root);
+    mc::filesystem::create_directories(target.parent_path());
+
+    if (mc::filesystem::exists(target)) {
+        return;
+    }
+
+    mc::filesystem::copy_file(dynamic_module_source_path(build_root), target, true);
+}
+
 /**
  * @brief 测试模块卸载功能
  */
@@ -201,11 +233,11 @@ TEST_F(ModuleManagerTest, TestAddSearchPath) {
     auto& manager = mc::get_module_manager();
 
     // 添加搜索路径
-    manager.add_search_path("/custom/path/?.so");
+    manager.add_search_path(std::string("/custom/path/?") + std::string(shared_lib_ext()));
 
     // 这个功能主要影响动态库加载，对于内置模块影响不大
     // 但我们可以验证方法不会崩溃
-    EXPECT_NO_THROW(manager.add_search_path("/another/path/?.so"));
+    EXPECT_NO_THROW(manager.add_search_path(std::string("/another/path/?") + std::string(shared_lib_ext())));
 }
 
 /**
@@ -232,7 +264,7 @@ TEST_F(ModuleManagerTest, TestLoadedModulesList) {
 
     // 再次检查列表
     auto after_unload = manager.loaded_modules();
-    bool still_found   = std::find(after_unload.begin(), after_unload.end(), "mc.test.module") !=
+    bool still_found  = std::find(after_unload.begin(), after_unload.end(), "mc.test.module") !=
                        after_unload.end();
     EXPECT_FALSE(still_found) << "卸载后模块不应在列表中";
 }
@@ -374,9 +406,9 @@ TEST_F(ModuleManagerTest, TestReflection) {
     auto  direct_types   = direct_factory.get_registered_types();
 
     if (!std::any_of(direct_types.begin(), direct_types.end(), [](const std::string& name) {
-            return name == "mc.test.module.TestClass" || name == "TestClass" ||
-                   name == "mc.test.module::TestClass";
-        })) {
+        return name == "mc.test.module.TestClass" || name == "TestClass" ||
+               name == "mc.test.module::TestClass";
+    })) {
         direct_factory.register_type<mc::test_module::test_class>();
         direct_types = direct_factory.get_registered_types();
     }
@@ -445,7 +477,7 @@ TEST_F(ModuleManagerTest, TestUnRegisterBuiltinModule) {
  * @brief 并发 require 同一模块应返回同一实例
  */
 TEST_F(ModuleManagerTest, TestConcurrentRequireSameModule) {
-    auto& manager      = mc::get_module_manager();
+    auto&     manager      = mc::get_module_manager();
     const int thread_count = 8;
 
     std::vector<mc::module::module_ptr> modules(thread_count);
@@ -491,10 +523,10 @@ TEST_F(ModuleManagerTest, TestConcurrentRequireSameModule) {
  * @brief 并发执行 require/unload 场景不应崩溃
  */
 TEST_F(ModuleManagerTest, TestConcurrentRequireAndUnload) {
-    auto& manager = mc::get_module_manager();
+    auto&             manager = mc::get_module_manager();
     std::atomic<bool> stop{false};
     std::atomic<int>  iterations{0};
-    const int        min_iterations = 10; // 确保至少执行一定次数
+    const int         min_iterations = 10; // 确保至少执行一定次数
 
     mc::test::runtime::countdown_future workers_ready(2);
     mc::test::runtime::future_flag      start_flag;
@@ -563,20 +595,14 @@ TEST_F(ModuleManagerTest, TestConcurrentRequireAndUnload) {
 
 TEST_F(ModuleManagerTest, TestDynamicModuleOpenFailure) {
     auto build_root = mc::filesystem::current_path();
-    auto source     = build_root / "tests/libmc_test_dynamic_module.so";
+    auto source     = dynamic_module_source_path(build_root);
     ASSERT_TRUE(mc::filesystem::exists(source));
 
-    // 创建必要的目录结构并复制模块文件
-    auto modules_dir = build_root / "modules" / "mc" / "test";
-    mc::filesystem::create_directories(modules_dir);
-    auto target = modules_dir / "dynamic.so";
-    if (!mc::filesystem::exists(target)) {
-        mc::filesystem::copy_file(source, target, true);
-    }
+    copy_dynamic_module_if_needed(build_root);
 
     scoped_env_var env("MC_TEST_DYNAMIC_RETURN_NULL", "1");
-    auto&                     manager = mc::get_module_manager();
-    manager.add_search_path("./modules/?.so");
+    auto&          manager = mc::get_module_manager();
+    manager.add_search_path(dynamic_module_search_path());
 
     auto module = manager.require("mc.test.dynamic");
     EXPECT_TRUE(module == nullptr);
@@ -584,19 +610,13 @@ TEST_F(ModuleManagerTest, TestDynamicModuleOpenFailure) {
 
 TEST_F(ModuleManagerTest, TestDynamicModuleCloseThrows) {
     auto build_root = mc::filesystem::current_path();
-    auto source     = build_root / "tests/libmc_test_dynamic_module.so";
+    auto source     = dynamic_module_source_path(build_root);
     ASSERT_TRUE(mc::filesystem::exists(source));
 
-    // 创建必要的目录结构并复制模块文件
-    auto modules_dir = build_root / "modules" / "mc" / "test";
-    mc::filesystem::create_directories(modules_dir);
-    auto target = modules_dir / "dynamic.so";
-    if (!mc::filesystem::exists(target)) {
-        mc::filesystem::copy_file(source, target, true);
-    }
+    copy_dynamic_module_if_needed(build_root);
 
-    auto&                     manager = mc::get_module_manager();
-    manager.add_search_path("./modules/?.so");
+    auto& manager = mc::get_module_manager();
+    manager.add_search_path(dynamic_module_search_path());
 
     auto module = manager.require("mc.test.dynamic");
     ASSERT_TRUE(module != nullptr);
@@ -613,19 +633,13 @@ TEST_F(ModuleManagerTest, TestDynamicModuleCloseThrows) {
 // 测试动态模块卸载时的 dlog 日志
 TEST_F(ModuleManagerTest, ModuleManagerDynamicUnloadLogs) {
     auto build_root = mc::filesystem::current_path();
-    auto source     = build_root / "tests/libmc_test_dynamic_module.so";
+    auto source     = dynamic_module_source_path(build_root);
     ASSERT_TRUE(mc::filesystem::exists(source));
 
-    // 创建必要的目录结构并复制模块文件
-    auto modules_dir = build_root / "modules" / "mc" / "test";
-    mc::filesystem::create_directories(modules_dir);
-    auto target = modules_dir / "dynamic.so";
-    if (!mc::filesystem::exists(target)) {
-        mc::filesystem::copy_file(source, target, true);
-    }
+    copy_dynamic_module_if_needed(build_root);
 
     auto& manager = mc::get_module_manager();
-    manager.add_search_path("./modules/?.so");
+    manager.add_search_path(dynamic_module_search_path());
 
     // 临时将日志级别设置为 debug，以便 dlog 能够输出
     auto original_level = mc::log::default_logger().get_level();
@@ -648,19 +662,13 @@ TEST_F(ModuleManagerTest, ModuleManagerDynamicUnloadLogs) {
 // 测试释放所有引用后卸载，命中 need_unload 分支
 TEST_F(ModuleManagerTest, ModuleManagerReleaseHandleOnUnload) {
     auto build_root = mc::filesystem::current_path();
-    auto source     = build_root / "tests/libmc_test_dynamic_module.so";
+    auto source     = dynamic_module_source_path(build_root);
     ASSERT_TRUE(mc::filesystem::exists(source));
 
-    // 创建必要的目录结构并复制模块文件
-    auto modules_dir = build_root / "modules" / "mc" / "test";
-    mc::filesystem::create_directories(modules_dir);
-    auto target = modules_dir / "dynamic.so";
-    if (!mc::filesystem::exists(target)) {
-        mc::filesystem::copy_file(source, target, true);
-    }
+    copy_dynamic_module_if_needed(build_root);
 
     auto& manager = mc::get_module_manager();
-    manager.add_search_path("./modules/?.so");
+    manager.add_search_path(dynamic_module_search_path());
 
     // 加载动态模块
     auto module = manager.require("mc.test.dynamic");
@@ -684,19 +692,13 @@ TEST_F(ModuleManagerTest, ModuleManagerReleaseHandleOnUnload) {
 // 测试 reset_for_test() 覆盖 clear() 中 handle 回收
 TEST_F(ModuleManagerTest, ModuleManagerResetClearsHandles) {
     auto build_root = mc::filesystem::current_path();
-    auto source     = build_root / "tests/libmc_test_dynamic_module.so";
+    auto source     = dynamic_module_source_path(build_root);
     ASSERT_TRUE(mc::filesystem::exists(source));
 
-    // 创建必要的目录结构并复制模块文件
-    auto modules_dir = build_root / "modules" / "mc" / "test";
-    mc::filesystem::create_directories(modules_dir);
-    auto target = modules_dir / "dynamic.so";
-    if (!mc::filesystem::exists(target)) {
-        mc::filesystem::copy_file(source, target, true);
-    }
+    copy_dynamic_module_if_needed(build_root);
 
     auto& manager = mc::get_module_manager();
-    manager.add_search_path("./modules/?.so");
+    manager.add_search_path(dynamic_module_search_path());
 
     // 加载动态模块，但不卸载
     auto module = manager.require("mc.test.dynamic");
@@ -717,19 +719,13 @@ TEST_F(ModuleManagerTest, ModuleManagerResetClearsHandles) {
 // 测试 handle 复用场景
 TEST_F(ModuleManagerTest, ModuleManagerReuseLibraryHandle) {
     auto build_root = mc::filesystem::current_path();
-    auto source     = build_root / "tests/libmc_test_dynamic_module.so";
+    auto source     = dynamic_module_source_path(build_root);
     ASSERT_TRUE(mc::filesystem::exists(source));
 
-    // 创建必要的目录结构并复制模块文件
-    auto modules_dir = build_root / "modules" / "mc" / "test";
-    mc::filesystem::create_directories(modules_dir);
-    auto target = modules_dir / "dynamic.so";
-    if (!mc::filesystem::exists(target)) {
-        mc::filesystem::copy_file(source, target, true);
-    }
+    copy_dynamic_module_if_needed(build_root);
 
     auto& manager = mc::get_module_manager();
-    manager.add_search_path("./modules/?.so");
+    manager.add_search_path(dynamic_module_search_path());
 
     // 第一次加载动态模块
     auto module1 = manager.require("mc.test.dynamic");
