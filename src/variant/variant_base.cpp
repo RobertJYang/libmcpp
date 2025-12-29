@@ -299,13 +299,11 @@ variant_base& variant_base::set_value(const variant_base& other) {
         break;
     }
     case type_id::array_type: {
-        m_array.~array_type();
-        new (&m_array) array_type(other.as_array());
+        m_array = other.as_array();
         break;
     }
     case type_id::object_type: {
-        m_object.~object_type();
-        new (&m_object) object_type(other.as_object());
+        m_object = other.as_object();
         break;
     }
     case type_id::blob_type: {
@@ -313,8 +311,7 @@ variant_base& variant_base::set_value(const variant_base& other) {
         break;
     }
     case type_id::extension_type: {
-        m_extension.~extension_ptr_type();
-        new (&m_extension) extension_ptr_type(other.as_extension());
+        m_extension = other.as_extension();
         break;
     }
     default:

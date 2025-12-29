@@ -105,36 +105,33 @@ public:
     }
 
     // 析构函数
-    ~shared_ptr() {
-        if (!m_ptr || !m_ptr->release_ref()) {
-            return;
-        }
-        using deleter_traits = mc::deleter_traits<Deleter, element_type>;
-
-        // 第一阶段：调用 Deleter 的 destroy 方法处理对象析构
-        deleter_traits::destroy(static_cast<element_type*>(m_ptr));
-
-        // 第二阶段：归还保底弱引用，如果弱引用计数为 0 则释放内存
-        if (m_ptr->release_weak_ref()) {
-            deleter_traits::deallocate(m_ptr);
-        }
+    ~shared_ptr() noexcept {
+        release_noexcept(m_ptr);
     }
 
     // 重置指针
-    void reset() noexcept {
-        shared_ptr().swap(*this);
+    void reset() {
+        auto* old_ptr = m_ptr;
+        m_ptr         = nullptr;
+        release(old_ptr);
     }
 
     // 重置为新指针
-    void reset(pointer_type ptr) noexcept {
-        shared_ptr(ptr).swap(*this);
+    void reset(pointer_type ptr) {
+        auto* old_ptr = m_ptr;
+        m_ptr         = nullptr;
+
+        shared_ptr new_ptr(ptr);
+        m_ptr = new_ptr.detach();
+
+        release(old_ptr);
     }
 
     // 重置为新指针
     template <typename U>
-    void reset(U* ptr) noexcept {
+    void reset(U* ptr) {
         static_assert(std::is_convertible_v<U*, T*>, "U* must be convertible to T*");
-        shared_ptr(static_cast<pointer_type>(ptr)).swap(*this);
+        reset(static_cast<pointer_type>(ptr));
     }
 
     // 交换两个指针
@@ -249,6 +246,30 @@ public:
 
 private:
     pointer_type m_ptr;
+
+    static void release(pointer_type ptr) {
+        if (!ptr) {
+            return;
+        }
+
+        if (!ptr->release_ref()) {
+            return;
+        }
+
+        using deleter_traits = mc::deleter_traits<Deleter, element_type>;
+
+        deleter_traits::destroy(static_cast<element_type*>(ptr));
+        if (ptr->release_weak_ref()) {
+            deleter_traits::deallocate(ptr);
+        }
+    }
+
+    static void release_noexcept(pointer_type ptr) noexcept {
+        try {
+            release(ptr);
+        } catch (...) {
+        }
+    }
 
     // 内部构造函数，用于已经增加引用计数的情况
     struct already_referenced_tag {};

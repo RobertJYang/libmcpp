@@ -219,6 +219,28 @@ TEST_F(VariantEdgeCasesTest, SetValueExtensionType) {
     EXPECT_EQ(v1.as_int64(), 20);
 }
 
+TEST_F(VariantEdgeCasesTest, TypedVariantSetValueArrayKeepsValueOnException) {
+    typed_variant v(mc::type_id::array_type);
+    v = variants{1, 2, 3};
+
+    verify_assignment_exception([&]() { v = 42; }, v);
+}
+
+TEST_F(VariantEdgeCasesTest, TypedVariantSetValueObjectKeepsValueOnException) {
+    typed_variant v(mc::type_id::object_type);
+    v = dict{{"name", "John"}, {"age", 30}};
+
+    verify_assignment_exception([&]() { v = 42; }, v);
+}
+
+TEST_F(VariantEdgeCasesTest, TypedVariantSetValueExtensionKeepsValueOnException) {
+    typed_variant v(mc::type_id::extension_type);
+    auto          ext = mc::make_shared<test_extension_no_ref_access>(10);
+    v = variant(ext);
+
+    verify_assignment_exception([&]() { v = 42; }, v);
+}
+
 // 注意：set_value() 中的 default 分支很难直接测试，因为 variant_base 的构造函数会验证 type_id
 // 这个分支可能在内部实现中作为保护性代码存在
 
@@ -853,4 +875,3 @@ TEST_F(VariantEdgeCasesTest, VariantThrowHelperFunctions) {
 
 } // namespace test
 } // namespace mc
-
