@@ -21,6 +21,14 @@
 
 namespace {
 
+std::string_view shared_lib_ext() {
+#if defined(__APPLE__)
+    return ".dylib";
+#else
+    return ".so";
+#endif
+}
+
 /**
  * @brief 模拟库加载器，用于测试而不需要真实的动态库文件
  */
@@ -182,19 +190,21 @@ TEST_F(ModuleLoaderTest, TestDefaultSearchPaths) {
     EXPECT_FALSE(paths.empty()) << "默认搜索路径不应为空";
 
     // 检查是否包含预期的默认路径
-    bool found_basic_so   = false;
-    bool found_modules_so = false;
+    bool              found_basic   = false;
+    bool              found_modules = false;
+    const std::string basic_path    = std::string("./?") + std::string(shared_lib_ext());
+    const std::string modules_path  = std::string("./modules/?") + std::string(shared_lib_ext());
 
     for (const auto& path : paths) {
-        if (path == "./?.so") {
-            found_basic_so = true;
-        } else if (path == "./modules/?.so") {
-            found_modules_so = true;
+        if (path == basic_path) {
+            found_basic = true;
+        } else if (path == modules_path) {
+            found_modules = true;
         }
     }
 
-    EXPECT_TRUE(found_basic_so) << "应包含 './?.so' 路径";
-    EXPECT_TRUE(found_modules_so) << "应包含 './modules/?.so' 路径";
+    EXPECT_TRUE(found_basic) << "应包含默认基础路径";
+    EXPECT_TRUE(found_modules) << "应包含默认 modules 路径";
 }
 
 /**
@@ -445,7 +455,9 @@ TEST_F(ModuleLoaderTest, TestLoadPathNotReadable) {
     loader.add_search_path("./?.so");
 
     // 设置 is_readable 返回 false
-    mock_funcs.is_readable = [](std::string_view) -> bool { return false; };
+    mock_funcs.is_readable = [](std::string_view) -> bool {
+        return false;
+    };
     loader.set_load_lib_func(mock_funcs);
 
     bool callback_called = false;
@@ -468,8 +480,12 @@ TEST_F(ModuleLoaderTest, TestLoadPathDlopenFailed) {
     loader.add_search_path("./?.so");
 
     // 设置 is_readable 返回 true，但 load 返回 nullptr
-    mock_funcs.is_readable = [](std::string_view) -> bool { return true; };
-    mock_funcs.load        = [](std::string_view, bool) -> void* { return nullptr; };
+    mock_funcs.is_readable = [](std::string_view) -> bool {
+        return true;
+    };
+    mock_funcs.load = [](std::string_view, bool) -> void* {
+        return nullptr;
+    };
     loader.set_load_lib_func(mock_funcs);
 
     bool callback_called = false;
@@ -567,9 +583,9 @@ TEST_F(ModuleLoaderTest, TestLoadModuleMixedSeparators) {
         "./pkg/driver/module.so",
         {"mc_open_pkg_driver_module", "mc_close_pkg_driver_module"});
 
-    bool         callback_called = false;
-    std::string  captured_path;
-    auto callback = [&](auto info, bool&) -> bool {
+    bool        callback_called = false;
+    std::string captured_path;
+    auto        callback = [&](auto info, bool&) -> bool {
         callback_called = true;
         captured_path   = info->path;
         return true;
@@ -595,7 +611,7 @@ TEST_F(ModuleLoaderTest, TestLoadModuleTemplateMultiPlaceholders) {
 
     bool        callback_called = false;
     std::string captured_path;
-    auto callback = [&](auto info, bool&) -> bool {
+    auto        callback = [&](auto info, bool&) -> bool {
         callback_called = true;
         captured_path   = info->path;
         return true;

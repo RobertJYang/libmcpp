@@ -151,6 +151,35 @@ TEST_F(SharedPtrConstructTest, UninitializedStateOperations) {
     EXPECT_EQ(ptr.use_count(), 1);
 }
 
+TEST_F(SharedPtrConstructTest, FromRawWithoutAddRefThrowsOnReset) {
+    auto* raw_obj = new ctor_test_object(150);
+    EXPECT_FALSE(raw_obj->is_managed());
+
+    EXPECT_THROW(ctor_test_object::from_raw(raw_obj), mc::invalid_op_exception);
+    delete raw_obj;
+}
+
+TEST_F(SharedPtrConstructTest, ResetThrowsWhenRefCountAlreadyDestroyed) {
+    auto*                            raw_obj = new ctor_test_object(160);
+    mc::shared_ptr<ctor_test_object> ptr(raw_obj);
+
+    EXPECT_TRUE(raw_obj->is_managed());
+    EXPECT_EQ(ptr.use_count(), 1);
+
+    bool should_delete = raw_obj->release_ref();
+    EXPECT_TRUE(should_delete);
+    EXPECT_TRUE(raw_obj->is_destroyed());
+
+    try {
+        ptr.reset();
+        FAIL() << "reset 应该抛出 mc::invalid_op_exception";
+    } catch (const mc::invalid_op_exception&) {
+    }
+
+    EXPECT_FALSE(ptr);
+    delete raw_obj;
+}
+
 // 测试 shared_from_this 在不同状态下的行为
 TEST_F(SharedPtrConstructTest, SharedFromThisStates) {
     auto obj = mc::make_shared<ctor_test_object>(200);
