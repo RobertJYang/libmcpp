@@ -17,6 +17,32 @@
 
 namespace mc::futures {
 
+namespace detail {
+
+template <typename StatePtr, typename Result>
+bool try_set_result(const StatePtr& state, Result&& result, bool strict_once = true) {
+    {
+        std::lock_guard<std::mutex> lock(state->m_mutex);
+        if (state->cancelled.load()) {
+            return false;
+        }
+
+        if (strict_once) {
+            MC_ASSERT_THROW(!state->ready && !state->bound, promise_already_satisfied, "Promise 值已被设置");
+        } else if (state->ready) {
+            return false;
+        }
+
+        state->result = std::forward<Result>(result);
+        state->ready.store(true, std::memory_order_release);
+    }
+
+    state->mark_ready();
+    return true;
+}
+
+} // namespace detail
+
 template <typename T, typename Executor, typename Allocator>
 Promise<T, Executor, Allocator>::Promise(Executor executor, const Allocator& alloc)
     : state_(make_pooled_state<T>(std::move(executor), alloc)), allocator_(alloc) {
@@ -28,32 +54,35 @@ void Promise<T, Executor, Allocator>::set_value(Args&&... args) {
     if (state_->cancelled.load()) {
         return;
     }
-    {
-        std::lock_guard<std::mutex> lock(state_->m_mutex);
-        if (state_->cancelled.load()) {
-            return;
+
+    if constexpr (detail::is_future_v<std::decay_t<U>>) {
+        {
+            std::lock_guard<std::mutex> lock(state_->m_mutex);
+            if (state_->cancelled.load()) {
+                return;
+            }
+
+            if (state_->ready || state_->bound) {
+                MC_THROW(promise_already_satisfied, "Promise 值已被设置");
+            }
+
+            state_->bound.store(true, std::memory_order_release);
         }
 
-        if (state_->ready) {
-            MC_THROW(promise_already_satisfied, "Promise 值已被设置");
-        }
-
-        if constexpr (std::is_same_v<U, void>) {
-            state_->result = std::monostate{};
-        } else if constexpr (detail::is_future_v<std::decay_t<U>>) {
-            // 如果参数是 Future 类型，我们需要等待它完成并获取其值
-            auto future = std::get<0>(std::forward_as_tuple(std::forward<Args>(args)...));
-            future.then([this](auto&& value) {
-                this->set_value(std::forward<decltype(value)>(value));
-            }).catch_error([this](const mc::exception& ec) {
-                this->set_exception(std::current_exception());
-            });
-            return;
-        } else {
-            state_->result = std::get<0>(std::forward_as_tuple(std::forward<Args>(args)...));
-        }
+        auto inner_future = std::get<0>(std::forward_as_tuple(std::forward<Args>(args)...));
+        std::move(inner_future).then([state = state_](auto&& value) mutable {
+            detail::try_set_result(state, std::forward<decltype(value)>(value), false);
+        }).catch_error([state = state_](const mc::exception&) mutable {
+            detail::try_set_result(state, std::current_exception(), false);
+        }).on_cancel(*this);
+        return;
+    } else if constexpr (std::is_same_v<U, void>) {
+        detail::try_set_result(state_, std::monostate{});
+    } else if constexpr (sizeof...(Args) == 0) {
+        detail::try_set_result(state_, U{});
+    } else {
+        detail::try_set_result(state_, std::get<0>(std::forward_as_tuple(std::forward<Args>(args)...)));
     }
-    state_->mark_ready();
 }
 
 template <typename T, typename Executor, typename Allocator>
@@ -61,18 +90,7 @@ void Promise<T, Executor, Allocator>::set_exception(std::exception_ptr e) {
     if (state_->cancelled.load()) {
         return;
     }
-    {
-        std::lock_guard<std::mutex> lock(state_->m_mutex);
-        if (state_->cancelled.load()) {
-            return;
-        }
-
-        if (state_->ready) {
-            MC_THROW(promise_already_satisfied, "Promise 值已被设置");
-        }
-        state_->result = e;
-    }
-    state_->mark_ready();
+    detail::try_set_result(state_, std::move(e));
 }
 
 template <typename T, typename Executor, typename Allocator>

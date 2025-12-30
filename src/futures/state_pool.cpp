@@ -120,6 +120,7 @@ private:
 // 重置状态，但保留 mutex 和 cv 以避免重构造开销
 void state_base::reset() {
     ready.store(false);
+    bound.store(false);
     deferred.store(false);
     cancelled.store(false);
     policy = launch::async;

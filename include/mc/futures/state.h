@@ -39,6 +39,7 @@ struct MC_API state_base {
 
     callback_list     m_continuations;
     std::atomic<bool> ready{false};
+    std::atomic<bool> bound{false};
     std::atomic<bool> deferred{false};
     std::atomic<bool> cancelled{false};
     launch            policy{launch::async};
@@ -94,13 +95,18 @@ struct State : public mc::enable_shared_from_this<State<T, Executor, Allocator>>
 
     void mark_ready() {
         callback_list callbacks;
+        callback_list cancel_callbacks;
         {
             std::lock_guard<std::mutex> lock(m_mutex);
-            ready = true;
+            ready.store(true, std::memory_order_release);
             m_continuations.swap(callbacks);
+            m_cancel_callbacks.swap(cancel_callbacks);
         }
         m_cv.notify_all();
         callbacks.execute_and_clear();
+
+        // 直接清空 cancel_callbacks 因为不再需要执行了
+        cancel_callbacks.clear();
     }
 
     // 取消操作
@@ -130,6 +136,7 @@ struct State : public mc::enable_shared_from_this<State<T, Executor, Allocator>>
             if (!ready.load()) {
                 this->result = std::make_exception_ptr(canceled_exception());
                 need_ready   = true;
+                ready.store(true, std::memory_order_release);
             }
         }
         if (need_ready) {
@@ -140,16 +147,17 @@ struct State : public mc::enable_shared_from_this<State<T, Executor, Allocator>>
     // 添加取消回调
     template <typename F>
     void add_cancel_callback(F&& callback) {
-        if (!cancelled.load()) {
+        if (!ready.load() && !cancelled.load()) {
             std::lock_guard<std::mutex> lock(m_mutex);
-            if (!cancelled.load()) {
+            if (!ready.load() && !cancelled.load()) {
                 add_cancel_callback_inner(std::forward<F>(callback));
                 return;
             }
         }
 
-        // 已经撤销了立即执行回调，解锁后执行避免死锁
-        safe_invoke(std::forward<F>(callback));
+        if (cancelled.load()) {
+            safe_invoke(std::forward<F>(callback));
+        }
     }
 
     template <typename F>

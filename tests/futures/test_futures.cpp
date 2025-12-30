@@ -287,6 +287,26 @@ TEST_F(FuturesTest, PromiseSetValueFromFuture) {
     EXPECT_THROW(failing_future.get(), std::runtime_error);
 }
 
+TEST_F(FuturesTest, PromiseSetValueFromFutureCannotBeRebound) {
+    auto outer_promise = mc::make_promise<int>(get_io_context());
+    auto outer_future  = outer_promise.get_future();
+
+    auto inner_promise0 = mc::make_promise<int>(get_io_context());
+    auto inner_future0  = inner_promise0.get_future();
+    outer_promise.template set_value<decltype(inner_future0)>(std::move(inner_future0));
+
+    auto inner_promise1 = mc::make_promise<int>(get_io_context());
+    auto inner_future1  = inner_promise1.get_future();
+    EXPECT_THROW(outer_promise.template set_value<decltype(inner_future1)>(std::move(inner_future1)),
+                 mc::futures::promise_already_satisfied);
+    EXPECT_THROW(outer_promise.set_value(1), mc::futures::promise_already_satisfied);
+    EXPECT_THROW(outer_promise.set_exception(std::make_exception_ptr(std::runtime_error("x"))),
+                 mc::futures::promise_already_satisfied);
+
+    inner_promise0.set_value(7);
+    EXPECT_EQ(outer_future.get(), 7);
+}
+
 // 测试 promise::set_value 重复设置触发异常
 TEST_F(FuturesTest, PromiseSetValueAlreadySatisfiedThrows) {
     auto promise = mc::make_promise<int>(get_io_context());
