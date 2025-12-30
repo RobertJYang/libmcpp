@@ -16,16 +16,18 @@
 #include <gtest/gtest.h>
 #include <mc/core/application.h>
 #include <mc/engine.h>
+#include <mc/filesystem.h>
 #include <mc/log.h>
 #include <mc/singleton.h>
+#include <string>
 #include <test_utilities/dbus_daemon_manager.h>
 
 namespace mc {
 namespace test {
 
 /**
-* @brief 测试基类，提供通用的测试功能
-*/
+ * @brief 测试基类，提供通用的测试功能
+ */
 class MC_API TestBase : public ::testing::Test {
 protected:
     static void SetUpTestSuite() {
@@ -114,6 +116,24 @@ protected:
         TestWithApplication::TearDownTestSuite();
     };
 };
+
+/**
+ * @brief 获取当前可执行文件的路径
+ * @return 可执行文件的绝对路径，失败时返回空字符串
+ */
+MC_API std::string get_executable_path();
+
+/**
+ * @brief 获取构建根目录
+ *
+ * 通过可执行文件路径推断构建根目录。测试可执行文件通常位于 builddir/tests/ 目录下，
+ * 因此构建根目录是可执行文件路径的父目录的父目录。
+ *
+ * 如果无法获取可执行文件路径，则尝试使用环境变量 MC_BUILD_ROOT 或回退到当前路径。
+ *
+ * @return 构建根目录路径
+ */
+MC_API mc::filesystem::path get_build_root();
 
 } // namespace test
 } // namespace mc
