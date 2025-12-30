@@ -297,6 +297,45 @@ TEST_F(FuturesTest, PromiseSetValueAlreadySatisfiedThrows) {
     EXPECT_EQ(future.get(), 42);
 }
 
+// 测试 promise 只允许被设置一次值
+TEST_F(FuturesTest, PromiseSetValueConcurrentOnlyOnce) {
+    auto promise = mc::make_promise<int>(get_io_context());
+    auto future  = promise.get_future();
+
+    std::atomic<bool> start{false};
+    std::atomic<int>  success_count{0};
+    std::atomic<int>  satisfied_count{0};
+    std::atomic<int>  other_error_count{0};
+
+    auto worker = [&](int value) {
+        while (!start.load(std::memory_order_acquire)) {
+            std::this_thread::yield();
+        }
+
+        try {
+            promise.set_value(value);
+            success_count.fetch_add(1);
+        } catch (const mc::futures::promise_already_satisfied&) {
+            satisfied_count.fetch_add(1);
+        } catch (...) {
+            other_error_count.fetch_add(1);
+        }
+    };
+
+    std::thread t1(worker, 1);
+    std::thread t2(worker, 2);
+    start.store(true, std::memory_order_release);
+    t1.join();
+    t2.join();
+
+    EXPECT_EQ(other_error_count.load(), 0);
+    EXPECT_EQ(success_count.load(), 1);
+    EXPECT_EQ(satisfied_count.load(), 1);
+
+    auto value = future.get();
+    EXPECT_TRUE(value == 1 || value == 2);
+}
+
 // 测试 promise::set_exception 重复设置触发异常
 TEST_F(FuturesTest, PromiseSetExceptionAlreadySatisfiedThrows) {
     auto promise = mc::make_promise<int>(get_io_context());
@@ -1355,6 +1394,39 @@ TEST_F(FuturesTest, CancelWithCacheError) {
 
     EXPECT_THROW(future.get(), mc::canceled_exception);
     EXPECT_FALSE(catch_error_called);
+}
+
+// 默认屏蔽这个用例
+
+TEST_F(FuturesTest, OnCancelAfterReadyDoesNotRetainOtherState) {
+    auto& pool = mc::futures::state_pool::instance();
+    pool.clear_all_pools();
+
+    {
+        auto promise_ready = mc::make_promise<int>(get_io_context());
+        auto future_ready  = promise_ready.get_future();
+
+        promise_ready.set_value(1);
+        EXPECT_EQ(future_ready.get(), 1);
+
+        {
+            auto promise_other = mc::make_promise<int>(get_io_context());
+            auto future_other  = promise_other.get_future();
+
+            promise_other.set_value(2);
+            EXPECT_EQ(future_other.get(), 2);
+
+            future_ready.on_cancel(future_other);
+        }
+
+        // 因为其他测试用例可能残留未完成的 future，这会造成当前用例执行时 state_pool 回收
+        // 残留的 future State，所以这里用大于等于而不是等于
+        auto stats_mid = pool.get_stats();
+        EXPECT_GE(stats_mid.total_global_states, 1);
+    }
+
+    auto stats_final = pool.get_stats();
+    EXPECT_GE(stats_final.total_global_states, 2);
 }
 
 // 测试取消链式 future，会传递取消动作到所有 future

@@ -101,7 +101,8 @@ protected:
 
 class scoped_env_var {
 public:
-    scoped_env_var(const char* name, const char* value) : m_name(name) {
+    scoped_env_var(const char* name, const char* value)
+        : m_name(name) {
         const char* original = std::getenv(name);
         if (original != nullptr) {
             m_old_value  = original;
@@ -142,7 +143,8 @@ mc::filesystem::path dynamic_module_target_path(const mc::filesystem::path& buil
 }
 
 std::string dynamic_module_search_path() {
-    return std::string("./modules/?") + std::string(shared_lib_ext());
+    auto build_root = mc::test::get_build_root();
+    return build_root / (std::string("modules/?") + std::string(shared_lib_ext()));
 }
 
 void copy_dynamic_module_if_needed(const mc::filesystem::path& build_root) {
@@ -594,9 +596,9 @@ TEST_F(ModuleManagerTest, TestConcurrentRequireAndUnload) {
 }
 
 TEST_F(ModuleManagerTest, TestDynamicModuleOpenFailure) {
-    auto build_root = mc::filesystem::current_path();
+    auto build_root = mc::test::get_build_root();
     auto source     = dynamic_module_source_path(build_root);
-    ASSERT_TRUE(mc::filesystem::exists(source));
+    ASSERT_TRUE(mc::filesystem::exists(source)) << "动态模块源文件不存在: " << source;
 
     copy_dynamic_module_if_needed(build_root);
 
@@ -609,7 +611,7 @@ TEST_F(ModuleManagerTest, TestDynamicModuleOpenFailure) {
 }
 
 TEST_F(ModuleManagerTest, TestDynamicModuleCloseThrows) {
-    auto build_root = mc::filesystem::current_path();
+    auto build_root = mc::test::get_build_root();
     auto source     = dynamic_module_source_path(build_root);
     ASSERT_TRUE(mc::filesystem::exists(source));
 
@@ -632,9 +634,9 @@ TEST_F(ModuleManagerTest, TestDynamicModuleCloseThrows) {
 
 // 测试动态模块卸载时的 dlog 日志
 TEST_F(ModuleManagerTest, ModuleManagerDynamicUnloadLogs) {
-    auto build_root = mc::filesystem::current_path();
+    auto build_root = mc::test::get_build_root();
     auto source     = dynamic_module_source_path(build_root);
-    ASSERT_TRUE(mc::filesystem::exists(source));
+    ASSERT_TRUE(mc::filesystem::exists(source)) << "动态模块源文件不存在: " << source;
 
     copy_dynamic_module_if_needed(build_root);
 
@@ -661,7 +663,7 @@ TEST_F(ModuleManagerTest, ModuleManagerDynamicUnloadLogs) {
 
 // 测试释放所有引用后卸载，命中 need_unload 分支
 TEST_F(ModuleManagerTest, ModuleManagerReleaseHandleOnUnload) {
-    auto build_root = mc::filesystem::current_path();
+    auto build_root = mc::test::get_build_root();
     auto source     = dynamic_module_source_path(build_root);
     ASSERT_TRUE(mc::filesystem::exists(source));
 
@@ -691,7 +693,7 @@ TEST_F(ModuleManagerTest, ModuleManagerReleaseHandleOnUnload) {
 
 // 测试 reset_for_test() 覆盖 clear() 中 handle 回收
 TEST_F(ModuleManagerTest, ModuleManagerResetClearsHandles) {
-    auto build_root = mc::filesystem::current_path();
+    auto build_root = mc::test::get_build_root();
     auto source     = dynamic_module_source_path(build_root);
     ASSERT_TRUE(mc::filesystem::exists(source));
 
@@ -718,7 +720,7 @@ TEST_F(ModuleManagerTest, ModuleManagerResetClearsHandles) {
 
 // 测试 handle 复用场景
 TEST_F(ModuleManagerTest, ModuleManagerReuseLibraryHandle) {
-    auto build_root = mc::filesystem::current_path();
+    auto build_root = mc::test::get_build_root();
     auto source     = dynamic_module_source_path(build_root);
     ASSERT_TRUE(mc::filesystem::exists(source));
 
