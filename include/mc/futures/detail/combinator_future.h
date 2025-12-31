@@ -39,9 +39,9 @@ struct CombinatorState {
 
     template <typename Future>
     void add_cancel_callback(Future& future) {
-        cancel_callbacks.push_back([state = mc::weak_ptr(future.get_state())]() {
-            if (auto s = state.lock()) {
-                s->cancel();
+        cancel_callbacks.push_back([wstate = mc::weak_ptr(future.get_state())]() {
+            if (auto state = wstate.lock()) {
+                state->cancel();
             }
         });
     }
@@ -186,9 +186,9 @@ void process_all(std::shared_ptr<State> state, Result& result, Future& future) {
         state->set_exception(e);
     });
 
-    future.on_cancel([state = std::weak_ptr(state)]() {
-        if (auto state_ptr = state.lock()) {
-            state_ptr->set_exception(mc::canceled_exception());
+    future.on_cancel([wstate = std::weak_ptr(state)]() {
+        if (auto state = wstate.lock()) {
+            state->set_exception(mc::canceled_exception());
         }
     });
 }
@@ -214,10 +214,10 @@ void process_any(std::shared_ptr<State> state, std::size_t index, Future& future
         }
     });
 
-    future.on_cancel([state = std::weak_ptr(state)]() {
-        if (auto state_ptr = state.lock()) {
-            if (state_ptr->set_exception(mc::canceled_exception())) {
-                state_ptr->execute_cancel_callbacks();
+    future.on_cancel([wstate = std::weak_ptr(state)]() {
+        if (auto state = wstate.lock()) {
+            if (state->set_exception(mc::canceled_exception())) {
+                state->execute_cancel_callbacks();
             }
         }
     });
@@ -255,9 +255,9 @@ auto all(Futures&&... futures)
     state->add_cancel_callbacks(tuple_futures);
 
     // 当 result 被取消时，取消所有子 future
-    result.on_cancel([state = std::weak_ptr(state)]() {
-        if (auto state_ptr = state.lock()) {
-            state_ptr->execute_cancel_callbacks();
+    result.on_cancel([wstate = std::weak_ptr(state)]() {
+        if (auto state = wstate.lock()) {
+            state->execute_cancel_callbacks();
         }
     });
 
@@ -290,9 +290,9 @@ auto all(Iterator begin, Iterator end)
         detail::process_all(state, state->results[index++], *it);
     }
 
-    result.on_cancel([state = std::weak_ptr(state)]() {
-        if (auto state_ptr = state.lock()) {
-            state_ptr->execute_cancel_callbacks();
+    result.on_cancel([wstate = std::weak_ptr(state)]() {
+        if (auto state = wstate.lock()) {
+            state->execute_cancel_callbacks();
         }
     });
 
@@ -327,9 +327,9 @@ auto any(Futures&&... futures)
     state->add_cancel_callbacks(tuple_futures);
 
     // 当 result 被取消时，取消所有子 future
-    result.on_cancel([state = std::weak_ptr(state)]() {
-        if (auto state_ptr = state.lock()) {
-            state_ptr->execute_cancel_callbacks();
+    result.on_cancel([wstate = std::weak_ptr(state)]() {
+        if (auto state = wstate.lock()) {
+            state->execute_cancel_callbacks();
         }
     });
 
@@ -361,9 +361,9 @@ auto any(Iterator begin, Iterator end)
         detail::process_any(state, index++, *it);
     }
 
-    result.on_cancel([state = std::weak_ptr(state)]() {
-        if (auto state_ptr = state.lock()) {
-            state_ptr->execute_cancel_callbacks();
+    result.on_cancel([wstate = std::weak_ptr(state)]() {
+        if (auto state = wstate.lock()) {
+            state->execute_cancel_callbacks();
         }
     });
 

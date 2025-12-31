@@ -12,6 +12,7 @@
 
 #include <mc/runtime/any_executor.h>
 #include <mc/runtime/executor.h>
+#include <mc/runtime/runtime_context.h>
 
 namespace mc::runtime {
 
@@ -118,6 +119,28 @@ thread_pool* any_executor::get_bound_pool() const noexcept {
             return exec.get_bound_pool();
         }
         return nullptr;
+    }, m_executor);
+}
+
+any_executor::operator boost::asio::any_io_executor() const {
+    return std::visit([](const auto& exec) -> boost::asio::any_io_executor {
+        using T = std::decay_t<decltype(exec)>;
+        if constexpr (detail::can_convert_to_any_io_executor_v<T>) {
+            return exec;
+        }
+        // 如果不能转换，则返回 IO 线程池的执行器
+        return runtime::get_io_executor();
+    }, m_executor);
+}
+
+any_executor::operator boost::asio::io_context::executor_type() const {
+    return std::visit([](const auto& exec) -> boost::asio::io_context::executor_type {
+        using T = std::decay_t<decltype(exec)>;
+        if constexpr (detail::can_convert_to_io_executor_v<T>) {
+            return exec;
+        }
+        // 如果不能转换，则返回 IO 线程池的执行器
+        return runtime::get_io_executor();
     }, m_executor);
 }
 

@@ -130,4 +130,14 @@ bool callback_list::empty() const {
     return m_head == nullptr;
 }
 
+std::size_t callback_list::size() const {
+    std::size_t count  = 0;
+    auto*       cursor = m_head.get();
+    while (cursor != nullptr) {
+        ++count;
+        cursor = cursor->m_next.get();
+    }
+    return count;
+}
+
 } // namespace mc::futures

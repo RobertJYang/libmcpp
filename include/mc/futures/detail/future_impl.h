@@ -399,25 +399,15 @@ void handle_exception_case(Promise& promise, Handler&& handler, State& state) {
 
 template <typename T, typename Promise, typename Handler, typename State>
 void process_error_result(Promise& promise, Handler&& handler, State& state) {
-    using HandlerResultType = std::invoke_result_t<Handler, const mc::exception&>;
-
     if constexpr (std::is_same_v<T, void>) {
         if (std::holds_alternative<std::monostate>(state->result)) {
-            if constexpr (std::is_same_v<HandlerResultType, void>) {
-                promise.set_value();
-            } else {
-                promise.set_exception(std::make_exception_ptr(std::runtime_error("Cannot change return type from void in catch_error")));
-            }
+            promise.set_value();
         } else {
             handle_exception_case<T>(promise, std::forward<Handler>(handler), state);
         }
     } else {
         if (auto* value = std::get_if<T>(&state->result)) {
-            if constexpr (std::is_same_v<HandlerResultType, T>) {
-                promise.set_value(std::move(*value));
-            } else {
-                promise.set_exception(std::make_exception_ptr(std::runtime_error("catch_error handler return type must match previous chain type when no error occurs")));
-            }
+            promise.set_value(std::move(*value));
         } else {
             handle_exception_case<T>(promise, std::forward<Handler>(handler), state);
         }
@@ -427,7 +417,41 @@ void process_error_result(Promise& promise, Handler&& handler, State& state) {
 template <typename T, typename Executor, typename Allocator>
 template <typename F>
 auto Future<T, Executor, Allocator>::catch_error(F&& handler)
-    -> Future<std::invoke_result_t<F, const mc::exception&>, Executor, Allocator> {
+    -> std::enable_if_t<
+        detail::is_future_v<std::invoke_result_t<F, const mc::exception&>>,
+        Future<typename std::invoke_result_t<F, const mc::exception&>::value_type, Executor, Allocator>> {
+    using HandlerResultType = std::invoke_result_t<F, const mc::exception&>;
+    using ResultType        = typename HandlerResultType::value_type;
+
+    auto promise = mc::make_promise<ResultType>(state_->executor, state_->allocator);
+    auto future  = promise.get_future().on_cancel(*this);
+
+    auto handle_result = [promise, handler = std::forward<F>(handler), state = state_]() mutable {
+        try {
+            process_error_result<T>(promise, std::move(handler), state);
+        } catch (...) {
+            promise.set_exception(std::current_exception());
+        }
+    };
+
+    std::unique_lock<std::mutex> lock(state_->m_mutex);
+    if (state_->ready) {
+        boost::asio::post(state_->executor, boost::asio::bind_allocator(state_->allocator, handle_result));
+    } else {
+        state_->m_continuations.push_back([e = state_->executor, a = state_->allocator, h = std::move(handle_result)]() mutable {
+            boost::asio::post(e, boost::asio::bind_allocator(a, std::move(h)));
+        });
+    }
+
+    return future;
+}
+
+template <typename T, typename Executor, typename Allocator>
+template <typename F>
+auto Future<T, Executor, Allocator>::catch_error(F&& handler)
+    -> std::enable_if_t<
+        !detail::is_future_v<std::invoke_result_t<F, const mc::exception&>>,
+        Future<std::invoke_result_t<F, const mc::exception&>, Executor, Allocator>> {
     using ResultType = std::invoke_result_t<F, const mc::exception&>;
 
     auto promise = mc::make_promise<ResultType>(state_->executor, state_->allocator);

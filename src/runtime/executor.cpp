@@ -12,6 +12,7 @@
 
 #include <mc/exception.h>
 #include <mc/runtime/executor.h>
+#include <mc/runtime/runtime_context.h>
 
 namespace mc::runtime {
 executor::executor(const executor& other) noexcept : m_impl(other.m_impl) {
@@ -115,6 +116,26 @@ thread_pool* executor::get_bound_pool() const noexcept {
         return nullptr;
     }
     return m_impl->get_bound_pool();
+}
+
+executor::operator boost::asio::any_io_executor() const {
+    if (m_impl) {
+        if (auto ex = m_impl->to_any_io_executor()) {
+            return *ex;
+        }
+    }
+
+    return runtime::get_io_executor();
+}
+
+executor::operator boost::asio::io_context::executor_type() const {
+    if (m_impl) {
+        if (auto ex = m_impl->to_io_executor()) {
+            return *ex;
+        }
+    }
+
+    return runtime::get_io_executor();
 }
 
 } // namespace mc::runtime

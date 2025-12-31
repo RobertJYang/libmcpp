@@ -118,14 +118,14 @@ void on_cancel(StatePtr& state, F&& callback) {
     } else if constexpr (detail::is_future_v<F> || detail::is_promise_v<F>) {
         // 如果是 future 或 promise，则双向 on_cancel 取消对方
         auto other_state = callback.get_state();
-        state->add_cancel_callback([state = mc::weak_ptr(other_state)]() {
-            if (auto state_ptr = state.lock()) {
-                state_ptr->cancel();
+        state->add_cancel_callback([wstate = mc::weak_ptr(other_state)]() {
+            if (auto state = wstate.lock()) {
+                state->cancel();
             }
         });
-        other_state->add_cancel_callback([state = mc::weak_ptr(state)]() {
-            if (auto state_ptr = state.lock()) {
-                state_ptr->cancel();
+        other_state->add_cancel_callback([wstate = mc::weak_ptr(state)]() {
+            if (auto state = wstate.lock()) {
+                state->cancel();
             }
         });
     } else {
@@ -255,9 +255,19 @@ public:
                             Future<detail::result_t<T, F>, Executor, Allocator>>;
 
     // 错误处理 - 统一接受 mc::exception，标准异常自动包装
+    // 如果 handler 返回 Future，自动展开
     template <typename F>
     auto catch_error(F&& handler)
-        -> Future<std::invoke_result_t<F, const mc::exception&>, Executor, Allocator>;
+        -> std::enable_if_t<
+            detail::is_future_v<std::invoke_result_t<F, const mc::exception&>>,
+            Future<typename std::invoke_result_t<F, const mc::exception&>::value_type, Executor, Allocator>>;
+
+    // 如果 handler 不返回 Future，正常包装
+    template <typename F>
+    auto catch_error(F&& handler)
+        -> std::enable_if_t<
+            !detail::is_future_v<std::invoke_result_t<F, const mc::exception&>>,
+            Future<std::invoke_result_t<F, const mc::exception&>, Executor, Allocator>>;
 
     // 清理操作（无论成功失败都会执行）
     template <typename F>
@@ -322,8 +332,12 @@ public:
     auto as_future(OtherExecutor&& executor) -> Future<OtherT, OtherExecutor, Allocator>;
 
     // 获取 State 状态
-    auto get_state() const {
+    const state_ptr<state_type>& get_state() const {
         return state_;
+    }
+
+    void reset() {
+        state_.reset();
     }
 
 private:
@@ -386,8 +400,12 @@ public:
         return state_ != nullptr;
     }
 
-    auto get_state() const {
+    const state_ptr<state_type>& get_state() const {
         return state_;
+    }
+
+    void reset() {
+        state_.reset();
     }
 
 private:
@@ -437,7 +455,7 @@ namespace mc {
 // 从执行器创建 promise
 template <typename T, typename Executor = mc::work_context::executor_type,
           typename Allocator = std::allocator<void>>
-auto make_promise(Executor executor = mc::get_work_executor(), Allocator alloc = Allocator())
+auto make_promise(Executor executor = mc::get_io_executor(), Allocator alloc = Allocator())
     -> std::enable_if_t<futures::detail::is_executor_v<Executor>,
                         mc::futures::Promise<T, Executor, Allocator>> {
     return mc::futures::make_promise<T>(std::move(executor), alloc);
@@ -553,7 +571,7 @@ template <typename FutureType, typename Duration,
           typename Executor  = mc::work_context::executor_type,
           typename Allocator = std::allocator<void>>
 auto timeout(FutureType future, Duration timeout_duration,
-             Executor  executor = mc::get_work_executor(),
+             Executor  executor = mc::get_io_executor(),
              Allocator alloc    = Allocator())
     -> std::enable_if_t<detail::is_future_v<FutureType> && detail::is_executor_v<Executor>,
                         mc::futures::Future<typename FutureType::value_type, Executor, Allocator>> {
@@ -635,14 +653,20 @@ auto timeout(FutureType future, Duration timeout_duration,
 template <typename Duration, typename Executor = mc::work_context::executor_type,
           typename Allocator = std::allocator<void>>
 auto delay(Duration  delay_duration,
-           Executor  executor = mc::get_work_executor(),
+           Executor  executor = mc::get_io_executor(),
            Allocator alloc    = Allocator())
-    -> std::enable_if_t<detail::is_executor_v<Executor>,
+    -> std::enable_if_t<std::is_constructible_v<std::chrono::steady_clock::duration, Duration> &&
+                            detail::is_executor_v<Executor>,
                         mc::futures::Future<void, Executor, Allocator>> {
     using duration_type = std::chrono::steady_clock::duration;
 
     auto promise = mc::make_promise<void>(executor, alloc);
     auto future  = promise.get_future();
+
+    if (delay_duration == duration_type::zero()) {
+        promise.set_value();
+        return future;
+    }
 
     using timer_type = mc::runtime::basic_timer<Executor>;
 
@@ -668,6 +692,16 @@ auto delay(Duration  delay_duration,
     });
 
     return future;
+}
+
+template <typename Executor  = mc::work_context::executor_type,
+          typename Allocator = std::allocator<void>>
+auto delay(
+    Executor  executor = mc::get_io_executor(),
+    Allocator alloc    = Allocator())
+    -> std::enable_if_t<detail::is_executor_v<Executor>,
+                        mc::futures::Future<void, Executor, Allocator>> {
+    return delay(std::chrono::steady_clock::duration::zero(), executor, alloc);
 }
 
 template <typename Duration, typename Execution,

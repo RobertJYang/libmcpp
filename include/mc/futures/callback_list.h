@@ -16,6 +16,7 @@
 #include <mc/common.h>
 #include <mc/singleton.h>
 
+#include <cstddef>
 #include <functional>
 #include <memory>
 #include <mutex>
@@ -95,6 +96,7 @@ public:
     void swap(callback_list& other) noexcept;
     void clear();
     bool empty() const;
+    std::size_t size() const;
 
     void execute_and_clear();
 

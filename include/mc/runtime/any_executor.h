@@ -153,6 +153,9 @@ public:
     any_executor& bound_pool(thread_pool* pool) noexcept;
     thread_pool*  get_bound_pool() const noexcept;
 
+    operator boost::asio::any_io_executor() const;
+    operator boost::asio::io_context::executor_type() const;
+
 private:
     detail::executor_variant m_executor;
 };
