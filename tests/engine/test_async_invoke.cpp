@@ -178,9 +178,10 @@ TEST_F(async_invoke_test, test_error_handling) {
 
     // 验证通过 mc::engine::error 返回错误（验证通过 catch_error 捕获错误）
     immediate_error = obj_base.async_invoke("ErrorMethod", {true, false});
-    immediate_error.catch_error([](const mc::exception& ex) {
+    immediate_error.catch_error([](const mc::exception& ex) -> mc::variant {
         EXPECT_EQ(ex.name(), "TestError");
         EXPECT_EQ(ex.top_message(), "immediate error");
+        return {};
     }).wait();
 
     // 测试延迟错误（验证通过 get_error() 获取错误信息）

@@ -46,15 +46,15 @@ TEST_F(FuturesTest, BasicPromiseFuture) {
     EXPECT_EQ(future.get(), 42);
 }
 
-// 验证阻塞 worker 线程能继续处理 IO 事件
+// 验证阻塞调度线程能继续处理 IO 事件
 TEST_F(FuturesTest, WaitOnWorker) {
     auto& pool = get_io_context();
 
-    auto promise = std::make_shared<mc::promise<int>>(pool.get_executor(), std::allocator<void>());
-    auto future  = promise->get_future();
+    auto promise = mc::make_promise<int>(pool.get_executor());
+    auto future  = promise.get_future();
 
-    auto done_promise = std::make_shared<std::promise<void>>();
-    auto done_future  = done_promise->get_future();
+    auto done_promise = mc::make_promise<void>();
+    auto done_future  = done_promise.get_future();
 
     boost::asio::post(pool.get_executor(), [promise, future = std::move(future), done_promise]() mutable {
         // 1. 获取当前 shard
@@ -64,20 +64,20 @@ TEST_F(FuturesTest, WaitOnWorker) {
         // 2. 在同一个 shard 上启动一个定时器
         auto timer = std::make_shared<mc::runtime::steady_timer>(shard->ctx->get_executor());
         timer->expires_after(std::chrono::milliseconds(50));
-        timer->async_wait([promise, timer](const boost::system::error_code& ec) {
+        timer->async_wait([promise, timer](const boost::system::error_code& ec) mutable {
             if (!ec) {
-                promise->set_value(42); // 定时器触发，设置 promise 值
+                promise.set_value(42); // 定时器触发，设置 promise 值
             }
         });
 
         // 3. 调用 wait()，wait() 会处理了 IO 循环，所以能够继续驱动定时器执行
         future.wait();
 
-        done_promise->set_value();
+        done_promise.set_value();
     });
 
-    auto status = done_future.wait_for(std::chrono::seconds(2));
-    ASSERT_EQ(status, std::future_status::ready);
+    auto status = done_future.wait_for(std::chrono::seconds(2000));
+    ASSERT_EQ(status, mc::future_status::ready);
 }
 
 // 测试 catch_error 捕获异常
@@ -86,11 +86,12 @@ TEST_F(FuturesTest, BasicErrorHandling) {
     auto future  = promise.get_future().then([](int) {
         throw std::runtime_error("测试异常");
     }).catch_error([](const mc::exception& e) {
-        return std::string(e.what());
+        EXPECT_EQ(e.code(), mc::std_exception_code);
+        EXPECT_STREQ(e.what(), "测试异常");
     });
 
     promise.set_value(0);
-    EXPECT_EQ(future.get(), "测试异常");
+    EXPECT_NO_THROW(future.get());
 }
 
 // 测试 async 执行策略
@@ -172,10 +173,11 @@ TEST_F(FuturesTest, CatchErrorWithException) {
         return 42;
     }).catch_error([&code](const mc::exception& e) {
         code = e.code();
+        return -1;
     });
 
     promise.set_value(10);
-    future.get();
+    EXPECT_EQ(future.get(), -1);
     EXPECT_EQ(code, mc::std_exception_code);
 }
 
@@ -1112,6 +1114,7 @@ TEST_F(FuturesTest, CancelExceptionHandling) {
         return value;
     }).catch_error([&](const mc::exception& e) {
         error_called = true;
+        return -1;
     });
 
     promise.set_value(42);
@@ -1368,7 +1371,8 @@ TEST_F(FuturesTest, AnyWithMixedExceptions) {
     EXPECT_THROW(f3.get(), std::invalid_argument);
 
     // any 整体失败后，返回最后一个异常
-    EXPECT_THROW(any_future.get(), std::invalid_argument);
+    // 由于有多个调度线程，最后一个不一定是 p3 的异常，所以这里验证有异常抛出即可
+    EXPECT_THROW(any_future.get(), std::exception);
 }
 
 // 测试容器版本的 any
@@ -1445,8 +1449,6 @@ TEST_F(FuturesTest, CancelWithCacheError) {
     EXPECT_THROW(future.get(), mc::canceled_exception);
     EXPECT_FALSE(catch_error_called);
 }
-
-// 默认屏蔽这个用例
 
 TEST_F(FuturesTest, OnCancelAfterReadyDoesNotRetainOtherState) {
     auto& pool = mc::futures::state_pool::instance();

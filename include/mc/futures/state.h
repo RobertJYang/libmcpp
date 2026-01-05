@@ -23,158 +23,165 @@
 #include <mc/futures/exceptions.h>
 #include <mc/futures/status.h>
 #include <mc/memory.h>
+#include <mc/runtime/any_executor.h>
 #include <mc/runtime/condition_variable.h>
 
 namespace mc::futures {
 
+class MC_API state_base : public shared_base {
+public:
+    using executor_type = mc::runtime::any_executor;
+    using destory_type  = void (*)(state_base*);
+
+    state_base(executor_type executor, destory_type destory, int value_size) noexcept;
+    ~state_base();
+
+    void set_executor(executor_type executor) noexcept;
+    void reset();
+    void mark_ready();
+    void cancel();
+
+    template <typename Executor>
+    void reuse(Executor&& executor) {
+        set_executor(executor_type(std::forward<Executor>(executor)));
+        reuse_impl();
+    }
+
+    // 设置取消回调
+    // 注意：回调函数会在取消时立即执行，不会投递到 executor 执行，不要在回调函数中作阻塞动作
+    void add_cancel_callback(callback_type callback);
+
+    inline bool is_ready() const noexcept {
+        return m_ready.load(std::memory_order_acquire);
+    }
+
+    inline bool is_cancelled() const noexcept {
+        return m_cancelled.load(std::memory_order_acquire);
+    }
+
+    inline bool is_rejected() const noexcept {
+        return m_exception != nullptr;
+    }
+
+    inline bool is_bound() const noexcept {
+        return m_bound.load(std::memory_order_acquire);
+    }
+
+    inline std::exception_ptr get_exception() const noexcept {
+        return m_exception;
+    }
+
+    inline void set_exception(std::exception_ptr exception) noexcept {
+        m_exception = std::move(exception);
+    }
+
+    inline void set_ready() {
+        m_ready.store(true, std::memory_order_release);
+    }
+
+    void           destory();
+    inline int32_t value_size() const noexcept {
+        return m_value_size;
+    }
+
+    inline executor_type get_executor() const noexcept {
+        return m_executor;
+    }
+
+protected:
+    void reuse_impl();
+
+    using condition_variable = mc::runtime::condition_variable;
+
+    friend class any_future;
+    friend class any_promise;
+
+    std::atomic<bool>  m_ready{false};
+    std::atomic<bool>  m_bound{false};
+    std::atomic<bool>  m_cancelled{false};
+    launch             m_policy{launch::async};
+    callback_list      m_continuations;
+    callback_list      m_cancel_callbacks;
+    std::exception_ptr m_exception{nullptr};
+
+    executor_type m_executor;
+    destory_type  m_destory{nullptr};
+    const int32_t m_value_size;
+
+    mutable std::mutex m_mutex;
+    condition_variable m_cv;
+};
+
 template <typename T>
-using result_variant_t =
-    typename std::conditional_t<std::is_same_v<T, void>,
-                                std::variant<std::monostate, std::exception_ptr>,
-                                std::variant<T, std::exception_ptr>>;
+class State : public state_base {
+public:
+    using value_type = std::conditional_t<
+        std::is_same_v<T, void>,
+        std::monostate,
+        std::decay_t<T>>;
+    using result_type = std::optional<value_type>;
 
-struct MC_API state_base {
-    std::mutex                      m_mutex;
-    mc::runtime::condition_variable m_cv;
-
-    callback_list     m_continuations;
-    std::atomic<bool> ready{false};
-    std::atomic<bool> bound{false};
-    std::atomic<bool> deferred{false};
-    std::atomic<bool> cancelled{false};
-    launch            policy{launch::async};
-    callback_list     m_cancel_callbacks;
-
-    MC_API void reset();
-    MC_API void reuse();
-};
-
-template <typename T, typename Executor, typename Allocator>
-struct state_value {
-    using executor_type = Executor;
-
-    state_value(Executor executor, Allocator allocator)
-        : executor(std::move(executor)), allocator(std::move(allocator)) {
-    }
-
-    ~state_value() {
-    }
-
-    void reset() {
-        this->~state_value<T, Executor, Allocator>();
-    }
-
-    void reuse(Executor executor, Allocator allocator) {
-        new (this) state_value<T, Executor, Allocator>(std::move(executor), std::move(allocator));
-        if constexpr (std::is_same_v<T, void>) {
-            result = std::monostate{};
-        } else {
-            result = std::variant<T, std::exception_ptr>{};
-        }
-    }
-
-    result_variant_t<T> result;
-    executor_type       executor;
-    Allocator           allocator;
-};
-
-template <typename T, typename Executor, typename Allocator>
-struct State : public mc::enable_shared_from_this<State<T, Executor, Allocator>>,
-               public state_base,
-               public state_value<T, Executor, Allocator> {
-    using value_type       = state_value<T, Executor, Allocator>;
-    using shared_base_type = mc::enable_shared_from_this<State<T, Executor, Allocator>>;
-
-    State(Executor executor, Allocator allocator)
-        : shared_base_type(), state_base(),
-          value_type(std::move(executor), std::move(allocator)) {
-    }
-
-    ~State() override {
-    }
-
-    void mark_ready() {
-        callback_list callbacks;
-        callback_list cancel_callbacks;
-        {
-            std::lock_guard<std::mutex> lock(m_mutex);
-            ready.store(true, std::memory_order_release);
-            m_continuations.swap(callbacks);
-            m_cancel_callbacks.swap(cancel_callbacks);
-        }
-        m_cv.notify_all();
-        callbacks.execute_and_clear();
-
-        // 直接清空 cancel_callbacks 因为不再需要执行了
-        cancel_callbacks.clear();
-    }
-
-    // 取消操作
-    void cancel() {
-        // 先检查是否已经 ready，如果已经完成则忽略取消操作
-        if (ready.load()) {
-            return;
-        }
-
-        bool expected = false;
-        if (!cancelled.compare_exchange_strong(expected, true)) {
-            return;
-        }
-
-        // 移动到临时变量执行，避免回调过程中修改链表或死锁
-        callback_list callbacks;
-        {
-            std::lock_guard<std::mutex> lock(m_mutex);
-            m_cancel_callbacks.swap(callbacks);
-        }
-        callbacks.execute_and_clear();
-
-        // 设置取消异常（再次检查 ready 状态以防竞态条件）
-        bool need_ready = false;
-        {
-            std::lock_guard<std::mutex> lock(m_mutex);
-            if (!ready.load()) {
-                this->result = std::make_exception_ptr(canceled_exception());
-                need_ready   = true;
-                ready.store(true, std::memory_order_release);
-            }
-        }
-        if (need_ready) {
-            this->mark_ready();
-        }
-    }
-
-    // 添加取消回调
-    template <typename F>
-    void add_cancel_callback(F&& callback) {
-        if (!ready.load() && !cancelled.load()) {
-            std::lock_guard<std::mutex> lock(m_mutex);
-            if (!ready.load() && !cancelled.load()) {
-                add_cancel_callback_inner(std::forward<F>(callback));
-                return;
-            }
-        }
-
-        if (cancelled.load()) {
-            safe_invoke(std::forward<F>(callback));
-        }
-    }
-
-    template <typename F>
-    void add_cancel_callback_inner(F&& callback) {
-        m_cancel_callbacks.push_back(std::forward<F>(callback));
+    template <typename Executor>
+    State(Executor executor)
+        : state_base(std::forward<Executor>(executor),
+                     get_destory_(),
+                     sizeof(result_type)) {
     }
 
     void reset() {
         state_base::reset();
-        value_type::reset();
+        m_result = std::nullopt;
     }
 
-    void reuse(Executor executor, Allocator allocator) {
-        new (static_cast<shared_base_type*>(this)) shared_base_type();
-        state_base::reuse();
-        value_type::reuse(std::move(executor), std::move(allocator));
+    template <typename Executor>
+    void reuse(Executor executor) {
+        static_assert(std::is_same_v<Executor, executor_type> ||
+                          boost::asio::is_executor<Executor>::value,
+                      "reuse() 参数必须是 executor 类型");
+        new (static_cast<result_type*>(&m_result)) result_type();
+        state_base::reuse(executor_type(std::move(executor)));
     }
+
+    template <typename U = std::conditional_t<std::is_same_v<T, void>, std::monostate, T>>
+    void set_value(U&& value) {
+        m_result.emplace(std::forward<U>(value));
+    }
+
+    void set_value() {
+        static_assert(std::is_same_v<T, void>, "set_value() 只能用于 void 类型");
+        m_result.emplace(std::monostate{});
+    }
+
+    auto get_value() const -> std::conditional_t<std::is_same_v<T, void>, void, const value_type&> {
+        std::lock_guard lock(m_mutex);
+        if (is_rejected()) {
+            std::rethrow_exception(get_exception());
+        }
+        MC_ASSERT_THROW(is_ready(), mc::runtime_exception, "Future 未就绪");
+        if constexpr (std::is_same_v<T, void>) {
+            return;
+        } else {
+            return *m_result;
+        }
+    }
+
+private:
+    static inline destory_type get_destory_() noexcept {
+        if constexpr (std::is_trivially_destructible_v<result_type>) {
+            return nullptr;
+        }
+        return &State::destory_impl;
+    }
+
+    static void destory_impl(state_base* ptr) {
+        auto* state = static_cast<State*>(ptr);
+        state->reset();
+    }
+
+    friend class any_future;
+    friend class any_promise;
+
+    result_type m_result;
 };
 
 } // namespace mc::futures

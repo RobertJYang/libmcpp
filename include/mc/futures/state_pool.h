@@ -31,18 +31,33 @@ struct state_pool_config {
 
 // 前向声明
 class state_pool;
+template <typename StateType>
+struct state_deleter;
+
+struct MC_API state_base_deleter {
+    template <typename U>
+    using rebind = state_deleter<U>;
+
+    void destroy(state_base* ptr);
+    void deallocate(const void* ptr);
+};
 
 template <typename StateType>
 struct state_deleter {
     template <typename U>
     using rebind = state_deleter<U>;
 
-    void destroy(StateType* ptr);
-    void deallocate(const void* ptr);
-};
+    void destroy(StateType* ptr) {
+        ptr->destory();
+    }
 
+    void deallocate(const void* ptr) {
+        state_base_deleter{}.deallocate(ptr);
+    }
+};
 template <typename StateType>
-using state_ptr = mc::shared_ptr<StateType, state_deleter<StateType>, StateType*>;
+using state_ptr      = mc::shared_ptr<StateType, state_deleter<StateType>, StateType*>;
+using state_base_ptr = mc::shared_ptr<state_base, state_base_deleter, state_base*>;
 
 // State 缓存池类
 class MC_API state_pool {
@@ -54,18 +69,18 @@ public:
     const state_pool_config& get_config() const;
 
     // 获取或创建一个 State 对象
-    template <typename T, typename Executor, typename Allocator>
-    auto acquire_state(Executor executor, Allocator allocator) {
-        using state_type = State<T, Executor, Allocator>;
+    template <typename T, typename Executor>
+    auto acquire_state(Executor executor) {
+        using state_type = State<T>;
 
-        void* ptr = try_acquire_state(sizeof(typename state_type::value_type));
+        void* ptr = try_acquire_state(sizeof(typename state_type::result_type));
         if (ptr) {
             auto* state = static_cast<state_type*>(ptr);
-            state->reuse(std::move(executor), std::move(allocator));
+            state->reuse(std::move(executor));
             return state_ptr<state_type>{state};
         } else {
             ptr         = malloc(sizeof(state_type));
-            auto* state = new (ptr) state_type(std::move(executor), std::move(allocator));
+            auto* state = new (ptr) state_type(std::move(executor));
             return state_ptr<state_type>{state};
         }
     }
@@ -86,34 +101,18 @@ private:
 
     template <typename StateType>
     friend struct state_deleter;
+    friend struct state_base_deleter;
 
     state_pool();
 
     void* try_acquire_state(std::size_t state_size);
-    bool  try_release_to_pool(void* ptr, std::size_t state_size);
+    bool  try_release_to_pool(state_base* ptr, std::size_t state_size);
 };
 
 // 从缓存池创建 State 对象
-template <typename T, typename Executor, typename Allocator>
-auto make_pooled_state(Executor executor, Allocator allocator) {
-    return state_pool::instance().acquire_state<T, Executor, Allocator>(std::move(executor), std::move(allocator));
-}
-
-// state_deleter 的实现，需要放在 state_pool 声明之后
-template <typename StateType>
-void state_deleter<StateType>::destroy(StateType* ptr) {
-    ptr->reset();
-}
-
-template <typename StateType>
-void state_deleter<StateType>::deallocate(const void* ptr) {
-    auto& pool          = state_pool::instance();
-    void* non_const_ptr = const_cast<void*>(ptr);
-    if (!pool.try_release_to_pool(non_const_ptr, sizeof(typename StateType::value_type))) {
-        auto* p_state = static_cast<StateType*>(non_const_ptr);
-        p_state->~state_base(); // 回收失败，析构 State 对象（state_value部分在reset时已经析构了）
-        free(non_const_ptr);
-    }
+template <typename T, typename Executor>
+auto make_pooled_state(Executor executor) {
+    return state_pool::instance().acquire_state<T, Executor>(std::move(executor));
 }
 
 } // namespace mc::futures

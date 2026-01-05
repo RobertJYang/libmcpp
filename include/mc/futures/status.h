@@ -16,19 +16,16 @@
 namespace mc::futures {
 
 enum class future_status {
-    ready,
-    timeout,
-    deferred
+    invalid  = 0,
+    ready    = 1,
+    timeout  = 2,
+    deferred = 3,
 };
 
 enum class launch {
     dispatch = 1, // 立即执行
     async    = 2, // 异步执行
-
-    // TODO:: 暂时不支持 deferred 策略
-    deferred = 4, // 延迟执行，直到用户显示触发比如调用 get() 操作
-
-    any = async | deferred
+    deferred = 3, // 延迟执行，直到第一次调用 get 等操作（TODO:: 暂未实现效果等于 async）
 };
 
 } // namespace mc::futures

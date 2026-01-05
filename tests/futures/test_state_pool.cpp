@@ -45,8 +45,8 @@ TEST_F(state_pool_test, basic_pool_functionality) {
     EXPECT_EQ(initial_stats.total_pools, 0);
 
     // 创建一些 promise/future 对
-    std::vector<mc::promise<int, boost::asio::io_context::executor_type>> promises;
-    std::vector<mc::future<int, boost::asio::io_context::executor_type>>  futures;
+    std::vector<mc::promise<int>> promises;
+    std::vector<mc::future<int>>  futures;
 
     for (int i = 0; i < 5; ++i) {
         auto promise = mc::make_promise<int>(io_context_);
@@ -108,8 +108,8 @@ TEST_F(state_pool_test, pool_size_limit) {
     pool.set_config(config);
 
     // 创建超过池大小的 future
-    std::vector<mc::promise<int, boost::asio::io_context::executor_type>> promises;
-    std::vector<mc::future<int, boost::asio::io_context::executor_type>>  futures;
+    std::vector<mc::promise<int>> promises;
+    std::vector<mc::future<int>>  futures;
 
     for (int i = 0; i < 5; ++i) {
         auto promise = mc::make_promise<int>(io_context_);
@@ -150,7 +150,7 @@ TEST_F(state_pool_test, different_size_types) {
     }
 
     {
-        auto int64_promise = mc::make_promise<std::int64_t>(io_context_); // 8 字节
+        auto int64_promise = mc::make_promise<std::int32_t>(io_context_); // 4 字节
         auto int64_future  = int64_promise.get_future();
         int64_promise.set_value(123456789L);
         EXPECT_EQ(int64_future.get(), 123456789L);

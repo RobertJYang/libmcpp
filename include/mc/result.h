@@ -24,8 +24,6 @@
 #include <mc/variant.h>
 
 namespace mc {
-template <typename Executor>
-using strand_t = boost::asio::strand<Executor>;
 
 namespace detail {
 template <typename T, typename F, typename Arg>
@@ -79,7 +77,7 @@ struct result_traits<
 
     static constexpr bool is_future = mc::futures::detail::is_future_v<call_result_type>;
     using return_type               = typename future_value_type<call_result_type>::type;
-    using future_type               = mc::future<return_type, mc::any_executor>;
+    using future_type               = mc::future<return_type>;
 };
 
 } // namespace detail
@@ -88,7 +86,7 @@ template <typename T>
 using result_variant = std::variant<
     // 同步返回值类型
     std::conditional_t<std::is_same_v<T, void>, std::monostate, T>,
-    mc::future<T, mc::any_executor>,
+    mc::future<T>,
     // 返回错误
     mc::error_ptr>;
 
@@ -150,9 +148,7 @@ public:
         std::visit([this](auto&& v) -> void {
             using arg_type = std::decay_t<decltype(v)>;
             if constexpr (mc::futures::detail::is_future_v<arg_type>) {
-                using executor_type  = typename arg_type::executor_type;
-                using allocator_type = typename arg_type::allocator_type;
-                m_value.template emplace<mc::future<value_type, executor_type, allocator_type>>(
+                m_value.template emplace<mc::future<value_type>>(
                     std::move(v).template as_future<value_type>());
             } else if constexpr (std::is_same_v<arg_type, mc::error_ptr>) {
                 m_value.template emplace<mc::error_ptr>(std::move(v));
@@ -362,13 +358,11 @@ public:
         return std::visit([f = std::forward<F>(func)](auto&& v) -> future_type {
             using arg_type = std::decay_t<decltype(v)>;
             if constexpr (mc::futures::detail::is_future_v<arg_type>) {
-                return then_impl<result_type, result_traits::is_future>(
-                    std::move(f), std::forward<decltype(v)>(v));
+                return then_impl(std::move(f), std::forward<decltype(v)>(v));
             } else if constexpr (std::is_same_v<arg_type, mc::error_ptr>) {
                 return mc::reject<result_type>(detail::make_method_call_exception(v));
             } else if constexpr (std::is_same_v<arg_type, value_type>) {
-                return then_impl<result_type, result_traits::is_future>(
-                    std::move(f), mc::resolve(std::forward<decltype(v)>(v)));
+                return then_impl(std::move(f), mc::resolve(std::forward<decltype(v)>(v)));
             }
         }, m_value);
     }
@@ -380,19 +374,16 @@ public:
             typename detail::result_traits<T, F, const mc::exception&>::future_type> {
         using result_traits = detail::result_traits<T, F, const mc::exception&>;
         using result_type   = typename result_traits::return_type;
-        using future_type   = typename result_traits::future_type;
 
-        return std::visit([f = std::forward<F>(func)](auto&& v) -> future_type {
+        return std::visit([f = std::forward<F>(func)](auto&& v) {
             using arg_type = std::decay_t<decltype(v)>;
             if constexpr (mc::futures::detail::is_future_v<arg_type>) {
-                return catch_error_impl<result_type, result_traits::is_future>(
-                    std::move(f), std::forward<decltype(v)>(v));
+                return catch_error_impl(std::move(f), std::forward<decltype(v)>(v));
             } else if constexpr (std::is_same_v<arg_type, mc::error_ptr>) {
-                return catch_error_impl<result_type, result_traits::is_future>(
-                    std::move(f), mc::reject<result_type>(detail::make_method_call_exception(v)));
+                return catch_error_impl(std::move(f),
+                                        mc::reject<result_type>(detail::make_method_call_exception(v)));
             } else if constexpr (std::is_same_v<arg_type, value_type>) {
-                return catch_error_impl<result_type, result_traits::is_future>(
-                    std::move(f), mc::resolve(std::forward<decltype(v)>(v)));
+                return catch_error_impl(std::move(f), mc::resolve(std::forward<decltype(v)>(v)));
             }
         }, m_value);
     }
@@ -431,86 +422,14 @@ public:
     }
 
 private:
-    template <typename ResultType, bool IsFuture, typename F, typename FutureType>
+    template <typename F, typename FutureType>
     static auto then_impl(F&& func, FutureType&& v) {
-        auto promise = mc::make_promise<ResultType>(mc::any_executor());
-        auto future  = promise.get_future();
-
-        v.then([f = std::forward<F>(func), promise](auto&& val) mutable {
-            if constexpr (std::is_void_v<ResultType>) {
-                if constexpr (IsFuture) {
-                    detail::call_impl<T, F, param_type>(
-                        std::forward<F>(f), std::forward<decltype(val)>(val))
-                        .then([promise](auto&&) mutable {
-                        promise.set_value();
-                    }).catch_error([promise](auto&&) mutable {
-                        promise.set_exception(std::current_exception());
-                    }).on_cancel(promise);
-                } else {
-                    detail::call_impl<T, F, param_type>(
-                        std::forward<F>(f), std::forward<decltype(val)>(val));
-                    promise.set_value();
-                }
-            } else {
-                if constexpr (IsFuture) {
-                    detail::call_impl<T, F, param_type>(
-                        std::forward<F>(f), std::forward<decltype(val)>(val))
-                        .then([promise](auto&& next_val) mutable {
-                        promise.set_value(std::forward<decltype(next_val)>(next_val));
-                    }).catch_error([promise](auto&&) mutable {
-                        promise.set_exception(std::current_exception());
-                    }).on_cancel(promise);
-                } else {
-                    promise.set_value(
-                        detail::call_impl<T, F, param_type>(
-                            std::forward<F>(f), std::forward<decltype(val)>(val)));
-                }
-            }
-        }).catch_error([promise](auto&&) mutable {
-            promise.set_exception(std::current_exception());
-        }).on_cancel(future);
-
-        return future;
+        return v.then(std::forward<F>(func));
     }
 
-    template <typename ResultType, bool IsFuture, typename F, typename FutureType>
+    template <typename F, typename FutureType>
     static auto catch_error_impl(F&& func, FutureType&& v) {
-        auto promise = mc::make_promise<ResultType>(mc::any_executor());
-        auto future  = promise.get_future();
-
-        v.catch_error([f = std::forward<F>(func), promise](auto&& vv) mutable {
-            if constexpr (std::is_void_v<ResultType>) {
-                if constexpr (IsFuture) {
-                    detail::call_impl<T, F, const mc::exception&>(
-                        std::forward<F>(f), std::forward<decltype(vv)>(vv))
-                        .then([promise](auto&&) mutable {
-                        promise.set_value();
-                    }).catch_error([promise](auto&&) mutable {
-                        promise.set_exception(std::current_exception());
-                    }).on_cancel(promise);
-                } else {
-                    detail::call_impl<T, F, const mc::exception&>(
-                        std::forward<F>(f), std::forward<decltype(vv)>(vv));
-                    promise.set_value();
-                }
-            } else {
-                if constexpr (IsFuture) {
-                    detail::call_impl<T, F, const mc::exception&>(
-                        std::forward<F>(f), std::forward<decltype(vv)>(vv))
-                        .then([promise](auto&& next_val) mutable {
-                        promise.set_value(std::forward<decltype(next_val)>(next_val));
-                    }).catch_error([promise](auto&&) mutable {
-                        promise.set_exception(std::current_exception());
-                    }).on_cancel(promise);
-                } else {
-                    promise.set_value(
-                        detail::call_impl<T, F, const mc::exception&>(
-                            std::forward<F>(f), std::forward<decltype(vv)>(vv)));
-                }
-            }
-        }).on_cancel(future);
-
-        return future;
+        return v.catch_error(std::forward<F>(func));
     }
 
     template <typename OtherT>
@@ -530,10 +449,10 @@ auto make_result(T&& value)
     return result<T>(std::forward<T>(value));
 }
 
-template <typename T, typename Executor, typename Allocator>
-auto make_result(mc::future<T, Executor, Allocator>&& value) {
-    using value_type = typename mc::future<T, Executor, Allocator>::value_type;
-    return result<value_type>(std::forward<mc::future<T, Executor, Allocator>>(value));
+template <typename T>
+auto make_result(mc::future<T>&& value) {
+    using value_type = typename mc::future<T>::value_type;
+    return result<value_type>(std::forward<mc::future<T>>(value));
 }
 
 inline auto make_result() {

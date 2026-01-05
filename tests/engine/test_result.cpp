@@ -200,8 +200,10 @@ TEST_F(result_test, test_cancellation_result_then) {
 TEST_F(result_test, test_cancellation_result_catch_error) {
     auto            promise      = mc::make_promise<int>();
     mc::result<int> result       = promise.get_future();
-    auto            chain_result = result.catch_error([]() {
-        return mc::delay(10ms);
+    auto            chain_result = result.catch_error([](const mc::exception&) {
+        return mc::delay(10ms).then([]() {
+            return 42;
+        });
     });
 
     result.cancel();

@@ -44,7 +44,7 @@ enum class connect_status {
 class MC_API connection {
 public:
     template <typename T>
-    using future = mc::future<T, mc::io_context::executor_type>;
+    using future = mc::future<T>;
 
     static connection open_system_bus(mc::io_context& executor);
     static connection open_session_bus(mc::io_context& executor);

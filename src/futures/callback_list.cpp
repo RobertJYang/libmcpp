@@ -20,7 +20,7 @@ callback_pool& callback_pool::instance() {
     return mc::singleton<callback_pool>::instance();
 }
 
-std::unique_ptr<callback_node> callback_pool::acquire_node(std::function<void()> callback) {
+std::unique_ptr<callback_node> callback_pool::acquire_node(callback_type callback) {
     std::unique_ptr<callback_node> node;
 
     {
@@ -84,7 +84,7 @@ void callback_pool::clear() {
     m_pool_size = 0;
 }
 
-void callback_list::push_back(std::function<void()> callback) {
+void callback_list::push_back(callback_type callback) {
     auto node = callback_pool::instance().acquire_node(std::move(callback));
     if (!m_head) {
         m_tail = node.get();

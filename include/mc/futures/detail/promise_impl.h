@@ -17,119 +17,45 @@
 
 namespace mc::futures {
 
-namespace detail {
-
-template <typename StatePtr, typename Result>
-bool try_set_result(const StatePtr& state, Result&& result, bool strict_once = true) {
-    {
-        std::lock_guard<std::mutex> lock(state->m_mutex);
-        if (state->cancelled.load()) {
-            return false;
-        }
-
-        if (strict_once) {
-            MC_ASSERT_THROW(!state->ready && !state->bound, promise_already_satisfied, "Promise 值已被设置");
-        } else if (state->ready) {
-            return false;
-        }
-
-        state->result = std::forward<Result>(result);
-        state->ready.store(true, std::memory_order_release);
-    }
-
-    state->mark_ready();
-    return true;
+template <typename T>
+template <typename Executor, std::enable_if_t<detail::is_executor_v<Executor>, int>>
+Promise<T>::Promise(Executor&& executor)
+    : any_promise(make_pooled_state<T>(std::forward<Executor>(executor))) {
 }
 
-} // namespace detail
-
-template <typename T, typename Executor, typename Allocator>
-Promise<T, Executor, Allocator>::Promise(Executor executor, const Allocator& alloc)
-    : state_(make_pooled_state<T>(std::move(executor), alloc)), allocator_(alloc) {
+template <typename T>
+template <typename Future, std::enable_if_t<detail::is_future_v<Future>, int>>
+void Promise<T>::set_future_value(Future&& future) {
+    auto promise = *this;
+    future.then([promise](auto&& value) mutable {
+        using value_type = typename Promise::value_type;
+        if constexpr (std::is_same_v<value_type, void>) {
+            promise.any_promise::set_value(false);
+        } else {
+            promise.any_promise::template set_value<value_type>(std::forward<decltype(value)>(value), false);
+        }
+    }).catch_error([promise](const mc::exception& ec) mutable {
+        promise.any_promise::set_exception(std::current_exception(), false);
+    }).on_cancel(promise);
 }
 
-template <typename T, typename Executor, typename Allocator>
-template <typename U, typename... Args>
-void Promise<T, Executor, Allocator>::set_value(Args&&... args) {
-    if (state_->cancelled.load()) {
-        return;
-    }
-
-    if constexpr (detail::is_future_v<std::decay_t<U>>) {
-        {
-            std::lock_guard<std::mutex> lock(state_->m_mutex);
-            if (state_->cancelled.load()) {
-                return;
-            }
-
-            if (state_->ready || state_->bound) {
-                MC_THROW(promise_already_satisfied, "Promise 值已被设置");
-            }
-
-            state_->bound.store(true, std::memory_order_release);
+template <typename T>
+template <typename... Args,
+          std::enable_if_t<!std::is_void_v<T> && sizeof...(Args) == 1, int>>
+void Promise<T>::set_value(Args&&... args) {
+    using value_type = std::tuple_element_t<0, std::tuple<Args...>>;
+    if constexpr (detail::is_future_v<value_type>) {
+        if (any_promise::set_bound()) {
+            set_future_value(std::forward<Args>(args)...);
         }
-
-        auto inner_future = std::get<0>(std::forward_as_tuple(std::forward<Args>(args)...));
-        std::move(inner_future).then([state = state_](auto&& value) mutable {
-            detail::try_set_result(state, std::forward<decltype(value)>(value), false);
-        }).catch_error([state = state_](const mc::exception&) mutable {
-            detail::try_set_result(state, std::current_exception(), false);
-        }).on_cancel(*this);
-        return;
-    } else if constexpr (std::is_same_v<U, void>) {
-        detail::try_set_result(state_, std::monostate{});
-    } else if constexpr (sizeof...(Args) == 0) {
-        detail::try_set_result(state_, U{});
     } else {
-        detail::try_set_result(state_, std::get<0>(std::forward_as_tuple(std::forward<Args>(args)...)));
+        any_promise::set_value<T, Args...>(std::forward<Args>(args)...);
     }
 }
 
-template <typename T, typename Executor, typename Allocator>
-void Promise<T, Executor, Allocator>::set_exception(std::exception_ptr e) {
-    if (state_->cancelled.load()) {
-        return;
-    }
-    detail::try_set_result(state_, std::move(e));
-}
-
-template <typename T, typename Executor, typename Allocator>
-void Promise<T, Executor, Allocator>::set_exception(const mc::exception& e) {
-    try {
-        e.dynamic_rethrow_exception();
-    } catch (...) {
-        set_exception(std::current_exception());
-    }
-}
-
-template <typename T, typename Executor, typename Allocator>
-void Promise<T, Executor, Allocator>::cancel() {
-    if (state_) {
-        state_->cancel();
-    }
-}
-
-template <typename T, typename Executor, typename Allocator>
-template <typename F>
-auto Promise<T, Executor, Allocator>::on_cancel(F&& callback)
-    -> std::enable_if_t<detail::is_cancel_callback_v<F>, void> {
-    if (state_) {
-        detail::on_cancel(state_, std::forward<F>(callback));
-    }
-}
-
-template <typename T, typename Executor, typename Allocator>
-Future<T, Executor, Allocator> Promise<T, Executor, Allocator>::get_future() {
-    if (future_retrieved_) {
-        MC_THROW(future_already_retrieved, "Future 已被获取");
-    }
-    future_retrieved_ = true;
-    return Future<T, Executor, Allocator>(state_);
-}
-
-template <typename T, typename Executor, typename Allocator>
-Promise<T, Executor, Allocator>::~Promise() {
-    state_.reset();
+template <typename T>
+Future<T> Promise<T>::get_future() {
+    return Future<T>(any_promise::get_future());
 }
 
 } // namespace mc::futures

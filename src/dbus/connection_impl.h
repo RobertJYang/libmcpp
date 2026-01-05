@@ -22,7 +22,7 @@ namespace mc::dbus {
 constexpr uint32_t MAX_SERIAL_RETRY = 1000000;
 
 struct pending_data {
-    using promise_type = mc::promise<message, mc::io_context::executor_type>;
+    using promise_type = mc::promise<message>;
 
     pending_data(promise_type promise, pending_call pending)
         : promise(std::move(promise)), pending(std::move(pending)) {
