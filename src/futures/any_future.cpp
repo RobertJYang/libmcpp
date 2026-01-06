@@ -142,6 +142,11 @@ void any_future::add_continuation(callback_type continuation, launch policy) con
 }
 
 void any_future::finally(any_promise& promise, callback_type cleanup, launch policy) {
+    if (!m_state) {
+        promise.set_exception(make_invalid_future_exception());
+        return;
+    }
+
     add_continuation([promise, cleanup = std::move(cleanup)]() mutable {
         try {
             cleanup();

@@ -26,31 +26,6 @@
 namespace mc {
 
 namespace detail {
-template <typename T, typename F, typename Arg>
-static auto call_impl(F&& func, Arg v) {
-    // 移除 const 以支持 mutable lambda
-    auto& mutable_func = const_cast<std::remove_const_t<std::remove_reference_t<F>>&>(func);
-
-    if constexpr (std::is_invocable_v<F>) {
-        MC_UNUSED(v);
-        return mutable_func();
-    } else if constexpr (mc::is_variant_v<T>) {
-        // 针对 lamda: [](auto &&) {} 这种场景可以直接调用，没有必要做参数转换。
-        // 另外，lamda 中 auto 参数的场景 mc::traits::function_traits 无法推导参数类型，
-        // 这里也必须通过 std::is_invocable_v 先行跳过。
-        if constexpr (std::is_invocable_v<F, Arg>) {
-            return mutable_func(v);
-        } else {
-            using function_traits = mc::traits::function_traits<F>;
-            using args_type       = typename function_traits::args_type;
-            using arg_type        = mc::traits::remove_cvref_t<std::tuple_element_t<0, args_type>>;
-            return mutable_func(mc::detail::convert_arg<arg_type>("result", v));
-        }
-    } else {
-        return mutable_func(v);
-    }
-}
-
 [[noreturn]] MC_API void throw_method_call_exception(const mc::error_ptr& err);
 MC_API mc::error_ptr get_default_error();
 MC_API mc::method_call_exception make_method_call_exception(const mc::error_ptr& err);
@@ -72,8 +47,8 @@ struct result_traits : std::false_type {
 template <typename T, typename F, typename P>
 struct result_traits<
     T, F, P,
-    std::void_t<decltype(call_impl<T>(std::declval<F>(), std::declval<P>()))>> : std::true_type {
-    using call_result_type = decltype(call_impl<T>(std::declval<F>(), std::declval<P>()));
+    std::void_t<decltype(mc::futures::detail::invoke_func<T>(std::declval<F>(), std::declval<P>()))>> : std::true_type {
+    using call_result_type = decltype(mc::futures::detail::invoke_func<T>(std::declval<F>(), std::declval<P>()));
 
     static constexpr bool is_future = mc::futures::detail::is_future_v<call_result_type>;
     using return_type               = typename future_value_type<call_result_type>::type;
@@ -81,14 +56,6 @@ struct result_traits<
 };
 
 } // namespace detail
-
-template <typename T>
-using result_variant = std::variant<
-    // 同步返回值类型
-    std::conditional_t<std::is_same_v<T, void>, std::monostate, T>,
-    mc::future<T>,
-    // 返回错误
-    mc::error_ptr>;
 
 template <typename T = mc::variant>
 class result {
@@ -101,22 +68,40 @@ class result {
     using rvalue_type = typename property_traits::rvalue_type;
 
 public:
-    result() = default;
-
-    // 构造通过 value_type 返回的结果（优化：基础类型传值，其他类型传递常量引用）
-    result(param_type value) : m_value(value) {
-    }
-
-    // 构造通过 value_type 右值引用返回的结果（优化：基础类型屏蔽右值引用，其他类型允许右值引用）
-    result(rvalue_type value) : m_value(std::move(value)) {
-    }
-
-    // 构造通过 mc::error_ptr 类型返回的结果
-    result(mc::error_ptr err) : m_value(err) {
-        if (!err || !err->is_set()) {
-            // 如果给定的 err 为空或没有设置错误内容，则返回错误引擎中最后一个错误或者默认的 failed 错误
-            m_value = detail::get_default_error();
+    template <typename U                                                                     = value_type,
+              std::enable_if_t<std::is_void_v<U> || std::is_default_constructible_v<U>, int> = 0>
+    result() {
+        if constexpr (std::is_void_v<value_type>) {
+            m_future = mc::resolve();
+        } else {
+            m_future = mc::resolve<value_type>(value_type{});
         }
+    }
+
+    result(param_type value) {
+        if constexpr (std::is_void_v<value_type>) {
+            m_future = mc::resolve();
+        } else {
+            // 处理 const 引用：如果是 const 引用，需要复制；否则可以移动
+            if constexpr (std::is_reference_v<param_type> && std::is_const_v<std::remove_reference_t<param_type>>) {
+                m_future = mc::resolve<value_type>(value_type(value));
+            } else {
+                m_future = mc::resolve<value_type>(std::forward<param_type>(value));
+            }
+        }
+    }
+
+    result(rvalue_type value) {
+        if constexpr (std::is_void_v<value_type>) {
+            m_future = mc::resolve();
+        } else {
+            m_future = mc::resolve<value_type>(std::move(value));
+        }
+    }
+
+    result(mc::error_ptr err)
+        : m_future(mc::reject<value_type>(detail::make_method_call_exception(
+              err && err->is_set() ? err : detail::get_default_error()))) {
     }
 
     // 构造通过 mc::future<value_type> 类型返回的结果
@@ -126,7 +111,7 @@ public:
                       !std::is_same_v<typename std::decay_t<FutureType>::value_type, mc::error_ptr>,
                   int> = 0>
     result(FutureType&& v)
-        : m_value(std::forward<FutureType>(v).template as_future<value_type>(mc::any_executor())) {
+        : m_future(std::forward<FutureType>(v).template as_future<value_type>()) {
     }
 
     // 构造通过 mc::future<mc::error_ptr> 类型返回的结果
@@ -136,26 +121,16 @@ public:
                       std::is_same_v<typename std::decay_t<FutureType>::value_type, mc::error_ptr>,
                   int> = 0>
     result(FutureType&& v)
-        : m_value(std::forward<FutureType>(v).then([](auto&& v) -> value_type {
-                                                 detail::throw_method_call_exception(v);
-                                             })
-                      .template as_future<value_type>(mc::any_executor())) {
+        : m_future(std::forward<FutureType>(v)
+                       .then([](auto&& v) -> value_type {
+                           detail::throw_method_call_exception(v);
+                       })
+                       .template as_future<value_type>()) {
     }
 
     // 从其他 result<OtherT> 类型构造
     template <typename OtherT, std::enable_if_t<!std::is_same_v<value_type, OtherT>, int> = 0>
-    result(result<OtherT>&& other) {
-        std::visit([this](auto&& v) -> void {
-            using arg_type = std::decay_t<decltype(v)>;
-            if constexpr (mc::futures::detail::is_future_v<arg_type>) {
-                m_value.template emplace<mc::future<value_type>>(
-                    std::move(v).template as_future<value_type>());
-            } else if constexpr (std::is_same_v<arg_type, mc::error_ptr>) {
-                m_value.template emplace<mc::error_ptr>(std::move(v));
-            } else {
-                m_value.template emplace<value_type>(std::move(v));
-            }
-        }, std::forward<result<OtherT>>(other).m_value);
+    result(result<OtherT>&& other) : m_future(std::move(other.m_future).template as_future<value_type>()) {
     }
 
     result(const mc::exception& ex)
@@ -171,7 +146,7 @@ public:
                                      !std::is_same_v<std::decay_t<U>, mc::error_ptr> &&
                                      !mc::futures::detail::is_future_v<std::decay_t<U>>,
                                  int> = 0)
-        : m_value(mc::variant(value)) {
+        : m_future(mc::resolve<value_type>(mc::variant(value))) {
     }
 
     // 不允许拷贝
@@ -183,157 +158,92 @@ public:
     result& operator=(result&& other) = default;
 
     // 获取结果值
-    // 如果结果为 future，则阻塞等待直到 future 就绪，然后返回结果值
-    // 如果结果为 mc::error，则抛出 mc::method_call_exception 异常
-    // 如果 future 异常，则抛出 future 异常
+    // 阻塞等待直到 future 就绪，然后返回结果值
+    // 如果 future 异常，则抛出异常
     value_type get() const {
-        return std::visit([](auto&& v) -> value_type {
-            using arg_type = std::decay_t<decltype(v)>;
-            if constexpr (mc::futures::detail::is_future_v<arg_type>) {
-                return v.get();
-            } else if constexpr (std::is_same_v<arg_type, mc::error_ptr>) {
-                detail::throw_method_call_exception(v);
-            } else {
-                return v;
-            }
-        }, m_value);
+        return m_future.get();
     }
 
     // 获取结果值，最长等待 timeout 时间
     template <typename Duration>
     value_type get_for(Duration timeout) const {
-        return std::visit([timeout](auto&& v) -> value_type {
-            using arg_type = std::decay_t<decltype(v)>;
-            if constexpr (mc::futures::detail::is_future_v<arg_type>) {
-                return v.get_for(timeout);
-            } else if constexpr (std::is_same_v<arg_type, mc::error_ptr>) {
-                detail::throw_method_call_exception(v);
-            } else {
-                return v;
-            }
-        }, m_value);
+        return m_future.get_for(timeout);
     }
 
     // 等待结果就绪
     void wait() const {
-        std::visit([](auto&& v) {
-            using arg_type = std::decay_t<decltype(v)>;
-            if constexpr (mc::futures::detail::is_future_v<arg_type>) {
-                v.wait();
-            }
-        }, m_value);
+        m_future.wait();
     }
 
     // 等待结果就绪，最长等待 timeout 时间
     template <typename Duration>
     void wait_for(Duration timeout) const {
-        std::visit([timeout](auto&& v) {
-            using arg_type = std::decay_t<decltype(v)>;
-            if constexpr (mc::futures::detail::is_future_v<arg_type>) {
-                v.wait_for(timeout);
-            }
-        }, m_value);
+        m_future.wait_for(timeout);
     }
 
     // 等待结果就绪，直到 timeout_time 时间点
     template <typename TimePoint>
     void wait_until(TimePoint timeout_time) const {
-        std::visit([timeout_time](auto&& v) {
-            using arg_type = std::decay_t<decltype(v)>;
-            if constexpr (mc::futures::detail::is_future_v<arg_type>) {
-                v.wait_until(timeout_time);
-            }
-        }, m_value);
+        m_future.wait_until(timeout_time);
     }
 
-    // 判断结果是否为 value_type 类型
+    // 判断结果是否为 value_type 类型（已就绪且不是错误）
     bool is_value() const {
-        return std::holds_alternative<value_type>(m_value);
+        return m_future.is_ready() && !m_future.is_rejected();
     }
 
     // 获取结果值
-    const value_type& get_value() const {
-        return std::get<value_type>(m_value);
-    }
-
-    // 获取结果值
-    value_type& get_value() {
-        return std::get<value_type>(m_value);
+    value_type get_value() const {
+        if (!m_future.is_ready()) {
+            m_future.wait();
+        }
+        if (m_future.is_rejected()) {
+            MC_THROW(mc::method_call_exception, "result 包含错误，无法获取值");
+        }
+        return m_future.get();
     }
 
     /*
      * 判断结果是否为 future
-     * 对于 future 类型，返回 true
-     * 对于其他类型，返回 false
      */
     bool is_future() const {
-        return std::visit([](auto&& v) {
-            using arg_type = std::decay_t<decltype(v)>;
-            return mc::futures::detail::is_future_v<arg_type>;
-        }, m_value);
+        return true;
     }
 
     /*
      * 判断结果是否已完成
-     * 对于 future 类型，未就绪返回 false，否则返回 true
-     * 对于其他类型，直接返回 true
      */
-    bool is_completed() const {
-        return std::visit([](auto&& v) {
-            using arg_type = std::decay_t<decltype(v)>;
-            if constexpr (mc::futures::detail::is_future_v<arg_type>) {
-                return v.is_ready();
-            } else {
-                return true;
-            }
-        }, m_value);
+    bool is_ready() const {
+        return m_future.is_ready();
     }
 
     /*
      * 判断结果是否为错误
-     * 对于 future 类型，如果未就绪，则等待就绪，然后判断是否被拒绝
-     * 对于 mc::error_ptr 类型，直接返回 true
-     * 对于其他类型，直接返回 false
      */
     bool is_error() const {
-        return std::visit([](auto&& v) {
-            using arg_type = std::decay_t<decltype(v)>;
-            if constexpr (mc::futures::detail::is_future_v<arg_type>) {
-                if (!v.is_ready()) {
-                    v.wait();
-                }
-                return v.is_rejected();
-            } else if constexpr (std::is_same_v<arg_type, mc::error_ptr>) {
-                return v && v->is_set();
-            } else {
-                return false;
-            }
-        }, m_value);
+        if (!m_future.is_ready()) {
+            m_future.wait();
+        }
+        return m_future.is_rejected();
     }
 
     /*
      * 获取错误信息
-     * 对于 future 类型，如果未就绪，则等待就绪，然后判断是否被拒绝，如果被拒绝，则返回错误信息
-     * 对于 mc::error_ptr 类型，直接返回
-     * 对于非错误类型，返回 nullptr
+     * 如果 future 被拒绝，则返回错误信息
+     * 否则返回 nullptr
+     * 空状态下抛出异常
      */
     mc::error_ptr get_error() const {
-        return std::visit([](auto&& v) -> mc::error_ptr {
-            using arg_type = std::decay_t<decltype(v)>;
-            if constexpr (mc::futures::detail::is_future_v<arg_type>) {
-                if (!v.is_ready()) {
-                    v.wait();
-                }
-                if (v.is_rejected()) {
-                    return mc::error::from_exception(v.get_exception());
-                }
-                return {};
-            } else if constexpr (std::is_same_v<arg_type, mc::error_ptr>) {
-                return v;
-            } else {
-                return {};
-            }
-        }, m_value);
+        if (!m_future.valid()) {
+            MC_THROW(mc::futures::invalid_future_exception, "result 包含无效的 future");
+        }
+        if (!m_future.is_ready()) {
+            m_future.wait();
+        }
+        if (m_future.is_rejected()) {
+            return mc::error::from_exception(m_future.get_exception());
+        }
+        return {};
     }
 
     /*
@@ -347,95 +257,52 @@ public:
      *  })
      */
     template <typename F>
-    auto then(F&& func)
+    auto then(F&& func, launch policy = launch::async, std::optional<mc::any_executor> executor = std::nullopt)
         -> std::enable_if_t<
             detail::result_traits<T, F, param_type>::value,
             typename detail::result_traits<T, F, param_type>::future_type> {
-        using result_traits = detail::result_traits<T, F, param_type>;
-        using result_type   = typename result_traits::return_type;
-        using future_type   = typename result_traits::future_type;
-
-        return std::visit([f = std::forward<F>(func)](auto&& v) -> future_type {
-            using arg_type = std::decay_t<decltype(v)>;
-            if constexpr (mc::futures::detail::is_future_v<arg_type>) {
-                return then_impl(std::move(f), std::forward<decltype(v)>(v));
-            } else if constexpr (std::is_same_v<arg_type, mc::error_ptr>) {
-                return mc::reject<result_type>(detail::make_method_call_exception(v));
-            } else if constexpr (std::is_same_v<arg_type, value_type>) {
-                return then_impl(std::move(f), mc::resolve(std::forward<decltype(v)>(v)));
-            }
-        }, m_value);
+        return m_future.then(std::forward<F>(func), policy, executor);
     }
 
     template <typename F>
-    auto catch_error(F&& func)
+    auto catch_error(F&& func, launch policy = launch::async, std::optional<mc::any_executor> executor = std::nullopt)
         -> std::enable_if_t<
             detail::result_traits<T, F, const mc::exception&>::value,
             typename detail::result_traits<T, F, const mc::exception&>::future_type> {
-        using result_traits = detail::result_traits<T, F, const mc::exception&>;
-        using result_type   = typename result_traits::return_type;
-
-        return std::visit([f = std::forward<F>(func)](auto&& v) {
-            using arg_type = std::decay_t<decltype(v)>;
-            if constexpr (mc::futures::detail::is_future_v<arg_type>) {
-                return catch_error_impl(std::move(f), std::forward<decltype(v)>(v));
-            } else if constexpr (std::is_same_v<arg_type, mc::error_ptr>) {
-                return catch_error_impl(std::move(f),
-                                        mc::reject<result_type>(detail::make_method_call_exception(v)));
-            } else if constexpr (std::is_same_v<arg_type, value_type>) {
-                return catch_error_impl(std::move(f), mc::resolve(std::forward<decltype(v)>(v)));
-            }
-        }, m_value);
+        return m_future.catch_error(std::forward<F>(func), policy, executor);
     }
 
     void cancel() {
-        std::visit([](auto&& v) {
-            using arg_type = std::decay_t<decltype(v)>;
-            if constexpr (mc::futures::detail::is_future_v<arg_type>) {
-                v.cancel();
-            }
-        }, m_value);
+        m_future.cancel();
     }
 
     template <typename F>
-    auto finally(F&& func) {
-        return as_future().finally(std::forward<F>(func));
+    auto finally(F&& func, launch policy = launch::async, std::optional<mc::any_executor> executor = std::nullopt) {
+        return m_future.finally(std::forward<F>(func));
     }
 
     auto as_future() {
-        if constexpr (std::is_void_v<value_type>) {
-            return then([]() {
-            });
-        } else {
-            return then([](auto&& v) -> param_type {
-                return v;
-            });
-        }
+        return m_future;
     }
 
-    const result_variant<value_type>& get_variant() const {
-        return m_value;
+    bool valid() const {
+        return m_future.valid();
     }
 
-    result_variant<value_type>& get_variant() {
-        return m_value;
+    // 获取内部的 future
+    const mc::future<value_type>& get_future() const {
+        return m_future;
+    }
+
+    mc::future<value_type>& get_future() {
+        return m_future;
     }
 
 private:
-    template <typename F, typename FutureType>
-    static auto then_impl(F&& func, FutureType&& v) {
-        return v.then(std::forward<F>(func));
-    }
-
-    template <typename F, typename FutureType>
-    static auto catch_error_impl(F&& func, FutureType&& v) {
-        return v.catch_error(std::forward<F>(func));
-    }
-
     template <typename OtherT>
     friend class result;
 
-    result_variant<value_type> m_value;
+    mc::future<value_type> m_future;
 };
 
 using async_result = result<mc::variant>;
@@ -443,9 +310,7 @@ using async_result = result<mc::variant>;
 // 一些辅助函数，用于简化 result 的创建
 template <typename T>
 auto make_result(T&& value)
-    -> std::enable_if_t<!mc::futures::detail::is_future_v<T> &&
-                            mc::is_variant_constructible_v<T>,
-                        result<T>> {
+    -> std::enable_if_t<!mc::futures::detail::is_future_v<T>, result<T>> {
     return result<T>(std::forward<T>(value));
 }
 
@@ -456,7 +321,7 @@ auto make_result(mc::future<T>&& value) {
 }
 
 inline auto make_result() {
-    return result<void>();
+    return result<void>(mc::resolve());
 }
 
 template <typename T>
@@ -503,10 +368,7 @@ inline void from_variant(const mc::variant& v, result<mc::variant>& obj) {
 }
 
 inline void to_variant(const result<void>& obj, mc::variant& v) {
-    if (obj.is_future()) {
-        obj.wait(); // 阻塞等待直到 future 就绪
-    }
-
+    obj.wait(); // 阻塞等待直到 future 就绪
     v = mc::variant();
 }
 

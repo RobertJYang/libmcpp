@@ -40,13 +40,13 @@ TEST_F(result_test, test_basic_construction) {
     // 测试基本类型构造
     mc::result<int> int_result(42);
     EXPECT_TRUE(int_result.is_value());
-    EXPECT_TRUE(int_result.is_completed());
+    EXPECT_TRUE(int_result.is_ready());
     EXPECT_EQ(int_result.get(), 42);
 
     // 测试字符串构造
     mc::result<std::string> str_result(std::string("test"));
     EXPECT_TRUE(str_result.is_value());
-    EXPECT_TRUE(str_result.is_completed());
+    EXPECT_TRUE(str_result.is_ready());
     EXPECT_EQ(str_result.get(), "test");
 
     // 测试 future 构造
@@ -54,11 +54,11 @@ TEST_F(result_test, test_basic_construction) {
     auto            future  = promise.get_future();
     mc::result<int> future_result(std::move(future));
     EXPECT_TRUE(future_result.is_future());
-    EXPECT_FALSE(future_result.is_completed());
+    EXPECT_FALSE(future_result.is_ready());
 
     promise.set_value(42);
     EXPECT_EQ(future_result.get(), 42);
-    EXPECT_TRUE(future_result.is_completed());
+    EXPECT_TRUE(future_result.is_ready());
 }
 
 // 测试错误构造
@@ -66,7 +66,7 @@ TEST_F(result_test, test_error_construction) {
     // 测试从错误名和消息构造
     mc::result<int> error_result(mc::make_error(TestErrorName, "test error message"));
     EXPECT_TRUE(error_result.is_error());
-    EXPECT_TRUE(error_result.is_completed());
+    EXPECT_TRUE(error_result.is_ready());
 
     auto error = error_result.get_error();
     EXPECT_EQ(error && error->is_set(), true);
@@ -77,7 +77,7 @@ TEST_F(result_test, test_error_construction) {
     auto            ex = MC_MAKE_EXCEPTION(mc::invalid_arg_exception, "test exception");
     mc::result<int> exception_result(mc::error::from_exception(ex));
     EXPECT_TRUE(exception_result.is_error());
-    EXPECT_TRUE(exception_result.is_completed());
+    EXPECT_TRUE(exception_result.is_ready());
     EXPECT_THROW(exception_result.get(), mc::method_call_exception);
 }
 
@@ -253,12 +253,17 @@ TEST_F(result_test, test_type_conversion) {
 
 // 测试void类型特化
 TEST_F(result_test, test_void_specialization) {
-    // 测试void返回值
+    // 测试void返回值（默认构造返回 resolve()）
     mc::result<void> void_result;
+    EXPECT_TRUE(void_result.is_ready());
     EXPECT_NO_THROW(void_result.get());
 
+    // 测试已解析的void结果
+    mc::result<void> resolved_void_result = mc::resolve();
+    EXPECT_NO_THROW(resolved_void_result.get());
+
     // 测试void到值的转换
-    auto value_result = void_result.then([]() {
+    auto value_result = resolved_void_result.then([]() {
         return 42;
     });
     EXPECT_EQ(value_result.get(), 42);
@@ -269,6 +274,90 @@ TEST_F(result_test, test_void_specialization) {
         // do nothing
     });
     EXPECT_NO_THROW(converted_void.get());
+}
+
+// 测试默认构造行为（返回 resolve 的默认值）
+TEST_F(result_test, test_default_constructed_empty_state) {
+    // 测试 int 类型的默认构造：应该返回 resolve(0)
+    mc::result<int> default_int_result;
+    EXPECT_TRUE(default_int_result.valid());
+    EXPECT_TRUE(default_int_result.is_ready());
+    EXPECT_TRUE(default_int_result.is_value());
+    EXPECT_FALSE(default_int_result.is_error());
+    EXPECT_EQ(default_int_result.get(), 0);
+
+    // 测试 void 类型的默认构造：应该返回 resolve()
+    mc::result<void> default_void_result;
+    EXPECT_TRUE(default_void_result.valid());
+    EXPECT_TRUE(default_void_result.is_ready());
+    EXPECT_TRUE(default_void_result.is_value());
+    EXPECT_FALSE(default_void_result.is_error());
+    EXPECT_NO_THROW(default_void_result.get());
+
+    // 测试 variant 类型的默认构造：应该返回 resolve(variant{})
+    mc::result<mc::variant> default_variant_result;
+    EXPECT_TRUE(default_variant_result.valid());
+    EXPECT_TRUE(default_variant_result.is_ready());
+    EXPECT_TRUE(default_variant_result.is_value());
+    EXPECT_FALSE(default_variant_result.is_error());
+    auto variant_value = default_variant_result.get();
+    EXPECT_TRUE(variant_value.is_null());
+}
+
+// 测试空状态的链式操作（通过空的 future 创建空状态）
+TEST_F(result_test, test_empty_state_chaining) {
+    // 创建一个真正的空状态 result（通过空的 future）
+    mc::result<int> empty_result(mc::future<int>{});
+
+    // 空状态下的 then 操作应该返回已 reject 的 future
+    auto chained = empty_result.then([](int v) {
+        return v * 2;
+    });
+
+    // chained 的 future 应该是已 reject 的状态
+    EXPECT_TRUE(chained.valid());
+    EXPECT_TRUE(chained.is_ready());
+    EXPECT_TRUE(chained.is_rejected());
+    EXPECT_THROW(chained.get(), mc::futures::invalid_future_exception);
+
+    // 空状态下的 catch_error 操作会创建一个包含 invalid_future_exception 的 rejected future，
+    // 然后调用 catch_error 回调，并返回一个有效的 future
+    std::atomic<bool>    catch_error_called{false};
+    std::atomic<int64_t> exception_code{0};
+    auto                 recovered = empty_result.catch_error([&catch_error_called, &exception_code](const mc::exception& ex) {
+        catch_error_called.store(true);
+        exception_code.store(ex.code());
+        return 42;
+    });
+
+    // recovered 的 future 应该是有效的，并且包含值 42
+    EXPECT_TRUE(recovered.valid());
+    EXPECT_TRUE(recovered.is_ready());
+    EXPECT_FALSE(recovered.is_rejected());
+    EXPECT_EQ(recovered.get(), 42);
+    EXPECT_TRUE(catch_error_called.load());
+    EXPECT_EQ(exception_code.load(), mc::futures::invalid_future_code);
+}
+
+// 测试空状态的移动操作（通过空的 future 创建空状态）
+TEST_F(result_test, test_empty_state_move_operations) {
+    // 创建一个真正的空状态 result（通过空的 future）
+    mc::result<int> empty_result1(mc::future<int>{});
+    mc::result<int> empty_result2(std::move(empty_result1));
+
+    // 移动后，empty_result1 应该还是空状态
+    EXPECT_FALSE(empty_result1.valid());
+
+    // empty_result2 也应该是空状态
+    EXPECT_FALSE(empty_result2.valid());
+
+    // 移动赋值
+    mc::result<int> empty_result3(mc::future<int>{});
+    empty_result3 = std::move(empty_result2);
+
+    // 都应该是空状态
+    EXPECT_FALSE(empty_result2.valid());
+    EXPECT_FALSE(empty_result3.valid());
 }
 
 TEST_F(result_test, test_make_result) {
@@ -286,6 +375,7 @@ TEST_F(result_test, test_make_result) {
 
     // mc::result<void>
     auto r4 = mc::make_result();
+    EXPECT_TRUE(r4.is_ready());
     EXPECT_NO_THROW(r4.get());
 
     // mc::result<std::string_view>

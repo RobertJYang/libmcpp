@@ -146,14 +146,14 @@ protected:
 // 测试同步方法调用
 TEST_F(async_invoke_test, test_sync_method) {
     auto result = obj_base.async_invoke("SyncMethod", {42});
-    EXPECT_TRUE(result.is_value() && result.is_completed());
+    EXPECT_TRUE(result.is_value() && result.is_ready());
     EXPECT_EQ(result.get(), 84);
 }
 
 // 测试异步方法调用
 TEST_F(async_invoke_test, test_async_method) {
     auto result = obj_base.async_invoke("AsyncMethod", {42});
-    EXPECT_TRUE(result.is_future() && !result.is_completed());
+    EXPECT_TRUE(result.is_future() && !result.is_ready());
     EXPECT_EQ(result.get(), 126);
 }
 
@@ -161,12 +161,12 @@ TEST_F(async_invoke_test, test_async_method) {
 TEST_F(async_invoke_test, test_hybrid_method) {
     // 测试立即返回
     auto immediate_result = obj_base.async_invoke("HybridMethod", {"test", true});
-    EXPECT_TRUE(immediate_result.is_value() && immediate_result.is_completed());
+    EXPECT_TRUE(immediate_result.is_value() && immediate_result.is_ready());
     EXPECT_EQ(immediate_result.get(), "immediate:test");
 
     // 测试延迟返回
     auto delayed_result = obj_base.async_invoke("HybridMethod", {"test", false});
-    EXPECT_TRUE(delayed_result.is_future() && !delayed_result.is_completed());
+    EXPECT_TRUE(delayed_result.is_future() && !delayed_result.is_ready());
     EXPECT_EQ(delayed_result.get(), "delayed:test");
 }
 
@@ -202,11 +202,11 @@ TEST_F(async_invoke_test, test_error_handling) {
 
 TEST_F(async_invoke_test, test_void_result) {
     auto result = obj_base.async_invoke("VoidMethod", {true});
-    EXPECT_TRUE(result.is_value() && result.is_completed());
+    EXPECT_TRUE(result.is_value() && result.is_ready());
     EXPECT_EQ(result.get(), mc::variant());
 
     result = obj_base.async_invoke("VoidMethod", {false});
-    EXPECT_TRUE(result.is_future() && !result.is_completed());
+    EXPECT_TRUE(result.is_future() && !result.is_ready());
     bool async_completed = false;
     result.then([&]() {
         async_completed = true;
@@ -217,7 +217,7 @@ TEST_F(async_invoke_test, test_void_result) {
 // 测试取消操作
 TEST_F(async_invoke_test, test_cancellation) {
     auto result = obj_base.async_invoke("LongRunningMethod");
-    EXPECT_TRUE(result.is_future() && !result.is_completed());
+    EXPECT_TRUE(result.is_future() && !result.is_ready());
 
     // 取消操作
     result.cancel();
@@ -227,7 +227,7 @@ TEST_F(async_invoke_test, test_cancellation) {
 // 测试链式异步操作
 TEST_F(async_invoke_test, test_chain_operations) {
     auto result = obj_base.async_invoke("ChainMethod", {5});
-    EXPECT_TRUE(result.is_future() && !result.is_completed());
+    EXPECT_TRUE(result.is_future() && !result.is_ready());
     EXPECT_EQ(result.get(), 22); // (5 + 1) * 2 + 10
 }
 
@@ -235,7 +235,7 @@ TEST_F(async_invoke_test, test_chain_operations) {
 TEST_F(async_invoke_test, test_parallel_operations) {
     std::vector<int32_t> values = {1, 2, 3, 4, 5};
     auto                 result = obj_base.async_invoke("ParallelMethod", {values});
-    EXPECT_TRUE(result.is_future() && !result.is_completed());
+    EXPECT_TRUE(result.is_future() && !result.is_ready());
 
     std::vector<int32_t> expected = {2, 4, 6, 8, 10};
     EXPECT_EQ(result.get().as_array(), expected);

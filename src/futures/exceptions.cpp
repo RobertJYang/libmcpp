@@ -17,4 +17,6 @@ MC_IMPLEMENT_EXCEPTION_CLASS(future_already_retrieved, future_already_retrieved_
                              "Future 已被获取", "future_already_retrieved")
 MC_IMPLEMENT_EXCEPTION_CLASS(promise_already_satisfied, promise_already_set_code,
                              "Promise 值已被设置", "promise_already_satisfied")
+MC_IMPLEMENT_EXCEPTION_CLASS(invalid_future_exception, invalid_future_code,
+                             "Future 无效", "invalid_future_exception")
 } // namespace mc::futures

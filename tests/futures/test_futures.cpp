@@ -2049,3 +2049,109 @@ TEST_F(FuturesTest, stress_any_with_inline_temporaries) {
         EXPECT_DOUBLE_EQ(std::get<double>(r.second), 2.0);
     }
 }
+
+// 测试空状态（默认构造）的 future 行为
+TEST_F(FuturesTest, test_default_constructed_empty_state) {
+    // 测试默认构造的 future（空状态）
+    mc::future<int> empty_future;
+    EXPECT_FALSE(empty_future.valid());
+    EXPECT_FALSE(empty_future.is_ready());
+    EXPECT_FALSE(empty_future.is_cancelled());
+    EXPECT_FALSE(empty_future.is_rejected());
+
+    // 空状态下调用 get() 应该抛出异常
+    EXPECT_THROW(empty_future.get(), mc::futures::invalid_future_exception);
+
+    // 空状态下调用 get_exception() 应该返回 nullptr
+    auto ex = empty_future.get_exception();
+    EXPECT_EQ(ex, nullptr);
+
+    // 空状态下调用 wait() 应该安全返回
+    EXPECT_NO_THROW(empty_future.wait());
+
+    // 空状态下调用 wait_for() 应该返回 invalid
+    auto status = empty_future.wait_for(100ms);
+    EXPECT_EQ(status, mc::future_status::invalid);
+
+    // 空状态下调用 cancel() 应该安全返回
+    EXPECT_NO_THROW(empty_future.cancel());
+}
+
+// 测试空状态的链式操作
+TEST_F(FuturesTest, test_empty_state_chaining) {
+    mc::future<int> empty_future;
+
+    // 空状态下的 then 操作会返回一个 rejected 的 future
+    auto chained = empty_future.then([](int v) {
+        return v * 2;
+    });
+
+    // chained 的 future 是一个 rejected 的 future
+    EXPECT_TRUE(chained.is_rejected());
+
+    // 空状态下的 catch_error 操作会创建一个包含 invalid_future_exception 的 rejected future，
+    // 然后调用 catch_error 回调，并返回一个有效的 future
+    std::atomic<bool>    catch_error_called{false};
+    std::atomic<int64_t> exception_code{0};
+    auto                 recovered = empty_future.catch_error([&catch_error_called, &exception_code](const mc::exception& ex) {
+        catch_error_called.store(true);
+        // 验证异常代码是 invalid_future_code
+        exception_code.store(ex.code());
+        EXPECT_EQ(ex.code(), mc::futures::invalid_future_code);
+        return 42;
+    });
+
+    // recovered 的 future 应该是有效的，并且包含值 42
+    EXPECT_TRUE(recovered.valid());
+    EXPECT_EQ(recovered.get(), 42);
+    EXPECT_TRUE(catch_error_called.load());
+    EXPECT_EQ(exception_code.load(), mc::futures::invalid_future_code);
+
+    // 空状态下的 finally 操作会创建一个包含 invalid_future_exception 的 rejected future，
+    // 然后调用 finally 回调
+    std::atomic<bool> finally_called{false};
+    auto              final_result = empty_future.finally([&finally_called]() {
+        finally_called.store(true);
+    });
+
+    // final_result 的 future 应该是 rejected 状态（包含 invalid_future_exception）
+    EXPECT_TRUE(final_result.is_rejected());
+    EXPECT_THROW(final_result.get(), mc::futures::invalid_future_exception);
+    EXPECT_TRUE(finally_called.load());
+}
+
+// 测试空状态的移动操作
+TEST_F(FuturesTest, test_empty_state_move_operations) {
+    mc::future<int> empty_future1;
+    mc::future<int> empty_future2(std::move(empty_future1));
+
+    // 移动后，empty_future1 应该还是空状态
+    EXPECT_FALSE(empty_future1.valid());
+
+    // empty_future2 也应该是空状态
+    EXPECT_FALSE(empty_future2.valid());
+
+    // 移动赋值
+    mc::future<int> empty_future3;
+    empty_future3 = std::move(empty_future2);
+
+    // 都应该是空状态
+    EXPECT_FALSE(empty_future2.valid());
+    EXPECT_FALSE(empty_future3.valid());
+}
+
+// 测试空状态转换为其他类型
+TEST_F(FuturesTest, test_empty_state_type_conversion) {
+    mc::future<int> empty_future;
+
+    // 空状态下转换为其他类型的 future 会调用 then，而 then 在空状态下会返回一个 rejected 的 future
+    auto converted_void = empty_future.as_future<void>();
+    EXPECT_TRUE(converted_void.valid());
+    EXPECT_TRUE(converted_void.is_rejected());
+    EXPECT_THROW(converted_void.get(), mc::futures::invalid_future_exception);
+
+    auto converted_double = empty_future.as_future<double>();
+    EXPECT_TRUE(converted_double.valid());
+    EXPECT_TRUE(converted_double.is_rejected());
+    EXPECT_THROW(converted_double.get(), mc::futures::invalid_future_exception);
+}

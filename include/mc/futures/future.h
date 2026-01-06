@@ -148,6 +148,11 @@ auto make_rejected_state(std::exception_ptr error, Executor executor) {
     return state;
 }
 
+template <typename T, typename Executor>
+auto make_rejected_state(mc::exception error, Executor executor) {
+    return make_rejected_state<T>(std::make_exception_ptr(error), std::move(executor));
+}
+
 } // namespace detail
 
 template <typename T>

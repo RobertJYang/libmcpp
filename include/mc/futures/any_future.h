@@ -79,6 +79,9 @@ public:
 
     template <typename T>
     auto get() const {
+        if (!m_state) {
+            MC_THROW(invalid_future_exception, "Future 无效");
+        }
         wait();
         return static_cast<const State<T>*>(m_state.get())->get_value();
     }
@@ -98,11 +101,10 @@ protected:
     void add_continuation(callback_type continuation, launch policy = launch::async) const;
     void finally(any_promise& promise, callback_type cleanup, launch policy = launch::async);
 
-private:
+    state_base_ptr m_state;
+
     future_status wait_for_impl(duration_type duration) const;
     future_status wait_until_impl(std::chrono::steady_clock::time_point timeout_time) const;
-
-    state_base_ptr m_state;
 };
 
 } // namespace mc::futures
