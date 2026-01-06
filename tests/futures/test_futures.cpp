@@ -628,17 +628,26 @@ TEST_F(FuturesTest, AllWithSuccess) {
     auto p2 = mc::make_promise<double>(get_io_context());
     auto p3 = mc::make_promise<std::string>(get_io_context());
 
-    auto all_future = mc::all(p1.get_future(), p2.get_future(), p3.get_future());
+    auto all_future = mc::all(
+        p1.get_future(),
+        p2.get_future(),
+        p3.get_future(),
+        mc::delay() // 添加一个 mc::delay() 在末尾验证 void 类型的 future 也可以被组合
+    );
 
     p1.set_value(42);
     p2.set_value(3.14);
     p3.set_value("hello");
 
-    auto result = all_future.get();
+    // 顺带测试一下 any 的组合使用
+    auto result = mc::any(mc::delay(1ms), mc::delay(1s)).then([&all_future](auto&&) {
+        return all_future.get();
+    }).get();
 
     EXPECT_EQ(std::get<0>(result), 42);
     EXPECT_DOUBLE_EQ(std::get<1>(result), 3.14);
     EXPECT_EQ(std::get<2>(result), "hello");
+    EXPECT_EQ(std::get<3>(result), std::monostate{});
 }
 
 // 任意一个子 future 抛出异常时，all 也会异常

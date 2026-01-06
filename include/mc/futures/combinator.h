@@ -91,20 +91,22 @@ protected:
 
 template <typename ResultType>
 struct AnyState : public AnyStateBase {
+    using result_type  = ResultType;
     using future_type  = Future<ResultType>;
     using promise_type = Promise<ResultType>;
+    using variant_type = typename ResultType::second_type;
 
     AnyState(std::size_t total_count, mc::any_executor executor)
         : AnyStateBase(total_count, make_promise<ResultType>(std::move(executor))) {
     }
 
-    template <typename Value>
-    void set_value(std::size_t index, Value&& value) {
+    template <typename ValueType>
+    void set_value(std::size_t index, ValueType&& value) {
         if (!set_completed(index)) {
             return;
         }
 
-        promise_type(any_promise(m_promise)).set_value(std::make_pair(index, std::forward<Value>(value)));
+        promise_type(any_promise(m_promise)).set_value(std::make_pair(index, variant_type(std::move(value))));
         execute_cancel_callbacks();
     }
 
@@ -116,8 +118,18 @@ struct AnyState : public AnyStateBase {
 
 template <typename State, typename Future, typename Result>
 void process_all(std::shared_ptr<State> state, std::size_t index, Result& result, Future& future) {
+    using result_type = typename Future::result_type;
+
     auto f = future.then([state, index, &result](auto&& value) mutable {
-        state->set_value(index, result, std::forward<decltype(value)>(value));
+        // 某些编译器对参数为 auto&& 的 lambda 函数用 std::monostate 作为参数调用，
+        // 会错误的将 value 推导成 int 类型导致编译错误，这里特殊处理一下
+        if constexpr (std::is_same_v<result_type, void> ||
+                      std::is_same_v<result_type, std::monostate>) {
+            MC_UNUSED(value);
+            state->set_value(index, result, std::monostate{});
+        } else {
+            state->set_value(index, result, std::forward<decltype(value)>(value));
+        }
     }).catch_error([state](const mc::exception& e) mutable {
         state->set_exception(e);
     }).on_cancel([wstate = std::weak_ptr(state)]() mutable {
@@ -138,8 +150,18 @@ void process_all(std::shared_ptr<State> state, Futures& futures) {
 
 template <typename State, typename Future>
 void process_any(std::shared_ptr<State> state, std::size_t index, Future& future) {
+    using result_type = typename Future::result_type;
+
     auto f = future.then([state, index](auto&& value) mutable {
-        state->set_value(index, std::forward<decltype(value)>(value));
+        // 某些编译器对参数为 auto&& 的 lambda 函数用 std::monostate 作为参数调用，
+        // 会错误的将 value 推导成 int 类型导致编译错误，这里特殊处理一下
+        if constexpr (std::is_same_v<result_type, void> ||
+                      std::is_same_v<result_type, std::monostate>) {
+            MC_UNUSED(value);
+            state->set_value(index, std::monostate{});
+        } else {
+            state->set_value(index, std::forward<decltype(value)>(value));
+        }
     }).catch_error([state](const mc::exception& e) mutable {
         state->set_exception(e);
     }).on_cancel([wstate = std::weak_ptr(state)]() {
