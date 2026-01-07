@@ -158,6 +158,8 @@ auto make_rejected_state(mc::exception error, Executor executor) {
 template <typename T>
 class Future : public any_future {
 public:
+    static_assert(!std::is_same_v<T, std::monostate>, "T must not be std::monostate");
+
     using value_type    = T;
     using result_type   = std::conditional_t<std::is_void_v<T>, std::monostate, T>;
     using executor_type = mc::runtime::any_executor;
@@ -240,7 +242,8 @@ public:
     T get_for(Duration duration) const;
 
     template <typename OtherT>
-    auto as_future(std::optional<mc::any_executor> executor = std::nullopt) -> Future<OtherT>;
+    auto as_future(std::optional<mc::any_executor> executor = std::nullopt)
+        -> Future<detail::state_tt<OtherT>>;
 
     const state_ptr<state_type>& get_state() const {
         auto& state = any_future::get_state();

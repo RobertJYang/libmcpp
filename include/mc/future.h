@@ -45,14 +45,14 @@ namespace mc {
 template <typename T, typename Executor = mc::io_context::executor_type>
 auto make_promise(Executor executor = mc::get_io_executor())
     -> std::enable_if_t<futures::detail::is_executor_v<Executor>,
-                        mc::futures::Promise<T>> {
+                        mc::futures::Promise<mc::futures::detail::state_tt<T>>> {
     return mc::futures::make_promise<T>(std::move(executor));
 }
 
 template <typename T, typename Execution>
 auto make_promise(Execution& execution)
     -> std::enable_if_t<futures::detail::is_execution_context_v<Execution>,
-                        mc::futures::Promise<T>> {
+                        mc::futures::Promise<mc::futures::detail::state_tt<T>>> {
     return mc::futures::make_promise<T>(execution.get_executor());
 }
 
@@ -68,16 +68,16 @@ namespace futures {
 template <typename T, typename Executor = runtime::any_executor>
 auto resolve(T&& value, Executor executor = runtime::any_executor())
     -> std::enable_if_t<detail::is_executor_v<Executor>,
-                        mc::futures::Future<mc::traits::remove_cvref_t<T>>> {
-    auto state = detail::make_resolved_state<mc::traits::remove_cvref_t<T>>(
+                        mc::futures::Future<mc::futures::detail::state_tt<T>>> {
+    auto state = detail::make_resolved_state<mc::futures::detail::state_tt<T>>(
         std::forward<T>(value), std::move(executor));
-    return Future<mc::traits::remove_cvref_t<T>>(std::move(state));
+    return Future<mc::futures::detail::state_tt<T>>(std::move(state));
 }
 
 template <typename T, typename Execution = runtime::immediate_context>
 auto resolve(T&& value, Execution& execution)
     -> std::enable_if_t<detail::is_execution_context_v<Execution>,
-                        mc::futures::Future<mc::traits::remove_cvref_t<T>>> {
+                        mc::futures::Future<mc::futures::detail::state_tt<T>>> {
     return resolve<T>(std::forward<T>(value), execution.get_executor());
 }
 
@@ -100,16 +100,16 @@ auto resolve(Execution& execution)
 template <typename T, typename Executor = runtime::any_executor>
 auto reject(std::exception_ptr eptr, Executor executor = runtime::any_executor())
     -> std::enable_if_t<detail::is_executor_v<Executor>,
-                        mc::futures::Future<T>> {
-    auto state = detail::make_rejected_state<T>(
+                        mc::futures::Future<mc::futures::detail::state_tt<T>>> {
+    auto state = detail::make_rejected_state<mc::futures::detail::state_tt<T>>(
         std::move(eptr), std::move(executor));
-    return Future<T>(std::move(state));
+    return Future<mc::futures::detail::state_tt<T>>(std::move(state));
 }
 
 template <typename T, typename Execution = runtime::immediate_context>
 auto reject(std::exception_ptr eptr, Execution& execution)
     -> std::enable_if_t<detail::is_execution_context_v<Execution>,
-                        mc::futures::Future<T>> {
+                        mc::futures::Future<mc::futures::detail::state_tt<T>>> {
     return reject<T>(std::move(eptr), execution.get_executor());
 }
 
@@ -117,14 +117,14 @@ auto reject(std::exception_ptr eptr, Execution& execution)
 template <typename T, typename Exception, typename Execution = runtime::immediate_context>
 auto reject(Exception&& ex, Execution& execution)
     -> std::enable_if_t<detail::is_execution_context_v<Execution>,
-                        mc::futures::Future<T>> {
+                        mc::futures::Future<mc::futures::detail::state_tt<T>>> {
     return reject<T>(std::make_exception_ptr(std::forward<Exception>(ex)), execution);
 }
 
 template <typename T, typename Exception, typename Executor = runtime::any_executor>
 auto reject(Exception&& ex, Executor executor = mc::any_executor())
     -> std::enable_if_t<detail::is_executor_v<Executor>,
-                        mc::futures::Future<T>> {
+                        mc::futures::Future<mc::futures::detail::state_tt<T>>> {
     return reject<T>(std::make_exception_ptr(std::forward<Exception>(ex)), std::move(executor));
 }
 
@@ -134,7 +134,7 @@ template <typename FutureType, typename Duration,
 auto timeout(FutureType future, Duration timeout_duration,
              Executor executor = mc::get_io_executor())
     -> std::enable_if_t<detail::is_future_v<FutureType> && detail::is_executor_v<Executor>,
-                        Future<typename FutureType::value_type>> {
+                        Future<mc::futures::detail::state_tt<typename FutureType::value_type>>> {
     using value_type = typename FutureType::value_type;
 
     // 优化：如果传入的future已经cancelled或ready，则直接返回

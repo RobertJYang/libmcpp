@@ -112,7 +112,7 @@ private:
 // 从缓存池创建 State 对象
 template <typename T, typename Executor>
 auto make_pooled_state(Executor executor) {
-    return state_pool::instance().acquire_state<T, Executor>(std::move(executor));
+    return state_pool::instance().acquire_state<detail::state_tt<T>, Executor>(std::move(executor));
 }
 
 } // namespace mc::futures

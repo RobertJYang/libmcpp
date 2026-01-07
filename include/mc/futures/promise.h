@@ -38,6 +38,8 @@ constexpr bool is_execution_context_v = is_execution_context<T>::value;
 template <typename T>
 class Promise : public any_promise {
 public:
+    static_assert(!std::is_same_v<T, std::monostate>, "T must not be std::monostate");
+
     using future_type = Future<T>;
     using state_type  = typename future_type::state_type;
     using is_promise  = std::true_type;
@@ -99,7 +101,7 @@ public:
 
 template <typename T, typename Executor>
 auto make_promise(Executor executor) {
-    return Promise<T>(std::move(executor));
+    return Promise<detail::state_tt<T>>(std::move(executor));
 }
 } // namespace mc::futures
 

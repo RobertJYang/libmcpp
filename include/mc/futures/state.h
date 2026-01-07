@@ -28,6 +28,14 @@
 
 namespace mc::futures {
 
+namespace detail {
+template <typename T>
+using state_tt = std::conditional_t<
+    std::is_same_v<mc::traits::remove_cvref_t<T>, std::monostate>,
+    void,
+    mc::traits::remove_cvref_t<T>>;
+} // namespace detail
+
 class MC_API state_base : public shared_base {
 public:
     using executor_type = mc::runtime::any_executor;

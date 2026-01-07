@@ -63,7 +63,7 @@ class result {
                   "T must be constructible to variant or void");
     using property_traits = mc::traits::property_traits<T>;
 
-    using value_type  = typename property_traits::value_type;
+    using value_type  = mc::futures::detail::state_tt<typename property_traits::value_type>;
     using param_type  = typename property_traits::param_type;
     using rvalue_type = typename property_traits::rvalue_type;
 
@@ -320,14 +320,16 @@ using async_result = result<mc::variant>;
 // 一些辅助函数，用于简化 result 的创建
 template <typename T>
 auto make_result(T&& value)
-    -> std::enable_if_t<!mc::futures::detail::is_future_v<T>, result<T>> {
-    return result<T>(std::forward<T>(value));
+    -> std::enable_if_t<
+        !mc::futures::detail::is_future_v<T>,
+        result<mc::futures::detail::state_tt<T>>> {
+    return result<mc::futures::detail::state_tt<T>>(std::forward<T>(value));
 }
 
 template <typename T>
 auto make_result(mc::future<T>&& value) {
     using value_type = typename mc::future<T>::value_type;
-    return result<value_type>(std::forward<mc::future<T>>(value));
+    return result<mc::futures::detail::state_tt<value_type>>(std::forward<mc::future<T>>(value));
 }
 
 inline auto make_result() {
@@ -336,12 +338,12 @@ inline auto make_result() {
 
 template <typename T>
 auto make_result(const mc::exception& ex) {
-    return result<T>(ex);
+    return result<mc::futures::detail::state_tt<T>>(ex);
 }
 
 template <typename T>
 auto make_result(mc::error_ptr&& err) {
-    return result<T>(std::forward<mc::error_ptr>(err));
+    return result<mc::futures::detail::state_tt<T>>(std::forward<mc::error_ptr>(err));
 }
 
 // mc::reflect 反射系统要求函数返回值必须可转换成 mc::variant

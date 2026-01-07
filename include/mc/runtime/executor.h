@@ -247,6 +247,8 @@ private:
         void bound_pool(thread_pool* pool) noexcept override {
             if constexpr (detail::has_bound_pool_v<Executor>) {
                 m_executor.bound_pool(pool);
+            } else {
+                MC_UNUSED(pool);
             }
         }
 

@@ -200,23 +200,21 @@ auto Future<T>::then(F&& func, launch policy, std::optional<mc::any_executor> ex
 
 template <typename T>
 template <typename OtherT>
-auto Future<T>::as_future(std::optional<mc::any_executor> executor) -> Future<OtherT> {
-    if constexpr (std::is_same_v<OtherT, T>) {
+auto Future<T>::as_future(std::optional<mc::any_executor> executor)
+    -> Future<detail::state_tt<OtherT>> {
+    using other_type = detail::state_tt<OtherT>;
+    if constexpr (std::is_same_v<other_type, T>) {
         return std::move(*this);
-    } else if constexpr (std::is_same_v<OtherT, void>) {
-        return then([](auto&&) -> OtherT {
+    } else if constexpr (std::is_same_v<other_type, void>) {
+        return then([](auto&&) {
         }, launch::async, executor);
     } else if constexpr (std::is_same_v<T, void>) {
-        return then([]() -> OtherT {
-            return OtherT{};
-        }, launch::async, executor);
-    } else if constexpr (std::is_same_v<OtherT, std::monostate>) {
-        return then([](auto&&) -> OtherT {
-            return std::monostate{};
+        return then([]() -> other_type {
+            return other_type{};
         }, launch::async, executor);
     } else {
-        return then([](auto&& value) -> OtherT {
-            return OtherT(value);
+        return then([](auto&& value) -> other_type {
+            return other_type(value);
         }, launch::async, executor);
     }
 }

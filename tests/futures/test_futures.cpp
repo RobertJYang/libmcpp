@@ -780,9 +780,9 @@ TEST_F(FuturesTest, ContainerAllWithException) {
     promises[1].set_exception(std::make_exception_ptr(std::runtime_error("测试异常")));
 
     EXPECT_THROW(all_future.get(), std::exception);
-    EXPECT_EQ(futures[0].is_ready(), true);     // 第一个完成
-    EXPECT_EQ(futures[1].is_rejected(), true);  // 第二个异常
-    EXPECT_EQ(futures[2].is_cancelled(), true); // 第三个结果因为第二个异常而取消
+    EXPECT_EQ(futures[0].is_ready(), true);                 // 第一个完成
+    EXPECT_EQ(futures[1].is_rejected(), true);              // 第二个异常
+    EXPECT_THROW(futures[2].get(), mc::canceled_exception); // 第三个结果因为第二个异常而取消
 }
 
 // 任意一个子 future 取消，all 也会取消
@@ -2136,12 +2136,11 @@ TEST_F(FuturesTest, AsFutureToMonostate) {
     auto promise = mc::make_promise<int>(get_io_context());
     auto future  = promise.get_future();
 
-    // 从 int 转换为 std::monostate
-    auto monostate_future = future.as_future<std::monostate>();
+    // 从 int 转换为 std::monostate，这会被转换成 Future<void> 类型
+    auto void_future = future.as_future<std::monostate>();
     promise.set_value(42);
 
-    // 应该得到 std::monostate{}
-    EXPECT_EQ(monostate_future.get(), std::monostate{});
+    EXPECT_NO_THROW(void_future.get());
 }
 
 // 测试 as_future 不同类型之间的转换（int 转 double）
