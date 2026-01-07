@@ -209,9 +209,13 @@ public:
     template <typename F>
     auto finally(F&& cleanup, launch policy = launch::async, std::optional<mc::any_executor> executor = std::nullopt) -> future_type;
 
-    // 查看值但不改变（用于调试/日志）
+    // 查看值但不改变
     template <typename F>
-    auto tap(F&& inspector, launch policy = launch::async, std::optional<mc::any_executor> executor = std::nullopt) -> future_type;
+    auto tap(F&& inspector, launch policy = launch::async) -> future_type;
+
+    template <typename F>
+    auto tap_error(F&& inspector, launch policy = launch::async)
+        -> std::enable_if_t<std::is_invocable_v<F, const mc::exception&>, future_type>;
 
     // 添加取消回调（用于清理资源）- 左值引用版本
     template <typename F>
@@ -225,7 +229,7 @@ public:
 
     // 获取结果（异步等待）
     template <typename CompletionToken>
-    void async_get(CompletionToken&& token, launch policy = launch::async);
+    void async_get(CompletionToken&& token, launch policy = launch::async, std::optional<mc::any_executor> executor = std::nullopt);
 
     // 同步获取结果
     template <typename U = T>

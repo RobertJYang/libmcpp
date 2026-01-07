@@ -37,10 +37,6 @@ void any_promise::set_result_inner(bool strict_once) {
     m_state->m_ready.store(true, std::memory_order_release);
 }
 
-void any_promise::set_exception(std::exception_ptr e) {
-    set_exception(std::move(e), true);
-}
-
 void any_promise::set_exception(std::exception_ptr e, bool strict_once) {
     if (!m_state || m_state->is_cancelled()) {
         return;
@@ -65,7 +61,7 @@ void any_promise::set_exception(std::exception_ptr e, bool strict_once) {
     m_state->mark_ready();
 }
 
-void any_promise::set_exception(const mc::exception& e) {
+void any_promise::set_exception(const mc::exception& e, bool strict_once) {
     if (!m_state || m_state->is_cancelled()) {
         return;
     }
@@ -73,7 +69,7 @@ void any_promise::set_exception(const mc::exception& e) {
     try {
         e.dynamic_rethrow_exception();
     } catch (...) {
-        set_exception(std::current_exception());
+        set_exception(std::current_exception(), strict_once);
     }
 }
 
@@ -104,6 +100,12 @@ bool any_promise::set_bound() {
 
 const state_base_ptr& any_promise::get_state() const noexcept {
     return m_state;
+}
+
+void any_promise::set_executor(const any_executor& executor) {
+    if (m_state) {
+        m_state->m_executor = executor;
+    }
 }
 
 void any_promise::reset() {

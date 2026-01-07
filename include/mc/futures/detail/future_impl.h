@@ -141,7 +141,7 @@ T Future<T>::get_for(Duration duration) const {
 
 template <typename T>
 template <typename CompletionToken>
-void Future<T>::async_get(CompletionToken&& token, launch policy) {
+void Future<T>::async_get(CompletionToken&& token, launch policy, std::optional<mc::any_executor> executor) {
     if (!m_state) {
         return;
     }
@@ -155,7 +155,8 @@ void Future<T>::async_get(CompletionToken&& token, launch policy) {
             }
         }
     };
-    add_continuation(std::move(continuation), policy);
+    any_executor ex(executor ? *executor : any_future::get_executor());
+    add_continuation(std::move(continuation), policy, ex);
 }
 
 template <typename T>
@@ -174,7 +175,7 @@ auto Future<T>::then(F&& func, launch policy, std::optional<mc::any_executor> ex
     auto promise = make_promise<ResultType>(ex);
     auto future  = promise.get_future().on_cancel(*this);
     promise.set_policy(policy);
-    add_continuation(make_continuation<T>(std::move(promise), std::forward<F>(func), get_state()), policy);
+    add_continuation(make_continuation<T>(std::move(promise), std::forward<F>(func), get_state()), policy, ex);
     return future;
 }
 
@@ -193,7 +194,7 @@ auto Future<T>::then(F&& func, launch policy, std::optional<mc::any_executor> ex
     auto promise = make_promise<ResultType>(ex);
     auto future  = promise.get_future().on_cancel(*this);
     promise.set_policy(policy);
-    add_continuation(make_continuation<T>(std::move(promise), std::forward<F>(func), get_state()), policy);
+    add_continuation(make_continuation<T>(std::move(promise), std::forward<F>(func), get_state()), policy, ex);
     return future;
 }
 
@@ -235,7 +236,7 @@ auto Future<T>::catch_error(F&& func, launch policy, std::optional<mc::any_execu
 
     auto promise = make_promise<T>(ex);
     auto future  = promise.get_future().on_cancel(*this);
-    add_continuation(make_error_continuation<T>(std::move(promise), std::forward<F>(func), get_state()), policy);
+    add_continuation(make_error_continuation<T>(std::move(promise), std::forward<F>(func), get_state()), policy, ex);
     return future;
 }
 
@@ -254,7 +255,7 @@ auto Future<T>::catch_error(F&& func, launch policy, std::optional<mc::any_execu
 
     auto promise = make_promise<T>(ex);
     auto future  = promise.get_future().on_cancel(*this);
-    add_continuation(make_error_continuation<T>(std::move(promise), std::forward<F>(func), get_state()), policy);
+    add_continuation(make_error_continuation<T>(std::move(promise), std::forward<F>(func), get_state()), policy, ex);
     return future;
 }
 
@@ -272,31 +273,43 @@ auto Future<T>::finally(F&& cleanup, launch policy, std::optional<mc::any_execut
     any_future::finally(promise, [promise, cleanup = std::forward<F>(cleanup), state = get_state()]() mutable {
         cleanup();
         promise.set_state_value(*state);
-    }, policy);
+    }, policy, ex);
     return future;
 }
 
 template <typename T>
 template <typename F>
-auto Future<T>::tap(F&& inspector, launch policy, std::optional<mc::any_executor> executor) -> future_type {
-    any_executor ex(executor ? *executor : any_future::get_executor());
+auto Future<T>::tap(F&& inspector, launch policy) -> future_type {
     if (!m_state) {
-        auto future = Future<T>(detail::make_rejected_state<T>(make_invalid_future_exception(), ex));
-        return future.tap(std::forward<F>(inspector), policy, executor);
+        return Future<T>(detail::make_rejected_state<T>(
+            make_invalid_future_exception(),
+            mc::any_executor(mc::runtime::immediate_executor())));
     }
 
-    auto promise = make_promise<T>(ex);
-    auto future  = promise.get_future().on_cancel(*this);
-    any_future::finally(promise, [promise, inspector = std::forward<F>(inspector), state = get_state()]() mutable {
-        if (promise.set_state_value(*state)) {
+    any_future::add_continuation([inspector = std::forward<F>(inspector), state = get_state()]() mutable {
+        if (state->is_ready()) {
             if constexpr (std::is_void_v<T>) {
                 inspector();
             } else {
                 inspector(state->get_value());
             }
         }
-    }, policy);
-    return future;
+    }, policy, mc::any_executor(mc::runtime::immediate_executor())); // tap 回调立即执行
+    return *this;
+}
+
+template <typename T>
+template <typename F>
+auto Future<T>::tap_error(F&& inspector, launch policy)
+    -> std::enable_if_t<std::is_invocable_v<F, const mc::exception&>, future_type> {
+    if (!m_state) {
+        auto future = Future<T>(detail::make_rejected_state<T>(
+            make_invalid_future_exception(), mc::any_executor(mc::runtime::immediate_executor())));
+        return future.tap_error(std::forward<F>(inspector), policy);
+    }
+
+    any_future::tap_error(std::forward<F>(inspector), policy); // tap_error 回调立即执行
+    return *this;
 }
 
 template <typename T>

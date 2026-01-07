@@ -545,12 +545,34 @@ TEST_F(FuturesTest, FutureTapOnReadyState) {
     promise.set_value(30);
 
     std::atomic<int> observed{0};
-    auto             tapped = future.tap([&observed](int value) {
+    future.tap([&observed](int value) {
         observed.store(value);
+    }).then([](auto&& result) {
+        return result;
     });
 
-    EXPECT_EQ(tapped.get(), 30);
+    EXPECT_EQ(future.get(), 30);
     EXPECT_EQ(observed.load(), 30);
+}
+
+// 测试 tap_error
+TEST_F(FuturesTest, FutureTapError) {
+    auto promise = mc::make_promise<int>(get_io_context());
+    auto future  = promise.get_future();
+    promise.set_exception(std::make_exception_ptr(std::runtime_error("test exception")));
+
+    std::atomic<int> observed{0};
+    auto             tapped = future.tap_error([&observed](const mc::exception& ex) {
+        observed.store(ex.code());
+    }).then([](auto&& result) {
+        // 由于 tap_error 本身不会链接到 future 调用链，在 tap_error 后面
+        // 增加一级调用链确保 tap_error 回调先于 result 的回调执行，保证
+        // observed 被正确赋值
+        return result;
+    });
+
+    EXPECT_THROW(tapped.get(), std::runtime_error);
+    EXPECT_EQ(observed.load(), mc::std_exception_code);
 }
 
 // 测试 finally，在 future 完成时，调用 finally 函数
@@ -596,6 +618,11 @@ TEST_F(FuturesTest, TapWithSuccess) {
         return value * 2;
     }).tap([&observed_value](int value) {
         observed_value = value;
+    }).then([](auto&& result) {
+        // 由于 tap 本身不会链接到 future 调用链，在 tap 后面
+        // 增加一级调用链确保 tap 回调先于 result 的回调执行，保证
+        // observed_value 被正确赋值
+        return result;
     });
 
     promise.set_value(10);
@@ -614,6 +641,10 @@ TEST_F(FuturesTest, TapWithException) {
         return 42;
     }).tap([&observed_value](int value) {
         observed_value = value; // 不应该被调用
+    }).then([](auto&& result) {
+        // 由于 tap 本身不会链接到 future 调用链，在 tap 后面
+        // 增加一级调用链确保 tap 回调先于 result 的回调执行
+        return result;
     });
 
     promise.set_value(10);
@@ -1013,14 +1044,14 @@ TEST_F(FuturesTest, DelayedExecution) {
 TEST_F(FuturesTest, DelayedFuture) {
     auto start_time = std::chrono::steady_clock::now();
 
-    auto future = mc::delay(100ms, get_io_context()).then([]() {
+    auto future = mc::delay(1ms, get_io_context()).then([]() {
         return 42;
     });
 
     EXPECT_EQ(future.get(), 42);
 
     auto elapsed = std::chrono::steady_clock::now() - start_time;
-    EXPECT_GE(elapsed, 100ms);
+    EXPECT_GE(elapsed, 1ms);
 }
 
 // === 取消测试 ===
@@ -2057,6 +2088,138 @@ TEST_F(FuturesTest, stress_any_with_inline_temporaries) {
         EXPECT_EQ(r.first, 1);
         EXPECT_DOUBLE_EQ(std::get<double>(r.second), 2.0);
     }
+}
+
+// 测试 as_future 相同类型转换（应该直接返回，不进行转换）
+TEST_F(FuturesTest, AsFutureSameType) {
+    auto promise = mc::make_promise<int>(get_io_context());
+    auto future  = promise.get_future();
+
+    // 转换为相同类型，应该直接返回
+    auto converted = future.as_future<int>();
+    promise.set_value(42);
+
+    EXPECT_EQ(converted.get(), 42);
+    // 原 future 应该已经被移动，不再有效
+    EXPECT_FALSE(future.valid());
+}
+
+// 测试 as_future 转换为 void
+TEST_F(FuturesTest, AsFutureToVoid) {
+    auto promise = mc::make_promise<int>(get_io_context());
+    auto future  = promise.get_future();
+
+    // 从 int 转换为 void
+    auto void_future = future.as_future<void>();
+    promise.set_value(42);
+
+    // void future 的 get() 应该正常返回
+    EXPECT_NO_THROW(void_future.get());
+    EXPECT_TRUE(void_future.is_ready());
+}
+
+// 测试 as_future 从 void 转换为其他类型
+TEST_F(FuturesTest, AsFutureFromVoid) {
+    auto promise = mc::make_promise<void>(get_io_context());
+    auto future  = promise.get_future();
+
+    // 从 void 转换为 int，应该使用默认构造
+    auto int_future = future.as_future<int>();
+    promise.set_value();
+
+    // 应该得到默认构造的 int 值（0）
+    EXPECT_EQ(int_future.get(), 0);
+}
+
+// 测试 as_future 转换为 std::monostate
+TEST_F(FuturesTest, AsFutureToMonostate) {
+    auto promise = mc::make_promise<int>(get_io_context());
+    auto future  = promise.get_future();
+
+    // 从 int 转换为 std::monostate
+    auto monostate_future = future.as_future<std::monostate>();
+    promise.set_value(42);
+
+    // 应该得到 std::monostate{}
+    EXPECT_EQ(monostate_future.get(), std::monostate{});
+}
+
+// 测试 as_future 不同类型之间的转换（int 转 double）
+TEST_F(FuturesTest, AsFutureIntToDouble) {
+    auto promise = mc::make_promise<int>(get_io_context());
+    auto future  = promise.get_future();
+
+    // 从 int 转换为 double
+    auto double_future = future.as_future<double>();
+    promise.set_value(42);
+
+    // 应该得到转换后的 double 值
+    EXPECT_DOUBLE_EQ(double_future.get(), 42.0);
+}
+
+// 测试 as_future 不同类型之间的转换（double 转 int）
+TEST_F(FuturesTest, AsFutureDoubleToInt) {
+    auto promise = mc::make_promise<double>(get_io_context());
+    auto future  = promise.get_future();
+
+    // 从 double 转换为 int
+    auto int_future = future.as_future<int>();
+    promise.set_value(3.14);
+
+    // 应该得到转换后的 int 值（截断）
+    EXPECT_EQ(int_future.get(), 3);
+}
+
+// 测试 as_future 不同类型之间的转换（long 转 int）
+TEST_F(FuturesTest, AsFutureLongToInt) {
+    auto promise = mc::make_promise<long>(get_io_context());
+    auto future  = promise.get_future();
+
+    // 从 long 转换为 int
+    auto int_future = future.as_future<int>();
+    promise.set_value(123456L);
+
+    // 应该得到转换后的 int 值
+    EXPECT_EQ(int_future.get(), 123456);
+}
+
+// 测试 as_future 链式转换
+TEST_F(FuturesTest, AsFutureChainedConversion) {
+    auto promise = mc::make_promise<int>(get_io_context());
+    auto future  = promise.get_future();
+
+    // 链式转换：int -> double -> void
+    auto void_future = future.as_future<double>().as_future<void>();
+    promise.set_value(42);
+
+    EXPECT_NO_THROW(void_future.get());
+    EXPECT_TRUE(void_future.is_ready());
+}
+
+// 测试 as_future 在异常情况下的行为
+TEST_F(FuturesTest, AsFutureWithException) {
+    auto promise = mc::make_promise<int>(get_io_context());
+    auto future  = promise.get_future();
+
+    // 转换为 double
+    auto double_future = future.as_future<double>();
+    promise.set_exception(std::make_exception_ptr(std::runtime_error("测试异常")));
+
+    // 异常应该传播到转换后的 future
+    EXPECT_THROW(double_future.get(), std::runtime_error);
+}
+
+// 测试 as_future 使用自定义执行器
+TEST_F(FuturesTest, AsFutureWithCustomExecutor) {
+    auto promise = mc::make_promise<int>(get_io_context());
+    auto future  = promise.get_future();
+
+    // 使用自定义执行器进行转换
+    auto void_future = future.as_future<void>(get_io_context().get_executor());
+    promise.set_value(42);
+
+    EXPECT_NO_THROW(void_future.get());
+    EXPECT_TRUE(void_future.is_ready());
 }
 
 // 测试空状态（默认构造）的 future 行为

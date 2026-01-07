@@ -115,23 +115,24 @@ std::exception_ptr any_future::get_exception() const noexcept {
     return m_state->get_exception();
 }
 
-void any_future::add_continuation(callback_type continuation, launch policy) const {
+void any_future::add_continuation(callback_type continuation, launch policy, std::optional<mc::any_executor> executor) {
     if (!m_state) {
         return;
     }
 
     std::unique_lock lock(m_state->m_mutex);
+
+    auto ex = executor ? *executor : m_state->m_executor;
     if (m_state->is_ready()) {
-        auto e = m_state->m_executor;
         lock.unlock(); // 解锁，防止 dispatch 或 immediate_executor 立即执行回调造成死锁
 
         if (policy == launch::dispatch) {
-            boost::asio::dispatch(e, std::move(continuation));
+            boost::asio::dispatch(ex, std::move(continuation));
         } else {
-            boost::asio::post(e, std::move(continuation));
+            boost::asio::post(ex, std::move(continuation));
         }
     } else {
-        m_state->m_continuations.push_back([e = m_state->m_executor, policy, c = std::move(continuation)]() {
+        m_state->m_continuations.push_back([e = std::move(ex), policy, c = std::move(continuation)]() {
             if (policy == launch::dispatch) {
                 boost::asio::dispatch(e, std::move(c));
             } else {
@@ -141,7 +142,7 @@ void any_future::add_continuation(callback_type continuation, launch policy) con
     }
 }
 
-void any_future::finally(any_promise& promise, callback_type cleanup, launch policy) {
+void any_future::finally(any_promise& promise, callback_type cleanup, launch policy, std::optional<mc::any_executor> executor) {
     if (!m_state) {
         promise.set_exception(make_invalid_future_exception());
         return;
@@ -153,7 +154,29 @@ void any_future::finally(any_promise& promise, callback_type cleanup, launch pol
         } catch (...) {
             promise.set_exception(std::current_exception());
         }
-    }, policy);
+    }, policy, executor);
+}
+
+void any_future::tap_error(std::function<void(const mc::exception&)> inspector, launch policy) {
+    if (!m_state) {
+        return;
+    }
+
+    any_future::add_continuation([handler = std::move(inspector), state = get_state()]() mutable {
+        if (state->is_rejected()) {
+            try {
+                std::rethrow_exception(state->get_exception());
+            } catch (const mc::exception& mc_ex) {
+                handler(mc_ex);
+            } catch (const std::exception& std_ex) {
+                auto wrapped_ex = mc::std_exception_wrapper::from_current_exception(std_ex);
+                handler(wrapped_ex);
+            } catch (...) {
+                auto unknown_ex = MC_MAKE_EXCEPTION(mc::exception, "Unknown Future Exception");
+                handler(unknown_ex);
+            }
+        }
+    }, policy, mc::any_executor(mc::runtime::immediate_executor()));
 }
 
 future_status any_future::wait_for_impl(std::chrono::steady_clock::duration duration) const {

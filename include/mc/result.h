@@ -281,6 +281,16 @@ public:
         return m_future.finally(std::forward<F>(func));
     }
 
+    template <typename F>
+    auto tap(F&& func, launch policy = launch::async) {
+        return m_future.tap(std::forward<F>(func), policy);
+    }
+
+    template <typename F>
+    auto tap_error(F&& func, launch policy = launch::async) {
+        return m_future.tap_error(std::forward<F>(func), policy);
+    }
+
     auto as_future() {
         return m_future;
     }

@@ -61,8 +61,8 @@ public:
     void reset();
     void cancel();
 
-    void set_exception(std::exception_ptr e);
-    void set_exception(const mc::exception& e);
+    void set_exception(std::exception_ptr e, bool strict_once = true);
+    void set_exception(const mc::exception& e, bool strict_once = true);
 
     inline launch get_policy() const noexcept {
         return m_state ? m_state->m_policy : launch::async;
@@ -88,9 +88,9 @@ public:
 
     const state_base_ptr& get_state() const noexcept;
 
-protected:
-    void set_exception(std::exception_ptr e, bool strict_once);
+    void set_executor(const any_executor& executor);
 
+protected:
     template <typename T, typename U = T>
     auto set_value(U&& value, bool strict_once = true) -> std::enable_if_t<!detail::is_future_v<T>, void> {
         if (!m_state || m_state->is_cancelled()) {

@@ -94,12 +94,14 @@ public:
 
     static any_future delay(duration_type duration, executor_type executor);
 
+    void add_continuation(callback_type continuation, launch policy = launch::async, std::optional<mc::any_executor> executor = std::nullopt);
+
 protected:
     void on_cancel(callback_type callback);
     void on_cancel(any_promise& other_promise);
     void on_cancel(any_future& other_future);
-    void add_continuation(callback_type continuation, launch policy = launch::async) const;
-    void finally(any_promise& promise, callback_type cleanup, launch policy = launch::async);
+    void finally(any_promise& promise, callback_type cleanup, launch policy = launch::async, std::optional<mc::any_executor> executor = std::nullopt);
+    void tap_error(std::function<void(const mc::exception&)> inspector, launch policy);
 
     state_base_ptr m_state;
 
