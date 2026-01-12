@@ -20,7 +20,7 @@ callback_pool& callback_pool::instance() {
     return mc::singleton<callback_pool>::instance();
 }
 
-std::unique_ptr<callback_node> callback_pool::acquire_node(std::function<void()> callback) {
+std::unique_ptr<callback_node> callback_pool::acquire_node(callback_type callback) {
     std::unique_ptr<callback_node> node;
 
     {
@@ -84,7 +84,7 @@ void callback_pool::clear() {
     m_pool_size = 0;
 }
 
-void callback_list::push_back(std::function<void()> callback) {
+void callback_list::push_back(callback_type callback) {
     auto node = callback_pool::instance().acquire_node(std::move(callback));
     if (!m_head) {
         m_tail = node.get();
@@ -128,6 +128,16 @@ void callback_list::clear() {
 
 bool callback_list::empty() const {
     return m_head == nullptr;
+}
+
+std::size_t callback_list::size() const {
+    std::size_t count  = 0;
+    auto*       cursor = m_head.get();
+    while (cursor != nullptr) {
+        ++count;
+        cursor = cursor->m_next.get();
+    }
+    return count;
 }
 
 } // namespace mc::futures

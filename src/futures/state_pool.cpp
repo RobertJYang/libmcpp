@@ -21,13 +21,20 @@
 
 namespace mc::futures {
 
-struct empty_mutex {
-    void lock() {
-    }
+void state_base_deleter::destroy(state_base* ptr) {
+    ptr->destory();
+}
 
-    void unlock() {
+void state_base_deleter::deallocate(const void* ptr) {
+    state_base* p_state = static_cast<state_base*>(const_cast<void*>(ptr));
+    MC_ASSERT_THROW((p_state != nullptr && p_state->ref_count() == 0 && p_state->weak_count() == 0),
+                    mc::runtime_exception, "state_base 指针不能为 nullptr 或 value_size 不能为 0");
+    auto& pool = state_pool::instance();
+    if (!pool.try_release_to_pool(p_state, p_state->value_size())) {
+        p_state->~state_base();
+        free(p_state);
     }
-};
+}
 
 // 固定大小的 State 缓存池
 class sized_state_pool {
@@ -44,12 +51,13 @@ public:
             return nullptr;
         }
 
-        auto ptr = m_pool.front();
+        auto* ptr = m_pool.front();
         m_pool.pop();
+        new (ptr) mc::shared_base();
         return ptr;
     }
 
-    bool release(void* ptr) {
+    bool release(state_base* ptr) {
         if (m_pool.size() >= m_max_size) {
             return false;
         }
@@ -72,20 +80,16 @@ public:
             auto* ptr = m_pool.front();
             m_pool.pop();
 
-            // 构造一个 State 类型作为中介用于获取 state_base 指针
-            // 这是安全的因为 State 的继承顺序是：enable_shared_from_this -> state_base -> state_value，模板参数只影响
-            // state_value 部分，不会影响 state_base 的偏移。
-            using state_type     = State<int, mc::runtime::executor, std::allocator<void>>;
-            auto* state          = static_cast<state_type*>(ptr);
-            auto* state_base_ptr = static_cast<state_base*>(state);
-            state_base_ptr->~state_base();
-            free(ptr);
+            // 缓存池中的 state 只需要析构 state_base 部分，value 部分在放入池中时已经析构了
+            auto* p_state = static_cast<state_base*>(ptr);
+            p_state->~state_base();
+            free(p_state);
         }
     }
 
 private:
-    std::queue<void*> m_pool;     // 存储 State 指针的队列
-    std::size_t       m_max_size; // 最大缓存池大小
+    std::queue<state_base*> m_pool;     // 存储 State 指针的队列
+    std::size_t             m_max_size; // 最大缓存池大小
 };
 
 using state_pool_map = std::unordered_map<std::size_t, std::unique_ptr<sized_state_pool>>;
@@ -102,7 +106,7 @@ public:
 
     void  clear_all_pools();
     void* try_acquire_state(std::size_t state_size);
-    bool  try_release_state_to_pool(void* ptr, std::size_t state_size);
+    bool  try_release_state_to_pool(state_base* ptr, std::size_t state_size);
 
 private:
     sized_state_pool* get_global_pool(std::size_t state_size, bool need_create = true);
@@ -116,20 +120,6 @@ private:
     state_pool_config  m_config;       // 缓存池配置
     state_pool_map     m_global_pools; // 全局缓存池
 };
-
-// 重置状态，但保留 mutex 和 cv 以避免重构造开销
-void state_base::reset() {
-    ready.store(false);
-    deferred.store(false);
-    cancelled.store(false);
-    policy = launch::async;
-    m_continuations.clear();
-    m_cancel_callbacks.clear();
-}
-
-void state_base::reuse() {
-    // 因为 reset 时重置了状态，并且保留了 mutex 和 cv，所以这里什么都不需要做
-}
 
 // 设置缓存池配置
 void state_pool::impl::set_config(const state_pool_config& config) {
@@ -181,7 +171,7 @@ void* state_pool::impl::try_acquire_state(std::size_t size) {
 }
 
 // 将 State 对象释放回池中，返回是否成功放入池中
-bool state_pool::impl::try_release_state_to_pool(void* ptr, std::size_t size) {
+bool state_pool::impl::try_release_state_to_pool(state_base* ptr, std::size_t size) {
     if (!ptr) {
         return false;
     }
@@ -245,8 +235,9 @@ state_pool::state_pool() : m_pimpl(std::make_unique<impl>()) {
 state_pool::~state_pool() = default;
 
 state_pool& state_pool::instance() {
-    static state_pool instance;
-    return instance;
+    return mc::singleton<state_pool>::instance_with_creator([]() {
+        return new state_pool();
+    });
 }
 
 void state_pool::set_config(const state_pool_config& config) {
@@ -269,7 +260,7 @@ void* state_pool::try_acquire_state(std::size_t state_size) {
     return m_pimpl->try_acquire_state(state_size);
 }
 
-bool state_pool::try_release_to_pool(void* ptr, std::size_t state_size) {
+bool state_pool::try_release_to_pool(state_base* ptr, std::size_t state_size) {
     return m_pimpl->try_release_state_to_pool(ptr, state_size);
 }
 

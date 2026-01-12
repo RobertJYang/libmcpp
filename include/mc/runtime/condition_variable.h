@@ -35,60 +35,35 @@ public:
     condition_variable(const condition_variable&)            = delete;
     condition_variable& operator=(const condition_variable&) = delete;
 
-    void notify_one() noexcept;
-
-    void notify_all() noexcept;
-
+    // 等待条件变量
     template <typename Lock>
-    void wait(Lock& lock) {
-        if (auto* shard = thread_pool::get_current_shard()) {
-            wait_on_worker(lock, shard);
-        } else {
-            m_cv.wait(lock);
-        }
-    }
-
+    void wait(Lock& lock);
     template <typename Lock, typename Predicate>
-    void wait(Lock& lock, Predicate pred) {
-        while (!pred()) {
-            wait(lock);
-        }
-    }
+    void wait(Lock& lock, Predicate pred);
 
+    // 等待一段时间
     template <typename Lock, typename Rep, typename Period>
     std::cv_status wait_for(Lock&                                     lock,
-                            const std::chrono::duration<Rep, Period>& rel_time) {
-        return wait_until(lock, std::chrono::steady_clock::now() + rel_time);
-    }
-
+                            const std::chrono::duration<Rep, Period>& rel_time);
     template <typename Lock, typename Rep, typename Period, typename Predicate>
     bool wait_for(Lock&                                     lock,
                   const std::chrono::duration<Rep, Period>& rel_time,
-                  Predicate                                 pred) {
-        return wait_until(lock, std::chrono::steady_clock::now() + rel_time, std::move(pred));
-    }
+                  Predicate                                 pred);
 
+    // 等待直到某个时间点
     template <typename Lock, typename Clock, typename Duration>
     std::cv_status wait_until(Lock&                                           lock,
-                              const std::chrono::time_point<Clock, Duration>& abs_time) {
-        if (auto* shard = thread_pool::get_current_shard()) {
-            return wait_until_on_worker(lock, shard, abs_time);
-        } else {
-            return m_cv.wait_until(lock, abs_time);
-        }
-    }
-
+                              const std::chrono::time_point<Clock, Duration>& abs_time);
     template <typename Lock, typename Clock, typename Duration, typename Predicate>
     bool wait_until(Lock&                                           lock,
                     const std::chrono::time_point<Clock, Duration>& abs_time,
-                    Predicate                                       pred) {
-        while (!pred()) {
-            if (wait_until(lock, abs_time) == std::cv_status::timeout) {
-                return pred();
-            }
-        }
-        return true;
-    }
+                    Predicate                                       pred);
+
+    // 通知一个等待者
+    void notify_one() noexcept;
+
+    // 通知所有等待者
+    void notify_all() noexcept;
 
 private:
     struct WaiterNode;
@@ -140,111 +115,152 @@ private:
     };
 
     template <typename Lock>
-    void wait_on_worker(Lock& lock, thread_pool::shard_t* shard) {
-        WaiterNode node{shard, false};
-        add_waiter(&node);
-        waiter_cleanup cleanup(this, &node);
-
-        // 检查递归深度
-        thread_pool::scoped_recursion_guard recursion_guard(shard);
-        if (!recursion_guard.can_schedule()) {
-            report_recursion_depth_exceeded();
-            // 如果嵌套太深，我们回退到传统的条件变量等待
-            // 注意：notify_one 会同时设置 node.notified 并调用 m_cv.notify_one()
-            // 所以我们可以安全地等待 m_cv
-            m_cv.wait(lock, [&] {
-                return node.notified.load(std::memory_order_acquire);
-            });
-
-            cleanup.remove();
-            return;
-        }
-
-        lock.unlock();
-
-        try {
-            while (!node.notified.load(std::memory_order_acquire)) {
-                if (shard->ctx->stopped()) {
-                    shard->ctx->restart();
-                }
-                shard->ctx->run_one();
-            }
-        } catch (...) {
-        }
-
-        lock.lock();
-        cleanup.remove();
-    }
+    void wait_on_worker(Lock& lock, thread_pool::shard_t* shard);
 
     template <typename Lock, typename Clock, typename Duration>
-    std::cv_status wait_until_on_worker(Lock&                                           lock,
-                                        thread_pool::shard_t*                           shard,
-                                        const std::chrono::time_point<Clock, Duration>& abs_time) {
-        WaiterNode node{shard, false};
-        add_waiter(&node);
-        waiter_cleanup cleanup(this, &node);
+    std::cv_status wait_until_on_worker(
+        Lock&                                           lock,
+        thread_pool::shard_t*                           shard,
+        const std::chrono::time_point<Clock, Duration>& abs_time);
+};
 
-        // 检查递归深度
-        thread_pool::scoped_recursion_guard recursion_guard(shard);
-        if (!recursion_guard.can_schedule()) {
-            report_recursion_depth_exceeded();
-            // 如果嵌套太深回退到传统的条件变量等待
-            bool timed_out = false;
-            if (m_cv.wait_until(lock, abs_time, [&] {
-                return node.notified.load(std::memory_order_acquire);
-            })) {
-                // 条件满足（被通知）
-            } else {
-                // 超时
-                timed_out = true;
-            }
+template <typename Lock>
+void condition_variable::wait(Lock& lock) {
+    if (auto* shard = thread_pool::get_current_shard()) {
+        wait_on_worker(lock, shard);
+    } else {
+        m_cv.wait(lock);
+    }
+}
 
-            cleanup.remove();
-            return timed_out ? std::cv_status::timeout : std::cv_status::no_timeout;
+template <typename Lock, typename Predicate>
+void condition_variable::wait(Lock& lock, Predicate pred) {
+    while (!pred()) {
+        wait(lock);
+    }
+}
+
+template <typename Lock, typename Rep, typename Period>
+std::cv_status condition_variable::wait_for(
+    Lock&                                     lock,
+    const std::chrono::duration<Rep, Period>& rel_time) {
+    return wait_until(lock, std::chrono::steady_clock::now() + rel_time);
+}
+
+template <typename Lock, typename Rep, typename Period, typename Predicate>
+bool condition_variable::wait_for(
+    Lock&                                     lock,
+    const std::chrono::duration<Rep, Period>& rel_time,
+    Predicate                                 pred) {
+    return wait_until(lock, std::chrono::steady_clock::now() + rel_time, std::move(pred));
+}
+
+template <typename Lock, typename Clock, typename Duration>
+std::cv_status condition_variable::wait_until(
+    Lock&                                           lock,
+    const std::chrono::time_point<Clock, Duration>& abs_time) {
+    if (auto* shard = thread_pool::get_current_shard()) {
+        return wait_until_on_worker(lock, shard, abs_time);
+    } else {
+        return m_cv.wait_until(lock, abs_time);
+    }
+}
+
+template <typename Lock, typename Clock, typename Duration, typename Predicate>
+bool condition_variable::wait_until(
+    Lock&                                           lock,
+    const std::chrono::time_point<Clock, Duration>& abs_time,
+    Predicate                                       pred) {
+    while (!pred()) {
+        if (wait_until(lock, abs_time) == std::cv_status::timeout) {
+            return pred();
+        }
+    }
+    return true;
+}
+
+template <typename Lock, typename Clock, typename Duration>
+std::cv_status condition_variable::wait_until_on_worker(Lock&                                           lock,
+                                                        thread_pool::shard_t*                           shard,
+                                                        const std::chrono::time_point<Clock, Duration>& abs_time) {
+    WaiterNode node{shard, false};
+    add_waiter(&node);
+    waiter_cleanup cleanup(this, &node);
+
+    // 检查递归深度
+    thread_pool::scoped_recursion_guard recursion_guard(shard);
+    if (!recursion_guard.can_schedule()) {
+        report_recursion_depth_exceeded();
+        // 如果嵌套太深回退到传统的条件变量等待
+        bool timed_out = false;
+        if (m_cv.wait_until(lock, abs_time, [&] {
+            return node.notified.load(std::memory_order_acquire);
+        })) {
+            // 条件满足（被通知）
+        } else {
+            // 超时
+            timed_out = true;
         }
 
-        lock.unlock();
-
-        boost::asio::basic_waitable_timer<Clock> timer(shard->ctx->get_executor(), abs_time);
-        bool                                     timed_out = false;
-        timer.async_wait([&](const boost::system::error_code& ec) {
-            if (!ec) {
-                timed_out = true;
-            }
-        });
-
-        try {
-            while (true) {
-                if (Clock::now() >= abs_time) {
-                    timed_out = true;
-                    break;
-                }
-                if (node.notified.load(std::memory_order_acquire)) {
-                    break;
-                }
-                if (timed_out) {
-                    break;
-                }
-
-                if (shard->ctx->stopped()) {
-                    shard->ctx->restart();
-                }
-                shard->ctx->run_one();
-
-                if (timed_out) {
-                    break;
-                }
-            }
-        } catch (...) {
-        }
-
-        timer.cancel();
-        lock.lock();
         cleanup.remove();
         return timed_out ? std::cv_status::timeout : std::cv_status::no_timeout;
     }
-};
 
+    lock.unlock();
+
+    // 使用定时器来触发超时
+    boost::asio::basic_waitable_timer<Clock> timer(shard->ctx->get_executor(), abs_time);
+    bool                                     timed_out = false;
+    timer.async_wait([&](const boost::system::error_code& ec) {
+        if (!ec) {
+            timed_out = true;
+        }
+    });
+
+    shard->pool.poll_until(shard, [&]() {
+        return node.notified.load(std::memory_order_acquire) || timed_out || Clock::now() >= abs_time;
+    });
+
+    if (!node.notified.load(std::memory_order_acquire)) {
+        timed_out = true;
+    }
+
+    timer.cancel();
+    lock.lock();
+    cleanup.remove();
+    return timed_out ? std::cv_status::timeout : std::cv_status::no_timeout;
+}
+
+template <typename Lock>
+void condition_variable::wait_on_worker(Lock& lock, thread_pool::shard_t* shard) {
+    WaiterNode node{shard, false};
+    add_waiter(&node);
+    waiter_cleanup cleanup(this, &node);
+
+    // 检查递归深度
+    thread_pool::scoped_recursion_guard recursion_guard(shard);
+    if (!recursion_guard.can_schedule()) {
+        report_recursion_depth_exceeded();
+        // 如果嵌套太深，我们回退到传统的条件变量等待
+        // 注意：notify_one 会同时设置 node.notified 并调用 m_cv.notify_one()
+        // 所以我们可以安全地等待 m_cv
+        m_cv.wait(lock, [&] {
+            return node.notified.load(std::memory_order_acquire);
+        });
+
+        cleanup.remove();
+        return;
+    }
+
+    lock.unlock();
+
+    shard->pool.poll_until(shard, [&node]() {
+        return node.notified.load(std::memory_order_acquire);
+    });
+
+    lock.lock();
+    cleanup.remove();
+}
 } // namespace mc::runtime
 
 #endif // MC_RUNTIME_CONDITION_VARIABLE_H

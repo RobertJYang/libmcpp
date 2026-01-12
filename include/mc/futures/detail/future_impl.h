@@ -15,23 +15,26 @@
 
 namespace mc::futures {
 
+inline std::exception_ptr make_invalid_future_exception() {
+    return std::make_exception_ptr(MC_MAKE_EXCEPTION(invalid_future_exception, "Future 无效"));
+}
+
+template <typename T>
+inline auto make_invalid_future(any_executor ex = any_executor()) {
+    using value_type = std::conditional_t<std::is_same_v<T, std::monostate>, void, T>;
+    return Future<value_type>(detail::make_rejected_state<value_type>(
+        make_invalid_future_exception(), std::move(ex)));
+}
+
 // 调用 handler 并根据返回值类型设置 promise 结果
 template <typename T, typename Promise, typename Handler, typename... Args>
 void set_promise_value(Promise& promise, Handler&& handler, Args&&... args) {
     try {
-        if constexpr (std::is_same_v<detail::result_t<T, Handler, Args...>, void>) {
+        if constexpr (std::is_same_v<detail::result_t<T, Handler, Args...>, void> ||
+                      std::is_void_v<typename Promise::value_type>) {
             detail::invoke_func<T>(std::forward<Handler>(handler),
                                    std::forward<Args>(args)...);
             promise.set_value();
-        } else if constexpr (detail::is_future_v<detail::result_t<T, Handler, Args...>>) {
-            // 如果返回值是 Future 类型，我们需要等待它完成
-            auto future = detail::invoke_func<T>(std::forward<Handler>(handler),
-                                                 std::forward<Args>(args)...);
-            future.then([promise](auto&& value) mutable {
-                promise.template set_value<std::decay_t<decltype(value)>>(std::forward<decltype(value)>(value));
-            }).catch_error([promise](const mc::exception& ec) mutable {
-                promise.set_exception(std::current_exception());
-            }).on_cancel(promise);
         } else {
             promise.set_value(detail::invoke_func<T>(std::forward<Handler>(handler),
                                                      std::forward<Args>(args)...));
@@ -41,341 +44,10 @@ void set_promise_value(Promise& promise, Handler&& handler, Args&&... args) {
     }
 }
 
-template <bool IsVoid, typename T, typename Promise, typename F, typename State>
-void handle_result_impl(Promise& promise, F&& func, State& state) {
-    if constexpr (IsVoid) {
-        if (std::holds_alternative<std::monostate>(state->result)) {
-            set_promise_value<T>(promise, std::forward<F>(func));
-        } else {
-            set_promise_exception(promise, state);
-        }
-    } else {
-        if (auto* value = std::get_if<T>(&state->result)) {
-            set_promise_value<T>(promise, func, std::move(*value));
-        } else {
-            set_promise_exception(promise, state);
-        }
-    }
-}
-
-// 可以处理值传递或异常传递的情况
-template <typename T, typename Promise, typename F, typename State>
-void handle_state_result(Promise& promise, F&& func, State& state) {
-    handle_result_impl<std::is_void_v<T>, T>(promise, std::forward<F>(func), state);
-}
-
-// 直接传递状态结果（不调用任何函数，仅传递值或异常）
-template <typename T, typename Promise, typename State>
-void forward_state_result(Promise& promise, State& state) {
-    if constexpr (std::is_void_v<T>) {
-        if (std::holds_alternative<std::monostate>(state->result)) {
-            promise.set_value();
-        } else {
-            promise.set_exception(std::get<std::exception_ptr>(state->result));
-        }
-    } else {
-        if (auto* value = std::get_if<T>(&state->result)) {
-            promise.set_value(std::move(*value));
-        } else {
-            promise.set_exception(std::get<std::exception_ptr>(state->result));
-        }
-    }
-}
-
-// 在传递状态结果前先调用检查函数（用于 tap）
-template <typename T, typename Promise, typename F, typename State>
-void inspect_and_forward_state_result(Promise& promise, F&& inspector, State& state) {
-    if constexpr (std::is_void_v<T>) {
-        if (std::holds_alternative<std::monostate>(state->result)) {
-            inspector(); // 查看成功状态
-            promise.set_value();
-        } else {
-            // 对于异常情况，直接传递异常
-            promise.set_exception(std::get<std::exception_ptr>(state->result));
-        }
-    } else {
-        if (auto* value = std::get_if<T>(&state->result)) {
-            inspector(*value);         // 查看值但不改变
-            promise.set_value(*value); // 传递原值
-        } else {
-            promise.set_exception(std::get<std::exception_ptr>(state->result));
-        }
-    }
-}
-
-template <typename T, typename ResultType, typename Executor, typename Allocator, typename F>
-auto make_continuation(Promise<ResultType, Executor, Allocator>&& promise,
-                       F&& func, state_ptr<State<T, Executor, Allocator>> state) {
-    return [promise = std::move(promise), func = std::forward<F>(func),
-            state = std::move(state)]() mutable {
-        try {
-            handle_result_impl<std::is_void_v<T>, T>(promise, std::forward<F>(func), state);
-        } catch (...) {
-            promise.set_exception(std::current_exception());
-        }
-    };
-}
-
-template <typename T, typename Executor, typename Allocator>
-template <typename U>
-U Future<T, Executor, Allocator>::get() const {
-    wait();
-    std::lock_guard<std::mutex> lock(state_->m_mutex);
-    if constexpr (std::is_same_v<U, void>) {
-        if (std::holds_alternative<std::monostate>(state_->result)) {
-            return;
-        }
-    } else {
-        if (auto* value = std::get_if<U>(&state_->result)) {
-            return std::move(*value);
-        }
-    }
-    std::rethrow_exception(std::get<std::exception_ptr>(state_->result));
-}
-
-template <typename T, typename Executor, typename Allocator>
-template <typename Duration>
-T Future<T, Executor, Allocator>::get_for(Duration duration) const {
-    auto status = wait_for(duration);
-    if (status == future_status::timeout) {
-        MC_THROW(mc::timeout_exception, "Future 超时");
-    }
-    return get();
-}
-
-template <typename T, typename Executor, typename Allocator>
-bool Future<T, Executor, Allocator>::is_ready() const {
-    std::lock_guard<std::mutex> lock(state_->m_mutex);
-    return state_->ready;
-}
-
-template <typename T, typename Executor, typename Allocator>
-bool Future<T, Executor, Allocator>::is_rejected() const {
-    std::lock_guard<std::mutex> lock(state_->m_mutex);
-    return state_->ready && std::holds_alternative<std::exception_ptr>(state_->result);
-}
-
-template <typename T, typename Executor, typename Allocator>
-std::exception_ptr Future<T, Executor, Allocator>::get_exception() const {
-    std::lock_guard<std::mutex> lock(state_->m_mutex);
-    return std::get<std::exception_ptr>(state_->result);
-}
-
-template <typename T, typename Executor, typename Allocator>
-template <typename ResultType>
-ResultType* Future<T, Executor, Allocator>::get_if() const {
-    std::lock_guard<std::mutex> lock(state_->m_mutex);
-    return std::get_if<ResultType>(&state_->result);
-}
-
-template <typename T, typename Executor, typename Allocator>
-void Future<T, Executor, Allocator>::wait() const {
-    std::unique_lock<std::mutex> lock(state_->m_mutex);
-    if (state_->deferred) {
-        return;
-    }
-    state_->m_cv.wait(lock, [&] {
-        return state_->ready.load(std::memory_order_acquire);
-    });
-}
-
-template <typename T, typename Executor, typename Allocator>
-template <typename Duration>
-future_status Future<T, Executor, Allocator>::wait_for(Duration duration) const {
-    std::unique_lock<std::mutex> lock(state_->m_mutex);
-    if (state_->deferred) {
-        return future_status::deferred;
-    }
-
-    using duration_type = std::chrono::steady_clock::duration;
-    if (state_->m_cv.wait_for(lock, static_cast<duration_type>(duration), [&] {
-        return state_->ready.load();
-    })) {
-        return future_status::ready;
-    }
-    return future_status::timeout;
-}
-
-template <typename T, typename Executor, typename Allocator>
-template <typename TimePoint>
-future_status Future<T, Executor, Allocator>::wait_until(TimePoint timeout_time) const {
-    std::unique_lock<std::mutex> lock(state_->m_mutex);
-    if (state_->deferred) {
-        return future_status::deferred;
-    }
-
-    using time_point_type = std::chrono::steady_clock::time_point;
-    if (state_->m_cv.wait_until(lock, time_point_type(timeout_time), [&] {
-        return state_->ready.load();
-    })) {
-        return future_status::ready;
-    }
-    return future_status::timeout;
-}
-
-template <typename T, typename Executor, typename Allocator>
-template <typename CompletionToken>
-void Future<T, Executor, Allocator>::async_get(CompletionToken&& token, launch policy) {
-    auto handle_result = [token = std::forward<CompletionToken>(token)](auto& state) mutable {
-        if (auto* value = std::get_if<T>(&state->result)) {
-            token(std::move(*value));
-        } else {
-            std::rethrow_exception(std::get<std::exception_ptr>(state->result));
-        }
-    };
-
-    std::unique_lock<std::mutex> lock(state_->m_mutex);
-    if (state_->ready) {
-        if (policy == launch::deferred) {
-            state_->m_continuations.push_back(
-                [state = state_, handler = std::move(handle_result)]() mutable {
-                handler(state);
-            });
-            state_->deferred = true;
-            state_->policy   = policy;
-        } else if (policy == launch::dispatch) {
-            boost::asio::dispatch(
-                state_->executor,
-                boost::asio::bind_allocator(state_->allocator, [state = state_, handler = std::move(handle_result)]() mutable {
-                handler(state);
-            }));
-        } else {
-            boost::asio::post(state_->executor, boost::asio::bind_allocator(state_->allocator, [state = state_, handler = std::move(handle_result)]() mutable {
-                handler(state);
-            }));
-        }
-    } else {
-        state_->m_continuations.push_back(
-            [state = state_, handler = std::move(handle_result)]() mutable {
-            handler(state);
-        });
-    }
-}
-
-template <typename T, typename Executor, typename Allocator>
-template <typename F>
-auto Future<T, Executor, Allocator>::then(F&& func, launch policy)
-    -> std::enable_if_t<
-        detail::is_future_v<detail::result_t<T, F>>,
-        Future<typename detail::result_t<T, F>::value_type, Executor, Allocator>> {
-    using ResultType = typename detail::result_t<T, F>::value_type;
-    auto promise     = mc::make_promise<ResultType>(state_->executor, state_->allocator);
-    auto future      = promise.get_future().on_cancel(*this);
-
-    auto continuation = make_continuation<T, ResultType, Executor, Allocator, F>(
-        std::move(promise), std::forward<F>(func), state_);
-
-    std::lock_guard<std::mutex> lock(state_->m_mutex);
-    if (state_->ready) {
-        if (policy == launch::deferred) {
-            future.state_->m_continuations.push_back(continuation);
-            future.state_->deferred = true;
-            future.state_->policy   = policy;
-        } else if (policy == launch::dispatch) {
-            boost::asio::dispatch(state_->executor, boost::asio::bind_allocator(state_->allocator, continuation));
-        } else {
-            boost::asio::post(state_->executor, boost::asio::bind_allocator(state_->allocator, continuation));
-        }
-    } else {
-        state_->m_continuations.push_back(continuation);
-    }
-
-    return future;
-}
-
-template <typename T, typename Executor, typename Allocator>
-template <typename F>
-auto Future<T, Executor, Allocator>::then(F&& func, launch policy)
-    -> std::enable_if_t<!detail::is_future_v<detail::result_t<T, F>>,
-                        Future<detail::result_t<T, F>, Executor, Allocator>> {
-    using ResultType = detail::result_t<T, F>;
-    auto promise     = mc::make_promise<ResultType>(state_->executor, state_->allocator);
-    auto future      = promise.get_future().on_cancel(*this);
-
-    auto continuation = make_continuation<T, ResultType, Executor, Allocator, F>(
-        std::move(promise), std::forward<F>(func), state_);
-
-    std::unique_lock<std::mutex> lock(state_->m_mutex);
-    if (state_->ready) {
-        if (policy == launch::deferred) {
-            future.state_->m_continuations.push_back(continuation);
-            future.state_->deferred = true;
-            future.state_->policy   = policy;
-        } else if (policy == launch::dispatch) {
-            boost::asio::dispatch(state_->executor, boost::asio::bind_allocator(state_->allocator, continuation));
-        } else {
-            boost::asio::post(state_->executor, boost::asio::bind_allocator(state_->allocator, continuation));
-        }
-    } else {
-        state_->m_continuations.push_back(continuation);
-    }
-
-    return future;
-}
-
-template <typename T, typename Executor, typename Allocator>
-template <typename OtherT>
-auto Future<T, Executor, Allocator>::as_future() -> Future<OtherT, Executor, Allocator> {
-    if constexpr (std::is_same_v<OtherT, T>) {
-        return std::move(*this);
-    } else if constexpr (std::is_void_v<T>) {
-        return then([]() -> OtherT {
-            if constexpr (std::is_same_v<OtherT, void>) {
-                return;
-            } else {
-                return OtherT();
-            }
-        });
-    } else {
-        return then([](auto&& value) -> OtherT {
-            if constexpr (std::is_same_v<OtherT, void>) {
-                return;
-            } else {
-                return std::forward<decltype(value)>(value);
-            }
-        });
-    }
-}
-
-template <typename T, typename Executor, typename Allocator>
-template <typename OtherT, typename OtherExecutor>
-auto Future<T, Executor, Allocator>::as_future(OtherExecutor&& executor) -> Future<OtherT, OtherExecutor, Allocator> {
-    if constexpr (std::is_same_v<OtherExecutor, Executor>) {
-        return this->as_future<OtherT>();
-    } else if constexpr (std::is_void_v<T>) {
-        auto promise = mc::make_promise<OtherT>(std::forward<OtherExecutor>(executor), state_->allocator);
-        auto future  = promise.get_future().on_cancel(*this);
-        this->then([promise]() mutable {
-            if constexpr (std::is_same_v<OtherT, void>) {
-                promise.set_value();
-            } else {
-                promise.set_value(OtherT());
-            }
-        }).catch_error([promise](const mc::exception&) mutable {
-            promise.set_exception(std::current_exception());
-        });
-        return future;
-    } else {
-        auto promise = mc::make_promise<OtherT>(std::forward<OtherExecutor>(executor), state_->allocator);
-        auto future  = promise.get_future().on_cancel(*this);
-        this->then([promise](auto&& value) mutable {
-            if constexpr (std::is_same_v<OtherT, void>) {
-                promise.set_value();
-            } else {
-                promise.set_value(std::forward<decltype(value)>(value));
-            }
-        }).catch_error([promise](const mc::exception&) mutable {
-            promise.set_exception(std::current_exception());
-        });
-        return future;
-    }
-}
-
 template <typename T, typename Promise, typename Handler, typename State>
 void handle_exception_case(Promise& promise, Handler&& handler, State& state) {
     try {
-        std::exception_ptr eptr = std::get<std::exception_ptr>(state->result);
-        std::rethrow_exception(eptr);
+        std::rethrow_exception(state.get_exception());
     } catch (const mc::exception& mc_ex) {
         if (mc_ex.code() == mc::canceled_exception_code) {
             promise.cancel();
@@ -391,147 +63,267 @@ void handle_exception_case(Promise& promise, Handler&& handler, State& state) {
     }
 }
 
+template <typename T, typename Promise, typename F, typename State>
+void handle_result_impl(Promise& promise, F&& func, State& state) {
+    if (state.is_cancelled()) {
+        promise.cancel();
+        return;
+    }
+
+    if (state.is_rejected()) {
+        promise.set_exception(state.get_exception());
+        return;
+    }
+
+    if constexpr (std::is_void_v<T>) {
+        set_promise_value<T>(promise, std::forward<F>(func));
+    } else {
+        set_promise_value<T>(promise, std::forward<F>(func), state.get_value());
+    }
+}
+
 template <typename T, typename Promise, typename Handler, typename State>
-void process_error_result(Promise& promise, Handler&& handler, State& state) {
-    using HandlerResultType = std::invoke_result_t<Handler, const mc::exception&>;
+void handle_error_impl(Promise& promise, Handler&& handler, State& state) {
+    if (state.is_cancelled()) {
+        promise.cancel();
+        return;
+    }
 
-    if constexpr (std::is_same_v<T, void>) {
-        if (std::holds_alternative<std::monostate>(state->result)) {
-            if constexpr (std::is_same_v<HandlerResultType, void>) {
-                promise.set_value();
+    if (state.is_rejected()) {
+        handle_exception_case<T>(promise, std::forward<Handler>(handler), state);
+        return;
+    }
+
+    if constexpr (std::is_void_v<T>) {
+        promise.set_value();
+    } else {
+        promise.set_value(state.get_value());
+    }
+}
+
+template <typename T, typename Promise, typename F>
+callback_type make_continuation(Promise promise, F&& func, state_ptr<State<T>> state) {
+    return [promise = std::move(promise), func = std::forward<F>(func), state = std::move(state)]() mutable {
+        try {
+            handle_result_impl<T>(promise, std::forward<F>(func), *state);
+        } catch (...) {
+            promise.set_exception(std::current_exception());
+        }
+    };
+}
+
+template <typename T, typename Promise, typename F>
+callback_type make_error_continuation(Promise promise, F&& func, state_ptr<State<T>> state) {
+    return [promise = std::move(promise), func = std::forward<F>(func), state = std::move(state)]() mutable {
+        try {
+            handle_error_impl<T>(promise, std::forward<F>(func), *state);
+        } catch (...) {
+            promise.set_exception(std::current_exception());
+        }
+    };
+}
+
+template <typename T>
+template <typename U>
+U Future<T>::get() const {
+    return any_future::get<T>();
+}
+
+template <typename T>
+template <typename Duration>
+T Future<T>::get_for(Duration duration) const {
+    auto status = any_future::wait_for(duration);
+    if (status == future_status::timeout) {
+        MC_THROW(mc::timeout_exception, "Future 超时");
+    }
+    return get();
+}
+
+template <typename T>
+template <typename CompletionToken>
+void Future<T>::async_get(CompletionToken&& token, launch policy, std::optional<mc::any_executor> executor) {
+    if (!m_state) {
+        return;
+    }
+
+    auto continuation = [token = std::forward<CompletionToken>(token), state = get_state()]() mutable {
+        if (state->is_ready()) {
+            if constexpr (std::is_void_v<T>) {
+                token();
             } else {
-                promise.set_exception(std::make_exception_ptr(std::runtime_error("Cannot change return type from void in catch_error")));
+                token(state->get_value());
             }
-        } else {
-            handle_exception_case<T>(promise, std::forward<Handler>(handler), state);
         }
+    };
+    any_executor ex(executor ? *executor : any_future::get_executor());
+    add_continuation(std::move(continuation), policy, ex);
+}
+
+template <typename T>
+template <typename F>
+auto Future<T>::then(F&& func, launch policy, std::optional<mc::any_executor> executor)
+    -> std::enable_if_t<
+        detail::is_future_v<detail::result_t<T, F>>,
+        Future<typename detail::result_t<T, F>::value_type>> {
+    using ResultType = typename detail::result_t<T, F>::value_type;
+
+    any_executor ex(executor ? *executor : any_future::get_executor());
+    if (!m_state) {
+        return Future<ResultType>(make_invalid_future<ResultType>(std::move(ex)));
+    }
+
+    auto promise = make_promise<ResultType>(ex);
+    auto future  = promise.get_future().on_cancel(*this);
+    promise.set_policy(policy);
+    add_continuation(make_continuation<T>(std::move(promise), std::forward<F>(func), get_state()), policy, ex);
+    return future;
+}
+
+template <typename T>
+template <typename F>
+auto Future<T>::then(F&& func, launch policy, std::optional<mc::any_executor> executor)
+    -> std::enable_if_t<!detail::is_future_v<detail::result_t<T, F>>,
+                        Future<detail::result_t<T, F>>> {
+    using ResultType = detail::result_t<T, F>;
+
+    any_executor ex(executor ? *executor : any_future::get_executor());
+    if (!m_state) {
+        return Future<ResultType>(make_invalid_future<ResultType>(std::move(ex)));
+    }
+
+    auto promise = make_promise<ResultType>(ex);
+    auto future  = promise.get_future().on_cancel(*this);
+    promise.set_policy(policy);
+    add_continuation(make_continuation<T>(std::move(promise), std::forward<F>(func), get_state()), policy, ex);
+    return future;
+}
+
+template <typename T>
+template <typename OtherT>
+auto Future<T>::as_future(std::optional<mc::any_executor> executor)
+    -> Future<detail::state_tt<OtherT>> {
+    using other_type = detail::state_tt<OtherT>;
+    if constexpr (std::is_same_v<other_type, T>) {
+        return std::move(*this);
+    } else if constexpr (std::is_same_v<other_type, void>) {
+        return then([](auto&&) {
+        }, launch::async, executor);
+    } else if constexpr (std::is_same_v<T, void>) {
+        return then([]() -> other_type {
+            return other_type{};
+        }, launch::async, executor);
     } else {
-        if (auto* value = std::get_if<T>(&state->result)) {
-            if constexpr (std::is_same_v<HandlerResultType, T>) {
-                promise.set_value(std::move(*value));
+        return then([](auto&& value) -> other_type {
+            return other_type(value);
+        }, launch::async, executor);
+    }
+}
+
+template <typename T>
+template <typename F>
+auto Future<T>::catch_error(F&& func, launch policy, std::optional<mc::any_executor> executor)
+    -> std::enable_if_t<
+        detail::is_future_v<std::invoke_result_t<F, const mc::exception&>> &&
+            std::is_same_v<typename std::invoke_result_t<F, const mc::exception&>::value_type, T>,
+        Future<T>> {
+    any_executor ex(executor ? *executor : any_future::get_executor());
+    if (!m_state) {
+        auto future = Future<T>(make_invalid_future<T>(std::move(ex)));
+        return future.catch_error(std::forward<F>(func), policy, executor);
+    }
+
+    auto promise = make_promise<T>(ex);
+    auto future  = promise.get_future().on_cancel(*this);
+    add_continuation(make_error_continuation<T>(std::move(promise), std::forward<F>(func), get_state()), policy, ex);
+    return future;
+}
+
+template <typename T>
+template <typename F>
+auto Future<T>::catch_error(F&& func, launch policy, std::optional<mc::any_executor> executor)
+    -> std::enable_if_t<
+        !detail::is_future_v<std::invoke_result_t<F, const mc::exception&>> &&
+            std::is_same_v<std::invoke_result_t<F, const mc::exception&>, T>,
+        Future<T>> {
+    any_executor ex(executor ? *executor : any_future::get_executor());
+    if (!m_state) {
+        auto future = Future<T>(make_invalid_future<T>(std::move(ex)));
+        return future.catch_error(std::forward<F>(func), policy, executor);
+    }
+
+    auto promise = make_promise<T>(ex);
+    auto future  = promise.get_future().on_cancel(*this);
+    add_continuation(make_error_continuation<T>(std::move(promise), std::forward<F>(func), get_state()), policy, ex);
+    return future;
+}
+
+template <typename T>
+template <typename F>
+auto Future<T>::finally(F&& cleanup, launch policy, std::optional<mc::any_executor> executor) -> future_type {
+    any_executor ex(executor ? *executor : any_future::get_executor());
+    if (!m_state) {
+        auto future = Future<T>(make_invalid_future<T>(std::move(ex)));
+        return future.finally(std::forward<F>(cleanup), policy, executor);
+    }
+
+    auto promise = make_promise<T>(ex);
+    auto future  = promise.get_future().on_cancel(*this);
+    any_future::finally(promise, [promise, cleanup = std::forward<F>(cleanup), state = get_state()]() mutable {
+        cleanup();
+        promise.set_state_value(*state);
+    }, policy, ex);
+    return future;
+}
+
+template <typename T>
+template <typename F>
+auto Future<T>::tap(F&& inspector, launch policy) -> future_type {
+    if (!m_state) {
+        return Future<T>(detail::make_rejected_state<T>(
+            make_invalid_future_exception(),
+            mc::any_executor(mc::runtime::immediate_executor())));
+    }
+
+    any_future::add_continuation([inspector = std::forward<F>(inspector), state = get_state()]() mutable {
+        if (state->is_ready()) {
+            if constexpr (std::is_void_v<T>) {
+                inspector();
             } else {
-                promise.set_exception(std::make_exception_ptr(std::runtime_error("catch_error handler return type must match previous chain type when no error occurs")));
+                inspector(state->get_value());
             }
-        } else {
-            handle_exception_case<T>(promise, std::forward<Handler>(handler), state);
         }
-    }
-}
-
-template <typename T, typename Executor, typename Allocator>
-template <typename F>
-auto Future<T, Executor, Allocator>::catch_error(F&& handler)
-    -> Future<std::invoke_result_t<F, const mc::exception&>, Executor, Allocator> {
-    using ResultType = std::invoke_result_t<F, const mc::exception&>;
-
-    auto promise = mc::make_promise<ResultType>(state_->executor, state_->allocator);
-    auto future  = promise.get_future().on_cancel(*this);
-
-    auto handle_result = [promise, handler = std::forward<F>(handler), state = state_]() mutable {
-        try {
-            process_error_result<T>(promise, std::move(handler), state);
-        } catch (...) {
-            promise.set_exception(std::current_exception());
-        }
-    };
-
-    std::unique_lock<std::mutex> lock(state_->m_mutex);
-    if (state_->ready) {
-        boost::asio::post(state_->executor, boost::asio::bind_allocator(state_->allocator, handle_result));
-    } else {
-        state_->m_continuations.push_back(handle_result);
-    }
-
-    return future;
-}
-
-template <typename T, typename Executor, typename Allocator>
-template <typename F>
-auto Future<T, Executor, Allocator>::finally(F&& cleanup) -> future_type {
-    auto promise = mc::make_promise<T>(state_->executor, state_->allocator);
-    auto future  = promise.get_future().on_cancel(*this);
-
-    auto handle_result = [promise, cleanup = std::forward<F>(cleanup), state = state_]() mutable {
-        try {
-            // 无论成功失败都执行清理操作
-            cleanup();
-
-            // 然后传递原来的结果或异常
-            forward_state_result<T>(promise, state);
-        } catch (...) {
-            promise.set_exception(std::current_exception());
-        }
-    };
-
-    std::unique_lock<std::mutex> lock(state_->m_mutex);
-    if (state_->ready) {
-        boost::asio::post(state_->executor, boost::asio::bind_allocator(state_->allocator, handle_result));
-    } else {
-        state_->m_continuations.push_back(handle_result);
-    }
-
-    return future;
-}
-
-template <typename T, typename Executor, typename Allocator>
-template <typename F>
-auto Future<T, Executor, Allocator>::tap(F&& inspector) -> future_type {
-    auto promise = mc::make_promise<T>(state_->executor, state_->allocator);
-    auto future  = promise.get_future().on_cancel(*this);
-
-    auto handle_result = [promise, inspector = std::forward<F>(inspector), state = state_]() mutable {
-        try {
-            inspect_and_forward_state_result<T>(promise, inspector, state);
-        } catch (...) {
-            promise.set_exception(std::current_exception());
-        }
-    };
-
-    std::unique_lock<std::mutex> lock(state_->m_mutex);
-    if (state_->ready) {
-        boost::asio::post(state_->executor, boost::asio::bind_allocator(state_->allocator, handle_result));
-    } else {
-        state_->m_continuations.push_back(handle_result);
-    }
-
-    return future;
-}
-
-template <typename T, typename Executor, typename Allocator>
-void Future<T, Executor, Allocator>::cancel() {
-    if (state_) {
-        state_->cancel();
-    }
-}
-
-template <typename T, typename Executor, typename Allocator>
-bool Future<T, Executor, Allocator>::is_cancelled() const {
-    return state_ && state_->cancelled.load();
-}
-
-template <typename T, typename Executor, typename Allocator>
-template <typename F>
-auto Future<T, Executor, Allocator>::on_cancel(F&& callback) & -> std::enable_if_t<
-    detail::is_cancel_callback_v<F>, future_type&> {
-    if (state_) {
-        detail::on_cancel(state_, std::forward<F>(callback));
-    }
+    }, policy, mc::any_executor(mc::runtime::immediate_executor())); // tap 回调立即执行
     return *this;
 }
 
-template <typename T, typename Executor, typename Allocator>
+template <typename T>
 template <typename F>
-auto Future<T, Executor, Allocator>::on_cancel(F&& callback) && -> std::enable_if_t<
-    detail::is_cancel_callback_v<F>, future_type> {
-    if (state_) {
-        detail::on_cancel(state_, std::forward<F>(callback));
+auto Future<T>::tap_error(F&& inspector, launch policy)
+    -> std::enable_if_t<std::is_invocable_v<F, const mc::exception&>, future_type> {
+    if (!m_state) {
+        auto future = Future<T>(detail::make_rejected_state<T>(
+            make_invalid_future_exception(), mc::any_executor(mc::runtime::immediate_executor())));
+        return future.tap_error(std::forward<F>(inspector), policy);
     }
-    return std::move(*this);
+
+    any_future::tap_error(std::forward<F>(inspector), policy); // tap_error 回调立即执行
+    return *this;
 }
 
-template <typename Promise, typename State>
-void set_promise_exception(Promise& promise, State& state) {
-    promise.set_exception(std::get<std::exception_ptr>(state->result));
+template <typename T>
+template <typename F>
+auto Future<T>::on_cancel(F&& callback) & -> std::enable_if_t<
+    detail::is_cancel_callback_v<F>, future_type&> {
+    any_future::on_cancel(std::forward<F>(callback));
+    return *this;
+}
+
+template <typename T>
+template <typename F>
+auto Future<T>::on_cancel(F&& callback) && -> std::enable_if_t<
+    detail::is_cancel_callback_v<F>, future_type> {
+    any_future::on_cancel(std::forward<F>(callback));
+    return std::move(*this);
 }
 
 } // namespace mc::futures

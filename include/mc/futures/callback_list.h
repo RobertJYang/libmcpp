@@ -16,6 +16,7 @@
 #include <mc/common.h>
 #include <mc/singleton.h>
 
+#include <cstddef>
 #include <functional>
 #include <memory>
 #include <mutex>
@@ -31,11 +32,13 @@ void safe_invoke(F&& callback) {
     }
 }
 
+using callback_type = std::function<void()>;
+
 struct callback_node : public mc::noncopyable {
-    explicit callback_node(std::function<void()> callback) : m_callback(std::move(callback)) {
+    explicit callback_node(callback_type callback) : m_callback(std::move(callback)) {
     }
 
-    std::function<void()>          m_callback;
+    callback_type                  m_callback;
     std::unique_ptr<callback_node> m_next;
 };
 
@@ -50,7 +53,7 @@ public:
 
     static callback_pool& instance();
 
-    std::unique_ptr<callback_node> acquire_node(std::function<void()> callback);
+    std::unique_ptr<callback_node> acquire_node(callback_type callback);
 
     void release_node(std::unique_ptr<callback_node> node);
 
@@ -91,10 +94,11 @@ public:
     callback_list(callback_list&& other) noexcept            = default;
     callback_list& operator=(callback_list&& other) noexcept = default;
 
-    void push_back(std::function<void()> callback);
-    void swap(callback_list& other) noexcept;
-    void clear();
-    bool empty() const;
+    void        push_back(callback_type callback);
+    void        swap(callback_list& other) noexcept;
+    void        clear();
+    bool        empty() const;
+    std::size_t size() const;
 
     void execute_and_clear();
 

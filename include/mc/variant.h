@@ -110,7 +110,7 @@ namespace detail {
 
 template <typename Arg>
 static auto convert_arg(const char* name, const mc::variant& var)
-    -> std::enable_if_t<!is_variant_v<std::decay_t<Arg>>, Arg> {
+    -> std::enable_if_t<!is_variant_v<std::decay_t<Arg>>, std::remove_reference_t<Arg>> {
     using arg_type = mc::traits::remove_cvref_t<std::decay_t<Arg>>;
     if constexpr (std::is_same_v<arg_type, std::string> ||
                   std::is_same_v<arg_type, std::string_view>) {
@@ -131,7 +131,7 @@ static auto convert_arg(const char* name, const mc::variant& var)
         }
     }
 
-    if (auto arg = var.try_as<Arg>(); arg) {
+    if (auto arg = var.try_as<arg_type>(); arg) {
         return *arg;
     }
 

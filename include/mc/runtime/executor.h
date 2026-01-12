@@ -25,7 +25,42 @@
 
 namespace mc::runtime {
 using execution_context = boost::asio::execution_context;
+class thread_pool;
 
+namespace detail {
+template <typename T, typename = void>
+struct has_bound_pool : std::false_type {};
+
+template <typename T>
+struct has_bound_pool<T, std::void_t<decltype(std::declval<T>().bound_pool(nullptr))>> : std::true_type {};
+
+template <typename T>
+inline constexpr bool has_bound_pool_v = has_bound_pool<T>::value;
+
+template <typename Executor, typename = void>
+struct can_convert_to_io_executor : std::false_type {};
+
+template <typename Executor>
+struct can_convert_to_io_executor<
+    Executor,
+    std::void_t<decltype(static_cast<boost::asio::io_context::executor_type>(std::declval<Executor>()))>>
+    : std::true_type {};
+
+template <typename Executor>
+inline constexpr bool can_convert_to_io_executor_v = can_convert_to_io_executor<Executor>::value;
+
+template <typename Executor, typename = void>
+struct can_convert_to_any_io_executor : std::false_type {};
+
+template <typename Executor>
+struct can_convert_to_any_io_executor<
+    Executor,
+    std::void_t<decltype(static_cast<boost::asio::any_io_executor>(std::declval<Executor>()))>>
+    : std::true_type {};
+
+template <typename Executor>
+inline constexpr bool can_convert_to_any_io_executor_v = can_convert_to_any_io_executor<Executor>::value;
+} // namespace detail
 /**
  * @brief 执行器包装器，支持包装任意 boost::asio 执行器
  */
@@ -106,6 +141,17 @@ public:
     void               on_work_finished() const noexcept;
     execution_context& context() const;
 
+    /**
+     * @brief 检查当前线程是否在此 executor 上执行
+     */
+    bool running_in_this_thread() const noexcept;
+
+    executor&    bound_pool(thread_pool* pool) noexcept;
+    thread_pool* get_bound_pool() const noexcept;
+
+    operator boost::asio::any_io_executor() const;
+    operator boost::asio::io_context::executor_type() const;
+
 private:
     using function = boost::asio::detail::executor_function;
     class impl_base {
@@ -115,14 +161,20 @@ private:
 
         virtual ~impl_base() = default;
 
-        virtual void                  post(function&&) const              = 0;
-        virtual void                  defer(function&&) const             = 0;
-        virtual void                  dispatch(function&&) const          = 0;
-        virtual bool                  equal(const impl_base& other) const = 0;
-        virtual std::type_info const& target_type() const                 = 0;
-        virtual void                  on_work_started() const noexcept    = 0;
-        virtual void                  on_work_finished() const noexcept   = 0;
-        virtual execution_context&    context() const                     = 0;
+        virtual void                  post(function&&) const                  = 0;
+        virtual void                  defer(function&&) const                 = 0;
+        virtual void                  dispatch(function&&) const              = 0;
+        virtual bool                  equal(const impl_base& other) const     = 0;
+        virtual std::type_info const& target_type() const                     = 0;
+        virtual void                  on_work_started() const noexcept        = 0;
+        virtual void                  on_work_finished() const noexcept       = 0;
+        virtual execution_context&    context() const                         = 0;
+        virtual bool                  running_in_this_thread() const noexcept = 0;
+        virtual void                  bound_pool(thread_pool* pool) noexcept  = 0;
+        virtual thread_pool*          get_bound_pool() const noexcept         = 0;
+
+        virtual std::optional<boost::asio::any_io_executor>           to_any_io_executor() const = 0;
+        virtual std::optional<boost::asio::io_context::executor_type> to_io_executor() const     = 0;
 
         // 引用计数管理
         void add_ref() const noexcept {
@@ -188,7 +240,51 @@ private:
             return m_executor.context();
         }
 
+        bool running_in_this_thread() const noexcept override {
+            return running_in_this_thread_impl(m_executor);
+        }
+
+        void bound_pool(thread_pool* pool) noexcept override {
+            if constexpr (detail::has_bound_pool_v<Executor>) {
+                m_executor.bound_pool(pool);
+            } else {
+                MC_UNUSED(pool);
+            }
+        }
+
+        thread_pool* get_bound_pool() const noexcept override {
+            if constexpr (detail::has_bound_pool_v<Executor>) {
+                return m_executor.get_bound_pool();
+            }
+            return nullptr;
+        }
+
+        std::optional<boost::asio::any_io_executor> to_any_io_executor() const override {
+            if constexpr (detail::can_convert_to_any_io_executor_v<Executor>) {
+                return m_executor;
+            }
+            return std::nullopt;
+        }
+
+        std::optional<boost::asio::io_context::executor_type> to_io_executor() const override {
+            if constexpr (detail::can_convert_to_io_executor_v<Executor>) {
+                return m_executor;
+            }
+            return std::nullopt;
+        }
+
     private:
+        template <typename E>
+        static auto running_in_this_thread_impl(const E& exec) noexcept
+            -> decltype(exec.running_in_this_thread()) {
+            return exec.running_in_this_thread();
+        }
+
+        // 默认实现：保守返回 false
+        static bool running_in_this_thread_impl(...) noexcept {
+            return false;
+        }
+
         Executor  m_executor;
         Allocator m_allocator;
     };

@@ -16,6 +16,8 @@
 #include <mc/common.h>
 
 #include <boost/asio.hpp>
+#include <mc/runtime/any_executor.h>
+#include <mc/runtime/runtime_executor.h>
 #include <mc/runtime/thread_pool.h>
 
 #include <functional>
@@ -24,8 +26,6 @@
 namespace mc::runtime {
 
 class runtime_context;
-
-using strand = boost::asio::strand<thread_pool::executor_type>;
 
 struct runtime_config {
     std::size_t io_threads   = 2;
@@ -50,18 +50,66 @@ public:
     void join();
     bool is_stopped() const noexcept;
 
-    // New Clean Accessors
     thread_pool& io() noexcept;
     thread_pool& work() noexcept;
 
-    thread_pool::executor_type get_executor() noexcept;
+    runtime_executor           get_executor() noexcept;
+    thread_pool::executor_type get_io_executor() noexcept;
+    thread_pool::executor_type get_work_executor() noexcept;
 
-    static strand create_strand();
+    static any_executor create_strand();
+    thread_pool::strand create_io_strand();
+    thread_pool::strand create_work_strand();
 
 private:
     class impl;
     std::unique_ptr<impl> m_impl;
 };
+
+/**
+ * @brief 获取全局运行时上下文
+ * @return 全局运行时上下文的引用
+ */
+MC_API runtime_context& get_runtime_context();
+MC_API void             reset_runtime_context();
+
+/**
+ * @brief 获取IO上下文
+ * @return IO上下文
+ */
+inline thread_pool& get_io_context() {
+    return get_runtime_context().io();
+}
+
+/**
+ * @brief 获取工作上下文
+ * @return 工作上下文
+ */
+inline thread_pool& get_work_context() {
+    return get_runtime_context().work();
+}
+
+/**
+ * @brief 获取默认线程池
+ * @return 默认线程池
+ */
+MC_API thread_pool::executor_type get_default_executor();
+
+/**
+ * @brief 获取IO线程池
+ * @return IO线程池
+ */
+inline auto get_io_executor() {
+    return get_io_context().get_executor();
+}
+
+/**
+ * @brief 获取系统线程池
+ * @return 系统线程池
+ */
+inline auto get_work_executor() {
+    return get_work_context().get_executor();
+}
 
 } // namespace mc::runtime
 

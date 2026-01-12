@@ -61,6 +61,14 @@ public:
 
     immediate_context& context() const noexcept;
 
+    /**
+     * @brief 检查当前线程是否在此 executor 上执行
+     * @note immediate_executor 总是在当前线程执行，所以始终返回 true
+     */
+    bool running_in_this_thread() const noexcept {
+        return true;
+    }
+
     // 支持 execution::blocking.never 属性
     immediate_executor require(boost::asio::execution::blocking_t::never_t) const;
 

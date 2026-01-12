@@ -12,6 +12,7 @@
 
 #include <mc/runtime/any_executor.h>
 #include <mc/runtime/executor.h>
+#include <mc/runtime/runtime_context.h>
 
 namespace mc::runtime {
 
@@ -20,6 +21,10 @@ any_executor::any_executor()
 }
 
 any_executor::any_executor(thread_pool::executor_type executor)
+    : m_executor(std::move(executor)) {
+}
+
+any_executor::any_executor(runtime_strand executor)
     : m_executor(std::move(executor)) {
 }
 
@@ -70,6 +75,72 @@ void any_executor::on_work_finished() const noexcept {
 execution_context& any_executor::context() const {
     return std::visit([&](const auto& exec) -> execution_context& {
         return exec.context();
+    }, m_executor);
+}
+
+namespace detail {
+// 检测是否有 running_in_this_thread() 方法
+template <typename T, typename = void>
+struct has_running_in_this_thread : std::false_type {};
+
+template <typename T>
+struct has_running_in_this_thread<T, std::void_t<decltype(std::declval<T>().running_in_this_thread())>>
+    : std::true_type {};
+
+template <typename T>
+inline constexpr bool has_running_in_this_thread_v = has_running_in_this_thread<T>::value;
+} // namespace detail
+
+bool any_executor::running_in_this_thread() const noexcept {
+    return std::visit([](const auto& exec) -> bool {
+        using T = std::decay_t<decltype(exec)>;
+        if constexpr (detail::has_running_in_this_thread_v<T>) {
+            return exec.running_in_this_thread();
+        } else {
+            return false; // 保守返回 false，走异步路径
+        }
+    }, m_executor);
+}
+
+any_executor& any_executor::bound_pool(thread_pool* pool) noexcept {
+    std::visit([&](auto& exec) {
+        using T = std::decay_t<decltype(exec)>;
+        if constexpr (detail::has_bound_pool_v<T>) {
+            exec.bound_pool(pool);
+        }
+    }, m_executor);
+    return *this;
+}
+
+thread_pool* any_executor::get_bound_pool() const noexcept {
+    return std::visit([](const auto& exec) -> thread_pool* {
+        using T = std::decay_t<decltype(exec)>;
+        if constexpr (detail::has_bound_pool_v<T>) {
+            return exec.get_bound_pool();
+        }
+        return nullptr;
+    }, m_executor);
+}
+
+any_executor::operator boost::asio::any_io_executor() const {
+    return std::visit([](const auto& exec) -> boost::asio::any_io_executor {
+        using T = std::decay_t<decltype(exec)>;
+        if constexpr (detail::can_convert_to_any_io_executor_v<T>) {
+            return exec;
+        }
+        // 如果不能转换，则返回 IO 线程池的执行器
+        return runtime::get_io_executor();
+    }, m_executor);
+}
+
+any_executor::operator boost::asio::io_context::executor_type() const {
+    return std::visit([](const auto& exec) -> boost::asio::io_context::executor_type {
+        using T = std::decay_t<decltype(exec)>;
+        if constexpr (detail::can_convert_to_io_executor_v<T>) {
+            return exec;
+        }
+        // 如果不能转换，则返回 IO 线程池的执行器
+        return runtime::get_io_executor();
     }, m_executor);
 }
 

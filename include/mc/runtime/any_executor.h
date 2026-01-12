@@ -17,6 +17,7 @@
 #include <mc/exception.h>
 #include <mc/runtime/executor.h>
 #include <mc/runtime/immediate_context.h>
+#include <mc/runtime/runtime_strand.h>
 #include <mc/runtime/thread_pool.h>
 
 #include <boost/asio.hpp>
@@ -31,6 +32,7 @@ namespace detail {
 using executor_variant = std::variant<
     ::mc::runtime::immediate_executor,
     ::mc::runtime::thread_pool::executor_type,
+    ::mc::runtime::runtime_strand,
     ::mc::runtime::executor>;
 }
 
@@ -54,6 +56,11 @@ public:
     any_executor(thread_pool::executor_type executor);
 
     /**
+     * @brief 从 runtime_strand 执行器构造
+     */
+    any_executor(runtime_strand executor);
+
+    /**
      * @brief 从 mc::runtime::executor 构造
      */
     any_executor(runtime::executor executor);
@@ -65,6 +72,7 @@ public:
               typename = std::enable_if_t<
                   !std::is_same_v<std::decay_t<Executor>, any_executor> &&
                   !std::is_same_v<std::decay_t<Executor>, thread_pool::executor_type> &&
+                  !std::is_same_v<std::decay_t<Executor>, runtime_strand> &&
                   !std::is_same_v<std::decay_t<Executor>, runtime::executor>>>
     any_executor(Executor&& executor);
 
@@ -130,12 +138,23 @@ public:
     void               on_work_finished() const noexcept;
     execution_context& context() const;
 
+    /**
+     * @brief 检查当前线程是否在此 executor 上执行
+     */
+    bool running_in_this_thread() const noexcept;
+
     detail::executor_variant& get_executor() noexcept {
         return m_executor;
     }
     const detail::executor_variant& get_executor() const noexcept {
         return m_executor;
     }
+
+    any_executor& bound_pool(thread_pool* pool) noexcept;
+    thread_pool*  get_bound_pool() const noexcept;
+
+    operator boost::asio::any_io_executor() const;
+    operator boost::asio::io_context::executor_type() const;
 
 private:
     detail::executor_variant m_executor;

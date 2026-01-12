@@ -71,7 +71,7 @@ thread_pool::thread_pool(std::size_t num_threads, const std::string& name)
     if (m_num_threads > 0) {
         m_shards.reserve(m_num_threads);
         for (std::size_t i = 0; i < m_num_threads; ++i) {
-            auto shard  = std::make_unique<shard_t>();
+            auto shard  = std::make_unique<shard_t>(*this);
             shard->ctx  = std::make_unique<io_context>();
             shard->work = std::make_unique<boost::asio::executor_work_guard<io_context::executor_type>>(
                 boost::asio::make_work_guard(shard->ctx->get_executor()));
@@ -105,13 +105,13 @@ void thread_pool::start() {
     for (std::size_t i = 0; i < m_num_threads; ++i) {
         m_threads.emplace_back([this, i]() {
             set_current_thread_name(make_thread_name(m_name, i));
-            dlog("{name} 线程 {idx} 启动", ("name", m_name)("idx", i));
+            dlog("${name} 线程 ${idx} 启动", ("name", m_name)("idx", i));
             try {
-                worker_loop(i);
+                worker_loop(m_shards[i].get());
             } catch (const std::exception& e) {
-                elog("{name} 线程 {idx} 异常: {error}", ("name", m_name)("idx", i)("error", e.what()));
+                elog("${name} 线程 ${idx} 异常: ${error}", ("name", m_name)("idx", i)("error", e.what()));
             }
-            dlog("{name} 线程 {idx} 结束", ("name", m_name)("idx", i));
+            dlog("${name} 线程 ${idx} 结束", ("name", m_name)("idx", i));
         });
     }
 }
@@ -147,70 +147,34 @@ bool thread_pool::has_work(shard_t* shard) {
     return false;
 }
 
-void thread_pool::try_sleep(shard_t* shard) {
-    // 1. 设置状态为 Idle
-    shard->state.store(State::Idle, std::memory_order_release);
+bool thread_pool::poll_tasks(shard_t* shard) {
+    auto& ctx = *shard->ctx;
 
-    // 2. 如果不在栈中，入栈
-    if (!shard->in_stack.exchange(true, std::memory_order_acq_rel)) {
-        push_idle(shard);
-    }
+    // 1. 优先执行本地任务
+    bool ran_local = ctx.poll() > 0;
 
-    // 3. 双重检查：是否有工作？
-    if (has_work(shard) || shard->state.load(std::memory_order_acquire) == State::Notified) {
-        // 将状态从 Idle 恢复为 Running
-        shard->state.store(State::Running, std::memory_order_relaxed);
-        return;
-    }
-
-    try {
-        // 阻塞直到有任务（通过 post 唤醒）或停止
-        shard->ctx->run_one();
-    } catch (const std::exception& e) {
-        elog("${name} 线程 ${idx} run_one 异常: ${error}",
-             ("name", m_name)("idx", shard->id)("error", e.what()));
-    }
-
-    // 3. 恢复状态为 Running
-    shard->state.store(State::Running, std::memory_order_relaxed);
-}
-
-void thread_pool::worker_loop(std::size_t idx) {
-    auto& shard = *m_shards[idx];
-    auto& ctx   = *shard.ctx;
-
-    // 设置 TLS
-    shard_scope scope(&shard);
-    while (true) {
-        if (m_scheduler.stopped()) {
-            break;
-        }
-
-        // 1. 优先执行本地任务
-        bool ran_local = ctx.poll() > 0;
-
-        // 2. 再执行全局任务
-        boost::system::error_code ec;
-        bool                      ran_global = m_scheduler.poll_one(ec) > 0;
-        if (ran_global) {
-            int64_t old_val = m_pending_tasks.load(std::memory_order_relaxed);
-            while (old_val > 0) {
-                if (m_pending_tasks.compare_exchange_weak(old_val, old_val - 1, std::memory_order_relaxed)) {
-                    break;
-                }
+    // 2. 再执行全局任务
+    boost::system::error_code ec;
+    bool                      ran_global = m_scheduler.poll_one(ec) > 0;
+    if (ran_global) {
+        int64_t old_val = m_pending_tasks.load(std::memory_order_relaxed);
+        while (old_val > 0) {
+            if (m_pending_tasks.compare_exchange_weak(old_val, old_val - 1, std::memory_order_relaxed)) {
+                break;
             }
         }
-
-        // 3. 如果上下文已停止，重启上下文，避免无限循环
-        if (ctx.stopped()) {
-            ctx.restart();
-        }
-
-        // 4. 如果本地和全局任务均为空，尝试睡眠
-        if (!ran_local && !ran_global) {
-            try_sleep(&shard);
-        }
     }
+
+    return ran_local || ran_global;
+}
+
+void thread_pool::worker_loop(shard_t* shard) {
+    auto& ctx = *shard->ctx;
+
+    shard_scope scope(shard);
+    poll_until(shard, [this]() {
+        return m_scheduler.stopped();
+    });
 }
 
 // 出栈并获取一个 Worker
@@ -313,6 +277,46 @@ std::size_t thread_pool::shard_count() const {
 
 thread_pool::shard_t* thread_pool::get_current_shard() {
     return t_current_shard;
+}
+
+void thread_pool::run() {
+    shard_t* shard = nullptr;
+    {
+        std::lock_guard<mc::sync::small_mutex> lock(m_attach_mutex);
+        if (t_current_shard != nullptr && &t_current_shard->pool == this) {
+            shard = t_current_shard;
+        } else {
+            MC_ASSERT_THROW(m_shards.size() < NULL_INDEX, mc::runtime_exception,
+                            "线程数不能超过 ${max}", ("max", NULL_INDEX - 1));
+
+            auto new_shard  = std::make_unique<shard_t>(*this);
+            new_shard->ctx  = std::make_unique<io_context>();
+            new_shard->work = std::make_unique<boost::asio::executor_work_guard<io_context::executor_type>>(
+                boost::asio::make_work_guard(new_shard->ctx->get_executor()));
+
+            new_shard->next.store(NULL_INDEX, std::memory_order_relaxed);
+            new_shard->state.store(State::Running, std::memory_order_relaxed);
+            new_shard->id = static_cast<uint16_t>(m_shards.size());
+
+            shard = new_shard.get();
+            m_shards.push_back(std::move(new_shard));
+
+            t_current_shard = shard;
+            dlog("外部线程附加到 ${name}，shard ${idx}", ("name", m_name)("idx", shard->id));
+        }
+    }
+
+    // 运行工作循环
+    dlog("${name} 外部线程 shard ${idx} 开始运行", ("name", m_name)("idx", shard->id));
+    try {
+        worker_loop(shard);
+    } catch (const std::exception& e) {
+        elog("${name} 外部线程 shard ${idx} 异常: ${error}",
+             ("name", m_name)("idx", shard->id)("error", e.what()));
+    }
+    dlog("${name} 外部线程 shard ${idx} 结束", ("name", m_name)("idx", shard->id));
+
+    t_current_shard = nullptr;
 }
 
 } // namespace mc::runtime

@@ -12,6 +12,7 @@
 
 #include <mc/exception.h>
 #include <mc/runtime/executor.h>
+#include <mc/runtime/runtime_context.h>
 
 namespace mc::runtime {
 executor::executor(const executor& other) noexcept : m_impl(other.m_impl) {
@@ -94,4 +95,47 @@ execution_context& executor::context() const {
     MC_ASSERT_THROW(m_impl, mc::invalid_op_exception, "Cannot get context from invalid executor");
     return m_impl->context();
 }
+
+bool executor::running_in_this_thread() const noexcept {
+    if (!m_impl) {
+        return false;
+    }
+    return m_impl->running_in_this_thread();
+}
+
+executor& executor::bound_pool(thread_pool* pool) noexcept {
+    if (!m_impl) {
+        return *this;
+    }
+    m_impl->bound_pool(pool);
+    return *this;
+}
+
+thread_pool* executor::get_bound_pool() const noexcept {
+    if (!m_impl) {
+        return nullptr;
+    }
+    return m_impl->get_bound_pool();
+}
+
+executor::operator boost::asio::any_io_executor() const {
+    if (m_impl) {
+        if (auto ex = m_impl->to_any_io_executor()) {
+            return *ex;
+        }
+    }
+
+    return runtime::get_io_executor();
+}
+
+executor::operator boost::asio::io_context::executor_type() const {
+    if (m_impl) {
+        if (auto ex = m_impl->to_io_executor()) {
+            return *ex;
+        }
+    }
+
+    return runtime::get_io_executor();
+}
+
 } // namespace mc::runtime
