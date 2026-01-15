@@ -61,6 +61,15 @@ DBus 名称验证器，包括：
 - 路径验证
 - 签名验证
 
+#### [sd_bus.md](sd_bus.md)
+DBus 客户端封装，包括：
+- `mc::dbus::sd_bus` - sd_bus客户端类
+- 同步和异步方法调用
+- 自动 Requestor 字段管理
+- devmon chip 接口方法映射
+- 共享内存调用支持
+- 超时控制和错误处理
+
 #### [enums.md](enums.md)
 DBus 枚举类型，包括：
 - `mc::dbus::bus_type` - 总线类型
@@ -89,6 +98,7 @@ api/dbus/
 ├── match.md           # 匹配规则 (~14KB)
 ├── signal.md          # 信号发射 (~8KB)
 ├── validator.md       # 名称验证 (~13KB)
+├── sd_bus.md          # 客户端封装 (~15KB)
 ├── enums.md           # 枚举类型 (~11KB)
 └── shm.md             # 共享内存 (~24KB)
 ```
@@ -98,10 +108,11 @@ api/dbus/
 ### 初学者（基础使用）
 
 1. 阅读 [../dbus.md](../dbus.md) 了解整体架构
-2. 学习 [connection.md](connection.md) 创建和管理连接
-3. 学习 [message.md](message.md) 创建和处理消息
-4. 参考 [error.md](error.md) 处理错误
-5. 查看示例代码：`examples/dbus/`
+2. 学习 [sd_bus.md](sd_bus.md) sd_bus客户端使用
+3. 或学习 [connection.md](connection.md) 创建和管理连接
+4. 学习 [message.md](message.md) 创建和处理消息
+5. 参考 [error.md](error.md) 处理错误
+6. 查看示例代码：`examples/dbus/`
 
 ### 中级用户（服务开发）
 

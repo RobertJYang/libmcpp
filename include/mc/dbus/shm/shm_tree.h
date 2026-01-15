@@ -64,6 +64,23 @@ public:
                                              std::string_view signature, const variants& args);
 
     /**
+     * @brief 指定调用者进行超时调用方法
+     * @param timeout [in] 超时时间
+     * @param sender [in] 调用者服务名称
+     * @param service_name [in] 服务名称
+     * @param path [in] 对象路径
+     * @param interface [in] 接口名称
+     * @param method [in] 方法名称
+     * @param signature [in] 方法签名
+     * @param args [in] 方法参数
+     * @return 返回方法调用结果，超时或失败返回nullopt
+     */
+    static std::optional<mc::variants> timeout_call_with_sender(mc::milliseconds timeout, std::string_view sender,
+                                                                std::string_view service_name, std::string_view path,
+                                                                std::string_view interface, std::string_view method,
+                                                                std::string_view signature, const variants& args);
+
+    /**
      * @brief 获取属性
      * @param service_name [in] 服务名称
      * @param path [in] 对象路径

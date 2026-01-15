@@ -264,9 +264,9 @@ void harbor::invoke_method(local_msg* msg) {
     auto args      = msg->read();
     auto handler   = it->second;
     try {
-        auto start_time = std::chrono::high_resolution_clock::now();
+        auto start_time = std::chrono::steady_clock::now();
         auto result     = handler(path, interface, member, args);
-        auto end_time   = std::chrono::high_resolution_clock::now();
+        auto end_time   = std::chrono::steady_clock::now();
         auto duration   = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count();
         if (duration >= 5000) {
             wlog("method handle time cost: ${duration} ms, path: ${path}, interface: ${interface}, method: ${member}",
@@ -289,9 +289,14 @@ void harbor::invoke_method(local_msg* msg) {
         dbus_reply(msg);
         return;
     }
-    if (!msg_queue->push_back(msg->pack(), MSG_QUEUE_PUSH_TIMEOUT)) {
-        elog("failed to push message to message queue: ${destination}",
-             ("destination", reply_destination));
+    bool msg_pushed;
+    try {
+        msg_pushed = msg_queue->push_back(msg->pack(), MSG_QUEUE_PUSH_TIMEOUT);
+    } catch (const std::exception& e) {
+        msg_pushed = false;
+    }
+    if (!msg_pushed) {
+        elog("failed to push message to message queue: ${destination}", ("destination", reply_destination));
         dbus_reply(msg);
     }
 }
