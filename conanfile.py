@@ -23,6 +23,7 @@ class AppConan(ConanBase):
 
     def generate(self):
         os.environ["PKG_CONFIG"] = "/usr/bin/pkg-config"
+
         tc = MesonToolchain(self, "ninja")
         if self.settings.arch == "armv8" or self.settings.arch == "x86_64":
             tc.project_options["libdir"] = 'usr/lib64'
@@ -161,7 +162,7 @@ class AppConan(ConanBase):
         self.cpp_info.components["libmcpp"].libdirs = ["usr/lib64"]
         self.cpp_info.components["libmcpp"].includedirs = include_dirs
         self.cpp_info.components["libmcpp"].set_property("pkg_config_name", "libmcpp")
-        self.cpp_info.components["libmcpp"].requires = ["libsomp::libsomp", "liblogger::liblogger", "boost::boost"]
+        self.cpp_info.components["libmcpp"].requires = ["libsomp::libsomp", "liblogger::liblogger", "boost::boost", "skynet::skynet"]
         self.cpp_info.components["libmcpp"].set_property("pkg_config_custom_content", 
            f"libdir=${{prefix}}/{libdir}\n"
            "Requires: dbus-1 glib-2.0\n")

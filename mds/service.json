@@ -2,13 +2,13 @@
     "name": "libmcpp",
     "type": "library",
     "deployConfig": "",
-    "version": "1.2.1",
+    "version": "1.2.2",
     "license": "",
     "description": "",
     "dependencies": {
         "test": [
             {
-                "conan": "skynet/[>=1.8.0.b001_006]@openubmc/stable"
+                "conan": "skynet/[>=1.8.0]@openubmc/stable"
             }
         ],
         "build": [
@@ -20,6 +20,9 @@
             },
             {
                 "conan": "liblogger/[>=1.90.0]@openubmc/stable"
+            },
+            {
+                "conan": "skynet/[>=1.8.0]@openubmc/stable"
             }
         ]
     },

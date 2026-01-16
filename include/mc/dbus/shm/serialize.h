@@ -17,54 +17,120 @@
 #include <mc/variant.h>
 
 namespace mc::dbus::serialize {
-constexpr size_t      MAX_COOKIE           = 32;
-constexpr size_t      BLOCK_SIZE           = 128;
-constexpr size_t      MAX_DEPTH            = 32;
-constexpr uint8_t     COOKIE_NUMBER_ZERO   = 0;
-constexpr uint8_t     COOKIE_NUMBER_BYTE   = 1;
-constexpr uint8_t     COOKIE_NUMBER_WORD   = 2;
-constexpr uint8_t     COOKIE_NUMBER_DWORD  = 4;
-constexpr uint8_t     COOKIE_NUMBER_QWORD  = 6;
-constexpr uint8_t     COOKIE_NUMBER_REAL   = 8;
-constexpr const char* ERROR_INVALID_FORMAT = "invalid format";
-constexpr uint8_t     TYPE_MASK            = 7;
-constexpr uint8_t     VALUE_SHIFT          = 3;
+constexpr size_t      MAX_COOKIE           = 32;               /**< 最大cookie值 */
+constexpr size_t      BLOCK_SIZE           = 128;              /**< 块大小 */
+constexpr size_t      MAX_DEPTH            = 32;               /**< 最大深度 */
+constexpr uint8_t     COOKIE_NUMBER_ZERO   = 0;                /**< 零值cookie */
+constexpr uint8_t     COOKIE_NUMBER_BYTE   = 1;                /**< 字节cookie */
+constexpr uint8_t     COOKIE_NUMBER_WORD   = 2;                /**< 字cookie */
+constexpr uint8_t     COOKIE_NUMBER_DWORD  = 4;                /**< 双字cookie */
+constexpr uint8_t     COOKIE_NUMBER_QWORD  = 6;                /**< 四字cookie */
+constexpr uint8_t     COOKIE_NUMBER_REAL   = 8;                /**< 实数cookie */
+constexpr const char* ERROR_INVALID_FORMAT = "invalid format"; /**< 无效格式错误 */
+constexpr uint8_t     TYPE_MASK            = 7;                /**< 类型掩码 */
+constexpr uint8_t     VALUE_SHIFT          = 3;                /**< 值位移 */
 
+/**
+ * @brief 序列化参数
+ * @param args [in] 参数列表
+ * @return 返回序列化后的字符串
+ */
 MC_API std::string pack(const variants& args);
 
+/**
+ * @brief 反序列化消息
+ * @param msg [in] 消息字符串
+ * @return 返回反序列化后的variants数组
+ */
 MC_API variants unpack(std::string_view msg);
 
+/**
+ * @brief 反序列化消息（与unpack功能相同）
+ * @param msg [in] 消息字符串
+ * @return 返回反序列化后的variants数组
+ */
 MC_API variants deserialize(std::string_view msg);
 
+/**
+ * @brief 数据类型枚举
+ */
 enum class data_type : uint8_t {
-    nil          = 0,
-    boolean      = 1,
-    number       = 2,
-    userdata     = 3,
-    short_string = 4,
-    long_string  = 5,
-    table        = 6,
-    gvariant     = 7,
-    tail         = 8
+    nil          = 0, /**< 空值 */
+    boolean      = 1, /**< 布尔值 */
+    number       = 2, /**< 数值 */
+    userdata     = 3, /**< 用户数据 */
+    short_string = 4, /**< 短字符串 */
+    long_string  = 5, /**< 长字符串 */
+    table        = 6, /**< 表 */
+    gvariant     = 7, /**< GVariant */
+    tail         = 8  /**< 尾标记 */
 };
 
+/**
+ * @brief 数据块
+ */
 struct data_block {
+    /**
+     * @brief 构造函数
+     */
     data_block()
         : next(nullptr), buf(BLOCK_SIZE) {
     }
 
-    data_block*          next;
-    std::vector<uint8_t> buf;
+    data_block*          next; /**< 下一个数据块指针 */
+    std::vector<uint8_t> buf;  /**< 数据缓冲区 */
 };
 
+/**
+ * @brief 写入缓冲区
+ */
 class MC_API write_buffer {
 public:
+    /**
+     * @brief 构造函数
+     */
     write_buffer();
+
+    /**
+     * @brief 析构函数
+     */
     ~write_buffer();
-    void        write_arg(const variant& arg, int depth = 0);
-    void        write_arg_with_signature(signature_iterator it, const variant& arg, int depth = 0);
-    void        write_array(signature_iterator it, const variants& args, int depth = 0);
-    void        write_variant_elements(signature_iterator it, const variants& args, int depth = 0);
+
+    /**
+     * @brief 写入参数
+     * @param arg [in] variant参数
+     * @param depth [in] 嵌套深度
+     */
+    void write_arg(const variant& arg, int depth = 0);
+
+    /**
+     * @brief 按签名写入参数
+     * @param it [in] 签名迭代器
+     * @param arg [in] variant参数
+     * @param depth [in] 嵌套深度
+     */
+    void write_arg_with_signature(signature_iterator it, const variant& arg, int depth = 0);
+
+    /**
+     * @brief 写入数组
+     * @param it [in] 签名迭代器
+     * @param args [in] variants数组
+     * @param depth [in] 嵌套深度
+     */
+    void write_array(signature_iterator it, const variants& args, int depth = 0);
+
+    /**
+     * @brief 写入variant元素
+     * @param it [in] 签名迭代器
+     * @param args [in] variants数组
+     * @param depth [in] 嵌套深度
+     */
+    void write_variant_elements(signature_iterator it, const variants& args, int depth = 0);
+
+    /**
+     * @brief 转换为字符串
+     * @return 返回序列化后的字符串
+     */
     std::string to_string() const;
 
 private:
@@ -87,11 +153,31 @@ private:
     size_t      m_offset;
 };
 
+/**
+ * @brief 读取缓冲区
+ */
 class MC_API read_buffer {
 public:
+    /**
+     * @brief 构造函数
+     * @param msg [in] 消息字符串
+     */
     read_buffer(std::string_view msg);
+
+    /**
+     * @brief 读取指定大小的数据
+     * @param size [in] 数据大小
+     * @return 返回数据指针
+     */
     const char* read(size_t size);
-    variant     read_value(uint8_t type, uint8_t cookie);
+
+    /**
+     * @brief 读取值
+     * @param type [in] 类型
+     * @param cookie [in] cookie值
+     * @return 返回读取的variant值
+     */
+    variant read_value(uint8_t type, uint8_t cookie);
 
 private:
     variant     read_inner();

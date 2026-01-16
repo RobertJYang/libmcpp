@@ -21,7 +21,8 @@ namespace mc::dbus {
 
 static std::once_flag s_init_dbus;
 
-connection_impl::connection_impl(mc::io_context& executor) : m_executor(executor) {
+connection_impl::connection_impl(mc::io_context& executor)
+    : m_executor(executor) {
     std::call_once(s_init_dbus, []() {
         dbus_threads_init_default();
     });
@@ -42,7 +43,7 @@ uint32_t connection_impl::get_next_serial() {
             return next_serial;
         }
     } while (++retry < MAX_SERIAL_RETRY);
-    MC_THROW(mc::system_exception, "分配消息序列号异常");
+    MC_THROW(mc::system_exception, "Failed to allocate message serial number");
 }
 
 void connection_impl::disconnect() {
@@ -71,6 +72,28 @@ bool connection_impl::send(message&& msg) {
     return dbus_connection_send(m_connection, msg.get_dbus_message(), nullptr);
 }
 
+message connection_impl::send_with_reply_and_block(message&& msg, mc::milliseconds timeout) {
+    if (!m_connection) {
+        MC_THROW(mc::system_exception, "DBus connection not established");
+    }
+
+    std::lock_guard lock(m_mutex);
+
+    mc::dbus::error err;
+    DBusMessage*    reply = dbus_connection_send_with_reply_and_block(
+        m_connection, msg.get_dbus_message(), static_cast<int>(timeout.count()), &err);
+
+    if (err.is_set()) {
+        MC_THROW(mc::system_exception, "DBus send message failed: ${error}", ("error", err.message));
+    }
+
+    if (!reply) {
+        MC_THROW(mc::system_exception, "DBus send message failed: No reply received");
+    }
+
+    return message(reply, false);
+}
+
 connection::future<message> connection_impl::async_send_with_reply(message&&        msg,
                                                                    mc::milliseconds timeout) {
     std::lock_guard lock(m_mutex);
@@ -84,10 +107,10 @@ connection::future<message> connection_impl::async_send_with_reply(message&&    
         msg.set_serial(serial);
     }
 
-    // message::new_error 会调用 dbus_message_new_error，D-Bus 要求 reply_serial != 0，
-    // 否则会触发断言。
+    // message::new_error calls dbus_message_new_error, D-Bus requires reply_serial != 0,
+    // otherwise assertion will be triggered.
     if (!is_connected()) {
-        promise.set_value(message::new_error(msg, error_names::disconnected, "连接已断开"));
+        promise.set_value(message::new_error(msg, error_names::disconnected, "Connection disconnected"));
         return future;
     }
 
@@ -96,7 +119,7 @@ connection::future<message> connection_impl::async_send_with_reply(message&&    
     auto ret = dbus_connection_send_with_reply(m_connection, msg.get_dbus_message(),
                                                &dbus_pending_call, timeout.count());
     if (ret != TRUE) {
-        promise.set_value(message::new_error(msg, error_names::failed, "发送消息失败"));
+        promise.set_value(message::new_error(msg, error_names::failed, "Failed to send message"));
         return future;
     }
 
@@ -109,7 +132,7 @@ connection::future<message> connection_impl::async_send_with_reply(message&&    
         std::forward_as_tuple(promise, pending_call(dbus_pending_call, std::move(on_reply))));
 
     if (!inserted) {
-        promise.set_value(message::new_error(msg, error_names::failed, "发送消息失败"));
+        promise.set_value(message::new_error(msg, error_names::failed, "Failed to send message"));
         return future;
     }
 
@@ -168,6 +191,10 @@ bool connection_impl::is_connected() const {
     return m_connection && m_status == connect_status::connected;
 }
 
+bool connection_impl::get_is_connected() const {
+    return m_connection && dbus_connection_get_is_connected(m_connection);
+}
+
 void connection_impl::release() {
     if (m_connection) {
         dbus_connection_close(m_connection);
@@ -192,7 +219,7 @@ bool connection_impl::start() {
     mc::dbus::error err;
     dbus_bus_register(m_connection, &err);
     if (err.is_set()) {
-        elog("DBus注册失败: ${error}", ("error", err.message));
+        elog("DBus registration failed: ${error}", ("error", err.message));
         return false;
     }
 
@@ -200,39 +227,46 @@ bool connection_impl::start() {
     return true;
 }
 
-bool connection_impl::request_name(std::string_view name, uint32_t flags) {
-    if (name.empty() || !validator::is_valid_bus_name(name)) {
-        return false;
+std::tuple<bool, std::optional<error>> connection_impl::request_name(std::string_view name,
+                                                                     uint32_t         flags) {
+    error err;
+
+    if (name.empty()) {
+        err.set_error(error_names::invalid_args, "Name cannot be empty");
+        return {false, std::move(err)};
+    }
+
+    if (!validator::is_valid_bus_name(name)) {
+        err.set_error(error_names::invalid_args, "Invalid name format");
+        return {false, std::move(err)};
     }
 
     std::lock_guard lock(m_mutex);
-    if (!is_connected()) {
-        return false;
-    }
-
-    const int max_retries = 3;
-    int       retry_count = 0;
+    const int       max_retries = 3;
+    int             retry_count = 0;
     while (retry_count < max_retries) {
-        mc::dbus::error err;
-        dbus_bus_request_name(m_connection, name.data(), flags, &err);
-        if (!err.is_set()) {
-            return true;
+        mc::dbus::error req_err;
+        dbus_bus_request_name(m_connection, name.data(), flags, &req_err);
+        if (!req_err.is_set()) {
+            return {true, std::nullopt};
         }
 
-        if (err.name == error_names::no_reply) {
-            // 出现 no_reply 错误时重试几次
-            // 在 dbus-daemon 刚启动后立即连接可能会发生这种情况，重试几次基本可以解决
+        if (req_err.name == error_names::no_reply) {
+            // Retry a few times when no_reply error occurs
+            // This can happen when connecting immediately after dbus-daemon starts, retrying usually resolves it
             std::this_thread::sleep_for(std::chrono::milliseconds(100 * (retry_count + 1)));
             retry_count++;
             continue;
         }
 
-        elog("DBus请求名称失败: ${error}", ("error", err.message));
-        return false;
+        elog("DBus request name failed: ${error}", ("error", req_err.message));
+        return {false, std::move(req_err)};
     }
 
-    elog("DBus请求名称重试${max}次后失败", ("max", max_retries));
-    return false;
+    err.set_error(error_names::no_reply,
+                  "Failed after " + std::to_string(max_retries) + " retries");
+    elog("DBus request name failed after ${max} retries", ("max", max_retries));
+    return {false, std::move(err)};
 }
 
 void connection_impl::initialize() {
@@ -282,7 +316,15 @@ void connection_impl::process_reply(uint32_t reply_serial, message& msg) {
 }
 
 void connection_impl::dispatch() {
+    std::lock_guard lock(m_mutex);
     while (is_connected() && dbus_connection_dispatch(m_connection) == DBUS_DISPATCH_DATA_REMAINS) {
+    }
+}
+
+void connection_impl::flush() {
+    std::lock_guard lock(m_mutex);
+    if (is_connected()) {
+        dbus_connection_flush(m_connection);
     }
 }
 
