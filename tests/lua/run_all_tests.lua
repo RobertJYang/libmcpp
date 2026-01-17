@@ -21,7 +21,7 @@ local script_dir = script_path:match("(.*/)")
 
 -- 设置 package.path 以便加载测试模块
 if script_dir then
-    package.path = script_dir .. "?.lua;" .. script_dir .. "?/?.lua;" .. script_dir .. "dbus/?.lua;" .. script_dir .. "shm_tree/?.lua;" .. package.path
+    package.path = script_dir .. "?.lua;" .. script_dir .. "?/init.lua;" .. script_dir .. "?/?.lua;" .. script_dir .. "dbus/?.lua;" .. script_dir .. "shm_tree/?.lua;" .. package.path
 end
 
 -- 导入所有测试模块
@@ -33,6 +33,8 @@ require('dbus.test_error')
 require('dbus.test_message')
 require('mdb.test_lmdb_service')
 require('mdb.test_lmdb_privilege')
+require('dbus.test_object')
+require('dbus.test_interface')
 require('lvalidate.test_integer')
 
 -- 设置详细输出，显示每个测试用例的执行情况

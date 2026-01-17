@@ -58,7 +58,7 @@ if lua_dep.found()
     name_prefix: '',
     name_suffix: 'so',
     dependencies: lua_base_deps,
-    link_with: [libmcpp_lib],
+    link_with: [libmcpp_lib, libmcpp_lua_utils_lib],
     include_directories: [incdir, srcdir],
     install: true,
     install_dir: install_dir,

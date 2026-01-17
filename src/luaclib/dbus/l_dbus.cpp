@@ -15,6 +15,8 @@
 #include "l_dbus_error.h"
 #include "l_dbus_message.h"
 #include "l_dbus_nonblock.h"
+#include "inner/l_interface.h"
+#include "inner/l_object.h"
 #include <mc/log.h>
 
 extern "C" {
@@ -53,6 +55,8 @@ __attribute__((visibility("default"))) int luaopen_ldbus(lua_State* L) {
     register_connection_metatable(L);
     register_blocking_metatable(L);
     register_nonblock_metatable(L);
+    register_interface_metatable(L);
+    register_object_metatable(L);
 
     // 创建主模块表
     lua_newtable(L);
@@ -87,6 +91,17 @@ __attribute__((visibility("default"))) int luaopen_ldbus(lua_State* L) {
     lua_setfield(L, -2, "shutdown");
     lua_setfield(L, -2, "nonblock");
 
+    // ===== interface 子表 =====
+    lua_newtable(L);
+    lua_pushcfunction(L, new_interface_class);
+    lua_setfield(L, -2, "new");
+    lua_setfield(L, -2, "interface");
+
+    // ===== object 子表 =====
+    lua_newtable(L);
+    lua_pushcfunction(L, new_object_class);
+    lua_setfield(L, -2, "new");
+    lua_setfield(L, -2, "object");
     return 1;
 }
 
