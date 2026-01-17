@@ -187,6 +187,22 @@ public:
     std::string_view get_unique_name() const;
 
     /**
+ 	 * @brief 添加匹配规则，但不发送订阅信号
+ 	 * @param rule [in] 匹配规则
+ 	 * @param cb [in] 匹配成功时的回调函数
+ 	 * @param id [in] 规则的唯一标识符
+ 	 * @exception 添加失败时抛出异常
+ 	 */
+ 	void add_rule(match_rule& rule, match_cb_t&& cb, uint64_t id);
+
+    /**
+ 	 * @brief 移除匹配规则，但不移除订阅信号
+ 	 * @param id [in] 规则的唯一标识符
+ 	 * @exception 移除失败时抛出异常
+ 	 */
+ 	void remove_rule(uint64_t id);
+
+    /**
      * @brief 设置DBus连接的唯一名称
      * @param name [in] 唯一名称
      */
@@ -200,6 +216,15 @@ public:
      * @exception 添加失败时抛出异常
      */
     void add_match(match_rule& rule, match_cb_t&& cb, uint64_t id);
+
+    /**
+ 	 * @brief 不添加匹配规则，只发送订阅信号
+ 	 * @param rule [in] 匹配规则
+ 	 * @param cb [in] 匹配成功时的回调函数
+ 	 * @param id [in] 规则的唯一标识符
+ 	 * @exception 发送失败时抛出异常
+ 	 */
+ 	void add_match_only(match_rule& rule, match_cb_t&& cb, uint64_t id);
 
     /**
      * @brief 移除匹配规则

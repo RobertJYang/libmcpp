@@ -123,6 +123,26 @@ void match_rule::with_destination(const std::string_view& destination) {
     m_rule->destination(destination);
 }
 
+std::string_view match_rule::member() const {
+    return m_rule->member();
+}
+
+std::string_view match_rule::path() const {
+    return m_rule->path_namespace() ? "" : m_rule->path();
+}
+
+std::string_view match_rule::path_namespace() const {
+    return m_rule->path_namespace() ? m_rule->path() : "";
+}
+
+bool match_rule::is_path_namespace() const {
+    return m_rule->path_namespace();
+}
+
+bool match_rule::operator==(const match_rule& other) const {
+    return as_string() == other.as_string();
+}
+
 match_rule match_rule::clone() const {
     match_rule rule(m_rule->type(), m_rule->member(), m_rule->interface());
     auto path = m_rule->path();

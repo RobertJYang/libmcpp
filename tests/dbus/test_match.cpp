@@ -434,3 +434,43 @@ TEST(MatchTest, Constants)
     EXPECT_EQ(std::string(INTERFACES_ADDED_MEMBER), "InterfacesAdded");
     EXPECT_EQ(std::string(INTERFACES_REMOVED_MEMBER), "InterfacesRemoved");
 }
+
+// 测试获取member
+TEST(MatchTest, GetMember)
+{
+    auto rule = match_rule::new_signal("PropertiesChanged",
+                                    "org.freedesktop.DBus.Properties");
+    EXPECT_EQ(rule.member(), "PropertiesChanged");
+
+}
+
+// 测试获取path
+TEST(MatchTest, GetPath)
+{
+    auto rule = match_rule::new_signal("PropertiesChanged",
+                                    "org.freedesktop.DBus.Properties");
+    rule.with_path("/org/freedesktop/DBus");
+    EXPECT_EQ(rule.path(), "/org/freedesktop/DBus");
+    EXPECT_EQ(rule.path_namespace(), "");
+}
+
+// 测试获取path_namespace
+TEST(MatchTest, GetPathNameSpace)
+{
+    auto rule = match_rule::new_signal("PropertiesChanged",
+                                    "org.freedesktop.DBus.Properties");
+    rule.with_path_namespace("/org/freedesktop/DBus");
+    EXPECT_EQ(rule.path_namespace(), "/org/freedesktop/DBus");
+    EXPECT_EQ(rule.path(), "");
+}
+
+// 测试判断path_namespace
+TEST(MatchTest, JudgePathNameSpace)
+{
+    auto rule = match_rule::new_signal("PropertiesChanged",
+                                    "org.freedesktop.DBus.Properties");
+    rule.with_path("/org/freedesktop/DBus");
+    EXPECT_FALSE(rule.is_path_namespace());
+    rule.with_path_namespace("/org/freedesktop/DBus");
+    EXPECT_TRUE(rule.is_path_namespace());
+}
