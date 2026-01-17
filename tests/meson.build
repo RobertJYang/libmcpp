@@ -23,6 +23,7 @@ subdir('runtime')
 subdir('string')
 subdir('sync')
 subdir('variant')
+subdir('lua')
 
 # 测试源文件列表
 test_files = [

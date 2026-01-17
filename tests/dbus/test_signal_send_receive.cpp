@@ -32,6 +32,9 @@
 
 using namespace mc::dbus;
 
+// 辅助宏：从tuple中提取bool值用于ASSERT_TRUE
+#define REQUEST_NAME_SUCCESS(conn, name) std::get<0>((conn).request_name(name))
+
 /**
  * @brief 端到端测试：两个DBUS服务互相订阅和接收信号
  */
@@ -82,8 +85,8 @@ TEST_F(signal_send_receive_test, test_two_services_bidirectional_signal) {
     ASSERT_TRUE(conn_b.is_connected());
 
     // 注册服务名称
-    ASSERT_TRUE(conn_a.request_name("org.test.ServiceA"));
-    ASSERT_TRUE(conn_b.request_name("org.test.ServiceB"));
+    ASSERT_TRUE(REQUEST_NAME_SUCCESS(conn_a, "org.test.ServiceA"));
+    ASSERT_TRUE(REQUEST_NAME_SUCCESS(conn_b, "org.test.ServiceB"));
 
     ilog("服务A唯一名称: ${name}", ("name", conn_a.get_unique_name()));
     ilog("服务B唯一名称: ${name}", ("name", conn_b.get_unique_name()));
@@ -235,8 +238,8 @@ TEST_F(signal_send_receive_test, test_multiple_signals_bidirectional) {
     ASSERT_TRUE(conn_b.is_connected());
 
     // 注册服务名称
-    ASSERT_TRUE(conn_a.request_name("org.test.ServiceA"));
-    ASSERT_TRUE(conn_b.request_name("org.test.ServiceB"));
+    ASSERT_TRUE(REQUEST_NAME_SUCCESS(conn_a, "org.test.ServiceA"));
+    ASSERT_TRUE(REQUEST_NAME_SUCCESS(conn_b, "org.test.ServiceB"));
 
     ilog("多信号测试 - 服务A: ${name}", ("name", conn_a.get_unique_name()));
     ilog("多信号测试 - 服务B: ${name}", ("name", conn_b.get_unique_name()));
@@ -378,8 +381,8 @@ TEST_F(signal_send_receive_test, test_signal_subscribe_unsubscribe) {
     ASSERT_TRUE(conn_b.is_connected());
 
     // 注册服务名称
-    ASSERT_TRUE(conn_a.request_name("org.test.ServiceA"));
-    ASSERT_TRUE(conn_b.request_name("org.test.ServiceB"));
+    ASSERT_TRUE(REQUEST_NAME_SUCCESS(conn_a, "org.test.ServiceA"));
+    ASSERT_TRUE(REQUEST_NAME_SUCCESS(conn_b, "org.test.ServiceB"));
 
     ilog("取消订阅测试 - 服务A: ${name}", ("name", conn_a.get_unique_name()));
     ilog("取消订阅测试 - 服务B: ${name}", ("name", conn_b.get_unique_name()));

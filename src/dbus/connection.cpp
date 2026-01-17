@@ -30,12 +30,12 @@ connection open_bus(mc::io_context& executor) {
             break;
         }
 
-        dlog("DBus连接失败: ${error}, 重试第 ${i} 次", ("error", err.message)("i", i));
+        dlog("DBus connection failed: ${error}, retry ${i}", ("error", err.message)("i", i));
         dbus_error_free(&err);
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
 
-    MC_THROW(mc::system_exception, "DBus连接失败: ${error}", ("error", err.message));
+    MC_THROW(mc::system_exception, "DBus connection failed: ${error}", ("error", err.message));
 }
 
 connection connection::open_system_bus(mc::io_context& executor) {
@@ -70,6 +70,22 @@ void connection::disconnect() {
     m_impl->disconnect();
 }
 
+void connection::flush() {
+    if (!m_impl) {
+        return;
+    }
+
+    m_impl->flush();
+}
+
+void connection::dispatch() {
+    if (!m_impl) {
+        return;
+    }
+
+    m_impl->dispatch();
+}
+
 bool connection::send(message&& msg) {
     ensure_impl();
 
@@ -80,6 +96,12 @@ message connection::send_with_reply(message&& msg, mc::milliseconds timeout) {
     ensure_impl();
 
     return async_send_with_reply(std::forward<message>(msg), timeout).get();
+}
+
+message connection::send_with_reply_and_block(message&& msg, mc::milliseconds timeout) {
+    ensure_impl();
+
+    return m_impl->send_with_reply_and_block(std::forward<message>(msg), timeout);
 }
 
 connection::future<message> connection::async_send_with_reply(message&&        msg,
@@ -109,13 +131,12 @@ bool connection::is_connected() const {
     return m_impl->is_connected();
 }
 
-void connection::dispatch() {
+bool connection::get_is_connected() const {
     if (!m_impl) {
-        return;
+        return false;
     }
 
-    std::lock_guard lock(m_impl->m_mutex);
-    m_impl->dispatch();
+    return m_impl->get_is_connected();
 }
 
 bool connection::start() {
@@ -126,9 +147,12 @@ bool connection::start() {
     return m_impl->start();
 }
 
-bool connection::request_name(std::string_view name, uint32_t flags) {
+std::tuple<bool, std::optional<error>> connection::request_name(std::string_view name,
+                                                                uint32_t         flags) {
     if (!m_impl) {
-        return false;
+        error err;
+        err.set_error(error_names::disconnected, "Connection not initialized");
+        return {false, std::move(err)};
     }
 
     return m_impl->request_name(name, flags);
@@ -140,6 +164,11 @@ std::string_view connection::get_unique_name() const {
     }
 
     return dbus_bus_get_unique_name(m_impl->m_connection);
+}
+
+void connection::set_unique_name(std::string_view name) {
+    ensure_impl();
+    dbus_bus_set_unique_name(m_impl->m_connection, std::string(name).c_str());
 }
 
 connection_impl& connection::get_impl() const {

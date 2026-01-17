@@ -19,10 +19,30 @@
 
 namespace mc::dbus {
 
+/**
+ * @brief 发射接口添加信号
+ * @param conn [in/out] DBus连接对象
+ * @param obj [in] 抽象对象
+ * @constraint 用于通知DBus总线某个对象添加了新接口
+ */
 MC_API void emit_interfaces_added(connection& conn, const engine::abstract_object& obj);
 
+/**
+ * @brief 发射接口移除信号
+ * @param conn [in/out] DBus连接对象
+ * @param obj [in] 抽象对象
+ * @constraint 用于通知DBus总线某个对象移除了接口
+ */
 MC_API void emit_interfaces_removed(connection& conn, const engine::abstract_object& obj);
 
+/**
+ * @brief 发射属性变更信号
+ * @param conn [in/out] DBus连接对象
+ * @param obj [in/out] 抽象对象
+ * @param prop [in] 属性基类引用
+ * @param value [in] 新属性值
+ * @constraint 用于通知DBus总线某个对象的属性发生了变化
+ */
 MC_API void emit_properties_changed(connection& conn, engine::abstract_object& obj,
                                     const engine::property_base& prop, const variant& value);
 

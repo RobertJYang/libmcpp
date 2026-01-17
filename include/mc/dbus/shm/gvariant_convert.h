@@ -24,18 +24,33 @@ constexpr int32_t MAX_CONTAINER_DEPTH = 32;
 constexpr int32_t MAX_CONTAINER_SIZE  = 1024;
 constexpr int32_t MAX_SIGNATURE_LEN   = 255;
 
+/**
+ * @brief GVariant签名单元
+ */
 struct MC_API sig_unit {
 public:
-    int         type;
-    int         len;
-    char        buf[MAX_SIG_LEN + 1];
-    const char* sub_types;
-    const char* next_types;
+    int         type;                 /**< 类型码 */
+    int         len;                  /**< 签名长度 */
+    char        buf[MAX_SIG_LEN + 1]; /**< 签名缓冲区 */
+    const char* sub_types;            /**< 子类型指针 */
+    const char* next_types;           /**< 下一个类型指针 */
 
+    /**
+     * @brief 检查子类型是否有效
+     * @return 有效返回true，否则返回false
+     */
     bool sub_types_is_valid() const {
         return sub_types != nullptr && *sub_types != '\0';
     }
 
+    /**
+     * @brief 获取签名长度
+     * @param types [in] 类型字符串
+     * @param allow_dict_entry [in] 是否允许dict entry
+     * @param array_depth [in] 数组深度
+     * @param struct_depth [in] 结构体深度
+     * @return 返回签名长度
+     */
     static int get_sig_len(const char* types, bool allow_dict_entry, size_t array_depth,
                            size_t struct_depth);
 
@@ -46,32 +61,115 @@ private:
                               size_t struct_depth);
 };
 
+/**
+ * @brief GVariant自动释放包装器
+ */
 struct MC_API gvariant_auto_free {
+    /**
+     * @brief 默认构造函数
+     */
     gvariant_auto_free() = default;
+
+    /**
+     * @brief 从GVariant指针构造
+     * @param v [in] GVariant指针
+     * @param add_ref [in] 是否增加引用计数
+     */
     explicit gvariant_auto_free(GVariant* v, bool add_ref = false);
+
+    /**
+     * @brief 析构函数
+     */
     ~gvariant_auto_free();
+
+    /**
+     * @brief 拷贝构造函数
+     * @param other [in] 源对象
+     */
     gvariant_auto_free(const gvariant_auto_free& other);
+
+    /**
+     * @brief 拷贝赋值运算符
+     * @param other [in] 源对象
+     * @return 返回当前对象的引用
+     */
     gvariant_auto_free& operator=(const gvariant_auto_free& other);
+
+    /**
+     * @brief 移动构造函数
+     * @param other [in/out] 源对象
+     */
     gvariant_auto_free(gvariant_auto_free&& other) noexcept;
+
+    /**
+     * @brief 移动赋值运算符
+     * @param other [in/out] 源对象
+     * @return 返回当前对象的引用
+     */
     gvariant_auto_free& operator=(gvariant_auto_free&& other) noexcept;
+
+    /**
+     * @brief 释放GVariant指针
+     */
     void release();
 
-    GVariant *ptr{nullptr};
+    GVariant* ptr{nullptr}; /**< GVariant指针 */
 };
 
+/**
+ * @brief GVariant构建器
+ */
 class MC_API gvariant_builder : public GVariantBuilder {
 public:
-    explicit gvariant_builder(const GVariantType *type);
+    /**
+     * @brief 构造函数
+     * @param type [in] GVariant类型
+     */
+    explicit gvariant_builder(const GVariantType* type);
+
+    /**
+     * @brief 析构函数
+     */
     ~gvariant_builder();
 
-    void add(GVariant *value);
-    GVariant *end();
+    /**
+     * @brief 添加值
+     * @param value [in] GVariant值
+     */
+    void add(GVariant* value);
+
+    /**
+     * @brief 结束构建并返回结果
+     * @return 返回构建的GVariant对象
+     */
+    GVariant* end();
 };
 
+/**
+ * @brief GVariant与mc::variant转换器
+ */
 class MC_API gvariant_convert {
 public:
-    static variant   to_mc_variant(GVariant* value);
+    /**
+     * @brief 将GVariant转换为mc::variant
+     * @param value [in] GVariant值
+     * @return 返回mc::variant对象
+     */
+    static variant to_mc_variant(GVariant* value);
+
+    /**
+     * @brief 将mc::variant按指定类型转换为GVariant
+     * @param value [in] mc::variant对象
+     * @param types [in] 类型签名
+     * @return 返回GVariant对象
+     */
     static GVariant* to_gvariant(const variant& value, const char* types);
+
+    /**
+     * @brief 将mc::variant转换为GVariant（自动推断类型）
+     * @param value [in] mc::variant对象
+     * @return 返回GVariant对象
+     */
     static GVariant* to_gvariant(const variant& value);
 
 private:

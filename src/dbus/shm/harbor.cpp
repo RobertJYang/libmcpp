@@ -360,8 +360,13 @@ void harbor::start() {
     if (!connection.start()) {
         MC_THROW(mc::exception, "failed to start dbus connection");
     }
-    if (!connection.request_name(m_harbor_name)) {
-        MC_THROW(mc::exception, "failed to request name: ${name}", ("name", m_harbor_name));
+    auto [success, err_opt] = connection.request_name(m_harbor_name);
+    if (!success) {
+        std::string err_msg = "failed to request name: " + std::string(m_harbor_name);
+        if (err_opt.has_value() && err_opt->message) {
+            err_msg += ", error: " + std::string(err_opt->message);
+        }
+        MC_THROW(mc::exception, err_msg);
     }
     m_unique_name = connection.get_unique_name();
     m_connection  = connection;

@@ -25,6 +25,9 @@
 
 using namespace mc::dbus;
 
+// 辅助宏：从tuple中提取bool值用于EXPECT_TRUE
+#define REQUEST_NAME_SUCCESS(conn, name) std::get<0>((conn).request_name(name))
+
 class dispatch_test : public mc::test::TestWithDbusDaemon {
 protected:
     static void SetUpTestSuite() {
@@ -52,7 +55,7 @@ TEST_F(dispatch_test, test_connection_dispatch) {
     auto conn = connection::open_session_bus(*s_io_context);
     EXPECT_TRUE(conn.start());
     ASSERT_TRUE(conn.is_connected());
-    EXPECT_TRUE(conn.request_name("org.test.Dispatch"));
+    EXPECT_TRUE(REQUEST_NAME_SUCCESS(conn, "org.test.Dispatch"));
     auto msg   = message::new_method_call("org.freedesktop.DBus", "/org/freedesktop/DBus",
                                           "org.freedesktop.DBus", "ListNames");
     auto reply = conn.send_with_reply(std::move(msg), mc::milliseconds(1000));
@@ -89,7 +92,7 @@ TEST_F(dispatch_test, test_async_send_with_reply) {
     auto conn = connection::open_session_bus(*s_io_context);
     EXPECT_TRUE(conn.start());
     ASSERT_TRUE(conn.is_connected());
-    EXPECT_TRUE(conn.request_name("org.test.Dispatch"));
+    EXPECT_TRUE(REQUEST_NAME_SUCCESS(conn, "org.test.Dispatch"));
     auto msg    = message::new_method_call("org.freedesktop.DBus", "/org/freedesktop/DBus",
                                            "org.freedesktop.DBus", "GetId");
     auto future = conn.async_send_with_reply(std::move(msg), mc::seconds(1));
@@ -102,7 +105,7 @@ TEST_F(dispatch_test, test_multiple_concurrent_calls) {
     auto conn = connection::open_session_bus(*s_io_context);
     EXPECT_TRUE(conn.start());
     ASSERT_TRUE(conn.is_connected());
-    EXPECT_TRUE(conn.request_name("org.test.Dispatch"));
+    EXPECT_TRUE(REQUEST_NAME_SUCCESS(conn, "org.test.Dispatch"));
 
     const int                                num_calls = 5;
     std::vector<connection::future<message>> futures;
@@ -124,7 +127,7 @@ TEST_F(dispatch_test, test_dispatch_while_receiving) {
     auto conn = connection::open_session_bus(*s_io_context);
     EXPECT_TRUE(conn.start());
     ASSERT_TRUE(conn.is_connected());
-    EXPECT_TRUE(conn.request_name("org.test.Dispatch"));
+    EXPECT_TRUE(REQUEST_NAME_SUCCESS(conn, "org.test.Dispatch"));
 
     auto msg    = message::new_method_call("org.freedesktop.DBus", "/org/freedesktop/DBus",
                                            "org.freedesktop.DBus", "ListNames");
@@ -147,7 +150,7 @@ TEST_F(dispatch_test, test_pending_call_already_completed) {
     auto conn = connection::open_session_bus(*s_io_context);
     conn.start();
     ASSERT_TRUE(conn.is_connected());
-    EXPECT_TRUE(conn.request_name("org.test.Dispatch"));
+    EXPECT_TRUE(REQUEST_NAME_SUCCESS(conn, "org.test.Dispatch"));
 
     auto msg   = message::new_method_call("org.freedesktop.DBus", "/org/freedesktop/DBus",
                                           "org.freedesktop.DBus", "GetId");
@@ -161,7 +164,7 @@ TEST_F(dispatch_test, test_pending_call_move_operations) {
     auto conn = connection::open_session_bus(*s_io_context);
     conn.start();
     ASSERT_TRUE(conn.is_connected());
-    EXPECT_TRUE(conn.request_name("org.test.Dispatch"));
+    EXPECT_TRUE(REQUEST_NAME_SUCCESS(conn, "org.test.Dispatch"));
 
     auto msg1    = message::new_method_call("org.freedesktop.DBus", "/org/freedesktop/DBus",
                                             "org.freedesktop.DBus", "GetId");
@@ -181,7 +184,7 @@ TEST_F(dispatch_test, test_pending_call_stop_before_reply) {
     auto conn = connection::open_session_bus(*s_io_context);
     conn.start();
     ASSERT_TRUE(conn.is_connected());
-    EXPECT_TRUE(conn.request_name("org.test.Dispatch"));
+    EXPECT_TRUE(REQUEST_NAME_SUCCESS(conn, "org.test.Dispatch"));
 
     auto msg    = message::new_method_call("org.freedesktop.DBus", "/org/freedesktop/DBus",
                                            "org.freedesktop.DBus", "GetId");
@@ -198,7 +201,7 @@ TEST_F(dispatch_test, test_timeout_handling) {
     auto conn = connection::open_session_bus(*s_io_context);
     conn.start();
     ASSERT_TRUE(conn.is_connected());
-    EXPECT_TRUE(conn.request_name("org.test.Dispatch"));
+    EXPECT_TRUE(REQUEST_NAME_SUCCESS(conn, "org.test.Dispatch"));
 
     for (int i = 0; i < 5; ++i) {
         auto msg   = message::new_method_call("org.freedesktop.DBus", "/org/freedesktop/DBus",
@@ -215,7 +218,7 @@ TEST_F(dispatch_test, test_timeout_with_long_interval) {
     auto conn = connection::open_session_bus(*s_io_context);
     conn.start();
     ASSERT_TRUE(conn.is_connected());
-    EXPECT_TRUE(conn.request_name("org.test.Dispatch"));
+    EXPECT_TRUE(REQUEST_NAME_SUCCESS(conn, "org.test.Dispatch"));
 
     auto msg   = message::new_method_call("org.freedesktop.DBus", "/org/freedesktop/DBus",
                                           "org.freedesktop.DBus", "ListNames");
@@ -240,7 +243,7 @@ TEST_F(dispatch_test, test_add_and_remove_match_rules) {
     auto conn = connection::open_session_bus(*s_io_context);
     ASSERT_TRUE(conn.start());
     ASSERT_TRUE(conn.is_connected());
-    EXPECT_TRUE(conn.request_name("org.test.Dispatch"));
+    EXPECT_TRUE(REQUEST_NAME_SUCCESS(conn, "org.test.Dispatch"));
 
     match_rule rule1 = match_rule::new_signal("NameOwnerChanged", DBUS_INTERFACE_DBUS);
     match_rule rule2 = match_rule::new_signal("PropertiesChanged", DBUS_PROPERTIES_INTERFACE);
@@ -269,7 +272,7 @@ TEST_F(dispatch_test, PendingCallImmediateReply) {
     auto conn = connection::open_session_bus(*s_io_context);
     conn.start();
     ASSERT_TRUE(conn.is_connected());
-    EXPECT_TRUE(conn.request_name("org.test.Dispatch"));
+    EXPECT_TRUE(REQUEST_NAME_SUCCESS(conn, "org.test.Dispatch"));
 
     // 创建一个已经完成的 pending_call
     auto msg   = message::new_method_call("org.freedesktop.DBus", "/org/freedesktop/DBus",
@@ -294,7 +297,7 @@ TEST_F(dispatch_test, WatchReadableErrorLogged) {
     auto conn = connection::open_session_bus(*s_io_context);
     conn.start();
     ASSERT_TRUE(conn.is_connected());
-    EXPECT_TRUE(conn.request_name("org.test.Dispatch"));
+    EXPECT_TRUE(REQUEST_NAME_SUCCESS(conn, "org.test.Dispatch"));
 
     // 通过正常操作触发 watch，错误日志分支很难直接测试
     // 因为需要模拟 Boost.Asio 在 async_wait 时返回非 operation_aborted 错误
@@ -312,7 +315,7 @@ TEST_F(dispatch_test, WatchWritableInvoked) {
     auto conn = connection::open_session_bus(*s_io_context);
     conn.start();
     ASSERT_TRUE(conn.is_connected());
-    EXPECT_TRUE(conn.request_name("org.test.Dispatch"));
+    EXPECT_TRUE(REQUEST_NAME_SUCCESS(conn, "org.test.Dispatch"));
 
     // 通过 send_with_reply 触发写事件
     auto msg   = message::new_method_call("org.freedesktop.DBus", "/org/freedesktop/DBus",
@@ -328,7 +331,7 @@ TEST_F(dispatch_test, HandleWatchReadyStopsWhenFalse) {
     auto conn = connection::open_session_bus(*s_io_context);
     conn.start();
     ASSERT_TRUE(conn.is_connected());
-    EXPECT_TRUE(conn.request_name("org.test.Dispatch"));
+    EXPECT_TRUE(REQUEST_NAME_SUCCESS(conn, "org.test.Dispatch"));
 
     // 通过正常操作触发 watch，handle_watch_ready 返回 false 的分支很难直接测试
     // 这个测试主要确保代码不会崩溃
@@ -345,7 +348,7 @@ TEST_F(dispatch_test, TimeoutErrorLogged) {
     auto conn = connection::open_session_bus(*s_io_context);
     conn.start();
     ASSERT_TRUE(conn.is_connected());
-    EXPECT_TRUE(conn.request_name("org.test.Dispatch"));
+    EXPECT_TRUE(REQUEST_NAME_SUCCESS(conn, "org.test.Dispatch"));
 
     // 通过正常操作触发 timeout，错误日志分支很难直接测试
     // 因为需要模拟 boost::asio::error::fault 等错误
@@ -363,7 +366,7 @@ TEST_F(dispatch_test, TimeoutHandlerInvoked) {
     auto conn = connection::open_session_bus(*s_io_context);
     conn.start();
     ASSERT_TRUE(conn.is_connected());
-    EXPECT_TRUE(conn.request_name("org.test.Dispatch"));
+    EXPECT_TRUE(REQUEST_NAME_SUCCESS(conn, "org.test.Dispatch"));
 
     // 通过正常操作触发 timeout，dbus_timeout_handle 会被调用
     auto msg   = message::new_method_call("org.freedesktop.DBus", "/org/freedesktop/DBus",

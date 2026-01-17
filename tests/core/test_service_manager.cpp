@@ -28,7 +28,8 @@ using namespace mc::core;
 
 class fake_service : public service_base {
 public:
-    explicit fake_service(std::string name) : service_base(std::move(name)) {
+    explicit fake_service(std::string name)
+        : service_base(std::move(name)) {
         set_state(service_state::stopped);
     }
 
@@ -58,12 +59,12 @@ public:
     }
 
     dict m_init_args;
-    bool     m_started     = false;
-    bool     m_stopped     = false;
-    bool     m_cleaned     = false;
-    bool     m_init_result = true;
-    bool     m_start_result = true;
-    bool     m_stop_result  = true;
+    bool m_started      = false;
+    bool m_stopped      = false;
+    bool m_cleaned      = false;
+    bool m_init_result  = true;
+    bool m_start_result = true;
+    bool m_stop_result  = true;
 };
 
 // 测试辅助函数：创建服务配置
@@ -83,7 +84,8 @@ config::service_config make_service_config(const std::string&              name,
 // 测试用监督器
 class test_supervisor : public supervisor {
 public:
-    test_supervisor() : m_config{} {
+    test_supervisor()
+        : m_config{} {
         m_config.meta.name    = "main";
         m_config.strategy     = config::supervisor_strategy::one_for_one;
         m_config.max_restarts = 3;
@@ -145,10 +147,11 @@ private:
     config::supervisor_config m_config;
 };
 
-// 测试用服务
-class test_service : public service_base {
+// 测试用服务（重命名以避免与test_default_supervisor.cpp中的同名类冲突）
+class test_service_simple : public service_base {
 public:
-    test_service(const std::string& name) : service_base(name) {
+    test_service_simple(const std::string& name)
+        : service_base(name) {
     }
 
     bool init(dict args) override {
@@ -186,9 +189,9 @@ protected:
         // 验证 "main" supervisor 已经存在
         ASSERT_NE(supervisor_mgr.get_supervisor("main"), nullptr);
 
-        // 使用 service_factory 并注册 test_service，和成功的测试用例保持一致
+        // 使用 service_factory 并注册 test_service_simple，和成功的测试用例保持一致
         factory = std::make_shared<service_factory>();
-        factory->register_service<test_service>("test");
+        factory->register_service<test_service_simple>("test");
     }
 
     ~service_manager_test() {
@@ -247,7 +250,7 @@ TEST_F(service_manager_test, initialize_from_configs_builds_services) {
     service_factory factory;
     factory.register_service<fake_service>("fake");
 
-    config_manager config_mgr;
+    config_manager         config_mgr;
     config::service_config cfg_a;
     cfg_a.api_version  = "v1";
     cfg_a.kind         = "Service";
@@ -276,7 +279,7 @@ TEST_F(service_manager_test, initialize_from_configs_builds_services) {
     EXPECT_TRUE(manager.initialize_from_configs(config_mgr, sup_mgr, factory));
 
     EXPECT_TRUE(manager.start_services());
-    auto first = mc::dynamic_pointer_cast<fake_service>(manager.get_service("service_a"));
+    auto first  = mc::dynamic_pointer_cast<fake_service>(manager.get_service("service_a"));
     auto second = mc::dynamic_pointer_cast<fake_service>(manager.get_service("service_b"));
     ASSERT_TRUE(first);
     ASSERT_TRUE(second);
@@ -296,7 +299,7 @@ TEST_F(service_manager_test, initialize_from_configs_detects_cycle) {
     service_factory factory;
     factory.register_service<fake_service>("fake");
 
-    config_manager config_mgr;
+    config_manager         config_mgr;
     config::service_config cfg_a;
     cfg_a.api_version  = "v1";
     cfg_a.kind         = "Service";
@@ -333,7 +336,7 @@ TEST_F(service_manager_test, start_services_handles_failure) {
     service_factory factory;
     factory.register_service<fake_service>("fake");
 
-    config_manager config_mgr;
+    config_manager         config_mgr;
     config::service_config cfg_a;
     cfg_a.api_version  = "v1";
     cfg_a.kind         = "Service";
@@ -485,15 +488,15 @@ TEST_F(service_manager_test, circular_dependency) {
 
 // 测试服务添加和移除
 TEST_F(service_manager_test, add_remove_services) {
-    auto service1 = mc::make_shared<test_service>("service1");
-    auto service2 = mc::make_shared<test_service>("service2");
+    auto service1 = mc::make_shared<test_service_simple>("service1");
+    auto service2 = mc::make_shared<test_service_simple>("service2");
 
     // 测试添加服务
     EXPECT_TRUE(manager.add_service("service1", service1));
     EXPECT_TRUE(manager.add_service("service2", service2));
 
     // 测试重复添加（应该失败）
-    auto duplicate_service = mc::make_shared<test_service>("service1");
+    auto duplicate_service = mc::make_shared<test_service_simple>("service1");
     EXPECT_FALSE(manager.add_service("service1", duplicate_service));
 
     // 测试添加空服务（应该失败）
@@ -520,8 +523,8 @@ TEST_F(service_manager_test, add_remove_services) {
 
 // 测试服务启动和停止
 TEST_F(service_manager_test, start_stop_services) {
-    auto service1 = mc::make_shared<test_service>("service1");
-    auto service2 = mc::make_shared<test_service>("service2");
+    auto service1 = mc::make_shared<test_service_simple>("service1");
+    auto service2 = mc::make_shared<test_service_simple>("service2");
 
     manager.add_service("service1", service1);
     manager.add_service("service2", service2);
@@ -538,14 +541,27 @@ TEST_F(service_manager_test, service_start_failure) {
     // 创建一个会启动失败的服务
     class failing_service : public service_base {
     public:
-        failing_service(const std::string& name) : service_base(name) {}
+        failing_service(const std::string& name)
+            : service_base(name) {
+        }
 
-        bool init(dict args) override { return true; }
-        bool start() override { return false; } // 故意失败
-        bool stop() override { return true; }
-        void cleanup() override {}
-        service_state get_state() const override { return service_state::stopped; }
-        bool is_healthy() const override { return true; }
+        bool init(dict args) override {
+            return true;
+        }
+        bool start() override {
+            return false;
+        } // 故意失败
+        bool stop() override {
+            return true;
+        }
+        void cleanup() override {
+        }
+        service_state get_state() const override {
+            return service_state::stopped;
+        }
+        bool is_healthy() const override {
+            return true;
+        }
     };
 
     auto failing_svc = mc::make_shared<failing_service>("failing_service");
@@ -561,14 +577,27 @@ TEST_F(service_manager_test, service_stop_failure) {
     // 创建一个会停止失败的服务
     class failing_stop_service : public service_base {
     public:
-        failing_stop_service(const std::string& name) : service_base(name) {}
+        failing_stop_service(const std::string& name)
+            : service_base(name) {
+        }
 
-        bool init(dict args) override { return true; }
-        bool start() override { return true; }
-        bool stop() override { return false; } // 故意失败
-        void cleanup() override {}
-        service_state get_state() const override { return service_state::running; }
-        bool is_healthy() const override { return true; }
+        bool init(dict args) override {
+            return true;
+        }
+        bool start() override {
+            return true;
+        }
+        bool stop() override {
+            return false;
+        } // 故意失败
+        void cleanup() override {
+        }
+        service_state get_state() const override {
+            return service_state::running;
+        }
+        bool is_healthy() const override {
+            return true;
+        }
     };
 
     auto failing_svc = mc::make_shared<failing_stop_service>("failing_service");
@@ -583,16 +612,28 @@ TEST_F(service_manager_test, service_cleanup_exception) {
     // 创建一个清理时会抛出异常的服务
     class exception_cleanup_service : public service_base {
     public:
-        exception_cleanup_service(const std::string& name) : service_base(name) {}
+        exception_cleanup_service(const std::string& name)
+            : service_base(name) {
+        }
 
-        bool init(dict args) override { return true; }
-        bool start() override { return true; }
-        bool stop() override { return true; }
+        bool init(dict args) override {
+            return true;
+        }
+        bool start() override {
+            return true;
+        }
+        bool stop() override {
+            return true;
+        }
         void cleanup() override {
             throw std::runtime_error("Cleanup failed");
         }
-        service_state get_state() const override { return service_state::stopped; }
-        bool is_healthy() const override { return true; }
+        service_state get_state() const override {
+            return service_state::stopped;
+        }
+        bool is_healthy() const override {
+            return true;
+        }
     };
 
     auto exception_svc = mc::make_shared<exception_cleanup_service>("exception_service");
@@ -615,8 +656,8 @@ TEST_F(service_manager_test, empty_service_list) {
 
 // 测试服务管理器清理
 TEST_F(service_manager_test, service_manager_cleanup) {
-    auto service1 = mc::make_shared<test_service>("service1");
-    auto service2 = mc::make_shared<test_service>("service2");
+    auto service1 = mc::make_shared<test_service_simple>("service1");
+    auto service2 = mc::make_shared<test_service_simple>("service2");
 
     manager.add_service("service1", service1);
     manager.add_service("service2", service2);
@@ -646,11 +687,11 @@ TEST_F(service_manager_test, start_null_service_ignored) {
 // 测试复杂依赖关系
 TEST_F(service_manager_test, complex_dependency_graph) {
     std::vector<config::service_config> configs = {
-        make_service_config("service1", {}),                    // 无依赖
-        make_service_config("service2", {"service1"}),          // 依赖service1
+        make_service_config("service1", {}),                       // 无依赖
+        make_service_config("service2", {"service1"}),             // 依赖service1
         make_service_config("service3", {"service1", "service2"}), // 依赖service1和service2
-        make_service_config("service4", {"service2"}),          // 依赖service2
-        make_service_config("service5", {})                     // 无依赖
+        make_service_config("service4", {"service2"}),             // 依赖service2
+        make_service_config("service5", {})                        // 无依赖
     };
 
     add_configs(configs);

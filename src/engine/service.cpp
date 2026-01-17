@@ -148,8 +148,13 @@ bool service_impl::start() {
     }
 
     auto service_name = m_service->name();
-    if (!connection.request_name(service_name)) {
-        elog("start service failed: cannot request dbus name");
+    auto [success, err_opt] = connection.request_name(service_name);
+    if (!success) {
+        if (err_opt.has_value() && err_opt->message) {
+            elog("start service failed: cannot request dbus name: ${error}", ("error", err_opt->message));
+        } else {
+            elog("start service failed: cannot request dbus name");
+        }
         return false;
     }
 

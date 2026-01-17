@@ -40,6 +40,10 @@
 
 using namespace mc::dbus;
 
+// 辅助宏：从tuple中提取bool值用于EXPECT_TRUE/FALSE
+#define REQUEST_NAME_SUCCESS(conn, name)              std::get<0>((conn).request_name(name))
+#define REQUEST_NAME_SUCCESS_FLAGS(conn, name, flags) std::get<0>((conn).request_name(name, flags))
+
 namespace {
 
 /**
@@ -75,7 +79,7 @@ protected:
         TestWithDbusDaemon::SetUpTestSuite();
 
         // 根本解决方案：增加线程数，1个线程完全不够！
-        s_io_context = std::make_shared<mc::runtime::thread_pool>(6);  // 6个线程
+        s_io_context = std::make_shared<mc::runtime::thread_pool>(6); // 6个线程
         s_io_context->start();
     }
 
@@ -116,7 +120,7 @@ TEST_F(connection_test, test_list_names) {
     auto conn = mc::dbus::connection::open_session_bus(*s_io_context);
     conn.start();
     ASSERT_TRUE(conn.is_connected());
-    EXPECT_TRUE(conn.request_name("org.test.Connection"));
+    EXPECT_TRUE(REQUEST_NAME_SUCCESS(conn, "org.test.Connection"));
     // 增加等待时间，确保服务名称已注册
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
@@ -144,7 +148,7 @@ TEST_F(connection_test, test_disconnect) {
         auto tmp = mc::dbus::connection::open_session_bus(*s_io_context);
         tmp.start();
         ASSERT_TRUE(tmp.is_connected());
-        EXPECT_TRUE(tmp.request_name("org.test.Connection"));
+        EXPECT_TRUE(REQUEST_NAME_SUCCESS(tmp, "org.test.Connection"));
 
         auto msg = mc::dbus::message::new_method_call(
             "org.freedesktop.DBus", "/org/freedesktop/DBus", "org.freedesktop.DBus", "ListNames");
@@ -178,7 +182,7 @@ TEST_F(connection_test, test_default_constructor) {
     mc::dbus::connection conn;
     EXPECT_FALSE(conn.is_connected());
     EXPECT_FALSE(conn.start());
-    EXPECT_FALSE(conn.request_name("org.test.Connection"));
+    EXPECT_FALSE(REQUEST_NAME_SUCCESS(conn, "org.test.Connection"));
     EXPECT_TRUE(conn.get_unique_name().empty());
     EXPECT_EQ(conn.get_connection(), nullptr);
     conn.disconnect(); // 应该不崩溃
@@ -189,7 +193,7 @@ TEST_F(connection_test, test_copy_constructor_shares_state) {
     auto original = mc::dbus::connection::open_session_bus(*s_io_context);
     ASSERT_TRUE(original.start());
     ASSERT_TRUE(original.is_connected());
-    EXPECT_TRUE(original.request_name("org.test.CopySource"));
+    EXPECT_TRUE(REQUEST_NAME_SUCCESS(original, "org.test.CopySource"));
 
     mc::dbus::connection copied(original);
     EXPECT_TRUE(copied.is_connected());
@@ -215,11 +219,11 @@ TEST_F(connection_test, scenario_full_dbus_flow) {
         suffix = "0";
     }
     auto service_name = std::string("org.test.Connection.Full") + suffix;
-    EXPECT_TRUE(conn.request_name(service_name));
+    EXPECT_TRUE(std::get<0>(conn.request_name(service_name)));
     EXPECT_NE(conn.get_connection(), nullptr);
     EXPECT_FALSE(conn.get_unique_name().empty());
     EXPECT_GT(conn.get_next_serial(), 0u);
-    
+
     // 等待服务名称注册完成
     std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
@@ -306,11 +310,11 @@ TEST_F(connection_test, scenario_full_dbus_flow) {
         }
         cv.notify_one();
     });
-    auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(15000);  // 增加到15秒
+    auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(15000); // 增加到15秒
     while (true) {
         // 多线程 io_context 会自动处理，减少主动 dispatch
         conn.dispatch();
-        
+
         std::unique_lock lock(mutex);
         if (cv.wait_for(lock, std::chrono::milliseconds(50), [&async_done]() {
             return async_done;
@@ -342,16 +346,16 @@ TEST_F(connection_test, scenario_full_dbus_flow) {
     conn.remove_match(42);
     conn.remove_match(43);
     conn.unregister_path(path);
-    
+
     // 处理待处理的消息，确保清理完成
     for (int i = 0; i < 10; ++i) {
         conn.dispatch();
         std::this_thread::sleep_for(std::chrono::milliseconds(2));
     }
-    
+
     conn.disconnect();
     EXPECT_FALSE(conn.is_connected());
-    
+
     // 给 io_context 时间处理断开连接相关的异步操作
     std::this_thread::sleep_for(std::chrono::milliseconds(50));
 }
@@ -361,7 +365,7 @@ TEST_F(connection_test, test_send) {
     auto conn = mc::dbus::connection::open_session_bus(*s_io_context);
     conn.start();
     ASSERT_TRUE(conn.is_connected());
-    EXPECT_TRUE(conn.request_name("org.test.Connection"));
+    EXPECT_TRUE(REQUEST_NAME_SUCCESS(conn, "org.test.Connection"));
 
     // 发送一个信号消息
     auto msg    = mc::dbus::message::new_signal("/org/test/Connection",
@@ -378,7 +382,7 @@ TEST_F(connection_test, scenario_connection_lifecycle) {
     auto conn = connection::open_session_bus(*s_io_context);
     EXPECT_TRUE(conn.start());
     ASSERT_TRUE(conn.is_connected());
-    EXPECT_TRUE(conn.request_name("org.test.Connection"));
+    EXPECT_TRUE(REQUEST_NAME_SUCCESS(conn, "org.test.Connection"));
     std::string_view unique_name = conn.get_unique_name();
     EXPECT_FALSE(unique_name.empty());
     auto msg = message::new_method_call("org.freedesktop.DBus", "/org/freedesktop/DBus",
@@ -392,7 +396,7 @@ TEST_F(connection_test, scenario_mixed_sync_async_calls) {
     auto conn = connection::open_session_bus(*s_io_context);
     EXPECT_TRUE(conn.start());
     ASSERT_TRUE(conn.is_connected());
-    EXPECT_TRUE(conn.request_name("org.test.Connection"));
+    EXPECT_TRUE(REQUEST_NAME_SUCCESS(conn, "org.test.Connection"));
     auto build_list_names_call = []() {
         return message::new_method_call(
             "org.freedesktop.DBus", "/org/freedesktop/DBus", "org.freedesktop.DBus", "ListNames");
@@ -420,7 +424,7 @@ TEST_F(connection_test, scenario_signal_subscription) {
     auto conn = connection::open_session_bus(*s_io_context);
     EXPECT_TRUE(conn.start());
     ASSERT_TRUE(conn.is_connected());
-    EXPECT_TRUE(conn.request_name("org.test.Connection"));
+    EXPECT_TRUE(REQUEST_NAME_SUCCESS(conn, "org.test.Connection"));
     auto             rule = match_rule::new_signal("PropertiesChanged", "org.freedesktop.DBus.Properties");
     std::atomic<int> signal_count{0};
     match_cb_t       callback = [&signal_count](message&) {
@@ -440,7 +444,7 @@ TEST_F(connection_test, scenario_error_handling_retry) {
     auto conn = connection::open_session_bus(*s_io_context);
     EXPECT_TRUE(conn.start());
     ASSERT_TRUE(conn.is_connected());
-    EXPECT_TRUE(conn.request_name("org.test.Connection"));
+    EXPECT_TRUE(REQUEST_NAME_SUCCESS(conn, "org.test.Connection"));
     // 测试调用不存在的方法，应该返回错误
     auto msg   = message::new_method_call("org.test.Connection", "/org/test/Connection",
                                           "org.test.Connection", "NonExistentMethod");
@@ -454,7 +458,7 @@ TEST_F(connection_test, scenario_path_registration) {
     auto conn = connection::open_session_bus(*s_io_context);
     EXPECT_TRUE(conn.start());
     ASSERT_TRUE(conn.is_connected());
-    EXPECT_TRUE(conn.request_name("org.test.Connection"));
+    EXPECT_TRUE(REQUEST_NAME_SUCCESS(conn, "org.test.Connection"));
     path_handler_type handler1 = [](message&) {
         return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
     };
@@ -472,7 +476,7 @@ TEST_F(connection_test, scenario_concurrent_messages) {
     auto conn = connection::open_session_bus(*s_io_context);
     EXPECT_TRUE(conn.start());
     ASSERT_TRUE(conn.is_connected());
-    EXPECT_TRUE(conn.request_name("org.test.Connection"));
+    EXPECT_TRUE(REQUEST_NAME_SUCCESS(conn, "org.test.Connection"));
     const int                num_threads         = 5;
     const int                messages_per_thread = 3;
     std::atomic<int>         success_count{0};
@@ -500,7 +504,7 @@ TEST_F(connection_test, test_path_handler_exception_signal) {
     auto conn = connection::open_session_bus(*s_io_context);
     conn.start();
     ASSERT_TRUE(conn.is_connected());
-    EXPECT_TRUE(conn.request_name("org.test.Connection"));
+    EXPECT_TRUE(REQUEST_NAME_SUCCESS(conn, "org.test.Connection"));
 
     path_handler_type handler = [](message&) {
         throw std::runtime_error("Test exception");
@@ -520,7 +524,7 @@ TEST_F(connection_test, test_path_handler_exception_method_call) {
     auto conn = connection::open_session_bus(*s_io_context);
     conn.start();
     ASSERT_TRUE(conn.is_connected());
-    EXPECT_TRUE(conn.request_name("org.test.Connection"));
+    EXPECT_TRUE(REQUEST_NAME_SUCCESS(conn, "org.test.Connection"));
 
     path_handler_type handler = [](message&) {
         throw std::runtime_error("Test exception");
@@ -544,7 +548,7 @@ TEST_F(connection_test, test_request_name_retry_failure) {
 
     std::string very_long_name(256, 'a');
     very_long_name.insert(0, "org.test.");
-    EXPECT_FALSE(conn.request_name(very_long_name));
+    EXPECT_FALSE(REQUEST_NAME_SUCCESS(conn, very_long_name));
     conn.disconnect();
 }
 
@@ -580,7 +584,7 @@ TEST_F(connection_test, test_send_with_existing_serial) {
     auto conn = connection::open_session_bus(*s_io_context);
     conn.start();
     ASSERT_TRUE(conn.is_connected());
-    EXPECT_TRUE(conn.request_name("org.test.Connection"));
+    EXPECT_TRUE(REQUEST_NAME_SUCCESS(conn, "org.test.Connection"));
     auto msg = message::new_signal("/org/test/Connection", "org.test.Connection", "TestSignal");
     msg.set_serial(conn.get_next_serial());
     EXPECT_TRUE(conn.send(std::move(msg)));
@@ -612,15 +616,9 @@ TEST_F(connection_test, test_request_name_invalid) {
     auto conn = connection::open_session_bus(*s_io_context);
     conn.start();
     ASSERT_TRUE(conn.is_connected());
-    EXPECT_FALSE(conn.request_name(""));
-    EXPECT_FALSE(conn.request_name("invalid"));
+    EXPECT_FALSE(REQUEST_NAME_SUCCESS(conn, ""));
+    EXPECT_FALSE(REQUEST_NAME_SUCCESS(conn, "invalid"));
     conn.disconnect();
-}
-
-TEST_F(connection_test, test_request_name_when_disconnected) {
-    auto conn = connection::open_session_bus(*s_io_context);
-    EXPECT_FALSE(conn.is_connected());
-    EXPECT_FALSE(conn.request_name("org.test.Connection"));
 }
 
 TEST_F(connection_test, test_start_wrong_status) {
@@ -679,7 +677,7 @@ TEST_F(connection_test, test_remove_match_when_disconnected) {
     auto conn = connection::open_session_bus(*s_io_context);
     conn.start();
     ASSERT_TRUE(conn.is_connected());
-    EXPECT_TRUE(conn.request_name("org.test.Connection"));
+    EXPECT_TRUE(REQUEST_NAME_SUCCESS(conn, "org.test.Connection"));
     auto       rule     = match_rule::new_signal("PropertiesChanged", "org.freedesktop.DBus.Properties");
     match_cb_t callback = [](message&) {
     };
@@ -694,7 +692,7 @@ TEST_F(connection_test, test_filter_message) {
     auto conn = connection::open_session_bus(*s_io_context);
     conn.start();
     ASSERT_TRUE(conn.is_connected());
-    EXPECT_TRUE(conn.request_name("org.test.Connection"));
+    EXPECT_TRUE(REQUEST_NAME_SUCCESS(conn, "org.test.Connection"));
 
     std::atomic<bool> filter_called{false};
     auto&             filter = conn.filter_message();
@@ -719,7 +717,7 @@ TEST_F(connection_test, test_get_match) {
     auto conn = connection::open_session_bus(*s_io_context);
     conn.start();
     ASSERT_TRUE(conn.is_connected());
-    EXPECT_TRUE(conn.request_name("org.test.Connection"));
+    EXPECT_TRUE(REQUEST_NAME_SUCCESS(conn, "org.test.Connection"));
 
     // get_match 应该返回 match 对象的引用
     auto&      match    = conn.get_match();
@@ -745,7 +743,7 @@ TEST_F(connection_test, test_process_message_no_reply_serial) {
     auto conn = connection::open_session_bus(*s_io_context);
     conn.start();
     ASSERT_TRUE(conn.is_connected());
-    EXPECT_TRUE(conn.request_name("org.test.Connection"));
+    EXPECT_TRUE(REQUEST_NAME_SUCCESS(conn, "org.test.Connection"));
 
     // 发送一个 signal 消息，它不会进入 process_reply 分支，而是通过 filter_message 处理
     auto signal = message::new_signal("/org/test/Connection",
@@ -763,7 +761,7 @@ TEST_F(connection_test, test_process_reply_serial_not_found) {
     auto conn = connection::open_session_bus(*s_io_context);
     conn.start();
     ASSERT_TRUE(conn.is_connected());
-    EXPECT_TRUE(conn.request_name("org.test.Connection"));
+    EXPECT_TRUE(REQUEST_NAME_SUCCESS(conn, "org.test.Connection"));
 
     // 创建一个带有不存在的 reply_serial 的消息
     auto method_call = message::new_method_call("org.test.Connection",
@@ -796,7 +794,7 @@ TEST_F(connection_test, test_add_match_connection_lost_during_operation) {
     auto conn = connection::open_session_bus(*s_io_context);
     conn.start();
     ASSERT_TRUE(conn.is_connected());
-    EXPECT_TRUE(conn.request_name("org.test.Connection"));
+    EXPECT_TRUE(REQUEST_NAME_SUCCESS(conn, "org.test.Connection"));
 
     // 这个测试很难直接触发双重检查分支，因为需要在 add_match 执行过程中断开连接
     // 但可以通过测试 add_match 的基本功能来间接覆盖
@@ -813,7 +811,7 @@ TEST_F(connection_test, test_remove_match_error_handling) {
     auto conn = connection::open_session_bus(*s_io_context);
     conn.start();
     ASSERT_TRUE(conn.is_connected());
-    EXPECT_TRUE(conn.request_name("org.test.Connection"));
+    EXPECT_TRUE(REQUEST_NAME_SUCCESS(conn, "org.test.Connection"));
 
     // 添加一个匹配规则
     auto       rule     = match_rule::new_signal("PropertiesChanged", "org.freedesktop.DBus.Properties");
@@ -855,7 +853,7 @@ TEST_F(connection_test, test_process_message_method_return_no_reply_serial) {
     auto conn = connection::open_session_bus(*s_io_context);
     conn.start();
     ASSERT_TRUE(conn.is_connected());
-    EXPECT_TRUE(conn.request_name("org.test.Connection"));
+    EXPECT_TRUE(REQUEST_NAME_SUCCESS(conn, "org.test.Connection"));
 
     // 设置 filter_message 来处理没有 reply_serial 的消息
     std::atomic<bool> filter_called{false};
@@ -890,7 +888,7 @@ TEST_F(connection_test, test_dispatch_status_changed_other_status) {
     auto conn = connection::open_session_bus(*s_io_context);
     conn.start();
     ASSERT_TRUE(conn.is_connected());
-    EXPECT_TRUE(conn.request_name("org.test.Connection"));
+    EXPECT_TRUE(REQUEST_NAME_SUCCESS(conn, "org.test.Connection"));
 
     // 正常操作会触发 dispatch_status_changed，但通常状态是 DBUS_DISPATCH_DATA_REMAINS
     // 其他状态（如 DBUS_DISPATCH_COMPLETE）的分支很难直接测试

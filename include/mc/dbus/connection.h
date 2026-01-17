@@ -46,16 +46,32 @@ public:
     template <typename T>
     using future = mc::future<T>;
 
+    /**
+     * @brief 打开系统总线连接
+     * @param executor [in] IO上下文执行器
+     * @return 返回DBus系统总线连接对象
+     * @exception 连接失败时抛出异常
+     */
     static connection open_system_bus(mc::io_context& executor);
+
+    /**
+     * @brief 打开会话总线连接
+     * @param executor [in] IO上下文执行器
+     * @return 返回DBus会话总线连接对象
+     * @exception 连接失败时抛出异常
+     */
     static connection open_session_bus(mc::io_context& executor);
 
+    /**
+     * @brief 默认构造函数
+     */
     connection();
 
     /**
      * @brief 构造函数
-     * @param strand 线程池
-     * @param conn DBus连接
-     * @param add_ref 是否增加引用
+     * @param executor [in] IO上下文执行器
+     * @param conn [in] DBus连接指针
+     * @param add_ref [in] 是否增加引用计数
      */
     explicit connection(mc::io_context& executor, DBusConnection* conn, bool add_ref = false);
 
@@ -76,38 +92,52 @@ public:
     void disconnect();
 
     /**
-     * @brief 注册名称
-     * @param name 名称
-     * @return 是否成功注册
+     * @brief 刷新连接，将缓冲的消息发送到底层传输
+     */
+    void flush();
+
+    /**
+     * @brief 启动连接并开始消息分发
+     * @return 是否成功启动
+     * @exception 启动失败时抛出异常
      */
     bool start();
 
     /**
      * @brief 请求名称
-     * @param name 名称
-     * @return 是否成功请求
+     * @param name [in] 名称
+     * @param flags [in] 标志位
+     * @return tuple<是否成功, 可选的错误信息>
      */
-    bool request_name(std::string_view name, uint32_t flags = 0);
+    std::tuple<bool, std::optional<error>> request_name(std::string_view name, uint32_t flags = 0);
 
     /**
      * @brief 发送消息
-     * @param msg 要发送的消息
+     * @param msg [in] 要发送的消息
      * @return 是否成功发送
      */
     bool send(message&& msg);
 
     /**
      * @brief 发送消息并等待回复
-     * @param msg 要发送的消息
-     * @param timeout 超时时间（毫秒）
+     * @param msg [in] 要发送的消息
+     * @param timeout [in] 超时时间（毫秒）
      * @return 返回响应消息
      */
     message send_with_reply(message&& msg, mc::milliseconds timeout = DBUS_TIMEOUT_DEFAULT);
 
     /**
+     * @brief 发送消息并阻塞等待回复（send_with_reply的别名）
+     * @param msg [in] 要发送的消息
+     * @param timeout [in] 超时时间（毫秒）
+     * @return 返回响应消息
+     */
+    message send_with_reply_and_block(message&& msg, mc::milliseconds timeout = DBUS_TIMEOUT_DEFAULT);
+
+    /**
      * @brief 发送消息并等待回复
-     * @param msg 要发送的消息
-     * @param timeout 超时时间（毫秒）
+     * @param msg [in] 要发送的消息
+     * @param timeout [in] 超时时间（毫秒）
      * @return 完成后的future，包含回复消息
      */
     future<message> async_send_with_reply(message&&        msg,
@@ -115,14 +145,14 @@ public:
 
     /**
      * @brief 注册路径
-     * @param path 路径
-     * @param object 对象
+     * @param path [in] 路径
+     * @param handler [in] 路径处理器
      */
     void register_path(std::string_view path, path_handler_type handler);
 
     /**
      * @brief 注销路径
-     * @param path 路径
+     * @param path [in] 路径
      */
     void unregister_path(std::string_view path);
 
@@ -133,11 +163,21 @@ public:
     bool is_connected() const;
 
     /**
+     * @brief 获取DBus连接的实际状态（使用dbus_connection_get_is_connected）
+     * @return 连接状态
+     */
+    bool get_is_connected() const;
+
+    /**
      * @brief 获取DBus连接
      * @return DBus连接
      */
     DBusConnection* get_connection() const;
 
+    /**
+     * @brief 分发消息
+     * @constraint 处理队列中的待处理消息
+     */
     void dispatch();
 
     /**
@@ -146,16 +186,51 @@ public:
      */
     std::string_view get_unique_name() const;
 
+    /**
+     * @brief 设置DBus连接的唯一名称
+     * @param name [in] 唯一名称
+     */
+    void set_unique_name(std::string_view name);
+
+    /**
+     * @brief 添加匹配规则
+     * @param rule [in] 匹配规则
+     * @param cb [in] 匹配成功时的回调函数
+     * @param id [in] 规则的唯一标识符
+     * @exception 添加失败时抛出异常
+     */
     void add_match(match_rule& rule, match_cb_t&& cb, uint64_t id);
 
+    /**
+     * @brief 移除匹配规则
+     * @param id [in] 规则的唯一标识符
+     * @exception 移除失败时抛出异常
+     */
     void remove_match(uint64_t id);
 
+    /**
+     * @brief 获取匹配对象
+     * @return 返回匹配对象的引用
+     */
     match& get_match();
 
+    /**
+     * @brief 获取下一个消息序列号
+     * @return 返回下一个可用的消息序列号
+     */
     uint32_t get_next_serial();
 
+    /**
+     * @brief 获取连接实现对象
+     * @return 返回连接实现对象的引用
+     */
     connection_impl& get_impl() const;
 
+    /**
+     * @brief 获取消息过滤信号对象
+     * @return 返回消息过滤信号对象的引用
+     * @constraint 用于注册消息过滤回调
+     */
     filter_message_signal_type& filter_message() const;
 
 private:

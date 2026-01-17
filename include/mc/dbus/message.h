@@ -33,7 +33,19 @@ using type_code          = mc::reflect::type_code;
 using path               = mc::engine::path;
 namespace container      = mc::reflect::container;
 
+/**
+ * @brief 确保容器长度不超过最大限制
+ * @param type_name [in] 容器类型名称
+ * @param size [in] 容器大小
+ * @exception 超出限制时抛出异常
+ */
 MC_API void ensure_container_max_length(const char* type_name, std::size_t size);
+
+/**
+ * @brief 确保消息深度不超过最大限制
+ * @param depth [in] 消息深度
+ * @exception 超出限制时抛出异常
+ */
 MC_API void ensure_message_depth(std::size_t depth);
 
 template <typename T>
@@ -56,101 +68,434 @@ struct auto_dbus_free {
 template <typename T>
 using dbus_ptr = std::unique_ptr<T, auto_dbus_free<T>>;
 
+/**
+ * @brief DBus消息对象
+ */
 class MC_API message {
 public:
+    /**
+     * @brief 创建方法调用消息
+     * @param destination [in] 目标服务名称
+     * @param path [in] 对象路径
+     * @param interface [in] 接口名称
+     * @param member [in] 方法名称
+     * @return 返回方法调用消息对象
+     */
     static message new_method_call(std::string_view destination, std::string_view path,
                                    std::string_view interface, std::string_view member);
+
+    /**
+     * @brief 创建方法返回消息
+     * @param msg [in] 原始方法调用消息
+     * @return 返回方法返回消息对象
+     */
     static message new_method_return(const message& msg);
+
+    /**
+     * @brief 创建错误消息
+     * @param msg [in] 原始消息
+     * @param error_name [in] 错误名称
+     * @param error_message [in] 错误消息内容
+     * @return 返回错误消息对象
+     */
     static message new_error(const message& msg, std::string_view error_name,
                              std::string_view error_message = {});
+
+    /**
+     * @brief 创建信号消息
+     * @param path [in] 对象路径
+     * @param interface [in] 接口名称
+     * @param member [in] 信号名称
+     * @return 返回信号消息对象
+     */
     static message new_signal(std::string_view path, std::string_view interface,
                               std::string_view member);
+
+    /**
+     * @brief 创建指定类型的消息
+     * @param msg_type [in] 消息类型
+     * @return 返回消息对象
+     */
     static message new_message(message_type msg_type = message_type::method_call);
+
+    /**
+     * @brief 创建错误消息
+     * @param error_name [in] 错误名称
+     * @param error_message [in] 错误消息内容
+     * @return 返回错误消息对象
+     */
     static message new_error_message(std::string_view error_name,
                                      std::string_view error_message = {});
 
+    /**
+     * @brief 获取底层DBus消息指针
+     * @return 返回DBusMessage指针
+     */
     DBusMessage* get_dbus_message() const;
-    bool         is_valid() const;
 
+    /**
+     * @brief 检查消息是否有效
+     * @return 有效返回true，否则返回false
+     */
+    bool is_valid() const;
+
+    /**
+     * @brief 默认构造函数
+     */
     message();
+
+    /**
+     * @brief 从DBusMessage构造
+     * @param msg [in] DBusMessage指针
+     * @param add_ref [in] 是否增加引用计数
+     */
     message(DBusMessage* msg, bool add_ref = false);
+
+    /**
+     * @brief 析构函数
+     */
     ~message();
 
+    /**
+     * @brief 拷贝构造函数
+     * @param other [in] 源消息对象
+     */
     message(const message&);
+
+    /**
+     * @brief 拷贝赋值运算符
+     * @param other [in] 源消息对象
+     * @return 返回当前对象的引用
+     */
     message& operator=(const message&);
 
+    /**
+     * @brief 移动构造函数
+     * @param other [in/out] 源消息对象
+     */
     message(message&& other) noexcept;
+
+    /**
+     * @brief 移动赋值运算符
+     * @param other [in/out] 源消息对象
+     * @return 返回当前对象的引用
+     */
     message& operator=(message&& other) noexcept;
 
+    /**
+     * @brief 释放消息对象
+     */
     void release();
 
-    message_type     get_type() const;
-    std::string_view get_path() const;
-    std::string_view get_interface() const;
-    std::string_view get_member() const;
-    std::string_view get_error_name() const;
-    std::string_view get_destination() const;
-    std::string_view get_sender() const;
-    std::string_view get_signature() const;
-    std::string      get_error_message() const;
-    uint32_t         get_serial() const;
-    uint32_t         get_reply_serial() const;
+    /**
+     * @brief 获取消息类型
+     * @return 返回消息类型枚举值
+     */
+    message_type get_type() const;
 
+    /**
+     * @brief 获取对象路径
+     * @return 返回对象路径字符串
+     */
+    std::string_view get_path() const;
+
+    /**
+     * @brief 获取接口名称
+     * @return 返回接口名称字符串
+     */
+    std::string_view get_interface() const;
+
+    /**
+     * @brief 获取成员名称
+     * @return 返回成员名称字符串
+     */
+    std::string_view get_member() const;
+
+    /**
+     * @brief 获取错误名称
+     * @return 返回错误名称字符串
+     */
+    std::string_view get_error_name() const;
+
+    /**
+     * @brief 获取目标服务名称
+     * @return 返回目标服务名称字符串
+     */
+    std::string_view get_destination() const;
+
+    /**
+     * @brief 获取发送者名称
+     * @return 返回发送者名称字符串
+     */
+    std::string_view get_sender() const;
+
+    /**
+     * @brief 获取消息签名
+     * @return 返回消息签名字符串
+     */
+    std::string_view get_signature() const;
+
+    /**
+     * @brief 获取错误消息内容
+     * @return 返回错误消息内容字符串
+     */
+    std::string get_error_message() const;
+
+    /**
+     * @brief 获取消息序列号
+     * @return 返回消息序列号
+     */
+    uint32_t get_serial() const;
+
+    /**
+     * @brief 获取回复消息的序列号
+     * @return 返回回复消息的序列号
+     */
+    uint32_t get_reply_serial() const;
+
+    /**
+     * @brief 设置对象路径
+     * @param path [in] 对象路径
+     */
     void set_path(std::string_view path);
+
+    /**
+     * @brief 设置接口名称
+     * @param interface [in] 接口名称
+     */
     void set_interface(std::string_view interface);
+
+    /**
+     * @brief 设置成员名称
+     * @param member [in] 成员名称
+     */
     void set_member(std::string_view member);
+
+    /**
+     * @brief 设置错误名称
+     * @param error_name [in] 错误名称
+     */
     void set_error_name(std::string_view error_name);
+
+    /**
+     * @brief 设置目标服务名称
+     * @param destination [in] 目标服务名称
+     */
     void set_destination(std::string_view destination);
+
+    /**
+     * @brief 设置发送者名称
+     * @param sender [in] 发送者名称
+     */
     void set_sender(std::string_view sender);
+
+    /**
+     * @brief 设置消息序列号
+     * @param serial [in] 消息序列号
+     */
     void set_serial(uint32_t serial);
 
+    /**
+     * @brief 检查是否为错误消息
+     * @return 是错误消息返回true，否则返回false
+     */
     bool is_error() const;
+
+    /**
+     * @brief 检查是否为方法调用消息
+     * @return 是方法调用消息返回true，否则返回false
+     */
     bool is_method_call() const;
+
+    /**
+     * @brief 检查是否为方法返回消息
+     * @return 是方法返回消息返回true，否则返回false
+     */
     bool is_method_return() const;
+
+    /**
+     * @brief 检查是否为信号消息
+     * @return 是信号消息返回true，否则返回false
+     */
     bool is_signal() const;
 
+    /**
+     * @brief 锁定消息，使其不可修改
+     */
     void lock();
+
+    /**
+     * @brief 检查消息签名是否匹配
+     * @param signature [in] 待检查的签名
+     * @return 匹配返回true，否则返回false
+     */
     bool has_signature(std::string_view signature);
 
+    /**
+     * @brief 获取消息读取器
+     * @return 返回消息读取器对象
+     */
     struct message_reader reader() const;
+
+    /**
+     * @brief 获取消息写入器
+     * @return 返回消息写入器对象
+     */
     struct message_writer writer();
 
+    /**
+     * @brief 将消息内容转换为指定类型
+     * @tparam T 目标类型
+     * @return 返回转换后的对象
+     * @exception 类型转换失败时抛出异常
+     */
     template <typename T>
     T as() const;
 
+    /**
+     * @brief 读取消息参数
+     * @return 返回消息参数的variant数组
+     */
     mc::variants read_args() const;
 
+    /**
+     * @brief 从指定对象写入消息内容
+     * @tparam T 源对象类型
+     * @param v [in] 源对象
+     */
     template <typename T>
     void from(const T& v);
 
+    /**
+     * @brief 序列化消息
+     * @return 返回序列化后的数据和长度
+     */
     std::pair<dbus_ptr<char>, std::size_t> marshal();
 
+    /**
+     * @brief 反序列化消息
+     * @param in [in] 输入数据
+     * @param err [out] 错误信息
+     * @return 成功返回true，失败返回false
+     */
     bool demarshal(const std::vector<uint8_t>& in, error& err);
+
+    /**
+     * @brief 反序列化消息
+     * @param in [in] 输入数据指针
+     * @param len [in] 数据长度
+     * @param err [out] 错误信息
+     * @return 成功返回true，失败返回false
+     */
     bool demarshal(const char* in, std::size_t len, error& err);
 
 protected:
     DBusMessage* m_dbus_message{nullptr};
 };
 
+/**
+ * @brief DBus消息读取器
+ */
 struct MC_API message_reader {
+    /**
+     * @brief 默认构造函数
+     */
     message_reader();
+
+    /**
+     * @brief 从消息构造读取器
+     * @param msg [in] 消息对象
+     */
     message_reader(const message& msg);
 
+    /**
+     * @brief 读取variant值
+     * @param v [out] 输出的variant对象
+     * @param depth [in] 嵌套深度
+     */
     void read_variant(mc::variant& v, std::size_t depth) const;
+
+    /**
+     * @brief 读取指定类型的variant值
+     * @param type [in] 类型码
+     * @param v [out] 输出的variant对象
+     * @param depth [in] 嵌套深度
+     */
     void read_variant_value(type_code type, mc::variant& v, std::size_t depth) const;
+
+    /**
+     * @brief 读取variant数组或dict
+     * @param v [out] 输出的variant对象
+     * @param depth [in] 嵌套深度
+     */
     void read_variant_array_or_dict(mc::variant& v, std::size_t depth) const;
+
+    /**
+     * @brief 读取variant数组
+     * @param arr [out] 输出的variants数组
+     * @param depth [in] 嵌套深度
+     */
     void read_variant_array(mc::variants& arr, std::size_t depth) const;
+
+    /**
+     * @brief 读取variant结构体
+     * @param v [out] 输出的variant对象
+     * @param depth [in] 嵌套深度
+     */
     void read_variant_struct(mc::variant& v, std::size_t depth) const;
+
+    /**
+     * @brief 读取variant dict
+     * @param dict [out] 输出的dict对象
+     * @param depth [in] 嵌套深度
+     */
     void read_variant_dict(mc::dict& dict, std::size_t depth) const;
+
+    /**
+     * @brief 读取原始variant结构体
+     * @param v [out] 输出的variant对象
+     * @param depth [in] 嵌套深度
+     */
     void read_variant_raw_struct(mc::variant& v, std::size_t depth) const;
 
-    void                  recurse(const message_reader& parent) const;
-    const message_reader& next() const;
-    bool                  at_end() const;
+    /**
+     * @brief 递归进入容器
+     * @param parent [in] 父读取器
+     */
+    void recurse(const message_reader& parent) const;
 
-    void        ensure_type(int expected) const;
+    /**
+     * @brief 移动到下一个元素
+     * @return 返回当前读取器的引用
+     */
+    const message_reader& next() const;
+
+    /**
+     * @brief 检查是否到达末尾
+     * @return 到达末尾返回true，否则返回false
+     */
+    bool at_end() const;
+
+    /**
+     * @brief 确保当前类型匹配期望类型
+     * @param expected [in] 期望的类型
+     * @exception 类型不匹配时抛出异常
+     */
+    void ensure_type(int expected) const;
+
+    /**
+     * @brief 确保类型匹配（静态方法）
+     * @param expected [in] 期望的类型
+     * @param actual [in] 实际的类型
+     * @exception 类型不匹配时抛出异常
+     */
     static void ensure_type(int expected, int actual);
-    type_code   current_type() const;
+
+    /**
+     * @brief 获取当前类型码
+     * @return 返回当前类型码
+     */
+    type_code current_type() const;
 
     template <typename T>
     T as() const {
@@ -162,25 +507,114 @@ struct MC_API message_reader {
     mutable DBusMessageIter m_iter;
 };
 
+/**
+ * @brief DBus消息写入器
+ */
 struct MC_API message_writer {
+    /**
+     * @brief 默认构造函数
+     */
     message_writer() = default;
+
+    /**
+     * @brief 从消息构造写入器
+     * @param msg [in/out] 消息对象
+     */
     message_writer(message& msg);
+
+    /**
+     * @brief 从父迭代器构造写入器
+     * @param parent_iter [in/out] 父迭代器
+     * @param type [in] 容器类型
+     * @param signature [in] 类型签名
+     */
     message_writer(DBusMessageIter& parent_iter, int type,
                    std::string_view signature = std::string_view());
+
+    /**
+     * @brief 关闭容器
+     */
     void close_container();
 
+    /**
+     * @brief 写入variant值
+     * @param v [in] variant对象
+     * @param depth [in] 嵌套深度
+     */
     void write_variant(const mc::variant& v, std::size_t depth) const;
+
+    /**
+     * @brief 写入variant值（不带签名）
+     * @param v [in] variant对象
+     */
     void write_variant_value(const mc::variant& v) const;
+
+    /**
+     * @brief 按签名写入variant值
+     * @param it [in] 签名迭代器
+     * @param v [in] variant对象
+     * @param depth [in] 嵌套深度
+     */
     void write_variant(signature_iterator it, const mc::variant& v, std::size_t depth) const;
+
+    /**
+     * @brief 写入variant数组或dict
+     * @param it [in] 签名迭代器
+     * @param v [in] variant对象
+     * @param depth [in] 嵌套深度
+     */
     void write_variant_array_or_dict(signature_iterator it, const mc::variant& v,
                                      std::size_t depth) const;
+
+    /**
+     * @brief 写入variant数组
+     * @param it [in] 签名迭代器
+     * @param arr [in] variants数组
+     * @param depth [in] 嵌套深度
+     */
     void write_variant_array(signature_iterator it, const mc::variants& arr,
                              std::size_t depth) const;
+
+    /**
+     * @brief 写入variant结构体
+     * @param it [in] 签名迭代器
+     * @param v [in] variant对象
+     * @param depth [in] 嵌套深度
+     */
     void write_variant_struct(signature_iterator it, const mc::variant& v, std::size_t depth) const;
+
+    /**
+     * @brief 写入variant dict
+     * @param it [in] 签名迭代器
+     * @param dict [in] dict对象
+     * @param depth [in] 嵌套深度
+     */
     void write_variant_dict(signature_iterator it, const mc::dict& dict, std::size_t depth) const;
+
+    /**
+     * @brief 写入签名
+     * @param sig [in] 签名对象
+     */
     void write_signature(const signature& sig) const;
+
+    /**
+     * @brief 写入签名字符串
+     * @param sig [in] 签名字符串
+     * @param need_add_tail_zero [in] 是否需要添加尾零
+     */
     void write_signature(std::string_view sig, bool need_add_tail_zero = true) const;
+
+    /**
+     * @brief 写入路径对象
+     * @param p [in] 路径对象
+     */
     void write_path(const path& p) const;
+
+    /**
+     * @brief 写入路径字符串
+     * @param p [in] 路径字符串
+     * @param need_add_tail_zero [in] 是否需要添加尾零
+     */
     void write_path(std::string_view p, bool need_add_tail_zero = true) const;
 
     template <typename T>

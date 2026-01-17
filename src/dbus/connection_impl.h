@@ -56,13 +56,15 @@ struct connection_impl : public std::enable_shared_from_this<connection_impl> {
     void disconnect();
     void release();
     bool is_connected() const;
+    bool get_is_connected() const;
 
     void register_path(std::string_view path, path_handler_type handler);
     void unregister_path(std::string_view path);
 
-    bool request_name(std::string_view name, uint32_t flags);
+    std::tuple<bool, std::optional<error>> request_name(std::string_view name, uint32_t flags);
 
     bool                        send(message&& msg);
+    message                     send_with_reply_and_block(message&& msg, mc::milliseconds timeout);
     connection::future<message> async_send_with_reply(message&& msg, mc::milliseconds timeout);
 
     static dbus_bool_t watch_add(DBusWatch* watch, void* data);
@@ -77,6 +79,7 @@ struct connection_impl : public std::enable_shared_from_this<connection_impl> {
     void              process_reply(uint32_t reply_serial, message& msg);
 
     void                     dispatch();
+    void                     flush();
     static void              dispatch_status_changed(DBusConnection* connection, DBusDispatchStatus new_status,
                                                      void* user_data);
     static DBusHandlerResult message_filter(DBusConnection* conn, DBusMessage* msg,

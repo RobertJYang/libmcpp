@@ -36,6 +36,7 @@
 ## 进程间通信
 
 - [interprocess](interprocess.md) - 进程间通信
+- [dbus](dbus.md) - DBus通信库
 
 ## 数据库
 

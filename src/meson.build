@@ -9,6 +9,7 @@ subdir('futures')
 subdir('interprocess')
 subdir('io')
 subdir('log')
+subdir('luaclib')
 subdir('memory')
 subdir('reflect')
 subdir('runtime')
@@ -142,4 +143,57 @@ else
     link_with: libmcpp_lib,
     dependencies: dep_arr,
   )
+endif
+
+# 编译 ldbus 统一 Lua 模块
+# 根据 enable_conan_compile 选择不同的 Lua 依赖
+if enable_conan_compile
+  # Conan 编译时使用 skynet 依赖
+  lua_dep = dependency('skynet', required: false)
+  if not lua_dep.found()
+    warning('skynet not found in conan mode, trying system lua')
+    lua_dep = dependency('lua5.3', required: false)
+    if not lua_dep.found()
+      lua_dep = dependency('lua', required: false)
+    endif
+  endif
+else
+  # 非 Conan 编译时使用系统 lua 依赖
+  lua_dep = dependency('lua5.3', required: false)
+  if not lua_dep.found()
+    lua_dep = dependency('lua', required: false)
+  endif
+endif
+
+if lua_dep.found()
+  # 获取 dbus 依赖
+  dbus_dep = dependency('dbus-1')
+  
+  # 获取可选的 libsomp 依赖
+  libsomp_dep = dependency('libsomp', required: false)
+  
+  # 构建依赖列表
+  ldbus_deps = [lua_dep, dbus_dep, boost_dep]
+  if libsomp_dep.found()
+    ldbus_deps += [libsomp_dep]
+  endif
+
+  # 编译 ldbus 统一 Lua 模块
+  # 使用 shared_module 而不是 shared_library，这样可以允许未定义的 lua 符号
+  # Lua 符号会在运行时由 lua 解释器提供
+  ldbus_module = shared_module(
+    'ldbus',
+    ldbus_src,
+    name_prefix: '',  # 不要 lib 前缀
+    name_suffix: 'so',
+    dependencies: ldbus_deps,
+    link_with: [libmcpp_lib],
+    include_directories: [incdir, srcdir],
+    install: true,
+    install_dir: install_dir,  # 使用与 libmcpp.so 相同的目录
+    gnu_symbol_visibility: 'default',  # 导出所有符号
+  )
+  message('ldbus module will be built with dependency: ' + lua_dep.name())
+else
+  warning('Lua not found, ldbus module will not be built')
 endif

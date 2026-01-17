@@ -73,7 +73,8 @@ struct object_data {
     connection_manager connection_mgr; // 连接管理器
     mc::executor       executor;       // 绑定的执行器
 
-    object_data() : parent(nullptr), is_deleted(false) {
+    object_data()
+        : parent(nullptr), is_deleted(false) {
     }
 
     // 拷贝构造函数
@@ -318,7 +319,8 @@ void object::cleanup_on_destroy() noexcept {
     }
 }
 
-object::object(const object& other) : object_base(other) {
+object::object(const object& other)
+    : object_base(other) {
     auto* impl = other.m_object_impl.load(std::memory_order_acquire);
     if (impl) {
         m_object_impl.store(new object_impl(*impl), std::memory_order_release);

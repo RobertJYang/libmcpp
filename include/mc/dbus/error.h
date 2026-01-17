@@ -19,19 +19,74 @@
 
 namespace mc::dbus {
 
+/**
+ * @brief DBus错误对象
+ * @constraint 继承自DBusError，封装DBus错误信息
+ */
 struct MC_API error : DBusError {
+    /**
+     * @brief 默认构造函数
+     */
     MC_API error();
+
+    /**
+     * @brief 拷贝构造函数
+     * @param other [in] 源错误对象
+     */
     MC_API error(const error& other);
+
+    /**
+     * @brief 析构函数
+     */
     MC_API ~error();
 
+    /**
+     * @brief 移动构造函数
+     * @param other [in/out] 源错误对象
+     */
     MC_API error(error&& other) noexcept;
 
+    /**
+     * @brief 拷贝赋值运算符
+     * @param other [in] 源错误对象
+     * @return 返回当前对象的引用
+     */
     MC_API error& operator=(const error& other);
+
+    /**
+     * @brief 移动赋值运算符
+     * @param other [in/out] 源错误对象
+     * @return 返回当前对象的引用
+     */
     MC_API error& operator=(error&& other) noexcept;
 
+    /**
+     * @brief 检查错误是否已设置
+     * @return 已设置返回true，否则返回false
+     */
     MC_API bool is_set() const;
+
+    /**
+     * @brief 设置错误信息
+     * @param name [in] 错误名称
+     * @param message [in] 错误消息
+     */
     MC_API void set_error(std::string_view name, std::string_view message);
+
+    /**
+     * @brief 设置错误信息（带格式化参数）
+     * @param name [in] 错误名称
+     * @param message [in] 错误消息模板
+     * @param args [in] 格式化参数
+     */
     MC_API void set_error(std::string_view name, std::string_view message, const mc::dict& args);
+
+    /**
+     * @brief 设置常量错误信息
+     * @param name [in] 错误名称
+     * @param message [in] 错误消息
+     * @constraint 消息字符串必须是常量字符串，不会被复制
+     */
     MC_API void set_error_const(std::string_view name, std::string_view message);
 };
 
