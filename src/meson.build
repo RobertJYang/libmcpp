@@ -21,6 +21,7 @@ base_src_files = [
   'exception.cpp',
   'filesystem.cpp',
   'json.cpp',
+  'json_wrapper.cpp',
   'time.cpp',
   'singleton.cpp',
   'error.cpp',
@@ -59,7 +60,8 @@ if enable_conan_compile
   message('使用conan构建')
   libsomp_dep = dependency('libsomp', method: 'pkg-config', required: true)
   liblogger_dep = dependency('liblogger', method: 'pkg-config', required: true)
-  dep_arr += [libsomp_dep, liblogger_dep]
+  json_dep = dependency('json', method: 'pkg-config', required: true)
+  dep_arr += [libsomp_dep, liblogger_dep, json_dep]
 endif
 
 if meson_build
