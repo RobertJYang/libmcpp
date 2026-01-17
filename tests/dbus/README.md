@@ -23,7 +23,8 @@ DBus 模块的测试文件按 `src/dbus` 的目录结构组织：
 3. `test_error.cpp` - D-Bus 错误处理测试
 4. `test_match.cpp` - 匹配规则测试
 5. `test_reflect.cpp` - 反射测试
-6. `test_validator.cpp` - 验证器测试
+6. `test_sd_bus.cpp` - sd_bus 客户端调用测试（包含基础调用、超时、异常处理、共享内存调用等）
+7. `test_validator.cpp` - 验证器测试
 
 ### shm 子目录测试文件
 1. `shm/test_serialize.cpp` - 序列化测试（包含基础和安全测试）
@@ -152,6 +153,25 @@ D-Bus 错误处理测试（12 个用例）：
 反射测试（1 个用例）：
 - `test_reflect_struct` - 测试结构体反射
 
+### test_sd_bus.cpp
+sd_bus 客户端调用测试（10 个用例）：
+
+**基础功能测试（4 个）**：
+- `test_valid_args_call` - 测试有效参数的调用（验证 SetValue 和 GetValue 方法）
+- `test_invalid_args_call` - 测试无效参数的调用（验证调用不存在的方法时抛出异常，以及 pcall 返回错误信息）
+- `test_blocking_bus_call` - 测试阻塞式 D-Bus 调用（验证阻塞模式下调用正常工作）
+- `test_call_timeout` - 测试指定超时时间调用（验证正常超时和超时异常处理）
+
+**特殊功能测试（3 个）**：
+- `test_devmon_chip_methods` - 测试 devmon chip 接口和方法映射调用（验证 bmc.kepler.Chip.BitIO 和 bmc.kepler.Chip.BlockIO 接口的方法映射到 bmc.dev.Chip 接口，包括 BitIORead、BitIOWrite、BlockIORead、BlockIOWrite、BlockIOWriteRead、BlockIOComboWriteRead 等方法）
+- `test_context_requestor` - 测试上下文 Requestor 字段（验证显式指定 Requestor 字段和自动填充 Requestor 字段功能）
+- `test_protected_call` - 测试有异常处理的方法调用（验证 pcall 和 timeout_pcall 在方法抛出异常时返回错误信息而不抛出异常）
+- `test_unprotected_call` - 测试无异常处理的方法调用（验证 call 和 timeout_call 在方法抛出异常时直接抛出异常）
+
+**共享内存调用测试（2 个，条件编译）**：
+- `test_shm_call` - 测试共享内存调用（验证通过共享内存进行方法调用的功能）
+- `test_shm_call_request_size_over_limit` - 测试共享内存调用请求大小超过限制（验证当请求参数大小超过限制时，共享内存调用失败）
+
 ### shm 子目录测试
 SHM 模块的测试用例请参考 `shm/README.md`。`shm/test_local_msg.cpp` 新增了对 `parse_variant` 的断言校验，覆盖了数字签名到布尔类型（非零视为 `true`、零视为 `false`）以及各整数/浮点类型的解析结果。`shm/test_shm_tree.cpp` 测试共享内存对象树功能，包括对象注册/注销、属性获取/设置、匹配规则管理、超时调用等。
 
@@ -229,6 +249,10 @@ meson test -C builddir --test-args="--gtest_filter=ShmCallTest.*"
 # 测试验证器（所有用例）
 ./builddir/tests/libmcpp_test --gtest_filter="ValidatorTest.*"
 meson test -C builddir --test-args="--gtest_filter=ValidatorTest.*"
+
+# 测试 sd_bus（所有用例）
+./builddir/tests/libmcpp_test --gtest_filter="SdBusTest.*"
+meson test -C builddir --test-args="--gtest_filter=SdBusTest.*"
 ```
 
 ### 运行特定测试用例
@@ -247,17 +271,18 @@ meson test -C builddir --test-args="--gtest_filter=ErrorTest.SetError*"
 
 ## 测试统计
 
-- **测试文件总数**: 13 个
-  - 根目录: 6 个
+- **测试文件总数**: 14 个
+  - 根目录: 7 个
   - shm 子目录: 6 个
   - dispatch 子目录: 1 个
-- **测试用例总数**: 177 个（根据 `grep -c "TEST_F\|TEST(` tests/dbus/**/*.cpp` 统计）
-  - 根目录测试: 92 个
+- **测试用例总数**: 187 个（根据 `grep -c "TEST_F\|TEST(` tests/dbus/**/*.cpp` 统计）
+  - 根目录测试: 102 个
     - `test_connection.cpp`: 39 个（基础 5 + 场景 6 + 安全 4 + 实现 24，已删除重复的 `test_get_next_serial_overflow`）
     - `test_dbus_message.cpp`: 7 个
     - `test_error.cpp`: 12 个
     - `test_match.cpp`: 26 个
     - `test_reflect.cpp`: 1 个
+    - `test_sd_bus.cpp`: 10 个（基础 4 + 特殊功能 4 + 共享内存 2）
     - `test_validator.cpp`: 7 个
   - shm 子目录测试: 72 个（参考 `shm/README.md`，包含 `test_shm_tree.cpp` 的 9 个测试用例）
   - dispatch 子目录测试: 13 个（参考 `dispatch/README.md`）
@@ -267,6 +292,7 @@ meson test -C builddir --test-args="--gtest_filter=ErrorTest.SetError*"
   - Error（错误处理）
   - Match（匹配规则，包含非法路径/命名空间校验场景）
   - Reflect（反射）
+  - sd_bus（客户端调用）- 基础调用、超时处理、异常处理、方法映射、上下文 Requestor、共享内存调用
   - Validator（验证器）
   - SHM（共享内存）- Serialize、Local Message、GVariant Convert、Shared Memory Call
   - Dispatch（分发机制）- Pending Call、Watch、Timeout

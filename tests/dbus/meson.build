@@ -5,6 +5,7 @@ test_dbus_files = [
     'dbus/test_validator.cpp',
     'dbus/test_error.cpp',
     'dbus/test_match.cpp',
+    'dbus/test_sd_bus.cpp',
     'dbus/test_signal_send_receive.cpp',
     'dbus/shm/test_local_msg.cpp',
     'dbus/shm/test_serialize.cpp',

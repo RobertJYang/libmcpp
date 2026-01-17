@@ -73,6 +73,14 @@ std::optional<mc::variants>
 shm_tree::timeout_call(mc::milliseconds timeout, std::string_view service_name,
                        std::string_view path, std::string_view interface, std::string_view method,
                        std::string_view signature, const variants& args) {
+    return timeout_call_with_sender(timeout, m_unique_name, service_name, path, interface, method, signature, args);
+}
+
+std::optional<mc::variants>
+shm_tree::timeout_call_with_sender(mc::milliseconds timeout, std::string_view sender,
+                                   std::string_view service_name, std::string_view path,
+                                   std::string_view interface, std::string_view method,
+                                   std::string_view signature, const variants& args) {
     local_msg msg(service_name, path, interface, method);
     if (!signature.empty()) {
         msg.append_args(signature, args);
@@ -80,27 +88,33 @@ shm_tree::timeout_call(mc::milliseconds timeout, std::string_view service_name,
     msg.set_local_call(false);
     auto msg_queue = harbor::get_destination_msg_queue(service_name);
     if (msg_queue == nullptr) {
-        elog("failed to get message queue of destination service: ${service_name}",
+        wlog("failed to get message queue of destination service: ${service_name}",
              ("service_name", service_name));
         return std::nullopt;
     }
-    msg.set_sender(m_unique_name);
+    msg.set_sender(sender);
     uint32_t serial = set_serial(msg);
     auto     data   = msg.pack();
-    if (!msg_queue->push_back(data, MSG_QUEUE_PUSH_TIMEOUT)) {
-        elog("failed to push to message queue of destination service: ${service_name}",
+    bool     msg_pushed;
+    try {
+        msg_pushed = msg_queue->push_back(data, MSG_QUEUE_PUSH_TIMEOUT);
+    } catch (const std::exception& e) {
+        msg_pushed = false;
+    }
+    if (!msg_pushed) {
+        wlog("failed to push to message queue of destination service: ${service_name}",
              ("service_name", service_name));
         return std::nullopt;
     }
     auto  promise = mc::make_promise<local_msg>();
     auto  future  = promise.get_future();
     auto& harbor  = mc::dbus::harbor::get_instance();
-    if (!harbor.send_shm_msg(m_unique_name, serial, promise)) {
+    if (!harbor.send_shm_msg(sender, serial, promise)) {
         MC_THROW(mc::exception, "failed to save promise");
     }
     if (future.wait_for(std::chrono::milliseconds(timeout)) ==
         mc::futures::future_status::timeout) {
-        harbor.remove_shm_msg(m_unique_name, serial);
+        harbor.remove_shm_msg(sender, serial);
         MC_THROW(mc::exception,
                  "shm method call timeout, service name: ${service_name}, method: ${method}",
                  ("service_name", service_name)("method", method));
