@@ -285,6 +285,37 @@ public:
      */
     std::string as_string() const;
 
+ 	/**
+ 	 * @brief 查询匹配成员
+ 	 * @return 目标成员名称
+ 	 */
+ 	std::string_view member() const;
+
+ 	/**
+ 	 * @brief 查询匹配路径
+ 	 * @return 目标路径名称
+ 	 */
+ 	std::string_view path() const;
+
+ 	/**
+ 	 * @brief 查询匹配路径命名空间
+ 	 * @return 目标路径命名空间名称
+ 	 */
+ 	std::string_view path_namespace() const;
+
+ 	/**
+ 	 * @brief 判断是不是路径命名空间
+ 	 * @return 是不是路径命名空间
+ 	 */
+ 	bool is_path_namespace() const;
+
+ 	/**
+ 	 * @brief 判断和另一个规则是否相同
+ 	 * @param other [in] 另一个规则
+ 	 * @return 和另一个规则是否相同
+ 	 */
+ 	bool operator==(const match_rule& other) const;
+
     /**
      * @brief 获取底层规则指针
      * @return 返回底层规则指针的引用

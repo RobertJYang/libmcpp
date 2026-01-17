@@ -464,13 +464,13 @@ uint64_t service_impl::add_match(mc::dbus::match_rule& rule, mc::dbus::match_cb_
     m_shm_tree->add_match(rule, std::forward<mc::dbus::match_cb_t>(cb), id);
     // harbor和服务都会调用add_rule，所以需要克隆一个rule，否则服务调用rule->set_slot会导致harbor的slot被析构
     auto cloned_rule = rule.clone();
-    m_connection.add_match(cloned_rule, std::forward<mc::dbus::match_cb_t>(cb), id);
+    m_connection.add_rule(cloned_rule, std::forward<mc::dbus::match_cb_t>(cb), id);
     return id;
 }
 
 void service_impl::remove_match(uint64_t id) {
     m_shm_tree->remove_match(id);
-    m_connection.remove_match(id);
+    m_connection.remove_rule(id);
 }
 
 service::service(std::string_view name)

@@ -233,7 +233,7 @@ void shm_tree::set_property(std::string_view service_name, std::string_view path
 void shm_tree::add_match(match_rule& rule, mc::dbus::match_cb_t&& cb, uint64_t id) {
     auto& harbor      = harbor::get_instance();
     auto  harbor_name = harbor.get_harbor_name();
-    harbor.add_rule(rule, std::forward<mc::dbus::match_cb_t>(cb), id);
+    harbor.add_match(rule, std::forward<mc::dbus::match_cb_t>(cb), id);
     shm_global_lock_exec([this, &rule, harbor_name, id]() {
         auto& ins      = shm::shared_memory::get_instance();
         auto& tree_map = ins.get_object_tree_map(harbor_name);

@@ -195,9 +195,24 @@ void connection::ensure_impl() const {
     MC_ASSERT(m_impl, "DBus Connection not initialized");
 }
 
+ void connection::add_rule(match_rule& rule, match_cb_t&& cb, uint64_t id) {
+    ensure_impl();
+    m_impl->add_rule(rule, std::forward<match_cb_t>(cb), id);
+}
+
+void connection::remove_rule(uint64_t id){
+    ensure_impl();
+    m_impl->remove_rule(id);
+}
+
 void connection::add_match(match_rule& rule, match_cb_t&& cb, uint64_t id) {
     ensure_impl();
     m_impl->add_match(rule, std::forward<match_cb_t>(cb), id);
+}
+
+void connection::add_match_only(match_rule& rule, match_cb_t&& cb, uint64_t id) {
+ 	ensure_impl();
+    m_impl->add_match_only(rule, std::forward<match_cb_t>(cb), id);
 }
 
 void connection::remove_match(uint64_t id) {

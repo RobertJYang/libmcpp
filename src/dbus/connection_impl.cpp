@@ -418,6 +418,37 @@ void connection_impl::dispatch_status_changed(DBusConnection*, DBusDispatchStatu
     }
 }
 
+void connection_impl::add_rule(match_rule& rule, match_cb_t&& cb, uint64_t id) {
+    std::lock_guard lock(m_mutex);
+
+    // 添加连接状态检查
+    if (!is_connected()) {
+        elog("add_match failed: DBus connection not established");
+        return;
+    }
+
+    m_match.add_rule(rule, std::forward<match_cb_t>(cb), id);
+
+    auto str = rule.as_string();
+    m_match_strs.emplace(id, std::move(str));
+}
+
+void connection_impl::remove_rule(uint64_t id){
+    std::lock_guard lock(m_mutex);
+
+    m_match.remove_rule(id);
+    auto it = m_match_strs.find(id);
+    if (it == m_match_strs.end()) {
+        return;
+    }
+
+    m_match_strs.erase(it);
+    // 检查连接状态，如果已断开则只清理本地数据
+    if (!is_connected()) {
+        elog("remove_match: DBus connection not available, cleaning up local data only");
+    }
+}
+
 void connection_impl::add_match(match_rule& rule, match_cb_t&& cb, uint64_t id) {
     std::lock_guard lock(m_mutex);
 
@@ -431,13 +462,6 @@ void connection_impl::add_match(match_rule& rule, match_cb_t&& cb, uint64_t id) 
     auto            str = rule.as_string();
     mc::dbus::error err;
 
-    // 再次检查连接状态（双重检查）
-    if (!is_connected()) {
-        elog("add_match failed: DBus connection lost during operation");
-        m_match.remove_rule(id);
-        return;
-    }
-
     dbus_bus_add_match(m_connection, str.c_str(), &err);
     if (err.is_set()) {
         elog("dbus add match failed: ${error}", ("error", err.message));
@@ -445,6 +469,23 @@ void connection_impl::add_match(match_rule& rule, match_cb_t&& cb, uint64_t id) 
         return;
     }
     m_match_strs.emplace(id, std::move(str));
+}
+
+void connection_impl::add_match_only(match_rule& rule, match_cb_t&& cb, uint64_t id) {
+    std::lock_guard lock(m_mutex);
+    // 添加连接状态检查
+ 	if (!is_connected()) {
+        elog("add_match failed: DBus connection not established");
+        return;
+ 	}
+
+   auto            str = rule.as_string();
+    mc::dbus::error err;
+
+ 	dbus_bus_add_match(m_connection, str.c_str(), &err);
+    if (err.is_set()) {
+        elog("dbus add match failed: ${error}", ("error", err.message));
+    }
 }
 
 void connection_impl::remove_match(uint64_t id) {

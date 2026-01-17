@@ -85,8 +85,11 @@ struct connection_impl : public std::enable_shared_from_this<connection_impl> {
     static DBusHandlerResult message_filter(DBusConnection* conn, DBusMessage* msg,
                                             void* user_data);
 
+    void   add_rule(match_rule& rule, match_cb_t&& cb, uint64_t id);
+ 	void   remove_rule(uint64_t id);
     void   add_match(match_rule& rule, match_cb_t&& cb, uint64_t id);
     void   remove_match(uint64_t id);
+    void   add_match_only(match_rule& rule, match_cb_t&& cb, uint64_t id);
     match& get_match();
 
     std::recursive_mutex                      m_mutex;
