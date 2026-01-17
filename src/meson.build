@@ -195,6 +195,18 @@ if lua_dep.found()
     gnu_symbol_visibility: 'default',  # 导出所有符号
   )
   message('ldbus module will be built with dependency: ' + lua_dep.name())
+
+  lvalidate = shared_module(
+    'lvalidate',
+    lvalidate_src,
+    include_directories: [incdir, srcdir],
+    dependencies: lua_dep,
+    name_prefix: '',
+    install: true,
+    install_dir: install_dir,
+    build_by_default: true,
+    override_options: ['b_lundef=false'],  # 允许未定义的符号
+  )
 else
   warning('Lua not found, ldbus module will not be built')
 endif
