@@ -30,6 +30,7 @@ require('dbus.test_blocking')
 require('dbus.test_nonblock')
 require('dbus.test_error')
 require('dbus.test_message')
+require('lvalidate.test_integer')
 
 -- 设置详细输出，显示每个测试用例的执行情况
 -- 通过命令行参数传递给 luaunit

@@ -37,6 +37,7 @@ test_files = [
   'test_signal_slot.cpp',
   'test_time.cpp',
   'test_json_wrapper.cpp',
+  'test_validate.cpp',
 
   # 各子目录的测试文件
   test_array_files,

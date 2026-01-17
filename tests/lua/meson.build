@@ -52,6 +52,7 @@ if lua_interpreter.found()
                                   meson.project_build_root() / 'src' / 'luaclib' / '?' / '?.so',
                      'LUA_PATH=' + meson.current_source_dir() / '?.lua;' + 
                                   meson.current_source_dir() / 'dbus' / '?.lua;' +
+                                  meson.current_source_dir() / 'lvalidate' / '?.lua;' +
                                   system_lua_path
                  ],
                  depends: [ldbus_module, lua_dft_lib, libmcpp_lua_utils_lib],
@@ -73,6 +74,7 @@ if lua_interpreter.found()
                                   meson.project_build_root() / 'src' / 'luaclib' / '?' / '?.so',
                      'LUA_PATH=' + meson.current_source_dir() / '?.lua;' + 
                                   meson.current_source_dir() / 'dbus' / '?.lua;' +
+                                  meson.current_source_dir() / 'lvalidate' / '?.lua;' +
                                   system_lua_path
                  ],
                  depends: [ldbus_module, lua_dft_lib, libmcpp_lua_utils_lib],

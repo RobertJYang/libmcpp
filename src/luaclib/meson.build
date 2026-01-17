@@ -3,6 +3,7 @@
 
 # 各子模块源文件定义
 subdir('dbus')
+subdir('lvalidate')
 subdir('utils')
 subdir('dft')
 
