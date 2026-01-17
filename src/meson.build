@@ -9,7 +9,6 @@ subdir('futures')
 subdir('interprocess')
 subdir('io')
 subdir('log')
-subdir('luaclib')
 subdir('memory')
 subdir('reflect')
 subdir('runtime')
@@ -87,6 +86,28 @@ libmcpp_base_dep = declare_dependency(
 )
 mcpp_deps += [libmcpp_base_dep]
 
+# Lua 依赖查找（需要在 luaclib 子目录之前）
+if enable_conan_compile
+  # Conan 编译时使用 skynet 依赖
+  lua_dep = dependency('skynet', required: false)
+  if not lua_dep.found()
+    warning('skynet not found in conan mode, trying system lua')
+    lua_dep = dependency('lua5.3', required: false)
+    if not lua_dep.found()
+      lua_dep = dependency('lua', required: false)
+    endif
+  endif
+else
+  # 非 Conan 编译时使用系统 lua 依赖
+  lua_dep = dependency('lua5.3', required: false)
+  if not lua_dep.found()
+    lua_dep = dependency('lua', required: false)
+  endif
+endif
+
+# Lua 模块构建（需要在 base 库创建之后，因为 lua 模块依赖 libmcpp_base_dep）
+subdir('luaclib')
+
 subdir('core')
 subdir('engine')
 subdir('expr')
@@ -146,29 +167,7 @@ else
 endif
 
 # 编译 ldbus 统一 Lua 模块
-# 根据 enable_conan_compile 选择不同的 Lua 依赖
-if enable_conan_compile
-  # Conan 编译时使用 skynet 依赖
-  lua_dep = dependency('skynet', required: false)
-  if not lua_dep.found()
-    warning('skynet not found in conan mode, trying system lua')
-    lua_dep = dependency('lua5.3', required: false)
-    if not lua_dep.found()
-      lua_dep = dependency('lua', required: false)
-    endif
-  endif
-else
-  # 非 Conan 编译时使用系统 lua 依赖
-  lua_dep = dependency('lua5.3', required: false)
-  if not lua_dep.found()
-    lua_dep = dependency('lua', required: false)
-  endif
-endif
-
 if lua_dep.found()
-  # 获取 dbus 依赖
-  dbus_dep = dependency('dbus-1')
-  
   # 获取可选的 libsomp 依赖
   libsomp_dep = dependency('libsomp', required: false)
   

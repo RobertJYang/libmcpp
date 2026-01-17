@@ -11,7 +11,7 @@ MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
 See the Mulan PSL v2 for more details.
 ]]
 
--- 运行所有 ldbus Lua 测试
+-- 运行所有Lua 测试
 
 local lu = require('luaunit')
 
@@ -21,15 +21,23 @@ local script_dir = script_path:match("(.*/)")
 
 -- 设置 package.path 以便加载测试模块
 if script_dir then
-    package.path = script_dir .. "?.lua;" .. script_dir .. "dbus/?.lua;" .. package.path
+    package.path = script_dir .. "?.lua;" .. script_dir .. "?/?.lua;" .. script_dir .. "dbus/?.lua;" .. package.path
 end
 
--- 导入所有 D-Bus 测试模块
--- 注意：测试文件在 dbus/ 子目录下
+-- 导入所有测试模块
+require('dft')
 require('dbus.test_blocking')
 require('dbus.test_nonblock')
 require('dbus.test_error')
 require('dbus.test_message')
 
+-- 设置详细输出，显示每个测试用例的执行情况
+-- 通过命令行参数传递给 luaunit
+-- -v 或 --verbose: 详细输出模式，显示每个测试的执行
+local args = {'-v'}
+
+-- Lua 5.2+ 使用 table.unpack 替代 unpack
+local unpack = table.unpack or unpack
+
 -- 运行所有测试
-os.exit(lu.LuaUnit.run())
+os.exit(lu.LuaUnit.run(unpack(args)))
