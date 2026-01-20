@@ -23,7 +23,6 @@ class AppConan(ConanBase):
 
     def generate(self):
         os.environ["PKG_CONFIG"] = "/usr/bin/pkg-config"
-
         tc = MesonToolchain(self, "ninja")
         if self.settings.arch == "armv8" or self.settings.arch == "x86_64":
             tc.project_options["libdir"] = 'usr/lib64'
@@ -87,6 +86,9 @@ class AppConan(ConanBase):
         copy(self, "*.md", src=self.source_folder, dst=os.path.join(self.package_folder, "usr/share/doc/openubmc/libmcpp/docs"))
         copy(self, "*.MD", src=self.source_folder, dst=os.path.join(self.package_folder, "usr/share/doc/openubmc/libmcpp/docs"))
         
+        # 对静态库运行ranlib以创建符号索引
+        self._run_ranlib_on_static_libs()
+
         # 对Debug模式编译生成的文件进行strip处理
         if self.settings.build_type == "Debug":
             self._strip_debug_files()
@@ -137,9 +139,56 @@ class AppConan(ConanBase):
                                     "shared object" in file_type or 
                                     "dynamically linked" in file_type):
                                     # 执行strip操作
-                                    self.run(f"{strip_tool} -s {file_path}")
+                                    # 对于静态库，不要使用-s参数，因为会移除符号索引
+                                    if "current ar archive" in file_type:
+                                        self.run(f"{strip_tool} --strip-unneeded {file_path}")
+                                    else:
+                                        self.run(f"{strip_tool} -s {file_path}")
                     except Exception as e:
                         print(f"Warning: Error processing {file_path}: {e}")
+                        continue
+
+    def _run_ranlib_on_static_libs(self):
+        """对静态库运行ranlib以创建符号索引"""
+        import subprocess
+
+        lib_dirs = []
+        if self.settings.arch == "armv8" or self.settings.arch == "x86_64":
+            lib_dirs.append("usr/lib64")
+        else:
+            lib_dirs.append("usr/lib")
+
+        for directory in lib_dirs:
+            dir_path = os.path.join(self.package_folder, directory)
+            if not os.path.exists(dir_path):
+                continue
+
+            for root, dirs, files in os.walk(dir_path):
+                for file in files:
+                    file_path = os.path.join(root, file)
+
+                    # 检查是否为静态库文件
+                    # 优先使用file命令检测，更可靠
+                    try:
+                        if os.path.isfile(file_path) and not os.path.islink(file_path):
+                            # 使用file命令检查文件类型
+                            result = subprocess.run(["file", file_path],
+                                                  capture_output=True, text=True, timeout=10)
+                            if result.returncode == 0:
+                                file_type = result.stdout.lower()
+                                # 检查是否为ar archive格式的静态库
+                                if "current ar archive" in file_type:
+                                    # 使用ranlib创建符号索引
+                                    ranlib_result = subprocess.run(["ranlib", file_path],
+                                                                  capture_output=True, text=True, timeout=30)
+                                    if ranlib_result.returncode == 0:
+                                        print(f"Successfully ran ranlib on {file_path}")
+                                    else:
+                                        print(f"Warning: Failed to run ranlib on {file_path}: {ranlib_result.stderr.strip()}")
+                    except subprocess.TimeoutExpired:
+                        print(f"Warning: Timeout checking file type for {file_path}")
+                    except Exception as e:
+                        print(f"Warning: Exception processing {file_path}: {str(e)}")
                         continue
 
     def package_info(self):
