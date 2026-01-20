@@ -92,6 +92,14 @@ glib_dep = dependency('glib-2.0', method: 'pkg-config', required: true)
 incdir = include_directories('include')
 srcdir = include_directories('src')
 
+# 定义 stub 目录（在子目录中使用）
+enable_conan_compile_global = get_option('enable_conan_compile')
+if not enable_conan_compile_global
+  stubdir_global = include_directories('stub')
+else
+  stubdir_global = []
+endif
+
 # 子目录
 subdir('include')
 subdir('src')
