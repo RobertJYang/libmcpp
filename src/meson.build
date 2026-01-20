@@ -71,11 +71,17 @@ else
   install_dir = 'usr/lib64'
 endif
 
+# 构建 include_directories 列表（使用根目录定义的 stubdir_global）
+base_inc_dirs = [incdir, srcdir]
+if not enable_conan_compile
+  base_inc_dirs += [stubdir_global]
+endif
+
 # 创建基础库
 libmcpp_base_lib = library(
   'mcpp_base',
   base_src_files,
-  include_directories: [incdir, srcdir],
+  include_directories: base_inc_dirs,
   dependencies: dep_arr,
   install: true,
   install_dir: install_dir,
@@ -119,7 +125,7 @@ if get_option('default_library') == 'static'
   libmcpp_lib = shared_library(
     'mcpp',
     libmcpp_src_files,
-    include_directories: [incdir, srcdir],
+    include_directories: base_inc_dirs,
     dependencies: dep_arr,
     install: true,
     install_dir: install_dir,
@@ -136,7 +142,7 @@ else
   libmcpp_lib = shared_library(
     'mcpp',
     libmcpp_src_files,
-    include_directories: [incdir, srcdir],
+    include_directories: base_inc_dirs,
     dependencies: dep_arr,
     install: true,
     install_dir: install_dir,
@@ -189,7 +195,7 @@ if lua_dep.found()
     name_suffix: 'so',
     dependencies: ldbus_deps,
     link_with: [libmcpp_lib],
-    include_directories: [incdir, srcdir],
+    include_directories: base_inc_dirs,
     install: true,
     install_dir: install_dir,  # 使用与 libmcpp.so 相同的目录
     gnu_symbol_visibility: 'default',  # 导出所有符号
