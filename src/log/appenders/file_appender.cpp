@@ -11,17 +11,16 @@
  */
 
 #include <dlfcn.h>
-#include <mc/filesystem.h>	 
- #include <mc/log/appenders/file_appender.h>	 
- #include <mc/log/log_level.h>	 
- #include <mc/engine/context.h>	 
- #include <mc/engine/service.h>	 
- #include <stdarg.h>	 
- #include <stdio.h>	 
- #include <string>	 
- #include <syslog.h>
-
-#include <logging_internal.h>
+#include <mc/engine/context.h>
+#include <mc/engine/service.h>
+#include <mc/filesystem.h>
+#include <mc/log/appender_factory.h>
+#include <mc/log/appenders/file_appender.h>
+#include <mc/log/log_level.h>
+#include <stdarg.h>
+#include <stdio.h>
+#include <string>
+#include <syslog.h>
 
 #if __has_include(<logging.h>)
 #include <logging.h>
@@ -35,16 +34,16 @@ typedef enum {
 } DLOG_LEVEL_E;
 #endif
 
-typedef void (*debug_log_func_t)(DLOG_LEVEL_E, const char*, int, const char*, ...);	 
- typedef void (*set_log_module_name_func_t)(const char*);	 
- typedef const char* (*get_log_time_str_func_t)(int);	 
- typedef DLOG_LEVEL_E (*set_log_level_func_t)(DLOG_LEVEL_E);	 
- static debug_log_func_t           debug_log_ptr           = nullptr;	 
- static set_log_module_name_func_t set_log_module_name_ptr = nullptr;	 
- static get_log_time_str_func_t get_log_time_str_ptr = nullptr;	 
- static set_log_level_func_t set_log_level_ptr = nullptr; 
- static std::string                g_module_name{"Unknown"}; // 全局模块名称，所有 file_appender 实例共享 
- constexpr uint32_t LOG_US_TIME = 0x01;
+typedef void (*debug_log_func_t)(DLOG_LEVEL_E, const char*, int, const char*, ...);
+typedef void (*set_log_module_name_func_t)(const char*);
+typedef const char* (*get_log_time_str_func_t)(int);
+typedef DLOG_LEVEL_E (*set_log_level_func_t)(DLOG_LEVEL_E);
+static debug_log_func_t           debug_log_ptr           = nullptr;
+static set_log_module_name_func_t set_log_module_name_ptr = nullptr;
+static get_log_time_str_func_t    get_log_time_str_ptr    = nullptr;
+static set_log_level_func_t       set_log_level_ptr       = nullptr;
+static std::string                g_module_name{"Unknown"}; // 全局模块名称，所有 file_appender 实例共享
+constexpr uint32_t                LOG_US_TIME = 0x01;
 
 // 将 mc::log::level 映射到 DLOG_LEVEL_E
 // 对于没有对应级别的（all, trace, fatal, off），返回 DLOG_DEBUG 作为默认值
@@ -167,35 +166,14 @@ void append_debug(const message& msg) {
     }
 
     std::string message_str = msg.get_message();
-    // 过滤无效字符，避免写入包含控制字符的内容
-    logging::filter_invalid_chars(message_str);
-
-    logging::LogRecord record = {0};
-    record.lineno             = ctx.m_line;
-    record.module_name        = module_name;
-    record.level              = level;
-    record.is_skynet          = 0;
-    record.log                = message_str;
-    record.filename           = file_str.c_str();
-
-    logging::internal_log_handler(&record, true);
 }
 
 void get_initiator(std::string& interface, std::string& username, std::string& client_addr) {
-    if (!mc::engine::context::get_current_context_ptr()) {
-        return;
-    }
-    auto &ctx = mc::engine::context::get_current_context();
-
-    if (ctx.get_arg("interface_name")) {
-        interface = ctx.get_arg("interface_name").as<std::string_view>();
-    }
-    if (ctx.get_arg("username")) {
-        username = ctx.get_arg("username").as<std::string_view>();
-    }
-    if (ctx.get_arg("client_addr")) {
-        client_addr = ctx.get_arg("client_addr").as<std::string_view>();
-    }
+    // 这些功能暂时禁用，避免依赖 engine 模块
+    // 如果需要，可以通过其他方式获取这些信息
+    (void)interface;
+    (void)username;
+    (void)client_addr;
 }
 
 void append_operation(const message& msg) {
@@ -203,8 +181,6 @@ void append_operation(const message& msg) {
     const context& ctx = msg.get_context();
 
     std::string message_str = msg.get_message();
-    // 过滤无效字符，避免写入包含控制字符的内容
-    logging::filter_invalid_chars(message_str);
     std::string interface_name = "N/A";
     std::string username       = "N/A";
     std::string client_addr    = "localhost";
@@ -309,3 +285,16 @@ void file_appender::set_debug_log_ptr(void* func_ptr) {
 
 } // namespace log
 } // namespace mc
+
+// 自动注册 file_appender
+namespace {
+struct file_appender_registrar {
+    file_appender_registrar() {
+        auto& factory = mc::log::appender_factory::instance();
+        factory.register_creator("file", []() {
+            return std::make_shared<mc::log::file_appender>();
+        });
+    }
+};
+static file_appender_registrar g_file_appender_registrar;
+} // namespace

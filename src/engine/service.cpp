@@ -147,11 +147,13 @@ bool service_impl::start() {
         return false;
     }
 
-    auto service_name = m_service->name();
+    auto service_name       = m_service->name();
     auto [success, err_opt] = connection.request_name(service_name);
     if (!success) {
         if (err_opt.has_value() && err_opt->message) {
-            elog("start service failed: cannot request dbus name: ${error}", ("error", err_opt->message));
+            auto& err = err_opt.value();
+            elog("start service failed: cannot request dbus name: ${error}",
+                 ("error", err.message));
         } else {
             elog("start service failed: cannot request dbus name");
         }
@@ -317,7 +319,7 @@ static mc::variant convert_method_result(const mc::variants& arr) {
     return arr;
 }
 
-static void parse_context_arg(context &ctx, const variants& args) {
+static void parse_context_arg(context& ctx, const variants& args) {
     if (args.empty() || !args[0].is_dict()) {
         return;
     }
@@ -415,7 +417,7 @@ DBusHandlerResult service_impl::on_method_call(abstract_object& object, mc::dbus
         auto method_name    = msg.get_member();
         auto args           = msg.read_args();
         parse_context_arg(ctx, args);
-        
+
         auto result = object.invoke(method_name, args, interface_name);
         if (!ctx.get_method()) {
             info.response =

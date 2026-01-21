@@ -26,6 +26,11 @@ engine_src_files = files(
 
 engine_src_files += dbus_src_files
 
+# 包含目录（相对于 src/engine/meson.build）
+incdir = include_directories('../../include')
+srcdir = include_directories('..')
+# 注意：mcbase_dep 已经包含了 include 目录，不需要单独指定
+
 libmcpp_engine_lib = library(
   'mcpp_engine',
   engine_src_files,
@@ -36,7 +41,7 @@ libmcpp_engine_lib = library(
   build_by_default: true,
 )
 libmcpp_engine_dep = declare_dependency(
-  include_directories: incdir,
+  include_directories: [incdir, srcdir],
   link_with: libmcpp_engine_lib,
   dependencies: [dep_arr, libmcpp_core_dep],
 )

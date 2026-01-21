@@ -23,6 +23,8 @@ endif
 run_command('mkdir', '-p', plugins_dir, check: false)
 
 # 构建示例插件
+# 注意：这里使用 libmcpp_dep，它链接到动态库
+# 只能访问 MC_API 标记的符号，隐藏符号无法访问
 example_plugin = shared_library(
     'example_plugin',
     'example_plugin.cpp',

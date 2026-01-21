@@ -24,9 +24,9 @@ using timer_ptr = mc::shared_ptr<timer>;
 /*
  * 定时器
  */
-class MC_API timer : public object {
+class MC_API timer : public mc::core::object {
 public:
-    timer(object* parent = nullptr);
+    timer(mc::core::object* parent = nullptr);
     ~timer() override;
 
     timer(timer&& other)            = delete;
@@ -109,7 +109,7 @@ public:
                                  std::function<void()> functor) {
         return single_shot(msec, context.get(), std::move(functor));
     }
-    static timer_ptr single_shot(mc::milliseconds msec, object* context,
+    static timer_ptr single_shot(mc::milliseconds msec, mc::core::object* context,
                                  std::function<void()> functor);
 
 private:
