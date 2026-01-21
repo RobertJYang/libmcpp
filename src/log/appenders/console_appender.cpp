@@ -18,6 +18,8 @@
 #include <mc/time.h>
 #include <mc/variant.h>
 
+#include <logging_internal.h>
+
 #include <unistd.h>
 
 #define COLOR_CONSOLE 1
@@ -154,7 +156,10 @@ void console_appender::append(const message& msg) {
 
     // 消息内容
     line.append("| ");
-    line.append(msg.get_message());
+    // 过滤无效字符，避免输出控制字符导致终端显示异常
+    std::string message_str = msg.get_message();
+    logging::filter_invalid_chars(message_str);
+    line.append(message_str);
 
     // 输出带颜色的日志
     color_type text_color = m_impl->level_colors[static_cast<int>(msg.get_level())];

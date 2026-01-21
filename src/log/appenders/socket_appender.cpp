@@ -13,6 +13,7 @@
 #include <mc/log/appenders/socket_appender.h>
 
 #include <dlfcn.h>
+#include <logging_internal.h>
 #include <mc/filesystem.h>
 #include <mc/log/log_level.h>
 #include <mc/time.h>
@@ -193,13 +194,25 @@ std::string socket_appender::format_message(const message& msg) const {
     // 获取行号字符串
     std::string line_str = std::to_string(ctx.m_line);
 
-    // 格式化：time_str g_module_name level_str: file_name(line_str) : msg.get_message()
+    // 获取模块名：优先使用消息参数中的 module_name（通过 Lua 接口第一个参数传入）
+    // 如果都没有，使用全局 g_module_name
+    std::string module_name = g_module_name;
+    const auto& args        = msg.get_args();
+    if (args.contains("module_name")) {
+        try {
+            module_name = args["module_name"].as<std::string>();
+        } catch (...) {
+            // 如果转换失败，使用默认的 g_module_name
+        }
+    }
+
+    // 格式化：time_str module_name level_str: file_name(line_str) : msg.get_message()
     std::string result;
     result.reserve(512); // 预分配空间
 
     result.append(time_str);
     result.push_back(' ');
-    result.append(g_module_name);
+    result.append(module_name);
     result.push_back(' ');
     result.append(level_str);
     result.append(": ");
@@ -207,7 +220,10 @@ std::string socket_appender::format_message(const message& msg) const {
     result.push_back('(');
     result.append(line_str);
     result.append(") : ");
-    result.append(msg.get_message());
+    // 过滤无效字符，避免发送包含控制字符的内容
+    std::string message_str = msg.get_message();
+    logging::filter_invalid_chars(message_str);
+    result.append(message_str);
 
     return result;
 }
