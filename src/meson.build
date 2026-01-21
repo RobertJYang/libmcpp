@@ -213,6 +213,23 @@ if lua_dep.found()
     build_by_default: true,
     override_options: ['b_lundef=false'],  # 允许未定义的符号
   )
+
+  # 编译 log Lua 模块
+  # 注意：file_appender.cpp 中使用了 engine::context::get_current_context_ptr()，
+  # 所以需要链接 engine 库
+  mc_log_module = shared_module(
+    'mc_log',
+    mc_log_src,
+    name_prefix: '',  # 不要 lib 前缀
+    name_suffix: 'so',
+    dependencies: [lua_dep, dbus_dep, boost_dep],
+    link_with: [libmcpp_base_lib, libmcpp_engine_lib],  
+    include_directories: [incdir, srcdir],
+    install: true,
+    install_dir: install_dir,  # 使用与 libmcpp.so 相同的目录
+    gnu_symbol_visibility: 'default',  # 导出所有符号
+  )
+  message('mc_log module will be built with dependency: ' + lua_dep.name())
 else
   warning('Lua not found, ldbus module will not be built')
 endif

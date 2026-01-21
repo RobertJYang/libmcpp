@@ -127,6 +127,38 @@ public:
     bool is_debug_log(log_category category) const;
 
     /**
+     * @brief 设置系统ID
+     *
+     * @param system_id 系统ID，将在输出的日志中打印
+     * @return logger& 日志记录器引用
+     */
+    logger& system(int system_id);
+
+    /**
+     * @brief 设置日志打印间隔
+     *
+     * @param period_s 日志打印间隔（秒），0表示不限制
+     * @return logger& 日志记录器引用
+     */
+    logger& period(int period_s);
+
+    /**
+     * @brief 克隆一个独立的 logger 实例（深拷贝 impl），用于临时配置不影响原对象
+     *
+     * @return logger 独立的 logger 副本
+     */
+    logger clone() const;
+
+    /**
+     * @brief 按日志格式格式化消息后抛出异常
+     *
+     * @param fmt_template 格式模板字符串，支持 ${key} 占位符
+     * @param args 参数字典，用于替换格式模板中的占位符
+     * @throw runtime_exception 总是抛出运行时异常
+     */
+    void raise(const std::string& fmt_template, const mc::dict& args = mc::dict());
+
+    /**
      * @brief 记录日志消息
      *
      * @param msg 日志消息
@@ -169,6 +201,30 @@ public:
     void clear_appenders();
 
 private:
+    /**
+     * @brief 应用 system_id 到日志消息
+     *
+     * @param msg 原始日志消息
+     * @return message 包含 system_id 的日志消息（如果设置了 system_id）
+     */
+    message apply_system_id(const message& msg) const;
+
+    /**
+     * @brief 应用 period 到日志消息（在日志末尾添加 [period: period_s(s)]）
+     *
+     * @param msg 原始日志消息
+     * @return message 包含 period 信息的日志消息（如果设置了 period_s）
+     */
+    message apply_period(const message& msg) const;
+
+    /**
+     * @brief 检查是否应该打印日志（基于 period 时间间隔）
+     *
+     * @param msg 原始日志消息，用于区分不同日志的周期控制
+     * @return bool 如果应该打印返回 true，否则返回 false
+     */
+    bool should_log_period(const message& msg);
+
     class impl;
     std::shared_ptr<impl> m_impl; // 实现细节
 };
