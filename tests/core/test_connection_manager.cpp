@@ -12,12 +12,11 @@
 
 #include <gtest/gtest.h>
 #include <mc/core/object.h>
+#include <mc/core/connection_manager.h>
 #include <mc/signal_slot.h>
 #include <test_utilities/test_base.h>
 
 #include <set>
-
-#include "core/include/connection_manager.h"
 
 using namespace mc;
 using namespace mc::core;

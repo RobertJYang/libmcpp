@@ -51,7 +51,7 @@ void timer::timer_impl::start(mc::shared_ptr<timer> t) {
     });
 }
 
-timer::timer(object* parent) : object(parent) {
+timer::timer(mc::core::object* parent) : mc::core::object(parent) {
 }
 
 timer::~timer() {

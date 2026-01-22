@@ -9,19 +9,18 @@
  * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
  * See the Mulan PSL v2 for more details.
  */
-#include "../runtime/test_future_helpers.h"
 #include <gtest/gtest.h>
 #include <mc/dbus/connection.h>
 #include <mc/engine.h>
-#include <mc/runtime.h>
 #include <mc/engine/micro_component.h>
 #include <mc/exception.h>
 #include <mc/filesystem.h>
 #include <mc/future.h>
+#include <mc/log/appender_factory.h>
+#include <mc/log/appenders/socket_appender.h>
+#include <mc/runtime.h>
 #include <mc/string.h>
 #include <test_utilities/test_base.h>
-#include <mc/log/appenders/socket_appender.h>
-#include <mc/log/appender_factory.h>
 
 #include <chrono>
 #include <cstdlib>
@@ -86,7 +85,7 @@ struct test_service_1 : public mc::engine::service {
     std::string m_last_requestor;
 };
 
-static mc::milliseconds                   call_timeout(5000);  // 增加到5秒以应对完整测试套件的资源竞争
+static mc::milliseconds                   call_timeout(5000); // 增加到5秒以应对完整测试套件的资源竞争
 static test_service_1*                    service_1 = nullptr;
 static mc::dbus::connection               test_conn;
 static std::map<std::string, std::string> empty_ctx;
@@ -98,13 +97,13 @@ namespace {
  */
 template <typename Builder>
 mc::dbus::message wait_valid_reply(mc::dbus::connection& conn, Builder&& builder,
-                                   mc::milliseconds timeout      = mc::milliseconds(10000),  // 默认10秒，确保完整测试套件稳定
-                                   int              max_attempts = 3,  // 减少重试次数，依赖更长的单次超时
+                                   mc::milliseconds timeout      = mc::milliseconds(10000), // 默认10秒，确保完整测试套件稳定
+                                   int              max_attempts = 3,                       // 减少重试次数，依赖更长的单次超时
                                    mc::milliseconds retry_delay  = mc::milliseconds(100)) {
     mc::dbus::message reply;
-    auto              start_time     = std::chrono::steady_clock::now();
+    auto              start_time = std::chrono::steady_clock::now();
     // 使用传入的 timeout 参数作为最大总等待时间
-    auto              max_total_time = std::chrono::milliseconds(timeout.count());
+    auto max_total_time = std::chrono::milliseconds(timeout.count());
 
     for (int attempt = 0; attempt < max_attempts; ++attempt) {
         // 在每次尝试前处理待处理的消息
@@ -112,7 +111,7 @@ mc::dbus::message wait_valid_reply(mc::dbus::connection& conn, Builder&& builder
             conn.dispatch();
             std::this_thread::yield();
         }
-        
+
         auto msg = builder();
         reply    = conn.send_with_reply(std::move(msg), timeout);
         if (reply.is_valid() && reply.is_method_return()) {
@@ -154,23 +153,23 @@ protected:
             test_conn.dispatch();
         }
     }
-    
+
     void TearDown() override {
         for (int i = 0; i < 10; ++i) {
             test_conn.dispatch();
         }
     }
-    
+
     static void SetUpTestSuite() {
         mc::test::TestWithDbusDaemon::SetUpTestSuite();
-        
+
         // 根本解决方案：增加 IO 线程数，默认只有2个太少了！
         // 完整测试套件需要更多线程来处理 DBus 消息
         mc::runtime::runtime_config config;
-        config.io_threads = 8;    // 增加到8个IO线程
-        config.work_threads = 4;  // 增加工作线程到4个
+        config.io_threads   = 8; // 增加到8个IO线程
+        config.work_threads = 4; // 增加工作线程到4个
         mc::runtime::get_runtime_context().initialize(config);
-        
+
         service_1 = new test_service_1();
         service_1->init();
         service_1->start();
@@ -206,19 +205,19 @@ protected:
     static void TearDownTestSuite() {
         // 等待所有测试的异步操作完成
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
-        
+
         // 清空 D-Bus 消息队列
         for (int i = 0; i < 10; ++i) {
             test_conn.dispatch();
             std::this_thread::sleep_for(std::chrono::milliseconds(5));
         }
-        
+
         // 先断开 D-Bus 连接，避免在服务清理时还有消息传递
         test_conn.disconnect();
-        
+
         // 等待连接完全断开和异步操作完成
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
-        
+
         // 停止并删除服务
         if (service_1) {
             service_1->stop();
@@ -227,13 +226,13 @@ protected:
             delete service_1;
             service_1 = nullptr;
         }
-        
+
         mc::test::TestWithDbusDaemon::TearDownTestSuite();
     }
 };
 
 TEST_F(MicroComponentTest, TestMicroComponentInterface) {
-    mc::milliseconds extended_timeout(10000);  // 10秒超时，确保完整测试套件稳定
+    mc::milliseconds extended_timeout(10000); // 10秒超时，确保完整测试套件稳定
 
     auto health_reply = wait_valid_reply(test_conn, [&]() {
         auto msg = mc::dbus::message::new_method_call(
@@ -488,15 +487,15 @@ TEST_F(MicroComponentTest, TestMicroComponentSetDlogLevel) {
 TEST_F(MicroComponentTest, TestMicroComponentSetDlogType) {
     mc::milliseconds extended_timeout(5000);
 
-    auto         default_log = mc::log::default_logger();
+    auto     default_log = mc::log::default_logger();
     mc::dict properties{{"path", "/dev/shm/40010.sock"}, {"hb_path", "/dev/shm/40010.hbsock"}, {"module_name", "test_service_1"}};
-    auto mdbctl_appender_ptr = mc::log::appender_factory::instance().get_or_create_appender("mdbctl", "socket", properties);
+    auto     mdbctl_appender_ptr = mc::log::appender_factory::instance().get_or_create_appender("mdbctl", "socket", properties);
     if (mdbctl_appender_ptr) {
         default_log.add_appender(mdbctl_appender_ptr);
     }
     auto set_dlog_type_reply = wait_valid_reply(test_conn, [&]() {
         auto msg    = mc::dbus::message::new_method_call("org.openubmc.test_service_1", "/bmc/kepler/test_service_1/MicroComponent",
-                                                            "bmc.kepler.Object.Properties", "SetWithContext");
+                                                         "bmc.kepler.Object.Properties", "SetWithContext");
         auto writer = msg.writer();
         writer << empty_ctx << "bmc.kepler.MicroComponent.Debug" << "DlogType" << "local";
         return msg;
@@ -597,7 +596,7 @@ TEST_F(MicroComponentTest, TestMicroComponentDebugInterface) {
 }
 
 TEST_F(MicroComponentTest, TestMicroComponentRebootInterface) {
-    mc::milliseconds extended_timeout(10000);  // 10秒超时，确保完整测试套件稳定
+    mc::milliseconds extended_timeout(10000); // 10秒超时，确保完整测试套件稳定
 
     // 使用同步调用替代异步调用，更稳定
     auto prepare_reply = wait_valid_reply(test_conn, [&]() {
@@ -617,7 +616,7 @@ TEST_F(MicroComponentTest, TestMicroComponentRebootInterface) {
     int32_t ret_code = 0;
     prepare_reply >> ret_code;
     ASSERT_EQ(ret_code, 0);
-    
+
     // 添加延迟，避免调用过快
     std::this_thread::sleep_for(std::chrono::milliseconds(20));
 
@@ -637,7 +636,7 @@ TEST_F(MicroComponentTest, TestMicroComponentRebootInterface) {
         << " reply_error=" << (action_reply.is_error() ? action_reply.get_error_name() : "");
     action_reply >> ret_code;
     ASSERT_EQ(ret_code, 0);
-    
+
     // 添加延迟，避免调用过快
     std::this_thread::sleep_for(std::chrono::milliseconds(20));
 
@@ -662,7 +661,7 @@ TEST_F(MicroComponentTest, TestMicroComponentRebootInterface) {
 }
 
 TEST_F(MicroComponentTest, TestMicroComponentResetInterface) {
-    mc::milliseconds extended_timeout(10000);  // 10秒超时，确保完整测试套件稳定
+    mc::milliseconds extended_timeout(10000); // 10秒超时，确保完整测试套件稳定
 
     // 增强消息分发，确保 DBus 状态同步
     for (int i = 0; i < 10; ++i) {
@@ -688,7 +687,7 @@ TEST_F(MicroComponentTest, TestMicroComponentResetInterface) {
     int32_t ret_code = 0;
     prepare_reply >> ret_code;
     ASSERT_EQ(ret_code, 0);
-    
+
     // 增加延迟并强化消息分发
     for (int i = 0; i < 15; ++i) {
         test_conn.dispatch();
@@ -711,7 +710,7 @@ TEST_F(MicroComponentTest, TestMicroComponentResetInterface) {
         << " reply_error=" << (action_reply.is_error() ? action_reply.get_error_name() : "");
     action_reply >> ret_code;
     ASSERT_EQ(ret_code, 0);
-    
+
     // 增加延迟并强化消息分发
     for (int i = 0; i < 15; ++i) {
         test_conn.dispatch();
@@ -828,11 +827,11 @@ TEST_F(MicroComponentTest, test_dump_tree_success) {
     // 使用共享的 test_conn 而不是创建新连接
     std::map<std::string, std::string> dump_ctx;
     dump_ctx["Test"] = "TestDump";
-    
+
     auto reply = wait_valid_reply(test_conn, [&]() {
-        auto msg = mc::dbus::message::new_method_call("org.openubmc.test_service_1",
-                                                       "/bmc/kepler/test_service_1/MicroComponent",
-                                                       "bmc.kepler.MicroComponent.Debug", "Dump");
+        auto msg    = mc::dbus::message::new_method_call("org.openubmc.test_service_1",
+                                                         "/bmc/kepler/test_service_1/MicroComponent",
+                                                         "bmc.kepler.MicroComponent.Debug", "Dump");
         auto writer = msg.writer();
         writer << dump_ctx << dest_path;
         return msg;
@@ -868,20 +867,20 @@ TEST_F(MicroComponentTest, test_dump_tree_invalid_path) {
     std::string invalid_path = "/nonexistent/invalid/path";
 
     // 使用共享的 test_conn 而不是创建新连接
-    auto msg = mc::dbus::message::new_method_call("org.openubmc.test_service_1",
-                                                   "/bmc/kepler/test_service_1/MicroComponent",
-                                                   "bmc.kepler.MicroComponent.Debug", "Dump");
+    auto msg    = mc::dbus::message::new_method_call("org.openubmc.test_service_1",
+                                                     "/bmc/kepler/test_service_1/MicroComponent",
+                                                     "bmc.kepler.MicroComponent.Debug", "Dump");
     auto writer = msg.writer();
 
     std::map<std::string, std::string> dump_ctx;
     dump_ctx["Test"] = "TestDumpInvalidPath";
     writer << dump_ctx << invalid_path;
-    
+
     // 使用 wait_valid_reply 进行重试，增加成功率
     auto reply = wait_valid_reply(test_conn, [&]() {
-        auto msg = mc::dbus::message::new_method_call("org.openubmc.test_service_1",
-                                                       "/bmc/kepler/test_service_1/MicroComponent",
-                                                       "bmc.kepler.MicroComponent.Debug", "Dump");
+        auto msg    = mc::dbus::message::new_method_call("org.openubmc.test_service_1",
+                                                         "/bmc/kepler/test_service_1/MicroComponent",
+                                                         "bmc.kepler.MicroComponent.Debug", "Dump");
         auto writer = msg.writer();
         writer << dump_ctx << invalid_path;
         return msg;

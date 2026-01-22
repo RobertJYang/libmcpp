@@ -81,7 +81,7 @@ private:
 /**
  * @brief 共享内存通信港口
  */
-class harbor {
+class MC_API harbor {
 public:
     /**
      * @brief 构造函数
@@ -98,6 +98,11 @@ public:
      * @return 返回港口单例引用
      */
     static harbor& get_instance();
+
+    /**
+     * @brief 重置 harbor 单例
+     */
+    static void reset_for_test();
 
     /**
      * @brief 获取目标消息队列
@@ -205,18 +210,18 @@ public:
     void remove_rule(uint64_t id);
 
     /**
- 	 * @brief 添加匹配规则并订阅信号
- 	 * @param rule [in] 匹配规则
- 	 * @param cb [in] 回调函数
- 	 * @param id [in] 规则ID
- 	 */
- 	void add_match(mc::dbus::match_rule& rule, mc::dbus::match_cb_t&& cb, uint64_t id);
+     * @brief 添加匹配规则并订阅信号
+     * @param rule [in] 匹配规则
+     * @param cb [in] 回调函数
+     * @param id [in] 规则ID
+     */
+    void add_match(mc::dbus::match_rule& rule, mc::dbus::match_cb_t&& cb, uint64_t id);
 
- 	/**
- 	 * @brief 移除匹配规则并取消订阅信号
- 	 * @param id [in] 规则ID
- 	 */
- 	void remove_match(uint64_t id);
+    /**
+     * @brief 移除匹配规则并取消订阅信号
+     * @param id [in] 规则ID
+     */
+    void remove_match(uint64_t id);
 
 private:
     void init_message_queue();
@@ -239,7 +244,7 @@ private:
     std::mutex                                   m_unique_name_map_mutex;
     std::vector<std::unique_ptr<std::thread>>    m_workers;
     std::unordered_map<int, std::string>         m_match_map;
- 	std::unordered_map<std::string, int>         m_match_count;
+    std::unordered_map<std::string, int>         m_match_count;
 };
 
 } // namespace mc::dbus

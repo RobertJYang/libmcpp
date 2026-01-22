@@ -9,6 +9,7 @@ project(
     'cpp_args=-fPIC -Wall -Wno-unused-parameter -Wno-unused-variable -Wno-sign-compare -Wno-pedantic',
     'default_library=static',
   ],
+  subproject_dir: 'libraries',  # 指定子项目目录为 libraries
 )
 
 # 添加编译器选项
@@ -42,6 +43,13 @@ endif
 meson_build = get_option('meson_build')
 build_tests = get_option('tests')
 enable_coverage = get_option('enable_coverage')
+enable_conan_compile = get_option('enable_conan_compile')
+
+# 编译宏定义（必须在构建目标之前）
+add_project_arguments(
+  '-DENABLE_CONAN_COMPILE=' + enable_conan_compile.to_int().to_string(),
+  language: 'cpp',
+)
 
 # 代码覆盖率配置
 if enable_coverage
@@ -92,6 +100,11 @@ glib_dep = dependency('glib-2.0', method: 'pkg-config', required: true)
 incdir = include_directories('include')
 srcdir = include_directories('src')
 
+# 测试依赖
+if build_tests
+  gtest_dep = dependency('gtest', method: 'pkg-config', required: true)
+endif
+
 # 定义 stub 目录（在子目录中使用）
 enable_conan_compile_global = get_option('enable_conan_compile')
 if not enable_conan_compile_global
@@ -101,6 +114,42 @@ else
 endif
 
 # 子目录
+# 使用 dependency 和 fallback 机制来引用 mcbase 子项目
+# 这样会先尝试系统查找（pkg-config/cmake），找不到才使用 subproject
+# 注意：如果系统找到了 mcbase，fallback 不会被触发，subproject 不会被创建
+# 如果系统没找到，fallback 会被触发，subproject 会被创建
+mcbase_dep = dependency(
+  'mcbase',
+  fallback: ['mcbase', 'mcbase_dep'],
+  default_options: [
+    'default_library=shared',
+    'tests=' + build_tests.to_string(),
+    'meson_build=' + meson_build.to_string(),
+  ],
+  required: true,
+)
+# 获取 subproject 以访问其他变量（如 incdir, lib 等）
+# 注意：我们需要总是创建 subproject，因为我们需要访问其变量（如 mcbase_lib, mcbase_test_lib 等）
+# 即使 dependency 使用了系统依赖，我们仍然需要 subproject 来构建测试等
+mcbase_subproject = subproject('mcbase', default_options: [
+  'default_library=shared',
+  'tests=' + build_tests.to_string(),
+  'meson_build=' + meson_build.to_string(),
+])
+# 从子项目获取其他需要的变量
+mcbase_incdir = mcbase_subproject.get_variable('incdir')
+mcbase_lib = mcbase_subproject.get_variable('mcbase_lib')
+if build_tests
+  mcbase_test_lib = mcbase_subproject.get_variable('mcbase_test_lib')
+  mcbase_test_dep = mcbase_subproject.get_variable('mcbase_test_dep')
+  mcbase_test_utilities_dep = mcbase_subproject.get_variable('test_utilities_dep')
+  mock_dynamic_module = mcbase_subproject.get_variable('mock_dynamic_module')
+else
+  mcbase_test_lib = []
+  mcbase_test_dep = declare_dependency()  # 空依赖
+  mcbase_test_utilities_dep = declare_dependency()  # 空依赖
+  mock_dynamic_module = []  # 空列表
+endif
 subdir('include')
 subdir('src')
 subdir('modules')
@@ -109,6 +158,5 @@ if build_tests
   if meson_build
     subdir('examples')
   endif
-  gtest_dep = dependency('gtest', method: 'pkg-config', required: true)
   subdir('tests')
 endif

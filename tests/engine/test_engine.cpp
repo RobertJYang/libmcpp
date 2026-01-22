@@ -83,6 +83,14 @@ protected:
         TestWithEngine::TearDown();
     }
 
+    static void SetUpTestSuite() {
+        TestWithEngine::SetUpTestSuite();
+    }
+
+    static void TearDownTestSuite() {
+        TestWithEngine::TearDownTestSuite();
+    };
+
     auto create_object(std::string_view path) {
         auto obj = test_object::create();
 
@@ -458,8 +466,8 @@ TEST(ServiceApiValidation, InitInvalidBusName) {
 
 TEST_F(engine_test, ServiceLifecycleHooks) {
     std::map<std::string, std::string> dump_context{{"phase", "collect"}};
-    auto tmp_dir = mc::filesystem::temp_directory_path();
-    auto nonexistent = (tmp_dir / "nonexistent").string();
+    auto                               tmp_dir     = mc::filesystem::temp_directory_path();
+    auto                               nonexistent = (tmp_dir / "nonexistent").string();
     service.on_dump(dump_context, nonexistent);
     service.on_detach_debug_console({});
     EXPECT_EQ(service.on_reboot_prepare({}), 0);
@@ -497,11 +505,12 @@ TEST_F(engine_test, ServiceTimeoutCalls) {
 
 TEST_F(engine_test, ServiceMatchManagement) {
     // 使用 std::string 确保字符串生命周期安全
-    std::string member_name = "PropertiesChanged";
+    std::string member_name    = "PropertiesChanged";
     std::string interface_name = "org.freedesktop.DBus.Properties";
     // 直接传递 std::string，它们会自动转换为 string_view
     ::mc::dbus::match_rule rule = ::mc::dbus::match_rule::new_signal(member_name, interface_name);
-    auto id = service.add_match(rule, [](auto&) {});
+    auto                   id   = service.add_match(rule, [](auto&) {
+    });
     // get_rule_id() 从 0 开始，所以 id 可能为 0，这是有效的
     EXPECT_GE(id, 0U);
     service.remove_match(id);

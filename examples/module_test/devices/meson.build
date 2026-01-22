@@ -8,7 +8,6 @@ example_moudle = shared_library(
     'module.cpp',
     include_directories: incdir,
     dependencies: dep_arr,
-    link_with: [libmcpp_lib],
     install: true,
     install_dir: get_option('libdir') / 'libmcpp/modules/mc',
     name_prefix: 'lib',
