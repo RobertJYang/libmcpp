@@ -7,6 +7,7 @@ subdir('lvalidate')
 subdir('log')
 subdir('utils')
 subdir('dft')
+subdir('shm_tree')
 
 # 编译 lutils.so 动态库（Lua C 模块）
 # 注意: Lua C 模块的 lua 符号由运行时的 Lua 解释器提供,不需要在编译时链接
@@ -50,4 +51,5 @@ if lua_dep.found() and libmcpp_lua_utils_dep.found()
     override_options: ['b_lundef=false'],  # 允许未定义的 lua 符号
   )
 endif
+
 

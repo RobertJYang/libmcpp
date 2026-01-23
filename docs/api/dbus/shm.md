@@ -166,6 +166,36 @@ mc::dbus::shm_tree::set_property(
 );
 ```
 
+### MDB 与 SHM 属性查询接口
+
+以下为 `mc::dbus::shm_tree` 的静态方法，对应共享内存快速路径及 bmc.kepler.Mdb、org.freedesktop.DBus.Properties、bmc.kepler.Object.Properties 的本地 handler。
+
+#### MDB 查询（对应 bmc.kepler.Mdb）
+
+| C++ 接口 | 说明 | 返回值 |
+|----------|------|--------|
+| `get_mdb_object(path, interfaces)` | 按路径和接口列表查对象 | `optional<dict>`，`{"service": [iface,...]}` |
+| `get_mdb_sub_paths(path, depth, interfaces, skip, top, ignore_case)` | 子路径列表，支持分页、接口过滤 | `optional<variants>` |
+| `is_valid_mdb_path(path, ignore_case)` | 路径是否存在 | `bool` |
+| `get_mdb_path(interface_name, filter_json, ignore_case)` | 按接口与属性过滤查第一个匹配的 path、service | `variants` → `[path, service_name]` |
+| `get_mdb_interface_owners(interface_name)` | 某接口的所有拥有者 | `variants` → `[[service, path],...]` |
+| `get_mdb_service_name(sender)` | unique_name → well-known 服务名 | `string_view` |
+| `get_mdb_sub_objects(path, depth, interfaces)` | 子对象的接口映射 | `optional<dict>` |
+| `get_mdb_parent_objects(path, interfaces)` | 父路径上的对象接口映射 | `optional<dict>` |
+| `get_mdb_service_names()` | 所有 well-known 服务名 | `variants` |
+| `get_mdb_classes(service_name)` | 某服务的 class_name 列表 | `variants` |
+| `get_mdb_object_list(class_name)` | 按 class 查对象与 [service, path] | `variants` |
+| `get_mdb_object_owner(object_name)` | 对象归属 [service, path] | `variants` |
+| `get_mdb_matched_objects(service_name, iface_pattern)` | 按服务与接口正则匹配对象 | `variants` |
+
+#### SHM 属性（对应 Properties.Get / GetAll / GetPropertiesByNames）
+
+| C++ 接口 | 说明 | 返回值 |
+|----------|------|--------|
+| `call_shm_get_property(service, path, iface, prop)` | 获取单个属性 | `optional<variant>` |
+| `call_shm_get_all_properties(service, path, iface)` | 获取接口下全部属性 | `optional<dict>` |
+| `call_shm_get_properties_by_names(service, path, iface, prop_names)` | 按属性名数组批量获取 | `optional<variants>` → `[props_dict, errors_dict]` |
+
 ## Local Message API
 
 ### 创建消息
@@ -412,3 +442,4 @@ int main() {
 - [connection](connection.md) - 传统 DBus 连接
 - [message](message.md) - DBus 消息对象
 - [dbus](../dbus.md) - DBus 主文档
+- [lshm_tree Lua API](../../lua_api/shm_tree.md) - MDB 与 SHM 属性查询的 Lua 绑定

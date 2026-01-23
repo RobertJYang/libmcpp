@@ -92,6 +92,45 @@ public:
                                 std::string_view interface, std::string_view property);
 
     /**
+     * @brief 通过共享内存获取单个属性值（快速路径）
+     * @param service_name [in] 服务名称
+     * @param path [in] 对象路径
+     * @param interface_name [in] 接口名称
+     * @param property_name [in] 属性名称
+     * @return 返回属性值，失败返回 std::nullopt
+     */
+    static std::optional<variant> call_shm_get_property(std::string_view service_name,
+                                                        std::string_view path,
+                                                        std::string_view interface_name,
+                                                        std::string_view property_name);
+
+    /**
+     * @brief 通过共享内存获取接口下所有属性值
+     * @param service_name [in] 服务名称
+     * @param path [in] 对象路径
+     * @param interface_name [in] 接口名称
+     * @return 返回属性字典 {"prop1": value1, "prop2": value2, ...}，失败返回 std::nullopt
+     */
+    static std::optional<dict> call_shm_get_all_properties(std::string_view service_name,
+                                                           std::string_view path,
+                                                           std::string_view interface_name);
+
+    /**
+     * @brief 通过共享内存根据属性名数组获取属性值集合
+     * @param service_name [in] 服务名称
+     * @param path [in] 对象路径
+     * @param interface_name [in] 接口名称
+     * @param prop_names [in] 属性名数组
+     * @return 返回数组，包含两个字典：
+     *         - [0]: 成功获取的属性字典 {"prop1": value1, "prop2": value2, ...}
+     *         - [1]: RPC 调用过程中的错误信息 {"prop3": "error_message", ...}
+     *         失败时返回 std::nullopt
+     */
+    static std::optional<variants> call_shm_get_properties_by_names(
+        std::string_view service_name, std::string_view path, std::string_view interface_name,
+        const variants& prop_names);
+
+    /**
      * @brief 设置属性
      * @param service_name [in] 服务名称
      * @param path [in] 对象路径
@@ -123,6 +162,125 @@ public:
      * @param id [in] 规则ID
      */
     void remove_match(uint64_t id);
+
+    /**
+     * @brief 根据路径和接口列表查询对象，返回服务名到接口列表的映射
+     * @param path [in] 对象路径
+     * @param interfaces [in] 接口名称数组；为空时查询所有接口
+     * @return 返回字典：{"service_name": ["interface1", "interface2", ...]}，对象不存在时返回 std::nullopt
+     */
+    static std::optional<dict> get_mdb_object(std::string_view path, const variants& interfaces);
+
+    /**
+     * @brief 根据路径和深度查询子路径列表，支持分页和接口过滤
+     * @param path [in] 起始对象路径
+     * @param depth [in] 查询深度
+     * @param interfaces [in] 接口名称数组；为空时不过滤接口
+     * @param skip [in] 跳过的对象数量（分页用）
+     * @param top [in] 返回的最大对象数量（分页用）；0 表示不限制
+     * @param ignore_case [in] 是否忽略路径大小写
+     * @return 返回路径数组，对象不存在时返回 std::nullopt
+     */
+    static std::optional<variants> get_mdb_sub_paths(std::string_view path, uint32_t depth,
+                                                     const variants& interfaces, uint32_t skip = 0,
+                                                     uint32_t top = 0, bool ignore_case = false);
+
+    /**
+     * @brief 检查路径是否有效（对象是否存在）
+     * @param path [in] 对象路径
+     * @param ignore_case [in] 是否忽略路径大小写
+     * @return 路径有效返回 true，否则返回 false
+     */
+    static bool is_valid_mdb_path(std::string_view path, bool ignore_case);
+
+    /**
+     * @brief 查询指定接口的所有拥有者（服务名和路径）
+     * @param interface_name [in] 接口名称
+     * @return 返回数组：[[service_name, path], [service_name, path], ...]
+     */
+    static variants get_mdb_interface_owners(std::string_view interface_name);
+
+    /**
+     * @brief 根据 sender（unique_name）查询对应的 well-known 服务名
+     * @param sender [in] 发送者唯一名称（unique_name）
+     * @return 返回 well-known 服务名，未找到时返回空字符串
+     */
+    static std::string_view get_mdb_service_name(std::string_view sender);
+
+    /**
+     * @brief 根据接口名与属性过滤条件查询第一个匹配对象的路径和服务名
+     * @param interface_name [in] 接口名
+     * @param filter_json [in] 属性过滤条件的 JSON 字符串（key 为属性名，value 为期望值）
+     * @param ignore_case [in] 是否忽略字符串大小写
+     * @return 返回数组：[path, service_name]；未找到时返回 ["", ""]
+     */
+    static variants get_mdb_path(std::string_view interface_name, std::string_view filter_json,
+                                 bool ignore_case);
+
+    /**
+     * @brief 根据接口名与属性过滤条件查询第一个匹配对象的路径和服务名（内部实现）
+     * @param interface_name [in] 接口名
+     * @param filter_dict [in] 属性过滤条件（key 为属性名，value 为期望值）
+     * @param ignore_case [in] 是否忽略字符串大小写
+     * @return 返回数组：[path, service_name]；未找到时返回 ["", ""]
+     */
+    static variants get_mdb_path_impl(std::string_view interface_name, const dict& filter_dict,
+                                      bool ignore_case);
+
+    /**
+     * @brief 获取所有服务的 well-known 名称列表
+     * @return 返回服务名称数组
+     */
+    static variants get_mdb_service_names();
+
+    /**
+     * @brief 查询指定服务拥有的 class_name 列表
+     * @param service_name [in] 服务名称；为空表示查询所有服务的 class_name
+     * @return 返回 class_name 数组（可能为空）
+     */
+    static variants get_mdb_classes(std::string_view service_name);
+
+    /**
+     * @brief 根据 class_name 查询对象名、服务名与路径的映射关系
+     * @param class_name [in] 类名
+     * @return 返回数组：[[obj_name, [[service_name, path], ...]], ...]
+     */
+    static variants get_mdb_object_list(std::string_view class_name);
+
+    /**
+     * @brief 根据对象名查询对象归属（服务名、路径）
+     * @param object_name [in] 对象名
+     * @return 返回数组：[[service_name, path], ...]
+     */
+    static variants get_mdb_object_owner(std::string_view object_name);
+
+    /**
+     * @brief 根据服务名与接口名称模式匹配查询对象列表
+     * @param service_name [in] 服务名；为空表示匹配所有服务
+     * @param iface_pattern [in] 接口名称正则表达式；为空表示匹配所有接口
+     * @return 返回数组：[[obj_name, path, [iface...]], ...]
+     */
+    static variants get_mdb_matched_objects(std::string_view service_name,
+                                            std::string_view iface_pattern);
+
+    /**
+     * @brief 根据路径/深度查询子对象的接口映射关系
+     * @param path [in] 起始对象路径
+     * @param depth [in] 查询深度
+     * @param interfaces [in] 接口过滤列表（为空则记录所有接口）
+     * @return 返回路径映射关系，失败返回nullopt
+     */
+    static std::optional<dict> get_mdb_sub_objects(std::string_view path, uint32_t depth,
+                                                   const variants& interfaces);
+
+    /**
+     * @brief 查询父路径链上的对象接口映射关系
+     * @param path [in] 起始对象路径
+     * @param interfaces [in] 接口过滤列表（为空则记录所有接口）
+     * @return 返回父路径映射关系，失败返回nullopt
+     */
+    static std::optional<dict> get_mdb_parent_objects(std::string_view path,
+                                                      const variants&  interfaces);
 
 private:
     std::string                                         m_service_name;

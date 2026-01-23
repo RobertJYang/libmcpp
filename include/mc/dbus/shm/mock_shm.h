@@ -13,16 +13,37 @@
 #ifndef MC_DBUS_SHM_MOCK_SHM_H
 #define MC_DBUS_SHM_MOCK_SHM_H
 
+#include <cctype>
 #include <dbus/dbus.h>
 #include <functional>
+#include <map>
 #include <memory>
 #include <mutex>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <unordered_map>
 #include <vector>
 
 static constexpr int SHM_LOCK_TIMEOUT_DEFAULT_MS = 60000;
+
+// mock 内部使用：大小写不敏感的字符串比较（用于 map/set 排序和异构查找）
+inline bool str_less_i(std::string_view a, std::string_view b) {
+    const size_t n = std::min(a.size(), b.size());
+    for (size_t i = 0; i < n; ++i) {
+        const unsigned char ca = static_cast<unsigned char>(a[i]);
+        const unsigned char cb = static_cast<unsigned char>(b[i]);
+        const char          la = static_cast<char>(std::tolower(ca));
+        const char          lb = static_cast<char>(std::tolower(cb));
+        if (la < lb) {
+            return true;
+        }
+        if (la > lb) {
+            return false;
+        }
+    }
+    return a.size() < b.size();
+}
 
 namespace shmlock {
 
@@ -83,7 +104,8 @@ class shared_memory;
 
 class Rule {
 public:
-    Rule() : m_type(MessageType::signal), m_path_namespace(false) {
+    Rule()
+        : m_type(MessageType::signal), m_path_namespace(false) {
     }
 
     void member(const std::string_view& member) {
@@ -111,7 +133,7 @@ public:
     }
 
     void path_namespace(const std::string_view& path_namespace) {
-        m_path = std::string(path_namespace);
+        m_path           = std::string(path_namespace);
         m_path_namespace = true;
     }
 
@@ -153,7 +175,7 @@ public:
     std::string as_string() const {
         std::string result;
         result.reserve(200);
-        
+
         // type 字段
         if (m_type == MessageType::signal) {
             result += "type='signal'";
@@ -164,26 +186,32 @@ public:
         } else if (m_type == MessageType::error) {
             result += "type='error'";
         }
-        
+
         // interface 字段
         if (!m_interface.empty()) {
-            if (!result.empty()) result += ",";
+            if (!result.empty()) {
+                result += ",";
+            }
             result += "interface='";
             result += m_interface;
             result += "'";
         }
-        
+
         // member 字段
         if (!m_member.empty()) {
-            if (!result.empty()) result += ",";
+            if (!result.empty()) {
+                result += ",";
+            }
             result += "member='";
             result += m_member;
             result += "'";
         }
-        
+
         // path 或 path_namespace 字段
         if (!m_path.empty()) {
-            if (!result.empty()) result += ",";
+            if (!result.empty()) {
+                result += ",";
+            }
             if (m_path_namespace) {
                 result += "path_namespace='";
             } else {
@@ -192,23 +220,27 @@ public:
             result += m_path;
             result += "'";
         }
-        
+
         // sender 字段
         if (!m_sender.empty()) {
-            if (!result.empty()) result += ",";
+            if (!result.empty()) {
+                result += ",";
+            }
             result += "sender='";
             result += m_sender;
             result += "'";
         }
-        
+
         // destination 字段
         if (!m_destination.empty()) {
-            if (!result.empty()) result += ",";
+            if (!result.empty()) {
+                result += ",";
+            }
             result += "destination='";
             result += m_destination;
             result += "'";
         }
-        
+
         return result;
     }
 
@@ -217,7 +249,7 @@ private:
     std::string m_member;
     std::string m_interface;
     std::string m_path;
-    bool m_path_namespace;
+    bool        m_path_namespace;
     std::string m_sender;
     std::string m_destination;
 };
@@ -242,7 +274,7 @@ public:
         if (!ctx.req) {
             return false;
         }
-        
+
         bool matched = false;
         for (auto& [rule, cb] : m_rules) {
             if (test_rule_match(rule.get(), ctx.req)) {
@@ -257,7 +289,7 @@ public:
         if (!ctx.req) {
             return false;
         }
-        
+
         for (auto& [rule, cb] : m_rules) {
             if (test_rule_match(rule.get(), ctx.req)) {
                 return true;
@@ -282,27 +314,27 @@ private:
         if (rule->type() == MessageType::error && msg_type != DBUS_MESSAGE_TYPE_ERROR) {
             return false;
         }
-        
+
         // 检查 interface
-        const char* msg_interface = dbus_message_get_interface(msg);
+        const char*      msg_interface  = dbus_message_get_interface(msg);
         std::string_view rule_interface = rule->interface();
         if (!rule_interface.empty()) {
             if (!msg_interface || rule_interface != msg_interface) {
                 return false;
             }
         }
-        
+
         // 检查 member
-        const char* msg_member = dbus_message_get_member(msg);
+        const char*      msg_member  = dbus_message_get_member(msg);
         std::string_view rule_member = rule->member();
         if (!rule_member.empty()) {
             if (!msg_member || rule_member != msg_member) {
                 return false;
             }
         }
-        
+
         // 检查 path
-        const char* msg_path = dbus_message_get_path(msg);
+        const char*      msg_path  = dbus_message_get_path(msg);
         std::string_view rule_path = rule->path();
         if (!rule_path.empty()) {
             if (!msg_path) {
@@ -311,7 +343,7 @@ private:
             if (rule->path_namespace()) {
                 // path_namespace 匹配：消息路径必须以规则路径开头
                 std::string_view msg_path_sv(msg_path);
-                if (msg_path_sv.size() < rule_path.size() || 
+                if (msg_path_sv.size() < rule_path.size() ||
                     msg_path_sv.substr(0, rule_path.size()) != rule_path) {
                     return false;
                 }
@@ -322,25 +354,25 @@ private:
                 }
             }
         }
-        
+
         // 检查 sender
-        const char* msg_sender = dbus_message_get_sender(msg);
+        const char*      msg_sender  = dbus_message_get_sender(msg);
         std::string_view rule_sender = rule->sender();
         if (!rule_sender.empty()) {
             if (!msg_sender || rule_sender != msg_sender) {
                 return false;
             }
         }
-        
+
         // 检查 destination
-        const char* msg_destination = dbus_message_get_destination(msg);
+        const char*      msg_destination  = dbus_message_get_destination(msg);
         std::string_view rule_destination = rule->destination();
         if (!rule_destination.empty()) {
             if (!msg_destination || rule_destination != msg_destination) {
                 return false;
             }
         }
-        
+
         return true;
     }
 
@@ -355,6 +387,7 @@ template <typename T>
 using shared_ptr = std::shared_ptr<T>;
 
 class shared_memory;
+class object_tree;
 class message_queue_t {
 public:
     bool pop_front(std::function<void(const std::string_view&, int)> handler, int timeout_ms,
@@ -369,10 +402,12 @@ public:
 
 class property {
 public:
-    property() : m_data(""), m_signature("") {
+    property()
+        : m_data(""), m_signature("") {
     }
 
-    property(const std::string_view& signature) : m_data(""), m_signature(signature) {
+    property(const std::string_view& signature)
+        : m_data(""), m_signature(signature) {
     }
 
     void set_read_privilege(int read_privilege) {
@@ -388,11 +423,11 @@ public:
         m_data = std::string(value);
     }
 
-    std::optional<std::string_view> get_data() {
+    std::optional<std::string_view> get_data() const {
         return m_data;
     }
 
-    std::string_view get_signature() {
+    std::string_view get_signature() const {
         return m_signature;
     }
 
@@ -417,9 +452,13 @@ public:
 
 class interface {
 public:
+    using properties_t = std::unordered_map<std::string, shared_ptr<property>>;
+
     shared_ptr<property> add_p(shared_memory& ins, const std::string_view& name,
                                const std::string_view& signature) {
-        return std::make_shared<property>(signature);
+        auto p = std::make_shared<property>(signature);
+        m_properties.emplace(std::string(name), p);
+        return p;
     }
 
     method& add_m(shared_memory& ins, const std::string_view& name,
@@ -433,11 +472,20 @@ public:
     }
 
     shared_ptr<property> find_p(const std::string_view& name) {
-        return std::make_shared<property>();
+        auto it = m_properties.find(std::string(name));
+        if (it == m_properties.end()) {
+            return nullptr;
+        }
+        return it->second;
     }
 
-    method m_method;
-    signal m_signal;
+    properties_t& properties() {
+        return m_properties;
+    }
+
+    method       m_method;
+    signal       m_signal;
+    properties_t m_properties;
 };
 
 class object {
@@ -458,12 +506,23 @@ public:
         return m_interfaces;
     }
 
+    std::string_view path() const {
+        return m_path;
+    }
+
+    object_tree* get_tree() {
+        return m_tree;
+    }
+
     interface_map_t m_interfaces;
+    std::string     m_path;
+    object_tree*    m_tree{nullptr};
 };
 
 class object_tree {
 public:
-    object_tree() : m_unique_name("1.23"), m_harbor_name("") {
+    object_tree()
+        : m_unique_name("1.23"), m_harbor_name("") {
     }
 
     std::string_view unique_name() const {
@@ -512,6 +571,29 @@ public:
     object          m_object;
 };
 
+// 允许 std::map 使用 std::string_view 进行异构查找（贴近原实现 str_less 的语义）
+// 这里保持大小写不敏感比较，并支持 std::string_view 异构查找
+struct str_less {
+    using is_transparent = void;
+
+    bool operator()(const std::string& lhs, const std::string& rhs) const {
+        return str_less_i(std::string_view(lhs), std::string_view(rhs));
+    }
+    bool operator()(std::string_view lhs, std::string_view rhs) const {
+        return str_less_i(lhs, rhs);
+    }
+    bool operator()(const std::string& lhs, std::string_view rhs) const {
+        return str_less_i(std::string_view(lhs), rhs);
+    }
+    bool operator()(std::string_view lhs, const std::string& rhs) const {
+        return str_less_i(lhs, std::string_view(rhs));
+    }
+};
+
+// 与真实实现保持语义一致：well-known / unique 名称到 object_tree 的映射
+// 原实现为 bip::map<shared_string, object_tree_ptr>，这里用 std::map 打桩其语义与遍历行为
+using object_tree_map_t = std::map<std::string, object_tree*, str_less>;
+
 class matchs {
 public:
     using match_cb_t = std::function<void(DBus::Match::Context&, object_tree*)>;
@@ -525,8 +607,83 @@ public:
     }
 };
 
+// mdb_interface 结构体定义
+// 注意：实际共享内存实现中，o 和 i 是 bip::offset_ptr<object> 和 bip::offset_ptr<interface> 类型的成员变量
+// 在 mock 版本中使用原始指针来模拟
+struct mdb_interface {
+    object*    o{nullptr};
+    interface* i{nullptr};
+};
+
+// mdb_object 类定义
+class mdb_object {
+public:
+    mdb_object(shared_memory& shm, const std::string_view& path, void* t)
+        : m_path(path) {
+    }
+
+    using mdb_interfaces     = std::unordered_map<std::string, mdb_interface>;
+    using mdb_interfaces_all = std::unordered_map<std::string, mdb_interfaces>;
+
+    mdb_interfaces* find_interfaces(const std::string_view& interface) {
+        auto it = m_interfaces.find(std::string(interface));
+        if (it != m_interfaces.end()) {
+            return &it->second;
+        }
+        return nullptr;
+    }
+
+    bool empty() const {
+        return m_interfaces.empty();
+    }
+
+    mdb_interfaces_all& interfaces() {
+        return m_interfaces;
+    }
+
+    std::string_view path() {
+        return m_path;
+    }
+
+private:
+    mdb_interfaces_all m_interfaces;
+    std::string        m_path;
+};
+
+// mdb_objects_tree 树结构定义
+class mdb_objects_tree {
+public:
+    using travel_cb_t = std::function<bool(mdb_object&, int level)>;
+
+    mdb_objects_tree() {
+    }
+
+    template <typename Func>
+    void travel(Func&& f, uint32_t depth, bool) {
+        // 打桩实现：不执行任何操作
+    }
+
+    mdb_objects_tree* find_node(const std::string_view& path, bool ignore_case) {
+        // 打桩实现：返回 nullptr
+        return nullptr;
+    }
+};
+
 struct shared_memory_base {
-    matchs _matchs;
+    // well-known 名称映射
+    object_tree_map_t wellknow_names;
+    // unique 名称映射（这里只保留结构，不关心具体语义）
+    object_tree_map_t unique_names;
+
+    using object_ptr       = object*;
+    using object_map_t     = std::map<std::string, object_ptr, str_less>;
+    using twi_object_map_t = std::map<std::string, object_map_t, str_less>;
+    using tri_object_map_t = std::map<std::string, twi_object_map_t, str_less>;
+
+    tri_object_map_t object_map;
+    twi_object_map_t object_names;
+    matchs           _matchs;
+    mdb_objects_tree objects;
 };
 
 class shared_memory {
@@ -546,10 +703,25 @@ public:
         return m_base;
     }
 
+    const shm::shared_memory_base& get_base() const {
+        return m_base;
+    }
+
+    // 打桩实现：返回 well-known 名称到 object_tree 的映射
+    object_tree_map_t& get_wellknow_names() {
+        return m_base.wellknow_names;
+    }
+
     void lock() {
     }
 
     void unlock() {
+    }
+
+    void lock_shared() {
+    }
+
+    void unlock_shared() {
     }
 
     void set_harbor_name(const std::string_view& name, const std::string_view& harbor_name) {
@@ -585,6 +757,18 @@ public:
             tree_map.emplace(harbor_name, p);
         }
         return tree_map;
+    }
+
+    mdb_object* find_mdb_object(const std::string_view& path, bool ignore_case) {
+        // 打桩实现：返回 nullptr
+        return nullptr;
+    }
+
+    using query_interface_view_t = std::function<bool(mdb_interface&)>;
+    mdb_interface* query_interface_view(const std::string_view&       iface_name,
+                                        const query_interface_view_t& filter) {
+        // 打桩实现：返回 nullptr
+        return nullptr;
     }
 
     tree_map_t         tree_map;

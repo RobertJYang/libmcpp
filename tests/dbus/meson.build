@@ -12,6 +12,7 @@ test_dbus_files = [
     'dbus/shm/test_gvariant_convert.cpp',
     'dbus/shm/test_harbor.cpp',
     'dbus/dispatch/test_dispatch.cpp',
+    'dbus/shm/test_shm_tree_query.cpp',
 ]
 
 enable_conan_compile = get_option('enable_conan_compile')

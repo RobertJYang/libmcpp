@@ -32,6 +32,10 @@ if lua_interpreter.found()
         lua_dft_lib = get_variable('lua_dft_lib', disabler())
         libmcpp_lua_utils_lib = get_variable('libmcpp_lua_utils_lib', disabler())
         
+        # 获取 lshm_tree 模块依赖（在 src/meson.build 中定义）
+        # 确保测试运行前 lshm_tree.so 已经编译完成
+        lshm_tree_module = get_variable('lshm_tree_module', disabler())
+        
         # 检查 dbus-run-session 或 dbus-launch
         dbus_runner = find_program('dbus-run-session', required: false)
         if not dbus_runner.found()
@@ -53,9 +57,11 @@ if lua_interpreter.found()
                      'LUA_PATH=' + meson.current_source_dir() / '?.lua;' + 
                                   meson.current_source_dir() / 'dbus' / '?.lua;' +
                                   meson.current_source_dir() / 'lvalidate' / '?.lua;' +
-                                  system_lua_path
+                                  meson.current_source_dir() / 'shm_tree' / '?.lua;' +
+                                  system_lua_path,
+                     'LUAUNIT_OUTPUT=tap'
                  ],
-                 depends: [ldbus_module, lua_dft_lib, libmcpp_lua_utils_lib, lvalidate],
+                 depends: [ldbus_module, lua_dft_lib, libmcpp_lua_utils_lib, lvalidate, lshm_tree_module],
                  timeout: 60,
                  workdir: meson.current_source_dir())
             message('Lua D-Bus tests will run with temporary D-Bus session (via wrapper)')
@@ -75,9 +81,11 @@ if lua_interpreter.found()
                      'LUA_PATH=' + meson.current_source_dir() / '?.lua;' + 
                                   meson.current_source_dir() / 'dbus' / '?.lua;' +
                                   meson.current_source_dir() / 'lvalidate' / '?.lua;' +
-                                  system_lua_path
+                                  meson.current_source_dir() / 'shm_tree' / '?.lua;' +
+                                  system_lua_path,
+                     'LUAUNIT_OUTPUT=tap'
                  ],
-                 depends: [ldbus_module, lua_dft_lib, libmcpp_lua_utils_lib, lvalidate],
+                 depends: [ldbus_module, lua_dft_lib, libmcpp_lua_utils_lib, lvalidate, lshm_tree_module],
                  timeout: 60,
                  workdir: meson.current_source_dir())
             message('Lua D-Bus tests will run with temporary D-Bus session (via dbus-run-session)')

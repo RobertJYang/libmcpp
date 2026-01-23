@@ -230,6 +230,24 @@ if lua_dep.found()
     gnu_symbol_visibility: 'default',  # 导出所有符号
   )
   message('mc_log module will be built with dependency: ' + lua_dep.name())
+
+  # 编译 lshm_tree.so 动态库（Lua C 模块）
+  # 注意: shm_tree 实现在 engine 库中，需要链接 libmcpp_engine_lib
+  if libmcpp_lua_utils_dep.found()
+    lshm_tree_module = shared_module(
+      'lshm_tree',
+      shm_tree_src,
+      name_prefix: '',  # 不要 lib 前缀
+      name_suffix: 'so',
+      dependencies: [lua_dep, libmcpp_lua_utils_dep],
+      link_with: [libmcpp_base_lib, libmcpp_engine_lib],
+      include_directories: [incdir, srcdir],
+      install: true,
+      install_dir: install_dir,  # 使用与 libmcpp.so 相同的目录
+      gnu_symbol_visibility: 'default',  # 导出所有符号
+    )
+    message('lshm_tree module will be built')
+  endif
 else
   warning('Lua not found, ldbus module will not be built')
 endif
