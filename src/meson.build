@@ -1,40 +1,61 @@
-# 包含目录（相对于 src/meson.build）
-incdir = include_directories('../include')
-srcdir = include_directories('.')
-
-# mcbase 的 include 目录从主项目获取（通过 subproject）
-# 注意：mcbase_dep 已经包含了 include 目录，但某些地方需要单独使用
-
 # 包含子目录的 meson.build 文件
 subdir('crypto')
+subdir('db')
 subdir('dbus')
 subdir('debounce')
+subdir('dict')
+subdir('fmt')
+subdir('futures')
 subdir('interprocess')
+subdir('io')
 subdir('log')
-
-# 获取 enable_conan_compile 选项
-enable_conan_compile = get_option('enable_conan_compile')
+subdir('memory')
+subdir('reflect')
+subdir('runtime')
+subdir('string')
+subdir('variant')
 
 base_src_files = [
   # 根目录源文件
-  debounce_src_files,
-  crypto_src_files,
-  interprocess_src_files,
-  log_appenders_src_files,
-]
+  'common.cpp',
+  'exception.cpp',
+  'filesystem.cpp',
+  'json.cpp',
+  'json_wrapper.cpp',
+  'time.cpp',
+  'singleton.cpp',
+  'error.cpp',
+  'error_engine.cpp',
+  'result.cpp',
+  'array.cpp',
 
-if enable_conan_compile
-  base_src_files += 'json_wrapper.cpp'
-endif
+  debounce_src_files,
+  dict_src_files,
+  fmt_src_files,
+  log_src_files,
+  memory_src_files,
+  reflect_src_files,
+  runtime_src_files,
+  string_src_files,
+  variant_src_files,
+  crypto_src_files,
+  db_src_files,
+  interprocess_src_files,
+  io_src_files,
+  futures_src_files,
+]
 
 # 源文件列表
 libmcpp_src_files = ['variant_c_api.cpp']
 
-# 依赖 mcbase 库
-dep_arr = [mcbase_dep, boost_dep, boost_program_options_dep, dbus_dep, glib_dep]
+dep_arr = [boost_dep, boost_program_options_dep, dbus_dep, glib_dep]
 mcpp_deps = []
 
-# enable_conan_compile 已由主项目定义，这里直接使用
+enable_conan_compile = get_option('enable_conan_compile')
+add_project_arguments(
+  '-DENABLE_CONAN_COMPILE=' + enable_conan_compile.to_int().to_string(),
+  language: 'cpp',
+)
 if enable_conan_compile
   message('使用conan构建')
   libsomp_dep = dependency('libsomp', method: 'pkg-config', required: true)
@@ -57,18 +78,17 @@ if not enable_conan_compile
 endif
 
 # 创建基础库
-# 注意：mcbase_dep 已经包含了 include 目录，不需要单独指定
 libmcpp_base_lib = library(
   'mcpp_base',
   base_src_files,
-  include_directories: [incdir, srcdir],
+  include_directories: base_inc_dirs,
   dependencies: dep_arr,
   install: true,
   install_dir: install_dir,
   build_by_default: true,
 )
 libmcpp_base_dep = declare_dependency(
-  include_directories: [incdir, srcdir],
+  include_directories: incdir,
   link_with: libmcpp_base_lib,
   dependencies: dep_arr,
 )
@@ -99,54 +119,60 @@ subdir('luaclib')
 subdir('core')
 subdir('engine')
 subdir('expr')
+subdir('module')
 
-# 创建静态库
-libmcpp_static_lib = static_library(
-  'mcpp',
-  libmcpp_src_files,
-  include_directories: [incdir, srcdir],
-  dependencies: dep_arr,
-  link_whole: [
-    libmcpp_base_lib,
-    libmcpp_core_lib,
-    libmcpp_engine_lib,
-    libmcpp_expr_lib,
-  ],
-)
+if get_option('default_library') == 'static'
+  libmcpp_lib = shared_library(
+    'mcpp',
+    libmcpp_src_files,
+    include_directories: base_inc_dirs,
+    dependencies: dep_arr,
+    install: true,
+    install_dir: install_dir,
+    link_whole: [
+      libmcpp_base_lib,
+      libmcpp_core_lib,
+      libmcpp_engine_lib,
+      libmcpp_expr_lib,
+      libmcpp_module_lib,
+    ],
+  )
+else
+  dep_arr += mcpp_deps
+  libmcpp_lib = shared_library(
+    'mcpp',
+    libmcpp_src_files,
+    include_directories: base_inc_dirs,
+    dependencies: dep_arr,
+    install: true,
+    install_dir: install_dir,
+    build_by_default: true,
+  )
+endif
 
-# 创建动态库，将整个静态库的符号包含进去
-libmcpp_shared_lib = shared_library(
-  'mcpp',
-  [],
-  include_directories: [incdir, srcdir],
-  dependencies: dep_arr,
-  link_whole: [
-    libmcpp_static_lib,
-  ],
-  install: true,
-  install_dir: install_dir,
-  build_by_default: true,
-  version: '1.0.0',
-  soversion: '1',
-)
-
-# 导出库依赖（给外部程序使用）
-# 使用动态库，符号的可见性由 MC_API 控制
-# 只有标记为 MC_API 的符号才会被导出，其他符号是隐藏的（non-external）
-# 注意：mcbase_dep 已经包含了 include 目录，不需要单独指定
-libmcpp_dep = declare_dependency(
-  include_directories: [incdir],
-  link_with: libmcpp_shared_lib,
-  dependencies: dep_arr,
-)
-
-# 为项目内部测试程序
-# 测试程序使用静态库，可以访问所有符号（包括隐藏的）
-libmcpp_dep_with_link = declare_dependency(
-  include_directories: incdir,
-  link_with: libmcpp_static_lib,
-  dependencies: dep_arr,
-)
+# 导出库依赖
+# 在静态库模式下，虽然使用link_whole包含了所有子库，但为了确保依赖关系正确传递，
+# 需要在dependencies中显式包含所有子库的依赖
+if get_option('default_library') == 'static'
+  libmcpp_dep = declare_dependency(
+    include_directories: incdir,
+    link_with: libmcpp_lib,
+    dependencies: [
+      dep_arr,
+      libmcpp_base_dep,
+      libmcpp_core_dep,
+      libmcpp_engine_dep,
+      libmcpp_expr_dep,
+      libmcpp_module_dep,
+    ],
+  )
+else
+  libmcpp_dep = declare_dependency(
+    include_directories: incdir,
+    link_with: libmcpp_lib,
+    dependencies: dep_arr,
+  )
+endif
 
 # 编译 ldbus 统一 Lua 模块
 if lua_dep.found()
@@ -167,8 +193,9 @@ if lua_dep.found()
     ldbus_src,
     name_prefix: '',  # 不要 lib 前缀
     name_suffix: 'so',
-    dependencies: ldbus_deps + [libmcpp_dep],
-    include_directories: [incdir, srcdir],
+    dependencies: ldbus_deps,
+    link_with: [libmcpp_lib],
+    include_directories: base_inc_dirs,
     install: true,
     install_dir: install_dir,  # 使用与 libmcpp.so 相同的目录
     gnu_symbol_visibility: 'default',  # 导出所有符号
@@ -195,7 +222,7 @@ if lua_dep.found()
     mc_log_src,
     name_prefix: '',  # 不要 lib 前缀
     name_suffix: 'so',
-    dependencies: [lua_dep, dbus_dep, boost_dep, mcbase_dep],
+    dependencies: [lua_dep, dbus_dep, boost_dep],
     link_with: [libmcpp_base_lib, libmcpp_engine_lib],  
     include_directories: [incdir, srcdir],
     install: true,

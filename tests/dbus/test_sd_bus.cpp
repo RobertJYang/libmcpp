@@ -111,7 +111,7 @@ public:
     }
 
     std::vector<uint32_t> BlockIOComboWriteRead(uint32_t write_offset, const std::vector<uint8_t>& write_buffer,
-                                                uint32_t read_offset, uint32_t read_length) {
+                                               uint32_t read_offset, uint32_t read_length) {
         return {0x12, 0x34, 0x56, 0x78};
     }
 };
@@ -203,10 +203,9 @@ static tests::dbus::sd_bus::test_service_1*      service_1;
 static tests::dbus::sd_bus::test_devmon_service* devmon_service;
 static sd_bus*                                   test_bus;
 
-class SdBusTest : public mc::test::TestWithEngine {
+class SdBusTest : public ::testing::Test {
 protected:
     static void SetUpTestSuite() {
-        mc::test::TestWithEngine::SetUpTestSuite();
         service_1 = new tests::dbus::sd_bus::test_service_1();
         service_1->init();
         service_1->start();
@@ -223,7 +222,6 @@ protected:
         delete service_1;
         delete devmon_service;
         delete test_bus;
-        mc::test::TestWithEngine::TearDownTestSuite();
     }
 };
 
@@ -244,7 +242,7 @@ TEST_F(SdBusTest, test_invalid_args_call) {
                                 "org.test.sd_bus.TestInterfaceA", "NonExistentMethod", "", {}),
                  mc::exception);
     auto [error, result] = test_bus->pcall("org.test.test_service_1", "/org/test/sd_bus/TestObjectA",
-                                           "org.test.sd_bus.TestInterfaceA", "NonExistentMethod", "", {});
+                                            "org.test.sd_bus.TestInterfaceA", "NonExistentMethod", "", {});
     ASSERT_TRUE(error.has_value());
     ASSERT_TRUE(result.is_null());
 }
@@ -330,7 +328,7 @@ TEST_F(SdBusTest, test_context_requestor) {
 
     // 测试自动填充Requestor字段
     result = test_bus->call("org.test.test_service_1", "/org/test/sd_bus/TestObject1",
-                            "org.test.sd_bus.TestInterface1", "ParseRequestor", "a{ss}", {mc::dict()});
+                                  "org.test.sd_bus.TestInterface1", "ParseRequestor", "a{ss}", {mc::dict()});
     ASSERT_TRUE(result.is_string());
     EXPECT_EQ(result.as_string(), "org.openubmc.test_bus");
 }

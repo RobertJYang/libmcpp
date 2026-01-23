@@ -23,6 +23,8 @@
 #include <thread>
 #include <vector>
 
+#include "../runtime/test_future_helpers.h"
+
 using namespace mc::sync;
 
 class mutex_box_test : public ::testing::Test {
@@ -620,24 +622,22 @@ TEST_F(mutex_box_test, timeout_lock_functions) {
     {
         std::atomic<bool> reader_acquired{false};
         std::atomic<bool> writer_timeout{false};
-        std::promise<void> reader_ready_promise;
-        auto               reader_ready_future = reader_ready_promise.get_future();
-        std::promise<void> release_promise;
-        auto               release_future = release_promise.get_future();
+        mc::test::runtime::future_flag reader_ready;
+        mc::test::runtime::future_flag release_flag;
 
         std::thread reader_thread([&]() {
             auto locked     = sync_data.rlock();
             reader_acquired = true;
-            reader_ready_promise.set_value();
+            reader_ready.set();
             // 等待释放信号，最多等待2秒
-            if (release_future.wait_for(std::chrono::milliseconds(2000)) != std::future_status::ready) {
+            if (!release_flag.wait_for(std::chrono::milliseconds(2000))) {
                 return; // 超时退出
             }
         });
 
         std::thread writer_thread([&]() {
             // 确保读锁先获取
-            if (reader_ready_future.wait_for(std::chrono::milliseconds(2000)) != std::future_status::ready) {
+            if (!reader_ready.wait_for(std::chrono::milliseconds(2000))) {
                 return; // 超时退出
             }
             auto locked    = sync_data.try_wlock_for(mc::milliseconds(50));
@@ -646,7 +646,7 @@ TEST_F(mutex_box_test, timeout_lock_functions) {
 
         // 等待写线程完成
         writer_thread.join();
-        release_promise.set_value();
+        release_flag.set();
         reader_thread.join();
 
         EXPECT_TRUE(reader_acquired);
@@ -798,27 +798,25 @@ TEST_F(mutex_box_test, upgrade_lock_concurrency) {
     std::atomic<bool> reader_finished{false};
     std::atomic<bool> upgrade_acquired{false};
 
-    std::promise<void> reader_ready_promise;
-    auto               reader_ready_future = reader_ready_promise.get_future();
-    std::promise<void> release_promise;
-    auto               release_future = release_promise.get_future();
+    mc::test::runtime::future_flag reader_ready;
+    mc::test::runtime::future_flag release_flag;
 
     std::thread reader([&]() {
         reader_started   = true;
         auto read_locked = sync_data.rlock();
         EXPECT_TRUE(read_locked);
         EXPECT_EQ(*read_locked, 42);
-        reader_ready_promise.set_value();
+        reader_ready.set();
 
         // 等待释放信号，最多等待2秒
-        if (release_future.wait_for(std::chrono::milliseconds(2000)) != std::future_status::ready) {
+        if (!release_flag.wait_for(std::chrono::milliseconds(2000))) {
             return; // 超时退出
         }
         reader_finished = true;
     });
 
     // 等待读线程启动并获取锁
-    ASSERT_EQ(reader_ready_future.wait_for(std::chrono::milliseconds(2000)), std::future_status::ready);
+    ASSERT_TRUE(reader_ready.wait_for(std::chrono::milliseconds(2000)));
 
     // 获取升级锁（应该与读锁共存）
     auto upgrade_locked = sync_data.ulock();
@@ -826,7 +824,7 @@ TEST_F(mutex_box_test, upgrade_lock_concurrency) {
     EXPECT_EQ(*upgrade_locked, 42);
     upgrade_acquired = true;
 
-    release_promise.set_value();
+    release_flag.set();
     reader.join();
     EXPECT_TRUE(reader_finished);
     EXPECT_TRUE(upgrade_acquired);

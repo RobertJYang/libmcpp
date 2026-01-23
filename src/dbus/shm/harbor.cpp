@@ -17,8 +17,8 @@
 #include <mc/log.h>
 #include <mc/runtime.h>
 #include <memory>
-#include <regex>
 #include <sys/file.h>
+#include <regex>
 
 namespace mc::dbus {
 
@@ -39,7 +39,7 @@ shm::object_tree* create_shm_tree(std::string_view harbor_name, std::string_view
     }
 #endif
     // 首次打开共享内存需要使用文件锁
-    FILE* fp = fopen("/dev/shm/init_shm.lock", "r+");
+    FILE *fp = fopen("/dev/shm/init_shm.lock", "r+");
     if (fp == nullptr) {
         elog("failed to open init_shm.lock file, ${error}", ("error", strerror(errno)));
     } else {
@@ -134,10 +134,6 @@ harbor& harbor::get_instance() {
     return mc::singleton<harbor>::instance_with_creator([]() {
         return new harbor();
     });
-}
-
-void harbor::reset_for_test() {
-    mc::singleton<harbor>::reset_for_test();
 }
 
 void harbor::init_message_queue() {
@@ -477,27 +473,27 @@ void harbor::remove_rule(uint64_t id) {
     match.remove_rule(id);
 }
 
-static const char* prop_ch       = "PropertiesChanged";
-static const char* intf_add      = "InterfacesAdded";
-static const char* intf_rmv      = "InterfacesRemoved";
+static const char* prop_ch = "PropertiesChanged";
+static const char* intf_add = "InterfacesAdded";
+static const char* intf_rmv = "InterfacesRemoved";
 static const char* name_owner_ch = "NameOwnerChanged";
 
 static const char* prop_intf = "org.freedesktop.DBus.Properties";
-static const char* obj_intf  = "org.freedesktop.DBus.ObjectManager";
+static const char* obj_intf = "org.freedesktop.DBus.ObjectManager";
 static const char* name_intf = "org.freedesktop.DBus";
 
-static const char* root_path           = "/bmc";
+static const char* root_path = "/bmc";
 static const char* root_path_namespace = "/bmc";
 
-static auto           rule_prop_ch            = match_rule::new_signal(prop_ch, prop_intf);
-static auto           rule_intf_add           = match_rule::new_signal(intf_add, obj_intf);
-static auto           rule_intf_rmv           = match_rule::new_signal(intf_rmv, obj_intf);
-static auto           rule_name_owner_changed = match_rule::new_signal(name_owner_ch, name_intf);
+static auto rule_prop_ch = match_rule::new_signal(prop_ch, prop_intf);
+static auto rule_intf_add = match_rule::new_signal(intf_add, obj_intf);
+static auto rule_intf_rmv = match_rule::new_signal(intf_rmv, obj_intf);
+static auto rule_name_owner_changed = match_rule::new_signal(name_owner_ch, name_intf);
 static std::once_flag rule_flag;
 
 mc::dbus::match_rule existed_rules[4] = {rule_prop_ch, rule_intf_add, rule_intf_rmv, rule_name_owner_changed};
 
-bool need_merge(const mc::dbus::match_rule& rule, const mc::dbus::match_rule& existed_rule) {
+bool need_merge(const mc::dbus::match_rule& rule, const mc::dbus::match_rule& existed_rule){
     if (rule.member() != existed_rule.member()) {
         return false;
     }
@@ -523,29 +519,29 @@ void harbor::add_match(mc::dbus::match_rule& rule, mc::dbus::match_cb_t&& cb, ui
     // 由于dbus-daemon的match算法用列表实现，时间复杂度为O(n)，
     // 如果客户端精确订阅，会让链表过长导致效率变低，所以将这一类订阅合并，
     // 减少订阅次数，由harbor统一为进程内所有服务订阅信号
-    std::call_once(rule_flag, []() {
+    std::call_once(rule_flag,[](){
         rule_prop_ch.with_path_namespace(root_path_namespace);
         rule_intf_add.with_path_namespace(root_path_namespace);
         rule_intf_rmv.with_path_namespace(root_path_namespace);
     });
 
     auto new_rule = rule.clone();
-    for (auto& existed_rule : existed_rules) {
-        if (need_merge(new_rule, existed_rule)) {
+    for(auto& existed_rule : existed_rules){
+        if(need_merge(new_rule, existed_rule)){
             new_rule = existed_rule.clone();
             break;
         }
     }
     auto path_namespace = new_rule.is_path_namespace() ? new_rule.path_namespace() : new_rule.path();
-    int  pos            = path_namespace.find('*');
+    int pos = path_namespace.find('*');
     if (pos != std::string_view::npos) {
         auto replaced_path_namespace = replace_fuzzy_match(path_namespace, pos);
         new_rule.with_path_namespace(replaced_path_namespace);
     }
-
-    auto rule_str   = new_rule.as_string();
+    
+    auto rule_str = new_rule.as_string();
     m_match_map[id] = rule_str;
-    if (m_match_count[rule_str] == 0) {
+    if (m_match_count[rule_str] == 0){
         auto& match = m_connection.get_match();
         match.add_rule(new_rule, std::forward<match_cb_t>(cb), id);
         m_connection.add_match_only(new_rule, std::forward<match_cb_t>(cb), id);
@@ -556,7 +552,7 @@ void harbor::add_match(mc::dbus::match_rule& rule, mc::dbus::match_cb_t&& cb, ui
 void harbor::remove_match(uint64_t id) {
     auto rule_str = m_match_map[id];
     --m_match_count[rule_str];
-    if (m_match_count[rule_str] == 0) {
+    if(m_match_count[rule_str] == 0){
         auto& match = m_connection.get_match();
         match.remove_rule(id);
     }

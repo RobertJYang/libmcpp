@@ -20,6 +20,7 @@
 #include <shared_mutex>
 
 #include <test_utilities/test_base.h>
+#include "../runtime/test_future_helpers.h"
 
 // 用于测试的自定义策略
 namespace test_policies {
@@ -255,29 +256,27 @@ TYPED_TEST(shared_mutex_test, MixedReadWriteContention) {
 // 专门测试超时功能
 TYPED_TEST(shared_mutex_test, TryLockForTimesOut) {
     TypeParam                    m;
-    std::promise<void>           lock_held_promise;
-    auto                         lock_held_future = lock_held_promise.get_future();
-    std::promise<void>           release_promise;
-    auto                         release_future = release_promise.get_future();
+    mc::test::runtime::future_flag lock_held;
+    mc::test::runtime::future_flag release_flag;
 
     std::thread t1([&] {
         std::lock_guard<TypeParam> lock(m);
-        lock_held_promise.set_value();
+        lock_held.set();
         // 等待释放信号，最多等待2秒
-        if (release_future.wait_for(std::chrono::milliseconds(2000)) != std::future_status::ready) {
+        if (!release_flag.wait_for(std::chrono::milliseconds(2000))) {
             return; // 超时退出
         }
     });
 
     // 等待 t1 先获取锁
-    ASSERT_EQ(lock_held_future.wait_for(std::chrono::milliseconds(2000)), std::future_status::ready);
+    ASSERT_TRUE(lock_held.wait_for(std::chrono::milliseconds(2000)));
 
     auto start = mc::time_point::now();
     ASSERT_FALSE(m.try_lock_for(mc::milliseconds(20)));
     auto end     = mc::time_point::now();
     auto elapsed = end - start;
     
-    release_promise.set_value();
+    release_flag.set();
     t1.join();
 
     ASSERT_GE(elapsed.count(), 20);
@@ -292,22 +291,20 @@ TYPED_TEST(shared_mutex_test, TryLockForSucceeds) {
 
 TYPED_TEST(shared_mutex_test, TryLockSharedForTimesOut) {
     TypeParam                    m;
-    std::promise<void>           lock_held_promise;
-    auto                         lock_held_future = lock_held_promise.get_future();
-    std::promise<void>           release_promise;
-    auto                         release_future = release_promise.get_future();
+    mc::test::runtime::future_flag lock_held;
+    mc::test::runtime::future_flag release_flag;
 
     std::thread t1([&] {
         std::lock_guard<TypeParam> lock(m); // exclusive lock
-        lock_held_promise.set_value();
+        lock_held.set();
         // 等待释放信号，最多等待2秒
-        if (release_future.wait_for(std::chrono::milliseconds(2000)) != std::future_status::ready) {
+        if (!release_flag.wait_for(std::chrono::milliseconds(2000))) {
             return; // 超时退出
         }
     });
 
     // 确保 t1 先获取锁
-    ASSERT_EQ(lock_held_future.wait_for(std::chrono::milliseconds(2000)), std::future_status::ready);
+    ASSERT_TRUE(lock_held.wait_for(std::chrono::milliseconds(2000)));
 
     auto start = mc::time_point::now();
     ASSERT_FALSE(m.try_lock_shared_for(mc::milliseconds(20)));
@@ -316,7 +313,7 @@ TYPED_TEST(shared_mutex_test, TryLockSharedForTimesOut) {
     ASSERT_GE(elapsed.count(), 20);
     ASSERT_LT(elapsed.count(), 50);
 
-    release_promise.set_value();
+    release_flag.set();
     t1.join();
 }
 

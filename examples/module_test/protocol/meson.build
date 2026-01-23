@@ -8,6 +8,7 @@ protocol_module = shared_library(
     'init.cpp',
     include_directories: incdir,
     dependencies: dep_arr,
+    link_with: [libmcpp_lib],
     install: true,
     install_dir: get_option('libdir') / 'libmcpp/modules/mc/protocol',
     name_prefix: 'lib',

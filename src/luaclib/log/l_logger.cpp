@@ -137,9 +137,18 @@ static int lua_logger_is_enabled(lua_State* L) {
 }
 
 // logger:system(system_id)
+// 如果传入 system_id，则设置 system_id；如果未传入参数，则重置为未设置状态（-1）
 static int lua_logger_system(lua_State* L) {
-    logger* log       = lua_check_logger(L, 1);
-    int     system_id = static_cast<int>(luaL_checkinteger(L, 2));
+    logger* log = lua_check_logger(L, 1);
+    int     system_id;
+    // 检查是否传入了 system_id 参数
+    if (lua_isnoneornil(L, 2)) {
+        // 未传入参数，重置为未设置状态
+        system_id = -1;
+    } else {
+        // 传入了参数，使用传入的值
+        system_id = static_cast<int>(luaL_checkinteger(L, 2));
+    }
     // 注意：logger 的拷贝会共享 impl（shared_ptr），直接修改会污染全局状态。
     // 这里返回一个克隆 logger，仅用于本次链式调用，避免影响原 logger。
     logger new_log = log->clone();

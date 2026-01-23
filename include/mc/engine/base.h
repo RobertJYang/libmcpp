@@ -14,7 +14,6 @@
 #define MC_ENGINE_BASE_H
 
 #include <mc/core/object.h>
-#include <mc/db/common.h>
 #include <mc/db/table.h>
 #include <mc/dbus/message.h>
 #include <mc/engine/call_stack.h>
@@ -108,8 +107,6 @@ public:
 
     virtual ~abstract_object() = default;
 
-    // object 继承自 object_base，支持数据库存储，直接使用即可
-
     virtual void     set_service(service* s) = 0;
     virtual service* get_service() const     = 0;
 
@@ -173,8 +170,7 @@ public:
     virtual property_changed_signal&       property_update_shm()                                    = 0;
 
     mc::shared_ptr<abstract_object> shared_from_this() {
-        // 使用 mc::core::object 的 shared_from_this
-        return mc::core::object::shared_from_this().template static_pointer_cast<abstract_object>();
+        return mc::shared_ptr<abstract_object>(this);
     }
 
     virtual const object_metadata& get_metadata() const = 0;

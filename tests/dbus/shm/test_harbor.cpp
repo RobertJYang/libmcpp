@@ -1,22 +1,21 @@
 /*
- * Copyright (c) 2025 Huawei Technologies Co., Ltd.
- * openUBMC is licensed under Mulan PSL v2.
- * You can use this software according to the terms and conditions of the Mulan
- * PSL v2. You may obtain a copy of Mulan PSL v2 at:
- *         http://license.coscl.org.cn/MulanPSL2
- * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY
- * KIND, EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
- * NON-INFRINGEMENT, MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE. See the
- * Mulan PSL v2 for more details.
- */
+* Copyright (c) 2025 Huawei Technologies Co., Ltd.
+* openUBMC is licensed under Mulan PSL v2.
+* You can use this software according to the terms and conditions of the Mulan
+* PSL v2. You may obtain a copy of Mulan PSL v2 at:
+*         http://license.coscl.org.cn/MulanPSL2
+* THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY
+* KIND, EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+* NON-INFRINGEMENT, MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE. See the
+* Mulan PSL v2 for more details.
+*/
 
 #include <mc/dbus/shm/harbor.h>
-#include <mc/dbus/shm/serialize.h>
 #include <mc/dbus/shm/shm_tree.h>
+#include <mc/dbus/shm/serialize.h>
 #include <mc/future.h>
 #include <mc/reflect/metadata_info.h>
 #include <mc/runtime.h>
-#include <test_utilities/test_base.h>
 
 #include <cstdlib>
 #include <cstring>
@@ -27,15 +26,18 @@
 
 using namespace mc::dbus;
 
-class HarborTest : public mc::test::TestWithEngine {
+class HarborTest : public ::testing::Test
+{
 protected:
-    void SetUp() override {
+    void SetUp() override
+    {
         // 确保每个测试开始时 harbor 处于停止状态
         auto& harbor_instance = harbor::get_instance();
         harbor_instance.stop();
     }
 
-    void TearDown() override {
+    void TearDown() override
+    {
         // 确保每个测试结束后清理 harbor 状态
         auto& harbor_instance = harbor::get_instance();
         harbor_instance.stop();
@@ -44,7 +46,8 @@ protected:
     }
 };
 
-TEST_F(HarborTest, HarborLifecycleAndNaming) {
+TEST_F(HarborTest, HarborLifecycleAndNaming)
+{
     auto& harbor_instance = harbor::get_instance();
 
     // 1. 单例与名称设置
@@ -66,13 +69,14 @@ TEST_F(HarborTest, HarborLifecycleAndNaming) {
     } catch (const std::exception& e) {
         harbor_instance.stop();
         GTEST_SKIP() << "harbor start failed: " << e.what()
-                     << " (可能缺少共享内存环境)";
+                    << " (可能缺少共享内存环境)";
     }
 }
 
 #if defined(ENABLE_CONAN_COMPILE) && ENABLE_CONAN_COMPILE == 1
 #else
-TEST_F(HarborTest, DestinationQueueOnline) {
+TEST_F(HarborTest, DestinationQueueOnline)
+{
     auto& ins = shm::shared_memory::get_instance();
     ins.get_tree("harbor.coverage.queue")->set_harbor_name("harbor.coverage.queue");
     auto& harbor_instance = harbor::get_instance();
@@ -96,7 +100,8 @@ TEST_F(HarborTest, DestinationQueueOnline) {
     harbor_instance.stop();
 }
 
-TEST_F(HarborTest, SendAndReplyShmMessage) {
+TEST_F(HarborTest, SendAndReplyShmMessage)
+{
     auto& harbor_instance = harbor::get_instance();
     harbor_instance.set_harbor_name("harbor.coverage.send_reply");
 
@@ -126,7 +131,8 @@ TEST_F(HarborTest, SendAndReplyShmMessage) {
     harbor_instance.stop();
 }
 
-TEST_F(HarborTest, GetUniqueNameThrowsWhenMissing) {
+TEST_F(HarborTest, GetUniqueNameThrowsWhenMissing)
+{
     auto& harbor_instance = harbor::get_instance();
     harbor_instance.set_harbor_name("harbor.coverage.unique");
 
@@ -134,7 +140,8 @@ TEST_F(HarborTest, GetUniqueNameThrowsWhenMissing) {
     harbor_instance.stop();
 }
 
-TEST_F(HarborTest, MessageQueueDispatchHandlesEmpty) {
+TEST_F(HarborTest, MessageQueueDispatchHandlesEmpty)
+{
     auto& harbor_instance = harbor::get_instance();
     harbor_instance.set_harbor_name("harbor.coverage.dispatch");
 
@@ -149,15 +156,14 @@ TEST_F(HarborTest, MessageQueueDispatchHandlesEmpty) {
 
     message_queue queue(*queue_raw);
     bool          handler_called = false;
-    queue.dispatch(10, 1, [&handler_called](message_data&) {
-        handler_called = true;
-    });
+    queue.dispatch(10, 1, [&handler_called](message_data&) { handler_called = true; });
     EXPECT_FALSE(handler_called);
 
     harbor_instance.stop();
 }
 
-TEST_F(HarborTest, UnregisterServiceClearsPendingPromises) {
+TEST_F(HarborTest, UnregisterServiceClearsPendingPromises)
+{
     auto& harbor_instance = harbor::get_instance();
     harbor_instance.set_harbor_name("harbor.coverage.unregister");
 
@@ -195,7 +201,7 @@ TEST_F(HarborTest, MockRuleDisconnect) {
 // 测试 property 默认构造函数
 TEST_F(HarborTest, MockPropertyDefaultConstructor) {
     shm::property prop;
-    auto          data = prop.get_data();
+    auto data = prop.get_data();
     EXPECT_TRUE(data.has_value());
     EXPECT_TRUE(data->empty());
     EXPECT_TRUE(prop.get_signature().empty());
@@ -204,7 +210,7 @@ TEST_F(HarborTest, MockPropertyDefaultConstructor) {
 // 测试 property::set_data() 方法
 TEST_F(HarborTest, MockPropertySetData) {
     shm::property prop("s");
-    auto&         ins = shm::shared_memory::get_instance();
+    auto& ins = shm::shared_memory::get_instance();
     prop.set_data(ins, "test_value");
     auto data = prop.get_data();
     EXPECT_TRUE(data.has_value());
@@ -214,7 +220,7 @@ TEST_F(HarborTest, MockPropertySetData) {
 // 测试 property::get_data() 方法
 TEST_F(HarborTest, MockPropertyGetData) {
     shm::property prop("s");
-    auto&         ins = shm::shared_memory::get_instance();
+    auto& ins = shm::shared_memory::get_instance();
     prop.set_data(ins, "test_data");
     auto data = prop.get_data();
     EXPECT_TRUE(data.has_value());
@@ -230,37 +236,37 @@ TEST_F(HarborTest, MockPropertyGetSignature) {
 // 测试 interface::find_p() 方法
 TEST_F(HarborTest, MockInterfaceFindProperty) {
     shm::interface intf;
-    auto&          ins  = shm::shared_memory::get_instance();
-    auto           prop = intf.find_p("test_property");
+    auto& ins = shm::shared_memory::get_instance();
+    auto prop = intf.find_p("test_property");
     EXPECT_NE(prop, nullptr);
 }
 
 // 测试 object::interfaces() 方法
 TEST_F(HarborTest, MockObjectInterfaces) {
     shm::object obj;
-    auto&       interfaces = obj.interfaces();
+    auto& interfaces = obj.interfaces();
     EXPECT_TRUE(interfaces.empty());
 }
 
 // 测试 object_tree::wellknow_name() 方法
 TEST_F(HarborTest, MockObjectTreeWellknowName) {
     shm::object_tree tree;
-    auto             name = tree.wellknow_name();
+    auto name = tree.wellknow_name();
     EXPECT_TRUE(name.empty());
 }
 
 // 测试 object_tree::create_message_queue() 方法
 TEST_F(HarborTest, MockObjectTreeCreateMessageQueue) {
     shm::object_tree tree;
-    auto&            ins   = shm::shared_memory::get_instance();
-    auto&            queue = tree.create_message_queue(ins, 1024);
+    auto& ins = shm::shared_memory::get_instance();
+    auto& queue = tree.create_message_queue(ins, 1024);
     EXPECT_NE(&queue, nullptr);
 }
 
 // 测试 shared_memory::get_harbor_name() 从 tree_map 获取
 TEST_F(HarborTest, MockSharedMemoryGetHarborNameFromTreeMap) {
-    auto& ins  = shm::shared_memory::get_instance();
-    auto  tree = ins.get_tree("test_service");
+    auto& ins = shm::shared_memory::get_instance();
+    auto tree = ins.get_tree("test_service");
     tree->set_unique_name(":1.100");
     ins.set_harbor_name(":1.100", "test_harbor");
     auto harbor_name = ins.get_harbor_name("test_service");
