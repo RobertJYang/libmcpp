@@ -10,10 +10,10 @@
  * See the Mulan PSL v2 for more details.
  */
 
-#include <mc/log/appender_factory.h>
 #include <mc/log/appenders/socket_appender.h>
 
 #include <dlfcn.h>
+#include <logging_internal.h>
 #include <mc/filesystem.h>
 #include <mc/log/log_level.h>
 #include <mc/time.h>
@@ -222,6 +222,7 @@ std::string socket_appender::format_message(const message& msg) const {
     result.append(") : ");
     // 过滤无效字符，避免发送包含控制字符的内容
     std::string message_str = msg.get_message();
+    logging::filter_invalid_chars(message_str);
     result.append(message_str);
 
     return result;
@@ -229,16 +230,3 @@ std::string socket_appender::format_message(const message& msg) const {
 
 } // namespace log
 } // namespace mc
-
-// 自动注册 socket_appender
-namespace {
-struct socket_appender_registrar {
-    socket_appender_registrar() {
-        auto& factory = mc::log::appender_factory::instance();
-        factory.register_creator("socket", []() {
-            return std::make_shared<mc::log::socket_appender>();
-        });
-    }
-};
-static socket_appender_registrar g_socket_appender_registrar;
-} // namespace

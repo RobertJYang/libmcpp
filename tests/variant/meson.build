@@ -1,6 +1,16 @@
-# variant C API 测试文件
-# 注意：variant 核心功能在 mcbase 中，但 variant_c_api 是 libmcpp 特有的
-
-test_variant_files = files(
-  'test_variant_c_api.cpp',
-)
+test_variant_files = [
+  'variant/test_typed_variant.cpp',
+  'variant/test_variant_basic.cpp',
+  'variant/test_variant_comparison.cpp',
+  'variant/test_variant_containers.cpp',
+  'variant/test_variant_c_api.cpp',
+  'variant/test_variant_operations.cpp',
+  'variant/test_variant_visitor.cpp',
+  'variant/test_variant_io.cpp',
+  'variant/test_variant_extension.cpp',
+  'variant/test_variant_reference.cpp',
+  'variant/test_variant_deep_copy.cpp',
+  'variant/test_variant_conversion.cpp',
+  'variant/test_variant_exceptions.cpp',
+  'variant/test_variant_base.cpp',
+]

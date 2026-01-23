@@ -19,6 +19,8 @@
 #include <future>
 #include <shared_mutex>
 
+#include "../runtime/test_future_helpers.h"
+
 using namespace mc::sync;
 
 template <typename Mutex>
@@ -67,8 +69,7 @@ TYPED_TEST(UpgradeMutexTest, UpgradeLockCompatibleWithSharedLock) {
     auto               shared_locked_future = shared_locked_promise.get_future();
     std::atomic<bool>  both_locked{false};
 
-    std::promise<void> release_promise;
-    auto               release_future = release_promise.get_future();
+    mc::test::runtime::future_flag release_flag;
 
     std::thread upgrade_thread([&] {
         m.lock_upgrade();
@@ -79,7 +80,7 @@ TYPED_TEST(UpgradeMutexTest, UpgradeLockCompatibleWithSharedLock) {
         both_locked = true;
 
         // 等待释放信号，最多等待2秒
-        if (release_future.wait_for(std::chrono::milliseconds(2000)) != std::future_status::ready) {
+        if (!release_flag.wait_for(std::chrono::milliseconds(2000))) {
             m.unlock_upgrade();
             return; // 超时退出
         }
@@ -93,7 +94,7 @@ TYPED_TEST(UpgradeMutexTest, UpgradeLockCompatibleWithSharedLock) {
         shared_locked_promise.set_value();
 
         // 等待释放信号，最多等待2秒
-        if (release_future.wait_for(std::chrono::milliseconds(2000)) != std::future_status::ready) {
+        if (!release_flag.wait_for(std::chrono::milliseconds(2000))) {
             m.unlock_shared();
             return; // 超时退出
         }
@@ -102,7 +103,7 @@ TYPED_TEST(UpgradeMutexTest, UpgradeLockCompatibleWithSharedLock) {
 
     // 等待两个线程都获取锁
     std::this_thread::sleep_for(std::chrono::milliseconds(10));
-    release_promise.set_value();
+    release_flag.set();
     upgrade_thread.join();
     shared_thread.join();
 
@@ -117,14 +118,13 @@ TYPED_TEST(UpgradeMutexTest, UpgradeLockMutuallyExclusiveWithWriteLock) {
     std::atomic<bool>  write_attempted{false};
     std::atomic<bool>  write_succeeded{false};
 
-    std::promise<void> release_promise;
-    auto               release_future = release_promise.get_future();
+    mc::test::runtime::future_flag release_flag;
 
     std::thread upgrade_thread([&] {
         m.lock_upgrade();
         upgrade_locked_promise.set_value();
         // 等待释放信号，最多等待2秒
-        if (release_future.wait_for(std::chrono::milliseconds(2000)) != std::future_status::ready) {
+        if (!release_flag.wait_for(std::chrono::milliseconds(2000))) {
             m.unlock_upgrade();
             return; // 超时退出
         }
@@ -143,7 +143,7 @@ TYPED_TEST(UpgradeMutexTest, UpgradeLockMutuallyExclusiveWithWriteLock) {
 
     // 等待写线程完成
     write_thread.join();
-    release_promise.set_value();
+    release_flag.set();
     upgrade_thread.join();
 
     ASSERT_TRUE(write_attempted.load());
@@ -167,15 +167,14 @@ TYPED_TEST(UpgradeMutexTest, UpgradeToWriteLockWithTimeout) {
     std::atomic<bool>  upgrade_attempted{false};
     std::atomic<bool>  upgrade_succeeded{false};
 
-    std::promise<void> release_promise;
-    auto               release_future = release_promise.get_future();
+    mc::test::runtime::future_flag release_flag;
 
     // 启动一个读线程持有读锁
     std::thread reader_thread([&] {
         m.lock_shared();
         reader_ready_promise.set_value();
         // 等待释放信号，最多等待2秒
-        if (release_future.wait_for(std::chrono::milliseconds(2000)) != std::future_status::ready) {
+        if (!release_flag.wait_for(std::chrono::milliseconds(2000))) {
             m.unlock_shared();
             return; // 超时退出
         }
@@ -211,13 +210,13 @@ TYPED_TEST(UpgradeMutexTest, UpgradeToWriteLockWithTimeout) {
             std::this_thread::yield();
         }
         if (!upgrade_finished) {
-            release_promise.set_value(); // 确保读线程退出
+            release_flag.set(); // 确保读线程退出
             reader_thread.join();
             // ✅ 如果升级线程卡住，不要无限等待 join，直接跳过测试
             upgrade_thread.detach();
             GTEST_SKIP() << "Upgrade thread did not finish in time under sanitizer";
         }
-        release_promise.set_value(); // 释放读锁
+        release_flag.set(); // 释放读锁
         reader_thread.join();
         
         // ✅ upgrade_finished 为 true 表示线程逻辑已完成，join 应该很快

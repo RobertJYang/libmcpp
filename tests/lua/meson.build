@@ -55,7 +55,7 @@ if lua_interpreter.found()
                                   meson.current_source_dir() / 'lvalidate' / '?.lua;' +
                                   system_lua_path
                  ],
-                 depends: [ldbus_module, lua_dft_lib, libmcpp_lua_utils_lib],
+                 depends: [ldbus_module, lua_dft_lib, libmcpp_lua_utils_lib, lvalidate],
                  timeout: 60,
                  workdir: meson.current_source_dir())
             message('Lua D-Bus tests will run with temporary D-Bus session (via wrapper)')
@@ -77,7 +77,7 @@ if lua_interpreter.found()
                                   meson.current_source_dir() / 'lvalidate' / '?.lua;' +
                                   system_lua_path
                  ],
-                 depends: [ldbus_module, lua_dft_lib, libmcpp_lua_utils_lib],
+                 depends: [ldbus_module, lua_dft_lib, libmcpp_lua_utils_lib, lvalidate],
                  timeout: 60,
                  workdir: meson.current_source_dir())
             message('Lua D-Bus tests will run with temporary D-Bus session (via dbus-run-session)')

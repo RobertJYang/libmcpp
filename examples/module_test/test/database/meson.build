@@ -8,6 +8,7 @@ test_database_module = shared_library(
     'module.cpp',
     include_directories: incdir,
     dependencies: dep_arr,
+    link_with: [libmcpp_lib],
     install: true,
     install_dir: get_option('libdir') / 'libmcpp/modules/mc/test',
     name_prefix: 'lib',
