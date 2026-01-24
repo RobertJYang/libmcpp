@@ -7,6 +7,7 @@
 ### 进程间通信
 
 - [dbus](dbus.md) - DBus 通信库 Lua 绑定
+- [shm_tree](shm_tree.md) - 共享内存 MDB 查询与 SHM 属性访问 Lua 绑定
 
 ## 快速开始
 
@@ -41,6 +42,7 @@ dbus:close()
 ```
 lua_api/
 ├── index.md           # 本文件
+├── shm_tree.md        # 共享内存 MDB 与 SHM 属性 Lua 绑定
 └── dbus/              # DBus Lua API
     ├── README.md      # DBus 文档索引
     ├── blocking.md    # 阻塞模式

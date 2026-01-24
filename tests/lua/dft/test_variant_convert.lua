@@ -16,7 +16,7 @@ local lu = require('luaunit')
 
 -- 使用由 init.lua 加载的 C 模块
 -- dft 已经在 init.lua 中设为全局变量
-local dft = _G.dft
+local dft = require('ldft')
 
 -- 性能测试配置
 local PERF_ITERATIONS = 1000  -- 每个测试执行的次数，取平均值

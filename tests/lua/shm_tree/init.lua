@@ -13,4 +13,4 @@ See the Mulan PSL v2 for more details.
 -- dft 模块测试入口文件
 
 -- 导入该目录下所有测试文件
-require('dft/test_variant_convert')
+require('shm_tree/test_shm_tree')

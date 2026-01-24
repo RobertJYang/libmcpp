@@ -447,6 +447,7 @@ dbus:close()
 - [message.md](dbus/message.md) - 消息对象文档
 - [connection.md](dbus/connection.md) - 连接对象文档
 - [error.md](dbus/error.md) - 错误对象文档
+- [shm_tree.md](shm_tree.md) - 共享内存 MDB 与 SHM 属性 Lua 绑定
 
 ## 测试
 
