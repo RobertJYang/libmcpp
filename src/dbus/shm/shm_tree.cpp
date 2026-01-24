@@ -684,12 +684,12 @@ static const std::unordered_map<std::string_view, call_shm_interface_config>
               {"GetAllWithContext", call_shm_get_all_properties_handler},
               {"GetPropertiesByNames", call_shm_get_properties_by_names_handler}}}}};
 
-std::optional<mc::variants> try_call_shm_handler(std::string_view service_name,
-                                                 std::string_view path,
-                                                 std::string_view interface,
-                                                 std::string_view method,
-                                                 std::string_view signature,
-                                                 const variants&  args) {
+[[maybe_unused]] std::optional<mc::variants> try_call_shm_handler(std::string_view service_name,
+                                                                  std::string_view path,
+                                                                  std::string_view interface,
+                                                                  std::string_view method,
+                                                                  std::string_view signature,
+                                                                  const variants&  args) {
     auto it_interface = g_call_shm_interface_config.find(interface);
     if (it_interface == g_call_shm_interface_config.end()) {
         return std::nullopt;
@@ -988,13 +988,11 @@ struct g_regex_deleter {
     }
 };
 
-// 接口名称匹配：使用 GLib 正则；将 '%' 视为转义字符 '\'（便于上层传参写转义）
+// 接口名称匹配：使用 GLib 正则；与原接口一致，不对 '%' 做替换
 static std::unique_ptr<GRegex, g_regex_deleter> compile_iface_regex(std::string_view iface_pattern) {
     std::string pattern_str(iface_pattern);
-    std::replace(pattern_str.begin(), pattern_str.end(), '%', '\\');
-
-    GError* error = nullptr;
-    auto    regex =
+    GError*     error = nullptr;
+    auto        regex =
         std::unique_ptr<GRegex, g_regex_deleter>(g_regex_new(pattern_str.c_str(), (GRegexCompileFlags)0,
                                                              (GRegexMatchFlags)0, &error));
     if (regex == nullptr) {
@@ -1015,31 +1013,48 @@ static bool iface_match(const GRegex* iface_regex, std::string_view iface_name) 
                               nullptr, nullptr) != FALSE;
 }
 
-// 收集对象中匹配的接口名称列表
+// 从 shm::object 收集匹配的接口名
 static variants collect_matched_ifaces(shm::object& obj, const GRegex* iface_regex) {
-    variants matched_ifaces;
-    for (const auto& iface_pair : obj.interfaces()) {
-        std::string_view iface_name = iface_pair.first;
-        if (iface_match(iface_regex, iface_name)) {
-            matched_ifaces.push_back(variant(iface_name));
+    variants matched;
+    for (const auto& p : obj.interfaces()) {
+        std::string_view iface_sv(p.first.data(), p.first.size());
+        if (iface_match(iface_regex, iface_sv)) {
+            matched.push_back(variant(iface_sv));
         }
     }
-    return matched_ifaces;
+    return matched;
 }
 
-// 追加一条匹配结果：[obj_name, obj_path, [iface...]]
-static void append_matched_object(variants& result, std::string_view obj_name,
-                                  shm::object& obj, const GRegex* iface_regex) {
-    auto matched_ifaces = collect_matched_ifaces(obj, iface_regex);
-    if (matched_ifaces.empty()) {
-        return;
+// 从 shm::object 获取对象名：优先从 bmc.kepler.Object.Properties 的 ObjectName 属性读取，
+// 无法获取时使用完整路径。调用方需已持有 shm_global_lock_shared_exec。
+static std::string get_object_name_from_object(shm::object& obj) {
+    std::string_view path_sv = obj.path();
+    shm::interface*  intf    = nullptr;
+    for (const auto& p : obj.interfaces()) {
+        if (std::string_view(p.first.data(), p.first.size()) == PROPS_IFACE) {
+            intf = p.second ? &*p.second : nullptr;
+            break;
+        }
     }
-
-    variants entry;
-    entry.push_back(variant(obj_name));
-    entry.push_back(variant(obj.path()));
-    entry.push_back(variant(matched_ifaces));
-    result.push_back(variant(entry));
+    if (intf == nullptr) {
+        return std::string(path_sv);
+    }
+    auto prop = intf->find_p("ObjectName");
+    if (!prop) {
+        return std::string(path_sv);
+    }
+    auto name_opt = shm_object_lock_shared_exec(get_object_id<shmlock::ShmLockManager>(path_sv),
+                                                [&]() -> std::optional<std::string> {
+        auto v = read_property_variant(*prop);
+        if (v && v->is_string()) {
+            return std::string(v->as_string());
+        }
+        return std::nullopt;
+    });
+    if (name_opt) {
+        return *name_opt;
+    }
+    return std::string(path_sv);
 }
 
 std::optional<dict> shm_tree::get_mdb_sub_objects(std::string_view path, uint32_t depth,
@@ -1253,43 +1268,37 @@ variants shm_tree::get_mdb_matched_objects(std::string_view service_name, std::s
     variants result;
     auto&    ins = shm::shared_memory::get_instance();
 
-    // iface_pattern 为空表示匹配所有接口；否则按正则匹配（'%' 会先替换为 '\'）
+    // iface_pattern 为空表示匹配所有接口；否则按正则匹配
     const auto iface_regex = iface_pattern.empty() ? nullptr : compile_iface_regex(iface_pattern);
     if (!iface_pattern.empty() && iface_regex == nullptr) {
         return result;
     }
 
-    // 定位要遍历的 service 范围
     return shm_global_lock_shared_exec([&]() {
-        auto& ins_base   = ins.get_base();
-        auto& object_map = ins_base.object_map;
-
-        auto service_begin = object_map.begin();
-        auto service_end   = object_map.end();
+        auto& w  = ins.get_wellknow_names();
+        auto  cb = [&](shm::object& obj, int /*level*/) {
+            auto matched = collect_matched_ifaces(obj, iface_regex ? iface_regex.get() : nullptr);
+            if (matched.empty()) {
+                return true;
+            }
+            std::string obj_name = get_object_name_from_object(obj);
+            variants    entry;
+            entry.push_back(variant(obj_name));
+            entry.push_back(variant(obj.path()));
+            entry.push_back(variant(matched));
+            result.push_back(variant(entry));
+            return true;
+        };
         if (!service_name.empty()) {
-            auto it = object_map.find(service_name);
-            if (it == object_map.end()) {
-                return result;
+            auto it = w.find(service_name);
+            if (it != w.end()) {
+                it->second->travel(cb, 0, true);
             }
-            service_begin = it;
-            service_end   = std::next(it);
-        }
-
-        for (auto it_service = service_begin; it_service != service_end; ++it_service) {
-            for (const auto& class_pair : it_service->second) {
-                for (const auto& obj_pair : class_pair.second) {
-                    const auto& obj_name = obj_pair.first;
-                    auto        obj_ptr  = obj_pair.second;
-                    if (obj_ptr == nullptr) {
-                        continue;
-                    }
-                    const auto obj_name_sv =
-                        std::string_view(obj_name.c_str(), obj_name.size());
-                    append_matched_object(result, obj_name_sv, *obj_ptr, iface_regex.get());
-                }
+        } else {
+            for (const auto& p : w) {
+                p.second->travel(cb, 0, true);
             }
         }
-
         return result;
     });
 }
