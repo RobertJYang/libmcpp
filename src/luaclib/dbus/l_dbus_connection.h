@@ -31,9 +31,10 @@ constexpr const char* CONNECTION_METATABLE = "dbus.connection";
 struct connection_wrapper {
     mc::dbus::connection* conn_ptr;
     bool                  owns;
+    bool                  is_blocking;  // 标识是否来自阻塞式 bus
 
-    explicit connection_wrapper(mc::dbus::connection* ptr, bool take_ownership = false)
-        : conn_ptr(ptr), owns(take_ownership) {
+    explicit connection_wrapper(mc::dbus::connection* ptr, bool take_ownership = false, bool blocking = true)
+        : conn_ptr(ptr), owns(take_ownership), is_blocking(blocking) {
     }
 
     mc::dbus::connection& get() {
@@ -42,10 +43,11 @@ struct connection_wrapper {
 };
 
 // 创建 connection userdata 并推入 Lua 栈
-inline int push_connection(lua_State* L, mc::dbus::connection& conn) {
+// is_blocking: true 表示来自阻塞式 bus，false 表示来自非阻塞式 bus
+inline int push_connection(lua_State* L, mc::dbus::connection& conn, bool is_blocking = true) {
     void* userdata = lua_newuserdata(L, sizeof(connection_wrapper));
     // 不拥有 connection，只是引用
-    new (userdata) connection_wrapper(&conn, false);
+    new (userdata) connection_wrapper(&conn, false, is_blocking);
 
     luaL_getmetatable(L, CONNECTION_METATABLE);
     lua_setmetatable(L, -2);

@@ -243,8 +243,24 @@ inline int dbus_index(lua_State* L) {
 
             // conn 属性：返回 connection 对象
             if (strcmp(key, "conn") == 0) {
-                // 创建 connection 的拷贝并推入 Lua 栈
-                return push_connection(L, wrapper->conn);
+                // 检查 metatable 名称来判断是阻塞式还是非阻塞式
+                bool is_blocking = true;  // 默认为阻塞式
+                
+                // 获取当前对象的 metatable
+                if (lua_getmetatable(L, 1)) {
+                    // 检查是否是 "dbus.nonblock" metatable
+                    luaL_getmetatable(L, "dbus.nonblock");
+                    if (lua_rawequal(L, -1, -2)) {
+                        // 匹配到 nonblock metatable，是非阻塞式
+                        is_blocking = false;
+                    }
+                    lua_pop(L, 2);  // 弹出两个 metatable
+                } else {
+                    lua_pop(L, 1);  // 弹出 nil
+                }
+                
+                // 创建 connection 的拷贝并推入 Lua 栈，传递 is_blocking 标志
+                return push_connection(L, wrapper->conn, is_blocking);
             }
         } catch (const std::exception& e) {
             return luaL_error(L, "Failed to access property '%s': %s", key, e.what());

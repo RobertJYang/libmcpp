@@ -36,6 +36,13 @@ public:
     sd_bus(bool start_now, bool is_blocking);
 
     /**
+     * @brief 从已有连接构造
+     * @param conn [in] D-Bus连接对象
+     * @param is_blocking [in] 是否为阻塞模式，true表示使用阻塞式DBus调用，false表示优先使用共享内存调用
+     */
+    sd_bus(connection conn, bool is_blocking = false);
+
+    /**
      * @brief 同步调用DBus方法（使用默认超时时间，10分钟）
      * @param service_name [in] 服务名称
      * @param path [in] 对象路径
@@ -94,8 +101,8 @@ public:
      * @note 不会抛出异常，错误信息通过返回值返回。如果调用时间超过30秒，会记录警告日志
      */
     pcall_result timeout_pcall(mc::milliseconds timeout, std::string_view service_name,
-                                std::string_view path, std::string_view interface, std::string_view method,
-                                std::string_view signature, const variants& args);
+                               std::string_view path, std::string_view interface, std::string_view method,
+                               std::string_view signature, const variants& args);
 
     /**
      * @brief 通过共享内存调用DBus方法
@@ -127,6 +134,21 @@ public:
      * @note 请求名称后，会自动注册到共享内存harbor（如果可用）。请求的名称会用于自动填充Requestor字段
      */
     void request_name(std::string_view service_name, uint32_t flags = 0);
+
+
+    /**
+     * @brief 获取底层连接对象
+     * @return 返回底层连接对象的引用
+     */
+    connection& get_connection();
+
+    /**
+     * @brief 检查是否为阻塞模式
+     * @return 如果是阻塞模式返回 true，否则返回 false
+     */
+    bool is_blocking() const {
+        return m_is_blocking;
+    }
 
 private:
     variant                timeout_call_impl(mc::milliseconds timeout, std::string_view service_name,

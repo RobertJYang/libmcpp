@@ -2,6 +2,7 @@
 subdir('crypto')
 subdir('db')
 subdir('dbus')
+subdir('mdb')
 subdir('debounce')
 subdir('dict')
 subdir('fmt')
@@ -113,9 +114,6 @@ else
   endif
 endif
 
-# Lua 模块构建（需要在 base 库创建之后，因为 lua 模块依赖 libmcpp_base_dep）
-subdir('luaclib')
-
 subdir('core')
 subdir('engine')
 subdir('expr')
@@ -150,6 +148,9 @@ else
   )
 endif
 
+# Lua 模块构建（需要在 libmcpp_lib 创建之后，以支持动态链接）
+subdir('luaclib')
+
 # 导出库依赖
 # 在静态库模式下，虽然使用link_whole包含了所有子库，但为了确保依赖关系正确传递，
 # 需要在dependencies中显式包含所有子库的依赖
@@ -172,82 +173,4 @@ else
     link_with: libmcpp_lib,
     dependencies: dep_arr,
   )
-endif
-
-# 编译 ldbus 统一 Lua 模块
-if lua_dep.found()
-  # 获取可选的 libsomp 依赖
-  libsomp_dep = dependency('libsomp', required: false)
-  
-  # 构建依赖列表
-  ldbus_deps = [lua_dep, dbus_dep, boost_dep]
-  if libsomp_dep.found()
-    ldbus_deps += [libsomp_dep]
-  endif
-
-  # 编译 ldbus 统一 Lua 模块
-  # 使用 shared_module 而不是 shared_library，这样可以允许未定义的 lua 符号
-  # Lua 符号会在运行时由 lua 解释器提供
-  ldbus_module = shared_module(
-    'ldbus',
-    ldbus_src,
-    name_prefix: '',  # 不要 lib 前缀
-    name_suffix: 'so',
-    dependencies: ldbus_deps,
-    link_with: [libmcpp_lib],
-    include_directories: base_inc_dirs,
-    install: true,
-    install_dir: install_dir,  # 使用与 libmcpp.so 相同的目录
-    gnu_symbol_visibility: 'default',  # 导出所有符号
-  )
-  message('ldbus module will be built with dependency: ' + lua_dep.name())
-
-  lvalidate = shared_module(
-    'lvalidate',
-    lvalidate_src,
-    include_directories: [incdir, srcdir],
-    dependencies: lua_dep,
-    name_prefix: '',
-    install: true,
-    install_dir: install_dir,
-    build_by_default: true,
-    override_options: ['b_lundef=false'],  # 允许未定义的符号
-  )
-
-  # 编译 log Lua 模块
-  # 注意：file_appender.cpp 中使用了 engine::context::get_current_context_ptr()，
-  # 所以需要链接 engine 库
-  mc_log_module = shared_module(
-    'mc_log',
-    mc_log_src,
-    name_prefix: '',  # 不要 lib 前缀
-    name_suffix: 'so',
-    dependencies: [lua_dep, dbus_dep, boost_dep],
-    link_with: [libmcpp_base_lib, libmcpp_engine_lib],  
-    include_directories: [incdir, srcdir],
-    install: true,
-    install_dir: install_dir,  # 使用与 libmcpp.so 相同的目录
-    gnu_symbol_visibility: 'default',  # 导出所有符号
-  )
-  message('mc_log module will be built with dependency: ' + lua_dep.name())
-
-  # 编译 lshm_tree.so 动态库（Lua C 模块）
-  # 注意: shm_tree 实现在 engine 库中，需要链接 libmcpp_engine_lib
-  if libmcpp_lua_utils_dep.found()
-    lshm_tree_module = shared_module(
-      'lshm_tree',
-      shm_tree_src,
-      name_prefix: '',  # 不要 lib 前缀
-      name_suffix: 'so',
-      dependencies: [lua_dep, libmcpp_lua_utils_dep],
-      link_with: [libmcpp_base_lib, libmcpp_engine_lib],
-      include_directories: [incdir, srcdir],
-      install: true,
-      install_dir: install_dir,  # 使用与 libmcpp.so 相同的目录
-      gnu_symbol_visibility: 'default',  # 导出所有符号
-    )
-    message('lshm_tree module will be built')
-  endif
-else
-  warning('Lua not found, ldbus module will not be built')
 endif

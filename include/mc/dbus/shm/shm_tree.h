@@ -24,7 +24,7 @@ constexpr std::string_view OBJECT_PROPERTIES_INTERFACE = "bmc.kepler.Object.Prop
 /**
  * @brief 共享内存对象树
  */
-class shm_tree {
+class MC_API shm_tree {
 public:
     /**
      * @brief 构造函数
