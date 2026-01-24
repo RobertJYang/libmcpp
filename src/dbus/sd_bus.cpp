@@ -10,8 +10,8 @@
  * See the Mulan PSL v2 for more details.
  */
 
-#include <mc/dbus/sd_bus.h>
 #include <mc/dbus/message.h>
+#include <mc/dbus/sd_bus.h>
 #include <mc/dbus/shm/harbor.h>
 #include <mc/dbus/shm/shm_tree.h>
 #include <mc/log.h>
@@ -48,11 +48,17 @@ static mc::variant convert_method_result(const mc::variants& arr) {
     return arr;
 }
 
-sd_bus::sd_bus(bool start_now, bool is_blocking) : m_is_blocking(is_blocking),
-m_connection(connection::open_session_bus(mc::get_io_context())), m_unique_name(std::string(m_connection.get_unique_name())) {
+sd_bus::sd_bus(bool start_now, bool is_blocking)
+    : m_is_blocking(is_blocking),
+      m_connection(connection::open_session_bus(mc::get_io_context())), m_unique_name(std::string(m_connection.get_unique_name())) {
     if (start_now) {
         m_connection.start();
     }
+}
+
+sd_bus::sd_bus(connection conn, bool is_blocking)
+    : m_is_blocking(is_blocking), m_connection(std::move(conn)),
+      m_unique_name(std::string(m_connection.get_unique_name())) {
 }
 
 variant sd_bus::dbus_call(mc::milliseconds timeout, std::string_view service_name,
@@ -68,7 +74,8 @@ variant sd_bus::dbus_call(mc::milliseconds timeout, std::string_view service_nam
         writer.write_variant(it, arg, 0);
         it.next();
     }
-    auto reply = m_connection.send_with_reply(std::move(msg), timeout);
+    auto reply = m_is_blocking ? m_connection.send_with_reply_and_block(std::move(msg), timeout) : 
+        m_connection.send_with_reply(std::move(msg), timeout);
     if (reply.is_valid() && reply.is_method_return()) {
         return convert_method_result(reply.read_args());
     }
@@ -197,19 +204,23 @@ variant sd_bus::call(std::string_view service_name, std::string_view path, std::
 }
 
 sd_bus::pcall_result sd_bus::pcall(std::string_view service_name, std::string_view path, std::string_view interface,
-                           std::string_view method, std::string_view signature, const variants& args) {
+                                   std::string_view method, std::string_view signature, const variants& args) {
     return timeout_pcall(DEFAULT_DBUS_CALL_TIMEOUT, service_name, path, interface, method, signature, args);
 }
 
 sd_bus::pcall_result sd_bus::timeout_pcall(mc::milliseconds timeout, std::string_view service_name,
-                                   std::string_view path, std::string_view interface,
-                                   std::string_view method, std::string_view signature, const variants& args) {
+                                           std::string_view path, std::string_view interface,
+                                           std::string_view method, std::string_view signature, const variants& args) {
     try {
         auto result = timeout_call(timeout, service_name, path, interface, method, signature, args);
         return {std::nullopt, std::move(result)};
     } catch (const mc::exception& e) {
         return {e.what(), variant()};
     }
+}
+
+connection& sd_bus::get_connection() {
+    return m_connection;
 }
 
 } // namespace mc::dbus

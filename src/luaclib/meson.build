@@ -1,5 +1,5 @@
 # lua 模块构建文件
-# 包含子目录的 meson.build 文件
+# Lua 绑定模块动态链接到 libmcpp.so，避免静态变量重复初始化问题
 
 # 各子模块源文件定义
 subdir('dbus')
@@ -8,48 +8,121 @@ subdir('log')
 subdir('utils')
 subdir('dft')
 subdir('shm_tree')
+subdir('mdb')
 
-# 编译 lutils.so 动态库（Lua C 模块）
-# 注意: Lua C 模块的 lua 符号由运行时的 Lua 解释器提供,不需要在编译时链接
 if lua_dep.found()
+  # 获取可选的 libsomp 依赖
+  libsomp_dep = dependency('libsomp', required: false)
+  
+  # 基础依赖列表（仅用于编译时头文件）
+  lua_base_deps = [dbus_dep, boost_dep, glib_dep, lua_dep]
+  if libsomp_dep.found()
+    lua_base_deps += [libsomp_dep]
+  endif
+
+  # 编译 lutils.so 动态库（Lua C 模块）
+  # 动态链接到 libmcpp.so
   libmcpp_lua_utils_lib = shared_library(
     'lutils',
     lua_utils_sources,
     include_directories: [incdir, srcdir],
-    dependencies: [libmcpp_base_dep, lua_dep],
+    dependencies: lua_base_deps,
+    link_with: [libmcpp_lib],
     name_prefix: '',
     gnu_symbol_visibility: 'default',
     install: true,
     install_dir: install_dir,
     build_by_default: true,
-    override_options: ['b_lundef=false'],  # 允许未定义的 lua 符号
+    override_options: ['b_lundef=false'],
   )
 
-  # 导出 lua_utils 库依赖，供其他 Lua 模块使用
-  libmcpp_lua_utils_dep = declare_dependency(
-    include_directories: [incdir, srcdir],
-    link_with: libmcpp_lua_utils_lib,
-    dependencies: [libmcpp_base_dep, lua_dep],
-  )
-else
-  libmcpp_lua_utils_dep = disabler()
-endif
-
-# 编译 ldft.so 动态库（Lua C 模块）
-# 注意: Lua C 模块的 lua 符号由运行时的 Lua 解释器提供,不需要在编译时链接
-if lua_dep.found() and libmcpp_lua_utils_dep.found()
+  # 编译 ldft.so 动态库（Lua C 模块）
   lua_dft_lib = shared_library(
     'ldft',
     dft_sources,
     include_directories: [incdir, srcdir],
-    dependencies: [libmcpp_base_dep, libmcpp_lua_utils_dep, lua_dep],
+    dependencies: lua_base_deps,
+    link_with: [libmcpp_lib, libmcpp_lua_utils_lib],
     name_prefix: '',
     gnu_symbol_visibility: 'default',
     install: true,
     install_dir: install_dir,
     build_by_default: true,
-    override_options: ['b_lundef=false'],  # 允许未定义的 lua 符号
+    override_options: ['b_lundef=false'],
   )
+
+  # 编译 ldbus 统一 Lua 模块
+  ldbus_module = shared_module(
+    'ldbus',
+    ldbus_src,
+    name_prefix: '',
+    name_suffix: 'so',
+    dependencies: lua_base_deps,
+    link_with: [libmcpp_lib],
+    include_directories: [incdir, srcdir],
+    install: true,
+    install_dir: install_dir,
+    gnu_symbol_visibility: 'default',
+    override_options: ['b_lundef=false'],
+  )
+
+  # 编译 lvalidate 模块（纯 Lua 验证，不依赖 libmcpp）
+  lvalidate = shared_module(
+    'lvalidate',
+    lvalidate_src,
+    include_directories: [incdir, srcdir],
+    dependencies: lua_dep,
+    name_prefix: '',
+    install: true,
+    install_dir: install_dir,
+    build_by_default: true,
+    override_options: ['b_lundef=false'],
+  )
+
+  # 编译 lmdb Lua 模块
+  lmdb_module = shared_module(
+    'lmdb',
+    lmdb_src,
+    name_prefix: '',
+    name_suffix: 'so',
+    dependencies: lua_base_deps,
+    link_with: [libmcpp_lib, libmcpp_lua_utils_lib],
+    include_directories: [incdir, srcdir],
+    install: true,
+    install_dir: install_dir,
+    gnu_symbol_visibility: 'default',
+    override_options: ['b_lundef=false'],
+  )
+
+  # 编译 mc_log Lua 模块
+  mc_log_module = shared_module(
+    'mc_log',
+    mc_log_src,
+    name_prefix: '',
+    name_suffix: 'so',
+    dependencies: lua_base_deps,
+    link_with: [libmcpp_lib],
+    include_directories: [incdir, srcdir],
+    install: true,
+    install_dir: install_dir,
+    gnu_symbol_visibility: 'default',
+  )
+
+  # 编译 lshm_tree Lua 模块
+  lshm_tree_module = shared_module(
+    'lshm_tree',
+    shm_tree_src,
+    name_prefix: '',
+    name_suffix: 'so',
+    dependencies: lua_base_deps,
+    link_with: [libmcpp_lib, libmcpp_lua_utils_lib],
+    include_directories: [incdir, srcdir],
+    install: true,
+    install_dir: install_dir,
+    gnu_symbol_visibility: 'default',
+  )
+else
+  warning('Lua not found, Lua modules will not be built')
 endif
 
 

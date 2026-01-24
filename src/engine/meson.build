@@ -25,6 +25,7 @@ engine_src_files = files(
 )
 
 engine_src_files += dbus_src_files
+engine_src_files += mdb_src_files
 
 libmcpp_engine_lib = library(
   'mcpp_engine',

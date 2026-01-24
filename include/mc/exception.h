@@ -61,9 +61,11 @@ enum exception_code {
     bad_method_exception_code       = 25, // 方法错误
     bad_type_exception_code         = 26, // 类型错误
     not_found_exception_code        = 27, // 未找到异常
-    invalid_argument_exception_code = 28, // 无效参数异常
-    runtime_exception_code          = 29, // 运行时异常
-    format_error_code               = 30, // 格式化错误异常
+    invalid_argument_exception_code        = 28, // 无效参数异常
+    runtime_exception_code                 = 29, // 运行时异常
+    format_error_code                      = 30, // 格式化错误异常
+    insufficient_privilege_exception_code  = 31, // 权限不足异常
+    password_changed_required_exception_code = 32, // 需要修改密码异常
 };
 
 /**
@@ -331,7 +333,9 @@ private:
     macro(not_found_exception, not_found_exception_code, "未找到", "not_found");                        \
     macro(invalid_argument_exception, invalid_argument_exception_code, "无效参数", "invalid_argument"); \
     macro(runtime_exception, runtime_exception_code, "运行时错误", "runtime");                          \
-    macro(format_error, format_error_code, "格式化错误", "format_error")
+    macro(format_error, format_error_code, "格式化错误", "format_error");                               \
+    macro(insufficient_privilege_exception, insufficient_privilege_exception_code, "权限不足", "insufficient_privilege"); \
+    macro(password_changed_required_exception, password_changed_required_exception_code, "需要修改密码", "password_changed_required"); \
 
 MC_STD_EXCEPTION_CLASS(MC_DECLARE_EXCEPTION_CLASS)
 

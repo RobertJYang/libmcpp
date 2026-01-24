@@ -38,6 +38,11 @@
 - [interprocess](interprocess.md) - 进程间通信
 - [dbus](dbus.md) - DBus通信库
 
+## MDB服务
+
+- [mdb_service](mdb_service.md) - MDB服务客户端接口
+- [mdb_privilege](mdb_privilege.md) - MDB权限验证
+
 ## 数据库
 
 - [database](database.md) - 数据库操作

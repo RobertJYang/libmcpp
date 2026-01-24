@@ -1,4 +1,5 @@
 # 包含子目录的 meson.build 文件
+subdir('algorithm')
 subdir('array')
 subdir('core')
 subdir('crypto')
@@ -16,6 +17,7 @@ subdir('im')
 subdir('interprocess')
 subdir('io')
 subdir('log')
+subdir('mdb')
 subdir('memory')
 subdir('module')
 subdir('reflect')
@@ -66,6 +68,8 @@ test_files = [
   test_string_files,
   test_sync_files,
   test_variant_files,
+  test_algorithm_files,
+  test_mdb_files
 ]
 
 # 在 conan 模式下，添加 json_wrapper 测试

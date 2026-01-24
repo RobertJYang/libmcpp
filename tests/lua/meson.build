@@ -1,6 +1,7 @@
 # Lua 测试用例
 
-lua_interpreter = find_program('lua', required: false)
+# 优先查找 lua5.3，因为项目依赖 lua5.3 且 luaunit 可能安装在 5.3 路径下
+lua_interpreter = find_program('lua5.3', 'lua', required: false)
 
 if lua_interpreter.found()
     # 检查 luaunit 是否可用
@@ -26,7 +27,7 @@ if lua_interpreter.found()
         # 获取 ldbus_module 依赖（在 src/meson.build 中定义）
         # 确保测试运行前 ldbus.so 已经编译完成
         ldbus_module = get_variable('ldbus_module', disabler())
-        
+        lmdb_module = get_variable('lmdb_module', disabler())
         # 获取 ldft 和 lutils 模块依赖（在 src/luaclib/meson.build 中定义）
         # 确保测试运行前 ldft.so 和 lutils.so 已经编译完成
         lua_dft_lib = get_variable('lua_dft_lib', disabler())
@@ -61,13 +62,13 @@ if lua_interpreter.found()
                                   system_lua_path,
                      'LUAUNIT_OUTPUT=tap'
                  ],
-                 depends: [ldbus_module, lua_dft_lib, libmcpp_lua_utils_lib, lvalidate, lshm_tree_module],
+                 depends: [ldbus_module, lua_dft_lib, libmcpp_lua_utils_lib, lvalidate, lshm_tree_module, lmdb_module],
                  timeout: 60,
                  workdir: meson.current_source_dir())
             message('Lua D-Bus tests will run with temporary D-Bus session (via wrapper)')
         else
             # 使用 dbus-run-session 直接运行
-            test('lua_dbus_tests',
+            test('lua_tests',
                  dbus_runner,
                  args: [
                      '--',
@@ -85,7 +86,7 @@ if lua_interpreter.found()
                                   system_lua_path,
                      'LUAUNIT_OUTPUT=tap'
                  ],
-                 depends: [ldbus_module, lua_dft_lib, libmcpp_lua_utils_lib, lvalidate, lshm_tree_module],
+                 depends: [ldbus_module, lua_dft_lib, libmcpp_lua_utils_lib, lvalidate, lshm_tree_module, lmdb_module],
                  timeout: 60,
                  workdir: meson.current_source_dir())
             message('Lua D-Bus tests will run with temporary D-Bus session (via dbus-run-session)')

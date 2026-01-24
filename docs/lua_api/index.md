@@ -8,6 +8,7 @@
 
 - [dbus](dbus.md) - DBus 通信库 Lua 绑定
 - [shm_tree](shm_tree.md) - 共享内存 MDB 查询与 SHM 属性访问 Lua 绑定
+- [mdb](mdb.md) - MDB 服务和权限验证 Lua 绑定
 
 ## 快速开始
 

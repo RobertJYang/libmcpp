@@ -433,7 +433,7 @@ void connection_impl::add_rule(match_rule& rule, match_cb_t&& cb, uint64_t id) {
     m_match_strs.emplace(id, std::move(str));
 }
 
-void connection_impl::remove_rule(uint64_t id){
+void connection_impl::remove_rule(uint64_t id) {
     std::lock_guard lock(m_mutex);
 
     m_match.remove_rule(id);
@@ -454,8 +454,9 @@ void connection_impl::add_match(match_rule& rule, match_cb_t&& cb, uint64_t id) 
 
     // 添加连接状态检查
     if (!is_connected()) {
-        elog("add_match failed: DBus connection not established");
-        return;
+        auto msg = "add_match failed: DBus connection not established";
+        elog("${msg}", ("msg", msg));
+        MC_THROW(mc::exception, "${msg}", ("msg", msg));
     }
 
     m_match.add_rule(rule, std::forward<match_cb_t>(cb), id);
@@ -463,10 +464,11 @@ void connection_impl::add_match(match_rule& rule, match_cb_t&& cb, uint64_t id) 
     mc::dbus::error err;
 
     dbus_bus_add_match(m_connection, str.c_str(), &err);
+
     if (err.is_set()) {
         elog("dbus add match failed: ${error}", ("error", err.message));
         m_match.remove_rule(id);
-        return;
+        MC_THROW(mc::exception, "dbus_bus_add_match failed: ${error}", ("error", err.message));
     }
     m_match_strs.emplace(id, std::move(str));
 }
@@ -474,15 +476,15 @@ void connection_impl::add_match(match_rule& rule, match_cb_t&& cb, uint64_t id) 
 void connection_impl::add_match_only(match_rule& rule, match_cb_t&& cb, uint64_t id) {
     std::lock_guard lock(m_mutex);
     // 添加连接状态检查
- 	if (!is_connected()) {
+    if (!is_connected()) {
         elog("add_match failed: DBus connection not established");
         return;
- 	}
+    }
 
-   auto            str = rule.as_string();
+    auto            str = rule.as_string();
     mc::dbus::error err;
 
- 	dbus_bus_add_match(m_connection, str.c_str(), &err);
+    dbus_bus_add_match(m_connection, str.c_str(), &err);
     if (err.is_set()) {
         elog("dbus add match failed: ${error}", ("error", err.message));
     }
@@ -506,6 +508,7 @@ void connection_impl::remove_match(uint64_t id) {
 
     mc::dbus::error err;
     dbus_bus_remove_match(m_connection, it->second.c_str(), &err);
+
     if (err.is_set()) {
         elog("dbus remove match failed: ${error}", ("error", err.message));
     }
