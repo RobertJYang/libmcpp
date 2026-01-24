@@ -564,6 +564,17 @@ public:
         return &m_object;
     }
 
+    template <typename Func>
+    bool travel(Func&& f, int depth, bool leaf_only) {
+        (void)depth;
+        if (!leaf_only || !m_object.m_interfaces.empty()) {
+            if (!f(m_object, 0)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     std::string     m_unique_name;
     std::string     m_wellknow_name;
     std::string     m_harbor_name;
