@@ -13,7 +13,11 @@
 #ifndef MC_DBUS_L_DBUS_COMMON_H
 #define MC_DBUS_L_DBUS_COMMON_H
 
+#include <mc/dbus/shm/shm_tree.h>
 #include <mc/dbus/connection.h>
+#include <mc/dbus/shm/harbor.h>
+#include <mc/dbus/message.h>
+#include <mc/dbus/signal.h>
 #include <mc/dbus/enums.h>
 #include <mc/dbus/error.h>
 #include <mc/runtime.h>
@@ -24,8 +28,11 @@ extern "C" {
 }
 
 #include <memory>
+#include <mutex>
 
 #include "l_dbus_connection.h"
+#include "l_dbus_message.h"
+#include "l_skynet_syms.h"
 
 namespace mc::dbus::lua {
 
@@ -364,6 +371,235 @@ inline void register_metatable_impl(lua_State*      L,
     lua_setfield(L, -2, "__gc");
 
     lua_pop(L, 1); // 弹出 metatable
+}
+
+// 辅助函数，从lua调用栈中解析一个新的消息
+inline mc::dbus::message get_new_message(lua_State *L, int index, int arg_count) {
+    const char* path = luaL_checkstring(L, index);
+    const char* iface = luaL_checkstring(L, index + 1);
+    const char* member = luaL_checkstring(L, index + 2);
+    
+    auto new_message = mc::dbus::message::new_signal(path, iface, member);
+
+    if (arg_count >= index + 3) {
+        const char* destination = luaL_checkstring(L, index + 3);
+        new_message.set_destination(destination);
+    }
+
+    return new_message;
+}
+
+// 辅助函数，初始化harbor
+inline void set_harbor(const char* harbor_name) {
+    std::string_view harbor_name_view {harbor_name};
+    auto &harbor = mc::dbus::harbor::get_instance();
+    harbor.set_harbor_name_if_empty(harbor_name_view);
+    harbor.start();
+}
+
+// Lua回调包装器，用于存储Lua函数引用
+struct lua_match_callback {
+    lua_State* L;
+    int callback_ref;
+
+    lua_match_callback(lua_State* l, int ref) : L(l), callback_ref(ref) {
+    }
+
+    ~lua_match_callback() {
+        if (L && callback_ref != LUA_REFNIL) {
+            luaL_unref(L, LUA_REGISTRYINDEX, callback_ref);
+        }
+    }
+
+    // 禁止拷贝，只允许移动
+    lua_match_callback(const lua_match_callback&) = delete;
+    lua_match_callback& operator=(const lua_match_callback&) = delete;
+    lua_match_callback(lua_match_callback&& other) noexcept : L(other.L), callback_ref(other.callback_ref) {
+        other.callback_ref = LUA_REFNIL;
+    }
+    lua_match_callback& operator=(lua_match_callback&& other) noexcept {
+        if (this != &other) {
+            if (L && callback_ref != LUA_REFNIL) {
+                luaL_unref(L, LUA_REGISTRYINDEX, callback_ref);
+            }
+            L = other.L;
+            callback_ref = other.callback_ref;
+            other.callback_ref = LUA_REFNIL;
+        }
+        return *this;
+    }
+
+    void operator()(mc::dbus::message& msg) {
+        if (!L || callback_ref == LUA_REFNIL) {
+            return;
+        }
+        // 从registry获取Lua函数
+        lua_rawgeti(L, LUA_REGISTRYINDEX, callback_ref);
+        // 将message推入栈（创建拷贝并move）
+        mc::dbus::message msg_copy(msg); // 使用拷贝构造函数
+        push_message(L, std::move(msg_copy));
+        // 调用Lua函数，1个参数，0个返回值
+        if (lua_pcall(L, 1, 0, 0) != LUA_OK) {
+            // 错误处理：获取错误信息并记录（如果需要）
+            const char* error = lua_tostring(L, -1);
+            lua_pop(L, 1); // 弹出错误信息
+            // 可以在这里记录错误日志
+        }
+    }
+};
+
+inline std::unordered_map<std::string,mc::dbus::shm_tree*> shm_tree_map;
+inline std::mutex shm_tree_map_mutex;
+
+inline void set_shm_tree(const char* harbor_name, const char* service_name, const char* unique_name) {
+    set_harbor(harbor_name);
+    auto &harbor = mc::dbus::harbor::get_instance();
+    harbor.register_unique_name(unique_name, service_name);
+    create_shm_tree(harbor_name, service_name, unique_name);
+
+    auto *shm_tree = new mc::dbus::shm_tree(harbor_name, service_name, unique_name);
+    shm_tree_map[std::string(service_name)] = shm_tree;
+}
+
+// 获取一个shm_tree对象
+inline mc::dbus::shm_tree* get_shm_tree(const char* unique_name, const char* harbor_name, const char* service_name) {
+    // 第一次检查：不加锁快速检查
+    std::string service_name_str(service_name);
+    auto it = shm_tree_map.find(service_name_str);
+    if (it != shm_tree_map.end() && it->second != nullptr) {
+        return it->second;
+    }
+
+    std::lock_guard<std::mutex> lock(shm_tree_map_mutex);
+
+    it = shm_tree_map.find(service_name_str);
+    if (it != shm_tree_map.end() && it->second != nullptr) {
+        return it->second;
+    }
+
+    set_shm_tree(harbor_name, service_name, unique_name);
+    it = shm_tree_map.find(service_name_str);
+    if (it != shm_tree_map.end() && it->second != nullptr) {
+        return it->second;
+    }
+    return nullptr;
+}
+
+// 从shm发送消息
+inline int notify_signal(lua_State *L) {
+    int n = lua_gettop(L);
+    if (n < 4) {
+        return luaL_error(L, "Too few args for send shm message");
+    }
+    auto* wrapper = reinterpret_cast<dbus_wrapper*>(lua_touserdata(L, 1));
+    auto new_message = get_new_message(L, 2, n);
+
+    try {
+        mc::dbus::send_signal(wrapper->conn, new_message);
+        lua_pushboolean(L, true);
+        return 1;
+    } catch (const std::exception& e) {
+        return luaL_error(L, "Send shm message failed: %s", e.what());
+    }
+}
+
+// 辅助函数，从lua调用栈中解析一个新的订阅规则
+inline mc::dbus::match_rule get_new_rule(lua_State *L, int index, int arg_count) {
+    const char* member = luaL_checkstring(L, index);
+    const char* interface = luaL_checkstring(L, index + 1);
+    auto new_rule = mc::dbus::match_rule::new_signal(member, interface);
+    if (arg_count >= index + 3) {
+        if (lua_isboolean(L, index + 2) && lua_isstring(L, index + 3)) {
+            bool is_path_namespace = lua_toboolean(L, index + 2);
+            const char* path_or_path_namespace = lua_tostring(L, index + 3);
+            if (is_path_namespace) {
+                new_rule.with_path_namespace(path_or_path_namespace);
+            } else {
+                new_rule.with_path(path_or_path_namespace);
+            }
+        }
+    } else {
+        return new_rule;
+    }
+    if (arg_count >= index + 4){
+        if (lua_isstring(L, index + 4)) {
+            const char* sender = lua_tostring(L, index + 4);
+            new_rule.with_sender(sender);
+        }
+    } else {
+        return new_rule;
+    }
+    if (arg_count >= index + 5) {
+        if (lua_isnumber(L, index + 5)) {
+            int type = lua_tonumber(L, index + 5);
+            new_rule.with_type(static_cast<DBus::Match::MessageType>(type));
+        }
+    } else {
+        return new_rule;
+    }
+    if (arg_count >= index + 6) {
+        if (lua_isstring(L, index + 6)) {
+            const char* destination = lua_tostring(L, index + 6);
+            new_rule.with_destination(destination);
+        }
+    }
+    return new_rule;
+}
+
+// 参数顺序：
+//   1. dbus_wrapper
+//   2. callback id
+//   3. match id
+//   4. harbor_name
+//   5. 之后: get_new_rule 的参数 (member, interface, ...)
+inline int add_match(lua_State *L) {
+    int n = lua_gettop(L);
+    // wrapper + callback id + match id + harbor_name + member + interface
+    if (n < 6) {
+        return luaL_error(L, "Too few args for add match");
+    }
+
+    try {
+        auto* wrapper = reinterpret_cast<dbus_wrapper*>(lua_touserdata(L, 1));
+        int callback_id         = luaL_checknumber(L, 2);
+
+        int         rule_id          = luaL_checknumber(L, 3);
+        const char* harbor_name = luaL_checkstring(L, 4);
+
+        auto new_rule = get_new_rule(L, 5, n);
+
+        set_harbor(harbor_name);
+        const char* unique_name = wrapper->conn.get_unique_name().data();
+        const char* service_name = wrapper->conn.get_service_name().c_str();
+        auto *shm_tree = get_shm_tree(unique_name, harbor_name, service_name);
+        if (!shm_tree) {
+            return luaL_error(L, "Failed to get shm tree");
+        }
+        
+        auto& harbor = mc::dbus::harbor::get_instance();
+        harbor.add_match(new_rule, [rule_id, callback_id](mc::dbus::message& msg) mutable{
+            auto skynet = mc::dbus::lua::SkynetSyms::get_instance();
+            if(!skynet.skynet_send||rule_id==0){
+                return;
+            }
+            dbus_message_ref(msg.get_dbus_message());
+            constexpr std::size_t N = ((sizeof(std::uintptr_t) - 2) * 8);
+
+            std::uintptr_t data = reinterpret_cast<std::uintptr_t>(msg.get_dbus_message());
+            uint32_t data_high = data>>N;
+            uint32_t source = (data_high<<16)|callback_id;
+            std::size_t sz = data&~(std::size_t(0xFFFF)<<N);
+            skynet.skynet_send_with_priority(nullptr, source, rule_id, PTYPE_SIGNAL_PROCESS|PTYPE_TAG_DONTCOPY, 0, 0, sz, 0);
+        }, rule_id);
+
+        auto shm_harbor_name = harbor.get_harbor_name();
+        shm_tree->add_shm_match(new_rule, shm_harbor_name, rule_id);
+
+        lua_pushboolean(L, true);
+        return 1;
+    } catch (const std::exception& e) {
+        return luaL_error(L, "Add match failed: %s", e.what());
+    }
 }
 
 } // namespace mc::dbus::lua

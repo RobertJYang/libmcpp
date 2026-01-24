@@ -125,10 +125,12 @@ harbor::~harbor() {
 }
 
 void harbor::set_harbor_name(std::string_view name) {
+    std::lock_guard<std::mutex> lock(m_mutex);
     m_harbor_name = std::string(name);
 }
 
 void harbor::set_harbor_name_if_empty(std::string_view name) {
+    std::lock_guard<std::mutex> lock(m_mutex);
     if (m_harbor_name.empty()) {
         m_harbor_name = std::string(name);
     }
@@ -527,7 +529,7 @@ std::string replace_fuzzy_match(const std::string_view& path, int pos) {
 }
 
 void harbor::add_match(mc::dbus::match_rule& rule, mc::dbus::match_cb_t&& cb, uint64_t id) {
-    // 由于dbus-daemon的match算法用列表实现，时间复杂度为O(n)，
+    // 由于dbus-daemon的match算法用链表实现，时间复杂度为O(n)，
     // 如果客户端精确订阅，会让链表过长导致效率变低，所以将这一类订阅合并，
     // 减少订阅次数，由harbor统一为进程内所有服务订阅信号
     std::call_once(rule_flag,[](){
@@ -552,9 +554,10 @@ void harbor::add_match(mc::dbus::match_rule& rule, mc::dbus::match_cb_t&& cb, ui
     
     auto rule_str = new_rule.as_string();
     m_match_map[id] = rule_str;
+    
+    auto& match = m_connection.get_match();
+    match.add_rule(rule, std::forward<match_cb_t>(cb), id);
     if (m_match_count[rule_str] == 0){
-        auto& match = m_connection.get_match();
-        match.add_rule(new_rule, std::forward<match_cb_t>(cb), id);
         m_connection.add_match_only(new_rule, std::forward<match_cb_t>(cb), id);
     }
     ++m_match_count[rule_str];

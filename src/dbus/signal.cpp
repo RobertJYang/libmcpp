@@ -15,12 +15,15 @@
 #include <mc/engine/metadata.h>
 #include <mc/engine/property.h>
 
+#include <chrono>
+
 namespace mc::dbus {
 
 constexpr uint64_t          SD_BUS_VTABLE_PROPERTY_EMITS_INVALIDATION = 1 << 6;
 static DBus::Match::Context s_ctx;
 
-static void send_properties_changed(connection& conn, message& signal) {
+void send_signal(connection& conn, message& signal) {
+    auto start = std::chrono::steady_clock::now();
     std::unordered_map<std::string, std::string> destinations;
     shm_global_lock_shared_exec([&]() {
         auto& shm = shm::shared_memory::get_instance().get_base();
@@ -55,6 +58,9 @@ static void send_properties_changed(connection& conn, message& signal) {
         }
     }
     free(raw_data);
+    auto end = std::chrono::steady_clock::now();
+    auto duration = end - start;
+    dlog("dbus send message cost '${time}' microseconds", ("time", std::chrono::duration_cast<std::chrono::microseconds>(duration)));
 }
 
 void emit_properties_changed(connection& conn, engine::abstract_object& obj,
@@ -75,7 +81,7 @@ void emit_properties_changed(connection& conn, engine::abstract_object& obj,
             writer << prop_name;
         }
     });
-    send_properties_changed(conn, signal);
+    send_signal(conn, signal);
 }
 
 void emit_interfaces_added(connection& conn, const engine::abstract_object& obj) {

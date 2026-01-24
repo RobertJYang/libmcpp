@@ -134,6 +134,14 @@ public:
     static void set_property_inner(shm::shared_ptr<shm::property> prop, const variant& value);
 
     /**
+     * @brief 在共享内存中添加匹配规则
+     * @param rule [in] 匹配规则
+     * @param cb [in] 港口名
+     * @param id [in] 规则ID
+     */
+    void add_shm_match(match_rule& rule, std::string_view harbor_name, uint64_t id);
+
+    /**
      * @brief 添加匹配规则
      * @param rule [in] 匹配规则
      * @param cb [in] 回调函数

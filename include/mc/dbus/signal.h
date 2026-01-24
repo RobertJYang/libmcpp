@@ -20,6 +20,14 @@
 namespace mc::dbus {
 
 /**
+ * @brief 从共享内存发送消息
+ * @param conn [in/out] DBus连接对象
+ * @param signal [in] 待发送信号
+ * @constraint 用于将信号优先从共享内存发送，如果无法发送再通过dbus发送
+ */
+MC_API void send_signal(connection& conn, message& signal);
+
+/**
  * @brief 发射接口添加信号
  * @param conn [in/out] DBus连接对象
  * @param obj [in] 抽象对象

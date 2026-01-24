@@ -1692,10 +1692,7 @@ std::optional<variants> shm_tree::call_shm_get_properties_by_names(
     return result;
 }
 
-void shm_tree::add_match(match_rule& rule, mc::dbus::match_cb_t&& cb, uint64_t id) {
-    auto& harbor      = harbor::get_instance();
-    auto  harbor_name = harbor.get_harbor_name();
-    harbor.add_match(rule, std::forward<mc::dbus::match_cb_t>(cb), id);
+void shm_tree::add_shm_match(match_rule& rule, std::string_view harbor_name, uint64_t id) {
     shm_global_lock_exec([this, &rule, harbor_name, id]() {
         auto& ins      = shm::shared_memory::get_instance();
         auto& tree_map = ins.get_object_tree_map(harbor_name);
@@ -1706,6 +1703,13 @@ void shm_tree::add_match(match_rule& rule, mc::dbus::match_cb_t&& cb, uint64_t i
         auto shm_slot = ins.get_base()._matchs.add_rule(ins, *rule.rule(), &*it->second);
         m_shm_slots.emplace(id, shm_slot);
     });
+}
+
+void shm_tree::add_match(match_rule& rule, mc::dbus::match_cb_t&& cb, uint64_t id) {
+    auto& harbor      = harbor::get_instance();
+    auto  harbor_name = harbor.get_harbor_name();
+    harbor.add_match(rule, std::forward<mc::dbus::match_cb_t>(cb), id);
+    add_shm_match(rule, harbor_name, id);
 }
 
 void shm_tree::remove_match(uint64_t id) {

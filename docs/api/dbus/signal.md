@@ -2,18 +2,84 @@
 
 ## 概述
 
-`mc::dbus::signal` 模块提供了发射 DBus 标准信号的便捷函数，包括接口添加/移除信号和属性变更信号。
+`mc::dbus::signal` 模块提供了发射 DBus 标准信号的便捷函数，包括接口添加/移除信号和属性变更信号。同时提供了通过共享内存发送信号的高性能方法。
 
 ## 函数定义
 
 ```cpp
 namespace mc::dbus {
+    void send_signal(connection& conn, message& signal);
     void emit_interfaces_added(connection& conn, const engine::abstract_object& obj);
     void emit_interfaces_removed(connection& conn, const engine::abstract_object& obj);
     void emit_properties_changed(connection& conn, engine::abstract_object& obj,
                                 const engine::property_base& prop, const variant& value);
 }
 ```
+
+## 信号发送
+
+### send_signal
+
+```cpp
+void send_signal(connection& conn, message& signal);
+```
+
+通过共享内存或 DBus 发送信号消息。优先使用共享内存发送，如果共享内存不可用或发送失败，则回退到普通 DBus 发送。
+
+**参数：**
+- `conn` [in/out] - DBus 连接对象
+- `signal` [in] - 待发送的信号消息对象
+
+**功能说明：**
+- 自动查找匹配该信号的所有目标接收者（通过共享内存匹配规则）
+- 优先通过共享内存消息队列发送信号（如果目标支持共享内存）
+- 如果共享内存发送失败或目标不支持共享内存，则通过普通 DBus 连接发送
+- 自动设置消息序列号（如果未设置）
+- 记录发送耗时日志（debug 级别）
+
+**工作流程：**
+1. 在共享内存中查找匹配该信号的所有目标（通过 `shm._matchs.run()`）
+2. 收集所有目标的唯一名称（unique_name）和已知名称（wellknow_name）
+3. 为每个目标尝试通过共享内存消息队列发送
+4. 如果共享内存队列不可用，回退到普通 DBus 发送
+5. 释放序列化缓冲区并记录耗时
+
+**约束：**
+- 信号消息必须已正确设置路径、接口和成员名称
+- 如果信号序列号为 0，会自动设置为连接的下一个序列号
+- 共享内存发送失败时会记录错误日志，但不会抛出异常
+- 函数会修改 `signal` 对象（设置序列号和目标地址）
+
+**示例：**
+
+```cpp
+#include <mc/dbus/signal.h>
+#include <mc/dbus/message.h>
+
+// 创建信号消息
+auto signal = mc::dbus::message::new_signal(
+    "/com/example/Object",
+    "com.example.Interface",
+    "StatusChanged"
+);
+
+// 添加信号参数
+auto writer = signal.writer();
+writer << "online";  // 状态值
+
+// 通过共享内存或 DBus 发送
+mc::dbus::send_signal(conn, signal);
+```
+
+**性能说明：**
+- 对于支持共享内存的目标，消息通过共享内存队列传递，性能更高
+- 对于不支持共享内存的目标，自动回退到普通 DBus 发送
+- 函数会记录发送耗时（微秒级），便于性能分析
+
+**注意事项：**
+- 函数会修改传入的 `signal` 对象（设置序列号和目标地址）
+- 如果需要在发送后继续使用信号对象，需要先创建副本
+- 共享内存发送失败时会静默回退到 DBus 发送，不会抛出异常
 
 ## 接口信号
 
