@@ -28,6 +28,7 @@ static constexpr size_t SENDER_INDEX       = 8;
 static constexpr size_t SERIAL_INDEX       = 9;
 static constexpr size_t LOCAL_CALL_INDEX   = 10;
 static constexpr size_t REPLY_SERIAL_INDEX = 11;
+static constexpr size_t TIMESTAMP_INDEX    = 12;
 
 template <typename T>
 static T get_variants_item(const variants& v, size_t index, type_id expected_type,
@@ -90,6 +91,7 @@ local_msg::local_msg(const variants& v) {
     m_serial       = get_uint32_item(v, SERIAL_INDEX, 0);
     m_local_call   = get_variants_item<bool>(v, LOCAL_CALL_INDEX, type_id::bool_type, false);
     m_reply_serial = get_uint32_item(v, REPLY_SERIAL_INDEX, 0);
+    m_timestamp    = get_variants_item<std::string>(v, TIMESTAMP_INDEX, type_id::string_type, "");
 }
 
 std::tuple<std::string, std::string> local_msg::get_error() const {
@@ -355,6 +357,34 @@ std::string local_msg::pack() const {
     wb.write_arg(m_local_call);
     wb.write_arg(m_reply_serial);
     return wb.to_string();
+}
+
+static int64_t get_monotonic_time_ms() {
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    return ts.tv_sec * 1000 + ts.tv_nsec / 1000000;
+}
+
+void local_msg::set_timestamp() {
+    std::string time_str = std::string(sizeof(int64_t) + 2, 0);
+    int64_t time_ms = get_monotonic_time_ms();
+    time_str[0] = '#';
+    for (size_t i = 0; i < sizeof(int64_t); i++) {
+        time_str[i + 1] = (time_ms >> (i * 8)) & 0xFF;
+    }
+    time_str[sizeof(int64_t) + 1] = '#';
+    m_timestamp = std::move(time_str);
+}
+
+int64_t local_msg::duration_ms_from_timestamp() const {
+    if (m_timestamp.empty() || m_timestamp.size() != sizeof(int64_t) + 2 || m_timestamp[0] != '#' || m_timestamp[sizeof(int64_t) + 1] != '#') {
+        return -1;
+    }
+    int64_t time_ms = 0;
+    for (size_t i = 0; i < sizeof(int64_t); i++) {
+        time_ms |= (m_timestamp[i + 1] << (i * 8));
+    }
+    return get_monotonic_time_ms() - time_ms;
 }
 
 std::string local_msg::get_error_message() const {

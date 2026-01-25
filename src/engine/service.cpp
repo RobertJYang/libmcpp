@@ -354,8 +354,8 @@ service_impl::shm_timeout_call(mc::milliseconds timeout, std::string_view servic
                                std::string_view path, std::string_view interface,
                                std::string_view method, std::string_view signature,
                                const variants& args) {
-    auto result =
-        m_shm_tree->timeout_call(timeout, service_name, path, interface, method, signature, args);
+    mc::dbus::method_call_params params{service_name, path, interface, method, signature, args};
+    auto result = m_shm_tree->timeout_call(timeout, params);
     if (result != std::nullopt) {
         return convert_method_result(result.value());
     }

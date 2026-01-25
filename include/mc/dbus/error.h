@@ -121,6 +121,10 @@ constexpr std::string_view unknown_property   = "org.freedesktop.DBus.Error.Unkn
 constexpr std::string_view property_read_only = "org.freedesktop.DBus.Error.PropertyReadOnly";
 } // namespace error_names
 
+namespace error_messages {
+    constexpr std::string_view no_reply = "Did not receive a reply. Possible causes include: the remote application did not send a reply, the message bus security policy blocked the reply, the reply timeout expired, or the network connection was broken.";
+} // namespace error_messages
+
 } // namespace mc::dbus
 
 #endif // MC_DBUS_ERROR_H

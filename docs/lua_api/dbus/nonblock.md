@@ -205,6 +205,167 @@ success = conn:dispatch()
 
 - `success` (boolean) - 是否成功
 
+### conn:async_call
+
+异步调用 DBus 方法（使用默认超时时间，10分钟）。
+
+#### 语法
+
+```lua
+conn:async_call(callback, service_name, path, interface, method, [signature], [args...])
+```
+
+#### 参数
+
+- `callback` (function) - 回调函数，接收 `(ok, ...)` 参数：
+  - `ok` (boolean) - 是否成功
+  - 如果成功：`ok=true`，后面是方法返回的多个值
+  - 如果失败：`ok=false`，后面是错误信息字符串
+- `service_name` (string) - 服务名称
+- `path` (string) - 对象路径
+- `interface` (string) - 接口名称
+- `method` (string) - 方法名称
+- `signature` (string, 可选) - 参数签名，默认为空字符串
+- `args...` (可选) - 方法参数，可以是多个值
+
+#### 返回值
+
+- 无返回值（异步调用）
+
+#### 示例
+
+```lua
+local conn = ldbus.nonblock.open_user()
+
+-- 异步调用方法
+conn:async_call(function(ok, ...)
+    if ok then
+        local result1, result2 = ...
+        print("成功:", result1, result2)
+    else
+        local error = ...
+        print("失败:", error)
+    end
+end, "org.example.Service", "/org/example/Object",
+    "org.example.Interface", "GetValue", "", {})
+
+-- 需要定期调用 dispatch 来处理回调
+conn:dispatch()
+```
+
+### conn:async_timeout_call
+
+带超时时间的异步调用 DBus 方法。
+
+#### 语法
+
+```lua
+conn:async_timeout_call(timeout_ms, callback, service_name, path, interface, method, [signature], [args...])
+```
+
+#### 参数
+
+- `timeout_ms` (number) - 超时时间（毫秒）
+- `callback` (function) - 回调函数，接收 `(ok, ...)` 参数：
+  - `ok` (boolean) - 是否成功
+  - 如果成功：`ok=true`，后面是方法返回的多个值
+  - 如果失败：`ok=false`，后面是错误信息字符串
+- `service_name` (string) - 服务名称
+- `path` (string) - 对象路径
+- `interface` (string) - 接口名称
+- `method` (string) - 方法名称
+- `signature` (string, 可选) - 参数签名，默认为空字符串
+- `args...` (可选) - 方法参数，可以是多个值
+
+#### 返回值
+
+- 无返回值（异步调用）
+
+#### 示例
+
+```lua
+local conn = ldbus.nonblock.open_user()
+
+-- 使用 5 秒超时
+conn:async_timeout_call(5000, function(ok, ...)
+    if ok then
+        local result = ...
+        print("成功:", result)
+    else
+        local error = ...
+        print("失败:", error)
+    end
+end, "org.example.Service", "/org/example/Object",
+    "org.example.Interface", "Method", "s", {"param"})
+
+conn:dispatch()
+```
+
+### conn:async_shm_timeout_call
+
+通过共享内存异步调用 DBus 方法。
+
+#### 语法
+
+```lua
+success = conn:async_shm_timeout_call(timeout_ms, callback, service_name, path, interface, method, [signature], [args...])
+```
+
+#### 参数
+
+- `timeout_ms` (number) - 超时时间（毫秒）
+- `callback` (function) - 回调函数，接收 `(ok, ...)` 参数：
+  - `ok` (boolean) - 方法调用是否成功
+  - 如果成功：`ok=true`，后面是方法返回的多个值
+  - 如果失败：`ok=false`，后面是错误信息字符串
+- `service_name` (string) - 服务名称
+- `path` (string) - 对象路径
+- `interface` (string) - 接口名称
+- `method` (string) - 方法名称
+- `signature` (string, 可选) - 参数签名，默认为空字符串
+- `args...` (可选) - 方法参数，可以是多个值
+
+#### 返回值
+
+- `success` (boolean) - 共享内存传输是否成功
+  - `true` - 共享内存传输成功（即使方法调用失败，也会调用回调）
+  - `false` - 共享内存传输失败（不会调用回调）
+
+#### 说明
+
+- 仅通过共享内存进行调用，不会回退到普通 DBus 调用
+- 如果共享内存不可用或传输失败，返回 `false` 且不会调用回调
+- 如果共享内存传输成功但方法调用失败，仍会调用回调并返回 `true`
+- 适合需要高性能调用的场景
+
+#### 示例
+
+```lua
+local conn = ldbus.nonblock.open_user()
+
+-- 尝试共享内存调用
+local shm_success = conn:async_shm_timeout_call(30000, function(ok, ...)
+    if ok then
+        local result = ...
+        print("方法调用成功:", result)
+    else
+        local error = ...
+        print("方法调用失败:", error)
+    end
+end, "org.example.Service", "/org/example/Object",
+    "org.example.Interface", "Method", "", {})
+
+if not shm_success then
+    -- 共享内存调用失败，使用普通异步调用
+    conn:async_timeout_call(30000, function(ok, ...)
+        -- 处理结果
+    end, "org.example.Service", "/org/example/Object",
+        "org.example.Interface", "Method", "", {})
+end
+
+conn:dispatch()
+```
+
 ## 连接对象属性
 
 ### conn.conn

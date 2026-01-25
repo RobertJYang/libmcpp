@@ -973,7 +973,12 @@ void message_writer::write_variant_array_or_dict(signature_iterator it, const mc
                                                  std::size_t depth) const {
     ensure_message_depth(depth);
     if (it.current_type_code() == type_code::dict_entry_start) {
-        write_variant_dict(it, v.get_object(), depth + 1);
+        if (v.is_array() && v.get_array().empty()) {
+            // 兼容lua数据类型，允许空数组作为空字典处理
+            write_variant_dict(it, mc::dict(), depth + 1);
+        } else {
+            write_variant_dict(it, v.get_object(), depth + 1);
+        }
         return;
     }
 

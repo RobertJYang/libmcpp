@@ -301,6 +301,109 @@ end
 conn:close()
 ```
 
+### conn:call
+
+同步调用 DBus 方法（使用默认超时时间，10分钟）。
+
+#### 语法
+
+```lua
+result1, result2, ... = conn:call(service_name, path, interface, method, [signature], [args...])
+```
+
+#### 参数
+
+- `service_name` (string) - 服务名称
+- `path` (string) - 对象路径
+- `interface` (string) - 接口名称
+- `method` (string) - 方法名称
+- `signature` (string, 可选) - 参数签名，默认为空字符串
+- `args...` (可选) - 方法参数，可以是多个值
+
+#### 返回值
+
+- `result1, result2, ...` - 方法返回的多个值（variants）
+- 如果方法没有返回值，不返回任何值
+- 如果方法返回单个值，返回该值
+- 如果方法返回多个值，返回所有值
+
+#### 异常
+
+- 调用失败时抛出 Lua 错误
+
+#### 示例
+
+```lua
+local conn = ldbus.blocking.open_user()
+
+-- 调用无返回值的方法
+conn:call("org.example.Service", "/org/example/Object",
+          "org.example.Interface", "SetValue", "i", {42})
+
+-- 调用返回单个值的方法
+local value = conn:call("org.example.Service", "/org/example/Object",
+                        "org.example.Interface", "GetValue", "", {})
+
+-- 调用返回多个值的方法
+local result1, result2 = conn:call("org.example.Service", "/org/example/Object",
+                                   "org.example.Interface", "GetValues", "", {})
+
+conn:close()
+```
+
+### conn:timeout_call
+
+带超时时间的同步调用 DBus 方法。
+
+#### 语法
+
+```lua
+result1, result2, ... = conn:timeout_call(timeout_ms, service_name, path, interface, method, [signature], [args...])
+```
+
+#### 参数
+
+- `timeout_ms` (number) - 超时时间（毫秒）
+- `service_name` (string) - 服务名称
+- `path` (string) - 对象路径
+- `interface` (string) - 接口名称
+- `method` (string) - 方法名称
+- `signature` (string, 可选) - 参数签名，默认为空字符串
+- `args...` (可选) - 方法参数，可以是多个值
+
+#### 返回值
+
+- `result1, result2, ...` - 方法返回的多个值（variants）
+- 如果方法没有返回值，不返回任何值
+- 如果方法返回单个值，返回该值
+- 如果方法返回多个值，返回所有值
+
+#### 异常
+
+- 调用失败或超时时抛出 Lua 错误
+
+#### 示例
+
+```lua
+local conn = ldbus.blocking.open_user()
+
+-- 使用 5 秒超时
+local result = conn:timeout_call(5000, "org.example.Service", "/org/example/Object",
+                                 "org.example.Interface", "GetValue", "", {})
+
+-- 使用 3 秒超时调用可能耗时的方法
+local ok, err = pcall(function()
+    conn:timeout_call(3000, "org.example.Service", "/org/example/Object",
+                      "org.example.Interface", "LongRunningMethod", "", {})
+end)
+
+if not ok then
+    print("调用超时或失败:", err)
+end
+
+conn:close()
+```
+
 ## 连接对象属性
 
 ### conn.conn

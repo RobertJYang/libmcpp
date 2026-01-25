@@ -137,6 +137,18 @@ std::unordered_map<std::string, std::unordered_set<std::string>>& get_service_in
     return s_index;
 }
 
+// 将 sd_bus 返回的 variants 转换为单个 variant
+// 约定：0 个返回值 => 空 variant；1 个返回值 => 直接返回该值；多个返回值 => 作为数组返回
+static mc::variant convert_method_result(const mc::variants& arr) {
+    if (arr.empty()) {
+        return mc::variant();
+    }
+    if (arr.size() == 1) {
+        return arr[0];
+    }
+    return arr;
+}
+
 // 使用 recursive_mutex 允许同一线程重入
 // 原因：D-Bus同步调用期间可能触发信号回调，回调中可能需要访问缓存
 std::recursive_mutex& get_cache_mutex() {
@@ -180,11 +192,16 @@ std::pair<std::string, std::string> call_get_path(mc::dbus::sd_bus* bus,
                                                   std::string_view  interface,
                                                   std::string_view  filter,
                                                   bool              ignore_case) {
-    auto result = bus->timeout_call(MDB_SERVICE_TIMEOUT, MDB_SERVICE_NAME,
-                                    MDB_SERVICE_PATH, MDB_SERVICE_INTERFACE,
-                                    "GetPath", "a{ss}ssb",
-                                    {mc::dict(), interface, filter, ignore_case});
+    auto results = bus->timeout_call(
+        MDB_SERVICE_TIMEOUT,
+        {MDB_SERVICE_NAME,
+         MDB_SERVICE_PATH,
+         MDB_SERVICE_INTERFACE,
+         "GetPath",
+         "a{ss}ssb",
+         {mc::dict(), interface, filter, ignore_case}});
 
+    auto result = convert_method_result(results);
     if (result.is_array()) {
         auto arr = result.as<mc::variants>();
         if (arr.size() >= 2) {
@@ -704,47 +721,78 @@ void setup_signal_watch(mc::dbus::sd_bus*  bus,
 // 公有函数实现
 mc::variant get_object(mc::dbus::sd_bus* bus, std::string_view path,
                        const mc::variants& interfaces) {
-    return bus->timeout_call(MDB_SERVICE_TIMEOUT, MDB_SERVICE_NAME,
-                             MDB_SERVICE_PATH, MDB_SERVICE_INTERFACE,
-                             "GetObject", "a{ss}sas",
-                             {mc::dict(), path, interfaces});
+    auto results = bus->timeout_call(
+        MDB_SERVICE_TIMEOUT,
+        {MDB_SERVICE_NAME,
+         MDB_SERVICE_PATH,
+         MDB_SERVICE_INTERFACE,
+         "GetObject",
+         "a{ss}sas",
+         {mc::dict(), path, interfaces}});
+    return convert_method_result(results);
 }
 
 mc::variant get_sub_objects(mc::dbus::sd_bus* bus, std::string_view path,
                             int32_t depth, const mc::variants& interfaces) {
-    return bus->timeout_call(MDB_SERVICE_TIMEOUT, MDB_SERVICE_NAME,
-                             MDB_SERVICE_PATH, MDB_SERVICE_INTERFACE,
-                             "GetSubObjects", "a{ss}sias",
-                             {mc::dict(), path, depth, interfaces});
+    auto results = bus->timeout_call(
+        MDB_SERVICE_TIMEOUT,
+        {MDB_SERVICE_NAME,
+         MDB_SERVICE_PATH,
+         MDB_SERVICE_INTERFACE,
+         "GetSubObjects",
+         "a{ss}sias",
+         {mc::dict(), path, depth, interfaces}});
+    return convert_method_result(results);
 }
 
 mc::variant get_sub_paths(mc::dbus::sd_bus* bus, std::string_view path,
                           int32_t depth, const mc::variants& interfaces) {
-    return bus->timeout_call(MDB_SERVICE_TIMEOUT, MDB_SERVICE_NAME,
-                             MDB_SERVICE_PATH, MDB_SERVICE_INTERFACE,
-                             "GetSubPaths", "a{ss}sias",
-                             {mc::dict(), path, depth, interfaces});
+    auto results = bus->timeout_call(
+        MDB_SERVICE_TIMEOUT,
+        {MDB_SERVICE_NAME,
+         MDB_SERVICE_PATH,
+         MDB_SERVICE_INTERFACE,
+         "GetSubPaths",
+         "a{ss}sias",
+         {mc::dict(), path, depth, interfaces}});
+    return convert_method_result(results);
 }
 
 mc::variant get_parent_objects(mc::dbus::sd_bus* bus, std::string_view path,
                                const mc::variants& interfaces) {
-    return bus->timeout_call(MDB_SERVICE_TIMEOUT, MDB_SERVICE_NAME,
-                             MDB_SERVICE_PATH, MDB_SERVICE_INTERFACE,
-                             "GetParentObjects", "a{ss}sas",
-                             {mc::dict(), path, interfaces});
+    auto results = bus->timeout_call(
+        MDB_SERVICE_TIMEOUT,
+        {MDB_SERVICE_NAME,
+         MDB_SERVICE_PATH,
+         MDB_SERVICE_INTERFACE,
+         "GetParentObjects",
+         "a{ss}sas",
+         {mc::dict(), path, interfaces}});
+    return convert_method_result(results);
 }
 
 mc::variant get_service_name(mc::dbus::sd_bus* bus, std::string_view sender) {
-    return bus->timeout_call(MDB_SERVICE_TIMEOUT, MDB_SERVICE_NAME,
-                             MDB_SERVICE_PATH, MDB_SERVICE_INTERFACE,
-                             "GetServiceName", "a{ss}s",
-                             {mc::dict(), sender});
+    auto results = bus->timeout_call(
+        MDB_SERVICE_TIMEOUT,
+        {MDB_SERVICE_NAME,
+         MDB_SERVICE_PATH,
+         MDB_SERVICE_INTERFACE,
+         "GetServiceName",
+         "a{ss}s",
+         {mc::dict(), sender}});
+    return convert_method_result(results);
 }
 
 mc::variant get_service_names(mc::dbus::sd_bus* bus) {
-    return bus->timeout_call(MDB_SERVICE_TIMEOUT, MDB_SERVICE_NAME,
-                             MDB_SERVICE_PATH, MDB_SERVICE_INTERFACE,
-                             "GetServiceNames", "a{ss}", {mc::dict()});
+    auto results = bus->timeout_call(
+        MDB_SERVICE_TIMEOUT,
+        {MDB_SERVICE_NAME,
+         MDB_SERVICE_PATH,
+         MDB_SERVICE_INTERFACE,
+         "GetServiceNames",
+         "a{ss}",
+         {mc::dict()}});
+    return convert_method_result(results);
 }
 
 // 验证路径并设置订阅
@@ -1069,61 +1117,102 @@ mc::variant get_path(mc::dbus::sd_bus* bus, std::string_view interface,
 }
 
 mc::variant get_interface_owners(mc::dbus::sd_bus* bus, std::string_view interface) {
-    return bus->timeout_call(MDB_SERVICE_TIMEOUT, MDB_SERVICE_NAME,
-                             MDB_SERVICE_PATH, MDB_SERVICE_INTERFACE,
-                             "GetInterfaceOwners", "a{ss}s",
-                             {mc::dict(), interface});
+    auto results = bus->timeout_call(
+        MDB_SERVICE_TIMEOUT,
+        {MDB_SERVICE_NAME,
+         MDB_SERVICE_PATH,
+         MDB_SERVICE_INTERFACE,
+         "GetInterfaceOwners",
+         "a{ss}s",
+         {mc::dict(), interface}});
+    return convert_method_result(results);
 }
 
 mc::variant is_valid_path(mc::dbus::sd_bus* bus, std::string_view path, bool ignore_case) {
-    return bus->timeout_call(MDB_SERVICE_TIMEOUT, MDB_SERVICE_NAME,
-                             MDB_SERVICE_PATH, MDB_SERVICE_INTERFACE,
-                             "IsValidPath", "a{ss}sb",
-                             {mc::dict(), path, ignore_case});
+    auto results = bus->timeout_call(
+        MDB_SERVICE_TIMEOUT,
+        {MDB_SERVICE_NAME,
+         MDB_SERVICE_PATH,
+         MDB_SERVICE_INTERFACE,
+         "IsValidPath",
+         "a{ss}sb",
+         {mc::dict(), path, ignore_case}});
+    return convert_method_result(results);
 }
 
 mc::variant get_sub_paths_paging(mc::dbus::sd_bus* bus, std::string_view path,
                                  int32_t depth, const mc::variants& interfaces,
                                  int32_t skip, int32_t top) {
-    return bus->timeout_call(MDB_SERVICE_TIMEOUT, MDB_SERVICE_NAME,
-                             MDB_SERVICE_PATH, MDB_SERVICE_INTERFACE,
-                             "GetSubPathsPaging", "a{ss}siasii",
-                             {mc::dict(), path, depth, interfaces, skip, top});
+    auto results = bus->timeout_call(
+        MDB_SERVICE_TIMEOUT,
+        {MDB_SERVICE_NAME,
+         MDB_SERVICE_PATH,
+         MDB_SERVICE_INTERFACE,
+         "GetSubPathsPaging",
+         "a{ss}siasii",
+         {mc::dict(), path, depth, interfaces, skip, top}});
+    return convert_method_result(results);
 }
 
 mc::variant get_classes(mc::dbus::sd_bus* bus, std::string_view service) {
-    return bus->timeout_call(MDB_SERVICE_TIMEOUT, MDB_SERVICE_NAME,
-                             MDB_SERVICE_PATH, MDB_SERVICE_INTERFACE,
-                             "GetClasses", "a{ss}s",
-                             {mc::dict(), service});
+    auto results = bus->timeout_call(
+        MDB_SERVICE_TIMEOUT,
+        {MDB_SERVICE_NAME,
+         MDB_SERVICE_PATH,
+         MDB_SERVICE_INTERFACE,
+         "GetClasses",
+         "a{ss}s",
+         {mc::dict(), service}});
+    return convert_method_result(results);
 }
 
 mc::variant get_object_list(mc::dbus::sd_bus* bus, std::string_view class_name) {
-    return bus->timeout_call(MDB_SERVICE_TIMEOUT, MDB_SERVICE_NAME,
-                             MDB_SERVICE_PATH, MDB_SERVICE_INTERFACE,
-                             "GetObjectList", "a{ss}s",
-                             {mc::dict(), class_name});
+    auto results = bus->timeout_call(
+        MDB_SERVICE_TIMEOUT,
+        {MDB_SERVICE_NAME,
+         MDB_SERVICE_PATH,
+         MDB_SERVICE_INTERFACE,
+         "GetObjectList",
+         "a{ss}s",
+         {mc::dict(), class_name}});
+    return convert_method_result(results);
 }
 
 mc::variant get_object_owner(mc::dbus::sd_bus* bus, std::string_view object_name) {
-    return bus->timeout_call(MDB_SERVICE_TIMEOUT, MDB_SERVICE_NAME,
-                             MDB_SERVICE_PATH, MDB_SERVICE_INTERFACE,
-                             "GetObjectOwner", "a{ss}s",
-                             {mc::dict(), object_name});
+    auto results = bus->timeout_call(
+        MDB_SERVICE_TIMEOUT,
+        {MDB_SERVICE_NAME,
+         MDB_SERVICE_PATH,
+         MDB_SERVICE_INTERFACE,
+         "GetObjectOwner",
+         "a{ss}s",
+         {mc::dict(), object_name}});
+    return convert_method_result(results);
 }
 
 mc::variant get_matched_objects(mc::dbus::sd_bus* bus, std::string_view object_name,
                                 std::string_view interface_pattern) {
-    return bus->timeout_call(MDB_SERVICE_TIMEOUT, MDB_SERVICE_NAME,
-                             MDB_SERVICE_PATH, MDB_SERVICE_INTERFACE,
-                             "GetMatchedObjects", "a{ss}ss",
-                             {mc::dict(), object_name, interface_pattern});
+    auto results = bus->timeout_call(
+        MDB_SERVICE_TIMEOUT,
+        {MDB_SERVICE_NAME,
+         MDB_SERVICE_PATH,
+         MDB_SERVICE_INTERFACE,
+         "GetMatchedObjects",
+         "a{ss}ss",
+         {mc::dict(), object_name, interface_pattern}});
+    return convert_method_result(results);
 }
 
 mc::variant get_traced_object(mc::dbus::sd_bus* bus) {
-    return bus->timeout_call(MDB_SERVICE_TIMEOUT, MDB_SERVICE_NAME,
-                             MDB_SERVICE_PATH, MDB_SERVICE_INTERFACE,
-                             "GetTracedObject", "a{ss}", {mc::dict()});
+    auto results = bus->timeout_call(
+        MDB_SERVICE_TIMEOUT,
+        {MDB_SERVICE_NAME,
+         MDB_SERVICE_PATH,
+         MDB_SERVICE_INTERFACE,
+         "GetTracedObject",
+         "a{ss}",
+         {mc::dict()}});
+    return convert_method_result(results);
 }
 
 void clear_cache() {

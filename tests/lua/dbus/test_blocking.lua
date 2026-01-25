@@ -194,6 +194,42 @@ function TestBlocking:test_17_run_until_invalid_callback()
     lu.assertEquals(success, false, "Invalid callback type should fail")
 end
 
+local function array_contains(array, value)
+    for _, v in ipairs(array) do
+        if v == value then
+            return true
+        end
+    end
+    return false
+end
+
+function TestBlocking:test_18_method_call()
+    self.conn = self.blocking.open_user()
+
+    local ret = self.conn:call("org.freedesktop.DBus", "/org/freedesktop/DBus", "org.freedesktop.DBus", "ListActivatableNames", "")
+    lu.assertEquals(type(ret), "table", "ListActivatableNames should return a table")
+    lu.assertTrue(array_contains(ret, "org.freedesktop.DBus"), "ListActivatableNames should contain org.freedesktop.DBus")
+end
+
+function TestBlocking:test_19_method_timeout_call()
+    self.conn = self.blocking.open_user()
+
+    local ret = self.conn:timeout_call(1000, "org.freedesktop.DBus", "/org/freedesktop/DBus", "org.freedesktop.DBus", "ListActivatableNames", "")
+    lu.assertEquals(type(ret), "table", "ListActivatableNames should return a table")
+    lu.assertTrue(array_contains(ret, "org.freedesktop.DBus"), "ListActivatableNames should contain org.freedesktop.DBus")
+end
+
+function TestBlocking:test_20_method_call_invalid_args()
+    self.conn = self.blocking.open_user()
+
+    local success, err = pcall(function()
+        self.conn:call("org.freedesktop.DBus", "/org/freedesktop/DBus", "org.freedesktop.DBus", "NonExistentMethod", "")
+    end)
+
+    lu.assertEquals(success, false, "NonExistentMethod should fail")
+    lu.assertEquals(type(err), "string", "NonExistentMethod should return an error message")
+end
+
 -- 只有当直接运行此文件时才执行测试
 if arg and arg[0]:match("test_blocking%.lua$") then
     os.exit(lu.LuaUnit.run())

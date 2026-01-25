@@ -212,6 +212,41 @@ function TestNonblock:test_16_disconnect()
     lu.assertNotNil(pcall(function() self.conn:disconnect() end))
 end
 
+local function array_contains(array, value)
+    for _, v in ipairs(array) do
+        if v == value then
+            return true
+        end
+    end
+    return false
+end
+
+function TestNonblock:test_17_method_async_call()
+    self.conn = self.nonblock.open_user(true)
+    self.conn:async_call(function(ok, ret)
+        lu.assertEquals(ok, true, "ListActivatableNames should return true")
+        lu.assertEquals(type(ret), "table", "ListActivatableNames should return a table")
+        lu.assertTrue(array_contains(ret, "org.freedesktop.DBus"), "ListActivatableNames should contain org.freedesktop.DBus")
+    end, "org.freedesktop.DBus", "/org/freedesktop/DBus", "org.freedesktop.DBus", "ListActivatableNames", "")
+end
+
+function TestNonblock:test_18_method_async_timeout_call()
+    self.conn = self.nonblock.open_user(true)
+    self.conn:async_timeout_call(1000, function(ok, ret)
+        lu.assertEquals(ok, true, "ListActivatableNames should return true")
+        lu.assertEquals(type(ret), "table", "ListActivatableNames should return a table")
+        lu.assertTrue(array_contains(ret, "org.freedesktop.DBus"), "ListActivatableNames should contain org.freedesktop.DBus")
+    end, "org.freedesktop.DBus", "/org/freedesktop/DBus", "org.freedesktop.DBus", "ListActivatableNames", "")
+end
+
+function TestNonblock:test_19_method_call_invalid_args()
+    self.conn = self.nonblock.open_user(true)
+    self.conn:async_call(function(ok, ret)
+        lu.assertEquals(ok, false, "NonExistentMethod should return false")
+        lu.assertEquals(type(ret), "string", "NonExistentMethod should return an error message")
+    end, "org.freedesktop.DBus", "/org/freedesktop/DBus", "org.freedesktop.DBus", "NonExistentMethod", "")
+end
+
 -- 只有当直接运行此文件时才执行测试
 if arg and arg[0]:match("test_nonblock%.lua$") then
     os.exit(lu.LuaUnit.run())

@@ -11,7 +11,9 @@
  */
 
 #include "l_dbus_blocking.h"
+#include "../utils/variant_utils.h"
 #include "l_dbus_common.h"
+#include <mc/dbus/sd_bus.h>
 #include <mc/log.h>
 
 namespace mc::dbus::lua {
@@ -173,6 +175,48 @@ int dbus_blocking_gc(lua_State* L) {
     return dbus_gc(L);
 }
 
+int dbus_blocking_call(lua_State* L) {
+    auto*       wrapper      = static_cast<dbus_wrapper*>(luaL_checkudata(L, 1, BLOCKING_DBUS_METATABLE));
+    std::string service_name = luaL_checkstring(L, 2);
+    std::string path         = luaL_checkstring(L, 3);
+    std::string interface    = luaL_checkstring(L, 4);
+    std::string method       = luaL_checkstring(L, 5);
+    std::string signature    = luaL_checkstring(L, 6);
+    variants    args;
+    int         top = lua_gettop(L);
+    if (top >= 7) {
+        args = mc::lua::lua_to_variants(L, 7);
+    }
+    mc::dbus::sd_bus bus(wrapper->conn, true);
+    auto [error, result] = bus.pcall({service_name, path, interface, method, signature, std::move(args)});
+    if (error.has_value()) {
+        return luaL_error(L, "call method failed: %s", error.value().c_str());
+    }
+    return mc::lua::variants_to_lua(L, result);
+}
+
+int dbus_blocking_timeout_call(lua_State* L) {
+    auto*       wrapper      = static_cast<dbus_wrapper*>(luaL_checkudata(L, 1, BLOCKING_DBUS_METATABLE));
+    int         timeout_ms   = luaL_checkinteger(L, 2);
+    std::string service_name = luaL_checkstring(L, 3);
+    std::string path         = luaL_checkstring(L, 4);
+    std::string interface    = luaL_checkstring(L, 5);
+    std::string method       = luaL_checkstring(L, 6);
+    std::string signature    = luaL_checkstring(L, 7);
+    variants    args;
+    int         top = lua_gettop(L);
+    if (top >= 8) {
+        args = mc::lua::lua_to_variants(L, 8);
+    }
+    mc::dbus::sd_bus bus(wrapper->conn, true);
+    auto [error, result] =
+        bus.timeout_pcall(mc::milliseconds(timeout_ms), {service_name, path, interface, method, signature, std::move(args)});
+    if (error.has_value()) {
+        return luaL_error(L, "call method failed: %s", error.value().c_str());
+    }
+    return mc::lua::variants_to_lua(L, result);
+}
+
 // 注册 blocking 模块的方法表
 const luaL_Reg dbus_blocking_methods[] = {{"request_name", dbus_blocking_request_name},
                                           {"close", dbus_blocking_close},
@@ -180,12 +224,13 @@ const luaL_Reg dbus_blocking_methods[] = {{"request_name", dbus_blocking_request
                                           {"dispatch", dbus_blocking_dispatch},
                                           {"run_once", dbus_blocking_run_once},
                                           {"run_until", dbus_blocking_run_until},
+                                          {"call", dbus_blocking_call},
+                                          {"timeout_call", dbus_blocking_timeout_call},
                                           {nullptr, nullptr}};
 
 // 注册 blocking 模块的 metatable
 void register_blocking_metatable(lua_State* L) {
-    register_metatable_impl(L, BLOCKING_DBUS_METATABLE, dbus_blocking_methods, dbus_blocking_index,
-                            dbus_blocking_gc);
+    register_metatable_impl(L, BLOCKING_DBUS_METATABLE, dbus_blocking_methods, dbus_blocking_index, dbus_blocking_gc);
 }
 
 } // namespace mc::dbus::lua
