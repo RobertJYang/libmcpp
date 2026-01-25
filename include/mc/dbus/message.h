@@ -34,6 +34,18 @@ using path               = mc::engine::path;
 namespace container      = mc::reflect::container;
 
 /**
+ * @brief 方法调用参数
+ */
+struct MC_API method_call_params {
+    std::string_view service_name;
+    std::string_view path;
+    std::string_view interface;
+    std::string_view method;
+    std::string_view signature;
+    const variants& args;
+};
+
+/**
  * @brief 确保容器长度不超过最大限制
  * @param type_name [in] 容器类型名称
  * @param size [in] 容器大小

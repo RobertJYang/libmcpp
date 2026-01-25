@@ -47,23 +47,22 @@ sd_bus blocking_bus(false, true);
 ### call
 
 ```cpp
-variant call(std::string_view service_name, std::string_view path,
-             std::string_view interface, std::string_view method,
-             std::string_view signature, const variants& args);
+variants call(const method_call_params& params);
 ```
 
 同步调用 DBus 方法（使用默认超时时间，10 分钟）。
 
 **参数：**
-- `service_name` [in] - 服务名称，例如 "org.freedesktop.DBus"
-- `path` [in] - 对象路径，例如 "/org/freedesktop/DBus"
-- `interface` [in] - 接口名称，例如 "org.freedesktop.DBus"
-- `method` [in] - 方法名称，例如 "GetId"
-- `signature` [in] - 参数签名，例如 "s" 表示一个字符串参数
-- `args` [in] - 参数列表
+- `params` [in] - 方法调用参数结构，包含：
+  - `service_name` - 服务名称，例如 "org.freedesktop.DBus"
+  - `path` - 对象路径，例如 "/org/freedesktop/DBus"
+  - `interface` - 接口名称，例如 "org.freedesktop.DBus"
+  - `method` - 方法名称，例如 "GetId"
+  - `signature` - 参数签名，例如 "s" 表示一个字符串参数
+  - `args` - 参数列表（引用，避免不必要的复制）
 
 **返回值：**
-- 返回方法调用的结果（variant 类型）
+- 返回方法调用的结果（`variants` 类型，可能包含多个返回值）
 
 **异常：**
 - 调用失败时抛出 `mc::exception`
@@ -72,6 +71,7 @@ variant call(std::string_view service_name, std::string_view path,
 **说明：**
 - 自动在第一个参数（如果是字典）中添加 "Requestor" 字段
 - 对于 `bmc.kepler.devmon` 服务，支持接口和方法映射（见下文）
+- 返回 `variants`，如果方法返回多个值，可以通过索引访问
 
 **示例：**
 
@@ -79,69 +79,77 @@ variant call(std::string_view service_name, std::string_view path,
 sd_bus bus(true, false);
 bus.request_name("org.example.Client");
 
-// 调用方法，设置值
-bus.call("org.example.Service", "/org/example/Object",
-         "org.example.Interface", "SetValue", "i", {42});
+// 调用方法，设置值（无返回值）
+bus.call({"org.example.Service", "/org/example/Object",
+          "org.example.Interface", "SetValue", "i", {42}});
 
-// 调用方法，获取值
-auto result = bus.call("org.example.Service", "/org/example/Object",
-                       "org.example.Interface", "GetValue", "", {});
-int32_t value = result.as_int32();
+// 调用方法，获取值（单个返回值）
+auto results = bus.call({"org.example.Service", "/org/example/Object",
+                         "org.example.Interface", "GetValue", "", {}});
+if (!results.empty()) {
+    int32_t value = results[0].as_int32();
+}
+
+// 调用方法，获取多个值
+auto results = bus.call({"org.example.Service", "/org/example/Object",
+                         "org.example.Interface", "GetValues", "", {}});
+if (results.size() >= 2) {
+    auto value1 = results[0];
+    auto value2 = results[1];
+}
 ```
 
 ### pcall
 
 ```cpp
-pcall_result pcall(std::string_view service_name, std::string_view path,
-                   std::string_view interface, std::string_view method,
-                   std::string_view signature, const variants& args);
+pcall_result pcall(const method_call_params& params);
 ```
 
 同步调用 DBus 方法（使用默认超时时间），返回错误信息而不抛出异常。
 
 **参数：**
-- 同 `call` 方法
+- `params` [in] - 方法调用参数结构，同 `call` 方法
 
 **返回值：**
-- 返回 `std::tuple<std::optional<std::string>, variant>`
+- 返回 `std::tuple<std::optional<std::string>, variants>`
   - 第一个元素：错误信息（如果有错误），否则为 `std::nullopt`
-  - 第二个元素：方法调用的结果（variant 类型）
+  - 第二个元素：方法调用的结果（`variants` 类型，可能包含多个返回值）
 
 **说明：**
 - 不会抛出异常，错误信息通过返回值返回
 - 适合需要检查错误但不希望使用异常处理的场景
+- 返回 `variants`，如果方法返回多个值，可以通过索引访问
 
 **示例：**
 
 ```cpp
-auto [error, result] = bus.pcall("org.example.Service", "/org/example/Object",
-                                  "org.example.Interface", "GetValue", "", {});
+auto [error, results] = bus.pcall({"org.example.Service", "/org/example/Object",
+                                   "org.example.Interface", "GetValue", "", {}});
 
 if (error.has_value()) {
     std::cerr << "调用失败: " << error.value() << std::endl;
 } else {
-    int32_t value = result.as_int32();
-    std::cout << "值: " << value << std::endl;
+    if (!results.empty()) {
+        int32_t value = results[0].as_int32();
+        std::cout << "值: " << value << std::endl;
+    }
 }
 ```
 
 ### timeout_call
 
 ```cpp
-variant timeout_call(mc::milliseconds timeout, std::string_view service_name,
-                     std::string_view path, std::string_view interface,
-                     std::string_view method, std::string_view signature,
-                     const variants& args);
+variants timeout_call(mc::milliseconds timeout, const method_call_params& params);
 ```
 
 带超时时间的同步调用 DBus 方法（抛出异常）。
 
 **参数：**
 - `timeout` [in] - 超时时间
-- 其他参数同 `call` 方法
+- `params` [in] - 方法调用参数结构，同 `call` 方法
 
 **返回值：**
-- 返回方法调用的结果（variant 类型）
+- 返回方法调用的结果（`variants` 类型，可能包含多个返回值）
 
 **异常：**
 - 调用失败时抛出 `mc::exception`
@@ -150,20 +158,24 @@ variant timeout_call(mc::milliseconds timeout, std::string_view service_name,
 **说明：**
 - 如果调用时间超过 30 秒，会记录警告日志
 - 自动在第一个参数（如果是字典）中添加 "Requestor" 字段
+- 返回 `variants`，如果方法返回多个值，可以通过索引访问
 
 **示例：**
 
 ```cpp
 // 使用 5 秒超时
-auto result = bus.timeout_call(mc::seconds(5),
-                                "org.example.Service", "/org/example/Object",
-                                "org.example.Interface", "GetValue", "", {});
+auto results = bus.timeout_call(mc::seconds(5),
+                                {"org.example.Service", "/org/example/Object",
+                                 "org.example.Interface", "GetValue", "", {}});
+if (!results.empty()) {
+    int32_t value = results[0].as_int32();
+}
 
 // 使用 3 秒超时调用可能耗时的方法
 try {
-    bus.timeout_call(mc::seconds(3),
-                     "org.example.Service", "/org/example/Object",
-                     "org.example.Interface", "LongRunningMethod", "", {});
+    auto results = bus.timeout_call(mc::seconds(3),
+                                     {"org.example.Service", "/org/example/Object",
+                                      "org.example.Interface", "LongRunningMethod", "", {}});
 } catch (const mc::exception& e) {
     std::cerr << "调用超时或失败: " << e.what() << std::endl;
 }
@@ -172,77 +184,77 @@ try {
 ### timeout_pcall
 
 ```cpp
-pcall_result timeout_pcall(mc::milliseconds timeout, std::string_view service_name,
-                            std::string_view path, std::string_view interface,
-                            std::string_view method, std::string_view signature,
-                            const variants& args);
+pcall_result timeout_pcall(mc::milliseconds timeout, const method_call_params& params);
 ```
 
 带超时时间的同步调用 DBus 方法（返回错误信息而不抛出异常）。
 
 **参数：**
 - `timeout` [in] - 超时时间
-- 其他参数同 `call` 方法
+- `params` [in] - 方法调用参数结构，同 `call` 方法
 
 **返回值：**
-- 同 `pcall` 方法
+- 同 `pcall` 方法，返回 `std::tuple<std::optional<std::string>, variants>`
 
 **说明：**
 - 不会抛出异常，错误信息通过返回值返回
 - 如果调用时间超过 30 秒，会记录警告日志
+- 返回 `variants`，如果方法返回多个值，可以通过索引访问
 
 **示例：**
 
 ```cpp
-auto [error, result] = bus.timeout_pcall(mc::seconds(5),
-                                          "org.example.Service", "/org/example/Object",
-                                          "org.example.Interface", "GetValue", "", {});
+auto [error, results] = bus.timeout_pcall(mc::seconds(5),
+                                          {"org.example.Service", "/org/example/Object",
+                                           "org.example.Interface", "GetValue", "", {}});
 
 if (error.has_value()) {
     std::cerr << "调用失败: " << error.value() << std::endl;
 } else {
-    // 处理结果
+    if (!results.empty()) {
+        // 处理结果
+        int32_t value = results[0].as_int32();
+    }
 }
 ```
 
 ### shm_timeout_call
 
 ```cpp
-std::optional<variant> shm_timeout_call(mc::milliseconds timeout,
-                                        std::string_view service_name,
-                                        std::string_view path,
-                                        std::string_view interface,
-                                        std::string_view method,
-                                        std::string_view signature,
-                                        const variants& args);
+std::optional<variants> shm_timeout_call(mc::milliseconds timeout, const method_call_params& params);
 ```
 
 通过共享内存调用 DBus 方法。
 
 **参数：**
-- 同 `timeout_call` 方法
+- `timeout` [in] - 超时时间
+- `params` [in] - 方法调用参数结构，同 `call` 方法
 
 **返回值：**
-- 如果调用成功，返回 `std::optional<variant>`，包含结果
+- 如果调用成功，返回 `std::optional<variants>`，包含结果（可能包含多个返回值）
 - 如果调用失败或共享内存不可用，返回 `std::nullopt`
 
 **说明：**
 - 仅通过共享内存进行调用，不会回退到普通 DBus 调用
 - 适合需要高性能调用的场景
 - 如果服务未注册到共享内存 harbor，调用会失败
+- 返回 `variants`，如果方法返回多个值，可以通过索引访问
 
 **示例：**
 
 ```cpp
 auto result_opt = bus.shm_timeout_call(mc::seconds(30),
-                                       "org.example.Service", "/org/example/Object",
-                                       "org.example.Interface", "GetValue", "", {});
+                                       {"org.example.Service", "/org/example/Object",
+                                        "org.example.Interface", "GetValue", "", {}});
 
 if (result_opt.has_value()) {
-    int32_t value = result_opt.value().as_int32();
+    auto& results = result_opt.value();
+    if (!results.empty()) {
+        int32_t value = results[0].as_int32();
+    }
 } else {
     // 共享内存调用失败，可能需要使用普通调用
-    auto result = bus.timeout_call(mc::seconds(30), ...);
+    auto results = bus.timeout_call(mc::seconds(30), {...});
 }
 ```
 
@@ -302,8 +314,8 @@ bus.request_name("org.example.Client");
 // 第一个参数是字典，会自动添加 Requestor 字段
 mc::dict context;
 context["Key"] = "Value";
-auto result = bus.call("org.example.Service", "/org/example/Object",
-                       "org.example.Interface", "Method", "a{ss}", {context});
+auto result = bus.call({"org.example.Service", "/org/example/Object",
+                       "org.example.Interface", "Method", "a{ss}", {context}});
 
 // context 现在包含 "Requestor": "org.example.Client"
 ```
@@ -335,11 +347,12 @@ auto result = bus.call("org.example.Service", "/org/example/Object",
 
 ```cpp
 // 调用 bmc.kepler.Chip.BitIO.Read，会自动映射到 bmc.dev.Chip.BitIORead
-auto result = bus.call("bmc.kepler.devmon", "/bmc/dev/Chip",
-                       "bmc.kepler.Chip.BitIO", "Read", "a{ss}uyu",
-                       {mc::dict(), 0x1234, 0x5678, 0x9ABC});
+auto results = bus.call({"bmc.kepler.devmon", "/bmc/dev/Chip",
+                         "bmc.kepler.Chip.BitIO", "Read", "a{ss}uyu",
+                         {mc::dict(), 0x1234, 0x5678, 0x9ABC}});
 
 // 实际调用的是 bmc.dev.Chip.BitIORead，参数为 (0x1234, 0x5678, 0x9ABC)
+// 结果在 results 中
 ```
 
 ## 调用流程
@@ -391,19 +404,26 @@ if (result.is_int32()) {
 ```cpp
 // 方式 1：使用异常处理
 try {
-    auto result = bus.call("org.example.Service", "/org/example/Object",
-                           "org.example.Interface", "Method", "", {});
+    auto results = bus.call({"org.example.Service", "/org/example/Object",
+                             "org.example.Interface", "Method", "", {}});
+    // 处理结果
+    if (!results.empty()) {
+        // 使用 results[0], results[1], ...
+    }
 } catch (const mc::exception& e) {
     std::cerr << "调用失败: " << e.what() << std::endl;
 }
 
 // 方式 2：使用 pcall（不抛出异常）
-auto [error, result] = bus.pcall("org.example.Service", "/org/example/Object",
-                                  "org.example.Interface", "Method", "", {});
+auto [error, results] = bus.pcall({"org.example.Service", "/org/example/Object",
+                                    "org.example.Interface", "Method", "", {}});
 if (error.has_value()) {
     std::cerr << "调用失败: " << error.value() << std::endl;
 } else {
     // 处理结果
+    if (!results.empty()) {
+        // 使用 results[0], results[1], ...
+    }
 }
 ```
 
@@ -412,9 +432,13 @@ if (error.has_value()) {
 ```cpp
 // 使用 5 秒超时
 try {
-    auto result = bus.timeout_call(mc::seconds(5),
-                                    "org.example.Service", "/org/example/Object",
-                                    "org.example.Interface", "Method", "", {});
+    auto results = bus.timeout_call(mc::seconds(5),
+                                     {"org.example.Service", "/org/example/Object",
+                                      "org.example.Interface", "Method", "", {}});
+    // 处理结果
+    if (!results.empty()) {
+        // 使用 results[0], results[1], ...
+    }
 } catch (const mc::exception& e) {
     std::cerr << "调用超时或失败: " << e.what() << std::endl;
 }
@@ -429,8 +453,8 @@ context["Key1"] = "Value1";
 context["Key2"] = "Value2";
 
 // 调用方法，Requestor 会自动添加
-auto result = bus.call("org.example.Service", "/org/example/Object",
-                       "org.example.Interface", "Method", "a{ss}", {context});
+auto results = bus.call({"org.example.Service", "/org/example/Object",
+                         "org.example.Interface", "Method", "a{ss}", {context}});
 
 // context 现在包含 "Requestor": "org.example.MyClient"
 ```
@@ -440,27 +464,60 @@ auto result = bus.call("org.example.Service", "/org/example/Object",
 ```cpp
 // 尝试共享内存调用
 auto result_opt = bus.shm_timeout_call(mc::seconds(30),
-                                       "org.example.Service", "/org/example/Object",
-                                       "org.example.Interface", "Method", "", {});
+                                       {"org.example.Service", "/org/example/Object",
+                                        "org.example.Interface", "Method", "", {}});
 
 if (result_opt.has_value()) {
     // 共享内存调用成功
-    auto result = result_opt.value();
+    auto& results = result_opt.value();
+    if (!results.empty()) {
+        // 使用 results[0], results[1], ...
+    }
 } else {
     // 共享内存调用失败，使用普通调用
-    auto result = bus.timeout_call(mc::seconds(30), ...);
+    auto results = bus.timeout_call(mc::seconds(30), {"org.example.Service", "/org/example/Object",
+                                                       "org.example.Interface", "Method", "", {}});
 }
 ```
 
 ## 类型别名
 
 ```cpp
-using pcall_result = std::tuple<std::optional<std::string>, variant>;
+using pcall_result = std::tuple<std::optional<std::string>, variants>;
 ```
 
 `pcall_result` 是 `pcall` 和 `timeout_pcall` 的返回类型：
 - 第一个元素：错误信息（如果有），否则为 `std::nullopt`
-- 第二个元素：方法调用的结果
+- 第二个元素：方法调用的结果（`variants` 类型，可能包含多个返回值）
+
+## 结构体
+
+### method_call_params
+
+```cpp
+struct method_call_params {
+    std::string_view service_name;
+    std::string_view path;
+    std::string_view interface;
+    std::string_view method;
+    std::string_view signature;
+    const variants& args;
+};
+```
+
+方法调用参数结构，用于封装所有方法调用参数，简化函数签名。
+
+**字段：**
+- `service_name` - 服务名称
+- `path` - 对象路径
+- `interface` - 接口名称
+- `method` - 方法名称
+- `signature` - 参数签名
+- `args` - 参数列表（引用，避免不必要的复制）
+
+**使用方式：**
+- 可以使用聚合初始化：`{service_name, path, interface, method, signature, args}`
+- 所有方法调用函数都接受此结构作为参数
 
 ## 注意事项
 

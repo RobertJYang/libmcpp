@@ -20,6 +20,10 @@
 #include <sys/file.h>
 #include <regex>
 
+#ifndef BUILD_TYPE_DEBUG
+#define BUILD_TYPE_DEBUG (0x0b)
+#endif
+
 namespace mc::dbus {
 
 static constexpr size_t                                       MQ_BUFFER_SIZE     = 1024 * 1024;
@@ -345,6 +349,13 @@ void harbor::process_local_message(const variants& unpacked) {
         elog("unknown message type: ${msg_type}", ("msg_type", msg_type));
         return;
     }
+#if defined(BUILD_TYPE) && defined(BUILD_TYPE_DEBUG) && BUILD_TYPE == BUILD_TYPE_DEBUG
+    int64_t     duration_ms = msg->duration_ms_from_timestamp();
+    std::string type_str    = is_reply ? "reply" : "request";
+    dlog("${type} shm message transfer time: ${duration} ms, sender: ${sender}, destination: ${destination}, path: "
+         "${path}, interface: ${interface}, method: ${member}",
+         ("type", type_str)("duration", duration_ms)("sender", msg->sender())("destination", msg->destination())("path", msg->path())("interface", msg->interface())("member", msg->member()));
+#endif
     if (!is_reply) {
         boost::asio::post(mc::get_work_context(), [this, msg = std::move(msg)]() mutable {
             invoke_method(msg.get());

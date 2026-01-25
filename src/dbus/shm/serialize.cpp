@@ -107,7 +107,12 @@ void write_buffer::write_arg_with_signature(signature_iterator it, const variant
 void write_buffer::write_array_or_dict(signature_iterator it, const variant& arg, int depth) {
     ensure_message_depth(depth);
     if (it.current_type_code() == type_code::dict_entry_start) {
-        write_dict(it, arg.as_dict(), depth + 1);
+        if (arg.is_array() && arg.get_array().empty()) {
+            // 兼容lua数据类型，允许空数组作为空字典处理
+            write_dict(it, mc::dict(), depth + 1);
+        } else {
+            write_dict(it, arg.get_object(), depth + 1);
+        }
         return;
     }
     if (arg.is_null()) {

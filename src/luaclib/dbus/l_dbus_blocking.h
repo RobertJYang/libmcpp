@@ -26,6 +26,8 @@ void register_blocking_metatable(lua_State* L);
 int dbus_blocking_new(lua_State* L);
 int dbus_blocking_open_user(lua_State* L);
 int dbus_blocking_shutdown(lua_State* L);
+int dbus_blocking_call(lua_State* L);
+int dbus_blocking_timeout_call(lua_State* L);
 
 } // namespace mc::dbus::lua
 

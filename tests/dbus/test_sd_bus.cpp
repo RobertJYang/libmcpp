@@ -111,7 +111,7 @@ public:
     }
 
     std::vector<uint32_t> BlockIOComboWriteRead(uint32_t write_offset, const std::vector<uint8_t>& write_buffer,
-                                               uint32_t read_offset, uint32_t read_length) {
+                                                uint32_t read_offset, uint32_t read_length) {
         return {0x12, 0x34, 0x56, 0x78};
     }
 };
@@ -144,7 +144,7 @@ struct test_service_1 : public mc::engine::service {
         }
 #if defined(ENABLE_CONAN_COMPILE) && ENABLE_CONAN_COMPILE == 1
 #else
-        auto& ins = shm::shared_memory::get_instance();
+        auto ins = shm::shared_memory::get_instance();
         ins.get_tree("harbor.org.test.test_service_1")->set_harbor_name("");
 #endif
         m_obj_1 = mc::make_shared<TestObject1>();
@@ -227,93 +227,97 @@ protected:
 
 // 测试有效参数的调用
 TEST_F(SdBusTest, test_valid_args_call) {
-    auto result = test_bus->call("org.test.test_service_1", "/org/test/sd_bus/TestObject1",
-                                 "org.test.sd_bus.TestInterface1", "SetValue", "i", {12});
-    ASSERT_TRUE(result.is_null());
-    result = test_bus->call("org.test.test_service_1", "/org/test/sd_bus/TestObject1", "org.test.sd_bus.TestInterface1",
-                            "GetValue", "", {});
-    ASSERT_TRUE(result.is_int32());
-    EXPECT_EQ(result.as_int32(), 12);
+    auto result = test_bus->call({"org.test.test_service_1", "/org/test/sd_bus/TestObject1", "org.test.sd_bus.TestInterface1", "SetValue", "i", {12}});
+    ASSERT_TRUE(result.empty());
+    result = test_bus->call({"org.test.test_service_1", "/org/test/sd_bus/TestObject1", "org.test.sd_bus.TestInterface1", "GetValue", "", {}});
+    ASSERT_EQ(result.size(), 1u);
+    ASSERT_TRUE(result[0].is_int32());
+    EXPECT_EQ(result[0].as_int32(), 12);
 }
 
 // 测试无效参数的调用
 TEST_F(SdBusTest, test_invalid_args_call) {
-    EXPECT_THROW(test_bus->call("org.test.test_service_1", "/org/test/sd_bus/TestObjectA",
-                                "org.test.sd_bus.TestInterfaceA", "NonExistentMethod", "", {}),
+    EXPECT_THROW(test_bus->call({"org.test.test_service_1", "/org/test/sd_bus/TestObjectA", "org.test.sd_bus.TestInterfaceA", "NonExistentMethod", "", {}}),
                  mc::exception);
-    auto [error, result] = test_bus->pcall("org.test.test_service_1", "/org/test/sd_bus/TestObjectA",
-                                            "org.test.sd_bus.TestInterfaceA", "NonExistentMethod", "", {});
+    auto [error, result] = test_bus->pcall({"org.test.test_service_1", "/org/test/sd_bus/TestObjectA", "org.test.sd_bus.TestInterfaceA", "NonExistentMethod", "", {}});
     ASSERT_TRUE(error.has_value());
-    ASSERT_TRUE(result.is_null());
+    ASSERT_TRUE(result.empty());
 }
 
 // 测试阻塞式DBus调用
 TEST_F(SdBusTest, test_blocking_bus_call) {
     sd_bus blocking_bus(true, true);
-    auto   result = blocking_bus.call("org.test.test_service_1", "/org/test/sd_bus/TestObject1",
-                                      "org.test.sd_bus.TestInterface1", "SetValue", "i", {-33});
-    ASSERT_TRUE(result.is_null());
-    result = blocking_bus.call("org.test.test_service_1", "/org/test/sd_bus/TestObject1", "org.test.sd_bus.TestInterface1",
-                               "GetValue", "", {});
-    ASSERT_TRUE(result.is_int32());
-    EXPECT_EQ(result.as_int32(), -33);
+    auto   result = blocking_bus.call({"org.test.test_service_1", "/org/test/sd_bus/TestObject1", "org.test.sd_bus.TestInterface1", "SetValue", "i", {-33}});
+    ASSERT_TRUE(result.empty());
+    result = blocking_bus.call({"org.test.test_service_1", "/org/test/sd_bus/TestObject1", "org.test.sd_bus.TestInterface1", "GetValue", "", {}});
+    ASSERT_EQ(result.size(), 1u);
+    ASSERT_TRUE(result[0].is_int32());
+    EXPECT_EQ(result[0].as_int32(), -33);
 }
 
 // 测试指定超时时间调用
 TEST_F(SdBusTest, test_call_timeout) {
-    auto result = test_bus->timeout_call(mc::seconds(3), "org.test.test_service_1", "/org/test/sd_bus/TestObject1",
-                                         "org.test.sd_bus.TestInterface1", "Sleep", "i", {2});
-    ASSERT_TRUE(result.is_null());
-    EXPECT_THROW(test_bus->timeout_call(mc::seconds(1), "org.test.test_service_1", "/org/test/sd_bus/TestObject1",
-                                        "org.test.sd_bus.TestInterface1", "Sleep", "i", {2}),
+    auto result = test_bus->timeout_call(mc::seconds(3), {"org.test.test_service_1", "/org/test/sd_bus/TestObject1",
+                                                          "org.test.sd_bus.TestInterface1", "Sleep", "i", mc::variants{2}});
+    ASSERT_TRUE(result.empty());
+    EXPECT_THROW(test_bus->timeout_call(mc::seconds(1), {"org.test.test_service_1", "/org/test/sd_bus/TestObject1",
+                                                         "org.test.sd_bus.TestInterface1", "Sleep", "i", mc::variants{2}}),
                  mc::exception);
 }
 
 // 测试devmon chip接口和方法映射调用
 TEST_F(SdBusTest, test_devmon_chip_methods) {
-    auto result = test_bus->call("bmc.kepler.devmon", "/bmc/dev/TestChip", "bmc.kepler.Chip.BitIO", "Read", "a{ss}uyu",
-                                 {mc::dict(), 0x1234, 0x5678, 0x9ABC});
-    ASSERT_TRUE(result.is_array()) << "result is not an array: " << result.to_string();
-    EXPECT_EQ(result.as_array().size(), 4);
-    EXPECT_EQ(result.as_array()[0].as_uint32(), 0x12);
-    EXPECT_EQ(result.as_array()[1].as_uint32(), 0x34);
-    EXPECT_EQ(result.as_array()[2].as_uint32(), 0x56);
-    EXPECT_EQ(result.as_array()[3].as_uint32(), 0x78);
+    auto result = test_bus->call({"bmc.kepler.devmon", "/bmc/dev/TestChip", "bmc.kepler.Chip.BitIO", "Read", "a{ss}uyu",
+                                  mc::variants{mc::dict(), 0x1234, 0x5678, 0x9ABC}});
+    ASSERT_EQ(result.size(), 1u);
+    auto arr1 = result[0];
+    ASSERT_TRUE(arr1.is_array());
+    EXPECT_EQ(arr1.as_array().size(), 4);
+    EXPECT_EQ(arr1.as_array()[0].as_uint32(), 0x12);
+    EXPECT_EQ(arr1.as_array()[1].as_uint32(), 0x34);
+    EXPECT_EQ(arr1.as_array()[2].as_uint32(), 0x56);
+    EXPECT_EQ(arr1.as_array()[3].as_uint32(), 0x78);
 
-    result = test_bus->call("bmc.kepler.devmon", "/bmc/dev/TestChip", "bmc.kepler.Chip.BitIO", "Write", "a{ss}uyuay",
-                            {mc::dict(), 0x1234, 0x5678, 0x9ABC, mc::variants{0x12, 0x34, 0x56, 0x78}});
-    ASSERT_TRUE(result.is_null());
+    result = test_bus->call({"bmc.kepler.devmon", "/bmc/dev/TestChip", "bmc.kepler.Chip.BitIO", "Write", "a{ss}uyuay",
+                             mc::variants{mc::dict(), 0x1234, 0x5678, 0x9ABC, mc::variants{0x12, 0x34, 0x56, 0x78}}});
+    ASSERT_TRUE(result.empty());
 
-    result = test_bus->call("bmc.kepler.devmon", "/bmc/dev/TestChip", "bmc.kepler.Chip.BlockIO", "Read", "a{ss}uu",
-                            {mc::dict(), 0x1234, 0x5678});
-    ASSERT_TRUE(result.is_array()) << "result is not an array: " << result.to_string();
-    EXPECT_EQ(result.as_array().size(), 4);
-    EXPECT_EQ(result.as_array()[0].as_uint32(), 0x12);
-    EXPECT_EQ(result.as_array()[1].as_uint32(), 0x34);
-    EXPECT_EQ(result.as_array()[2].as_uint32(), 0x56);
-    EXPECT_EQ(result.as_array()[3].as_uint32(), 0x78);
+    result = test_bus->call({"bmc.kepler.devmon", "/bmc/dev/TestChip", "bmc.kepler.Chip.BlockIO", "Read", "a{ss}uu",
+                             mc::variants{mc::dict(), 0x1234, 0x5678}});
+    ASSERT_EQ(result.size(), 1u);
+    auto arr2 = result[0];
+    ASSERT_TRUE(arr2.is_array());
+    EXPECT_EQ(arr2.as_array().size(), 4);
+    EXPECT_EQ(arr2.as_array()[0].as_uint32(), 0x12);
+    EXPECT_EQ(arr2.as_array()[1].as_uint32(), 0x34);
+    EXPECT_EQ(arr2.as_array()[2].as_uint32(), 0x56);
+    EXPECT_EQ(arr2.as_array()[3].as_uint32(), 0x78);
 
-    result = test_bus->call("bmc.kepler.devmon", "/bmc/dev/TestChip", "bmc.kepler.Chip.BlockIO", "Write", "a{ss}uay",
-                            {mc::dict(), 0x1234, mc::variants{0x12, 0x34, 0x56, 0x78}});
-    ASSERT_TRUE(result.is_null());
+    result = test_bus->call({"bmc.kepler.devmon", "/bmc/dev/TestChip", "bmc.kepler.Chip.BlockIO", "Write", "a{ss}uay",
+                             mc::variants{mc::dict(), 0x1234, mc::variants{0x12, 0x34, 0x56, 0x78}}});
+    ASSERT_TRUE(result.empty());
 
-    result = test_bus->call("bmc.kepler.devmon", "/bmc/dev/TestChip", "bmc.kepler.Chip.BlockIO", "WriteRead",
-                            "a{ss}ayu", {mc::dict(), mc::variants{0x12, 0x34, 0x56, 0x78}, 4});
-    ASSERT_TRUE(result.is_array()) << "result is not an array: " << result.to_string();
-    EXPECT_EQ(result.as_array().size(), 4);
-    EXPECT_EQ(result.as_array()[0].as_uint32(), 0x12);
-    EXPECT_EQ(result.as_array()[1].as_uint32(), 0x34);
-    EXPECT_EQ(result.as_array()[2].as_uint32(), 0x56);
-    EXPECT_EQ(result.as_array()[3].as_uint32(), 0x78);
+    result = test_bus->call({"bmc.kepler.devmon", "/bmc/dev/TestChip", "bmc.kepler.Chip.BlockIO", "WriteRead",
+                             "a{ss}ayu", mc::variants{mc::dict(), mc::variants{0x12, 0x34, 0x56, 0x78}, 4}});
+    ASSERT_EQ(result.size(), 1u);
+    auto arr3 = result[0];
+    ASSERT_TRUE(arr3.is_array());
+    EXPECT_EQ(arr3.as_array().size(), 4);
+    EXPECT_EQ(arr3.as_array()[0].as_uint32(), 0x12);
+    EXPECT_EQ(arr3.as_array()[1].as_uint32(), 0x34);
+    EXPECT_EQ(arr3.as_array()[2].as_uint32(), 0x56);
+    EXPECT_EQ(arr3.as_array()[3].as_uint32(), 0x78);
 
-    result = test_bus->call("bmc.kepler.devmon", "/bmc/dev/TestChip", "bmc.kepler.Chip.BlockIO", "ComboWriteRead",
-                            "a{ss}uayuu", {mc::dict(), 0x1234, mc::variants{0x12, 0x34, 0x56, 0x78}, 4, 4});
-    ASSERT_TRUE(result.is_array()) << "result is not an array: " << result.to_string();
-    EXPECT_EQ(result.as_array().size(), 4);
-    EXPECT_EQ(result.as_array()[0].as_uint32(), 0x12);
-    EXPECT_EQ(result.as_array()[1].as_uint32(), 0x34);
-    EXPECT_EQ(result.as_array()[2].as_uint32(), 0x56);
-    EXPECT_EQ(result.as_array()[3].as_uint32(), 0x78);
+    result = test_bus->call({"bmc.kepler.devmon", "/bmc/dev/TestChip", "bmc.kepler.Chip.BlockIO", "ComboWriteRead",
+                             "a{ss}uayuu", mc::variants{mc::dict(), 0x1234, mc::variants{0x12, 0x34, 0x56, 0x78}, 4, 4}});
+    ASSERT_EQ(result.size(), 1u);
+    auto arr4 = result[0];
+    ASSERT_TRUE(arr4.is_array());
+    EXPECT_EQ(arr4.as_array().size(), 4);
+    EXPECT_EQ(arr4.as_array()[0].as_uint32(), 0x12);
+    EXPECT_EQ(arr4.as_array()[1].as_uint32(), 0x34);
+    EXPECT_EQ(arr4.as_array()[2].as_uint32(), 0x56);
+    EXPECT_EQ(arr4.as_array()[3].as_uint32(), 0x78);
 }
 
 // 测试上下文Requestor字段
@@ -321,40 +325,41 @@ TEST_F(SdBusTest, test_context_requestor) {
     // 测试入参显式指定Requestor字段
     mc::dict context;
     context["Requestor"] = "org.openubmc.test_client";
-    auto result          = test_bus->call("org.test.test_service_1", "/org/test/sd_bus/TestObject1",
-                                          "org.test.sd_bus.TestInterface1", "ParseRequestor", "a{ss}", {context});
-    ASSERT_TRUE(result.is_string());
-    EXPECT_EQ(result.as_string(), "org.openubmc.test_client");
+    auto result          = test_bus->call({"org.test.test_service_1", "/org/test/sd_bus/TestObject1",
+                                           "org.test.sd_bus.TestInterface1", "ParseRequestor", "a{ss}", mc::variants{context}});
+    ASSERT_EQ(result.size(), 1u);
+    ASSERT_TRUE(result[0].is_string());
+    EXPECT_EQ(result[0].as_string(), "org.openubmc.test_client");
 
     // 测试自动填充Requestor字段
-    result = test_bus->call("org.test.test_service_1", "/org/test/sd_bus/TestObject1",
-                                  "org.test.sd_bus.TestInterface1", "ParseRequestor", "a{ss}", {mc::dict()});
-    ASSERT_TRUE(result.is_string());
-    EXPECT_EQ(result.as_string(), "org.openubmc.test_bus");
+    result = test_bus->call({"org.test.test_service_1", "/org/test/sd_bus/TestObject1",
+                             "org.test.sd_bus.TestInterface1", "ParseRequestor", "a{ss}", mc::variants{mc::dict()}});
+    ASSERT_EQ(result.size(), 1u);
+    ASSERT_TRUE(result[0].is_string());
+    EXPECT_EQ(result[0].as_string(), "org.openubmc.test_bus");
 }
 
 // 测试有异常处理的方法调用
 TEST_F(SdBusTest, test_protected_call) {
     auto [error_1, result_1] =
-        test_bus->pcall("org.test.test_service_1", "/org/test/sd_bus/TestObject1", "org.test.sd_bus.TestInterface1",
-                        "TestThrowUnknownProperty", "s", {"TestProperty1"});
+        test_bus->pcall({"org.test.test_service_1", "/org/test/sd_bus/TestObject1", "org.test.sd_bus.TestInterface1", "TestThrowUnknownProperty", "s", {"TestProperty1"}});
     ASSERT_TRUE(error_1.has_value());
-    ASSERT_TRUE(result_1.is_null());
+    ASSERT_TRUE(result_1.empty());
     auto [error_2, result_2] =
-        test_bus->timeout_pcall(mc::seconds(30), "org.test.test_service_1", "/org/test/sd_bus/TestObject1",
-                                "org.test.sd_bus.TestInterface1", "TestThrowUnknownProperty", "s", {"TestProperty2"});
+        test_bus->timeout_pcall(mc::seconds(30), {"org.test.test_service_1", "/org/test/sd_bus/TestObject1",
+                                                  "org.test.sd_bus.TestInterface1", "TestThrowUnknownProperty", "s", mc::variants{"TestProperty2"}});
     ASSERT_TRUE(error_2.has_value());
-    ASSERT_TRUE(result_2.is_null());
+    ASSERT_TRUE(result_2.empty());
 }
 
 // 测试无异常处理的方法调用
 TEST_F(SdBusTest, test_unprotected_call) {
-    EXPECT_THROW(test_bus->call("org.test.test_service_1", "/org/test/sd_bus/TestObject1", "org.test.sd_bus.TestInterface1",
-                                "TestThrowUnknownProperty", "s", {"TestProperty"}),
+    EXPECT_THROW(test_bus->call({"org.test.test_service_1", "/org/test/sd_bus/TestObject1", "org.test.sd_bus.TestInterface1",
+                                 "TestThrowUnknownProperty", "s", mc::variants{"TestProperty"}}),
                  mc::exception);
-    EXPECT_THROW(test_bus->timeout_call(mc::seconds(30), "org.test.test_service_1", "/org/test/sd_bus/TestObject1",
-                                        "org.test.sd_bus.TestInterface1", "TestThrowUnknownProperty", "s",
-                                        {"TestProperty"}),
+    EXPECT_THROW(test_bus->timeout_call(mc::seconds(30), {"org.test.test_service_1", "/org/test/sd_bus/TestObject1",
+                                                          "org.test.sd_bus.TestInterface1", "TestThrowUnknownProperty", "s",
+                                                          mc::variants{"TestProperty"}}),
                  mc::exception);
 }
 
@@ -362,18 +367,19 @@ TEST_F(SdBusTest, test_unprotected_call) {
 // 测试共享内存调用
 TEST_F(SdBusTest, test_shm_call) {
     auto result_opt =
-        test_bus->shm_timeout_call(mc::seconds(30), "org.test.test_service_1", "/org/test/sd_bus/TestObject1",
-                                   "org.test.sd_bus.TestInterface1", "SetValue", "i", {99});
+        test_bus->shm_timeout_call(mc::seconds(30), {"org.test.test_service_1", "/org/test/sd_bus/TestObject1",
+                                                     "org.test.sd_bus.TestInterface1", "SetValue", "i", mc::variants{99}});
     ASSERT_TRUE(result_opt.has_value());
     auto result = result_opt.value();
-    ASSERT_TRUE(result.is_null());
+    ASSERT_TRUE(result.empty());
     result_opt =
-        test_bus->shm_timeout_call(mc::seconds(30), "org.test.test_service_1", "/org/test/sd_bus/TestObject1",
-                                   "org.test.sd_bus.TestInterface1", "GetValue", "", {});
+        test_bus->shm_timeout_call(mc::seconds(30), {"org.test.test_service_1", "/org/test/sd_bus/TestObject1",
+                                                     "org.test.sd_bus.TestInterface1", "GetValue", "", mc::variants{}});
     ASSERT_TRUE(result_opt.has_value());
     result = result_opt.value();
-    ASSERT_TRUE(result.is_int32());
-    EXPECT_EQ(result.as_int32(), 99);
+    ASSERT_EQ(result.size(), 1u);
+    ASSERT_TRUE(result[0].is_int32());
+    EXPECT_EQ(result[0].as_int32(), 99);
 }
 
 // 测试共享内存调用请求大小超过限制
@@ -381,8 +387,8 @@ TEST_F(SdBusTest, test_shm_call_request_size_over_limit) {
     g_test_cnt = 0;
     std::string large_string(UINT16_MAX + 1, 'a');
     auto        result_opt =
-        test_bus->shm_timeout_call(mc::seconds(30), "org.test.test_service_1", "/org/test/sd_bus/TestObject1",
-                                   "org.test.sd_bus.TestInterface1", "TestIncrement", "s", {large_string});
+        test_bus->shm_timeout_call(mc::seconds(30), {"org.test.test_service_1", "/org/test/sd_bus/TestObject1",
+                                                     "org.test.sd_bus.TestInterface1", "TestIncrement", "s", mc::variants{large_string}});
     ASSERT_FALSE(result_opt.has_value());
     EXPECT_EQ(g_test_cnt, 0);
 }

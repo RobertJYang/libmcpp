@@ -26,31 +26,23 @@ constexpr int64_t          CALL_TIMEOUT_SECONDS      = 30;
 using method_mapping_t = std::map<std::string_view, std::pair<std::string_view, std::string_view>>;
 
 const std::map<std::string_view, method_mapping_t> DEVMON_CHIP_METHODS = {
-    {"bmc.kepler.Chip.BitIO", {
-                                  {"Read", {"BitIORead", "uyu"}},
-                                  {"Write", {"BitIOWrite", "uyuay"}},
-                              }},
-    {"bmc.kepler.Chip.BlockIO", {
-                                    {"Read", {"BlockIORead", "uu"}},
-                                    {"Write", {"BlockIOWrite", "uay"}},
-                                    {"WriteRead", {"BlockIOWriteRead", "ayu"}},
-                                    {"ComboWriteRead", {"BlockIOComboWriteRead", "uayuu"}},
-                                }},
+    {"bmc.kepler.Chip.BitIO",
+     {
+         {"Read", {"BitIORead", "uyu"}},
+         {"Write", {"BitIOWrite", "uyuay"}},
+     }},
+    {"bmc.kepler.Chip.BlockIO",
+     {
+         {"Read", {"BlockIORead", "uu"}},
+         {"Write", {"BlockIOWrite", "uay"}},
+         {"WriteRead", {"BlockIOWriteRead", "ayu"}},
+         {"ComboWriteRead", {"BlockIOComboWriteRead", "uayuu"}},
+     }},
 };
 
-static mc::variant convert_method_result(const mc::variants& arr) {
-    if (arr.empty()) {
-        return mc::variant();
-    }
-    if (arr.size() == 1) {
-        return arr[0];
-    }
-    return arr;
-}
-
 sd_bus::sd_bus(bool start_now, bool is_blocking)
-    : m_is_blocking(is_blocking),
-      m_connection(connection::open_session_bus(mc::get_io_context())), m_unique_name(std::string(m_connection.get_unique_name())) {
+    : m_is_blocking(is_blocking), m_connection(connection::open_session_bus(mc::get_io_context())),
+      m_unique_name(std::string(m_connection.get_unique_name())) {
     if (start_now) {
         m_connection.start();
     }
@@ -61,49 +53,43 @@ sd_bus::sd_bus(connection conn, bool is_blocking)
       m_unique_name(std::string(m_connection.get_unique_name())) {
 }
 
-variant sd_bus::dbus_call(mc::milliseconds timeout, std::string_view service_name,
-                          std::string_view path, std::string_view interface, std::string_view method,
-                          std::string_view signature, const variants& args) {
-    auto               msg    = message::new_method_call(service_name, path, interface, method);
+variants sd_bus::dbus_call(mc::milliseconds timeout, const method_call_params& params) {
+    auto               msg    = message::new_method_call(params.service_name, params.path, params.interface, params.method);
     auto               writer = msg.writer();
-    signature_iterator it(signature);
-    for (auto arg : args) {
+    signature_iterator it(params.signature);
+    for (auto arg : params.args) {
         if (it.at_end()) {
             break;
         }
         writer.write_variant(it, arg, 0);
         it.next();
     }
-    auto reply = m_is_blocking ? m_connection.send_with_reply_and_block(std::move(msg), timeout) : 
-        m_connection.send_with_reply(std::move(msg), timeout);
+    auto reply = m_connection.send_with_reply_and_block(std::move(msg), timeout);
     if (reply.is_valid() && reply.is_method_return()) {
-        return convert_method_result(reply.read_args());
+        return reply.read_args();
     }
-    MC_THROW(mc::exception, "dbus call failed, error name: ${error_name}",
-             ("error_name", reply.get_error_name()));
+    std::string error_name(reply.get_error_name());
+    std::string error_message = reply.get_error_message();
+    throw mc::exception(mc::method_call_exception_code, error_name, error_message);
 }
 
-std::optional<variant> sd_bus::shm_timeout_call(mc::milliseconds timeout, std::string_view service_name,
-                                                std::string_view path, std::string_view interface, std::string_view method,
-                                                std::string_view signature, const variants& args) {
-    auto result = shm_tree::timeout_call_with_sender(timeout, m_unique_name, service_name, path, interface, method, signature, args);
+std::optional<variants> sd_bus::shm_timeout_call(mc::milliseconds timeout, const method_call_params& params) {
+    auto result = shm_tree::timeout_call_with_sender(timeout, m_unique_name, params);
     if (result != std::nullopt) {
-        return convert_method_result(result.value());
+        return result.value();
     }
     return std::nullopt;
 }
 
-variant sd_bus::timeout_call_impl(mc::milliseconds timeout, std::string_view service_name,
-                                  std::string_view path, std::string_view interface, std::string_view method,
-                                  std::string_view signature, const variants& args) {
-    if (m_is_blocking) {
-        return dbus_call(timeout, service_name, path, interface, method, signature, args);
+variants sd_bus::timeout_call_impl(mc::milliseconds timeout, const method_call_params& params) {
+    if (m_is_blocking || m_service_name.empty()) {
+        return dbus_call(timeout, params);
     }
-    auto result = shm_timeout_call(timeout, service_name, path, interface, method, signature, args);
+    auto result = shm_timeout_call(timeout, params);
     if (result != std::nullopt) {
         return result.value();
     }
-    return dbus_call(timeout, service_name, path, interface, method, signature, args);
+    return dbus_call(timeout, params);
 }
 
 void sd_bus::set_enable_local_request(bool enable) {
@@ -111,7 +97,11 @@ void sd_bus::set_enable_local_request(bool enable) {
 }
 
 static variants remove_context_arg(const variants& args) {
-    if (args.empty() || !args[0].is_dict()) {
+    if (args.empty()) {
+        return args;
+    }
+    bool is_context = args[0].is_dict() || args[0].is_array() && args[0].as_array().empty();
+    if (!is_context) {
         return args;
     }
     variants args_without_context = args;
@@ -119,22 +109,28 @@ static variants remove_context_arg(const variants& args) {
     return args_without_context;
 }
 
-std::optional<variant> sd_bus::devmon_chip_call(mc::milliseconds timeout,
-                                                std::string_view path, std::string_view interface, std::string_view method,
-                                                std::string_view signature, const variants& args) {
-    auto interface_it = DEVMON_CHIP_METHODS.find(interface);
+std::optional<variants> sd_bus::reroute_call(mc::milliseconds timeout, const method_call_params& params) {
+    auto mdb_info = shm_tree::get_mdb_info(params);
+    if (mdb_info != std::nullopt) {
+        return mdb_info;
+    }
+    if (params.service_name != DEVMON_SERVICE) {
+        return std::nullopt;
+    }
+    auto interface_it = DEVMON_CHIP_METHODS.find(params.interface);
     if (interface_it == DEVMON_CHIP_METHODS.end()) {
         return std::nullopt;
     }
 
-    auto method_it = interface_it->second.find(method);
+    auto method_it = interface_it->second.find(params.method);
     if (method_it == interface_it->second.end()) {
         return std::nullopt;
     }
 
     const auto& [target_method, target_signature] = method_it->second;
-    return timeout_call_impl(timeout, DEVMON_SERVICE, path, DEVMON_CHIP_INTERFACE,
-                             target_method, target_signature, remove_context_arg(args));
+    method_call_params target_params{DEVMON_SERVICE, params.path, DEVMON_CHIP_INTERFACE,
+                                     target_method, target_signature, remove_context_arg(params.args)};
+    return timeout_call_impl(timeout, target_params);
 }
 
 void sd_bus::request_name(std::string_view service_name, uint32_t flags) {
@@ -175,47 +171,52 @@ static std::string get_caller_from_context(const variants& args) {
     return "unknown";
 }
 
-variant sd_bus::timeout_call(mc::milliseconds timeout, std::string_view service_name,
-                             std::string_view path, std::string_view interface, std::string_view method,
-                             std::string_view signature, const variants& args) {
-    variants               modified_args = add_requestor_to_context(args, m_service_name);
-    std::optional<variant> result        = std::nullopt;
-    auto                   start         = std::chrono::steady_clock::now();
-    if (service_name == DEVMON_SERVICE) {
-        result = devmon_chip_call(timeout, path, interface, method, signature, modified_args);
+variants sd_bus::timeout_call(mc::milliseconds timeout, const method_call_params& params) {
+    method_call_params modified_params{
+        .service_name = params.service_name,
+        .path         = params.path,
+        .interface    = params.interface,
+        .method       = params.method,
+        .signature    = params.signature,
+        .args         = add_requestor_to_context(params.args, m_service_name),
+    };
+    auto                    start  = std::chrono::steady_clock::now();
+    std::optional<variants> result = reroute_call(timeout, modified_params);
+    if (!result.has_value()) {
+        result = timeout_call_impl(timeout, modified_params);
     }
-    if (result == std::nullopt) {
-        result = timeout_call_impl(timeout, service_name, path, interface, method, signature, modified_args);
-    }
-    auto end      = std::chrono::steady_clock::now();
-    auto duration = std::chrono::duration_cast<std::chrono::seconds>(end - start).count();
+    auto        time_cost = std::chrono::steady_clock::now() - start;
+    auto        duration  = std::chrono::duration_cast<std::chrono::seconds>(time_cost).count();
+    std::string caller    = get_caller_from_context(modified_params.args);
     if (duration >= CALL_TIMEOUT_SECONDS) {
-        std::string caller = get_caller_from_context(modified_args);
         wlog("service[${caller}] request timeout: remote service[${service_name}], path[${path}],"
              " interface[${interface}], method[${method}], used time[${duration}s]",
-             ("caller", caller)("service_name", service_name)("path", path)("interface", interface)("method", method)("duration", duration));
+             ("caller", caller)("service_name", modified_params.service_name)("path", modified_params.path)(
+                 "interface", modified_params.interface)("method", modified_params.method)("duration", duration));
+    } else {
+        auto duration_ms = std::chrono::duration_cast<std::chrono::milliseconds>(time_cost).count();
+        dlog("service[${caller}] request successful: remote service[${service_name}], path[${path}],"
+             " interface[${interface}], method[${method}], used time[${duration_ms}ms]",
+             ("caller", caller)("service_name", modified_params.service_name)("path", modified_params.path)(
+                 "interface", modified_params.interface)("method", modified_params.method)("duration_ms", duration_ms));
     }
     return result.value();
 }
 
-variant sd_bus::call(std::string_view service_name, std::string_view path, std::string_view interface,
-                     std::string_view method, std::string_view signature, const variants& args) {
-    return timeout_call(DEFAULT_DBUS_CALL_TIMEOUT, service_name, path, interface, method, signature, args);
+variants sd_bus::call(const method_call_params& params) {
+    return timeout_call(DEFAULT_DBUS_CALL_TIMEOUT, params);
 }
 
-sd_bus::pcall_result sd_bus::pcall(std::string_view service_name, std::string_view path, std::string_view interface,
-                                   std::string_view method, std::string_view signature, const variants& args) {
-    return timeout_pcall(DEFAULT_DBUS_CALL_TIMEOUT, service_name, path, interface, method, signature, args);
+sd_bus::pcall_result sd_bus::pcall(const method_call_params& params) {
+    return timeout_pcall(DEFAULT_DBUS_CALL_TIMEOUT, params);
 }
 
-sd_bus::pcall_result sd_bus::timeout_pcall(mc::milliseconds timeout, std::string_view service_name,
-                                           std::string_view path, std::string_view interface,
-                                           std::string_view method, std::string_view signature, const variants& args) {
+sd_bus::pcall_result sd_bus::timeout_pcall(mc::milliseconds timeout, const method_call_params& params) {
     try {
-        auto result = timeout_call(timeout, service_name, path, interface, method, signature, args);
+        auto result = timeout_call(timeout, params);
         return {std::nullopt, std::move(result)};
     } catch (const mc::exception& e) {
-        return {e.what(), variant()};
+        return {e.what(), variants{}};
     }
 }
 

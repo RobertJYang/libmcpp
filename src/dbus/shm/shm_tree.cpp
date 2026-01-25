@@ -18,6 +18,10 @@
 #include <mc/variant.h>
 #include <type_traits>
 
+#ifndef BUILD_TYPE_DEBUG
+#define BUILD_TYPE_DEBUG (0x0b)
+#endif
+
 namespace mc::dbus {
 static uint32_t g_serial = 0;
 
@@ -285,8 +289,8 @@ static std::optional<variant> get_property_via_rpc(std::string_view interface_na
 
     // timeout_call_with_sender 可能抛出异常，这里不捕获，让异常向上传播
     auto reply_opt = shm_tree::timeout_call_with_sender(PROP_RPC_TIMEOUT, MDB_SERVICE_NAME,
-                                                        service_name, object_path, PROPS_IFACE,
-                                                        GET_WITH_CTX, GET_WITH_CTX_SIG, rpc_args);
+                                                        {service_name, object_path, PROPS_IFACE,
+                                                        GET_WITH_CTX, GET_WITH_CTX_SIG, rpc_args});
 
     if (!reply_opt.has_value() || reply_opt->empty()) {
         return std::nullopt;
@@ -305,8 +309,8 @@ static std::pair<std::optional<variant>, std::optional<variant>> get_property_vi
     std::optional<variants> reply_opt;
     try {
         reply_opt = shm_tree::timeout_call_with_sender(PROP_RPC_TIMEOUT, MDB_SERVICE_NAME,
-                                                       service_name, object_path, PROPS_IFACE,
-                                                       GET_WITH_CTX, GET_WITH_CTX_SIG, rpc_args);
+                                                       {service_name, object_path, PROPS_IFACE,
+                                                       GET_WITH_CTX, GET_WITH_CTX_SIG, rpc_args});
     } catch (const std::exception& e) {
         return {std::nullopt, variant(std::string(e.what()))};
     } catch (...) {
@@ -684,42 +688,6 @@ static const std::unordered_map<std::string_view, call_shm_interface_config>
               {"GetAllWithContext", call_shm_get_all_properties_handler},
               {"GetPropertiesByNames", call_shm_get_properties_by_names_handler}}}}};
 
-[[maybe_unused]] std::optional<mc::variants> try_call_shm_handler(std::string_view service_name,
-                                                                  std::string_view path,
-                                                                  std::string_view interface,
-                                                                  std::string_view method,
-                                                                  std::string_view signature,
-                                                                  const variants&  args) {
-    auto it_interface = g_call_shm_interface_config.find(interface);
-    if (it_interface == g_call_shm_interface_config.end()) {
-        return std::nullopt;
-    }
-    const auto& iface_cfg = it_interface->second;
-
-    // 如果配置中限定了 service，则要求精确匹配
-    if (iface_cfg.service.has_value() && iface_cfg.service.value() != service_name) {
-        return std::nullopt;
-    }
-
-    // 如果配置中限定了 path，则要求精确匹配
-    if (iface_cfg.path.has_value() && iface_cfg.path.value() != path) {
-        return std::nullopt;
-    }
-
-    auto it_method = iface_cfg.methods.find(std::string(method));
-    if (it_method == iface_cfg.methods.end()) {
-        return std::nullopt;
-    }
-
-    // 直接通过成员函数指针调用，只需要一次查找
-    const auto& handler = it_method->second;
-    if (handler == nullptr) {
-        return std::nullopt;
-    }
-
-    return handler(service_name, path, interface, method, signature, args);
-}
-
 static bool has_interface(shm::mdb_object& obj, const variants& interfaces) {
     if (interfaces.empty()) {
         return true;
@@ -750,6 +718,37 @@ shm::object_tree* find_tree(std::string_view name) {
 }
 
 } // namespace
+
+std::optional<mc::variants> shm_tree::get_mdb_info(const method_call_params& params) {
+    auto it_interface = g_call_shm_interface_config.find(params.interface);
+    if (it_interface == g_call_shm_interface_config.end()) {
+        return std::nullopt;
+    }
+    const auto& iface_cfg = it_interface->second;
+
+    // 如果配置中限定了 service，则要求精确匹配
+    if (iface_cfg.service.has_value() && iface_cfg.service.value() != params.service_name) {
+        return std::nullopt;
+    }
+
+    // 如果配置中限定了 path，则要求精确匹配
+    if (iface_cfg.path.has_value() && iface_cfg.path.value() != params.path) {
+        return std::nullopt;
+    }
+
+    auto it_method = iface_cfg.methods.find(std::string(params.method));
+    if (it_method == iface_cfg.methods.end()) {
+        return std::nullopt;
+    }
+
+    // 直接通过成员函数指针调用，只需要一次查找
+    const auto& handler = it_method->second;
+    if (handler == nullptr) {
+        return std::nullopt;
+    }
+
+    return handler(params.service_name, params.path, params.interface, params.method, params.signature, params.args);
+}
 
 variants shm_tree::get_mdb_path(std::string_view interface_name, std::string_view filter_json,
                                 bool ignore_case) {
@@ -1352,70 +1351,55 @@ static uint32_t set_serial(local_msg& msg) {
     return g_serial;
 }
 
-std::optional<mc::variants>
-shm_tree::timeout_call(mc::milliseconds timeout, std::string_view service_name,
-                       std::string_view path, std::string_view interface, std::string_view method,
-                       std::string_view signature, const variants& args) {
-    // 优先根据预定义表尝试本地处理，如果返回非空结果则直接返回
-    // auto local_result =
-    //     try_call_shm_handler(service_name, path, interface, method, signature, args);
-    // if (local_result.has_value()) {
-    //     return local_result;
-    // }
-    return timeout_call_with_sender(timeout, m_unique_name, service_name, path, interface, method, signature, args);
+std::optional<mc::variants> shm_tree::timeout_call(mc::milliseconds timeout, const method_call_params& params) {
+    return timeout_call_with_sender(timeout, m_unique_name, params);
 }
 
-std::optional<mc::variants>
-shm_tree::timeout_call_with_sender(mc::milliseconds timeout, std::string_view sender,
-                                   std::string_view service_name, std::string_view path,
-                                   std::string_view interface, std::string_view method,
-                                   std::string_view signature, const variants& args) {
-    local_msg msg(service_name, path, interface, method);
-    if (!signature.empty()) {
-        msg.append_args(signature, args);
+std::optional<mc::variants> shm_tree::timeout_call_with_sender(mc::milliseconds timeout, std::string_view sender,
+                                                        const method_call_params& params) {
+    local_msg msg(params.service_name, params.path, params.interface, params.method);
+    if (!params.signature.empty()) {
+        msg.append_args(params.signature, params.args);
     }
     msg.set_local_call(false);
-    auto msg_queue = harbor::get_destination_msg_queue(service_name);
+    auto msg_queue = harbor::get_destination_msg_queue(params.service_name);
     if (msg_queue == nullptr) {
-        wlog("failed to get message queue of destination service: ${service_name}",
-             ("service_name", service_name));
+        dlog("failed to get message queue of destination service: ${service_name}",
+             ("service_name", params.service_name));
         return std::nullopt;
     }
     msg.set_sender(sender);
     uint32_t serial = set_serial(msg);
-    auto     data   = msg.pack();
-    bool     msg_pushed;
+#if defined(BUILD_TYPE) && defined(BUILD_TYPE_DEBUG) && BUILD_TYPE == BUILD_TYPE_DEBUG
+    msg.set_timestamp();
+#endif
+    auto data = msg.pack();
     try {
-        msg_pushed = msg_queue->push_back(data, MSG_QUEUE_PUSH_TIMEOUT);
+        if (!msg_queue->push_back(data, MSG_QUEUE_PUSH_TIMEOUT)) {
+            wlog("failed to push to message queue of destination service: ${service_name}",
+                 ("service_name", params.service_name));
+            return std::nullopt;
+        }
     } catch (const std::exception& e) {
-        msg_pushed = false;
-    }
-    if (!msg_pushed) {
-        wlog("failed to push to message queue of destination service: ${service_name}",
-             ("service_name", service_name));
+        elog("message queue rpc failed: ${error}", ("error", e.what()));
         return std::nullopt;
     }
     auto  promise = mc::make_promise<local_msg>();
     auto  future  = promise.get_future();
     auto& harbor  = mc::dbus::harbor::get_instance();
     if (!harbor.send_shm_msg(sender, serial, promise)) {
-        MC_THROW(mc::exception, "failed to save promise");
+        wlog("failed to save shm msg promise");
+        return std::nullopt;
     }
-    if (future.wait_for(std::chrono::milliseconds(timeout)) ==
-        mc::futures::future_status::timeout) {
+    if (future.wait_for(timeout) == mc::futures::future_status::timeout) {
         harbor.remove_shm_msg(sender, serial);
-        MC_THROW(mc::exception,
-                 "shm method call timeout, service name: ${service_name}, method: ${method}",
-                 ("service_name", service_name)("method", method));
+        throw mc::exception(mc::method_call_exception_code, std::string(error_names::no_reply),
+                            std::string(error_messages::no_reply));
     }
     auto reply_msg = future.get();
     if (reply_msg.msg_type() == DBUS_MESSAGE_TYPE_ERROR) {
-        auto err = reply_msg.get_error();
-        MC_THROW(mc::exception,
-                 "shm method call failed, service name: ${service_name}, method: ${method}, error "
-                 "name: ${error_name}, error message: ${error_message}",
-                 ("service_name", service_name)("method", method)("error_name", std::get<0>(err))(
-                     "error_message", std::get<1>(err)));
+        auto [error_name, error_message] = reply_msg.get_error();
+        throw mc::exception(mc::method_call_exception_code, error_name, error_message);
     }
     return reply_msg.read();
 }
@@ -1425,8 +1409,7 @@ static shm::shared_ptr<shm::property> find_shm_property(std::string_view service
     auto& ins  = shm::shared_memory::get_instance();
     auto  tree = ins.get_tree(service_name);
     if (tree == nullptr) {
-        MC_THROW(mc::exception, "failed to get tree, service_name: ${service_name}",
-                 ("service_name", service_name));
+        MC_THROW(mc::exception, "failed to get tree, service_name: ${service_name}", ("service_name", service_name));
     }
     auto obj = tree->find_object(path);
     if (obj == nullptr) {
@@ -1459,9 +1442,8 @@ static uint32_t get_object_id(std::string_view path) {
     return g_str_hash(path.data());
 }
 
-static std::optional<variant> get_property_inner(std::string_view service_name,
-                                                 std::string_view path, std::string_view interface,
-                                                 std::string_view property) {
+static std::optional<variant> get_property_inner(std::string_view service_name, std::string_view path,
+                                                 std::string_view interface, std::string_view property) {
     auto prop = find_shm_property(service_name, path, interface, property);
     return shm_object_lock_shared_exec(get_object_id<shmlock::ShmLockManager>(path), [&]() {
         auto data = prop->get_data();
@@ -1476,20 +1458,19 @@ static std::optional<variant> get_property_inner(std::string_view service_name,
         }
         std::memcpy(p_data, prop_value.data(), p_data_len);
         std::string_view   signature = prop->get_signature();
-        gvariant_auto_free v(g_variant_new_from_data(G_VARIANT_TYPE(signature.data()), p_data, p_data_len,
-                                                     false, g_free, p_data));
+        gvariant_auto_free v(
+            g_variant_new_from_data(G_VARIANT_TYPE(signature.data()), p_data, p_data_len, false, g_free, p_data));
         return std::make_optional(gvariant_convert::to_mc_variant(v.ptr));
     });
 }
 
-variant shm_tree::get_property(std::string_view service_name, std::string_view path,
-                               std::string_view interface, std::string_view property) {
+variant shm_tree::get_property(std::string_view service_name, std::string_view path, std::string_view interface,
+                               std::string_view property) {
     auto res = shm_global_lock_shared_exec([&]() {
         return get_property_inner(service_name, path, interface, property);
     });
     if (res == std::nullopt) {
-        MC_THROW(mc::exception, "failed to get value of property: ${property}",
-                 ("property", property));
+        MC_THROW(mc::exception, "failed to get value of property: ${property}", ("property", property));
     }
     return res.value();
 }
@@ -1507,9 +1488,8 @@ void shm_tree::set_property_inner(shm::shared_ptr<shm::property> prop, const var
     prop->set_data(ins, std::string_view(static_cast<const char*>(data), size));
 }
 
-void shm_tree::set_property(std::string_view service_name, std::string_view path,
-                            std::string_view interface, std::string_view property,
-                            const variant& value) {
+void shm_tree::set_property(std::string_view service_name, std::string_view path, std::string_view interface,
+                            std::string_view property, const variant& value) {
     shm_global_lock_shared_exec([&]() {
         auto prop = find_shm_property(service_name, path, interface, property);
         shm_object_lock_exec(get_object_id<shmlock::ShmLockManager>(path), [&]() {

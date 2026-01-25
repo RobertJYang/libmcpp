@@ -208,6 +208,17 @@ public:
     std::string pack() const;
 
     /**
+     * @brief 设置时间戳
+     */
+    void set_timestamp();
+
+    /**
+     * @brief 计算时间戳与当前时间的时间差
+     * @return 返回时间差，单位为毫秒
+     */
+    int64_t duration_ms_from_timestamp() const;
+
+    /**
      * @brief 按签名解析variant
      * @param it [in] 签名迭代器
      * @param v [in] variant对象
@@ -239,6 +250,7 @@ private:
     std::string m_error_name;
     std::string m_signature;
     std::string m_sender;
+    std::string m_timestamp;
     variants    m_args;
 };
 
