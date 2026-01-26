@@ -20,7 +20,7 @@
 #include <string>
 #include <string_view>
 
-#include <mc/json.h>
+#include <mc/filesystem.h>
 #include <mc/variant.h>
 
 // 使用正确的前向声明（匹配 json_api.h 中的定义）
@@ -230,6 +230,114 @@ public:
 private:
     Json* m_json;
 };
+
+/**
+ * @brief 将variant编码为JSON字符串
+ *
+ * @param value 要编码的variant对象
+ * @param pretty_print 是否格式化输出（带缩进和换行），默认为 false
+ * @return std::string 编码后的JSON字符串
+ * @throw mc::parse_error_exception 当编码失败时抛出异常
+ */
+std::string json_encode(const mc::variant& value, bool pretty_print = false);
+
+/**
+ * @brief 将dict编码为JSON字符串
+ *
+ * @param obj 要编码的dict对象
+ * @param pretty_print 是否格式化输出（带缩进和换行），默认为 false
+ * @return std::string 编码后的JSON字符串
+ * @throw mc::parse_error_exception 当编码失败时抛出异常
+ */
+std::string json_encode(const mc::dict& obj, bool pretty_print = false);
+
+/**
+ * @brief 将vector<variant>编码为JSON字符串
+ *
+ * @param arr 要编码的数组对象
+ * @param pretty_print 是否格式化输出（带缩进和换行），默认为 false
+ * @return std::string 编码后的JSON字符串
+ * @throw mc::parse_error_exception 当编码失败时抛出异常
+ */
+std::string json_encode(const std::vector<mc::variant>& arr, bool pretty_print = false);
+
+/**
+ * @brief 将JsonValue对象编码为JSON字符串
+ *
+ * 此函数直接对底层的Json*对象进行序列化，不进行类型转换。
+ * 适用于已经持有JsonValue对象的场景。
+ *
+ * @param json_val 要编码的JsonValue对象
+ * @param pretty_print 是否格式化输出（带缩进和换行），默认为 false
+ * @return std::string 编码后的JSON字符串
+ * @throw mc::parse_error_exception 当编码失败时抛出异常
+ */
+MC_API std::string json_encode(const JsonValue& json_val, bool pretty_print = false);
+
+/**
+ * @brief 从JSON字符串解码为variant对象
+ *
+ * @param json JSON字符串视图
+ * @return mc::variant 解码后的variant对象
+ * @throw mc::parse_error_exception 当解码失败时抛出异常
+ */
+mc::variant json_decode(std::string_view json);
+
+/**
+ * @brief 从JSON字符串解码为JsonValue对象（const char* 重载）
+ *
+ * 此函数直接返回JsonValue对象，不进行variant转换。
+ * 适用于需要直接操作JSON对象的场景。
+ *
+ * @param json JSON字符串（C 风格字符串指针）
+ * @return JsonValue 解码后的JsonValue对象（RAII 自动管理引用计数）
+ * @throw mc::parse_error_exception 当解码失败时抛出异常
+ *
+ * @note 返回的JsonValue对象自动管理内部Json*的引用计数，无需手动释放
+ */
+MC_API JsonValue json_decode_raw(const char* json);
+
+/**
+ * @brief 将variant编码为JSON字符串并写入指定文件
+ *
+ * @param value 要编码的variant对象
+ * @param file_path 目标文件路径
+ * @param pretty_print 是否格式化输出（带缩进和换行），默认为 false
+ * @return bool 成功返回true，失败返回false
+ */
+bool dump(const mc::variant& value, const mc::filesystem::path& file_path, bool pretty_print = false);
+
+/**
+ * @brief 将dict编码为JSON字符串并写入指定文件
+ *
+ * @param obj 要编码的dict对象
+ * @param file_path 目标文件路径
+ * @param pretty_print 是否格式化输出（带缩进和换行），默认为 false
+ * @return bool 成功返回true，失败返回false
+ */
+bool dump(const mc::dict& obj, const mc::filesystem::path& file_path, bool pretty_print = false);
+
+/**
+ * @brief 将vector<variant>编码为JSON字符串并写入指定文件
+ *
+ * @param arr 要编码的数组对象
+ * @param file_path 目标文件路径
+ * @param pretty_print 是否格式化输出（带缩进和换行），默认为 false
+ * @return bool 成功返回true，失败返回false
+ */
+bool dump(const std::vector<mc::variant>& arr, const mc::filesystem::path& file_path, bool pretty_print = false);
+
+/**
+ * @brief 将JsonValue对象编码为JSON字符串并写入指定文件
+ *
+ * @param json_val 要编码的JsonValue对象
+ * @param file_path 目标文件路径
+ * @param pretty_print 是否格式化输出（带缩进和换行），默认为 false
+ * @return bool 成功返回true，失败返回false
+ *
+ * @note 此函数直接对JsonValue对象进行序列化，不进行类型转换
+ */
+MC_API bool dump(const JsonValue& json_val, const mc::filesystem::path& file_path, bool pretty_print = false);
 
 } // namespace json_wrapper
 } // namespace mc

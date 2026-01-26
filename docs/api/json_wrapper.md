@@ -239,6 +239,336 @@ obj2.set("age", JsonValue::make_int(30));  // 修改会影响 obj1
 assert(obj1.has("age"));
 ```
 
+## 序列化和反序列化函数
+
+`json_wrapper` 模块提供了全局的序列化和反序列化函数，支持 `JsonValue`、`variant`、`dict` 和 `variant` 数组与 JSON 字符串之间的双向转换。
+
+### json_encode
+
+将 C++ 值编码为 JSON 字符串。提供多个重载版本，支持不同的输入类型。
+
+#### 函数签名
+
+```cpp
+namespace mc {
+namespace json_wrapper {
+    // 将 variant 编码为 JSON 字符串
+    std::string json_encode(const mc::variant& value, bool pretty_print = false);
+
+    // 将 dict 编码为 JSON 对象字符串
+    std::string json_encode(const mc::dict& obj, bool pretty_print = false);
+
+    // 将 variant 数组编码为 JSON 数组字符串
+    std::string json_encode(const std::vector<mc::variant>& arr, bool pretty_print = false);
+
+    // 将 JsonValue 编码为 JSON 字符串
+    std::string json_encode(const JsonValue& json_val, bool pretty_print = false);
+}
+}
+```
+
+#### 参数
+
+- `value`: `mc::variant` 类型的值，支持所有 variant 支持的类型（nil、bool、int、double、string、dict、variants）
+- `obj`: `mc::dict` 类型的对象，会被编码为 JSON 对象
+- `arr`: `std::vector<mc::variant>` 类型的数组，会被编码为 JSON 数组
+- `json_val`: `JsonValue` 类型的 JSON 值
+- `pretty_print`: 是否格式化输出（带缩进和换行），默认为 `false`（紧凑格式）
+
+#### 返回值
+
+返回 JSON 字符串（`std::string`）。
+
+#### 说明
+
+- 这些函数将输入的 C++ 值转换为 JSON 字符串表示
+- 当 `pretty_print` 为 `true` 时，输出的 JSON 字符串会带缩进和换行，便于阅读
+- 当 `pretty_print` 为 `false` 时，输出的 JSON 字符串是紧凑格式（无缩进和换行）
+- JSON 对象的键会按照字符串顺序排序，以保证稳定的顺序
+- 如果序列化失败，会抛出 `mc::parse_error_exception` 异常
+
+#### 示例
+
+```cpp
+#include <mc/json_wrapper.h>
+#include <mc/variant.h>
+#include <mc/dict.h>
+
+using namespace mc;
+using namespace mc::json_wrapper;
+
+// 示例 1：编码 variant
+mc::variant var = dict{{"name", "Alice"}, {"age", 30}, {"active", true}};
+std::string json_str1 = json_encode(var);
+// 紧凑格式：{"active":true,"age":30,"name":"Alice"}
+
+std::string json_str1_pretty = json_encode(var, true);
+// 格式化输出：
+// {
+//   "active": true,
+//   "age": 30,
+//   "name": "Alice"
+// }
+
+// 示例 2：编码 dict
+mc::dict user_obj{{"name", "Bob"}, {"email", "bob@example.com"}};
+std::string json_str2 = json_encode(user_obj);
+// {"email":"bob@example.com","name":"Bob"}
+
+// 示例 3：编码 variant 数组
+std::vector<mc::variant> scores = {85, 92, 78, 88};
+std::string json_str3 = json_encode(scores);
+// [85,92,78,88]
+
+// 示例 4：编码 JsonValue
+JsonValue json_val = JsonValue::make_object();
+JsonObject obj = json_val.as_object();
+obj.set("x", JsonValue::make_int(10));
+obj.set("y", JsonValue::make_int(20));
+std::string json_str4 = json_encode(json_val);
+// {"x":10,"y":20}
+
+// 示例 5：编码嵌套结构
+mc::dict nested{{"user", dict{{"name", "Charlie"}, {"age", 35}}},
+                {"tags", variants{"admin", "user"}}};
+std::string json_str5 = json_encode(nested, true);
+// 格式化输出：
+// {
+//   "tags": [
+//     "admin",
+//     "user"
+//   ],
+//   "user": {
+//     "age": 35,
+//     "name": "Charlie"
+//   }
+// }
+```
+
+### json_decode
+
+将 JSON 字符串解码为 C++ 值。提供两个版本，分别返回 `variant` 和 `JsonValue`。
+
+#### 函数签名
+
+```cpp
+namespace mc {
+namespace json_wrapper {
+    // 将 JSON 字符串解码为 variant
+    mc::variant json_decode(std::string_view json);
+
+    // 将 JSON 字符串解码为 JsonValue
+    JsonValue json_decode_raw(const char* json);
+}
+}
+```
+
+#### 参数
+
+- `json`: JSON 字符串（`std::string_view` 或 `const char*`）
+
+#### 返回值
+
+- `json_decode`: 返回 `mc::variant`，表示 JSON 数据
+- `json_decode_raw`: 返回 `JsonValue`，保持 JSON 结构和键的顺序
+
+#### 说明
+
+- 这些函数将 JSON 字符串解析为 C++ 值
+- JSON null 转换为 variant 的 nil
+- JSON boolean 转换为 variant 的 bool
+- JSON number 转换为 variant 的 int 或 double（整数转为 int64_t，浮点数转为 double）
+- JSON string 转换为 variant 的 string
+- JSON array 转换为 variant 的 variants（`std::vector<mc::variant>`）
+- JSON object 转换为 variant 的 dict（`mc::dict`）
+- 如果解析失败，会抛出 `mc::parse_error_exception` 异常，异常信息中包含错误位置
+- `json_decode_raw` 返回 `JsonValue`，适合需要保持 JSON 结构和键顺序的场景
+
+#### 示例
+
+```cpp
+#include <mc/json_wrapper.h>
+#include <mc/variant.h>
+#include <mc/dict.h>
+
+using namespace mc;
+using namespace mc::json_wrapper;
+
+// 示例 1：解码 JSON 对象为 variant
+std::string json_str1 = R"({"name":"Alice","age":30,"active":true})";
+mc::variant var1 = json_decode(json_str1);
+mc::dict user = var1.as<dict>();
+std::string name = user["name"].as<std::string>();
+int64_t age = user["age"].as<int64_t>();
+bool active = user["active"].as<bool>();
+
+// 示例 2：解码 JSON 数组为 variant
+std::string json_str2 = "[85, 92, 78, 88]";
+mc::variant var2 = json_decode(json_str2);
+std::vector<mc::variant> scores = var2.as<std::vector<mc::variant>>();
+for (const auto& score : scores) {
+    int64_t value = score.as<int64_t>();
+    // 处理分数
+}
+
+// 示例 3：解码嵌套结构
+std::string json_str3 = R"({
+    "user": {
+        "name": "Bob",
+        "profile": {
+            "email": "bob@example.com",
+            "age": 25
+        }
+    },
+    "tags": ["admin", "user"]
+})";
+mc::variant var3 = json_decode(json_str3);
+mc::dict nested = var3.as<dict>();
+mc::dict user_obj = nested["user"].as<dict>();
+mc::dict profile = user_obj["profile"].as<dict>();
+
+// 示例 4：解码为 JsonValue（保持结构）
+std::string json_str4 = R"({"x":10,"y":20})";
+JsonValue json_val = json_decode_raw(json_str4.c_str());
+JsonObject obj = json_val.as_object();
+int64_t x = obj["x"].as_int();
+int64_t y = obj["y"].as_int();
+
+// 示例 5：错误处理
+try {
+    std::string invalid_json = "{invalid json}";
+    mc::variant var = json_decode(invalid_json);
+} catch (const mc::parse_error_exception& e) {
+    // 解析失败，处理异常
+    std::cerr << "JSON parsing failed: " << e.what() << std::endl;
+}
+
+// 示例 6：在 variant 和 JsonValue 之间转换
+std::string json_str5 = R"({"items":[1,2,3]})";
+
+// 解码为 variant
+mc::variant var5 = json_decode(json_str5);
+
+// 转换为 JsonValue
+JsonValue json_val5 = JsonValue::from_variant(var5);
+
+// 或直接解码为 JsonValue
+JsonValue json_val6 = json_decode_raw(json_str5.c_str());
+```
+
+### dump
+
+将 C++ 值编码为 JSON 字符串并写入文件。提供多个重载版本，支持不同的输入类型。
+
+#### 函数签名
+
+```cpp
+namespace mc {
+namespace json_wrapper {
+    // 将 variant 编码为 JSON 字符串并写入文件
+    bool dump(const mc::variant& value,
+              const mc::filesystem::path& file_path,
+              bool pretty_print = false);
+
+    // 将 dict 编码为 JSON 对象字符串并写入文件
+    bool dump(const mc::dict& obj,
+              const mc::filesystem::path& file_path,
+              bool pretty_print = false);
+
+    // 将 variant 数组编码为 JSON 数组字符串并写入文件
+    bool dump(const std::vector<mc::variant>& arr,
+              const mc::filesystem::path& file_path,
+              bool pretty_print = false);
+
+    // 将 JsonValue 编码为 JSON 字符串并写入文件
+    bool dump(const JsonValue& json_val,
+              const mc::filesystem::path& file_path,
+              bool pretty_print = false);
+}
+}
+```
+
+#### 参数
+
+- `value`: `mc::variant` 类型的值
+- `obj`: `mc::dict` 类型的对象
+- `arr`: `std::vector<mc::variant>` 类型的数组
+- `json_val`: `JsonValue` 类型的 JSON 值
+- `file_path`: 目标文件路径（`mc::filesystem::path`）
+- `pretty_print`: 是否格式化输出（带缩进和换行），默认为 `false`（紧凑格式）
+
+#### 返回值
+
+返回 `bool`，成功返回 `true`，失败返回 `false`。
+
+#### 说明
+
+- 这些函数将输入的 C++ 值编码为 JSON 字符串并写入指定文件
+- 如果文件已存在，会覆盖原文件
+- 如果文件所在的目录不存在，会自动创建目录
+- 当 `pretty_print` 为 `true` 时，输出的 JSON 字符串会带缩进和换行，便于阅读
+- 当 `pretty_print` 为 `false` 时，输出的 JSON 字符串是紧凑格式（无缩进和换行）
+- JSON 对象的键会按照字符串顺序排序，以保证稳定的顺序
+- 如果编码或写入文件失败，函数会捕获异常并返回 `false`，不会抛出异常
+
+#### 示例
+
+```cpp
+#include <mc/json_wrapper.h>
+#include <mc/variant.h>
+#include <mc/dict.h>
+#include <mc/filesystem.h>
+
+using namespace mc;
+using namespace mc::json_wrapper;
+
+// 示例 1：将 variant 保存到文件（紧凑格式）
+mc::variant var1 = dict{{"name", "Alice"}, {"age", 30}, {"active", true}};
+bool success1 = dump(var1, "/tmp/user.json");
+if (success1) {
+    // 文件写入成功
+}
+// 文件内容：{"active":true,"age":30,"name":"Alice"}
+
+// 示例 2：将 dict 保存到文件（格式化输出）
+mc::dict user_obj{{"name", "Bob"}, {"email", "bob@example.com"}};
+bool success2 = dump(user_obj, "/tmp/user_pretty.json", true);
+// 文件内容：
+// {
+//   "email": "bob@example.com",
+//   "name": "Bob"
+// }
+
+// 示例 3：将 variant 数组保存到文件
+std::vector<mc::variant> scores = {85, 92, 78, 88};
+dump(scores, "/tmp/scores.json");
+// 文件内容：[85,92,78,88]
+
+// 示例 4：将 JsonValue 保存到文件
+JsonValue json_val = JsonValue::make_object();
+JsonObject obj = json_val.as_object();
+obj.set("x", JsonValue::make_int(10));
+obj.set("y", JsonValue::make_int(20));
+dump(json_val, "/tmp/coordinates.json");
+// 文件内容：{"x":10,"y":20}
+
+// 示例 5：保存嵌套结构（格式化输出）
+mc::dict nested{{"user", dict{{"name", "Charlie"}, {"age", 35}}},
+                {"tags", variants{"admin", "user"}}};
+dump(nested, "/tmp/nested.json", true);
+// 文件内容：
+// {
+//   "tags": [
+//     "admin",
+//     "user"
+//   ],
+//   "user": {
+//     "age": 35,
+//     "name": "Charlie"
+//   }
+// }
+```
+
 ## 使用示例
 
 ### 示例 1：构建复杂的 JSON 结构

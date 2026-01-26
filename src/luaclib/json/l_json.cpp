@@ -18,6 +18,7 @@
 
 #include <mc/dict/dict.h>
 #include <mc/exception.h>
+#include <mc/filesystem.h>
 #include <mc/json_wrapper.h>
 #include <json_api.h>
 
@@ -34,6 +35,11 @@ namespace lua {
 constexpr const char* JSON_VALUE_METATABLE = "json.value";
 
 // 注意：l_json.cpp 中只能使用 C++ 接口（JsonValue, JsonArray, JsonObject），不能直接调用 C 接口
+
+// 全局标志位：控制空 table 是否编码为 JSON 对象
+// false: 空 table 编码为 JSON 数组 []（默认）
+// true:  空 table 编码为 JSON 对象 {}
+static bool g_encode_empty_table_as_object = false;
 
 namespace {
 // 辅助函数：获取 Lua table 的数组部分大小
@@ -74,7 +80,10 @@ bool is_lua_array(::lua_State* L, int index) {
             lua_pop(L, 2); // 弹出键和值
             return false;  // 有键但不是数组索引
         }
-        return true; // 空 table 视为数组
+        // 空 table 根据 g_encode_empty_table_as_object 标志决定
+        // 如果 g_encode_empty_table_as_object 为 true，则不视为数组（返回 false）
+        // 如果为 false，则视为数组（返回 true）
+        return !g_encode_empty_table_as_object;
     }
 
     // 检查从 1 到 array_size 的键是否都存在且值不为 nil
@@ -175,7 +184,7 @@ static Json *json_new(lua_State* L, int index)
             return json;
         }
         case LUA_TTABLE: {
-            if (lua_rawlen(L, idx) == 0) {
+            if (lua_rawlen(L, idx) > 0) {
                 return json_array_new(L, idx);
             } else {
                 return json_object_new(L, idx);
@@ -217,8 +226,22 @@ static Json *json_array_new(lua_State* L, int idx)
     return object;
 }
 
+static bool is_empty_object(lua_State* L, int idx)
+{
+    lua_pushnil(L);
+    if (lua_next(L, idx) == 0) {
+        return true;
+    } else {
+        lua_pop(L, 2);
+        return false;
+    }
+}
+
 static Json *json_object_new(lua_State* L, int idx)
 {
+    if (is_empty_object(L, idx) && !g_encode_empty_table_as_object) {
+        return json_array_new(L, idx);
+    }
     Json *object;
     if (JsonObjectCreate(&object) != JSON_OK) {
         luaL_error(L, "json: cannot create json object");
@@ -838,7 +861,275 @@ static int l_new_from_raw(lua_State* L) {
     }
 }
 
+// Lua 接口：将 Lua 值编码为 JSON 字符串
+// 使用 C++ 接口（JsonValue）进行转换，然后使用 json_encode 进行序列化
+static int lencode(lua_State* L) {
+    try {
+        int nargs = lua_gettop(L);
+        if (nargs < 1) {
+            return luaL_error(L, "encode requires 1 argument: value");
+        }
+
+        // 使用 build_json_from_lua 将 Lua 值转换为 JsonValue
+        JsonValue json_val = build_json_from_lua(L, 1);
+
+        // 直接使用 json_encode 进行序列化（紧凑格式）
+        std::string json_str = mc::json_wrapper::json_encode(json_val, false);
+
+        // 将结果推入 Lua 栈
+        lua_pushlstring(L, json_str.data(), json_str.size());
+
+        return 1;
+    } catch (const mc::exception& e) {
+        return luaL_error(L, "encode failed: %s", e.what());
+    }
+}
+
+// Lua 接口：将 JSON 字符串解码为 Lua 值
+static int ldecode(lua_State* L) {
+    try {
+        size_t      json_len = 0;
+        const char* json_str = luaL_checklstring(L, 1, &json_len);
+
+        JsonValue json_val = mc::json_wrapper::json_decode_raw(json_str);
+
+        // 将 JsonValue 对象转换为 Lua 值并推入栈（递归转换所有嵌套对象）
+        json_value_to_lua(L, json_val);
+
+        return 1;
+    } catch (const mc::exception& e) {
+        return luaL_error(L, "decode failed: %s", e.what());
+    }
+}
+
+// Lua 接口：将 JSON 字符串解码为 JsonValue 对象
+// 接受 JSON 字符串，返回 JsonValue userdata
+static int ljson_object_ordered_decode(lua_State* L) {
+    try {
+        size_t      json_len = 0;
+        const char* json_str = luaL_checklstring(L, 1, &json_len);
+
+        JsonValue json_val = mc::json_wrapper::json_decode_raw(json_str);
+
+        // 将 JsonValue 对象推入 Lua 栈（作为 userdata）
+        return push_json_value(L, std::move(json_val));
+    } catch (const mc::exception& e) {
+        return luaL_error(L, "json_object_ordered_decode failed: %s", e.what());
+    }
+}
+
+// Lua 接口：将 JsonValue 对象编码为 JSON 字符串
+// 接受 JsonValue userdata，将其编码为 JSON 字符串（紧凑格式）
+static int ljson_object_ordered_encode(lua_State* L) {
+    try {
+        int nargs = lua_gettop(L);
+        if (nargs < 1) {
+            return luaL_error(L, "json_object_ordered_encode requires 1 argument: json_value");
+        }
+
+        // 从 Lua 栈获取 JsonValue
+        JsonValue json_val = get_json_value_from_lua(L, 1);
+
+        // 直接使用 json_encode 进行序列化（紧凑格式）
+        std::string json_str = mc::json_wrapper::json_encode(json_val, false);
+
+        // 将结果推入 Lua 栈
+        lua_pushlstring(L, json_str.data(), json_str.size());
+
+        return 1;
+    } catch (const mc::exception& e) {
+        return luaL_error(L, "json_object_ordered_encode failed: %s", e.what());
+    }
+}
+
+// Lua 接口：将 JsonValue 对象编码为格式化的 JSON 字符串
+// 接受 JsonValue userdata，将其编码为格式化的 JSON 字符串（带缩进）
+static int ljson_object_ordered_encode_pretty(lua_State* L) {
+    try {
+        int nargs = lua_gettop(L);
+        if (nargs < 1) {
+            return luaL_error(L, "json_object_ordered_encode_pretty requires 1 argument: json_value");
+        }
+
+        // 从 Lua 栈获取 JsonValue
+        JsonValue json_val = get_json_value_from_lua(L, 1);
+
+        // 直接使用 json_encode 进行序列化（格式化输出）
+        std::string json_str = mc::json_wrapper::json_encode(json_val, true);
+
+        // 将结果推入 Lua 栈
+        lua_pushlstring(L, json_str.data(), json_str.size());
+
+        return 1;
+    } catch (const mc::exception& e) {
+        return luaL_error(L, "json_object_ordered_encode_pretty failed: %s", e.what());
+    }
+}
+
+// Lua 接口：将 Lua 值编码为 JSON 字符串并写入文件
+static int ldump(lua_State* L) {
+    try {
+        int nargs = lua_gettop(L);
+        if (nargs < 2) {
+            return luaL_error(L, "dump requires 2 arguments: value, file_path");
+        }
+
+        // 使用 build_json_from_lua 将 Lua 值转换为 JsonValue（只使用 C++ 接口）
+        JsonValue json_val = build_json_from_lua(L, 1);
+
+        // 从 Lua 栈获取文件路径
+        if (!lua_isstring(L, 2)) {
+            return luaL_error(L, "dump argument 2 must be string (file_path)");
+        }
+
+        size_t      path_len = 0;
+        const char* path_str = lua_tolstring(L, 2, &path_len);
+        mc::filesystem::path file_path(std::string(path_str, path_len));
+
+        // 使用 json_wrapper::dump(JsonValue&, bool) 保存到文件（紧凑格式）
+        bool success = mc::json_wrapper::dump(json_val, file_path, false);
+
+        // 将结果推入 Lua 栈
+        lua_pushboolean(L, success ? 1 : 0);
+
+        return 1;
+    } catch (const mc::exception& e) {
+        return luaL_error(L, "dump failed: %s", e.what());
+    }
+}
+
+// Lua 接口：将 Lua 值编码为格式化的 JSON 字符串并写入文件
+static int ldump_pretty(lua_State* L) {
+    try {
+        int nargs = lua_gettop(L);
+        if (nargs < 2) {
+            return luaL_error(L, "dump_pretty requires 2 arguments: value, file_path");
+        }
+
+        // 使用 build_json_from_lua 将 Lua 值转换为 JsonValue（只使用 C++ 接口）
+        JsonValue json_val = build_json_from_lua(L, 1);
+
+        // 从 Lua 栈获取文件路径
+        if (!lua_isstring(L, 2)) {
+            return luaL_error(L, "dump_pretty argument 2 must be string (file_path)");
+        }
+
+        size_t      path_len = 0;
+        const char* path_str = lua_tolstring(L, 2, &path_len);
+        mc::filesystem::path file_path(std::string(path_str, path_len));
+
+        // 使用 json_wrapper::dump(JsonValue&, bool) 保存到文件（格式化输出）
+        bool success = mc::json_wrapper::dump(json_val, file_path, true);
+
+        // 将结果推入 Lua 栈
+        lua_pushboolean(L, success ? 1 : 0);
+
+        return 1;
+    } catch (const mc::exception& e) {
+        return luaL_error(L, "dump_pretty failed: %s", e.what());
+    }
+}
+
+// Lua 接口：将 JsonValue 对象序列化到文件
+// 接受 JsonValue userdata，将其序列化到文件（紧凑格式）
+static int ljson_object_dump(lua_State* L) {
+    try {
+        int nargs = lua_gettop(L);
+        if (nargs < 2) {
+            return luaL_error(L, "json_object_dump requires 2 arguments: json_value, file_path");
+        }
+
+        // 从 Lua 栈获取 JsonValue
+        JsonValue json_val = get_json_value_from_lua(L, 1);
+
+        // 从 Lua 栈获取文件路径
+        if (!lua_isstring(L, 2)) {
+            return luaL_error(L, "json_object_dump argument 2 must be string (file_path)");
+        }
+
+        size_t      path_len = 0;
+        const char* path_str = lua_tolstring(L, 2, &path_len);
+        mc::filesystem::path file_path(std::string(path_str, path_len));
+
+        // 使用 json_wrapper::dump(JsonValue&, bool) 保存到文件（紧凑格式）
+        bool success = mc::json_wrapper::dump(json_val, file_path, false);
+
+        // 将结果推入 Lua 栈
+        lua_pushboolean(L, success ? 1 : 0);
+
+        return 1;
+    } catch (const mc::exception& e) {
+        return luaL_error(L, "json_object_dump failed: %s", e.what());
+    }
+}
+
+// Lua 接口：将 JsonValue 对象序列化为格式化的 JSON 输出到文件
+// 接受 JsonValue userdata，将其序列化到文件（格式化输出）
+static int ljson_object_dump_pretty(lua_State* L) {
+    try {
+        int nargs = lua_gettop(L);
+        if (nargs < 2) {
+            return luaL_error(L, "json_object_dump_pretty requires 2 arguments: json_value, file_path");
+        }
+
+        // 从 Lua 栈获取 JsonValue
+        JsonValue json_val = get_json_value_from_lua(L, 1);
+
+        // 从 Lua 栈获取文件路径
+        if (!lua_isstring(L, 2)) {
+            return luaL_error(L, "json_object_dump_pretty argument 2 must be string (file_path)");
+        }
+
+        size_t      path_len = 0;
+        const char* path_str = lua_tolstring(L, 2, &path_len);
+        mc::filesystem::path file_path(std::string(path_str, path_len));
+
+        // 使用 json_wrapper::dump(JsonValue&, bool) 保存到文件（格式化输出）
+        bool success = mc::json_wrapper::dump(json_val, file_path, true);
+
+        // 将结果推入 Lua 栈
+        lua_pushboolean(L, success ? 1 : 0);
+
+        return 1;
+    } catch (const mc::exception& e) {
+        return luaL_error(L, "json_object_dump_pretty failed: %s", e.what());
+    }
+}
+
+// Lua 接口：设置空 table 编码为 JSON 对象还是数组
+// true: 空 table 编码为 {}，false: 空 table 编码为 []（默认）
+static int lencode_empty_table_as_object(lua_State* L) {
+    try {
+        int nargs = lua_gettop(L);
+        if (nargs < 1) {
+            return luaL_error(L, "encode_empty_table_as_object requires 1 argument: boolean");
+        }
+
+        // 检查参数类型
+        if (!lua_isboolean(L, 1)) {
+            return luaL_error(L, "encode_empty_table_as_object argument 1 must be boolean");
+        }
+
+        // 设置全局标志位
+        g_encode_empty_table_as_object = (lua_toboolean(L, 1) != 0);
+
+        return 0;  // 无返回值
+    } catch (const mc::exception& e) {
+        return luaL_error(L, "encode_empty_table_as_object failed: %s", e.what());
+    }
+}
+
 static const luaL_Reg methods[] = {
+    {"encode", lencode},
+    {"decode", ldecode},
+    {"dump", ldump},
+    {"dump_pretty", ldump_pretty},
+    {"encode_empty_table_as_object", lencode_empty_table_as_object},
+    {"json_object_ordered_decode", ljson_object_ordered_decode},
+    {"json_object_ordered_encode", ljson_object_ordered_encode},
+    {"json_object_ordered_encode_pretty", ljson_object_ordered_encode_pretty},
+    {"json_object_dump", ljson_object_dump},
+    {"json_object_dump_pretty", ljson_object_dump_pretty},
     {"json_object_get_keys", l_json_object_get_keys},
     {"json_object_is_equal", l_json_object_is_equal},
     {"json_object_to_table", l_json_object_to_table},

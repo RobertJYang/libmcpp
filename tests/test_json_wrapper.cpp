@@ -15,13 +15,20 @@
  * @brief JSON包装器的单元测试
  */
 
+#include <algorithm>
+#include <cmath>
 #include <gtest/gtest.h>
 #include <json_api.h>
+#include <limits>
+#include <map>
 #include <mc/dict.h>
 #include <mc/exception.h>
+#include <mc/filesystem.h>
+#include <mc/json.h>
 #include <mc/json_wrapper.h>
 #include <mc/variant.h>
 #include <string>
+#include <vector>
 
 using namespace mc;
 using namespace mc::json_wrapper;
@@ -1284,3 +1291,801 @@ TEST(JsonStressTest, comprehensive_stress) {
     EXPECT_EQ(root.as_object().get("level").as_int(), 0);
     EXPECT_EQ(root.as_object().get("next").as_object().get("level").as_int(), 1);
 }
+
+// ======================== json_encode 和 json_decode 一致性测试 ========================
+
+// 测试：json_wrapper::json_encode 与 mc::json::json_encode 输出一致性
+TEST(JsonConsistencyTest, encode_consistency_with_mc_json) {
+    // 准备测试数据
+    mc::variant test_null = mc::variant();
+    mc::variant test_bool = mc::variant(true);
+    mc::variant test_int = mc::variant(int64_t{42});
+    mc::variant test_double = mc::variant(3.14);
+    mc::variant test_string = mc::variant("hello world");
+    mc::variants test_arr_variants = {mc::variant(1), mc::variant("test"), mc::variant(true)};
+    mc::variant test_array = mc::variant(test_arr_variants);
+    mc::dict test_obj_dict = {{"name", "Alice"}, {"age", 30}, {"active", true}};
+    mc::variant test_object = mc::variant(test_obj_dict);
+
+    // 测试基本类型
+    EXPECT_EQ(json_wrapper::json_encode(test_null), mc::json::json_encode(test_null));
+    EXPECT_EQ(json_wrapper::json_encode(test_bool), mc::json::json_encode(test_bool));
+    EXPECT_EQ(json_wrapper::json_encode(test_int), mc::json::json_encode(test_int));
+    EXPECT_EQ(json_wrapper::json_encode(test_double), mc::json::json_encode(test_double));
+    EXPECT_EQ(json_wrapper::json_encode(test_string), mc::json::json_encode(test_string));
+
+    // 测试数组类型
+    EXPECT_EQ(json_wrapper::json_encode(test_array), mc::json::json_encode(test_array));
+
+    // 测试对象类型
+    EXPECT_EQ(json_wrapper::json_encode(test_object), mc::json::json_encode(test_object));
+
+    // 测试复杂嵌套结构
+    mc::dict complex_dict = {
+        {"user", "Bob"},
+        {"scores", mc::variants{85, 92, 78}},
+        {"profile", mc::dict{{"city", "Beijing"}, {"age", 25}}}
+    };
+    mc::variant complex_variant = mc::variant(complex_dict);
+    EXPECT_EQ(json_wrapper::json_encode(complex_variant), mc::json::json_encode(complex_variant));
+}
+
+// 测试：使用 dict 参数的 json_encode 一致性
+TEST(JsonConsistencyTest, encode_dict_consistency) {
+    mc::dict test_dict = {{"key1", "value1"}, {"key2", 42}, {"key3", true}};
+    EXPECT_EQ(json_wrapper::json_encode(test_dict), mc::json::json_encode(test_dict));
+}
+
+// 测试：使用 vector<variant> 参数的 json_encode 一致性
+TEST(JsonConsistencyTest, encode_vector_consistency) {
+    std::vector<mc::variant> test_vector = {mc::variant(1), mc::variant(2), mc::variant(3)};
+    EXPECT_EQ(json_wrapper::json_encode(test_vector), mc::json::json_encode(test_vector));
+}
+
+// 测试：json_decode 与 json_encode 往返转换一致性
+TEST(JsonConsistencyTest, decode_encode_round_trip) {
+    // 原始数据
+    mc::dict original_dict = {
+        {"name", "Charlie"},
+        {"age", 35},
+        {"scores", mc::variants{88, 95, 82}},
+        {"address", mc::dict{{"city", "Shanghai"}, {"street", "Nanjing Road"}}}
+    };
+    mc::variant original = mc::variant(original_dict);
+
+    // 使用 json_wrapper 进行编码
+    std::string encoded = json_wrapper::json_encode(original);
+
+    // 使用 json_wrapper 进行解码
+    mc::variant decoded = json_wrapper::json_decode(encoded);
+
+    // 验证解码结果与原始数据一致
+    EXPECT_EQ(decoded, original);
+
+    // 验证通过 mc::json 再次编码仍然一致
+    EXPECT_EQ(json_wrapper::json_encode(decoded), mc::json::json_encode(original));
+}
+
+// 测试：两个 json_decode 解析同一 JSON 字符串的结果一致性
+TEST(JsonConsistencyTest, decode_consistency) {
+    // JSON 测试字符串
+    std::string json_str = R"({
+        "name": "David",
+        "age": 28,
+        "active": true,
+        "scores": [90, 85, 88],
+        "address": {
+            "city": "Guangzhou",
+            "zipcode": "510000"
+        }
+    })";
+
+    // 使用两个不同的 json_decode 解析
+    mc::variant result1 = json_wrapper::json_decode(json_str);
+    mc::variant result2 = mc::json::json_decode(json_str);
+
+    // 验证解析结果一致
+    EXPECT_EQ(result1, result2);
+
+    // 验证再次编码后的字符串也一致
+    std::string encoded1 = json_wrapper::json_encode(result1);
+    std::string encoded2 = mc::json::json_encode(result2);
+    EXPECT_EQ(encoded1, encoded2);
+}
+
+// 测试：各种特殊值的编码一致性
+TEST(JsonConsistencyTest, encode_special_values_consistency) {
+    // 空对象
+    mc::dict empty_dict{};
+    EXPECT_EQ(json_wrapper::json_encode(empty_dict), mc::json::json_encode(empty_dict));
+
+    // 空数组
+    mc::variants empty_array{};
+    EXPECT_EQ(json_wrapper::json_encode(empty_array), mc::json::json_encode(empty_array));
+
+    // 空字符串
+    mc::variant empty_string("");
+    EXPECT_EQ(json_wrapper::json_encode(empty_string), mc::json::json_encode(empty_string));
+
+    // 负数
+    mc::variant negative_number(-42);
+    EXPECT_EQ(json_wrapper::json_encode(negative_number), mc::json::json_encode(negative_number));
+
+    // 零
+    mc::variant zero(0);
+    EXPECT_EQ(json_wrapper::json_encode(zero), mc::json::json_encode(zero));
+
+    // 浮点数零
+    mc::variant double_zero(0.0);
+    EXPECT_EQ(json_wrapper::json_encode(double_zero), mc::json::json_encode(double_zero));
+}
+
+// 测试：深嵌套结构的编解码一致性
+TEST(JsonConsistencyTest, deep_nesting_consistency) {
+    // 构建深嵌套结构
+    mc::variant current = mc::variant(mc::dict{{"level", 20}});
+    for (int i = 20; i >= 0; --i) {
+        mc::dict parent = {{"level", i}, {"child", current}};
+        current = mc::variant(parent);
+    }
+
+    // 编码
+    std::string encoded1 = json_wrapper::json_encode(current);
+    std::string encoded2 = mc::json::json_encode(current);
+
+    // 验证编码结果一致
+    EXPECT_EQ(encoded1, encoded2);
+
+    // 解码验证
+    mc::variant decoded1 = json_wrapper::json_decode(encoded1);
+    mc::variant decoded2 = mc::json::json_decode(encoded2);
+    EXPECT_EQ(decoded1, decoded2);
+}
+
+// ======================== dump 函数测试 ========================
+
+// 测试：dump variant 到文件（紧凑格式）
+TEST(JsonDumpTest, dump_variant_compact) {
+    mc::filesystem::path test_file = "/tmp/test_json_dump_variant_compact.json";
+
+    mc::dict data{{"name", "test"}, {"age", 30}, {"active", true}};
+    mc::variant value(data);
+
+    bool result = json_wrapper::dump(value, test_file, false);
+    EXPECT_TRUE(result);
+
+    auto content = mc::filesystem::read_file(test_file);
+    EXPECT_TRUE(content.has_value());
+    EXPECT_EQ(*content, "{\"name\":\"test\",\"age\":30,\"active\":true}");
+
+    mc::filesystem::remove(test_file);
+}
+
+// 测试：dump variant 到文件（格式化输出）
+TEST(JsonDumpTest, dump_variant_pretty) {
+    mc::filesystem::path test_file = "/tmp/test_json_dump_variant_pretty.json";
+
+    mc::dict data{{"name", "test"}, {"age", 30}, {"active", true}};
+    mc::variant value(data);
+
+    bool result = json_wrapper::dump(value, test_file, true);
+    EXPECT_TRUE(result);
+
+    auto content = mc::filesystem::read_file(test_file);
+    EXPECT_TRUE(content.has_value());
+
+    std::string json_str = *content;
+    EXPECT_NE(json_str.find("\n"), std::string::npos);
+    EXPECT_NE(json_str.find("\"name\""), std::string::npos);
+
+    mc::filesystem::remove(test_file);
+}
+
+// 测试：dump dict 到文件
+TEST(JsonDumpTest, dump_dict) {
+    mc::filesystem::path test_file = "/tmp/test_json_dump_dict.json";
+
+    mc::dict data{{"key1", "value1"}, {"key2", 42}, {"key3", false}};
+
+    bool result = json_wrapper::dump(data, test_file);
+    EXPECT_TRUE(result);
+
+    auto content = mc::filesystem::read_file(test_file);
+    EXPECT_TRUE(content.has_value());
+    EXPECT_EQ(*content, "{\"key1\":\"value1\",\"key2\":42,\"key3\":false}");
+
+    mc::filesystem::remove(test_file);
+}
+
+// 测试：dump vector<variant> 到文件
+TEST(JsonDumpTest, dump_vector) {
+    mc::filesystem::path test_file = "/tmp/test_json_dump_vector.json";
+
+    std::vector<mc::variant> arr{mc::variant(1), mc::variant("test"), mc::variant(true)};
+
+    bool result = json_wrapper::dump(arr, test_file);
+    EXPECT_TRUE(result);
+
+    auto content = mc::filesystem::read_file(test_file);
+    EXPECT_TRUE(content.has_value());
+    EXPECT_EQ(*content, "[1,\"test\",true]");
+
+    mc::filesystem::remove(test_file);
+}
+
+// 测试：dump 嵌套结构到文件
+TEST(JsonDumpTest, dump_nested_structure) {
+    mc::filesystem::path test_file = "/tmp/test_json_dump_nested.json";
+
+    mc::dict complex_data{
+        {"user", "Alice"},
+        {"scores", mc::variants{85, 92, 78}},
+        {"profile", mc::dict{{"city", "Beijing"}, {"age", 25}}}
+    };
+
+    bool result = json_wrapper::dump(mc::variant(complex_data), test_file);
+    EXPECT_TRUE(result);
+
+    auto content = mc::filesystem::read_file(test_file);
+    EXPECT_TRUE(content.has_value());
+
+    std::string json_str = *content;
+    EXPECT_NE(json_str.find("\"user\""), std::string::npos);
+    EXPECT_NE(json_str.find("\"scores\""), std::string::npos);
+    EXPECT_NE(json_str.find("\"profile\""), std::string::npos);
+
+    mc::filesystem::remove(test_file);
+}
+
+// 测试：dump 空对象到文件
+TEST(JsonDumpTest, dump_empty_object) {
+    mc::filesystem::path test_file = "/tmp/test_json_dump_empty.json";
+
+    mc::dict empty_data{};
+    mc::variant value(empty_data);
+
+    bool result = json_wrapper::dump(value, test_file);
+    EXPECT_TRUE(result);
+
+    auto content = mc::filesystem::read_file(test_file);
+    EXPECT_TRUE(content.has_value());
+    EXPECT_EQ(*content, "{}");
+
+    mc::filesystem::remove(test_file);
+}
+
+// 测试：dump 基本类型到文件
+TEST(JsonDumpTest, dump_basic_types) {
+    mc::filesystem::path test_file = "/tmp/test_json_dump_basic.json";
+
+    mc::variant null_val;
+    mc::variant bool_val(true);
+    mc::variant int_val(42);
+    mc::variant double_val(3.14);
+    mc::variant string_val("hello");
+
+    EXPECT_TRUE(json_wrapper::dump(null_val, test_file));
+    EXPECT_EQ(mc::filesystem::read_file(test_file).value_or(""), "null");
+
+    EXPECT_TRUE(json_wrapper::dump(bool_val, test_file));
+    EXPECT_EQ(mc::filesystem::read_file(test_file).value_or(""), "true");
+
+    EXPECT_TRUE(json_wrapper::dump(int_val, test_file));
+    EXPECT_EQ(mc::filesystem::read_file(test_file).value_or(""), "42");
+
+    EXPECT_TRUE(json_wrapper::dump(double_val, test_file));
+    EXPECT_EQ(mc::filesystem::read_file(test_file).value_or(""), "3.14");
+
+    EXPECT_TRUE(json_wrapper::dump(string_val, test_file));
+    EXPECT_EQ(mc::filesystem::read_file(test_file).value_or(""), "\"hello\"");
+
+    mc::filesystem::remove(test_file);
+}
+
+// 测试：dump 后读取验证数据一致性
+TEST(JsonDumpTest, dump_then_read_consistency) {
+    mc::filesystem::path test_file = "/tmp/test_json_dump_consistency.json";
+
+    mc::dict original_data{
+        {"name", "Bob"},
+        {"age", 30},
+        {"married", false},
+        {"hobbies", mc::variants{"reading", "gaming"}}
+    };
+    mc::variant original(original_data);
+
+    bool result = json_wrapper::dump(original, test_file, true);
+    EXPECT_TRUE(result);
+
+    auto content = mc::filesystem::read_file(test_file);
+    EXPECT_TRUE(content.has_value());
+
+    mc::variant decoded = json_wrapper::json_decode(*content);
+    EXPECT_EQ(decoded, original);
+
+    mc::filesystem::remove(test_file);
+}
+
+// 测试：dump 格式化输出验证
+TEST(JsonDumpTest, dump_formatted_output) {
+    mc::filesystem::path test_file = "/tmp/test_json_dump_formatted.json";
+
+    mc::dict data{
+        {"level1", mc::dict{
+            {"level2", mc::dict{
+                {"value", 42}
+            }}
+        }}
+    };
+
+    bool result = json_wrapper::dump(mc::variant(data), test_file, true);
+    EXPECT_TRUE(result);
+
+    auto content = mc::filesystem::read_file(test_file);
+    EXPECT_TRUE(content.has_value());
+
+    std::string json_str = *content;
+    EXPECT_NE(json_str.find("\n"), std::string::npos);
+    EXPECT_NE(json_str.find("    "), std::string::npos);
+
+    mc::filesystem::remove(test_file);
+}
+
+// 测试：dump 到不存在的目录
+TEST(JsonDumpTest, dump_to_invalid_path) {
+    mc::filesystem::path test_file = "/nonexistent/directory/test.json";
+
+    mc::dict data{{"key", "value"}};
+    mc::variant value(data);
+
+    bool result = json_wrapper::dump(value, test_file);
+    EXPECT_FALSE(result);
+}
+
+// ======================== json_encode 直接编码优化测试 ========================
+
+// 测试套件：json_encode(const mc::dict&, bool) 直接编码测试
+TEST(JsonDirectEncodeTest, encode_dict_basic) {
+    // 测试空对象
+    mc::dict empty_dict{};
+    std::string result = json_wrapper::json_encode(empty_dict, false);
+    EXPECT_EQ(result, "{}");
+
+    // 测试简单对象（各种类型）
+    mc::dict simple_dict{{"name", "test"}, {"age", 30}, {"active", true}, {"score", 95.5}};
+    result = json_wrapper::json_encode(simple_dict, false);
+    EXPECT_TRUE(result.find("\"name\"") != std::string::npos);
+    EXPECT_TRUE(result.find("\"test\"") != std::string::npos);
+    EXPECT_TRUE(result.find("\"age\"") != std::string::npos);
+    EXPECT_TRUE(result.find("30") != std::string::npos);
+    EXPECT_TRUE(result.find("\"active\"") != std::string::npos);
+    EXPECT_TRUE(result.find("true") != std::string::npos);
+    EXPECT_TRUE(result.find("\"score\"") != std::string::npos);
+    EXPECT_TRUE(result.find("95.5") != std::string::npos);
+}
+
+TEST(JsonDirectEncodeTest, encode_dict_nested) {
+    // 测试嵌套对象
+    mc::dict nested_dict{
+        {"user", mc::dict{{"name", "Alice"}, {"age", 25}}},
+        {"scores", mc::variants{85, 92, 78}},
+        {"active", true}
+    };
+
+    std::string result = json_wrapper::json_encode(nested_dict, false);
+    EXPECT_TRUE(result.find("\"user\"") != std::string::npos);
+    EXPECT_TRUE(result.find("\"scores\"") != std::string::npos);
+    EXPECT_TRUE(result.find("\"Alice\"") != std::string::npos);
+    EXPECT_TRUE(result.find("[85,92,78]") != std::string::npos);
+}
+
+TEST(JsonDirectEncodeTest, encode_dict_pretty_print) {
+    // 测试格式化输出
+    mc::dict data{
+        {"name", "张三"},
+        {"age", 30},
+        {"scores", mc::variants{85, 92, 78}},
+        {"profile", mc::dict{{"city", "北京"}, {"street", "长安街"}}}
+    };
+
+    std::string compact = json_wrapper::json_encode(data, false);
+    std::string pretty = json_wrapper::json_encode(data, true);
+
+    // 紧凑格式不包含换行和空格缩进
+    EXPECT_EQ(compact.find("\n"), std::string::npos);
+    EXPECT_EQ(compact.find("    "), std::string::npos);
+
+    // 格式化输出包含换行和缩进
+    EXPECT_NE(pretty.find("\n"), std::string::npos);
+    EXPECT_NE(pretty.find("    "), std::string::npos);
+}
+
+TEST(JsonDirectEncodeTest, encode_dict_consistency_with_variant) {
+    // 验证直接编码 dict 与通过 variant 编码结果一致
+    mc::dict test_dict{
+        {"null_value", mc::variant()},
+        {"bool_value", true},
+        {"int_value", int64_t{12345}},
+        {"float_value", 123.45},
+        {"string_value", "hello"},
+        {"array_value", mc::variants{1, "two", false}},
+        {"object_value", mc::dict{{"key", "value"}}}
+    };
+
+    // 直接编码 dict
+    std::string direct_result = json_wrapper::json_encode(test_dict, false);
+
+    // 通过 variant 编码
+    std::string variant_result = json_wrapper::json_encode(mc::variant(test_dict), false);
+
+    EXPECT_EQ(direct_result, variant_result);
+}
+
+TEST(JsonDirectEncodeTest, encode_dict_chinese) {
+    // 测试中文字符
+    mc::dict chinese_dict{{"姓名", "张三"}, {"年龄", 30}, {"城市", "北京"}};
+
+    std::string result = json_wrapper::json_encode(chinese_dict, false);
+    EXPECT_TRUE(result.find("\"姓名\"") != std::string::npos);
+    EXPECT_TRUE(result.find("\"张三\"") != std::string::npos);
+    EXPECT_TRUE(result.find("\"年龄\"") != std::string::npos);
+    EXPECT_TRUE(result.find("\"城市\"") != std::string::npos);
+    EXPECT_TRUE(result.find("\"北京\"") != std::string::npos);
+
+    // 验证往返转换
+    mc::variant decoded = json_wrapper::json_decode(result);
+    EXPECT_EQ(decoded.get_object()["姓名"].as<std::string>(), "张三");
+    EXPECT_EQ(decoded.get_object()["年龄"].as<int8_t>(), 30);
+    EXPECT_EQ(decoded.get_object()["城市"].as<std::string>(), "北京");
+}
+
+TEST(JsonDirectEncodeTest, encode_dict_special_characters) {
+    // 测试特殊字符转义
+    mc::dict special_dict{
+        {"newline", "hello\nworld"},
+        {"tab", "hello\tworld"},
+        {"quote", "hello\"world"},
+        {"backslash", "hello\\world"}
+    };
+
+    std::string result = json_wrapper::json_encode(special_dict, false);
+    EXPECT_TRUE(result.find("\\n") != std::string::npos);
+    EXPECT_TRUE(result.find("\\t") != std::string::npos);
+    EXPECT_TRUE(result.find("\\\"") != std::string::npos);
+    EXPECT_TRUE(result.find("\\\\") != std::string::npos);
+
+    // 验证往返转换
+    mc::variant decoded = json_wrapper::json_decode(result);
+    EXPECT_EQ(decoded.get_object()["newline"].as<std::string>(), "hello\nworld");
+    EXPECT_EQ(decoded.get_object()["tab"].as<std::string>(), "hello\tworld");
+    EXPECT_EQ(decoded.get_object()["quote"].as<std::string>(), "hello\"world");
+    EXPECT_EQ(decoded.get_object()["backslash"].as<std::string>(), "hello\\world");
+}
+
+TEST(JsonDirectEncodeTest, encode_dict_deep_nesting) {
+    // 测试深层嵌套
+    mc::variant current = mc::variant(mc::dict{{"level", 10}});
+    for (int i = 9; i >= 0; --i) {
+        mc::dict parent = {{"level", i}, {"child", current}};
+        current = mc::variant(parent);
+    }
+
+    // 通过 variant 编码
+    std::string variant_result = json_wrapper::json_encode(current, false);
+
+    // 直接编码 dict（从最外层提取）
+    mc::dict outer_dict = current.get_object();
+    std::string direct_result = json_wrapper::json_encode(outer_dict, false);
+
+    EXPECT_EQ(variant_result, direct_result);
+}
+
+TEST(JsonDirectEncodeTest, encode_dict_empty_and_null_values) {
+    // 测试空值和 null 处理
+    mc::dict null_dict{
+        {"empty_string", ""},
+        {"null_value", mc::variant()},
+        {"empty_array", mc::variants{}},
+        {"empty_object", mc::dict{}}
+    };
+
+    std::string result = json_wrapper::json_encode(null_dict, false);
+    EXPECT_TRUE(result.find("\"empty_string\"") != std::string::npos);
+    EXPECT_TRUE(result.find("\"null_value\"") != std::string::npos);
+    EXPECT_TRUE(result.find("\"empty_array\"") != std::string::npos);
+    EXPECT_TRUE(result.find("\"empty_object\"") != std::string::npos);
+}
+
+// 测试套件：json_encode(const std::vector<mc::variant>&, bool) 直接编码测试
+TEST(JsonDirectEncodeTest, encode_vector_basic) {
+    // 测试空数组
+    std::vector<mc::variant> empty_vector{};
+    std::string result = json_wrapper::json_encode(empty_vector, false);
+    EXPECT_EQ(result, "[]");
+
+    // 测试简单数组（各种类型）
+    std::vector<mc::variant> simple_vector = {
+        mc::variant(1),
+        mc::variant("test"),
+        mc::variant(true),
+        mc::variant(3.14)
+    };
+    result = json_wrapper::json_encode(simple_vector, false);
+    EXPECT_EQ(result, "[1,\"test\",true,3.14]");
+}
+
+TEST(JsonDirectEncodeTest, encode_vector_nested) {
+    // 测试嵌套数组
+    std::vector<mc::variant> nested_vector = {
+        mc::variant(1),
+        mc::variant("hello"),
+        mc::variant(mc::variants{2, 3, 4}),
+        mc::variant(mc::dict{{"key", "value"}})
+    };
+
+    std::string result = json_wrapper::json_encode(nested_vector, false);
+    EXPECT_TRUE(result.find("[1,\"hello\",") != std::string::npos);
+    EXPECT_TRUE(result.find("[2,3,4]") != std::string::npos);
+    EXPECT_TRUE(result.find("{\"key\":\"value\"}") != std::string::npos);
+}
+
+TEST(JsonDirectEncodeTest, encode_vector_pretty_print) {
+    // 测试格式化输出
+    std::vector<mc::variant> data = {
+        mc::variant("姓名"),
+        mc::variant("张三"),
+        mc::variant(30),
+        mc::variant(mc::variants{85, 92, 78})
+    };
+
+    std::string compact = json_wrapper::json_encode(data, false);
+    std::string pretty = json_wrapper::json_encode(data, true);
+
+    // 紧凑格式不包含换行和空格缩进
+    EXPECT_EQ(compact.find("\n"), std::string::npos);
+    EXPECT_EQ(compact.find("    "), std::string::npos);
+
+    // 格式化输出包含换行和缩进
+    EXPECT_NE(pretty.find("\n"), std::string::npos);
+    EXPECT_NE(pretty.find("    "), std::string::npos);
+}
+
+TEST(JsonDirectEncodeTest, encode_vector_consistency_with_variant) {
+    // 验证直接编码 vector 与通过 variant 编码结果一致
+    std::vector<mc::variant> test_vector = {
+        mc::variant(),
+        mc::variant(true),
+        mc::variant(int64_t{12345}),
+        mc::variant(123.45),
+        mc::variant("hello"),
+        mc::variant(mc::variants{1, 2, 3}),
+        mc::variant(mc::dict{{"key", "value"}})
+    };
+
+    // 直接编码 vector
+    std::string direct_result = json_wrapper::json_encode(test_vector, false);
+
+    // 通过 variant 编码
+    std::string variant_result = json_wrapper::json_encode(mc::variant(test_vector), false);
+
+    EXPECT_EQ(direct_result, variant_result);
+}
+
+TEST(JsonDirectEncodeTest, encode_vector_mixed_types) {
+    // 测试混合类型数组
+    std::vector<mc::variant> mixed_vector = {
+        mc::variant(),           // null
+        mc::variant(false),      // bool
+        mc::variant(int8_t{127}),// int8
+        mc::variant(uint16_t{65535}), // uint16
+        mc::variant(3.14159),    // double
+        mc::variant("test"),     // string
+        mc::variant(mc::variants{}),        // empty array
+        mc::variant(mc::dict{})             // empty object
+    };
+
+    std::string result = json_wrapper::json_encode(mixed_vector, false);
+    // 验证包含所有元素（避免复杂的转义字符问题）
+    EXPECT_TRUE(result.find("null") != std::string::npos);
+    EXPECT_TRUE(result.find("false") != std::string::npos);
+    EXPECT_TRUE(result.find("127") != std::string::npos);
+    EXPECT_TRUE(result.find("65535") != std::string::npos);
+    EXPECT_TRUE(result.find("3.14159") != std::string::npos);
+    EXPECT_TRUE(result.find("\"test\"") != std::string::npos);
+    EXPECT_TRUE(result.find("[]") != std::string::npos);
+    EXPECT_TRUE(result.find("{}") != std::string::npos);
+
+    // 验证往返转换
+    mc::variant decoded = json_wrapper::json_decode(result);
+    EXPECT_TRUE(decoded.get_array()[0].is_null());
+    EXPECT_FALSE(decoded.get_array()[1].as<bool>());
+    EXPECT_EQ(decoded.get_array()[2].as<int8_t>(), 127);
+    EXPECT_EQ(decoded.get_array()[3].as<uint16_t>(), 65535);
+    EXPECT_NEAR(decoded.get_array()[4].as<double>(), 3.14159, 0.00001);
+    EXPECT_EQ(decoded.get_array()[5].as<std::string>(), "test");
+    EXPECT_TRUE(decoded.get_array()[6].is_array());
+    EXPECT_TRUE(decoded.get_array()[7].is_object());
+}
+
+TEST(JsonDirectEncodeTest, encode_vector_chinese) {
+    // 测试中文字符数组
+    std::vector<mc::variant> chinese_vector = {
+        mc::variant("姓名"),
+        mc::variant("张三"),
+        mc::variant("年龄"),
+        mc::variant(30),
+        mc::variant("城市"),
+        mc::variant("北京")
+    };
+
+    std::string result = json_wrapper::json_encode(chinese_vector, false);
+    EXPECT_TRUE(result.find("\"姓名\"") != std::string::npos);
+    EXPECT_TRUE(result.find("\"张三\"") != std::string::npos);
+    EXPECT_TRUE(result.find("\"年龄\"") != std::string::npos);
+    EXPECT_TRUE(result.find("\"城市\"") != std::string::npos);
+    EXPECT_TRUE(result.find("\"北京\"") != std::string::npos);
+
+    // 验证往返转换
+    mc::variant decoded = json_wrapper::json_decode(result);
+    EXPECT_EQ(decoded.get_array()[0].as<std::string>(), "姓名");
+    EXPECT_EQ(decoded.get_array()[1].as<std::string>(), "张三");
+    EXPECT_EQ(decoded.get_array()[3].as<int8_t>(), 30);
+    EXPECT_EQ(decoded.get_array()[5].as<std::string>(), "北京");
+}
+
+TEST(JsonDirectEncodeTest, encode_vector_special_characters) {
+    // 测试特殊字符转义
+    std::vector<mc::variant> special_vector = {
+        mc::variant("hello\nworld"),
+        mc::variant("hello\tworld"),
+        mc::variant("hello\"world"),
+        mc::variant("hello\\world")
+    };
+
+    std::string result = json_wrapper::json_encode(special_vector, false);
+    EXPECT_TRUE(result.find("\\n") != std::string::npos);
+    EXPECT_TRUE(result.find("\\t") != std::string::npos);
+    EXPECT_TRUE(result.find("\\\"") != std::string::npos);
+    EXPECT_TRUE(result.find("\\\\") != std::string::npos);
+
+    // 验证往返转换
+    mc::variant decoded = json_wrapper::json_decode(result);
+    EXPECT_EQ(decoded.get_array()[0].as<std::string>(), "hello\nworld");
+    EXPECT_EQ(decoded.get_array()[1].as<std::string>(), "hello\tworld");
+    EXPECT_EQ(decoded.get_array()[2].as<std::string>(), "hello\"world");
+    EXPECT_EQ(decoded.get_array()[3].as<std::string>(), "hello\\world");
+}
+
+TEST(JsonDirectEncodeTest, encode_vector_large_numbers) {
+    // 测试大数字
+    std::vector<mc::variant> large_numbers = {
+        mc::variant(int64_t{9223372036854775807LL}),   // int64 max
+        mc::variant(uint64_t{18446744073709551615ULL}), // uint64 max
+        mc::variant(-9223372036854775807LL),            // int64 min
+        mc::variant(1.23e-10),                          // 科学计数法小
+        mc::variant(1.23e+10)                           // 科学计数法大
+    };
+
+    std::string result = json_wrapper::json_encode(large_numbers, false);
+
+    // 验证往返转换
+    mc::variant decoded = json_wrapper::json_decode(result);
+    EXPECT_EQ(decoded.get_array()[0].as<int64_t>(), 9223372036854775807LL);
+    EXPECT_EQ(decoded.get_array()[1].as<uint64_t>(), 18446744073709551615ULL);
+    EXPECT_EQ(decoded.get_array()[2].as<int64_t>(), -9223372036854775807LL);
+    EXPECT_NEAR(decoded.get_array()[3].as<double>(), 1.23e-10, 1e-15);
+    EXPECT_NEAR(decoded.get_array()[4].as<double>(), 1.23e+10, 1e5);
+}
+
+// 测试套件：性能优化验证测试
+TEST(JsonDirectEncodeTest, performance_optimization_dict) {
+    // 验证直接编码 dict 与通过 variant 编码结果完全一致
+    mc::dict complex_dict{
+        {"string", "hello world"},
+        {"number", 42},
+        {"floating", 3.14159},
+        {"boolean", true},
+        {"null", mc::variant()},
+        {"array", mc::variants{1, 2, 3, "test", false}},
+        {"nested", mc::dict{
+            {"level2", mc::dict{
+                {"value", "deep"}
+            }}
+        }}
+    };
+
+    std::string direct = json_wrapper::json_encode(complex_dict, false);
+    std::string variant = json_wrapper::json_encode(mc::variant(complex_dict), false);
+
+    EXPECT_EQ(direct, variant);
+
+    // 验证格式化输出也一致
+    std::string direct_pretty = json_wrapper::json_encode(complex_dict, true);
+    std::string variant_pretty = json_wrapper::json_encode(mc::variant(complex_dict), true);
+
+    EXPECT_EQ(direct_pretty, variant_pretty);
+}
+
+TEST(JsonDirectEncodeTest, performance_optimization_vector) {
+    // 验证直接编码 vector 与通过 variant 编码结果完全一致
+    std::vector<mc::variant> complex_vector = {
+        mc::variant("first"),
+        mc::variant(100),
+        mc::variant(2.71828),
+        mc::variant(false),
+        mc::variant(),
+        mc::variant(mc::variants{1, 2, 3}),
+        mc::variant(mc::dict{{"key", "value"}, {"nested", mc::dict{{"deep", true}}}})
+    };
+
+    std::string direct = json_wrapper::json_encode(complex_vector, false);
+    std::string variant = json_wrapper::json_encode(mc::variant(complex_vector), false);
+
+    EXPECT_EQ(direct, variant);
+
+    // 验证格式化输出也一致
+    std::string direct_pretty = json_wrapper::json_encode(complex_vector, true);
+    std::string variant_pretty = json_wrapper::json_encode(mc::variant(complex_vector), true);
+
+    EXPECT_EQ(direct_pretty, variant_pretty);
+}
+
+// 测试套件：往返转换测试
+TEST(JsonDirectEncodeTest, round_trip_dict) {
+    // 创建复杂 dict
+    mc::dict original{
+        {"name", "测试用户"},
+        {"age", 25},
+        {"scores", mc::variants{85, 92, 78, 95}},
+        {"profile", mc::dict{
+            {"city", "上海"},
+            {"district", "浦东新区"},
+            {"zip", "200000"}
+        }},
+        {"active", true},
+        {"balance", 1234.56}
+    };
+
+    // 编码
+    std::string encoded = json_wrapper::json_encode(original, false);
+
+    // 解码
+    mc::variant decoded = json_wrapper::json_decode(encoded);
+
+    // 验证
+    EXPECT_EQ(decoded.get_object()["name"].as<std::string>(), "测试用户");
+    EXPECT_EQ(decoded.get_object()["age"].as<int8_t>(), 25);
+    EXPECT_EQ(decoded.get_object()["scores"].get_array().size(), 4);
+    EXPECT_EQ(decoded.get_object()["profile"].get_object()["city"].as<std::string>(), "上海");
+    EXPECT_TRUE(decoded.get_object()["active"].as<bool>());
+    EXPECT_NEAR(decoded.get_object()["balance"].as<double>(), 1234.56, 0.01);
+}
+
+TEST(JsonDirectEncodeTest, round_trip_vector) {
+    // 创建复杂 vector
+    std::vector<mc::variant> original = {
+        mc::variant("数据"),
+        mc::variant(42),
+        mc::variant(3.14),
+        mc::variant(true),
+        mc::variant(),
+        mc::variant(mc::variants{1, 2, 3}),
+        mc::variant(mc::dict{{"键", "值"}})
+    };
+
+    // 编码
+    std::string encoded = json_wrapper::json_encode(original, false);
+
+    // 解码
+    mc::variant decoded = json_wrapper::json_decode(encoded);
+
+    // 验证
+    EXPECT_EQ(decoded.get_array()[0].as<std::string>(), "数据");
+    EXPECT_EQ(decoded.get_array()[1].as<int8_t>(), 42);
+    EXPECT_NEAR(decoded.get_array()[2].as<double>(), 3.14, 0.01);
+    EXPECT_TRUE(decoded.get_array()[3].as<bool>());
+    EXPECT_TRUE(decoded.get_array()[4].is_null());
+    EXPECT_EQ(decoded.get_array()[5].get_array().size(), 3);
+    EXPECT_EQ(decoded.get_array()[6].get_object()["键"].as<std::string>(), "值");
+}
+
