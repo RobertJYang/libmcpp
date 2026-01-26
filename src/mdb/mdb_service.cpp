@@ -1090,7 +1090,7 @@ mc::variant execute_cache_creation(const std::string&                      cache
         if (need_cleanup) {
             cleanup();
         }
-        return "";
+        throw;
     }
 }
 
