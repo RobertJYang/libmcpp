@@ -134,8 +134,14 @@ static int l_get_parent_objects(lua_State* L) {
 // mdb_service.get_service_name(conn, sender)
 static int l_get_service_name(lua_State* L) {
     try {
-        auto        bus    = create_sd_bus_from_lua(L, 1);
-        const char* sender = luaL_checkstring(L, 2);
+        auto bus = create_sd_bus_from_lua(L, 1);
+        
+        // 严格检查参数类型
+        if (!lua_isstring(L, 2)) {
+            return luaL_error(L, "bad argument #2 to 'get_service_name' (string expected, got %s)",
+                            lua_typename(L, lua_type(L, 2)));
+        }
+        const char* sender = lua_tostring(L, 2);
 
         auto result = mc::mdb::service::get_service_name(bus.get(), sender);
         mc::lua::variant_to_lua(L, result);
