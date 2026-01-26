@@ -290,7 +290,7 @@ static std::optional<variant> get_property_via_rpc(std::string_view interface_na
     // timeout_call_with_sender 可能抛出异常，这里不捕获，让异常向上传播
     auto reply_opt = shm_tree::timeout_call_with_sender(PROP_RPC_TIMEOUT, MDB_SERVICE_NAME,
                                                         {service_name, object_path, PROPS_IFACE,
-                                                        GET_WITH_CTX, GET_WITH_CTX_SIG, rpc_args});
+                                                         GET_WITH_CTX, GET_WITH_CTX_SIG, rpc_args});
 
     if (!reply_opt.has_value() || reply_opt->empty()) {
         return std::nullopt;
@@ -310,7 +310,7 @@ static std::pair<std::optional<variant>, std::optional<variant>> get_property_vi
     try {
         reply_opt = shm_tree::timeout_call_with_sender(PROP_RPC_TIMEOUT, MDB_SERVICE_NAME,
                                                        {service_name, object_path, PROPS_IFACE,
-                                                       GET_WITH_CTX, GET_WITH_CTX_SIG, rpc_args});
+                                                        GET_WITH_CTX, GET_WITH_CTX_SIG, rpc_args});
     } catch (const std::exception& e) {
         return {std::nullopt, variant(std::string(e.what()))};
     } catch (...) {
@@ -1356,7 +1356,7 @@ std::optional<mc::variants> shm_tree::timeout_call(mc::milliseconds timeout, con
 }
 
 std::optional<mc::variants> shm_tree::timeout_call_with_sender(mc::milliseconds timeout, std::string_view sender,
-                                                        const method_call_params& params) {
+                                                               const method_call_params& params) {
     local_msg msg(params.service_name, params.path, params.interface, params.method);
     if (!params.signature.empty()) {
         msg.append_args(params.signature, params.args);
@@ -1374,23 +1374,26 @@ std::optional<mc::variants> shm_tree::timeout_call_with_sender(mc::milliseconds 
     msg.set_timestamp();
 #endif
     auto data = msg.pack();
-    try {
-        if (!msg_queue->push_back(data, MSG_QUEUE_PUSH_TIMEOUT)) {
-            wlog("failed to push to message queue of destination service: ${service_name}",
-                 ("service_name", params.service_name));
-            return std::nullopt;
-        }
-    } catch (const std::exception& e) {
-        elog("message queue rpc failed: ${error}", ("error", e.what()));
-        return std::nullopt;
-    }
+    // 先保存promise，再发送消息，避免时序问题导致接收消息回复时找不到对应的promise
     auto  promise = mc::make_promise<local_msg>();
-    auto  future  = promise.get_future();
     auto& harbor  = mc::dbus::harbor::get_instance();
     if (!harbor.send_shm_msg(sender, serial, promise)) {
         wlog("failed to save shm msg promise");
         return std::nullopt;
     }
+    try {
+        if (!msg_queue->push_back(data, MSG_QUEUE_PUSH_TIMEOUT)) {
+            harbor.remove_shm_msg(sender, serial);
+            wlog("failed to push to message queue of destination service: ${service_name}",
+                 ("service_name", params.service_name));
+            return std::nullopt;
+        }
+    } catch (const std::exception& e) {
+        harbor.remove_shm_msg(sender, serial);
+        elog("message queue rpc failed: ${error}", ("error", e.what()));
+        return std::nullopt;
+    }
+    auto future = promise.get_future();
     if (future.wait_for(timeout) == mc::futures::future_status::timeout) {
         harbor.remove_shm_msg(sender, serial);
         throw mc::exception(mc::method_call_exception_code, std::string(error_names::no_reply),

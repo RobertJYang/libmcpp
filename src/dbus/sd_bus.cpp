@@ -100,7 +100,7 @@ static variants remove_context_arg(const variants& args) {
     if (args.empty()) {
         return args;
     }
-    bool is_context = args[0].is_dict() || args[0].is_array() && args[0].as_array().empty();
+    bool is_context = args[0].is_dict() || (args[0].is_array() && args[0].as_array().empty());
     if (!is_context) {
         return args;
     }
