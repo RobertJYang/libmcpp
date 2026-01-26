@@ -2,7 +2,7 @@
     "name": "libmcpp",
     "type": "library",
     "deployConfig": "",
-    "version": "1.2.17",
+    "version": "1.2.18",
     "license": "",
     "description": "",
     "dependencies": {

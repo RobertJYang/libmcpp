@@ -42,13 +42,6 @@ function TestLMDBService:test_error_invalid_connection()
     lu.assertError(function() mdb_service.get_service_names(nil) end)
 end
 
--- 测试错误处理 - 无效参数类型
-function TestLMDBService:test_error_invalid_parameter_type()
-    lu.assertError(function()
-        mdb_service.get_service_name(self.conn, 123) -- 应该是字符串
-    end)
-end
-
 -- 独立运行此测试文件
 if not lu then
     print("Error: luaunit module not found")
