@@ -10,6 +10,7 @@
  * See the Mulan PSL v2 for more details.
  */
 #include <glib-2.0/glib.h>
+#include <mc/dbus/shm/gvariant_convert.h>
 #include <mc/dbus/shm/serialize.h>
 #include <mc/dbus/shm/shm_tree.h>
 #include <mc/dict.h>
@@ -147,14 +148,41 @@ static std::optional<variant> read_property_variant(const shm::property& prop) {
         return std::nullopt;
     }
 
-    std::string_view data = data_opt.value();
-    void*            buf  = g_malloc0(data.size());
+    std::string_view data      = data_opt.value();
+    size_t           data_size = data.size();
+
+    // 处理长度为 0 的情况：g_malloc0(0) 可能返回 nullptr
+    if (data_size == 0) {
+        // 对于空数据，根据签名类型创建空的 gvariant
+        const char* sig_str = sig.data();
+        if (sig_str && strlen(sig_str) > 0) {
+            // 对于数组类型（如 "ay"），创建空数组
+            if (sig_str[0] == DBUS_TYPE_ARRAY) {
+                gvariant_auto_free gv(g_variant_new_fixed_array(
+                    G_VARIANT_TYPE(sig_str + 1), nullptr, 0, 0));
+                if (gv.ptr) {
+                    return gvariant_convert::to_mc_variant(gv.ptr);
+                }
+            }
+            // 对于字符串类型（如 "s"），创建空字符串
+            else if (sig_str[0] == DBUS_TYPE_STRING) {
+                gvariant_auto_free gv(g_variant_new_string(""));
+                if (gv.ptr) {
+                    return gvariant_convert::to_mc_variant(gv.ptr);
+                }
+            }
+        }
+        // 如果无法创建空 variant，返回 nullopt
+        return std::nullopt;
+    }
+
+    void* buf = g_malloc0(data_size);
     if (buf == nullptr) {
         return std::nullopt;
     }
-    std::memcpy(buf, data.data(), data.size());
+    std::memcpy(buf, data.data(), data_size);
     gvariant_auto_free gv(
-        g_variant_new_from_data(G_VARIANT_TYPE(sig.data()), buf, data.size(), false, g_free, buf));
+        g_variant_new_from_data(G_VARIANT_TYPE(sig.data()), buf, data_size, false, g_free, buf));
     return gvariant_convert::to_mc_variant(gv.ptr);
 }
 
@@ -1455,12 +1483,48 @@ static std::optional<variant> get_property_inner(std::string_view service_name, 
         }
         std::string_view prop_value = data.value();
         size_t           p_data_len = prop_value.size();
-        void*            p_data     = g_malloc0(p_data_len);
+        std::string_view signature  = prop->get_signature();
+
+        // 处理长度为 0 的情况：g_malloc0(0) 可能返回 nullptr
+        if (p_data_len == 0) {
+            // 对于空数据，根据签名类型创建空的 gvariant
+            const char* sig_str = signature.data();
+            if (sig_str && strlen(sig_str) > 0) {
+                // 对于数组类型（如 "ay"），创建空数组
+                if (sig_str[0] == DBUS_TYPE_ARRAY) {
+                    // 使用 gvariant_builder 创建空数组更安全
+                    gvariant_builder   builder(G_VARIANT_TYPE(signature.data()));
+                    gvariant_auto_free v(builder.end());
+                    if (v.ptr) {
+                        return std::make_optional(gvariant_convert::to_mc_variant(v.ptr));
+                    }
+                }
+                // 对于字符串类型（如 "s"），创建空字符串
+                else if (sig_str[0] == DBUS_TYPE_STRING) {
+                    gvariant_auto_free v(g_variant_new_string(""));
+                    if (v.ptr) {
+                        return std::make_optional(gvariant_convert::to_mc_variant(v.ptr));
+                    }
+                }
+                // 对于其他类型，尝试使用 g_variant_new_from_data 但传入 nullptr
+                // GLib 文档说明：如果 data 为 nullptr，size 必须为 0
+                else {
+                    gvariant_auto_free v(
+                        g_variant_new_from_data(G_VARIANT_TYPE(sig_str), nullptr, 0, false, nullptr, nullptr));
+                    if (v.ptr) {
+                        return std::make_optional(gvariant_convert::to_mc_variant(v.ptr));
+                    }
+                }
+            }
+            // 如果无法创建空 variant，返回 null variant
+            return std::make_optional(mc::variant());
+        }
+
+        void* p_data = g_malloc0(p_data_len);
         if (p_data == nullptr) {
             MC_THROW(mc::exception, "g_malloc0 failed, len: ${len}", ("len", p_data_len));
         }
         std::memcpy(p_data, prop_value.data(), p_data_len);
-        std::string_view   signature = prop->get_signature();
         gvariant_auto_free v(
             g_variant_new_from_data(G_VARIANT_TYPE(signature.data()), p_data, p_data_len, false, g_free, p_data));
         return std::make_optional(gvariant_convert::to_mc_variant(v.ptr));
