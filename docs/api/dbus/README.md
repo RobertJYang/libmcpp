@@ -42,11 +42,13 @@ DBus 错误处理，包括：
 DBus 匹配规则，包括：
 - `mc::dbus::match_rule` - 匹配规则构建器
 - `mc::dbus::match` - 匹配对象
+- `mc::engine::service::add_match()` - 服务中的匹配规则（支持 DBus + 共享内存）
 - 信号过滤
 - 规则字符串生成
 
 #### [signal.md](signal.md)
 DBus 信号发射工具，包括：
+- `mc::dbus::send_signal()` - 通过共享内存或 DBus 发送信号
 - `mc::dbus::emit_interfaces_added()` - 发射 InterfacesAdded 信号
 - `mc::dbus::emit_interfaces_removed()` - 发射 InterfacesRemoved 信号
 - `mc::dbus::emit_properties_changed()` - 发射 PropertiesChanged 信号

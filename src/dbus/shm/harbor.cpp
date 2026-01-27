@@ -125,10 +125,12 @@ harbor::~harbor() {
 }
 
 void harbor::set_harbor_name(std::string_view name) {
+    std::lock_guard<std::mutex> lock(m_mutex);
     m_harbor_name = std::string(name);
 }
 
 void harbor::set_harbor_name_if_empty(std::string_view name) {
+    std::lock_guard<std::mutex> lock(m_mutex);
     if (m_harbor_name.empty()) {
         m_harbor_name = std::string(name);
     }

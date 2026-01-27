@@ -44,7 +44,7 @@ struct message_data {
  * @param unique_name [in] 唯一名称
  * @return 返回共享内存对象树指针
  */
-shm::object_tree* create_shm_tree(std::string_view harbor_name, std::string_view service_name,
+MC_API shm::object_tree* create_shm_tree(std::string_view harbor_name, std::string_view service_name,
                                   std::string_view unique_name);
 
 /**
@@ -81,7 +81,7 @@ private:
 /**
  * @brief 共享内存通信港口
  */
-class harbor {
+class MC_API harbor {
 public:
     /**
      * @brief 构造函数

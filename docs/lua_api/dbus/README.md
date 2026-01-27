@@ -25,6 +25,7 @@
 - `nonblock.open_user()` - 打开用户会话
 - `nonblock.shutdown()` - 关闭库
 - 连接对象方法（start, request_name, close, flush, dispatch）
+- 共享内存相关方法（notify_signal, add_match）
 
 #### [message.md](message.md)
 消息创建工具，包括：

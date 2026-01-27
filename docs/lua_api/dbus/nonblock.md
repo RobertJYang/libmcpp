@@ -366,6 +366,183 @@ end
 conn:dispatch()
 ```
 
+### conn:notify_signal
+
+通过 DBus 发送信号消息。
+
+#### 语法
+
+```lua
+success = conn:notify_signal(path, interface, member, [destination])
+```
+
+#### 参数
+
+- `path` (string) - 对象路径，如 `"/com/test/Path"`
+- `interface` (string) - 接口名称，如 `"com.test.Interface"`
+- `member` (string) - 信号名称，如 `"TestSignal"`
+- `destination` (string, 可选) - 目标服务名称，如 `"org.freedesktop.DBus"`
+
+#### 返回值
+
+- `success` (boolean) - 是否成功发送信号
+
+#### 示例
+
+```lua
+local conn = ldbus.nonblock.open_user()
+
+-- 发送基本信号
+local ok = conn:notify_signal("/com/test/Path", "com.test.Interface", "TestSignal")
+assert(ok == true)
+
+-- 发送带目标地址的信号
+local ok2 = conn:notify_signal("/com/test/Path", "com.test.Interface", "TestSignal", "org.freedesktop.DBus")
+assert(ok2 == true)
+
+conn:close()
+```
+
+### conn:add_match
+
+添加 DBus 和共享内存的匹配规则，当匹配的信号到达时调用回调函数。
+
+#### 语法
+
+```lua
+success = conn:add_match(callback, id, harbor_name, member, interface, [is_path_namespace, path], [sender], [type], [destination])
+```
+
+#### 参数
+
+- `callback` (function) - 回调函数，接收一个 `message` 参数，当匹配的信号到达时被调用
+- `id` (number) - 规则 ID，用于标识此匹配规则
+- `harbor_name` (string) - Harbor 名称，用于标识共享内存区域
+- `member` (string) - 信号名称（必选）
+- `interface` (string) - 接口名称（必选）
+- `is_path_namespace` (boolean, 可选) - 如果提供，表示 `path` 参数是路径命名空间还是具体路径
+- `path` (string, 可选) - 对象路径或路径命名空间（需要与 `is_path_namespace` 一起提供）
+- `sender` (string, 可选) - 发送者匹配
+- `type` (number, 可选) - 消息类型（DBus 消息类型枚举值）
+- `destination` (string, 可选) - 目标匹配
+
+#### 返回值
+
+- `success` (boolean) - 是否成功添加匹配规则
+
+#### 说明
+
+- 此函数会同时添加 DBus 匹配规则和共享内存匹配规则
+- 函数会自动根据连接的 `unique_name` 和 `service_name` 获取或创建对应的 `shm_tree` 对象
+- 回调函数会被保存到 Lua registry 中，确保在信号到达时能够调用
+- 需要定期调用 `dispatch()` 来处理消息并触发回调
+
+#### 示例
+
+```lua
+local conn = ldbus.nonblock.open_user()
+
+-- 定义回调函数
+local callback = function(msg)
+    print("收到匹配的信号")
+    -- 处理消息...
+end
+
+-- 添加基本匹配规则
+local harbor_name = "test_harbor"
+local ok = conn:add_match(
+    callback,
+    1001,              -- id
+    harbor_name,       -- harbor_name
+    "TestSignal",      -- member
+    "com.test.Interface"  -- interface
+)
+assert(ok == true)
+
+-- 添加带路径的匹配规则
+local ok2 = conn:add_match(
+    callback,
+    1002,
+    harbor_name,
+    "TestSignal",
+    "com.test.Interface",
+    false,              -- is_path_namespace
+    "/com/test/Path"    -- path
+)
+assert(ok2 == true)
+
+-- 添加完整参数的匹配规则
+local ok3 = conn:add_match(
+    callback,
+    1003,
+    harbor_name,
+    "TestSignal",
+    "com.test.Interface",
+    false,              -- is_path_namespace
+    "/com/test/Path",   -- path
+    "com.test.Sender",  -- sender
+    1,                  -- type (信号类型)
+    "com.test.Dest"     -- destination
+)
+assert(ok3 == true)
+
+-- 需要定期调用 dispatch 来处理消息
+conn:dispatch()
+
+conn:close()
+```
+
+#### 完整示例：发送和接收信号
+
+```lua
+local ldbus = require('ldbus')
+
+-- 创建接收端连接
+local recv_conn = ldbus.nonblock.open_user()
+local harbor_name = "test_harbor"
+
+-- 设置信号接收回调
+local signal_received = false
+local callback = function(msg)
+    signal_received = true
+    print("成功接收到信号！")
+end
+
+-- 添加匹配规则（函数会自动获取 shm_tree）
+local ok = recv_conn:add_match(
+    callback,
+    2001,
+    harbor_name,
+    "IntegrationSignal",
+    "com.test.Integration",
+    false,
+    "/com/test/Integration"
+)
+assert(ok == true)
+
+-- 创建发送端连接
+local send_conn = ldbus.nonblock.open_user()
+
+-- 发送信号
+local ok2 = send_conn:notify_signal(
+    "/com/test/Integration",
+    "com.test.Integration",
+    "IntegrationSignal"
+)
+assert(ok2 == true)
+
+-- 分发消息以触发回调
+for i = 1, 20 do
+    recv_conn:dispatch()
+    if signal_received then
+        break
+    end
+end
+
+recv_conn:close()
+send_conn:close()
+```
+
 ## 连接对象属性
 
 ### conn.conn

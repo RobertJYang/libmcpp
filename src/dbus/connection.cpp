@@ -12,6 +12,7 @@
 
 #include <mc/exception.h>
 #include <mc/log.h>
+#include <chrono>
 
 #include "connection_impl.h"
 
@@ -88,8 +89,12 @@ void connection::dispatch() {
 
 bool connection::send(message&& msg) {
     ensure_impl();
-
-    return m_impl->send(std::forward<message>(msg));
+    auto start = std::chrono::steady_clock::now();
+    auto result = m_impl->send(std::forward<message>(msg));
+    auto end = std::chrono::steady_clock::now();
+    auto duration = end - start;
+    dlog("dbus send message cost '${time}' microseconds", ("time", std::chrono::duration_cast<std::chrono::microseconds>(duration)));
+    return result;
 }
 
 message connection::send_with_reply(message&& msg, mc::milliseconds timeout) {
@@ -189,6 +194,11 @@ filter_message_signal_type& connection::filter_message() const {
     ensure_impl();
 
     return m_impl->on_filter_message;
+}
+
+std::string connection::get_service_name() const {
+    ensure_impl();
+    return m_impl->get_service_name();
 }
 
 void connection::ensure_impl() const {

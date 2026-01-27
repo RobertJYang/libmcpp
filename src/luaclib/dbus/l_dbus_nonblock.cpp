@@ -248,6 +248,14 @@ int dbus_nonblock_async_shm_timeout_call(lua_State* L) {
     }
 }
 
+int dbus_non_block_notify_signal(lua_State* L) {
+    return notify_signal(L);
+}
+
+int dbus_non_block_add_match(lua_State* L) {
+    return add_match(L);
+}
+
 // 注册 nonblock 模块的方法表
 const luaL_Reg dbus_nonblock_methods[] = {{"start", dbus_nonblock_start},
                                           {"request_name", dbus_nonblock_request_name},
@@ -258,6 +266,8 @@ const luaL_Reg dbus_nonblock_methods[] = {{"start", dbus_nonblock_start},
                                           {"async_timeout_call", dbus_nonblock_async_timeout_call},
                                           {"async_shm_timeout_call", dbus_nonblock_async_shm_timeout_call},
                                           {"dispatch", dbus_nonblock_dispatch},
+                                          {"notify_signal", dbus_non_block_notify_signal},
+                                          {"add_match", dbus_non_block_add_match},
                                           {nullptr, nullptr}};
 
 // 注册 nonblock 模块的 metatable

@@ -248,6 +248,7 @@ std::tuple<bool, std::optional<error>> connection_impl::request_name(std::string
         mc::dbus::error req_err;
         dbus_bus_request_name(m_connection, name.data(), flags, &req_err);
         if (!req_err.is_set()) {
+            m_service_name = name;
             return {true, std::nullopt};
         }
 
@@ -515,4 +516,9 @@ void connection_impl::remove_match(uint64_t id) {
 match& connection_impl::get_match() {
     return m_match;
 }
+
+std::string connection_impl::get_service_name() const {
+    return m_service_name;
+}
+
 } // namespace mc::dbus

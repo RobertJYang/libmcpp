@@ -441,6 +441,83 @@ auto id2 = listener.subscribe("ValueChanged", "com.example.Sensor",
 listener.unsubscribe(id1);
 ```
 
+## Service 中的匹配规则
+
+### service::add_match
+
+```cpp
+namespace mc::engine {
+    class service {
+    public:
+        uint64_t add_match(mc::dbus::match_rule& rule, mc::dbus::match_cb_t&& cb);
+        void remove_match(uint64_t id);
+    };
+}
+```
+
+在服务对象中添加匹配规则，同时支持 DBus 和共享内存匹配。
+
+**参数：**
+- `rule` [in] - 匹配规则对象（会被克隆，原对象可继续使用）
+- `cb` [in] - 回调函数，当匹配的消息到达时被调用
+
+**返回值：**
+- `uint64_t` - 匹配规则 ID，用于后续移除规则
+
+**功能说明：**
+- 同时添加 DBus 匹配规则和共享内存匹配规则
+- 自动生成唯一的规则 ID
+- 规则对象会被克隆，避免与 harbor 的规则冲突
+- 回调函数会在匹配的消息到达时被调用
+
+**实现细节：**
+- 首先在共享内存树（shm_tree）中添加匹配规则
+- 然后克隆规则对象并在 DBus 连接中添加匹配规则
+- 规则克隆是必要的，因为 harbor 和服务都会调用 `add_rule`，如果使用同一个规则对象，服务调用 `rule->set_slot` 会导致 harbor 的 slot 被析构
+
+**示例：**
+
+```cpp
+#include <mc/engine/service.h>
+#include <mc/dbus/match.h>
+
+// 创建服务
+auto svc = std::make_shared<mc::engine::service>("com.example.Service");
+svc->init({});
+
+// 创建匹配规则
+auto rule = mc::dbus::match_rule::new_signal(
+    "StatusChanged",
+    "com.example.Interface"
+);
+rule.with_path("/com/example/Object");
+
+// 添加匹配规则
+uint64_t match_id = svc->add_match(rule, [](mc::dbus::message& msg) {
+    std::string status;
+    msg.reader() >> status;
+    std::cout << "状态变更: " << status << std::endl;
+});
+
+// 移除匹配规则
+svc->remove_match(match_id);
+```
+
+**与 connection::add_match 的区别：**
+
+| 特性 | `connection::add_match` | `service::add_match` |
+|------|------------------------|---------------------|
+| 匹配范围 | 仅 DBus 匹配 | DBus + 共享内存匹配 |
+| 规则克隆 | 不需要 | 自动克隆 |
+| ID 生成 | 需要手动指定 | 自动生成 |
+| 适用场景 | 普通客户端 | 服务端应用 |
+
+**注意事项：**
+- 规则对象会被克隆，修改原规则对象不会影响已添加的规则
+- 回调函数会在 IO 线程中执行，避免长时间阻塞
+- 服务销毁时会自动清理所有匹配规则
+- 规则 ID 是全局唯一的，由静态计数器生成
+
 ## 注意事项
 
 1. **规则ID唯一性**：确保每个规则的ID唯一，避免冲突
@@ -448,9 +525,11 @@ listener.unsubscribe(id1);
 3. **回调线程**：回调函数在 IO 线程中执行，避免长时间阻塞
 4. **规则字符串**：DBus 匹配规则有特定语法，使用 API 构建避免错误
 5. **权限检查**：某些信号可能需要权限才能监听
+6. **规则克隆**：在 `service::add_match` 中，规则会被自动克隆，原规则对象可继续使用
 
 ## 相关接口
 
 - [connection](connection.md) - 连接对象
 - [message](message.md) - 消息对象
 - [signal](signal.md) - 信号发射
+- [shm](shm.md) - 共享内存通信

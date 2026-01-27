@@ -258,6 +258,12 @@ public:
      */
     filter_message_signal_type& filter_message() const;
 
+    /**
+     * @brief 获取连接的服务名
+     * @return 返回连接的服务名
+     */
+    std::string get_service_name() const;
+
 private:
     void ensure_impl() const;
 

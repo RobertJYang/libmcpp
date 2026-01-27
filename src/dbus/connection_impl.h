@@ -91,6 +91,7 @@ struct connection_impl : public std::enable_shared_from_this<connection_impl> {
     void   remove_match(uint64_t id);
     void   add_match_only(match_rule& rule, match_cb_t&& cb, uint64_t id);
     match& get_match();
+    std::string get_service_name() const;
 
     std::recursive_mutex                      m_mutex;
     pending_call_map                          m_pending_calls;  ///< 等待回复的消息
@@ -104,6 +105,8 @@ struct connection_impl : public std::enable_shared_from_this<connection_impl> {
     mc::signal<DBusHandlerResult(message&)> on_filter_message;
 
     uint32_t get_next_serial();
+
+    std::string m_service_name;
 };
 
 using connection_weak_ptr = std::weak_ptr<connection_impl>;

@@ -247,6 +247,310 @@ function TestNonblock:test_19_method_call_invalid_args()
     end, "org.freedesktop.DBus", "/org/freedesktop/DBus", "org.freedesktop.DBus", "NonExistentMethod", "")
 end
 
+-- 测试 notify_signal 函数 - 基础功能
+function TestNonblock:test_20_notify_signal_basic()
+    self.conn = self.nonblock.open_user(false)
+    self.conn:start()
+    
+    -- 测试发送信号（最小参数）
+    local path = "/com/test/Object"
+    local interface = "com.test.Interface"
+    local member = "TestSignal"
+    
+    local ok = self.conn:notify_signal(path, interface, member)
+    lu.assertIsBoolean(ok, "notify_signal should return boolean")
+end
+
+-- 测试 notify_signal 函数 - 带 destination
+function TestNonblock:test_21_notify_signal_with_destination()
+    self.conn = self.nonblock.open_user(false)
+    self.conn:start()
+    
+    local path = "/com/test/Object"
+    local interface = "com.test.Interface"
+    local member = "TestSignal"
+    local destination = ":1.123"  -- 示例唯一名称
+    
+    local ok = self.conn:notify_signal(path, interface, member, destination)
+    lu.assertIsBoolean(ok, "notify_signal with destination should return boolean")
+end
+
+-- 测试 notify_signal 函数 - 参数验证
+function TestNonblock:test_22_notify_signal_parameter_validation()
+    self.conn = self.nonblock.open_user(false)
+    self.conn:start()
+    
+    -- 测试缺少参数
+    local success = pcall(function()
+        self.conn:notify_signal()
+    end)
+    lu.assertFalse(success, "notify_signal without args should fail")
+    
+    success = pcall(function()
+        self.conn:notify_signal("/path")
+    end)
+    lu.assertFalse(success, "notify_signal with 1 arg should fail")
+    
+    success = pcall(function()
+        self.conn:notify_signal("/path", "interface")
+    end)
+    lu.assertFalse(success, "notify_signal with 2 args should fail")
+    
+    -- 测试正常调用
+    success = pcall(function()
+        self.conn:notify_signal("/path", "interface", "member")
+    end)
+    lu.assertTrue(success, "notify_signal with correct args should succeed")
+end
+
+-- 测试 notify_signal 函数 - 边界情况
+function TestNonblock:test_23_notify_signal_edge_cases()
+    self.conn = self.nonblock.open_user(false)
+    self.conn:start()
+    
+    -- 测试空字符串参数
+    local success = pcall(function()
+        self.conn:notify_signal("", "", "")
+    end)
+    lu.assertIsBoolean(success, "notify_signal with empty strings should handle gracefully")
+    
+    -- 测试很长的路径
+    local long_path = "/" .. string.rep("a", 1000)
+    local ok = self.conn:notify_signal(long_path, "com.test.Interface", "TestSignal")
+    lu.assertIsBoolean(ok, "notify_signal with long path should return boolean")
+end
+
+-- 测试 add_match 函数 - 基础功能
+function TestNonblock:test_24_add_match_basic()
+    self.conn = self.nonblock.open_user(false)
+    self.conn:start()
+    
+    -- 测试 add_match（最小参数）
+    -- 参数顺序：callback_id, rule_id, harbor_name, member, interface
+    local callback_id = 1
+    local rule_id = 100
+    local harbor_name = "test.harbor"
+    local member = "TestSignal"
+    local interface = "com.test.Interface"
+    
+    local ok = self.conn:add_match(callback_id, rule_id, harbor_name, member, interface)
+    lu.assertIsBoolean(ok, "add_match should return boolean")
+    lu.assertTrue(ok, "add_match should succeed with correct parameters")
+end
+
+-- 测试 add_match 函数 - 带 path
+function TestNonblock:test_25_add_match_with_path()
+    self.conn = self.nonblock.open_user(false)
+    self.conn:start()
+    
+    local callback_id = 2
+    local rule_id = 101
+    local harbor_name = "test.harbor"
+    local member = "TestSignal"
+    local interface = "com.test.Interface"
+    local is_path_namespace = false
+    local path = "/com/test/Object"
+    
+    -- 参数顺序：callback_id, rule_id, harbor_name, member, interface, is_path_namespace, path
+    local ok = self.conn:add_match(callback_id, rule_id, harbor_name, 
+                                   member, interface, is_path_namespace, path)
+    lu.assertIsBoolean(ok, "add_match with path should return boolean")
+end
+
+-- 测试 add_match 函数 - 带 path_namespace
+function TestNonblock:test_26_add_match_with_path_namespace()
+    self.conn = self.nonblock.open_user(false)
+    self.conn:start()
+    
+    local callback_id = 3
+    local rule_id = 102
+    local harbor_name = "test.harbor"
+    local member = "TestSignal"
+    local interface = "com.test.Interface"
+    local is_path_namespace = true
+    local path_namespace = "/com/test"
+    
+    -- 参数顺序：callback_id, rule_id, harbor_name, member, interface, is_path_namespace, path_namespace
+    local ok = self.conn:add_match(callback_id, rule_id, harbor_name,
+                                   member, interface, is_path_namespace, path_namespace)
+    lu.assertIsBoolean(ok, "add_match with path_namespace should return boolean")
+end
+
+-- 测试 add_match 函数 - 完整参数
+function TestNonblock:test_27_add_match_full_parameters()
+    self.conn = self.nonblock.open_user(false)
+    self.conn:start()
+    
+    local callback_id = 4
+    local rule_id = 103
+    local harbor_name = "test.harbor"
+    local member = "TestSignal"
+    local interface = "com.test.Interface"
+    local is_path_namespace = false
+    local path = "/com/test/Object"
+    local sender = "com.test.Sender"
+    local msg_type = 1  -- DBus::Match::MessageType
+    local destination = ":1.123"
+    
+    -- 参数顺序：callback_id, rule_id, harbor_name, member, interface, 
+    --           is_path_namespace, path, sender, msg_type, destination
+    local ok = self.conn:add_match(callback_id, rule_id, harbor_name,
+                                   member, interface, is_path_namespace, path, 
+                                   sender, msg_type, destination)
+    lu.assertIsBoolean(ok, "add_match with full parameters should return boolean")
+end
+
+-- 测试 add_match 函数 - 参数验证
+function TestNonblock:test_28_add_match_parameter_validation()
+    self.conn = self.nonblock.open_user(false)
+    self.conn:start()
+    
+    local harbor_name = "test.harbor"
+    
+    -- 测试缺少参数（至少需要5个显式参数：callback_id, rule_id, harbor_name, member, interface）
+    -- 加上self（conn），总共6个参数
+    local success = pcall(function()
+        self.conn:add_match()
+    end)
+    lu.assertFalse(success, "add_match without args should fail")
+    
+    success = pcall(function()
+        self.conn:add_match(1)
+    end)
+    lu.assertFalse(success, "add_match with 1 arg should fail")
+    
+    success = pcall(function()
+        self.conn:add_match(1, 100)
+    end)
+    lu.assertFalse(success, "add_match with 2 args should fail")
+    
+    success = pcall(function()
+        self.conn:add_match(1, 100, harbor_name)
+    end)
+    lu.assertFalse(success, "add_match with 3 args should fail")
+    
+    success = pcall(function()
+        self.conn:add_match(1, 100, harbor_name, "member")
+    end)
+    lu.assertFalse(success, "add_match with 4 args should fail")
+    
+    -- 测试正常调用（5个显式参数，加上self共6个）
+    success = pcall(function()
+        self.conn:add_match(1, 100, harbor_name, "member", "interface")
+    end)
+    lu.assertTrue(success, "add_match with 5 args (6 including self) should succeed")
+end
+
+-- 测试 add_match 函数 - 边界情况
+function TestNonblock:test_29_add_match_edge_cases()
+    self.conn = self.nonblock.open_user(false)
+    self.conn:start()
+    
+    local harbor_name = "test.harbor"
+    
+    -- 测试零值 ID
+    local ok = self.conn:add_match(0, 0, harbor_name, "TestSignal", "com.test.Interface")
+    lu.assertIsBoolean(ok, "add_match with zero IDs should return boolean")
+    
+    -- 测试负数 ID
+    local ok2 = self.conn:add_match(-1, -1, harbor_name, "TestSignal", "com.test.Interface")
+    lu.assertIsBoolean(ok2, "add_match with negative IDs should return boolean")
+    
+    -- 测试空字符串参数
+    local ok3 = self.conn:add_match(1, 1, "", "", "")
+    lu.assertIsBoolean(ok3, "add_match with empty strings should return boolean")
+end
+
+-- 测试多个匹配规则
+function TestNonblock:test_30_add_match_multiple_matches()
+    self.conn = self.nonblock.open_user(false)
+    self.conn:start()
+    
+    local harbor_name = "test.harbor.multi"
+    
+    -- 添加多个匹配规则
+    for i = 1, 3 do
+        local callback_id = 20 + i
+        local rule_id = 300 + i
+        local member = "Signal" .. i
+        local interface = "com.test.Interface" .. i
+        
+        local ok = self.conn:add_match(callback_id, rule_id, harbor_name, member, interface)
+        lu.assertTrue(ok, "add_match " .. i .. " should succeed")
+    end
+end
+
+-- 测试集成场景：notify_signal + add_match
+function TestNonblock:test_31_integration_notify_signal_add_match()
+    self.conn = self.nonblock.open_user(false)
+    self.conn:start()
+    
+    local harbor_name = "test.harbor.integration"
+    
+    -- 1. 添加匹配规则（add_match 内部会自动获取 shm_tree）
+    local callback_id = 10
+    local rule_id = 200
+    local member = "IntegrationSignal"
+    local interface = "com.test.IntegrationInterface"
+    
+    local ok = self.conn:add_match(callback_id, rule_id, harbor_name, member, interface)
+    lu.assertTrue(ok, "add_match should succeed")
+    
+    -- 2. 发送信号
+    local path = "/com/test/IntegrationObject"
+    ok = self.conn:notify_signal(path, interface, member)
+    lu.assertIsBoolean(ok, "notify_signal should return boolean")
+end
+
+-- 测试 notify_signal 和 add_match 的组合使用 - 不同路径
+function TestNonblock:test_32_notify_signal_add_match_different_paths()
+    self.conn = self.nonblock.open_user(false)
+    self.conn:start()
+    
+    local harbor_name = "test.harbor.path"
+    local callback_id = 50
+    local rule_id = 500
+    local member = "PathTestSignal"
+    local interface = "com.test.PathInterface"
+    local path = "/com/test/SpecificPath"
+    
+    -- 添加带路径的匹配规则
+    local ok = self.conn:add_match(callback_id, rule_id, harbor_name, 
+                                   member, interface, false, path)
+    lu.assertTrue(ok, "add_match with path should succeed")
+    
+    -- 发送匹配路径的信号
+    local ok2 = self.conn:notify_signal(path, interface, member)
+    lu.assertIsBoolean(ok2, "notify_signal with matching path should return boolean")
+    
+    -- 发送不匹配路径的信号（应该也能发送成功，只是不会被匹配）
+    local ok3 = self.conn:notify_signal("/com/test/OtherPath", interface, member)
+    lu.assertIsBoolean(ok3, "notify_signal with non-matching path should return boolean")
+end
+
+-- 测试 notify_signal 和 add_match 的组合使用 - 带 destination
+function TestNonblock:test_33_notify_signal_add_match_with_destination()
+    self.conn = self.nonblock.open_user(false)
+    self.conn:start()
+    
+    local harbor_name = "test.harbor.dest"
+    local callback_id = 60
+    local rule_id = 600
+    local member = "DestTestSignal"
+    local interface = "com.test.DestInterface"
+    local destination = ":1.999"
+    
+    -- 添加带 destination 的匹配规则
+    local ok = self.conn:add_match(callback_id, rule_id, harbor_name, 
+                                   member, interface, false, "/com/test/Dest", 
+                                   nil, nil, destination)
+    lu.assertTrue(ok, "add_match with destination should succeed")
+    
+    -- 发送带 destination 的信号
+    local ok2 = self.conn:notify_signal("/com/test/Dest", interface, member, destination)
+    lu.assertIsBoolean(ok2, "notify_signal with destination should return boolean")
+end
+
 -- 只有当直接运行此文件时才执行测试
 if arg and arg[0]:match("test_nonblock%.lua$") then
     os.exit(lu.LuaUnit.run())
