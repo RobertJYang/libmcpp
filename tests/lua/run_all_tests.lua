@@ -37,6 +37,7 @@ require('mdb.test_lmdb_privilege')
 require('dbus.test_object')
 require('dbus.test_interface')
 require('lvalidate.test_integer')
+require('lvalidate.test_validate')
 
 -- 设置详细输出，显示每个测试用例的执行情况
 if lu.setVerbosity then

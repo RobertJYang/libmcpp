@@ -14,6 +14,10 @@
 
 - [json](json.md) - JSON 对象操作 Lua 绑定
 
+### 工具库
+
+- [validate](validate.md) - 参数校验库
+
 ## 快速开始
 
 ### 安装和加载
