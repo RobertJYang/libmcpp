@@ -70,6 +70,14 @@ void message::set_category(log_category category) noexcept {
     m_category = category;
 }
 
+bool message::get_limit() const noexcept {
+    return m_limit;
+}
+
+void message::set_limit(bool limit) noexcept {
+    m_limit = limit;
+}
+
 const context& message::get_context() const {
     return m_context;
 }

@@ -11,15 +11,15 @@
  */
 
 #include <dlfcn.h>
-#include <mc/filesystem.h>	 
- #include <mc/log/appenders/file_appender.h>	 
- #include <mc/log/log_level.h>	 
- #include <mc/engine/context.h>	 
- #include <mc/engine/service.h>	 
- #include <stdarg.h>	 
- #include <stdio.h>	 
- #include <string>	 
- #include <syslog.h>
+#include <mc/engine/context.h>
+#include <mc/engine/service.h>
+#include <mc/filesystem.h>
+#include <mc/log/appenders/file_appender.h>
+#include <mc/log/log_level.h>
+#include <stdarg.h>
+#include <stdio.h>
+#include <string>
+#include <syslog.h>
 
 #include <logging_internal.h>
 
@@ -35,16 +35,16 @@ typedef enum {
 } DLOG_LEVEL_E;
 #endif
 
-typedef void (*debug_log_func_t)(DLOG_LEVEL_E, const char*, int, const char*, ...);	 
- typedef void (*set_log_module_name_func_t)(const char*);	 
- typedef const char* (*get_log_time_str_func_t)(int);	 
- typedef DLOG_LEVEL_E (*set_log_level_func_t)(DLOG_LEVEL_E);	 
- static debug_log_func_t           debug_log_ptr           = nullptr;	 
- static set_log_module_name_func_t set_log_module_name_ptr = nullptr;	 
- static get_log_time_str_func_t get_log_time_str_ptr = nullptr;	 
- static set_log_level_func_t set_log_level_ptr = nullptr; 
- static std::string                g_module_name{"Unknown"}; // 全局模块名称，所有 file_appender 实例共享 
- constexpr uint32_t LOG_US_TIME = 0x01;
+typedef void (*debug_log_func_t)(DLOG_LEVEL_E, const char*, int, const char*, ...);
+typedef void (*set_log_module_name_func_t)(const char*);
+typedef const char* (*get_log_time_str_func_t)(int);
+typedef DLOG_LEVEL_E (*set_log_level_func_t)(DLOG_LEVEL_E);
+static debug_log_func_t           debug_log_ptr           = nullptr;
+static set_log_module_name_func_t set_log_module_name_ptr = nullptr;
+static get_log_time_str_func_t    get_log_time_str_ptr    = nullptr;
+static set_log_level_func_t       set_log_level_ptr       = nullptr;
+static std::string                g_module_name{"Unknown"}; // 全局模块名称，所有 file_appender 实例共享
+constexpr uint32_t                LOG_US_TIME = 0x01;
 
 // 将 mc::log::level 映射到 DLOG_LEVEL_E
 // 对于没有对应级别的（all, trace, fatal, off），返回 DLOG_DEBUG 作为默认值
@@ -178,14 +178,15 @@ void append_debug(const message& msg) {
     record.log                = message_str;
     record.filename           = file_str.c_str();
 
-    logging::internal_log_handler(&record, true);
+    // 第二个参数：true 限流，false 不限流（_easy）
+    logging::internal_log_handler(&record, msg.get_limit());
 }
 
 void get_initiator(std::string& interface, std::string& username, std::string& client_addr) {
     if (!mc::engine::context::get_current_context_ptr()) {
         return;
     }
-    auto &ctx = mc::engine::context::get_current_context();
+    auto& ctx = mc::engine::context::get_current_context();
 
     if (ctx.get_arg("interface_name")) {
         interface = ctx.get_arg("interface_name").as<std::string_view>();
@@ -231,6 +232,76 @@ void append_operation(const message& msg) {
     }
 }
 
+void append_hw_stream(const message& msg) {
+    const context& ctx = msg.get_context();
+
+    std::string message_str = msg.get_message();
+    logging::filter_invalid_chars(message_str);
+
+    std::string module_name = g_module_name;
+    const auto& args        = msg.get_args();
+    if (args.contains("module_name")) {
+        try {
+            module_name = args["module_name"].as<std::string>();
+        } catch (...) {
+        }
+    }
+
+    std::string file_str;
+    file_str.reserve(64);
+    if (ctx.m_file.empty()) {
+        file_str.append("unknown");
+    } else {
+        file_str.append(mc::filesystem::basename(ctx.m_file));
+    }
+
+    std::string level_str(mc::log::to_string(msg.get_level()));
+    std::string line_str(std::to_string(ctx.m_line));
+
+    if (get_log_time_str_ptr) {
+        const char* time_str = get_log_time_str_ptr(LOG_US_TIME);
+        if (time_str) {
+            syslog(LOG_LOCAL6 | LOG_NOTICE, "%s %s %s: %s(%s): %s", time_str, module_name.c_str(), level_str.c_str(),
+                   file_str.c_str(), line_str.c_str(), message_str.c_str());
+        }
+    }
+}
+
+void append_mc_stream(const message& msg) {
+    const context& ctx = msg.get_context();
+
+    std::string message_str = msg.get_message();
+    logging::filter_invalid_chars(message_str);
+
+    std::string module_name = g_module_name;
+    const auto& args        = msg.get_args();
+    if (args.contains("module_name")) {
+        try {
+            module_name = args["module_name"].as<std::string>();
+        } catch (...) {
+        }
+    }
+
+    std::string file_str;
+    file_str.reserve(64);
+    if (ctx.m_file.empty()) {
+        file_str.append("unknown");
+    } else {
+        file_str.append(mc::filesystem::basename(ctx.m_file));
+    }
+
+    std::string level_str(mc::log::to_string(msg.get_level()));
+    std::string line_str(std::to_string(ctx.m_line));
+
+    if (get_log_time_str_ptr) {
+        const char* time_str = get_log_time_str_ptr(LOG_US_TIME);
+        if (time_str) {
+            syslog(LOG_LOCAL5 | LOG_NOTICE, "%s %s %s: %s(%s): %s", time_str, module_name.c_str(), level_str.c_str(),
+                   file_str.c_str(), line_str.c_str(), message_str.c_str());
+        }
+    }
+}
+
 void file_appender::append(const message& msg) {
     std::lock_guard<std::mutex> lock(m_mutex);
 
@@ -242,6 +313,12 @@ void file_appender::append(const message& msg) {
     case log_category::operation:
         // 使用全局变量中的模块名，所有 file_appender 实例共享
         append_operation(msg);
+        break;
+    case log_category::hw_stream:
+        append_hw_stream(msg);
+        break;
+    case log_category::mc_stream:
+        append_mc_stream(msg);
         break;
     default:
         append_debug(msg);

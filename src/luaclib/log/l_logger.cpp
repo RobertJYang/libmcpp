@@ -178,7 +178,8 @@ static int lua_logger_period(lua_State* L) {
 // 接口：log:warn(module_name, message, ...) 或 log:warn(message, ...)
 // 如果第一个参数和第二个参数都是字符串，则第一个参数作为 module_name（可选）
 // 否则，第一个参数作为消息内容
-static int lua_logger_log_impl(lua_State* L, level lvl) {
+// limit_rate：true 限流，false 不限流（_easy）
+static int lua_logger_log_impl(lua_State* L, level lvl, bool limit_rate) {
     logger* log   = lua_check_logger(L, 1);
     int     nargs = lua_gettop(L);
 
@@ -222,6 +223,7 @@ static int lua_logger_log_impl(lua_State* L, level lvl) {
     // 说明：level=1 通常是 Lua 调用 log:warn(...) 的那一行
     context ctx = get_lua_call_context(L, 1);
     message log_msg(lvl, ctx, msg, args);
+    log_msg.set_limit(limit_rate);
     log->log(log_msg);
     return 0;
 }
@@ -296,37 +298,265 @@ static int lua_logger_log(lua_State* L) {
 
 // logger:trace(message, ...)
 static int lua_logger_trace(lua_State* L) {
-    return lua_logger_log_impl(L, level::trace);
+    return lua_logger_log_impl(L, level::trace, true);
 }
 
 // logger:debug(message, ...)
 static int lua_logger_debug(lua_State* L) {
-    return lua_logger_log_impl(L, level::debug);
+    return lua_logger_log_impl(L, level::debug, true);
 }
 
 // logger:info(message, ...)
 static int lua_logger_info(lua_State* L) {
-    return lua_logger_log_impl(L, level::info);
+    return lua_logger_log_impl(L, level::info, true);
 }
 
 // logger:notice(message, ...)
 static int lua_logger_notice(lua_State* L) {
-    return lua_logger_log_impl(L, level::notice);
+    return lua_logger_log_impl(L, level::notice, true);
 }
 
 // logger:warn(message, ...)
 static int lua_logger_warn(lua_State* L) {
-    return lua_logger_log_impl(L, level::warn);
+    return lua_logger_log_impl(L, level::warn, true);
 }
 
 // logger:error(message, ...)
 static int lua_logger_error(lua_State* L) {
-    return lua_logger_log_impl(L, level::error);
+    return lua_logger_log_impl(L, level::error, true);
 }
 
 // logger:fatal(message, ...)
 static int lua_logger_fatal(lua_State* L) {
-    return lua_logger_log_impl(L, level::fatal);
+    return lua_logger_log_impl(L, level::fatal, true);
+}
+
+// logger:trace_easy(message, ...) 不限流
+static int lua_logger_trace_easy(lua_State* L) {
+    return lua_logger_log_impl(L, level::trace, false);
+}
+
+// logger:debug_easy(message, ...) 不限流
+static int lua_logger_debug_easy(lua_State* L) {
+    return lua_logger_log_impl(L, level::debug, false);
+}
+
+// logger:info_easy(message, ...) 不限流
+static int lua_logger_info_easy(lua_State* L) {
+    return lua_logger_log_impl(L, level::info, false);
+}
+
+// logger:notice_easy(message, ...) 不限流
+static int lua_logger_notice_easy(lua_State* L) {
+    return lua_logger_log_impl(L, level::notice, false);
+}
+
+// logger:warn_easy(message, ...) 不限流
+static int lua_logger_warn_easy(lua_State* L) {
+    return lua_logger_log_impl(L, level::warn, false);
+}
+
+// logger:error_easy(message, ...) 不限流
+static int lua_logger_error_easy(lua_State* L) {
+    return lua_logger_log_impl(L, level::error, false);
+}
+
+// logger:fatal_easy(message, ...) 不限流
+static int lua_logger_fatal_easy(lua_State* L) {
+    return lua_logger_log_impl(L, level::fatal, false);
+}
+
+// 南向硬件流日志通用实现：级别 + 类别 hw_stream，参数约定与 lua_logger_log_impl 一致
+// 接口：log:hw_stream_xxx(module_name, message, ...) 或 log:hw_stream_xxx(message, ...)
+static int lua_logger_hw_stream_impl(lua_State* L, level lvl) {
+    logger* log   = lua_check_logger(L, 1);
+    int     nargs = lua_gettop(L);
+
+    mc::dict    args;
+    const char* msg       = nullptr;
+    int         msg_index = 2;
+
+    if (nargs >= 3 && lua_type(L, 2) == LUA_TSTRING && lua_type(L, 3) == LUA_TSTRING) {
+        const char* module_name = lua_tostring(L, 2);
+        args["module_name"]     = std::string(module_name);
+        msg_index               = 3;
+    }
+
+    if (msg_index > nargs) {
+        return luaL_error(L, "missing message argument");
+    }
+    msg = luaL_checkstring(L, msg_index);
+
+    int start_index = msg_index + 1;
+    for (int i = start_index; i <= nargs; i++) {
+        if (i + 1 <= nargs && lua_type(L, i) == LUA_TSTRING) {
+            const char* key = lua_tostring(L, i);
+            if (lua_isnumber(L, i + 1)) {
+                args[key] = lua_tonumber(L, i + 1);
+            } else if (lua_isstring(L, i + 1)) {
+                args[key] = std::string(lua_tostring(L, i + 1));
+            } else if (lua_isboolean(L, i + 1)) {
+                args[key] = lua_toboolean(L, i + 1) != 0;
+            }
+            i++;
+        }
+    }
+
+    context ctx = get_lua_call_context(L, 1);
+    message log_msg(lvl, ctx, msg, args);
+    log_msg.set_category(log_category::hw_stream);
+    log_msg.set_limit(true);
+    log->log(log_msg);
+    return 0;
+}
+
+static int lua_logger_hw_stream_info(lua_State* L) {
+    return lua_logger_hw_stream_impl(L, level::info);
+}
+static int lua_logger_hw_stream_warn(lua_State* L) {
+    return lua_logger_hw_stream_impl(L, level::warn);
+}
+static int lua_logger_hw_stream_notice(lua_State* L) {
+    return lua_logger_hw_stream_impl(L, level::notice);
+}
+static int lua_logger_hw_stream_error(lua_State* L) {
+    return lua_logger_hw_stream_impl(L, level::error);
+}
+
+// mc 流日志通用实现：级别 + 类别 mc_stream，参数约定与 hw_stream 一致，输出到 LOG_LOCAL5
+static int lua_logger_mc_stream_impl(lua_State* L, level lvl) {
+    logger* log   = lua_check_logger(L, 1);
+    int     nargs = lua_gettop(L);
+
+    mc::dict    args;
+    const char* msg       = nullptr;
+    int         msg_index = 2;
+
+    if (nargs >= 3 && lua_type(L, 2) == LUA_TSTRING && lua_type(L, 3) == LUA_TSTRING) {
+        const char* module_name = lua_tostring(L, 2);
+        args["module_name"]     = std::string(module_name);
+        msg_index               = 3;
+    }
+
+    if (msg_index > nargs) {
+        return luaL_error(L, "missing message argument");
+    }
+    msg = luaL_checkstring(L, msg_index);
+
+    int start_index = msg_index + 1;
+    for (int i = start_index; i <= nargs; i++) {
+        if (i + 1 <= nargs && lua_type(L, i) == LUA_TSTRING) {
+            const char* key = lua_tostring(L, i);
+            if (lua_isnumber(L, i + 1)) {
+                args[key] = lua_tonumber(L, i + 1);
+            } else if (lua_isstring(L, i + 1)) {
+                args[key] = std::string(lua_tostring(L, i + 1));
+            } else if (lua_isboolean(L, i + 1)) {
+                args[key] = lua_toboolean(L, i + 1) != 0;
+            }
+            i++;
+        }
+    }
+
+    context ctx = get_lua_call_context(L, 1);
+    message log_msg(lvl, ctx, msg, args);
+    log_msg.set_category(log_category::mc_stream);
+    log_msg.set_limit(true);
+    log->log(log_msg);
+    return 0;
+}
+
+static int lua_logger_mc_stream_info(lua_State* L) {
+    return lua_logger_mc_stream_impl(L, level::info);
+}
+static int lua_logger_mc_stream_warn(lua_State* L) {
+    return lua_logger_mc_stream_impl(L, level::warn);
+}
+static int lua_logger_mc_stream_notice(lua_State* L) {
+    return lua_logger_mc_stream_impl(L, level::notice);
+}
+static int lua_logger_mc_stream_error(lua_State* L) {
+    return lua_logger_mc_stream_impl(L, level::error);
+}
+
+// 串口 printf 日志通用实现：使用 Lua string.format 格式化后调用 log_serial_printf
+// 接口：log:debug_printf(module_name, fmt, ...) 或 log:debug_printf(fmt, ...)
+// 如果参数数量 >= 3 且第一个和第二个参数都是字符串，则第一个参数作为 module_name（可选）
+static int lua_logger_printf_impl(lua_State* L, level lvl) {
+    logger* log   = lua_check_logger(L, 1);
+    int     nargs = lua_gettop(L);
+
+    if (nargs < 2) {
+        return luaL_error(L, "missing format argument");
+    }
+
+    // 检查第一个参数（索引2）是否是 module_name
+    // 如果参数数量 >= 3 且第一个和第二个参数都是字符串，则第一个参数作为 module_name
+    int         fmt_index = 2; // 默认格式字符串在索引2
+    mc::dict    args;
+    const char* fmt = nullptr;
+
+    if (nargs >= 3 && lua_type(L, 2) == LUA_TSTRING && lua_type(L, 3) == LUA_TSTRING) {
+        const char* module_name = lua_tostring(L, 2);
+        args["module_name"]     = std::string(module_name);
+        fmt_index               = 3; // 格式字符串在索引3
+    }
+
+    // 获取格式字符串
+    if (fmt_index > nargs) {
+        return luaL_error(L, "missing format argument");
+    }
+    fmt = luaL_checkstring(L, fmt_index);
+
+    // 调用 Lua string.format 进行格式化
+    // 栈状态：[logger, module_name?, fmt, arg1, arg2, ...]
+    // 需要调用 string.format(fmt, arg1, arg2, ...)
+    lua_getglobal(L, "string");
+    lua_getfield(L, -1, "format");
+    lua_remove(L, -2); // 移除 "string" table
+
+    // 将 format 函数插入到 fmt 之前
+    // 栈状态：[logger, module_name?, fmt, arg1, arg2, ..., format_func]
+    lua_insert(L, fmt_index);
+    // 栈状态：[logger, module_name?, format_func, fmt, arg1, arg2, ...]
+
+    // 计算 format 函数的参数数量：从 fmt 到栈顶的所有参数（包括 fmt）
+    int format_nargs = nargs - fmt_index + 1; // fmt + 后续所有参数
+    if (lua_pcall(L, format_nargs, 1, 0) != LUA_OK) {
+        return lua_error(L);
+    }
+
+    // 获取格式化后的字符串
+    const char* s = lua_tostring(L, -1);
+    if (s == nullptr) {
+        lua_pop(L, 1);
+        return 0;
+    }
+    std::string formatted_msg(s);
+    lua_pop(L, 1);
+    
+    log->log_serial_printf(lvl, formatted_msg);
+    return 0;
+}
+
+static int lua_logger_debug_printf(lua_State* L) {
+    return lua_logger_printf_impl(L, level::debug);
+}
+
+static int lua_logger_info_printf(lua_State* L) {
+    return lua_logger_printf_impl(L, level::info);
+}
+
+static int lua_logger_notice_printf(lua_State* L) {
+    return lua_logger_printf_impl(L, level::notice);
+}
+
+static int lua_logger_warn_printf(lua_State* L) {
+    return lua_logger_printf_impl(L, level::warn);
+}
+
+static int lua_logger_error_printf(lua_State* L) {
+    return lua_logger_printf_impl(L, level::error);
 }
 
 // logger:__gc()
@@ -444,6 +674,90 @@ static void register_logger_metatable(lua_State* L) {
 
     lua_pushstring(L, "fatal");
     lua_pushcfunction(L, lua_logger_fatal);
+    lua_settable(L, -3);
+
+    // 添加不限流（_easy）便捷日志方法
+    lua_pushstring(L, "trace_easy");
+    lua_pushcfunction(L, lua_logger_trace_easy);
+    lua_settable(L, -3);
+
+    lua_pushstring(L, "debug_easy");
+    lua_pushcfunction(L, lua_logger_debug_easy);
+    lua_settable(L, -3);
+
+    lua_pushstring(L, "info_easy");
+    lua_pushcfunction(L, lua_logger_info_easy);
+    lua_settable(L, -3);
+
+    lua_pushstring(L, "notice_easy");
+    lua_pushcfunction(L, lua_logger_notice_easy);
+    lua_settable(L, -3);
+
+    lua_pushstring(L, "warn_easy");
+    lua_pushcfunction(L, lua_logger_warn_easy);
+    lua_settable(L, -3);
+
+    lua_pushstring(L, "error_easy");
+    lua_pushcfunction(L, lua_logger_error_easy);
+    lua_settable(L, -3);
+
+    lua_pushstring(L, "fatal_easy");
+    lua_pushcfunction(L, lua_logger_fatal_easy);
+    lua_settable(L, -3);
+
+    // 南向硬件流日志方法（输出到相关日志文件，格式：时间 模块名 级别: 文件名(行数): 日志文本）
+    lua_pushstring(L, "hw_stream_info");
+    lua_pushcfunction(L, lua_logger_hw_stream_info);
+    lua_settable(L, -3);
+
+    lua_pushstring(L, "hw_stream_warn");
+    lua_pushcfunction(L, lua_logger_hw_stream_warn);
+    lua_settable(L, -3);
+
+    lua_pushstring(L, "hw_stream_notice");
+    lua_pushcfunction(L, lua_logger_hw_stream_notice);
+    lua_settable(L, -3);
+
+    lua_pushstring(L, "hw_stream_error");
+    lua_pushcfunction(L, lua_logger_hw_stream_error);
+    lua_settable(L, -3);
+
+    // mc 流日志方法（输出到 LOG_LOCAL5 对应日志文件，格式与 hw_stream 相同）
+    lua_pushstring(L, "mc_stream_info");
+    lua_pushcfunction(L, lua_logger_mc_stream_info);
+    lua_settable(L, -3);
+
+    lua_pushstring(L, "mc_stream_warn");
+    lua_pushcfunction(L, lua_logger_mc_stream_warn);
+    lua_settable(L, -3);
+
+    lua_pushstring(L, "mc_stream_notice");
+    lua_pushcfunction(L, lua_logger_mc_stream_notice);
+    lua_settable(L, -3);
+
+    lua_pushstring(L, "mc_stream_error");
+    lua_pushcfunction(L, lua_logger_mc_stream_error);
+    lua_settable(L, -3);
+
+    // 串口 printf 方式日志（由 file_appender 承载，printf 输出日志内容）
+    lua_pushstring(L, "debug_printf");
+    lua_pushcfunction(L, lua_logger_debug_printf);
+    lua_settable(L, -3);
+
+    lua_pushstring(L, "info_printf");
+    lua_pushcfunction(L, lua_logger_info_printf);
+    lua_settable(L, -3);
+
+    lua_pushstring(L, "notice_printf");
+    lua_pushcfunction(L, lua_logger_notice_printf);
+    lua_settable(L, -3);
+
+    lua_pushstring(L, "warn_printf");
+    lua_pushcfunction(L, lua_logger_warn_printf);
+    lua_settable(L, -3);
+
+    lua_pushstring(L, "error_printf");
+    lua_pushcfunction(L, lua_logger_error_printf);
     lua_settable(L, -3);
 
     // 让 Lua 侧可以用 log.WARN / log.INFO 等常量（本质来自元表）

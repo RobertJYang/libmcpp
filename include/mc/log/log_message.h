@@ -143,6 +143,20 @@ public:
      */
     dict to_structured_data() const;
 
+    /**
+     * @brief 获取是否限流
+     *
+     * @return bool true 表示限流，false 表示不限流（_easy）
+     */
+    bool get_limit() const noexcept;
+
+    /**
+     * @brief 设置是否限流
+     *
+     * @param limit true 表示限流，false 表示不限流（_easy）
+     */
+    void set_limit(bool limit) noexcept;
+
 private:
     level                                 m_level;     // 日志级别
     log_category                          m_category{log_category::debug}; // 日志类别
@@ -153,6 +167,7 @@ private:
     std::string                           m_format;    // 格式模板
     mc::thread_id                         m_thread_id; // 线程ID
     mutable bool                          m_formatted; // 是否已格式化
+    bool                                  m_limit{true}; // 是否限流，true 限流，false 不限流（_easy）
 };
 
 /**
@@ -223,5 +238,13 @@ mc::dict make_args(Args&&... args) {
 #define MC_LOG_MESSAGE_WITH_CATEGORY(CATEGORY, ...) MC_LOG_DISPATCH(all, CATEGORY, MC_FORMAT_EMPTY_CHECK, __VA_ARGS__)
 
 #define MC_LOG_MESSAGE_UNSAFE(LEVEL, ...) MC_LOG_DISPATCH(LEVEL, mc::log::log_category::debug, MC_FORMAT_EMPTY_CHECK, __VA_ARGS__)
+
+// 不限流（_easy）的日志消息：internal_log_handler 第二个参数为 false
+#define MC_LOG_MESSAGE_EASY(LEVEL, ...)                                                                   \
+    [&]() -> mc::log::message {                                                                           \
+        auto __m = MC_LOG_MESSAGE(LEVEL, __VA_ARGS__);                                                    \
+        __m.set_limit(false);                                                                             \
+        return __m;                                                                                       \
+    }()
 
 #endif // MC_LOG_MESSAGE_H
