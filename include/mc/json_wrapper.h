@@ -90,6 +90,9 @@ public:
         return m_json;
     }
 
+    // 从底层 Json* 指针创建 JsonValue（会增加引用计数）
+    static JsonValue new_from_raw(Json* raw_ptr);
+
 private:
     Json* m_json;
 };

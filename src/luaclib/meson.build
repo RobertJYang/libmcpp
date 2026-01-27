@@ -9,6 +9,7 @@ subdir('utils')
 subdir('dft')
 subdir('shm_tree')
 subdir('mdb')
+subdir('json')
 
 if lua_dep.found()
   # 获取可选的 libsomp 依赖
@@ -123,6 +124,23 @@ if lua_dep.found()
   )
 else
   warning('Lua not found, Lua modules will not be built')
+endif
+
+# 编译 ljson.so 动态库（Lua C 模块）
+if lua_dep.found()
+  lua_json_lib = shared_module(
+    'ljson',
+    json_src,
+    name_prefix: '',
+    name_suffix: 'so',
+    dependencies: lua_base_deps,
+    link_with: [libmcpp_lib, libmcpp_base_lib, libmcpp_lua_utils_lib],
+    include_directories: [incdir, srcdir],
+    install: true,
+    install_dir: install_dir,
+    gnu_symbol_visibility: 'default',
+    override_options: ['b_lundef=false'],  # 允许未定义的 lua 符号
+  )
 endif
 
 
