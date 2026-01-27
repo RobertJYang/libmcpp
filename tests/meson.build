@@ -114,6 +114,7 @@ test_exe = executable(
     boost_dep,
     boost_program_options_dep,
     test_utilities_dep,
+    lua_dep,
   ],
   cpp_args: test_cpp_args,
   link_args: test_link_args,

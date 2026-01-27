@@ -88,7 +88,7 @@ if lua_dep.found()
     name_prefix: '',
     name_suffix: 'so',
     dependencies: lua_base_deps,
-    link_with: [libmcpp_lib, libmcpp_lua_utils_lib],
+    link_with: [libmcpp_lib, libmcpp_engine_lib, libmcpp_lua_utils_lib],
     include_directories: [incdir, srcdir],
     install: true,
     install_dir: install_dir,
@@ -143,5 +143,3 @@ if lua_dep.found()
     override_options: ['b_lundef=false'],  # 允许未定义的 lua 符号
   )
 endif
-
-

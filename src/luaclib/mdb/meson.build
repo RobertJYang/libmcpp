@@ -3,4 +3,5 @@ lmdb_src = files(
   'l_mdb.cpp',
   'l_mdb_service.cpp',
   'l_privilege.cpp',
+  'l_mdb_access.cpp',
 )

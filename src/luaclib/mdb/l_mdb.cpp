@@ -13,6 +13,7 @@
 #include "l_mdb.h"
 #include "l_mdb_service.h"
 #include "l_privilege.h"
+#include "l_mdb_access.h"
 
 extern "C" {
 #include <lualib.h>
@@ -37,6 +38,11 @@ __attribute__((visibility("default"))) int luaopen_lmdb(lua_State* L) {
     register_privilege_functions(L);
     register_privilege_constants(L);
     lua_setfield(L, -2, "privilege");
+
+    // ===== mdb_access 子模块 =====
+    lua_newtable(L);
+    register_mdb_access_functions(L);
+    lua_setfield(L, -2, "mdb_access");
 
     return 1;
 }
