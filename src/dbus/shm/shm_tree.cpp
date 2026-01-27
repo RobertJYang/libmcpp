@@ -10,6 +10,7 @@
  * See the Mulan PSL v2 for more details.
  */
 #include <glib-2.0/glib.h>
+#include <mc/dbus/shm/gvariant_convert.h>
 #include <mc/dbus/shm/serialize.h>
 #include <mc/dbus/shm/shm_tree.h>
 #include <mc/dict.h>
@@ -147,14 +148,41 @@ static std::optional<variant> read_property_variant(const shm::property& prop) {
         return std::nullopt;
     }
 
-    std::string_view data = data_opt.value();
-    void*            buf  = g_malloc0(data.size());
+    std::string_view data      = data_opt.value();
+    size_t           data_size = data.size();
+
+    // 处理长度为 0 的情况：g_malloc0(0) 可能返回 nullptr
+    if (data_size == 0) {
+        // 对于空数据，根据签名类型创建空的 gvariant
+        const char* sig_str = sig.data();
+        if (sig_str && strlen(sig_str) > 0) {
+            // 对于数组类型（如 "ay"），创建空数组
+            if (sig_str[0] == DBUS_TYPE_ARRAY) {
+                gvariant_auto_free gv(g_variant_new_fixed_array(
+                    G_VARIANT_TYPE(sig_str + 1), nullptr, 0, 0));
+                if (gv.ptr) {
+                    return gvariant_convert::to_mc_variant(gv.ptr);
+                }
+            }
+            // 对于字符串类型（如 "s"），创建空字符串
+            else if (sig_str[0] == DBUS_TYPE_STRING) {
+                gvariant_auto_free gv(g_variant_new_string(""));
+                if (gv.ptr) {
+                    return gvariant_convert::to_mc_variant(gv.ptr);
+                }
+            }
+        }
+        // 如果无法创建空 variant，返回 nullopt
+        return std::nullopt;
+    }
+
+    void* buf = g_malloc0(data_size);
     if (buf == nullptr) {
         return std::nullopt;
     }
-    std::memcpy(buf, data.data(), data.size());
+    std::memcpy(buf, data.data(), data_size);
     gvariant_auto_free gv(
-        g_variant_new_from_data(G_VARIANT_TYPE(sig.data()), buf, data.size(), false, g_free, buf));
+        g_variant_new_from_data(G_VARIANT_TYPE(sig.data()), buf, data_size, false, g_free, buf));
     return gvariant_convert::to_mc_variant(gv.ptr);
 }
 
@@ -290,7 +318,7 @@ static std::optional<variant> get_property_via_rpc(std::string_view interface_na
     // timeout_call_with_sender 可能抛出异常，这里不捕获，让异常向上传播
     auto reply_opt = shm_tree::timeout_call_with_sender(PROP_RPC_TIMEOUT, MDB_SERVICE_NAME,
                                                         {service_name, object_path, PROPS_IFACE,
-                                                        GET_WITH_CTX, GET_WITH_CTX_SIG, rpc_args});
+                                                         GET_WITH_CTX, GET_WITH_CTX_SIG, rpc_args});
 
     if (!reply_opt.has_value() || reply_opt->empty()) {
         return std::nullopt;
@@ -310,7 +338,7 @@ static std::pair<std::optional<variant>, std::optional<variant>> get_property_vi
     try {
         reply_opt = shm_tree::timeout_call_with_sender(PROP_RPC_TIMEOUT, MDB_SERVICE_NAME,
                                                        {service_name, object_path, PROPS_IFACE,
-                                                       GET_WITH_CTX, GET_WITH_CTX_SIG, rpc_args});
+                                                        GET_WITH_CTX, GET_WITH_CTX_SIG, rpc_args});
     } catch (const std::exception& e) {
         return {std::nullopt, variant(std::string(e.what()))};
     } catch (...) {
@@ -1356,7 +1384,7 @@ std::optional<mc::variants> shm_tree::timeout_call(mc::milliseconds timeout, con
 }
 
 std::optional<mc::variants> shm_tree::timeout_call_with_sender(mc::milliseconds timeout, std::string_view sender,
-                                                        const method_call_params& params) {
+                                                               const method_call_params& params) {
     local_msg msg(params.service_name, params.path, params.interface, params.method);
     if (!params.signature.empty()) {
         msg.append_args(params.signature, params.args);
@@ -1374,23 +1402,26 @@ std::optional<mc::variants> shm_tree::timeout_call_with_sender(mc::milliseconds 
     msg.set_timestamp();
 #endif
     auto data = msg.pack();
-    try {
-        if (!msg_queue->push_back(data, MSG_QUEUE_PUSH_TIMEOUT)) {
-            wlog("failed to push to message queue of destination service: ${service_name}",
-                 ("service_name", params.service_name));
-            return std::nullopt;
-        }
-    } catch (const std::exception& e) {
-        elog("message queue rpc failed: ${error}", ("error", e.what()));
-        return std::nullopt;
-    }
+    // 先保存promise，再发送消息，避免时序问题导致接收消息回复时找不到对应的promise
     auto  promise = mc::make_promise<local_msg>();
-    auto  future  = promise.get_future();
     auto& harbor  = mc::dbus::harbor::get_instance();
     if (!harbor.send_shm_msg(sender, serial, promise)) {
         wlog("failed to save shm msg promise");
         return std::nullopt;
     }
+    try {
+        if (!msg_queue->push_back(data, MSG_QUEUE_PUSH_TIMEOUT)) {
+            harbor.remove_shm_msg(sender, serial);
+            wlog("failed to push to message queue of destination service: ${service_name}",
+                 ("service_name", params.service_name));
+            return std::nullopt;
+        }
+    } catch (const std::exception& e) {
+        harbor.remove_shm_msg(sender, serial);
+        elog("message queue rpc failed: ${error}", ("error", e.what()));
+        return std::nullopt;
+    }
+    auto future = promise.get_future();
     if (future.wait_for(timeout) == mc::futures::future_status::timeout) {
         harbor.remove_shm_msg(sender, serial);
         throw mc::exception(mc::method_call_exception_code, std::string(error_names::no_reply),
@@ -1452,12 +1483,48 @@ static std::optional<variant> get_property_inner(std::string_view service_name, 
         }
         std::string_view prop_value = data.value();
         size_t           p_data_len = prop_value.size();
-        void*            p_data     = g_malloc0(p_data_len);
+        std::string_view signature  = prop->get_signature();
+
+        // 处理长度为 0 的情况：g_malloc0(0) 可能返回 nullptr
+        if (p_data_len == 0) {
+            // 对于空数据，根据签名类型创建空的 gvariant
+            const char* sig_str = signature.data();
+            if (sig_str && strlen(sig_str) > 0) {
+                // 对于数组类型（如 "ay"），创建空数组
+                if (sig_str[0] == DBUS_TYPE_ARRAY) {
+                    // 使用 gvariant_builder 创建空数组更安全
+                    gvariant_builder   builder(G_VARIANT_TYPE(signature.data()));
+                    gvariant_auto_free v(builder.end());
+                    if (v.ptr) {
+                        return std::make_optional(gvariant_convert::to_mc_variant(v.ptr));
+                    }
+                }
+                // 对于字符串类型（如 "s"），创建空字符串
+                else if (sig_str[0] == DBUS_TYPE_STRING) {
+                    gvariant_auto_free v(g_variant_new_string(""));
+                    if (v.ptr) {
+                        return std::make_optional(gvariant_convert::to_mc_variant(v.ptr));
+                    }
+                }
+                // 对于其他类型，尝试使用 g_variant_new_from_data 但传入 nullptr
+                // GLib 文档说明：如果 data 为 nullptr，size 必须为 0
+                else {
+                    gvariant_auto_free v(
+                        g_variant_new_from_data(G_VARIANT_TYPE(sig_str), nullptr, 0, false, nullptr, nullptr));
+                    if (v.ptr) {
+                        return std::make_optional(gvariant_convert::to_mc_variant(v.ptr));
+                    }
+                }
+            }
+            // 如果无法创建空 variant，返回 null variant
+            return std::make_optional(mc::variant());
+        }
+
+        void* p_data = g_malloc0(p_data_len);
         if (p_data == nullptr) {
             MC_THROW(mc::exception, "g_malloc0 failed, len: ${len}", ("len", p_data_len));
         }
         std::memcpy(p_data, prop_value.data(), p_data_len);
-        std::string_view   signature = prop->get_signature();
         gvariant_auto_free v(
             g_variant_new_from_data(G_VARIANT_TYPE(signature.data()), p_data, p_data_len, false, g_free, p_data));
         return std::make_optional(gvariant_convert::to_mc_variant(v.ptr));

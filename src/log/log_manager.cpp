@@ -60,7 +60,7 @@ log_manager::log_manager() {
         default_logger.add_appender(file_appender);
     }
 
-    default_logger.set_level(mc::log::level::info);
+    default_logger.set_level(mc::log::level::notice);
     m_loggers[MC_LOG_DEFAULT_LOGGER] = default_logger;
 }
 

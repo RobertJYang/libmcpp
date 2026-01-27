@@ -17,9 +17,11 @@
 
 #include <mc/json_wrapper.h>
 
+#include <algorithm>
 #include <cstring>
 #include <string>
 #include <string_view>
+#include <vector>
 
 #include <json_api.h>
 #include <mc/dict/dict.h>
@@ -63,7 +65,23 @@ bool json_array_equal(const Json* lhs, const Json* rhs) {
         Json* rhs_item = nullptr;
         check_json_ret(JsonArrayItemGet(lhs, i, &lhs_item), "Failed to get array item (lhs)");
         check_json_ret(JsonArrayItemGet(rhs, i, &rhs_item), "Failed to get array item (rhs)");
-        if (!json_equal(lhs_item, rhs_item)) {
+
+        // 处理 Quote 类型
+        Json* lhs_actual = lhs_item;
+        if (lhs_item != nullptr && JsonIsQuote(lhs_item)) {
+            Json* actual = nullptr;
+            check_json_ret(JsonObjectQuoteGet(lhs_item, &actual), "Failed to get quote object (lhs)");
+            lhs_actual = actual;
+        }
+
+        Json* rhs_actual = rhs_item;
+        if (rhs_item != nullptr && JsonIsQuote(rhs_item)) {
+            Json* actual = nullptr;
+            check_json_ret(JsonObjectQuoteGet(rhs_item, &actual), "Failed to get quote object (rhs)");
+            rhs_actual = actual;
+        }
+
+        if (!json_equal(lhs_actual, rhs_actual)) {
             return false;
         }
     }
@@ -113,12 +131,29 @@ bool json_object_equal(const Json* lhs, const Json* rhs) {
     while (child != nullptr) {
         char* key_c = nullptr;
         check_json_ret(JsonItemKeyGet(child, &key_c), "Failed to get object key");
+
         Json* rhs_item = nullptr;
         ret            = JsonObjectItemGet(rhs, key_c, &rhs_item);
         if (ret != JSON_OK || rhs_item == nullptr) {
             return false;
         }
-        if (!json_equal(child, rhs_item)) {
+
+        // 处理 Quote 类型
+        Json* lhs_actual = child;
+        if (JsonIsQuote(child)) {
+            Json* actual = nullptr;
+            check_json_ret(JsonObjectQuoteGet(child, &actual), "Failed to get quote object (lhs)");
+            lhs_actual = actual;
+        }
+
+        Json* rhs_actual = rhs_item;
+        if (JsonIsQuote(rhs_item)) {
+            Json* actual = nullptr;
+            check_json_ret(JsonObjectQuoteGet(rhs_item, &actual), "Failed to get quote object (rhs)");
+            rhs_actual = actual;
+        }
+
+        if (!json_equal(lhs_actual, rhs_actual)) {
             return false;
         }
 
@@ -231,14 +266,31 @@ Json* build_json_from_variant(const mc::variant& value) {
         } else if constexpr (std::is_same_v<T, mc::variant::object_type>) {
             ret = JsonObjectCreate(&json);
             check_json_ret(ret, "Failed to create object node");
+            // 先收集所有的键值对，然后按照键的字符串顺序排序，以保证稳定的顺序
+            std::vector<std::pair<std::string, Json*>> sorted_entries;
             for (const auto& entry : v) {
                 const auto& key_var = entry.key;
                 const auto& val_var = entry.value;
                 std::string key_str = key_var.get_string();
                 Json*       child   = build_json_from_variant(val_var);
                 ensure_created(child, "Failed to build object element");
-                check_json_ret(JsonItemAddToObject(key_str.c_str(), child, json),
-                               "Failed to add object element");
+                sorted_entries.push_back({key_str, child});
+            }
+            // 按照键的字符串顺序排序
+            std::sort(sorted_entries.begin(), sorted_entries.end(),
+                      [](const auto& a, const auto& b) {
+                return a.first < b.first;
+            });
+            // 按照排序后的顺序插入到 JSON 对象中
+            // 注意：需要先创建 Quote 对象，然后才能添加到对象中
+            for (const auto& entry : sorted_entries) {
+                // 创建 Quote 对象用于插入
+                Json*    quote = nullptr;
+                uint32_t ret   = JsonQuoteCreate(&quote, entry.second);
+                check_json_ret(ret, "Failed to create quote for object element");
+
+                ret = JsonItemAddToObject(entry.first.c_str(), quote, json);
+                check_json_ret(ret, "Failed to add object element");
             }
         } else if constexpr (std::is_same_v<T, mc::variant::extension_type>) {
             auto s = v.as_string();
@@ -296,7 +348,16 @@ mc::variant build_variant_from_json(const Json* json) {
         for (uint32_t i = 0; i < size; ++i) {
             Json* item = nullptr;
             check_json_ret(JsonArrayItemGet(json, i, &item), "Failed to get array item");
-            arr.push_back(build_variant_from_json(item));
+
+            // 处理 Quote 类型
+            Json* actual_item = item;
+            if (item != nullptr && JsonIsQuote(item)) {
+                Json* actual = nullptr;
+                check_json_ret(JsonObjectQuoteGet(item, &actual), "Failed to get quote object");
+                actual_item = actual;
+            }
+
+            arr.push_back(build_variant_from_json(actual_item));
         }
         return mc::variant(arr);
     }
@@ -313,7 +374,16 @@ mc::variant build_variant_from_json(const Json* json) {
             char* key_c = nullptr;
             check_json_ret(JsonItemKeyGet(child, &key_c), "Failed to get object key");
             std::string key = key_c ? std::string(key_c) : std::string();
-            obj(key, build_variant_from_json(child));
+
+            // 处理 Quote 类型
+            Json* actual_child = child;
+            if (JsonIsQuote(child)) {
+                Json* actual = nullptr;
+                check_json_ret(JsonObjectQuoteGet(child, &actual), "Failed to get quote object");
+                actual_child = actual;
+            }
+
+            obj(key, build_variant_from_json(actual_child));
 
             Json*    next = nullptr;
             uint32_t r    = JsonItemNextSibling(child, &next);
@@ -556,6 +626,15 @@ JsonValue JsonValue::from_variant(const mc::variant& value) {
 
 bool JsonValue::operator==(const JsonValue& other) const {
     return json_equal(m_json, other.m_json);
+}
+
+JsonValue JsonValue::new_from_raw(Json* raw_ptr) {
+    if (raw_ptr == nullptr) {
+        MC_THROW(mc::bad_cast_exception, "Cannot create JsonValue from null pointer");
+    }
+    // 增加引用计数
+    add_ref(raw_ptr);
+    return JsonValue(raw_ptr);
 }
 
 // ======================== JsonArray ========================

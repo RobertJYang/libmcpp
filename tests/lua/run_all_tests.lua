@@ -27,15 +27,18 @@ end
 -- 导入所有测试模块
 require('shm_tree')
 require('dft')
+require('json')
 require('dbus.test_blocking')
 require('dbus.test_nonblock')
 require('dbus.test_error')
 require('dbus.test_message')
 require('mdb.test_lmdb_service')
 require('mdb.test_lmdb_privilege')
+-- require('mdb.test_lmdb_access')
 require('dbus.test_object')
 require('dbus.test_interface')
 require('lvalidate.test_integer')
+require('lvalidate.test_validate')
 
 -- 设置详细输出，显示每个测试用例的执行情况
 if lu.setVerbosity then

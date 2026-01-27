@@ -10,6 +10,14 @@
 - [shm_tree](shm_tree.md) - 共享内存 MDB 查询与 SHM 属性访问 Lua 绑定
 - [mdb](mdb.md) - MDB 服务和权限验证 Lua 绑定
 
+### 数据格式
+
+- [json](json.md) - JSON 对象操作 Lua 绑定
+
+### 工具库
+
+- [validate](validate.md) - 参数校验库
+
 ## 快速开始
 
 ### 安装和加载
@@ -44,6 +52,7 @@ dbus:close()
 lua_api/
 ├── index.md           # 本文件
 ├── shm_tree.md        # 共享内存 MDB 与 SHM 属性 Lua 绑定
+├── json.md            # JSON 对象操作文档
 └── dbus/              # DBus Lua API
     ├── README.md      # DBus 文档索引
     ├── blocking.md    # 阻塞模式

@@ -35,6 +35,7 @@ libmcpp_engine_lib = library(
   install: true,
   install_dir: install_dir,
   build_by_default: true,
+  gnu_symbol_visibility: 'default',
 )
 libmcpp_engine_dep = declare_dependency(
   include_directories: incdir,
