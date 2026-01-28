@@ -13,6 +13,7 @@
 #ifndef MC_LOG_LOGGER_H
 #define MC_LOG_LOGGER_H
 
+#include <cstdarg>
 #include <mc/log/appender.h>
 #include <mc/log/log_message.h>
 #include <mc/reflect.h>
@@ -166,6 +167,54 @@ public:
     void log(message msg);
 
     /**
+     * @brief 按 printf 方式输出串口调试日志，由 file_appender 承载
+     *
+     * @param fmt 格式化字符串
+     * @param ... 可变参数
+     */
+    void debug_printf(const char* fmt, ...);
+
+    /**
+     * @brief 按 printf 方式输出串口信息日志，由 file_appender 承载
+     *
+     * @param fmt 格式化字符串
+     * @param ... 可变参数
+     */
+    void info_printf(const char* fmt, ...);
+
+    /**
+     * @brief 按 printf 方式输出串口注意日志，由 file_appender 承载
+     *
+     * @param fmt 格式化字符串
+     * @param ... 可变参数
+     */
+    void notice_printf(const char* fmt, ...);
+
+    /**
+     * @brief 按 printf 方式输出串口警告日志，由 file_appender 承载
+     *
+     * @param fmt 格式化字符串
+     * @param ... 可变参数
+     */
+    void warn_printf(const char* fmt, ...);
+
+    /**
+     * @brief 按 printf 方式输出串口错误日志，由 file_appender 承载
+     *
+     * @param fmt 格式化字符串
+     * @param ... 可变参数
+     */
+    void error_printf(const char* fmt, ...);
+
+    /**
+     * @brief 输出已格式化的串口日志，供 Lua 等上层在自行 format 后调用
+     *
+     * @param lvl 日志级别
+     * @param formatted_msg 已格式化的消息内容
+     */
+    void log_serial_printf(level lvl, const std::string& formatted_msg);
+
+    /**
      * @brief 添加日志追加器
      *
      * @param a 日志追加器
@@ -201,6 +250,15 @@ public:
     void clear_appenders();
 
 private:
+    /**
+     * @brief 按 printf 方式输出串口日志（内部实现，供 xxx_printf 调用）
+     *
+     * @param lvl 日志级别
+     * @param fmt 格式化字符串
+     * @param ap 可变参数列表
+     */
+    void log_printf(level lvl, const char* fmt, std::va_list ap);
+
     /**
      * @brief 应用 system_id 到日志消息
      *
@@ -250,6 +308,16 @@ private:
     } while (0)
 
 /**
+ * @brief 按类别与级别记录日志（用于南向硬件流等需同时指定类别与级别的场景）
+ */
+#define MC_LOG_BASE_WITH_CATEGORY_AND_LEVEL(LOGGER, CATEGORY, LEVEL, ...)                     \
+    do {                                                                                      \
+        if (!LOGGER.is_debug_log(CATEGORY)) {                                                 \
+            LOGGER.log(MC_LOG_DISPATCH(LEVEL, CATEGORY, MC_FORMAT_EMPTY_CHECK, __VA_ARGS__)); \
+        }                                                                                     \
+    } while (0)
+
+/**
  * @brief 不安全的记录日志（编译期不检查格式化字符串和格式化参数）
  */
 #define MC_LOG_BASE_UNSAFE(LOGGER, LEVEL, ...)                     \
@@ -257,6 +325,16 @@ private:
         if (LOGGER.is_enabled(mc::log::level::LEVEL)) {            \
             LOGGER.log(MC_LOG_MESSAGE_UNSAFE(LEVEL, __VA_ARGS__)); \
         }                                                          \
+    } while (0)
+
+/**
+ * @brief 不限流（_easy）记录日志：file_appender 的 internal_log_handler 第二个参数为 false
+ */
+#define MC_LOG_BASE_EASY(LOGGER, LEVEL, ...)                     \
+    do {                                                         \
+        if (LOGGER.is_enabled(mc::log::level::LEVEL)) {          \
+            LOGGER.log(MC_LOG_MESSAGE_EASY(LEVEL, __VA_ARGS__)); \
+        }                                                        \
     } while (0)
 
 } // namespace log

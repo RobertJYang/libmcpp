@@ -14,13 +14,19 @@
 #include <mc/fmt/format_dict.h>
 #include <mc/log/log_manager.h>
 #include <mc/log/logger.h>
+#include <logging_internal.h>
+#include <dlfcn.h>
 
 #include <algorithm>
 #include <chrono>
+#include <cstdarg>
 #include <cstddef>
+#include <cstdio>
 #include <memory>
 #include <mutex>
 #include <unordered_map>
+
+constexpr uint32_t LOG_US_TIME = 0x01;
 
 namespace mc {
 namespace log {
@@ -126,7 +132,7 @@ bool logger::is_enabled(level lvl) const {
 }
 
 bool logger::is_debug_log(log_category category) const {
-    return category == log_category::debug;
+    return category == log_category::debug || category == log_category::serial_printf;
 }
 
 logger& logger::system(int system_id) {
@@ -268,6 +274,132 @@ void logger::log(message msg) {
     // 输出日志
     for (const auto& appender : m_impl->m_appenders) {
         appender->append(final_msg);
+    }
+}
+
+namespace {
+
+constexpr size_t LOG_PRINTF_BUF_SIZE = 4096;
+
+} // namespace
+
+void logger::log_printf(level lvl, const char* fmt, std::va_list ap) {
+    if (!is_enabled(lvl)) {
+        return;
+    }
+
+    char buf[LOG_PRINTF_BUF_SIZE];
+    int  n = std::vsnprintf(buf, sizeof(buf), fmt, ap);
+    if (n < 0) {
+        return;
+    }
+
+    std::string formatted(buf);
+    context     ctx("", "", 0);
+    message     msg(lvl, formatted, ctx);
+    msg.set_category(log_category::serial_printf);
+    log(msg);
+}
+
+void logger::debug_printf(const char* fmt, ...) {
+    std::va_list ap;
+    va_start(ap, fmt);
+    log_printf(level::debug, fmt, ap);
+    va_end(ap);
+}
+
+void logger::info_printf(const char* fmt, ...) {
+    std::va_list ap;
+    va_start(ap, fmt);
+    log_printf(level::info, fmt, ap);
+    va_end(ap);
+}
+
+void logger::notice_printf(const char* fmt, ...) {
+    std::va_list ap;
+    va_start(ap, fmt);
+    log_printf(level::notice, fmt, ap);
+    va_end(ap);
+}
+
+void logger::warn_printf(const char* fmt, ...) {
+    std::va_list ap;
+    va_start(ap, fmt);
+    log_printf(level::warn, fmt, ap);
+    va_end(ap);
+}
+
+void logger::error_printf(const char* fmt, ...) {
+    std::va_list ap;
+    va_start(ap, fmt);
+    log_printf(level::error, fmt, ap);
+    va_end(ap);
+}
+
+static std::string shell_single_quote_escape(std::string s) {
+    // shell 中用单引号包裹最安全，但单引号本身需要特殊处理：' -> '\''（即：' " ' " '）
+    std::string out;
+    out.reserve(s.size() + 2);
+    out.push_back('\'');
+    for (char ch : s) {
+        if (ch == '\'') {
+            out.append("'\"'\"'");
+        } else {
+            out.push_back(ch);
+        }
+    }
+    out.push_back('\'');
+    return out;
+}
+
+typedef const char* (*get_log_time_str_func_t)(int);
+static get_log_time_str_func_t get_log_time_str_ptr = nullptr;
+
+void logger::log_serial_printf(level lvl, const std::string& formatted_msg) {
+    if (!is_enabled(lvl)) {
+        return;
+    }
+    context ctx("", "", 0);
+    message msg(lvl, formatted_msg, ctx);
+
+    std::string message_str = msg.get_message();
+    // 过滤无效字符，避免输出控制字符导致终端显示异常
+    logging::filter_invalid_chars(message_str);
+
+    if (!get_log_time_str_ptr) {
+        void* handle = dlopen(LOGGING_PATH, RTLD_NOW);
+        get_log_time_str_ptr = (get_log_time_str_func_t)dlsym(handle, "get_log_time_str_c");
+    }
+    std::string module_name = "Unknown";
+    const auto& args        = msg.get_args();
+    if (args.contains("module_name")) {
+        try {
+            module_name = args["module_name"].as<std::string>();
+        } catch (...) {
+        }
+    }
+
+    std::string file_str;
+    file_str.reserve(64);
+    if (ctx.m_file.empty()) {
+        file_str.append(__FILE__);
+    } else {
+        file_str.append(mc::filesystem::basename(ctx.m_file));
+    }
+
+    std::string level_str(mc::log::to_string(msg.get_level()));
+    std::string line_str(std::to_string(ctx.m_line));
+
+    if (get_log_time_str_ptr) {
+        const char* time_str = get_log_time_str_ptr(LOG_US_TIME);
+        if (time_str) {
+            std::string str = mc::format_dict("${time} ${module} ${level}: ${file}(${line}): ${message}",
+                                              mc::dict()("time", time_str)("module", module_name)("level", level_str)("file", file_str)("line", line_str)("message", message_str));
+
+            const std::string quoted = shell_single_quote_escape(str);
+            const std::string cmd    = "sh -c \"echo " + quoted + " > /dev/ttyS0\"";
+            (void)std::system(cmd.c_str());
+        }
     }
 }
 

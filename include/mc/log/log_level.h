@@ -26,23 +26,26 @@ namespace log {
  * @brief 日志类别枚举
  */
 enum class log_category : uint8_t {
-    debug,    // 调试类别
-    operation // 操作类别
+    debug,        // 调试类别
+    operation,    // 操作类别
+    hw_stream,    // 南向硬件流日志类别（syslog LOG_LOCAL6）
+    mc_stream,    // mc 流日志类别（syslog LOG_LOCAL5）
+    serial_printf // 串口 printf 方式输出类别，由 file_appender 承载
 };
 
 /**
  * @brief 日志级别枚举
  */
 enum class level {
-    all,   // 所有日志
-    trace, // 跟踪日志
-    debug, // 调试日志
-    info,  // 信息日志
+    all,    // 所有日志
+    trace,  // 跟踪日志
+    debug,  // 调试日志
+    info,   // 信息日志
     notice, // 注意日志
-    warn,  // 警告日志
-    error, // 错误日志
-    fatal, // 致命错误日志
-    off    // 关闭日志
+    warn,   // 警告日志
+    error,  // 错误日志
+    fatal,  // 致命错误日志
+    off     // 关闭日志
 };
 
 /**

@@ -74,8 +74,37 @@ inline logger default_logger() {
 #define mc_elog(LOGGER, ...) MC_LOG_BASE(LOGGER, error, __VA_ARGS__)
 #define mc_flog(LOGGER, ...) MC_LOG_BASE(LOGGER, fatal, __VA_ARGS__)
 
+// 使用指定日志记录器的不限流（_easy）日志宏
+#define mc_tlog_easy(LOGGER, ...) MC_LOG_BASE_EASY(LOGGER, trace, __VA_ARGS__)
+#define mc_dlog_easy(LOGGER, ...) MC_LOG_BASE_EASY(LOGGER, debug, __VA_ARGS__)
+#define mc_ilog_easy(LOGGER, ...) MC_LOG_BASE_EASY(LOGGER, info, __VA_ARGS__)
+#define mc_nlog_easy(LOGGER, ...) MC_LOG_BASE_EASY(LOGGER, notice, __VA_ARGS__)
+#define mc_wlog_easy(LOGGER, ...) MC_LOG_BASE_EASY(LOGGER, warn, __VA_ARGS__)
+#define mc_elog_easy(LOGGER, ...) MC_LOG_BASE_EASY(LOGGER, error, __VA_ARGS__)
+#define mc_flog_easy(LOGGER, ...) MC_LOG_BASE_EASY(LOGGER, fatal, __VA_ARGS__)
+
 // 非调试日志分类宏
 #define mc_operation_log(LOGGER, ...) MC_LOG_BASE_WITH_CATEGORY(LOGGER, mc::log::log_category::operation, __VA_ARGS__)
+
+// 南向硬件流日志宏（输出到相关日志文件 LOG_LOCAL6，格式：时间 模块名 级别: 文件名(行数): 日志文本）
+#define mc_hw_stream_info(LOGGER, ...) \
+    MC_LOG_BASE_WITH_CATEGORY_AND_LEVEL(LOGGER, mc::log::log_category::hw_stream, info, __VA_ARGS__)
+#define mc_hw_stream_warn(LOGGER, ...) \
+    MC_LOG_BASE_WITH_CATEGORY_AND_LEVEL(LOGGER, mc::log::log_category::hw_stream, warn, __VA_ARGS__)
+#define mc_hw_stream_notice(LOGGER, ...) \
+    MC_LOG_BASE_WITH_CATEGORY_AND_LEVEL(LOGGER, mc::log::log_category::hw_stream, notice, __VA_ARGS__)
+#define mc_hw_stream_error(LOGGER, ...) \
+    MC_LOG_BASE_WITH_CATEGORY_AND_LEVEL(LOGGER, mc::log::log_category::hw_stream, error, __VA_ARGS__)
+
+// mc 流日志宏（输出到相关日志文件 LOG_LOCAL5，格式与 hw_stream 相同）
+#define mc_mc_stream_info(LOGGER, ...) \
+    MC_LOG_BASE_WITH_CATEGORY_AND_LEVEL(LOGGER, mc::log::log_category::mc_stream, info, __VA_ARGS__)
+#define mc_mc_stream_warn(LOGGER, ...) \
+    MC_LOG_BASE_WITH_CATEGORY_AND_LEVEL(LOGGER, mc::log::log_category::mc_stream, warn, __VA_ARGS__)
+#define mc_mc_stream_notice(LOGGER, ...) \
+    MC_LOG_BASE_WITH_CATEGORY_AND_LEVEL(LOGGER, mc::log::log_category::mc_stream, notice, __VA_ARGS__)
+#define mc_mc_stream_error(LOGGER, ...) \
+    MC_LOG_BASE_WITH_CATEGORY_AND_LEVEL(LOGGER, mc::log::log_category::mc_stream, error, __VA_ARGS__)
 
 // 使用默认日志记录器的全局日志宏
 #define tlog(...) mc_tlog(mc::log::default_logger(), __VA_ARGS__)
@@ -86,8 +115,29 @@ inline logger default_logger() {
 #define elog(...) mc_elog(mc::log::default_logger(), __VA_ARGS__)
 #define flog(...) mc_flog(mc::log::default_logger(), __VA_ARGS__)
 
+// 使用默认日志记录器的全局不限流（_easy）日志宏
+#define tlog_easy(...) mc_tlog_easy(mc::log::default_logger(), __VA_ARGS__)
+#define dlog_easy(...) mc_dlog_easy(mc::log::default_logger(), __VA_ARGS__)
+#define ilog_easy(...) mc_ilog_easy(mc::log::default_logger(), __VA_ARGS__)
+#define nlog_easy(...) mc_nlog_easy(mc::log::default_logger(), __VA_ARGS__)
+#define wlog_easy(...) mc_wlog_easy(mc::log::default_logger(), __VA_ARGS__)
+#define elog_easy(...) mc_elog_easy(mc::log::default_logger(), __VA_ARGS__)
+#define flog_easy(...) mc_flog_easy(mc::log::default_logger(), __VA_ARGS__)
+
 // 全局非调试日志分类宏
 #define operation_log(...) mc_operation_log(mc::log::default_logger(), __VA_ARGS__)
+
+// 全局南向硬件流日志宏
+#define hw_stream_info(...)   mc_hw_stream_info(mc::log::default_logger(), __VA_ARGS__)
+#define hw_stream_warn(...)   mc_hw_stream_warn(mc::log::default_logger(), __VA_ARGS__)
+#define hw_stream_notice(...) mc_hw_stream_notice(mc::log::default_logger(), __VA_ARGS__)
+#define hw_stream_error(...)  mc_hw_stream_error(mc::log::default_logger(), __VA_ARGS__)
+
+// 全局 mc 流日志宏
+#define mc_stream_info(...)   mc_mc_stream_info(mc::log::default_logger(), __VA_ARGS__)
+#define mc_stream_warn(...)   mc_mc_stream_warn(mc::log::default_logger(), __VA_ARGS__)
+#define mc_stream_notice(...) mc_mc_stream_notice(mc::log::default_logger(), __VA_ARGS__)
+#define mc_stream_error(...)  mc_mc_stream_error(mc::log::default_logger(), __VA_ARGS__)
 
 // ======================================================================
 // 不安全的日志宏定义（编译期不检查格式化字符串和格式化参数）
