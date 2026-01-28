@@ -266,31 +266,13 @@ Json* build_json_from_variant(const mc::variant& value) {
         } else if constexpr (std::is_same_v<T, mc::variant::object_type>) {
             ret = JsonObjectCreate(&json);
             check_json_ret(ret, "Failed to create object node");
-            // 先收集所有的键值对，然后按照键的字符串顺序排序，以保证稳定的顺序
-            std::vector<std::pair<std::string, Json*>> sorted_entries;
             for (const auto& entry : v) {
                 const auto& key_var = entry.key;
                 const auto& val_var = entry.value;
                 std::string key_str = key_var.get_string();
                 Json*       child   = build_json_from_variant(val_var);
                 ensure_created(child, "Failed to build object element");
-                sorted_entries.push_back({key_str, child});
-            }
-            // 按照键的字符串顺序排序
-            std::sort(sorted_entries.begin(), sorted_entries.end(),
-                      [](const auto& a, const auto& b) {
-                return a.first < b.first;
-            });
-            // 按照排序后的顺序插入到 JSON 对象中
-            // 注意：需要先创建 Quote 对象，然后才能添加到对象中
-            for (const auto& entry : sorted_entries) {
-                // 创建 Quote 对象用于插入
-                Json*    quote = nullptr;
-                uint32_t ret   = JsonQuoteCreate(&quote, entry.second);
-                check_json_ret(ret, "Failed to create quote for object element");
-
-                ret = JsonItemAddToObject(entry.first.c_str(), quote, json);
-                check_json_ret(ret, "Failed to add object element");
+                check_json_ret(JsonItemAddToObject(key_str.c_str(), child, json), "Failed to add object element");
             }
         } else if constexpr (std::is_same_v<T, mc::variant::extension_type>) {
             auto s = v.as_string();

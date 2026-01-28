@@ -11,7 +11,6 @@
  */
 
 #include "utils/variant_utils.h"
-#include <algorithm>
 #include <climits>
 #include <cmath>
 #include <string>
@@ -189,8 +188,8 @@ static JsonValue build_json_from_lua(lua_State* L, int index) {
             JsonValue  obj_val = JsonValue::make_object();
             JsonObject obj     = obj_val.as_object();
 
-            // 收集所有键值对，然后排序以保证稳定的顺序
-            std::vector<std::pair<std::string, JsonValue>> sorted_entries;
+            // 收集所有键值对，保持原始顺序
+            std::vector<std::pair<std::string, JsonValue>> entries;
 
             lua_pushnil(L);
             while (lua_next(L, abs_index) != 0) {
@@ -209,18 +208,12 @@ static JsonValue build_json_from_lua(lua_State* L, int index) {
                 }
 
                 JsonValue child = build_json_from_lua(L, -1);
-                sorted_entries.push_back({key_str, child});
+                entries.push_back({key_str, child});
                 lua_pop(L, 1); // 弹出值，保留键用于下一次迭代
             }
 
-            // 按照键的字符串顺序排序
-            std::sort(sorted_entries.begin(), sorted_entries.end(),
-                      [](const auto& a, const auto& b) {
-                return a.first < b.first;
-            });
-
-            // 按照排序后的顺序插入到 JSON 对象中
-            for (const auto& entry : sorted_entries) {
+            // 按照原始顺序插入到 JSON 对象中
+            for (const auto& entry : entries) {
                 obj.set(entry.first, entry.second);
             }
 
@@ -617,6 +610,52 @@ static int l_json_object_from_table(lua_State* L) {
     }
 }
 
+// 深拷贝 JsonValue（避免 variant 中间转换，只使用 C++ 接口）
+static JsonValue copy_json_value(const JsonValue& value) {
+    if (value.is_null()) {
+        return JsonValue::make_null();
+    } else if (value.is_bool()) {
+        return JsonValue::make_bool(value.as_bool());
+    } else if (value.is_int()) {
+        return JsonValue::make_int(value.as_int());
+    } else if (value.is_double()) {
+        return JsonValue::make_double(value.as_double());
+    } else if (value.is_string()) {
+        return JsonValue::make_string(value.as_string());
+    } else if (value.is_array()) {
+        JsonValue arr_val = JsonValue::make_array();
+        JsonArray arr     = arr_val.as_array();
+        JsonArray src_arr = value.as_array();
+
+        for (uint32_t i = 0; i < src_arr.size(); ++i) {
+            JsonValue child = copy_json_value(src_arr.at(i));
+            arr.push_back(child);
+        }
+        return arr_val;
+    } else if (value.is_object()) {
+        JsonValue  obj_val = JsonValue::make_object();
+        JsonObject obj     = obj_val.as_object();
+        JsonObject src_obj = value.as_object();
+
+        // 收集所有键值对，保持原始顺序
+        std::vector<std::pair<std::string, JsonValue>> entries;
+
+        for (const auto& pair : src_obj) {
+            JsonValue copied_value = copy_json_value(pair.value);
+            entries.push_back({pair.key, copied_value});
+        }
+
+        // 按照原始顺序插入到 JSON 对象中
+        for (const auto& entry : entries) {
+            obj.set(entry.first, entry.second);
+        }
+
+        return obj_val;
+    } else {
+        MC_THROW(mc::parse_error_exception, "Unsupported JSON type for copy");
+    }
+}
+
 // 复制 JSON 对象（深拷贝）
 static int l_json_object_copy(lua_State* L) {
     try {
@@ -626,8 +665,7 @@ static int l_json_object_copy(lua_State* L) {
         }
 
         JsonValue json_val = get_json_value_from_lua(L, 1);
-        variant   v        = json_val.to_variant();
-        JsonValue copied   = JsonValue::from_variant(v);
+        JsonValue copied   = copy_json_value(json_val);
         return push_json_value(L, std::move(copied));
     } catch (const mc::exception& e) {
         return luaL_error(L, "json_object_copy failed: %s", e.what());
