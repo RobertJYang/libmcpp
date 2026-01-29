@@ -286,7 +286,10 @@ static int l_get_mdb_matched_objects(lua_State* L) {
         const char*      service_cstr = luaL_checkstring(L, 1);
         std::string_view service_name(service_cstr);
         const char*      pattern_cstr = luaL_checkstring(L, 2);
-        std::string_view iface_pattern(pattern_cstr);
+        // Lua 正则转义字符为'%s' c++为'\'
+        std::string iface_pattern_str(pattern_cstr);
+        std::replace(iface_pattern_str.begin(), iface_pattern_str.end(), '%', '\\');
+        std::string_view iface_pattern(iface_pattern_str);
 
         variants result = shm_tree::get_mdb_matched_objects(service_name, iface_pattern);
         mc::lua::variant_to_lua(L, variant(result));
