@@ -120,7 +120,7 @@ public:
     }
 
     void set(uint32_t index, const JsonValue& value);
-    void push_back(const JsonValue& value);
+    void push_back(const JsonValue& value, bool quote_flag = true);
 
     // 迭代器支持
     class iterator {
@@ -187,7 +187,7 @@ public:
         return get(key);
     }
 
-    void set(std::string_view key, const JsonValue& value);
+    void set(std::string_view key, const JsonValue& value, bool quote_flag = true);
     void erase(std::string_view key);
 
     // 获取对象中键值对数量（通过遍历计算）

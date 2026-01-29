@@ -19,6 +19,7 @@
 #include <mc/dict/dict.h>
 #include <mc/exception.h>
 #include <mc/json_wrapper.h>
+#include <json_api.h>
 
 extern "C" {
 #include <lauxlib.h>
@@ -140,134 +141,204 @@ inline int push_json_value(lua_State* L, JsonValue&& value) {
     return 1;
 }
 
+static Json *json_array_new(lua_State* L, int idx);
+static Json *json_object_new(lua_State* L, int idx);
+static Json *json_new(lua_State* L, int index)
+{   Json *json;
+    int idx = (index < 0) ? lua_gettop(L) + index + 1 : index;
+    int type = lua_type(L, idx);
+    switch(type) {
+        case LUA_TNIL: {
+            JsonNullCreate(&json);
+            return json;
+        }
+        case LUA_TBOOLEAN: {
+            bool val = lua_toboolean(L, idx) != 0;
+            JsonBoolCreate(val, &json);
+            return json;
+        }
+        case LUA_TNUMBER: {
+            if (lua_isinteger(L, idx)) {
+                int64_t val = static_cast<int64_t>(lua_tointeger(L, idx));
+                JsonIntegerCreate(val, &json);
+                return json;
+            } else {
+                double val = lua_tonumber(L, idx);
+                JsonDoubleCreate(val, &json);
+                return json;
+            }
+        }
+        case LUA_TSTRING: {
+            size_t      len = 0;
+            const char* str = lua_tolstring(L, idx, &len);
+            JsonStringCreateWithLen(str, len, &json);
+            return json;
+        }
+        case LUA_TTABLE: {
+            if (lua_rawlen(L, idx) == 0) {
+                return json_array_new(L, idx);
+            } else {
+                return json_object_new(L, idx);
+            }
+        }
+        case LUA_TLIGHTUSERDATA: {
+            if (lua_touserdata(L, idx) == nullptr) {
+                JsonNullCreate(&json);
+                return json;
+            } else {
+                luaL_error(L, "json: cannot convert lightuserdata to json");
+                return nullptr;
+            }
+        }
+        default: {
+            luaL_error(L, "json: cannot convert %s to json", lua_typename(L, type));
+            return nullptr;
+        }
+    }
+}
+
+static Json *json_array_new(lua_State* L, int idx)
+{
+    size_t len = lua_rawlen(L, idx);
+    Json *object;
+    if (JsonArrayCreate(&object) != JSON_OK) {
+        luaL_error(L, "json: cannot create json array");
+    }
+    uint32_t array_size = 0;
+    for (size_t i = 0; i < len; i++) {
+        if (JsonArraySizeGet(object, &array_size) != JSON_OK) {
+            luaL_error(L, "json: cannot get json array size");
+        }
+        lua_rawgeti(L, idx, i + 1);
+        JsonArrayItemInsert(object, array_size, json_new(L, -1));
+        lua_pop(L, 1);
+    }
+
+    return object;
+}
+
+static Json *json_object_new(lua_State* L, int idx)
+{
+    Json *object;
+    if (JsonObjectCreate(&object) != JSON_OK) {
+        luaL_error(L, "json: cannot create json object");
+    } 
+    lua_pushnil(L);
+    while (lua_next(L, idx) != 0) { 
+        const char* key_c = luaL_checkstring(L, -2);
+        JsonItemAddToObject(key_c, json_new(L, -1), object);
+        lua_pop(L, 1);
+    }
+    return object;
+}
+
+
 // 直接从 Lua 值转换为 JsonValue（避免 variant 中间转换，只使用 C++ 接口）
 static JsonValue build_json_from_lua(lua_State* L, int index) {
     int abs_index = (index < 0) ? lua_gettop(L) + index + 1 : index;
-    int type_val  = lua_type(L, abs_index);
+    return JsonValue(json_new(L, abs_index));
+}
 
-    switch (type_val) {
-    case LUA_TNIL: {
-        return JsonValue::make_null();
-    }
-    case LUA_TBOOLEAN: {
-        bool val = lua_toboolean(L, abs_index) != 0;
-        return JsonValue::make_bool(val);
-    }
-    case LUA_TNUMBER: {
-        // 尝试作为整数
-        if (is_lua_integer(L, abs_index)) {
-            int64_t val = static_cast<int64_t>(lua_tointeger(L, abs_index));
-            return JsonValue::make_int(val);
-        } else {
-            double val = lua_tonumber(L, abs_index);
-            return JsonValue::make_double(val);
-        }
-    }
-    case LUA_TSTRING: {
-        size_t      len = 0;
-        const char* str = lua_tolstring(L, abs_index, &len);
-        return JsonValue::make_string(std::string_view(str, len));
-    }
-    case LUA_TTABLE: {
-        // 判断是数组还是对象
-        if (is_lua_array(L, abs_index)) {
-            // 作为数组处理
-            JsonValue arr_val = JsonValue::make_array();
-            JsonArray arr     = arr_val.as_array();
-
-            lua_Integer size = get_lua_table_length(L, abs_index);
-            for (lua_Integer i = 1; i <= size; ++i) {
-                lua_rawgeti(L, abs_index, static_cast<int>(i));
-                JsonValue child = build_json_from_lua(L, -1);
-                arr.push_back(child);
-                lua_pop(L, 1); // 弹出子元素
+static void json_object_push(lua_State* L, Json* val);
+static void json_array_push(lua_State* L, Json* val);
+static void json_value_push(lua_State* L, Json* val) {
+    JsonType type = JsonTypeGet(val);
+    switch (type) {
+        case JSONTYPE_QUOTE: {
+            Json *tmp;
+            if (JsonObjectQuoteGet(val, &tmp) != JSON_OK) {
+                luaL_error(L, "json: cannot get json quote");
             }
-            return arr_val;
-        } else {
-            // 作为对象处理
-            JsonValue  obj_val = JsonValue::make_object();
-            JsonObject obj     = obj_val.as_object();
-
-            // 收集所有键值对，保持原始顺序
-            std::vector<std::pair<std::string, JsonValue>> entries;
-
-            lua_pushnil(L);
-            while (lua_next(L, abs_index) != 0) {
-                // 键在 -2，值在 -1
-                std::string key_str;
-                if (lua_type(L, -2) == LUA_TSTRING) {
-                    const char* key_c = lua_tostring(L, -2);
-                    key_str           = key_c ? std::string(key_c) : std::string();
-                } else {
-                    // 非字符串键，转换为字符串
-                    lua_pushvalue(L, -2); // 复制键
-                    size_t      len = 0;
-                    const char* str = lua_tolstring(L, -1, &len);
-                    key_str         = str ? std::string(str, len) : std::string();
-                    lua_pop(L, 1); // 弹出字符串键
+            val = tmp;
+            break;
+        }
+        case JSONTYPE_NULL: {
+            lua_pushlightuserdata(L, nullptr);
+            break;
+        }
+        case JSONTYPE_TRUE: {
+            lua_pushboolean(L, true);
+            break;
+        }
+        case JSONTYPE_FALSE: {
+            lua_pushboolean(L, false);
+            break;
+        }
+        case JSONTYPE_NUMBER: {
+            if (JsonIsInteger(val)) {
+                int64_t value;
+                if (JsonItemIntegerValueGet(val, &value) != JSON_OK) {
+                    luaL_error(L, "json: cannot get json integer value");
                 }
-
-                JsonValue child = build_json_from_lua(L, -1);
-                entries.push_back({key_str, child});
-                lua_pop(L, 1); // 弹出值，保留键用于下一次迭代
+                lua_pushinteger(L, value);
+            } else {
+                double value;
+                if (JsonItemDoubleValueGet(val, &value) != JSON_OK) {
+                    luaL_error(L, "json: cannot get json double value");
+                }
+                lua_pushnumber(L, value);
             }
-
-            // 按照原始顺序插入到 JSON 对象中
-            for (const auto& entry : entries) {
-                obj.set(entry.first, entry.second);
+            break;
+        }
+        case JSONTYPE_OBJECT: {
+            json_object_push(L, val);
+            break;
+        }
+        case JSONTYPE_ARRAY: {
+            json_array_push(L, val);
+            break;
+        }
+        case JSONTYPE_STRING: {
+            char* value = nullptr;
+            uint32_t size = 0;
+            if (JsonItemStringValueGet(val, &value) != JSON_OK || JsonItemStringValueLenGet(val, &size) != JSON_OK) {
+                luaL_error(L, "json: cannot get json string value");
             }
+            lua_pushlstring(L, value, size);
+            break;
+        }
+        default:
+            luaL_error(L, "json: cannot convert json type %d to lua", type);
+    }
+}
 
-            return obj_val;
+static void json_object_push(lua_State* L, Json* val) {
+    lua_createtable(L, 0, 0);
+    Json *child;
+    uint32_t ret = JsonItemFirstChild(val, &child);
+    char *key = nullptr;
+    while (ret == JSON_OK && child != nullptr) {
+        if (JsonItemKeyGet(child, &key) == JSON_OK) {
+            json_value_push(L, child);
+            lua_setfield(L, -2, key);
+        } else {
+            luaL_error(L, "json: cannot get json object key");
+        }
+        if (JsonItemNextSibling(child, &child) != JSON_OK) {
+            break;
         }
     }
-    case LUA_TUSERDATA: {
-        // userdata 不应该通过 build_json_from_lua 转换
-        // 应该在调用前通过 get_json_value_from_lua 处理
-        MC_THROW(mc::parse_error_exception, "Userdata should be handled before calling build_json_from_lua");
+}
+
+static void json_array_push(lua_State* L, Json* val) {
+    uint32_t len = 0;
+    if (JsonArraySizeGet(val, &len) != JSON_OK) {
+        luaL_error(L, "json: cannot get json object size");
     }
-    default:
-        MC_THROW(mc::parse_error_exception, "Unsupported Lua type for JSON conversion: ${type}",
-                 ("type", lua_typename(L, type_val)));
+    lua_createtable(L, len, 0);
+    for (size_t i = 0; i < len; i++) {
+        Json *item;
+        if (JsonArrayItemGet(val, i, &item) != JSON_OK) {
+            luaL_error(L, "json: cannot get json object item");
+        }
+        json_value_push(L, item);
+        lua_rawseti(L, -2, i + 1);
     }
 }
 
 // 直接从 JsonValue 转换为 Lua table（避免 variant 中间转换，只使用 C++ 接口）
 static void json_value_to_lua(lua_State* L, const JsonValue& value) {
-    if (value.is_null()) {
-        lua_pushnil(L);
-    } else if (value.is_bool()) {
-        lua_pushboolean(L, value.as_bool() ? 1 : 0);
-    } else if (value.is_int()) {
-        lua_pushinteger(L, static_cast<lua_Integer>(value.as_int()));
-    } else if (value.is_double()) {
-        lua_pushnumber(L, value.as_double());
-    } else if (value.is_string()) {
-        std::string str = value.as_string();
-        lua_pushlstring(L, str.data(), str.size());
-    } else if (value.is_array()) {
-        JsonArray arr  = value.as_array();
-        uint32_t  size = arr.size();
-        lua_createtable(L, static_cast<int>(size), 0);
-        uint32_t index = 1;
-        for (const auto& item : arr) {
-            json_value_to_lua(L, item);                  // 递归转换
-            lua_rawseti(L, -2, static_cast<int>(index)); // Lua 数组索引从 1 开始
-            ++index;
-        }
-    } else if (value.is_object()) {
-        JsonObject obj  = value.as_object();
-        uint32_t   size = obj.size();
-        lua_createtable(L, 0, static_cast<int>(size));
-        for (const auto& kv : obj) {
-            // kv 是 key_value_pair，包含 key 和 value
-            lua_pushlstring(L, kv.key.data(), kv.key.size());
-            json_value_to_lua(L, kv.value); // 递归转换
-            lua_settable(L, -3);
-        }
-    } else {
-        // 未知类型，推入 nil
-        lua_pushnil(L);
-    }
+    json_value_push(L, value.get_raw());
 }
 
 // 从 Lua 值转换为 JsonValue

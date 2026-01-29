@@ -709,18 +709,23 @@ void JsonArray::set(uint32_t index, const JsonValue& value) {
     check_json_ret(ret, "Failed to set array item");
 }
 
-void JsonArray::push_back(const JsonValue& value) {
+void JsonArray::push_back(const JsonValue& value, bool quote_flag) {
     if (m_json == nullptr) {
         MC_THROW(mc::bad_cast_exception, "Array handle is empty");
     }
+    if (quote_flag) {
+        // 创建 Quote 对象用于插入
+        Json*    quote = nullptr;
+        uint32_t ret   = JsonQuoteCreate(&quote, value.get_raw());
+        check_json_ret(ret, "Failed to create quote for array item");
+        ret = JsonItemAddToArray(quote, m_json);
+        check_json_ret(ret, "Failed to append array item");
+    } else {
+        JsonObjectAddRef(value.get_raw());
+        uint32_t ret = JsonItemAddToArray(value.get_raw(), m_json);
+        check_json_ret(ret, "Failed to append array item");
+    }
 
-    // 创建 Quote 对象用于插入
-    Json*    quote = nullptr;
-    uint32_t ret   = JsonQuoteCreate(&quote, value.get_raw());
-    check_json_ret(ret, "Failed to create quote for array item");
-
-    ret = JsonItemAddToArray(quote, m_json);
-    check_json_ret(ret, "Failed to append array item");
 }
 
 // ======================== JsonObject ========================
@@ -798,19 +803,25 @@ JsonValue JsonObject::get(std::string_view key) const {
     return JsonValue(item);
 }
 
-void JsonObject::set(std::string_view key, const JsonValue& value) {
+void JsonObject::set(std::string_view key, const JsonValue& value, bool quote_flag) {
     if (m_json == nullptr) {
         MC_THROW(mc::bad_cast_exception, "Object handle is empty");
     }
 
-    // 创建 Quote 对象用于插入
-    Json*    quote = nullptr;
-    uint32_t ret   = JsonQuoteCreate(&quote, value.get_raw());
-    check_json_ret(ret, "Failed to create quote for object field");
+    if (quote_flag) {
+        // 创建 Quote 对象用于插入
+        Json*    quote = nullptr;
+        uint32_t ret   = JsonQuoteCreate(&quote, value.get_raw());
+        check_json_ret(ret, "Failed to create quote for object field");
 
-    std::string key_str(key);
-    ret = JsonObjectItemSet(m_json, key_str.c_str(), quote);
-    check_json_ret(ret, "Failed to set object field");
+        std::string key_str(key);
+        ret = JsonObjectItemSet(m_json, key_str.c_str(), quote);
+        check_json_ret(ret, "Failed to set object field");
+    } else {
+        JsonObjectAddRef(value.get_raw());
+        uint32_t ret = JsonObjectItemSet(m_json, key.data(), value.get_raw());
+        check_json_ret(ret, "Failed to set object field");
+    }
 }
 
 void JsonObject::erase(std::string_view key) {
