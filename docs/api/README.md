@@ -21,6 +21,7 @@ API文档按照功能模块组织，每个模块对应一个独立的Markdown文
 - [dict](dict.md) - 键值对集合
 - [exception](exception.md) - 异常处理系统
 - [log](log.md) - 日志系统
+- [validate](validate.md) - 通用资源协作接口参数校验
 
 ## 待完成文档
 

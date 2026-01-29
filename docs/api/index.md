@@ -8,6 +8,7 @@
 
 - [variant](variant.md) - 通用变量类型系统
 - [dict](dict.md) - 键值对集合
+- [validate](validate.md) - 通用资源协作接口参数校验
 - [string](string.md) - 字符串处理工具
 - [time](time.md) - 时间处理
 
