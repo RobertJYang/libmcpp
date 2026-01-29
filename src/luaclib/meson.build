@@ -127,6 +127,15 @@ else
   warning('Lua not found, Lua modules will not be built')
 endif
 
+base_inc_dirs1 = [incdir, srcdir]
+if not enable_conan_compile
+  base_inc_dirs1 += [stubdir_global]
+endif
+
+if enable_conan_compile
+  lua_base_deps += [json_dep]
+endif
+
 # 编译 ljson.so 动态库（Lua C 模块）
 if lua_dep.found()
   lua_json_lib = shared_module(
@@ -136,7 +145,7 @@ if lua_dep.found()
     name_suffix: 'so',
     dependencies: lua_base_deps,
     link_with: [libmcpp_lib, libmcpp_base_lib, libmcpp_lua_utils_lib],
-    include_directories: [incdir, srcdir],
+    include_directories: base_inc_dirs1,
     install: true,
     install_dir: install_dir,
     gnu_symbol_visibility: 'default',

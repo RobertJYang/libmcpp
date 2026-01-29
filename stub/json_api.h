@@ -160,6 +160,12 @@ inline uint32_t JsonItemStringValueGet(const Json* json, char** value) {
     return JSON_OK;
 }
 
+inline uint32_t JsonItemStringValueLenGet(const Json* item, uint32_t* size) {
+    (void)item;
+    (void)size;
+    return JSON_OK;
+}
+
 // 数组操作函数
 inline uint32_t JsonArraySizeGet(const Json* json, uint32_t* size) {
     (void)json;
@@ -176,6 +182,13 @@ inline uint32_t JsonArrayItemGet(const Json* json, uint32_t index, Json** item) 
 
 inline uint32_t JsonItemAddToArray(Json* item, Json* array) {
     (void)item;
+    (void)array;
+    return JSON_OK;
+}
+
+inline uint32_t JsonArrayItemInsert(Json *array, uint32_t index, Json* item) {
+    (void)item;
+    (void)index;
     (void)array;
     return JSON_OK;
 }
