@@ -13,9 +13,10 @@
 #include "l_dbus_nonblock.h"
 #include "../utils/variant_utils.h"
 #include "l_dbus_common.h"
+#include <boost/asio/post.hpp>
+#include <mc/dbus/bus_mode_impl.h>
 #include <mc/dbus/message.h>
 #include <mc/dbus/sd_bus.h>
-#include <boost/asio/post.hpp>
 #include <thread>
 
 namespace mc::dbus::lua {
@@ -47,12 +48,12 @@ int dbus_nonblock_open_user(lua_State* L) {
     })
                                   : std::function<void(mc::dbus::connection&)>(nullptr);
 
-    return dbus_open_user_impl(L, get_static_io_context(), NON_BLOCKING_DBUS_METATABLE, post_connect);
+    return dbus_open_user_impl(L, get_static_io_context(), NON_BLOCKING_DBUS_METATABLE, false, post_connect);
 }
 
 // dbus.nonblock.new(arg)
 int dbus_nonblock_new(lua_State* L) {
-    return dbus_new_impl(L, NON_BLOCKING_DBUS_METATABLE, "lua-dbus-nonblock");
+    return dbus_new_impl(L, NON_BLOCKING_DBUS_METATABLE, "lua-dbus-nonblock", false);
 }
 
 // conn:start()
@@ -92,7 +93,7 @@ int dbus_nonblock_gc(lua_State* L) {
 
 int dbus_nonblock_async_call(lua_State* L) {
     try {
-        auto*       wrapper      = static_cast<dbus_wrapper*>(luaL_checkudata(L, 1, NON_BLOCKING_DBUS_METATABLE));
+        auto* wrapper = static_cast<dbus_wrapper*>(luaL_checkudata(L, 1, NON_BLOCKING_DBUS_METATABLE));
         luaL_checktype(L, 2, LUA_TFUNCTION); // 回调函数
         std::string service_name = luaL_checkstring(L, 3);
         std::string path         = luaL_checkstring(L, 4);
@@ -105,8 +106,9 @@ int dbus_nonblock_async_call(lua_State* L) {
             args = mc::lua::lua_to_variants(L, 8);
         }
 
-        mc::dbus::sd_bus bus(wrapper->conn, false);
-        auto [error, result] = bus.pcall({service_name, path, interface, method, signature, std::move(args)});
+        // 直接使用 wrapper->bus_impl 调用方法
+        auto [error, result] =
+            wrapper->bus_impl->async_call(service_name, path, interface, method, signature, std::move(args));
 
         // 获取回调函数
         lua_pushvalue(L, 2); // 复制回调函数到栈顶
@@ -140,8 +142,8 @@ int dbus_nonblock_async_call(lua_State* L) {
 
 int dbus_nonblock_async_timeout_call(lua_State* L) {
     try {
-        auto*       wrapper      = static_cast<dbus_wrapper*>(luaL_checkudata(L, 1, NON_BLOCKING_DBUS_METATABLE));
-        int         timeout_ms   = luaL_checkinteger(L, 2);
+        auto* wrapper    = static_cast<dbus_wrapper*>(luaL_checkudata(L, 1, NON_BLOCKING_DBUS_METATABLE));
+        int   timeout_ms = luaL_checkinteger(L, 2);
         luaL_checktype(L, 3, LUA_TFUNCTION); // 回调函数
         std::string service_name = luaL_checkstring(L, 4);
         std::string path         = luaL_checkstring(L, 5);
@@ -154,9 +156,9 @@ int dbus_nonblock_async_timeout_call(lua_State* L) {
             args = mc::lua::lua_to_variants(L, 9);
         }
 
-        mc::dbus::sd_bus bus(wrapper->conn, false);
+        // 直接使用 wrapper->bus_impl 调用方法
         auto [error, result] =
-            bus.timeout_pcall(mc::milliseconds(timeout_ms), {service_name, path, interface, method, signature, std::move(args)});
+            wrapper->bus_impl->async_timeout_call(timeout_ms, service_name, path, interface, method, signature, std::move(args));
 
         // 获取回调函数
         lua_pushvalue(L, 3); // 复制回调函数到栈顶
@@ -190,8 +192,8 @@ int dbus_nonblock_async_timeout_call(lua_State* L) {
 
 int dbus_nonblock_async_shm_timeout_call(lua_State* L) {
     try {
-        auto*       wrapper      = static_cast<dbus_wrapper*>(luaL_checkudata(L, 1, NON_BLOCKING_DBUS_METATABLE));
-        int         timeout_ms   = luaL_checkinteger(L, 2);
+        auto* wrapper    = static_cast<dbus_wrapper*>(luaL_checkudata(L, 1, NON_BLOCKING_DBUS_METATABLE));
+        int   timeout_ms = luaL_checkinteger(L, 2);
         luaL_checktype(L, 3, LUA_TFUNCTION); // 回调函数
         std::string service_name = luaL_checkstring(L, 4);
         std::string path         = luaL_checkstring(L, 5);
@@ -204,18 +206,17 @@ int dbus_nonblock_async_shm_timeout_call(lua_State* L) {
             args = mc::lua::lua_to_variants(L, 9);
         }
 
-        mc::dbus::sd_bus bus(wrapper->conn, false);
+        // 直接使用 wrapper->bus_impl 调用方法
+        auto [error, result] = wrapper->bus_impl->async_shm_timeout_call(
+            timeout_ms, service_name, path, interface, method, signature, std::move(args));
 
         // 获取回调函数
         lua_pushvalue(L, 3); // 复制回调函数到栈顶
 
-        std::optional<variants> result;
-        try {
-            result = bus.shm_timeout_call(mc::milliseconds(timeout_ms), {service_name, path, interface, method, signature, std::move(args)});
-        } catch (const std::exception& e) {
-            // 捕获 shm_timeout_call 抛出的异常，传递给回调
+        if (error.has_value()) {
+            // 失败：调用回调 ok=false, error
             lua_pushboolean(L, false);
-            lua_pushstring(L, e.what());
+            lua_pushstring(L, error.value().c_str());
 
             if (lua_pcall(L, 2, 0, 0) != LUA_OK) {
                 const char* err = lua_tostring(L, -1);
@@ -226,22 +227,18 @@ int dbus_nonblock_async_shm_timeout_call(lua_State* L) {
             return 1;
         }
 
-        if (result.has_value()) {
-            // 成功：调用回调 ok=true, result...
-            lua_pushboolean(L, true);
-            int ret_count = mc::lua::variants_to_lua(L, result.value());
+        // 成功：调用回调 ok=true, result...
+        lua_pushboolean(L, true);
+        int ret_count = mc::lua::variants_to_lua(L, result);
 
-            // 调用回调函数：1个固定参数 + ret_count个返回值
-            if (lua_pcall(L, 1 + ret_count, 0, 0) != LUA_OK) {
-                const char* err = lua_tostring(L, -1);
-                return luaL_error(L, "method result callback failed: %s", err ? err : "unknown error");
-            }
-            // 返回 true 给 Lua，表示共享内存传输成功
-            lua_pushboolean(L, true);
-        } else {
-            // 返回 false 给 Lua，表示共享内存传输失败
-            lua_pushboolean(L, false);
+        // 调用回调函数：1个固定参数 + ret_count个返回值
+        if (lua_pcall(L, 1 + ret_count, 0, 0) != LUA_OK) {
+            const char* err = lua_tostring(L, -1);
+            return luaL_error(L, "method result callback failed: %s", err ? err : "unknown error");
         }
+
+        // 返回 true 给 Lua，表示共享内存传输成功
+        lua_pushboolean(L, true);
         return 1;
     } catch (const std::exception& e) {
         return luaL_error(L, "call method failed: %s", e.what());

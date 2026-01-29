@@ -237,8 +237,20 @@ TEST_F(HarborTest, MockPropertyGetSignature) {
 TEST_F(HarborTest, MockInterfaceFindProperty) {
     shm::interface intf;
     auto& ins = shm::shared_memory::get_instance();
+    
+    // 先添加一个属性
+    auto added_prop = intf.add_p(ins, "test_property", "s");
+    EXPECT_NE(added_prop, nullptr);
+    
+    // 使用 find_p 查找已添加的属性
     auto prop = intf.find_p("test_property");
     EXPECT_NE(prop, nullptr);
+    EXPECT_EQ(prop, added_prop);
+    
+    // 再次查找应该返回同一个属性对象
+    auto prop2 = intf.find_p("test_property");
+    EXPECT_NE(prop2, nullptr);
+    EXPECT_EQ(prop2, prop);
 }
 
 // 测试 object::interfaces() 方法

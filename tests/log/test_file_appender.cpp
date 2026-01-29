@@ -84,11 +84,27 @@ protected:
     void SetUp() override {
         mc::test::TestBase::SetUp();
         mc::log::default_logger().set_level(mc::log::level::off);
+        
+        // 确保测试目录存在
+        std::filesystem::create_directories(std::string(TEST_LOG_DIR));
+        
+        // 在每个测试开始时重新初始化日志文件
+        std::ofstream ofs(m_test_log_file, std::ios::trunc);
+        ofs.close();
+        
+        // 重新初始化 appender
+        mc::dict dict;
+        dict["filename"]       = m_test_log_file.string();
+        dict["truncate"]       = true;
+        dict["flush_on_write"] = true;
+        m_appender->init(dict);
     }
 
     void TearDown() override {
-        // m_appender.reset(); // This line is removed as m_appender is now static
-        // 无需close_log_file，直接删除
+        // 刷新并关闭文件
+        m_appender->flush();
+        
+        // 删除测试文件
         if (std::filesystem::exists(m_test_log_file)) {
             std::filesystem::remove(m_test_log_file);
         }

@@ -15,6 +15,7 @@
 
 #include <gtest/gtest.h>
 #include <mc/core/application.h>
+#include <mc/dbus/shm/harbor.h>
 #include <mc/engine.h>
 #include <mc/filesystem.h>
 #include <mc/log.h>
@@ -82,6 +83,15 @@ protected:
     }
 
     static void TearDownTestSuite() {
+        // 在重置runtime context之前，先清理可能持有io_context资源的harbor单例
+        // 这样可以避免访问已销毁的io_context资源导致的段错误
+        try {
+            // 尝试获取并停止harbor，如果harbor还未创建则跳过
+            auto& harbor = mc::dbus::harbor::get_instance();
+            harbor.stop();
+        } catch (...) {
+            // 忽略任何异常，继续清理流程
+        }
         TestWithRuntime::TearDownTestSuite();
     };
 };

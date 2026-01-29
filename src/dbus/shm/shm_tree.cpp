@@ -1772,14 +1772,20 @@ void shm_tree::add_shm_match(match_rule& rule, std::string_view harbor_name, uin
     });
 }
 
-void shm_tree::add_match(match_rule& rule, mc::dbus::match_cb_t&& cb, uint64_t id) {
-    auto& harbor      = harbor::get_instance();
-    auto  harbor_name = harbor.get_harbor_name();
-    harbor.add_match(rule, std::forward<mc::dbus::match_cb_t>(cb), id);
+uint64_t shm_tree::add_match(match_rule& rule, mc::dbus::match_cb_t&& cb) {
+    auto&    harbor      = harbor::get_instance();
+    auto     harbor_name = harbor.get_harbor_name();
+    uint64_t id          = harbor.add_match(rule, std::forward<mc::dbus::match_cb_t>(cb));
     add_shm_match(rule, harbor_name, id);
+    return id;
 }
 
 void shm_tree::remove_match(uint64_t id) {
+    // 移除 harbor 中的订阅
+    auto& harbor = harbor::get_instance();
+    harbor.remove_match(id);
+
+    // 移除 shm slot
     auto it = m_shm_slots.find(id);
     if (it == m_shm_slots.end()) {
         return;

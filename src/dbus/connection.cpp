@@ -10,9 +10,9 @@
  * See the Mulan PSL v2 for more details.
  */
 
+#include <chrono>
 #include <mc/exception.h>
 #include <mc/log.h>
-#include <chrono>
 
 #include "connection_impl.h"
 
@@ -45,6 +45,21 @@ connection connection::open_system_bus(mc::io_context& executor) {
 
 connection connection::open_session_bus(mc::io_context& executor) {
     return open_bus<DBUS_BUS_SESSION>(executor);
+}
+
+connection connection::open_address(mc::io_context& executor, std::string_view address) {
+    mc::dbus::error err;
+    dbus_error_init(&err);
+    DBusConnection* raw_conn = dbus_connection_open_private(address.data(), &err);
+
+    if (!err.is_set() && raw_conn) {
+        dbus_connection_set_exit_on_disconnect(raw_conn, false);
+        return connection(executor, raw_conn, false);
+    }
+
+    std::string error_msg = err.message ? std::string(err.message) : "Unknown error";
+    dbus_error_free(&err);
+    MC_THROW(mc::system_exception, "DBus connection failed: ${error}", ("error", error_msg));
 }
 
 connection::connection(mc::io_context& executor, DBusConnection* conn, bool add_ref)
@@ -89,9 +104,9 @@ void connection::dispatch() {
 
 bool connection::send(message&& msg) {
     ensure_impl();
-    auto start = std::chrono::steady_clock::now();
-    auto result = m_impl->send(std::forward<message>(msg));
-    auto end = std::chrono::steady_clock::now();
+    auto start    = std::chrono::steady_clock::now();
+    auto result   = m_impl->send(std::forward<message>(msg));
+    auto end      = std::chrono::steady_clock::now();
     auto duration = end - start;
     dlog("dbus send message cost '${time}' microseconds", ("time", std::chrono::duration_cast<std::chrono::microseconds>(duration)));
     return result;
@@ -205,12 +220,12 @@ void connection::ensure_impl() const {
     MC_ASSERT(m_impl, "DBus Connection not initialized");
 }
 
- void connection::add_rule(match_rule& rule, match_cb_t&& cb, uint64_t id) {
+void connection::add_rule(match_rule& rule, match_cb_t&& cb, uint64_t id) {
     ensure_impl();
     m_impl->add_rule(rule, std::forward<match_cb_t>(cb), id);
 }
 
-void connection::remove_rule(uint64_t id){
+void connection::remove_rule(uint64_t id) {
     ensure_impl();
     m_impl->remove_rule(id);
 }
@@ -221,7 +236,7 @@ void connection::add_match(match_rule& rule, match_cb_t&& cb, uint64_t id) {
 }
 
 void connection::add_match_only(match_rule& rule, match_cb_t&& cb, uint64_t id) {
- 	ensure_impl();
+    ensure_impl();
     m_impl->add_match_only(rule, std::forward<match_cb_t>(cb), id);
 }
 

@@ -145,9 +145,9 @@ public:
      * @brief 添加匹配规则
      * @param rule [in] 匹配规则
      * @param cb [in] 回调函数
-     * @param id [in] 规则ID
+     * @return 返回分配的规则ID
      */
-    void add_match(match_rule& rule, mc::dbus::match_cb_t&& cb, uint64_t id);
+    uint64_t add_match(match_rule& rule, mc::dbus::match_cb_t&& cb);
 
     /**
      * @brief 移除匹配规则

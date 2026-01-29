@@ -15,6 +15,7 @@
 #include <mc/algorithm/lru_cache.h>
 #include <mc/dbus/match.h>
 #include <mc/dbus/sd_bus.h>
+#include <mc/dbus/shm/harbor.h>
 #include <mc/exception.h>
 #include <mc/json.h>
 #include <mc/log.h>
@@ -43,10 +44,10 @@ struct cache_entry {
 
 // 信号订阅共享结构
 struct signal_subscription {
-    mc::dbus::connection conn; // 保存 connection 对象的拷贝（使用 shared_ptr 管理，生命周期安全）
-    uint64_t             interfaces_removed_match_id{0};
-    uint64_t             properties_changed_match_id{0};
-    size_t               ref_count{0};
+    mc::dbus::sd_bus* bus; // 裸指针 - 生命周期由调用方管理
+    uint64_t          interfaces_removed_match_id{0};
+    uint64_t          properties_changed_match_id{0};
+    size_t            ref_count{0};
 };
 
 // 类型别名
@@ -161,11 +162,6 @@ std::recursive_mutex& get_cache_mutex() {
 std::recursive_mutex& get_subscriptions_mutex() {
     static std::recursive_mutex s_mutex;
     return s_mutex;
-}
-
-std::atomic<uint64_t>& get_next_match_id() {
-    static std::atomic<uint64_t> s_next_id{1};
-    return s_next_id;
 }
 
 // 全局 NameOwnerChanged 订阅管理
@@ -309,10 +305,10 @@ void decrease_subscription_refcount(const std::string& path, const std::string& 
     if (sub_it->second.ref_count == 0) {
         auto& sub = sub_it->second;
         // 在锁外调用 remove_match，避免在持有锁时调用可能阻塞的 D-Bus 操作
-        // 先保存需要移除的 match_id 和 connection
-        uint64_t             interfaces_removed_match_id = sub.interfaces_removed_match_id;
-        uint64_t             properties_changed_match_id = sub.properties_changed_match_id;
-        mc::dbus::connection conn                        = sub.conn; // 拷贝 connection 对象
+        // 先保存需要移除的 match_id 和 bus 指针
+        uint64_t          interfaces_removed_match_id = sub.interfaces_removed_match_id;
+        uint64_t          properties_changed_match_id = sub.properties_changed_match_id;
+        mc::dbus::sd_bus* bus_ptr                     = sub.bus; // 保存 bus 指针
 
         // 从 map 中移除（在锁内）
         subs.erase(sub_it);
@@ -321,14 +317,14 @@ void decrease_subscription_refcount(const std::string& path, const std::string& 
         lock.unlock();
 
         try {
-            // 使用创建订阅时保存的 connection 对象
+            // 使用保存的 bus 指针来移除订阅
             // 注意：NameOwnerChanged 是全局订阅，不在此处移除
             // 注意：如果 match_id 为 0，说明 add_match 时失败了，不需要调用 remove_match
-            if (interfaces_removed_match_id > 0) {
-                conn.remove_match(interfaces_removed_match_id);
+            if (interfaces_removed_match_id > 0 && bus_ptr) {
+                bus_ptr->remove_match(interfaces_removed_match_id);
             }
-            if (properties_changed_match_id > 0) {
-                conn.remove_match(properties_changed_match_id);
+            if (properties_changed_match_id > 0 && bus_ptr) {
+                bus_ptr->remove_match(properties_changed_match_id);
             }
         } catch (const std::exception& e) {
             elog("Failed to remove signal subscription: ${error}", ("error", e.what()));
@@ -531,9 +527,7 @@ void ensure_global_name_owner_subscription(mc::dbus::sd_bus* bus) {
     auto rule = mc::dbus::match_rule::new_signal("NameOwnerChanged",
                                                  "org.freedesktop.DBus");
 
-    uint64_t match_id = get_next_match_id().fetch_add(1);
-
-    bus->get_connection().add_match(rule, [bus](mc::dbus::message& msg) {
+    uint64_t match_id = bus->add_match(rule, [bus](mc::dbus::message& msg) {
         try {
             auto args = msg.read_args();
             if (args.size() >= 3) {
@@ -544,9 +538,8 @@ void ensure_global_name_owner_subscription(mc::dbus::sd_bus* bus) {
         } catch (const std::exception& e) {
             elog("Failed to subscribe NameOwnerChanged signal: ${error}", ("error", e.what()));
         }
-    }, match_id);
+    });
 
-    global_sub.conn     = bus->get_connection(); // 保存 connection 对象的拷贝（使用 shared_ptr 管理，生命周期安全）
     global_sub.match_id = match_id;
 }
 
@@ -557,9 +550,7 @@ uint64_t create_interfaces_removed_subscription(mc::dbus::sd_bus*  bus,
                                                  mc::dbus::DBUS_OBJECT_MANAGER_INTERFACE.data());
     rule.with_path(path);
 
-    uint64_t match_id = get_next_match_id().fetch_add(1);
-
-    bus->get_connection().add_match(rule, [bus, path](mc::dbus::message& msg) {
+    uint64_t match_id = bus->add_match(rule, [bus, path](mc::dbus::message& msg) {
         try {
             auto args = msg.read_args();
             if (args.size() >= 2) {
@@ -572,7 +563,7 @@ uint64_t create_interfaces_removed_subscription(mc::dbus::sd_bus*  bus,
         } catch (const std::exception& e) {
             elog("Failed to subscribe InterfacesRemoved signal: ${error}", ("error", e.what()));
         }
-    }, match_id);
+    });
 
     return match_id;
 }
@@ -585,9 +576,7 @@ uint64_t create_properties_changed_subscription(mc::dbus::sd_bus*  bus,
                                                  mc::dbus::DBUS_PROPERTIES_INTERFACE.data());
     rule.with_path(path);
 
-    uint64_t match_id = get_next_match_id().fetch_add(1);
-
-    bus->get_connection().add_match(rule, [bus, path, interface](mc::dbus::message& msg) {
+    uint64_t match_id = bus->add_match(rule, [bus, path, interface](mc::dbus::message& msg) {
         try {
             auto args = msg.read_args();
             if (args.size() >= 2) {
@@ -597,7 +586,7 @@ uint64_t create_properties_changed_subscription(mc::dbus::sd_bus*  bus,
         } catch (const std::exception& e) {
             elog("Failed to subscribe PropertiesChanged signal: ${error}", ("error", e.what()));
         }
-    }, match_id);
+    });
 
     return match_id;
 }
@@ -642,7 +631,7 @@ signal_subscription create_new_subscription(mc::dbus::sd_bus*  bus,
                                             const std::string& path,
                                             const std::string& interface) {
     signal_subscription sub;
-    sub.conn      = bus->get_connection();
+    sub.bus       = bus; // 保存 bus 指针
     sub.ref_count = 1;
 
     sub.interfaces_removed_match_id = create_interfaces_removed_subscription(bus, path);
@@ -654,7 +643,8 @@ signal_subscription create_new_subscription(mc::dbus::sd_bus*  bus,
         // 需要清理已创建的 interfaces_removed 订阅
         try {
             if (sub.interfaces_removed_match_id > 0) {
-                sub.conn.remove_match(sub.interfaces_removed_match_id);
+                auto& harbor = mc::dbus::harbor::get_instance();
+                harbor.remove_match(sub.interfaces_removed_match_id);
             }
         } catch (const std::exception& cleanup_err) {
             elog("create_new_subscription: cleanup failed: ${error}", ("error", cleanup_err.what()));

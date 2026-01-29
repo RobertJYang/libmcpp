@@ -15,6 +15,7 @@
 #include "l_dbus_error.h"
 #include "l_dbus_message.h"
 #include "l_dbus_nonblock.h"
+#include "l_sd_bus.h"
 #include "inner/l_interface.h"
 #include "inner/l_object.h"
 #include <mc/log.h>
@@ -55,6 +56,7 @@ __attribute__((visibility("default"))) int luaopen_ldbus(lua_State* L) {
     register_connection_metatable(L);
     register_blocking_metatable(L);
     register_nonblock_metatable(L);
+    register_sd_bus_metatable(L);
     register_interface_metatable(L);
     register_object_metatable(L);
 
@@ -102,6 +104,13 @@ __attribute__((visibility("default"))) int luaopen_ldbus(lua_State* L) {
     lua_pushcfunction(L, new_object_class);
     lua_setfield(L, -2, "new");
     lua_setfield(L, -2, "object");
+
+    // ===== sd_bus 子表 =====
+    lua_newtable(L);
+    lua_pushcfunction(L, sd_bus_open_user);
+    lua_setfield(L, -2, "open_user");
+    lua_setfield(L, -2, "sd_bus");
+
     return 1;
 }
 

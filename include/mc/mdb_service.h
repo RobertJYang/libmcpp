@@ -18,6 +18,7 @@
 #include <mc/time.h>
 #include <mc/variant.h>
 
+#include <memory>
 #include <mutex>
 #include <unordered_map>
 #include <vector>
@@ -36,51 +37,51 @@ namespace mdb::service {
 
 /**
  * @brief 获取对象
- * @param bus [in] sd_bus 上下文
+ * @param bus [in] sd_bus 上下文（shared_ptr 确保生命周期安全）
  * @param path [in] 对象路径
  * @param interfaces [in] 接口名称列表
  * @return 返回对象信息
  */
-MC_API mc::variant get_object(mc::dbus::sd_bus*   bus,
-                              std::string_view    path,
-                              const mc::variants& interfaces);
+MC_API mc::variant get_object(mc::dbus::sd_bus* bus,
+                              std::string_view                         path,
+                              const mc::variants&                      interfaces);
 
 /**
  * @brief 获取子对象
- * @param bus [in] sd_bus 上下文
+ * @param bus [in] sd_bus 上下文（shared_ptr 确保生命周期安全）
  * @param path [in] 对象路径
  * @param depth [in] 深度
  * @param interfaces [in] 接口名称列表
  * @return 返回子对象信息
  */
-MC_API mc::variant get_sub_objects(mc::dbus::sd_bus* bus, std::string_view path, int32_t depth,
-                                   const mc::variants& interfaces);
+MC_API mc::variant get_sub_objects(mc::dbus::sd_bus* bus, std::string_view path,
+                                   int32_t depth, const mc::variants& interfaces);
 
 /**
  * @brief 获取子路径
- * @param bus [in] sd_bus 上下文
+ * @param bus [in] sd_bus 上下文（shared_ptr 确保生命周期安全）
  * @param path [in] 对象路径
  * @param depth [in] 深度
  * @param interfaces [in] 接口名称列表
  * @return 返回子路径列表
  */
-MC_API mc::variant get_sub_paths(mc::dbus::sd_bus* bus, std::string_view path, int32_t depth,
-                                 const mc::variants& interfaces);
+MC_API mc::variant get_sub_paths(mc::dbus::sd_bus* bus, std::string_view path,
+                                 int32_t depth, const mc::variants& interfaces);
 
 /**
  * @brief 获取父对象
- * @param bus [in] sd_bus 上下文
+ * @param bus [in] sd_bus 上下文（shared_ptr 确保生命周期安全）
  * @param path [in] 对象路径
  * @param interfaces [in] 接口名称列表
  * @return 返回父对象信息
  */
-MC_API mc::variant get_parent_objects(mc::dbus::sd_bus*   bus,
-                                      std::string_view    path,
-                                      const mc::variants& interfaces);
+MC_API mc::variant get_parent_objects(mc::dbus::sd_bus* bus,
+                                      std::string_view                         path,
+                                      const mc::variants&                      interfaces);
 
 /**
  * @brief 获取服务名称
- * @param bus [in] sd_bus 上下文
+ * @param bus [in] sd_bus 上下文（shared_ptr 确保生命周期安全）
  * @param sender [in] 发送者名称
  * @return 返回服务名称
  */
@@ -88,14 +89,14 @@ MC_API mc::variant get_service_name(mc::dbus::sd_bus* bus, std::string_view send
 
 /**
  * @brief 获取服务名称列表
- * @param bus [in] sd_bus 上下文
+ * @param bus [in] sd_bus 上下文（shared_ptr 确保生命周期安全）
  * @return 返回服务名称列表
  */
 MC_API mc::variant get_service_names(mc::dbus::sd_bus* bus);
 
 /**
  * @brief 获取路径
- * @param bus [in] sd_bus 上下文
+ * @param bus [in] sd_bus 上下文（shared_ptr 确保生命周期安全）
  * @param interface [in] 接口名称
  * @param filter [in] 过滤条件
  * @param ignore_case [in] 是否忽略大小写
@@ -107,24 +108,26 @@ MC_API mc::variant get_path(mc::dbus::sd_bus* bus, std::string_view interface,
 
 /**
  * @brief 获取接口拥有者列表
- * @param bus [in] sd_bus 上下文
+ * @param bus [in] sd_bus 上下文（shared_ptr 确保生命周期安全）
  * @param interface [in] 接口名称
  * @return 返回接口拥有者列表
  */
-MC_API mc::variant get_interface_owners(mc::dbus::sd_bus* bus, std::string_view interface);
+MC_API mc::variant get_interface_owners(mc::dbus::sd_bus* bus,
+                                        std::string_view                         interface);
 
 /**
  * @brief 验证路径是否有效
- * @param bus [in] sd_bus 上下文
+ * @param bus [in] sd_bus 上下文（shared_ptr 确保生命周期安全）
  * @param path [in] 对象路径
  * @param ignore_case [in] 是否忽略大小写
  * @return 返回路径是否有效
  */
-MC_API mc::variant is_valid_path(mc::dbus::sd_bus* bus, std::string_view path, bool ignore_case);
+MC_API mc::variant is_valid_path(mc::dbus::sd_bus* bus, std::string_view path,
+                                 bool ignore_case);
 
 /**
  * @brief 分页获取子路径
- * @param bus [in] sd_bus 上下文
+ * @param bus [in] sd_bus 上下文（shared_ptr 确保生命周期安全）
  * @param path [in] 对象路径
  * @param depth [in] 深度
  * @param interfaces [in] 接口名称列表
@@ -132,12 +135,13 @@ MC_API mc::variant is_valid_path(mc::dbus::sd_bus* bus, std::string_view path, b
  * @param top [in] 获取数量
  * @return 返回子路径列表
  */
-MC_API mc::variant get_sub_paths_paging(mc::dbus::sd_bus* bus, std::string_view path, int32_t depth,
-                                       const mc::variants& interfaces, int32_t skip, int32_t top);
+MC_API mc::variant get_sub_paths_paging(mc::dbus::sd_bus* bus, std::string_view path,
+                                        int32_t depth, const mc::variants& interfaces, int32_t skip,
+                                        int32_t top);
 
 /**
  * @brief 获取类列表
- * @param bus [in] sd_bus 上下文
+ * @param bus [in] sd_bus 上下文（shared_ptr 确保生命周期安全）
  * @param service [in] 服务名称
  * @return 返回类列表
  */
@@ -145,7 +149,7 @@ MC_API mc::variant get_classes(mc::dbus::sd_bus* bus, std::string_view service);
 
 /**
  * @brief 获取对象列表
- * @param bus [in] sd_bus 上下文
+ * @param bus [in] sd_bus 上下文（shared_ptr 确保生命周期安全）
  * @param class_name [in] 类名称
  * @return 返回对象列表
  */
@@ -153,7 +157,7 @@ MC_API mc::variant get_object_list(mc::dbus::sd_bus* bus, std::string_view class
 
 /**
  * @brief 获取对象拥有者
- * @param bus [in] sd_bus 上下文
+ * @param bus [in] sd_bus 上下文（shared_ptr 确保生命周期安全）
  * @param object_name [in] 对象名称
  * @return 返回对象拥有者
  */
@@ -161,18 +165,18 @@ MC_API mc::variant get_object_owner(mc::dbus::sd_bus* bus, std::string_view obje
 
 /**
  * @brief 获取匹配的对象
- * @param bus [in] sd_bus 上下文
+ * @param bus [in] sd_bus 上下文（shared_ptr 确保生命周期安全）
  * @param object_name [in] 对象名称
  * @param interface_pattern [in] 接口模式
  * @return 返回匹配的对象列表
  */
 MC_API mc::variant get_matched_objects(mc::dbus::sd_bus* bus,
-                                       std::string_view  object_name,
-                                       std::string_view  interface_pattern);
+                                       std::string_view                         object_name,
+                                       std::string_view                         interface_pattern);
 
 /**
  * @brief 获取追踪对象
- * @param bus [in] sd_bus 上下文
+ * @param bus [in] sd_bus 上下文（shared_ptr 确保生命周期安全）
  * @return 返回追踪对象信息
  */
 MC_API mc::variant get_traced_object(mc::dbus::sd_bus* bus);

@@ -170,7 +170,7 @@ void append_debug(const message& msg) {
     // 过滤无效字符，避免写入包含控制字符的内容
     logging::filter_invalid_chars(message_str);
 
-    logging::LogRecord record = {0};
+    logging::LogRecord record = {};  // 使用空花括号进行零初始化，避免编译器警告
     record.lineno             = ctx.m_line;
     record.module_name        = module_name;
     record.level              = level;
