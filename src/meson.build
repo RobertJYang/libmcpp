@@ -15,6 +15,7 @@ subdir('reflect')
 subdir('runtime')
 subdir('string')
 subdir('variant')
+subdir('validate')
 
 base_src_files = [
   # 根目录源文件
@@ -39,6 +40,7 @@ base_src_files = [
   runtime_src_files,
   string_src_files,
   variant_src_files,
+  validate_src_files,
   crypto_src_files,
   db_src_files,
   interprocess_src_files,
