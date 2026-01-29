@@ -1,0 +1,274 @@
+/*
+ * Copyright (c) 2026 Huawei Technologies Co., Ltd.
+ * openUBMC is licensed under Mulan PSL v2.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *         http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
+ */
+
+#ifndef MC_DBUS_BUS_MODE_IMPL_H
+#define MC_DBUS_BUS_MODE_IMPL_H
+
+#include <functional>
+#include <mc/dbus/connection.h>
+#include <mc/dbus/match.h>
+#include <mc/dbus/message.h>
+#include <mc/dbus/shm/shm_tree.h>
+#include <mc/variant.h>
+#include <memory>
+#include <optional>
+#include <string>
+#include <tuple>
+
+namespace mc::dbus {
+
+/**
+ * @brief 总线模式实现基类
+ * @details 用于区分阻塞式和非阻塞式 DBus 连接的不同行为
+ */
+class bus_mode_impl {
+public:
+    virtual ~bus_mode_impl();
+
+    /**
+     * @brief 请求服务名称时的额外处理
+     * @param conn [in] 连接对象
+     * @param unique_name [in] 唯一名称
+     * @param service_name [in] 服务名称
+     */
+    virtual void on_request_name(connection& conn, const std::string& unique_name,
+                                 const std::string& service_name) = 0;
+
+    /**
+     * @brief 添加匹配规则
+     * @param rule [in] 匹配规则
+     * @param cb [in] 回调函数
+     * @return 规则ID，0表示不支持或失败
+     */
+    virtual uint64_t add_match(match_rule& rule, match_cb_t&& cb) = 0;
+
+    /**
+     * @brief 移除匹配规则
+     * @param id [in] 规则ID
+     */
+    virtual void remove_match(uint64_t id) = 0;
+
+    /**
+     * @brief 阻塞等待一次消息
+     * @param conn [in] 连接对象
+     * @param timeout_ms [in] 超时时间（毫秒）
+     * @return 是否成功处理了消息
+     */
+    virtual bool run_once(connection& conn, int timeout_ms) = 0;
+
+    /**
+     * @brief 阻塞等待直到条件满足
+     * @param conn [in] 连接对象
+     * @param condition [in] 条件函数
+     * @param total_timeout_ms [in] 总超时时间（毫秒）
+     * @param step_ms [in] 每次等待步长（毫秒）
+     * @return 条件是否满足
+     */
+    virtual bool run_until(connection& conn, std::function<bool()> condition,
+                           int total_timeout_ms, int step_ms) = 0;
+
+    /**
+     * @brief 发送信号
+     * @param conn [in] 连接对象
+     * @param msg [in] 消息
+     */
+    virtual void notify_signal(connection& conn, message& msg) = 0;
+
+    /**
+     * @brief 获取 shm_tree 对象（仅非阻塞模式有效）
+     * @return shm_tree 指针，阻塞模式返回 nullptr
+     */
+    virtual shm_tree* get_shm_tree() = 0;
+
+    /**
+     * @brief 同步调用 D-Bus 方法（阻塞模式）
+     * @param conn [in] 连接对象
+     * @param service [in] 服务名
+     * @param path [in] 对象路径
+     * @param interface [in] 接口名
+     * @param method [in] 方法名
+     * @param signature [in] 参数签名
+     * @param args [in] 参数列表
+     * @return 返回值列表
+     */
+    virtual variants call(connection& conn, const std::string& service, const std::string& path,
+                          const std::string& interface, const std::string& method,
+                          const std::string& signature, variants&& args) = 0;
+
+    /**
+     * @brief 带超时的同步调用 D-Bus 方法（阻塞模式）
+     * @param conn [in] 连接对象
+     * @param timeout_ms [in] 超时时间（毫秒）
+     * @param service [in] 服务名
+     * @param path [in] 对象路径
+     * @param interface [in] 接口名
+     * @param method [in] 方法名
+     * @param signature [in] 参数签名
+     * @param args [in] 参数列表
+     * @return 返回值列表
+     */
+    virtual variants timeout_call(connection& conn, int timeout_ms, const std::string& service,
+                                  const std::string& path, const std::string& interface,
+                                  const std::string& method, const std::string& signature,
+                                  variants&& args) = 0;
+
+    /**
+     * @brief 异步调用 D-Bus 方法（非阻塞模式）
+     * @param conn [in] 连接对象
+     * @param service [in] 服务名
+     * @param path [in] 对象路径
+     * @param interface [in] 接口名
+     * @param method [in] 方法名
+     * @param signature [in] 参数签名
+     * @param args [in] 参数列表
+     * @return (error, result) 错误信息和返回值
+     */
+    virtual std::tuple<std::optional<std::string>, variants>
+    async_call(connection& conn, const std::string& service, const std::string& path,
+               const std::string& interface, const std::string& method,
+               const std::string& signature, variants&& args) = 0;
+
+    /**
+     * @brief 带超时的异步调用 D-Bus 方法（非阻塞模式）
+     * @param conn [in] 连接对象
+     * @param timeout_ms [in] 超时时间（毫秒）
+     * @param service [in] 服务名
+     * @param path [in] 对象路径
+     * @param interface [in] 接口名
+     * @param method [in] 方法名
+     * @param signature [in] 参数签名
+     * @param args [in] 参数列表
+     * @return (error, result) 错误信息和返回值
+     */
+    virtual std::tuple<std::optional<std::string>, variants>
+    async_timeout_call(connection& conn, int timeout_ms, const std::string& service,
+                       const std::string& path, const std::string& interface,
+                       const std::string& method, const std::string& signature, variants&& args) = 0;
+
+    /**
+     * @brief 通过共享内存的异步调用（非阻塞模式）
+     * @param conn [in] 连接对象
+     * @param timeout_ms [in] 超时时间（毫秒）
+     * @param service [in] 服务名
+     * @param path [in] 对象路径
+     * @param interface [in] 接口名
+     * @param method [in] 方法名
+     * @param signature [in] 参数签名
+     * @param args [in] 参数列表
+     * @return (error, result) 错误信息和返回值
+     */
+    virtual std::tuple<std::optional<std::string>, variants>
+    async_shm_timeout_call(connection& conn, int timeout_ms, const std::string& service,
+                           const std::string& path, const std::string& interface,
+                           const std::string& method, const std::string& signature, variants&& args) = 0;
+};
+
+/**
+ * @brief 阻塞式总线实现
+ */
+class blocking_bus_impl : public bus_mode_impl {
+public:
+    void on_request_name(connection& conn, const std::string& unique_name,
+                         const std::string& service_name) override;
+
+    uint64_t add_match(match_rule& rule, match_cb_t&& cb) override;
+
+    void remove_match(uint64_t id) override;
+
+    bool run_once(connection& conn, int timeout_ms) override;
+
+    bool run_until(connection& conn, std::function<bool()> condition,
+                   int total_timeout_ms, int step_ms) override;
+
+    void notify_signal(connection& conn, message& msg) override;
+
+    shm_tree* get_shm_tree() override;
+
+    variants call(connection& conn, const std::string& service, const std::string& path,
+                  const std::string& interface, const std::string& method,
+                  const std::string& signature, variants&& args) override;
+
+    variants timeout_call(connection& conn, int timeout_ms, const std::string& service,
+                          const std::string& path, const std::string& interface,
+                          const std::string& method, const std::string& signature,
+                          variants&& args) override;
+
+    std::tuple<std::optional<std::string>, variants>
+    async_call(connection& conn, const std::string& service, const std::string& path,
+               const std::string& interface, const std::string& method,
+               const std::string& signature, variants&& args) override;
+
+    std::tuple<std::optional<std::string>, variants>
+    async_timeout_call(connection& conn, int timeout_ms, const std::string& service,
+                       const std::string& path, const std::string& interface,
+                       const std::string& method, const std::string& signature, variants&& args) override;
+
+    std::tuple<std::optional<std::string>, variants>
+    async_shm_timeout_call(connection& conn, int timeout_ms, const std::string& service,
+                           const std::string& path, const std::string& interface,
+                           const std::string& method, const std::string& signature, variants&& args) override;
+};
+
+/**
+ * @brief 非阻塞式总线实现
+ */
+class nonblocking_bus_impl : public bus_mode_impl {
+public:
+    ~nonblocking_bus_impl() override;
+
+    void on_request_name(connection& conn, const std::string& unique_name,
+                         const std::string& service_name) override;
+
+    uint64_t add_match(match_rule& rule, match_cb_t&& cb) override;
+
+    void remove_match(uint64_t id) override;
+
+    bool run_once(connection& conn, int timeout_ms) override;
+
+    bool run_until(connection& conn, std::function<bool()> condition,
+                   int total_timeout_ms, int step_ms) override;
+
+    void notify_signal(connection& conn, message& msg) override;
+
+    shm_tree* get_shm_tree() override;
+
+    variants call(connection& conn, const std::string& service, const std::string& path,
+                  const std::string& interface, const std::string& method,
+                  const std::string& signature, variants&& args) override;
+
+    variants timeout_call(connection& conn, int timeout_ms, const std::string& service,
+                          const std::string& path, const std::string& interface,
+                          const std::string& method, const std::string& signature,
+                          variants&& args) override;
+
+    std::tuple<std::optional<std::string>, variants>
+    async_call(connection& conn, const std::string& service, const std::string& path,
+               const std::string& interface, const std::string& method,
+               const std::string& signature, variants&& args) override;
+
+    std::tuple<std::optional<std::string>, variants>
+    async_timeout_call(connection& conn, int timeout_ms, const std::string& service,
+                       const std::string& path, const std::string& interface,
+                       const std::string& method, const std::string& signature, variants&& args) override;
+
+    std::tuple<std::optional<std::string>, variants>
+    async_shm_timeout_call(connection& conn, int timeout_ms, const std::string& service,
+                           const std::string& path, const std::string& interface,
+                           const std::string& method, const std::string& signature, variants&& args) override;
+
+private:
+    shm_tree* m_shm_tree{nullptr};
+};
+
+} // namespace mc::dbus
+
+#endif // MC_DBUS_BUS_MODE_IMPL_H

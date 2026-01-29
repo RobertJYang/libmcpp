@@ -45,7 +45,7 @@ struct message_data {
  * @return 返回共享内存对象树指针
  */
 MC_API shm::object_tree* create_shm_tree(std::string_view harbor_name, std::string_view service_name,
-                                  std::string_view unique_name);
+                                         std::string_view unique_name);
 
 /**
  * @brief 消息队列
@@ -205,18 +205,18 @@ public:
     void remove_rule(uint64_t id);
 
     /**
- 	 * @brief 添加匹配规则并订阅信号
- 	 * @param rule [in] 匹配规则
- 	 * @param cb [in] 回调函数
- 	 * @param id [in] 规则ID
- 	 */
- 	void add_match(mc::dbus::match_rule& rule, mc::dbus::match_cb_t&& cb, uint64_t id);
+     * @brief 添加匹配规则并订阅信号
+     * @param rule [in] 匹配规则
+     * @param cb [in] 回调函数
+     * @return 返回分配的规则ID
+     */
+    uint64_t add_match(mc::dbus::match_rule& rule, mc::dbus::match_cb_t&& cb);
 
- 	/**
- 	 * @brief 移除匹配规则并取消订阅信号
- 	 * @param id [in] 规则ID
- 	 */
- 	void remove_match(uint64_t id);
+    /**
+     * @brief 移除匹配规则并取消订阅信号
+     * @param id [in] 规则ID
+     */
+    void remove_match(uint64_t id);
 
 private:
     void init_message_queue();
@@ -239,7 +239,7 @@ private:
     std::mutex                                   m_unique_name_map_mutex;
     std::vector<std::unique_ptr<std::thread>>    m_workers;
     std::unordered_map<int, std::string>         m_match_map;
- 	std::unordered_map<std::string, int>         m_match_count;
+    std::unordered_map<std::string, int>         m_match_count;
 };
 
 } // namespace mc::dbus

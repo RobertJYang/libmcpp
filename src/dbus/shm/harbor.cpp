@@ -17,8 +17,8 @@
 #include <mc/log.h>
 #include <mc/runtime.h>
 #include <memory>
-#include <sys/file.h>
 #include <regex>
+#include <sys/file.h>
 
 #ifndef BUILD_TYPE_DEBUG
 #define BUILD_TYPE_DEBUG (0x0b)
@@ -30,6 +30,7 @@ static constexpr size_t                                       MQ_BUFFER_SIZE    
 static uint32_t                                               g_reply_msg_serial = 0;
 static std::unordered_map<std::string, shm::message_queue_t*> g_msg_queues;
 static std::mutex                                             g_msg_queues_mutex;
+static std::atomic<uint64_t>                                  g_next_match_id{1};
 
 shm::object_tree* create_shm_tree(std::string_view harbor_name, std::string_view service_name,
                                   std::string_view unique_name) {
@@ -43,7 +44,7 @@ shm::object_tree* create_shm_tree(std::string_view harbor_name, std::string_view
     }
 #endif
     // 首次打开共享内存需要使用文件锁
-    FILE *fp = fopen("/dev/shm/init_shm.lock", "r+");
+    FILE* fp = fopen("/dev/shm/init_shm.lock", "r+");
     if (fp == nullptr) {
         elog("failed to open init_shm.lock file, ${error}", ("error", strerror(errno)));
     } else {
@@ -117,7 +118,7 @@ void message_queue::dispatch(int timeout_ms, int max_read_count,
 }
 
 harbor::harbor()
-    : m_is_running(false) {
+    : m_is_running(false), m_mq(nullptr) {
 }
 
 harbor::~harbor() {
@@ -412,15 +413,41 @@ void harbor::start() {
 
 void harbor::stop() {
     std::lock_guard<std::mutex> lock(m_mutex);
+    
+    if (!m_is_running && m_workers.empty() && !m_connection.is_connected()) {
+        // 已经停止，直接返回
+        return;
+    }
+    
     m_is_running = false;
-    m_connection.disconnect();
-    // 等待所有worker线程结束
+    
+    // 等待所有worker线程结束（优先于disconnect，避免线程还在使用连接时就断开）
     for (auto& worker : m_workers) {
         if (worker && worker->joinable()) {
             worker->join();
         }
     }
     m_workers.clear();
+    
+    // 尝试disconnect，但如果底层资源已失效则跳过
+    // 使用get_is_connected()检查底层dbus连接是否真的有效
+    bool should_disconnect = false;
+    try {
+        should_disconnect = m_connection.is_connected() && m_connection.get_is_connected();
+    } catch (...) {
+        // 如果检查本身就失败，说明底层资源可能已失效
+        should_disconnect = false;
+    }
+    
+    if (should_disconnect) {
+        m_connection.disconnect();
+    }
+    
+    // 清空mq指针
+    if (m_mq) {
+        delete m_mq;
+        m_mq = nullptr;
+    }
 }
 
 void harbor::register_unique_name(std::string unique_name, std::string service_name) {
@@ -486,27 +513,27 @@ void harbor::remove_rule(uint64_t id) {
     match.remove_rule(id);
 }
 
-static const char* prop_ch = "PropertiesChanged";
-static const char* intf_add = "InterfacesAdded";
-static const char* intf_rmv = "InterfacesRemoved";
+static const char* prop_ch       = "PropertiesChanged";
+static const char* intf_add      = "InterfacesAdded";
+static const char* intf_rmv      = "InterfacesRemoved";
 static const char* name_owner_ch = "NameOwnerChanged";
 
 static const char* prop_intf = "org.freedesktop.DBus.Properties";
-static const char* obj_intf = "org.freedesktop.DBus.ObjectManager";
+static const char* obj_intf  = "org.freedesktop.DBus.ObjectManager";
 static const char* name_intf = "org.freedesktop.DBus";
 
-static const char* root_path = "/bmc";
+static const char* root_path           = "/bmc";
 static const char* root_path_namespace = "/bmc";
 
-static auto rule_prop_ch = match_rule::new_signal(prop_ch, prop_intf);
-static auto rule_intf_add = match_rule::new_signal(intf_add, obj_intf);
-static auto rule_intf_rmv = match_rule::new_signal(intf_rmv, obj_intf);
-static auto rule_name_owner_changed = match_rule::new_signal(name_owner_ch, name_intf);
+static auto           rule_prop_ch            = match_rule::new_signal(prop_ch, prop_intf);
+static auto           rule_intf_add           = match_rule::new_signal(intf_add, obj_intf);
+static auto           rule_intf_rmv           = match_rule::new_signal(intf_rmv, obj_intf);
+static auto           rule_name_owner_changed = match_rule::new_signal(name_owner_ch, name_intf);
 static std::once_flag rule_flag;
 
 mc::dbus::match_rule existed_rules[4] = {rule_prop_ch, rule_intf_add, rule_intf_rmv, rule_name_owner_changed};
 
-bool need_merge(const mc::dbus::match_rule& rule, const mc::dbus::match_rule& existed_rule){
+bool need_merge(const mc::dbus::match_rule& rule, const mc::dbus::match_rule& existed_rule) {
     if (rule.member() != existed_rule.member()) {
         return false;
     }
@@ -528,45 +555,53 @@ std::string replace_fuzzy_match(const std::string_view& path, int pos) {
     return result;
 }
 
-void harbor::add_match(mc::dbus::match_rule& rule, mc::dbus::match_cb_t&& cb, uint64_t id) {
+uint64_t harbor::add_match(mc::dbus::match_rule& rule, mc::dbus::match_cb_t&& cb) {
+    // 分配id，跳过0（0通常表示无效id）
+    uint64_t id = g_next_match_id.fetch_add(1);
+    if (id == 0) {
+        id = g_next_match_id.fetch_add(1);
+    }
+
     // 由于dbus-daemon的match算法用链表实现，时间复杂度为O(n)，
     // 如果客户端精确订阅，会让链表过长导致效率变低，所以将这一类订阅合并，
     // 减少订阅次数，由harbor统一为进程内所有服务订阅信号
-    std::call_once(rule_flag,[](){
+    std::call_once(rule_flag, []() {
         rule_prop_ch.with_path_namespace(root_path_namespace);
         rule_intf_add.with_path_namespace(root_path_namespace);
         rule_intf_rmv.with_path_namespace(root_path_namespace);
     });
 
     auto new_rule = rule.clone();
-    for(auto& existed_rule : existed_rules){
-        if(need_merge(new_rule, existed_rule)){
+    for (auto& existed_rule : existed_rules) {
+        if (need_merge(new_rule, existed_rule)) {
             new_rule = existed_rule.clone();
             break;
         }
     }
     auto path_namespace = new_rule.is_path_namespace() ? new_rule.path_namespace() : new_rule.path();
-    int pos = path_namespace.find('*');
+    int  pos            = path_namespace.find('*');
     if (pos != std::string_view::npos) {
         auto replaced_path_namespace = replace_fuzzy_match(path_namespace, pos);
         new_rule.with_path_namespace(replaced_path_namespace);
     }
-    
-    auto rule_str = new_rule.as_string();
+
+    auto rule_str   = new_rule.as_string();
     m_match_map[id] = rule_str;
-    
+
     auto& match = m_connection.get_match();
     match.add_rule(rule, std::forward<match_cb_t>(cb), id);
-    if (m_match_count[rule_str] == 0){
+    if (m_match_count[rule_str] == 0) {
         m_connection.add_match_only(new_rule, std::forward<match_cb_t>(cb), id);
     }
     ++m_match_count[rule_str];
+
+    return id;
 }
 
 void harbor::remove_match(uint64_t id) {
     auto rule_str = m_match_map[id];
     --m_match_count[rule_str];
-    if(m_match_count[rule_str] == 0){
+    if (m_match_count[rule_str] == 0) {
         auto& match = m_connection.get_match();
         match.remove_rule(id);
     }

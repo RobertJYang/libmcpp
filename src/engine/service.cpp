@@ -147,7 +147,7 @@ bool service_impl::start() {
         return false;
     }
 
-    auto service_name = m_service->name();
+    auto service_name       = m_service->name();
     auto [success, err_opt] = connection.request_name(service_name);
     if (!success) {
         if (err_opt.has_value() && err_opt->message) {
@@ -317,7 +317,7 @@ static mc::variant convert_method_result(const mc::variants& arr) {
     return arr;
 }
 
-static void parse_context_arg(context &ctx, const variants& args) {
+static void parse_context_arg(context& ctx, const variants& args) {
     if (args.empty() || !args[0].is_dict()) {
         return;
     }
@@ -355,7 +355,7 @@ service_impl::shm_timeout_call(mc::milliseconds timeout, std::string_view servic
                                std::string_view method, std::string_view signature,
                                const variants& args) {
     mc::dbus::method_call_params params{service_name, path, interface, method, signature, args};
-    auto result = m_shm_tree->timeout_call(timeout, params);
+    auto                         result = m_shm_tree->timeout_call(timeout, params);
     if (result != std::nullopt) {
         return convert_method_result(result.value());
     }
@@ -415,7 +415,7 @@ DBusHandlerResult service_impl::on_method_call(abstract_object& object, mc::dbus
         auto method_name    = msg.get_member();
         auto args           = msg.read_args();
         parse_context_arg(ctx, args);
-        
+
         auto result = object.invoke(method_name, args, interface_name);
         if (!ctx.get_method()) {
             info.response =
@@ -451,17 +451,8 @@ DBusHandlerResult service_impl::on_method_call(abstract_object& object, mc::dbus
     return DBUS_HANDLER_RESULT_HANDLED;
 }
 
-static std::mutex s_rule_id_mutex;
-static uint64_t   s_rule_id = 0;
-
-static uint64_t get_rule_id() {
-    std::lock_guard lock(s_rule_id_mutex);
-    return s_rule_id++;
-}
-
 uint64_t service_impl::add_match(mc::dbus::match_rule& rule, mc::dbus::match_cb_t&& cb) {
-    auto id = get_rule_id();
-    m_shm_tree->add_match(rule, std::forward<mc::dbus::match_cb_t>(cb), id);
+    uint64_t id = m_shm_tree->add_match(rule, std::forward<mc::dbus::match_cb_t>(cb));
     // harbor和服务都会调用add_rule，所以需要克隆一个rule，否则服务调用rule->set_slot会导致harbor的slot被析构
     auto cloned_rule = rule.clone();
     m_connection.add_rule(cloned_rule, std::forward<mc::dbus::match_cb_t>(cb), id);

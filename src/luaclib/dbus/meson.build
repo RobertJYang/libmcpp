@@ -5,5 +5,6 @@ ldbus_src = files(
   'l_dbus.cpp',
   'l_dbus_blocking.cpp',
   'l_dbus_nonblock.cpp',
+  'l_sd_bus.cpp',
   'l_skynet_syms.cpp',
 )

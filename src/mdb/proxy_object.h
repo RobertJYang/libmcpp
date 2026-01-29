@@ -73,7 +73,8 @@ public:
     const std::string&    interface() const;
 
 private:
-    std::unique_ptr<mc::dbus::sd_bus> m_bus;
+    std::shared_ptr<mc::dbus::sd_bus> m_owned_bus; // 可选：拥有所有权时使用
+    mc::dbus::sd_bus*                 m_bus;       // 实际使用的指针
     std::string                       m_service;
     std::string                       m_path;
     std::string                       m_interface;

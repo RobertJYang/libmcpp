@@ -7,6 +7,7 @@ dbus_src_files = files(
   'shm/local_msg.cpp',
   'shm/serialize.cpp',
   'shm/shm_tree.cpp',
+  'bus_mode_impl.cpp',
   'connection.cpp',
   'connection_impl.cpp',
   'error.cpp',

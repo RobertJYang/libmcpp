@@ -13,10 +13,17 @@
 #ifndef MC_DBUS_SD_BUS_H
 #define MC_DBUS_SD_BUS_H
 
+#include <functional>
 #include <mc/dbus/connection.h>
+#include <mc/dbus/match.h>
+#include <mc/dbus/shm/shm_tree.h>
 #include <mc/runtime.h>
+#include <memory>
 
 namespace mc::dbus {
+
+// 前向声明
+class bus_mode_impl;
 /**
  * @brief sd_bus连接对象
  */
@@ -36,11 +43,30 @@ public:
     sd_bus(bool start_now, bool is_blocking);
 
     /**
-     * @brief 从已有连接构造
-     * @param conn [in] DBus连接对象
-     * @param is_blocking [in] 是否为阻塞模式，true表示使用阻塞式DBus调用，false表示优先使用共享内存调用
+     * @brief 使用已有连接构造
+     * @param conn [in] 已有的 D-Bus 连接对象
+     * @param is_blocking [in] 是否为阻塞模式
      */
     sd_bus(connection conn, bool is_blocking = false);
+
+    /**
+     * @brief 析构函数
+     */
+    ~sd_bus();
+
+    /**
+     * @brief 移动构造函数
+     */
+    sd_bus(sd_bus&& other) noexcept;
+
+    /**
+     * @brief 移动赋值运算符
+     */
+    sd_bus& operator=(sd_bus&& other) noexcept;
+
+    // 禁用拷贝
+    sd_bus(const sd_bus&)            = delete;
+    sd_bus& operator=(const sd_bus&) = delete;
 
     /**
      * @brief 同步调用DBus方法（使用默认超时时间，10分钟）
@@ -101,12 +127,19 @@ public:
      */
     void request_name(std::string_view service_name, uint32_t flags = 0);
 
-
     /**
      * @brief 获取底层连接对象
      * @return 返回底层连接对象的引用
      */
     connection& get_connection();
+
+    /**
+     * @brief 获取 bus_mode_impl 指针
+     * @return bus_mode_impl 指针
+     */
+    bus_mode_impl* get_bus_mode_impl() {
+        return m_bus.get();
+    }
 
     /**
      * @brief 检查是否为阻塞模式
@@ -116,16 +149,30 @@ public:
         return m_is_blocking;
     }
 
+    /**
+     * @brief 添加匹配规则并订阅信号
+     * @param rule [in] 匹配规则
+     * @param cb [in] 回调函数
+     * @return 返回分配的规则ID
+     */
+    uint64_t add_match(match_rule& rule, match_cb_t&& cb);
+
+    /**
+     * @brief 移除匹配规则并取消订阅信号
+     * @param id [in] 规则ID
+     */
+    void remove_match(uint64_t id);
+
 private:
     variants                timeout_call_impl(mc::milliseconds timeout, const method_call_params& params);
     variants                dbus_call(mc::milliseconds timeout, const method_call_params& params);
     std::optional<variants> reroute_call(mc::milliseconds timeout, const method_call_params& params);
 
-    bool        m_is_blocking;
-    bool        m_enable_local_request{true};
-    connection  m_connection;
-    std::string m_unique_name;
-    std::string m_service_name;
+    bool                           m_is_blocking;
+    bool                           m_enable_local_request{true};
+    std::unique_ptr<bus_mode_impl> m_bus;          // 阻塞式/非阻塞式总线实现（持有 connection）
+    std::string                    m_unique_name;  // 缓存的唯一名称
+    std::string                    m_service_name; // 缓存的服务名称
 };
 
 } // namespace mc::dbus

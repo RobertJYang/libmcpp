@@ -13,6 +13,7 @@
 #include "l_dbus_blocking.h"
 #include "../utils/variant_utils.h"
 #include "l_dbus_common.h"
+#include <mc/dbus/bus_mode_impl.h>
 #include <mc/dbus/sd_bus.h>
 #include <mc/log.h>
 
@@ -33,12 +34,12 @@ int dbus_blocking_shutdown(lua_State* L) {
 
 // dbus.blocking.open_user()
 int dbus_blocking_open_user(lua_State* L) {
-    return dbus_open_user_impl(L, get_static_io_context(), BLOCKING_DBUS_METATABLE);
+    return dbus_open_user_impl(L, get_static_io_context(), BLOCKING_DBUS_METATABLE, true);
 }
 
 // dbus.blocking.new(arg)
 int dbus_blocking_new(lua_State* L) {
-    return dbus_new_impl(L, BLOCKING_DBUS_METATABLE, "lua-dbus-blocking");
+    return dbus_new_impl(L, BLOCKING_DBUS_METATABLE, "lua-dbus-blocking", true);
 }
 
 // conn:request_name(name, flags)
@@ -72,30 +73,10 @@ int dbus_blocking_run_once(lua_State* L) {
         auto* wrapper    = static_cast<dbus_wrapper*>(luaL_checkudata(L, 1, BLOCKING_DBUS_METATABLE));
         int   timeout_ms = luaL_checkinteger(L, 2);
 
-        if (!wrapper->conn.is_connected()) {
-            lua_pushboolean(L, false);
-            return 1;
-        }
+        // 直接使用 wrapper->bus_impl 调用方法
+        bool result = wrapper->bus_impl->run_once(timeout_ms);
 
-        DBusConnection* conn = wrapper->conn.get_connection();
-
-        // 阻塞等待消息，带超时
-        dbus_connection_read_write(conn, timeout_ms);
-
-        // 取出一条消息
-        DBusMessage* msg = dbus_connection_pop_message(conn);
-        if (!msg) {
-            lua_pushboolean(L, false);
-            return 1;
-        }
-
-        // 分发消息（通过内部的filter处理）
-        wrapper->conn.dispatch();
-
-        // 释放消息
-        dbus_message_unref(msg);
-
-        lua_pushboolean(L, true);
+        lua_pushboolean(L, result);
         return 1;
     } catch (const std::exception& e) {
         return luaL_error(L, "Failed to run once: %s", e.what());
@@ -113,52 +94,24 @@ int dbus_blocking_run_until(lua_State* L) {
             step_ms = luaL_checkinteger(L, 4);
         }
 
-        if (!wrapper->conn.is_connected()) {
-            lua_pushboolean(L, false);
-            return 1;
-        }
-
         // 创建回调引用
         lua_pushvalue(L, 2); // 复制回调函数到栈顶
         int callback_ref = luaL_ref(L, LUA_REGISTRYINDEX);
 
-        auto start_time = std::chrono::steady_clock::now();
-        auto timeout    = std::chrono::milliseconds(total_timeout_ms);
-        bool result     = false;
-
-        while (true) {
-            // 执行一次消息循环
-            DBusConnection* conn = wrapper->conn.get_connection();
-            dbus_connection_read_write(conn, step_ms);
-            DBusMessage* msg = dbus_connection_pop_message(conn);
-            if (msg) {
-                wrapper->conn.dispatch();
-                dbus_message_unref(msg);
+        // 直接使用 wrapper->bus_impl 调用方法
+        lua_State* lua_state = L;
+        bool       result    = wrapper->bus_impl->run_until(
+            [lua_state, callback_ref]() -> bool {
+            lua_rawgeti(lua_state, LUA_REGISTRYINDEX, callback_ref);
+            if (lua_pcall(lua_state, 0, 1, 0) != LUA_OK) {
+                lua_pop(lua_state, 1);
+                return false;
             }
-
-            // 检查回调条件
-            lua_rawgeti(L, LUA_REGISTRYINDEX, callback_ref);
-            if (lua_pcall(L, 0, 1, 0) != LUA_OK) {
-                const char* error = lua_tostring(L, -1);
-                elog("Lua回调执行失败: ${error}", ("error", error ? error : "unknown"));
-                lua_pop(L, 1);
-                break;
-            }
-
-            bool cb_result = lua_toboolean(L, -1);
-            lua_pop(L, 1);
-
-            if (cb_result) {
-                result = true;
-                break;
-            }
-
-            // 检查总超时时间
-            auto elapsed = std::chrono::steady_clock::now() - start_time;
-            if (elapsed >= timeout) {
-                break;
-            }
-        }
+            bool cb_result = lua_toboolean(lua_state, -1);
+            lua_pop(lua_state, 1);
+            return cb_result;
+        },
+            total_timeout_ms, step_ms);
 
         // 释放回调引用
         luaL_unref(L, LUA_REGISTRYINDEX, callback_ref);
@@ -176,45 +129,49 @@ int dbus_blocking_gc(lua_State* L) {
 }
 
 int dbus_blocking_call(lua_State* L) {
-    auto*       wrapper      = static_cast<dbus_wrapper*>(luaL_checkudata(L, 1, BLOCKING_DBUS_METATABLE));
-    std::string service_name = luaL_checkstring(L, 2);
-    std::string path         = luaL_checkstring(L, 3);
-    std::string interface    = luaL_checkstring(L, 4);
-    std::string method       = luaL_checkstring(L, 5);
-    std::string signature    = luaL_checkstring(L, 6);
-    variants    args;
-    int         top = lua_gettop(L);
-    if (top >= 7) {
-        args = mc::lua::lua_to_variants(L, 7);
+    try {
+        auto*       wrapper      = static_cast<dbus_wrapper*>(luaL_checkudata(L, 1, BLOCKING_DBUS_METATABLE));
+        std::string service_name = luaL_checkstring(L, 2);
+        std::string path         = luaL_checkstring(L, 3);
+        std::string interface    = luaL_checkstring(L, 4);
+        std::string method       = luaL_checkstring(L, 5);
+        std::string signature    = luaL_checkstring(L, 6);
+        variants    args;
+        int         top = lua_gettop(L);
+        if (top >= 7) {
+            args = mc::lua::lua_to_variants(L, 7);
+        }
+
+        // 直接使用 wrapper->bus_impl 调用方法
+        auto result = wrapper->bus_impl->call(service_name, path, interface, method, signature, std::move(args));
+        return mc::lua::variants_to_lua(L, result);
+    } catch (const std::exception& e) {
+        return luaL_error(L, "call method failed: %s", e.what());
     }
-    mc::dbus::sd_bus bus(wrapper->conn, true);
-    auto [error, result] = bus.pcall({service_name, path, interface, method, signature, std::move(args)});
-    if (error.has_value()) {
-        return luaL_error(L, "call method failed: %s", error.value().c_str());
-    }
-    return mc::lua::variants_to_lua(L, result);
 }
 
 int dbus_blocking_timeout_call(lua_State* L) {
-    auto*       wrapper      = static_cast<dbus_wrapper*>(luaL_checkudata(L, 1, BLOCKING_DBUS_METATABLE));
-    int         timeout_ms   = luaL_checkinteger(L, 2);
-    std::string service_name = luaL_checkstring(L, 3);
-    std::string path         = luaL_checkstring(L, 4);
-    std::string interface    = luaL_checkstring(L, 5);
-    std::string method       = luaL_checkstring(L, 6);
-    std::string signature    = luaL_checkstring(L, 7);
-    variants    args;
-    int         top = lua_gettop(L);
-    if (top >= 8) {
-        args = mc::lua::lua_to_variants(L, 8);
+    try {
+        auto*       wrapper      = static_cast<dbus_wrapper*>(luaL_checkudata(L, 1, BLOCKING_DBUS_METATABLE));
+        int         timeout_ms   = luaL_checkinteger(L, 2);
+        std::string service_name = luaL_checkstring(L, 3);
+        std::string path         = luaL_checkstring(L, 4);
+        std::string interface    = luaL_checkstring(L, 5);
+        std::string method       = luaL_checkstring(L, 6);
+        std::string signature    = luaL_checkstring(L, 7);
+        variants    args;
+        int         top = lua_gettop(L);
+        if (top >= 8) {
+            args = mc::lua::lua_to_variants(L, 8);
+        }
+
+        // 直接使用 wrapper->bus_impl 调用方法
+        auto result =
+            wrapper->bus_impl->timeout_call(timeout_ms, service_name, path, interface, method, signature, std::move(args));
+        return mc::lua::variants_to_lua(L, result);
+    } catch (const std::exception& e) {
+        return luaL_error(L, "timeout_call method failed: %s", e.what());
     }
-    mc::dbus::sd_bus bus(wrapper->conn, true);
-    auto [error, result] =
-        bus.timeout_pcall(mc::milliseconds(timeout_ms), {service_name, path, interface, method, signature, std::move(args)});
-    if (error.has_value()) {
-        return luaL_error(L, "call method failed: %s", error.value().c_str());
-    }
-    return mc::lua::variants_to_lua(L, result);
 }
 
 // 注册 blocking 模块的方法表
