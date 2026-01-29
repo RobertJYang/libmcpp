@@ -192,16 +192,9 @@ enum class object_filter_result {
     need_rpc,
 };
 
-// 在持有共享内存全局锁的前提下，尝试仅使用共享内存的属性值进行匹配。
-// 若存在属性值未落盘（只有属性名/签名但无 data），返回 need_rpc 供上层在释放全局锁后通过 RPC 再查。
-static object_filter_result object_match_filter_shm(shm::object& obj, std::string_view iface_name,
-                                                    const dict& filter_dict, bool ignore_case) {
-    auto it_iface = obj.interfaces().find(iface_name);
-    if (it_iface == obj.interfaces().end()) {
-        return object_filter_result::not_matched;
-    }
-    auto iface = it_iface->second;
-
+// 基于已查到的 interface 做属性匹配
+static object_filter_result object_match_filter_shm_by_interface(shm::interface& iface,
+                                                                const dict& filter_dict, bool ignore_case) {
     bool need_rpc = false;
     for (const auto& e : filter_dict) {
         if (!e.key.is_string()) {
@@ -210,8 +203,8 @@ static object_filter_result object_match_filter_shm(shm::object& obj, std::strin
         std::string_view prop_name = e.key.as_string();
         const variant&   expected  = e.value;
 
-        auto prop = iface->find_p(prop_name);
-        if (prop == nullptr) {
+        auto prop = iface.find_p(prop_name);
+        if (!prop) {
             return object_filter_result::not_matched;
         }
 
@@ -394,37 +387,35 @@ static mdb_path_shm_scan_out scan_mdb_path_shm(shm::shared_memory& ins, std::str
                                                const dict& filter_dict, bool ignore_case) {
     mdb_path_shm_scan_out out;
     variants              result;
-    auto&                 ins_base   = ins.get_base();
-    auto&                 object_map = ins_base.object_map;
 
-    for (const auto& service_pair : object_map) {
-        for (const auto& class_pair : service_pair.second) {
-            for (const auto& obj_pair : class_pair.second) {
-                auto obj_ptr = obj_pair.second;
-                if (obj_ptr == nullptr) {
-                    continue;
-                }
-                auto* obj = &*obj_ptr;
-
-                const auto r = object_match_filter_shm(*obj, iface_name, filter_dict, ignore_case);
-                if (r == object_filter_result::not_matched) {
-                    continue;
-                }
-
-                if (r == object_filter_result::matched) {
-                    // 找到第一个匹配对象，返回 [path, service_name]
-                    result.push_back(variant(std::string(obj->path())));
-                    result.push_back(variant(std::string(service_pair.first)));
-                    out.found = result;
-                    return out;
-                }
-
-                // 共享内存缺值，记录 candidate，稍后释放锁后通过 RPC 再查
-                out.need_rpc.push_back(
-                    mdb_path_candidate{std::string(service_pair.first), std::string(obj->path())});
-            }
+    // 回调语义：return false = 继续遍历下一个，return true = 停止遍历（与 get_mdb_interface_owners 一致）
+    ins.query_interface_view(iface_name, [&](shm::mdb_interface& miface) -> bool {
+        if (!miface.o || !miface.i) {
+            return false; // 继续下一个
         }
-    }
+        shm::object&    obj   = *miface.o;
+        shm::interface& iface = *miface.i;
+
+        std::string path_str(obj.path());
+        auto*       tree        = obj.get_tree();
+        std::string service_name = tree ? std::string(tree->wellknow_name()) : std::string();
+
+        const auto r = object_match_filter_shm_by_interface(iface, filter_dict, ignore_case);
+        if (r == object_filter_result::not_matched) {
+            return false; // 继续下一个
+        }
+
+        if (r == object_filter_result::matched) {
+            result.push_back(variant(path_str));
+            result.push_back(variant(service_name));
+            out.found = result;
+            return true; // 找到，停止遍历
+        }
+
+        // need_rpc：共享内存缺值，记录 candidate，稍后通过 RPC 再查
+        out.need_rpc.push_back(mdb_path_candidate{service_name, path_str});
+        return false; // 继续下一个
+    });
 
     return out;
 }
@@ -780,12 +771,10 @@ std::optional<mc::variants> shm_tree::get_mdb_info(const method_call_params& par
 
 variants shm_tree::get_mdb_path(std::string_view interface_name, std::string_view filter_json,
                                 bool ignore_case) {
-    // 解析 JSON 字符串为 dict
     variant          filter;
     std::string      json_str;
     std::string_view json_to_parse = filter_json;
 
-    // 如果包含单引号，尝试转换为 JSON 格式
     if (filter_json.find('\'') != std::string_view::npos) {
         json_str      = convert_single_quotes_to_json(filter_json);
         json_to_parse = json_str;
@@ -794,12 +783,10 @@ variants shm_tree::get_mdb_path(std::string_view interface_name, std::string_vie
     try {
         filter = mc::json::json_decode(json_to_parse);
     } catch (const mc::parse_error_exception&) {
-        // JSON 解析失败，返回空结果
         return make_empty_path_result();
     }
 
     if (!filter.is_dict()) {
-        // 不是字典类型，返回空结果
         return make_empty_path_result();
     }
 
@@ -811,15 +798,12 @@ variants shm_tree::get_mdb_path_impl(std::string_view interface_name, const dict
                                      bool ignore_case) {
     auto& ins = shm::shared_memory::get_instance();
 
-    // 1) 共享内存扫描阶段：在全局共享锁内仅做“已落盘属性”的匹配；缺值的对象延后处理。
     auto shm_out = shm_global_lock_shared_exec(scan_mdb_path_shm, std::ref(ins), interface_name,
                                                std::cref(filter_dict), ignore_case);
     if (shm_out.found.has_value()) {
         return shm_out.found.value();
     }
 
-    // 2) RPC 回退阶段：释放全局锁后，对缺值对象逐个通过 RPC 查询属性值再匹配。
-    // 说明：harbor::get_destination_msg_queue 内部会获取全局共享锁，必须避免锁重入。
     for (const auto& cand : shm_out.need_rpc) {
         if (match_candidate_via_rpc(cand, interface_name, filter_dict, ignore_case)) {
             variants result;
@@ -829,8 +813,48 @@ variants shm_tree::get_mdb_path_impl(std::string_view interface_name, const dict
         }
     }
 
-    // 未找到匹配对象，返回 ["", ""]
     return make_empty_path_result();
+}
+
+
+static void append_iface(dict& service_map, std::string_view service_name, std::string_view iface_name) {
+    variants arr;
+    auto     it = service_map.find(service_name);
+    if (it != service_map.end() && it->value.is_array()) {
+        arr = it->value.get_array();
+    }
+    arr.push_back(variant(iface_name));
+    service_map[service_name] = variant(arr);
+}
+
+// 收集对象的接口信息到 service_map，格式：{service_name -> [iface1, iface2, ...]}
+static void collect_object_interfaces(dict& service_map, shm::mdb_object& obj, const variants& interfaces) {
+    if (interfaces.empty()) {
+        // 收集所有接口
+        for (const auto& iface_pair : obj.interfaces()) {
+            std::string_view iface_name = iface_pair.first;
+            for (const auto& svc_pair : iface_pair.second) {
+                std::string_view service_name = svc_pair.first;
+                append_iface(service_map, service_name, iface_name);
+            }
+        }
+    } else {
+        // 只收集指定的接口
+        for (const auto& iface_v : interfaces) {
+            if (!iface_v.is_string()) {
+                continue;
+            }
+            std::string_view iface_name = iface_v.as_string();
+            auto             svcs       = obj.find_interfaces(iface_name);
+            if (svcs == nullptr) {
+                continue;
+            }
+            for (const auto& svc_pair : *svcs) {
+                std::string_view service_name = svc_pair.first;
+                append_iface(service_map, service_name, iface_name);
+            }
+        }
+    }
 }
 
 std::optional<dict> shm_tree::get_mdb_object(std::string_view path, const variants& interfaces) {
@@ -843,38 +867,10 @@ std::optional<dict> shm_tree::get_mdb_object(std::string_view path, const varian
         }
 
         // 返回数据格式为：{"service_name": ["interface1", "interface2"]}
-        dict result_dict;
-        for (const auto& iface_name_variant : interfaces) {
-            if (!iface_name_variant.is_string()) {
-                continue;
-            }
-            std::string_view iface_name = iface_name_variant.as_string();
-            auto             ifaces     = obj->find_interfaces(iface_name);
-            if (ifaces == nullptr) {
-                continue;
-            }
-
-            for (const auto& iface : *ifaces) {
-                std::string_view service_name = iface.first;
-
-                auto it = result_dict.find(service_name);
-                if (it != result_dict.end()) {
-                    // 找到 service_name，将 iface_name 添加到对应的数组中
-                    variants arr;
-                    if (it->value.is_array()) {
-                        arr = it->value.get_array();
-                    }
-                    arr.push_back(variant(iface_name));
-                    result_dict[service_name] = variant(arr);
-                } else {
-                    // 没找到，创建新数组并添加到 result_dict
-                    variants arr;
-                    arr.push_back(variant(iface_name));
-                    result_dict[service_name] = variant(arr);
-                }
-            }
-        }
-        return result_dict;
+        dict service_map;
+        // 复用 collect_object_interfaces：内部已处理 interfaces 为空/非空两种情况
+        collect_object_interfaces(service_map, *obj, interfaces);
+        return service_map;
     });
 }
 
@@ -950,46 +946,6 @@ std::string_view shm_tree::get_mdb_service_name(std::string_view sender) {
     return tree->wellknow_name();
 }
 
-static void append_iface(dict& service_map, std::string_view service_name, std::string_view iface_name) {
-    variants arr;
-    auto     it = service_map.find(service_name);
-    if (it != service_map.end() && it->value.is_array()) {
-        arr = it->value.get_array();
-    }
-    arr.push_back(variant(iface_name));
-    service_map[service_name] = variant(arr);
-}
-
-// 收集对象的接口信息到 service_map，格式：{service_name -> [iface1, iface2, ...]}
-static void collect_object_interfaces(dict& service_map, shm::mdb_object& obj, const variants& interfaces) {
-    if (interfaces.empty()) {
-        // 收集所有接口
-        for (const auto& iface_pair : obj.interfaces()) {
-            std::string_view iface_name = iface_pair.first;
-            for (const auto& svc_pair : iface_pair.second) {
-                std::string_view service_name = svc_pair.first;
-                append_iface(service_map, service_name, iface_name);
-            }
-        }
-    } else {
-        // 只收集指定的接口
-        for (const auto& iface_v : interfaces) {
-            if (!iface_v.is_string()) {
-                continue;
-            }
-            std::string_view iface_name = iface_v.as_string();
-            auto             svcs       = obj.find_interfaces(iface_name);
-            if (svcs == nullptr) {
-                continue;
-            }
-            for (const auto& svc_pair : *svcs) {
-                std::string_view service_name = svc_pair.first;
-                append_iface(service_map, service_name, iface_name);
-            }
-        }
-    }
-}
-
 // 获取路径的父路径，如 "/a/b" -> "/a"，"/a" -> "/"
 static std::string_view get_parent_path(std::string_view path) {
     // 非绝对路径、空路径或根路径都视为没有父路径
@@ -1015,7 +971,7 @@ struct g_regex_deleter {
     }
 };
 
-// 接口名称匹配：使用 GLib 正则；与原接口一致，不对 '%' 做替换
+// 接口名称匹配：使用 GLib 正则（pattern 由上层决定语义）
 static std::unique_ptr<GRegex, g_regex_deleter> compile_iface_regex(std::string_view iface_pattern) {
     std::string pattern_str(iface_pattern);
     GError*     error = nullptr;
