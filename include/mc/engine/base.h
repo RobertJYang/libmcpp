@@ -90,6 +90,9 @@ public:
 
     virtual property_changed_signal& property_changed() = 0;
 
+    virtual mc::variant get_override_value() const = 0;
+    virtual void set_override_value(const mc::variant& value) = 0;
+
 protected:
     virtual void set_variant(const mc::variant& value) = 0;
 };
@@ -143,12 +146,6 @@ public:
                                                           std::string_view interface_name = {})       = 0;
     virtual property_sync_info_ptr get_property_sync_info(std::string_view property_name,
                                                           std::string_view interface_name = {}) const = 0;
-    virtual void                   set_override_value(std::string_view property_name, const mc::variant& value,
-                                                      std::string_view interface_name = {})           = 0;
-    virtual void                   unset_override_value(std::string_view property_name,
-                                                        std::string_view interface_name = {})         = 0;
-    virtual mc::variant            get_override_value(std::string_view property_name,
-                                                      std::string_view interface_name = {}) const     = 0;
 
     virtual mc::connection_type connect(std::string_view signal_name, slot_type slot,
                                         std::string_view interface_name = {}) = 0;

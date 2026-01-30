@@ -175,12 +175,6 @@ public:
                                                   std::string_view interface_name = {}) override;
     property_sync_info_ptr get_property_sync_info(std::string_view property_name,
                                                   std::string_view interface_name = {}) const override;
-    void                   set_override_value(std::string_view property_name, const mc::variant& value,
-                                              std::string_view interface_name = {}) override;
-    void                   unset_override_value(std::string_view property_name,
-                                                std::string_view interface_name = {}) override;
-    mc::variant            get_override_value(std::string_view property_name,
-                                              std::string_view interface_name = {}) const override;
 
     abstract_interface* get_interface(std::string_view interface_name) const noexcept override;
     bool                has_interface(std::string_view interface_name) const override;
@@ -220,7 +214,6 @@ protected:
     object_identifier_t                                           m_object_identifier;
     std::unique_ptr<object_optional_data<std::string>>            m_properties_ref_info;
     std::unique_ptr<object_optional_data<property_sync_info_ptr>> m_properties_sync_info;
-    std::unique_ptr<object_optional_data<mc::variant>>            m_override_values;
 };
 
 template <typename ObjectType>

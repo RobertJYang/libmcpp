@@ -43,7 +43,8 @@ struct func_data {
 };
 
 // 将可选的属性数据打包到一个结构体中，避免每个property都分配这些内存
-// 使用mc::variant替代模板参数，减少模板实例化并优化内存使用
+// 使用模板参数T来存储override_value，避免variant转换开销
+template <typename T>
 struct property_extension_data {
     std::function<mc::variant()>            getter;
     std::function<void(const mc::variant&)> setter;
@@ -52,6 +53,7 @@ struct property_extension_data {
     std::unique_ptr<func_data>              function_data;   // 只有需要时才分配
     std::vector<mc::connection_type>        connection_slots;
     mutable std::unique_ptr<mc::variant>    ref_object_cache; // 缓存引用对象的 variant
+    mutable std::unique_ptr<T>              override_value;   // 属性的Override值
 };
 
 class MC_API interface_observer {

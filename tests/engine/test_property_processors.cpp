@@ -163,19 +163,6 @@ public:
                                                               std::string_view interface_name) const override {
         return {};
     }
-
-    void set_override_value(std::string_view property_name, const mc::variant& value,
-                            std::string_view interface_name) override {
-    }
-
-    void unset_override_value(std::string_view property_name,
-                              std::string_view interface_name) override {
-    }
-
-    mc::variant get_override_value(std::string_view property_name,
-                                   std::string_view interface_name) const override {
-        return {};
-    }
 };
 
 // 创建一个模拟的property_helper用于测试（必须在测试用例之前定义）
@@ -292,6 +279,13 @@ public:
 
     mc::variant call_function_with_result(const mc::engine::detail::func_data* function_data) {
         return mc::variant("mock_func_result"); // 返回模拟结果
+    }
+
+    mc::variant get_override_value() const override {
+        return {};
+    }
+
+    void set_override_value(const mc::variant& value) override {
     }
 
     // 公开成员用于测试

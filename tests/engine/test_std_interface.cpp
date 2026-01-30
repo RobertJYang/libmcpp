@@ -289,7 +289,7 @@ protected:
         service_2->start();
         test_conn = mc::dbus::connection::open_session_bus(mc::get_io_context());
         test_conn.start();
-        
+
         // 等待服务完全启动并在 D-Bus 上注册
         std::this_thread::sleep_for(std::chrono::milliseconds(200));
     }
@@ -297,19 +297,19 @@ protected:
     static void TearDownTestSuite() {
         // 等待所有测试的异步操作完成
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
-        
+
         // 清空 D-Bus 消息队列
         for (int i = 0; i < 10; ++i) {
             test_conn.dispatch();
             std::this_thread::sleep_for(std::chrono::milliseconds(5));
         }
-        
+
         // 先断开 D-Bus 连接，避免在服务清理时还有消息传递
         test_conn.disconnect();
-        
+
         // 等待连接完全断开和异步操作完成
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
-        
+
         // 停止服务
         if (service_1) {
             service_1->stop();
@@ -325,7 +325,7 @@ protected:
             delete service_2;
             service_2 = nullptr;
         }
-        
+
         mc::test::TestWithEngine::TearDownTestSuite();
     }
 
@@ -355,7 +355,7 @@ protected:
         root.reset();
         child_obj2 = nullptr;
         child_obj3 = nullptr;
-        
+
         mc::test::TestBase::TearDown();
     }
 
@@ -770,10 +770,14 @@ TEST_F(std_interface_test, TestOverrideSetProperty) {
     std::string                        changed_value = "";
     std::map<std::string, std::string> override_ctx;
     service_1->m_obj_a->property_update_shm().connect([&](const mc::variant& value, const auto& prop) {
-        shm_value = value.as_string();
+        if (prop.get_name() == "Str") {
+            shm_value = value.as_string();
+        }
     });
     service_1->m_obj_a->property_changed().connect([&](const mc::variant& value, const auto& prop) {
-        changed_value = value.as_string();
+        if (prop.get_name() == "Str") {
+            changed_value = value.as_string();
+        }
     });
     service_1->m_obj_a->m_iface.set_property("Str", "value");
 
@@ -790,7 +794,7 @@ TEST_F(std_interface_test, TestOverrideSetProperty) {
     EXPECT_EQ(shm_value, "value1");
     EXPECT_EQ(changed_value, "value1");
 
-    // 非Override模式设置属性值
+    // 非Override模式远程设置属性值
     reply = wait_valid_reply(test_conn, [&]() {
         auto msg    = mc::dbus::message::new_method_call("org.openubmc.test_service_1", "/org/openubmc/test_object_a",
                                                          "bmc.kepler.Object.Properties", "SetWithContext");
@@ -856,6 +860,69 @@ TEST_F(std_interface_test, TestOverrideSetProperty) {
     EXPECT_EQ(get_with_context_result.as_string(), "value2");
 }
 
+TEST_F(std_interface_test, TestLocalSetPropertyWithOverrideValue) {
+    uint8_t                            shm_value     = 0;
+    uint8_t                            changed_value = 0;
+    std::map<std::string, std::string> override_ctx;
+    service_1->m_obj_a->property_update_shm().connect([&](const mc::variant& value, const auto& prop) {
+        if (prop.get_name() == "Num") {
+            shm_value = value.as_uint8();
+        }
+    });
+    service_1->m_obj_a->property_changed().connect([&](const mc::variant& value, const auto& prop) {
+        if (prop.get_name() == "Num") {
+            changed_value = value.as_uint8();
+        }
+    });
+    service_1->m_obj_a->m_iface.set_property("Num", 100);
+
+    // Override模式设置属性值
+    auto reply = wait_valid_reply(test_conn, [&]() {
+        auto msg                     = mc::dbus::message::new_method_call("org.openubmc.test_service_1", "/org/openubmc/test_object_a",
+                                                                          "bmc.kepler.Object.Properties", "SetWithContext");
+        auto writer                  = msg.writer();
+        override_ctx["OverrideMode"] = "set";
+        writer << override_ctx << "org.openubmc.test_interface_a" << "Num" << 101;
+        return msg;
+    });
+    ASSERT_TRUE(reply.is_valid() && reply.is_method_return()) << " reply_error=" << (reply.is_error() ? reply.get_error_name() : "");
+    EXPECT_EQ(shm_value, 101);
+    EXPECT_EQ(changed_value, 101);
+
+    // 本地设置属性值
+    service_1->m_obj_a->m_iface.set_property("Num", 102);
+    EXPECT_EQ(shm_value, 101);
+    EXPECT_EQ(changed_value, 101);
+    auto variant_value = service_1->m_obj_a->m_iface.m_num.get_value();
+    ASSERT_EQ(std::string(variant_value.get_type_name()), "uint8");
+    EXPECT_EQ(variant_value.as_uint8(), 101);
+    EXPECT_EQ(service_1->m_obj_a->m_iface.m_num.value(), 101);
+
+    service_1->m_obj_a->set_property("Num", 103, "org.openubmc.test_interface_a");
+    EXPECT_EQ(shm_value, 101);
+    EXPECT_EQ(changed_value, 101);
+    variant_value = service_1->m_obj_a->m_iface.m_num.get_value();
+    ASSERT_EQ(std::string(variant_value.get_type_name()), "uint8");
+    EXPECT_EQ(variant_value.as_uint8(), 101);
+    EXPECT_EQ(service_1->m_obj_a->m_iface.m_num.value(), 101);
+
+    reply = wait_valid_reply(test_conn, [&]() {
+        auto msg                     = mc::dbus::message::new_method_call("org.openubmc.test_service_1", "/org/openubmc/test_object_a",
+                                                                          "bmc.kepler.Object.Properties", "SetWithContext");
+        auto writer                  = msg.writer();
+        override_ctx["OverrideMode"] = "unset";
+        writer << override_ctx << "org.openubmc.test_interface_a" << "Num" << 0;
+        return msg;
+    });
+    ASSERT_TRUE(reply.is_valid() && reply.is_method_return()) << " reply_error=" << (reply.is_error() ? reply.get_error_name() : "");
+    EXPECT_EQ(shm_value, 103);
+    EXPECT_EQ(changed_value, 103);
+    variant_value = service_1->m_obj_a->m_iface.m_num.get_value();
+    ASSERT_EQ(std::string(variant_value.get_type_name()), "uint8");
+    EXPECT_EQ(variant_value.as_uint8(), 103);
+    EXPECT_EQ(service_1->m_obj_a->m_iface.m_num.value(), 103);
+}
+
 TEST_F(std_interface_test, TestNonExistentProperty) {
     // ✅ 使用 wait_valid_reply_or_error：接受 method_return 或 error 作为有效回复
     // 但 NoReply 错误需要重试，其他错误直接返回
@@ -863,9 +930,9 @@ TEST_F(std_interface_test, TestNonExistentProperty) {
         mc::dbus::message reply;
         for (int attempt = 0; attempt < 10; ++attempt) {
             auto msg = builder();
-            reply = test_conn.send_with_reply(std::move(msg), timeout);
+            reply    = test_conn.send_with_reply(std::move(msg), timeout);
             // 如果是 NoReply 错误，继续重试
-            if (reply.is_valid() && reply.is_error() && 
+            if (reply.is_valid() && reply.is_error() &&
                 reply.get_error_name() == "org.freedesktop.DBus.Error.NoReply") {
                 std::this_thread::sleep_for(std::chrono::milliseconds(200));
                 continue;
@@ -878,32 +945,32 @@ TEST_F(std_interface_test, TestNonExistentProperty) {
         }
         return reply;
     };
-    
+
     // 测试 1: GetWithContext 不存在的属性
     auto reply = wait_valid_reply_or_error([&]() {
-        auto msg = mc::dbus::message::new_method_call("org.openubmc.test_service_1", "/org/openubmc/test_object_a",
-                                                       "bmc.kepler.Object.Properties", "GetWithContext");
+        auto msg    = mc::dbus::message::new_method_call("org.openubmc.test_service_1", "/org/openubmc/test_object_a",
+                                                         "bmc.kepler.Object.Properties", "GetWithContext");
         auto writer = msg.writer();
         writer << empty_ctx << "org.openubmc.test_interface_a" << "NonExistentProperty";
         return msg;
     });
-    
+
     ASSERT_TRUE(reply.is_valid()) << "回复无效";
-    ASSERT_TRUE(reply.is_error()) << "期望返回错误，但得到: " 
-        << (reply.is_method_return() ? "method_return" : "invalid");
+    ASSERT_TRUE(reply.is_error()) << "期望返回错误，但得到: "
+                                  << (reply.is_method_return() ? "method_return" : "invalid");
     EXPECT_EQ(reply.get_error_name(), "org.freedesktop.DBus.Error.UnknownProperty");
     EXPECT_EQ(reply.get_error_message(),
               R"({"name":"org.freedesktop.DBus.Error.UnknownProperty","format":"Unknown property NonExistentProperty"})");
 
     // 测试 2: SetWithContext 不存在的属性
     reply = wait_valid_reply_or_error([&]() {
-        auto msg = mc::dbus::message::new_method_call("org.openubmc.test_service_1", "/org/openubmc/test_object_a",
-                                                       "bmc.kepler.Object.Properties", "SetWithContext");
+        auto msg    = mc::dbus::message::new_method_call("org.openubmc.test_service_1", "/org/openubmc/test_object_a",
+                                                         "bmc.kepler.Object.Properties", "SetWithContext");
         auto writer = msg.writer();
         writer << empty_ctx << "org.openubmc.test_interface_a" << "NonExistentProperty" << "";
         return msg;
     });
-    
+
     ASSERT_TRUE(reply.is_valid()) << "回复无效";
     ASSERT_TRUE(reply.is_error());
     EXPECT_EQ(reply.get_error_name(), "org.freedesktop.DBus.Error.UnknownProperty");
@@ -912,13 +979,13 @@ TEST_F(std_interface_test, TestNonExistentProperty) {
 
     // 测试 3: Properties.Get 不存在的属性
     reply = wait_valid_reply_or_error([&]() {
-        auto msg = mc::dbus::message::new_method_call("org.openubmc.test_service_1", "/org/openubmc/test_object_a",
-                                                       "org.freedesktop.DBus.Properties", "Get");
+        auto msg    = mc::dbus::message::new_method_call("org.openubmc.test_service_1", "/org/openubmc/test_object_a",
+                                                         "org.freedesktop.DBus.Properties", "Get");
         auto writer = msg.writer();
         writer << "org.freedesktop.DBus.Introspectable" << "NonExistentProperty";
         return msg;
     });
-    
+
     ASSERT_TRUE(reply.is_valid()) << "回复无效";
     ASSERT_TRUE(reply.is_error());
     EXPECT_EQ(reply.get_error_name(), "org.freedesktop.DBus.Error.UnknownProperty");
@@ -927,13 +994,13 @@ TEST_F(std_interface_test, TestNonExistentProperty) {
 
     // 测试 4: Properties.Set 不存在的属性
     reply = wait_valid_reply_or_error([&]() {
-        auto msg = mc::dbus::message::new_method_call("org.openubmc.test_service_1", "/org/openubmc/test_object_a",
-                                                       "org.freedesktop.DBus.Properties", "Set");
+        auto msg    = mc::dbus::message::new_method_call("org.openubmc.test_service_1", "/org/openubmc/test_object_a",
+                                                         "org.freedesktop.DBus.Properties", "Set");
         auto writer = msg.writer();
         writer << "org.freedesktop.DBus.ObjectManager" << "NonExistentProperty" << "";
         return msg;
     });
-    
+
     ASSERT_TRUE(reply.is_valid()) << "回复无效";
     ASSERT_TRUE(reply.is_error());
     EXPECT_EQ(reply.get_error_name(), "org.freedesktop.DBus.Error.UnknownProperty");
@@ -948,9 +1015,9 @@ TEST_F(std_interface_test, TestNonExistentInterface) {
         mc::dbus::message reply;
         for (int attempt = 0; attempt < 10; ++attempt) {
             auto msg = builder();
-            reply = test_conn.send_with_reply(std::move(msg), timeout);
+            reply    = test_conn.send_with_reply(std::move(msg), timeout);
             // 如果是 NoReply 错误，继续重试
-            if (reply.is_valid() && reply.is_error() && 
+            if (reply.is_valid() && reply.is_error() &&
                 reply.get_error_name() == "org.freedesktop.DBus.Error.NoReply") {
                 std::this_thread::sleep_for(std::chrono::milliseconds(200));
                 continue;
@@ -963,32 +1030,32 @@ TEST_F(std_interface_test, TestNonExistentInterface) {
         }
         return reply;
     };
-    
+
     // 测试 1: GetWithContext 不存在的接口
     auto reply = wait_valid_reply_or_error([&]() {
-        auto msg = mc::dbus::message::new_method_call("org.openubmc.test_service_1", "/org/openubmc/test_object_a",
-                                                       "bmc.kepler.Object.Properties", "GetWithContext");
+        auto msg    = mc::dbus::message::new_method_call("org.openubmc.test_service_1", "/org/openubmc/test_object_a",
+                                                         "bmc.kepler.Object.Properties", "GetWithContext");
         auto writer = msg.writer();
         writer << empty_ctx << "org.openubmc.NonExistentInterface" << "NonExistentProperty";
         return msg;
     });
-    
+
     ASSERT_TRUE(reply.is_valid()) << "回复无效";
-    ASSERT_TRUE(reply.is_error()) << "期望返回错误，但得到: " 
-        << (reply.is_method_return() ? "method_return" : "invalid");
+    ASSERT_TRUE(reply.is_error()) << "期望返回错误，但得到: "
+                                  << (reply.is_method_return() ? "method_return" : "invalid");
     EXPECT_EQ(reply.get_error_name(), "org.freedesktop.DBus.Error.UnknownInterface");
     EXPECT_EQ(reply.get_error_message(),
               R"({"name":"org.freedesktop.DBus.Error.UnknownInterface","format":"Unknown interface org.openubmc.NonExistentInterface"})");
 
     // 测试 2: SetWithContext 不存在的接口
     reply = wait_valid_reply_or_error([&]() {
-        auto msg = mc::dbus::message::new_method_call("org.openubmc.test_service_1", "/org/openubmc/test_object_a",
-                                                       "bmc.kepler.Object.Properties", "SetWithContext");
+        auto msg    = mc::dbus::message::new_method_call("org.openubmc.test_service_1", "/org/openubmc/test_object_a",
+                                                         "bmc.kepler.Object.Properties", "SetWithContext");
         auto writer = msg.writer();
         writer << empty_ctx << "org.openubmc.NonExistentInterface" << "NonExistentProperty" << "";
         return msg;
     });
-    
+
     ASSERT_TRUE(reply.is_valid()) << "回复无效";
     ASSERT_TRUE(reply.is_error());
     EXPECT_EQ(reply.get_error_name(), "org.freedesktop.DBus.Error.UnknownInterface");
@@ -997,13 +1064,13 @@ TEST_F(std_interface_test, TestNonExistentInterface) {
 
     // 测试 3: Properties.Get 不存在的接口
     reply = wait_valid_reply_or_error([&]() {
-        auto msg = mc::dbus::message::new_method_call("org.openubmc.test_service_1", "/org/openubmc/test_object_a",
-                                                       "org.freedesktop.DBus.Properties", "Get");
+        auto msg    = mc::dbus::message::new_method_call("org.openubmc.test_service_1", "/org/openubmc/test_object_a",
+                                                         "org.freedesktop.DBus.Properties", "Get");
         auto writer = msg.writer();
         writer << "org.openubmc.NonExistentInterface" << "NonExistentProperty";
         return msg;
     });
-    
+
     ASSERT_TRUE(reply.is_valid()) << "回复无效";
     ASSERT_TRUE(reply.is_error());
     EXPECT_EQ(reply.get_error_name(), "org.freedesktop.DBus.Error.UnknownInterface");
@@ -1012,13 +1079,13 @@ TEST_F(std_interface_test, TestNonExistentInterface) {
 
     // 测试 4: Properties.Set 不存在的接口
     reply = wait_valid_reply_or_error([&]() {
-        auto msg = mc::dbus::message::new_method_call("org.openubmc.test_service_1", "/org/openubmc/test_object_a",
-                                                       "org.freedesktop.DBus.Properties", "Set");
+        auto msg    = mc::dbus::message::new_method_call("org.openubmc.test_service_1", "/org/openubmc/test_object_a",
+                                                         "org.freedesktop.DBus.Properties", "Set");
         auto writer = msg.writer();
         writer << "org.openubmc.NonExistentInterface" << "NonExistentProperty" << "";
         return msg;
     });
-    
+
     ASSERT_TRUE(reply.is_valid()) << "回复无效";
     ASSERT_TRUE(reply.is_error());
     EXPECT_EQ(reply.get_error_name(), "org.freedesktop.DBus.Error.UnknownInterface");
