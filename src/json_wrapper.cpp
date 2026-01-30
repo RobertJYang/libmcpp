@@ -924,5 +924,339 @@ JsonObject::iterator JsonObject::end() const {
     return iterator(m_json, nullptr);
 }
 
+// ======================== json_encode ========================
+std::string json_encode(const mc::variant& value, bool pretty_print) {
+    Json* json_ptr = nullptr;
+    char* result = nullptr;
+    try {
+        // 将 variant 转换为底层 JSON 对象
+        json_ptr = build_json_from_variant(value);
+
+        if (json_ptr == nullptr) {
+            MC_THROW(mc::parse_error_exception, "Failed to convert variant to JSON");
+        }
+
+        if (pretty_print) {
+            result = JsonPrint(json_ptr);
+        } else {
+            result = JsonPrintWithoutFormat(json_ptr);
+        }
+
+        if (result == nullptr) {
+            JsonObjectRelease(json_ptr);
+            json_ptr = nullptr;
+            MC_THROW(mc::parse_error_exception, "Failed to serialize JSON to string");
+        }
+
+        // 拷贝结果并释放内存
+        std::string output(result);
+        (void)JsonStringValueFree(result);
+        JsonObjectRelease(json_ptr);
+        json_ptr = nullptr;
+
+        return output;
+    } catch (const mc::parse_error_exception&) {
+        if (json_ptr != nullptr) {
+            JsonObjectRelease(json_ptr);
+            json_ptr = nullptr;
+        }
+        if (result != nullptr) {
+            (void)JsonStringValueFree(result);
+            result = nullptr;
+        }
+        throw;
+    } catch (const std::exception& e) {
+        if (json_ptr != nullptr) {
+            JsonObjectRelease(json_ptr);
+            json_ptr = nullptr;
+        }
+        if (result != nullptr) {
+            (void)JsonStringValueFree(result);
+            result = nullptr;
+        }
+        MC_THROW(mc::parse_error_exception, "JSON encoding failed: ${error}", ("error", e.what()));
+    }
+}
+
+std::string json_encode(const mc::dict& obj, bool pretty_print) {
+    Json* json_obj = nullptr;
+    char* result = nullptr;
+    try {
+        uint32_t ret = JsonObjectCreate(&json_obj);
+        check_json_ret(ret, "Failed to create JSON object");
+
+        // 遍历 dict，添加键值对
+        for (const auto& entry : obj) {
+            std::string key_str = entry.key.get_string();
+            Json* child = build_json_from_variant(entry.value);
+            ensure_created(child, "Failed to build object value");
+            check_json_ret(JsonItemAddToObject(key_str.c_str(), child, json_obj),
+                           "Failed to add object element");
+        }
+
+        if (pretty_print) {
+            result = JsonPrint(json_obj);
+        } else {
+            result = JsonPrintWithoutFormat(json_obj);
+        }
+
+        if (result == nullptr) {
+            JsonObjectRelease(json_obj);
+            json_obj = nullptr;
+            MC_THROW(mc::parse_error_exception, "Failed to serialize JSON");
+        }
+
+        std::string output(result);
+        (void)JsonStringValueFree(result);
+        JsonObjectRelease(json_obj);
+        json_obj = nullptr;
+
+        return output;
+    } catch (const mc::parse_error_exception&) {
+        if (json_obj != nullptr) {
+            JsonObjectRelease(json_obj);
+            json_obj = nullptr;
+        }
+        if (result != nullptr) {
+            (void)JsonStringValueFree(result);
+            result = nullptr;
+        }
+        throw;
+    } catch (const std::exception& e) {
+        if (json_obj != nullptr) {
+            JsonObjectRelease(json_obj);
+            json_obj = nullptr;
+        }
+        if (result != nullptr) {
+            (void)JsonStringValueFree(result);
+            result = nullptr;
+        }
+        MC_THROW(mc::parse_error_exception, "JSON encoding failed: ${error}", ("error", e.what()));
+    }
+}
+
+std::string json_encode(const std::vector<mc::variant>& arr, bool pretty_print) {
+    Json* json_arr = nullptr;
+    char* result = nullptr;
+    try {
+        uint32_t ret = JsonArrayCreate(&json_arr);
+        check_json_ret(ret, "Failed to create JSON array");
+
+        // 遍历 vector，添加元素
+        for (const auto& item : arr) {
+            Json* child = build_json_from_variant(item);
+            ensure_created(child, "Failed to build array element");
+            check_json_ret(JsonItemAddToArray(child, json_arr),
+                           "Failed to add array element");
+        }
+
+        if (pretty_print) {
+            result = JsonPrint(json_arr);
+        } else {
+            result = JsonPrintWithoutFormat(json_arr);
+        }
+
+        if (result == nullptr) {
+            JsonObjectRelease(json_arr);
+            json_arr = nullptr;
+            MC_THROW(mc::parse_error_exception, "Failed to serialize JSON");
+        }
+
+        std::string output(result);
+        (void)JsonStringValueFree(result);
+        JsonObjectRelease(json_arr);
+        json_arr = nullptr;
+
+        return output;
+    } catch (const mc::parse_error_exception&) {
+        if (json_arr != nullptr) {
+            JsonObjectRelease(json_arr);
+            json_arr = nullptr;
+        }
+        if (result != nullptr) {
+            (void)JsonStringValueFree(result);
+            json_arr = nullptr;
+        }
+        throw;
+    } catch (const std::exception& e) {
+        if (json_arr != nullptr) {
+            JsonObjectRelease(json_arr);
+            json_arr = nullptr;
+        }
+        if (result != nullptr) {
+            (void)JsonStringValueFree(result);
+            json_arr = nullptr;
+        }
+        MC_THROW(mc::parse_error_exception, "JSON encoding failed: ${error}", ("error", e.what()));
+    }
+}
+
+std::string json_encode(const JsonValue& json_val, bool pretty_print) {
+    Json* json_ptr = nullptr;
+    char* result = nullptr;
+    try {
+        json_ptr = json_val.get_raw();
+
+        if (json_ptr == nullptr) {
+            MC_THROW(mc::parse_error_exception, "JsonValue contains null Json* pointer");
+        }
+
+        if (pretty_print) {
+            result = JsonPrint(json_ptr);
+        } else {
+            result = JsonPrintWithoutFormat(json_ptr);
+        }
+
+        if (result == nullptr) {
+            JsonObjectRelease(json_ptr);
+            json_ptr = nullptr;
+            MC_THROW(mc::parse_error_exception, "Failed to serialize JSON");
+        }
+
+        // 拷贝结果并释放内存
+        std::string output(result);
+        (void)JsonStringValueFree(result);
+
+        return output;
+    } catch (const mc::parse_error_exception&) {
+        if (json_ptr != nullptr) {
+            JsonObjectRelease(json_ptr);
+            json_ptr = nullptr;
+        }
+        if (result != nullptr) {
+            (void)JsonStringValueFree(result);
+            result = nullptr;
+        }
+        throw;
+    } catch (const std::exception& e) {
+        if (json_ptr != nullptr) {
+            JsonObjectRelease(json_ptr);
+            json_ptr = nullptr;
+        }
+        if (result != nullptr) {
+            (void)JsonStringValueFree(result);
+            result = nullptr;
+        }
+        MC_THROW(mc::parse_error_exception, "JSON encoding failed: ${error}", ("error", e.what()));
+    }
+}
+
+// ======================== json_decode ========================
+mc::variant json_decode(std::string_view json) {
+    Json* json_obj = nullptr;
+    try {
+        // 创建错误信息对象
+        JsonErrorInfo* error_info = JsonErrorInfoCreate();
+        if (error_info == nullptr) {
+            MC_THROW(mc::parse_error_exception, "Failed to create JSON error info");
+        }
+
+        uint32_t ret = JsonParseMulti(json.data(), &json_obj, error_info);
+        if (ret != JSON_OK || json_obj == nullptr) {
+            uint32_t error_pos = JsonErrorPositionGetMulti(error_info);
+            JsonErrorInfoDelete(error_info);
+            MC_THROW(mc::parse_error_exception, "JSON parsing failed at position ${pos}", ("pos", error_pos));
+        }
+
+        // 释放错误信息对象
+        JsonErrorInfoDelete(error_info);
+
+        // 将解析结果转换为 variant
+        mc::variant result = build_variant_from_json(json_obj);
+        JsonObjectRelease(json_obj);
+        json_obj = nullptr;
+
+        return result;
+    } catch (const mc::parse_error_exception&) {
+        if (json_obj != nullptr) {
+            JsonObjectRelease(json_obj);
+            json_obj = nullptr;
+        }
+        throw;
+    } catch (const std::exception& e) {
+        if (json_obj != nullptr) {
+            JsonObjectRelease(json_obj);
+            json_obj = nullptr;
+        }
+        MC_THROW(mc::parse_error_exception, "JSON decoding failed: ${error}", ("error", e.what()));
+    }
+}
+
+JsonValue json_decode_raw(const char* json) {
+    Json* json_obj = nullptr;
+    try {
+        if (json == nullptr) {
+            MC_THROW(mc::parse_error_exception, "JSON string is null");
+        }
+
+        // 创建错误信息对象
+        JsonErrorInfo* error_info = JsonErrorInfoCreate();
+        if (error_info == nullptr) {
+            MC_THROW(mc::parse_error_exception, "Failed to create JSON error info");
+        }
+
+        uint32_t ret = JsonParseMulti(json, &json_obj, error_info);
+        if (ret != JSON_OK || json_obj == nullptr) {
+            uint32_t error_pos = JsonErrorPositionGetMulti(error_info);
+            JsonErrorInfoDelete(error_info);
+            MC_THROW(mc::parse_error_exception, "JSON parsing failed at position ${pos}", ("pos", error_pos));
+        }
+
+        // 释放错误信息对象
+        JsonErrorInfoDelete(error_info);
+
+        return JsonValue(json_obj);
+    } catch (const mc::parse_error_exception&) {
+        if (json_obj != nullptr) {
+            JsonObjectRelease(json_obj);
+            json_obj = nullptr;
+        }
+        throw;
+    } catch (const std::exception& e) {
+        if (json_obj != nullptr) {
+            JsonObjectRelease(json_obj);
+            json_obj = nullptr;
+        }
+        MC_THROW(mc::parse_error_exception, "JSON decoding failed: ${error}", ("error", e.what()));
+    }
+}
+
+// ======================== dump ========================
+bool dump(const mc::variant& value, const mc::filesystem::path& file_path, bool pretty_print) {
+    try {
+        std::string json_str = json_encode(value, pretty_print);
+        return mc::filesystem::write_file(file_path, json_str);
+    } catch (const std::exception&) {
+        return false;
+    }
+}
+
+bool dump(const mc::dict& obj, const mc::filesystem::path& file_path, bool pretty_print) {
+    try {
+        std::string json_str = json_encode(obj, pretty_print);
+        return mc::filesystem::write_file(file_path, json_str);
+    } catch (const std::exception&) {
+        return false;
+    }
+}
+
+bool dump(const std::vector<mc::variant>& arr, const mc::filesystem::path& file_path, bool pretty_print) {
+    try {
+        std::string json_str = json_encode(arr, pretty_print);
+        return mc::filesystem::write_file(file_path, json_str);
+    } catch (const std::exception&) {
+        return false;
+    }
+}
+
+bool dump(const JsonValue& json_val, const mc::filesystem::path& file_path, bool pretty_print) {
+    try {
+        std::string json_str = json_encode(json_val, pretty_print);
+        return mc::filesystem::write_file(file_path, json_str);
+    } catch (const std::exception&) {
+        return false;
+    }
+}
+
 } // namespace json_wrapper
 } // namespace mc

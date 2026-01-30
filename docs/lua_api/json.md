@@ -12,6 +12,544 @@ local ljson = require("ljson")
 
 ## 接口说明
 
+### 序列化和反序列化
+
+#### `encode(value)`
+
+将 Lua 值编码为 JSON 字符串（紧凑格式）。
+
+**参数：**
+- `value`: Lua 值（nil、boolean、number、string、table）
+
+**返回值：** JSON 字符串（string）
+
+**说明：**
+- 将 Lua 值转换为紧凑格式的 JSON 字符串（无缩进和换行）
+- 支持所有 Lua 基础类型：nil、boolean、number、string、table
+- table 会根据内容自动识别为对象或数组：
+  - 如果是连续整数索引从 1 开始，则编码为数组
+  - 否则编码为对象
+- 空 table 默认编码为空数组 `[]`，可通过 `encode_empty_table_as_object` 修改
+- 支持嵌套的 table，会递归转换
+- 对象的键会按照字符串顺序排序
+
+**示例：**
+```lua
+local ljson = require("ljson")
+
+-- 编码基本类型
+print(ljson.encode(nil))           -- "null"
+print(ljson.encode(true))          -- "true"
+print(ljson.encode(42))            -- "42"
+print(ljson.encode("hello"))       -- "\"hello\""
+
+-- 编码数组
+local arr = {1, 2, 3, "four"}
+print(ljson.encode(arr))           -- "[1,2,3,"four"]"
+
+-- 编码对象
+local obj = {name = "Alice", age = 30}
+print(ljson.encode(obj))           -- "{\"age\":30,\"name\":\"Alice\"}"
+
+-- 编码嵌套结构
+local nested = {
+    user = "Alice",
+    profile = {
+        age = 30,
+        email = "alice@example.com"
+    },
+    tags = {"tag1", "tag2"}
+}
+print(ljson.encode(nested))
+-- {"profile":{"age":30,"email":"alice@example.com"},"tags":["tag1","tag2"],"user":"Alice"}
+```
+
+#### `decode(json_string)`
+
+将 JSON 字符串解码为 Lua 值。
+
+**参数：**
+- `json_string`: JSON 字符串
+
+**返回值：** Lua 值（table、nil、boolean、number、string）
+
+**说明：**
+- 将 JSON 字符串解析为 Lua 值
+- JSON 对象转换为 Lua table
+- JSON 数组转换为 Lua 数组 table
+- JSON null 转换为 Lua nil
+- 递归转换所有嵌套对象和数组
+
+**示例：**
+```lua
+local ljson = require("ljson")
+
+-- 解码 JSON 字符串
+local json_str = '{"name":"Alice","age":30}'
+local obj = ljson.decode(json_str)
+print(obj.name)   -- "Alice"
+print(obj.age)    -- 30
+
+-- 解码数组
+local arr_str = '[1,2,3,"four"]'
+local arr = ljson.decode(arr_str)
+for i = 1, #arr do
+    print(arr[i])
+end
+
+-- 解码嵌套结构
+local nested_str = '{"user":"Alice","profile":{"age":30}}'
+local nested = ljson.decode(nested_str)
+print(nested.profile.age)  -- 30
+```
+
+#### `json_object_ordered_decode(json_string)`
+
+将 JSON 字符串解码为 JSON 对象（userdata），保持键的插入顺序。
+
+**参数：**
+- `json_string`: JSON 字符串
+
+**返回值：** JSON 对象或数组（userdata）
+
+**说明：**
+- 将 JSON 字符串解析为 JsonValue 对象（userdata）
+- 与 `decode` 不同，本函数返回 userdata 而不是普通 table
+- userdata 会保持 JSON 对象中键的插入顺序
+- 适合需要保持键顺序或需要使用 JSON 对象元方法的场景
+- 返回的 userdata 支持所有 JSON 对象的元方法（__index、__newindex、__len、__pairs 等）
+
+**示例：**
+```lua
+local ljson = require("ljson")
+
+-- 解码 JSON 字符串为 userdata
+local json_str = '{"name":"Alice","age":30,"email":"alice@example.com"}'
+local json_obj = ljson.json_object_ordered_decode(json_str)
+
+-- 通过元方法访问元素
+print(json_obj.name)   -- "Alice"
+print(json_obj.age)    -- 30
+
+-- 获取所有键（保持插入顺序）
+local keys = ljson.json_object_get_keys(json_obj)
+for i, k in ipairs(keys) do
+    print("键", i, ":", k)
+end
+-- 输出顺序：name, age, email（保持 JSON 中的顺序）
+
+-- 遍历对象（保持键的顺序）
+for k, v in pairs(json_obj) do
+    local val = ljson.json_object_to_table(v)
+    print("键:", k, "值:", val)
+end
+
+-- 转换为普通 table
+local tbl = ljson.json_object_to_table(json_obj)
+print(tbl.name)  -- "Alice"
+```
+
+#### `json_object_ordered_encode(json_value)`
+
+将 JSON 对象（userdata）编码为 JSON 字符串（紧凑格式）。
+
+**参数：**
+- `json_value`: JSON 对象或数组（userdata）
+
+**返回值：** JSON 字符串（string）
+
+**说明：**
+- 将 JsonValue userdata 编码为紧凑格式的 JSON 字符串（无缩进和换行）
+- 与 `encode` 不同，本函数接受 userdata 而不是普通 Lua 值
+- 适合需要将 `json_object_ordered_decode` 或 `json_object_from_table` 创建的 userdata 转换为 JSON 字符串的场景
+- 对象的键会按照字符串顺序排序
+- 支持嵌套对象和数组的递归编码
+
+**示例：**
+```lua
+local ljson = require("ljson")
+
+-- 从 userdata 编码为 JSON 字符串
+local json_obj = ljson.json_object_from_table({
+    name = "Alice",
+    age = 30,
+    email = "alice@example.com"
+})
+local json_str = ljson.json_object_ordered_encode(json_obj)
+print(json_str)
+-- {"age":30,"email":"alice@example.com","name":"Alice"}
+
+-- 解码后再编码
+local json_str2 = '{"name":"Bob","age":25}'
+local json_obj2 = ljson.json_object_ordered_decode(json_str2)
+local encoded = ljson.json_object_ordered_encode(json_obj2)
+print(encoded)
+-- {"age":25,"name":"Bob"}
+
+-- 编码数组
+local arr = ljson.json_object_from_table({1, 2, 3, "four"})
+local arr_str = ljson.json_object_ordered_encode(arr)
+print(arr_str)
+-- [1,2,3,"four"]
+
+-- 编码嵌套结构
+local nested = ljson.json_object_from_table({
+    user = "Alice",
+    profile = {
+        age = 30,
+        email = "alice@example.com"
+    },
+    tags = {"tag1", "tag2"}
+})
+local nested_str = ljson.json_object_ordered_encode(nested)
+print(nested_str)
+-- {"profile":{"age":30,"email":"alice@example.com"},"tags":["tag1","tag2"],"user":"Alice"}
+```
+
+#### `json_object_ordered_encode_pretty(json_value)`
+
+将 JSON 对象（userdata）编码为格式化的 JSON 字符串（带缩进）。
+
+**参数：**
+- `json_value`: JSON 对象或数组（userdata）
+
+**返回值：** JSON 字符串（string）
+
+**说明：**
+- 将 JsonValue userdata 编码为格式化的 JSON 字符串（带缩进和换行）
+- 与 `json_object_ordered_encode` 不同，本函数输出易读的格式化 JSON
+- 与 `encode` 不同，本函数接受 userdata 而不是普通 Lua 值
+- 适合需要将 `json_object_ordered_decode` 或 `json_object_from_table` 创建的 userdata 转换为易读的 JSON 字符串的场景
+- 对象的键会按照字符串顺序排序
+- 支持嵌套对象和数组的递归编码
+- 输出的 JSON 格式易读，适合需要人工查看的场景
+
+**示例：**
+```lua
+local ljson = require("ljson")
+
+-- 从 userdata 编码为格式化的 JSON 字符串
+local json_obj = ljson.json_object_from_table({
+    name = "Alice",
+    age = 30,
+    email = "alice@example.com"
+})
+local json_str = ljson.json_object_ordered_encode_pretty(json_obj)
+print(json_str)
+-- 输出：
+-- {
+--   "age": 30,
+--   "email": "alice@example.com",
+--   "name": "Alice"
+-- }
+
+-- 解码后再编码（格式化输出）
+local json_str2 = '{"name":"Bob","age":25}'
+local json_obj2 = ljson.json_object_ordered_decode(json_str2)
+local encoded = ljson.json_object_ordered_encode_pretty(json_obj2)
+print(encoded)
+-- 输出：
+-- {
+--   "age": 25,
+--   "name": "Bob"
+-- }
+
+-- 编码数组（格式化输出）
+local arr = ljson.json_object_from_table({1, 2, 3, "four"})
+local arr_str = ljson.json_object_ordered_encode_pretty(arr)
+print(arr_str)
+-- 输出：
+-- [
+--   1,
+--   2,
+--   3,
+--   "four"
+-- ]
+
+-- 编码嵌套结构（格式化输出）
+local nested = ljson.json_object_from_table({
+    user = "Alice",
+    profile = {
+        age = 30,
+        email = "alice@example.com"
+    },
+    tags = {"tag1", "tag2"}
+})
+local nested_str = ljson.json_object_ordered_encode_pretty(nested)
+print(nested_str)
+-- 输出：
+-- {
+--   "profile": {
+--     "age": 30,
+--     "email": "alice@example.com"
+--   },
+--   "tags": [
+--     "tag1",
+--     "tag2"
+--   ],
+--   "user": "Alice"
+-- }
+```
+
+#### `dump(value, file_path)`
+
+将 Lua 值编码为 JSON 字符串并写入文件（紧凑格式）。
+
+**参数：**
+- `value`: Lua 值（nil、boolean、number、string、table）
+- `file_path`: 目标文件路径（string）
+
+**返回值：** boolean（成功返回 true，失败返回 false）
+
+**说明：**
+- 将 Lua 值转换为紧凑格式的 JSON 字符串（无缩进和换行）
+- 将 JSON 字符串写入指定文件
+- 如果文件已存在，会覆盖原文件
+- 支持所有 Lua 基础类型和嵌套结构
+- 编码规则与 `encode` 相同
+
+**示例：**
+```lua
+local ljson = require("ljson")
+
+-- 编码基本类型到文件
+local success = ljson.dump("hello", "/tmp/output.json")
+print(success)  -- true
+
+-- 编码对象到文件
+local obj = {name = "Alice", age = 30}
+ljson.dump(obj, "/tmp/user.json")
+
+-- 编码嵌套结构到文件
+local nested = {
+    user = "Alice",
+    profile = {
+        age = 30,
+        email = "alice@example.com"
+    },
+    tags = {"tag1", "tag2"}
+}
+ljson.dump(nested, "/tmp/data.json")
+```
+
+#### `dump_pretty(value, file_path)`
+
+将 Lua 值编码为格式化的 JSON 字符串并写入文件（带缩进）。
+
+**参数：**
+- `value`: Lua 值（nil、boolean、number、string、table）
+- `file_path`: 目标文件路径（string）
+
+**返回值：** boolean（成功返回 true，失败返回 false）
+
+**说明：**
+- 将 Lua 值转换为格式化的 JSON 字符串（带缩进和换行）
+- 将 JSON 字符串写入指定文件
+- 如果文件已存在，会覆盖原文件
+- 支持所有 Lua 基础类型和嵌套结构
+- 编码规则与 `encode` 相同
+- 输出的 JSON 格式易读，适合需要人工查看的场景
+
+**示例：**
+```lua
+local ljson = require("ljson")
+
+-- 编码对象到文件（格式化输出）
+local obj = {
+    name = "Alice",
+    age = 30,
+    tags = {"tag1", "tag2"}
+}
+ljson.dump_pretty(obj, "/tmp/user_pretty.json")
+-- 输出文件内容：
+-- {
+--   "age": 30,
+--   "name": "Alice",
+--   "tags": [
+--     "tag1",
+--     "tag2"
+--   ]
+-- }
+
+-- 编码嵌套结构到文件（格式化输出）
+local nested = {
+    user = "Alice",
+    profile = {
+        age = 30,
+        email = "alice@example.com"
+    }
+}
+ljson.dump_pretty(nested, "/tmp/data_pretty.json")
+```
+
+#### `json_object_dump(json_value, file_path)`
+
+将 JSON 对象（userdata）编码为 JSON 字符串并写入文件（紧凑格式）。
+
+**参数：**
+- `json_value`: JSON 对象或数组（userdata）
+- `file_path`: 目标文件路径（string）
+
+**返回值：** boolean（成功返回 true，失败返回 false）
+
+**说明：**
+- 将 JsonValue userdata 转换为紧凑格式的 JSON 字符串（无缩进和换行）
+- 将 JSON 字符串写入指定文件
+- 如果文件已存在，会覆盖原文件
+- 与 `dump` 不同，本函数接受 userdata 而不是普通 Lua 值
+- 适合需要将 `json_object_ordered_decode` 或 `json_object_from_table` 创建的 userdata 保存到文件的场景
+- 支持嵌套对象和数组的递归编码
+- 对象的键会按照字符串顺序排序
+
+**示例：**
+```lua
+local ljson = require("ljson")
+
+-- 将 userdata 保存到文件（紧凑格式）
+local json_obj = ljson.json_object_from_table({
+    name = "Alice",
+    age = 30,
+    email = "alice@example.com"
+})
+local success = ljson.json_object_dump(json_obj, "/tmp/user.json")
+print(success)  -- true
+
+-- 解码 JSON 字符串后保存到文件
+local json_str = '{"name":"Bob","age":25}'
+local json_obj2 = ljson.json_object_ordered_decode(json_str)
+ljson.json_object_dump(json_obj2, "/tmp/user2.json")
+
+-- 将数组保存到文件（紧凑格式）
+local arr = ljson.json_object_from_table({1, 2, 3, "four"})
+ljson.json_object_dump(arr, "/tmp/array.json")
+
+-- 将嵌套结构保存到文件（紧凑格式）
+local nested = ljson.json_object_from_table({
+    user = "Alice",
+    profile = {
+        age = 30,
+        email = "alice@example.com"
+    },
+    tags = {"tag1", "tag2"}
+})
+ljson.json_object_dump(nested, "/tmp/data.json")
+```
+
+#### `json_object_dump_pretty(json_value, file_path)`
+
+将 JSON 对象（userdata）编码为格式化的 JSON 字符串并写入文件（带缩进）。
+
+**参数：**
+- `json_value`: JSON 对象或数组（userdata）
+- `file_path`: 目标文件路径（string）
+
+**返回值：** boolean（成功返回 true，失败返回 false）
+
+**说明：**
+- 将 JsonValue userdata 转换为格式化的 JSON 字符串（带缩进和换行）
+- 将 JSON 字符串写入指定文件
+- 如果文件已存在，会覆盖原文件
+- 与 `dump_pretty` 不同，本函数接受 userdata 而不是普通 Lua 值
+- 适合需要将 `json_object_ordered_decode` 或 `json_object_from_table` 创建的 userdata 以易读格式保存到文件的场景
+- 支持嵌套对象和数组的递归编码
+- 对象的键会按照字符串顺序排序
+- 输出的 JSON 格式易读，适合需要人工查看的场景
+
+**示例：**
+```lua
+local ljson = require("ljson")
+
+-- 将 userdata 保存到文件（格式化输出）
+local json_obj = ljson.json_object_from_table({
+    name = "Alice",
+    age = 30,
+    email = "alice@example.com"
+})
+local success = ljson.json_object_dump_pretty(json_obj, "/tmp/user_pretty.json")
+print(success)  -- true
+-- 输出文件内容：
+-- {
+--   "age": 30,
+--   "email": "alice@example.com",
+--   "name": "Alice"
+-- }
+
+-- 解码 JSON 字符串后保存到文件（格式化输出）
+local json_str = '{"name":"Bob","age":25}'
+local json_obj2 = ljson.json_object_ordered_decode(json_str)
+ljson.json_object_dump_pretty(json_obj2, "/tmp/user2_pretty.json")
+-- 输出文件内容：
+-- {
+--   "age": 25,
+--   "name": "Bob"
+-- }
+
+-- 将数组保存到文件（格式化输出）
+local arr = ljson.json_object_from_table({1, 2, 3, "four"})
+ljson.json_object_dump_pretty(arr, "/tmp/array_pretty.json")
+-- 输出文件内容：
+-- [
+--   1,
+--   2,
+--   3,
+--   "four"
+-- ]
+
+-- 将嵌套结构保存到文件（格式化输出）
+local nested = ljson.json_object_from_table({
+    user = "Alice",
+    profile = {
+        age = 30,
+        email = "alice@example.com"
+    },
+    tags = {"tag1", "tag2"}
+})
+ljson.json_object_dump_pretty(nested, "/tmp/data_pretty.json")
+-- 输出文件内容：
+-- {
+--   "profile": {
+--     "age": 30,
+--     "email": "alice@example.com"
+--   },
+--   "tags": [
+--     "tag1",
+--     "tag2"
+--   ],
+--   "user": "Alice"
+-- }
+```
+
+#### `encode_empty_table_as_object(boolean)`
+
+设置空 table 编码为 JSON 对象还是数组。
+
+**参数：**
+- `boolean`: 布尔值（true 表示空 table 编码为对象 `{}`，false 表示空 table 编码为数组 `[]`）
+
+**返回值：** 无
+
+**说明：**
+- 控制空 table 的 JSON 编码方式
+- 默认情况下（false），空 table 编码为空数组 `[]`
+- 设置为 true 时，空 table 编码为空对象 `{}`
+- 此设置是全局的，会影响后续所有 `encode`、`dump`、`json_object_from_table` 等操作
+
+**示例：**
+```lua
+local ljson = require("ljson")
+
+-- 默认行为：空 table 编码为数组
+print(ljson.encode({}))  -- "[]"
+
+-- 修改为空 table 编码为对象
+ljson.encode_empty_table_as_object(true)
+print(ljson.encode({}))  -- "{}"
+
+-- 恢复默认行为
+ljson.encode_empty_table_as_object(false)
+print(ljson.encode({}))  -- "[]"
+```
+
 ### 创建 JSON 对象和数组
 
 #### `json_object_new_object()`
