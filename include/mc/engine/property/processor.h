@@ -23,6 +23,7 @@ namespace mc::engine {
 // 前向声明
 class property_helper;
 namespace detail {
+template <typename T>
 struct property_extension_data;
 }
 

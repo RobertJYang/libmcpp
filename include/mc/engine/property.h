@@ -81,11 +81,19 @@ public:
         if (m_property_type == p_type::ref_object) {
             // 确保缓存已初始化（这会同时更新 m_value）
             ensure_ref_object_cache();
+            if (has_extension_data() && m_extension_data->override_value) {
+                return *m_extension_data->override_value;
+            }
             return m_value;
         }
 
-        if (has_extension_data() && m_extension_data->getter && realtime) {
-            const_cast<property_type*>(this)->update_value();
+        if (has_extension_data()) {
+            if (m_extension_data->getter && realtime) {
+                const_cast<property_type*>(this)->update_value();
+            }
+            if (m_extension_data->override_value) {
+                return *m_extension_data->override_value;
+            }
         }
         return m_value;
     }
@@ -322,7 +330,7 @@ public:
 
     void ensure_extension_data() override {
         if (!m_extension_data) {
-            m_extension_data = std::make_unique<detail::property_extension_data>();
+            m_extension_data = std::make_unique<detail::property_extension_data<T>>();
         }
     }
 
@@ -408,6 +416,45 @@ public:
         return *m_signal;
     }
 
+    mc::variant get_override_value() const override {
+        if (has_extension_data() && m_extension_data->override_value) {
+            return mc::variant(*m_extension_data->override_value);
+        }
+        return {};
+    }
+
+    void set_override_value(const mc::variant& value) override {
+        if (!value.is_null()) {
+            // value非空时，设置属性Override值
+            ensure_extension_data();
+            bool changed = false;
+            if (m_extension_data->override_value) {
+                mc::variant old_override_value(*m_extension_data->override_value);
+                changed = value != old_override_value;
+            } else {
+                mc::variant original_value(m_value);
+                changed = value != original_value;
+            }
+            T converted_value;
+            from_variant(value, converted_value);
+            m_extension_data->override_value = std::make_unique<T>(std::move(converted_value));
+            if (changed) {
+                // 开启Override模式，用Override值发送属性变更信号
+                get_observer().notify_update_shm(value, *this);
+                get_observer().notify(value, *this);
+            }
+            return;
+        }
+        // value为空时，清除属性Override值
+        if (has_extension_data() && m_extension_data->override_value) {
+            m_extension_data->override_value.reset();
+            // 取消Override模式，用原始值发送属性变更信号
+            mc::variant original_value(m_value);
+            get_observer().notify_update_shm(original_value, *this);
+            get_observer().notify(original_value, *this);
+        }
+    }
+
 protected:
     void set_variant(const mc::variant& value) override {
         value.as(*this);
@@ -429,13 +476,14 @@ protected:
             (*m_signal)(value, *this);
             return;
         }
-        get_observer().notify_update_shm(value, *this);
-        auto *ctx = context::get_current_context_ptr();
-        if (ctx && ctx->get_arg("OverrideMode") == "set") {
+        if (has_extension_data() && m_extension_data->override_value) {
+            mc::variant override_variant(*m_extension_data->override_value);
+            get_observer().notify_update_shm(override_variant, *this);
             // 已有Override值的情况下，原始属性值修改不发对象属性变更信号
-            return;
+        } else {
+            get_observer().notify_update_shm(value, *this);
+            get_observer().notify(value, *this);
         }
-        get_observer().notify(value, *this);
     }
 
     void set_value_impl(param_type new_value, bool direct_set = false) {
@@ -480,7 +528,7 @@ protected:
                 set_value_impl(value, true);
             } catch (const std::exception& e) {
                 dlog("property ${name} getter call failed, error: ${error}",
-                    ("name", get_name())("error", e.what()));
+                     ("name", get_name())("error", e.what()));
             }
         } else if (m_extension_data->outsider_getter) {
             try {
@@ -490,7 +538,7 @@ protected:
                 set_value_impl(value, true);
             } catch (const std::exception& e) {
                 dlog("property ${name} outsider_getter call failed, error: ${error}",
-                    ("name", get_name())("error", e.what()));
+                     ("name", get_name())("error", e.what()));
             }
         }
     }
@@ -500,13 +548,13 @@ protected:
     p_type                                   m_property_type{p_type::normal}; // 属性类型，默认为普通属性
 
     // 将可选的功能数据延迟分配，大大减少内存占用
-    mutable std::unique_ptr<detail::property_extension_data> m_extension_data;
+    mutable std::unique_ptr<detail::property_extension_data<T>> m_extension_data;
 
 private:
     // 确保扩展数据已分配的辅助方法
-    detail::property_extension_data& ensure_extension_data() const {
+    detail::property_extension_data<T>& ensure_extension_data() const {
         if (!m_extension_data) {
-            m_extension_data = std::make_unique<detail::property_extension_data>();
+            m_extension_data = std::make_unique<detail::property_extension_data<T>>();
         }
         return *m_extension_data;
     }

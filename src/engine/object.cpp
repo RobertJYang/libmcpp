@@ -321,10 +321,6 @@ void object_impl::init_interface_object(const object_metadata& metadata) {
 mc::variant object_impl::get_property(std::string_view property_name,
                                       std::string_view interface_name, int options) const {
     // TODO:: 属性目前没有实现对象重载接口属性，后续需要实现
-    auto override_value = get_override_value(property_name, interface_name);
-    if (!override_value.is_null()) {
-        return override_value;
-    }
     const auto& metadata = get_metadata();
     auto        info     = metadata.get_property_info(property_name, interface_name);
     if (info.item != nullptr) {
@@ -344,43 +340,28 @@ bool object_impl::handle_override(property_base* prop, std::string_view property
     if (!ctx) {
         return false;
     }
-    auto override_value = get_override_value(property_name, interface_name);
+    auto override_value = prop->get_override_value();
     auto override_mode  = ctx->get_arg("OverrideMode");
     if (override_mode.is_null()) {
         if (override_value.is_null()) {
             return false;
         }
         // 已有Override值情况下，以非Override模式设置属性值，只更新后台原始值，不发属性变更信号
-        // 这里设置上下文，用于后续流程发属性变更信号时进行判断
+        // 这里设置上下文标记，后续流程的属性值设置视为Override模式设置，与lua框架保持一致
         ctx->set_arg("OverrideMode", "set");
         return false;
     }
     auto old_value = prop->get_value(0);
     if (override_mode == "set") {
-        bool changed = false;
-        if (override_value.is_null()) {
-            changed = new_value != old_value;
-        } else {
-            changed = new_value != override_value;
-        }
-        set_override_value(property_name, new_value, interface_name);
-        if (!changed) {
-            return true;
-        }
-        // 开启Override模式，用Override值发送属性变更信号
-        notify_property_update_shm(new_value, *prop);
-        notify_property_changed(new_value, *prop);
+        prop->set_override_value(new_value);
         return true;
     }
     if (override_mode == "unset") {
         if (override_value.is_null()) {
             return true;
         }
-        unset_override_value(property_name, interface_name);
+        prop->set_override_value({});
         ctx->set_arg("OverrideMode", mc::variant());
-        // 取消Override模式，用原始值发送属性变更信号
-        notify_property_update_shm(old_value, *prop);
-        notify_property_changed(old_value, *prop);
     }
     return true;
 }
@@ -398,7 +379,7 @@ bool object_impl::set_property(std::string_view property_name, const mc::variant
             return true;
         }
         prop->set_value(value);
-        mc::variant override_value = get_override_value(property_name, interface_name);
+        auto override_value = prop->get_override_value();
         if (!override_value.is_null()) {
             // 如果存在Override值，设置属性值后使用Override值更新共享内存
             notify_property_update_shm(override_value, *prop);
@@ -423,14 +404,6 @@ mc::dict object_impl::get_all_properties(std::string_view interface_name, int op
         return {};
     }
     mc::dict dict = detail::get_interface(this, iface_info)->get_all_properties(options);
-    if (!m_override_values) {
-        return dict;
-    }
-    m_override_values->visit_interface(interface_name, [&dict](std::string_view name, const mc::variant& value) {
-        if (!value.is_null()) {
-            dict[name] = value;
-        }
-    });
     return dict;
 }
 
@@ -464,29 +437,6 @@ property_sync_info_ptr object_impl::get_property_sync_info(std::string_view prop
         return {};
     }
     return m_properties_sync_info->get(interface_name, property_name);
-}
-
-void object_impl::set_override_value(std::string_view property_name, const mc::variant& value,
-                                     std::string_view interface_name) {
-    if (!m_override_values) {
-        m_override_values = std::make_unique<object_optional_data<mc::variant>>();
-    }
-    m_override_values->set(interface_name, property_name, value);
-}
-
-void object_impl::unset_override_value(std::string_view property_name,
-                                       std::string_view interface_name) {
-    if (m_override_values) {
-        m_override_values->unset(interface_name, property_name);
-    }
-}
-
-mc::variant object_impl::get_override_value(std::string_view property_name,
-                                            std::string_view interface_name) const {
-    if (!m_override_values) {
-        return {};
-    }
-    return m_override_values->get(interface_name, property_name);
 }
 
 abstract_interface* object_impl::get_interface(std::string_view interface_name) const noexcept {
@@ -550,12 +500,7 @@ void object_impl::to_variant(const object_impl& obj, mc::dict& dict, int options
             // 只处理对象级别的属性，接口属性在下面接口中处理
             if (property->has_flags(MC_REFLECT_FLAG_PROPERTY_TPL)) {
                 // property<T> 类型属性
-                auto override_value = obj.get_override_value(property->name);
-                if (!override_value.is_null()) {
-                    dict[property->name] = override_value;
-                } else {
-                    dict[property->name] = detail::to_property_base(&obj, {nullptr, property})->get_value(options);
-                }
+                dict[property->name] = detail::to_property_base(&obj, {nullptr, property})->get_value(options);
             } else if (!property->has_flags(MC_REFLECT_FLAG_INTERFACE)) {
                 // 普通属性
                 dict[property->name] = property->get_value(&obj);
@@ -569,14 +514,6 @@ void object_impl::to_variant(const object_impl& obj, mc::dict& dict, int options
     metadata.visit_interfaces([&](const interface_metadata& iface) {
         mc::dict sub_dict;
         interface_impl::to_variant(*detail::get_interface(&obj, iface.interface), sub_dict, options);
-        if (obj.m_override_values) {
-            obj.m_override_values->visit_interface(
-                iface.interface->name, [&sub_dict](std::string_view name, const mc::variant& value) {
-                if (!value.is_null()) {
-                    sub_dict[name] = value;
-                }
-            });
-        }
         dict[iface.metadata->get_class_name()] = sub_dict;
     });
 }
