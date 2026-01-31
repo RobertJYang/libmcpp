@@ -18,6 +18,9 @@
 // 前向声明 Json 结构体
 typedef struct TagJsonChildList Json;
 
+// 前向声明 JsonErrorInfo 结构体
+typedef struct TagJsonErrorInfo JsonErrorInfo;
+
 // 错误码常量
 #define JSON_OK 0
 #define JSON_NUMBER_TYPE_MISMATCH 1
@@ -263,6 +266,45 @@ inline uint32_t JsonObjectAddRef(Json* json) {
 inline uint32_t JsonObjectRelease(Json* json) {
     (void)json;
     return JSON_OK;
+}
+
+// 序列化函数
+inline char* JsonPrint(const Json* json) {
+    (void)json;
+    return nullptr;
+}
+
+inline char* JsonPrintWithoutFormat(const Json* json) {
+    (void)json;
+    return nullptr;
+}
+
+// 内存释放函数
+inline uint32_t JsonStringValueFree(char* str) {
+    (void)str;
+    return JSON_OK;
+}
+
+// 错误信息函数
+inline JsonErrorInfo* JsonErrorInfoCreate() {
+    return nullptr;
+}
+
+inline void JsonErrorInfoDelete(JsonErrorInfo* error_info) {
+    (void)error_info;
+}
+
+// 解析函数
+inline uint32_t JsonParseMulti(const char* str, Json** json, JsonErrorInfo* error_info) {
+    (void)str;
+    (void)json;
+    (void)error_info;
+    return JSON_OK;
+}
+
+inline uint32_t JsonErrorPositionGetMulti(const JsonErrorInfo* error_info) {
+    (void)error_info;
+    return 0;
 }
 
 #endif // JSON_API_H
