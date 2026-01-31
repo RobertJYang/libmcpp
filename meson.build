@@ -87,6 +87,7 @@ endif
 # 尝试使用 pkg-config 查找依赖
 dbus_dep = dependency('dbus-1', method: 'pkg-config', required: true)
 glib_dep = dependency('glib-2.0', method: 'pkg-config', required: true)
+openssl_dep = dependency('openssl', required: true)
 
 # 包含目录
 incdir = include_directories('include')

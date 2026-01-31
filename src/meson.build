@@ -17,6 +17,10 @@ subdir('string')
 subdir('variant')
 subdir('validate')
 
+compress_src_files = [
+  'compress.cpp',
+]
+
 base_src_files = [
   # 根目录源文件
   'common.cpp',
@@ -31,6 +35,7 @@ base_src_files = [
   'result.cpp',
   'array.cpp',
 
+  compress_src_files,
   debounce_src_files,
   dict_src_files,
   fmt_src_files,
@@ -51,7 +56,8 @@ base_src_files = [
 # 源文件列表
 libmcpp_src_files = ['variant_c_api.cpp']
 
-dep_arr = [boost_dep, boost_program_options_dep, dbus_dep, glib_dep]
+zlib_dep = dependency('zlib', required: true)
+dep_arr = [boost_dep, boost_program_options_dep, dbus_dep, glib_dep, zlib_dep, openssl_dep]
 mcpp_deps = []
 
 enable_conan_compile = get_option('enable_conan_compile')

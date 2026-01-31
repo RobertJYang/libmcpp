@@ -12,6 +12,7 @@
 
 #include <cstdlib>
 #include <limits.h>
+#include <vector>
 #ifdef __APPLE__
 #include <mach-o/dyld.h>
 #ifndef PATH_MAX
@@ -63,14 +64,59 @@ MC_API mc::filesystem::path get_build_root() {
     if (!exe_path_str.empty()) {
         auto exe_path = mc::filesystem::path(exe_path_str);
         if (exe_path.is_absolute()) {
-            auto exe_dir = exe_path.parent_path();
-            // 如果可执行文件在 tests 目录下，构建根目录是 tests 的父目录
-            if (exe_dir.filename() == "tests") {
-                auto build_root = exe_dir.parent_path();
-                // 验证构建根目录是否包含 tests 目录
+            // 向上查找包含 tests 目录的构建根目录
+            // 先收集所有可能的构建根目录候选
+            std::vector<mc::filesystem::path> candidates;
+            auto current = exe_path.parent_path();
+            for (int i = 0; i < 10 && !current.empty() && current != current.root_path(); ++i) {
+                // 检查当前目录是否包含 tests 目录
+                if (mc::filesystem::exists(current / "tests")) {
+                    auto tests_dir = current / "tests";
+                    auto dynamic_module = tests_dir / "libmc_test_dynamic_module.so";
+                    // 如果找到动态模块文件，这是最可靠的构建目录标识
+                    if (mc::filesystem::exists(dynamic_module)) {
+                        return current;
+                    }
+                    // 记录候选目录
+                    candidates.push_back(current);
+                }
+                current = current.parent_path();
+            }
+            
+            // 如果没有找到包含动态模块的目录，从候选目录中选择最可能的
+            for (const auto& candidate : candidates) {
+                auto dir_name = candidate.filename().string();
+                // 优先选择包含 build 相关关键词的目录
+                if (dir_name.find("build") != std::string::npos || 
+                    dir_name == "builddir" || 
+                    dir_name.find("temp") != std::string::npos) {
+                    return candidate;
+                }
+            }
+            
+            // 如果都没有，返回第一个候选（可能是构建目录）
+            if (!candidates.empty()) {
+                return candidates[0];
+            }
+            
+            // 继续查找其他可能的路径模式
+            current = exe_path.parent_path();
+            for (int i = 0; i < 10 && !current.empty() && current != current.root_path(); ++i) {
+                // 如果当前目录名是 tests，父目录可能是构建根目录
+                if (current.filename() == "tests") {
+                    auto build_root = current.parent_path();
+                    if (mc::filesystem::exists(build_root / "tests")) {
+                        return build_root;
+                    }
+                }
+                // 如果当前目录名是 bin，可能是构建目录的 bin 子目录
+                if (current.filename() == "bin") {
+                    auto build_root = current.parent_path();
                 if (mc::filesystem::exists(build_root / "tests")) {
                     return build_root;
+                    }
                 }
+                current = current.parent_path();
             }
         }
     }
@@ -82,6 +128,28 @@ MC_API mc::filesystem::path get_build_root() {
         if (mc::filesystem::exists(build_root / "tests")) {
             return build_root;
         }
+    }
+
+    // 尝试从当前工作目录向上查找
+    auto current = mc::filesystem::current_path();
+    for (int i = 0; i < 10 && !current.empty() && current != current.root_path(); ++i) {
+        if (mc::filesystem::exists(current / "tests")) {
+            // 优先验证是否有动态模块文件（构建目录的特征）
+            auto dynamic_module = current / "tests" / "libmc_test_dynamic_module.so";
+            if (mc::filesystem::exists(dynamic_module)) {
+                return current;
+            }
+            // 检查目录名是否包含构建相关关键词
+            auto dir_name = current.filename().string();
+            if (dir_name.find("build") != std::string::npos || 
+                dir_name == "builddir" || 
+                dir_name.find("temp") != std::string::npos) {
+                return current;
+            }
+            // 即使没有动态模块，也返回（可能是构建目录）
+            return current;
+        }
+        current = current.parent_path();
     }
 
     // 回退到当前路径
