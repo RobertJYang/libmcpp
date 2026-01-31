@@ -486,15 +486,10 @@ static int lua_logger_printf_impl(lua_State* L, level lvl) {
     logger* log   = lua_check_logger(L, 1);
     int     nargs = lua_gettop(L);
 
-    if (nargs < 2) {
-        return luaL_error(L, "missing format argument");
-    }
-
     // 检查第一个参数（索引2）是否是 module_name
     // 如果参数数量 >= 3 且第一个和第二个参数都是字符串，则第一个参数作为 module_name
     int         fmt_index = 2; // 默认格式字符串在索引2
     mc::dict    args;
-    const char* fmt = nullptr;
 
     if (nargs >= 3 && lua_type(L, 2) == LUA_TSTRING && lua_type(L, 3) == LUA_TSTRING) {
         const char* module_name = lua_tostring(L, 2);
@@ -506,7 +501,6 @@ static int lua_logger_printf_impl(lua_State* L, level lvl) {
     if (fmt_index > nargs) {
         return luaL_error(L, "missing format argument");
     }
-    fmt = luaL_checkstring(L, fmt_index);
 
     // 调用 Lua string.format 进行格式化
     // 栈状态：[logger, module_name?, fmt, arg1, arg2, ...]
@@ -534,8 +528,10 @@ static int lua_logger_printf_impl(lua_State* L, level lvl) {
     }
     std::string formatted_msg(s);
     lua_pop(L, 1);
-    
-    log->log_serial_printf(lvl, formatted_msg);
+
+    context ctx = get_lua_call_context(L, 1);
+    message log_msg(lvl, formatted_msg, ctx, args);
+    log->log_serial_printf(lvl, log_msg);
     return 0;
 }
 

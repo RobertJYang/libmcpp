@@ -14,6 +14,10 @@
 
 - [json](json.md) - JSON 对象操作 Lua 绑定
 
+### 日志
+
+- [log](log.md) - 日志 Lua 绑定
+
 ### 工具库
 
 - [validate](validate.md) - 参数校验库
@@ -53,6 +57,7 @@ lua_api/
 ├── index.md           # 本文件
 ├── shm_tree.md        # 共享内存 MDB 与 SHM 属性 Lua 绑定
 ├── json.md            # JSON 对象操作文档
+├── log.md             # 日志 Lua 绑定
 └── dbus/              # DBus Lua API
     ├── README.md      # DBus 文档索引
     ├── blocking.md    # 阻塞模式
