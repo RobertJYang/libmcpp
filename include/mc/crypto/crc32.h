@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025 Huawei Technologies Co., Ltd.
+ * Copyright (c) 2026 Huawei Technologies Co., Ltd.
  * openUBMC is licensed under Mulan PSL v2.
  * You can use this software according to the terms and conditions of the Mulan PSL v2.
  * You may obtain a copy of Mulan PSL v2 at:
@@ -27,14 +27,23 @@
 
 namespace mc::crypto {
 
-class MC_API CRC32 {
-public:
-    CRC32();
-    uint32_t calculate(const std::string& bytes, uint32_t init = 0xFFFFFFFF, bool is_last = false);
+/**
+ * @brief 计算CRC32校验值
+ * @param bytes 输入数据
+ * @param init 初始值，默认为0xFFFFFFFF
+ * @param is_last 是否为最后一段数据，默认为false
+ * @return CRC32校验值
+ */
+MC_API uint32_t crc32_calculate(const std::string& bytes, uint32_t init = 0xFFFFFFFF, bool is_last = false);
 
-private:
-    void initialize_table();
-};
+/**
+ * @brief 计算CRC-32/JAMCRC校验值
+ * @param bytes 输入数据
+ * @param init 初始值，默认为0xFFFFFFFF
+ * @return CRC-32/JAMCRC校验值
+ */
+MC_API uint32_t crc32_jamcrc_calculate(const std::string& bytes, uint32_t init = 0xFFFFFFFF);
+
 } // namespace mc::crypto
 
 #endif

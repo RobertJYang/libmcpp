@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025 Huawei Technologies Co., Ltd.
+ * Copyright (c) 2026 Huawei Technologies Co., Ltd.
  * openUBMC is licensed under Mulan PSL v2.
  * You can use this software according to the terms and conditions of the Mulan PSL v2.
  * You may obtain a copy of Mulan PSL v2 at:
@@ -10,11 +10,26 @@
  * See the Mulan PSL v2 for more details.
  */
 
-#ifndef MC_CRYPTO_H
-#define MC_CRYPTO_H
+#ifndef MC_COMPRESS_H
+#define MC_COMPRESS_H
 
-#include <mc/crypto/crc8.h>
-#include <mc/crypto/crc32.h>
-#include <mc/crypto/ecdsa_verify_sha256.h>
+#include <cstddef>
+#include <cstdint>
+#include <string>
+
+#include <mc/common.h>
+#include <mc/exception.h>
+
+namespace mc::compress {
+
+/**
+ * @brief 解压缩gzip数据
+ *
+ * @param input 输入的压缩数据
+ * @param output 输出的解压数据（会自动分配缓冲区）
+ */
+MC_API void gzip_decompress(const std::string& input, std::string& output);
+
+} // namespace mc::compress
 
 #endif

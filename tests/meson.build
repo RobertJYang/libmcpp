@@ -1,6 +1,7 @@
 # 包含子目录的 meson.build 文件
 subdir('algorithm')
 subdir('array')
+subdir('compress')
 subdir('core')
 subdir('crypto')
 subdir('db')
@@ -46,6 +47,7 @@ test_files = [
 
   # 各子目录的测试文件
   test_array_files,
+  test_compress_files,
   test_core_files,
   test_crypto_files,
   test_db_files,
@@ -93,6 +95,7 @@ mock_dynamic_module = shared_library(
 )
 
 dbus_dep = dependency('dbus-1', method: 'pkg-config', required: true)
+zlib_dep = dependency('zlib', required: true)
 
 # 创建测试可执行文件 - 现在依赖test_utilities
 test_cpp_args = []
@@ -116,6 +119,7 @@ test_exe = executable(
     boost_program_options_dep,
     test_utilities_dep,
     lua_dep,
+    zlib_dep,
   ],
   cpp_args: test_cpp_args,
   link_args: test_link_args,
