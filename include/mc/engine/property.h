@@ -52,23 +52,33 @@ public:
     // 普通属性构造函数
     property() = default;
 
-    template <typename U = T, typename = std::enable_if_t<std::is_convertible_v<U, T>>>
+    // param_type 版本的构造函数
+    template <typename U = T, std::enable_if_t<std::is_convertible_v<U, T>, int> = 0>
     explicit property(param_type value)
         : m_value(value) {
     }
 
-    template <typename U = T, typename = std::enable_if_t<std::is_convertible_v<U, T>>>
+    // rvalue_type 版本的构造函数（仅对非基础类型启用）
+    template <typename U                                                                            = T,
+              std::enable_if_t<std::is_convertible_v<U, T> && !property_traits::is_basic_type, int> = 0>
     explicit property(rvalue_type value)
         : m_value(std::move(value)) {
     }
 
-    // 赋值与取值
-    property_type& operator=(rvalue_type new_value) {
-        set_value(std::move(new_value));
-        return *this;
-    }
+    // 赋值操作符 - param_type 版本
     property_type& operator=(param_type new_value) {
         set_value(new_value);
+        return *this;
+    }
+
+    // 赋值操作符 - rvalue_type 版本
+    // 对于基础类型，此方法的参数类型是 disabled_overload_type，永远不会被调用
+    property_type& operator=(rvalue_type new_value) {
+        if constexpr (!property_traits::is_basic_type) {
+            set_value(std::move(new_value));
+        } else {
+            MC_UNUSED(new_value);
+        }
         return *this;
     }
     param_type value(bool realtime = false) const {
@@ -104,12 +114,19 @@ public:
         }
         set_value_impl(new_value);
     }
+
+    // rvalue_type 版本：对于基础类型，rvalue_type 是 disabled_overload_type，此方法实际不会被调用
+    // 使用 if constexpr 确保基础类型分支的代码不会被编译
     void set_value(rvalue_type new_value) {
-        if (has_extension_data() && m_extension_data->setter) {
-            mc::variant variant_value(new_value);
-            m_extension_data->setter(variant_value);
+        if constexpr (!property_traits::is_basic_type) {
+            if (has_extension_data() && m_extension_data->setter) {
+                mc::variant variant_value(new_value);
+                m_extension_data->setter(variant_value);
+            }
+            set_value_impl(std::move(new_value));
+        } else {
+            MC_UNUSED(new_value);
         }
-        set_value_impl(std::move(new_value));
     }
 
     mc::variant get_value(int options = 0) const override {
@@ -282,7 +299,7 @@ public:
         return 0;
     }
 
-    property_type get_property_type() const {
+    p_type get_property_type() const {
         return m_property_type;
     }
 
@@ -501,19 +518,26 @@ protected:
         notify();
     }
 
+    // rvalue_type 版本：对于基础类型，rvalue_type 是 disabled_overload_type，此方法实际不会被调用
+    // 使用 if constexpr 确保基础类型分支的代码不会被编译
     void set_value_impl(rvalue_type new_value, bool direct_set = false) {
-        if (is_equal(new_value)) {
-            return;
-        }
-        if (has_extension_data() && m_extension_data->outsider_setter && !direct_set) {
-            mc::variant variant_value(new_value);
-            if (!m_extension_data->outsider_setter(variant_value)) {
-                // 外部setter返回false，不进行实际设置
+        if constexpr (!property_traits::is_basic_type) {
+            if (is_equal(new_value)) {
                 return;
             }
+            if (has_extension_data() && m_extension_data->outsider_setter && !direct_set) {
+                mc::variant variant_value(new_value);
+                if (!m_extension_data->outsider_setter(variant_value)) {
+                    // 外部setter返回false，不进行实际设置
+                    return;
+                }
+            }
+            m_value = std::move(new_value);
+            notify();
+        } else {
+            MC_UNUSED(new_value);
+            MC_UNUSED(direct_set);
         }
-        m_value = std::move(new_value);
-        notify();
     }
 
     void update_value() {
@@ -576,5 +600,8 @@ struct signature_helper<mc::engine::property<T, Observer>> {
 namespace mc {
 MC_API void from_variant(const mc::variant& var, mc::engine::ref_object*& ptr);
 } // namespace mc
+
+// 包含显式实例化声明，减少模板在不同库中的重复展开
+#include <mc/engine/property/instantiation.h>
 
 #endif // MC_ENGINE_PROPERTY_H
