@@ -21,7 +21,8 @@ engine_src_files = files(
   'property/processors/ref_object_processor.cpp',
   'property/processors/ref_property_processor.cpp',
   'property/processors/sync_property_processor.cpp',
-  'property/processors/function_call_processor.cpp'
+  'property/processors/function_call_processor.cpp',
+  'property/instantiation.cpp'
 )
 
 engine_src_files += dbus_src_files
@@ -35,7 +36,6 @@ libmcpp_engine_lib = library(
   install: true,
   install_dir: install_dir,
   build_by_default: true,
-  gnu_symbol_visibility: 'default',
 )
 libmcpp_engine_dep = declare_dependency(
   include_directories: incdir,

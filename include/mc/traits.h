@@ -367,26 +367,32 @@ struct remove_pointers<T*> {
 template <typename T>
 using remove_pointers_t = typename remove_pointers<remove_cvref_t<T>>::type;
 
+// 用于禁用某些重载的私有类型
+struct disabled_overload_type {
+    disabled_overload_type() = delete;
+};
+
 template <typename T>
 class property_traits {
-    struct disable_rvalue_typeerence {};
-
 public:
     static constexpr bool is_basic_type = std::is_arithmetic_v<T> || std::is_enum_v<T>;
 
-    using value_type  = T;
-    using param_type  = std::conditional_t<is_basic_type, T, const T&>;
-    using rvalue_type = std::conditional_t<is_basic_type, disable_rvalue_typeerence, T&&>;
+    using value_type = T;
+    // 基础类型按值传递效率更高，复杂类型使用 const 引用
+    using param_type = std::conditional_t<is_basic_type, T, const T&>;
+    // 基础类型禁用 rvalue_type 重载（移动对基础类型没有意义），复杂类型使用右值引用
+    using rvalue_type = std::conditional_t<is_basic_type, disabled_overload_type, T&&>;
 };
 
 template <>
 class property_traits<void> {
-    struct disable_rvalue_typeerence {};
+    // 用于禁用 rvalue 重载的类型
+    struct disabled_rvalue_type {};
 
 public:
     using value_type  = std::monostate;
     using param_type  = std::monostate;
-    using rvalue_type = disable_rvalue_typeerence;
+    using rvalue_type = disabled_rvalue_type;
 };
 } // namespace traits
 } // namespace mc
