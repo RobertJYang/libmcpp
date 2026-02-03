@@ -26,6 +26,10 @@
 #include <mutex>
 #include <unordered_map>
 
+#include <sys/wait.h>
+
+extern "C" char** environ;
+
 constexpr uint32_t LOG_US_TIME = 0x01;
 
 namespace mc {
@@ -336,31 +340,32 @@ void logger::error_printf(const char* fmt, ...) {
     va_end(ap);
 }
 
-static std::string shell_single_quote_escape(std::string s) {
-    // shell 中用单引号包裹最安全，但单引号本身需要特殊处理：' -> '\''（即：' " ' " '）
-    std::string out;
-    out.reserve(s.size() + 2);
-    out.push_back('\'');
-    for (char ch : s) {
-        if (ch == '\'') {
-            out.append("'\"'\"'");
-        } else {
-            out.push_back(ch);
-        }
+// 在子进程中用 execve 执行 sh -c cmd，父进程等待子进程结束
+static void run_shell_cmd(const std::string& cmd) {
+    const pid_t pid = fork();
+    if (pid < 0) {
+        return;
     }
-    out.push_back('\'');
-    return out;
+    if (pid == 0) {
+        char* const argv[] = {
+            const_cast<char*>("/bin/sh"),
+            const_cast<char*>("-c"),
+            const_cast<char*>(cmd.c_str()),
+            nullptr,
+        };
+        execve("/bin/sh", argv, ::environ);
+        _exit(127);
+    }
+    (void)waitpid(pid, nullptr, 0);
 }
 
 typedef const char* (*get_log_time_str_func_t)(int);
 static get_log_time_str_func_t get_log_time_str_ptr = nullptr;
 
-void logger::log_serial_printf(level lvl, const std::string& formatted_msg) {
+void logger::log_serial_printf(level lvl, const message& msg) {
     if (!is_enabled(lvl)) {
         return;
     }
-    context ctx("", "", 0);
-    message msg(lvl, formatted_msg, ctx);
 
     std::string message_str = msg.get_message();
     // 过滤无效字符，避免输出控制字符导致终端显示异常
@@ -381,24 +386,20 @@ void logger::log_serial_printf(level lvl, const std::string& formatted_msg) {
 
     std::string file_str;
     file_str.reserve(64);
+    context ctx = msg.get_context();
     if (ctx.m_file.empty()) {
-        file_str.append(__FILE__);
+        file_str.append("unknown");
     } else {
         file_str.append(mc::filesystem::basename(ctx.m_file));
     }
-
-    std::string level_str(mc::log::to_string(msg.get_level()));
-    std::string line_str(std::to_string(ctx.m_line));
 
     if (get_log_time_str_ptr) {
         const char* time_str = get_log_time_str_ptr(LOG_US_TIME);
         if (time_str) {
             std::string str = mc::format_dict("${time} ${module} ${level}: ${file}(${line}): ${message}",
-                                              mc::dict()("time", time_str)("module", module_name)("level", level_str)("file", file_str)("line", line_str)("message", message_str));
-
-            const std::string quoted = shell_single_quote_escape(str);
-            const std::string cmd    = "sh -c \"echo " + quoted + " > /dev/ttyS0\"";
-            (void)std::system(cmd.c_str());
+                                              mc::dict()("time", time_str)("module", module_name)("level", mc::log::to_string(msg.get_level()))("file", file_str)("line", std::to_string(ctx.m_line))("message", message_str));
+            const std::string cmd     = "echo \"" + str + "\" > /dev/ttyS0";
+            run_shell_cmd(cmd);
         }
     }
 }

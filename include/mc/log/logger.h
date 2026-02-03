@@ -210,9 +210,9 @@ public:
      * @brief 输出已格式化的串口日志，供 Lua 等上层在自行 format 后调用
      *
      * @param lvl 日志级别
-     * @param formatted_msg 已格式化的消息内容
+     * @param msg 日志消息
      */
-    void log_serial_printf(level lvl, const std::string& formatted_msg);
+    void log_serial_printf(level lvl, const message& msg);
 
     /**
      * @brief 添加日志追加器
