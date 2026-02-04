@@ -320,26 +320,26 @@ mc::variant build_variant_from_json(const Json* json) {
         if (str == nullptr) {
             return mc::variant();
         }
-        return mc::variant(std::string(str));
+        // 直接使用 const char* 构造 variant，避免先构造 std::string
+        // variant 可以从 const char* 直接构造（通过 string_view）
+        return mc::variant(str);
     }
     case JSONTYPE_ARRAY: {
         uint32_t size = 0;
         check_json_ret(JsonArraySizeGet(json, &size), "Failed to get array size");
+        if (size == 0) {
+            return mc::variant(mc::variants());
+        }
         mc::variants arr;
         arr.reserve(size);
         for (uint32_t i = 0; i < size; ++i) {
             Json* item = nullptr;
             check_json_ret(JsonArrayItemGet(json, i, &item), "Failed to get array item");
 
-            // 处理 Quote 类型
-            Json* actual_item = item;
-            if (item != nullptr && JsonIsQuote(item)) {
-                Json* actual = nullptr;
-                check_json_ret(JsonObjectQuoteGet(item, &actual), "Failed to get quote object");
-                actual_item = actual;
-            }
-
-            arr.push_back(build_variant_from_json(actual_item));
+            // 如果 item 是 Quote 类型，JsonTypeGet(item) 会返回 JSONTYPE_QUOTE
+            // 递归调用 build_variant_from_json(item) 会进入 JSONTYPE_QUOTE 分支处理
+            // 因此这里不需要检查 JsonIsQuote
+            arr.push_back(build_variant_from_json(item));
         }
         return mc::variant(arr);
     }
@@ -355,17 +355,15 @@ mc::variant build_variant_from_json(const Json* json) {
         while (child != nullptr) {
             char* key_c = nullptr;
             check_json_ret(JsonItemKeyGet(child, &key_c), "Failed to get object key");
-            std::string key = key_c ? std::string(key_c) : std::string();
+            // 直接使用 const char* 构造 variant，避免先构造 std::string
+            // variant 可以从 const char* 直接构造（通过 string_view）
+            // 一般键值不会是空，所以优先使用 key_c，只有在为空时才使用空字符串
+            mc::variant key_var(key_c ? key_c : "");
 
-            // 处理 Quote 类型
-            Json* actual_child = child;
-            if (JsonIsQuote(child)) {
-                Json* actual = nullptr;
-                check_json_ret(JsonObjectQuoteGet(child, &actual), "Failed to get quote object");
-                actual_child = actual;
-            }
-
-            obj(key, build_variant_from_json(actual_child));
+            // 如果 child 是 Quote 类型，JsonTypeGet(child) 会返回 JSONTYPE_QUOTE
+            // 递归调用 build_variant_from_json(child) 会进入 JSONTYPE_QUOTE 分支处理
+            // 因此这里不需要检查 JsonIsQuote
+            obj(key_var, build_variant_from_json(child));
 
             Json*    next = nullptr;
             uint32_t r    = JsonItemNextSibling(child, &next);
