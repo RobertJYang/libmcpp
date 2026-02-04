@@ -20,6 +20,7 @@
 #include <string>
 #include <string_view>
 
+#include <mc/common.h>
 #include <mc/filesystem.h>
 #include <mc/variant.h>
 
@@ -37,7 +38,7 @@ class JsonObject;
 /**
  * @brief JSON 值包装类，负责管理底层 Json* 生命周期
  */
-class JsonValue {
+class MC_API JsonValue {
 public:
     // 构造与赋值（RAII 管理 Json* 引用计数）
     JsonValue() noexcept;
@@ -100,7 +101,7 @@ private:
 /**
  * @brief JSON 数组视图，内部通过引用计数共享底层 Json*
  */
-class JsonArray {
+class MC_API JsonArray {
 public:
     JsonArray() noexcept;
     explicit JsonArray(Json* json) noexcept;
@@ -171,7 +172,7 @@ private:
 /**
  * @brief JSON 对象视图，内部通过引用计数共享底层 Json*
  */
-class JsonObject {
+class MC_API JsonObject {
 public:
     JsonObject() noexcept;
     explicit JsonObject(Json* json) noexcept;
@@ -239,7 +240,7 @@ private:
  * @return std::string 编码后的JSON字符串
  * @throw mc::parse_error_exception 当编码失败时抛出异常
  */
-std::string json_encode(const mc::variant& value, bool pretty_print = false);
+MC_API std::string json_encode(const mc::variant& value, bool pretty_print = false);
 
 /**
  * @brief 将dict编码为JSON字符串
@@ -249,7 +250,7 @@ std::string json_encode(const mc::variant& value, bool pretty_print = false);
  * @return std::string 编码后的JSON字符串
  * @throw mc::parse_error_exception 当编码失败时抛出异常
  */
-std::string json_encode(const mc::dict& obj, bool pretty_print = false);
+MC_API std::string json_encode(const mc::dict& obj, bool pretty_print = false);
 
 /**
  * @brief 将vector<variant>编码为JSON字符串
@@ -259,7 +260,7 @@ std::string json_encode(const mc::dict& obj, bool pretty_print = false);
  * @return std::string 编码后的JSON字符串
  * @throw mc::parse_error_exception 当编码失败时抛出异常
  */
-std::string json_encode(const std::vector<mc::variant>& arr, bool pretty_print = false);
+MC_API std::string json_encode(const std::vector<mc::variant>& arr, bool pretty_print = false);
 
 /**
  * @brief 将JsonValue对象编码为JSON字符串
@@ -281,7 +282,7 @@ MC_API std::string json_encode(const JsonValue& json_val, bool pretty_print = fa
  * @return mc::variant 解码后的variant对象
  * @throw mc::parse_error_exception 当解码失败时抛出异常
  */
-mc::variant json_decode(std::string_view json);
+MC_API mc::variant json_decode(std::string_view json);
 
 /**
  * @brief 从JSON字符串解码为JsonValue对象（const char* 重载）
@@ -305,7 +306,7 @@ MC_API JsonValue json_decode_raw(const char* json);
  * @param pretty_print 是否格式化输出（带缩进和换行），默认为 false
  * @return bool 成功返回true，失败返回false
  */
-bool dump(const mc::variant& value, const mc::filesystem::path& file_path, bool pretty_print = false);
+MC_API bool dump(const mc::variant& value, const mc::filesystem::path& file_path, bool pretty_print = false);
 
 /**
  * @brief 将dict编码为JSON字符串并写入指定文件
@@ -315,7 +316,7 @@ bool dump(const mc::variant& value, const mc::filesystem::path& file_path, bool 
  * @param pretty_print 是否格式化输出（带缩进和换行），默认为 false
  * @return bool 成功返回true，失败返回false
  */
-bool dump(const mc::dict& obj, const mc::filesystem::path& file_path, bool pretty_print = false);
+MC_API bool dump(const mc::dict& obj, const mc::filesystem::path& file_path, bool pretty_print = false);
 
 /**
  * @brief 将vector<variant>编码为JSON字符串并写入指定文件
@@ -325,7 +326,7 @@ bool dump(const mc::dict& obj, const mc::filesystem::path& file_path, bool prett
  * @param pretty_print 是否格式化输出（带缩进和换行），默认为 false
  * @return bool 成功返回true，失败返回false
  */
-bool dump(const std::vector<mc::variant>& arr, const mc::filesystem::path& file_path, bool pretty_print = false);
+MC_API bool dump(const std::vector<mc::variant>& arr, const mc::filesystem::path& file_path, bool pretty_print = false);
 
 /**
  * @brief 将JsonValue对象编码为JSON字符串并写入指定文件

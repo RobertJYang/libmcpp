@@ -272,11 +272,12 @@ static void json_value_push(lua_State* L, Json* val) {
             if (JsonObjectQuoteGet(val, &tmp) != JSON_OK) {
                 luaL_error(L, "json: cannot get json quote");
             }
-            val = tmp;
-            break;
+            // 递归处理被引用的对象
+            json_value_push(L, tmp);
+            return;
         }
         case JSONTYPE_NULL: {
-            lua_pushlightuserdata(L, nullptr);
+            lua_pushnil(L);
             break;
         }
         case JSONTYPE_TRUE: {
