@@ -16,7 +16,9 @@
 #include <mc/engine/context.h>
 #include <mc/engine/service.h>
 #include <mc/filesystem.h>
+#include <mc/log/appender_factory.h>
 #include <mc/log/appenders/file_appender.h>
+#include <mc/log/log.h>
 #include <mc/log/log_level.h>
 #include <ostream>
 #include <stdarg.h>
@@ -555,3 +557,25 @@ void file_appender::set_debug_log_ptr(void* func_ptr)
 
 } // namespace log
 } // namespace mc
+
+// 自动注册 file_appender
+namespace {
+struct file_appender_registrar {
+    file_appender_registrar() {
+        auto& factory = mc::log::appender_factory::instance();
+        factory.register_creator("file", []() {
+            return std::make_shared<mc::log::file_appender>();
+        });
+
+        auto                  default_logger = mc::get_default_logger();
+        mc::log::appender_ptr file_appender =
+            mc::log::appender_factory::instance().create("default_file", "file", {});
+
+        if (file_appender) {
+            default_logger.add_appender(file_appender);
+        }
+        default_logger.set_level(mc::log::level::notice);
+    }
+};
+static file_appender_registrar g_file_appender_registrar;
+} // namespace
