@@ -277,7 +277,7 @@ static void json_value_push(lua_State* L, Json* val) {
             return;
         }
         case JSONTYPE_NULL: {
-            lua_pushnil(L);
+            lua_pushlightuserdata(L, nullptr);
             break;
         }
         case JSONTYPE_TRUE: {
