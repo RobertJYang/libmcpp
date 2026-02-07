@@ -44,8 +44,10 @@ struct logger_config {
     std::string              name;      // logger名称
     log::level               level;     // 日志级别
     std::vector<std::string> appenders; // 关联的appender名称列表
+    bool                     condition; // 是否输出日志，false 时不打印
 
-    logger_config(const std::string& name = MC_LOG_DEFAULT_LOGGER) : name(name) {
+    logger_config(const std::string& name = MC_LOG_DEFAULT_LOGGER)
+        : name(name), condition(true) {
     }
 };
 

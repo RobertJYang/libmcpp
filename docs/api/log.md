@@ -113,6 +113,26 @@ logger.add_appender(file);
 | `off` | 关闭日志 |
 | `all` | 所有级别 |
 
+### mdbctl_log
+
+将日志内容输出到 mdbctl 终端（需先通过 mdbctl attach）。使用 `mdbctl_logger`，仅含 socket_appender，不含 console/file。
+
+**宏定义：**
+
+```cpp
+mdbctl_log(...)           // 使用 mdbctl_logger
+mc_mdbctl_log(LOGGER, ...) // 使用指定 logger
+```
+
+**示例：**
+
+```cpp
+#include <mc/log.h>
+
+mdbctl_log("调试信息");
+mdbctl_log("当前状态: ${status}", ("status", "正常运行"));
+```
+
 ### 日志宏
 
 #### 全局日志宏
@@ -150,6 +170,10 @@ logger.add_appender(file);
 | `void set_level(level lvl)` | 设置日志级别 |
 | `level get_level() const` | 获取日志级别 |
 | `bool is_enabled(level lvl) const` | 检查指定日志级别是否启用 |
+| `logger& system(int system_id)` | 设置系统 ID（multihost 场景），链式调用 |
+| `logger& period(int period_s)` | 设置日志打印间隔（秒），链式调用 |
+| `logger& condition(bool cond)` | 设置 condition，控制是否输出日志，链式调用 |
+| `logger clone() const` | 克隆 logger 实例 |
 | `void log(message msg)` | 记录日志消息 |
 | `void add_appender(const appender_ptr& a)` | 添加日志追加器 |
 | `bool remove_appender(const std::string& name)` | 删除指定名称的追加器 |

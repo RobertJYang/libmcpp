@@ -12,21 +12,25 @@
 
 #include <mc/log/appenders/socket_appender.h>
 
+#include <cstdio>
 #include <dlfcn.h>
 #include <logging_internal.h>
 #include <mc/filesystem.h>
 #include <mc/log/log_level.h>
 #include <mc/time.h>
-#include <cstdio>
 
 namespace mc {
 namespace log {
 
-socket_appender::socket_appender() = default;
+socket_appender::socket_appender() : m_client(std::make_shared<socket_client>()) {
+}
+
+socket_appender::socket_appender(std::shared_ptr<socket_client> shared_client) : m_client(std::move(shared_client)) {
+}
 static std::string g_module_name{"Unknown"}; // 全局模块名称，所有 socket_appender 实例共享
 typedef const char* (*get_log_time_str_func_t)(int);
 static get_log_time_str_func_t get_log_time_str_ptr = nullptr;
-constexpr uint32_t LOG_US_TIME = 0x02;
+constexpr uint32_t             LOG_US_TIME          = 0x02;
 
 bool socket_appender::init(const variant& args) {
     if (!args.is_object()) {
@@ -48,7 +52,7 @@ bool socket_appender::init(const variant& args) {
         return false;
     }
 
-    auto path = dict["path"].as<std::string>();
+    auto path    = dict["path"].as<std::string>();
     auto hb_path = dict["hb_path"].as<std::string>();
     if (dict.contains("name")) {
         set_name(dict["name"].as<std::string>());
@@ -56,7 +60,7 @@ bool socket_appender::init(const variant& args) {
 
     if (dict.contains("module_name")) {
         std::string module_name = dict["module_name"].as<std::string>();
-        g_module_name = module_name; // 存储到全局变量
+        g_module_name           = module_name; // 存储到全局变量
     }
 
     set_path(path);
@@ -68,10 +72,15 @@ bool socket_appender::init(const variant& args) {
 namespace {
 // mdbctl在接收消息后会返回确认消息"ok"，长度为2
 constexpr size_t ACK_LENGTH = 2;
-}
+} // namespace
 
 void socket_appender::append(const message& msg) {
-    if (m_type != "local" || msg.get_category() != log_category::debug) {
+    // mdbctl 类别：显式调用 mdbctl_log 时输出，不受 m_type 限制
+    // debug 类别：仅当 m_type 为 "local" 时输出
+    bool is_mdbctl = msg.get_category() == log_category::mdbctl;
+    bool is_debug_local =
+        msg.get_category() == log_category::debug && m_type == "local";
+    if (!is_mdbctl && !is_debug_local) {
         return;
     }
 
@@ -85,11 +94,11 @@ void socket_appender::append(const message& msg) {
     }
 
     auto do_send = [this, &payload]() -> bool {
-        if (m_client.send(payload)) {
+        if (m_client->send(payload)) {
             return true;
         }
-        m_client.disconnect();
-        return ensure_connected() && m_client.send(payload);
+        m_client->disconnect();
+        return ensure_connected() && m_client->send(payload);
     };
 
     if (!do_send()) {
@@ -97,7 +106,7 @@ void socket_appender::append(const message& msg) {
     }
 
     std::string ack;
-    if (m_client.recv_all(ack, ACK_LENGTH)) {
+    if (m_client->recv_all(ack, ACK_LENGTH)) {
         return;
     }
 }
@@ -105,12 +114,12 @@ void socket_appender::append(const message& msg) {
 void socket_appender::set_path(std::string_view path) {
     std::lock_guard<std::mutex> lock(m_mutex);
     m_path.assign(path.begin(), path.end());
-    m_client.set_path(m_path);
+    m_client->set_path(m_path);
 }
 
 void socket_appender::set_hb_path(std::string_view hb_path) {
     std::lock_guard<std::mutex> lock(m_mutex);
-    m_client.set_hb_path(hb_path);
+    m_client->set_hb_path(hb_path);
 }
 
 const std::string& socket_appender::get_path() const {
@@ -128,6 +137,10 @@ const std::string& socket_appender::get_type() const {
 }
 
 socket_client& socket_appender::get_client() {
+    return *m_client;
+}
+
+std::shared_ptr<socket_client> socket_appender::get_client_shared() {
     return m_client;
 }
 
@@ -138,21 +151,21 @@ bool socket_appender::connect() {
 
 void socket_appender::disconnect() {
     std::lock_guard<std::mutex> lock(m_mutex);
-    m_client.disconnect();
+    m_client->disconnect();
 }
 
 bool socket_appender::is_connected() const {
     std::lock_guard<std::mutex> lock(m_mutex);
-    return m_client.is_connected();
+    return m_client->is_connected();
 }
 
 bool socket_appender::heartbeat() {
     std::lock_guard<std::mutex> lock(m_mutex);
-    return m_client.heartbeat();
+    return m_client->heartbeat();
 }
 
 bool socket_appender::ensure_connected() {
-    if (m_client.is_connected()) {
+    if (m_client->is_connected()) {
         return true;
     }
 
@@ -160,8 +173,8 @@ bool socket_appender::ensure_connected() {
         return false;
     }
 
-    m_client.set_path(m_path);
-    return m_client.connect();
+    m_client->set_path(m_path);
+    return m_client->connect();
 }
 
 std::string socket_appender::format_message(const message& msg) const {
@@ -174,7 +187,7 @@ std::string socket_appender::format_message(const message& msg) const {
     }
     if (!time_str) {
         // 如果无法获取外部时间，使用系统时间
-        std::string_view time_view = mc::time_point::now();
+        std::string_view                time_view = mc::time_point::now();
         static thread_local std::string fallback_time;
         fallback_time.assign(time_view.data(), time_view.size());
         time_str = fallback_time.c_str();

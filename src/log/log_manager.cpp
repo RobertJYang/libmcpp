@@ -119,6 +119,7 @@ bool log_manager::load_appenders_from_config(const std::vector<appender_config>&
 
 void log_manager::update_existing_logger(logger& log, const logger_config& log_config) {
     log.set_level(log_config.level);
+    log.condition(log_config.condition);
 
     // 找出要删除的appender（在当前列表中但不在配置中）
     std::vector<std::string> to_remove;
@@ -168,6 +169,7 @@ void log_manager::update_existing_logger(logger& log, const logger_config& log_c
 logger log_manager::create_new_logger(const logger_config& log_config) {
     logger new_logger(log_config.name);
     new_logger.set_level(log_config.level);
+    new_logger.condition(log_config.condition);
 
     for (const auto& app_name : log_config.appenders) {
         appender_ptr appender = appender_factory::instance().get_appender(app_name);
@@ -190,9 +192,12 @@ bool log_manager::apply_config(const logging_config& config) {
         wlog("Some appenders failed to load, continuing with other configurations");
     }
 
-    // 更新现有logger
+    // 更新现有logger（跳过 mdbctl，由 attach/detach 管理）
     for (const auto& log_config : config.loggers) {
         try {
+            if (log_config.name == MC_LOG_MDBCTL_LOGGER) {
+                continue;
+            }
             auto it = m_loggers.find(log_config.name);
             if (it != m_loggers.end()) {
                 update_existing_logger(it->second, log_config);
@@ -245,5 +250,5 @@ void log_manager::set_dlog_level(level lvl) {
 } // namespace mc
 
 MC_REFLECT(mc::log::appender_config, (name)(type)(lib_path)(properties))
-MC_REFLECT(mc::log::logger_config, (name)(level)(appenders))
+MC_REFLECT(mc::log::logger_config, (name)(level)(appenders)(condition))
 MC_REFLECT(mc::log::logging_config, (appenders)(loggers))

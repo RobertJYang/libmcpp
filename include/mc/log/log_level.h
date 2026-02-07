@@ -27,7 +27,11 @@ namespace log {
  */
 enum class log_category : uint8_t {
     debug,        // 调试类别
+    mdbctl,       // mdbctl 终端输出类别，输出到 mdbctl 终端
     operation,    // 操作类别
+    running,      // 运行日志类别，格式：时间、级别、日志内容
+    maintenance,  // 维护日志类别，格式：时间、级别、错误码、日志内容
+    security,     // 安全日志类别，格式：时间、级别、日志内容
     hw_stream,    // 南向硬件流日志类别（syslog LOG_LOCAL6）
     mc_stream,    // mc 流日志类别（syslog LOG_LOCAL5）
     serial_printf // 串口 printf 方式输出类别，由 file_appender 承载

@@ -155,6 +155,11 @@ logger& logger::period(int period_s) {
     return *this;
 }
 
+logger& logger::condition(bool cond) {
+    m_impl->m_config.condition = cond;
+    return *this;
+}
+
 logger logger::clone() const {
     logger copy;
     // 深拷贝 impl，避免与原 logger 共享状态（system_id/period/节流状态等）
@@ -260,6 +265,10 @@ bool logger::should_log_period(const message& msg) {
 }
 
 void logger::log(message msg) {
+    if (!m_impl->m_config.condition) {
+        return;
+    }
+
     if (is_debug_log(msg.get_category()) && !is_enabled(msg.get_level())) {
         return;
     }
@@ -363,7 +372,7 @@ typedef const char* (*get_log_time_str_func_t)(int);
 static get_log_time_str_func_t get_log_time_str_ptr = nullptr;
 
 void logger::log_serial_printf(level lvl, const message& msg) {
-    if (!is_enabled(lvl)) {
+    if (!m_impl->m_config.condition || !is_enabled(lvl)) {
         return;
     }
 

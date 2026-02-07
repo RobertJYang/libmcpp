@@ -230,6 +230,42 @@ TEST_F(log_manager_test, ApplyConfigUpdateExistingLogger) {
     ASSERT_EQ(updated_logger.get_level(), level::warn);
 }
 
+// 测试 apply_config 应用 condition 配置
+TEST_F(log_manager_test, ApplyConfigCondition) {
+    log_manager& manager = log_manager::instance();
+
+    auto mem_appender = std::make_shared<memory_appender>();
+    mem_appender->set_name("condition_test_mem");
+    appender_factory::instance().register_creator("condition_test_mem", [mem_appender]() {
+        return mem_appender;
+    });
+
+    logging_config  config;
+    appender_config app_config;
+    app_config.name       = "condition_test_mem";
+    app_config.type       = "condition_test_mem";
+    app_config.lib_path   = "";
+    app_config.properties = mc::dict{};
+    config.appenders.push_back(app_config);
+
+    logger_config log_config;
+    log_config.name      = "condition_test_logger";
+    log_config.level     = level::info;
+    log_config.appenders = {"condition_test_mem"};
+    log_config.condition = false;
+    config.loggers.push_back(log_config);
+
+    ASSERT_TRUE(manager.apply_config(config));
+
+    logger test_logger = manager.get_logger("condition_test_logger");
+    mc_ilog(test_logger, "不应输出");
+    ASSERT_TRUE(mem_appender->get_messages().empty());
+
+    test_logger.condition(true);
+    mc_ilog(test_logger, "应输出");
+    ASSERT_EQ(mem_appender->get_messages().size(), 1);
+}
+
 // 测试动态库加载（模拟场景）
 TEST_F(log_manager_test, LoadAppenderLibrary) {
     log_manager& manager = log_manager::instance();
