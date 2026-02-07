@@ -15,6 +15,7 @@
 #include "l_dbus_common.h"
 #include "l_dbus_message.h"
 #include "l_skynet_syms.h"
+#include "inner/l_object.h"
 #include <mc/dbus/bus_mode_impl.h>
 #include <mc/dbus/message.h>
 #include <mc/dbus/sd_bus.h>
@@ -213,6 +214,28 @@ static int sd_bus_index(lua_State* L) {
     return 1;
 }
 
+static int sd_bus_register_object(lua_State* L) {
+    try {
+        auto* wrapper = get_sd_bus_wrapper(L);
+        auto* object = reinterpret_cast<l_object*>(luaL_checkudata(L, 2, OBJECT_METATABLE));
+        wrapper->bus->register_object(object->impl);
+        return 0;
+    } catch (const std::exception& e) {
+        return luaL_error(L, "Failed to register object: %s", e.what());
+    }
+}
+
+static int sd_bus_unregister_object(lua_State* L) {
+    try {
+        auto* wrapper = get_sd_bus_wrapper(L);
+        const char* path = luaL_checkstring(L, 2);
+        wrapper->bus->unregister_object(path);
+        return 0;
+    } catch (const std::exception& e) {
+        return luaL_error(L, "Failed to unregister object: %s", e.what());
+    }
+}
+
 // ==================== sd_bus 方法 ====================
 
 // 方法表
@@ -220,6 +243,8 @@ static const luaL_Reg sd_bus_methods[] = {
     {"request_name", sd_bus_request_name},
     {"add_match", sd_bus_add_match},
     {"remove_match", sd_bus_remove_match},
+    {"register_object", sd_bus_register_object},
+    {"unregister_object", sd_bus_unregister_object},
     {nullptr, nullptr}};
 
 // 模块函数表

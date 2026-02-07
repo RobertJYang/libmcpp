@@ -64,8 +64,9 @@ function TestObject:test_set_and_get_property_on_registered_interface()
     self.object:set_property(self.test_interface_name, prop_name, prop_value)
     
     -- Get property through object
-    local retrieved_value = self.object:get_property(self.test_interface_name, prop_name)
+    local ret_code, retrieved_value = self.object:get_property(self.test_interface_name, prop_name)
     
+    lu.assertEquals(ret_code, 0, "Return code should be success")
     lu.assertEquals(retrieved_value, prop_value, "Retrieved property should match set value")
 end
 
@@ -77,7 +78,8 @@ function TestObject:test_set_and_get_numeric_property()
     self.test_interface:add_property(prop_name, "i", prop_value, false, 0)
     self.object:set_property(self.test_interface_name, prop_name, prop_value)
     
-    local retrieved_value = self.object:get_property(self.test_interface_name, prop_name)
+    local ret_code, retrieved_value = self.object:get_property(self.test_interface_name, prop_name)
+    lu.assertEquals(ret_code, 0, "Return code should be success")
     lu.assertEquals(retrieved_value, prop_value, "Numeric property should be preserved")
 end
 
@@ -89,7 +91,8 @@ function TestObject:test_set_and_get_boolean_property()
     self.test_interface:add_property(prop_name, "b", prop_value, false, 0)
     self.object:set_property(self.test_interface_name, prop_name, prop_value)
     
-    local retrieved_value = self.object:get_property(self.test_interface_name, prop_name)
+    local ret_code, retrieved_value = self.object:get_property(self.test_interface_name, prop_name)
+    lu.assertEquals(ret_code, 0, "Return code should be success")
     lu.assertEquals(retrieved_value, prop_value, "Boolean property should be preserved")
 end
 
@@ -101,29 +104,30 @@ function TestObject:test_set_and_get_table_property()
     self.test_interface:add_property(prop_name, "a{sv}", prop_value, false, 0)
     self.object:set_property(self.test_interface_name, prop_name, prop_value)
     
-    local retrieved_value = self.object:get_property(self.test_interface_name, prop_name)
+    local ret_code, retrieved_value = self.object:get_property(self.test_interface_name, prop_name)
+    lu.assertEquals(ret_code, 0, "Return code should be success")
     lu.assertEquals(retrieved_value.key1, prop_value.key1, "Table property key1 should match")
     lu.assertEquals(retrieved_value.key2, prop_value.key2, "Table property key2 should match")
 end
 
 function TestObject:test_property_not_found_error()
     -- Test error when accessing non-existent property through object
-    local status, err = pcall(function() 
-        return self.object:get_property(self.test_interface_name, "non_existent_property") 
-    end)
+    local ret_code, value = self.object:get_property(self.test_interface_name, "non_existent_property")
     
-    lu.assertFalse(status, "Should fail when accessing non-existent property")
-    lu.assertStrContains(tostring(err), "property not found", "Error message should indicate property not found")
+    lu.assertNotEquals(ret_code, 0, "Return code should indicate error")
+    lu.assertEquals(value, nil, "Value should be nil on error")
+    -- property_not_exist_err = -5
+    lu.assertEquals(ret_code, -5, "Return code should be property_not_exist_err")
 end
 
 function TestObject:test_interface_not_found_error()
     -- Test error when accessing non-existent interface through object
-    local status, err = pcall(function() 
-        return self.object:get_property("nonexistent.interface", "some_property") 
-    end)
+    local ret_code, value = self.object:get_property("nonexistent.interface", "some_property")
     
-    lu.assertFalse(status, "Should fail when accessing non-existent interface")
-    lu.assertStrContains(tostring(err), "interface not found", "Error message should indicate interface not found")
+    lu.assertNotEquals(ret_code, 0, "Return code should indicate error")
+    lu.assertEquals(value, nil, "Value should be nil on error")
+    -- interface_not_exist_err = -7
+    lu.assertEquals(ret_code, -7, "Return code should be interface_not_exist_err")
 end
 
 function TestObject:test_multiple_interfaces_with_same_property_name()
@@ -150,7 +154,8 @@ function TestObject:test_multiple_interfaces_with_same_property_name()
         self.object:set_property(intf_name, prop_name, values[i])
         
         -- Verify each property separately
-        local retrieved = self.object:get_property(intf_name, prop_name)
+        local ret_code, retrieved = self.object:get_property(intf_name, prop_name)
+        lu.assertEquals(ret_code, 0, string.format("Return code should be success for interface %s", intf_name))
         lu.assertEquals(retrieved, values[i], 
             string.format("Property on interface %s should have correct value", intf_name))
     end
@@ -173,7 +178,8 @@ function TestObject:test_multiple_properties_per_interface()
     -- Set and verify each property through the object
     for _, prop in ipairs(properties) do
         self.object:set_property(self.test_interface_name, prop.name, prop.value)
-        local retrieved = self.object:get_property(self.test_interface_name, prop.name)
+        local ret_code, retrieved = self.object:get_property(self.test_interface_name, prop.name)
+        lu.assertEquals(ret_code, 0, string.format("Return code should be success for property %s", prop.name))
         lu.assertEquals(retrieved, prop.value, 
             string.format("Property %s should match when accessed through object", prop.name))
     end
@@ -193,7 +199,8 @@ function TestObject:test_complex_data_types()
         self.test_interface:add_property(case.name, case.sig, case.value, false, 0)
         self.object:set_property(self.test_interface_name, case.name, case.value)
         
-        local retrieved = self.object:get_property(self.test_interface_name, case.name)
+        local ret_code, retrieved = self.object:get_property(self.test_interface_name, case.name)
+        lu.assertEquals(ret_code, 0, string.format("Return code should be success for property %s", case.name))
         lu.assertEquals(retrieved, case.value, 
             string.format("Complex property %s should match when accessed through object", case.name))
     end
@@ -219,7 +226,8 @@ function TestObject:test_concurrent_access_simulation()
     for cycle = 1, 3 do
         for _, prop in ipairs(test_props) do
             self.object:set_property(self.test_interface_name, prop.name, tostring(prop.value) .. "_cycle_" .. cycle)
-            local retrieved = self.object:get_property(self.test_interface_name, prop.name)
+            local ret_code, retrieved = self.object:get_property(self.test_interface_name, prop.name)
+            lu.assertEquals(ret_code, 0, string.format("Return code should be success for property %s in cycle %d", prop.name, cycle))
             lu.assertEquals(retrieved, tostring(prop.value) .. "_cycle_" .. cycle, 
                 string.format("Property %s should match in cycle %d", prop.name, cycle))
         end

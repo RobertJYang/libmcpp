@@ -7,6 +7,7 @@ test_dbus_files = [
     'dbus/test_match.cpp',
     'dbus/test_sd_bus.cpp',
     'dbus/test_signal_send_receive.cpp',
+    'dbus/test_dynamic_object.cpp',
     'dbus/shm/test_local_msg.cpp',
     'dbus/shm/test_serialize.cpp',
     'dbus/shm/test_gvariant_convert.cpp',

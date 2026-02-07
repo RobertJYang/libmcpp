@@ -8,11 +8,11 @@ D-Bus对象模块提供了用于创建和管理D-Bus对象的Lua API，这些对
 
 ## 创建对象
 
-### `new_object(path)`
+### `new(path)`
 使用指定的对象路径创建新的D-Bus对象。
 
 **参数：**
-- [path] (字符串)：D-Bus对象路径。必须遵循D-Bus对象路径命名约定（例如："/com/example/ObjectPath"）。
+- `path` (字符串)：D-Bus对象路径。必须遵循D-Bus对象路径命名约定（例如："/com/example/ObjectPath"）。
 
 **返回值：**
 - 可用于注册接口和访问属性的对象实例。
@@ -21,7 +21,7 @@ D-Bus对象模块提供了用于创建和管理D-Bus对象的Lua API，这些对
 ```lua
 local ldbus = require('ldbus')
 local l_object = ldbus.object
-local my_object = mc.dbus.new("/com/example/MyObject")
+local my_object = l_object.new("/com/example/MyObject")
 ```
 
 ## 对象方法
@@ -34,11 +34,13 @@ local my_object = mc.dbus.new("/com/example/MyObject")
 
 **示例：**
 ```lua
-local my_interface = ldbus.interface.new("com.example.MyInterface")
+local ldbus = require('ldbus')
+local l_interface = ldbus.interface
+local my_interface = l_interface.new("com.example.MyInterface")
 my_object:register_interface(my_interface)
 ```
 
-### [get_interface(intf_name)]
+### `get_interface(intf_name)`
 根据接口名称获取已注册的接口。
 
 **参数：**
@@ -61,16 +63,30 @@ end
 **参数：**
 - `intf_name` (字符串)：接口名称。
 - `prop_name` (字符串)：要设置的属性名称。
-- [value]：属性的新值。
+- `value`：属性的新值。
 
-**注意：** 尝试设置只读属性会抛出错误。
+**返回值：**
+- `ret_code` (数字)：返回码，0表示成功，负数表示错误。
+
+**返回值说明：**
+- `0` - 成功
+- `-5` - 属性不存在
+- `-7` - 接口不存在
+- `-4` - 设置属性时发生未知错误（如只读属性）
+
+**注意：** 尝试设置只读属性会返回错误码 `-4`。
 
 **示例：**
 ```lua
-my_object:set_property("com.example.MyInterface", "Status", "active")
+local ret_code = my_object:set_property("com.example.MyInterface", "Status", "active")
+if ret_code == 0 then
+    print("属性设置成功")
+else
+    print("属性设置失败，错误码: " .. ret_code)
+end
 ```
 
-### [get_property(intf_name, prop_name)]
+### `get_property(intf_name, prop_name)`
 获取指定接口上属性的值。
 
 **参数：**
@@ -78,12 +94,26 @@ my_object:set_property("com.example.MyInterface", "Status", "active")
 - `prop_name` (字符串)：要获取的属性名称。
 
 **返回值：**
-- 指定属性的当前值。
+- 成功时返回两个值：`ret_code, value`
+  - `ret_code` (数字)：返回码，0表示成功
+  - `value`：属性的当前值
+- 失败时返回一个值：`ret_code`
+  - `ret_code` (数字)：错误码，非0表示失败
+
+**返回值说明：**
+- `0` - 成功
+- `-5` - 属性不存在
+- `-7` - 接口不存在
+- `-11` - 属性无效
 
 **示例：**
 ```lua
-local current_status = my_object:get_property("com.example.MyInterface", "Status")
-print("当前状态: " .. current_status)
+local ret_code, value = my_object:get_property("com.example.MyInterface", "Status")
+if ret_code == 0 then
+    print("当前状态: " .. value)
+else
+    print("获取属性失败，错误码: " .. ret_code)
+end
 ```
 
 ## 对象路径验证
@@ -97,11 +127,11 @@ print("当前状态: " .. current_status)
 
 ## 错误处理
 
-当以下情况发生时，模块会抛出Lua错误：
-- 使用无效的对象路径
-- 尝试访问不存在的接口
-- 尝试访问接口上不存在的属性
-- 尝试设置只读属性
+当以下情况发生时，方法会返回相应的错误码：
+- 使用无效的对象路径：创建对象时会抛出Lua错误
+- 尝试访问不存在的接口：返回错误码 `-7`
+- 尝试访问接口上不存在的属性：返回错误码 `-5`
+- 尝试设置只读属性：返回错误码 `-4`
 
 ## 完整示例
 
@@ -128,13 +158,21 @@ my_object:register_interface(interface1)
 my_object:register_interface(interface2)
 
 -- 通过对象访问不同接口的属性
-my_object:set_property("com.example.Interface1", "Status", "active")
-local status = my_object:get_property("com.example.Interface1", "Status")
-print("接口1状态: " .. status)
+local ret_code = my_object:set_property("com.example.Interface1", "Status", "active")
+if ret_code == 0 then
+    local ret_code2, status = my_object:get_property("com.example.Interface1", "Status")
+    if ret_code2 == 0 then
+        print("接口1状态: " .. status)
+    end
+end
 
-my_object:set_property("com.example.Interface2", "Temperature", 25.5)
-local temp = my_object:get_property("com.example.Interface2", "Temperature")
-print("接口2温度: " .. temp)
+local ret_code3 = my_object:set_property("com.example.Interface2", "Temperature", 25.5)
+if ret_code3 == 0 then
+    local ret_code4, temp = my_object:get_property("com.example.Interface2", "Temperature")
+    if ret_code4 == 0 then
+        print("接口2温度: " .. temp)
+    end
+end
 
 -- 获取特定接口
 local retrieved_interface = my_object:get_interface("com.example.Interface1")

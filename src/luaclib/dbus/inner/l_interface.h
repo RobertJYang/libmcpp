@@ -12,12 +12,14 @@
 
 #ifndef MC_DBUS_L_INTERFACE_H
 #define MC_DBUS_L_INTERFACE_H
+
 #include <string>
 #include <string_view>
-#include <mc/variant.h>
-#include <mc/core/object.h>
-#include <mc/dict.h>
 #include <dbus/dbus.h>
+#include <mc/core/object.h>
+#include <mc/dbus/dynamic_object.h>
+#include <mc/dict.h>
+#include <mc/variant.h>
 
 extern "C" {
 #include <lua.h>
@@ -26,29 +28,6 @@ extern "C" {
 namespace mc::dbus::lua {
 
 constexpr const char* INTERFACE_METATABLE = "dbus.interface";
-
-struct method {
-    lua_State *L;
-    std::string name;
-    std::string i_args;
-    std::string o_args;
-    int32_t cb_ref;
-    uint8_t flags;
-};
-
-struct property {
-    std::string name;
-    std::string signatrue;
-    mc::variant value;
-    bool readonly;
-    uint8_t flags;
-};
-
-struct signal {
-    std::string name;
-    std::string signatrue;
-    uint8_t flags;
-};
 
 class LDBusError : public DBusError {
 public:
@@ -64,24 +43,6 @@ public:
     {
         return std::string(name ? name : "") + ": " + std::string(message ? message : "");
     }
-};
-
-class dynamic_interface : public mc::core::object{
-public:
-    dynamic_interface(std::string_view name);
-    
-    void add_property(std::string_view name, property prop);
-    void add_method(std::string_view name, method m);
-    void add_signal(std::string_view name, signal s);
-    void set_property(std::string property_name, const mc::variant& value);
-    mc::variant get_property(std::string property_name) const;
- 	std::string_view get_name() const;
-
-private:
-    std::map<std::string, method> m_methods;
-    std::string m_interface_name;
-    std::map<std::string, property> m_properties;
-    std::map<std::string, signal> m_signals;
 };
 
 struct l_interface {
