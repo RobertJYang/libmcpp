@@ -1,14 +1,14 @@
 /*
-* Copyright (c) 2026 Huawei Technologies Co., Ltd.
-* openUBMC is licensed under Mulan PSL v2.
-* You can use this software according to the terms and conditions of the Mulan PSL v2.
-* You may obtain a copy of Mulan PSL v2 at:
-*         http://license.coscl.org.cn/MulanPSL2
-* THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
-* EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
-* MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
-* See the Mulan PSL v2 for more details.
-*/
+ * Copyright (c) 2026 Huawei Technologies Co., Ltd.
+ * openUBMC is licensed under Mulan PSL v2.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *         http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
+ */
 
 #ifndef JSON_API_H
 #define JSON_API_H
@@ -22,21 +22,21 @@ typedef struct TagJsonChildList Json;
 typedef struct TagJsonErrorInfo JsonErrorInfo;
 
 // 错误码常量
-#define JSON_OK 0
+#define JSON_OK                   0
 #define JSON_NUMBER_TYPE_MISMATCH 1
-#define JSON_NO_FIRST_CHILD 2
-#define JSON_NO_NEXT_SIBLING 3
+#define JSON_NO_FIRST_CHILD       2
+#define JSON_NO_NEXT_SIBLING      3
 
 // JSON 类型枚举
 typedef enum {
-    JSONTYPE_NULL = 0,
-    JSONTYPE_TRUE = 1,
-    JSONTYPE_FALSE = 2,
+    JSONTYPE_NULL   = 0,
+    JSONTYPE_TRUE   = 1,
+    JSONTYPE_FALSE  = 2,
     JSONTYPE_NUMBER = 3,
     JSONTYPE_STRING = 4,
-    JSONTYPE_ARRAY = 5,
+    JSONTYPE_ARRAY  = 5,
     JSONTYPE_OBJECT = 6,
-    JSONTYPE_QUOTE = 7,
+    JSONTYPE_QUOTE  = 7,
 } JsonType;
 
 // 创建函数
@@ -169,6 +169,31 @@ inline uint32_t JsonItemStringValueLenGet(const Json* item, uint32_t* size) {
     return JSON_OK;
 }
 
+inline uint32_t JsonItemBoolValueSet(Json* json, bool value) {
+    (void)json;
+    (void)value;
+    return JSON_OK;
+}
+
+inline uint32_t JsonItemIntegerValueSet(Json* json, int64_t value) {
+    (void)json;
+    (void)value;
+    return JSON_OK;
+}
+
+inline uint32_t JsonItemDoubleValueSet(Json* json, double value) {
+    (void)json;
+    (void)value;
+    return JSON_OK;
+}
+
+inline uint32_t JsonItemStringValueSet(Json* json, const char* value, uint32_t len) {
+    (void)json;
+    (void)value;
+    (void)len;
+    return JSON_OK;
+}
+
 // 数组操作函数
 inline uint32_t JsonArraySizeGet(const Json* json, uint32_t* size) {
     (void)json;
@@ -189,7 +214,7 @@ inline uint32_t JsonItemAddToArray(Json* item, Json* array) {
     return JSON_OK;
 }
 
-inline uint32_t JsonArrayItemInsert(Json *array, uint32_t index, Json* item) {
+inline uint32_t JsonArrayItemInsert(Json* array, uint32_t index, Json* item) {
     (void)item;
     (void)index;
     (void)array;
