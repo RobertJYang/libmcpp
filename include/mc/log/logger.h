@@ -28,6 +28,11 @@ namespace log {
 #define MC_LOG_DEFAULT_LOGGER "default"
 #endif
 
+// mdbctl 专用日志记录器名称（仅含 socket_appender，不含 console/file）
+#ifndef MC_LOG_MDBCTL_LOGGER
+#define MC_LOG_MDBCTL_LOGGER "mdbctl"
+#endif
+
 /**
  * @brief 日志记录器
  *
@@ -142,6 +147,14 @@ public:
      * @return logger& 日志记录器引用
      */
     logger& period(int period_s);
+
+    /**
+     * @brief 设置 condition，控制是否输出日志（链式调用，仿照 period/system）
+     *
+     * @param cond true 时打印日志，false 时不打印
+     * @return logger& 日志记录器引用
+     */
+    logger& condition(bool cond);
 
     /**
      * @brief 克隆一个独立的 logger 实例（深拷贝 impl），用于临时配置不影响原对象

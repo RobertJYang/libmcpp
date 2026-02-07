@@ -50,7 +50,7 @@ protected:
         m_test_dir = std::string(TEST_LOG_DIR) + "/socket_test";
         std::filesystem::create_directories(m_test_dir);
 
-        m_socket_path = m_test_dir + "/test.sock";
+        m_socket_path    = m_test_dir + "/test.sock";
         m_hb_socket_path = m_test_dir + "/test.hbsock";
 
         // 清理可能存在的旧 socket 文件
@@ -87,7 +87,7 @@ protected:
     // 创建一个测试消息
     message create_test_message(level lvl, const std::string& msg, log_category category = log_category::debug) {
         mc::log::context ctx("test_file.cpp", "test_function", 123);
-        message msg_obj(lvl, msg, ctx);
+        message          msg_obj(lvl, msg, ctx);
         msg_obj.set_category(category);
         return msg_obj;
     }
@@ -96,7 +96,7 @@ protected:
     message create_format_message(level lvl, const std::string& fmt, const mc::dict& args,
                                   log_category category = log_category::debug) {
         mc::log::context ctx("test_file.cpp", "test_function", 123);
-        message msg_obj(lvl, ctx, fmt, args);
+        message          msg_obj(lvl, ctx, fmt, args);
         msg_obj.set_category(category);
         return msg_obj;
     }
@@ -139,15 +139,15 @@ protected:
 
             // 接受连接
             struct sockaddr_un client_addr;
-            socklen_t client_len = sizeof(client_addr);
-            int client_fd = accept(server_fd, (struct sockaddr*)&client_addr, &client_len);
+            socklen_t          client_len = sizeof(client_addr);
+            int                client_fd  = accept(server_fd, (struct sockaddr*)&client_addr, &client_len);
             if (client_fd < 0) {
                 close(server_fd);
                 return;
             }
 
             // 接收数据
-            char buffer[4096];
+            char    buffer[4096];
             ssize_t bytes = recv(client_fd, buffer, sizeof(buffer) - 1, 0);
             if (bytes > 0 && send_ack) {
                 // 发送确认消息 "ok"
@@ -165,7 +165,7 @@ protected:
     // 同时启动主 socket 和心跳 socket 服务器
     void start_both_socket_servers(bool send_ack = true) {
         // 使用原子变量控制服务器线程退出
-        m_server_running = true;
+        m_server_running    = true;
         m_hb_server_running = true;
 
         // 启动主 socket 服务器
@@ -181,12 +181,12 @@ protected:
             fcntl(server_fd, F_SETFL, flags | O_NONBLOCK);
 
             // 轮询等待连接，最多等待 2 秒
-            auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(2);
-            int client_fd = -1;
+            auto deadline  = std::chrono::steady_clock::now() + std::chrono::seconds(2);
+            int  client_fd = -1;
             while (m_server_running && std::chrono::steady_clock::now() < deadline) {
                 struct sockaddr_un client_addr;
-                socklen_t client_len = sizeof(client_addr);
-                client_fd = accept(server_fd, (struct sockaddr*)&client_addr, &client_len);
+                socklen_t          client_len = sizeof(client_addr);
+                client_fd                     = accept(server_fd, (struct sockaddr*)&client_addr, &client_len);
                 if (client_fd >= 0) {
                     break;
                 }
@@ -200,11 +200,11 @@ protected:
                 // 设置客户端 socket 为非阻塞，避免 recv 阻塞
                 int flags = fcntl(client_fd, F_GETFL, 0);
                 fcntl(client_fd, F_SETFL, flags | O_NONBLOCK);
-                
+
                 // 接收数据，使用轮询方式避免阻塞
-                char buffer[4096];
-                ssize_t bytes = 0;
-                auto recv_deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(200);
+                char    buffer[4096];
+                ssize_t bytes         = 0;
+                auto    recv_deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(200);
                 while (std::chrono::steady_clock::now() < recv_deadline && m_server_running) {
                     bytes = recv(client_fd, buffer, sizeof(buffer) - 1, 0);
                     if (bytes > 0) {
@@ -226,7 +226,7 @@ protected:
                     // 其他错误，退出循环
                     break;
                 }
-                
+
                 if (bytes > 0 && send_ack) {
                     // 恢复阻塞模式以便发送
                     fcntl(client_fd, F_SETFL, flags);
@@ -241,7 +241,7 @@ protected:
             close(server_fd);
             m_server_running = false;
         });
-        
+
         // 启动心跳 socket 服务器
         m_hb_server_thread = std::thread([this, send_ack]() {
             int server_fd = create_test_socket_server(m_hb_socket_path);
@@ -255,12 +255,12 @@ protected:
             fcntl(server_fd, F_SETFL, flags | O_NONBLOCK);
 
             // 轮询等待连接，最多等待 2 秒
-            auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(2);
-            int client_fd = -1;
+            auto deadline  = std::chrono::steady_clock::now() + std::chrono::seconds(2);
+            int  client_fd = -1;
             while (m_hb_server_running && std::chrono::steady_clock::now() < deadline) {
                 struct sockaddr_un client_addr;
-                socklen_t client_len = sizeof(client_addr);
-                client_fd = accept(server_fd, (struct sockaddr*)&client_addr, &client_len);
+                socklen_t          client_len = sizeof(client_addr);
+                client_fd                     = accept(server_fd, (struct sockaddr*)&client_addr, &client_len);
                 if (client_fd >= 0) {
                     break;
                 }
@@ -274,11 +274,11 @@ protected:
                 // 设置客户端 socket 为非阻塞，避免 recv 阻塞
                 int flags = fcntl(client_fd, F_GETFL, 0);
                 fcntl(client_fd, F_SETFL, flags | O_NONBLOCK);
-                
+
                 // 接收心跳消息 "ok"，使用轮询方式避免阻塞
-                char buffer[10];
-                ssize_t bytes = 0;
-                auto recv_deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(200);
+                char    buffer[10];
+                ssize_t bytes         = 0;
+                auto    recv_deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(200);
                 while (std::chrono::steady_clock::now() < recv_deadline && m_hb_server_running) {
                     bytes = recv(client_fd, buffer, sizeof(buffer) - 1, 0);
                     if (bytes > 0) {
@@ -300,7 +300,7 @@ protected:
                     // 其他错误，退出循环
                     break;
                 }
-                
+
                 if (bytes > 0 && send_ack) {
                     // 恢复阻塞模式以便发送
                     fcntl(client_fd, F_SETFL, flags);
@@ -322,7 +322,7 @@ protected:
 
     void stop_both_socket_servers() {
         // 设置标志让服务器线程退出
-        m_server_running = false;
+        m_server_running    = false;
         m_hb_server_running = false;
 
         // 等待一小段时间让线程检测到退出标志
@@ -372,10 +372,10 @@ TEST_F(socket_appender_test, DefaultConstructor) {
 // 测试 init 函数 - 有效配置
 TEST_F(socket_appender_test, InitWithValidConfig) {
     mc::dict dict;
-    dict["path"] = m_socket_path;
-    dict["hb_path"] = m_hb_socket_path;
+    dict["path"]        = m_socket_path;
+    dict["hb_path"]     = m_hb_socket_path;
     dict["module_name"] = "test_module";
-    dict["name"] = "test_socket_appender";
+    dict["name"]        = "test_socket_appender";
 
     EXPECT_TRUE(m_appender->init(dict));
     EXPECT_EQ(m_appender->get_name(), "test_socket_appender");
@@ -508,6 +508,25 @@ TEST_F(socket_appender_test, AppendWithNonDebugCategory) {
     ASSERT_NO_THROW(m_appender->append(msg));
 }
 
+// 测试 append - mdbctl 类别不受 m_type 限制，type 为 "file" 时也应发送
+TEST_F(socket_appender_test, AppendMdbctlCategoryWithFileType) {
+    start_both_socket_servers();
+
+    m_appender->set_type("file");
+    m_appender->set_path(m_socket_path);
+    m_appender->set_hb_path(m_hb_socket_path);
+    m_appender->connect();
+
+    auto msg = create_test_message(level::debug, "mdbctl_log 消息", log_category::mdbctl);
+
+    // mdbctl 类别不受 m_type 限制，应发送
+    ASSERT_NO_THROW(m_appender->append(msg));
+
+    std::this_thread::sleep_for(std::chrono::milliseconds(20));
+
+    stop_both_socket_servers();
+}
+
 // 测试 append - type 为 "local" 且 category 为 debug 时发送
 TEST_F(socket_appender_test, AppendWithLocalTypeAndDebugCategory) {
     start_both_socket_servers();
@@ -566,7 +585,7 @@ TEST_F(socket_appender_test, AppendFormattedMessage) {
     m_appender->connect();
 
     mc::dict args;
-    args["name"] = "测试";
+    args["name"]  = "测试";
     args["value"] = 42;
 
     auto msg = create_format_message(level::debug, "名称: ${name}, 值: ${value}", args, log_category::debug);
@@ -606,8 +625,8 @@ TEST_F(socket_appender_test, AppendDifferentLogLevels) {
     m_appender->connect();
 
     auto debug_msg = create_test_message(level::debug, "调试消息", log_category::debug);
-    auto info_msg = create_test_message(level::info, "信息消息", log_category::debug);
-    auto warn_msg = create_test_message(level::warn, "警告消息", log_category::debug);
+    auto info_msg  = create_test_message(level::info, "信息消息", log_category::debug);
+    auto warn_msg  = create_test_message(level::warn, "警告消息", log_category::debug);
     auto error_msg = create_test_message(level::error, "错误消息", log_category::debug);
 
     ASSERT_NO_THROW(m_appender->append(debug_msg));
@@ -635,7 +654,7 @@ TEST_F(socket_appender_test, MultipleConnectDisconnect) {
         // 确保前一次的服务器线程已经完全退出
         stop_both_socket_servers();
         std::this_thread::sleep_for(std::chrono::milliseconds(30));
-        
+
         // 确保socket文件被删除
         if (std::filesystem::exists(m_socket_path)) {
             std::filesystem::remove(m_socket_path);
@@ -657,7 +676,7 @@ TEST_F(socket_appender_test, MultipleConnectDisconnect) {
         // 等待一小段时间确保服务器处理完连接
         std::this_thread::sleep_for(std::chrono::milliseconds(30));
     }
-    
+
     // 最后清理
     stop_both_socket_servers();
     std::this_thread::sleep_for(std::chrono::milliseconds(20));
@@ -666,8 +685,8 @@ TEST_F(socket_appender_test, MultipleConnectDisconnect) {
 // 测试 init 后设置路径并连接
 TEST_F(socket_appender_test, InitThenConnect) {
     mc::dict dict;
-    dict["path"] = m_socket_path;
-    dict["hb_path"] = m_hb_socket_path;
+    dict["path"]        = m_socket_path;
+    dict["hb_path"]     = m_hb_socket_path;
     dict["module_name"] = "test_module";
 
     EXPECT_TRUE(m_appender->init(dict));
@@ -688,4 +707,3 @@ TEST_F(socket_appender_test, ConnectWithEmptyPath) {
     EXPECT_FALSE(m_appender->connect());
     EXPECT_FALSE(m_appender->is_connected());
 }
-

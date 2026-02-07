@@ -10,6 +10,8 @@
  * See the Mulan PSL v2 for more details.
  */
 #include <algorithm>
+#include <memory>
+
 #include <mc/core/timer.h>
 #include <mc/engine/base.h>
 #include <mc/engine/micro_component.h>
@@ -30,9 +32,10 @@ using mc::log::logger;
 using mc::log::socket_appender;
 
 namespace {
-const std::string DEFAULT_DLOG_LEVEL           = "notice";
-const std::string DEFAULT_DLOG_TYPE            = "file";
-const std::string DEFAULT_SOCKET_APPENDER_NAME = "mdbctl";
+const std::string DEFAULT_DLOG_LEVEL            = "notice";
+const std::string DEFAULT_DLOG_TYPE             = "file";
+const std::string DEFAULT_SOCKET_APPENDER_NAME  = "mdbctl";
+const std::string MDBCTL_SOCKET_APPENDER_NAME   = "mdbctl_socket";
 std::string       MODULE_NAME                  = "Unknown";
 } // namespace
 
@@ -270,14 +273,14 @@ mc_debug_interface::~mc_debug_interface() {
             m_dlog_level_timer.reset();
         }
     }
-    
+
     {
         std::lock_guard<std::mutex> lock(m_debug_console_mutex);
         if (m_debug_console_timer) {
             m_debug_console_timer->stop();
             m_debug_console_timer.reset();
         }
-        
+
         if (auto appender = m_debug_console_appender.lock()) {
             appender->disconnect();
         }
@@ -297,7 +300,7 @@ mc_maintenance_interface::~mc_maintenance_interface() {
 
 void mc_debug_interface::attach_debug_console(std::map<std::string, std::string> context, uint32_t port) {
     std::lock_guard<std::mutex> lock(m_debug_console_mutex);
-    
+
     auto default_log    = mc::log::default_logger();
     auto socket_path    = mc::string::concat("/dev/shm/", std::to_string(port), ".sock");
     auto hb_socket_path = mc::string::concat("/dev/shm/", std::to_string(port), ".hbsock");
@@ -306,12 +309,11 @@ void mc_debug_interface::attach_debug_console(std::map<std::string, std::string>
     if (!appender) {
         mc::dict properties{{"path", socket_path}, {"hb_path", hb_socket_path}, {"module_name", MODULE_NAME}};
         appender = appender_factory::instance().get_or_create_appender(DEFAULT_SOCKET_APPENDER_NAME, "socket", properties);
-        if (appender) {
-            default_log.add_appender(appender);
-        } else {
+        if (!appender) {
             elog("attach debug console ${port} failed, create socket appender failed", ("port", port));
             return;
         }
+        default_log.add_appender(appender);
     }
 
     auto socket_appender_ptr = std::dynamic_pointer_cast<socket_appender>(appender);
@@ -332,10 +334,21 @@ void mc_debug_interface::attach_debug_console(std::map<std::string, std::string>
     ilog("attached debug console ${port}", ("port", port));
 
     socket_appender_ptr->set_type(this->m_dlog_type);
-    
+
     // 使用成员变量而非全局变量
     m_debug_console_appender = socket_appender_ptr;
-    
+
+    // 在 mdbctl_logger 中新增共享 socket_client 的 socket_appender
+    auto mdbctl_log = mc::log::mdbctl_logger();
+    mdbctl_log.set_level(mc::log::level::debug);
+    auto mdbctl_appender = mdbctl_log.find_appender(MDBCTL_SOCKET_APPENDER_NAME);
+    if (!mdbctl_appender) {
+        auto shared_client = socket_appender_ptr->get_client_shared();
+        auto mdbctl_socket = std::make_shared<socket_appender>(shared_client);
+        mdbctl_socket->set_type("local");
+        mdbctl_log.add_appender(mdbctl_appender);
+    }
+
     if (!m_debug_console_timer) {
         m_debug_console_timer = mc::make_shared<mc::core::timer>();
         m_debug_console_timer->set_interval(mc::seconds(1));
@@ -350,18 +363,18 @@ void mc_debug_interface::attach_debug_console(std::map<std::string, std::string>
             }
         });
     }
-    
+
     m_debug_console_timer->start(mc::seconds(1));
     ilog("start heartbeat check of debug console ${port}", ("port", port));
 }
 
 void mc_debug_interface::detach_debug_console(std::map<std::string, std::string> context) {
     std::lock_guard<std::mutex> lock(m_debug_console_mutex);
-    
+
     auto default_log  = mc::log::default_logger();
     this->m_dlog_type = DEFAULT_DLOG_TYPE;
     ilog("set debug log type to ${type}", ("type", DEFAULT_DLOG_TYPE));
-    
+
     // 停止心跳定时器
     if (m_debug_console_timer) {
         m_debug_console_timer->stop();
@@ -372,12 +385,13 @@ void mc_debug_interface::detach_debug_console(std::map<std::string, std::string>
         appender->disconnect();
     }
     m_debug_console_appender.reset();
-    
+
     auto appender = default_log.find_appender(DEFAULT_SOCKET_APPENDER_NAME);
     if (auto socket_appender_ptr = std::dynamic_pointer_cast<socket_appender>(appender)) {
         socket_appender_ptr->set_type(DEFAULT_DLOG_TYPE);
         socket_appender_ptr->disconnect();
         default_log.remove_appender(socket_appender_ptr->get_name());
+        mc::log::mdbctl_logger().remove_appender(MDBCTL_SOCKET_APPENDER_NAME);
     }
     auto service = get_service();
     service->on_detach_debug_console(context);
@@ -392,7 +406,7 @@ static void set_log_level(mc::log::level lvl, std::string log_info) {
 void mc_debug_interface::set_dlog_level(std::map<std::string, std::string> context, std::string level,
                                         uint8_t effective_hours) {
     std::lock_guard<std::mutex> lock(m_dlog_level_mutex);
-    
+
     auto lvl_opt = mc::log::to_level(level);
     if (lvl_opt == std::nullopt) {
         MC_THROW(mc::invalid_argument_exception, "Invalid log level: ${level}", ("level", level));
@@ -411,7 +425,7 @@ void mc_debug_interface::set_dlog_level(std::map<std::string, std::string> conte
         log_info                  = mc::string::concat(log_info, ", will set back to default level (notice) in ", std::to_string(effective_hours), " ", hour_str);
         set_log_level(lvl, log_info);
         this->m_dlog_level = level;
-        
+
         // 使用成员变量
         m_dlog_level_timer = mc::core::timer::single_shot(mc::hours(effective_hours), [this]() {
             std::lock_guard<std::mutex> timer_lock(m_dlog_level_mutex);
@@ -438,7 +452,7 @@ static void set_log_limit_env(bool enabled, std::string log_info) {
 void mc_maintenance_interface::dlog_limit(std::map<std::string, std::string> context, bool enabled,
                                           uint8_t duration_mins) {
     std::lock_guard<std::mutex> lock(m_dlog_limit_mutex);
-    
+
     // 停止之前的定时器
     if (m_dlog_limit_timer) {
         m_dlog_limit_timer->stop();
@@ -456,8 +470,8 @@ void mc_maintenance_interface::dlog_limit(std::map<std::string, std::string> con
         duration_mins > 1 ? " mins" : " min");
 
     set_log_limit_env(false, log_info);
-    auto duration      = mc::minutes(static_cast<int64_t>(duration_mins));
-    
+    auto duration = mc::minutes(static_cast<int64_t>(duration_mins));
+
     // 使用成员变量
     m_dlog_limit_timer = mc::core::timer::single_shot(duration, [this]() {
         std::lock_guard<std::mutex> timer_lock(m_dlog_limit_mutex);

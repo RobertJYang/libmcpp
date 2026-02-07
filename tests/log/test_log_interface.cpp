@@ -307,3 +307,65 @@ TEST_F(LogInterfaceTest, operation_log_bypass_level_filter) {
     ASSERT_FALSE(m_memory_appender->get_messages().empty());
     EXPECT_EQ(m_memory_appender->get_messages().back().get_category(), mc::log::log_category::operation);
 }
+
+// ==================== running_log ====================
+
+TEST_F(LogInterfaceTest, running_log_basic) {
+    mc_running_wlog(m_test_logger, "test running log");
+    ASSERT_FALSE(m_memory_appender->get_messages().empty());
+    const auto& msg = m_memory_appender->get_messages().back();
+    EXPECT_EQ(msg.get_category(), mc::log::log_category::running);
+    EXPECT_EQ(msg.get_level(), mc::log::level::warn);
+    EXPECT_TRUE(message_contains(msg, "test running log"));
+}
+
+TEST_F(LogInterfaceTest, running_log_bypass_level_filter) {
+    m_test_logger.set_level(mc::log::level::off);
+
+    mc_running_wlog(m_test_logger, "running 应输出");
+
+    ASSERT_FALSE(m_memory_appender->get_messages().empty());
+    EXPECT_EQ(m_memory_appender->get_messages().back().get_category(), mc::log::log_category::running);
+}
+
+// ==================== maintenance_log ====================
+
+TEST_F(LogInterfaceTest, maintenance_log_basic) {
+    mc_maintenance_elog(m_test_logger, "SVR-0001111", "test maintenance log");
+    ASSERT_FALSE(m_memory_appender->get_messages().empty());
+    const auto& msg = m_memory_appender->get_messages().back();
+    EXPECT_EQ(msg.get_category(), mc::log::log_category::maintenance);
+    EXPECT_EQ(msg.get_level(), mc::log::level::error);
+    EXPECT_TRUE(msg.get_args().contains("error_code"));
+    EXPECT_EQ(msg.get_args()["error_code"].as<std::string>(), "SVR-0001111");
+    EXPECT_TRUE(message_contains(msg, "test maintenance log"));
+}
+
+TEST_F(LogInterfaceTest, maintenance_log_bypass_level_filter) {
+    m_test_logger.set_level(mc::log::level::off);
+
+    mc_maintenance_elog(m_test_logger, "", "maintenance 应输出");
+
+    ASSERT_FALSE(m_memory_appender->get_messages().empty());
+    EXPECT_EQ(m_memory_appender->get_messages().back().get_category(), mc::log::log_category::maintenance);
+}
+
+// ==================== security_log ====================
+
+TEST_F(LogInterfaceTest, security_log_basic) {
+    mc_security_log(m_test_logger, "test security log");
+    ASSERT_FALSE(m_memory_appender->get_messages().empty());
+    const auto& msg = m_memory_appender->get_messages().back();
+    EXPECT_EQ(msg.get_category(), mc::log::log_category::security);
+    EXPECT_EQ(msg.get_level(), mc::log::level::info);
+    EXPECT_TRUE(message_contains(msg, "test security log"));
+}
+
+TEST_F(LogInterfaceTest, security_log_bypass_level_filter) {
+    m_test_logger.set_level(mc::log::level::off);
+
+    mc_security_log(m_test_logger, "security 应输出");
+
+    ASSERT_FALSE(m_memory_appender->get_messages().empty());
+    EXPECT_EQ(m_memory_appender->get_messages().back().get_category(), mc::log::log_category::security);
+}

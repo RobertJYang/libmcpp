@@ -19,6 +19,7 @@
 #include <mc/reflect.h>
 #include <mc/variant.h>
 
+#include <memory>
 #include <mutex>
 #include <string>
 
@@ -39,6 +40,7 @@ struct socket_appender_config {
 class MC_API socket_appender : public appender {
 public:
     socket_appender();
+    explicit socket_appender(std::shared_ptr<socket_client> shared_client);
     ~socket_appender() override = default;
 
     bool init(const variant& args) override;
@@ -53,7 +55,8 @@ public:
     const std::string& get_type() const;
 
     socket_client& get_client();
-    bool           connect();
+    std::shared_ptr<socket_client> get_client_shared();
+    bool                          connect();
     void           disconnect();
     bool           is_connected() const;
     bool           heartbeat();
@@ -62,7 +65,7 @@ private:
     bool        ensure_connected();
     std::string format_message(const message& msg) const;
 
-    socket_client      m_client;
+    std::shared_ptr<socket_client> m_client;
     std::string        m_path;         ///< 日志socket路径
     std::string        m_type{"file"}; ///< 日志输出类型
     std::string        m_hb_path;      ///< 心跳socket路径

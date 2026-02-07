@@ -199,6 +199,26 @@ void get_initiator(std::string& interface, std::string& username, std::string& c
     }
 }
 
+// 从 args 或 engine context 获取 initiator，各字段独立判断
+void get_initiator_from_args(const mc::dict& args, std::string& interface_name, std::string& username,
+                             std::string& client_addr, std::string& module_name) {
+    if (args.contains("interface_name")) {
+        interface_name = args["interface_name"].as<std::string>();
+    }
+
+    if (args.contains("username")) {
+        username = args["username"].as<std::string>();
+    }
+
+    if (args.contains("client_addr")) {
+        client_addr = args["client_addr"].as<std::string>();
+    }
+
+    if (args.contains("module_name")) {
+        module_name = args["module_name"].as<std::string>();
+    }
+}
+
 void append_operation(const message& msg) {
     // 获取上下文信息
     const context& ctx = msg.get_context();
@@ -209,12 +229,13 @@ void append_operation(const message& msg) {
     std::string interface_name = "N/A";
     std::string username       = "N/A";
     std::string client_addr    = "localhost";
+    std::string module_name    = g_module_name;
     get_initiator(interface_name, username, client_addr);
+    const auto& args = msg.get_args();
+    get_initiator_from_args(args, interface_name, username, client_addr, module_name);
 
     // 获取模块名：优先使用消息参数中的 module_name（Lua 接口第一个参数传入）
     // 注意：debug_log_ptr 由外部 liblogger 输出模块名，这里在输出前设置模块名
-    std::string module_name = g_module_name;
-    const auto& args        = msg.get_args();
     if (args.contains("module_name")) {
         try {
             module_name = args["module_name"].as<std::string>();
@@ -267,6 +288,53 @@ void append_hw_stream(const message& msg) {
     }
 }
 
+void append_running(const message& msg) {
+    std::string message_str = msg.get_message();
+    logging::filter_invalid_chars(message_str);
+    std::string level_str(mc::log::to_string(msg.get_level()));
+
+    if (get_log_time_str_ptr) {
+        const char* time_str = get_log_time_str_ptr(LOG_US_TIME);
+        if (time_str) {
+            syslog(LOG_LOCAL3 | LOG_INFO, "%s %-5s: %s", time_str, level_str.c_str(), message_str.c_str());
+        }
+    }
+}
+
+void append_security(const message& msg) {
+    std::string message_str = msg.get_message();
+    logging::filter_invalid_chars(message_str);
+    std::string level_str(mc::log::to_string(msg.get_level()));
+
+    syslog(LOG_AUTHPRIV | LOG_INFO, "%s", message_str.c_str());
+}
+
+void append_maintenance(const message& msg) {
+    std::string message_str = msg.get_message();
+    logging::filter_invalid_chars(message_str);
+    std::string level_str(mc::log::to_string(msg.get_level()));
+    std::string error_code;
+    const auto& args = msg.get_args();
+    if (args.contains("error_code")) {
+        try {
+            error_code = args["error_code"].as<std::string>();
+        } catch (...) {
+        }
+    }
+
+    if (get_log_time_str_ptr) {
+        const char* time_str = get_log_time_str_ptr(LOG_US_TIME);
+        if (time_str) {
+            if (error_code.empty()) {
+                syslog(LOG_LOCAL6 | LOG_INFO, "%s %-5s: %s", time_str, level_str.c_str(), message_str.c_str());
+            } else {
+                syslog(LOG_LOCAL6 | LOG_INFO, "%s %-5s: %s,%s", time_str, level_str.c_str(), error_code.c_str(),
+                       message_str.c_str());
+            }
+        }
+    }
+}
+
 void append_mc_stream(const message& msg) {
     const context& ctx = msg.get_context();
 
@@ -313,6 +381,15 @@ void file_appender::append(const message& msg) {
     case log_category::operation:
         // 使用全局变量中的模块名，所有 file_appender 实例共享
         append_operation(msg);
+        break;
+    case log_category::running:
+        append_running(msg);
+        break;
+    case log_category::maintenance:
+        append_maintenance(msg);
+        break;
+    case log_category::security:
+        append_security(msg);
         break;
     case log_category::hw_stream:
         append_hw_stream(msg);

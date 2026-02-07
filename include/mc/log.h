@@ -52,10 +52,19 @@ namespace log {
 /**
  * @brief 获取默认日志记录器
  *
- * @return logger& 默认日志记录器引用
+ * @return logger 默认日志记录器
  */
 inline logger default_logger() {
     return log_manager::instance().get_logger();
+}
+
+/**
+ * @brief 获取 mdbctl 专用日志记录器（仅含 socket_appender，不含 console/file）
+ *
+ * @return logger mdbctl 日志记录器
+ */
+inline logger mdbctl_logger() {
+    return log_manager::instance().get_logger(MC_LOG_MDBCTL_LOGGER);
 }
 
 } // namespace log
@@ -85,6 +94,43 @@ inline logger default_logger() {
 
 // 非调试日志分类宏
 #define mc_operation_log(LOGGER, ...) MC_LOG_BASE_WITH_CATEGORY(LOGGER, mc::log::log_category::operation, __VA_ARGS__)
+
+// mdbctl 终端日志宏（使用 mdbctl_logger，仅输出到 socket，不含 console/file）
+#define mc_mdbctl_log(LOGGER, ...) MC_LOG_BASE_WITH_CATEGORY(LOGGER, mc::log::log_category::mdbctl, __VA_ARGS__)
+#define mdbctl_log(...)            mc_mdbctl_log(mc::log::mdbctl_logger(), __VA_ARGS__)
+
+// 运行日志宏（格式：时间、级别、日志内容，不含 trace、fatal）
+#define mc_running_dlog(LOGGER, ...) \
+    MC_LOG_BASE_WITH_CATEGORY_AND_LEVEL(LOGGER, mc::log::log_category::running, debug, __VA_ARGS__)
+#define mc_running_ilog(LOGGER, ...) \
+    MC_LOG_BASE_WITH_CATEGORY_AND_LEVEL(LOGGER, mc::log::log_category::running, info, __VA_ARGS__)
+#define mc_running_nlog(LOGGER, ...) \
+    MC_LOG_BASE_WITH_CATEGORY_AND_LEVEL(LOGGER, mc::log::log_category::running, notice, __VA_ARGS__)
+#define mc_running_wlog(LOGGER, ...) \
+    MC_LOG_BASE_WITH_CATEGORY_AND_LEVEL(LOGGER, mc::log::log_category::running, warn, __VA_ARGS__)
+#define mc_running_elog(LOGGER, ...) \
+    MC_LOG_BASE_WITH_CATEGORY_AND_LEVEL(LOGGER, mc::log::log_category::running, error, __VA_ARGS__)
+
+// 维护日志宏（格式：LOGGER, error_code, message，错误码为空时仅输出时间、级别、内容，不含 trace、fatal）
+#define mc_maintenance_dlog(LOGGER, error_code, ...)                                \
+    MC_LOG_BASE_WITH_CATEGORY_AND_LEVEL(LOGGER, mc::log::log_category::maintenance, \
+                                        debug, __VA_ARGS__, ("error_code", error_code))
+#define mc_maintenance_ilog(LOGGER, error_code, ...)                                \
+    MC_LOG_BASE_WITH_CATEGORY_AND_LEVEL(LOGGER, mc::log::log_category::maintenance, \
+                                        info, __VA_ARGS__, ("error_code", error_code))
+#define mc_maintenance_nlog(LOGGER, error_code, ...)                                \
+    MC_LOG_BASE_WITH_CATEGORY_AND_LEVEL(LOGGER, mc::log::log_category::maintenance, \
+                                        notice, __VA_ARGS__, ("error_code", error_code))
+#define mc_maintenance_wlog(LOGGER, error_code, ...)                                \
+    MC_LOG_BASE_WITH_CATEGORY_AND_LEVEL(LOGGER, mc::log::log_category::maintenance, \
+                                        warn, __VA_ARGS__, ("error_code", error_code))
+#define mc_maintenance_elog(LOGGER, error_code, ...)                                \
+    MC_LOG_BASE_WITH_CATEGORY_AND_LEVEL(LOGGER, mc::log::log_category::maintenance, \
+                                        error, __VA_ARGS__, ("error_code", error_code))
+
+// 安全日志宏（格式：时间、级别、日志内容，仅 message 参数，使用 info 级别）
+#define mc_security_log(LOGGER, ...) \
+    MC_LOG_BASE_WITH_CATEGORY_AND_LEVEL(LOGGER, mc::log::log_category::security, info, __VA_ARGS__)
 
 // 南向硬件流日志宏（输出到相关日志文件 LOG_LOCAL6，格式：时间 模块名 级别: 文件名(行数): 日志文本）
 #define mc_hw_stream_info(LOGGER, ...) \
@@ -126,6 +172,23 @@ inline logger default_logger() {
 
 // 全局非调试日志分类宏
 #define operation_log(...) mc_operation_log(mc::log::default_logger(), __VA_ARGS__)
+
+// 全局运行日志宏
+#define running_dlog(...) mc_running_dlog(mc::log::default_logger(), __VA_ARGS__)
+#define running_ilog(...) mc_running_ilog(mc::log::default_logger(), __VA_ARGS__)
+#define running_nlog(...) mc_running_nlog(mc::log::default_logger(), __VA_ARGS__)
+#define running_wlog(...) mc_running_wlog(mc::log::default_logger(), __VA_ARGS__)
+#define running_elog(...) mc_running_elog(mc::log::default_logger(), __VA_ARGS__)
+
+// 全局维护日志宏
+#define maintenance_dlog(error_code, ...) mc_maintenance_dlog(mc::log::default_logger(), error_code, __VA_ARGS__)
+#define maintenance_ilog(error_code, ...) mc_maintenance_ilog(mc::log::default_logger(), error_code, __VA_ARGS__)
+#define maintenance_nlog(error_code, ...) mc_maintenance_nlog(mc::log::default_logger(), error_code, __VA_ARGS__)
+#define maintenance_wlog(error_code, ...) mc_maintenance_wlog(mc::log::default_logger(), error_code, __VA_ARGS__)
+#define maintenance_elog(error_code, ...) mc_maintenance_elog(mc::log::default_logger(), error_code, __VA_ARGS__)
+
+// 全局安全日志宏
+#define security_log(...) mc_security_log(mc::log::default_logger(), __VA_ARGS__)
 
 // 全局南向硬件流日志宏
 #define hw_stream_info(...)   mc_hw_stream_info(mc::log::default_logger(), __VA_ARGS__)
