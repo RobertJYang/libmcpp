@@ -123,51 +123,6 @@ bool validate_dbus_signature(const std::string_view signature) {
     return true;
 }
 
-dynamic_interface::dynamic_interface(std::string_view name) : m_interface_name(name){}
-
-void dynamic_interface::add_method(std::string_view name, method m)
-{
-    m_methods.emplace(name, std::move(m));
-}
-
-void dynamic_interface::add_property(std::string_view name, property prop)
-{
-    m_properties.emplace(name, std::move(prop));
-}
-
-void dynamic_interface::add_signal(std::string_view name, signal s)
-{
-    m_signals.emplace(name, std::move(s));
-}
-
-void dynamic_interface::set_property(std::string property_name, const mc::variant& value)
-{
-    auto it = m_properties.find(property_name);
-    if (it == m_properties.end()) {
-        MC_THROW(mc::exception, "property not found");
-    }
-    property &prop = m_properties.at(property_name);
-    if (prop.readonly) {
-        MC_THROW(mc::exception, "property is read-only");
-    }
-    prop.value = value;
-}
-
-mc::variant dynamic_interface::get_property(std::string property_name) const
-{
-    auto it = m_properties.find(property_name);
-    if (it == m_properties.end()) {
-        MC_THROW(mc::exception, "property not found");
-    }
-    const property &prop = it->second;
-    return prop.value;
-}
-
-std::string_view dynamic_interface::get_name() const
-{
-    return m_interface_name;
-}
-
 static int l_set_property(lua_State* L) {
     l_interface* interface     = reinterpret_cast<l_interface*>(luaL_checkudata(L, 1, INTERFACE_METATABLE));
     const char*  name          = luaL_checkstring(L, 2);
@@ -204,7 +159,7 @@ static int l_add_property(lua_State* L) {
     luaL_checktype(L, 5, LUA_TBOOLEAN);
     bool readonly = lua_toboolean(L, 5);
     int  flags      = luaL_checkinteger(L, 6);
-    property prop = {name, signatrue, default_value, readonly, static_cast<uint8_t>(flags)};
+    dynamic_property prop = {name, signatrue, default_value, readonly, static_cast<uint8_t>(flags)};
     interface->impl->add_property(name, std::move(prop));
     return 0;
 }
@@ -228,7 +183,7 @@ static int l_add_method(lua_State* L) {
     lua_pushvalue(L, 5);
     int ref = luaL_ref(L, LUA_REGISTRYINDEX);
     int  flags      = luaL_checkinteger(L, 6);
-    method m = {L, name, i_args, o_args, ref, static_cast<uint8_t>(flags)};
+    dynamic_method m = {name, i_args, o_args, ref, static_cast<uint8_t>(flags)};
     interface->impl->add_method(name, std::move(m));
     return 0;
 }
@@ -245,7 +200,7 @@ static int l_add_signal(lua_State* L) {
         luaL_error(L, "invalid signal signature");
     }
     int  flags      = luaL_checkinteger(L, 4);
-    signal s = {name, signatrue, static_cast<uint8_t>(flags)};
+    dynamic_signal s = {name, signatrue, static_cast<uint8_t>(flags)};
     interface->impl->add_signal(name, std::move(s));
     return 0;
 }

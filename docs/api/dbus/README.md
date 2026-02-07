@@ -72,6 +72,14 @@ DBus 客户端封装，包括：
 - 共享内存调用支持
 - 超时控制和错误处理
 
+#### [dynamic_object.md](dynamic_object.md)
+动态对象与接口模型，包括：
+- `mc::dbus::dynamic_object` - 运行时可配置的 DBus 对象
+- `mc::dbus::dynamic_interface` - 动态接口与属性容器
+- `access_property_rsp_code` - 属性访问返回码
+- 与 `sd_bus::register_object()` 的集成
+- 与 Lua `ldbus.object` / `ldbus.interface` 的对应关系
+
 #### [enums.md](enums.md)
 DBus 枚举类型，包括：
 - `mc::dbus::bus_type` - 总线类型
@@ -101,6 +109,7 @@ api/dbus/
 ├── signal.md          # 信号发射 (~8KB)
 ├── validator.md       # 名称验证 (~13KB)
 ├── sd_bus.md          # 客户端封装 (~15KB)
+├── dynamic_object.md  # 动态对象/接口 (~13KB)
 ├── enums.md           # 枚举类型 (~11KB)
 └── shm.md             # 共享内存 (~24KB)
 ```

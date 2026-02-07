@@ -246,4 +246,21 @@ void sd_bus::remove_match(uint64_t id) {
     m_bus->remove_match(id);
 }
 
+void sd_bus::register_object(mc::shared_ptr<dynamic_object> object) {
+    std::string path(object->get_object_path());
+    if (m_objects.find(path) != m_objects.end()) {
+        return;
+    }
+    m_bus->get_connection().register_path(path, [](auto& msg) {
+        MC_UNUSED(msg);
+        return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
+    });
+    m_objects.emplace(path, object);
+}
+
+void sd_bus::unregister_object(std::string_view path) {
+    m_bus->get_connection().unregister_path(path);
+    m_objects.erase(std::string(path));
+}
+
 } // namespace mc::dbus

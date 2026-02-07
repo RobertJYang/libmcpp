@@ -90,14 +90,12 @@ struct service_impl {
 
     void adjust_object_parent(abstract_object& obj);
 
-    invoke_method_result       invoke_method(std::string_view path, std::string_view interface,
-                                             std::string_view method, const variants& args);
-    mc::variant                timeout_call(mc::milliseconds timeout, std::string_view service_name,
-                                            std::string_view path, std::string_view interface,
-                                            std::string_view method, std::string_view signature,
-                                            const variants& args);
-    std::optional<mc::variant> shm_timeout_call(mc::milliseconds timeout,
-                                                std::string_view service_name,
+    invoke_method_result invoke_method(std::string_view path, std::string_view interface, std::string_view method,
+                                       const variants& args);
+    mc::variant          timeout_call(mc::milliseconds timeout, std::string_view service_name, std::string_view path,
+                                      std::string_view interface, std::string_view method, std::string_view signature,
+                                      const variants& args);
+    std::optional<mc::variant> shm_timeout_call(mc::milliseconds timeout, std::string_view service_name,
                                                 std::string_view path, std::string_view interface,
                                                 std::string_view method, std::string_view signature,
                                                 const variants& args);
@@ -121,8 +119,7 @@ MC_REFLECT(mc::engine::service_object, ((m_interface, "interface")))
 MC_REFLECT(mc::engine::root_object)
 
 using service_table =
-    mdb::table<mc::engine::service_object,
-               mdb::indexed_by<mdb::ordered_unique<&mc::engine::service_object::get_name>>>;
+    mdb::table<mc::engine::service_object, mdb::indexed_by<mdb::ordered_unique<&mc::engine::service_object::get_name>>>;
 
 namespace mc::engine {
 
@@ -170,10 +167,9 @@ bool service_impl::start() {
     // 如果harbor名未设置，则设置为"harbor.服务名"
     harbor.set_harbor_name_if_empty("harbor." + service_name);
     harbor.register_unique_name(std::string(unique_name), service_name);
-    m_shm_tree   = new mc::dbus::shm_tree(harbor.get_harbor_name(),
-                                          service_name, unique_name);
-    auto handler = [this](std::string_view path, std::string_view interface,
-                          std::string_view method, const mc::variants& args) {
+    m_shm_tree   = new mc::dbus::shm_tree(harbor.get_harbor_name(), service_name, unique_name);
+    auto handler = [this](std::string_view path, std::string_view interface, std::string_view method,
+                          const mc::variants& args) {
         return invoke_method(path, interface, method, args);
     };
     harbor.register_method_handler(service_name, unique_name, handler);
@@ -331,6 +327,17 @@ static void parse_context_arg(context& ctx, const variants& args) {
     ctx.set_args(first_arg);
 }
 
+static const method_type_info* find_method_info(context& ctx, abstract_object& object, std::string_view interface_name,
+                                                std::string_view method_name) {
+    // 嵌套调用场景，可能出现上下文方法信息被覆盖，导致获取到的方法签名有误，所以优先从对象元数据中获取方法信息
+    const auto& metadata = object.get_metadata();
+    auto        info     = metadata.get_method_info(method_name, interface_name);
+    if (info.item == nullptr) {
+        return ctx.get_method();
+    }
+    return info.item;
+}
+
 invoke_method_result service_impl::invoke_method(std::string_view path, std::string_view interface,
                                                  std::string_view method, const variants& args) {
     auto& idx = m_object_table->get<by_path>();
@@ -345,15 +352,15 @@ invoke_method_result service_impl::invoke_method(std::string_view path, std::str
 
     context_stack::context call_ctx(m_service, ctx);
     parse_context_arg(ctx, args);
-    auto result = obj.invoke(method, args, interface);
-    return {ctx.get_method(), result};
+    auto  result      = obj.invoke(method, args, interface);
+    auto* method_info = find_method_info(ctx, obj, interface, method);
+    return {method_info, result};
 }
 
-std::optional<mc::variant>
-service_impl::shm_timeout_call(mc::milliseconds timeout, std::string_view service_name,
-                               std::string_view path, std::string_view interface,
-                               std::string_view method, std::string_view signature,
-                               const variants& args) {
+std::optional<mc::variant> service_impl::shm_timeout_call(mc::milliseconds timeout, std::string_view service_name,
+                                                          std::string_view path, std::string_view interface,
+                                                          std::string_view method, std::string_view signature,
+                                                          const variants& args) {
     mc::dbus::method_call_params params{service_name, path, interface, method, signature, args};
     auto                         result = m_shm_tree->timeout_call(timeout, params);
     if (result != std::nullopt) {
@@ -362,9 +369,8 @@ service_impl::shm_timeout_call(mc::milliseconds timeout, std::string_view servic
     return std::nullopt;
 }
 
-mc::variant service_impl::timeout_call(mc::milliseconds timeout, std::string_view service_name,
-                                       std::string_view path, std::string_view interface,
-                                       std::string_view method, std::string_view signature,
+mc::variant service_impl::timeout_call(mc::milliseconds timeout, std::string_view service_name, std::string_view path,
+                                       std::string_view interface, std::string_view method, std::string_view signature,
                                        const variants& args) {
     if (service_name == m_service->name()) {
         // 自己服务的方法直接调用
@@ -388,8 +394,7 @@ mc::variant service_impl::timeout_call(mc::milliseconds timeout, std::string_vie
     if (reply.is_valid() && reply.is_method_return()) {
         return convert_method_result(reply.read_args());
     }
-    MC_THROW(mc::exception, "dbus call failed, error name: ${error_name}",
-             ("error_name", reply.get_error_name()));
+    MC_THROW(mc::exception, "dbus call failed, error name: ${error_name}", ("error_name", reply.get_error_name()));
 }
 
 DBusHandlerResult service_impl::on_filter_message(mc::dbus::message& msg) {
@@ -418,15 +423,13 @@ DBusHandlerResult service_impl::on_method_call(abstract_object& object, mc::dbus
 
         auto result = object.invoke(method_name, args, interface_name);
         if (!ctx.get_method()) {
-            info.response =
-                mc::dbus::message::new_error(msg, errors::unknown_method.name,
-                                             "method not found");
+            info.response = mc::dbus::message::new_error(msg, errors::unknown_method.name, "method not found");
         } else if (ctx.get_status() == handler_status::ignored) {
-            info.response = mc::dbus::message::new_error(msg, errors::not_supported.name,
-                                                         "method not supported");
+            info.response = mc::dbus::message::new_error(msg, errors::not_supported.name, "method not supported");
         } else {
-            info.response = mc::dbus::message::new_method_return(msg);
-            mc::dbus::signature_iterator it(ctx.get_method()->get_result_signature());
+            info.response                            = mc::dbus::message::new_method_return(msg);
+            auto*                        method_info = find_method_info(ctx, object, interface_name, method_name);
+            mc::dbus::signature_iterator it(method_info->get_result_signature());
             if (!it.at_end()) {
                 info.response.writer().write_variant(it, result, 0);
             }
@@ -464,8 +467,7 @@ void service_impl::remove_match(uint64_t id) {
     m_connection.remove_rule(id);
 }
 
-service::service(std::string_view name)
-    : mc::core::service_base(std::string(name)) {
+service::service(std::string_view name) : mc::core::service_base(std::string(name)) {
     m_impl = std::make_unique<service_impl>();
 }
 
@@ -546,12 +548,12 @@ void service::register_object(abstract_object& obj) {
 
     auto path = obj.get_object_path();
     MC_ASSERT(!path.empty(), "object path is empty");
-    MC_ASSERT(mc::dbus::validator::is_valid_path(path), "invalid object path ${path}",
-              ("path", path));
+    MC_ASSERT(mc::dbus::validator::is_valid_path(path), "invalid object path ${path}", ("path", path));
 
     // 添加调试信息
     dlog("Registering object: ${path}, service: ${service}, m_impl: ${impl}",
-         ("path", path)("service", reinterpret_cast<uintptr_t>(this))("impl", reinterpret_cast<uintptr_t>(m_impl.get())));
+         ("path", path)("service", reinterpret_cast<uintptr_t>(this))("impl",
+                                                                      reinterpret_cast<uintptr_t>(m_impl.get())));
 
     if (!m_impl) {
         flog("m_impl is nullptr! service: ${service}", ("service", reinterpret_cast<uintptr_t>(this)));
@@ -578,8 +580,7 @@ service_object_table& service::get_object_table() const {
 // 解析对象路径
 // 将路径求解放在 service 中的目的是，后续看是否需要将 service 和 engine 的属性
 // 注册到路径表达式引擎，目前只允许路径表达式使用对象本身的属性以及表达式引擎的内建函数库
-std::string service::resolve_object_path(std::string_view       path_pattern,
-                                         const abstract_object& obj) {
+std::string service::resolve_object_path(std::string_view path_pattern, const abstract_object& obj) {
     std::string path;
     auto&       resolver = mc::engine::engine::get_path_resolver();
     if (!resolver || !resolver(path_pattern, obj, path)) {
@@ -595,8 +596,7 @@ std::string service::resolve_object_path(std::string_view       path_pattern,
 
     // 否则拼接上父路径
     auto parent = mc::static_pointer_cast<abstract_object>(obj.get_parent());
-    MC_ASSERT_THROW(parent, mc::invalid_arg_exception,
-                    "object parent is nullptr or not abstract_object");
+    MC_ASSERT_THROW(parent, mc::invalid_arg_exception, "object parent is nullptr or not abstract_object");
     auto parent_path = parent->get_object_path();
 
     std::string tmp;
@@ -607,20 +607,17 @@ std::string service::resolve_object_path(std::string_view       path_pattern,
     return tmp;
 }
 
-mc::variant service::timeout_call(mc::milliseconds timeout, std::string_view service_name,
-                                  std::string_view path, std::string_view interface,
-                                  std::string_view method, std::string_view signature,
+mc::variant service::timeout_call(mc::milliseconds timeout, std::string_view service_name, std::string_view path,
+                                  std::string_view interface, std::string_view method, std::string_view signature,
                                   const mc::variants& args) {
     return m_impl->timeout_call(timeout, service_name, path, interface, method, signature, args);
 }
 
-std::optional<mc::variant>
-service::shm_timeout_call(mc::milliseconds timeout, std::string_view service_name,
-                          std::string_view path, std::string_view interface,
-                          std::string_view method, std::string_view signature,
-                          const mc::variants& args) {
-    return m_impl->shm_timeout_call(timeout, service_name, path, interface, method, signature,
-                                    args);
+std::optional<mc::variant> service::shm_timeout_call(mc::milliseconds timeout, std::string_view service_name,
+                                                     std::string_view path, std::string_view interface,
+                                                     std::string_view method, std::string_view signature,
+                                                     const mc::variants& args) {
+    return m_impl->shm_timeout_call(timeout, service_name, path, interface, method, signature, args);
 }
 
 mc::dbus::connection service::get_connection() const {

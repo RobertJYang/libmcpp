@@ -46,6 +46,22 @@
 - 错误属性（name, message）
 - 错误处理模式
 
+#### [interface.md](interface.md)
+D-Bus接口模块，包括：
+- `new()` - 创建接口
+- `add_property()` - 添加属性
+- `add_method()` - 添加方法
+- `add_signal()` - 添加信号
+- `set_property()` / `get_property()` - 属性访问
+- `get_name()` - 获取接口名称
+
+#### [object.md](object.md)
+D-Bus对象模块，包括：
+- `new()` - 创建对象
+- `register_interface()` - 注册接口
+- `get_interface()` - 获取接口
+- `set_property()` / `get_property()` - 属性访问（返回错误码）
+
 ## 文档结构
 
 ```
@@ -55,7 +71,9 @@ lua_api/dbus/
 ├── nonblock.md        # 非阻塞模式 (~7KB)
 ├── message.md         # 消息对象 (~6KB)
 ├── connection.md      # 连接对象 (~8KB)
-└── error.md           # 错误对象 (~7KB)
+├── error.md           # 错误对象 (~7KB)
+├── interface.md       # 接口模块 (~5KB)
+└── object.md          # 对象模块 (~5KB)
 ```
 
 ## 学习路径

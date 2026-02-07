@@ -22,17 +22,12 @@ namespace mc::dbus::lua {
 
 constexpr const char* OBJECT_METATABLE = "dbus.object";
 
-class dynamic_object : public mc::core::object{
-public:
-    void set_property(std::string intf_name, std::string prop_name, const mc::variant& value);
-    mc::variant get_property(std::string intf_name, std::string prop_name) const;
-    void set_object_path(std::string_view path);
-    void add_interface(mc::shared_ptr<dynamic_interface>);
-    mc::shared_ptr<dynamic_interface> get_interface(std::string intf_name) const;
+struct l_object {
+    l_object() {
+        impl = mc::make_shared<mc::dbus::dynamic_object>();
+    }
 
-private:
-    std::string m_path;
-    std::map<std::string, mc::shared_ptr<dynamic_interface>> m_interfaces;
+    mc::shared_ptr<mc::dbus::dynamic_object> impl;
 };
 
 // 注册 object 模块的 metatable
@@ -43,4 +38,3 @@ int new_object_class(lua_State* L);
 } // namespace mc::dbus::lua
 
 #endif // MC_DBUS_L_OBJECT_H
-
