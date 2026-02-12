@@ -23,7 +23,10 @@
 #include <string_view>
 #include <vector>
 
+#include <cmath>
+
 #include <json_api.h>
+#include <mc/common.h>
 #include <mc/dict/dict.h>
 #include <mc/exception.h>
 
@@ -445,6 +448,272 @@ JsonValue::~JsonValue() {
     m_json = nullptr;
 }
 
+JsonValue& JsonValue::operator=(int64_t value) {
+    if (m_json != nullptr && is_int()) {
+        if (JsonItemIntegerValueSet(m_json, value) != JSON_OK) {
+            MC_THROW(mc::parse_error_exception, "Failed to set integer value");
+        }
+        return *this;
+    }
+    Json* new_json = nullptr;
+    if (JsonIntegerCreate(value, &new_json) != JSON_OK || new_json == nullptr) {
+        MC_THROW(mc::parse_error_exception, "create json integer object failed");
+    }
+    release_ref(m_json);
+    m_json = new_json;
+    return *this;
+}
+
+JsonValue& JsonValue::operator=(bool value) {
+    if (m_json != nullptr && is_bool()) {
+        if (JsonItemBoolValueSet(m_json, value) != JSON_OK) {
+            MC_THROW(mc::parse_error_exception, "Failed to set bool value");
+        }
+        return *this;
+    }
+    Json* new_json = nullptr;
+    if (JsonBoolCreate(value, &new_json) != JSON_OK || new_json == nullptr) {
+        MC_THROW(mc::parse_error_exception, "create json bool object failed");
+    }
+    release_ref(m_json);
+    m_json = new_json;
+    return *this;
+}
+
+JsonValue& JsonValue::operator=(double value) {
+    if (m_json != nullptr && is_double()) {
+        if (JsonItemDoubleValueSet(m_json, value) != JSON_OK) {
+            MC_THROW(mc::parse_error_exception, "Failed to set double value");
+        }
+        return *this;
+    }
+    Json* new_json = nullptr;
+    if (JsonDoubleCreate(value, &new_json) != JSON_OK || new_json == nullptr) {
+        MC_THROW(mc::parse_error_exception, "create json double object failed");
+    }
+    release_ref(m_json);
+    m_json = new_json;
+    return *this;
+}
+
+JsonValue& JsonValue::operator=(std::string_view value) {
+    if (m_json != nullptr && is_string()) {
+        if (JsonItemStringValueSet(m_json, value.data(),
+                                   static_cast<uint32_t>(value.size())) != JSON_OK) {
+            MC_THROW(mc::parse_error_exception, "Failed to set string value");
+        }
+        return *this;
+    }
+    Json* new_json = nullptr;
+    if (JsonStringCreateWithLen(value.data(),
+                                static_cast<uint32_t>(value.size()),
+                                &new_json) != JSON_OK ||
+        new_json == nullptr) {
+        MC_THROW(mc::parse_error_exception, "create json string object failed");
+    }
+    release_ref(m_json);
+    m_json = new_json;
+    return *this;
+}
+
+JsonValue& JsonValue::operator=(const std::string value) {
+    return *this = std::string_view(value);
+}
+
+JsonValue& JsonValue::operator=(const JsonArray& value) {
+    return *this = JsonValue(value);
+}
+
+JsonValue& JsonValue::operator=(const JsonObject& value) {
+    return *this = JsonValue(value);
+}
+
+JsonValue& JsonValue::operator=(const std::vector<JsonValue>& value) {
+    JsonValue arr = JsonValue::make_array();
+    JsonArray a   = arr.as_array();
+    for (const auto& e : value) {
+        a.push_back(e);
+    }
+    return *this = std::move(arr);
+}
+
+JsonValue& JsonValue::operator=(const std::vector<int64_t>& value) {
+    JsonValue arr = JsonValue::make_array();
+    JsonArray a   = arr.as_array();
+    for (int64_t e : value) {
+        a.push_back(JsonValue(e));
+    }
+    return *this = std::move(arr);
+}
+
+JsonValue& JsonValue::operator=(const std::vector<double>& value) {
+    JsonValue arr = JsonValue::make_array();
+    JsonArray a   = arr.as_array();
+    for (double e : value) {
+        a.push_back(JsonValue(e));
+    }
+    return *this = std::move(arr);
+}
+
+JsonValue& JsonValue::operator=(const std::vector<bool>& value) {
+    JsonValue arr = JsonValue::make_array();
+    JsonArray a   = arr.as_array();
+    for (bool e : value) {
+        a.push_back(JsonValue(e));
+    }
+    return *this = std::move(arr);
+}
+
+JsonValue& JsonValue::operator=(const std::vector<std::string>& value) {
+    JsonValue arr = JsonValue::make_array();
+    JsonArray a   = arr.as_array();
+    for (const auto& e : value) {
+        a.push_back(JsonValue(std::string_view(e)));
+    }
+    return *this = std::move(arr);
+}
+
+JsonValue& JsonValue::operator=(const std::vector<std::string_view>& value) {
+    JsonValue arr = JsonValue::make_array();
+    JsonArray a   = arr.as_array();
+    for (std::string_view e : value) {
+        a.push_back(JsonValue(e));
+    }
+    return *this = std::move(arr);
+}
+
+JsonValue::JsonValue(bool value) {
+    Json* object = nullptr;
+    if (JsonBoolCreate(value, &object) != JSON_OK || object == nullptr) {
+        MC_THROW(mc::parse_error_exception, "create json bool object failed");
+    }
+    m_json = object;
+}
+
+JsonValue::JsonValue(int64_t value) {
+    Json* object = nullptr;
+    if (JsonIntegerCreate(value, &object) != JSON_OK || object == nullptr) {
+        MC_THROW(mc::parse_error_exception, "create json integer object failed");
+    }
+    m_json = object;
+}
+
+JsonValue::JsonValue(double value) {
+    Json* object = nullptr;
+    if (JsonDoubleCreate(value, &object) != JSON_OK || object == nullptr) {
+        MC_THROW(mc::parse_error_exception, "create json double object failed");
+    }
+    m_json = object;
+}
+
+JsonValue::JsonValue(std::string_view value) {
+    Json* object = nullptr;
+    if (JsonStringCreateWithLen(value.data(),
+                                static_cast<uint32_t>(value.size()),
+                                &object) != JSON_OK ||
+        object == nullptr) {
+        MC_THROW(mc::parse_error_exception, "create json string object failed");
+    }
+    m_json = object;
+}
+
+JsonValue::JsonValue(const char* value)
+    : JsonValue(value != nullptr ? std::string_view(value) : std::string_view("")) {
+}
+
+JsonValue::JsonValue(const JsonArray& value)
+    : m_json(value.get_raw()) {
+    add_ref(m_json);
+}
+
+JsonValue::JsonValue(const JsonObject& value)
+    : m_json(value.get_raw()) {
+    add_ref(m_json);
+}
+
+JsonValue::JsonValue(const std::vector<JsonValue>& value)
+    : JsonValue(JsonValue::make_array()) {
+    JsonArray a = as_array();
+    for (const auto& e : value) {
+        a.push_back(e);
+    }
+}
+
+JsonValue::JsonValue(const std::vector<int64_t>& value)
+    : JsonValue(JsonValue::make_array()) {
+    JsonArray a = as_array();
+    for (int64_t e : value) {
+        a.push_back(JsonValue(e));
+    }
+}
+
+JsonValue::JsonValue(const std::vector<double>& value)
+    : JsonValue(JsonValue::make_array()) {
+    JsonArray a = as_array();
+    for (double e : value) {
+        a.push_back(JsonValue(e));
+    }
+}
+
+JsonValue::JsonValue(const std::vector<bool>& value)
+    : JsonValue(JsonValue::make_array()) {
+    JsonArray a = as_array();
+    for (bool e : value) {
+        a.push_back(JsonValue(e));
+    }
+}
+
+JsonValue::JsonValue(const std::vector<std::string>& value)
+    : JsonValue(JsonValue::make_array()) {
+    JsonArray a = as_array();
+    for (const auto& e : value) {
+        a.push_back(JsonValue(std::string_view(e)));
+    }
+}
+
+JsonValue::JsonValue(const std::vector<std::string_view>& value)
+    : JsonValue(JsonValue::make_array()) {
+    JsonArray a = as_array();
+    for (std::string_view e : value) {
+        a.push_back(JsonValue(e));
+    }
+}
+
+template <typename T,
+          typename std::enable_if_t<std::is_integral_v<T> && !std::is_same_v<T, bool>, int>>
+JsonValue& JsonValue::operator=(const std::vector<T>& value) {
+    JsonValue arr = JsonValue::make_array();
+    JsonArray a   = arr.as_array();
+    for (const auto& e : value) {
+        a.push_back(JsonValue(static_cast<int64_t>(e)));
+    }
+    return *this = std::move(arr);
+}
+
+template <typename T,
+          typename std::enable_if_t<std::is_integral_v<T> && !std::is_same_v<T, bool>, int>>
+JsonValue::JsonValue(const std::vector<T>& value)
+    : JsonValue(JsonValue::make_array()) {
+    JsonArray a = as_array();
+    for (const auto& e : value) {
+        a.push_back(JsonValue(static_cast<int64_t>(e)));
+    }
+}
+
+// 显式实例化整型 vector，避免头文件中 JsonArray 不完整类型
+template JsonValue& JsonValue::operator=(const std::vector<int>&);
+template JsonValue& JsonValue::operator=(const std::vector<unsigned int>&);
+template JsonValue& JsonValue::operator=(const std::vector<long>&);
+template JsonValue& JsonValue::operator=(const std::vector<unsigned long>&);
+template JsonValue& JsonValue::operator=(const std::vector<long long>&);
+template JsonValue& JsonValue::operator=(const std::vector<unsigned long long>&);
+template JsonValue::JsonValue(const std::vector<int>&);
+template JsonValue::JsonValue(const std::vector<unsigned int>&);
+template JsonValue::JsonValue(const std::vector<long>&);
+template JsonValue::JsonValue(const std::vector<unsigned long>&);
+template JsonValue::JsonValue(const std::vector<long long>&);
+template JsonValue::JsonValue(const std::vector<unsigned long long>&);
+
 JsonValue JsonValue::make_null() {
     Json* object = nullptr;
     if (JsonNullCreate(&object) != JSON_OK || object == nullptr) {
@@ -502,6 +771,38 @@ JsonValue JsonValue::make_object() {
         MC_THROW(mc::parse_error_exception, "create json object object failed");
     }
     return JsonValue(object);
+}
+
+JsonValueType JsonValue::type() const {
+    if (m_json == nullptr) {
+        return JsonValueType::Undefined;
+    }
+    if (JsonIsNull(m_json)) {
+        return JsonValueType::Null;
+    }
+    if (JsonIsBool(m_json)) {
+        return JsonValueType::Bool;
+    }
+    if (JsonIsInteger(m_json)) {
+        return JsonValueType::Integer;
+    }
+    if (JsonIsDouble(m_json)) {
+        return JsonValueType::Double;
+    }
+    if (JsonIsString(m_json)) {
+        return JsonValueType::String;
+    }
+    if (JsonIsArray(m_json)) {
+        return JsonValueType::Array;
+    }
+    if (JsonIsObject(m_json)) {
+        return JsonValueType::Object;
+    }
+    return JsonValueType::Undefined;
+}
+
+bool JsonValue::is_undefined() const {
+    return m_json == nullptr;
 }
 
 bool JsonValue::is_null() const {
@@ -608,6 +909,124 @@ bool JsonValue::operator==(const JsonValue& other) const {
     return json_equal(m_json, other.m_json);
 }
 
+bool JsonValue::operator==(int64_t value) const {
+    if (!is_number()) {
+        return false;
+    }
+    return as_int() == value;
+}
+
+bool JsonValue::operator==(bool value) const {
+    if (!is_bool()) {
+        return false;
+    }
+    return as_bool() == value;
+}
+
+bool JsonValue::operator==(double value) const {
+    if (!is_number()) {
+        return false;
+    }
+    double self_val = is_int() ? static_cast<double>(as_int()) : as_double();
+    return MC_FLOAT_EQUAL(self_val, value, MC_FLOAT_EPSILON);
+}
+
+bool JsonValue::operator==(std::string_view value) const {
+    if (!is_string()) {
+        return false;
+    }
+    return std::string_view(as_string()) == value;
+}
+
+bool operator==(int64_t lhs, const JsonValue& rhs) {
+    return rhs == lhs;
+}
+
+bool operator!=(int64_t lhs, const JsonValue& rhs) {
+    return !(rhs == lhs);
+}
+
+bool operator==(bool lhs, const JsonValue& rhs) {
+    return rhs == lhs;
+}
+
+bool operator!=(bool lhs, const JsonValue& rhs) {
+    return !(rhs == lhs);
+}
+
+bool operator==(double lhs, const JsonValue& rhs) {
+    return rhs == lhs;
+}
+
+bool operator!=(double lhs, const JsonValue& rhs) {
+    return !(rhs == lhs);
+}
+
+bool operator==(std::string_view lhs, const JsonValue& rhs) {
+    return rhs == lhs;
+}
+
+bool operator!=(std::string_view lhs, const JsonValue& rhs) {
+    return !(rhs == lhs);
+}
+
+bool operator==(const std::string lhs, const JsonValue& rhs) {
+    return rhs == lhs;
+}
+
+bool operator!=(const std::string lhs, const JsonValue& rhs) {
+    return !(rhs == lhs);
+}
+
+bool operator==(const char* lhs, const JsonValue& rhs) {
+    return rhs == std::string_view(lhs != nullptr ? lhs : "");
+}
+
+bool operator!=(const char* lhs, const JsonValue& rhs) {
+    return !(rhs == std::string_view(lhs != nullptr ? lhs : ""));
+}
+
+JsonValue JsonValue::operator[](uint32_t index) const {
+    if (!is_array()) {
+        MC_THROW(mc::bad_cast_exception, "JSON type is not array");
+    }
+    return as_array().at(index);
+}
+
+JsonValue JsonValue::operator[](std::string_view key) const {
+    if (!is_object()) {
+        MC_THROW(mc::bad_cast_exception, "JSON type is not object");
+    }
+    return as_object().get(key);
+}
+
+JsonArrayValue JsonValue::operator[](uint32_t index) {
+    if (is_undefined() || is_null()) {
+        return JsonArrayValue(this, index);
+    }
+    if (!is_array()) {
+        MC_THROW(mc::bad_cast_exception, "JSON type is not array");
+    }
+    if (index > as_array().size()) {
+        MC_THROW(mc::out_of_range_exception, "Index out of range");
+    }
+    if (index == as_array().size()) {
+        return JsonArrayValue(this, index);
+    }
+    return JsonArrayValue(this, index, as_array().at(index));
+}
+
+JsonObjectValue JsonValue::operator[](std::string_view key) {
+    if (is_undefined() || is_null()) {
+        return JsonObjectValue(this, key);
+    }
+    if (!is_object()) {
+        MC_THROW(mc::bad_cast_exception, "JSON type is not object");
+    }
+    return as_object().has(key) ? JsonObjectValue(this, key, as_object().get(key))
+                                : JsonObjectValue(this, key);
+}
+
 JsonValue JsonValue::new_from_raw(Json* raw_ptr) {
     if (raw_ptr == nullptr) {
         MC_THROW(mc::bad_cast_exception, "Cannot create JsonValue from null pointer");
@@ -615,6 +1034,155 @@ JsonValue JsonValue::new_from_raw(Json* raw_ptr) {
     // 增加引用计数
     add_ref(raw_ptr);
     return JsonValue(raw_ptr);
+}
+
+// ======================== JsonArrayValue ========================
+
+void JsonArrayValue::set_value_impl(const JsonValue& value) {
+    // 如果父对象为空，则创建一个空数组
+    if (m_parent->is_undefined() || m_parent->is_null()) {
+        JsonObjectValue* obj_ref = dynamic_cast<JsonObjectValue*>(m_parent);
+        JsonArrayValue* arr_ref = dynamic_cast<JsonArrayValue*>(m_parent);
+        if (obj_ref != nullptr) {
+            *obj_ref = JsonValue::make_array();
+        } else if (arr_ref != nullptr) {
+            *arr_ref = JsonValue::make_array();
+        } else {
+            *m_parent = JsonValue::make_array();
+        }
+    }
+    JsonArray arr = m_parent->as_array();
+    // 如果当前元素为空，则允许索引递增（append），即 index == size() 时 push_back；否则为已有空位则 set
+    if (is_undefined() || is_null()) {
+        // 空槽：仅允许索引递增（append），即 index == size() 时 push_back；否则为已有空位则 set
+        if (m_index < arr.size()) {
+            arr.set(m_index, value);
+        } else if (m_index == arr.size()) {
+            arr.push_back(value);
+        } else {
+            MC_THROW(mc::out_of_range_exception,
+                     "JsonArrayValue: index must be <= size() when element is null");
+        }
+    } else {
+        // 如果当前元素不为空，则设置为新的值
+        arr.set(m_index, value);
+    }
+    // 设置当前元素为新的值
+    JsonValue::operator=(value);
+}
+
+JsonArrayValue& JsonArrayValue::operator=(const JsonValue& value) {
+    set_value_impl(value);
+    return *this;
+}
+
+JsonArrayValue& JsonArrayValue::operator=(int64_t value) {
+    set_value_impl(JsonValue(value));
+    return *this;
+}
+
+JsonArrayValue& JsonArrayValue::operator=(bool value) {
+    set_value_impl(JsonValue(value));
+    return *this;
+}
+
+JsonArrayValue& JsonArrayValue::operator=(double value) {
+    set_value_impl(JsonValue(value));
+    return *this;
+}
+
+JsonArrayValue& JsonArrayValue::operator=(std::string_view value) {
+    set_value_impl(JsonValue(value));
+    return *this;
+}
+
+JsonArrayValue& JsonArrayValue::operator=(const char* value) {
+    set_value_impl(JsonValue(value));
+    return *this;
+}
+
+JsonArrayValue& JsonArrayValue::operator=(const std::string& value) {
+    set_value_impl(JsonValue(value));
+    return *this;
+}
+
+JsonObjectValue JsonArrayValue::operator[](std::string_view key) {
+    if (is_undefined() || is_null()) {
+        return JsonObjectValue(this, key);
+    }
+    if (!is_object()) {
+        MC_THROW(mc::bad_cast_exception, "JSON type is not object");
+    }
+    return as_object().has(key) ? JsonObjectValue(this, key, as_object().get(key))
+                                : JsonObjectValue(this, key);
+}
+
+// ======================== JsonObjectValue ========================
+
+JsonObjectValue& JsonObjectValue::operator=(const JsonValue& value) {
+    // 如果父对象为空，则创建一个空对象；若父为 JsonArrayValue 则调用其 operator= 以写回数组元素
+    if (m_parent->is_undefined() || m_parent->is_null()) {
+        JsonArrayValue* arr_ref = dynamic_cast<JsonArrayValue*>(m_parent);
+        JsonObjectValue* obj_ref = dynamic_cast<JsonObjectValue*>(m_parent);
+        if (arr_ref != nullptr) {
+            *arr_ref = JsonValue::make_object();
+        } else if (obj_ref != nullptr) {
+            *obj_ref = JsonValue::make_object();
+        } else {
+            *m_parent = JsonValue::make_object();
+        }
+    }
+    m_parent->as_object().set(m_key, value);
+    JsonValue::operator=(value);
+    return *this;
+}
+
+JsonObjectValue& JsonObjectValue::operator=(int64_t value) {
+    return *this = JsonValue(value);
+}
+
+JsonObjectValue& JsonObjectValue::operator=(bool value) {
+    return *this = JsonValue(value);
+}
+
+JsonObjectValue& JsonObjectValue::operator=(double value) {
+    return *this = JsonValue(value);
+}
+
+JsonObjectValue& JsonObjectValue::operator=(std::string_view value) {
+    return *this = JsonValue(value);
+}
+
+JsonObjectValue& JsonObjectValue::operator=(const char* value) {
+    return *this = JsonValue(value);
+}
+
+JsonObjectValue& JsonObjectValue::operator=(const std::string& value) {
+    return *this = JsonValue(value);
+}
+
+JsonObjectValue JsonObjectValue::operator[](std::string_view key) {
+    if (is_undefined() || is_null()) {
+        return JsonObjectValue(this, key);
+    }
+    return as_object().has(key) ? JsonObjectValue(this, key, as_object().get(key))
+                                : JsonObjectValue(this, key);
+}
+
+JsonArrayValue JsonObjectValue::operator[](uint32_t index) {
+    if (is_undefined() || is_null()) {
+        return JsonArrayValue(this, index);
+    }
+    if (!is_array()) {
+        MC_THROW(mc::bad_cast_exception, "JSON type is not array");
+    }
+    if (index > as_array().size()) {
+        MC_THROW(mc::out_of_range_exception, "Index out of range");
+    }
+    if (index == as_array().size()) {
+        return JsonArrayValue(this, index);
+    }
+    return JsonArrayValue(this, index, as_array().at(index));
 }
 
 // ======================== JsonArray ========================
@@ -723,7 +1291,6 @@ void JsonArray::push_back(const JsonValue& value, bool quote_flag) {
         uint32_t ret = JsonItemAddToArray(value.get_raw(), m_json);
         check_json_ret(ret, "Failed to append array item");
     }
-
 }
 
 // ======================== JsonObject ========================
@@ -925,7 +1492,7 @@ JsonObject::iterator JsonObject::end() const {
 // ======================== json_encode ========================
 std::string json_encode(const mc::variant& value, bool pretty_print) {
     Json* json_ptr = nullptr;
-    char* result = nullptr;
+    char* result   = nullptr;
     try {
         // 将 variant 转换为底层 JSON 对象
         json_ptr = build_json_from_variant(value);
@@ -978,7 +1545,7 @@ std::string json_encode(const mc::variant& value, bool pretty_print) {
 
 std::string json_encode(const mc::dict& obj, bool pretty_print) {
     Json* json_obj = nullptr;
-    char* result = nullptr;
+    char* result   = nullptr;
     try {
         uint32_t ret = JsonObjectCreate(&json_obj);
         check_json_ret(ret, "Failed to create JSON object");
@@ -986,7 +1553,7 @@ std::string json_encode(const mc::dict& obj, bool pretty_print) {
         // 遍历 dict，添加键值对
         for (const auto& entry : obj) {
             std::string key_str = entry.key.get_string();
-            Json* child = build_json_from_variant(entry.value);
+            Json*       child   = build_json_from_variant(entry.value);
             ensure_created(child, "Failed to build object value");
             check_json_ret(JsonItemAddToObject(key_str.c_str(), child, json_obj),
                            "Failed to add object element");
@@ -1035,7 +1602,7 @@ std::string json_encode(const mc::dict& obj, bool pretty_print) {
 
 std::string json_encode(const std::vector<mc::variant>& arr, bool pretty_print) {
     Json* json_arr = nullptr;
-    char* result = nullptr;
+    char* result   = nullptr;
     try {
         uint32_t ret = JsonArrayCreate(&json_arr);
         check_json_ret(ret, "Failed to create JSON array");
@@ -1091,7 +1658,7 @@ std::string json_encode(const std::vector<mc::variant>& arr, bool pretty_print) 
 
 std::string json_encode(const JsonValue& json_val, bool pretty_print) {
     Json* json_ptr = nullptr;
-    char* result = nullptr;
+    char* result   = nullptr;
     try {
         json_ptr = json_val.get_raw();
 

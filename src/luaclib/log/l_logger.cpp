@@ -411,6 +411,7 @@ static int lua_logger_mdbctl_log(lua_State* L) {
     message     log_msg(level::debug, ctx, fmt, mc::dict());
     log_msg.set_category(log_category::mdbctl);
     log_manager::instance().get_logger(MC_LOG_MDBCTL_LOGGER).log(log_msg);
+    return 0;
 }
 
 // 解析 initiator 表，参考 Lua parse_initiator：键为 Interface、UserName、ClientIp，
