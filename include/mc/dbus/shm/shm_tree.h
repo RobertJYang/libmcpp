@@ -281,6 +281,12 @@ public:
      */
     static std::optional<mc::variants> get_mdb_info(const method_call_params& params);
 
+    /**
+     * @brief 获取共享内存对象树
+     * @return 返回共享内存对象树
+     */
+    shm::object_tree* get_tree() const;
+
 private:
     std::string                                         m_service_name;
     std::string                                         m_unique_name;

@@ -256,6 +256,27 @@ void sd_bus::register_object(mc::shared_ptr<dynamic_object> object) {
         return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
     });
     m_objects.emplace(path, object);
+#if defined(ENABLE_CONAN_COMPILE)
+    auto* shm_tree = m_bus->get_shm_tree();
+    if (!shm_tree) {
+        return;
+    }
+    shm::object_tree* tree = shm_tree->get_tree();
+    if (!tree) {
+        return;
+    }
+    auto&        ins     = shm::shared_memory::get_instance();
+    shm::object& shm_obj = tree->register_object(ins, path);
+    for (auto& [name, interface] : object->get_interfaces()) {
+        shm::interface& shm_intf = shm_obj.register_interface(ins, false, name);
+        for (auto& [prop_name, prop] : interface->get_properties()) {
+            shm::shared_ptr<shm::property> shm_prop = shm_intf.add_p(ins, prop_name, prop.signature);
+            shm_prop->set_flags(prop.flags);
+            shm_tree::set_property_inner(shm_prop, prop.value);
+            prop.shm_prop = shm_prop;
+        }
+    }
+#endif
 }
 
 void sd_bus::unregister_object(std::string_view path) {

@@ -20,6 +20,7 @@
 #include <mc/dbus/message.h>
 #include <mc/dbus/sd_bus.h>
 #include <mc/dbus/shm/harbor.h>
+#include <mc/dbus/shm/shm_tree.h>
 #include <mc/log.h>
 
 namespace mc::dbus::lua {
@@ -236,6 +237,30 @@ static int sd_bus_unregister_object(lua_State* L) {
     }
 }
 
+static int sd_bus_call_shm_get_property(lua_State* L) {
+    try {
+        const char*      service_cstr = luaL_checkstring(L, 2);
+        std::string_view service_name(service_cstr);
+        const char*      path_cstr = luaL_checkstring(L, 3);
+        std::string_view path(path_cstr);
+        const char*      interface_cstr = luaL_checkstring(L, 4);
+        std::string_view interface_name(interface_cstr);
+        const char*      property_cstr = luaL_checkstring(L, 5);
+        std::string_view property_name(property_cstr);
+
+        auto result = shm_tree::call_shm_get_property(service_name, path, interface_name, property_name);
+        if (result.has_value()) {
+            mc::lua::variant_to_lua(L, result.value());
+            return 1;
+        } else {
+            lua_pushnil(L);
+            return 1;
+        }
+    } catch (const mc::exception& e) {
+        return luaL_error(L, "call_shm_get_property failed: %s", e.what());
+    }
+}
+
 // ==================== sd_bus 方法 ====================
 
 // 方法表
@@ -245,6 +270,7 @@ static const luaL_Reg sd_bus_methods[] = {
     {"remove_match", sd_bus_remove_match},
     {"register_object", sd_bus_register_object},
     {"unregister_object", sd_bus_unregister_object},
+    {"call_shm_get_property", sd_bus_call_shm_get_property},
     {nullptr, nullptr}};
 
 // 模块函数表

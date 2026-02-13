@@ -11,6 +11,7 @@
  */
 
 #include <mc/dbus/dynamic_object.h>
+#include <mc/dbus/shm/shm_tree.h>
 #include <mc/exception.h>
 
 namespace mc::dbus {
@@ -42,6 +43,10 @@ bool dynamic_interface::set_property(std::string property_name, const mc::varian
         MC_THROW(mc::exception, "property is read-only");
     }
     prop.value = value;
+    auto inner_ptr = prop.shm_prop.lock();
+    if (inner_ptr) {
+        shm_tree::set_property_inner(inner_ptr, value);
+    }
     return true;
 }
 
@@ -71,6 +76,23 @@ mc::dict dynamic_interface::get_all_properties() const {
         dict[prop.first] = prop.second.value;
     }
     return dict;
+}
+
+void dynamic_interface::update_shm_prop(std::string_view property_name, const mc::variant& value) {
+    std::lock_guard<mc::sync::spin_mutex> lock(m_property_access_mutex);
+    auto it = m_properties.find(std::string(property_name));
+    if (it == m_properties.end()) {
+        return;
+    }
+    auto inner_ptr = it->second.shm_prop.lock();
+    if (!inner_ptr) {
+        return;
+    }
+    shm_tree::set_property_inner(inner_ptr, value);
+}
+
+std::map<std::string, dynamic_property>& dynamic_interface::get_properties() {
+    return m_properties;
 }
 
 dynamic_object::dynamic_object(mc::core::object* parent) : mc::engine::object_impl(parent), m_metadata(nullptr) {
@@ -172,6 +194,18 @@ const mc::engine::object_metadata& dynamic_object::get_metadata() const {
         m_metadata = std::make_unique<mc::engine::object_metadata>("", *m_reflect_metadata);
     }
     return *m_metadata;
+}
+
+void dynamic_object::update_shm_prop(std::string_view property_name, const mc::variant& value, std::string_view interface_name) {
+    auto it = m_interfaces.find(std::string(interface_name));
+    if (it == m_interfaces.end()) {
+        return;
+    }
+    it->second->update_shm_prop(property_name, value);
+}
+
+std::map<std::string, mc::shared_ptr<dynamic_interface>>& dynamic_object::get_interfaces() {
+    return m_interfaces;
 }
 
 } // namespace mc::dbus

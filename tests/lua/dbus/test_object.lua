@@ -25,7 +25,12 @@ function TestObject:setUp()
     
     -- Create and register a test interface
     self.test_interface = l_interface.new(self.test_interface_name)
+    self.test_interface:add_property("TestIntProp", "i", 42, false, 0)
     self.object:register_interface(self.test_interface)
+
+    self.bus = ldbus.sd_bus.open_user(true, false)
+    self.bus:request_name("bmc.kepler.test_service")
+    self.bus:register_object(self.object)
 end
 
 function TestObject:tearDown()
@@ -244,6 +249,17 @@ function TestObject:test_object_path_preservation()
     end)
     
     lu.assertTrue(status, "Object should maintain its state after operations")
+end
+
+function TestObject:test_property_shm_write_and_read()
+    local value = self.bus:call_shm_get_property("bmc.kepler.test_service", self.object_path, self.test_interface_name, "TestIntProp")
+    lu.assertEquals(value, 42, "Shm property should be 42")
+    self.object:set_property(self.test_interface_name, "TestIntProp", 43)
+    local value = self.bus:call_shm_get_property("bmc.kepler.test_service", self.object_path, self.test_interface_name, "TestIntProp")
+    lu.assertEquals(value, 43, "Shm property should be 43")
+    self.object:update_shm_prop(self.test_interface_name, "TestIntProp", 44)
+    local value = self.bus:call_shm_get_property("bmc.kepler.test_service", self.object_path, self.test_interface_name, "TestIntProp")
+    lu.assertEquals(value, 44, "Shm property should be 44")
 end
 
 return TestObject

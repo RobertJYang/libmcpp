@@ -43,7 +43,7 @@ public:
         return context["Requestor"].as_string();
     }
 
-    int32_t m_value{0};
+    mc::engine::property<int32_t> m_value{0};
 };
 
 class TestObject1 : public mc::engine::object<TestObject1> {

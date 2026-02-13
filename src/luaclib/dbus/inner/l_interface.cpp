@@ -151,15 +151,15 @@ static int l_add_property(lua_State* L) {
     if (!dbus_validate_member(name, &error)) {
         luaL_error(L, "invalid property name");
     }
-    const char*  signatrue      = luaL_checkstring(L, 3);
-    if (!validate_dbus_signature(signatrue)) {
+    const char*  signature      = luaL_checkstring(L, 3);
+    if (!validate_dbus_signature(signature)) {
         luaL_error(L, "invalid property signature");
     }
     mc::variant default_value = mc::lua::lua_to_variant(L, 4);
     luaL_checktype(L, 5, LUA_TBOOLEAN);
     bool readonly = lua_toboolean(L, 5);
     int  flags      = luaL_checkinteger(L, 6);
-    dynamic_property prop = {name, signatrue, default_value, readonly, static_cast<uint8_t>(flags)};
+    dynamic_property prop = {name, signature, default_value, readonly, static_cast<uint8_t>(flags), {}};
     interface->impl->add_property(name, std::move(prop));
     return 0;
 }
@@ -195,12 +195,12 @@ static int l_add_signal(lua_State* L) {
     if (!dbus_validate_member(name, &error)) {
         luaL_error(L, "invalid signal name");
     }
-    const char*  signatrue      = luaL_checkstring(L, 3);
-    if (!validate_dbus_signature(signatrue)) {
+    const char*  signature      = luaL_checkstring(L, 3);
+    if (!validate_dbus_signature(signature)) {
         luaL_error(L, "invalid signal signature");
     }
     int  flags      = luaL_checkinteger(L, 4);
-    dynamic_signal s = {name, signatrue, static_cast<uint8_t>(flags)};
+    dynamic_signal s = {name, signature, static_cast<uint8_t>(flags)};
     interface->impl->add_signal(name, std::move(s));
     return 0;
 }

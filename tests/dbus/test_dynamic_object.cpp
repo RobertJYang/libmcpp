@@ -13,6 +13,7 @@
 #include <gtest/gtest.h>
 #include <mc/dbus/dynamic_object.h>
 #include <mc/dbus/sd_bus.h>
+#include <mc/dbus/shm/shm_tree.h>
 #include <mc/memory.h>
 #include <mc/variant.h>
 
@@ -34,23 +35,23 @@ protected:
 
         // Create and configure first interface
         auto interface1 = mc::make_shared<dynamic_interface>("org.test.dynamic_object.Interface1");
-        dynamic_property prop1{"StringProp", "s", mc::variant("initial_value"), false, 0};
-        dynamic_property prop2{"IntProp", "i", mc::variant(42), false, 0};
-        dynamic_property prop3{"BoolProp", "b", mc::variant(true), false, 0};
+        dynamic_property prop1{"StringProp", "s", mc::variant("initial_value"), false, 0, {}};
+        dynamic_property prop2{"IntProp", "i", mc::variant(42), false, 0, {}};
+        dynamic_property prop3{"BoolProp", "b", mc::variant(true), false, 0, {}};
         interface1->add_property("StringProp", std::move(prop1));
         interface1->add_property("IntProp", std::move(prop2));
         interface1->add_property("BoolProp", std::move(prop3));
 
         // Create and configure second interface
         auto interface2 = mc::make_shared<dynamic_interface>("org.test.dynamic_object.Interface2");
-        dynamic_property prop4{"DoubleProp", "d", mc::variant(3.14), false, 0};
-        dynamic_property prop5{"ReadOnlyProp", "s", mc::variant("readonly_value"), true, 0};
+        dynamic_property prop4{"DoubleProp", "d", mc::variant(3.14), false, 0, {}};
+        dynamic_property prop5{"ReadOnlyProp", "s", mc::variant("readonly_value"), true, 0, {}};
         interface2->add_property("DoubleProp", std::move(prop4));
         interface2->add_property("ReadOnlyProp", std::move(prop5));
 
         // Create and configure third interface
         auto interface3 = mc::make_shared<dynamic_interface>("org.test.dynamic_object.Interface3");
-        dynamic_property prop6{"ArrayProp", "ai", mc::variant(mc::variants{1, 2, 3, 4}), false, 0};
+        dynamic_property prop6{"ArrayProp", "ai", mc::variant(mc::variants{1, 2, 3, 4}), false, 0, {}};
         interface3->add_property("ArrayProp", std::move(prop6));
 
         // Add interfaces to object
@@ -223,7 +224,7 @@ TEST_F(DynamicObjectTest, test_try_set_property_readonly) {
 TEST_F(DynamicObjectTest, test_multiple_interfaces_same_property_name) {
     // Add a property with same name to another interface
     auto interface4 = mc::make_shared<dynamic_interface>("org.test.dynamic_object.Interface4");
-    dynamic_property prop{"CommonProp", "s", mc::variant("interface4_value"), false, 0};
+    dynamic_property prop{"CommonProp", "s", mc::variant("interface4_value"), false, 0, {}};
     interface4->add_property("CommonProp", std::move(prop));
     test_object->add_interface(interface4);
 
@@ -281,3 +282,28 @@ TEST_F(DynamicObjectTest, test_get_all_properties) {
     auto empty_props = test_object->get_all_properties("org.test.dynamic_object.NonExistentInterface");
     EXPECT_EQ(empty_props.size(), 0u);
 }
+
+#if defined(ENABLE_CONAN_COMPILE)
+// Test update_shm_prop
+TEST_F(DynamicObjectTest, test_update_shm_prop) {
+    test_object->update_shm_prop("StringProp", mc::variant("test_update_shm_prop"), "org.test.dynamic_object.Interface1");
+    auto value_shm = shm_tree::get_property("org.test.dynamic_object", "/org/test/dynamic_object/TestObject", "org.test.dynamic_object.Interface1", "StringProp");
+    EXPECT_EQ(value_shm.as_string(), "test_update_shm_prop");
+
+    test_object->update_shm_prop("IntProp", mc::variant(69), "org.test.dynamic_object.Interface1");
+    auto value_shm2 = shm_tree::get_property("org.test.dynamic_object", "/org/test/dynamic_object/TestObject", "org.test.dynamic_object.Interface1", "IntProp");
+    EXPECT_EQ(value_shm2.as_int32(), 69);
+
+    test_object->update_shm_prop("BoolProp", mc::variant(false), "org.test.dynamic_object.Interface1");
+    auto value_shm3 = shm_tree::get_property("org.test.dynamic_object", "/org/test/dynamic_object/TestObject", "org.test.dynamic_object.Interface1", "BoolProp");
+    EXPECT_EQ(value_shm3.as_bool(), false);
+
+    test_object->update_shm_prop("ArrayProp", mc::variant(mc::variants{5, 6, 7, 8}), "org.test.dynamic_object.Interface3");
+    auto value_shm4 = shm_tree::get_property("org.test.dynamic_object", "/org/test/dynamic_object/TestObject", "org.test.dynamic_object.Interface3", "ArrayProp");
+    EXPECT_EQ(value_shm4.as_array().size(), 4u);
+    EXPECT_EQ(value_shm4.as_array()[0].as_int32(), 5);
+    EXPECT_EQ(value_shm4.as_array()[1].as_int32(), 6);
+    EXPECT_EQ(value_shm4.as_array()[2].as_int32(), 7);
+    EXPECT_EQ(value_shm4.as_array()[3].as_int32(), 8);
+}
+#endif
