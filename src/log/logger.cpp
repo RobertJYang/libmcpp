@@ -22,6 +22,7 @@
 #include <cstdarg>
 #include <cstddef>
 #include <cstdio>
+#include <cstring>
 #include <memory>
 #include <mutex>
 #include <unordered_map>
@@ -180,51 +181,6 @@ void logger::raise(const std::string& fmt_template, const mc::dict& args) {
     MC_THROW(mc::runtime_exception, msg);
 }
 
-message logger::apply_system_id(const message& msg) const {
-    // 如果设置了 system_id，在消息前面添加 [System:system_id] 前缀
-    if (m_impl->system_id != -1) {
-        // 创建新的 args，包含原有的 args 和 system_id
-        mc::dict new_args     = msg.get_args();
-        new_args["system_id"] = m_impl->system_id;
-
-        // 获取格式化后的消息内容（get_message() 会自动处理 format_template）
-        std::string formatted_msg = msg.get_message();
-
-        // 在消息前面添加包含system_id值的前缀
-        formatted_msg = "[System" + std::to_string(m_impl->system_id) + "]" + formatted_msg;
-
-        // 创建新的已格式化消息
-        message new_msg(msg.get_level(), formatted_msg, msg.get_context(), new_args);
-        new_msg.set_category(msg.get_category());
-        return new_msg;
-    }
-
-    // 没有设置 system_id，直接返回原始 message
-    return msg;
-}
-
-message logger::apply_period(const message& msg) const {
-    // 如果设置了 period_s，在日志末尾添加 period 信息
-    if (m_impl->period_s > 0) {
-        // 创建新的 args，包含原有的 args
-        mc::dict new_args  = msg.get_args();
-        new_args["period"] = m_impl->period_s;
-
-        // 获取格式化后的消息内容
-        std::string formatted_msg = msg.get_message();
-        // 在消息末尾添加 period 信息
-        formatted_msg += " [period:" + std::to_string(m_impl->period_s) + "(s)]";
-
-        // 创建新的 message，包含 period 信息
-        message new_msg(msg.get_level(), formatted_msg, msg.get_context(), new_args);
-        new_msg.set_category(msg.get_category());
-        return new_msg;
-    }
-
-    // 没有设置 period，直接返回原始 message
-    return msg;
-}
-
 static std::string make_period_log_key(int period_s, const message& msg) {
     // 说明：
     // - 优先使用 format_template 作为标识（更稳定，避免同模板不同参数导致不同标识）
@@ -273,20 +229,27 @@ void logger::log(message msg) {
         return;
     }
 
+    // 仅当 logger 配置了 system_id 或 period 时，才修改 message 的 args（添加前缀/后缀用）
+    // 未配置时本分支不执行，保持原有格式化逻辑不变，不影响未使用扩展能力的调用方
+    if (m_impl->system_id != -1 || m_impl->period_s > 0) {
+        // dict 为共享数据模型，修改前先 copy 出独立副本，避免影响其它持有同一 args 的对象
+        msg.get_args() = msg.get_args().copy();
+        if (m_impl->system_id != -1) {
+            msg.get_args()["system_id"] = m_impl->system_id;
+        }
+        if (m_impl->period_s > 0) {
+            msg.get_args()["period"] = m_impl->period_s;
+        }
+    }
+
     // 检查 period 时间间隔
     if (!should_log_period(msg)) {
         return;
     }
 
-    // 应用 system_id
-    message final_msg = apply_system_id(msg);
-
-    // 应用 period（在日志末尾添加 [period: period_s(s)]）
-    final_msg = apply_period(final_msg);
-
     // 输出日志
     for (const auto& appender : m_impl->m_appenders) {
-        appender->append(final_msg);
+        appender->append(msg);
     }
 }
 

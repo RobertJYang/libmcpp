@@ -27,6 +27,7 @@ end
 -- 导入所有测试模块
 require('shm_tree')
 require('dft')
+require('log')
 -- require('json')
 require('dbus.test_blocking')
 require('dbus.test_nonblock')

@@ -433,6 +433,17 @@ log:raise("连接失败: ${host}:${port}", "host", "127.0.0.1", "port", 8080)
 log:info("用户 ${user} 在 ${time} 登录", "user", "admin", "time", "2025-01-30 10:00:00")
 ```
 
+**扩展属性 (attrs)**
+- 最后一个参数为 table 时视为 attrs，不参与 `${key}` 替换，在日志行末尾以 key=value 形式追加；支持嵌套表，嵌套部分输出为 `key={ k2=v2 ... }`。
+
+```lua
+log:info("module_name", "request done", { trace_id = "abc-123", span_id = "span-1", count = 42 })
+log:info("module_name", "request done", {
+    trace_id = "abc-123",
+    payload = { code = 200, detail = "ok" },
+})
+```
+
 ## 使用示例
 
 ### 示例 1：基本级别与结构化

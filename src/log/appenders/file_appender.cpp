@@ -18,8 +18,13 @@
 #include <mc/log/log_level.h>
 #include <stdarg.h>
 #include <stdio.h>
+#include <ostream>
 #include <string>
 #include <syslog.h>
+#include <cerrno>
+#include <cstring>
+#include <unistd.h>
+#include <sys/stat.h>
 
 #include <logging_internal.h>
 
@@ -112,26 +117,12 @@ bool file_appender::init(const variant& args) {
             set_log_module_name_ptr(module_name.c_str());
         }
     }
-
-    // auto dict = args.as_object();
-
-    // // 获取必要的配置参数
-    // if (!dict.contains("name") || !dict.contains("filename")) {
-    //     return false;
-    // }
-
-    // m_file_config.m_name     = dict["name"].as_string();
-    // m_file_config.m_filename = dict["filename"].as_string();
-
-    // // 获取可选的配置参数
-    // if (dict.contains("truncate")) {
-    //     m_file_config.m_truncate = dict["truncate"].as_bool();
-    // }
-
-    // if (dict.contains("flush_on_write")) {
-    //     m_file_config.m_flush_on_write = dict["flush_on_write"].as_bool();
-    // }
-
+    if (dict.contains("truncate") && dict["truncate"].is_bool()) {
+        m_file_config.truncate = dict["truncate"].as<bool>();
+    }
+    if (dict.contains("flush_on_write") && dict["flush_on_write"].is_bool()) {
+        m_file_config.flush_on_write = dict["flush_on_write"].as<bool>();
+    }
     open_file();
     return true;
 }
@@ -140,7 +131,8 @@ file_appender::~file_appender() {
     close_file();
 }
 
-void append_debug(const message& msg) {
+// fallback_out：stub 环境下无 debug_log_ptr 时写入此流，供测试读文件断言
+void append_debug(const message& msg, std::ostream* fallback_out) {
     // 获取上下文信息
     const context& ctx = msg.get_context();
 
@@ -180,6 +172,14 @@ void append_debug(const message& msg) {
 
     // 第二个参数：true 限流，false 不限流（_easy）
     logging::internal_log_handler(&record, msg.get_limit());
+
+    // 有文件流时始终写入，便于测试读文件断言（与 internal_log_handler 并行）
+    if (fallback_out) {
+        std::string level_str(mc::log::to_string(msg.get_level()));
+        *fallback_out << module_name << " " << level_str << " " << file_str << "(" << ctx.m_line
+                      << "): " << message_str << "\n";
+        fallback_out->flush();
+    }
 }
 
 void get_initiator(std::string& interface, std::string& username, std::string& client_addr) {
@@ -219,7 +219,7 @@ void get_initiator_from_args(const mc::dict& args, std::string& interface_name, 
     }
 }
 
-void append_operation(const message& msg) {
+void append_operation(const message& msg, std::ostream* fallback_out) {
     // 获取上下文信息
     const context& ctx = msg.get_context();
 
@@ -251,9 +251,13 @@ void append_operation(const message& msg) {
                    interface_name.c_str(), username.c_str(), client_addr.c_str(), module_name.c_str(), message_str.c_str());
         }
     }
+    if (fallback_out) {
+        *fallback_out << module_name << " " << message_str << "\n";
+        fallback_out->flush();
+    }
 }
 
-void append_hw_stream(const message& msg) {
+void append_hw_stream(const message& msg, std::ostream* fallback_out) {
     const context& ctx = msg.get_context();
 
     std::string message_str = msg.get_message();
@@ -286,9 +290,14 @@ void append_hw_stream(const message& msg) {
                    file_str.c_str(), line_str.c_str(), message_str.c_str());
         }
     }
+    if (fallback_out) {
+        *fallback_out << module_name << " " << level_str << " " << file_str << "(" << ctx.m_line
+                      << "): " << message_str << "\n";
+        fallback_out->flush();
+    }
 }
 
-void append_running(const message& msg) {
+void append_running(const message& msg, std::ostream* fallback_out) {
     std::string message_str = msg.get_message();
     logging::filter_invalid_chars(message_str);
     std::string level_str(mc::log::to_string(msg.get_level()));
@@ -299,17 +308,24 @@ void append_running(const message& msg) {
             syslog(LOG_LOCAL3 | LOG_INFO, "%s %-5s: %s", time_str, level_str.c_str(), message_str.c_str());
         }
     }
+    if (fallback_out) {
+        *fallback_out << level_str << ": " << message_str << "\n";
+        fallback_out->flush();
+    }
 }
 
-void append_security(const message& msg) {
+void append_security(const message& msg, std::ostream* fallback_out) {
     std::string message_str = msg.get_message();
     logging::filter_invalid_chars(message_str);
     std::string level_str(mc::log::to_string(msg.get_level()));
-
     syslog(LOG_AUTHPRIV | LOG_INFO, "%s", message_str.c_str());
+    if (fallback_out) {
+        *fallback_out << message_str << "\n";
+        fallback_out->flush();
+    }
 }
 
-void append_maintenance(const message& msg) {
+void append_maintenance(const message& msg, std::ostream* fallback_out) {
     std::string message_str = msg.get_message();
     logging::filter_invalid_chars(message_str);
     std::string level_str(mc::log::to_string(msg.get_level()));
@@ -333,9 +349,17 @@ void append_maintenance(const message& msg) {
             }
         }
     }
+    if (fallback_out) {
+        if (error_code.empty()) {
+            *fallback_out << level_str << ": " << message_str << "\n";
+        } else {
+            *fallback_out << level_str << ": " << error_code << "," << message_str << "\n";
+        }
+        fallback_out->flush();
+    }
 }
 
-void append_mc_stream(const message& msg) {
+void append_mc_stream(const message& msg, std::ostream* fallback_out) {
     const context& ctx = msg.get_context();
 
     std::string message_str = msg.get_message();
@@ -368,47 +392,87 @@ void append_mc_stream(const message& msg) {
                    file_str.c_str(), line_str.c_str(), message_str.c_str());
         }
     }
+    if (fallback_out) {
+        *fallback_out << module_name << " " << level_str << " " << file_str << "(" << ctx.m_line
+                      << "): " << message_str << "\n";
+        fallback_out->flush();
+    }
 }
 
 void file_appender::append(const message& msg) {
     std::lock_guard<std::mutex> lock(m_mutex);
 
     log_category category = msg.get_category();
+    std::ostream* fallback = m_file.is_open() ? &m_file : nullptr;
     switch (category) {
     case log_category::debug:
-        append_debug(msg);
+        append_debug(msg, fallback);
         break;
     case log_category::operation:
-        // 使用全局变量中的模块名，所有 file_appender 实例共享
-        append_operation(msg);
+        append_operation(msg, fallback);
         break;
     case log_category::running:
-        append_running(msg);
+        append_running(msg, fallback);
         break;
     case log_category::maintenance:
-        append_maintenance(msg);
+        append_maintenance(msg, fallback);
         break;
     case log_category::security:
-        append_security(msg);
+        append_security(msg, fallback);
         break;
     case log_category::hw_stream:
-        append_hw_stream(msg);
+        append_hw_stream(msg, fallback);
         break;
     case log_category::mc_stream:
-        append_mc_stream(msg);
+        append_mc_stream(msg, fallback);
+        break;
+    case log_category::serial_printf:
+        // serial_printf 使用与 debug 相同的格式
+        append_debug(msg, fallback);
         break;
     default:
-        append_debug(msg);
+        append_debug(msg, fallback);
         break;
     }
 }
 
 void file_appender::set_filename(const std::string& filename) {
     std::lock_guard<std::mutex> lock(m_mutex);
-    if (m_file_config.filename != filename) {
+    
+    // 检查文件是否存在（如果文件流打开但文件被删除，需要重新打开）
+    bool file_exists = false;
+    if (!filename.empty()) {
+        struct stat st;
+        file_exists = (stat(filename.c_str(), &st) == 0);
+    }
+    
+    // 如果 filename 改变，或者文件没有打开，或者文件流状态异常，或者文件不存在，都需要重新打开
+    bool need_reopen = (m_file_config.filename != filename) || 
+                       !m_file.is_open() || 
+                       m_file.fail() || 
+                       m_file.bad() ||
+                       (!filename.empty() && !file_exists);
+    
+    if (need_reopen) {
+        std::string reopen_reason;
+        if (m_file_config.filename != filename) {
+            reopen_reason = "filename_changed";
+        } else if (!m_file.is_open()) {
+            reopen_reason = "file_not_open";
+        } else if (m_file.fail() || m_file.bad()) {
+            reopen_reason = "stream_failed";
+        } else if (!file_exists) {
+            reopen_reason = "file_deleted";
+        }
+        
         close_file();
         m_file_config.filename = filename;
         open_file();
+        // 如果文件打开失败，尝试以创建模式重新打开
+        if (!m_file.is_open()) {
+            m_file.clear();
+            m_file.open(m_file_config.filename, std::ios::out | std::ios::trunc);
+        }
     }
 }
 
@@ -447,6 +511,11 @@ void file_appender::open_file() {
         }
 
         m_file.open(m_file_config.filename, mode);
+        // 确保文件打开成功，如果失败则清除 badbit 并重试
+        if (!m_file.is_open() || m_file.fail()) {
+            m_file.clear();
+            m_file.open(m_file_config.filename, mode);
+        }
     }
 }
 

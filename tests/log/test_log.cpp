@@ -11,6 +11,7 @@
  */
 
 #include <chrono>
+#include <cstdio>
 #include <fstream>
 #include <gtest/gtest.h>
 #include <mc/dict.h>
@@ -163,6 +164,101 @@ TEST_F(LogTest, StructuredLogging) {
     EXPECT_TRUE(args2.contains("method"));
     EXPECT_TRUE(args2.contains("url"));
     EXPECT_TRUE(args2.contains("status"));
+}
+
+// 测试可选 attrs：最后一个参数是 dict 时自动作为 attrs
+TEST_F(LogTest, log_with_optional_attrs) {
+    m_test_logger.set_level(mc::log::level::info);
+
+    mc::dict attrs;
+    attrs["trace_id"] = std::string("abc-123");
+    attrs["span_id"]  = std::string("span-1");
+    attrs["count"]    = 42;
+
+    mc_ilog(m_test_logger, "count=${i}", ("i", 1), attrs);
+
+    auto& messages = m_memory_appender->get_messages();
+    ASSERT_FALSE(messages.empty());
+    auto& last_msg = messages.back();
+    EXPECT_EQ(mc::log::level::info, last_msg.get_level());
+    EXPECT_TRUE(message_contains(last_msg, "count=1"));
+    EXPECT_NE(last_msg.get_message().find("trace_id"), std::string::npos);
+    EXPECT_NE(last_msg.get_message().find("abc-123"), std::string::npos);
+    EXPECT_NE(last_msg.get_message().find("span_id"), std::string::npos);
+    EXPECT_NE(last_msg.get_message().find("span-1"), std::string::npos);
+    EXPECT_NE(last_msg.get_message().find("count"), std::string::npos);
+    EXPECT_NE(last_msg.get_message().find("42"), std::string::npos);
+    EXPECT_FALSE(last_msg.get_attrs().empty());
+    EXPECT_EQ(last_msg.get_attrs()["trace_id"].as_string(), "abc-123");
+    EXPECT_EQ(last_msg.get_attrs()["count"].as_int64(), 42);
+}
+
+// 测试可选 attrs：最后一个参数不是 dict 时，行为不变
+TEST_F(LogTest, log_without_optional_attrs) {
+    m_test_logger.set_level(mc::log::level::info);
+
+    mc_ilog(m_test_logger, "count=${i}", ("i", 1));
+
+    auto& messages = m_memory_appender->get_messages();
+    ASSERT_FALSE(messages.empty());
+    auto& last_msg = messages.back();
+    EXPECT_EQ(mc::log::level::info, last_msg.get_level());
+    EXPECT_TRUE(message_contains(last_msg, "count=1"));
+    EXPECT_TRUE(last_msg.get_attrs().empty());
+}
+
+// 测试多个格式参数 + attrs
+TEST_F(LogTest, log_with_multiple_format_args_and_attrs) {
+    m_test_logger.set_level(mc::log::level::info);
+
+    mc::dict attrs;
+    attrs["trace_id"] = std::string("abc-123");
+    attrs["span_id"]  = std::string("span-1");
+
+    // 多个格式参数 + attrs
+    mc_ilog(m_test_logger, "count=${i}, value=${a}", ("i", 1)("a", 2), attrs);
+
+    auto& messages = m_memory_appender->get_messages();
+    ASSERT_FALSE(messages.empty());
+    auto& last_msg = messages.back();
+    EXPECT_EQ(mc::log::level::info, last_msg.get_level());
+    EXPECT_TRUE(message_contains(last_msg, "count=1"));
+    EXPECT_TRUE(message_contains(last_msg, "value=2"));
+    EXPECT_NE(last_msg.get_message().find("trace_id"), std::string::npos);
+    EXPECT_NE(last_msg.get_message().find("abc-123"), std::string::npos);
+    EXPECT_FALSE(last_msg.get_attrs().empty());
+    EXPECT_EQ(last_msg.get_attrs()["trace_id"].as_string(), "abc-123");
+}
+
+// 测试多个格式参数，没有 attrs
+TEST_F(LogTest, log_with_multiple_format_args_no_attrs) {
+    m_test_logger.set_level(mc::log::level::info);
+
+    // 多个格式参数，没有 attrs
+    mc_ilog(m_test_logger, "count=${i}, value=${a}", ("i", 1)("a", 2));
+
+    auto& messages = m_memory_appender->get_messages();
+    ASSERT_FALSE(messages.empty());
+    auto& last_msg = messages.back();
+    EXPECT_EQ(mc::log::level::info, last_msg.get_level());
+    EXPECT_TRUE(message_contains(last_msg, "count=1"));
+    EXPECT_TRUE(message_contains(last_msg, "value=2"));
+    EXPECT_TRUE(last_msg.get_attrs().empty());
+}
+
+// 测试无 attrs 时行为不变
+TEST_F(LogTest, message_without_attrs_unchanged) {
+    m_test_logger.set_level(mc::log::level::info);
+
+    mc::log::message log_msg(mc::log::level::info,
+                              mc::log::context(__FILE__, __FUNCTION__, __LINE__),
+                              "no attrs", mc::dict{});
+    m_test_logger.log(log_msg);
+
+    const auto& messages = m_memory_appender->get_messages();
+    ASSERT_FALSE(messages.empty());
+    EXPECT_EQ(messages.back().get_message(), "no attrs");
+    EXPECT_TRUE(messages.back().get_attrs().empty());
 }
 
 // 测试日志级别过滤
