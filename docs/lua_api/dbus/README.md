@@ -62,6 +62,15 @@ D-Bus对象模块，包括：
 - `get_interface()` - 获取接口
 - `set_property()` / `get_property()` - 属性访问（返回错误码）
 
+#### [sd_bus.md](sd_bus.md)
+sd_bus 高级客户端模块，包括：
+- `open_user()` - 创建用户会话总线连接
+- `request_name()` - 请求服务名称
+- `add_match()` / `remove_match()` - 信号匹配规则管理
+- `register_object()` / `unregister_object()` - 动态对象注册
+- `call_shm_get_property()` - 共享内存属性访问
+- `bus` 属性 - 访问底层连接对象
+
 ## 文档结构
 
 ```
@@ -73,7 +82,8 @@ lua_api/dbus/
 ├── connection.md      # 连接对象 (~8KB)
 ├── error.md           # 错误对象 (~7KB)
 ├── interface.md       # 接口模块 (~5KB)
-└── object.md          # 对象模块 (~5KB)
+├── object.md          # 对象模块 (~5KB)
+└── sd_bus.md         # sd_bus 模块 (~8KB)
 ```
 
 ## 学习路径

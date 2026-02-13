@@ -18,6 +18,7 @@
 #include <mc/dict.h>
 #include <mc/engine/object.h>
 #include <mc/memory.h>
+#include <mc/reflect/metadata_info.h>
 #include <mc/sync/small_mutex.h>
 #include <mc/variant.h>
 #include <string>
@@ -41,7 +42,7 @@ enum class access_property_rsp_code : int {
     property_invalid_err           = -11
 };
 
-struct dynamic_method {
+struct MC_API dynamic_method {
     std::string name;
     std::string i_args;
     std::string o_args;
@@ -49,17 +50,18 @@ struct dynamic_method {
     uint8_t     flags;
 };
 
-struct dynamic_property {
-    std::string name;
-    std::string signatrue;
-    mc::variant value;
-    bool        readonly;
-    uint8_t     flags;
+struct MC_API dynamic_property {
+    std::string                  name;
+    std::string                  signature;
+    mc::variant                  value;
+    bool                         readonly;
+    uint8_t                      flags;
+    shm::weak_ptr<shm::property> shm_prop;
 };
 
-struct dynamic_signal {
+struct MC_API dynamic_signal {
     std::string name;
-    std::string signatrue;
+    std::string signature;
     uint8_t     flags;
 };
 
@@ -75,6 +77,9 @@ public:
     bool             has_property(std::string property_name) const;
     std::string_view get_name() const;
     mc::dict         get_all_properties() const;
+    void             update_shm_prop(std::string_view property_name, const mc::variant& value);
+
+    std::map<std::string, dynamic_property>& get_properties();
 
 private:
     std::map<std::string, dynamic_method>   m_methods;
@@ -88,14 +93,15 @@ class MC_API dynamic_object : public mc::engine::object_impl {
 public:
     dynamic_object(mc::core::object* parent = nullptr);
 
-    mc::variant                  get_property(std::string_view property_name, std::string_view interface_name, int options = 0) const override;
+    mc::variant                  get_property(std::string_view property_name, std::string_view interface_name,
+                                              int options = 0) const override;
     bool                         set_property(std::string_view property_name, const mc::variant& value,
                                               std::string_view interface_name) override;
     mc::dict                     get_all_properties(std::string_view interface_name = {}, int options = 0) const override;
     bool                         has_property(std::string_view property_name, std::string_view interface_name) const override;
-    std::tuple<int, mc::variant> try_get_property(std::string_view property_name, std::string_view interface_name) const;
-    int                          try_set_property(std::string_view property_name, const mc::variant& value,
-                                                  std::string_view interface_name);
+    std::tuple<int, mc::variant> try_get_property(std::string_view property_name,
+                                                  std::string_view interface_name) const;
+    int                          try_set_property(std::string_view property_name, const mc::variant& value, std::string_view interface_name);
 
     void                              add_interface(mc::shared_ptr<dynamic_interface>);
     mc::shared_ptr<dynamic_interface> get_interface(std::string intf_name) const;
@@ -103,6 +109,10 @@ public:
     std::string_view                   get_class_name() const override;
     std::string_view                   get_path_pattern() const override;
     const mc::engine::object_metadata& get_metadata() const override;
+
+    void update_shm_prop(std::string_view property_name, const mc::variant& value, std::string_view interface_name);
+
+    std::map<std::string, mc::shared_ptr<dynamic_interface>>& get_interfaces();
 
 private:
     std::map<std::string, mc::shared_ptr<dynamic_interface>> m_interfaces;

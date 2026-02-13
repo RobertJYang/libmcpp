@@ -65,16 +65,17 @@ struct dynamic_method {
 };
 
 struct dynamic_property {
-    std::string name;
-    std::string signatrue;  // DBus 类型签名
-    mc::variant value;      // 当前值
-    bool        readonly;   // 只读标志
-    uint8_t     flags;      // 预留扩展标志
+    std::string                  name;
+    std::string                  signature;  // DBus 类型签名
+    mc::variant                  value;      // 当前值
+    bool                         readonly;   // 只读标志
+    uint8_t                      flags;      // 预留扩展标志
+    shm::weak_ptr<shm::property> shm_prop;   // 共享内存属性指针（可选）
 };
 
 struct dynamic_signal {
     std::string name;
-    std::string signatrue;  // DBus 类型签名
+    std::string signature;  // DBus 类型签名
     uint8_t     flags;      // 预留扩展标志
 };
 ```
@@ -99,6 +100,7 @@ public:
     bool             has_property(std::string property_name) const;
     std::string_view get_name() const;
     mc::dict         get_all_properties() const;
+    void             update_shm_prop(std::string_view property_name, const mc::variant& value);
 };
 ```
 
@@ -118,6 +120,21 @@ public:
 
 - **get_all_properties()**  
   返回 `mc::dict` 映射：键为属性名字符串，值为 `mc::variant`。
+
+- **update_shm_prop(property_name, value)**  
+  仅更新属性的共享内存表示，不修改本地 `prop.value`。
+  
+  **行为：**
+  - 当属性存在且 `shm_prop` 有效：更新共享内存中的属性值，返回；
+  - 当属性不存在或 `shm_prop` 无效：静默返回，不执行任何操作。
+  
+  **与 `set_property` 的区别：**
+  - `set_property`：同时更新本地值（`prop.value`）和共享内存（如果 `shm_prop` 有效）；
+  - `update_shm_prop`：仅更新共享内存，不修改本地值。
+  
+  **使用场景：**
+  - 当属性已链接到共享内存，需要同步更新共享内存而不改变本地缓存时；
+  - 在属性值由外部源更新后，需要将新值同步到共享内存时。
 
 ## mc::dbus::dynamic_object
 
@@ -156,6 +173,8 @@ public:
     std::string_view                   get_class_name() const override;
     std::string_view                   get_path_pattern() const override;
     const mc::engine::object_metadata& get_metadata() const override;
+
+    void update_shm_prop(std::string_view property_name, const mc::variant& value, std::string_view interface_name);
 };
 ```
 
@@ -225,6 +244,49 @@ int dynamic_object::try_set_property(std::string_view property_name,
   返回 `static_cast<int>(access_property_rsp_code::set_property_unknown_err)`。
 
 Lua 绑定 `ldbus.object` 的 `get_property` / `set_property` 会直接将这些错误码返回给 Lua 侧（见 `src/luaclib/dbus/inner/l_object.cpp`）。
+
+#### update_shm_prop
+
+`update_shm_prop` 方法用于仅更新属性的共享内存表示，而不修改本地缓存值：
+
+```cpp
+void dynamic_object::update_shm_prop(std::string_view property_name,
+                                      const mc::variant& value,
+                                      std::string_view interface_name);
+
+void dynamic_interface::update_shm_prop(std::string_view property_name,
+                                        const mc::variant& value);
+```
+
+**行为：**
+
+- **dynamic_object::update_shm_prop**：
+  - 接口不存在：静默返回，不执行任何操作；
+  - 接口存在：调用接口的 `update_shm_prop` 方法。
+
+- **dynamic_interface::update_shm_prop**：
+  - 属性不存在：静默返回；
+  - 属性存在但 `shm_prop` 无效（`weak_ptr` 已过期或未设置）：静默返回；
+  - 属性存在且 `shm_prop` 有效：更新共享内存中的属性值，**不修改** `prop.value`。
+
+**与 `set_property` 的区别：**
+
+| 方法 | 更新本地值 | 更新共享内存 | 检查只读标志 |
+|------|-----------|-------------|-------------|
+| `set_property` | ✅ 是 | ✅ 是（如果 `shm_prop` 有效） | ✅ 是 |
+| `update_shm_prop` | ❌ 否 | ✅ 是（如果 `shm_prop` 有效） | ❌ 否 |
+
+**使用场景：**
+
+1. **外部值同步**：当属性值由外部源（如硬件读取、网络更新）更新后，需要将新值同步到共享内存，但不想覆盖本地缓存。
+2. **共享内存优先**：当属性已链接到共享内存，需要确保共享内存中的值是最新的，而本地值可能稍后更新。
+3. **性能优化**：避免不必要的本地值更新，直接更新共享内存以提高性能。
+
+**注意事项：**
+
+- `update_shm_prop` 不会检查属性的只读标志，也不会抛出异常（即使属性为只读也会更新共享内存）。
+- 如果属性未链接到共享内存（`shm_prop` 无效），此方法不会产生任何效果。
+- 此方法不会触发属性变更通知或信号。
 
 ### 元数据与对象路径
 
@@ -311,6 +373,10 @@ bus.register_object(obj);
 
 // 之后可以通过 DBus 客户端读取 /org/example/DynamicObject 上
 // org.example.Dynamic 接口的 Status 属性
+
+// 示例：更新共享内存属性（不修改本地值）
+obj->update_shm_prop("Status", mc::variant("updated_in_shm"), "org.example.Dynamic");
+// 此时共享内存中的 Status 已更新，但 obj 的本地 prop.value 仍为 "init"
 ```
 
 ## 测试

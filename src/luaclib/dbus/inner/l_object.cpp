@@ -14,8 +14,8 @@
 #include "../../utils/variant_utils.h"
 #include "l_interface.h"
 
-#include <mc/dbus/dynamic_object.h>
 #include <dbus/dbus.h>
+#include <mc/dbus/dynamic_object.h>
 
 extern "C" {
 #include <lauxlib.h>
@@ -42,8 +42,8 @@ static int l_get_property(lua_State* L) {
     const char* intf_name = luaL_checkstring(L, 2);
     const char* prop_name = luaL_checkstring(L, 3);
     try {
-        auto result = object->impl->try_get_property(prop_name, intf_name);
-        auto ret_code = std::get<0>(result);
+        auto result    = object->impl->try_get_property(prop_name, intf_name);
+        auto ret_code  = std::get<0>(result);
         auto ret_value = std::get<1>(result);
         if (ret_code == static_cast<int>(access_property_rsp_code::success)) {
             lua_pushinteger(L, ret_code);
@@ -97,11 +97,26 @@ static int l_gc_func(lua_State* L) {
     return 0;
 }
 
+static int l_update_shm_prop(lua_State* L) {
+    l_object*   object    = reinterpret_cast<l_object*>(luaL_checkudata(L, 1, OBJECT_METATABLE));
+    const char* intf_name = luaL_checkstring(L, 2);
+    const char* prop_name = luaL_checkstring(L, 3);
+    try {
+        object->impl->update_shm_prop(prop_name, mc::lua::lua_to_variant(L, 4), intf_name);
+    } catch (const mc::exception& e) {
+        return luaL_error(L, "Failed to update shm property: %s", e.what());
+    } catch (...) {
+        return luaL_error(L, "Failed to update shm property");
+    }
+    return 0;
+}
+
 // 注册 object 模块的方法表
 const luaL_Reg dbus_object_methods[] = {{"set_property", l_set_property},
                                         {"get_property", l_get_property},
                                         {"register_interface", l_register_interface},
                                         {"get_interface", l_get_interface},
+                                        {"update_shm_prop", l_update_shm_prop},
                                         {nullptr, nullptr}};
 
 // 注册 object 模块的 metatable

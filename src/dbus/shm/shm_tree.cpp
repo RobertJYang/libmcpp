@@ -1752,4 +1752,8 @@ void shm_tree::remove_match(uint64_t id) {
         slot();
     });
 }
+
+shm::object_tree* shm_tree::get_tree() const {
+    return m_tree;
+}
 } // namespace mc::dbus
