@@ -81,7 +81,7 @@ public:
     using extension_ptr_type = typename Config::extension_ptr_type;
 
     variant_base()
-        : m_uint64(0), m_type(type_id::null_type), m_is_fixed(false) {
+        : m_uint64(0), m_type(type_id::null_type), m_is_fixed(false), m_gc_bits(0) {
         static_assert(sizeof(uint64_t) >= sizeof(void*) && sizeof(uint64_t) >= sizeof(double),
                       "uint64_t 不是联合体中最大的成员");
     }
@@ -90,7 +90,7 @@ public:
     variant_base(type_id type);
 
     template <typename T, std::enable_if_t<std::is_fundamental_v<T>, int> = 0>
-    variant_base(type_id type, T val) {
+    variant_base(type_id type, T val) : m_gc_bits(0) {
         if constexpr (std::is_same_v<T, bool>) {
             m_bool = static_cast<bool>(val);
         } else if constexpr (std::is_integral_v<T> && std::is_signed_v<T>) {
@@ -114,7 +114,7 @@ public:
         : variant_base(std::string_view(str)) {
     }
     variant_base(std::string_view str)
-        : m_uint64(0), m_type(type_id::string_type), m_is_fixed(false) {
+        : m_uint64(0), m_type(type_id::string_type), m_is_fixed(false), m_gc_bits(0) {
         m_string_ptr = mc::allocate_ptr<string_type>(allocator_type(), str.data(), str.size());
     }
 
@@ -131,26 +131,26 @@ public:
         : variant_base(type_id::double_type, val) {
     }
     variant_base(const blob_type& val)
-        : m_type(type_id::blob_type), m_is_fixed(false) {
+        : m_type(type_id::blob_type), m_is_fixed(false), m_gc_bits(0) {
         m_blob_ptr =
             mc::allocate_ptr<blob_type>(allocator_type(), val.data.data(), val.data.size());
     }
 
     // 从字典构造 variant_base
     variant_base(const dict& obj)
-        : m_type(type_id::object_type), m_is_fixed(false) {
+        : m_type(type_id::object_type), m_is_fixed(false), m_gc_bits(0) {
         new (&m_object) object_type(obj);
     }
 
     // 从 array_type 构造 variant_base
     variant_base(const array_type& arr)
-        : m_type(type_id::array_type), m_is_fixed(false) {
+        : m_type(type_id::array_type), m_is_fixed(false), m_gc_bits(0) {
         new (&m_array) array_type(arr);
     }
 
     template <typename T, std::enable_if_t<std::is_base_of_v<variant_extension_base, T>, int> = 0>
     variant_base(mc::shared_ptr<T> ext)
-        : m_type(type_id::extension_type), m_is_fixed(false) {
+        : m_type(type_id::extension_type), m_is_fixed(false), m_gc_bits(0) {
         new (&m_extension) extension_ptr_type(mc::static_pointer_cast<variant_extension_base>(ext));
     }
 
@@ -1555,6 +1555,58 @@ protected:
     };
     type_id m_type;
     bool    m_is_fixed;
+    uint8_t m_gc_bits;  // GC 标志位（复用 padding）
+
+    // ==================== GC 标志操作 ====================
+
+public:
+    /**
+     * @brief 获取 GC 标志位
+     * @return GC 标志位值
+     */
+    uint8_t get_gc_bits() const noexcept {
+        return m_gc_bits;
+    }
+
+    /**
+     * @brief 设置 GC 标志位
+     * @param bits 新的标志位值
+     */
+    void set_gc_bits(uint8_t bits) noexcept {
+        m_gc_bits = bits;
+    }
+
+    /**
+     * @brief 测试 GC 标志位是否设置
+     * @param flag 要测试的标志位
+     * @return 如果设置了返回 true
+     */
+    bool test_gc_bit(uint8_t flag) const noexcept {
+        return (m_gc_bits & flag) != 0;
+    }
+
+    /**
+     * @brief 设置单个 GC 标志位
+     * @param flag 要设置的标志位
+     */
+    void set_gc_bit(uint8_t flag) noexcept {
+        m_gc_bits |= flag;
+    }
+
+    /**
+     * @brief 清除单个 GC 标志位
+     * @param flag 要清除的标志位
+     */
+    void clear_gc_bit(uint8_t flag) noexcept {
+        m_gc_bits &= ~flag;
+    }
+
+    /**
+     * @brief 重置所有 GC 标志位
+     */
+    void reset_gc_bits() noexcept {
+        m_gc_bits = 0;
+    }
 
     /**
      * @brief 判断 variant 是否需要 GC 追踪
