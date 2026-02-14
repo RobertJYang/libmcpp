@@ -59,6 +59,34 @@ mc::dict user = {
 ilog("用户信息: ${user}", ("user", user));
 ```
 
+**扩展属性 (attrs)**
+- 在消息体之外附加键值信息，不参与 `${key}` 替换，输出时以 key=value 形式追加到同一条日志行末尾；value 为嵌套 dict 时递归为 `key={ k2=v2 ... }`
+- 使用方式：最后一个参数是 `mc::dict` 类型时，自动识别为 attrs
+
+```cpp
+mc::dict attrs;
+attrs["trace_id"] = std::string("tid-123");
+attrs["span_id"]  = std::string("span-1");
+attrs["count"]    = 42;
+
+// 可选 attrs - 最后一个参数是 dict，自动作为 attrs
+// 无模板 + attrs
+ilog(logger, "request done", attrs);
+
+// 有模板 + attrs
+ilog(logger, "用户 ${user} 登录", ("user", "alice"), attrs);
+
+// 多个格式参数 + attrs
+ilog(logger, "count=${i}, value=${a}", ("i", 1)("a", 2), attrs);
+```
+
+**输出示例：**
+```cpp
+// 输入
+ilog(logger, "count=${i}", ("i", 1), attrs);
+// 输出: count=1 trace_id=tid-123 span_id=span-1 count=42
+```
+
 ## 日志系统配置
 
 ### 配置日志级别

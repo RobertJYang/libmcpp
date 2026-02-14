@@ -273,22 +273,6 @@ private:
     void log_printf(level lvl, const char* fmt, std::va_list ap);
 
     /**
-     * @brief 应用 system_id 到日志消息
-     *
-     * @param msg 原始日志消息
-     * @return message 包含 system_id 的日志消息（如果设置了 system_id）
-     */
-    message apply_system_id(const message& msg) const;
-
-    /**
-     * @brief 应用 period 到日志消息（在日志末尾添加 [period: period_s(s)]）
-     *
-     * @param msg 原始日志消息
-     * @return message 包含 period 信息的日志消息（如果设置了 period_s）
-     */
-    message apply_period(const message& msg) const;
-
-    /**
      * @brief 检查是否应该打印日志（基于 period 时间间隔）
      *
      * @param msg 原始日志消息，用于区分不同日志的周期控制
@@ -302,6 +286,7 @@ private:
 
 /**
  * @brief 记录日志
+ * 支持可选 attrs：如果最后一个参数是 mc::dict 类型，则自动作为 attrs
  */
 #define MC_LOG_BASE(LOGGER, LEVEL, ...)                     \
     do {                                                    \

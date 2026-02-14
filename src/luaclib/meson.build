@@ -96,14 +96,14 @@ if lua_dep.found()
     override_options: ['b_lundef=false'],
   )
 
-  # 编译 mc_log Lua 模块
+  # 编译 mc_log Lua 模块（依赖 lutils 以使用 lua_to_variant 解析 attrs table）
   mc_log_module = shared_module(
     'mc_log',
     mc_log_src,
     name_prefix: '',
     name_suffix: 'so',
     dependencies: lua_base_deps,
-    link_with: [libmcpp_lib],
+    link_with: [libmcpp_lib, libmcpp_lua_utils_lib],
     include_directories: [incdir, srcdir],
     install: true,
     install_dir: install_dir,

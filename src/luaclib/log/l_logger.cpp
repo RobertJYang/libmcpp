@@ -11,14 +11,19 @@
  */
 
 #include <mc/fmt/format_dict.h>
+#include <mc/log/appender_factory.h>
+#include <mc/log/appenders/file_appender.h>
 #include <mc/log/log_level.h>
 #include <mc/log/log_manager.h>
 #include <mc/log/log_message.h>
 #include <mc/log/logger.h>
 
+#include <cstdio>
 #include <lua.hpp>
-
+#include <memory>
 #include <string>
+
+#include "../utils/variant_utils.h"
 
 namespace mc {
 namespace log {
@@ -160,6 +165,58 @@ static int lua_logger_is_enabled(lua_State* L) {
     return 1;
 }
 
+#ifndef BUILD_TYPE_DT
+#define BUILD_TYPE_DT (0x0a)
+#endif
+// 仅在 DT 场景（BUILD_TYPE == BUILD_TYPE_DT）下暴露，供 DT 测试用例使用
+#if defined(BUILD_TYPE) && defined(BUILD_TYPE_DT) && (BUILD_TYPE == BUILD_TYPE_DT)
+// logger:add_file_appender(filename, truncate?, module_name?)
+// 仅用于测试：添加文件 appender，便于读文件断言日志格式
+static int lua_logger_add_file_appender(lua_State* L) {
+    logger*     log      = lua_check_logger(L, 1);
+    const char* filename = luaL_checkstring(L, 2);
+    bool        truncate = false;
+    if (lua_gettop(L) >= 3 && !lua_isnil(L, 3)) {
+        truncate = lua_toboolean(L, 3) != 0;
+    }
+    const char* module_name = nullptr;
+    if (lua_gettop(L) >= 4 && !lua_isnil(L, 4)) {
+        module_name = luaL_checkstring(L, 4);
+    }
+    if (truncate) {
+        std::remove(filename);
+    }
+    mc::dict config;
+    config["flush_on_write"] = true;
+    config["truncate"]        = truncate;
+    if (module_name != nullptr) {
+        config["module_name"] = std::string(module_name);
+    }
+    appender_ptr appender =
+        appender_factory::instance().get_or_create_appender(std::string("test_file_") + filename, "file", config);
+    if (appender) {
+        auto file_app = std::dynamic_pointer_cast<file_appender>(appender);
+        if (file_app) {
+            file_app->set_filename(filename);
+            file_app->set_flush_on_write(true);
+        }
+        log->add_appender(appender);
+        lua_pushboolean(L, true);
+    } else {
+        lua_pushboolean(L, false);
+    }
+    return 1;
+}
+
+// logger:clear_appenders()
+// 仅用于测试：清空所有 appender
+static int lua_logger_clear_appenders(lua_State* L) {
+    logger* log = lua_check_logger(L, 1);
+    log->clear_appenders();
+    return 0;
+}
+#endif // DT 场景下暴露 add_file_appender / clear_appenders
+
 // logger:system(system_id)
 // 如果传入 system_id，则设置 system_id；如果未传入参数，则重置为未设置状态（-1）
 static int lua_logger_system(lua_State* L) {
@@ -226,24 +283,35 @@ static int lua_logger_log_impl(lua_State* L, level lvl, bool limit_rate) {
     int         msg_index = 2; // 默认消息内容在索引2
 
     // 检查第一个参数（索引2）是否是 module_name
-    // 如果参数数量 >= 3 且第一个和第二个参数都是字符串，则第一个参数作为 module_name
+    // 如果参数数量 >= 3 且第一个和第二个参数都是字符串，则第一个参数作为 module_name；否则使用默认
     if (nargs >= 3 && lua_type(L, 2) == LUA_TSTRING && lua_type(L, 3) == LUA_TSTRING) {
         const char* module_name = lua_tostring(L, 2);
         args["module_name"]     = std::string(module_name);
         msg_index               = 3; // 消息内容在索引3
+    } else {
+        args["module_name"] = std::string("unknown");
     }
 
-    // 获取消息内容
+    // 获取消息内容（允许 nil，视为空字符串）
     if (msg_index > nargs) {
         return luaL_error(L, "missing message argument");
     }
-    msg = luaL_checkstring(L, msg_index);
+    msg = luaL_optstring(L, msg_index, "");
 
-    // 从消息内容之后开始解析键值对参数
+    // 若最后一个参数为 table，视为 attrs；否则仅解析键值对为 args
+    mc::dict attrs;
+    int      end_index = nargs;
+    if (nargs >= msg_index + 1 && lua_type(L, nargs) == LUA_TTABLE) {
+        mc::variant v = mc::lua::lua_to_variant(L, nargs);
+        if (v.is_object()) {
+            attrs = v.get_object();
+        }
+        end_index = nargs - 1;
+    }
+
     int start_index = msg_index + 1;
-    for (int i = start_index; i <= nargs; i++) {
-        // 支持键值对参数，格式：key, value, key, value, ...
-        if (i + 1 <= nargs && lua_type(L, i) == LUA_TSTRING) {
+    for (int i = start_index; i <= end_index; i++) {
+        if (i + 1 <= end_index && lua_type(L, i) == LUA_TSTRING) {
             const char* key = lua_tostring(L, i);
             if (lua_isnumber(L, i + 1)) {
                 args[key] = lua_tonumber(L, i + 1);
@@ -252,14 +320,12 @@ static int lua_logger_log_impl(lua_State* L, level lvl, bool limit_rate) {
             } else if (lua_isboolean(L, i + 1)) {
                 args[key] = lua_toboolean(L, i + 1) != 0;
             }
-            i++; // 跳过 value
+            i++;
         }
     }
 
-    // 创建日志消息：从 Lua 调用栈提取 file/line/function
-    // 说明：level=1 通常是 Lua 调用 log:warn(...) 的那一行
     context ctx = get_lua_call_context(L, 1);
-    message log_msg(lvl, ctx, msg, args);
+    message log_msg(lvl, ctx, msg, args, attrs);
     log_msg.set_limit(limit_rate);
     log->log(log_msg);
     return 0;
@@ -302,18 +368,26 @@ static int lua_logger_raise(lua_State* L) {
     return 0;
 }
 
-// logger:log(level, message, ...)
+// logger:log(level, message, ...) 最后一参可为 table 作为 attrs
 static int lua_logger_log(lua_State* L) {
     logger*     log = lua_check_logger(L, 1);
     int         lvl = static_cast<int>(luaL_checkinteger(L, 2));
     const char* msg = luaL_checkstring(L, 3);
 
-    // 构建参数字典
     mc::dict args;
+    args["module_name"] = std::string("unknown");
+    mc::dict attrs;
     int      nargs = lua_gettop(L);
-    for (int i = 4; i <= nargs; i++) {
-        // 支持键值对参数，格式：key, value, key, value, ...
-        if (i + 1 <= nargs && lua_type(L, i) == LUA_TSTRING) {
+    int      end_index = nargs;
+    if (nargs >= 4 && lua_type(L, nargs) == LUA_TTABLE) {
+        mc::variant v = mc::lua::lua_to_variant(L, nargs);
+        if (v.is_object()) {
+            attrs = v.get_object();
+        }
+        end_index = nargs - 1;
+    }
+    for (int i = 4; i <= end_index; i++) {
+        if (i + 1 <= end_index && lua_type(L, i) == LUA_TSTRING) {
             const char* key = lua_tostring(L, i);
             if (lua_isnumber(L, i + 1)) {
                 args[key] = lua_tonumber(L, i + 1);
@@ -322,13 +396,12 @@ static int lua_logger_log(lua_State* L) {
             } else if (lua_isboolean(L, i + 1)) {
                 args[key] = lua_toboolean(L, i + 1) != 0;
             }
-            i++; // 跳过 value
+            i++;
         }
     }
 
-    // 创建日志消息：从 Lua 调用栈提取 file/line/function
     context ctx = get_lua_call_context(L, 1);
-    message log_msg(static_cast<level>(lvl), ctx, msg, args);
+    message log_msg(static_cast<level>(lvl), ctx, msg, args, attrs);
     log->log(log_msg);
     return 0;
 }
@@ -540,6 +613,7 @@ static int lua_logger_maintenance(lua_State* L) {
 
 // 南向硬件流日志通用实现：级别 + 类别 hw_stream，参数约定与 lua_logger_log_impl 一致
 // 接口：log:hw_stream_xxx(module_name, message, ...) 或 log:hw_stream_xxx(message, ...)
+// 最后一个参数可为 table 作为 attrs
 static int lua_logger_hw_stream_impl(lua_State* L, level lvl) {
     logger* log   = lua_check_logger(L, 1);
     int     nargs = lua_gettop(L);
@@ -559,9 +633,20 @@ static int lua_logger_hw_stream_impl(lua_State* L, level lvl) {
     }
     msg = luaL_checkstring(L, msg_index);
 
+    // 若最后一个参数为 table，视为 attrs；否则仅解析键值对为 args
+    mc::dict attrs;
+    int      end_index = nargs;
+    if (nargs >= msg_index + 1 && lua_type(L, nargs) == LUA_TTABLE) {
+        mc::variant v = mc::lua::lua_to_variant(L, nargs);
+        if (v.is_object()) {
+            attrs = v.get_object();
+        }
+        end_index = nargs - 1;
+    }
+
     int start_index = msg_index + 1;
-    for (int i = start_index; i <= nargs; i++) {
-        if (i + 1 <= nargs && lua_type(L, i) == LUA_TSTRING) {
+    for (int i = start_index; i <= end_index; i++) {
+        if (i + 1 <= end_index && lua_type(L, i) == LUA_TSTRING) {
             const char* key = lua_tostring(L, i);
             if (lua_isnumber(L, i + 1)) {
                 args[key] = lua_tonumber(L, i + 1);
@@ -575,7 +660,7 @@ static int lua_logger_hw_stream_impl(lua_State* L, level lvl) {
     }
 
     context ctx = get_lua_call_context(L, 1);
-    message log_msg(lvl, ctx, msg, args);
+    message log_msg(lvl, ctx, msg, args, attrs);
     log_msg.set_category(log_category::hw_stream);
     log_msg.set_limit(true);
     log->log(log_msg);
@@ -596,6 +681,7 @@ static int lua_logger_hw_stream_error(lua_State* L) {
 }
 
 // mc 流日志通用实现：级别 + 类别 mc_stream，参数约定与 hw_stream 一致，输出到 LOG_LOCAL5
+// 最后一个参数可为 table 作为 attrs
 static int lua_logger_mc_stream_impl(lua_State* L, level lvl) {
     logger* log   = lua_check_logger(L, 1);
     int     nargs = lua_gettop(L);
@@ -615,9 +701,20 @@ static int lua_logger_mc_stream_impl(lua_State* L, level lvl) {
     }
     msg = luaL_checkstring(L, msg_index);
 
+    // 若最后一个参数为 table，视为 attrs；否则仅解析键值对为 args
+    mc::dict attrs;
+    int      end_index = nargs;
+    if (nargs >= msg_index + 1 && lua_type(L, nargs) == LUA_TTABLE) {
+        mc::variant v = mc::lua::lua_to_variant(L, nargs);
+        if (v.is_object()) {
+            attrs = v.get_object();
+        }
+        end_index = nargs - 1;
+    }
+
     int start_index = msg_index + 1;
-    for (int i = start_index; i <= nargs; i++) {
-        if (i + 1 <= nargs && lua_type(L, i) == LUA_TSTRING) {
+    for (int i = start_index; i <= end_index; i++) {
+        if (i + 1 <= end_index && lua_type(L, i) == LUA_TSTRING) {
             const char* key = lua_tostring(L, i);
             if (lua_isnumber(L, i + 1)) {
                 args[key] = lua_tonumber(L, i + 1);
@@ -631,7 +728,7 @@ static int lua_logger_mc_stream_impl(lua_State* L, level lvl) {
     }
 
     context ctx = get_lua_call_context(L, 1);
-    message log_msg(lvl, ctx, msg, args);
+    message log_msg(lvl, ctx, msg, args, attrs);
     log_msg.set_category(log_category::mc_stream);
     log_msg.set_limit(true);
     log->log(log_msg);
@@ -798,6 +895,17 @@ static void register_logger_metatable(lua_State* L) {
     lua_pushstring(L, "is_enabled");
     lua_pushcfunction(L, lua_logger_is_enabled);
     lua_settable(L, -3);
+
+    // 仅在 DT 场景下注册，供测试用例使用
+#if defined(BUILD_TYPE) && defined(BUILD_TYPE_DT) && (BUILD_TYPE == BUILD_TYPE_DT)
+    lua_pushstring(L, "add_file_appender");
+    lua_pushcfunction(L, lua_logger_add_file_appender);
+    lua_settable(L, -3);
+
+    lua_pushstring(L, "clear_appenders");
+    lua_pushcfunction(L, lua_logger_clear_appenders);
+    lua_settable(L, -3);
+#endif
 
     lua_pushstring(L, "system");
     lua_pushcfunction(L, lua_logger_system);
