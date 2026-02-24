@@ -487,7 +487,7 @@ const std::string& interface() const;
 ### 完整示例
 
 ```cpp
-#include "mdb/proxy_object.h"
+#include "mc/mdb/proxy_object.h"
 #include "introspection/introspection_cache.h"
 #include <mc/dbus/sd_bus.h>
 #include <mc/engine/context.h>

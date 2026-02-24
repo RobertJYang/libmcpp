@@ -10,10 +10,10 @@
  * See the Mulan PSL v2 for more details.
  */
 
-#include "introspection_cache.h"
-#include "introspection_parser.h"
+#include "mc/introspection/introspection_cache.h"
+#include "mc/introspection/introspection_parser.h"
 
-#include "../mdb/mdb_access.h"
+#include "mc/mdb/mdb_access.h"
 #include <mc/dbus/message.h>
 #include <mc/dbus/sd_bus.h>
 #include <mc/exception.h>

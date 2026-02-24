@@ -10,7 +10,7 @@
  * See the Mulan PSL v2 for more details.
  */
 
-#include "mdb_access.h"
+#include "mc/mdb/mdb_access.h"
 
 #include <mutex>
 
@@ -21,8 +21,8 @@
 #include <mc/mdb_service.h>
 #include <mc/variant.h>
 
-#include "../introspection/introspection_parser.h"
-#include "proxy_object.h"
+#include "mc/introspection/introspection_parser.h"
+#include "mc/mdb/proxy_object.h"
 
 using mc::dbus::connection;
 using mc::dbus::match;

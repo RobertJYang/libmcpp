@@ -16,7 +16,7 @@
 #include <mc/runtime.h>
 #include <test_utilities/test_base.h>
 
-#include "../../../src/mdb/mdb_access.h"
+#include "mc/mdb/mdb_access.h"
 
 using namespace mc;
 

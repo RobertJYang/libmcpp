@@ -16,8 +16,8 @@
 #include <mc/runtime.h>
 #include <test_utilities/test_base.h>
 
-#include "../../../src/introspection/introspection_types.h"
-#include "../../../src/mdb/proxy_object.h"
+#include "mc/introspection/introspection_types.h"
+#include "mc/mdb/proxy_object.h"
 
 using namespace mc;
 // 使用全局命名空间的 method_info 类型，避免与反射库中的 method 冲突

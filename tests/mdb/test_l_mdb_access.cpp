@@ -24,7 +24,7 @@ extern "C" {
 
 #include "../../../src/introspection/introspection_types.h"
 #include "../../../src/luaclib/mdb/l_mdb_access.h"
-#include "../../../src/mdb/proxy_object.h"
+#include "mc/mdb/proxy_object.h"
 
 using namespace mc;
 

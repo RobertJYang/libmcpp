@@ -9,10 +9,10 @@
  * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
  * See the Mulan PSL v2 for more details.
  */
-#include "proxy_object.h"
+#include "mc/mdb/proxy_object.h"
 
-#include "mdb_access.h"
-#include "mdb_validator.h"
+#include "mc/mdb/mdb_access.h"
+#include "mc/mdb/mdb_validator.h"
 #include <mc/dbus/sd_bus.h>
 #include <mc/engine/context.h>
 #include <mc/exception.h>
