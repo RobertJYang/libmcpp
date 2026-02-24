@@ -9,7 +9,7 @@
  * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
  * See the Mulan PSL v2 for more details.
  */
-#include "mdb_validator.h"
+#include "mc/mdb/mdb_validator.h"
 #include <climits>
 #include <cstdint>
 #include <mc/dbus/message.h>

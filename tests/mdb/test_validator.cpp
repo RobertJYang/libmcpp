@@ -15,7 +15,7 @@
 #include <cstdint>
 #include <stdexcept>
 
-#include "../../../src/mdb/mdb_validator.h"
+#include "mc/mdb/mdb_validator.h"
 
 // mdb_validator 类在全局命名空间，直接使用即可
 

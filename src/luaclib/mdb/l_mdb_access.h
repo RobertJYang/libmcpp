@@ -16,8 +16,8 @@
 #include <memory>
 #include <string>
 
-#include "../../mdb/mdb_access.h"
-#include "../../mdb/proxy_object.h"
+#include "mc/mdb/mdb_access.h"
+#include "mc/mdb/proxy_object.h"
 #include "../utils/variant_utils.h"
 #include <mc/dbus/connection.h>
 

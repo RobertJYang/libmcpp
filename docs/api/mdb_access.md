@@ -154,7 +154,7 @@ proxy_object* get_object_by_short_call(
 
 **示例：**
 ```cpp
-#include "mdb/mdb_access.h"
+#include "mc/mdb/mdb_access.h"
 #include <mc/dbus/sd_bus.h>
 
 mc::dbus::sd_bus* bus = ...;
@@ -210,7 +210,7 @@ proxy_object* get_object(
 
 **示例：**
 ```cpp
-#include "mdb/mdb_access.h"
+#include "mc/mdb/mdb_access.h"
 #include <mc/dbus/sd_bus.h>
 
 auto bus = std::make_unique<mc::dbus::sd_bus>(connection, false);
@@ -270,7 +270,7 @@ std::shared_ptr<proxy_object> get_object_with_service(
 
 **示例：**
 ```cpp
-#include "mdb/mdb_access.h"
+#include "mc/mdb/mdb_access.h"
 #include <mc/dbus/sd_bus.h>
 
 auto bus = std::make_unique<mc::dbus::sd_bus>(connection, false);
@@ -325,7 +325,7 @@ std::map<std::string, std::shared_ptr<proxy_object>> get_sub_objects(
 
 **示例：**
 ```cpp
-#include "mdb/mdb_access.h"
+#include "mc/mdb/mdb_access.h"
 #include <mc/dbus/sd_bus.h>
 
 auto bus = std::make_unique<mc::dbus::sd_bus>(connection, false);
@@ -381,8 +381,8 @@ for (const auto& [sub_path, obj] : sub_objects) {
 ### 完整示例
 
 ```cpp
-#include "mdb/mdb_access.h"
-#include "mdb/proxy_object.h"
+#include "mc/mdb/mdb_access.h"
+#include "mc/mdb/proxy_object.h"
 #include <mc/dbus/sd_bus.h>
 #include <mc/dbus/connection.h>
 #include <iostream>

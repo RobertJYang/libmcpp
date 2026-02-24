@@ -25,7 +25,7 @@
 
 #include "../introspection/introspection_types.h"
 
-class proxy_object {
+class MC_API proxy_object {
 public:
     // 接收指针的构造函数（用于 get_object）
     proxy_object(

@@ -22,8 +22,8 @@
 #include <mc/algorithm/lru_cache.h>
 #include <mc/dbus/sd_bus.h>
 
-#include "../introspection/introspection_cache.h"
-#include "../introspection/introspection_types.h"
+#include "mc/introspection/introspection_cache.h"
+#include "mc/introspection/introspection_types.h"
 #include "proxy_object.h"
 
 #include <mc/variant.h>
@@ -51,7 +51,7 @@ inline mc::variant convert_method_result(const mc::variants& results) {
 }
 } // namespace mdb_utils
 
-class mdb_access {
+class MC_API mdb_access {
 public:
     /**
      * @brief 获取单例实例

@@ -13,8 +13,8 @@
 #include <gtest/gtest.h>
 #include <test_utilities/test_base.h>
 
-#include "../../../src/introspection/introspection_parser.h"
-#include "../../../src/introspection/introspection_types.h"
+#include "mc/introspection/introspection_parser.h"
+#include "mc/introspection/introspection_types.h"
 
 using namespace mc;
 

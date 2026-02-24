@@ -14,7 +14,7 @@
 #include "../dbus/l_dbus_connection.h"
 #include <mc/mdb_service.h>
 
-#include "../../mdb/mdb_validator.h"
+#include "mc/mdb/mdb_validator.h"
 #include <cstring>
 #include <mc/dbus/sd_bus.h>
 #include <mc/dict.h>
