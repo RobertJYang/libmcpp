@@ -266,6 +266,17 @@ variant local_msg::parse_variant(signature_iterator it, const variant& v, size_t
 }
 
 void local_msg::append_return_args(std::string_view signature, const variant& arg) {
+    signature_iterator top_it(signature);
+    // 若返回签名为struct（），展开元素作为独立返回值，与dbus方法返回保持一致
+    if (!top_it.at_end() && top_it.current_type_code() == type_code::struct_start) {
+        std::string_view inner = signature.substr(1, signature.size() - 2);
+        m_signature            = inner;
+        MC_ASSERT(arg.is_array(),
+                  "struct return type requires array variant, signature: ${signature}",
+                  ("signature", signature));
+        m_args = parse_variant_elements(signature_iterator(inner), arg.as_array(), 0);
+        return;
+    }
     m_signature    = signature;
     size_t arg_cnt = get_signature_item_count(signature);
     if (arg_cnt <= 1) {

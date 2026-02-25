@@ -123,9 +123,22 @@ struct inintrospect_vistor : metadata_visitor {
 
         auto return_signature = info->get_result_signature();
         if (!return_signature.empty()) {
-            xml_data += "<arg type=\"";
-            xml_data += return_signature;
-            xml_data += "\" direction=\"out\" />";
+            // 若返回签名被包裹在struct（）中，展开为多个独立out参数
+            if (return_signature.size() > 1 && return_signature.front() == '(' &&
+                return_signature.back() == ')') {
+                auto content_it = mc::dbus::signature_iterator(return_signature)
+                                      .get_content_iterator();
+                while (!content_it.at_end()) {
+                    xml_data += "<arg type=\"";
+                    xml_data += content_it.current_type();
+                    xml_data += "\" direction=\"out\" />";
+                    content_it.next();
+                }
+            } else {
+                xml_data += "<arg type=\"";
+                xml_data += return_signature;
+                xml_data += "\" direction=\"out\" />";
+            }
         }
 
         xml_data += "</method>";

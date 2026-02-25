@@ -431,7 +431,18 @@ DBusHandlerResult service_impl::on_method_call(abstract_object& object, mc::dbus
             auto*                        method_info = find_method_info(ctx, object, interface_name, method_name);
             mc::dbus::signature_iterator it(method_info->get_result_signature());
             if (!it.at_end()) {
-                info.response.writer().write_variant(it, result, 0);
+                // 若返回签名为struct（），展开逐元素写入，与introspect保持一致
+                if (it.current_type_code() == mc::dbus::type_code::struct_start) {
+                    auto        content_it = it.get_content_iterator();
+                    const auto& arr        = result.get_array();
+                    for (const auto& item : arr) {
+                        mc::dbus::signature_iterator item_it(content_it.current_type());
+                        info.response.writer().write_variant(item_it, item, 0);
+                        content_it.next();
+                    }
+                } else {
+                    info.response.writer().write_variant(it, result, 0);
+                }
             }
         }
     } catch (const mc::method_call_exception& e) {
