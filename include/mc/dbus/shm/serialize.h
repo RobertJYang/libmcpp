@@ -45,6 +45,13 @@ MC_API std::string pack(const variants& args);
 MC_API variants unpack(std::string_view msg);
 
 /**
+ * @brief 序列化参数（serialize为deserialize的反操作，在pack数据前添加四字节长度头）
+ * @param args [in] 参数列表
+ * @return 返回序列化后的字符串（含四字节长度头）
+ */
+MC_API std::string serialize(const variants& args);
+
+/**
  * @brief 反序列化消息（与unpack功能相同）
  * @param msg [in] 消息字符串
  * @return 返回反序列化后的variants数组

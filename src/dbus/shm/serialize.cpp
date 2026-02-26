@@ -574,6 +574,19 @@ variants unpack(std::string_view msg) {
     return v;
 }
 
+std::string serialize(const variants& args) {
+    std::string data = pack(args);
+    // 长度头存储含头部自身的总字节数，小端序写入
+    uint32_t    sz = static_cast<uint32_t>(4 + data.size());
+    std::string result(sz, '\0');
+    result[0] = static_cast<char>(sz & 0xff);
+    result[1] = static_cast<char>((sz >> 8) & 0xff);
+    result[2] = static_cast<char>((sz >> 16) & 0xff);
+    result[3] = static_cast<char>((sz >> 24) & 0xff);
+    memcpy(result.data() + 4, data.data(), data.size());
+    return result;
+}
+
 variants deserialize(std::string_view msg) {
     // 跳过前4字节的长度头，直接处理序列化数据
     if (msg.size() < 4) {
