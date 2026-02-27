@@ -82,7 +82,7 @@ TEST_F(mdb_access_test, get_object_basic) {
     mdb_access& mgr = mdb_access::instance();
 
     // 创建 sd_bus
-    auto bus = std::make_unique<mc::dbus::sd_bus>(test_bus->get_connection(), false);
+    auto bus = std::make_shared<mc::dbus::sd_bus>(test_bus->get_connection(), false);
 
     // 如果使用 stub connection，跳过需要真实 D-Bus 服务的测试
     if (use_stub) {
@@ -113,16 +113,16 @@ TEST_F(mdb_access_test, cache_functionality) {
     }
 
     // 创建 sd_bus
-    auto bus1 = std::make_unique<mc::dbus::sd_bus>(test_bus->get_connection(), false);
-    auto bus2 = std::make_unique<mc::dbus::sd_bus>(test_bus->get_connection(), false);
+    auto bus1 = std::make_shared<mc::dbus::sd_bus>(test_bus->get_connection(), false);
+    auto bus2 = std::make_shared<mc::dbus::sd_bus>(test_bus->get_connection(), false);
 
     try {
         // 第一次获取对象
-        auto obj1 = mgr.get_object(std::move(bus1), "/org/freedesktop/DBus", "org.freedesktop.DBus");
+        auto obj1 = mgr.get_object(bus1, "/org/freedesktop/DBus", "org.freedesktop.DBus");
 
         if (obj1 != nullptr) {
             // 第二次获取相同路径的对象（应该从缓存获取）
-            auto obj2 = mgr.get_object(std::move(bus2), "/org/freedesktop/DBus", "org.freedesktop.DBus");
+            auto obj2 = mgr.get_object(bus2, "/org/freedesktop/DBus", "org.freedesktop.DBus");
 
             // 如果缓存工作正常，obj1 和 obj2 应该是同一个对象
             // 注意：由于缓存键是 path + interface，所以应该是同一个
