@@ -35,9 +35,9 @@ public:
         std::string           interface,
         const interface_info& iface_info);
 
-    // 接收 unique_ptr 的构造函数（用于 get_object）
+    // 接收 shared_ptr 的构造函数（用于 get_object）
     proxy_object(
-        std::unique_ptr<mc::dbus::sd_bus> bus,
+        std::shared_ptr<mc::dbus::sd_bus> bus,
         std::string                       service,
         std::string                       path,
         std::string                       interface,

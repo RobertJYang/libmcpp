@@ -11,7 +11,7 @@ class proxy_object {
 public:
     // 构造函数
     proxy_object(mc::dbus::sd_bus* bus, ...);
-    proxy_object(std::unique_ptr<mc::dbus::sd_bus> bus, ...);
+    proxy_object(std::shared_ptr<mc::dbus::sd_bus> bus, ...);
 
     // 接口信息查询
     const interface_info& get_interface_info() const;
@@ -71,11 +71,11 @@ proxy_object(
 
 ---
 
-### 构造函数 2：接收 unique_ptr
+### 构造函数 2：接收 shared_ptr
 
 ```cpp
 proxy_object(
-    std::unique_ptr<mc::dbus::sd_bus> bus,
+    std::shared_ptr<mc::dbus::sd_bus> bus,
     std::string                       service,
     std::string                       path,
     std::string                       interface,
@@ -84,15 +84,15 @@ proxy_object(
 ```
 
 **参数：**
-- `bus`: D-Bus 连接对象的 `unique_ptr`（所有权转移）
+- `bus`: D-Bus 连接对象的 `shared_ptr`（共享所有权）
 - `service`: 服务名称
 - `path`: 对象路径
 - `interface`: 接口名称
 - `iface_info`: 接口信息
 
 **说明：**
-- 该构造函数接收 `unique_ptr`，拥有 `sd_bus` 的所有权
-- 适用于 `mdb_access::get_object` 场景
+- 该构造函数接收 `shared_ptr`，与调用方共享 `sd_bus` 的生命周期
+- 适用于 `mdb_access::get_object` 等需要共享 bus 的场景
 
 ---
 
@@ -504,9 +504,9 @@ void example_usage() {
     );
 
     // 2. 创建代理对象
-    auto bus_ptr = std::make_unique<mc::dbus::sd_bus>(*bus);
+    auto bus_ptr = std::make_shared<mc::dbus::sd_bus>(*bus);
     proxy_object obj(
-        std::move(bus_ptr),
+        bus_ptr,
         "org.example.Service",
         "/org/example/Object",
         "org.example.Interface",
@@ -576,8 +576,8 @@ void example_usage() {
 ## 注意事项
 
 1. **生命周期管理**：
-   - 代理对象持有 `sd_bus` 的所有权（通过 `unique_ptr`）
-   - 确保 `sd_bus` 在代理对象生命周期内有效
+- 代理对象通过 `std::shared_ptr` 持有 `sd_bus`，与调用方共享所有权
+- 确保至少有一方在代理对象生命周期内持有有效的 `shared_ptr`
 
 2. **线程安全**：
    - `proxy_object` 不是线程安全的

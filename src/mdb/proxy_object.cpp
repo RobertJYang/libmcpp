@@ -35,8 +35,8 @@ proxy_object::proxy_object(mc::dbus::sd_bus*     bus,
       m_iface_info(iface_info) {
 }
 
-// 接收 unique_ptr 的构造函数
-proxy_object::proxy_object(std::unique_ptr<mc::dbus::sd_bus> bus,
+// 接收 shared_ptr 的构造函数
+proxy_object::proxy_object(std::shared_ptr<mc::dbus::sd_bus> bus,
                            std::string                       service,
                            std::string                       path,
                            std::string                       interface,

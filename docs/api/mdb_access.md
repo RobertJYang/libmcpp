@@ -17,18 +17,18 @@ public:
         const std::string& interface);
 
     std::shared_ptr<proxy_object> get_object(
-        std::unique_ptr<mc::dbus::sd_bus> bus,
+        std::shared_ptr<mc::dbus::sd_bus> bus,
         const std::string&                path,
         const std::string&                interface);
 
     std::shared_ptr<proxy_object> get_object_with_service(
-        std::unique_ptr<mc::dbus::sd_bus> bus,
+        std::shared_ptr<mc::dbus::sd_bus> bus,
         const std::string&                service,
         const std::string&                path,
         const std::string&                interface);
 
     std::map<std::string, std::shared_ptr<proxy_object>> get_sub_objects(
-        std::unique_ptr<mc::dbus::sd_bus> bus,
+        std::shared_ptr<mc::dbus::sd_bus> bus,
         const std::string&                path,
         const std::string&                interface,
         int32_t                           depth = 1);
@@ -177,15 +177,15 @@ mc::variant value = obj->get_property("Name");
 获取指定路径和接口的代理对象。
 
 ```cpp
-proxy_object* get_object(
-    std::unique_ptr<mc::dbus::sd_bus> bus,
+std::shared_ptr<proxy_object> get_object(
+    std::shared_ptr<mc::dbus::sd_bus> bus,
     const std::string&                path,
     const std::string&                interface
 );
 ```
 
 **参数：**
-- `bus`: D-Bus 连接对象的 `unique_ptr`（所有权转移）
+- `bus`: D-Bus 连接对象的 `shared_ptr`（共享所有权）
 - `path`: 对象路径，例如 `"/org/example/Object"`
 - `interface`: 接口名称，例如 `"org.example.Interface"`
 
@@ -193,7 +193,7 @@ proxy_object* get_object(
 - `std::shared_ptr<proxy_object>`: 代理对象的智能指针
 
 **说明：**
-- 接收 `unique_ptr<sd_bus>`，确保 `sd_bus` 的生命周期由代理对象管理
+- 接收 `shared_ptr<sd_bus>`，由调用方与代理对象、缓存等共同管理 `sd_bus` 生命周期
 - 首先检查缓存，如果缓存中存在且连接有效，则直接返回
 - 如果缓存中不存在或连接无效，则：
   1. 调用 `mdb::service::get_object` 获取服务名称
@@ -234,7 +234,7 @@ mc::variant value = obj->get_property("Name");
 
 ```cpp
 std::shared_ptr<proxy_object> get_object_with_service(
-    std::unique_ptr<mc::dbus::sd_bus> bus,
+    std::shared_ptr<mc::dbus::sd_bus> bus,
     const std::string&                service,
     const std::string&                path,
     const std::string&                interface
@@ -242,7 +242,7 @@ std::shared_ptr<proxy_object> get_object_with_service(
 ```
 
 **参数：**
-- `bus`: D-Bus 连接对象的 `unique_ptr`（所有权转移）
+- `bus`: D-Bus 连接对象的 `shared_ptr`（共享所有权）
 - `service`: 服务名称，例如 `"org.example.Service"`
 - `path`: 对象路径，例如 `"/org/example/Object"`
 - `interface`: 接口名称，例如 `"org.example.Interface"`
@@ -296,7 +296,7 @@ mc::variant value = obj->get_property("Name");
 
 ```cpp
 std::map<std::string, std::shared_ptr<proxy_object>> get_sub_objects(
-    std::unique_ptr<mc::dbus::sd_bus> bus,
+    std::shared_ptr<mc::dbus::sd_bus> bus,
     const std::string&                path,
     const std::string&                interface,
     int32_t                           depth = 1
@@ -304,7 +304,7 @@ std::map<std::string, std::shared_ptr<proxy_object>> get_sub_objects(
 ```
 
 **参数：**
-- `bus`: D-Bus 连接对象的 `unique_ptr`（所有权转移）
+- `bus`: D-Bus 连接对象的 `shared_ptr`（共享所有权）
 - `path`: 父路径，例如 `"/org/example"`
 - `interface`: 接口名称，例如 `"org.example.Interface"`
 - `depth`: 递归深度，默认为 1
@@ -409,37 +409,37 @@ void example_usage() {
         std::cout << "Name: " << name.as_string() << std::endl;
     }
 
-    // 4. 获取代理对象（使用 unique_ptr，会缓存）
-    auto bus_ptr = std::make_unique<mc::dbus::sd_bus>(bus.get_connection(), false);
+    // 4. 获取代理对象（使用 shared_ptr，会缓存）
+    auto bus_ptr = std::make_shared<mc::dbus::sd_bus>(bus.get_connection(), false);
     auto obj2 = mgr.get_object(
-        std::move(bus_ptr),
+        bus_ptr,
         "/org/example/Object",
         "org.example.Interface"
     );
     // obj2 会被缓存
 
     // 5. 再次获取相同对象（会从缓存返回）
-    auto bus_ptr2 = std::make_unique<mc::dbus::sd_bus>(bus.get_connection(), false);
+    auto bus_ptr2 = std::make_shared<mc::dbus::sd_bus>(bus.get_connection(), false);
     auto obj3 = mgr.get_object(
-        std::move(bus_ptr2),
+        bus_ptr2,
         "/org/example/Object",
         "org.example.Interface"
     );
     // obj2 和 obj3 指向同一个对象（如果缓存命中）
 
     // 6. 使用 get_object_with_service（已知 service 名称）
-    auto bus_ptr3 = std::make_unique<mc::dbus::sd_bus>(bus.get_connection(), false);
+    auto bus_ptr3 = std::make_shared<mc::dbus::sd_bus>(bus.get_connection(), false);
     auto obj4 = mgr.get_object_with_service(
-        std::move(bus_ptr3),
+        bus_ptr3,
         "org.example.Service",  // 直接指定 service 名称
         "/org/example/Object",
         "org.example.Interface"
     );
 
     // 7. 获取子对象
-    auto bus_ptr4 = std::make_unique<mc::dbus::sd_bus>(bus.get_connection(), false);
+    auto bus_ptr4 = std::make_shared<mc::dbus::sd_bus>(bus.get_connection(), false);
     auto sub_objects = mgr.get_sub_objects(
-        std::move(bus_ptr4),
+        bus_ptr4,
         "/org/example",
         "org.example.Interface",
         1
@@ -495,9 +495,9 @@ void example_usage() {
    - 如果 D-Bus 对象的接口发生变化，可以使用 `clear_cache()` 手动清理缓存
 
 4. **连接管理**：
-   - `get_object_by_short_call` 方法不拥有 `bus` 的所有权，需要确保 `bus` 在对象使用期间有效
-   - `get_object` 和 `get_object_with_service` 方法拥有 `bus` 的所有权，`bus` 的生命周期由代理对象管理
-   - `get_sub_objects` 方法会为每个子对象创建新的 `sd_bus` 实例（基于原始连接）
+- `get_object_by_short_call` 方法不拥有 `bus` 的所有权，需要确保 `bus` 在对象使用期间有效
+- `get_object` 和 `get_object_with_service` 方法通过 `shared_ptr` 共享 `bus` 的所有权，`bus` 的生命周期由代理对象、缓存和调用方共同管理
+- `get_sub_objects` 方法会为每个子对象创建新的 `sd_bus` 实例（基于原始连接），同样通过 `shared_ptr` 管理
    - 在阻塞模式下，会跳过 `is_connected()` 判断且不缓存对象；在非阻塞模式下，需要检查连接是否有效并缓存对象
 
 5. **性能考虑**：

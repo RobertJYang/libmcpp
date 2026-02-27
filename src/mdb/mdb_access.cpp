@@ -79,7 +79,7 @@ std::shared_ptr<proxy_object> mdb_access::get_object_by_short_call(mc::dbus::sd_
     return std::make_shared<proxy_object>(bus, service, path, interface, iface_info);
 }
 
-std::shared_ptr<proxy_object> mdb_access::get_object(std::unique_ptr<mc::dbus::sd_bus> bus,
+std::shared_ptr<proxy_object> mdb_access::get_object(std::shared_ptr<mc::dbus::sd_bus> bus,
                                                        const std::string&                path,
                                                        const std::string&                interface) {
     std::string cache_key = path + interface;
@@ -108,11 +108,10 @@ std::shared_ptr<proxy_object> mdb_access::get_object(std::unique_ptr<mc::dbus::s
     const interface_info& iface_info =
         introspection_cache::instance().get_interface(bus.get(), service, path, interface);
 
-    // 在 move bus 之前保存是否为阻塞模式
+    // 在缓存前保存是否为阻塞模式
     bool is_blocking = bus->is_blocking();
 
-    // 使用 shared_ptr 管理内存，并将 unique_ptr 移入
-    auto obj = std::make_shared<proxy_object>(std::move(bus), service, path, interface, iface_info);
+    auto obj = std::make_shared<proxy_object>(bus, service, path, interface, iface_info);
 
     // 缓存对象（需要加锁）
     // 如果是阻塞模式，不缓存对象
@@ -125,7 +124,7 @@ std::shared_ptr<proxy_object> mdb_access::get_object(std::unique_ptr<mc::dbus::s
 }
 
 std::shared_ptr<proxy_object> mdb_access::get_object_with_service(
-    std::unique_ptr<mc::dbus::sd_bus> bus,
+    std::shared_ptr<mc::dbus::sd_bus> bus,
     const std::string&                service,
     const std::string&                path,
     const std::string&                interface) {
@@ -151,11 +150,10 @@ std::shared_ptr<proxy_object> mdb_access::get_object_with_service(
     const interface_info& iface_info =
         introspection_cache::instance().get_interface(bus.get(), service, path, interface);
 
-    // 在 move bus 之前保存是否为阻塞模式
+    // 在缓存前保存是否为阻塞模式
     bool is_blocking = bus->is_blocking();
 
-    // 使用 shared_ptr 管理内存，并将 unique_ptr 移入
-    auto obj = std::make_shared<proxy_object>(std::move(bus), service, path, interface, iface_info);
+    auto obj = std::make_shared<proxy_object>(bus, service, path, interface, iface_info);
 
     // 缓存对象（需要加锁）
     // 如果是阻塞模式，不缓存对象
@@ -168,13 +166,13 @@ std::shared_ptr<proxy_object> mdb_access::get_object_with_service(
 }
 
 std::map<std::string, std::shared_ptr<proxy_object>> mdb_access::get_sub_objects(
-    std::unique_ptr<mc::dbus::sd_bus> bus,
+    std::shared_ptr<mc::dbus::sd_bus> bus,
     const std::string&                path,
     const std::string&                interface,
     int32_t                           depth) {
     // 在 move bus 之前保存 connection 和 is_blocking 信息
-    mc::dbus::connection conn = bus->get_connection();
-    bool                  is_blocking = bus->is_blocking();
+    mc::dbus::connection conn        = bus->get_connection();
+    bool                 is_blocking = bus->is_blocking();
 
     // 调用 mdb_service.get_sub_paths 获取子路径列表
     mc::variants interfaces = {mc::variant(interface)};
@@ -212,10 +210,9 @@ std::map<std::string, std::shared_ptr<proxy_object>> mdb_access::get_sub_objects
 
         std::string sub_path = path_variant.as_string();
         try {
-            // 为每个路径创建新的 sd_bus 对象（因为 get_object 需要 unique_ptr）
             // connection 内部使用 shared_ptr，拷贝会增加引用计数
-            auto sub_bus = std::make_unique<mc::dbus::sd_bus>(conn, is_blocking);
-            auto obj     = get_object(std::move(sub_bus), sub_path, interface);
+            auto sub_bus = std::make_shared<mc::dbus::sd_bus>(conn, is_blocking);
+            auto obj     = get_object(sub_bus, sub_path, interface);
             if (obj) {
                 result_map.emplace(sub_path, obj);
             }

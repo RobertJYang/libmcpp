@@ -232,19 +232,17 @@ static int proxy_object_pcall_closure(lua_State* L) {
 
 // 辅助函数：从 CONNECTION_METATABLE userdata 创建临时 sd_bus
 // 注意：传入 connection 的拷贝（shared_ptr 共享底层 connection_impl）
-static std::unique_ptr<mc::dbus::sd_bus> create_sd_bus_from_lua(lua_State* L, int index) {
+static std::shared_ptr<mc::dbus::sd_bus> create_sd_bus_from_lua(lua_State* L, int index) {
     auto* wrapper = mc::dbus::lua::check_connection(L, index);
     if (!wrapper || !wrapper->conn_ptr) {
         luaL_error(L, "无效的 connection 对象");
         return nullptr;
     }
 
-    // 获取 connection 的引用，然后拷贝（不使用 move）
-    // connection 内部使用 shared_ptr，拷贝会增加引用计数
+
     mc::dbus::connection conn = wrapper->get();
 
-    // 创建 sd_bus，构造函数会 move 这个拷贝
-    return std::make_unique<mc::dbus::sd_bus>(conn, true);
+    return std::make_shared<mc::dbus::sd_bus>(conn, true);
 }
 
 // is_volatile 闭包函数
@@ -544,9 +542,8 @@ static int mdb_access_get_object(lua_State* L) {
         // 参数3: interface (string)
         const char* interface = luaL_checkstring(L, 3);
 
-        // 调用 mdb_access，传递 unique_ptr 以保证 sd_bus 生命周期
         auto&                    obj_mgr = mdb_access::instance();
-        std::shared_ptr<proxy_object> obj = obj_mgr.get_object(std::move(bus), path, interface);
+        std::shared_ptr<proxy_object> obj = obj_mgr.get_object(bus, path, interface);
 
         // 将代理对象推入 Lua 栈
         return push_proxy_object(L, obj);
@@ -604,9 +601,8 @@ static int mdb_access_get_object_with_service(lua_State* L) {
         // 参数4: interface (string)
         const char* interface = luaL_checkstring(L, 4);
 
-        // 调用 mdb_access::get_object_with_service，传递 unique_ptr 以保证 sd_bus 生命周期
         auto&                    obj_mgr = mdb_access::instance();
-        std::shared_ptr<proxy_object> obj = obj_mgr.get_object_with_service(std::move(bus), service, path, interface);
+        std::shared_ptr<proxy_object> obj = obj_mgr.get_object_with_service(bus, service, path, interface);
 
         // 将代理对象推入 Lua 栈
         return push_proxy_object(L, obj);
@@ -634,7 +630,7 @@ static int mdb_access_get_all(lua_State* L) {
 
         // 调用 mdb_access 获取代理对象
         auto&                    obj_mgr = mdb_access::instance();
-        std::shared_ptr<proxy_object> obj = obj_mgr.get_object(std::move(bus), path, interface);
+        std::shared_ptr<proxy_object> obj = obj_mgr.get_object(bus, path, interface);
 
         // 获取所有属性
         mc::dict props = obj->get_all_properties();
@@ -677,7 +673,7 @@ static int mdb_access_get_properties(lua_State* L) {
 
         // 调用 mdb_access 获取代理对象
         auto&                    obj_mgr = mdb_access::instance();
-        std::shared_ptr<proxy_object> obj = obj_mgr.get_object(std::move(bus), path, interface);
+        std::shared_ptr<proxy_object> obj = obj_mgr.get_object(bus, path, interface);
 
         // 读取属性名列表
         mc::variants prop_names;
@@ -834,8 +830,8 @@ static int mdb_access_get_sub_objects(lua_State* L) {
         }
 
         // 调用 mdb_access C++ 方法获取子对象
-        auto& obj_mgr = mdb_access::instance();
-        auto  sub_objects = obj_mgr.get_sub_objects(std::move(bus), path, interface, depth);
+        auto& obj_mgr     = mdb_access::instance();
+        auto  sub_objects = obj_mgr.get_sub_objects(bus, path, interface, depth);
 
         // 创建 Lua table，以路径为键，对象为值
         lua_createtable(L, 0, static_cast<int>(sub_objects.size()));
