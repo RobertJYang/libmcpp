@@ -81,8 +81,9 @@ void properties_interface::set(std::string_view interface_name, std::string_view
 
 struct inintrospect_vistor : metadata_visitor {
     void handle_interface_begin(const interface_metadata& iface) override {
+        current_interface_name = iface.metadata->get_class_name();
         xml_data += "<interface name=\"";
-        xml_data += iface.metadata->get_class_name();
+        xml_data += current_interface_name;
         xml_data += "\">";
     }
 
@@ -123,11 +124,13 @@ struct inintrospect_vistor : metadata_visitor {
 
         auto return_signature = info->get_result_signature();
         if (!return_signature.empty()) {
-            // 若返回签名被包裹在struct（）中，展开为多个独立out参数
-            if (return_signature.size() > 1 && return_signature.front() == '(' &&
-                return_signature.back() == ')') {
-                auto content_it = mc::dbus::signature_iterator(return_signature)
-                                      .get_content_iterator();
+            // 仅针对 bmc.kepler.ObjectGroup.GetBinaryObjects 展开 struct 为多个 out 参数，其他统一单参数
+            bool expand_struct =
+                (current_interface_name == "bmc.kepler.ObjectGroup" && info->name == "GetBinaryObjects") &&
+                return_signature.size() > 1 && return_signature.front() == '(' &&
+                return_signature.back() == ')';
+            if (expand_struct) {
+                auto content_it = mc::dbus::signature_iterator(return_signature).get_content_iterator();
                 while (!content_it.at_end()) {
                     xml_data += "<arg type=\"";
                     xml_data += content_it.current_type();
@@ -193,6 +196,7 @@ struct inintrospect_vistor : metadata_visitor {
     }
 
     std::string xml_data;
+    std::string current_interface_name;
 };
 
 introspectable_interface& introspectable_interface::get_instance() {

@@ -18,7 +18,9 @@
 #include <mc/dict.h>
 #include <mc/exception.h>
 #include <mc/json.h>
+#if ENABLE_CONAN_COMPILE
 #include <mc/json_wrapper.h>
+#endif
 #include <mc/variant.h>
 #include <sstream>
 
@@ -621,8 +623,13 @@ private:
 // 实现json_encode函数
 std::string json_encode(const variant& value, const json_encode_options& options) {
     try {
+#if ENABLE_CONAN_COMPILE
         // 只使用 options 中的 pretty_print 字段
         return json_wrapper::json_encode(value, options.pretty_print);
+#else
+        encoder enc(options);
+        return enc.encode(value);
+#endif
     } catch (const mc::parse_error_exception&) {
         // 如果已经是parse_error_exception，直接重新抛出
         throw;
@@ -634,8 +641,14 @@ std::string json_encode(const variant& value, const json_encode_options& options
 
 std::string json_encode(const dict& obj, const json_encode_options& options) {
     try {
+#if ENABLE_CONAN_COMPILE
         // 只使用 options 中的 pretty_print 字段
         return json_wrapper::json_encode(obj, options.pretty_print);
+#else
+        encoder enc(options);
+        enc.encode_object(obj);
+        return enc.get_result();
+#endif
     } catch (const mc::parse_error_exception&) {
         throw;
     } catch (const std::exception& e) {
@@ -645,8 +658,14 @@ std::string json_encode(const dict& obj, const json_encode_options& options) {
 
 std::string json_encode(const std::vector<variant>& arr, const json_encode_options& options) {
     try {
+#if ENABLE_CONAN_COMPILE
         // 只使用 options 中的 pretty_print 字段
         return json_wrapper::json_encode(arr, options.pretty_print);
+#else
+        encoder enc(options);
+        enc.encode_array(arr);
+        return enc.get_result();
+#endif
     } catch (const mc::parse_error_exception&) {
         throw;
     } catch (const std::exception& e) {
@@ -657,8 +676,13 @@ std::string json_encode(const std::vector<variant>& arr, const json_encode_optio
 // 实现json_decode函数
 mc::variant json_decode(std::string_view json, const json_decode_options& options) {
     try {
-        (void)options;  // json_wrapper 实现忽略 options 参数
+#if ENABLE_CONAN_COMPILE
+        (void)options; // json_wrapper 实现忽略 options 参数
         return mc::json_wrapper::json_decode(json);
+#else
+        decoder dec(json, options);
+        return dec.decode();
+#endif
     } catch (const mc::parse_error_exception&) {
         throw;
     } catch (const std::exception& e) {
