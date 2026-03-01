@@ -18,6 +18,8 @@
 #include <gtest/gtest.h>
 #include <limits>
 #include <mc/validate/validator.h>
+#include <mc/error.h>
+#include <mc/exception.h>
 
 using namespace mc::validate;
 
@@ -72,12 +74,14 @@ TEST(ValidatorTest, FormatNameAndValue) {
  * |---------|------------|------------|-------------|------|
  * | 数字    | 是          | 是          | false       | 通过 |
  * | 数字    | 是          | 是          | true        | 通过 |
- * | 数字    | 是          | 否          | false       | property_value_out_of_range |
- * | 数字    | 是          | 否          | true        | property_value_out_of_range |
- * | 数字    | 否          | -           | false       | property_value_type_error |
- * | 数字    | 否          | -           | true        | property_value_type_error |
- * | NaN     | -           | -           | false       | property_value_type_error |
- * | NaN     | -           | -           | true        | property_value_type_error |
+ * | 数字    | 是          | 否          | false       | error_exception (PropertyValueOutOfRange) |
+ * | 数字    | 是          | 否          | true        | error_exception (PropertyValueOutOfRange) |
+ * | 数字    | 否          | -           | false       | error_exception (PropertyValueTypeError) |
+ * | 数字    | 否          | -           | true        | error_exception (PropertyValueTypeError) |
+ * | NaN     | -           | -           | false       | error_exception (PropertyValueTypeError) |
+ * | NaN     | -           | -           | true        | error_exception (PropertyValueTypeError) |
+ *
+ * 注意：实现使用 MC_THROW_ERROR 抛出 mc::error_exception
  */
 TEST(ValidatorTest, CheckInteger) {
     // 情况1: 整数，范围内，need_convert = false
@@ -94,31 +98,31 @@ TEST(ValidatorTest, CheckInteger) {
 
     // 情况5: 整数，小于 min，need_convert = false
     EXPECT_THROW(validator::check_integer("Prop1", -1.0, 0.0, 100.0, false),
-                 property_value_out_of_range);
+                 mc::error_exception);
 
     // 情况6: 整数，大于 max，need_convert = false
     EXPECT_THROW(validator::check_integer("Prop1", 101.0, 0.0, 100.0, false),
-                 property_value_out_of_range);
+                 mc::error_exception);
 
     // 情况7: 整数，小于 min，need_convert = true
     EXPECT_THROW(validator::check_integer("Prop1", -1.0, 0.0, 100.0, true),
-                 property_value_out_of_range);
+                 mc::error_exception);
 
     // 情况8: 浮点数（非整数），need_convert = false
     EXPECT_THROW(validator::check_integer("Prop1", 3.14, 0.0, 100.0, false),
-                 property_value_type_error);
+                 mc::error_exception);
 
     // 情况9: 浮点数（非整数），need_convert = true
     EXPECT_THROW(validator::check_integer("Prop1", 3.14, 0.0, 100.0, true),
-                 property_value_type_error);
+                 mc::error_exception);
 
     // 情况10: NaN，need_convert = false
     EXPECT_THROW(validator::check_integer("Prop1", std::nan(""), 0.0, 100.0, false),
-                 property_value_type_error);
+                 mc::error_exception);
 
     // 情况11: NaN，need_convert = true
     EXPECT_THROW(validator::check_integer("Prop1", std::nan(""), 0.0, 100.0, true),
-                 property_value_type_error);
+                 mc::error_exception);
 
     // 情况12: 整数 0.0（边界情况）
     EXPECT_NO_THROW(validator::check_integer("Prop1", 0.0, 0.0, 100.0, false));
@@ -131,16 +135,14 @@ TEST(ValidatorTest, CheckInteger) {
  * @brief ranges 决策表测试
  *
  * 决策表：
- * | val 在范围内 | allow_nil | need_convert | 结果 |
- * |------------|----------|-------------|------|
- * | 是          | false    | false       | 通过 |
- * | 是          | false    | true        | 通过 |
- * | 是          | true     | false       | 通过 |
- * | 是          | true     | true        | 通过 |
- * | 否          | false    | false       | property_value_out_of_range |
- * | 否          | false    | true        | property_value_out_of_range |
- * | 否          | true     | false       | property_value_out_of_range |
- * | 否          | true     | true        | property_value_out_of_range |
+ * | val 在范围内 | need_convert | 结果 |
+ * |------------|-------------|------|
+ * | 是          | false       | 通过 |
+ * | 是          | true        | 通过 |
+ * | 否          | false       | error_exception (PropertyValueOutOfRange) |
+ * | 否          | true        | error_exception (PropertyValueOutOfRange) |
+ *
+ * 注意：实现使用 MC_THROW_ERROR 抛出 mc::error_exception
  */
 TEST(ValidatorTest, Ranges) {
     // 情况1: 范围内，allow_nil = false，need_convert = false
@@ -163,19 +165,19 @@ TEST(ValidatorTest, Ranges) {
 
     // 情况7: 小于 min，allow_nil = false，need_convert = false
     EXPECT_THROW(validator::ranges("Prop1", -1.0, 0.0, 100.0, false, false),
-                 property_value_out_of_range);
+                 mc::error_exception);
 
     // 情况8: 大于 max，allow_nil = false，need_convert = false
     EXPECT_THROW(validator::ranges("Prop1", 101.0, 0.0, 100.0, false, false),
-                 property_value_out_of_range);
+                 mc::error_exception);
 
     // 情况9: 小于 min，allow_nil = false，need_convert = true
     EXPECT_THROW(validator::ranges("Prop1", -1.0, 0.0, 100.0, true, false),
-                 property_value_out_of_range);
+                 mc::error_exception);
 
     // 情况10: 大于 max，allow_nil = true，need_convert = false
     EXPECT_THROW(validator::ranges("Prop1", 101.0, 0.0, 100.0, false, true),
-                 property_value_out_of_range);
+                 mc::error_exception);
 
     // 情况11: 浮点数（允许）
     EXPECT_NO_THROW(validator::ranges("Prop1", 3.14, 0.0, 10.0, false, false));
@@ -188,20 +190,16 @@ TEST(ValidatorTest, Ranges) {
  * @brief lens 决策表测试
  *
  * 决策表：
- * | 长度关系 | allow_nil | need_convert | 结果 |
- * |---------|----------|-------------|------|
- * | 正常     | false    | false       | 通过 |
- * | 正常     | false    | true        | 通过 |
- * | 正常     | true     | false       | 通过 |
- * | 正常     | true     | true        | 通过 |
- * | 过短     | false    | false       | string_length_error |
- * | 过短     | false    | true        | string_length_error |
- * | 过短     | true     | false       | string_length_error |
- * | 过短     | true     | true        | string_length_error |
- * | 过长     | false    | false       | string_length_error |
- * | 过长     | false    | true        | string_length_error |
- * | 过长     | true     | false       | string_length_error |
- * | 过长     | true     | true        | string_length_error |
+ * | 长度关系 | need_convert | 结果 |
+ * |---------|-------------|------|
+ * | 正常     | false       | 通过 |
+ * | 正常     | true        | 通过 |
+ * | 过短     | false       | error_exception (StringValueTooShort) |
+ * | 过短     | true        | error_exception (StringValueTooShort) |
+ * | 过长     | false       | error_exception (StringValueTooLong) |
+ * | 过长     | true        | error_exception (StringValueTooLong) |
+ *
+ * 注意：实现使用 MC_THROW_ERROR 抛出 mc::error_exception
  */
 TEST(ValidatorTest, Lens) {
     // 情况1: 长度正常，allow_nil = false，need_convert = false
@@ -223,18 +221,18 @@ TEST(ValidatorTest, Lens) {
     EXPECT_NO_THROW(validator::lens("Prop1", "1234567890", 1, 10, false, false));
 
     // 情况7: 长度过短，allow_nil = false，need_convert = false
-    EXPECT_THROW(validator::lens("Prop1", "", 1, 10, false, false), string_length_error);
+    EXPECT_THROW(validator::lens("Prop1", "", 1, 10, false, false), mc::error_exception);
 
     // 情况8: 长度过长，allow_nil = false，need_convert = false
     EXPECT_THROW(validator::lens("Prop1", "12345678901", 1, 10, false, false),
-                 string_length_error);
+                 mc::error_exception);
 
     // 情况9: 长度过短，allow_nil = false，need_convert = true
-    EXPECT_THROW(validator::lens("Prop1", "", 1, 10, true, false), string_length_error);
+    EXPECT_THROW(validator::lens("Prop1", "", 1, 10, true, false), mc::error_exception);
 
     // 情况10: 长度过长，allow_nil = true，need_convert = false
     EXPECT_THROW(validator::lens("Prop1", "12345678901", 1, 10, false, true),
-                 string_length_error);
+                 mc::error_exception);
 
     // 情况11: 空字符串，min = 0
     EXPECT_NO_THROW(validator::lens("Prop1", "", 0, 10, false, false));
@@ -247,20 +245,16 @@ TEST(ValidatorTest, Lens) {
  * @brief regex 决策表测试
  *
  * 决策表：
- * | 正则编译 | 匹配结果 | allow_nil | need_convert | 结果 |
- * |---------|---------|----------|-------------|------|
- * | 成功     | 匹配     | false    | false       | 通过 |
- * | 成功     | 匹配     | false    | true        | 通过 |
- * | 成功     | 匹配     | true     | false       | 通过 |
- * | 成功     | 匹配     | true     | true        | 通过 |
- * | 成功     | 不匹配   | false    | false       | format_error |
- * | 成功     | 不匹配   | false    | true        | format_error |
- * | 成功     | 不匹配   | true     | false       | format_error |
- * | 成功     | 不匹配   | true     | true        | format_error |
- * | 失败     | -        | false    | false       | format_error |
- * | 失败     | -        | false    | true        | format_error |
- * | 失败     | -        | true     | false       | format_error |
- * | 失败     | -        | true     | true        | format_error |
+ * | 正则编译 | 匹配结果 | need_convert | 结果 |
+ * |---------|---------|-------------|------|
+ * | 成功     | 匹配     | false       | 通过 |
+ * | 成功     | 匹配     | true        | 通过 |
+ * | 成功     | 不匹配   | false       | error_exception (PropertyValueFormatError) |
+ * | 成功     | 不匹配   | true        | error_exception (PropertyValueFormatError) |
+ * | 失败     | -        | false       | error_exception (PropertyValueFormatError) |
+ * | 失败     | -        | true        | error_exception (PropertyValueFormatError) |
+ *
+ * 注意：实现使用 MC_THROW_ERROR 抛出 mc::error_exception
  */
 TEST(ValidatorTest, Regex) {
     // 情况1: 匹配，allow_nil = false，need_convert = false
@@ -276,16 +270,16 @@ TEST(ValidatorTest, Regex) {
     EXPECT_NO_THROW(validator::regex("Prop1", "hello123", "[a-z0-9]+", true, true));
 
     // 情况5: 不匹配，allow_nil = false，need_convert = false
-    EXPECT_THROW(validator::regex("Prop1", "HELLO", "[a-z]+", false, false), format_error);
+    EXPECT_THROW(validator::regex("Prop1", "HELLO", "[a-z]+", false, false), mc::error_exception);
 
     // 情况6: 不匹配，allow_nil = false，need_convert = true
-    EXPECT_THROW(validator::regex("Prop1", "HELLO", "[a-z]+", true, false), format_error);
+    EXPECT_THROW(validator::regex("Prop1", "HELLO", "[a-z]+", true, false), mc::error_exception);
 
     // 情况7: 不匹配，allow_nil = true，need_convert = false
-    EXPECT_THROW(validator::regex("Prop1", "HELLO", "[a-z]+", false, true), format_error);
+    EXPECT_THROW(validator::regex("Prop1", "HELLO", "[a-z]+", false, true), mc::error_exception);
 
     // 情况8: 不匹配，allow_nil = true，need_convert = true
-    EXPECT_THROW(validator::regex("Prop1", "HELLO", "[a-z]+", true, true), format_error);
+    EXPECT_THROW(validator::regex("Prop1", "HELLO", "[a-z]+", true, true), mc::error_exception);
 
     // 情况9: 空字符串匹配
     EXPECT_NO_THROW(validator::regex("Prop1", "", ".*", false, false));
@@ -299,13 +293,13 @@ TEST(ValidatorTest, Regex) {
     EXPECT_THROW(validator::regex("Prop1", "invalid-email",
                                   "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$", false,
                                   false),
-                 format_error);
+                 mc::error_exception);
 
     // 情况12: 数字匹配
     EXPECT_NO_THROW(validator::regex("Prop1", "12345", "^[0-9]+$", false, false));
 
     // 情况13: 数字不匹配（包含字母）
-    EXPECT_THROW(validator::regex("Prop1", "123a", "^[0-9]+$", false, false), format_error);
+    EXPECT_THROW(validator::regex("Prop1", "123a", "^[0-9]+$", false, false), mc::error_exception);
 }
 
 /**
@@ -315,7 +309,9 @@ TEST(ValidatorTest, Regex) {
  * | JSON 有效性 | 结果 |
  * |-----------|------|
  * | 有效       | 通过 |
- * | 无效       | json_error |
+ * | 无效       | error_exception (MalformedJSON) |
+ *
+ * 注意：实现使用 MC_THROW_ERROR 抛出 mc::error_exception
  */
 TEST(ValidatorTest, Json) {
     // 情况1: 有效 JSON - 对象
@@ -347,85 +343,98 @@ TEST(ValidatorTest, Json) {
     EXPECT_NO_THROW(validator::json("[]"));
 
     // 情况10: 无效 JSON - 缺少引号
-    EXPECT_THROW(validator::json("{key: value}"), json_error);
+    EXPECT_THROW(validator::json("{key: value}"), mc::error_exception);
 
     // 情况11: 无效 JSON - 缺少逗号
-    EXPECT_THROW(validator::json(R"({"a": 1 "b": 2})"), json_error);
+    EXPECT_THROW(validator::json(R"({"a": 1 "b": 2})"), mc::error_exception);
 
     // 情况12: 无效 JSON - 多余的逗号
-    //EXPECT_THROW(validator::json(R"({"a": 1,})"), json_error);
+    //EXPECT_THROW(validator::json(R"({"a": 1,})"), mc::error_exception);
 
     // 情况13: 无效 JSON - 未闭合的括号
-    EXPECT_THROW(validator::json(R"({"a": 1)"), json_error);
+    EXPECT_THROW(validator::json(R"({"a": 1)"), mc::error_exception);
 
     // 情况14: 无效 JSON - 空字符串
-    EXPECT_THROW(validator::json(""), json_error);
+    EXPECT_THROW(validator::json(""), mc::error_exception);
 
     // 情况15: 无效 JSON - 普通文本
-    EXPECT_THROW(validator::json("hello world"), json_error);
+    EXPECT_THROW(validator::json("hello world"), mc::error_exception);
 
     // 情况16: 无效 JSON - 不完整的字符串
-    EXPECT_THROW(validator::json(R"("unclosed)"), json_error);
+    EXPECT_THROW(validator::json(R"("unclosed)"), mc::error_exception);
 }
 
 /**
  * @brief 异常消息格式测试
  */
 TEST(ValidatorTest, ExceptionMessageFormat) {
-    // 测试 property_value_type_error 消息格式
+    // 测试 PropertyValueTypeError 消息格式
     try {
         validator::check_integer("Prop1", 3.14, 0.0, 100.0, false);
         FAIL() << "应该抛出异常";
-    } catch (const property_value_type_error& e) {
-        std::string msg = e.what();
-        EXPECT_NE(msg.find("PropertyValueTypeError"), std::string::npos);
-        EXPECT_NE(msg.find("Prop1"), std::string::npos);
+    } catch (const mc::error_exception& e) {
+        auto err = mc::error::from_exception(e);
+        EXPECT_EQ(err->get_name(), "PropertyValueTypeError");
+        // 验证参数被正确传递
+        mc::dict args = err->get_args();
+        EXPECT_TRUE(args.contains(1));  // 参数名应该在 key 1
+        std::string prop_name = args[1].as<std::string>();
+        EXPECT_EQ(prop_name, "Prop1");
     }
 
-    // 测试 property_value_out_of_range 消息格式
+    // 测试 PropertyValueOutOfRange 消息格式
     try {
         validator::check_integer("Prop1", 150.0, 0.0, 100.0, false);
         FAIL() << "应该抛出异常";
-    } catch (const property_value_out_of_range& e) {
-        std::string msg = e.what();
-        EXPECT_NE(msg.find("PropertyValueOutOfRange"), std::string::npos);
-        EXPECT_NE(msg.find("Prop1"), std::string::npos);
+    } catch (const mc::error_exception& e) {
+        auto err = mc::error::from_exception(e);
+        EXPECT_EQ(err->get_name(), "PropertyValueOutOfRange");
+        // 验证参数被正确传递
+        mc::dict args = err->get_args();
+        EXPECT_TRUE(args.contains(1));  // 参数名应该在 key 1
+        std::string prop_name = args[1].as<std::string>();
+        EXPECT_EQ(prop_name, "Prop1");
     }
 
     // 测试 need_convert = true 时的消息格式
     try {
         validator::check_integer("Prop1", 150.0, 0.0, 100.0, true);
         FAIL() << "应该抛出异常";
-    } catch (const property_value_out_of_range& e) {
-        std::string msg = e.what();
-        EXPECT_NE(msg.find("%Prop1"), std::string::npos);
+    } catch (const mc::error_exception& e) {
+        auto err = mc::error::from_exception(e);
+        EXPECT_EQ(err->get_name(), "PropertyValueOutOfRange");
+        // 验证参数被正确格式化（带 % 前缀）
+        mc::dict args = err->get_args();
+        EXPECT_TRUE(args.contains(1));
+        std::string prop_name = args[1].as<std::string>();
+        EXPECT_EQ(prop_name, "%Prop1");  // need_convert=true 时应该有 % 前缀
     }
 
-    // 测试 string_length_error 消息格式
+    // 测试 StringValueTooShort 消息格式
     try {
         validator::lens("Prop1", "", 1, 10, false, false);
         FAIL() << "应该抛出异常";
-    } catch (const string_length_error& e) {
-        std::string msg = e.what();
-        EXPECT_NE(msg.find("StringValueTooShort"), std::string::npos);
+    } catch (const mc::error_exception& e) {
+        auto err = mc::error::from_exception(e);
+        EXPECT_EQ(err->get_name(), "StringValueTooShort");
     }
 
-    // 测试 format_error 消息格式
+    // 测试 PropertyValueFormatError 消息格式
     try {
         validator::regex("Prop1", "HELLO", "[a-z]+", false, false);
         FAIL() << "应该抛出异常";
-    } catch (const format_error& e) {
-        std::string msg = e.what();
-        EXPECT_NE(msg.find("PropertyValueFormatError"), std::string::npos);
+    } catch (const mc::error_exception& e) {
+        auto err = mc::error::from_exception(e);
+        EXPECT_EQ(err->get_name(), "PropertyValueFormatError");
     }
 
-    // 测试 json_error 消息格式
+    // 测试 MalformedJSON 消息格式
     try {
         validator::json("invalid json");
         FAIL() << "应该抛出异常";
-    } catch (const json_error& e) {
-        std::string msg = e.what();
-        EXPECT_NE(msg.find("MalformedJSON"), std::string::npos);
+    } catch (const mc::error_exception& e) {
+        auto err = mc::error::from_exception(e);
+        EXPECT_EQ(err->get_name(), "MalformedJSON");
     }
 }
 

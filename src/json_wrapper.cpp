@@ -1552,7 +1552,12 @@ std::string json_encode(const mc::dict& obj, bool pretty_print) {
 
         // 遍历 dict，添加键值对
         for (const auto& entry : obj) {
-            std::string key_str = entry.key.get_string();
+            std::string key_str;
+            if (!entry.key.is_string()) {
+                key_str = entry.key.as_string();
+            } else {
+                key_str = entry.key.get_string();
+            }
             Json*       child   = build_json_from_variant(entry.value);
             ensure_created(child, "Failed to build object value");
             check_json_ret(JsonItemAddToObject(key_str.c_str(), child, json_obj),

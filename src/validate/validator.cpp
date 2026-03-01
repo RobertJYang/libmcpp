@@ -11,6 +11,8 @@
  */
 
 #include <mc/validate/validator.h>
+#include <mc/error_engine.h>
+#include <mc/error.h>
 
 #include <glib.h>
 #include <mc/json.h>
@@ -21,6 +23,7 @@
 
 namespace mc {
 namespace validate {
+
 
 std::pair<std::string, std::string> validator::format_name_and_value(std::string_view name, std::string_view val_str,
                                                                      bool need_convert) {
@@ -51,77 +54,66 @@ void validator::check_integer(std::string_view name, double val, double min, dou
         std::ostringstream oss;
         oss << val;
         auto [final_name, final_val] = format_name_and_value(name, oss.str(), need_convert);
-        std::string msg              = "PropertyValueTypeError: The value " + final_val + " for the property " + final_name +
-                          " is of a different type than the property can accept.";
-        throw property_value_type_error(msg);
+        MC_THROW_ERROR("PropertyValueTypeError", {0, final_val}, {1, final_name});
     }
 
-    // 检查范围
+    // 检查是否在范围内
     if (val < min || val > max) {
         std::ostringstream oss;
         oss << val;
         auto [final_name, final_val] = format_name_and_value(name, oss.str(), need_convert);
-        std::string msg              = "PropertyValueOutOfRange: The value '" + final_val + "' for the property " + final_name +
-                          " is not in the supported range of acceptable values.";
-        throw property_value_out_of_range(msg);
+        MC_THROW_ERROR("PropertyValueOutOfRange", {0, final_val}, {1, final_name});
     }
 }
 
 void validator::ranges(std::string_view name, double val, double min, double max, bool need_convert, bool allow_nil) {
+    (void)min;
+    (void)max;
+    (void)need_convert;
     (void)allow_nil;
 
     if (val < min || val > max) {
         std::ostringstream oss;
         oss << val;
         auto [final_name, final_val] = format_name_and_value(name, oss.str(), need_convert);
-        std::string msg              = "PropertyValueOutOfRange: The value '" + final_val + "' for the property " + final_name +
-                          " is not in the supported range of acceptable values.";
-        throw property_value_out_of_range(msg);
+        MC_THROW_ERROR("PropertyValueOutOfRange", {0, final_val}, {1, final_name});
     }
 }
 
 void validator::lens(std::string_view name, std::string_view val, int min, int max, bool need_convert, bool allow_nil) {
+    (void)max;
+    (void)need_convert;
     (void)allow_nil;
 
     size_t len = val.length();
     if (len < static_cast<size_t>(min)) {
         auto [final_name, final_val] = format_name_and_value(name, val, need_convert);
-        (void)final_name;
-        std::ostringstream oss;
-        oss << min;
-        std::string msg = "StringValueTooShort: The string '" + final_val + "' was under the minimum required length " +
-                          oss.str() + ".";
-        throw string_length_error(msg);
+        MC_THROW_ERROR("StringValueTooShort", {0, final_val}, {1, min});
     }
 
     if (len > static_cast<size_t>(max)) {
         auto [final_name, final_val] = format_name_and_value(name, val, need_convert);
-        (void)final_name;
-        std::ostringstream oss;
-        oss << max;
-        std::string msg = "StringValueTooLong: The string '" + final_val + "' exceeds the length limit " + oss.str() + ".";
-        throw string_length_error(msg);
+        MC_THROW_ERROR("StringValueTooLong", {0, final_val}, {1, max});
     }
 }
 
 void validator::regex(std::string_view name, std::string_view val, std::string_view pattern, bool need_convert,
                       bool allow_nil) {
+    (void)pattern;
+    (void)need_convert;
     (void)allow_nil;
 
-    std::string pattern_str(pattern);
     std::string val_str(val);
 
     GError* error = nullptr;
-    GRegex* regex = g_regex_new(pattern_str.c_str(), static_cast<GRegexCompileFlags>(0),
+    GRegex* regex = g_regex_new(std::string(pattern).c_str(), static_cast<GRegexCompileFlags>(0),
                                 static_cast<GRegexMatchFlags>(0), &error);
     if (regex == nullptr) {
         if (error) {
             g_error_free(error);
         }
         auto [final_name, final_val] = format_name_and_value(name, val, need_convert);
-        std::string msg              = "PropertyValueFormatError: The value " + final_val + " for the property " + final_name +
-                          " is of a different format than the property can accept.";
-        throw format_error(msg);
+        MC_THROW_ERROR("PropertyValueFormatError", {0, final_val}, {1, final_name});
     }
 
     gboolean matched = g_regex_match(regex, val_str.c_str(), static_cast<GRegexMatchFlags>(0), nullptr);
@@ -129,9 +121,7 @@ void validator::regex(std::string_view name, std::string_view val, std::string_v
 
     if (!matched) {
         auto [final_name, final_val] = format_name_and_value(name, val, need_convert);
-        std::string msg              = "PropertyValueFormatError: The value " + final_val + " for the property " + final_name +
-                          " is of a different format than the property can accept.";
-        throw format_error(msg);
+        MC_THROW_ERROR("PropertyValueFormatError", {0, final_val}, {1, final_name});
     }
 }
 
@@ -140,8 +130,7 @@ void validator::json(std::string_view val) {
     try {
         mc::json::json_decode(json_str);
     } catch (...) {
-        throw json_error("MalformedJSON: The request body submitted was malformed JSON and could not be parsed by the "
-                         "receiving service.");
+        MC_THROW_ERROR("MalformedJSON");
     }
 }
 

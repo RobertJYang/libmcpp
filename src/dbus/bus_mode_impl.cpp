@@ -149,8 +149,9 @@ variants blocking_bus_impl::call(const std::string& service, const std::string& 
     }
     std::string error_name(reply.get_error_name());
     std::string error_message = reply.get_error_message();
-    MC_THROW(mc::method_call_exception, "${error_name}: ${error_message}",
-             ("error_name", error_name)("error_message", error_message));
+
+    // 使用error_message作为JSON字符串抛出error_exception
+    throw mc::error_exception(error_name.c_str(), error_message);
 }
 
 variants blocking_bus_impl::timeout_call(int timeout_ms, const std::string& service,
@@ -174,8 +175,9 @@ variants blocking_bus_impl::timeout_call(int timeout_ms, const std::string& serv
     }
     std::string error_name(reply.get_error_name());
     std::string error_message = reply.get_error_message();
-    MC_THROW(mc::method_call_exception, "${error_name}: ${error_message}",
-             ("error_name", error_name)("error_message", error_message));
+
+    // 使用error_message作为JSON字符串抛出error_exception
+    throw mc::error_exception(error_name.c_str(), error_message);
 }
 
 std::tuple<std::optional<std::string>, variants>
@@ -281,7 +283,8 @@ variants nonblocking_bus_impl::call(const std::string& service, const std::strin
                                     const std::string& interface, const std::string& method,
                                     const std::string& signature, variants&& args) {
     // 非阻塞模式不支持同步调用
-    MC_THROW(mc::invalid_op_exception, "call is not supported in non-blocking mode");
+    MC_THROW_ERROR_WITH_MESSAGE("InvalidOperation",
+                                MC_LOG_MESSAGE(error, "call is not supported in non-blocking mode"));
 }
 
 variants nonblocking_bus_impl::timeout_call(int timeout_ms, const std::string& service,
@@ -304,7 +307,9 @@ variants nonblocking_bus_impl::timeout_call(int timeout_ms, const std::string& s
     }
     std::string error_name(reply.get_error_name());
     std::string error_message = reply.get_error_message();
-    throw mc::exception(mc::method_call_exception_code, error_name, error_message);
+
+    // 使用error_message作为JSON字符串抛出error_exception
+    throw mc::error_exception(error_name.c_str(), error_message);
 }
 
 std::tuple<std::optional<std::string>, variants>
