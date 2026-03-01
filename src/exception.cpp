@@ -62,10 +62,12 @@ exception::exception(const mc::log::messages& msgs, int64_t code, const std::str
     m_impl->m_logs = msgs;
 }
 
-exception::exception(const exception& e) : m_impl(new detail::exception_impl(*e.m_impl)) {
+exception::exception(const exception& e)
+    : m_impl(new detail::exception_impl(*e.m_impl)) {
 }
 
-exception::exception(exception&& e) : m_impl(std::move(e.m_impl)) {
+exception::exception(exception&& e)
+    : m_impl(std::move(e.m_impl)) {
 }
 
 exception::~exception() {
@@ -221,7 +223,8 @@ unhandled_exception::unhandled_exception(mc::log::messages msgs)
     : exception(std::move(msgs), unhandled_exception_code, "unhandled", "未处理的异常") {
 }
 
-unhandled_exception::unhandled_exception(const exception& e) : exception(e) {
+unhandled_exception::unhandled_exception(const exception& e)
+    : exception(e) {
     m_impl->m_code = unhandled_exception_code;
     m_impl->m_name = "unhandled";
     m_impl->m_what = "未处理的异常";
@@ -288,5 +291,34 @@ std::string std_exception_wrapper::to_detail_string(mc::log::level ll) const {
 }
 
 MC_STD_EXCEPTION_CLASS(MC_IMPLEMENT_EXCEPTION_CLASS)
+
+// 错误引擎异常类实现
+
+error_exception::error_exception(const char*     error_name,
+                                 const mc::dict& args,
+                                 int64_t         code)
+    : exception(code, error_name), args_(args), has_json_error_(false) {
+}
+
+error_exception::error_exception(const char*        error_name,
+                                 const std::string& error_json,
+                                 int64_t            code)
+    : exception(code, error_name), args_(), error_json_(error_json), has_json_error_(true) {
+}
+
+error_exception::error_exception(const char*        error_name,
+                                 mc::log::message&& message,
+                                 int64_t            code)
+    : exception(std::move(message), code, error_name), args_(), has_json_error_(false) {
+    // 委托给父类exception的log::message构造函数
+}
+
+std::shared_ptr<exception> error_exception::dynamic_copy_exception() const {
+    return std::make_shared<error_exception>(*this);
+}
+
+void error_exception::dynamic_rethrow_exception() const {
+    throw *this;
+}
 
 } // namespace mc

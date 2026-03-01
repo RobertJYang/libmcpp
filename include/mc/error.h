@@ -16,13 +16,19 @@
 #include <mc/common.h>
 #include <mc/dict.h>
 #include <mc/exception.h>
+#include <mc/json.h>
 #include <mc/log/log_message.h>
 #include <mc/memory.h>
 #include <mc/reflect/base.h>
 #include <mc/singleton.h>
 #include <mc/string.h>
 
+#include <memory>
 #include <optional>
+#include <regex>
+#include <sstream>
+#include <string>
+#include <string_view>
 
 namespace mc {
 using error_level = mc::log::level;
@@ -94,12 +100,15 @@ struct MC_API error : public mc::enable_shared_from_this<error>, public error_in
     error(const error& other);
     error& operator=(const error& other);
     error(error&& other) noexcept;
-    error& operator=(error&& other) noexcept;
+    error& operator=(error&& other) noexcept(false);
 
     std::string_view get_name() const;
     std::string_view get_format() const;
     const mc::dict&  get_args() const;
+    const mc::dict&  get_args_with_index() const;
     std::string      get_message() const;
+    const std::string& get_registry_prefix() const;
+    void              set_registry_prefix(std::string_view prefix);
 
     error_level get_level() const;
     void        set_level(error_level level);
@@ -114,17 +123,28 @@ struct MC_API error : public mc::enable_shared_from_this<error>, public error_in
     template <typename T>
     error& operator()(std::string_view key, T&& value) {
         args[key] = std::forward<T>(value);
+        invalidate_cache();
         return *this;
     }
 
     template <typename T>
     error& append_arg(std::string_view key, T&& value) {
         args[key] = std::forward<T>(value);
+        invalidate_cache();
+        return *this;
+    }
+
+    // 支持整数 key 的 append_arg 重载（用于数组格式参数传递）
+    template <typename T>
+    error& append_arg(int key, T&& value) {
+        args[key] = std::forward<T>(value);
+        invalidate_cache();
         return *this;
     }
 
     error& operator%(mc::dict args) {
         this->args = args;
+        invalidate_cache();
         return *this;
     }
 
@@ -142,17 +162,120 @@ struct MC_API error : public mc::enable_shared_from_this<error>, public error_in
 
     static mc::shared_ptr<error> from_exception(std::exception_ptr e);
     static mc::shared_ptr<error> from_exception(const mc::exception& e);
+    static mc::shared_ptr<error> from_exception(const mc::error_exception& e);
     static mc::shared_ptr<error> from_exception(const std::exception& e);
 
     void to_exception(mc::exception& e) const;
+
+    /**
+     * @brief 序列化为 JSON 字符串
+     * @param options 编码选项
+     * @return JSON 字符串
+     */
+    std::string encode(const mc::json::json_encode_options& options =
+                           mc::json::json_encode_options::default_encode_options) const;
+
+    /**
+     * @brief 从 JSON 反序列化 (静态方法)
+     * @param json JSON 字符串
+     * @param options 解码选项
+     * @return 错误对象指针
+     * @throw mc::parse_error_exception 当解码失败时
+     */
+    static mc::shared_ptr<error> decode(
+        std::string_view                     json,
+        const mc::json::json_decode_options& options =
+            mc::json::json_decode_options::default_decode_options);
+
+    /**
+     * @brief 获取并保存调用栈
+     */
+    void traceback();
+
+    /**
+     * @brief 获取调用栈信息
+     * @return 调用栈字符串
+     */
+    const std::string& get_traceback() const noexcept {
+        return m_traceback;
+    }
+
+    /**
+     * @brief 参数名映射为位置索引
+     * @param param_struct 参数结构体
+     */
+    void post_process(const mc::dict& param_struct);
+
+    /**
+     * @brief 参数名映射为位置索引(string版本)
+     * @param param_struct 参数字符串
+     */
+    void post_process(const std::string& param_struct);
+
+    /**
+     * @brief 抛出异常
+     * @throw mc::error_exception 总是抛出异常
+     */
+    [[noreturn]] void raise() const;
 
     // 错误参数
     mc::dict args;
 
     /**
+     * @brief 注册表前缀
+     */
+    std::string registry_prefix;
+
+    /**
      * @brief 前一个错误
      */
     mc::shared_ptr<error> prev_error;
+
+private:
+    /**
+     * @brief 缓存的格式化消息（懒加载）
+     */
+    mutable std::optional<std::string> m_cached_message;
+
+    /**
+     * @brief 使缓存失效（当参数改变时调用）
+     */
+    void invalidate_cache() {
+        m_cached_message.reset();
+    }
+
+    /**
+     * @brief 调用栈信息字符串
+     */
+    std::string m_traceback;
+
+    /**
+     * @brief 使用位置索引的参数表
+     */
+    mc::dict m_args_with_index;
+
+    /**
+     * @brief 查找参数位置索引 (私有静态辅助函数,string版本)
+     * @param param_name 参数名
+     * @param param_value 参数值(字符串)
+     * @return 位置索引 (从0开始) 或 -1 (未找到)
+     */
+    static int get_param_index(std::string_view param_name, std::string_view param_value);
+
+    /**
+     * @brief 查找参数位置索引 (私有静态辅助函数,dict版本)
+     * @param param_name 参数名
+     * @param param_struct 参数结构体
+     * @return 位置索引 (从0开始) 或 -1 (未找到)
+     */
+    static int get_param_index(std::string_view param_name, const mc::dict& param_struct);
+
+    /**
+     * @brief post_process 通用实现 (私有辅助函数)
+     * @param index_lookup 索引查找函数对象
+     */
+    template <typename IndexLookupFunc>
+    void post_process_impl(IndexLookupFunc&& index_lookup);
 };
 
 using error_ptr = mc::shared_ptr<error>;

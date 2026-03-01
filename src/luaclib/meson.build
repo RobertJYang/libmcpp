@@ -10,6 +10,7 @@ subdir('dft')
 subdir('shm_tree')
 subdir('mdb')
 subdir('json')
+subdir('error')
 
 if lua_dep.found()
   # 获取可选的 libsomp 依赖
@@ -150,5 +151,20 @@ if lua_dep.found()
     install_dir: install_dir,
     gnu_symbol_visibility: 'default',
     override_options: ['b_lundef=false'],  # 允许未定义的 lua 符号
+  )
+
+  # 编译 mc_error Lua 模块
+  error_module = shared_module(
+    'mc_error',
+    error_src,
+    name_prefix: '',
+    name_suffix: 'so',
+    dependencies: lua_base_deps,
+    link_with: [libmcpp_lib, libmcpp_base_lib, libmcpp_lua_utils_lib],
+    include_directories: base_inc_dirs1,
+    install: true,
+    install_dir: install_dir,
+    gnu_symbol_visibility: 'default',
+    override_options: ['b_lundef=false'],
   )
 endif

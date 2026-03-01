@@ -9,6 +9,7 @@ subdir('dbus')
 subdir('debounce')
 subdir('dict')
 subdir('engine')
+subdir('error_message')
 subdir('exception')
 subdir('expr')
 subdir('filesystem')
@@ -78,6 +79,7 @@ test_files = [
 # 在 conan 模式下，添加 json_wrapper 测试
 if enable_conan_compile
   test_files += ['test_json_wrapper.cpp']
+  test_files += test_error_message_files
 endif
 
 # 构建 include_directories 列表（使用根目录定义的 stubdir_global）

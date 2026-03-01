@@ -33,39 +33,40 @@ class exception_impl;
  */
 enum exception_code {
     // 通用异常代码
-    unknow_exception_code           = 0,  // 未知异常代码
-    unhandled_exception_code        = 1,  // 未处理的第三方异常
-    timeout_exception_code          = 2,  // 超时异常
-    file_not_found_exception_code   = 3,  // 文件未找到异常
-    parse_error_exception_code      = 4,  // 解析错误异常
-    invalid_arg_exception_code      = 5,  // 无效参数异常
-    key_not_found_exception_code    = 6,  // 键未找到异常
-    bad_cast_exception_code         = 7,  // 类型转换异常
-    out_of_range_exception_code     = 8,  // 越界异常
-    canceled_exception_code         = 9,  // 取消操作异常
-    assert_exception_code           = 10, // 断言异常
-    eof_exception_code              = 11, // 文件结束异常
-    system_error_code               = 12, // 系统错误异常
-    std_exception_code              = 13, // 标准库异常
-    invalid_op_exception_code       = 14, // 无效操作异常
-    null_optional_code              = 15, // 空可选值异常
-    overflow_code                   = 16, // 溢出异常
-    underflow_code                  = 17, // 下溢异常
-    divide_by_zero_code             = 18, // 除零异常
-    bad_function_call_code          = 19, // 函数调用异常
-    bad_alloc_code                  = 20, // 内存分配异常
-    busy_exception_code             = 21, // 繁忙异常
-    method_call_exception_code      = 22, // 方法调用异常
-    not_implemented_exception_code  = 23, // 未实现异常
-    bad_property_exception_code     = 24, // 属性错误
-    bad_method_exception_code       = 25, // 方法错误
-    bad_type_exception_code         = 26, // 类型错误
-    not_found_exception_code        = 27, // 未找到异常
-    invalid_argument_exception_code        = 28, // 无效参数异常
-    runtime_exception_code                 = 29, // 运行时异常
-    format_error_code                      = 30, // 格式化错误异常
-    insufficient_privilege_exception_code  = 31, // 权限不足异常
+    unknow_exception_code                    = 0,  // 未知异常代码
+    unhandled_exception_code                 = 1,  // 未处理的第三方异常
+    timeout_exception_code                   = 2,  // 超时异常
+    file_not_found_exception_code            = 3,  // 文件未找到异常
+    parse_error_exception_code               = 4,  // 解析错误异常
+    invalid_arg_exception_code               = 5,  // 无效参数异常
+    key_not_found_exception_code             = 6,  // 键未找到异常
+    bad_cast_exception_code                  = 7,  // 类型转换异常
+    out_of_range_exception_code              = 8,  // 越界异常
+    canceled_exception_code                  = 9,  // 取消操作异常
+    assert_exception_code                    = 10, // 断言异常
+    eof_exception_code                       = 11, // 文件结束异常
+    system_error_code                        = 12, // 系统错误异常
+    std_exception_code                       = 13, // 标准库异常
+    invalid_op_exception_code                = 14, // 无效操作异常
+    null_optional_code                       = 15, // 空可选值异常
+    overflow_code                            = 16, // 溢出异常
+    underflow_code                           = 17, // 下溢异常
+    divide_by_zero_code                      = 18, // 除零异常
+    bad_function_call_code                   = 19, // 函数调用异常
+    bad_alloc_code                           = 20, // 内存分配异常
+    busy_exception_code                      = 21, // 繁忙异常
+    method_call_exception_code               = 22, // 方法调用异常
+    not_implemented_exception_code           = 23, // 未实现异常
+    bad_property_exception_code              = 24, // 属性错误
+    bad_method_exception_code                = 25, // 方法错误
+    bad_type_exception_code                  = 26, // 类型错误
+    not_found_exception_code                 = 27, // 未找到异常
+    invalid_argument_exception_code          = 28, // 无效参数异常
+    runtime_exception_code                   = 29, // 运行时异常
+    format_error_code                        = 30, // 格式化错误异常
+    insufficient_privilege_exception_code    = 31, // 权限不足异常
     password_changed_required_exception_code = 32, // 需要修改密码异常
+    error_engine_exception_code              = 33, // 错误引擎异常
 };
 
 /**
@@ -303,39 +304,120 @@ private:
     std::exception_ptr m_inner;
 };
 
+/**
+ * @brief 错误引擎异常类
+ *
+ * 用于支持结构化参数的错误异常，与错误引擎集成
+ */
+class MC_API error_exception : public exception {
+public:
+    enum code_enum {
+        code_value = error_engine_exception_code, // 使用错误引擎异常代码
+    };
+
+    /**
+     * @brief 构造函数
+     *
+     * @param error_name 错误名称
+     * @param args 结构化参数（使用数字键 0, 1, 2...）
+     * @param code 异常代码
+     */
+    error_exception(const char*     error_name,
+                    const mc::dict& args,
+                    int64_t         code = error_engine_exception_code);
+
+    /**
+     * @brief 构造函数（带JSON序列化的error对象）
+     *
+     * @param error_name 错误名称
+     * @param error_json error对象的JSON序列化字符串
+     * @param code 异常代码
+     */
+    error_exception(const char*        error_name,
+                    const std::string& error_json,
+                    int64_t            code = error_engine_exception_code);
+
+    /**
+     * @brief 构造函数（带日志消息，用于MC_THROW_ERROR_WITH_MESSAGE宏）
+     *
+     * @param error_name 错误名称
+     * @param message 日志消息
+     * @param code 异常代码
+     */
+    error_exception(const char*        error_name,
+                    mc::log::message&& message,
+                    int64_t            code = error_engine_exception_code);
+
+    /**
+     * @brief 获取结构化参数
+     */
+    const mc::dict& args() const noexcept {
+        return args_;
+    }
+
+    /**
+     * @brief 检查是否包含JSON序列化的error对象
+     */
+    bool has_json_error() const noexcept {
+        return has_json_error_;
+    }
+
+    /**
+     * @brief 获取JSON序列化的error对象
+     */
+    const std::string& get_json_error() const noexcept {
+        return error_json_;
+    }
+
+    /**
+     * @brief 动态复制异常
+     */
+    virtual std::shared_ptr<exception> dynamic_copy_exception() const override;
+
+    /**
+     * @brief 动态重新抛出异常
+     */
+    virtual void dynamic_rethrow_exception() const override;
+
+private:
+    mc::dict    args_;
+    std::string error_json_;             // JSON序列化的error对象
+    bool        has_json_error_ = false; // 标识是否包含JSON error
+};
+
 // 标准异常类定义
-#define MC_STD_EXCEPTION_CLASS(macro)                                                                   \
-    macro(timeout_exception, timeout_exception_code, "操作超时", "timeout");                            \
-    macro(file_not_found_exception, file_not_found_exception_code, "文件未找到", "file_not_found");     \
-    macro(parse_error_exception, parse_error_exception_code, "解析错误", "parse_error");                \
-    macro(invalid_arg_exception, invalid_arg_exception_code, "无效参数", "invalid_arg");                \
-    macro(key_not_found_exception, key_not_found_exception_code, "键未找到", "key_not_found");          \
-    macro(assert_exception, assert_exception_code, "断言失败", "assert");                               \
-    macro(bad_cast_exception, bad_cast_exception_code, "类型转换错误", "bad_cast");                     \
-    macro(out_of_range_exception, out_of_range_exception_code, "索引越界", "out_of_range");             \
-    macro(canceled_exception, canceled_exception_code, "操作已取消", "canceled");                       \
-    macro(eof_exception, eof_exception_code, "文件结束", "eof");                                        \
-    macro(system_exception, system_error_code, "系统错误", "system");                                   \
-    macro(invalid_op_exception, invalid_op_exception_code, "无效操作", "invalid_operation");            \
-    macro(null_optional_exception, null_optional_code, "访问空可选值", "null_optional");                \
-    macro(overflow_exception, overflow_code, "数值溢出", "overflow");                                   \
-    macro(underflow_exception, underflow_code, "数值下溢", "underflow");                                \
-    macro(divide_by_zero_exception, divide_by_zero_code, "除零错误", "divide_by_zero");                 \
-    macro(file_open_exception, file_not_found_exception_code, "无法打开文件", "file_open");             \
-    macro(not_implemented_exception, not_implemented_exception_code, "未实现", "not_implemented");      \
-    macro(bad_function_call_exception, bad_function_call_code, "函数调用错误", "bad_function_call");    \
-    macro(bad_alloc_exception, bad_alloc_code, "内存分配错误", "bad_alloc");                            \
-    macro(busy_exception, busy_exception_code, "繁忙", "busy");                                         \
-    macro(method_call_exception, method_call_exception_code, "方法调用错误", "method_call");            \
-    macro(bad_property_exception, bad_property_exception_code, "属性错误", "bad_property");             \
-    macro(bad_method_exception, bad_method_exception_code, "方法错误", "bad_method");                   \
-    macro(bad_type_exception, bad_type_exception_code, "类型错误", "bad_type");                         \
-    macro(not_found_exception, not_found_exception_code, "未找到", "not_found");                        \
-    macro(invalid_argument_exception, invalid_argument_exception_code, "无效参数", "invalid_argument"); \
-    macro(runtime_exception, runtime_exception_code, "运行时错误", "runtime");                          \
-    macro(format_error, format_error_code, "格式化错误", "format_error");                               \
+#define MC_STD_EXCEPTION_CLASS(macro)                                                                                     \
+    macro(timeout_exception, timeout_exception_code, "操作超时", "timeout");                                              \
+    macro(file_not_found_exception, file_not_found_exception_code, "文件未找到", "file_not_found");                       \
+    macro(parse_error_exception, parse_error_exception_code, "解析错误", "parse_error");                                  \
+    macro(invalid_arg_exception, invalid_arg_exception_code, "无效参数", "invalid_arg");                                  \
+    macro(key_not_found_exception, key_not_found_exception_code, "键未找到", "key_not_found");                            \
+    macro(assert_exception, assert_exception_code, "断言失败", "assert");                                                 \
+    macro(bad_cast_exception, bad_cast_exception_code, "类型转换错误", "bad_cast");                                       \
+    macro(out_of_range_exception, out_of_range_exception_code, "索引越界", "out_of_range");                               \
+    macro(canceled_exception, canceled_exception_code, "操作已取消", "canceled");                                         \
+    macro(eof_exception, eof_exception_code, "文件结束", "eof");                                                          \
+    macro(system_exception, system_error_code, "系统错误", "system");                                                     \
+    macro(invalid_op_exception, invalid_op_exception_code, "无效操作", "invalid_operation");                              \
+    macro(null_optional_exception, null_optional_code, "访问空可选值", "null_optional");                                  \
+    macro(overflow_exception, overflow_code, "数值溢出", "overflow");                                                     \
+    macro(underflow_exception, underflow_code, "数值下溢", "underflow");                                                  \
+    macro(divide_by_zero_exception, divide_by_zero_code, "除零错误", "divide_by_zero");                                   \
+    macro(file_open_exception, file_not_found_exception_code, "无法打开文件", "file_open");                               \
+    macro(not_implemented_exception, not_implemented_exception_code, "未实现", "not_implemented");                        \
+    macro(bad_function_call_exception, bad_function_call_code, "函数调用错误", "bad_function_call");                      \
+    macro(bad_alloc_exception, bad_alloc_code, "内存分配错误", "bad_alloc");                                              \
+    macro(busy_exception, busy_exception_code, "繁忙", "busy");                                                           \
+    macro(method_call_exception, method_call_exception_code, "方法调用错误", "method_call");                              \
+    macro(bad_property_exception, bad_property_exception_code, "属性错误", "bad_property");                               \
+    macro(bad_method_exception, bad_method_exception_code, "方法错误", "bad_method");                                     \
+    macro(bad_type_exception, bad_type_exception_code, "类型错误", "bad_type");                                           \
+    macro(not_found_exception, not_found_exception_code, "未找到", "not_found");                                          \
+    macro(invalid_argument_exception, invalid_argument_exception_code, "无效参数", "invalid_argument");                   \
+    macro(runtime_exception, runtime_exception_code, "运行时错误", "runtime");                                            \
+    macro(format_error, format_error_code, "格式化错误", "format_error");                                                 \
     macro(insufficient_privilege_exception, insufficient_privilege_exception_code, "权限不足", "insufficient_privilege"); \
-    macro(password_changed_required_exception, password_changed_required_exception_code, "需要修改密码", "password_changed_required"); \
+    macro(password_changed_required_exception, password_changed_required_exception_code, "需要修改密码", "password_changed_required");
 
 MC_STD_EXCEPTION_CLASS(MC_DECLARE_EXCEPTION_CLASS)
 
@@ -433,6 +515,43 @@ MC_STD_EXCEPTION_CLASS(MC_DECLARE_EXCEPTION_CLASS)
     catch (const std::exception& e) {                                               \
         throw mc::std_exception_wrapper(MC_LOG_MESSAGE_UNSAFE(error, __VA_ARGS__)); \
     }
+
+/**
+ * @brief 抛出错误引擎异常宏
+ *
+ * 用于抛出带有结构化参数的异常，与错误引擎集成
+ *
+ * @param error_name 错误名称（需要在错误定义文件中注册）
+ * @param ... 结构化参数列表，使用初始化列表语法：{0, value1}, {1, value2}
+ *
+ * @example
+ * // 单参数
+ * MC_THROW_ERROR("PropertyDuplicate", {0, "TestProperty"});
+ *
+ * // 多参数
+ * MC_THROW_ERROR("PropertyValueOutOfRange", {0, "100"}, {1, "Threshold"});
+ */
+#define MC_THROW_ERROR(error_name, ...)              \
+    throw mc::error_exception(error_name,            \
+                              mc::dict{__VA_ARGS__}, \
+                              error_engine_exception_code)
+
+/**
+ * @brief 抛出带有错误消息的异常宏
+ *
+ * 用于抛出带有自定义错误消息的异常（如 DBus 调用失败）
+ *
+ * @param error_name 错误名称（需要在错误定义文件中注册）
+ * @param error_message 自定义错误消息
+ * @param ... 结构化参数列表，使用初始化列表语法：{0, value1}, {1, value2}
+ *
+ * @example
+ * MC_THROW_ERROR_WITH_MESSAGE("DBusMethodCallFailed", "Timeout", {0, "org.freedesktop.DBus.Error.Timeout"});
+ */
+#define MC_THROW_ERROR_WITH_MESSAGE(error_name, log_msg, ...) \
+    throw mc::error_exception(error_name,                     \
+                              std::move(log_msg),             \
+                              error_engine_exception_code)
 
 } // namespace mc
 

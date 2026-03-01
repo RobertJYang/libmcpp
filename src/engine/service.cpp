@@ -90,11 +90,11 @@ struct service_impl {
 
     void adjust_object_parent(abstract_object& obj);
 
-    invoke_method_result invoke_method(std::string_view path, std::string_view interface, std::string_view method,
-                                       const variants& args);
-    mc::variant          timeout_call(mc::milliseconds timeout, std::string_view service_name, std::string_view path,
-                                      std::string_view interface, std::string_view method, std::string_view signature,
-                                      const variants& args);
+    invoke_method_result       invoke_method(std::string_view path, std::string_view interface, std::string_view method,
+                                             const variants& args);
+    mc::variant                timeout_call(mc::milliseconds timeout, std::string_view service_name, std::string_view path,
+                                            std::string_view interface, std::string_view method, std::string_view signature,
+                                            const variants& args);
     std::optional<mc::variant> shm_timeout_call(mc::milliseconds timeout, std::string_view service_name,
                                                 std::string_view path, std::string_view interface,
                                                 std::string_view method, std::string_view signature,
@@ -445,15 +445,34 @@ DBusHandlerResult service_impl::on_method_call(abstract_object& object, mc::dbus
                 }
             }
         }
-    } catch (const mc::method_call_exception& e) {
-        // 用户主动抛出的调用错误只记录 debug 日志
-        dlog("method call failed: ${error}", ("error", e.what()));
-
-        auto err = ctx.get_error();
-        if (err) {
-            info.response = mc::dbus::message::new_error(msg, err->name, err->to_string_format_inplace());
+    } catch (const mc::error_exception& e) {
+        // 错误引擎异常，检查是否包含JSON错误信息
+        auto ctx_err = ctx.get_error();
+        if (ctx_err) {
+            // 上下文错误存在，继续使用原有的处理逻辑
+            info.response = mc::dbus::message::new_error(msg, ctx_err->name, ctx_err->to_string_format_inplace());
         } else {
-            info.response = mc::dbus::message::new_error(msg, errors::failed.name, e.what());
+            // 没有上下文错误，处理error_exception
+            std::string error_json;
+            std::string error_name;
+
+            if (e.has_json_error()) {
+                // 已包含JSON，直接使用
+                error_json = e.get_json_error();
+                error_name = std::string(e.name());
+            } else {
+                // 不包含JSON，转换为error对象并编码
+                auto err   = mc::error::from_exception(e);
+                error_json = err->encode();
+                error_name = std::string(err->get_name());
+            }
+
+            // 添加 "kepler." 前缀（如果尚未包含）
+            if (error_name.find("kepler.") != 0) {
+                error_name = "kepler." + error_name;
+            }
+
+            info.response = mc::dbus::message::new_error(msg, error_name, error_json);
         }
     } catch (const std::exception& e) {
         // 未知错误记录 error 日志
@@ -478,7 +497,8 @@ void service_impl::remove_match(uint64_t id) {
     m_connection.remove_rule(id);
 }
 
-service::service(std::string_view name) : mc::core::service_base(std::string(name)) {
+service::service(std::string_view name)
+    : mc::core::service_base(std::string(name)) {
     m_impl = std::make_unique<service_impl>();
 }
 

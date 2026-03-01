@@ -32,6 +32,8 @@ base_src_files = [
   'singleton.cpp',
   'error.cpp',
   'error_engine.cpp',
+  'error_message_parser.cpp',
+  'error_message_converter.cpp',
   'result.cpp',
   'array.cpp',
 
