@@ -50,9 +50,6 @@ error::error(const error& other)
     }
 }
 
-error::error(error&& other) noexcept            = default;
-error& error::operator=(error&& other) noexcept(false) = default;
-
 error_ptr error::from_exception(std::exception_ptr e) {
     try {
         std::rethrow_exception(e);

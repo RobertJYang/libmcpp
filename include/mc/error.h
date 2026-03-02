@@ -99,16 +99,16 @@ struct MC_API error : public mc::enable_shared_from_this<error>, public error_in
 
     error(const error& other);
     error& operator=(const error& other);
-    error(error&& other) noexcept;
-    error& operator=(error&& other) noexcept(false);
+    error(error&& other) noexcept            = default;
+    error& operator=(error&& other) noexcept = default;
 
-    std::string_view get_name() const;
-    std::string_view get_format() const;
-    const mc::dict&  get_args() const;
-    const mc::dict&  get_args_with_index() const;
-    std::string      get_message() const;
+    std::string_view   get_name() const;
+    std::string_view   get_format() const;
+    const mc::dict&    get_args() const;
+    const mc::dict&    get_args_with_index() const;
+    std::string        get_message() const;
     const std::string& get_registry_prefix() const;
-    void              set_registry_prefix(std::string_view prefix);
+    void               set_registry_prefix(std::string_view prefix);
 
     error_level get_level() const;
     void        set_level(error_level level);
