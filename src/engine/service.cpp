@@ -431,8 +431,11 @@ DBusHandlerResult service_impl::on_method_call(abstract_object& object, mc::dbus
             auto*                        method_info = find_method_info(ctx, object, interface_name, method_name);
             mc::dbus::signature_iterator it(method_info->get_result_signature());
             if (!it.at_end()) {
-                // 若返回签名为struct（），展开逐元素写入，与introspect保持一致
-                if (it.current_type_code() == mc::dbus::type_code::struct_start) {
+                // 仅针对 bmc.kepler.ObjectGroup.GetBinaryObjects 展开 struct 逐元素写入，其他统一整体写入
+                bool expand_struct =
+                    (interface_name == "bmc.kepler.ObjectGroup" && method_name == "GetBinaryObjects") &&
+                    (it.current_type_code() == mc::dbus::type_code::struct_start);
+                if (expand_struct) {
                     auto        content_it = it.get_content_iterator();
                     const auto& arr        = result.get_array();
                     for (const auto& item : arr) {
