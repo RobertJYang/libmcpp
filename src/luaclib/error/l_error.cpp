@@ -11,6 +11,7 @@
  */
 
 #include "l_error.h"
+#include "../utils/variant_utils.h"
 #include <mc/error.h>
 #include <mc/error_engine.h>
 #include <mc/error_message_converter.h>
@@ -19,42 +20,52 @@
 
 namespace mc::lua::error {
 
-// ============================================================================
-// Lua 辅助函数
-// ============================================================================
+/**
+ * @brief 将 variant 数组转换为 dict
+ *
+ * 将 variants 数组转换为 dict，键从 1 开始（符合 Lua 数组索引习惯）
+ *
+ * @param arr variant 数组
+ * @return 转换后的 dict
+ */
+static mc::dict array_to_dict(const mc::variants& arr)
+{
+    mc::dict result;
+    for (size_t i = 0; i < arr.size(); ++i) {
+        result.insert(i + 1, arr[i]); // Lua 数组索引从 1 开始
+    }
+    return result;
+}
 
 /**
  * @brief 从 Lua 栈中读取 dict
+ *
+ * 将 Lua 栈中指定索引的值转换为 mc::dict。
+ * 支持两种类型的 Lua table：
+ *   1. 键值对类型（key-value）→ 转换为 dict 的 object 类型
+ *   2. 数组类型（array）→ 转换为 dict 的 integer 索引类型
+ *
+ * 该函数使用 mc::lua::lua_to_variant 进行转换，自动处理嵌套 table 结构。
+ *
+ * @param L Lua 状态机
+ * @param index Lua 栈中的索引（支持正索引和负索引）
+ * @return 转换后的 dict
  */
 static mc::dict check_dict(lua_State* L, int index)
 {
-    mc::dict result;
+    // 使用 lua_to_variant 将 Lua 值转换为 variant
+    // 该函数内部已处理嵌套 table 的递归转换
+    mc::variant var = mc::lua::lua_to_variant(L, index);
+    mc::dict    result;
 
-    if (!lua_istable(L, index)) {
-        return result;
+    // 根据类型进行转换
+    if (var.is_object()) {
+        // 键值对类型 table，直接获取
+        result = var.get_object();
+    } else if (var.is_array()) {
+        // 数组类型 table，转换为从 1 开始索引的 dict
+        result = array_to_dict(var.get_array());
     }
-
-    lua_pushnil(L); // 第一个 key
-    while (lua_next(L, index) != 0) {
-        // key 在 -2，value 在 -1
-        if (lua_isstring(L, -2)) {
-            std::string key = lua_tostring(L, -2);
-
-            // 尝试将 value 转换为各种类型
-            if (lua_isboolean(L, -1)) {
-                result[key] = static_cast<bool>(lua_toboolean(L, -1));
-            } else if (lua_isinteger(L, -1)) {
-                result[key] = static_cast<int64_t>(lua_tointeger(L, -1));
-            } else if (lua_isnumber(L, -1)) {
-                result[key] = lua_tonumber(L, -1);
-            } else if (lua_isstring(L, -1)) {
-                result[key] = std::string(lua_tostring(L, -1));
-            }
-        }
-
-        lua_pop(L, 1); // 移除 value，保留 key
-    }
-
     return result;
 }
 
@@ -734,13 +745,13 @@ int compat_new_error(lua_State* L)
     const char* format = luaL_optstring(L, 2, "");
 
     mc::dict args;
-    bool need_convert = false;  // 是否需要转换 format
+    bool     need_convert = false; // 是否需要转换 format
 
     if (lua_istable(L, 3)) {
         args = check_dict(L, 3);
     } else {
         // 如果 params 不是 table，收集可变参数，使用数字键 (0, 1, 2...) 以支持 Redfish %1, %2 格式
-        need_convert = true;  // 需要转换 format
+        need_convert  = true; // 需要转换 format
         int arg_index = 0;
         int n         = lua_gettop(L);
         for (int i = 3; i <= n; ++i) {
@@ -899,7 +910,7 @@ int compat_print_log(lua_State* L)
 
     // 处理可变参数并格式化消息
     std::string formatted_msg;
-    int n_args = lua_gettop(L);
+    int         n_args = lua_gettop(L);
 
     if (n_args > 2) {
         // 收集可变参数到 dict（使用数字索引 0, 1, 2, ...）

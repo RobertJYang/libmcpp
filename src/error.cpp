@@ -39,11 +39,18 @@ error::error(const error_info& info)
 error::error(std::string_view name, std::string_view format, error_level level)
     : mc::enable_shared_from_this<error>(), error_info(name, format, level)
 {
+    // 存储 name 和 format 的副本，确保 string_view 的生命周期
+    m_name_storage   = name;
+    m_format_storage = format;
+    // 更新基类的 string_view 指向存储的副本
+    this->name   = m_name_storage;
+    this->format = m_format_storage;
 }
 
 error::error(const error& other)
     : mc::enable_shared_from_this<error>(other),
-      error_info(other.name, other.format, other.level)
+      error_info(other.m_name_storage, other.m_format_storage, other.level),
+      m_name_storage(other.m_name_storage), m_format_storage(other.m_format_storage)
 {
     this->args = other.args;
     // 不复制缓存，让新对象懒加载
@@ -51,6 +58,10 @@ error::error(const error& other)
     if (other.prev_error) {
         this->prev_error.reset(new error(*other.prev_error));
     }
+
+    // 确保 string_view 指向存储的副本
+    this->name   = m_name_storage;
+    this->format = m_format_storage;
 }
 
 error_ptr error::from_exception(std::exception_ptr e)
@@ -110,11 +121,13 @@ error& error::operator=(const error& other)
     if (this != &other) {
         mc::enable_shared_from_this<error>::operator=(other);
 
-        this->name            = other.name;
-        this->format          = other.format;
-        this->level           = other.level;
-        this->args            = other.args;
-        this->registry_prefix = other.registry_prefix;
+        this->m_name_storage   = other.m_name_storage;
+        this->m_format_storage = other.m_format_storage;
+        this->name             = m_name_storage;
+        this->format           = m_format_storage;
+        this->level            = other.level;
+        this->args             = other.args;
+        this->registry_prefix  = other.registry_prefix;
         this->m_cached_message.reset(); // 清除缓存
 
         if (other.prev_error) {
@@ -169,8 +182,12 @@ std::string error::get_message() const
 
     // 首次访问时格式化消息并缓存
     std::string formatted;
-    if (from_registry) {
-        // 从错误引擎查找到的，使用 error_message_parser 格式化（支持 %1, %2 等占位符）
+    // 检测是否包含 %数字 占位符
+    static const std::regex placeholder_pattern("%(\\d+)");
+    bool                    has_percent_placeholder = std::regex_search(format_to_use.begin(), format_to_use.end(), placeholder_pattern);
+
+    if (from_registry || has_percent_placeholder) {
+        // 从错误引擎查找到的，或者包含 %数字 占位符的，使用 error_message_parser 格式化（支持 %1, %2 等占位符）
         formatted = mc::error_message_parser::format_message(format_to_use, args);
     } else {
         // 直接设置的 format，使用 format_dict 格式化
@@ -190,14 +207,14 @@ void error::set_level(error_level level)
     this->level = level;
 }
 
-void error::set_name(std::string_view name)
-{
-    this->name = name;
+void error::set_name(std::string_view name) {
+    m_name_storage = name;
+    this->name     = m_name_storage;
 }
 
-void error::set_format(std::string_view format)
-{
-    this->format = format;
+void error::set_format(std::string_view format) {
+    m_format_storage = format;
+    this->format     = m_format_storage;
 }
 
 const std::string& error::get_registry_prefix() const
@@ -334,6 +351,8 @@ int error::get_param_index(std::string_view param_name, std::string_view param_v
 
 /**
  * @brief 查找参数位置索引(dict版本)
+ * param_struct 是一个数组，每个元素是一个 dict，包含 name 字段
+ * 遍历数组，找到 name 字段匹配的元素索引
  */
 int error::get_param_index(std::string_view param_name, const mc::dict& param_struct)
 {
@@ -341,15 +360,31 @@ int error::get_param_index(std::string_view param_name, const mc::dict& param_st
         return -1;
     }
 
-    // 遍历查找匹配的键
-    int index = 0;
+    // 遍历 param_struct 数组（使用整数索引 1, 2, 3, ...）
     for (const auto& entry : param_struct) {
-        if (entry.key.is_string()) {
-            std::string key = entry.key.get_string();
-            if (param_name == key) {
-                return index;
+        const mc::variant& key   = entry.key;
+        const mc::variant& value = entry.value;
+
+        // 只处理整数键（数组类型）
+        if (key.is_int64()) {
+            // 检查 value 是否是 dict 类型
+            if (value.is_object()) {
+                mc::dict dict_value = value.get_object();
+
+                // 检查 dict 中是否有 name 字段
+                if (dict_value.contains("name")) {
+                    const mc::variant& name_variant = dict_value["name"];
+
+                    // 比较 name 字段与 param_name
+                    if (name_variant.is_string()) {
+                        std::string name_str = name_variant.get_string();
+                        if (name_str == param_name) {
+                            // 返回位置索引（从 0 开始，对应 Lua 的从 1 开始）
+                            return static_cast<int>(key.as<int64_t>()) - 1;
+                        }
+                    }
+                }
             }
-            index++;
         }
     }
 
@@ -391,7 +426,8 @@ void error::post_process_impl(IndexLookupFunc&& index_lookup)
 
     mc::dict new_args;
     mc::dict args_with_index;
-    int      index = 0;
+    int      index          = 0;
+    bool     has_index_flag = false;
 
     // 遍历 args 的值
     for (const auto& entry : args) {
@@ -407,6 +443,7 @@ void error::post_process_impl(IndexLookupFunc&& index_lookup)
                     std::string param_name = match.str(1);
                     int         pos        = index_lookup(param_name);
                     if (pos >= 0) {
+                        has_index_flag = true;
                         // 更新 args: 提取冒号后的内容，或者去掉%
                         size_t colon_pos = arg_value.find(':');
                         if (colon_pos != std::string::npos) {
@@ -435,8 +472,10 @@ void error::post_process_impl(IndexLookupFunc&& index_lookup)
     }
 
     // 更新 args
-    args              = new_args;
-    m_args_with_index = args_with_index;
+    if (has_index_flag) {
+        args              = new_args;
+        m_args_with_index = args_with_index;
+    }
 }
 
 /**
@@ -450,7 +489,7 @@ std::string error::encode(const mc::json::json_encode_options& options) const
     result["name"]    = std::string(get_name());
     result["message"] = get_message();
     result["format"]  = std::string(get_format());
-    result["params"]  = mc::json::json_encode(get_args(), options);
+    result["params"]  = get_args();
 
     // 序列化 registry_prefix (如果存在)
     if (!registry_prefix.empty()) {
@@ -464,7 +503,7 @@ std::string error::encode(const mc::json::json_encode_options& options) const
 
     // 序列化 args_with_index (如果存在)
     if (!m_args_with_index.empty()) {
-        result["args_with_index"] = mc::json::json_encode(m_args_with_index, options);
+        result["args_with_index"] = m_args_with_index;
     }
 
     return mc::json::json_encode(result, options);

@@ -129,6 +129,17 @@ const variant& dict::operator[](const variant& key) const
     throw std::out_of_range("字典中不存在键: " + key.to_string());
 }
 
+// 支持整数键的 operator[]（用于数组类型 dict）
+const variant& dict::operator[](int key) const
+{
+    return (*this)[static_cast<int64_t>(key)];
+}
+
+const variant& dict::operator[](int64_t key) const
+{
+    return (*this)[mc::variant(key)];
+}
+
 // 获取指定键的值，如果不存在则返回默认值
 const variant& dict::get(const std::string& key, const variant& default_value) const
 {
@@ -187,6 +198,17 @@ bool dict::contains(const char* key) const
 bool dict::contains(const variant& key) const
 {
     return find_entry(key) != nullptr;
+}
+
+// 支持整数键的 contains（用于数组类型 dict）
+bool dict::contains(int key) const
+{
+    return contains(static_cast<int64_t>(key));
+}
+
+bool dict::contains(int64_t key) const
+{
+    return contains(mc::variant(key));
 }
 
 // 获取键值对数量

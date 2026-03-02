@@ -148,86 +148,76 @@ std::string error_message_parser::format_message(std::string_view template_msg,
 {
     std::string result = std::string(template_msg);
 
-    // 统计模板中的占位符数量
-    int placeholder_count = 0;
-    for (int i = 1; i <= 10; ++i) {
-        std::string placeholder = "%" + std::to_string(i);
-        if (result.find(placeholder) != std::string::npos) {
-            placeholder_count = i;
-        }
-    }
+    // 使用正则表达式匹配 %数字 格式的占位符
+    // 例如：%1, %2, %11, %123 等
+    static const std::regex placeholder_pattern("%(\\d+)");
 
-    // 统计提供的参数数量（使用数字 key）
-    int provided_args = 0;
-    for (int i = 0; i < 10; ++i) {
-        if (args.contains(i)) {
-            provided_args = i + 1;
-        }
-    }
+    std::string output;
+    auto        it = std::sregex_iterator(result.begin(), result.end(), placeholder_pattern);
+    auto        end = std::sregex_iterator();
 
-    // 参数数量验证：记录警告但继续处理
-    if (provided_args != placeholder_count) {
-        wlog("消息格式化参数数量不匹配: 模板需要 ${template_count} 个参数，提供了 ${provided_count} 个参数",
-             ("template_count", placeholder_count)("provided_count", provided_args));
-    }
+    size_t last_pos = 0;
+    for (auto iter = it; iter != end; ++iter) {
+        const std::smatch& match = *iter;
+        // 添加匹配前的文本
+        output.append(result, last_pos, match.position() - last_pos);
 
-    // 替换 %1, %2, %3 等占位符
-    // Redfish 消息格式使用 %1, %2 等，从 1 开始
-    // 参数使用数字 key：0 对应 %1，1 对应 %2，依此类推
-    for (int i = 1; i <= 10; ++i) {
-        std::string placeholder = "%" + std::to_string(i);
-        int         key_index   = i - 1; // %1 -> key 0, %2 -> key 1, etc.
+        // 提取数字并转换为 key_index（%1 -> key 0, %2 -> key 1, etc.）
+        std::string num_str = match.str(1);
+        int         num     = std::stoi(num_str);
+        int         key_index = num - 1;
 
-        if (result.find(placeholder) != std::string::npos) {
-            if (args.contains(key_index)) {
-                // 类型转换：尝试获取字符串值
-                std::string        value;
-                const mc::variant& arg_value = args[key_index];
+        if (args.contains(key_index)) {
+            // 类型转换：尝试获取字符串值
+            std::string        value;
+            const mc::variant& arg_value = args[key_index];
 
-                // 根据类型进行转换
-                switch (arg_value.get_type()) {
-                case mc::type_id::string_type:
-                    value = arg_value.as<std::string>();
-                    break;
-                case mc::type_id::int8_type:
-                case mc::type_id::int16_type:
-                case mc::type_id::int32_type:
-                case mc::type_id::int64_type:
-                    value = std::to_string(arg_value.as<int64_t>());
-                    break;
-                case mc::type_id::uint8_type:
-                case mc::type_id::uint16_type:
-                case mc::type_id::uint32_type:
-                case mc::type_id::uint64_type:
-                    value = std::to_string(arg_value.as<uint64_t>());
-                    break;
-                case mc::type_id::double_type:
-                    value = std::to_string(arg_value.as<double>());
-                    break;
-                case mc::type_id::bool_type:
-                    value = arg_value.as<bool>() ? "true" : "false";
-                    break;
-                default:
-                    // 其他类型转换为字符串
-                    value = mc::to_string(arg_value);
-                    break;
-                }
-
-                // 手动替换字符串
-                size_t pos = 0;
-                while ((pos = result.find(placeholder, pos)) != std::string::npos) {
-                    result.replace(pos, placeholder.length(), value);
-                    pos += value.length();
-                }
-            } else {
-                // 占位符存在但没有对应参数，记录警告
-                wlog("消息格式化缺少参数: 占位符 ${placeholder} 没有对应的参数值",
-                     ("placeholder", placeholder));
+            // 根据类型进行转换
+            switch (arg_value.get_type()) {
+            case mc::type_id::string_type:
+                value = arg_value.as<std::string>();
+                break;
+            case mc::type_id::int8_type:
+            case mc::type_id::int16_type:
+            case mc::type_id::int32_type:
+            case mc::type_id::int64_type:
+                value = std::to_string(arg_value.as<int64_t>());
+                break;
+            case mc::type_id::uint8_type:
+            case mc::type_id::uint16_type:
+            case mc::type_id::uint32_type:
+            case mc::type_id::uint64_type:
+                value = std::to_string(arg_value.as<uint64_t>());
+                break;
+            case mc::type_id::double_type:
+                value = std::to_string(arg_value.as<double>());
+                break;
+            case mc::type_id::bool_type:
+                value = arg_value.as<bool>() ? "true" : "false";
+                break;
+            default:
+                // 其他类型转换为字符串
+                value = mc::to_string(arg_value);
+                break;
             }
+
+            output += value;
+        } else {
+            // 占位符存在但没有对应参数，保留原样并记录警告
+            wlog("消息格式化缺少参数: 占位符 ${placeholder} 没有对应的参数值",
+                 ("placeholder", match.str()));
+            output.append(match.str());
         }
+
+        last_pos = match.position() + match.length();
     }
 
-    return result;
+    // 添加剩余文本
+    if (last_pos < result.length()) {
+        output.append(result, last_pos, result.length() - last_pos);
+    }
+
+    return output;
 }
 
 std::string error_message_parser::format_message(const error_message_definition& def,

@@ -265,6 +265,16 @@ private:
     mc::dict m_args_with_index;
 
     /**
+     * @brief 存储 name 的副本（确保 string_view 的生命周期）
+     */
+    std::string m_name_storage;
+
+    /**
+     * @brief 存储 format 的副本（确保 string_view 的生命周期）
+     */
+    std::string m_format_storage;
+
+    /**
      * @brief 查找参数位置索引 (私有静态辅助函数,string版本)
      * @param param_name 参数名
      * @param param_value 参数值(字符串)

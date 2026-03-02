@@ -278,7 +278,12 @@ Json* build_json_from_variant(const mc::variant& value)
             for (const auto& entry : v) {
                 const auto& key_var = entry.key;
                 const auto& val_var = entry.value;
-                std::string key_str = key_var.get_string();
+                std::string key_str;
+                if (!entry.key.is_string()) {
+                    key_str = key_var.as_string();
+                } else {
+                    key_str = key_var.get_string();
+                }
                 Json*       child   = build_json_from_variant(val_var);
                 ensure_created(child, "Failed to build object element");
                 check_json_ret(JsonItemAddToObject(key_str.c_str(), child, json), "Failed to add object element");
