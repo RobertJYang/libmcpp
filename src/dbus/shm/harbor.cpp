@@ -326,9 +326,13 @@ void harbor::process_dbus_message(DBusMessage* msg) {
         // 异步处理 signal 消息，避免阻塞 harbor 线程
         dbus_message_ref(msg); // 增加引用计数，传递到异步任务
         boost::asio::post(mc::get_work_context(), [this, msg]() mutable {
-            auto& match = m_connection.get_match();
-            match.run_msg(msg);
-            dbus_message_unref(msg); // 在异步任务中释放引用
+            try {
+                auto& match = m_connection.get_match();
+                match.run_msg(msg);
+                dbus_message_unref(msg); // 在异步任务中释放引用
+            } catch (const std::exception& e) {
+                elog("failed to process signal, error: ${error}", ("error", e.what()));
+            }
         });
     } else {
         elog("invalid message type ${type} for shared memory queue", ("type", msg_type));
@@ -361,7 +365,11 @@ void harbor::process_local_message(const variants& unpacked) {
 #endif
     if (!is_reply) {
         boost::asio::post(mc::get_work_context(), [this, msg = std::move(msg)]() mutable {
-            invoke_method(msg.get());
+            try {
+                invoke_method(msg.get());
+            } catch (const std::exception& e) {
+                elog("failed to process method invoke, error: ${error}", ("error", e.what()));
+            }
         });
         return;
     }
