@@ -1,5 +1,6 @@
 # Interprocess 模块测试
 
+```text
 Copyright (c) 2025 Huawei Technologies Co., Ltd.
 openUBMC is licensed under Mulan PSL v2.
 You can use this software according to the terms and conditions of the Mulan PSL v2.
@@ -8,6 +9,7 @@ THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
 EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
 MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE.
 See the Mulan PSL v2 for more details.
+```
 
 ## 概述
 
@@ -17,12 +19,11 @@ See the Mulan PSL v2 for more details.
 
 Interprocess 模块的测试目录结构对应源代码目录结构：
 
-```
+```shell
 tests/interprocess/
 ├── README.md                          # 本文档
 ├── meson.build                        # 构建配置
 ├── test_shared_memory.cpp             # 共享内存测试
-├── test_message_queue.cpp             # 消息队列测试
 ├── test_shared_memory_manager.cpp     # 共享内存管理器测试
 ├── test_shared_memory_allocator.cpp   # 共享内存分配器测试
 └── mutex/                             # 互斥锁测试目录
@@ -33,36 +34,20 @@ tests/interprocess/
 
 ## 测试文件列表
 
-Interprocess 模块包含以下测试文件：
+interprocess 模块包含以下测试文件：
 
 1. `test_shared_memory.cpp` - 共享内存测试
 2. `test_shared_memory_manager.cpp` - 共享内存管理器测试
 3. `test_shared_memory_allocator.cpp` - 共享内存分配器测试
 4. `mutex/test_ipc_mutex.cpp` - IPC 互斥锁测试（详见 `mutex/README.md`）
 5. `mutex/test_shared_mutex.cpp` - IPC 读写锁和包装类测试（详见 `mutex/README.md`）
-6. `test_message_queue.cpp` - POSIX 消息队列测试
 
 ## 详细测试用例
 
-### test_message_queue.cpp
-- `constructor_and_destructor`  - 测试构造函数和析构函数
-- `move_semantics`  - 测试消息队列的移动
-- `basic_send_recv`  - 测试消息的基础发送和接收
-- `message_with_priority`  - 测试消息队列中消息的优先级
-- `recv_with_timeout`  - 测试消息队列接收超市
-- `queue_attributes`  - 测试消息队列基础属性
-- `large_message_handling`  - 测试大容量消息在消息队列的处理
-- `thread_safety`  - 测试消息队列的线程安全
-- `edge_conditions`  - 测试消息队列的边界条件处理
-- `exception_handling`  - 测试消息队列的异常处理
-- `performance_testing`  - 测试消息队列的性能
-- `cross_process_communication`  - 测试消息队列的跨进程通信（实际采用的是多线程）
-- `permission_testing`  - 测试消息队列的权限
-- `clear_testing`  - 测试消息队列的清空
-- `resource_cleanup`  - 测试消息队列的销毁清理
-
 ### test_shared_memory.cpp
+
 共享内存测试（14 个用例，已优化）：
+
 - `create_shared_memory` - 测试创建共享内存
 - `format_shm_name` - 测试共享内存名称格式化
 - `get_properties` - 测试获取共享内存属性
@@ -79,7 +64,9 @@ Interprocess 模块包含以下测试文件：
 - `CreateWithRegisterProcessFailure` - 测试 register_process() 失败（进程槽位已满）
 
 ### test_shared_memory_manager.cpp
+
 共享内存管理器测试（10 个用例，已优化）：
+
 - `create_manager` - 测试创建共享内存管理器
 - `get_shared_memory` - 测试获取共享内存对象
 - `remove_on_exit` - 测试 REMOVE_ON_EXIT 选项
@@ -92,7 +79,9 @@ Interprocess 模块包含以下测试文件：
 - `RemoveSharedMemoryEmptyName` - 测试 remove_shared_memory() 传入空名称
 
 ### test_shared_memory_allocator.cpp
+
 共享内存分配器测试（14 个用例）：
+
 - `basic_allocate_deallocate` - 测试基础内存分配和释放
 - `typed_allocate` - 测试类型安全的分配
 - `allocate_array` - 测试数组分配
@@ -108,11 +97,13 @@ Interprocess 模块包含以下测试文件：
 - `aligned_allocation` - 测试对齐分配
 - `block_split_and_merge` - 测试块分割和合并
 
-    ### mutex/test_ipc_mutex.cpp
-    IPC 互斥锁测试（22 个用例），详见 `mutex/README.md`。
+### mutex/test_ipc_mutex.cpp
 
-    ### mutex/test_shared_mutex.cpp
-    IPC 读写锁和包装类测试（66 个用例），详见 `mutex/README.md`。
+IPC 互斥锁测试（22 个用例），详见 `mutex/README.md`。
+
+### mutex/test_shared_mutex.cpp
+
+IPC 读写锁和包装类测试（66 个用例），详见 `mutex/README.md`。
 
 ## 运行测试
 
@@ -126,7 +117,8 @@ meson test -C builddir
 ninja -C builddir test
 ```
 
-**注意**: 
+**注意**:
+
 - meson 构建配置中只有一个测试注册（`libmcpp unit tests`），不能使用 `--suite interprocess` 运行特定模块测试
 - 要通过 meson 传递参数给测试可执行文件，使用 `--test-args` 选项
 - 推荐直接运行可执行文件，更简单直接
@@ -171,15 +163,16 @@ meson test -C builddir --test-args="--gtest_filter=shared_memory_test.create_sha
 meson test -C builddir --test-args="--gtest_filter=SharedMutexTestFixture.IpcMutex*"
 ```
 
-    ## 测试统计
+## 测试统计
 
-    - **测试文件总数**: 5 个
-    - **测试用例总数**: 132 个（已优化，删除了重复的测试用例）
-      - `test_shared_memory.cpp`: 14 个用例（已优化，删除了重复的 `create_with_empty_name`，功能已合并到 `CreateWithEmptyName`）
-      - `test_shared_memory_manager.cpp`: 10 个用例（已优化，删除了重复的 `remove_if_exists`，功能已合并到 `RemoveIfExistsWithExistingShm`）
-      - `test_shared_memory_allocator.cpp`: 14 个用例
-      - `mutex/test_ipc_mutex.cpp`: 21 个用例
-      - `mutex/test_shared_mutex.cpp`: 73 个用例
+- **测试文件总数**: 5 个
+- **测试用例总数**: 132 个（已优化，删除了重复的测试用例）
+- `test_shared_memory.cpp`: 14 个用例（已优化，删除了重复的 `create_with_empty_name`，功能已合并到 `CreateWithEmptyName`）
+- `test_shared_memory_manager.cpp`: 10 个用例（已优化，删除了重复的 `remove_if_exists`，功能已合并到 `RemoveIfExistsWithExistingShm`）
+- `test_shared_memory_allocator.cpp`: 14 个用例
+- `mutex/test_ipc_mutex.cpp`: 21 个用例
+- `mutex/test_shared_mutex.cpp`: 73 个用例
+
 - **测试覆盖的功能模块**:
   - shared_memory（共享内存）
   - shared_memory_manager（共享内存管理器）
@@ -212,4 +205,3 @@ meson test -C builddir --verbose --test-args="--gtest_filter=SharedMutexTestFixt
 6. **并发测试**: 大量测试用例涉及多线程并发，测试了线程安全性和竞争条件。
 7. **分支覆盖率**: 测试用例重点覆盖了各种条件分支，包括错误处理、边界条件和状态转换路径。
 8. **超时测试**: `IpcMutexTryLockForTimeout` 测试需要保持锁超过超时时间，确保正确验证超时行为。
-
