@@ -12,11 +12,11 @@
 
 #include <gtest/gtest.h>
 
+#include "../runtime/test_future_helpers.h"
 #include <mc/interprocess/mutex.h>
 #include <mc/interprocess/shared_memory_manager.h>
 #include <mc/runtime/thread_list.h>
 #include <test_utilities/test_base.h>
-#include "../runtime/test_future_helpers.h"
 
 #ifdef __unix__
 #include <sys/wait.h>
@@ -35,7 +35,8 @@ using namespace mc::interprocess;
 class SharedMutexTestFixture : public mc::test::TestBase {
 protected:
     // 在每个测试前设置共享内存环境
-    void SetUp() override {
+    void SetUp() override
+    {
         TestBase::SetUp();
 
         // 创建共享内存管理器
@@ -65,7 +66,8 @@ protected:
     }
 
     // 在每个测试后清理资源
-    void TearDown() override {
+    void TearDown() override
+    {
         // 释放资源
         m_mutex.reset();
         m_shared_mutex.reset();
@@ -104,7 +106,8 @@ protected:
 };
 
 // 测试 mutex 在单进程多线程环境下的基本功能
-TEST_F(SharedMutexTestFixture, BasicThreadSafety) {
+TEST_F(SharedMutexTestFixture, BasicThreadSafety)
+{
     std::atomic<int> counter(0);
 
     auto increment = [this, &counter]() {
@@ -124,7 +127,8 @@ TEST_F(SharedMutexTestFixture, BasicThreadSafety) {
 }
 
 // 测试 mutex 的 try_lock
-TEST_F(SharedMutexTestFixture, TryLock) {
+TEST_F(SharedMutexTestFixture, TryLock)
+{
     // 锁应该可以成功获取
     EXPECT_TRUE(m_mutex->try_lock());
 
@@ -147,7 +151,8 @@ TEST_F(SharedMutexTestFixture, TryLock) {
 }
 
 // 测试 mutex 的 try_lock_for
-TEST_F(SharedMutexTestFixture, TryLockFor) {
+TEST_F(SharedMutexTestFixture, TryLockFor)
+{
     std::promise<void> lock_ready;
     std::promise<void> release_lock;
     auto               release_future = release_lock.get_future();
@@ -163,8 +168,8 @@ TEST_F(SharedMutexTestFixture, TryLockFor) {
 
     auto start = std::chrono::steady_clock::now();
     EXPECT_FALSE(m_mutex->try_lock_for(std::chrono::milliseconds(100)));
-    auto   end      = std::chrono::steady_clock::now();
-    auto   duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+    auto end      = std::chrono::steady_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
     EXPECT_GE(duration, 90);
 
     release_lock.set_value();
@@ -172,7 +177,8 @@ TEST_F(SharedMutexTestFixture, TryLockFor) {
 }
 
 // 测试 shared_mutex 在单进程多线程环境下的基本功能
-TEST_F(SharedMutexTestFixture, SharedMutexBasicThreadSafety) {
+TEST_F(SharedMutexTestFixture, SharedMutexBasicThreadSafety)
+{
     std::atomic<int> counter(0);
 
     // 测试写锁互斥
@@ -238,7 +244,8 @@ TEST_F(SharedMutexTestFixture, SharedMutexBasicThreadSafety) {
 }
 
 // 测试 ipc_shared_mutex 的 try_lock_shared 重复获取（已持有读锁）
-TEST_F(SharedMutexTestFixture, IpcSharedMutexReentrantTryLockShared) {
+TEST_F(SharedMutexTestFixture, IpcSharedMutexReentrantTryLockShared)
+{
     // 获取读锁
     EXPECT_TRUE(m_ipc_shared_mutex->try_lock_shared());
     // 重复获取应该返回 true（允许同一进程多次获取读锁，但实际实现可能不支持）
@@ -252,7 +259,8 @@ TEST_F(SharedMutexTestFixture, IpcSharedMutexReentrantTryLockShared) {
 }
 
 // 测试 ipc_shared_mutex 的 try_lock 重复获取（已持有写锁）
-TEST_F(SharedMutexTestFixture, IpcSharedMutexReentrantTryLock) {
+TEST_F(SharedMutexTestFixture, IpcSharedMutexReentrantTryLock)
+{
     // 获取写锁
     EXPECT_TRUE(m_ipc_shared_mutex->try_lock());
     // 重复获取应该返回 false（不允许重入，与ipc_mutex语义一致）
@@ -261,7 +269,8 @@ TEST_F(SharedMutexTestFixture, IpcSharedMutexReentrantTryLock) {
 }
 
 // 测试 ipc_shared_mutex 的 unlock_shared 不持有读锁
-TEST_F(SharedMutexTestFixture, IpcSharedMutexUnlockSharedWithoutLock) {
+TEST_F(SharedMutexTestFixture, IpcSharedMutexUnlockSharedWithoutLock)
+{
     // 不持有读锁的情况下解锁，应该安全返回
     m_ipc_shared_mutex->unlock_shared();
     // 应该可以正常获取读锁
@@ -270,7 +279,8 @@ TEST_F(SharedMutexTestFixture, IpcSharedMutexUnlockSharedWithoutLock) {
 }
 
 // 测试 ipc_shared_mutex 的 unlock 不持有写锁
-TEST_F(SharedMutexTestFixture, IpcSharedMutexUnlockWithoutLock) {
+TEST_F(SharedMutexTestFixture, IpcSharedMutexUnlockWithoutLock)
+{
     // 不持有写锁的情况下解锁，应该安全返回
     m_ipc_shared_mutex->unlock();
     // 应该可以正常获取写锁
@@ -279,7 +289,8 @@ TEST_F(SharedMutexTestFixture, IpcSharedMutexUnlockWithoutLock) {
 }
 
 // 测试 ipc_shared_mutex 的 cleanup_dead_locks
-TEST_F(SharedMutexTestFixture, IpcSharedMutexCleanupDeadLocks) {
+TEST_F(SharedMutexTestFixture, IpcSharedMutexCleanupDeadLocks)
+{
     // 获取读锁
     EXPECT_TRUE(m_ipc_shared_mutex->try_lock_shared());
     // 清理死亡锁（当前没有死亡的锁，应该安全执行）
@@ -288,7 +299,8 @@ TEST_F(SharedMutexTestFixture, IpcSharedMutexCleanupDeadLocks) {
 }
 
 // 测试 ipc_shared_mutex 写锁持有者已死亡的情况
-TEST_F(SharedMutexTestFixture, IpcSharedMutexDeadWriter) {
+TEST_F(SharedMutexTestFixture, IpcSharedMutexDeadWriter)
+{
     // 获取写锁
     EXPECT_TRUE(m_ipc_shared_mutex->try_lock());
 
@@ -301,7 +313,8 @@ TEST_F(SharedMutexTestFixture, IpcSharedMutexDeadWriter) {
 }
 
 // 测试 shared_mutex 包装类的 try_lock 重复获取（应该返回 false）
-TEST_F(SharedMutexTestFixture, SharedMutexReentrantTryLock) {
+TEST_F(SharedMutexTestFixture, SharedMutexReentrantTryLock)
+{
     // 获取写锁
     EXPECT_TRUE(m_shared_mutex->try_lock());
     // 重复获取应该返回 false（不允许递归锁定）
@@ -310,7 +323,8 @@ TEST_F(SharedMutexTestFixture, SharedMutexReentrantTryLock) {
 }
 
 // 测试 shared_mutex 包装类的 lock 重复获取（应该抛出异常）
-TEST_F(SharedMutexTestFixture, SharedMutexReentrantLock) {
+TEST_F(SharedMutexTestFixture, SharedMutexReentrantLock)
+{
     // 获取写锁
     m_shared_mutex->lock();
     // 重复获取应该抛出异常
@@ -319,19 +333,22 @@ TEST_F(SharedMutexTestFixture, SharedMutexReentrantLock) {
 }
 
 // 测试 shared_mutex 包装类的 unlock 不持有写锁（应该抛出异常）
-TEST_F(SharedMutexTestFixture, SharedMutexUnlockWithoutLock) {
+TEST_F(SharedMutexTestFixture, SharedMutexUnlockWithoutLock)
+{
     // 不持有写锁的情况下解锁，应该抛出异常
     EXPECT_THROW(m_shared_mutex->unlock(), std::system_error);
 }
 
 // 测试 shared_mutex 包装类的 unlock_shared 不持有读锁（应该抛出异常）
-TEST_F(SharedMutexTestFixture, SharedMutexUnlockSharedWithoutLock) {
+TEST_F(SharedMutexTestFixture, SharedMutexUnlockSharedWithoutLock)
+{
     // 不持有读锁的情况下解锁，应该抛出异常
     EXPECT_THROW(m_shared_mutex->unlock_shared(), std::system_error);
 }
 
 // 测试 shared_mutex 包装类的 try_lock_shared 在写锁持有时的行为
-TEST_F(SharedMutexTestFixture, SharedMutexTryLockSharedWithWriter) {
+TEST_F(SharedMutexTestFixture, SharedMutexTryLockSharedWithWriter)
+{
     // 获取写锁
     EXPECT_TRUE(m_shared_mutex->try_lock());
     // 同一线程尝试获取读锁（应该失败，因为已有写锁）
@@ -344,7 +361,8 @@ TEST_F(SharedMutexTestFixture, SharedMutexTryLockSharedWithWriter) {
 }
 
 // 测试 shared_mutex 包装类的多读者计数
-TEST_F(SharedMutexTestFixture, SharedMutexMultipleReaders) {
+TEST_F(SharedMutexTestFixture, SharedMutexMultipleReaders)
+{
     std::atomic<int> reader_count(0);
 
     // 多个线程同时获取读锁
@@ -365,7 +383,8 @@ TEST_F(SharedMutexTestFixture, SharedMutexMultipleReaders) {
 }
 
 // 测试 shared_mutex 包装类的写锁阻塞读锁
-TEST_F(SharedMutexTestFixture, SharedMutexWriterBlocksReaders) {
+TEST_F(SharedMutexTestFixture, SharedMutexWriterBlocksReaders)
+{
     std::atomic<bool> writer_done(false);
     std::atomic<int>  readers_blocked(0);
 
@@ -395,7 +414,8 @@ TEST_F(SharedMutexTestFixture, SharedMutexWriterBlocksReaders) {
 }
 
 // 测试 ipc_shared_mutex 的 register_reader_unsafe 中已注册读者的分支
-TEST_F(SharedMutexTestFixture, IpcSharedMutexRegisterReaderAlreadyRegistered) {
+TEST_F(SharedMutexTestFixture, IpcSharedMutexRegisterReaderAlreadyRegistered)
+{
     // 获取读锁
     EXPECT_TRUE(m_ipc_shared_mutex->try_lock_shared());
     // 再次尝试获取（应该返回 true，因为已经注册）
@@ -404,7 +424,8 @@ TEST_F(SharedMutexTestFixture, IpcSharedMutexRegisterReaderAlreadyRegistered) {
 }
 
 // 测试 ipc_shared_mutex 的 unlock_shared 中 reader_count == 0 的分支
-TEST_F(SharedMutexTestFixture, IpcSharedMutexUnlockSharedZeroCount) {
+TEST_F(SharedMutexTestFixture, IpcSharedMutexUnlockSharedZeroCount)
+{
     // 获取读锁
     EXPECT_TRUE(m_ipc_shared_mutex->try_lock_shared());
     // 释放读锁（应该正常处理 reader_count > 0 的情况）
@@ -414,7 +435,8 @@ TEST_F(SharedMutexTestFixture, IpcSharedMutexUnlockSharedZeroCount) {
 }
 
 // 测试 ipc_shared_mutex 的 aggressive_cleanup_readers_unsafe 中 reader_count == 0 的分支
-TEST_F(SharedMutexTestFixture, IpcSharedMutexAggressiveCleanupNoReaders) {
+TEST_F(SharedMutexTestFixture, IpcSharedMutexAggressiveCleanupNoReaders)
+{
     // 没有读者时清理，应该返回 0
     m_ipc_shared_mutex->cleanup_dead_locks();
     // 应该可以正常获取读锁
@@ -423,7 +445,8 @@ TEST_F(SharedMutexTestFixture, IpcSharedMutexAggressiveCleanupNoReaders) {
 }
 
 // 测试 ipc_shared_mutex 的 try_lock 中有活跃读者时的分支
-TEST_F(SharedMutexTestFixture, IpcSharedMutexTryLockWithActiveReaders) {
+TEST_F(SharedMutexTestFixture, IpcSharedMutexTryLockWithActiveReaders)
+{
     // 获取读锁
     EXPECT_TRUE(m_ipc_shared_mutex->try_lock_shared());
     // 尝试获取写锁（应该失败，因为有活跃读者）
@@ -435,7 +458,8 @@ TEST_F(SharedMutexTestFixture, IpcSharedMutexTryLockWithActiveReaders) {
 }
 
 // 测试 ipc_shared_mutex 的 try_lock_shared 中写者存活的分支
-TEST_F(SharedMutexTestFixture, IpcSharedMutexTryLockSharedWithAliveWriter) {
+TEST_F(SharedMutexTestFixture, IpcSharedMutexTryLockSharedWithAliveWriter)
+{
     // 获取写锁
     EXPECT_TRUE(m_ipc_shared_mutex->try_lock());
     // 在另一个上下文中尝试获取读锁（应该失败，因为写者存活）
@@ -450,7 +474,8 @@ TEST_F(SharedMutexTestFixture, IpcSharedMutexTryLockSharedWithAliveWriter) {
 }
 
 // 测试 ipc_shared_mutex 的 find_free_reader_slot 使用 last_free_slot 的分支
-TEST_F(SharedMutexTestFixture, IpcSharedMutexFindFreeSlotUsesLastFree) {
+TEST_F(SharedMutexTestFixture, IpcSharedMutexFindFreeSlotUsesLastFree)
+{
     // 获取并释放读锁，这会设置 last_free_slot
     EXPECT_TRUE(m_ipc_shared_mutex->try_lock_shared());
     m_ipc_shared_mutex->unlock_shared();
@@ -460,7 +485,8 @@ TEST_F(SharedMutexTestFixture, IpcSharedMutexFindFreeSlotUsesLastFree) {
 }
 
 // 测试 ipc_shared_mutex 的 find_free_reader_slot 遍历查找的分支
-TEST_F(SharedMutexTestFixture, IpcSharedMutexFindFreeSlotTraversal) {
+TEST_F(SharedMutexTestFixture, IpcSharedMutexFindFreeSlotTraversal)
+{
     // 获取多个读锁，填满一些槽位
     for (int i = 0; i < 5; ++i) {
         EXPECT_TRUE(m_ipc_shared_mutex->try_lock_shared());
@@ -475,7 +501,8 @@ TEST_F(SharedMutexTestFixture, IpcSharedMutexFindFreeSlotTraversal) {
 }
 
 // 测试 ipc_shared_mutex 的 should_clean_reader 中 reader_pid == 0 的分支
-TEST_F(SharedMutexTestFixture, IpcSharedMutexShouldCleanReaderZeroPid) {
+TEST_F(SharedMutexTestFixture, IpcSharedMutexShouldCleanReaderZeroPid)
+{
     // 清理应该跳过空槽位
     m_ipc_shared_mutex->cleanup_dead_locks();
     EXPECT_TRUE(m_ipc_shared_mutex->try_lock_shared());
@@ -483,7 +510,8 @@ TEST_F(SharedMutexTestFixture, IpcSharedMutexShouldCleanReaderZeroPid) {
 }
 
 // 测试 ipc_shared_mutex 的 should_clean_reader 中 reader_pid == current_pid 的分支
-TEST_F(SharedMutexTestFixture, IpcSharedMutexShouldCleanReaderCurrentPid) {
+TEST_F(SharedMutexTestFixture, IpcSharedMutexShouldCleanReaderCurrentPid)
+{
     // 获取读锁
     EXPECT_TRUE(m_ipc_shared_mutex->try_lock_shared());
     // 清理不应该清理当前进程的读锁
@@ -493,14 +521,16 @@ TEST_F(SharedMutexTestFixture, IpcSharedMutexShouldCleanReaderCurrentPid) {
 }
 
 // 测试 ipc_shared_mutex 的 is_writer_alive 中 writer_pid == 0 的分支
-TEST_F(SharedMutexTestFixture, IpcSharedMutexIsWriterAliveZeroPid) {
+TEST_F(SharedMutexTestFixture, IpcSharedMutexIsWriterAliveZeroPid)
+{
     // 没有写锁时，is_writer_alive 应该返回 false
     EXPECT_TRUE(m_ipc_shared_mutex->try_lock_shared());
     m_ipc_shared_mutex->unlock_shared();
 }
 
 // 测试 ipc_shared_mutex 的 aggressive_cleanup 中 cleaned_count > 0 的分支
-TEST_F(SharedMutexTestFixture, IpcSharedMutexAggressiveCleanupWithCleaned) {
+TEST_F(SharedMutexTestFixture, IpcSharedMutexAggressiveCleanupWithCleaned)
+{
     // 获取读锁
     EXPECT_TRUE(m_ipc_shared_mutex->try_lock_shared());
     // 清理（当前情况下应该没有需要清理的）
@@ -509,7 +539,8 @@ TEST_F(SharedMutexTestFixture, IpcSharedMutexAggressiveCleanupWithCleaned) {
 }
 
 // 测试 ipc_shared_mutex 的 aggressive_cleanup 中清理写者的分支
-TEST_F(SharedMutexTestFixture, IpcSharedMutexAggressiveCleanupWriter) {
+TEST_F(SharedMutexTestFixture, IpcSharedMutexAggressiveCleanupWriter)
+{
     // 获取写锁
     EXPECT_TRUE(m_ipc_shared_mutex->try_lock());
     // 清理（不应该清理当前进程的写锁）
@@ -518,7 +549,8 @@ TEST_F(SharedMutexTestFixture, IpcSharedMutexAggressiveCleanupWriter) {
 }
 
 // 测试 ipc_shared_mutex 的 try_lock 中清理后仍有读者的分支
-TEST_F(SharedMutexTestFixture, IpcSharedMutexTryLockStillHasReaders) {
+TEST_F(SharedMutexTestFixture, IpcSharedMutexTryLockStillHasReaders)
+{
     // 获取读锁
     EXPECT_TRUE(m_ipc_shared_mutex->try_lock_shared());
     // 尝试获取写锁（应该失败）
@@ -529,7 +561,8 @@ TEST_F(SharedMutexTestFixture, IpcSharedMutexTryLockStillHasReaders) {
 // 测试 ipc_shared_mutex 的 register_reader_unsafe 中槽位满且清理后仍满的情况
 // 注意：这需要 MAX_READERS 个不同的进程，在单进程测试中难以实现
 // 但我们可以测试接近满的情况
-TEST_F(SharedMutexTestFixture, IpcSharedMutexRegisterReaderFullSlots) {
+TEST_F(SharedMutexTestFixture, IpcSharedMutexRegisterReaderFullSlots)
+{
     // 在单进程测试中，我们只能测试到一定数量的读锁
     // 实际 MAX_READERS 通常较大（如32），这里我们测试多个读锁的场景
     std::vector<bool> locks;
@@ -547,7 +580,8 @@ TEST_F(SharedMutexTestFixture, IpcSharedMutexRegisterReaderFullSlots) {
 }
 
 // 测试 ipc_shared_mutex 的 register_reader_unsafe 中清理后找到槽位的情况
-TEST_F(SharedMutexTestFixture, IpcSharedMutexRegisterReaderAfterCleanup) {
+TEST_F(SharedMutexTestFixture, IpcSharedMutexRegisterReaderAfterCleanup)
+{
     // 获取读锁
     EXPECT_TRUE(m_ipc_shared_mutex->try_lock_shared());
     // 清理（当前情况下应该正常工作）
@@ -557,14 +591,16 @@ TEST_F(SharedMutexTestFixture, IpcSharedMutexRegisterReaderAfterCleanup) {
 }
 
 // 测试 ipc_shared_mutex 的 is_writer_alive 中 write_time == 0 的分支
-TEST_F(SharedMutexTestFixture, IpcSharedMutexIsWriterAliveZeroTime) {
+TEST_F(SharedMutexTestFixture, IpcSharedMutexIsWriterAliveZeroTime)
+{
     // 没有写锁时，write_time 应该是 0
     EXPECT_TRUE(m_ipc_shared_mutex->try_lock_shared());
     m_ipc_shared_mutex->unlock_shared();
 }
 
 // 测试 ipc_shared_mutex 的 should_clean_reader 中 read_time == 0 的分支
-TEST_F(SharedMutexTestFixture, IpcSharedMutexShouldCleanReaderZeroTime) {
+TEST_F(SharedMutexTestFixture, IpcSharedMutexShouldCleanReaderZeroTime)
+{
     // 清理空槽位
     m_ipc_shared_mutex->cleanup_dead_locks();
     EXPECT_TRUE(m_ipc_shared_mutex->try_lock_shared());
@@ -572,7 +608,8 @@ TEST_F(SharedMutexTestFixture, IpcSharedMutexShouldCleanReaderZeroTime) {
 }
 
 // 测试 ipc_shared_mutex 的 is_writer_alive 中 write_time > 0 的分支
-TEST_F(SharedMutexTestFixture, IpcSharedMutexIsWriterAliveNonZeroTime) {
+TEST_F(SharedMutexTestFixture, IpcSharedMutexIsWriterAliveNonZeroTime)
+{
     // 获取写锁（设置 write_time > 0）
     EXPECT_TRUE(m_ipc_shared_mutex->try_lock());
     // is_writer_alive 应该返回 true（因为写者存活且未超时）
@@ -580,7 +617,8 @@ TEST_F(SharedMutexTestFixture, IpcSharedMutexIsWriterAliveNonZeroTime) {
 }
 
 // 测试 ipc_shared_mutex 的 is_writer_alive 中 now - write_time <= timeout 的分支
-TEST_F(SharedMutexTestFixture, IpcSharedMutexIsWriterAliveNotTimeout) {
+TEST_F(SharedMutexTestFixture, IpcSharedMutexIsWriterAliveNotTimeout)
+{
     // 获取写锁
     EXPECT_TRUE(m_ipc_shared_mutex->try_lock());
     // 立即检查（应该未超时）
@@ -590,14 +628,16 @@ TEST_F(SharedMutexTestFixture, IpcSharedMutexIsWriterAliveNotTimeout) {
 }
 
 // 测试 ipc_shared_mutex 的 try_lock_shared 中 m_writer_pid == 0 的分支
-TEST_F(SharedMutexTestFixture, IpcSharedMutexTryLockSharedNoWriter) {
+TEST_F(SharedMutexTestFixture, IpcSharedMutexTryLockSharedNoWriter)
+{
     // 没有写锁时应该可以获取读锁
     EXPECT_TRUE(m_ipc_shared_mutex->try_lock_shared());
     m_ipc_shared_mutex->unlock_shared();
 }
 
 // 测试 ipc_shared_mutex 的 try_lock_shared 中 m_writer_pid == pid 的分支
-TEST_F(SharedMutexTestFixture, IpcSharedMutexTryLockSharedSamePidWriter) {
+TEST_F(SharedMutexTestFixture, IpcSharedMutexTryLockSharedSamePidWriter)
+{
     // 获取写锁
     EXPECT_TRUE(m_ipc_shared_mutex->try_lock());
     // 同一进程尝试获取读锁（根据实现可能失败）
@@ -609,21 +649,24 @@ TEST_F(SharedMutexTestFixture, IpcSharedMutexTryLockSharedSamePidWriter) {
 }
 
 // 测试 ipc_shared_mutex 的 try_lock 中 m_writer_pid == 0 的分支
-TEST_F(SharedMutexTestFixture, IpcSharedMutexTryLockNoWriter) {
+TEST_F(SharedMutexTestFixture, IpcSharedMutexTryLockNoWriter)
+{
     // 没有写锁时应该可以获取写锁
     EXPECT_TRUE(m_ipc_shared_mutex->try_lock());
     m_ipc_shared_mutex->unlock();
 }
 
 // 测试 ipc_shared_mutex 的 try_lock 中 m_reader_count == 0 的分支
-TEST_F(SharedMutexTestFixture, IpcSharedMutexTryLockNoReaders) {
+TEST_F(SharedMutexTestFixture, IpcSharedMutexTryLockNoReaders)
+{
     // 没有读者时应该可以获取写锁
     EXPECT_TRUE(m_ipc_shared_mutex->try_lock());
     m_ipc_shared_mutex->unlock();
 }
 
 // 测试 ipc_shared_mutex 的 try_lock 中清理后 reader_count == 0 的分支
-TEST_F(SharedMutexTestFixture, IpcSharedMutexTryLockAfterCleanupNoReaders) {
+TEST_F(SharedMutexTestFixture, IpcSharedMutexTryLockAfterCleanupNoReaders)
+{
     // 获取读锁
     EXPECT_TRUE(m_ipc_shared_mutex->try_lock_shared());
     // 释放读锁
@@ -636,7 +679,8 @@ TEST_F(SharedMutexTestFixture, IpcSharedMutexTryLockAfterCleanupNoReaders) {
 }
 
 // 测试 ipc_shared_mutex 的 find_free_reader_slot 中 m_last_free_slot >= MAX_READERS 的分支
-TEST_F(SharedMutexTestFixture, IpcSharedMutexFindFreeSlotLastFreeOutOfRange) {
+TEST_F(SharedMutexTestFixture, IpcSharedMutexFindFreeSlotLastFreeOutOfRange)
+{
     // 通过多次获取和释放来测试边界情况
     for (int i = 0; i < 5; ++i) {
         EXPECT_TRUE(m_ipc_shared_mutex->try_lock_shared());
@@ -645,7 +689,8 @@ TEST_F(SharedMutexTestFixture, IpcSharedMutexFindFreeSlotLastFreeOutOfRange) {
 }
 
 // 测试 ipc_shared_mutex 的 find_free_reader_slot 中 m_readers[m_last_free_slot].pid != 0 的分支
-TEST_F(SharedMutexTestFixture, IpcSharedMutexFindFreeSlotLastFreeOccupied) {
+TEST_F(SharedMutexTestFixture, IpcSharedMutexFindFreeSlotLastFreeOccupied)
+{
     // 获取读锁（占用 last_free_slot）
     EXPECT_TRUE(m_ipc_shared_mutex->try_lock_shared());
     // 再次获取（应该找到新的槽位，因为 last_free_slot 被占用）
@@ -654,7 +699,8 @@ TEST_F(SharedMutexTestFixture, IpcSharedMutexFindFreeSlotLastFreeOccupied) {
 }
 
 // 测试 ipc_shared_mutex 的 register_reader_unsafe 中 aggressive_cleanup == 0 的分支
-TEST_F(SharedMutexTestFixture, IpcSharedMutexRegisterReaderCleanupReturnsZero) {
+TEST_F(SharedMutexTestFixture, IpcSharedMutexRegisterReaderCleanupReturnsZero)
+{
     // 在没有需要清理的读者时，cleanup 应该返回 0
     m_ipc_shared_mutex->cleanup_dead_locks();
     EXPECT_TRUE(m_ipc_shared_mutex->try_lock_shared());
@@ -662,7 +708,8 @@ TEST_F(SharedMutexTestFixture, IpcSharedMutexRegisterReaderCleanupReturnsZero) {
 }
 
 // 测试 ipc_shared_mutex 的 should_clean_reader 中 read_time == 0 的分支
-TEST_F(SharedMutexTestFixture, IpcSharedMutexShouldCleanReaderZeroReadTime) {
+TEST_F(SharedMutexTestFixture, IpcSharedMutexShouldCleanReaderZeroReadTime)
+{
     // 清理空槽位（read_time == 0）
     m_ipc_shared_mutex->cleanup_dead_locks();
     EXPECT_TRUE(m_ipc_shared_mutex->try_lock_shared());
@@ -670,7 +717,8 @@ TEST_F(SharedMutexTestFixture, IpcSharedMutexShouldCleanReaderZeroReadTime) {
 }
 
 // 测试 ipc_shared_mutex 的 should_clean_reader 中 now - read_time <= timeout 的分支
-TEST_F(SharedMutexTestFixture, IpcSharedMutexShouldCleanReaderNotTimeout) {
+TEST_F(SharedMutexTestFixture, IpcSharedMutexShouldCleanReaderNotTimeout)
+{
     // 获取读锁
     EXPECT_TRUE(m_ipc_shared_mutex->try_lock_shared());
     // 立即清理（应该不清理，因为未超时）
@@ -680,7 +728,8 @@ TEST_F(SharedMutexTestFixture, IpcSharedMutexShouldCleanReaderNotTimeout) {
 }
 
 // 测试 ipc_shared_mutex 的 aggressive_cleanup_readers_unsafe 中 cleaned_count == 0 的分支
-TEST_F(SharedMutexTestFixture, IpcSharedMutexAggressiveCleanupNoCleaned) {
+TEST_F(SharedMutexTestFixture, IpcSharedMutexAggressiveCleanupNoCleaned)
+{
     // 获取读锁
     EXPECT_TRUE(m_ipc_shared_mutex->try_lock_shared());
     // 清理（应该返回 0，因为没有需要清理的）
@@ -689,7 +738,8 @@ TEST_F(SharedMutexTestFixture, IpcSharedMutexAggressiveCleanupNoCleaned) {
 }
 
 // 测试 ipc_shared_mutex 的 aggressive_cleanup_readers_unsafe 中 m_writer_pid == 0 的分支
-TEST_F(SharedMutexTestFixture, IpcSharedMutexAggressiveCleanupNoWriter) {
+TEST_F(SharedMutexTestFixture, IpcSharedMutexAggressiveCleanupNoWriter)
+{
     // 没有写锁时清理
     m_ipc_shared_mutex->cleanup_dead_locks();
     EXPECT_TRUE(m_ipc_shared_mutex->try_lock_shared());
@@ -697,7 +747,8 @@ TEST_F(SharedMutexTestFixture, IpcSharedMutexAggressiveCleanupNoWriter) {
 }
 
 // 测试 ipc_shared_mutex 的 aggressive_cleanup_readers_unsafe 中 m_writer_pid == pid 的分支
-TEST_F(SharedMutexTestFixture, IpcSharedMutexAggressiveCleanupSamePidWriter) {
+TEST_F(SharedMutexTestFixture, IpcSharedMutexAggressiveCleanupSamePidWriter)
+{
     // 获取写锁
     EXPECT_TRUE(m_ipc_shared_mutex->try_lock());
     // 清理（不应该清理当前进程的写锁）
@@ -706,7 +757,8 @@ TEST_F(SharedMutexTestFixture, IpcSharedMutexAggressiveCleanupSamePidWriter) {
 }
 
 // 测试 ipc_shared_mutex 的 aggressive_cleanup_readers_unsafe 中 is_writer_alive 返回 true 的分支
-TEST_F(SharedMutexTestFixture, IpcSharedMutexAggressiveCleanupWriterAlive) {
+TEST_F(SharedMutexTestFixture, IpcSharedMutexAggressiveCleanupWriterAlive)
+{
     // 获取写锁
     EXPECT_TRUE(m_ipc_shared_mutex->try_lock());
     // 清理（写者存活，不应该清理）
@@ -715,7 +767,8 @@ TEST_F(SharedMutexTestFixture, IpcSharedMutexAggressiveCleanupWriterAlive) {
 }
 
 // 测试 ipc_shared_mutex 的 aggressive_cleanup_readers_unsafe 中 m_reader_count 更新的分支
-TEST_F(SharedMutexTestFixture, IpcSharedMutexAggressiveCleanupReaderCountUpdate) {
+TEST_F(SharedMutexTestFixture, IpcSharedMutexAggressiveCleanupReaderCountUpdate)
+{
     // 获取读锁
     EXPECT_TRUE(m_ipc_shared_mutex->try_lock_shared());
     // 清理（当前情况下 reader_count 应该保持不变）
@@ -724,7 +777,8 @@ TEST_F(SharedMutexTestFixture, IpcSharedMutexAggressiveCleanupReaderCountUpdate)
 }
 
 // 测试 ipc_shared_mutex 的 try_lock_shared 中 m_writer_pid != 0 && m_writer_pid != pid 且 is_writer_alive 返回 false 的分支
-TEST_F(SharedMutexTestFixture, IpcSharedMutexTryLockSharedDeadWriter) {
+TEST_F(SharedMutexTestFixture, IpcSharedMutexTryLockSharedDeadWriter)
+{
     // 获取写锁
     EXPECT_TRUE(m_ipc_shared_mutex->try_lock());
     // 释放写锁
@@ -735,7 +789,8 @@ TEST_F(SharedMutexTestFixture, IpcSharedMutexTryLockSharedDeadWriter) {
 }
 
 // 测试 ipc_shared_mutex 的 try_lock 中 m_writer_pid != 0 且 is_writer_alive 返回 false 的分支
-TEST_F(SharedMutexTestFixture, IpcSharedMutexTryLockDeadWriter) {
+TEST_F(SharedMutexTestFixture, IpcSharedMutexTryLockDeadWriter)
+{
     // 获取写锁
     EXPECT_TRUE(m_ipc_shared_mutex->try_lock());
     // 释放写锁
@@ -746,7 +801,8 @@ TEST_F(SharedMutexTestFixture, IpcSharedMutexTryLockDeadWriter) {
 }
 
 // 测试 ipc_shared_mutex 的 try_lock 中清理后 reader_count > 0 的分支
-TEST_F(SharedMutexTestFixture, IpcSharedMutexTryLockAfterCleanupStillHasReaders) {
+TEST_F(SharedMutexTestFixture, IpcSharedMutexTryLockAfterCleanupStillHasReaders)
+{
     // 获取读锁
     EXPECT_TRUE(m_ipc_shared_mutex->try_lock_shared());
     // 尝试获取写锁（应该失败，因为有活跃读者）
@@ -755,7 +811,8 @@ TEST_F(SharedMutexTestFixture, IpcSharedMutexTryLockAfterCleanupStillHasReaders)
 }
 
 // 测试 ipc_shared_mutex 的 register_reader_unsafe 中清理后仍找不到槽位的分支
-TEST_F(SharedMutexTestFixture, IpcSharedMutexRegisterReaderStillNoSlotAfterCleanup) {
+TEST_F(SharedMutexTestFixture, IpcSharedMutexRegisterReaderStillNoSlotAfterCleanup)
+{
     // 这个测试需要槽位满的情况，在单进程测试中难以实现
     // 但我们仍然可以测试基本功能
     EXPECT_TRUE(m_ipc_shared_mutex->try_lock_shared());
@@ -763,7 +820,8 @@ TEST_F(SharedMutexTestFixture, IpcSharedMutexRegisterReaderStillNoSlotAfterClean
 }
 
 // 测试 ipc_shared_mutex 的 lock_shared 多次尝试获取的分支
-TEST_F(SharedMutexTestFixture, IpcSharedMutexLockSharedRetry) {
+TEST_F(SharedMutexTestFixture, IpcSharedMutexLockSharedRetry)
+{
     // 获取写锁，阻塞读锁
     m_shared_mutex->lock();
 
@@ -795,7 +853,8 @@ TEST_F(SharedMutexTestFixture, IpcSharedMutexLockSharedRetry) {
 }
 
 // 测试 ipc_shared_mutex 的 lock 多次尝试获取的分支
-TEST_F(SharedMutexTestFixture, IpcSharedMutexLockRetry) {
+TEST_F(SharedMutexTestFixture, IpcSharedMutexLockRetry)
+{
     // 获取读锁，阻塞写锁
     m_shared_mutex->lock_shared();
 
@@ -827,7 +886,8 @@ TEST_F(SharedMutexTestFixture, IpcSharedMutexLockRetry) {
 }
 
 // 测试 ipc_shared_mutex 的 register_reader_unsafe 中持有写锁时不能再获取读锁的分支
-TEST_F(SharedMutexTestFixture, IpcSharedMutexRegisterReaderWithWriter) {
+TEST_F(SharedMutexTestFixture, IpcSharedMutexRegisterReaderWithWriter)
+{
     // 获取写锁
     EXPECT_TRUE(m_ipc_shared_mutex->try_lock());
     // 尝试获取读锁（应该失败，因为已持有写锁）
@@ -836,7 +896,8 @@ TEST_F(SharedMutexTestFixture, IpcSharedMutexRegisterReaderWithWriter) {
 }
 
 // 测试 ipc_mutex 的 lock 多次尝试获取的分支
-TEST_F(SharedMutexTestFixture, IpcMutexLockRetry) {
+TEST_F(SharedMutexTestFixture, IpcMutexLockRetry)
+{
     // 获取锁
     m_mutex->lock();
 
@@ -868,7 +929,8 @@ TEST_F(SharedMutexTestFixture, IpcMutexLockRetry) {
 }
 
 // 测试 ipc_mutex 的 try_lock_for 多次尝试获取的分支
-TEST_F(SharedMutexTestFixture, IpcMutexTryLockForRetry) {
+TEST_F(SharedMutexTestFixture, IpcMutexTryLockForRetry)
+{
     // 获取锁
     m_mutex->lock();
 
@@ -903,7 +965,8 @@ TEST_F(SharedMutexTestFixture, IpcMutexTryLockForRetry) {
 }
 
 // 测试 ipc_shared_mutex 的 try_lock_shared 中写锁持有者就是当前进程的分支
-TEST_F(SharedMutexTestFixture, IpcSharedMutexTryLockSharedSamePidWriterBlocked) {
+TEST_F(SharedMutexTestFixture, IpcSharedMutexTryLockSharedSamePidWriterBlocked)
+{
     // 获取写锁
     EXPECT_TRUE(m_ipc_shared_mutex->try_lock());
     // 同一进程尝试获取读锁（根据实现，应该失败，因为已持有写锁）
@@ -920,7 +983,8 @@ TEST_F(SharedMutexTestFixture, IpcSharedMutexTryLockSharedSamePidWriterBlocked) 
 }
 
 // 测试 ipc_shared_mutex 的 try_lock_shared 中写锁持有者不是当前进程但已死亡的分支
-TEST_F(SharedMutexTestFixture, IpcSharedMutexTryLockSharedDeadWriterCleared) {
+TEST_F(SharedMutexTestFixture, IpcSharedMutexTryLockSharedDeadWriterCleared)
+{
     // 获取写锁
     EXPECT_TRUE(m_ipc_shared_mutex->try_lock());
     // 释放写锁
@@ -931,7 +995,8 @@ TEST_F(SharedMutexTestFixture, IpcSharedMutexTryLockSharedDeadWriterCleared) {
 }
 
 // 测试 ipc_shared_mutex 的 try_lock 中写锁持有者不是当前进程但已死亡的分支
-TEST_F(SharedMutexTestFixture, IpcSharedMutexTryLockDeadWriterCleared) {
+TEST_F(SharedMutexTestFixture, IpcSharedMutexTryLockDeadWriterCleared)
+{
     // 获取写锁
     EXPECT_TRUE(m_ipc_shared_mutex->try_lock());
     // 释放写锁
@@ -942,7 +1007,8 @@ TEST_F(SharedMutexTestFixture, IpcSharedMutexTryLockDeadWriterCleared) {
 }
 
 // 测试 ipc_shared_mutex 的 try_lock 中清理后仍有读者的分支（通过多线程）
-TEST_F(SharedMutexTestFixture, IpcSharedMutexTryLockWithMultipleReaders) {
+TEST_F(SharedMutexTestFixture, IpcSharedMutexTryLockWithMultipleReaders)
+{
     // 多个线程获取读锁
     std::atomic<int>         reader_count(0);
     std::vector<std::thread> readers;
@@ -974,7 +1040,8 @@ TEST_F(SharedMutexTestFixture, IpcSharedMutexTryLockWithMultipleReaders) {
 }
 
 // 测试 ipc_shared_mutex 的 try_lock_shared 中写锁持有者不是当前进程且存活的分支
-TEST_F(SharedMutexTestFixture, IpcSharedMutexTryLockSharedWithAliveWriterBlocked) {
+TEST_F(SharedMutexTestFixture, IpcSharedMutexTryLockSharedWithAliveWriterBlocked)
+{
     // 获取写锁
     m_shared_mutex->lock();
 
@@ -1009,7 +1076,8 @@ TEST_F(SharedMutexTestFixture, IpcSharedMutexTryLockSharedWithAliveWriterBlocked
 }
 
 // 测试 ipc_shared_mutex 的 aggressive_cleanup_readers_unsafe 中 reader_count 更新但 cleaned_count > 0 的分支
-TEST_F(SharedMutexTestFixture, IpcSharedMutexAggressiveCleanupReaderCountDecrease) {
+TEST_F(SharedMutexTestFixture, IpcSharedMutexAggressiveCleanupReaderCountDecrease)
+{
     // 获取读锁
     EXPECT_TRUE(m_ipc_shared_mutex->try_lock_shared());
     // 清理（当前情况下 reader_count 应该保持不变，因为没有需要清理的）
@@ -1021,7 +1089,8 @@ TEST_F(SharedMutexTestFixture, IpcSharedMutexAggressiveCleanupReaderCountDecreas
 }
 
 #ifdef __unix__
-TEST_F(SharedMutexTestFixture, CleanupDeadReaderRemovesSlot) {
+TEST_F(SharedMutexTestFixture, CleanupDeadReaderRemovesSlot)
+{
     int pipefd[2];
     ASSERT_EQ(pipe(pipefd), 0);
 
@@ -1050,7 +1119,8 @@ TEST_F(SharedMutexTestFixture, CleanupDeadReaderRemovesSlot) {
     m_shared_mutex->unlock();
 }
 
-TEST_F(SharedMutexTestFixture, CleanupDeadWriterAllowsProgress) {
+TEST_F(SharedMutexTestFixture, CleanupDeadWriterAllowsProgress)
+{
     int pipefd[2];
     ASSERT_EQ(pipe(pipefd), 0);
 
@@ -1080,39 +1150,42 @@ TEST_F(SharedMutexTestFixture, CleanupDeadWriterAllowsProgress) {
 #endif
 
 // 测试 shared_mutex 析构时持有读锁的情况
-TEST_F(SharedMutexTestFixture, SharedMutexDestructorWithReadLock) {
+TEST_F(SharedMutexTestFixture, SharedMutexDestructorWithReadLock)
+{
     // 创建一个 shared_mutex 对象
     auto local_shared_mutex = std::make_unique<shared_mutex>(*m_ipc_shared_mutex);
-    
+
     // 获取读锁但不释放
     EXPECT_TRUE(local_shared_mutex->try_lock_shared());
-    
+
     // 让对象析构，验证析构函数正确释放 IPC 读锁
     local_shared_mutex.reset();
-    
+
     // 验证 IPC 读锁已被释放（可以通过尝试获取写锁来验证）
     EXPECT_TRUE(m_ipc_shared_mutex->try_lock());
     m_ipc_shared_mutex->unlock();
 }
 
 // 测试 shared_mutex 析构时持有写锁的情况
-TEST_F(SharedMutexTestFixture, SharedMutexDestructorWithWriteLock) {
+TEST_F(SharedMutexTestFixture, SharedMutexDestructorWithWriteLock)
+{
     // 创建一个 shared_mutex 对象
     auto local_shared_mutex = std::make_unique<shared_mutex>(*m_ipc_shared_mutex);
-    
+
     // 获取写锁但不释放
     EXPECT_TRUE(local_shared_mutex->try_lock());
-    
+
     // 让对象析构，验证析构函数正确释放 IPC 写锁
     local_shared_mutex.reset();
-    
+
     // 验证 IPC 写锁已被释放（可以通过尝试获取写锁来验证）
     EXPECT_TRUE(m_ipc_shared_mutex->try_lock());
     m_ipc_shared_mutex->unlock();
 }
 
 // 测试 shared_mutex::try_lock() 中线程锁获取失败的情况
-TEST_F(SharedMutexTestFixture, SharedMutexTryLockThreadMutexFailure) {
+TEST_F(SharedMutexTestFixture, SharedMutexTryLockThreadMutexFailure)
+{
     // 在一个线程中先获取线程锁（通过另一个 shared_mutex 实例）
     // 注意：由于 std::shared_mutex 允许多个读锁，我们需要通过写锁来测试
     std::thread holder([this]() {
@@ -1121,59 +1194,61 @@ TEST_F(SharedMutexTestFixture, SharedMutexTryLockThreadMutexFailure) {
         std::this_thread::sleep_for(std::chrono::milliseconds(30));
         m_shared_mutex->unlock();
     });
-    
+
     // 等待 holder 获取锁
     std::this_thread::sleep_for(std::chrono::milliseconds(10));
-    
+
     // 在另一个线程中调用 try_lock()，应该返回 false（因为线程写锁被持有）
     std::atomic<bool> try_lock_result(false);
-    std::thread contender([this, &try_lock_result]() {
+    std::thread       contender([this, &try_lock_result]() {
         try_lock_result = m_shared_mutex->try_lock();
         if (try_lock_result) {
             m_shared_mutex->unlock();
         }
     });
-    
+
     contender.join();
     holder.join();
-    
+
     // 验证 try_lock 返回 false（因为线程写锁被 holder 持有）
     EXPECT_FALSE(try_lock_result);
 }
 
 // 测试 shared_mutex::try_lock() 中 IPC 锁获取失败的情况
-TEST_F(SharedMutexTestFixture, SharedMutexTryLockIpcFailure) {
+TEST_F(SharedMutexTestFixture, SharedMutexTryLockIpcFailure)
+{
     // 在一个线程中先获取 IPC 写锁（通过 ipc_shared_mutex 直接获取）
     mc::test::runtime::future_flag lock_ready;
-    std::thread holder([this, &lock_ready]() {
+    std::thread                    holder([this, &lock_ready]() {
         EXPECT_TRUE(m_ipc_shared_mutex->try_lock());
         lock_ready.set();
         std::this_thread::sleep_for(std::chrono::milliseconds(30));
         m_ipc_shared_mutex->unlock();
     });
-    
+
     // 等待 holder 获取锁
     ASSERT_TRUE(lock_ready.wait_for(std::chrono::milliseconds(3000)));
-    
+
     // 在另一个线程中调用 shared_mutex::try_lock()，应该返回 false
     std::atomic<bool> try_lock_result(false);
-    std::thread contender([this, &try_lock_result]() {
+    std::thread       contender([this, &try_lock_result]() {
         try_lock_result = m_shared_mutex->try_lock();
         if (try_lock_result) {
             m_shared_mutex->unlock();
         }
     });
-    
+
     contender.join();
     holder.join();
-    
+
     // 验证 try_lock 返回 false（因为 IPC 写锁被 holder 持有）
     EXPECT_FALSE(try_lock_result);
 }
 
 // 测试 shared_mutex::try_lock_shared() 中线程读锁获取失败的情况
 // 注意：由于 std::shared_mutex 允许多个读锁，这个场景需要特殊处理
-TEST_F(SharedMutexTestFixture, SharedMutexTryLockSharedThreadMutexFailure) {
+TEST_F(SharedMutexTestFixture, SharedMutexTryLockSharedThreadMutexFailure)
+{
     // 由于 std::shared_mutex 允许多个读锁，我们需要通过写锁来阻止读锁
     // 在一个线程中先获取写锁（这会阻止读锁）
     std::thread holder([this]() {
@@ -1181,51 +1256,52 @@ TEST_F(SharedMutexTestFixture, SharedMutexTryLockSharedThreadMutexFailure) {
         std::this_thread::sleep_for(std::chrono::milliseconds(30));
         m_shared_mutex->unlock();
     });
-    
+
     // 等待 holder 获取写锁
     std::this_thread::sleep_for(std::chrono::milliseconds(10));
-    
+
     // 在另一个线程中调用 try_lock_shared()，应该返回 false（因为写锁被持有）
     std::atomic<bool> try_lock_result(false);
-    std::thread contender([this, &try_lock_result]() {
+    std::thread       contender([this, &try_lock_result]() {
         try_lock_result = m_shared_mutex->try_lock_shared();
         if (try_lock_result) {
             m_shared_mutex->unlock_shared();
         }
     });
-    
+
     contender.join();
     holder.join();
-    
+
     // 验证 try_lock_shared 返回 false（因为写锁被 holder 持有）
     EXPECT_FALSE(try_lock_result);
 }
 
 // 测试 shared_mutex::try_lock_shared() 中 IPC 读锁获取失败的情况
-TEST_F(SharedMutexTestFixture, SharedMutexTryLockSharedIpcFailure) {
+TEST_F(SharedMutexTestFixture, SharedMutexTryLockSharedIpcFailure)
+{
     // 在一个线程中先获取 IPC 写锁（通过 ipc_shared_mutex 直接获取）
     std::thread holder([this]() {
         EXPECT_TRUE(m_ipc_shared_mutex->try_lock());
         std::this_thread::sleep_for(std::chrono::milliseconds(30));
         m_ipc_shared_mutex->unlock();
     });
-    
+
     // 等待 holder 获取写锁
     std::this_thread::sleep_for(std::chrono::milliseconds(10));
-    
+
     // 在另一个线程中调用 shared_mutex::try_lock_shared()（作为第一个读者）
     // 应该返回 false 并正确释放线程读锁
     std::atomic<bool> try_lock_result(false);
-    std::thread contender([this, &try_lock_result]() {
+    std::thread       contender([this, &try_lock_result]() {
         try_lock_result = m_shared_mutex->try_lock_shared();
         if (try_lock_result) {
             m_shared_mutex->unlock_shared();
         }
     });
-    
+
     contender.join();
     holder.join();
-    
+
     // 验证 try_lock_shared 返回 false（因为 IPC 写锁被 holder 持有）
     EXPECT_FALSE(try_lock_result);
 }

@@ -24,14 +24,16 @@ public:
 
     int32_t m_value = 0;
 
-    int32_t add(int32_t a) {
+    int32_t add(int32_t a)
+    {
         auto old_value = m_value;
         m_value += a;
         value_changed(old_value, m_value);
         return m_value;
     }
 
-    int32_t subtract(int32_t a) {
+    int32_t subtract(int32_t a)
+    {
         auto old_value = m_value;
         m_value -= a;
         value_changed(old_value, m_value);
@@ -48,17 +50,20 @@ public:
 
     std::string m_value = "默认值";
 
-    void set_value(std::string_view value) {
+    void set_value(std::string_view value)
+    {
         auto old_value = m_value;
         m_value        = value;
         value_changed(old_value, m_value);
     }
 
-    std::string get_value() const {
+    std::string get_value() const
+    {
         return m_value;
     }
 
-    bool is_empty() const {
+    bool is_empty() const
+    {
         return m_value.empty();
     }
 
@@ -70,7 +75,9 @@ class TestObject : public mc::engine::object<TestObject> {
 public:
     MC_OBJECT(TestObject, "TestObject", "/org/test/TestObject", (TestInterface1)(TestInterface2))
 
-    TestObject(mc::engine::core_object* parent = nullptr) : mc::engine::object<TestObject>(parent) {
+    TestObject(mc::engine::core_object* parent = nullptr)
+        : mc::engine::object<TestObject>(parent)
+    {
     }
 
     TestInterface1 m_iface1;
@@ -93,7 +100,8 @@ using namespace test_object_expr;
 
 class object_expr_test : public ::testing::Test {
 protected:
-    void SetUp() override {
+    void SetUp() override
+    {
         // 设置初始值
         obj                   = TestObject::create();
         obj->m_iface1.m_value = 10;
@@ -120,7 +128,8 @@ protected:
         });
     }
 
-    void TearDown() override {
+    void TearDown() override
+    {
         value_conn.disconnect();
         string_conn.disconnect();
         obj_ctx.reset();
@@ -144,7 +153,8 @@ protected:
 };
 
 // 测试通过表达式读取对象属性
-TEST_F(object_expr_test, test_read_properties) {
+TEST_F(object_expr_test, test_read_properties)
+{
     // 读取数值属性（指定interface）
     auto iface1_value = expr_engine.evaluate("iface1.value", *obj_ctx);
     EXPECT_TRUE(iface1_value.is_int32());
@@ -162,7 +172,8 @@ TEST_F(object_expr_test, test_read_properties) {
 }
 
 // 测试通过表达式调用对象方法
-TEST_F(object_expr_test, test_call_methods) {
+TEST_F(object_expr_test, test_call_methods)
+{
     // 调用Add方法（指定interface）
     auto add_result = expr_engine.evaluate("iface1.Add(5)", *obj_ctx);
     EXPECT_TRUE(add_result.is_int32());
@@ -195,7 +206,8 @@ TEST_F(object_expr_test, test_call_methods) {
 }
 
 // 测试通过表达式修改对象属性
-TEST_F(object_expr_test, test_set_properties) {
+TEST_F(object_expr_test, test_set_properties)
+{
     // 调用SetValue方法
     expr_engine.evaluate("iface2.SetValue('通过表达式设置的值')", *obj_ctx);
 
@@ -219,7 +231,8 @@ TEST_F(object_expr_test, test_set_properties) {
 }
 
 // 测试复杂表达式
-TEST_F(object_expr_test, test_complex_expressions) {
+TEST_F(object_expr_test, test_complex_expressions)
+{
     // 条件表达式
     auto complex_expr = "value > 5 ? Add(10) : Subtract(5)";
     auto result       = expr_engine.evaluate(complex_expr, *obj_ctx);
@@ -240,7 +253,8 @@ TEST_F(object_expr_test, test_complex_expressions) {
 }
 
 // 测试错误处理
-TEST_F(object_expr_test, test_error_handling) {
+TEST_F(object_expr_test, test_error_handling)
+{
     // 访问不存在的属性
     EXPECT_THROW(expr_engine.evaluate("iface1.non_existent", *obj_ctx), mc::invalid_arg_exception);
 
@@ -257,9 +271,10 @@ TEST_F(object_expr_test, test_error_handling) {
 }
 
 // 测试 object_method_call_node::get_type() 方法
-TEST_F(object_expr_test, ObjectMethodCallNodeGetType) {
+TEST_F(object_expr_test, ObjectMethodCallNodeGetType)
+{
     mc::expr::engine expr_engine;
-    auto            obj_ctx = expr_engine.make_context(obj.get());
+    auto             obj_ctx = expr_engine.make_context(obj.get());
 
     // 解析一个对象方法调用表达式
     auto node = expr_engine.compile("iface1.Add(1)");

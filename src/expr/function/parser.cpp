@@ -26,13 +26,15 @@ using namespace mc;
 
 namespace mc::expr {
 
-func_parser& func_parser::get_instance() {
+func_parser& func_parser::get_instance()
+{
     static func_parser instance;
     return instance;
 }
 
 // 尝试将字符串转换为不同类型的值
-mc::variant parse_value(const std::string& value) {
+mc::variant parse_value(const std::string& value)
+{
     // 尝试转换为布尔值
     if (value == "true" || value == "True" || value == "TRUE") {
         return variant(true);
@@ -60,7 +62,8 @@ mc::variant parse_value(const std::string& value) {
     return variant(value);
 }
 
-std::pair<std::string, std::string> func_parser::parse_dotted_property(const std::string& input) {
+std::pair<std::string, std::string> func_parser::parse_dotted_property(const std::string& input)
+{
     // 支持两种格式：
     // 1. AAA[bmc.dev.xxx].DeviceName - 带接口的新语法
     // 2. AAA.DeviceName - 传统语法（向后兼容）
@@ -83,7 +86,8 @@ std::pair<std::string, std::string> func_parser::parse_dotted_property(const std
 
 // 通用属性解析函数
 relate_property func_parser::parse_property_with_type(const std::string&          input,
-                                                      const property_type_config& config) {
+                                                      const property_type_config& config)
+{
     // 验证前缀格式
     if (input.length() < config.prefix.length() ||
         input.substr(0, config.prefix.length()) != config.prefix) {
@@ -127,7 +131,8 @@ relate_property func_parser::parse_property_with_type(const std::string&        
     return prop;
 }
 
-relate_property func_parser::parse_property(const std::string& input) {
+relate_property func_parser::parse_property(const std::string& input)
+{
     // 解析接口信息
     std::string interface_name;
     std::regex  pattern_with_interface(R"(([^.\[]+)\[([^\]]+)\]\.([^.]+))");
@@ -156,17 +161,20 @@ relate_property func_parser::parse_property(const std::string& input) {
     return prop;
 }
 
-relate_property func_parser::parse_sync_property(const std::string& input) {
+relate_property func_parser::parse_sync_property(const std::string& input)
+{
     static const property_type_config config = {"<=/", "sync", "同步"};
     return parse_property_with_type(input, config);
 }
 
-relate_property func_parser::parse_ref_property(const std::string& input) {
+relate_property func_parser::parse_ref_property(const std::string& input)
+{
     static const property_type_config config = {"#/", "ref", "引用"};
     return parse_property_with_type(input, config);
 }
 
-relate_object func_parser::parse_ref_object(const std::string& input) {
+relate_object func_parser::parse_ref_object(const std::string& input)
+{
     // 验证格式 #/ObjectName
     if (input.length() < 3 || input.substr(0, 2) != "#/") {
         MC_THROW(mc::invalid_arg_exception, "Reference object format invalid: ${input}", ("input", input));
@@ -189,7 +197,8 @@ relate_object func_parser::parse_ref_object(const std::string& input) {
     return obj;
 }
 
-std::string func_parser::parse_function_name(const std::string& input) {
+std::string func_parser::parse_function_name(const std::string& input)
+{
     // 找到第一个 $Func_ 符号
     size_t start = input.find("$Func_");
     if (start == std::string::npos) {
@@ -209,7 +218,8 @@ std::string func_parser::parse_function_name(const std::string& input) {
     return func_name;
 }
 
-std::string func_parser::parse_params_string(const std::string& input) {
+std::string func_parser::parse_params_string(const std::string& input)
+{
     // 找到第一个 { 和最后一个 }
     size_t start = input.find('{');
     size_t end   = input.rfind('}');
@@ -222,7 +232,8 @@ std::string func_parser::parse_params_string(const std::string& input) {
     return input.substr(start + 1, end - start - 1);
 }
 
-func_call func_parser::parse_function_call(const std::string& input) {
+func_call func_parser::parse_function_call(const std::string& input)
+{
     func_call result;
     result.func            = parse_function_name(input);
     std::string params_str = parse_params_string(input);
@@ -339,7 +350,8 @@ func_call func_parser::parse_function_call(const std::string& input) {
     return result;
 }
 
-bool param_value_comparator::operator()(const mc::variant& a, const mc::variant& b) const {
+bool param_value_comparator::operator()(const mc::variant& a, const mc::variant& b) const
+{
     if (a.get_type() != b.get_type()) {
         return false;
     }
@@ -360,7 +372,8 @@ bool param_value_comparator::operator()(const mc::variant& a, const mc::variant&
     }
 }
 
-bool param_value_comparator::compare_dicts(const mc::dict& a, const mc::dict& b) const {
+bool param_value_comparator::compare_dicts(const mc::dict& a, const mc::dict& b) const
+{
     if (a.size() != b.size()) {
         return false;
     }

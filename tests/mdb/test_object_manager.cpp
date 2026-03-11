@@ -26,7 +26,8 @@ protected:
     static mc::dbus::sd_bus*    test_bus;
     static bool                 use_stub;
 
-    static void SetUpTestSuite() {
+    static void SetUpTestSuite()
+    {
         mc::test::TestBase::SetUpTestSuite();
 
         try {
@@ -50,14 +51,16 @@ protected:
         }
     }
 
-    static void TearDownTestSuite() {
+    static void TearDownTestSuite()
+    {
         delete test_bus;
         test_bus = nullptr;
 
         mc::test::TestBase::TearDownTestSuite();
     }
 
-    void SetUp() override {
+    void SetUp() override
+    {
         mc::test::TestBase::SetUp();
         // 不再跳过测试，即使使用 stub connection 也继续测试
     }
@@ -68,7 +71,8 @@ mc::dbus::sd_bus*    mdb_access_test::test_bus = nullptr;
 bool                 mdb_access_test::use_stub = false;
 
 // 测试 object_manager 单例
-TEST_F(mdb_access_test, singleton_instance) {
+TEST_F(mdb_access_test, singleton_instance)
+{
     mdb_access& mgr1 = mdb_access::instance();
     mdb_access& mgr2 = mdb_access::instance();
 
@@ -78,7 +82,8 @@ TEST_F(mdb_access_test, singleton_instance) {
 
 // 测试 get_object（需要真实的 D-Bus 服务，这里只测试基本调用）
 // 注意：这个测试可能会失败，如果没有对应的 D-Bus 服务
-TEST_F(mdb_access_test, get_object_basic) {
+TEST_F(mdb_access_test, get_object_basic)
+{
     mdb_access& mgr = mdb_access::instance();
 
     // 创建 sd_bus
@@ -104,7 +109,8 @@ TEST_F(mdb_access_test, get_object_basic) {
 }
 
 // 测试缓存功能（通过多次调用相同的路径）
-TEST_F(mdb_access_test, cache_functionality) {
+TEST_F(mdb_access_test, cache_functionality)
+{
     mdb_access& mgr = mdb_access::instance();
 
     // 如果使用 stub connection，跳过需要真实 D-Bus 服务的测试

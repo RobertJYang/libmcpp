@@ -32,21 +32,26 @@ public:
     test_object() = default;
 
     test_object(uint32_t id, std::string name, int value)
-        : m_id(id), m_name(std::move(name)), m_value(value) {
+        : m_id(id), m_name(std::move(name)), m_value(value)
+    {
     }
 
-    ~test_object() override {
+    ~test_object() override
+    {
     }
 
-    uint32_t id() const {
+    uint32_t id() const
+    {
         return m_id;
     }
 
-    const std::string& name() const {
+    const std::string& name() const
+    {
         return m_name;
     }
 
-    int value() const {
+    int value() const
+    {
         return m_value;
     }
 
@@ -72,7 +77,8 @@ auto field_value = mc::db::field(&test_object::m_value);
 // 数据库测试类
 class database_test : public mc::test::TestBase {
 protected:
-    void SetUp() override {
+    void SetUp() override
+    {
         // 创建测试表
         table = std::make_shared<test_table>("test_table");
 
@@ -86,7 +92,8 @@ protected:
         db.add("test_table", dict{{"id", 4}, {"name", "test1"}, {"value", 400}}); // 重复的name
     }
 
-    void TearDown() override {
+    void TearDown() override
+    {
         db.clear("test_table");
         mc::db::transaction::reset_for_test();
     }
@@ -98,7 +105,8 @@ protected:
 } // namespace
 
 // 测试表的基本功能
-TEST_F(database_test, basic_operations) {
+TEST_F(database_test, basic_operations)
+{
     // 验证对象是否被添加到表中
     auto it1 = table->get<by_id>().find(1);
     ASSERT_FALSE(it1.is_end());
@@ -119,7 +127,8 @@ TEST_F(database_test, basic_operations) {
 }
 
 // 测试数据库的错误处理
-TEST_F(database_test, error_handling) {
+TEST_F(database_test, error_handling)
+{
     // 尝试添加对象到未注册的表
     dict test_obj{{"id", 1}, {"name", "test"}, {"value", 100}};
 
@@ -130,7 +139,8 @@ TEST_F(database_test, error_handling) {
 }
 
 // 测试数据库的多表操作
-TEST_F(database_test, multiple_tables) {
+TEST_F(database_test, multiple_tables)
+{
     // 创建多个测试表
     auto table1 = std::make_shared<test_table>("test_table1");
     auto table2 = std::make_shared<test_table>("test_table2");
@@ -157,7 +167,8 @@ TEST_F(database_test, multiple_tables) {
 }
 
 // 测试查询功能
-TEST_F(database_test, query_operations) {
+TEST_F(database_test, query_operations)
+{
     // 测试等值查询
     auto results1 = db.query<test_object>("test_table", field_id == 2);
     ASSERT_EQ(results1.size(), 1);
@@ -195,7 +206,8 @@ TEST_F(database_test, query_operations) {
 }
 
 // 测试更新功能
-TEST_F(database_test, update_operations) {
+TEST_F(database_test, update_operations)
+{
     // 更新单个对象
     dict updates1{{"name", "updated_name"}, {"value", 999}};
     EXPECT_TRUE(db.update("test_table", field_id == 2, updates1));
@@ -229,7 +241,8 @@ TEST_F(database_test, update_operations) {
 }
 
 // 测试 unregister_table - 遇到不存在的表
-TEST_F(database_test, RemoveTableIgnoresMissing) {
+TEST_F(database_test, RemoveTableIgnoresMissing)
+{
     // 建立数据库但不注册表
     mc::db::database empty_db;
 
@@ -241,7 +254,8 @@ TEST_F(database_test, RemoveTableIgnoresMissing) {
 }
 
 // 测试 is_table_registered/get_table/empty - 表不存在时的早退分支
-TEST_F(database_test, QueryMissingTableReturnsNull) {
+TEST_F(database_test, QueryMissingTableReturnsNull)
+{
     mc::db::database empty_db;
 
     // 测试 get_table 在表不存在时返回 nullptr
@@ -259,7 +273,8 @@ TEST_F(database_test, QueryMissingTableReturnsNull) {
 }
 
 // 测试表操作功能
-TEST_F(database_test, table_operations) {
+TEST_F(database_test, table_operations)
+{
     // 测试表注册状态
     EXPECT_TRUE(db.is_table_registered("test_table"));
     EXPECT_FALSE(db.is_table_registered("non_existent_table"));
@@ -291,7 +306,8 @@ TEST_F(database_test, table_operations) {
 }
 
 // 测试数据库事务功能
-TEST_F(database_test, transaction_operations) {
+TEST_F(database_test, transaction_operations)
+{
     // 开始事务
     auto& txn = mc::db::transaction::get_instance();
 
@@ -328,7 +344,8 @@ TEST_F(database_test, transaction_operations) {
 }
 
 // 测试事务回滚功能
-TEST_F(database_test, transaction_rollback) {
+TEST_F(database_test, transaction_rollback)
+{
     // 开始事务
     auto& txn = mc::db::transaction::get_instance();
 
@@ -361,7 +378,8 @@ TEST_F(database_test, transaction_rollback) {
 }
 
 // 测试事务保存点功能
-TEST_F(database_test, transaction_savepoint) {
+TEST_F(database_test, transaction_savepoint)
+{
     // 开始事务
     auto& txn = mc::db::transaction::get_instance();
 
@@ -418,7 +436,8 @@ TEST_F(database_test, transaction_savepoint) {
 }
 
 // 测试多个事务回滚点功能
-TEST_F(database_test, multiple_savepoints) {
+TEST_F(database_test, multiple_savepoints)
+{
     // 检查初始状态
     {
         auto obj1 = db.find<test_object>("test_table", field_id == 1);
@@ -529,7 +548,8 @@ TEST_F(database_test, multiple_savepoints) {
 }
 
 // 测试多表事务功能
-TEST_F(database_test, multi_table_transaction) {
+TEST_F(database_test, multi_table_transaction)
+{
     // 创建第二张测试表
     auto second_table = std::make_shared<test_table>("second_table");
     db.register_table(second_table);

@@ -20,11 +20,13 @@
 
 namespace mc {
 
-error_engine& error_engine::get_instance() {
+error_engine& error_engine::get_instance()
+{
     return mc::singleton<error_engine>::instance();
 }
 
-void error_engine::reset_for_test() {
+void error_engine::reset_for_test()
+{
     // 在销毁实例之前，先清除 thread_local 的 last_error
     if (auto* instance = mc::singleton<error_engine>::try_get()) {
         instance->reset_error();
@@ -34,7 +36,8 @@ void error_engine::reset_for_test() {
 
 struct error_info_data {
     error_info_data(std::string name, std::string format, error_level level)
-        : name(std::move(name)), format(std::move(format)), level(level) {
+        : name(std::move(name)), format(std::move(format)), level(level)
+    {
     }
 
     std::string name;
@@ -56,18 +59,23 @@ struct error_engine::error_engine_impl {
 
 thread_local error_ptr error_engine::error_engine_impl::s_last_error;
 
-error_engine::error_engine() : m_impl(std::make_unique<error_engine_impl>()) {
+error_engine::error_engine()
+    : m_impl(std::make_unique<error_engine_impl>())
+{
 }
 
-error_engine::~error_engine() {
+error_engine::~error_engine()
+{
 }
 
-error_info error_engine::register_const_error(const error_info& info) {
+error_info error_engine::register_const_error(const error_info& info)
+{
     return register_const_error(info.name, info.format, info.level);
 }
 
 error_info error_engine::register_const_error(std::string_view name, std::string_view format,
-                                              error_level level) {
+                                              error_level level)
+{
     std::lock_guard lock(m_impl->m_mutex);
 
     if (m_impl->m_errors.find(name) != m_impl->m_errors.end()) {
@@ -79,7 +87,8 @@ error_info error_engine::register_const_error(std::string_view name, std::string
     return ret.second ? ret.first->second : error_info();
 }
 
-error_info error_engine::register_error(std::string name, std::string format, error_level level) {
+error_info error_engine::register_error(std::string name, std::string format, error_level level)
+{
     std::lock_guard lock(m_impl->m_mutex);
 
     if (m_impl->m_errors.find(name) != m_impl->m_errors.end()) {
@@ -92,7 +101,8 @@ error_info error_engine::register_error(std::string name, std::string format, er
     return ret.second ? ret.first->second : error_info();
 }
 
-error_info error_engine::get_error_info(std::string_view name) {
+error_info error_engine::get_error_info(std::string_view name)
+{
     std::lock_guard lock(m_impl->m_mutex);
 
     auto it = m_impl->m_errors.find(name);
@@ -103,7 +113,8 @@ error_info error_engine::get_error_info(std::string_view name) {
     return it->second;
 }
 
-error_ptr error_engine::report_error(std::string_view name, mc::dict args) {
+error_ptr error_engine::report_error(std::string_view name, mc::dict args)
+{
     std::string_view format;
     error_level      level;
     {
@@ -119,7 +130,8 @@ error_ptr error_engine::report_error(std::string_view name, mc::dict args) {
     return report_error(error_info(name, format, level), std::move(args));
 }
 
-error_ptr error_engine::report_error(const error_info& info, mc::dict args) {
+error_ptr error_engine::report_error(const error_info& info, mc::dict args)
+{
     auto& last_error = m_impl->s_last_error;
 
     if (!last_error) {
@@ -141,38 +153,45 @@ error_ptr error_engine::report_error(const error_info& info, mc::dict args) {
     return last_error;
 }
 
-error_ptr error_engine::set_last_error(error_ptr new_error) {
+error_ptr error_engine::set_last_error(error_ptr new_error)
+{
     auto& err        = m_impl->s_last_error;
     auto  prev_error = std::move(err);
     err              = std::move(new_error);
     return prev_error;
 }
 
-void error_engine::reset_error() {
+void error_engine::reset_error()
+{
     m_impl->s_last_error = mc::shared_ptr<error>();
 }
 
-error_ptr error_engine::last_error() {
+error_ptr error_engine::last_error()
+{
     return m_impl->s_last_error;
 }
 
-bool error_engine::is_registered(std::string_view name) {
+bool error_engine::is_registered(std::string_view name)
+{
     std::lock_guard lock(m_impl->m_mutex);
 
     return m_impl->m_errors.find(name) != m_impl->m_errors.end();
 }
 
-error_ptr make_error(std::string_view name, std::string_view format) {
+error_ptr make_error(std::string_view name, std::string_view format)
+{
     MC_ASSERT(is_valid_error_name(name), "error name ${name} is invalid", ("name", name));
 
     return mc::make_shared<error>(name, format);
 }
 
-error_ptr make_error(const error_info& info) {
+error_ptr make_error(const error_info& info)
+{
     return make_error(info.name, info.format);
 }
 
-bool is_valid_error_name(std::string_view name) {
+bool is_valid_error_name(std::string_view name)
+{
     return mc::is_valid_interface_name(name);
 }
 

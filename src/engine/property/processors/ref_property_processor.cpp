@@ -18,21 +18,25 @@
 
 namespace mc::engine {
 
-bool ref_property_processor::matches(const std::string& value_str) const {
+bool ref_property_processor::matches(const std::string& value_str) const
+{
     return value_str.substr(0, 2) == "#/" && value_str.find('.') != std::string::npos;
 }
 
-void ref_property_processor::process(property_helper* property, const std::string& value_str) {
+void ref_property_processor::process(property_helper* property, const std::string& value_str)
+{
     auto ref_prop = mc::expr::func_parser::get_instance().parse_ref_property(value_str);
     hook_ref_property(property, ref_prop);
     property->set_property_type(p_type::reference);
 }
 
-p_type ref_property_processor::get_property_type() const {
+p_type ref_property_processor::get_property_type() const
+{
     return p_type::reference;
 }
 
-void ref_property_processor::hook_ref_property(property_helper* property, const mc::expr::relate_property& relate_property) {
+void ref_property_processor::hook_ref_property(property_helper* property, const mc::expr::relate_property& relate_property)
+{
     property->ensure_extension_data();
 
     property->set_getter_function([property, relate_property]() -> mc::variant {
@@ -49,7 +53,8 @@ void ref_property_processor::hook_ref_property(property_helper* property, const 
     });
 }
 
-void ref_property_processor::hook_ref_properties(property_helper* property, mc::dict& relate_properties) {
+void ref_property_processor::hook_ref_properties(property_helper* property, mc::dict& relate_properties)
+{
     property->ensure_extension_data();
 
     // 设置获取函数，调用函数并获取结果

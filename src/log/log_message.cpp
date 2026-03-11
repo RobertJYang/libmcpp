@@ -36,7 +36,8 @@ message::message(level lvl, std::string msg, context ctx, mc::dict args, mc::dic
       m_formatted(true),
       m_attrs_appended(false),
       m_system_id_appended(false),
-      m_period_appended(false) {
+      m_period_appended(false)
+{
 }
 
 message::message(level lvl, context ctx, std::string fmt_template,
@@ -53,13 +54,15 @@ message::message(level lvl, context ctx, std::string fmt_template,
       m_formatted(false),
       m_attrs_appended(false),
       m_system_id_appended(false),
-      m_period_appended(false) {
+      m_period_appended(false)
+{
 }
 
 namespace {
 // 递归将 variant 按 key=value 风格追加（嵌套 dict 输出为 key={ ... }，与顶层 attrs 一致）
 void append_attr_value(mc::fmt::format_context& ctx, const mc::variant& v,
-                       const mc::fmt::detail::format_spec& spec) {
+                       const mc::fmt::detail::format_spec& spec)
+{
     if (v.is_object()) {
         const mc::dict& d = v.get_object();
         ctx.append('{');
@@ -79,7 +82,8 @@ void append_attr_value(mc::fmt::format_context& ctx, const mc::variant& v,
     }
 }
 
-void append_attrs_key_value(std::string& result, const mc::dict& attrs) {
+void append_attrs_key_value(std::string& result, const mc::dict& attrs)
+{
     if (attrs.empty()) {
         return; // 提前返回，避免不必要的操作
     }
@@ -94,13 +98,14 @@ void append_attrs_key_value(std::string& result, const mc::dict& attrs) {
 }
 } // namespace
 
-const std::string& message::get_message() const {
+const std::string& message::get_message() const
+{
     if (!m_formatted && !m_format.empty()) {
         // 如果未格式化且有格式模板，执行格式化
         m_message   = mc::format_dict(m_format, m_args);
         m_formatted = true;
     }
-    
+
     // 检查并添加 system_id 前缀
     if (m_args.contains("system_id") && !m_system_id_appended &&
         m_args["system_id"].is_integer()) {
@@ -115,7 +120,7 @@ const std::string& message::get_message() const {
         m_message = m_message + " [period:" + std::to_string(period) + "(s)]";
         m_period_appended = true;
     }
-    
+
     if (!m_attrs.empty() && !m_attrs_appended) {
         append_attrs_key_value(m_message, m_attrs);
         m_attrs_appended = true;
@@ -123,55 +128,68 @@ const std::string& message::get_message() const {
     return m_message;
 }
 
-level message::get_level() const {
+level message::get_level() const
+{
     return m_level;
 }
 
-const std::string& message::get_format_template() const {
+const std::string& message::get_format_template() const
+{
     return m_format;
 }
 
-const dict& message::get_args() const {
+const dict& message::get_args() const
+{
     return m_args;
 }
 
-dict& message::get_args() {
+dict& message::get_args()
+{
     return m_args;
 }
 
-const dict& message::get_attrs() const {
+const dict& message::get_attrs() const
+{
     return m_attrs;
 }
 
-log_category message::get_category() const noexcept {
+log_category message::get_category() const noexcept
+{
     return m_category;
 }
 
-void message::set_category(log_category category) noexcept {
+void message::set_category(log_category category) noexcept
+{
     m_category = category;
 }
 
-bool message::get_limit() const noexcept {
+bool message::get_limit() const noexcept
+{
     return m_limit;
 }
 
-void message::set_limit(bool limit) noexcept {
+void message::set_limit(bool limit) noexcept
+{
     m_limit = limit;
 }
 
-const context& message::get_context() const {
+const context& message::get_context() const
+{
     return m_context;
 }
 
-mc::thread_id message::get_thread_id() const {
+mc::thread_id message::get_thread_id() const
+{
     return m_thread_id;
 }
 
-const std::chrono::system_clock::time_point& message::get_timestamp() const {
+const std::chrono::system_clock::time_point& message::get_timestamp() const
+{
     return m_timestamp;
 }
 
-mc::dict message::to_structured_data() const {
+mc::dict message::to_structured_data() const
+{
     mc::dict result;
 
     // 基本元数据

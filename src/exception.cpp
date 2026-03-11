@@ -38,7 +38,8 @@ public:
 // 异常基类实现
 
 exception::exception(int64_t code, const std::string& name_value, const std::string& what_value)
-    : m_impl(new detail::exception_impl()) {
+    : m_impl(new detail::exception_impl())
+{
     m_impl->m_name = name_value;
     m_impl->m_what = what_value;
     m_impl->m_code = code;
@@ -46,59 +47,72 @@ exception::exception(int64_t code, const std::string& name_value, const std::str
 
 exception::exception(mc::log::message&& msg, int64_t code, const std::string& name_value,
                      const std::string& what_value)
-    : exception(code, name_value, what_value) {
+    : exception(code, name_value, what_value)
+{
     m_impl->m_logs.emplace_back(std::move(msg));
 }
 
 exception::exception(mc::log::messages&& msgs, int64_t code, const std::string& name_value,
                      const std::string& what_value)
-    : exception(code, name_value, what_value) {
+    : exception(code, name_value, what_value)
+{
     m_impl->m_logs = std::move(msgs);
 }
 
 exception::exception(const mc::log::messages& msgs, int64_t code, const std::string& name_value,
                      const std::string& what_value)
-    : exception(code, name_value, what_value) {
+    : exception(code, name_value, what_value)
+{
     m_impl->m_logs = msgs;
 }
 
 exception::exception(const exception& e)
-    : m_impl(new detail::exception_impl(*e.m_impl)) {
+    : m_impl(new detail::exception_impl(*e.m_impl))
+{
 }
 
 exception::exception(exception&& e)
-    : m_impl(std::move(e.m_impl)) {
+    : m_impl(std::move(e.m_impl))
+{
 }
 
-exception::~exception() {
+exception::~exception()
+{
 }
 
-int64_t exception::code() const noexcept {
+int64_t exception::code() const noexcept
+{
     return m_impl->m_code;
 }
 
-void exception::set_code(int64_t code) {
+void exception::set_code(int64_t code)
+{
     m_impl->m_code = code;
 }
 
-std::string_view exception::name() const noexcept {
+std::string_view exception::name() const noexcept
+{
     return m_impl->m_name;
 }
 
-void exception::set_name(std::string_view name) {
+void exception::set_name(std::string_view name)
+{
     m_impl->m_name = name;
 }
 
-const char* exception::what() const noexcept {
+const char* exception::what() const noexcept
+{
     return top_message().c_str();
 }
 
-void exception::append_log(mc::log::message msg) const {
+void exception::append_log(mc::log::message msg) const
+{
     detail::exception_impl& impl = *const_cast<exception*>(this)->m_impl;
     impl.m_logs.emplace_back(std::move(msg));
 }
 
-void exception::append_log(mc::log::messages msgs) const {
+void exception::append_log(mc::log::messages msgs) const
+{
     if (msgs.empty()) {
         return;
     }
@@ -109,7 +123,8 @@ void exception::append_log(mc::log::messages msgs) const {
     }
 }
 
-std::string exception::to_detail_string(mc::log::level ll) const {
+std::string exception::to_detail_string(mc::log::level ll) const
+{
     std::stringstream ss;
     ss << m_impl->m_code << " " << m_impl->m_name << ": " << m_impl->m_what << "\n";
 
@@ -163,7 +178,8 @@ std::string exception::to_detail_string(mc::log::level ll) const {
     return ss.str();
 }
 
-std::string exception::to_string(mc::log::level ll) const {
+std::string exception::to_string(mc::log::level ll) const
+{
     std::stringstream ss;
     ss << m_impl->m_name << ": " << m_impl->m_what;
 
@@ -189,7 +205,8 @@ std::string exception::to_string(mc::log::level ll) const {
     return ss.str();
 }
 
-const std::string& exception::top_message() const {
+const std::string& exception::top_message() const
+{
     if (m_impl->m_logs.empty()) {
         return m_impl->m_what;
     }
@@ -197,51 +214,61 @@ const std::string& exception::top_message() const {
     return m_impl->m_logs.back().get_message();
 }
 
-void exception::dynamic_rethrow_exception() const {
+void exception::dynamic_rethrow_exception() const
+{
     throw *this;
 }
 
-std::shared_ptr<exception> exception::dynamic_copy_exception() const {
+std::shared_ptr<exception> exception::dynamic_copy_exception() const
+{
     return std::make_shared<exception>(*this);
 }
 
-const mc::log::messages& exception::messages() const {
+const mc::log::messages& exception::messages() const
+{
     return m_impl->m_logs;
 }
 
-mc::log::messages exception::take_messages() const {
+mc::log::messages exception::take_messages() const
+{
     return std::move(m_impl->m_logs);
 }
 
 // 未处理异常实现
 
 unhandled_exception::unhandled_exception(mc::log::message&& msg, std::exception_ptr e)
-    : exception(std::move(msg), unhandled_exception_code, "unhandled", "未处理的异常"), m_inner(e) {
+    : exception(std::move(msg), unhandled_exception_code, "unhandled", "未处理的异常"), m_inner(e)
+{
 }
 
 unhandled_exception::unhandled_exception(mc::log::messages msgs)
-    : exception(std::move(msgs), unhandled_exception_code, "unhandled", "未处理的异常") {
+    : exception(std::move(msgs), unhandled_exception_code, "unhandled", "未处理的异常")
+{
 }
 
 unhandled_exception::unhandled_exception(const exception& e)
-    : exception(e) {
+    : exception(e)
+{
     m_impl->m_code = unhandled_exception_code;
     m_impl->m_name = "unhandled";
     m_impl->m_what = "未处理的异常";
 }
 
-std::exception_ptr unhandled_exception::get_inner_exception() const {
+std::exception_ptr unhandled_exception::get_inner_exception() const
+{
     return m_inner;
 }
 
-void unhandled_exception::dynamic_rethrow_exception() const {
+void unhandled_exception::dynamic_rethrow_exception() const
+{
     if (m_inner) {
         std::rethrow_exception(m_inner);
     }
     throw *this;
 }
 
-std::shared_ptr<exception> unhandled_exception::dynamic_copy_exception() const {
+std::shared_ptr<exception> unhandled_exception::dynamic_copy_exception() const
+{
     return std::make_shared<unhandled_exception>(*this);
 }
 
@@ -250,30 +277,36 @@ std::shared_ptr<exception> unhandled_exception::dynamic_copy_exception() const {
 std_exception_wrapper::std_exception_wrapper(mc::log::message&& msg, std::exception_ptr e,
                                              const std::string& name_value,
                                              const std::string& what_value)
-    : exception(std::move(msg), std_exception_code, name_value, what_value), m_inner(e) {
+    : exception(std::move(msg), std_exception_code, name_value, what_value), m_inner(e)
+{
 }
 
-std::exception_ptr std_exception_wrapper::get_inner_exception() const {
+std::exception_ptr std_exception_wrapper::get_inner_exception() const
+{
     return m_inner;
 }
 
-std_exception_wrapper std_exception_wrapper::from_current_exception(const std::exception& e) {
+std_exception_wrapper std_exception_wrapper::from_current_exception(const std::exception& e)
+{
     return std_exception_wrapper(mc::log::message(mc::log::level::error, e.what()),
                                  std::current_exception(), "std_exception", e.what());
 }
 
-void std_exception_wrapper::dynamic_rethrow_exception() const {
+void std_exception_wrapper::dynamic_rethrow_exception() const
+{
     if (m_inner) {
         std::rethrow_exception(m_inner);
     }
     throw *this;
 }
 
-std::shared_ptr<exception> std_exception_wrapper::dynamic_copy_exception() const {
+std::shared_ptr<exception> std_exception_wrapper::dynamic_copy_exception() const
+{
     return std::make_shared<std_exception_wrapper>(*this);
 }
 
-std::string std_exception_wrapper::to_detail_string(mc::log::level ll) const {
+std::string std_exception_wrapper::to_detail_string(mc::log::level ll) const
+{
     std::string result = exception::to_detail_string(ll);
 
     // 添加内部异常信息
@@ -297,27 +330,32 @@ MC_STD_EXCEPTION_CLASS(MC_IMPLEMENT_EXCEPTION_CLASS)
 error_exception::error_exception(const char*     error_name,
                                  const mc::dict& args,
                                  int64_t         code)
-    : exception(code, error_name), args_(args), has_json_error_(false) {
+    : exception(code, error_name), args_(args), has_json_error_(false)
+{
 }
 
 error_exception::error_exception(const char*        error_name,
                                  const std::string& error_json,
                                  int64_t            code)
-    : exception(code, error_name), args_(), error_json_(error_json), has_json_error_(true) {
+    : exception(code, error_name), args_(), error_json_(error_json), has_json_error_(true)
+{
 }
 
 error_exception::error_exception(const char*        error_name,
                                  mc::log::message&& message,
                                  int64_t            code)
-    : exception(std::move(message), code, error_name), args_(), has_json_error_(false) {
+    : exception(std::move(message), code, error_name), args_(), has_json_error_(false)
+{
     // 委托给父类exception的log::message构造函数
 }
 
-std::shared_ptr<exception> error_exception::dynamic_copy_exception() const {
+std::shared_ptr<exception> error_exception::dynamic_copy_exception() const
+{
     return std::make_shared<error_exception>(*this);
 }
 
-void error_exception::dynamic_rethrow_exception() const {
+void error_exception::dynamic_rethrow_exception() const
+{
     throw *this;
 }
 

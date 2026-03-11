@@ -31,10 +31,12 @@ namespace mc::expr {
 class function_call_node : public node {
 public:
     function_call_node(std::string name, node_ptrs args)
-        : m_name(std::move(name)), m_args(std::move(args)) {
+        : m_name(std::move(name)), m_args(std::move(args))
+    {
     }
 
-    node_type get_type() const override {
+    node_type get_type() const override
+    {
         return node_type::function_call;
     }
 
@@ -42,11 +44,13 @@ public:
 
     std::string to_string() const override;
 
-    const std::string& get_name() const {
+    const std::string& get_name() const
+    {
         return m_name;
     }
 
-    const node_ptrs& get_args() const {
+    const node_ptrs& get_args() const
+    {
         return m_args;
     }
 

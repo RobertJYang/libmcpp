@@ -19,7 +19,8 @@
 
 namespace {
 
-TEST(ErrorClassTest, CopyAndEquality) {
+TEST(ErrorClassTest, CopyAndEquality)
+{
     auto base_error = mc::make_error("test.error.base", "基础错误: ${info}");
     base_error->append_arg("info", "base");
 
@@ -45,7 +46,8 @@ TEST(ErrorClassTest, CopyAndEquality) {
     EXPECT_NE(copy, *base_error);
 }
 
-TEST(ErrorClassTest, ToExceptionAndFromException) {
+TEST(ErrorClassTest, ToExceptionAndFromException)
+{
     auto err = mc::make_error("test.error.to_exception", "异常信息: ${msg}");
     err->append_arg("msg", "to_exception");
 
@@ -65,7 +67,8 @@ TEST(ErrorClassTest, ToExceptionAndFromException) {
     }
 }
 
-TEST(ErrorClassTest, HasErrorAndReset) {
+TEST(ErrorClassTest, HasErrorAndReset)
+{
     auto primary = mc::make_error("test.primary", "Primary");
     auto nested  = mc::make_error("test.nested", "Nested");
     primary->set_prev_error(nested);
@@ -80,7 +83,8 @@ TEST(ErrorClassTest, HasErrorAndReset) {
 }
 
 // 复杂场景：多层错误链的深拷贝和操作
-TEST(ErrorClassTest, ComplexErrorChainDeepCopy) {
+TEST(ErrorClassTest, ComplexErrorChainDeepCopy)
+{
     // 创建多层错误链
     auto level1 = mc::make_error("test.chain.level1", "第一层: ${msg1}");
     level1->append_arg("msg1", "level1");
@@ -117,7 +121,8 @@ TEST(ErrorClassTest, ComplexErrorChainDeepCopy) {
 }
 
 // 复杂场景：错误链的查询和操作
-TEST(ErrorClassTest, ComplexErrorChainQueryAndOperation) {
+TEST(ErrorClassTest, ComplexErrorChainQueryAndOperation)
+{
     // 创建复杂的错误链
     auto err1 = mc::make_error("test.query.err1", "错误1");
     auto err2 = mc::make_error("test.query.err2", "错误2");
@@ -153,7 +158,8 @@ TEST(ErrorClassTest, ComplexErrorChainQueryAndOperation) {
 }
 
 // 复杂场景：错误的赋值和移动
-TEST(ErrorClassTest, ComplexErrorAssignmentAndMove) {
+TEST(ErrorClassTest, ComplexErrorAssignmentAndMove)
+{
     auto err1 = mc::make_error("test.assign.err1", "错误1: ${msg}");
     err1->append_arg("msg", "message1");
 
@@ -163,7 +169,7 @@ TEST(ErrorClassTest, ComplexErrorAssignmentAndMove) {
 
     // 拷贝赋值
     auto err3 = mc::make_error("test.assign.err3", "错误3");
-    *err3 = *err2;
+    *err3     = *err2;
 
     EXPECT_EQ(err3->get_name(), "test.assign.err2");
     EXPECT_TRUE(err3->has_error("test.assign.err1"));
@@ -176,7 +182,8 @@ TEST(ErrorClassTest, ComplexErrorAssignmentAndMove) {
 }
 
 // 测试 from_exception(const std::exception&)
-TEST(ErrorClassTest, FromExceptionStdException) {
+TEST(ErrorClassTest, FromExceptionStdException)
+{
     try {
         throw std::runtime_error("标准异常测试");
     } catch (const std::exception& e) {
@@ -187,68 +194,73 @@ TEST(ErrorClassTest, FromExceptionStdException) {
 }
 
 // 测试 from_exception(std::exception_ptr) 的 catch (std::exception&) 路径
-TEST(ErrorClassTest, FromExceptionPtrStdException) {
+TEST(ErrorClassTest, FromExceptionPtrStdException)
+{
     std::exception_ptr eptr;
     try {
         throw std::runtime_error("标准异常指针测试");
     } catch (...) {
         eptr = std::current_exception();
     }
-    
+
     auto converted = mc::error::from_exception(eptr);
     ASSERT_TRUE(converted);
     EXPECT_TRUE(converted->is_set());
 }
 
 // 测试 from_exception(std::exception_ptr) 的 catch (...) 路径
-TEST(ErrorClassTest, FromExceptionPtrUnknown) {
+TEST(ErrorClassTest, FromExceptionPtrUnknown)
+{
     std::exception_ptr eptr;
     try {
         throw 42; // 抛出非异常类型
     } catch (...) {
         eptr = std::current_exception();
     }
-    
+
     auto converted = mc::error::from_exception(eptr);
     ASSERT_TRUE(converted);
     EXPECT_TRUE(converted->is_set());
 }
 
 // 测试 get_format, get_args, get_level
-TEST(ErrorClassTest, GetFormatArgsLevel) {
+TEST(ErrorClassTest, GetFormatArgsLevel)
+{
     auto err = mc::make_error("test.getters", "格式: ${msg}");
     err->append_arg("msg", "消息");
     err->set_level(mc::error_level::warn);
-    
+
     EXPECT_EQ(err->get_format(), "格式: ${msg}");
     EXPECT_EQ(err->get_args().size(), 1);
     EXPECT_EQ(err->get_level(), mc::error_level::warn);
 }
 
 // 测试 to_string
-TEST(ErrorClassTest, ToString) {
+TEST(ErrorClassTest, ToString)
+{
     auto err = mc::make_error("test.tostring", "测试: ${value}");
     err->append_arg("value", "值");
-    
+
     std::string str = err->to_string();
     EXPECT_FALSE(str.empty());
     EXPECT_NE(str.find("test.tostring"), std::string::npos);
 }
 
 // 测试 is_set 中 prev_error->is_set() 的路径
-TEST(ErrorClassTest, IsSetWithPrevError) {
+TEST(ErrorClassTest, IsSetWithPrevError)
+{
     auto empty_error = mc::make_shared<mc::error>();
-    auto primary = mc::make_error("test.primary", "主要错误");
+    auto primary     = mc::make_error("test.primary", "主要错误");
     primary->set_prev_error(empty_error);
-    
+
     // primary 有名称，应该返回 true
     EXPECT_TRUE(primary->is_set());
-    
+
     // 重置 primary，这会清空 prev_error
     primary->reset();
     // 此时 primary 没有名称，prev_error 也被清空，应该返回 false
     EXPECT_FALSE(primary->is_set());
-    
+
     // 重新设置 prev_error，并给它一个名称
     auto prev_error = mc::make_error("test.prev", "前一个错误");
     primary->set_prev_error(prev_error);
@@ -257,10 +269,11 @@ TEST(ErrorClassTest, IsSetWithPrevError) {
 }
 
 // 测试 error_with_owner
-TEST(ErrorClassTest, ErrorWithOwner) {
+TEST(ErrorClassTest, ErrorWithOwner)
+{
     mc::error_with_owner owner1;
     EXPECT_FALSE(owner1.is_set());
-    
+
     mc::error_with_owner owner2("test.owner", "所有者错误: ${msg}");
     EXPECT_TRUE(owner2.is_set());
     EXPECT_EQ(owner2.get_name(), "test.owner");
@@ -268,5 +281,3 @@ TEST(ErrorClassTest, ErrorWithOwner) {
 }
 
 } // namespace
-
-

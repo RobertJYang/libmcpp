@@ -17,18 +17,21 @@
 
 namespace mc::expr {
 
-mc::variant variable_node::evaluate(const context_base& ctx) const {
+mc::variant variable_node::evaluate(const context_base& ctx) const
+{
     if (!ctx.has_variable(m_name)) {
         MC_THROW(invalid_arg_exception, "表达式求值错误: 未定义的变量 '${name}'", ("name", m_name));
     }
     return ctx.get_variable(m_name);
 }
 
-std::string variable_node::to_string() const {
+std::string variable_node::to_string() const
+{
     return m_name;
 }
 
-node_ptr make_variable(const std::string& name) {
+node_ptr make_variable(const std::string& name)
+{
     return std::make_shared<variable_node>(name);
 }
 

@@ -27,7 +27,8 @@ namespace mc {
 
 // 定义跨平台timegm替代函数
 // timegm是一个GNU扩展，非标准C/C++函数
-static time_t portable_timegm(struct tm* tm) {
+static time_t portable_timegm(struct tm* tm)
+{
     // 保存当前时区
     char* tz = getenv("TZ");
 
@@ -53,7 +54,8 @@ static time_t portable_timegm(struct tm* tm) {
 // 支持格式："2020-01-01T12:30:45" 或 "2020-01-01T12:30:45.123"
 static bool parse_iso_datetime(const std::string& iso_str,
                                std::tm&           tm_result,
-                               int64_t&           milliseconds) {
+                               int64_t&           milliseconds)
+{
     // 正则表达式匹配ISO 8601格式
     std::regex  iso_regex(R"((\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.(\d{1,3}))?Z?)");
     std::smatch matches;
@@ -86,11 +88,13 @@ static bool parse_iso_datetime(const std::string& iso_str,
     return true;
 }
 
-time_point time_point::now() {
+time_point time_point::now()
+{
     return time_point(std::chrono::steady_clock::now());
 }
 
-time_point time_point::from_iso_string(const std::string& s) {
+time_point time_point::from_iso_string(const std::string& s)
+{
     try {
         // 检查字符串是否为空
         if (s.empty()) {
@@ -126,7 +130,8 @@ time_point time_point::from_iso_string(const std::string& s) {
 
 // 更新日期/时间的特定部分
 template <int offset>
-void update_time_part(std::string& str, int value, int& cache_value) {
+void update_time_part(std::string& str, int value, int& cache_value)
+{
     if (value != cache_value) {
         str[offset]     = '0' + (value / 10);
         str[offset + 1] = '0' + (value % 10);
@@ -160,7 +165,8 @@ struct time_cache {
  * @return std::string_view 指向缓存字符串的视图
  */
 template <bool WithMilliseconds>
-static std::string_view format_cached_iso_datetime(int64_t seconds, time_cache<WithMilliseconds>& cache) {
+static std::string_view format_cached_iso_datetime(int64_t seconds, time_cache<WithMilliseconds>& cache)
+{
     if (seconds < 0) {
         MC_THROW(mc::parse_error_exception, "不支持负时间点转换为ISO字符串");
     }
@@ -204,7 +210,8 @@ static std::string_view format_cached_iso_datetime(int64_t seconds, time_cache<W
     return std::string_view(cache.str);
 }
 
-std::string_view time_point::to_string() const {
+std::string_view time_point::to_string() const
+{
     try {
         // 使用带毫秒的缓存
         thread_local time_cache<true> cache;
@@ -238,15 +245,18 @@ std::string_view time_point::to_string() const {
     }
 }
 
-time_point::operator std::string_view() const {
+time_point::operator std::string_view() const
+{
     return to_string();
 }
 
-std::string_view time_point::to_iso_string() const {
+std::string_view time_point::to_iso_string() const
+{
     return to_string();
 }
 
-time_point_sec time_point_sec::from_iso_string(const std::string& s) {
+time_point_sec time_point_sec::from_iso_string(const std::string& s)
+{
     try {
         std::tm tm_result    = {};
         int64_t milliseconds = 0; // 秒级精度忽略毫秒部分
@@ -268,7 +278,8 @@ time_point_sec time_point_sec::from_iso_string(const std::string& s) {
     }
 }
 
-std::string_view time_point_sec::to_string() const {
+std::string_view time_point_sec::to_string() const
+{
     try {
         // 使用不带毫秒的缓存
         thread_local time_cache<false> cache;
@@ -287,41 +298,50 @@ std::string_view time_point_sec::to_string() const {
     }
 }
 
-time_point_sec time_point_sec::now() {
+time_point_sec time_point_sec::now()
+{
     auto now_tp = std::chrono::system_clock::now();
     return time_point_sec(now_tp);
 }
 
-time_point_sec::operator std::string_view() const {
+time_point_sec::operator std::string_view() const
+{
     return to_string();
 }
 
-std::string_view time_point_sec::to_iso_string() const {
+std::string_view time_point_sec::to_iso_string() const
+{
     return to_string();
 }
 
 // Variant转换实现
-void to_variant(const milliseconds& ms, variant& v) {
+void to_variant(const milliseconds& ms, variant& v)
+{
     v = ms.count();
 }
 
-void from_variant(const variant& v, milliseconds& ms) {
+void from_variant(const variant& v, milliseconds& ms)
+{
     ms = milliseconds(v.as<int64_t>());
 }
 
-void to_variant(const time_point& tp, variant& v) {
+void to_variant(const time_point& tp, variant& v)
+{
     v = std::string(tp.to_string());
 }
 
-void from_variant(const variant& v, time_point& tp) {
+void from_variant(const variant& v, time_point& tp)
+{
     tp = time_point::from_iso_string(v.as<std::string>());
 }
 
-void to_variant(const time_point_sec& tps, variant& v) {
+void to_variant(const time_point_sec& tps, variant& v)
+{
     v = std::string(tps.to_string());
 }
 
-void from_variant(const variant& v, time_point_sec& tps) {
+void from_variant(const variant& v, time_point_sec& tps)
+{
     tps = time_point_sec::from_iso_string(v.as<std::string>());
 }
 

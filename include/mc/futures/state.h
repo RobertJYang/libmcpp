@@ -50,7 +50,8 @@ public:
     void cancel();
 
     template <typename Executor>
-    void reuse(Executor&& executor) {
+    void reuse(Executor&& executor)
+    {
         set_executor(executor_type(std::forward<Executor>(executor)));
         reuse_impl();
     }
@@ -59,40 +60,49 @@ public:
     // 注意：回调函数会在取消时立即执行，不会投递到 executor 执行，不要在回调函数中作阻塞动作
     void add_cancel_callback(callback_type callback);
 
-    inline bool is_ready() const noexcept {
+    inline bool is_ready() const noexcept
+    {
         return m_ready.load(std::memory_order_acquire);
     }
 
-    inline bool is_cancelled() const noexcept {
+    inline bool is_cancelled() const noexcept
+    {
         return m_cancelled.load(std::memory_order_acquire);
     }
 
-    inline bool is_rejected() const noexcept {
+    inline bool is_rejected() const noexcept
+    {
         return m_exception != nullptr;
     }
 
-    inline bool is_bound() const noexcept {
+    inline bool is_bound() const noexcept
+    {
         return m_bound.load(std::memory_order_acquire);
     }
 
-    inline std::exception_ptr get_exception() const noexcept {
+    inline std::exception_ptr get_exception() const noexcept
+    {
         return m_exception;
     }
 
-    inline void set_exception(std::exception_ptr exception) noexcept {
+    inline void set_exception(std::exception_ptr exception) noexcept
+    {
         m_exception = std::move(exception);
     }
 
-    inline void set_ready() {
+    inline void set_ready()
+    {
         m_ready.store(true, std::memory_order_release);
     }
 
     void           destory();
-    inline int32_t value_size() const noexcept {
+    inline int32_t value_size() const noexcept
+    {
         return m_value_size;
     }
 
-    inline executor_type get_executor() const noexcept {
+    inline executor_type get_executor() const noexcept
+    {
         return m_executor;
     }
 
@@ -133,16 +143,19 @@ public:
     State(Executor executor)
         : state_base(std::forward<Executor>(executor),
                      get_destory_(),
-                     sizeof(result_type)) {
+                     sizeof(result_type))
+    {
     }
 
-    void reset() {
+    void reset()
+    {
         state_base::reset();
         m_result = std::nullopt;
     }
 
     template <typename Executor>
-    void reuse(Executor executor) {
+    void reuse(Executor executor)
+    {
         static_assert(std::is_same_v<Executor, executor_type> ||
                           boost::asio::is_executor<Executor>::value,
                       "reuse() 参数必须是 executor 类型");
@@ -151,16 +164,19 @@ public:
     }
 
     template <typename U = std::conditional_t<std::is_same_v<T, void>, std::monostate, T>>
-    void set_value(U&& value) {
+    void set_value(U&& value)
+    {
         m_result.emplace(std::forward<U>(value));
     }
 
-    void set_value() {
+    void set_value()
+    {
         static_assert(std::is_same_v<T, void>, "set_value() 只能用于 void 类型");
         m_result.emplace(std::monostate{});
     }
 
-    auto get_value() const -> std::conditional_t<std::is_same_v<T, void>, void, const value_type&> {
+    auto get_value() const -> std::conditional_t<std::is_same_v<T, void>, void, const value_type&>
+    {
         std::lock_guard lock(m_mutex);
         if (is_rejected()) {
             std::rethrow_exception(get_exception());
@@ -174,14 +190,16 @@ public:
     }
 
 private:
-    static inline destory_type get_destory_() noexcept {
+    static inline destory_type get_destory_() noexcept
+    {
         if constexpr (std::is_trivially_destructible_v<result_type>) {
             return nullptr;
         }
         return &State::destory_impl;
     }
 
-    static void destory_impl(state_base* ptr) {
+    static void destory_impl(state_base* ptr)
+    {
         auto* state = static_cast<State*>(ptr);
         state->reset();
     }

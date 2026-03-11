@@ -15,7 +15,8 @@
 
 namespace mc::debounce {
 
-Median::Median(int size, bool is_signed) : m_size(size), is_signed(is_signed)
+Median::Median(int size, bool is_signed)
+    : m_size(size), is_signed(is_signed)
 {
     if (size <= 0) {
         throw std::runtime_error("size must be greater than 0");
@@ -44,10 +45,10 @@ std::optional<int> Median::get_debounce_val(int raw_val)
     // 排序以便找到最小和最大值
     std::sort(values.begin(), values.end());
     values.erase(values.begin()); // 移除最小值
-    values.pop_back(); // 移除最大值
+    values.pop_back();            // 移除最大值
     // 计算中位数
-    size_t n = values.size();
-    int dbd_val = values[n / 2];
+    size_t n       = values.size();
+    int    dbd_val = values[n / 2];
     // 计算平均值
     return adjust_signed(dbd_val);
 }
@@ -65,4 +66,4 @@ int Median::adjust_signed(int value) const
     return value;
 }
 
-}
+} // namespace mc::debounce

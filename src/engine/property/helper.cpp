@@ -18,7 +18,8 @@
 
 namespace mc::engine {
 
-abstract_object* property_helper::find_related_object(const std::string& object_name) {
+abstract_object* property_helper::find_related_object(const std::string& object_name)
+{
     auto position = get_object()->get_position();
     auto service  = mc::expr::func_collection::get_instance().get_service(position);
     if (service == nullptr) {
@@ -45,7 +46,8 @@ abstract_object* property_helper::find_related_object(const std::string& object_
     return const_cast<mc::engine::abstract_object*>(&(*obj_it));
 }
 
-mc::variant property_helper::call_function_with_result(const detail::func_data* function_data) {
+mc::variant property_helper::call_function_with_result(const detail::func_data* function_data)
+{
     if (!function_data) {
         elog("Function data is null for property: ${name}", ("name", get_name()));
         return mc::variant();
@@ -68,7 +70,8 @@ mc::variant property_helper::call_function_with_result(const detail::func_data* 
     }
 }
 
-mc::variant property_helper::get_relate_property(const mc::expr::relate_property& relate_property) {
+mc::variant property_helper::get_relate_property(const mc::expr::relate_property& relate_property)
+{
     auto* target_object = find_related_object(relate_property.object_name);
     if (target_object == nullptr) {
         return mc::variant();
@@ -89,7 +92,8 @@ mc::variant property_helper::get_relate_property(const mc::expr::relate_property
     }
 }
 
-void property_helper::set_relate_property(const mc::expr::relate_property& relate_property, const mc::variant& value) {
+void property_helper::set_relate_property(const mc::expr::relate_property& relate_property, const mc::variant& value)
+{
     auto* target_object = find_related_object(relate_property.object_name);
     if (target_object == nullptr) {
         MC_THROW(mc::invalid_op_exception, "set_relate_property ${name} failed: Object not found: ${object_name}",
@@ -112,7 +116,8 @@ void property_helper::set_relate_property(const mc::expr::relate_property& relat
 
 void property_helper::connect_property_listener(abstract_object&      target_object,
                                                 const std::string&    property_name,
-                                                std::function<void()> callback) {
+                                                std::function<void()> callback)
+{
     target_object.property_changed().connect(
         [property_name, callback](const mc::variant& value, const property_base& prop) {
         if (prop.get_name() == property_name) {
@@ -121,7 +126,8 @@ void property_helper::connect_property_listener(abstract_object&      target_obj
     });
 }
 
-void property_helper::disconnect_all_connections(std::vector<mc::connection_type>& connection_slots) {
+void property_helper::disconnect_all_connections(std::vector<mc::connection_type>& connection_slots)
+{
     // 主动断开所有连接
     for (auto& slot : connection_slots) {
         slot.disconnect();
@@ -130,7 +136,8 @@ void property_helper::disconnect_all_connections(std::vector<mc::connection_type
     connection_slots.clear();
 }
 
-mc::dict property_helper::group_properties_by_object(const mc::dict& relate_properties) {
+mc::dict property_helper::group_properties_by_object(const mc::dict& relate_properties)
+{
     mc::dict object_properties;
 
     for (const auto& entry : relate_properties) {

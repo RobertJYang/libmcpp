@@ -32,10 +32,10 @@ using mc::log::logger;
 using mc::log::socket_appender;
 
 namespace {
-const std::string DEFAULT_DLOG_LEVEL            = "notice";
-const std::string DEFAULT_DLOG_TYPE             = "file";
-const std::string DEFAULT_SOCKET_APPENDER_NAME  = "mdbctl";
-const std::string MDBCTL_SOCKET_APPENDER_NAME   = "mdbctl_socket";
+const std::string DEFAULT_DLOG_LEVEL           = "notice";
+const std::string DEFAULT_DLOG_TYPE            = "file";
+const std::string DEFAULT_SOCKET_APPENDER_NAME = "mdbctl";
+const std::string MDBCTL_SOCKET_APPENDER_NAME  = "mdbctl_socket";
 std::string       MODULE_NAME                  = "Unknown";
 } // namespace
 
@@ -44,7 +44,8 @@ namespace mc::engine {
 namespace {
 
 // 获取 DBus 路径下的排序子节点列表
-std::vector<std::string> get_sorted_dbus_children(DBusConnection* conn, const std::string& path) {
+std::vector<std::string> get_sorted_dbus_children(DBusConnection* conn, const std::string& path)
+{
     std::vector<std::string> children;
     char**                   child_entries = nullptr;
 
@@ -63,7 +64,8 @@ std::vector<std::string> get_sorted_dbus_children(DBusConnection* conn, const st
 
 // 递归输出 DBus 对象树拓扑结构
 void dump_dbus_object_tree(std::ostream& os, DBusConnection* conn, const std::string& path,
-                           bool is_last, const std::string& prefix) {
+                           bool is_last, const std::string& prefix)
+{
     // 输出当前节点路径
     os << prefix << (is_last ? "└─" : "├─") << path << "\n";
 
@@ -82,7 +84,8 @@ void dump_dbus_object_tree(std::ostream& os, DBusConnection* conn, const std::st
 }
 
 // 输出资源树拓扑结构入口
-void dump_object_tree(std::ostream& os, DBusConnection* conn, std::string_view service_name) {
+void dump_object_tree(std::ostream& os, DBusConnection* conn, std::string_view service_name)
+{
     // 输出service名称作为根节点
     os << service_name << "\n";
 
@@ -99,7 +102,8 @@ void dump_object_tree(std::ostream& os, DBusConnection* conn, std::string_view s
 
 // 输出单个接口的属性信息
 void dump_interface_properties(std::ostream& os, abstract_object* node, abstract_interface* iface,
-                               const interface_metadata& iface_meta) {
+                               const interface_metadata& iface_meta)
+{
     // 收集属性信息
     std::vector<std::tuple<std::string, std::string_view, std::string>> props;
     iface_meta.metadata->visit_properties([&](const property_type_info* prop_info) {
@@ -126,7 +130,8 @@ void dump_interface_properties(std::ostream& os, abstract_object* node, abstract
 }
 
 // 输出单个对象的所有接口属性
-void dump_single_object_properties(std::ostream& os, abstract_object* node) {
+void dump_single_object_properties(std::ostream& os, abstract_object* node)
+{
     const auto& metadata = node->get_metadata();
     metadata.visit_interfaces([&](const interface_metadata& iface_meta) {
         auto* iface = to_interface_ptr(node, iface_meta.interface);
@@ -138,7 +143,8 @@ void dump_single_object_properties(std::ostream& os, abstract_object* node) {
 
 // 递归输出对象属性（使用 DBus 遍历）
 void dump_object_properties(std::ostream& os, DBusConnection* conn, service* svc,
-                            const std::string& path) {
+                            const std::string& path)
+{
     // 尝试从对象表中查找对象并输出属性
     auto& table  = svc->get_object_table();
     auto  obj_it = table.find_object(by_path::field == path);
@@ -156,7 +162,8 @@ void dump_object_properties(std::ostream& os, DBusConnection* conn, service* svc
     }
 }
 
-void dump_service_tree(service* svc, std::string_view filepath) {
+void dump_service_tree(service* svc, std::string_view filepath)
+{
     if (svc == nullptr) {
         elog("dump service tree failed: service is nullptr");
         return;
@@ -192,79 +199,96 @@ void dump_service_tree(service* svc, std::string_view filepath) {
 }
 
 } // namespace
-int32_t micro_component_interface::health_check(std::map<std::string, std::string> context) const {
+int32_t micro_component_interface::health_check(std::map<std::string, std::string> context) const
+{
     return 0;
 }
 
 std::vector<std::tuple<std::string, std::string>>
-mc_config_manage_interface::backup(std::map<std::string, std::string> context, std::string filepath) {
+mc_config_manage_interface::backup(std::map<std::string, std::string> context, std::string filepath)
+{
     return {};
 }
 
-std::string mc_config_manage_interface::export_config(std::map<std::string, std::string> context, std::string type) {
+std::string mc_config_manage_interface::export_config(std::map<std::string, std::string> context, std::string type)
+{
     return "";
 }
 
 void mc_config_manage_interface::import_config(std::map<std::string, std::string> context, std::string data,
-                                               std::string type) {
+                                               std::string type)
+{
 }
 
 void mc_config_manage_interface::recover(std::map<std::string, std::string> context,
-                                         std::map<std::string, std::string> preserve_list) {
+                                         std::map<std::string, std::string> preserve_list)
+{
 }
 
-std::string mc_config_manage_interface::verify(std::map<std::string, std::string> context, std::string data) {
+std::string mc_config_manage_interface::verify(std::map<std::string, std::string> context, std::string data)
+{
     return "";
 }
 
 std::string mc_config_manage_interface::get_preserved_config(std::map<std::string, std::string> context,
-                                                             std::map<std::string, std::string> preserve_flag) {
+                                                             std::map<std::string, std::string> preserve_flag)
+{
     return "";
 }
 
-std::string mc_config_manage_interface::get_trusted_config(std::map<std::string, std::string> context) {
+std::string mc_config_manage_interface::get_trusted_config(std::map<std::string, std::string> context)
+{
     return "";
 }
 
-void mc_debug_interface::dump(std::map<std::string, std::string> context, std::string filepath) {
+void mc_debug_interface::dump(std::map<std::string, std::string> context, std::string filepath)
+{
     auto service = get_service();
     dump_service_tree(service, filepath);
     service->on_dump(context, filepath);
 }
 
-int32_t mc_reboot_interface::prepare(std::map<std::string, std::string> context) {
+int32_t mc_reboot_interface::prepare(std::map<std::string, std::string> context)
+{
     auto service = get_service();
     return service->on_reboot_prepare(context);
 }
 
-int32_t mc_reboot_interface::process(std::map<std::string, std::string> context) {
+int32_t mc_reboot_interface::process(std::map<std::string, std::string> context)
+{
     auto service = get_service();
     return service->on_reboot_process(context);
 }
 
-int32_t mc_reboot_interface::action(std::map<std::string, std::string> context) {
+int32_t mc_reboot_interface::action(std::map<std::string, std::string> context)
+{
     auto service = get_service();
     return service->on_reboot_action(context);
 }
 
-void mc_reboot_interface::cancel(std::map<std::string, std::string> context) {
+void mc_reboot_interface::cancel(std::map<std::string, std::string> context)
+{
     auto service = get_service();
     service->on_reboot_cancel(context);
 }
 
-int32_t mc_reset_interface::prepare(std::map<std::string, std::string> context, std::string reset_type) {
+int32_t mc_reset_interface::prepare(std::map<std::string, std::string> context, std::string reset_type)
+{
     return 0;
 }
 
-int32_t mc_reset_interface::action(std::map<std::string, std::string> context, std::string reset_type) {
+int32_t mc_reset_interface::action(std::map<std::string, std::string> context, std::string reset_type)
+{
     return 0;
 }
 
-void mc_reset_interface::cancel(std::map<std::string, std::string> context, std::string reset_type) {
+void mc_reset_interface::cancel(std::map<std::string, std::string> context, std::string reset_type)
+{
 }
 
 // mc_debug_interface 析构函数实现
-mc_debug_interface::~mc_debug_interface() {
+mc_debug_interface::~mc_debug_interface()
+{
     // 停止所有 timer，确保在对象析构前清理
     {
         std::lock_guard<std::mutex> lock(m_dlog_level_mutex);
@@ -289,7 +313,8 @@ mc_debug_interface::~mc_debug_interface() {
 }
 
 // mc_maintenance_interface 析构函数实现
-mc_maintenance_interface::~mc_maintenance_interface() {
+mc_maintenance_interface::~mc_maintenance_interface()
+{
     // 停止 timer，确保在对象析构前清理
     std::lock_guard<std::mutex> lock(m_dlog_limit_mutex);
     if (m_dlog_limit_timer) {
@@ -298,7 +323,8 @@ mc_maintenance_interface::~mc_maintenance_interface() {
     }
 }
 
-void mc_debug_interface::attach_debug_console(std::map<std::string, std::string> context, uint32_t port) {
+void mc_debug_interface::attach_debug_console(std::map<std::string, std::string> context, uint32_t port)
+{
     std::lock_guard<std::mutex> lock(m_debug_console_mutex);
 
     auto default_log    = mc::log::default_logger();
@@ -368,7 +394,8 @@ void mc_debug_interface::attach_debug_console(std::map<std::string, std::string>
     ilog("start heartbeat check of debug console ${port}", ("port", port));
 }
 
-void mc_debug_interface::detach_debug_console(std::map<std::string, std::string> context) {
+void mc_debug_interface::detach_debug_console(std::map<std::string, std::string> context)
+{
     std::lock_guard<std::mutex> lock(m_debug_console_mutex);
 
     auto default_log  = mc::log::default_logger();
@@ -397,14 +424,16 @@ void mc_debug_interface::detach_debug_console(std::map<std::string, std::string>
     service->on_detach_debug_console(context);
 }
 
-static void set_log_level(mc::log::level lvl, std::string log_info) {
+static void set_log_level(mc::log::level lvl, std::string log_info)
+{
     mc::log::log_manager::instance().set_dlog_level(lvl);
     // 记录操作日志
     operation_log(log_info);
 }
 
 void mc_debug_interface::set_dlog_level(std::map<std::string, std::string> context, std::string level,
-                                        uint8_t effective_hours) {
+                                        uint8_t effective_hours)
+{
     std::lock_guard<std::mutex> lock(m_dlog_level_mutex);
 
     auto lvl_opt = mc::log::to_level(level);
@@ -440,7 +469,8 @@ void mc_debug_interface::set_dlog_level(std::map<std::string, std::string> conte
     }
 }
 
-static void set_log_limit_env(bool enabled, std::string log_info) {
+static void set_log_limit_env(bool enabled, std::string log_info)
+{
     if (!enabled) {
         setenv("MCC_DEBUG", "1", 1);
     } else {
@@ -450,7 +480,8 @@ static void set_log_limit_env(bool enabled, std::string log_info) {
 }
 
 void mc_maintenance_interface::dlog_limit(std::map<std::string, std::string> context, bool enabled,
-                                          uint8_t duration_mins) {
+                                          uint8_t duration_mins)
+{
     std::lock_guard<std::mutex> lock(m_dlog_limit_mutex);
 
     // 停止之前的定时器
@@ -481,7 +512,8 @@ void mc_maintenance_interface::dlog_limit(std::map<std::string, std::string> con
     });
 }
 
-void mc_debug_interface::set_dlog_type(std::string type) {
+void mc_debug_interface::set_dlog_type(std::string type)
+{
     auto default_log = mc::log::default_logger();
     auto appender    = default_log.find_appender(DEFAULT_SOCKET_APPENDER_NAME);
     if (auto socket_appender_ptr = std::dynamic_pointer_cast<socket_appender>(appender)) {
@@ -492,7 +524,8 @@ void mc_debug_interface::set_dlog_type(std::string type) {
     }
 }
 
-void micro_component_object::init(std::string_view service_name) {
+void micro_component_object::init(std::string_view service_name)
+{
     size_t pos         = service_name.find_last_of('.');
     auto   app_name    = service_name.substr(pos + 1);
     auto   object_name = mc::string::concat("MicroComponent_", app_name);

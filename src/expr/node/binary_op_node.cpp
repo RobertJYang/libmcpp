@@ -17,7 +17,8 @@
 
 namespace mc::expr {
 
-mc::variant binary_op_node::evaluate(const context_base& ctx) const {
+mc::variant binary_op_node::evaluate(const context_base& ctx) const
+{
     mc::variant left_val = m_left->evaluate(ctx);
 
     // 短路逻辑操作符
@@ -77,7 +78,8 @@ mc::variant binary_op_node::evaluate(const context_base& ctx) const {
     }
 }
 
-std::string binary_op_node::to_string() const {
+std::string binary_op_node::to_string() const
+{
     std::string op_str;
     switch (m_operator) {
     case operator_type::add:
@@ -141,7 +143,8 @@ std::string binary_op_node::to_string() const {
     return "(" + m_left->to_string() + " " + op_str + " " + m_right->to_string() + ")";
 }
 
-node_ptr make_binary_op(operator_type op, node_ptr left, node_ptr right) {
+node_ptr make_binary_op(operator_type op, node_ptr left, node_ptr right)
+{
     return std::make_shared<binary_op_node>(op, std::move(left), std::move(right));
 }
 

@@ -32,12 +32,16 @@ public:
     using base_type = variant_base;
 
     // 默认构造函数
-    typed_variant() : base_type() {
+    typed_variant()
+        : base_type()
+    {
         set_fixed_type(true);
     }
 
     // 从type_id构造，初始化为该类型的默认值
-    explicit typed_variant(type_id type) : base_type(type) {
+    explicit typed_variant(type_id type)
+        : base_type(type)
+    {
         set_fixed_type(true);
     }
 
@@ -45,42 +49,55 @@ public:
     template <typename T, typename = std::enable_if_t<
                               !std::is_same_v<std::decay_t<T>, typed_variant> &&
                               !std::is_same_v<std::decay_t<T>, type_id>>>
-    typed_variant(T&& value) : base_type(std::forward<T>(value)) {
+    typed_variant(T&& value)
+        : base_type(std::forward<T>(value))
+    {
         set_fixed_type(true);
     }
 
     // 拷贝构造函数
-    typed_variant(const typed_variant& other) : base_type(other) {
+    typed_variant(const typed_variant& other)
+        : base_type(other)
+    {
         set_fixed_type(true);
     }
 
     // 移动构造函数
-    typed_variant(typed_variant&& other) noexcept : base_type(std::move(other)) {
+    typed_variant(typed_variant&& other) noexcept
+        : base_type(std::move(other))
+    {
         set_fixed_type(true);
     }
 
     // 从base_type构造
-    typed_variant(const base_type& other) : base_type(other) {
+    typed_variant(const base_type& other)
+        : base_type(other)
+    {
         set_fixed_type(true);
     }
 
-    typed_variant(base_type&& other) : base_type(std::move(other)) {
+    typed_variant(base_type&& other)
+        : base_type(std::move(other))
+    {
         set_fixed_type(true);
     }
 
     // 赋值操作符
-    typed_variant& operator=(const typed_variant& other) {
+    typed_variant& operator=(const typed_variant& other)
+    {
         base_type::operator=(other);
         return *this;
     }
 
-    typed_variant& operator=(typed_variant&& other) {
+    typed_variant& operator=(typed_variant&& other)
+    {
         base_type::operator=(std::move(other));
         return *this;
     }
 
     template <typename T>
-    typed_variant& operator=(T&& value) {
+    typed_variant& operator=(T&& value)
+    {
         base_type::operator=(std::forward<T>(value));
         return *this;
     }
@@ -110,7 +127,8 @@ namespace detail {
 
 template <typename Arg>
 static auto convert_arg(const char* name, const mc::variant& var)
-    -> std::enable_if_t<!is_variant_v<std::decay_t<Arg>>, std::remove_reference_t<Arg>> {
+    -> std::enable_if_t<!is_variant_v<std::decay_t<Arg>>, std::remove_reference_t<Arg>>
+{
     using arg_type = mc::traits::remove_cvref_t<std::decay_t<Arg>>;
     if constexpr (std::is_same_v<arg_type, std::string> ||
                   std::is_same_v<arg_type, std::string_view>) {
@@ -140,7 +158,8 @@ static auto convert_arg(const char* name, const mc::variant& var)
 
 template <typename Arg>
 static auto convert_arg(const char* name, const mc::variant& var)
-    -> std::enable_if_t<is_variant_v<std::decay_t<Arg>>, const mc::variant&> {
+    -> std::enable_if_t<is_variant_v<std::decay_t<Arg>>, const mc::variant&>
+{
     return var;
 }
 } // namespace detail

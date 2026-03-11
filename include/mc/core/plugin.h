@@ -63,14 +63,16 @@ using destroy_plugin_func = void (*)(plugin*);
 } // namespace mc::core
 
 // 导出插件的宏定义
-#define MC_EXPORT_PLUGIN(PluginClass)                 \
-    extern "C" {                                      \
-    MC_API mc::core::plugin* create_plugin() {        \
-        return new PluginClass();                     \
-    }                                                 \
-    MC_API void destroy_plugin(mc::core::plugin* p) { \
-        delete p;                                     \
-    }                                                 \
+#define MC_EXPORT_PLUGIN(PluginClass)               \
+    extern "C" {                                    \
+    MC_API mc::core::plugin* create_plugin()        \
+    {                                               \
+        return new PluginClass();                   \
+    }                                               \
+    MC_API void destroy_plugin(mc::core::plugin* p) \
+    {                                               \
+        delete p;                                   \
+    }                                               \
     }
 
 #endif // MC_CORE_PLUGIN_H

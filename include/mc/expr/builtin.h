@@ -50,7 +50,8 @@ public:
               std::enable_if_t<
                   std::is_function_v<std::remove_pointer_t<std::decay_t<F>>>,
                   int> = 0>
-    int register_symbol(std::string name, F&& func) {
+    int register_symbol(std::string name, F&& func)
+    {
         return register_symbol(make_simple_function(std::move(name), std::forward<F>(func)));
     }
 
@@ -69,7 +70,8 @@ public:
      * 存在模块间重名，再支持通过模块名限定
      */
     template <typename T, std::enable_if_t<mc::reflect::is_reflectable<T>(), int> = 0>
-    int register_module() {
+    int register_module()
+    {
         auto methods = mc::reflect::get_static_methods<T>();
         mc::traits::tuple_for_each(methods, [this](auto* method) {
             this->register_symbol(std::string(method->name), method->m_function);

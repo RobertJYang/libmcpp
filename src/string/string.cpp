@@ -29,16 +29,19 @@
 namespace mc::string {
 
 namespace detail {
-void throw_bad_cast_error(const char* type) {
+void throw_bad_cast_error(const char* type)
+{
     MC_THROW(mc::invalid_arg_exception, "can not cast string to type: ${type}", ("type", type));
 }
 
-void throw_overflow_error(const char* type, std::string_view s) {
+void throw_overflow_error(const char* type, std::string_view s)
+{
     MC_THROW(mc::overflow_exception, "can not cast string to type ${type}, value ${value} overflow",
              ("type", type)("value", s));
 }
 
-std::pair<int, std::string_view> detect_number_radix(std::string_view s) {
+std::pair<int, std::string_view> detect_number_radix(std::string_view s)
+{
     if (s.size() > 1 && s[0] == '0') {
         const char c = s[1];
         if (c == 'x' || c == 'X') {
@@ -54,7 +57,8 @@ std::pair<int, std::string_view> detect_number_radix(std::string_view s) {
 }
 
 std::string_view prepare_number_string(
-    std::string_view s, int radix, char* buffer, std::size_t buffer_size) noexcept {
+    std::string_view s, int radix, char* buffer, std::size_t buffer_size) noexcept
+{
     if (s.empty()) {
         return {};
     }
@@ -93,7 +97,8 @@ std::string_view prepare_number_string(
  * @param result 转换结果的引用
  * @return 是否转换成功
  */
- bool try_to_bool(std::string_view s, bool& result) {
+bool try_to_bool(std::string_view s, bool& result)
+{
     if (s.empty()) {
         result = false;
         return true;
@@ -110,7 +115,8 @@ std::string_view prepare_number_string(
     return false;
 }
 
-bool to_bool_with_default(std::string_view s, bool default_value) {
+bool to_bool_with_default(std::string_view s, bool default_value)
+{
     if (s.empty()) {
         return false;
     }
@@ -123,7 +129,8 @@ bool to_bool_with_default(std::string_view s, bool default_value) {
     return default_value;
 }
 
-bool to_bool(std::string_view s) {
+bool to_bool(std::string_view s)
+{
     if (s.empty()) {
         return false;
     }
@@ -137,7 +144,8 @@ bool to_bool(std::string_view s) {
 }
 
 // 忽略大小写比较两个字符串是否相等
-bool iequals(std::string_view a, std::string_view b) {
+bool iequals(std::string_view a, std::string_view b)
+{
     if (a.size() != b.size()) {
         return false;
     }
@@ -149,7 +157,8 @@ bool iequals(std::string_view a, std::string_view b) {
 }
 
 // 忽略大小写比较两个 C 风格字符串是否相等
-bool iequals(const char* a, const char* b) {
+bool iequals(const char* a, const char* b)
+{
     if (!a || !b) {
         return a == b;
     }
@@ -158,35 +167,40 @@ bool iequals(const char* a, const char* b) {
 }
 
 // 将字符串转换为小写
-std::string to_lower(std::string_view s) {
+std::string to_lower(std::string_view s)
+{
     std::string result(s);
     to_lower_inplace(result);
     return result;
 }
 
 // 将字符串转换为大写
-std::string to_upper(std::string_view s) {
+std::string to_upper(std::string_view s)
+{
     std::string result(s);
     to_upper_inplace(result);
     return result;
 }
 
 // 原地将字符串转换为小写
-void to_lower_inplace(std::string& s) {
+void to_lower_inplace(std::string& s)
+{
     std::transform(s.begin(), s.end(), s.begin(), [](unsigned char c) {
         return std::tolower(c);
     });
 }
 
 // 原地将字符串转换为大写
-void to_upper_inplace(std::string& s) {
+void to_upper_inplace(std::string& s)
+{
     std::transform(s.begin(), s.end(), s.begin(), [](unsigned char c) {
         return std::toupper(c);
     });
 }
 
 // 去除字符串两端的空白字符
-std::string trim(std::string_view s) {
+std::string trim(std::string_view s)
+{
     auto start = s.begin();
     while (start != s.end() && std::isspace(static_cast<unsigned char>(*start))) {
         ++start;
@@ -205,13 +219,15 @@ std::string trim(std::string_view s) {
 }
 
 // 原地去除字符串两端的空白字符
-void trim_inplace(std::string& s) {
+void trim_inplace(std::string& s)
+{
     ltrim_inplace(s);
     rtrim_inplace(s);
 }
 
 // 去除字符串左侧的空白字符
-std::string ltrim(std::string_view s) {
+std::string ltrim(std::string_view s)
+{
     auto start = s.begin();
     while (start != s.end() && std::isspace(static_cast<unsigned char>(*start))) {
         ++start;
@@ -220,14 +236,16 @@ std::string ltrim(std::string_view s) {
 }
 
 // 原地去除字符串左侧的空白字符
-void ltrim_inplace(std::string& s) {
+void ltrim_inplace(std::string& s)
+{
     s.erase(s.begin(), std::find_if(s.begin(), s.end(), [](unsigned char ch) {
         return !std::isspace(ch);
     }));
 }
 
 // 去除字符串右侧的空白字符
-std::string rtrim(std::string_view s) {
+std::string rtrim(std::string_view s)
+{
     auto end = s.end();
     if (s.begin() != s.end()) {
         end = s.end();
@@ -242,7 +260,8 @@ std::string rtrim(std::string_view s) {
 }
 
 // 原地去除字符串右侧的空白字符
-void rtrim_inplace(std::string& s) {
+void rtrim_inplace(std::string& s)
+{
     s.erase(std::find_if(s.rbegin(), s.rend(),
                          [](unsigned char ch) {
         return !std::isspace(ch);
@@ -252,7 +271,8 @@ void rtrim_inplace(std::string& s) {
 }
 
 // 按指定分隔符分割字符串
-std::vector<std::string> split(std::string_view s, char delim) {
+std::vector<std::string> split(std::string_view s, char delim)
+{
     std::vector<std::string>    result;
     std::string_view::size_type start = 0;
     std::string_view::size_type end   = s.find(delim);
@@ -271,7 +291,8 @@ std::vector<std::string> split(std::string_view s, char delim) {
 }
 
 // 按指定分隔符分割字符串
-std::vector<std::string> split(std::string_view s, std::string_view delim) {
+std::vector<std::string> split(std::string_view s, std::string_view delim)
+{
     std::vector<std::string> result;
     if (delim.empty()) {
         result.emplace_back(s);
@@ -295,7 +316,8 @@ std::vector<std::string> split(std::string_view s, std::string_view delim) {
 }
 
 // 将字符串数组连接成一个字符串
-std::string join(const std::vector<std::string>& v, std::string_view delim) {
+std::string join(const std::vector<std::string>& v, std::string_view delim)
+{
     if (v.empty()) {
         return {};
     }
@@ -322,7 +344,8 @@ std::string join(const std::vector<std::string>& v, std::string_view delim) {
 }
 
 // 检查字符串是否以指定前缀开始
-bool starts_with(std::string_view s, std::string_view prefix) {
+bool starts_with(std::string_view s, std::string_view prefix)
+{
     if (prefix.empty()) {
         return true;
     }
@@ -331,11 +354,13 @@ bool starts_with(std::string_view s, std::string_view prefix) {
 }
 
 // 检查字符串是否以指定后缀结束
-bool ends_with(std::string_view s, std::string_view suffix) {
+bool ends_with(std::string_view s, std::string_view suffix)
+{
     return s.size() >= suffix.size() && s.substr(s.size() - suffix.size()) == suffix;
 }
 
-std::string_view longest_common_prefix(std::string_view s1, std::string_view s2) {
+std::string_view longest_common_prefix(std::string_view s1, std::string_view s2)
+{
     size_t i = 0;
     while (i < s1.size() && i < s2.size() && s1[i] == s2[i]) {
         ++i;
@@ -344,7 +369,8 @@ std::string_view longest_common_prefix(std::string_view s1, std::string_view s2)
 }
 
 // 替换字符串中的所有指定子串
-std::string replace_all(std::string_view s, std::string_view from, std::string_view to) {
+std::string replace_all(std::string_view s, std::string_view from, std::string_view to)
+{
     if (from.empty()) {
         return std::string(s);
     }
@@ -365,7 +391,8 @@ std::string replace_all(std::string_view s, std::string_view from, std::string_v
 }
 
 // 原地替换字符串中的所有指定子串
-void replace_all_inplace(std::string& s, std::string_view from, std::string_view to) {
+void replace_all_inplace(std::string& s, std::string_view from, std::string_view to)
+{
     if (from.empty()) {
         return;
     }
@@ -378,12 +405,14 @@ void replace_all_inplace(std::string& s, std::string_view from, std::string_view
 }
 
 // 检查字符串是否包含指定子串
-bool contains(std::string_view s, std::string_view substring) {
+bool contains(std::string_view s, std::string_view substring)
+{
     return s.find(substring) != std::string_view::npos;
 }
 
 // 忽略大小写检查字符串是否包含指定子串
-bool icontains(std::string_view s, std::string_view substring) {
+bool icontains(std::string_view s, std::string_view substring)
+{
     // 避免不必要的字符串拷贝，使用临时缓冲区
     if (s.empty() || substring.empty() || s.size() < substring.size()) {
         return substring.empty();
@@ -421,7 +450,8 @@ bool icontains(std::string_view s, std::string_view substring) {
 /**
  * @brief 获取子字符串，支持负数索引
  */
-std::string_view substr(std::string_view s, int start, int end) {
+std::string_view substr(std::string_view s, int start, int end)
+{
     const std::size_t length = s.length();
 
     // 空字符串直接返回
@@ -467,7 +497,8 @@ std::string_view substr(std::string_view s, int start, int end) {
 /**
  * @brief 获取子字符串，第二个参数指定长度而非结束位置
  */
-std::string_view substring(std::string_view s, int start, std::size_t length) {
+std::string_view substring(std::string_view s, int start, std::size_t length)
+{
     const std::size_t str_length = s.length();
 
     // 空字符串直接返回
@@ -504,7 +535,8 @@ std::string_view substring(std::string_view s, int start, std::size_t length) {
 /**
  * @brief 使用固定宽度格式化字符串，不足用空格填充，并追加到目标字符串
  */
-void fixed_width_append(std::string& result, size_t width, std::string_view s, bool left_align) {
+void fixed_width_append(std::string& result, size_t width, std::string_view s, bool left_align)
+{
     // 如果字符串长度已经超过或等于目标宽度，直接追加字符串
     if (s.length() >= width) {
         result.append(s.data(), width);
@@ -526,7 +558,8 @@ void fixed_width_append(std::string& result, size_t width, std::string_view s, b
     }
 }
 
-bool is_valid_utf8(std::string_view s) {
+bool is_valid_utf8(std::string_view s)
+{
     const unsigned char* bytes  = reinterpret_cast<const unsigned char*>(s.data());
     size_t               length = s.size();
 
@@ -612,7 +645,8 @@ bool is_valid_utf8(std::string_view s) {
     return true;
 }
 
-void to_string(std::string& result, double value) {
+void to_string(std::string& result, double value)
+{
     char   buffer[64];
     double intpart;
     if (modf(value, &intpart) == 0.0) {
@@ -633,19 +667,22 @@ void to_string(std::string& result, double value) {
     result.append(buffer);
 }
 
-std::string to_string(double value) {
+std::string to_string(double value)
+{
     std::string result;
     to_string(result, value);
     return result;
 }
 
-std::string to_string(bool value) {
+std::string to_string(bool value)
+{
     std::string result;
     to_string(result, value);
     return result;
 }
 
-void to_string(std::string& result, bool value) {
+void to_string(std::string& result, bool value)
+{
     result.append(value ? "true" : "false");
 }
 

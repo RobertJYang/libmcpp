@@ -46,7 +46,8 @@ std::optional<mc::variants> get_mdb_object_handler([[maybe_unused]] std::string_
                                                    [[maybe_unused]] std::string_view interface,
                                                    [[maybe_unused]] std::string_view method,
                                                    [[maybe_unused]] std::string_view signature,
-                                                   const variants&                   args) {
+                                                   const variants&                   args)
+{
     // 第一个参数为上下文
     if (args.size() < 3) {
         return std::nullopt;
@@ -75,7 +76,8 @@ std::optional<mc::variants> get_mdb_sub_paths_handler([[maybe_unused]] std::stri
                                                       [[maybe_unused]] std::string_view interface,
                                                       [[maybe_unused]] std::string_view method,
                                                       [[maybe_unused]] std::string_view signature,
-                                                      const variants&                   args) {
+                                                      const variants&                   args)
+{
     if (args.size() < 4) {
         return std::nullopt;
     }
@@ -109,7 +111,8 @@ std::optional<mc::variants> is_valid_mdb_path_handler([[maybe_unused]] std::stri
                                                       [[maybe_unused]] std::string_view interface,
                                                       [[maybe_unused]] std::string_view method,
                                                       [[maybe_unused]] std::string_view signature,
-                                                      const variants&                   args) {
+                                                      const variants&                   args)
+{
     if (args.size() < 3) {
         return std::nullopt;
     }
@@ -122,7 +125,8 @@ std::optional<mc::variants> is_valid_mdb_path_handler([[maybe_unused]] std::stri
 }
 
 // 忽略大小写字符串比较
-static bool equals_ignore_case(std::string_view a, std::string_view b) {
+static bool equals_ignore_case(std::string_view a, std::string_view b)
+{
     if (a.size() != b.size()) {
         return false;
     }
@@ -138,7 +142,8 @@ static bool equals_ignore_case(std::string_view a, std::string_view b) {
 
 // 从属性中读取值并转换为 mc::variant，失败返回 std::nullopt
 // 注意：调用方需要保证已持有对应对象的共享锁（shm_object_lock_shared_exec）。
-static std::optional<variant> read_property_variant(const shm::property& prop) {
+static std::optional<variant> read_property_variant(const shm::property& prop)
+{
     auto sig = prop.get_signature();
     if (sig.empty()) {
         return std::nullopt;
@@ -194,7 +199,8 @@ enum class object_filter_result {
 
 // 基于已查到的 interface 做属性匹配
 static object_filter_result object_match_filter_shm_by_interface(shm::interface& iface,
-                                                                const dict& filter_dict, bool ignore_case) {
+                                                                 const dict& filter_dict, bool ignore_case)
+{
     bool need_rpc = false;
     for (const auto& e : filter_dict) {
         if (!e.key.is_string()) {
@@ -239,7 +245,8 @@ struct mdb_path_shm_scan_out {
     std::vector<mdb_path_candidate> need_rpc;
 };
 
-static variants make_empty_path_result() {
+static variants make_empty_path_result()
+{
     variants empty;
     empty.push_back(variant(std::string_view{}));
     empty.push_back(variant(std::string_view{}));
@@ -249,7 +256,8 @@ static variants make_empty_path_result() {
 // 将 Python 风格的单引号字典转换为 JSON 格式（双引号）
 // 例如：{'key':'value'} -> {"key":"value"}
 // 简单实现：将单引号替换为双引号，但跳过转义字符后的单引号
-static std::string convert_single_quotes_to_json(std::string_view input) {
+static std::string convert_single_quotes_to_json(std::string_view input)
+{
     std::string result;
     result.reserve(input.size());
 
@@ -292,7 +300,8 @@ constexpr std::string_view GET_WITH_CTX_SIG{"a{ss}ss"};
 
 // 构建 GetWithContext RPC 调用的参数
 static variants build_get_property_rpc_args(std::string_view interface_name,
-                                            std::string_view prop_name) {
+                                            std::string_view prop_name)
+{
     dict     ctx;
     variants rpc_args;
     rpc_args.push_back(variant(ctx));
@@ -305,7 +314,8 @@ static variants build_get_property_rpc_args(std::string_view interface_name,
 static std::optional<variant> get_property_via_rpc(std::string_view interface_name,
                                                    std::string_view prop_name,
                                                    std::string_view service_name,
-                                                   std::string_view object_path) {
+                                                   std::string_view object_path)
+{
     variants rpc_args = build_get_property_rpc_args(interface_name, prop_name);
 
     // timeout_call_with_sender 可能抛出异常，这里不捕获，让异常向上传播
@@ -324,7 +334,8 @@ static std::optional<variant> get_property_via_rpc(std::string_view interface_na
 // 返回 pair：第一个是属性值（成功时），第二个是错误信息 variant（仅当 timeout_call_with_sender 抛出异常时）
 static std::pair<std::optional<variant>, std::optional<variant>> get_property_via_rpc_with_error(
     std::string_view interface_name, std::string_view prop_name, std::string_view service_name,
-    std::string_view object_path) {
+    std::string_view object_path)
+{
     variants rpc_args = build_get_property_rpc_args(interface_name, prop_name);
 
     std::optional<variants> reply_opt;
@@ -348,7 +359,8 @@ static std::pair<std::optional<variant>, std::optional<variant>> get_property_vi
 // 使用 RPC（GetWithContext）获取单个属性值并与期望值比较
 static bool match_property_via_rpc(std::string_view interface_name, std::string_view prop_name,
                                    const variant& expected, bool ignore_case,
-                                   std::string_view service_name, std::string_view object_path) {
+                                   std::string_view service_name, std::string_view object_path)
+{
     auto actual_opt = get_property_via_rpc(interface_name, prop_name, service_name, object_path);
     if (!actual_opt.has_value()) {
         return false;
@@ -365,7 +377,8 @@ static bool match_property_via_rpc(std::string_view interface_name, std::string_
 static bool match_candidate_via_rpc(const mdb_path_candidate& cand,
                                     std::string_view          interface_name,
                                     const dict&               filter_dict,
-                                    bool                      ignore_case) {
+                                    bool                      ignore_case)
+{
     for (const auto& e : filter_dict) {
         if (!e.key.is_string()) {
             return false;
@@ -384,7 +397,8 @@ static bool match_candidate_via_rpc(const mdb_path_candidate& cand,
 // 共享内存扫描阶段：仅用共享内存中的已落盘属性值匹配；若发现缺值则记录 candidate，
 // 交给上层在释放全局锁后通过 RPC 再验证。
 static mdb_path_shm_scan_out scan_mdb_path_shm(shm::shared_memory& ins, std::string_view iface_name,
-                                               const dict& filter_dict, bool ignore_case) {
+                                               const dict& filter_dict, bool ignore_case)
+{
     mdb_path_shm_scan_out out;
     variants              result;
 
@@ -397,7 +411,7 @@ static mdb_path_shm_scan_out scan_mdb_path_shm(shm::shared_memory& ins, std::str
         shm::interface& iface = *miface.i;
 
         std::string path_str(obj.path());
-        auto*       tree        = obj.get_tree();
+        auto*       tree         = obj.get_tree();
         std::string service_name = tree ? std::string(tree->wellknow_name()) : std::string();
 
         const auto r = object_match_filter_shm_by_interface(iface, filter_dict, ignore_case);
@@ -425,7 +439,8 @@ std::optional<mc::variants> get_mdb_path_handler([[maybe_unused]] std::string_vi
                                                  [[maybe_unused]] std::string_view interface,
                                                  [[maybe_unused]] std::string_view method,
                                                  [[maybe_unused]] std::string_view signature,
-                                                 const variants&                   args) {
+                                                 const variants&                   args)
+{
     if (args.size() < 4) {
         return std::nullopt;
     }
@@ -443,7 +458,8 @@ std::optional<mc::variants> get_mdb_interface_owners_handler([[maybe_unused]] st
                                                              [[maybe_unused]] std::string_view interface,
                                                              [[maybe_unused]] std::string_view method,
                                                              [[maybe_unused]] std::string_view signature,
-                                                             const variants&                   args) {
+                                                             const variants&                   args)
+{
     if (args.size() < 2) {
         return std::nullopt;
     }
@@ -459,7 +475,8 @@ std::optional<mc::variants> get_mdb_service_name_handler([[maybe_unused]] std::s
                                                          [[maybe_unused]] std::string_view interface,
                                                          [[maybe_unused]] std::string_view method,
                                                          [[maybe_unused]] std::string_view signature,
-                                                         const variants&                   args) {
+                                                         const variants&                   args)
+{
     if (args.size() < 2) {
         return std::nullopt;
     }
@@ -474,7 +491,8 @@ std::optional<mc::variants> get_mdb_sub_objects_handler([[maybe_unused]] std::st
                                                         [[maybe_unused]] std::string_view interface,
                                                         [[maybe_unused]] std::string_view method,
                                                         [[maybe_unused]] std::string_view signature,
-                                                        const variants&                   args) {
+                                                        const variants&                   args)
+{
     if (args.size() < 4) {
         return std::nullopt;
     }
@@ -501,7 +519,8 @@ std::optional<mc::variants> get_mdb_parent_objects_handler([[maybe_unused]] std:
                                                            [[maybe_unused]] std::string_view interface,
                                                            [[maybe_unused]] std::string_view method,
                                                            [[maybe_unused]] std::string_view signature,
-                                                           const variants&                   args) {
+                                                           const variants&                   args)
+{
     if (args.size() < 4) {
         return std::nullopt;
     }
@@ -526,7 +545,8 @@ std::optional<mc::variants> get_mdb_service_names_handler([[maybe_unused]] std::
                                                           [[maybe_unused]] std::string_view interface,
                                                           [[maybe_unused]] std::string_view method,
                                                           [[maybe_unused]] std::string_view signature,
-                                                          [[maybe_unused]] const variants&  args) {
+                                                          [[maybe_unused]] const variants&  args)
+{
     variants result;
     result.push_back(variant(shm_tree::get_mdb_service_names()));
     return result;
@@ -537,7 +557,8 @@ std::optional<mc::variants> get_mdb_classes_handler([[maybe_unused]] std::string
                                                     [[maybe_unused]] std::string_view interface,
                                                     [[maybe_unused]] std::string_view method,
                                                     [[maybe_unused]] std::string_view signature,
-                                                    [[maybe_unused]] const variants&  args) {
+                                                    [[maybe_unused]] const variants&  args)
+{
     if (args.size() < 2) {
         return std::nullopt;
     }
@@ -552,7 +573,8 @@ std::optional<mc::variants> get_mdb_object_list_handler([[maybe_unused]] std::st
                                                         [[maybe_unused]] std::string_view interface,
                                                         [[maybe_unused]] std::string_view method,
                                                         [[maybe_unused]] std::string_view signature,
-                                                        [[maybe_unused]] const variants&  args) {
+                                                        [[maybe_unused]] const variants&  args)
+{
     if (args.size() < 2) {
         return std::nullopt;
     }
@@ -567,7 +589,8 @@ std::optional<mc::variants> get_mdb_object_owner_handler([[maybe_unused]] std::s
                                                          [[maybe_unused]] std::string_view interface,
                                                          [[maybe_unused]] std::string_view method,
                                                          [[maybe_unused]] std::string_view signature,
-                                                         [[maybe_unused]] const variants&  args) {
+                                                         [[maybe_unused]] const variants&  args)
+{
     if (args.size() < 2) {
         return std::nullopt;
     }
@@ -582,7 +605,8 @@ std::optional<mc::variants> get_mdb_matched_objects_handler([[maybe_unused]] std
                                                             [[maybe_unused]] std::string_view interface,
                                                             [[maybe_unused]] std::string_view method,
                                                             [[maybe_unused]] std::string_view signature,
-                                                            [[maybe_unused]] const variants&  args) {
+                                                            [[maybe_unused]] const variants&  args)
+{
     if (args.size() < 3) {
         return std::nullopt;
     }
@@ -598,7 +622,8 @@ std::optional<mc::variants> call_shm_get_property_handler(std::string_view      
                                                           [[maybe_unused]] std::string_view interface,
                                                           [[maybe_unused]] std::string_view method,
                                                           [[maybe_unused]] std::string_view signature,
-                                                          const variants&                   args) {
+                                                          const variants&                   args)
+{
     // args[0] 预留给上下文，这里从 args[1]/args[2] 读取 interface/property
     if (args.size() < 3 || !args[1].is_string() || !args[2].is_string()) {
         return std::nullopt;
@@ -622,7 +647,8 @@ std::optional<mc::variants> call_shm_get_all_properties_handler(std::string_view
                                                                 [[maybe_unused]] std::string_view interface,
                                                                 [[maybe_unused]] std::string_view method,
                                                                 [[maybe_unused]] std::string_view signature,
-                                                                const variants&                   args) {
+                                                                const variants&                   args)
+{
     // args[0] 可能为上下文（对于 GetWithContext），args[1] 为接口名
     // 对于 org.freedesktop.DBus.Properties.GetAll，args[0] 就是接口名
     std::string_view arg_interface;
@@ -649,7 +675,8 @@ std::optional<mc::variants> call_shm_get_properties_by_names_handler([[maybe_unu
                                                                      [[maybe_unused]] std::string_view interface,
                                                                      [[maybe_unused]] std::string_view method,
                                                                      [[maybe_unused]] std::string_view signature,
-                                                                     const variants&                   args) {
+                                                                     const variants&                   args)
+{
     // bmc.kepler.Object.Properties.GetPropertiesByNames(ctx, interface, [names...])
     if (args.size() < 3 || !args[1].is_string() || !args[2].is_array()) {
         return std::nullopt;
@@ -707,7 +734,8 @@ static const std::unordered_map<std::string_view, call_shm_interface_config>
               {"GetAllWithContext", call_shm_get_all_properties_handler},
               {"GetPropertiesByNames", call_shm_get_properties_by_names_handler}}}}};
 
-static bool has_interface(shm::mdb_object& obj, const variants& interfaces) {
+static bool has_interface(shm::mdb_object& obj, const variants& interfaces)
+{
     if (interfaces.empty()) {
         return true;
     }
@@ -726,7 +754,8 @@ static bool has_interface(shm::mdb_object& obj, const variants& interfaces) {
     return true;
 }
 
-shm::object_tree* find_tree(std::string_view name) {
+shm::object_tree* find_tree(std::string_view name)
+{
     auto& ins      = shm::shared_memory::get_instance();
     auto& name_map = ins.get_object_tree_map(name);
     auto  it       = name_map.find(name);
@@ -738,7 +767,8 @@ shm::object_tree* find_tree(std::string_view name) {
 
 } // namespace
 
-std::optional<mc::variants> shm_tree::get_mdb_info(const method_call_params& params) {
+std::optional<mc::variants> shm_tree::get_mdb_info(const method_call_params& params)
+{
     auto it_interface = g_call_shm_interface_config.find(params.interface);
     if (it_interface == g_call_shm_interface_config.end()) {
         return std::nullopt;
@@ -770,7 +800,8 @@ std::optional<mc::variants> shm_tree::get_mdb_info(const method_call_params& par
 }
 
 variants shm_tree::get_mdb_path(std::string_view interface_name, std::string_view filter_json,
-                                bool ignore_case) {
+                                bool ignore_case)
+{
     variant          filter;
     std::string      json_str;
     std::string_view json_to_parse = filter_json;
@@ -795,7 +826,8 @@ variants shm_tree::get_mdb_path(std::string_view interface_name, std::string_vie
 }
 
 variants shm_tree::get_mdb_path_impl(std::string_view interface_name, const dict& filter_dict,
-                                     bool ignore_case) {
+                                     bool ignore_case)
+{
     auto& ins = shm::shared_memory::get_instance();
 
     auto shm_out = shm_global_lock_shared_exec(scan_mdb_path_shm, std::ref(ins), interface_name,
@@ -816,8 +848,8 @@ variants shm_tree::get_mdb_path_impl(std::string_view interface_name, const dict
     return make_empty_path_result();
 }
 
-
-static void append_iface(dict& service_map, std::string_view service_name, std::string_view iface_name) {
+static void append_iface(dict& service_map, std::string_view service_name, std::string_view iface_name)
+{
     variants arr;
     auto     it = service_map.find(service_name);
     if (it != service_map.end() && it->value.is_array()) {
@@ -828,7 +860,8 @@ static void append_iface(dict& service_map, std::string_view service_name, std::
 }
 
 // 收集对象的接口信息到 service_map，格式：{service_name -> [iface1, iface2, ...]}
-static void collect_object_interfaces(dict& service_map, shm::mdb_object& obj, const variants& interfaces) {
+static void collect_object_interfaces(dict& service_map, shm::mdb_object& obj, const variants& interfaces)
+{
     if (interfaces.empty()) {
         // 收集所有接口
         for (const auto& iface_pair : obj.interfaces()) {
@@ -857,7 +890,8 @@ static void collect_object_interfaces(dict& service_map, shm::mdb_object& obj, c
     }
 }
 
-std::optional<dict> shm_tree::get_mdb_object(std::string_view path, const variants& interfaces) {
+std::optional<dict> shm_tree::get_mdb_object(std::string_view path, const variants& interfaces)
+{
     auto& ins = shm::shared_memory::get_instance();
 
     return shm_global_lock_shared_exec([&]() -> std::optional<dict> {
@@ -876,7 +910,8 @@ std::optional<dict> shm_tree::get_mdb_object(std::string_view path, const varian
 
 std::optional<variants> shm_tree::get_mdb_sub_paths(std::string_view path, uint32_t depth,
                                                     const variants& interfaces, uint32_t skip,
-                                                    uint32_t top, bool ignore_case) {
+                                                    uint32_t top, bool ignore_case)
+{
     if (top <= 0) {
         top = std::numeric_limits<uint32_t>::max();
     }
@@ -912,7 +947,8 @@ std::optional<variants> shm_tree::get_mdb_sub_paths(std::string_view path, uint3
     });
 }
 
-bool shm_tree::is_valid_mdb_path(std::string_view path, bool ignore_case) {
+bool shm_tree::is_valid_mdb_path(std::string_view path, bool ignore_case)
+{
     auto& ins = shm::shared_memory::get_instance();
     return shm_global_lock_shared_exec([&]() {
         auto obj = ins.find_mdb_object(path, ignore_case);
@@ -920,7 +956,8 @@ bool shm_tree::is_valid_mdb_path(std::string_view path, bool ignore_case) {
     });
 }
 
-variants shm_tree::get_mdb_interface_owners(std::string_view interface_name) {
+variants shm_tree::get_mdb_interface_owners(std::string_view interface_name)
+{
     variants result_arr;
     auto&    ins = shm::shared_memory::get_instance();
 
@@ -938,7 +975,8 @@ variants shm_tree::get_mdb_interface_owners(std::string_view interface_name) {
     return result_arr;
 }
 
-std::string_view shm_tree::get_mdb_service_name(std::string_view sender) {
+std::string_view shm_tree::get_mdb_service_name(std::string_view sender)
+{
     auto tree = find_tree(sender);
     if (tree == nullptr) {
         return std::string_view();
@@ -947,7 +985,8 @@ std::string_view shm_tree::get_mdb_service_name(std::string_view sender) {
 }
 
 // 获取路径的父路径，如 "/a/b" -> "/a"，"/a" -> "/"
-static std::string_view get_parent_path(std::string_view path) {
+static std::string_view get_parent_path(std::string_view path)
+{
     // 非绝对路径、空路径或根路径都视为没有父路径
     if (path.size() < 2 || path.at(0) != '/') {
         return {};
@@ -964,7 +1003,8 @@ static std::string_view get_parent_path(std::string_view path) {
 }
 
 struct g_regex_deleter {
-    void operator()(GRegex* regex) const {
+    void operator()(GRegex* regex) const
+    {
         if (regex != nullptr) {
             g_regex_unref(regex);
         }
@@ -972,7 +1012,8 @@ struct g_regex_deleter {
 };
 
 // 接口名称匹配：使用 GLib 正则（pattern 由上层决定语义）
-static std::unique_ptr<GRegex, g_regex_deleter> compile_iface_regex(std::string_view iface_pattern) {
+static std::unique_ptr<GRegex, g_regex_deleter> compile_iface_regex(std::string_view iface_pattern)
+{
     std::string pattern_str(iface_pattern);
     GError*     error = nullptr;
     auto        regex =
@@ -986,7 +1027,8 @@ static std::unique_ptr<GRegex, g_regex_deleter> compile_iface_regex(std::string_
 }
 
 // 接口名称匹配：iface_regex 为 nullptr 表示全匹配
-static bool iface_match(const GRegex* iface_regex, std::string_view iface_name) {
+static bool iface_match(const GRegex* iface_regex, std::string_view iface_name)
+{
     if (iface_regex == nullptr) {
         return true;
     }
@@ -997,7 +1039,8 @@ static bool iface_match(const GRegex* iface_regex, std::string_view iface_name) 
 }
 
 // 从 shm::object 收集匹配的接口名
-static variants collect_matched_ifaces(shm::object& obj, const GRegex* iface_regex) {
+static variants collect_matched_ifaces(shm::object& obj, const GRegex* iface_regex)
+{
     variants matched;
     for (const auto& p : obj.interfaces()) {
         std::string_view iface_sv(p.first.data(), p.first.size());
@@ -1010,7 +1053,8 @@ static variants collect_matched_ifaces(shm::object& obj, const GRegex* iface_reg
 
 // 从 shm::object 获取对象名：优先从 bmc.kepler.Object.Properties 的 ObjectName 属性读取，
 // 无法获取时使用完整路径。调用方需已持有 shm_global_lock_shared_exec。
-static std::string get_object_name_from_object(shm::object& obj) {
+static std::string get_object_name_from_object(shm::object& obj)
+{
     std::string_view path_sv = obj.path();
     shm::interface*  intf    = nullptr;
     for (const auto& p : obj.interfaces()) {
@@ -1041,7 +1085,8 @@ static std::string get_object_name_from_object(shm::object& obj) {
 }
 
 std::optional<dict> shm_tree::get_mdb_sub_objects(std::string_view path, uint32_t depth,
-                                                  const variants& interfaces) {
+                                                  const variants& interfaces)
+{
     auto& ins = shm::shared_memory::get_instance();
 
     return shm_global_lock_shared_exec([&]() -> std::optional<dict> {
@@ -1079,7 +1124,8 @@ std::optional<dict> shm_tree::get_mdb_sub_objects(std::string_view path, uint32_
     });
 }
 
-std::optional<dict> shm_tree::get_mdb_parent_objects(std::string_view path, const variants& interfaces) {
+std::optional<dict> shm_tree::get_mdb_parent_objects(std::string_view path, const variants& interfaces)
+{
     auto& ins = shm::shared_memory::get_instance();
 
     return shm_global_lock_shared_exec([&]() -> std::optional<dict> {
@@ -1113,7 +1159,8 @@ std::optional<dict> shm_tree::get_mdb_parent_objects(std::string_view path, cons
     });
 }
 
-variants shm_tree::get_mdb_service_names() {
+variants shm_tree::get_mdb_service_names()
+{
     variants result;
     auto&    ins            = shm::shared_memory::get_instance();
     auto&    wellknow_names = ins.get_wellknow_names();
@@ -1127,7 +1174,8 @@ variants shm_tree::get_mdb_service_names() {
     return result;
 }
 
-variants shm_tree::get_mdb_classes(std::string_view service_name) {
+variants shm_tree::get_mdb_classes(std::string_view service_name)
+{
     variants result;
     auto&    ins = shm::shared_memory::get_instance();
 
@@ -1156,7 +1204,8 @@ variants shm_tree::get_mdb_classes(std::string_view service_name) {
     });
 }
 
-variants shm_tree::get_mdb_object_list(std::string_view class_name) {
+variants shm_tree::get_mdb_object_list(std::string_view class_name)
+{
     variants result;
     auto&    ins = shm::shared_memory::get_instance();
 
@@ -1208,7 +1257,8 @@ variants shm_tree::get_mdb_object_list(std::string_view class_name) {
     });
 }
 
-variants shm_tree::get_mdb_object_owner(std::string_view object_name) {
+variants shm_tree::get_mdb_object_owner(std::string_view object_name)
+{
     variants result;
     if (object_name.empty()) {
         return result;
@@ -1247,7 +1297,8 @@ variants shm_tree::get_mdb_object_owner(std::string_view object_name) {
     });
 }
 
-variants shm_tree::get_mdb_matched_objects(std::string_view service_name, std::string_view iface_pattern) {
+variants shm_tree::get_mdb_matched_objects(std::string_view service_name, std::string_view iface_pattern)
+{
     variants result;
     auto&    ins = shm::shared_memory::get_instance();
 
@@ -1289,10 +1340,12 @@ variants shm_tree::get_mdb_matched_objects(std::string_view service_name, std::s
 shm_tree::shm_tree(std::string_view harbor_name, std::string_view service_name,
                    std::string_view unique_name)
     : m_service_name(service_name), m_unique_name(unique_name),
-      m_tree(create_shm_tree(harbor_name, service_name, unique_name)) {
+      m_tree(create_shm_tree(harbor_name, service_name, unique_name))
+{
 }
 
-void shm_tree::register_object(mc::engine::abstract_object& obj) {
+void shm_tree::register_object(mc::engine::abstract_object& obj)
+{
 #if defined(ENABLE_CONAN_COMPILE) && ENABLE_CONAN_COMPILE == 1
     auto&           ins     = shm::shared_memory::get_instance();
     auto            path    = obj.get_object_path();
@@ -1321,12 +1374,14 @@ void shm_tree::register_object(mc::engine::abstract_object& obj) {
 #endif
 }
 
-void shm_tree::unregister_object(std::string_view path) {
+void shm_tree::unregister_object(std::string_view path)
+{
     auto& ins = shm::shared_memory::get_instance();
     m_tree->unregister_object(ins, path);
 }
 
-static uint32_t set_serial(local_msg& msg) {
+static uint32_t set_serial(local_msg& msg)
+{
     uint32_t serial = msg.get_serial();
     if (serial != 0) {
         return serial;
@@ -1339,12 +1394,14 @@ static uint32_t set_serial(local_msg& msg) {
     return g_serial;
 }
 
-std::optional<mc::variants> shm_tree::timeout_call(mc::milliseconds timeout, const method_call_params& params) {
+std::optional<mc::variants> shm_tree::timeout_call(mc::milliseconds timeout, const method_call_params& params)
+{
     return timeout_call_with_sender(timeout, m_unique_name, params);
 }
 
 std::optional<mc::variants> shm_tree::timeout_call_with_sender(mc::milliseconds timeout, std::string_view sender,
-                                                               const method_call_params& params) {
+                                                               const method_call_params& params)
+{
     local_msg msg(params.service_name, params.path, params.interface, params.method);
     if (!params.signature.empty()) {
         msg.append_args(params.signature, params.args);
@@ -1396,7 +1453,8 @@ std::optional<mc::variants> shm_tree::timeout_call_with_sender(mc::milliseconds 
 }
 
 static shm::shared_ptr<shm::property> find_shm_property(std::string_view service_name, std::string_view path,
-                                                        std::string_view interface, std::string_view property) {
+                                                        std::string_view interface, std::string_view property)
+{
     auto& ins  = shm::shared_memory::get_instance();
     auto  tree = ins.get_tree(service_name);
     if (tree == nullptr) {
@@ -1425,7 +1483,8 @@ template <typename T>
 struct has_static_allocate_object_id<T, std::void_t<decltype(T::allocate_object_id(std::declval<std::string_view>()))>> : std::true_type {};
 
 template <typename LibraryType>
-static uint32_t get_object_id(std::string_view path) {
+static uint32_t get_object_id(std::string_view path)
+{
     if constexpr (has_static_allocate_object_id<LibraryType>::value) {
         return LibraryType::allocate_object_id(path);
     }
@@ -1434,7 +1493,8 @@ static uint32_t get_object_id(std::string_view path) {
 }
 
 static std::optional<variant> get_property_inner(std::string_view service_name, std::string_view path,
-                                                 std::string_view interface, std::string_view property) {
+                                                 std::string_view interface, std::string_view property)
+{
     auto prop = find_shm_property(service_name, path, interface, property);
     return shm_object_lock_shared_exec(get_object_id<shmlock::ShmLockManager>(path), [&]() {
         auto data = prop->get_data();
@@ -1492,7 +1552,8 @@ static std::optional<variant> get_property_inner(std::string_view service_name, 
 }
 
 variant shm_tree::get_property(std::string_view service_name, std::string_view path, std::string_view interface,
-                               std::string_view property) {
+                               std::string_view property)
+{
     auto res = shm_global_lock_shared_exec([&]() {
         return get_property_inner(service_name, path, interface, property);
     });
@@ -1502,7 +1563,8 @@ variant shm_tree::get_property(std::string_view service_name, std::string_view p
     return res.value();
 }
 
-void shm_tree::set_property_inner(shm::shared_ptr<shm::property> prop, const variant& value) {
+void shm_tree::set_property_inner(shm::shared_ptr<shm::property> prop, const variant& value)
+{
     auto& ins = shm::shared_memory::get_instance();
     if (value.is_null()) {
         prop->set_data(ins, std::string_view());
@@ -1516,7 +1578,8 @@ void shm_tree::set_property_inner(shm::shared_ptr<shm::property> prop, const var
 }
 
 void shm_tree::set_property(std::string_view service_name, std::string_view path, std::string_view interface,
-                            std::string_view property, const variant& value) {
+                            std::string_view property, const variant& value)
+{
     shm_global_lock_shared_exec([&]() {
         auto prop = find_shm_property(service_name, path, interface, property);
         shm_object_lock_exec(get_object_id<shmlock::ShmLockManager>(path), [&]() {
@@ -1528,7 +1591,8 @@ void shm_tree::set_property(std::string_view service_name, std::string_view path
 std::optional<variant> shm_tree::call_shm_get_property(std::string_view service_name,
                                                        std::string_view path,
                                                        std::string_view interface_name,
-                                                       std::string_view property_name) {
+                                                       std::string_view property_name)
+{
     // 1) 共享内存扫描阶段：在全局共享锁内尝试读取属性值
     auto shm_value = shm_global_lock_shared_exec([&]() {
         return get_property_inner(service_name, path, interface_name, property_name);
@@ -1546,7 +1610,8 @@ std::optional<variant> shm_tree::call_shm_get_property(std::string_view service_
 
 // 查找接口的辅助函数（不抛异常，返回 optional）
 static shm::interface* find_shm_interface(shm::shared_memory& ins, std::string_view service_name,
-                                          std::string_view path, std::string_view interface_name) {
+                                          std::string_view path, std::string_view interface_name)
+{
     auto tree = ins.get_tree(service_name);
     if (tree == nullptr) {
         return nullptr;
@@ -1575,7 +1640,8 @@ struct properties_scan_out {
 static properties_scan_out get_all_shm_properties(shm::shared_memory& ins,
                                                   std::string_view    service_name,
                                                   std::string_view    path,
-                                                  std::string_view    interface_name) {
+                                                  std::string_view    interface_name)
+{
     properties_scan_out out;
     out.has_error = false; // 显式初始化
     auto* intf    = find_shm_interface(ins, service_name, path, interface_name);
@@ -1608,7 +1674,8 @@ static properties_scan_out get_all_shm_properties(shm::shared_memory& ins,
 // @param errors 如果非空，则记录 RPC 调用失败的错误信息（仅当 timeout_call_with_sender 抛出异常时）
 static void fill_properties_via_rpc(dict& result, const std::vector<std::string>& need_rpc_props,
                                     std::string_view interface_name, std::string_view service_name,
-                                    std::string_view path, dict* errors = nullptr) {
+                                    std::string_view path, dict* errors = nullptr)
+{
     if (errors != nullptr) {
         // 需要记录错误信息，捕获异常
         for (const auto& prop_name : need_rpc_props) {
@@ -1633,7 +1700,8 @@ static void fill_properties_via_rpc(dict& result, const std::vector<std::string>
 
 std::optional<dict> shm_tree::call_shm_get_all_properties(std::string_view service_name,
                                                           std::string_view path,
-                                                          std::string_view interface_name) {
+                                                          std::string_view interface_name)
+{
     // 1) 共享内存扫描阶段：在全局共享锁内收集已落盘的属性值，标记未落盘的属性名
     auto shm_out = shm_global_lock_shared_exec([&]() {
         auto& ins = shm::shared_memory::get_instance();
@@ -1656,7 +1724,8 @@ static properties_scan_out get_shm_properties_by_names(shm::shared_memory& ins,
                                                        std::string_view    service_name,
                                                        std::string_view    path,
                                                        std::string_view    interface_name,
-                                                       const variants&     prop_names) {
+                                                       const variants&     prop_names)
+{
     properties_scan_out out;
     out.has_error = false; // 显式初始化
     auto* intf    = find_shm_interface(ins, service_name, path, interface_name);
@@ -1695,7 +1764,8 @@ static properties_scan_out get_shm_properties_by_names(shm::shared_memory& ins,
 
 std::optional<variants> shm_tree::call_shm_get_properties_by_names(
     std::string_view service_name, std::string_view path, std::string_view interface_name,
-    const variants& prop_names) {
+    const variants& prop_names)
+{
     // 1) 共享内存扫描阶段：在全局共享锁内收集已落盘的属性值，标记未落盘的属性名
     auto shm_out = shm_global_lock_shared_exec([&]() {
         auto& ins = shm::shared_memory::get_instance();
@@ -1719,7 +1789,8 @@ std::optional<variants> shm_tree::call_shm_get_properties_by_names(
     return result;
 }
 
-void shm_tree::add_shm_match(match_rule& rule, std::string_view harbor_name, uint64_t id) {
+void shm_tree::add_shm_match(match_rule& rule, std::string_view harbor_name, uint64_t id)
+{
     shm_global_lock_exec([this, &rule, harbor_name, id]() {
         auto& ins      = shm::shared_memory::get_instance();
         auto& tree_map = ins.get_object_tree_map(harbor_name);
@@ -1732,7 +1803,8 @@ void shm_tree::add_shm_match(match_rule& rule, std::string_view harbor_name, uin
     });
 }
 
-uint64_t shm_tree::add_match(match_rule& rule, mc::dbus::match_cb_t&& cb) {
+uint64_t shm_tree::add_match(match_rule& rule, mc::dbus::match_cb_t&& cb)
+{
     auto&    harbor      = harbor::get_instance();
     auto     harbor_name = harbor.get_harbor_name();
     uint64_t id          = harbor.add_match(rule, std::forward<mc::dbus::match_cb_t>(cb));
@@ -1740,7 +1812,8 @@ uint64_t shm_tree::add_match(match_rule& rule, mc::dbus::match_cb_t&& cb) {
     return id;
 }
 
-void shm_tree::remove_match(uint64_t id) {
+void shm_tree::remove_match(uint64_t id)
+{
     // 移除 harbor 中的订阅
     auto& harbor = harbor::get_instance();
     harbor.remove_match(id);
@@ -1757,7 +1830,8 @@ void shm_tree::remove_match(uint64_t id) {
     });
 }
 
-shm::object_tree* shm_tree::get_tree() const {
+shm::object_tree* shm_tree::get_tree() const
+{
     return m_tree;
 }
 } // namespace mc::dbus

@@ -48,26 +48,33 @@ public:
     int         m_age;
     bool        m_is_male;
 
-    test_person() : m_name(""), m_age(0), m_is_male(false) {
+    test_person()
+        : m_name(""), m_age(0), m_is_male(false)
+    {
     }
     test_person(const std::string& name, int age, bool is_male)
-        : m_name(name), m_age(age), m_is_male(is_male) {
+        : m_name(name), m_age(age), m_is_male(is_male)
+    {
     }
 
-    bool operator==(const test_person& other) const {
+    bool operator==(const test_person& other) const
+    {
         return m_name == other.m_name && m_age == other.m_age && m_is_male == other.m_is_male;
     }
 
     int id{1};
-    int get_id() const {
+    int get_id() const
+    {
         return id;
     }
 
-    void set_id(int id) {
+    void set_id(int id)
+    {
         this->id = id;
     }
 
-    int get_readonly_id() const {
+    int get_readonly_id() const
+    {
         return id;
     }
 };
@@ -85,7 +92,9 @@ MC_REFLECT(test_reflect::test_person,
 template <typename C>
 struct property_info_base_test {
     std::string_view name;
-    constexpr property_info_base_test(std::string_view n) : name(n) {
+    constexpr property_info_base_test(std::string_view n)
+        : name(n)
+    {
     }
 
     virtual std::type_index typeinfo() const = 0;
@@ -97,13 +106,15 @@ struct property_info_test : public property_info_base_test<C> {
     using member_type = M;
     using base_type   = BaseT;
 
-    M BaseT::* member_ptr;
+    M BaseT::*member_ptr;
 
-    constexpr property_info_test(std::string_view n, M BaseT::* ptr)
-        : property_info_base_test<C>(n), member_ptr(ptr) {
+    constexpr property_info_test(std::string_view n, M BaseT::*ptr)
+        : property_info_base_test<C>(n), member_ptr(ptr)
+    {
     }
 
-    virtual std::type_index typeinfo() const override {
+    virtual std::type_index typeinfo() const override
+    {
         return typeid(member_type);
     }
 };
@@ -113,11 +124,14 @@ namespace test_reflect {
 template <typename T>
 class member_visitor {
 public:
-    explicit member_visitor(const T& obj) : m_obj(obj) {
+    explicit member_visitor(const T& obj)
+        : m_obj(obj)
+    {
     }
 
     template <typename Getter, typename Setter>
-    void operator()(std::string_view name, Getter&& getter, Setter&& setter) const {
+    void operator()(std::string_view name, Getter&& getter, Setter&& setter) const
+    {
         names.push_back(std::string(name));
         values.push_back(getter(m_obj));
     }
@@ -130,7 +144,8 @@ private:
 };
 
 // 测试类反射
-TEST(ReflectTest, ClassReflection) {
+TEST(ReflectTest, ClassReflection)
+{
     test_person p("张三", 30, true);
 
     // 检查类型是否可反射
@@ -178,7 +193,8 @@ TEST(ReflectTest, ClassReflection) {
 }
 
 // 测试枚举反射
-TEST(ReflectTest, EnumReflection) {
+TEST(ReflectTest, EnumReflection)
+{
     // 检查类型是否可反射
     EXPECT_TRUE(mc::reflect::is_reflectable<test_color>());
     EXPECT_TRUE(mc::reflect::is_enum<test_color>());
@@ -218,7 +234,8 @@ TEST(ReflectTest, EnumReflection) {
 }
 
 // 测试普通枚举反射
-TEST(ReflectTest, NormalEnumReflection) {
+TEST(ReflectTest, NormalEnumReflection)
+{
     // 检查类型是否可反射
     EXPECT_FALSE(mc::reflect::is_reflectable<test_normal_color>());
     EXPECT_TRUE(mc::reflect::is_normal_enum<test_normal_color>());
@@ -252,7 +269,8 @@ TEST(ReflectTest, NormalEnumReflection) {
 }
 
 // 测试成员访问
-TEST(ReflectTest, MemberVisit) {
+TEST(ReflectTest, MemberVisit)
+{
     // 创建测试对象
     test_person p("李四", 25, false);
 
@@ -277,7 +295,8 @@ TEST(ReflectTest, MemberVisit) {
 }
 
 // 测试部分更新对象
-TEST(ReflectTest, PartialUpdate) {
+TEST(ReflectTest, PartialUpdate)
+{
     // 创建原始对象
     test_person p("张三", 30, true);
 
@@ -291,7 +310,8 @@ TEST(ReflectTest, PartialUpdate) {
 }
 
 // 测试嵌套对象
-TEST(ReflectTest, NestedObjects) {
+TEST(ReflectTest, NestedObjects)
+{
     // 创建测试对象
     test_person p1("张三", 30, true);
     test_person p2("李四", 25, false);
@@ -316,7 +336,8 @@ TEST(ReflectTest, NestedObjects) {
 }
 
 // 测试反射与变体的互操作性
-TEST(ReflectTest, VariantInteroperability) {
+TEST(ReflectTest, VariantInteroperability)
+{
     // 创建测试对象
     test_person p("王五", 40, true);
 
@@ -342,7 +363,8 @@ TEST(ReflectTest, VariantInteroperability) {
 }
 
 // 测试反射与序列化
-TEST(ReflectTest, Serialization) {
+TEST(ReflectTest, Serialization)
+{
     // 创建测试对象
     test_person p("张三", 30, true);
 
@@ -383,7 +405,8 @@ TEST(ReflectTest, Serialization) {
 }
 
 // 测试复杂嵌套结构
-TEST(ReflectTest, ComplexNestedStructure) {
+TEST(ReflectTest, ComplexNestedStructure)
+{
     // 使用初始化列表构造复杂嵌套结构
     mc::dict root{{"name", "复杂结构"},
                   {"value", 42},
@@ -428,7 +451,8 @@ TEST(ReflectTest, ComplexNestedStructure) {
 }
 
 // 测试类型名称验证函数
-TEST(ReflectTest, TypeNameValidation) {
+TEST(ReflectTest, TypeNameValidation)
+{
     // 测试有效的类型名称
     // 单一类型名
     EXPECT_TRUE(mc::reflect::is_valid_type_name("Sensor"));
@@ -491,7 +515,8 @@ TEST(ReflectTest, TypeNameValidation) {
 }
 
 // 测试 to_variant 直接转换为 variant（会创建 dict）
-TEST(ReflectTest, ToVariantCreatesDict) {
+TEST(ReflectTest, ToVariantCreatesDict)
+{
     test_person p("test", 42, true);
 
     // 测试 to_variant 转换为 variant（会创建 dict）
@@ -506,7 +531,8 @@ TEST(ReflectTest, ToVariantCreatesDict) {
 }
 
 // 测试 to_variant 直接转换为 dict
-TEST(ReflectTest, ToVariantDirectToDict) {
+TEST(ReflectTest, ToVariantDirectToDict)
+{
     test_person p("direct_dict", 100, false);
 
     // 测试 to_variant 直接转换为 dict
@@ -519,7 +545,8 @@ TEST(ReflectTest, ToVariantDirectToDict) {
 }
 
 // 测试 from_variant 从数组转换为对象
-TEST(ReflectTest, FromVariantFromArray) {
+TEST(ReflectTest, FromVariantFromArray)
+{
     // 创建数组 variant，按照反射顺序：[m_name, m_age, m_is_male, id, readonly_id]
     // 注意：test_person 有 5 个属性，但 id 和 readonly_id 是计算属性，可能不需要
     // 实际上只有 m_name, m_age, m_is_male 是成员变量
@@ -536,7 +563,8 @@ TEST(ReflectTest, FromVariantFromArray) {
 }
 
 // 测试 from_variant 从数组转换为对象（数组长度不足）
-TEST(ReflectTest, FromVariantFromArrayIncomplete) {
+TEST(ReflectTest, FromVariantFromArrayIncomplete)
+{
     // 创建不完整的数组 variant
     mc::variants arr = {"partial_name", 300};
     mc::variant  var(arr);
@@ -552,7 +580,8 @@ TEST(ReflectTest, FromVariantFromArrayIncomplete) {
 }
 
 // 测试 from_variant 从数组转换为对象（数组长度超出）
-TEST(ReflectTest, FromVariantFromArrayExcess) {
+TEST(ReflectTest, FromVariantFromArrayExcess)
+{
     // 创建超出长度的数组 variant
     mc::variants arr = {"excess_name", 400, true, "extra1", 999};
     mc::variant  var(arr);
@@ -563,7 +592,8 @@ TEST(ReflectTest, FromVariantFromArrayExcess) {
 }
 
 // 测试 from_variant 从无效类型转换
-TEST(ReflectTest, FromVariantInvalidType) {
+TEST(ReflectTest, FromVariantInvalidType)
+{
     test_person p;
 
     // 尝试从字符串 variant 转换为对象（应该抛出异常）
@@ -576,9 +606,10 @@ TEST(ReflectTest, FromVariantInvalidType) {
 }
 
 // 测试枚举类型的 to_variant 转换为 dict
-TEST(ReflectTest, EnumToVariantToDict) {
+TEST(ReflectTest, EnumToVariantToDict)
+{
     test_color c = test_color::GREEN;
-    mc::dict    dict;
+    mc::dict   dict;
     mc::reflect::to_variant(c, dict);
     EXPECT_TRUE(dict.contains("value"));
     EXPECT_EQ(dict["value"], "GREEN");

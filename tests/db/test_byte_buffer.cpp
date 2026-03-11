@@ -20,7 +20,8 @@ class byte_buffer_test : public mc::test::TestBase {
 };
 
 // 测试 try_grow_by_reslice - 在容量内返回 true
-TEST_F(byte_buffer_test, TryGrowByReslice) {
+TEST_F(byte_buffer_test, TryGrowByReslice)
+{
     mc::db::byte_buffer buf;
 
     // 初始容量为 64 字节
@@ -54,7 +55,8 @@ TEST_F(byte_buffer_test, TryGrowByReslice) {
 }
 
 // 测试 grow - 从 bootstrap 切换到 heap
-TEST_F(byte_buffer_test, GrowSwitchesToHeap) {
+TEST_F(byte_buffer_test, GrowSwitchesToHeap)
+{
     mc::db::byte_buffer buf;
 
     // 初始使用 bootstrap 缓冲区
@@ -81,7 +83,8 @@ TEST_F(byte_buffer_test, GrowSwitchesToHeap) {
 }
 
 // 测试 truncate - 从 heap 回退到 bootstrap
-TEST_F(byte_buffer_test, TruncateDownsizesToBootstrap) {
+TEST_F(byte_buffer_test, TruncateDownsizesToBootstrap)
+{
     mc::db::byte_buffer buf;
 
     // 先写入 128 字节，触发切换到 heap
@@ -114,7 +117,8 @@ TEST_F(byte_buffer_test, TruncateDownsizesToBootstrap) {
 }
 
 // 测试 write_uint16/32/64 - 大端序写入
-TEST_F(byte_buffer_test, WriteUintPrimitivesUseBigEndian) {
+TEST_F(byte_buffer_test, WriteUintPrimitivesUseBigEndian)
+{
     mc::db::byte_buffer buf;
 
     // 写入 uint16
@@ -146,7 +150,8 @@ TEST_F(byte_buffer_test, WriteUintPrimitivesUseBigEndian) {
 }
 
 // 测试 cap() 方法
-TEST_F(byte_buffer_test, CapMethod) {
+TEST_F(byte_buffer_test, CapMethod)
+{
     mc::db::byte_buffer buf;
 
     // 初始容量
@@ -159,4 +164,3 @@ TEST_F(byte_buffer_test, CapMethod) {
 }
 
 } // namespace
-

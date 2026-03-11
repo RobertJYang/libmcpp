@@ -22,7 +22,8 @@ class TestObjectForRegister : public mc::engine::object<TestObjectForRegister> {
 public:
     MC_OBJECT(TestObjectForRegister, "TestObjectForRegister", "/org/test/TestObjectForRegister")
     TestObjectForRegister(mc::engine::core_object* parent = nullptr)
-        : mc::engine::object<TestObjectForRegister>(parent) {
+        : mc::engine::object<TestObjectForRegister>(parent)
+    {
     }
 };
 
@@ -37,7 +38,8 @@ public:
     MC_OBJECT(TestObjectForVariable, "TestObjectForVariable", "/org/test/TestObjectForVariable",
               (TestInterfaceForVariable))
     TestObjectForVariable(mc::engine::core_object* parent = nullptr)
-        : mc::engine::object<TestObjectForVariable>(parent) {
+        : mc::engine::object<TestObjectForVariable>(parent)
+    {
     }
     TestInterfaceForVariable m_iface;
 };
@@ -45,7 +47,8 @@ public:
 class TestInterfaceForFunction : public mc::engine::interface<TestInterfaceForFunction> {
 public:
     MC_INTERFACE("org.test.TestInterfaceForFunction")
-    int32_t add(int32_t a) {
+    int32_t add(int32_t a)
+    {
         return a + 1;
     }
 };
@@ -55,7 +58,8 @@ public:
     MC_OBJECT(TestObjectForFunction, "TestObjectForFunction", "/org/test/TestObjectForFunction",
               (TestInterfaceForFunction))
     TestObjectForFunction(mc::engine::core_object* parent = nullptr)
-        : mc::engine::object<TestObjectForFunction>(parent) {
+        : mc::engine::object<TestObjectForFunction>(parent)
+    {
     }
     TestInterfaceForFunction m_iface;
 };
@@ -63,7 +67,8 @@ public:
 class TestInterfaceForInvoke : public mc::engine::interface<TestInterfaceForInvoke> {
 public:
     MC_INTERFACE("org.test.TestInterfaceForInvoke")
-    int32_t add(int32_t a) {
+    int32_t add(int32_t a)
+    {
         return a + 10;
     }
 };
@@ -73,7 +78,8 @@ public:
     MC_OBJECT(TestObjectForInvoke, "TestObjectForInvoke", "/org/test/TestObjectForInvoke",
               (TestInterfaceForInvoke))
     TestObjectForInvoke(mc::engine::core_object* parent = nullptr)
-        : mc::engine::object<TestObjectForInvoke>(parent) {
+        : mc::engine::object<TestObjectForInvoke>(parent)
+    {
     }
     TestInterfaceForInvoke m_iface;
 };
@@ -82,7 +88,8 @@ class TestObjectForGetObject : public mc::engine::object<TestObjectForGetObject>
 public:
     MC_OBJECT(TestObjectForGetObject, "TestObjectForGetObject", "/org/test/TestObjectForGetObject")
     TestObjectForGetObject(mc::engine::core_object* parent = nullptr)
-        : mc::engine::object<TestObjectForGetObject>(parent) {
+        : mc::engine::object<TestObjectForGetObject>(parent)
+    {
     }
 };
 } // namespace tests::expr::context_test
@@ -100,13 +107,16 @@ MC_REFLECT(tests::expr::context_test::TestObjectForGetObject, ())
 namespace {
 class expr_context_test : public ::testing::Test {
 protected:
-    expr_context_test() {
+    expr_context_test()
+    {
     }
 
-    void SetUp() override {
+    void SetUp() override
+    {
     }
 
-    void TearDown() override {
+    void TearDown() override
+    {
     }
 
     mc::expr::engine engine;
@@ -114,7 +124,8 @@ protected:
 } // namespace
 
 // 测试Context的作用域功能
-TEST_F(expr_context_test, ScopeInheritance) {
+TEST_F(expr_context_test, ScopeInheritance)
+{
     mc::expr::context base_ctx;
     base_ctx.register_variable("base_var", 100);
     auto base_func = mc::expr::make_simple_function("base_func", [](double x) {
@@ -150,7 +161,8 @@ TEST_F(expr_context_test, ScopeInheritance) {
 }
 
 // 测试多级作用域
-TEST_F(expr_context_test, MultiLevelScope) {
+TEST_F(expr_context_test, MultiLevelScope)
+{
     // 创建三级作用域
     mc::expr::context level1;
     mc::expr::context level2(&level1);
@@ -176,7 +188,8 @@ TEST_F(expr_context_test, MultiLevelScope) {
 }
 
 // 测试变量遮蔽
-TEST_F(expr_context_test, VariableShadowing) {
+TEST_F(expr_context_test, VariableShadowing)
+{
     // 创建两级作用域
     mc::expr::context parent;
     mc::expr::context child(&parent);
@@ -193,7 +206,8 @@ TEST_F(expr_context_test, VariableShadowing) {
 }
 
 // 测试表达式引擎中使用作用域
-TEST_F(expr_context_test, EngineWithScope) {
+TEST_F(expr_context_test, EngineWithScope)
+{
     auto global_ctx = engine.get_global_context();
     auto local_ctx  = engine.make_context(&global_ctx);
 
@@ -221,7 +235,8 @@ TEST_F(expr_context_test, EngineWithScope) {
 }
 
 // 测试使用dict创建上下文
-TEST_F(expr_context_test, CreateContextWithDict) {
+TEST_F(expr_context_test, CreateContextWithDict)
+{
     mc::dict variables;
     variables.insert("x", 10);
     variables.insert("y", 20);
@@ -240,7 +255,8 @@ TEST_F(expr_context_test, CreateContextWithDict) {
 }
 
 // 测试设置父级上下文
-TEST_F(expr_context_test, SetParent) {
+TEST_F(expr_context_test, SetParent)
+{
     // 创建两个上下文
     mc::expr::context ctx1;
     mc::expr::context ctx2;
@@ -267,21 +283,22 @@ TEST_F(expr_context_test, SetParent) {
 // 这里不再重复测试，因为需要实现完整的 abstract_object 接口
 
 // 测试上下文中的函数注册和调用
-TEST_F(expr_context_test, function_registration) {
+TEST_F(expr_context_test, function_registration)
+{
     mc::expr::context ctx;
 
     // 注册函数
     auto func1 = mc::expr::make_simple_function("add", [](double a, double b) {
         return a + b;
     });
-    auto id1 = ctx.register_function(func1);
+    auto id1   = ctx.register_function(func1);
     EXPECT_GE(id1, 0);
 
     // 注册同名函数（应该覆盖）
     auto func2 = mc::expr::make_simple_function("add", [](double a, double b, double c) {
         return a + b + c;
     });
-    auto id2 = ctx.register_function(func2);
+    auto id2   = ctx.register_function(func2);
     EXPECT_GE(id2, 0);
 
     // 测试函数调用
@@ -291,7 +308,8 @@ TEST_F(expr_context_test, function_registration) {
 }
 
 // 测试变量注册和获取
-TEST_F(expr_context_test, variable_registration) {
+TEST_F(expr_context_test, variable_registration)
+{
     mc::expr::context ctx;
 
     // 注册变量
@@ -313,7 +331,8 @@ TEST_F(expr_context_test, variable_registration) {
 }
 
 // 测试从 dict 导入变量
-TEST_F(expr_context_test, import_from_dict) {
+TEST_F(expr_context_test, import_from_dict)
+{
     mc::expr::context ctx;
 
     mc::dict data;
@@ -332,7 +351,8 @@ TEST_F(expr_context_test, import_from_dict) {
 }
 
 // 测试上下文复制和移动
-TEST_F(expr_context_test, context_copy_and_move) {
+TEST_F(expr_context_test, context_copy_and_move)
+{
     mc::expr::context ctx1;
     ctx1.register_variable("x", 10);
 
@@ -360,7 +380,8 @@ TEST_F(expr_context_test, context_copy_and_move) {
 }
 
 // 测试上下文基类的默认行为
-TEST_F(expr_context_test, context_base_default_behavior) {
+TEST_F(expr_context_test, context_base_default_behavior)
+{
     mc::expr::context_base base_ctx(nullptr);
 
     // 测试默认行为
@@ -374,7 +395,8 @@ TEST_F(expr_context_test, context_base_default_behavior) {
 }
 
 // 测试 context_base 的复制和移动构造
-TEST_F(expr_context_test, context_base_copy_and_move) {
+TEST_F(expr_context_test, context_base_copy_and_move)
+{
     mc::expr::context_base base1(nullptr);
     mc::expr::context_base base2(&base1);
 
@@ -400,7 +422,8 @@ TEST_F(expr_context_test, context_base_copy_and_move) {
 }
 
 // 测试注册对象
-TEST_F(expr_context_test, register_object) {
+TEST_F(expr_context_test, register_object)
+{
     mc::expr::context ctx;
 
     auto test_obj = tests::expr::context_test::TestObjectForRegister::create();
@@ -415,10 +438,11 @@ TEST_F(expr_context_test, register_object) {
 }
 
 // 测试通过对象符号访问对象属性
-TEST_F(expr_context_test, get_variable_from_object) {
+TEST_F(expr_context_test, get_variable_from_object)
+{
     mc::expr::context ctx;
 
-    auto test_obj = tests::expr::context_test::TestObjectForVariable::create();
+    auto test_obj             = tests::expr::context_test::TestObjectForVariable::create();
     test_obj->m_iface.m_value = 100;
 
     // 注册对象
@@ -433,7 +457,8 @@ TEST_F(expr_context_test, get_variable_from_object) {
 }
 
 // 测试通过对象符号检查变量是否存在
-TEST_F(expr_context_test, has_variable_from_object) {
+TEST_F(expr_context_test, has_variable_from_object)
+{
     mc::expr::context ctx;
 
     auto test_obj = tests::expr::context_test::TestObjectForVariable::create();
@@ -449,7 +474,8 @@ TEST_F(expr_context_test, has_variable_from_object) {
 }
 
 // 测试通过对象符号检查方法是否存在
-TEST_F(expr_context_test, has_function_from_object) {
+TEST_F(expr_context_test, has_function_from_object)
+{
     mc::expr::context ctx;
 
     auto test_obj = tests::expr::context_test::TestObjectForFunction::create();
@@ -469,7 +495,8 @@ TEST_F(expr_context_test, has_function_from_object) {
 }
 
 // 测试通过对象符号调用方法
-TEST_F(expr_context_test, invoke_from_object) {
+TEST_F(expr_context_test, invoke_from_object)
+{
     mc::expr::context ctx;
 
     auto test_obj = tests::expr::context_test::TestObjectForInvoke::create();
@@ -488,7 +515,8 @@ TEST_F(expr_context_test, invoke_from_object) {
 }
 
 // 测试 object_context::get_object
-TEST_F(expr_context_test, object_context_get_object) {
+TEST_F(expr_context_test, object_context_get_object)
+{
     auto test_obj = tests::expr::context_test::TestObjectForGetObject::create();
 
     // 创建 object_context
@@ -500,7 +528,8 @@ TEST_F(expr_context_test, object_context_get_object) {
 }
 
 // 测试通过对象符号访问变量类型的符号（包含属性）
-TEST_F(expr_context_test, get_variable_from_variable_symbol) {
+TEST_F(expr_context_test, get_variable_from_variable_symbol)
+{
     mc::expr::context ctx;
 
     // 注册一个变量类型的符号，包含 dict 属性
@@ -523,7 +552,8 @@ TEST_F(expr_context_test, get_variable_from_variable_symbol) {
 }
 
 // 测试通过对象符号访问变量类型的符号（检查属性是否存在）
-TEST_F(expr_context_test, has_variable_from_variable_symbol) {
+TEST_F(expr_context_test, has_variable_from_variable_symbol)
+{
     mc::expr::context ctx;
 
     // 注册一个变量类型的符号，包含 dict 属性
@@ -543,7 +573,8 @@ TEST_F(expr_context_test, has_variable_from_variable_symbol) {
 // 这里不再重复测试，因为需要实现完整的 abstract_object 接口
 
 // 测试 context_base 的自赋值
-TEST_F(expr_context_test, ContextBaseSelfAssignment) {
+TEST_F(expr_context_test, ContextBaseSelfAssignment)
+{
     mc::expr::context_base base1;
     mc::expr::context_base base2;
 
@@ -565,7 +596,8 @@ TEST_F(expr_context_test, ContextBaseSelfAssignment) {
 }
 
 // 测试 context_base 的自移动赋值
-TEST_F(expr_context_test, ContextBaseSelfMoveAssignment) {
+TEST_F(expr_context_test, ContextBaseSelfMoveAssignment)
+{
     mc::expr::context_base base1;
     mc::expr::context_base base2;
 
@@ -587,7 +619,8 @@ TEST_F(expr_context_test, ContextBaseSelfMoveAssignment) {
 }
 
 // 测试 context 的自赋值
-TEST_F(expr_context_test, ContextSelfAssignment) {
+TEST_F(expr_context_test, ContextSelfAssignment)
+{
     mc::expr::context ctx1;
     mc::expr::context ctx2;
 
@@ -613,7 +646,8 @@ TEST_F(expr_context_test, ContextSelfAssignment) {
 }
 
 // 测试 context 的自移动赋值
-TEST_F(expr_context_test, ContextSelfMoveAssignment) {
+TEST_F(expr_context_test, ContextSelfMoveAssignment)
+{
     mc::expr::context ctx1;
     mc::expr::context ctx2;
 

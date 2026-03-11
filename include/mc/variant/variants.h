@@ -18,9 +18,9 @@
 #define MC_VARIANTS_H
 
 #include <memory>
+#include <type_traits>
 #include <typeindex>
 #include <typeinfo>
-#include <type_traits>
 
 #include <mc/memory.h>
 #include <mc/traits.h>
@@ -300,7 +300,8 @@ public:
     void assign(size_t count, const variant& value);
     template <typename InputIt>
     typename std::enable_if<!std::is_integral<InputIt>::value, void>::type
-    assign(InputIt first, InputIt last) {
+    assign(InputIt first, InputIt last)
+    {
         ensure_data();
         clear();
         for (auto it = first; it != last; ++it) {
@@ -389,7 +390,8 @@ public:
     i_variants*       data();
 
     template <typename T>
-    T* as() const {
+    T* as() const
+    {
         if (!m_data) {
             return nullptr;
         }

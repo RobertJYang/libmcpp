@@ -24,7 +24,8 @@ protected:
     static mc::dbus::connection test_conn;
     static mc::dbus::sd_bus*    test_bus;
 
-    static void SetUpTestSuite() {
+    static void SetUpTestSuite()
+    {
         mc::test::TestBase::SetUpTestSuite();
 
         // 创建 D-Bus 连接
@@ -38,7 +39,8 @@ protected:
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
 
-    static void TearDownTestSuite() {
+    static void TearDownTestSuite()
+    {
         // 清理缓存
         mc::mdb::service::clear_cache();
 
@@ -49,7 +51,8 @@ protected:
         mc::test::TestBase::TearDownTestSuite();
     }
 
-    void SetUp() override {
+    void SetUp() override
+    {
         mc::test::TestBase::SetUp();
         // 每个测试前清理缓存
         mc::mdb::service::clear_cache();
@@ -60,7 +63,8 @@ mc::dbus::connection mdb_service_test::test_conn;
 mc::dbus::sd_bus*    mdb_service_test::test_bus = nullptr;
 
 // 测试设置和获取最大缓存数量
-TEST_F(mdb_service_test, set_and_get_max_cache_size) {
+TEST_F(mdb_service_test, set_and_get_max_cache_size)
+{
     // 默认应该是 400
     EXPECT_EQ(mc::mdb::service::get_max_cache_size(), 400);
 
@@ -72,4 +76,3 @@ TEST_F(mdb_service_test, set_and_get_max_cache_size) {
     mc::mdb::service::set_max_cache_size(400);
     EXPECT_EQ(mc::mdb::service::get_max_cache_size(), 400);
 }
-

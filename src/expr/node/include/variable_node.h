@@ -28,10 +28,13 @@ namespace mc::expr {
  */
 class variable_node : public node {
 public:
-    explicit variable_node(std::string name) : m_name(std::move(name)) {
+    explicit variable_node(std::string name)
+        : m_name(std::move(name))
+    {
     }
 
-    node_type get_type() const override {
+    node_type get_type() const override
+    {
         return node_type::variable;
     }
 
@@ -39,7 +42,8 @@ public:
 
     std::string to_string() const override;
 
-    const std::string& get_name() const {
+    const std::string& get_name() const
+    {
         return m_name;
     }
 

@@ -17,7 +17,8 @@
 
 class state_pool_test : public ::testing::Test {
 protected:
-    void SetUp() override {
+    void SetUp() override
+    {
         // 重置池配置
         mc::futures::state_pool_config config;
         config.max_count_per_pool = 10;
@@ -27,7 +28,8 @@ protected:
         mc::futures::state_pool::instance().set_config(config);
     }
 
-    void TearDown() override {
+    void TearDown() override
+    {
         // 清理池
         mc::futures::state_pool::instance().clear_all_pools();
     }
@@ -36,7 +38,8 @@ protected:
 };
 
 // 基本功能测试
-TEST_F(state_pool_test, basic_pool_functionality) {
+TEST_F(state_pool_test, basic_pool_functionality)
+{
     auto& pool = mc::futures::state_pool::instance();
 
     // 获取初始统计
@@ -73,7 +76,8 @@ TEST_F(state_pool_test, basic_pool_functionality) {
 }
 
 // 池重用测试
-TEST_F(state_pool_test, pool_reuse) {
+TEST_F(state_pool_test, pool_reuse)
+{
     auto& pool = mc::futures::state_pool::instance();
 
     // 创建并完成一个 future
@@ -99,7 +103,8 @@ TEST_F(state_pool_test, pool_reuse) {
 }
 
 // 池大小限制测试
-TEST_F(state_pool_test, pool_size_limit) {
+TEST_F(state_pool_test, pool_size_limit)
+{
     auto& pool = mc::futures::state_pool::instance();
 
     // 设置较小的池大小
@@ -135,7 +140,8 @@ TEST_F(state_pool_test, pool_size_limit) {
 }
 
 // 不同大小类型测试
-TEST_F(state_pool_test, different_size_types) {
+TEST_F(state_pool_test, different_size_types)
+{
     auto& pool = mc::futures::state_pool::instance();
 
     // 清理初始状态
@@ -161,7 +167,8 @@ TEST_F(state_pool_test, different_size_types) {
 }
 
 // 相同大小类型共享池测试
-TEST_F(state_pool_test, same_size_types_share_pool) {
+TEST_F(state_pool_test, same_size_types_share_pool)
+{
     auto& pool = mc::futures::state_pool::instance();
 
     auto config = pool.get_config();
@@ -197,7 +204,8 @@ TEST_F(state_pool_test, same_size_types_share_pool) {
 }
 
 // 配置测试
-TEST_F(state_pool_test, pool_config) {
+TEST_F(state_pool_test, pool_config)
+{
     auto& pool = mc::futures::state_pool::instance();
 
     mc::futures::state_pool_config config;
@@ -214,7 +222,8 @@ TEST_F(state_pool_test, pool_config) {
 }
 
 // 清理测试
-TEST_F(state_pool_test, pool_clear) {
+TEST_F(state_pool_test, pool_clear)
+{
     auto& pool = mc::futures::state_pool::instance();
 
     // 创建一些 future 来填充池
@@ -235,7 +244,8 @@ TEST_F(state_pool_test, pool_clear) {
 }
 
 // 大size状态不缓存测试
-TEST_F(state_pool_test, large_state_not_cached) {
+TEST_F(state_pool_test, large_state_not_cached)
+{
     auto& pool = mc::futures::state_pool::instance();
 
     // 设置较小的max_cacheable_size
@@ -264,7 +274,8 @@ TEST_F(state_pool_test, large_state_not_cached) {
 }
 
 // 池数量限制测试
-TEST_F(state_pool_test, pool_count_limit) {
+TEST_F(state_pool_test, pool_count_limit)
+{
     auto& pool = mc::futures::state_pool::instance();
 
     // 设置较小的max_pool_count
@@ -311,7 +322,8 @@ TEST_F(state_pool_test, pool_count_limit) {
 }
 
 // 多线程并发测试
-TEST_F(state_pool_test, concurrent_access) {
+TEST_F(state_pool_test, concurrent_access)
+{
     auto& pool = mc::futures::state_pool::instance();
 
     const int num_threads = 4;

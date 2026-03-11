@@ -1,18 +1,18 @@
 /*
-* Copyright (c) 2025 Huawei Technologies Co., Ltd.
-* openUBMC is licensed under Mulan PSL v2.
-* You can use this software according to the terms and conditions of the Mulan
-* PSL v2. You may obtain a copy of Mulan PSL v2 at:
-*         http://license.coscl.org.cn/MulanPSL2
-* THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY
-* KIND, EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
-* NON-INFRINGEMENT, MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE. See the
-* Mulan PSL v2 for more details.
-*/
+ * Copyright (c) 2025 Huawei Technologies Co., Ltd.
+ * openUBMC is licensed under Mulan PSL v2.
+ * You can use this software according to the terms and conditions of the Mulan
+ * PSL v2. You may obtain a copy of Mulan PSL v2 at:
+ *         http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY
+ * KIND, EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+ * NON-INFRINGEMENT, MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE. See the
+ * Mulan PSL v2 for more details.
+ */
 
 #include <mc/dbus/shm/harbor.h>
-#include <mc/dbus/shm/shm_tree.h>
 #include <mc/dbus/shm/serialize.h>
+#include <mc/dbus/shm/shm_tree.h>
 #include <mc/future.h>
 #include <mc/reflect/metadata_info.h>
 #include <mc/runtime.h>
@@ -26,8 +26,7 @@
 
 using namespace mc::dbus;
 
-class HarborTest : public ::testing::Test
-{
+class HarborTest : public ::testing::Test {
 protected:
     void SetUp() override
     {
@@ -69,7 +68,7 @@ TEST_F(HarborTest, HarborLifecycleAndNaming)
     } catch (const std::exception& e) {
         harbor_instance.stop();
         GTEST_SKIP() << "harbor start failed: " << e.what()
-                    << " (可能缺少共享内存环境)";
+                     << " (可能缺少共享内存环境)";
     }
 }
 
@@ -156,7 +155,9 @@ TEST_F(HarborTest, MessageQueueDispatchHandlesEmpty)
 
     message_queue queue(*queue_raw);
     bool          handler_called = false;
-    queue.dispatch(10, 1, [&handler_called](message_data&) { handler_called = true; });
+    queue.dispatch(10, 1, [&handler_called](message_data&) {
+        handler_called = true;
+    });
     EXPECT_FALSE(handler_called);
 
     harbor_instance.stop();
@@ -186,31 +187,35 @@ TEST_F(HarborTest, UnregisterServiceClearsPendingPromises)
 }
 
 // 测试 Rule::path_namespace() 方法
-TEST_F(HarborTest, MockRulePathNamespace) {
+TEST_F(HarborTest, MockRulePathNamespace)
+{
     DBus::Match::Rule rule;
     EXPECT_FALSE(rule.path_namespace());
 }
 
 // 测试 Rule::disconnect() 方法
-TEST_F(HarborTest, MockRuleDisconnect) {
+TEST_F(HarborTest, MockRuleDisconnect)
+{
     DBus::Match::Rule rule;
     rule.disconnect();
     // 验证不会崩溃
 }
 
 // 测试 property 默认构造函数
-TEST_F(HarborTest, MockPropertyDefaultConstructor) {
+TEST_F(HarborTest, MockPropertyDefaultConstructor)
+{
     shm::property prop;
-    auto data = prop.get_data();
+    auto          data = prop.get_data();
     EXPECT_TRUE(data.has_value());
     EXPECT_TRUE(data->empty());
     EXPECT_TRUE(prop.get_signature().empty());
 }
 
 // 测试 property::set_data() 方法
-TEST_F(HarborTest, MockPropertySetData) {
+TEST_F(HarborTest, MockPropertySetData)
+{
     shm::property prop("s");
-    auto& ins = shm::shared_memory::get_instance();
+    auto&         ins = shm::shared_memory::get_instance();
     prop.set_data(ins, "test_value");
     auto data = prop.get_data();
     EXPECT_TRUE(data.has_value());
@@ -218,9 +223,10 @@ TEST_F(HarborTest, MockPropertySetData) {
 }
 
 // 测试 property::get_data() 方法
-TEST_F(HarborTest, MockPropertyGetData) {
+TEST_F(HarborTest, MockPropertyGetData)
+{
     shm::property prop("s");
-    auto& ins = shm::shared_memory::get_instance();
+    auto&         ins = shm::shared_memory::get_instance();
     prop.set_data(ins, "test_data");
     auto data = prop.get_data();
     EXPECT_TRUE(data.has_value());
@@ -228,25 +234,27 @@ TEST_F(HarborTest, MockPropertyGetData) {
 }
 
 // 测试 property::get_signature() 方法
-TEST_F(HarborTest, MockPropertyGetSignature) {
+TEST_F(HarborTest, MockPropertyGetSignature)
+{
     shm::property prop("i");
     EXPECT_EQ(prop.get_signature(), "i");
 }
 
 // 测试 interface::find_p() 方法
-TEST_F(HarborTest, MockInterfaceFindProperty) {
+TEST_F(HarborTest, MockInterfaceFindProperty)
+{
     shm::interface intf;
-    auto& ins = shm::shared_memory::get_instance();
-    
+    auto&          ins = shm::shared_memory::get_instance();
+
     // 先添加一个属性
     auto added_prop = intf.add_p(ins, "test_property", "s");
     EXPECT_NE(added_prop, nullptr);
-    
+
     // 使用 find_p 查找已添加的属性
     auto prop = intf.find_p("test_property");
     EXPECT_NE(prop, nullptr);
     EXPECT_EQ(prop, added_prop);
-    
+
     // 再次查找应该返回同一个属性对象
     auto prop2 = intf.find_p("test_property");
     EXPECT_NE(prop2, nullptr);
@@ -254,31 +262,35 @@ TEST_F(HarborTest, MockInterfaceFindProperty) {
 }
 
 // 测试 object::interfaces() 方法
-TEST_F(HarborTest, MockObjectInterfaces) {
+TEST_F(HarborTest, MockObjectInterfaces)
+{
     shm::object obj;
-    auto& interfaces = obj.interfaces();
+    auto&       interfaces = obj.interfaces();
     EXPECT_TRUE(interfaces.empty());
 }
 
 // 测试 object_tree::wellknow_name() 方法
-TEST_F(HarborTest, MockObjectTreeWellknowName) {
+TEST_F(HarborTest, MockObjectTreeWellknowName)
+{
     shm::object_tree tree;
-    auto name = tree.wellknow_name();
+    auto             name = tree.wellknow_name();
     EXPECT_TRUE(name.empty());
 }
 
 // 测试 object_tree::create_message_queue() 方法
-TEST_F(HarborTest, MockObjectTreeCreateMessageQueue) {
+TEST_F(HarborTest, MockObjectTreeCreateMessageQueue)
+{
     shm::object_tree tree;
-    auto& ins = shm::shared_memory::get_instance();
-    auto& queue = tree.create_message_queue(ins, 1024);
+    auto&            ins   = shm::shared_memory::get_instance();
+    auto&            queue = tree.create_message_queue(ins, 1024);
     EXPECT_NE(&queue, nullptr);
 }
 
 // 测试 shared_memory::get_harbor_name() 从 tree_map 获取
-TEST_F(HarborTest, MockSharedMemoryGetHarborNameFromTreeMap) {
-    auto& ins = shm::shared_memory::get_instance();
-    auto tree = ins.get_tree("test_service");
+TEST_F(HarborTest, MockSharedMemoryGetHarborNameFromTreeMap)
+{
+    auto& ins  = shm::shared_memory::get_instance();
+    auto  tree = ins.get_tree("test_service");
     tree->set_unique_name(":1.100");
     ins.set_harbor_name(":1.100", "test_harbor");
     auto harbor_name = ins.get_harbor_name("test_service");
@@ -286,7 +298,8 @@ TEST_F(HarborTest, MockSharedMemoryGetHarborNameFromTreeMap) {
 }
 
 // 测试 shared_memory::get_harbor_name() harbor_name 为空时的默认值
-TEST_F(HarborTest, MockSharedMemoryGetHarborNameEmpty) {
+TEST_F(HarborTest, MockSharedMemoryGetHarborNameEmpty)
+{
     auto& ins = shm::shared_memory::get_instance();
     // 传入一个不在 unique_name_map 中的名称
     auto harbor_name = ins.get_harbor_name("unknown_service");

@@ -57,7 +57,9 @@ public:
 
     using executor_work_guard = boost::asio::executor_work_guard<io_context::executor_type>;
     struct shard_t {
-        explicit shard_t(thread_pool& pool_) noexcept : pool(pool_) {
+        explicit shard_t(thread_pool& pool_) noexcept
+            : pool(pool_)
+        {
         }
 
         thread_pool&                         pool; // 所属线程池
@@ -73,7 +75,9 @@ public:
 
     class executor_type {
     public:
-        executor_type(thread_pool& ctx) noexcept : m_context(&ctx) {
+        executor_type(thread_pool& ctx) noexcept
+            : m_context(&ctx)
+        {
         }
         executor_type(const executor_type&) = default;
 
@@ -81,20 +85,24 @@ public:
         executor_type(executor_type&&)                 = default;
         executor_type& operator=(executor_type&&)      = default;
 
-        thread_pool& context() const noexcept {
+        thread_pool& context() const noexcept
+        {
             return *m_context;
         }
 
-        void on_work_started() const noexcept {
+        void on_work_started() const noexcept
+        {
             m_context->m_scheduler.work_started();
         }
 
-        void on_work_finished() const noexcept {
+        void on_work_finished() const noexcept
+        {
             m_context->m_scheduler.work_finished();
         }
 
         template <typename Function, typename Allocator>
-        void dispatch(Function&& f, const Allocator& a) const {
+        void dispatch(Function&& f, const Allocator& a) const
+        {
             // 1: 优先在当前线程执行
             auto* current_shard = thread_pool::get_current_shard();
             if (current_shard && &current_shard->pool == m_context) {
@@ -119,7 +127,8 @@ public:
         }
 
         template <typename Function, typename Allocator>
-        void post(Function&& f, const Allocator& a) const {
+        void post(Function&& f, const Allocator& a) const
+        {
             // 仅当全局队列没有待处理任务时，才尝试直接投递到 shard
             // 这保证了全局队列任务的优先级和公平调度
             if (m_context->m_pending_tasks.load(std::memory_order_relaxed) == 0) {
@@ -145,7 +154,8 @@ public:
         }
 
         template <typename Function, typename Allocator>
-        void defer(Function&& f, const Allocator& a) const {
+        void defer(Function&& f, const Allocator& a) const
+        {
             // 1: 优先在当前线程执行
             auto* current_shard = thread_pool::get_current_shard();
             if (current_shard && &current_shard->pool == m_context) {
@@ -169,23 +179,27 @@ public:
             schedule_global(std::forward<Function>(f), a, true);
         }
 
-        bool operator==(const executor_type& other) const noexcept {
+        bool operator==(const executor_type& other) const noexcept
+        {
             return m_context == other.m_context;
         }
 
-        bool operator!=(const executor_type& other) const noexcept {
+        bool operator!=(const executor_type& other) const noexcept
+        {
             return !(*this == other);
         }
 
         /**
          * @brief 检查当前线程是否在此 executor 上执行
          */
-        bool running_in_this_thread() const noexcept {
+        bool running_in_this_thread() const noexcept
+        {
             auto* current_shard = thread_pool::get_current_shard();
             return current_shard && &current_shard->pool == m_context;
         }
 
-        operator boost::asio::any_io_executor() const {
+        operator boost::asio::any_io_executor() const
+        {
             if (auto* current = thread_pool::get_current_shard()) {
                 return current->ctx->get_executor();
             }
@@ -193,7 +207,8 @@ public:
                 .get_executor();
         }
 
-        operator boost::asio::io_context::executor_type() const {
+        operator boost::asio::io_context::executor_type() const
+        {
             if (auto* current = thread_pool::get_current_shard()) {
                 return current->ctx->get_executor();
             }
@@ -206,7 +221,8 @@ public:
         using index_type = std::size_t;
 
         template <typename Function, typename Allocator>
-        void execute(Function&& f, const Allocator& a) const {
+        void execute(Function&& f, const Allocator& a) const
+        {
             this->post(std::forward<Function>(f), a);
         }
 
@@ -214,7 +230,8 @@ public:
         thread_pool* m_context;
 
         template <typename Function, typename Allocator>
-        void schedule_global(Function&& f, const Allocator& a, bool is_continuation) const {
+        void schedule_global(Function&& f, const Allocator& a, bool is_continuation) const
+        {
             using Op = boost::asio::detail::executor_op<
                 typename std::decay<Function>::type,
                 Allocator,
@@ -253,20 +270,24 @@ public:
 
     class scoped_recursion_guard {
     public:
-        explicit scoped_recursion_guard(shard_t* shard) : m_shard(shard) {
+        explicit scoped_recursion_guard(shard_t* shard)
+            : m_shard(shard)
+        {
             if (m_shard->recursion_depth < MAX_RECURSION_DEPTH) {
                 m_shard->recursion_depth++;
                 m_can_schedule = true;
             }
         }
 
-        ~scoped_recursion_guard() {
+        ~scoped_recursion_guard()
+        {
             if (m_can_schedule) {
                 m_shard->recursion_depth--;
             }
         }
 
-        bool can_schedule() const {
+        bool can_schedule() const
+        {
             return m_can_schedule;
         }
 
@@ -286,7 +307,8 @@ public:
     template <typename Predicate>
     void poll_until(shard_t* shard, Predicate pred);
 
-    const std::string& get_name() const noexcept {
+    const std::string& get_name() const noexcept
+    {
         return m_name;
     }
 
@@ -308,7 +330,8 @@ private:
     void try_sleep_until(shard_t* shard, Predicate pred);
 
     // 无条件睡眠
-    void try_sleep(shard_t* shard) {
+    void try_sleep(shard_t* shard)
+    {
         try_sleep_until(shard, []() {
             return false;
         });
@@ -332,7 +355,8 @@ struct is_executor<mc::runtime::thread_pool::executor_type> : std::true_type {};
 namespace mc::runtime {
 
 template <typename Predicate>
-void thread_pool::poll_until(shard_t* shard, Predicate pred) {
+void thread_pool::poll_until(shard_t* shard, Predicate pred)
+{
     auto& ctx = *shard->ctx;
 
     while (!pred()) {
@@ -355,7 +379,8 @@ void thread_pool::poll_until(shard_t* shard, Predicate pred) {
 }
 
 template <typename Predicate>
-void thread_pool::try_sleep_until(shard_t* shard, Predicate pred) {
+void thread_pool::try_sleep_until(shard_t* shard, Predicate pred)
+{
     // 如果谓词已满足，直接返回
     if (pred()) {
         return;

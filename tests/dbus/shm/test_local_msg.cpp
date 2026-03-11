@@ -33,14 +33,16 @@ using namespace mc::dbus;
 
 class LocalMsgTest : public ::testing::Test {
 protected:
-    void SetUp() override {
+    void SetUp() override
+    {
         // 在每个测试前执行
         sample_msg =
             new dbus::local_msg("bmc.kepler.test", "/bmc/kepler/test/obj",
                                 "bmc.kepler.test.intf", "TestMethod");
     }
 
-    void TearDown() override {
+    void TearDown() override
+    {
         // 在每个测试后执行
     }
 
@@ -48,7 +50,8 @@ protected:
 };
 
 // 测试 local_call 标记
-TEST_F(LocalMsgTest, LocalCallFlag) {
+TEST_F(LocalMsgTest, LocalCallFlag)
+{
     EXPECT_FALSE(sample_msg->is_local_call());
     sample_msg->set_local_call(true);
     EXPECT_TRUE(sample_msg->is_local_call());
@@ -57,7 +60,8 @@ TEST_F(LocalMsgTest, LocalCallFlag) {
 }
 
 // 测试错误信息
-TEST_F(LocalMsgTest, ErrorInfo) {
+TEST_F(LocalMsgTest, ErrorInfo)
+{
     sample_msg->error("InternalError", "this is an error message");
     auto [error_name, error_message] = sample_msg->get_error();
     ASSERT_EQ(error_name, "InternalError");
@@ -65,7 +69,8 @@ TEST_F(LocalMsgTest, ErrorInfo) {
 }
 
 // 测试 append 方法
-TEST_F(LocalMsgTest, Append) {
+TEST_F(LocalMsgTest, Append)
+{
     auto     msg = new dbus::local_msg("bmc.kepler.test", "/bmc/kepler/test/obj",
                                        "bmc.kepler.test.intf", "TestMethod");
     variants arg1;
@@ -84,7 +89,8 @@ TEST_F(LocalMsgTest, Append) {
 }
 
 // 测试 pack 方法
-TEST_F(LocalMsgTest, Pack) {
+TEST_F(LocalMsgTest, Pack)
+{
     auto msg = new dbus::local_msg("bmc.kepler.test", "/bmc/kepler/test/obj",
                                    "bmc.kepler.test.intf", "TestMethod");
     msg->append("a{ss}s", dict({{"a", "str1"}, {"b", "str2"}}), "test");
@@ -140,7 +146,8 @@ TEST_F(LocalMsgTest, Pack) {
 }
 
 // 测试 append_args 方法
-TEST_F(LocalMsgTest, AppendArgs) {
+TEST_F(LocalMsgTest, AppendArgs)
+{
     auto     msg = new dbus::local_msg("bmc.kepler.test", "/bmc/kepler/test/obj",
                                        "bmc.kepler.test.intf", "TestMethod");
     dict     arg1({{"a", "str1"}, {"b", "str2"}});
@@ -160,7 +167,8 @@ TEST_F(LocalMsgTest, AppendArgs) {
 }
 
 // 测试 new_dbus_msg 方法
-TEST_F(LocalMsgTest, NewDBusMsg) {
+TEST_F(LocalMsgTest, NewDBusMsg)
+{
     auto reply_msg =
         new dbus::local_msg("bmc.kepler.test", "/bmc/kepler/test/obj",
                             "bmc.kepler.test.intf", "TestMethod");
@@ -178,7 +186,8 @@ TEST_F(LocalMsgTest, NewDBusMsg) {
 }
 
 // 测试从 variants 构造 local_msg
-TEST_F(LocalMsgTest, ConstructFromVariants) {
+TEST_F(LocalMsgTest, ConstructFromVariants)
+{
     variants v;
     v.push_back(static_cast<uint32_t>(DBUS_MESSAGE_TYPE_METHOD_RETURN));
     v.push_back("bmc.kepler.test1");
@@ -217,7 +226,8 @@ TEST_F(LocalMsgTest, ConstructFromVariants) {
     ASSERT_EQ(msg->get_reply_serial(), 67);
 }
 
-TEST_F(LocalMsgTest, ConstructFromVariantsEdgeCases) {
+TEST_F(LocalMsgTest, ConstructFromVariantsEdgeCases)
+{
     variants        empty_v;
     dbus::local_msg msg1(empty_v);
     EXPECT_EQ(msg1.msg_type(), DBUS_MESSAGE_TYPE_METHOD_CALL);
@@ -249,7 +259,8 @@ TEST_F(LocalMsgTest, ConstructFromVariantsEdgeCases) {
     EXPECT_FALSE(msg2.is_local_call());
 }
 
-TEST_F(LocalMsgTest, AppendReturnArgsCases) {
+TEST_F(LocalMsgTest, AppendReturnArgsCases)
+{
     auto msg1 = std::make_unique<dbus::local_msg>("org.test", "/org/test", "org.test", "Method");
     msg1->append_return_args("i", variant(42));
     EXPECT_EQ(msg1->signature(), "i");
@@ -272,7 +283,8 @@ TEST_F(LocalMsgTest, AppendReturnArgsCases) {
     EXPECT_TRUE(msg3->read().empty());
 }
 
-TEST_F(LocalMsgTest, ParseVariantVariousTypes) {
+TEST_F(LocalMsgTest, ParseVariantVariousTypes)
+{
     // 验证基础整数类型
     const auto byte_result = dbus::local_msg::parse_variant(
         signature_iterator("y"), variant(static_cast<uint8_t>(65)), 0);
@@ -331,7 +343,8 @@ TEST_F(LocalMsgTest, ParseVariantVariousTypes) {
     EXPECT_NEAR(double_result.as_double(), 3.14159, 1e-9);
 }
 
-TEST_F(LocalMsgTest, AppendArgsSignatureParseError) {
+TEST_F(LocalMsgTest, AppendArgsSignatureParseError)
+{
     auto msg =
         new dbus::local_msg("org.test", "/org/test", "org.test", "Method");
     variants args;
@@ -342,7 +355,8 @@ TEST_F(LocalMsgTest, AppendArgsSignatureParseError) {
 
 // ========== 安全性测试 ==========
 
-TEST_F(LocalMsgTest, AppendArgsSizeMismatch) {
+TEST_F(LocalMsgTest, AppendArgsSizeMismatch)
+{
     auto msg =
         new dbus::local_msg("org.test", "/org/test", "org.test", "Method");
     variants args;
@@ -351,7 +365,8 @@ TEST_F(LocalMsgTest, AppendArgsSizeMismatch) {
     delete msg;
 }
 
-TEST_F(LocalMsgTest, NewDBusMsgInvalidType) {
+TEST_F(LocalMsgTest, NewDBusMsgInvalidType)
+{
     auto msg =
         new dbus::local_msg("org.test", "/org/test", "org.test", "Method");
     variants v;
@@ -372,7 +387,8 @@ TEST_F(LocalMsgTest, NewDBusMsgInvalidType) {
     delete msg;
 }
 
-TEST_F(LocalMsgTest, AppendReturnArgsMultipleNonArray) {
+TEST_F(LocalMsgTest, AppendReturnArgsMultipleNonArray)
+{
     auto msg =
         new dbus::local_msg("org.test", "/org/test", "org.test", "Method");
     variant v_single = 42;
@@ -380,7 +396,8 @@ TEST_F(LocalMsgTest, AppendReturnArgsMultipleNonArray) {
     delete msg;
 }
 
-TEST_F(LocalMsgTest, SetterAndVariantParsingHelpers) {
+TEST_F(LocalMsgTest, SetterAndVariantParsingHelpers)
+{
     sample_msg->set_member("NewMethod");
     EXPECT_EQ(sample_msg->member(), "NewMethod");
 
@@ -394,7 +411,8 @@ TEST_F(LocalMsgTest, SetterAndVariantParsingHelpers) {
     EXPECT_EQ(signature_variant.as_string(), "a{ss}");
 }
 
-TEST_F(LocalMsgTest, ConstructFromVariantsParseFallback) {
+TEST_F(LocalMsgTest, ConstructFromVariantsParseFallback)
+{
     variants v;
     v.push_back(static_cast<uint32_t>(DBUS_MESSAGE_TYPE_METHOD_CALL));
     v.push_back("org.test");
@@ -417,7 +435,8 @@ TEST_F(LocalMsgTest, ConstructFromVariantsParseFallback) {
     ASSERT_EQ(args[0].as_string(), "not-int");
 }
 
-TEST_F(LocalMsgTest, ScenarioConcurrentPackUnpack) {
+TEST_F(LocalMsgTest, ScenarioConcurrentPackUnpack)
+{
     const int                num_threads = 10;
     const int                iterations  = 100;
     std::atomic<int>         success_count{0};
@@ -459,7 +478,8 @@ TEST_F(LocalMsgTest, ScenarioConcurrentPackUnpack) {
     EXPECT_EQ(success_count.load(), num_threads * iterations);
 }
 
-TEST_F(LocalMsgTest, ScenarioConcurrentConstructFromVariants) {
+TEST_F(LocalMsgTest, ScenarioConcurrentConstructFromVariants)
+{
     const int                num_threads = 5;
     const int                iterations  = 50;
     std::atomic<int>         success_count{0};
@@ -504,7 +524,8 @@ TEST_F(LocalMsgTest, ScenarioConcurrentConstructFromVariants) {
     EXPECT_EQ(success_count.load(), num_threads * iterations);
 }
 
-TEST_F(LocalMsgTest, ScenarioLargeMessagePackUnpack) {
+TEST_F(LocalMsgTest, ScenarioLargeMessagePackUnpack)
+{
     auto msg =
         new dbus::local_msg("org.test", "/org/test", "org.test", "Method");
 
@@ -529,7 +550,8 @@ TEST_F(LocalMsgTest, ScenarioLargeMessagePackUnpack) {
 
 // ========== shm_pending_msgs 测试 ==========
 
-TEST_F(LocalMsgTest, ShmPendingMsgsSendAndReply) {
+TEST_F(LocalMsgTest, ShmPendingMsgsSendAndReply)
+{
     shm_pending_msgs pending;
 
     // 发送 promise：第一次成功，重复序列号失败
@@ -552,7 +574,8 @@ TEST_F(LocalMsgTest, ShmPendingMsgsSendAndReply) {
     EXPECT_EQ(result.destination(), "org.test");
 }
 
-TEST_F(LocalMsgTest, ShmPendingMsgsClear) {
+TEST_F(LocalMsgTest, ShmPendingMsgsClear)
+{
     shm_pending_msgs pending;
 
     // 发送多个 promise
@@ -577,7 +600,8 @@ TEST_F(LocalMsgTest, ShmPendingMsgsClear) {
     EXPECT_TRUE(pending.reply(":1.200", 1, msg));
 }
 
-TEST_F(LocalMsgTest, ShmPendingMsgsMultipleDestinations) {
+TEST_F(LocalMsgTest, ShmPendingMsgsMultipleDestinations)
+{
     shm_pending_msgs pending;
 
     // 为不同的目的地发送 promise
@@ -597,7 +621,8 @@ TEST_F(LocalMsgTest, ShmPendingMsgsMultipleDestinations) {
     EXPECT_TRUE(pending.reply(":1.300", 1, msg));
 }
 
-TEST_F(LocalMsgTest, ShmPendingMsgsConcurrentSend) {
+TEST_F(LocalMsgTest, ShmPendingMsgsConcurrentSend)
+{
     shm_pending_msgs         pending;
     const int                num_threads = 10;
     const int                iterations  = 20;
@@ -624,14 +649,16 @@ TEST_F(LocalMsgTest, ShmPendingMsgsConcurrentSend) {
 }
 
 // 测试 is_unique_name() 空字符串情况
-TEST_F(LocalMsgTest, IsUniqueNameEmptyString) {
+TEST_F(LocalMsgTest, IsUniqueNameEmptyString)
+{
     EXPECT_FALSE(is_unique_name(""));
     EXPECT_FALSE(is_unique_name("not_unique"));
     EXPECT_TRUE(is_unique_name(":1.23"));
 }
 
 // 测试 local_msg::append() 所有类型
-TEST_F(LocalMsgTest, LocalMsgAppendAllTypes) {
+TEST_F(LocalMsgTest, LocalMsgAppendAllTypes)
+{
     auto msg = new dbus::local_msg("bmc.kepler.test", "/bmc/kepler/test/obj",
                                    "bmc.kepler.test.intf", "TestMethod");
 
@@ -663,11 +690,12 @@ TEST_F(LocalMsgTest, LocalMsgAppendAllTypes) {
 }
 
 // 测试 local_msg::append() 签名不匹配
-TEST_F(LocalMsgTest, LocalMsgAppendInvalidSignature) {
+TEST_F(LocalMsgTest, LocalMsgAppendInvalidSignature)
+{
     auto msg = new dbus::local_msg("bmc.kepler.test", "/bmc/kepler/test/obj",
                                    "bmc.kepler.test.intf", "TestMethod");
 
     // 传入签名与参数数量不匹配的参数，应该抛出异常
-    EXPECT_THROW(msg->append("ii", 1, 2, 3), mc::exception);  // 签名只有2个参数，但传入了3个
+    EXPECT_THROW(msg->append("ii", 1, 2, 3), mc::exception); // 签名只有2个参数，但传入了3个
     EXPECT_THROW(msg->append("iii", 1, 2), mc::exception);   // 签名有3个参数，但只传入了2个
 }

@@ -68,7 +68,8 @@ public:
      * @param other 要合并的资源
      * @return 合并结果
      */
-    virtual bool merge(const db_resource& other) {
+    virtual bool merge(const db_resource& other)
+    {
         return false;
     }
 
@@ -87,11 +88,13 @@ public:
  * 资源哈希函数
  */
 struct resource_hash {
-    std::size_t operator()(const db_resource& resource) const {
+    std::size_t operator()(const db_resource& resource) const
+    {
         return std::hash<uint64_t>()(resource.resource_id());
     }
 
-    std::size_t operator()(uint64_t id) const {
+    std::size_t operator()(uint64_t id) const
+    {
         return std::hash<uint64_t>()(id);
     }
 };
@@ -100,15 +103,18 @@ struct resource_hash {
  * 资源相等比较函数
  */
 struct resource_equal {
-    bool operator()(const db_resource& lhs, const db_resource& rhs) const {
+    bool operator()(const db_resource& lhs, const db_resource& rhs) const
+    {
         return lhs.resource_id() == rhs.resource_id() && lhs.m_is_head == rhs.m_is_head;
     }
 
-    bool operator()(uint64_t id, const db_resource& resource) const {
+    bool operator()(uint64_t id, const db_resource& resource) const
+    {
         return id == resource.resource_id() && resource.m_is_head;
     }
 
-    bool operator()(const db_resource& resource, uint64_t id) const {
+    bool operator()(const db_resource& resource, uint64_t id) const
+    {
         return resource.resource_id() == id && resource.m_is_head;
     }
 };
@@ -157,14 +163,16 @@ public:
      * @return 事务单例引用
      */
     template <typename tag = default_transaction_tag>
-    static transaction& get_instance() {
+    static transaction& get_instance()
+    {
         return mc::singleton<transaction, tag>::instance_with_creator([]() {
             return new transaction();
         });
     }
 
     template <typename tag = default_transaction_tag>
-    static void reset_for_test() {
+    static void reset_for_test()
+    {
         mc::singleton<transaction, tag>::reset_for_test();
     }
 

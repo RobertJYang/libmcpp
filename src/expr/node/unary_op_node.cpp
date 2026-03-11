@@ -17,7 +17,8 @@
 
 namespace mc::expr {
 
-mc::variant unary_op_node::evaluate(const context_base& ctx) const {
+mc::variant unary_op_node::evaluate(const context_base& ctx) const
+{
     mc::variant operand_val = m_operand->evaluate(ctx);
 
     switch (m_operator) {
@@ -32,7 +33,8 @@ mc::variant unary_op_node::evaluate(const context_base& ctx) const {
     }
 }
 
-std::string unary_op_node::to_string() const {
+std::string unary_op_node::to_string() const
+{
     std::string op_str;
     switch (m_operator) {
     case operator_type::neg:
@@ -51,7 +53,8 @@ std::string unary_op_node::to_string() const {
     return op_str + m_operand->to_string();
 }
 
-node_ptr make_unary_op(operator_type op, node_ptr operand) {
+node_ptr make_unary_op(operator_type op, node_ptr operand)
+{
     return std::make_shared<unary_op_node>(op, std::move(operand));
 }
 

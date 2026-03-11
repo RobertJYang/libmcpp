@@ -19,10 +19,12 @@ namespace mc::futures {
 namespace detail {
 
 CombinatorState::CombinatorState(std::size_t total_count, any_promise promise)
-    : m_total_count(total_count), m_promise(std::move(promise)) {
+    : m_total_count(total_count), m_promise(std::move(promise))
+{
 }
 
-void CombinatorState::add_cancel_callback(any_future& future) {
+void CombinatorState::add_cancel_callback(any_future& future)
+{
     m_cancel_callbacks.push_back([wstate = mc::weak_ptr(future.get_state())]() {
         if (auto state = wstate.lock()) {
             state->cancel();
@@ -30,7 +32,8 @@ void CombinatorState::add_cancel_callback(any_future& future) {
     });
 }
 
-void CombinatorState::execute_cancel_callbacks() {
+void CombinatorState::execute_cancel_callbacks()
+{
     callback_list callbacks;
     {
         std::lock_guard lock(m_mutex);
@@ -41,10 +44,12 @@ void CombinatorState::execute_cancel_callbacks() {
 }
 
 AllStateBase::AllStateBase(std::size_t total_count, any_promise promise)
-    : CombinatorState(total_count, std::move(promise)) {
+    : CombinatorState(total_count, std::move(promise))
+{
 }
 
-void AllStateBase::set_exception(const mc::exception& e) {
+void AllStateBase::set_exception(const mc::exception& e)
+{
     {
         std::lock_guard lock(m_mutex);
         m_completed_count++;
@@ -62,11 +67,13 @@ void AllStateBase::set_exception(const mc::exception& e) {
     execute_cancel_callbacks();
 }
 
-void AllStateBase::cancel() {
+void AllStateBase::cancel()
+{
     m_promise.cancel();
 }
 
-bool AllStateBase::set_completed(std::size_t index) {
+bool AllStateBase::set_completed(std::size_t index)
+{
     std::lock_guard lock(m_mutex);
 
     // 如果已经有异常了，忽略正常的结果
@@ -83,10 +90,12 @@ bool AllStateBase::set_completed(std::size_t index) {
 }
 
 AnyStateBase::AnyStateBase(std::size_t total_count, any_promise promise)
-    : CombinatorState(total_count, std::move(promise)) {
+    : CombinatorState(total_count, std::move(promise))
+{
 }
 
-void AnyStateBase::set_exception(const mc::exception& e) {
+void AnyStateBase::set_exception(const mc::exception& e)
+{
     {
         std::lock_guard lock(m_mutex);
         if (m_completed) {
@@ -115,7 +124,8 @@ void AnyStateBase::set_exception(const mc::exception& e) {
     execute_cancel_callbacks();
 }
 
-bool AnyStateBase::set_completed(std::size_t index) {
+bool AnyStateBase::set_completed(std::size_t index)
+{
     std::lock_guard lock(m_mutex);
     if (m_completed) {
         return false;
@@ -125,7 +135,8 @@ bool AnyStateBase::set_completed(std::size_t index) {
     return true;
 }
 
-void AnyStateBase::cancel() {
+void AnyStateBase::cancel()
+{
     set_exception(mc::canceled_exception());
 }
 

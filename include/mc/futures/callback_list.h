@@ -24,7 +24,8 @@
 namespace mc::futures {
 
 template <typename F>
-void safe_invoke(F&& callback) {
+void safe_invoke(F&& callback)
+{
     try {
         callback();
     } catch (...) {
@@ -35,7 +36,9 @@ void safe_invoke(F&& callback) {
 using callback_type = std::function<void()>;
 
 struct callback_node : public mc::noncopyable {
-    explicit callback_node(callback_type callback) : m_callback(std::move(callback)) {
+    explicit callback_node(callback_type callback)
+        : m_callback(std::move(callback))
+    {
     }
 
     callback_type                  m_callback;
@@ -47,7 +50,8 @@ using callback_node_ptr = std::unique_ptr<callback_node>;
 class MC_API callback_pool {
 public:
     template <typename Tag>
-    static callback_pool& instance(Tag) {
+    static callback_pool& instance(Tag)
+    {
         return mc::singleton<callback_pool, Tag>::instance();
     }
 

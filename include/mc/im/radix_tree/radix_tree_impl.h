@@ -18,21 +18,26 @@ namespace mc::im {
 // radix_tree 实现部分
 
 template <typename Config>
-radix_tree<Config>::radix_tree(node_ptr root, size_t size) : m_root(std::move(root)), m_size(size) {
+radix_tree<Config>::radix_tree(node_ptr root, size_t size)
+    : m_root(std::move(root)), m_size(size)
+{
 }
 
 template <typename Config>
-size_t radix_tree<Config>::size() const {
+size_t radix_tree<Config>::size() const
+{
     return m_size;
 }
 
 template <typename Config>
-const typename radix_tree<Config>::node_type radix_tree<Config>::root() const {
+const typename radix_tree<Config>::node_type radix_tree<Config>::root() const
+{
     return m_root;
 }
 
 template <typename Config>
-typename radix_tree<Config>::leaf_type radix_tree<Config>::get(key_view key) const {
+typename radix_tree<Config>::leaf_type radix_tree<Config>::get(key_view key) const
+{
     if (!m_root) {
         return std::nullopt;
     }
@@ -40,7 +45,8 @@ typename radix_tree<Config>::leaf_type radix_tree<Config>::get(key_view key) con
 }
 
 template <typename Config>
-typename radix_tree<Config>::iterator radix_tree<Config>::find(key_view key) {
+typename radix_tree<Config>::iterator radix_tree<Config>::find(key_view key)
+{
     if (!m_root || m_size == 0) {
         return end();
     }
@@ -99,7 +105,8 @@ typename radix_tree<Config>::iterator radix_tree<Config>::find(key_view key) {
 }
 
 template <typename Config>
-typename radix_tree<Config>::iterator radix_tree<Config>::lower_bound(key_view key) {
+typename radix_tree<Config>::iterator radix_tree<Config>::lower_bound(key_view key)
+{
     if (!m_root || m_size == 0) {
         return end();
     }
@@ -167,7 +174,8 @@ typename radix_tree<Config>::iterator radix_tree<Config>::lower_bound(key_view k
 }
 
 template <typename Config>
-typename radix_tree<Config>::iterator radix_tree<Config>::upper_bound(key_view key) {
+typename radix_tree<Config>::iterator radix_tree<Config>::upper_bound(key_view key)
+{
     if (!m_root || m_size == 0) {
         return end();
     }
@@ -231,7 +239,8 @@ typename radix_tree<Config>::iterator radix_tree<Config>::upper_bound(key_view k
 // 创建一个迭代器并设置其状态
 template <typename Config>
 typename radix_tree<Config>::iterator
-radix_tree<Config>::make_iterator(node_ptr n, key_buffer<>&& key_buf, path_type&& path) {
+radix_tree<Config>::make_iterator(node_ptr n, key_buffer<>&& key_buf, path_type&& path)
+{
     iterator result;
     result.m_is_end       = false;
     result.m_current_node = n;

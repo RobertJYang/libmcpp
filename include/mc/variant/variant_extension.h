@@ -54,7 +54,8 @@ public:
      * @return 返回当前对象的深拷贝
      * @note 默认实现委托给 copy()，子类可以重写提供真正的深拷贝
      */
-    virtual mc::shared_ptr<variant_extension_base> deep_copy(detail::copy_context* ctx = nullptr) const {
+    virtual mc::shared_ptr<variant_extension_base> deep_copy(detail::copy_context* ctx = nullptr) const
+    {
         (void)ctx;
         // 深拷贝默认实现为浅拷贝
         return copy();
@@ -65,7 +66,8 @@ public:
      * @return 返回当前对象的拷贝
      * @note 内部调用 copy()，保持向后兼容
      */
-    mc::shared_ptr<variant_extension_base> clone() const {
+    mc::shared_ptr<variant_extension_base> clone() const
+    {
         return copy();
     }
 
@@ -76,7 +78,8 @@ public:
      * 默认实现：返回未知类型
      * 子类应该重写此方法以提供正确的类型信息
      */
-    virtual extension_type_info get_type_info() const {
+    virtual extension_type_info get_type_info() const
+    {
         return extension_type_info(); // 返回默认的未知类型
     }
 
@@ -84,7 +87,8 @@ public:
      * @brief 获取 extension 类型ID
      * @return 返回类型ID
      */
-    extension_type_id_t get_type_id() const {
+    extension_type_id_t get_type_id() const
+    {
         return get_type_info().id;
     }
 
@@ -92,7 +96,8 @@ public:
      * @brief 获取类型名称
      * @return 返回类型名称字符串
      */
-    virtual std::string_view get_type_name() const {
+    virtual std::string_view get_type_name() const
+    {
         return get_type_info().name;
     }
 
@@ -107,26 +112,33 @@ public:
      * @brief 计算对象的哈希值
      * @return 返回哈希值
      */
-    virtual std::size_t hash() const {
+    virtual std::size_t hash() const
+    {
         return reinterpret_cast<std::size_t>(this);
     }
 
-    virtual int64_t as_int64() const {
+    virtual int64_t as_int64() const
+    {
         return 0;
     }
-    virtual uint64_t as_uint64() const {
+    virtual uint64_t as_uint64() const
+    {
         return 0;
     }
-    virtual double as_double() const {
+    virtual double as_double() const
+    {
         return 0;
     }
-    virtual bool as_bool() const {
+    virtual bool as_bool() const
+    {
         return false;
     }
-    virtual std::string as_string() const {
+    virtual std::string as_string() const
+    {
         return std::string(get_type_name());
     }
-    virtual void visit(std::function<void(const mc::variant&)>&& visitor) const {
+    virtual void visit(std::function<void(const mc::variant&)>&& visitor) const
+    {
     }
 
     /**
@@ -136,7 +148,8 @@ public:
      * 如果返回 true，operator[] 将调用 get_ptr/get_ref 获取引用，零开销
      * 如果返回 false，operator[] 将调用 get 获取值，有拷贝开销
      */
-    virtual bool supports_reference_access() const {
+    virtual bool supports_reference_access() const
+    {
         return false; // 默认不支持，保持向后兼容
     }
 
@@ -146,14 +159,16 @@ public:
      * @return 返回指向内部 variant 的指针，如果不支持则返回 nullptr
      * @note 只有 supports_reference_access() 返回 true 时才会被调用
      */
-    virtual mc::variant* get_ptr(std::size_t index) {
+    virtual mc::variant* get_ptr(std::size_t index)
+    {
         return nullptr; // 默认不支持
     }
 
     /**
      * @brief 通过索引获取元素指针（const 版本）
      */
-    virtual const mc::variant* get_ptr(std::size_t index) const {
+    virtual const mc::variant* get_ptr(std::size_t index) const
+    {
         return nullptr; // 默认不支持
     }
 
@@ -163,14 +178,16 @@ public:
      * @return 返回指向内部 variant 的指针，如果不支持则返回 nullptr
      * @note 只有 supports_reference_access() 返回 true 时才会被调用
      */
-    virtual mc::variant* get_ptr(std::string_view key) {
+    virtual mc::variant* get_ptr(std::string_view key)
+    {
         return nullptr; // 默认不支持
     }
 
     /**
      * @brief 通过键获取元素指针（const 版本）
      */
-    virtual const mc::variant* get_ptr(std::string_view key) const {
+    virtual const mc::variant* get_ptr(std::string_view key) const
+    {
         return nullptr; // 默认不支持
     }
 
@@ -212,15 +229,18 @@ class variant_extension : public variant_extension_base {
 public:
     using value_type = T;
 
-    virtual mc::shared_ptr<variant_extension_base> copy() const override {
+    virtual mc::shared_ptr<variant_extension_base> copy() const override
+    {
         return mc::make_shared<T>(static_cast<const T&>(*this));
     }
 
-    virtual extension_type_info get_type_info() const override {
+    virtual extension_type_info get_type_info() const override
+    {
         return extension_type_info_traits<T>::get();
     }
 
-    virtual bool equals(const variant_extension_base& other) const override {
+    virtual bool equals(const variant_extension_base& other) const override
+    {
         // 快速类型检查：先比较类型ID
         if (get_type_id() != other.get_type_id()) {
             return false;
@@ -234,16 +254,20 @@ public:
         return false;
     }
 
-    mc::shared_ptr<T> shared_from_this() const {
+    mc::shared_ptr<T> shared_from_this() const
+    {
         return mc::shared_ptr<T>(static_cast<const T*>(this));
     }
-    mc::shared_ptr<T> shared_from_this() {
+    mc::shared_ptr<T> shared_from_this()
+    {
         return mc::shared_ptr<T>(static_cast<T*>(this));
     }
-    mc::weak_ptr<T> weak_from_this() const {
+    mc::weak_ptr<T> weak_from_this() const
+    {
         return mc::weak_ptr<T>(static_cast<const T*>(this));
     }
-    mc::weak_ptr<T> weak_from_this() {
+    mc::weak_ptr<T> weak_from_this()
+    {
         return mc::weak_ptr<T>(static_cast<T*>(this));
     }
 };

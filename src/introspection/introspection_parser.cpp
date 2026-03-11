@@ -18,9 +18,10 @@
 
 namespace bp = boost::property_tree;
 
-void introspection_parser::parse_arg(const bp::ptree& pt, argument_info& arg) {
-    arg.type = pt.get<std::string>("<xmlattr>.type");
-    arg.name = pt.get<std::string>("<xmlattr>.name", "");
+void introspection_parser::parse_arg(const bp::ptree& pt, argument_info& arg)
+{
+    arg.type      = pt.get<std::string>("<xmlattr>.type");
+    arg.name      = pt.get<std::string>("<xmlattr>.name", "");
     arg.direction = pt.get<std::string>("<xmlattr>.direction", "");
 
     auto struct_type = pt.get_optional<std::string>("<xmlattr>.struct-type");
@@ -29,8 +30,9 @@ void introspection_parser::parse_arg(const bp::ptree& pt, argument_info& arg) {
     }
 }
 
-void introspection_parser::parse_method(const bp::ptree& pt, method_info& method) {
-    for(const auto& child : pt) {
+void introspection_parser::parse_method(const bp::ptree& pt, method_info& method)
+{
+    for (const auto& child : pt) {
         if (child.first == "arg") {
             argument_info arg;
             parse_arg(child.second, arg);
@@ -39,21 +41,23 @@ void introspection_parser::parse_method(const bp::ptree& pt, method_info& method
     }
 }
 
-void introspection_parser::parse_property(const bp::ptree& pt, property_info& prop) {
-    prop.type = pt.get<std::string>("<xmlattr>.type");
+void introspection_parser::parse_property(const bp::ptree& pt, property_info& prop)
+{
+    prop.type   = pt.get<std::string>("<xmlattr>.type");
     prop.access = pt.get<std::string>("<xmlattr>.access", "");
 
     // 读取 <annotation>
     for (const auto& child : pt) {
         if (child.first == "annotation") {
-            auto key = child.second.get<std::string>("<xmlattr>.name");
+            auto key   = child.second.get<std::string>("<xmlattr>.name");
             auto value = child.second.get<std::string>("<xmlattr>.value");
             prop.options.emplace(key, value);
         }
     }
 }
 
-void introspection_parser::parse_interface(const bp::ptree& pt, interface_info& iface) {
+void introspection_parser::parse_interface(const bp::ptree& pt, interface_info& iface)
+{
     for (const auto& child : pt) {
         if (child.first == "method") {
             method_info method;
@@ -72,7 +76,8 @@ void introspection_parser::parse_interface(const bp::ptree& pt, interface_info& 
 }
 
 /* ================================ 对外接口 ================================*/
-node_info introspection_parser::parse(const std::string& xml) {
+node_info introspection_parser::parse(const std::string& xml)
+{
     std::stringstream ss(xml);
     bp::ptree pt;
     bp::read_xml(ss, pt);

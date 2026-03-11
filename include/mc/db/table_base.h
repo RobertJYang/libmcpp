@@ -31,30 +31,36 @@ public:
     virtual size_t           size() const              = 0;
     virtual void             clear()                   = 0;
 
-    object_ptr add_object(const mc::dict& var, transaction* txn = nullptr) {
+    object_ptr add_object(const mc::dict& var, transaction* txn = nullptr)
+    {
         return do_add_object(var, txn);
     }
 
-    size_t remove_object(const query_builder& condition, transaction* txn = nullptr) {
+    size_t remove_object(const query_builder& condition, transaction* txn = nullptr)
+    {
         return do_remove_object(condition, txn);
     }
 
-    object_ptr find_object(const query_builder& condition) {
+    object_ptr find_object(const query_builder& condition)
+    {
         return do_find_object(condition);
     }
 
     using query_handler = std::function<bool(object_base&)>;
-    bool query_object(const query_builder& builder, query_handler&& handler) {
+    bool query_object(const query_builder& builder, query_handler&& handler)
+    {
         return do_query_object(builder, std::forward<query_handler>(handler));
     }
 
     size_t update_object(const query_builder& condition, const mc::dict& values,
-                         transaction* txn = nullptr) {
+                         transaction* txn = nullptr)
+    {
         return do_update_object(condition, values, txn);
     }
 
     size_t update_object(const query_builder&                  condition,
-                         const std::map<std::string, variant>& values, transaction* txn = nullptr) {
+                         const std::map<std::string, variant>& values, transaction* txn = nullptr)
+    {
         return do_update_object(condition, values, txn);
     }
 
@@ -95,7 +101,8 @@ public:
 
     virtual raw_iterator raw_begin() const = 0;
 
-    raw_iterator raw_end() const {
+    raw_iterator raw_end() const
+    {
         return raw_iterator();
     }
 

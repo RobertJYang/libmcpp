@@ -26,10 +26,12 @@ namespace test {
 
 class VariantVisitorTest : public mc::test::TestBase {
 protected:
-    void SetUp() override {
+    void SetUp() override
+    {
     }
 
-    void TearDown() override {
+    void TearDown() override
+    {
     }
 
     // 自定义访问者类
@@ -37,43 +39,53 @@ protected:
     public:
         mutable std::string result;
 
-        void handle() const override {
+        void handle() const override
+        {
             result = "null";
         }
 
-        void handle(const int64_t& value) const override {
+        void handle(const int64_t& value) const override
+        {
             result = "int64: " + std::to_string(value);
         }
 
-        void handle(const uint64_t& value) const override {
+        void handle(const uint64_t& value) const override
+        {
             result = "uint64: " + std::to_string(value);
         }
 
-        void handle(const double& value) const override {
+        void handle(const double& value) const override
+        {
             result = "double: " + std::to_string(value);
         }
 
-        void handle(const bool& value) const override {
+        void handle(const bool& value) const override
+        {
             result = value ? "bool: true" : "bool: false";
         }
 
-        void handle(const std::string& value) const override {
+        void handle(const std::string& value) const override
+        {
             result = "string: " + value;
         }
 
-        void handle(const dict& value) const override {
+        void handle(const dict& value) const override
+        {
             result = "dict: " + std::to_string(value.size()) + " items";
         }
 
-        void handle(const variants& value) const override {
+        void handle(const variants& value) const override
+        {
             result = "array: " + std::to_string(value.size()) + " items";
         }
 
-        void handle(const blob& value) const override {
+        void handle(const blob& value) const override
+        {
             result = "blob: " + std::to_string(value.data.size()) + " bytes";
         }
 
-        void handle(const variant_extension_base& value) const override {
+        void handle(const variant_extension_base& value) const override
+        {
             result = "extension: ";
             result += value.get_type_name();
         }
@@ -83,49 +95,56 @@ protected:
 /**
  * @brief 测试 visit 成员函数
  */
-TEST_F(VariantVisitorTest, VisitNull) {
+TEST_F(VariantVisitorTest, VisitNull)
+{
     variant     v; // null
     TestVisitor visitor;
     v.visit(visitor);
     EXPECT_EQ(visitor.result, "null");
 }
 
-TEST_F(VariantVisitorTest, VisitInt32) {
+TEST_F(VariantVisitorTest, VisitInt32)
+{
     variant     v(42); // int32
     TestVisitor visitor;
     v.visit(visitor);
     EXPECT_EQ(visitor.result, "int64: 42");
 }
 
-TEST_F(VariantVisitorTest, VisitUInt32) {
+TEST_F(VariantVisitorTest, VisitUInt32)
+{
     variant     v(42u); // uint32
     TestVisitor visitor;
     v.visit(visitor);
     EXPECT_EQ(visitor.result, "uint64: 42");
 }
 
-TEST_F(VariantVisitorTest, VisitDouble) {
+TEST_F(VariantVisitorTest, VisitDouble)
+{
     variant     v(3.14); // double
     TestVisitor visitor;
     v.visit(visitor);
     EXPECT_EQ(visitor.result, "double: 3.140000");
 }
 
-TEST_F(VariantVisitorTest, VisitBool) {
+TEST_F(VariantVisitorTest, VisitBool)
+{
     variant     v(true); // bool
     TestVisitor visitor;
     v.visit(visitor);
     EXPECT_EQ(visitor.result, "bool: true");
 }
 
-TEST_F(VariantVisitorTest, VisitString) {
+TEST_F(VariantVisitorTest, VisitString)
+{
     variant     v("hello"); // string
     TestVisitor visitor;
     v.visit(visitor);
     EXPECT_EQ(visitor.result, "string: hello");
 }
 
-TEST_F(VariantVisitorTest, VisitDict) {
+TEST_F(VariantVisitorTest, VisitDict)
+{
     dict md;
     md["key"]     = "value";
     dict        d = md;
@@ -135,7 +154,8 @@ TEST_F(VariantVisitorTest, VisitDict) {
     EXPECT_EQ(visitor.result, "dict: 1 items");
 }
 
-TEST_F(VariantVisitorTest, VisitArray) {
+TEST_F(VariantVisitorTest, VisitArray)
+{
     variants arr;
     arr.push_back(1);
     arr.push_back(2);
@@ -145,7 +165,8 @@ TEST_F(VariantVisitorTest, VisitArray) {
     EXPECT_EQ(visitor.result, "array: 2 items");
 }
 
-TEST_F(VariantVisitorTest, VisitBlob) {
+TEST_F(VariantVisitorTest, VisitBlob)
+{
     blob b;
     b.data = {'a', 'b', 'c'};
     variant     v(b); // blob
@@ -157,7 +178,8 @@ TEST_F(VariantVisitorTest, VisitBlob) {
 /**
  * @brief 测试 visit_with 函数
  */
-TEST_F(VariantVisitorTest, VisitWithNull) {
+TEST_F(VariantVisitorTest, VisitWithNull)
+{
     variant v; // null
     auto    result = v.visit_with([](std::nullptr_t) {
         return "null";
@@ -165,7 +187,8 @@ TEST_F(VariantVisitorTest, VisitWithNull) {
     EXPECT_EQ(result, "null");
 }
 
-TEST_F(VariantVisitorTest, VisitWithInt32) {
+TEST_F(VariantVisitorTest, VisitWithInt32)
+{
     variant v(42); // int32
     auto    result = v.visit_with([](int64_t value) -> std::string {
         return "int64: " + std::to_string(value);
@@ -173,7 +196,8 @@ TEST_F(VariantVisitorTest, VisitWithInt32) {
     EXPECT_EQ(result, "int64: 42");
 }
 
-TEST_F(VariantVisitorTest, VisitWithUInt32) {
+TEST_F(VariantVisitorTest, VisitWithUInt32)
+{
     variant v(42u); // uint32
     auto    result = v.visit_with([](uint64_t value) -> std::string {
         return "uint64: " + std::to_string(value);
@@ -181,7 +205,8 @@ TEST_F(VariantVisitorTest, VisitWithUInt32) {
     EXPECT_EQ(result, "uint64: 42");
 }
 
-TEST_F(VariantVisitorTest, VisitWithDouble) {
+TEST_F(VariantVisitorTest, VisitWithDouble)
+{
     variant v(3.14); // double
     auto    result = v.visit_with([](auto&& value) -> std::string {
         using T = std::decay_t<decltype(value)>;
@@ -194,7 +219,8 @@ TEST_F(VariantVisitorTest, VisitWithDouble) {
     EXPECT_EQ(result, "double: 3.140000");
 }
 
-TEST_F(VariantVisitorTest, VisitWithBool) {
+TEST_F(VariantVisitorTest, VisitWithBool)
+{
     variant v(true); // bool
     auto    result = v.visit_with([](bool value) -> std::string {
         return value ? "bool: true" : "bool: false";
@@ -202,7 +228,8 @@ TEST_F(VariantVisitorTest, VisitWithBool) {
     EXPECT_EQ(result, "bool: true");
 }
 
-TEST_F(VariantVisitorTest, VisitWithString) {
+TEST_F(VariantVisitorTest, VisitWithString)
+{
     variant v("hello"); // string
     auto    result = v.visit_with([](const std::string& value) -> std::string {
         return "string: " + value;
@@ -210,7 +237,8 @@ TEST_F(VariantVisitorTest, VisitWithString) {
     EXPECT_EQ(result, "string: hello");
 }
 
-TEST_F(VariantVisitorTest, VisitWithDict) {
+TEST_F(VariantVisitorTest, VisitWithDict)
+{
     dict md;
     md["key"] = "value";
     dict    d = md;
@@ -221,7 +249,8 @@ TEST_F(VariantVisitorTest, VisitWithDict) {
     EXPECT_EQ(result, "dict: 1 items");
 }
 
-TEST_F(VariantVisitorTest, VisitWithArray) {
+TEST_F(VariantVisitorTest, VisitWithArray)
+{
     variants arr;
     arr.push_back(1);
     arr.push_back(2);
@@ -232,7 +261,8 @@ TEST_F(VariantVisitorTest, VisitWithArray) {
     EXPECT_EQ(result, "array: 2 items");
 }
 
-TEST_F(VariantVisitorTest, VisitWithBlob) {
+TEST_F(VariantVisitorTest, VisitWithBlob)
+{
     blob b;
     b.data = {'a', 'b', 'c'};
     variant v(b); // blob
@@ -245,7 +275,8 @@ TEST_F(VariantVisitorTest, VisitWithBlob) {
 /**
  * @brief 测试全局 visit 函数
  */
-TEST_F(VariantVisitorTest, GlobalVisit) {
+TEST_F(VariantVisitorTest, GlobalVisit)
+{
     // 测试不同类型的 variant
     {
         variant v; // null
@@ -305,7 +336,8 @@ TEST_F(VariantVisitorTest, GlobalVisit) {
 /**
  * @brief 测试 visit_with 函数的返回值类型推导
  */
-TEST_F(VariantVisitorTest, VisitWithReturnType) {
+TEST_F(VariantVisitorTest, VisitWithReturnType)
+{
     // 测试返回不同类型的值
     {
         variant v(42); // int32

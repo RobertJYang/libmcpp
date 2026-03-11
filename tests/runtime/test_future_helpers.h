@@ -23,23 +23,29 @@ namespace mc::test::runtime {
 
 class future_flag {
 public:
-    future_flag() : m_state(std::make_shared<state>()) {
+    future_flag()
+        : m_state(std::make_shared<state>())
+    {
     }
 
-    void set() const {
+    void set() const
+    {
         if (!m_state->signaled.exchange(true, std::memory_order_acq_rel)) {
             m_state->promise.set_value();
         }
     }
 
     template <typename Rep, typename Period>
-    bool wait_for(const std::chrono::duration<Rep, Period>& timeout) const {
+    bool wait_for(const std::chrono::duration<Rep, Period>& timeout) const
+    {
         return m_state->future.wait_for(timeout) == std::future_status::ready;
     }
 
 private:
     struct state {
-        state() : future(promise.get_future().share()) {
+        state()
+            : future(promise.get_future().share())
+        {
         }
 
         std::promise<void>       promise;
@@ -52,30 +58,37 @@ private:
 
 class countdown_future {
 public:
-    explicit countdown_future(int target) : m_state(std::make_shared<state>(target)) {
+    explicit countdown_future(int target)
+        : m_state(std::make_shared<state>(target))
+    {
     }
 
-    void arrive() const {
+    void arrive() const
+    {
         if (m_state->remaining.fetch_sub(1, std::memory_order_acq_rel) <= 1) {
             m_state->flag.set();
         }
     }
 
     template <typename Rep, typename Period>
-    bool wait_for(const std::chrono::duration<Rep, Period>& timeout) const {
+    bool wait_for(const std::chrono::duration<Rep, Period>& timeout) const
+    {
         if (m_state->remaining.load(std::memory_order_acquire) <= 0) {
             m_state->flag.set();
         }
         return m_state->flag.wait_for(timeout);
     }
 
-    int remaining() const {
+    int remaining() const
+    {
         return std::max(0, m_state->remaining.load(std::memory_order_acquire));
     }
 
 private:
     struct state {
-        explicit state(int target) : remaining(target) {
+        explicit state(int target)
+            : remaining(target)
+        {
         }
 
         std::atomic<int> remaining;
@@ -88,4 +101,3 @@ private:
 } // namespace mc::test::runtime
 
 #endif // MC_TEST_RUNTIME_TEST_FUTURE_HELPERS_H
-

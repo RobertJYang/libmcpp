@@ -29,7 +29,8 @@ protected:
     static mc::dbus::sd_bus*    test_bus;
     static bool                 use_stub;
 
-    static void SetUpTestSuite() {
+    static void SetUpTestSuite()
+    {
         mc::test::TestBase::SetUpTestSuite();
 
         try {
@@ -53,14 +54,16 @@ protected:
         }
     }
 
-    static void TearDownTestSuite() {
+    static void TearDownTestSuite()
+    {
         delete test_bus;
         test_bus = nullptr;
 
         mc::test::TestBase::TearDownTestSuite();
     }
 
-    void SetUp() override {
+    void SetUp() override
+    {
         mc::test::TestBase::SetUp();
         // 不再跳过测试，即使使用 stub connection 也继续测试
     }
@@ -68,10 +71,11 @@ protected:
 
 mc::dbus::connection proxy_object_test::test_conn;
 mc::dbus::sd_bus*    proxy_object_test::test_bus = nullptr;
-bool                 proxy_object_test::use_stub  = false;
+bool                 proxy_object_test::use_stub = false;
 
 // 测试 proxy_object 构造函数（使用 raw pointer）
-TEST_F(proxy_object_test, constructor_with_raw_pointer) {
+TEST_F(proxy_object_test, constructor_with_raw_pointer)
+{
     // 创建简单的 interface_info
     interface_info iface_info;
 
@@ -84,7 +88,8 @@ TEST_F(proxy_object_test, constructor_with_raw_pointer) {
 }
 
 // 测试 proxy_object 构造函数（使用 unique_ptr）
-TEST_F(proxy_object_test, constructor_with_unique_ptr) {
+TEST_F(proxy_object_test, constructor_with_unique_ptr)
+{
     // 创建新的 sd_bus
     auto bus = std::make_unique<mc::dbus::sd_bus>(test_bus->get_connection(), false);
 
@@ -100,7 +105,8 @@ TEST_F(proxy_object_test, constructor_with_unique_ptr) {
 }
 
 // 测试 has_property 和 has_method（空接口）
-TEST_F(proxy_object_test, has_property_and_method_empty) {
+TEST_F(proxy_object_test, has_property_and_method_empty)
+{
     interface_info iface_info;
 
     proxy_object obj(test_bus, "org.test.Service", "/org/test/Path", "org.test.Interface", iface_info);
@@ -110,7 +116,8 @@ TEST_F(proxy_object_test, has_property_and_method_empty) {
 }
 
 // 测试 has_property 和 has_method（有属性和方法）
-TEST_F(proxy_object_test, has_property_and_method_with_data) {
+TEST_F(proxy_object_test, has_property_and_method_with_data)
+{
     interface_info iface_info;
 
     // 添加属性
@@ -134,7 +141,8 @@ TEST_F(proxy_object_test, has_property_and_method_with_data) {
 }
 
 // 测试 get_property_info 和 get_method_info
-TEST_F(proxy_object_test, get_property_and_method_info) {
+TEST_F(proxy_object_test, get_property_and_method_info)
+{
     interface_info iface_info;
 
     // 添加属性
@@ -167,7 +175,8 @@ TEST_F(proxy_object_test, get_property_and_method_info) {
 }
 
 // 测试 get_interface_info
-TEST_F(proxy_object_test, get_interface_info) {
+TEST_F(proxy_object_test, get_interface_info)
+{
     interface_info iface_info;
 
     proxy_object obj(test_bus, "org.test.Service", "/org/test/Path", "org.test.Interface", iface_info);
@@ -180,7 +189,8 @@ TEST_F(proxy_object_test, get_interface_info) {
 }
 
 // 测试 bus() 方法
-TEST_F(proxy_object_test, bus_method) {
+TEST_F(proxy_object_test, bus_method)
+{
     interface_info iface_info;
 
     proxy_object obj(test_bus, "org.test.Service", "/org/test/Path", "org.test.Interface", iface_info);

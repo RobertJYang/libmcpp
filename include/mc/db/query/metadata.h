@@ -69,7 +69,8 @@ public:
      * 添加索引元数据
      * @param metadata 要添加的索引元数据
      */
-    void add_index(const index_metadata& metadata) {
+    void add_index(const index_metadata& metadata)
+    {
         auto& md = m_indices.emplace_back(std::make_unique<index_metadata>(metadata));
 
         for (const auto& field_names : md->field_names) {
@@ -82,7 +83,8 @@ public:
      * @param field_name 字段名
      * @return 是否有非唯一索引
      */
-    bool has_non_unique_index(std::string_view field_name) const {
+    bool has_non_unique_index(std::string_view field_name) const
+    {
         auto it = m_field_to_indices.find(field_name);
         if (it == m_field_to_indices.end()) {
             return false;
@@ -102,7 +104,8 @@ public:
      * @param prefer_unique 是否优先选择唯一索引
      * @return 索引ID，如果没有找到则返回-1
      */
-    int find_best_index_id(std::string_view field_name, bool prefer_unique = true) const {
+    int find_best_index_id(std::string_view field_name, bool prefer_unique = true) const
+    {
         auto it = m_field_to_indices.find(field_name);
         if (it == m_field_to_indices.end()) {
             return -1;
@@ -131,7 +134,8 @@ public:
      * 获取所有索引元数据
      * @return 索引元数据列表
      */
-    const index_metadata_list& get_all_indices() const {
+    const index_metadata_list& get_all_indices() const
+    {
         return m_indices;
     }
 
@@ -140,7 +144,8 @@ public:
      * @param index_id 索引ID
      * @return 索引元数据指针，如果不存在则返回nullptr
      */
-    const index_metadata* get_index_by_id(size_t index_id) const {
+    const index_metadata* get_index_by_id(size_t index_id) const
+    {
         if (index_id < m_indices.size()) {
             return m_indices[index_id].get();
         }
@@ -164,7 +169,8 @@ namespace detail {
  * @return 索引元数据
  */
 template <typename T, typename Indices, size_t I>
-index_metadata extract_index_metadata_from_tuple() {
+index_metadata extract_index_metadata_from_tuple()
+{
     // 静态断言确保T是反射类型
     static_assert(mc::reflect::is_reflectable<T>(), "T必须是反射类型(使用MC_REFLECT宏定义)");
 
@@ -225,7 +231,8 @@ index_metadata extract_index_metadata_from_tuple() {
  * 递归从索引元组中提取所有索引的元数据
  */
 template <typename T, typename Indices, size_t I = 0, size_t N = std::tuple_size_v<Indices>>
-void extract_all_indices_metadata(table_index_metadata<T>& metadata) {
+void extract_all_indices_metadata(table_index_metadata<T>& metadata)
+{
     if constexpr (I < N) {
         auto index_meta = extract_index_metadata_from_tuple<T, Indices, I>();
         metadata.add_index(index_meta);
@@ -241,7 +248,8 @@ void extract_all_indices_metadata(table_index_metadata<T>& metadata) {
  * @return 表索引元数据
  */
 template <typename TableType>
-auto build_table_metadata() {
+auto build_table_metadata()
+{
     using object_type        = typename TableType::object_type;
     using indices_tuple_type = typename TableType::indices_tuple_type;
 

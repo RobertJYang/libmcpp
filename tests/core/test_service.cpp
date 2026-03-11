@@ -23,18 +23,21 @@ class test_service_base : public mc::core::service_base {
 public:
     using service_base::service_base;
 
-    void set_state_public(mc::core::service_state state) {
+    void set_state_public(mc::core::service_state state)
+    {
         set_state(state);
     }
 
-    void set_dependencies_public(const std::vector<std::string>& deps) {
+    void set_dependencies_public(const std::vector<std::string>& deps)
+    {
         set_dependencies(deps);
     }
 };
 
 } // namespace
 
-TEST(service_base_test, default_initialization) {
+TEST(service_base_test, default_initialization)
+{
     test_service_base svc;
     EXPECT_EQ(svc.name(), "");
     EXPECT_EQ(svc.get_state(), mc::core::service_state::stopped);
@@ -45,7 +48,8 @@ TEST(service_base_test, default_initialization) {
     EXPECT_EQ(&config_ref1, &config_ref2);
 }
 
-TEST(service_base_test, constructor_and_mutators) {
+TEST(service_base_test, constructor_and_mutators)
+{
     test_service_base svc("initial_name");
     EXPECT_EQ(svc.name(), "initial_name");
 
@@ -60,7 +64,8 @@ TEST(service_base_test, constructor_and_mutators) {
     EXPECT_EQ(svc.get_dependencies(), deps);
 }
 
-TEST(service_base_test, default_behavior_methods) {
+TEST(service_base_test, default_behavior_methods)
+{
     test_service_base svc;
 
     mc::dict args;

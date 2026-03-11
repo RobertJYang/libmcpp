@@ -19,7 +19,8 @@
 using namespace mc::fmt;
 
 // 基本浮点数格式化测试
-TEST(format_test, basic_formatting) {
+TEST(format_test, basic_formatting)
+{
     EXPECT_EQ(sformat("{}", 3.14159), "3.14159");
     EXPECT_EQ(sformat("{:.2f}", 3.14159), "3.14");
     EXPECT_EQ(sformat("{:.0f}", 3.14159), "3");
@@ -28,7 +29,8 @@ TEST(format_test, basic_formatting) {
 }
 
 // 对齐和填充测试
-TEST(format_test, alignment) {
+TEST(format_test, alignment)
+{
     EXPECT_EQ(sformat("{:10.2f}", 3.14), "      3.14");
     EXPECT_EQ(sformat("{:<10.2f}", 3.14), "3.14      ");
     EXPECT_EQ(sformat("{:^10.2f}", 3.14), "   3.14   ");
@@ -36,21 +38,24 @@ TEST(format_test, alignment) {
 }
 
 // 符号处理测试
-TEST(format_test, sign_handling) {
+TEST(format_test, sign_handling)
+{
     EXPECT_EQ(sformat("{:+f}; {:+f}", 3.14, -3.14), "+3.140000; -3.140000");
     EXPECT_EQ(sformat("{: f}; {: f}", 3.14, -3.14), " 3.140000; -3.140000");
     EXPECT_EQ(sformat("{:-f}; {:-f}", 3.14, -3.14), "3.140000; -3.140000");
 }
 
 // 特殊值测试
-TEST(format_test, special_values) {
+TEST(format_test, special_values)
+{
     EXPECT_EQ(sformat("{}", std::numeric_limits<double>::infinity()), "inf");
     EXPECT_EQ(sformat("{}", -std::numeric_limits<double>::infinity()), "-inf");
     EXPECT_EQ(sformat("{}", std::numeric_limits<double>::quiet_NaN()), "nan");
 }
 
 // 零填充测试
-TEST(format_test, zero_padding) {
+TEST(format_test, zero_padding)
+{
     EXPECT_EQ(sformat("{:03.2f}", -1.2), "-1.20");
     EXPECT_EQ(sformat("{:010.2f}", 3.14), "0000003.14");
     EXPECT_EQ(sformat("{:+010.2f}", 3.14), "+000003.14");
@@ -58,21 +63,24 @@ TEST(format_test, zero_padding) {
 }
 
 // 零填充和对齐组合测试
-TEST(format_test, zero_padding_with_alignment) {
+TEST(format_test, zero_padding_with_alignment)
+{
     EXPECT_EQ(sformat("{:<010.2f}", 3.14), "3.14      "); // 左对齐优先于零填充
     EXPECT_EQ(sformat("{:>010.2f}", 3.14), "      3.14"); // 右对齐时零填充不生效（与 std::sformat 一致）
     EXPECT_EQ(sformat("{:^010.2f}", 3.14), "   3.14   "); // 居中对齐优先于零填充
 }
 
 // 零填充需要保证符号位在最前面
-TEST(format_test, zero_padding_preserves_sign_column) {
+TEST(format_test, zero_padding_preserves_sign_column)
+{
     EXPECT_EQ(sformat("{:+06d}", 42), "+00042");
     EXPECT_EQ(sformat("{:+06d}", -42), "-00042");
     EXPECT_EQ(sformat("{: 06d}", 42), " 00042");
 }
 
 // 精度测试
-TEST(format_test, precision) {
+TEST(format_test, precision)
+{
     EXPECT_EQ(sformat("{:.1f}", 0.000000001), "0.0");
     EXPECT_EQ(sformat("{:.2f}", 0.099), "0.10");
     EXPECT_EQ(sformat("{:.0e}", 9.5), "1e+01");
@@ -80,7 +88,8 @@ TEST(format_test, precision) {
 }
 
 // 缺失精度或非法说明符时的回退与异常
-TEST(format_test, precision_missing_digits_fallback) {
+TEST(format_test, precision_missing_digits_fallback)
+{
     auto expect_safe_fallback = [](const std::string& actual, double value) {
         ASSERT_FALSE(actual.empty());
         if (actual.front() == '{') {
@@ -98,21 +107,24 @@ TEST(format_test, precision_missing_digits_fallback) {
 }
 
 // 舍入行为测试
-TEST(format_test, rounding_behavior) {
+TEST(format_test, rounding_behavior)
+{
     EXPECT_EQ(sformat("{:.2f}", 3.145), "3.15"); // 四舍五入到3.15
     EXPECT_EQ(sformat("{:.2f}", 3.144), "3.14"); // 四舍五入到3.14
     EXPECT_EQ(sformat("{:.1f}", 3.15), "3.1");   // 四舍五入到3.1
 }
 
 // 大数测试
-TEST(format_test, large_numbers) {
+TEST(format_test, large_numbers)
+{
     EXPECT_EQ(sformat("{:.2f}", 1234567.89), "1234567.89");
     EXPECT_EQ(sformat("{}", 123456789.0f), "123456792");   // float 精度限制
     EXPECT_EQ(sformat("{}", 1019666432.0f), "1019666432"); // float 精度限制
 }
 
 // 浮点数去除尾0和小数点的测试
-TEST(format_test, remove_trailing_zeros) {
+TEST(format_test, remove_trailing_zeros)
+{
     EXPECT_EQ(sformat("{:.0f}", 1.0), "1");
     EXPECT_EQ(sformat("{:.0e}", 1.0), "1e+00");
     EXPECT_EQ(sformat("{:.0E}", 1.0), "1E+00");
@@ -132,21 +144,24 @@ TEST(format_test, remove_trailing_zeros) {
 }
 
 // 综合格式化测试
-TEST(format_test, complex_formatting) {
+TEST(format_test, complex_formatting)
+{
     EXPECT_EQ(sformat("{:0.7f}:{:03}:{:+g}:{}:{}:{}",
                       1.234, 42, 3.13, "str", reinterpret_cast<void*>(1000), 'x'),
               "1.2340000:042:+3.13:str:0x3e8:x");
 }
 
 // 极值测试
-TEST(format_test, limits) {
+TEST(format_test, limits)
+{
     EXPECT_EQ(sformat("{:g}", std::numeric_limits<double>::max()).substr(0, 5), "1.797");
     EXPECT_EQ(sformat("{:g}", std::numeric_limits<double>::min()).substr(0, 5), "2.225");
     EXPECT_EQ(sformat("{:g}", std::numeric_limits<double>::denorm_min()).substr(0, 5), "4.940");
 }
 
 // nan/inf 组合测试
-TEST(format_test, nan_inf_combinations) {
+TEST(format_test, nan_inf_combinations)
+{
     double nan = std::numeric_limits<double>::quiet_NaN();
     double inf = std::numeric_limits<double>::infinity();
     EXPECT_EQ(sformat("{:+10f}", nan), "      +nan");
@@ -157,7 +172,8 @@ TEST(format_test, nan_inf_combinations) {
 }
 
 // 负零测试
-TEST(format_test, negative_zero) {
+TEST(format_test, negative_zero)
+{
     double neg_zero = -0.0;
     EXPECT_EQ(sformat("{}", neg_zero), "-0");
     EXPECT_EQ(sformat("{:+}", neg_zero), "-0");
@@ -165,55 +181,63 @@ TEST(format_test, negative_zero) {
 }
 
 // 科学计数法
-TEST(format_test, scientific) {
+TEST(format_test, scientific)
+{
     EXPECT_EQ(sformat("{:e}", 12345.0), "1.234500e+04");
     EXPECT_EQ(sformat("{:.2e}", 0.00123), "1.23e-03");
     EXPECT_EQ(sformat("{:E}", 0.00123), "1.230000E-03");
 }
 
 // 十六进制浮点
-TEST(format_test, hex_float) {
+TEST(format_test, hex_float)
+{
     EXPECT_EQ(sformat("{:a}", 16.5), "1.08p+4");   // 不包含 0x 前缀
     EXPECT_EQ(sformat("{:A}", -16.5), "-1.08P+4"); // 不包含 0X 前缀
 }
 
 // 默认格式下的极小数会进入科学计数路径
-TEST(format_test, default_scientific_for_tiny_values) {
+TEST(format_test, default_scientific_for_tiny_values)
+{
     EXPECT_EQ(sformat("{}", 0.00001), "1.000000e-05");
 }
 
 // alternate g 格式对零值需要补齐小数部分
-TEST(format_test, alternate_g_format_zero_padding) {
+TEST(format_test, alternate_g_format_zero_padding)
+{
     EXPECT_EQ(sformat("{:#.4g}", 0.0), "0.000");
 }
 
 // 十六进制浮点在 alternate 模式下依旧会去掉 iostream 生成的 0x
-TEST(format_test, hex_float_alternate_removes_prefix) {
+TEST(format_test, hex_float_alternate_removes_prefix)
+{
     EXPECT_EQ(sformat("{:+#a}", 16.5), "+1.08p+4");
 }
 
 // 字符串精度配合居中对齐覆盖 string-specific padding
-TEST(format_test, string_precision_with_alignment) {
+TEST(format_test, string_precision_with_alignment)
+{
     EXPECT_EQ(sformat("{:^6.3s}", "mcfmt"), " mcf  ");
 }
 
 // 动态宽度与精度
-TEST(format_test, dynamic_width_precision) {
+TEST(format_test, dynamic_width_precision)
+{
     EXPECT_EQ(sformat("{0:{1}.{2}f}", 1.23456, 8, 3), "   1.235");
     EXPECT_EQ(sformat("{0:.{1}f}", 1.23456, 2), "1.23");
     EXPECT_EQ(sformat("{0:{1}f}", 1.2, 6), "1.200000");
 }
 
-
 // 对齐与填充
-TEST(format_test, align_fill) {
+TEST(format_test, align_fill)
+{
     EXPECT_EQ(sformat("{:>8.2f}", 1.2), "    1.20");
     EXPECT_EQ(sformat("{:*<8.1f}", 1.2), "1.2*****");
     EXPECT_EQ(sformat("{:^10.3f}", 1.234), "  1.234   "); // 修正居中对齐
 }
 
 // 测试格式化字符串末尾的填充和对齐字符
-TEST(format_test, FormatSpecAlignmentAtStringEnd) {
+TEST(format_test, FormatSpecAlignmentAtStringEnd)
+{
     // 测试在字符串末尾使用填充和对齐字符
     // 例如 "{:*<}" 在字符串末尾
     EXPECT_EQ(sformat("{:*<}", 42), "42");
@@ -222,19 +246,22 @@ TEST(format_test, FormatSpecAlignmentAtStringEnd) {
 }
 
 // 非法格式符
-TEST(format_test, invalid_spec) {
+TEST(format_test, invalid_spec)
+{
     EXPECT_THROW(sformat_unsafe("{:.2d}", 1.23), mc::format_error);
     EXPECT_THROW(sformat_unsafe("{:z}", 1.23), mc::format_error);
     EXPECT_THROW(sformat_unsafe("{:q}", 1.23), mc::format_error);
 }
 
 // 组合场景
-TEST(format_test, multi_args) {
+TEST(format_test, multi_args)
+{
     EXPECT_EQ(sformat("{0:.2f}:{1:>6.1e}:{2}", 1.234, 1234.5, "ok"), "1.23:1.2e+03:ok");
 }
 
 // 没有参数
-TEST(format_test, no_args) {
+TEST(format_test, no_args)
+{
     EXPECT_TRUE(mc::fmt::detail::compile_check("abc")); // OK
     EXPECT_EQ(sformat("abc"), "abc");
 
@@ -242,7 +269,8 @@ TEST(format_test, no_args) {
 }
 
 // 整数格式化测试
-TEST(format_test, integer_format) {
+TEST(format_test, integer_format)
+{
     EXPECT_EQ(sformat("{}", 42), "42");
     EXPECT_EQ(sformat("{:d}", -42), "-42");
     EXPECT_EQ(sformat("{:b}", 10), "1010");
@@ -259,7 +287,8 @@ TEST(format_test, integer_format) {
 }
 
 // 测试大写二进制格式
-TEST(format_test, FormatIntegerUppercaseBinary) {
+TEST(format_test, FormatIntegerUppercaseBinary)
+{
     EXPECT_EQ(sformat("{:B}", 26), "11010");
     EXPECT_EQ(sformat("{:#B}", 26), "0B11010");
     EXPECT_EQ(sformat("{:B}", 0), "0");
@@ -267,7 +296,8 @@ TEST(format_test, FormatIntegerUppercaseBinary) {
 }
 
 // 不同整数类型的格式化测试
-TEST(format_test, integer_format_types) {
+TEST(format_test, integer_format_types)
+{
     using std::numeric_limits;
 
     // short
@@ -332,7 +362,8 @@ TEST(format_test, integer_format_types) {
 }
 
 // 字符串格式化测试
-TEST(format_test, string_format) {
+TEST(format_test, string_format)
+{
     EXPECT_EQ(sformat("{}", "hello"), "hello");
     EXPECT_EQ(sformat("{:>8}", "hi"), "      hi");
     EXPECT_EQ(sformat("{:<8}", "hi"), "hi      ");
@@ -346,7 +377,8 @@ TEST(format_test, string_format) {
 }
 
 // 指针格式化测试
-TEST(format_test, pointer_format) {
+TEST(format_test, pointer_format)
+{
     int   a = 123;
     void* p = &a;
     EXPECT_TRUE(sformat("{}", p).find("0x") == 0); // 以0x开头
@@ -356,7 +388,8 @@ TEST(format_test, pointer_format) {
 }
 
 // 指针在自定义填充/对齐下依旧遵守格式规则
-TEST(format_test, pointer_alignment_and_invalid_type) {
+TEST(format_test, pointer_alignment_and_invalid_type)
+{
     EXPECT_EQ(sformat("{:*^8p}", static_cast<void*>(nullptr)), "**0x0***");
     int   value = 0;
     void* ptr   = &value;
@@ -364,7 +397,8 @@ TEST(format_test, pointer_alignment_and_invalid_type) {
 }
 
 // 字符格式化测试
-TEST(format_test, char_format) {
+TEST(format_test, char_format)
+{
     EXPECT_EQ(sformat("{}", 'A'), "A");
     EXPECT_EQ(sformat("{:c}", 'B'), "B");
     EXPECT_EQ(sformat("{:>4c}", 'C'), "   C");
@@ -375,12 +409,14 @@ TEST(format_test, char_format) {
 }
 
 // 字符类型的非法格式说明符会触发运行时异常
-TEST(format_test, char_invalid_specifier_throws) {
+TEST(format_test, char_invalid_specifier_throws)
+{
     EXPECT_THROW(sformat_unsafe("{:s}", 'a'), mc::format_error);
 }
 
 // bool 类型格式化测试
-TEST(format_test, bool_format) {
+TEST(format_test, bool_format)
+{
     EXPECT_EQ(sformat("{}", true), "true");
     EXPECT_EQ(sformat("{}", false), "false");
     EXPECT_EQ(sformat("{:d}", true), "1");
@@ -397,7 +433,8 @@ TEST(format_test, bool_format) {
     EXPECT_EQ(sformat("{:d} {:d}", true, false), "1 0");
 }
 
-TEST(format_test, index_args) {
+TEST(format_test, index_args)
+{
     EXPECT_EQ(sformat("{0} {}", "first", "second"), "first second");
     EXPECT_EQ(sformat("{} {1}", "first", "second"), "first second");
 
@@ -411,7 +448,8 @@ TEST(format_test, index_args) {
               "first second third third");
 }
 
-TEST(format_test, runtim_error_handling) {
+TEST(format_test, runtim_error_handling)
+{
     bool invalid_fmt = MC_FORMAT_COMPILE_CHECK("{} { {}", 42, 3.14, "hello");
     EXPECT_FALSE(invalid_fmt);
 
@@ -425,7 +463,8 @@ TEST(format_test, runtim_error_handling) {
 }
 
 // 编译期检查测试
-TEST(format_test, compile_check) {
+TEST(format_test, compile_check)
+{
     // 测试基本的编译期检查
     bool valid_format = MC_FORMAT_COMPILE_CHECK(
         "{} {} {}",
@@ -469,7 +508,8 @@ TEST(format_test, compile_check) {
 
 // 测试 compile_format_arg::visit 方法
 // 注意：这个方法在编译期使用，通过格式化不同类型的参数来触发不同的分支
-TEST(format_test, FormatCompileArgVisit) {
+TEST(format_test, FormatCompileArgVisit)
+{
     // 通过格式化不同类型的参数来触发 compile_format_arg::visit 的不同分支
     // bool_type
     EXPECT_EQ(sformat("{}", true), "true");
@@ -508,7 +548,8 @@ TEST(format_test, FormatCompileArgVisit) {
 // 测试 direct_outputbuf::overflow EOF 处理
 // 注意：这个方法很难直接测试，因为它是 streambuf 的内部方法
 // 我们通过格式化操作来间接触发它
-TEST(format_test, FormatDirectOutputBufOverflowEof) {
+TEST(format_test, FormatDirectOutputBufOverflowEof)
+{
     // 通过格式化操作来间接测试 direct_outputbuf
     // EOF 分支很难直接触发，因为 streambuf 的 overflow 方法在正常格式化时不会收到 EOF
     // 这里主要验证格式化功能正常工作

@@ -56,59 +56,74 @@ application::impl::impl()
       m_service_factory(std::make_unique<service_factory>()),
       m_service_manager(std::make_unique<service_manager>()),
       m_config_manager(std::make_unique<config_manager>()),
-      m_supervisor_manager(std::make_unique<supervisor_manager>()) {
+      m_supervisor_manager(std::make_unique<supervisor_manager>())
+{
 }
 
-application& application::instance() {
+application& application::instance()
+{
     return singleton<application>::instance_with_creator([]() {
         return new application();
     });
 }
 
-void application::reset_for_test() {
+void application::reset_for_test()
+{
     mc::singleton<application>::reset_for_test();
 }
 
-application::application() : m_impl(std::make_unique<impl>()) {
+application::application()
+    : m_impl(std::make_unique<impl>())
+{
 }
 
-application::~application() {
+application::~application()
+{
     m_impl->cleanup();
 }
 
-void application::set_version(const std::string& version) {
+void application::set_version(const std::string& version)
+{
     m_impl->m_version = version;
 }
 
-const std::string& application::version() const {
+const std::string& application::version() const
+{
     return m_impl->m_version;
 }
 
-plugin_manager& application::get_plugin_manager() {
+plugin_manager& application::get_plugin_manager()
+{
     return *m_impl->m_plugin_manager;
 }
 
-service_factory& application::get_service_factory() {
+service_factory& application::get_service_factory()
+{
     return *m_impl->m_service_factory;
 }
 
-service_manager& application::get_service_manager() {
+service_manager& application::get_service_manager()
+{
     return *m_impl->m_service_manager;
 }
 
-config_manager& application::get_config_manager() {
+config_manager& application::get_config_manager()
+{
     return *m_impl->m_config_manager;
 }
 
-supervisor_manager& application::get_supervisor_manager() {
+supervisor_manager& application::get_supervisor_manager()
+{
     return *m_impl->m_supervisor_manager;
 }
 
-bool application::initialize() {
+bool application::initialize()
+{
     return m_impl->initialize();
 }
 
-bool application::impl::initialize() {
+bool application::impl::initialize()
+{
     if (!m_supervisor_manager->init()) {
         return false;
     }
@@ -120,11 +135,13 @@ bool application::impl::initialize() {
     return true;
 }
 
-bool application::initialize(int argc, char** argv) {
+bool application::initialize(int argc, char** argv)
+{
     return m_impl->initialize(argc, argv);
 }
 
-bool application::impl::initialize(int argc, char** argv) {
+bool application::impl::initialize(int argc, char** argv)
+{
     if (!m_config_manager->parse_command_line(argc, argv)) {
         return false;
     }
@@ -154,7 +171,8 @@ bool application::impl::initialize(int argc, char** argv) {
     return true;
 }
 
-bool application::impl::load_plugins(bool config_loaded) {
+bool application::impl::load_plugins(bool config_loaded)
+{
     if (config_loaded) {
         std::string plugin_dir = m_config_manager->get_plugin_dir();
         m_plugin_manager->set_plugin_dir(plugin_dir);
@@ -170,7 +188,8 @@ bool application::impl::load_plugins(bool config_loaded) {
     return true;
 }
 
-bool application::impl::initialize_supervisors(bool config_loaded) {
+bool application::impl::initialize_supervisors(bool config_loaded)
+{
     if (!config_loaded) {
         return true;
     }
@@ -189,7 +208,8 @@ bool application::impl::initialize_supervisors(bool config_loaded) {
     return m_supervisor_manager->initialize_from_configs(supervisor_configs);
 }
 
-bool application::impl::initialize_services(bool config_loaded) {
+bool application::impl::initialize_services(bool config_loaded)
+{
     const auto& services = m_config_manager->get_configs<config::service_config>();
 
     std::vector<std::string> service_names;
@@ -207,12 +227,14 @@ bool application::impl::initialize_services(bool config_loaded) {
                                                       *m_service_factory);
 }
 
-bool application::start() {
+bool application::start()
+{
     m_impl->start();
     return true;
 }
 
-void application::impl::start() {
+void application::impl::start()
+{
     if (m_running) {
         return;
     }
@@ -228,11 +250,13 @@ void application::impl::start() {
     m_stopped = false;
 }
 
-void application::exec() {
+void application::exec()
+{
     m_impl->exec();
 }
 
-void application::impl::exec() {
+void application::impl::exec()
+{
     ilog("start application, thread count: ${count}", ("count", m_thread_count));
 
     m_running     = true;
@@ -244,12 +268,14 @@ void application::impl::exec() {
     ilog("application stopped");
 }
 
-bool application::stop() {
+bool application::stop()
+{
     m_impl->stop();
     return true;
 }
 
-void application::impl::stop() {
+void application::impl::stop()
+{
     if (!m_running) {
         return;
     }
@@ -267,7 +293,8 @@ void application::impl::stop() {
     m_stopped = true;
 }
 
-void application::impl::cleanup() {
+void application::impl::cleanup()
+{
     if (!m_running) {
         return;
     }
@@ -291,11 +318,13 @@ void application::impl::cleanup() {
     m_config_manager.reset();
 }
 
-bool application::is_stopped() const {
+bool application::is_stopped() const
+{
     return m_impl->m_stopped;
 }
 
-void application::impl::stop_all_services() {
+void application::impl::stop_all_services()
+{
     if (m_service_manager) {
         m_service_manager->stop_services();
     }

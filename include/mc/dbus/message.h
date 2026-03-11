@@ -42,7 +42,7 @@ struct MC_API method_call_params {
     std::string_view interface;
     std::string_view method;
     std::string_view signature;
-    const variants& args;
+    const variants&  args;
 };
 
 /**
@@ -61,18 +61,21 @@ MC_API void ensure_container_max_length(const char* type_name, std::size_t size)
 MC_API void ensure_message_depth(std::size_t depth);
 
 template <typename T>
-void ensure_container_max_length(T& container) {
+void ensure_container_max_length(T& container)
+{
     ensure_container_max_length(mc::pretty_name<T>(), container.size());
 }
 
 template <typename T>
-inline const std::string& get_signature() {
+inline const std::string& get_signature()
+{
     return mc::reflect::get_signature<T>();
 }
 
 template <typename T>
 struct auto_dbus_free {
-    void operator()(T* v) const {
+    void operator()(T* v) const
+    {
         dbus_free(v);
     }
 };
@@ -510,7 +513,8 @@ struct MC_API message_reader {
     type_code current_type() const;
 
     template <typename T>
-    T as() const {
+    T as() const
+    {
         T v;
         *this >> v;
         return v;
@@ -630,13 +634,15 @@ struct MC_API message_writer {
     void write_path(std::string_view p, bool need_add_tail_zero = true) const;
 
     template <typename T>
-    const message_writer& append(const T& v) const {
+    const message_writer& append(const T& v) const
+    {
         *this << v;
         return *this;
     }
 
     template <typename F>
-    const message_writer& write_container(signature_iterator it, F&& v) {
+    const message_writer& write_container(signature_iterator it, F&& v)
+    {
         MC_ASSERT(it.is_container(), "not a container type: ${v}", ("v", it.str()));
 
         auto container_type = it.current_type_char();
@@ -663,7 +669,8 @@ struct MC_API message_writer {
 /* -------------------- 重载 operator>> -------------------- */
 
 template <typename T, std::enable_if_t<std::is_arithmetic_v<T>, int> = 0>
-const message_reader& operator>>(const message_reader& reader, T& v) {
+const message_reader& operator>>(const message_reader& reader, T& v)
+{
     reader.ensure_type(mc::reflect::first_type(get_signature<T>()));
 
     if constexpr (std::is_same_v<T, float>) {
@@ -693,7 +700,8 @@ MC_API const message_reader& operator>>(const message_reader& reader, mc::dict& 
 // 读取标准库类型
 
 template <typename T, bool UseEmplaceBack, bool IsContiguous, typename Container>
-const message_reader& read_array(const message_reader& reader, Container& v) {
+const message_reader& read_array(const message_reader& reader, Container& v)
+{
     reader.ensure_type(DBUS_TYPE_ARRAY);
 
     message_reader arr_reader;
@@ -724,22 +732,26 @@ const message_reader& read_array(const message_reader& reader, Container& v) {
 }
 
 template <typename T, typename Allocator>
-const message_reader& operator>>(const message_reader& reader, std::vector<T, Allocator>& v) {
+const message_reader& operator>>(const message_reader& reader, std::vector<T, Allocator>& v)
+{
     return read_array<T, true, true>(reader, v);
 }
 
 template <typename T, typename Allocator>
-const message_reader& operator>>(const message_reader& reader, std::list<T, Allocator>& v) {
+const message_reader& operator>>(const message_reader& reader, std::list<T, Allocator>& v)
+{
     return read_array<T, true, false>(reader, v);
 }
 
 template <typename T, typename Allocator>
-const message_reader& operator>>(const message_reader& reader, std::deque<T, Allocator>& v) {
+const message_reader& operator>>(const message_reader& reader, std::deque<T, Allocator>& v)
+{
     return read_array<T, true, false>(reader, v);
 }
 
 template <typename T, std::size_t N>
-const message_reader& operator>>(const message_reader& reader, std::array<T, N>& v) {
+const message_reader& operator>>(const message_reader& reader, std::array<T, N>& v)
+{
     reader.ensure_type(DBUS_TYPE_ARRAY);
 
     message_reader arr_reader;
@@ -768,23 +780,27 @@ const message_reader& operator>>(const message_reader& reader, std::array<T, N>&
 }
 
 template <typename T, typename Comp, typename Alloc>
-const message_reader& operator>>(const message_reader& reader, std::set<T, Comp, Alloc>& v) {
+const message_reader& operator>>(const message_reader& reader, std::set<T, Comp, Alloc>& v)
+{
     return read_array<T, false, false>(reader, v);
 }
 
 template <typename T, typename Hash, typename KeyEqual, typename Alloc>
 const message_reader& operator>>(const message_reader&                         reader,
-                                 std::unordered_set<T, Hash, KeyEqual, Alloc>& v) {
+                                 std::unordered_set<T, Hash, KeyEqual, Alloc>& v)
+{
     return read_array<T, false, false>(reader, v);
 }
 
 template <typename T, typename Comp, typename Alloc>
-const message_reader& operator>>(const message_reader& reader, std::multiset<T, Comp, Alloc>& v) {
+const message_reader& operator>>(const message_reader& reader, std::multiset<T, Comp, Alloc>& v)
+{
     return read_array<T, false, false>(reader, v);
 }
 
 template <typename T, typename U>
-const message_reader& operator>>(const message_reader& reader, std::pair<T, U>& v) {
+const message_reader& operator>>(const message_reader& reader, std::pair<T, U>& v)
+{
     message_reader sub_reader;
     sub_reader.recurse(reader);
     sub_reader >> v.first >> v.second;
@@ -793,7 +809,8 @@ const message_reader& operator>>(const message_reader& reader, std::pair<T, U>& 
 }
 
 template <typename T>
-const message_reader& operator>>(const message_reader& reader, std::optional<T>& v) {
+const message_reader& operator>>(const message_reader& reader, std::optional<T>& v)
+{
     // 用数组来表示可选值，数组空表示 nullopt，否则数组的第一个值是 optional 的值
     reader.ensure_type(DBUS_TYPE_ARRAY);
 
@@ -814,7 +831,8 @@ const message_reader& operator>>(const message_reader& reader, std::optional<T>&
 }
 
 template <typename... T>
-const message_reader& operator>>(const message_reader& reader, std::tuple<T...>& v) {
+const message_reader& operator>>(const message_reader& reader, std::tuple<T...>& v)
+{
     reader.ensure_type(DBUS_TYPE_STRUCT);
 
     message_reader sub_reader;
@@ -834,7 +852,8 @@ const message_reader& operator>>(const message_reader& reader, std::tuple<T...>&
 }
 
 template <typename K, typename V, typename Container>
-const message_reader& read_dict(const message_reader& reader, Container& v) {
+const message_reader& read_dict(const message_reader& reader, Container& v)
+{
     reader.ensure_type(DBUS_TYPE_ARRAY);
 
     message_reader sub_reader;
@@ -859,25 +878,29 @@ const message_reader& read_dict(const message_reader& reader, Container& v) {
 }
 
 template <typename K, typename V, typename Comp, typename Alloc>
-const message_reader& operator>>(const message_reader& reader, std::map<K, V, Comp, Alloc>& v) {
+const message_reader& operator>>(const message_reader& reader, std::map<K, V, Comp, Alloc>& v)
+{
     return read_dict<K, V>(reader, v);
 }
 
 template <typename K, typename V, typename Comp, typename Alloc>
 const message_reader& operator>>(const message_reader&             reader,
-                                 std::multimap<K, V, Comp, Alloc>& v) {
+                                 std::multimap<K, V, Comp, Alloc>& v)
+{
     return read_dict<K, V>(reader, v);
 }
 
 template <typename K, typename V, typename Hash, typename KeyEqual, typename Alloc>
 const message_reader& operator>>(const message_reader&                            reader,
-                                 std::unordered_map<K, V, Hash, KeyEqual, Alloc>& v) {
+                                 std::unordered_map<K, V, Hash, KeyEqual, Alloc>& v)
+{
     return read_dict<K, V>(reader, v);
 }
 
 // 读取反射类型，自动按照反射类型签名读取
 template <typename T, std::enable_if_t<mc::reflect::is_reflectable<T>(), int> = 0>
-const message_reader& operator>>(const message_reader& reader, T& v) {
+const message_reader& operator>>(const message_reader& reader, T& v)
+{
     reader.ensure_type(DBUS_TYPE_STRUCT);
 
     message_reader sub_reader;
@@ -897,7 +920,8 @@ const message_reader& operator>>(const message_reader& reader, T& v) {
 /* -------------------- 重载 operator<< -------------------- */
 
 template <typename T, std::enable_if_t<std::is_arithmetic_v<T>, int> = 0>
-const message_writer& operator<<(const message_writer& writer, T v) {
+const message_writer& operator<<(const message_writer& writer, T v)
+{
     if constexpr (std::is_same_v<T, bool>) {
         uint32_t b = v ? 1 : 0;
         dbus_message_iter_append_basic(&writer.m_iter, DBUS_TYPE_BOOLEAN, &b);
@@ -941,7 +965,8 @@ MC_API const message_writer& operator<<(const message_writer& writer, const std:
 // 写入标准库类型
 
 template <typename T, bool IsContiguous, typename Container>
-const message_writer& write_array(const message_writer& writer, const Container& v) {
+const message_writer& write_array(const message_writer& writer, const Container& v)
+{
     const std::string& sig = get_signature<T>();
 
     message_writer sub_writer(writer.m_iter, DBUS_TYPE_ARRAY, sig);
@@ -960,44 +985,52 @@ const message_writer& write_array(const message_writer& writer, const Container&
 }
 
 template <typename T, typename Allocator>
-const message_writer& operator<<(const message_writer& writer, const std::vector<T, Allocator>& v) {
+const message_writer& operator<<(const message_writer& writer, const std::vector<T, Allocator>& v)
+{
     return write_array<T, true>(writer, v);
 }
 
 template <typename T, typename Allocator>
-const message_writer& operator<<(const message_writer& writer, const std::list<T, Allocator>& v) {
+const message_writer& operator<<(const message_writer& writer, const std::list<T, Allocator>& v)
+{
     return write_array<T, false>(writer, v);
 }
 
 template <typename T, typename Allocator>
-const message_writer& operator<<(const message_writer& writer, const std::deque<T, Allocator>& v) {
+const message_writer& operator<<(const message_writer& writer, const std::deque<T, Allocator>& v)
+{
     return write_array<T, false>(writer, v);
 }
 
 template <typename T, typename Comp, typename Alloc>
-const message_writer& operator<<(const message_writer& writer, const std::set<T, Comp, Alloc>& v) {
+const message_writer& operator<<(const message_writer& writer, const std::set<T, Comp, Alloc>& v)
+{
     return write_array<T, false>(writer, v);
 }
 
 template <typename T, typename Hash, typename KeyEqual, typename Alloc>
 const message_writer& operator<<(const message_writer&                               writer,
-                                 const std::unordered_set<T, Hash, KeyEqual, Alloc>& v) {
+                                 const std::unordered_set<T, Hash, KeyEqual, Alloc>& v)
+{
     return write_array<T, false>(writer, v);
 }
 
 template <typename T, typename Comp, typename Alloc>
 const message_writer& operator<<(const message_writer&                writer,
-                                 const std::multiset<T, Comp, Alloc>& v) {
+                                 const std::multiset<T, Comp, Alloc>& v)
+{
     return write_array<T, false>(writer, v);
 }
 
 template <typename T, std::size_t N>
-const message_writer& operator<<(const message_writer& writer, const std::array<T, N>& v) {
+const message_writer& operator<<(const message_writer& writer, const std::array<T, N>& v)
+{
     return write_array<T, true>(writer, v);
 }
 
 template <typename T, typename U>
-const message_writer& operator<<(const message_writer& writer, const std::pair<T, U>& v) {
+const message_writer& operator<<(const message_writer& writer, const std::pair<T, U>& v)
+{
     message_writer sub_writer(writer.m_iter, DBUS_TYPE_STRUCT);
     sub_writer << v.first << v.second;
     sub_writer.close_container();
@@ -1005,7 +1038,8 @@ const message_writer& operator<<(const message_writer& writer, const std::pair<T
 }
 
 template <typename T>
-const message_writer& operator<<(const message_writer& writer, const std::optional<T>& v) {
+const message_writer& operator<<(const message_writer& writer, const std::optional<T>& v)
+{
     // 用数组来表示可选值，如果可选值有值，则写入一个值，否则写入一个空数组
     message_writer sub_writer(writer.m_iter, DBUS_TYPE_ARRAY, get_signature<T>());
     if (v.has_value()) {
@@ -1016,7 +1050,8 @@ const message_writer& operator<<(const message_writer& writer, const std::option
 }
 
 template <typename... T>
-const message_writer& operator<<(const message_writer& writer, const std::tuple<T...>& v) {
+const message_writer& operator<<(const message_writer& writer, const std::tuple<T...>& v)
+{
     message_writer sub_writer(writer.m_iter, DBUS_TYPE_STRUCT);
     mc::traits::tuple_for_each(v, [&](auto&& item) {
         sub_writer << item;
@@ -1026,7 +1061,8 @@ const message_writer& operator<<(const message_writer& writer, const std::tuple<
 }
 
 template <typename K, typename V, typename Container>
-const message_writer& write_dict(const message_writer& writer, const Container& v) {
+const message_writer& write_dict(const message_writer& writer, const Container& v)
+{
     ensure_container_max_length(v);
 
     auto           sig = get_signature<Container>();
@@ -1042,19 +1078,22 @@ const message_writer& write_dict(const message_writer& writer, const Container& 
 
 template <typename K, typename V, typename Comp, typename Alloc>
 const message_writer& operator<<(const message_writer&              writer,
-                                 const std::map<K, V, Comp, Alloc>& v) {
+                                 const std::map<K, V, Comp, Alloc>& v)
+{
     return write_dict<K, V>(writer, v);
 }
 
 template <typename K, typename V, typename Comp, typename Alloc>
 const message_writer& operator<<(const message_writer&                   writer,
-                                 const std::multimap<K, V, Comp, Alloc>& v) {
+                                 const std::multimap<K, V, Comp, Alloc>& v)
+{
     return write_dict<K, V>(writer, v);
 }
 
 template <typename K, typename V, typename Hash, typename KeyEqual, typename Alloc>
 const message_writer& operator<<(const message_writer&                                  writer,
-                                 const std::unordered_map<K, V, Hash, KeyEqual, Alloc>& v) {
+                                 const std::unordered_map<K, V, Hash, KeyEqual, Alloc>& v)
+{
     return write_dict<K, V>(writer, v);
 }
 namespace detail {
@@ -1092,7 +1131,8 @@ void variant_to_dbus_signature(signature& sig, const mc::variant& v);
 
 // 写入反射类型，自动按照反射类型签名写入
 template <typename T, std::enable_if_t<mc::reflect::is_reflectable<T>(), int> = 0>
-const message_writer& operator<<(const message_writer& writer, const T& v) {
+const message_writer& operator<<(const message_writer& writer, const T& v)
+{
     message_writer sub_writer(writer.m_iter, DBUS_TYPE_STRUCT);
 
     mc::traits::tuple_for_each(mc::reflect::get_static_properties<T>(), [&](auto* item) {
@@ -1110,12 +1150,14 @@ const message_writer& operator<<(const message_writer& writer, const T& v) {
 }
 
 template <typename T>
-T message::as() const {
+T message::as() const
+{
     return reader().as<T>();
 }
 
 template <typename T>
-void message::from(const T& v) {
+void message::from(const T& v)
+{
     writer() << v;
 }
 

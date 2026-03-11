@@ -16,41 +16,50 @@
 namespace mc::db {
 
 db_resource::db_resource()
-    : m_savepoint_id(-1), m_next(nullptr), m_is_head(false), m_is_valid(true) {
+    : m_savepoint_id(-1), m_next(nullptr), m_is_head(false), m_is_valid(true)
+{
 }
 
 // 事务保存点实现
-savepoint::savepoint(transaction* txn) : m_txn(txn) {
+savepoint::savepoint(transaction* txn)
+    : m_txn(txn)
+{
 }
 
-bool savepoint::commit() {
+bool savepoint::commit()
+{
     return true;
 }
 
-bool savepoint::rollback() {
+bool savepoint::rollback()
+{
     if (m_txn) {
         m_txn->rollback_to(*this);
     }
     return true;
 }
 
-uint64_t savepoint::resource_id() const {
+uint64_t savepoint::resource_id() const
+{
     return 0;
 }
 
 // 数据库事务实现
 transaction::transaction()
     : m_resource_map(resource_map::bucket_traits(m_buckets, MC_DICT_BUCKET_COUNT), resource_hash(), resource_equal()),
-      m_current_savepoint_id(-1) {
+      m_current_savepoint_id(-1)
+{
 }
 
-transaction::~transaction() {
+transaction::~transaction()
+{
     if (!m_resources.empty()) {
         rollback();
     }
 }
 
-savepoint& transaction::alloc_savepoint() {
+savepoint& transaction::alloc_savepoint()
+{
     // 增加保存点ID计数
     m_current_savepoint_id++;
 
@@ -63,7 +72,8 @@ savepoint& transaction::alloc_savepoint() {
     return *sp;
 }
 
-bool transaction::merge_back(int sp_id, db_resource& resource, db_resource* head) {
+bool transaction::merge_back(int sp_id, db_resource& resource, db_resource* head)
+{
     if (!head) {
         return false;
     }
@@ -92,7 +102,8 @@ bool transaction::merge_back(int sp_id, db_resource& resource, db_resource* head
     return true;
 }
 
-void transaction::add_resource(std::shared_ptr<db_resource> resource) {
+void transaction::add_resource(std::shared_ptr<db_resource> resource)
+{
     uint64_t resource_id = resource->resource_id();
     auto     last_sp_id  = last_savepoint_id();
     if (resource_id == 0) {
@@ -136,7 +147,8 @@ void transaction::add_resource(std::shared_ptr<db_resource> resource) {
     m_resources.push_back(std::move(resource));
 }
 
-void transaction::commit() {
+void transaction::commit()
+{
     // 按正向顺序提交所有资源
     for (auto& resource : m_resources) {
         if (resource->m_is_valid) {
@@ -152,7 +164,8 @@ void transaction::commit() {
     m_current_savepoint_id = -1;
 }
 
-void transaction::rollback() {
+void transaction::rollback()
+{
     // 按反向顺序回滚所有资源
     for (auto it = m_resources.rbegin(); it != m_resources.rend(); ++it) {
         (*it)->rollback();
@@ -166,7 +179,8 @@ void transaction::rollback() {
     m_current_savepoint_id = -1;
 }
 
-void transaction::rollback_to(const savepoint& sp) {
+void transaction::rollback_to(const savepoint& sp)
+{
     // 指定位置之后的资源全部回滚（逆序）
     auto res_it = m_resources.end();
     for (auto it = m_resources.rbegin(); it != m_resources.rend(); ++it) {
@@ -189,7 +203,8 @@ void transaction::rollback_to(const savepoint& sp) {
     m_resources.erase(res_it, m_resources.end());
 }
 
-void transaction::rollback_back(int sp_id, uint64_t resource_id, db_resource& resource) {
+void transaction::rollback_back(int sp_id, uint64_t resource_id, db_resource& resource)
+{
     // 查找对应资源ID的头节点
     auto it = m_resource_map.find(resource_id, m_resource_map.hash_function(), m_resource_map.key_eq());
     if (it == m_resource_map.end()) {
@@ -221,28 +236,34 @@ void transaction::rollback_back(int sp_id, uint64_t resource_id, db_resource& re
     }
 }
 
-int32_t transaction::last_savepoint_id() const {
+int32_t transaction::last_savepoint_id() const
+{
     return m_current_savepoint_id;
 }
 
-uint32_t transaction::alloc_table_id() {
+uint32_t transaction::alloc_table_id()
+{
     static std::atomic<uint32_t> table_id = 0;
     return ++table_id;
 }
 
-size_t transaction::get_resource_count() const {
+size_t transaction::get_resource_count() const
+{
     return m_resources.size();
 }
 
-size_t transaction::get_resource_map_size() const {
+size_t transaction::get_resource_map_size() const
+{
     return m_resource_map.size();
 }
 
-bool transaction::has_resource(uint64_t resource_id) const {
+bool transaction::has_resource(uint64_t resource_id) const
+{
     return m_resource_map.find(resource_id, m_resource_map.hash_function(), m_resource_map.key_eq()) != m_resource_map.end();
 }
 
-size_t transaction::get_resource_chain_length(uint64_t resource_id) const {
+size_t transaction::get_resource_chain_length(uint64_t resource_id) const
+{
     auto it = m_resource_map.find(resource_id, m_resource_map.hash_function(), m_resource_map.key_eq());
     if (it == m_resource_map.end()) {
         return 0;

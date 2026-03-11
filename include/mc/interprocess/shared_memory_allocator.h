@@ -75,7 +75,8 @@ public:
      * @return 分配的内存指针，如果分配失败返回nullptr
      */
     template <typename T>
-    T* allocate() {
+    T* allocate()
+    {
         return static_cast<T*>(allocate(sizeof(T)));
     }
 
@@ -86,7 +87,8 @@ public:
      * @return 分配的内存指针，如果分配失败返回nullptr
      */
     template <typename T>
-    T* allocate_array(size_t n) {
+    T* allocate_array(size_t n)
+    {
         return static_cast<T*>(allocate(sizeof(T) * n));
     }
 
@@ -96,7 +98,8 @@ public:
      * @param ptr 要释放的内存指针
      */
     template <typename T>
-    void deallocate(T* ptr) {
+    void deallocate(T* ptr)
+    {
         deallocate(static_cast<void*>(ptr));
     }
 
@@ -109,7 +112,8 @@ public:
      * @return 构造的对象指针
      */
     template <typename T, typename... Args>
-    T* construct(void* ptr, Args&&... args) {
+    T* construct(void* ptr, Args&&... args)
+    {
         return new (ptr) T(std::forward<Args>(args)...);
     }
 
@@ -119,7 +123,8 @@ public:
      * @param ptr 对象指针
      */
     template <typename T>
-    void destroy(T* ptr) {
+    void destroy(T* ptr)
+    {
         if (ptr) {
             ptr->~T();
         }
@@ -133,7 +138,8 @@ public:
      * @return 构造的对象指针，如果分配失败返回nullptr
      */
     template <typename T, typename... Args>
-    T* create(Args&&... args) {
+    T* create(Args&&... args)
+    {
         void* mem = allocate(sizeof(T));
         if (!mem) {
             return nullptr;
@@ -149,7 +155,8 @@ public:
      * @note 仅支持默认构造的对象
      */
     template <typename T>
-    T* create_array(size_t n) {
+    T* create_array(size_t n)
+    {
         if (n == 0) {
             return nullptr;
         }
@@ -173,7 +180,8 @@ public:
      * @param ptr 对象指针
      */
     template <typename T>
-    void destroy_and_deallocate(T* ptr) {
+    void destroy_and_deallocate(T* ptr)
+    {
         if (ptr) {
             destroy(ptr);
             deallocate(ptr);
@@ -187,7 +195,8 @@ public:
      * @param n 元素数量
      */
     template <typename T>
-    void destroy_and_deallocate_array(T* ptr, size_t n) {
+    void destroy_and_deallocate_array(T* ptr, size_t n)
+    {
         if (ptr) {
             for (size_t i = 0; i < n; ++i) {
                 destroy(ptr + i);
@@ -259,7 +268,8 @@ public:
      * @param allocator 共享内存分配器
      */
     explicit shared_allocator(shared_memory_allocator& allocator)
-        : m_allocator(allocator) {
+        : m_allocator(allocator)
+    {
     }
 
     /**
@@ -274,7 +284,8 @@ public:
      */
     template <typename U>
     shared_allocator(const shared_allocator<U>& other)
-        : m_allocator(other.m_allocator) {
+        : m_allocator(other.m_allocator)
+    {
     }
 
     /**
@@ -282,7 +293,8 @@ public:
      * @param n 元素数量
      * @return 分配的内存指针
      */
-    pointer allocate(size_type n) {
+    pointer allocate(size_type n)
+    {
         return static_cast<pointer>(m_allocator.allocate(sizeof(T) * n));
     }
 
@@ -291,7 +303,8 @@ public:
      * @param p 内存指针
      * @param n 元素数量
      */
-    void deallocate(pointer p, size_type n) {
+    void deallocate(pointer p, size_type n)
+    {
         m_allocator.deallocate(p);
     }
 
@@ -303,7 +316,8 @@ public:
      * @param args 构造函数参数
      */
     template <typename U, typename... Args>
-    void construct(U* p, Args&&... args) {
+    void construct(U* p, Args&&... args)
+    {
         m_allocator.construct<U>(p, std::forward<Args>(args)...);
     }
 
@@ -313,7 +327,8 @@ public:
      * @param p 对象指针
      */
     template <typename U>
-    void destroy(U* p) {
+    void destroy(U* p)
+    {
         m_allocator.destroy(p);
     }
 
@@ -342,7 +357,8 @@ private:
  * @return 两个分配器是否相等
  */
 template <typename T, typename U>
-bool operator==(const shared_allocator<T>& lhs, const shared_allocator<U>& rhs) {
+bool operator==(const shared_allocator<T>& lhs, const shared_allocator<U>& rhs)
+{
     return &lhs.m_allocator == &rhs.m_allocator;
 }
 
@@ -355,7 +371,8 @@ bool operator==(const shared_allocator<T>& lhs, const shared_allocator<U>& rhs) 
  * @return 两个分配器是否不相等
  */
 template <typename T, typename U>
-bool operator!=(const shared_allocator<T>& lhs, const shared_allocator<U>& rhs) {
+bool operator!=(const shared_allocator<T>& lhs, const shared_allocator<U>& rhs)
+{
     return !(lhs == rhs);
 }
 

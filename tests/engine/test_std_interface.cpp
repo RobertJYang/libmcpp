@@ -28,11 +28,13 @@ class TestInterface1 : public mc::engine::interface<TestInterface1> {
 public:
     MC_INTERFACE("org.test.std.TestInterface1")
 
-    void set_value(int32_t value) {
+    void set_value(int32_t value)
+    {
         m_value = value;
     }
 
-    int32_t get_value() const {
+    int32_t get_value() const
+    {
         return m_value;
     }
 
@@ -61,7 +63,8 @@ class TestObject2 : public mc::engine::object<TestObject2> {
 public:
     MC_OBJECT(TestObject2, "TestObject", "Id/${Id}", (TestInterface2))
 
-    ~TestObject2() {
+    ~TestObject2()
+    {
     }
 
     TestInterface2 m_iface2;
@@ -71,19 +74,23 @@ class TestInterfaceA : public mc::engine::interface<TestInterfaceA> {
 public:
     MC_INTERFACE("org.openubmc.test_interface_a")
 
-    int32_t add(int32_t a, int32_t b) {
+    int32_t add(int32_t a, int32_t b)
+    {
         return a + b;
     }
 
-    void set_num(uint8_t num) {
+    void set_num(uint8_t num)
+    {
         m_num = num;
     }
 
-    void set_str(std::string str) {
+    void set_str(std::string str)
+    {
         m_str = str;
     }
 
-    std::tuple<uint8_t, std::string> get_num_and_str() {
+    std::tuple<uint8_t, std::string> get_num_and_str()
+    {
         return std::make_tuple(m_num.value(), m_str.value());
     }
 
@@ -95,7 +102,8 @@ class TestInterfaceB : public mc::engine::interface<TestInterfaceB> {
 public:
     MC_INTERFACE("org.openubmc.test_interface_b")
 
-    int32_t increment() {
+    int32_t increment()
+    {
         m_cnt.set_value(m_cnt.value() + 1);
         return m_cnt.value();
     }
@@ -108,7 +116,8 @@ class TestObjectA : public mc::engine::object<TestObjectA> {
 public:
     MC_OBJECT(TestObjectA, "TestObjectA", "/org/openubmc/test_object_a", (TestInterfaceA))
 
-    void init() {
+    void init()
+    {
         set_object_name("TestObjectA");
     }
 
@@ -120,7 +129,8 @@ class TestObjectB : public mc::engine::object<TestObjectB> {
 public:
     MC_OBJECT(TestObjectB, "TestObjectB", "/org/openubmc/test_object_b", (TestInterfaceB))
 
-    void init() {
+    void init()
+    {
         set_object_name("TestObjectB");
     }
 
@@ -138,7 +148,8 @@ class TestObjectC : public mc::engine::object<TestObjectC> {
 public:
     MC_OBJECT(TestObjectC, "TestObjectC", "/org/openubmc/test_object_c", (TestInterfaceC))
 
-    void init() {
+    void init()
+    {
         set_object_name("TestObjectC");
     }
 
@@ -147,17 +158,20 @@ public:
 
 struct test_service_1 : public mc::engine::service {
     test_service_1()
-        : mc::engine::service("org.openubmc.test_service_1") {
+        : mc::engine::service("org.openubmc.test_service_1")
+    {
     }
 
-    bool init(mc::dict args = {}) override {
+    bool init(mc::dict args = {}) override
+    {
         mc::dict args_mut(args);
         args_mut["service_path"] = "/org/openubmc/test_service_1";
         args_mut["service_name"] = "org.openubmc.test_service_1";
         return mc::engine::service::init(args_mut);
     }
 
-    bool start() override {
+    bool start() override
+    {
         if (!mc::engine::service::start()) {
             return false;
         }
@@ -172,13 +186,15 @@ struct test_service_1 : public mc::engine::service {
         return true;
     }
 
-    void init_obj_c() {
+    void init_obj_c()
+    {
         m_obj_c = mc::make_shared<TestObjectC>();
         m_obj_c->init();
         register_object(*m_obj_c);
     }
 
-    void remove_obj_c() {
+    void remove_obj_c()
+    {
         unregister_object(m_obj_c->get_object_path());
         m_obj_c.reset();
     }
@@ -189,10 +205,12 @@ struct test_service_1 : public mc::engine::service {
 
 struct test_service_2 : public mc::engine::service {
     test_service_2()
-        : mc::engine::service("org.openubmc.test_service_2") {
+        : mc::engine::service("org.openubmc.test_service_2")
+    {
     }
 
-    bool init(mc::dict args = {}) override {
+    bool init(mc::dict args = {}) override
+    {
 #if defined(ENABLE_CONAN_COMPILE) && ENABLE_CONAN_COMPILE == 1
 #else
         auto& ins = shm::shared_memory::get_instance();
@@ -204,7 +222,8 @@ struct test_service_2 : public mc::engine::service {
         return mc::engine::service::init(args_mut);
     }
 
-    bool start() override {
+    bool start() override
+    {
         if (!mc::engine::service::start()) {
             return false;
         }
@@ -254,7 +273,8 @@ template <typename Builder>
 mc::dbus::message wait_valid_reply(mc::dbus::connection& conn, Builder&& builder,
                                    mc::milliseconds timeout      = mc::milliseconds(2000),
                                    int              max_attempts = 5,
-                                   mc::milliseconds retry_delay  = mc::milliseconds(100)) {
+                                   mc::milliseconds retry_delay  = mc::milliseconds(100))
+{
     mc::dbus::message reply;
     for (int attempt = 0; attempt < max_attempts; ++attempt) {
         auto msg = builder();
@@ -275,10 +295,12 @@ protected:
     TestObject2*                child_obj2;
     TestObject2*                child_obj3;
 
-    ~std_interface_test() {
+    ~std_interface_test()
+    {
     }
 
-    static void SetUpTestSuite() {
+    static void SetUpTestSuite()
+    {
         mc::test::TestWithEngine::SetUpTestSuite();
 
         service_1 = new test_service_1();
@@ -294,7 +316,8 @@ protected:
         std::this_thread::sleep_for(std::chrono::milliseconds(200));
     }
 
-    static void TearDownTestSuite() {
+    static void TearDownTestSuite()
+    {
         // 等待所有测试的异步操作完成
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
@@ -329,7 +352,8 @@ protected:
         mc::test::TestWithEngine::TearDownTestSuite();
     }
 
-    void SetUp() override {
+    void SetUp() override
+    {
         mc::test::TestBase::SetUp();
 
         root                   = mc::make_shared<TestObject1>();
@@ -350,7 +374,8 @@ protected:
         child_obj3->set_owner(root.get());
     }
 
-    void TearDown() override {
+    void TearDown() override
+    {
         // 清理对象
         root.reset();
         child_obj2 = nullptr;
@@ -359,7 +384,8 @@ protected:
         mc::test::TestBase::TearDown();
     }
 
-    static mc::dict decode_introspect(const std::string& xml) {
+    static mc::dict decode_introspect(const std::string& xml)
+    {
         std::stringstream ss(xml);
         bp::ptree         pt;
 
@@ -379,7 +405,8 @@ protected:
         return object;
     }
 
-    static void get_interface(const bp::ptree& pt, mc::dict& object) {
+    static void get_interface(const bp::ptree& pt, mc::dict& object)
+    {
         auto name = pt.get<std::string>("<xmlattr>.name");
 
         mc::variants props;
@@ -406,7 +433,8 @@ protected:
         }
     }
 
-    static void get_method(const bp::ptree& pt, mc::variants& methods) {
+    static void get_method(const bp::ptree& pt, mc::variants& methods)
+    {
         auto name = pt.get<std::string>("<xmlattr>.name");
 
         mc::variants args;
@@ -418,7 +446,8 @@ protected:
         methods.push_back(mc::dict{{"name", name}, {"args", args}});
     }
 
-    static void get_arg(const bp::ptree& pt, mc::variants& method) {
+    static void get_arg(const bp::ptree& pt, mc::variants& method)
+    {
         auto     type      = pt.get<std::string>("<xmlattr>.type");
         auto     direction = pt.get<std::string>("<xmlattr>.direction", "");
         mc::dict arg       = {{"type", type}};
@@ -428,14 +457,16 @@ protected:
         method.push_back(arg);
     }
 
-    static void get_props(const bp::ptree& pt, mc::variants& props) {
+    static void get_props(const bp::ptree& pt, mc::variants& props)
+    {
         auto name   = pt.get<std::string>("<xmlattr>.name");
         auto type   = pt.get<std::string>("<xmlattr>.type");
         auto access = pt.get<std::string>("<xmlattr>.access", "");
         props.push_back(mc::dict{{"name", name}, {"type", type}, {"access", access}});
     }
 
-    static void get_signal(const bp::ptree& pt, mc::variants& signals) {
+    static void get_signal(const bp::ptree& pt, mc::variants& signals)
+    {
         auto name = pt.get<std::string>("<xmlattr>.name");
 
         mc::variants args;
@@ -448,7 +479,8 @@ protected:
     }
 };
 
-TEST_F(std_interface_test, test_properties) {
+TEST_F(std_interface_test, test_properties)
+{
     auto value = root->invoke("Get", mc::variants{"org.test.std.TestInterface1", "Value"},
                               properties_interface_name);
     EXPECT_EQ(value, 100);
@@ -470,7 +502,8 @@ TEST_F(std_interface_test, test_properties) {
     EXPECT_EQ(child_obj3->get_object_path(), "/org/test/TestObject/Id/00102");
 }
 
-TEST_F(std_interface_test, test_introspect) {
+TEST_F(std_interface_test, test_introspect)
+{
     auto xml = root->invoke("Introspect", mc::variants{}, introspectable_interface_name);
 
     /*
@@ -541,7 +574,8 @@ TEST_F(std_interface_test, test_introspect) {
                                 << expected.to_string();
 }
 
-TEST_F(std_interface_test, TestGetWithContext) {
+TEST_F(std_interface_test, TestGetWithContext)
+{
     std::map<std::string, std::string> ctx;
     std::this_thread::sleep_for(std::chrono::milliseconds(50));
     auto reply = wait_valid_reply(
@@ -572,7 +606,8 @@ TEST_F(std_interface_test, TestGetWithContext) {
     ASSERT_EQ(arr[2].as_uint8(), 3);
 }
 
-TEST_F(std_interface_test, TestSetWithContext) {
+TEST_F(std_interface_test, TestSetWithContext)
+{
     std::map<std::string, std::string> ctx;
     mc::variants                       arr;
     arr.push_back(4);
@@ -623,7 +658,8 @@ TEST_F(std_interface_test, TestSetWithContext) {
     ASSERT_EQ(reply_arr[2].as_uint8(), 6);
 }
 
-TEST_F(std_interface_test, PropertiesInterfaceWithoutObject) {
+TEST_F(std_interface_test, PropertiesInterfaceWithoutObject)
+{
     auto& props = properties_interface::get_instance();
     EXPECT_TRUE(props.get("org.openubmc.test_interface_a", "Num").is_null());
     auto all_props = props.get_all("org.openubmc.test_interface_a");
@@ -631,7 +667,8 @@ TEST_F(std_interface_test, PropertiesInterfaceWithoutObject) {
     EXPECT_NO_THROW(props.set("org.openubmc.test_interface_a", "Num", mc::variant(1)));
 }
 
-TEST_F(std_interface_test, PropertiesInterfaceSetAndCommonProperties) {
+TEST_F(std_interface_test, PropertiesInterfaceSetAndCommonProperties)
+{
     TestObjectA obj;
     obj.init();
     TestObjectA parent;
@@ -661,7 +698,8 @@ TEST_F(std_interface_test, PropertiesInterfaceSetAndCommonProperties) {
     EXPECT_EQ(obj.get_object_name(), "TestObjectA");
 }
 
-TEST_F(std_interface_test, CommonPropertiesContextHelpers) {
+TEST_F(std_interface_test, CommonPropertiesContextHelpers)
+{
     TestObjectA obj;
     obj.init();
     TestObjectA parent;
@@ -691,13 +729,15 @@ TEST_F(std_interface_test, CommonPropertiesContextHelpers) {
     EXPECT_EQ(common_props.get("ParentPath").as_string(), "/org/openubmc/test_parent");
 }
 
-TEST_F(std_interface_test, CommonPropertiesSetWithoutContextIsSafe) {
+TEST_F(std_interface_test, CommonPropertiesSetWithoutContextIsSafe)
+{
     // 无对象上下文时 set_with_context 应安全返回
     auto& common_props = mc::engine::common_properties_interface::get_instance();
     EXPECT_NO_THROW(common_props.set_with_context({}, "org.test.custom", "Any", mc::variant(1)));
 }
 
-TEST_F(std_interface_test, TestGetPrivateProperties) {
+TEST_F(std_interface_test, TestGetPrivateProperties)
+{
     auto reply = wait_valid_reply(test_conn, [&]() {
         auto msg =
             mc::dbus::message::new_method_call("org.openubmc.test_service_1", "/org/openubmc/test_object_a",
@@ -737,7 +777,8 @@ TEST_F(std_interface_test, TestGetPrivateProperties) {
     EXPECT_EQ(result, "[]");
 }
 
-TEST_F(std_interface_test, TestGetPropertyDetail) {
+TEST_F(std_interface_test, TestGetPropertyDetail)
+{
     std::string ref_source = R"({"ObjectName":"Event_CPUPresence","type":"local reference object"})";
     service_1->m_obj_a->set_property_ref_info("Str", ref_source, "org.openubmc.test_interface_a");
     auto reply = wait_valid_reply(test_conn, [&]() {
@@ -765,7 +806,8 @@ TEST_F(std_interface_test, TestGetPropertyDetail) {
     ASSERT_EQ(result, "[]");
 }
 
-TEST_F(std_interface_test, TestOverrideSetProperty) {
+TEST_F(std_interface_test, TestOverrideSetProperty)
+{
     std::string                        shm_value     = "";
     std::string                        changed_value = "";
     std::map<std::string, std::string> override_ctx;
@@ -860,7 +902,8 @@ TEST_F(std_interface_test, TestOverrideSetProperty) {
     EXPECT_EQ(get_with_context_result.as_string(), "value2");
 }
 
-TEST_F(std_interface_test, TestLocalSetPropertyWithOverrideValue) {
+TEST_F(std_interface_test, TestLocalSetPropertyWithOverrideValue)
+{
     uint8_t                            shm_value     = 0;
     uint8_t                            changed_value = 0;
     std::map<std::string, std::string> override_ctx;
@@ -923,7 +966,8 @@ TEST_F(std_interface_test, TestLocalSetPropertyWithOverrideValue) {
     EXPECT_EQ(service_1->m_obj_a->m_iface.m_num.value(), 103);
 }
 
-TEST_F(std_interface_test, TestNonExistentProperty) {
+TEST_F(std_interface_test, TestNonExistentProperty)
+{
     // ✅ 使用 wait_valid_reply_or_error：接受 method_return 或 error 作为有效回复
     // 但 NoReply 错误需要重试，其他错误直接返回
     auto wait_valid_reply_or_error = [&](auto&& builder, mc::milliseconds timeout = mc::milliseconds(3000)) {
@@ -1008,7 +1052,8 @@ TEST_F(std_interface_test, TestNonExistentProperty) {
               R"({"name":"org.freedesktop.DBus.Error.UnknownProperty","format":"Unknown property NonExistentProperty"})");
 }
 
-TEST_F(std_interface_test, TestNonExistentInterface) {
+TEST_F(std_interface_test, TestNonExistentInterface)
+{
     // ✅ 使用 wait_valid_reply_or_error：接受 method_return 或 error 作为有效回复
     // 但 NoReply 错误需要重试，其他错误直接返回
     auto wait_valid_reply_or_error = [&](auto&& builder, mc::milliseconds timeout = mc::milliseconds(3000)) {

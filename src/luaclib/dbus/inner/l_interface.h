@@ -31,7 +31,8 @@ constexpr const char* INTERFACE_METATABLE = "dbus.interface";
 
 class LDBusError : public DBusError {
 public:
-    LDBusError() {
+    LDBusError()
+    {
         dbus_error_init(this);
     }
     ~LDBusError()
@@ -46,11 +47,14 @@ public:
 };
 
 struct l_interface {
-    l_interface(std::string_view name) {
+    l_interface(std::string_view name)
+    {
         impl = mc::make_shared<dynamic_interface>(name);
     }
 
-    l_interface(mc::shared_ptr<dynamic_interface> intf) : impl(intf) {
+    l_interface(mc::shared_ptr<dynamic_interface> intf)
+        : impl(intf)
+    {
     }
 
     mc::shared_ptr<dynamic_interface> impl;
@@ -64,4 +68,3 @@ int new_interface_class(lua_State* L);
 } // namespace mc::dbus::lua
 
 #endif // MC_DBUS_L_INTERFACE_H;
-

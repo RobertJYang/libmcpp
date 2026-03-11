@@ -20,10 +20,12 @@ struct timer::timer_impl {
     using timer_type = mc::runtime::steady_timer;
 
     timer_impl(mc::runtime::thread_pool::executor_type executor)
-        : m_timer(executor) {
+        : m_timer(executor)
+    {
     }
 
-    ~timer_impl() {
+    ~timer_impl()
+    {
         m_timer.cancel();
     }
 
@@ -33,7 +35,8 @@ struct timer::timer_impl {
     timer_type m_timer;
 };
 
-void timer::timer_impl::start(mc::shared_ptr<timer> t) {
+void timer::timer_impl::start(mc::shared_ptr<timer> t)
+{
     m_is_cancelled = false;
     m_timer.expires_after(std::chrono::milliseconds(t->m_interval));
     m_timer.async_wait([this, t](const auto& ec) {
@@ -51,18 +54,23 @@ void timer::timer_impl::start(mc::shared_ptr<timer> t) {
     });
 }
 
-timer::timer(object* parent) : object(parent) {
+timer::timer(object* parent)
+    : object(parent)
+{
 }
 
-timer::~timer() {
+timer::~timer()
+{
     m_impl.reset();
 }
 
-mc::milliseconds timer::interval() const {
+mc::milliseconds timer::interval() const
+{
     return m_interval;
 }
 
-void timer::set_interval(mc::milliseconds msec) {
+void timer::set_interval(mc::milliseconds msec)
+{
     m_interval = msec;
     if (!check_active()) {
         return;
@@ -72,19 +80,23 @@ void timer::set_interval(mc::milliseconds msec) {
     m_impl->start(mc::static_pointer_cast<timer>(this->shared_from_this()));
 }
 
-bool timer::is_single_shot() const {
+bool timer::is_single_shot() const
+{
     return m_single_shot;
 }
 
-void timer::set_single_shot(bool single_shot) {
+void timer::set_single_shot(bool single_shot)
+{
     m_single_shot = single_shot;
 }
 
-bool timer::is_active() const {
+bool timer::is_active() const
+{
     return check_active();
 }
 
-bool timer::check_active() const {
+bool timer::check_active() const
+{
     if (!m_impl) {
         return false;
     }
@@ -92,7 +104,8 @@ bool timer::check_active() const {
     return m_impl->m_timer.expiry() > boost::asio::steady_timer::clock_type::now();
 }
 
-void timer::start(mc::milliseconds msec) {
+void timer::start(mc::milliseconds msec)
+{
     m_interval = msec;
     if (!m_impl) {
         m_impl = std::make_unique<timer_impl>(
@@ -103,7 +116,8 @@ void timer::start(mc::milliseconds msec) {
     m_impl->start(mc::static_pointer_cast<timer>(this->shared_from_this()));
 }
 
-void timer::stop() {
+void timer::stop()
+{
     if (!m_impl) {
         return;
     }
@@ -112,7 +126,8 @@ void timer::stop() {
     m_impl->m_is_cancelled = true;
 }
 
-timer_ptr timer::single_shot(mc::milliseconds msec, std::function<void()> functor) {
+timer_ptr timer::single_shot(mc::milliseconds msec, std::function<void()> functor)
+{
     if (!functor) {
         return {};
     }
@@ -121,7 +136,8 @@ timer_ptr timer::single_shot(mc::milliseconds msec, std::function<void()> functo
 }
 
 timer_ptr timer::single_shot(mc::milliseconds msec, object* context,
-                             std::function<void()> functor) {
+                             std::function<void()> functor)
+{
     if (!functor) {
         return {};
     }

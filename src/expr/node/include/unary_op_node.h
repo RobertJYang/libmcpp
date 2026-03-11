@@ -29,10 +29,12 @@ namespace mc::expr {
 class unary_op_node : public node {
 public:
     unary_op_node(operator_type op, node_ptr operand)
-        : m_operator(op), m_operand(std::move(operand)) {
+        : m_operator(op), m_operand(std::move(operand))
+    {
     }
 
-    node_type get_type() const override {
+    node_type get_type() const override
+    {
         return node_type::unary_op;
     }
 
@@ -40,11 +42,13 @@ public:
 
     std::string to_string() const override;
 
-    operator_type get_operator() const {
+    operator_type get_operator() const
+    {
         return m_operator;
     }
 
-    const node& get_operand() const {
+    const node& get_operand() const
+    {
         return *m_operand;
     }
 

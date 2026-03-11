@@ -34,7 +34,8 @@ namespace json {
 namespace test {
 
 // 基本类型编码测试
-TEST(JsonEncodeTest, BasicTypes) {
+TEST(JsonEncodeTest, BasicTypes)
+{
     // null值测试
     EXPECT_EQ(json_encode(variant()), "null");
     EXPECT_EQ(json_encode(variant(nullptr)), "null");
@@ -51,7 +52,8 @@ TEST(JsonEncodeTest, BasicTypes) {
 }
 
 // 数字类型编码测试
-TEST(JsonEncodeTest, NumberTypes) {
+TEST(JsonEncodeTest, NumberTypes)
+{
     // int8_t测试
     EXPECT_EQ(json_encode(variant(int8_t{0})), "0");
     EXPECT_EQ(json_encode(variant(int8_t{127})), "127");
@@ -89,7 +91,8 @@ TEST(JsonEncodeTest, NumberTypes) {
 }
 
 // 复合类型编码测试
-TEST(JsonEncodeTest, CompoundTypes) {
+TEST(JsonEncodeTest, CompoundTypes)
+{
     // 数组测试
     variants arr{variant(1), variant("test"), variant(true)};
     EXPECT_EQ(json_encode(variant(arr)), "[1,\"test\",true]");
@@ -107,7 +110,8 @@ TEST(JsonEncodeTest, CompoundTypes) {
 }
 
 // 编码选项测试
-TEST(JsonEncodeOptionsTest, PrettyPrint) {
+TEST(JsonEncodeOptionsTest, PrettyPrint)
+{
     // 创建测试数据
     dict obj{
         {"name", "张三"}, {"age", 30}, {"scores", variants{variant(85), variant(92), variant(78)}}};
@@ -311,7 +315,8 @@ TEST(JsonEncodeOptionsTest, PrettyPrint) {
 // }
 
 // 基本类型解码测试
-TEST(JsonDecodeTest, BasicTypes) {
+TEST(JsonDecodeTest, BasicTypes)
+{
     // null值测试
     EXPECT_TRUE(json_decode("null").is_null());
 
@@ -327,7 +332,8 @@ TEST(JsonDecodeTest, BasicTypes) {
 }
 
 // 数字类型解码测试
-TEST(JsonDecodeTest, NumberTypes) {
+TEST(JsonDecodeTest, NumberTypes)
+{
     // 整数类型自动选择测试
     EXPECT_TRUE((std::is_same_v<decltype(json_decode("0").as<int8_t>()), int8_t>));
     EXPECT_TRUE((std::is_same_v<decltype(json_decode("128").as<uint8_t>()), uint8_t>));
@@ -365,7 +371,8 @@ TEST(JsonDecodeTest, NumberTypes) {
 }
 
 // 复合类型解码测试
-TEST(JsonDecodeTest, CompoundTypes) {
+TEST(JsonDecodeTest, CompoundTypes)
+{
     // 数组测试
     variant arr = json_decode("[1,\"test\",true]");
     EXPECT_EQ(arr.get_array().size(), 3);
@@ -562,7 +569,8 @@ TEST(JsonDecodeTest, CompoundTypes) {
 // }
 
 // 错误处理测试
-TEST(JsonErrorTest, InvalidInput) {
+TEST(JsonErrorTest, InvalidInput)
+{
     // 无效的JSON格式
     EXPECT_THROW(json_decode(""), parse_error_exception);
     EXPECT_THROW(json_decode("{"), parse_error_exception);
@@ -585,7 +593,8 @@ TEST(JsonErrorTest, InvalidInput) {
 }
 
 // 字符串转义测试
-TEST(JsonStringTest, EscapeSequences) {
+TEST(JsonStringTest, EscapeSequences)
+{
     // 基本转义序列
     EXPECT_EQ(json_decode("\"\\\"\"").as<std::string>(), "\"");
     EXPECT_EQ(json_decode("\"\\\\\"").as<std::string>(), "\\");
@@ -608,7 +617,8 @@ TEST(JsonStringTest, EscapeSequences) {
 }
 
 // 空白字符处理测试
-TEST(JsonWhitespaceTest, WhitespaceHandling) {
+TEST(JsonWhitespaceTest, WhitespaceHandling)
+{
     // 前导和尾随空白
     EXPECT_EQ(json_decode(" 123 ").as<int8_t>(), 123);
     EXPECT_EQ(json_decode("\n\"test\"\t").as<std::string>(), "test");
@@ -620,7 +630,8 @@ TEST(JsonWhitespaceTest, WhitespaceHandling) {
 }
 
 // 中文字符串测试
-TEST(JsonChineseTest, ChineseCharacters) {
+TEST(JsonChineseTest, ChineseCharacters)
+{
     // 中文字符串编码
     EXPECT_EQ(json_encode(variant(std::string("你好，世界"))), "\"你好，世界\"");
 
@@ -639,7 +650,8 @@ TEST(JsonChineseTest, ChineseCharacters) {
 }
 
 // 编解码循环测试
-TEST(JsonRoundTripTest, EncodeDecode) {
+TEST(JsonRoundTripTest, EncodeDecode)
+{
     // 创建复杂的测试数据 - 使用初始化列表构造
     dict original{{"null_value", variant()},
                   {"bool_value", true},
@@ -668,7 +680,8 @@ TEST(JsonRoundTripTest, EncodeDecode) {
 }
 
 // 测试字符串转义序列编码
-TEST(JsonEncodeTest, StringEscapeSequences) {
+TEST(JsonEncodeTest, StringEscapeSequences)
+{
     std::string test_str = "test\"string\\with\nnewline\tand\bbackspace\fformfeed\rreturn";
     variant     v(test_str);
     std::string encoded = json_encode(v);
@@ -683,7 +696,8 @@ TEST(JsonEncodeTest, StringEscapeSequences) {
 }
 
 // 测试控制字符的 Unicode 转义
-TEST(JsonEncodeTest, ControlCharacterUnicodeEscape) {
+TEST(JsonEncodeTest, ControlCharacterUnicodeEscape)
+{
     std::string test_str;
     test_str += static_cast<char>(0x01); // 控制字符
     variant     v(test_str);
@@ -747,42 +761,48 @@ TEST(JsonEncodeTest, ControlCharacterUnicodeEscape) {
 // }
 
 // 测试无效的 Unicode 转义序列
-TEST(JsonDecodeTest, InvalidUnicodeEscape) {
-    EXPECT_THROW(json_decode("\"\\u123\""), parse_error_exception);      // 不完整的 Unicode
-    EXPECT_THROW(json_decode("\"\\u123x\""), parse_error_exception);     // 无效的十六进制字符
-    EXPECT_THROW(json_decode("\"\\u\""), parse_error_exception);          // 缺少数字
+TEST(JsonDecodeTest, InvalidUnicodeEscape)
+{
+    EXPECT_THROW(json_decode("\"\\u123\""), parse_error_exception);  // 不完整的 Unicode
+    EXPECT_THROW(json_decode("\"\\u123x\""), parse_error_exception); // 无效的十六进制字符
+    EXPECT_THROW(json_decode("\"\\u\""), parse_error_exception);     // 缺少数字
 }
 
 // 测试无效的转义序列
-TEST(JsonDecodeTest, InvalidEscapeSequence) {
-    EXPECT_THROW(json_decode("\"\\x\""), parse_error_exception);         // 无效的转义
+TEST(JsonDecodeTest, InvalidEscapeSequence)
+{
+    EXPECT_THROW(json_decode("\"\\x\""), parse_error_exception); // 无效的转义
 }
 
 // 测试无效的数字格式
-TEST(JsonDecodeTest, InvalidNumberFormat) {
-    EXPECT_THROW(json_decode("12.34.56"), parse_error_exception);        // 多个小数点
-    EXPECT_THROW(json_decode("1e"), parse_error_exception);               // 指数缺少数字
-    EXPECT_THROW(json_decode("."), parse_error_exception);                // 只有小数点
+TEST(JsonDecodeTest, InvalidNumberFormat)
+{
+    EXPECT_THROW(json_decode("12.34.56"), parse_error_exception); // 多个小数点
+    EXPECT_THROW(json_decode("1e"), parse_error_exception);       // 指数缺少数字
+    EXPECT_THROW(json_decode("."), parse_error_exception);        // 只有小数点
 }
 
 // 测试无效的 null/true/false 值
-TEST(JsonDecodeTest, InvalidBooleanAndNull) {
-    EXPECT_THROW(json_decode("nul"), parse_error_exception);              // 不完整的 null
-    EXPECT_THROW(json_decode("tru"), parse_error_exception);               // 不完整的 true
-    EXPECT_THROW(json_decode("fals"), parse_error_exception);             // 不完整的 false
+TEST(JsonDecodeTest, InvalidBooleanAndNull)
+{
+    EXPECT_THROW(json_decode("nul"), parse_error_exception);  // 不完整的 null
+    EXPECT_THROW(json_decode("tru"), parse_error_exception);  // 不完整的 true
+    EXPECT_THROW(json_decode("fals"), parse_error_exception); // 不完整的 false
 }
 
 // 测试数组元素分隔符错误
-TEST(JsonDecodeTest, ArrayElementSeparatorError) {
-    EXPECT_THROW(json_decode("[1 2]"), parse_error_exception);           // 缺少逗号
+TEST(JsonDecodeTest, ArrayElementSeparatorError)
+{
+    EXPECT_THROW(json_decode("[1 2]"), parse_error_exception); // 缺少逗号
     // EXPECT_THROW(json_decode("[1,]"), parse_error_exception);             // 尾随逗号
 }
 
 // 测试对象键值对分隔符错误
-TEST(JsonDecodeTest, ObjectKeyValueSeparatorError) {
-    EXPECT_THROW(json_decode("{\"key\"}"), parse_error_exception);       // 缺少冒号
-    EXPECT_THROW(json_decode("{\"key\":}"), parse_error_exception);       // 缺少值
-    EXPECT_THROW(json_decode("{key:1}"), parse_error_exception);          // 键不是字符串
+TEST(JsonDecodeTest, ObjectKeyValueSeparatorError)
+{
+    EXPECT_THROW(json_decode("{\"key\"}"), parse_error_exception);  // 缺少冒号
+    EXPECT_THROW(json_decode("{\"key\":}"), parse_error_exception); // 缺少值
+    EXPECT_THROW(json_decode("{key:1}"), parse_error_exception);    // 键不是字符串
 }
 
 // 测试无效的浮点数（非有限值）

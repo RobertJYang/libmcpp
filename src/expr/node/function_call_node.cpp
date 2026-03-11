@@ -17,7 +17,8 @@
 
 namespace mc::expr {
 
-mc::variant function_call_node::evaluate(const context_base& ctx) const {
+mc::variant function_call_node::evaluate(const context_base& ctx) const
+{
     if (!ctx.has_function(m_name)) {
         MC_THROW(invalid_arg_exception, "表达式求值错误: 未定义的函数 '${name}'", ("name", m_name));
     }
@@ -31,7 +32,8 @@ mc::variant function_call_node::evaluate(const context_base& ctx) const {
     return ctx.invoke(m_name, args);
 }
 
-std::string function_call_node::to_string() const {
+std::string function_call_node::to_string() const
+{
     std::string result = m_name + "(";
     for (size_t i = 0; i < m_args.size(); ++i) {
         if (i > 0) {
@@ -43,7 +45,8 @@ std::string function_call_node::to_string() const {
     return result;
 }
 
-node_ptr make_function_call(const std::string& name, node_ptrs args) {
+node_ptr make_function_call(const std::string& name, node_ptrs args)
+{
     return std::make_shared<function_call_node>(name, std::move(args));
 }
 

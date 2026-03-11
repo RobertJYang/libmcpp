@@ -52,7 +52,8 @@ static constexpr std::string_view k_module_ext = ".dylib";
 static constexpr std::string_view k_module_ext = ".so";
 #endif
 
-static std::string get_executable_path() {
+static std::string get_executable_path()
+{
     char path[PATH_MAX];
 #ifdef __APPLE__
     uint32_t size = PATH_MAX;
@@ -68,7 +69,8 @@ static std::string get_executable_path() {
     return "";
 }
 
-static std::string make_lib_name(std::string_view module_name) {
+static std::string make_lib_name(std::string_view module_name)
+{
     std::string lib_name;
     for (auto it = split_iterator(module_name, ".:"); it != split_iterator(); ++it) {
         if (!lib_name.empty()) {
@@ -80,19 +82,23 @@ static std::string make_lib_name(std::string_view module_name) {
     return lib_name;
 }
 
-static void unloadlib(void* lib) {
+static void unloadlib(void* lib)
+{
     dlclose(lib);
 }
 
-static void* loadlib(std::string_view path, bool glb = false) {
+static void* loadlib(std::string_view path, bool glb = false)
+{
     return dlopen(path.data(), RTLD_NOW | (glb ? RTLD_GLOBAL : RTLD_LOCAL));
 }
 
-static void* sym(void* lib, std::string_view sym) {
+static void* sym(void* lib, std::string_view sym)
+{
     return dlsym(lib, sym.data());
 }
 
-static bool is_readable_impl(std::string_view path) {
+static bool is_readable_impl(std::string_view path)
+{
     try {
         mc::filesystem::path fs_path(path);
         return mc::filesystem::exists(fs_path) && mc::filesystem::is_regular_file(fs_path);
@@ -101,7 +107,8 @@ static bool is_readable_impl(std::string_view path) {
     }
 }
 
-module_loader::module_loader() {
+module_loader::module_loader()
+{
     m_load_lib_func.unload      = unloadlib;
     m_load_lib_func.load        = loadlib;
     m_load_lib_func.sym         = sym;
@@ -133,7 +140,8 @@ module_loader::module_loader() {
 
 module_loader::~module_loader() = default;
 
-void module_loader::add_load_paths(const std::string& paths) {
+void module_loader::add_load_paths(const std::string& paths)
+{
     for (auto it = split_iterator(paths, MC_MODULE_PATH_SEP); it != split_iterator(); ++it) {
         auto path = mc::string::trim(*it);
         if (!path.empty()) {
@@ -142,7 +150,8 @@ void module_loader::add_load_paths(const std::string& paths) {
     }
 }
 
-void module_loader::add_load_path(const std::string& path) {
+void module_loader::add_load_path(const std::string& path)
+{
     if (path.find('?') == std::string::npos) {
         wlog("invalid module path: ${path}, need '?'", ("path", path));
         return;
@@ -156,7 +165,8 @@ void module_loader::add_load_path(const std::string& path) {
 }
 
 // 检查文件是否存在且可读
-bool module_loader::is_readable(const fs::path& path) const {
+bool module_loader::is_readable(const fs::path& path) const
+{
     try {
         return fs::exists(path) && fs::is_regular_file(path);
     } catch (const std::exception&) {
@@ -167,7 +177,8 @@ bool module_loader::is_readable(const fs::path& path) const {
 bool module_loader::load_path(const fs::path&    lib_path,
                               const std::string& export_name,
                               const std::string& template_path,
-                              load_callback      callback) const {
+                              load_callback      callback) const
+{
     // 构建完整路径
     std::string actual_path = template_path;
     mc::string::replace_all_inplace(actual_path, "?", lib_path.string());
@@ -223,7 +234,8 @@ bool module_loader::load_path(const fs::path&    lib_path,
 }
 
 bool module_loader::load_module(std::string_view module_name,
-                                load_callback    callback) const {
+                                load_callback    callback) const
+{
     fs::path    base_path;
     std::string export_name = make_lib_name(module_name);
 
@@ -246,26 +258,31 @@ bool module_loader::load_module(std::string_view module_name,
     return false;
 }
 
-void module_loader::add_search_path(std::string_view path) {
+void module_loader::add_search_path(std::string_view path)
+{
     auto it = std::find(m_search_paths.begin(), m_search_paths.end(), path);
     if (it == m_search_paths.end()) {
         m_search_paths.push_back(std::string(path));
     }
 }
 
-void module_loader::clear_search_paths() {
+void module_loader::clear_search_paths()
+{
     m_search_paths.clear();
 }
 
-const std::vector<std::string>& module_loader::search_paths() const {
+const std::vector<std::string>& module_loader::search_paths() const
+{
     return m_search_paths;
 }
 
-void module_loader::set_load_lib_func(load_lib_func_t func) {
+void module_loader::set_load_lib_func(load_lib_func_t func)
+{
     m_load_lib_func = func;
 }
 
-load_lib_func_t& module_loader::get_load_lib_func() {
+load_lib_func_t& module_loader::get_load_lib_func()
+{
     return m_load_lib_func;
 }
 

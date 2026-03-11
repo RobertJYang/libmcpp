@@ -29,14 +29,17 @@ using namespace mc::sync;
 
 class mutex_box_test : public ::testing::Test {
 protected:
-    void SetUp() override {
+    void SetUp() override
+    {
     }
-    void TearDown() override {
+    void TearDown() override
+    {
     }
 };
 
 // 测试基本的构造和析构
-TEST_F(mutex_box_test, basic_construction) {
+TEST_F(mutex_box_test, basic_construction)
+{
     // 默认构造
     mutex_box<int> sync_int;
     EXPECT_EQ(*sync_int.lock(), 0);
@@ -56,7 +59,8 @@ TEST_F(mutex_box_test, basic_construction) {
 }
 
 // 测试独占锁类型的互斥锁
-TEST_F(mutex_box_test, exclusive_mutex) {
+TEST_F(mutex_box_test, exclusive_mutex)
+{
     mutex_box<int, std::mutex> sync_data(0);
 
     // 测试基本锁定
@@ -76,7 +80,8 @@ TEST_F(mutex_box_test, exclusive_mutex) {
 }
 
 // 测试共享锁类型的互斥锁
-TEST_F(mutex_box_test, shared_mutex) {
+TEST_F(mutex_box_test, shared_mutex)
+{
     mutex_box<std::string, std::shared_mutex> sync_data("initial");
 
     // 测试写锁
@@ -109,7 +114,8 @@ TEST_F(mutex_box_test, shared_mutex) {
 }
 
 // 测试with_*lock函数
-TEST_F(mutex_box_test, with_lock_functions) {
+TEST_F(mutex_box_test, with_lock_functions)
+{
     mutex_box<int, std::shared_mutex> sync_data(10);
 
     // 测试with_wlock
@@ -141,7 +147,8 @@ TEST_F(mutex_box_test, with_lock_functions) {
 }
 
 // 测试作用域解锁
-TEST_F(mutex_box_test, scoped_unlock) {
+TEST_F(mutex_box_test, scoped_unlock)
+{
     mutex_box<int> sync_data(42);
 
     auto locked = sync_data.lock();
@@ -157,7 +164,8 @@ TEST_F(mutex_box_test, scoped_unlock) {
 }
 
 // 测试基本的超时互斥锁
-TEST_F(mutex_box_test, timeout_mutex_basic) {
+TEST_F(mutex_box_test, timeout_mutex_basic)
+{
     using timeout_mutex = mc::sync::shared_mutex;
     mutex_box<int, timeout_mutex> sync_data(0);
 
@@ -178,7 +186,8 @@ TEST_F(mutex_box_test, timeout_mutex_basic) {
 }
 
 // 测试数据操作
-TEST_F(mutex_box_test, data_operations) {
+TEST_F(mutex_box_test, data_operations)
+{
     mutex_box<std::vector<int>> sync_vec;
 
     // 测试拷贝
@@ -215,7 +224,8 @@ TEST_F(mutex_box_test, data_operations) {
 }
 
 // 测试赋值操作
-TEST_F(mutex_box_test, assignment_operations) {
+TEST_F(mutex_box_test, assignment_operations)
+{
     mutex_box<int> sync_int(42);
 
     // 测试从值赋值
@@ -238,7 +248,8 @@ TEST_F(mutex_box_test, assignment_operations) {
 }
 
 // 测试多线程访问
-TEST_F(mutex_box_test, multithreaded_access) {
+TEST_F(mutex_box_test, multithreaded_access)
+{
     mutex_box<int, std::shared_mutex> sync_counter(0);
     constexpr int                     num_threads           = 10;
     constexpr int                     increments_per_thread = 100;
@@ -270,7 +281,8 @@ TEST_F(mutex_box_test, multithreaded_access) {
 }
 
 // 测试不安全访问方法
-TEST_F(mutex_box_test, unsafe_access) {
+TEST_F(mutex_box_test, unsafe_access)
+{
     mutex_box<std::string> sync_str("test");
 
     // 测试不安全获取数据
@@ -290,7 +302,8 @@ TEST_F(mutex_box_test, unsafe_access) {
 }
 
 // 测试自定义互斥锁
-TEST_F(mutex_box_test, custom_mutex) {
+TEST_F(mutex_box_test, custom_mutex)
+{
     using custom_mutex = mc::shared_mutex;
     mutex_box<int, custom_mutex> sync_data(42);
 
@@ -310,7 +323,8 @@ TEST_F(mutex_box_test, custom_mutex) {
 }
 
 // 性能测试（轻量级）
-TEST_F(mutex_box_test, performance_light) {
+TEST_F(mutex_box_test, performance_light)
+{
     mutex_box<int, std::shared_mutex> sync_counter(0);
     constexpr int                     iterations = 1000;
 
@@ -346,7 +360,8 @@ TEST_F(mutex_box_test, performance_light) {
 }
 
 // 测试locked_ptr的各种操作
-TEST_F(mutex_box_test, locked_ptr_operations) {
+TEST_F(mutex_box_test, locked_ptr_operations)
+{
     mutex_box<std::vector<int>, std::shared_mutex> sync_vec;
 
     // 测试locked_ptr的基本操作
@@ -377,7 +392,8 @@ TEST_F(mutex_box_test, locked_ptr_operations) {
 }
 
 // 测试类型特性
-TEST_F(mutex_box_test, type_traits) {
+TEST_F(mutex_box_test, type_traits)
+{
     // 测试不同类型的 mutex_box 对象
     mutex_box<int, std::mutex>        unique_sync;
     mutex_box<int, std::shared_mutex> shared_sync;
@@ -413,7 +429,8 @@ TEST_F(mutex_box_test, type_traits) {
 /**
  * @brief 测试双对象锁定
  */
-TEST_F(mutex_box_test, lock_pair) {
+TEST_F(mutex_box_test, lock_pair)
+{
     mutex_box<int> box1(10);
     mutex_box<int> box2(20);
 
@@ -482,7 +499,8 @@ TEST_F(mutex_box_test, lock_pair) {
 /**
  * @brief 测试多对象锁定
  */
-TEST_F(mutex_box_test, lock_multiple) {
+TEST_F(mutex_box_test, lock_multiple)
+{
     mutex_box<int> box1(10);
     mutex_box<int> box2(20);
     mutex_box<int> box3(30);
@@ -527,7 +545,8 @@ TEST_F(mutex_box_test, lock_multiple) {
 /**
  * @brief 测试多对象锁定的复杂场景
  */
-TEST_F(mutex_box_test, lock_complex_scenarios) {
+TEST_F(mutex_box_test, lock_complex_scenarios)
+{
     mutex_box<std::string>      name_box("Alice");
     mutex_box<int>              age_box(25);
     mutex_box<double>           salary_box(50000.0);
@@ -599,7 +618,8 @@ TEST_F(mutex_box_test, lock_complex_scenarios) {
 /**
  * @brief 测试超时锁功能
  */
-TEST_F(mutex_box_test, timeout_lock_functions) {
+TEST_F(mutex_box_test, timeout_lock_functions)
+{
     using timeout_mutex = mc::sync::shared_mutex;
     mutex_box<int, timeout_mutex> sync_data(42);
 
@@ -620,8 +640,8 @@ TEST_F(mutex_box_test, timeout_lock_functions) {
 
     // 测试超时失败场景 - 多线程环境
     {
-        std::atomic<bool> reader_acquired{false};
-        std::atomic<bool> writer_timeout{false};
+        std::atomic<bool>              reader_acquired{false};
+        std::atomic<bool>              writer_timeout{false};
         mc::test::runtime::future_flag reader_ready;
         mc::test::runtime::future_flag release_flag;
 
@@ -668,7 +688,8 @@ TEST_F(mutex_box_test, timeout_lock_functions) {
 /**
  * @brief 测试升级锁功能
  */
-TEST_F(mutex_box_test, upgrade_lock_basic) {
+TEST_F(mutex_box_test, upgrade_lock_basic)
+{
     using upgrade_mutex = mc::sync::shared_mutex;
     mutex_box<int, upgrade_mutex> sync_data(42);
 
@@ -701,7 +722,8 @@ TEST_F(mutex_box_test, upgrade_lock_basic) {
 /**
  * @brief 测试升级锁升级为写锁
  */
-TEST_F(mutex_box_test, upgrade_lock_to_write) {
+TEST_F(mutex_box_test, upgrade_lock_to_write)
+{
     using upgrade_mutex = mc::shared_mutex;
     mutex_box<int, upgrade_mutex> sync_data(42);
 
@@ -742,7 +764,8 @@ TEST_F(mutex_box_test, upgrade_lock_to_write) {
 /**
  * @brief 测试锁降级功能
  */
-TEST_F(mutex_box_test, lock_downgrade) {
+TEST_F(mutex_box_test, lock_downgrade)
+{
     using upgrade_mutex = mc::sync::shared_mutex;
     mutex_box<int, upgrade_mutex> sync_data(42);
 
@@ -790,7 +813,8 @@ TEST_F(mutex_box_test, lock_downgrade) {
 /**
  * @brief 测试升级锁与读锁的并发
  */
-TEST_F(mutex_box_test, upgrade_lock_concurrency) {
+TEST_F(mutex_box_test, upgrade_lock_concurrency)
+{
     using upgrade_mutex = mc::sync::shared_mutex;
     mutex_box<int, upgrade_mutex> sync_data(42);
 
@@ -833,7 +857,8 @@ TEST_F(mutex_box_test, upgrade_lock_concurrency) {
 /**
  * @brief 测试升级锁超时功能
  */
-TEST_F(mutex_box_test, upgrade_lock_timeout) {
+TEST_F(mutex_box_test, upgrade_lock_timeout)
+{
     using upgrade_mutex = mc::sync::shared_mutex;
     mutex_box<int, upgrade_mutex> sync_data(42);
 
@@ -849,7 +874,8 @@ TEST_F(mutex_box_test, upgrade_lock_timeout) {
 /**
  * @brief 测试升级锁的 with_ulock 功能
  */
-TEST_F(mutex_box_test, upgrade_lock_with_functions) {
+TEST_F(mutex_box_test, upgrade_lock_with_functions)
+{
     using upgrade_mutex = mc::sync::shared_mutex;
     mutex_box<int, upgrade_mutex> sync_data(42);
 

@@ -49,7 +49,8 @@ public:
     template <typename Executor, std::enable_if_t<detail::is_executor_v<Executor>, int> = 0>
     explicit Promise(Executor&& executor);
     explicit Promise(any_promise&& future)
-        : any_promise(std::forward<any_promise>(future)) {
+        : any_promise(std::forward<any_promise>(future))
+    {
     }
 
     Promise(const Promise&)                = default;
@@ -65,11 +66,13 @@ public:
     // 设置值（void 类型：要求 0 个参数）
     template <typename... Args,
               std::enable_if_t<std::is_void_v<T> && sizeof...(Args) == 0, int> = 0>
-    void set_value(Args&&...) {
+    void set_value(Args&&...)
+    {
         any_promise::set_value();
     }
 
-    bool set_state_value(const state_type& state) {
+    bool set_state_value(const state_type& state)
+    {
         if (!state.is_ready()) {
             return false;
         }
@@ -93,14 +96,16 @@ public:
     // 获取关联的Future
     future_type get_future();
 
-    const state_ptr<state_type>& get_state() const {
+    const state_ptr<state_type>& get_state() const
+    {
         auto& state = any_promise::get_state();
         return *reinterpret_cast<const state_ptr<state_type>*>(&state);
     }
 };
 
 template <typename T, typename Executor>
-auto make_promise(Executor executor) {
+auto make_promise(Executor executor)
+{
     return Promise<detail::state_tt<T>>(std::move(executor));
 }
 } // namespace mc::futures

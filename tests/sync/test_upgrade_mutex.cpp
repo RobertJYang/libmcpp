@@ -33,7 +33,8 @@ using MutexTypes = ::testing::Types<shared_mutex, reader_priority_shared_mutex>;
 TYPED_TEST_SUITE(UpgradeMutexTest, MutexTypes);
 
 // 基本升级锁功能测试
-TYPED_TEST(UpgradeMutexTest, BasicUpgradeLock) {
+TYPED_TEST(UpgradeMutexTest, BasicUpgradeLock)
+{
     TypeParam m;
 
     // 获取升级锁
@@ -41,7 +42,8 @@ TYPED_TEST(UpgradeMutexTest, BasicUpgradeLock) {
     m.unlock_upgrade();
 }
 
-TYPED_TEST(UpgradeMutexTest, TryUpgradeLock) {
+TYPED_TEST(UpgradeMutexTest, TryUpgradeLock)
+{
     TypeParam m;
 
     ASSERT_TRUE(m.try_lock_upgrade());
@@ -53,7 +55,8 @@ TYPED_TEST(UpgradeMutexTest, TryUpgradeLock) {
     m.unlock_upgrade();
 }
 
-TYPED_TEST(UpgradeMutexTest, UpgradeLockWithTimeout) {
+TYPED_TEST(UpgradeMutexTest, UpgradeLockWithTimeout)
+{
     TypeParam m;
 
     ASSERT_TRUE(m.try_lock_upgrade_for(std::chrono::milliseconds(10)));
@@ -61,7 +64,8 @@ TYPED_TEST(UpgradeMutexTest, UpgradeLockWithTimeout) {
 }
 
 // 升级锁与读锁兼容
-TYPED_TEST(UpgradeMutexTest, UpgradeLockCompatibleWithSharedLock) {
+TYPED_TEST(UpgradeMutexTest, UpgradeLockCompatibleWithSharedLock)
+{
     TypeParam          m;
     std::promise<void> upgrade_locked_promise;
     auto               upgrade_locked_future = upgrade_locked_promise.get_future();
@@ -111,7 +115,8 @@ TYPED_TEST(UpgradeMutexTest, UpgradeLockCompatibleWithSharedLock) {
 }
 
 // 升级锁与写锁互斥
-TYPED_TEST(UpgradeMutexTest, UpgradeLockMutuallyExclusiveWithWriteLock) {
+TYPED_TEST(UpgradeMutexTest, UpgradeLockMutuallyExclusiveWithWriteLock)
+{
     TypeParam          m;
     std::promise<void> upgrade_locked_promise;
     auto               upgrade_locked_future = upgrade_locked_promise.get_future();
@@ -151,7 +156,8 @@ TYPED_TEST(UpgradeMutexTest, UpgradeLockMutuallyExclusiveWithWriteLock) {
 }
 
 // 测试从升级锁升级到写锁
-TYPED_TEST(UpgradeMutexTest, UpgradeToWriteLock) {
+TYPED_TEST(UpgradeMutexTest, UpgradeToWriteLock)
+{
     TypeParam m;
 
     m.lock_upgrade();
@@ -160,7 +166,8 @@ TYPED_TEST(UpgradeMutexTest, UpgradeToWriteLock) {
 }
 
 // 测试从升级锁升级到写锁的超时功能
-TYPED_TEST(UpgradeMutexTest, UpgradeToWriteLockWithTimeout) {
+TYPED_TEST(UpgradeMutexTest, UpgradeToWriteLockWithTimeout)
+{
     TypeParam          m;
     std::promise<void> reader_ready_promise;
     auto               reader_ready_future = reader_ready_promise.get_future();
@@ -182,7 +189,7 @@ TYPED_TEST(UpgradeMutexTest, UpgradeToWriteLockWithTimeout) {
     });
 
     // 在另一个线程中尝试从升级锁升级到写锁
-    bool upgrade_finished = false;
+    bool        upgrade_finished = false;
     std::thread upgrade_thread([&] {
         reader_ready_future.wait();
 
@@ -218,7 +225,7 @@ TYPED_TEST(UpgradeMutexTest, UpgradeToWriteLockWithTimeout) {
         }
         release_flag.set(); // 释放读锁
         reader_thread.join();
-        
+
         // ✅ upgrade_finished 为 true 表示线程逻辑已完成，join 应该很快
         // 但如果 join 卡住（可能是线程析构问题），添加超时保护
         if (upgrade_thread.joinable()) {
@@ -226,7 +233,7 @@ TYPED_TEST(UpgradeMutexTest, UpgradeToWriteLockWithTimeout) {
             auto join_future = std::async(std::launch::async, [&]() {
                 upgrade_thread.join();
             });
-            
+
             // 等待最多500ms
             if (join_future.wait_for(std::chrono::milliseconds(500)) == std::future_status::timeout) {
                 // join 超时，detach 避免阻塞整个测试套件
@@ -243,7 +250,8 @@ TYPED_TEST(UpgradeMutexTest, UpgradeToWriteLockWithTimeout) {
 }
 
 // 测试锁降级功能
-TYPED_TEST(UpgradeMutexTest, DowngradeWriteToUpgrade) {
+TYPED_TEST(UpgradeMutexTest, DowngradeWriteToUpgrade)
+{
     TypeParam m;
 
     m.lock();
@@ -251,7 +259,8 @@ TYPED_TEST(UpgradeMutexTest, DowngradeWriteToUpgrade) {
     m.unlock_upgrade();
 }
 
-TYPED_TEST(UpgradeMutexTest, DowngradeWriteToShared) {
+TYPED_TEST(UpgradeMutexTest, DowngradeWriteToShared)
+{
     TypeParam m;
 
     m.lock();
@@ -259,7 +268,8 @@ TYPED_TEST(UpgradeMutexTest, DowngradeWriteToShared) {
     m.unlock_shared();
 }
 
-TYPED_TEST(UpgradeMutexTest, DowngradeUpgradeToShared) {
+TYPED_TEST(UpgradeMutexTest, DowngradeUpgradeToShared)
+{
     TypeParam m;
 
     m.lock_upgrade();
@@ -268,7 +278,8 @@ TYPED_TEST(UpgradeMutexTest, DowngradeUpgradeToShared) {
 }
 
 // 复杂的并发场景测试
-TYPED_TEST(UpgradeMutexTest, ComplexConcurrentScenario) {
+TYPED_TEST(UpgradeMutexTest, ComplexConcurrentScenario)
+{
     TypeParam m;
 
     struct SharedData {
@@ -276,15 +287,15 @@ TYPED_TEST(UpgradeMutexTest, ComplexConcurrentScenario) {
         long long validation = 0;
     };
 
-    SharedData               data;
-    std::atomic<bool>        running{true};
-    constexpr int           num_readers          = 3;
-    constexpr int           reader_iterations    = 50;
-    constexpr int           writer_iterations    = 100;
-    constexpr int           upgrader_iterations  = 50;
-    std::vector<std::thread> reader_threads;
-    std::vector<std::thread> writer_threads;
-    std::vector<std::thread> upgrader_threads;
+    SharedData                      data;
+    std::atomic<bool>               running{true};
+    constexpr int                   num_readers         = 3;
+    constexpr int                   reader_iterations   = 50;
+    constexpr int                   writer_iterations   = 100;
+    constexpr int                   upgrader_iterations = 50;
+    std::vector<std::thread>        reader_threads;
+    std::vector<std::thread>        writer_threads;
+    std::vector<std::thread>        upgrader_threads;
     std::vector<std::promise<void>> reader_done_promises(num_readers);
     std::vector<std::future<void>>  reader_done_futures;
     reader_done_futures.reserve(num_readers);

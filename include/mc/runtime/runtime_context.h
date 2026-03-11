@@ -77,7 +77,8 @@ MC_API void             reset_runtime_context();
  * @brief 获取IO上下文
  * @return IO上下文
  */
-inline thread_pool& get_io_context() {
+inline thread_pool& get_io_context()
+{
     return get_runtime_context().io();
 }
 
@@ -85,7 +86,8 @@ inline thread_pool& get_io_context() {
  * @brief 获取工作上下文
  * @return 工作上下文
  */
-inline thread_pool& get_work_context() {
+inline thread_pool& get_work_context()
+{
     return get_runtime_context().work();
 }
 
@@ -99,7 +101,8 @@ MC_API thread_pool::executor_type get_default_executor();
  * @brief 获取IO线程池
  * @return IO线程池
  */
-inline auto get_io_executor() {
+inline auto get_io_executor()
+{
     return get_io_context().get_executor();
 }
 
@@ -107,7 +110,8 @@ inline auto get_io_executor() {
  * @brief 获取系统线程池
  * @return 系统线程池
  */
-inline auto get_work_executor() {
+inline auto get_work_executor()
+{
     return get_work_context().get_executor();
 }
 

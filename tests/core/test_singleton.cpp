@@ -24,31 +24,38 @@ namespace test {
 // 用于测试的简单类
 class test_class {
 public:
-    test_class() : m_value(0), m_is_destroyed(nullptr) {
+    test_class()
+        : m_value(0), m_is_destroyed(nullptr)
+    {
     }
 
     test_class(int value, bool* is_destroyed = nullptr)
-        : m_value(value), m_is_destroyed(is_destroyed) {
+        : m_value(value), m_is_destroyed(is_destroyed)
+    {
     }
 
-    ~test_class() {
+    ~test_class()
+    {
         if (m_is_destroyed) {
             *m_is_destroyed = true;
         }
     }
 
-    int get_value() const {
+    int get_value() const
+    {
         std::lock_guard<std::mutex> lock(m_mutex);
         return m_value;
     }
 
-    void set_value(int value) {
+    void set_value(int value)
+    {
         std::lock_guard<std::mutex> lock(m_mutex);
         m_value = value;
     }
 
     // 原子递增操作
-    void increment() {
+    void increment()
+    {
         std::lock_guard<std::mutex> lock(m_mutex);
         ++m_value;
     }
@@ -68,10 +75,13 @@ struct order_tag2 {};
 
 class order_test_class {
 public:
-    order_test_class(int id, std::vector<int>* order) : m_id(id), m_order(order) {
+    order_test_class(int id, std::vector<int>* order)
+        : m_id(id), m_order(order)
+    {
     }
 
-    ~order_test_class() {
+    ~order_test_class()
+    {
         if (m_order) {
             m_order->push_back(m_id);
         }
@@ -84,10 +94,13 @@ private:
 
 class destroy_test_class {
 public:
-    explicit destroy_test_class(bool* destroyed) : m_destroyed(destroyed) {
+    explicit destroy_test_class(bool* destroyed)
+        : m_destroyed(destroyed)
+    {
     }
 
-    ~destroy_test_class() {
+    ~destroy_test_class()
+    {
         if (m_destroyed) {
             *m_destroyed = true;
         }
@@ -99,10 +112,13 @@ private:
 
 class leaky_test_class {
 public:
-    explicit leaky_test_class(bool* destroyed) : m_destroyed(destroyed) {
+    explicit leaky_test_class(bool* destroyed)
+        : m_destroyed(destroyed)
+    {
     }
 
-    ~leaky_test_class() {
+    ~leaky_test_class()
+    {
         if (m_destroyed) {
             *m_destroyed = true;
         }
@@ -114,33 +130,40 @@ private:
 
 class singleton_test : public mc::test::TestBase {
 public:
-    static void SetUpTestSuite() {
+    static void SetUpTestSuite()
+    {
         singleton_cleanup::reset();
     }
 
-    static void TearDownTestSuite() {
+    static void TearDownTestSuite()
+    {
         singleton_cleanup::reset();
     }
 
-    void SetUp() override {
+    void SetUp() override
+    {
         cleanup_guard = std::make_unique<singleton_cleanup>();
     }
 
-    void TearDown() override {
+    void TearDown() override
+    {
         cleanup_guard.reset();
     }
 
 private:
     struct singleton_cleanup {
-        singleton_cleanup() {
+        singleton_cleanup()
+        {
             reset();
         }
 
-        ~singleton_cleanup() {
+        ~singleton_cleanup()
+        {
             reset();
         }
 
-        static void reset() {
+        static void reset()
+        {
             mc::singleton_manager::instance().reset_for_test();
             singleton<test_class>::reset_for_test();
             singleton<test_class, tag1>::reset_for_test();
@@ -159,7 +182,8 @@ private:
     std::unique_ptr<singleton_cleanup> cleanup_guard;
 };
 
-TEST_F(singleton_test, LifecycleAndTryGet) {
+TEST_F(singleton_test, LifecycleAndTryGet)
+{
     EXPECT_EQ(singleton<test_class>::try_get(), nullptr);
 
     auto& instance = singleton<test_class>::instance(42);
@@ -186,7 +210,8 @@ TEST_F(singleton_test, LifecycleAndTryGet) {
     EXPECT_EQ(recreated.get_value(), 84);
 }
 
-TEST_F(singleton_test, TaggedSingletonIsolation) {
+TEST_F(singleton_test, TaggedSingletonIsolation)
+{
     auto& tag1_instance = singleton<test_class, tag1>::instance(10);
     auto& tag2_instance = singleton<test_class, tag2>::instance(20);
 
@@ -209,7 +234,8 @@ TEST_F(singleton_test, TaggedSingletonIsolation) {
     EXPECT_EQ(tag2_instance.get_value(), 20);
 }
 
-TEST_F(singleton_test, CustomCreatorScenarios) {
+TEST_F(singleton_test, CustomCreatorScenarios)
+{
     int  init_value      = 0;
     auto complex_creator = [&]() {
         auto* inst = new test_class(++init_value * 10);
@@ -230,7 +256,8 @@ TEST_F(singleton_test, CustomCreatorScenarios) {
 }
 
 // 测试非泄露模式单例销毁
-TEST_F(singleton_test, NonLeakySingleton) {
+TEST_F(singleton_test, NonLeakySingleton)
+{
     // 跟踪销毁状态
     bool is_destroyed = false;
 
@@ -252,7 +279,8 @@ TEST_F(singleton_test, NonLeakySingleton) {
 }
 
 // 测试泄露模式单例
-TEST_F(singleton_test, LeakySingleton) {
+TEST_F(singleton_test, LeakySingleton)
+{
     // 跟踪销毁状态
     bool is_destroyed = false;
 
@@ -271,7 +299,8 @@ TEST_F(singleton_test, LeakySingleton) {
 }
 
 // 复杂场景：并发环境下的单例创建和访问
-TEST_F(singleton_test, ComplexConcurrentSingletonAccess) {
+TEST_F(singleton_test, ComplexConcurrentSingletonAccess)
+{
     const int num_threads           = 10;
     const int operations_per_thread = 100;
 
@@ -301,7 +330,8 @@ TEST_F(singleton_test, ComplexConcurrentSingletonAccess) {
     EXPECT_EQ(total_increments.load(), num_threads * operations_per_thread);
 }
 
-TEST_F(singleton_test, DestroyInstancesRunsDestructors) {
+TEST_F(singleton_test, DestroyInstancesRunsDestructors)
+{
     bool destroyed = false;
 
     singleton<destroy_test_class>::instance(&destroyed);
@@ -314,7 +344,8 @@ TEST_F(singleton_test, DestroyInstancesRunsDestructors) {
     singleton<destroy_test_class>::reset_for_test();
 }
 
-TEST_F(singleton_test, LeakySingletonNotDestroyedByManager) {
+TEST_F(singleton_test, LeakySingletonNotDestroyedByManager)
+{
     bool destroyed = false;
 
     singleton_leaky<leaky_test_class>::instance(&destroyed);
@@ -326,7 +357,8 @@ TEST_F(singleton_test, LeakySingletonNotDestroyedByManager) {
     EXPECT_TRUE(destroyed); // reset_for_test 会真正销毁实例
 }
 
-TEST_F(singleton_test, DestroyInstancesInReverseOrder) {
+TEST_F(singleton_test, DestroyInstancesInReverseOrder)
+{
     std::vector<int> destruction_order;
 
     auto creator1 = [&]() {
@@ -351,7 +383,8 @@ TEST_F(singleton_test, DestroyInstancesInReverseOrder) {
     singleton<order_test_class, order_tag2>::reset_for_test();
 }
 
-TEST_F(singleton_test, ManagerResetClearsAllStates) {
+TEST_F(singleton_test, ManagerResetClearsAllStates)
+{
     bool non_leaky_destroyed = false;
     bool leaky_destroyed     = false;
 
@@ -375,7 +408,8 @@ TEST_F(singleton_test, ManagerResetClearsAllStates) {
     EXPECT_EQ(singleton_leaky<leaky_test_class>::try_get(), nullptr);
 }
 
-TEST_F(singleton_test, CreatedFlagReflectsLifecycle) {
+TEST_F(singleton_test, CreatedFlagReflectsLifecycle)
+{
     EXPECT_FALSE(singleton<test_class>::created());
     auto& instance = singleton<test_class>::instance(5);
     EXPECT_TRUE(singleton<test_class>::created());
@@ -386,7 +420,8 @@ TEST_F(singleton_test, CreatedFlagReflectsLifecycle) {
     EXPECT_EQ(singleton<test_class>::try_get(), nullptr);
 }
 
-TEST_F(singleton_test, InstanceIgnoresSubsequentArguments) {
+TEST_F(singleton_test, InstanceIgnoresSubsequentArguments)
+{
     auto& first = singleton<test_class>::instance(123);
     EXPECT_EQ(first.get_value(), 123);
 
@@ -395,9 +430,12 @@ TEST_F(singleton_test, InstanceIgnoresSubsequentArguments) {
     EXPECT_EQ(again.get_value(), 123);
 }
 
-TEST_F(singleton_test, LeakySingletonSurvivesDestroyInstances) {
+TEST_F(singleton_test, LeakySingletonSurvivesDestroyInstances)
+{
     bool destroyed = false;
-    auto creator   = [&destroyed]() { return new leaky_test_class(&destroyed); };
+    auto creator   = [&destroyed]() {
+        return new leaky_test_class(&destroyed);
+    };
 
     auto& instance = singleton_leaky<leaky_test_class>::instance_with_creator(creator);
     EXPECT_EQ(singleton_leaky<leaky_test_class>::try_get(), &instance);
@@ -411,12 +449,17 @@ TEST_F(singleton_test, LeakySingletonSurvivesDestroyInstances) {
     EXPECT_FALSE(singleton_leaky<leaky_test_class>::created());
 }
 
-TEST_F(singleton_test, DestroyInstancesIsIdempotent) {
+TEST_F(singleton_test, DestroyInstancesIsIdempotent)
+{
     bool destroyed1 = false;
     bool destroyed2 = false;
 
-    auto creator1 = [&]() { return new test_class(1, &destroyed1); };
-    auto creator2 = [&]() { return new test_class(2, &destroyed2); };
+    auto creator1 = [&]() {
+        return new test_class(1, &destroyed1);
+    };
+    auto creator2 = [&]() {
+        return new test_class(2, &destroyed2);
+    };
 
     singleton<test_class, tag1>::instance_with_creator(creator1);
     singleton<test_class, tag2>::instance_with_creator(creator2);
@@ -437,10 +480,12 @@ TEST_F(singleton_test, DestroyInstancesIsIdempotent) {
 class exception_test_class {
 public:
     explicit exception_test_class(bool throw_std_exception, bool throw_unknown)
-        : m_throw_std_exception(throw_std_exception), m_throw_unknown(throw_unknown) {
+        : m_throw_std_exception(throw_std_exception), m_throw_unknown(throw_unknown)
+    {
     }
 
-    ~exception_test_class() noexcept(false) {
+    ~exception_test_class() noexcept(false)
+    {
         if (m_throw_std_exception) {
             throw std::runtime_error("测试标准异常");
         }
@@ -455,13 +500,16 @@ private:
 };
 
 // 测试 destroy_instances 的异常处理路径（std::exception）
-TEST_F(singleton_test, DestroyInstancesHandlesStdException) {
-    auto creator = []() { return new exception_test_class(true, false); };
+TEST_F(singleton_test, DestroyInstancesHandlesStdException)
+{
+    auto creator = []() {
+        return new exception_test_class(true, false);
+    };
     singleton<exception_test_class>::instance_with_creator(creator);
 
     // destroy_instances 应该捕获异常并继续执行
     EXPECT_NO_THROW(mc::singleton_manager::instance().destroy_instances());
-    
+
     // 由于析构函数抛出异常，delete 操作会传播异常
     // destroy_instances 会捕获这个异常，但对象可能已经被部分删除
     // 我们不应该再次尝试删除，避免 double free
@@ -470,22 +518,30 @@ TEST_F(singleton_test, DestroyInstancesHandlesStdException) {
 }
 
 // 测试 destroy_instances 的异常处理路径（未知异常）
-TEST_F(singleton_test, DestroyInstancesHandlesUnknownException) {
-    auto creator = []() { return new exception_test_class(false, true); };
+TEST_F(singleton_test, DestroyInstancesHandlesUnknownException)
+{
+    auto creator = []() {
+        return new exception_test_class(false, true);
+    };
     singleton<exception_test_class>::instance_with_creator(creator);
 
     // destroy_instances 应该捕获未知异常并继续执行
     EXPECT_NO_THROW(mc::singleton_manager::instance().destroy_instances());
-    
+
     // 由于析构函数抛出异常，对象可能没有被完全删除
     // 我们不应该再次尝试删除，避免 double free
 }
 
 // 测试 destroy_instances 在多个单例中一个抛出异常的情况
-TEST_F(singleton_test, DestroyInstancesHandlesPartialExceptions) {
+TEST_F(singleton_test, DestroyInstancesHandlesPartialExceptions)
+{
     bool normal_destroyed = false;
-    auto normal_creator   = [&]() { return new test_class(1, &normal_destroyed); };
-    auto exception_creator = []() { return new exception_test_class(true, false); };
+    auto normal_creator   = [&]() {
+        return new test_class(1, &normal_destroyed);
+    };
+    auto exception_creator = []() {
+        return new exception_test_class(true, false);
+    };
 
     singleton<test_class>::instance_with_creator(normal_creator);
     singleton<exception_test_class>::instance_with_creator(exception_creator);

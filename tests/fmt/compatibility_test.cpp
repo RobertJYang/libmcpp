@@ -30,7 +30,8 @@ using namespace mc::fmt;
 using namespace testing;
 
 // 基本浮点数格式化测试
-TEST(compatibility_test, basic_formatting) {
+TEST(compatibility_test, basic_formatting)
+{
     EXPECT_EQ(format("{}", 3.14159), "3.14159");
     EXPECT_EQ(format("{:.2f}", 3.14159), "3.14");
     EXPECT_EQ(format("{:.0f}", 3.14159), "3");
@@ -39,7 +40,8 @@ TEST(compatibility_test, basic_formatting) {
 }
 
 // 对齐和填充测试
-TEST(compatibility_test, alignment) {
+TEST(compatibility_test, alignment)
+{
     EXPECT_EQ(format("{:10.2f}", 3.14), "      3.14");
     EXPECT_EQ(format("{:<10.2f}", 3.14), "3.14      ");
     EXPECT_EQ(format("{:^10.2f}", 3.14), "   3.14   ");
@@ -47,21 +49,24 @@ TEST(compatibility_test, alignment) {
 }
 
 // 符号处理测试
-TEST(compatibility_test, sign_handling) {
+TEST(compatibility_test, sign_handling)
+{
     EXPECT_EQ(format("{:+f}; {:+f}", 3.14, -3.14), "+3.140000; -3.140000");
     EXPECT_EQ(format("{: f}; {: f}", 3.14, -3.14), " 3.140000; -3.140000");
     EXPECT_EQ(format("{:-f}; {:-f}", 3.14, -3.14), "3.140000; -3.140000");
 }
 
 // 特殊值测试
-TEST(compatibility_test, special_values) {
+TEST(compatibility_test, special_values)
+{
     EXPECT_EQ(format("{}", std::numeric_limits<double>::infinity()), "inf");
     EXPECT_EQ(format("{}", -std::numeric_limits<double>::infinity()), "-inf");
     EXPECT_EQ(format("{}", std::numeric_limits<double>::quiet_NaN()), "nan");
 }
 
 // 零填充测试
-TEST(compatibility_test, zero_padding) {
+TEST(compatibility_test, zero_padding)
+{
     EXPECT_EQ(format("{:03.2f}", -1.2), "-1.20");
     EXPECT_EQ(format("{:010.2f}", 3.14), "0000003.14");
     EXPECT_EQ(format("{:+010.2f}", 3.14), "+000003.14");
@@ -69,14 +74,16 @@ TEST(compatibility_test, zero_padding) {
 }
 
 // 零填充和对齐组合测试
-TEST(compatibility_test, zero_padding_with_alignment) {
+TEST(compatibility_test, zero_padding_with_alignment)
+{
     EXPECT_EQ(format("{:<010.2f}", 3.14), "3.14      "); // 左对齐优先于零填充
     EXPECT_EQ(format("{:>010.2f}", 3.14), "      3.14"); // 右对齐时零填充生效
     EXPECT_EQ(format("{:^010.2f}", 3.14), "   3.14   "); // 居中对齐优先于零填充
 }
 
 // 精度测试
-TEST(compatibility_test, precision) {
+TEST(compatibility_test, precision)
+{
     EXPECT_EQ(format("{:.1f}", 0.000000001), "0.0");
     EXPECT_EQ(format("{:.2f}", 0.099), "0.10");
     EXPECT_EQ(format("{:.0e}", 9.5), "1e+01");
@@ -84,21 +91,24 @@ TEST(compatibility_test, precision) {
 }
 
 // 舍入行为测试
-TEST(compatibility_test, rounding_behavior) {
+TEST(compatibility_test, rounding_behavior)
+{
     EXPECT_EQ(format("{:.2f}", 3.145), "3.15"); // 四舍五入到3.15
     EXPECT_EQ(format("{:.2f}", 3.144), "3.14"); // 四舍五入到3.14
     EXPECT_EQ(format("{:.1f}", 3.15), "3.1");   // 四舍五入到3.1
 }
 
 // 大数测试
-TEST(compatibility_test, large_numbers) {
+TEST(compatibility_test, large_numbers)
+{
     EXPECT_EQ(format("{:.2f}", 1234567.89), "1234567.89");
     EXPECT_EQ(format("{}", 123456789.0f), "123456792");
     EXPECT_EQ(format("{}", 1019666432.0f), "1019666432");
 }
 
 // 浮点数去除尾0和小数点的测试
-TEST(compatibility_test, remove_trailing_zeros) {
+TEST(compatibility_test, remove_trailing_zeros)
+{
     EXPECT_EQ(format("{:.0f}", 1.0), "1");
     EXPECT_EQ(format("{:.0e}", 1.0), "1e+00");
     EXPECT_EQ(format("{:.0E}", 1.0), "1E+00");
@@ -118,20 +128,23 @@ TEST(compatibility_test, remove_trailing_zeros) {
 }
 
 // 综合格式化测试
-TEST(compatibility_test, complex_formatting) {
+TEST(compatibility_test, complex_formatting)
+{
     EXPECT_EQ(format("{:0.7f}:{:03}:{:+g}:{}:{}:{}",
                      1.234, 42, 3.13, "str", reinterpret_cast<void*>(1000), 'x'),
               "1.2340000:042:+3.13:str:0x3e8:x");
 }
 
 // 极值测试
-TEST(compatibility_test, limits) {
+TEST(compatibility_test, limits)
+{
     EXPECT_EQ(format("{:g}", std::numeric_limits<double>::max()).substr(0, 5), "1.797");
     EXPECT_EQ(format("{:g}", std::numeric_limits<double>::min()).substr(0, 5), "2.225");
 }
 
 // nan/inf 组合测试
-TEST(compatibility_test, nan_inf_combinations) {
+TEST(compatibility_test, nan_inf_combinations)
+{
     double nan = std::numeric_limits<double>::quiet_NaN();
     double inf = std::numeric_limits<double>::infinity();
     EXPECT_EQ(format("{:+10f}", nan), "      +nan");
@@ -142,7 +155,8 @@ TEST(compatibility_test, nan_inf_combinations) {
 }
 
 // 零值测试
-TEST(compatibility_test, zero_values) {
+TEST(compatibility_test, zero_values)
+{
     double pos_zero = 0.0;
     double neg_zero = -0.0;
 
@@ -208,34 +222,39 @@ TEST(compatibility_test, zero_values) {
 }
 
 // 科学计数法
-TEST(compatibility_test, scientific) {
+TEST(compatibility_test, scientific)
+{
     EXPECT_EQ(format("{:e}", 12345.0), "1.234500e+04");
     EXPECT_EQ(format("{:.2e}", 0.00123), "1.23e-03");
     EXPECT_EQ(format("{:E}", 0.00123), "1.230000E-03");
 }
 
 // 十六进制浮点
-TEST(compatibility_test, hex_float) {
+TEST(compatibility_test, hex_float)
+{
     EXPECT_EQ(format("{:a}", 16.5), "1.08p+4");
     EXPECT_EQ(format("{:A}", -16.5), "-1.08P+4");
 }
 
 // 动态宽度与精度
-TEST(compatibility_test, dynamic_width_precision) {
+TEST(compatibility_test, dynamic_width_precision)
+{
     EXPECT_EQ(format("{0:{1}.{2}f}", 1.23456, 8, 3), "   1.235");
     EXPECT_EQ(format("{0:.{1}f}", 1.23456, 2), "1.23");
     EXPECT_EQ(format("{0:{1}f}", 1.2, 6), "1.200000");
 }
 
 // 对齐与填充
-TEST(compatibility_test, align_fill) {
+TEST(compatibility_test, align_fill)
+{
     EXPECT_EQ(format("{:>8.2f}", 1.2), "    1.20");
     EXPECT_EQ(format("{:*<8.1f}", 1.2), "1.2*****");
     EXPECT_EQ(format("{:^10.3f}", 1.234), "  1.234   ");
 }
 
 // 整数格式化测试
-TEST(compatibility_test, integer_format) {
+TEST(compatibility_test, integer_format)
+{
     EXPECT_EQ(format("{}", 42), "42");
     EXPECT_EQ(format("{:d}", -42), "-42");
     EXPECT_EQ(format("{:b}", 10), "1010");
@@ -254,7 +273,8 @@ TEST(compatibility_test, integer_format) {
 }
 
 // 不同整数类型的格式化测试
-TEST(compatibility_test, integer_format_types) {
+TEST(compatibility_test, integer_format_types)
+{
     using std::numeric_limits;
 
     // short
@@ -319,7 +339,8 @@ TEST(compatibility_test, integer_format_types) {
 }
 
 // 字符串格式化测试
-TEST(compatibility_test, string_format) {
+TEST(compatibility_test, string_format)
+{
     EXPECT_EQ(format("{}", "hello"), "hello");
     EXPECT_EQ(format("{:10}", "hello"), "hello     ");
     EXPECT_EQ(format("{:^10}", "hello"), "  hello   ");
@@ -329,7 +350,8 @@ TEST(compatibility_test, string_format) {
 }
 
 // 指针格式化测试
-TEST(compatibility_test, pointer_format) {
+TEST(compatibility_test, pointer_format)
+{
     int         x      = 42;
     void*       ptr    = &x;
     std::string result = format("{}", ptr);
@@ -337,14 +359,16 @@ TEST(compatibility_test, pointer_format) {
 }
 
 // 字符格式化测试
-TEST(compatibility_test, char_format) {
+TEST(compatibility_test, char_format)
+{
     EXPECT_EQ(format("{}", 'A'), "A");
     EXPECT_EQ(format("{:c}", 'A'), "A");
     EXPECT_EQ(format("{:d}", 'A'), "65");
 }
 
 // 符号处理测试
-TEST(compatibility_test, sign_handling_integers) {
+TEST(compatibility_test, sign_handling_integers)
+{
     EXPECT_EQ(format("{:+}", 42), "+42");
     EXPECT_EQ(format("{:+}", -42), "-42");
     EXPECT_EQ(format("{: }", 42), " 42");
@@ -354,14 +378,16 @@ TEST(compatibility_test, sign_handling_integers) {
 }
 
 // 零填充测试
-TEST(compatibility_test, zero_padding_integers) {
+TEST(compatibility_test, zero_padding_integers)
+{
     EXPECT_EQ(format("{:05}", 42), "00042");
     EXPECT_EQ(format("{:05d}", 42), "00042");
     EXPECT_EQ(format("{:05x}", 42), "0002a");
 }
 
 // 替代格式测试
-TEST(compatibility_test, alternate_form) {
+TEST(compatibility_test, alternate_form)
+{
     EXPECT_EQ(format("{:#x}", 42), "0x2a");
     EXPECT_EQ(format("{:#X}", 42), "0X2A");
     EXPECT_EQ(format("{:#o}", 42), "052");
@@ -371,7 +397,8 @@ TEST(compatibility_test, alternate_form) {
 }
 
 // bool 类型格式化测试
-TEST(compatibility_test, bool_format) {
+TEST(compatibility_test, bool_format)
+{
     EXPECT_EQ(format("{}", true), "true");
     EXPECT_EQ(format("{}", false), "false");
     EXPECT_EQ(format("{:d}", true), "1");
@@ -388,7 +415,8 @@ TEST(compatibility_test, bool_format) {
     EXPECT_EQ(format("{:d} {:d}", true, false), "1 0");
 }
 
-int main(int argc, char** argv) {
+int main(int argc, char** argv)
+{
     testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();
 }

@@ -15,7 +15,8 @@
 
 namespace mc::fmt::detail {
 
-void format_variant(const mc::variant& v, format_context& ctx, const format_spec& spec) {
+void format_variant(const mc::variant& v, format_context& ctx, const format_spec& spec)
+{
     auto& out = ctx.out();
     if (spec.type != '\0') {
         switch (spec.type) {
@@ -80,7 +81,8 @@ void format_variant(const mc::variant& v, format_context& ctx, const format_spec
     });
 }
 
-void format_dict(const mc::dict& dict, format_context& ctx, const format_spec& spec) {
+void format_dict(const mc::dict& dict, format_context& ctx, const format_spec& spec)
+{
     ctx.append('{');
     bool first = true;
     for (const auto& entry : dict) {
@@ -102,7 +104,8 @@ void format_dict(const mc::dict& dict, format_context& ctx, const format_spec& s
     ctx.append('}');
 }
 
-void format_blob(const mc::blob& blob, format_context& ctx, const format_spec& spec) {
+void format_blob(const mc::blob& blob, format_context& ctx, const format_spec& spec)
+{
     auto& out = ctx.out();
     out.append("blob(");
     // TODO:: 增加 debug 格式化 {?} 后可以打印详细信息
@@ -110,14 +113,16 @@ void format_blob(const mc::blob& blob, format_context& ctx, const format_spec& s
     out.append(" bytes)");
 }
 
-void format_extension(const mc::variant_extension_base& ext, format_context& ctx, const format_spec& spec) {
+void format_extension(const mc::variant_extension_base& ext, format_context& ctx, const format_spec& spec)
+{
     auto& out = ctx.out();
     out.append("extension(");
     out.append(ext.get_type_name());
     out.append(")");
 }
 
-void format_variants(const mc::variants& value, format_context& ctx, const format_spec& spec) {
+void format_variants(const mc::variants& value, format_context& ctx, const format_spec& spec)
+{
     ctx.append('[');
     bool first = true;
     bool b_ref = value.supports_reference_access();

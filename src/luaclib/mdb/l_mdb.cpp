@@ -22,7 +22,8 @@ extern "C" {
 extern "C" {
 
 // lmdb 模块加载函数
-__attribute__((visibility("default"))) int luaopen_lmdb(lua_State* L) {
+__attribute__((visibility("default"))) int luaopen_lmdb(lua_State* L)
+{
     using namespace mc::mdb::lua;
 
     // 创建主模块表

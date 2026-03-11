@@ -30,8 +30,8 @@ namespace log {
  * @brief socket日志追加器配置
  */
 struct socket_appender_config {
-    std::string name{"mdbctl"};     ///< 追加器名称
-    std::string path;               ///< unix socket路径
+    std::string name{"mdbctl"}; ///< 追加器名称
+    std::string path;           ///< unix socket路径
 };
 
 /**
@@ -46,34 +46,33 @@ public:
     bool init(const variant& args) override;
     void append(const message& msg) override;
 
-    void set_path(std::string_view path);
+    void               set_path(std::string_view path);
     const std::string& get_path() const;
 
     void set_hb_path(std::string_view hb_path);
 
-    void set_type(const std::string& type);
+    void               set_type(const std::string& type);
     const std::string& get_type() const;
 
-    socket_client& get_client();
+    socket_client&                 get_client();
     std::shared_ptr<socket_client> get_client_shared();
-    bool                          connect();
-    void           disconnect();
-    bool           is_connected() const;
-    bool           heartbeat();
+    bool                           connect();
+    void                           disconnect();
+    bool                           is_connected() const;
+    bool                           heartbeat();
 
 private:
     bool        ensure_connected();
     std::string format_message(const message& msg) const;
 
     std::shared_ptr<socket_client> m_client;
-    std::string        m_path;         ///< 日志socket路径
-    std::string        m_type{"file"}; ///< 日志输出类型
-    std::string        m_hb_path;      ///< 心跳socket路径
-    mutable std::mutex m_mutex;
+    std::string                    m_path;         ///< 日志socket路径
+    std::string                    m_type{"file"}; ///< 日志输出类型
+    std::string                    m_hb_path;      ///< 心跳socket路径
+    mutable std::mutex             m_mutex;
 };
 
 } // namespace log
 } // namespace mc
 
 #endif // MC_LOG_SOCKET_APPENDER_H
-

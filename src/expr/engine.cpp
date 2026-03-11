@@ -26,7 +26,8 @@ namespace mc::expr {
 using abstract_object = mc::engine::abstract_object;
 
 static bool resolve_object_path(engine& expr_engine, std::string_view path_pattern,
-                                const abstract_object& obj, std::string& path) {
+                                const abstract_object& obj, std::string& path)
+{
     if (!lexer::is_template_string(path_pattern)) {
         return false;
     }
@@ -46,7 +47,9 @@ static bool resolve_object_path(engine& expr_engine, std::string_view path_patte
 }
 
 struct engine::impl {
-    impl() : global_context(&builtin::get_instance().get_context()) {
+    impl()
+        : global_context(&builtin::get_instance().get_context())
+    {
     }
 
     ~impl() = default;
@@ -54,16 +57,20 @@ struct engine::impl {
     context global_context;
 };
 
-engine::engine() : m_impl(std::make_unique<impl>()) {
+engine::engine()
+    : m_impl(std::make_unique<impl>())
+{
 }
 
 engine::~engine() = default;
 
-engine& engine::get_instance() {
+engine& engine::get_instance()
+{
     return mc::singleton<engine>::instance();
 }
 
-node_ptr engine::compile(std::string_view expr) {
+node_ptr engine::compile(std::string_view expr)
+{
     lexer              lex(expr);
     std::vector<token> tokens = lex.scan_tokens();
 
@@ -71,30 +78,36 @@ node_ptr engine::compile(std::string_view expr) {
     return p.parse();
 }
 
-mc::variant engine::evaluate(std::string_view expr, const context_base& ctx) {
+mc::variant engine::evaluate(std::string_view expr, const context_base& ctx)
+{
     node_ptr ast = compile(expr);
     return ast->evaluate(ctx);
 }
 
-GVariant* engine::evaluate_as_gvariant(std::string_view expr, const context_base& ctx) {
+GVariant* engine::evaluate_as_gvariant(std::string_view expr, const context_base& ctx)
+{
     mc::variant result = evaluate(expr, ctx);
     return mc::dbus::gvariant_convert::to_gvariant(result);
 }
 
-context& engine::get_global_context() const {
+context& engine::get_global_context() const
+{
     return m_impl->global_context;
 }
 
-context engine::make_context(context_base* parent) const {
+context engine::make_context(context_base* parent) const
+{
     return context(parent ? parent : &get_global_context());
 }
 
-context engine::make_context(const mc::dict& variables, context_base* parent) const {
+context engine::make_context(const mc::dict& variables, context_base* parent) const
+{
     return context(variables, parent ? parent : &get_global_context());
 }
 
 object_context engine::make_context(mc::engine::abstract_object* object,
-                                    context_base*                parent) const {
+                                    context_base*                parent) const
+{
     return object_context(object, parent ? parent : &get_global_context());
 }
 

@@ -15,7 +15,8 @@
 
 namespace mc::runtime {
 
-void condition_variable::WaiterNode::link(WaiterList& list) {
+void condition_variable::WaiterNode::link(WaiterList& list)
+{
     if (!list.head) {
         list.head = this;
         list.tail = this;
@@ -26,7 +27,8 @@ void condition_variable::WaiterNode::link(WaiterList& list) {
     }
 }
 
-void condition_variable::WaiterNode::unlink(WaiterList& list) {
+void condition_variable::WaiterNode::unlink(WaiterList& list)
+{
     if (this->prev) {
         this->prev->next = this->next;
     } else {
@@ -45,17 +47,20 @@ void condition_variable::WaiterNode::unlink(WaiterList& list) {
     this->prev = nullptr;
 }
 
-void condition_variable::add_waiter(WaiterNode* node) {
+void condition_variable::add_waiter(WaiterNode* node)
+{
     auto lock = m_waiter_list.lock();
     node->link(*lock);
 }
 
-void condition_variable::remove_waiter(WaiterNode* node) {
+void condition_variable::remove_waiter(WaiterNode* node)
+{
     auto lock = m_waiter_list.lock();
     node->unlink(*lock);
 }
 
-void condition_variable::notify_one() noexcept {
+void condition_variable::notify_one() noexcept
+{
     auto lock = m_waiter_list.lock();
     if (lock->head) {
         auto* node = lock->head;
@@ -68,7 +73,8 @@ void condition_variable::notify_one() noexcept {
     }
 }
 
-void condition_variable::notify_all() noexcept {
+void condition_variable::notify_all() noexcept
+{
     auto  lock = m_waiter_list.lock();
     auto* node = lock->head;
     lock->head = nullptr;
@@ -85,7 +91,8 @@ void condition_variable::notify_all() noexcept {
     m_cv.notify_all();
 }
 
-void condition_variable::report_recursion_depth_exceeded() {
+void condition_variable::report_recursion_depth_exceeded()
+{
     wlog("嵌套调度深度超过最大递归深度 {}, 回退到传统的条件变量等待", thread_pool::MAX_RECURSION_DEPTH);
 }
 

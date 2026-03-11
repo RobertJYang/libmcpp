@@ -41,7 +41,8 @@ namespace {
  * @param L Lua 状态机
  * @return 返回值数量（3个）
  */
-int convert_single_variant(::lua_State* L) {
+int convert_single_variant(::lua_State* L)
+{
     // 开始计时：lua_to_variant
     auto    start_lua_to_variant = std::chrono::high_resolution_clock::now();
     variant v                    = mc::lua::lua_to_variant(L, 1);
@@ -82,7 +83,8 @@ int convert_single_variant(::lua_State* L) {
  * @param arg_count 参数数量
  * @return 返回值数量（3个）
  */
-int convert_multiple_variants(::lua_State* L, int arg_count) {
+int convert_multiple_variants(::lua_State* L, int arg_count)
+{
     // 开始计时：lua_to_variants
     auto     start_lua_to_variants = std::chrono::high_resolution_clock::now();
     variants vs                    = mc::lua::lua_to_variants(L, 1, arg_count);
@@ -139,7 +141,8 @@ int convert_multiple_variants(::lua_State* L, int arg_count) {
 // Lua C 模块导出函数必须使用 C 链接
 extern "C" {
 
-int convert_between_variant_lua(::lua_State* L) {
+int convert_between_variant_lua(::lua_State* L)
+{
     if (!L) {
         return 0;
     }

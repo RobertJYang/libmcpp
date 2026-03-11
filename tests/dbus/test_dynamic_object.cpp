@@ -19,12 +19,13 @@
 
 using namespace mc::dbus;
 
-static sd_bus*                    test_bus;
+static sd_bus*                        test_bus;
 static mc::shared_ptr<dynamic_object> test_object;
 
 class DynamicObjectTest : public ::testing::Test {
 protected:
-    static void SetUpTestSuite() {
+    static void SetUpTestSuite()
+    {
         // Create sd_bus instance
         test_bus = new sd_bus(true, false);
         test_bus->request_name("org.test.dynamic_object");
@@ -34,7 +35,7 @@ protected:
         test_object->set_object_path("/org/test/dynamic_object/TestObject");
 
         // Create and configure first interface
-        auto interface1 = mc::make_shared<dynamic_interface>("org.test.dynamic_object.Interface1");
+        auto             interface1 = mc::make_shared<dynamic_interface>("org.test.dynamic_object.Interface1");
         dynamic_property prop1{"StringProp", "s", mc::variant("initial_value"), false, 0, {}};
         dynamic_property prop2{"IntProp", "i", mc::variant(42), false, 0, {}};
         dynamic_property prop3{"BoolProp", "b", mc::variant(true), false, 0, {}};
@@ -43,14 +44,14 @@ protected:
         interface1->add_property("BoolProp", std::move(prop3));
 
         // Create and configure second interface
-        auto interface2 = mc::make_shared<dynamic_interface>("org.test.dynamic_object.Interface2");
+        auto             interface2 = mc::make_shared<dynamic_interface>("org.test.dynamic_object.Interface2");
         dynamic_property prop4{"DoubleProp", "d", mc::variant(3.14), false, 0, {}};
         dynamic_property prop5{"ReadOnlyProp", "s", mc::variant("readonly_value"), true, 0, {}};
         interface2->add_property("DoubleProp", std::move(prop4));
         interface2->add_property("ReadOnlyProp", std::move(prop5));
 
         // Create and configure third interface
-        auto interface3 = mc::make_shared<dynamic_interface>("org.test.dynamic_object.Interface3");
+        auto             interface3 = mc::make_shared<dynamic_interface>("org.test.dynamic_object.Interface3");
         dynamic_property prop6{"ArrayProp", "ai", mc::variant(mc::variants{1, 2, 3, 4}), false, 0, {}};
         interface3->add_property("ArrayProp", std::move(prop6));
 
@@ -63,12 +64,14 @@ protected:
         test_bus->register_object(test_object);
     }
 
-    static void TearDownTestSuite() {
+    static void TearDownTestSuite()
+    {
         delete test_bus;
         test_object.reset();
     }
 
-    void SetUp() override {
+    void SetUp() override
+    {
         // Reset properties to initial values before each test to ensure independence
         test_object->set_property("StringProp", mc::variant("initial_value"), "org.test.dynamic_object.Interface1");
         test_object->set_property("IntProp", mc::variant(42), "org.test.dynamic_object.Interface1");
@@ -78,7 +81,8 @@ protected:
 };
 
 // Test get_property with valid property
-TEST_F(DynamicObjectTest, test_get_property_valid) {
+TEST_F(DynamicObjectTest, test_get_property_valid)
+{
     // Test string property
     auto value1 = test_object->get_property("StringProp", "org.test.dynamic_object.Interface1");
     ASSERT_TRUE(value1.is_string());
@@ -101,19 +105,22 @@ TEST_F(DynamicObjectTest, test_get_property_valid) {
 }
 
 // Test get_property with non-existent property
-TEST_F(DynamicObjectTest, test_get_property_nonexistent) {
+TEST_F(DynamicObjectTest, test_get_property_nonexistent)
+{
     auto value = test_object->get_property("NonExistentProp", "org.test.dynamic_object.Interface1");
     ASSERT_TRUE(value.is_null());
 }
 
 // Test get_property with non-existent interface
-TEST_F(DynamicObjectTest, test_get_property_nonexistent_interface) {
+TEST_F(DynamicObjectTest, test_get_property_nonexistent_interface)
+{
     auto value = test_object->get_property("StringProp", "org.test.dynamic_object.NonExistentInterface");
     ASSERT_TRUE(value.is_null());
 }
 
 // Test set_property with valid property
-TEST_F(DynamicObjectTest, test_set_property_valid) {
+TEST_F(DynamicObjectTest, test_set_property_valid)
+{
     // Set string property
     bool ret1 = test_object->set_property("StringProp", mc::variant("new_string_value"),
                                           "org.test.dynamic_object.Interface1");
@@ -140,28 +147,32 @@ TEST_F(DynamicObjectTest, test_set_property_valid) {
 }
 
 // Test set_property with non-existent property
-TEST_F(DynamicObjectTest, test_set_property_nonexistent) {
+TEST_F(DynamicObjectTest, test_set_property_nonexistent)
+{
     bool ret = test_object->set_property("NonExistentProp", mc::variant("value"),
                                          "org.test.dynamic_object.Interface1");
     EXPECT_FALSE(ret);
 }
 
 // Test set_property with non-existent interface
-TEST_F(DynamicObjectTest, test_set_property_nonexistent_interface) {
+TEST_F(DynamicObjectTest, test_set_property_nonexistent_interface)
+{
     bool ret = test_object->set_property("StringProp", mc::variant("value"),
                                          "org.test.dynamic_object.NonExistentInterface");
     EXPECT_FALSE(ret);
 }
 
 // Test set_property with readonly property
-TEST_F(DynamicObjectTest, test_set_property_readonly) {
+TEST_F(DynamicObjectTest, test_set_property_readonly)
+{
     EXPECT_THROW(test_object->set_property("ReadOnlyProp", mc::variant("new_value"),
                                            "org.test.dynamic_object.Interface2"),
                  mc::exception);
 }
 
 // Test try_get_property with valid property
-TEST_F(DynamicObjectTest, test_try_get_property_valid) {
+TEST_F(DynamicObjectTest, test_try_get_property_valid)
+{
     auto [ret_code, value] = test_object->try_get_property("StringProp", "org.test.dynamic_object.Interface1");
     EXPECT_EQ(ret_code, static_cast<int>(access_property_rsp_code::success));
     ASSERT_TRUE(value.is_string());
@@ -174,23 +185,26 @@ TEST_F(DynamicObjectTest, test_try_get_property_valid) {
 }
 
 // Test try_get_property with non-existent property
-TEST_F(DynamicObjectTest, test_try_get_property_nonexistent) {
+TEST_F(DynamicObjectTest, test_try_get_property_nonexistent)
+{
     auto [ret_code, value] = test_object->try_get_property("NonExistentProp", "org.test.dynamic_object.Interface1");
     EXPECT_EQ(ret_code, static_cast<int>(access_property_rsp_code::property_not_exist_err));
     ASSERT_TRUE(value.is_null());
 }
 
 // Test try_get_property with non-existent interface
-TEST_F(DynamicObjectTest, test_try_get_property_nonexistent_interface) {
+TEST_F(DynamicObjectTest, test_try_get_property_nonexistent_interface)
+{
     auto [ret_code, value] = test_object->try_get_property("StringProp", "org.test.dynamic_object.NonExistentInterface");
     EXPECT_EQ(ret_code, static_cast<int>(access_property_rsp_code::interface_not_exist_err));
     ASSERT_TRUE(value.is_null());
 }
 
 // Test try_set_property with valid property
-TEST_F(DynamicObjectTest, test_try_set_property_valid) {
+TEST_F(DynamicObjectTest, test_try_set_property_valid)
+{
     int ret_code = test_object->try_set_property("StringProp", mc::variant("try_set_value"),
-                                                  "org.test.dynamic_object.Interface1");
+                                                 "org.test.dynamic_object.Interface1");
     EXPECT_EQ(ret_code, static_cast<int>(access_property_rsp_code::success));
 
     auto [ret_code2, value] = test_object->try_get_property("StringProp", "org.test.dynamic_object.Interface1");
@@ -200,30 +214,34 @@ TEST_F(DynamicObjectTest, test_try_set_property_valid) {
 }
 
 // Test try_set_property with non-existent property
-TEST_F(DynamicObjectTest, test_try_set_property_nonexistent) {
+TEST_F(DynamicObjectTest, test_try_set_property_nonexistent)
+{
     int ret_code = test_object->try_set_property("NonExistentProp", mc::variant("value"),
-                                                  "org.test.dynamic_object.Interface1");
+                                                 "org.test.dynamic_object.Interface1");
     EXPECT_EQ(ret_code, static_cast<int>(access_property_rsp_code::property_not_exist_err));
 }
 
 // Test try_set_property with non-existent interface
-TEST_F(DynamicObjectTest, test_try_set_property_nonexistent_interface) {
+TEST_F(DynamicObjectTest, test_try_set_property_nonexistent_interface)
+{
     int ret_code = test_object->try_set_property("StringProp", mc::variant("value"),
-                                                  "org.test.dynamic_object.NonExistentInterface");
+                                                 "org.test.dynamic_object.NonExistentInterface");
     EXPECT_EQ(ret_code, static_cast<int>(access_property_rsp_code::interface_not_exist_err));
 }
 
 // Test try_set_property with readonly property
-TEST_F(DynamicObjectTest, test_try_set_property_readonly) {
+TEST_F(DynamicObjectTest, test_try_set_property_readonly)
+{
     int ret_code = test_object->try_set_property("ReadOnlyProp", mc::variant("new_value"),
-                                                  "org.test.dynamic_object.Interface2");
+                                                 "org.test.dynamic_object.Interface2");
     EXPECT_EQ(ret_code, static_cast<int>(access_property_rsp_code::set_property_unknown_err));
 }
 
 // Test multiple interfaces with same property name
-TEST_F(DynamicObjectTest, test_multiple_interfaces_same_property_name) {
+TEST_F(DynamicObjectTest, test_multiple_interfaces_same_property_name)
+{
     // Add a property with same name to another interface
-    auto interface4 = mc::make_shared<dynamic_interface>("org.test.dynamic_object.Interface4");
+    auto             interface4 = mc::make_shared<dynamic_interface>("org.test.dynamic_object.Interface4");
     dynamic_property prop{"CommonProp", "s", mc::variant("interface4_value"), false, 0, {}};
     interface4->add_property("CommonProp", std::move(prop));
     test_object->add_interface(interface4);
@@ -238,7 +256,8 @@ TEST_F(DynamicObjectTest, test_multiple_interfaces_same_property_name) {
 }
 
 // Test array property
-TEST_F(DynamicObjectTest, test_array_property) {
+TEST_F(DynamicObjectTest, test_array_property)
+{
     auto value = test_object->get_property("ArrayProp", "org.test.dynamic_object.Interface3");
     ASSERT_TRUE(value.is_array());
     auto arr = value.as_array();
@@ -250,8 +269,8 @@ TEST_F(DynamicObjectTest, test_array_property) {
 
     // Set array property
     mc::variants new_array{10, 20, 30};
-    bool ret = test_object->set_property("ArrayProp", mc::variant(new_array),
-                                         "org.test.dynamic_object.Interface3");
+    bool         ret = test_object->set_property("ArrayProp", mc::variant(new_array),
+                                                 "org.test.dynamic_object.Interface3");
     EXPECT_TRUE(ret);
 
     auto value2 = test_object->get_property("ArrayProp", "org.test.dynamic_object.Interface3");
@@ -264,7 +283,8 @@ TEST_F(DynamicObjectTest, test_array_property) {
 }
 
 // Test has_property
-TEST_F(DynamicObjectTest, test_has_property) {
+TEST_F(DynamicObjectTest, test_has_property)
+{
     EXPECT_TRUE(test_object->has_property("StringProp", "org.test.dynamic_object.Interface1"));
     EXPECT_TRUE(test_object->has_property("IntProp", "org.test.dynamic_object.Interface1"));
     EXPECT_FALSE(test_object->has_property("NonExistentProp", "org.test.dynamic_object.Interface1"));
@@ -272,7 +292,8 @@ TEST_F(DynamicObjectTest, test_has_property) {
 }
 
 // Test get_all_properties
-TEST_F(DynamicObjectTest, test_get_all_properties) {
+TEST_F(DynamicObjectTest, test_get_all_properties)
+{
     auto all_props = test_object->get_all_properties("org.test.dynamic_object.Interface1");
     EXPECT_EQ(all_props.size(), 3u);
     EXPECT_TRUE(all_props.contains("StringProp"));
@@ -285,7 +306,8 @@ TEST_F(DynamicObjectTest, test_get_all_properties) {
 
 #if defined(ENABLE_CONAN_COMPILE)
 // Test update_shm_prop
-TEST_F(DynamicObjectTest, test_update_shm_prop) {
+TEST_F(DynamicObjectTest, test_update_shm_prop)
+{
     test_object->update_shm_prop("StringProp", mc::variant("test_update_shm_prop"), "org.test.dynamic_object.Interface1");
     auto value_shm = shm_tree::get_property("org.test.dynamic_object", "/org/test/dynamic_object/TestObject", "org.test.dynamic_object.Interface1", "StringProp");
     EXPECT_EQ(value_shm.as_string(), "test_update_shm_prop");

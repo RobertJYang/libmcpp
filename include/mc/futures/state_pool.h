@@ -47,11 +47,13 @@ struct state_deleter {
     template <typename U>
     using rebind = state_deleter<U>;
 
-    void destroy(StateType* ptr) {
+    void destroy(StateType* ptr)
+    {
         ptr->destory();
     }
 
-    void deallocate(const void* ptr) {
+    void deallocate(const void* ptr)
+    {
         state_base_deleter{}.deallocate(ptr);
     }
 };
@@ -70,7 +72,8 @@ public:
 
     // 获取或创建一个 State 对象
     template <typename T, typename Executor>
-    auto acquire_state(Executor executor) {
+    auto acquire_state(Executor executor)
+    {
         using state_type = State<T>;
 
         void* ptr = try_acquire_state(sizeof(typename state_type::result_type));
@@ -111,7 +114,8 @@ private:
 
 // 从缓存池创建 State 对象
 template <typename T, typename Executor>
-auto make_pooled_state(Executor executor) {
+auto make_pooled_state(Executor executor)
+{
     return state_pool::instance().acquire_state<detail::state_tt<T>, Executor>(std::move(executor));
 }
 

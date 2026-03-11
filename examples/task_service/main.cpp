@@ -18,7 +18,8 @@
 
 #include <thread>
 
-int main(int argc, char* argv[]) {
+int main(int argc, char* argv[])
+{
     mc::test::dbus_daemon_manager dbus_daemon;
     dbus_daemon.start();
 

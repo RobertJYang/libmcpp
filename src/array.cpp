@@ -25,7 +25,8 @@ namespace detail {
  *
  * @param msg 异常消息
  */
-[[noreturn]] void throw_array_out_of_range(const char* msg) {
+[[noreturn]] void throw_array_out_of_range(const char* msg)
+{
     MC_THROW(mc::out_of_range_exception, "${msg}", ("msg", msg));
 }
 

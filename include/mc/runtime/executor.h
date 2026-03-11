@@ -156,7 +156,9 @@ private:
     using function = boost::asio::detail::executor_function;
     class impl_base {
     public:
-        impl_base() : m_ref_count(1) {
+        impl_base()
+            : m_ref_count(1)
+        {
         }
 
         virtual ~impl_base() = default;
@@ -177,15 +179,18 @@ private:
         virtual std::optional<boost::asio::io_context::executor_type> to_io_executor() const     = 0;
 
         // 引用计数管理
-        void add_ref() const noexcept {
+        void add_ref() const noexcept
+        {
             m_ref_count.fetch_add(1, std::memory_order_relaxed);
         }
 
-        bool release() const noexcept {
+        bool release() const noexcept
+        {
             return m_ref_count.fetch_sub(1, std::memory_order_acq_rel) == 1;
         }
 
-        std::size_t use_count() const noexcept {
+        std::size_t use_count() const noexcept
+        {
             return m_ref_count.load(std::memory_order_acquire);
         }
 
@@ -197,22 +202,27 @@ private:
     class impl : public impl_base {
     public:
         explicit impl(Executor executor, const Allocator& allocator)
-            : m_executor(std::move(executor)), m_allocator(allocator) {
+            : m_executor(std::move(executor)), m_allocator(allocator)
+        {
         }
 
-        void post(function&& f) const override {
+        void post(function&& f) const override
+        {
             m_executor.post(std::forward<function&&>(f), m_allocator);
         }
 
-        void defer(function&& f) const override {
+        void defer(function&& f) const override
+        {
             m_executor.defer(std::forward<function&&>(f), m_allocator);
         }
 
-        void dispatch(function&& f) const override {
+        void dispatch(function&& f) const override
+        {
             m_executor.dispatch(std::forward<function&&>(f), m_allocator);
         }
 
-        bool equal(const impl_base& other) const override {
+        bool equal(const impl_base& other) const override
+        {
             if (target_type() != other.target_type()) {
                 return false;
             }
@@ -220,31 +230,38 @@ private:
             return m_executor == other_impl->m_executor;
         }
 
-        std::type_info const& target_type() const override {
+        std::type_info const& target_type() const override
+        {
             return typeid(Executor);
         }
 
-        const Executor& get_executor() const {
+        const Executor& get_executor() const
+        {
             return m_executor;
         }
 
-        void on_work_started() const noexcept override {
+        void on_work_started() const noexcept override
+        {
             m_executor.on_work_started();
         }
 
-        void on_work_finished() const noexcept override {
+        void on_work_finished() const noexcept override
+        {
             m_executor.on_work_finished();
         }
 
-        execution_context& context() const override {
+        execution_context& context() const override
+        {
             return m_executor.context();
         }
 
-        bool running_in_this_thread() const noexcept override {
+        bool running_in_this_thread() const noexcept override
+        {
             return running_in_this_thread_impl(m_executor);
         }
 
-        void bound_pool(thread_pool* pool) noexcept override {
+        void bound_pool(thread_pool* pool) noexcept override
+        {
             if constexpr (detail::has_bound_pool_v<Executor>) {
                 m_executor.bound_pool(pool);
             } else {
@@ -252,21 +269,24 @@ private:
             }
         }
 
-        thread_pool* get_bound_pool() const noexcept override {
+        thread_pool* get_bound_pool() const noexcept override
+        {
             if constexpr (detail::has_bound_pool_v<Executor>) {
                 return m_executor.get_bound_pool();
             }
             return nullptr;
         }
 
-        std::optional<boost::asio::any_io_executor> to_any_io_executor() const override {
+        std::optional<boost::asio::any_io_executor> to_any_io_executor() const override
+        {
             if constexpr (detail::can_convert_to_any_io_executor_v<Executor>) {
                 return m_executor;
             }
             return std::nullopt;
         }
 
-        std::optional<boost::asio::io_context::executor_type> to_io_executor() const override {
+        std::optional<boost::asio::io_context::executor_type> to_io_executor() const override
+        {
             if constexpr (detail::can_convert_to_io_executor_v<Executor>) {
                 return m_executor;
             }
@@ -276,12 +296,14 @@ private:
     private:
         template <typename E>
         static auto running_in_this_thread_impl(const E& exec) noexcept
-            -> decltype(exec.running_in_this_thread()) {
+            -> decltype(exec.running_in_this_thread())
+        {
             return exec.running_in_this_thread();
         }
 
         // 默认实现：保守返回 false
-        static bool running_in_this_thread_impl(...) noexcept {
+        static bool running_in_this_thread_impl(...) noexcept
+        {
             return false;
         }
 
@@ -295,23 +317,27 @@ private:
 template <typename Executor, typename Allocator, typename>
 executor::executor(Executor&& exec, const Allocator& allocator)
     : m_impl(new impl<std::decay_t<Executor>, std::decay_t<Allocator>>(
-          std::forward<Executor>(exec), allocator)) {
+          std::forward<Executor>(exec), allocator))
+{
 }
 
 template <typename Function, typename Allocator>
-auto executor::post(Function&& f, const Allocator& a) const {
+auto executor::post(Function&& f, const Allocator& a) const
+{
     MC_ASSERT_THROW(m_impl, mc::invalid_op_exception, "post on invalid executor");
     m_impl->post(function(std::forward<Function&&>(f), a));
 }
 
 template <typename Function, typename Allocator>
-auto executor::defer(Function&& f, const Allocator& a) const {
+auto executor::defer(Function&& f, const Allocator& a) const
+{
     MC_ASSERT_THROW(m_impl, mc::invalid_op_exception, "defer on invalid executor");
     m_impl->defer(function(std::forward<Function&&>(f), a));
 }
 
 template <typename Function, typename Allocator>
-auto executor::dispatch(Function&& f, const Allocator& a) const {
+auto executor::dispatch(Function&& f, const Allocator& a) const
+{
     MC_ASSERT_THROW(m_impl, mc::invalid_op_exception, "dispatch on invalid executor");
     m_impl->dispatch(function(std::forward<Function&&>(f), a));
 }

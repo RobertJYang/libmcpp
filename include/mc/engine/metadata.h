@@ -29,15 +29,20 @@ class abstract_interface;
 class abstract_object;
 
 struct metadata_visitor {
-    virtual void handle_interface_begin(const interface_metadata& iface) {
+    virtual void handle_interface_begin(const interface_metadata& iface)
+    {
     }
-    virtual void handle_interface_end(const interface_metadata& iface) {
+    virtual void handle_interface_end(const interface_metadata& iface)
+    {
     }
-    virtual void handle(const property_type_info* info) {
+    virtual void handle(const property_type_info* info)
+    {
     }
-    virtual void handle(const method_type_info* info) {
+    virtual void handle(const method_type_info* info)
+    {
     }
-    virtual void handle(const signal_type_info* info) {
+    virtual void handle(const signal_type_info* info)
+    {
     }
 };
 
@@ -79,7 +84,8 @@ private:
 struct interface_metadata {
     interface_metadata() = default;
     interface_metadata(const property_type_info* iface, const metadata_list* md)
-        : interface(iface), metadata(md) {
+        : interface(iface), metadata(md)
+    {
     }
 
     interface_metadata(const interface_metadata& other)            = default;
@@ -91,7 +97,8 @@ struct interface_metadata {
     const metadata_list*      metadata{nullptr};
 };
 
-inline abstract_interface* to_interface_ptr(const abstract_object* obj, const property_type_info* info) noexcept {
+inline abstract_interface* to_interface_ptr(const abstract_object* obj, const property_type_info* info) noexcept
+{
     if (info == nullptr) {
         return MC_MEMBER_PTR(abstract_interface*, obj, 0);
     }
@@ -106,12 +113,14 @@ struct interface_item : boost::intrusive::slist_base_hook<> {
 
     interface_item() = default;
     interface_item(const property_type_info* interface, const ReflectItem* item)
-        : interface(interface), item(item) {
+        : interface(interface), item(item)
+    {
     }
 
     // 辅助函数：给定一个对象指针，计算当前元信息代表的属性、方法、信号在对象中的指针
     template <typename ItemType, typename ObjectType>
-    ItemType* to_item_ptr(ObjectType* obj) const noexcept {
+    ItemType* to_item_ptr(ObjectType* obj) const noexcept
+    {
         if (interface == nullptr) {
             return MC_MEMBER_PTR(ItemType*, obj, item->offset());
         }

@@ -29,7 +29,8 @@ namespace mc::memory {
  * @return 指向新创建对象的指针
  */
 template <typename T, typename Alloc = std::allocator<T>, typename... Args>
-T* allocate_ptr(const Alloc& alloc, Args&&... args) {
+T* allocate_ptr(const Alloc& alloc, Args&&... args)
+{
     using AllocTraits  = std::allocator_traits<Alloc>;
     using ReboundAlloc = typename AllocTraits::template rebind_alloc<T>;
 
@@ -57,7 +58,8 @@ T* allocate_ptr(const Alloc& alloc, Args&&... args) {
  * @param ptr 指向要销毁的对象的指针
  */
 template <typename T, typename Alloc = std::allocator<T>>
-void destroy_ptr(const Alloc& alloc, T* ptr) {
+void destroy_ptr(const Alloc& alloc, T* ptr)
+{
     using AllocTraits  = std::allocator_traits<Alloc>;
     using ReboundAlloc = typename AllocTraits::template rebind_alloc<T>;
 
@@ -70,17 +72,20 @@ void destroy_ptr(const Alloc& alloc, T* ptr) {
 
 namespace detail {
 template <typename T>
-static constexpr auto has_m_alloc(int) -> decltype(std::declval<T>().m_alloc, bool()) {
+static constexpr auto has_m_alloc(int) -> decltype(std::declval<T>().m_alloc, bool())
+{
     return true;
 }
 
 template <typename T>
-static constexpr bool has_m_alloc(...) {
+static constexpr bool has_m_alloc(...)
+{
     return false;
 }
 
 template <typename T>
-void destroy_ptr(T* ptr) {
+void destroy_ptr(T* ptr)
+{
     using non_const_t = std::remove_const_t<T>;
     if constexpr (has_m_alloc<T>(0)) {
         using alloc_type   = typename non_const_t::alloc_type;
@@ -94,7 +99,8 @@ void destroy_ptr(T* ptr) {
 }
 
 template <typename T>
-void deallocate_ptr(T* ptr) {
+void deallocate_ptr(T* ptr)
+{
     using non_const_t = std::remove_const_t<T>;
     if constexpr (has_m_alloc<T>(0)) {
         using alloc_type   = typename non_const_t::alloc_type;
@@ -113,7 +119,8 @@ struct default_deleter {
     using rebind = default_deleter<U>;
 
     // 对象析构
-    void destroy(T* ptr) {
+    void destroy(T* ptr)
+    {
         if constexpr (detail::has_m_alloc<T>(0)) {
             using alloc_type   = typename std::remove_const_t<T>::alloc_type;
             using alloc_traits = std::allocator_traits<alloc_type>;
@@ -125,7 +132,8 @@ struct default_deleter {
     }
 
     // 内存释放
-    void deallocate(const void* ptr) {
+    void deallocate(const void* ptr)
+    {
         detail::deallocate_ptr<T>(static_cast<T*>(const_cast<void*>(ptr)));
     }
 };
@@ -160,7 +168,8 @@ public:
      * 如果 Deleter 有 destroy 方法则调用它，否则直接调用析构函数
      * @param ptr 要析构的对象指针
      */
-    static void destroy(T* ptr) {
+    static void destroy(T* ptr)
+    {
         if constexpr (has_destroy_method) {
             Deleter{}.destroy(ptr);
         } else {
@@ -173,7 +182,8 @@ public:
      * 如果 Deleter 有 deallocate 方法则调用它，否则调用 operator()
      * @param ptr 要释放的内存指针
      */
-    static void deallocate(const void* ptr) {
+    static void deallocate(const void* ptr)
+    {
         if constexpr (has_deallocate_method) {
             Deleter{}.deallocate(ptr);
         } else {

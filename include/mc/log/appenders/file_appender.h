@@ -35,7 +35,8 @@ struct file_appender_config {
     file_appender_config(std::string name, std::string filename, bool truncate = false,
                          bool flush_on_write = false)
         : name(std::move(name)), filename(std::move(filename)), truncate(truncate),
-          flush_on_write(flush_on_write) {
+          flush_on_write(flush_on_write)
+    {
     }
 };
 
@@ -127,9 +128,9 @@ private:
      */
     void close_file();
 
-    file_appender_config m_file_config; // 文件追加器配置
-    std::ofstream        m_file;        // 文件流
-    std::mutex           m_mutex;       // 互斥锁，保证线程安全
+    file_appender_config m_file_config;        // 文件追加器配置
+    std::ofstream        m_file;               // 文件流
+    std::mutex           m_mutex;              // 互斥锁，保证线程安全
     std::string          m_module_name{"N/A"}; // 模块名称
 };
 

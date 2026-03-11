@@ -54,7 +54,8 @@ public:
     any_promise(any_promise&&) noexcept            = default;
     any_promise& operator=(any_promise&&) noexcept = default;
 
-    operator bool() const {
+    operator bool() const
+    {
         return m_state != nullptr;
     }
 
@@ -64,25 +65,31 @@ public:
     void set_exception(std::exception_ptr e, bool strict_once = true);
     void set_exception(const mc::exception& e, bool strict_once = true);
 
-    inline launch get_policy() const noexcept {
+    inline launch get_policy() const noexcept
+    {
         return m_state ? m_state->m_policy : launch::async;
     }
-    inline void set_policy(launch policy) noexcept {
+    inline void set_policy(launch policy) noexcept
+    {
         if (m_state) {
             m_state->m_policy = policy;
         }
     }
 
-    inline bool is_bound() const noexcept {
+    inline bool is_bound() const noexcept
+    {
         return m_state->is_bound();
     }
-    inline bool is_ready() const noexcept {
+    inline bool is_ready() const noexcept
+    {
         return m_state->is_ready();
     }
-    inline bool is_cancelled() const noexcept {
+    inline bool is_cancelled() const noexcept
+    {
         return m_state->is_cancelled();
     }
-    inline bool is_rejected() const noexcept {
+    inline bool is_rejected() const noexcept
+    {
         return m_state->is_rejected();
     }
 
@@ -92,7 +99,8 @@ public:
 
 protected:
     template <typename T, typename U = T>
-    auto set_value(U&& value, bool strict_once = true) -> std::enable_if_t<!detail::is_future_v<T>, void> {
+    auto set_value(U&& value, bool strict_once = true) -> std::enable_if_t<!detail::is_future_v<T>, void>
+    {
         if (!m_state || m_state->is_cancelled()) {
             return;
         }
@@ -106,7 +114,8 @@ protected:
         m_state->mark_ready();
     }
 
-    void set_value(bool strict_once = true) {
+    void set_value(bool strict_once = true)
+    {
         if (!m_state || m_state->is_cancelled()) {
             return;
         }

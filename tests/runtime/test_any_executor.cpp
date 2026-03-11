@@ -32,7 +32,8 @@ class AnyExecutorTest : public mc::test::TestWithRuntime {
 } // namespace
 
 // 测试 any_executor 的基本构造和使用（融合多种构造方式）
-TEST_F(AnyExecutorTest, BasicConstruction) {
+TEST_F(AnyExecutorTest, BasicConstruction)
+{
     auto& runtime = mc::get_runtime_context();
 
     // 从不同类型的执行器构造 any_executor
@@ -66,7 +67,8 @@ TEST_F(AnyExecutorTest, BasicConstruction) {
 }
 
 // 测试 any_executor 的默认构造
-TEST_F(AnyExecutorTest, DefaultConstruction) {
+TEST_F(AnyExecutorTest, DefaultConstruction)
+{
     mc::any_executor default_executor;
 
     // 默认构造的执行器是 immediate_executor
@@ -75,7 +77,8 @@ TEST_F(AnyExecutorTest, DefaultConstruction) {
 }
 
 // 测试 any_executor 的拷贝语义
-TEST_F(AnyExecutorTest, CopySemantics) {
+TEST_F(AnyExecutorTest, CopySemantics)
+{
     auto& runtime = mc::get_runtime_context();
 
     auto             io_executor = mc::get_io_executor();
@@ -94,7 +97,8 @@ TEST_F(AnyExecutorTest, CopySemantics) {
 }
 
 // 测试 any_executor 的移动语义
-TEST_F(AnyExecutorTest, MoveSemantics) {
+TEST_F(AnyExecutorTest, MoveSemantics)
+{
     auto& runtime = mc::get_runtime_context();
 
     auto             io_executor = mc::get_io_executor();
@@ -114,7 +118,8 @@ TEST_F(AnyExecutorTest, MoveSemantics) {
 }
 
 // 测试 any_executor 的 post 操作
-TEST_F(AnyExecutorTest, PostOperation) {
+TEST_F(AnyExecutorTest, PostOperation)
+{
     auto& runtime = mc::get_runtime_context();
 
     std::atomic<int> task_count{0};
@@ -150,7 +155,8 @@ TEST_F(AnyExecutorTest, PostOperation) {
 }
 
 // 测试 any_executor 的 defer 操作
-TEST_F(AnyExecutorTest, DeferOperation) {
+TEST_F(AnyExecutorTest, DeferOperation)
+{
     auto& runtime = mc::get_runtime_context();
 
     bool                           task_executed{false};
@@ -169,7 +175,8 @@ TEST_F(AnyExecutorTest, DeferOperation) {
 }
 
 // 测试 any_executor 的 dispatch 操作
-TEST_F(AnyExecutorTest, DispatchOperation) {
+TEST_F(AnyExecutorTest, DispatchOperation)
+{
     auto& runtime = mc::get_runtime_context();
 
     bool                           task_executed{false};
@@ -187,7 +194,8 @@ TEST_F(AnyExecutorTest, DispatchOperation) {
 }
 
 // 测试 any_executor 的比较操作（融合所有比较场景）
-TEST_F(AnyExecutorTest, ComparisonOperations) {
+TEST_F(AnyExecutorTest, ComparisonOperations)
+{
     auto& runtime = mc::get_runtime_context();
 
     auto io_executor   = mc::get_io_executor();
@@ -249,7 +257,8 @@ TEST_F(AnyExecutorTest, ComparisonOperations) {
 }
 
 // 测试 any_executor 包装 strand
-TEST_F(AnyExecutorTest, StrandWrapping) {
+TEST_F(AnyExecutorTest, StrandWrapping)
+{
     auto& runtime = mc::get_runtime_context();
 
     // 创建 strand
@@ -289,7 +298,8 @@ TEST_F(AnyExecutorTest, StrandWrapping) {
 }
 
 // 测试 any_executor 的 valid() 方法（融合所有场景）
-TEST_F(AnyExecutorTest, ValidAllScenarios) {
+TEST_F(AnyExecutorTest, ValidAllScenarios)
+{
     auto& runtime = mc::get_runtime_context();
     runtime.start();
 
@@ -322,7 +332,8 @@ TEST_F(AnyExecutorTest, ValidAllScenarios) {
 }
 
 // 测试 any_executor 的 context() 方法（融合所有执行器类型）
-TEST_F(AnyExecutorTest, ContextAllExecutorTypes) {
+TEST_F(AnyExecutorTest, ContextAllExecutorTypes)
+{
     auto& runtime = mc::get_runtime_context();
     runtime.start();
 
@@ -354,7 +365,8 @@ TEST_F(AnyExecutorTest, ContextAllExecutorTypes) {
 }
 
 // 测试 any_executor 的 on_work_started/on_work_finished（融合所有执行器类型）
-TEST_F(AnyExecutorTest, WorkLifecycleAllExecutorTypes) {
+TEST_F(AnyExecutorTest, WorkLifecycleAllExecutorTypes)
+{
     auto& runtime = mc::get_runtime_context();
     runtime.start();
 
@@ -385,7 +397,8 @@ TEST_F(AnyExecutorTest, WorkLifecycleAllExecutorTypes) {
 }
 
 // 测试 any_executor 的 get_executor() 方法（融合 const 和非 const 版本）
-TEST_F(AnyExecutorTest, GetExecutor) {
+TEST_F(AnyExecutorTest, GetExecutor)
+{
     auto& runtime = mc::get_runtime_context();
     runtime.start();
 
@@ -410,7 +423,8 @@ TEST_F(AnyExecutorTest, GetExecutor) {
 }
 
 // 测试 any_executor 的 post/defer/dispatch 覆盖所有执行器类型（融合复杂场景）
-TEST_F(AnyExecutorTest, PostDeferDispatchAllExecutorTypes) {
+TEST_F(AnyExecutorTest, PostDeferDispatchAllExecutorTypes)
+{
     auto& runtime = mc::get_runtime_context();
     runtime.start();
 
@@ -502,7 +516,8 @@ TEST_F(AnyExecutorTest, PostDeferDispatchAllExecutorTypes) {
 }
 
 // 测试 any_executor 的 post/defer/dispatch 使用自定义分配器（融合所有执行器类型）
-TEST_F(AnyExecutorTest, PostDeferDispatchWithCustomAllocator) {
+TEST_F(AnyExecutorTest, PostDeferDispatchWithCustomAllocator)
+{
     auto& runtime = mc::get_runtime_context();
     runtime.start();
 

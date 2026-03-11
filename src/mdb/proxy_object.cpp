@@ -32,7 +32,8 @@ proxy_object::proxy_object(mc::dbus::sd_bus*     bus,
       m_service(std::move(service)),
       m_path(std::move(path)),
       m_interface(std::move(interface)),
-      m_iface_info(iface_info) {
+      m_iface_info(iface_info)
+{
 }
 
 // 接收 shared_ptr 的构造函数
@@ -46,32 +47,39 @@ proxy_object::proxy_object(std::shared_ptr<mc::dbus::sd_bus> bus,
       m_service(std::move(service)),
       m_path(std::move(path)),
       m_interface(std::move(interface)),
-      m_iface_info(iface_info) {
+      m_iface_info(iface_info)
+{
 }
 
-const interface_info& proxy_object::get_interface_info() const {
+const interface_info& proxy_object::get_interface_info() const
+{
     return m_iface_info;
 }
 
-bool proxy_object::has_property(const std::string& name) const {
+bool proxy_object::has_property(const std::string& name) const
+{
     return m_iface_info.properties.count(name) != 0;
 }
 
-bool proxy_object::has_method(const std::string& name) const {
+bool proxy_object::has_method(const std::string& name) const
+{
     return m_iface_info.methods.count(name) != 0;
 }
 
-const property_info* proxy_object::get_property_info(const std::string& name) const {
+const property_info* proxy_object::get_property_info(const std::string& name) const
+{
     auto it = m_iface_info.properties.find(name);
     return it == m_iface_info.properties.end() ? nullptr : &it->second;
 }
 
-const method_info* proxy_object::get_method_info(const std::string& name) const {
+const method_info* proxy_object::get_method_info(const std::string& name) const
+{
     auto it = m_iface_info.methods.find(name);
     return it == m_iface_info.methods.end() ? nullptr : &it->second;
 }
 
-mc::variant proxy_object::get_property(const std::string& name) {
+mc::variant proxy_object::get_property(const std::string& name)
+{
     auto* prop = get_property_info(name);
     if (!prop) {
         MC_THROW(mc::exception, "invalid property");
@@ -94,7 +102,8 @@ mc::variant proxy_object::get_property(const std::string& name) {
     }
 }
 
-void proxy_object::set_property(const std::string& name, const mc::variant& value) {
+void proxy_object::set_property(const std::string& name, const mc::variant& value)
+{
     auto* prop = get_property_info(name);
     if (!prop) {
         MC_THROW(mc::exception, "invalid property");
@@ -118,7 +127,8 @@ void proxy_object::set_property(const std::string& name, const mc::variant& valu
     }
 }
 
-mc::dict proxy_object::get_all_properties() {
+mc::dict proxy_object::get_all_properties()
+{
     mc::dict ctx{};
     auto*    engine_ctx = mc::engine::context::get_current_context_ptr();
     if (engine_ctx) {
@@ -141,7 +151,8 @@ mc::dict proxy_object::get_all_properties() {
     }
 }
 
-std::pair<mc::dict, mc::dict> proxy_object::get_properties(const mc::variants& prop_names) {
+std::pair<mc::dict, mc::dict> proxy_object::get_properties(const mc::variants& prop_names)
+{
     mc::dict ctx{};
     auto*    engine_ctx = mc::engine::context::get_current_context_ptr();
     if (engine_ctx) {
@@ -182,7 +193,8 @@ std::pair<mc::dict, mc::dict> proxy_object::get_properties(const mc::variants& p
     }
 }
 
-mc::variants proxy_object::call_method(const std::string& name, const mc::variant& args) {
+mc::variants proxy_object::call_method(const std::string& name, const mc::variant& args)
+{
     auto* method = get_method_info(name);
     if (!method) {
         MC_THROW(mc::exception, "invalid method");
@@ -212,9 +224,10 @@ mc::variants proxy_object::call_method(const std::string& name, const mc::varian
     return results;
 }
 
-std::pair<bool, mc::variants> proxy_object::call_method_pcall(const std::string& name,
-                                                                 const mc::variant& args,
-                                                                 std::optional<std::string>& error) {
+std::pair<bool, mc::variants> proxy_object::call_method_pcall(const std::string&          name,
+                                                              const mc::variant&          args,
+                                                              std::optional<std::string>& error)
+{
     try {
         error.reset();
         mc::variants results = call_method(name, args);
@@ -225,7 +238,8 @@ std::pair<bool, mc::variants> proxy_object::call_method_pcall(const std::string&
     }
 }
 
-bool proxy_object::is_volatile(const std::string& name) const {
+bool proxy_object::is_volatile(const std::string& name) const
+{
     auto* prop = get_property_info(name);
     if (!prop) {
         MC_THROW(mc::exception, "invalid property");
@@ -233,18 +247,22 @@ bool proxy_object::is_volatile(const std::string& name) const {
     return prop->is_volatile();
 }
 
-mc::dbus::connection& proxy_object::bus() {
+mc::dbus::connection& proxy_object::bus()
+{
     return m_bus->get_connection();
 }
 
-const std::string& proxy_object::service() const {
+const std::string& proxy_object::service() const
+{
     return m_service;
 }
 
-const std::string& proxy_object::path() const {
+const std::string& proxy_object::path() const
+{
     return m_path;
 }
 
-const std::string& proxy_object::interface() const {
+const std::string& proxy_object::interface() const
+{
     return m_interface;
 }

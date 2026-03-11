@@ -19,7 +19,8 @@
 namespace mc::fmt::detail {
 
 // 应用对齐和填充
-static void apply_alignment_and_padding(std::string& out, size_t content_start, size_t content_len, const format_spec& spec) {
+static void apply_alignment_and_padding(std::string& out, size_t content_start, size_t content_len, const format_spec& spec)
+{
     if (spec.width <= static_cast<int>(content_len)) {
         return;
     }
@@ -57,7 +58,8 @@ static void apply_alignment_and_padding(std::string& out, size_t content_start, 
 
 // 转换为无符号类型
 template <typename T>
-auto to_unsigned_type(T value) {
+auto to_unsigned_type(T value)
+{
     if constexpr (std::is_unsigned_v<T>) {
         return value;
     } else {
@@ -76,7 +78,8 @@ auto to_unsigned_type(T value) {
 }
 
 // 写入二进制值
-static void write_bit_value(std::ostream& os, const std::bitset<64>& bits, const format_spec& spec) {
+static void write_bit_value(std::ostream& os, const std::bitset<64>& bits, const format_spec& spec)
+{
     if (spec.alternate_form) {
         os << (spec.type == 'B' ? "0B" : "0b");
     }
@@ -94,7 +97,8 @@ static void write_bit_value(std::ostream& os, const std::bitset<64>& bits, const
 
 // 格式化整数
 template <typename T>
-void format_integer(format_context& ctx, T value, const format_spec& spec) {
+void format_integer(format_context& ctx, T value, const format_spec& spec)
+{
     bool is_negative = value < 0;
     auto abs_val     = to_unsigned_type(value);
     format_number(ctx.out(), spec, is_negative, [&](std::ostream& os) {
@@ -128,7 +132,8 @@ void format_integer(format_context& ctx, T value, const format_spec& spec) {
 }
 
 // 移除十六进制前缀
-static void remove_hex_prefix(std::string& s, size_t pos) {
+static void remove_hex_prefix(std::string& s, size_t pos)
+{
     if (s.size() < (pos + 2) || s[pos] != '0' || (s[pos + 1] != 'x' && s[pos + 1] != 'X')) {
         return;
     }
@@ -138,7 +143,8 @@ static void remove_hex_prefix(std::string& s, size_t pos) {
 
 // 写入浮点数值
 template <typename T>
-void write_double_value(std::ostream& os, std::string& out, char type_char, int precision, T abs_val) {
+void write_double_value(std::ostream& os, std::string& out, char type_char, int precision, T abs_val)
+{
     switch (type_char) {
     case 'f':
     case 'F':
@@ -184,7 +190,8 @@ void write_double_value(std::ostream& os, std::string& out, char type_char, int 
 }
 
 // 处理 g/G 格式的替代形式
-static void handle_g_format_alternate(std::string& s, std::size_t pos, int precision, double abs_val, const format_spec& spec) {
+static void handle_g_format_alternate(std::string& s, std::size_t pos, int precision, double abs_val, const format_spec& spec)
+{
     if (!spec.alternate_form) {
         return;
     }
@@ -210,7 +217,8 @@ static void handle_g_format_alternate(std::string& s, std::size_t pos, int preci
 }
 
 // 处理其他格式的替代形式
-static void handle_format_alternate(std::string& s, std::size_t pos, const format_spec& spec) {
+static void handle_format_alternate(std::string& s, std::size_t pos, const format_spec& spec)
+{
     if (!spec.alternate_form) {
         return;
     }
@@ -232,7 +240,8 @@ static void handle_format_alternate(std::string& s, std::size_t pos, const forma
 }
 
 // 去除尾零
-static void remove_trailing_zeros(std::string& s, std::size_t pos, const format_spec& spec) {
+static void remove_trailing_zeros(std::string& s, std::size_t pos, const format_spec& spec)
+{
     auto dot = s.find('.', pos);
     if (dot == std::string::npos) {
         return;
@@ -259,7 +268,8 @@ static void remove_trailing_zeros(std::string& s, std::size_t pos, const format_
 }
 
 // 调整浮点数尾部格式
-static void adjust_double_trailing(std::string& s, std::size_t pos, int precision, double abs_val, const format_spec& spec) {
+static void adjust_double_trailing(std::string& s, std::size_t pos, int precision, double abs_val, const format_spec& spec)
+{
     // 处理 g/G 格式的替代形式
     if (spec.type == 'g' || spec.type == 'G') {
         handle_g_format_alternate(s, pos, precision, abs_val, spec);
@@ -272,7 +282,8 @@ static void adjust_double_trailing(std::string& s, std::size_t pos, int precisio
 
 // 格式化浮点数
 template <typename T>
-void format_double(format_context& ctx, T value, const format_spec& spec) {
+void format_double(format_context& ctx, T value, const format_spec& spec)
+{
     bool is_negative = std::signbit(value);
     T    abs_val     = is_negative ? -value : value;
     int  precision   = (spec.precision >= 0) ? spec.precision : MC_FLOAT_PRECISION;
@@ -286,7 +297,8 @@ void format_double(format_context& ctx, T value, const format_spec& spec) {
 
 // 格式化数字（带符号处理）
 template <typename WriteAbs>
-void format_number(std::string& out, const format_spec& spec, bool is_negative, WriteAbs&& write_abs) {
+void format_number(std::string& out, const format_spec& spec, bool is_negative, WriteAbs&& write_abs)
+{
     size_t           start_pos = out.size();
     direct_outputbuf buf(out);
     std::ostream     os(&buf);
@@ -307,32 +319,38 @@ void format_number(std::string& out, const format_spec& spec, bool is_negative, 
 
 // 格式化通用值
 template <typename WriteValue>
-void format_value(std::string& out, const format_spec& spec, WriteValue&& f) {
+void format_value(std::string& out, const format_spec& spec, WriteValue&& f)
+{
     size_t start_pos = out.size();
     f(out);
     size_t content_len = out.size() - start_pos;
     apply_alignment_and_padding(out, start_pos, content_len, spec);
 }
 
-void format_parser::parse(string_view fmt_str, format_context& ctx) {
+void format_parser::parse(string_view fmt_str, format_context& ctx)
+{
     parse_format_string(fmt_str, ctx);
 }
 
 // 格式化浮点数
-void format_parser::format_double(format_context& ctx, float value, const format_spec& spec) {
+void format_parser::format_double(format_context& ctx, float value, const format_spec& spec)
+{
     mc::fmt::detail::format_double(ctx, value, spec);
 }
 
-void format_parser::format_double(format_context& ctx, double value, const format_spec& spec) {
+void format_parser::format_double(format_context& ctx, double value, const format_spec& spec)
+{
     mc::fmt::detail::format_double(ctx, value, spec);
 }
 
-void format_parser::format_double(format_context& ctx, long double value, const format_spec& spec) {
+void format_parser::format_double(format_context& ctx, long double value, const format_spec& spec)
+{
     mc::fmt::detail::format_double(ctx, value, spec);
 }
 
 // 格式化指针
-void format_parser::format_pointer(format_context& ctx, const void* ptr, const format_spec& spec) {
+void format_parser::format_pointer(format_context& ctx, const void* ptr, const format_spec& spec)
+{
     if (spec.type != '\0' && spec.type != 'p') {
         MC_THROW(mc::format_error, "invalid format specifier for pointer");
     }
@@ -348,7 +366,8 @@ void format_parser::format_pointer(format_context& ctx, const void* ptr, const f
 }
 
 // 格式化字符串
-void format_parser::format_string(format_context& ctx, string_view str, const format_spec& spec) {
+void format_parser::format_string(format_context& ctx, string_view str, const format_spec& spec)
+{
     if (spec.type != '\0' && spec.type != 's') {
         MC_THROW(mc::format_error, "invalid format specifier for string");
     }
@@ -368,7 +387,8 @@ void format_parser::format_string(format_context& ctx, string_view str, const fo
 }
 
 // 格式化布尔值
-void format_parser::format_bool(format_context& ctx, bool value, const format_spec& spec) {
+void format_parser::format_bool(format_context& ctx, bool value, const format_spec& spec)
+{
     if (spec.type == '\0') {
         // 默认格式输出 true/false
         format_string(ctx, value ? string_view("true") : string_view("false"), spec);
@@ -379,12 +399,14 @@ void format_parser::format_bool(format_context& ctx, bool value, const format_sp
 }
 
 // 格式化自定义类型
-void format_parser::format_custom(format_context& ctx, const custom_t& custom, const format_spec& spec) {
+void format_parser::format_custom(format_context& ctx, const custom_t& custom, const format_spec& spec)
+{
     custom.format_fn(custom.obj, ctx, spec);
 }
 
 // 格式化字符
-void format_parser::format_char(format_context& ctx, char c, const format_spec& spec) {
+void format_parser::format_char(format_context& ctx, char c, const format_spec& spec)
+{
     if (spec.type != '\0' && spec.type != 'c' && spec.type != 'd') {
         MC_THROW(mc::format_error, "invalid format specifier for char");
     }
@@ -400,17 +422,20 @@ void format_parser::format_char(format_context& ctx, char c, const format_spec& 
 }
 
 // 格式化有符号整数
-void format_parser::format_int(format_context& ctx, int64_t value, const format_spec& spec) {
+void format_parser::format_int(format_context& ctx, int64_t value, const format_spec& spec)
+{
     mc::fmt::detail::format_integer(ctx, value, spec);
 }
 
 // 格式化无符号整数
-void format_parser::format_uint(format_context& ctx, uint64_t value, const format_spec& spec) {
+void format_parser::format_uint(format_context& ctx, uint64_t value, const format_spec& spec)
+{
     mc::fmt::detail::format_integer(ctx, value, spec);
 }
 
 // 格式化参数
-void format_parser::format_arg(format_context& ctx, const detail::format_arg& arg, format_spec& spec) {
+void format_parser::format_arg(format_context& ctx, const detail::format_arg& arg, format_spec& spec)
+{
     arg.visit([&](auto&& value) {
         using T = std::decay_t<decltype(value)>;
         if constexpr (std::is_same_v<T, monostate>) {

@@ -22,16 +22,20 @@ namespace {
 
 class basic_service : public mc::core::service_base {
 public:
-    explicit basic_service(std::string name) : mc::core::service_base(std::move(name)) {
+    explicit basic_service(std::string name)
+        : mc::core::service_base(std::move(name))
+    {
     }
 
-    bool init(mc::dict args) override {
+    bool init(mc::dict args) override
+    {
         m_args = std::move(args);
         set_state(mc::core::service_state::running);
         return true;
     }
 
-    bool stop() override {
+    bool stop() override
+    {
         set_state(mc::core::service_state::stopped);
         return true;
     }
@@ -45,7 +49,8 @@ public:
 
     struct register_options {
         void operator()(boost::program_options::options_description& cli,
-                        boost::program_options::options_description& cfg) const {
+                        boost::program_options::options_description& cfg) const
+        {
             cli.add_options()("sample", boost::program_options::value<int>()->default_value(42),
                               "sample option");
             auto tmp_dir = mc::filesystem::temp_directory_path();
@@ -55,7 +60,8 @@ public:
         }
     };
 
-    bool init(mc::dict) override {
+    bool init(mc::dict) override
+    {
         return true;
     }
 };
@@ -64,7 +70,8 @@ class failing_service : public mc::core::service_base {
 public:
     using mc::core::service_base::service_base;
 
-    bool init(mc::dict args) override {
+    bool init(mc::dict args) override
+    {
         if (args.contains("allow") && args["allow"].as_bool()) {
             return true;
         }
@@ -74,7 +81,8 @@ public:
 
 } // namespace
 
-TEST(service_factory_test, register_and_create_service_success) {
+TEST(service_factory_test, register_and_create_service_success)
+{
     mc::core::service_factory factory;
     factory.register_service<basic_service>("basic");
 
@@ -82,7 +90,7 @@ TEST(service_factory_test, register_and_create_service_success) {
 
     mc::dict args;
     args["token"] = 123;
-    auto service = factory.create_service("basic", "instance-basic", args);
+    auto service  = factory.create_service("basic", "instance-basic", args);
     ASSERT_NE(service, nullptr);
     EXPECT_EQ(service->name(), "instance-basic");
     EXPECT_EQ(service->get_state(), mc::core::service_state::running);
@@ -96,7 +104,8 @@ TEST(service_factory_test, register_and_create_service_success) {
     EXPECT_EQ(types[0], "basic");
 }
 
-TEST(service_factory_test, register_service_registers_options_when_available) {
+TEST(service_factory_test, register_service_registers_options_when_available)
+{
     mc::core::service_factory factory;
     factory.register_service<options_service>("options");
 
@@ -118,7 +127,8 @@ TEST(service_factory_test, register_service_registers_options_when_available) {
     EXPECT_TRUE(cfg_found);
 }
 
-TEST(service_factory_test, create_service_handles_missing_or_failed_services) {
+TEST(service_factory_test, create_service_handles_missing_or_failed_services)
+{
     mc::core::service_factory factory;
     factory.register_service<failing_service>("failing");
 
@@ -131,7 +141,7 @@ TEST(service_factory_test, create_service_handles_missing_or_failed_services) {
 
     mc::dict success_args;
     success_args["allow"] = true;
-    auto created = factory.create_service("failing", "ok-instance", success_args);
+    auto created          = factory.create_service("failing", "ok-instance", success_args);
     ASSERT_NE(created, nullptr);
     EXPECT_EQ(created->name(), "ok-instance");
 }

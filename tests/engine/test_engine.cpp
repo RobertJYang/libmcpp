@@ -25,7 +25,9 @@
 namespace test_engine {
 
 struct test_service : public mc::engine::service {
-    test_service() : mc::engine::service("org.openubmc.test_service") {
+    test_service()
+        : mc::engine::service("org.openubmc.test_service")
+    {
     }
 };
 
@@ -36,11 +38,13 @@ class test_interface_1 : public mc::engine::interface<test_interface_1> {
 public:
     MC_INTERFACE("org.test.test_interface_1")
 
-    std::string rewite_method(const std::string& value) {
+    std::string rewite_method(const std::string& value)
+    {
         MC_REPLY_ERROR_AND_THROW(mc::engine::errors::not_supported);
     }
 
-    int32_t add_values(int32_t a, int32_t b) {
+    int32_t add_values(int32_t a, int32_t b)
+    {
         return a + b;
     }
 
@@ -62,7 +66,8 @@ public:
     MC_OBJECT(test_object, "TestObject", "/org/test/object_${object_id}_${i32 + 100}",
               (test_interface_1)(test_interface_2))
 
-    std::string rewite_method(const std::string& value) {
+    std::string rewite_method(const std::string& value)
+    {
         return sformat("test_object:rewite_method: {}", value);
     }
 
@@ -72,18 +77,21 @@ public:
 
 class engine_test : public mc::test::TestWithEngine {
 protected:
-    void SetUp() override {
+    void SetUp() override
+    {
         TestWithEngine::SetUp();
         service.init();
         service.start();
     }
 
-    void TearDown() override {
+    void TearDown() override
+    {
         service.stop();
         TestWithEngine::TearDown();
     }
 
-    auto create_object(std::string_view path) {
+    auto create_object(std::string_view path)
+    {
         auto obj = test_object::create();
 
         int         object_id   = m_object_id++;
@@ -96,7 +104,8 @@ protected:
         return obj;
     };
 
-    auto get_managed_objects(mc::engine::abstract_object& obj) {
+    auto get_managed_objects(mc::engine::abstract_object& obj)
+    {
         mc::variants var;
         for (auto [path, _] : obj.get_managed_objects()) {
             var.push_back(path);
@@ -104,7 +113,8 @@ protected:
         return var;
     };
 
-    auto objects(std::initializer_list<std::string_view> objs) {
+    auto objects(std::initializer_list<std::string_view> objs)
+    {
         mc::variants vec;
         for (auto obj : objs) {
             vec.push_back(obj);
@@ -129,7 +139,8 @@ MC_REFLECT(test_engine::test_object,
 
 using namespace test_engine;
 
-TEST_F(engine_test, test_engine_dbus_connection) {
+TEST_F(engine_test, test_engine_dbus_connection)
+{
     mc::dbus::connection conn;
     try {
         conn = mc::dbus::connection::open_session_bus(mc::get_io_context());
@@ -157,7 +168,8 @@ TEST_F(engine_test, test_engine_dbus_connection) {
     EXPECT_GE(names.count("org.openubmc.test_service"), 1);
 }
 
-TEST_F(engine_test, test_object_property_changed_sig) {
+TEST_F(engine_test, test_object_property_changed_sig)
+{
     auto obj = test_object::create();
     obj->m_iface_1.m_i32.set_value(1);
     service.register_object(obj);
@@ -199,7 +211,8 @@ TEST_F(engine_test, test_object_property_changed_sig) {
     EXPECT_EQ(str, obj->m_iface_1.m_str);
 }
 
-TEST_F(engine_test, test_interface_property_changed_sig) {
+TEST_F(engine_test, test_interface_property_changed_sig)
+{
     auto obj = test_object::create();
     service.register_object(obj);
 
@@ -218,7 +231,8 @@ TEST_F(engine_test, test_interface_property_changed_sig) {
     EXPECT_EQ(values, expected);
 }
 
-TEST_F(engine_test, test_property_changed_sig) {
+TEST_F(engine_test, test_property_changed_sig)
+{
     auto obj = test_object::create();
     service.register_object(obj);
 
@@ -241,7 +255,8 @@ TEST_F(engine_test, test_property_changed_sig) {
     EXPECT_EQ(values, expected);
 }
 
-TEST_F(engine_test, test_property_changed_sig_use_abstract_object) {
+TEST_F(engine_test, test_property_changed_sig_use_abstract_object)
+{
     auto obj = test_object::create();
     service.register_object(obj);
 
@@ -267,7 +282,8 @@ TEST_F(engine_test, test_property_changed_sig_use_abstract_object) {
     EXPECT_EQ(values, expected);
 }
 
-TEST_F(engine_test, test_object_reflect) {
+TEST_F(engine_test, test_object_reflect)
+{
     auto obj = test_object::create();
 
     obj->m_iface_1.m_i32.set_value(20);
@@ -296,7 +312,8 @@ TEST_F(engine_test, test_object_reflect) {
     EXPECT_EQ(obj2->m_iface_2.m_variant, 100);
 }
 
-TEST_F(engine_test, test_managed_object) {
+TEST_F(engine_test, test_managed_object)
+{
     auto test_obj = create_object("/org/test");
     auto obj1     = create_object("/org/test/o1");
     auto obj2     = create_object("/org/test/o2");
@@ -332,7 +349,8 @@ TEST_F(engine_test, test_managed_object) {
               objects({"/bmc/dev/Accessor/Accessor_1v8_0101010301", "/bmc/dev/Accessor/Accessor_0v8_0101010301", "/bmc/dev/Accessor/Accessor_1v2_0101010301"}));
 }
 
-TEST_F(engine_test, test_managed_object_comprehensive) {
+TEST_F(engine_test, test_managed_object_comprehensive)
+{
     // ======= 基本场景测试 =======
     auto root_obj = create_object("/org");
     auto test_obj = create_object("/org/test");
@@ -451,15 +469,17 @@ TEST_F(engine_test, test_managed_object_comprehensive) {
     EXPECT_EQ(get_managed_objects(*insert_mid), objects({"/org/rebuild/a/mid/1"}));
 }
 
-TEST(ServiceApiValidation, InitInvalidBusName) {
+TEST(ServiceApiValidation, InitInvalidBusName)
+{
     ::mc::engine::service invalid_service("invalid bus name");
     EXPECT_FALSE(invalid_service.init());
 }
 
-TEST_F(engine_test, ServiceLifecycleHooks) {
+TEST_F(engine_test, ServiceLifecycleHooks)
+{
     std::map<std::string, std::string> dump_context{{"phase", "collect"}};
-    auto tmp_dir = mc::filesystem::temp_directory_path();
-    auto nonexistent = (tmp_dir / "nonexistent").string();
+    auto                               tmp_dir     = mc::filesystem::temp_directory_path();
+    auto                               nonexistent = (tmp_dir / "nonexistent").string();
     service.on_dump(dump_context, nonexistent);
     service.on_detach_debug_console({});
     EXPECT_EQ(service.on_reboot_prepare({}), 0);
@@ -471,7 +491,8 @@ TEST_F(engine_test, ServiceLifecycleHooks) {
     EXPECT_TRUE(service.is_healthy());
 }
 
-TEST_F(engine_test, ServiceTimeoutCalls) {
+TEST_F(engine_test, ServiceTimeoutCalls)
+{
     auto obj = create_object("/org/openubmc/service_api/object");
 
     ::mc::variants args;
@@ -495,19 +516,22 @@ TEST_F(engine_test, ServiceTimeoutCalls) {
     }
 }
 
-TEST_F(engine_test, ServiceMatchManagement) {
+TEST_F(engine_test, ServiceMatchManagement)
+{
     // 使用 std::string 确保字符串生命周期安全
-    std::string member_name = "PropertiesChanged";
+    std::string member_name    = "PropertiesChanged";
     std::string interface_name = "org.freedesktop.DBus.Properties";
     // 直接传递 std::string，它们会自动转换为 string_view
     ::mc::dbus::match_rule rule = ::mc::dbus::match_rule::new_signal(member_name, interface_name);
-    auto id = service.add_match(rule, [](auto&) {});
+    auto                   id   = service.add_match(rule, [](auto&) {
+    });
     // get_rule_id() 从 0 开始，所以 id 可能为 0，这是有效的
     EXPECT_GE(id, 0U);
     service.remove_match(id);
 }
 
-TEST_F(engine_test, test_object_rewite_method) {
+TEST_F(engine_test, test_object_rewite_method)
+{
     auto obj = create_object("/org/test");
 
     mc::engine::abstract_object* obj_ptr = obj.get();

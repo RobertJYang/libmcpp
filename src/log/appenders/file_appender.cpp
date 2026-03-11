@@ -53,7 +53,8 @@ constexpr uint32_t                LOG_US_TIME = 0x01;
 
 // 将 mc::log::level 映射到 DLOG_LEVEL_E
 // 对于没有对应级别的（all, trace, fatal, off），返回 DLOG_DEBUG 作为默认值
-static DLOG_LEVEL_E log_level_to_dlog_level(mc::log::level lvl) {
+static DLOG_LEVEL_E log_level_to_dlog_level(mc::log::level lvl)
+{
     switch (lvl) {
     case mc::log::level::error:
         return DLOG_ERROR;
@@ -74,10 +75,12 @@ static DLOG_LEVEL_E log_level_to_dlog_level(mc::log::level lvl) {
 namespace mc {
 namespace log {
 
-file_appender::file_appender() {
+file_appender::file_appender()
+{
 }
 
-bool file_appender::init(const variant& args) {
+bool file_appender::init(const variant& args)
+{
     if (!args.is_object()) {
         return false;
     }
@@ -127,12 +130,14 @@ bool file_appender::init(const variant& args) {
     return true;
 }
 
-file_appender::~file_appender() {
+file_appender::~file_appender()
+{
     close_file();
 }
 
 // fallback_out：stub 环境下无 debug_log_ptr 时写入此流，供测试读文件断言
-void append_debug(const message& msg, std::ostream* fallback_out) {
+void append_debug(const message& msg, std::ostream* fallback_out)
+{
     // 获取上下文信息
     const context& ctx = msg.get_context();
 
@@ -182,7 +187,8 @@ void append_debug(const message& msg, std::ostream* fallback_out) {
     }
 }
 
-void get_initiator(std::string& interface, std::string& username, std::string& client_addr) {
+void get_initiator(std::string& interface, std::string& username, std::string& client_addr)
+{
     if (!mc::engine::context::get_current_context_ptr()) {
         return;
     }
@@ -201,7 +207,8 @@ void get_initiator(std::string& interface, std::string& username, std::string& c
 
 // 从 args 或 engine context 获取 initiator，各字段独立判断
 void get_initiator_from_args(const mc::dict& args, std::string& interface_name, std::string& username,
-                             std::string& client_addr, std::string& module_name) {
+                             std::string& client_addr, std::string& module_name)
+{
     if (args.contains("interface_name")) {
         interface_name = args["interface_name"].as<std::string>();
     }
@@ -219,7 +226,8 @@ void get_initiator_from_args(const mc::dict& args, std::string& interface_name, 
     }
 }
 
-void append_operation(const message& msg, std::ostream* fallback_out) {
+void append_operation(const message& msg, std::ostream* fallback_out)
+{
     // 获取上下文信息
     const context& ctx = msg.get_context();
 
@@ -257,7 +265,8 @@ void append_operation(const message& msg, std::ostream* fallback_out) {
     }
 }
 
-void append_hw_stream(const message& msg, std::ostream* fallback_out) {
+void append_hw_stream(const message& msg, std::ostream* fallback_out)
+{
     const context& ctx = msg.get_context();
 
     std::string message_str = msg.get_message();
@@ -297,7 +306,8 @@ void append_hw_stream(const message& msg, std::ostream* fallback_out) {
     }
 }
 
-void append_running(const message& msg, std::ostream* fallback_out) {
+void append_running(const message& msg, std::ostream* fallback_out)
+{
     std::string message_str = msg.get_message();
     logging::filter_invalid_chars(message_str);
     std::string level_str(mc::log::to_string(msg.get_level()));
@@ -314,7 +324,8 @@ void append_running(const message& msg, std::ostream* fallback_out) {
     }
 }
 
-void append_security(const message& msg, std::ostream* fallback_out) {
+void append_security(const message& msg, std::ostream* fallback_out)
+{
     std::string message_str = msg.get_message();
     logging::filter_invalid_chars(message_str);
     std::string level_str(mc::log::to_string(msg.get_level()));
@@ -325,7 +336,8 @@ void append_security(const message& msg, std::ostream* fallback_out) {
     }
 }
 
-void append_maintenance(const message& msg, std::ostream* fallback_out) {
+void append_maintenance(const message& msg, std::ostream* fallback_out)
+{
     std::string message_str = msg.get_message();
     logging::filter_invalid_chars(message_str);
     std::string level_str(mc::log::to_string(msg.get_level()));
@@ -359,7 +371,8 @@ void append_maintenance(const message& msg, std::ostream* fallback_out) {
     }
 }
 
-void append_mc_stream(const message& msg, std::ostream* fallback_out) {
+void append_mc_stream(const message& msg, std::ostream* fallback_out)
+{
     const context& ctx = msg.get_context();
 
     std::string message_str = msg.get_message();
@@ -399,10 +412,11 @@ void append_mc_stream(const message& msg, std::ostream* fallback_out) {
     }
 }
 
-void file_appender::append(const message& msg) {
+void file_appender::append(const message& msg)
+{
     std::lock_guard<std::mutex> lock(m_mutex);
 
-    log_category category = msg.get_category();
+    log_category  category = msg.get_category();
     std::ostream* fallback = m_file.is_open() ? &m_file : nullptr;
     switch (category) {
     case log_category::debug:
@@ -436,23 +450,24 @@ void file_appender::append(const message& msg) {
     }
 }
 
-void file_appender::set_filename(const std::string& filename) {
+void file_appender::set_filename(const std::string& filename)
+{
     std::lock_guard<std::mutex> lock(m_mutex);
-    
+
     // 检查文件是否存在（如果文件流打开但文件被删除，需要重新打开）
     bool file_exists = false;
     if (!filename.empty()) {
         struct stat st;
         file_exists = (stat(filename.c_str(), &st) == 0);
     }
-    
+
     // 如果 filename 改变，或者文件没有打开，或者文件流状态异常，或者文件不存在，都需要重新打开
-    bool need_reopen = (m_file_config.filename != filename) || 
-                       !m_file.is_open() || 
-                       m_file.fail() || 
+    bool need_reopen = (m_file_config.filename != filename) ||
+                       !m_file.is_open() ||
+                       m_file.fail() ||
                        m_file.bad() ||
                        (!filename.empty() && !file_exists);
-    
+
     if (need_reopen) {
         std::string reopen_reason;
         if (m_file_config.filename != filename) {
@@ -464,7 +479,7 @@ void file_appender::set_filename(const std::string& filename) {
         } else if (!file_exists) {
             reopen_reason = "file_deleted";
         }
-        
+
         close_file();
         m_file_config.filename = filename;
         open_file();
@@ -476,32 +491,38 @@ void file_appender::set_filename(const std::string& filename) {
     }
 }
 
-void file_appender::set_debug_log_level(level lvl) {
+void file_appender::set_debug_log_level(level lvl)
+{
     if (set_log_level_ptr) {
         set_log_level_ptr(log_level_to_dlog_level(lvl));
     }
 }
 
-const std::string& file_appender::get_filename() const {
+const std::string& file_appender::get_filename() const
+{
     return m_file_config.filename;
 }
 
-void file_appender::set_flush_on_write(bool flush_on_write) {
+void file_appender::set_flush_on_write(bool flush_on_write)
+{
     m_file_config.flush_on_write = flush_on_write;
 }
 
-bool file_appender::get_flush_on_write() const {
+bool file_appender::get_flush_on_write() const
+{
     return m_file_config.flush_on_write;
 }
 
-void file_appender::flush() {
+void file_appender::flush()
+{
     std::lock_guard<std::mutex> lock(m_mutex);
     if (m_file.is_open()) {
         m_file.flush();
     }
 }
 
-void file_appender::open_file() {
+void file_appender::open_file()
+{
     if (!m_file_config.filename.empty()) {
         std::ios_base::openmode mode = std::ios::out;
         if (m_file_config.truncate) {
@@ -519,14 +540,16 @@ void file_appender::open_file() {
     }
 }
 
-void file_appender::close_file() {
+void file_appender::close_file()
+{
     if (m_file.is_open()) {
         m_file.flush();
         m_file.close();
     }
 }
 
-void file_appender::set_debug_log_ptr(void* func_ptr) {
+void file_appender::set_debug_log_ptr(void* func_ptr)
+{
     debug_log_ptr = reinterpret_cast<debug_log_func_t>(func_ptr);
 }
 

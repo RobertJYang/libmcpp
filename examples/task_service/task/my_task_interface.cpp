@@ -20,13 +20,16 @@ REGISTER_CONST_ERROR(task_state_error, "bmc.kepler.error.TaskStateError",
                      "expect task state is {}, actual state is {}");
 } // namespace errors
 
-my_task_interface::my_task_interface() {
+my_task_interface::my_task_interface()
+{
 }
 
-my_task_interface::~my_task_interface() {
+my_task_interface::~my_task_interface()
+{
 }
 
-void my_task_interface::start() {
+void my_task_interface::start()
+{
     if (*m_state != task_state::PENDING) {
         elog("task {} is not pending", *m_name);
         MC_REPLY_ERROR(test::errors::task_state_error,
@@ -38,7 +41,8 @@ void my_task_interface::start() {
     start_timer();
 }
 
-void my_task_interface::stop() {
+void my_task_interface::stop()
+{
     if (*m_state == task_state::COMPLETED || *m_state == task_state::FAILED) {
         elog("task {} is already completed or failed", *m_name);
         return;
@@ -48,7 +52,8 @@ void my_task_interface::stop() {
     stop_timer();
 }
 
-void my_task_interface::pause() {
+void my_task_interface::pause()
+{
     if (*m_state != task_state::RUNNING) {
         elog("task {} is not running", *m_name);
         MC_REPLY_ERROR(test::errors::task_state_error,
@@ -60,7 +65,8 @@ void my_task_interface::pause() {
     stop_timer();
 }
 
-void my_task_interface::resume() {
+void my_task_interface::resume()
+{
     if (*m_state != task_state::PAUSED) {
         elog("task {} is not paused", *m_name);
         MC_REPLY_ERROR(test::errors::task_state_error,
@@ -72,7 +78,8 @@ void my_task_interface::resume() {
     start_timer();
 }
 
-void my_task_interface::start_timer() {
+void my_task_interface::start_timer()
+{
     if (!m_timer) {
         create_timer();
     } else {
@@ -84,7 +91,8 @@ void my_task_interface::start_timer() {
          *m_name, mc::time_point::now(), *m_progress);
 }
 
-void my_task_interface::create_timer() {
+void my_task_interface::create_timer()
+{
     m_timer = new mc::core::timer(this);
     this->connect(m_timer->timeout, [this]() {
         if (*m_state != task_state::RUNNING) {
@@ -103,7 +111,8 @@ void my_task_interface::create_timer() {
     m_endTime.set_value(std::string(mc::time_point::now() + m_timeout));
 }
 
-void my_task_interface::stop_timer() {
+void my_task_interface::stop_timer()
+{
     if (m_timer) {
         m_timer->stop();
         ilog("task {} stop, current time: {}, progress: {}",
@@ -111,15 +120,18 @@ void my_task_interface::stop_timer() {
     }
 }
 
-uint32_t my_task_interface::get_progress() {
+uint32_t my_task_interface::get_progress()
+{
     return *m_progress;
 }
 
-task_state my_task_interface::get_state() {
+task_state my_task_interface::get_state()
+{
     return *m_state;
 }
 
-void my_task_interface::set_state(task_state state) {
+void my_task_interface::set_state(task_state state)
+{
     ilog("task {} state from {} to {}",
          *m_name, *m_state, state);
     m_state.set_value(state);

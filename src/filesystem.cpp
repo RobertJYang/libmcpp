@@ -22,7 +22,8 @@ namespace mc {
 namespace filesystem {
 
 // 获取路径中的文件名部分
-std::string basename(const fs::path& path) {
+std::string basename(const fs::path& path)
+{
     if (path.empty()) {
         return "";
     }
@@ -31,7 +32,8 @@ std::string basename(const fs::path& path) {
 }
 
 // 获取路径中的目录部分
-std::string dirname(const fs::path& path) {
+std::string dirname(const fs::path& path)
+{
     if (path.empty()) {
         return ".";
     }
@@ -41,7 +43,8 @@ std::string dirname(const fs::path& path) {
 }
 
 // 获取文件扩展名，不包含点号
-std::string extension(const fs::path& path) {
+std::string extension(const fs::path& path)
+{
     if (path.empty()) {
         return "";
     }
@@ -58,7 +61,8 @@ std::string extension(const fs::path& path) {
 }
 
 // 获取文件名主干部分（不含扩展名）
-std::string stem(const fs::path& path) {
+std::string stem(const fs::path& path)
+{
     if (path.empty()) {
         return "";
     }
@@ -68,7 +72,8 @@ std::string stem(const fs::path& path) {
 }
 
 // 检查文件或目录是否存在
-bool exists(const fs::path& p) {
+bool exists(const fs::path& p)
+{
     try {
         return fs::exists(p);
     } catch (const std::exception& e) {
@@ -76,7 +81,8 @@ bool exists(const fs::path& p) {
     }
 }
 
-bool is_regular_file(const fs::path& p) {
+bool is_regular_file(const fs::path& p)
+{
     try {
         return fs::is_regular_file(p);
     } catch (const std::exception& e) {
@@ -84,7 +90,8 @@ bool is_regular_file(const fs::path& p) {
     }
 }
 
-bool is_directory(const fs::path& p) {
+bool is_directory(const fs::path& p)
+{
     try {
         return fs::is_directory(p);
     } catch (const std::exception& e) {
@@ -92,7 +99,8 @@ bool is_directory(const fs::path& p) {
     }
 }
 
-std::optional<uint64_t> file_size(const fs::path& p) {
+std::optional<uint64_t> file_size(const fs::path& p)
+{
     try {
         return static_cast<uint64_t>(fs::file_size(p));
     } catch (const std::exception& e) {
@@ -101,7 +109,8 @@ std::optional<uint64_t> file_size(const fs::path& p) {
 }
 
 // 列出目录中的所有项目（文件和子目录）
-std::vector<fs::path> list_directory(const fs::path& path) {
+std::vector<fs::path> list_directory(const fs::path& path)
+{
     std::vector<fs::path> result;
 
     if (!fs::is_directory(path)) {
@@ -119,7 +128,8 @@ std::vector<fs::path> list_directory(const fs::path& path) {
 }
 
 // 列出目录中的所有普通文件
-std::vector<path> list_files(const path& path) {
+std::vector<path> list_files(const path& path)
+{
     std::vector<fs::path> result;
 
     if (!fs::is_directory(path)) {
@@ -137,7 +147,8 @@ std::vector<path> list_files(const path& path) {
 }
 
 // 列出目录中的所有子目录
-std::vector<path> list_directories(const path& path) {
+std::vector<path> list_directories(const path& path)
+{
     std::vector<fs::path> result;
 
     if (!fs::is_directory(path)) {
@@ -154,7 +165,8 @@ std::vector<path> list_directories(const path& path) {
     return result;
 }
 
-bool create_directory(const path& p) {
+bool create_directory(const path& p)
+{
     try {
         return fs::create_directory(p);
     } catch (const std::exception& e) {
@@ -162,7 +174,8 @@ bool create_directory(const path& p) {
     }
 }
 
-bool create_directories(const path& p) {
+bool create_directories(const path& p)
+{
     try {
         return fs::create_directories(p);
     } catch (const std::exception& e) {
@@ -170,7 +183,8 @@ bool create_directories(const path& p) {
     }
 }
 
-bool remove(const path& p) {
+bool remove(const path& p)
+{
     try {
         return fs::remove(p);
     } catch (const std::exception& e) {
@@ -178,7 +192,8 @@ bool remove(const path& p) {
     }
 }
 
-std::optional<uint64_t> remove_all(const path& p) {
+std::optional<uint64_t> remove_all(const path& p)
+{
     try {
         return static_cast<uint64_t>(fs::remove_all(p));
     } catch (const std::exception& e) {
@@ -186,7 +201,8 @@ std::optional<uint64_t> remove_all(const path& p) {
     }
 }
 
-bool copy_file(const path& from, const path& to, bool overwrite) {
+bool copy_file(const path& from, const path& to, bool overwrite)
+{
     try {
         fs::copy_options options =
             overwrite ? fs::copy_options::overwrite_existing : fs::copy_options::none;
@@ -197,11 +213,13 @@ bool copy_file(const path& from, const path& to, bool overwrite) {
     }
 }
 
-void rename(const path& from, const path& to) {
+void rename(const path& from, const path& to)
+{
     fs::rename(from, to);
 }
 
-bool create_symlink(const path& target, const path& link) {
+bool create_symlink(const path& target, const path& link)
+{
     try {
         fs::create_symlink(target, link);
         return true;
@@ -210,7 +228,8 @@ bool create_symlink(const path& target, const path& link) {
     }
 }
 
-std::optional<fs::path> read_symlink(const path& path) {
+std::optional<fs::path> read_symlink(const path& path)
+{
     try {
         return fs::read_symlink(path);
     } catch (const std::exception& e) {
@@ -218,15 +237,18 @@ std::optional<fs::path> read_symlink(const path& path) {
     }
 }
 
-path current_path() {
+path current_path()
+{
     return fs::current_path();
 }
 
-void current_path(const path& p) {
+void current_path(const path& p)
+{
     fs::current_path(p);
 }
 
-path absolute(const path& p) {
+path absolute(const path& p)
+{
     try {
         return fs::absolute(p);
     } catch (const std::exception& e) {
@@ -234,35 +256,37 @@ path absolute(const path& p) {
     }
 }
 #if defined(MC_HAS_STD_FILESYSTEM)
-fs::path normalize(const fs::path& path) {
+fs::path normalize(const fs::path& path)
+{
     if (path.empty()) {
         return ".";
     }
     return path.lexically_normal();
 }
 #else
-fs::path normalize(const fs::path& path) {
+fs::path normalize(const fs::path& path)
+{
     if (path.empty()) {
         return ".";
     }
-    
+
     // 自定义路径规范化实现，用于不支持lexically_normal的编译器
     fs::path result;
-    bool is_absolute = path.is_absolute();
-    bool has_root_name = !path.root_name().empty();
-    bool has_root_directory = !path.root_directory().empty();
-    
+    bool     is_absolute        = path.is_absolute();
+    bool     has_root_name      = !path.root_name().empty();
+    bool     has_root_directory = !path.root_directory().empty();
+
     // 保留根部分
     if (has_root_name) {
         result /= path.root_name();
     }
-    
+
     if (has_root_directory) {
         result /= path.root_directory();
     }
-    
+
     std::vector<fs::path> elements;
-    
+
     // 处理每个路径片段
     for (const auto& part : path) {
         std::string part_str = part.string();
@@ -283,25 +307,27 @@ fs::path normalize(const fs::path& path) {
             elements.push_back(part);
         }
     }
-    
+
     // 构建最终路径
     for (const auto& element : elements) {
         result /= element;
     }
-    
+
     // 处理空路径的情况
     if (result.empty()) {
         return ".";
     }
-    
+
     return result;
 }
 #endif
-path join(const path& base, const path& p) {
+path join(const path& base, const path& p)
+{
     return base / p;
 }
 
-path join(const std::vector<path>& paths) {
+path join(const std::vector<path>& paths)
+{
     if (paths.empty()) {
         return path();
     }
@@ -313,7 +339,8 @@ path join(const std::vector<path>& paths) {
     return result;
 }
 
-std::optional<std::string> read_file(const path& p) {
+std::optional<std::string> read_file(const path& p)
+{
     try {
         std::ifstream file(p, std::ios::binary);
         if (!file) {
@@ -327,7 +354,8 @@ std::optional<std::string> read_file(const path& p) {
     }
 }
 
-bool write_file(const path& p, const std::string& content) {
+bool write_file(const path& p, const std::string& content)
+{
     try {
         std::ofstream file(p, std::ios::binary);
         if (!file) {
@@ -340,7 +368,8 @@ bool write_file(const path& p, const std::string& content) {
     }
 }
 
-bool append_file(const path& p, const std::string& content) {
+bool append_file(const path& p, const std::string& content)
+{
     try {
         std::ofstream file(p, std::ios::binary | std::ios::app);
         if (!file) {
@@ -353,7 +382,8 @@ bool append_file(const path& p, const std::string& content) {
     }
 }
 
-std::optional<int64_t> last_modified_time(const path& p) {
+std::optional<int64_t> last_modified_time(const path& p)
+{
     try {
         auto ftime = fs::last_write_time(p);
         // 转换文件系统时间点到时间戳
@@ -365,7 +395,8 @@ std::optional<int64_t> last_modified_time(const path& p) {
     }
 }
 
-space_info space(const path& p) {
+space_info space(const path& p)
+{
     try {
         return fs::space(p);
     } catch (const std::exception& e) {
@@ -373,7 +404,8 @@ space_info space(const path& p) {
     }
 }
 
-fs::path temp_directory_path() {
+fs::path temp_directory_path()
+{
     return fs::temp_directory_path();
 }
 

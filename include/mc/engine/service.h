@@ -35,20 +35,22 @@ public:
     void cleanup() override;
     bool is_healthy() const override;
 
-    void on_dump(std::map<std::string, std::string> context, std::string filepath) override;
-    void on_detach_debug_console(std::map<std::string, std::string> context) override;
+    void    on_dump(std::map<std::string, std::string> context, std::string filepath) override;
+    void    on_detach_debug_console(std::map<std::string, std::string> context) override;
     int32_t on_reboot_prepare(std::map<std::string, std::string> context) override;
     int32_t on_reboot_process(std::map<std::string, std::string> context) override;
     int32_t on_reboot_action(std::map<std::string, std::string> context) override;
-    void on_reboot_cancel(std::map<std::string, std::string> context) override;
+    void    on_reboot_cancel(std::map<std::string, std::string> context) override;
 
     template <typename ObjectType>
-    void register_object(mc::shared_ptr<ObjectType> obj) {
+    void register_object(mc::shared_ptr<ObjectType> obj)
+    {
         register_object(*obj);
     }
 
     void register_object(abstract_object& obj);
-    void register_object(abstract_object* obj) {
+    void register_object(abstract_object* obj)
+    {
         if (obj == nullptr) {
             return;
         }
@@ -57,7 +59,8 @@ public:
     }
 
     template <typename ObjectType>
-    void unregister_object(mc::shared_ptr<ObjectType> obj) {
+    void unregister_object(mc::shared_ptr<ObjectType> obj)
+    {
         unregister_object(obj->get_object_path());
     }
     void unregister_object(std::string_view path);

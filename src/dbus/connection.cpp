@@ -19,7 +19,8 @@
 namespace mc::dbus {
 
 template <DBusBusType bus_type>
-connection open_bus(mc::io_context& executor) {
+connection open_bus(mc::io_context& executor)
+{
     mc::dbus::error err;
     int             i = 0;
     while (true) {
@@ -39,15 +40,18 @@ connection open_bus(mc::io_context& executor) {
     MC_THROW(mc::system_exception, "DBus connection failed: ${error}", ("error", err.message));
 }
 
-connection connection::open_system_bus(mc::io_context& executor) {
+connection connection::open_system_bus(mc::io_context& executor)
+{
     return open_bus<DBUS_BUS_SYSTEM>(executor);
 }
 
-connection connection::open_session_bus(mc::io_context& executor) {
+connection connection::open_session_bus(mc::io_context& executor)
+{
     return open_bus<DBUS_BUS_SESSION>(executor);
 }
 
-connection connection::open_address(mc::io_context& executor, std::string_view address) {
+connection connection::open_address(mc::io_context& executor, std::string_view address)
+{
     mc::dbus::error err;
     dbus_error_init(&err);
     DBusConnection* raw_conn = dbus_connection_open_private(address.data(), &err);
@@ -63,7 +67,8 @@ connection connection::open_address(mc::io_context& executor, std::string_view a
 }
 
 connection::connection(mc::io_context& executor, DBusConnection* conn, bool add_ref)
-    : m_impl(std::make_unique<connection_impl>(executor)) {
+    : m_impl(std::make_unique<connection_impl>(executor))
+{
     if (add_ref) {
         dbus_connection_ref(conn);
     }
@@ -72,13 +77,16 @@ connection::connection(mc::io_context& executor, DBusConnection* conn, bool add_
     m_impl->m_status     = connect_status::connecting;
 }
 
-connection::connection() {
+connection::connection()
+{
 }
 
-connection::~connection() {
+connection::~connection()
+{
 }
 
-void connection::disconnect() {
+void connection::disconnect()
+{
     if (!m_impl) {
         return;
     }
@@ -86,7 +94,8 @@ void connection::disconnect() {
     m_impl->disconnect();
 }
 
-void connection::flush() {
+void connection::flush()
+{
     if (!m_impl) {
         return;
     }
@@ -94,7 +103,8 @@ void connection::flush() {
     m_impl->flush();
 }
 
-void connection::dispatch() {
+void connection::dispatch()
+{
     if (!m_impl) {
         return;
     }
@@ -102,7 +112,8 @@ void connection::dispatch() {
     m_impl->dispatch();
 }
 
-bool connection::send(message&& msg) {
+bool connection::send(message&& msg)
+{
     ensure_impl();
     auto start    = std::chrono::steady_clock::now();
     auto result   = m_impl->send(std::forward<message>(msg));
@@ -112,38 +123,44 @@ bool connection::send(message&& msg) {
     return result;
 }
 
-message connection::send_with_reply(message&& msg, mc::milliseconds timeout) {
+message connection::send_with_reply(message&& msg, mc::milliseconds timeout)
+{
     ensure_impl();
 
     return async_send_with_reply(std::forward<message>(msg), timeout).get();
 }
 
-message connection::send_with_reply_and_block(message&& msg, mc::milliseconds timeout) {
+message connection::send_with_reply_and_block(message&& msg, mc::milliseconds timeout)
+{
     ensure_impl();
 
     return m_impl->send_with_reply_and_block(std::forward<message>(msg), timeout);
 }
 
 connection::future<message> connection::async_send_with_reply(message&&        msg,
-                                                              mc::milliseconds timeout) {
+                                                              mc::milliseconds timeout)
+{
     ensure_impl();
 
     return m_impl->async_send_with_reply(std::forward<message>(msg), timeout);
 }
 
-void connection::register_path(std::string_view path, path_handler_type handler) {
+void connection::register_path(std::string_view path, path_handler_type handler)
+{
     ensure_impl();
 
     m_impl->register_path(path, std::move(handler));
 }
 
-void connection::unregister_path(std::string_view path) {
+void connection::unregister_path(std::string_view path)
+{
     ensure_impl();
 
     m_impl->unregister_path(path);
 }
 
-bool connection::is_connected() const {
+bool connection::is_connected() const
+{
     if (!m_impl) {
         return false;
     }
@@ -151,7 +168,8 @@ bool connection::is_connected() const {
     return m_impl->is_connected();
 }
 
-bool connection::get_is_connected() const {
+bool connection::get_is_connected() const
+{
     if (!m_impl) {
         return false;
     }
@@ -159,7 +177,8 @@ bool connection::get_is_connected() const {
     return m_impl->get_is_connected();
 }
 
-bool connection::start() {
+bool connection::start()
+{
     if (!m_impl) {
         return false;
     }
@@ -168,7 +187,8 @@ bool connection::start() {
 }
 
 std::tuple<bool, std::optional<error>> connection::request_name(std::string_view name,
-                                                                uint32_t         flags) {
+                                                                uint32_t         flags)
+{
     if (!m_impl) {
         error err;
         err.set_error(error_names::disconnected, "Connection not initialized");
@@ -178,7 +198,8 @@ std::tuple<bool, std::optional<error>> connection::request_name(std::string_view
     return m_impl->request_name(name, flags);
 }
 
-std::string_view connection::get_unique_name() const {
+std::string_view connection::get_unique_name() const
+{
     if (!m_impl) {
         return {};
     }
@@ -186,18 +207,21 @@ std::string_view connection::get_unique_name() const {
     return dbus_bus_get_unique_name(m_impl->m_connection);
 }
 
-void connection::set_unique_name(std::string_view name) {
+void connection::set_unique_name(std::string_view name)
+{
     ensure_impl();
     dbus_bus_set_unique_name(m_impl->m_connection, std::string(name).c_str());
 }
 
-connection_impl& connection::get_impl() const {
+connection_impl& connection::get_impl() const
+{
     ensure_impl();
 
     return *m_impl;
 }
 
-DBusConnection* connection::get_connection() const {
+DBusConnection* connection::get_connection() const
+{
     if (!m_impl) {
         return nullptr;
     }
@@ -205,52 +229,62 @@ DBusConnection* connection::get_connection() const {
     return m_impl->m_connection;
 }
 
-filter_message_signal_type& connection::filter_message() const {
+filter_message_signal_type& connection::filter_message() const
+{
     ensure_impl();
 
     return m_impl->on_filter_message;
 }
 
-std::string connection::get_service_name() const {
+std::string connection::get_service_name() const
+{
     ensure_impl();
     return m_impl->get_service_name();
 }
 
-void connection::ensure_impl() const {
+void connection::ensure_impl() const
+{
     MC_ASSERT(m_impl, "DBus Connection not initialized");
 }
 
-void connection::add_rule(match_rule& rule, match_cb_t&& cb, uint64_t id) {
+void connection::add_rule(match_rule& rule, match_cb_t&& cb, uint64_t id)
+{
     ensure_impl();
     m_impl->add_rule(rule, std::forward<match_cb_t>(cb), id);
 }
 
-void connection::remove_rule(uint64_t id) {
+void connection::remove_rule(uint64_t id)
+{
     ensure_impl();
     m_impl->remove_rule(id);
 }
 
-void connection::add_match(match_rule& rule, match_cb_t&& cb, uint64_t id) {
+void connection::add_match(match_rule& rule, match_cb_t&& cb, uint64_t id)
+{
     ensure_impl();
     m_impl->add_match(rule, std::forward<match_cb_t>(cb), id);
 }
 
-void connection::add_match_only(match_rule& rule, match_cb_t&& cb, uint64_t id) {
+void connection::add_match_only(match_rule& rule, match_cb_t&& cb, uint64_t id)
+{
     ensure_impl();
     m_impl->add_match_only(rule, std::forward<match_cb_t>(cb), id);
 }
 
-void connection::remove_match(uint64_t id) {
+void connection::remove_match(uint64_t id)
+{
     ensure_impl();
     m_impl->remove_match(id);
 }
 
-match& connection::get_match() {
+match& connection::get_match()
+{
     ensure_impl();
     return m_impl->get_match();
 }
 
-uint32_t connection::get_next_serial() {
+uint32_t connection::get_next_serial()
+{
     ensure_impl();
     return m_impl->get_next_serial();
 }

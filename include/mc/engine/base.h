@@ -84,14 +84,15 @@ public:
 
     virtual mc::variant get_value(int options = 0) const = 0;
 
-    void set_value(const mc::variant& value) {
+    void set_value(const mc::variant& value)
+    {
         set_variant(value);
     }
 
     virtual property_changed_signal& property_changed() = 0;
 
-    virtual mc::variant get_override_value() const = 0;
-    virtual void set_override_value(const mc::variant& value) = 0;
+    virtual mc::variant get_override_value() const                   = 0;
+    virtual void        set_override_value(const mc::variant& value) = 0;
 
 protected:
     virtual void set_variant(const mc::variant& value) = 0;
@@ -105,7 +106,8 @@ public:
     using mc::core::object::connect;
 
     abstract_object(core_object* parent = nullptr)
-        : mc::core::object(parent) {
+        : mc::core::object(parent)
+    {
     }
 
     virtual ~abstract_object() = default;
@@ -159,14 +161,15 @@ public:
     virtual result<mc::variant> async_invoke(std::string_view method_name, const mc::variants& args = {},
                                              std::string_view interface_name = {})     = 0;
 
-    virtual void                           notify_property_changed(const mc::variant&   value,
-                                                                   const property_base& prop)       = 0;
-    virtual property_changed_signal&       property_changed()                                       = 0;
-    virtual void                           notify_property_update_shm(const mc::variant&   value,
-                                                                      const property_base& prop)    = 0;
-    virtual property_changed_signal&       property_update_shm()                                    = 0;
+    virtual void                     notify_property_changed(const mc::variant&   value,
+                                                             const property_base& prop)    = 0;
+    virtual property_changed_signal& property_changed()                                    = 0;
+    virtual void                     notify_property_update_shm(const mc::variant&   value,
+                                                                const property_base& prop) = 0;
+    virtual property_changed_signal& property_update_shm()                                 = 0;
 
-    mc::shared_ptr<abstract_object> shared_from_this() {
+    mc::shared_ptr<abstract_object> shared_from_this()
+    {
         return mc::shared_ptr<abstract_object>(this);
     }
 
@@ -216,13 +219,16 @@ public:
     virtual const property_type_info* get_property_info(std::string_view property_name) const = 0;
     virtual const property_type_info* get_property_info(const void* prop_addr) const          = 0;
 
-    bool has_property(std::string_view property_name) const {
+    bool has_property(std::string_view property_name) const
+    {
         return get_property_info(property_name) != nullptr;
     }
-    bool has_method(std::string_view method_name) const {
+    bool has_method(std::string_view method_name) const
+    {
         return get_method_info(method_name) != nullptr;
     }
-    bool has_signal(std::string_view signal_name) const {
+    bool has_signal(std::string_view signal_name) const
+    {
         return get_signal_info(signal_name) != nullptr;
     }
 
@@ -261,7 +267,8 @@ using object_table_impl =
 class service_object_table : public service_object_table_impl {
 public:
     service_object_table(const std::string& service_name)
-        : service_object_table_impl(service_name + ".object_table") {
+        : service_object_table_impl(service_name + ".object_table")
+    {
     }
 };
 
@@ -269,7 +276,8 @@ public:
 class object_table : public object_table_impl {
 public:
     object_table()
-        : object_table_impl("object_table") {
+        : object_table_impl("object_table")
+    {
     }
 };
 

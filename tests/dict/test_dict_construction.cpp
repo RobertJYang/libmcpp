@@ -23,14 +23,16 @@
 using namespace mc;
 
 // 测试 dict 默认构造函数
-TEST(DictConstructionTest, DefaultConstructor) {
+TEST(DictConstructionTest, DefaultConstructor)
+{
     dict d;
     EXPECT_TRUE(d.empty());
     EXPECT_EQ(d.size(), 0);
 }
 
 // 测试 dict 从 vector<entry> 构造
-TEST(DictConstructionTest, VectorEntryConstructor) {
+TEST(DictConstructionTest, VectorEntryConstructor)
+{
     std::vector<dict::entry> entries;
     entries.emplace_back("key1", 123);
     entries.emplace_back("key2", "value");
@@ -45,7 +47,8 @@ TEST(DictConstructionTest, VectorEntryConstructor) {
 }
 
 // 测试 dict 从 initializer_list 构造
-TEST(DictConstructionTest, InitializerListConstructor) {
+TEST(DictConstructionTest, InitializerListConstructor)
+{
     dict d({{"key1", 123}, {"key2", "value"}, {"key3", true}});
 
     EXPECT_EQ(d.size(), 3);
@@ -55,7 +58,8 @@ TEST(DictConstructionTest, InitializerListConstructor) {
 }
 
 // 测试 dict 拷贝构造函数
-TEST(DictConstructionTest, CopyConstructor) {
+TEST(DictConstructionTest, CopyConstructor)
+{
     dict d1({{"key1", 123}, {"key2", "value"}, {"key3", true}});
 
     dict d2(d1);
@@ -75,7 +79,8 @@ TEST(DictConstructionTest, CopyConstructor) {
 }
 
 // 测试 dict 移动构造函数
-TEST(DictConstructionTest, MoveConstructor) {
+TEST(DictConstructionTest, MoveConstructor)
+{
     dict d1({{"key1", 123}, {"key2", "value"}, {"key3", true}});
 
     dict d2(std::move(d1));
@@ -88,7 +93,8 @@ TEST(DictConstructionTest, MoveConstructor) {
 }
 
 // 测试 dict 赋值运算符
-TEST(DictConstructionTest, AssignmentOperator) {
+TEST(DictConstructionTest, AssignmentOperator)
+{
     dict d1({{"key1", 123}, {"key2", "value"}, {"key3", true}});
 
     dict d2;
@@ -109,7 +115,8 @@ TEST(DictConstructionTest, AssignmentOperator) {
 }
 
 // 测试 dict 移动赋值运算符
-TEST(DictConstructionTest, MoveAssignmentOperator) {
+TEST(DictConstructionTest, MoveAssignmentOperator)
+{
     dict d1({{"key1", 123}, {"key2", "value"}, {"key3", true}});
 
     dict d2;
@@ -123,14 +130,16 @@ TEST(DictConstructionTest, MoveAssignmentOperator) {
 }
 
 // 测试 dict 默认构造函数
-TEST(DictConstructionTest, MutableDictDefaultConstructor) {
+TEST(DictConstructionTest, MutableDictDefaultConstructor)
+{
     dict md;
     EXPECT_TRUE(md.empty());
     EXPECT_EQ(md.size(), 0);
 }
 
 // 测试 dict 从 vector<entry> 构造
-TEST(DictConstructionTest, MutableDictVectorEntryConstructor) {
+TEST(DictConstructionTest, MutableDictVectorEntryConstructor)
+{
     std::vector<dict::entry> entries;
     entries.emplace_back("key1", 123);
     entries.emplace_back("key2", "value");
@@ -145,7 +154,8 @@ TEST(DictConstructionTest, MutableDictVectorEntryConstructor) {
 }
 
 // 测试 dict 从 initializer_list 构造
-TEST(DictConstructionTest, MutableDictInitializerListConstructor) {
+TEST(DictConstructionTest, MutableDictInitializerListConstructor)
+{
     dict md({{"key1", 123}, {"key2", "value"}, {"key3", true}});
 
     EXPECT_EQ(md.size(), 3);
@@ -155,7 +165,8 @@ TEST(DictConstructionTest, MutableDictInitializerListConstructor) {
 }
 
 // 测试 dict 从 dict 构造
-TEST(DictConstructionTest, MutableDictFromDictConstructor) {
+TEST(DictConstructionTest, MutableDictFromDictConstructor)
+{
     dict d({{"key1", 123}, {"key2", "value"}, {"key3", true}});
 
     dict md(d);
@@ -172,7 +183,8 @@ TEST(DictConstructionTest, MutableDictFromDictConstructor) {
 }
 
 // 测试 dict 拷贝构造函数
-TEST(DictConstructionTest, MutableDictCopyConstructor) {
+TEST(DictConstructionTest, MutableDictCopyConstructor)
+{
     dict md1({{"key1", 123}, {"key2", "value"}, {"key3", true}});
 
     dict md2(md1);
@@ -189,7 +201,8 @@ TEST(DictConstructionTest, MutableDictCopyConstructor) {
 }
 
 // 测试 dict 移动构造函数
-TEST(DictConstructionTest, MutableDictMoveConstructor) {
+TEST(DictConstructionTest, MutableDictMoveConstructor)
+{
     dict md1({{"key1", 123}, {"key2", "value"}, {"key3", true}});
 
     dict md2(std::move(md1));
@@ -202,7 +215,8 @@ TEST(DictConstructionTest, MutableDictMoveConstructor) {
 }
 
 // 测试 dict 赋值运算符
-TEST(DictConstructionTest, MutableDictAssignmentOperator) {
+TEST(DictConstructionTest, MutableDictAssignmentOperator)
+{
     dict md1({{"key1", 123}, {"key2", "value"}, {"key3", true}});
 
     dict md2;
@@ -220,7 +234,8 @@ TEST(DictConstructionTest, MutableDictAssignmentOperator) {
 }
 
 // 测试 dict 移动赋值运算符
-TEST(DictConstructionTest, MutableDictMoveAssignmentOperator) {
+TEST(DictConstructionTest, MutableDictMoveAssignmentOperator)
+{
     dict md1({{"key1", 123}, {"key2", "value"}, {"key3", true}});
 
     dict md2;
@@ -234,7 +249,8 @@ TEST(DictConstructionTest, MutableDictMoveAssignmentOperator) {
 }
 
 // 测试 dict 从 dict 赋值
-TEST(DictConstructionTest, MutableDictAssignmentFromDict) {
+TEST(DictConstructionTest, MutableDictAssignmentFromDict)
+{
     dict d({{"key1", 123}, {"key2", "value"}, {"key3", true}});
 
     dict md;
@@ -252,7 +268,8 @@ TEST(DictConstructionTest, MutableDictAssignmentFromDict) {
 }
 
 // 测试 dict 链式调用构造函数
-TEST(DictConstructionTest, MutableDictChainedConstruction) {
+TEST(DictConstructionTest, MutableDictChainedConstruction)
+{
     // 使用单键值对构造函数
     dict md1("key1", 123);
     EXPECT_EQ(md1.size(), 1);
@@ -289,19 +306,20 @@ TEST(DictConstructionTest, MutableDictChainedConstruction) {
 }
 
 // 测试从 std::vector<entry> 构造时重复键的处理
-TEST(DictConstructionTest, DictConstructorFromVectorWithDuplicateKeys) {
+TEST(DictConstructionTest, DictConstructorFromVectorWithDuplicateKeys)
+{
     std::vector<dict::entry> entries;
-    entries.emplace_back("key1", 100);  // 第一个值
+    entries.emplace_back("key1", 100); // 第一个值
     entries.emplace_back("key2", "value1");
-    entries.emplace_back("key1", 200);  // 重复键，应该覆盖第一个值
+    entries.emplace_back("key1", 200); // 重复键，应该覆盖第一个值
     entries.emplace_back("key3", true);
-    entries.emplace_back("key2", "value2");  // 重复键，应该覆盖第一个值
+    entries.emplace_back("key2", "value2"); // 重复键，应该覆盖第一个值
 
     dict d(entries);
 
     // 验证重复键的值被覆盖（后一个值覆盖前一个值）
-    EXPECT_EQ(d.size(), 3);  // 只有3个唯一的键
-    EXPECT_EQ(d["key1"].as<int>(), 200);  // 应该是后一个值
-    EXPECT_EQ(d["key2"].as<std::string>(), "value2");  // 应该是后一个值
+    EXPECT_EQ(d.size(), 3);                           // 只有3个唯一的键
+    EXPECT_EQ(d["key1"].as<int>(), 200);              // 应该是后一个值
+    EXPECT_EQ(d["key2"].as<std::string>(), "value2"); // 应该是后一个值
     EXPECT_EQ(d["key3"].as<bool>(), true);
 }

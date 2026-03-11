@@ -81,7 +81,8 @@ struct data_block {
      * @brief 构造函数
      */
     data_block()
-        : next(nullptr), buf(BLOCK_SIZE) {
+        : next(nullptr), buf(BLOCK_SIZE)
+    {
     }
 
     data_block*          next; /**< 下一个数据块指针 */

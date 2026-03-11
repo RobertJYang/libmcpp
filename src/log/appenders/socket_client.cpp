@@ -36,15 +36,19 @@ constexpr std::string_view HEARTBEAT_MESSAGE    = "ok";
 
 unix_socket::unix_socket() = default;
 
-unix_socket::~unix_socket() {
+unix_socket::~unix_socket()
+{
     close();
 }
 
-unix_socket::unix_socket(unix_socket&& other) noexcept : m_fd(other.m_fd) {
+unix_socket::unix_socket(unix_socket&& other) noexcept
+    : m_fd(other.m_fd)
+{
     other.m_fd = -1;
 }
 
-unix_socket& unix_socket::operator=(unix_socket&& other) noexcept {
+unix_socket& unix_socket::operator=(unix_socket&& other) noexcept
+{
     if (this == &other) {
         return *this;
     }
@@ -55,7 +59,8 @@ unix_socket& unix_socket::operator=(unix_socket&& other) noexcept {
     return *this;
 }
 
-bool unix_socket::connect(std::string_view path) {
+bool unix_socket::connect(std::string_view path)
+{
     if (path.empty() || path.size() > MAX_UNIX_PATH_LENGTH) {
         return false;
     }
@@ -81,11 +86,13 @@ bool unix_socket::connect(std::string_view path) {
     return true;
 }
 
-bool unix_socket::send(std::string_view data) {
+bool unix_socket::send(std::string_view data)
+{
     return send(data.data(), data.size());
 }
 
-bool unix_socket::send(const void* data, size_t length) {
+bool unix_socket::send(const void* data, size_t length)
+{
     if (!is_valid() || data == nullptr || length == 0) {
         return false;
     }
@@ -105,7 +112,8 @@ bool unix_socket::send(const void* data, size_t length) {
     return true;
 }
 
-bool unix_socket::recv(std::string& out, size_t max_length) {
+bool unix_socket::recv(std::string& out, size_t max_length)
+{
     if (!is_valid() || max_length == 0) {
         return false;
     }
@@ -121,7 +129,8 @@ bool unix_socket::recv(std::string& out, size_t max_length) {
     return true;
 }
 
-bool unix_socket::recv_all(std::string& out, size_t length) {
+bool unix_socket::recv_all(std::string& out, size_t length)
+{
     if (!is_valid() || length == 0) {
         return false;
     }
@@ -136,7 +145,8 @@ bool unix_socket::recv_all(std::string& out, size_t length) {
     return true;
 }
 
-void unix_socket::close() {
+void unix_socket::close()
+{
     if (m_fd < 0) {
         return;
     }
@@ -145,27 +155,32 @@ void unix_socket::close() {
     m_fd = -1;
 }
 
-bool unix_socket::is_valid() const {
+bool unix_socket::is_valid() const
+{
     return m_fd >= 0;
 }
 
 socket_client::socket_client() = default;
 
-socket_client::~socket_client() {
+socket_client::~socket_client()
+{
     disconnect();
 }
 
-void socket_client::set_path(std::string_view path) {
+void socket_client::set_path(std::string_view path)
+{
     std::lock_guard<std::mutex> lock(m_mutex);
     m_path.assign(path.begin(), path.end());
 }
 
-void socket_client::set_hb_path(std::string_view hb_path) {
+void socket_client::set_hb_path(std::string_view hb_path)
+{
     std::lock_guard<std::mutex> lock(m_mutex);
     m_hb_path.assign(hb_path.begin(), hb_path.end());
 }
 
-bool socket_client::connect() {
+bool socket_client::connect()
+{
     std::lock_guard<std::mutex> lock(m_mutex);
     if (!ensure_connected_locked()) {
         return false;
@@ -178,7 +193,8 @@ bool socket_client::connect() {
     return true;
 }
 
-bool socket_client::send(std::string_view data) {
+bool socket_client::send(std::string_view data)
+{
     std::lock_guard<std::mutex> lock(m_mutex);
     if (!ensure_connected_locked()) {
         return false;
@@ -195,13 +211,15 @@ bool socket_client::send(std::string_view data) {
     return m_socket.send(data);
 }
 
-void socket_client::disconnect() {
+void socket_client::disconnect()
+{
     std::lock_guard<std::mutex> lock(m_mutex);
     m_socket.close();
     m_hb_socket.close();
 }
 
-bool socket_client::recv(std::string& out, size_t max_length) {
+bool socket_client::recv(std::string& out, size_t max_length)
+{
     std::lock_guard<std::mutex> lock(m_mutex);
     if (!ensure_connected_locked()) {
         return false;
@@ -219,7 +237,8 @@ bool socket_client::recv(std::string& out, size_t max_length) {
     return m_socket.recv(out, max_length);
 }
 
-bool socket_client::recv_all(std::string& out, size_t length) {
+bool socket_client::recv_all(std::string& out, size_t length)
+{
     std::lock_guard<std::mutex> lock(m_mutex);
     if (!ensure_connected_locked()) {
         return false;
@@ -238,7 +257,8 @@ bool socket_client::recv_all(std::string& out, size_t length) {
     return m_socket.recv_all(out, length);
 }
 
-bool socket_client::heartbeat() {
+bool socket_client::heartbeat()
+{
     std::lock_guard<std::mutex> lock(m_mutex);
     if (HEARTBEAT_MESSAGE.empty()) {
         return false;
@@ -279,12 +299,14 @@ bool socket_client::heartbeat() {
     return false;
 }
 
-bool socket_client::is_connected() const {
+bool socket_client::is_connected() const
+{
     std::lock_guard<std::mutex> lock(m_mutex);
     return m_socket.is_valid();
 }
 
-bool socket_client::ensure_connected_locked() {
+bool socket_client::ensure_connected_locked()
+{
     if (m_socket.is_valid()) {
         return true;
     }
@@ -296,7 +318,8 @@ bool socket_client::ensure_connected_locked() {
     return m_socket.connect(m_path);
 }
 
-bool socket_client::ensure_hb_connected_locked() {
+bool socket_client::ensure_hb_connected_locked()
+{
     if (m_hb_socket.is_valid()) {
         return true;
     }
@@ -310,4 +333,3 @@ bool socket_client::ensure_hb_connected_locked() {
 
 } // namespace log
 } // namespace mc
-

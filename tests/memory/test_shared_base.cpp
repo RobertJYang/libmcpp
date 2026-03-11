@@ -19,30 +19,37 @@
 // 测试用的简单类，直接继承 enable_shared_from_this
 class base_test_object : public mc::enable_shared_from_this<base_test_object> {
 public:
-    base_test_object() : m_value(0) {
+    base_test_object()
+        : m_value(0)
+    {
         ++s_construct_count;
     }
 
-    explicit base_test_object(int value) : m_value(value) {
+    explicit base_test_object(int value)
+        : m_value(value)
+    {
         ++s_construct_count;
     }
 
     // 拷贝构造函数
     base_test_object(const base_test_object& other)
         : mc::enable_shared_from_this<base_test_object>(other),
-          m_value(other.m_value) {
+          m_value(other.m_value)
+    {
         ++s_construct_count;
     }
 
     // 移动构造函数
     base_test_object(base_test_object&& other) noexcept
         : mc::enable_shared_from_this<base_test_object>(std::move(other)),
-          m_value(other.m_value) {
+          m_value(other.m_value)
+    {
         ++s_construct_count;
     }
 
     // 拷贝赋值运算符
-    base_test_object& operator=(const base_test_object& other) {
+    base_test_object& operator=(const base_test_object& other)
+    {
         if (this != &other) {
             mc::enable_shared_from_this<base_test_object>::operator=(other);
             m_value = other.m_value;
@@ -51,7 +58,8 @@ public:
     }
 
     // 移动赋值运算符
-    base_test_object& operator=(base_test_object&& other) noexcept {
+    base_test_object& operator=(base_test_object&& other) noexcept
+    {
         if (this != &other) {
             mc::enable_shared_from_this<base_test_object>::operator=(std::move(other));
             m_value = other.m_value;
@@ -59,27 +67,33 @@ public:
         return *this;
     }
 
-    ~base_test_object() {
+    ~base_test_object()
+    {
         ++s_destruct_count;
         m_value = -9999; // 标记为已析构
     }
 
-    int get_value() const {
+    int get_value() const
+    {
         return m_value;
     }
-    void set_value(int value) {
+    void set_value(int value)
+    {
         m_value = value;
     }
 
-    static void reset_counters() {
+    static void reset_counters()
+    {
         s_construct_count = 0;
         s_destruct_count  = 0;
     }
 
-    static int get_construct_count() {
+    static int get_construct_count()
+    {
         return s_construct_count;
     }
-    static int get_destruct_count() {
+    static int get_destruct_count()
+    {
         return s_destruct_count;
     }
 
@@ -94,18 +108,21 @@ int base_test_object::s_destruct_count  = 0;
 
 class shared_base_test : public mc::test::TestBase {
 protected:
-    void SetUp() override {
+    void SetUp() override
+    {
         base_test_object::reset_counters();
     }
 
-    void TearDown() override {
+    void TearDown() override
+    {
         // 确保所有对象都被正确析构
         EXPECT_EQ(base_test_object::get_construct_count(), base_test_object::get_destruct_count());
     }
 };
 
 // 测试对象初始状态
-TEST_F(shared_base_test, InitialState) {
+TEST_F(shared_base_test, InitialState)
+{
     auto obj = new base_test_object(42);
 
     // 初始状态：未被管理，未销毁，引用计数为 INIT_VALUE
@@ -119,7 +136,8 @@ TEST_F(shared_base_test, InitialState) {
 }
 
 // 测试手动引用计数管理
-TEST_F(shared_base_test, ManualReferenceCountManagement) {
+TEST_F(shared_base_test, ManualReferenceCountManagement)
+{
     auto obj = new base_test_object(100);
 
     // 第一次 add_ref 应该将状态从 INIT_VALUE 转换为 1
@@ -148,7 +166,8 @@ TEST_F(shared_base_test, ManualReferenceCountManagement) {
 }
 
 // 测试弱引用计数管理
-TEST_F(shared_base_test, WeakReferenceCountManagement) {
+TEST_F(shared_base_test, WeakReferenceCountManagement)
+{
     auto obj = new base_test_object(200);
 
     // 添加弱引用（基础弱计数为1）
@@ -177,7 +196,8 @@ TEST_F(shared_base_test, WeakReferenceCountManagement) {
 }
 
 // 测试 try_add_ref 功能
-TEST_F(shared_base_test, TryAddRefFunctionality) {
+TEST_F(shared_base_test, TryAddRefFunctionality)
+{
     auto obj = new base_test_object(300);
 
     // 未管理状态下的 try_add_ref 应该失败
@@ -206,7 +226,8 @@ TEST_F(shared_base_test, TryAddRefFunctionality) {
 }
 
 // 测试状态转换
-TEST_F(shared_base_test, StateTransitions) {
+TEST_F(shared_base_test, StateTransitions)
+{
     auto obj = new base_test_object(400);
 
     // 初始状态：INIT_VALUE
@@ -243,7 +264,8 @@ TEST_F(shared_base_test, StateTransitions) {
 }
 
 // 测试异常情况
-TEST_F(shared_base_test, ExceptionCases) {
+TEST_F(shared_base_test, ExceptionCases)
+{
     auto obj = new base_test_object(500);
 
     // 对已销毁对象调用 add_ref 应该抛异常
@@ -266,7 +288,8 @@ TEST_F(shared_base_test, ExceptionCases) {
 }
 
 // 测试拷贝和移动构造函数
-TEST_F(shared_base_test, CopyAndMoveConstructors) {
+TEST_F(shared_base_test, CopyAndMoveConstructors)
+{
     // 记录初始计数器状态
     int initial_construct_count = base_test_object::get_construct_count();
     int initial_destruct_count  = base_test_object::get_destruct_count();
@@ -308,7 +331,8 @@ TEST_F(shared_base_test, CopyAndMoveConstructors) {
 }
 
 // 测试赋值操作符
-TEST_F(shared_base_test, AssignmentOperators) {
+TEST_F(shared_base_test, AssignmentOperators)
+{
     auto obj1 = new base_test_object(800);
     auto obj2 = new base_test_object(900);
 
@@ -337,7 +361,8 @@ TEST_F(shared_base_test, AssignmentOperators) {
 }
 
 // 测试 shared_from_this 和 weak_from_this
-TEST_F(shared_base_test, FromThisMethods) {
+TEST_F(shared_base_test, FromThisMethods)
+{
     auto obj = new base_test_object(1000);
 
     // 在未管理状态下调用 shared_from_this
@@ -368,7 +393,8 @@ TEST_F(shared_base_test, FromThisMethods) {
 }
 
 // 测试 from_raw 静态方法
-TEST_F(shared_base_test, FromRawStaticMethod) {
+TEST_F(shared_base_test, FromRawStaticMethod)
+{
     // 测试 nullptr
     auto null_ptr = base_test_object::from_raw(nullptr);
     EXPECT_FALSE(null_ptr);
@@ -394,7 +420,8 @@ TEST_F(shared_base_test, FromRawStaticMethod) {
 }
 
 // 测试引用计数边界值
-TEST_F(shared_base_test, ReferenceCountBoundaries) {
+TEST_F(shared_base_test, ReferenceCountBoundaries)
+{
     auto obj = new base_test_object(1200);
 
     // 测试从 INIT_VALUE 到 1 的转换
@@ -425,7 +452,8 @@ TEST_F(shared_base_test, ReferenceCountBoundaries) {
 }
 
 // 测试混合强弱引用场景
-TEST_F(shared_base_test, MixedStrongWeakReferences) {
+TEST_F(shared_base_test, MixedStrongWeakReferences)
+{
     auto obj = new base_test_object(1300);
 
     // 添加弱引用（基础弱计数为1）
@@ -465,7 +493,8 @@ TEST_F(shared_base_test, MixedStrongWeakReferences) {
 }
 
 // 测试并发场景的基础（单线程模拟）
-TEST_F(shared_base_test, ConcurrencyBasics) {
+TEST_F(shared_base_test, ConcurrencyBasics)
+{
     // 由于对象一旦销毁就不能重新初始化，我们在循环中创建新对象
     for (int iteration = 0; iteration < 10; ++iteration) { // 减少迭代次数
         auto obj = new base_test_object(1400 + iteration);

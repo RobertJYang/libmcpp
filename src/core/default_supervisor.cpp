@@ -18,10 +18,13 @@
 
 namespace mc::core {
 
-default_supervisor::default_supervisor() : m_started(false) {
+default_supervisor::default_supervisor()
+    : m_started(false)
+{
 }
 
-bool default_supervisor::init(const config::supervisor_config& config) {
+bool default_supervisor::init(const config::supervisor_config& config)
+{
     std::lock_guard<std::mutex> lock(m_mutex);
 
     m_config                 = config;
@@ -34,12 +37,13 @@ bool default_supervisor::init(const config::supervisor_config& config) {
 
     ilog("init supervisor: ${name}, strategy: ${strategy}, max_restarts: ${max_restarts}, restart_window: ${window}s",
          ("name", m_name)("strategy", get_strategy_name(m_strategy))("max_restarts",
-                                                                    m_max_restarts)("window", m_restart_window_seconds));
+                                                                     m_max_restarts)("window", m_restart_window_seconds));
 
     return true;
 }
 
-bool default_supervisor::start() {
+bool default_supervisor::start()
+{
     std::lock_guard<std::mutex> lock(m_mutex);
     if (m_started) {
         return true;
@@ -81,7 +85,8 @@ bool default_supervisor::start() {
     return success;
 }
 
-bool default_supervisor::stop() {
+bool default_supervisor::stop()
+{
     std::lock_guard<std::mutex> lock(m_mutex);
     if (!m_started) {
         return true;
@@ -110,7 +115,8 @@ bool default_supervisor::stop() {
     return success;
 }
 
-void default_supervisor::cleanup() {
+void default_supervisor::cleanup()
+{
     std::lock_guard<std::mutex> lock(m_mutex);
 
     // 清理所有服务
@@ -127,7 +133,8 @@ void default_supervisor::cleanup() {
     m_child_supervisors.clear();
 }
 
-bool default_supervisor::add_service(service_base_ptr service) {
+bool default_supervisor::add_service(service_base_ptr service)
+{
     if (!service) {
         elog("add service failed: service pointer is null");
         return false;
@@ -156,7 +163,8 @@ bool default_supervisor::add_service(service_base_ptr service) {
     return true;
 }
 
-bool default_supervisor::remove_service(const std::string& name) {
+bool default_supervisor::remove_service(const std::string& name)
+{
     std::lock_guard<std::mutex> lock(m_mutex);
 
     auto it = m_services.find(name);
@@ -172,14 +180,16 @@ bool default_supervisor::remove_service(const std::string& name) {
     return true;
 }
 
-service_base_ptr default_supervisor::get_service(const std::string& name) const {
+service_base_ptr default_supervisor::get_service(const std::string& name) const
+{
     std::lock_guard<std::mutex> lock(m_mutex);
 
     auto it = m_services.find(name);
     return (it != m_services.end()) ? it->second : nullptr;
 }
 
-bool default_supervisor::add_child(supervisor_ptr child) {
+bool default_supervisor::add_child(supervisor_ptr child)
+{
     if (!child) {
         return false;
     }
@@ -195,7 +205,8 @@ bool default_supervisor::add_child(supervisor_ptr child) {
     return true;
 }
 
-bool default_supervisor::remove_child(const std::string& name) {
+bool default_supervisor::remove_child(const std::string& name)
+{
     std::lock_guard<std::mutex> lock(m_mutex);
 
     auto it = m_child_supervisors.find(name);
@@ -211,14 +222,16 @@ bool default_supervisor::remove_child(const std::string& name) {
     return true;
 }
 
-supervisor_ptr default_supervisor::get_child(const std::string& name) const {
+supervisor_ptr default_supervisor::get_child(const std::string& name) const
+{
     std::lock_guard<std::mutex> lock(m_mutex);
 
     auto it = m_child_supervisors.find(name);
     return (it != m_child_supervisors.end()) ? it->second : nullptr;
 }
 
-bool default_supervisor::is_healthy() const {
+bool default_supervisor::is_healthy() const
+{
     std::lock_guard<std::mutex> lock(m_mutex);
 
     // 检查所有服务是否健康
@@ -238,7 +251,8 @@ bool default_supervisor::is_healthy() const {
     return true;
 }
 
-bool default_supervisor::restart_all_services() {
+bool default_supervisor::restart_all_services()
+{
     std::lock_guard<std::mutex> lock(m_mutex);
 
     // 检查重启策略
@@ -274,7 +288,8 @@ bool default_supervisor::restart_all_services() {
     return true;
 }
 
-bool default_supervisor::restart_dependent_services(const std::string& service_name) {
+bool default_supervisor::restart_dependent_services(const std::string& service_name)
+{
     std::lock_guard<std::mutex> lock(m_mutex);
 
     // 构建依赖图
@@ -314,7 +329,8 @@ bool default_supervisor::restart_dependent_services(const std::string& service_n
 // 收集所有依赖于指定服务的服务（包括间接依赖）
 void default_supervisor::collect_dependent_services(
     const std::unordered_map<std::string, dependency_node>& graph, const std::string& service_name,
-    std::unordered_set<std::string>& affected_services) {
+    std::unordered_set<std::string>& affected_services)
+{
     if (affected_services.find(service_name) != affected_services.end()) {
         return; // 已处理过此服务
     }
@@ -329,7 +345,8 @@ void default_supervisor::collect_dependent_services(
     }
 }
 
-bool default_supervisor::restart_one_service(const std::string& name) {
+bool default_supervisor::restart_one_service(const std::string& name)
+{
     auto it = m_services.find(name);
     if (it == m_services.end()) {
         return false;
@@ -351,7 +368,8 @@ bool default_supervisor::restart_one_service(const std::string& name) {
     return true;
 }
 
-void default_supervisor::handle_service_crash(const std::string& name) {
+void default_supervisor::handle_service_crash(const std::string& name)
+{
     auto it = m_services.find(name);
     if (it == m_services.end()) {
         return;
@@ -384,7 +402,8 @@ void default_supervisor::handle_service_crash(const std::string& name) {
 }
 
 // 获取策略名称
-std::string default_supervisor::get_strategy_name(config::supervisor_strategy strategy) {
+std::string default_supervisor::get_strategy_name(config::supervisor_strategy strategy)
+{
     switch (strategy) {
     case config::supervisor_strategy::one_for_one:
         return "one_for_one";
@@ -398,7 +417,8 @@ std::string default_supervisor::get_strategy_name(config::supervisor_strategy st
 }
 
 // 获取服务停止顺序
-std::vector<std::string> default_supervisor::get_service_stop_order(bool already_locked) const {
+std::vector<std::string> default_supervisor::get_service_stop_order(bool already_locked) const
+{
     if (!already_locked) {
         std::lock_guard<std::mutex> lock(m_mutex);
         return get_service_stop_order_internal();
@@ -406,7 +426,8 @@ std::vector<std::string> default_supervisor::get_service_stop_order(bool already
     return get_service_stop_order_internal();
 }
 
-std::vector<std::string> default_supervisor::get_service_stop_order_internal() const {
+std::vector<std::string> default_supervisor::get_service_stop_order_internal() const
+{
     // 构建服务依赖关系图的lambda函数
     auto get_dependencies = [](const service_base_ptr& service) -> std::vector<std::string> {
         return service->get_dependencies();
@@ -427,7 +448,8 @@ std::vector<std::string> default_supervisor::get_service_stop_order_internal() c
 }
 
 // 启动单个服务
-bool default_supervisor::start_one_service(const std::string& name) {
+bool default_supervisor::start_one_service(const std::string& name)
+{
     try {
         ilog("start service: ${name}", ("name", name));
         if (!m_services[name]->start()) {
@@ -443,7 +465,8 @@ bool default_supervisor::start_one_service(const std::string& name) {
 }
 
 // 停止单个服务
-bool default_supervisor::stop_one_service(const std::string& name) {
+bool default_supervisor::stop_one_service(const std::string& name)
+{
     auto it = m_services.find(name);
     if (it == m_services.end()) {
         return true; // 服务不存在视为成功
@@ -464,7 +487,8 @@ bool default_supervisor::stop_one_service(const std::string& name) {
 }
 
 // 停止单个子监督器
-bool default_supervisor::stop_one_child_supervisor(const std::string& name) {
+bool default_supervisor::stop_one_child_supervisor(const std::string& name)
+{
     auto it = m_child_supervisors.find(name);
     if (it == m_child_supervisors.end()) {
         return true; // 子监督器不存在视为成功

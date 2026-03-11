@@ -47,18 +47,22 @@ struct error_info {
 
     constexpr explicit error_info(std::string_view name, std::string_view format = {},
                                   error_level level = error_level::error)
-        : name(name), format(format), level(level) {
+        : name(name), format(format), level(level)
+    {
     }
 
-    bool operator==(const error_info& other) const {
+    bool operator==(const error_info& other) const
+    {
         return name == other.name && format == other.format;
     }
 
-    bool operator!=(const error_info& other) const {
+    bool operator!=(const error_info& other) const
+    {
         return !(*this == other);
     }
 
-    bool is_valid() {
+    bool is_valid()
+    {
         return !name.empty();
     }
 
@@ -121,14 +125,16 @@ struct MC_API error : public mc::enable_shared_from_this<error>, public error_in
 
     // 添加参数
     template <typename T>
-    error& operator()(std::string_view key, T&& value) {
+    error& operator()(std::string_view key, T&& value)
+    {
         args[key] = std::forward<T>(value);
         invalidate_cache();
         return *this;
     }
 
     template <typename T>
-    error& append_arg(std::string_view key, T&& value) {
+    error& append_arg(std::string_view key, T&& value)
+    {
         args[key] = std::forward<T>(value);
         invalidate_cache();
         return *this;
@@ -136,13 +142,15 @@ struct MC_API error : public mc::enable_shared_from_this<error>, public error_in
 
     // 支持整数 key 的 append_arg 重载（用于数组格式参数传递）
     template <typename T>
-    error& append_arg(int key, T&& value) {
+    error& append_arg(int key, T&& value)
+    {
         args[key] = std::forward<T>(value);
         invalidate_cache();
         return *this;
     }
 
-    error& operator%(mc::dict args) {
+    error& operator%(mc::dict args)
+    {
         this->args = args;
         invalidate_cache();
         return *this;
@@ -196,7 +204,8 @@ struct MC_API error : public mc::enable_shared_from_this<error>, public error_in
      * @brief 获取调用栈信息
      * @return 调用栈字符串
      */
-    const std::string& get_traceback() const noexcept {
+    const std::string& get_traceback() const noexcept
+    {
         return m_traceback;
     }
 
@@ -240,7 +249,8 @@ private:
     /**
      * @brief 使缓存失效（当参数改变时调用）
      */
-    void invalidate_cache() {
+    void invalidate_cache()
+    {
         m_cached_message.reset();
     }
 

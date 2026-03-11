@@ -22,11 +22,13 @@ public:
     thread_safe_object()  = default;
     ~thread_safe_object() = default;
 
-    void increment() {
+    void increment()
+    {
         ++m_counter;
     }
 
-    int get_counter() const {
+    int get_counter() const
+    {
         return m_counter;
     }
 
@@ -36,14 +38,17 @@ private:
 
 class SharedPtrThreadSafetyTest : public ::testing::Test {
 protected:
-    void SetUp() override {
+    void SetUp() override
+    {
     }
-    void TearDown() override {
+    void TearDown() override
+    {
     }
 };
 
 // 测试在多线程环境下 try_add_ref 与 release_ref 的竞争条件
-TEST_F(SharedPtrThreadSafetyTest, TryAddRefReleaseRefRaceCondition) {
+TEST_F(SharedPtrThreadSafetyTest, TryAddRefReleaseRefRaceCondition)
+{
     const int iterations  = 1000;
     const int num_threads = 8;
 
@@ -103,7 +108,8 @@ TEST_F(SharedPtrThreadSafetyTest, TryAddRefReleaseRefRaceCondition) {
 }
 
 // 测试销毁标记的原子性
-TEST_F(SharedPtrThreadSafetyTest, DestroyedMarkerAtomicity) {
+TEST_F(SharedPtrThreadSafetyTest, DestroyedMarkerAtomicity)
+{
     const int iterations = 500;
 
     for (int iter = 0; iter < iterations; ++iter) {
@@ -159,7 +165,8 @@ TEST_F(SharedPtrThreadSafetyTest, DestroyedMarkerAtomicity) {
 }
 
 // 测试对已销毁对象调用 add_ref 会抛出异常
-TEST_F(SharedPtrThreadSafetyTest, AddRefOnDestroyedObjectThrows) {
+TEST_F(SharedPtrThreadSafetyTest, AddRefOnDestroyedObjectThrows)
+{
     auto  obj     = mc::make_shared<thread_safe_object>();
     auto* raw_ptr = obj.get();
 
@@ -177,7 +184,8 @@ TEST_F(SharedPtrThreadSafetyTest, AddRefOnDestroyedObjectThrows) {
 }
 
 // 测试引用计数的内存排序
-TEST_F(SharedPtrThreadSafetyTest, MemoryOrderingConsistency) {
+TEST_F(SharedPtrThreadSafetyTest, MemoryOrderingConsistency)
+{
     const int iterations            = 100;
     const int operations_per_thread = 1000;
 

@@ -18,7 +18,8 @@ namespace mc::core {
 namespace internal {
 
 std::vector<std::string>
-dependency_sorter::sort_for_startup(const std::unordered_map<std::string, dependency_node>& graph) {
+dependency_sorter::sort_for_startup(const std::unordered_map<std::string, dependency_node>& graph)
+{
     std::vector<std::string> result;
     std::queue<std::string>  queue;
 
@@ -56,7 +57,8 @@ dependency_sorter::sort_for_startup(const std::unordered_map<std::string, depend
 }
 
 std::vector<std::string> dependency_sorter::sort_for_shutdown(
-    const std::unordered_map<std::string, dependency_node>& graph) {
+    const std::unordered_map<std::string, dependency_node>& graph)
+{
     std::vector<std::string> result;
     std::queue<std::string>  queue;
 
@@ -96,7 +98,8 @@ std::vector<std::string> dependency_sorter::sort_for_shutdown(
 }
 
 bool dependency_sorter::has_circular_dependency(
-    const std::unordered_map<std::string, dependency_node>& graph) {
+    const std::unordered_map<std::string, dependency_node>& graph)
+{
     // 复制入度
     std::unordered_map<std::string, int> in_degrees;
     std::queue<std::string>              queue;
@@ -130,4 +133,4 @@ bool dependency_sorter::has_circular_dependency(
 }
 
 } // namespace internal
-} // namespace mc
+} // namespace mc::core

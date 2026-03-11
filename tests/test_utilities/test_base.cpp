@@ -35,7 +35,8 @@
 namespace mc {
 namespace test {
 
-MC_API std::string get_executable_path() {
+MC_API std::string get_executable_path()
+{
 #ifdef __APPLE__
     char     path[PATH_MAX];
     uint32_t size = PATH_MAX;
@@ -58,7 +59,8 @@ MC_API std::string get_executable_path() {
     return "";
 }
 
-MC_API mc::filesystem::path get_build_root() {
+MC_API mc::filesystem::path get_build_root()
+{
     // 优先通过可执行文件路径推断
     auto exe_path_str = get_executable_path();
     if (!exe_path_str.empty()) {
@@ -67,11 +69,11 @@ MC_API mc::filesystem::path get_build_root() {
             // 向上查找包含 tests 目录的构建根目录
             // 先收集所有可能的构建根目录候选
             std::vector<mc::filesystem::path> candidates;
-            auto current = exe_path.parent_path();
+            auto                              current = exe_path.parent_path();
             for (int i = 0; i < 10 && !current.empty() && current != current.root_path(); ++i) {
                 // 检查当前目录是否包含 tests 目录
                 if (mc::filesystem::exists(current / "tests")) {
-                    auto tests_dir = current / "tests";
+                    auto tests_dir      = current / "tests";
                     auto dynamic_module = tests_dir / "libmc_test_dynamic_module.so";
                     // 如果找到动态模块文件，这是最可靠的构建目录标识
                     if (mc::filesystem::exists(dynamic_module)) {
@@ -82,23 +84,23 @@ MC_API mc::filesystem::path get_build_root() {
                 }
                 current = current.parent_path();
             }
-            
+
             // 如果没有找到包含动态模块的目录，从候选目录中选择最可能的
             for (const auto& candidate : candidates) {
                 auto dir_name = candidate.filename().string();
                 // 优先选择包含 build 相关关键词的目录
-                if (dir_name.find("build") != std::string::npos || 
-                    dir_name == "builddir" || 
+                if (dir_name.find("build") != std::string::npos ||
+                    dir_name == "builddir" ||
                     dir_name.find("temp") != std::string::npos) {
                     return candidate;
                 }
             }
-            
+
             // 如果都没有，返回第一个候选（可能是构建目录）
             if (!candidates.empty()) {
                 return candidates[0];
             }
-            
+
             // 继续查找其他可能的路径模式
             current = exe_path.parent_path();
             for (int i = 0; i < 10 && !current.empty() && current != current.root_path(); ++i) {
@@ -112,8 +114,8 @@ MC_API mc::filesystem::path get_build_root() {
                 // 如果当前目录名是 bin，可能是构建目录的 bin 子目录
                 if (current.filename() == "bin") {
                     auto build_root = current.parent_path();
-                if (mc::filesystem::exists(build_root / "tests")) {
-                    return build_root;
+                    if (mc::filesystem::exists(build_root / "tests")) {
+                        return build_root;
                     }
                 }
                 current = current.parent_path();
@@ -141,8 +143,8 @@ MC_API mc::filesystem::path get_build_root() {
             }
             // 检查目录名是否包含构建相关关键词
             auto dir_name = current.filename().string();
-            if (dir_name.find("build") != std::string::npos || 
-                dir_name == "builddir" || 
+            if (dir_name.find("build") != std::string::npos ||
+                dir_name == "builddir" ||
                 dir_name.find("temp") != std::string::npos) {
                 return current;
             }

@@ -143,10 +143,12 @@ public:
      */
     bool running_in_this_thread() const noexcept;
 
-    detail::executor_variant& get_executor() noexcept {
+    detail::executor_variant& get_executor() noexcept
+    {
         return m_executor;
     }
-    const detail::executor_variant& get_executor() const noexcept {
+    const detail::executor_variant& get_executor() const noexcept
+    {
         return m_executor;
     }
 
@@ -163,25 +165,29 @@ private:
 // 模板实现
 template <typename Executor, typename>
 any_executor::any_executor(Executor&& executor)
-    : m_executor(runtime::executor(std::forward<Executor>(executor))) {
+    : m_executor(runtime::executor(std::forward<Executor>(executor)))
+{
 }
 
 template <typename Function, typename Allocator>
-auto any_executor::post(Function&& f, const Allocator& a) const {
+auto any_executor::post(Function&& f, const Allocator& a) const
+{
     return std::visit([&f, a = std::move(a)](const auto& exec) {
         return exec.post(std::forward<Function>(f), std::move(a));
     }, m_executor);
 }
 
 template <typename Function, typename Allocator>
-auto any_executor::defer(Function&& f, const Allocator& a) const {
+auto any_executor::defer(Function&& f, const Allocator& a) const
+{
     return std::visit([&f, a = std::move(a)](const auto& exec) {
         return exec.defer(std::forward<Function>(f), std::move(a));
     }, m_executor);
 }
 
 template <typename Function, typename Allocator>
-void any_executor::dispatch(Function&& f, const Allocator& a) const {
+void any_executor::dispatch(Function&& f, const Allocator& a) const
+{
     std::visit([&f, a = std::move(a)](const auto& exec) {
         exec.dispatch(std::forward<Function>(f), std::move(a));
     }, m_executor);

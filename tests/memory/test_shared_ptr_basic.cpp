@@ -18,37 +18,47 @@
 // 测试用的简单类
 class test_object : public mc::enable_shared_from_this<test_object> {
 public:
-    test_object() : m_value(42) {
+    test_object()
+        : m_value(42)
+    {
         ++s_construct_count;
     }
 
-    explicit test_object(int value) : m_value(value) {
+    explicit test_object(int value)
+        : m_value(value)
+    {
         ++s_construct_count;
     }
 
-    ~test_object() {
+    ~test_object()
+    {
         ++s_destruct_count;
         m_value = -1; // 标记为已析构
     }
 
-    int get_value() const {
+    int get_value() const
+    {
         return m_value;
     }
 
-    void set_value(int value) {
+    void set_value(int value)
+    {
         m_value = value;
     }
 
-    static void reset_counters() {
+    static void reset_counters()
+    {
         s_construct_count = 0;
         s_destruct_count  = 0;
     }
 
-    static int get_construct_count() {
+    static int get_construct_count()
+    {
         return s_construct_count;
     }
 
-    static int get_destruct_count() {
+    static int get_destruct_count()
+    {
         return s_destruct_count;
     }
 
@@ -64,31 +74,39 @@ int test_object::s_destruct_count  = 0;
 // 派生类用于测试类型转换
 class derived_object : public test_object {
 public:
-    derived_object() : test_object(100) {
+    derived_object()
+        : test_object(100)
+    {
     }
 
-    derived_object(int value) : test_object(value) {
+    derived_object(int value)
+        : test_object(value)
+    {
     }
 
-    int get_derived_value() const {
+    int get_derived_value() const
+    {
         return get_value() * 2;
     }
 };
 
 class SharedPtrBasicTest : public ::testing::Test {
 protected:
-    void SetUp() override {
+    void SetUp() override
+    {
         test_object::reset_counters();
     }
 
-    void TearDown() override {
+    void TearDown() override
+    {
         // 确保所有对象都被正确析构
         EXPECT_EQ(test_object::get_construct_count(), test_object::get_destruct_count());
     }
 };
 
 // 测试默认构造和空指针
-TEST_F(SharedPtrBasicTest, DefaultConstruction) {
+TEST_F(SharedPtrBasicTest, DefaultConstruction)
+{
     mc::shared_ptr<test_object> ptr;
 
     EXPECT_FALSE(ptr);
@@ -98,7 +116,8 @@ TEST_F(SharedPtrBasicTest, DefaultConstruction) {
 }
 
 // 测试 nullptr 构造
-TEST_F(SharedPtrBasicTest, NullptrConstruction) {
+TEST_F(SharedPtrBasicTest, NullptrConstruction)
+{
     mc::shared_ptr<test_object> ptr(nullptr);
 
     EXPECT_FALSE(ptr);
@@ -107,7 +126,8 @@ TEST_F(SharedPtrBasicTest, NullptrConstruction) {
 }
 
 // 测试 make_shared 创建
-TEST_F(SharedPtrBasicTest, MakeShared) {
+TEST_F(SharedPtrBasicTest, MakeShared)
+{
     auto ptr = mc::make_shared<test_object>();
 
     EXPECT_TRUE(ptr);
@@ -120,7 +140,8 @@ TEST_F(SharedPtrBasicTest, MakeShared) {
 }
 
 // 测试带参数的 make_shared
-TEST_F(SharedPtrBasicTest, MakeSharedWithArgs) {
+TEST_F(SharedPtrBasicTest, MakeSharedWithArgs)
+{
     auto ptr = mc::make_shared<test_object>(123);
 
     EXPECT_TRUE(ptr);
@@ -129,7 +150,8 @@ TEST_F(SharedPtrBasicTest, MakeSharedWithArgs) {
 }
 
 // 测试拷贝构造
-TEST_F(SharedPtrBasicTest, CopyConstruction) {
+TEST_F(SharedPtrBasicTest, CopyConstruction)
+{
     auto ptr1 = mc::make_shared<test_object>(456);
     auto ptr2(ptr1);
 
@@ -145,7 +167,8 @@ TEST_F(SharedPtrBasicTest, CopyConstruction) {
 }
 
 // 测试移动构造
-TEST_F(SharedPtrBasicTest, MoveConstruction) {
+TEST_F(SharedPtrBasicTest, MoveConstruction)
+{
     auto  ptr1    = mc::make_shared<test_object>(789);
     auto* raw_ptr = ptr1.get();
     auto  ptr2(std::move(ptr1));
@@ -161,7 +184,8 @@ TEST_F(SharedPtrBasicTest, MoveConstruction) {
 }
 
 // 测试拷贝赋值
-TEST_F(SharedPtrBasicTest, CopyAssignment) {
+TEST_F(SharedPtrBasicTest, CopyAssignment)
+{
     auto ptr1 = mc::make_shared<test_object>(111);
     auto ptr2 = mc::make_shared<test_object>(222);
 
@@ -179,7 +203,8 @@ TEST_F(SharedPtrBasicTest, CopyAssignment) {
 }
 
 // 测试移动赋值
-TEST_F(SharedPtrBasicTest, MoveAssignment) {
+TEST_F(SharedPtrBasicTest, MoveAssignment)
+{
     auto  ptr1     = mc::make_shared<test_object>(333);
     auto  ptr2     = mc::make_shared<test_object>(444);
     auto* raw_ptr1 = ptr1.get();
@@ -196,7 +221,8 @@ TEST_F(SharedPtrBasicTest, MoveAssignment) {
 }
 
 // 测试 reset 操作
-TEST_F(SharedPtrBasicTest, Reset) {
+TEST_F(SharedPtrBasicTest, Reset)
+{
     auto ptr = mc::make_shared<test_object>(555);
 
     EXPECT_TRUE(ptr);
@@ -210,7 +236,8 @@ TEST_F(SharedPtrBasicTest, Reset) {
 }
 
 // 测试 reset 为新对象
-TEST_F(SharedPtrBasicTest, ResetWithNewObject) {
+TEST_F(SharedPtrBasicTest, ResetWithNewObject)
+{
     auto ptr = mc::make_shared<test_object>(666);
     auto obj = new test_object(777);
 
@@ -223,7 +250,8 @@ TEST_F(SharedPtrBasicTest, ResetWithNewObject) {
 }
 
 // 测试交换操作
-TEST_F(SharedPtrBasicTest, Swap) {
+TEST_F(SharedPtrBasicTest, Swap)
+{
     auto  ptr1     = mc::make_shared<test_object>(888);
     auto  ptr2     = mc::make_shared<test_object>(999);
     auto* raw_ptr1 = ptr1.get();
@@ -238,7 +266,8 @@ TEST_F(SharedPtrBasicTest, Swap) {
 }
 
 // 测试操作符重载
-TEST_F(SharedPtrBasicTest, Operators) {
+TEST_F(SharedPtrBasicTest, Operators)
+{
     auto ptr = mc::make_shared<test_object>(1010);
 
     // 测试 operator*
@@ -261,7 +290,8 @@ TEST_F(SharedPtrBasicTest, Operators) {
 }
 
 // 测试类型转换构造
-TEST_F(SharedPtrBasicTest, TypeConversionConstruction) {
+TEST_F(SharedPtrBasicTest, TypeConversionConstruction)
+{
     auto                        derived_ptr = mc::make_shared<derived_object>(150);
     mc::shared_ptr<test_object> base_ptr(derived_ptr);
 
@@ -273,7 +303,8 @@ TEST_F(SharedPtrBasicTest, TypeConversionConstruction) {
 }
 
 // 测试类型转换赋值
-TEST_F(SharedPtrBasicTest, TypeConversionAssignment) {
+TEST_F(SharedPtrBasicTest, TypeConversionAssignment)
+{
     auto                        derived_ptr = mc::make_shared<derived_object>(250);
     mc::shared_ptr<test_object> base_ptr;
 
@@ -286,7 +317,8 @@ TEST_F(SharedPtrBasicTest, TypeConversionAssignment) {
 }
 
 // 测试静态类型转换
-TEST_F(SharedPtrBasicTest, StaticPointerCast) {
+TEST_F(SharedPtrBasicTest, StaticPointerCast)
+{
     auto base_ptr    = mc::make_shared<derived_object>(350);
     auto derived_ptr = base_ptr.template static_pointer_cast<derived_object>();
 
@@ -297,7 +329,8 @@ TEST_F(SharedPtrBasicTest, StaticPointerCast) {
 }
 
 // 测试动态类型转换
-TEST_F(SharedPtrBasicTest, DynamicPointerCast) {
+TEST_F(SharedPtrBasicTest, DynamicPointerCast)
+{
     auto                        base_ptr    = mc::make_shared<derived_object>(450);
     mc::shared_ptr<test_object> test_ptr    = base_ptr;
     auto                        derived_ptr = test_ptr.template dynamic_pointer_cast<derived_object>();
@@ -315,7 +348,8 @@ TEST_F(SharedPtrBasicTest, DynamicPointerCast) {
 }
 
 // 测试引用计数边界情况
-TEST_F(SharedPtrBasicTest, ReferenceCountBoundaries) {
+TEST_F(SharedPtrBasicTest, ReferenceCountBoundaries)
+{
     auto ptr = mc::make_shared<test_object>();
 
     // 创建大量拷贝
@@ -337,7 +371,8 @@ TEST_F(SharedPtrBasicTest, ReferenceCountBoundaries) {
 }
 
 // 测试生命周期管理
-TEST_F(SharedPtrBasicTest, LifecycleManagement) {
+TEST_F(SharedPtrBasicTest, LifecycleManagement)
+{
     EXPECT_EQ(test_object::get_construct_count(), 0);
     EXPECT_EQ(test_object::get_destruct_count(), 0);
 
@@ -370,14 +405,17 @@ class circular_test_a : public mc::enable_shared_from_this<circular_test_a> {
 public:
     mc::shared_ptr<circular_test_b> m_b_ptr;
 
-    ~circular_test_a() {
+    ~circular_test_a()
+    {
         ++s_destruct_count;
     }
 
-    static void reset_counter() {
+    static void reset_counter()
+    {
         s_destruct_count = 0;
     }
-    static int get_destruct_count() {
+    static int get_destruct_count()
+    {
         return s_destruct_count;
     }
 
@@ -389,14 +427,17 @@ class circular_test_b : public mc::enable_shared_from_this<circular_test_b> {
 public:
     mc::shared_ptr<circular_test_a> m_a_ptr;
 
-    ~circular_test_b() {
+    ~circular_test_b()
+    {
         ++s_destruct_count;
     }
 
-    static void reset_counter() {
+    static void reset_counter()
+    {
         s_destruct_count = 0;
     }
-    static int get_destruct_count() {
+    static int get_destruct_count()
+    {
         return s_destruct_count;
     }
 
@@ -407,7 +448,8 @@ private:
 int circular_test_a::s_destruct_count = 0;
 int circular_test_b::s_destruct_count = 0;
 
-TEST_F(SharedPtrBasicTest, CircularReferenceDetection) {
+TEST_F(SharedPtrBasicTest, CircularReferenceDetection)
+{
     circular_test_a::reset_counter();
     circular_test_b::reset_counter();
 

@@ -29,21 +29,26 @@ using impl_ptr        = mc::shared_ptr<module_manager_impl>;
 class factory_module : public module_base {
 public:
     factory_module(std::string_view name, factory_ptr factory)
-        : m_name(name), m_factory(factory) {
+        : m_name(name), m_factory(factory)
+    {
     }
 
-    ~factory_module() override {
+    ~factory_module() override
+    {
     }
 
-    std::string_view name() const override {
+    std::string_view name() const override
+    {
         return m_name;
     }
 
-    std::string_view version() const override {
+    std::string_view version() const override
+    {
         return "1.0.0"; // 默认版本，可以后续从模块元数据获取
     }
 
-    mc::reflect::reflection_factory* get_factory() const override {
+    mc::reflect::reflection_factory* get_factory() const override
+    {
         return m_factory.lock().get();
     }
 
@@ -55,17 +60,20 @@ protected:
 class library_module : public factory_module {
 public:
     library_module(std::string_view name, factory_ptr factory)
-        : factory_module(name, factory) {
+        : factory_module(name, factory)
+    {
     }
 
     ~library_module() override;
 
-    void set_library_info(library_info_ptr info, impl_ptr impl) {
+    void set_library_info(library_info_ptr info, impl_ptr impl)
+    {
         m_info = info;
         m_impl = impl;
     }
 
-    library_info_ptr get_library_info() const {
+    library_info_ptr get_library_info() const
+    {
         return m_info;
     }
 
@@ -117,7 +125,8 @@ public:
 /*                               library_module                              */
 /* -------------------------------------------------------------------------- */
 
-library_module::~library_module() {
+library_module::~library_module()
+{
     if (m_info && m_impl) {
         m_impl->m_data.with_lock_ptr([&](auto lock_ptr) {
             m_impl->remove_library(m_info->module_name, lock_ptr);
@@ -131,20 +140,23 @@ library_module::~library_module() {
 /* -------------------------------------------------------------------------- */
 /*                               module_manager_impl                         */
 /* -------------------------------------------------------------------------- */
-module_manager_impl::module_manager_impl() {
+module_manager_impl::module_manager_impl()
+{
     auto& global              = mc::reflect::reflection_factory::global();
     m_factory_unregister_conn = global.on_factory_unregister.connect([this](auto factory_id) {
         unload(factory_id);
     });
 }
 
-module_manager_impl::~module_manager_impl() {
+module_manager_impl::~module_manager_impl()
+{
     m_factory_unregister_conn.disconnect();
 
     clear();
 }
 
-void module_manager_impl::close_handle(const library_info& info, bool need_unload) {
+void module_manager_impl::close_handle(const library_info& info, bool need_unload)
+{
     try {
         info.close_func();
         dlog("unload dynamic module: ${name}", ("name", info.path));
@@ -158,7 +170,8 @@ void module_manager_impl::close_handle(const library_info& info, bool need_unloa
     }
 }
 
-void module_manager_impl::clear() {
+void module_manager_impl::clear()
+{
     m_data.with_lock_ptr([&](auto lock_ptr) {
         auto handles       = std::move(lock_ptr->handles);
         auto modules       = std::move(lock_ptr->loaded_modules);
@@ -173,7 +186,8 @@ void module_manager_impl::clear() {
     });
 }
 
-module_ptr module_manager_impl::require(std::string_view module_name) {
+module_ptr module_manager_impl::require(std::string_view module_name)
+{
     return m_data.with_lock([&](data_t& data) -> module_ptr {
         auto it = data.loaded_modules.find(module_name);
         if (it != data.loaded_modules.end()) {
@@ -198,18 +212,21 @@ module_ptr module_manager_impl::require(std::string_view module_name) {
     });
 }
 
-void module_manager_impl::add_module(module_ptr mod, data_t& data) {
+void module_manager_impl::add_module(module_ptr mod, data_t& data)
+{
     data.loaded_modules[mod->name()]                                = mod;
     data.loaded_modules_by_id[mod->get_factory()->get_factory_id()] = mod;
 }
 
-void module_manager_impl::remove_module(module_ptr mod, lock_ptr_type& lock_ptr) {
+void module_manager_impl::remove_module(module_ptr mod, lock_ptr_type& lock_ptr)
+{
     auto factory_id = mod->get_factory()->get_factory_id();
     lock_ptr->loaded_modules.erase(mod->name());
     lock_ptr->loaded_modules_by_id.erase(factory_id);
 }
 
-module_ptr module_manager_impl::load_module_from_factory(std::string_view module_name) {
+module_ptr module_manager_impl::load_module_from_factory(std::string_view module_name)
+{
     // 从全局反射工厂中查找模块
     auto& global  = mc::reflect::reflection_factory::global();
     auto  factory = global.get_factory(module_name);
@@ -229,7 +246,8 @@ module_ptr module_manager_impl::load_module_from_factory(std::string_view module
 module_ptr module_manager_impl::add_library(std::string_view module_name,
                                             library_info_ptr info,
                                             bool&            is_reused,
-                                            data_t&          data) {
+                                            data_t&          data)
+{
     auto it = data.handles.find(module_name);
     if (it != data.handles.end()) {
         // 在外部调用 module_manager::unload(module_name) 卸载模块后，如果还存在引用 module_ptr 时，
@@ -261,7 +279,8 @@ module_ptr module_manager_impl::add_library(std::string_view module_name,
     return mod;
 }
 
-module_ptr module_manager_impl::load_module_form_library(std::string_view module_name) {
+module_ptr module_manager_impl::load_module_form_library(std::string_view module_name)
+{
     module_ptr mod = nullptr;
     if (!m_loader.load_module(module_name, [&](library_info_ptr info, bool& is_reused) {
         mod = add_library(module_name, std::move(info), is_reused, m_data.unsafe_get_data());
@@ -272,7 +291,8 @@ module_ptr module_manager_impl::load_module_form_library(std::string_view module
     return mod;
 }
 
-void module_manager_impl::unload(std::string_view module_name) {
+void module_manager_impl::unload(std::string_view module_name)
+{
     m_data.with_lock_ptr([&](auto lock_ptr) {
         auto it = lock_ptr->loaded_modules.find(module_name);
         if (it != lock_ptr->loaded_modules.end()) {
@@ -288,7 +308,8 @@ void module_manager_impl::unload(std::string_view module_name) {
     });
 }
 
-void module_manager_impl::unload(factory_id_type factory_id) {
+void module_manager_impl::unload(factory_id_type factory_id)
+{
     m_data.with_lock_ptr([&](auto lock_ptr) {
         auto it = lock_ptr->loaded_modules_by_id.find(factory_id);
         if (it != lock_ptr->loaded_modules_by_id.end()) {
@@ -301,7 +322,8 @@ void module_manager_impl::unload(factory_id_type factory_id) {
     });
 }
 
-void module_manager_impl::remove_library(std::string_view module_name, lock_ptr_type& lock_ptr) {
+void module_manager_impl::remove_library(std::string_view module_name, lock_ptr_type& lock_ptr)
+{
     auto it = lock_ptr->handles.find(module_name);
     if (it != lock_ptr->handles.end()) {
         library_info_ptr info_ptr = it->second;
@@ -316,35 +338,44 @@ void module_manager_impl::remove_library(std::string_view module_name, lock_ptr_
 /*                                  module_manager                            */
 /* -------------------------------------------------------------------------- */
 
-module_manager::module_manager() : m_impl(mc::make_shared<module_manager_impl>()) {
+module_manager::module_manager()
+    : m_impl(mc::make_shared<module_manager_impl>())
+{
 }
 
-module_manager::~module_manager() {
+module_manager::~module_manager()
+{
 }
 
-module_manager& module_manager::instance() {
+module_manager& module_manager::instance()
+{
     return mc::singleton<module_manager>::instance_with_creator([]() {
         return new module_manager;
     });
 }
 
-void module_manager::reset_for_test() {
+void module_manager::reset_for_test()
+{
     mc::singleton<module_manager>::reset_for_test();
 }
 
-module_ptr module_manager::require(std::string_view module_name) {
+module_ptr module_manager::require(std::string_view module_name)
+{
     return m_impl->require(module_name);
 }
 
-void module_manager::unload(std::string_view module_name) {
+void module_manager::unload(std::string_view module_name)
+{
     m_impl->unload(module_name);
 }
 
-void module_manager::add_search_path(std::string_view path) {
+void module_manager::add_search_path(std::string_view path)
+{
     m_impl->m_loader.add_search_path(path);
 }
 
-std::vector<std::string_view> module_manager::loaded_modules() const {
+std::vector<std::string_view> module_manager::loaded_modules() const
+{
     std::vector<std::string_view> names;
     m_impl->m_data.with_lock([&](auto& data) {
         for (const auto& [name, _] : data.loaded_modules) {
@@ -354,7 +385,8 @@ std::vector<std::string_view> module_manager::loaded_modules() const {
     return names;
 }
 
-bool module_manager::is_loaded(std::string_view module_name) const {
+bool module_manager::is_loaded(std::string_view module_name) const
+{
     return m_impl->m_data.with_lock([&](auto& data) {
         return data.loaded_modules.find(module_name) != data.loaded_modules.end();
     });

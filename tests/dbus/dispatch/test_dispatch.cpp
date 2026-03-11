@@ -30,20 +30,23 @@ using namespace mc::dbus;
 
 class dispatch_test : public mc::test::TestWithDbusDaemon {
 protected:
-    static void SetUpTestSuite() {
+    static void SetUpTestSuite()
+    {
         TestWithDbusDaemon::SetUpTestSuite();
         s_io_context = std::make_shared<mc::runtime::thread_pool>(1);
         s_io_context->start();
     }
 
-    static void TearDownTestSuite() {
+    static void TearDownTestSuite()
+    {
         s_io_context->stop();
         s_io_context->join();
         s_io_context.reset();
         TestWithDbusDaemon::TearDownTestSuite();
     }
 
-    void SetUp() override {
+    void SetUp() override
+    {
     }
 
     static std::shared_ptr<mc::runtime::thread_pool> s_io_context;
@@ -51,7 +54,8 @@ protected:
 
 std::shared_ptr<mc::runtime::thread_pool> dispatch_test::s_io_context;
 
-TEST_F(dispatch_test, test_connection_dispatch) {
+TEST_F(dispatch_test, test_connection_dispatch)
+{
     auto conn = connection::open_session_bus(*s_io_context);
     EXPECT_TRUE(conn.start());
     ASSERT_TRUE(conn.is_connected());
@@ -64,7 +68,8 @@ TEST_F(dispatch_test, test_connection_dispatch) {
     conn.disconnect();
 }
 
-TEST_F(dispatch_test, test_watch_timeout_via_connection) {
+TEST_F(dispatch_test, test_watch_timeout_via_connection)
+{
     auto conn = connection::open_session_bus(*s_io_context);
     EXPECT_TRUE(conn.start());
     ASSERT_TRUE(conn.is_connected());
@@ -77,7 +82,8 @@ TEST_F(dispatch_test, test_watch_timeout_via_connection) {
     conn.disconnect();
 }
 
-TEST_F(dispatch_test, test_watch_timeout_stop_on_disconnect) {
+TEST_F(dispatch_test, test_watch_timeout_stop_on_disconnect)
+{
     auto conn = connection::open_session_bus(*s_io_context);
     EXPECT_TRUE(conn.start());
     ASSERT_TRUE(conn.is_connected());
@@ -88,7 +94,8 @@ TEST_F(dispatch_test, test_watch_timeout_stop_on_disconnect) {
     EXPECT_FALSE(conn.is_connected());
 }
 
-TEST_F(dispatch_test, test_async_send_with_reply) {
+TEST_F(dispatch_test, test_async_send_with_reply)
+{
     auto conn = connection::open_session_bus(*s_io_context);
     EXPECT_TRUE(conn.start());
     ASSERT_TRUE(conn.is_connected());
@@ -101,7 +108,8 @@ TEST_F(dispatch_test, test_async_send_with_reply) {
     conn.disconnect();
 }
 
-TEST_F(dispatch_test, test_multiple_concurrent_calls) {
+TEST_F(dispatch_test, test_multiple_concurrent_calls)
+{
     auto conn = connection::open_session_bus(*s_io_context);
     EXPECT_TRUE(conn.start());
     ASSERT_TRUE(conn.is_connected());
@@ -123,7 +131,8 @@ TEST_F(dispatch_test, test_multiple_concurrent_calls) {
     conn.disconnect();
 }
 
-TEST_F(dispatch_test, test_dispatch_while_receiving) {
+TEST_F(dispatch_test, test_dispatch_while_receiving)
+{
     auto conn = connection::open_session_bus(*s_io_context);
     EXPECT_TRUE(conn.start());
     ASSERT_TRUE(conn.is_connected());
@@ -146,7 +155,8 @@ TEST_F(dispatch_test, test_dispatch_while_receiving) {
     conn.disconnect();
 }
 
-TEST_F(dispatch_test, test_pending_call_already_completed) {
+TEST_F(dispatch_test, test_pending_call_already_completed)
+{
     auto conn = connection::open_session_bus(*s_io_context);
     conn.start();
     ASSERT_TRUE(conn.is_connected());
@@ -160,7 +170,8 @@ TEST_F(dispatch_test, test_pending_call_already_completed) {
     conn.disconnect();
 }
 
-TEST_F(dispatch_test, test_pending_call_move_operations) {
+TEST_F(dispatch_test, test_pending_call_move_operations)
+{
     auto conn = connection::open_session_bus(*s_io_context);
     conn.start();
     ASSERT_TRUE(conn.is_connected());
@@ -180,7 +191,8 @@ TEST_F(dispatch_test, test_pending_call_move_operations) {
     conn.disconnect();
 }
 
-TEST_F(dispatch_test, test_pending_call_stop_before_reply) {
+TEST_F(dispatch_test, test_pending_call_stop_before_reply)
+{
     auto conn = connection::open_session_bus(*s_io_context);
     conn.start();
     ASSERT_TRUE(conn.is_connected());
@@ -197,7 +209,8 @@ TEST_F(dispatch_test, test_pending_call_stop_before_reply) {
     EXPECT_TRUE(future.is_ready());
 }
 
-TEST_F(dispatch_test, test_timeout_handling) {
+TEST_F(dispatch_test, test_timeout_handling)
+{
     auto conn = connection::open_session_bus(*s_io_context);
     conn.start();
     ASSERT_TRUE(conn.is_connected());
@@ -214,7 +227,8 @@ TEST_F(dispatch_test, test_timeout_handling) {
     conn.disconnect();
 }
 
-TEST_F(dispatch_test, test_timeout_with_long_interval) {
+TEST_F(dispatch_test, test_timeout_with_long_interval)
+{
     auto conn = connection::open_session_bus(*s_io_context);
     conn.start();
     ASSERT_TRUE(conn.is_connected());
@@ -228,7 +242,8 @@ TEST_F(dispatch_test, test_timeout_with_long_interval) {
     conn.disconnect();
 }
 
-TEST_F(dispatch_test, test_pending_call_move_assignment) {
+TEST_F(dispatch_test, test_pending_call_move_assignment)
+{
     pending_call first(nullptr, pending_call::reply_cb{});
     pending_call second(nullptr, pending_call::reply_cb{});
 
@@ -239,7 +254,8 @@ TEST_F(dispatch_test, test_pending_call_move_assignment) {
     second.release();
 }
 
-TEST_F(dispatch_test, test_add_and_remove_match_rules) {
+TEST_F(dispatch_test, test_add_and_remove_match_rules)
+{
     auto conn = connection::open_session_bus(*s_io_context);
     ASSERT_TRUE(conn.start());
     ASSERT_TRUE(conn.is_connected());
@@ -268,7 +284,8 @@ TEST_F(dispatch_test, test_add_and_remove_match_rules) {
 }
 
 // 测试 pending_call::start() 触发 handle_reply() 的"已完成"分支
-TEST_F(dispatch_test, PendingCallImmediateReply) {
+TEST_F(dispatch_test, PendingCallImmediateReply)
+{
     auto conn = connection::open_session_bus(*s_io_context);
     conn.start();
     ASSERT_TRUE(conn.is_connected());
@@ -293,7 +310,8 @@ TEST_F(dispatch_test, PendingCallImmediateReply) {
 }
 
 // 测试 watch_readable 分支中 elog("dbus watch 读取错误")
-TEST_F(dispatch_test, WatchReadableErrorLogged) {
+TEST_F(dispatch_test, WatchReadableErrorLogged)
+{
     auto conn = connection::open_session_bus(*s_io_context);
     conn.start();
     ASSERT_TRUE(conn.is_connected());
@@ -311,7 +329,8 @@ TEST_F(dispatch_test, WatchReadableErrorLogged) {
 }
 
 // 测试 watch_writable 及其错误路径
-TEST_F(dispatch_test, WatchWritableInvoked) {
+TEST_F(dispatch_test, WatchWritableInvoked)
+{
     auto conn = connection::open_session_bus(*s_io_context);
     conn.start();
     ASSERT_TRUE(conn.is_connected());
@@ -327,7 +346,8 @@ TEST_F(dispatch_test, WatchWritableInvoked) {
 }
 
 // 测试 handle_watch_ready 返回 false 时不重复监听
-TEST_F(dispatch_test, HandleWatchReadyStopsWhenFalse) {
+TEST_F(dispatch_test, HandleWatchReadyStopsWhenFalse)
+{
     auto conn = connection::open_session_bus(*s_io_context);
     conn.start();
     ASSERT_TRUE(conn.is_connected());
@@ -344,7 +364,8 @@ TEST_F(dispatch_test, HandleWatchReadyStopsWhenFalse) {
 }
 
 // 测试 elog("dbus 定时器错误")
-TEST_F(dispatch_test, TimeoutErrorLogged) {
+TEST_F(dispatch_test, TimeoutErrorLogged)
+{
     auto conn = connection::open_session_bus(*s_io_context);
     conn.start();
     ASSERT_TRUE(conn.is_connected());
@@ -362,7 +383,8 @@ TEST_F(dispatch_test, TimeoutErrorLogged) {
 }
 
 // 测试 dbus_timeout_handle 被调用的路径
-TEST_F(dispatch_test, TimeoutHandlerInvoked) {
+TEST_F(dispatch_test, TimeoutHandlerInvoked)
+{
     auto conn = connection::open_session_bus(*s_io_context);
     conn.start();
     ASSERT_TRUE(conn.is_connected());

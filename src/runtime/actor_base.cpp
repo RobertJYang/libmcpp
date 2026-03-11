@@ -17,14 +17,17 @@
 namespace mcpy {
 
 actor_base::actor_base()
-    : m_executor(mc::runtime::runtime_context::create_strand()) {
+    : m_executor(mc::runtime::runtime_context::create_strand())
+{
 }
 
 actor_base::actor_base(const actor_base&)
-    : m_executor(mc::runtime::runtime_context::create_strand()) {
+    : m_executor(mc::runtime::runtime_context::create_strand())
+{
 }
 
-actor_base& actor_base::operator=(const actor_base&) {
+actor_base& actor_base::operator=(const actor_base&)
+{
     std::lock_guard lock(m_queue_mutex);
     m_exclusive_queue.clear();
     m_exclusive_running = false;
@@ -32,11 +35,13 @@ actor_base& actor_base::operator=(const actor_base&) {
     return *this;
 }
 
-mc::runtime::any_executor actor_base::get_executor() const {
+mc::runtime::any_executor actor_base::get_executor() const
+{
     return m_executor;
 }
 
-bool actor_base::submit_exclusive_task(mcpy::runtime::operation_base* task) {
+bool actor_base::submit_exclusive_task(mcpy::runtime::operation_base* task)
+{
     std::lock_guard lock(m_queue_mutex);
 
     task->m_actor = this;
@@ -50,7 +55,8 @@ bool actor_base::submit_exclusive_task(mcpy::runtime::operation_base* task) {
     return true;
 }
 
-void actor_base::complete_exclusive_task() {
+void actor_base::complete_exclusive_task()
+{
     std::lock_guard lock(m_queue_mutex);
 
     if (m_exclusive_queue.empty()) {
@@ -65,12 +71,14 @@ void actor_base::complete_exclusive_task() {
     task->destroy();
 }
 
-bool actor_base::is_exclusive_running() const {
+bool actor_base::is_exclusive_running() const
+{
     std::lock_guard lock(m_queue_mutex);
     return m_exclusive_running;
 }
 
-std::size_t actor_base::exclusive_queue_size() const {
+std::size_t actor_base::exclusive_queue_size() const
+{
     std::lock_guard lock(m_queue_mutex);
 
     std::size_t count = 0;
@@ -80,7 +88,8 @@ std::size_t actor_base::exclusive_queue_size() const {
     return count;
 }
 
-void actor_base::remove_exclusive_task(mcpy::runtime::operation_base* task) {
+void actor_base::remove_exclusive_task(mcpy::runtime::operation_base* task)
+{
     std::lock_guard lock(m_queue_mutex);
 
     if (task->is_queued()) {

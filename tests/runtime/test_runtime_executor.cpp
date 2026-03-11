@@ -28,7 +28,8 @@ namespace {
 
 class RuntimeExecutorTest : public mc::test::TestWithRuntime {
 protected:
-    void SetUp() override {
+    void SetUp() override
+    {
         mc::test::TestWithRuntime::reset_runtime();
         runtime_config config;
         config.io_threads   = 2;
@@ -37,7 +38,8 @@ protected:
         mc::get_runtime_context().start();
     }
 
-    void TearDown() override {
+    void TearDown() override
+    {
         mc::get_runtime_context().stop();
         mc::get_runtime_context().join();
         mc::test::TestWithRuntime::reset_runtime();
@@ -47,7 +49,8 @@ protected:
 } // namespace
 
 // 测试 runtime_executor 的基本构造
-TEST_F(RuntimeExecutorTest, basic_construction) {
+TEST_F(RuntimeExecutorTest, basic_construction)
+{
     // 默认构造
     runtime_executor exec1;
     EXPECT_TRUE(true);
@@ -59,7 +62,8 @@ TEST_F(RuntimeExecutorTest, basic_construction) {
 }
 
 // 测试 runtime_executor 的拷贝和移动
-TEST_F(RuntimeExecutorTest, copy_and_move) {
+TEST_F(RuntimeExecutorTest, copy_and_move)
+{
     runtime_executor original;
 
     // 拷贝构造
@@ -81,7 +85,8 @@ TEST_F(RuntimeExecutorTest, copy_and_move) {
     EXPECT_EQ(original, move_assigned);
 }
 
-TEST_F(RuntimeExecutorTest, post_task) {
+TEST_F(RuntimeExecutorTest, post_task)
+{
     runtime_executor  exec;
     std::promise<int> promise;
     std::future<int>  future = promise.get_future();
@@ -98,7 +103,8 @@ TEST_F(RuntimeExecutorTest, post_task) {
     EXPECT_EQ(future.get(), 42);
 }
 
-TEST_F(RuntimeExecutorTest, dispatch_task) {
+TEST_F(RuntimeExecutorTest, dispatch_task)
+{
     runtime_executor  exec;
     std::promise<int> promise;
     std::future<int>  future = promise.get_future();
@@ -112,7 +118,8 @@ TEST_F(RuntimeExecutorTest, dispatch_task) {
     EXPECT_EQ(future.get(), 100);
 }
 
-TEST_F(RuntimeExecutorTest, defer_task) {
+TEST_F(RuntimeExecutorTest, defer_task)
+{
     runtime_executor  exec;
     std::promise<int> promise;
     std::future<int>  future = promise.get_future();

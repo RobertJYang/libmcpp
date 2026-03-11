@@ -34,7 +34,8 @@ public:
      * @brief 在原子变量上执行等待操作
      */
     template <typename T>
-    void wait(const std::atomic<T>* addr, T& expected) noexcept {
+    void wait(const std::atomic<T>* addr, T& expected) noexcept
+    {
         m_wait_op.wait(addr, expected);
     }
 
@@ -42,21 +43,24 @@ public:
      * @brief 在原子变量上执行等待操作（带 wait_mask）
      */
     template <typename T>
-    void wait(const std::atomic<T>* addr, T& expected, uint32_t wait_mask) noexcept {
+    void wait(const std::atomic<T>* addr, T& expected, uint32_t wait_mask) noexcept
+    {
         m_wait_op.wait(addr, expected, std::chrono::nanoseconds::max(), wait_mask);
     }
 
     /**
      * @brief 执行轻量自旋操作，不进入 futex 等待
      */
-    void spin() noexcept {
+    void spin() noexcept
+    {
         m_wait_op.spin();
     }
 
     /**
      * @brief 检查是否应该超时（永远不超时）
      */
-    constexpr bool should_timeout() const noexcept {
+    constexpr bool should_timeout() const noexcept
+    {
         return false;
     }
 
@@ -72,14 +76,16 @@ class wait_for_duration {
 public:
     explicit wait_for_duration(const Duration& timeout) noexcept
         : m_timeout(timeout),
-          m_start_time(std::chrono::steady_clock::now()) {
+          m_start_time(std::chrono::steady_clock::now())
+    {
     }
 
     /**
      * @brief 在原子变量上执行等待操作
      */
     template <typename T>
-    void wait(const std::atomic<T>* addr, T& expected) noexcept {
+    void wait(const std::atomic<T>* addr, T& expected) noexcept
+    {
         if (should_timeout()) {
             return;
         }
@@ -104,7 +110,8 @@ public:
      * @brief 在原子变量上执行等待操作（带 wait_mask）
      */
     template <typename T>
-    void wait(const std::atomic<T>* addr, T& expected, uint32_t wait_mask) noexcept {
+    void wait(const std::atomic<T>* addr, T& expected, uint32_t wait_mask) noexcept
+    {
         if (should_timeout()) {
             return;
         }
@@ -128,14 +135,16 @@ public:
     /**
      * @brief 执行轻量自旋操作，不进入 futex 等待
      */
-    void spin() noexcept {
+    void spin() noexcept
+    {
         m_wait_op.spin();
     }
 
     /**
      * @brief 检查是否应该超时
      */
-    bool should_timeout() const noexcept {
+    bool should_timeout() const noexcept
+    {
         auto elapsed = std::chrono::steady_clock::now() - m_start_time;
         return elapsed >= m_timeout;
     }
@@ -150,7 +159,8 @@ private:
  * @brief futex 唤醒辅助函数
  */
 template <typename T>
-void futex_wake(const std::atomic<T>* addr, int count = 1) noexcept {
+void futex_wake(const std::atomic<T>* addr, int count = 1) noexcept
+{
     futex::wake(addr, count);
 }
 
@@ -158,7 +168,8 @@ void futex_wake(const std::atomic<T>* addr, int count = 1) noexcept {
  * @brief futex 唤醒辅助函数（带 wake_mask）
  */
 template <typename T>
-void futex_wake(const std::atomic<T>* addr, int count, uint32_t wake_mask) noexcept {
+void futex_wake(const std::atomic<T>* addr, int count, uint32_t wake_mask) noexcept
+{
     futex::wake(addr, count, wake_mask);
 }
 

@@ -231,46 +231,53 @@ struct enable_enum_flags {
  * @brief 为具有 enable_enum_flags 特化的枚举类重载位运算符
  */
 template <typename Enum>
-typename std::enable_if<enable_enum_flags<Enum>::enable, Enum>::type operator|(Enum lhs, Enum rhs) {
+typename std::enable_if<enable_enum_flags<Enum>::enable, Enum>::type operator|(Enum lhs, Enum rhs)
+{
     using underlying = typename std::underlying_type<Enum>::type;
     return static_cast<Enum>(static_cast<underlying>(lhs) | static_cast<underlying>(rhs));
 }
 
 template <typename Enum>
-typename std::enable_if<enable_enum_flags<Enum>::enable, Enum>::type operator&(Enum lhs, Enum rhs) {
+typename std::enable_if<enable_enum_flags<Enum>::enable, Enum>::type operator&(Enum lhs, Enum rhs)
+{
     using underlying = typename std::underlying_type<Enum>::type;
     return static_cast<Enum>(static_cast<underlying>(lhs) & static_cast<underlying>(rhs));
 }
 
 template <typename Enum>
-typename std::enable_if<enable_enum_flags<Enum>::enable, Enum>::type operator^(Enum lhs, Enum rhs) {
+typename std::enable_if<enable_enum_flags<Enum>::enable, Enum>::type operator^(Enum lhs, Enum rhs)
+{
     using underlying = typename std::underlying_type<Enum>::type;
     return static_cast<Enum>(static_cast<underlying>(lhs) ^ static_cast<underlying>(rhs));
 }
 
 template <typename Enum>
-typename std::enable_if<enable_enum_flags<Enum>::enable, Enum>::type operator~(Enum rhs) {
+typename std::enable_if<enable_enum_flags<Enum>::enable, Enum>::type operator~(Enum rhs)
+{
     using underlying = typename std::underlying_type<Enum>::type;
     return static_cast<Enum>(~static_cast<underlying>(rhs));
 }
 
 template <typename Enum>
 typename std::enable_if<enable_enum_flags<Enum>::enable, Enum&>::type operator|=(Enum& lhs,
-                                                                                 Enum  rhs) {
+                                                                                 Enum  rhs)
+{
     lhs = lhs | rhs;
     return lhs;
 }
 
 template <typename Enum>
 typename std::enable_if<enable_enum_flags<Enum>::enable, Enum&>::type operator&=(Enum& lhs,
-                                                                                 Enum  rhs) {
+                                                                                 Enum  rhs)
+{
     lhs = lhs & rhs;
     return lhs;
 }
 
 template <typename Enum>
 typename std::enable_if<enable_enum_flags<Enum>::enable, Enum&>::type operator^=(Enum& lhs,
-                                                                                 Enum  rhs) {
+                                                                                 Enum  rhs)
+{
     lhs = lhs ^ rhs;
     return lhs;
 }
@@ -296,7 +303,8 @@ typename std::enable_if<enable_enum_flags<Enum>::enable, Enum&>::type operator^=
  * @brief 生成随机整数
  */
 template <typename T>
-typename std::enable_if<std::is_integral<T>::value, T>::type random(T min, T max) {
+typename std::enable_if<std::is_integral<T>::value, T>::type random(T min, T max)
+{
     static std::random_device        rd;
     static std::mt19937              gen(rd());
     std::uniform_int_distribution<T> dist(min, max);
@@ -307,7 +315,8 @@ typename std::enable_if<std::is_integral<T>::value, T>::type random(T min, T max
  * @brief 生成随机浮点数
  */
 template <typename T>
-typename std::enable_if<std::is_floating_point<T>::value, T>::type random(T min, T max) {
+typename std::enable_if<std::is_floating_point<T>::value, T>::type random(T min, T max)
+{
     static std::random_device         rd;
     static std::mt19937               gen(rd());
     std::uniform_real_distribution<T> dist(min, max);
@@ -325,10 +334,12 @@ typename std::enable_if<std::is_floating_point<T>::value, T>::type random(T min,
 class scope_timer {
 public:
     explicit scope_timer(const std::string& name)
-        : m_name(name), m_start(std::chrono::high_resolution_clock::now()) {
+        : m_name(name), m_start(std::chrono::high_resolution_clock::now())
+    {
     }
 
-    ~scope_timer() {
+    ~scope_timer()
+    {
         auto end = std::chrono::high_resolution_clock::now();
         auto duration =
             std::chrono::duration_cast<std::chrono::milliseconds>(end - m_start).count();
@@ -353,13 +364,15 @@ private:
 /**
  * @brief 判断系统是否为小端序
  */
-inline bool is_little_endian() noexcept {
+inline bool is_little_endian() noexcept
+{
     constexpr uint16_t test = 0x0102;
     return *reinterpret_cast<const uint8_t*>(&test) == 0x02;
 }
 
 template <typename T>
-typename std::enable_if_t<std::is_unsigned_v<T>, T> swap_bytes(T value) {
+typename std::enable_if_t<std::is_unsigned_v<T>, T> swap_bytes(T value)
+{
     if constexpr (sizeof(T) == 1) {
         return value;
     } else if constexpr (sizeof(T) == 2) {
@@ -383,7 +396,8 @@ typename std::enable_if_t<std::is_unsigned_v<T>, T> swap_bytes(T value) {
  * @brief 有符号整数字节序转换
  */
 template <typename T>
-typename std::enable_if_t<std::is_signed_v<T>, T> swap_bytes(T value) {
+typename std::enable_if_t<std::is_signed_v<T>, T> swap_bytes(T value)
+{
     using unsigned_t = typename std::make_unsigned<T>::type;
     unsigned_t temp  = static_cast<unsigned_t>(value);
     temp             = swap_bytes(temp);
@@ -394,7 +408,8 @@ typename std::enable_if_t<std::is_signed_v<T>, T> swap_bytes(T value) {
  * @brief 位转换辅助函数
  */
 template <typename To, typename From>
-inline To bit_cast(const From& src) noexcept {
+inline To bit_cast(const From& src) noexcept
+{
     static_assert(sizeof(To) == sizeof(From), "bit_cast requires same size types");
     To dst;
     std::memcpy(&dst, &src, sizeof(To));
@@ -404,80 +419,94 @@ inline To bit_cast(const From& src) noexcept {
 /**
  * @brief 浮点数字节序转换
  */
-inline float swap_bytes(float value) {
+inline float swap_bytes(float value)
+{
     return bit_cast<float>(swap_bytes(bit_cast<uint32_t>(value)));
 }
 
 /**
  * @brief 双精度浮点数字节序转换
  */
-inline double swap_bytes(double value) {
+inline double swap_bytes(double value)
+{
     return bit_cast<double>(swap_bytes(bit_cast<uint64_t>(value)));
 }
 
 /**
  * @brief 网络字节序转主机字节序（16位）
  */
-inline uint16_t ntoh(uint16_t value) {
+inline uint16_t ntoh(uint16_t value)
+{
     return is_little_endian() ? swap_bytes(value) : value;
 }
 
-inline int16_t ntoh(int16_t value) {
+inline int16_t ntoh(int16_t value)
+{
     return static_cast<int16_t>(ntoh(static_cast<uint16_t>(value)));
 }
 
 /**
  * @brief 网络字节序转主机字节序（32位）
  */
-inline uint32_t ntoh(uint32_t value) {
+inline uint32_t ntoh(uint32_t value)
+{
     return is_little_endian() ? swap_bytes(value) : value;
 }
 
-inline int32_t ntoh(int32_t value) {
+inline int32_t ntoh(int32_t value)
+{
     return static_cast<int32_t>(ntoh(static_cast<uint32_t>(value)));
 }
 
 /**
  * @brief 网络字节序转主机字节序（64位）
  */
-inline uint64_t ntoh(uint64_t value) {
+inline uint64_t ntoh(uint64_t value)
+{
     return is_little_endian() ? swap_bytes(value) : value;
 }
 
-inline int64_t ntoh(int64_t value) {
+inline int64_t ntoh(int64_t value)
+{
     return static_cast<int64_t>(ntoh(static_cast<uint64_t>(value)));
 }
 
 /**
  * @brief 主机字节序转网络字节序（16位）
  */
-inline uint16_t hton(uint16_t value) {
+inline uint16_t hton(uint16_t value)
+{
     return is_little_endian() ? swap_bytes(value) : value;
 }
 
-inline int16_t hton(int16_t value) {
+inline int16_t hton(int16_t value)
+{
     return static_cast<int16_t>(hton(static_cast<uint16_t>(value)));
 }
 
 /**
  * @brief 主机字节序转网络字节序（32位）
  */
-inline uint32_t hton(uint32_t value) {
+inline uint32_t hton(uint32_t value)
+{
     return is_little_endian() ? swap_bytes(value) : value;
 }
 
-inline int32_t hton(int32_t value) {
+inline int32_t hton(int32_t value)
+{
     return static_cast<int32_t>(hton(static_cast<uint32_t>(value)));
 }
 
 /**
  * @brief 主机字节序转网络字节序（64位）
  */
-inline uint64_t hton(uint64_t value) {
+inline uint64_t hton(uint64_t value)
+{
     return is_little_endian() ? swap_bytes(value) : value;
 }
 
-inline int64_t hton(int64_t value) {
+inline int64_t hton(int64_t value)
+{
     return static_cast<int64_t>(hton(static_cast<uint64_t>(value)));
 }
 
@@ -539,7 +568,8 @@ template <typename F>
 inline auto get_function_offset(F function)
     -> std::enable_if_t<std::is_member_function_pointer_v<F> ||
                             detail::is_function_pointer<F>::value,
-                        std::uintptr_t> {
+                        std::uintptr_t>
+{
     union {
         F              function;
         std::uintptr_t offset;
@@ -557,16 +587,19 @@ inline auto get_function_offset(F function)
  * 2. 数字（0-9）
  * 3. 下划线（_）
  */
-constexpr bool is_identifier_char(char c) noexcept {
+constexpr bool is_identifier_char(char c) noexcept
+{
     return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_';
 }
 
-constexpr bool is_first_identifier_char(char c) noexcept {
+constexpr bool is_first_identifier_char(char c) noexcept
+{
     return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_';
 }
 
 constexpr std::size_t max_identifier_length = 255;
-constexpr bool        is_identifier(std::string_view s) noexcept {
+constexpr bool        is_identifier(std::string_view s) noexcept
+{
     if (s.empty() || s.size() > max_identifier_length) {
         return false;
     }
@@ -584,7 +617,8 @@ constexpr bool        is_identifier(std::string_view s) noexcept {
     return true;
 }
 
-constexpr bool is_valid_interface_name(std::string_view name) {
+constexpr bool is_valid_interface_name(std::string_view name)
+{
     // 必须至少有一个点分隔符
     bool has_dot = false;
 
@@ -623,7 +657,8 @@ constexpr bool is_valid_interface_name(std::string_view name) {
 }
 
 template <typename Derived, typename Base>
-std::uintptr_t get_base_offset() {
+std::uintptr_t get_base_offset()
+{
     alignas(alignof(Derived)) char buffer[sizeof(Derived)];
 
     Derived* derived_ptr = reinterpret_cast<Derived*>(buffer);

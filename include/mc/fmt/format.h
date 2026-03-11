@@ -34,12 +34,15 @@ using format_spec = detail::format_spec;
 
 class direct_outputbuf : public std::streambuf {
 public:
-    explicit direct_outputbuf(std::string& target) : m_target(target) {
+    explicit direct_outputbuf(std::string& target)
+        : m_target(target)
+    {
         setp(nullptr, nullptr);
     }
 
 protected:
-    int_type overflow(int_type ch) override {
+    int_type overflow(int_type ch) override
+    {
         if (ch != traits_type::eof()) {
             m_target.push_back(static_cast<char>(ch));
             return ch;
@@ -47,7 +50,8 @@ protected:
         return traits_type::eof();
     }
 
-    std::streamsize xsputn(const char* s, std::streamsize n) override {
+    std::streamsize xsputn(const char* s, std::streamsize n) override
+    {
         m_target.append(s, n);
         return n;
     }
@@ -59,20 +63,23 @@ private:
 namespace detail {
 
 template <typename T>
-std::string& format_to(std::string& out, const T& value) {
+std::string& format_to(std::string& out, const T& value)
+{
     format_context ctx(out);
     return format_to(ctx, format_spec{}, value);
 }
 
 template <typename Context, typename T>
-std::string& format_to(Context& ctx, const format_spec& spec, const T& value) {
+std::string& format_to(Context& ctx, const format_spec& spec, const T& value)
+{
     mc::fmt::formatter<T>{}.format(value, ctx, spec);
     return ctx.out();
 }
 } // namespace detail
 
 template <typename... Args>
-std::string& format_to(std::string& out, std::string_view fmt, Args&&... args) {
+std::string& format_to(std::string& out, std::string_view fmt, Args&&... args)
+{
     detail::runtime_arg_store store(std::forward<Args>(args)...);
     format_context            ctx(out, store);
     detail::format_parser::parse(fmt, ctx);
@@ -113,7 +120,8 @@ std::string& format_to(std::string& out, std::string_view fmt, Args&&... args) {
 #define MC_FORMAT_PARAM_TO_SEQ(param)            \
     BOOST_PP_IF(BOOST_PP_IS_BEGIN_PARENS(param), \
                 MC_FORMAT_CONVERT_TO_SEQ_IMPL,   \
-                MC_FORMAT_WRAP_PARAM)(param)
+                MC_FORMAT_WRAP_PARAM)            \
+    (param)
 
 #define MC_FORMAT_CHECK_ARG(r, macro, param) \
     MC_FORMAT_CHECK_ARG_SEQ_DIRECT(macro, MC_FORMAT_PARAM_TO_SEQ(param)),

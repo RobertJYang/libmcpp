@@ -55,11 +55,13 @@ struct format_spec {
     bool             custom_spec_in_use = false;      // 自定义格式是否被使用
     char             custom_spec[128]   = {0};        // 自定义格式
 
-    constexpr format_spec() {
+    constexpr format_spec()
+    {
     }
 
     template <typename CustomSpec>
-    CustomSpec& get_custom_spec() {
+    CustomSpec& get_custom_spec()
+    {
         static_assert(sizeof(CustomSpec) <= sizeof(custom_spec), "CustomSpec is too large");
         if (!custom_spec_in_use) {
             custom_spec_in_use = true;
@@ -69,13 +71,15 @@ struct format_spec {
     }
 
     template <typename CustomSpec>
-    const CustomSpec& get_custom_spec() const {
+    const CustomSpec& get_custom_spec() const
+    {
         auto* self = const_cast<format_spec*>(this);
         return self->template get_custom_spec<CustomSpec>();
     }
 
     template <typename CustomSpec>
-    void set_custom_spec(const CustomSpec& spec) {
+    void set_custom_spec(const CustomSpec& spec)
+    {
         static_assert(sizeof(CustomSpec) <= sizeof(custom_spec), "CustomSpec is too large");
         static_assert(std::is_trivially_copyable_v<CustomSpec>,
                       "CustomSpec must be trivially copyable");
@@ -85,7 +89,8 @@ struct format_spec {
         std::memcpy(custom_spec, &spec, sizeof(CustomSpec));
     }
 
-    constexpr bool parse_alignment_and_fill(const char*& ptr, const char* end) {
+    constexpr bool parse_alignment_and_fill(const char*& ptr, const char* end)
+    {
         if (ptr + 1 < end && (ptr[1] == '<' || ptr[1] == '>' || ptr[1] == '^')) {
             fill      = *ptr;
             alignment = ptr[1] == '<'   ? align::left
@@ -102,7 +107,8 @@ struct format_spec {
         return ptr < end;
     }
 
-    constexpr bool parse_sign(const char*& ptr, const char* end) {
+    constexpr bool parse_sign(const char*& ptr, const char* end)
+    {
         if (ptr < end) {
             switch (*ptr) {
             case '+':
@@ -125,7 +131,8 @@ struct format_spec {
         return ptr < end;
     }
 
-    constexpr bool parse_alternate(const char*& ptr, const char* end) {
+    constexpr bool parse_alternate(const char*& ptr, const char* end)
+    {
         if (ptr < end && *ptr == '#') {
             alternate_form = true;
             ++ptr;
@@ -134,7 +141,8 @@ struct format_spec {
         return ptr < end;
     }
 
-    constexpr bool parse_zero_pad(const char*& ptr, const char* end) {
+    constexpr bool parse_zero_pad(const char*& ptr, const char* end)
+    {
         if (ptr < end && *ptr == '0') {
             zero_pad = true;
             if (alignment == align::none) {
@@ -146,7 +154,8 @@ struct format_spec {
         return ptr < end;
     }
 
-    constexpr bool parse_width(const char*& ptr, const char* end) {
+    constexpr bool parse_width(const char*& ptr, const char* end)
+    {
         if (ptr < end && *ptr == '{') {
             // 动态宽度参数
             ++ptr;
@@ -177,7 +186,8 @@ struct format_spec {
         return ptr < end;
     }
 
-    constexpr bool parse_precision(const char*& ptr, const char* end) {
+    constexpr bool parse_precision(const char*& ptr, const char* end)
+    {
         if (ptr < end && *ptr == '.') {
             ++ptr;
             if (ptr < end && *ptr == '{') {
@@ -214,7 +224,8 @@ struct format_spec {
         return ptr < end;
     }
 
-    constexpr bool parse_type(const char*& ptr, const char* end) {
+    constexpr bool parse_type(const char*& ptr, const char* end)
+    {
         if (ptr < end && *ptr != '}') {
             type = *ptr++;
         }
@@ -223,7 +234,8 @@ struct format_spec {
     }
 
     template <typename Arg>
-    constexpr const char* parse(const Arg* arg, const char* ptr, const char* end) {
+    constexpr const char* parse(const Arg* arg, const char* ptr, const char* end)
+    {
         if (ptr >= end) {
             return nullptr;
         }

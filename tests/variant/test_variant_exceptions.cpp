@@ -30,67 +30,84 @@ namespace test {
 // 不支持引用访问的扩展类型（用于测试值访问模式）
 class test_extension_no_ref_access : public variant_extension<test_extension_no_ref_access> {
 public:
-    test_extension_no_ref_access() : m_value(0) {
+    test_extension_no_ref_access()
+        : m_value(0)
+    {
     }
-    explicit test_extension_no_ref_access(int value) : m_value(value) {
+    explicit test_extension_no_ref_access(int value)
+        : m_value(value)
+    {
     }
 
-    bool operator==(const test_extension_no_ref_access& other) const {
+    bool operator==(const test_extension_no_ref_access& other) const
+    {
         return m_value == other.m_value;
     }
 
-    std::size_t hash() const override {
+    std::size_t hash() const override
+    {
         return std::hash<int>()(m_value);
     }
 
     // 不支持零开销引用访问
-    bool supports_reference_access() const override {
+    bool supports_reference_access() const override
+    {
         return false;
     }
 
     // 不支持 get_ptr，只能使用值访问
-    mc::variant* get_ptr(std::string_view key) override {
+    mc::variant* get_ptr(std::string_view key) override
+    {
         return nullptr;
     }
 
-    const mc::variant* get_ptr(std::string_view key) const override {
+    const mc::variant* get_ptr(std::string_view key) const override
+    {
         return nullptr;
     }
 
-    mc::variant get(std::string_view key) const override {
+    mc::variant get(std::string_view key) const override
+    {
         if (key == "value") {
             return mc::variant(m_value);
         }
         throw std::out_of_range("键不存在");
     }
 
-    void set(std::string_view key, const mc::variant& value) override {
+    void set(std::string_view key, const mc::variant& value) override
+    {
         if (key == "value") {
             m_value = value.as_int32();
         }
     }
 
-    int64_t as_int64() const override {
+    int64_t as_int64() const override
+    {
         return m_value;
     }
 
-    uint64_t as_uint64() const override {
+    uint64_t as_uint64() const override
+    {
         return m_value;
     }
 
-    double as_double() const override {
+    double as_double() const override
+    {
         return m_value;
     }
 
-    bool as_bool() const override {
+    bool as_bool() const override
+    {
         return m_value != 0;
     }
 
-    std::string as_string() const override {
+    std::string as_string() const override
+    {
         return "test_extension_no_ref_access(" + std::to_string(m_value) + ")";
     }
 
-    mc::shared_ptr<variant_extension_base> copy() const override {
+    mc::shared_ptr<variant_extension_base> copy() const override
+    {
         return mc::make_shared<test_extension_no_ref_access>(*this);
     }
 
@@ -101,22 +118,28 @@ private:
 class unsupported_extension : public variant_extension<unsupported_extension> {
 public:
     unsupported_extension() = default;
-    explicit unsupported_extension(int v) : m_value(v) {
+    explicit unsupported_extension(int v)
+        : m_value(v)
+    {
     }
 
-    bool operator==(const unsupported_extension& other) const {
+    bool operator==(const unsupported_extension& other) const
+    {
         return m_value == other.m_value;
     }
 
-    std::size_t hash() const override {
+    std::size_t hash() const override
+    {
         return std::hash<int>()(m_value);
     }
 
-    mc::shared_ptr<variant_extension_base> copy() const override {
+    mc::shared_ptr<variant_extension_base> copy() const override
+    {
         return mc::make_shared<unsupported_extension>(*this);
     }
 
-    bool equals(const variant_extension_base& other) const override {
+    bool equals(const variant_extension_base& other) const override
+    {
         auto* ptr = dynamic_cast<const unsupported_extension*>(&other);
         return ptr != nullptr && ptr->m_value == m_value;
     }
@@ -127,20 +150,23 @@ private:
 
 class VariantEdgeCasesTest : public mc::test::TestBase {
 protected:
-    void SetUp() override {
+    void SetUp() override
+    {
         TestBase::SetUp();
     }
 
-    void TearDown() override {
+    void TearDown() override
+    {
         TestBase::TearDown();
     }
 };
 
 // 测试 size() 函数中的 blob_type 分支
-TEST_F(VariantEdgeCasesTest, SizeBlobType) {
+TEST_F(VariantEdgeCasesTest, SizeBlobType)
+{
     std::string test_str = "test data";
-    mc::blob blob_data(test_str.data(), test_str.size());
-    variant v(blob_data);
+    mc::blob    blob_data(test_str.data(), test_str.size());
+    variant     v(blob_data);
     EXPECT_EQ(v.size(), blob_data.data.size());
 }
 
@@ -148,8 +174,9 @@ TEST_F(VariantEdgeCasesTest, SizeBlobType) {
 // 这个分支可能只在内部实现中出现，或者通过特殊的移动构造/赋值操作触发
 
 // 测试 operator[] 中 extension 不支持 reference access 的分支（值访问模式）
-TEST_F(VariantEdgeCasesTest, OperatorIndexExtensionNoRefAccess) {
-    auto ext = mc::make_shared<test_extension_no_ref_access>(42);
+TEST_F(VariantEdgeCasesTest, OperatorIndexExtensionNoRefAccess)
+{
+    auto    ext = mc::make_shared<test_extension_no_ref_access>(42);
     variant v(ext);
     // 使用值访问模式（不支持引用访问时会调用 get() 方法）
     variant_reference ref = v["value"];
@@ -157,14 +184,16 @@ TEST_F(VariantEdgeCasesTest, OperatorIndexExtensionNoRefAccess) {
 }
 
 // 测试 operator[] 中抛出 type_error 的分支（非 object 和非 extension）
-TEST_F(VariantEdgeCasesTest, OperatorIndexTypeError) {
+TEST_F(VariantEdgeCasesTest, OperatorIndexTypeError)
+{
     variant v(123);
     EXPECT_THROW({ v["key"]; }, mc::exception);
 }
 
 // 测试 const operator[] 中 extension 相关分支
-TEST_F(VariantEdgeCasesTest, OperatorIndexConstExtension) {
-    auto ext = mc::make_shared<test_extension_no_ref_access>(100);
+TEST_F(VariantEdgeCasesTest, OperatorIndexConstExtension)
+{
+    auto          ext = mc::make_shared<test_extension_no_ref_access>(100);
     const variant v(ext);
     // const 版本的 operator[] 也应该支持 extension
     variant_reference ref = v["value"];
@@ -174,7 +203,8 @@ TEST_F(VariantEdgeCasesTest, OperatorIndexConstExtension) {
 // 注意：const operator[] 中 extension null 错误分支也很难直接测试
 
 // 测试 get() 函数（完全未覆盖）
-TEST_F(VariantEdgeCasesTest, GetWithDefaultValue) {
+TEST_F(VariantEdgeCasesTest, GetWithDefaultValue)
+{
     variant obj = mc::dict{{"key1", 123}, {"key2", "value"}};
     variant default_val(456);
 
@@ -187,13 +217,14 @@ TEST_F(VariantEdgeCasesTest, GetWithDefaultValue) {
     EXPECT_EQ(result2.as_int32(), 456);
 
     // 测试非 object 类型
-    variant non_obj(789);
+    variant        non_obj(789);
     const variant& result3 = non_obj.get("key", default_val);
     EXPECT_EQ(result3.as_int32(), 456); // 应该返回默认值
 }
 
 // 测试 contains() 中非 object 的分支
-TEST_F(VariantEdgeCasesTest, ContainsNonObject) {
+TEST_F(VariantEdgeCasesTest, ContainsNonObject)
+{
     variant v(123);
     EXPECT_FALSE(v.contains("key"));
 
@@ -202,16 +233,18 @@ TEST_F(VariantEdgeCasesTest, ContainsNonObject) {
 }
 
 // 测试 operator==(const dict&) 中非 object 的分支
-TEST_F(VariantEdgeCasesTest, OperatorEqualDictNonObject) {
-    variant v(123);
+TEST_F(VariantEdgeCasesTest, OperatorEqualDictNonObject)
+{
+    variant  v(123);
     mc::dict d{{"key", "value"}};
     EXPECT_FALSE(v == d);
 }
 
 // 测试 set_value() 中的 extension_type 分支
-TEST_F(VariantEdgeCasesTest, SetValueExtensionType) {
-    auto ext1 = mc::make_shared<test_extension_no_ref_access>(10);
-    auto ext2 = mc::make_shared<test_extension_no_ref_access>(20);
+TEST_F(VariantEdgeCasesTest, SetValueExtensionType)
+{
+    auto    ext1 = mc::make_shared<test_extension_no_ref_access>(10);
+    auto    ext2 = mc::make_shared<test_extension_no_ref_access>(20);
     variant v1(ext1);
     variant v2(ext2);
 
@@ -219,26 +252,35 @@ TEST_F(VariantEdgeCasesTest, SetValueExtensionType) {
     EXPECT_EQ(v1.as_int64(), 20);
 }
 
-TEST_F(VariantEdgeCasesTest, TypedVariantSetValueArrayKeepsValueOnException) {
+TEST_F(VariantEdgeCasesTest, TypedVariantSetValueArrayKeepsValueOnException)
+{
     typed_variant v(mc::type_id::array_type);
     v = variants{1, 2, 3};
 
-    verify_assignment_exception([&]() { v = 42; }, v);
+    verify_assignment_exception([&]() {
+        v = 42;
+    }, v);
 }
 
-TEST_F(VariantEdgeCasesTest, TypedVariantSetValueObjectKeepsValueOnException) {
+TEST_F(VariantEdgeCasesTest, TypedVariantSetValueObjectKeepsValueOnException)
+{
     typed_variant v(mc::type_id::object_type);
     v = dict{{"name", "John"}, {"age", 30}};
 
-    verify_assignment_exception([&]() { v = 42; }, v);
+    verify_assignment_exception([&]() {
+        v = 42;
+    }, v);
 }
 
-TEST_F(VariantEdgeCasesTest, TypedVariantSetValueExtensionKeepsValueOnException) {
+TEST_F(VariantEdgeCasesTest, TypedVariantSetValueExtensionKeepsValueOnException)
+{
     typed_variant v(mc::type_id::extension_type);
     auto          ext = mc::make_shared<test_extension_no_ref_access>(10);
-    v = variant(ext);
+    v                 = variant(ext);
 
-    verify_assignment_exception([&]() { v = 42; }, v);
+    verify_assignment_exception([&]() {
+        v = 42;
+    }, v);
 }
 
 // 注意：set_value() 中的 default 分支很难直接测试，因为 variant_base 的构造函数会验证 type_id
@@ -248,23 +290,25 @@ TEST_F(VariantEdgeCasesTest, TypedVariantSetValueExtensionKeepsValueOnException)
 // 因为 variant_base 的构造函数会检查 extension，很难创建 null extension
 
 // 测试 operator+ 中的字符串+blob 分支
-TEST_F(VariantEdgeCasesTest, OperatorPlusStringBlob) {
-    variant str("hello");
+TEST_F(VariantEdgeCasesTest, OperatorPlusStringBlob)
+{
+    variant     str("hello");
     std::string blob_str = " world";
-    mc::blob blob_data(blob_str.data(), blob_str.size());
-    variant blob(blob_data);
-    variant result = str + blob;
+    mc::blob    blob_data(blob_str.data(), blob_str.size());
+    variant     blob(blob_data);
+    variant     result = str + blob;
     EXPECT_TRUE(result.is_string());
     EXPECT_EQ(result.as_string(), "hello world");
 }
 
 // 测试 operator+ 中的 blob+string 分支
-TEST_F(VariantEdgeCasesTest, OperatorPlusBlobString) {
+TEST_F(VariantEdgeCasesTest, OperatorPlusBlobString)
+{
     std::string blob_str = "hello";
-    mc::blob blob_data(blob_str.data(), blob_str.size());
-    variant blob(blob_data);
-    variant str(" world");
-    variant result = blob + str;
+    mc::blob    blob_data(blob_str.data(), blob_str.size());
+    variant     blob(blob_data);
+    variant     str(" world");
+    variant     result = blob + str;
     // 注意：blob + string 实际上会走到 other.is_string() 分支，返回字符串类型
     // 因为 operator+ 首先检查 other.is_string()，如果为真则调用 as_string() + other.get_string()
     EXPECT_TRUE(result.is_string());
@@ -272,65 +316,74 @@ TEST_F(VariantEdgeCasesTest, OperatorPlusBlobString) {
 }
 
 // 测试 operator+ 中的 blob 异常分支（blob 与非 blob/string 相加）
-TEST_F(VariantEdgeCasesTest, OperatorPlusBlobInvalidType) {
+TEST_F(VariantEdgeCasesTest, OperatorPlusBlobInvalidType)
+{
     std::string blob_str = "test";
-    mc::blob blob_data(blob_str.data(), blob_str.size());
-    variant blob(blob_data);
-    variant num(123);
+    mc::blob    blob_data(blob_str.data(), blob_str.size());
+    variant     blob(blob_data);
+    variant     num(123);
     EXPECT_THROW({ blob + num; }, mc::exception);
 }
 
 // 测试 operator+ 中的对象拼接异常分支（对象与非对象相加）
-TEST_F(VariantEdgeCasesTest, OperatorPlusObjectInvalidType) {
+TEST_F(VariantEdgeCasesTest, OperatorPlusObjectInvalidType)
+{
     variant obj = mc::dict{{"key1", 1}};
     variant num(123);
     EXPECT_THROW({ obj + num; }, mc::exception);
 }
 
 // 测试 operator- 中的异常处理分支
-TEST_F(VariantEdgeCasesTest, OperatorMinusException) {
+TEST_F(VariantEdgeCasesTest, OperatorMinusException)
+{
     variant v1 = mc::dict{{"key", "value"}};
     variant v2(123);
     EXPECT_THROW({ v1 - v2; }, mc::exception);
 }
 
 // 测试 operator* 中的异常处理分支
-TEST_F(VariantEdgeCasesTest, OperatorMultiplyException) {
+TEST_F(VariantEdgeCasesTest, OperatorMultiplyException)
+{
     variant v1 = mc::dict{{"key", "value"}};
     variant v2(123);
-    EXPECT_THROW({ v1 * v2; }, mc::exception);
+    EXPECT_THROW({ v1* v2; }, mc::exception);
 }
 
 // 测试 operator/ 中的异常处理分支
-TEST_F(VariantEdgeCasesTest, OperatorDivideException) {
+TEST_F(VariantEdgeCasesTest, OperatorDivideException)
+{
     variant v1 = mc::dict{{"key", "value"}};
     variant v2(123);
     EXPECT_THROW({ v1 / v2; }, mc::exception);
 }
 
 // 测试 operator% 中的异常处理分支
-TEST_F(VariantEdgeCasesTest, OperatorModuloException) {
+TEST_F(VariantEdgeCasesTest, OperatorModuloException)
+{
     variant v1 = mc::dict{{"key", "value"}};
     variant v2(123);
     EXPECT_THROW({ v1 % v2; }, mc::exception);
 }
 
 // 测试 operator& 中的异常处理分支
-TEST_F(VariantEdgeCasesTest, OperatorBitwiseAndException) {
+TEST_F(VariantEdgeCasesTest, OperatorBitwiseAndException)
+{
     variant v1 = mc::dict{{"key", "value"}};
     variant v2(123);
     EXPECT_THROW({ v1 & v2; }, mc::exception);
 }
 
 // 测试 operator| 中的异常处理分支
-TEST_F(VariantEdgeCasesTest, OperatorBitwiseOrException) {
+TEST_F(VariantEdgeCasesTest, OperatorBitwiseOrException)
+{
     variant v1 = mc::dict{{"key", "value"}};
     variant v2(123);
     EXPECT_THROW({ v1 | v2; }, mc::exception);
 }
 
 // 测试 operator^ 中的异常处理分支
-TEST_F(VariantEdgeCasesTest, OperatorBitwiseXorException) {
+TEST_F(VariantEdgeCasesTest, OperatorBitwiseXorException)
+{
     variant v1 = mc::dict{{"key", "value"}};
     variant v2(123);
     EXPECT_THROW({ v1 ^ v2; }, mc::exception);
@@ -339,7 +392,8 @@ TEST_F(VariantEdgeCasesTest, OperatorBitwiseXorException) {
 // 测试 variant_base(type_id type) 构造函数中的 extension_type 分支
 // 注意：variant 没有直接接受 type_id 的公共构造函数，但 typed_variant 有
 // 我们可以通过 typed_variant 来测试，或者直接测试 extension 的构造
-TEST_F(VariantEdgeCasesTest, ConstructorWithExtensionType) {
+TEST_F(VariantEdgeCasesTest, ConstructorWithExtensionType)
+{
     // 使用 typed_variant 来测试 extension_type 构造
     typed_variant v(mc::type_id::extension_type);
     EXPECT_TRUE(v.is_extension());
@@ -349,11 +403,12 @@ TEST_F(VariantEdgeCasesTest, ConstructorWithExtensionType) {
 }
 
 // 测试移动构造中的 blob_type 分支
-TEST_F(VariantEdgeCasesTest, MoveConstructorBlobType) {
+TEST_F(VariantEdgeCasesTest, MoveConstructorBlobType)
+{
     std::string blob_str = "test blob data";
-    mc::blob blob_data(blob_str.data(), blob_str.size());
-    variant v1(blob_data);
-    variant v2(std::move(v1));
+    mc::blob    blob_data(blob_str.data(), blob_str.size());
+    variant     v1(blob_data);
+    variant     v2(std::move(v1));
     EXPECT_TRUE(v2.is_blob());
     EXPECT_EQ(v2.as_blob().as_string_view(), blob_str);
     // v1 应该已经变为 null
@@ -361,8 +416,9 @@ TEST_F(VariantEdgeCasesTest, MoveConstructorBlobType) {
 }
 
 // 测试移动构造中的 extension_type 分支
-TEST_F(VariantEdgeCasesTest, MoveConstructorExtensionType) {
-    auto ext = mc::make_shared<test_extension_no_ref_access>(50);
+TEST_F(VariantEdgeCasesTest, MoveConstructorExtensionType)
+{
+    auto    ext = mc::make_shared<test_extension_no_ref_access>(50);
     variant v1(ext);
     variant v2(std::move(v1));
     EXPECT_TRUE(v2.is_extension());
@@ -372,7 +428,8 @@ TEST_F(VariantEdgeCasesTest, MoveConstructorExtensionType) {
 }
 
 // 测试 set_value(variant_base&& other) 中的相同类型分支
-TEST_F(VariantEdgeCasesTest, SetValueMoveSameType) {
+TEST_F(VariantEdgeCasesTest, SetValueMoveSameType)
+{
     variant v1(100);
     variant v2(200);
     // 当类型相同时，应该直接交换内容（swap）
@@ -383,7 +440,8 @@ TEST_F(VariantEdgeCasesTest, SetValueMoveSameType) {
 }
 
 // 测试位移运算符中的边界情况：shift_amount >= 64
-TEST_F(VariantEdgeCasesTest, OperatorLeftShiftLargeAmount) {
+TEST_F(VariantEdgeCasesTest, OperatorLeftShiftLargeAmount)
+{
     variant v1(1);
     variant v2(64); // 位移量 >= 64
     variant result = v1 << v2;
@@ -391,7 +449,8 @@ TEST_F(VariantEdgeCasesTest, OperatorLeftShiftLargeAmount) {
 }
 
 // 测试位移运算符中的边界情况：右移大位移量
-TEST_F(VariantEdgeCasesTest, OperatorRightShiftLargeAmount) {
+TEST_F(VariantEdgeCasesTest, OperatorRightShiftLargeAmount)
+{
     variant v1(100);
     variant v2(64); // 位移量 >= 64
     variant result = v1 >> v2;
@@ -399,7 +458,8 @@ TEST_F(VariantEdgeCasesTest, OperatorRightShiftLargeAmount) {
 }
 
 // 测试位移运算符中的边界情况：右移大位移量，负数情况
-TEST_F(VariantEdgeCasesTest, OperatorRightShiftLargeAmountNegative) {
+TEST_F(VariantEdgeCasesTest, OperatorRightShiftLargeAmountNegative)
+{
     variant v1(-1);
     variant v2(64); // 位移量 >= 64，且是负数
     variant result = v1 >> v2;
@@ -407,65 +467,76 @@ TEST_F(VariantEdgeCasesTest, OperatorRightShiftLargeAmountNegative) {
 }
 
 // 测试 visit() 中的各种类型分支
-TEST_F(VariantEdgeCasesTest, VisitVariousTypes) {
+TEST_F(VariantEdgeCasesTest, VisitVariousTypes)
+{
     // 自定义访问者类
     class TestVisitor : public variant::visitor {
     public:
-        mutable bool visited_int64 = false;
-        mutable bool visited_string = false;
-        mutable bool visited_blob = false;
-        mutable int64_t int_value = 0;
+        mutable bool        visited_int64  = false;
+        mutable bool        visited_string = false;
+        mutable bool        visited_blob   = false;
+        mutable int64_t     int_value      = 0;
         mutable std::string string_value;
         mutable std::string blob_value;
 
-        void handle() const override {
+        void handle() const override
+        {
         }
 
-        void handle(const int64_t& v) const override {
+        void handle(const int64_t& v) const override
+        {
             visited_int64 = true;
-            int_value = v;
+            int_value     = v;
         }
 
-        void handle(const uint64_t& v) const override {
+        void handle(const uint64_t& v) const override
+        {
             visited_int64 = true;
-            int_value = static_cast<int64_t>(v);
+            int_value     = static_cast<int64_t>(v);
         }
 
-        void handle(const double& v) const override {
+        void handle(const double& v) const override
+        {
         }
 
-        void handle(const bool& v) const override {
+        void handle(const bool& v) const override
+        {
         }
 
-        void handle(const std::string& v) const override {
+        void handle(const std::string& v) const override
+        {
             visited_string = true;
-            string_value = v;
+            string_value   = v;
         }
 
-        void handle(const dict& v) const override {
+        void handle(const dict& v) const override
+        {
         }
 
-        void handle(const variants& v) const override {
+        void handle(const variants& v) const override
+        {
         }
 
-        void handle(const blob& v) const override {
+        void handle(const blob& v) const override
+        {
             visited_blob = true;
-            blob_value = std::string(v.as_string_view());
+            blob_value   = std::string(v.as_string_view());
         }
 
-        void handle(const variant_extension_base& v) const override {
+        void handle(const variant_extension_base& v) const override
+        {
         }
     };
 
     // 测试整数类型
-    variant v1(123);
+    variant     v1(123);
     TestVisitor visitor1;
     v1.visit(visitor1);
     EXPECT_TRUE(visitor1.visited_int64);
     EXPECT_EQ(visitor1.int_value, 123);
 
     // 测试字符串类型
-    variant v2("test");
+    variant     v2("test");
     TestVisitor visitor2;
     v2.visit(visitor2);
     EXPECT_TRUE(visitor2.visited_string);
@@ -473,8 +544,8 @@ TEST_F(VariantEdgeCasesTest, VisitVariousTypes) {
 
     // 测试 blob 类型
     std::string blob_str = "blob data";
-    mc::blob blob_data(blob_str.data(), blob_str.size());
-    variant v3(blob_data);
+    mc::blob    blob_data(blob_str.data(), blob_str.size());
+    variant     v3(blob_data);
     TestVisitor visitor3;
     v3.visit(visitor3);
     EXPECT_TRUE(visitor3.visited_blob);
@@ -482,56 +553,67 @@ TEST_F(VariantEdgeCasesTest, VisitVariousTypes) {
 }
 
 // 测试 visit() 中的 extension null 检查（extension 为 null 时不调用 handle）
-TEST_F(VariantEdgeCasesTest, VisitExtensionNull) {
+TEST_F(VariantEdgeCasesTest, VisitExtensionNull)
+{
     // 自定义访问者类
     class TestVisitor : public variant::visitor {
     public:
         mutable bool visited = false;
 
-        void handle() const override {
+        void handle() const override
+        {
             visited = true;
         }
 
-        void handle(const int64_t&) const override {
+        void handle(const int64_t&) const override
+        {
             visited = true;
         }
 
-        void handle(const uint64_t&) const override {
+        void handle(const uint64_t&) const override
+        {
             visited = true;
         }
 
-        void handle(const double&) const override {
+        void handle(const double&) const override
+        {
             visited = true;
         }
 
-        void handle(const bool&) const override {
+        void handle(const bool&) const override
+        {
             visited = true;
         }
 
-        void handle(const std::string&) const override {
+        void handle(const std::string&) const override
+        {
             visited = true;
         }
 
-        void handle(const dict&) const override {
+        void handle(const dict&) const override
+        {
             visited = true;
         }
 
-        void handle(const variants&) const override {
+        void handle(const variants&) const override
+        {
             visited = true;
         }
 
-        void handle(const blob&) const override {
+        void handle(const blob&) const override
+        {
             visited = true;
         }
 
-        void handle(const variant_extension_base&) const override {
+        void handle(const variant_extension_base&) const override
+        {
             visited = true;
         }
     };
 
     // 创建一个 extension 类型的 variant，但 extension 为 null
     typed_variant v(mc::type_id::extension_type);
-    TestVisitor visitor;
+    TestVisitor   visitor;
     v.visit(visitor);
     // extension 为 null 时，visit 应该不会调用任何 handle 方法
     EXPECT_FALSE(visitor.visited);
@@ -540,13 +622,15 @@ TEST_F(VariantEdgeCasesTest, VisitExtensionNull) {
 // 测试 as_uint64() 中 default 分支的 return 0（在抛出异常后）
 // 注意：这个分支实际上不会被执行，因为 throw 会终止函数
 // 但为了完整性，我们可以测试 as_uint64() 的 default 分支抛出异常
-TEST_F(VariantEdgeCasesTest, AsUint64DefaultBranch) {
+TEST_F(VariantEdgeCasesTest, AsUint64DefaultBranch)
+{
     variant v = mc::dict{{"key", "value"}};
     EXPECT_THROW({ v.as_uint64(); }, mc::exception);
 }
 
 // 测试 operator=(const char* s) 当 s 为 nullptr 时的各种类型分支
-TEST_F(VariantEdgeCasesTest, OperatorAssignNullptrChar) {
+TEST_F(VariantEdgeCasesTest, OperatorAssignNullptrChar)
+{
     // 测试 null_type
     variant v1;
     v1 = nullptr;
@@ -590,57 +674,65 @@ TEST_F(VariantEdgeCasesTest, OperatorAssignNullptrChar) {
 }
 
 // 测试 operator=(std::string_view s) 当 variant 是 blob 类型时
-TEST_F(VariantEdgeCasesTest, OperatorAssignStringViewToBlob) {
-    typed_variant v(mc::type_id::blob_type);
+TEST_F(VariantEdgeCasesTest, OperatorAssignStringViewToBlob)
+{
+    typed_variant    v(mc::type_id::blob_type);
     std::string_view sv = "test data";
-    v = sv;
+    v                   = sv;
     EXPECT_TRUE(v.is_blob());
     EXPECT_EQ(v.as_blob().as_string_view(), "test data");
 }
 
 // 测试 operator=(const blob& b) 当 variant 是 blob 类型时
-TEST_F(VariantEdgeCasesTest, OperatorAssignBlobToBlob) {
+TEST_F(VariantEdgeCasesTest, OperatorAssignBlobToBlob)
+{
     typed_variant v(mc::type_id::blob_type);
-    std::string blob_str = "blob content";
-    mc::blob blob_data(blob_str.data(), blob_str.size());
+    std::string   blob_str = "blob content";
+    mc::blob      blob_data(blob_str.data(), blob_str.size());
     v = blob_data;
     EXPECT_TRUE(v.is_blob());
     EXPECT_EQ(v.as_blob().as_string_view(), "blob content");
 }
 
 // 测试 get_string() 异常情况
-TEST_F(VariantEdgeCasesTest, GetStringException) {
+TEST_F(VariantEdgeCasesTest, GetStringException)
+{
     variant v(42);
     EXPECT_THROW({ v.get_string(); }, mc::exception);
 }
 
 // 测试 get_blob() 异常情况
-TEST_F(VariantEdgeCasesTest, GetBlobException) {
+TEST_F(VariantEdgeCasesTest, GetBlobException)
+{
     variant v("string");
     EXPECT_THROW({ v.get_blob(); }, mc::exception);
 }
 
 // 测试 get_array() 异常情况
-TEST_F(VariantEdgeCasesTest, GetArrayException) {
+TEST_F(VariantEdgeCasesTest, GetArrayException)
+{
     variant v("string");
     EXPECT_THROW({ v.get_array(); }, mc::exception);
 }
 
 // 测试 get_object() 异常情况
-TEST_F(VariantEdgeCasesTest, GetObjectException) {
+TEST_F(VariantEdgeCasesTest, GetObjectException)
+{
     variant v("string");
     EXPECT_THROW({ v.get_object(); }, mc::exception);
 }
 
 // 测试 as_extension() 异常情况
-TEST_F(VariantEdgeCasesTest, AsExtensionException) {
+TEST_F(VariantEdgeCasesTest, AsExtensionException)
+{
     variant v("string");
     EXPECT_THROW({ v.as_extension(); }, mc::exception);
 }
 
 // 测试 operator+(detail::numeric_t rhs) 与数组类型
-TEST_F(VariantEdgeCasesTest, OperatorPlusNumericWithArray) {
-    variant v = variants{1, 2, 3};
+TEST_F(VariantEdgeCasesTest, OperatorPlusNumericWithArray)
+{
+    variant v      = variants{1, 2, 3};
     variant result = v + 4;
     EXPECT_TRUE(result.is_array());
     EXPECT_EQ(result.size(), 4);
@@ -648,13 +740,15 @@ TEST_F(VariantEdgeCasesTest, OperatorPlusNumericWithArray) {
 }
 
 // 测试 operator+(detail::numeric_t rhs) 与对象类型（应该抛出异常）
-TEST_F(VariantEdgeCasesTest, OperatorPlusNumericWithObject) {
+TEST_F(VariantEdgeCasesTest, OperatorPlusNumericWithObject)
+{
     variant v = dict{{"key", "value"}};
     EXPECT_THROW({ v + 42; }, mc::exception);
 }
 
 // 测试 operator+(detail::numeric_t rhs) 与字符串类型
-TEST_F(VariantEdgeCasesTest, OperatorPlusNumericWithString) {
+TEST_F(VariantEdgeCasesTest, OperatorPlusNumericWithString)
+{
     variant v("test");
     variant result = v + 42;
     EXPECT_TRUE(result.is_string());
@@ -662,7 +756,8 @@ TEST_F(VariantEdgeCasesTest, OperatorPlusNumericWithString) {
 }
 
 // 测试 operator-(detail::numeric_t rhs) 下溢情况（无符号整数）
-TEST_F(VariantEdgeCasesTest, OperatorMinusNumericUnderflow) {
+TEST_F(VariantEdgeCasesTest, OperatorMinusNumericUnderflow)
+{
     variant v(uint64_t(10));
     variant result = v - uint64_t(20);
     // 下溢时应该转换为有符号整数
@@ -671,21 +766,24 @@ TEST_F(VariantEdgeCasesTest, OperatorMinusNumericUnderflow) {
 }
 
 // 测试 operator/(detail::numeric_t rhs) 除零错误
-TEST_F(VariantEdgeCasesTest, OperatorDivideNumericByZero) {
+TEST_F(VariantEdgeCasesTest, OperatorDivideNumericByZero)
+{
     variant v(42);
     EXPECT_THROW({ v / 0; }, mc::exception);
     EXPECT_THROW({ v / 0.0; }, mc::exception);
 }
 
 // 测试 operator%(detail::numeric_t rhs) 除零错误
-TEST_F(VariantEdgeCasesTest, OperatorModuloNumericByZero) {
+TEST_F(VariantEdgeCasesTest, OperatorModuloNumericByZero)
+{
     variant v(42);
     EXPECT_THROW({ v % 0; }, mc::exception);
 }
 
 // 测试 operator==(const variants& other) 数组比较
-TEST_F(VariantEdgeCasesTest, OperatorEqualWithVariants) {
-    variant v1 = variants{1, 2, 3};
+TEST_F(VariantEdgeCasesTest, OperatorEqualWithVariants)
+{
+    variant  v1  = variants{1, 2, 3};
     variants arr = {1, 2, 3};
     EXPECT_TRUE(v1 == arr);
 
@@ -694,8 +792,9 @@ TEST_F(VariantEdgeCasesTest, OperatorEqualWithVariants) {
 }
 
 // 测试 operator<(const variants& other) 数组比较
-TEST_F(VariantEdgeCasesTest, OperatorLessWithVariants) {
-    variant v1 = variants{1, 2, 3};
+TEST_F(VariantEdgeCasesTest, OperatorLessWithVariants)
+{
+    variant  v1   = variants{1, 2, 3};
     variants arr1 = {1, 2, 2};
     EXPECT_FALSE(v1 < arr1);
 
@@ -707,8 +806,9 @@ TEST_F(VariantEdgeCasesTest, OperatorLessWithVariants) {
 }
 
 // 测试 operator>(const variants& other) 数组比较
-TEST_F(VariantEdgeCasesTest, OperatorGreaterWithVariants) {
-    variant v1 = variants{1, 2, 3};
+TEST_F(VariantEdgeCasesTest, OperatorGreaterWithVariants)
+{
+    variant  v1   = variants{1, 2, 3};
     variants arr1 = {1, 2, 2};
     EXPECT_TRUE(v1 > arr1);
 
@@ -720,63 +820,72 @@ TEST_F(VariantEdgeCasesTest, OperatorGreaterWithVariants) {
 }
 
 // 测试 operator<(detail::numeric_t rhs) 与 double NaN
-TEST_F(VariantEdgeCasesTest, OperatorLessNumericWithNaN) {
+TEST_F(VariantEdgeCasesTest, OperatorLessNumericWithNaN)
+{
     variant v(std::numeric_limits<double>::quiet_NaN());
     EXPECT_FALSE(v < 0.0);
     EXPECT_FALSE(v < 42);
 }
 
 // 测试 operator>(detail::numeric_t rhs) 与 double NaN
-TEST_F(VariantEdgeCasesTest, OperatorGreaterNumericWithNaN) {
+TEST_F(VariantEdgeCasesTest, OperatorGreaterNumericWithNaN)
+{
     variant v(std::numeric_limits<double>::quiet_NaN());
     EXPECT_FALSE(v > 0.0);
     EXPECT_FALSE(v > 42);
 }
 
 // 测试 operator<(detail::numeric_t rhs) 与字符串类型
-TEST_F(VariantEdgeCasesTest, OperatorLessNumericWithString) {
+TEST_F(VariantEdgeCasesTest, OperatorLessNumericWithString)
+{
     variant v("42");
     EXPECT_TRUE(v < 100);
     EXPECT_FALSE(v < 10);
 }
 
 // 测试 operator>(detail::numeric_t rhs) 与字符串类型
-TEST_F(VariantEdgeCasesTest, OperatorGreaterNumericWithString) {
+TEST_F(VariantEdgeCasesTest, OperatorGreaterNumericWithString)
+{
     variant v("42");
     EXPECT_TRUE(v > 10);
     EXPECT_FALSE(v > 100);
 }
 
 // 测试 operator<(detail::numeric_t rhs) 与 blob 类型
-TEST_F(VariantEdgeCasesTest, OperatorLessNumericWithBlob) {
+TEST_F(VariantEdgeCasesTest, OperatorLessNumericWithBlob)
+{
     variant v = mc::blob{'4', '2'};
     EXPECT_TRUE(v < 100);
     EXPECT_FALSE(v < 10);
 }
 
 // 测试 operator>(detail::numeric_t rhs) 与 blob 类型
-TEST_F(VariantEdgeCasesTest, OperatorGreaterNumericWithBlob) {
+TEST_F(VariantEdgeCasesTest, OperatorGreaterNumericWithBlob)
+{
     variant v = mc::blob{'4', '2'};
     EXPECT_TRUE(v > 10);
     EXPECT_FALSE(v > 100);
 }
 
 // 测试 operator<=(detail::numeric_t rhs) 与 double NaN
-TEST_F(VariantEdgeCasesTest, OperatorLessEqualNumericWithNaN) {
+TEST_F(VariantEdgeCasesTest, OperatorLessEqualNumericWithNaN)
+{
     variant v(std::numeric_limits<double>::quiet_NaN());
     EXPECT_FALSE(v <= 0.0);
     EXPECT_FALSE(v <= 42);
 }
 
 // 测试 operator>=(detail::numeric_t rhs) 与 double NaN
-TEST_F(VariantEdgeCasesTest, OperatorGreaterEqualNumericWithNaN) {
+TEST_F(VariantEdgeCasesTest, OperatorGreaterEqualNumericWithNaN)
+{
     variant v(std::numeric_limits<double>::quiet_NaN());
     EXPECT_FALSE(v >= 0.0);
     EXPECT_FALSE(v >= 42);
 }
 
 // 测试 operator==(detail::numeric_t rhs) 与各种类型
-TEST_F(VariantEdgeCasesTest, OperatorEqualNumericWithVariousTypes) {
+TEST_F(VariantEdgeCasesTest, OperatorEqualNumericWithVariousTypes)
+{
     // 测试 double
     variant v1(3.14);
     EXPECT_TRUE(v1 == 3.14);
@@ -809,21 +918,24 @@ TEST_F(VariantEdgeCasesTest, OperatorEqualNumericWithVariousTypes) {
 }
 
 // 测试 operator<(const variants& other) 异常情况（非数组类型）
-TEST_F(VariantEdgeCasesTest, OperatorLessVariantsException) {
-    variant v("string");
+TEST_F(VariantEdgeCasesTest, OperatorLessVariantsException)
+{
+    variant  v("string");
     variants arr = {1, 2, 3};
     EXPECT_THROW({ bool result = v < arr; MC_UNUSED(result); }, mc::exception);
 }
 
 // 测试 operator>(const variants& other) 异常情况（非数组类型）
-TEST_F(VariantEdgeCasesTest, OperatorGreaterVariantsException) {
-    variant v("string");
+TEST_F(VariantEdgeCasesTest, OperatorGreaterVariantsException)
+{
+    variant  v("string");
     variants arr = {1, 2, 3};
     EXPECT_THROW({ bool result = v > arr; MC_UNUSED(result); }, mc::exception);
 }
 
-TEST_F(VariantEdgeCasesTest, ExtensionNullVariant) {
-    auto ext_ptr = mc::make_shared<unsupported_extension>(42);
+TEST_F(VariantEdgeCasesTest, ExtensionNullVariant)
+{
+    auto    ext_ptr = mc::make_shared<unsupported_extension>(42);
     variant v(ext_ptr);
 
     auto base = v.as_extension();
@@ -835,8 +947,9 @@ TEST_F(VariantEdgeCasesTest, ExtensionNullVariant) {
     EXPECT_THROW(base->set("key", variant(1)), mc::invalid_op_exception);
 }
 
-TEST_F(VariantEdgeCasesTest, ExtensionBaseAccessThrows) {
-    auto ext_ptr = mc::make_shared<unsupported_extension>(42);
+TEST_F(VariantEdgeCasesTest, ExtensionBaseAccessThrows)
+{
+    auto    ext_ptr = mc::make_shared<unsupported_extension>(42);
     variant v(ext_ptr);
 
     auto base = v.as_extension();
@@ -848,7 +961,8 @@ TEST_F(VariantEdgeCasesTest, ExtensionBaseAccessThrows) {
     EXPECT_THROW(base->set("key", variant(1)), mc::invalid_op_exception);
 }
 
-TEST_F(VariantEdgeCasesTest, VariantThrowHelperFunctions) {
+TEST_F(VariantEdgeCasesTest, VariantThrowHelperFunctions)
+{
     EXPECT_STREQ(mc::get_type_name_internal(mc::type_id::int32_type), "int32");
     EXPECT_STREQ(mc::get_type_name_internal(static_cast<mc::type_id>(999)), "unknown");
 

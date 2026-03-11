@@ -20,16 +20,19 @@ namespace mc::runtime {
 thread_local thread_pool::shard_t* t_current_shard = nullptr;
 
 struct shard_scope {
-    shard_scope(thread_pool::shard_t* shard) {
+    shard_scope(thread_pool::shard_t* shard)
+    {
         t_current_shard = shard;
     }
-    ~shard_scope() {
+    ~shard_scope()
+    {
         t_current_shard = nullptr;
     }
 };
 
 namespace {
-boost::asio::detail::scheduler& get_or_create_scheduler(boost::asio::execution_context& ctx) {
+boost::asio::detail::scheduler& get_or_create_scheduler(boost::asio::execution_context& ctx)
+{
     if (boost::asio::has_service<boost::asio::detail::scheduler>(ctx)) {
         return boost::asio::use_service<boost::asio::detail::scheduler>(ctx);
     }
@@ -42,7 +45,8 @@ boost::asio::detail::scheduler& get_or_create_scheduler(boost::asio::execution_c
 
 // 生成符合长度限制的线程名称
 // 格式：name-idx，如果过长则截断为 name..-idx
-std::string make_thread_name(const std::string& base_name, std::size_t index) {
+std::string make_thread_name(const std::string& base_name, std::size_t index)
+{
     std::string suffix = "-" + std::to_string(index);
     std::string tname  = base_name;
 
@@ -65,7 +69,8 @@ std::string make_thread_name(const std::string& base_name, std::size_t index) {
 } // namespace
 
 thread_pool::thread_pool(std::size_t num_threads, const std::string& name)
-    : boost::asio::execution_context(), m_scheduler(get_or_create_scheduler(*this)), m_num_threads(num_threads), m_name(name) {
+    : boost::asio::execution_context(), m_scheduler(get_or_create_scheduler(*this)), m_num_threads(num_threads), m_name(name)
+{
     MC_ASSERT_THROW(m_num_threads < NULL_INDEX, mc::runtime_exception, "线程数不能超过 {}", NULL_INDEX - 1);
 
     if (m_num_threads > 0) {
@@ -87,16 +92,19 @@ thread_pool::thread_pool(std::size_t num_threads, const std::string& name)
     m_idle_head.store(NULL_INDEX, std::memory_order_relaxed);
 }
 
-thread_pool::~thread_pool() {
+thread_pool::~thread_pool()
+{
     stop();
     join();
 }
 
-thread_pool::executor_type thread_pool::get_executor() noexcept {
+thread_pool::executor_type thread_pool::get_executor() noexcept
+{
     return executor_type(*this);
 }
 
-void thread_pool::start() {
+void thread_pool::start()
+{
     if (!m_threads.empty()) {
         return;
     }
@@ -116,7 +124,8 @@ void thread_pool::start() {
     }
 }
 
-void thread_pool::push_idle(shard_t* shard) {
+void thread_pool::push_idle(shard_t* shard)
+{
     uint64_t old_head = m_idle_head.load(std::memory_order_relaxed);
     uint64_t new_head;
 
@@ -133,7 +142,8 @@ void thread_pool::push_idle(shard_t* shard) {
                                                 std::memory_order_relaxed));
 }
 
-bool thread_pool::has_work(shard_t* shard) {
+bool thread_pool::has_work(shard_t* shard)
+{
     // 检查全局任务
     if (m_pending_tasks.load(std::memory_order_relaxed) > 0) {
         return true;
@@ -147,7 +157,8 @@ bool thread_pool::has_work(shard_t* shard) {
     return false;
 }
 
-bool thread_pool::poll_tasks(shard_t* shard) {
+bool thread_pool::poll_tasks(shard_t* shard)
+{
     auto& ctx = *shard->ctx;
 
     // 1. 优先执行本地任务
@@ -168,7 +179,8 @@ bool thread_pool::poll_tasks(shard_t* shard) {
     return ran_local || ran_global;
 }
 
-void thread_pool::worker_loop(shard_t* shard) {
+void thread_pool::worker_loop(shard_t* shard)
+{
     auto& ctx = *shard->ctx;
 
     shard_scope scope(shard);
@@ -178,7 +190,8 @@ void thread_pool::worker_loop(shard_t* shard) {
 }
 
 // 出栈并获取一个 Worker
-thread_pool::shard_t* thread_pool::acquire_idle_worker() {
+thread_pool::shard_t* thread_pool::acquire_idle_worker()
+{
     uint64_t old_head = m_idle_head.load(std::memory_order_acquire);
 
     while (true) {
@@ -216,10 +229,12 @@ thread_pool::shard_t* thread_pool::acquire_idle_worker() {
     }
 }
 
-static void empty_cb() {
+static void empty_cb()
+{
 }
 
-void thread_pool::wake_up_workers() {
+void thread_pool::wake_up_workers()
+{
     if (m_shards.empty()) {
         return;
     }
@@ -233,7 +248,8 @@ void thread_pool::wake_up_workers() {
     }
 }
 
-void thread_pool::stop() {
+void thread_pool::stop()
+{
     if (stopped()) {
         return;
     }
@@ -246,7 +262,8 @@ void thread_pool::stop() {
     }
 }
 
-void thread_pool::join() {
+void thread_pool::join()
+{
     for (auto& t : m_threads) {
         if (t.joinable()) {
             t.join();
@@ -255,31 +272,37 @@ void thread_pool::join() {
     m_threads.clear();
 }
 
-bool thread_pool::stopped() const {
+bool thread_pool::stopped() const
+{
     return m_scheduler.stopped();
 }
 
-std::size_t thread_pool::poll_one() {
+std::size_t thread_pool::poll_one()
+{
     boost::system::error_code ec;
     return m_scheduler.poll_one(ec);
 }
 
-thread_pool::io_context& thread_pool::get_shard(std::size_t idx) {
+thread_pool::io_context& thread_pool::get_shard(std::size_t idx)
+{
     if (m_shards.empty()) {
         throw std::runtime_error("没有可用的 Worker 分片");
     }
     return *m_shards[idx % m_shards.size()]->ctx;
 }
 
-std::size_t thread_pool::shard_count() const {
+std::size_t thread_pool::shard_count() const
+{
     return m_shards.size();
 }
 
-thread_pool::shard_t* thread_pool::get_current_shard() {
+thread_pool::shard_t* thread_pool::get_current_shard()
+{
     return t_current_shard;
 }
 
-void thread_pool::run() {
+void thread_pool::run()
+{
     shard_t* shard = nullptr;
     {
         std::lock_guard<mc::sync::small_mutex> lock(m_attach_mutex);

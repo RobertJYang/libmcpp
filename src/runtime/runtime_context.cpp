@@ -42,33 +42,40 @@ immediate_executor::~immediate_executor() = default;
 immediate_executor::immediate_executor(const immediate_executor&)            = default;
 immediate_executor& immediate_executor::operator=(const immediate_executor&) = default;
 
-bool immediate_executor::operator==(const immediate_executor&) const noexcept {
+bool immediate_executor::operator==(const immediate_executor&) const noexcept
+{
     return true;
 }
 
-bool immediate_executor::operator!=(const immediate_executor&) const noexcept {
+bool immediate_executor::operator!=(const immediate_executor&) const noexcept
+{
     return false;
 }
 
-void immediate_executor::on_work_started() const noexcept {
+void immediate_executor::on_work_started() const noexcept
+{
 }
 
-void immediate_executor::on_work_finished() const noexcept {
+void immediate_executor::on_work_finished() const noexcept
+{
 }
 
-immediate_context& immediate_executor::context() const noexcept {
+immediate_context& immediate_executor::context() const noexcept
+{
     static immediate_context ctx;
     return ctx;
 }
 
-immediate_executor immediate_executor::require(boost::asio::execution::blocking_t::never_t) const {
+immediate_executor immediate_executor::require(boost::asio::execution::blocking_t::never_t) const
+{
     return *this;
 }
 
 immediate_context::immediate_context()  = default;
 immediate_context::~immediate_context() = default;
 
-immediate_context::executor_type immediate_context::get_executor() const noexcept {
+immediate_context::executor_type immediate_context::get_executor() const noexcept
+{
     return executor_type();
 }
 
@@ -90,12 +97,14 @@ public:
     void ensure_start();
     void start_impl();
 
-    thread_pool& io() noexcept {
+    thread_pool& io() noexcept
+    {
         ensure_start();
         return *m_io_pool;
     }
 
-    thread_pool& work() noexcept {
+    thread_pool& work() noexcept
+    {
         ensure_start();
         // work_threads=0 时共享 io 线程池
         return m_work_pool ? *m_work_pool : *m_io_pool;
@@ -119,14 +128,16 @@ private:
     mc::mutex_box<data_t> m_data;
 };
 
-runtime_context::impl::~impl() {
+runtime_context::impl::~impl()
+{
     if (!is_stopped()) {
         stop();
         join();
     }
 }
 
-void runtime_context::impl::set_config(const runtime_config& new_config) {
+void runtime_context::impl::set_config(const runtime_config& new_config)
+{
     // io_threads 可以为 0（外部线程通过 run() 加入）
     // work_threads 可以为 0（共享 io 池）
     auto io_threads   = new_config.io_threads;
@@ -140,7 +151,8 @@ void runtime_context::impl::set_config(const runtime_config& new_config) {
          ("count", config.io_threads)("work_count", config.work_threads));
 }
 
-void runtime_context::impl::ensure_start() {
+void runtime_context::impl::ensure_start()
+{
     auto state = m_data.unsafe_get_data().state;
     if (MC_LIKELY(state == state_t::running)) {
         return;
@@ -159,11 +171,13 @@ void runtime_context::impl::ensure_start() {
     });
 }
 
-bool runtime_context::impl::is_initialized() const {
+bool runtime_context::impl::is_initialized() const
+{
     return m_data.unsafe_get_data().state != state_t::uninitialized;
 }
 
-void runtime_context::impl::initialize(const runtime_config& config) {
+void runtime_context::impl::initialize(const runtime_config& config)
+{
     if (m_data.unsafe_get_data().state != state_t::uninitialized) {
         wlog("runtime_context already initialized, ignoring duplicate initialization");
         return;
@@ -175,13 +189,15 @@ void runtime_context::impl::initialize(const runtime_config& config) {
     });
 }
 
-void runtime_context::impl::start() {
+void runtime_context::impl::start()
+{
     m_data.with_lock([this](auto&) {
         start_impl();
     });
 }
 
-void runtime_context::impl::start_impl() {
+void runtime_context::impl::start_impl()
+{
     auto& data = m_data.unsafe_get_data();
     if ((m_io_pool && !m_io_pool->stopped()) || (m_work_pool && !m_work_pool->stopped())) {
         wlog("runtime_context already started, ignoring duplicate start");
@@ -207,7 +223,8 @@ void runtime_context::impl::start_impl() {
     }
 }
 
-void runtime_context::impl::stop() {
+void runtime_context::impl::stop()
+{
     m_data.with_lock([this](auto& data) {
         if (data.state != state_t::running) {
             return;
@@ -227,7 +244,8 @@ void runtime_context::impl::stop() {
     });
 }
 
-void runtime_context::impl::join() {
+void runtime_context::impl::join()
+{
     dlog("waiting for threads to finish...");
     if (m_io_pool) {
         m_io_pool->join();
@@ -242,74 +260,92 @@ void runtime_context::impl::join() {
     dlog("runtime_context stopped completely");
 }
 
-bool runtime_context::impl::is_stopped() const noexcept {
+bool runtime_context::impl::is_stopped() const noexcept
+{
     auto& state = m_data.unsafe_get_data().state;
     return state == state_t::stopped || state == state_t::uninitialized;
 }
 
-runtime_context::runtime_context() : m_impl(std::make_unique<impl>()) {
+runtime_context::runtime_context()
+    : m_impl(std::make_unique<impl>())
+{
 }
 
-runtime_context::~runtime_context() {
+runtime_context::~runtime_context()
+{
     if (!is_stopped()) {
         stop();
         join();
     }
 }
 
-void runtime_context::initialize(const runtime_config& config) {
+void runtime_context::initialize(const runtime_config& config)
+{
     m_impl->initialize(config);
 }
 
-void runtime_context::start() {
+void runtime_context::start()
+{
     m_impl->ensure_start();
 }
 
-void runtime_context::stop() {
+void runtime_context::stop()
+{
     m_impl->stop();
 }
 
-void runtime_context::join() {
+void runtime_context::join()
+{
     m_impl->join();
 }
 
-bool runtime_context::is_stopped() const noexcept {
+bool runtime_context::is_stopped() const noexcept
+{
     return m_impl->is_stopped();
 }
 
-thread_pool& runtime_context::io() noexcept {
+thread_pool& runtime_context::io() noexcept
+{
     return m_impl->io();
 }
 
-thread_pool& runtime_context::work() noexcept {
+thread_pool& runtime_context::work() noexcept
+{
     return m_impl->work();
 }
 
-thread_pool::executor_type runtime_context::get_io_executor() noexcept {
+thread_pool::executor_type runtime_context::get_io_executor() noexcept
+{
     return m_impl->io().get_executor();
 }
 
-thread_pool::executor_type runtime_context::get_work_executor() noexcept {
+thread_pool::executor_type runtime_context::get_work_executor() noexcept
+{
     return m_impl->work().get_executor();
 }
 
-runtime_executor runtime_context::get_executor() noexcept {
+runtime_executor runtime_context::get_executor() noexcept
+{
     return runtime_executor(*this);
 }
 
-any_executor runtime_context::create_strand() {
+any_executor runtime_context::create_strand()
+{
     return executor(runtime_strand());
 }
 
-thread_pool::strand runtime_context::create_io_strand() {
+thread_pool::strand runtime_context::create_io_strand()
+{
     return thread_pool::strand(io().get_executor());
 }
 
-thread_pool::strand runtime_context::create_work_strand() {
+thread_pool::strand runtime_context::create_work_strand()
+{
     return thread_pool::strand(work().get_executor());
 }
 
-thread_pool::executor_type get_default_executor() {
+thread_pool::executor_type get_default_executor()
+{
     return get_io_executor();
 }
 

@@ -34,29 +34,39 @@ public:
     using ref_ptr_type = shared_ptr<element_type, Deleter, pointer_type>;
 
     // 默认构造函数
-    constexpr weak_ptr() noexcept : m_ptr(nullptr) {
+    constexpr weak_ptr() noexcept
+        : m_ptr(nullptr)
+    {
     }
 
     // nullptr 构造函数
-    constexpr weak_ptr(std::nullptr_t) noexcept : m_ptr(nullptr) {
+    constexpr weak_ptr(std::nullptr_t) noexcept
+        : m_ptr(nullptr)
+    {
     }
 
     // 从 shared_ptr 构造
-    weak_ptr(const ref_ptr_type& ref) noexcept : m_ptr(ref.get()) {
+    weak_ptr(const ref_ptr_type& ref) noexcept
+        : m_ptr(ref.get())
+    {
         if (m_ptr) {
             m_ptr->add_weak_ref();
         }
     }
 
     // 接受裸指针的构造函数
-    explicit weak_ptr(pointer_type ptr) noexcept : m_ptr(ptr) {
+    explicit weak_ptr(pointer_type ptr) noexcept
+        : m_ptr(ptr)
+    {
         if (m_ptr) {
             m_ptr->add_weak_ref();
         }
     }
 
     // 拷贝构造函数
-    weak_ptr(const weak_ptr& other) noexcept : m_ptr(other.m_ptr) {
+    weak_ptr(const weak_ptr& other) noexcept
+        : m_ptr(other.m_ptr)
+    {
         if (m_ptr) {
             m_ptr->add_weak_ref();
         }
@@ -64,7 +74,9 @@ public:
 
     // 类型转换拷贝构造函数
     template <typename U, typename UP>
-    weak_ptr(const weak_ptr<U, UP>& other) noexcept : m_ptr(other.get()) {
+    weak_ptr(const weak_ptr<U, UP>& other) noexcept
+        : m_ptr(other.get())
+    {
         static_assert(std::is_convertible_v<U*, T*>, "U* must be convertible to T*");
         if (m_ptr) {
             m_ptr->add_weak_ref();
@@ -72,38 +84,46 @@ public:
     }
 
     // 移动构造函数
-    weak_ptr(weak_ptr&& other) noexcept : m_ptr(other.m_ptr) {
+    weak_ptr(weak_ptr&& other) noexcept
+        : m_ptr(other.m_ptr)
+    {
         other.m_ptr = nullptr;
     }
 
     // 类型转换移动构造函数
     template <typename U, typename UP>
-    weak_ptr(weak_ptr<U, UP>&& other) noexcept : m_ptr(other.get()) {
+    weak_ptr(weak_ptr<U, UP>&& other) noexcept
+        : m_ptr(other.get())
+    {
         static_assert(std::is_convertible_v<U*, T*>, "U* must be convertible to T*");
         other.reset();
     }
 
     // 拷贝赋值运算符
-    weak_ptr& operator=(const weak_ptr& other) noexcept {
+    weak_ptr& operator=(const weak_ptr& other) noexcept
+    {
         weak_ptr(other).swap(*this);
         return *this;
     }
 
     // 移动赋值运算符
-    weak_ptr& operator=(weak_ptr&& other) noexcept {
+    weak_ptr& operator=(weak_ptr&& other) noexcept
+    {
         weak_ptr(std::move(other)).swap(*this);
         return *this;
     }
 
     // 从 shared_ptr 赋值
-    weak_ptr& operator=(const ref_ptr_type& ref) noexcept {
+    weak_ptr& operator=(const ref_ptr_type& ref) noexcept
+    {
         weak_ptr(ref).swap(*this);
         return *this;
     }
 
     // 类型转换拷贝赋值运算符
     template <typename U, typename UP>
-    weak_ptr& operator=(const weak_ptr<U, UP>& other) noexcept {
+    weak_ptr& operator=(const weak_ptr<U, UP>& other) noexcept
+    {
         static_assert(std::is_convertible_v<U*, T*>, "U* must be convertible to T*");
         weak_ptr(other).swap(*this);
         return *this;
@@ -111,7 +131,8 @@ public:
 
     // 类型转换移动赋值运算符
     template <typename U, typename UP>
-    weak_ptr& operator=(weak_ptr<U, UP>&& other) noexcept {
+    weak_ptr& operator=(weak_ptr<U, UP>&& other) noexcept
+    {
         static_assert(std::is_convertible_v<U*, T*>, "U* must be convertible to T*");
         weak_ptr(std::move(other)).swap(*this);
         return *this;
@@ -119,14 +140,16 @@ public:
 
     // 从不同类型的 shared_ptr 赋值
     template <typename U, typename UP>
-    weak_ptr& operator=(const shared_ptr<U, UP>& ref) noexcept {
+    weak_ptr& operator=(const shared_ptr<U, UP>& ref) noexcept
+    {
         static_assert(std::is_convertible_v<U*, T*>, "U* must be convertible to T*");
         weak_ptr(ref).swap(*this);
         return *this;
     }
 
     // 析构函数
-    ~weak_ptr() {
+    ~weak_ptr()
+    {
         if (m_ptr && m_ptr->release_weak_ref()) {
             // 弱引用计数为0且强引用计数也为0时，释放内存
             mc::deleter_traits<Deleter, element_type>::deallocate(m_ptr);
@@ -134,27 +157,32 @@ public:
     }
 
     // 重置指针
-    void reset() noexcept {
+    void reset() noexcept
+    {
         weak_ptr().swap(*this);
     }
 
     // 交换两个指针
-    void swap(weak_ptr& other) noexcept {
+    void swap(weak_ptr& other) noexcept
+    {
         std::swap(m_ptr, other.m_ptr);
     }
 
     // 获取弱引用计数
-    size_t use_count() const noexcept {
+    size_t use_count() const noexcept
+    {
         return m_ptr ? m_ptr->ref_count() : 0;
     }
 
     // 检查对象是否已过期（强引用计数为0）
-    bool expired() const noexcept {
+    bool expired() const noexcept
+    {
         return !m_ptr || m_ptr->ref_count() == 0;
     }
 
     // 尝试获取强引用，如果对象已过期则返回空的 shared_ptr
-    ref_ptr_type lock() const noexcept {
+    ref_ptr_type lock() const noexcept
+    {
         if (!m_ptr || !m_ptr->try_add_ref()) {
             return ref_ptr_type();
         }
@@ -162,67 +190,81 @@ public:
     }
 
     // 获取原始指针
-    pointer_type get() const noexcept {
+    pointer_type get() const noexcept
+    {
         return m_ptr;
     }
 
     // 检查是否为空
-    bool empty() const noexcept {
+    bool empty() const noexcept
+    {
         return m_ptr == nullptr;
     }
 
     // 布尔转换运算符
-    explicit operator bool() const noexcept {
+    explicit operator bool() const noexcept
+    {
         return m_ptr != nullptr;
     }
 
     // 相等运算符
     template <typename U, typename UDeleter, typename UPointerType>
-    bool operator==(const weak_ptr<U, UDeleter, UPointerType>& rhs) noexcept {
+    bool operator==(const weak_ptr<U, UDeleter, UPointerType>& rhs) noexcept
+    {
         return this->get() == rhs.get();
     }
 
-    bool operator==(std::nullptr_t) noexcept {
+    bool operator==(std::nullptr_t) noexcept
+    {
         return this->get() == nullptr;
     }
 
-    bool operator==(T* rhs) noexcept {
+    bool operator==(T* rhs) noexcept
+    {
         return this->get() == rhs;
     }
 
-    friend bool operator==(std::nullptr_t, const weak_ptr<T, Deleter, PointerType>& rhs) noexcept {
+    friend bool operator==(std::nullptr_t, const weak_ptr<T, Deleter, PointerType>& rhs) noexcept
+    {
         return nullptr == rhs.get();
     }
 
-    friend bool operator==(T* lhs, const weak_ptr<T, Deleter, PointerType>& rhs) noexcept {
+    friend bool operator==(T* lhs, const weak_ptr<T, Deleter, PointerType>& rhs) noexcept
+    {
         return lhs == rhs.get();
     }
 
     // 不等运算符
     template <typename U, typename UDeleter, typename UPointerType>
-    bool operator!=(const weak_ptr<U, UDeleter, UPointerType>& rhs) noexcept {
+    bool operator!=(const weak_ptr<U, UDeleter, UPointerType>& rhs) noexcept
+    {
         return this->get() != rhs.get();
     }
 
-    bool operator!=(std::nullptr_t) noexcept {
+    bool operator!=(std::nullptr_t) noexcept
+    {
         return this->get() != nullptr;
     }
 
-    bool operator!=(T* rhs) noexcept {
+    bool operator!=(T* rhs) noexcept
+    {
         return this->get() != rhs;
     }
 
-    friend bool operator!=(std::nullptr_t, const weak_ptr<T, Deleter, PointerType>& rhs) noexcept {
+    friend bool operator!=(std::nullptr_t, const weak_ptr<T, Deleter, PointerType>& rhs) noexcept
+    {
         return nullptr != rhs.get();
     }
 
-    friend bool operator!=(T* lhs, const weak_ptr<T, Deleter, PointerType>& rhs) noexcept {
+    friend bool operator!=(T* lhs, const weak_ptr<T, Deleter, PointerType>& rhs) noexcept
+    {
         return lhs != rhs.get();
     }
 
     // 小于运算符，用于排序容器
     template <typename U, typename UDeleter, typename UPointerType>
-    bool operator<(const weak_ptr<U, UDeleter, UPointerType>& rhs) noexcept {
+    bool operator<(const weak_ptr<U, UDeleter, UPointerType>& rhs) noexcept
+    {
         return this->get() < rhs.get();
     }
 
@@ -236,7 +278,8 @@ private:
 namespace std {
 template <typename T, typename Deleter, typename PointerType>
 struct hash<mc::memory::weak_ptr<T, Deleter, PointerType>> {
-    size_t operator()(const mc::memory::weak_ptr<T, Deleter, PointerType>& p) const noexcept {
+    size_t operator()(const mc::memory::weak_ptr<T, Deleter, PointerType>& p) const noexcept
+    {
         return hash<PointerType>{}(p.get());
     }
 };

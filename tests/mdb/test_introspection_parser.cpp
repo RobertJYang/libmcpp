@@ -20,13 +20,15 @@ using namespace mc;
 
 class introspection_parser_test : public mc::test::TestBase {
 protected:
-    void SetUp() override {
+    void SetUp() override
+    {
         mc::test::TestBase::SetUp();
     }
 };
 
 // 测试解析简单的接口，包含方法和属性
-TEST_F(introspection_parser_test, parse_simple_interface) {
+TEST_F(introspection_parser_test, parse_simple_interface)
+{
     std::string xml = R"(<?xml version="1.0" encoding="UTF-8"?>
 <node>
   <interface name="org.example.Test">
@@ -69,7 +71,8 @@ TEST_F(introspection_parser_test, parse_simple_interface) {
 }
 
 // 测试解析多个接口
-TEST_F(introspection_parser_test, parse_multiple_interfaces) {
+TEST_F(introspection_parser_test, parse_multiple_interfaces)
+{
     std::string xml = R"(<?xml version="1.0" encoding="UTF-8"?>
 <node>
   <interface name="org.example.Interface1">
@@ -98,7 +101,8 @@ TEST_F(introspection_parser_test, parse_multiple_interfaces) {
 }
 
 // 测试解析方法参数，包含 struct-type
-TEST_F(introspection_parser_test, parse_method_with_struct_type) {
+TEST_F(introspection_parser_test, parse_method_with_struct_type)
+{
     std::string xml = R"(<?xml version="1.0" encoding="UTF-8"?>
 <node>
   <interface name="org.example.Test">
@@ -111,7 +115,7 @@ TEST_F(introspection_parser_test, parse_method_with_struct_type) {
 
     node_info node = introspection_parser::parse(xml);
 
-    const interface_info& iface = node.ifaces.at("org.example.Test");
+    const interface_info& iface  = node.ifaces.at("org.example.Test");
     const method_info&    method = iface.methods.at("ComplexMethod");
 
     ASSERT_EQ(method.args.size(), 2);
@@ -128,7 +132,8 @@ TEST_F(introspection_parser_test, parse_method_with_struct_type) {
 }
 
 // 测试解析属性，包含 annotation
-TEST_F(introspection_parser_test, parse_property_with_annotation) {
+TEST_F(introspection_parser_test, parse_property_with_annotation)
+{
     std::string xml = R"(<?xml version="1.0" encoding="UTF-8"?>
 <node>
   <interface name="org.example.Test">
@@ -142,7 +147,7 @@ TEST_F(introspection_parser_test, parse_property_with_annotation) {
     node_info node = introspection_parser::parse(xml);
 
     const interface_info& iface = node.ifaces.at("org.example.Test");
-    const property_info&  prop   = iface.properties.at("VolatileProperty");
+    const property_info&  prop  = iface.properties.at("VolatileProperty");
 
     EXPECT_EQ(prop.type, "s");
     EXPECT_EQ(prop.access, "read");
@@ -153,7 +158,8 @@ TEST_F(introspection_parser_test, parse_property_with_annotation) {
 }
 
 // 测试解析属性，volatile 为 false
-TEST_F(introspection_parser_test, parse_property_not_volatile) {
+TEST_F(introspection_parser_test, parse_property_not_volatile)
+{
     std::string xml = R"(<?xml version="1.0" encoding="UTF-8"?>
 <node>
   <interface name="org.example.Test">
@@ -166,13 +172,14 @@ TEST_F(introspection_parser_test, parse_property_not_volatile) {
     node_info node = introspection_parser::parse(xml);
 
     const interface_info& iface = node.ifaces.at("org.example.Test");
-    const property_info&  prop   = iface.properties.at("NormalProperty");
+    const property_info&  prop  = iface.properties.at("NormalProperty");
 
     EXPECT_FALSE(prop.is_volatile());
 }
 
 // 测试解析属性，volatile 为 1
-TEST_F(introspection_parser_test, parse_property_volatile_as_one) {
+TEST_F(introspection_parser_test, parse_property_volatile_as_one)
+{
     std::string xml = R"(<?xml version="1.0" encoding="UTF-8"?>
 <node>
   <interface name="org.example.Test">
@@ -185,13 +192,14 @@ TEST_F(introspection_parser_test, parse_property_volatile_as_one) {
     node_info node = introspection_parser::parse(xml);
 
     const interface_info& iface = node.ifaces.at("org.example.Test");
-    const property_info&  prop   = iface.properties.at("VolatileProperty");
+    const property_info&  prop  = iface.properties.at("VolatileProperty");
 
     EXPECT_TRUE(prop.is_volatile());
 }
 
 // 测试解析方法，无参数
-TEST_F(introspection_parser_test, parse_method_no_args) {
+TEST_F(introspection_parser_test, parse_method_no_args)
+{
     std::string xml = R"(<?xml version="1.0" encoding="UTF-8"?>
 <node>
   <interface name="org.example.Test">
@@ -201,14 +209,15 @@ TEST_F(introspection_parser_test, parse_method_no_args) {
 
     node_info node = introspection_parser::parse(xml);
 
-    const interface_info& iface = node.ifaces.at("org.example.Test");
+    const interface_info& iface  = node.ifaces.at("org.example.Test");
     const method_info&    method = iface.methods.at("NoArgMethod");
 
     EXPECT_EQ(method.args.size(), 0);
 }
 
 // 测试解析方法，参数无 name
-TEST_F(introspection_parser_test, parse_method_arg_without_name) {
+TEST_F(introspection_parser_test, parse_method_arg_without_name)
+{
     std::string xml = R"(<?xml version="1.0" encoding="UTF-8"?>
 <node>
   <interface name="org.example.Test">
@@ -221,7 +230,7 @@ TEST_F(introspection_parser_test, parse_method_arg_without_name) {
 
     node_info node = introspection_parser::parse(xml);
 
-    const interface_info& iface = node.ifaces.at("org.example.Test");
+    const interface_info& iface  = node.ifaces.at("org.example.Test");
     const method_info&    method = iface.methods.at("MethodWithUnnamedArg");
 
     ASSERT_EQ(method.args.size(), 2);
@@ -234,7 +243,8 @@ TEST_F(introspection_parser_test, parse_method_arg_without_name) {
 }
 
 // 测试解析属性，无 access
-TEST_F(introspection_parser_test, parse_property_without_access) {
+TEST_F(introspection_parser_test, parse_property_without_access)
+{
     std::string xml = R"(<?xml version="1.0" encoding="UTF-8"?>
 <node>
   <interface name="org.example.Test">
@@ -245,14 +255,15 @@ TEST_F(introspection_parser_test, parse_property_without_access) {
     node_info node = introspection_parser::parse(xml);
 
     const interface_info& iface = node.ifaces.at("org.example.Test");
-    const property_info&  prop   = iface.properties.at("PropertyWithoutAccess");
+    const property_info&  prop  = iface.properties.at("PropertyWithoutAccess");
 
     EXPECT_EQ(prop.type, "b");
     EXPECT_EQ(prop.access, "");
 }
 
 // 测试解析复杂场景：多个方法、多个属性、多个 annotation
-TEST_F(introspection_parser_test, parse_complex_interface) {
+TEST_F(introspection_parser_test, parse_complex_interface)
+{
     std::string xml = R"(<?xml version="1.0" encoding="UTF-8"?>
 <node>
   <interface name="org.example.Complex">
@@ -323,7 +334,8 @@ TEST_F(introspection_parser_test, parse_complex_interface) {
 }
 
 // 测试解析空节点
-TEST_F(introspection_parser_test, parse_empty_node) {
+TEST_F(introspection_parser_test, parse_empty_node)
+{
     std::string xml = R"(<?xml version="1.0" encoding="UTF-8"?>
 <node>
 </node>)";
@@ -334,7 +346,8 @@ TEST_F(introspection_parser_test, parse_empty_node) {
 }
 
 // 测试解析参数 direction 为空
-TEST_F(introspection_parser_test, parse_arg_without_direction) {
+TEST_F(introspection_parser_test, parse_arg_without_direction)
+{
     std::string xml = R"(<?xml version="1.0" encoding="UTF-8"?>
 <node>
   <interface name="org.example.Test">
@@ -346,7 +359,7 @@ TEST_F(introspection_parser_test, parse_arg_without_direction) {
 
     node_info node = introspection_parser::parse(xml);
 
-    const interface_info& iface = node.ifaces.at("org.example.Test");
+    const interface_info& iface  = node.ifaces.at("org.example.Test");
     const method_info&    method = iface.methods.at("Method");
 
     ASSERT_EQ(method.args.size(), 1);
@@ -356,7 +369,8 @@ TEST_F(introspection_parser_test, parse_arg_without_direction) {
 }
 
 // 测试解析方法，包含多个参数（超过2个）
-TEST_F(introspection_parser_test, parse_method_with_multiple_args) {
+TEST_F(introspection_parser_test, parse_method_with_multiple_args)
+{
     std::string xml = R"(<?xml version="1.0" encoding="UTF-8"?>
 <node>
   <interface name="org.example.Test">
@@ -371,7 +385,7 @@ TEST_F(introspection_parser_test, parse_method_with_multiple_args) {
 
     node_info node = introspection_parser::parse(xml);
 
-    const interface_info& iface = node.ifaces.at("org.example.Test");
+    const interface_info& iface  = node.ifaces.at("org.example.Test");
     const method_info&    method = iface.methods.at("MultiArgMethod");
 
     ASSERT_EQ(method.args.size(), 4);
@@ -390,7 +404,8 @@ TEST_F(introspection_parser_test, parse_method_with_multiple_args) {
 }
 
 // 测试解析属性，access 为 read
-TEST_F(introspection_parser_test, parse_property_read_only) {
+TEST_F(introspection_parser_test, parse_property_read_only)
+{
     std::string xml = R"(<?xml version="1.0" encoding="UTF-8"?>
 <node>
   <interface name="org.example.Test">
@@ -401,7 +416,7 @@ TEST_F(introspection_parser_test, parse_property_read_only) {
     node_info node = introspection_parser::parse(xml);
 
     const interface_info& iface = node.ifaces.at("org.example.Test");
-    const property_info&  prop   = iface.properties.at("ReadOnlyProperty");
+    const property_info&  prop  = iface.properties.at("ReadOnlyProperty");
 
     EXPECT_EQ(prop.type, "s");
     EXPECT_EQ(prop.access, "read");
@@ -409,7 +424,8 @@ TEST_F(introspection_parser_test, parse_property_read_only) {
 }
 
 // 测试解析属性，access 为 write
-TEST_F(introspection_parser_test, parse_property_write_only) {
+TEST_F(introspection_parser_test, parse_property_write_only)
+{
     std::string xml = R"(<?xml version="1.0" encoding="UTF-8"?>
 <node>
   <interface name="org.example.Test">
@@ -420,7 +436,7 @@ TEST_F(introspection_parser_test, parse_property_write_only) {
     node_info node = introspection_parser::parse(xml);
 
     const interface_info& iface = node.ifaces.at("org.example.Test");
-    const property_info&  prop   = iface.properties.at("WriteOnlyProperty");
+    const property_info&  prop  = iface.properties.at("WriteOnlyProperty");
 
     EXPECT_EQ(prop.type, "i");
     EXPECT_EQ(prop.access, "write");
@@ -428,7 +444,8 @@ TEST_F(introspection_parser_test, parse_property_write_only) {
 }
 
 // 测试解析属性，access 为 readwrite
-TEST_F(introspection_parser_test, parse_property_readwrite) {
+TEST_F(introspection_parser_test, parse_property_readwrite)
+{
     std::string xml = R"(<?xml version="1.0" encoding="UTF-8"?>
 <node>
   <interface name="org.example.Test">
@@ -439,7 +456,7 @@ TEST_F(introspection_parser_test, parse_property_readwrite) {
     node_info node = introspection_parser::parse(xml);
 
     const interface_info& iface = node.ifaces.at("org.example.Test");
-    const property_info&  prop   = iface.properties.at("ReadWriteProperty");
+    const property_info&  prop  = iface.properties.at("ReadWriteProperty");
 
     EXPECT_EQ(prop.type, "b");
     EXPECT_EQ(prop.access, "readwrite");
@@ -447,7 +464,8 @@ TEST_F(introspection_parser_test, parse_property_readwrite) {
 }
 
 // 测试解析属性，包含多个 annotation
-TEST_F(introspection_parser_test, parse_property_with_multiple_annotations) {
+TEST_F(introspection_parser_test, parse_property_with_multiple_annotations)
+{
     std::string xml = R"(<?xml version="1.0" encoding="UTF-8"?>
 <node>
   <interface name="org.example.Test">
@@ -463,7 +481,7 @@ TEST_F(introspection_parser_test, parse_property_with_multiple_annotations) {
     node_info node = introspection_parser::parse(xml);
 
     const interface_info& iface = node.ifaces.at("org.example.Test");
-    const property_info&  prop   = iface.properties.at("AnnotatedProperty");
+    const property_info&  prop  = iface.properties.at("AnnotatedProperty");
 
     EXPECT_EQ(prop.type, "s");
     EXPECT_EQ(prop.access, "read");
@@ -476,7 +494,8 @@ TEST_F(introspection_parser_test, parse_property_with_multiple_annotations) {
 }
 
 // 测试解析方法，参数包含复杂类型
-TEST_F(introspection_parser_test, parse_method_with_complex_types) {
+TEST_F(introspection_parser_test, parse_method_with_complex_types)
+{
     std::string xml = R"delim(<?xml version="1.0" encoding="UTF-8"?>
 <node>
   <interface name="org.example.Test">
@@ -491,7 +510,7 @@ TEST_F(introspection_parser_test, parse_method_with_complex_types) {
 
     node_info node = introspection_parser::parse(xml);
 
-    const interface_info& iface = node.ifaces.at("org.example.Test");
+    const interface_info& iface  = node.ifaces.at("org.example.Test");
     const method_info&    method = iface.methods.at("ComplexTypeMethod");
 
     ASSERT_EQ(method.args.size(), 4);
@@ -510,7 +529,8 @@ TEST_F(introspection_parser_test, parse_method_with_complex_types) {
 }
 
 // 测试解析方法，参数包含 struct-type
-TEST_F(introspection_parser_test, parse_method_with_struct_type_in_multiple_args) {
+TEST_F(introspection_parser_test, parse_method_with_struct_type_in_multiple_args)
+{
     std::string xml = R"(<?xml version="1.0" encoding="UTF-8"?>
 <node>
   <interface name="org.example.Test">
@@ -524,7 +544,7 @@ TEST_F(introspection_parser_test, parse_method_with_struct_type_in_multiple_args
 
     node_info node = introspection_parser::parse(xml);
 
-    const interface_info& iface = node.ifaces.at("org.example.Test");
+    const interface_info& iface  = node.ifaces.at("org.example.Test");
     const method_info&    method = iface.methods.at("StructTypeMethod");
 
     ASSERT_EQ(method.args.size(), 3);
@@ -542,7 +562,8 @@ TEST_F(introspection_parser_test, parse_method_with_struct_type_in_multiple_args
 }
 
 // 测试解析多个接口，每个接口包含多个方法和属性
-TEST_F(introspection_parser_test, parse_multiple_interfaces_with_multiple_items) {
+TEST_F(introspection_parser_test, parse_multiple_interfaces_with_multiple_items)
+{
     std::string xml = R"(<?xml version="1.0" encoding="UTF-8"?>
 <node>
   <interface name="org.example.Interface1">
@@ -596,7 +617,8 @@ TEST_F(introspection_parser_test, parse_multiple_interfaces_with_multiple_items)
 }
 
 // 测试解析方法，参数顺序验证
-TEST_F(introspection_parser_test, parse_method_arg_order) {
+TEST_F(introspection_parser_test, parse_method_arg_order)
+{
     std::string xml = R"(<?xml version="1.0" encoding="UTF-8"?>
 <node>
   <interface name="org.example.Test">
@@ -611,7 +633,7 @@ TEST_F(introspection_parser_test, parse_method_arg_order) {
 
     node_info node = introspection_parser::parse(xml);
 
-    const interface_info& iface = node.ifaces.at("org.example.Test");
+    const interface_info& iface  = node.ifaces.at("org.example.Test");
     const method_info&    method = iface.methods.at("OrderedMethod");
 
     ASSERT_EQ(method.args.size(), 4);
@@ -622,7 +644,8 @@ TEST_F(introspection_parser_test, parse_method_arg_order) {
 }
 
 // 测试解析属性，不同类型的 type
-TEST_F(introspection_parser_test, parse_property_different_types) {
+TEST_F(introspection_parser_test, parse_property_different_types)
+{
     std::string xml = R"(<?xml version="1.0" encoding="UTF-8"?>
 <node>
   <interface name="org.example.Test">
@@ -651,7 +674,8 @@ TEST_F(introspection_parser_test, parse_property_different_types) {
 }
 
 // 测试解析方法，只有 in 参数
-TEST_F(introspection_parser_test, parse_method_only_in_args) {
+TEST_F(introspection_parser_test, parse_method_only_in_args)
+{
     std::string xml = R"(<?xml version="1.0" encoding="UTF-8"?>
 <node>
   <interface name="org.example.Test">
@@ -665,7 +689,7 @@ TEST_F(introspection_parser_test, parse_method_only_in_args) {
 
     node_info node = introspection_parser::parse(xml);
 
-    const interface_info& iface = node.ifaces.at("org.example.Test");
+    const interface_info& iface  = node.ifaces.at("org.example.Test");
     const method_info&    method = iface.methods.at("OnlyInMethod");
 
     ASSERT_EQ(method.args.size(), 3);
@@ -675,7 +699,8 @@ TEST_F(introspection_parser_test, parse_method_only_in_args) {
 }
 
 // 测试解析方法，只有 out 参数
-TEST_F(introspection_parser_test, parse_method_only_out_args) {
+TEST_F(introspection_parser_test, parse_method_only_out_args)
+{
     std::string xml = R"(<?xml version="1.0" encoding="UTF-8"?>
 <node>
   <interface name="org.example.Test">
@@ -688,7 +713,7 @@ TEST_F(introspection_parser_test, parse_method_only_out_args) {
 
     node_info node = introspection_parser::parse(xml);
 
-    const interface_info& iface = node.ifaces.at("org.example.Test");
+    const interface_info& iface  = node.ifaces.at("org.example.Test");
     const method_info&    method = iface.methods.at("OnlyOutMethod");
 
     ASSERT_EQ(method.args.size(), 2);
@@ -697,7 +722,8 @@ TEST_F(introspection_parser_test, parse_method_only_out_args) {
 }
 
 // 测试解析属性，volatile 为 "yes"
-TEST_F(introspection_parser_test, parse_property_volatile_as_yes) {
+TEST_F(introspection_parser_test, parse_property_volatile_as_yes)
+{
     std::string xml = R"(<?xml version="1.0" encoding="UTF-8"?>
 <node>
   <interface name="org.example.Test">
@@ -710,7 +736,7 @@ TEST_F(introspection_parser_test, parse_property_volatile_as_yes) {
     node_info node = introspection_parser::parse(xml);
 
     const interface_info& iface = node.ifaces.at("org.example.Test");
-    const property_info&  prop   = iface.properties.at("VolatileProperty");
+    const property_info&  prop  = iface.properties.at("VolatileProperty");
 
     // volatile="yes" 应该不被识别为 volatile（只有 "true" 或 "1" 才被识别）
     EXPECT_FALSE(prop.is_volatile());
@@ -718,7 +744,8 @@ TEST_F(introspection_parser_test, parse_property_volatile_as_yes) {
 }
 
 // 测试解析属性，volatile 为 "0"
-TEST_F(introspection_parser_test, parse_property_volatile_as_zero) {
+TEST_F(introspection_parser_test, parse_property_volatile_as_zero)
+{
     std::string xml = R"(<?xml version="1.0" encoding="UTF-8"?>
 <node>
   <interface name="org.example.Test">
@@ -731,7 +758,7 @@ TEST_F(introspection_parser_test, parse_property_volatile_as_zero) {
     node_info node = introspection_parser::parse(xml);
 
     const interface_info& iface = node.ifaces.at("org.example.Test");
-    const property_info&  prop   = iface.properties.at("NonVolatileProperty");
+    const property_info&  prop  = iface.properties.at("NonVolatileProperty");
 
     // volatile="0" 应该不被识别为 volatile
     EXPECT_FALSE(prop.is_volatile());

@@ -35,27 +35,34 @@ public:
         using other = test_allocator<U>;
     };
 
-    test_allocator() {
+    test_allocator()
+    {
     }
 
     template <typename U>
-    test_allocator(const test_allocator<U>& other) : base(other) {
+    test_allocator(const test_allocator<U>& other)
+        : base(other)
+    {
     }
 
-    pointer allocate(size_type n) {
+    pointer allocate(size_type n)
+    {
         ++allocation_count;
         return base::allocate(n);
     }
 
-    void deallocate(pointer p, size_type n) {
+    void deallocate(pointer p, size_type n)
+    {
         ++deallocation_count;
         base::deallocate(p, n);
     }
 
-    int get_allocation_count() const {
+    int get_allocation_count() const
+    {
         return allocation_count;
     }
-    int get_deallocation_count() const {
+    int get_deallocation_count() const
+    {
         return deallocation_count;
     }
 };
@@ -69,24 +76,28 @@ using shared_ptr     = typename node_type::ref_ptr_type;
 // 测试夹具
 class NodeListTest : public ::testing::Test {
 protected:
-    void SetUp() override {
+    void SetUp() override
+    {
         // 创建一些测试用的节点
         for (int i = 0; i < 5; ++i) {
             nodes.push_back(make_shared<node_type>(reinterpret_cast<void*>(static_cast<intptr_t>(i))));
         }
     }
 
-    void TearDown() override {
+    void TearDown() override
+    {
         nodes.clear();
     }
 
     // 辅助函数，检查列表是否为空
-    bool is_empty(const node_list_type& list) {
+    bool is_empty(const node_list_type& list)
+    {
         return list.len() == 0 && list.front() == nullptr && list.back() == nullptr;
     }
 
     // 辅助函数，验证列表中的节点顺序
-    bool verify_order(const node_list_type& list, const std::vector<shared_ptr>& expected) {
+    bool verify_order(const node_list_type& list, const std::vector<shared_ptr>& expected)
+    {
         if (list.len() != expected.size()) {
             return false;
         }
@@ -112,7 +123,8 @@ protected:
 };
 
 // 测试空列表
-TEST_F(NodeListTest, EmptyList) {
+TEST_F(NodeListTest, EmptyList)
+{
     node_list_type list;
     EXPECT_TRUE(is_empty(list));
     EXPECT_EQ(list.len(), 0);
@@ -121,7 +133,8 @@ TEST_F(NodeListTest, EmptyList) {
 }
 
 // 测试单节点列表
-TEST_F(NodeListTest, SingleNodeList) {
+TEST_F(NodeListTest, SingleNodeList)
+{
     node_list_type list;
     list.push_back(nodes[0]);
 
@@ -133,7 +146,8 @@ TEST_F(NodeListTest, SingleNodeList) {
 }
 
 // 测试多节点列表
-TEST_F(NodeListTest, MultiNodeList) {
+TEST_F(NodeListTest, MultiNodeList)
+{
     node_list_type list;
 
     // 依次添加节点
@@ -150,7 +164,8 @@ TEST_F(NodeListTest, MultiNodeList) {
 }
 
 // 测试push_front方法
-TEST_F(NodeListTest, PushFront) {
+TEST_F(NodeListTest, PushFront)
+{
     node_list_type list;
 
     // 从前端添加节点
@@ -169,7 +184,8 @@ TEST_F(NodeListTest, PushFront) {
 }
 
 // 测试insert方法
-TEST_F(NodeListTest, Insert) {
+TEST_F(NodeListTest, Insert)
+{
     node_list_type list;
 
     // 测试在空列表中插入
@@ -193,7 +209,8 @@ TEST_F(NodeListTest, Insert) {
 }
 
 // 测试remove方法
-TEST_F(NodeListTest, Remove) {
+TEST_F(NodeListTest, Remove)
+{
     node_list_type list;
 
     // 添加所有节点
@@ -233,7 +250,8 @@ TEST_F(NodeListTest, Remove) {
 }
 
 // 测试插入节点到指定位置前
-TEST_F(NodeListTest, InsertBefore) {
+TEST_F(NodeListTest, InsertBefore)
+{
     node_list_type list;
 
     // 在空列表中插入
@@ -254,7 +272,8 @@ TEST_F(NodeListTest, InsertBefore) {
 }
 
 // 测试移动节点到前端
-TEST_F(NodeListTest, MoveToFront) {
+TEST_F(NodeListTest, MoveToFront)
+{
     node_list_type list;
 
     // 添加所有节点
@@ -284,7 +303,8 @@ TEST_F(NodeListTest, MoveToFront) {
 }
 
 // 测试移动节点到后端
-TEST_F(NodeListTest, MoveToBack) {
+TEST_F(NodeListTest, MoveToBack)
+{
     node_list_type list;
 
     // 添加所有节点
@@ -314,7 +334,8 @@ TEST_F(NodeListTest, MoveToBack) {
 }
 
 // 测试移动节点到指定位置前
-TEST_F(NodeListTest, MoveBefore) {
+TEST_F(NodeListTest, MoveBefore)
+{
     node_list_type list;
 
     // 添加所有节点
@@ -344,7 +365,8 @@ TEST_F(NodeListTest, MoveBefore) {
 }
 
 // 测试移动节点到指定位置后
-TEST_F(NodeListTest, MoveAfter) {
+TEST_F(NodeListTest, MoveAfter)
+{
     node_list_type list;
 
     // 添加所有节点
@@ -374,7 +396,8 @@ TEST_F(NodeListTest, MoveAfter) {
 }
 
 // 测试清空列表
-TEST_F(NodeListTest, Init) {
+TEST_F(NodeListTest, Init)
+{
     node_list_type list;
 
     // 添加所有节点
@@ -397,7 +420,8 @@ TEST_F(NodeListTest, Init) {
 }
 
 // 测试自定义分配器
-TEST_F(NodeListTest, CustomAllocator) {
+TEST_F(NodeListTest, CustomAllocator)
+{
     test_allocator<char> alloc;
 
     // 定义使用自定义分配器的配置
@@ -427,7 +451,8 @@ TEST_F(NodeListTest, CustomAllocator) {
 }
 
 // 测试循环性质
-TEST_F(NodeListTest, CircularNature) {
+TEST_F(NodeListTest, CircularNature)
+{
     node_list_type list;
 
     // 添加所有节点

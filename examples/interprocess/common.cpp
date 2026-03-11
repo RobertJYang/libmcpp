@@ -20,7 +20,8 @@
 std::atomic<bool> g_running{true};
 
 // 信号处理函数，用于处理Ctrl+C
-void signal_handler(int signum) {
+void signal_handler(int signum)
+{
     if (signum == SIGINT || signum == SIGTERM) {
         g_running = false;
         ilog("接收到终止信号，正在清理资源...");
@@ -28,7 +29,8 @@ void signal_handler(int signum) {
 }
 
 // 模拟写入共享内存
-void write_to_shared_memory(shared_memory_allocator& allocator, const std::string& data) {
+void write_to_shared_memory(shared_memory_allocator& allocator, const std::string& data)
+{
     // 分配内存
     void* mem = allocator.allocate(data.size() + 1);
     if (mem) {
@@ -41,9 +43,10 @@ void write_to_shared_memory(shared_memory_allocator& allocator, const std::strin
 }
 
 // 模拟从共享内存读取
-std::string read_from_shared_memory(shared_memory_allocator& allocator, void* ptr) {
+std::string read_from_shared_memory(shared_memory_allocator& allocator, void* ptr)
+{
     if (ptr) {
         return std::string(static_cast<char*>(ptr));
     }
     return "";
-} 
+}

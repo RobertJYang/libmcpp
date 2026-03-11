@@ -33,11 +33,13 @@ namespace test {
 
 class VariantComparisonTest : public mc::test::TestBase {
 protected:
-    void SetUp() override {
+    void SetUp() override
+    {
         // 在每个测试前执行
     }
 
-    void TearDown() override {
+    void TearDown() override
+    {
         // 在每个测试后执行
     }
 };
@@ -45,7 +47,8 @@ protected:
 /**
  * @brief 测试variant间的比较（要求类型和值都匹配）
  */
-TEST_F(VariantComparisonTest, VariantToVariantComparison) {
+TEST_F(VariantComparisonTest, VariantToVariantComparison)
+{
     // 相同类型和值的比较
     variant v1(42), v2(42); // 都是int32_type
     ASSERT_EQ(v1, v2) << "相同类型和值的variant应该相等";
@@ -66,7 +69,8 @@ TEST_F(VariantComparisonTest, VariantToVariantComparison) {
 /**
  * @brief 测试variant之间的比较(不同类型)
  */
-TEST_F(VariantComparisonTest, VariantToVariantComparison_DifferentType) {
+TEST_F(VariantComparisonTest, VariantToVariantComparison_DifferentType)
+{
     // 数值类型variant之间比较
     variant v1(42);
     variant v2(100);
@@ -98,7 +102,8 @@ TEST_F(VariantComparisonTest, VariantToVariantComparison_DifferentType) {
 /**
  * @brief 测试variant与基础类型的比较（只需值相等）
  */
-TEST_F(VariantComparisonTest, VariantToPrimitiveComparison) {
+TEST_F(VariantComparisonTest, VariantToPrimitiveComparison)
+{
     // 整数类型比较
     variant v1(int32_t(42));
     ASSERT_EQ(v1, 42) << "variant应该可以与不同类型的整数比较";
@@ -119,7 +124,8 @@ TEST_F(VariantComparisonTest, VariantToPrimitiveComparison) {
 /**
  * @brief 测试variant与字符串的比较（支持string_type和blob_type）
  */
-TEST_F(VariantComparisonTest, VariantToStringComparison) {
+TEST_F(VariantComparisonTest, VariantToStringComparison)
+{
     std::string test_str = "Hello, World!";
 
     // string_type比较
@@ -142,7 +148,8 @@ TEST_F(VariantComparisonTest, VariantToStringComparison) {
 /**
  * @brief 测试variant与其他类型的比较（需类型和值都匹配）
  */
-TEST_F(VariantComparisonTest, VariantToOtherTypesComparison) {
+TEST_F(VariantComparisonTest, VariantToOtherTypesComparison)
+{
     // 数组类型比较
     variants arr1 = {1, 2};
     variant  v1(arr1);
@@ -181,7 +188,8 @@ TEST_F(VariantComparisonTest, VariantToOtherTypesComparison) {
 /**
  * @brief 测试 double 与 NaN 的综合比较场景
  */
-TEST_F(VariantComparisonTest, VariantLessEqualWithOtherDoubleNaN) {
+TEST_F(VariantComparisonTest, VariantLessEqualWithOtherDoubleNaN)
+{
     variant int_value(42);
     variant nan_value(std::numeric_limits<double>::quiet_NaN());
 
@@ -197,7 +205,8 @@ TEST_F(VariantComparisonTest, VariantLessEqualWithOtherDoubleNaN) {
 /**
  * @brief 测试跨类型数值比较与字符串转换
  */
-TEST_F(VariantComparisonTest, VariantNumericCrossTypeConversionEquality) {
+TEST_F(VariantComparisonTest, VariantNumericCrossTypeConversionEquality)
+{
     variant double_value(12.0);
     variant int_value(12);
     variant bool_true(true);
@@ -223,7 +232,8 @@ TEST_F(VariantComparisonTest, VariantNumericCrossTypeConversionEquality) {
 /**
  * @brief 测试无符号整数 variant 的排序关系
  */
-TEST_F(VariantComparisonTest, UnsignedVariantOrdering) {
+TEST_F(VariantComparisonTest, UnsignedVariantOrdering)
+{
     variant lhs(uint64_t(1));
     variant rhs(uint64_t(3));
 
@@ -236,7 +246,8 @@ TEST_F(VariantComparisonTest, UnsignedVariantOrdering) {
 /**
  * @brief 测试字符串与 double 之间的比较转换逻辑
  */
-TEST_F(VariantComparisonTest, StringNumericComparisonsWithDouble) {
+TEST_F(VariantComparisonTest, StringNumericComparisonsWithDouble)
+{
     variant string_value("12.5");
     variant double_value(12.5);
     variant bigger_double(13.0);
@@ -249,7 +260,8 @@ TEST_F(VariantComparisonTest, StringNumericComparisonsWithDouble) {
 /**
  * @brief 测试字符串与布尔值的跨类型比较
  */
-TEST_F(VariantComparisonTest, StringToBoolComparison) {
+TEST_F(VariantComparisonTest, StringToBoolComparison)
+{
     variant string_true("true");
     variant string_false("false");
     variant bool_true(true);
@@ -263,7 +275,8 @@ TEST_F(VariantComparisonTest, StringToBoolComparison) {
 /**
  * @brief 测试 string_view 与数值/布尔/blob 的比较
  */
-TEST_F(VariantComparisonTest, VariantStringViewNumericComparisons) {
+TEST_F(VariantComparisonTest, VariantStringViewNumericComparisons)
+{
     using namespace std::string_view_literals;
 
     variant double_value(1.25);
@@ -285,7 +298,8 @@ TEST_F(VariantComparisonTest, VariantStringViewNumericComparisons) {
 /**
  * @brief 测试字符串与 blob 的大小比较
  */
-TEST_F(VariantComparisonTest, VariantStringBlobCrossLessComparison) {
+TEST_F(VariantComparisonTest, VariantStringBlobCrossLessComparison)
+{
     mc::blob blob_data;
     blob_data.data = {'x', 'y'};
     variant string_value("ab");
@@ -298,7 +312,8 @@ TEST_F(VariantComparisonTest, VariantStringBlobCrossLessComparison) {
 /**
  * @brief 测试variant与整数类型的比较
  */
-TEST_F(VariantComparisonTest, IntegerVariantComparison) {
+TEST_F(VariantComparisonTest, IntegerVariantComparison)
+{
     // int8_t
     variant v_int8(int8_t(42));
     EXPECT_TRUE(v_int8 < int8_t(100));
@@ -347,7 +362,8 @@ TEST_F(VariantComparisonTest, IntegerVariantComparison) {
 /**
  * @brief 测试variant与无符号整数类型的比较
  */
-TEST_F(VariantComparisonTest, UnsignedIntegerVariantComparison) {
+TEST_F(VariantComparisonTest, UnsignedIntegerVariantComparison)
+{
     // uint8_t
     variant v_uint8(uint8_t(42));
     EXPECT_TRUE(v_uint8 < uint8_t(100));
@@ -396,7 +412,8 @@ TEST_F(VariantComparisonTest, UnsignedIntegerVariantComparison) {
 /**
  * @brief 测试variant与浮点类型的比较
  */
-TEST_F(VariantComparisonTest, FloatingPointVariantComparison) {
+TEST_F(VariantComparisonTest, FloatingPointVariantComparison)
+{
     // float
     variant v_float(3.14f);
     EXPECT_TRUE(v_float < 4.0f);
@@ -423,7 +440,8 @@ TEST_F(VariantComparisonTest, FloatingPointVariantComparison) {
 /**
  * @brief 测试variant与字符串类型的比较
  */
-TEST_F(VariantComparisonTest, StringVariantComparison) {
+TEST_F(VariantComparisonTest, StringVariantComparison)
+{
     // 字符串字面量测试
     variant v_str("hello");
     EXPECT_TRUE(v_str < "world");
@@ -480,7 +498,8 @@ TEST_F(VariantComparisonTest, StringVariantComparison) {
 /**
  * @brief 测试变体和类型转换的异常情况
  */
-TEST_F(VariantComparisonTest, TypecastExceptionTest) {
+TEST_F(VariantComparisonTest, TypecastExceptionTest)
+{
     // 字符串与数值不能直接比较
     variant v_str("hello");
     variant v_num(42);
@@ -500,7 +519,8 @@ TEST_F(VariantComparisonTest, TypecastExceptionTest) {
 /**
  * @brief 测试边界值情况
  */
-TEST_F(VariantComparisonTest, BoundaryValueComparison) {
+TEST_F(VariantComparisonTest, BoundaryValueComparison)
+{
     // 最大和最小整数值
     variant v_max(std::numeric_limits<int64_t>::max());
     variant v_min(std::numeric_limits<int64_t>::min());
@@ -535,7 +555,8 @@ TEST_F(VariantComparisonTest, BoundaryValueComparison) {
 /**
  * @brief 测试不兼容类型抛出异常的情况
  */
-TEST_F(VariantComparisonTest, IncompatibleTypesThrowException) {
+TEST_F(VariantComparisonTest, IncompatibleTypesThrowException)
+{
     // null类型与数值比较应抛出异常
     variant v1(nullptr);
     EXPECT_THROW({ bool result = v1 < 10; }, mc::invalid_op_exception);
@@ -564,7 +585,8 @@ TEST_F(VariantComparisonTest, IncompatibleTypesThrowException) {
 /**
  * @brief 测试异常信息中使用pretty_name
  */
-TEST_F(VariantComparisonTest, ExceptionMessageUsesPrettyName) {
+TEST_F(VariantComparisonTest, ExceptionMessageUsesPrettyName)
+{
     // 创建非数值类型的variant
     variant v(nullptr);
 
@@ -594,7 +616,8 @@ TEST_F(VariantComparisonTest, ExceptionMessageUsesPrettyName) {
 /**
  * @brief 测试数值类型相等和不等操作符
  */
-TEST_F(VariantComparisonTest, NumericEqualityOperators) {
+TEST_F(VariantComparisonTest, NumericEqualityOperators)
+{
     // 整数相等性测试
     variant v1(42);
     EXPECT_TRUE(v1.as<int>() == 42);
@@ -623,7 +646,8 @@ TEST_F(VariantComparisonTest, NumericEqualityOperators) {
 /**
  * @brief 测试字符串类型相等和不等操作符
  */
-TEST_F(VariantComparisonTest, StringEqualityOperators) {
+TEST_F(VariantComparisonTest, StringEqualityOperators)
+{
     // 字符串相等性测试
     variant v3("hello");
     EXPECT_TRUE(v3.as<std::string>() == "hello");
@@ -637,7 +661,8 @@ TEST_F(VariantComparisonTest, StringEqualityOperators) {
 /**
  * @brief 测试跨类型数值比较
  */
-TEST_F(VariantComparisonTest, CrossTypeNumericComparison) {
+TEST_F(VariantComparisonTest, CrossTypeNumericComparison)
+{
     // 有符号与无符号整数比较
     variant v_int(int64_t(-1));
     variant v_uint(uint64_t(1));
@@ -663,7 +688,8 @@ TEST_F(VariantComparisonTest, CrossTypeNumericComparison) {
 /**
  * @brief 测试bool类型比较
  */
-TEST_F(VariantComparisonTest, BooleanComparison) {
+TEST_F(VariantComparisonTest, BooleanComparison)
+{
     variant v_true(true);
     variant v_false(false);
 
@@ -683,7 +709,8 @@ TEST_F(VariantComparisonTest, BooleanComparison) {
 /**
  * @brief 测试variant与字符类型比较
  */
-TEST_F(VariantComparisonTest, CharacterComparison) {
+TEST_F(VariantComparisonTest, CharacterComparison)
+{
     variant v_char('A');
 
     EXPECT_TRUE(v_char < 'B');
@@ -698,7 +725,8 @@ TEST_F(VariantComparisonTest, CharacterComparison) {
 /**
  * @brief 测试variant与string_view的比较
  */
-TEST_F(VariantComparisonTest, StringViewComparison) {
+TEST_F(VariantComparisonTest, StringViewComparison)
+{
     std::string_view sv1 = "hello";
     std::string_view sv2 = "world";
     std::string_view sv3 = "abc";
@@ -737,7 +765,8 @@ TEST_F(VariantComparisonTest, StringViewComparison) {
 /**
  * @brief 测试复杂嵌套结构的比较
  */
-TEST_F(VariantComparisonTest, ComplexNestedStructureComparison) {
+TEST_F(VariantComparisonTest, ComplexNestedStructureComparison)
+{
     // 创建深度嵌套的结构
     dict level3_1 = {{"name", "inner"}, {"value", 42}};
     dict level3_2 = {{"name", "inner"}, {"value", 43}};
@@ -780,7 +809,8 @@ TEST_F(VariantComparisonTest, ComplexNestedStructureComparison) {
 /**
  * @brief 测试特殊字符串比较
  */
-TEST_F(VariantComparisonTest, SpecialStringComparison) {
+TEST_F(VariantComparisonTest, SpecialStringComparison)
+{
     // 包含特殊字符的字符串
     std::string special_chars = "Special chars: \n\t\r\b\f\\\"\'";
     variant     v_special(special_chars);
@@ -808,7 +838,8 @@ TEST_F(VariantComparisonTest, SpecialStringComparison) {
 /**
  * @brief 测试字符类型在比较中的自动升级
  */
-TEST_F(VariantComparisonTest, CharacterUpgradeInComparison) {
+TEST_F(VariantComparisonTest, CharacterUpgradeInComparison)
+{
     variant v_char('A');
 
     // 与数字比较
@@ -843,7 +874,8 @@ TEST_F(VariantComparisonTest, CharacterUpgradeInComparison) {
 /**
  * @brief 扩展dict和dict比较测试
  */
-TEST_F(VariantComparisonTest, DictComparisonExtended) {
+TEST_F(VariantComparisonTest, DictComparisonExtended)
+{
     // 创建具有相同键值的dict和dict
     dict dict1  = {{"key1", 1}, {"key2", "value"}, {"key3", true}};
     dict mdict1 = {{"key1", 1}, {"key2", "value"}, {"key3", true}};
@@ -891,7 +923,8 @@ TEST_F(VariantComparisonTest, DictComparisonExtended) {
  * 2. NaN与任何值（包括它自己）相等比较（==）返回false
  * 3. NaN与任何值（包括它自己）不等比较（!=）返回true
  */
-TEST_F(VariantComparisonTest, NaNComparisonBehavior) {
+TEST_F(VariantComparisonTest, NaNComparisonBehavior)
+{
     double  nan_value = std::numeric_limits<double>::quiet_NaN();
     variant v_nan(nan_value);
     variant v_number(42.0);
@@ -925,7 +958,8 @@ TEST_F(VariantComparisonTest, NaNComparisonBehavior) {
 /**
  * @brief 测试NaN值的友元比较函数
  */
-TEST_F(VariantComparisonTest, NaNFriendComparisonOperators) {
+TEST_F(VariantComparisonTest, NaNFriendComparisonOperators)
+{
     double  nan_value = std::numeric_limits<double>::quiet_NaN();
     variant v_nan(nan_value);
 
@@ -957,7 +991,8 @@ TEST_F(VariantComparisonTest, NaNFriendComparisonOperators) {
 /**
  * @brief 测试blob与其他类型的比较
  */
-TEST_F(VariantComparisonTest, BlobComparisonOperators) {
+TEST_F(VariantComparisonTest, BlobComparisonOperators)
+{
     // 创建不同的blob对象
     blob b1{{1, 2, 3}};
     blob b2{{1, 2, 4}};
@@ -1004,7 +1039,8 @@ TEST_F(VariantComparisonTest, BlobComparisonOperators) {
 /**
  * @brief 测试blob的友元比较函数
  */
-TEST_F(VariantComparisonTest, BlobFriendComparisonOperators) {
+TEST_F(VariantComparisonTest, BlobFriendComparisonOperators)
+{
     blob b1{{1, 2, 3}};
     blob b2{{1, 2, 4}};
 
@@ -1036,7 +1072,8 @@ TEST_F(VariantComparisonTest, BlobFriendComparisonOperators) {
     EXPECT_TRUE(b1 != v_int);
 }
 
-TEST_F(VariantComparisonTest, NumericStringAndBlobConversions) {
+TEST_F(VariantComparisonTest, NumericStringAndBlobConversions)
+{
     variant v_number(123);
     variant v_string("123");
     variant v_blob(mc::blob{'1', '2', '3'});
@@ -1060,7 +1097,8 @@ TEST_F(VariantComparisonTest, NumericStringAndBlobConversions) {
     EXPECT_TRUE(v_bool_str == v_bool);
 }
 
-TEST_F(VariantComparisonTest, VariantStringViewConversions) {
+TEST_F(VariantComparisonTest, VariantStringViewConversions)
+{
     variant v_numeric(5);
     EXPECT_TRUE(v_numeric < std::string_view("6"));
     EXPECT_TRUE(v_numeric > std::string_view("4"));
@@ -1081,7 +1119,8 @@ TEST_F(VariantComparisonTest, VariantStringViewConversions) {
 }
 
 // 测试数组比较时大小不匹配提前返回
-TEST_F(VariantComparisonTest, ArraySizeMismatchReturnsFalse) {
+TEST_F(VariantComparisonTest, ArraySizeMismatchReturnsFalse)
+{
     variants arr1{1, 2, 3};
     variants arr2{1, 2, 3, 4}; // 大小不同
 
@@ -1093,7 +1132,8 @@ TEST_F(VariantComparisonTest, ArraySizeMismatchReturnsFalse) {
 }
 
 // 测试 variants 的关系操作符
-TEST_F(VariantComparisonTest, VariantsRelOps) {
+TEST_F(VariantComparisonTest, VariantsRelOps)
+{
     variants arr1{1, 2, 3};
     variants arr2{1, 2, 4};
     variants arr3{1, 2, 3, 4};

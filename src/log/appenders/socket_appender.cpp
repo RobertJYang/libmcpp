@@ -22,17 +22,22 @@
 namespace mc {
 namespace log {
 
-socket_appender::socket_appender() : m_client(std::make_shared<socket_client>()) {
+socket_appender::socket_appender()
+    : m_client(std::make_shared<socket_client>())
+{
 }
 
-socket_appender::socket_appender(std::shared_ptr<socket_client> shared_client) : m_client(std::move(shared_client)) {
+socket_appender::socket_appender(std::shared_ptr<socket_client> shared_client)
+    : m_client(std::move(shared_client))
+{
 }
 static std::string g_module_name{"Unknown"}; // 全局模块名称，所有 socket_appender 实例共享
 typedef const char* (*get_log_time_str_func_t)(int);
 static get_log_time_str_func_t get_log_time_str_ptr = nullptr;
 constexpr uint32_t             LOG_US_TIME          = 0x02;
 
-bool socket_appender::init(const variant& args) {
+bool socket_appender::init(const variant& args)
+{
     if (!args.is_object()) {
         return false;
     }
@@ -74,7 +79,8 @@ namespace {
 constexpr size_t ACK_LENGTH = 2;
 } // namespace
 
-void socket_appender::append(const message& msg) {
+void socket_appender::append(const message& msg)
+{
     // mdbctl 类别：显式调用 mdbctl_log 时输出，不受 m_type 限制
     // debug 类别：仅当 m_type 为 "local" 时输出
     bool is_mdbctl = msg.get_category() == log_category::mdbctl;
@@ -111,60 +117,72 @@ void socket_appender::append(const message& msg) {
     }
 }
 
-void socket_appender::set_path(std::string_view path) {
+void socket_appender::set_path(std::string_view path)
+{
     std::lock_guard<std::mutex> lock(m_mutex);
     m_path.assign(path.begin(), path.end());
     m_client->set_path(m_path);
 }
 
-void socket_appender::set_hb_path(std::string_view hb_path) {
+void socket_appender::set_hb_path(std::string_view hb_path)
+{
     std::lock_guard<std::mutex> lock(m_mutex);
     m_client->set_hb_path(hb_path);
 }
 
-const std::string& socket_appender::get_path() const {
+const std::string& socket_appender::get_path() const
+{
     return m_path;
 }
 
-void socket_appender::set_type(const std::string& type) {
+void socket_appender::set_type(const std::string& type)
+{
     std::lock_guard<std::mutex> lock(m_mutex);
     m_type = type;
 }
 
-const std::string& socket_appender::get_type() const {
+const std::string& socket_appender::get_type() const
+{
     std::lock_guard<std::mutex> lock(m_mutex);
     return m_type;
 }
 
-socket_client& socket_appender::get_client() {
+socket_client& socket_appender::get_client()
+{
     return *m_client;
 }
 
-std::shared_ptr<socket_client> socket_appender::get_client_shared() {
+std::shared_ptr<socket_client> socket_appender::get_client_shared()
+{
     return m_client;
 }
 
-bool socket_appender::connect() {
+bool socket_appender::connect()
+{
     std::lock_guard<std::mutex> lock(m_mutex);
     return ensure_connected();
 }
 
-void socket_appender::disconnect() {
+void socket_appender::disconnect()
+{
     std::lock_guard<std::mutex> lock(m_mutex);
     m_client->disconnect();
 }
 
-bool socket_appender::is_connected() const {
+bool socket_appender::is_connected() const
+{
     std::lock_guard<std::mutex> lock(m_mutex);
     return m_client->is_connected();
 }
 
-bool socket_appender::heartbeat() {
+bool socket_appender::heartbeat()
+{
     std::lock_guard<std::mutex> lock(m_mutex);
     return m_client->heartbeat();
 }
 
-bool socket_appender::ensure_connected() {
+bool socket_appender::ensure_connected()
+{
     if (m_client->is_connected()) {
         return true;
     }
@@ -177,7 +195,8 @@ bool socket_appender::ensure_connected() {
     return m_client->connect();
 }
 
-std::string socket_appender::format_message(const message& msg) const {
+std::string socket_appender::format_message(const message& msg) const
+{
     const context& ctx = msg.get_context();
 
     // 获取时间戳

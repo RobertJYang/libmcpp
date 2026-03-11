@@ -23,12 +23,14 @@ namespace validate {
 namespace lua {
 
 // 辅助函数：将 C++ 异常转换为 lua 错误
-static int handle_validation_exception(lua_State* L, const validation_exception& e) {
+static int handle_validation_exception(lua_State* L, const validation_exception& e)
+{
     return luaL_error(L, "%s", e.what());
 }
 
 // check_integer(name, val, min, max, need_convert)
-static int l_check_integer(lua_State* L) {
+static int l_check_integer(lua_State* L)
+{
     // 参数顺序：name val min max need_convert
     const int name_idx         = 1;
     const int val_idx          = 2;
@@ -81,7 +83,8 @@ static int l_check_integer(lua_State* L) {
 }
 
 // 公共数值范围校验实现
-static int ranges_impl(lua_State* L, bool allow_nil) {
+static int ranges_impl(lua_State* L, bool allow_nil)
+{
     const int name_idx         = 1;
     const int val_idx          = 2;
     const int min_idx          = 3;
@@ -137,17 +140,20 @@ static int ranges_impl(lua_State* L, bool allow_nil) {
 }
 
 // ranges(name, val, min, max, need_convert)
-static int l_ranges(lua_State* L) {
+static int l_ranges(lua_State* L)
+{
     return ranges_impl(L, false);
 }
 
 // range_or_none(name, val, min, max, need_convert)
-static int l_range_or_none(lua_State* L) {
+static int l_range_or_none(lua_State* L)
+{
     return ranges_impl(L, true);
 }
 
 // 公共字符串长度校验实现
-static int lens_impl(lua_State* L, bool allow_nil) {
+static int lens_impl(lua_State* L, bool allow_nil)
+{
     const int name_idx         = 1;
     const int val_idx          = 2;
     const int min_idx          = 3;
@@ -207,17 +213,20 @@ static int lens_impl(lua_State* L, bool allow_nil) {
 }
 
 // lens(name, val, min, max, need_convert)
-static int l_lens(lua_State* L) {
+static int l_lens(lua_State* L)
+{
     return lens_impl(L, false);
 }
 
 // len_or_none(name, val, min, max, need_convert)
-static int l_len_or_none(lua_State* L) {
+static int l_len_or_none(lua_State* L)
+{
     return lens_impl(L, true);
 }
 
 // 公共正则校验实现
-static int regex_impl(lua_State* L, bool allow_nil) {
+static int regex_impl(lua_State* L, bool allow_nil)
+{
     const int name_idx         = 1;
     const int val_idx          = 2;
     const int pattern_idx      = 3;
@@ -258,17 +267,20 @@ static int regex_impl(lua_State* L, bool allow_nil) {
 }
 
 // regex(name, val, pattern, need_convert)
-static int l_regex(lua_State* L) {
+static int l_regex(lua_State* L)
+{
     return regex_impl(L, false);
 }
 
 // regex_or_none(name, val, pattern, need_convert)
-static int l_regex_or_none(lua_State* L) {
+static int l_regex_or_none(lua_State* L)
+{
     return regex_impl(L, true);
 }
 
 // Json(val)
-static int l_json(lua_State* L) {
+static int l_json(lua_State* L)
+{
     const int val_idx = 1;
 
     if (lua_type(L, val_idx) != LUA_TSTRING) {
@@ -302,7 +314,8 @@ static const luaL_Reg methods[] = {{"check_integer", l_check_integer},
 
 extern "C" {
 
-__attribute__((visibility("default"))) int luaopen_lvalidate(lua_State* L) {
+__attribute__((visibility("default"))) int luaopen_lvalidate(lua_State* L)
+{
     luaL_checkversion(L);
     luaL_newlib(L, mc::validate::lua::methods);
     return 1;

@@ -63,7 +63,8 @@ public:
      * @return 追加器实例
      */
     template <typename T>
-    std::shared_ptr<T> create_by_type(const std::string& type) {
+    std::shared_ptr<T> create_by_type(const std::string& type)
+    {
         return std::dynamic_pointer_cast<T>(create_impl(type));
     }
 

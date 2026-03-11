@@ -26,7 +26,8 @@ namespace mc::dbus {
  * @return 是唯一名称返回true，否则返回false
  * @constraint 唯一名称以冒号开头
  */
-inline bool is_unique_name(std::string_view name) {
+inline bool is_unique_name(std::string_view name)
+{
     return !name.empty() && name.at(0) == ':';
 }
 
@@ -118,7 +119,8 @@ public:
     void append_args(std::string_view signature, const variants& args);
 
     template <typename... Args>
-    void append(std::string_view signature, Args&&... args) {
+    void append(std::string_view signature, Args&&... args)
+    {
         m_signature = signature;
         m_args      = variants();
         signature_iterator it(signature);

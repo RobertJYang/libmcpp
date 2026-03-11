@@ -23,21 +23,27 @@ public:
     MC_REFLECTABLE("FactoryPerson");
 
     test_person() = default;
-    test_person(std::string name, int age) : m_name(std::move(name)), m_age(age) {
+    test_person(std::string name, int age)
+        : m_name(std::move(name)), m_age(age)
+    {
     }
 
-    int get_age() const {
+    int get_age() const
+    {
         return m_age;
     }
-    void set_age(int age) {
+    void set_age(int age)
+    {
         m_age = age;
     }
 
-    std::string greet() const {
+    std::string greet() const
+    {
         return "Hello, I'm " + m_name + " and I'm " + std::to_string(m_age) + " years old.";
     }
 
-    std::string greet_with(const std::string& prefix) const {
+    std::string greet_with(const std::string& prefix) const
+    {
         return prefix + ": " + greet();
     }
 
@@ -127,7 +133,8 @@ using test_types = std::tuple<
 
 class reflect_factory_test : public mc::test::TestBase {
 protected:
-    void SetUp() override {
+    void SetUp() override
+    {
         // 重置工厂单例，确保每个测试开始时都有干净的工厂状态
         mc::reflect::reflection_factory::reset_global();
         mc::singleton<mc::reflect::factory_ptr, devices_namespace>::reset_for_test();
@@ -143,7 +150,8 @@ protected:
         });
     }
 
-    void TearDown() override {
+    void TearDown() override
+    {
         // 清理测试单例
         mc::reflect::reflection_factory::reset_global();
         mc::singleton<mc::reflect::factory_ptr, devices_namespace>::reset_for_test();
@@ -156,7 +164,8 @@ protected:
     }
 };
 
-TEST_F(reflect_factory_test, TypeRegistration) {
+TEST_F(reflect_factory_test, TypeRegistration)
+{
     // 测试类型ID分配
     EXPECT_NE(mc::reflect::reflector<test_person>::get_type_id(), -1);
 
@@ -165,7 +174,8 @@ TEST_F(reflect_factory_test, TypeRegistration) {
     EXPECT_EQ(type_name, "FactoryPerson");
 }
 
-TEST_F(reflect_factory_test, FactoryBasicOperations) {
+TEST_F(reflect_factory_test, FactoryBasicOperations)
+{
     auto& factory = mc::reflect::reflection_factory::global();
 
     // 测试类型ID查询
@@ -185,7 +195,8 @@ TEST_F(reflect_factory_test, FactoryBasicOperations) {
     EXPECT_TRUE(found);
 }
 
-TEST_F(reflect_factory_test, ObjectCreation) {
+TEST_F(reflect_factory_test, ObjectCreation)
+{
     // 通过类型名创建对象
     auto obj1 = mc::reflect::create_object("FactoryPerson");
     ASSERT_NE(obj1, nullptr);
@@ -198,7 +209,8 @@ TEST_F(reflect_factory_test, ObjectCreation) {
     EXPECT_EQ(obj2->get_type_id(), type_id);
 }
 
-TEST_F(reflect_factory_test, PropertyAccess) {
+TEST_F(reflect_factory_test, PropertyAccess)
+{
     auto obj = mc::reflect::create_object("FactoryPerson");
     ASSERT_NE(obj, nullptr);
 
@@ -214,7 +226,8 @@ TEST_F(reflect_factory_test, PropertyAccess) {
     EXPECT_EQ(age, mc::variant(25));
 }
 
-TEST_F(reflect_factory_test, MethodInvocation) {
+TEST_F(reflect_factory_test, MethodInvocation)
+{
     auto obj = mc::reflect::create_object("FactoryPerson");
     ASSERT_NE(obj, nullptr);
 
@@ -232,7 +245,8 @@ TEST_F(reflect_factory_test, MethodInvocation) {
     EXPECT_EQ(greeting_with_prefix.as<std::string>(), "Hi: Hello, I'm Bob and I'm 30 years old.");
 }
 
-TEST_F(reflect_factory_test, ObjectWrapping) {
+TEST_F(reflect_factory_test, ObjectWrapping)
+{
     // 创建普通对象
     auto person = std::make_shared<test_person>("Charlie", 35);
 
@@ -255,7 +269,8 @@ TEST_F(reflect_factory_test, ObjectWrapping) {
     EXPECT_EQ(greeting.as<std::string>(), "Hello, I'm Charlie and I'm 35 years old.");
 }
 
-TEST_F(reflect_factory_test, PropertyAndMethodListing) {
+TEST_F(reflect_factory_test, PropertyAndMethodListing)
+{
     auto obj = mc::reflect::create_object("FactoryPerson");
     ASSERT_NE(obj, nullptr);
 
@@ -288,7 +303,8 @@ TEST_F(reflect_factory_test, PropertyAndMethodListing) {
     EXPECT_TRUE(has_greet);
 }
 
-TEST_F(reflect_factory_test, ErrorHandling) {
+TEST_F(reflect_factory_test, ErrorHandling)
+{
     auto obj = mc::reflect::create_object("FactoryPerson");
     ASSERT_NE(obj, nullptr);
 
@@ -303,7 +319,8 @@ TEST_F(reflect_factory_test, ErrorHandling) {
     EXPECT_THROW(mc::reflect::create_object("nonexistent_type"), mc::bad_type_exception);
 }
 
-TEST_F(reflect_factory_test, TestDestoryReflectedMetaData) {
+TEST_F(reflect_factory_test, TestDestoryReflectedMetaData)
+{
     // 创建对象成功
     auto obj = mc::reflect::create_object("FactoryPerson");
     ASSERT_NE(obj, nullptr);
@@ -313,7 +330,8 @@ TEST_F(reflect_factory_test, TestDestoryReflectedMetaData) {
     EXPECT_THROW(mc::reflect::create_object("FactoryPerson"), mc::bad_type_exception);
 }
 
-TEST_F(reflect_factory_test, EnumTypeRegistration) {
+TEST_F(reflect_factory_test, EnumTypeRegistration)
+{
     auto& factory = mc::reflect::reflection_factory::global();
 
     // 测试枚举类型ID查询
@@ -334,7 +352,8 @@ TEST_F(reflect_factory_test, EnumTypeRegistration) {
     EXPECT_THROW(mc::variant("INVALID").as<test_status>(), mc::bad_cast_exception);
 }
 
-TEST_F(reflect_factory_test, ModuleOperations) {
+TEST_F(reflect_factory_test, ModuleOperations)
+{
     auto& factory = mc::reflect::reflection_factory::global();
 
     // 测试模块路径获取
@@ -372,7 +391,8 @@ TEST_F(reflect_factory_test, ModuleOperations) {
     EXPECT_EQ(obj_b->get_property("address"), mc::variant("北京"));
 }
 
-TEST_F(reflect_factory_test, TypeNameDeduplication) {
+TEST_F(reflect_factory_test, TypeNameDeduplication)
+{
     // 测试去重功能：使用devices工厂，注册一个"devices.sensor"类型
     // 验证去重后这个类型应该被注册为"sensor"而不是"devices.sensor"
 

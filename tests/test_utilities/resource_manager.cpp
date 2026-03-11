@@ -21,24 +21,29 @@
 namespace mc {
 namespace test_utilities {
 
-resource_manager::resource_manager(bool auto_cleanup) : m_auto_cleanup(auto_cleanup) {
+resource_manager::resource_manager(bool auto_cleanup)
+    : m_auto_cleanup(auto_cleanup)
+{
     ilog("测试资源管理器初始化，自动清理: ${auto_cleanup}", ("auto_cleanup", auto_cleanup));
 }
 
-resource_manager::~resource_manager() {
+resource_manager::~resource_manager()
+{
     if (m_auto_cleanup) {
         cleanup();
     }
 }
 
-void resource_manager::add_temp_file(const std::string& path) {
+void resource_manager::add_temp_file(const std::string& path)
+{
     if (!path.empty()) {
         m_temp_files.push_back(path);
         ilog("添加临时文件到清理列表: ${file}", ("file", path));
     }
 }
 
-bool resource_manager::create_temp_file(const std::string& path, const std::string& content) {
+bool resource_manager::create_temp_file(const std::string& path, const std::string& content)
+{
     try {
         std::ofstream file(path);
         if (!file) {
@@ -64,14 +69,16 @@ bool resource_manager::create_temp_file(const std::string& path, const std::stri
     }
 }
 
-void resource_manager::add_cleanup_function(std::function<void()> cleanup_func) {
+void resource_manager::add_cleanup_function(std::function<void()> cleanup_func)
+{
     if (cleanup_func) {
         m_cleanup_funcs.push_back(std::move(cleanup_func));
         ilog("添加自定义清理函数到资源管理器");
     }
 }
 
-void resource_manager::cleanup() {
+void resource_manager::cleanup()
+{
     // 执行所有自定义清理函数
     for (auto it = m_cleanup_funcs.rbegin(); it != m_cleanup_funcs.rend(); ++it) {
         try {
@@ -96,7 +103,8 @@ void resource_manager::cleanup() {
     ilog("资源管理器清理完成");
 }
 
-void resource_manager::set_auto_cleanup(bool auto_cleanup) {
+void resource_manager::set_auto_cleanup(bool auto_cleanup)
+{
     m_auto_cleanup = auto_cleanup;
     ilog("设置资源管理器自动清理: ${auto_cleanup}", ("auto_cleanup", auto_cleanup));
 }

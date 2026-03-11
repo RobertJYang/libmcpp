@@ -1,14 +1,14 @@
 /*
-* Copyright (c) 2024 Huawei Technologies Co., Ltd.
-* openUBMC is licensed under Mulan PSL v2.
-* You can use this software according to the terms and conditions of the Mulan PSL v2.
-* You may obtain a copy of Mulan PSL v2 at:
-*         http://license.coscl.org.cn/MulanPSL2
-* THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
-* EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
-* MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
-* See the Mulan PSL v2 for more details.
-*/
+ * Copyright (c) 2024 Huawei Technologies Co., Ltd.
+ * openUBMC is licensed under Mulan PSL v2.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *         http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
+ */
 
 #include <gtest/gtest.h>
 #include <mc/exception.h>
@@ -35,7 +35,8 @@ public:
         void*                 mock_close_func = nullptr;
     };
 
-    void add_mock_lib(const std::string& path, const std::set<std::string>& symbols) {
+    void add_mock_lib(const std::string& path, const std::set<std::string>& symbols)
+    {
         mock_lib_info info;
         info.path             = path;
         info.exported_symbols = symbols;
@@ -44,44 +45,53 @@ public:
         m_mock_libs[path]     = info;
     }
 
-    void clear() {
+    void clear()
+    {
         m_mock_libs.clear();
         m_loaded_libs.clear();
         m_unload_count.clear();
     }
 
-    size_t loaded_count() const {
+    size_t loaded_count() const
+    {
         return m_loaded_libs.size();
     }
 
-    size_t unload_count_for_path(const std::string& path) const {
+    size_t unload_count_for_path(const std::string& path) const
+    {
         auto it = m_unload_count.find(path);
         return (it != m_unload_count.end()) ? it->second : 0;
     }
 
-    static void* mock_load(std::string_view path, bool /*glb*/) {
+    static void* mock_load(std::string_view path, bool /*glb*/)
+    {
         return instance().load_impl(path);
     }
 
-    static void mock_unload(void* handle) {
+    static void mock_unload(void* handle)
+    {
         instance().unload_impl(handle);
     }
 
-    static void* mock_sym(void* handle, std::string_view symbol_name) {
+    static void* mock_sym(void* handle, std::string_view symbol_name)
+    {
         return instance().sym_impl(handle, symbol_name);
     }
 
-    static bool mock_is_readable(std::string_view path) {
+    static bool mock_is_readable(std::string_view path)
+    {
         return instance().is_readable_impl(path);
     }
 
-    static mock_lib_loader_for_reused& instance() {
+    static mock_lib_loader_for_reused& instance()
+    {
         static mock_lib_loader_for_reused inst;
         return inst;
     }
 
 private:
-    void* load_impl(std::string_view path) {
+    void* load_impl(std::string_view path)
+    {
         std::string path_str(path);
         auto        it = m_mock_libs.find(path_str);
         if (it == m_mock_libs.end()) {
@@ -93,7 +103,8 @@ private:
         return handle;
     }
 
-    void unload_impl(void* handle) {
+    void unload_impl(void* handle)
+    {
         auto it = m_loaded_libs.find(handle);
         if (it != m_loaded_libs.end()) {
             m_unload_count[it->second]++;
@@ -101,7 +112,8 @@ private:
         }
     }
 
-    void* sym_impl(void* handle, std::string_view symbol_name) {
+    void* sym_impl(void* handle, std::string_view symbol_name)
+    {
         auto lib_it = m_loaded_libs.find(handle);
         if (lib_it == m_loaded_libs.end()) {
             return nullptr;
@@ -127,18 +139,20 @@ private:
         return reinterpret_cast<void*>(0x3000);
     }
 
-    bool is_readable_impl(std::string_view path) {
+    bool is_readable_impl(std::string_view path)
+    {
         std::string path_str(path);
         return m_mock_libs.find(path_str) != m_mock_libs.end();
     }
 
     std::map<std::string, mock_lib_info> m_mock_libs;
     std::map<void*, std::string>         m_loaded_libs;
-    std::map<std::string, size_t>       m_unload_count;
+    std::map<std::string, size_t>        m_unload_count;
 };
 
 // 辅助函数：用于测试 is_readable 异常处理
-bool throw_exception_is_readable(std::string_view) {
+bool throw_exception_is_readable(std::string_view)
+{
     throw std::runtime_error("filesystem error");
 }
 
@@ -147,7 +161,8 @@ bool throw_exception_is_readable(std::string_view) {
  */
 class ModuleLoaderExtraBranchTest : public mc::test::TestBase {
 protected:
-    void SetUp() override {
+    void SetUp() override
+    {
         mock_lib_loader_for_reused::instance().clear();
 
         mock_funcs.load        = mock_lib_loader_for_reused::mock_load;
@@ -156,11 +171,13 @@ protected:
         mock_funcs.is_readable = mock_lib_loader_for_reused::mock_is_readable;
     }
 
-    void TearDown() override {
+    void TearDown() override
+    {
         mock_lib_loader_for_reused::instance().clear();
     }
 
-    mc::module::module_loader create_mock_loader() {
+    mc::module::module_loader create_mock_loader()
+    {
         mc::module::module_loader loader;
         loader.set_load_lib_func(mock_funcs);
         return loader;
@@ -173,7 +190,8 @@ protected:
 /**
  * @brief 测试 load_path 中 is_reused=true 的分支
  */
-TEST_F(ModuleLoaderExtraBranchTest, TestLoadPathIsReusedBranch) {
+TEST_F(ModuleLoaderExtraBranchTest, TestLoadPathIsReusedBranch)
+{
     auto loader = create_mock_loader();
     loader.clear_search_paths();
     loader.add_search_path("./?.so");
@@ -184,7 +202,7 @@ TEST_F(ModuleLoaderExtraBranchTest, TestLoadPathIsReusedBranch) {
 
     bool is_reused_set = false;
     auto callback      = [&](auto, bool& is_reused) -> bool {
-        is_reused = true; // 设置 is_reused=true，触发 unload 分支
+        is_reused     = true; // 设置 is_reused=true，触发 unload 分支
         is_reused_set = true;
         return true;
     };
@@ -202,7 +220,8 @@ TEST_F(ModuleLoaderExtraBranchTest, TestLoadPathIsReusedBranch) {
 /**
  * @brief 测试 module_loader 构造函数中的环境变量处理
  */
-TEST_F(ModuleLoaderExtraBranchTest, TestConstructorEnvVar) {
+TEST_F(ModuleLoaderExtraBranchTest, TestConstructorEnvVar)
+{
     // 设置环境变量
     const char* test_path = "  ;/invalid/path;/custom/path/?.so; /another/path/?.so  ";
     setenv("MC_MODULE_PATH", test_path, 1);
@@ -211,10 +230,10 @@ TEST_F(ModuleLoaderExtraBranchTest, TestConstructorEnvVar) {
     mc::module::module_loader loader;
 
     // 检查环境变量路径是否被添加
-    const auto& paths = loader.search_paths();
-    bool found_custom  = false;
-    bool found_another = false;
-    bool found_invalid  = false;
+    const auto& paths         = loader.search_paths();
+    bool        found_custom  = false;
+    bool        found_another = false;
+    bool        found_invalid = false;
     for (const auto& path : paths) {
         if (path == "/custom/path/?.so") {
             found_custom = true;
@@ -236,7 +255,8 @@ TEST_F(ModuleLoaderExtraBranchTest, TestConstructorEnvVar) {
 /**
  * @brief 测试 is_readable 的异常处理分支
  */
-TEST_F(ModuleLoaderExtraBranchTest, TestIsReadableExceptionBranch) {
+TEST_F(ModuleLoaderExtraBranchTest, TestIsReadableExceptionBranch)
+{
     // 这个测试通过 load_module 间接测试 is_readable 的异常处理
     // 由于 is_readable 是私有的，我们通过 load_path 间接测试
     // 但 load_path 也是私有的，所以我们通过 load_module 测试
@@ -264,8 +284,8 @@ TEST_F(ModuleLoaderExtraBranchTest, TestIsReadableExceptionBranch) {
         bool result = loader.load_module("test.module", callback);
         EXPECT_FALSE(result);
         EXPECT_FALSE(callback_called);
-    }, std::runtime_error);
+    },
+                 std::runtime_error);
 }
 
 } // anonymous namespace
-

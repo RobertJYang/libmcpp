@@ -25,22 +25,27 @@ namespace mc::engine {
 
 function_call_processor::function_call_processor()
     : m_sync_processor(std::make_unique<sync_property_processor>()),
-      m_ref_processor(std::make_unique<ref_property_processor>()) {
+      m_ref_processor(std::make_unique<ref_property_processor>())
+{
 }
 
-bool function_call_processor::matches(const std::string& value_str) const {
+bool function_call_processor::matches(const std::string& value_str) const
+{
     return value_str.substr(0, 6) == "$Func_";
 }
 
-void function_call_processor::process(property_helper* property, const std::string& value_str) {
+void function_call_processor::process(property_helper* property, const std::string& value_str)
+{
     process_property_value(property, value_str);
 }
 
-p_type function_call_processor::get_property_type() const {
+p_type function_call_processor::get_property_type() const
+{
     return p_type::normal; // 函数调用可能产生不同类型的属性
 }
 
-void function_call_processor::process_property_value(property_helper* property, const std::string& value_str) {
+void function_call_processor::process_property_value(property_helper* property, const std::string& value_str)
+{
     auto func_info = mc::expr::func_parser::get_instance().parse_function_call(value_str);
     auto position  = property->get_object()->get_position();
     auto call_func = mc::expr::func_collection::get_instance().get(position, func_info.func);

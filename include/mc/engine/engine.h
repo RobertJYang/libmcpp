@@ -35,7 +35,8 @@ public:
     mc::db::database& get_database();
 
     template <typename Table>
-    std::shared_ptr<Table> get_table(std::string_view table_name) {
+    std::shared_ptr<Table> get_table(std::string_view table_name)
+    {
         mc::engine::table_ptr table = find_table(table_name);
         if (table) {
             return std::dynamic_pointer_cast<Table>(table);

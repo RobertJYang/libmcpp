@@ -122,7 +122,7 @@ constexpr std::string_view property_read_only = "org.freedesktop.DBus.Error.Prop
 } // namespace error_names
 
 namespace error_messages {
-    constexpr std::string_view no_reply = "Did not receive a reply. Possible causes include: the remote application did not send a reply, the message bus security policy blocked the reply, the reply timeout expired, or the network connection was broken.";
+constexpr std::string_view no_reply = "Did not receive a reply. Possible causes include: the remote application did not send a reply, the message bus security policy blocked the reply, the reply timeout expired, or the network connection was broken.";
 } // namespace error_messages
 
 } // namespace mc::dbus

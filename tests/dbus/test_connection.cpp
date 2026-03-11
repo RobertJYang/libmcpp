@@ -53,7 +53,8 @@ template <typename Builder>
 mc::dbus::message wait_method_return(mc::dbus::connection& conn, Builder&& builder,
                                      mc::milliseconds timeout      = mc::milliseconds(2000),
                                      int              max_attempts = 5,
-                                     mc::milliseconds retry_delay  = mc::milliseconds(100)) {
+                                     mc::milliseconds retry_delay  = mc::milliseconds(100))
+{
     mc::dbus::message reply;
     for (int attempt = 0; attempt < max_attempts; ++attempt) {
         auto msg = builder();
@@ -70,10 +71,12 @@ mc::dbus::message wait_method_return(mc::dbus::connection& conn, Builder&& build
 
 class connection_test : public mc::test::TestWithDbusDaemon {
 protected:
-    connection_test() {
+    connection_test()
+    {
     }
 
-    static void SetUpTestSuite() {
+    static void SetUpTestSuite()
+    {
         mc::log::default_logger().set_level(mc::log::level::debug);
 
         TestWithDbusDaemon::SetUpTestSuite();
@@ -83,7 +86,8 @@ protected:
         s_io_context->start();
     }
 
-    static void TearDownTestSuite() {
+    static void TearDownTestSuite()
+    {
         TestWithDbusDaemon::TearDownTestSuite();
 
         s_io_context->stop();
@@ -91,23 +95,28 @@ protected:
         s_io_context.reset();
     }
 
-    void SetUp() override {
+    void SetUp() override
+    {
         // 多线程 io_context 无需特殊清理
     }
 
-    void TearDown() override {
+    void TearDown() override
+    {
         // 多线程 io_context 无需特殊清理
     }
 
-    std::shared_ptr<mc::runtime::thread_pool> get_io_context() {
+    std::shared_ptr<mc::runtime::thread_pool> get_io_context()
+    {
         return s_io_context;
     }
 
-    std::string get_dbus_address() {
+    std::string get_dbus_address()
+    {
         return get_dbus_daemon().get_address();
     }
 
-    std::filesystem::path get_socket_path() {
+    std::filesystem::path get_socket_path()
+    {
         return get_dbus_daemon().get_socket_path();
     }
 
@@ -116,7 +125,8 @@ protected:
 
 std::shared_ptr<mc::runtime::thread_pool> connection_test::s_io_context;
 
-TEST_F(connection_test, test_list_names) {
+TEST_F(connection_test, test_list_names)
+{
     auto conn = mc::dbus::connection::open_session_bus(*s_io_context);
     conn.start();
     ASSERT_TRUE(conn.is_connected());
@@ -142,7 +152,8 @@ TEST_F(connection_test, test_list_names) {
 }
 
 // 测试连接断开
-TEST_F(connection_test, test_disconnect) {
+TEST_F(connection_test, test_disconnect)
+{
     mc::dbus::connection conn;
     {
         auto tmp = mc::dbus::connection::open_session_bus(*s_io_context);
@@ -162,7 +173,8 @@ TEST_F(connection_test, test_disconnect) {
 
 // 测试打开系统总线
 // 注意：系统总线需要系统级配置，在测试环境中可能不可用
-TEST_F(connection_test, DISABLED_test_open_system_bus) {
+TEST_F(connection_test, DISABLED_test_open_system_bus)
+{
     try {
         auto conn = mc::dbus::connection::open_system_bus(*s_io_context);
         conn.start();
@@ -178,7 +190,8 @@ TEST_F(connection_test, DISABLED_test_open_system_bus) {
 }
 
 // 测试 connection 空实现（默认构造）
-TEST_F(connection_test, test_default_constructor) {
+TEST_F(connection_test, test_default_constructor)
+{
     mc::dbus::connection conn;
     EXPECT_FALSE(conn.is_connected());
     EXPECT_FALSE(conn.start());
@@ -189,7 +202,8 @@ TEST_F(connection_test, test_default_constructor) {
 }
 
 // 测试 connection 拷贝构造
-TEST_F(connection_test, test_copy_constructor_shares_state) {
+TEST_F(connection_test, test_copy_constructor_shares_state)
+{
     auto original = mc::dbus::connection::open_session_bus(*s_io_context);
     ASSERT_TRUE(original.start());
     ASSERT_TRUE(original.is_connected());
@@ -205,7 +219,8 @@ TEST_F(connection_test, test_copy_constructor_shares_state) {
 }
 
 // 构造完整交互场景覆盖所有API
-TEST_F(connection_test, scenario_full_dbus_flow) {
+TEST_F(connection_test, scenario_full_dbus_flow)
+{
     auto conn = mc::dbus::connection::open_session_bus(*s_io_context);
     ASSERT_TRUE(conn.start());
     ASSERT_TRUE(conn.is_connected());
@@ -361,7 +376,8 @@ TEST_F(connection_test, scenario_full_dbus_flow) {
 }
 
 // 测试 connection::send
-TEST_F(connection_test, test_send) {
+TEST_F(connection_test, test_send)
+{
     auto conn = mc::dbus::connection::open_session_bus(*s_io_context);
     conn.start();
     ASSERT_TRUE(conn.is_connected());
@@ -378,7 +394,8 @@ TEST_F(connection_test, test_send) {
 // ========== 场景测试 ==========
 
 // scenario_connection_lifecycle 测试连接生命周期，与基础测试有重复但作为场景测试保留
-TEST_F(connection_test, scenario_connection_lifecycle) {
+TEST_F(connection_test, scenario_connection_lifecycle)
+{
     auto conn = connection::open_session_bus(*s_io_context);
     EXPECT_TRUE(conn.start());
     ASSERT_TRUE(conn.is_connected());
@@ -392,7 +409,8 @@ TEST_F(connection_test, scenario_connection_lifecycle) {
     EXPECT_FALSE(conn.is_connected());
 }
 
-TEST_F(connection_test, scenario_mixed_sync_async_calls) {
+TEST_F(connection_test, scenario_mixed_sync_async_calls)
+{
     auto conn = connection::open_session_bus(*s_io_context);
     EXPECT_TRUE(conn.start());
     ASSERT_TRUE(conn.is_connected());
@@ -420,7 +438,8 @@ TEST_F(connection_test, scenario_mixed_sync_async_calls) {
     conn.disconnect();
 }
 
-TEST_F(connection_test, scenario_signal_subscription) {
+TEST_F(connection_test, scenario_signal_subscription)
+{
     auto conn = connection::open_session_bus(*s_io_context);
     EXPECT_TRUE(conn.start());
     ASSERT_TRUE(conn.is_connected());
@@ -440,7 +459,8 @@ TEST_F(connection_test, scenario_signal_subscription) {
     conn.disconnect();
 }
 
-TEST_F(connection_test, scenario_error_handling_retry) {
+TEST_F(connection_test, scenario_error_handling_retry)
+{
     auto conn = connection::open_session_bus(*s_io_context);
     EXPECT_TRUE(conn.start());
     ASSERT_TRUE(conn.is_connected());
@@ -454,7 +474,8 @@ TEST_F(connection_test, scenario_error_handling_retry) {
     conn.disconnect();
 }
 
-TEST_F(connection_test, scenario_path_registration) {
+TEST_F(connection_test, scenario_path_registration)
+{
     auto conn = connection::open_session_bus(*s_io_context);
     EXPECT_TRUE(conn.start());
     ASSERT_TRUE(conn.is_connected());
@@ -472,7 +493,8 @@ TEST_F(connection_test, scenario_path_registration) {
     conn.disconnect();
 }
 
-TEST_F(connection_test, scenario_concurrent_messages) {
+TEST_F(connection_test, scenario_concurrent_messages)
+{
     auto conn = connection::open_session_bus(*s_io_context);
     EXPECT_TRUE(conn.start());
     ASSERT_TRUE(conn.is_connected());
@@ -500,7 +522,8 @@ TEST_F(connection_test, scenario_concurrent_messages) {
 
 // ========== 安全性测试 ==========
 
-TEST_F(connection_test, test_path_handler_exception_signal) {
+TEST_F(connection_test, test_path_handler_exception_signal)
+{
     auto conn = connection::open_session_bus(*s_io_context);
     conn.start();
     ASSERT_TRUE(conn.is_connected());
@@ -520,7 +543,8 @@ TEST_F(connection_test, test_path_handler_exception_signal) {
     conn.disconnect();
 }
 
-TEST_F(connection_test, test_path_handler_exception_method_call) {
+TEST_F(connection_test, test_path_handler_exception_method_call)
+{
     auto conn = connection::open_session_bus(*s_io_context);
     conn.start();
     ASSERT_TRUE(conn.is_connected());
@@ -541,7 +565,8 @@ TEST_F(connection_test, test_path_handler_exception_method_call) {
     conn.disconnect();
 }
 
-TEST_F(connection_test, test_request_name_retry_failure) {
+TEST_F(connection_test, test_request_name_retry_failure)
+{
     auto conn = connection::open_session_bus(*s_io_context);
     conn.start();
     ASSERT_TRUE(conn.is_connected());
@@ -552,7 +577,8 @@ TEST_F(connection_test, test_request_name_retry_failure) {
     conn.disconnect();
 }
 
-TEST_F(connection_test, test_concurrent_disconnect) {
+TEST_F(connection_test, test_concurrent_disconnect)
+{
     auto conn = connection::open_session_bus(*s_io_context);
     conn.start();
     ASSERT_TRUE(conn.is_connected());
@@ -573,14 +599,16 @@ TEST_F(connection_test, test_concurrent_disconnect) {
 
 // ========== 实现细节测试 ==========
 
-TEST_F(connection_test, test_send_when_disconnected) {
+TEST_F(connection_test, test_send_when_disconnected)
+{
     auto conn = connection::open_session_bus(*s_io_context);
     EXPECT_FALSE(conn.is_connected());
     auto msg = message::new_signal("/org/test/Connection", "org.test.Connection", "TestSignal");
     EXPECT_FALSE(conn.send(std::move(msg)));
 }
 
-TEST_F(connection_test, test_send_with_existing_serial) {
+TEST_F(connection_test, test_send_with_existing_serial)
+{
     auto conn = connection::open_session_bus(*s_io_context);
     conn.start();
     ASSERT_TRUE(conn.is_connected());
@@ -591,7 +619,8 @@ TEST_F(connection_test, test_send_with_existing_serial) {
     conn.disconnect();
 }
 
-TEST_F(connection_test, test_async_send_when_disconnected) {
+TEST_F(connection_test, test_async_send_when_disconnected)
+{
     auto conn = connection::open_session_bus(*s_io_context);
     EXPECT_FALSE(conn.is_connected());
     auto                    msg    = message::new_method_call("org.freedesktop.DBus", "/org/freedesktop/DBus",
@@ -612,7 +641,8 @@ TEST_F(connection_test, test_async_send_when_disconnected) {
     EXPECT_TRUE(reply_msg.is_error());
 }
 
-TEST_F(connection_test, test_request_name_invalid) {
+TEST_F(connection_test, test_request_name_invalid)
+{
     auto conn = connection::open_session_bus(*s_io_context);
     conn.start();
     ASSERT_TRUE(conn.is_connected());
@@ -621,7 +651,8 @@ TEST_F(connection_test, test_request_name_invalid) {
     conn.disconnect();
 }
 
-TEST_F(connection_test, test_start_wrong_status) {
+TEST_F(connection_test, test_start_wrong_status)
+{
     auto conn = connection::open_session_bus(*s_io_context);
     EXPECT_TRUE(conn.start());
     ASSERT_TRUE(conn.is_connected());
@@ -631,7 +662,8 @@ TEST_F(connection_test, test_start_wrong_status) {
     EXPECT_FALSE(conn.start());
 }
 
-TEST_F(connection_test, test_disconnect_multiple_times) {
+TEST_F(connection_test, test_disconnect_multiple_times)
+{
     auto conn = connection::open_session_bus(*s_io_context);
     conn.start();
     ASSERT_TRUE(conn.is_connected());
@@ -641,7 +673,8 @@ TEST_F(connection_test, test_disconnect_multiple_times) {
     conn.disconnect();
 }
 
-TEST_F(connection_test, test_register_path_when_disconnected) {
+TEST_F(connection_test, test_register_path_when_disconnected)
+{
     auto conn = connection::open_session_bus(*s_io_context);
     EXPECT_FALSE(conn.is_connected());
     path_handler_type handler = [](message&) {
@@ -650,13 +683,15 @@ TEST_F(connection_test, test_register_path_when_disconnected) {
     conn.register_path("/org/test/Connection", std::move(handler));
 }
 
-TEST_F(connection_test, test_unregister_path_when_disconnected) {
+TEST_F(connection_test, test_unregister_path_when_disconnected)
+{
     auto conn = connection::open_session_bus(*s_io_context);
     EXPECT_FALSE(conn.is_connected());
     conn.unregister_path("/org/test/Connection");
 }
 
-TEST_F(connection_test, test_add_match_when_disconnected) {
+TEST_F(connection_test, test_add_match_when_disconnected)
+{
     auto conn = connection::open_session_bus(*s_io_context);
     EXPECT_FALSE(conn.is_connected());
     auto       rule     = match_rule::new_signal("PropertiesChanged", "org.freedesktop.DBus.Properties");
@@ -665,7 +700,8 @@ TEST_F(connection_test, test_add_match_when_disconnected) {
     conn.add_match(rule, std::move(callback), 1);
 }
 
-TEST_F(connection_test, test_remove_match_not_found) {
+TEST_F(connection_test, test_remove_match_not_found)
+{
     auto conn = connection::open_session_bus(*s_io_context);
     conn.start();
     ASSERT_TRUE(conn.is_connected());
@@ -673,7 +709,8 @@ TEST_F(connection_test, test_remove_match_not_found) {
     conn.disconnect();
 }
 
-TEST_F(connection_test, test_remove_match_when_disconnected) {
+TEST_F(connection_test, test_remove_match_when_disconnected)
+{
     auto conn = connection::open_session_bus(*s_io_context);
     conn.start();
     ASSERT_TRUE(conn.is_connected());
@@ -688,7 +725,8 @@ TEST_F(connection_test, test_remove_match_when_disconnected) {
 }
 
 // 测试 filter_message 功能
-TEST_F(connection_test, test_filter_message) {
+TEST_F(connection_test, test_filter_message)
+{
     auto conn = connection::open_session_bus(*s_io_context);
     conn.start();
     ASSERT_TRUE(conn.is_connected());
@@ -713,7 +751,8 @@ TEST_F(connection_test, test_filter_message) {
 }
 
 // 测试 get_match 功能
-TEST_F(connection_test, test_get_match) {
+TEST_F(connection_test, test_get_match)
+{
     auto conn = connection::open_session_bus(*s_io_context);
     conn.start();
     ASSERT_TRUE(conn.is_connected());
@@ -739,7 +778,8 @@ TEST_F(connection_test, test_get_match) {
 // 测试 process_message - reply_serial == 0 的情况
 // 注意：D-Bus 库要求 reply_serial 不能为 0，所以无法直接测试这个分支
 // 但可以通过其他消息类型（如 signal）来测试 filter_message 的处理
-TEST_F(connection_test, test_process_message_no_reply_serial) {
+TEST_F(connection_test, test_process_message_no_reply_serial)
+{
     auto conn = connection::open_session_bus(*s_io_context);
     conn.start();
     ASSERT_TRUE(conn.is_connected());
@@ -757,7 +797,8 @@ TEST_F(connection_test, test_process_message_no_reply_serial) {
 }
 
 // 测试 process_reply - reply_serial 不存在的情况
-TEST_F(connection_test, test_process_reply_serial_not_found) {
+TEST_F(connection_test, test_process_reply_serial_not_found)
+{
     auto conn = connection::open_session_bus(*s_io_context);
     conn.start();
     ASSERT_TRUE(conn.is_connected());
@@ -780,7 +821,8 @@ TEST_F(connection_test, test_process_reply_serial_not_found) {
     conn.disconnect();
 }
 
-TEST_F(connection_test, test_dispatch_after_disconnect) {
+TEST_F(connection_test, test_dispatch_after_disconnect)
+{
     auto conn = connection::open_session_bus(*s_io_context);
     conn.start();
     ASSERT_TRUE(conn.is_connected());
@@ -790,7 +832,8 @@ TEST_F(connection_test, test_dispatch_after_disconnect) {
 }
 
 // 测试 add_match 在连接断开时的双重检查分支
-TEST_F(connection_test, test_add_match_connection_lost_during_operation) {
+TEST_F(connection_test, test_add_match_connection_lost_during_operation)
+{
     auto conn = connection::open_session_bus(*s_io_context);
     conn.start();
     ASSERT_TRUE(conn.is_connected());
@@ -807,7 +850,8 @@ TEST_F(connection_test, test_add_match_connection_lost_during_operation) {
 }
 
 // 测试 remove_match 的错误处理分支
-TEST_F(connection_test, test_remove_match_error_handling) {
+TEST_F(connection_test, test_remove_match_error_handling)
+{
     auto conn = connection::open_session_bus(*s_io_context);
     conn.start();
     ASSERT_TRUE(conn.is_connected());
@@ -825,7 +869,8 @@ TEST_F(connection_test, test_remove_match_error_handling) {
 }
 
 // 测试 get_impl 接口是否可用
-TEST_F(connection_test, test_get_impl_access) {
+TEST_F(connection_test, test_get_impl_access)
+{
     auto conn = connection::open_session_bus(*s_io_context);
     conn.start();
     ASSERT_TRUE(conn.is_connected());
@@ -838,7 +883,8 @@ TEST_F(connection_test, test_get_impl_access) {
 
 // 测试 release() 中 m_connection == nullptr 的分支
 // 通过默认构造的 connection 来测试
-TEST_F(connection_test, test_release_with_null_connection) {
+TEST_F(connection_test, test_release_with_null_connection)
+{
     mc::dbus::connection conn;
     // 默认构造的 connection 的 m_impl 可能为 nullptr，调用 disconnect 会触发 release
     // 但 release 会检查 m_connection，如果为 nullptr 则直接返回
@@ -849,7 +895,8 @@ TEST_F(connection_test, test_release_with_null_connection) {
 // 测试 process_message 中 reply_serial == 0 的分支
 // 注意：D-Bus 库不允许 reply_serial 为 0，但我们可以通过 filter_message 来测试
 // 当 method_return/error 消息没有 reply_serial 时，会进入 filter_message 处理
-TEST_F(connection_test, test_process_message_method_return_no_reply_serial) {
+TEST_F(connection_test, test_process_message_method_return_no_reply_serial)
+{
     auto conn = connection::open_session_bus(*s_io_context);
     conn.start();
     ASSERT_TRUE(conn.is_connected());
@@ -884,7 +931,8 @@ TEST_F(connection_test, test_process_message_method_return_no_reply_serial) {
 // 测试 dispatch_status_changed 中 new_status != DBUS_DISPATCH_DATA_REMAINS 的分支
 // 这个分支在正常操作中很难触发，因为 D-Bus 库通常只在有数据时才调用
 // 但我们可以通过正常操作来间接验证这个分支的存在
-TEST_F(connection_test, test_dispatch_status_changed_other_status) {
+TEST_F(connection_test, test_dispatch_status_changed_other_status)
+{
     auto conn = connection::open_session_bus(*s_io_context);
     conn.start();
     ASSERT_TRUE(conn.is_connected());
@@ -904,7 +952,8 @@ TEST_F(connection_test, test_dispatch_status_changed_other_status) {
 
 // 测试 get_next_serial 的序列号溢出处理
 // 虽然很难触发 MAX_SERIAL_RETRY 次重试，但可以测试序列号溢出到 1 的逻辑
-TEST_F(connection_test, test_get_next_serial_overflow_to_one) {
+TEST_F(connection_test, test_get_next_serial_overflow_to_one)
+{
     auto conn = connection::open_session_bus(*s_io_context);
     conn.start();
     ASSERT_TRUE(conn.is_connected());

@@ -23,7 +23,8 @@ namespace mc::dbus::lua {
 constexpr const char* OBJECT_METATABLE = "dbus.object";
 
 struct l_object {
-    l_object() {
+    l_object()
+    {
         impl = mc::make_shared<mc::dbus::dynamic_object>();
     }
 

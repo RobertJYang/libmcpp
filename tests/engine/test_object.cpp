@@ -23,14 +23,16 @@ public:
 
     int32_t m_value = 0;
 
-    int32_t add(int32_t a) {
+    int32_t add(int32_t a)
+    {
         auto old_value = m_value;
         m_value += a;
         value_changed(old_value, m_value);
         return m_value;
     }
 
-    int32_t subtract(int32_t a) {
+    int32_t subtract(int32_t a)
+    {
         auto old_value = m_value;
         m_value -= a;
         value_changed(old_value, m_value);
@@ -46,13 +48,15 @@ public:
 
     std::string m_value = "default";
 
-    void set_value(std::string_view value) {
+    void set_value(std::string_view value)
+    {
         auto old_value = m_value;
         m_value        = value;
         value_changed(old_value, m_value);
     }
 
-    std::string get_value() const {
+    std::string get_value() const
+    {
         return m_value;
     }
 
@@ -63,7 +67,9 @@ class TTestObject : public mc::engine::object<TTestObject> {
 public:
     MC_OBJECT(TTestObject, "TTestObject", "/org/test/TTestObject", (TestInterface1)(TestInterface2))
 
-    TTestObject(mc::engine::core_object* parent = nullptr) : mc::engine::object<TTestObject>(parent) {
+    TTestObject(mc::engine::core_object* parent = nullptr)
+        : mc::engine::object<TTestObject>(parent)
+    {
     }
 
     int32_t m_prev_value = 0;
@@ -83,17 +89,20 @@ MC_REFLECT(TTestObject, ((m_iface1, "iface1"))((m_iface2, "iface2")))
 
 class object_test : public mc::test::TestBase {
 protected:
-    void SetUp() override {
+    void SetUp() override
+    {
     }
 
-    void TearDown() override {
+    void TearDown() override
+    {
     }
 
     TTestObject                  obj;
     mc::engine::abstract_object& obj_base = obj;
 };
 
-TEST_F(object_test, test_object_metadata) {
+TEST_F(object_test, test_object_metadata)
+{
     std::vector<std::string_view> expected = {"iface1", "iface2"};
 
     // 获取静态接口信息
@@ -112,7 +121,8 @@ TEST_F(object_test, test_object_metadata) {
     EXPECT_EQ(interfaces1, expected);
 }
 
-TEST_F(object_test, test_get_interface) {
+TEST_F(object_test, test_get_interface)
+{
     auto iface1 = obj.get_interface("iface1");
     EXPECT_EQ(iface1, &obj.m_iface1);
 
@@ -120,7 +130,8 @@ TEST_F(object_test, test_get_interface) {
     EXPECT_EQ(iface2, &obj.m_iface2);
 }
 
-TEST_F(object_test, test_property) {
+TEST_F(object_test, test_property)
+{
     // value 在两个接口中都有，默认是第一个接口的属性
     obj_base.set_property("value", 100);
     EXPECT_EQ(obj_base.get_property("value"), 100);
@@ -134,7 +145,8 @@ TEST_F(object_test, test_property) {
     EXPECT_EQ(obj_base.get_property("value", "org.test.TestInterface2"), "world");
 }
 
-TEST_F(object_test, test_method) {
+TEST_F(object_test, test_method)
+{
     obj_base.invoke("Add", {100});
     EXPECT_EQ(obj_base.get_property("value"), 100);
 
@@ -149,7 +161,8 @@ TEST_F(object_test, test_method) {
     EXPECT_EQ(obj_base.get_property("value", "org.test.TestInterface2"), "world");
 }
 
-TEST_F(object_test, test_signal_connect) {
+TEST_F(object_test, test_signal_connect)
+{
     int old_value = 0;
     int new_value = 0;
 
@@ -180,7 +193,8 @@ TEST_F(object_test, test_signal_connect) {
     EXPECT_EQ(new_value, 100);
 }
 
-TEST_F(object_test, test_signal_emit) {
+TEST_F(object_test, test_signal_emit)
+{
     std::string old_value;
     std::string new_value;
 
@@ -206,7 +220,8 @@ TEST_F(object_test, test_signal_emit) {
     EXPECT_EQ(new_value, "updated_value");
 }
 
-TEST_F(object_test, test_connect_by_interface_name) {
+TEST_F(object_test, test_connect_by_interface_name)
+{
     int signal_count = 0;
 
     // 使用接口名称连接信号
@@ -229,7 +244,8 @@ TEST_F(object_test, test_connect_by_interface_name) {
     EXPECT_EQ(signal_count, 2);
 }
 
-TEST_F(object_test, test_multiple_connections) {
+TEST_F(object_test, test_multiple_connections)
+{
     int count1 = 0;
     int count2 = 0;
 
@@ -273,7 +289,8 @@ TEST_F(object_test, test_multiple_connections) {
     EXPECT_EQ(count2, 2);
 }
 
-TEST_F(object_test, test_invalid_signal) {
+TEST_F(object_test, test_invalid_signal)
+{
     auto conn = obj_base.connect("invalid_signal", [](const mc::variants& args) -> mc::variant {
         return {};
     });
@@ -283,7 +300,8 @@ TEST_F(object_test, test_invalid_signal) {
     EXPECT_TRUE(obj_base.emit("invalid_signal", {}).is_null());
 }
 
-TEST_F(object_test, test_has_interface) {
+TEST_F(object_test, test_has_interface)
+{
     // 测试存在的接口
     EXPECT_TRUE(obj.has_interface("iface1"));
     EXPECT_TRUE(obj.has_interface("iface2"));

@@ -178,7 +178,9 @@ class basic_shared_mutex {
     using wait_for_duration_type = detail::wait_for_duration<Duration, Policy::spin_limit, Policy::yield_limit>;
 
 public:
-    basic_shared_mutex() noexcept : m_state(0) {
+    basic_shared_mutex() noexcept
+        : m_state(0)
+    {
     }
     ~basic_shared_mutex() = default;
 
@@ -187,7 +189,8 @@ public:
 
     // --- 写锁 ---
 
-    void lock() noexcept {
+    void lock() noexcept
+    {
         if (try_lock()) {
             return;
         }
@@ -196,7 +199,8 @@ public:
         acquire_writer_lock<false>(ctx);
     }
 
-    bool try_lock() noexcept {
+    bool try_lock() noexcept
+    {
         uint32_t expected = 0;
         if (m_state.compare_exchange_strong(
                 expected, WRITER_BIT,
@@ -208,7 +212,8 @@ public:
     }
 
     template <typename Duration>
-    bool try_lock_for(const Duration& timeout) noexcept {
+    bool try_lock_for(const Duration& timeout) noexcept
+    {
         if (try_lock()) {
             return true;
         }
@@ -217,19 +222,22 @@ public:
         return acquire_writer_lock<false>(ctx);
     }
 
-    void unlock() noexcept {
+    void unlock() noexcept
+    {
         m_state.fetch_and(~WRITER_BIT, std::memory_order_release);
         detail::futex_wake(&m_state, ALL, WRITER_BIT);
     }
 
     // --- 读锁 ---
 
-    void lock_shared() noexcept {
+    void lock_shared() noexcept
+    {
         wait_forever_type ctx;
         acquire_shared_lock(ctx);
     }
 
-    bool try_lock_shared() noexcept {
+    bool try_lock_shared() noexcept
+    {
         uint32_t current = m_state.load(std::memory_order_acquire);
         if ((current & (WRITER_BIT | WRITER_WAITING_BIT)) != 0) {
             return false;
@@ -242,12 +250,14 @@ public:
     }
 
     template <typename Duration>
-    bool try_lock_shared_for(const Duration& timeout) noexcept {
+    bool try_lock_shared_for(const Duration& timeout) noexcept
+    {
         wait_for_duration_type<Duration> ctx(timeout);
         return acquire_shared_lock(ctx);
     }
 
-    void unlock_shared() noexcept {
+    void unlock_shared() noexcept
+    {
         uint32_t old_state = m_state.fetch_sub(1, std::memory_order_release);
         if ((old_state & READER_MASK) == 1) {
             detail::futex_wake(&m_state, ALL, WRITER_BIT);
@@ -256,12 +266,14 @@ public:
 
     // --- 升级锁 ---
 
-    void lock_upgrade() noexcept {
+    void lock_upgrade() noexcept
+    {
         wait_forever_type ctx;
         acquire_upgrade_lock(ctx);
     }
 
-    bool try_lock_upgrade() noexcept {
+    bool try_lock_upgrade() noexcept
+    {
         uint32_t current = m_state.load(std::memory_order_acquire);
         if (current & UPGRADE_MASK) {
             return false;
@@ -273,19 +285,22 @@ public:
     }
 
     template <typename Duration>
-    bool try_lock_upgrade_for(const Duration& timeout) noexcept {
+    bool try_lock_upgrade_for(const Duration& timeout) noexcept
+    {
         wait_for_duration_type<Duration> ctx(timeout);
         return acquire_upgrade_lock(ctx);
     }
 
-    void unlock_upgrade() noexcept {
+    void unlock_upgrade() noexcept
+    {
         m_state.fetch_and(~UPGRADE_BIT, std::memory_order_release);
         detail::futex_wake(&m_state, ALL, UPGRADE_BIT);
     }
 
     // --- 升级锁升级操作 ---
 
-    void unlock_upgrade_and_lock() noexcept {
+    void unlock_upgrade_and_lock() noexcept
+    {
         if (try_unlock_upgrade_and_lock()) {
             return;
         }
@@ -294,7 +309,8 @@ public:
         acquire_writer_lock<true>(ctx);
     }
 
-    bool try_unlock_upgrade_and_lock() noexcept {
+    bool try_unlock_upgrade_and_lock() noexcept
+    {
         // 判断是否持有升级锁，不是则直接失败
         uint32_t current = m_state.load(std::memory_order_acquire);
         if (!(current & UPGRADE_BIT)) {
@@ -317,7 +333,8 @@ public:
     }
 
     template <typename Duration>
-    bool try_unlock_upgrade_and_lock_for(const Duration& timeout) noexcept {
+    bool try_unlock_upgrade_and_lock_for(const Duration& timeout) noexcept
+    {
         if (try_unlock_upgrade_and_lock()) {
             return true;
         }
@@ -329,7 +346,8 @@ public:
     // --- 锁降级操作 ---
 
     // 从升级锁降级到读锁
-    void unlock_upgrade_and_lock_shared() noexcept {
+    void unlock_upgrade_and_lock_shared() noexcept
+    {
         uint32_t expected = m_state.load(std::memory_order_acquire);
 
         // 必须持有升级锁才能降级
@@ -350,7 +368,8 @@ public:
     }
 
     // 从写锁降级到升级锁
-    void unlock_and_lock_upgrade() noexcept {
+    void unlock_and_lock_upgrade() noexcept
+    {
         uint32_t expected = m_state.load(std::memory_order_acquire);
 
         // 必须持有写锁才能降级
@@ -370,7 +389,8 @@ public:
     }
 
     // 从写锁降级到读锁
-    void unlock_and_lock_shared() noexcept {
+    void unlock_and_lock_shared() noexcept
+    {
         uint32_t expected = m_state.load(std::memory_order_acquire);
 
         // 必须持有写锁才能降级
@@ -392,7 +412,8 @@ public:
 private:
     // 写锁抢占逻辑
     template <bool IsUpgrade, typename Context>
-    bool acquire_writer_lock(Context& ctx) noexcept {
+    bool acquire_writer_lock(Context& ctx) noexcept
+    {
         constexpr uint32_t wait_mask =
             IsUpgrade ? (WRITER_BIT | READER_MASK) : (WRITER_BIT | READER_MASK | UPGRADE_BIT);
         constexpr uint32_t clear_mask =
@@ -448,7 +469,8 @@ private:
     }
 
     template <typename Context>
-    bool acquire_shared_lock(Context& ctx) noexcept {
+    bool acquire_shared_lock(Context& ctx) noexcept
+    {
         uint32_t current = m_state.load(std::memory_order_acquire);
 
         while (!ctx.should_timeout()) {
@@ -469,7 +491,8 @@ private:
     }
 
     template <typename Context>
-    bool acquire_upgrade_lock(Context& ctx) noexcept {
+    bool acquire_upgrade_lock(Context& ctx) noexcept
+    {
         uint32_t current = m_state.load(std::memory_order_acquire);
         while (!ctx.should_timeout()) {
             if (current & UPGRADE_MASK) {

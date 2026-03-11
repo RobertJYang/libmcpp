@@ -11,9 +11,9 @@
  */
 
 #include <cstdlib>
-#include <stdexcept>
 #include <mc/module.h>
 #include <mc/reflect/reflect.h>
+#include <stdexcept>
 
 MC_MODULE(mc_test_dynamic)
 
@@ -23,7 +23,8 @@ class dynamic_object {
 public:
     MC_REFLECTABLE("mc.test.dynamic.DynamicObject")
 
-    int sum(int lhs, int rhs) const {
+    int sum(int lhs, int rhs) const
+    {
         return lhs + rhs;
     }
 };
@@ -32,7 +33,8 @@ public:
 
 MC_MODULE_REFLECT(mc_test_dynamic, mc::test_dynamic_module::dynamic_object, ((sum, "sum")))
 
-extern "C" MC_API void* mc_open_mc_test_dynamic() {
+extern "C" MC_API void* mc_open_mc_test_dynamic()
+{
     const char* flag = std::getenv("MC_TEST_DYNAMIC_RETURN_NULL");
     if (flag != nullptr && flag[0] != '\0') {
         return nullptr;
@@ -42,7 +44,8 @@ extern "C" MC_API void* mc_open_mc_test_dynamic() {
     return factory_holder.get();
 }
 
-extern "C" MC_API void mc_close_mc_test_dynamic() {
+extern "C" MC_API void mc_close_mc_test_dynamic()
+{
     const char* flag = std::getenv("MC_TEST_DYNAMIC_CLOSE_THROW");
     if (flag != nullptr && flag[0] != '\0') {
         throw std::runtime_error("close dynamic module");

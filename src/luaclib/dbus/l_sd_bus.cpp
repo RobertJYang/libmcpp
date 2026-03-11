@@ -31,12 +31,14 @@ struct sd_bus_wrapper {
     std::shared_ptr<mc::io_context>   io_ctx;  // 共享的 io_context
 
     sd_bus_wrapper(std::shared_ptr<mc::dbus::sd_bus> b, std::shared_ptr<mc::io_context> ctx)
-        : bus(std::move(b)), io_ctx(std::move(ctx)) {
+        : bus(std::move(b)), io_ctx(std::move(ctx))
+    {
     }
 };
 
 // 辅助函数：获取 sd_bus_wrapper
-static sd_bus_wrapper* get_sd_bus_wrapper(lua_State* L, int index = 1) {
+static sd_bus_wrapper* get_sd_bus_wrapper(lua_State* L, int index = 1)
+{
     return static_cast<sd_bus_wrapper*>(luaL_checkudata(L, index, SD_BUS_METATABLE));
 }
 
@@ -44,7 +46,8 @@ static sd_bus_wrapper* get_sd_bus_wrapper(lua_State* L, int index = 1) {
 // 创建一个新的 sd_bus 用户总线连接
 // 参数1: start_now - 是否立即启动连接（默认 false）
 // 参数2: is_blocking - 是否使用阻塞模式（默认 false）
-int sd_bus_open_user(lua_State* L) {
+int sd_bus_open_user(lua_State* L)
+{
     try {
         bool start_now   = false;
         bool is_blocking = false;
@@ -77,7 +80,8 @@ int sd_bus_open_user(lua_State* L) {
 }
 
 // bus:request_name(name, flags)
-static int sd_bus_request_name(lua_State* L) {
+static int sd_bus_request_name(lua_State* L)
+{
     try {
         auto*       wrapper = get_sd_bus_wrapper(L);
         const char* name    = luaL_checkstring(L, 2);
@@ -94,7 +98,8 @@ static int sd_bus_request_name(lua_State* L) {
 }
 
 // bus:add_match(callback_id, member, interface, is_path_namespace, path, sender, type, destination)
-static int sd_bus_add_match(lua_State* L) {
+static int sd_bus_add_match(lua_State* L)
+{
     try {
         auto* wrapper     = get_sd_bus_wrapper(L);
         int   callback_id = luaL_checkinteger(L, 2);
@@ -153,7 +158,8 @@ static int sd_bus_add_match(lua_State* L) {
 }
 
 // bus:remove_match(id)
-static int sd_bus_remove_match(lua_State* L) {
+static int sd_bus_remove_match(lua_State* L)
+{
     try {
         auto*    wrapper = get_sd_bus_wrapper(L);
         uint64_t id      = luaL_checkinteger(L, 2);
@@ -166,14 +172,16 @@ static int sd_bus_remove_match(lua_State* L) {
 }
 
 // __gc 元方法
-static int sd_bus_gc(lua_State* L) {
+static int sd_bus_gc(lua_State* L)
+{
     auto* wrapper = static_cast<sd_bus_wrapper*>(lua_touserdata(L, 1));
     wrapper->~sd_bus_wrapper();
     return 0;
 }
 
 // __index 元方法
-static int sd_bus_index(lua_State* L) {
+static int sd_bus_index(lua_State* L)
+{
     // 检查是否是方法调用
     lua_getmetatable(L, 1);
     lua_pushvalue(L, 2);
@@ -215,10 +223,11 @@ static int sd_bus_index(lua_State* L) {
     return 1;
 }
 
-static int sd_bus_register_object(lua_State* L) {
+static int sd_bus_register_object(lua_State* L)
+{
     try {
         auto* wrapper = get_sd_bus_wrapper(L);
-        auto* object = reinterpret_cast<l_object*>(luaL_checkudata(L, 2, OBJECT_METATABLE));
+        auto* object  = reinterpret_cast<l_object*>(luaL_checkudata(L, 2, OBJECT_METATABLE));
         wrapper->bus->register_object(object->impl);
         return 0;
     } catch (const std::exception& e) {
@@ -226,10 +235,11 @@ static int sd_bus_register_object(lua_State* L) {
     }
 }
 
-static int sd_bus_unregister_object(lua_State* L) {
+static int sd_bus_unregister_object(lua_State* L)
+{
     try {
-        auto* wrapper = get_sd_bus_wrapper(L);
-        const char* path = luaL_checkstring(L, 2);
+        auto*       wrapper = get_sd_bus_wrapper(L);
+        const char* path    = luaL_checkstring(L, 2);
         wrapper->bus->unregister_object(path);
         return 0;
     } catch (const std::exception& e) {
@@ -237,7 +247,8 @@ static int sd_bus_unregister_object(lua_State* L) {
     }
 }
 
-static int sd_bus_call_shm_get_property(lua_State* L) {
+static int sd_bus_call_shm_get_property(lua_State* L)
+{
     try {
         const char*      service_cstr = luaL_checkstring(L, 2);
         std::string_view service_name(service_cstr);
@@ -278,7 +289,8 @@ static const luaL_Reg sd_bus_module_funcs[] = {
     {"open_user", sd_bus_open_user},
     {nullptr, nullptr}};
 
-void register_sd_bus_metatable(lua_State* L) {
+void register_sd_bus_metatable(lua_State* L)
+{
     // 注册 sd_bus metatable
     luaL_newmetatable(L, SD_BUS_METATABLE);
 
@@ -293,7 +305,8 @@ void register_sd_bus_metatable(lua_State* L) {
     lua_pop(L, 1);
 }
 
-void register_sd_bus_module(lua_State* L) {
+void register_sd_bus_module(lua_State* L)
+{
     register_sd_bus_metatable(L);
 
     luaL_newlib(L, sd_bus_module_funcs);

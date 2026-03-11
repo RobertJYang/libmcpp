@@ -38,38 +38,46 @@ public:
     test_user() = default;
 
     test_user(uint32_t id, std::string name, int age, std::string city, double score = 0.0)
-        : m_id(id), m_name(std::move(name)), m_age(age), m_city(std::move(city)), m_score(score) {
+        : m_id(id), m_name(std::move(name)), m_age(age), m_city(std::move(city)), m_score(score)
+    {
     }
 
-    ~test_user() override {
+    ~test_user() override
+    {
     }
 
     // 获取用户ID
-    uint32_t id() const {
+    uint32_t id() const
+    {
         return m_id;
     }
 
     // 获取用户名
-    const std::string& name() const {
+    const std::string& name() const
+    {
         return m_name;
     }
 
     // 获取年龄
-    int age() const {
+    int age() const
+    {
         return m_age;
     }
 
     // 获取城市
-    const std::string& city() const {
+    const std::string& city() const
+    {
         return m_city;
     }
 
     // 获取分数
-    double score() const {
+    double score() const
+    {
         return m_score;
     }
 
-    uint32_t get_id_add_age() const {
+    uint32_t get_id_add_age() const
+    {
         return m_id + m_age;
     }
 
@@ -100,10 +108,12 @@ using user_table = mdb::table<
 // 测试表查询功能
 class table_query_test : public ::testing::Test {
 protected:
-    table_query_test() {
+    table_query_test()
+    {
     }
 
-    void SetUp() override {
+    void SetUp() override
+    {
         users.add(test_user(1, "张三", 25, "北京", 88.5));
         users.add(test_user(2, "李四", 30, "上海", 92.0));
         users.add(test_user(3, "王五", 25, "广州", 76.5));
@@ -111,12 +121,14 @@ protected:
         users.add(test_user(5, "钱七", 40, "北京", 82.5));
     }
 
-    void TearDown() override {
+    void TearDown() override
+    {
         // 清理测试数据
     }
 
     // 获取匹配条件的用户ID列表
-    std::vector<uint32_t> query_users(const mdb::query_builder& builder) {
+    std::vector<uint32_t> query_users(const mdb::query_builder& builder)
+    {
         std::vector<uint32_t> result;
 
         users.query(builder, [&result](auto& obj) {
@@ -134,7 +146,8 @@ protected:
 using namespace mdb::query::dsl;
 
 // 测试复合条件查询
-TEST_F(table_query_test, complex_condition_query) {
+TEST_F(table_query_test, complex_condition_query)
+{
     // 测试 AND 条件：age = 25 AND city = "北京"
     {
         auto age_field  = mc::db::field(&test_user::m_age);
@@ -176,7 +189,8 @@ TEST_F(table_query_test, complex_condition_query) {
 }
 
 // 测试特殊条件查询
-TEST_F(table_query_test, special_condition_query) {
+TEST_F(table_query_test, special_condition_query)
+{
     // 测试 IN 条件：city IN ["北京", "上海"]
     {
         auto city_field = mc::db::field(&test_user::m_city);
@@ -228,7 +242,8 @@ TEST_F(table_query_test, special_condition_query) {
 }
 
 // 测试索引优化查询
-TEST_F(table_query_test, index_optimized_query) {
+TEST_F(table_query_test, index_optimized_query)
+{
     // 测试按主键ID查询（应该使用主键索引）
     {
         auto id_field = mc::db::field(&test_user::m_id);
@@ -253,7 +268,8 @@ TEST_F(table_query_test, index_optimized_query) {
 }
 
 // 测试查询限制和自定义处理
-TEST_F(table_query_test, query_limit_and_custom_handler) {
+TEST_F(table_query_test, query_limit_and_custom_handler)
+{
     // 测试查询并限制返回数量
     {
         auto age_field = mc::db::field(&test_user::m_age);
@@ -311,7 +327,8 @@ TEST_F(table_query_test, query_limit_and_custom_handler) {
 }
 
 // 测试直接使用 query_builder 构造查询
-TEST_F(table_query_test, direct_query_builder) {
+TEST_F(table_query_test, direct_query_builder)
+{
     // 使用 query_builder 的 where 方法构建查询
     {
         mdb::query_builder builder;
@@ -356,7 +373,8 @@ TEST_F(table_query_test, direct_query_builder) {
 }
 
 // 测试使用字符串版本的 field 方法
-TEST_F(table_query_test, string_field_method) {
+TEST_F(table_query_test, string_field_method)
+{
     // 使用字符串版本的 field 方法
     {
         auto age_field = mc::db::field("age");

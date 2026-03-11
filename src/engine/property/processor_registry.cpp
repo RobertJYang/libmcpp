@@ -27,7 +27,8 @@ bool g_processors_registered = false;
  *
  * 这个函数在系统启动时被调用，注册所有可用的属性处理器
  */
-MC_API void register_property_processors() {
+MC_API void register_property_processors()
+{
     if (g_processors_registered) {
         return;
     }
@@ -50,7 +51,8 @@ MC_API void register_property_processors() {
  */
 class auto_register_processors {
 public:
-    auto_register_processors() {
+    auto_register_processors()
+    {
         register_property_processors();
     }
 };

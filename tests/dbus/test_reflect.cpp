@@ -64,7 +64,8 @@ MC_REFLECT(
 // 测试C++标准库类型反射
 class reflect_test : public ::testing::Test {
 protected:
-    void SetUp() override {
+    void SetUp() override
+    {
         ts_out.i8           = 1;
         ts_out.u8           = 2;
         ts_out.i16          = 3;
@@ -97,13 +98,15 @@ protected:
         ts_out.std_uset     = {1, 2, 3, 4, 5};
     }
 
-    void TearDown() override {
+    void TearDown() override
+    {
     }
 
     test_struct ts_out;
 };
 
-TEST_F(reflect_test, test_reflect_struct) {
+TEST_F(reflect_test, test_reflect_struct)
+{
     auto msg_out = mc::dbus::message::new_method_call(
         "org.freedesktop.DBus", "/org/freedesktop/DBus", "org.freedesktop.DBus", "Hello");
     msg_out.set_serial(123456);

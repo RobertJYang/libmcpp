@@ -29,13 +29,14 @@ extern "C" {
 extern "C" {
 
 // 设置环境变量
-static int ldbus_setenv(lua_State* L) {
-    const char* name = luaL_checkstring(L, 1);
-    const char* value = luaL_checkstring(L, 2);
-    int overwrite = lua_toboolean(L, 3); // 默认 false
-    
+static int ldbus_setenv(lua_State* L)
+{
+    const char* name      = luaL_checkstring(L, 1);
+    const char* value     = luaL_checkstring(L, 2);
+    int         overwrite = lua_toboolean(L, 3); // 默认 false
+
     int result = ::setenv(name, value, overwrite ? 1 : 0);
-    
+
     if (result == 0) {
         lua_pushboolean(L, 1);
         return 1;
@@ -47,7 +48,8 @@ static int ldbus_setenv(lua_State* L) {
 }
 
 // ldbus 模块加载函数
-__attribute__((visibility("default"))) int luaopen_ldbus(lua_State* L) {
+__attribute__((visibility("default"))) int luaopen_ldbus(lua_State* L)
+{
     using namespace mc::dbus::lua;
 
     // 注册所有 metatable

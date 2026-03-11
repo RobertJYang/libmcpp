@@ -25,19 +25,23 @@ class TestInterfaceA : public mc::engine::interface<TestInterfaceA> {
 public:
     MC_INTERFACE("org.openubmc.test_interface_a")
 
-    int32_t add(int32_t a, int32_t b) {
+    int32_t add(int32_t a, int32_t b)
+    {
         return a + b;
     }
 
-    void set_num(uint8_t num) {
+    void set_num(uint8_t num)
+    {
         m_num = num;
     }
 
-    void set_str(std::string str) {
+    void set_str(std::string str)
+    {
         m_str = str;
     }
 
-    std::tuple<uint8_t, std::string> get_num_and_str() {
+    std::tuple<uint8_t, std::string> get_num_and_str()
+    {
         return std::make_tuple(m_num.value(), m_str.value());
     }
 
@@ -49,7 +53,8 @@ class TestInterfaceB : public mc::engine::interface<TestInterfaceB> {
 public:
     MC_INTERFACE("org.openubmc.test_interface_b")
 
-    int32_t increment() {
+    int32_t increment()
+    {
         m_cnt.set_value(m_cnt.value() + 1);
         return m_cnt.value();
     }
@@ -62,7 +67,8 @@ class TestObjectA : public mc::engine::object<TestObjectA> {
 public:
     MC_OBJECT(TestObjectA, "TestObjectA", "/org/openubmc/test_object_a", (TestInterfaceA))
 
-    void init() {
+    void init()
+    {
         set_object_name("TestObjectA");
     }
 
@@ -73,7 +79,8 @@ class TestObjectB : public mc::engine::object<TestObjectB> {
 public:
     MC_OBJECT(TestObjectB, "TestObjectB", "/org/openubmc/test_object_b", (TestInterfaceB))
 
-    void init() {
+    void init()
+    {
         set_object_name("TestObjectB");
     }
 
@@ -91,7 +98,8 @@ class TestObjectC : public mc::engine::object<TestObjectC> {
 public:
     MC_OBJECT(TestObjectC, "TestObjectC", "/org/openubmc/test_object_c", (TestInterfaceC))
 
-    void init() {
+    void init()
+    {
         set_object_name("TestObjectC");
     }
 
@@ -108,17 +116,20 @@ MC_REFLECT(TestObjectC, ((m_iface, "InterfaceC")))
 
 struct test_service_1 : public mc::engine::service {
     test_service_1()
-        : mc::engine::service("org.openubmc.test_service_1") {
+        : mc::engine::service("org.openubmc.test_service_1")
+    {
     }
 
-    bool init(mc::dict args = {}) override {
+    bool init(mc::dict args = {}) override
+    {
         mc::dict args_mut(args);
         args_mut["service_path"] = "/org/openubmc/test_service_1";
         args_mut["service_name"] = "org.openubmc.test_service_1";
         return mc::engine::service::init(args_mut);
     }
 
-    bool start() override {
+    bool start() override
+    {
         if (!mc::engine::service::start()) {
             return false;
         }
@@ -129,13 +140,15 @@ struct test_service_1 : public mc::engine::service {
         return true;
     }
 
-    void init_obj_c() {
+    void init_obj_c()
+    {
         m_obj_c = mc::make_shared<TestObjectC>();
         m_obj_c->init();
         register_object(*m_obj_c);
     }
 
-    void remove_obj_c() {
+    void remove_obj_c()
+    {
         unregister_object(m_obj_c->get_object_path());
         m_obj_c.reset();
     }
@@ -146,17 +159,20 @@ struct test_service_1 : public mc::engine::service {
 
 struct test_service_2 : public mc::engine::service {
     test_service_2()
-        : mc::engine::service("org.openubmc.test_service_2") {
+        : mc::engine::service("org.openubmc.test_service_2")
+    {
     }
 
-    bool init(mc::dict args = {}) override {
+    bool init(mc::dict args = {}) override
+    {
         mc::dict args_mut(args);
         args_mut["service_path"] = "/org/openubmc/test_service_2";
         args_mut["service_name"] = "org.openubmc.test_service_2";
         return mc::engine::service::init(args_mut);
     }
 
-    bool start() override {
+    bool start() override
+    {
         if (!mc::engine::service::start()) {
             return false;
         }
@@ -176,7 +192,8 @@ static constexpr int64_t CALL_TIMEOUT = 1000;
 
 class ShmCallTest : public ::testing::Test {
 protected:
-    static void SetUpTestSuite() {
+    static void SetUpTestSuite()
+    {
         service_1 = new test_service_1();
         service_2 = new test_service_2();
         service_1->init();
@@ -185,7 +202,8 @@ protected:
         service_2->start();
     }
 
-    static void TearDownTestSuite() {
+    static void TearDownTestSuite()
+    {
         service_1->stop();
         service_2->stop();
         delete service_1;
@@ -193,7 +211,8 @@ protected:
     }
 };
 
-TEST_F(ShmCallTest, TestRegisterProperties) {
+TEST_F(ShmCallTest, TestRegisterProperties)
+{
     mc::variant result = mc::dbus::shm_tree::get_property("org.openubmc.test_service_1",
                                                           "/org/openubmc/test_object_a", "org.openubmc.test_interface_a", "Num");
     ASSERT_EQ(result.as_int32(), 100);
@@ -224,7 +243,8 @@ TEST_F(ShmCallTest, TestRegisterProperties) {
     ASSERT_EQ(result.as_string(), "TestObjectB");
 }
 
-TEST_F(ShmCallTest, TestIncrement) {
+TEST_F(ShmCallTest, TestIncrement)
+{
     mc::variant result =
         service_1->timeout_call(mc::milliseconds(CALL_TIMEOUT), "org.openubmc.test_service_2",
                                 "/org/openubmc/test_object_b", "org.openubmc.test_interface_b",
@@ -250,7 +270,8 @@ TEST_F(ShmCallTest, TestIncrement) {
     ASSERT_EQ(result.as_int32(), 3);
 }
 
-TEST_F(ShmCallTest, TestNumAndStr) {
+TEST_F(ShmCallTest, TestNumAndStr)
+{
     mc::variant result =
         service_2->timeout_call(mc::milliseconds(CALL_TIMEOUT), "org.openubmc.test_service_1",
                                 "/org/openubmc/test_object_a", "org.openubmc.test_interface_a",
@@ -318,7 +339,8 @@ TEST_F(ShmCallTest, TestNumAndStr) {
     ASSERT_EQ(result.as_string(), "new_str_2");
 }
 
-TEST_F(ShmCallTest, TestAdd) {
+TEST_F(ShmCallTest, TestAdd)
+{
     mc::variant result =
         service_2->timeout_call(mc::milliseconds(CALL_TIMEOUT), "org.openubmc.test_service_1",
                                 "/org/openubmc/test_object_a", "org.openubmc.test_interface_a",
@@ -339,7 +361,8 @@ TEST_F(ShmCallTest, TestAdd) {
     ASSERT_EQ(result.as_int32(), 112);
 }
 
-TEST_F(ShmCallTest, TestSubscribePropertiesChanged) {
+TEST_F(ShmCallTest, TestSubscribePropertiesChanged)
+{
     mc::dbus::match_rule rule = mc::dbus::match_rule::new_signal(
         mc::dbus::PROPERTIES_CHANGED_MEMBER, mc::dbus::DBUS_PROPERTIES_INTERFACE);
     rule.with_path("/org/openubmc/test_object_a");

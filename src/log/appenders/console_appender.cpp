@@ -52,12 +52,15 @@ public:
     std::mutex mutex;
 };
 
-console_appender::console_appender() : m_impl(new impl()) {
+console_appender::console_appender()
+    : m_impl(new impl())
+{
 }
 
 console_appender::~console_appender() = default;
 
-bool console_appender::init(const variant& args) {
+bool console_appender::init(const variant& args)
+{
     try {
         configure(args.as<config>());
         return true;
@@ -67,7 +70,8 @@ bool console_appender::init(const variant& args) {
     }
 }
 
-void console_appender::configure(const config& cfg) {
+void console_appender::configure(const config& cfg)
+{
     std::lock_guard<std::mutex> lock(m_impl->mutex);
 
     m_impl->cfg = cfg;
@@ -79,7 +83,8 @@ void console_appender::configure(const config& cfg) {
 }
 
 // 获取控制台颜色代码
-static const char* get_console_color(console_appender::color_type clr) {
+static const char* get_console_color(console_appender::color_type clr)
+{
     switch (clr) {
     case console_appender::color_type::red:
         return CONSOLE_RED;
@@ -101,7 +106,8 @@ static const char* get_console_color(console_appender::color_type clr) {
     }
 }
 
-void console_appender::append(const message& msg) {
+void console_appender::append(const message& msg)
+{
     std::lock_guard<std::mutex> lock(m_impl->mutex);
 
     // 获取输出流
@@ -174,7 +180,8 @@ void console_appender::append(const message& msg) {
     }
 }
 
-void console_appender::print(const std::string& text, color_type text_color) {
+void console_appender::print(const std::string& text, color_type text_color)
+{
     if (text.empty()) {
         return;
     }

@@ -114,42 +114,49 @@ private:
 public:
     duration_format_handler(const std::chrono::duration<Rep, Period>& d,
                             std::string& output, int precision, bool has_precision)
-        : duration_format_handler_base(output, precision, has_precision), m_duration(d) {
+        : duration_format_handler_base(output, precision, has_precision), m_duration(d)
+    {
     }
 
 protected:
-    int get_days() override {
+    int get_days() override
+    {
         using namespace std::chrono;
         auto total_days = duration_cast<duration<long long, std::ratio<86400>>>(m_duration).count();
         return static_cast<int>(total_days);
     }
 
-    int get_hours() override {
+    int get_hours() override
+    {
         using namespace std::chrono;
         auto total_hours = duration_cast<hours>(m_duration).count();
         return static_cast<int>(total_hours);
     }
 
-    int get_minutes() override {
+    int get_minutes() override
+    {
         using namespace std::chrono;
         auto total_minutes = duration_cast<minutes>(m_duration).count();
         return static_cast<int>(total_minutes);
     }
 
-    int get_seconds() override {
+    int get_seconds() override
+    {
         using namespace std::chrono;
         auto total_seconds = duration_cast<seconds>(m_duration).count();
         return static_cast<int>(total_seconds);
     }
 
-    int get_subseconds() override {
+    int get_subseconds() override
+    {
         using namespace std::chrono;
         auto total_seconds = duration_cast<seconds>(m_duration);
         auto subsec        = m_duration - duration_cast<std::chrono::duration<Rep, Period>>(total_seconds);
         return static_cast<int>(subsec.count());
     }
 
-    int get_subseconds_digits() override {
+    int get_subseconds_digits() override
+    {
         if constexpr (std::is_same_v<Period, std::milli>) {
             return 3;
         } else if constexpr (std::is_same_v<Period, std::micro>) {
@@ -167,11 +174,13 @@ protected:
         }
     }
 
-    const char* get_unit_str() const override {
+    const char* get_unit_str() const override
+    {
         return detail::get_unit_str<Period>();
     }
 
-    void output_duration_value() override {
+    void output_duration_value() override
+    {
         if constexpr (std::is_floating_point_v<Rep>) {
             detail::format_float(m_output, static_cast<double>(m_duration.count()),
                                  m_precision, m_has_precision);
@@ -188,11 +197,13 @@ private:
 
 public:
     time_point_format_handler(const std::chrono::time_point<Clock, Duration>& tp, std::string& output)
-        : time_point_format_handler_base(output), m_time_point(tp) {
+        : time_point_format_handler_base(output), m_time_point(tp)
+    {
     }
 
 protected:
-    void ensure_tm() override {
+    void ensure_tm() override
+    {
         if (!this->m_tm_valid) {
             auto sys_tp      = std::chrono::time_point_cast<std::chrono::system_clock::duration>(m_time_point);
             this->m_time_t   = std::chrono::system_clock::to_time_t(sys_tp); // 赋值
@@ -200,7 +211,8 @@ protected:
             this->m_tm_valid = true;
         }
     }
-    uint32_t get_subseconds_ns() const override {
+    uint32_t get_subseconds_ns() const override
+    {
         auto time_since_epoch    = m_time_point.time_since_epoch();
         auto seconds_since_epoch = std::chrono::duration_cast<std::chrono::seconds>(time_since_epoch);
         auto subseconds          = time_since_epoch - seconds_since_epoch;
@@ -217,7 +229,8 @@ protected:
 template <typename Rep, typename Period>
 template <typename Context>
 void formatter<std::chrono::duration<Rep, Period>>::format(
-    const std::chrono::duration<Rep, Period>& d, Context& ctx, const format_spec& spec) const {
+    const std::chrono::duration<Rep, Period>& d, Context& ctx, const format_spec& spec) const
+{
     auto& out   = ctx.out();
     auto  count = d.count();
 
@@ -248,7 +261,8 @@ void formatter<std::chrono::duration<Rep, Period>>::format(
 template <typename Clock, typename Duration>
 template <typename Context>
 void formatter<std::chrono::time_point<Clock, Duration>>::format(
-    const std::chrono::time_point<Clock, Duration>& tp, Context& ctx, const format_spec& spec) const {
+    const std::chrono::time_point<Clock, Duration>& tp, Context& ctx, const format_spec& spec) const
+{
     auto& out = ctx.out();
 
     auto& custom = spec.get_custom_spec<custom_spec>();

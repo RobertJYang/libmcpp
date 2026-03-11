@@ -47,13 +47,16 @@ template <typename ContextType = boost::asio::io_context>
 class priority_queue_executor {
     class handler_base {
     public:
-        handler_base(int p, size_t order) : m_priority(p), m_order(order) {
+        handler_base(int p, size_t order)
+            : m_priority(p), m_order(order)
+        {
         }
 
         virtual ~handler_base() = default;
         virtual void execute()  = 0;
 
-        friend bool operator<(const handler_base& a, const handler_base& b) noexcept {
+        friend bool operator<(const handler_base& a, const handler_base& b) noexcept
+        {
             return std::tie(a.m_priority, a.m_order) < std::tie(b.m_priority, b.m_order);
         }
 
@@ -66,10 +69,12 @@ class priority_queue_executor {
     class handler : public handler_base {
     public:
         handler(int p, size_t order, Function f)
-            : handler_base(p, order), m_function(std::move(f)) {
+            : handler_base(p, order), m_function(std::move(f))
+        {
         }
 
-        void execute() override {
+        void execute() override
+        {
             m_function();
         }
 
@@ -79,7 +84,8 @@ class priority_queue_executor {
 
     struct handler_less {
         template <typename Pointer>
-        bool operator()(const Pointer& a, const Pointer& b) const noexcept {
+        bool operator()(const Pointer& a, const Pointer& b) const noexcept
+        {
             return *a < *b;
         }
     };
@@ -101,15 +107,18 @@ public:
     explicit priority_queue_executor(context_type& context, bool auto_start = true)
         : m_context(context), m_order(std::numeric_limits<size_type>::max()),
           m_is_task_scheduled(false),
-          m_state(auto_start ? QueueState::Running : QueueState::Stopped) {
+          m_state(auto_start ? QueueState::Running : QueueState::Stopped)
+    {
     }
 
-    ~priority_queue_executor() {
+    ~priority_queue_executor()
+    {
         execute_all();
     }
 
     // 启动队列处理
-    void start() {
+    void start()
+    {
         std::lock_guard<std::mutex> lock(m_state_mutex);
         if (m_state != QueueState::Running) {
             m_state = QueueState::Running;
@@ -118,13 +127,15 @@ public:
     }
 
     // 停止队列处理
-    void stop() {
+    void stop()
+    {
         std::lock_guard<std::mutex> lock(m_state_mutex);
         m_state = QueueState::Stopped;
     }
 
     // 暂停队列处理
-    void pause() {
+    void pause()
+    {
         std::lock_guard<std::mutex> lock(m_state_mutex);
         if (m_state == QueueState::Running) {
             m_state = QueueState::Paused;
@@ -132,7 +143,8 @@ public:
     }
 
     // 恢复队列处理
-    void resume() {
+    void resume()
+    {
         std::lock_guard<std::mutex> lock(m_state_mutex);
         if (m_state == QueueState::Paused) {
             m_state = QueueState::Running;
@@ -141,12 +153,14 @@ public:
     }
 
     template <typename Function>
-    void execute(Function&& f, int p = priority::normal) {
+    void execute(Function&& f, int p = priority::normal)
+    {
         add(p, std::forward<Function>(f));
     }
 
     template <typename Function>
-    void add(int p, Function f) {
+    void add(int p, Function f)
+    {
         auto h = std::make_unique<handler<Function>>(p, --m_order, std::move(f));
 
         {
@@ -158,12 +172,14 @@ public:
         try_start_processing();
     }
 
-    void execute_all() {
+    void execute_all()
+    {
         while (execute_highest()) {
         }
     }
 
-    bool execute_highest() {
+    bool execute_highest()
+    {
         handler_ptr task;
         bool        has_more = get_next_task(task);
         while (!task && has_more) {
@@ -174,29 +190,34 @@ public:
         return has_more;
     }
 
-    std::size_t size() const {
+    std::size_t size() const
+    {
         std::lock_guard<std::mutex> lock(m_mutex);
         return m_task_queue.size();
     }
 
     template <typename Function>
     boost::asio::executor_binder<Function, priority_queue_executor> wrap(int        p,
-                                                                         Function&& func) const {
+                                                                         Function&& func) const
+    {
         return boost::asio::bind_executor(*this, std::forward<Function>(func));
     }
 
     friend bool operator==(const priority_queue_executor& a,
-                           const priority_queue_executor& b) noexcept {
+                           const priority_queue_executor& b) noexcept
+    {
         return &a.m_context == &b.m_context;
     }
 
     friend bool operator!=(const priority_queue_executor& a,
-                           const priority_queue_executor& b) noexcept {
+                           const priority_queue_executor& b) noexcept
+    {
         return !(a == b);
     }
 
 private:
-    void try_start_processing() {
+    void try_start_processing()
+    {
         if (m_state != QueueState::Running) {
             return; // 非运行状态不启动处理
         }
@@ -210,15 +231,18 @@ private:
     }
 
     // 记录错误日志
-    void log_error(const std::string& message, const std::exception& e) {
+    void log_error(const std::string& message, const std::exception& e)
+    {
         std::cerr << message << ": " << e.what() << std::endl;
     }
 
-    void log_error(const std::string& message) {
+    void log_error(const std::string& message)
+    {
         std::cerr << message << std::endl;
     }
 
-    void process_next_task() {
+    void process_next_task()
+    {
         std::lock_guard<std::mutex> lock(m_state_mutex);
         if (m_state != QueueState::Running) {
             m_is_task_scheduled = false;
@@ -236,7 +260,8 @@ private:
     }
 
     // 从任务队列中获取下一个任务
-    bool get_next_task(handler_ptr& task) {
+    bool get_next_task(handler_ptr& task)
+    {
         std::lock_guard<std::mutex> lock(m_mutex);
         if (m_task_queue.empty()) {
             return false;
@@ -248,7 +273,8 @@ private:
     }
 
     // 执行任务并处理异常
-    void execute_task(handler_ptr task) {
+    void execute_task(handler_ptr task)
+    {
         if (!task) {
             return;
         }

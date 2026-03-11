@@ -15,7 +15,8 @@
 
 namespace mc::reflect {
 
-static void append_path(std::string& path, std::string_view name) {
+static void append_path(std::string& path, std::string_view name)
+{
     if (!path.empty()) {
         mc::string::append(path, ".", name);
     } else {
@@ -23,7 +24,8 @@ static void append_path(std::string& path, std::string_view name) {
     }
 }
 
-reflection_metadata_ptr module_node::get_metadata(std::string_view type_name) const {
+reflection_metadata_ptr module_node::get_metadata(std::string_view type_name) const
+{
     auto it = types.find(type_name);
     if (it != types.end()) {
         auto metadata = it->second->metadata.lock();
@@ -44,7 +46,8 @@ reflection_metadata_ptr module_node::get_metadata(std::string_view type_name) co
     return factory->get_metadata(type_name);
 }
 
-reflection_metadata_ptr module_node::get_metadata(split_iterator& type_it) const {
+reflection_metadata_ptr module_node::get_metadata(split_iterator& type_it) const
+{
     auto name = *type_it;
     ++type_it;
     if (type_it.is_end()) {
@@ -81,7 +84,8 @@ reflection_metadata_ptr module_node::get_metadata(split_iterator& type_it) const
     return nullptr;
 }
 
-void module_node::collect_module_paths(std::string& path, std::vector<std::string>& paths) const {
+void module_node::collect_module_paths(std::string& path, std::vector<std::string>& paths) const
+{
     auto old_size = path.size();
     if (!name.empty()) {
         // 添加上子模块路径（全局模块名不需要搜集）
@@ -100,7 +104,8 @@ void module_node::collect_module_paths(std::string& path, std::vector<std::strin
     path.resize(old_size);
 }
 
-void module_node::collect_sub_factory_module_paths(std::string& path, std::vector<std::string>& paths) const {
+void module_node::collect_sub_factory_module_paths(std::string& path, std::vector<std::string>& paths) const
+{
     if (!sub_factory) {
         return;
     }
@@ -115,7 +120,8 @@ void module_node::collect_sub_factory_module_paths(std::string& path, std::vecto
     });
 }
 
-void module_node::collect_module_types(std::string& path, std::vector<std::string>& all) const {
+void module_node::collect_module_types(std::string& path, std::vector<std::string>& all) const
+{
     for (const auto& [name, info] : types) {
         all.push_back(make_full_path(path, name));
     }
@@ -141,7 +147,8 @@ void module_node::collect_module_types(std::string& path, std::vector<std::strin
     });
 }
 
-void module_node::register_type(split_iterator& type_it, type_info* info) {
+void module_node::register_type(split_iterator& type_it, type_info* info)
+{
     auto name = *type_it;
     ++type_it;
     if (type_it.is_end()) {
@@ -161,7 +168,8 @@ void module_node::register_type(split_iterator& type_it, type_info* info) {
     sub_node->register_type(type_it, info);
 }
 
-bool module_node::unregister_type(split_iterator& type_it) {
+bool module_node::unregister_type(split_iterator& type_it)
+{
     auto name = *type_it;
     ++type_it;
     if (type_it.is_end()) {
@@ -188,7 +196,8 @@ bool module_node::unregister_type(split_iterator& type_it) {
     return false;
 }
 
-void module_node::register_factory(split_iterator& type_it, factory_info* factory) {
+void module_node::register_factory(split_iterator& type_it, factory_info* factory)
+{
     if (type_it.is_end()) {
         sub_factory = factory;
         return;
@@ -206,7 +215,8 @@ void module_node::register_factory(split_iterator& type_it, factory_info* factor
     sub_node->register_factory(type_it, factory);
 }
 
-bool module_node::unregister_factory(split_iterator& type_it) {
+bool module_node::unregister_factory(split_iterator& type_it)
+{
     if (type_it.is_end()) {
         sub_factory = nullptr;
         return true;
@@ -229,7 +239,8 @@ bool module_node::unregister_factory(split_iterator& type_it) {
     return false;
 }
 
-module_node* module_node::new_module_node(std::string_view name) {
+module_node* module_node::new_module_node(std::string_view name)
+{
     auto node = std::make_unique<module_node>(name);
 
     std::string_view name_view = node->name;
@@ -238,7 +249,8 @@ module_node* module_node::new_module_node(std::string_view name) {
     return ptr;
 }
 
-const module_node* module_node::find_module_node(split_iterator& type_it) const {
+const module_node* module_node::find_module_node(split_iterator& type_it) const
+{
     if (type_it.is_end()) {
         return this;
     }
@@ -270,7 +282,8 @@ const module_node* module_node::find_module_node(split_iterator& type_it) const 
     });
 }
 
-factory_ptr module_node::find_factory(split_iterator& type_it) const {
+factory_ptr module_node::find_factory(split_iterator& type_it) const
+{
     if (type_it.is_end()) {
         return sub_factory ? sub_factory->factory.lock() : nullptr;
     }

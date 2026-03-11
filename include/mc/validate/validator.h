@@ -26,7 +26,8 @@ namespace validate {
 class MC_API validation_exception : public std::runtime_error {
 public:
     explicit validation_exception(const std::string& message)
-        : std::runtime_error(message) {
+        : std::runtime_error(message)
+    {
     }
 };
 
@@ -34,7 +35,8 @@ public:
 class MC_API property_value_type_error : public validation_exception {
 public:
     explicit property_value_type_error(const std::string& message)
-        : validation_exception(message) {
+        : validation_exception(message)
+    {
     }
 };
 
@@ -42,7 +44,8 @@ public:
 class MC_API property_value_out_of_range : public validation_exception {
 public:
     explicit property_value_out_of_range(const std::string& message)
-        : validation_exception(message) {
+        : validation_exception(message)
+    {
     }
 };
 
@@ -50,7 +53,8 @@ public:
 class MC_API string_length_error : public validation_exception {
 public:
     explicit string_length_error(const std::string& message)
-        : validation_exception(message) {
+        : validation_exception(message)
+    {
     }
 };
 
@@ -58,7 +62,8 @@ public:
 class MC_API format_error : public validation_exception {
 public:
     explicit format_error(const std::string& message)
-        : validation_exception(message) {
+        : validation_exception(message)
+    {
     }
 };
 
@@ -66,7 +71,8 @@ public:
 class MC_API json_error : public validation_exception {
 public:
     explicit json_error(const std::string& message)
-        : validation_exception(message) {
+        : validation_exception(message)
+    {
     }
 };
 

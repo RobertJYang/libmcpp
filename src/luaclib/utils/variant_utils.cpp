@@ -41,7 +41,8 @@ namespace {
  * @param index 堆栈索引
  * @return 数组大小
  */
-lua_Integer get_lua_table_length(::lua_State* L, int index) {
+lua_Integer get_lua_table_length(::lua_State* L, int index)
+{
     // Lua 5.3 使用 lua_len（Lua 5.1 的 lua_objlen 已废弃）
     lua_len(L, index);
     lua_Integer len = lua_tointeger(L, -1);
@@ -55,7 +56,8 @@ lua_Integer get_lua_table_length(::lua_State* L, int index) {
  * @param index 堆栈索引
  * @return 如果是整数返回 true，否则返回 false
  */
-bool is_lua_integer(::lua_State* L, int index) {
+bool is_lua_integer(::lua_State* L, int index)
+{
     if (!lua_isnumber(L, index)) {
         return false;
     }
@@ -71,7 +73,8 @@ bool is_lua_integer(::lua_State* L, int index) {
  * @param index 堆栈索引
  * @return 如果是数组返回 true，否则返回 false
  */
-bool is_lua_array(::lua_State* L, int index) {
+bool is_lua_array(::lua_State* L, int index)
+{
     if (!lua_istable(L, index)) {
         return false;
     }
@@ -125,7 +128,8 @@ bool is_lua_array(::lua_State* L, int index) {
 
 } // namespace
 
-int variant_to_lua(::lua_State* L, const variant& v) {
+int variant_to_lua(::lua_State* L, const variant& v)
+{
     if (!L) {
         MC_THROW(mc::exception, "Lua state is null");
     }
@@ -213,7 +217,8 @@ int variant_to_lua(::lua_State* L, const variant& v) {
     }
 }
 
-int variants_to_lua(::lua_State* L, const variants& vs) {
+int variants_to_lua(::lua_State* L, const variants& vs)
+{
     if (!L) {
         MC_THROW(mc::exception, "Lua state is null");
     }
@@ -229,7 +234,8 @@ int variants_to_lua(::lua_State* L, const variants& vs) {
     }
 }
 
-variant lua_to_variant(::lua_State* L, int index) {
+variant lua_to_variant(::lua_State* L, int index)
+{
     if (!L) {
         MC_THROW(mc::exception, "Lua state is null");
     }
@@ -318,7 +324,8 @@ variant lua_to_variant(::lua_State* L, int index) {
     }
 }
 
-variants lua_to_variants(::lua_State* L, int start_index, int count) {
+variants lua_to_variants(::lua_State* L, int start_index, int count)
+{
     if (!L) {
         MC_THROW(mc::exception, "Lua state is null");
     }
@@ -358,7 +365,8 @@ variants lua_to_variants(::lua_State* L, int start_index, int count) {
     }
 }
 
-variants lua_to_variants(::lua_State* L, int start_index) {
+variants lua_to_variants(::lua_State* L, int start_index)
+{
     return lua_to_variants(L, start_index, -1);
 }
 

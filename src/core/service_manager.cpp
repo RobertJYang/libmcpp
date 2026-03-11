@@ -20,14 +20,17 @@
 
 namespace mc::core {
 
-service_manager::service_manager() {
+service_manager::service_manager()
+{
 }
 
-service_manager::~service_manager() {
+service_manager::~service_manager()
+{
     cleanup_services();
 }
 
-bool service_manager::add_service(const std::string& name, service_base_ptr service_instance) {
+bool service_manager::add_service(const std::string& name, service_base_ptr service_instance)
+{
     if (!service_instance) {
         elog("error: try to add null service instance '${name}'", ("name", name));
         return false;
@@ -44,7 +47,8 @@ bool service_manager::add_service(const std::string& name, service_base_ptr serv
 }
 
 // 获取服务实例
-service_base_ptr service_manager::get_service(const std::string& name) const {
+service_base_ptr service_manager::get_service(const std::string& name) const
+{
     auto it = m_services.find(name);
     if (it != m_services.end()) {
         return it->second;
@@ -53,7 +57,8 @@ service_base_ptr service_manager::get_service(const std::string& name) const {
 }
 
 // 移除服务实例
-bool service_manager::remove_service(const std::string& name) {
+bool service_manager::remove_service(const std::string& name)
+{
     auto it = m_services.find(name);
     if (it == m_services.end()) {
         wlog("service '${name}' not found, cannot remove", ("name", name));
@@ -85,12 +90,14 @@ bool service_manager::remove_service(const std::string& name) {
 }
 
 // 获取所有服务名称
-std::vector<std::string> service_manager::get_service_names() const {
+std::vector<std::string> service_manager::get_service_names() const
+{
     return m_service_start_order;
 }
 
 // 启动所有服务
-bool service_manager::start_services() {
+bool service_manager::start_services()
+{
     bool success = true;
     // 按照拓扑排序的顺序启动服务
     for (const auto& name : m_service_start_order) {
@@ -111,7 +118,8 @@ bool service_manager::start_services() {
 }
 
 // 停止所有服务
-bool service_manager::stop_services() {
+bool service_manager::stop_services()
+{
     bool success = true;
     // 按照启动顺序的反序停止服务
     for (auto it = m_service_start_order.rbegin(); it != m_service_start_order.rend(); ++it) {
@@ -135,7 +143,8 @@ bool service_manager::stop_services() {
 }
 
 // 清理所有服务
-void service_manager::cleanup_services() {
+void service_manager::cleanup_services()
+{
     stop_services();
 
     for (auto& pair : m_services) {
@@ -154,7 +163,8 @@ void service_manager::cleanup_services() {
 
 // 拓扑排序，返回服务名称列表
 std::vector<std::string>
-service_manager::topological_sort(const std::unordered_map<std::string, service_node>& graph) {
+service_manager::topological_sort(const std::unordered_map<std::string, service_node>& graph)
+{
     // 转换数据结构以适配dependency_sorter
     std::unordered_map<std::string, core::internal::dependency_sorter::dependency_node>
         dependency_graph;
@@ -180,7 +190,8 @@ service_manager::topological_sort(const std::unordered_map<std::string, service_
 
 // 构建服务依赖图
 std::unordered_map<std::string, service_node>
-service_manager::build_dependency_graph(const std::vector<config::service_config>& configs) {
+service_manager::build_dependency_graph(const std::vector<config::service_config>& configs)
+{
     // 首先将 vector 转换为 map
     std::unordered_map<std::string, config::service_config> config_map;
     for (const auto& config : configs) {
@@ -229,7 +240,8 @@ service_manager::build_dependency_graph(const std::vector<config::service_config
 // 创建单个服务实例
 bool service_manager::create_service_instance(const std::string& name, config_manager& config_mgr,
                                               supervisor_manager& supervisor_mgr,
-                                              service_factory&    factory) {
+                                              service_factory&    factory)
+{
     // 查找对应的配置
     auto config = config_mgr.get_config<config::service_config>(name);
     if (!config) {
@@ -273,7 +285,8 @@ bool service_manager::create_service_instance(const std::string& name, config_ma
 // 从配置初始化服务
 bool service_manager::initialize_from_configs(config_manager&     config_mgr,
                                               supervisor_manager& supervisor_mgr,
-                                              service_factory&    factory) {
+                                              service_factory&    factory)
+{
     // 清理现有服务
     m_services.clear();
     m_service_start_order.clear();

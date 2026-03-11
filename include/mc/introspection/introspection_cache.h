@@ -12,10 +12,10 @@
 #ifndef MC_INTROSPECTION_CACHE_H
 #define MC_INTROSPECTION_CACHE_H
 
-#include <string>
-#include <unordered_map>
 #include <memory>
 #include <mutex>
+#include <string>
+#include <unordered_map>
 
 #include <mc/dbus/sd_bus.h>
 
@@ -29,22 +29,21 @@ class introspection_cache {
 public:
     static introspection_cache& instance();
 
-    //获取接口introspection信息
+    // 获取接口introspection信息
 
     const interface_info& get_interface(
-        mc::dbus::sd_bus* bus,
+        mc::dbus::sd_bus*  bus,
         const std::string& service,
         const std::string& path,
-        const std::string& interface
-    );
+        const std::string& interface);
 
     // 清理指定 service/path 的缓存
     void invalidate(const std::string& service, const std::string& path);
 
     introspection_cache(const introspection_cache&) = delete;
-    
+
 private:
-    introspection_cache() = default;
+    introspection_cache()  = default;
     ~introspection_cache() = default;
 
     std::string make_key(const std::string& service, const std::string& path) const;
@@ -52,7 +51,7 @@ private:
     node_info fetch_from_dbus(mc::dbus::sd_bus* bus, const std::string& service, const std::string& path);
 
 private:
-    std::mutex m_mutex;
+    std::mutex                                 m_mutex;
     std::unordered_map<std::string, NodeEntry> m_cache;
 };
 

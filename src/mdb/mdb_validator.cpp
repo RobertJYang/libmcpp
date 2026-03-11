@@ -17,14 +17,16 @@
 #include <stdexcept>
 
 [[noreturn]]
-void TypeError(const std::string& msg) {
+void TypeError(const std::string& msg)
+{
     throw std::runtime_error(msg);
 }
 
 void mdb_validator::check(
     const std::string& name,
     const std::string& signature,
-    const mc::variant& value) {
+    const mc::variant& value)
+{
     try {
         check_type(signature, value);
     } catch (const std::exception& e) {
@@ -34,7 +36,8 @@ void mdb_validator::check(
     }
 }
 
-void mdb_validator::check_method_args(const std::string& method_name, const std::string& signature, const mc::variant& args) {
+void mdb_validator::check_method_args(const std::string& method_name, const std::string& signature, const mc::variant& args)
+{
     if (!args.is_array()) {
         TypeError("method arguments must be array");
     }
@@ -50,7 +53,8 @@ void mdb_validator::check_method_args(const std::string& method_name, const std:
     }
 }
 
-void mdb_validator::check_type(const std::string& signature, const mc::variant& value) {
+void mdb_validator::check_type(const std::string& signature, const mc::variant& value)
+{
     auto sigs = mc::dbus::signature(signature).get_complete_types();
 
     if (sigs.size() == 1) {
@@ -72,7 +76,8 @@ void mdb_validator::check_type(const std::string& signature, const mc::variant& 
     }
 }
 
-void mdb_validator::check_one(const std::string& signature, const mc::variant& value) {
+void mdb_validator::check_one(const std::string& signature, const mc::variant& value)
+{
     if (signature == "ay") {
         if (value.is_blob() || value.is_array()) {
             return;
@@ -95,7 +100,8 @@ void mdb_validator::check_one(const std::string& signature, const mc::variant& v
     }
 }
 
-void mdb_validator::check_basic(const std::string& sig, const mc::variant& value) {
+void mdb_validator::check_basic(const std::string& sig, const mc::variant& value)
+{
     if (is_integer_type(sig)) {
         check_integer_range(sig, value);
         return;
@@ -119,7 +125,8 @@ void mdb_validator::check_basic(const std::string& sig, const mc::variant& value
     TypeError("basic type mismatch");
 }
 
-void mdb_validator::check_array(const std::string& elemsig, const mc::variant& value) {
+void mdb_validator::check_array(const std::string& elemsig, const mc::variant& value)
+{
     if (!value.is_array()) {
         TypeError("expect array");
     }
@@ -129,7 +136,8 @@ void mdb_validator::check_array(const std::string& elemsig, const mc::variant& v
     }
 }
 
-void mdb_validator::check_struct(const std::string& signature, const mc::variant& value) {
+void mdb_validator::check_struct(const std::string& signature, const mc::variant& value)
+{
     if (!value.is_array()) {
         TypeError("expect struct(array)");
     }
@@ -147,7 +155,8 @@ void mdb_validator::check_struct(const std::string& signature, const mc::variant
     }
 }
 
-void mdb_validator::check_dict(const std::string& signature, const mc::variant& value) {
+void mdb_validator::check_dict(const std::string& signature, const mc::variant& value)
+{
     if (!value.is_dict()) {
         TypeError("expect dict");
     }
@@ -161,28 +170,34 @@ void mdb_validator::check_dict(const std::string& signature, const mc::variant& 
     }
 }
 
-bool mdb_validator::is_basic_type(const std::string& sig) {
+bool mdb_validator::is_basic_type(const std::string& sig)
+{
     return sig.size() == 1;
 }
 
-bool mdb_validator::is_integer_type(const std::string& sig) {
+bool mdb_validator::is_integer_type(const std::string& sig)
+{
     return sig == "y" || sig == "q" || sig == "u" || sig == "t" ||
            sig == "n" || sig == "i" || sig == "x";
 }
 
-bool mdb_validator::is_string_type(const std::string& sig) {
+bool mdb_validator::is_string_type(const std::string& sig)
+{
     return sig == "s";
 }
 
-bool mdb_validator::is_dict_type(const std::string& sig) {
+bool mdb_validator::is_dict_type(const std::string& sig)
+{
     return sig.size() > 3 && sig[0] == 'a' && sig[1] == '{';
 }
 
-bool mdb_validator::is_struct_type(const std::string& sig) {
+bool mdb_validator::is_struct_type(const std::string& sig)
+{
     return sig.size() >= 2 && sig.front() == '(' && sig.back() == ')';
 }
 
-void mdb_validator::check_integer_range(const std::string& sig, const mc::variant& value) {
+void mdb_validator::check_integer_range(const std::string& sig, const mc::variant& value)
+{
     if (!value.is_integer()) {
         TypeError("expect integer");
     }
@@ -255,5 +270,6 @@ void mdb_validator::check_integer_range(const std::string& sig, const mc::varian
     TypeError("unsupported integer signature");
 }
 
-void mdb_validator::check_utf8(const std::string& s) {
+void mdb_validator::check_utf8(const std::string& s)
+{
 }

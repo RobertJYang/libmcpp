@@ -33,7 +33,8 @@ public:
     /**
      * @brief 创建传感器 - 脚本可调用
      */
-    void create_sensor(const std::string& name) {
+    void create_sensor(const std::string& name)
+    {
         sensor s;
         s.set_name(name);
         s.initialize();
@@ -43,14 +44,16 @@ public:
     /**
      * @brief 获取传感器数量 - 脚本可调用
      */
-    size_t sensor_count() const {
+    size_t sensor_count() const
+    {
         return m_sensors.size();
     }
 
     /**
      * @brief 读取所有传感器数据 - 脚本可调用
      */
-    void read_all_sensors() {
+    void read_all_sensors()
+    {
         for (auto& s : m_sensors) {
             s.read();
         }
@@ -59,7 +62,8 @@ public:
     /**
      * @brief 获取平均值 - 脚本可调用
      */
-    double get_average_value() const {
+    double get_average_value() const
+    {
         if (m_sensors.empty()) {
             return 0.0;
         }
@@ -74,7 +78,8 @@ public:
     /**
      * @brief 获取传感器列表 - 脚本可调用
      */
-    std::vector<std::string> list_sensors() const {
+    std::vector<std::string> list_sensors() const
+    {
         std::vector<std::string> names;
         for (const auto& s : m_sensors) {
             names.push_back(s.get_name());

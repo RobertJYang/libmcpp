@@ -16,16 +16,19 @@
 
 namespace mc::engine {
 
-property_processor_factory& property_processor_factory::get_instance() {
+property_processor_factory& property_processor_factory::get_instance()
+{
     static property_processor_factory instance;
     return instance;
 }
 
-void property_processor_factory::register_processor(std::unique_ptr<property_processor_interface> processor) {
+void property_processor_factory::register_processor(std::unique_ptr<property_processor_interface> processor)
+{
     m_processors.push_back(std::move(processor));
 }
 
-bool property_processor_factory::process_property_value(property_helper* property, const std::string& value_str) {
+bool property_processor_factory::process_property_value(property_helper* property, const std::string& value_str)
+{
     for (auto& processor : m_processors) {
         if (processor->matches(value_str)) {
             processor->process(property, value_str);

@@ -21,13 +21,15 @@ namespace mc {
 namespace io {
 
 io_buffer::io_buffer() noexcept
-    : m_data(nullptr), m_length(0), m_capacity(0), m_next(this), m_prev(this) {
+    : m_data(nullptr), m_length(0), m_capacity(0), m_next(this), m_prev(this)
+{
 }
 
 io_buffer::io_buffer(io_buffer&& other) noexcept
     : m_buffer(std::move(other.m_buffer)), m_data(other.m_data), m_length(other.m_length),
       m_capacity(other.m_capacity), m_next(other.m_next == &other ? this : other.m_next),
-      m_prev(other.m_prev == &other ? this : other.m_prev) {
+      m_prev(other.m_prev == &other ? this : other.m_prev)
+{
     if (m_next != this) {
         m_next->m_prev = this;
         m_prev->m_next = this;
@@ -40,7 +42,8 @@ io_buffer::io_buffer(io_buffer&& other) noexcept
     other.m_prev     = &other;
 }
 
-io_buffer& io_buffer::operator=(io_buffer&& other) noexcept {
+io_buffer& io_buffer::operator=(io_buffer&& other) noexcept
+{
     if (this != &other) {
         m_buffer = std::move(other.m_buffer);
         free_chain();
@@ -68,12 +71,15 @@ io_buffer& io_buffer::operator=(io_buffer&& other) noexcept {
     return *this;
 }
 
-io_buffer::io_buffer(const io_buffer& other) : io_buffer(other, true) {
+io_buffer::io_buffer(const io_buffer& other)
+    : io_buffer(other, true)
+{
 }
 
 io_buffer::io_buffer(const io_buffer& other, bool copy_chain)
     : m_buffer(other.m_buffer), m_data(other.m_data), m_length(other.m_length),
-      m_capacity(other.m_capacity), m_next(this), m_prev(this) {
+      m_capacity(other.m_capacity), m_next(this), m_prev(this)
+{
     if (!copy_chain || other.m_next == &other) {
         return;
     }
@@ -97,7 +103,8 @@ io_buffer::io_buffer(const io_buffer& other, bool copy_chain)
     m_prev       = tail;
 }
 
-io_buffer& io_buffer::operator=(const io_buffer& other) {
+io_buffer& io_buffer::operator=(const io_buffer& other)
+{
     if (this != &other) {
         io_buffer temp(other);
         *this = std::move(temp);
@@ -105,11 +112,13 @@ io_buffer& io_buffer::operator=(const io_buffer& other) {
     return *this;
 }
 
-io_buffer::~io_buffer() {
+io_buffer::~io_buffer()
+{
     free_chain();
 }
 
-void io_buffer::free_chain() {
+void io_buffer::free_chain()
+{
     if (m_next == this) {
         return;
     }
@@ -129,23 +138,28 @@ void io_buffer::free_chain() {
     }
 }
 
-io_buffer::io_buffer(std::size_t capacity) : m_next(this), m_prev(this) {
+io_buffer::io_buffer(std::size_t capacity)
+    : m_next(this), m_prev(this)
+{
     allocate(capacity);
 }
 
 io_buffer::io_buffer(void* buf, std::size_t capacity, std::size_t length, free_function fn,
                      void* user_data)
     : m_buffer(buf, fn, user_data), m_data(static_cast<uint8_t*>(buf)), m_length(length),
-      m_capacity(capacity), m_next(this), m_prev(this) {
+      m_capacity(capacity), m_next(this), m_prev(this)
+{
 }
 
-std::unique_ptr<io_buffer> io_buffer::create(std::size_t capacity) {
+std::unique_ptr<io_buffer> io_buffer::create(std::size_t capacity)
+{
     return std::unique_ptr<io_buffer>(new io_buffer(capacity));
 }
 
 std::unique_ptr<io_buffer> io_buffer::take_ownership(void* buf, std::size_t capacity,
                                                      std::size_t length, free_function free_fn,
-                                                     void* user_data) {
+                                                     void* user_data)
+{
     if (!buf) {
         MC_THROW(mc::invalid_arg_exception, "缓冲区指针为空");
     }
@@ -157,7 +171,8 @@ std::unique_ptr<io_buffer> io_buffer::take_ownership(void* buf, std::size_t capa
     return std::unique_ptr<io_buffer>(new io_buffer(buf, capacity, length, free_fn, user_data));
 }
 
-std::unique_ptr<io_buffer> io_buffer::wrap(const void* buf, std::size_t length) {
+std::unique_ptr<io_buffer> io_buffer::wrap(const void* buf, std::size_t length)
+{
     if (!buf && length > 0) {
         MC_THROW(mc::invalid_arg_exception, "缓冲区指针为空但长度大于0");
     }
@@ -167,7 +182,8 @@ std::unique_ptr<io_buffer> io_buffer::wrap(const void* buf, std::size_t length) 
 }
 
 std::unique_ptr<io_buffer> io_buffer::copy_buffer(const void* data, std::size_t length,
-                                                  std::size_t headroom, std::size_t tailroom) {
+                                                  std::size_t headroom, std::size_t tailroom)
+{
     if (!data && length > 0) {
         MC_THROW(mc::invalid_arg_exception, "数据指针为空但长度大于0");
     }
@@ -184,11 +200,13 @@ std::unique_ptr<io_buffer> io_buffer::copy_buffer(const void* data, std::size_t 
 }
 
 // 判断缓冲区是否被共享
-bool io_buffer::is_shared() const noexcept {
+bool io_buffer::is_shared() const noexcept
+{
     return m_buffer.is_shared();
 }
 
-void io_buffer::allocate(std::size_t capacity) {
+void io_buffer::allocate(std::size_t capacity)
+{
     if (capacity == 0) {
         m_buffer   = detail::shard_buffer();
         m_data     = nullptr;
@@ -209,14 +227,16 @@ void io_buffer::allocate(std::size_t capacity) {
     m_capacity = alloc_size;
 }
 
-void io_buffer::append(std::size_t amount) noexcept {
+void io_buffer::append(std::size_t amount) noexcept
+{
     if (amount == 0 || tailroom() < amount) {
         return;
     }
     m_length += amount;
 }
 
-void io_buffer::prepend(std::size_t amount) noexcept {
+void io_buffer::prepend(std::size_t amount) noexcept
+{
     if (amount == 0 || headroom() < amount) {
         return;
     }
@@ -224,7 +244,8 @@ void io_buffer::prepend(std::size_t amount) noexcept {
     m_length += amount;
 }
 
-void io_buffer::trim_end(std::size_t amount) noexcept {
+void io_buffer::trim_end(std::size_t amount) noexcept
+{
     if (amount >= m_length) {
         m_length = 0;
     } else {
@@ -232,7 +253,8 @@ void io_buffer::trim_end(std::size_t amount) noexcept {
     }
 }
 
-void io_buffer::trim_start(std::size_t amount) noexcept {
+void io_buffer::trim_start(std::size_t amount) noexcept
+{
     if (amount >= m_length) {
         m_data += m_length;
         m_length = 0;
@@ -243,12 +265,14 @@ void io_buffer::trim_start(std::size_t amount) noexcept {
 }
 
 // 清空数据
-void io_buffer::clear() noexcept {
+void io_buffer::clear() noexcept
+{
     m_data   = m_buffer.data();
     m_length = 0;
 }
 
-void io_buffer::reserve(std::size_t min_headroom, std::size_t min_tailroom) {
+void io_buffer::reserve(std::size_t min_headroom, std::size_t min_tailroom)
+{
     if (headroom() >= min_headroom && tailroom() >= min_tailroom) {
         return;
     }
@@ -287,7 +311,8 @@ void io_buffer::reserve(std::size_t min_headroom, std::size_t min_tailroom) {
 }
 
 // 数据对齐到指定边界
-std::size_t io_buffer::align(std::size_t alignment) {
+std::size_t io_buffer::align(std::size_t alignment)
+{
     if (alignment <= 1) {
         return 0;
     }
@@ -308,7 +333,8 @@ std::size_t io_buffer::align(std::size_t alignment) {
     return padding;
 }
 
-std::size_t io_buffer::write_at_offset(std::size_t offset, const void* data, std::size_t length) {
+std::size_t io_buffer::write_at_offset(std::size_t offset, const void* data, std::size_t length)
+{
     if (length == 0) {
         return 0;
     }
@@ -331,7 +357,8 @@ std::size_t io_buffer::write_at_offset(std::size_t offset, const void* data, std
     return length;
 }
 
-std::size_t io_buffer::write(const void* data, std::size_t length) {
+std::size_t io_buffer::write(const void* data, std::size_t length)
+{
     if (length == 0) {
         return 0;
     }
@@ -350,7 +377,8 @@ std::size_t io_buffer::write(const void* data, std::size_t length) {
     return length;
 }
 
-std::string_view io_buffer::read(std::size_t offset, std::size_t length) const {
+std::string_view io_buffer::read(std::size_t offset, std::size_t length) const
+{
     if (offset + length > m_length) {
         MC_THROW(mc::out_of_range_exception, "读取位置超出缓冲区范围");
     }
@@ -358,7 +386,8 @@ std::string_view io_buffer::read(std::size_t offset, std::size_t length) const {
     return std::string_view(reinterpret_cast<const char*>(m_data + offset), length);
 }
 
-std::size_t io_buffer::read(std::size_t offset, void* data, std::size_t length) const {
+std::size_t io_buffer::read(std::size_t offset, void* data, std::size_t length) const
+{
     if (data == nullptr) {
         MC_THROW(mc::invalid_arg_exception, "数据指针为空");
     }
@@ -371,7 +400,8 @@ std::size_t io_buffer::read(std::size_t offset, void* data, std::size_t length) 
     return length;
 }
 
-bool io_buffer::try_read(std::size_t offset, void* data, std::size_t length) const noexcept {
+bool io_buffer::try_read(std::size_t offset, void* data, std::size_t length) const noexcept
+{
     if (data == nullptr || offset + length > m_length) {
         return false;
     }
@@ -380,7 +410,8 @@ bool io_buffer::try_read(std::size_t offset, void* data, std::size_t length) con
     return true;
 }
 
-std::string_view io_buffer::try_read(std::size_t offset, std::size_t length) const noexcept {
+std::string_view io_buffer::try_read(std::size_t offset, std::size_t length) const noexcept
+{
     if (offset + length > m_length) {
         return {};
     }
@@ -388,7 +419,8 @@ std::string_view io_buffer::try_read(std::size_t offset, std::size_t length) con
     return std::string_view(reinterpret_cast<const char*>(m_data + offset), length);
 }
 
-std::string_view io_buffer::read_some(std::size_t offset, std::size_t length) const {
+std::string_view io_buffer::read_some(std::size_t offset, std::size_t length) const
+{
     if (offset >= m_length) {
         return {};
     }
@@ -397,7 +429,8 @@ std::string_view io_buffer::read_some(std::size_t offset, std::size_t length) co
     return std::string_view(reinterpret_cast<const char*>(m_data + offset), read_length);
 }
 
-std::size_t io_buffer::read_some(std::size_t offset, void* data, std::size_t length) const {
+std::size_t io_buffer::read_some(std::size_t offset, void* data, std::size_t length) const
+{
     if (data == nullptr) {
         MC_THROW(mc::invalid_arg_exception, "数据指针为空");
     }
@@ -411,7 +444,8 @@ std::size_t io_buffer::read_some(std::size_t offset, void* data, std::size_t len
     return read_length;
 }
 
-bool io_buffer::ensure_tailroom(std::size_t amount) {
+bool io_buffer::ensure_tailroom(std::size_t amount)
+{
     if (tailroom() >= amount) {
         return true;
     }
@@ -424,7 +458,8 @@ bool io_buffer::ensure_tailroom(std::size_t amount) {
     }
 }
 
-std::unique_ptr<io_buffer> io_buffer::clone() const {
+std::unique_ptr<io_buffer> io_buffer::clone() const
+{
     if (empty()) {
         return create(0);
     }
@@ -463,7 +498,8 @@ std::unique_ptr<io_buffer> io_buffer::clone() const {
     return head;
 }
 
-void io_buffer::unshare() {
+void io_buffer::unshare()
+{
     if (!is_shared()) {
         return;
     }
@@ -473,11 +509,13 @@ void io_buffer::unshare() {
     *this = std::move(*new_buf);
 }
 
-bool io_buffer::is_chained() const noexcept {
+bool io_buffer::is_chained() const noexcept
+{
     return m_next != this;
 }
 
-std::size_t io_buffer::compute_chain_length() const noexcept {
+std::size_t io_buffer::compute_chain_length() const noexcept
+{
     if (m_next == this) {
         return m_length;
     }
@@ -497,7 +535,8 @@ std::size_t io_buffer::compute_chain_length() const noexcept {
     return total;
 }
 
-void io_buffer::append_to_chain(std::unique_ptr<io_buffer>&& buf) {
+void io_buffer::append_to_chain(std::unique_ptr<io_buffer>&& buf)
+{
     if (!buf) {
         return;
     }
@@ -517,7 +556,8 @@ void io_buffer::append_to_chain(std::unique_ptr<io_buffer>&& buf) {
     }
 }
 
-void io_buffer::insert_after(std::unique_ptr<io_buffer>&& buf) {
+void io_buffer::insert_after(std::unique_ptr<io_buffer>&& buf)
+{
     if (!buf) {
         return;
     }
@@ -530,7 +570,8 @@ void io_buffer::insert_after(std::unique_ptr<io_buffer>&& buf) {
     m_next         = node;
 }
 
-std::string_view io_buffer::normalize() {
+std::string_view io_buffer::normalize()
+{
     if (m_next == this) {
         return std::string_view(reinterpret_cast<const char*>(m_data), m_length);
     }
@@ -556,16 +597,19 @@ std::string_view io_buffer::normalize() {
 }
 
 detail::shard_buffer::shard_buffer()
-    : m_shared_info(nullptr), m_buffer(nullptr), m_free_fn(nullptr), m_user_data(nullptr) {
+    : m_shared_info(nullptr), m_buffer(nullptr), m_free_fn(nullptr), m_user_data(nullptr)
+{
 }
 
 detail::shard_buffer::shard_buffer(const detail::shard_buffer& other)
     : m_shared_info(other.m_shared_info), m_buffer(other.m_buffer), m_free_fn(other.m_free_fn),
-      m_user_data(other.m_user_data) {
+      m_user_data(other.m_user_data)
+{
     share_from(other);
 }
 
-detail::shard_buffer& detail::shard_buffer::operator=(const detail::shard_buffer& other) {
+detail::shard_buffer& detail::shard_buffer::operator=(const detail::shard_buffer& other)
+{
     m_shared_info = other.m_shared_info;
     m_buffer      = other.m_buffer;
     m_free_fn     = other.m_free_fn;
@@ -575,7 +619,8 @@ detail::shard_buffer& detail::shard_buffer::operator=(const detail::shard_buffer
     return *this;
 }
 
-detail::shard_buffer::shard_buffer(detail::shard_buffer&& other) noexcept {
+detail::shard_buffer::shard_buffer(detail::shard_buffer&& other) noexcept
+{
     m_shared_info       = other.m_shared_info;
     m_buffer            = other.m_buffer;
     m_free_fn           = other.m_free_fn;
@@ -586,7 +631,8 @@ detail::shard_buffer::shard_buffer(detail::shard_buffer&& other) noexcept {
     other.m_user_data   = nullptr;
 }
 
-detail::shard_buffer& detail::shard_buffer::operator=(detail::shard_buffer&& other) noexcept {
+detail::shard_buffer& detail::shard_buffer::operator=(detail::shard_buffer&& other) noexcept
+{
     if (this != &other) {
         free();
 
@@ -602,21 +648,25 @@ detail::shard_buffer& detail::shard_buffer::operator=(detail::shard_buffer&& oth
     return *this;
 }
 
-detail::shard_buffer::~shard_buffer() {
+detail::shard_buffer::~shard_buffer()
+{
     free();
 }
 
 detail::shard_buffer::shard_buffer(void* buf, free_function fn, void* user_data)
-    : m_buffer(static_cast<uint8_t*>(buf)), m_free_fn(fn), m_user_data(user_data) {
+    : m_buffer(static_cast<uint8_t*>(buf)), m_free_fn(fn), m_user_data(user_data)
+{
 }
 
-void detail::shard_buffer::ensure_shared_info() {
+void detail::shard_buffer::ensure_shared_info()
+{
     if (!m_shared_info) {
         m_shared_info = new shared_info();
     }
 }
 
-void detail::shard_buffer::share_from(const detail::shard_buffer& other) {
+void detail::shard_buffer::share_from(const detail::shard_buffer& other)
+{
     if (!other.m_buffer) {
         return;
     }
@@ -629,11 +679,13 @@ void detail::shard_buffer::share_from(const detail::shard_buffer& other) {
     m_shared_info->ref_count.fetch_add(1, std::memory_order_acq_rel);
 }
 
-bool detail::shard_buffer::is_shared() const noexcept {
+bool detail::shard_buffer::is_shared() const noexcept
+{
     return m_shared_info && m_shared_info->ref_count.load(std::memory_order_acquire) > 1;
 }
 
-void detail::shard_buffer::unshare() {
+void detail::shard_buffer::unshare()
+{
     if (!is_shared()) {
         return;
     }
@@ -645,7 +697,8 @@ void detail::shard_buffer::unshare() {
     m_user_data   = nullptr;
 }
 
-void detail::shard_buffer::free() {
+void detail::shard_buffer::free()
+{
     if (!m_buffer) {
         return;
     }

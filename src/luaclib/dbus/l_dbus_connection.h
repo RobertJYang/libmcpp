@@ -34,17 +34,20 @@ struct connection_wrapper {
     bool                  is_blocking;  // 标识是否来自阻塞式 bus
 
     explicit connection_wrapper(mc::dbus::connection* ptr, bool take_ownership = false, bool blocking = true)
-        : conn_ptr(ptr), owns(take_ownership), is_blocking(blocking) {
+        : conn_ptr(ptr), owns(take_ownership), is_blocking(blocking)
+    {
     }
 
-    mc::dbus::connection& get() {
+    mc::dbus::connection& get()
+    {
         return *conn_ptr;
     }
 };
 
 // 创建 connection userdata 并推入 Lua 栈
 // is_blocking: true 表示来自阻塞式 bus，false 表示来自非阻塞式 bus
-inline int push_connection(lua_State* L, mc::dbus::connection& conn, bool is_blocking = true) {
+inline int push_connection(lua_State* L, mc::dbus::connection& conn, bool is_blocking = true)
+{
     void* userdata = lua_newuserdata(L, sizeof(connection_wrapper));
     // 不拥有 connection，只是引用
     new (userdata) connection_wrapper(&conn, false, is_blocking);
@@ -56,12 +59,14 @@ inline int push_connection(lua_State* L, mc::dbus::connection& conn, bool is_blo
 }
 
 // 从 Lua 栈获取 connection
-inline connection_wrapper* check_connection(lua_State* L, int index = 1) {
+inline connection_wrapper* check_connection(lua_State* L, int index = 1)
+{
     return static_cast<connection_wrapper*>(luaL_checkudata(L, index, CONNECTION_METATABLE));
 }
 
 // conn:close()
-inline int connection_close(lua_State* L) {
+inline int connection_close(lua_State* L)
+{
     auto wrapper = check_connection(L);
     try {
         wrapper->get().disconnect();
@@ -72,7 +77,8 @@ inline int connection_close(lua_State* L) {
 }
 
 // conn:flush()
-inline int connection_flush(lua_State* L) {
+inline int connection_flush(lua_State* L)
+{
     auto wrapper = check_connection(L);
     try {
         wrapper->get().flush();
@@ -83,7 +89,8 @@ inline int connection_flush(lua_State* L) {
 }
 
 // conn:dispatch()
-inline int connection_dispatch(lua_State* L) {
+inline int connection_dispatch(lua_State* L)
+{
     auto wrapper = check_connection(L);
     try {
         wrapper->get().dispatch();
@@ -95,7 +102,8 @@ inline int connection_dispatch(lua_State* L) {
 
 // conn:request_name(name, [flags])
 // 返回两个参数：(success: bool, error: string|nil)
-inline int connection_request_name(lua_State* L) {
+inline int connection_request_name(lua_State* L)
+{
     auto wrapper = check_connection(L);
     try {
         const char* name = luaL_checkstring(L, 2);
@@ -124,7 +132,8 @@ inline int connection_request_name(lua_State* L) {
 }
 
 // conn:is_connected()（实际调用 get_is_connected）
-inline int connection_is_connected(lua_State* L) {
+inline int connection_is_connected(lua_State* L)
+{
     auto wrapper = check_connection(L);
     try {
         bool result = wrapper->get().get_is_connected();
@@ -136,7 +145,8 @@ inline int connection_is_connected(lua_State* L) {
 }
 
 // conn:unique_name()
-inline int connection_unique_name(lua_State* L) {
+inline int connection_unique_name(lua_State* L)
+{
     auto wrapper = check_connection(L);
     try {
         auto name = wrapper->get().get_unique_name();
@@ -152,7 +162,8 @@ inline int connection_unique_name(lua_State* L) {
 }
 
 // conn:set_unique_name(name)
-inline int connection_set_unique_name(lua_State* L) {
+inline int connection_set_unique_name(lua_State* L)
+{
     auto wrapper = check_connection(L);
     try {
         const char* name = luaL_checkstring(L, 2);
@@ -165,7 +176,8 @@ inline int connection_set_unique_name(lua_State* L) {
 
 // conn:set_matchs(matchs)
 // matchs 是一个字符串数组
-inline int connection_set_matchs(lua_State* L) {
+inline int connection_set_matchs(lua_State* L)
+{
     auto wrapper = check_connection(L);
     try {
         // TODO: 实现 set_matchs 功能
@@ -177,7 +189,8 @@ inline int connection_set_matchs(lua_State* L) {
 }
 
 // conn:register_object_fallback(path, handler)
-inline int connection_register_object_fallback(lua_State* L) {
+inline int connection_register_object_fallback(lua_State* L)
+{
     auto wrapper = check_connection(L);
     try {
         // TODO: 实现 register_object_fallback 功能
@@ -189,7 +202,8 @@ inline int connection_register_object_fallback(lua_State* L) {
 }
 
 // conn:register_object_path(path, handler)
-inline int connection_register_object_path(lua_State* L) {
+inline int connection_register_object_path(lua_State* L)
+{
     auto wrapper = check_connection(L);
     try {
         // TODO: 实现 register_object_path 功能
@@ -201,7 +215,8 @@ inline int connection_register_object_path(lua_State* L) {
 }
 
 // conn:unregister_object_path(path)
-inline int connection_unregister_object_path(lua_State* L) {
+inline int connection_unregister_object_path(lua_State* L)
+{
     auto wrapper = check_connection(L);
     try {
         // TODO: 实现 unregister_object_path 功能
@@ -215,7 +230,8 @@ inline int connection_unregister_object_path(lua_State* L) {
 // conn:to_raw(add_ref)
 // 获取底层 DBusConnection* 的 lightuserdata
 // add_ref: 布尔值，是否增加引用计数（可选，默认false）
-inline int connection_to_raw(lua_State* L) {
+inline int connection_to_raw(lua_State* L)
+{
     auto wrapper = check_connection(L);
     try {
         // 获取 add_ref 参数（可选，默认 false）
@@ -246,7 +262,8 @@ inline int connection_to_raw(lua_State* L) {
 // conn:send_with_reply_and_block(msg, timeout)
 // 发送消息并阻塞等待回复
 // 如果失败，通过 ensure_ok 抛出 lua_error
-inline int connection_send_with_reply_and_block(lua_State* L) {
+inline int connection_send_with_reply_and_block(lua_State* L)
+{
     auto wrapper = check_connection(L);
     try {
         // 参数1: message对象（userdata）
@@ -286,7 +303,8 @@ inline int connection_send_with_reply_and_block(lua_State* L) {
 }
 
 // __index 元方法
-inline int connection_index(lua_State* L) {
+inline int connection_index(lua_State* L)
+{
     // 从方法表中查找
     luaL_getmetatable(L, CONNECTION_METATABLE);
     lua_pushvalue(L, 2); // key
@@ -302,7 +320,8 @@ inline int connection_index(lua_State* L) {
 }
 
 // __gc 元方法
-inline int connection_gc(lua_State* L) {
+inline int connection_gc(lua_State* L)
+{
     auto wrapper = check_connection(L);
     // 如果拥有 connection，需要删除
     if (wrapper->owns && wrapper->conn_ptr) {
@@ -313,7 +332,8 @@ inline int connection_gc(lua_State* L) {
 }
 
 // 注册 connection metatable
-inline void register_connection_metatable(lua_State* L) {
+inline void register_connection_metatable(lua_State* L)
+{
     // 创建 metatable
     luaL_newmetatable(L, CONNECTION_METATABLE);
 

@@ -24,9 +24,9 @@
 namespace mc {
 namespace validate {
 
-
 std::pair<std::string, std::string> validator::format_name_and_value(std::string_view name, std::string_view val_str,
-                                                                     bool need_convert) {
+                                                                     bool need_convert)
+{
     std::string final_name(name);
     std::string final_val(val_str);
 
@@ -38,7 +38,8 @@ std::pair<std::string, std::string> validator::format_name_and_value(std::string
     return {final_name, final_val};
 }
 
-bool validator::is_integer(double val) {
+bool validator::is_integer(double val)
+{
     // 检查是否是 NaN
     if (val != val) {
         return false;
@@ -48,7 +49,8 @@ bool validator::is_integer(double val) {
     return std::modf(val, &int_part) == 0.0;
 }
 
-void validator::check_integer(std::string_view name, double val, double min, double max, bool need_convert) {
+void validator::check_integer(std::string_view name, double val, double min, double max, bool need_convert)
+{
     // 检查是否为整数
     if (!is_integer(val)) {
         std::ostringstream oss;
@@ -66,7 +68,8 @@ void validator::check_integer(std::string_view name, double val, double min, dou
     }
 }
 
-void validator::ranges(std::string_view name, double val, double min, double max, bool need_convert, bool allow_nil) {
+void validator::ranges(std::string_view name, double val, double min, double max, bool need_convert, bool allow_nil)
+{
     (void)min;
     (void)max;
     (void)need_convert;
@@ -80,7 +83,8 @@ void validator::ranges(std::string_view name, double val, double min, double max
     }
 }
 
-void validator::lens(std::string_view name, std::string_view val, int min, int max, bool need_convert, bool allow_nil) {
+void validator::lens(std::string_view name, std::string_view val, int min, int max, bool need_convert, bool allow_nil)
+{
     (void)max;
     (void)need_convert;
     (void)allow_nil;
@@ -98,7 +102,8 @@ void validator::lens(std::string_view name, std::string_view val, int min, int m
 }
 
 void validator::regex(std::string_view name, std::string_view val, std::string_view pattern, bool need_convert,
-                      bool allow_nil) {
+                      bool allow_nil)
+{
     (void)pattern;
     (void)need_convert;
     (void)allow_nil;
@@ -125,7 +130,8 @@ void validator::regex(std::string_view name, std::string_view val, std::string_v
     }
 }
 
-void validator::json(std::string_view val) {
+void validator::json(std::string_view val)
+{
     std::string json_str(val);
     try {
         mc::json::json_decode(json_str);

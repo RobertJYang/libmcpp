@@ -11,19 +11,20 @@
  */
 
 #include <chrono>
-#include <ratio>
 #include <cstdlib>
 #include <ctime>
 #include <gtest/gtest.h>
 #include <mc/exception.h>
 #include <mc/fmt/format.h>
 #include <mc/fmt/formatter_chrono.h>
+#include <ratio>
 #include <string>
 
 using namespace mc::fmt;
 
 // Duration 基本格式化测试
-TEST(chrono_format_test, duration_basic) {
+TEST(chrono_format_test, duration_basic)
+{
     using namespace std::chrono;
 
     EXPECT_EQ(sformat("{}", seconds(42)), "42s");
@@ -35,7 +36,8 @@ TEST(chrono_format_test, duration_basic) {
 }
 
 // Duration 精度测试
-TEST(chrono_format_test, duration_precision) {
+TEST(chrono_format_test, duration_precision)
+{
     using namespace std::chrono;
     using double_seconds = duration<double>;
 
@@ -48,7 +50,8 @@ TEST(chrono_format_test, duration_precision) {
 }
 
 // Duration 负值测试
-TEST(chrono_format_test, duration_negative) {
+TEST(chrono_format_test, duration_negative)
+{
     using namespace std::chrono;
 
     EXPECT_EQ(sformat("{}", -seconds(42)), "-42s");
@@ -57,7 +60,8 @@ TEST(chrono_format_test, duration_negative) {
 }
 
 // Duration 时间格式测试
-TEST(chrono_format_test, duration_time_format) {
+TEST(chrono_format_test, duration_time_format)
+{
     using namespace std::chrono;
 
     auto duration = hours(2) + minutes(30) + seconds(45);
@@ -76,7 +80,8 @@ TEST(chrono_format_test, duration_time_format) {
 }
 
 // Duration 值和单位格式测试
-TEST(chrono_format_test, duration_value_unit) {
+TEST(chrono_format_test, duration_value_unit)
+{
     using namespace std::chrono;
 
     EXPECT_EQ(sformat("{:%Q}", seconds(42)), "42");
@@ -89,7 +94,8 @@ TEST(chrono_format_test, duration_value_unit) {
 }
 
 // Duration 子秒精度测试
-TEST(chrono_format_test, duration_subsecond) {
+TEST(chrono_format_test, duration_subsecond)
+{
     using namespace std::chrono;
 
     // 毫秒精度
@@ -106,7 +112,8 @@ TEST(chrono_format_test, duration_subsecond) {
 }
 
 // Time point 基本格式化测试
-TEST(chrono_format_test, time_point_basic) {
+TEST(chrono_format_test, time_point_basic)
+{
     using namespace std::chrono;
 
     // 使用固定时间点进行测试 (2024-07-02 12:30:45 UTC)
@@ -123,7 +130,8 @@ TEST(chrono_format_test, time_point_basic) {
 }
 
 // Time point 自定义格式测试
-TEST(chrono_format_test, time_point_custom_format) {
+TEST(chrono_format_test, time_point_custom_format)
+{
     using namespace std::chrono;
 
     // 使用固定时间点进行测试
@@ -144,7 +152,8 @@ TEST(chrono_format_test, time_point_custom_format) {
 }
 
 // Time point 时间格式测试
-TEST(chrono_format_test, time_point_time_format) {
+TEST(chrono_format_test, time_point_time_format)
+{
     using namespace std::chrono;
 
     system_clock::time_point tp = system_clock::from_time_t(1719920445);
@@ -161,7 +170,8 @@ TEST(chrono_format_test, time_point_time_format) {
 }
 
 // Time point 子秒精度测试 - 测试"转换为纳秒并格式化"功能
-TEST(chrono_format_test, time_point_subsecond) {
+TEST(chrono_format_test, time_point_subsecond)
+{
     using namespace std::chrono;
 
     // 创建一个包含子秒的时间点
@@ -205,7 +215,8 @@ TEST(chrono_format_test, time_point_subsecond) {
 }
 
 // 格式解析错误测试
-TEST(chrono_format_test, format_parse_errors) {
+TEST(chrono_format_test, format_parse_errors)
+{
     using namespace std::chrono;
 
     formatter<seconds> dur_fmt;
@@ -221,7 +232,8 @@ TEST(chrono_format_test, format_parse_errors) {
 }
 
 // 填充和修饰符测试
-TEST(chrono_format_test, padding_and_modifiers) {
+TEST(chrono_format_test, padding_and_modifiers)
+{
     using namespace std::chrono;
 
     auto duration = hours(5) + minutes(7) + seconds(9);
@@ -237,7 +249,8 @@ TEST(chrono_format_test, padding_and_modifiers) {
 }
 
 // 边界情况测试
-TEST(chrono_format_test, edge_cases) {
+TEST(chrono_format_test, edge_cases)
+{
     using namespace std::chrono;
 
     // 零值
@@ -259,7 +272,8 @@ TEST(chrono_format_test, edge_cases) {
 }
 
 // 容器中的 chrono 类型测试
-TEST(chrono_format_test, container_formatting) {
+TEST(chrono_format_test, container_formatting)
+{
     using namespace std::chrono;
 
     std::vector<seconds> durations{seconds(1), seconds(2), seconds(3)};
@@ -272,7 +286,8 @@ TEST(chrono_format_test, container_formatting) {
 }
 
 // 时区格式化测试
-TEST(chrono_format_test, timezone_formatting) {
+TEST(chrono_format_test, timezone_formatting)
+{
     using namespace std::chrono;
 
     // 使用固定时间点进行测试 (2024-07-02 12:30:45 UTC)
@@ -382,7 +397,8 @@ TEST(chrono_format_test, timezone_formatting) {
 }
 
 // 测试时区名称格式化
-TEST(chrono_format_test, timezone_name_formatting) {
+TEST(chrono_format_test, timezone_name_formatting)
+{
     using namespace std::chrono;
 
     // 使用固定时间点进行测试 (2024-07-02 12:30:45 UTC)
@@ -435,7 +451,8 @@ TEST(chrono_format_test, timezone_name_formatting) {
 }
 
 // Duration 中使用年份/时区格式会被校验拒绝，应在运行期抛出异常
-TEST(chrono_format_test, duration_uncommon_fields) {
+TEST(chrono_format_test, duration_uncommon_fields)
+{
     using namespace std::chrono;
 
     auto duration = hours(49) + minutes(5);
@@ -444,7 +461,8 @@ TEST(chrono_format_test, duration_uncommon_fields) {
 }
 
 // 测试 12 小时制格式
-TEST(chrono_format_test, Duration12HourFormat) {
+TEST(chrono_format_test, Duration12HourFormat)
+{
     using namespace std::chrono;
 
     // 构造包含小时/分钟/秒的 duration
@@ -456,13 +474,14 @@ TEST(chrono_format_test, Duration12HourFormat) {
     EXPECT_EQ(result, "02:30:45 PM");
 
     // 测试上午时间
-    auto morning = hours(9) + minutes(15) + seconds(30);
+    auto        morning        = hours(9) + minutes(15) + seconds(30);
     std::string morning_result = sformat("{:%I:%M:%S %p}", morning);
     EXPECT_EQ(morning_result, "09:15:30 AM");
 }
 
 // 测试 time_point 的时区 tokens
-TEST(chrono_format_test, TimePointTimezoneTokens) {
+TEST(chrono_format_test, TimePointTimezoneTokens)
+{
     using namespace std::chrono;
 
     // 设置时区为 UTC
@@ -486,7 +505,8 @@ TEST(chrono_format_test, TimePointTimezoneTokens) {
 }
 
 // 测试 time_point 的 12 小时制格式
-TEST(chrono_format_test, TimePoint12HourFormat) {
+TEST(chrono_format_test, TimePoint12HourFormat)
+{
     using namespace std::chrono;
 
     // 设置时区为 UTC
@@ -502,7 +522,7 @@ TEST(chrono_format_test, TimePoint12HourFormat) {
     EXPECT_EQ(result, "02:30:45 PM");
 
     // 测试午夜（hour == 0）
-    auto midnight = system_clock::time_point{} + hours(0) + minutes(0) + seconds(0);
+    auto        midnight        = system_clock::time_point{} + hours(0) + minutes(0) + seconds(0);
     std::string midnight_result = sformat("{:%I:%M:%S %p}", midnight);
     EXPECT_EQ(midnight_result, "12:00:00 AM");
 }

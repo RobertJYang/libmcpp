@@ -24,7 +24,8 @@
 using namespace mc;
 
 // 测试 dict 转换为 variant
-TEST(DictConversionTest, DictToVariant) {
+TEST(DictConversionTest, DictToVariant)
+{
     dict d({{"key1", 123}, {"key2", "value"}, {"key3", true}});
 
     // 将 dict 转换为 variant
@@ -41,7 +42,8 @@ TEST(DictConversionTest, DictToVariant) {
 }
 
 // 测试 dict 转换为 variant
-TEST(DictConversionTest, MutableDictToVariant) {
+TEST(DictConversionTest, MutableDictToVariant)
+{
     dict md({{"key1", 123}, {"key2", "value"}, {"key3", true}});
 
     // 将 dict 转换为 variant
@@ -58,7 +60,8 @@ TEST(DictConversionTest, MutableDictToVariant) {
 }
 
 // 测试 variant 转换为 dict
-TEST(DictConversionTest, VariantToDict) {
+TEST(DictConversionTest, VariantToDict)
+{
     dict d1({{"key1", 123}, {"key2", "value"}, {"key3", true}});
 
     // 将 dict 转换为 variant
@@ -75,7 +78,8 @@ TEST(DictConversionTest, VariantToDict) {
 }
 
 // 测试 variant 转换为 dict
-TEST(DictConversionTest, VariantToMutableDict) {
+TEST(DictConversionTest, VariantToMutableDict)
+{
     dict md1({{"key1", 123}, {"key2", "value"}, {"key3", true}});
 
     // 将 dict 转换为 variant
@@ -92,7 +96,8 @@ TEST(DictConversionTest, VariantToMutableDict) {
 }
 
 // 测试 std::map 转换为 dict
-TEST(DictConversionTest, StdMapToDict) {
+TEST(DictConversionTest, StdMapToDict)
+{
     // 创建一个 std::map
     std::map<std::string, variant> m;
     m["key1"] = 123;
@@ -115,7 +120,8 @@ TEST(DictConversionTest, StdMapToDict) {
 }
 
 // 测试 std::unordered_map 转换为 dict
-TEST(DictConversionTest, StdUnorderedMapToDict) {
+TEST(DictConversionTest, StdUnorderedMapToDict)
+{
     // 创建一个 std::unordered_map
     std::unordered_map<std::string, variant> m;
     m["key1"] = 123;
@@ -138,7 +144,8 @@ TEST(DictConversionTest, StdUnorderedMapToDict) {
 }
 
 // 测试 dict 转换为 std::map
-TEST(DictConversionTest, DictToStdMap) {
+TEST(DictConversionTest, DictToStdMap)
+{
     // 创建一个 dict
     dict d({{"key1", 123}, {"key2", "value"}, {"key3", true}});
 
@@ -156,7 +163,8 @@ TEST(DictConversionTest, DictToStdMap) {
 }
 
 // 测试 dict 转换为 std::unordered_map
-TEST(DictConversionTest, DictToStdUnorderedMap) {
+TEST(DictConversionTest, DictToStdUnorderedMap)
+{
     // 创建一个 dict
     dict d({{"key1", 123}, {"key2", "value"}, {"key3", true}});
 
@@ -174,7 +182,8 @@ TEST(DictConversionTest, DictToStdUnorderedMap) {
 }
 
 // 测试嵌套 dict 转换
-TEST(DictConversionTest, NestedDictConversion) {
+TEST(DictConversionTest, NestedDictConversion)
+{
     // 创建嵌套的 dict
     dict inner_md({{"inner1", 123}, {"inner2", "inner_value"}});
 

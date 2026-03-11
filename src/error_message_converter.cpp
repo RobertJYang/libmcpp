@@ -18,7 +18,8 @@
 
 namespace mc {
 
-mc::dict standard_error_message::to_dict() const {
+mc::dict standard_error_message::to_dict() const
+{
     mc::dict result;
     result["MessageId"] = message_id;
     result["Message"]   = message;
@@ -51,7 +52,8 @@ mc::dict standard_error_message::to_dict() const {
 }
 
 void error_message_converter::load_registries(std::string_view base_json_path,
-                                              std::string_view custom_json_path) {
+                                              std::string_view custom_json_path)
+{
     ilog("加载标准错误定义: base=${base}, custom=${custom}",
          ("base", base_json_path)("custom", custom_json_path));
 
@@ -69,7 +71,8 @@ void error_message_converter::load_registries(std::string_view base_json_path,
 }
 
 void error_message_converter::load_registries_from_string(std::string_view base_json,
-                                                          std::string_view custom_json) {
+                                                          std::string_view custom_json)
+{
     ilog("从字符串加载标准错误定义");
 
     std::lock_guard<std::mutex> lock(m_mutex);
@@ -83,7 +86,8 @@ void error_message_converter::load_registries_from_string(std::string_view base_
 }
 
 std::optional<error_message_definition> error_message_converter::find_definition(
-    std::string_view message_name) const {
+    std::string_view message_name) const
+{
     std::lock_guard<std::mutex> lock(m_mutex);
 
     // 先在 custom 中查找
@@ -98,7 +102,8 @@ std::optional<error_message_definition> error_message_converter::find_definition
 
 standard_error_message error_message_converter::convert(
     const mc::error&                err,
-    const std::vector<std::string>& related_properties) const {
+    const std::vector<std::string>& related_properties) const
+{
     standard_error_message result;
 
     std::string error_name = std::string(err.get_name());
@@ -185,23 +190,27 @@ standard_error_message error_message_converter::convert(
 
 mc::dict error_message_converter::convert_to_dict(
     const mc::error&                err,
-    const std::vector<std::string>& related_properties) const {
+    const std::vector<std::string>& related_properties) const
+{
     standard_error_message std_msg = convert(err, related_properties);
     return std_msg.to_dict();
 }
 
-error_message_converter& error_message_converter::get_instance() {
+error_message_converter& error_message_converter::get_instance()
+{
     static error_message_converter instance;
     return instance;
 }
 
 standard_error_message to_standard_message(const mc::error&                err,
-                                           const std::vector<std::string>& related_properties) {
+                                           const std::vector<std::string>& related_properties)
+{
     return error_message_converter::get_instance().convert(err, related_properties);
 }
 
 mc::dict to_standard_message_dict(const mc::error&                err,
-                                  const std::vector<std::string>& related_properties) {
+                                  const std::vector<std::string>& related_properties)
+{
     return error_message_converter::get_instance().convert_to_dict(err, related_properties);
 }
 

@@ -30,14 +30,17 @@ namespace {
 class test_service : public mc::engine::service {
 public:
     test_service()
-        : mc::engine::service("org.test.privilege.service") {
+        : mc::engine::service("org.test.privilege.service")
+    {
     }
 
-    bool start() override {
+    bool start() override
+    {
         return true;
     }
 
-    bool stop() override {
+    bool stop() override
+    {
         return true;
     }
 };
@@ -47,7 +50,8 @@ class test_object : public mc::engine::object<test_object> {
 public:
     MC_OBJECT(test_object, "TestObject", "/org/test/privilege")
 
-    void init() {
+    void init()
+    {
         set_object_name("TestObject");
         set_object_path("/org/test/privilege");
     }
@@ -59,19 +63,22 @@ MC_REFLECT(test_object, ())
 
 // ========== 测试 get_privilege_str 函数 ==========
 
-TEST(privilege_test, get_privilege_str_empty_array) {
+TEST(privilege_test, get_privilege_str_empty_array)
+{
     std::vector<uint32_t> privileges;
     auto                  result = get_privilege_str(privileges);
     EXPECT_EQ(result, "0");
 }
 
-TEST(privilege_test, get_privilege_str_single_privilege) {
+TEST(privilege_test, get_privilege_str_single_privilege)
+{
     std::vector<uint32_t> privileges = {privilege::read_only};
     auto                  result     = get_privilege_str(privileges);
     EXPECT_EQ(result, "1");
 }
 
-TEST(privilege_test, get_privilege_str_multiple_privileges) {
+TEST(privilege_test, get_privilege_str_multiple_privileges)
+{
     std::vector<uint32_t> privileges = {
         privilege::read_only,
         privilege::user_mgmt,
@@ -81,7 +88,8 @@ TEST(privilege_test, get_privilege_str_multiple_privileges) {
     EXPECT_EQ(result, "49");
 }
 
-TEST(privilege_test, get_privilege_str_all_privileges) {
+TEST(privilege_test, get_privilege_str_all_privileges)
+{
     std::vector<uint32_t> privileges = {
         privilege::read_only,
         privilege::diagnose_mgmt,
@@ -97,7 +105,8 @@ TEST(privilege_test, get_privilege_str_all_privileges) {
     EXPECT_EQ(result, "511");
 }
 
-TEST(privilege_test, get_privilege_str_duplicate_privileges) {
+TEST(privilege_test, get_privilege_str_duplicate_privileges)
+{
     std::vector<uint32_t> privileges = {
         privilege::read_only,
         privilege::read_only,
@@ -107,7 +116,8 @@ TEST(privilege_test, get_privilege_str_duplicate_privileges) {
     EXPECT_EQ(result, "17");
 }
 
-TEST(privilege_test, vmm_kvm_different_values) {
+TEST(privilege_test, vmm_kvm_different_values)
+{
     // 验证 VMM 和 KVM 管理权限值不同
     EXPECT_NE(privilege::vmm_mgmt, privilege::kvm_mgmt);
     EXPECT_EQ(privilege::vmm_mgmt, 64u);
@@ -115,7 +125,8 @@ TEST(privilege_test, vmm_kvm_different_values) {
     EXPECT_EQ(privilege::configure_self, 256u);
 }
 
-TEST(privilege_test, auth_state_values) {
+TEST(privilege_test, auth_state_values)
+{
     // 验证认证状态枚举值
     EXPECT_EQ(static_cast<int>(auth_state::no_auth), 0);
     EXPECT_EQ(static_cast<int>(auth_state::auth_required), 1);
@@ -125,7 +136,8 @@ TEST(privilege_test, auth_state_values) {
 
 class privilege_validate_test : public ::testing::Test {
 protected:
-    void SetUp() override {
+    void SetUp() override
+    {
         obj.init();
     }
 
@@ -133,12 +145,14 @@ protected:
     test_object  obj;
 };
 
-TEST_F(privilege_validate_test, validate_no_context) {
+TEST_F(privilege_validate_test, validate_no_context)
+{
     // 无上下文时应该直接返回
     EXPECT_NO_THROW(validate(privilege::read_only));
 }
 
-TEST_F(privilege_validate_test, validate_auth_not_required) {
+TEST_F(privilege_validate_test, validate_auth_not_required)
+{
     mc::engine::context ctx(service, obj);
 
     // Auth 不为 "1"（auth_required），应该直接返回
@@ -151,7 +165,8 @@ TEST_F(privilege_validate_test, validate_auth_not_required) {
     }
 }
 
-TEST_F(privilege_validate_test, validate_auth_not_string) {
+TEST_F(privilege_validate_test, validate_auth_not_string)
+{
     mc::engine::context ctx(service, obj);
 
     // Auth 不是字符串，应该直接返回
@@ -164,7 +179,8 @@ TEST_F(privilege_validate_test, validate_auth_not_string) {
     }
 }
 
-TEST_F(privilege_validate_test, validate_privilege_not_string) {
+TEST_F(privilege_validate_test, validate_privilege_not_string)
+{
     mc::engine::context ctx(service, obj);
 
     // Privilege 不是字符串，应该抛出 insufficient_privilege_exception
@@ -177,7 +193,8 @@ TEST_F(privilege_validate_test, validate_privilege_not_string) {
     }
 }
 
-TEST_F(privilege_validate_test, validate_privilege_conversion_error) {
+TEST_F(privilege_validate_test, validate_privilege_conversion_error)
+{
     mc::engine::context ctx(service, obj);
 
     // Privilege 字段格式错误，无法转换为数字
@@ -190,7 +207,8 @@ TEST_F(privilege_validate_test, validate_privilege_conversion_error) {
     }
 }
 
-TEST_F(privilege_validate_test, validate_expected_zero_with_configure_self) {
+TEST_F(privilege_validate_test, validate_expected_zero_with_configure_self)
+{
     mc::engine::context ctx(service, obj);
 
     // 期望权限为 0 且 priv 为 ConfigureSelf，应该抛出 password_changed_required_exception
@@ -203,7 +221,8 @@ TEST_F(privilege_validate_test, validate_expected_zero_with_configure_self) {
     }
 }
 
-TEST_F(privilege_validate_test, validate_expected_zero_with_other_privilege) {
+TEST_F(privilege_validate_test, validate_expected_zero_with_other_privilege)
+{
     mc::engine::context ctx(service, obj);
 
     // 期望权限为 0 且 priv 不为 ConfigureSelf，应该直接返回
@@ -216,7 +235,8 @@ TEST_F(privilege_validate_test, validate_expected_zero_with_other_privilege) {
     }
 }
 
-TEST_F(privilege_validate_test, validate_insufficient_privilege) {
+TEST_F(privilege_validate_test, validate_insufficient_privilege)
+{
     mc::engine::context ctx(service, obj);
 
     // 当前权限不满足期望权限，应该抛出 insufficient_privilege_exception
@@ -229,7 +249,8 @@ TEST_F(privilege_validate_test, validate_insufficient_privilege) {
     }
 }
 
-TEST_F(privilege_validate_test, validate_sufficient_privilege) {
+TEST_F(privilege_validate_test, validate_sufficient_privilege)
+{
     mc::engine::context ctx(service, obj);
 
     // 当前权限满足期望权限，应该成功并将 Auth 置为 "0" (no_auth)
@@ -246,7 +267,8 @@ TEST_F(privilege_validate_test, validate_sufficient_privilege) {
     EXPECT_EQ(auth_var.as_string(), "0");
 }
 
-TEST_F(privilege_validate_test, validate_exact_privilege) {
+TEST_F(privilege_validate_test, validate_exact_privilege)
+{
     mc::engine::context ctx(service, obj);
 
     // 当前权限正好等于期望权限
@@ -263,7 +285,8 @@ TEST_F(privilege_validate_test, validate_exact_privilege) {
     EXPECT_EQ(auth_var.as_string(), "0");
 }
 
-TEST_F(privilege_validate_test, validate_multiple_privileges) {
+TEST_F(privilege_validate_test, validate_multiple_privileges)
+{
     mc::engine::context ctx(service, obj);
 
     // 当前权限包含多个权限，满足期望的单个权限
@@ -280,7 +303,8 @@ TEST_F(privilege_validate_test, validate_multiple_privileges) {
     EXPECT_EQ(auth_var.as_string(), "0");
 }
 
-TEST_F(privilege_validate_test, validate_combined_privilege_requirement) {
+TEST_F(privilege_validate_test, validate_combined_privilege_requirement)
+{
     mc::engine::context ctx(service, obj);
 
     // 测试组合权限要求
@@ -295,7 +319,8 @@ TEST_F(privilege_validate_test, validate_combined_privilege_requirement) {
     }
 }
 
-TEST_F(privilege_validate_test, validate_combined_privilege_insufficient) {
+TEST_F(privilege_validate_test, validate_combined_privilege_insufficient)
+{
     mc::engine::context ctx(service, obj);
 
     // 测试组合权限不足的情况

@@ -38,7 +38,9 @@ public:
     /**
      * @brief 默认构造函数，创建空指针
      */
-    offset_ptr() noexcept : m_offset(0), m_shm(nullptr) {
+    offset_ptr() noexcept
+        : m_offset(0), m_shm(nullptr)
+    {
     }
 
     /**
@@ -108,7 +110,8 @@ public:
      * @brief 获取偏移量
      * @return 相对于共享内存基地址的偏移量
      */
-    size_t get_offset() const noexcept {
+    size_t get_offset() const noexcept
+    {
         return m_offset;
     }
 
@@ -116,7 +119,8 @@ public:
      * @brief 获取共享内存对象
      * @return 共享内存对象指针
      */
-    const shared_memory* get_shared_memory() const noexcept {
+    const shared_memory* get_shared_memory() const noexcept
+    {
         return m_shm;
     }
 
@@ -128,7 +132,8 @@ private:
 // offset_ptr模板类的实现
 template <typename T>
 offset_ptr<T>::offset_ptr(const shared_memory* shm, T* ptr) noexcept
-    : m_offset(0), m_shm(shm) {
+    : m_offset(0), m_shm(shm)
+{
     if (shm && ptr) {
         m_offset = shm->get_offset(ptr);
     }
@@ -136,11 +141,13 @@ offset_ptr<T>::offset_ptr(const shared_memory* shm, T* ptr) noexcept
 
 template <typename T>
 offset_ptr<T>::offset_ptr(const shared_memory* shm, size_t offset) noexcept
-    : m_offset(offset), m_shm(shm) {
+    : m_offset(offset), m_shm(shm)
+{
 }
 
 template <typename T>
-T& offset_ptr<T>::operator*() const {
+T& offset_ptr<T>::operator*() const
+{
     T* ptr = get();
     if (!ptr) {
         throw std::runtime_error("无效的偏移指针");
@@ -149,12 +156,14 @@ T& offset_ptr<T>::operator*() const {
 }
 
 template <typename T>
-T* offset_ptr<T>::operator->() const {
+T* offset_ptr<T>::operator->() const
+{
     return get();
 }
 
 template <typename T>
-T* offset_ptr<T>::get() const {
+T* offset_ptr<T>::get() const
+{
     if (!m_shm || m_offset == 0) {
         return nullptr;
     }
@@ -162,12 +171,14 @@ T* offset_ptr<T>::get() const {
 }
 
 template <typename T>
-offset_ptr<T>::operator bool() const noexcept {
+offset_ptr<T>::operator bool() const noexcept
+{
     return m_shm && m_offset > 0;
 }
 
 template <typename T>
-void offset_ptr<T>::reset() noexcept {
+void offset_ptr<T>::reset() noexcept
+{
     m_offset = 0;
     m_shm    = nullptr;
 }

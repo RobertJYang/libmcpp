@@ -12,19 +12,19 @@
 
 #ifndef MC_DEBOUNCE_BASE_H
 #define MC_DEBOUNCE_BASE_H
-#include <mc/common.h>
-#include <optional>
-#include <deque>
 #include <cstdint>
+#include <deque>
+#include <mc/common.h>
 #include <numeric>
+#include <optional>
 #include <vector>
 
 namespace mc::debounce {
 class MC_API Base {
 public:
     virtual std::optional<int> get_debounce_val(int val) = 0;
-    virtual void clear_debounce_val() = 0;
+    virtual void               clear_debounce_val()      = 0;
 };
-}
+} // namespace mc::debounce
 
 #endif // MC_DEBOUNCE_BASE_H

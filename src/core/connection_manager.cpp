@@ -19,7 +19,8 @@
 namespace mc::core {
 
 connection_id_type connection_manager::add_connection(signal_type sig, mc::connection_type conn,
-                                                      connection_id_type id) {
+                                                      connection_id_type id)
+{
     if (id == INVALID_CONNECTION_ID) {
         id = new_id();
     } else if (m_connections.find(id) != m_connections.end()) {
@@ -32,7 +33,8 @@ connection_id_type connection_manager::add_connection(signal_type sig, mc::conne
     return id;
 }
 
-void connection_manager::remove_connection(connection_id_type id) {
+void connection_manager::remove_connection(connection_id_type id)
+{
     auto it = m_connections.find(id);
     if (it == m_connections.end()) {
         return;
@@ -55,7 +57,8 @@ void connection_manager::remove_connection(connection_id_type id) {
     m_connections.erase(it);
 }
 
-size_t connection_manager::remove_connections(signal_type sig) {
+size_t connection_manager::remove_connections(signal_type sig)
+{
     auto it = m_signal_connections.find(sig);
     if (it == m_signal_connections.end()) {
         return 0;
@@ -74,7 +77,8 @@ size_t connection_manager::remove_connections(signal_type sig) {
     return count;
 }
 
-void connection_manager::clear() {
+void connection_manager::clear()
+{
     // 显式断开所有连接，确保信号不再触发
     for (auto& [id, info] : m_connections) {
         info.conn.disconnect();
@@ -85,7 +89,8 @@ void connection_manager::clear() {
 }
 
 constexpr int      MAX_ID_TRY = 100000;
-connection_id_type connection_manager::new_id() {
+connection_id_type connection_manager::new_id()
+{
     for (int i = 0; i < MAX_ID_TRY; ++i) {
         connection_id_type id = m_next_id++;
         if (m_connections.find(id) == m_connections.end()) {

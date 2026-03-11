@@ -40,154 +40,181 @@ typedef enum {
 } JsonType;
 
 // 创建函数
-inline uint32_t JsonNullCreate(Json** json) {
+inline uint32_t JsonNullCreate(Json** json)
+{
     (void)json;
     return JSON_OK;
 }
 
-inline uint32_t JsonBoolCreate(bool value, Json** json) {
+inline uint32_t JsonBoolCreate(bool value, Json** json)
+{
     (void)value;
     (void)json;
     return JSON_OK;
 }
 
-inline uint32_t JsonIntegerCreate(int64_t value, Json** json) {
+inline uint32_t JsonIntegerCreate(int64_t value, Json** json)
+{
     (void)value;
     (void)json;
     return JSON_OK;
 }
 
-inline uint32_t JsonDoubleCreate(double value, Json** json) {
+inline uint32_t JsonDoubleCreate(double value, Json** json)
+{
     (void)value;
     (void)json;
     return JSON_OK;
 }
 
-inline uint32_t JsonStringCreateWithLen(const char* str, uint32_t len, Json** json) {
+inline uint32_t JsonStringCreateWithLen(const char* str, uint32_t len, Json** json)
+{
     (void)str;
     (void)len;
     (void)json;
     return JSON_OK;
 }
 
-inline uint32_t JsonArrayCreate(Json** json) {
+inline uint32_t JsonArrayCreate(Json** json)
+{
     (void)json;
     return JSON_OK;
 }
 
-inline uint32_t JsonObjectCreate(Json** json) {
+inline uint32_t JsonObjectCreate(Json** json)
+{
     (void)json;
     return JSON_OK;
 }
 
-inline uint32_t JsonQuoteCreate(Json** quote, Json* target) {
+inline uint32_t JsonQuoteCreate(Json** quote, Json* target)
+{
     (void)quote;
     (void)target;
     return JSON_OK;
 }
 
 // 获取类型函数
-inline JsonType JsonTypeGet(const Json* json) {
+inline JsonType JsonTypeGet(const Json* json)
+{
     (void)json;
     return JSONTYPE_NULL;
 }
 
 // 类型检查函数
-inline bool JsonIsNull(const Json* json) {
+inline bool JsonIsNull(const Json* json)
+{
     (void)json;
     return false;
 }
 
-inline bool JsonIsBool(const Json* json) {
+inline bool JsonIsBool(const Json* json)
+{
     (void)json;
     return false;
 }
 
-inline bool JsonIsInteger(const Json* json) {
+inline bool JsonIsInteger(const Json* json)
+{
     (void)json;
     return false;
 }
 
-inline bool JsonIsDouble(const Json* json) {
+inline bool JsonIsDouble(const Json* json)
+{
     (void)json;
     return false;
 }
 
-inline bool JsonIsNumber(const Json* json) {
+inline bool JsonIsNumber(const Json* json)
+{
     (void)json;
     return false;
 }
 
-inline bool JsonIsString(const Json* json) {
+inline bool JsonIsString(const Json* json)
+{
     (void)json;
     return false;
 }
 
-inline bool JsonIsArray(const Json* json) {
+inline bool JsonIsArray(const Json* json)
+{
     (void)json;
     return false;
 }
 
-inline bool JsonIsObject(const Json* json) {
+inline bool JsonIsObject(const Json* json)
+{
     (void)json;
     return false;
 }
 
-inline bool JsonIsQuote(const Json* json) {
+inline bool JsonIsQuote(const Json* json)
+{
     (void)json;
     return false;
 }
 
 // 获取值函数
-inline uint32_t JsonItemBoolValueGet(const Json* json, bool* value) {
+inline uint32_t JsonItemBoolValueGet(const Json* json, bool* value)
+{
     (void)json;
     (void)value;
     return JSON_OK;
 }
 
-inline uint32_t JsonItemIntegerValueGet(Json* json, int64_t* value) {
+inline uint32_t JsonItemIntegerValueGet(Json* json, int64_t* value)
+{
     (void)json;
     (void)value;
     return JSON_OK;
 }
 
-inline uint32_t JsonItemDoubleValueGet(const Json* json, double* value) {
+inline uint32_t JsonItemDoubleValueGet(const Json* json, double* value)
+{
     (void)json;
     (void)value;
     return JSON_OK;
 }
 
-inline uint32_t JsonItemStringValueGet(const Json* json, char** value) {
+inline uint32_t JsonItemStringValueGet(const Json* json, char** value)
+{
     (void)json;
     (void)value;
     return JSON_OK;
 }
 
-inline uint32_t JsonItemStringValueLenGet(const Json* item, uint32_t* size) {
+inline uint32_t JsonItemStringValueLenGet(const Json* item, uint32_t* size)
+{
     (void)item;
     (void)size;
     return JSON_OK;
 }
 
-inline uint32_t JsonItemBoolValueSet(Json* json, bool value) {
+inline uint32_t JsonItemBoolValueSet(Json* json, bool value)
+{
     (void)json;
     (void)value;
     return JSON_OK;
 }
 
-inline uint32_t JsonItemIntegerValueSet(Json* json, int64_t value) {
+inline uint32_t JsonItemIntegerValueSet(Json* json, int64_t value)
+{
     (void)json;
     (void)value;
     return JSON_OK;
 }
 
-inline uint32_t JsonItemDoubleValueSet(Json* json, double value) {
+inline uint32_t JsonItemDoubleValueSet(Json* json, double value)
+{
     (void)json;
     (void)value;
     return JSON_OK;
 }
 
-inline uint32_t JsonItemStringValueSet(Json* json, const char* value, uint32_t len) {
+inline uint32_t JsonItemStringValueSet(Json* json, const char* value, uint32_t len)
+{
     (void)json;
     (void)value;
     (void)len;
@@ -195,33 +222,38 @@ inline uint32_t JsonItemStringValueSet(Json* json, const char* value, uint32_t l
 }
 
 // 数组操作函数
-inline uint32_t JsonArraySizeGet(const Json* json, uint32_t* size) {
+inline uint32_t JsonArraySizeGet(const Json* json, uint32_t* size)
+{
     (void)json;
     (void)size;
     return JSON_OK;
 }
 
-inline uint32_t JsonArrayItemGet(const Json* json, uint32_t index, Json** item) {
+inline uint32_t JsonArrayItemGet(const Json* json, uint32_t index, Json** item)
+{
     (void)json;
     (void)index;
     (void)item;
     return JSON_OK;
 }
 
-inline uint32_t JsonItemAddToArray(Json* item, Json* array) {
+inline uint32_t JsonItemAddToArray(Json* item, Json* array)
+{
     (void)item;
     (void)array;
     return JSON_OK;
 }
 
-inline uint32_t JsonArrayItemInsert(Json* array, uint32_t index, Json* item) {
+inline uint32_t JsonArrayItemInsert(Json* array, uint32_t index, Json* item)
+{
     (void)item;
     (void)index;
     (void)array;
     return JSON_OK;
 }
 
-inline uint32_t JsonArrayItemReplace(Json* array, uint32_t index, Json* item) {
+inline uint32_t JsonArrayItemReplace(Json* array, uint32_t index, Json* item)
+{
     (void)array;
     (void)index;
     (void)item;
@@ -229,27 +261,31 @@ inline uint32_t JsonArrayItemReplace(Json* array, uint32_t index, Json* item) {
 }
 
 // 对象操作函数
-inline uint32_t JsonObjectItemGet(const Json* json, const char* key, Json** item) {
+inline uint32_t JsonObjectItemGet(const Json* json, const char* key, Json** item)
+{
     (void)json;
     (void)key;
     (void)item;
     return JSON_OK;
 }
 
-inline uint32_t JsonObjectItemSet(Json* json, const char* key, Json* item) {
+inline uint32_t JsonObjectItemSet(Json* json, const char* key, Json* item)
+{
     (void)json;
     (void)key;
     (void)item;
     return JSON_OK;
 }
 
-inline uint32_t JsonObjectItemDelete(Json* json, const char* key) {
+inline uint32_t JsonObjectItemDelete(Json* json, const char* key)
+{
     (void)json;
     (void)key;
     return JSON_OK;
 }
 
-inline uint32_t JsonItemAddToObject(const char* key, Json* item, Json* object) {
+inline uint32_t JsonItemAddToObject(const char* key, Json* item, Json* object)
+{
     (void)key;
     (void)item;
     (void)object;
@@ -257,77 +293,90 @@ inline uint32_t JsonItemAddToObject(const char* key, Json* item, Json* object) {
 }
 
 // 树遍历函数
-inline uint32_t JsonItemFirstChild(Json* json, Json** child) {
+inline uint32_t JsonItemFirstChild(Json* json, Json** child)
+{
     (void)json;
     (void)child;
     return JSON_NO_FIRST_CHILD;
 }
 
-inline uint32_t JsonItemNextSibling(Json* json, Json** next) {
+inline uint32_t JsonItemNextSibling(Json* json, Json** next)
+{
     (void)json;
     (void)next;
     return JSON_NO_NEXT_SIBLING;
 }
 
-inline uint32_t JsonItemKeyGet(Json* json, char** key) {
+inline uint32_t JsonItemKeyGet(Json* json, char** key)
+{
     (void)json;
     (void)key;
     return JSON_OK;
 }
 
 // Quote 操作函数
-inline uint32_t JsonObjectQuoteGet(const Json* json, Json** target) {
+inline uint32_t JsonObjectQuoteGet(const Json* json, Json** target)
+{
     (void)json;
     (void)target;
     return JSON_OK;
 }
 
 // 引用计数函数
-inline uint32_t JsonObjectAddRef(Json* json) {
+inline uint32_t JsonObjectAddRef(Json* json)
+{
     (void)json;
     return JSON_OK;
 }
 
-inline uint32_t JsonObjectRelease(Json* json) {
+inline uint32_t JsonObjectRelease(Json* json)
+{
     (void)json;
     return JSON_OK;
 }
 
 // 序列化函数
-inline char* JsonPrint(const Json* json) {
+inline char* JsonPrint(const Json* json)
+{
     (void)json;
     return nullptr;
 }
 
-inline char* JsonPrintWithoutFormat(const Json* json) {
+inline char* JsonPrintWithoutFormat(const Json* json)
+{
     (void)json;
     return nullptr;
 }
 
 // 内存释放函数
-inline uint32_t JsonStringValueFree(char* str) {
+inline uint32_t JsonStringValueFree(char* str)
+{
     (void)str;
     return JSON_OK;
 }
 
 // 错误信息函数
-inline JsonErrorInfo* JsonErrorInfoCreate() {
+inline JsonErrorInfo* JsonErrorInfoCreate()
+{
     return nullptr;
 }
 
-inline void JsonErrorInfoDelete(JsonErrorInfo* error_info) {
+inline void JsonErrorInfoDelete(JsonErrorInfo* error_info)
+{
     (void)error_info;
 }
 
 // 解析函数
-inline uint32_t JsonParseMulti(const char* str, Json** json, JsonErrorInfo* error_info) {
+inline uint32_t JsonParseMulti(const char* str, Json** json, JsonErrorInfo* error_info)
+{
     (void)str;
     (void)json;
     (void)error_info;
     return JSON_OK;
 }
 
-inline uint32_t JsonErrorPositionGetMulti(const JsonErrorInfo* error_info) {
+inline uint32_t JsonErrorPositionGetMulti(const JsonErrorInfo* error_info)
+{
     (void)error_info;
     return 0;
 }

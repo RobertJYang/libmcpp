@@ -42,7 +42,8 @@ public:
 
     shard_buffer(void* buf, free_function fn, void* user_data);
 
-    uint8_t* data() const noexcept {
+    uint8_t* data() const noexcept
+    {
         return m_buffer;
     }
 
@@ -55,7 +56,9 @@ private:
     void free();
 
     struct shared_info {
-        shared_info() : ref_count(1) {
+        shared_info()
+            : ref_count(1)
+        {
         }
         std::atomic<uint32_t> ref_count;
     };
@@ -88,7 +91,8 @@ private:
 class MC_API io_buffer {
 public:
     using free_function = detail::shard_buffer::free_function;
-    static void default_free(void* buf, void*) {
+    static void default_free(void* buf, void*)
+    {
         std::free(buf);
     };
 
@@ -176,7 +180,8 @@ public:
      *
      * @return 有效数据的起始指针
      */
-    const uint8_t* data() const noexcept {
+    const uint8_t* data() const noexcept
+    {
         return m_data;
     }
 
@@ -185,7 +190,8 @@ public:
      *
      * @return 可写的数据指针
      */
-    uint8_t* mutable_data() noexcept {
+    uint8_t* mutable_data() noexcept
+    {
         return m_data;
     }
 
@@ -194,7 +200,8 @@ public:
      *
      * @return 有效数据的长度
      */
-    std::size_t length() const noexcept {
+    std::size_t length() const noexcept
+    {
         return m_length;
     }
 
@@ -203,7 +210,8 @@ public:
      *
      * @return 缓冲区的起始指针
      */
-    const uint8_t* buffer() const noexcept {
+    const uint8_t* buffer() const noexcept
+    {
         return m_buffer.data();
     }
 
@@ -212,7 +220,8 @@ public:
      *
      * @return 缓冲区的总容量
      */
-    std::size_t capacity() const noexcept {
+    std::size_t capacity() const noexcept
+    {
         return m_capacity;
     }
 
@@ -221,7 +230,8 @@ public:
      *
      * @return 有效数据的尾部指针
      */
-    const uint8_t* tail() const noexcept {
+    const uint8_t* tail() const noexcept
+    {
         return m_data + m_length;
     }
 
@@ -230,7 +240,8 @@ public:
      *
      * @return 可写的尾部指针
      */
-    uint8_t* mutable_tail() noexcept {
+    uint8_t* mutable_tail() noexcept
+    {
         return m_data + m_length;
     }
 
@@ -239,7 +250,8 @@ public:
      *
      * @return 缓冲区的结束指针
      */
-    const uint8_t* buffer_end() const noexcept {
+    const uint8_t* buffer_end() const noexcept
+    {
         return m_buffer.data() + m_capacity;
     }
 
@@ -248,7 +260,8 @@ public:
      *
      * @return 头部预留空间大小
      */
-    std::size_t headroom() const noexcept {
+    std::size_t headroom() const noexcept
+    {
         return m_data - m_buffer.data();
     }
 
@@ -257,7 +270,8 @@ public:
      *
      * @return 尾部可用空间大小
      */
-    std::size_t tailroom() const noexcept {
+    std::size_t tailroom() const noexcept
+    {
         return m_capacity - (m_data - m_buffer.data()) - m_length;
     }
 
@@ -266,7 +280,8 @@ public:
      *
      * @return 如果缓冲区为空则返回true
      */
-    bool empty() const noexcept {
+    bool empty() const noexcept
+    {
         return m_length == 0;
     }
 
@@ -355,7 +370,8 @@ public:
      */
     template <typename T,
               typename std::enable_if<std::is_trivially_copyable<T>::value, int>::type = 0>
-    std::size_t write_value(T value, bool is_little_endian = mc::is_little_endian()) {
+    std::size_t write_value(T value, bool is_little_endian = mc::is_little_endian())
+    {
         if constexpr (sizeof(T) > 1 && std::is_arithmetic_v<T>) {
             if (is_little_endian != mc::is_little_endian()) {
                 value = mc::swap_bytes(value);
@@ -377,7 +393,8 @@ public:
     template <typename T,
               typename std::enable_if<std::is_trivially_copyable<T>::value, int>::type = 0>
     std::size_t write_value_at_offset(std::size_t offset, T value,
-                                      bool is_little_endian = mc::is_little_endian()) {
+                                      bool is_little_endian = mc::is_little_endian())
+    {
         if constexpr (sizeof(T) > 1 && std::is_arithmetic_v<T>) {
             if (is_little_endian != mc::is_little_endian()) {
                 value = mc::swap_bytes(value);
@@ -453,7 +470,8 @@ public:
      */
     template <typename T,
               typename std::enable_if<std::is_trivially_copyable<T>::value, int>::type = 0>
-    T read_value(std::size_t offset, bool is_little_endian = mc::is_little_endian()) const {
+    T read_value(std::size_t offset, bool is_little_endian = mc::is_little_endian()) const
+    {
         T value{};
         read(offset, &value, sizeof(T));
 
@@ -469,7 +487,8 @@ public:
     template <typename T,
               typename std::enable_if<std::is_trivially_copyable<T>::value, int>::type = 0>
     bool read_value(std::size_t offset, T& value,
-                    bool is_little_endian = mc::is_little_endian()) const {
+                    bool is_little_endian = mc::is_little_endian()) const
+    {
         if (!try_read(offset, &value, sizeof(T))) {
             return false;
         }

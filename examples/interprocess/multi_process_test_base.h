@@ -86,25 +86,25 @@ protected:
 protected:
     // 测试名称
     std::string m_test_name;
-    
+
     // 共享内存大小
     size_t m_shm_size;
-    
+
     // 共享内存管理器
     std::unique_ptr<shared_memory_manager> m_shm_manager;
-    
+
     // 共享内存对象
     std::shared_ptr<shared_memory> m_shm;
-    
+
     // 共享内存分配器引用
     shared_memory_allocator* m_allocator;
-    
+
     // 子进程PID列表
     std::vector<pid_t> m_child_pids;
 };
 
 } // namespace test
 } // namespace interprocess
-} // namespace mc 
+} // namespace mc
 
 #endif // MULTI_PROCESS_TEST_BASE_H

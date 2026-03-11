@@ -30,13 +30,15 @@ namespace mc::core::test {
 
 class ThreadSafeObjectTest : public ::testing::Test {
 protected:
-    void SetUp() override {
+    void SetUp() override
+    {
         // 创建根对象
         root_object = mc::make_shared<object>();
         root_object->set_name("root");
     }
 
-    void TearDown() override {
+    void TearDown() override
+    {
         root_object.reset();
     }
 
@@ -44,7 +46,8 @@ protected:
 };
 
 // 测试基本的父子关系设置
-TEST_F(ThreadSafeObjectTest, BasicParentChildRelationship) {
+TEST_F(ThreadSafeObjectTest, BasicParentChildRelationship)
+{
     auto child1 = mc::make_shared<object>(root_object.get());
     child1->set_name("child1");
 
@@ -66,7 +69,8 @@ TEST_F(ThreadSafeObjectTest, BasicParentChildRelationship) {
 }
 
 // 测试多线程同时访问 ensure_impl 的情况 - 验证名称唯一性检查
-TEST_F(ThreadSafeObjectTest, ConcurrentEnsureImplAccess) {
+TEST_F(ThreadSafeObjectTest, ConcurrentEnsureImplAccess)
+{
     const int num_threads    = 8;
     const int num_iterations = 100;
 
@@ -101,7 +105,8 @@ TEST_F(ThreadSafeObjectTest, ConcurrentEnsureImplAccess) {
 }
 
 // 测试多线程同时访问对象属性 - 每个线程使用不同的对象以避免名称冲突
-TEST_F(ThreadSafeObjectTest, ConcurrentPropertyAccess) {
+TEST_F(ThreadSafeObjectTest, ConcurrentPropertyAccess)
+{
     const int num_threads           = 4;
     const int operations_per_thread = 50;
 
@@ -140,7 +145,8 @@ TEST_F(ThreadSafeObjectTest, ConcurrentPropertyAccess) {
     EXPECT_EQ(parent_operations.load(), num_threads * operations_per_thread);
 }
 
-TEST_F(ThreadSafeObjectTest, ExecutorAssignment) {
+TEST_F(ThreadSafeObjectTest, ExecutorAssignment)
+{
     boost::asio::io_context io;
     mc::runtime::executor   exec(io.get_executor());
     root_object->set_executor(exec);
@@ -149,7 +155,8 @@ TEST_F(ThreadSafeObjectTest, ExecutorAssignment) {
     EXPECT_TRUE(stored.valid());
 }
 
-TEST_F(ThreadSafeObjectTest, ConnectionManagementHelpers) {
+TEST_F(ThreadSafeObjectTest, ConnectionManagementHelpers)
+{
     mc::signal<void()> sig;
     int                counter = 0;
 
@@ -189,7 +196,8 @@ TEST_F(ThreadSafeObjectTest, ConnectionManagementHelpers) {
 }
 
 // 测试多线程并发添加子对象
-TEST_F(ThreadSafeObjectTest, ConcurrentAddChildren) {
+TEST_F(ThreadSafeObjectTest, ConcurrentAddChildren)
+{
     const int                num_threads         = 10;
     const int                children_per_thread = 50;
     mc::runtime::thread_list threads;
@@ -217,7 +225,8 @@ TEST_F(ThreadSafeObjectTest, ConcurrentAddChildren) {
 }
 
 // 测试父子关系的多线程安全性
-TEST_F(ThreadSafeObjectTest, ConcurrentParentChildOperations) {
+TEST_F(ThreadSafeObjectTest, ConcurrentParentChildOperations)
+{
     const int num_children = 10;
 
     auto parent = mc::make_shared<object>();
@@ -249,7 +258,8 @@ TEST_F(ThreadSafeObjectTest, ConcurrentParentChildOperations) {
 }
 
 // 测试并发销毁对象时的安全性
-TEST_F(ThreadSafeObjectTest, ConcurrentDestruction) {
+TEST_F(ThreadSafeObjectTest, ConcurrentDestruction)
+{
     const int                           num_children = 100;
     std::vector<mc::shared_ptr<object>> children;
 
@@ -292,7 +302,8 @@ TEST_F(ThreadSafeObjectTest, ConcurrentDestruction) {
 }
 
 // 测试父对象销毁时子对象的处理
-TEST_F(ThreadSafeObjectTest, ParentDestructionHandling) {
+TEST_F(ThreadSafeObjectTest, ParentDestructionHandling)
+{
     std::vector<mc::shared_ptr<object>> orphaned_children;
 
     {
@@ -326,7 +337,8 @@ TEST_F(ThreadSafeObjectTest, ParentDestructionHandling) {
 }
 
 // 测试设置和获取名称的线程安全性 - 每个线程使用独立对象
-TEST_F(ThreadSafeObjectTest, ConcurrentNameOperations) {
+TEST_F(ThreadSafeObjectTest, ConcurrentNameOperations)
+{
     mc::runtime::thread_list threads;
     const int                num_operations = 1000;
     std::atomic<int>         successful_operations{0};
@@ -353,7 +365,8 @@ TEST_F(ThreadSafeObjectTest, ConcurrentNameOperations) {
 }
 
 // 测试多线程设置父对象
-TEST_F(ThreadSafeObjectTest, ConcurrentSetParent) {
+TEST_F(ThreadSafeObjectTest, ConcurrentSetParent)
+{
     const int                           num_children = 100;
     std::vector<mc::shared_ptr<object>> children;
     std::vector<mc::shared_ptr<object>> parents;
@@ -403,7 +416,8 @@ TEST_F(ThreadSafeObjectTest, ConcurrentSetParent) {
 }
 
 // 测试对象销毁时的线程安全性（使用弱引用进行安全访问）
-TEST_F(ThreadSafeObjectTest, ConcurrentDestructionAccess) {
+TEST_F(ThreadSafeObjectTest, ConcurrentDestructionAccess)
+{
     const int num_iterations = 10;
 
     for (int iter = 0; iter < num_iterations; ++iter) {
@@ -457,17 +471,18 @@ TEST_F(ThreadSafeObjectTest, ConcurrentDestructionAccess) {
 }
 
 // 测试 object 的复制构造函数（覆盖 object::object(const object&)）
-TEST_F(ThreadSafeObjectTest, ObjectCopyConstructor) {
+TEST_F(ThreadSafeObjectTest, ObjectCopyConstructor)
+{
     auto obj1 = mc::make_shared<object>();
     obj1->set_name("original");
-    
+
     // 创建子对象和连接
     auto child = mc::make_shared<object>(obj1.get());
     child->set_name("child");
-    
+
     // 复制对象
     auto obj2 = mc::make_shared<object>(*obj1);
-    
+
     // 验证复制后的对象
     EXPECT_EQ(obj2->get_name(), "original");
     // 注意：复制构造函数不复制父子关系，所以 obj2 不应该有子对象
@@ -475,70 +490,73 @@ TEST_F(ThreadSafeObjectTest, ObjectCopyConstructor) {
 }
 
 // 测试 object 的复制赋值运算符（覆盖 object::operator=(const object&)）
-TEST_F(ThreadSafeObjectTest, ObjectCopyAssignment) {
+TEST_F(ThreadSafeObjectTest, ObjectCopyAssignment)
+{
     auto obj1 = mc::make_shared<object>();
     obj1->set_name("source");
-    
+
     auto obj2 = mc::make_shared<object>();
     obj2->set_name("target");
-    
+
     // 复制赋值
     *obj2 = *obj1;
-    
+
     // 验证复制后的对象
     EXPECT_EQ(obj2->get_name(), "source");
-    
+
     // 测试自赋值
     *obj1 = *obj1;
     EXPECT_EQ(obj1->get_name(), "source");
 }
 
 // 测试 object_base 的移动构造函数和移动赋值运算符
-TEST_F(ThreadSafeObjectTest, ObjectBaseMoveOperations) {
+TEST_F(ThreadSafeObjectTest, ObjectBaseMoveOperations)
+{
     auto obj1 = mc::make_shared<object>();
     obj1->set_object_id(123);
-    
+
     // 测试移动构造（通过 object_base 的移动语义）
     auto obj2 = mc::make_shared<object>();
     obj2->set_object_id(456);
-    
+
     // 注意：object 本身不支持移动构造，但 object_base 支持
     // 这里主要测试 object_base 的移动语义
     EXPECT_NE(obj1->get_object_id(), obj2->get_object_id());
 }
 
 // 测试 disconnect（覆盖 object::disconnect(connection_id_type)）
-TEST_F(ThreadSafeObjectTest, DisconnectAll) {
+TEST_F(ThreadSafeObjectTest, DisconnectAll)
+{
     auto obj = mc::make_shared<object>();
     obj->set_name("test_object");
-    
+
     // 创建信号和连接
-    mc::signal<void(int)> sig1;
+    mc::signal<void(int)>         sig1;
     mc::signal<void(std::string)> sig2;
-    
-    int  call_count1     = 0;
-    bool sig2_triggered  = false;
-    
+
+    int  call_count1    = 0;
+    bool sig2_triggered = false;
+
     auto conn1 = obj->connect(
         sig1,
         [&call_count1](int) {
-            ++call_count1;
-        },
+        ++call_count1;
+    },
         mc::core::connection_type::Direct);
     auto conn2 = obj->connect(
         sig2,
         [&sig2_triggered](const std::string&) {
-            sig2_triggered = true;
-        },
+        sig2_triggered = true;
+    },
         mc::core::connection_type::Direct);
-    
+
     // 断开 sig1 的连接（通过连接 ID）
     obj->disconnect(conn1);
-    
+
     // 触发信号
     sig1(42);
     sig2("test");
-    
+
     // sig1 的连接应该被断开，sig2 的连接应该仍然有效
     EXPECT_EQ(call_count1, 0);
     EXPECT_TRUE(sig2_triggered);
@@ -550,117 +568,128 @@ TEST_F(ThreadSafeObjectTest, DisconnectAll) {
 }
 
 // 测试 weak_from_this（覆盖 object::weak_from_this()）
-TEST_F(ThreadSafeObjectTest, WeakFromThis) {
+TEST_F(ThreadSafeObjectTest, WeakFromThis)
+{
     auto obj = mc::make_shared<object>();
     obj->set_name("test_object");
-    
+
     // 获取 weak_ptr
     auto weak = obj->weak_from_this();
-    
+
     EXPECT_FALSE(weak.expired());
     EXPECT_EQ(weak.lock().get(), obj.get());
-    
+
     // 释放 shared_ptr
     obj.reset();
-    
+
     // weak_ptr 应该过期
     EXPECT_TRUE(weak.expired());
     EXPECT_FALSE(weak.lock());
 }
 
 // 测试 const weak_from_this（覆盖 const 版本）
-TEST_F(ThreadSafeObjectTest, WeakFromThisConst) {
+TEST_F(ThreadSafeObjectTest, WeakFromThisConst)
+{
     auto obj = mc::make_shared<object>();
     obj->set_name("test_object");
-    
+
     const object* const_obj = obj.get();
-    
+
     // 获取 const weak_ptr
     auto weak = const_obj->weak_from_this();
-    
+
     EXPECT_FALSE(weak.expired());
     EXPECT_EQ(weak.lock().get(), obj.get());
 }
 
 // 测试 object_impl 的复制构造函数和复制赋值运算符（通过 object 的复制）
-TEST_F(ThreadSafeObjectTest, ObjectImplCopyOperations) {
+TEST_F(ThreadSafeObjectTest, ObjectImplCopyOperations)
+{
     auto obj1 = mc::make_shared<object>();
     obj1->set_name("source");
-    
+
     // 设置执行器
-    auto work_exec = mc::get_work_executor();
+    auto                  work_exec = mc::get_work_executor();
     mc::runtime::executor executor(work_exec);
     obj1->set_executor(executor);
-    
+
     // 复制对象（这会触发 object_impl 的复制构造）
     auto obj2 = mc::make_shared<object>(*obj1);
-    
+
     EXPECT_EQ(obj2->get_name(), "source");
     // 注意：执行器可能不会被复制，取决于实现
 }
 
 // 测试 clear_connections（覆盖 object_impl::clear_connections()）
-TEST_F(ThreadSafeObjectTest, ClearConnections) {
+TEST_F(ThreadSafeObjectTest, ClearConnections)
+{
     auto obj = mc::make_shared<object>();
-    
+
     // 创建多个连接
     mc::signal<void()> sig;
-    int call_count = 0;
-    
-    auto conn1 = obj->connect(sig, [&call_count]() { ++call_count; });
-    auto conn2 = obj->connect(sig, [&call_count]() { ++call_count; });
-    
+    int                call_count = 0;
+
+    auto conn1 = obj->connect(sig, [&call_count]() {
+        ++call_count;
+    });
+    auto conn2 = obj->connect(sig, [&call_count]() {
+        ++call_count;
+    });
+
     // 清除所有连接（通过断开连接来测试）
     obj->disconnect(conn1);
     obj->disconnect(conn2);
-    
+
     // 触发信号
     sig();
-    
+
     // 所有连接应该被清除
     EXPECT_EQ(call_count, 0);
 }
 
 // 测试复杂场景 - 融合所有未覆盖的功能
-TEST_F(ThreadSafeObjectTest, ComplexScenarioAllUncoveredFeatures) {
+TEST_F(ThreadSafeObjectTest, ComplexScenarioAllUncoveredFeatures)
+{
     // 创建对象并设置属性
     auto obj1 = mc::make_shared<object>();
     obj1->set_name("obj1");
     obj1->set_object_id(100);
-    
+
     // 创建子对象
     auto child1 = mc::make_shared<object>(obj1.get());
     child1->set_name("child1");
-    
+
     // 创建信号和连接
     mc::signal<void(int)> sig;
-    int call_count = 0;
-    auto conn = child1->connect(sig, [&call_count](int val) { call_count += val; });
-    
+    int                   call_count = 0;
+    auto                  conn       = child1->connect(sig, [&call_count](int val) {
+        call_count += val;
+    });
+
     // 复制对象（覆盖复制构造函数）
     auto obj2 = mc::make_shared<object>(*obj1);
     EXPECT_EQ(obj2->get_name(), "obj1");
-    
+
     // 复制赋值（覆盖复制赋值运算符）
     auto obj3 = mc::make_shared<object>();
-    *obj3 = *obj1;
+    *obj3     = *obj1;
     EXPECT_EQ(obj3->get_name(), "obj1");
-    
+
     // 测试 weak_from_this
     auto weak = child1->weak_from_this();
     EXPECT_FALSE(weak.expired());
-    
+
     // 断开连接
     child1->disconnect(conn);
     sig(10);
     EXPECT_EQ(call_count, 0);
-    
+
     // 释放对象
     obj1.reset();
     obj2.reset();
     obj3.reset();
     child1.reset();
-    
+
     // weak_ptr 应该过期
     EXPECT_TRUE(weak.expired());
 }

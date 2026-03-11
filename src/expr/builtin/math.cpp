@@ -18,7 +18,8 @@
 namespace mc::expr {
 
 namespace {
-void ensure_numeric(std::string_view name, const mc::variant& value) {
+void ensure_numeric(std::string_view name, const mc::variant& value)
+{
     MC_ASSERT_THROW(value.is_numeric(), mc::invalid_arg_exception, "${name} 参数必须是数值类型",
                     ("name", name));
 }
@@ -27,7 +28,8 @@ void ensure_numeric(std::string_view name, const mc::variant& value) {
 struct math_funcs {
     MC_REFLECTABLE("mc.expr.builtin.math");
 
-    static mc::variant abs(const mc::variant& value) {
+    static mc::variant abs(const mc::variant& value)
+    {
         ensure_numeric("abs", value);
         if (value.is_double()) {
             return std::fabs(value.as_double());
@@ -36,7 +38,8 @@ struct math_funcs {
         }
     }
 
-    static mc::variant min(const mc::variants& args) {
+    static mc::variant min(const mc::variants& args)
+    {
         if (args.empty()) {
             MC_THROW(mc::invalid_arg_exception, "min function requires at least one parameter");
         }
@@ -52,7 +55,8 @@ struct math_funcs {
         return result;
     }
 
-    static mc::variant max(const mc::variants& args) {
+    static mc::variant max(const mc::variants& args)
+    {
         if (args.empty()) {
             MC_THROW(mc::invalid_arg_exception, "max function requires at least one parameter");
         }
@@ -68,40 +72,47 @@ struct math_funcs {
         return result;
     }
 
-    static double round(double value) {
+    static double round(double value)
+    {
         return std::round(value);
     }
 
-    static double floor(double value) {
+    static double floor(double value)
+    {
         return std::floor(value);
     }
 
-    static double ceil(double value) {
+    static double ceil(double value)
+    {
         return std::ceil(value);
     }
 
-    static double sqrt(double value) {
+    static double sqrt(double value)
+    {
         if (value < 0) {
             MC_THROW(mc::invalid_arg_exception, "sqrt function parameter must be greater than or equal to 0");
         }
         return std::sqrt(value);
     }
 
-    static double pow(double base, double exponent) {
+    static double pow(double base, double exponent)
+    {
         if (base < 0) {
             MC_THROW(mc::invalid_arg_exception, "pow function base must be greater than or equal to 0");
         }
         return std::pow(base, exponent);
     }
 
-    static double log(double value) {
+    static double log(double value)
+    {
         if (value <= 0) {
             MC_THROW(mc::invalid_arg_exception, "log function parameter must be greater than 0");
         }
         return std::log(value);
     }
 
-    static double exp(double value) {
+    static double exp(double value)
+    {
         return std::exp(value);
     }
 };

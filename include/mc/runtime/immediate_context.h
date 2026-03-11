@@ -30,7 +30,8 @@ public:
 
     // 在当前线程立即执行工作
     template <typename F>
-    void execute(F&& f) const {
+    void execute(F&& f) const
+    {
         std::forward<F>(f)();
     }
 
@@ -39,19 +40,22 @@ public:
 
     // 在当前线程立即派发工作
     template <typename F, typename Allocator>
-    void dispatch(F&& f, const Allocator& alloc = Allocator()) const {
+    void dispatch(F&& f, const Allocator& alloc = Allocator()) const
+    {
         std::forward<F>(f)();
     }
 
     // 在当前线程立即投递工作
     template <typename F, typename Allocator>
-    void post(F&& f, const Allocator& alloc = Allocator()) const {
+    void post(F&& f, const Allocator& alloc = Allocator()) const
+    {
         std::forward<F>(f)();
     }
 
     // 延迟执行（在这里等同于立即执行）
     template <typename F, typename Allocator>
-    void defer(F&& f, const Allocator& alloc = Allocator()) const {
+    void defer(F&& f, const Allocator& alloc = Allocator()) const
+    {
         std::forward<F>(f)();
     }
 
@@ -65,7 +69,8 @@ public:
      * @brief 检查当前线程是否在此 executor 上执行
      * @note immediate_executor 总是在当前线程执行，所以始终返回 true
      */
-    bool running_in_this_thread() const noexcept {
+    bool running_in_this_thread() const noexcept
+    {
         return true;
     }
 
@@ -73,7 +78,8 @@ public:
     immediate_executor require(boost::asio::execution::blocking_t::never_t) const;
 
     // 查询执行器属性
-    static constexpr boost::asio::execution::blocking_t query(boost::asio::execution::blocking_t) {
+    static constexpr boost::asio::execution::blocking_t query(boost::asio::execution::blocking_t)
+    {
         return boost::asio::execution::blocking.never;
     }
 };

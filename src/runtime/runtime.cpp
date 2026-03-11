@@ -15,11 +15,13 @@
 
 namespace mc::runtime {
 
-runtime_context& get_runtime_context() {
+runtime_context& get_runtime_context()
+{
     return mc::singleton<runtime_context>::instance();
 }
 
-void reset_runtime_context() {
+void reset_runtime_context()
+{
     mc::singleton<runtime_context>::reset_for_test();
 }
 

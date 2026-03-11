@@ -15,7 +15,8 @@
 #include <mc/dbus/validator.h>
 
 namespace mc::dbus {
-void ensure_container_max_length(const char* type_name, std::size_t size) {
+void ensure_container_max_length(const char* type_name, std::size_t size)
+{
     if (size > validator::maximum_array_size) {
         MC_THROW(
             mc::invalid_arg_exception,
@@ -24,7 +25,8 @@ void ensure_container_max_length(const char* type_name, std::size_t size) {
     }
 }
 
-void ensure_message_depth(std::size_t depth) {
+void ensure_message_depth(std::size_t depth)
+{
     if (depth >= validator::maximum_message_depth) {
         MC_THROW(mc::invalid_arg_exception,
                  "超过最大消息深度限制，最大 ${max_depth}, 当前 ${current_depth}",
@@ -35,7 +37,8 @@ void ensure_message_depth(std::size_t depth) {
 namespace detail {
 
 template <typename T>
-static void demarshal_variant_basic(const message_reader& reader, mc::variant& v) {
+static void demarshal_variant_basic(const message_reader& reader, mc::variant& v)
+{
     reader.ensure_type(mc::reflect::first_type(mc::reflect::get_signature<T>()));
 
     T t;
@@ -49,7 +52,8 @@ static void demarshal_variant_basic(const message_reader& reader, mc::variant& v
 }
 
 template <typename T>
-static void marshal_variant_basic(const message_writer& writer, const mc::variant& v) {
+static void marshal_variant_basic(const message_writer& writer, const mc::variant& v)
+{
     if constexpr (std::is_arithmetic_v<T>) {
         writer << v.as<T>();
     } else if constexpr (std::is_same_v<T, std::string_view> || std::is_same_v<T, std::string>) {
@@ -75,11 +79,13 @@ static void marshal_variant_basic(const message_writer& writer, const mc::varian
     }
 }
 
-static inline void add_type(signature& sig, type_code type) {
+static inline void add_type(signature& sig, type_code type)
+{
     sig += type;
 }
 
-static bool check_array_all_type(const mc::variants& v, mc::type_id type) {
+static bool check_array_all_type(const mc::variants& v, mc::type_id type)
+{
     for (const auto& item : v) {
         if (item.get_type() != type) {
             return false;
@@ -90,7 +96,8 @@ static bool check_array_all_type(const mc::variants& v, mc::type_id type) {
 }
 
 static std::pair<bool, bool> check_dict_all_type(const mc::dict& v, mc::type_id key_type,
-                                                 mc::type_id value_type) {
+                                                 mc::type_id value_type)
+{
     bool key_equal   = true;
     bool value_equal = true;
     for (const auto& item : v) {
@@ -106,7 +113,8 @@ static std::pair<bool, bool> check_dict_all_type(const mc::dict& v, mc::type_id 
     return {key_equal, value_equal};
 }
 
-static void array_to_dbus_signature(signature& sig, const mc::variants& v) {
+static void array_to_dbus_signature(signature& sig, const mc::variants& v)
+{
     // 如果数组是空，无法探测到数组类型，默认使用ai类型
     if (v.empty()) {
         sig += "ai";
@@ -124,7 +132,8 @@ static void array_to_dbus_signature(signature& sig, const mc::variants& v) {
     sig += container::array_of_variant;
 }
 
-static void dict_to_dbus_signature(signature& sig, const mc::dict& v) {
+static void dict_to_dbus_signature(signature& sig, const mc::dict& v)
+{
     // 如果字典是空，无法探测到字典类型，默认使用a{sv}类型
     if (v.empty()) {
         sig += container::dict_string_var;
@@ -157,7 +166,8 @@ static void dict_to_dbus_signature(signature& sig, const mc::dict& v) {
     sig += type_code::dict_entry_end;
 }
 
-void variant_to_dbus_signature(signature& sig, const mc::variant& v) {
+void variant_to_dbus_signature(signature& sig, const mc::variant& v)
+{
     switch (v.get_type()) {
     case mc::type_id::null_type: // dbus 不支持空类型，用一个 std::optional 类型来表示
         sig += "ai";
@@ -199,7 +209,8 @@ void variant_to_dbus_signature(signature& sig, const mc::variant& v) {
 message::message() = default;
 
 message message::new_method_call(std::string_view destination, std::string_view path,
-                                 std::string_view interface, std::string_view member) {
+                                 std::string_view interface, std::string_view member)
+{
     MC_ASSERT(validator::is_valid_bus_name(destination), "invalid destination: ${destination}",
               ("destination", destination));
     MC_ASSERT(validator::is_valid_path(path), "invalid path: ${path}", ("path", path));
@@ -212,7 +223,8 @@ message message::new_method_call(std::string_view destination, std::string_view 
                                          member.data())};
 }
 
-message message::new_method_return(const message& msg) {
+message message::new_method_return(const message& msg)
+{
     MC_ASSERT(msg.is_valid(), "invalid message");
     MC_ASSERT(msg.get_type() == message_type::method_call, "invalid message type");
 
@@ -220,7 +232,8 @@ message message::new_method_return(const message& msg) {
 }
 
 message message::new_error(const message& msg, std::string_view error_name,
-                           std::string_view error_message) {
+                           std::string_view error_message)
+{
     MC_ASSERT(msg.is_valid(), "invalid message");
     MC_ASSERT(msg.get_type() == message_type::method_call, "invalid message type");
     MC_ASSERT(validator::is_valid_error_name(error_name), "invalid error name: ${error_name}",
@@ -230,7 +243,8 @@ message message::new_error(const message& msg, std::string_view error_name,
 }
 
 message message::new_signal(std::string_view path, std::string_view interface,
-                            std::string_view member) {
+                            std::string_view member)
+{
     MC_ASSERT(validator::is_valid_path(path), "invalid path: ${path}", ("path", path));
     MC_ASSERT(validator::is_valid_interface_name(interface), "invalid interface: ${interface}",
               ("interface", interface));
@@ -240,7 +254,8 @@ message message::new_signal(std::string_view path, std::string_view interface,
     return {dbus_message_new_signal(path.data(), interface.data(), member.data())};
 }
 
-message message::new_message(message_type msg_type) {
+message message::new_message(message_type msg_type)
+{
     if (msg_type > message_type::invalid && msg_type <= message_type::num_message_types) {
         return {dbus_message_new(static_cast<int>(msg_type))};
     }
@@ -248,7 +263,8 @@ message message::new_message(message_type msg_type) {
     return {};
 }
 
-message message::new_error_message(std::string_view error_name, std::string_view error_message) {
+message message::new_error_message(std::string_view error_name, std::string_view error_message)
+{
     message msg = new_message(message_type::error);
     msg.set_error_name(error_name);
     if (!error_message.empty()) {
@@ -258,24 +274,28 @@ message message::new_error_message(std::string_view error_name, std::string_view
 }
 
 message::message(DBusMessage* msg, bool add_ref)
-    : m_dbus_message(msg) {
+    : m_dbus_message(msg)
+{
     if (add_ref && m_dbus_message) {
         dbus_message_ref(m_dbus_message);
     }
 }
 
-message::~message() {
+message::~message()
+{
     release();
 }
 
 message::message(const message& other)
-    : m_dbus_message(other.m_dbus_message) {
+    : m_dbus_message(other.m_dbus_message)
+{
     if (m_dbus_message) {
         dbus_message_ref(m_dbus_message);
     }
 }
 
-message& message::operator=(const message& other) {
+message& message::operator=(const message& other)
+{
     if (this != &other) {
         release();
 
@@ -288,46 +308,56 @@ message& message::operator=(const message& other) {
     return *this;
 }
 
-DBusMessage* message::get_dbus_message() const {
+DBusMessage* message::get_dbus_message() const
+{
     return m_dbus_message;
 }
 
-bool message::is_valid() const {
+bool message::is_valid() const
+{
     return m_dbus_message != nullptr;
 }
 
-bool message::is_error() const {
+bool message::is_error() const
+{
     return get_type() == message_type::error;
 }
 
-bool message::is_method_call() const {
+bool message::is_method_call() const
+{
     return get_type() == message_type::method_call;
 }
 
-bool message::is_method_return() const {
+bool message::is_method_return() const
+{
     return get_type() == message_type::method_return;
 }
 
-bool message::is_signal() const {
+bool message::is_signal() const
+{
     return get_type() == message_type::signal;
 }
 
-void message::release() {
+void message::release()
+{
     if (m_dbus_message) {
         dbus_message_unref(m_dbus_message);
         m_dbus_message = nullptr;
     }
 }
 
-message_reader message::reader() const {
+message_reader message::reader() const
+{
     return message_reader(*this);
 }
 
-message_writer message::writer() {
+message_writer message::writer()
+{
     return message_writer(*this);
 }
 
-std::pair<dbus_ptr<char>, std::size_t> message::marshal() {
+std::pair<dbus_ptr<char>, std::size_t> message::marshal()
+{
     if (m_dbus_message == nullptr) {
         return {};
     }
@@ -341,11 +371,13 @@ std::pair<dbus_ptr<char>, std::size_t> message::marshal() {
     return {dbus_ptr<char>(data), size};
 }
 
-bool message::demarshal(const std::vector<uint8_t>& out, error& err) {
+bool message::demarshal(const std::vector<uint8_t>& out, error& err)
+{
     return demarshal(reinterpret_cast<const char*>(out.data()), out.size(), err);
 }
 
-bool message::demarshal(const char* in, std::size_t len, error& err) {
+bool message::demarshal(const char* in, std::size_t len, error& err)
+{
     if (!in || len == 0) {
         return false;
     }
@@ -362,11 +394,13 @@ bool message::demarshal(const char* in, std::size_t len, error& err) {
 }
 
 message::message(message&& other) noexcept
-    : m_dbus_message(other.m_dbus_message) {
+    : m_dbus_message(other.m_dbus_message)
+{
     other.m_dbus_message = nullptr;
 }
 
-message& message::operator=(message&& other) noexcept {
+message& message::operator=(message&& other) noexcept
+{
     if (this != &other) {
         release();
 
@@ -377,7 +411,8 @@ message& message::operator=(message&& other) noexcept {
     return *this;
 }
 
-message_type message::get_type() const {
+message_type message::get_type() const
+{
     if (m_dbus_message == nullptr) {
         return message_type::invalid;
     }
@@ -390,7 +425,8 @@ message_type message::get_type() const {
     return message_type::invalid;
 }
 
-std::string_view message::get_path() const {
+std::string_view message::get_path() const
+{
     if (m_dbus_message == nullptr) {
         return {};
     }
@@ -398,7 +434,8 @@ std::string_view message::get_path() const {
     return dbus_message_get_path(m_dbus_message);
 }
 
-std::string_view message::get_interface() const {
+std::string_view message::get_interface() const
+{
     if (m_dbus_message == nullptr) {
         return {};
     }
@@ -406,7 +443,8 @@ std::string_view message::get_interface() const {
     return dbus_message_get_interface(m_dbus_message);
 }
 
-std::string_view message::get_member() const {
+std::string_view message::get_member() const
+{
     if (m_dbus_message == nullptr) {
         return {};
     }
@@ -414,7 +452,8 @@ std::string_view message::get_member() const {
     return dbus_message_get_member(m_dbus_message);
 }
 
-std::string_view message::get_error_name() const {
+std::string_view message::get_error_name() const
+{
     if (m_dbus_message == nullptr) {
         return {};
     }
@@ -422,7 +461,8 @@ std::string_view message::get_error_name() const {
     return dbus_message_get_error_name(m_dbus_message);
 }
 
-std::string message::get_error_message() const {
+std::string message::get_error_message() const
+{
     if (m_dbus_message == nullptr) {
         return {};
     }
@@ -433,7 +473,8 @@ std::string message::get_error_message() const {
     return {};
 }
 
-std::string_view message::get_destination() const {
+std::string_view message::get_destination() const
+{
     if (m_dbus_message == nullptr) {
         return {};
     }
@@ -441,7 +482,8 @@ std::string_view message::get_destination() const {
     return dbus_message_get_destination(m_dbus_message);
 }
 
-std::string_view message::get_sender() const {
+std::string_view message::get_sender() const
+{
     if (m_dbus_message == nullptr) {
         return {};
     }
@@ -449,7 +491,8 @@ std::string_view message::get_sender() const {
     return dbus_message_get_sender(m_dbus_message);
 }
 
-std::string_view message::get_signature() const {
+std::string_view message::get_signature() const
+{
     if (m_dbus_message == nullptr) {
         return {};
     }
@@ -457,7 +500,8 @@ std::string_view message::get_signature() const {
     return dbus_message_get_signature(m_dbus_message);
 }
 
-uint32_t message::get_serial() const {
+uint32_t message::get_serial() const
+{
     if (m_dbus_message == nullptr) {
         return 0;
     }
@@ -465,7 +509,8 @@ uint32_t message::get_serial() const {
     return dbus_message_get_serial(m_dbus_message);
 }
 
-uint32_t message::get_reply_serial() const {
+uint32_t message::get_reply_serial() const
+{
     if (m_dbus_message == nullptr) {
         return 0;
     }
@@ -473,7 +518,8 @@ uint32_t message::get_reply_serial() const {
     return dbus_message_get_reply_serial(m_dbus_message);
 }
 
-void message::set_path(std::string_view path) {
+void message::set_path(std::string_view path)
+{
     if (m_dbus_message == nullptr) {
         return;
     }
@@ -484,7 +530,8 @@ void message::set_path(std::string_view path) {
     dbus_message_set_path(m_dbus_message, path.data());
 }
 
-void message::set_interface(std::string_view interface) {
+void message::set_interface(std::string_view interface)
+{
     if (m_dbus_message == nullptr) {
         return;
     }
@@ -495,7 +542,8 @@ void message::set_interface(std::string_view interface) {
     dbus_message_set_interface(m_dbus_message, interface.data());
 }
 
-void message::set_member(std::string_view member) {
+void message::set_member(std::string_view member)
+{
     if (m_dbus_message == nullptr) {
         return;
     }
@@ -506,7 +554,8 @@ void message::set_member(std::string_view member) {
     dbus_message_set_member(m_dbus_message, member.data());
 }
 
-void message::set_error_name(std::string_view error_name) {
+void message::set_error_name(std::string_view error_name)
+{
     if (m_dbus_message == nullptr) {
         return;
     }
@@ -517,7 +566,8 @@ void message::set_error_name(std::string_view error_name) {
     dbus_message_set_error_name(m_dbus_message, error_name.data());
 }
 
-void message::set_destination(std::string_view destination) {
+void message::set_destination(std::string_view destination)
+{
     if (m_dbus_message == nullptr) {
         return;
     }
@@ -528,7 +578,8 @@ void message::set_destination(std::string_view destination) {
     dbus_message_set_destination(m_dbus_message, destination.data());
 }
 
-void message::set_sender(std::string_view sender) {
+void message::set_sender(std::string_view sender)
+{
     if (m_dbus_message == nullptr) {
         return;
     }
@@ -539,7 +590,8 @@ void message::set_sender(std::string_view sender) {
     dbus_message_set_sender(m_dbus_message, sender.data());
 }
 
-bool message::has_signature(std::string_view signature) {
+bool message::has_signature(std::string_view signature)
+{
     if (m_dbus_message == nullptr) {
         return false;
     }
@@ -547,7 +599,8 @@ bool message::has_signature(std::string_view signature) {
     return dbus_message_has_signature(m_dbus_message, signature.data());
 }
 
-void message::set_serial(uint32_t serial) {
+void message::set_serial(uint32_t serial)
+{
     if (m_dbus_message == nullptr) {
         return;
     }
@@ -555,7 +608,8 @@ void message::set_serial(uint32_t serial) {
     dbus_message_set_serial(m_dbus_message, serial);
 }
 
-void message::lock() {
+void message::lock()
+{
     if (m_dbus_message == nullptr) {
         return;
     }
@@ -563,7 +617,8 @@ void message::lock() {
     dbus_message_lock(m_dbus_message);
 }
 
-mc::variants message::read_args() const {
+mc::variants message::read_args() const
+{
     mc::variants args;
     auto         sig    = get_signature();
     auto         reader = this->reader();
@@ -576,36 +631,44 @@ mc::variants message::read_args() const {
 }
 
 /* -------------------- message_reader -------------------- */
-message_reader::message_reader() {
+message_reader::message_reader()
+{
 }
 
-message_reader::message_reader(const message& msg) {
+message_reader::message_reader(const message& msg)
+{
     dbus_message_iter_init(msg.get_dbus_message(), &m_iter);
 }
 
-void message_reader::recurse(const message_reader& parent) const {
+void message_reader::recurse(const message_reader& parent) const
+{
     dbus_message_iter_recurse(&parent.m_iter, &m_iter);
 }
 
-const message_reader& message_reader::next() const {
+const message_reader& message_reader::next() const
+{
     dbus_message_iter_next(&m_iter);
     return *this;
 }
 
-bool message_reader::at_end() const {
+bool message_reader::at_end() const
+{
     return dbus_message_iter_get_arg_type(&m_iter) == DBUS_TYPE_INVALID;
 }
 
-void message_reader::ensure_type(int expected) const {
+void message_reader::ensure_type(int expected) const
+{
     int actual = dbus_message_iter_get_arg_type(&m_iter);
     ensure_type(expected, actual);
 }
 
-static bool is_struct_type(int type) {
+static bool is_struct_type(int type)
+{
     return type == DBUS_TYPE_STRUCT || type == DBUS_STRUCT_BEGIN_CHAR;
 }
 
-void message_reader::ensure_type(int expected, int actual) {
+void message_reader::ensure_type(int expected, int actual)
+{
     char actual_type[]   = {static_cast<char>(actual), 0};
     char expected_type[] = {static_cast<char>(expected), 0};
     if (is_struct_type(actual) && is_struct_type(expected)) {
@@ -618,18 +681,21 @@ void message_reader::ensure_type(int expected, int actual) {
     }
 }
 
-type_code message_reader::current_type() const {
+type_code message_reader::current_type() const
+{
     return static_cast<type_code>(dbus_message_iter_get_arg_type(&m_iter));
 }
 
-const message_reader& operator>>(const message_reader& reader, std::string& v) {
+const message_reader& operator>>(const message_reader& reader, std::string& v)
+{
     std::string_view sv;
     reader >> sv;
     v = std::string(sv);
     return reader;
 }
 
-const message_reader& operator>>(const message_reader& reader, std::string_view& v) {
+const message_reader& operator>>(const message_reader& reader, std::string_view& v)
+{
     reader.ensure_type(DBUS_TYPE_STRING);
 
     const char* str;
@@ -639,7 +705,8 @@ const message_reader& operator>>(const message_reader& reader, std::string_view&
     return reader.next();
 }
 
-const message_reader& operator>>(const message_reader& reader, mc::dbus::path& v) {
+const message_reader& operator>>(const message_reader& reader, mc::dbus::path& v)
+{
     reader.ensure_type(DBUS_TYPE_OBJECT_PATH);
 
     const char* path = nullptr;
@@ -648,7 +715,8 @@ const message_reader& operator>>(const message_reader& reader, mc::dbus::path& v
     return reader.next();
 }
 
-const message_reader& operator>>(const message_reader& reader, mc::dbus::signature& v) {
+const message_reader& operator>>(const message_reader& reader, mc::dbus::signature& v)
+{
     reader.ensure_type(DBUS_TYPE_SIGNATURE);
 
     const char* sig;
@@ -657,7 +725,8 @@ const message_reader& operator>>(const message_reader& reader, mc::dbus::signatu
     return reader.next();
 }
 
-const message_reader& operator>>(const message_reader& reader, mc::blob& v) {
+const message_reader& operator>>(const message_reader& reader, mc::blob& v)
+{
     reader.ensure_type(DBUS_TYPE_ARRAY);
     reader.ensure_type(DBUS_TYPE_BYTE, dbus_message_iter_get_element_type(&reader.m_iter));
 
@@ -668,12 +737,14 @@ const message_reader& operator>>(const message_reader& reader, mc::blob& v) {
     return reader.next();
 }
 
-const message_reader& operator>>(const message_reader& reader, mc::variant& v) {
+const message_reader& operator>>(const message_reader& reader, mc::variant& v)
+{
     reader.read_variant(v, 0);
     return reader;
 }
 
-const message_reader& operator>>(const message_reader& reader, mc::variants& v) {
+const message_reader& operator>>(const message_reader& reader, mc::variants& v)
+{
     // 在这里已经知道是 av 类型了，所以直接按 v 类型去读取内容
     reader.ensure_type(DBUS_TYPE_ARRAY);
 
@@ -685,7 +756,8 @@ const message_reader& operator>>(const message_reader& reader, mc::variants& v) 
     return reader.next();
 }
 
-const message_reader& operator>>(const message_reader& reader, mc::dict& v) {
+const message_reader& operator>>(const message_reader& reader, mc::dict& v)
+{
     reader.ensure_type(DBUS_TYPE_ARRAY);
 
     message_reader sub_reader;
@@ -699,7 +771,8 @@ const message_reader& operator>>(const message_reader& reader, mc::dict& v) {
     return reader.next();
 }
 
-void message_reader::read_variant_array_or_dict(mc::variant& v, std::size_t depth) const {
+void message_reader::read_variant_array_or_dict(mc::variant& v, std::size_t depth) const
+{
     ensure_message_depth(depth);
     ensure_type(DBUS_TYPE_ARRAY);
 
@@ -720,7 +793,8 @@ void message_reader::read_variant_array_or_dict(mc::variant& v, std::size_t dept
     next();
 }
 
-void message_reader::read_variant_raw_struct(mc::variant& v, std::size_t depth) const {
+void message_reader::read_variant_raw_struct(mc::variant& v, std::size_t depth) const
+{
     ensure_message_depth(depth);
     ensure_type(DBUS_TYPE_STRUCT);
 
@@ -730,7 +804,8 @@ void message_reader::read_variant_raw_struct(mc::variant& v, std::size_t depth) 
     next();
 }
 
-void message_reader::read_variant_array(mc::variants& arr, std::size_t depth) const {
+void message_reader::read_variant_array(mc::variants& arr, std::size_t depth) const
+{
     ensure_message_depth(depth);
 
     while (!at_end()) {
@@ -740,7 +815,8 @@ void message_reader::read_variant_array(mc::variants& arr, std::size_t depth) co
     }
 }
 
-void message_reader::read_variant_struct(mc::variant& v, std::size_t depth) const {
+void message_reader::read_variant_struct(mc::variant& v, std::size_t depth) const
+{
     ensure_message_depth(depth);
 
     mc::variants arr;
@@ -753,7 +829,8 @@ void message_reader::read_variant_struct(mc::variant& v, std::size_t depth) cons
     v = std::move(arr);
 }
 
-void message_reader::read_variant_dict(mc::dict& dict, std::size_t depth) const {
+void message_reader::read_variant_dict(mc::dict& dict, std::size_t depth) const
+{
     ensure_message_depth(depth);
 
     while (!at_end()) {
@@ -771,7 +848,8 @@ void message_reader::read_variant_dict(mc::dict& dict, std::size_t depth) const 
     }
 }
 
-void message_reader::read_variant(mc::variant& v, std::size_t depth) const {
+void message_reader::read_variant(mc::variant& v, std::size_t depth) const
+{
     ensure_type(DBUS_TYPE_VARIANT);
 
     message_reader v_reader;
@@ -780,7 +858,8 @@ void message_reader::read_variant(mc::variant& v, std::size_t depth) const {
     next();
 }
 
-void message_reader::read_variant_value(type_code type, mc::variant& v, std::size_t depth) const {
+void message_reader::read_variant_value(type_code type, mc::variant& v, std::size_t depth) const
+{
     ensure_message_depth(depth);
 
     switch (type) {
@@ -825,12 +904,14 @@ void message_reader::read_variant_value(type_code type, mc::variant& v, std::siz
 
 /* -------------------- message_writer -------------------- */
 
-message_writer::message_writer(message& msg) {
+message_writer::message_writer(message& msg)
+{
     dbus_message_iter_init_append(msg.get_dbus_message(), &m_iter);
 }
 
 message_writer::message_writer(DBusMessageIter& parent_iter, int type, std::string_view signature)
-    : m_parent_iter(&parent_iter) {
+    : m_parent_iter(&parent_iter)
+{
     MC_ASSERT_THROW(signature.size() <= mc::reflect::max_signature_length,
                     mc::invalid_arg_exception,
                     "signature too long: ${sig}", ("sig", signature));
@@ -846,25 +927,29 @@ message_writer::message_writer(DBusMessageIter& parent_iter, int type, std::stri
     dbus_message_iter_open_container(m_parent_iter, type, sig, &m_iter);
 }
 
-void message_writer::close_container() {
+void message_writer::close_container()
+{
     if (m_parent_iter) {
         dbus_message_iter_close_container(m_parent_iter, &m_iter);
         m_parent_iter = nullptr;
     }
 }
 
-const message_writer& operator<<(const message_writer& writer, const std::string& v) {
+const message_writer& operator<<(const message_writer& writer, const std::string& v)
+{
     return operator<<(writer, std::string_view(v));
 }
 
-const message_writer& operator<<(const message_writer& writer, const char* str) {
+const message_writer& operator<<(const message_writer& writer, const char* str)
+{
     if (str == nullptr) {
         return writer;
     }
     return operator<<(writer, std::string_view(str));
 }
 
-const message_writer& operator<<(const message_writer& writer, const std::string_view& v) {
+const message_writer& operator<<(const message_writer& writer, const std::string_view& v)
+{
     MC_ASSERT(mc::string::is_valid_utf8(v), "invalid utf-8 string: ${str}", ("str", v));
 
     const char* str = v.data();
@@ -876,38 +961,45 @@ const message_writer& operator<<(const message_writer& writer, const std::string
     return writer;
 }
 
-const message_writer& operator<<(const message_writer& writer, const mc::dbus::path& v) {
+const message_writer& operator<<(const message_writer& writer, const mc::dbus::path& v)
+{
     writer.write_path(v.str(), false);
     return writer;
 }
 
-const message_writer& operator<<(const message_writer& writer, const mc::dbus::signature& v) {
+const message_writer& operator<<(const message_writer& writer, const mc::dbus::signature& v)
+{
     writer.write_signature(v);
     return writer;
 }
 
-const message_writer& operator<<(const message_writer& writer, const mc::blob& v) {
+const message_writer& operator<<(const message_writer& writer, const mc::blob& v)
+{
     dbus_message_iter_append_fixed_array(&writer.m_iter, DBUS_TYPE_BYTE, v.data.data(),
                                          v.data.size());
     return writer;
 }
 
-const message_writer& operator<<(const message_writer& writer, const mc::variant& v) {
+const message_writer& operator<<(const message_writer& writer, const mc::variant& v)
+{
     writer.write_variant(v, 0);
     return writer;
 }
 
-const message_writer& operator<<(const message_writer& writer, const mc::variants& v) {
+const message_writer& operator<<(const message_writer& writer, const mc::variants& v)
+{
     writer.write_variant_array(container::array_of_variant.substr(1), v, 0);
     return writer;
 }
 
-const message_writer& operator<<(const message_writer& writer, const mc::dict& v) {
+const message_writer& operator<<(const message_writer& writer, const mc::dict& v)
+{
     writer.write_variant_dict(container::dict_string_var.substr(1), v, 0);
     return writer;
 }
 
-void message_writer::write_variant(const mc::variant& v, std::size_t depth) const {
+void message_writer::write_variant(const mc::variant& v, std::size_t depth) const
+{
     signature sig;
     detail::variant_to_dbus_signature(sig, v);
 
@@ -916,7 +1008,8 @@ void message_writer::write_variant(const mc::variant& v, std::size_t depth) cons
     vit.close_container();
 }
 
-void message_writer::write_variant_value(const mc::variant& v) const {
+void message_writer::write_variant_value(const mc::variant& v) const
+{
     signature sig;
     detail::variant_to_dbus_signature(sig, v);
 
@@ -924,7 +1017,8 @@ void message_writer::write_variant_value(const mc::variant& v) const {
 }
 
 void message_writer::write_variant(signature_iterator it, const mc::variant& v,
-                                   std::size_t depth) const {
+                                   std::size_t depth) const
+{
     if (it.at_end()) {
         return;
     }
@@ -970,7 +1064,8 @@ void message_writer::write_variant(signature_iterator it, const mc::variant& v,
 }
 
 void message_writer::write_variant_array_or_dict(signature_iterator it, const mc::variant& v,
-                                                 std::size_t depth) const {
+                                                 std::size_t depth) const
+{
     ensure_message_depth(depth);
     if (it.current_type_code() == type_code::dict_entry_start) {
         if (v.is_array() && v.get_array().empty()) {
@@ -992,7 +1087,8 @@ void message_writer::write_variant_array_or_dict(signature_iterator it, const mc
 }
 
 void message_writer::write_variant_array(signature_iterator it, const mc::variants& arr,
-                                         std::size_t depth) const {
+                                         std::size_t depth) const
+{
     ensure_message_depth(depth);
     ensure_container_max_length(arr);
 
@@ -1004,7 +1100,8 @@ void message_writer::write_variant_array(signature_iterator it, const mc::varian
 }
 
 void message_writer::write_variant_struct(signature_iterator it, const mc::variant& v,
-                                          std::size_t depth) const {
+                                          std::size_t depth) const
+{
     ensure_message_depth(depth);
 
     message_writer writer(m_iter, DBUS_TYPE_STRUCT);
@@ -1024,7 +1121,8 @@ void message_writer::write_variant_struct(signature_iterator it, const mc::varia
 }
 
 void message_writer::write_variant_dict(signature_iterator it, const mc::dict& dict,
-                                        std::size_t depth) const {
+                                        std::size_t depth) const
+{
     ensure_message_depth(depth);
     ensure_container_max_length(dict);
 
@@ -1042,11 +1140,13 @@ void message_writer::write_variant_dict(signature_iterator it, const mc::dict& d
     writer.close_container();
 }
 
-void message_writer::write_signature(const signature& sig) const {
+void message_writer::write_signature(const signature& sig) const
+{
     write_signature(sig.str(), false);
 }
 
-void message_writer::write_signature(std::string_view sig, bool need_add_tail_zeros) const {
+void message_writer::write_signature(std::string_view sig, bool need_add_tail_zeros) const
+{
     MC_ASSERT(signature::is_valid(sig), "invalid signature: ${v}", ("v", sig));
     MC_ASSERT(sig.size() <= mc::reflect::max_signature_length,
               "signature too long: ${sig}", ("sig", sig));
@@ -1064,11 +1164,13 @@ void message_writer::write_signature(std::string_view sig, bool need_add_tail_ze
     dbus_message_iter_append_basic(&m_iter, DBUS_TYPE_SIGNATURE, &sig_str);
 }
 
-void message_writer::write_path(const path& p) const {
+void message_writer::write_path(const path& p) const
+{
     write_path(p.str(), false);
 }
 
-void message_writer::write_path(std::string_view p, bool need_add_tail_zero) const {
+void message_writer::write_path(std::string_view p, bool need_add_tail_zero) const
+{
     MC_ASSERT(mc::dbus::path::is_valid(p), "invalid path: ${v}", ("v", p));
     MC_ASSERT(p.size() <= mc::reflect::max_path_length, "path too long: ${p}", ("p", p));
 

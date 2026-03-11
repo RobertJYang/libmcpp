@@ -18,17 +18,21 @@ namespace mc::futures {
 state_base::state_base(executor_type executor, destory_type destory, int value_size) noexcept
     : m_executor(std::move(executor)),
       m_destory(std::move(destory)),
-      m_value_size(value_size) {
+      m_value_size(value_size)
+{
 }
 
-state_base::~state_base() {
+state_base::~state_base()
+{
 }
 
-void state_base::set_executor(executor_type executor) noexcept {
+void state_base::set_executor(executor_type executor) noexcept
+{
     m_executor = std::move(executor);
 }
 
-void state_base::reset() {
+void state_base::reset()
+{
     m_ready.store(false);
     m_bound.store(false);
     m_cancelled.store(false);
@@ -40,10 +44,12 @@ void state_base::reset() {
     m_destory   = nullptr;
 }
 
-void state_base::reuse_impl() {
+void state_base::reuse_impl()
+{
 }
 
-void state_base::mark_ready() {
+void state_base::mark_ready()
+{
     callback_list callbacks;
     callback_list cancel_callbacks;
     {
@@ -59,7 +65,8 @@ void state_base::mark_ready() {
     cancel_callbacks.clear();
 }
 
-void state_base::cancel() {
+void state_base::cancel()
+{
     // 先检查是否已经 ready，如果已经完成则忽略取消操作
     if (m_ready.load()) {
         return;
@@ -94,7 +101,8 @@ void state_base::cancel() {
     }
 }
 
-void state_base::add_cancel_callback(callback_type callback) {
+void state_base::add_cancel_callback(callback_type callback)
+{
     if (!m_ready.load() && !m_cancelled.load()) {
         std::lock_guard<std::mutex> lock(m_mutex);
         if (!m_ready.load() && !m_cancelled.load()) {
@@ -108,7 +116,8 @@ void state_base::add_cancel_callback(callback_type callback) {
     }
 }
 
-void state_base::destory() {
+void state_base::destory()
+{
     if (m_destory) {
         m_destory(this);
     }

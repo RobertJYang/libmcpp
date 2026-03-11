@@ -58,7 +58,8 @@ enum class level {
  * @param lvl 日志级别
  * @return std::string 日志级别的字符串表示
  */
-inline std::string_view to_string(level lvl) {
+inline std::string_view to_string(level lvl)
+{
     switch (lvl) {
     case level::all:
         return "ALL";
@@ -89,7 +90,8 @@ inline std::string_view to_string(level lvl) {
  * @param name 日志级别名称
  * @return std::optional<level> 转换成功返回对应级别，失败返回std::nullopt
  */
-inline std::optional<level> to_level(std::string_view name) {
+inline std::optional<level> to_level(std::string_view name)
+{
     if (name.empty()) {
         return std::nullopt;
     }

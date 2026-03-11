@@ -22,16 +22,19 @@
 
 namespace mc::engine {
 
-inline engine& get_engine() {
+inline engine& get_engine()
+{
     return mc::engine::engine::get_instance();
 }
 
 template <typename Table>
-Table& get_table(std::string_view table_name) {
+Table& get_table(std::string_view table_name)
+{
     return mc::engine::engine::get_instance().get_table<Table>(table_name);
 }
 
-inline object_table& get_object_table() {
+inline object_table& get_object_table()
+{
     return get_engine().get_object_table();
 }
 

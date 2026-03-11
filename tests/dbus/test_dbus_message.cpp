@@ -51,7 +51,8 @@ struct test_data {
     std::vector<std::tuple<int32_t, bool>>   m_std_vec_tuple;
 };
 
-static void prepare_test_data(test_data& data) {
+static void prepare_test_data(test_data& data)
+{
     // 一些基础数据类型
     data.m_u8  = 42;
     data.m_u16 = 4242;
@@ -83,7 +84,8 @@ static void prepare_test_data(test_data& data) {
     data.m_std_vec_tuple = {{1, true}, {2, false}, {3, true}};                           // a(ib)
 }
 
-static void verify_data(test_data& data, test_data& other) {
+static void verify_data(test_data& data, test_data& other)
+{
     // 验证基本类型
     EXPECT_EQ(other.m_u8, data.m_u8);
     EXPECT_EQ(other.m_u16, data.m_u16);
@@ -114,18 +116,21 @@ static void verify_data(test_data& data, test_data& other) {
 }
 class dbus_message_test : public mc::test::TestBase {
 protected:
-    void SetUp() override {
+    void SetUp() override
+    {
         prepare_test_data(data);
     }
 
-    void TearDown() override {
+    void TearDown() override
+    {
     }
 
     test_data data;
 };
 
 // 测试使用 mc::dbus::message 的 reader 和 writer 流接口读写数据
-TEST_F(dbus_message_test, test_message_reader_writer) {
+TEST_F(dbus_message_test, test_message_reader_writer)
+{
     mc::dbus::message msg = message::new_method_call("org.example.Test", "/org/example/Test",
                                                      "org.example.Test", "TestVariantNesting");
     msg.set_sender("org.example.Test");
@@ -172,7 +177,8 @@ TEST_F(dbus_message_test, test_message_reader_writer) {
 }
 
 // 使用原始 libdbus 接口创建消息，使用 mc::dbus::message 读取数据并验证结果
-TEST_F(dbus_message_test, test_libdbus_write_mc_dbus_message_read) {
+TEST_F(dbus_message_test, test_libdbus_write_mc_dbus_message_read)
+{
     DBusMessage* msg = dbus_message_new_method_call("org.example.Test", "/org/example/Test",
                                                     "org.example.Test", "TestVariantNesting");
     ASSERT_TRUE(msg != nullptr);
@@ -401,7 +407,8 @@ TEST_F(dbus_message_test, test_libdbus_write_mc_dbus_message_read) {
 }
 
 // 使用 mc::dbus::message 写入数据，用原生 libdbus 接口读取数据并验证结果
-TEST_F(dbus_message_test, test_mc_dbus_message_write_libdbus_read) {
+TEST_F(dbus_message_test, test_mc_dbus_message_write_libdbus_read)
+{
     // 使用 mc::dbus::message 创建消息并写入数据
     mc::dbus::message msg = message::new_method_call("org.example.Test", "/org/example/Test",
                                                      "org.example.Test", "TestVariantNesting");
@@ -781,7 +788,8 @@ TEST_F(dbus_message_test, test_mc_dbus_message_write_libdbus_read) {
     dbus_error_free(&dbus_err);
 }
 
-TEST_F(dbus_message_test, test_message_setters_and_flags) {
+TEST_F(dbus_message_test, test_message_setters_and_flags)
+{
     auto method_call = message::new_method_call("org.example.Test", "/org/example/Test",
                                                 "org.example.Test", "TestMethod");
     EXPECT_TRUE(method_call.is_method_call());
@@ -821,7 +829,8 @@ TEST_F(dbus_message_test, test_message_setters_and_flags) {
     EXPECT_EQ(signal_msg.get_sender(), "org.example.Sender");
 }
 
-TEST_F(dbus_message_test, test_empty_dict) {
+TEST_F(dbus_message_test, test_empty_dict)
+{
     mc::dbus::message msg = message::new_method_call("org.example.Test", "/org/example/Test",
                                                      "org.example.Test", "TestVariantNesting");
     msg.set_sender("org.example.Test");
@@ -856,7 +865,8 @@ TEST_F(dbus_message_test, test_empty_dict) {
     EXPECT_EQ(args[0].get_type(), mc::type_id::object_type);
 }
 
-TEST_F(dbus_message_test, test_empty_array) {
+TEST_F(dbus_message_test, test_empty_array)
+{
     mc::dbus::message msg = message::new_method_call("org.example.Test", "/org/example/Test",
                                                      "org.example.Test", "TestVariantNesting");
     msg.set_sender("org.example.Test");
@@ -891,7 +901,8 @@ TEST_F(dbus_message_test, test_empty_array) {
     EXPECT_EQ(args[0].get_type(), mc::type_id::array_type);
 }
 
-TEST_F(dbus_message_test, test_read_args) {
+TEST_F(dbus_message_test, test_read_args)
+{
     mc::dbus::message msg = message::new_method_call("org.example.Test", "/org/example/Test",
                                                      "org.example.Test", "TestVariantNesting");
     msg.set_sender("org.example.Test");

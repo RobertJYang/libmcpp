@@ -30,9 +30,11 @@ class abstract_interface;
 namespace detail {
 
 struct empty_observer {
-    void notify(const mc::variant& value, const property_base& prop) {
+    void notify(const mc::variant& value, const property_base& prop)
+    {
     }
-    void notify_update_shm(const mc::variant& value, const property_base& prop) {
+    void notify_update_shm(const mc::variant& value, const property_base& prop)
+    {
     }
 };
 
@@ -58,14 +60,17 @@ struct property_extension_data {
 
 class MC_API interface_observer {
 public:
-    interface_observer() {
+    interface_observer()
+    {
     }
 
-    void set_interface(abstract_interface* interface) {
+    void set_interface(abstract_interface* interface)
+    {
         m_interface = interface;
     }
 
-    abstract_interface* get_interface() const {
+    abstract_interface* get_interface() const
+    {
         return m_interface;
     }
 

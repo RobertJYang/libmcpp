@@ -24,11 +24,11 @@
 
 #include <mc/interprocess/mutex/ipc_shared_mutex.h>
 
-
 namespace mc::interprocess {
 
 namespace detail {
-inline uint64_t thread_id_to_int(const std::thread::id& id) {
+inline uint64_t thread_id_to_int(const std::thread::id& id)
+{
     return *reinterpret_cast<const uint64_t*>(&id);
 }
 } // namespace detail
@@ -47,10 +47,12 @@ public:
      * @param ipc_rw_mtx 共享内存中的IPC读写互斥锁引用
      */
     explicit shared_mutex(ipc_shared_mutex& ipc_rw_mtx)
-        : m_ipc_mutex(ipc_rw_mtx), m_reader_count(0), m_writer_thread_id(0) {
+        : m_ipc_mutex(ipc_rw_mtx), m_reader_count(0), m_writer_thread_id(0)
+    {
     }
 
-    ~shared_mutex() {
+    ~shared_mutex()
+    {
         // 获取保护锁，确保安全析构
         std::lock_guard<std::mutex> guard(m_sync_mutex);
 
@@ -74,7 +76,8 @@ public:
     }
 
     // 写锁相关方法 (排他锁)
-    bool try_lock() {
+    bool try_lock()
+    {
         // 检查当前线程是否已经持有写锁
         int current_thread = detail::thread_id_to_int(std::this_thread::get_id());
         if (m_writer_thread_id == current_thread) {
@@ -98,7 +101,8 @@ public:
         return true;
     }
 
-    void lock() {
+    void lock()
+    {
         // 检查当前线程是否已经持有写锁
         int current_thread = detail::thread_id_to_int(std::this_thread::get_id());
         if (m_writer_thread_id == current_thread) {
@@ -121,7 +125,8 @@ public:
         m_writer_thread_id = current_thread;
     }
 
-    void unlock() {
+    void unlock()
+    {
         // 检查当前线程是否持有写锁
         int current_thread = detail::thread_id_to_int(std::this_thread::get_id());
         if (m_writer_thread_id != current_thread) {
@@ -136,7 +141,8 @@ public:
     }
 
     // 读锁相关方法 (共享锁)
-    bool try_lock_shared() {
+    bool try_lock_shared()
+    {
         // 尝试获取线程读锁
         if (!m_thread_mutex.try_lock_shared()) {
             return false;
@@ -159,7 +165,8 @@ public:
         return true;
     }
 
-    void lock_shared() {
+    void lock_shared()
+    {
         // 获取线程读锁
         m_thread_mutex.lock_shared();
 
@@ -180,7 +187,8 @@ public:
         m_reader_count++;
     }
 
-    void unlock_shared() {
+    void unlock_shared()
+    {
         // 获取保护锁，确保读写操作互斥
         std::unique_lock<std::mutex> guard(m_sync_mutex);
 

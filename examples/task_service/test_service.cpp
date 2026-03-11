@@ -14,17 +14,22 @@
 
 namespace test {
 
-test_service::test_service(std::string_view name) : mc::engine::service(name) {
+test_service::test_service(std::string_view name)
+    : mc::engine::service(name)
+{
 }
 
-test_service::~test_service() {
+test_service::~test_service()
+{
 }
 
-bool test_service::init(mc::dict args) {
+bool test_service::init(mc::dict args)
+{
     return mc::engine::service::init(args);
 }
 
-bool test_service::start() {
+bool test_service::start()
+{
     if (!mc::engine::service::start()) {
         return false;
     }
@@ -34,7 +39,8 @@ bool test_service::start() {
     return true;
 }
 
-bool test_service::stop() {
+bool test_service::stop()
+{
     if (!mc::engine::service::stop()) {
         return false;
     }

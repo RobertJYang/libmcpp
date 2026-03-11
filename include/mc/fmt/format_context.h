@@ -26,7 +26,8 @@ struct MC_API runtime_arg_store : public arg_store<format_arg> {
     runtime_arg_store() = default;
 
     template <typename... Args>
-    constexpr runtime_arg_store(Args&&... args) {
+    constexpr runtime_arg_store(Args&&... args)
+    {
         (add_arg(std::forward<Args>(args)), ...);
     }
 

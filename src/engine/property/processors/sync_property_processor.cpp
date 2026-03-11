@@ -20,21 +20,25 @@
 
 namespace mc::engine {
 
-bool sync_property_processor::matches(const std::string& value_str) const {
+bool sync_property_processor::matches(const std::string& value_str) const
+{
     return value_str.substr(0, 3) == "<=/";
 }
 
-void sync_property_processor::process(property_helper* property, const std::string& value_str) {
+void sync_property_processor::process(property_helper* property, const std::string& value_str)
+{
     auto sync_prop = mc::expr::func_parser::get_instance().parse_sync_property(value_str);
     hook_sync_property(property, sync_prop);
     property->set_property_type(p_type::sync);
 }
 
-p_type sync_property_processor::get_property_type() const {
+p_type sync_property_processor::get_property_type() const
+{
     return p_type::sync;
 }
 
-void sync_property_processor::hook_sync_property(property_helper* property, const mc::expr::relate_property& relate_property) {
+void sync_property_processor::hook_sync_property(property_helper* property, const mc::expr::relate_property& relate_property)
+{
     auto* target_object = property->find_related_object(relate_property.object_name);
     if (target_object == nullptr) {
         setup_deferred_sync_connection(property, relate_property);
@@ -51,7 +55,8 @@ void sync_property_processor::hook_sync_property(property_helper* property, cons
 
 void sync_property_processor::setup_sync_property_connection(property_helper*                 property,
                                                              const mc::expr::relate_property& relate_property,
-                                                             abstract_object&                 target_object) {
+                                                             abstract_object&                 target_object)
+{
     // 断开旧连接
     property->clear_connection_slots();
 
@@ -77,7 +82,8 @@ void sync_property_processor::setup_sync_property_connection(property_helper*   
 }
 
 void sync_property_processor::setup_deferred_sync_connection(property_helper*                 property,
-                                                             const mc::expr::relate_property& relate_property) {
+                                                             const mc::expr::relate_property& relate_property)
+{
     auto position = property->get_object()->get_position();
     auto service  = mc::expr::func_collection::get_instance().get_service(position);
     if (service == nullptr) {
@@ -99,7 +105,8 @@ void sync_property_processor::setup_deferred_sync_connection(property_helper*   
     property->add_connection_slot(slot);
 }
 
-void sync_property_processor::hook_sync_properties(property_helper* property, mc::dict& relate_properties) {
+void sync_property_processor::hook_sync_properties(property_helper* property, mc::dict& relate_properties)
+{
     // 断开旧连接
     property->clear_connection_slots();
 
@@ -123,7 +130,8 @@ void sync_property_processor::hook_sync_properties(property_helper* property, mc
 
 void sync_property_processor::process_sync_properties_for_object(property_helper*   property,
                                                                  const std::string& object_name,
-                                                                 const mc::dict&    object_properties) {
+                                                                 const mc::dict&    object_properties)
+{
     auto* target_object = property->find_related_object(object_name);
     if (target_object == nullptr) {
         setup_deferred_multi_sync_connection(property, object_name, object_properties);
@@ -135,7 +143,8 @@ void sync_property_processor::process_sync_properties_for_object(property_helper
 
 void sync_property_processor::setup_multi_sync_connection(property_helper* property,
                                                           abstract_object& target_object,
-                                                          const mc::dict&  object_properties) {
+                                                          const mc::dict&  object_properties)
+{
     auto slot = target_object.property_changed().connect(
         [property, object_properties_copy = object_properties](const mc::variant& value, const property_base& prop) {
         if (object_properties_copy.contains(prop.get_name())) {
@@ -152,7 +161,8 @@ void sync_property_processor::setup_multi_sync_connection(property_helper* prope
 
 void sync_property_processor::setup_deferred_multi_sync_connection(property_helper*   property,
                                                                    const std::string& object_name,
-                                                                   const mc::dict&    object_properties) {
+                                                                   const mc::dict&    object_properties)
+{
     auto position = property->get_object()->get_position();
     auto service  = mc::expr::func_collection::get_instance().get_service(position);
     if (service == nullptr) {
@@ -175,7 +185,8 @@ void sync_property_processor::setup_deferred_multi_sync_connection(property_help
     property->add_connection_slot(slot);
 }
 
-void sync_property_processor::update_sync_value_from_function(property_helper* property) {
+void sync_property_processor::update_sync_value_from_function(property_helper* property)
+{
     auto result = property->call_function_with_result(property->get_function_data());
     if (result.is_null()) {
         return;

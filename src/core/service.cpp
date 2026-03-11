@@ -18,7 +18,9 @@
 namespace mc::core {
 
 struct service_base::impl {
-    impl() : m_state(service_state::stopped) {
+    impl()
+        : m_state(service_state::stopped)
+    {
     }
 
     std::string              m_name;
@@ -26,40 +28,50 @@ struct service_base::impl {
     service_state            m_state;
 };
 
-service_base::service_base(std::string name) : m_base_impl(std::make_unique<impl>()) {
+service_base::service_base(std::string name)
+    : m_base_impl(std::make_unique<impl>())
+{
     m_base_impl->m_name  = std::move(name);
     m_base_impl->m_state = service_state::stopped;
 }
 
-service_base::~service_base() {
+service_base::~service_base()
+{
 }
 
-void service_base::set_name(std::string name) {
+void service_base::set_name(std::string name)
+{
     m_base_impl->m_name = std::move(name);
 }
 
-const std::string& service_base::name() const {
+const std::string& service_base::name() const
+{
     return m_base_impl->m_name;
 }
 
-service_state service_base::get_state() const {
+service_state service_base::get_state() const
+{
     return m_base_impl->m_state;
 }
 
-const service_config& service_base::get_config() const {
+const service_config& service_base::get_config() const
+{
     static service_config empty_config;
     return empty_config;
 }
 
-const std::vector<std::string>& service_base::get_dependencies() const {
+const std::vector<std::string>& service_base::get_dependencies() const
+{
     return m_base_impl->m_dependencies;
 }
 
-void service_base::set_dependencies(const std::vector<std::string>& dependencies) {
+void service_base::set_dependencies(const std::vector<std::string>& dependencies)
+{
     m_base_impl->m_dependencies = dependencies;
 }
 
-void service_base::set_state(service_state state) {
+void service_base::set_state(service_state state)
+{
     m_base_impl->m_state = state;
 }
 

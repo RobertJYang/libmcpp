@@ -48,7 +48,8 @@ public:
      * @param on_evict 可选的淘汰回调函数
      */
     explicit lru_cache(size_t max_size = 0, eviction_callback on_evict = nullptr)
-        : m_max_size(max_size), m_on_evict(std::move(on_evict)) {
+        : m_max_size(max_size), m_on_evict(std::move(on_evict))
+    {
     }
 
     /**
@@ -69,7 +70,8 @@ public:
      * @return 如果存在则返回值的引用，否则返回 std::nullopt
      * @note 获取操作会更新该条目的访问时间（移到链表头部）
      */
-    std::optional<std::reference_wrapper<Value>> get(const Key& key) {
+    std::optional<std::reference_wrapper<Value>> get(const Key& key)
+    {
         auto it = m_cache_map.find(key);
         if (it == m_cache_map.end()) {
             return std::nullopt;
@@ -87,7 +89,8 @@ public:
      * @param value 值
      * @note 如果缓存已满，会自动淘汰最久未使用的条目
      */
-    void put(const Key& key, Value value) {
+    void put(const Key& key, Value value)
+    {
         auto it = m_cache_map.find(key);
 
         // 如果键已存在，更新值并移到头部
@@ -112,7 +115,8 @@ public:
      * @param key 键
      * @return 如果键存在则返回 true，否则返回 false
      */
-    bool erase(const Key& key) {
+    bool erase(const Key& key)
+    {
         auto it = m_cache_map.find(key);
         if (it == m_cache_map.end()) {
             return false;
@@ -126,7 +130,8 @@ public:
     /**
      * @brief 清空所有缓存
      */
-    void clear() {
+    void clear()
+    {
         m_lru_list.clear();
         m_cache_map.clear();
     }
@@ -135,7 +140,8 @@ public:
      * @brief 获取当前缓存大小
      * @return 当前缓存的条目数量
      */
-    size_t size() const {
+    size_t size() const
+    {
         return m_cache_map.size();
     }
 
@@ -143,7 +149,8 @@ public:
      * @brief 获取最大缓存容量
      * @return 最大缓存容量，0 表示不限制
      */
-    size_t max_size() const {
+    size_t max_size() const
+    {
         return m_max_size;
     }
 
@@ -152,7 +159,8 @@ public:
      * @param max_size 最大缓存容量，0 表示不限制
      * @note 如果新容量小于当前大小，会立即淘汰多余的条目
      */
-    void set_max_size(size_t max_size) {
+    void set_max_size(size_t max_size)
+    {
         m_max_size = max_size;
 
         // 如果设置了限制且当前大小超过限制，淘汰多余条目
@@ -166,7 +174,8 @@ public:
      * @param key 键
      * @return 如果键存在则返回 true
      */
-    bool contains(const Key& key) const {
+    bool contains(const Key& key) const
+    {
         return m_cache_map.find(key) != m_cache_map.end();
     }
 
@@ -174,7 +183,8 @@ public:
      * @brief 判断缓存是否为空
      * @return 如果缓存为空则返回 true
      */
-    bool empty() const {
+    bool empty() const
+    {
         return m_cache_map.empty();
     }
 
@@ -182,7 +192,8 @@ public:
      * @brief 设置淘汰回调函数
      * @param on_evict 淘汰回调函数
      */
-    void set_eviction_callback(eviction_callback on_evict) {
+    void set_eviction_callback(eviction_callback on_evict)
+    {
         m_on_evict = std::move(on_evict);
     }
 
@@ -191,7 +202,8 @@ public:
      * @param func 遍历函数：void func(const Key& key, const Value& value)
      */
     template <typename Func>
-    void for_each(Func&& func) const {
+    void for_each(Func&& func) const
+    {
         for (const auto& [key, value] : m_lru_list) {
             func(key, value);
         }
@@ -204,7 +216,8 @@ private:
     using list_iterator = typename list_type::iterator;
 
     // 淘汰最久未使用的条目（链表尾部）
-    void evict_lru() {
+    void evict_lru()
+    {
         if (m_lru_list.empty()) {
             return;
         }

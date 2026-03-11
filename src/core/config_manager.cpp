@@ -23,7 +23,8 @@ namespace mc::core {
 
 namespace po = boost::program_options;
 
-variant json_config_loader::load(const std::string& file_path) {
+variant json_config_loader::load(const std::string& file_path)
+{
     if (!mc::filesystem::exists(file_path)) {
         MC_THROW(file_not_found_exception, "config file not found: ${path}", ("path", file_path));
     }
@@ -45,13 +46,15 @@ variant json_config_loader::load(const std::string& file_path) {
     }
 }
 
-variant toml_config_loader::load(const std::string& file_path) {
+variant toml_config_loader::load(const std::string& file_path)
+{
     MC_THROW(mc::not_implemented_exception, "toml config loader not implemented");
 }
 
 config_manager::config_manager()
     : m_loader(std::make_unique<json_config_loader>()), m_opts("config options"),
-      m_config_file("./config.json"), m_plugin_dir("./plugins") {
+      m_config_file("./config.json"), m_plugin_dir("./plugins")
+{
     m_opts.add_options()("help,h", "show help info")("version,v", "show version info")(
         "config,c", po::value<std::string>()->default_value("./config.json"),
         "config file path")("plugin-dir", po::value<std::string>(), "plugin directory path")(
@@ -59,7 +62,8 @@ config_manager::config_manager()
         "plugin list")("threads,t", po::value<unsigned int>()->default_value(0), "thread count");
 }
 
-std::unique_ptr<config_loader> config_manager::create_loader(const std::string& file_path) const {
+std::unique_ptr<config_loader> config_manager::create_loader(const std::string& file_path) const
+{
     std::string ext = mc::filesystem::extension(file_path);
     if (ext == ".json") {
         return std::make_unique<json_config_loader>();
@@ -71,7 +75,8 @@ std::unique_ptr<config_loader> config_manager::create_loader(const std::string& 
     return std::make_unique<json_config_loader>();
 }
 
-bool config_manager::parse_command_line(int argc, char** argv) {
+bool config_manager::parse_command_line(int argc, char** argv)
+{
     try {
         po::parsed_options parsed =
             po::command_line_parser(argc, argv).options(m_opts).allow_unregistered().run();
@@ -108,7 +113,8 @@ bool config_manager::parse_command_line(int argc, char** argv) {
     }
 }
 
-bool config_manager::load_config_file(const std::string& file_path) {
+bool config_manager::load_config_file(const std::string& file_path)
+{
     std::string path = file_path.empty() ? m_config_file : file_path;
 
     try {
@@ -134,7 +140,8 @@ bool config_manager::load_config_file(const std::string& file_path) {
     }
 }
 
-void config_manager::process_config(const variant& config) {
+void config_manager::process_config(const variant& config)
+{
     if (!config.is_dict()) {
         wlog("skip non-object config item");
         return;
@@ -160,7 +167,8 @@ void config_manager::process_config(const variant& config) {
     }
 }
 
-void config_manager::process_app_config(const variant& config) {
+void config_manager::process_app_config(const variant& config)
+{
     config::app_config app;
     try {
         from_variant(config, app);
@@ -178,7 +186,8 @@ void config_manager::process_app_config(const variant& config) {
     }
 }
 
-void config_manager::process_logging_config(const variant& config) {
+void config_manager::process_logging_config(const variant& config)
+{
     try {
         mc::log::logging_config log_config;
         from_variant(config, log_config);
@@ -191,7 +200,8 @@ void config_manager::process_logging_config(const variant& config) {
     }
 }
 
-bool config_manager::validate_config(const std::string& kind, const variant& config) {
+bool config_manager::validate_config(const std::string& kind, const variant& config)
+{
     try {
         if (kind == "Application") {
             config::app_config app;
@@ -221,7 +231,8 @@ bool config_manager::validate_config(const std::string& kind, const variant& con
     }
 }
 
-std::vector<std::string> config_manager::get_plugin_names() const {
+std::vector<std::string> config_manager::get_plugin_names() const
+{
     if (m_variables.count("plugin")) {
         return m_variables["plugin"].as<std::vector<std::string>>();
     }
@@ -233,15 +244,18 @@ std::vector<std::string> config_manager::get_plugin_names() const {
     return {};
 }
 
-std::string config_manager::get_plugin_dir() const {
+std::string config_manager::get_plugin_dir() const
+{
     return m_plugin_dir;
 }
 
-unsigned int config_manager::get_thread_count() const {
+unsigned int config_manager::get_thread_count() const
+{
     return m_thread_count;
 }
 
-bool config_manager::add_config(const variant& config) {
+bool config_manager::add_config(const variant& config)
+{
     try {
         process_config(config);
         return true;

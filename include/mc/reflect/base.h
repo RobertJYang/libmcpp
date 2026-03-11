@@ -88,7 +88,8 @@ struct has_reflectable<
  * @return 如果类型可反射则返回true，否则返回false
  */
 template <typename T>
-constexpr bool is_reflectable() {
+constexpr bool is_reflectable()
+{
     return reflectable<std::decay_t<T>>::is_defined::value ||
            detail::has_reflectable<T>::value;
 }
@@ -99,7 +100,8 @@ constexpr bool is_reflectable() {
  * @return 如果类型是枚举则返回true，否则返回false
  */
 template <typename T>
-constexpr bool is_enum() {
+constexpr bool is_enum()
+{
     return reflectable<T>::is_enum::value;
 }
 
@@ -109,12 +111,14 @@ constexpr bool is_enum() {
  * @return 如果类型是普通的枚举则返回true，否则返回false
  */
 template <typename T>
-constexpr bool is_normal_enum() {
+constexpr bool is_normal_enum()
+{
     return std::is_enum_v<T> && !is_reflectable<T>();
 }
 
 template <typename T>
-constexpr std::string_view get_type_name() {
+constexpr std::string_view get_type_name()
+{
     if constexpr (detail::has_reflectable<T>::value) {
         return T::reflect_name;
     } else {
@@ -136,7 +140,8 @@ constexpr std::string_view get_type_name() {
  * - mc::devices.sensors.TemperatureSensor：表示 mc.devices.sensors 命名空间下的 TemperatureSensor 类型
  */
 constexpr std::size_t max_type_name_length = 255;
-constexpr inline bool is_valid_type_name(std::string_view name) {
+constexpr inline bool is_valid_type_name(std::string_view name)
+{
     // 类型名称不能为空
     if (name.empty() || name.size() > max_type_name_length) {
         return false;
@@ -186,7 +191,8 @@ constexpr inline bool is_valid_type_name(std::string_view name) {
     return true;
 }
 
-constexpr inline std::string_view longest_common_prefix(std::string_view s1, std::string_view s2) {
+constexpr inline std::string_view longest_common_prefix(std::string_view s1, std::string_view s2)
+{
     size_t i = 0;
     while (i < s1.size() && i < s2.size() && s1[i] == s2[i]) {
         ++i;
@@ -194,7 +200,8 @@ constexpr inline std::string_view longest_common_prefix(std::string_view s1, std
     return s1.substr(0, i);
 }
 
-constexpr inline std::string_view remove_common_namespace(std::string_view s1, std::string_view s2) {
+constexpr inline std::string_view remove_common_namespace(std::string_view s1, std::string_view s2)
+{
     auto prefix = longest_common_prefix(s1, s2);
     if (prefix.empty()) {
         return s1;
@@ -234,7 +241,8 @@ struct has_reflect_namespace<
  * @param namespace_name 命名空间名，格式为：mc.devices
  * @return 如果类型在命名空间中则返回true，否则返回false
  */
-constexpr bool type_in_namespace(std::string_view type_name, std::string_view namespace_name) {
+constexpr bool type_in_namespace(std::string_view type_name, std::string_view namespace_name)
+{
     if (!is_valid_type_name(type_name) || !is_valid_type_name(namespace_name)) {
         return false;
     }
@@ -268,7 +276,8 @@ constexpr bool type_in_namespace(std::string_view type_name, std::string_view na
 }
 
 template <typename T>
-constexpr bool check_type_namespace(std::string_view type_name) {
+constexpr bool check_type_namespace(std::string_view type_name)
+{
     if constexpr (has_reflect_namespace<T>::value) {
         using namespace_type = typename reflect_namespace<T>::type;
         return type_in_namespace(type_name, namespace_type::factory_name);
@@ -415,23 +424,29 @@ public:
      * @brief 获取是否为枚举类型
      * @return bool 是否为枚举类型
      */
-    bool is_enum() const {
+    bool is_enum() const
+    {
         return m_is_enum;
     }
 
-    virtual uint64_t get_enum_value(std::string_view name) const {
+    virtual uint64_t get_enum_value(std::string_view name) const
+    {
         throw_not_enum_type(get_type_name());
     }
-    virtual std::string_view get_enum_name(uint64_t value) const {
+    virtual std::string_view get_enum_name(uint64_t value) const
+    {
         throw_not_enum_type(get_type_name());
     }
-    virtual std::vector<std::string_view> get_enum_names() const {
+    virtual std::vector<std::string_view> get_enum_names() const
+    {
         throw_not_enum_type(get_type_name());
     }
-    virtual bool has_enum_value(std::string_view name) const {
+    virtual bool has_enum_value(std::string_view name) const
+    {
         throw_not_enum_type(get_type_name());
     }
-    virtual bool has_enum_value(uint64_t value) const {
+    virtual bool has_enum_value(uint64_t value) const
+    {
         throw_not_enum_type(get_type_name());
     }
 
@@ -485,7 +500,8 @@ using reflection_metadata_wptr = mc::weak_ptr<reflection_base>;
 // 建议在反射系统中的名称保持与C++中的命名空间一致，避免混淆，为此反射系统中也支持 :: 分隔的命名空间。
 #define MC_REFLECTABLE(...)                                                \
     BOOST_PP_IIF(BOOST_PP_GREATER(BOOST_PP_VARIADIC_SIZE(__VA_ARGS__), 1), \
-                 MC_GLOBAL_REFLECTABLE, MC_CLASS_REFLECTABLE)(__VA_ARGS__)
+                 MC_GLOBAL_REFLECTABLE, MC_CLASS_REFLECTABLE)              \
+    (__VA_ARGS__)
 
 } // namespace mc::reflect
 

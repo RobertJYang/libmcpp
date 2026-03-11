@@ -30,10 +30,12 @@ class conditional_node : public node {
 public:
     conditional_node(node_ptr condition, node_ptr true_branch, node_ptr false_branch)
         : m_condition(std::move(condition)), m_true_branch(std::move(true_branch)),
-          m_false_branch(std::move(false_branch)) {
+          m_false_branch(std::move(false_branch))
+    {
     }
 
-    node_type get_type() const override {
+    node_type get_type() const override
+    {
         return node_type::conditional;
     }
 
@@ -41,15 +43,18 @@ public:
 
     std::string to_string() const override;
 
-    const node& get_condition() const {
+    const node& get_condition() const
+    {
         return *m_condition;
     }
 
-    const node& get_true_branch() const {
+    const node& get_true_branch() const
+    {
         return *m_true_branch;
     }
 
-    const node& get_false_branch() const {
+    const node& get_false_branch() const
+    {
         return *m_false_branch;
     }
 

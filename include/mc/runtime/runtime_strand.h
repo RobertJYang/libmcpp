@@ -39,7 +39,8 @@ class MC_API runtime_strand {
     struct task_operation_base : operation_base {
         thread_pool* target_pool;
         task_operation_base(func_type f, destroy_type d, thread_pool* pool)
-            : operation_base(f, d), target_pool(pool) {
+            : operation_base(f, d), target_pool(pool)
+        {
         }
     };
 
@@ -47,19 +48,22 @@ class MC_API runtime_strand {
     struct task_operation : task_operation_base {
         std::decay_t<Function> func_storage;
 
-        static void execute_impl(operation_base* op) {
+        static void execute_impl(operation_base* op)
+        {
             auto* self = static_cast<task_operation*>(op);
             self->func_storage();
         }
 
-        static void destroy_impl(operation_base* op) {
+        static void destroy_impl(operation_base* op)
+        {
             auto* self = static_cast<task_operation*>(op);
             delete self;
         }
 
         task_operation(Function&& f, thread_pool* pool)
             : task_operation_base(&execute_impl, &destroy_impl, pool),
-              func_storage(std::forward<Function>(f)) {
+              func_storage(std::forward<Function>(f))
+        {
         }
     };
 
@@ -102,17 +106,21 @@ public:
     bool               running_in_this_thread() const noexcept;
     execution_context& context() const;
 
-    void on_work_started() const noexcept {
+    void on_work_started() const noexcept
+    {
     }
-    void on_work_finished() const noexcept {
+    void on_work_finished() const noexcept
+    {
     }
 
-    runtime_strand& bound_pool(thread_pool* pool) noexcept {
+    runtime_strand& bound_pool(thread_pool* pool) noexcept
+    {
         m_bound_pool = pool;
         return *this;
     }
 
-    thread_pool* get_bound_pool() const noexcept {
+    thread_pool* get_bound_pool() const noexcept
+    {
         return m_bound_pool;
     }
 
@@ -136,7 +144,8 @@ private:
     bool enqueue(Function&& f) const;
     bool enqueue_op(task_operation_base* op) const;
 
-    inline bool can_execute_in_this_shard() const noexcept {
+    inline bool can_execute_in_this_shard() const noexcept
+    {
         auto* shard = thread_pool::get_current_shard();
         return shard && &shard->pool == m_bound_pool;
     }
@@ -148,7 +157,8 @@ private:
 };
 
 template <typename Function, typename Allocator>
-void runtime_strand::dispatch(Function&& f, const Allocator& a) const {
+void runtime_strand::dispatch(Function&& f, const Allocator& a) const
+{
     if (running_in_this_thread()) {
         // 没有绑定目标 pool 或者当前 shard 就是目标 pool，直接同步执行
         if (!m_bound_pool || can_execute_in_this_shard()) {
@@ -168,7 +178,8 @@ void runtime_strand::dispatch(Function&& f, const Allocator& a) const {
 }
 
 template <typename Function, typename Allocator>
-void runtime_strand::post(Function&& f, const Allocator& a) const {
+void runtime_strand::post(Function&& f, const Allocator& a) const
+{
     bool first = enqueue(std::forward<Function>(f));
     if (first) {
         if (m_bound_pool) {
@@ -180,7 +191,8 @@ void runtime_strand::post(Function&& f, const Allocator& a) const {
 }
 
 template <typename Function, typename Allocator>
-void runtime_strand::defer(Function&& f, const Allocator& a) const {
+void runtime_strand::defer(Function&& f, const Allocator& a) const
+{
     bool first = enqueue(std::forward<Function>(f));
     if (first) {
         if (m_bound_pool) {
@@ -192,7 +204,8 @@ void runtime_strand::defer(Function&& f, const Allocator& a) const {
 }
 
 template <typename Function>
-bool runtime_strand::enqueue(Function&& f) const {
+bool runtime_strand::enqueue(Function&& f) const
+{
     auto* op = new task_operation<Function>(std::forward<Function>(f), m_bound_pool);
     return enqueue_op(op);
 }

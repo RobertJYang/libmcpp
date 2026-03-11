@@ -128,12 +128,14 @@ private:
 };
 
 template <typename T>
-bool copy_context::has_copied(const T* ptr) const {
+bool copy_context::has_copied(const T* ptr) const
+{
     return has_copied_impl(static_cast<const void*>(ptr));
 }
 
 template <typename T>
-mc::shared_ptr<T> copy_context::get_copied(const T* ptr) const {
+mc::shared_ptr<T> copy_context::get_copied(const T* ptr) const
+{
     static_assert(std::is_base_of_v<mc::memory::shared_base, T>,
                   "T must inherit from mc::memory::shared_base");
 
@@ -146,7 +148,8 @@ mc::shared_ptr<T> copy_context::get_copied(const T* ptr) const {
 }
 
 template <typename T>
-void copy_context::record_copied(const T* original_ptr, const mc::shared_ptr<T>& copied_ptr) {
+void copy_context::record_copied(const T* original_ptr, const mc::shared_ptr<T>& copied_ptr)
+{
     static_assert(std::is_base_of_v<mc::memory::shared_base, T>,
                   "T must inherit from mc::memory::shared_base");
 

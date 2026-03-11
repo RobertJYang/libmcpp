@@ -31,7 +31,8 @@ namespace mc::mdb::lua {
 // 辅助函数：将方法返回值转换为字典格式并推送到 Lua 栈
 // 如果成功转换，返回推送到栈上的值数量（1）；否则返回 0
 static int convert_method_results_to_lua(lua_State* L, const method_info* minfo,
-                                         const mc::variants& results) {
+                                         const mc::variants& results)
+{
     if (!minfo) {
         return 0;
     }
@@ -111,7 +112,8 @@ static int convert_method_results_to_lua(lua_State* L, const method_info* minfo,
     return 1;
 }
 
-static int proxy_object_method_closure(lua_State* L) {
+static int proxy_object_method_closure(lua_State* L)
+{
     auto* wrapper = static_cast<proxy_object_wrapper*>(
         lua_touserdata(L, lua_upvalueindex(1)));
     const char* method_name = lua_tostring(L, lua_upvalueindex(2));
@@ -149,7 +151,8 @@ static int proxy_object_method_closure(lua_State* L) {
 }
 
 // pcall 闭包函数：安全调用方法，返回 (ok, ret) 格式
-static int proxy_object_pcall_closure(lua_State* L) {
+static int proxy_object_pcall_closure(lua_State* L)
+{
     auto* wrapper = static_cast<proxy_object_wrapper*>(
         lua_touserdata(L, lua_upvalueindex(1)));
 
@@ -185,7 +188,7 @@ static int proxy_object_pcall_closure(lua_State* L) {
         if (arg_count > 0) {
             // arg_count 包含了方法名，所以实际参数数量需要减1
             mc::variants args = mc::lua::lua_to_variants(L, arg_start, arg_count - 1);
-            args_variant     = mc::variant(args);
+            args_variant      = mc::variant(args);
         }
 
         // 使用 pcall 调用方法
@@ -232,13 +235,13 @@ static int proxy_object_pcall_closure(lua_State* L) {
 
 // 辅助函数：从 CONNECTION_METATABLE userdata 创建临时 sd_bus
 // 注意：传入 connection 的拷贝（shared_ptr 共享底层 connection_impl）
-static std::shared_ptr<mc::dbus::sd_bus> create_sd_bus_from_lua(lua_State* L, int index) {
+static std::shared_ptr<mc::dbus::sd_bus> create_sd_bus_from_lua(lua_State* L, int index)
+{
     auto* wrapper = mc::dbus::lua::check_connection(L, index);
     if (!wrapper || !wrapper->conn_ptr) {
         luaL_error(L, "无效的 connection 对象");
         return nullptr;
     }
-
 
     mc::dbus::connection conn = wrapper->get();
 
@@ -246,7 +249,8 @@ static std::shared_ptr<mc::dbus::sd_bus> create_sd_bus_from_lua(lua_State* L, in
 }
 
 // is_volatile 闭包函数
-static int proxy_object_is_volatile_closure(lua_State* L) {
+static int proxy_object_is_volatile_closure(lua_State* L)
+{
     auto* wrapper = static_cast<proxy_object_wrapper*>(
         lua_touserdata(L, lua_upvalueindex(1)));
 
@@ -279,7 +283,8 @@ static int proxy_object_is_volatile_closure(lua_State* L) {
 }
 
 // get_all 闭包函数
-static int proxy_object_get_all_closure(lua_State* L) {
+static int proxy_object_get_all_closure(lua_State* L)
+{
     auto* wrapper = static_cast<proxy_object_wrapper*>(
         lua_touserdata(L, lua_upvalueindex(1)));
 
@@ -306,7 +311,8 @@ static int proxy_object_get_all_closure(lua_State* L) {
 }
 
 // get_properties 闭包函数
-static int proxy_object_get_properties_closure(lua_State* L) {
+static int proxy_object_get_properties_closure(lua_State* L)
+{
     auto* wrapper = static_cast<proxy_object_wrapper*>(
         lua_touserdata(L, lua_upvalueindex(1)));
 
@@ -355,7 +361,8 @@ static int proxy_object_get_properties_closure(lua_State* L) {
 }
 
 // __index 元方法：读属性
-static int proxy_object_index(lua_State* L) {
+static int proxy_object_index(lua_State* L)
+{
     auto        wrapper = check_proxy_object(L, 1);
     const char* key     = luaL_checkstring(L, 2);
 
@@ -416,7 +423,8 @@ static int proxy_object_index(lua_State* L) {
 }
 
 // __newindex 元方法：写属性
-static int proxy_object_newindex(lua_State* L) {
+static int proxy_object_newindex(lua_State* L)
+{
     auto        wrapper = check_proxy_object(L, 1);
     const char* key     = luaL_checkstring(L, 2);
 
@@ -452,7 +460,8 @@ static int proxy_object_newindex(lua_State* L) {
 }
 
 // __call 元方法：方法调用
-static int proxy_object_call(lua_State* L) {
+static int proxy_object_call(lua_State* L)
+{
     auto        wrapper     = check_proxy_object(L, 1);
     const char* method_name = luaL_checkstring(L, 2);
 
@@ -497,14 +506,16 @@ static int proxy_object_call(lua_State* L) {
 }
 
 // __gc 元方法
-static int proxy_object_gc(lua_State* L) {
+static int proxy_object_gc(lua_State* L)
+{
     auto wrapper = check_proxy_object(L, 1);
     wrapper->~proxy_object_wrapper();
     return 0;
 }
 
 // 注册 proxy_object metatable
-void register_proxy_object_metatable(lua_State* L) {
+void register_proxy_object_metatable(lua_State* L)
+{
     // 创建 metatable
     luaL_newmetatable(L, PROXY_OBJECT_METATABLE);
 
@@ -528,7 +539,8 @@ void register_proxy_object_metatable(lua_State* L) {
 }
 
 // mdb_access.get_object(bus, path, interface)
-static int mdb_access_get_object(lua_State* L) {
+static int mdb_access_get_object(lua_State* L)
+{
     try {
         // 参数1: bus (从 lightuserdata 创建 sd_bus)
         auto bus = create_sd_bus_from_lua(L, 1);
@@ -542,8 +554,8 @@ static int mdb_access_get_object(lua_State* L) {
         // 参数3: interface (string)
         const char* interface = luaL_checkstring(L, 3);
 
-        auto&                    obj_mgr = mdb_access::instance();
-        std::shared_ptr<proxy_object> obj = obj_mgr.get_object(bus, path, interface);
+        auto&                         obj_mgr = mdb_access::instance();
+        std::shared_ptr<proxy_object> obj     = obj_mgr.get_object(bus, path, interface);
 
         // 将代理对象推入 Lua 栈
         return push_proxy_object(L, obj);
@@ -555,7 +567,8 @@ static int mdb_access_get_object(lua_State* L) {
 }
 
 // mdb_access.get_object_by_short_call(bus, path, interface)
-static int mdb_access_get_object_by_short_call(lua_State* L) {
+static int mdb_access_get_object_by_short_call(lua_State* L)
+{
     try {
         // 参数1: bus (从 lightuserdata 创建 sd_bus)
         auto bus = create_sd_bus_from_lua(L, 1);
@@ -571,8 +584,8 @@ static int mdb_access_get_object_by_short_call(lua_State* L) {
 
         // 调用 mdb_access::get_object_by_short_call，返回 shared_ptr 管理对象生命周期
         // 注意：get_object_by_short_call 不缓存对象，对象生命周期由返回的 shared_ptr 管理
-        auto&                    obj_mgr = mdb_access::instance();
-        std::shared_ptr<proxy_object> obj = obj_mgr.get_object_by_short_call(bus.get(), path, interface);
+        auto&                         obj_mgr = mdb_access::instance();
+        std::shared_ptr<proxy_object> obj     = obj_mgr.get_object_by_short_call(bus.get(), path, interface);
 
         // 将代理对象推入 Lua 栈
         return push_proxy_object(L, obj);
@@ -584,7 +597,8 @@ static int mdb_access_get_object_by_short_call(lua_State* L) {
 }
 
 // mdb_access.get_object_with_service(bus, service, path, interface)
-static int mdb_access_get_object_with_service(lua_State* L) {
+static int mdb_access_get_object_with_service(lua_State* L)
+{
     try {
         // 参数1: bus (从 lightuserdata 创建 sd_bus)
         auto bus = create_sd_bus_from_lua(L, 1);
@@ -601,8 +615,8 @@ static int mdb_access_get_object_with_service(lua_State* L) {
         // 参数4: interface (string)
         const char* interface = luaL_checkstring(L, 4);
 
-        auto&                    obj_mgr = mdb_access::instance();
-        std::shared_ptr<proxy_object> obj = obj_mgr.get_object_with_service(bus, service, path, interface);
+        auto&                         obj_mgr = mdb_access::instance();
+        std::shared_ptr<proxy_object> obj     = obj_mgr.get_object_with_service(bus, service, path, interface);
 
         // 将代理对象推入 Lua 栈
         return push_proxy_object(L, obj);
@@ -614,7 +628,8 @@ static int mdb_access_get_object_with_service(lua_State* L) {
 }
 
 // mdb_access.get_all(bus, path, interface)
-static int mdb_access_get_all(lua_State* L) {
+static int mdb_access_get_all(lua_State* L)
+{
     try {
         // 参数1: bus (从 lightuserdata 创建 sd_bus)
         auto bus = create_sd_bus_from_lua(L, 1);
@@ -629,8 +644,8 @@ static int mdb_access_get_all(lua_State* L) {
         const char* interface = luaL_checkstring(L, 3);
 
         // 调用 mdb_access 获取代理对象
-        auto&                    obj_mgr = mdb_access::instance();
-        std::shared_ptr<proxy_object> obj = obj_mgr.get_object(bus, path, interface);
+        auto&                         obj_mgr = mdb_access::instance();
+        std::shared_ptr<proxy_object> obj     = obj_mgr.get_object(bus, path, interface);
 
         // 获取所有属性
         mc::dict props = obj->get_all_properties();
@@ -652,7 +667,8 @@ static int mdb_access_get_all(lua_State* L) {
 }
 
 // mdb_access.get_properties(bus, path, interface, props)
-static int mdb_access_get_properties(lua_State* L) {
+static int mdb_access_get_properties(lua_State* L)
+{
     try {
         // 参数1: bus (从 lightuserdata 创建 sd_bus)
         auto bus = create_sd_bus_from_lua(L, 1);
@@ -672,8 +688,8 @@ static int mdb_access_get_properties(lua_State* L) {
         }
 
         // 调用 mdb_access 获取代理对象
-        auto&                    obj_mgr = mdb_access::instance();
-        std::shared_ptr<proxy_object> obj = obj_mgr.get_object(bus, path, interface);
+        auto&                         obj_mgr = mdb_access::instance();
+        std::shared_ptr<proxy_object> obj     = obj_mgr.get_object(bus, path, interface);
 
         // 读取属性名列表
         mc::variants prop_names;
@@ -704,7 +720,8 @@ static int mdb_access_get_properties(lua_State* L) {
 
 // Objects 元表的 fold 方法实现
 // 对应 Lua: function Objects:fold(f, initial_acc)
-static int objects_fold(lua_State* L) {
+static int objects_fold(lua_State* L)
+{
     // self 是 obj_list table（索引1）
     luaL_checktype(L, 1, LUA_TTABLE);
 
@@ -761,24 +778,26 @@ static int objects_fold(lua_State* L) {
 }
 
 // __index 元方法：用于访问 fold 方法
-static int objects_index(lua_State* L) {
+static int objects_index(lua_State* L)
+{
     // 参数1: table (obj_list)
     // 参数2: key (例如 "fold")
     const char* key = luaL_checkstring(L, 2);
-    
+
     // 如果访问的是 "fold"，返回 fold 函数
     if (strcmp(key, "fold") == 0) {
         lua_pushcfunction(L, objects_fold);
         return 1;
     }
-    
+
     // 其他情况返回 nil（让 Lua 使用默认行为）
     lua_pushnil(L);
     return 1;
 }
 
 // 注册 Objects 元表
-static void register_objects_metatable(lua_State* L) {
+static void register_objects_metatable(lua_State* L)
+{
     // 创建 Objects 元表
     lua_newtable(L);  // Objects 元表
 
@@ -794,7 +813,8 @@ static void register_objects_metatable(lua_State* L) {
 }
 
 // 获取 Objects 元表（如果不存在则创建）
-static void get_objects_metatable(lua_State* L) {
+static void get_objects_metatable(lua_State* L)
+{
     // 尝试从注册表中获取
     lua_getfield(L, LUA_REGISTRYINDEX, "lmdb.mdb_access.Objects");
     if (lua_isnil(L, -1)) {
@@ -805,7 +825,8 @@ static void get_objects_metatable(lua_State* L) {
 }
 
 // mdb_access.get_sub_objects(bus, path, interface, depth)
-static int mdb_access_get_sub_objects(lua_State* L) {
+static int mdb_access_get_sub_objects(lua_State* L)
+{
     try {
         // 参数1: bus (从 lightuserdata 创建 sd_bus)
         auto bus = create_sd_bus_from_lua(L, 1);
@@ -867,7 +888,8 @@ static const luaL_Reg mdb_access_funcs[] = {
     {nullptr, nullptr}};
 
 // 注册 mdb_access 模块的所有函数到 Lua 栈顶的 table 中
-void register_mdb_access_functions(lua_State* L) {
+void register_mdb_access_functions(lua_State* L)
+{
     // 注册 proxy_object metatable
     register_proxy_object_metatable(L);
 

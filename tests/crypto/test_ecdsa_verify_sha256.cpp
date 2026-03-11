@@ -27,7 +27,8 @@ namespace mc::crypto {
 
 namespace {
 
-std::string to_der_signature(EC_KEY* key, const std::string& data) {
+std::string to_der_signature(EC_KEY* key, const std::string& data)
+{
     unsigned char digest[SHA256_DIGEST_LENGTH] = {0};
     SHA256(reinterpret_cast<const unsigned char*>(data.data()), data.size(), digest);
 
@@ -41,7 +42,7 @@ std::string to_der_signature(EC_KEY* key, const std::string& data) {
         ECDSA_SIG_free(sig);
         return {};
     }
-    std::string der(der_len, '\0');
+    std::string    der(der_len, '\0');
     unsigned char* p = reinterpret_cast<unsigned char*>(&der[0]);
     if (i2d_ECDSA_SIG(sig, &p) != der_len) {
         ECDSA_SIG_free(sig);
@@ -51,12 +52,13 @@ std::string to_der_signature(EC_KEY* key, const std::string& data) {
     return der;
 }
 
-std::string to_der_public_key(EC_KEY* key) {
+std::string to_der_public_key(EC_KEY* key)
+{
     int pub_len = i2o_ECPublicKey(key, nullptr);
     if (pub_len <= 0) {
         return {};
     }
-    std::string pub(pub_len, '\0');
+    std::string    pub(pub_len, '\0');
     unsigned char* p = reinterpret_cast<unsigned char*>(&pub[0]);
     if (i2o_ECPublicKey(key, &p) != pub_len) {
         return {};
@@ -68,7 +70,8 @@ std::string to_der_public_key(EC_KEY* key) {
 
 class EcdsaVerifySha256Test : public ::testing::Test {
 protected:
-    void SetUp() override {
+    void SetUp() override
+    {
         key_ = EC_KEY_new_by_curve_name(NID_secp256k1);
         ASSERT_NE(key_, nullptr);
         ASSERT_EQ(EC_KEY_generate_key(key_), 1);
@@ -76,31 +79,34 @@ protected:
         ASSERT_FALSE(pub_der_.empty());
     }
 
-    void TearDown() override {
+    void TearDown() override
+    {
         if (key_ != nullptr) {
             EC_KEY_free(key_);
         }
     }
 
-    EC_KEY*               key_{nullptr};
-    std::string           pub_der_;
+    EC_KEY*     key_{nullptr};
+    std::string pub_der_;
 };
 
-TEST_F(EcdsaVerifySha256Test, VerifySuccess) {
-    const std::string data = "hello ecdsa";
-    auto signature_der     = to_der_signature(key_, data);
+TEST_F(EcdsaVerifySha256Test, VerifySuccess)
+{
+    const std::string data          = "hello ecdsa";
+    auto              signature_der = to_der_signature(key_, data);
     ASSERT_FALSE(signature_der.empty());
 
     std::string data_mutable = data;
-    int32_t ret = ecdsa_verify_sha256(data_mutable,
-                                                signature_der,
-                                                pub_der_);
+    int32_t     ret          = ecdsa_verify_sha256(data_mutable,
+                                                   signature_der,
+                                                   pub_der_);
     EXPECT_EQ(ret, ECDSA_VERIFY_OK);
 }
 
-TEST_F(EcdsaVerifySha256Test, VerifyFail_TamperedData) {
-    const std::string data = "hello ecdsa";
-    auto signature_der     = to_der_signature(key_, data);
+TEST_F(EcdsaVerifySha256Test, VerifyFail_TamperedData)
+{
+    const std::string data          = "hello ecdsa";
+    auto              signature_der = to_der_signature(key_, data);
     ASSERT_FALSE(signature_der.empty());
 
     std::string bad_data = data;
@@ -110,9 +116,10 @@ TEST_F(EcdsaVerifySha256Test, VerifyFail_TamperedData) {
     EXPECT_EQ(ret, ECDSA_VERIFY_FAILED);
 }
 
-TEST_F(EcdsaVerifySha256Test, VerifyFail_TamperedSignature) {
-    const std::string data = "hello ecdsa";
-    auto signature_der     = to_der_signature(key_, data);
+TEST_F(EcdsaVerifySha256Test, VerifyFail_TamperedSignature)
+{
+    const std::string data          = "hello ecdsa";
+    auto              signature_der = to_der_signature(key_, data);
     ASSERT_FALSE(signature_der.empty());
 
     std::string bad_sig = signature_der;
@@ -120,15 +127,15 @@ TEST_F(EcdsaVerifySha256Test, VerifyFail_TamperedSignature) {
     bad_sig.back() ^= 0x01;
 
     std::string data_mutable = data;
-    int32_t ret = ecdsa_verify_sha256(data_mutable, bad_sig, pub_der_);
+    int32_t     ret          = ecdsa_verify_sha256(data_mutable, bad_sig, pub_der_);
     EXPECT_EQ(ret, ECDSA_VERIFY_FAILED);
 }
 
-TEST_F(EcdsaVerifySha256Test, VerifyFail_EmptyInput) {
+TEST_F(EcdsaVerifySha256Test, VerifyFail_EmptyInput)
+{
     std::string empty;
-    int32_t ret = ecdsa_verify_sha256(empty, empty, empty);
+    int32_t     ret = ecdsa_verify_sha256(empty, empty, empty);
     EXPECT_EQ(ret, ECDSA_VERIFY_FAILED);
 }
 
 } // namespace mc::crypto
-

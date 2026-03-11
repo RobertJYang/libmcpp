@@ -18,12 +18,14 @@ namespace mc::engine {
 
 static constexpr int64_t GET_PROPERTY_CALL_TIMEOUT = 60 * 1000;
 
-properties_interface& properties_interface::get_instance() {
+properties_interface& properties_interface::get_instance()
+{
     static properties_interface instance;
     return instance;
 }
 
-static bool object_has_interface(abstract_object* object, std::string_view interface_name) {
+static bool object_has_interface(abstract_object* object, std::string_view interface_name)
+{
     if (interface_name == properties_interface_name || interface_name == introspectable_interface_name || interface_name == peer_interface_name || interface_name == object_manager_interface_name) {
         return true;
     }
@@ -31,7 +33,8 @@ static bool object_has_interface(abstract_object* object, std::string_view inter
 }
 
 mc::variant properties_interface::get(std::string_view interface_name,
-                                      std::string_view property_name) const {
+                                      std::string_view property_name) const
+{
     auto* object = object_call_stack::top_value();
     if (object == nullptr) {
         return {};
@@ -48,7 +51,8 @@ mc::variant properties_interface::get(std::string_view interface_name,
     return object->get_property(property_name, interface_name, mc::engine::property_options::from_mdb);
 }
 
-mc::dict properties_interface::get_all(std::string_view interface_name) const {
+mc::dict properties_interface::get_all(std::string_view interface_name) const
+{
     auto* object = object_call_stack::top_value();
     if (object == nullptr) {
         return {};
@@ -60,7 +64,8 @@ mc::dict properties_interface::get_all(std::string_view interface_name) const {
 }
 
 void properties_interface::set(std::string_view interface_name, std::string_view property_name,
-                               const mc::variant& value) {
+                               const mc::variant& value)
+{
     auto* object = object_call_stack::top_value();
     if (object == nullptr) {
         return;
@@ -80,21 +85,24 @@ void properties_interface::set(std::string_view interface_name, std::string_view
 }
 
 struct inintrospect_vistor : metadata_visitor {
-    void handle_interface_begin(const interface_metadata& iface) override {
+    void handle_interface_begin(const interface_metadata& iface) override
+    {
         current_interface_name = iface.metadata->get_class_name();
         xml_data += "<interface name=\"";
         xml_data += current_interface_name;
         xml_data += "\">";
     }
 
-    void handle_interface_end(const interface_metadata& iface) override {
+    void handle_interface_end(const interface_metadata& iface) override
+    {
         xml_data += "</interface>";
     }
 
     /*
         <property name="Property" type="i" access="readwrite" />
     */
-    void handle(const property_type_info* info) override {
+    void handle(const property_type_info* info) override
+    {
         xml_data += "<property name=\"";
         xml_data += info->name;
         xml_data += "\" type=\"";
@@ -109,7 +117,8 @@ struct inintrospect_vistor : metadata_visitor {
           <arg type="s" direction="out"/>
         </method>
     */
-    void handle(const method_type_info* info) override {
+    void handle(const method_type_info* info) override
+    {
         xml_data += "<method name=\"";
         xml_data += info->name;
         xml_data += "\">";
@@ -153,7 +162,8 @@ struct inintrospect_vistor : metadata_visitor {
             <arg type="i" />
         </signal>
     */
-    void handle(const signal_type_info* info) override {
+    void handle(const signal_type_info* info) override
+    {
         xml_data += "<signal name=\"";
         xml_data += info->name;
         xml_data += "\">";
@@ -169,7 +179,8 @@ struct inintrospect_vistor : metadata_visitor {
         xml_data += "</signal>";
     }
 
-    void handle_children(abstract_object& obj) {
+    void handle_children(abstract_object& obj)
+    {
         auto& objs = obj.get_managed_objects();
         auto  path = obj.get_object_path();
 
@@ -188,7 +199,8 @@ struct inintrospect_vistor : metadata_visitor {
     }
 
     template <typename Interface>
-    void add_standard_interfaces(const Interface& ins) {
+    void add_standard_interfaces(const Interface& ins)
+    {
         const auto& mt = ins.get_metadata();
         handle_interface_begin({nullptr, &mt});
         mt.visit(*this);
@@ -199,12 +211,14 @@ struct inintrospect_vistor : metadata_visitor {
     std::string current_interface_name;
 };
 
-introspectable_interface& introspectable_interface::get_instance() {
+introspectable_interface& introspectable_interface::get_instance()
+{
     static introspectable_interface instance;
     return instance;
 }
 
-std::string introspectable_interface::introspect() const {
+std::string introspectable_interface::introspect() const
+{
     auto* object = object_call_stack::top_value();
     if (object == nullptr) {
         return {};
@@ -226,36 +240,45 @@ std::string introspectable_interface::introspect() const {
     return v.xml_data;
 }
 
-peer_interface& peer_interface::get_instance() {
+peer_interface& peer_interface::get_instance()
+{
     static peer_interface instance;
     return instance;
 }
 
-void peer_interface::ping() const {
+void peer_interface::ping() const
+{
 }
 
-std::string peer_interface::get_machine_id() const {
+std::string peer_interface::get_machine_id() const
+{
     return {};
 }
 
-object_manager_interface& object_manager_interface::get_instance() {
+object_manager_interface& object_manager_interface::get_instance()
+{
     static object_manager_interface instance;
     return instance;
 }
 struct object_manager_vistor : metadata_visitor {
-    object_manager_vistor(abstract_object* object) : m_object(object) {
+    object_manager_vistor(abstract_object* object)
+        : m_object(object)
+    {
     }
 
-    void handle_interface_begin(const interface_metadata& iface) override {
+    void handle_interface_begin(const interface_metadata& iface) override
+    {
         m_current            = {};
         m_interface_metadata = &iface;
     }
 
-    void handle_interface_end(const interface_metadata& iface) override {
+    void handle_interface_end(const interface_metadata& iface) override
+    {
         m_interfaces[iface.metadata->get_class_name()] = m_current;
     }
 
-    void handle(const property_type_info* info) override {
+    void handle(const property_type_info* info) override
+    {
         if (m_interface_metadata->metadata->get_class_name() == common_properties_name) {
             mc::variant value     = common_properties_interface::get(info->name);
             m_current[info->name] = value;
@@ -274,7 +297,8 @@ struct object_manager_vistor : metadata_visitor {
 };
 
 object_manager_interface::objects_type
-object_manager_interface::get_managed_objects() const {
+object_manager_interface::get_managed_objects() const
+{
     auto* object = object_call_stack::top_value();
     if (object == nullptr) {
         return {};
@@ -298,12 +322,14 @@ object_manager_interface::get_managed_objects() const {
     return objects;
 }
 
-common_properties_interface& common_properties_interface::get_instance() {
+common_properties_interface& common_properties_interface::get_instance()
+{
     static common_properties_interface instance;
     return instance;
 }
 
-mc::variant common_properties_interface::get(std::string_view property_name) {
+mc::variant common_properties_interface::get(std::string_view property_name)
+{
     auto* object = object_call_stack::top_value();
     if (object == nullptr) {
         return {};
@@ -325,7 +351,8 @@ mc::variant common_properties_interface::get(std::string_view property_name) {
 }
 
 mc::variant common_properties_interface::get_with_context(std::map<std::string, std::string> context, std::string_view interface_name,
-                                                          std::string_view property_name) {
+                                                          std::string_view property_name)
+{
     if (interface_name == common_properties_name) {
         return get(property_name);
     }
@@ -342,7 +369,8 @@ mc::variant common_properties_interface::get_with_context(std::map<std::string, 
     return object->get_property(property_name, interface_name);
 }
 
-mc::dict common_properties_interface::get_all() {
+mc::dict common_properties_interface::get_all()
+{
     auto* object = object_call_stack::top_value();
     if (object == nullptr) {
         return {};
@@ -356,7 +384,8 @@ mc::dict common_properties_interface::get_all() {
 }
 
 void common_properties_interface::set_with_context(std::map<std::string, std::string> context, std::string_view interface_name,
-                                                   std::string_view property_name, const mc::variant& value) {
+                                                   std::string_view property_name, const mc::variant& value)
+{
     if (interface_name == common_properties_name) {
         return;
     }
@@ -375,7 +404,8 @@ void common_properties_interface::set_with_context(std::map<std::string, std::st
 }
 
 mc::dict common_properties_interface::get_all_with_context(std::map<std::string, std::string> context,
-    std::string_view interface_name) {
+                                                           std::string_view                   interface_name)
+{
     auto* object = object_call_stack::top_value();
     if (object == nullptr) {
         elog("failed to get object from call stack");
@@ -387,7 +417,8 @@ mc::dict common_properties_interface::get_all_with_context(std::map<std::string,
     return object->get_all_properties(interface_name, mc::engine::property_options::from_mdb);
 }
 
-std::string common_properties_interface::get_private_properties(std::map<std::string, std::string> context) {
+std::string common_properties_interface::get_private_properties(std::map<std::string, std::string> context)
+{
 #if defined(BUILD_TYPE) && defined(BUILD_TYPE_RELEASE) && BUILD_TYPE == BUILD_TYPE_RELEASE
     return "";
 #else
@@ -412,7 +443,8 @@ std::string common_properties_interface::get_private_properties(std::map<std::st
 }
 
 static mc::variant get_target_property_value(service* srv, std::string_view service_name, std::string_view path,
-                                             std::string_view interface, std::string_view property) {
+                                             std::string_view interface, std::string_view property)
+{
     mc::variants args{mc::dict{}, interface, property};
     return srv->timeout_call(mc::milliseconds(GET_PROPERTY_CALL_TIMEOUT), service_name, path,
                              common_properties_name, "GetWithContext", "a{ss}ss", args);
@@ -420,7 +452,8 @@ static mc::variant get_target_property_value(service* srv, std::string_view serv
 
 std::string common_properties_interface::get_property_detail(std::map<std::string, std::string> context,
                                                              std::string_view                   interface_name,
-                                                             std::string_view                   property_name) {
+                                                             std::string_view                   property_name)
+{
 #if defined(BUILD_TYPE) && defined(BUILD_TYPE_RELEASE) && BUILD_TYPE == BUILD_TYPE_RELEASE
     return "";
 #else
@@ -451,7 +484,8 @@ std::string common_properties_interface::get_property_detail(std::map<std::strin
 
 invoke_result standard_interfaces::invoke(abstract_object* object, std::string_view method_name,
                                           const mc::variants& args,
-                                          std::string_view    interface_name) {
+                                          std::string_view    interface_name)
+{
     // 优化：所有的标准接口都有同样的前缀，前缀不匹配可以快速返回
     if (!mc::string::starts_with(interface_name, common_prefix)) {
         if (interface_name == common_properties_name) {

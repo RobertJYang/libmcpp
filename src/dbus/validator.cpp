@@ -12,15 +12,18 @@
 
 namespace mc::dbus {
 
-bool validator::is_valid_interface_name(std::string_view name) {
+bool validator::is_valid_interface_name(std::string_view name)
+{
     return mc::is_valid_interface_name(name);
 }
 
-bool validator::is_valid_member_name(std::string_view name) {
+bool validator::is_valid_member_name(std::string_view name)
+{
     return mc::is_identifier(name);
 }
 
-bool validator::is_valid_bus_name(std::string_view name) {
+bool validator::is_valid_bus_name(std::string_view name)
+{
     if (name.empty() || name.size() > mc::max_identifier_length) {
         return false;
     }
@@ -60,15 +63,18 @@ bool validator::is_valid_bus_name(std::string_view name) {
     return num_elements >= 2;
 }
 
-bool validator::is_valid_error_name(std::string_view errorname) {
+bool validator::is_valid_error_name(std::string_view errorname)
+{
     return is_valid_interface_name(errorname);
 }
 
-bool validator::is_message_too_large(std::size_t size) {
+bool validator::is_message_too_large(std::size_t size)
+{
     return size >= maximum_message_size;
 }
 
-bool validator::is_valid_path(std::string_view path) {
+bool validator::is_valid_path(std::string_view path)
+{
     // TODO: 检查路径是否有效
     return true;
 }

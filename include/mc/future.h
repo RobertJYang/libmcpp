@@ -45,14 +45,16 @@ namespace mc {
 template <typename T, typename Executor = mc::io_context::executor_type>
 auto make_promise(Executor executor = mc::get_io_executor())
     -> std::enable_if_t<futures::detail::is_executor_v<Executor>,
-                        mc::futures::Promise<mc::futures::detail::state_tt<T>>> {
+                        mc::futures::Promise<mc::futures::detail::state_tt<T>>>
+{
     return mc::futures::make_promise<T>(std::move(executor));
 }
 
 template <typename T, typename Execution>
 auto make_promise(Execution& execution)
     -> std::enable_if_t<futures::detail::is_execution_context_v<Execution>,
-                        mc::futures::Promise<mc::futures::detail::state_tt<T>>> {
+                        mc::futures::Promise<mc::futures::detail::state_tt<T>>>
+{
     return mc::futures::make_promise<T>(execution.get_executor());
 }
 
@@ -68,7 +70,8 @@ namespace futures {
 template <typename T, typename Executor = runtime::any_executor>
 auto resolve(T&& value, Executor executor = runtime::any_executor())
     -> std::enable_if_t<detail::is_executor_v<Executor>,
-                        mc::futures::Future<mc::futures::detail::state_tt<T>>> {
+                        mc::futures::Future<mc::futures::detail::state_tt<T>>>
+{
     auto state = detail::make_resolved_state<mc::futures::detail::state_tt<T>>(
         std::forward<T>(value), std::move(executor));
     return Future<mc::futures::detail::state_tt<T>>(std::move(state));
@@ -77,7 +80,8 @@ auto resolve(T&& value, Executor executor = runtime::any_executor())
 template <typename T, typename Execution = runtime::immediate_context>
 auto resolve(T&& value, Execution& execution)
     -> std::enable_if_t<detail::is_execution_context_v<Execution>,
-                        mc::futures::Future<mc::futures::detail::state_tt<T>>> {
+                        mc::futures::Future<mc::futures::detail::state_tt<T>>>
+{
     return resolve<T>(std::forward<T>(value), execution.get_executor());
 }
 
@@ -85,14 +89,16 @@ auto resolve(T&& value, Execution& execution)
 template <typename Executor = runtime::any_executor>
 auto resolve(Executor executor = runtime::any_executor())
     -> std::enable_if_t<detail::is_executor_v<Executor>,
-                        mc::futures::Future<void>> {
+                        mc::futures::Future<void>>
+{
     auto state = detail::make_resolved_state(std::move(executor));
     return Future<void>(std::move(state));
 }
 template <typename Execution = runtime::immediate_context>
 auto resolve(Execution& execution)
     -> std::enable_if_t<detail::is_execution_context_v<Execution>,
-                        mc::futures::Future<void>> {
+                        mc::futures::Future<void>>
+{
     return resolve(execution.get_executor());
 }
 
@@ -100,7 +106,8 @@ auto resolve(Execution& execution)
 template <typename T, typename Executor = runtime::any_executor>
 auto reject(std::exception_ptr eptr, Executor executor = runtime::any_executor())
     -> std::enable_if_t<detail::is_executor_v<Executor>,
-                        mc::futures::Future<mc::futures::detail::state_tt<T>>> {
+                        mc::futures::Future<mc::futures::detail::state_tt<T>>>
+{
     auto state = detail::make_rejected_state<mc::futures::detail::state_tt<T>>(
         std::move(eptr), std::move(executor));
     return Future<mc::futures::detail::state_tt<T>>(std::move(state));
@@ -109,7 +116,8 @@ auto reject(std::exception_ptr eptr, Executor executor = runtime::any_executor()
 template <typename T, typename Execution = runtime::immediate_context>
 auto reject(std::exception_ptr eptr, Execution& execution)
     -> std::enable_if_t<detail::is_execution_context_v<Execution>,
-                        mc::futures::Future<mc::futures::detail::state_tt<T>>> {
+                        mc::futures::Future<mc::futures::detail::state_tt<T>>>
+{
     return reject<T>(std::move(eptr), execution.get_executor());
 }
 
@@ -117,14 +125,16 @@ auto reject(std::exception_ptr eptr, Execution& execution)
 template <typename T, typename Exception, typename Execution = runtime::immediate_context>
 auto reject(Exception&& ex, Execution& execution)
     -> std::enable_if_t<detail::is_execution_context_v<Execution>,
-                        mc::futures::Future<mc::futures::detail::state_tt<T>>> {
+                        mc::futures::Future<mc::futures::detail::state_tt<T>>>
+{
     return reject<T>(std::make_exception_ptr(std::forward<Exception>(ex)), execution);
 }
 
 template <typename T, typename Exception, typename Executor = runtime::any_executor>
 auto reject(Exception&& ex, Executor executor = mc::any_executor())
     -> std::enable_if_t<detail::is_executor_v<Executor>,
-                        mc::futures::Future<mc::futures::detail::state_tt<T>>> {
+                        mc::futures::Future<mc::futures::detail::state_tt<T>>>
+{
     return reject<T>(std::make_exception_ptr(std::forward<Exception>(ex)), std::move(executor));
 }
 
@@ -134,7 +144,8 @@ template <typename FutureType, typename Duration,
 auto timeout(FutureType future, Duration timeout_duration,
              Executor executor = mc::get_io_executor())
     -> std::enable_if_t<detail::is_future_v<FutureType> && detail::is_executor_v<Executor>,
-                        Future<mc::futures::detail::state_tt<typename FutureType::value_type>>> {
+                        Future<mc::futures::detail::state_tt<typename FutureType::value_type>>>
+{
     using value_type = typename FutureType::value_type;
 
     // 优化：如果传入的future已经cancelled或ready，则直接返回
@@ -152,7 +163,8 @@ auto timeout(FutureType future, Duration timeout_duration,
 
 template <typename FutureType, typename Duration, typename Execution>
 auto timeout(FutureType future, Duration timeout_duration,
-             Execution& execution) {
+             Execution& execution)
+{
     return timeout(std::move(future), timeout_duration, execution.get_executor());
 }
 
@@ -161,7 +173,8 @@ template <typename Duration, typename Executor = mc::io_context::executor_type>
 auto delay(Duration delay_duration, Executor executor = mc::get_io_executor())
     -> std::enable_if_t<std::is_constructible_v<std::chrono::steady_clock::duration, Duration> &&
                             detail::is_executor_v<Executor>,
-                        Future<void>> {
+                        Future<void>>
+{
     return Future<void>{any_future::delay(static_cast<any_future::duration_type>(delay_duration), executor)};
 }
 
@@ -169,14 +182,16 @@ auto delay(Duration delay_duration, Executor executor = mc::get_io_executor())
 template <typename Executor = mc::io_context::executor_type>
 auto delay(Executor executor = mc::get_io_executor())
     -> std::enable_if_t<detail::is_executor_v<Executor>,
-                        Future<void>> {
+                        Future<void>>
+{
     return delay(std::chrono::steady_clock::duration::zero(), executor);
 }
 
 template <typename Duration, typename Execution>
 auto delay(Duration delay_duration, Execution& execution)
     -> std::enable_if_t<detail::is_execution_context_v<Execution>,
-                        Future<void>> {
+                        Future<void>>
+{
     return delay(delay_duration, execution.get_executor());
 }
 

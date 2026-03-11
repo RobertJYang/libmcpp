@@ -14,15 +14,18 @@
 #include <mc/core/supervisor.h>
 
 namespace mc::core {
-const config::supervisor_config& supervisor_base::get_config() const {
+const config::supervisor_config& supervisor_base::get_config() const
+{
     return m_config;
 }
 
-void supervisor_base::set_config(const config::supervisor_config& config) {
+void supervisor_base::set_config(const config::supervisor_config& config)
+{
     m_config = config;
 }
 
-void supervisor_base::handle_service_failure(const service_base_ptr& failed_service) {
+void supervisor_base::handle_service_failure(const service_base_ptr& failed_service)
+{
     switch (m_config.strategy) {
     case config::supervisor_strategy::one_for_one:
         restart_service(failed_service);
@@ -36,7 +39,8 @@ void supervisor_base::handle_service_failure(const service_base_ptr& failed_serv
     }
 }
 
-bool supervisor_base::restart_service(const service_base_ptr& service) {
+bool supervisor_base::restart_service(const service_base_ptr& service)
+{
     if (!service) {
         return false;
     }

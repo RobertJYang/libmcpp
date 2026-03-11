@@ -55,25 +55,29 @@ public:
     // param_type 版本的构造函数
     template <typename U = T, std::enable_if_t<std::is_convertible_v<U, T>, int> = 0>
     explicit property(param_type value)
-        : m_value(value) {
+        : m_value(value)
+    {
     }
 
     // rvalue_type 版本的构造函数（仅对非基础类型启用）
     template <typename U                                                                            = T,
               std::enable_if_t<std::is_convertible_v<U, T> && !property_traits::is_basic_type, int> = 0>
     explicit property(rvalue_type value)
-        : m_value(std::move(value)) {
+        : m_value(std::move(value))
+    {
     }
 
     // 赋值操作符 - param_type 版本
-    property_type& operator=(param_type new_value) {
+    property_type& operator=(param_type new_value)
+    {
         set_value(new_value);
         return *this;
     }
 
     // 赋值操作符 - rvalue_type 版本
     // 对于基础类型，此方法的参数类型是 disabled_overload_type，永远不会被调用
-    property_type& operator=(rvalue_type new_value) {
+    property_type& operator=(rvalue_type new_value)
+    {
         if constexpr (!property_traits::is_basic_type) {
             set_value(std::move(new_value));
         } else {
@@ -81,7 +85,8 @@ public:
         }
         return *this;
     }
-    param_type value(bool realtime = false) const {
+    param_type value(bool realtime = false) const
+    {
         // 如果设置了外部getter，优先调用外部getter
         if (has_extension_data() && m_extension_data->outsider_getter && realtime) {
             const_cast<property_type*>(this)->update_value();
@@ -107,7 +112,8 @@ public:
         }
         return m_value;
     }
-    void set_value(param_type new_value) {
+    void set_value(param_type new_value)
+    {
         if (has_extension_data() && m_extension_data->setter) {
             mc::variant variant_value(new_value);
             m_extension_data->setter(variant_value);
@@ -117,7 +123,8 @@ public:
 
     // rvalue_type 版本：对于基础类型，rvalue_type 是 disabled_overload_type，此方法实际不会被调用
     // 使用 if constexpr 确保基础类型分支的代码不会被编译
-    void set_value(rvalue_type new_value) {
+    void set_value(rvalue_type new_value)
+    {
         if constexpr (!property_traits::is_basic_type) {
             if (has_extension_data() && m_extension_data->setter) {
                 mc::variant variant_value(new_value);
@@ -129,7 +136,8 @@ public:
         }
     }
 
-    mc::variant get_value(int options = 0) const override {
+    mc::variant get_value(int options = 0) const override
+    {
         if (m_property_type == p_type::ref_object) {
             if ((options & property_options::memory) || (options & property_options::from_mdb)) {
                 // 返回对象名称字符串
@@ -142,16 +150,19 @@ public:
         return value(!(options & property_options::memory));
     }
 
-    param_type operator*() const {
+    param_type operator*() const
+    {
         return value();
     }
 
-    operator param_type() const {
+    operator param_type() const
+    {
         return value();
     }
 
     template <typename F>
-    void modify(F&& func) {
+    void modify(F&& func)
+    {
         if (func(m_value)) {
             notify();
         }
@@ -159,7 +170,8 @@ public:
 
     // 设置外部getter和setter方法
     void make_outsider_getter_setter(std::function<value_type()>     outsider_getter,
-                                     std::function<bool(param_type)> outsider_setter) {
+                                     std::function<bool(param_type)> outsider_setter)
+    {
         ensure_extension_data();
         // 包装getter函数，将返回值转换为variant
         if (outsider_getter) {
@@ -177,55 +189,65 @@ public:
         }
     }
 
-    observer_type& get_observer() {
+    observer_type& get_observer()
+    {
         return *this;
     }
 
-    const observer_type& get_observer() const {
+    const observer_type& get_observer() const
+    {
         return *this;
     }
 
     template <typename U>
     auto operator==(const U& v) const
-        -> std::enable_if_t<!std::is_base_of_v<property_base, U>, bool> {
+        -> std::enable_if_t<!std::is_base_of_v<property_base, U>, bool>
+    {
         return is_equal(v);
     }
 
     template <typename U>
     auto operator!=(const U& v) const
-        -> std::enable_if_t<!std::is_base_of_v<property_base, U>, bool> {
+        -> std::enable_if_t<!std::is_base_of_v<property_base, U>, bool>
+    {
         return !(*this == v);
     }
 
     template <typename U, typename UObserver>
-    bool operator==(const property<U, UObserver>& other) const {
+    bool operator==(const property<U, UObserver>& other) const
+    {
         return is_equal(other.value());
     }
 
     template <typename U, typename UObserver>
-    bool operator!=(const property<U, UObserver>& other) const {
+    bool operator!=(const property<U, UObserver>& other) const
+    {
         return !(*this == other);
     }
 
     template <typename U>
     friend auto operator==(const U& v, const property_type& p)
-        -> std::enable_if_t<!std::is_base_of_v<property_base, U>, bool> {
+        -> std::enable_if_t<!std::is_base_of_v<property_base, U>, bool>
+    {
         return p == v;
     }
 
     template <typename U>
     friend auto operator!=(const U& v, const property_type& p)
-        -> std::enable_if_t<!std::is_base_of_v<property_base, U>, bool> {
+        -> std::enable_if_t<!std::is_base_of_v<property_base, U>, bool>
+    {
         return !(p == v);
     }
 
-    friend inline void to_variant(const property_type& value, mc::variant& v) {
+    friend inline void to_variant(const property_type& value, mc::variant& v)
+    {
         to_variant(value.m_value, v);
     }
 
 private:
     // 获取引用对象名称的统一方法
-    std::string get_ref_object_name() const {
+    std::string get_ref_object_name() const
+    {
         if (m_property_type == p_type::ref_object && has_extension_data() && m_extension_data->ref_object_cache) {
             // 从缓存的 ref_object 获取对象名称
             if (m_extension_data->ref_object_cache->is_extension()) {
@@ -249,7 +271,8 @@ private:
     }
 
     // 确保引用对象缓存已初始化，返回引用对象的 variant
-    mc::variant& ensure_ref_object_cache() const {
+    mc::variant& ensure_ref_object_cache() const
+    {
         auto& ext_data = ensure_extension_data();
         if (!ext_data.ref_object_cache) {
             // 如果没有缓存，返回空的variant（处理器负责初始化）
@@ -259,7 +282,8 @@ private:
     }
 
 public:
-    friend inline void from_variant(const mc::variant& v, property_type& value) {
+    friend inline void from_variant(const mc::variant& v, property_type& value)
+    {
         if (!v.is_string()) {
             value.set_value_impl(v.as<T>());
             return;
@@ -276,7 +300,8 @@ public:
         value.set_value_impl(v.as<T>());
     }
 
-    std::string_view get_name() const override {
+    std::string_view get_name() const override
+    {
         if constexpr (std::is_same_v<observer_type, detail::interface_observer>) {
             auto* info = get_observer().get_interface()->get_property_info(this);
             if (info) {
@@ -287,43 +312,52 @@ public:
         return {};
     }
 
-    std::string_view get_signature() const override {
+    std::string_view get_signature() const override
+    {
         return mc::reflect::get_signature<T>();
     }
 
-    uint32_t get_access() const override {
+    uint32_t get_access() const override
+    {
         return 0;
     }
 
-    uint64_t get_flags() const override {
+    uint64_t get_flags() const override
+    {
         return 0;
     }
 
-    p_type get_property_type() const {
+    p_type get_property_type() const
+    {
         return m_property_type;
     }
 
-    uint32_t get_property_type_value() const {
+    uint32_t get_property_type_value() const
+    {
         return static_cast<uint32_t>(m_property_type);
     }
 
     // property_helper的虚拟方法实现
-    void set_property_type(p_type type) override {
+    void set_property_type(p_type type) override
+    {
         m_property_type = type;
     }
 
-    p_type get_property_type_enum() const override {
+    p_type get_property_type_enum() const override
+    {
         return m_property_type;
     }
 
-    void set_variant_value(const mc::variant& value) override {
+    void set_variant_value(const mc::variant& value) override
+    {
         T temp_value;
         from_variant(value, temp_value);
         set_value_impl(std::move(temp_value));
     }
 
     // 内部设置值的方法，绕过from_variant，供processor使用
-    void set_internal_value(const mc::variant& value) override {
+    void set_internal_value(const mc::variant& value) override
+    {
         // 直接设置m_value，完全绕过set_value_impl的通知机制，供processor初始化使用
         if constexpr (std::is_same_v<T, mc::variant>) {
             m_value = value;
@@ -337,48 +371,57 @@ public:
         }
     }
 
-    mc::variant get_variant_value() const override {
+    mc::variant get_variant_value() const override
+    {
         return mc::variant(m_value);
     }
 
-    bool has_extension_data() const override {
+    bool has_extension_data() const override
+    {
         return m_extension_data != nullptr;
     }
 
-    void ensure_extension_data() override {
+    void ensure_extension_data() override
+    {
         if (!m_extension_data) {
             m_extension_data = std::make_unique<detail::property_extension_data<T>>();
         }
     }
 
-    void set_ref_object_cache(std::unique_ptr<mc::variant> cache) override {
+    void set_ref_object_cache(std::unique_ptr<mc::variant> cache) override
+    {
         ensure_extension_data();
         m_extension_data->ref_object_cache = std::move(cache);
     }
 
-    mc::variant* get_ref_object_cache() const override {
+    mc::variant* get_ref_object_cache() const override
+    {
         if (has_extension_data() && m_extension_data->ref_object_cache) {
             return m_extension_data->ref_object_cache.get();
         }
         return nullptr;
     }
 
-    void set_getter_function(std::function<mc::variant()> getter) override {
+    void set_getter_function(std::function<mc::variant()> getter) override
+    {
         ensure_extension_data();
         m_extension_data->getter = getter;
     }
 
-    void set_setter_function(std::function<void(const mc::variant&)> setter) override {
+    void set_setter_function(std::function<void(const mc::variant&)> setter) override
+    {
         ensure_extension_data();
         m_extension_data->setter = setter;
     }
 
-    void add_connection_slot(mc::connection_type slot) override {
+    void add_connection_slot(mc::connection_type slot) override
+    {
         ensure_extension_data();
         m_extension_data->connection_slots.push_back(slot);
     }
 
-    void clear_connection_slots() override {
+    void clear_connection_slots() override
+    {
         if (has_extension_data()) {
             // 先断开所有连接
             for (auto& connection : m_extension_data->connection_slots) {
@@ -389,19 +432,22 @@ public:
         }
     }
 
-    void set_function_data(std::unique_ptr<detail::func_data> data) override {
+    void set_function_data(std::unique_ptr<detail::func_data> data) override
+    {
         ensure_extension_data();
         m_extension_data->function_data = std::move(data);
     }
 
-    detail::func_data* get_function_data() const override {
+    detail::func_data* get_function_data() const override
+    {
         if (has_extension_data() && m_extension_data->function_data) {
             return m_extension_data->function_data.get();
         }
         return nullptr;
     }
 
-    abstract_interface* get_interface() const override {
+    abstract_interface* get_interface() const override
+    {
         if constexpr (std::is_same_v<observer_type, detail::interface_observer>) {
             return get_observer().get_interface();
         }
@@ -409,7 +455,8 @@ public:
         return nullptr;
     }
 
-    void set_interface(abstract_interface* interface) override {
+    void set_interface(abstract_interface* interface) override
+    {
         if constexpr (std::is_same_v<observer_type, detail::interface_observer>) {
             get_observer().set_interface(interface);
         } else {
@@ -417,7 +464,8 @@ public:
         }
     }
 
-    abstract_object* get_object() const override {
+    abstract_object* get_object() const override
+    {
         if constexpr (std::is_same_v<observer_type, detail::interface_observer>) {
             return get_observer().get_interface()->get_owner();
         }
@@ -425,7 +473,8 @@ public:
         return nullptr;
     }
 
-    property_changed_signal& property_changed() override {
+    property_changed_signal& property_changed() override
+    {
         if (m_signal == nullptr) {
             m_signal = std::make_unique<property_changed_signal>();
         }
@@ -433,14 +482,16 @@ public:
         return *m_signal;
     }
 
-    mc::variant get_override_value() const override {
+    mc::variant get_override_value() const override
+    {
         if (has_extension_data() && m_extension_data->override_value) {
             return mc::variant(*m_extension_data->override_value);
         }
         return {};
     }
 
-    void set_override_value(const mc::variant& value) override {
+    void set_override_value(const mc::variant& value) override
+    {
         if (!value.is_null()) {
             // value非空时，设置属性Override值
             ensure_extension_data();
@@ -473,12 +524,14 @@ public:
     }
 
 protected:
-    void set_variant(const mc::variant& value) override {
+    void set_variant(const mc::variant& value) override
+    {
         value.as(*this);
     }
 
     template <typename U>
-    bool is_equal(const U& v) const {
+    bool is_equal(const U& v) const
+    {
         if constexpr (mc::traits::has_operator_equal_v<T, U>) {
             if (v == this->m_value) {
                 return true;
@@ -487,7 +540,8 @@ protected:
         return false;
     }
 
-    void notify() {
+    void notify()
+    {
         mc::variant value(m_value);
         if (m_signal) {
             (*m_signal)(value, *this);
@@ -503,7 +557,8 @@ protected:
         }
     }
 
-    void set_value_impl(param_type new_value, bool direct_set = false) {
+    void set_value_impl(param_type new_value, bool direct_set = false)
+    {
         if (is_equal(new_value)) {
             return;
         }
@@ -520,7 +575,8 @@ protected:
 
     // rvalue_type 版本：对于基础类型，rvalue_type 是 disabled_overload_type，此方法实际不会被调用
     // 使用 if constexpr 确保基础类型分支的代码不会被编译
-    void set_value_impl(rvalue_type new_value, bool direct_set = false) {
+    void set_value_impl(rvalue_type new_value, bool direct_set = false)
+    {
         if constexpr (!property_traits::is_basic_type) {
             if (is_equal(new_value)) {
                 return;
@@ -540,7 +596,8 @@ protected:
         }
     }
 
-    void update_value() {
+    void update_value()
+    {
         if (!has_extension_data()) {
             return;
         }
@@ -576,7 +633,8 @@ protected:
 
 private:
     // 确保扩展数据已分配的辅助方法
-    detail::property_extension_data<T>& ensure_extension_data() const {
+    detail::property_extension_data<T>& ensure_extension_data() const
+    {
         if (!m_extension_data) {
             m_extension_data = std::make_unique<detail::property_extension_data<T>>();
         }
@@ -589,7 +647,8 @@ private:
 namespace mc::reflect::detail {
 template <typename T, typename Observer>
 struct signature_helper<mc::engine::property<T, Observer>> {
-    static void apply(std::string& sig) {
+    static void apply(std::string& sig)
+    {
         sig += mc::reflect::get_signature<T>();
     }
 };

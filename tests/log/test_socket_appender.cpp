@@ -33,7 +33,8 @@ using namespace mc::log;
 
 // mock get_log_time_str_c 函数
 extern "C" {
-[[maybe_unused]] static const char* get_log_time_str_c(int flags) {
+[[maybe_unused]] static const char* get_log_time_str_c(int flags)
+{
     static thread_local char time_buf[64];
     snprintf(time_buf, sizeof(time_buf), "1970-01-01 00:00:00");
     return time_buf;
@@ -42,7 +43,8 @@ extern "C" {
 
 class socket_appender_test : public mc::test::TestBase {
 protected:
-    void SetUp() override {
+    void SetUp() override
+    {
         mc::test::TestBase::SetUp();
         mc::log::default_logger().set_level(mc::log::level::off);
 
@@ -64,7 +66,8 @@ protected:
         m_appender = std::make_shared<socket_appender>();
     }
 
-    void TearDown() override {
+    void TearDown() override
+    {
         if (m_appender) {
             m_appender->disconnect();
         }
@@ -85,7 +88,8 @@ protected:
     }
 
     // 创建一个测试消息
-    message create_test_message(level lvl, const std::string& msg, log_category category = log_category::debug) {
+    message create_test_message(level lvl, const std::string& msg, log_category category = log_category::debug)
+    {
         mc::log::context ctx("test_file.cpp", "test_function", 123);
         message          msg_obj(lvl, msg, ctx);
         msg_obj.set_category(category);
@@ -94,7 +98,8 @@ protected:
 
     // 创建一个格式化测试消息
     message create_format_message(level lvl, const std::string& fmt, const mc::dict& args,
-                                  log_category category = log_category::debug) {
+                                  log_category category = log_category::debug)
+    {
         mc::log::context ctx("test_file.cpp", "test_function", 123);
         message          msg_obj(lvl, ctx, fmt, args);
         msg_obj.set_category(category);
@@ -102,7 +107,8 @@ protected:
     }
 
     // 创建简单的 unix socket 服务器用于测试
-    int create_test_socket_server(const std::string& path) {
+    int create_test_socket_server(const std::string& path)
+    {
         int server_fd = socket(AF_UNIX, SOCK_STREAM, 0);
         if (server_fd < 0) {
             return -1;
@@ -130,7 +136,8 @@ protected:
     }
 
     // 在后台线程中运行 socket 服务器
-    void start_socket_server(const std::string& path, bool send_ack = true) {
+    void start_socket_server(const std::string& path, bool send_ack = true)
+    {
         m_server_thread = std::thread([this, path, send_ack]() {
             int server_fd = create_test_socket_server(path);
             if (server_fd < 0) {
@@ -163,7 +170,8 @@ protected:
     }
 
     // 同时启动主 socket 和心跳 socket 服务器
-    void start_both_socket_servers(bool send_ack = true) {
+    void start_both_socket_servers(bool send_ack = true)
+    {
         // 使用原子变量控制服务器线程退出
         m_server_running    = true;
         m_hb_server_running = true;
@@ -320,7 +328,8 @@ protected:
         std::this_thread::sleep_for(std::chrono::milliseconds(30));
     }
 
-    void stop_both_socket_servers() {
+    void stop_both_socket_servers()
+    {
         // 设置标志让服务器线程退出
         m_server_running    = false;
         m_hb_server_running = false;
@@ -338,7 +347,8 @@ protected:
         }
     }
 
-    void stop_socket_server() {
+    void stop_socket_server()
+    {
         m_server_running = false;
         if (m_server_thread.joinable()) {
             auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(1);
@@ -362,7 +372,8 @@ protected:
 };
 
 // 测试默认构造函数
-TEST_F(socket_appender_test, DefaultConstructor) {
+TEST_F(socket_appender_test, DefaultConstructor)
+{
     ASSERT_NE(m_appender, nullptr);
     EXPECT_FALSE(m_appender->is_connected());
     EXPECT_EQ(m_appender->get_path(), "");
@@ -370,7 +381,8 @@ TEST_F(socket_appender_test, DefaultConstructor) {
 }
 
 // 测试 init 函数 - 有效配置
-TEST_F(socket_appender_test, InitWithValidConfig) {
+TEST_F(socket_appender_test, InitWithValidConfig)
+{
     mc::dict dict;
     dict["path"]        = m_socket_path;
     dict["hb_path"]     = m_hb_socket_path;
@@ -382,7 +394,8 @@ TEST_F(socket_appender_test, InitWithValidConfig) {
 }
 
 // 测试 init 函数 - 缺少 path
-TEST_F(socket_appender_test, InitWithoutPath) {
+TEST_F(socket_appender_test, InitWithoutPath)
+{
     mc::dict dict;
     dict["hb_path"] = m_hb_socket_path;
 
@@ -390,7 +403,8 @@ TEST_F(socket_appender_test, InitWithoutPath) {
 }
 
 // 测试 init 函数 - 缺少 hb_path
-TEST_F(socket_appender_test, InitWithoutHbPath) {
+TEST_F(socket_appender_test, InitWithoutHbPath)
+{
     mc::dict dict;
     dict["path"] = m_socket_path;
 
@@ -398,20 +412,23 @@ TEST_F(socket_appender_test, InitWithoutHbPath) {
 }
 
 // 测试 init 函数 - 非对象参数
-TEST_F(socket_appender_test, InitWithNonObjectArgs) {
+TEST_F(socket_appender_test, InitWithNonObjectArgs)
+{
     mc::variant non_object = 42;
     EXPECT_FALSE(m_appender->init(non_object));
 }
 
 // 测试 set_path 和 get_path
-TEST_F(socket_appender_test, SetAndGetPath) {
+TEST_F(socket_appender_test, SetAndGetPath)
+{
     std::string test_path = "/tmp/test_socket.sock";
     m_appender->set_path(test_path);
     EXPECT_EQ(m_appender->get_path(), test_path);
 }
 
 // 测试 set_hb_path
-TEST_F(socket_appender_test, SetHbPath) {
+TEST_F(socket_appender_test, SetHbPath)
+{
     std::string test_hb_path = "/tmp/test_hb_socket.sock";
     m_appender->set_hb_path(test_hb_path);
     // 注意：socket_appender 没有 get_hb_path 方法，所以只能测试设置不抛异常
@@ -419,7 +436,8 @@ TEST_F(socket_appender_test, SetHbPath) {
 }
 
 // 测试 set_type 和 get_type
-TEST_F(socket_appender_test, SetAndGetType) {
+TEST_F(socket_appender_test, SetAndGetType)
+{
     EXPECT_EQ(m_appender->get_type(), "file");
 
     m_appender->set_type("local");
@@ -430,7 +448,8 @@ TEST_F(socket_appender_test, SetAndGetType) {
 }
 
 // 测试 connect - 无服务器时连接失败
-TEST_F(socket_appender_test, ConnectWithoutServer) {
+TEST_F(socket_appender_test, ConnectWithoutServer)
+{
     m_appender->set_path(m_socket_path);
     m_appender->set_hb_path(m_hb_socket_path);
 
@@ -440,7 +459,8 @@ TEST_F(socket_appender_test, ConnectWithoutServer) {
 }
 
 // 测试 connect - 有服务器时连接成功
-TEST_F(socket_appender_test, ConnectWithServer) {
+TEST_F(socket_appender_test, ConnectWithServer)
+{
     start_both_socket_servers();
 
     m_appender->set_path(m_socket_path);
@@ -454,7 +474,8 @@ TEST_F(socket_appender_test, ConnectWithServer) {
 }
 
 // 测试 disconnect
-TEST_F(socket_appender_test, Disconnect) {
+TEST_F(socket_appender_test, Disconnect)
+{
     start_both_socket_servers();
 
     m_appender->set_path(m_socket_path);
@@ -476,7 +497,8 @@ TEST_F(socket_appender_test, Disconnect) {
 }
 
 // 测试 heartbeat - 无服务器时失败
-TEST_F(socket_appender_test, HeartbeatWithoutServer) {
+TEST_F(socket_appender_test, HeartbeatWithoutServer)
+{
     m_appender->set_path(m_socket_path);
     m_appender->set_hb_path(m_hb_socket_path);
 
@@ -485,7 +507,8 @@ TEST_F(socket_appender_test, HeartbeatWithoutServer) {
 }
 
 // 测试 append - type 不是 "local" 时应该不发送
-TEST_F(socket_appender_test, AppendWithNonLocalType) {
+TEST_F(socket_appender_test, AppendWithNonLocalType)
+{
     m_appender->set_type("file");
     m_appender->set_path(m_socket_path);
     m_appender->set_hb_path(m_hb_socket_path);
@@ -497,7 +520,8 @@ TEST_F(socket_appender_test, AppendWithNonLocalType) {
 }
 
 // 测试 append - category 不是 debug 时应该不发送
-TEST_F(socket_appender_test, AppendWithNonDebugCategory) {
+TEST_F(socket_appender_test, AppendWithNonDebugCategory)
+{
     m_appender->set_type("local");
     m_appender->set_path(m_socket_path);
     m_appender->set_hb_path(m_hb_socket_path);
@@ -509,7 +533,8 @@ TEST_F(socket_appender_test, AppendWithNonDebugCategory) {
 }
 
 // 测试 append - mdbctl 类别不受 m_type 限制，type 为 "file" 时也应发送
-TEST_F(socket_appender_test, AppendMdbctlCategoryWithFileType) {
+TEST_F(socket_appender_test, AppendMdbctlCategoryWithFileType)
+{
     start_both_socket_servers();
 
     m_appender->set_type("file");
@@ -528,7 +553,8 @@ TEST_F(socket_appender_test, AppendMdbctlCategoryWithFileType) {
 }
 
 // 测试 append - type 为 "local" 且 category 为 debug 时发送
-TEST_F(socket_appender_test, AppendWithLocalTypeAndDebugCategory) {
+TEST_F(socket_appender_test, AppendWithLocalTypeAndDebugCategory)
+{
     start_both_socket_servers();
 
     m_appender->set_type("local");
@@ -548,7 +574,8 @@ TEST_F(socket_appender_test, AppendWithLocalTypeAndDebugCategory) {
 }
 
 // 测试 append - 连接断开后重新连接并发送
-TEST_F(socket_appender_test, AppendWithReconnect) {
+TEST_F(socket_appender_test, AppendWithReconnect)
+{
     start_both_socket_servers();
 
     m_appender->set_type("local");
@@ -576,7 +603,8 @@ TEST_F(socket_appender_test, AppendWithReconnect) {
 }
 
 // 测试 append - 格式化消息
-TEST_F(socket_appender_test, AppendFormattedMessage) {
+TEST_F(socket_appender_test, AppendFormattedMessage)
+{
     start_both_socket_servers();
 
     m_appender->set_type("local");
@@ -598,7 +626,8 @@ TEST_F(socket_appender_test, AppendFormattedMessage) {
 }
 
 // 测试 append - 空消息
-TEST_F(socket_appender_test, AppendEmptyMessage) {
+TEST_F(socket_appender_test, AppendEmptyMessage)
+{
     start_both_socket_servers();
 
     m_appender->set_type("local");
@@ -616,7 +645,8 @@ TEST_F(socket_appender_test, AppendEmptyMessage) {
 }
 
 // 测试 append - 不同日志级别
-TEST_F(socket_appender_test, AppendDifferentLogLevels) {
+TEST_F(socket_appender_test, AppendDifferentLogLevels)
+{
     start_both_socket_servers();
 
     m_appender->set_type("local");
@@ -640,13 +670,15 @@ TEST_F(socket_appender_test, AppendDifferentLogLevels) {
 }
 
 // 测试 get_client
-TEST_F(socket_appender_test, GetClient) {
+TEST_F(socket_appender_test, GetClient)
+{
     auto& client = m_appender->get_client();
     ASSERT_NO_THROW(client.is_connected());
 }
 
 // 测试多次连接和断开
-TEST_F(socket_appender_test, MultipleConnectDisconnect) {
+TEST_F(socket_appender_test, MultipleConnectDisconnect)
+{
     m_appender->set_path(m_socket_path);
     m_appender->set_hb_path(m_hb_socket_path);
 
@@ -683,7 +715,8 @@ TEST_F(socket_appender_test, MultipleConnectDisconnect) {
 }
 
 // 测试 init 后设置路径并连接
-TEST_F(socket_appender_test, InitThenConnect) {
+TEST_F(socket_appender_test, InitThenConnect)
+{
     mc::dict dict;
     dict["path"]        = m_socket_path;
     dict["hb_path"]     = m_hb_socket_path;
@@ -700,7 +733,8 @@ TEST_F(socket_appender_test, InitThenConnect) {
 }
 
 // 测试空路径时的连接
-TEST_F(socket_appender_test, ConnectWithEmptyPath) {
+TEST_F(socket_appender_test, ConnectWithEmptyPath)
+{
     m_appender->set_path("");
     m_appender->set_hb_path("");
 

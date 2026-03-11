@@ -47,7 +47,8 @@ struct logger_config {
     bool                     condition; // 是否输出日志，false 时不打印
 
     logger_config(const std::string& name = MC_LOG_DEFAULT_LOGGER)
-        : name(name), condition(true) {
+        : name(name), condition(true)
+    {
     }
 };
 
@@ -104,7 +105,8 @@ public:
      * @return appender_ptr 追加器指针
      */
     template <typename T>
-    std::shared_ptr<T> create_appender(const std::string& type) {
+    std::shared_ptr<T> create_appender(const std::string& type)
+    {
         return appender_factory::instance().create_by_type<T>(type);
     }
 

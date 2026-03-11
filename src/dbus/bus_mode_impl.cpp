@@ -22,48 +22,58 @@ namespace mc::dbus {
 
 // ==================== bus_mode_impl ====================
 
-bus_mode_impl::~bus_mode_impl() {
+bus_mode_impl::~bus_mode_impl()
+{
 }
 
-void bus_mode_impl::init_connection(connection&& conn) {
+void bus_mode_impl::init_connection(connection&& conn)
+{
     m_connection  = std::move(conn);
     m_unique_name = std::string(m_connection.get_unique_name());
 }
 
 // ==================== blocking_bus_impl ====================
 
-bool blocking_bus_impl::start() {
+bool blocking_bus_impl::start()
+{
     return m_connection.start();
 }
 
-void blocking_bus_impl::disconnect() {
+void blocking_bus_impl::disconnect()
+{
     m_connection.disconnect();
 }
 
-void blocking_bus_impl::flush() {
+void blocking_bus_impl::flush()
+{
     m_connection.flush();
 }
 
-void blocking_bus_impl::dispatch() {
+void blocking_bus_impl::dispatch()
+{
     m_connection.dispatch();
 }
 
-void blocking_bus_impl::request_name(const std::string& service_name, uint32_t flags) {
+void blocking_bus_impl::request_name(const std::string& service_name, uint32_t flags)
+{
     // 阻塞模式请求名称
     m_connection.request_name(service_name, flags);
     m_service_name = service_name;
 }
 
-uint64_t blocking_bus_impl::add_match(match_rule& rule, match_cb_t&& cb) {
+uint64_t blocking_bus_impl::add_match(match_rule& rule, match_cb_t&& cb)
+{
     elog("add_match failed: blocking mode does not support signal subscription");
     return 0;
 }
 
-void blocking_bus_impl::remove_match(uint64_t id) {
+void blocking_bus_impl::remove_match(uint64_t id)
+{
     // 阻塞模式不支持信号订阅
 }
 
-bool blocking_bus_impl::run_once(int timeout_ms) {
+bool blocking_bus_impl::run_once(int timeout_ms)
+{
     if (!m_connection.is_connected()) {
         return false;
     }
@@ -88,7 +98,8 @@ bool blocking_bus_impl::run_once(int timeout_ms) {
     return true;
 }
 
-bool blocking_bus_impl::run_until(std::function<bool()> condition, int total_timeout_ms, int step_ms) {
+bool blocking_bus_impl::run_until(std::function<bool()> condition, int total_timeout_ms, int step_ms)
+{
     if (!m_connection.is_connected()) {
         return false;
     }
@@ -119,19 +130,22 @@ bool blocking_bus_impl::run_until(std::function<bool()> condition, int total_tim
     }
 }
 
-void blocking_bus_impl::notify_signal(message& msg) {
+void blocking_bus_impl::notify_signal(message& msg)
+{
     // 阻塞模式直接通过连接发送信号（创建拷贝以保留原消息）
     message msg_copy(msg);
     m_connection.send(std::move(msg_copy));
 }
 
-shm_tree* blocking_bus_impl::get_shm_tree() {
+shm_tree* blocking_bus_impl::get_shm_tree()
+{
     return nullptr;
 }
 
 variants blocking_bus_impl::call(const std::string& service, const std::string& path,
                                  const std::string& interface, const std::string& method,
-                                 const std::string& signature, variants&& args) {
+                                 const std::string& signature, variants&& args)
+{
     // 直接使用 m_connection 发送消息
     auto               msg    = message::new_method_call(service, path, interface, method);
     auto               writer = msg.writer();
@@ -157,7 +171,8 @@ variants blocking_bus_impl::call(const std::string& service, const std::string& 
 variants blocking_bus_impl::timeout_call(int timeout_ms, const std::string& service,
                                          const std::string& path, const std::string& interface,
                                          const std::string& method, const std::string& signature,
-                                         variants&& args) {
+                                         variants&& args)
+{
     // 直接使用 m_connection 发送消息
     auto               msg    = message::new_method_call(service, path, interface, method);
     auto               writer = msg.writer();
@@ -183,7 +198,8 @@ variants blocking_bus_impl::timeout_call(int timeout_ms, const std::string& serv
 std::tuple<std::optional<std::string>, variants>
 blocking_bus_impl::async_call(const std::string& service, const std::string& path,
                               const std::string& interface, const std::string& method,
-                              const std::string& signature, variants&& args) {
+                              const std::string& signature, variants&& args)
+{
     // 阻塞模式不支持异步调用，返回错误
     return {std::string("async_call is not supported in blocking mode"), variants{}};
 }
@@ -192,7 +208,8 @@ std::tuple<std::optional<std::string>, variants>
 blocking_bus_impl::async_timeout_call(int timeout_ms, const std::string& service,
                                       const std::string& path, const std::string& interface,
                                       const std::string& method, const std::string& signature,
-                                      variants&& args) {
+                                      variants&& args)
+{
     // 阻塞模式不支持异步调用，返回错误
     return {std::string("async_timeout_call is not supported in blocking mode"), variants{}};
 }
@@ -201,37 +218,44 @@ std::tuple<std::optional<std::string>, variants>
 blocking_bus_impl::async_shm_timeout_call(int timeout_ms, const std::string& service,
                                           const std::string& path, const std::string& interface,
                                           const std::string& method, const std::string& signature,
-                                          variants&& args) {
+                                          variants&& args)
+{
     // 阻塞模式不支持异步调用，返回错误
     return {std::string("async_shm_timeout_call is not supported in blocking mode"), variants{}};
 }
 
 // ==================== nonblocking_bus_impl ====================
 
-nonblocking_bus_impl::~nonblocking_bus_impl() {
+nonblocking_bus_impl::~nonblocking_bus_impl()
+{
     if (m_shm_tree != nullptr) {
         delete m_shm_tree;
         m_shm_tree = nullptr;
     }
 }
 
-bool nonblocking_bus_impl::start() {
+bool nonblocking_bus_impl::start()
+{
     return m_connection.start();
 }
 
-void nonblocking_bus_impl::disconnect() {
+void nonblocking_bus_impl::disconnect()
+{
     m_connection.disconnect();
 }
 
-void nonblocking_bus_impl::flush() {
+void nonblocking_bus_impl::flush()
+{
     m_connection.flush();
 }
 
-void nonblocking_bus_impl::dispatch() {
+void nonblocking_bus_impl::dispatch()
+{
     m_connection.dispatch();
 }
 
-void nonblocking_bus_impl::request_name(const std::string& service_name, uint32_t flags) {
+void nonblocking_bus_impl::request_name(const std::string& service_name, uint32_t flags)
+{
     // 先请求名称
     m_connection.request_name(service_name, flags);
     m_service_name = service_name;
@@ -245,7 +269,8 @@ void nonblocking_bus_impl::request_name(const std::string& service_name, uint32_
     harbor.start();
 }
 
-uint64_t nonblocking_bus_impl::add_match(match_rule& rule, match_cb_t&& cb) {
+uint64_t nonblocking_bus_impl::add_match(match_rule& rule, match_cb_t&& cb)
+{
     if (m_shm_tree == nullptr) {
         elog("add_match failed: shm_tree not initialized, call request_name first");
         return 0;
@@ -253,35 +278,41 @@ uint64_t nonblocking_bus_impl::add_match(match_rule& rule, match_cb_t&& cb) {
     return m_shm_tree->add_match(rule, std::forward<match_cb_t>(cb));
 }
 
-void nonblocking_bus_impl::remove_match(uint64_t id) {
+void nonblocking_bus_impl::remove_match(uint64_t id)
+{
     if (m_shm_tree == nullptr) {
         return;
     }
     m_shm_tree->remove_match(id);
 }
 
-bool nonblocking_bus_impl::run_once(int timeout_ms) {
+bool nonblocking_bus_impl::run_once(int timeout_ms)
+{
     elog("run_once is not supported in non-blocking mode");
     return false;
 }
 
-bool nonblocking_bus_impl::run_until(std::function<bool()> condition, int total_timeout_ms, int step_ms) {
+bool nonblocking_bus_impl::run_until(std::function<bool()> condition, int total_timeout_ms, int step_ms)
+{
     elog("run_until is not supported in non-blocking mode");
     return false;
 }
 
-void nonblocking_bus_impl::notify_signal(message& msg) {
+void nonblocking_bus_impl::notify_signal(message& msg)
+{
     // 非阻塞模式通过共享内存发送信号
     mc::dbus::send_signal(m_connection, msg);
 }
 
-shm_tree* nonblocking_bus_impl::get_shm_tree() {
+shm_tree* nonblocking_bus_impl::get_shm_tree()
+{
     return m_shm_tree;
 }
 
 variants nonblocking_bus_impl::call(const std::string& service, const std::string& path,
                                     const std::string& interface, const std::string& method,
-                                    const std::string& signature, variants&& args) {
+                                    const std::string& signature, variants&& args)
+{
     // 非阻塞模式不支持同步调用
     MC_THROW_ERROR_WITH_MESSAGE("InvalidOperation",
                                 MC_LOG_MESSAGE(error, "call is not supported in non-blocking mode"));
@@ -290,7 +321,8 @@ variants nonblocking_bus_impl::call(const std::string& service, const std::strin
 variants nonblocking_bus_impl::timeout_call(int timeout_ms, const std::string& service,
                                             const std::string& path, const std::string& interface,
                                             const std::string& method, const std::string& signature,
-                                            variants&& args) {
+                                            variants&& args)
+{
     auto               msg    = message::new_method_call(service, path, interface, method);
     auto               writer = msg.writer();
     signature_iterator it(signature);
@@ -315,7 +347,8 @@ variants nonblocking_bus_impl::timeout_call(int timeout_ms, const std::string& s
 std::tuple<std::optional<std::string>, variants>
 nonblocking_bus_impl::async_call(const std::string& service, const std::string& path,
                                  const std::string& interface, const std::string& method,
-                                 const std::string& signature, variants&& args) {
+                                 const std::string& signature, variants&& args)
+{
     // 直接调用 async_timeout_call，使用默认超时
     return async_timeout_call(60000, service, path, interface, method, signature, std::move(args));
 }
@@ -324,7 +357,8 @@ std::tuple<std::optional<std::string>, variants>
 nonblocking_bus_impl::async_timeout_call(int timeout_ms, const std::string& service,
                                          const std::string& path, const std::string& interface,
                                          const std::string& method, const std::string& signature,
-                                         variants&& args) {
+                                         variants&& args)
+{
     // 直接使用 m_connection 发送异步消息
     try {
         auto               msg    = message::new_method_call(service, path, interface, method);
@@ -354,7 +388,8 @@ std::tuple<std::optional<std::string>, variants>
 nonblocking_bus_impl::async_shm_timeout_call(int timeout_ms, const std::string& service,
                                              const std::string& path, const std::string& interface,
                                              const std::string& method, const std::string& signature,
-                                             variants&& args) {
+                                             variants&& args)
+{
     // 非阻塞模式下的共享内存调用实际上是同步的
     // 这里简单地委托给 async_timeout_call
     // TODO: 实现真正的共享内存调用逻辑

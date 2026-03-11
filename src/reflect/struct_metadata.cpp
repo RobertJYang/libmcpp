@@ -54,12 +54,14 @@ struct struct_metadata::impl {
     mc::mutex_box<data_t, mc::shared_mutex> m_data;
 };
 
-member_node<member_info_base>& struct_metadata::impl::add_member_info(data_t& data, const member_info_base* member) {
+member_node<member_info_base>& struct_metadata::impl::add_member_info(data_t& data, const member_info_base* member)
+{
     auto it = data.name_to_members.emplace(member->name, member_node<member_info_base>{member});
     return reinterpret_cast<member_node<member_info_base>&>(it.first->second);
 }
 
-void struct_metadata::impl::add_property_info(data_t& data, const property_type_info* property) {
+void struct_metadata::impl::add_property_info(data_t& data, const property_type_info* property)
+{
     if (data.name_to_members.find(property->name) != data.name_to_members.end()) {
         return;
     }
@@ -73,7 +75,8 @@ void struct_metadata::impl::add_property_info(data_t& data, const property_type_
     }
 }
 
-void struct_metadata::impl::add_method_info(data_t& data, const method_type_info* method) {
+void struct_metadata::impl::add_method_info(data_t& data, const method_type_info* method)
+{
     if (data.name_to_members.find(method->name) != data.name_to_members.end()) {
         return;
     }
@@ -88,7 +91,8 @@ void struct_metadata::impl::add_method_info(data_t& data, const method_type_info
     }
 }
 
-void struct_metadata::impl::add_base_class_info(data_t& data, const base_class_type_info* base_class) {
+void struct_metadata::impl::add_base_class_info(data_t& data, const base_class_type_info* base_class)
+{
     if (data.name_to_members.find(base_class->name) != data.name_to_members.end()) {
         return;
     }
@@ -106,7 +110,8 @@ void struct_metadata::impl::add_base_class_info(data_t& data, const base_class_t
     load_base_class_members(data, base_class);
 }
 
-void struct_metadata::impl::add_custom_info(data_t& data, const member_info_base* custom) {
+void struct_metadata::impl::add_custom_info(data_t& data, const member_info_base* custom)
+{
     if (data.name_to_members.find(custom->name) != data.name_to_members.end()) {
         return;
     }
@@ -115,7 +120,8 @@ void struct_metadata::impl::add_custom_info(data_t& data, const member_info_base
     data.ordered_customs.push_front(reinterpret_cast<member_node<member_info_base>&>(node));
 }
 
-void struct_metadata::impl::load_base_class_members(data_t& data, const base_class_type_info* base_class) {
+void struct_metadata::impl::load_base_class_members(data_t& data, const base_class_type_info* base_class)
+{
     const struct_metadata& base_class_metadata = base_class->get_metadata();
     std::uintptr_t         offset              = base_class->offset();
 
@@ -161,12 +167,14 @@ void struct_metadata::impl::load_base_class_members(data_t& data, const base_cla
 }
 
 struct_metadata::struct_metadata(std::string_view name, type_id_type type_id)
-    : m_impl(std::make_unique<impl>()) {
+    : m_impl(std::make_unique<impl>())
+{
     m_impl->name    = name;
     m_impl->type_id = type_id;
 }
 
-struct_metadata::~struct_metadata() {
+struct_metadata::~struct_metadata()
+{
     auto& data = m_impl->m_data.unsafe_get_data();
 
     data.ordered_properties.clear();
@@ -186,31 +194,38 @@ struct_metadata::~struct_metadata() {
     data.offset_to_members.clear();
 }
 
-type_id_type struct_metadata::get_type_id() const noexcept {
+type_id_type struct_metadata::get_type_id() const noexcept
+{
     return m_impl->type_id;
 }
 
-std::string_view struct_metadata::get_name() const noexcept {
+std::string_view struct_metadata::get_name() const noexcept
+{
     return m_impl->name;
 }
 
-void struct_metadata::add_property_info(const property_type_info* property) {
+void struct_metadata::add_property_info(const property_type_info* property)
+{
     struct_metadata::impl::add_property_info(m_impl->m_data.unsafe_get_data(), property);
 }
 
-void struct_metadata::add_method_info(const method_type_info* method) {
+void struct_metadata::add_method_info(const method_type_info* method)
+{
     struct_metadata::impl::add_method_info(m_impl->m_data.unsafe_get_data(), method);
 }
 
-void struct_metadata::add_base_class_info(const base_class_type_info* base_class) {
+void struct_metadata::add_base_class_info(const base_class_type_info* base_class)
+{
     struct_metadata::impl::add_base_class_info(m_impl->m_data.unsafe_get_data(), base_class);
 }
 
-void struct_metadata::add_custom_info(const member_info_base* custom) {
+void struct_metadata::add_custom_info(const member_info_base* custom)
+{
     struct_metadata::impl::add_custom_info(m_impl->m_data.unsafe_get_data(), custom);
 }
 
-void struct_metadata::add_members_finish() {
+void struct_metadata::add_members_finish()
+{
     // 为了节省内存我们使用了单向链表存储有序数据，这里反转一下链表保证顺序
     auto& data = m_impl->m_data.unsafe_get_data();
     data.ordered_properties.reverse();
@@ -219,7 +234,8 @@ void struct_metadata::add_members_finish() {
     data.ordered_customs.reverse();
 }
 
-const property_type_info* struct_metadata::get_property_info(std::string_view name) const {
+const property_type_info* struct_metadata::get_property_info(std::string_view name) const
+{
     auto& data = m_impl->m_data.unsafe_get_data();
     auto  it   = data.name_to_members.find(name);
     if (it == data.name_to_members.end() || !it->second.member->is_property_type()) {
@@ -229,7 +245,8 @@ const property_type_info* struct_metadata::get_property_info(std::string_view na
     return static_cast<const property_type_info*>(it->second.member);
 }
 
-const method_type_info* struct_metadata::get_method_info(std::string_view name) const {
+const method_type_info* struct_metadata::get_method_info(std::string_view name) const
+{
     auto& data = m_impl->m_data.unsafe_get_data();
     auto  it   = data.name_to_members.find(name);
     if (it == data.name_to_members.end() || it->second.member->type() != member_info_type::method) {
@@ -239,7 +256,8 @@ const method_type_info* struct_metadata::get_method_info(std::string_view name) 
     return static_cast<const method_type_info*>(it->second.member);
 }
 
-const method_type_info* struct_metadata::get_method_info(size_t offset) const {
+const method_type_info* struct_metadata::get_method_info(size_t offset) const
+{
     auto& data = m_impl->m_data.unsafe_get_data();
     auto  it   = data.offset_to_members.find(offset);
     if (it == data.offset_to_members.end() || it->second->type() != member_info_type::method) {
@@ -249,7 +267,8 @@ const method_type_info* struct_metadata::get_method_info(size_t offset) const {
     return static_cast<const method_type_info*>(it->second);
 }
 
-const base_class_type_info* struct_metadata::get_base_class_info(std::string_view name) const {
+const base_class_type_info* struct_metadata::get_base_class_info(std::string_view name) const
+{
     auto& data = m_impl->m_data.unsafe_get_data();
     auto  it   = data.name_to_members.find(name);
     if (it == data.name_to_members.end() || it->second.member->type() != member_info_type::base_class) {
@@ -259,7 +278,8 @@ const base_class_type_info* struct_metadata::get_base_class_info(std::string_vie
     return static_cast<const base_class_type_info*>(it->second.member);
 }
 
-const property_type_info* struct_metadata::get_property_info(size_t offset) const {
+const property_type_info* struct_metadata::get_property_info(size_t offset) const
+{
     auto& data = m_impl->m_data.unsafe_get_data();
     auto  it   = data.offset_to_members.find(offset);
     if (it == data.offset_to_members.end() || !it->second->is_property_type()) {
@@ -269,7 +289,8 @@ const property_type_info* struct_metadata::get_property_info(size_t offset) cons
     return static_cast<const property_type_info*>(it->second);
 }
 
-const member_info_base* struct_metadata::get_custom_info(std::string_view name, size_t reflect_type) const {
+const member_info_base* struct_metadata::get_custom_info(std::string_view name, size_t reflect_type) const
+{
     auto& data = m_impl->m_data.unsafe_get_data();
     auto  it   = data.name_to_members.find(name);
     if (it == data.name_to_members.end() || it->second.member->type() < member_info_type::custom_start) {
@@ -283,7 +304,8 @@ const member_info_base* struct_metadata::get_custom_info(std::string_view name, 
     return it->second.member;
 }
 
-void struct_metadata::visit_properties(const property_visitor_t& visitor) const {
+void struct_metadata::visit_properties(const property_visitor_t& visitor) const
+{
     for (auto& property : get_properties()) {
         if (visitor(property.member) == visit_status::VS_BREAK) {
             break;
@@ -291,7 +313,8 @@ void struct_metadata::visit_properties(const property_visitor_t& visitor) const 
     }
 }
 
-void struct_metadata::visit_methods(const method_visitor_t& visitor) const {
+void struct_metadata::visit_methods(const method_visitor_t& visitor) const
+{
     for (auto& method : get_methods()) {
         if (visitor(method.member) == visit_status::VS_BREAK) {
             break;
@@ -299,7 +322,8 @@ void struct_metadata::visit_methods(const method_visitor_t& visitor) const {
     }
 }
 
-void struct_metadata::visit_base_classes(const base_class_visitor_t& visitor) const {
+void struct_metadata::visit_base_classes(const base_class_visitor_t& visitor) const
+{
     for (auto& base_class : get_base_classes()) {
         if (visitor(base_class.member) == visit_status::VS_BREAK) {
             break;
@@ -307,7 +331,8 @@ void struct_metadata::visit_base_classes(const base_class_visitor_t& visitor) co
     }
 }
 
-void struct_metadata::visit_customs(const custom_visitor_t& visitor) const {
+void struct_metadata::visit_customs(const custom_visitor_t& visitor) const
+{
     for (auto& custom : get_custom_members()) {
         if (visitor(custom.member) == visit_status::VS_BREAK) {
             break;
@@ -315,19 +340,23 @@ void struct_metadata::visit_customs(const custom_visitor_t& visitor) const {
     }
 }
 
-const property_list& struct_metadata::get_properties() const {
+const property_list& struct_metadata::get_properties() const
+{
     return m_impl->m_data.unsafe_get_data().ordered_properties;
 }
 
-const method_list& struct_metadata::get_methods() const {
+const method_list& struct_metadata::get_methods() const
+{
     return m_impl->m_data.unsafe_get_data().ordered_methods;
 }
 
-const base_class_list& struct_metadata::get_base_classes() const {
+const base_class_list& struct_metadata::get_base_classes() const
+{
     return m_impl->m_data.unsafe_get_data().ordered_base_classes;
 }
 
-const member_list& struct_metadata::get_custom_members() const {
+const member_list& struct_metadata::get_custom_members() const
+{
     return m_impl->m_data.unsafe_get_data().ordered_customs;
 }
 

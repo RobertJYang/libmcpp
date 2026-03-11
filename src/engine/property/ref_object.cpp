@@ -10,17 +10,19 @@
  * See the Mulan PSL v2 for more details.
  */
 
-#include <mc/engine/property/ref_object.h>
-#include <mc/engine/object.h>
 #include <mc/engine/interface.h>
+#include <mc/engine/object.h>
+#include <mc/engine/property/ref_object.h>
 
 namespace mc::engine {
 
 ref_object::ref_object(const std::string& object_name, object_finder_type finder)
-    : m_object_name(object_name), m_object_finder(finder) {
+    : m_object_name(object_name), m_object_finder(finder)
+{
 }
 
-mc::variant ref_object::get_property(const std::string_view property_name) const {
+mc::variant ref_object::get_property(const std::string_view property_name) const
+{
     auto* target_object = find_related_object();
     if (target_object == nullptr) {
         MC_THROW(mc::invalid_op_exception, "get_property failed, reference object not found: ${object_name}", ("object_name", m_object_name));
@@ -28,7 +30,8 @@ mc::variant ref_object::get_property(const std::string_view property_name) const
     return target_object->get_property(property_name);
 }
 
-mc::variant ref_object::get_property(const std::string_view interface_name, const std::string_view property_name) const {
+mc::variant ref_object::get_property(const std::string_view interface_name, const std::string_view property_name) const
+{
     auto* target_object = find_related_object();
     if (target_object == nullptr) {
         MC_THROW(mc::invalid_op_exception, "get_property failed, reference object not found: ${object_name}", ("object_name", m_object_name));
@@ -46,7 +49,8 @@ mc::variant ref_object::get_property(const std::string_view interface_name, cons
     return target_object->get_property(property_name);
 }
 
-void ref_object::set_property(const std::string_view property_name, const mc::variant& value) const {
+void ref_object::set_property(const std::string_view property_name, const mc::variant& value) const
+{
     auto* target_object = find_related_object();
     if (target_object == nullptr) {
         MC_THROW(mc::invalid_op_exception, "set_property failed, reference object not found: ${object_name}", ("object_name", m_object_name));
@@ -54,7 +58,8 @@ void ref_object::set_property(const std::string_view property_name, const mc::va
     target_object->set_property(property_name, value);
 }
 
-void ref_object::set_property(const std::string_view interface_name, const std::string_view property_name, const mc::variant& value) const {
+void ref_object::set_property(const std::string_view interface_name, const std::string_view property_name, const mc::variant& value) const
+{
     auto* target_object = find_related_object();
     if (target_object == nullptr) {
         MC_THROW(mc::invalid_op_exception, "set_property failed, reference object not found: ${object_name}", ("object_name", m_object_name));
@@ -72,7 +77,8 @@ void ref_object::set_property(const std::string_view interface_name, const std::
     }
 }
 
-invoke_result ref_object::invoke(std::string_view method_name, const mc::variants& args) {
+invoke_result ref_object::invoke(std::string_view method_name, const mc::variants& args)
+{
     auto* target_object = find_related_object();
     if (target_object == nullptr) {
         MC_THROW(mc::invalid_op_exception, "reference object not found: ${object_name}", ("object_name", m_object_name));
@@ -81,7 +87,8 @@ invoke_result ref_object::invoke(std::string_view method_name, const mc::variant
     return target_object->invoke(method_name, args);
 }
 
-invoke_result ref_object::invoke(const std::string& interface_name, std::string_view method_name, const mc::variants& args) {
+invoke_result ref_object::invoke(const std::string& interface_name, std::string_view method_name, const mc::variants& args)
+{
     auto* target_object = find_related_object();
     if (target_object == nullptr) {
         MC_THROW(mc::invalid_op_exception, "reference object not found: ${object_name}", ("object_name", m_object_name));
@@ -99,7 +106,8 @@ invoke_result ref_object::invoke(const std::string& interface_name, std::string_
     return target_object->invoke(method_name, args);
 }
 
-async_result ref_object::async_invoke(std::string_view method_name, const mc::variants& args) {
+async_result ref_object::async_invoke(std::string_view method_name, const mc::variants& args)
+{
     auto* target_object = find_related_object();
     if (target_object == nullptr) {
         MC_THROW(mc::invalid_op_exception, "reference object not found: ${object_name}", ("object_name", m_object_name));
@@ -108,7 +116,8 @@ async_result ref_object::async_invoke(std::string_view method_name, const mc::va
     return target_object->async_invoke(method_name, args);
 }
 
-async_result ref_object::async_invoke(const std::string& interface_name, std::string_view method_name, const mc::variants& args) {
+async_result ref_object::async_invoke(const std::string& interface_name, std::string_view method_name, const mc::variants& args)
+{
     auto* target_object = find_related_object();
     if (target_object == nullptr) {
         MC_THROW(mc::invalid_op_exception, "reference object not found: ${object_name}", ("object_name", m_object_name));
@@ -126,38 +135,46 @@ async_result ref_object::async_invoke(const std::string& interface_name, std::st
     return target_object->async_invoke(method_name, args);
 }
 
-const std::string& ref_object::get_object_name() const {
+const std::string& ref_object::get_object_name() const
+{
     return m_object_name;
 }
 
-bool ref_object::is_valid() const {
+bool ref_object::is_valid() const
+{
     return find_related_object() != nullptr;
 }
 
-abstract_object* ref_object::get_object() const {
+abstract_object* ref_object::get_object() const
+{
     return find_related_object();
 }
 
-std::string ref_object::as_string() const {
+std::string ref_object::as_string() const
+{
     return m_object_name;
 }
 
-bool ref_object::equals(const variant_extension_base& other) const {
+bool ref_object::equals(const variant_extension_base& other) const
+{
     if (auto* other_ref = dynamic_cast<const ref_object*>(&other)) {
         return m_object_name == other_ref->m_object_name;
     }
     return false;
 }
 
-mc::shared_ptr<variant_extension_base> ref_object::copy() const {
+mc::shared_ptr<variant_extension_base> ref_object::copy() const
+{
     return mc::make_shared<ref_object>(m_object_name, m_object_finder);
 }
 
-std::string_view ref_object::get_type_name() const {
+std::string_view ref_object::get_type_name() const
+{
     return "ref_object";
 }
 
-abstract_object* ref_object::find_related_object() const {
+abstract_object* ref_object::find_related_object() const
+{
     if (m_object_finder) {
         return m_object_finder(m_object_name);
     }

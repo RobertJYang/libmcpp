@@ -10,12 +10,12 @@
  * See the Mulan PSL v2 for more details.
  */
 
+#include <dlfcn.h>
+#include <logging_internal.h>
 #include <mc/exception.h>
 #include <mc/fmt/format_dict.h>
 #include <mc/log/log_manager.h>
 #include <mc/log/logger.h>
-#include <logging_internal.h>
-#include <dlfcn.h>
 
 #include <algorithm>
 #include <chrono>
@@ -56,7 +56,8 @@ public:
     std::shared_ptr<throttle_state> m_throttle_state; // 周期节流状态（可共享）
 
     impl(const std::string& name = MC_LOG_DEFAULT_LOGGER)
-        : m_config(name), system_id(-1), period_s(0), m_throttle_state(std::make_shared<throttle_state>()) {
+        : m_config(name), system_id(-1), period_s(0), m_throttle_state(std::make_shared<throttle_state>())
+    {
     }
 
     impl(const impl& other)
@@ -64,7 +65,8 @@ public:
           m_appenders(other.m_appenders),
           system_id(other.system_id),
           period_s(other.period_s),
-          m_throttle_state(other.m_throttle_state) {
+          m_throttle_state(other.m_throttle_state)
+    {
         // 说明：节流状态与 logger 配置分离，clone 需要共享节流信息才能支持链式临时 logger 的周期限制
     }
 
@@ -73,41 +75,49 @@ public:
           m_appenders(std::move(other.m_appenders)),
           system_id(other.system_id),
           period_s(other.period_s),
-          m_throttle_state(std::move(other.m_throttle_state)) {
+          m_throttle_state(std::move(other.m_throttle_state))
+    {
     }
 };
 
 // 静态方法实现
-logger logger::get(const char* name) {
+logger logger::get(const char* name)
+{
     return log_manager::instance().get_logger(name);
 }
 
 logger::logger()
-    : m_impl(std::make_shared<impl>()) {
+    : m_impl(std::make_shared<impl>())
+{
 }
 
 // 构造函数实现
 logger::logger(const std::string& name)
-    : m_impl(std::make_shared<impl>(name)) {
+    : m_impl(std::make_shared<impl>(name))
+{
 }
 
 logger::logger(const logger& other)
-    : m_impl(other.m_impl) {
+    : m_impl(other.m_impl)
+{
 }
 
 logger::logger(logger&& other) noexcept
-    : m_impl(std::move(other.m_impl)) {
+    : m_impl(std::move(other.m_impl))
+{
 }
 
 // 赋值运算符实现
-logger& logger::operator=(const logger& other) {
+logger& logger::operator=(const logger& other)
+{
     if (this != &other) {
         m_impl = other.m_impl;
     }
     return *this;
 }
 
-logger& logger::operator=(logger&& other) noexcept {
+logger& logger::operator=(logger&& other) noexcept
+{
     if (this != &other) {
         m_impl = std::move(other.m_impl);
     }
@@ -115,37 +125,45 @@ logger& logger::operator=(logger&& other) noexcept {
 }
 
 // 方法实现
-logger& logger::set_level(level lvl) {
+logger& logger::set_level(level lvl)
+{
     m_impl->m_config.level = lvl;
     return *this;
 }
 
-level logger::get_level() const {
+level logger::get_level() const
+{
     return m_impl->m_config.level;
 }
 
-void logger::set_name(const std::string& name) {
+void logger::set_name(const std::string& name)
+{
     m_impl->m_config.name = name;
 }
 
-const std::string& logger::get_name() const {
+const std::string& logger::get_name() const
+{
     return m_impl->m_config.name;
 }
 
-bool logger::is_enabled(level lvl) const {
+bool logger::is_enabled(level lvl) const
+{
     return static_cast<int>(lvl) >= static_cast<int>(m_impl->m_config.level);
 }
 
-bool logger::is_debug_log(log_category category) const {
+bool logger::is_debug_log(log_category category) const
+{
     return category == log_category::debug || category == log_category::serial_printf;
 }
 
-logger& logger::system(int system_id) {
+logger& logger::system(int system_id)
+{
     m_impl->system_id = system_id;
     return *this;
 }
 
-logger& logger::period(int period_s) {
+logger& logger::period(int period_s)
+{
     // 检查参数有效性：period_s 只能为正整数
     if (period_s <= 0) {
         MC_THROW(mc::invalid_arg_exception, "Invalid log period value");
@@ -156,19 +174,22 @@ logger& logger::period(int period_s) {
     return *this;
 }
 
-logger& logger::condition(bool cond) {
+logger& logger::condition(bool cond)
+{
     m_impl->m_config.condition = cond;
     return *this;
 }
 
-logger logger::clone() const {
+logger logger::clone() const
+{
     logger copy;
     // 深拷贝 impl，避免与原 logger 共享状态（system_id/period/节流状态等）
     copy.m_impl = std::make_shared<impl>(*m_impl);
     return copy;
 }
 
-void logger::raise(const std::string& fmt_template, const mc::dict& args) {
+void logger::raise(const std::string& fmt_template, const mc::dict& args)
+{
     std::string msg;
     try {
         msg = mc::format_dict(fmt_template, args);
@@ -181,7 +202,8 @@ void logger::raise(const std::string& fmt_template, const mc::dict& args) {
     MC_THROW(mc::runtime_exception, msg);
 }
 
-static std::string make_period_log_key(int period_s, const message& msg) {
+static std::string make_period_log_key(int period_s, const message& msg)
+{
     // 说明：
     // - 优先使用 format_template 作为标识（更稳定，避免同模板不同参数导致不同标识）
     // - 没有 format_template 时，使用已格式化 message（Lua 侧目前就是这种）
@@ -193,7 +215,8 @@ static std::string make_period_log_key(int period_s, const message& msg) {
     return base + "|period:" + std::to_string(period_s);
 }
 
-bool logger::should_log_period(const message& msg) {
+bool logger::should_log_period(const message& msg)
+{
     const int period_s = m_impl->period_s;
     if (period_s <= 0) {
         return true;
@@ -220,7 +243,8 @@ bool logger::should_log_period(const message& msg) {
     return true;
 }
 
-void logger::log(message msg) {
+void logger::log(message msg)
+{
     if (!m_impl->m_config.condition) {
         return;
     }
@@ -259,7 +283,8 @@ constexpr size_t LOG_PRINTF_BUF_SIZE = 4096;
 
 } // namespace
 
-void logger::log_printf(level lvl, const char* fmt, std::va_list ap) {
+void logger::log_printf(level lvl, const char* fmt, std::va_list ap)
+{
     if (!is_enabled(lvl)) {
         return;
     }
@@ -277,35 +302,40 @@ void logger::log_printf(level lvl, const char* fmt, std::va_list ap) {
     log(msg);
 }
 
-void logger::debug_printf(const char* fmt, ...) {
+void logger::debug_printf(const char* fmt, ...)
+{
     std::va_list ap;
     va_start(ap, fmt);
     log_printf(level::debug, fmt, ap);
     va_end(ap);
 }
 
-void logger::info_printf(const char* fmt, ...) {
+void logger::info_printf(const char* fmt, ...)
+{
     std::va_list ap;
     va_start(ap, fmt);
     log_printf(level::info, fmt, ap);
     va_end(ap);
 }
 
-void logger::notice_printf(const char* fmt, ...) {
+void logger::notice_printf(const char* fmt, ...)
+{
     std::va_list ap;
     va_start(ap, fmt);
     log_printf(level::notice, fmt, ap);
     va_end(ap);
 }
 
-void logger::warn_printf(const char* fmt, ...) {
+void logger::warn_printf(const char* fmt, ...)
+{
     std::va_list ap;
     va_start(ap, fmt);
     log_printf(level::warn, fmt, ap);
     va_end(ap);
 }
 
-void logger::error_printf(const char* fmt, ...) {
+void logger::error_printf(const char* fmt, ...)
+{
     std::va_list ap;
     va_start(ap, fmt);
     log_printf(level::error, fmt, ap);
@@ -313,7 +343,8 @@ void logger::error_printf(const char* fmt, ...) {
 }
 
 // 在子进程中用 execve 执行 sh -c cmd，父进程等待子进程结束
-static void run_shell_cmd(const std::string& cmd) {
+static void run_shell_cmd(const std::string& cmd)
+{
     const pid_t pid = fork();
     if (pid < 0) {
         return;
@@ -334,7 +365,8 @@ static void run_shell_cmd(const std::string& cmd) {
 typedef const char* (*get_log_time_str_func_t)(int);
 static get_log_time_str_func_t get_log_time_str_ptr = nullptr;
 
-void logger::log_serial_printf(level lvl, const message& msg) {
+void logger::log_serial_printf(level lvl, const message& msg)
+{
     if (!m_impl->m_config.condition || !is_enabled(lvl)) {
         return;
     }
@@ -344,7 +376,7 @@ void logger::log_serial_printf(level lvl, const message& msg) {
     logging::filter_invalid_chars(message_str);
 
     if (!get_log_time_str_ptr) {
-        void* handle = dlopen(LOGGING_PATH, RTLD_NOW);
+        void* handle         = dlopen(LOGGING_PATH, RTLD_NOW);
         get_log_time_str_ptr = (get_log_time_str_func_t)dlsym(handle, "get_log_time_str_c");
     }
     std::string module_name = "Unknown";
@@ -368,21 +400,23 @@ void logger::log_serial_printf(level lvl, const message& msg) {
     if (get_log_time_str_ptr) {
         const char* time_str = get_log_time_str_ptr(LOG_US_TIME);
         if (time_str) {
-            std::string str = mc::format_dict("${time} ${module} ${level}: ${file}(${line}): ${message}",
-                                              mc::dict()("time", time_str)("module", module_name)("level", mc::log::to_string(msg.get_level()))("file", file_str)("line", std::to_string(ctx.m_line))("message", message_str));
-            const std::string cmd     = "echo \"" + str + "\" > /dev/ttyS0";
+            std::string       str = mc::format_dict("${time} ${module} ${level}: ${file}(${line}): ${message}",
+                                                    mc::dict()("time", time_str)("module", module_name)("level", mc::log::to_string(msg.get_level()))("file", file_str)("line", std::to_string(ctx.m_line))("message", message_str));
+            const std::string cmd = "echo \"" + str + "\" > /dev/ttyS0";
             run_shell_cmd(cmd);
         }
     }
 }
 
-void logger::add_appender(const appender_ptr& a) {
+void logger::add_appender(const appender_ptr& a)
+{
     if (a) {
         m_impl->m_appenders.push_back(a);
     }
 }
 
-bool logger::remove_appender(const std::string& name) {
+bool logger::remove_appender(const std::string& name)
+{
     auto& appenders = m_impl->m_appenders;
     auto  it        = std::find_if(appenders.begin(), appenders.end(), [&name](const appender_ptr& a) {
         return a && a->get_name() == name;
@@ -396,7 +430,8 @@ bool logger::remove_appender(const std::string& name) {
     return false;
 }
 
-appender_ptr logger::find_appender(const std::string& name) const {
+appender_ptr logger::find_appender(const std::string& name) const
+{
     const auto& appenders = m_impl->m_appenders;
     auto        it        = std::find_if(appenders.begin(), appenders.end(), [&name](const appender_ptr& a) {
         return a && a->get_name() == name;
@@ -405,11 +440,13 @@ appender_ptr logger::find_appender(const std::string& name) const {
     return (it != appenders.end()) ? *it : nullptr;
 }
 
-const std::vector<appender_ptr>& logger::get_appenders() const {
+const std::vector<appender_ptr>& logger::get_appenders() const
+{
     return m_impl->m_appenders;
 }
 
-void logger::clear_appenders() {
+void logger::clear_appenders()
+{
     m_impl->m_appenders.clear();
 }
 

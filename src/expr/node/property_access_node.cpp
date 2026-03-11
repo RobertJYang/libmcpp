@@ -18,7 +18,8 @@
 
 namespace mc::expr {
 
-mc::variant property_access_node::evaluate(const context_base& ctx) const {
+mc::variant property_access_node::evaluate(const context_base& ctx) const
+{
     if (m_object->get_type() == node_type::variable) {
         const variable_node& var_node = static_cast<const variable_node&>(*m_object);
         if (ctx.has_variable(m_property, var_node.get_name())) {
@@ -36,11 +37,13 @@ mc::variant property_access_node::evaluate(const context_base& ctx) const {
     MC_THROW(invalid_arg_exception, "表达式求值错误: 无法访问属性 '${prop}'", ("prop", m_property));
 }
 
-std::string property_access_node::to_string() const {
+std::string property_access_node::to_string() const
+{
     return m_object->to_string() + "." + m_property;
 }
 
-node_ptr make_property_access(node_ptr object, const std::string& property) {
+node_ptr make_property_access(node_ptr object, const std::string& property)
+{
     return std::make_shared<property_access_node>(std::move(object), property);
 }
 

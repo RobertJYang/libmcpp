@@ -23,7 +23,8 @@
 using namespace mc::engine;
 
 // 辅助函数：收集路径所有片段
-std::vector<std::string> collect_segments(const std::string& path) {
+std::vector<std::string> collect_segments(const std::string& path)
+{
     std::vector<std::string> segments;
     path_iterator            it(path);
 
@@ -35,7 +36,8 @@ std::vector<std::string> collect_segments(const std::string& path) {
 }
 
 // 测试基本路径导航
-TEST(path_iterator_test, basic_navigation) {
+TEST(path_iterator_test, basic_navigation)
+{
     path_iterator it("/a/b/c");
 
     // 初始状态应该不指向任何段
@@ -69,7 +71,8 @@ TEST(path_iterator_test, basic_navigation) {
 }
 
 // 测试不同类型的路径
-TEST(path_iterator_test, different_paths) {
+TEST(path_iterator_test, different_paths)
+{
     // 测试空路径
     EXPECT_EQ(collect_segments(""), std::vector<std::string>{});
 
@@ -86,7 +89,8 @@ TEST(path_iterator_test, different_paths) {
 }
 
 // 测试特殊情况
-TEST(path_iterator_test, special_cases) {
+TEST(path_iterator_test, special_cases)
+{
     // 路径末尾带斜杠
     EXPECT_EQ(collect_segments("/a/"), std::vector<std::string>{"a"});
     EXPECT_EQ(collect_segments("/a/b/"), (std::vector<std::string>{"a", "b"}));
@@ -101,7 +105,8 @@ TEST(path_iterator_test, special_cases) {
 }
 
 // 测试重置功能
-TEST(path_iterator_test, reset_functionality) {
+TEST(path_iterator_test, reset_functionality)
+{
     path_iterator it("/a/b/c");
 
     // 导航到最后一段
@@ -120,7 +125,8 @@ TEST(path_iterator_test, reset_functionality) {
 }
 
 // 测试路径导航的双向性
-TEST(path_iterator_test, bidirectional_navigation) {
+TEST(path_iterator_test, bidirectional_navigation)
+{
     path_iterator it("/one/two/three/four");
 
     // 向前导航
@@ -146,7 +152,8 @@ TEST(path_iterator_test, bidirectional_navigation) {
 }
 
 // 测试路径中包含特殊字符的情况
-TEST(path_iterator_test, special_characters) {
+TEST(path_iterator_test, special_characters)
+{
     path_iterator it("/path.with/special_chars/and-symbols");
 
     EXPECT_TRUE(it.to_next());
@@ -162,7 +169,8 @@ TEST(path_iterator_test, special_characters) {
 }
 
 // 测试中文路径
-TEST(path_iterator_test, unicode_paths) {
+TEST(path_iterator_test, unicode_paths)
+{
     path_iterator it("/中文/路径/测试");
 
     EXPECT_TRUE(it.to_next());
@@ -178,7 +186,8 @@ TEST(path_iterator_test, unicode_paths) {
 }
 
 // 测试边界情况的处理
-TEST(path_iterator_test, boundary_conditions) {
+TEST(path_iterator_test, boundary_conditions)
+{
     // 空路径
     path_iterator empty_it("");
     EXPECT_FALSE(empty_it.to_next());
@@ -200,7 +209,8 @@ TEST(path_iterator_test, boundary_conditions) {
 }
 
 // 测试基本功能
-TEST(PathIterator, BasicFunctionality) {
+TEST(PathIterator, BasicFunctionality)
+{
     // 测试空路径
     {
         path_iterator iter("");
@@ -273,7 +283,8 @@ TEST(PathIterator, BasicFunctionality) {
 }
 
 // 测试反向遍历
-TEST(PathIterator, ReverseTraversal) {
+TEST(PathIterator, ReverseTraversal)
+{
     path_iterator iter("/a/b/c/d");
 
     // 向前遍历到最后
@@ -299,7 +310,8 @@ TEST(PathIterator, ReverseTraversal) {
 }
 
 // 测试重置功能
-TEST(PathIterator, Reset) {
+TEST(PathIterator, Reset)
+{
     path_iterator iter("/a/b/c");
 
     // 向前遍历
@@ -316,7 +328,8 @@ TEST(PathIterator, Reset) {
 }
 
 // 性能测试：对比不同路径长度的解析性能
-TEST(PathIterator, DISABLED_PerformanceBenchmark) {
+TEST(PathIterator, DISABLED_PerformanceBenchmark)
+{
     // 创建不同长度的路径
     std::vector<std::string> paths = {"/a", "/a/b/c", "/a/b/c/d/e", "/a/b/c/d/e/f/g/h/i/j",
                                       "/a/b/c/d/e/f/g/h/i/j/k/l/m/n/o/p/q/r/s/t"};
@@ -385,7 +398,8 @@ TEST(PathIterator, DISABLED_PerformanceBenchmark) {
 }
 
 // 测试边缘情况
-TEST(PathIterator, EdgeCases) {
+TEST(PathIterator, EdgeCases)
+{
     // 测试特殊字符
     {
         path_iterator iter("/special/chars/!@#$%^&*()");

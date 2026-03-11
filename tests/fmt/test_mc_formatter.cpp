@@ -20,11 +20,13 @@ namespace mc::test {
 
 class mc_formatter_test : public mc::test::TestBase {
 protected:
-    void SetUp() override {
+    void SetUp() override
+    {
         // 在每个测试前执行
     }
 
-    void TearDown() override {
+    void TearDown() override
+    {
         // 在每个测试后执行
     }
 };
@@ -32,7 +34,8 @@ protected:
 /**
  * @brief 测试 mc::variant 的格式化
  */
-TEST_F(mc_formatter_test, VariantFormatting) {
+TEST_F(mc_formatter_test, VariantFormatting)
+{
     // 测试基本类型
     mc::variant v1      = 42;
     std::string result1 = sformat("{}", v1);
@@ -58,7 +61,8 @@ TEST_F(mc_formatter_test, VariantFormatting) {
 /**
  * @brief 测试 mc::variant 格式化参数
  */
-TEST_F(mc_formatter_test, VariantFormatWithSpec) {
+TEST_F(mc_formatter_test, VariantFormatWithSpec)
+{
     mc::variant v1 = 42;
     mc::variant v2 = "hello";
     mc::variant v3 = 3.14;
@@ -82,43 +86,49 @@ TEST_F(mc_formatter_test, VariantFormatWithSpec) {
 }
 
 // 测试 variant 中的 int8_t 作为 char
-TEST_F(mc_formatter_test, FormatCharFromVariant) {
+TEST_F(mc_formatter_test, FormatCharFromVariant)
+{
     // variant 中存放 int8_t('A')
-    mc::variant v = static_cast<int8_t>('A');
+    mc::variant v      = static_cast<int8_t>('A');
     std::string result = sformat("{}", v);
     // 默认行为：按整数输出
     EXPECT_EQ(result, "65");
 }
 
 // 测试 blob 格式化
-TEST_F(mc_formatter_test, BlobFormatterOutputsSize) {
+TEST_F(mc_formatter_test, BlobFormatterOutputsSize)
+{
     // 创建 mc::blob
     mc::blob blob;
-    blob.data = std::vector<char>{static_cast<char>(1), static_cast<char>(2), static_cast<char>(3)};
+    blob.data          = std::vector<char>{static_cast<char>(1), static_cast<char>(2), static_cast<char>(3)};
     std::string result = sformat("{}", blob);
     // 期望输出 "blob(3 bytes)"
     EXPECT_EQ(result, "blob(3 bytes)");
 }
 
 // 测试 extension 格式化
-TEST_F(mc_formatter_test, ExtensionFormatterUsesTypeName) {
+TEST_F(mc_formatter_test, ExtensionFormatterUsesTypeName)
+{
     // 定义一个继承 variant_extension_base 的伪 extension
     class custom_ext : public mc::variant_extension_base {
     public:
-        std::string_view get_type_name() const override {
+        std::string_view get_type_name() const override
+        {
             return "custom_ext";
         }
 
-        mc::shared_ptr<variant_extension_base> copy() const override {
+        mc::shared_ptr<variant_extension_base> copy() const override
+        {
             return mc::make_shared<custom_ext>(*this);
         }
 
-        bool equals(const variant_extension_base& other) const override {
+        bool equals(const variant_extension_base& other) const override
+        {
             return get_type_name() == other.get_type_name();
         }
     };
 
-    auto ext = mc::make_shared<custom_ext>();
+    auto        ext = mc::make_shared<custom_ext>();
     mc::variant v(ext);
     std::string result = sformat("{}", v);
     // 期望输出 "extension(custom_ext)"
@@ -128,7 +138,8 @@ TEST_F(mc_formatter_test, ExtensionFormatterUsesTypeName) {
 /**
  * @brief 测试 mc::variant 格式化参数失败回退
  */
-TEST_F(mc_formatter_test, VariantFormatFallback) {
+TEST_F(mc_formatter_test, VariantFormatFallback)
+{
     mc::variant v1 = "hello";
     mc::variant v2 = true;
 
@@ -140,7 +151,8 @@ TEST_F(mc_formatter_test, VariantFormatFallback) {
 /**
  * @brief 测试 mc::variants 的格式化
  */
-TEST_F(mc_formatter_test, VariantsFormatting) {
+TEST_F(mc_formatter_test, VariantsFormatting)
+{
     mc::variants arr;
     arr.push_back(1);
     arr.push_back(2.5);
@@ -154,7 +166,8 @@ TEST_F(mc_formatter_test, VariantsFormatting) {
 /**
  * @brief 测试 mc::dict 的格式化
  */
-TEST_F(mc_formatter_test, DictFormatting) {
+TEST_F(mc_formatter_test, DictFormatting)
+{
     mc::dict dict;
     dict["name"]       = "张三";
     dict["age"]        = 30;
@@ -167,7 +180,8 @@ TEST_F(mc_formatter_test, DictFormatting) {
 /**
  * @brief 测试 mc::dict 的格式化
  */
-TEST_F(mc_formatter_test, MutableDictFormatting) {
+TEST_F(mc_formatter_test, MutableDictFormatting)
+{
     mc::dict dict;
     dict["city"]       = "北京";
     dict["population"] = 21540000;
@@ -180,7 +194,8 @@ TEST_F(mc_formatter_test, MutableDictFormatting) {
 /**
  * @brief 测试嵌套结构的格式化
  */
-TEST_F(mc_formatter_test, NestedStructureFormatting) {
+TEST_F(mc_formatter_test, NestedStructureFormatting)
+{
     // 创建嵌套的 dict
     mc::dict inner_dict;
     inner_dict["x"] = 10;
@@ -203,7 +218,8 @@ TEST_F(mc_formatter_test, NestedStructureFormatting) {
 /**
  * @brief 测试 mc::variant 包含数组的格式化
  */
-TEST_F(mc_formatter_test, VariantWithArrayFormatting) {
+TEST_F(mc_formatter_test, VariantWithArrayFormatting)
+{
     mc::variants arr;
     arr.push_back("a");
     arr.push_back("b");
@@ -217,7 +233,8 @@ TEST_F(mc_formatter_test, VariantWithArrayFormatting) {
 /**
  * @brief 测试 mc::variant 包含 dict 的格式化
  */
-TEST_F(mc_formatter_test, VariantWithDictFormatting) {
+TEST_F(mc_formatter_test, VariantWithDictFormatting)
+{
     mc::dict dict;
     dict["key1"] = "value1";
     dict["key2"] = 42;
@@ -230,7 +247,8 @@ TEST_F(mc_formatter_test, VariantWithDictFormatting) {
 /**
  * @brief 测试复杂嵌套结构的格式化
  */
-TEST_F(mc_formatter_test, ComplexNestedFormatting) {
+TEST_F(mc_formatter_test, ComplexNestedFormatting)
+{
     // 创建复杂的嵌套结构
     mc::variants inner_arr;
     inner_arr.push_back("nested1");

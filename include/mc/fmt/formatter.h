@@ -89,11 +89,13 @@ constexpr bool is_string_v =
     std::is_same_v<std::decay_t<T>, const char*> ||
     std::is_same_v<std::decay_t<T>, char*>;
 
-constexpr bool isdigit(char c) {
+constexpr bool isdigit(char c)
+{
     return c >= '0' && c <= '9';
 }
 
-constexpr bool to_integer(std::string_view s, size_t& out) {
+constexpr bool to_integer(std::string_view s, size_t& out)
+{
     size_t value = 0;
     for (char c : s) {
         if (!isdigit(c)) {

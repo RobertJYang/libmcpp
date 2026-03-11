@@ -89,7 +89,8 @@ public:
     JsonValue& operator=(const std::vector<T>& value);
     template <typename T,
               typename std::enable_if_t<std::is_integral_v<T> && !std::is_same_v<T, bool>, int> = 0>
-    JsonValue& operator=(T value) {
+    JsonValue& operator=(T value)
+    {
         return *this = static_cast<int64_t>(value);
     }
 
@@ -100,7 +101,8 @@ public:
     template <typename T,
               typename std::enable_if_t<std::is_integral_v<T> && !std::is_same_v<T, bool>, int> = 0>
     JsonValue(T value)
-        : JsonValue(static_cast<int64_t>(value)) {
+        : JsonValue(static_cast<int64_t>(value))
+    {
     }
     JsonValue(std::string_view value);
     /** @brief 支持从 C 字符串直接构造，便于书写 JsonValue v = "test"; 或 {1, 2, "test"} */
@@ -153,48 +155,59 @@ public:
 
     // 相等比较（按 JSON 语义比较内容）
     bool operator==(const JsonValue& other) const;
-    bool operator!=(const JsonValue& other) const {
+    bool operator!=(const JsonValue& other) const
+    {
         return !(*this == other);
     }
 
     // 与整型、布尔、浮点、字符串的类型和值比较（类型须一致且值相等）
     bool operator==(int64_t value) const;
-    bool operator!=(int64_t value) const {
+    bool operator!=(int64_t value) const
+    {
         return !(*this == value);
     }
     bool operator==(bool value) const;
-    bool operator!=(bool value) const {
+    bool operator!=(bool value) const
+    {
         return !(*this == value);
     }
     bool operator==(double value) const;
-    bool operator!=(double value) const {
+    bool operator!=(double value) const
+    {
         return !(*this == value);
     }
     bool operator==(std::string_view value) const;
-    bool operator!=(std::string_view value) const {
+    bool operator!=(std::string_view value) const
+    {
         return !(*this == value);
     }
-    bool operator==(const std::string value) const {
+    bool operator==(const std::string value) const
+    {
         return *this == std::string_view(value);
     }
-    bool operator!=(const std::string value) const {
+    bool operator!=(const std::string value) const
+    {
         return !(*this == value);
     }
-    bool operator==(const char* value) const {
+    bool operator==(const char* value) const
+    {
         return *this == std::string_view(value);
     }
-    bool operator!=(const char* value) const {
+    bool operator!=(const char* value) const
+    {
         return !(*this == value);
     }
     // 其他整型委托到 int64_t 比较
     template <typename T,
               typename std::enable_if_t<std::is_integral_v<T> && !std::is_same_v<T, bool>, int> = 0>
-    bool operator==(T value) const {
+    bool operator==(T value) const
+    {
         return *this == static_cast<int64_t>(value);
     }
     template <typename T,
               typename std::enable_if_t<std::is_integral_v<T> && !std::is_same_v<T, bool>, int> = 0>
-    bool operator!=(T value) const {
+    bool operator!=(T value) const
+    {
         return !(*this == value);
     }
 
@@ -206,7 +219,8 @@ public:
     JsonArrayValue  operator[](uint32_t index);
     JsonObjectValue operator[](std::string_view key);
     // 底层句柄访问，仅供内部/测试使用
-    Json* get_raw() const noexcept {
+    Json* get_raw() const noexcept
+    {
         return m_json;
     }
 
@@ -232,12 +246,14 @@ MC_API bool operator==(const char* lhs, const JsonValue& rhs);
 MC_API bool operator!=(const char* lhs, const JsonValue& rhs);
 template <typename T,
           typename std::enable_if_t<std::is_integral_v<T> && !std::is_same_v<T, bool>, int> = 0>
-bool operator==(T lhs, const JsonValue& rhs) {
+bool operator==(T lhs, const JsonValue& rhs)
+{
     return rhs == static_cast<int64_t>(lhs);
 }
 template <typename T,
           typename std::enable_if_t<std::is_integral_v<T> && !std::is_same_v<T, bool>, int> = 0>
-bool operator!=(T lhs, const JsonValue& rhs) {
+bool operator!=(T lhs, const JsonValue& rhs)
+{
     return !(rhs == lhs);
 }
 
@@ -255,11 +271,13 @@ public:
     ~JsonArray();
 
     uint32_t size() const;
-    bool     empty() const {
+    bool     empty() const
+    {
         return size() == 0;
     }
     JsonValue at(uint32_t index) const;
-    JsonValue operator[](uint32_t index) const {
+    JsonValue operator[](uint32_t index) const
+    {
         return at(index);
     }
 
@@ -276,25 +294,31 @@ public:
         using reference         = JsonValue;
 
         iterator(const JsonArray* array, uint32_t index)
-            : m_array(array), m_index(index) {
+            : m_array(array), m_index(index)
+        {
         }
 
-        JsonValue operator*() const {
+        JsonValue operator*() const
+        {
             return m_array->at(m_index);
         }
-        iterator& operator++() {
+        iterator& operator++()
+        {
             ++m_index;
             return *this;
         }
-        iterator operator++(int) {
+        iterator operator++(int)
+        {
             iterator tmp = *this;
             ++m_index;
             return tmp;
         }
-        bool operator==(const iterator& other) const {
+        bool operator==(const iterator& other) const
+        {
             return m_array == other.m_array && m_index == other.m_index;
         }
-        bool operator!=(const iterator& other) const {
+        bool operator!=(const iterator& other) const
+        {
             return !(*this == other);
         }
 
@@ -303,14 +327,17 @@ public:
         uint32_t         m_index;
     };
 
-    iterator begin() const {
+    iterator begin() const
+    {
         return iterator(this, 0);
     }
-    iterator end() const {
+    iterator end() const
+    {
         return iterator(this, size());
     }
 
-    Json* get_raw() const noexcept {
+    Json* get_raw() const noexcept
+    {
         return m_json;
     }
 
@@ -333,7 +360,8 @@ public:
 
     bool      has(std::string_view key) const;
     JsonValue get(std::string_view key) const;
-    JsonValue operator[](std::string_view key) const {
+    JsonValue operator[](std::string_view key) const
+    {
         return get(key);
     }
 
@@ -342,7 +370,8 @@ public:
 
     // 获取对象中键值对数量（通过遍历计算）
     uint32_t size() const;
-    bool     empty() const {
+    bool     empty() const
+    {
         return size() == 0;
     }
 
@@ -367,7 +396,8 @@ public:
         iterator&      operator++();
         iterator       operator++(int);
         bool           operator==(const iterator& other) const;
-        bool           operator!=(const iterator& other) const {
+        bool           operator!=(const iterator& other) const
+        {
             return !(*this == other);
         }
 
@@ -379,7 +409,8 @@ public:
     iterator begin() const;
     iterator end() const;
 
-    Json* get_raw() const noexcept {
+    Json* get_raw() const noexcept
+    {
         return m_json;
     }
 
@@ -396,7 +427,8 @@ class MC_API JsonArrayValue : public JsonValue {
 public:
     /** 构造：父 Array（JsonValue）、索引、可选的当前元素值（默认空） */
     JsonArrayValue(JsonValue* parent_array, uint32_t index, JsonValue value = JsonValue())
-        : JsonValue(value), m_parent(parent_array), m_index(index) {
+        : JsonValue(value), m_parent(parent_array), m_index(index)
+    {
     }
 
     JsonArrayValue& operator=(const JsonValue& value);
@@ -408,7 +440,8 @@ public:
     JsonArrayValue& operator=(const std::string& value);
     template <typename T,
               typename std::enable_if_t<std::is_integral_v<T> && !std::is_same_v<T, bool>, int> = 0>
-    JsonArrayValue& operator=(T value) {
+    JsonArrayValue& operator=(T value)
+    {
         return *this = static_cast<int64_t>(value);
     }
 
@@ -430,7 +463,8 @@ class MC_API JsonObjectValue : public JsonValue {
 public:
     /** 构造：父 Object（JsonValue）、键、可选的当前元素值（默认空） */
     JsonObjectValue(JsonValue* parent_object, std::string_view key, JsonValue value = JsonValue())
-        : JsonValue(value), m_parent(parent_object), m_key(key) {
+        : JsonValue(value), m_parent(parent_object), m_key(key)
+    {
     }
 
     JsonObjectValue& operator=(const JsonValue& value);
@@ -442,7 +476,8 @@ public:
     JsonObjectValue& operator=(const std::string& value);
     template <typename T,
               typename std::enable_if_t<std::is_integral_v<T> && !std::is_same_v<T, bool>, int> = 0>
-    JsonObjectValue& operator=(T value) {
+    JsonObjectValue& operator=(T value)
+    {
         return *this = static_cast<int64_t>(value);
     }
 

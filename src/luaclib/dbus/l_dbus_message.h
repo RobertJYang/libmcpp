@@ -30,17 +30,20 @@ struct message_wrapper {
 
     message_wrapper() = default;
     explicit message_wrapper(mc::dbus::message&& m)
-        : msg(std::move(m)) {
+        : msg(std::move(m))
+    {
     }
 };
 
 // 检查并获取 message userdata
-inline message_wrapper* check_message(lua_State* L, int index = 1) {
+inline message_wrapper* check_message(lua_State* L, int index = 1)
+{
     return static_cast<message_wrapper*>(luaL_checkudata(L, index, MESSAGE_METATABLE));
 }
 
 // 创建 message userdata 并推入 Lua 栈
-inline int push_message(lua_State* L, mc::dbus::message&& msg) {
+inline int push_message(lua_State* L, mc::dbus::message&& msg)
+{
     void* userdata = lua_newuserdata(L, sizeof(message_wrapper));
     new (userdata) message_wrapper(std::move(msg));
 
@@ -52,7 +55,8 @@ inline int push_message(lua_State* L, mc::dbus::message&& msg) {
 
 // dbus.message.new_method_call(destination, path, interface, method)
 // 创建方法调用消息
-inline int message_new_method_call(lua_State* L) {
+inline int message_new_method_call(lua_State* L)
+{
     const char* destination = luaL_checkstring(L, 1);
     const char* path        = luaL_checkstring(L, 2);
     const char* interface   = luaL_checkstring(L, 3);
@@ -67,21 +71,24 @@ inline int message_new_method_call(lua_State* L) {
 }
 
 // __tostring 元方法
-inline int message_tostring(lua_State* L) {
+inline int message_tostring(lua_State* L)
+{
     auto wrapper = check_message(L);
     lua_pushstring(L, "dbus.message");
     return 1;
 }
 
 // __gc 元方法
-inline int message_gc(lua_State* L) {
+inline int message_gc(lua_State* L)
+{
     auto wrapper = check_message(L);
     wrapper->~message_wrapper();
     return 0;
 }
 
 // 注册 message metatable
-inline void register_message_metatable(lua_State* L) {
+inline void register_message_metatable(lua_State* L)
+{
     // 创建 metatable
     luaL_newmetatable(L, MESSAGE_METATABLE);
 

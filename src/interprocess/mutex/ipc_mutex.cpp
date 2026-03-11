@@ -24,13 +24,15 @@ namespace mc::interprocess {
 
 using namespace detail;
 
-ipc_mutex::ipc_mutex() {
+ipc_mutex::ipc_mutex()
+{
     // 初始化锁数据
     m_owner_pid.store(0, std::memory_order_relaxed);
     m_lock_time.store(0, std::memory_order_relaxed);
 }
 
-ipc_mutex::~ipc_mutex() {
+ipc_mutex::~ipc_mutex()
+{
     // 如果当前进程持有锁，释放它
     pid_t pid = getpid();
     if (m_owner_pid.load(std::memory_order_acquire) == pid) {
@@ -38,7 +40,8 @@ ipc_mutex::~ipc_mutex() {
     }
 }
 
-bool ipc_mutex::try_lock() {
+bool ipc_mutex::try_lock()
+{
     pid_t pid = getpid();
 
     // 如果已经持有锁，返回失败，与std::mutex语义一致
@@ -64,13 +67,13 @@ bool ipc_mutex::try_lock() {
         // 锁需要被抢占（持有者已死亡或锁超时）
         // 获取当前锁的拥有者
         expected = m_owner_pid.load(std::memory_order_acquire);
-        
+
         // 使用compare_exchange确保只有一个进程能成功抢占锁
         if (!m_owner_pid.compare_exchange_strong(expected, pid, std::memory_order_acq_rel)) {
             // 另一个进程已经抢占了锁
             return false;
         }
-        
+
         // 在此处可能需要记录日志，表明锁被抢占
         ilog("锁被进程${new_pid}抢占，原拥有者：${old_pid}", ("new_pid", pid)("old_pid", expected));
     }
@@ -81,7 +84,8 @@ bool ipc_mutex::try_lock() {
     return true;
 }
 
-void ipc_mutex::lock() {
+void ipc_mutex::lock()
+{
     // 使用新的等待策略
     size_t attempt_count = 0;
     while (!try_lock()) {
@@ -89,8 +93,9 @@ void ipc_mutex::lock() {
     }
 }
 
-bool ipc_mutex::try_lock_for(std::chrono::milliseconds timeout_ms) {
-    auto start = std::chrono::steady_clock::now();
+bool ipc_mutex::try_lock_for(std::chrono::milliseconds timeout_ms)
+{
+    auto   start         = std::chrono::steady_clock::now();
     size_t attempt_count = 0;
 
     // 尝试获取锁，直到超时
@@ -108,7 +113,8 @@ bool ipc_mutex::try_lock_for(std::chrono::milliseconds timeout_ms) {
     return true;
 }
 
-void ipc_mutex::unlock() {
+void ipc_mutex::unlock()
+{
     pid_t pid = getpid();
 
     // 如果当前进程不持有锁，直接返回
@@ -121,7 +127,8 @@ void ipc_mutex::unlock() {
     m_lock_time.store(0, std::memory_order_release);
 }
 
-bool ipc_mutex::is_process_alive(pid_t pid) {
+bool ipc_mutex::is_process_alive(pid_t pid)
+{
     if (pid <= 0) {
         return false;
     }
@@ -130,7 +137,8 @@ bool ipc_mutex::is_process_alive(pid_t pid) {
     return kill(pid, 0) == 0 || errno != ESRCH;
 }
 
-ipc_mutex::preempt_condition ipc_mutex::can_preempt() const {
+ipc_mutex::preempt_condition ipc_mutex::can_preempt() const
+{
     // 获取当前锁的状态
     pid_t    owner     = m_owner_pid.load(std::memory_order_acquire);
     uint64_t lock_time = m_lock_time.load(std::memory_order_acquire);
@@ -158,4 +166,4 @@ ipc_mutex::preempt_condition ipc_mutex::can_preempt() const {
     return preempt_condition::none;
 }
 
-} // namespace mc::interprocess 
+} // namespace mc::interprocess

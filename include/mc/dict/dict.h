@@ -122,7 +122,9 @@ public:
      *       dict md = {{"key1", 123}, {"key2", "value"}, {"key3", true}};
      */
     template <typename T>
-    dict(std::initializer_list<std::pair<variant, T>> init) : dict(init.begin(), init.end()) {
+    dict(std::initializer_list<std::pair<variant, T>> init)
+        : dict(init.begin(), init.end())
+    {
     }
 
     /**
@@ -134,7 +136,9 @@ public:
      *       dict md = {{key1_str, 123}, {key2_view, "value"}, {key3_cstr, true}};
      */
     template <typename K, typename T>
-    dict(std::initializer_list<std::pair<K, T>> init) : dict(init.begin(), init.end()) {
+    dict(std::initializer_list<std::pair<K, T>> init)
+        : dict(init.begin(), init.end())
+    {
     }
 
     /**
@@ -184,7 +188,8 @@ public:
      * @note 此操作会替换当前的内容
      */
     template <typename T>
-    dict& operator=(std::initializer_list<std::pair<variant, T>> init) {
+    dict& operator=(std::initializer_list<std::pair<variant, T>> init)
+    {
         dict new_dict(init);
         *this = std::move(new_dict);
         return *this;
@@ -197,7 +202,8 @@ public:
      * @note 此操作会替换当前的内容
      */
     template <typename K, typename T>
-    dict& operator=(std::initializer_list<std::pair<K, T>> init) {
+    dict& operator=(std::initializer_list<std::pair<K, T>> init)
+    {
         dict new_dict(init);
         *this = std::move(new_dict);
         return *this;
@@ -355,7 +361,8 @@ public:
      * @param other 要比较的 dict 对象
      * @return 如果两个对象不相等则返回 true，否则返回 false
      */
-    bool operator!=(const dict& other) const {
+    bool operator!=(const dict& other) const
+    {
         return !(*this == other);
     }
 
@@ -392,7 +399,8 @@ public:
      * @brief 获取数据指针
      * @return 数据指针
      */
-    data_t* data() const {
+    data_t* data() const
+    {
         return m_data.get();
     }
 
@@ -435,7 +443,7 @@ public:
      */
     template <typename InputIt>
     auto insert(InputIt first, InputIt last) -> std::enable_if_t<
-        std::is_convertible_v<typename std::iterator_traits<InputIt>::value_type, entry>>;
+                                                 std::is_convertible_v<typename std::iterator_traits<InputIt>::value_type, entry>>;
 
     /**
      * @brief 插入键值对迭代器范围
@@ -491,7 +499,8 @@ public:
      * @return 返回自身引用
      * @note dict 本身就是可变的，此方法仅为向后兼容而保留
      */
-    dict& as_mut() {
+    dict& as_mut()
+    {
         return *this;
     }
 
@@ -500,7 +509,8 @@ public:
      * @return 返回自身的可变副本
      * @note dict 本身就是可变的，此方法仅为向后兼容而保留
      */
-    dict as_mut() const {
+    dict as_mut() const
+    {
         return *this;
     }
 

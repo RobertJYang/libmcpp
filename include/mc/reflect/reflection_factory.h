@@ -35,7 +35,8 @@ class reflection_factory;
 using factory_ptr  = mc::shared_ptr<reflection_factory>;
 using factory_wptr = mc::weak_ptr<reflection_factory>;
 
-constexpr inline bool is_valid_namespace(std::string_view name) {
+constexpr inline bool is_valid_namespace(std::string_view name)
+{
     return is_valid_type_name(name);
 }
 
@@ -64,7 +65,8 @@ public:
      * @return reflection_factory& 工厂实例引用
      */
     template <typename NameSpace>
-    static reflection_factory& instance() {
+    static reflection_factory& instance()
+    {
         if constexpr (std::is_same_v<NameSpace, global_namespace>) {
             return global();
         } else {
@@ -78,7 +80,8 @@ public:
      * @note 使用智能指针管理单例实例，确保当前实例注册到其他工厂时，其他工厂可以感知当前实例被销毁
      */
     template <typename NameSpace>
-    static factory_ptr& instance_ptr() {
+    static factory_ptr& instance_ptr()
+    {
         if constexpr (std::is_same_v<NameSpace, global_namespace>) {
             return global_ptr();
         } else {
@@ -93,7 +96,8 @@ public:
     }
 
     template <typename NameSpace>
-    static factory_ptr try_instance_ptr() {
+    static factory_ptr try_instance_ptr()
+    {
         if constexpr (std::is_same_v<NameSpace, global_namespace>) {
             return try_global_ptr();
         } else {
@@ -238,7 +242,8 @@ public:
      * @return type_id_type 分配的类型ID
      */
     template <typename T>
-    type_id_type register_type(type_id_type type_id = INVALID_TYPE_ID) {
+    type_id_type register_type(type_id_type type_id = INVALID_TYPE_ID)
+    {
         return register_type_impl(reflector<T>::get_name(), type_id, []() {
             return reflector<T>::get_reflection().shared_from_this();
         });
@@ -299,7 +304,8 @@ MC_API reflected_object_ptr create_object(std::string_view type_name);
  * @brief 获取已注册的所有类型名
  * @return std::vector<std::string> 类型名列表
  */
-inline std::vector<std::string> get_registered_types() {
+inline std::vector<std::string> get_registered_types()
+{
     return reflection_factory::global().get_registered_types();
 }
 
@@ -308,7 +314,8 @@ inline std::vector<std::string> get_registered_types() {
  * @param type_name 类型名
  * @return type_id_type 类型ID，如果不存在返回-1
  */
-inline type_id_type get_type_id(std::string_view type_name) {
+inline type_id_type get_type_id(std::string_view type_name)
+{
     return reflection_factory::global().get_type_id(type_name);
 }
 
@@ -319,7 +326,8 @@ inline type_id_type get_type_id(std::string_view type_name) {
  * @return reflected_object_ptr 反射对象包装器
  */
 template <typename T>
-reflected_object_ptr wrap_object(std::shared_ptr<T> obj) {
+reflected_object_ptr wrap_object(std::shared_ptr<T> obj)
+{
     return std::make_shared<reflected_object_impl<T>>(obj);
 }
 
@@ -330,13 +338,15 @@ reflected_object_ptr wrap_object(std::shared_ptr<T> obj) {
  * @return reflected_object_ptr 反射对象包装器
  */
 template <typename T>
-reflected_object_ptr wrap_object(const T& obj) {
+reflected_object_ptr wrap_object(const T& obj)
+{
     auto copy = std::make_shared<T>(obj);
     return wrap_object(copy);
 }
 
 template <typename T>
-reflection_factory& get_reflect_factory() {
+reflection_factory& get_reflect_factory()
+{
     if constexpr (detail::has_reflect_namespace<T>::value) {
         return reflection_factory::instance<
             typename detail::reflect_namespace<T>::type>();
@@ -346,7 +356,8 @@ reflection_factory& get_reflect_factory() {
 }
 
 template <typename T>
-factory_ptr try_get_reflect_factory() {
+factory_ptr try_get_reflect_factory()
+{
     if constexpr (detail::has_reflect_namespace<T>::value) {
         return reflection_factory::try_instance_ptr<
             typename detail::reflect_namespace<T>::type>();
@@ -356,7 +367,8 @@ factory_ptr try_get_reflect_factory() {
 }
 
 template <typename T>
-reflection<T, std::enable_if_t<is_reflectable<T>() && std::is_enum<T>()>>::~reflection() {
+reflection<T, std::enable_if_t<is_reflectable<T>() && std::is_enum<T>()>>::~reflection()
+{
     auto factory = try_get_reflect_factory<T>();
     if (factory) {
         factory->unregister_type_impl(reflector<T>::get_name());
@@ -364,7 +376,8 @@ reflection<T, std::enable_if_t<is_reflectable<T>() && std::is_enum<T>()>>::~refl
 }
 
 template <typename T>
-reflection<T, std::enable_if_t<is_reflectable<T>() && !std::is_enum<T>()>>::~reflection() {
+reflection<T, std::enable_if_t<is_reflectable<T>() && !std::is_enum<T>()>>::~reflection()
+{
     auto factory = try_get_reflect_factory<T>();
     if (factory) {
         factory->unregister_type_impl(reflector<T>::get_name());

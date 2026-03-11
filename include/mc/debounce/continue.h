@@ -12,24 +12,24 @@
 
 #ifndef MC_DEBOUNCE_CONTINUE_H
 #define MC_DEBOUNCE_CONTINUE_H
+#include "mc/debounce/base.h"
 #include <cstdint>
 #include <optional>
-#include "mc/debounce/base.h"
 
 namespace mc::debounce {
 class MC_API Continue : public Base {
 public:
     explicit Continue(int count);
     std::optional<int> get_debounce_val(int val) override;
-    void clear_debounce_val() override;
+    void               clear_debounce_val() override;
 
 private:
-    int m_count;
-    int m_stable_val;
-    int m_unstable_val;
-    int m_unstable_val_count;
+    int  m_count;
+    int  m_stable_val;
+    int  m_unstable_val;
+    int  m_unstable_val_count;
     bool is_valid;
 };
-}
+} // namespace mc::debounce
 
 #endif // MC_DEBOUNCE_CONTINUE_H

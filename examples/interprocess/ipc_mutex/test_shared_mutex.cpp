@@ -21,7 +21,8 @@ namespace interprocess {
 namespace test {
 
 // 测试进程间共享读写锁
-void test_shared_mutex() {
+void test_shared_mutex()
+{
     ilog("===== 进程间共享读写锁测试 =====");
 
     // 创建共享内存管理器
@@ -46,7 +47,7 @@ void test_shared_mutex() {
 
     // 创建共享读写锁
     ipc_shared_mutex* rw_mutex_ptr = allocator.create<ipc_shared_mutex>();
-    ipc_shared_mutex& rw_mutex = *rw_mutex_ptr;
+    ipc_shared_mutex& rw_mutex     = *rw_mutex_ptr;
     ilog("IPC共享读写锁创建成功");
 
     // 测试写锁（独占锁）
@@ -99,7 +100,7 @@ void test_shared_mutex() {
 
     // shared_memory_manager会在析构时自动清理共享内存
     ilog("===== 进程间共享读写锁测试结束 =====");
-} 
+}
 
 } // namespace test
 } // namespace interprocess

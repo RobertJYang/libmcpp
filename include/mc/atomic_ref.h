@@ -31,7 +31,9 @@ public:
     using value_type = T;
 
     // 构造函数
-    explicit atomic_ref(T& obj) noexcept : m_ptr(&obj) {
+    explicit atomic_ref(T& obj) noexcept
+        : m_ptr(&obj)
+    {
         static_assert(alignof(T) >= alignof(std::atomic<T>), "Alignment requirement not met");
     }
 
@@ -42,19 +44,22 @@ public:
     atomic_ref& operator=(const atomic_ref&) = delete;
 
     // 加载值
-    T load(std::memory_order order = std::memory_order_seq_cst) const noexcept {
+    T load(std::memory_order order = std::memory_order_seq_cst) const noexcept
+    {
         return reinterpret_cast<const volatile std::atomic<T>*>(m_ptr)->load(order);
     }
 
     // 存储值
-    void store(T desired, std::memory_order order = std::memory_order_seq_cst) noexcept {
+    void store(T desired, std::memory_order order = std::memory_order_seq_cst) noexcept
+    {
         reinterpret_cast<volatile std::atomic<T>*>(m_ptr)->store(desired, order);
     }
 
     // 比较并交换（弱版本）
     bool compare_exchange_weak(T& expected, T desired,
                                std::memory_order success = std::memory_order_seq_cst,
-                               std::memory_order failure = std::memory_order_seq_cst) noexcept {
+                               std::memory_order failure = std::memory_order_seq_cst) noexcept
+    {
         return reinterpret_cast<volatile std::atomic<T>*>(m_ptr)->compare_exchange_weak(
             expected, desired, success, failure);
     }
@@ -62,7 +67,8 @@ public:
     // 比较并交换（强版本）
     bool compare_exchange_strong(T& expected, T desired,
                                  std::memory_order success = std::memory_order_seq_cst,
-                                 std::memory_order failure = std::memory_order_seq_cst) noexcept {
+                                 std::memory_order failure = std::memory_order_seq_cst) noexcept
+    {
         return reinterpret_cast<volatile std::atomic<T>*>(m_ptr)->compare_exchange_strong(
             expected, desired, success, failure);
     }
@@ -70,40 +76,46 @@ public:
     // 原子加法（仅限整数类型）
     template <typename U = T>
     typename std::enable_if_t<std::is_integral_v<U>, T>
-    fetch_add(T arg, std::memory_order order = std::memory_order_seq_cst) noexcept {
+    fetch_add(T arg, std::memory_order order = std::memory_order_seq_cst) noexcept
+    {
         return reinterpret_cast<volatile std::atomic<T>*>(m_ptr)->fetch_add(arg, order);
     }
 
     // 原子减法（仅限整数类型）
     template <typename U = T>
     typename std::enable_if_t<std::is_integral_v<U>, T>
-    fetch_sub(T arg, std::memory_order order = std::memory_order_seq_cst) noexcept {
+    fetch_sub(T arg, std::memory_order order = std::memory_order_seq_cst) noexcept
+    {
         return reinterpret_cast<volatile std::atomic<T>*>(m_ptr)->fetch_sub(arg, order);
     }
 
     // 隐式转换为 T
-    operator T() const noexcept {
+    operator T() const noexcept
+    {
         return load();
     }
 
     // 原子位或操作（仅限整数类型）
     template <typename U = T>
     typename std::enable_if_t<std::is_integral_v<U>, T>
-    fetch_or(T arg, std::memory_order order = std::memory_order_seq_cst) noexcept {
+    fetch_or(T arg, std::memory_order order = std::memory_order_seq_cst) noexcept
+    {
         return reinterpret_cast<volatile std::atomic<T>*>(m_ptr)->fetch_or(arg, order);
     }
 
     // 原子位与操作（仅限整数类型）
     template <typename U = T>
     typename std::enable_if_t<std::is_integral_v<U>, T>
-    fetch_and(T arg, std::memory_order order = std::memory_order_seq_cst) noexcept {
+    fetch_and(T arg, std::memory_order order = std::memory_order_seq_cst) noexcept
+    {
         return reinterpret_cast<volatile std::atomic<T>*>(m_ptr)->fetch_and(arg, order);
     }
 
     // 原子位异或操作（仅限整数类型）
     template <typename U = T>
     typename std::enable_if_t<std::is_integral_v<U>, T>
-    fetch_xor(T arg, std::memory_order order = std::memory_order_seq_cst) noexcept {
+    fetch_xor(T arg, std::memory_order order = std::memory_order_seq_cst) noexcept
+    {
         return reinterpret_cast<volatile std::atomic<T>*>(m_ptr)->fetch_xor(arg, order);
     }
 

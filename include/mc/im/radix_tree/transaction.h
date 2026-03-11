@@ -31,11 +31,13 @@ public:
     using node_ptr  = typename node_type::ref_ptr_type;
 
     save_point()
-        : m_size(0), m_version(0) {
+        : m_size(0), m_version(0)
+    {
     }
 
     save_point(node_ptr root, size_t size)
-        : m_root(std::move(root)), m_size(size), m_version(0) {
+        : m_root(std::move(root)), m_size(size), m_version(0)
+    {
     }
 
     save_point(const save_point& other)            = delete;
@@ -43,10 +45,12 @@ public:
 
     save_point(save_point&& other) noexcept
         : m_root(std::move(other.m_root)),
-          m_size(other.m_size), m_version(other.m_version) {
+          m_size(other.m_size), m_version(other.m_version)
+    {
     }
 
-    save_point& operator=(save_point&& other) noexcept {
+    save_point& operator=(save_point&& other) noexcept
+    {
         if (this != &other) {
             m_root    = std::move(other.m_root);
             m_size    = other.m_size;
@@ -55,14 +59,16 @@ public:
         return *this;
     }
 
-    ~save_point() {
+    ~save_point()
+    {
     }
 
     /**
      * 初始化保存点
      * @param free_list 空闲列表
      */
-    void init() {
+    void init()
+    {
     }
 
     /**
@@ -70,21 +76,24 @@ public:
      * @param pre_version 前一个版本
      * @param version 当前版本
      */
-    void set_version(int pre_version, int version) {
+    void set_version(int pre_version, int version)
+    {
         m_version = version;
     }
 
     /**
      * 提交保存点
      */
-    void commit() {
+    void commit()
+    {
         m_root.reset();
     }
 
     /**
      * 回滚保存点
      */
-    std::pair<node_ptr, size_t> rollback() {
+    std::pair<node_ptr, size_t> rollback()
+    {
         return {std::move(m_root), m_size};
     }
 
@@ -118,17 +127,21 @@ public:
      * 默认构造函数
      */
     transaction(const allocator_type& alloc = allocator_type())
-        : m_tree(alloc) {
+        : m_tree(alloc)
+    {
     }
 
     /**
      * 为给定 tree 创建新的事务
      * @param tree 给定的树
      */
-    transaction(tree_type tree) : m_tree(tree) {
+    transaction(tree_type tree)
+        : m_tree(tree)
+    {
     }
 
-    ~transaction() {
+    ~transaction()
+    {
         rollback();
     }
 
@@ -137,7 +150,8 @@ public:
     transaction(transaction&&)                 = delete;
     transaction& operator=(transaction&&)      = delete;
 
-    int save_point() {
+    int save_point()
+    {
         if (!m_current_sp) {
             m_def_save_point.init();
             m_def_save_point.m_root = m_tree.m_root;
@@ -162,7 +176,8 @@ public:
      * @param v 值
      * @return 返回更新前的值和是否更新的标志
      */
-    std::pair<leaf_type, bool> insert(key_view k, value_type v) {
+    std::pair<leaf_type, bool> insert(key_view k, value_type v)
+    {
         auto [new_node, old_value, updated] = insert(m_tree.m_root, k, k, std::move(v));
         if (new_node) {
             m_tree.m_root = new_node;
@@ -179,7 +194,8 @@ public:
      * @param k 键
      * @return 返回被删除的值和是否删除成功的标志
      */
-    leaf_type remove(key_view k) {
+    leaf_type remove(key_view k)
+    {
         auto [new_root, leaf] = delete_key(m_tree.m_root, k);
         if (new_root) {
             m_tree.m_root = new_root;
@@ -197,7 +213,8 @@ public:
      * 获取树的根节点
      * @return 树
      */
-    tree_type& root() {
+    tree_type& root()
+    {
         return m_tree;
     }
 
@@ -206,7 +223,8 @@ public:
      * @param k 键
      * @return 查找到的值（如果有）
      */
-    leaf_type get(key_view k) {
+    leaf_type get(key_view k)
+    {
         return m_tree.get(k);
     }
 
@@ -215,7 +233,8 @@ public:
      * @param k 键
      * @return 包含迭代器和是否找到的标志
      */
-    std::pair<typename tree_type::iterator, bool> find(key_view k) {
+    std::pair<typename tree_type::iterator, bool> find(key_view k)
+    {
         auto it = m_tree.find(k);
         return {it, it != m_tree.end()};
     }
@@ -225,7 +244,8 @@ public:
      * @param it 迭代器
      * @return 是否成功删除
      */
-    bool erase(const typename tree_type::iterator& it) {
+    bool erase(const typename tree_type::iterator& it)
+    {
         if (it != m_tree.end()) {
             remove(it.key());
             return true;
@@ -237,7 +257,8 @@ public:
      * 提交事务
      * @return 树
      */
-    tree_type& commit() {
+    tree_type& commit()
+    {
         if (m_current_sp) {
             m_version = m_current_sp->m_version;
             for (auto it = m_save_points.rbegin(); it != m_save_points.rend(); it++) {
@@ -258,21 +279,24 @@ public:
      * 检查是否有未提交的修改
      * @return 如果有未提交的修改则返回true
      */
-    bool dirty() const {
+    bool dirty() const
+    {
         return m_current_sp != nullptr;
     }
 
     /**
      * 锁定数据库，防止垃圾回收
      */
-    void lock_db() {
+    void lock_db()
+    {
         m_lock_db++;
     }
 
     /**
      * 解锁数据库，允许垃圾回收
      */
-    void unlock_db() {
+    void unlock_db()
+    {
         if (m_lock_db > 0) {
             m_lock_db--;
         }
@@ -282,7 +306,8 @@ public:
      * 获取最后保存点ID，-1表示没有保存点
      * @return 保存点ID
      */
-    int current_save_point() const {
+    int current_save_point() const
+    {
         return m_save_points.size() - 1;
     }
 
@@ -290,7 +315,8 @@ public:
      * 回滚到指定保存点
      * @param save_point_id 保存点ID
      */
-    void rollback(int save_point_id = -1) {
+    void rollback(int save_point_id = -1)
+    {
         if (!m_current_sp || save_point_id > current_save_point()) {
             return;
         }
@@ -337,7 +363,8 @@ private:
      * @param n 需要复制的节点
      * @return 复制后的新节点
      */
-    node_ptr write_node(const node_ptr& n) {
+    node_ptr write_node(const node_ptr& n)
+    {
         if (!m_current_sp) {
             save_point();
         }
@@ -348,14 +375,16 @@ private:
     /**
      * 创建新节点
      */
-    node_ptr new_node(leaf_type leaf, key_view prefix, const edges_type& edges = {}) {
+    node_ptr new_node(leaf_type leaf, key_view prefix, const edges_type& edges = {})
+    {
         return mc::allocate_shared<node_type>(m_tree.get_allocator(), leaf, prefix, std::move(edges));
     }
 
     /**
      * 合并子节点，如果子节点只有一个边且不是叶子节点
      */
-    void merge_child(node_ptr& n) {
+    void merge_child(node_ptr& n)
+    {
         auto child = n->m_edges[0].m_node;
 
         n->m_prefix += child->m_prefix;
@@ -367,7 +396,8 @@ private:
      * 递归插入节点
      */
     std::tuple<node_ptr, leaf_type, bool> insert(const node_ptr& n, key_view k, key_view search,
-                                                 value_type v) {
+                                                 value_type v)
+    {
         // 如果搜索到了末尾，更新叶子节点
         if (search.empty()) {
             leaf_type old_leaf   = n->m_leaf;
@@ -432,7 +462,8 @@ private:
     /**
      * 递归删除节点
      */
-    std::pair<node_ptr, leaf_type> delete_key(const node_ptr& n, key_view search) {
+    std::pair<node_ptr, leaf_type> delete_key(const node_ptr& n, key_view search)
+    {
         if (search.empty()) {
             if (!n->m_leaf.has_value()) {
                 return {nullptr, std::nullopt};

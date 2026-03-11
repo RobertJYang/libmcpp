@@ -15,17 +15,21 @@
 
 class utils_test : public ::testing::Test {
 protected:
-    utils_test() {
+    utils_test()
+    {
     }
 
-    void SetUp() override {
+    void SetUp() override
+    {
     }
 
-    void TearDown() override {
+    void TearDown() override
+    {
     }
 };
 
-TEST_F(utils_test, test_is_valid_interface_name) {
+TEST_F(utils_test, test_is_valid_interface_name)
+{
     // 测试无效接口名
     EXPECT_FALSE(mc::is_valid_interface_name(""));
     EXPECT_FALSE(mc::is_valid_interface_name(".invalid"));

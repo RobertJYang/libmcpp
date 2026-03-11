@@ -29,10 +29,13 @@ namespace po = boost::program_options;
 class example_service : public mc::core::service_base {
 public:
     // 构造函数
-    example_service(const std::string& name) : mc::core::service_base(name) {
+    example_service(const std::string& name)
+        : mc::core::service_base(name)
+    {
     }
 
-    bool init(dict args) override {
+    bool init(dict args) override
+    {
         set_state(mc::core::service_state::starting);
 
         // 设置服务名称
@@ -61,7 +64,8 @@ public:
         return true;
     }
 
-    bool start() override {
+    bool start() override
+    {
         if (get_state() == mc::core::service_state::running) {
             return true;
         }
@@ -81,7 +85,8 @@ public:
         return true;
     }
 
-    bool stop() override {
+    bool stop() override
+    {
         if (get_state() != mc::core::service_state::running) {
             return true;
         }
@@ -95,16 +100,19 @@ public:
         return true;
     }
 
-    void cleanup() override {
+    void cleanup() override
+    {
         ilog("cleanup example service: ${name}", ("name", name()));
     }
 
-    bool is_healthy() const override {
+    bool is_healthy() const override
+    {
         return get_state() == mc::core::service_state::running;
     }
 
     struct register_options {
-        void operator()(po::options_description& cli_opts, po::options_description& cfg_opts) {
+        void operator()(po::options_description& cli_opts, po::options_description& cfg_opts)
+        {
             cfg_opts.add_options()(
                 "example.message",
                 po::value<std::string>()->default_value("Hello from Example Service!"),
@@ -123,7 +131,8 @@ private:
 class example_plugin : public mc::core::plugin {
 public:
     // 插件信息
-    const mc::core::plugin_info& get_info() const override {
+    const mc::core::plugin_info& get_info() const override
+    {
         static mc::core::plugin_info info{
             "example_plugin", // 名称
             "1.0.0",          // 版本
@@ -133,7 +142,8 @@ public:
     }
 
     // 插件初始化方法
-    bool init(mc::core::service_factory& factory) override {
+    bool init(mc::core::service_factory& factory) override
+    {
         ilog("init example plugin");
 
         // 注册服务类型

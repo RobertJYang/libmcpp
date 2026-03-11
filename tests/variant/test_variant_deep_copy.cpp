@@ -18,8 +18,8 @@
 #include <mc/dict.h>
 #include <mc/memory.h>
 #include <mc/variant.h>
-#include <mc/variant/variant_extension.h>
 #include <mc/variant/copy_context.h>
+#include <mc/variant/variant_extension.h>
 #include <test_utilities/test_base.h>
 
 namespace mc {
@@ -27,21 +27,26 @@ namespace test {
 
 class VariantDeepCopyTest : public mc::test::TestBase {
 protected:
-    void SetUp() override {
+    void SetUp() override
+    {
         TestBase::SetUp();
     }
 
-    void TearDown() override {
+    void TearDown() override
+    {
         TestBase::TearDown();
     }
 };
 
 class copy_context_stub : public mc::enable_shared_from_this<copy_context_stub> {
 public:
-    explicit copy_context_stub(int value) : m_value(value) {
+    explicit copy_context_stub(int value)
+        : m_value(value)
+    {
     }
 
-    int value() const {
+    int value() const
+    {
         return m_value;
     }
 
@@ -52,7 +57,8 @@ private:
 /**
  * @brief 测试 variant 基本类型的深拷贝
  */
-TEST_F(VariantDeepCopyTest, BasicTypes) {
+TEST_F(VariantDeepCopyTest, BasicTypes)
+{
     // 基本类型的深拷贝应该创建新的独立副本
     variant v1(42);
     variant v2 = v1.deep_copy();
@@ -77,7 +83,8 @@ TEST_F(VariantDeepCopyTest, BasicTypes) {
 /**
  * @brief 测试 variant 中 array 的深拷贝
  */
-TEST_F(VariantDeepCopyTest, ArrayInVariant) {
+TEST_F(VariantDeepCopyTest, ArrayInVariant)
+{
     // 创建包含数组的 variant
     variants arr1 = {1, 2, 3};
     variant  v1(arr1);
@@ -101,7 +108,8 @@ TEST_F(VariantDeepCopyTest, ArrayInVariant) {
 /**
  * @brief 测试 variant 中 dict 的深拷贝
  */
-TEST_F(VariantDeepCopyTest, DictInVariant) {
+TEST_F(VariantDeepCopyTest, DictInVariant)
+{
     // 创建包含字典的 variant
     dict    d1({{"key1", 123}, {"key2", "value"}});
     variant v1(d1);
@@ -124,7 +132,8 @@ TEST_F(VariantDeepCopyTest, DictInVariant) {
 /**
  * @brief 测试嵌套结构的深拷贝（dict 中包含 array）
  */
-TEST_F(VariantDeepCopyTest, NestedDictWithArray) {
+TEST_F(VariantDeepCopyTest, NestedDictWithArray)
+{
     // 创建嵌套结构：dict 包含 array
     variants inner_arr = {10, 20, 30};
     dict     d1({{"data", inner_arr}, {"count", 3}});
@@ -149,7 +158,8 @@ TEST_F(VariantDeepCopyTest, NestedDictWithArray) {
 /**
  * @brief 测试嵌套结构的深拷贝（array 中包含 dict）
  */
-TEST_F(VariantDeepCopyTest, NestedArrayWithDict) {
+TEST_F(VariantDeepCopyTest, NestedArrayWithDict)
+{
     // 创建嵌套结构：array 包含 dict
     dict     inner_dict({{"name", "Alice"}, {"age", 30}});
     variants arr1 = {inner_dict, 123, "test"};
@@ -174,7 +184,8 @@ TEST_F(VariantDeepCopyTest, NestedArrayWithDict) {
 /**
  * @brief 测试复杂嵌套结构的深拷贝
  */
-TEST_F(VariantDeepCopyTest, ComplexNestedStructure) {
+TEST_F(VariantDeepCopyTest, ComplexNestedStructure)
+{
     // 创建复杂嵌套：dict -> array -> dict -> array
     variants inner_inner_arr = {1, 2, 3};
     dict     inner_dict({{"data", inner_inner_arr}});
@@ -198,7 +209,8 @@ TEST_F(VariantDeepCopyTest, ComplexNestedStructure) {
 /**
  * @brief 测试 variant 中 dict 的循环引用深拷贝
  */
-TEST_F(VariantDeepCopyTest, DictCyclicReference) {
+TEST_F(VariantDeepCopyTest, DictCyclicReference)
+{
     // 创建自引用的 dict
     dict d1({{"key1", 123}});
     d1["self"] = d1;
@@ -225,7 +237,8 @@ TEST_F(VariantDeepCopyTest, DictCyclicReference) {
 /**
  * @brief 测试 variant 中 dict 的相互引用深拷贝
  */
-TEST_F(VariantDeepCopyTest, DictMutualReference) {
+TEST_F(VariantDeepCopyTest, DictMutualReference)
+{
     // 创建相互引用的 dict
     dict d1({{"name", "d1"}});
     dict d2({{"name", "d2"}});
@@ -254,7 +267,8 @@ TEST_F(VariantDeepCopyTest, DictMutualReference) {
 /**
  * @brief 测试混合 dict 和 array 的循环引用
  */
-TEST_F(VariantDeepCopyTest, MixedDictArrayCyclicReference) {
+TEST_F(VariantDeepCopyTest, MixedDictArrayCyclicReference)
+{
     // 创建 dict 包含 array，array 又引用回 dict
     dict     d1({{"key", 100}});
     variants arr1 = {1, 2, 3};
@@ -283,7 +297,8 @@ TEST_F(VariantDeepCopyTest, MixedDictArrayCyclicReference) {
 /**
  * @brief 测试 variant 数组的循环引用
  */
-TEST_F(VariantDeepCopyTest, ArrayCyclicReference) {
+TEST_F(VariantDeepCopyTest, ArrayCyclicReference)
+{
     // 创建包含自引用的 variants
     variants arr1 = {1, 2, 3};
     variant  v_arr(arr1);
@@ -312,7 +327,8 @@ TEST_F(VariantDeepCopyTest, ArrayCyclicReference) {
 /**
  * @brief 测试三层循环引用（d1 -> d2 -> d3 -> d1）
  */
-TEST_F(VariantDeepCopyTest, ThreeWayCyclicReference) {
+TEST_F(VariantDeepCopyTest, ThreeWayCyclicReference)
+{
     dict d1({{"name", "d1"}});
     dict d2({{"name", "d2"}});
     dict d3({{"name", "d3"}});
@@ -348,7 +364,8 @@ TEST_F(VariantDeepCopyTest, ThreeWayCyclicReference) {
 /**
  * @brief 测试包含 null、基本类型和复杂类型的混合深拷贝
  */
-TEST_F(VariantDeepCopyTest, MixedTypesDeepCopy) {
+TEST_F(VariantDeepCopyTest, MixedTypesDeepCopy)
+{
     dict d1({{"null_val", variant()},
              {"int_val", 42},
              {"string_val", "test"},
@@ -378,7 +395,8 @@ TEST_F(VariantDeepCopyTest, MixedTypesDeepCopy) {
 /**
  * @brief 测试超大嵌套深度的深拷贝
  */
-TEST_F(VariantDeepCopyTest, DeepNestingDeepCopy) {
+TEST_F(VariantDeepCopyTest, DeepNestingDeepCopy)
+{
     // 创建深度嵌套结构
     variant v = 0;
     for (int i = 0; i < 10; ++i) {
@@ -405,7 +423,8 @@ TEST_F(VariantDeepCopyTest, DeepNestingDeepCopy) {
 /**
  * @brief 测试空容器的深拷贝
  */
-TEST_F(VariantDeepCopyTest, EmptyContainersDeepCopy) {
+TEST_F(VariantDeepCopyTest, EmptyContainersDeepCopy)
+{
     // 空 dict - 优化：空 dict 保持延迟构造，内部数据是 nullptr
     dict    empty_dict;
     variant v1(empty_dict);
@@ -425,7 +444,8 @@ TEST_F(VariantDeepCopyTest, EmptyContainersDeepCopy) {
     EXPECT_EQ(v4.get_array().data(), nullptr);
 }
 
-TEST_F(VariantDeepCopyTest, CopyContextTracksCopiedObjects) {
+TEST_F(VariantDeepCopyTest, CopyContextTracksCopiedObjects)
+{
     detail::copy_context ctx;
     EXPECT_TRUE(ctx.empty());
     EXPECT_EQ(ctx.size(), 0U);

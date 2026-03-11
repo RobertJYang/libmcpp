@@ -17,22 +17,26 @@
 
 namespace mc::dbus {
 
-match::match() {
+match::match()
+{
 }
 
-bool match::run_msg(DBusMessage* msg) {
+bool match::run_msg(DBusMessage* msg)
+{
     DBus::Match::Context ctx;
     ctx.set_req(msg);
     return m_matchs.run(ctx);
 }
 
-bool match::test_match(DBusMessage* msg) {
+bool match::test_match(DBusMessage* msg)
+{
     DBus::Match::Context ctx;
     ctx.set_req(msg);
     return m_matchs.test_match(ctx);
 }
 
-void match::add_rule(match_rule& rule, match_cb_t&& cb, uint64_t id) {
+void match::add_rule(match_rule& rule, match_cb_t&& cb, uint64_t id)
+{
     auto cb_ptr = std::make_shared<match_cb_t>(cb);
     m_matchs.add_rule(rule.rule(), [cb_ptr](DBus::Match::Context& ctx) {
         try {
@@ -48,7 +52,8 @@ void match::add_rule(match_rule& rule, match_cb_t&& cb, uint64_t id) {
     m_rules.emplace(id, rule.rule());
 }
 
-void match::remove_rule(uint64_t id) {
+void match::remove_rule(uint64_t id)
+{
     auto it = m_rules.find(id);
     if (it == m_rules.end()) {
         return;
@@ -61,7 +66,8 @@ void match::remove_rule(uint64_t id) {
 }
 
 template <dbus_bool_t (*f)(const char*, DBusError*)>
-static void validate_dbus_str(const char* value) {
+static void validate_dbus_str(const char* value)
+{
     mc::dbus::error err;
     if (!f(value, &err)) {
         MC_THROW(mc::invalid_arg_exception, "invalid dbus arg ${value}: ${error}",
@@ -70,7 +76,8 @@ static void validate_dbus_str(const char* value) {
 }
 
 match_rule::match_rule(DBus::Match::MessageType type, const std::string_view& member, const std::string_view& interface)
-    : m_rule(std::make_shared<DBus::Match::Rule>()) {
+    : m_rule(std::make_shared<DBus::Match::Rule>())
+{
     m_rule->type(type);
     // 只有当 member 非空时才验证和设置
     if (!member.empty()) {
@@ -85,67 +92,81 @@ match_rule::match_rule(DBus::Match::MessageType type, const std::string_view& me
 }
 
 match_rule match_rule::new_signal(const std::string_view& member,
-                                  const std::string_view& interface) {
+                                  const std::string_view& interface)
+{
     return {DBus::Match::MessageType::signal, member, interface};
 }
 
-void match_rule::with_interface(const std::string_view& interface) {
+void match_rule::with_interface(const std::string_view& interface)
+{
     validate_dbus_str<dbus_validate_interface>(interface.data());
     m_rule->interface(interface);
 }
 
-void match_rule::with_member(const std::string_view& member) {
+void match_rule::with_member(const std::string_view& member)
+{
     validate_dbus_str<dbus_validate_member>(member.data());
     m_rule->member(member);
 }
 
-void match_rule::with_path(const std::string_view& path) {
+void match_rule::with_path(const std::string_view& path)
+{
     validate_dbus_str<dbus_validate_path>(path.data());
     m_rule->path(path);
 }
 
-void match_rule::with_path_namespace(const std::string_view& path_namespace) {
+void match_rule::with_path_namespace(const std::string_view& path_namespace)
+{
     validate_dbus_str<dbus_validate_path>(path_namespace.data());
     m_rule->path_namespace(path_namespace);
 }
 
-void match_rule::with_sender(const std::string_view& sender) {
+void match_rule::with_sender(const std::string_view& sender)
+{
     validate_dbus_str<dbus_validate_bus_name>(sender.data());
     m_rule->sender(sender);
 }
 
-void match_rule::with_type(DBus::Match::MessageType type) {
+void match_rule::with_type(DBus::Match::MessageType type)
+{
     m_rule->type(type);
 }
 
-void match_rule::with_destination(const std::string_view& destination) {
+void match_rule::with_destination(const std::string_view& destination)
+{
     validate_dbus_str<dbus_validate_bus_name>(destination.data());
     m_rule->destination(destination);
 }
 
-std::string_view match_rule::member() const {
+std::string_view match_rule::member() const
+{
     return m_rule->member();
 }
 
-std::string_view match_rule::path() const {
+std::string_view match_rule::path() const
+{
     return m_rule->path_namespace() ? "" : m_rule->path();
 }
 
-std::string_view match_rule::path_namespace() const {
+std::string_view match_rule::path_namespace() const
+{
     return m_rule->path_namespace() ? m_rule->path() : "";
 }
 
-bool match_rule::is_path_namespace() const {
+bool match_rule::is_path_namespace() const
+{
     return m_rule->path_namespace();
 }
 
-bool match_rule::operator==(const match_rule& other) const {
+bool match_rule::operator==(const match_rule& other) const
+{
     return as_string() == other.as_string();
 }
 
-match_rule match_rule::clone() const {
+match_rule match_rule::clone() const
+{
     match_rule rule(m_rule->type(), m_rule->member(), m_rule->interface());
-    auto path = m_rule->path();
+    auto       path = m_rule->path();
     if (!path.empty()) {
         if (m_rule->path_namespace()) {
             rule.with_path_namespace(path);
@@ -164,11 +185,13 @@ match_rule match_rule::clone() const {
     return rule;
 }
 
-DBus::Match::RulePtr& match_rule::rule() {
+DBus::Match::RulePtr& match_rule::rule()
+{
     return m_rule;
 }
 
-std::string match_rule::as_string() const {
+std::string match_rule::as_string() const
+{
     return m_rule->as_string();
 }
 

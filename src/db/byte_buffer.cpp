@@ -16,10 +16,13 @@
 
 namespace mc::db {
 
-byte_buffer::byte_buffer() : m_size(0), m_capacity(64), m_using_bootstrap(true) {
+byte_buffer::byte_buffer()
+    : m_size(0), m_capacity(64), m_using_bootstrap(true)
+{
 }
 
-void byte_buffer::reset() {
+void byte_buffer::reset()
+{
     // 如果当前使用的是动态分配的缓冲区，则切换回内部缓冲区
     if (!m_using_bootstrap) {
         m_buf.clear();
@@ -29,11 +32,13 @@ void byte_buffer::reset() {
     m_capacity = 64;
 }
 
-void byte_buffer::grow(size_t n) {
+void byte_buffer::grow(size_t n)
+{
     grow_internal(n);
 }
 
-std::pair<size_t, bool> byte_buffer::try_grow_by_reslice(size_t n) {
+std::pair<size_t, bool> byte_buffer::try_grow_by_reslice(size_t n)
+{
     size_t old_size = m_size;
     if (n <= capacity() - m_size) {
         return {old_size, true};
@@ -41,30 +46,36 @@ std::pair<size_t, bool> byte_buffer::try_grow_by_reslice(size_t n) {
     return {old_size, false};
 }
 
-size_t byte_buffer::len() const {
+size_t byte_buffer::len() const
+{
     return m_size;
 }
 
-size_t byte_buffer::cap() const {
+size_t byte_buffer::cap() const
+{
     return capacity();
 }
 
-size_t byte_buffer::capacity() const {
+size_t byte_buffer::capacity() const
+{
     return m_using_bootstrap ? 64 : m_capacity;
 }
 
-std::string_view byte_buffer::bytes() const {
+std::string_view byte_buffer::bytes() const
+{
     if (m_using_bootstrap) {
         return std::string_view(reinterpret_cast<const char*>(m_bootstrap), m_size);
     }
     return std::string_view(reinterpret_cast<const char*>(m_buf.data()), m_size);
 }
 
-const uint8_t* byte_buffer::data() const {
+const uint8_t* byte_buffer::data() const
+{
     return m_using_bootstrap ? m_bootstrap : m_buf.data();
 }
 
-size_t byte_buffer::grow_internal(size_t n) {
+size_t byte_buffer::grow_internal(size_t n)
+{
     size_t old_size = m_size;
     size_t new_size = old_size + n;
 
@@ -92,7 +103,8 @@ size_t byte_buffer::grow_internal(size_t n) {
     return old_size;
 }
 
-void byte_buffer::truncate(size_t n) {
+void byte_buffer::truncate(size_t n)
+{
     if (n >= m_size) {
         return;
     }
@@ -113,7 +125,8 @@ void byte_buffer::truncate(size_t n) {
     }
 }
 
-void byte_buffer::write(const uint8_t* p, size_t size) {
+void byte_buffer::write(const uint8_t* p, size_t size)
+{
     size_t old_size = grow_internal(size);
     if (m_using_bootstrap) {
         std::memcpy(m_bootstrap + old_size, p, size);
@@ -122,11 +135,13 @@ void byte_buffer::write(const uint8_t* p, size_t size) {
     }
 }
 
-void byte_buffer::write(const std::vector<uint8_t>& p) {
+void byte_buffer::write(const std::vector<uint8_t>& p)
+{
     write(p.data(), p.size());
 }
 
-void byte_buffer::write_byte(uint8_t c) {
+void byte_buffer::write_byte(uint8_t c)
+{
     size_t old_size = grow_internal(1);
     if (m_using_bootstrap) {
         m_bootstrap[old_size] = c;
@@ -135,11 +150,13 @@ void byte_buffer::write_byte(uint8_t c) {
     }
 }
 
-void byte_buffer::write_string(std::string_view v) {
+void byte_buffer::write_string(std::string_view v)
+{
     write(reinterpret_cast<const uint8_t*>(v.data()), v.size());
 }
 
-void byte_buffer::write_uint16(uint16_t v) {
+void byte_buffer::write_uint16(uint16_t v)
+{
     size_t   old_size = grow_internal(2);
     uint8_t* dest     = m_using_bootstrap ? m_bootstrap + old_size : m_buf.data() + old_size;
     // 大端序写入
@@ -147,7 +164,8 @@ void byte_buffer::write_uint16(uint16_t v) {
     dest[1] = static_cast<uint8_t>(v & 0xFF);
 }
 
-void byte_buffer::write_uint32(uint32_t v) {
+void byte_buffer::write_uint32(uint32_t v)
+{
     size_t   old_size = grow_internal(4);
     uint8_t* dest     = m_using_bootstrap ? m_bootstrap + old_size : m_buf.data() + old_size;
     // 大端序写入
@@ -157,7 +175,8 @@ void byte_buffer::write_uint32(uint32_t v) {
     dest[3] = static_cast<uint8_t>(v & 0xFF);
 }
 
-void byte_buffer::write_uint64(uint64_t v) {
+void byte_buffer::write_uint64(uint64_t v)
+{
     size_t   old_size = grow_internal(8);
     uint8_t* dest     = m_using_bootstrap ? m_bootstrap + old_size : m_buf.data() + old_size;
     // 大端序写入

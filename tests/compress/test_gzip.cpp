@@ -15,28 +15,29 @@
  * @brief 测试 gzip 类的解压缩方法
  */
 
-#include <gtest/gtest.h>
-#include <mc/compress.h>
-#include <test_utilities/test_base.h>
-#include <zlib.h>
 #include <algorithm>
 #include <cstring>
 #include <fstream>
+#include <gtest/gtest.h>
 #include <iomanip>
 #include <iostream>
+#include <mc/compress.h>
 #include <string>
+#include <test_utilities/test_base.h>
 #include <vector>
+#include <zlib.h>
 
 namespace mc::compress {
 
 /**
  * @brief 辅助函数：使用zlib压缩数据为gzip格式
  */
-static std::string compress_gzip(const std::string& input) {
+static std::string compress_gzip(const std::string& input)
+{
     z_stream stream;
     std::memset(&stream, 0, sizeof(stream));
     stream.zalloc = Z_NULL;
-    stream.zfree = Z_NULL;
+    stream.zfree  = Z_NULL;
     stream.opaque = Z_NULL;
 
     int ret = deflateInit2(&stream, Z_DEFAULT_COMPRESSION, Z_DEFLATED,
@@ -46,9 +47,9 @@ static std::string compress_gzip(const std::string& input) {
     }
 
     std::vector<Bytef> buffer(input.size() * 2 + 1024);
-    stream.next_in = reinterpret_cast<Bytef*>(const_cast<char*>(input.data()));
-    stream.avail_in = static_cast<uInt>(input.size());
-    stream.next_out = buffer.data();
+    stream.next_in   = reinterpret_cast<Bytef*>(const_cast<char*>(input.data()));
+    stream.avail_in  = static_cast<uInt>(input.size());
+    stream.next_out  = buffer.data();
     stream.avail_out = static_cast<uInt>(buffer.size());
 
     ret = deflate(&stream, Z_FINISH);
@@ -65,8 +66,9 @@ static std::string compress_gzip(const std::string& input) {
 class GzipTest : public ::testing::Test {
 };
 
-TEST_F(GzipTest, TestDecompress_case1) {
-    std::string original = "Hello, World!";
+TEST_F(GzipTest, TestDecompress_case1)
+{
+    std::string original   = "Hello, World!";
     std::string compressed = compress_gzip(original);
     ASSERT_FALSE(compressed.empty());
 
@@ -76,8 +78,9 @@ TEST_F(GzipTest, TestDecompress_case1) {
     EXPECT_EQ(output, original);
 }
 
-TEST_F(GzipTest, TestDecompress_case2) {
-    std::string original = "123456789";
+TEST_F(GzipTest, TestDecompress_case2)
+{
+    std::string original   = "123456789";
     std::string compressed = compress_gzip(original);
     ASSERT_FALSE(compressed.empty());
 
@@ -87,8 +90,9 @@ TEST_F(GzipTest, TestDecompress_case2) {
     EXPECT_EQ(output, original);
 }
 
-TEST_F(GzipTest, TestDecompress_case3) {
-    std::string original = "";
+TEST_F(GzipTest, TestDecompress_case3)
+{
+    std::string original   = "";
     std::string compressed = compress_gzip(original);
     ASSERT_FALSE(compressed.empty());
 
@@ -98,9 +102,10 @@ TEST_F(GzipTest, TestDecompress_case3) {
     EXPECT_EQ(output, original);
 }
 
-TEST_F(GzipTest, TestDecompress_case4) {
-    std::string original = "This is a longer string to test gzip decompression with more data. "
-                          "It contains multiple sentences and various characters.";
+TEST_F(GzipTest, TestDecompress_case4)
+{
+    std::string original   = "This is a longer string to test gzip decompression with more data. "
+                             "It contains multiple sentences and various characters.";
     std::string compressed = compress_gzip(original);
     ASSERT_FALSE(compressed.empty());
 
@@ -110,8 +115,9 @@ TEST_F(GzipTest, TestDecompress_case4) {
     EXPECT_EQ(output, original);
 }
 
-TEST_F(GzipTest, TestDecompress_case5) {
-    std::string original = "test";
+TEST_F(GzipTest, TestDecompress_case5)
+{
+    std::string original   = "test";
     std::string compressed = compress_gzip(original);
     ASSERT_FALSE(compressed.empty());
 
@@ -121,14 +127,16 @@ TEST_F(GzipTest, TestDecompress_case5) {
     EXPECT_EQ(output, original);
 }
 
-TEST_F(GzipTest, TestDecompress_InvalidInput) {
+TEST_F(GzipTest, TestDecompress_InvalidInput)
+{
     std::string invalid_input = "This is not valid gzip data";
     std::string output;
 
     EXPECT_THROW(gzip_decompress(invalid_input, output), mc::runtime_exception);
 }
 
-TEST_F(GzipTest, TestDecompress_EmptyInput) {
+TEST_F(GzipTest, TestDecompress_EmptyInput)
+{
     std::string empty_input = "";
     std::string output;
 
@@ -138,4 +146,3 @@ TEST_F(GzipTest, TestDecompress_EmptyInput) {
 }
 
 } // namespace mc::compress
-

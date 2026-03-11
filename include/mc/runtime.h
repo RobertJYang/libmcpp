@@ -44,7 +44,8 @@ inline constexpr bool is_executor_tag = std::is_same_v<ExecutorTag, io_executor_
  * @return 根据完成令牌类型返回相应的结果
  */
 template <typename CompletionToken>
-auto post(CompletionToken&& token) {
+auto post(CompletionToken&& token)
+{
     return boost::asio::post(get_default_executor(), std::forward<CompletionToken>(token));
 }
 
@@ -57,7 +58,8 @@ auto post(CompletionToken&& token) {
  * @return 根据完成令牌类型返回相应的结果
  */
 template <typename CompletionToken, typename ExecutorTag>
-auto post(CompletionToken&& token, ExecutorTag) {
+auto post(CompletionToken&& token, ExecutorTag)
+{
     if constexpr (std::is_same_v<ExecutorTag, io_executor_tag>) {
         return boost::asio::post(get_io_executor(), std::forward<CompletionToken>(token));
     } else if constexpr (std::is_same_v<ExecutorTag, work_executor_tag>) {
@@ -74,7 +76,8 @@ auto post(CompletionToken&& token, ExecutorTag) {
  * @return 根据完成令牌类型返回相应的结果
  */
 template <typename CompletionToken>
-auto defer(CompletionToken&& token) {
+auto defer(CompletionToken&& token)
+{
     return boost::asio::defer(get_default_executor(), std::forward<CompletionToken>(token));
 }
 
@@ -87,7 +90,8 @@ auto defer(CompletionToken&& token) {
  * @return 根据完成令牌类型返回相应的结果
  */
 template <typename CompletionToken, typename ExecutorTag>
-auto defer(CompletionToken&& token, ExecutorTag) {
+auto defer(CompletionToken&& token, ExecutorTag)
+{
     if constexpr (std::is_same_v<ExecutorTag, io_executor_tag>) {
         return boost::asio::defer(get_io_executor(), std::forward<CompletionToken>(token));
     } else if constexpr (std::is_same_v<ExecutorTag, work_executor_tag>) {
@@ -104,7 +108,8 @@ auto defer(CompletionToken&& token, ExecutorTag) {
  * @return 根据完成令牌类型返回相应的结果
  */
 template <typename CompletionToken>
-auto dispatch(CompletionToken&& token) {
+auto dispatch(CompletionToken&& token)
+{
     return boost::asio::dispatch(get_default_executor(), std::forward<CompletionToken>(token));
 }
 
@@ -117,7 +122,8 @@ auto dispatch(CompletionToken&& token) {
  * @return 根据完成令牌类型返回相应的结果
  */
 template <typename CompletionToken, typename ExecutorTag>
-auto dispatch(CompletionToken&& token, ExecutorTag) {
+auto dispatch(CompletionToken&& token, ExecutorTag)
+{
     if constexpr (std::is_same_v<ExecutorTag, io_executor_tag>) {
         return boost::asio::dispatch(get_io_executor(), std::forward<CompletionToken>(token));
     } else if constexpr (std::is_same_v<ExecutorTag, work_executor_tag>) {
@@ -131,11 +137,13 @@ auto dispatch(CompletionToken&& token, ExecutorTag) {
  * @brief 创建strand线程池
  * @return strand线程池
  */
-inline auto make_io_strand() {
+inline auto make_io_strand()
+{
     return boost::asio::make_strand(get_io_executor());
 }
 
-inline auto make_work_strand() {
+inline auto make_work_strand()
+{
     return boost::asio::make_strand(get_work_executor());
 }
 

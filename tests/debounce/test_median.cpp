@@ -18,7 +18,7 @@ using mc::debounce::Median;
 // 偶数窗口大小测试（窗口=5）
 TEST(debounce_median, even_window_size)
 {
-    Median median(5, false);
+    Median             median(5, false);
     std::optional<int> value;
 
     value = median.get_debounce_val(1);
@@ -37,7 +37,7 @@ TEST(debounce_median, even_window_size)
 // 奇数窗口大小测试（窗口=4）和窗口滑动行为
 TEST(debounce_median, odd_window_size_and_sliding)
 {
-    Median median(4, false);
+    Median             median(4, false);
     std::optional<int> value;
 
     value = median.get_debounce_val(1);
@@ -85,7 +85,7 @@ TEST(debounce_median, invalid_size_throw)
 // 测试有符号输入（>127 按补码视为负数）与输出调整，包括窗口滑动和多种负数场景
 TEST(debounce_median, signed_input_and_adjust_output)
 {
-    Median median(5, true); // is_signed = true
+    Median             median(5, true); // is_signed = true
     std::optional<int> value;
 
     // 输入一系列值，使得计算出的中位数为负数
@@ -123,5 +123,3 @@ TEST(debounce_median, signed_input_and_adjust_output)
     // adjust_signed(-1) = -1 + 256 = 255
     ASSERT_EQ(value, 255);
 }
-
-

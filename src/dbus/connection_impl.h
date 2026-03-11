@@ -25,10 +25,12 @@ struct pending_data {
     using promise_type = mc::promise<message>;
 
     pending_data(promise_type promise, pending_call pending)
-        : promise(std::move(promise)), pending(std::move(pending)) {
+        : promise(std::move(promise)), pending(std::move(pending))
+    {
     }
 
-    ~pending_data() {
+    ~pending_data()
+    {
         if (promise) {
             promise.set_value(message::new_error_message(error_names::disconnected));
         }
@@ -85,12 +87,12 @@ struct connection_impl : public std::enable_shared_from_this<connection_impl> {
     static DBusHandlerResult message_filter(DBusConnection* conn, DBusMessage* msg,
                                             void* user_data);
 
-    void   add_rule(match_rule& rule, match_cb_t&& cb, uint64_t id);
- 	void   remove_rule(uint64_t id);
-    void   add_match(match_rule& rule, match_cb_t&& cb, uint64_t id);
-    void   remove_match(uint64_t id);
-    void   add_match_only(match_rule& rule, match_cb_t&& cb, uint64_t id);
-    match& get_match();
+    void        add_rule(match_rule& rule, match_cb_t&& cb, uint64_t id);
+    void        remove_rule(uint64_t id);
+    void        add_match(match_rule& rule, match_cb_t&& cb, uint64_t id);
+    void        remove_match(uint64_t id);
+    void        add_match_only(match_rule& rule, match_cb_t&& cb, uint64_t id);
+    match&      get_match();
     std::string get_service_name() const;
 
     std::recursive_mutex                      m_mutex;

@@ -20,12 +20,14 @@ namespace mc::futures {
 template <typename T>
 template <typename Executor, std::enable_if_t<detail::is_executor_v<Executor>, int>>
 Promise<T>::Promise(Executor&& executor)
-    : any_promise(make_pooled_state<T>(std::forward<Executor>(executor))) {
+    : any_promise(make_pooled_state<T>(std::forward<Executor>(executor)))
+{
 }
 
 template <typename T>
 template <typename Future, std::enable_if_t<detail::is_future_v<Future>, int>>
-void Promise<T>::set_future_value(Future&& future) {
+void Promise<T>::set_future_value(Future&& future)
+{
     auto promise = *this;
     future.then([promise](auto&& value) mutable {
         using value_type = typename Promise::value_type;
@@ -42,7 +44,8 @@ void Promise<T>::set_future_value(Future&& future) {
 template <typename T>
 template <typename... Args,
           std::enable_if_t<!std::is_void_v<T> && sizeof...(Args) == 1, int>>
-void Promise<T>::set_value(Args&&... args) {
+void Promise<T>::set_value(Args&&... args)
+{
     using value_type = std::tuple_element_t<0, std::tuple<Args...>>;
     if constexpr (detail::is_future_v<value_type>) {
         if (any_promise::set_bound()) {
@@ -54,7 +57,8 @@ void Promise<T>::set_value(Args&&... args) {
 }
 
 template <typename T>
-Future<T> Promise<T>::get_future() {
+Future<T> Promise<T>::get_future()
+{
     return Future<T>(any_promise::get_future());
 }
 

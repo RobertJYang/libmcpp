@@ -32,10 +32,12 @@ class object_method_call_node : public node {
 public:
     object_method_call_node(node_ptr object, std::string method_name, node_ptrs args)
         : m_object(std::move(object)), m_method_name(std::move(method_name)),
-          m_args(std::move(args)) {
+          m_args(std::move(args))
+    {
     }
 
-    node_type get_type() const override {
+    node_type get_type() const override
+    {
         return node_type::object_method_call;
     }
 
@@ -43,15 +45,18 @@ public:
 
     std::string to_string() const override;
 
-    const node& get_object() const {
+    const node& get_object() const
+    {
         return *m_object;
     }
 
-    const std::string& get_method_name() const {
+    const std::string& get_method_name() const
+    {
         return m_method_name;
     }
 
-    const node_ptrs& get_args() const {
+    const node_ptrs& get_args() const
+    {
         return m_args;
     }
 

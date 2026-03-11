@@ -33,7 +33,8 @@ public:
     /**
      * @brief 连接到数据库
      */
-    bool connect(const std::string& host, const std::string& db_name) {
+    bool connect(const std::string& host, const std::string& db_name)
+    {
         m_host    = host;
         m_db_name = db_name;
         m_status  = db_status::CONNECTING;
@@ -51,7 +52,8 @@ public:
     /**
      * @brief 断开连接
      */
-    void disconnect() {
+    void disconnect()
+    {
         m_status = db_status::DISCONNECTED;
         m_host.clear();
         m_db_name.clear();
@@ -60,7 +62,8 @@ public:
     /**
      * @brief 执行SQL查询
      */
-    std::vector<std::string> execute_query(const std::string& sql) {
+    std::vector<std::string> execute_query(const std::string& sql)
+    {
         if (m_status != db_status::CONNECTED) {
             return {};
         }
@@ -73,7 +76,8 @@ public:
     /**
      * @brief 执行SQL更新
      */
-    int execute_update(const std::string& sql) {
+    int execute_update(const std::string& sql)
+    {
         if (m_status != db_status::CONNECTED) {
             return -1;
         }
@@ -86,49 +90,56 @@ public:
     /**
      * @brief 获取连接状态
      */
-    db_status get_status() const {
+    db_status get_status() const
+    {
         return m_status;
     }
 
     /**
      * @brief 获取主机地址
      */
-    const std::string& get_host() const {
+    const std::string& get_host() const
+    {
         return m_host;
     }
 
     /**
      * @brief 获取数据库名称
      */
-    const std::string& get_database_name() const {
+    const std::string& get_database_name() const
+    {
         return m_db_name;
     }
 
     /**
      * @brief 设置数据库类型
      */
-    void set_database_type(db_type type) {
+    void set_database_type(db_type type)
+    {
         m_db_type = type;
     }
 
     /**
      * @brief 获取数据库类型
      */
-    db_type get_database_type() const {
+    db_type get_database_type() const
+    {
         return m_db_type;
     }
 
     /**
      * @brief 获取最后执行的查询
      */
-    const std::string& get_last_query() const {
+    const std::string& get_last_query() const
+    {
         return m_last_query;
     }
 
     /**
      * @brief 测试连接
      */
-    bool test_connection() {
+    bool test_connection()
+    {
         return m_status == db_status::CONNECTED;
     }
 

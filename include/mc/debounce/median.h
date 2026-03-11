@@ -12,26 +12,26 @@
 
 #ifndef MC_DEBOUNCE_MEDIAN_H
 #define MC_DEBOUNCE_MEDIAN_H
-#include <optional>
-#include <deque>
-#include <cstdint>
-#include <numeric>
-#include <vector>
 #include "mc/debounce/base.h"
+#include <cstdint>
+#include <deque>
+#include <numeric>
+#include <optional>
+#include <vector>
 
 namespace mc::debounce {
 class MC_API Median : public Base {
 public:
     Median(int size, bool is_signed);
     std::optional<int> get_debounce_val(int val) override;
-    void clear_debounce_val() override;
+    void               clear_debounce_val() override;
 
 private:
-    int adjust_signed(int value) const;
-    int m_size;
-    bool is_signed;
+    int             adjust_signed(int value) const;
+    int             m_size;
+    bool            is_signed;
     std::deque<int> m_data;
 };
-}
+} // namespace mc::debounce
 
 #endif // MC_DEBOUNCE_MEDIAN_H

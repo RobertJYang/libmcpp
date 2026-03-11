@@ -100,44 +100,55 @@ public:
 
     const std::vector<std::string>& get_dependencies() const override;
 
-    bool init(dict args) override {
+    bool init(dict args) override
+    {
         return true;
     }
 
-    bool start() override {
+    bool start() override
+    {
         return true;
     }
 
-    bool stop() override {
+    bool stop() override
+    {
         return true;
     }
 
-    void cleanup() override {
+    void cleanup() override
+    {
     }
 
-    bool is_healthy() const override {
+    bool is_healthy() const override
+    {
         return true;
     }
 
-    void on_dump(std::map<std::string, std::string> context, std::string filepath) override {
+    void on_dump(std::map<std::string, std::string> context, std::string filepath) override
+    {
     }
 
-    void on_detach_debug_console(std::map<std::string, std::string> context) override {
+    void on_detach_debug_console(std::map<std::string, std::string> context) override
+    {
     }
 
-    int32_t on_reboot_prepare(std::map<std::string, std::string> context) override {
+    int32_t on_reboot_prepare(std::map<std::string, std::string> context) override
+    {
         return 0;
     }
 
-    int32_t on_reboot_process(std::map<std::string, std::string> context) override {
+    int32_t on_reboot_process(std::map<std::string, std::string> context) override
+    {
         return 0;
     }
 
-    int32_t on_reboot_action(std::map<std::string, std::string> context) override {
+    int32_t on_reboot_action(std::map<std::string, std::string> context) override
+    {
         return 0;
     }
 
-    void on_reboot_cancel(std::map<std::string, std::string> context) override {
+    void on_reboot_cancel(std::map<std::string, std::string> context) override
+    {
     }
 
 protected:

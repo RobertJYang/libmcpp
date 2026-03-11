@@ -24,7 +24,8 @@
 namespace mc::engine {
 namespace detail {
 template <typename Members>
-constexpr void set_property_type_flag(Members& members) {
+constexpr void set_property_type_flag(Members& members)
+{
     mc::traits::tuple_for_each(members, [](auto& member) {
         using member_info_type = mc::traits::remove_pointers_t<std::decay_t<decltype(member)>>;
         if constexpr (mc::reflect::has_tag_v<mc::reflect::property_tag, member_info_type>) {
@@ -37,7 +38,8 @@ constexpr void set_property_type_flag(Members& members) {
 }
 
 template <typename T, typename BaseT, typename Tuple>
-constexpr auto make_inherit_types_impl(Tuple&& tuple) {
+constexpr auto make_inherit_types_impl(Tuple&& tuple)
+{
     if constexpr (std::is_void_v<BaseT>) {
         return std::tuple_cat(tuple, std::tuple<T*>{nullptr});
     } else {
@@ -47,12 +49,14 @@ constexpr auto make_inherit_types_impl(Tuple&& tuple) {
 }
 
 template <typename T, typename BaseT>
-constexpr auto make_inherit_types() {
+constexpr auto make_inherit_types()
+{
     return make_inherit_types_impl<T, BaseT>(std::tuple<>{});
 }
 
 template <typename InheritTypes>
-auto make_interface_metadata() {
+auto make_interface_metadata()
+{
     std::array<const mc::reflect::struct_metadata*, std::tuple_size_v<InheritTypes>> metadatas{};
     mc::traits::tuple_element_for_each<InheritTypes>([&](auto type) {
         using type_t = std::remove_pointer_t<typename decltype(type)::type>;
@@ -116,19 +120,23 @@ public:
     static constexpr bool has_base_v = !std::is_void_v<base_type>;
 
     template <typename Members>
-    static constexpr void initial_members(Members& members) {
+    static constexpr void initial_members(Members& members)
+    {
         detail::set_property_type_flag(members);
     }
 
-    interface() {
+    interface()
+    {
         interface_impl::init_property_base(mc::reflect::reflector<interface_type>::get_metadata());
     }
 
-    std::string_view get_interface_name() const override {
+    std::string_view get_interface_name() const override
+    {
         return interface_type::interface_name;
     }
 
-    static const metadata_list& metadata() {
+    static const metadata_list& metadata()
+    {
         auto& extension = mc::reflect::reflector<interface_type>::get_extension();
 
         mc::atomic_ref<void*> extension_ref(extension.data);
@@ -151,7 +159,8 @@ public:
         return *reinterpret_cast<metadata_list*>(expected);
     }
 
-    const metadata_list& get_metadata() const override {
+    const metadata_list& get_metadata() const override
+    {
         return metadata();
     }
 };

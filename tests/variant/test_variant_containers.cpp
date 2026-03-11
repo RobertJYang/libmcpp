@@ -21,25 +21,28 @@
 #include <mc/variant.h>
 #include <mc/variant/variant_common.h>
 #include <stdexcept>
-#include <typeindex>
 #include <test_utilities/test_base.h>
+#include <typeindex>
 
 namespace mc {
 namespace test {
 
 class VariantContainersTest : public mc::test::TestBase {
 protected:
-    void SetUp() override {
+    void SetUp() override
+    {
         // 在每个测试前执行
         sample_dict  = create_sample_dict();
         sample_array = create_sample_array();
     }
 
-    void TearDown() override {
+    void TearDown() override
+    {
         // 在每个测试后执行
     }
 
-    dict create_sample_dict() {
+    dict create_sample_dict()
+    {
         dict m_dict;
         m_dict["int_value"]    = 42;
         m_dict["double_value"] = 3.14;
@@ -48,7 +51,8 @@ protected:
         return m_dict;
     }
 
-    variants create_sample_array() {
+    variants create_sample_array()
+    {
         variants arr;
         arr.push_back(1);
         arr.push_back(2.5);
@@ -64,7 +68,8 @@ protected:
 /**
  * @brief 测试 dict 类型的 variant 创建
  */
-TEST_F(VariantContainersTest, DictConstruction) {
+TEST_F(VariantContainersTest, DictConstruction)
+{
     variant v(sample_dict);
 
     ASSERT_TRUE(v.is_object()) << "variant 应该是对象类型";
@@ -75,7 +80,8 @@ TEST_F(VariantContainersTest, DictConstruction) {
 /**
  * @brief 测试 dict 类型的 variant 转换
  */
-TEST_F(VariantContainersTest, DictConversion) {
+TEST_F(VariantContainersTest, DictConversion)
+{
     variant v(sample_dict);
     dict    result = v.as<dict>();
 
@@ -98,7 +104,8 @@ TEST_F(VariantContainersTest, DictConversion) {
 /**
  * @brief 测试 dict 访问操作
  */
-TEST_F(VariantContainersTest, DictAccess) {
+TEST_F(VariantContainersTest, DictAccess)
+{
     variant     v(sample_dict);
     const dict& d = v.get_object();
 
@@ -130,7 +137,8 @@ TEST_F(VariantContainersTest, DictAccess) {
 /**
  * @brief 测试 dict 转换
  */
-TEST_F(VariantContainersTest, MutableDictConversion) {
+TEST_F(VariantContainersTest, MutableDictConversion)
+{
     dict m_dict;
     m_dict["key1"] = 1;
     m_dict["key2"] = "value2";
@@ -153,7 +161,8 @@ TEST_F(VariantContainersTest, MutableDictConversion) {
 /**
  * @brief 测试 variants 类型的 variant 创建
  */
-TEST_F(VariantContainersTest, ArrayConstruction) {
+TEST_F(VariantContainersTest, ArrayConstruction)
+{
     variant v(sample_array);
 
     ASSERT_TRUE(v.is_array()) << "variant 应该是数组类型";
@@ -164,7 +173,8 @@ TEST_F(VariantContainersTest, ArrayConstruction) {
 /**
  * @brief 测试 variants 类型的 variant 转换
  */
-TEST_F(VariantContainersTest, ArrayConversion) {
+TEST_F(VariantContainersTest, ArrayConversion)
+{
     variant  v(sample_array);
     variants result = v.as<variants>();
 
@@ -180,7 +190,8 @@ TEST_F(VariantContainersTest, ArrayConversion) {
 /**
  * @brief 测试数组访问操作
  */
-TEST_F(VariantContainersTest, ArrayAccess) {
+TEST_F(VariantContainersTest, ArrayAccess)
+{
     variant v(sample_array);
 
     // 测试 size 方法
@@ -198,7 +209,8 @@ TEST_F(VariantContainersTest, ArrayAccess) {
     ASSERT_EQ(arr[2].as_string(), "array item") << "通过 get_array() 访问的元素不匹配";
 }
 
-TEST_F(VariantContainersTest, VariantsCapacityManagement) {
+TEST_F(VariantContainersTest, VariantsCapacityManagement)
+{
     variants values;
     EXPECT_TRUE(values.empty());
 
@@ -218,7 +230,8 @@ TEST_F(VariantContainersTest, VariantsCapacityManagement) {
     EXPECT_TRUE(values.empty());
 }
 
-TEST_F(VariantContainersTest, VariantsInsertEraseAndIterators) {
+TEST_F(VariantContainersTest, VariantsInsertEraseAndIterators)
+{
     variants values{variant(1), variant("x"), variant(3)};
     values.insert(1, variant("y"));
     EXPECT_EQ(values[1].as_string(), "y");
@@ -246,7 +259,8 @@ TEST_F(VariantContainersTest, VariantsInsertEraseAndIterators) {
     EXPECT_GT(values.end() - values.begin(), 0);
 }
 
-TEST_F(VariantContainersTest, VariantsComparisonAndHash) {
+TEST_F(VariantContainersTest, VariantsComparisonAndHash)
+{
     variants lhs{variant(1), variant(2)};
     variants rhs{variant(1), variant(3)};
 
@@ -268,7 +282,8 @@ TEST_F(VariantContainersTest, VariantsComparisonAndHash) {
     EXPECT_EQ(ptr->as_int32(), 1);
 }
 
-TEST_F(VariantContainersTest, VariantsAllocatorConstruction) {
+TEST_F(VariantContainersTest, VariantsAllocatorConstruction)
+{
     // 测试带 allocator 的构造函数
     std::allocator<char> alloc;
     variants             empty_with_alloc(alloc);
@@ -293,7 +308,8 @@ TEST_F(VariantContainersTest, VariantsAllocatorConstruction) {
     EXPECT_FALSE(strong_array.element_type_name().empty());
 }
 
-TEST_F(VariantContainersTest, VariantsResizePopAndForEach) {
+TEST_F(VariantContainersTest, VariantsResizePopAndForEach)
+{
     variants values{variant(1), variant(2), variant(3)};
 
     values.resize(5);
@@ -330,7 +346,8 @@ TEST_F(VariantContainersTest, VariantsResizePopAndForEach) {
     EXPECT_EQ(sum_values.size(), 2);
 }
 
-TEST_F(VariantContainersTest, VariantsIteratorAdvancedOperations) {
+TEST_F(VariantContainersTest, VariantsIteratorAdvancedOperations)
+{
     variants values{variant(10), variant(20), variant(30), variant(40)};
 
     auto ref = values.at_ref(1);
@@ -400,7 +417,8 @@ TEST_F(VariantContainersTest, VariantsIteratorAdvancedOperations) {
 /**
  * @brief 测试 blob 类型
  */
-TEST_F(VariantContainersTest, BlobType) {
+TEST_F(VariantContainersTest, BlobType)
+{
     // 创建二进制数据
     std::vector<char> binary_data{'H', 'e', 'l', 'l', 'o'};
     blob              b;
@@ -429,7 +447,8 @@ TEST_F(VariantContainersTest, BlobType) {
 /**
  * @brief 测试嵌套容器
  */
-TEST_F(VariantContainersTest, NestedContainers) {
+TEST_F(VariantContainersTest, NestedContainers)
+{
     // 创建嵌套字典
     dict nested_dict;
     nested_dict["nested_array"] = sample_array;
@@ -476,7 +495,8 @@ TEST_F(VariantContainersTest, NestedContainers) {
 /**
  * @brief 测试空和满容量限制的容器
  */
-TEST_F(VariantContainersTest, EmptyAndFullContainers) {
+TEST_F(VariantContainersTest, EmptyAndFullContainers)
+{
     // 测试空字典
     dict    empty_dict;
     variant v_empty_dict(empty_dict);
@@ -508,38 +528,40 @@ TEST_F(VariantContainersTest, EmptyAndFullContainers) {
 }
 
 // 测试 variants::from_variant 拒绝非数组类型
-TEST_F(VariantContainersTest, VariantsFromVariantRejectNonArray) {
+TEST_F(VariantContainersTest, VariantsFromVariantRejectNonArray)
+{
     // 尝试从非数组 variant 构造 variants，应该抛出异常
     variant v_int(42);
     EXPECT_THROW(variants arr(v_int), mc::invalid_arg_exception);
-    
+
     variant v_string("test");
     EXPECT_THROW(variants arr2(v_string), mc::invalid_arg_exception);
-    
+
     variant v_dict(sample_dict);
     EXPECT_THROW(variants arr3(v_dict), mc::invalid_arg_exception);
 }
 
 // 测试 variants 的延迟分配存储
-TEST_F(VariantContainersTest, VariantsLazyAllocateStorage) {
+TEST_F(VariantContainersTest, VariantsLazyAllocateStorage)
+{
     // 创建空的 variants
     variants arr;
-    
+
     // 验证初始为空
     EXPECT_TRUE(arr.empty());
     EXPECT_EQ(arr.size(), 0);
-    
+
     // 调用 emplace_back，应该触发 ensure_data()
     arr.emplace_back(42);
     EXPECT_FALSE(arr.empty());
     EXPECT_EQ(arr.size(), 1);
     EXPECT_EQ(arr[0], 42);
-    
+
     // 调用 push_back
     arr.push_back(100);
     EXPECT_EQ(arr.size(), 2);
     EXPECT_EQ(arr[1], 100);
-    
+
     // 调用 for_each
     int sum = 0;
     arr.for_each([&sum](const variant& v) {
@@ -549,13 +571,14 @@ TEST_F(VariantContainersTest, VariantsLazyAllocateStorage) {
 }
 
 // 测试 insert 空范围直接返回
-TEST_F(VariantContainersTest, InsertEmptyRangeNoop) {
+TEST_F(VariantContainersTest, InsertEmptyRangeNoop)
+{
     variants arr{1, 2, 3};
-    size_t original_size = arr.size();
-    
+    size_t   original_size = arr.size();
+
     // 插入空范围（first == last），应该直接返回
     arr.insert(arr.begin(), arr.begin(), arr.begin());
-    
+
     // 验证大小未改变
     EXPECT_EQ(arr.size(), original_size);
     EXPECT_EQ(arr[0], 1);

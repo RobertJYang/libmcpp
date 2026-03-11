@@ -39,7 +39,8 @@ public:
      * @brief 检查子类型是否有效
      * @return 有效返回true，否则返回false
      */
-    bool sub_types_is_valid() const {
+    bool sub_types_is_valid() const
+    {
         return sub_types != nullptr && *sub_types != '\0';
     }
 

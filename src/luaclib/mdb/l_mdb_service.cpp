@@ -32,7 +32,8 @@ struct sd_bus_wrapper {
 };
 
 // 辅助函数：从 sd_bus userdata 获取 sd_bus 裸指针
-static mc::dbus::sd_bus* get_sd_bus_from_lua(lua_State* L, int index) {
+static mc::dbus::sd_bus* get_sd_bus_from_lua(lua_State* L, int index)
+{
     auto* wrapper = static_cast<sd_bus_wrapper*>(
         luaL_checkudata(L, index, mc::dbus::lua::SD_BUS_METATABLE));
     if (!wrapper || !wrapper->bus) {
@@ -44,7 +45,8 @@ static mc::dbus::sd_bus* get_sd_bus_from_lua(lua_State* L, int index) {
 
 // 辅助函数：从 Lua 栈获取数组参数（interfaces）
 // 如果传入的是数组 table，提取其内容；如果是单个值，包装为数组
-static mc::variants lua_to_interfaces_array(lua_State* L, int index) {
+static mc::variants lua_to_interfaces_array(lua_State* L, int index)
+{
     if (lua_isnil(L, index)) {
         return mc::variants(); // 空数组
     }
@@ -64,7 +66,8 @@ static mc::variants lua_to_interfaces_array(lua_State* L, int index) {
 }
 
 // mdb_service.get_object(conn, path, interfaces)
-static int l_get_object(lua_State* L) {
+static int l_get_object(lua_State* L)
+{
     try {
         auto*       bus        = get_sd_bus_from_lua(L, 1);
         const char* path       = luaL_checkstring(L, 2);
@@ -79,7 +82,8 @@ static int l_get_object(lua_State* L) {
 }
 
 // mdb_service.get_sub_objects(conn, path, depth, interfaces)
-static int l_get_sub_objects(lua_State* L) {
+static int l_get_sub_objects(lua_State* L)
+{
     try {
         auto*       bus        = get_sd_bus_from_lua(L, 1);
         const char* path       = luaL_checkstring(L, 2);
@@ -95,7 +99,8 @@ static int l_get_sub_objects(lua_State* L) {
 }
 
 // mdb_service.get_sub_paths(conn, path, depth, interfaces)
-static int l_get_sub_paths(lua_State* L) {
+static int l_get_sub_paths(lua_State* L)
+{
     try {
         auto*       bus        = get_sd_bus_from_lua(L, 1);
         const char* path       = luaL_checkstring(L, 2);
@@ -111,7 +116,8 @@ static int l_get_sub_paths(lua_State* L) {
 }
 
 // mdb_service.get_parent_objects(conn, path, interfaces)
-static int l_get_parent_objects(lua_State* L) {
+static int l_get_parent_objects(lua_State* L)
+{
     try {
         auto*       bus        = get_sd_bus_from_lua(L, 1);
         const char* path       = luaL_checkstring(L, 2);
@@ -126,7 +132,8 @@ static int l_get_parent_objects(lua_State* L) {
 }
 
 // mdb_service.get_service_name(conn, sender)
-static int l_get_service_name(lua_State* L) {
+static int l_get_service_name(lua_State* L)
+{
     try {
         auto* bus = get_sd_bus_from_lua(L, 1);
 
@@ -146,7 +153,8 @@ static int l_get_service_name(lua_State* L) {
 }
 
 // mdb_service.get_service_names(conn)
-static int l_get_service_names(lua_State* L) {
+static int l_get_service_names(lua_State* L)
+{
     try {
         auto* bus = get_sd_bus_from_lua(L, 1);
 
@@ -159,9 +167,10 @@ static int l_get_service_names(lua_State* L) {
 }
 
 // mdb_service.get_path(conn, interface, filter, ignore_case, enable_cache)
-static int l_get_path(lua_State* L) {
+static int l_get_path(lua_State* L)
+{
     try {
-        auto bus          = get_sd_bus_from_lua(L, 1);
+        auto        bus          = get_sd_bus_from_lua(L, 1);
         const char* interface    = luaL_checkstring(L, 2);
         const char* filter       = luaL_checkstring(L, 3);
         bool        ignore_case  = lua_toboolean(L, 4);
@@ -177,9 +186,10 @@ static int l_get_path(lua_State* L) {
 }
 
 // mdb_service.get_interface_owners(conn, interface)
-static int l_get_interface_owners(lua_State* L) {
+static int l_get_interface_owners(lua_State* L)
+{
     try {
-        auto bus       = get_sd_bus_from_lua(L, 1);
+        auto        bus       = get_sd_bus_from_lua(L, 1);
         const char* interface = luaL_checkstring(L, 2);
 
         auto result = mc::mdb::service::get_interface_owners(bus, interface);
@@ -191,9 +201,10 @@ static int l_get_interface_owners(lua_State* L) {
 }
 
 // mdb_service.is_valid_path(conn, path, ignore_case)
-static int l_is_valid_path(lua_State* L) {
+static int l_is_valid_path(lua_State* L)
+{
     try {
-        auto bus         = get_sd_bus_from_lua(L, 1);
+        auto        bus         = get_sd_bus_from_lua(L, 1);
         const char* path        = luaL_checkstring(L, 2);
         bool        ignore_case = lua_toboolean(L, 3);
 
@@ -206,7 +217,8 @@ static int l_is_valid_path(lua_State* L) {
 }
 
 // mdb_service.get_sub_paths_paging(conn, path, depth, interfaces, skip, top)
-static int l_get_sub_paths_paging(lua_State* L) {
+static int l_get_sub_paths_paging(lua_State* L)
+{
     try {
         auto*       bus        = get_sd_bus_from_lua(L, 1);
         const char* path       = luaL_checkstring(L, 2);
@@ -225,9 +237,10 @@ static int l_get_sub_paths_paging(lua_State* L) {
 }
 
 // mdb_service.get_classes(conn, service)
-static int l_get_classes(lua_State* L) {
+static int l_get_classes(lua_State* L)
+{
     try {
-        auto bus     = get_sd_bus_from_lua(L, 1);
+        auto        bus     = get_sd_bus_from_lua(L, 1);
         const char* service = luaL_checkstring(L, 2);
 
         auto result = mc::mdb::service::get_classes(bus, service);
@@ -239,7 +252,8 @@ static int l_get_classes(lua_State* L) {
 }
 
 // mdb_service.get_object_list(conn, class_name)
-static int l_get_object_list(lua_State* L) {
+static int l_get_object_list(lua_State* L)
+{
     try {
         auto*       bus        = get_sd_bus_from_lua(L, 1);
         const char* class_name = luaL_checkstring(L, 2);
@@ -253,9 +267,10 @@ static int l_get_object_list(lua_State* L) {
 }
 
 // mdb_service.get_object_owner(conn, object_name)
-static int l_get_object_owner(lua_State* L) {
+static int l_get_object_owner(lua_State* L)
+{
     try {
-        auto bus         = get_sd_bus_from_lua(L, 1);
+        auto        bus         = get_sd_bus_from_lua(L, 1);
         const char* object_name = luaL_checkstring(L, 2);
 
         auto result = mc::mdb::service::get_object_owner(bus, object_name);
@@ -267,9 +282,10 @@ static int l_get_object_owner(lua_State* L) {
 }
 
 // mdb_service.get_matched_objects(conn, object_name, interface_pattern)
-static int l_get_matched_objects(lua_State* L) {
+static int l_get_matched_objects(lua_State* L)
+{
     try {
-        auto bus               = get_sd_bus_from_lua(L, 1);
+        auto        bus               = get_sd_bus_from_lua(L, 1);
         const char* object_name       = luaL_checkstring(L, 2);
         const char* interface_pattern = luaL_checkstring(L, 3);
 
@@ -283,7 +299,8 @@ static int l_get_matched_objects(lua_State* L) {
 }
 
 // mdb_service.get_traced_object(conn)
-static int l_get_traced_object(lua_State* L) {
+static int l_get_traced_object(lua_State* L)
+{
     try {
         auto* bus = get_sd_bus_from_lua(L, 1);
 
@@ -296,7 +313,8 @@ static int l_get_traced_object(lua_State* L) {
 }
 
 // mdb_service.clear_cache()
-static int l_clear_cache(lua_State* L) {
+static int l_clear_cache(lua_State* L)
+{
     try {
         mc::mdb::service::clear_cache();
         return 0;
@@ -306,7 +324,8 @@ static int l_clear_cache(lua_State* L) {
 }
 
 // mdb_service.set_max_cache_size(max_size)
-static int l_set_max_cache_size(lua_State* L) {
+static int l_set_max_cache_size(lua_State* L)
+{
     try {
         size_t max_size = luaL_checkinteger(L, 1);
         mc::mdb::service::set_max_cache_size(max_size);
@@ -317,7 +336,8 @@ static int l_set_max_cache_size(lua_State* L) {
 }
 
 // mdb_service.get_max_cache_size()
-static int l_get_max_cache_size(lua_State* L) {
+static int l_get_max_cache_size(lua_State* L)
+{
     try {
         size_t max_size = mc::mdb::service::get_max_cache_size();
         lua_pushinteger(L, max_size);
@@ -328,7 +348,8 @@ static int l_get_max_cache_size(lua_State* L) {
 }
 
 // mdb_service.get_cache_size()
-static int l_get_cache_size(lua_State* L) {
+static int l_get_cache_size(lua_State* L)
+{
     try {
         size_t cache_size = mc::mdb::service::get_cache_size();
         lua_pushinteger(L, cache_size);
@@ -339,7 +360,8 @@ static int l_get_cache_size(lua_State* L) {
 }
 
 // 注册 mdb_service 模块的所有函数
-void register_mdb_service_functions(lua_State* L) {
+void register_mdb_service_functions(lua_State* L)
+{
     static const luaL_Reg service_funcs[] = {{"get_object", l_get_object},
                                              {"get_sub_objects", l_get_sub_objects},
                                              {"get_sub_paths", l_get_sub_paths},

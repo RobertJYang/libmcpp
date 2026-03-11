@@ -18,36 +18,46 @@
 namespace mc {
 namespace engine {
 
-path::path() : m_path("/") {
+path::path()
+    : m_path("/")
+{
 }
 
-path::path(std::string p) {
+path::path(std::string p)
+{
     if (!is_valid(p)) {
         MC_THROW(mc::invalid_arg_exception, "无效的DBus对象路径: ${path}", ("path", p));
     }
     m_path = std::move(p);
 }
 
-path::path(const char* p) : path(std::string(p)) {
+path::path(const char* p)
+    : path(std::string(p))
+{
 }
 
-const std::string& path::str() const {
+const std::string& path::str() const
+{
     return m_path;
 }
 
-bool path::operator==(const path& other) const {
+bool path::operator==(const path& other) const
+{
     return m_path == other.m_path;
 }
 
-bool path::operator!=(const path& other) const {
+bool path::operator!=(const path& other) const
+{
     return !(*this == other);
 }
 
-bool path::operator<(const path& other) const {
+bool path::operator<(const path& other) const
+{
     return m_path < other.m_path;
 }
 
-path path::operator/(const std::string& element) const {
+path path::operator/(const std::string& element) const
+{
     if (!is_valid_element(element)) {
         MC_THROW(mc::invalid_arg_exception, "无效的DBus路径元素: ${element}", ("element", element));
     }
@@ -61,7 +71,8 @@ path path::operator/(const std::string& element) const {
     return path(new_path);
 }
 
-path& path::operator=(std::string p) {
+path& path::operator=(std::string p)
+{
     if (!is_valid(p)) {
         MC_THROW(mc::invalid_arg_exception, "无效的DBus对象路径: ${path}", ("path", p));
     }
@@ -70,7 +81,8 @@ path& path::operator=(std::string p) {
     return *this;
 }
 
-path path::parent() const {
+path path::parent() const
+{
     if (m_path == "/") {
         return *this;
     }
@@ -82,7 +94,8 @@ path path::parent() const {
     return path(m_path.substr(0, pos));
 }
 
-std::string path::basename() const {
+std::string path::basename() const
+{
     if (m_path == "/") {
         return "";
     }
@@ -91,11 +104,13 @@ std::string path::basename() const {
     return m_path.substr(pos + 1);
 }
 
-bool path::is_valid() const {
+bool path::is_valid() const
+{
     return is_valid(m_path);
 }
 
-bool path::is_valid(std::string_view p) {
+bool path::is_valid(std::string_view p)
+{
     // 必须以'/'开头
     if (p.empty() || p[0] != '/') {
         return false;
@@ -132,7 +147,8 @@ bool path::is_valid(std::string_view p) {
     return true;
 }
 
-bool path::is_valid_element(std::string_view element) {
+bool path::is_valid_element(std::string_view element)
+{
     if (element.empty()) {
         return false;
     }
@@ -142,7 +158,8 @@ bool path::is_valid_element(std::string_view element) {
     });
 }
 
-std::ostream& operator<<(std::ostream& os, const path& p) {
+std::ostream& operator<<(std::ostream& os, const path& p)
+{
     os << p.str();
     return os;
 }

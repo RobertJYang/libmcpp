@@ -28,17 +28,20 @@ public:
     explicit reference_extension(bool allow_ref = false)
         : m_items({mc::variant(1), mc::variant("value"), mc::variant(true)}),
           m_attrs({{"flag", false}, {"token", "id"}}),
-          m_allow_ref(allow_ref) {
+          m_allow_ref(allow_ref)
+    {
     }
 
-    reference_extension(const reference_extension&) = default;
+    reference_extension(const reference_extension&)            = default;
     reference_extension& operator=(const reference_extension&) = default;
 
-    mc::shared_ptr<variant_extension_base> copy() const override {
+    mc::shared_ptr<variant_extension_base> copy() const override
+    {
         return mc::make_shared<reference_extension>(*this);
     }
 
-    bool equals(const variant_extension_base& other) const override {
+    bool equals(const variant_extension_base& other) const override
+    {
         auto* ext = dynamic_cast<const reference_extension*>(&other);
         if (ext == nullptr) {
             return false;
@@ -46,37 +49,44 @@ public:
         return m_items == ext->m_items && m_attrs == ext->m_attrs && m_allow_ref == ext->m_allow_ref;
     }
 
-    bool supports_reference_access() const override {
+    bool supports_reference_access() const override
+    {
         return m_allow_ref;
     }
 
-    variant* get_ptr(std::size_t index) override {
+    variant* get_ptr(std::size_t index) override
+    {
         if (!m_allow_ref) {
             return nullptr;
         }
         return m_items.get_ptr(index);
     }
 
-    const variant* get_ptr(std::size_t index) const override {
+    const variant* get_ptr(std::size_t index) const override
+    {
         if (!m_allow_ref) {
             return nullptr;
         }
         return m_items.get_ptr(index);
     }
 
-    variant get(std::size_t index) const override {
+    variant get(std::size_t index) const override
+    {
         return m_items.at(index);
     }
 
-    void set(std::size_t index, const variant& value) override {
+    void set(std::size_t index, const variant& value) override
+    {
         m_items.set(index, value);
     }
 
-    variant get(std::string_view key) const override {
+    variant get(std::string_view key) const override
+    {
         return m_attrs.at(key);
     }
 
-    void set(std::string_view key, const variant& value) override {
+    void set(std::string_view key, const variant& value) override
+    {
         m_attrs[std::string(key)] = value;
     }
 
@@ -89,7 +99,8 @@ private:
 
 class VariantReferenceTest : public ::testing::Test {
 protected:
-    void SetUp() override {
+    void SetUp() override
+    {
         // 创建测试用的嵌套结构
         nested_array = variants{
             1,
@@ -113,7 +124,8 @@ protected:
 
 // ========== 基础功能测试 ==========
 
-TEST_F(VariantReferenceTest, BasicIndexAccess) {
+TEST_F(VariantReferenceTest, BasicIndexAccess)
+{
     variant arr = variants{1, 2, 3, 4, 5};
 
     // 测试基本索引访问
@@ -126,7 +138,8 @@ TEST_F(VariantReferenceTest, BasicIndexAccess) {
     EXPECT_EQ(arr[1].as<int>(), 2);
 }
 
-TEST_F(VariantReferenceTest, BasicKeyAccess) {
+TEST_F(VariantReferenceTest, BasicKeyAccess)
+{
     variant obj(dict{{"name", "Bob"}, {"age", 25}, {"score", 95.5}});
 
     // 测试基本键访问
@@ -139,8 +152,8 @@ TEST_F(VariantReferenceTest, BasicKeyAccess) {
     EXPECT_EQ(obj["age"].as<int>(), 25);
 }
 
-
-TEST_F(VariantReferenceTest, TypeConversionMethods) {
+TEST_F(VariantReferenceTest, TypeConversionMethods)
+{
     variant arr = variants{
         static_cast<int8_t>(1),
         static_cast<uint16_t>(100),
@@ -161,7 +174,8 @@ TEST_F(VariantReferenceTest, TypeConversionMethods) {
 
 // ========== 链式调用测试 ==========
 
-TEST_F(VariantReferenceTest, ChainedArrayAccess) {
+TEST_F(VariantReferenceTest, ChainedArrayAccess)
+{
     // 测试多层数组链式访问
     EXPECT_EQ(nested_array[3][0], 10);
     EXPECT_EQ(nested_array[3][1], 20);
@@ -172,7 +186,8 @@ TEST_F(VariantReferenceTest, ChainedArrayAccess) {
     EXPECT_EQ(nested_array[3][1].as<int>(), 20);
 }
 
-TEST_F(VariantReferenceTest, ChainedObjectAccess) {
+TEST_F(VariantReferenceTest, ChainedObjectAccess)
+{
     // 测试多层对象链式访问
     EXPECT_EQ(nested_object["address"]["city"], "Beijing");
     EXPECT_EQ(nested_object["address"]["zip"], 100000);
@@ -182,7 +197,8 @@ TEST_F(VariantReferenceTest, ChainedObjectAccess) {
     EXPECT_EQ(nested_object["address"]["zip"].as<int>(), 100000);
 }
 
-TEST_F(VariantReferenceTest, ChainedMixedAccess) {
+TEST_F(VariantReferenceTest, ChainedMixedAccess)
+{
     // 测试混合访问（数组和对象）
     EXPECT_EQ(nested_array[4]["x"], 100);
     EXPECT_EQ(nested_array[4]["y"], 200);
@@ -192,7 +208,8 @@ TEST_F(VariantReferenceTest, ChainedMixedAccess) {
     EXPECT_EQ(nested_object["scores"][2], 92);
 }
 
-TEST_F(VariantReferenceTest, DeepChainedAccess) {
+TEST_F(VariantReferenceTest, DeepChainedAccess)
+{
     // 创建深层嵌套结构
     variant deep = dict{
         {"level1",
@@ -208,7 +225,8 @@ TEST_F(VariantReferenceTest, DeepChainedAccess) {
 
 // ========== 算术操作符测试 ==========
 
-TEST_F(VariantReferenceTest, ArithmeticOperators_BothReferences) {
+TEST_F(VariantReferenceTest, ArithmeticOperators_BothReferences)
+{
     variant arr = variants{10, 20, 30, 40, 50};
 
     // 两边都是 variant_reference
@@ -219,7 +237,8 @@ TEST_F(VariantReferenceTest, ArithmeticOperators_BothReferences) {
     EXPECT_EQ(arr[4] % arr[2], 20);  // 50 % 30
 }
 
-TEST_F(VariantReferenceTest, ArithmeticOperators_ReferenceAndVariant) {
+TEST_F(VariantReferenceTest, ArithmeticOperators_ReferenceAndVariant)
+{
     variant arr = variants{10, 20, 30};
     variant v1(5);
     variant v2(3);
@@ -237,7 +256,8 @@ TEST_F(VariantReferenceTest, ArithmeticOperators_ReferenceAndVariant) {
     EXPECT_EQ(v2 * arr[2], 90); // 3 * 30
 }
 
-TEST_F(VariantReferenceTest, ArithmeticOperators_ReferenceAndPrimitive) {
+TEST_F(VariantReferenceTest, ArithmeticOperators_ReferenceAndPrimitive)
+{
     variant arr = variants{10, 20, 30};
 
     // 左边是 variant_reference，右边是基础类型
@@ -261,7 +281,8 @@ TEST_F(VariantReferenceTest, ArithmeticOperators_ReferenceAndPrimitive) {
     EXPECT_DOUBLE_EQ((1.5 * arr[1]).as_double(), 30.0); // 基础类型在左边
 }
 
-TEST_F(VariantReferenceTest, StringConcatenation) {
+TEST_F(VariantReferenceTest, StringConcatenation)
+{
     variant arr = variants{"Hello", " ", "World"};
 
     // 字符串拼接（两边都是 variant_reference）
@@ -275,7 +296,8 @@ TEST_F(VariantReferenceTest, StringConcatenation) {
 
 // ========== 位操作符测试 ==========
 
-TEST_F(VariantReferenceTest, BitwiseOperators_BothReferences) {
+TEST_F(VariantReferenceTest, BitwiseOperators_BothReferences)
+{
     variant arr = variants{12, 10, 5, 3, 2}; // 二进制: 1100, 1010, 0101, 0011, 0010
 
     // 两边都是 variant_reference
@@ -286,7 +308,8 @@ TEST_F(VariantReferenceTest, BitwiseOperators_BothReferences) {
     EXPECT_EQ(arr[1] >> arr[4], 2);  // 10 >> 2 = 2
 }
 
-TEST_F(VariantReferenceTest, BitwiseOperators_ReferenceAndVariant) {
+TEST_F(VariantReferenceTest, BitwiseOperators_ReferenceAndVariant)
+{
     variant arr = variants{12, 10, 5};
     variant v1(3);
     variant v2(2);
@@ -299,7 +322,8 @@ TEST_F(VariantReferenceTest, BitwiseOperators_ReferenceAndVariant) {
     EXPECT_EQ(arr[1] >> v2, 2);  // 10 >> 2 = 2
 }
 
-TEST_F(VariantReferenceTest, BitwiseOperators_ReferenceAndPrimitive) {
+TEST_F(VariantReferenceTest, BitwiseOperators_ReferenceAndPrimitive)
+{
     variant arr = variants{12, 10, 5};
 
     // 左边是 variant_reference，右边是基础类型
@@ -322,7 +346,8 @@ TEST_F(VariantReferenceTest, BitwiseOperators_ReferenceAndPrimitive) {
 
 // ========== 比较操作符测试 ==========
 
-TEST_F(VariantReferenceTest, ComparisonOperators_BothReferences) {
+TEST_F(VariantReferenceTest, ComparisonOperators_BothReferences)
+{
     variant arr = variants{10, 20, 30, 20, 10};
 
     // 两边都是 variant_reference
@@ -335,7 +360,8 @@ TEST_F(VariantReferenceTest, ComparisonOperators_BothReferences) {
     EXPECT_TRUE(arr[2] >= arr[1]); // 30 >= 20
 }
 
-TEST_F(VariantReferenceTest, ComparisonOperators_ReferenceAndVariant) {
+TEST_F(VariantReferenceTest, ComparisonOperators_ReferenceAndVariant)
+{
     variant arr = variants{10, 20, 30};
     variant v1(10);
     variant v2(20);
@@ -357,7 +383,8 @@ TEST_F(VariantReferenceTest, ComparisonOperators_ReferenceAndVariant) {
     EXPECT_TRUE(v2 < arr[2]);
 }
 
-TEST_F(VariantReferenceTest, ComparisonOperators_ReferenceAndPrimitive) {
+TEST_F(VariantReferenceTest, ComparisonOperators_ReferenceAndPrimitive)
+{
     variant arr = variants{10, 20, 30};
 
     // 左边是 variant_reference，右边是基础类型（整数）
@@ -397,7 +424,8 @@ TEST_F(VariantReferenceTest, ComparisonOperators_ReferenceAndPrimitive) {
     EXPECT_TRUE(false == arr3[1]);
 }
 
-TEST_F(VariantReferenceTest, ComparisonOperators_StringView) {
+TEST_F(VariantReferenceTest, ComparisonOperators_StringView)
+{
     variant obj(dict{{"name", "Alice"}, {"city", "Beijing"}});
 
     // 左边是 variant_reference，右边是 string_view
@@ -415,7 +443,8 @@ TEST_F(VariantReferenceTest, ComparisonOperators_StringView) {
     EXPECT_TRUE("Abc" < obj["city"]); // "Abc" < "Beijing"
 }
 
-TEST_F(VariantReferenceTest, ComparisonOperators_Array) {
+TEST_F(VariantReferenceTest, ComparisonOperators_Array)
+{
     variant arr = variants{variants{1, 2, 3}, variants{1, 2, 3}, variants{1, 2, 4}};
 
     // 与数组比较（只支持 == 和 !=）
@@ -431,7 +460,8 @@ TEST_F(VariantReferenceTest, ComparisonOperators_Array) {
     // EXPECT_TRUE(arr[0] < vec2);  // array 不支持 < 比较
 }
 
-TEST_F(VariantReferenceTest, ComparisonOperators_Dict) {
+TEST_F(VariantReferenceTest, ComparisonOperators_Dict)
+{
     variant arr = variants{
         dict{{"x", 1}, {"y", 2}},
         dict{{"x", 1}, {"y", 2}},
@@ -451,7 +481,8 @@ TEST_F(VariantReferenceTest, ComparisonOperators_Dict) {
 
 // ========== 复合赋值操作符测试 ==========
 
-TEST_F(VariantReferenceTest, CompoundAssignmentOperators_Variant) {
+TEST_F(VariantReferenceTest, CompoundAssignmentOperators_Variant)
+{
     variant arr = variants{10, 20, 30, 40};
 
     // 复合赋值操作符
@@ -468,7 +499,8 @@ TEST_F(VariantReferenceTest, CompoundAssignmentOperators_Variant) {
     EXPECT_EQ(arr[3], 10);
 }
 
-TEST_F(VariantReferenceTest, CompoundAssignmentOperators_Primitive) {
+TEST_F(VariantReferenceTest, CompoundAssignmentOperators_Primitive)
+{
     variant arr = variants{10, 20, 30, 40, 12};
 
     // 与基础类型的复合赋值
@@ -488,7 +520,8 @@ TEST_F(VariantReferenceTest, CompoundAssignmentOperators_Primitive) {
     EXPECT_EQ(arr[4], 2);
 }
 
-TEST_F(VariantReferenceTest, CompoundAssignmentOperators_Bitwise) {
+TEST_F(VariantReferenceTest, CompoundAssignmentOperators_Bitwise)
+{
     variant arr = variants{12, 10, 5, 40, 10};
 
     // 位操作的复合赋值
@@ -508,7 +541,8 @@ TEST_F(VariantReferenceTest, CompoundAssignmentOperators_Bitwise) {
     EXPECT_EQ(arr[4], 2);
 }
 
-TEST_F(VariantReferenceTest, CompoundAssignmentOperators_String) {
+TEST_F(VariantReferenceTest, CompoundAssignmentOperators_String)
+{
     variant obj(dict{{"greeting", "Hello"}});
 
     // 字符串拼接复合赋值
@@ -518,7 +552,8 @@ TEST_F(VariantReferenceTest, CompoundAssignmentOperators_String) {
 
 // ========== 自增自减操作符测试 ==========
 
-TEST_F(VariantReferenceTest, IncrementDecrementOperators) {
+TEST_F(VariantReferenceTest, IncrementDecrementOperators)
+{
     variant arr = variants{10, 20};
 
     // 前置自增
@@ -542,7 +577,8 @@ TEST_F(VariantReferenceTest, IncrementDecrementOperators) {
 
 // ========== 一元操作符测试 ==========
 
-TEST_F(VariantReferenceTest, UnaryOperators) {
+TEST_F(VariantReferenceTest, UnaryOperators)
+{
     variant arr = variants{10, 0, true, false};
 
     // 一元负号
@@ -562,7 +598,8 @@ TEST_F(VariantReferenceTest, UnaryOperators) {
 
 // ========== 修改操作测试 ==========
 
-TEST_F(VariantReferenceTest, ModificationThroughReference) {
+TEST_F(VariantReferenceTest, ModificationThroughReference)
+{
     variant arr = variants{1, 2, 3};
 
     // 通过引用修改值
@@ -584,7 +621,8 @@ TEST_F(VariantReferenceTest, ModificationThroughReference) {
     EXPECT_EQ(arr[2], true);
 }
 
-TEST_F(VariantReferenceTest, ModificationInNestedStructure) {
+TEST_F(VariantReferenceTest, ModificationInNestedStructure)
+{
     // 修改嵌套数组中的值
     nested_array[3][0] = 100;
     EXPECT_EQ(nested_array[3][0], 100);
@@ -596,7 +634,8 @@ TEST_F(VariantReferenceTest, ModificationInNestedStructure) {
 
 // ========== 其他方法测试 ==========
 
-TEST_F(VariantReferenceTest, UtilityMethods) {
+TEST_F(VariantReferenceTest, UtilityMethods)
+{
     variant obj(dict{{"name", "Alice"}, {"age", 30}, {"scores", variants{95, 88, 92}}});
 
     // 测试 size
@@ -613,7 +652,8 @@ TEST_F(VariantReferenceTest, UtilityMethods) {
     EXPECT_STREQ(obj["scores"].get_type_name(), "array");
 }
 
-TEST_F(VariantReferenceTest, GetterMethods) {
+TEST_F(VariantReferenceTest, GetterMethods)
+{
     variant arr = variants{
         "hello",
         variants{1, 2, 3},
@@ -633,7 +673,8 @@ TEST_F(VariantReferenceTest, GetterMethods) {
     EXPECT_EQ(obj_ref["x"], 10);
 }
 
-TEST_F(VariantReferenceTest, DeepCopy) {
+TEST_F(VariantReferenceTest, DeepCopy)
+{
     variant arr({1, 2, variants{3, 4}});
 
     // 深拷贝
@@ -645,7 +686,8 @@ TEST_F(VariantReferenceTest, DeepCopy) {
     EXPECT_EQ(copy[0], 100);
 }
 
-TEST_F(VariantReferenceTest, ClearMethod) {
+TEST_F(VariantReferenceTest, ClearMethod)
+{
     variant arr({1, 2, variants{3, 4, 5}});
 
     // 清空嵌套数组
@@ -655,7 +697,8 @@ TEST_F(VariantReferenceTest, ClearMethod) {
 
 // ========== 隐式转换测试 ==========
 
-TEST_F(VariantReferenceTest, ImplicitConversion) {
+TEST_F(VariantReferenceTest, ImplicitConversion)
+{
     variant arr = variants{1, 2, 3};
 
     // 隐式转换为 variant
@@ -675,7 +718,8 @@ TEST_F(VariantReferenceTest, ImplicitConversion) {
 
 // ========== 混合操作测试 ==========
 
-TEST_F(VariantReferenceTest, MixedOperations) {
+TEST_F(VariantReferenceTest, MixedOperations)
+{
     variant arr = variants{10, 20, 30, 40};
 
     // 混合操作：链式调用 + 算术操作 + 比较
@@ -688,7 +732,8 @@ TEST_F(VariantReferenceTest, MixedOperations) {
     EXPECT_EQ(result, 90);
 }
 
-TEST_F(VariantReferenceTest, ChainedOperations) {
+TEST_F(VariantReferenceTest, ChainedOperations)
+{
     // 测试链式操作的综合使用
     variant complex = dict{
         {"data", variants{
@@ -709,7 +754,8 @@ TEST_F(VariantReferenceTest, ChainedOperations) {
     EXPECT_EQ(complex["data"][2]["value"], 40);
 }
 
-TEST_F(VariantReferenceTest, OperatorPrecedence) {
+TEST_F(VariantReferenceTest, OperatorPrecedence)
+{
     variant arr = variants{2, 3, 4, 5};
 
     // 测试运算符优先级
@@ -720,7 +766,8 @@ TEST_F(VariantReferenceTest, OperatorPrecedence) {
 
 // ========== 边界和特殊情况测试 ==========
 
-TEST_F(VariantReferenceTest, NullValue) {
+TEST_F(VariantReferenceTest, NullValue)
+{
     variant arr = variants{nullptr, 10, nullptr};
 
     // 测试 null 值
@@ -729,7 +776,8 @@ TEST_F(VariantReferenceTest, NullValue) {
     EXPECT_TRUE(arr[2].is_null());
 }
 
-TEST_F(VariantReferenceTest, BooleanContext) {
+TEST_F(VariantReferenceTest, BooleanContext)
+{
     variant arr = variants{0, 1, false, true, "", "text", nullptr};
 
     // 在布尔上下文中使用
@@ -739,7 +787,8 @@ TEST_F(VariantReferenceTest, BooleanContext) {
     EXPECT_TRUE(static_cast<bool>(arr[3]));  // true
 }
 
-TEST_F(VariantReferenceTest, LargeNumbers) {
+TEST_F(VariantReferenceTest, LargeNumbers)
+{
     variant arr = variants{
         static_cast<int64_t>(9223372036854775807LL),    // max int64
         static_cast<uint64_t>(18446744073709551615ULL), // max uint64
@@ -752,7 +801,8 @@ TEST_F(VariantReferenceTest, LargeNumbers) {
 
 // ========== from_variant 测试 ==========
 
-TEST_F(VariantReferenceTest, FromVariantConversion) {
+TEST_F(VariantReferenceTest, FromVariantConversion)
+{
     variant arr = variants{10, 20, 30};
 
     // 测试 from_variant 重载
@@ -773,7 +823,8 @@ TEST_F(VariantReferenceTest, FromVariantConversion) {
 
 // ========== std::vector 构造函数测试 ==========
 
-TEST_F(VariantReferenceTest, VectorConstructorWeakType) {
+TEST_F(VariantReferenceTest, VectorConstructorWeakType)
+{
     // 测试从 std::vector 构造为弱类型数组
     std::vector<int> vec        = {1, 2, 3};
     variants         weak_array = vec;
@@ -800,8 +851,9 @@ TEST_F(VariantReferenceTest, VectorConstructorWeakType) {
     EXPECT_EQ(weak_array1[2], 3);
 }
 
-TEST_F(VariantReferenceTest, ExtensionAccessWithoutDirectReference) {
-    auto ext = mc::make_shared<reference_extension>(false);
+TEST_F(VariantReferenceTest, ExtensionAccessWithoutDirectReference)
+{
+    auto    ext = mc::make_shared<reference_extension>(false);
     variant v(ext);
 
     variant_reference index_ref = v[1];
@@ -815,8 +867,9 @@ TEST_F(VariantReferenceTest, ExtensionAccessWithoutDirectReference) {
     EXPECT_TRUE(v["flag"].as_bool());
 }
 
-TEST_F(VariantReferenceTest, ExtensionAccessWithDirectReference) {
-    auto ext = mc::make_shared<reference_extension>(true);
+TEST_F(VariantReferenceTest, ExtensionAccessWithDirectReference)
+{
+    auto    ext = mc::make_shared<reference_extension>(true);
     variant v(ext);
 
     variant_reference first_ref = v[0];
@@ -824,54 +877,56 @@ TEST_F(VariantReferenceTest, ExtensionAccessWithDirectReference) {
     EXPECT_EQ(v[0].as_int32(), 9);
 
     variant_reference bool_ref = v[2];
-    bool_ref = variant(false);
+    bool_ref                   = variant(false);
     EXPECT_FALSE(v[2].as_bool());
 
     variant_reference target_ref = v[0];
-    target_ref = std::move(bool_ref);
+    target_ref                   = std::move(bool_ref);
     EXPECT_FALSE(target_ref.get().as_bool());
     EXPECT_FALSE(v[0].as_bool());
 }
 
 // 测试 variant_reference 的 swap 和 operator*/operator->
-TEST_F(VariantReferenceTest, ReferenceSwapAndDereference) {
+TEST_F(VariantReferenceTest, ReferenceSwapAndDereference)
+{
     dict d;
     d["key1"] = 100;
     d["key2"] = 200;
     variant v(d);
-    
+
     // 获取字典元素的引用
     variant_reference ref1 = v["key1"];
     variant_reference ref2 = v["key2"];
-    
+
     // 测试 operator*
     EXPECT_EQ((*ref1).as_int32(), 100);
     EXPECT_EQ((*ref2).as_int32(), 200);
-    
+
     // 测试 operator->
     EXPECT_EQ(ref1->as_int32(), 100);
     EXPECT_EQ(ref2->as_int32(), 200);
-    
+
     // 测试 swap
     ref1.swap(ref2);
     EXPECT_EQ((*ref1).as_int32(), 200);
     EXPECT_EQ((*ref2).as_int32(), 100);
-    
+
     // 验证原始字典也被交换
     EXPECT_EQ(v["key1"].as_int32(), 200);
     EXPECT_EQ(v["key2"].as_int32(), 100);
-    
+
     // 测试 array 的 variant_reference 触发 cached_value
-    variants arr{10, 20, 30};
-    variant v_arr(arr);
+    variants          arr{10, 20, 30};
+    variant           v_arr(arr);
     variant_reference arr_ref = v_arr[1];
-    
+
     // 访问引用应该触发 cached_value 的惰性加载
     EXPECT_EQ((*arr_ref).as_int32(), 20);
     EXPECT_EQ(arr_ref->as_int32(), 20);
 }
 
-TEST_F(VariantReferenceTest, TypeCheckMethods) {
+TEST_F(VariantReferenceTest, TypeCheckMethods)
+{
     variant arr = variants{1, 2.5, "text", true, nullptr};
 
     // 测试类型判断方法
@@ -884,4 +939,3 @@ TEST_F(VariantReferenceTest, TypeCheckMethods) {
     EXPECT_FALSE(arr[0].is_string());
     EXPECT_FALSE(arr[1].is_int64()); // 默认整数类型是 int64
 }
-    

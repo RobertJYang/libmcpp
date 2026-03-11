@@ -20,7 +20,8 @@
 #include <vector>
 
 // 辅助函数，创建测试文件
-std::string create_temp_file(const std::string& content = "") {
+std::string create_temp_file(const std::string& content = "")
+{
     char tmp_filename[] = "/tmp/mc_fs_test_XXXXXX";
     int  fd             = mkstemp(tmp_filename);
     if (fd == -1) {
@@ -36,7 +37,8 @@ std::string create_temp_file(const std::string& content = "") {
 }
 
 // 辅助函数，创建测试目录
-std::string create_temp_dir() {
+std::string create_temp_dir()
+{
     // 临时文件名基于/tmp/mc_fs_test_XXXXXX模式，其中XXXXXX会被替换为随机字符
     char  tmp_dirname[] = "/tmp/mc_fs_test_dir_XXXXXX";
     char* dir           = mkdtemp(tmp_dirname);
@@ -52,7 +54,8 @@ protected:
     std::vector<std::string> temp_files;
     std::vector<std::string> temp_dirs;
 
-    void SetUp() override {
+    void SetUp() override
+    {
         // 创建一些临时文件和目录供测试使用
         for (int i = 0; i < 3; ++i) {
             std::string file = create_temp_file("test content " + std::to_string(i));
@@ -91,7 +94,8 @@ protected:
         }
     }
 
-    void TearDown() override {
+    void TearDown() override
+    {
         // 清理所有临时文件和目录
         for (const auto& file : temp_files) {
             mc::filesystem::remove(file);
@@ -106,7 +110,8 @@ protected:
 };
 
 // 路径操作测试
-TEST_F(FilesystemTest, PathOperations) {
+TEST_F(FilesystemTest, PathOperations)
+{
     // basename 测试
     EXPECT_EQ("file.txt", mc::filesystem::basename("/path/to/file.txt"));
     EXPECT_EQ("file", mc::filesystem::basename("/path/to/file"));
@@ -140,7 +145,8 @@ TEST_F(FilesystemTest, PathOperations) {
 }
 
 // 路径拼接测试
-TEST_F(FilesystemTest, PathJoin) {
+TEST_F(FilesystemTest, PathJoin)
+{
     // 两段路径拼接
     EXPECT_EQ("/path/to/file.txt", mc::filesystem::join("/path/to", "file.txt"));
     EXPECT_EQ("/file.txt", mc::filesystem::join("/path/to", "/file.txt"));
@@ -156,7 +162,8 @@ TEST_F(FilesystemTest, PathJoin) {
 }
 
 // 文件信息测试
-TEST_F(FilesystemTest, FileInfo) {
+TEST_F(FilesystemTest, FileInfo)
+{
     if (temp_files.empty()) {
         GTEST_SKIP() << "临时文件创建失败，跳过测试";
     }
@@ -191,7 +198,8 @@ TEST_F(FilesystemTest, FileInfo) {
 }
 
 // 目录操作测试
-TEST_F(FilesystemTest, DirectoryOperations) {
+TEST_F(FilesystemTest, DirectoryOperations)
+{
     if (temp_dirs.empty()) {
         GTEST_SKIP() << "临时目录创建失败，跳过测试";
     }
@@ -228,7 +236,8 @@ TEST_F(FilesystemTest, DirectoryOperations) {
 }
 
 // 文件读写测试
-TEST_F(FilesystemTest, FileReadWrite) {
+TEST_F(FilesystemTest, FileReadWrite)
+{
     // 创建测试文件路径
     std::string test_path = create_temp_file();
     if (test_path.empty()) {
@@ -260,7 +269,8 @@ TEST_F(FilesystemTest, FileReadWrite) {
 }
 
 // 文件操作测试
-TEST_F(FilesystemTest, FileOperations) {
+TEST_F(FilesystemTest, FileOperations)
+{
     if (temp_files.empty()) {
         GTEST_SKIP() << "临时文件创建失败，跳过测试";
     }
@@ -296,7 +306,8 @@ TEST_F(FilesystemTest, FileOperations) {
 }
 
 // 复杂场景：完整的文件操作流程
-TEST_F(FilesystemTest, ComplexFileOperationWorkflow) {
+TEST_F(FilesystemTest, ComplexFileOperationWorkflow)
+{
     // 创建复杂的目录结构
     std::string base_dir = create_temp_dir();
     ASSERT_FALSE(base_dir.empty());
@@ -355,7 +366,8 @@ TEST_F(FilesystemTest, ComplexFileOperationWorkflow) {
 }
 
 // 复杂场景：路径操作和规范化
-TEST_F(FilesystemTest, ComplexPathNormalization) {
+TEST_F(FilesystemTest, ComplexPathNormalization)
+{
     std::string base_dir = create_temp_dir();
     ASSERT_FALSE(base_dir.empty());
     temp_dirs.push_back(base_dir);
@@ -387,9 +399,10 @@ TEST_F(FilesystemTest, ComplexPathNormalization) {
 }
 
 // 复杂场景：文件操作的错误处理
-TEST_F(FilesystemTest, ComplexFileOperationErrorHandling) {
+TEST_F(FilesystemTest, ComplexFileOperationErrorHandling)
+{
     // 测试不存在的文件操作
-    auto tmp_dir = mc::filesystem::temp_directory_path();
+    auto        tmp_dir      = mc::filesystem::temp_directory_path();
     std::string non_existent = (tmp_dir / "non_existent_file_12345.txt").string();
     EXPECT_FALSE(mc::filesystem::exists(non_existent));
     EXPECT_FALSE(mc::filesystem::is_regular_file(non_existent));
@@ -402,7 +415,7 @@ TEST_F(FilesystemTest, ComplexFileOperationErrorHandling) {
     EXPECT_FALSE(size.has_value());
 
     // 测试目录操作
-    auto tmp_dir_for_dir = mc::filesystem::temp_directory_path();
+    auto        tmp_dir_for_dir  = mc::filesystem::temp_directory_path();
     std::string non_existent_dir = (tmp_dir_for_dir / "non_existent_dir_12345").string();
     auto        files            = mc::filesystem::list_files(non_existent_dir);
     EXPECT_TRUE(files.empty());
@@ -429,7 +442,8 @@ TEST_F(FilesystemTest, ComplexFileOperationErrorHandling) {
 }
 
 // 空间信息与当前路径测试
-TEST_F(FilesystemTest, SpaceAndCurrentPath) {
+TEST_F(FilesystemTest, SpaceAndCurrentPath)
+{
     auto original = mc::filesystem::current_path();
 
     auto space_info = mc::filesystem::space(original);

@@ -16,45 +16,56 @@ namespace mc::runtime {
 
 /* ------------------------ thread_node ----------------------- */
 
-thread_node::thread_node(std::function<void()> func) : m_thread(std::move(func)) {
+thread_node::thread_node(std::function<void()> func)
+    : m_thread(std::move(func))
+{
 }
 
-thread_node::thread_node(thread_node&& other) noexcept : m_thread(std::move(other.m_thread)) {
+thread_node::thread_node(thread_node&& other) noexcept
+    : m_thread(std::move(other.m_thread))
+{
 }
 
-thread_node::~thread_node() {
+thread_node::~thread_node()
+{
     if (m_thread.joinable()) {
         m_thread.join();
     }
 }
 
-bool thread_node::joinable() const {
+bool thread_node::joinable() const
+{
     return m_thread.joinable();
 }
 
-void thread_node::join() {
+void thread_node::join()
+{
     if (m_thread.joinable()) {
         m_thread.join();
     }
 }
 
-std::thread::id thread_node::get_id() const {
+std::thread::id thread_node::get_id() const
+{
     return m_thread.get_id();
 }
 
 /* ------------------------ thread_list ----------------------- */
 
-thread_list::~thread_list() {
+thread_list::~thread_list()
+{
     clear();
 }
 
-void thread_list::start_threads(std::size_t thread_count, std::function<void()> func) {
+void thread_list::start_threads(std::size_t thread_count, std::function<void()> func)
+{
     for (std::size_t i = 0; i < thread_count; ++i) {
         add_thread(func);
     }
 }
 
-void thread_list::start_threads(std::size_t thread_count, std::function<void(std::size_t)> func) {
+void thread_list::start_threads(std::size_t thread_count, std::function<void(std::size_t)> func)
+{
     for (std::size_t i = 0; i < thread_count; ++i) {
         add_thread([func, i]() {
             func(i);
@@ -62,14 +73,16 @@ void thread_list::start_threads(std::size_t thread_count, std::function<void(std
     }
 }
 
-thread_node* thread_list::add_thread(std::function<void()> func) {
+thread_node* thread_list::add_thread(std::function<void()> func)
+{
     // 创建新的线程节点，由 thread_list 完全拥有
     auto* node = new thread_node(std::move(func));
     m_threads.push_back(*node);
     return node;
 }
 
-bool thread_list::remove_thread(thread_node* node) {
+bool thread_list::remove_thread(thread_node* node)
+{
     if (!node) {
         return false;
     }
@@ -97,13 +110,15 @@ bool thread_list::remove_thread(thread_node* node) {
     return true;
 }
 
-void thread_list::join_all() {
+void thread_list::join_all()
+{
     for (auto& node : m_threads) {
         node.join();
     }
 }
 
-void thread_list::clear() {
+void thread_list::clear()
+{
     // 等待所有线程完成并清理
     m_threads.clear_and_dispose([](thread_node* node) {
         // 线程节点的析构函数会处理 join
@@ -111,21 +126,25 @@ void thread_list::clear() {
     });
 }
 
-std::size_t thread_list::get_thread_count() const {
+std::size_t thread_list::get_thread_count() const
+{
     return m_threads.size();
 }
 
-bool thread_list::empty() const {
+bool thread_list::empty() const
+{
     return m_threads.empty();
 }
 
-void thread_list::visit_threads(const std::function<void(thread_node&)>& visitor) {
+void thread_list::visit_threads(const std::function<void(thread_node&)>& visitor)
+{
     for (auto& node : m_threads) {
         visitor(node);
     }
 }
 
-void thread_list::visit_threads(const std::function<void(const thread_node&)>& visitor) const {
+void thread_list::visit_threads(const std::function<void(const thread_node&)>& visitor) const
+{
     for (const auto& node : m_threads) {
         visitor(node);
     }

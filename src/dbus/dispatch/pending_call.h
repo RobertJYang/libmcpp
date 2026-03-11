@@ -39,11 +39,13 @@ public:
     void stop();
     void release();
 
-    bool operator==(const pending_call& other) const {
+    bool operator==(const pending_call& other) const
+    {
         return m_pending_call == other.m_pending_call;
     }
 
-    bool operator!=(const pending_call& other) const {
+    bool operator!=(const pending_call& other) const
+    {
         return m_pending_call != other.m_pending_call;
     }
 

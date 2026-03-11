@@ -31,14 +31,16 @@ using namespace std::chrono_literals;
 namespace {
 class FuturesTest : public mc::test::TestWithRuntime {
 public:
-    mc::runtime::thread_pool& get_io_context() {
+    mc::runtime::thread_pool& get_io_context()
+    {
         return get_runtime().io();
     }
 };
 } // namespace
 
 // 测试 promise 和 future 的基本功能
-TEST_F(FuturesTest, BasicPromiseFuture) {
+TEST_F(FuturesTest, BasicPromiseFuture)
+{
     auto promise = mc::make_promise<int>(get_io_context());
     auto future  = promise.get_future();
 
@@ -47,7 +49,8 @@ TEST_F(FuturesTest, BasicPromiseFuture) {
 }
 
 // 验证阻塞调度线程能继续处理 IO 事件
-TEST_F(FuturesTest, WaitOnWorker) {
+TEST_F(FuturesTest, WaitOnWorker)
+{
     auto& pool = get_io_context();
 
     auto promise = mc::make_promise<int>(pool.get_executor());
@@ -81,7 +84,8 @@ TEST_F(FuturesTest, WaitOnWorker) {
 }
 
 // 测试 catch_error 捕获异常
-TEST_F(FuturesTest, BasicErrorHandling) {
+TEST_F(FuturesTest, BasicErrorHandling)
+{
     auto promise = mc::make_promise<int>(get_io_context());
     auto future  = promise.get_future().then([](int) {
         throw std::runtime_error("测试异常");
@@ -95,7 +99,8 @@ TEST_F(FuturesTest, BasicErrorHandling) {
 }
 
 // 测试 async 执行策略
-TEST_F(FuturesTest, AsyncExecutionPolicy) {
+TEST_F(FuturesTest, AsyncExecutionPolicy)
+{
     auto promise    = mc::make_promise<int>(get_io_context());
     auto start_time = std::chrono::steady_clock::now();
 
@@ -114,7 +119,8 @@ TEST_F(FuturesTest, AsyncExecutionPolicy) {
 }
 
 // 测试延迟执行
-TEST_F(FuturesTest, DeferredExecutionPolicy) {
+TEST_F(FuturesTest, DeferredExecutionPolicy)
+{
     auto promise = mc::make_promise<int>(get_io_context());
 
     auto future = promise.get_future().then([](int value) {
@@ -126,7 +132,8 @@ TEST_F(FuturesTest, DeferredExecutionPolicy) {
 }
 
 // 测试超时（同步）
-TEST_F(FuturesTest, BasicTimeout) {
+TEST_F(FuturesTest, BasicTimeout)
+{
     auto promise = mc::make_promise<int>(get_io_context());
     auto future  = promise.get_future();
 
@@ -134,7 +141,8 @@ TEST_F(FuturesTest, BasicTimeout) {
 }
 
 // 测试链式调用，返回最后一个 future 的值
-TEST_F(FuturesTest, SimpleChain) {
+TEST_F(FuturesTest, SimpleChain)
+{
     auto promise = mc::make_promise<int>(get_io_context());
     auto future  = promise.get_future().then([](int value) {
         return value * 2;
@@ -147,7 +155,8 @@ TEST_F(FuturesTest, SimpleChain) {
 }
 
 // 测试链式调用，允许在 then 中返回 future
-TEST_F(FuturesTest, ChainWithFutureReturn) {
+TEST_F(FuturesTest, ChainWithFutureReturn)
+{
     auto promise = mc::make_promise<int>(get_io_context());
     auto future  = promise.get_future().then([&](int value) {
         if (value == 0) {
@@ -165,7 +174,8 @@ TEST_F(FuturesTest, ChainWithFutureReturn) {
 }
 
 // 测试 catch_error 捕获异常
-TEST_F(FuturesTest, CatchErrorWithException) {
+TEST_F(FuturesTest, CatchErrorWithException)
+{
     int64_t code;
     auto    promise = mc::make_promise<int>(get_io_context());
     auto    future  = promise.get_future().then([](int) {
@@ -182,7 +192,8 @@ TEST_F(FuturesTest, CatchErrorWithException) {
 }
 
 // 测试 catch_error 无返回值
-TEST_F(FuturesTest, CatchErrorWithoutException) {
+TEST_F(FuturesTest, CatchErrorWithoutException)
+{
     auto promise = mc::make_promise<int>(get_io_context());
     auto future  = promise.get_future().then([](int value) {
         return value * 2;
@@ -197,7 +208,8 @@ TEST_F(FuturesTest, CatchErrorWithoutException) {
 }
 
 // 测试 catch_error 无返回值
-TEST_F(FuturesTest, CatchErrorVoidReturnWithException) {
+TEST_F(FuturesTest, CatchErrorVoidReturnWithException)
+{
     auto promise = mc::make_promise<int>(get_io_context());
     bool caught  = false;
 
@@ -213,7 +225,8 @@ TEST_F(FuturesTest, CatchErrorVoidReturnWithException) {
 }
 
 // 测试 catch_error 无返回值
-TEST_F(FuturesTest, CatchErrorVoidReturnWithoutException) {
+TEST_F(FuturesTest, CatchErrorVoidReturnWithoutException)
+{
     auto promise = mc::make_promise<int>(get_io_context());
     bool caught  = false;
 
@@ -229,7 +242,8 @@ TEST_F(FuturesTest, CatchErrorVoidReturnWithoutException) {
 }
 
 // 测试 catch_error 恢复值
-TEST_F(FuturesTest, ErrorRecoveryWithIntValue) {
+TEST_F(FuturesTest, ErrorRecoveryWithIntValue)
+{
     auto promise = mc::make_promise<int>(get_io_context());
     auto future  = promise.get_future().then([](int value) {
         if (value == 0) {
@@ -247,7 +261,8 @@ TEST_F(FuturesTest, ErrorRecoveryWithIntValue) {
 }
 
 // 测试 catch_error 链式调用
-TEST_F(FuturesTest, ErrorRecoveryChain) {
+TEST_F(FuturesTest, ErrorRecoveryChain)
+{
     auto promise = mc::make_promise<int>(get_io_context());
     auto future  = promise.get_future().then([](int value) {
         return value * 2; // 正常情况
@@ -263,7 +278,8 @@ TEST_F(FuturesTest, ErrorRecoveryChain) {
 }
 
 // 测试 promise::set_value 处理 Future 参数（成功和失败）
-TEST_F(FuturesTest, PromiseSetValueFromFuture) {
+TEST_F(FuturesTest, PromiseSetValueFromFuture)
+{
     auto outer_promise = mc::make_promise<int>(get_io_context());
     auto outer_future  = outer_promise.get_future();
 
@@ -289,7 +305,8 @@ TEST_F(FuturesTest, PromiseSetValueFromFuture) {
     EXPECT_THROW(failing_future.get(), std::runtime_error);
 }
 
-TEST_F(FuturesTest, PromiseSetValueFromFutureCannotBeRebound) {
+TEST_F(FuturesTest, PromiseSetValueFromFutureCannotBeRebound)
+{
     auto outer_promise = mc::make_promise<int>(get_io_context());
     auto outer_future  = outer_promise.get_future();
 
@@ -310,7 +327,8 @@ TEST_F(FuturesTest, PromiseSetValueFromFutureCannotBeRebound) {
 }
 
 // 测试 promise::set_value 重复设置触发异常
-TEST_F(FuturesTest, PromiseSetValueAlreadySatisfiedThrows) {
+TEST_F(FuturesTest, PromiseSetValueAlreadySatisfiedThrows)
+{
     auto promise = mc::make_promise<int>(get_io_context());
     auto future  = promise.get_future();
 
@@ -320,7 +338,8 @@ TEST_F(FuturesTest, PromiseSetValueAlreadySatisfiedThrows) {
 }
 
 // 测试 promise 只允许被设置一次值
-TEST_F(FuturesTest, PromiseSetValueConcurrentOnlyOnce) {
+TEST_F(FuturesTest, PromiseSetValueConcurrentOnlyOnce)
+{
     auto promise = mc::make_promise<int>(get_io_context());
     auto future  = promise.get_future();
 
@@ -359,7 +378,8 @@ TEST_F(FuturesTest, PromiseSetValueConcurrentOnlyOnce) {
 }
 
 // 测试 promise::set_exception 重复设置触发异常
-TEST_F(FuturesTest, PromiseSetExceptionAlreadySatisfiedThrows) {
+TEST_F(FuturesTest, PromiseSetExceptionAlreadySatisfiedThrows)
+{
     auto promise = mc::make_promise<int>(get_io_context());
     auto future  = promise.get_future();
 
@@ -370,7 +390,8 @@ TEST_F(FuturesTest, PromiseSetExceptionAlreadySatisfiedThrows) {
 }
 
 // 测试 promise 在取消后忽略 set_value
-TEST_F(FuturesTest, PromiseSetValueIgnoredAfterCancel) {
+TEST_F(FuturesTest, PromiseSetValueIgnoredAfterCancel)
+{
     auto promise = mc::make_promise<int>(get_io_context());
     auto future  = promise.get_future();
 
@@ -382,7 +403,8 @@ TEST_F(FuturesTest, PromiseSetValueIgnoredAfterCancel) {
 }
 
 // 测试 promise 在取消后忽略 set_exception
-TEST_F(FuturesTest, PromiseSetExceptionIgnoredAfterCancel) {
+TEST_F(FuturesTest, PromiseSetExceptionIgnoredAfterCancel)
+{
     auto promise = mc::make_promise<int>(get_io_context());
     auto future  = promise.get_future();
 
@@ -394,7 +416,8 @@ TEST_F(FuturesTest, PromiseSetExceptionIgnoredAfterCancel) {
 }
 
 // 测试 promise::get_future 重复获取触发异常
-TEST_F(FuturesTest, PromiseGetFutureTwiceThrows) {
+TEST_F(FuturesTest, PromiseGetFutureTwiceThrows)
+{
     auto promise = mc::make_promise<int>(get_io_context());
     auto future  = promise.get_future();
     EXPECT_THROW(promise.get_future(), mc::futures::future_already_retrieved);
@@ -403,7 +426,8 @@ TEST_F(FuturesTest, PromiseGetFutureTwiceThrows) {
 }
 
 // 测试 Future::get_for 在结果已就绪时返回正常值
-TEST_F(FuturesTest, FutureGetForReady) {
+TEST_F(FuturesTest, FutureGetForReady)
+{
     auto promise = mc::make_promise<int>(get_io_context());
     auto future  = promise.get_future();
 
@@ -412,7 +436,8 @@ TEST_F(FuturesTest, FutureGetForReady) {
 }
 
 // 测试 Future::wait_for 返回 ready 分支
-TEST_F(FuturesTest, FutureWaitForReadyStatus) {
+TEST_F(FuturesTest, FutureWaitForReadyStatus)
+{
     auto promise = mc::make_promise<int>(get_io_context());
     auto future  = promise.get_future();
 
@@ -422,7 +447,8 @@ TEST_F(FuturesTest, FutureWaitForReadyStatus) {
 }
 
 // 测试 catch_error 在 Future 已完成时直接返回原值
-TEST_F(FuturesTest, FutureCatchErrorOnReadyValue) {
+TEST_F(FuturesTest, FutureCatchErrorOnReadyValue)
+{
     auto promise = mc::make_promise<int>(get_io_context());
     auto future  = promise.get_future();
     promise.set_value(33);
@@ -443,7 +469,8 @@ struct non_std_error {
 } // namespace
 
 // 测试 catch_error 处理未知异常分支
-TEST_F(FuturesTest, FutureCatchErrorHandlesUnknownException) {
+TEST_F(FuturesTest, FutureCatchErrorHandlesUnknownException)
+{
     auto promise = mc::make_promise<int>(get_io_context());
     auto future  = promise.get_future();
 
@@ -472,7 +499,8 @@ TEST_F(FuturesTest, FutureCatchErrorHandlesUnknownException) {
 }
 
 // 测试 then 在已就绪 Future 上使用 dispatch 策略
-TEST_F(FuturesTest, FutureThenDispatchOnReadyState) {
+TEST_F(FuturesTest, FutureThenDispatchOnReadyState)
+{
     auto promise = mc::make_promise<int>(get_io_context());
     auto future  = promise.get_future();
     promise.set_value(5);
@@ -490,7 +518,8 @@ TEST_F(FuturesTest, FutureThenDispatchOnReadyState) {
 }
 
 // 测试 then 在已就绪 Future 上使用 deferred 策略
-TEST_F(FuturesTest, FutureThenDeferredOnReadyState) {
+TEST_F(FuturesTest, FutureThenDeferredOnReadyState)
+{
     auto promise = mc::make_promise<int>(get_io_context());
     auto future  = promise.get_future();
     promise.set_value(8);
@@ -508,7 +537,8 @@ TEST_F(FuturesTest, FutureThenDeferredOnReadyState) {
 }
 
 // 测试 async_get 在已就绪 Future 上使用 dispatch 策略
-TEST_F(FuturesTest, FutureAsyncGetDispatchOnReadyState) {
+TEST_F(FuturesTest, FutureAsyncGetDispatchOnReadyState)
+{
     auto promise = mc::make_promise<int>(get_io_context());
     auto future  = promise.get_future();
     promise.set_value(12);
@@ -524,7 +554,8 @@ TEST_F(FuturesTest, FutureAsyncGetDispatchOnReadyState) {
 }
 
 // 测试 finally 在已就绪 Future 上执行清理回调
-TEST_F(FuturesTest, FutureFinallyOnReadyState) {
+TEST_F(FuturesTest, FutureFinallyOnReadyState)
+{
     auto promise = mc::make_promise<int>(get_io_context());
     auto future  = promise.get_future();
     promise.set_value(20);
@@ -539,7 +570,8 @@ TEST_F(FuturesTest, FutureFinallyOnReadyState) {
 }
 
 // 测试 tap 在已就绪 Future 上检查结果
-TEST_F(FuturesTest, FutureTapOnReadyState) {
+TEST_F(FuturesTest, FutureTapOnReadyState)
+{
     auto promise = mc::make_promise<int>(get_io_context());
     auto future  = promise.get_future();
     promise.set_value(30);
@@ -556,7 +588,8 @@ TEST_F(FuturesTest, FutureTapOnReadyState) {
 }
 
 // 测试 tap_error
-TEST_F(FuturesTest, FutureTapError) {
+TEST_F(FuturesTest, FutureTapError)
+{
     auto promise = mc::make_promise<int>(get_io_context());
     auto future  = promise.get_future();
     promise.set_exception(std::make_exception_ptr(std::runtime_error("test exception")));
@@ -576,7 +609,8 @@ TEST_F(FuturesTest, FutureTapError) {
 }
 
 // 测试 finally，在 future 完成时，调用 finally 函数
-TEST_F(FuturesTest, FinallyWithSuccess) {
+TEST_F(FuturesTest, FinallyWithSuccess)
+{
     bool cleanup_called = false;
 
     auto promise = mc::make_promise<int>(get_io_context());
@@ -592,7 +626,8 @@ TEST_F(FuturesTest, FinallyWithSuccess) {
 }
 
 // 测试 finally，在 future 完成时，调用 finally 函数
-TEST_F(FuturesTest, FinallyWithException) {
+TEST_F(FuturesTest, FinallyWithException)
+{
     bool cleanup_called = false;
 
     auto promise = mc::make_promise<int>(get_io_context());
@@ -610,7 +645,8 @@ TEST_F(FuturesTest, FinallyWithException) {
 }
 
 // 测试 tap，在 future 完成时，调用 tap 函数，但不会影响 future 的值
-TEST_F(FuturesTest, TapWithSuccess) {
+TEST_F(FuturesTest, TapWithSuccess)
+{
     int observed_value = 0;
 
     auto promise = mc::make_promise<int>(get_io_context());
@@ -632,7 +668,8 @@ TEST_F(FuturesTest, TapWithSuccess) {
 }
 
 // 测试 tap，在 future 完成时，调用 tap 函数，但不会影响 future 的值
-TEST_F(FuturesTest, TapWithException) {
+TEST_F(FuturesTest, TapWithException)
+{
     int observed_value = -1;
 
     auto promise = mc::make_promise<int>(get_io_context());
@@ -654,7 +691,8 @@ TEST_F(FuturesTest, TapWithException) {
 }
 
 // 测试 all，所有子 future 完成时，all 完成
-TEST_F(FuturesTest, AllWithSuccess) {
+TEST_F(FuturesTest, AllWithSuccess)
+{
     auto p1 = mc::make_promise<int>(get_io_context());
     auto p2 = mc::make_promise<double>(get_io_context());
     auto p3 = mc::make_promise<std::string>(get_io_context());
@@ -682,7 +720,8 @@ TEST_F(FuturesTest, AllWithSuccess) {
 }
 
 // 任意一个子 future 抛出异常时，all 也会异常
-TEST_F(FuturesTest, AllWithException) {
+TEST_F(FuturesTest, AllWithException)
+{
     auto p1 = mc::make_promise<int>(get_io_context());
     auto p2 = mc::make_promise<double>(get_io_context());
     auto p3 = mc::make_promise<std::string>(get_io_context());
@@ -697,7 +736,8 @@ TEST_F(FuturesTest, AllWithException) {
 }
 
 // 撤销 all 时，子 future 也会被撤销
-TEST_F(FuturesTest, AllCancelPropagation) {
+TEST_F(FuturesTest, AllCancelPropagation)
+{
     // 测试当all返回的future被取消时，子future也被取消
     auto p1 = mc::make_promise<int>(get_io_context());
     auto p2 = mc::make_promise<double>(get_io_context());
@@ -739,7 +779,8 @@ TEST_F(FuturesTest, AllCancelPropagation) {
     EXPECT_TRUE(f3_canceled);
 }
 
-TEST_F(FuturesTest, ContainerAllWithSuccess) {
+TEST_F(FuturesTest, ContainerAllWithSuccess)
+{
     std::vector promises = {
         mc::make_promise<int>(get_io_context()),
         mc::make_promise<int>(get_io_context()),
@@ -762,7 +803,8 @@ TEST_F(FuturesTest, ContainerAllWithSuccess) {
 }
 
 // 任意一个子 future 抛出异常时，all 也会异常
-TEST_F(FuturesTest, ContainerAllWithException) {
+TEST_F(FuturesTest, ContainerAllWithException)
+{
     std::vector promises = {
         mc::make_promise<int>(get_io_context()),
         mc::make_promise<int>(get_io_context()),
@@ -786,7 +828,8 @@ TEST_F(FuturesTest, ContainerAllWithException) {
 }
 
 // 任意一个子 future 取消，all 也会取消
-TEST_F(FuturesTest, ContainerAllWithAnyFutureCancel) {
+TEST_F(FuturesTest, ContainerAllWithAnyFutureCancel)
+{
     std::vector promises = {
         mc::make_promise<int>(get_io_context()),
         mc::make_promise<int>(get_io_context()),
@@ -810,7 +853,8 @@ TEST_F(FuturesTest, ContainerAllWithAnyFutureCancel) {
     EXPECT_EQ(futures[2].is_cancelled(), true); // 第三个因为第二个取消而取消
 }
 
-TEST_F(FuturesTest, ContainerAllWithResultFutureCancel) {
+TEST_F(FuturesTest, ContainerAllWithResultFutureCancel)
+{
     std::vector promises = {
         mc::make_promise<int>(get_io_context()),
         mc::make_promise<int>(get_io_context()),
@@ -836,7 +880,8 @@ TEST_F(FuturesTest, ContainerAllWithResultFutureCancel) {
 }
 
 // 测试 any，任何一个 future 完成时，any 完成
-TEST_F(FuturesTest, AnyWithSuccess) {
+TEST_F(FuturesTest, AnyWithSuccess)
+{
     auto p1 = mc::make_promise<int>(get_io_context());
     auto p2 = mc::make_promise<double>(get_io_context());
     auto p3 = mc::make_promise<std::string>(get_io_context());
@@ -852,7 +897,8 @@ TEST_F(FuturesTest, AnyWithSuccess) {
 }
 
 // 测试当any返回的future被取消时，子future也被取消
-TEST_F(FuturesTest, AnyCancelPropagation) {
+TEST_F(FuturesTest, AnyCancelPropagation)
+{
     auto p1 = mc::make_promise<int>(get_io_context());
     auto p2 = mc::make_promise<double>(get_io_context());
     auto p3 = mc::make_promise<std::string>(get_io_context());
@@ -894,7 +940,8 @@ TEST_F(FuturesTest, AnyCancelPropagation) {
 }
 
 // 测试当any的所有子future都被取消时，any也被取消
-TEST_F(FuturesTest, AnyAllChildrenCanceled) {
+TEST_F(FuturesTest, AnyAllChildrenCanceled)
+{
     auto p1 = mc::make_promise<int>(get_io_context());
     auto p2 = mc::make_promise<double>(get_io_context());
     auto p3 = mc::make_promise<std::string>(get_io_context());
@@ -919,7 +966,8 @@ TEST_F(FuturesTest, AnyAllChildrenCanceled) {
 }
 
 // 测试 resolve
-TEST_F(FuturesTest, MakeReadyFuture) {
+TEST_F(FuturesTest, MakeReadyFuture)
+{
     auto f1 = mc::resolve(42, get_io_context());
     auto f2 = mc::resolve(3.14, get_io_context());
 
@@ -934,7 +982,8 @@ TEST_F(FuturesTest, MakeReadyFuture) {
 }
 
 // 测试 reject
-TEST_F(FuturesTest, MakeExceptionalFuture) {
+TEST_F(FuturesTest, MakeExceptionalFuture)
+{
     // 1. 使用异常指针构造 reject future
     auto ex = std::make_exception_ptr(std::runtime_error("测试异常"));
     auto f1 = mc::reject<int>(ex, get_io_context());
@@ -949,7 +998,8 @@ TEST_F(FuturesTest, MakeExceptionalFuture) {
 }
 
 // 测试为 future 添加超时
-TEST_F(FuturesTest, TimeoutFunctionSuccess) {
+TEST_F(FuturesTest, TimeoutFunctionSuccess)
+{
     auto promise = mc::make_promise<int>(get_io_context());
     auto future  = mc::timeout(promise.get_future(), 100ms, get_io_context());
 
@@ -959,7 +1009,8 @@ TEST_F(FuturesTest, TimeoutFunctionSuccess) {
 }
 
 // 测试为 future 添加超时
-TEST_F(FuturesTest, TimeoutFunctionTimeout) {
+TEST_F(FuturesTest, TimeoutFunctionTimeout)
+{
     auto promise = mc::make_promise<int>(get_io_context());
     auto future  = mc::timeout(promise.get_future(), 50ms, get_io_context());
 
@@ -968,7 +1019,8 @@ TEST_F(FuturesTest, TimeoutFunctionTimeout) {
 }
 
 // 测试当 result_future 被取消时，内部定时器被正确取消
-TEST_F(FuturesTest, TimeoutFunctionCancelOnResultFutureCancel) {
+TEST_F(FuturesTest, TimeoutFunctionCancelOnResultFutureCancel)
+{
     auto promise = mc::make_promise<int>(get_io_context());
     auto future  = mc::timeout(promise.get_future(), 1000ms, get_io_context()); // 长超时
 
@@ -980,7 +1032,8 @@ TEST_F(FuturesTest, TimeoutFunctionCancelOnResultFutureCancel) {
 }
 
 // 测试当原始 future 在创建timeout前被取消时的行为
-TEST_F(FuturesTest, TimeoutFunctionCancelOnOriginalPromiseCancel) {
+TEST_F(FuturesTest, TimeoutFunctionCancelOnOriginalPromiseCancel)
+{
     auto promise         = mc::make_promise<int>(get_io_context());
     auto original_future = promise.get_future();
 
@@ -993,7 +1046,8 @@ TEST_F(FuturesTest, TimeoutFunctionCancelOnOriginalPromiseCancel) {
 }
 
 // 测试当原始 promise 在创建timeout后被取消时的行为
-TEST_F(FuturesTest, TimeoutFunctionCancelOnPromiseAfterTimeout) {
+TEST_F(FuturesTest, TimeoutFunctionCancelOnPromiseAfterTimeout)
+{
     auto promise         = mc::make_promise<int>(get_io_context());
     auto original_future = promise.get_future();
 
@@ -1006,7 +1060,8 @@ TEST_F(FuturesTest, TimeoutFunctionCancelOnPromiseAfterTimeout) {
 }
 
 // 测试传入已经cancelled的future时的优化行为
-TEST_F(FuturesTest, TimeoutFunctionWithAlreadyCancelledFuture) {
+TEST_F(FuturesTest, TimeoutFunctionWithAlreadyCancelledFuture)
+{
     auto promise = mc::make_promise<int>(get_io_context());
     auto future  = promise.get_future();
 
@@ -1021,7 +1076,8 @@ TEST_F(FuturesTest, TimeoutFunctionWithAlreadyCancelledFuture) {
 }
 
 // 测试使用 mc::runtime::steady_timer 延时执行
-TEST_F(FuturesTest, DelayedExecution) {
+TEST_F(FuturesTest, DelayedExecution)
+{
     auto start_time = std::chrono::steady_clock::now();
 
     auto promise = mc::make_promise<int>(get_io_context());
@@ -1041,7 +1097,8 @@ TEST_F(FuturesTest, DelayedExecution) {
 }
 
 // 测试使用 mc::delay 延时执行
-TEST_F(FuturesTest, DelayedFuture) {
+TEST_F(FuturesTest, DelayedFuture)
+{
     auto start_time = std::chrono::steady_clock::now();
 
     auto future = mc::delay(1ms, get_io_context()).then([]() {
@@ -1057,14 +1114,16 @@ TEST_F(FuturesTest, DelayedFuture) {
 // === 取消测试 ===
 
 // 测试取消延时执行的 future
-TEST_F(FuturesTest, CancelDelayedFuture) {
+TEST_F(FuturesTest, CancelDelayedFuture)
+{
     auto delayed_future = mc::delay(1000ms, get_io_context());
     delayed_future.cancel();
     EXPECT_THROW(delayed_future.get(), mc::canceled_exception);
 }
 
 // 测试取消延时执行的链式调用
-TEST_F(FuturesTest, CancelChainedFuture) {
+TEST_F(FuturesTest, CancelChainedFuture)
+{
     auto promise = mc::make_promise<int>(get_io_context());
     auto future  = promise.get_future().then([](int value) {
         return value * 2;
@@ -1076,7 +1135,8 @@ TEST_F(FuturesTest, CancelChainedFuture) {
 }
 
 // 测试取消延时执行的回调，并验证 cancel 回调是否被调用
-TEST_F(FuturesTest, CancelCallbackExecution) {
+TEST_F(FuturesTest, CancelCallbackExecution)
+{
     bool callback_called = false;
     auto delayed_future  = mc::delay(100ms, get_io_context());
 
@@ -1090,7 +1150,8 @@ TEST_F(FuturesTest, CancelCallbackExecution) {
 }
 
 // 测试嵌套调用 cancel 回调
-TEST_F(FuturesTest, CancelCallbackNested) {
+TEST_F(FuturesTest, CancelCallbackNested)
+{
     std::vector<int> call_order;
     auto             delayed_future = mc::delay(100ms, get_io_context());
 
@@ -1109,13 +1170,15 @@ TEST_F(FuturesTest, CancelCallbackNested) {
     EXPECT_EQ(call_order[1], 2);
 }
 
-TEST_F(FuturesTest, CanceledException) {
+TEST_F(FuturesTest, CanceledException)
+{
     auto delayed_future = mc::delay(1000ms, get_io_context());
     delayed_future.cancel();
     EXPECT_THROW(delayed_future.get(), mc::canceled_exception);
 }
 
-TEST_F(FuturesTest, TimeoutException) {
+TEST_F(FuturesTest, TimeoutException)
+{
     auto promise        = mc::make_promise<int>(get_io_context());
     auto future         = promise.get_future();
     auto timeout_future = mc::timeout(std::move(future), 50ms, get_io_context());
@@ -1123,7 +1186,8 @@ TEST_F(FuturesTest, TimeoutException) {
     EXPECT_THROW(timeout_future.get(), mc::timeout_exception);
 }
 
-TEST_F(FuturesTest, ExceptionInfoPreservationInCatchError) {
+TEST_F(FuturesTest, ExceptionInfoPreservationInCatchError)
+{
     mc::exception_ptr ex;
 
     auto promise = mc::make_promise<int>(get_io_context());
@@ -1144,7 +1208,8 @@ TEST_F(FuturesTest, ExceptionInfoPreservationInCatchError) {
     EXPECT_EQ(result, mc::timeout_exception_code);
 }
 
-TEST_F(FuturesTest, CancelExceptionHandling) {
+TEST_F(FuturesTest, CancelExceptionHandling)
+{
     auto promise      = mc::make_promise<int>(get_io_context());
     bool error_called = false;
     auto future       = promise.get_future().then([](int value) -> int {
@@ -1163,7 +1228,8 @@ TEST_F(FuturesTest, CancelExceptionHandling) {
     EXPECT_FALSE(error_called);
 }
 
-TEST_F(FuturesTest, StdExceptionHandling) {
+TEST_F(FuturesTest, StdExceptionHandling)
+{
     mc::exception_ptr ex;
 
     auto promise = mc::make_promise<int>(get_io_context());
@@ -1183,7 +1249,8 @@ TEST_F(FuturesTest, StdExceptionHandling) {
     EXPECT_EQ(result, -2);
 }
 
-TEST_F(FuturesTest, AnyFirstSuccessCancel) {
+TEST_F(FuturesTest, AnyFirstSuccessCancel)
+{
     // 测试any中第一个成功时，其他future被取消
     auto p1 = mc::make_promise<int>(get_io_context());
     auto p2 = mc::make_promise<double>(get_io_context());
@@ -1221,7 +1288,8 @@ TEST_F(FuturesTest, AnyFirstSuccessCancel) {
     EXPECT_TRUE(f3_canceled);
 }
 
-TEST_F(FuturesTest, AllOneChildCancelPropagation) {
+TEST_F(FuturesTest, AllOneChildCancelPropagation)
+{
     // 测试all中一个子future被取消时，其他也被取消
     auto p1 = mc::make_promise<int>(get_io_context());
     auto p2 = mc::make_promise<double>(get_io_context());
@@ -1262,7 +1330,8 @@ TEST_F(FuturesTest, AllOneChildCancelPropagation) {
     EXPECT_FALSE(f2_canceled);
 }
 
-TEST_F(FuturesTest, AnySuccessAfterSomeCanceled) {
+TEST_F(FuturesTest, AnySuccessAfterSomeCanceled)
+{
     // 测试any中部分future被取消，但仍有成功的情况
     auto p1 = mc::make_promise<int>(get_io_context());
     auto p2 = mc::make_promise<double>(get_io_context());
@@ -1287,7 +1356,8 @@ TEST_F(FuturesTest, AnySuccessAfterSomeCanceled) {
 }
 
 // 测试部分成功后异常的情况
-TEST_F(FuturesTest, AllPartialSuccessThenException) {
+TEST_F(FuturesTest, AllPartialSuccessThenException)
+{
     auto p1 = mc::make_promise<int>(get_io_context());
     auto p2 = mc::make_promise<double>(get_io_context());
     auto p3 = mc::make_promise<std::string>(get_io_context());
@@ -1305,7 +1375,8 @@ TEST_F(FuturesTest, AllPartialSuccessThenException) {
 }
 
 // 测试多个异常同时发生时保留第一个异常
-TEST_F(FuturesTest, AllMultipleSimultaneousExceptions) {
+TEST_F(FuturesTest, AllMultipleSimultaneousExceptions)
+{
     auto p1 = mc::make_promise<int>(get_io_context());
     auto p2 = mc::make_promise<double>(get_io_context());
     auto p3 = mc::make_promise<std::string>(get_io_context());
@@ -1325,7 +1396,8 @@ TEST_F(FuturesTest, AllMultipleSimultaneousExceptions) {
 }
 
 // 测试异常和取消混合的情况
-TEST_F(FuturesTest, AllMixedExceptionAndCancel) {
+TEST_F(FuturesTest, AllMixedExceptionAndCancel)
+{
     auto p1 = mc::make_promise<int>(get_io_context());
     auto p2 = mc::make_promise<double>(get_io_context());
     auto p3 = mc::make_promise<std::string>(get_io_context());
@@ -1347,7 +1419,8 @@ TEST_F(FuturesTest, AllMixedExceptionAndCancel) {
 }
 
 // 测试 deferred 执行策略
-TEST_F(FuturesTest, AllWithDeferredExecution) {
+TEST_F(FuturesTest, AllWithDeferredExecution)
+{
     auto p1 = mc::make_promise<int>(get_io_context());
     auto p2 = mc::make_promise<double>(get_io_context());
 
@@ -1369,7 +1442,8 @@ TEST_F(FuturesTest, AllWithDeferredExecution) {
 }
 
 // 测试部分异常后成功的情况
-TEST_F(FuturesTest, AnySuccessAfterSomeExceptions) {
+TEST_F(FuturesTest, AnySuccessAfterSomeExceptions)
+{
     auto p1 = mc::make_promise<int>(get_io_context());
     auto p2 = mc::make_promise<double>(get_io_context());
     auto p3 = mc::make_promise<std::string>(get_io_context());
@@ -1390,7 +1464,8 @@ TEST_F(FuturesTest, AnySuccessAfterSomeExceptions) {
 }
 
 // 测试多种异常混合的情况
-TEST_F(FuturesTest, AnyWithMixedExceptions) {
+TEST_F(FuturesTest, AnyWithMixedExceptions)
+{
     auto p1 = mc::make_promise<int>(get_io_context());
     auto p2 = mc::make_promise<double>(get_io_context());
     auto p3 = mc::make_promise<std::string>(get_io_context());
@@ -1416,7 +1491,8 @@ TEST_F(FuturesTest, AnyWithMixedExceptions) {
 }
 
 // 测试容器版本的 any
-TEST_F(FuturesTest, ContainerAnyWithSuccess) {
+TEST_F(FuturesTest, ContainerAnyWithSuccess)
+{
     std::vector promises = {
         mc::make_promise<int>(get_io_context()),
         mc::make_promise<int>(get_io_context()),
@@ -1443,7 +1519,8 @@ TEST_F(FuturesTest, ContainerAnyWithSuccess) {
 }
 
 // 测试 deferred 执行策略
-TEST_F(FuturesTest, AnyWithDeferredExecution) {
+TEST_F(FuturesTest, AnyWithDeferredExecution)
+{
     auto p1 = mc::make_promise<int>(get_io_context());
     auto p2 = mc::make_promise<double>(get_io_context());
 
@@ -1473,7 +1550,8 @@ TEST_F(FuturesTest, AnyWithDeferredExecution) {
     EXPECT_TRUE(f1_canceled); // 任何一个成功都会取消其他未完成的 future
 }
 
-TEST_F(FuturesTest, CancelWithCacheError) {
+TEST_F(FuturesTest, CancelWithCacheError)
+{
     bool catch_error_called = false;
 
     auto promise = mc::make_promise<int>(get_io_context());
@@ -1490,7 +1568,8 @@ TEST_F(FuturesTest, CancelWithCacheError) {
     EXPECT_FALSE(catch_error_called);
 }
 
-TEST_F(FuturesTest, OnCancelAfterReadyDoesNotRetainOtherState) {
+TEST_F(FuturesTest, OnCancelAfterReadyDoesNotRetainOtherState)
+{
     auto& pool = mc::futures::state_pool::instance();
     pool.clear_all_pools();
 
@@ -1522,7 +1601,8 @@ TEST_F(FuturesTest, OnCancelAfterReadyDoesNotRetainOtherState) {
 }
 
 // 测试取消链式 future，会传递取消动作到所有 future
-TEST_F(FuturesTest, CancelChainedNested) {
+TEST_F(FuturesTest, CancelChainedNested)
+{
     bool nested_canceled0 = false;
     bool nested_canceled1 = false;
     bool nested_canceled2 = false;
@@ -1571,7 +1651,8 @@ TEST_F(FuturesTest, CancelChainedNested) {
 }
 
 // 测试取消内部 future，会传递取消动作到外部 future
-TEST_F(FuturesTest, CancelInnerFuture) {
+TEST_F(FuturesTest, CancelInnerFuture)
+{
     bool inner_canceled1 = false;
     bool inner_canceled2 = false;
 
@@ -1602,7 +1683,8 @@ TEST_F(FuturesTest, CancelInnerFuture) {
 }
 
 // 测试 callback_list 和 callback_pool 的功能
-TEST_F(FuturesTest, CallbackListBasicOperations) {
+TEST_F(FuturesTest, CallbackListBasicOperations)
+{
     mc::futures::callback_list list;
 
     // 测试 empty() 方法
@@ -1626,7 +1708,8 @@ TEST_F(FuturesTest, CallbackListBasicOperations) {
 }
 
 // 测试 callback_list 的 clear 方法
-TEST_F(FuturesTest, CallbackListClear) {
+TEST_F(FuturesTest, CallbackListClear)
+{
     mc::futures::callback_list list;
 
     int counter = 0;
@@ -1646,7 +1729,8 @@ TEST_F(FuturesTest, CallbackListClear) {
 }
 
 // 测试 callback_list 的 swap 方法
-TEST_F(FuturesTest, CallbackListSwap) {
+TEST_F(FuturesTest, CallbackListSwap)
+{
     mc::futures::callback_list list1;
     mc::futures::callback_list list2;
 
@@ -1675,18 +1759,21 @@ TEST_F(FuturesTest, CallbackListSwap) {
 
 // 使用独立的 callback_pool 单例进行测试，避免其他测试用例影响
 struct callback_pool_tag {};
-auto& get_test_callback_pool() {
+auto& get_test_callback_pool()
+{
     return mc::futures::callback_pool::instance(callback_pool_tag{});
 }
 
 class test_callback_list {
 public:
-    void push_back(std::function<void()> callback) {
+    void push_back(std::function<void()> callback)
+    {
         auto node = get_test_callback_pool().acquire_node(std::move(callback));
         m_callbacks.emplace_back(std::move(node));
     }
 
-    void execute_and_clear() {
+    void execute_and_clear()
+    {
         while (!m_callbacks.empty()) {
             auto node = std::move(m_callbacks.front());
             m_callbacks.pop_front();
@@ -1701,7 +1788,8 @@ private:
 };
 
 // 测试 callback_pool 的 get_stats 方法
-TEST_F(FuturesTest, CallbackPoolGetStats) {
+TEST_F(FuturesTest, CallbackPoolGetStats)
+{
     auto& pool = get_test_callback_pool();
     pool.clear();
 
@@ -1723,7 +1811,8 @@ TEST_F(FuturesTest, CallbackPoolGetStats) {
 }
 
 // 测试 callback_pool 的 set_max_pool_size 方法
-TEST_F(FuturesTest, CallbackPoolSetMaxPoolSize) {
+TEST_F(FuturesTest, CallbackPoolSetMaxPoolSize)
+{
     auto& pool = get_test_callback_pool();
 
     // 设置较小的最大池大小
@@ -1756,7 +1845,8 @@ TEST_F(FuturesTest, CallbackPoolSetMaxPoolSize) {
 }
 
 // 测试 callback_pool 的 clear 方法
-TEST_F(FuturesTest, CallbackPoolClear) {
+TEST_F(FuturesTest, CallbackPoolClear)
+{
     auto& pool = get_test_callback_pool();
 
     // 创建一些节点并释放到池中
@@ -1780,7 +1870,8 @@ TEST_F(FuturesTest, CallbackPoolClear) {
 }
 
 // 测试 callback_pool::release_node 中 node 为 nullptr 的分支
-TEST_F(FuturesTest, CallbackPoolReleaseNullptr) {
+TEST_F(FuturesTest, CallbackPoolReleaseNullptr)
+{
     auto& pool = get_test_callback_pool();
 
     // 释放 nullptr 节点应该安全返回
@@ -1793,7 +1884,8 @@ TEST_F(FuturesTest, CallbackPoolReleaseNullptr) {
 }
 
 // 测试 callback_pool::release_node 中池大小达到最大值的分支
-TEST_F(FuturesTest, CallbackPoolReleaseNodeMaxSize) {
+TEST_F(FuturesTest, CallbackPoolReleaseNodeMaxSize)
+{
     auto& pool = get_test_callback_pool();
 
     // 设置较小的最大池大小
@@ -1824,7 +1916,8 @@ TEST_F(FuturesTest, CallbackPoolReleaseNodeMaxSize) {
 }
 
 // 测试 callback_pool::acquire_node 复用池中节点的分支
-TEST_F(FuturesTest, CallbackPoolAcquireReuseNode) {
+TEST_F(FuturesTest, CallbackPoolAcquireReuseNode)
+{
     auto& pool = get_test_callback_pool();
 
     // 重置池状态并设置较小的最大容量，便于观察变化
@@ -1861,7 +1954,8 @@ TEST_F(FuturesTest, CallbackPoolAcquireReuseNode) {
 }
 
 // 测试 safe_invoke 的异常处理分支
-TEST_F(FuturesTest, SafeInvokeExceptionHandling) {
+TEST_F(FuturesTest, SafeInvokeExceptionHandling)
+{
     bool exception_thrown = false;
 
     // 测试抛出异常的 callback
@@ -1882,7 +1976,8 @@ TEST_F(FuturesTest, SafeInvokeExceptionHandling) {
 }
 
 // 测试 callback_list 的移动语义
-TEST_F(FuturesTest, CallbackListMoveSemantics) {
+TEST_F(FuturesTest, CallbackListMoveSemantics)
+{
     mc::futures::callback_list list1;
 
     int counter = 0;
@@ -1913,7 +2008,8 @@ TEST_F(FuturesTest, CallbackListMoveSemantics) {
 }
 
 // 测试 catch_error 从嵌套 future 中捕获异常
-TEST_F(FuturesTest, CatchErrorFromNestedFuture) {
+TEST_F(FuturesTest, CatchErrorFromNestedFuture)
+{
     auto promise = mc::make_promise<int>(get_io_context());
     auto future  = promise.get_future();
 
@@ -1938,7 +2034,8 @@ TEST_F(FuturesTest, CatchErrorFromNestedFuture) {
 }
 
 // 测试异常类的拷贝/移动/动态方法
-TEST_F(FuturesTest, FuturesExceptionCopyAndRethrow) {
+TEST_F(FuturesTest, FuturesExceptionCopyAndRethrow)
+{
     // 手动构造 future_already_retrieved 异常
     {
         // 使用 MC_MAKE_EXCEPTION 构造异常
@@ -2015,7 +2112,8 @@ TEST_F(FuturesTest, FuturesExceptionCopyAndRethrow) {
 }
 
 // 压力测试：临时 future 链在高频创建/销毁下 future 链生命周期是否正确
-TEST_F(FuturesTest, stress_temporary_then_chain) {
+TEST_F(FuturesTest, stress_temporary_then_chain)
+{
     for (int i = 0; i < 500; ++i) {
         auto p = mc::make_promise<int>(get_io_context());
 
@@ -2039,7 +2137,8 @@ TEST_F(FuturesTest, stress_temporary_then_chain) {
 }
 
 // 压力测试：all 结合内联临时 then，不持有外层 future 的情况下 future 链生命周期是否正确
-TEST_F(FuturesTest, stress_all_with_inline_temporaries) {
+TEST_F(FuturesTest, stress_all_with_inline_temporaries)
+{
     for (int i = 0; i < 300; ++i) {
         auto p1 = mc::make_promise<int>(get_io_context());
         auto p2 = mc::make_promise<double>(get_io_context());
@@ -2068,7 +2167,8 @@ TEST_F(FuturesTest, stress_all_with_inline_temporaries) {
 }
 
 // 压力测试：any 结合内联临时 then，不持有外层 future 的情况下 future 链生命周期是否正确
-TEST_F(FuturesTest, stress_any_with_inline_temporaries) {
+TEST_F(FuturesTest, stress_any_with_inline_temporaries)
+{
     for (int i = 0; i < 300; ++i) {
         auto p1 = mc::make_promise<int>(get_io_context());
         auto p2 = mc::make_promise<double>(get_io_context());
@@ -2091,7 +2191,8 @@ TEST_F(FuturesTest, stress_any_with_inline_temporaries) {
 }
 
 // 测试 as_future 相同类型转换（应该直接返回，不进行转换）
-TEST_F(FuturesTest, AsFutureSameType) {
+TEST_F(FuturesTest, AsFutureSameType)
+{
     auto promise = mc::make_promise<int>(get_io_context());
     auto future  = promise.get_future();
 
@@ -2105,7 +2206,8 @@ TEST_F(FuturesTest, AsFutureSameType) {
 }
 
 // 测试 as_future 转换为 void
-TEST_F(FuturesTest, AsFutureToVoid) {
+TEST_F(FuturesTest, AsFutureToVoid)
+{
     auto promise = mc::make_promise<int>(get_io_context());
     auto future  = promise.get_future();
 
@@ -2119,7 +2221,8 @@ TEST_F(FuturesTest, AsFutureToVoid) {
 }
 
 // 测试 as_future 从 void 转换为其他类型
-TEST_F(FuturesTest, AsFutureFromVoid) {
+TEST_F(FuturesTest, AsFutureFromVoid)
+{
     auto promise = mc::make_promise<void>(get_io_context());
     auto future  = promise.get_future();
 
@@ -2132,7 +2235,8 @@ TEST_F(FuturesTest, AsFutureFromVoid) {
 }
 
 // 测试 as_future 转换为 std::monostate
-TEST_F(FuturesTest, AsFutureToMonostate) {
+TEST_F(FuturesTest, AsFutureToMonostate)
+{
     auto promise = mc::make_promise<int>(get_io_context());
     auto future  = promise.get_future();
 
@@ -2144,7 +2248,8 @@ TEST_F(FuturesTest, AsFutureToMonostate) {
 }
 
 // 测试 as_future 不同类型之间的转换（int 转 double）
-TEST_F(FuturesTest, AsFutureIntToDouble) {
+TEST_F(FuturesTest, AsFutureIntToDouble)
+{
     auto promise = mc::make_promise<int>(get_io_context());
     auto future  = promise.get_future();
 
@@ -2157,7 +2262,8 @@ TEST_F(FuturesTest, AsFutureIntToDouble) {
 }
 
 // 测试 as_future 不同类型之间的转换（double 转 int）
-TEST_F(FuturesTest, AsFutureDoubleToInt) {
+TEST_F(FuturesTest, AsFutureDoubleToInt)
+{
     auto promise = mc::make_promise<double>(get_io_context());
     auto future  = promise.get_future();
 
@@ -2170,7 +2276,8 @@ TEST_F(FuturesTest, AsFutureDoubleToInt) {
 }
 
 // 测试 as_future 不同类型之间的转换（long 转 int）
-TEST_F(FuturesTest, AsFutureLongToInt) {
+TEST_F(FuturesTest, AsFutureLongToInt)
+{
     auto promise = mc::make_promise<long>(get_io_context());
     auto future  = promise.get_future();
 
@@ -2183,7 +2290,8 @@ TEST_F(FuturesTest, AsFutureLongToInt) {
 }
 
 // 测试 as_future 链式转换
-TEST_F(FuturesTest, AsFutureChainedConversion) {
+TEST_F(FuturesTest, AsFutureChainedConversion)
+{
     auto promise = mc::make_promise<int>(get_io_context());
     auto future  = promise.get_future();
 
@@ -2196,7 +2304,8 @@ TEST_F(FuturesTest, AsFutureChainedConversion) {
 }
 
 // 测试 as_future 在异常情况下的行为
-TEST_F(FuturesTest, AsFutureWithException) {
+TEST_F(FuturesTest, AsFutureWithException)
+{
     auto promise = mc::make_promise<int>(get_io_context());
     auto future  = promise.get_future();
 
@@ -2209,7 +2318,8 @@ TEST_F(FuturesTest, AsFutureWithException) {
 }
 
 // 测试 as_future 使用自定义执行器
-TEST_F(FuturesTest, AsFutureWithCustomExecutor) {
+TEST_F(FuturesTest, AsFutureWithCustomExecutor)
+{
     auto promise = mc::make_promise<int>(get_io_context());
     auto future  = promise.get_future();
 
@@ -2222,7 +2332,8 @@ TEST_F(FuturesTest, AsFutureWithCustomExecutor) {
 }
 
 // 测试空状态（默认构造）的 future 行为
-TEST_F(FuturesTest, test_default_constructed_empty_state) {
+TEST_F(FuturesTest, test_default_constructed_empty_state)
+{
     // 测试默认构造的 future（空状态）
     mc::future<int> empty_future;
     EXPECT_FALSE(empty_future.valid());
@@ -2249,7 +2360,8 @@ TEST_F(FuturesTest, test_default_constructed_empty_state) {
 }
 
 // 测试空状态的链式操作
-TEST_F(FuturesTest, test_empty_state_chaining) {
+TEST_F(FuturesTest, test_empty_state_chaining)
+{
     mc::future<int> empty_future;
 
     // 空状态下的 then 操作会返回一个 rejected 的 future
@@ -2292,7 +2404,8 @@ TEST_F(FuturesTest, test_empty_state_chaining) {
 }
 
 // 测试空状态的移动操作
-TEST_F(FuturesTest, test_empty_state_move_operations) {
+TEST_F(FuturesTest, test_empty_state_move_operations)
+{
     mc::future<int> empty_future1;
     mc::future<int> empty_future2(std::move(empty_future1));
 
@@ -2312,7 +2425,8 @@ TEST_F(FuturesTest, test_empty_state_move_operations) {
 }
 
 // 测试空状态转换为其他类型
-TEST_F(FuturesTest, test_empty_state_type_conversion) {
+TEST_F(FuturesTest, test_empty_state_type_conversion)
+{
     mc::future<int> empty_future;
 
     // 空状态下转换为其他类型的 future 会调用 then，而 then 在空状态下会返回一个 rejected 的 future

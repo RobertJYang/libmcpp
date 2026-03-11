@@ -42,26 +42,32 @@ enum class parser_error {
 };
 
 struct parser_result {
-    constexpr parser_result(const char* start) : start_ptr(start) {
+    constexpr parser_result(const char* start)
+        : start_ptr(start)
+    {
     }
 
-    static constexpr parser_result failed(const char*& ptr, parser_error err, size_t skip_chars = 1) {
+    static constexpr parser_result failed(const char*& ptr, parser_error err, size_t skip_chars = 1)
+    {
         parser_result result(ptr);
         ptr += skip_chars;
         result.error(err, ptr);
         return result;
     }
 
-    constexpr bool has_error() const {
+    constexpr bool has_error() const
+    {
         return err != parser_error::success;
     }
 
-    constexpr void success(const char* next) {
+    constexpr void success(const char* next)
+    {
         next_ptr = next;
         err      = parser_error::success;
     }
 
-    constexpr void error(parser_error e, const char* current = nullptr) {
+    constexpr void error(parser_error e, const char* current = nullptr)
+    {
         if (current != nullptr) {
             text     = string_view(start_ptr, current - start_ptr);
             next_ptr = (current > start_ptr) ? current : (start_ptr + 1);
@@ -82,7 +88,8 @@ struct parser_result {
 // 查找匹配的 '}' 位置，正确处理嵌套的 {}
 // 从当前位置开始查找，返回指向匹配 '}' 的下一个位置的指针
 template <typename Context>
-constexpr const char* to_next_brace(parser_result& result, Context& ctx, const char* ptr, const char* end) {
+constexpr const char* to_next_brace(parser_result& result, Context& ctx, const char* ptr, const char* end)
+{
     int brace_count = 1; // 我们已经在一个 { 内部
 
     while (ptr < end && brace_count > 0) {
@@ -106,7 +113,8 @@ constexpr const char* to_next_brace(parser_result& result, Context& ctx, const c
 // 解析 { 和 } 之间的内容，提取参数名/索引和格式说明符
 template <typename Context>
 constexpr parser_result parse_placeholder_content(Context& ctx, const char* ptr, const char* end,
-                                                  std::string_view& content, const char*& format_start) {
+                                                  std::string_view& content, const char*& format_start)
+{
     parser_result result(ptr);
     if (ptr >= end || *ptr != '{') {
         result.error(parser_error::invalid_brace_arg);
@@ -149,7 +157,8 @@ constexpr parser_result parse_placeholder_content(Context& ctx, const char* ptr,
 // 返回占位符后的第一个字符的指针和占位符的内容
 template <typename Context>
 constexpr parser_result parse_named_placeholder(
-    Context& ctx, const char* ptr, const char* end, string_view& name, const char*& format_start) {
+    Context& ctx, const char* ptr, const char* end, string_view& name, const char*& format_start)
+{
     const char*   original_ptr = ptr; // 保存原始指针，包含 $
     parser_result result(ptr);
     if (ptr >= end || *ptr != '$') {
@@ -181,7 +190,8 @@ constexpr parser_result parse_named_placeholder(
 }
 
 // 检查字符串是否为纯数字
-constexpr bool is_numeric_string(std::string_view str) {
+constexpr bool is_numeric_string(std::string_view str)
+{
     if (str.empty()) {
         return true; // 空字符串算作数字（自增索引）
     }
@@ -195,7 +205,8 @@ constexpr bool is_numeric_string(std::string_view str) {
 }
 
 template <typename Context>
-constexpr size_t parse_index(Context& ctx, string_view index_str) {
+constexpr size_t parse_index(Context& ctx, string_view index_str)
+{
     size_t index = 0;
     for (char c : index_str) {
         index = index * 10 + (c - '0');
@@ -207,7 +218,8 @@ constexpr size_t parse_index(Context& ctx, string_view index_str) {
 // {}, {123}, {name} 等格式
 template <typename Context>
 constexpr parser_result parse_smart_placeholder(Context& ctx, const char* ptr, const char* end,
-                                                size_t& index, std::string_view& name, const char*& format_start) {
+                                                size_t& index, std::string_view& name, const char*& format_start)
+{
     std::string_view content;
     parser_result    result = parse_placeholder_content(ctx, ptr, end, content, format_start);
     if (result.has_error()) {
@@ -241,13 +253,15 @@ constexpr parser_result parse_smart_placeholder(Context& ctx, const char* ptr, c
 // 保持向后兼容的 parse_index_placeholder 函数
 template <typename Context>
 constexpr parser_result parse_index_placeholder(Context& ctx, const char* ptr, const char* end,
-                                                size_t& index, const char*& format_start) {
+                                                size_t& index, const char*& format_start)
+{
     std::string_view name;
     return parse_smart_placeholder(ctx, ptr, end, index, name, format_start);
 }
 
 template <typename Context>
-constexpr bool resolve_dynamic_param(Context& ctx, size_t index, std::string_view name, int& out) {
+constexpr bool resolve_dynamic_param(Context& ctx, size_t index, std::string_view name, int& out)
+{
     if (index == INVALID_INDEX && name.empty()) {
         return true; // 没有动态参数
     }
@@ -256,7 +270,8 @@ constexpr bool resolve_dynamic_param(Context& ctx, size_t index, std::string_vie
 }
 
 template <typename Context>
-constexpr bool resolve_dynamic_spec(parser_result& result, Context& ctx, format_spec& spec) {
+constexpr bool resolve_dynamic_spec(parser_result& result, Context& ctx, format_spec& spec)
+{
     if (!resolve_dynamic_param(ctx, spec.width_index, spec.width_name, spec.width)) {
         result.error(parser_error::invalid_dynamic_param);
         return false;
@@ -271,7 +286,8 @@ constexpr bool resolve_dynamic_spec(parser_result& result, Context& ctx, format_
 }
 
 template <typename Arg>
-constexpr const char* parse_format_spec(const char* start, const char* end, format_spec& spec, const Arg* arg) {
+constexpr const char* parse_format_spec(const char* start, const char* end, format_spec& spec, const Arg* arg)
+{
     if (start == nullptr || start >= end) {
         return start;
     }
@@ -281,7 +297,8 @@ constexpr const char* parse_format_spec(const char* start, const char* end, form
 }
 
 template <typename Context>
-constexpr parser_result parse_named_arg(Context& ctx, const char*& ptr, const char* end, size_t& arg_index) {
+constexpr parser_result parse_named_arg(Context& ctx, const char*& ptr, const char* end, size_t& arg_index)
+{
     const char*   original_ptr = ptr; // 保存原始指针，用于错误时重构完整文本
     string_view   name;
     const char*   format_start = nullptr;
@@ -319,7 +336,8 @@ constexpr parser_result parse_named_arg(Context& ctx, const char*& ptr, const ch
 }
 
 template <typename Context>
-constexpr parser_result parse_index_arg(Context& ctx, const char*& ptr, const char* end, size_t& arg_index) {
+constexpr parser_result parse_index_arg(Context& ctx, const char*& ptr, const char* end, size_t& arg_index)
+{
     const char*      original_ptr = ptr; // 保存原始指针，用于错误时重构完整文本
     size_t           index        = INVALID_INDEX;
     std::string_view name;
@@ -377,12 +395,14 @@ constexpr parser_result parse_index_arg(Context& ctx, const char*& ptr, const ch
     return result;
 }
 
-constexpr bool is_escaped(const char* ptr, const char* end, char c) {
+constexpr bool is_escaped(const char* ptr, const char* end, char c)
+{
     return ptr + 1 < end && ptr[1] == c;
 }
 
 template <typename Context>
-constexpr void parse_format_string(string_view fmt_str, Context& ctx) {
+constexpr void parse_format_string(string_view fmt_str, Context& ctx)
+{
     const char* ptr       = fmt_str.data();
     const char* end       = ptr + fmt_str.size();
     size_t      arg_index = 0;
@@ -473,7 +493,8 @@ public:
     static void format_custom(format_context& ctx, const custom_t& custom, const format_spec& spec);
 
     template <typename T, std::enable_if_t<std::is_integral_v<T>, int> = 0>
-    static void format_integer(format_context& ctx, T value, const format_spec& spec) {
+    static void format_integer(format_context& ctx, T value, const format_spec& spec)
+    {
         if constexpr (std::is_signed_v<T>) {
             format_int(ctx, static_cast<int64_t>(value), spec);
         } else {

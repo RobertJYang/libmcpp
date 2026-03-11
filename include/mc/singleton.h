@@ -76,7 +76,8 @@ private:
     ~singleton_manager();
 
     struct type_key_hash {
-        std::size_t operator()(const type_key_t& key) const {
+        std::size_t operator()(const type_key_t& key) const
+        {
             return std::hash<std::type_index>()(key.first) ^ std::hash<std::size_t>()(key.second);
         }
     };
@@ -103,7 +104,8 @@ class singleton_impl {
 public:
     // 单例访问函数，支持自定义创建函数
     template <typename... Args>
-    static T& get_instance(Args&&... args) {
+    static T& get_instance(Args&&... args)
+    {
         auto creator = [&]() {
             return new T(std::forward<Args>(args)...);
         };
@@ -112,7 +114,8 @@ public:
 
     // 使用自定义创建函数和选项获取单例实例
     template <typename Creator>
-    static T& get_instance_with_creator(Creator creator, const singleton_options& options = {}) {
+    static T& get_instance_with_creator(Creator creator, const singleton_options& options = {})
+    {
         if (MC_LIKELY(instance_ptr.load(std::memory_order_acquire) != nullptr)) {
             return *instance_ptr.load(std::memory_order_acquire);
         }
@@ -138,7 +141,8 @@ public:
     }
 
     // 重置单例状态（仅用于测试）
-    static void reset_for_test() {
+    static void reset_for_test()
+    {
         if (instance_ptr.load(std::memory_order_relaxed) != nullptr) {
             std::lock_guard<std::mutex> lock(creation_mutex);
             T*                          instance = instance_ptr.load(std::memory_order_relaxed);
@@ -150,18 +154,21 @@ public:
     }
 
     // 检查单例是否已创建
-    static bool created() {
+    static bool created()
+    {
         return instance_ptr.load(std::memory_order_relaxed) != nullptr;
     }
 
     // 获取单例实例指针（如果存在）
-    static T* get_instance_if_created() {
+    static T* get_instance_if_created()
+    {
         return instance_ptr.load(std::memory_order_relaxed);
     }
 
 private:
     // 获取类型唯一标识
-    static singleton_manager::type_key_t get_type_key() {
+    static singleton_manager::type_key_t get_type_key()
+    {
         static const std::size_t tag_id = reinterpret_cast<std::size_t>(&tag_id);
         return {std::type_index(typeid(T)), tag_id};
     }
@@ -198,7 +205,8 @@ public:
      * @return 单例实例引用
      */
     template <typename... Args>
-    static T& instance(Args&&... args) {
+    static T& instance(Args&&... args)
+    {
         auto creator = [&]() {
             return new T(std::forward<Args>(args)...);
         };
@@ -211,7 +219,8 @@ public:
      * @return 单例实例引用
      */
     template <typename Creator>
-    static T& instance_with_creator(Creator creator) {
+    static T& instance_with_creator(Creator creator)
+    {
         singleton_options options;
         options.leaky = false; // 非泄露模式
         return detail::singleton_impl<T, Tag>::get_instance_with_creator(std::move(creator),
@@ -221,7 +230,8 @@ public:
     /**
      * @brief 重置单例状态（仅用于测试）
      */
-    static void reset_for_test() {
+    static void reset_for_test()
+    {
         detail::singleton_impl<T, Tag>::reset_for_test();
     }
 
@@ -229,7 +239,8 @@ public:
      * @brief 检查单例是否已创建
      * @return true如果单例已创建，否则false
      */
-    static bool created() {
+    static bool created()
+    {
         return detail::singleton_impl<T, Tag>::created();
     }
 
@@ -237,7 +248,8 @@ public:
      * @brief 获取单例实例指针（如果存在）
      * @return 单例实例指针，如果未创建返回nullptr
      */
-    static T* try_get() {
+    static T* try_get()
+    {
         return detail::singleton_impl<T, Tag>::get_instance_if_created();
     }
 
@@ -258,7 +270,8 @@ public:
      * @return 单例实例引用
      */
     template <typename... Args>
-    static T& instance(Args&&... args) {
+    static T& instance(Args&&... args)
+    {
         auto creator = [&]() {
             return new T(std::forward<Args>(args)...);
         };
@@ -271,7 +284,8 @@ public:
      * @return 单例实例引用
      */
     template <typename Creator>
-    static T& instance_with_creator(Creator creator) {
+    static T& instance_with_creator(Creator creator)
+    {
         singleton_options options;
         options.leaky = true; // 泄露模式
         return detail::singleton_impl<T, Tag>::get_instance_with_creator(std::move(creator),
@@ -281,7 +295,8 @@ public:
     /**
      * @brief 重置单例状态（仅用于测试）
      */
-    static void reset_for_test() {
+    static void reset_for_test()
+    {
         detail::singleton_impl<T, Tag>::reset_for_test();
     }
 
@@ -289,7 +304,8 @@ public:
      * @brief 检查单例是否已创建
      * @return true如果单例已创建，否则false
      */
-    static bool created() {
+    static bool created()
+    {
         return detail::singleton_impl<T, Tag>::created();
     }
 
@@ -297,7 +313,8 @@ public:
      * @brief 获取单例实例指针（如果存在）
      * @return 单例实例指针，如果未创建返回nullptr
      */
-    static T* try_get() {
+    static T* try_get()
+    {
         return detail::singleton_impl<T, Tag>::get_instance_if_created();
     }
 

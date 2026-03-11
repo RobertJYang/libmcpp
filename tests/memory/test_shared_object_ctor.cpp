@@ -20,43 +20,52 @@
 class ctor_test_object : public mc::enable_shared_from_this<ctor_test_object> {
 public:
     ctor_test_object()
-        : m_id(s_next_id++), m_data(std::make_unique<int>(42)) {
+        : m_id(s_next_id++), m_data(std::make_unique<int>(42))
+    {
         ++s_construct_count;
     }
 
     explicit ctor_test_object(int value)
-        : m_id(s_next_id++), m_data(std::make_unique<int>(value)) {
+        : m_id(s_next_id++), m_data(std::make_unique<int>(value))
+    {
         ++s_construct_count;
     }
 
-    ~ctor_test_object() {
+    ~ctor_test_object()
+    {
         ++s_destruct_count;
         m_data.reset(); // 清空资源
     }
 
-    int get_id() const {
+    int get_id() const
+    {
         return m_id;
     }
-    int get_data() const {
+    int get_data() const
+    {
         return m_data ? *m_data : -1;
     }
 
-    void set_data(int value) {
+    void set_data(int value)
+    {
         if (m_data) {
             *m_data = value;
         }
     }
 
-    static void reset_counters() {
+    static void reset_counters()
+    {
         s_construct_count = 0;
         s_destruct_count  = 0;
         s_next_id         = 1;
     }
 
-    static int get_construct_count() {
+    static int get_construct_count()
+    {
         return s_construct_count;
     }
-    static int get_destruct_count() {
+    static int get_destruct_count()
+    {
         return s_destruct_count;
     }
 
@@ -75,36 +84,43 @@ int ctor_test_object::s_next_id         = 1;
 // 异常安全测试对象
 class exception_test_object : public mc::enable_shared_from_this<exception_test_object> {
 public:
-    explicit exception_test_object(bool throw_in_constructor = false) {
+    explicit exception_test_object(bool throw_in_constructor = false)
+    {
         if (throw_in_constructor) {
             throw std::runtime_error("构造函数中的测试异常");
         }
         ++s_construct_count;
     }
 
-    ~exception_test_object() {
+    ~exception_test_object()
+    {
         ++s_destruct_count;
     }
 
-    void may_throw() {
+    void may_throw()
+    {
         if (m_should_throw) {
             throw std::runtime_error("测试异常");
         }
     }
 
-    void set_throw_flag(bool should_throw) {
+    void set_throw_flag(bool should_throw)
+    {
         m_should_throw = should_throw;
     }
 
-    static void reset_counters() {
+    static void reset_counters()
+    {
         s_construct_count = 0;
         s_destruct_count  = 0;
     }
 
-    static int get_construct_count() {
+    static int get_construct_count()
+    {
         return s_construct_count;
     }
-    static int get_destruct_count() {
+    static int get_destruct_count()
+    {
         return s_destruct_count;
     }
 
@@ -119,12 +135,14 @@ int exception_test_object::s_destruct_count  = 0;
 
 class SharedPtrConstructTest : public ::testing::Test {
 protected:
-    void SetUp() override {
+    void SetUp() override
+    {
         ctor_test_object::reset_counters();
         exception_test_object::reset_counters();
     }
 
-    void TearDown() override {
+    void TearDown() override
+    {
         // 确保所有对象都被正确析构
         EXPECT_EQ(ctor_test_object::get_construct_count(), ctor_test_object::get_destruct_count());
         EXPECT_EQ(exception_test_object::get_construct_count(), exception_test_object::get_destruct_count());
@@ -132,7 +150,8 @@ protected:
 };
 
 // 测试未初始化状态下的操作
-TEST_F(SharedPtrConstructTest, UninitializedStateOperations) {
+TEST_F(SharedPtrConstructTest, UninitializedStateOperations)
+{
     // 测试对象创建但未被 shared_ptr 管理的状态
     auto* raw_obj = new ctor_test_object(100);
 
@@ -151,7 +170,8 @@ TEST_F(SharedPtrConstructTest, UninitializedStateOperations) {
     EXPECT_EQ(ptr.use_count(), 1);
 }
 
-TEST_F(SharedPtrConstructTest, FromRawWithoutAddRefThrowsOnReset) {
+TEST_F(SharedPtrConstructTest, FromRawWithoutAddRefThrowsOnReset)
+{
     auto* raw_obj = new ctor_test_object(150);
     EXPECT_FALSE(raw_obj->is_managed());
 
@@ -159,7 +179,8 @@ TEST_F(SharedPtrConstructTest, FromRawWithoutAddRefThrowsOnReset) {
     delete raw_obj;
 }
 
-TEST_F(SharedPtrConstructTest, ResetThrowsWhenRefCountAlreadyDestroyed) {
+TEST_F(SharedPtrConstructTest, ResetThrowsWhenRefCountAlreadyDestroyed)
+{
     auto*                            raw_obj = new ctor_test_object(160);
     mc::shared_ptr<ctor_test_object> ptr(raw_obj);
 
@@ -181,7 +202,8 @@ TEST_F(SharedPtrConstructTest, ResetThrowsWhenRefCountAlreadyDestroyed) {
 }
 
 // 测试 shared_from_this 在不同状态下的行为
-TEST_F(SharedPtrConstructTest, SharedFromThisStates) {
+TEST_F(SharedPtrConstructTest, SharedFromThisStates)
+{
     auto obj = mc::make_shared<ctor_test_object>(200);
 
     // 正常情况下的 shared_from_this
@@ -203,7 +225,8 @@ TEST_F(SharedPtrConstructTest, SharedFromThisStates) {
 }
 
 // 测试异常安全性
-TEST_F(SharedPtrConstructTest, ExceptionSafety) {
+TEST_F(SharedPtrConstructTest, ExceptionSafety)
+{
     // 测试构造函数抛异常的情况
     EXPECT_THROW({
         mc::make_shared<exception_test_object>(true);
@@ -231,7 +254,8 @@ TEST_F(SharedPtrConstructTest, ExceptionSafety) {
 }
 
 // 测试自赋值和自交换
-TEST_F(SharedPtrConstructTest, SelfSwap) {
+TEST_F(SharedPtrConstructTest, SelfSwap)
+{
     auto  obj            = mc::make_shared<ctor_test_object>(300);
     auto* original_ptr   = obj.get();
     auto  original_count = obj.use_count();
@@ -246,7 +270,8 @@ TEST_F(SharedPtrConstructTest, SelfSwap) {
 }
 
 // 测试空指针和 nullptr 操作
-TEST_F(SharedPtrConstructTest, NullptrOperations) {
+TEST_F(SharedPtrConstructTest, NullptrOperations)
+{
     mc::shared_ptr<ctor_test_object> null_ptr;
     mc::shared_ptr<ctor_test_object> nullptr_ptr(nullptr);
 
@@ -276,7 +301,8 @@ TEST_F(SharedPtrConstructTest, NullptrOperations) {
 }
 
 // 测试引用计数溢出边界
-TEST_F(SharedPtrConstructTest, ReferenceCountBoundaries) {
+TEST_F(SharedPtrConstructTest, ReferenceCountBoundaries)
+{
     auto obj = mc::make_shared<ctor_test_object>(500);
 
     // 测试大量引用
@@ -303,7 +329,8 @@ TEST_F(SharedPtrConstructTest, ReferenceCountBoundaries) {
 }
 
 // 测试 weak_ptr 相关的边界情况
-TEST_F(SharedPtrConstructTest, WeakPtrEdgeCases) {
+TEST_F(SharedPtrConstructTest, WeakPtrEdgeCases)
+{
     mc::weak_ptr<ctor_test_object> weak;
 
     // 空 weak_ptr 的操作
@@ -341,32 +368,38 @@ TEST_F(SharedPtrConstructTest, WeakPtrEdgeCases) {
 class edge_base : public mc::enable_shared_from_this<edge_base> {
 public:
     virtual ~edge_base() = default;
-    virtual int get_type() const {
+    virtual int get_type() const
+    {
         return 1;
     }
 };
 
 class edge_derived : public edge_base {
 public:
-    int get_type() const override {
+    int get_type() const override
+    {
         return 2;
     }
-    int get_derived_value() const {
+    int get_derived_value() const
+    {
         return 42;
     }
 };
 
 class edge_other_derived : public edge_base {
 public:
-    int get_type() const override {
+    int get_type() const override
+    {
         return 3;
     }
-    int get_other_value() const {
+    int get_other_value() const
+    {
         return 84;
     }
 };
 
-TEST_F(SharedPtrConstructTest, TypeConversionEdgeCases) {
+TEST_F(SharedPtrConstructTest, TypeConversionEdgeCases)
+{
     // 成功的向上转换
     auto                      derived = mc::make_shared<edge_derived>();
     mc::shared_ptr<edge_base> base    = derived;
@@ -400,7 +433,8 @@ TEST_F(SharedPtrConstructTest, TypeConversionEdgeCases) {
 }
 
 // 测试 from_raw 的边界情况
-TEST_F(SharedPtrConstructTest, FromRawEdgeCases) {
+TEST_F(SharedPtrConstructTest, FromRawEdgeCases)
+{
     // 使用 nullptr
     auto null_ptr = ctor_test_object::from_raw(nullptr);
     EXPECT_FALSE(null_ptr);
@@ -428,7 +462,8 @@ TEST_F(SharedPtrConstructTest, FromRawEdgeCases) {
 }
 
 // 测试 detach 操作
-TEST_F(SharedPtrConstructTest, DetachOperation) {
+TEST_F(SharedPtrConstructTest, DetachOperation)
+{
     auto  obj     = mc::make_shared<ctor_test_object>(800);
     auto* raw_ptr = obj.get();
 
@@ -459,7 +494,8 @@ TEST_F(SharedPtrConstructTest, DetachOperation) {
 }
 
 // 测试析构过程中的异常安全
-TEST_F(SharedPtrConstructTest, DestructorExceptionSafety) {
+TEST_F(SharedPtrConstructTest, DestructorExceptionSafety)
+{
     // 这个测试主要验证析构过程不会因为异常而导致问题
 
     {
@@ -490,7 +526,8 @@ TEST_F(SharedPtrConstructTest, DestructorExceptionSafety) {
 }
 
 // 测试 hash 功能（如果实现了的话）
-TEST_F(SharedPtrConstructTest, HashFunctionality) {
+TEST_F(SharedPtrConstructTest, HashFunctionality)
+{
     auto obj1      = mc::make_shared<ctor_test_object>(900);
     auto obj2      = mc::make_shared<ctor_test_object>(901);
     auto obj1_copy = obj1;

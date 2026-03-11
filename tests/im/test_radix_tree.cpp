@@ -21,17 +21,23 @@ struct TestValue {
     std::string text;
     int         number;
 
-    TestValue() : text(), number(0) {
+    TestValue()
+        : text(), number(0)
+    {
     }
-    TestValue(const std::string& t, int n) : text(t), number(n) {
+    TestValue(const std::string& t, int n)
+        : text(t), number(n)
+    {
     }
 
-    bool operator==(const TestValue& other) const {
+    bool operator==(const TestValue& other) const
+    {
         return text == other.text && number == other.number;
     }
 };
 
-TEST(RadixTreeTest, CustomLeafType) {
+TEST(RadixTreeTest, CustomLeafType)
+{
     // 定义使用 TestValue 作为 leaf_type 的配置
     using TestConfig = mc::im::tree_config<TestValue>;
 
@@ -130,7 +136,8 @@ TEST(RadixTreeTest, CustomLeafType) {
     EXPECT_FALSE(committed1.has_value());
 }
 
-TEST(RadixTreeTest, MixedConfigs) {
+TEST(RadixTreeTest, MixedConfigs)
+{
     // 默认配置树（void*）
     mc::im::radix_tree<> default_tree;
 
@@ -168,7 +175,8 @@ TEST(RadixTreeTest, MixedConfigs) {
 }
 
 // 简化的迭代器测试用例
-TEST(RadixTreeTest, BasicIterator) {
+TEST(RadixTreeTest, BasicIterator)
+{
     // 使用自定义配置创建 radix_tree
     using TestConfig = mc::im::tree_config<TestValue>;
 
@@ -199,7 +207,8 @@ TEST(RadixTreeTest, BasicIterator) {
 }
 
 // 测试迭代器的复制和相等性
-TEST(RadixTreeTest, IteratorCopyAndEquality) {
+TEST(RadixTreeTest, IteratorCopyAndEquality)
+{
     // 使用自定义配置创建 radix_tree
     using TestConfig = mc::im::tree_config<TestValue>;
 
@@ -237,7 +246,8 @@ TEST(RadixTreeTest, IteratorCopyAndEquality) {
 }
 
 // 测试前缀匹配
-TEST(RadixTreeTest, PrefixMatching) {
+TEST(RadixTreeTest, PrefixMatching)
+{
     // 使用自定义配置创建 radix_tree
     using TestConfig = mc::im::tree_config<TestValue>;
 
@@ -280,7 +290,8 @@ TEST(RadixTreeTest, PrefixMatching) {
 }
 
 // 测试后序递增操作
-TEST(RadixTreeTest, PostIncrementIterator) {
+TEST(RadixTreeTest, PostIncrementIterator)
+{
     // 使用自定义配置创建 radix_tree
     using TestConfig = mc::im::tree_config<TestValue>;
     // 创建事务
@@ -306,7 +317,8 @@ TEST(RadixTreeTest, PostIncrementIterator) {
 }
 
 // 测试for-range语法 - 禁用此测试
-TEST(RadixTreeTest, ForRangeLoop) {
+TEST(RadixTreeTest, ForRangeLoop)
+{
     // 使用自定义配置创建 radix_tree
     using TestConfig = mc::im::tree_config<TestValue>;
 
@@ -343,7 +355,8 @@ TEST(RadixTreeTest, ForRangeLoop) {
 }
 
 // 测试空树 get() 方法
-TEST(RadixTreeTest, RadixTreeGetOnEmptyTree) {
+TEST(RadixTreeTest, RadixTreeGetOnEmptyTree)
+{
     using TestConfig = mc::im::tree_config<TestValue>;
     mc::im::radix_tree<TestConfig> empty_tree;
 
@@ -353,7 +366,8 @@ TEST(RadixTreeTest, RadixTreeGetOnEmptyTree) {
 }
 
 // 测试空树 find() 方法
-TEST(RadixTreeTest, RadixTreeFindOnEmptyTree) {
+TEST(RadixTreeTest, RadixTreeFindOnEmptyTree)
+{
     using TestConfig = mc::im::tree_config<TestValue>;
     mc::im::radix_tree<TestConfig> empty_tree;
 
@@ -363,7 +377,8 @@ TEST(RadixTreeTest, RadixTreeFindOnEmptyTree) {
 }
 
 // 测试空键 find() 方法
-TEST(RadixTreeTest, RadixTreeFindWithEmptyKey) {
+TEST(RadixTreeTest, RadixTreeFindWithEmptyKey)
+{
     using TestConfig = mc::im::tree_config<TestValue>;
     mc::im::transaction<TestConfig> tx;
 
@@ -380,7 +395,8 @@ TEST(RadixTreeTest, RadixTreeFindWithEmptyKey) {
 }
 
 // 测试 find() 匹配非叶子节点场景
-TEST(RadixTreeTest, RadixTreeFindNonLeafMatch) {
+TEST(RadixTreeTest, RadixTreeFindNonLeafMatch)
+{
     using TestConfig = mc::im::tree_config<TestValue>;
     mc::im::transaction<TestConfig> tx;
 

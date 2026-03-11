@@ -15,7 +15,8 @@
 
 namespace mc::engine {
 
-service* abstract_interface::get_service() const {
+service* abstract_interface::get_service() const
+{
     auto owner = get_owner();
     if (!owner) {
         return nullptr;
@@ -24,7 +25,8 @@ service* abstract_interface::get_service() const {
     return owner->get_service();
 }
 
-context& abstract_object::get_context() {
+context& abstract_object::get_context()
+{
     context* ctx = context_stack::top_value();
     if (!ctx) {
         MC_THROW(mc::runtime_exception,
@@ -36,7 +38,8 @@ context& abstract_object::get_context() {
     return *ctx;
 }
 
-context& abstract_interface::get_context() {
+context& abstract_interface::get_context()
+{
     context* ctx = context_stack::top_value();
     if (!ctx) {
         MC_THROW(mc::runtime_exception,
