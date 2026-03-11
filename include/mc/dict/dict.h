@@ -231,6 +231,8 @@ public:
     variant& operator[](const std::string& key);
     variant& operator[](std::string_view key);
     variant& operator[](const char* key);
+    variant& operator[](int key); // 支持整数键，避免 int 转换为 const char*
+    variant& operator[](int64_t key); // 支持整数键
     variant& operator[](const variant& key);
 
     /**
@@ -240,6 +242,8 @@ public:
     const variant& operator[](const std::string& key) const;
     const variant& operator[](std::string_view key) const;
     const variant& operator[](const char* key) const;
+    const variant& operator[](int key) const; // 支持整数键，避免 int 转换为 const char*
+    const variant& operator[](int64_t key) const; // 支持整数键
     const variant& operator[](const variant& key) const;
     /**
      * @brief 获取指定键的值，如果不存在则返回默认值
@@ -254,7 +258,10 @@ public:
     bool contains(const std::string& key) const;
     bool contains(std::string_view key) const;
     bool contains(const char* key) const;
+    bool contains(int key) const; // 支持整数键，避免 int 转换为 const char*
+    bool contains(int64_t key) const; // 支持整数键
     bool contains(const variant& key) const;
+
     /**
      * @brief 获取键值对数量
      */

@@ -123,6 +123,17 @@ variant& dict::operator[](const variant& key)
     return new_entry->value;
 }
 
+// 支持整数键的 operator[]（用于数组类型 dict）
+variant& dict::operator[](int key)
+{
+    return (*this)[static_cast<int64_t>(key)];
+}
+
+variant& dict::operator[](int64_t key)
+{
+    return (*this)[mc::variant(key)];
+}
+
 bool dict::erase(const std::string& key)
 {
     return erase(std::string_view(key));
